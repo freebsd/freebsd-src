@@ -63,7 +63,7 @@ SYSCTL_INT(_net_wlan, OID_AUTO, debug, CTLFLAG_RW, &ieee80211_debug,
 	    0, "debugging printfs");
 #endif
 
-MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
+static MALLOC_DEFINE(M_80211_COM, "80211com", "802.11 com state");
 
 /*
  * Allocate/free com structure in conjunction with ifnet;
@@ -571,8 +571,8 @@ ieee80211_notify_replay_failure(struct ieee80211vap *vap,
 	struct ifnet *ifp = vap->iv_ifp;
 
 	IEEE80211_NOTE_MAC(vap, IEEE80211_MSG_CRYPTO, wh->i_addr2,
-	    "%s replay detected <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
-	    k->wk_cipher->ic_name, (intmax_t) rsc,
+	    "%s replay detected tid %d <rsc %ju, csc %ju, keyix %u rxkeyix %u>",
+	    tid, k->wk_cipher->ic_name, (intmax_t) rsc,
 	    (intmax_t) k->wk_keyrsc[tid],
 	    k->wk_keyix, k->wk_rxkeyix);
 

@@ -23,8 +23,8 @@ __FBSDID("$FreeBSD$");
 
 #define NSTUDENT 100
 #define NCONF 6
-double const studentpct[] = { 80, 90, 95, 98, 99, 99.5 };
-double student [NSTUDENT + 1][NCONF] = {
+static double const studentpct[] = { 80, 90, 95, 98, 99, 99.5 };
+static double student[NSTUDENT + 1][NCONF] = {
 /* inf */	{	1.282,	1.645,	1.960,	2.326,	2.576,	3.090  },
 /* 1. */	{	3.078,	6.314,	12.706,	31.821,	63.657,	318.313  },
 /* 2. */	{	1.886,	2.920,	4.303,	6.965,	9.925,	22.327  },

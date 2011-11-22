@@ -1064,6 +1064,7 @@ dev/ep/if_ep_eisa.c		optional ep eisa
 dev/ep/if_ep_isa.c		optional ep isa
 dev/ep/if_ep_mca.c		optional ep mca
 dev/ep/if_ep_pccard.c		optional ep pccard
+dev/esp/esp_pci.c		optional esp pci
 dev/esp/ncr53c9x.c		optional esp
 dev/ex/if_ex.c			optional ex
 dev/ex/if_ex_isa.c		optional ex isa
@@ -1425,6 +1426,7 @@ dev/mii/ip1000phy.c		optional miibus | ip1000phy
 dev/mii/jmphy.c			optional miibus | jmphy
 dev/mii/lxtphy.c		optional miibus | lxtphy
 dev/mii/mii.c			optional miibus | mii
+dev/mii/mii_bitbang.c		optional miibus | mii_bitbang
 dev/mii/mii_physubr.c		optional miibus | mii
 dev/mii/miibus_if.m		optional miibus | mii
 dev/mii/mlphy.c			optional miibus | mlphy
@@ -1669,6 +1671,37 @@ dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
+dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
+dev/sfxge/common/efx_ev.c	optional sfxge inet pci
+dev/sfxge/common/efx_filter.c	optional sfxge inet pci
+dev/sfxge/common/efx_intr.c	optional sfxge inet pci
+dev/sfxge/common/efx_mac.c	optional sfxge inet pci
+dev/sfxge/common/efx_mcdi.c	optional sfxge inet pci
+dev/sfxge/common/efx_mon.c	optional sfxge inet pci
+dev/sfxge/common/efx_nic.c	optional sfxge inet pci
+dev/sfxge/common/efx_nvram.c	optional sfxge inet pci
+dev/sfxge/common/efx_phy.c	optional sfxge inet pci
+dev/sfxge/common/efx_port.c	optional sfxge inet pci
+dev/sfxge/common/efx_rx.c	optional sfxge inet pci
+dev/sfxge/common/efx_sram.c	optional sfxge inet pci
+dev/sfxge/common/efx_tx.c	optional sfxge inet pci
+dev/sfxge/common/efx_vpd.c	optional sfxge inet pci
+dev/sfxge/common/efx_wol.c	optional sfxge inet pci
+dev/sfxge/common/siena_mac.c	optional sfxge inet pci
+dev/sfxge/common/siena_mon.c	optional sfxge inet pci
+dev/sfxge/common/siena_nic.c	optional sfxge inet pci
+dev/sfxge/common/siena_nvram.c	optional sfxge inet pci
+dev/sfxge/common/siena_phy.c	optional sfxge inet pci
+dev/sfxge/common/siena_sram.c	optional sfxge inet pci
+dev/sfxge/common/siena_vpd.c	optional sfxge inet pci
+dev/sfxge/sfxge.c		optional sfxge inet pci
+dev/sfxge/sfxge_dma.c		optional sfxge inet pci
+dev/sfxge/sfxge_ev.c		optional sfxge inet pci
+dev/sfxge/sfxge_intr.c		optional sfxge inet pci
+dev/sfxge/sfxge_mcdi.c		optional sfxge inet pci
+dev/sfxge/sfxge_port.c		optional sfxge inet pci
+dev/sfxge/sfxge_rx.c		optional sfxge inet pci
+dev/sfxge/sfxge_tx.c		optional sfxge inet pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si
@@ -2308,6 +2341,7 @@ kern/kern_event.c		standard
 kern/kern_exec.c		standard
 kern/kern_exit.c		standard
 kern/kern_fail.c		standard
+kern/kern_ffclock.c		standard
 kern/kern_fork.c		standard
 kern/kern_gzio.c		optional gzio
 kern/kern_hhook.c		standard
@@ -2524,6 +2558,7 @@ libkern/fnmatch.c		standard
 libkern/gets.c			standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
+libkern/iconv_ucs.c		optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
 libkern/index.c			standard

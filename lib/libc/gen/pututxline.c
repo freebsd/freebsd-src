@@ -86,6 +86,9 @@ utx_active_add(const struct futx *fu)
 		return (-1);
 	while (fread(&fe, sizeof(fe), 1, fp) == 1) {
 		switch (fe.fu_type) {
+		case BOOT_TIME:
+			/* Leave these intact. */
+			break;
 		case USER_PROCESS:
 		case INIT_PROCESS:
 		case LOGIN_PROCESS:
@@ -168,6 +171,19 @@ utx_active_remove(struct futx *fu)
 	fclose(fp);
 	errno = error;
 	return (ret);
+}
+
+static void
+utx_active_init(const struct futx *fu)
+{
+	int fd;
+
+	/* Initialize utx.active with a single BOOT_TIME record. */
+	fd = _open(_PATH_UTX_ACTIVE, O_CREAT|O_RDWR|O_TRUNC, 0644);
+	if (fd < 0)
+		return;
+	_write(fd, fu, sizeof(*fu));
+	_close(fd);
 }
 
 static void
@@ -277,9 +293,11 @@ pututxline(const struct utmpx *utmpx)
 
 	switch (fu.fu_type) {
 	case BOOT_TIME:
+		utx_active_init(&fu);
+		utx_lastlogin_upgrade();
+		break;
 	case SHUTDOWN_TIME:
 		utx_active_purge();
-		utx_lastlogin_upgrade();
 		break;
 	case OLD_TIME:
 	case NEW_TIME:

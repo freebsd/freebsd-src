@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 9, 2011
+.Dd November 1, 2011
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Op Fl scrvhpCP
 .Op Fl a|iFU
+.Op Fl -run-updates=[always|never]
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -246,6 +247,11 @@ rc file.
 Attempt to auto upgrade files that have not been user modified.
 This option can be dangerous when there are critical changes
 in the new versions that affect your running system.
+.It Fl -run-updates=[always|never]
+Specify always or never to run newaliases, pwd_mkdb, etc.
+at the end of the comparison run.
+If this option is omitted the default is to prompt the user
+for each update as necessary.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -364,6 +370,9 @@ with all values commented out:
 # Automatically upgrade files that have not been user modified (-U)
 # ***DANGEROUS***
 #AUTO_UPGRADE=
+#
+# Either always or never run newaliases, pwd_mkdb at the end (--run-updates)
+#RUN_UPDATES=
 #
 # Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
 #COMP_CONFS=

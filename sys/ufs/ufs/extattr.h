@@ -115,10 +115,6 @@ struct extattr {
 
 #include <sys/_sx.h>
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_EXTATTR);
-#endif
-
 struct vnode;
 LIST_HEAD(ufs_extattr_list_head, ufs_extattr_list_entry);
 struct ufs_extattr_list_entry {

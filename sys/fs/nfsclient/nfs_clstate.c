@@ -64,8 +64,8 @@ __FBSDID("$FreeBSD$");
  *     the granularity of the OpenOwner, then code must be added to
  *     serialize Ops on the OpenOwner.)
  * - When to get rid of OpenOwners and LockOwners.
- *   - When a process exits, it calls nfscl_cleanup(), which goes
- *     through the client list looking for all Open and Lock Owners.
+ *   - The function nfscl_cleanup_common() is executed after a process exits.
+ *     It goes through the client list looking for all Open and Lock Owners.
  *     When one is found, it is marked "defunct" or in the case of
  *     an OpenOwner without any Opens, freed.
  *     The renew thread scans for defunct Owners and gets rid of them,
@@ -699,7 +699,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 {
 	struct nfsclclient *clp;
 	struct nfsclclient *newclp = NULL;
-	struct nfscllockowner *lp, *nlp;
 	struct mount *mp;
 	struct nfsmount *nmp;
 	char uuid[HOSTUUIDLEN];
@@ -744,7 +743,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 		TAILQ_INIT(&clp->nfsc_deleg);
 		for (i = 0; i < NFSCLDELEGHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_deleghash[i]);
-		LIST_INIT(&clp->nfsc_defunctlockowner);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
@@ -792,11 +790,6 @@ nfscl_getcl(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
 			nfsv4_unlock(&clp->nfsc_lock, 0);
 			NFSUNLOCKCLSTATE();
 			return (EACCES);
-		}
-		/* get rid of defunct lockowners */
-		LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list,
-		    nlp) {
-			nfscl_freelockowner(lp, 0);
 		}
 		/*
 		 * If RFC3530 Sec. 14.2.33 is taken literally,
@@ -1537,13 +1530,6 @@ nfscl_cleanclient(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op, *nop;
-	struct nfscllockowner *lp, *nlp;
-
-
-	/* get rid of defunct lockowners */
-	LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list, nlp) {
-		nfscl_freelockowner(lp, 0);
-	}
 
 	/* Now, all the OpenOwners, etc. */
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
@@ -1644,33 +1630,9 @@ nfscl_expireclient(struct nfsclclient *clp, struct nfsmount *nmp,
 	}
 }
 
-#ifndef	__FreeBSD__
 /*
- * Called from exit() upon process termination.
- */
-APPLESTATIC void
-nfscl_cleanup(NFSPROC_T *p)
-{
-	struct nfsclclient *clp;
-	u_int8_t own[NFSV4CL_LOCKNAMELEN];
-
-	if (!nfscl_inited)
-		return;
-	nfscl_filllockowner(p->td_proc, own, F_POSIX);
-
-	NFSLOCKCLSTATE();
-	/*
-	 * Loop through all the clientids, looking for the OpenOwners.
-	 */
-	LIST_FOREACH(clp, &nfsclhead, nfsc_list)
-		nfscl_cleanup_common(clp, own);
-	NFSUNLOCKCLSTATE();
-}
-#endif	/* !__FreeBSD__ */
-
-/*
- * Common code used by nfscl_cleanup() and nfscl_cleanupkext().
- * Must be called with CLSTATE lock held.
+ * This function must be called after the process represented by "own" has
+ * exited. Must be called with CLSTATE lock held.
  */
 static void
 nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
@@ -1717,25 +1679,15 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 		}
 		owp = nowp;
 	}
-
-	/* and check the defunct list */
-	LIST_FOREACH(lp, &clp->nfsc_defunctlockowner, nfsl_list) {
-		if (!NFSBCMP(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN))
-		    lp->nfsl_defunct = 1;
-	}
 }
 
-#if defined(APPLEKEXT) || defined(__FreeBSD__)
 /*
- * Simulate the call nfscl_cleanup() by looking for open owners associated
- * with processes that no longer exist, since a call to nfscl_cleanup()
- * can't be patched into exit().
+ * Find open/lock owners for processes that have exited.
  */
 static void
 nfscl_cleanupkext(struct nfsclclient *clp)
 {
 	struct nfsclowner *owp, *nowp;
-	struct nfscllockowner *lp;
 
 	NFSPROCLISTLOCK();
 	NFSLOCKCLSTATE();
@@ -1743,16 +1695,9 @@ nfscl_cleanupkext(struct nfsclclient *clp)
 		if (nfscl_procdoesntexist(owp->nfsow_owner))
 			nfscl_cleanup_common(clp, owp->nfsow_owner);
 	}
-
-	/* and check the defunct list */
-	LIST_FOREACH(lp, &clp->nfsc_defunctlockowner, nfsl_list) {
-		if (nfscl_procdoesntexist(lp->nfsl_owner))
-			lp->nfsl_defunct = 1;
-	}
 	NFSUNLOCKCLSTATE();
 	NFSPROCLISTUNLOCK();
 }
-#endif	/* APPLEKEXT || __FreeBSD__ */
 
 static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
 /*
@@ -1904,11 +1849,6 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	}
 	NFSUNLOCKREQ();
 	splx(s);
-
-	/* get rid of defunct lockowners */
-	LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list, nlp) {
-		nfscl_freelockowner(lp, 0);
-	}
 
 	/*
 	 * Now, mark all delegations "need reclaim".
@@ -2157,7 +2097,6 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 APPLESTATIC int
 nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 {
-	struct nfscllockowner *lp, *nlp;
 	struct nfsmount *nmp;
 	struct ucred *cred;
 	int igotlock = 0, error, trycnt;
@@ -2207,12 +2146,6 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 		clp->nfsc_flags &= ~(NFSCLFLAGS_HASCLIENTID |
 		    NFSCLFLAGS_RECOVER);
 	} else {
-		/* get rid of defunct lockowners */
-		LIST_FOREACH_SAFE(lp, &clp->nfsc_defunctlockowner, nfsl_list,
-		    nlp) {
-			nfscl_freelockowner(lp, 0);
-		}
-
 		/*
 		 * Expire the state for the client.
 		 */
@@ -2406,6 +2339,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	u_int32_t clidrev;
 	int error, cbpathdown, islept, igotlock, ret, clearok;
 	uint32_t recover_done_time = 0;
+	struct timespec mytime;
+	static time_t prevsec = 0;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2486,25 +2421,6 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 		    owp = nowp;
 		}
 
-		/* also search the defunct list */
-		lp = LIST_FIRST(&clp->nfsc_defunctlockowner);
-		while (lp != NULL) {
-		    nlp = LIST_NEXT(lp, nfsl_list);
-		    if (lp->nfsl_defunct) {
-			LIST_FOREACH(olp, &lh, nfsl_list) {
-			    if (!NFSBCMP(olp->nfsl_owner, lp->nfsl_owner,
-				NFSV4CL_LOCKNAMELEN))
-				break;
-			}
-			if (olp == NULL) {
-			    LIST_REMOVE(lp, nfsl_list);
-			    LIST_INSERT_HEAD(&lh, lp, nfsl_list);
-			} else {
-			    nfscl_freelockowner(lp, 0);
-			}
-		    }
-		    lp = nlp;
-		}
 		/* and release defunct lock owners */
 		LIST_FOREACH_SAFE(lp, &lh, nfsl_list, nlp) {
 		    nfscl_freelockowner(lp, 0);
@@ -2612,22 +2528,15 @@ tryagain:
 			FREE((caddr_t)dp, M_NFSCLDELEG);
 		}
 
-#if defined(APPLEKEXT) || defined(__FreeBSD__)
 		/*
-		 * Simulate the calls to nfscl_cleanup() when a process
-		 * exits, since the call can't be patched into exit().
+		 * Call nfscl_cleanupkext() once per second to check for
+		 * open/lock owners where the process has exited.
 		 */
-		{
-			struct timespec mytime;
-			static time_t prevsec = 0;
-
-			NFSGETNANOTIME(&mytime);
-			if (prevsec != mytime.tv_sec) {
-				prevsec = mytime.tv_sec;
-				nfscl_cleanupkext(clp);
-			}
+		NFSGETNANOTIME(&mytime);
+		if (prevsec != mytime.tv_sec) {
+			prevsec = mytime.tv_sec;
+			nfscl_cleanupkext(clp);
 		}
-#endif	/* APPLEKEXT || __FreeBSD__ */
 
 		NFSLOCKCLSTATE();
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)

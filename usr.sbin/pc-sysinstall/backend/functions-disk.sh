@@ -470,7 +470,8 @@ setup_disk_slice()
               # Default to round-robin if the user didn't specify
               if [ -z "$MIRRORBAL" ]; then MIRRORBAL="round-robin" ; fi
 
-              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$DISK
+	      _mFile=`echo $DISK | sed 's|/|%|g'`
+              echo "$MIRRORDISK:$MIRRORBAL:gm${gmnum}" >${MIRRORCFGDIR}/$_mFile
 	      init_gmirror "$gmnum" "$MIRRORBAL" "$DISK" "$MIRRORDISK"
 
 	      # Reset DISK to the gmirror device
@@ -493,6 +494,13 @@ setup_disk_slice()
             # Get the number of the slice we are working on
             s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
             run_gpart_slice "${DISK}" "${BMANAGER}" "${s}"
+            ;;
+
+          p1|p2|p3|p4|p5|p6|p7|p8|p9|p10|p11|p12|p13|p14|p15|p16|p17|p18|p19|p20)
+            tmpSLICE="${DISK}${PTYPE}" 
+            # Get the number of the gpt partition we are working on
+            s="`echo ${PTYPE} | awk '{print substr($0,length,1)}'`" 
+            run_gpart_gpt_part "${DISK}" "${BMANAGER}" "${s}"
             ;;
 
           free)
@@ -691,6 +699,58 @@ run_gpart_full()
     init_gpt_full_disk "$DISK"
     slice=`echo "${DISK}:1:gpt" | sed 's|/|-|g'`
   fi
+
+  # Lets save our slice, so we know what to look for in the config file later on
+  if [ -z "$WORKINGSLICES" ]
+  then
+    WORKINGSLICES="${slice}"
+    export WORKINGSLICES
+  else
+    WORKINGSLICES="${WORKINGSLICES} ${slice}"
+    export WORKINGSLICES
+  fi
+};
+
+# Function which runs gpart on a specified gpt partition
+run_gpart_gpt_part()
+{
+  DISK=$1
+
+  # Set the slice we will use later
+  slice="${1}p${3}"
+ 
+  # Set our sysctl so we can overwrite any geom using drives
+  sysctl kern.geom.debugflags=16 >>${LOGOUT} 2>>${LOGOUT}
+
+  # Get the number of the slice we are working on
+  slicenum="$3"
+
+  # Stop any journaling
+  stop_gjournal "${slice}"
+
+  # Make sure we have disabled swap on this drive
+  if [ -e "${slice}b" ]
+  then
+   swapoff ${slice}b >/dev/null 2>/dev/null
+   swapoff ${slice}b.eli >/dev/null 2>/dev/null
+  fi
+
+  # Modify partition type
+  echo_log "Running gpart modify on ${DISK}"
+  rc_halt "gpart modify -t freebsd -i ${slicenum} ${DISK}"
+  sleep 2
+
+  # Clean up old partition
+  echo_log "Cleaning up $slice"
+  rc_halt "dd if=/dev/zero of=${DISK}p${slicenum} count=1024"
+
+  sleep 4
+
+  # Init the MBR partition
+  rc_halt "gpart create -s BSD ${DISK}p${slicenum}"
+
+  # Set the slice to the format we'll be using for gpart later
+  slice=`echo "${1}:${3}:gptslice" | sed 's|/|-|g'`
 
   # Lets save our slice, so we know what to look for in the config file later on
   if [ -z "$WORKINGSLICES" ]

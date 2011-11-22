@@ -325,16 +325,33 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 }
 
 /*
- * pause() is like tsleep() except that the intention is to not be
- * explicitly woken up by another thread.  Instead, the current thread
- * simply wishes to sleep until the timeout expires.  It is
- * implemented using a dummy wait channel.
+ * pause() delays the calling thread by the given number of system ticks.
+ * During cold bootup, pause() uses the DELAY() function instead of
+ * the tsleep() function to do the waiting. The "timo" argument must be
+ * greater than zero.
  */
 int
 pause(const char *wmesg, int timo)
 {
+	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
 
-	KASSERT(timo != 0, ("pause: timeout required"));
+	/* silently convert invalid timeouts */
+	if (timo < 1)
+		timo = 1;
+
+	if (cold) {
+		/*
+		 * We delay one HZ at a time to avoid overflowing the
+		 * system specific DELAY() function(s):
+		 */
+		while (timo >= hz) {
+			DELAY(1000000);
+			timo -= hz;
+		}
+		if (timo > 0)
+			DELAY(timo * tick);
+		return (0);
+	}
 	return (tsleep(&pause_wchan, 0, wmesg, timo));
 }
 

@@ -161,7 +161,7 @@ MALLOC_DEFINE(M_TAP, CDEV_NAME, "Ethernet tunnel interface");
 SYSCTL_INT(_debug, OID_AUTO, if_tap_debug, CTLFLAG_RW, &tapdebug, 0, "");
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, OID_AUTO, tap, CTLFLAG_RW, 0,
     "Ethernet tunnel software network interface");
 SYSCTL_INT(_net_link_tap, OID_AUTO, user_open, CTLFLAG_RW, &tapuopen, 0,
 	"Allow user to open /dev/tap (based on node permissions)");
@@ -218,7 +218,7 @@ tap_destroy(struct tap_softc *tp)
 	knlist_destroy(&tp->tap_rsel.si_note);
 	destroy_dev(tp->tap_dev);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	mtx_destroy(&tp->tap_mtx);
 	free(tp, M_TAP);

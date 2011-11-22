@@ -86,7 +86,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int xhcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, xhci, CTLFLAG_RW, 0, "USB XHCI");
 SYSCTL_INT(_hw_usb_xhci, OID_AUTO, debug, CTLFLAG_RW,
     &xhcidebug, 0, "Debug level");
 
@@ -292,7 +292,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_USBCMD, XHCI_CMD_HCRST);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBCMD) &
 		    (XHCI_CMD_HCRST | XHCI_STS_CNR);
 		if (!temp)
@@ -453,7 +453,7 @@ xhci_start_controller(struct xhci_softc *sc)
 	    XHCI_CMD_INTE | XHCI_CMD_HSEE);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_HCH;
 		if (!temp)
 			break;
@@ -487,7 +487,7 @@ xhci_halt_controller(struct xhci_softc *sc)
 	XWRITE4(sc, oper, XHCI_USBCMD, 0);
 
 	for (i = 0; i != 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 100);
 		temp = XREAD4(sc, oper, XHCI_USBSTS) & XHCI_STS_HCH;
 		if (temp)
 			break;
@@ -1110,7 +1110,7 @@ xhci_cmd_nop(struct xhci_softc *sc)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 #endif
 
@@ -1127,7 +1127,7 @@ xhci_cmd_enable_slot(struct xhci_softc *sc, uint8_t *pslot)
 	trb.dwTrb2 = 0;
 	trb.dwTrb3 = htole32(XHCI_TRB_3_TYPE_SET(XHCI_TRB_TYPE_ENABLE_SLOT));
 
-	err = xhci_do_command(sc, &trb, 50 /* ms */);
+	err = xhci_do_command(sc, &trb, 100 /* ms */);
 	if (err)
 		goto done;
 
@@ -1154,7 +1154,7 @@ xhci_cmd_disable_slot(struct xhci_softc *sc, uint8_t slot_id)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1310,7 +1310,7 @@ xhci_cmd_configure_ep(struct xhci_softc *sc, uint64_t input_ctx,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1328,7 +1328,7 @@ xhci_cmd_evaluate_ctx(struct xhci_softc *sc, uint64_t input_ctx,
 	    XHCI_TRB_3_SLOT_SET(slot_id);
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1351,7 +1351,7 @@ xhci_cmd_reset_ep(struct xhci_softc *sc, uint8_t preserve,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1373,7 +1373,7 @@ xhci_cmd_set_tr_dequeue_ptr(struct xhci_softc *sc, uint64_t dequeue_ptr,
 	    XHCI_TRB_3_EP_SET(ep_id);
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1396,7 +1396,7 @@ xhci_cmd_stop_ep(struct xhci_softc *sc, uint8_t suspend,
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 static usb_error_t
@@ -1414,7 +1414,7 @@ xhci_cmd_reset_dev(struct xhci_softc *sc, uint8_t slot_id)
 
 	trb.dwTrb3 = htole32(temp);
 
-	return (xhci_do_command(sc, &trb, 50 /* ms */));
+	return (xhci_do_command(sc, &trb, 100 /* ms */));
 }
 
 /*------------------------------------------------------------------------*
@@ -2831,7 +2831,7 @@ struct xhci_bos_desc xhci_bosd = {
 		.bLength = sizeof(xhci_bosd.usb2extd),
 		.bDescriptorType = 1,
 		.bDevCapabilityType = 2,
-		.bmAttributes = 2,
+		.bmAttributes[0] = 2,
 	},
 	.usbdcd = {
 		.bLength = sizeof(xhci_bosd.usbdcd),
@@ -2841,7 +2841,8 @@ struct xhci_bos_desc xhci_bosd = {
 		HSETW(.wSpeedsSupported, 0x000C),
 		.bFunctionalitySupport = 8,
 		.bU1DevExitLat = 255,	/* dummy - not used */
-		.bU2DevExitLat = 255,	/* dummy - not used */
+		.wU2DevExitLat[0] = 0x00,
+		.wU2DevExitLat[1] = 0x08,
 	},
 	.cidd = {
 		.bLength = sizeof(xhci_bosd.cidd),

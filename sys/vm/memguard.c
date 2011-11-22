@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 #include <vm/memguard.h>
 
-SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
+static SYSCTL_NODE(_vm, OID_AUTO, memguard, CTLFLAG_RW, NULL, "MemGuard data");
 /*
  * The vm_memguard_divisor variable controls how much of kmem_map should be
  * reserved for MemGuard.

@@ -214,16 +214,8 @@ siba_core_attach(struct siba_softc *siba)
 int
 siba_core_detach(struct siba_softc *siba)
 {
-	device_t *devlistp;
-	int devcnt, error = 0, i;
-
-	error = device_get_children(siba->siba_dev, &devlistp, &devcnt);
-	if (error != 0)
-		return (0);
-
-	for ( i = 0 ; i < devcnt ; i++)
-		device_delete_child(siba->siba_dev, devlistp[i]);
-	free(devlistp, M_TEMP);
+	/* detach & delete all children */
+	device_delete_all_children(siba->siba_dev);
 	return (0);
 }
 

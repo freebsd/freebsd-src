@@ -143,7 +143,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -166,7 +166,7 @@ static void	rt_setmetrics(u_long which, const struct rt_metrics *in,
 			struct rt_metrics_lite *out);
 static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
-static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
+static void	rt_dispatch(struct mbuf *, sa_family_t);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -545,6 +545,7 @@ route_output(struct mbuf *m, struct socket *so)
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
+	sa_family_t saf = AF_UNSPEC;
 
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
@@ -581,6 +582,7 @@ route_output(struct mbuf *m, struct socket *so)
 	    (info.rti_info[RTAX_GATEWAY] != NULL &&
 	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
 		senderr(EINVAL);
+	saf = info.rti_info[RTAX_DST]->sa_family;
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -926,10 +928,10 @@ flush:
 			 */
 			unsigned short family = rp->rcb_proto.sp_family;
 			rp->rcb_proto.sp_family = 0;
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 			rp->rcb_proto.sp_family = family;
 		} else
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 	}
 	/* info.rti_info[RTAX_DST] (used above) can point inside of rtm */
 	if (rtm)
@@ -1185,7 +1187,7 @@ rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
 	rtm->rtm_flags = RTF_DONE | flags;
 	rtm->rtm_errno = error;
 	rtm->rtm_addrs = rtinfo->rti_addrs;
-	rt_dispatch(m, sa);
+	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 }
 
 void
@@ -1217,7 +1219,7 @@ rt_ifmsg(struct ifnet *ifp)
 	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
-	rt_dispatch(m, NULL);
+	rt_dispatch(m, AF_UNSPEC);
 }
 
 /*
@@ -1295,7 +1297,7 @@ rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
 			M_SETFIB(m, fibnum);
 			m->m_flags |= RTS_FILTER_FIB;
 		}
-		rt_dispatch(m, sa);
+		rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 	}
 }
 
@@ -1338,7 +1340,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	    __func__));
 	ifmam->ifmam_index = ifp->if_index;
 	ifmam->ifmam_addrs = info.rti_addrs;
-	rt_dispatch(m, ifma->ifma_addr);
+	rt_dispatch(m, ifma->ifma_addr ? ifma->ifma_addr->sa_family : AF_UNSPEC);
 }
 
 static struct mbuf *
@@ -1398,7 +1400,7 @@ rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
 		if (m->m_flags & M_PKTHDR)
 			m->m_pkthdr.len += data_len;
 		mtod(m, struct if_announcemsghdr *)->ifan_msglen += data_len;
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 	}
 }
 
@@ -1414,11 +1416,11 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 
 	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info);
 	if (m != NULL)
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 }
 
 static void
-rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
+rt_dispatch(struct mbuf *m, sa_family_t saf)
 {
 	struct m_tag *tag;
 
@@ -1427,14 +1429,14 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 	 * use when injecting the mbuf into the routing socket buffer from
 	 * the netisr.
 	 */
-	if (sa != NULL) {
+	if (saf != AF_UNSPEC) {
 		tag = m_tag_get(PACKET_TAG_RTSOCKFAM, sizeof(unsigned short),
 		    M_NOWAIT);
 		if (tag == NULL) {
 			m_freem(m);
 			return;
 		}
-		*(unsigned short *)(tag + 1) = sa->sa_family;
+		*(unsigned short *)(tag + 1) = saf;
 		m_tag_prepend(m, tag);
 	}
 #ifdef VIMAGE
@@ -1735,7 +1737,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.

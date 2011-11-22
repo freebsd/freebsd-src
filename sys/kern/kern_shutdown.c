@@ -121,7 +121,8 @@ SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
-SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0, "Shutdown environment");
+static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
+    "Shutdown environment");
 
 #ifndef DIAGNOSTIC
 static int show_busybufs;

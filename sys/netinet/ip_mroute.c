@@ -2807,9 +2807,9 @@ out_locked:
 	return (error);
 }
 
-SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD, sysctl_mfctable,
-    "IPv4 Multicast Forwarding Table (struct *mfc[mfchashsize], "
-    "netinet/ip_mroute.h)");
+static SYSCTL_NODE(_net_inet_ip, OID_AUTO, mfctable, CTLFLAG_RD,
+    sysctl_mfctable, "IPv4 Multicast Forwarding Table "
+    "(struct *mfc[mfchashsize], netinet/ip_mroute.h)");
 
 static void
 vnet_mroute_init(const void *unused __unused)

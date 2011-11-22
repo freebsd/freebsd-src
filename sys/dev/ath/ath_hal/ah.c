@@ -114,11 +114,15 @@ ath_hal_mac_name(struct ath_hal *ah)
 	case AR_XSREV_VERSION_SOWL:
 		return "9160";
 	case AR_XSREV_VERSION_MERLIN:
-		return "9280";
+		if (AH_PRIVATE(ah)->ah_ispcie)
+			return "9280";
+		return "9220";
 	case AR_XSREV_VERSION_KITE:
 		return "9285";
 	case AR_XSREV_VERSION_KIWI:
-		return "9287";
+		if (AH_PRIVATE(ah)->ah_ispcie)
+			return "9287";
+		return "9227";
 	}
 	return "????";
 }
@@ -661,6 +665,8 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
 		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
+		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}

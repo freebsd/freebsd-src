@@ -58,16 +58,16 @@ __FBSDID("$FreeBSD$");
 #include <timeconv.h>
 #include <unistd.h>
 
-DIR	*dirp;
+static DIR	*dirp;
 
-struct	whod wd;
+static struct	whod wd;
 #define	NUSERS	1000
-struct	myutmp {
+static struct	myutmp {
 	char    myhost[sizeof(wd.wd_hostname)];
 	int	myidle;
 	struct	outmp myutmp;
 } myutmp[NUSERS];
-int	nusers;
+static int	nusers;
 
 #define	WHDRSIZE	(ssize_t)(sizeof (wd) - sizeof (wd.wd_we))
 /*
@@ -75,11 +75,11 @@ int	nusers;
  */
 #define	down(w,now)	((now) - (w)->wd_recvtime > 11 * 60)
 
-time_t	now;
-int	aflg;
+static time_t	now;
+static int	aflg;
 
 static void usage(void);
-int utmpcmp(const void *, const void *);
+static int utmpcmp(const void *, const void *);
 
 int
 main(int argc, char *argv[])
@@ -202,7 +202,7 @@ usage(void)
 
 #define MYUTMP(a) ((const struct myutmp *)(a))
 
-int
+static int
 utmpcmp(const void *u1, const void *u2)
 {
 	int rc;

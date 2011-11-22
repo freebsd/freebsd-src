@@ -2,6 +2,11 @@
  * Copyright (c) 2000, 2001 Alexey Zelkin <phantom@FreeBSD.org>
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -29,6 +34,8 @@
 #ifndef _LMESSAGES_H_
 #define	_LMESSAGES_H_
 
+#include "xlocale_private.h"
+
 struct	lc_messages_T {
 	const char	*yesexpr;
 	const char	*noexpr;
@@ -36,7 +43,7 @@ struct	lc_messages_T {
 	const char	*nostr;
 };
 
-struct lc_messages_T *__get_current_messages_locale(void);
+struct lc_messages_T *__get_current_messages_locale(locale_t);
 int	__messages_load_locale(const char *);
 
 #endif /* !_LMESSAGES_H_ */

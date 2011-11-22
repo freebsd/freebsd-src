@@ -301,11 +301,9 @@ yy_config_parse(const char *config, bool exitonerror)
 			 */
 			curres->hr_replication = depth0_replication;
 		}
-		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC ||
-		    curres->hr_replication == HAST_REPLICATION_ASYNC) {
+		if (curres->hr_replication == HAST_REPLICATION_MEMSYNC) {
 			pjdlog_warning("Replication mode \"%s\" is not implemented, falling back to \"%s\".",
-			    curres->hr_replication == HAST_REPLICATION_MEMSYNC ?
-			    "memsync" : "async", "fullsync");
+			    "memsync", "fullsync");
 			curres->hr_replication = HAST_REPLICATION_FULLSYNC;
 		}
 		if (curres->hr_checksum == -1) {

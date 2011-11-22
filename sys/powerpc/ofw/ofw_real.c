@@ -158,7 +158,8 @@ static ofw_def_t ofw_32bit = {
 };
 OFW_DEF(ofw_32bit);
 
-MALLOC_DEFINE(M_OFWREAL, "ofwreal", "Open Firmware Real Mode Bounce Page");
+static MALLOC_DEFINE(M_OFWREAL, "ofwreal",
+    "Open Firmware Real Mode Bounce Page");
 
 static int (*openfirmware)(void *);
 

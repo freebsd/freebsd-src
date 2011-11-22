@@ -113,12 +113,14 @@ procfs_doprocstatus(PFS_FILL_ARGS)
 	}
 
 	tdfirst = FIRST_THREAD_IN_PROC(p);
+	thread_lock(tdfirst);
 	if (tdfirst->td_wchan != NULL) {
 		KASSERT(tdfirst->td_wmesg != NULL,
 		    ("wchan %p has no wmesg", tdfirst->td_wchan));
 		wmesg = tdfirst->td_wmesg;
 	} else
 		wmesg = "nochan";
+	thread_unlock(tdfirst);
 
 	if (p->p_flag & P_INMEM) {
 		struct timeval start, ut, st;
@@ -175,7 +177,7 @@ procfs_doproccmdline(PFS_FILL_ARGS)
 	/*
 	 * If we are using the ps/cmdline caching, use that.  Otherwise
 	 * revert back to the old way which only implements full cmdline
-	 * for the currept process and just p->p_comm for all other
+	 * for the current process and just p->p_comm for all other
 	 * processes.
 	 * Note that if the argv is no longer available, we deliberately
 	 * don't fall back on p->p_comm or return an error: the authentic

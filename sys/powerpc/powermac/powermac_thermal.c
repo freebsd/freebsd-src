@@ -58,7 +58,7 @@ SYSINIT(pmac_therm_setup, SI_SUB_KTHREAD_IDLE, SI_ORDER_ANY, kproc_start,
     &pmac_therm_kp);
 SYSCTL_INT(_machdep, OID_AUTO, manage_fans, CTLFLAG_RW | CTLFLAG_TUN,
     &enable_pmac_thermal, 1, "Enable automatic fan management");
-MALLOC_DEFINE(M_PMACTHERM, "pmactherm", "Powermac Thermal Management");
+static MALLOC_DEFINE(M_PMACTHERM, "pmactherm", "Powermac Thermal Management");
 
 struct pmac_fan_le {
 	struct pmac_fan			*fan;

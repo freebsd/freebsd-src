@@ -751,9 +751,10 @@ defrtrlist_update(struct nd_defrouter *new)
 
 			/*
 			 * If the preference does not change, there's no need
-			 * to sort the entries.
+			 * to sort the entries. Also make sure the selected
+			 * router is still installed in the kernel.
 			 */
-			if (rtpref(new) == oldpref) {
+			if (dr->installed && rtpref(new) == oldpref) {
 				splx(s);
 				return (dr);
 			}

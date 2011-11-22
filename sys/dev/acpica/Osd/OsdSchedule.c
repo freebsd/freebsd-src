@@ -65,7 +65,7 @@ TUNABLE_INT("debug.acpi.max_tasks", &acpi_max_tasks);
 static int acpi_max_threads = ACPI_MAX_THREADS;
 TUNABLE_INT("debug.acpi.max_threads", &acpi_max_threads);
 
-MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
+static MALLOC_DEFINE(M_ACPITASK, "acpitask", "ACPI deferred task");
 
 struct acpi_task_ctx {
     struct task			at_task;

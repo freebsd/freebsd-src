@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 #define SDL(s) ((struct sockaddr_dl *)s)
 
 SYSCTL_DECL(_net_link_ether);
-SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
-SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
+static SYSCTL_NODE(_net_link_ether, PF_INET, inet, CTLFLAG_RW, 0, "");
+static SYSCTL_NODE(_net_link_ether, PF_ARP, arp, CTLFLAG_RW, 0, "");
 
 /* timer values */
 static VNET_DEFINE(int, arpt_keep) = (20*60);	/* once resolved, good for 20
@@ -433,7 +433,7 @@ arpintr(struct mbuf *m)
 
 	if (m->m_len < sizeof(struct arphdr) &&
 	    ((m = m_pullup(m, sizeof(struct arphdr))) == NULL)) {
-		log(LOG_ERR, "arp: runt packet -- m_pullup failed\n");
+		log(LOG_NOTICE, "arp: runt packet -- m_pullup failed\n");
 		return;
 	}
 	ar = mtod(m, struct arphdr *);
@@ -443,15 +443,17 @@ arpintr(struct mbuf *m)
 	    ntohs(ar->ar_hrd) != ARPHRD_ARCNET &&
 	    ntohs(ar->ar_hrd) != ARPHRD_IEEE1394 &&
 	    ntohs(ar->ar_hrd) != ARPHRD_INFINIBAND) {
-		log(LOG_ERR, "arp: unknown hardware address format (0x%2D)\n",
-		    (unsigned char *)&ar->ar_hrd, "");
+		log(LOG_NOTICE, "arp: unknown hardware address format (0x%2D)"
+		    " (from %*D to %*D)\n", (unsigned char *)&ar->ar_hrd, "",
+		    ETHER_ADDR_LEN, (u_char *)ar_sha(ar), ":",
+		    ETHER_ADDR_LEN, (u_char *)ar_tha(ar), ":");
 		m_freem(m);
 		return;
 	}
 
 	if (m->m_len < arphdr_len(ar)) {
 		if ((m = m_pullup(m, arphdr_len(ar))) == NULL) {
-			log(LOG_ERR, "arp: runt packet\n");
+			log(LOG_NOTICE, "arp: runt packet\n");
 			m_freem(m);
 			return;
 		}
@@ -527,7 +529,7 @@ in_arpinput(struct mbuf *m)
 
 	req_len = arphdr_len2(ifp->if_addrlen, sizeof(struct in_addr));
 	if (m->m_len < req_len && (m = m_pullup(m, req_len)) == NULL) {
-		log(LOG_ERR, "in_arp: runt packet -- m_pullup failed\n");
+		log(LOG_NOTICE, "in_arp: runt packet -- m_pullup failed\n");
 		return;
 	}
 
@@ -537,13 +539,14 @@ in_arpinput(struct mbuf *m)
 	 * a protocol length not equal to an IPv4 address.
 	 */
 	if (ah->ar_pln != sizeof(struct in_addr)) {
-		log(LOG_ERR, "in_arp: requested protocol length != %zu\n",
+		log(LOG_NOTICE, "in_arp: requested protocol length != %zu\n",
 		    sizeof(struct in_addr));
 		return;
 	}
 
 	if (ETHER_IS_MULTICAST(ar_sha(ah))) {
-		log(LOG_ERR, "in_arp: source hardware address is multicast.");
+		log(LOG_NOTICE, "in_arp: %*D is multicast\n",
+		    ifp->if_addrlen, (u_char *)ar_sha(ah), ":");
 		return;
 	}
 
@@ -645,7 +648,7 @@ match:
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
 		goto drop;	/* it's from me, ignore it. */
 	if (!bcmp(ar_sha(ah), ifp->if_broadcastaddr, ifp->if_addrlen)) {
-		log(LOG_ERR,
+		log(LOG_NOTICE,
 		    "arp: link address is broadcast for IP address %s!\n",
 		    inet_ntoa(isaddr));
 		goto drop;
@@ -681,7 +684,7 @@ match:
 		/* the following is not an error when doing bridging */
 		if (!bridged && la->lle_tbl->llt_ifp != ifp && !carp_match) {
 			if (log_arp_wrong_iface)
-				log(LOG_ERR, "arp: %s is on %s "
+				log(LOG_WARNING, "arp: %s is on %s "
 				    "but got reply from %*D on %s\n",
 				    inet_ntoa(isaddr),
 				    la->lle_tbl->llt_ifp->if_xname,
@@ -716,10 +719,10 @@ match:
 		    
 		if (ifp->if_addrlen != ah->ar_hln) {
 			LLE_WUNLOCK(la);
-			log(LOG_WARNING,
-			    "arp from %*D: addr len: new %d, i/f %d (ignored)",
-			    ifp->if_addrlen, (u_char *) ar_sha(ah), ":",
-			    ah->ar_hln, ifp->if_addrlen);
+			log(LOG_WARNING, "arp from %*D: addr len: new %d, "
+			    "i/f %d (ignored)\n", ifp->if_addrlen,
+			    (u_char *) ar_sha(ah), ":", ah->ar_hln,
+			    ifp->if_addrlen);
 			goto drop;
 		}
 		(void)memcpy(&la->ll_addr, ar_sha(ah), ifp->if_addrlen);

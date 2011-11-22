@@ -38,7 +38,7 @@
 
 SND_DECLARE_FILE("$FreeBSD$");
 
-MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
+static MALLOC_DEFINE(M_AC97, "ac97", "ac97 codec");
 
 struct ac97mixtable_entry {
 	int reg;		/* register index		*/

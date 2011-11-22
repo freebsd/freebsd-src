@@ -70,6 +70,7 @@ options 	PREEMPTION
 device		loop
 device		ether
 device		mii
+device		mii_bitbang
 device		smc
 device		smcphy
 device		uart

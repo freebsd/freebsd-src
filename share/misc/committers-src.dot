@@ -167,6 +167,7 @@ jls [label="Jordan Sissel\njls@FreeBSD.org\n2006/12/06"]
 joerg [label="Joerg Wunsch\njoerg@FreeBSD.org\n1993/11/14"]
 jon [label="Jonathan Chen\njon@FreeBSD.org\n2000/10/17"]
 jonathan [label="Jonathan Anderson\njonathan@FreeBSD.org\n2010/10/07"]
+jpaetzel [label="Josh Paetzel\njpaetzel@FreeBSD.org\n2011/01/21"]
 julian [label="Julian Elischer\njulian@FreeBSD.org\n1993/??/??"]
 kaiw [label="Kai Wang\nkaiw@FreeBSD.org\n2007/09/26"]
 kan [label="Alexander Kabaev\nkan@FreeBSD.org\n2002/07/21"]
@@ -237,6 +238,7 @@ stas [label="Stanislav Sedov\nstas@FreeBSD.org\n2008/08/22"]
 suz [label="SUZUKI Shinsuke\nsuz@FreeBSD.org\n2002/03/26"]
 syrinx [label="Shteryana Shopova\nsyrinx@FreeBSD.org\n2006/10/07"]
 takawata [label="Takanori Watanabe\ntakawata@FreeBSD.org\n2000/07/06"]
+theraven [label="David Chisnall\ntheraven@FreeBSD.org\n2011/11/11"]
 thompsa [label="Andrew Thompson\nthompsa@FreeBSD.org\n2005/05/25"]
 ticso [label="Bernd Walter\nticso@FreeBSD.org\n2002/01/31"]
 tijl [label="Tijl Coosemans\ntijl@FreeBSD.org\n2010/07/16"]
@@ -303,6 +305,7 @@ brian -> joe
 
 brooks -> bushman
 brooks -> jamie
+brooks -> theraven
 
 bz -> anchie
 bz -> jamie
@@ -331,6 +334,8 @@ des -> ru
 dds -> versus
 
 dfr -> zml
+
+dim -> theraven
 
 dwmalone -> fanf
 dwmalone -> peadar
@@ -443,6 +448,7 @@ kan -> kib
 
 kib -> ae
 kib -> dchagin
+kib -> jpaetzel
 kib -> lulf
 kib -> melifaro
 kib -> pho

@@ -113,7 +113,7 @@
 				    int *alen); }
 32	AUE_GETSOCKNAME	NOPROTO	{ int getsockname(int fdes, caddr_t asa, \
 				    int *alen); }
-33	AUE_ACCESS	NOPROTO	{ int access(char *path, int flags); }
+33	AUE_ACCESS	NOPROTO	{ int access(char *path, int amode); }
 34	AUE_CHFLAGS	NOPROTO	{ int chflags(char *path, int flags); }
 35	AUE_FCHFLAGS	NOPROTO	{ int fchflags(int fd, int flags); }
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
@@ -447,9 +447,11 @@
 240	AUE_NULL	STD	{ int freebsd32_nanosleep( \
 				    const struct timespec32 *rqtp, \
 				    struct timespec32 *rmtp); }
-241	AUE_NULL	UNIMPL	nosys
-242	AUE_NULL	UNIMPL	nosys
-243	AUE_NULL	UNIMPL	nosys
+241	AUE_NULL	NOPROTO	{ int ffclock_getcounter(ffcounter *ffcount); }
+242	AUE_NULL	NOPROTO	{ int ffclock_setestimate( \
+				    struct ffclock_estimate *cest); }
+243	AUE_NULL	NOPROTO	{ int ffclock_getestimate( \
+				    struct ffclock_estimate *cest); }
 244	AUE_NULL	UNIMPL	nosys
 245	AUE_NULL	UNIMPL	nosys
 246	AUE_NULL	UNIMPL	nosys
@@ -671,7 +673,7 @@
 				    const char *attrname); }
 374	AUE_NULL	NOPROTO	{ int __setugid(int flag); }
 375	AUE_NULL	UNIMPL	nfsclnt
-376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int flags); }
+376	AUE_EACCESS	NOPROTO	{ int eaccess(char *path, int amode); }
 377	AUE_NULL	UNIMPL	afs_syscall
 378	AUE_NMOUNT	STD	{ int freebsd32_nmount(struct iovec32 *iovp, \
 				    unsigned int iovcnt, int flags); }
@@ -911,7 +913,7 @@
 				    u_int32_t id1, u_int32_t id2, \
 				    size_t cpusetsize, \
 				    const cpuset_t *mask); }
-489	AUE_FACCESSAT	NOPROTO	{ int faccessat(int fd, char *path, int mode, \
+489	AUE_FACCESSAT	NOPROTO	{ int faccessat(int fd, char *path, int amode, \
 				    int flag); }
 490	AUE_FCHMODAT	NOPROTO	{ int fchmodat(int fd, const char *path, \
 				    mode_t mode, int flag); }
@@ -991,4 +993,7 @@
 530	AUE_NULL	STD	{ int freebsd32_posix_fallocate(int fd,\
 				    uint32_t offset1, uint32_t offset2,\
 				    uint32_t len1, uint32_t len2); }
-531	AUE_NULL	UNIMPL	posix_fadvise
+531	AUE_NULL	STD	{ int freebsd32_posix_fadvise(int fd, \
+				    uint32_t offset1, uint32_t offset2,\
+				    uint32_t len1, uint32_t len2, \
+				    int advice); }

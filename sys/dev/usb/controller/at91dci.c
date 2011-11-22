@@ -91,7 +91,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int at91dcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, at91dci, CTLFLAG_RW, 0, "USB at91dci");
 SYSCTL_INT(_hw_usb_at91dci, OID_AUTO, debug, CTLFLAG_RW,
     &at91dcidebug, 0, "at91dci debug level");
 #endif
@@ -2123,7 +2123,7 @@ tr_handle_get_port_status:
 		if (sc->sc_flags.status_vbus &&
 		    sc->sc_flags.status_bus_reset) {
 			/* reset endpoint flags */
-			bzero(sc->sc_ep_flags, sizeof(sc->sc_ep_flags));
+			memset(sc->sc_ep_flags, 0, sizeof(sc->sc_ep_flags));
 		}
 	}
 	if (sc->sc_flags.change_suspend) {

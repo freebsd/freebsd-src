@@ -787,7 +787,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "readahead", "readdirsize", "soft", "hard", "mntudp", "tcp", "udp",
     "wsize", "rsize", "retrans", "acregmin", "acregmax", "acdirmin",
     "acdirmax", "deadthresh", "hostname", "timeout", "addr", "fh", "nfsv3",
-    "sec", "maxgroups", "principal", "negnametimeo", "nocto",
+    "sec", "maxgroups", "principal", "negnametimeo", "nocto", "wcommitsize",
     NULL };
 
 /*
@@ -1018,6 +1018,15 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "wcommitsize", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			vfs_mount_error(mp, "illegal wcommitsize: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "deadthresh", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.deadthresh);

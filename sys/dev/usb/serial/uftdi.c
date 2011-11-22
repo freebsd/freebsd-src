@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uftdi_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uftdi, CTLFLAG_RW, 0, "USB uftdi");
 SYSCTL_INT(_hw_usb_uftdi, OID_AUTO, debug, CTLFLAG_RW,
     &uftdi_debug, 0, "Debug level");
 #endif
@@ -560,7 +560,7 @@ static int
 uftdi_set_parm_soft(struct termios *t,
     struct uftdi_param_config *cfg, uint8_t type)
 {
-	bzero(cfg, sizeof(*cfg));
+	memset(cfg, 0, sizeof(*cfg));
 
 	switch (type) {
 	case UFTDI_TYPE_SIO:

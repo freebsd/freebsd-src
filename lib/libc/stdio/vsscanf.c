@@ -2,6 +2,11 @@
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * This code is derived from software contributed to Berkeley by
  * Donn Seeley at UUNET Technologies, Inc.
  *
@@ -39,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <string.h>
 #include "local.h"
+#include "xlocale_private.h"
 
 static int
 eofread(void *, char *, int);
@@ -52,14 +58,21 @@ eofread(void *cookie, char *buf, int len)
 }
 
 int
-vsscanf(const char * __restrict str, const char * __restrict fmt,
-	__va_list ap)
+vsscanf_l(const char * __restrict str, locale_t locale,
+		const char * __restrict fmt, __va_list ap)
 {
 	FILE f = FAKE_FILE;
+	FIX_LOCALE(locale);
 
 	f._flags = __SRD;
 	f._bf._base = f._p = (unsigned char *)str;
 	f._bf._size = f._r = strlen(str);
 	f._read = eofread;
-	return (__svfscanf(&f, fmt, ap));
+	return (__svfscanf(&f, locale, fmt, ap));
+}
+int
+vsscanf(const char * __restrict str, const char * __restrict fmt,
+	__va_list ap)
+{
+	return vsscanf_l(str, __get_locale(), fmt, ap);
 }

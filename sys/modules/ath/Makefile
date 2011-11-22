@@ -75,7 +75,7 @@ SRCS+=	ar2425.c
 SRCS+=	ar5413.c
 
 #
-# AR5416, AR9130, AR9160, AR9220, AR9280, AR9285 support.
+# AR5416, AR9130, AR9160, AR9220, AR9280, AR9285, AR9287 support.
 
 # Note enabling this support requires defining AH_SUPPORT_AR5416
 # in opt_ah.h so the 11n tx/rx descriptor format is handled.

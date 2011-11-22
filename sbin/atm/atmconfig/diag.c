@@ -57,7 +57,7 @@ static void diag_phy_print(int, char *[]);
 static void diag_phy_stats(int, char *[]);
 static void diag_stats(int, char *[]);
 
-const struct cmdtab diag_phy_tab[] = {
+static const struct cmdtab diag_phy_tab[] = {
 	{ "show",	NULL, 		diag_phy_show },
 	{ "set",	NULL, 		diag_phy_set },
 	{ "stats",	NULL,		diag_phy_stats },

@@ -82,7 +82,7 @@ __FBSDID("$FreeBSD$");
 
 #ifdef	RUN_DEBUG
 int run_debug = 0;
-SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, run, CTLFLAG_RW, 0, "USB run");
 SYSCTL_INT(_hw_usb_run, OID_AUTO, debug, CTLFLAG_RW, &run_debug, 0,
     "run debug level");
 #endif
@@ -208,12 +208,14 @@ static const STRUCT_USB_HOST_ID run_devs[] = {
     RUN_DEV(LOGITEC,		RT2870_1),
     RUN_DEV(LOGITEC,		RT2870_2),
     RUN_DEV(LOGITEC,		RT2870_3),
+    RUN_DEV(LOGITECH,		LANW300NU2),
     RUN_DEV(MELCO,		RT2870_1),
     RUN_DEV(MELCO,		RT2870_2),
     RUN_DEV(MELCO,		WLIUCAG300N),
     RUN_DEV(MELCO,		WLIUCG300N),
     RUN_DEV(MELCO,		WLIUCG301N),
     RUN_DEV(MELCO,		WLIUCGN),
+    RUN_DEV(MELCO,		WLIUCGNM),
     RUN_DEV(MOTOROLA4,		RT2770),
     RUN_DEV(MOTOROLA4,		RT3070),
     RUN_DEV(MSI,		RT3070_1),

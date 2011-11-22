@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 
 #include <sys/proc.h>
 #include <sys/bus.h>

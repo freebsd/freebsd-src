@@ -2,6 +2,11 @@
  * Copyright (c) 2002 Tim J. Robbins
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -41,12 +46,15 @@ static char *__mbsdup(const wchar_t *);
  * with extended character sets.
  */
 int
-wcscoll(const wchar_t *ws1, const wchar_t *ws2)
+wcscoll_l(const wchar_t *ws1, const wchar_t *ws2, locale_t locale)
 {
 	char *mbs1, *mbs2;
 	int diff, sverrno;
+	FIX_LOCALE(locale);
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)locale->components[XLC_COLLATE];
 
-	if (__collate_load_error || MB_CUR_MAX > 1)
+	if (table->__collate_load_error || MB_CUR_MAX > 1)
 		/*
 		 * Locale has no special collating order, could not be
 		 * loaded, or has an extended character set; do a fast binary
@@ -67,13 +75,19 @@ wcscoll(const wchar_t *ws1, const wchar_t *ws2)
 		return (wcscmp(ws1, ws2));
 	}
 
-	diff = strcoll(mbs1, mbs2);
+	diff = strcoll_l(mbs1, mbs2, locale);
 	sverrno = errno;
 	free(mbs1);
 	free(mbs2);
 	errno = sverrno;
 
 	return (diff);
+}
+
+int
+wcscoll(const wchar_t *ws1, const wchar_t *ws2)
+{
+	return wcscoll_l(ws1, ws2, __get_locale());
 }
 
 static char *

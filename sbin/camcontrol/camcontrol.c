@@ -140,7 +140,7 @@ static const char smppc_opts[] = "a:A:d:lm:M:o:p:s:S:T:";
 static const char smpphylist_opts[] = "lq";
 #endif
 
-struct camcontrol_opts option_table[] = {
+static struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
@@ -207,8 +207,8 @@ struct cam_devlist {
 	path_id_t path_id;
 };
 
-cam_cmdmask cmdlist;
-cam_argmask arglist;
+static cam_cmdmask cmdlist;
+static cam_argmask arglist;
 
 camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 			    uint32_t *cmdnum, cam_argmask *argnum,
@@ -4646,7 +4646,7 @@ bailout:
 	return (error);
 }
 
-struct camcontrol_opts phy_ops[] = {
+static struct camcontrol_opts phy_ops[] = {
 	{"nop", SMP_PC_PHY_OP_NOP, CAM_ARG_NONE, NULL},
 	{"linkreset", SMP_PC_PHY_OP_LINK_RESET, CAM_ARG_NONE, NULL},
 	{"hardreset", SMP_PC_PHY_OP_HARD_RESET, CAM_ARG_NONE, NULL},
