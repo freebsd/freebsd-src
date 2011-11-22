@@ -1099,6 +1099,7 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
+	vge_miipoll_start(sc);
 	/* Do MII setup */
 	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,
 	    vge_ifmedia_sts, BMSR_DEFCAPMASK, sc->vge_phyaddr, MII_OFFSET_ANY,
@@ -2028,6 +2029,7 @@ vge_init_locked(struct vge_softc *sc)
 	 */
 	vge_stop(sc);
 	vge_reset(sc);
+	vge_miipoll_start(sc);
 
 	/*
 	 * Initialize the RX and TX descriptors and mbufs.
