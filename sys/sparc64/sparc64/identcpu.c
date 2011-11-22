@@ -26,7 +26,7 @@ static char cpu_model[128];
 SYSCTL_STRING(_hw, HW_MODEL, model, CTLFLAG_RD,
     cpu_model, 0, "Machine model");
 
-SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
 
 static u_int cpu_count;
 static u_int cpu_freq;

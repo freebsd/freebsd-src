@@ -46,8 +46,8 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_rq.h>
 #include <netsmb/smb_subr.h>
 
-MALLOC_DEFINE(M_SMBDATA, "SMBDATA", "Misc netsmb data");
-MALLOC_DEFINE(M_SMBSTR, "SMBSTR", "netsmb string data");
+static MALLOC_DEFINE(M_SMBDATA, "SMBDATA", "Misc netsmb data");
+static MALLOC_DEFINE(M_SMBSTR, "SMBSTR", "netsmb string data");
 MALLOC_DEFINE(M_SMBTEMP, "SMBTEMP", "Temp netsmb data");
 
 smb_unichar smb_unieol = 0;
@@ -350,6 +350,8 @@ smb_put_dmem(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
 	}
 	mbp->mb_copy = smb_copy_iconv;
 	mbp->mb_udata = dp;
+	if (SMB_UNICODE_STRINGS(vcp))
+		mb_put_padbyte(mbp);
 	return mb_put_mem(mbp, src, size, MB_MCUSTOM);
 }
 
@@ -362,6 +364,8 @@ smb_put_dstring(struct mbchain *mbp, struct smb_vc *vcp, const char *src,
 	error = smb_put_dmem(mbp, vcp, src, strlen(src), caseopt);
 	if (error)
 		return error;
+	if (SMB_UNICODE_STRINGS(vcp))
+		return mb_put_uint16le(mbp, 0);
 	return mb_put_uint8(mbp, 0);
 }
 

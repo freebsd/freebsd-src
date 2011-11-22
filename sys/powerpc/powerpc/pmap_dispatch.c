@@ -410,7 +410,7 @@ pmap_bootstrap(vm_offset_t start, vm_offset_t end)
 	 * then statically initialise the MMU object
 	 */
 	kobj_class_compile_static(mmu_def_impl, &mmu_kernel_kops);
-	kobj_init((kobj_t)mmu_obj, mmu_def_impl);
+	kobj_init_static((kobj_t)mmu_obj, mmu_def_impl);
 
 	MMU_BOOTSTRAP(mmu_obj, start, end);
 }

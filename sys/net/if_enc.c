@@ -102,9 +102,9 @@ IFC_SIMPLE_DECLARE(enc, 1);
  * Before and after are relative to when we are stripping the
  * outer IP header.
  */
-SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
+static SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
 
-SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
 static int ipsec_filter_mask_in = ENC_BEFORE;
 SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
 	&ipsec_filter_mask_in, 0, "IPsec input firewall filter mask");
@@ -112,7 +112,7 @@ static int ipsec_bpf_mask_in = ENC_BEFORE;
 SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW,
 	&ipsec_bpf_mask_in, 0, "IPsec input bpf mask");
 
-SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
 static int ipsec_filter_mask_out = ENC_BEFORE;
 SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
 	&ipsec_filter_mask_out, 0, "IPsec output firewall filter mask");

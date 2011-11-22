@@ -32,7 +32,7 @@
 .\"	@(#)make.1	8.8 (Berkeley) 6/13/95
 .\" $FreeBSD$
 .\"
-.Dd December 29, 2008
+.Dd November 5, 2011
 .Dt MAKE 1
 .Os
 .Sh NAME
@@ -631,7 +631,7 @@ The following directories are tried in order:
 .Pp
 .Bl -enum -compact
 .It
-${MAKEOBJDIRPREFIX}/`pwd`
+${MAKEOBJDIRPREFIX}/`pwd -P`
 .It
 ${MAKEOBJDIR}
 .It
@@ -639,7 +639,7 @@ obj.${MACHINE}
 .It
 obj
 .It
-/usr/obj/`pwd`
+/usr/obj/`pwd -P`
 .El
 .Pp
 The first directory that

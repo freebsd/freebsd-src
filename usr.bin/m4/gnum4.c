@@ -60,7 +60,7 @@ int mimic_gnu = 0;
  * Then M4PATH env variable
  */
 
-struct path_entry {
+static struct path_entry {
 	char *name;
 	struct path_entry *next;
 } *first, *last;

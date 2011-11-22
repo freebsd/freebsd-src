@@ -58,7 +58,7 @@
  *		in the range 5 to 9.
  */
 #undef __FreeBSD_version
-#define __FreeBSD_version 1000000	/* Master, propagated to newvers */
+#define __FreeBSD_version 1000001	/* Master, propagated to newvers */
 
 #ifdef _KERNEL
 #define	P_OSREL_SIGWAIT		700000
@@ -324,6 +324,6 @@ __END_DECLS
  * Access a variable length array that has been declared as a fixed
  * length array.
  */
-#define __PAST_END(array, offset) (((typeof(*(array)) *)(array))[offset])
+#define __PAST_END(array, offset) (((__typeof__(*(array)) *)(array))[offset])
 
 #endif	/* _SYS_PARAM_H_ */

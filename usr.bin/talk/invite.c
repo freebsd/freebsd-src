@@ -60,8 +60,8 @@ static const char sccsid[] = "@(#)invite.c	8.1 (Berkeley) 6/6/93";
  * These are used to delete the
  * invitations.
  */
-int	local_id, remote_id;
-jmp_buf invitebuf;
+static int	local_id, remote_id;
+static jmp_buf invitebuf;
 
 void
 invite_remote(void)

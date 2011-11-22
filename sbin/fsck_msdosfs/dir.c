@@ -153,7 +153,7 @@ freeDirTodo(struct dirTodoNode *dt)
 /*
  * The stack of unread directories
  */
-struct dirTodoNode *pendingDirectories = NULL;
+static struct dirTodoNode *pendingDirectories = NULL;
 
 /*
  * Return the full pathname for a directory entry.

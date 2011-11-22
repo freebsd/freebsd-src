@@ -1,5 +1,5 @@
 # <pre>
-# @(#)europe	8.39
+# @(#)europe	8.40
 # This file is in the public domain, so clarified as of
 # 2009-05-17 by Arthur David Olson.
 
@@ -1678,6 +1678,18 @@ Zone	Europe/Malta	0:58:04 -	LMT	1893 Nov  2 0:00s # Valletta
 # a pre-1880 LMT offset of 1:58:32.
 #
 # (which agrees with the earlier entry that had been removed)
+#
+# From Alexander Krivenyshev (2011-10-26)
+# NO need to divide Moldova into two timezones at this point.
+# As of today, Transnistria (Pridnestrovie)- Tiraspol reversed its own
+# decision to abolish DST this winter. 
+# Following Moldova and neighboring Ukraine- Transnistria (Pridnestrovie)-
+# Tiraspol will go back to winter time on October 30, 2011.
+# News from Moldova (in russian):
+# <a href="http://ru.publika.md/link_317061.html">
+# http://ru.publika.md/link_317061.html
+# </a>
+
 
 # Zone	NAME		GMTOFF	RULES	FORMAT	[UNTIL]
 Zone	Europe/Chisinau	1:55:20 -	LMT	1880
@@ -1693,21 +1705,6 @@ Zone	Europe/Chisinau	1:55:20 -	LMT	1880
 			2:00	E-Eur	EE%sT	1997
 # See Romania commentary for the guessed 1997 transition to EU rules.
 			2:00	EU	EE%sT
-
-Zone	Europe/Tiraspol	1:58:32 -	LMT	1880
-			1:55	-	CMT	1918 Feb 15 # Chisinau MT
-			1:44:24	-	BMT	1931 Jul 24 # Bucharest MT
-			2:00	Romania	EE%sT	1940 Aug 15
-			2:00	1:00	EEST	1941 Jul 17
-			1:00	C-Eur	CE%sT	1944 Aug 24
-			3:00	Russia	MSK/MSD	1990
-			3:00	-	MSK	1990 May 6
-			2:00	-	EET	1991
-			2:00	Russia	EE%sT	1992
-			2:00	E-Eur	EE%sT	1997
-# See Romania commentary for the guessed 1997 transition to EU rules.
-			2:00	EU	EE%sT	2011 Mar lastSun 1:00u
-			3:00	-	FET # Further-eastern European Time
 
 # Monaco
 # Shanks & Pottenger give 0:09:20 for Paris Mean Time; go with Howse's

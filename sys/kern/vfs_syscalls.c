@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
+
 SDT_PROVIDER_DEFINE(vfs);
 SDT_PROBE_DEFINE(vfs, , stat, mode, mode);
 SDT_PROBE_ARGTYPE(vfs, , stat, mode, 0, "char *");
@@ -2142,7 +2144,7 @@ vn_access(vp, user_flags, cred, td)
 #ifndef _SYS_SYSPROTO_H_
 struct access_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2150,18 +2152,18 @@ sys_access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_access(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_access(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct faccessat_args {
 	int	dirfd;
 	char	*path;
-	int	mode;
+	int	amode;
 	int	flag;
 }
 #endif
@@ -2172,19 +2174,19 @@ sys_faccessat(struct thread *td, struct faccessat_args *uap)
 	if (uap->flag & ~AT_EACCESS)
 		return (EINVAL);
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
-	    uap->mode));
+	    uap->amode));
 }
 
 int
-kern_access(struct thread *td, char *path, enum uio_seg pathseg, int mode)
+kern_access(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, mode));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, amode));
 }
 
 int
 kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int flags, int mode)
+    int flag, int amode)
 {
 	struct ucred *cred, *tmpcred;
 	struct vnode *vp;
@@ -2196,7 +2198,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	 * Create and modify a temporary credential instead of one that
 	 * is potentially shared.
 	 */
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		cred = td->td_ucred;
 		tmpcred = crdup(cred);
 		tmpcred->cr_uid = cred->cr_ruid;
@@ -2204,7 +2206,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
-	AUDIT_ARG_VALUE(mode);
+	AUDIT_ARG_VALUE(amode);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, CAP_FSTAT, td);
 	if ((error = namei(&nd)) != 0)
@@ -2212,12 +2214,12 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, mode, tmpcred, td);
+	error = vn_access(vp, amode, tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 out1:
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		td->td_ucred = cred;
 		crfree(tmpcred);
 	}
@@ -2230,7 +2232,7 @@ out1:
 #ifndef _SYS_SYSPROTO_H_
 struct eaccess_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2238,18 +2240,18 @@ sys_eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 int
-kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int flags)
+kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, flags));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, amode));
 }
 
 #if defined(COMPAT_43)
@@ -4751,7 +4753,7 @@ out:
 	return (error);
 }
 
-static int
+int
 kern_posix_fallocate(struct thread *td, int fd, off_t offset, off_t len)
 {
 	struct file *fp;
@@ -4844,4 +4846,141 @@ sys_posix_fallocate(struct thread *td, struct posix_fallocate_args *uap)
 {
 
 	return (kern_posix_fallocate(td, uap->fd, uap->offset, uap->len));
+}
+
+/*
+ * Unlike madvise(2), we do not make a best effort to remember every
+ * possible caching hint.  Instead, we remember the last setting with
+ * the exception that we will allow POSIX_FADV_NORMAL to adjust the
+ * region of any current setting.
+ */
+int
+kern_posix_fadvise(struct thread *td, int fd, off_t offset, off_t len,
+    int advice)
+{
+	struct fadvise_info *fa, *new;
+	struct file *fp;
+	struct vnode *vp;
+	off_t end;
+	int error;
+
+	if (offset < 0 || len < 0 || offset > OFF_MAX - len)
+		return (EINVAL);
+	switch (advice) {
+	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_RANDOM:
+	case POSIX_FADV_NOREUSE:
+		new = malloc(sizeof(*fa), M_FADVISE, M_WAITOK);
+		break;
+	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_WILLNEED:
+	case POSIX_FADV_DONTNEED:
+		new = NULL;
+		break;
+	default:
+		return (EINVAL);
+	}
+	/* XXX: CAP_POSIX_FADVISE? */
+	error = fget(td, fd, 0, &fp);
+	if (error != 0)
+		goto out;
+	
+	switch (fp->f_type) {
+	case DTYPE_VNODE:
+		break;
+	case DTYPE_PIPE:
+	case DTYPE_FIFO:
+		error = ESPIPE;
+		goto out;
+	default:
+		error = ENODEV;
+		goto out;
+	}
+	vp = fp->f_vnode;
+	if (vp->v_type != VREG) {
+		error = ENODEV;
+		goto out;
+	}
+	if (len == 0)
+		end = OFF_MAX;
+	else
+		end = offset + len - 1;
+	switch (advice) {
+	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_RANDOM:
+	case POSIX_FADV_NOREUSE:
+		/*
+		 * Try to merge any existing non-standard region with
+		 * this new region if possible, otherwise create a new
+		 * non-standard region for this request.
+		 */
+		mtx_pool_lock(mtxpool_sleep, fp);
+		fa = fp->f_advice;
+		if (fa != NULL && fa->fa_advice == advice &&
+		    ((fa->fa_start <= end && fa->fa_end >= offset) ||
+		    (end != OFF_MAX && fa->fa_start == end + 1) ||
+		    (fa->fa_end != OFF_MAX && fa->fa_end + 1 == offset))) {
+			if (offset < fa->fa_start)
+				fa->fa_start = offset;
+			if (end > fa->fa_end)
+				fa->fa_end = end;
+		} else {
+			new->fa_advice = advice;
+			new->fa_start = offset;
+			new->fa_end = end;
+			fp->f_advice = new;
+			new = fa;
+		}
+		mtx_pool_unlock(mtxpool_sleep, fp);
+		break;
+	case POSIX_FADV_NORMAL:
+		/*
+		 * If a the "normal" region overlaps with an existing
+		 * non-standard region, trim or remove the
+		 * non-standard region.
+		 */
+		mtx_pool_lock(mtxpool_sleep, fp);
+		fa = fp->f_advice;
+		if (fa != NULL) {
+			if (offset <= fa->fa_start && end >= fa->fa_end) {
+				new = fa;
+				fp->f_advice = NULL;
+			} else if (offset <= fa->fa_start &&
+ 			    end >= fa->fa_start)
+				fa->fa_start = end + 1;
+			else if (offset <= fa->fa_end && end >= fa->fa_end)
+				fa->fa_end = offset - 1;
+			else if (offset >= fa->fa_start && end <= fa->fa_end) {
+				/*
+				 * If the "normal" region is a middle
+				 * portion of the existing
+				 * non-standard region, just remove
+				 * the whole thing rather than picking
+				 * one side or the other to
+				 * preserve.
+				 */
+				new = fa;
+				fp->f_advice = NULL;
+			}
+		}
+		mtx_pool_unlock(mtxpool_sleep, fp);
+		break;
+	case POSIX_FADV_WILLNEED:
+	case POSIX_FADV_DONTNEED:
+		error = VOP_ADVISE(vp, offset, end, advice);
+		break;
+	}
+out:
+	if (fp != NULL)
+		fdrop(fp, td);
+	free(new, M_FADVISE);
+	return (error);
+}
+
+int
+sys_posix_fadvise(struct thread *td, struct posix_fadvise_args *uap)
+{
+
+	return (kern_posix_fadvise(td, uap->fd, uap->offset, uap->len,
+	    uap->advice));
 }

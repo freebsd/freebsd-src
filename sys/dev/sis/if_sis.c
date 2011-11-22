@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -119,10 +120,13 @@ MODULE_DEPEND(sis, miibus, 1, 1, 1);
 
 #define CSR_READ_2(sc, reg)		bus_read_2(sc->sis_res[0], reg)
 
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_barrier(sc->sis_res[0], reg, length, flags)
+
 /*
  * Various supported device vendors/types and their names.
  */
-static struct sis_type sis_devs[] = {
+static const struct sis_type const sis_devs[] = {
 	{ SIS_VENDORID, SIS_DEVICEID_900, "SiS 900 10/100BaseTX" },
 	{ SIS_VENDORID, SIS_DEVICEID_7016, "SiS 7016 10/100BaseTX" },
 	{ NS_VENDORID, NS_DEVICEID_DP83815, "NatSemi DP8381[56] 10/100BaseTX" },
@@ -145,6 +149,8 @@ static void sis_init(void *);
 static void sis_initl(struct sis_softc *);
 static void sis_intr(void *);
 static int sis_ioctl(struct ifnet *, u_long, caddr_t);
+static uint32_t sis_mii_bitbang_read(device_t);
+static void sis_mii_bitbang_write(device_t, uint32_t);
 static int sis_newbuf(struct sis_softc *, struct sis_rxdesc *);
 static int sis_resume(device_t);
 static int sis_rxeof(struct sis_softc *);
@@ -159,6 +165,20 @@ static void sis_add_sysctls(struct sis_softc *);
 static void sis_watchdog(struct sis_softc *);
 static void sis_wol(struct sis_softc *);
 
+/*
+ * MII bit-bang glue
+ */
+static const struct mii_bitbang_ops sis_mii_bitbang_ops = {
+	sis_mii_bitbang_read,
+	sis_mii_bitbang_write,
+	{
+		SIS_MII_DATA,		/* MII_BIT_MDO */
+		SIS_MII_DATA,		/* MII_BIT_MDI */
+		SIS_MII_CLK,		/* MII_BIT_MDC */
+		SIS_MII_DIR,		/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 static struct resource_spec sis_res_spec[] = {
 #ifdef SIS_USEIOSPACE
@@ -412,179 +432,41 @@ sis_read_mac(struct sis_softc *sc, device_t dev, caddr_t dest)
 #endif
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+sis_mii_bitbang_read(device_t dev)
+{
+	struct sis_softc	*sc;
+	uint32_t		val;
+
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_4(sc, SIS_EECTL);
+	CSR_BARRIER(sc, SIS_EECTL, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-sis_mii_sync(struct sis_softc *sc)
+sis_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	int		i;
+	struct sis_softc	*sc;
 
- 	SIO_SET(SIS_MII_DIR|SIS_MII_DATA);
+	sc = device_get_softc(dev);
 
- 	for (i = 0; i < 32; i++) {
- 		SIO_SET(SIS_MII_CLK);
- 		DELAY(1);
- 		SIO_CLR(SIS_MII_CLK);
- 		DELAY(1);
- 	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-sis_mii_send(struct sis_softc *sc, uint32_t bits, int cnt)
-{
-	int			i;
-
-	SIO_CLR(SIS_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			SIO_SET(SIS_MII_DATA);
-		} else {
-			SIO_CLR(SIS_MII_DATA);
-		}
-		DELAY(1);
-		SIO_CLR(SIS_MII_CLK);
-		DELAY(1);
-		SIO_SET(SIS_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-sis_mii_readreg(struct sis_softc *sc, struct sis_mii_frame *frame)
-{
-	int			i, ack;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = SIS_MII_STARTDELIM;
-	frame->mii_opcode = SIS_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	/*
- 	 * Turn on data xmit.
-	 */
-	SIO_SET(SIS_MII_DIR);
-
-	sis_mii_sync(sc);
-
-	/*
-	 * Send command/address info.
-	 */
-	sis_mii_send(sc, frame->mii_stdelim, 2);
-	sis_mii_send(sc, frame->mii_opcode, 2);
-	sis_mii_send(sc, frame->mii_phyaddr, 5);
-	sis_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	SIO_CLR((SIS_MII_CLK|SIS_MII_DATA));
-	DELAY(1);
-	SIO_SET(SIS_MII_CLK);
-	DELAY(1);
-
-	/* Turn off xmit. */
-	SIO_CLR(SIS_MII_DIR);
-
-	/* Check for ack */
-	SIO_CLR(SIS_MII_CLK);
-	DELAY(1);
-	ack = CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA;
-	SIO_SET(SIS_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for (i = 0; i < 16; i++) {
-			SIO_CLR(SIS_MII_CLK);
-			DELAY(1);
-			SIO_SET(SIS_MII_CLK);
-			DELAY(1);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		SIO_CLR(SIS_MII_CLK);
-		DELAY(1);
-		if (!ack) {
-			if (CSR_READ_4(sc, SIS_EECTL) & SIS_MII_DATA)
-				frame->mii_data |= i;
-			DELAY(1);
-		}
-		SIO_SET(SIS_MII_CLK);
-		DELAY(1);
-	}
-
-fail:
-
-	SIO_CLR(SIS_MII_CLK);
-	DELAY(1);
-	SIO_SET(SIS_MII_CLK);
-	DELAY(1);
-
-	if (ack)
-		return (1);
-	return (0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-sis_mii_writereg(struct sis_softc *sc, struct sis_mii_frame *frame)
-{
-
- 	/*
- 	 * Set up frame for TX.
- 	 */
-
- 	frame->mii_stdelim = SIS_MII_STARTDELIM;
- 	frame->mii_opcode = SIS_MII_WRITEOP;
- 	frame->mii_turnaround = SIS_MII_TURNAROUND;
-
- 	/*
-  	 * Turn on data output.
- 	 */
- 	SIO_SET(SIS_MII_DIR);
-
- 	sis_mii_sync(sc);
-
- 	sis_mii_send(sc, frame->mii_stdelim, 2);
- 	sis_mii_send(sc, frame->mii_opcode, 2);
- 	sis_mii_send(sc, frame->mii_phyaddr, 5);
- 	sis_mii_send(sc, frame->mii_regaddr, 5);
- 	sis_mii_send(sc, frame->mii_turnaround, 2);
- 	sis_mii_send(sc, frame->mii_data, 16);
-
- 	/* Idle bit. */
- 	SIO_SET(SIS_MII_CLK);
- 	DELAY(1);
- 	SIO_CLR(SIS_MII_CLK);
- 	DELAY(1);
-
- 	/*
- 	 * Turn off xmit.
- 	 */
- 	SIO_CLR(SIS_MII_DIR);
-
- 	return (0);
+	CSR_WRITE_4(sc, SIS_EECTL, val);
+	CSR_BARRIER(sc, SIS_EECTL, 4,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 sis_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct sis_softc	*sc;
-	struct sis_mii_frame    frame;
 
 	sc = device_get_softc(dev);
 
@@ -628,7 +510,8 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 		}
 
 		if (i == SIS_TIMEOUT) {
-			device_printf(sc->sis_dev, "PHY failed to come ready\n");
+			device_printf(sc->sis_dev,
+			    "PHY failed to come ready\n");
 			return (0);
 		}
 
@@ -638,22 +521,15 @@ sis_miibus_readreg(device_t dev, int phy, int reg)
 			return (0);
 
 		return (val);
-	} else {
-		bzero((char *)&frame, sizeof(frame));
-
-		frame.mii_phyaddr = phy;
-		frame.mii_regaddr = reg;
-		sis_mii_readreg(sc, &frame);
-
-		return (frame.mii_data);
-	}
+	} else
+		return (mii_bitbang_readreg(dev, &sis_mii_bitbang_ops, phy,
+		    reg));
 }
 
 static int
 sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct sis_softc	*sc;
-	struct sis_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
@@ -686,15 +562,11 @@ sis_miibus_writereg(device_t dev, int phy, int reg, int data)
 		}
 
 		if (i == SIS_TIMEOUT)
-			device_printf(sc->sis_dev, "PHY failed to come ready\n");
-	} else {
-		bzero((char *)&frame, sizeof(frame));
-
-		frame.mii_phyaddr = phy;
-		frame.mii_regaddr = reg;
-		frame.mii_data = data;
-		sis_mii_writereg(sc, &frame);
-	}
+			device_printf(sc->sis_dev,
+			    "PHY failed to come ready\n");
+	} else
+		mii_bitbang_writereg(dev, &sis_mii_bitbang_ops, phy, reg,
+		    data);
 	return (0);
 }
 
@@ -989,7 +861,7 @@ sis_reset(struct sis_softc *sc)
 static int
 sis_probe(device_t dev)
 {
-	struct sis_type		*t;
+	const struct sis_type	*t;
 
 	t = sis_devs;
 

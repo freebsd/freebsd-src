@@ -30,29 +30,29 @@
  */
 
 #ifndef __NLM_HAL_COP2_H__
-#define __NLM_HAL_COP2_H__
+#define	__NLM_HAL_COP2_H__
 
-#define COP2_TX_BUF		0
-#define COP2_RX_BUF		1
-#define COP2_TXMSGSTATUS	2
-#define COP2_RXMSGSTATUS	3
-#define COP2_MSGSTATUS1		4
-#define COP2_MSGCONFIG		5
-#define COP2_MSGCONFIG1		6
+#define	COP2_TX_BUF		0
+#define	COP2_RX_BUF		1
+#define	COP2_TXMSGSTATUS	2
+#define	COP2_RXMSGSTATUS	3
+#define	COP2_MSGSTATUS1		4
+#define	COP2_MSGCONFIG		5
+#define	COP2_MSGERROR		6
 
-#define CROSSTHR_POPQ_EN	0x01
-#define VC0_POPQ_EN		0x02
-#define VC1_POPQ_EN		0x04
-#define VC2_POPQ_EN		0x08
-#define VC3_POPQ_EN		0x10
-#define ALL_VC_POPQ_EN		0x1E
-#define ALL_VC_CT_POPQ_EN	0x1F
+#define	CROSSTHR_POPQ_EN	0x01
+#define	VC0_POPQ_EN		0x02
+#define	VC1_POPQ_EN		0x04
+#define	VC2_POPQ_EN		0x08
+#define	VC3_POPQ_EN		0x10
+#define	ALL_VC_POPQ_EN		0x1E
+#define	ALL_VC_CT_POPQ_EN	0x1F
 
 struct nlm_fmn_msg {
 	uint64_t msg[4];
 };
 
-#define NLM_DEFINE_COP2_ACCESSORS32(name, reg, sel)		\
+#define	NLM_DEFINE_COP2_ACCESSORS32(name, reg, sel)		\
 static inline uint32_t nlm_read_c2_##name(void)			\
 {								\
 	uint32_t __rv;						\
@@ -79,7 +79,7 @@ static inline void nlm_write_c2_##name(uint32_t val)		\
 } struct __hack
 
 #if (__mips == 64)
-#define NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
+#define	NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
 static inline uint64_t nlm_read_c2_##name(void)			\
 {								\
 	uint64_t __rv;						\
@@ -107,7 +107,7 @@ static inline void nlm_write_c2_##name(uint64_t val)		\
 
 #else
 
-#define NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
+#define	NLM_DEFINE_COP2_ACCESSORS64(name, reg, sel)		\
 static inline uint64_t nlm_read_c2_##name(void)			\
 {								\
 	uint32_t __high, __low;					\
@@ -160,7 +160,10 @@ NLM_DEFINE_COP2_ACCESSORS32(txmsgstatus, COP2_TXMSGSTATUS, 0);
 NLM_DEFINE_COP2_ACCESSORS32(rxmsgstatus, COP2_RXMSGSTATUS, 0);
 NLM_DEFINE_COP2_ACCESSORS32(msgstatus1, COP2_MSGSTATUS1, 0);
 NLM_DEFINE_COP2_ACCESSORS32(msgconfig, COP2_MSGCONFIG, 0);
-NLM_DEFINE_COP2_ACCESSORS32(msgconfig1, COP2_MSGCONFIG1, 0);
+NLM_DEFINE_COP2_ACCESSORS32(msgerror0, COP2_MSGERROR, 0);
+NLM_DEFINE_COP2_ACCESSORS32(msgerror1, COP2_MSGERROR, 1);
+NLM_DEFINE_COP2_ACCESSORS32(msgerror2, COP2_MSGERROR, 2);
+NLM_DEFINE_COP2_ACCESSORS32(msgerror3, COP2_MSGERROR, 3);
 
 /* successful completion returns 1, else 0 */
 static inline int
@@ -279,7 +282,7 @@ nlm_fmn_msgrcv(int vc, int *srcid, int *size, int *code, struct nlm_fmn_msg *m)
 }
 
 static inline void
-nlm_fmn_cpu_init(int int_vec, int ctpe, int v0pe, int v1pe, int v2pe, int v3pe)
+nlm_fmn_cpu_init(int int_vec, int ecc_en, int v0pe, int v1pe, int v2pe, int v3pe)
 {
 	uint32_t val = nlm_read_c2_msgconfig();
 
@@ -287,12 +290,12 @@ nlm_fmn_cpu_init(int int_vec, int ctpe, int v0pe, int v1pe, int v2pe, int v3pe)
 	 * in msgconfig register of cop2.
 	 * As per chip/cpu RTL, [16:20] bits consist of int_vec.
 	 */
-	val |= ((int_vec & 0x1f) << 16) |
+	val |= (((int_vec & 0x1f) << 16) |
+		((ecc_en & 0x1) << 8) |
 		((v3pe & 0x1) << 4) |
 		((v2pe & 0x1) << 3) |
 		((v1pe & 0x1) << 2) |
-		((v0pe & 0x1) << 1) |
-		(ctpe & 0x1);
+		((v0pe & 0x1) << 1));
 
 	nlm_write_c2_msgconfig(val);
 }

@@ -30,60 +30,74 @@
  */
 
 #ifndef __XLP_PCIBUS_H__
-#define __XLP_PCIBUS_H__
+#define	__XLP_PCIBUS_H__
 
-#define MSI_MIPS_ADDR_BASE              0xfee00000
+#define	MSI_MIPS_ADDR_BASE              0xfee00000
 /* MSI support */
-#define MSI_MIPS_ADDR_DEST		0x000ff000
-#define MSI_MIPS_ADDR_RH		0x00000008
-#define MSI_MIPS_ADDR_RH_OFF		0x00000000
-#define MSI_MIPS_ADDR_RH_ON		0x00000008
-#define MSI_MIPS_ADDR_DM		0x00000004
-#define MSI_MIPS_ADDR_DM_PHYSICAL	0x00000000
-#define MSI_MIPS_ADDR_DM_LOGICAL	0x00000004
+#define	MSI_MIPS_ADDR_DEST		0x000ff000
+#define	MSI_MIPS_ADDR_RH		0x00000008
+#define	MSI_MIPS_ADDR_RH_OFF		0x00000000
+#define	MSI_MIPS_ADDR_RH_ON		0x00000008
+#define	MSI_MIPS_ADDR_DM		0x00000004
+#define	MSI_MIPS_ADDR_DM_PHYSICAL	0x00000000
+#define	MSI_MIPS_ADDR_DM_LOGICAL	0x00000004
 
 /* Fields in data for Intel MSI messages. */
-#define MSI_MIPS_DATA_TRGRMOD		0x00008000	/* Trigger mode */
-#define MSI_MIPS_DATA_TRGREDG		0x00000000	/* edge */
-#define MSI_MIPS_DATA_TRGRLVL		0x00008000	/* level */
+#define	MSI_MIPS_DATA_TRGRMOD		0x00008000	/* Trigger mode */
+#define	MSI_MIPS_DATA_TRGREDG		0x00000000	/* edge */
+#define	MSI_MIPS_DATA_TRGRLVL		0x00008000	/* level */
 
-#define MSI_MIPS_DATA_LEVEL		0x00004000	/* Polarity. */
-#define MSI_MIPS_DATA_DEASSERT		0x00000000
-#define MSI_MIPS_DATA_ASSERT		0x00004000
+#define	MSI_MIPS_DATA_LEVEL		0x00004000	/* Polarity. */
+#define	MSI_MIPS_DATA_DEASSERT		0x00000000
+#define	MSI_MIPS_DATA_ASSERT		0x00004000
 
-#define MSI_MIPS_DATA_DELMOD		0x00000700	/* Delivery Mode */
-#define MSI_MIPS_DATA_DELFIXED		0x00000000	/* fixed */
-#define MSI_MIPS_DATA_DELLOPRI		0x00000100	/* lowest priority */
+#define	MSI_MIPS_DATA_DELMOD		0x00000700	/* Delivery Mode */
+#define	MSI_MIPS_DATA_DELFIXED		0x00000000	/* fixed */
+#define	MSI_MIPS_DATA_DELLOPRI		0x00000100	/* lowest priority */
 
-#define MSI_MIPS_DATA_INTVEC		0x000000ff
+#define	MSI_MIPS_DATA_INTVEC		0x000000ff
+
+#define	PCIE_BRIDGE_CMD		0x1
+#define	PCIE_BRIDGE_MSI_CAP	0x14
+#define	PCIE_BRIDGE_MSI_ADDRL	0x15
+#define	PCIE_BRIDGE_MSI_ADDRH	0x16
+#define	PCIE_BRIDGE_MSI_DATA	0x17
+
+/* XLP Global PCIE configuration space registers */
+#define	PCIE_MSI_STATUS		0x25A
+#define	PCIE_MSI_EN		0x25B
+#define	PCIE_INT_EN0		0x261
+
+/* PCIE_MSI_EN */
+#define	PCIE_MSI_VECTOR_INT_EN		0xFFFFFFFF
+
+/* PCIE_INT_EN0 */
+#define	PCIE_MSI_INT_EN			(1 << 9)
+
+#if !defined(LOCORE) && !defined(__ASSEMBLY__)
+
+#define	nlm_read_pcie_reg(b, r)		nlm_read_reg(b, r)
+#define	nlm_write_pcie_reg(b, r, v)	nlm_write_reg(b, r, v)
+#define	nlm_get_pcie_base(node, inst)	\
+				nlm_pcicfg_base(XLP_IO_PCIE_OFFSET(node, inst))
+#define	nlm_get_pcie_regbase(node, inst)	\
+				(nlm_get_pcie_base(node, inst) + XLP_IO_PCI_HDRSZ)
 
 /*
  * Build Intel MSI message and data values from a source.  AMD64 systems
  * seem to be compatible, so we use the same function for both.
  */
-#define MIPS_MSI_ADDR(cpu)					       \
+#define	MIPS_MSI_ADDR(cpu)					       \
         (MSI_MIPS_ADDR_BASE | (cpu) << 12 |			       \
 	 MSI_MIPS_ADDR_RH_OFF | MSI_MIPS_ADDR_DM_PHYSICAL)
 
-#define MIPS_MSI_DATA(irq)					       \
+#define	MIPS_MSI_DATA(irq)					       \
         (MSI_MIPS_DATA_TRGRLVL | MSI_MIPS_DATA_DELFIXED |	       \
 	 MSI_MIPS_DATA_ASSERT | (irq))
 
-#define PCIE_BRIDGE_CMD		0x1
-#define PCIE_BRIDGE_MSI_CAP	0x14
-#define PCIE_BRIDGE_MSI_ADDRL	0x15
-#define PCIE_BRIDGE_MSI_ADDRH	0x16
-#define PCIE_BRIDGE_MSI_DATA	0x17
+#endif
 
-/* XLP Global PCIE configuration space registers */
-#define PCIE_MSI_STATUS		0x25A
-#define PCIE_MSI_EN		0x25B
-#define PCIE_INT_EN0		0x261
-
-/* PCIE_MSI_EN */
-#define PCIE_MSI_VECTOR_INT_EN		0xFFFFFFFF
-
-/* PCIE_INT_EN0 */
-#define PCIE_MSI_INT_EN			(1 << 9)
-
+#ifndef LOCORE
+int xlp_pcie_link_irt(int link);
+#endif
 #endif /* __XLP_PCIBUS_H__ */

@@ -147,7 +147,8 @@ static	void safe_totalreset(struct safe_softc *);
 
 static	int safe_free_entry(struct safe_softc *, struct safe_ringentry *);
 
-SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0, "SafeNet driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0,
+    "SafeNet driver parameters");
 
 #ifdef SAFE_DEBUG
 static	void safe_dump_dmastatus(struct safe_softc *, const char *);

@@ -51,7 +51,7 @@ __FBSDID("$FreeBSD$");
 #define _COMPONENT	ACPI_OS_SERVICES
 ACPI_MODULE_NAME("INTERRUPT")
 
-MALLOC_DEFINE(M_ACPIINTR, "acpiintr", "ACPI interrupt");
+static MALLOC_DEFINE(M_ACPIINTR, "acpiintr", "ACPI interrupt");
 
 struct acpi_intr {
 	SLIST_ENTRY(acpi_intr)	ai_link;

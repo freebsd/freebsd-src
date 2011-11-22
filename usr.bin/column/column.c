@@ -58,21 +58,21 @@ __FBSDID("$FreeBSD$");
 
 #define	TAB	8
 
-void  c_columnate(void);
-void  input(FILE *);
-void  maketbl(void);
-void  print(void);
-void  r_columnate(void);
-void  usage(void);
-int   width(const wchar_t *);
+static void	c_columnate(void);
+static void	input(FILE *);
+static void	maketbl(void);
+static void	print(void);
+static void	r_columnate(void);
+static void	usage(void);
+static int	width(const wchar_t *);
 
-int termwidth = 80;		/* default terminal width */
+static int	termwidth = 80;		/* default terminal width */
 
-int entries;			/* number of records */
-int eval;			/* exit value */
-int maxlength;			/* longest record */
-wchar_t **list;			/* array of pointers to records */
-const wchar_t *separator = L"\t ";	/* field separator for table option */
+static int	entries;		/* number of records */
+static int	eval;			/* exit value */
+static int	maxlength;		/* longest record */
+static wchar_t	**list;			/* array of pointers to records */
+static const wchar_t *separator = L"\t "; /* field separator for table option */
 
 int
 main(int argc, char **argv)
@@ -149,7 +149,7 @@ main(int argc, char **argv)
 	exit(eval);
 }
 
-void
+static void
 c_columnate(void)
 {
 	int chcnt, col, cnt, endcol, numcols;
@@ -178,7 +178,7 @@ c_columnate(void)
 		putwchar('\n');
 }
 
-void
+static void
 r_columnate(void)
 {
 	int base, chcnt, cnt, col, endcol, numcols, numrows, row;
@@ -205,7 +205,7 @@ r_columnate(void)
 	}
 }
 
-void
+static void
 print(void)
 {
 	int cnt;
@@ -221,7 +221,7 @@ typedef struct _tbl {
 } TBL;
 #define	DEFCOLS	25
 
-void
+static void
 maketbl(void)
 {
 	TBL *t;
@@ -274,7 +274,7 @@ maketbl(void)
 #define	DEFNUM		1000
 #define	MAXLINELEN	(LINE_MAX + 1)
 
-void
+static void
 input(FILE *fp)
 {
 	static int maxentry;
@@ -313,7 +313,7 @@ input(FILE *fp)
 }
 
 /* Like wcswidth(), but ignores non-printing characters. */
-int
+static int
 width(const wchar_t *wcs)
 {
 	int w, cw;
@@ -324,7 +324,7 @@ width(const wchar_t *wcs)
 	return (w);
 }
 
-void
+static void
 usage(void)
 {
 

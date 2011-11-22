@@ -24,7 +24,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <sys/soundcard.h>
 
-const char	*names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
+static const char *names[SOUND_MIXER_NRDEVICES] = SOUND_DEVICE_NAMES;
 
 static void	usage(int devmask, int recmask);
 static int	res_name(const char *name, int mask);

@@ -63,7 +63,7 @@
  */
 
 SYSCTL_DECL(_net_link_generic);
-SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link_generic, IFMIB_SYSTEM, system, CTLFLAG_RW, 0,
 	    "Variables global to all interfaces");
 
 SYSCTL_VNET_INT(_net_link_generic_system, IFMIB_IFCOUNT, ifcount, CTLFLAG_RD,
@@ -164,6 +164,6 @@ out:
 	return error;
 }
 
-SYSCTL_NODE(_net_link_generic, IFMIB_IFDATA, ifdata, CTLFLAG_RW,
+static SYSCTL_NODE(_net_link_generic, IFMIB_IFDATA, ifdata, CTLFLAG_RW,
 	    sysctl_ifdata, "Interface table");
 

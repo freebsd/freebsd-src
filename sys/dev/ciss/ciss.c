@@ -105,7 +105,8 @@
 #include <dev/ciss/cissio.h>
 #include <dev/ciss/cissvar.h>
 
-MALLOC_DEFINE(CISS_MALLOC_CLASS, "ciss_data", "ciss internal data buffers");
+static MALLOC_DEFINE(CISS_MALLOC_CLASS, "ciss_data",
+    "ciss internal data buffers");
 
 /* pci interface */
 static int	ciss_lookup(device_t dev);

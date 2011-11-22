@@ -131,8 +131,10 @@ static struct {
 };
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0, "IEEE 802.1Q VLAN");
-SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0, "for consistency");
+static SYSCTL_NODE(_net_link, IFT_L2VLAN, vlan, CTLFLAG_RW, 0,
+    "IEEE 802.1Q VLAN");
+static SYSCTL_NODE(_net_link_vlan, PF_LINK, link, CTLFLAG_RW, 0,
+    "for consistency");
 
 static int soft_pad = 0;
 SYSCTL_INT(_net_link_vlan, OID_AUTO, soft_pad, CTLFLAG_RW, &soft_pad, 0,
@@ -965,7 +967,7 @@ vlan_clone_create(struct if_clone *ifc, char *name, size_t len, caddr_t params)
 			 */
 			ether_ifdetach(ifp);
 			vlan_unconfig(ifp);
-			if_free_type(ifp, IFT_ETHER);
+			if_free(ifp);
 			ifc_free_unit(ifc, unit);
 			free(ifv, M_VLAN);
 
@@ -987,7 +989,7 @@ vlan_clone_destroy(struct if_clone *ifc, struct ifnet *ifp)
 
 	ether_ifdetach(ifp);	/* first, remove it from system-wide lists */
 	vlan_unconfig(ifp);	/* now it can be unconfigured and freed */
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 	free(ifv, M_VLAN);
 	ifc_free_unit(ifc, unit);
 

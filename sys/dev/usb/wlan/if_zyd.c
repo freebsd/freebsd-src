@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int zyd_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
 SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
     "zyd debug level");
 
@@ -683,7 +683,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (i != cnt)
 					continue;
 				/* copy answer into caller-supplied buffer */
-				bcopy(cmd->data, rqp->odata, rqp->olen);
+				memcpy(rqp->odata, cmd->data, rqp->olen);
 				DPRINTF(sc, ZYD_DEBUG_CMD,
 				    "command %p complete, data = %*D \n",
 				    rqp, rqp->olen, rqp->odata, ":");
@@ -783,7 +783,7 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 		return (EINVAL);
 
 	cmd.code = htole16(code);
-	bcopy(idata, cmd.data, ilen);
+	memcpy(cmd.data, idata, ilen);
 	DPRINTF(sc, ZYD_DEBUG_CMD, "sending cmd %p = %*D\n",
 	    &rq, ilen, idata, ":");
 

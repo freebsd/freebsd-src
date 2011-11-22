@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #define NBYTES 9271
 
 /* Pointers into data_table for each ASCII char */
-const int asc_ptr[NCHARS] = {
+static const int asc_ptr[NCHARS] = {
 /* ^@ */   0,      0,      0,      0,      0,      0,      0,      0,
 /* ^H */   0,      0,      0,      0,      0,      0,      0,      0,
 /* ^P */   0,      0,      0,      0,      0,      0,      0,      0,
@@ -86,7 +86,7 @@ const int asc_ptr[NCHARS] = {
  * is the next elt in array) and goto second
  * next element in array.
  */
-const unsigned char data_table[NBYTES] = {
+static const unsigned char data_table[NBYTES] = {
 /*             0     1     2     3     4     5     6     7     8     9 */
 /*    0 */   129,  227,  130,   34,    6,   90,   19,  129,   32,   10,
 /*   10 */    74,   40,  129,   31,   12,   64,   53,  129,   30,   14,
@@ -1018,11 +1018,11 @@ const unsigned char data_table[NBYTES] = {
 /* 9270 */   193
 };
 
-char	line[DWIDTH];
-char	*message;
-char	print[DWIDTH];
-int	debug, i, j, linen, max, nchars, pc, term, trace, x, y;
-int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
+static char	line[DWIDTH];
+static char	*message;
+static char	print[DWIDTH];
+static int	debug, i, j, linen, max, nchars, pc, term, trace, x, y;
+static int	width = DWIDTH;	/* -w option: scrunch letters to 80 columns */
 
 static void usage(void);
 

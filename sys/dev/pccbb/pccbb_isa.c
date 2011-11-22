@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
  *****************************************************************************/
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 static int isa_intr_mask = EXCA_INT_MASK_ALLOWED;
 TUNABLE_INT("hw.cbb.intr_mask", &isa_intr_mask);

@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 /*
  * File access mode flags table.
  */
-struct {
+static const struct {
 	int	flag;
 	char	ch;
 } fflags[] = {
@@ -67,7 +67,7 @@ struct {
 /*
  * Usage flags translation table.
  */
-struct {
+static const struct {
 	int	flag;
 	char	ch;
 } uflags[] = {

@@ -210,7 +210,8 @@ typedef struct {
 			halHasRxSelfLinkedTail		: 1,
 			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
 			halHasLongRxDescTsf		: 1,
-			halHasBBReadWar			: 1;
+			halHasBBReadWar			: 1,
+			halSerialiseRegWar		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;

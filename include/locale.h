@@ -79,4 +79,52 @@ struct lconv	*localeconv(void);
 char		*setlocale(int, const char *);
 __END_DECLS
 
+#if __POSIX_VISIBLE >= 200809
+
+#define LC_COLLATE_MASK  (1<<0)
+#define LC_CTYPE_MASK    (1<<1)
+#define LC_MESSAGES_MASK (1<<2)
+#define LC_MONETARY_MASK (1<<3)
+#define LC_NUMERIC_MASK  (1<<4)
+#define LC_TIME_MASK     (1<<5)
+#define LC_ALL_MASK      (LC_COLLATE_MASK | LC_CTYPE_MASK | LC_MESSAGES_MASK | \
+		LC_MONETARY_MASK | LC_NUMERIC_MASK | LC_TIME_MASK)
+
+#define LC_GLOBAL_LOCALE ((locale_t)-1)
+
+__BEGIN_DECLS
+
+typedef struct _xlocale *locale_t;
+/**
+ * Creates a new locale.  
+ */
+locale_t	 newlocale(int mask, const char *locale, locale_t base);
+
+/**
+ * Returns an identical duplicate of the passed locale.  The returned locale
+ * must be freed with freelocale().  The returned locale will share components
+ * with the original.
+ */
+locale_t	 duplocale(locale_t base);
+/*
+ * Free a locale_t.  This is quite a poorly named function.  It actually
+ * disclaims a reference to a locale_t, rather than freeing it.  
+ */
+int	 freelocale(locale_t loc);
+
+/*
+ * Returns the name of the locale for a particular component of a locale_t.
+ */
+const char	*querylocale(int mask, locale_t loc);
+
+/*
+ * Installs the specified locale_t as this thread's locale.
+ */
+locale_t	 uselocale(locale_t loc);
+
+__END_DECLS
+
+#endif /* __POSIX_VISIBLE >= 200809 */
+
+
 #endif /* _LOCALE_H_ */

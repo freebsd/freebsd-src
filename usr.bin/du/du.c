@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-SLIST_HEAD(ignhead, ignentry) ignores;
+static SLIST_HEAD(ignhead, ignentry) ignores;
 struct ignentry {
 	char			*mask;
 	SLIST_ENTRY(ignentry)	next;
@@ -88,7 +88,6 @@ main(int argc, char *argv[])
 	off_t		savednumber, curblocks;
 	off_t		threshold, threshold_sign;
 	int		ftsoptions;
-	int		listall;
 	int		depth;
 	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag;
 	int		hflag, lflag, ch, notused, rval;
@@ -229,17 +228,10 @@ main(int argc, char *argv[])
 	if (!Aflag && (cblocksize % DEV_BSIZE) != 0)
 		cblocksize = howmany(cblocksize, DEV_BSIZE) * DEV_BSIZE;
 
-	listall = 0;
-
-	if (aflag) {
-		if (sflag || dflag)
-			usage();
-		listall = 1;
-	} else if (sflag) {
-		if (dflag)
-			usage();
+	if (aflag + dflag + sflag > 1)
+		usage();
+	if (sflag)
 		depth = 0;
-	}
 
 	if (!*argv) {
 		argv = save;
@@ -320,7 +312,7 @@ main(int argc, char *argv[])
 			    howmany(p->fts_statp->st_size, cblocksize) :
 			    howmany(p->fts_statp->st_blocks, cblocksize);
 
-			if (listall || p->fts_level == 0) {
+			if (aflag || p->fts_level == 0) {
 				if (hflag) {
 					prthumanval(curblocks);
 					(void)printf("\t%s\n", p->fts_path);

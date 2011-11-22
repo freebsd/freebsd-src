@@ -69,7 +69,7 @@ __FBSDID("$FreeBSD$");
 ILOG_DEFINE_FOR_FILE(L_ISI_FAIL_POINT, L_ILOG, fail_point);
 #endif
 
-MALLOC_DEFINE(M_FAIL_POINT, "Fail Points", "fail points system");
+static MALLOC_DEFINE(M_FAIL_POINT, "Fail Points", "fail points system");
 #define fp_free(ptr) free(ptr, M_FAIL_POINT)
 #define fp_malloc(size, flags) malloc((size), M_FAIL_POINT, (flags))
 

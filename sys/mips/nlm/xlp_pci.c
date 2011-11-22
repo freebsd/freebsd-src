@@ -109,7 +109,6 @@ xlp_pci_init_resources(void)
 	if (rman_init(&emul_rman)
 	    || rman_manage_region(&emul_rman, 0x18000000ULL, 0x18ffffffULL))
 		panic("pci_init_resources emul_rman");
-
 }
 
 static int
@@ -117,7 +116,6 @@ xlp_pcib_probe(device_t dev)
 {
 
 	device_set_desc(dev, "XLP PCI bus");
-
 	xlp_pci_init_resources();
 	return (0);
 }
@@ -184,7 +182,6 @@ xlp_pcib_read_config(device_t dev, u_int b, u_int s, u_int f,
 		    (dev == 6 || dev == 2 || dev == 7))
 			data |= 0x1 << 8;	/* Fake int pin */
 	}
-
 	if (width == 1)
 		return ((data >> ((reg & 3) << 3)) & 0xff);
 	else if (width == 2)
@@ -220,7 +217,6 @@ xlp_pcib_write_config(device_t dev, u_int b, u_int s, u_int f,
 	}
 
 	nlm_write_pci_reg(cfgaddr, regindex, data);
-
 	return;
 }
 
@@ -253,8 +249,10 @@ xlp_pcie_link(device_t pcib, device_t dev)
 	device_t parent, tmp;
 
 	/* find the lane on which the slot is connected to */
+#if 0 /* Debug */
 	printf("xlp_pcie_link : bus %s dev %s\n", device_get_nameunit(pcib),
 		device_get_nameunit(dev));
+#endif
 	tmp = dev;
 	while (1) {
 		parent = device_get_parent(tmp);
@@ -267,20 +265,6 @@ xlp_pcie_link(device_t pcib, device_t dev)
 		tmp = parent;
 	}
 	return (pci_get_function(tmp));
-}
-
-/*
- * Find the IRQ for the link, each link has a different interrupt 
- * at the XLP pic
- */
-static int
-xlp_pcie_link_irt(int link)
-{
-
-	if( (link < 0) || (link > 3))
-		return (-1);
-
-	return PIC_IRT_PCIE_LINK_INDEX(link);
 }
 
 static int
@@ -346,7 +330,7 @@ bridge_pcie_ack(int irq)
 	node = nlm_nodeid();
 	reg = PCIE_MSI_STATUS;
 
-	switch(irq) {
+	switch (irq) {
 		case PIC_PCIE_0_IRQ:
 			base = nlm_pcicfg_base(XLP_IO_PCIE0_OFFSET(node));
 			break;
@@ -364,7 +348,6 @@ bridge_pcie_ack(int irq)
 	}
 
 	nlm_write_pci_reg(base, reg, 0xFFFFFFFF);
-
 	return;
 }
 
@@ -375,7 +358,6 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 {
 	int error = 0;
 	int xlpirq;
-	int node,base,val,link;
 	void *extra_ack;
 
 	error = rman_activate_resource(irq);
@@ -399,6 +381,9 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 	 * link, and assign the link interrupt to the device interrupt
 	 */
 	if (xlpirq >= 64) {
+		int node, val, link;
+		uint64_t base;
+
 		xlpirq -= 64;
 		if (xlpirq % 32 != 0)
 			return (0);
@@ -438,6 +423,7 @@ mips_platform_pci_setup_intr(device_t dev, device_t child,
 		xlpirq = xlp_irt_to_irq(xlpirq);
 	}
 	/* Set all irqs to CPU 0 for now */
+	printf("set up intr %d->%d(%d)\n", xlp_irq_to_irt(xlpirq), xlpirq, (int)rman_get_start(irq));
 	nlm_pic_write_irt_direct(xlp_pic_base, xlp_irq_to_irt(xlpirq), 1, 0,
 				 PIC_LOCAL_SCHEDULING, xlpirq, 0);
 	extra_ack = NULL;
@@ -468,41 +454,28 @@ assign_soc_resource(device_t child, int type, u_long *startp, u_long *endp,
 	int devid = pci_get_device(child);
 	int inst = pci_get_function(child);
 	int node = pci_get_slot(child) / 8;
+	int dev = pci_get_slot(child) % 8;
 
 	*rm = NULL;
 	*va = 0;
 	*bst = 0;
-	switch (devid) {
-	case PCI_DEVICE_ID_NLM_UART:
-		switch (type) {
-		case SYS_RES_IRQ:
-			*startp = *endp = PIC_UART_0_IRQ + inst;
-			*countp = 1;
-			break;
-		case SYS_RES_MEMORY: 
+	if (type == SYS_RES_IRQ) {
+		printf("%s: %d %d %d : start %d, end %d\n", __func__,
+				node, dev, inst, (int)*startp, (int)*endp);
+	} else if (type == SYS_RES_MEMORY) {
+		switch (devid) {
+		case PCI_DEVICE_ID_NLM_UART:
 			*va = nlm_get_uart_regbase(node, inst);
 			*startp = MIPS_KSEG1_TO_PHYS(va);
 			*countp = 0x100;
 			*rm = &emul_rman;
 			*bst = uart_bus_space_mem;
 			break;
-		};
-		break;
-
-	case PCI_DEVICE_ID_NLM_EHCI:
-		if (type == SYS_RES_IRQ) {
-			if (inst == 0)
-				*startp = *endp = PIC_EHCI_0_IRQ;
-			else if (inst == 3)
-				*startp = *endp = PIC_EHCI_1_IRQ;
-			else
-				device_printf(child, "bad instance %d\n", inst);
-
-			*countp = 1; 
 		}
-		break;
-	}
 
+	} else
+		printf("Unknown type %d in req for [%x%x]\n",
+			type, devid, inst);
 	/* default to rmi_bus_space for SoC resources */
 	if (type == SYS_RES_MEMORY && *bst == 0)
 		*bst = rmi_bus_space;
@@ -614,12 +587,40 @@ mips_pci_route_interrupt(device_t bus, device_t dev, int pin)
 	/*
 	 * Validate requested pin number.
 	 */
-	device_printf(bus, "route  %s %d", device_get_nameunit(dev), pin);
 	if ((pin < 1) || (pin > 4))
 		return (255);
 
-	link = xlp_pcie_link(bus, dev);
-	irt = xlp_pcie_link_irt(link);
+	device_printf(bus, "route  %s %d", device_get_nameunit(dev), pin);
+	if (pci_get_bus(dev) == 0 &&
+	    pci_get_vendor(dev) == PCI_VENDOR_NETLOGIC) {
+		/* SoC devices */
+		uint64_t pcibase;
+		int f, n, d, num;
+
+		f = pci_get_function(dev);
+		n = pci_get_slot(dev) / 8;
+		d = pci_get_slot(dev) % 8;
+
+		/*
+		 * For PCIe links, return link IRT, for other SoC devices
+		 * get the IRT from its PCIe header
+		 */
+		if (d == 1) {
+			irt = xlp_pcie_link_irt(f);
+		} else {
+			pcibase = nlm_pcicfg_base(XLP_HDR_OFFSET(n, 0, d, f));
+			irt = nlm_irtstart(pcibase);
+			num = nlm_irtnum(pcibase);
+			if (num != 1)
+				device_printf(bus, "[%d:%d:%d] Error %d IRQs\n",
+				    n, d, f, num);
+		}
+	} else {
+		/* Regular PCI devices */
+		link = xlp_pcie_link(bus, dev);
+		irt = xlp_pcie_link_irt(link);
+	}
+
 	if (irt != -1)
 		return (xlp_irt_to_irq(irt));
 

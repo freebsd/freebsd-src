@@ -75,7 +75,7 @@ static void	usb_attach_sub(device_t, struct usb_bus *);
 #ifdef USB_DEBUG
 static int usb_ctrl_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
 SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
     "Debug level");
 #endif

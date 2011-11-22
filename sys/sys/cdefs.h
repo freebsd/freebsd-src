@@ -253,6 +253,17 @@
 #define	__LONG_LONG_SUPPORTED
 #endif
 
+/* C++11 exposes a load of C99 stuff */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	__LONG_LONG_SUPPORTED
+#ifndef	__STDC_LIMIT_MACROS
+#define	__STDC_LIMIT_MACROS
+#endif
+#ifndef	__STDC_CONSTANT_MACROS
+#define	__STDC_CONSTANT_MACROS
+#endif
+#endif
+
 /*
  * GCC 2.95 provides `__restrict' as an extension to C90 to support the
  * C99-specific `restrict' type qualifier.  We happen to use `__restrict' as
@@ -349,7 +360,8 @@
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
+    defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else

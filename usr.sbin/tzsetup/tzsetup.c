@@ -565,6 +565,18 @@ install_zoneinfo_file(const char *zoneinfo_file)
 
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
+			if (unlink(path_db) < 0 && errno != ENOENT) {
+				snprintf(title, sizeof(title), "Error");
+				snprintf(prompt, sizeof(prompt),
+				     "Could not delete %s: %s", path_db,
+				     strerror(errno));
+				if (usedialog)
+					dialog_mesgbox(title, prompt, 8, 72);
+				else
+					fprintf(stderr, "%s\n", prompt);
+
+				return (DITEM_FAILURE | DITEM_RECREATE);
+			}
 			return (DITEM_LEAVE_MENU);
 		}
 		

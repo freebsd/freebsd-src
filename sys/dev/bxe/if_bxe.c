@@ -423,7 +423,7 @@ DRIVER_MODULE(bxe, pci, bxe_driver, bxe_devclass, 0, 0);
 /*
  * Tunable device values
  */
-SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bxe, CTLFLAG_RD, 0, "bxe driver parameters");
 /* Allowable values are TRUE (1) or FALSE (0). */
 
 static int bxe_dcc_enable = FALSE;

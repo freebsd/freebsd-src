@@ -174,7 +174,7 @@
 #define STATE_ACK_SENT	8
 #define STATE_OPENED	9
 
-MALLOC_DEFINE(M_SPPP, "sppp", "synchronous PPP interface internals");
+static MALLOC_DEFINE(M_SPPP, "sppp", "synchronous PPP interface internals");
 
 struct ppp_header {
 	u_char address;

@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 
 static enum { IN_LIST, NOT_IN_LIST } which = NOT_IN_LIST;
 
-TAILQ_HEAD(fstypelist, entry) opthead, selhead;
+static TAILQ_HEAD(fstypelist, entry) opthead, selhead;
 
 struct entry {
 	char *type;

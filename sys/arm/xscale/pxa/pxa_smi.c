@@ -42,7 +42,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/xscale/pxa/pxavar.h>
 #include <arm/xscale/pxa/pxareg.h>
 
-MALLOC_DEFINE(M_PXASMI, "PXA SMI", "Data for static memory interface devices.");
+static MALLOC_DEFINE(M_PXASMI, "PXA SMI",
+    "Data for static memory interface devices.");
 
 struct pxa_smi_softc {
 	struct resource	*ps_res[1];

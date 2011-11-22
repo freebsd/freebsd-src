@@ -60,36 +60,36 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	 cleanup(void);
-void	 do_lineno(const char *);
-void	 do_rexp(const char *);
-char	*getline(void);
-void	 handlesig(int);
-FILE	*newfile(void);
-void	 toomuch(FILE *, long);
-void	 usage(void);
+static void	 cleanup(void);
+static void	 do_lineno(const char *);
+static void	 do_rexp(const char *);
+static char	*getline(void);
+static void	 handlesig(int);
+static FILE	*newfile(void);
+static void	 toomuch(FILE *, long);
+static void	 usage(void);
 
 /*
  * Command line options
  */
-const char *prefix;		/* File name prefix */
-long	 sufflen;		/* Number of decimal digits for suffix */
-int	 sflag;			/* Suppress output of file names */
-int	 kflag;			/* Keep output if error occurs */
+static const char *prefix;	/* File name prefix */
+static long	 sufflen;	/* Number of decimal digits for suffix */
+static int	 sflag;		/* Suppress output of file names */
+static int	 kflag;		/* Keep output if error occurs */
 
 /*
  * Other miscellaneous globals (XXX too many)
  */
-long	 lineno;		/* Current line number in input file */
-long	 reps;			/* Number of repetitions for this pattern */
-long	 nfiles;		/* Number of files output so far */
-long	 maxfiles;		/* Maximum number of files we can create */
-char	 currfile[PATH_MAX];	/* Current output file */
-const char *infn;		/* Name of the input file */
-FILE	*infile;		/* Input file handle */
-FILE	*overfile;		/* Overflow file for toomuch() */
-off_t	 truncofs;		/* Offset this file should be truncated at */
-int	 doclean;		/* Should cleanup() remove output? */
+static long	 lineno;	/* Current line number in input file */
+static long	 reps;		/* Number of repetitions for this pattern */
+static long	 nfiles;	/* Number of files output so far */
+static long	 maxfiles;	/* Maximum number of files we can create */
+static char	 currfile[PATH_MAX]; /* Current output file */
+static const char *infn;	/* Name of the input file */
+static FILE	*infile;	/* Input file handle */
+static FILE	*overfile;	/* Overflow file for toomuch() */
+static off_t	 truncofs;	/* Offset this file should be truncated at */
+static int	 doclean;	/* Should cleanup() remove output? */
 
 int
 main(int argc, char *argv[])
@@ -209,7 +209,7 @@ main(int argc, char *argv[])
 	return (0);
 }
 
-void
+static void
 usage(void)
 {
 
@@ -218,7 +218,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 handlesig(int sig __unused)
 {
 	const char msg[] = "csplit: caught signal, cleaning up\n";
@@ -229,7 +229,7 @@ handlesig(int sig __unused)
 }
 
 /* Create a new output file. */
-FILE *
+static FILE *
 newfile(void)
 {
 	FILE *fp;
@@ -245,7 +245,7 @@ newfile(void)
 }
 
 /* Remove partial output, called before exiting. */
-void
+static void
 cleanup(void)
 {
 	char fnbuf[PATH_MAX];
@@ -269,7 +269,7 @@ cleanup(void)
 }
 
 /* Read a line from the input into a static buffer. */
-char *
+static char *
 getline(void)
 {
 	static char lbuf[LINE_MAX];
@@ -292,7 +292,7 @@ again: if (fgets(lbuf, sizeof(lbuf), src) == NULL) {
 }
 
 /* Conceptually rewind the input (as obtained by getline()) back `n' lines. */
-void
+static void
 toomuch(FILE *ofp, long n)
 {
 	char buf[BUFSIZ];
@@ -351,7 +351,7 @@ toomuch(FILE *ofp, long n)
 }
 
 /* Handle splits for /regexp/ and %regexp% patterns. */
-void
+static void
 do_rexp(const char *expr)
 {
 	regex_t cre;
@@ -433,7 +433,7 @@ do_rexp(const char *expr)
 }
 
 /* Handle splits based on line number. */
-void
+static void
 do_lineno(const char *expr)
 {
 	long lastline, tgtline;

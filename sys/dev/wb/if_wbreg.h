@@ -341,25 +341,8 @@ struct wb_chain_data {
 struct wb_type {
 	u_int16_t		wb_vid;
 	u_int16_t		wb_did;
-	char			*wb_name;
+	const char		*wb_name;
 };
-
-struct wb_mii_frame {
-	u_int8_t		mii_stdelim;
-	u_int8_t		mii_opcode;
-	u_int8_t		mii_phyaddr;
-	u_int8_t		mii_regaddr;
-	u_int8_t		mii_turnaround;
-	u_int16_t		mii_data;
-};
-
-/*
- * MII constants
- */
-#define WB_MII_STARTDELIM	0x01
-#define WB_MII_READOP		0x02
-#define WB_MII_WRITEOP		0x01
-#define WB_MII_TURNAROUND	0x02
 
 struct wb_softc {
 	struct ifnet		*wb_ifp;	/* interface info */
@@ -394,6 +377,9 @@ struct wb_softc {
 #define CSR_READ_4(sc, reg)		bus_read_4(sc->wb_res, reg)
 #define CSR_READ_2(sc, reg)		bus_read_2(sc->wb_res, reg)
 #define CSR_READ_1(sc, reg)		bus_read_1(sc->wb_res, reg)
+
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_barrier(sc->wb_res, reg, length, flags)
 
 #define WB_TIMEOUT		1000
 

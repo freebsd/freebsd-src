@@ -85,7 +85,7 @@ __FBSDID("$FreeBSD$");
 static int uhcidebug = 0;
 static int uhcinoloop = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhci, CTLFLAG_RW, 0, "USB uhci");
 SYSCTL_INT(_hw_usb_uhci, OID_AUTO, debug, CTLFLAG_RW,
     &uhcidebug, 0, "uhci debug level");
 SYSCTL_INT(_hw_usb_uhci, OID_AUTO, loop, CTLFLAG_RW,
@@ -2702,7 +2702,7 @@ uhci_roothub_exec(struct usb_device *udev,
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
 		len = 16;
-		bzero(sc->sc_hub_desc.temp, 16);
+		memset(sc->sc_hub_desc.temp, 0, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
 		if (index == 1)

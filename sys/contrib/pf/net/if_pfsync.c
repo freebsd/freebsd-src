@@ -3290,16 +3290,17 @@ void
 pfsyncintr(void *arg)
 {
 	struct pfsync_softc *sc = arg;
-	struct mbuf *m;
+	struct mbuf *m, *n;
 
 	CURVNET_SET(sc->sc_ifp->if_vnet);
 	pfsync_ints++;
 
-	for (;;) {
-		IF_DEQUEUE(&sc->sc_ifp->if_snd, m);
-		if (m == 0)
-			break;
+	IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
 
+	for (; m != NULL; m = n) {
+
+		n = m->m_nextpkt;
+		m->m_nextpkt = NULL;
 		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL)
 		    == 0)
 			V_pfsyncstats.pfsyncs_opackets++;
