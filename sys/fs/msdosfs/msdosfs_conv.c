@@ -1036,8 +1036,10 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 	size_t count, newlen;
 
 	if (nbp->nb_len != 0 && id != nbp->nb_last_id - 1) {
+#ifdef MSDOSFS_DEBUG
 		printf("msdosfs: non-decreasing id: id %d, last id %d\n",
 		    id, nbp->nb_last_id);
+#endif
 		return;
 	}
 
@@ -1046,7 +1048,9 @@ mbnambuf_write(struct mbnambuf *nbp, char *name, int id)
 	count = strlen(name);
 	newlen = nbp->nb_len + count;
 	if (newlen > WIN_MAXLEN || newlen > MAXNAMLEN) {
+#ifdef MSDOSFS_DEBUG
 		printf("msdosfs: file name length %zu too large\n", newlen);
+#endif
 		return;
 	}
 
