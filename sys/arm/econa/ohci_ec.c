@@ -185,7 +185,7 @@ ohci_ec_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	bus_space_write_4(sc->sc_ohci.sc_io_tag, sc->sc_ohci.sc_io_hdl,
 	    OHCI_CONTROL, 0);
