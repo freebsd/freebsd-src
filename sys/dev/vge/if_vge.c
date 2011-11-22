@@ -1103,7 +1103,7 @@ vge_attach(device_t dev)
 	/* Do MII setup */
 	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,
 	    vge_ifmedia_sts, BMSR_DEFCAPMASK, sc->vge_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -2112,9 +2112,16 @@ vge_init_locked(struct vge_softc *sc)
 	vge_rxfilter(sc);
 	vge_setvlan(sc);
 
-	/* Enable flow control */
-
-	CSR_WRITE_1(sc, VGE_CRS2, 0x8B);
+	/* Initialize pause timer. */
+	CSR_WRITE_2(sc, VGE_TX_PAUSE_TIMER, 0xFFFF);
+	/*
+	 * Initialize flow control parameters.
+	 *  TX XON high threshold : 48
+	 *  TX pause low threshold : 24
+	 *  Disable hald-duplex flow control
+	 */
+	CSR_WRITE_1(sc, VGE_CRC2, 0xFF);
+	CSR_WRITE_1(sc, VGE_CRS2, VGE_CR2_XON_ENABLE | 0x0B);
 
 	/* Enable jumbo frame reception (if desired) */
 
