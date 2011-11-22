@@ -1590,6 +1590,7 @@ re_attach(device_t dev)
 	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &reg) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_capenable &= ~(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST);
 	/*
 	 * Don't enable TSO by default.  It is known to generate
 	 * corrupted TCP segments(bad TCP options) under certain
@@ -3622,12 +3623,9 @@ re_setwol(struct rl_softc *sc)
 		v |= RL_CFG3_WOL_MAGIC;
 	CSR_WRITE_1(sc, RL_CFG3, v);
 
-	/* Config register write done. */
-	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
 	v = CSR_READ_1(sc, RL_CFG5);
-	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
-	v &= ~RL_CFG5_WOL_LANWAKE;
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST |
+	    RL_CFG5_WOL_LANWAKE);
 	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
 		v |= RL_CFG5_WOL_UCAST;
 	if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
@@ -3635,6 +3633,9 @@ re_setwol(struct rl_softc *sc)
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG5_WOL_LANWAKE;
 	CSR_WRITE_1(sc, RL_CFG5, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
 	    (sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
