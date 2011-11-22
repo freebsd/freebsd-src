@@ -87,26 +87,6 @@ static struct mtx di_er_mtx; /* Mutex guarding dynamic rules. */
 #define	DI_ER_LOCK_INIT()	mtx_init(&di_er_mtx, \
     "DIFFUSE export record list", NULL, MTX_DEF)
 
-uint16_t def_template[15] = {
-	DIP_IE_EXPORT_NAME,
-	DIP_IE_MSG_TYPE,
-	DIP_IE_SRC_IPV4,
-	DIP_IE_DST_IPV4,
-	DIP_IE_SRC_PORT,
-	DIP_IE_DST_PORT,
-	DIP_IE_PROTO,
-	DIP_IE_PCKT_CNT,
-	DIP_IE_KBYTE_CNT,
-	DIP_IE_CLASSES,
-	DIP_IE_TIMEOUT_TYPE,
-	DIP_IE_TIMEOUT,
-	DIP_IE_ACTION,
-	DIP_IE_ACTION_FLAGS,
-	DIP_IE_ACTION_PARAMS
-};
-
-#define	N_TEMPLATE_ITEMS (sizeof(def_template) / sizeof(*def_template))
-
 /*
  * Length of the fixed size, per-packet header on outgoing flow rule template
  * based export packets.
@@ -119,7 +99,8 @@ uint16_t def_template[15] = {
  */
 #define	DIP_FIXED_HDR_LEN (sizeof(struct dip_header) + \
     sizeof(struct dip_set_header) + sizeof(struct dip_templ_header) + \
-    (N_TEMPLATE_ITEMS * sizeof(uint16_t)) + 4 * sizeof(uint16_t))
+    (N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS * sizeof(uint16_t)) + \
+    4 * sizeof(uint16_t))
 
 /* Size for one data set. */
 static int def_data_size;
@@ -146,16 +127,16 @@ _get_data_size(void)
 
 	size = 0;
 
-	for (i = 0; i < N_TEMPLATE_ITEMS; i++) {
-		n = dip_info[def_template[i]].len;
+	for (i = 0; i < N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS; i++) {
+		n = dip_info[def_flowrule_template[i]].len;
 		if (n > 0)
 			size += n;
 		else if (n == 0) {
-			if (def_template[i] == DIP_IE_ACTION ||
-			    def_template[i] == DIP_IE_EXPORT_NAME ||
-			    def_template[i] == DIP_IE_CLASSIFIER_NAME) {
+			if (def_flowrule_template[i] == DIP_IE_ACTION ||
+			    def_flowrule_template[i] == DIP_IE_EXPORT_NAME ||
+			    def_flowrule_template[i] == DIP_IE_CLASSIFIER_NAME) {
 				size += DI_MAX_NAME_STR_LEN;
-			} else if (def_template[i] == DIP_IE_ACTION_PARAMS) {
+			} else if (def_flowrule_template[i] == DIP_IE_ACTION_PARAMS) {
 				size += DI_MAX_PARAM_STR_LEN;
 			}
 		}
@@ -364,10 +345,6 @@ diffuse_export_open(struct di_export_config *conf)
 static void
 prepare_header(void)
 {
-#define	SET_ID_OPTS_TPL		0
-#define	SET_ID_FLOWRULE_TPL	1
-#define	SET_ID_DATA		256
-
 	struct dip_header *hdr;
 	struct dip_set_header *shdr;
 	struct dip_templ_header *thdr;
@@ -393,26 +370,26 @@ prepare_header(void)
 	offs += sizeof(struct dip_header);
 
 	shdr = (struct dip_set_header *)(buf + offs);
-	shdr->set_id = htons((uint16_t)SET_ID_FLOWRULE_TPL);
+	shdr->set_id = htons((uint16_t)DIP_SET_ID_FLOWRULE_TPL);
 	shdr->set_len = 0;
 	offs += sizeof(struct dip_set_header);
 
 	thdr = (struct dip_templ_header *)(buf + offs);
-	thdr->templ_id = htons((uint16_t)SET_ID_DATA);
+	thdr->templ_id = htons((uint16_t)DIP_SET_ID_DATA);
 	thdr->flags = 0;
 	offs += sizeof(struct dip_templ_header);
 
-	for (i = 0; i < N_TEMPLATE_ITEMS; i++) {
+	for (i = 0; i < N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS; i++) {
 		*((uint16_t *)(buf + offs)) =
-		    htons(dip_info[def_template[i]].id);
+		    htons(dip_info[def_flowrule_template[i]].id);
 		offs += sizeof(uint16_t);
-		if (def_template[i] == DIP_IE_ACTION ||
-		    def_template[i] == DIP_IE_EXPORT_NAME ||
-		    def_template[i] == DIP_IE_CLASSIFIER_NAME) {
+		if (def_flowrule_template[i] == DIP_IE_ACTION ||
+		    def_flowrule_template[i] == DIP_IE_EXPORT_NAME ||
+		    def_flowrule_template[i] == DIP_IE_CLASSIFIER_NAME) {
 			*((uint16_t *)(buf + offs)) =
 			    htons((uint16_t)DI_MAX_NAME_STR_LEN);
 			offs += sizeof(uint16_t);
-		} else if (def_template[i] == DIP_IE_ACTION_PARAMS) {
+		} else if (def_flowrule_template[i] == DIP_IE_ACTION_PARAMS) {
 			*((uint16_t *)(buf + offs)) =
 			    htons((uint16_t)DI_MAX_PARAM_STR_LEN);
 			offs += sizeof(uint16_t);
@@ -422,7 +399,7 @@ prepare_header(void)
 	shdr->set_len = htons(offs - sizeof(struct dip_header));
 	def_data_shdr_offs = offs;
 	shdr = (struct dip_set_header *)(buf + offs);
-	shdr->set_id = htons((uint16_t)SET_ID_DATA);
+	shdr->set_id = htons((uint16_t)DIP_SET_ID_DATA);
 	shdr->set_len = htons(sizeof(struct dip_set_header));
 	offs += sizeof(struct dip_set_header);
 

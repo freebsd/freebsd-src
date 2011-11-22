@@ -12,5 +12,6 @@ DPADD=	${LIBUTIL}
 DPADD+=	${LIBM}
 LDADD=	-lutil -lm
 MAN=	ipfw.8
+SUBDIR=	diffuse_exporter
 
 .include <bsd.prog.mk>

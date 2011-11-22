@@ -45,9 +45,15 @@
 /* Used if querying MTU from routing table fails. */
 #define	DIP_DEFAULT_MTU 1500
 
+#define	DIP_SET_ID_OPTS_TPL	0
+#define	DIP_SET_ID_FLOWRULE_TPL	1
+#define	DIP_SET_ID_CMD_TPL	2
+#define	DIP_SET_ID_DATA		256
+
 enum dip_msg_types {
 	DIP_MSG_ADD = 0,
-	DIP_MSG_REMOVE
+	DIP_MSG_REMOVE,
+	DIP_MSG_REQSTATE
 };
 
 enum dip_timeout_types {
@@ -144,5 +150,26 @@ static struct dip_info_descr dip_info[] = {
 	{DIP_IE_NOP,			0,	0,	"Unknown"}
 };
 #endif
+
+/* Default flow rule template. */
+static uint16_t def_flowrule_template[15] = {
+	DIP_IE_EXPORT_NAME,
+	DIP_IE_MSG_TYPE,
+	DIP_IE_SRC_IPV4,
+	DIP_IE_DST_IPV4,
+	DIP_IE_SRC_PORT,
+	DIP_IE_DST_PORT,
+	DIP_IE_PROTO,
+	DIP_IE_PCKT_CNT,
+	DIP_IE_KBYTE_CNT,
+	DIP_IE_CLASSES,
+	DIP_IE_TIMEOUT_TYPE,
+	DIP_IE_TIMEOUT,
+	DIP_IE_ACTION,
+	DIP_IE_ACTION_FLAGS,
+	DIP_IE_ACTION_PARAMS
+};
+#define	N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS (sizeof(def_flowrule_template) / \
+    sizeof(*def_flowrule_template))
 
 #endif /* _NETINET_IP_DIFFUSE_EXPORT_H_ */
