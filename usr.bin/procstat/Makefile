@@ -4,6 +4,7 @@ PROG=	procstat
 MAN=	procstat.1
 SRCS=	procstat.c		\
 	procstat_args.c		\
+	procstat_auxv.c		\
 	procstat_basic.c	\
 	procstat_bin.c		\
 	procstat_cred.c		\

@@ -42,24 +42,26 @@
 
 static char args[ARG_MAX];
 
-void
-procstat_args(struct kinfo_proc *kipp)
+static void
+do_args(struct kinfo_proc *kipp, int env)
 {
 	int error, name[4];
 	size_t len;
 	char *cp;
 
 	if (!hflag)
-		printf("%5s %-16s %-53s\n", "PID", "COMM", "ARGS");
+		printf("%5s %-16s %-53s\n", "PID", "COMM",
+		    env ? "ENVIRONMENT" : "ARGS");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
-	name[2] = KERN_PROC_ARGS;
+	name[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
 	name[3] = kipp->ki_pid;
 	len = sizeof(args);
 	error = sysctl(name, 4, args, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
-		warn("sysctl: kern.proc.args: %d", kipp->ki_pid);
+	if (error < 0 && errno != ESRCH && errno != EPERM) {
+		warn("sysctl: kern.proc.%s: %d: %d", env ? "env" : "args",
+		    kipp->ki_pid, errno);
 		return;
 	}
 	if (error < 0)
@@ -74,4 +76,16 @@ procstat_args(struct kinfo_proc *kipp)
 	for (cp = args; cp < args + len; cp += strlen(cp) + 1)
 		printf("%s%s", cp != args ? " " : "", cp);
 	printf("\n");
+}
+
+void
+procstat_args(struct kinfo_proc *kipp)
+{
+	do_args(kipp, 0);
+}
+
+void
+procstat_env(struct kinfo_proc *kipp)
+{
+	do_args(kipp, 1);
 }
