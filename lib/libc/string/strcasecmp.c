@@ -49,7 +49,7 @@ strcasecmp_l(const char *s1, const char *s2, locale_t locale)
 			*us1 = (const u_char *)s1,
 			*us2 = (const u_char *)s2;
 	if (s1 == s2)
-	    return (0);
+		return (0);
 
 	FIX_LOCALE(locale);
 
@@ -73,8 +73,9 @@ strncasecmp_l(const char *s1, const char *s2, size_t n, locale_t locale)
 			*us1 = (const u_char *)s1,
 			*us2 = (const u_char *)s2;
 	
-	if (( s1 == s2) | (n == 0))
-	    return (0);
+	/* use a bitwise or to avoid an additional branch instruction */
+	if ((s1 == s2) | (n == 0))
+		return (0);
 
 
 	do {
