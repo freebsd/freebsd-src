@@ -1507,6 +1507,7 @@ dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/netmap/netmap.c		optional netmap
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge
 dev/nxge/xgehal/xgehal-device.c	optional nxge
