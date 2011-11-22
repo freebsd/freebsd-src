@@ -393,10 +393,7 @@ static driver_t ohci_driver =
 		DEVMETHOD(device_resume, ohci_pci_resume),
 		DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-		/* bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-		{0, 0}
+		DEVMETHOD_END
 	},
 	.size = sizeof(struct ohci_softc),
 };

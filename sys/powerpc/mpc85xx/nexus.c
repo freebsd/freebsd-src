@@ -86,7 +86,6 @@ static device_method_t nexus_methods[] = {
 
 	/* Bus interface. Resource management is business of the children... */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_probe_nomatch,	NULL),
 	DEVMETHOD(bus_read_ivar,	NULL),
 	DEVMETHOD(bus_write_ivar,	NULL),
@@ -97,7 +96,7 @@ static device_method_t nexus_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	nexus_deactivate_resource),
 	DEVMETHOD(bus_release_resource,	NULL),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t nexus_driver = {
