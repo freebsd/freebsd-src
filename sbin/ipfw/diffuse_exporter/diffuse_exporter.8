@@ -1,0 +1,146 @@
+.\"
+.\" Copyright (c) 2010
+.\"	Swinburne University of Technology, Melbourne, Australia.
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, by Sebastian Zander, made
+.\" possible in part by a gift from The Cisco University Research Program Fund, a
+.\" corporate advised fund of Silicon Valley Community Foundation.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2011
+.Dt diffuse_exporter 8
+.Os
+.Sh NAME
+.Nm diffuse_exporter
+.Nd forward flow information from a classifier node to one or more action nodes.
+.Sh SYNOPSIS
+.Nm
+.Op Fl hv
+.Op Fl a Ar prot://host:port , Ns ...
+.Op Fl c Ar host:port
+.Sh DESCRIPTION
+The
+.Nm
+utility acts as an intermediary between a DIFFUSE classifier node and one or
+more action nodes.
+It listens for UDP messages containing flow information sent by the in-kernel
+.Xr diffuse 4
+classifier and forwards the information to remote action nodes using UDP, TCP or
+SCTP.
+.Pp
+The following options are available:
+.Bl -tag -width "Ar prot://host:port,..." -offset indent
+.It Fl a Ar prot://host:port , Ns ...
+Comma separated (no spaces) list of action nodes to forward flow information to.
+.Ar proto
+must be either "udp", "tcp", or "sctp",
+.Ar host
+is the action node's IP address or fully qualified host name, and
+.Ar port
+is the port the action node is listening on.
+If no
+.Ar port
+is specified, 3191 is used as a default.
+.It Fl c Ar host:port
+The classifier node to listen for flow information from.
+.Ar host
+is the classifier node's IP address or fully qualified host name, and
+.Ar port
+is the port
+.Nm
+will listen on for messages from the classifier node.
+If no
+.Ar port
+is specified, 3191 is used as a default.
+.It Fl h
+Show help.
+.It Fl v
+Increase verbosity.
+.El
+.Sh EXAMPLES
+Listen for flow information from a local classifier on the default port and
+forward it to two different action nodes using TCP and SCTP respectively:
+.Bd -literal -offset indent
+.Nm Ns
+ -c localhost \\\ 
+     -a tcp://anode1.example.com:5000,sctp://anode2.example.com:5000
+.Ed
+.Sh SEE ALSO
+.Xr diffuse 4 ,
+.Xr dummynet 4 ,
+.Xr ipfw 4 ,
+.Xr ipfw 8 ,
+.Xr diffuse_collector 8
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and The Cisco University Research Program Fund, a
+corporate advised fund of Silicon Valley Community Foundation.
+.Sh HISTORY
+The
+.Nm
+utility is part of the DIFFUSE architecture and first appeared in
+.Fx 10.0 .
+.Pp
+DIFFUSE
+.Ns ( Em DI Ns stributed
+.Em F Ns irewall
+and
+.Em F Ns low-shaper
+.Em U Ns sing
+.Em S Ns tatistical
+.Em E Ns vidence )
+was first released in 2010 by Sebastian Zander whilst working on the DIFFUSE
+research project at Swinburne University of Technology's Centre for Advanced
+Internet Architectures, Melbourne, Australia, which was made possible in part by
+a gift from The Cisco University Research Program Fund, a corporate advised fund
+of Silicon Valley Community Foundation.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/diffuse/
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+was written by
+.An Sebastian Zander Aq szander@swin.edu.au
+and later extended by
+.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Sebastian Zander Aq szander@swin.edu.au
+and
+.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.Sh BUGS
+.Bl -dash
+.It
+IPv6 is currently unsupported.
+.El

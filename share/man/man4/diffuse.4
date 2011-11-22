@@ -1,0 +1,225 @@
+.\"
+.\" Copyright (c) 2010
+.\"	Swinburne University of Technology, Melbourne, Australia.
+.\" Copyright (c) 2011 The FreeBSD Foundation
+.\" All rights reserved.
+.\"
+.\" This software was developed at the Centre for Advanced Internet
+.\" Architectures, Swinburne University of Technology, by Sebastian Zander, made
+.\" possible in part by a gift from The Cisco University Research Program Fund, a
+.\" corporate advised fund of Silicon Valley Community Foundation.
+.\"
+.\" Portions of this documentation were written at the Centre for Advanced
+.\" Internet Architectures, Swinburne University of Technology, Melbourne,
+.\" Australia by Lawrence Stewart under sponsorship from the FreeBSD Foundation.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE FOR
+.\" ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd November 23, 2011
+.Dt DIFFUSE 4
+.Os
+.Sh NAME
+.Nm DIFFUSE
+.Nd Distributed Firewall and Flow-shaper Using Statistical Evidence
+.Sh SYNOPSIS
+To compile
+.Nm Ns
+ into the kernel, place the following lines in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "options IPFIREWALL"
+.Cd "options DIFFUSE"
+.Ed
+.Pp
+Alternatively, to load
+.Nm Ns
+ as a module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+diffuse_load="YES"
+.Ed
+.Sh DESCRIPTION
+.Nm
+.Ns ( Em DI Ns stributed
+.Em F Ns irewall
+and
+.Em F Ns low-shaper
+.Em U Ns sing
+.Em S Ns tatistical
+.Em E Ns vidence )
+implements an architecture for distributed network flow classification and
+treatment.
+.Nm
+has two main entities: classifier nodes and action nodes.
+.Pp
+Classifier nodes run the
+.Nm
+kernel module which extends
+.Xr ipfw 4
+to provide machine learning based traffic classification using statistical
+properties (features) of observed traffic flows.
+IPFW rules are configured using new
+.Nm
+specific grammar to export flow information, which is typically relayed to one
+or more action nodes by a
+.Xr diffuse_exporter 8
+instance.
+.Pp
+Action nodes receive flow information from classifier node(s) using a
+.Xr diffuse_collector 8
+instance and perform actions (block, redirect, rate shape, etc.) on packets
+belonging to classified flows.
+.Pp
+The following diagram outlines the typical way in which the architecture would
+be deployed:
+.Bd -literal
+  +-----------------+               +----------------+
+  | Classifier Node |               |  Action Node   |
+  |                 |               |                |
+  |  +------------+ |   Flow Info   | +------------+ |
+  |  |  Exporter  |------------------>|  Collector | |
+  |  +------------+ |               | +------------+ |
+  |       ^         |               |        |       |
+  |       |         |               |        v       |
+  |  +------------+ |               | +------------+ |
+  |  | Classifier | |               | | Firewall/  | |
+  |  +------------+ |               | | Shaper     | |
+  |       ^         |               | +------------+ |
+  |       |         |               |        |       |
+  +-------|---------+               +--------|--------
+          | Traffic measurement              | Traffic manipulation
+          |                                  V
+ <================== Network Traffic ===================>
+.Ed
+.Pp
+Classifier nodes and action nodes are logical entities that only require IP
+connectivity between them.
+They can be located on separate physical machines or co-located on the same
+machine.
+.Ss Feature Modules
+The following feature modules are available as kernel modules named
+diffuse_feature_<modname>:
+.Bl -tag -width "plenbd"
+.It iat
+Calculates unidirectional interarrival time features
+.It iatbd
+Calculates bidirectional interarrival time features
+.It pcnt
+Calculates packet count features
+.It plen
+Calculates unidirectional packet length features
+.It plenbd
+Calculates bidirectional packet length features
+.It skype
+Calculates skype specific features
+.El
+.Ss Classifier Modules
+The following classifier modules are available as kernel modules named
+diffuse_classifier_<modname>:
+.Bl -tag -width "nbayes"
+.It c45
+C4.5 decision tree classifier implementation
+.It nbayes
+Naive-Bayes classifier implementation
+.El
+.Ss Kernel Options
+The following options in the kernel configuration file are related to
+.Nm :
+.Pp
+.Bl -tag -width "IPFIREWALL_VERBOSE_LIMIT" -offset indent -compact
+.It Dv IPFIREWALL
+enable ipfirewall (required for
+.Nm )
+.It Dv IPFIREWALL_VERBOSE
+enable firewall output
+.It Dv IPFIREWALL_VERBOSE_LIMIT
+limit firewall output
+.It Dv DUMMYNET
+enable dummynet (required for shaping)
+.It Dv HZ
+set the timer granularity (for dummynet)
+.It Dv DIFFUSE
+enable
+.El
+.Pp
+If loading IPFW and
+.Nm
+as kernel modules, no changes to the kernel configuration file are necessary.
+.Pp
+If you wish to compile
+.Nm
+into the kernel the following options are required:
+.Bd -literal -offset indent
+options IPFIREWALL
+options DIFFUSE
+.Ed
+.Sh SEE ALSO
+.Xr dummynet 4 ,
+.Xr ipfw 4 ,
+.Xr diffuse_collector 8 ,
+.Xr diffuse_exporter 8 ,
+.Xr ipfw 8 ,
+.Xr kldload 8
+.Sh ACKNOWLEDGEMENTS
+Development and testing of this software were made possible in part by grants
+from the FreeBSD Foundation and The Cisco University Research Program Fund, a
+corporate advised fund of Silicon Valley Community Foundation.
+.Sh HISTORY
+The
+.Nm
+kernel module is part of the DIFFUSE architecture and first appeared in
+.Fx 10.0 .
+.Pp
+.Nm
+.Ns ( Em DI Ns stributed
+.Em F Ns irewall
+and
+.Em F Ns low-shaper
+.Em U Ns sing
+.Em S Ns tatistical
+.Em E Ns vidence )
+was first released in 2010 by Sebastian Zander whilst working on the DIFFUSE
+research project at Swinburne University of Technology's Centre for Advanced
+Internet Architectures, Melbourne, Australia, which was made possible in part by
+a gift from The Cisco University Research Program Fund, a corporate advised fund
+of Silicon Valley Community Foundation.
+More details are available at:
+.Pp
+http://caia.swin.edu.au/urp/diffuse/
+.Sh AUTHORS
+.An -nosplit
+.Nm
+was written by
+.An Sebastian Zander Aq szander@swin.edu.au
+and later extended by
+.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.Pp
+This manual page was written by
+.An Sebastian Zander Aq szander@swin.edu.au
+and
+.An Lawrence Stewart Aq lstewart@FreeBSD.org .
+.Sh BUGS
+.Bl -dash
+.It
+IPv6 is currently unsupported.
+.El

@@ -5,6 +5,6 @@ PROG=	diffuse_collector
 SRCS=	diffuse_collector.c diffuse_proto.c
 DPADD=	${LIBUTIL}
 LDADD=	-lutil
-NO_MAN=
+MAN=	diffuse_collector.8
 
 .include <bsd.prog.mk>
