@@ -151,10 +151,7 @@ static device_method_t ohci_ps3_methods[] = {
 	DEVMETHOD(device_probe, ohci_ps3_probe),
 	DEVMETHOD(device_attach, ohci_ps3_attach),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ohci_ps3_driver = {

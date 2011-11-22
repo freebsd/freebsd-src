@@ -516,7 +516,6 @@ static device_method_t i81342_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	i81342_read_ivar),
 	DEVMETHOD(bus_write_ivar,	i81342_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	i81342_pci_alloc_resource),
@@ -532,7 +531,7 @@ static device_method_t i81342_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	i81342_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	i81342_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t i81342_pci_driver = {

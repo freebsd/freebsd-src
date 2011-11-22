@@ -153,10 +153,7 @@ static device_method_t ehci_ps3_methods[] = {
 	DEVMETHOD(device_probe, ehci_ps3_probe),
 	DEVMETHOD(device_attach, ehci_ps3_attach),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_ps3_driver = {
@@ -169,4 +166,3 @@ static devclass_t ehci_ps3_devclass;
 
 DRIVER_MODULE(ehci_ps3, ps3bus, ehci_ps3_driver, ehci_ps3_devclass, 0, 0);
 MODULE_DEPEND(ehci_ps3, usb, 1, 1, 1);
-

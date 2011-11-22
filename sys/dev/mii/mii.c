@@ -82,7 +82,6 @@ static device_method_t miibus_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	miibus_print_child),
 	DEVMETHOD(bus_read_ivar,	miibus_read_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_child_pnpinfo_str, miibus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, miibus_child_location_str),
 	DEVMETHOD(bus_hinted_child,	miibus_hinted_child),
@@ -94,7 +93,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 devclass_t miibus_devclass;
