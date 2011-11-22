@@ -1894,7 +1894,7 @@ device_delete_child(device_t dev, device_t child)
  * @retval non-zero	a device would not detach
  */
 int
-device_delete_all_children(device_t dev)
+device_delete_children(device_t dev)
 {
 	device_t child;
 	int error;
