@@ -1,7 +1,5 @@
 # $FreeBSD$
 
-.include <bsd.own.mk>
-
 .PATH:	${.CURDIR}/..
 PROG=	diffuse_collector
 SRCS=	diffuse_collector.c diffuse_proto.c
