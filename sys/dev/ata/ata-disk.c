@@ -181,7 +181,7 @@ ad_detach(device_t dev)
     callout_drain(&atadev->spindown_timer);
 
     /* detach & delete all children */
-    device_delete_all_children(dev);
+    device_delete_children(dev);
 
     /* destroy disk from the system so we don't get any further requests */
     disk_destroy(adp->disk);

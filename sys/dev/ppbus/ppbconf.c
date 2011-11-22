@@ -429,7 +429,7 @@ ppbus_detach(device_t dev)
 		return (error);
 
 	/* detach & delete all children */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	return (0);
 }
