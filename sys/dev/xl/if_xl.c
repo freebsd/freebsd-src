@@ -310,17 +310,13 @@ static device_method_t xl_methods[] = {
 	DEVMETHOD(device_suspend,	xl_suspend),
 	DEVMETHOD(device_resume,	xl_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	xl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	xl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	xl_miibus_statchg),
 	DEVMETHOD(miibus_mediainit,	xl_miibus_mediainit),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t xl_driver = {

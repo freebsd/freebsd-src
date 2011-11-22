@@ -337,17 +337,13 @@ static device_method_t dc_methods[] = {
 	DEVMETHOD(device_resume,	dc_resume),
 	DEVMETHOD(device_shutdown,	dc_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	dc_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	dc_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	dc_miibus_statchg),
 	DEVMETHOD(miibus_mediainit,	dc_miibus_mediainit),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t dc_driver = {
