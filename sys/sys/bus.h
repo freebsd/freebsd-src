@@ -571,9 +571,10 @@ extern int bus_current_pass;
 void	bus_set_pass(int pass);
 
 /**
- * Shorthand for constructing method tables.
+ * Shorthands for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD_END	KOBJMETHOD_END
 
 /*
  * Some common device interfaces.
