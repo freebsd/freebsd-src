@@ -3194,14 +3194,14 @@ re_init_locked(struct rl_softc *sc)
 	if (sc->rl_testmode)
 		return;
 
-	mii_mediachg(mii);
-
 	CSR_WRITE_1(sc, RL_CFG1, CSR_READ_1(sc, RL_CFG1) | RL_CFG1_DRVLOAD);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->rl_flags &= ~RL_FLAG_LINK;
+	mii_mediachg(mii);
+
 	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
