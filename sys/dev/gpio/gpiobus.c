@@ -229,7 +229,7 @@ gpiobus_detach(device_t dev)
 		return (err);
 
 	/* detach and delete all children */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (sc->sc_pins_mapped) {
 		free(sc->sc_pins_mapped, M_DEVBUF);

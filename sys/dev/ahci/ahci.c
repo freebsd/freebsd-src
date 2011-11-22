@@ -518,7 +518,7 @@ ahci_detach(device_t dev)
 	int i;
 
 	/* Detach & delete all children */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	/* Free interrupts. */
 	for (i = 0; i < ctlr->numirqs; i++) {
