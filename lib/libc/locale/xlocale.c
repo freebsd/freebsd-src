@@ -200,8 +200,13 @@ static int dupcomponent(int type, locale_t base, locale_t new)
 		if (new->components[type]) {
 			strncpy(new->components[type]->locale, src->locale, ENCODING_LEN);
 		}
-	} else {
+	} else if (base->components[type]) {
 		new->components[type] = xlocale_retain(base->components[type]);
+	} else {
+		/* If the component was NULL, return success - if base is a valid
+		 * locale then the flag indicating that this isn't present should be
+		 * set.  If it isn't a valid locale, then we're stuck anyway. */
+		return 1;
 	}
 	return (0 != new->components[type]);
 }
