@@ -39,8 +39,9 @@ int
 strncmp(const char *s1, const char *s2, size_t n)
 {
 
-	if (n == 0)
+	if ((n == 0) | (s1 == s2))
 		return (0);
+
 	do {
 		if (*s1 != *s2++)
 			return (*(const unsigned char *)s1 -
