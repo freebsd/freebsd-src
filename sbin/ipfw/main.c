@@ -20,7 +20,18 @@
  * $FreeBSD$
  */
 
+#include <sys/queue.h>
+#include <sys/socket.h>
 #include <sys/wait.h>
+
+#include <net/if.h>
+
+#include <netinet/in.h>
+#include <netinet/in_systm.h>
+#include <netinet/ip.h>
+#include <netinet/ip_fw.h>
+#include <netinet/ip_diffuse.h> /* Must come after ip_fw.h */
+
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -31,6 +42,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
+#include "diffuse_ui.h"
 #include "ipfw2.h"
 
 static void
@@ -46,6 +58,9 @@ help(void)
 "nat N config {ip IPADDR|if IFNAME|log|deny_in|same_ports|unreg_only|reset|\n"
 "		reverse|proxy_only|redirect_addr linkspec|\n"
 "		redirect_port linkspec|redirect_proto linkspec}\n"
+"{feature|mlclass|export} name config config-options\n"
+"{feature|mlclass|export} {delete|show} name\n"
+"flowtable {show|zero|flush} [expired]\n"
 "set [disable N... enable N...] | move [rule] X to Y | swap X Y | show\n"
 "set N {show|list|zero|resetlog|delete} [N{,N}] | flush\n"
 "table N {add ip[/bits] [value] | delete ip[/bits] | flush | list}\n"
@@ -361,6 +376,7 @@ ipfw_main(int oldac, char **oldav)
 	co.do_nat = 0;
 	co.do_pipe = 0;
 	co.use_set = 0;
+	co.do_diffuse = 0;
 	if (!strncmp(*av, "nat", strlen(*av)))
  		co.do_nat = 1;
  	else if (!strncmp(*av, "pipe", strlen(*av)))
@@ -380,9 +396,16 @@ ipfw_main(int oldac, char **oldav)
 				    "invalid set number %s\n", av[1]);
 			ac -= 2; av += 2; co.use_set++;
 		}
-	}
+	} else if (!strncmp(*av, "feature", strlen(*av)))
+		co.do_diffuse = DI_FEATURE;
+	else if (!strncmp(*av, "mlclass", strlen(*av)))
+		co.do_diffuse = DI_CLASSIFIER;
+	else if (!strncmp(*av, "export", strlen(*av)))
+		co.do_diffuse = DI_EXPORT;
+	else if (!strncmp(*av, "flowtable", strlen(*av)))
+		co.do_diffuse = DI_FLOW_TABLE;
 
-	if (co.do_pipe || co.do_nat) {
+	if (co.do_pipe || co.do_nat || co.do_diffuse) {
 		ac--;
 		av++;
 	}
@@ -392,13 +415,18 @@ ipfw_main(int oldac, char **oldav)
 	 * For pipes, queues and nats we normally say 'nat|pipe NN config'
 	 * but the code is easier to parse as 'nat|pipe config NN'
 	 * so we swap the two arguments.
+	 * Same syntax for DIFFUSE. Swap only if parsing a config option.
 	 */
-	if ((co.do_pipe || co.do_nat) && ac > 1 && isdigit(*av[0])) {
+	if (((co.do_pipe || co.do_nat) && ac > 1 && isdigit(*av[0])) ||
+            (co.do_diffuse && ac > 1 && !_substrcmp(av[1], "config"))) {
 		char *p = av[0];
 
 		av[0] = av[1];
 		av[1] = p;
 	}
+
+	if (co.do_diffuse)
+		diffuse_init();
 
 	if (co.use_set == 0) {
 		if (_substrcmp(*av, "add") == 0)
@@ -417,24 +445,34 @@ ipfw_main(int oldac, char **oldav)
 			ipfw_sysctl_handler(av, 1);
 		else if (_substrcmp(*av, "disable") == 0)
 			ipfw_sysctl_handler(av, 0);
+		else if (co.do_diffuse && _substrcmp(*av, "config") == 0)
+			diffuse_config(ac, av, co.do_diffuse);
 		else
 			try_next = 1;
 	}
 
 	if (co.use_set || try_next) {
-		if (_substrcmp(*av, "delete") == 0)
+		if (!co.do_diffuse && _substrcmp(*av, "delete") == 0)
 			ipfw_delete(av);
-		else if (_substrcmp(*av, "flush") == 0)
+		else if (!co.do_diffuse && _substrcmp(*av, "flush") == 0)
 			ipfw_flush(co.do_force);
-		else if (_substrcmp(*av, "zero") == 0)
+		else if (!co.do_diffuse && _substrcmp(*av, "zero") == 0)
 			ipfw_zero(ac, av, 0 /* IP_FW_ZERO */);
 		else if (_substrcmp(*av, "resetlog") == 0)
 			ipfw_zero(ac, av, 1 /* IP_FW_RESETLOG */);
 		else if (_substrcmp(*av, "print") == 0 ||
 			 _substrcmp(*av, "list") == 0)
 			ipfw_list(ac, av, do_acct);
-		else if (_substrcmp(*av, "show") == 0)
+		else if (!co.do_diffuse && _substrcmp(*av, "show") == 0)
 			ipfw_list(ac, av, 1 /* show counters */);
+		else if (co.do_diffuse && _substrcmp(*av, "delete") == 0)
+			diffuse_delete(ac, av, co.do_diffuse);
+		else if (co.do_diffuse && _substrcmp(*av, "show") == 0)
+			diffuse_list(ac, av, co.do_diffuse, 1);
+		else if (co.do_diffuse == DI_FLOW_TABLE && _substrcmp(*av, "flush") == 0)
+			diffuse_flush(ac, av, 0);
+		else if (co.do_diffuse == DI_FLOW_TABLE && _substrcmp(*av, "zero") == 0)
+			diffuse_flush(ac, av, 1);
 		else
 			errx(EX_USAGE, "bad command `%s'", *av);
 	}
@@ -605,9 +643,11 @@ main(int ac, char *av[])
 	/*
 	 * If the last argument is an absolute pathname, interpret it
 	 * as a file to be preprocessed.
+	 * Make sure we don't mistake a DIFFUSE model for such a file.
 	 */
 
-	if (ac > 1 && av[ac - 1][0] == '/') {
+	if (ac > 1 && av[ac - 1][0] == '/'
+	    && (ac < 3 || strcmp(av[ac - 2], "model"))) {
 		if (access(av[ac - 1], R_OK) == 0)
 			ipfw_readfile(ac, av);
 		else

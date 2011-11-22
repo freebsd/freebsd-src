@@ -258,6 +258,8 @@
         ..
     ..
     netinet
+        ipfw
+        ..
     ..
     netinet6
     ..

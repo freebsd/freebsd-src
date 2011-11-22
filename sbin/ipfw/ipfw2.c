@@ -26,8 +26,6 @@
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
 
-#include "ipfw2.h"
-
 #include <ctype.h>
 #include <err.h>
 #include <errno.h>
@@ -50,8 +48,12 @@
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
 #include <netinet/ip_fw.h>
+#include <netinet/ip_diffuse.h> /* Must come after ip_fw.h */
 #include <netinet/tcp.h>
 #include <arpa/inet.h>
+
+#include "diffuse_ui.h"
+#include "ipfw2.h"
 
 struct cmdline_opts co;	/* global options */
 
@@ -214,6 +216,8 @@ static struct _s_x rule_actions[] = {
 	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
+	{ "mlclass",            TOK_DI_ML_CLASSIFY },	/* DIFFUSE. */
+	{ "export",             TOK_DI_EXPORT },	/* DIFFUSE. */
 	{ "call",		TOK_CALL },
 	{ "return",		TOK_RETURN },
 	{ NULL, 0 }	/* terminator */
@@ -315,6 +319,29 @@ static struct _s_x rule_options[] = {
 	{ "(",			TOK_STARTBRACE },	/* pseudo option */
 	{ "}",			TOK_ENDBRACE },		/* pseudo option */
 	{ ")",			TOK_ENDBRACE },		/* pseudo option */
+
+	/* DIFFUSE tokens. */
+	{ "features",		TOK_DI_FEATURES },	/* list of features to
+							 * be computed */
+	{ "unidirectional",	TOK_DI_UNIDIRECTIONAL },/* bidirectional vs.
+							 * unidirectional flows */
+	{ "every",		TOK_DI_EVERY },		/* make decision for
+							 * every packet */
+	{ "once",		TOK_DI_ONCE },		/* process only first
+							 * packet */
+	{ "sample",		TOK_DI_SAMPLE_REG },	/* process every n-th
+							 * packet */
+	{ "rnd-sample",		TOK_DI_SAMPLE_RAND },	/* process randomly
+							 * sampled packets */
+	{ "once-classified",	TOK_DI_ONCE_CLASS },	/* process until first
+							 * classified */
+	{ "once-exported",	TOK_DI_ONCE_EXP },	/* process until first
+							 * exported */
+	{ "class-tags",		TOK_DI_CLASS_TAGS },	/* tags for tagging
+							 * based on classes */
+	{ "match-if-class",	TOK_DI_MATCH_IF_CLASS },/* match if any of the
+							 * specified classes */
+
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -406,6 +433,10 @@ match_token(struct _s_x *table, char *string)
 {
 	struct _s_x *pt;
 	uint i = strlen(string);
+
+	/* XXX: This is a bit hacky. */
+	if (table == rule_options && strstr(string, ".") != NULL)
+		return TOK_DI_FEATURE_MATCH;
 
 	for (pt = table ; i && pt->s != NULL ; pt++)
 		if (strlen(pt->s) == i && !bcmp(string, pt->s, i))
@@ -1158,6 +1189,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		default:
+			if (!diffuse_show_cmd(cmd))
+				break;
+
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
 		}
@@ -1583,6 +1617,9 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			default:
+				if (!diffuse_show_cmd(cmd))
+					break;
+
 				printf(" [opcode %d len %d]",
 				    cmd->opcode, cmd->len);
 			}
@@ -2654,7 +2691,7 @@ ipfw_add(char *av[])
 	 * Some things that need to go out of order (prob, action etc.)
 	 * go into actbuf[].
 	 */
-	static uint32_t rulebuf[255], actbuf[255], cmdbuf[255];
+	static uint32_t rulebuf[1024], actbuf[255], cmdbuf[1024];
 
 	ipfw_insn *src, *dst, *cmd, *action, *prev=NULL;
 	ipfw_insn *first_cmd;	/* first match pattern */
@@ -2950,6 +2987,9 @@ chkarg:
 		break;
 
 	default:
+		if (!diffuse_parse_action(i, action, &av))
+			break;
+
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
 	action = next_cmd(action);
@@ -3664,6 +3704,9 @@ read_options:
 			break;
 
 		default:
+			if (!diffuse_parse_cmd(i, open_par, &cmd, &av))
+				break;
+
 			errx(EX_USAGE, "unrecognised option [%d] %s\n", i, s);
 		}
 		if (F_LEN(cmd) > 0) {	/* prepare to advance */
@@ -3692,6 +3735,9 @@ done:
 		dst += dst->len;
 	}
 
+	/* Allow DIFFUSE to manipulate the rule building. */
+	diffuse_rule_build_1(cmdbuf, cmd, &dst);
+
 	/*
 	 * generate O_PROBE_STATE if necessary
 	 */
@@ -3716,6 +3762,9 @@ done:
 			dst += i;
 		}
 	}
+
+	/* Allow DIFFUSE to manipulate the rule building. */
+	diffuse_rule_build_2(cmdbuf, cmd, &dst);
 
 	/*
 	 * put back the have_state command as last opcode

@@ -30,30 +30,26 @@
  */
 
 struct cmdline_opts {
-	/* boolean options: */
-	int	do_value_as_ip;	/* show table value as IP */
-	int	do_resolv;	/* try to resolve all ip to names */
-	int	do_time;	/* Show time stamps */
-	int	do_quiet;	/* Be quiet in add and flush */
-	int	do_pipe;	/* this cmd refers to a pipe/queue/sched */
-	int	do_nat; 	/* this cmd refers to a nat config */
-	int	do_dynamic;	/* display dynamic rules */
-	int	do_expired;	/* display expired dynamic rules */
-	int	do_compact;	/* show rules in compact mode */
-	int	do_force;	/* do not ask for confirmation */
-	int	show_sets;	/* display the set each rule belongs to */
-	int	test_only;	/* only check syntax */
-	int	comment_only;	/* only print action and comment */
-	int	verbose;	/* be verbose on some commands */
-
-	/* The options below can have multiple values. */
-
-	int	do_sort;	/* field to sort results (0 = no) */
-		/* valid fields are 1 and above */
-
-	int	use_set;	/* work with specified set number */
-		/* 0 means all sets, otherwise apply to set use_set - 1 */
-
+	int	do_value_as_ip;	/* show table value as IP (0/1) */
+	int	do_resolv;	/* try to resolve all ip to names (0/1) */
+	int	do_time;	/* Show time stamps (0/1) */
+	int	do_quiet;	/* Be quiet in add and flush (0/1) */
+	int	do_pipe;	/* cmd refers to a pipe/queue/sched (0/1) */
+	int	do_nat; 	/* cmd refers to a nat config (0/1) */
+	int	do_dynamic;	/* display dynamic rules (0/1) */
+	int	do_expired;	/* display expired dynamic rules (0/1) */
+	int	do_compact;	/* show rules in compact mode (0/1) */
+	int	do_force;	/* do not ask for confirmation (0/1) */
+	int	show_sets;	/* display the set each rule belongs to (0/1) */
+	int	test_only;	/* only check syntax (0/1) */
+	int	comment_only;	/* only print action and comment (0/1) */
+	int	verbose;	/* be verbose on some commands (0/1) */
+	int	do_sort;	/* field to sort results (0 = no)
+				 * valid fields are 1 and above */
+	int	use_set;	/* work with specified set number
+				 * 0 means all sets, otherwise apply to set
+				 * use_set - 1 */
+	int	do_diffuse;	/* DIFFUSE (0/1) */
 };
 
 extern struct cmdline_opts co;
@@ -203,6 +199,21 @@ enum tokens {
 	TOK_SETFIB,
 	TOK_LOOKUP,
 	TOK_SOCKARG,
+
+	/* DIFFUSE tokens. */
+	TOK_DI_FEATURES,
+	TOK_DI_UNIDIRECTIONAL,
+	TOK_DI_FEATURE_MATCH,
+	TOK_DI_EVERY,
+	TOK_DI_ONCE,
+	TOK_DI_ONCE_CLASS,
+	TOK_DI_ONCE_EXP,
+	TOK_DI_SAMPLE_REG,
+	TOK_DI_SAMPLE_RAND,
+	TOK_DI_CLASS_TAGS,
+	TOK_DI_ML_CLASSIFY,
+	TOK_DI_MATCH_IF_CLASS,
+	TOK_DI_EXPORT,
 };
 /*
  * the following macro returns an error message if we run out of
