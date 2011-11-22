@@ -811,18 +811,22 @@ clnt_dg_destroy(CLIENT *cl)
 	while (cu->cu_threads)
 		msleep(cu, &cs->cs_lock, 0, "rpcclose", 0);
 
+	mtx_unlock(&cs->cs_lock);
+	SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
+	mtx_lock(&cs->cs_lock);
 	cs->cs_refs--;
 	if (cs->cs_refs == 0) {
-		mtx_destroy(&cs->cs_lock);
-		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
+		mtx_unlock(&cs->cs_lock);
 		cu->cu_socket->so_upcallarg = NULL;
 		cu->cu_socket->so_upcall = NULL;
 		cu->cu_socket->so_rcv.sb_flags &= ~SB_UPCALL;
 		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
+		mtx_destroy(&cs->cs_lock);
 		mem_free(cs, sizeof(*cs));
 		lastsocketref = TRUE;
 	} else {
 		mtx_unlock(&cs->cs_lock);
+		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
 		lastsocketref = FALSE;
 	}
 
