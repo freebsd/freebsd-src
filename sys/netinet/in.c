@@ -249,7 +249,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		    ifra->ifra_addr.sin_family != AF_INET)
 			return (EINVAL);
 		if (ifra->ifra_broadaddr.sin_len != 0 &&
-		    (ifra->ifra_broadaddr.sin_len != sizeof(struct sockaddr_in) ||
+		    (ifra->ifra_broadaddr.sin_len !=
+		    sizeof(struct sockaddr_in) ||
 		    ifra->ifra_broadaddr.sin_family != AF_INET))
 			return (EINVAL);
 #if 0
