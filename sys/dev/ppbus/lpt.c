@@ -447,10 +447,9 @@ lptout(void *arg)
 {
 	struct lpt_data *sc = arg;
 	device_t dev = sc->sc_dev;
-#if defined(INVARIANTS) || defined(LPT_DEBUG)
-	device_t ppbus = device_get_parent(dev);
-#endif
+	device_t ppbus;
 
+	ppbus = device_get_parent(dev);
 	ppb_assert_locked(ppbus);
 	lprintf(("T %x ", ppb_rstr(ppbus)));
 	if (sc->sc_state & OPEN) {
