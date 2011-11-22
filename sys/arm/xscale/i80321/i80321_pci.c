@@ -373,7 +373,6 @@ static device_method_t i80321_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	i80321_read_ivar),
 	DEVMETHOD(bus_write_ivar,	i80321_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	i80321_pci_alloc_resource),
@@ -389,7 +388,7 @@ static device_method_t i80321_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	i80321_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	machdep_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t i80321_pci_driver = {

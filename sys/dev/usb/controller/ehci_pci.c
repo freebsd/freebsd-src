@@ -586,10 +586,8 @@ static driver_t ehci_driver =
 		DEVMETHOD(device_suspend, ehci_pci_suspend),
 		DEVMETHOD(device_resume, ehci_pci_resume),
 		DEVMETHOD(device_shutdown, ehci_pci_shutdown),
-		/* bus interface */
-		DEVMETHOD(bus_print_child, bus_generic_print_child),
 
-		{0, 0}
+		DEVMETHOD_END
 	},
 	.size = sizeof(struct ehci_softc),
 };

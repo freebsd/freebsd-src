@@ -230,10 +230,7 @@ static device_method_t dotg_obio_methods[] = {
 	DEVMETHOD(device_detach, dotg_obio_detach),
 	DEVMETHOD(device_shutdown, dotg_obio_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t dotg_obio_driver = {

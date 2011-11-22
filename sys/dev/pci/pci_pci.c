@@ -67,7 +67,6 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(device_resume,		pcib_resume),
 
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
@@ -95,7 +94,7 @@ static device_method_t pcib_methods[] = {
     DEVMETHOD(pcib_map_msi,		pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	pcib_power_for_sleep),
 
-    { 0, 0 }
+    DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;
