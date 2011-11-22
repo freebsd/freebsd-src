@@ -965,11 +965,8 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	/* If we need to move the directory between entries, lock the
 	 * source so that we can safely operate on it. */
-	if (tdvp != fdvp) {
-		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
-		if (error != 0)
-			goto out;
-	}
+	if (fdvp != tdvp && fdvp != tvp)
+		vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
@@ -1143,7 +1140,7 @@ tmpfs_rename(struct vop_rename_args *v)
 	error = 0;
 
 out_locked:
-	if (fdnode != tdnode)
+	if (fdvp != tdvp && fdvp != tvp)
 		VOP_UNLOCK(fdvp, 0);
 
 out:
