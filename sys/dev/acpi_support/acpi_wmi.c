@@ -265,7 +265,7 @@ acpi_wmi_attach(device_t dev)
 		    acpi_wmi_ec_handler);
 	} else {
 		sc->wmistat_dev_t = make_dev(&wmistat_cdevsw, 0, UID_ROOT,
-		    GID_WHEEL, 0644, "wmistat");
+		    GID_WHEEL, 0644, "wmistat%d", device_get_unit(dev));
 		sc->wmistat_dev_t->si_drv1 = sc;
 		sc->wmistat_open_pid = 0;
 		sc->wmistat_bufptr = -1;
