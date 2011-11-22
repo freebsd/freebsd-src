@@ -1475,7 +1475,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	} else if (error != 0)
-		log(LOG_INFO, "ifa_add_loopback_route: insertion failed\n");
+		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
 
 	return (error);
 }
@@ -1499,7 +1499,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
 
 	if (error != 0)
-		log(LOG_INFO, "ifa_del_loopback_route: deletion failed\n");
+		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
 
 	return (error);
 }
