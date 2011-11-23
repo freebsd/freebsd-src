@@ -1621,14 +1621,12 @@ static void
 vte_init_locked(struct vte_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mii_data *mii;
 	bus_addr_t paddr;
 	uint8_t *eaddr;
 
 	VTE_LOCK_ASSERT(sc);
 
 	ifp = sc->vte_ifp;
-	mii = device_get_softc(sc->vte_miibus);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
