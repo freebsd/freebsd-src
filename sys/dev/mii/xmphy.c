@@ -66,7 +66,7 @@ static device_method_t xmphy_methods[] = {
 	DEVMETHOD(device_attach,	xmphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t xmphy_devclass;

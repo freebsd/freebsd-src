@@ -89,7 +89,7 @@ static device_method_t icsphy_methods[] = {
 	DEVMETHOD(device_attach,	icsphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t icsphy_devclass;
