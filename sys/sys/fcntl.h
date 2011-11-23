@@ -277,9 +277,17 @@ struct oflock {
 #define	LOCK_UN		0x08		/* unlock file */
 #endif
 
+#if __POSIX_VISIBLE >= 200112
 /*
- * XXX missing posix_fadvise() and POSIX_FADV_* macros.
+ * Advice to posix_fadvise
  */
+#define	POSIX_FADV_NORMAL	0	/* no special treatment */
+#define	POSIX_FADV_RANDOM	1	/* expect random page references */
+#define	POSIX_FADV_SEQUENTIAL	2	/* expect sequential page references */
+#define	POSIX_FADV_WILLNEED	3	/* will need these pages */
+#define	POSIX_FADV_DONTNEED	4	/* dont need these pages */
+#define	POSIX_FADV_NOREUSE	5	/* access data only once */
+#endif
 
 #ifndef _KERNEL
 __BEGIN_DECLS
@@ -293,6 +301,7 @@ int	flock(int, int);
 int	openat(int, const char *, int, ...);
 #endif
 #if __BSD_VISIBLE || __POSIX_VISIBLE >= 200112
+int	posix_fadvise(int, off_t, off_t, int);
 int	posix_fallocate(int, off_t, off_t);
 #endif
 __END_DECLS

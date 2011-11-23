@@ -80,40 +80,40 @@ __FBSDID("$FreeBSD$");
 /*
  * parameter variables
  */
-int	pgnm;			/* starting page number */
-int	clcnt;			/* number of columns */
-int	colwd;			/* column data width - multiple columns */
-int	across;			/* mult col flag; write across page */
-int	dspace;			/* double space flag */
-char	inchar;			/* expand input char */
-int	ingap;			/* expand input gap */
-int	pausefst;		/* Pause before first page */
-int	pauseall;		/* Pause before each page */
-int	formfeed;		/* use formfeed as trailer */
-char	*header;		/* header name instead of file name */
-char	ochar;			/* contract output char */
-int	ogap;			/* contract output gap */
-int	lines;			/* number of lines per page */
-int	merge;			/* merge multiple files in output */
-char	nmchar;			/* line numbering append char */
-int	nmwd;			/* width of line number field */
-int	offst;			/* number of page offset spaces */
-int	nodiag;			/* do not report file open errors */
-char	schar;			/* text column separation character */
-int	sflag;			/* -s option for multiple columns */
-int	nohead;			/* do not write head and trailer */
-int	pgwd;			/* page width with multiple col output */
-const char *timefrmt;		/* time conversion string */
+static int	pgnm;		/* starting page number */
+static int	clcnt;		/* number of columns */
+static int	colwd;		/* column data width - multiple columns */
+static int	across;		/* mult col flag; write across page */
+static int	dspace;		/* double space flag */
+static char	inchar;		/* expand input char */
+static int	ingap;		/* expand input gap */
+static int	pausefst;	/* Pause before first page */
+static int	pauseall;	/* Pause before each page */
+static int	formfeed;	/* use formfeed as trailer */
+static char	*header;	/* header name instead of file name */
+static char	ochar;		/* contract output char */
+static int	ogap;		/* contract output gap */
+static int	lines;		/* number of lines per page */
+static int	merge;		/* merge multiple files in output */
+static char	nmchar;		/* line numbering append char */
+static int	nmwd;		/* width of line number field */
+static int	offst;		/* number of page offset spaces */
+static int	nodiag;		/* do not report file open errors */
+static char	schar;		/* text column separation character */
+static int	sflag;		/* -s option for multiple columns */
+static int	nohead;		/* do not write head and trailer */
+static int	pgwd;		/* page width with multiple col output */
+static const char *timefrmt;	/* time conversion string */
 
 /*
  * misc globals
  */
-FILE	*err;			/* error message file pointer */
-int	addone;			/* page length is odd with double space */
-int	errcnt;			/* error count on file processing */
-char	digs[] = "0123456789";	/* page number translation map */
+static FILE	*err;		/* error message file pointer */
+static int	addone;		/* page length is odd with double space */
+static int	errcnt;		/* error count on file processing */
+static char	digs[] = "0123456789"; /* page number translation map */
 
-char	fnamedefault[] = FNAME;
+static char	fnamedefault[] = FNAME;
 
 int
 main(int argc, char *argv[])

@@ -88,7 +88,8 @@ static struct g_class g_disk_class = {
 };
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0, "GEOM_DISK stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, disk, CTLFLAG_RW, 0,
+    "GEOM_DISK stuff");
 
 static void
 g_disk_init(struct g_class *mp __unused)

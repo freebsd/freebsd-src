@@ -1135,7 +1135,7 @@ SYSCTL_DECL(_net_graph);
  */
 int	ng_address_ID(node_p here, item_p item, ng_ID_t ID, ng_ID_t retaddr);
 int	ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr);
-int	ng_address_path(node_p here, item_p item, char *address, ng_ID_t raddr);
+int	ng_address_path(node_p here, item_p item, const char *address, ng_ID_t raddr);
 int	ng_bypass(hook_p hook1, hook_p hook2);
 hook_p	ng_findhook(node_p node, const char *name);
 struct	ng_type *ng_findtype(const char *type);

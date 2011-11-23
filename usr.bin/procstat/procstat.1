@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2011
+.Dd November 22, 2011
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -56,6 +56,8 @@ for printing:
 Display binary information for the process.
 .It Fl c 
 Display command line arguments for the process.
+.It Fl e
+Display environment variables for the process.
 .It Fl f
 Display file descriptor information for the process.
 .It Fl i
@@ -73,6 +75,8 @@ Display security credential information for the process.
 Display thread information for the process.
 .It Fl v
 Display virtual memory mappings for the process.
+.It Fl x
+Display ELF auxiliary vector for the process.
 .El
 .Pp
 All options generate output in the format of a table, the first field of
@@ -421,6 +425,8 @@ The following mapping flags may be displayed:
 copy-on-write
 .It N
 needs copy
+.It S
+one or more superpage mappings are used
 .El
 .Sh EXIT STATUS
 .Ex -std

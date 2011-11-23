@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_gdb.h"
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 
 #ifdef USB_DEBUG
 static int ucom_debug = 0;

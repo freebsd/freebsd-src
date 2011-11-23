@@ -208,6 +208,12 @@ dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
+dev/qlxgb/qla_dbg.c		optional	qlxgb pci
+dev/qlxgb/qla_hw.c		optional	qlxgb pci
+dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
+dev/qlxgb/qla_isr.c		optional	qlxgb pci
+dev/qlxgb/qla_misc.c		optional	qlxgb pci
+dev/qlxgb/qla_os.c		optional	qlxgb pci
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard

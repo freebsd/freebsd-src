@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 
 /* Avoid clutter in the hw.* space, keep all toe tunables within hw.cxgb */
 SYSCTL_DECL(_hw_cxgb);
-SYSCTL_NODE(_hw_cxgb, OID_AUTO, toe, CTLFLAG_RD, 0, "TOE parameters");
+static SYSCTL_NODE(_hw_cxgb, OID_AUTO, toe, CTLFLAG_RD, 0, "TOE parameters");
 
 static struct tom_tunables default_tunable_vals = {
 	.max_host_sndbuf = 32 * 1024,

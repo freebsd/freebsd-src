@@ -87,7 +87,7 @@ help(void)
  * which includes the program name and a NULL entry at the end.
  * If we are called with a single string, we split it on whitespace.
  * Also, arguments with a trailing ',' are joined to the next one.
- * The pointers (av[]) and data are in a a single chunk of memory.
+ * The pointers (av[]) and data are in a single chunk of memory.
  * av[0] points to the original program name, all other entries
  * point into the allocated chunk.
  */

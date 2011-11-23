@@ -120,6 +120,7 @@ struct sctp_paramhdr {
 #define SCTP_DEFAULT_SNDINFO            0x00000021
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_PEER_ADDR_THLDS            0x00000023
+#define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
 
 /*
  * read-only options

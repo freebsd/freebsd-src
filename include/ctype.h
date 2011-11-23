@@ -80,6 +80,7 @@ int	isspecial(int);
 #endif
 __END_DECLS
 
+#ifndef __cplusplus
 #define	isalnum(c)	__sbistype((c), _CTYPE_A|_CTYPE_D)
 #define	isalpha(c)	__sbistype((c), _CTYPE_A)
 #define	iscntrl(c)	__sbistype((c), _CTYPE_C)
@@ -93,6 +94,7 @@ __END_DECLS
 #define	isxdigit(c)	__isctype((c), _CTYPE_X) /* ANSI -- locale independent */
 #define	tolower(c)	__sbtolower(c)
 #define	toupper(c)	__sbtoupper(c)
+#endif /* !__cplusplus */
 
 #if __XSI_VISIBLE
 /*
@@ -112,7 +114,7 @@ __END_DECLS
 #define	toascii(c)	((c) & 0x7F)
 #endif
 
-#if __ISO_C_VISIBLE >= 1999
+#if __ISO_C_VISIBLE >= 1999 && !defined(__cplusplus)
 #define	isblank(c)	__sbistype((c), _CTYPE_B)
 #endif
 

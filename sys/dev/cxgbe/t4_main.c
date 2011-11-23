@@ -73,11 +73,7 @@ static device_method_t t4_methods[] = {
 	DEVMETHOD(device_attach,	t4_attach),
 	DEVMETHOD(device_detach,	t4_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t t4_driver = {
 	"t4nex",
@@ -129,7 +125,8 @@ MALLOC_DEFINE(M_CXGBE, "cxgbe", "Chelsio T4 Ethernet driver and services");
 /*
  * Tunables.
  */
-SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0, "cxgbe driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cxgbe, CTLFLAG_RD, 0,
+    "cxgbe driver parameters");
 
 static int force_firmware_install = 0;
 TUNABLE_INT("hw.cxgbe.force_firmware_install", &force_firmware_install);

@@ -70,7 +70,7 @@
  * Sebastien Bourdeauducq <lekernel@prism54.org>.
  */
 
-SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw, OID_AUTO, upgt, CTLFLAG_RD, 0,
     "USB PrismGT GW3887 driver parameters");
 
 #ifdef UPGT_DEBUG
@@ -432,7 +432,7 @@ upgt_get_stats(struct upgt_softc *sc)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -540,7 +540,7 @@ upgt_set_led(struct upgt_softc *sc, int action)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -670,7 +670,7 @@ upgt_set_macfilter(struct upgt_softc *sc, uint8_t state)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -785,11 +785,11 @@ upgt_setup_rates(struct ieee80211vap *vap, struct ieee80211com *ic)
 		 * will pickup a rate.
 		 */
 		if (ic->ic_curmode == IEEE80211_MODE_11B)
-			bcopy(rateset_auto_11b, sc->sc_cur_rateset,
+			memcpy(sc->sc_cur_rateset, rateset_auto_11b,
 			    sizeof(sc->sc_cur_rateset));
 		if (ic->ic_curmode == IEEE80211_MODE_11G ||
 		    ic->ic_curmode == IEEE80211_MODE_AUTO)
-			bcopy(rateset_auto_11g, sc->sc_cur_rateset,
+			memcpy(sc->sc_cur_rateset, rateset_auto_11g,
 			    sizeof(sc->sc_cur_rateset));
 	} else {
 		/* set a fixed rate */
@@ -975,7 +975,7 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 	/*
 	 * Transmit the URB containing the CMD data.
 	 */
-	bzero(data_cmd->buf, MCLBYTES);
+	memset(data_cmd->buf, 0, MCLBYTES);
 
 	mem = (struct upgt_lmac_mem *)data_cmd->buf;
 	mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -998,11 +998,11 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 	chan->settings = sc->sc_eeprom_freq6_settings;
 	chan->unknown3 = UPGT_CHANNEL_UNKNOWN3;
 
-	bcopy(&sc->sc_eeprom_freq3[channel].data, chan->freq3_1,
+	memcpy(chan->freq3_1, &sc->sc_eeprom_freq3[channel].data,
 	    sizeof(chan->freq3_1));
-	bcopy(&sc->sc_eeprom_freq4[channel], chan->freq4,
+	memcpy(chan->freq4, &sc->sc_eeprom_freq4[channel],
 	    sizeof(sc->sc_eeprom_freq4[channel]));
-	bcopy(&sc->sc_eeprom_freq3[channel].data, chan->freq3_2,
+	memcpy(chan->freq3_2, &sc->sc_eeprom_freq3[channel].data,
 	    sizeof(chan->freq3_2));
 
 	data_cmd->buflen = sizeof(*mem) + sizeof(*chan);
@@ -1331,7 +1331,7 @@ upgt_eeprom_read(struct upgt_softc *sc)
 		/*
 		 * Transmit the URB containing the CMD data.
 		 */
-		bzero(data_cmd->buf, MCLBYTES);
+		memset(data_cmd->buf, 0, MCLBYTES);
 
 		mem = (struct upgt_lmac_mem *)data_cmd->buf;
 		mem->addr = htole32(sc->sc_memaddr_frame_start +
@@ -1423,8 +1423,9 @@ upgt_rxeof(struct usb_xfer *xfer, struct upgt_data *data, int *rssi)
 		    "received EEPROM block (offset=%d, len=%d)\n",
 		    eeprom_offset, eeprom_len);
 
-		bcopy(data->buf + sizeof(struct upgt_lmac_eeprom) + 4,
-			sc->sc_eeprom + eeprom_offset, eeprom_len);
+		memcpy(sc->sc_eeprom + eeprom_offset,
+		    data->buf + sizeof(struct upgt_lmac_eeprom) + 4,
+		    eeprom_len);
 
 		/* EEPROM data has arrived in time, wakeup.  */
 		wakeup(sc);
@@ -1498,7 +1499,7 @@ upgt_rx(struct upgt_softc *sc, uint8_t *data, int pkglen, int *rssi)
 		return (NULL);
 	}
 	m_adj(m, ETHER_ALIGN);
-	bcopy(rxdesc->data, mtod(m, char *), pkglen);
+	memcpy(mtod(m, char *), rxdesc->data, pkglen);
 	/* trim FCS */
 	m->m_len = m->m_pkthdr.len = pkglen - IEEE80211_CRC_LEN;
 	m->m_pkthdr.rcvif = ifp;
@@ -1620,7 +1621,7 @@ upgt_fw_load(struct upgt_softc *sc)
 		goto fail;
 	}
 	data_cmd->buflen = sizeof(start_fwload_cmd);
-	bcopy(start_fwload_cmd, data_cmd->buf, data_cmd->buflen);
+	memcpy(data_cmd->buf, start_fwload_cmd, data_cmd->buflen);
 	upgt_bulk_tx(sc, data_cmd);
 
 	/* send X2 header */
@@ -1631,7 +1632,7 @@ upgt_fw_load(struct upgt_softc *sc)
 	}
 	data_cmd->buflen = sizeof(struct upgt_fw_x2_header);
 	x2 = (struct upgt_fw_x2_header *)data_cmd->buf;
-	bcopy(UPGT_X2_SIGNATURE, x2->signature, UPGT_X2_SIGNATURE_SIZE);
+	memcpy(x2->signature, UPGT_X2_SIGNATURE, UPGT_X2_SIGNATURE_SIZE);
 	x2->startaddr = htole32(UPGT_MEMADDR_FIRMWARE_START);
 	x2->len = htole32(fw->datasize);
 	x2->crc = upgt_crc32_le((uint8_t *)data_cmd->buf +
@@ -1925,7 +1926,7 @@ upgt_device_reset(struct upgt_softc *sc)
 		UPGT_UNLOCK(sc);
 		return (ENOBUFS);
 	}
-	bcopy(init_cmd, data->buf, sizeof(init_cmd));
+	memcpy(data->buf, init_cmd, sizeof(init_cmd));
 	data->buflen = sizeof(init_cmd);
 	upgt_bulk_tx(sc, data);
 	usb_pause_mtx(&sc->sc_mtx, 100);
@@ -2178,7 +2179,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	}
 
 	/* Transmit the URB containing the TX data.  */
-	bzero(data->buf, MCLBYTES);
+	memset(data->buf, 0, MCLBYTES);
 	mem = (struct upgt_lmac_mem *)data->buf;
 	mem->addr = htole32(data->addr);
 	txdesc = (struct upgt_lmac_tx_desc *)(mem + 1);
@@ -2192,7 +2193,7 @@ upgt_tx_start(struct upgt_softc *sc, struct mbuf *m, struct ieee80211_node *ni,
 	} else {
 		/* data frames  */
 		txdesc->header1.flags = UPGT_H1_FLAGS_TX_DATA;
-		bcopy(sc->sc_cur_rateset, txdesc->rates, sizeof(txdesc->rates));
+		memcpy(txdesc->rates, sc->sc_cur_rateset, sizeof(txdesc->rates));
 	}
 	txdesc->header1.type = UPGT_H1_TYPE_TX_DATA;
 	txdesc->header1.len = htole16(m->m_pkthdr.len);

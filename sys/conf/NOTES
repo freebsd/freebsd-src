@@ -799,6 +799,12 @@ device		sppp
 #  option.  DHCP requires bpf.
 device		bpf
 
+#  The `netmap' device implements memory-mapped access to network
+#  devices from userspace, enabling wire-speed packet capture and
+#  generation even at 10Gbit/s. Requires support in the device
+#  driver. Supported drivers are ixgbe, e1000, re.
+device		netmap
+
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing and benchmarking purposes.
@@ -965,11 +971,10 @@ options 	ZERO_COPY_SOCKETS
 # FILESYSTEM OPTIONS
 
 #
-# Only the root, /usr, and /tmp filesystems need be statically
-# compiled; everything else will be automatically loaded at mount
-# time.  (Exception: the UFS family--- FFS --- cannot
-# currently be demand-loaded.)  Some people still prefer to statically
-# compile other filesystems as well.
+# Only the root filesystem needs to be statically compiled or preloaded
+# as module; everything else will be automatically loaded at mount
+# time.  Some people still prefer to statically compile other
+# filesystems as well.
 #
 # NB: The PORTAL filesystem is known to be buggy, and WILL panic your
 # system if you attempt to do anything with it.  It is included here
@@ -1104,6 +1109,9 @@ options 	XFS
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
+# Enable mounting of non-MPSAFE filesystems.
+options 	VFS_ALLOW_NONMPSAFE
+
 # Cryptographically secure random number generator; /dev/random
 device		random
 
@@ -1182,6 +1190,14 @@ options 	HZ=100
 # More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
 
 options 	PPS_SYNC
+
+# Enable support for generic feed-forward clocks in the kernel.
+# The feed-forward clock support is an alternative to the feedback oriented
+# ntpd/system clock approach, and is to be used with a feed-forward
+# synchronization algorithm such as the RADclock:
+# More info here: http://www.synclab.org/radclock
+
+options 	FFCLOCK
 
 
 #####################################################################
@@ -1459,7 +1475,9 @@ options 	TEKEN_UTF8		# UTF-8 output handling
 #      such as the Tekram DC-390(T).
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
-# esp: NCR53c9x.  Only for SBUS hardware right now.
+# esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
+#      including the AMD Am53C974 (found on devices such as the Tekram
+#      DC-390(T)) and the Sun ESP and FAS families of controllers
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1846,13 +1864,15 @@ device		puc
 # MII bus support is required for many PCI Ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
 # transceiver control interfaces that operate like an MII.  Adding
-# "device miibus" to the kernel config pulls in support for
-# the generic miibus API and all of the PHY drivers, including a
-# generic one for PHYs that aren't specifically handled by an
-# individual driver.  Support for specific PHYs may be built by adding
-# "device mii" then adding the appropriate PHY driver.
-device  	miibus		# MII support including all PHYs
+# "device miibus" to the kernel config pulls in support for the generic
+# miibus API, the common support for for bit-bang'ing the MII and all
+# of the PHY drivers, including a generic one for PHYs that aren't
+# specifically handled by an individual driver.  Support for specific
+# PHYs may be built by adding "device mii", "device mii_bitbang" if
+# needed by the NIC driver and then adding the appropriate PHY driver.
 device  	mii		# Minimal MII support
+device  	mii_bitbang	# Common module for bit-bang'ing the MII
+device  	miibus		# MII support w/ bit-bang'ing and all PHYs
 
 device  	acphy		# Altima Communications AC101
 device  	amphy		# AMD AM79c873 / Davicom DM910{1,2}
@@ -2135,12 +2155,12 @@ device		malo		# Marvell Libertas wireless NICs.
 device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
-# Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
-# This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
-#options 	TI_PRIVATE_JUMBOS
+# Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
+#options 	TI_SF_BUF_JUMBO
 # Turn on the header splitting option for the ti(4) driver firmware.  This
 # only works for Tigon II chips, and has no effect for Tigon I chips.
-options 	TI_JUMBO_HDRSPLIT
+# This option requires the TI_SF_BUF_JUMBO option above.
+#options 	TI_JUMBO_HDRSPLIT
 
 #
 # Use header splitting feature on bce(4) adapters.
@@ -2809,7 +2829,7 @@ options 	UBSEC_RNDTEST	# enable rndtest support
 # Embedded system options:
 #
 # An embedded system might want to run something other than init.
-options 	INIT_PATH=/sbin/init:/stand/sysinstall
+options 	INIT_PATH=/sbin/init:/rescue/init
 
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging

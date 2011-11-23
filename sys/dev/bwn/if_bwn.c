@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 /*
  * Tunable & sysctl variables.
@@ -14225,7 +14226,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",

@@ -203,6 +203,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -228,7 +229,7 @@ MODULE_DEPEND(tl, miibus, 1, 1, 1);
  * Various supported device vendors/types and their names.
  */
 
-static struct tl_type tl_devs[] = {
+static const struct tl_type const tl_devs[] = {
 	{ TI_VENDORID,	TI_DEVICEID_THUNDERLAN,
 		"Texas Instruments ThunderLAN" },
 	{ COMPAQ_VENDORID, COMPAQ_DEVICEID_NETEL_10,
@@ -290,10 +291,6 @@ static u_int8_t tl_eeprom_putbyte(struct tl_softc *, int);
 static u_int8_t	tl_eeprom_getbyte(struct tl_softc *, int, u_int8_t *);
 static int tl_read_eeprom(struct tl_softc *, caddr_t, int, int);
 
-static void tl_mii_sync(struct tl_softc *);
-static void tl_mii_send(struct tl_softc *, u_int32_t, int);
-static int tl_mii_readreg(struct tl_softc *, struct tl_mii_frame *);
-static int tl_mii_writereg(struct tl_softc *, struct tl_mii_frame *);
 static int tl_miibus_readreg(device_t, int, int);
 static int tl_miibus_writereg(device_t, int, int, int);
 static void tl_miibus_statchg(device_t);
@@ -318,6 +315,24 @@ static void tl_dio_clrbit(struct tl_softc *, int, int);
 static void tl_dio_setbit16(struct tl_softc *, int, int);
 static void tl_dio_clrbit16(struct tl_softc *, int, int);
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t tl_mii_bitbang_read(device_t);
+static void tl_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops tl_mii_bitbang_ops = {
+	tl_mii_bitbang_read,
+	tl_mii_bitbang_write,
+	{
+		TL_SIO_MDATA,	/* MII_BIT_MDO */
+		TL_SIO_MDATA,	/* MII_BIT_MDI */
+		TL_SIO_MCLK,	/* MII_BIT_MDC */
+		TL_SIO_MTXEN,	/* MII_BIT_DIR_HOST_PHY */
+		0,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 #ifdef TL_USEIOSPACE
 #define TL_RES		SYS_RES_IOPORT
 #define TL_RID		TL_PCI_LOIO
@@ -333,16 +348,12 @@ static device_method_t tl_methods[] = {
 	DEVMETHOD(device_detach,	tl_detach),
 	DEVMETHOD(device_shutdown,	tl_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	tl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	tl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	tl_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tl_driver = {
@@ -360,7 +371,12 @@ static u_int8_t tl_dio_read8(sc, reg)
 	struct tl_softc		*sc;
 	int			reg;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	return(CSR_READ_1(sc, TL_DIO_DATA + (reg & 3)));
 }
 
@@ -368,7 +384,12 @@ static u_int16_t tl_dio_read16(sc, reg)
 	struct tl_softc		*sc;
 	int			reg;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	return(CSR_READ_2(sc, TL_DIO_DATA + (reg & 3)));
 }
 
@@ -376,7 +397,12 @@ static u_int32_t tl_dio_read32(sc, reg)
 	struct tl_softc		*sc;
 	int			reg;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	return(CSR_READ_4(sc, TL_DIO_DATA + (reg & 3)));
 }
 
@@ -385,9 +411,13 @@ static void tl_dio_write8(sc, reg, val)
 	int			reg;
 	int			val;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), val);
-	return;
 }
 
 static void tl_dio_write16(sc, reg, val)
@@ -395,9 +425,13 @@ static void tl_dio_write16(sc, reg, val)
 	int			reg;
 	int			val;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), val);
-	return;
 }
 
 static void tl_dio_write32(sc, reg, val)
@@ -405,9 +439,13 @@ static void tl_dio_write32(sc, reg, val)
 	int			reg;
 	int			val;
 {
+
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_4(sc, TL_DIO_DATA + (reg & 3), val);
-	return;
 }
 
 static void
@@ -418,12 +456,16 @@ tl_dio_setbit(sc, reg, bit)
 {
 	u_int8_t			f;
 
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	f = CSR_READ_1(sc, TL_DIO_DATA + (reg & 3));
 	f |= bit;
+	CSR_BARRIER(sc, TL_DIO_DATA + (reg & 3), 1,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), f);
-
-	return;
 }
 
 static void
@@ -434,12 +476,16 @@ tl_dio_clrbit(sc, reg, bit)
 {
 	u_int8_t			f;
 
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	f = CSR_READ_1(sc, TL_DIO_DATA + (reg & 3));
 	f &= ~bit;
+	CSR_BARRIER(sc, TL_DIO_DATA + (reg & 3), 1,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_1(sc, TL_DIO_DATA + (reg & 3), f);
-
-	return;
 }
 
 static void tl_dio_setbit16(sc, reg, bit)
@@ -449,12 +495,16 @@ static void tl_dio_setbit16(sc, reg, bit)
 {
 	u_int16_t			f;
 
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	f = CSR_READ_2(sc, TL_DIO_DATA + (reg & 3));
 	f |= bit;
+	CSR_BARRIER(sc, TL_DIO_DATA + (reg & 3), 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), f);
-
-	return;
 }
 
 static void tl_dio_clrbit16(sc, reg, bit)
@@ -464,12 +514,16 @@ static void tl_dio_clrbit16(sc, reg, bit)
 {
 	u_int16_t			f;
 
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_ADDR, reg);
+	CSR_BARRIER(sc, TL_DIO_ADDR, 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	f = CSR_READ_2(sc, TL_DIO_DATA + (reg & 3));
 	f &= ~bit;
+	CSR_BARRIER(sc, TL_DIO_DATA + (reg & 3), 2,
+		BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	CSR_WRITE_2(sc, TL_DIO_DATA + (reg & 3), f);
-
-	return;
 }
 
 /*
@@ -608,184 +662,42 @@ tl_read_eeprom(sc, dest, off, cnt)
 	return(err ? 1 : 0);
 }
 
+#define	TL_SIO_MII	(TL_SIO_MCLK | TL_SIO_MDATA | TL_SIO_MTXEN)
+
+/*
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+tl_mii_bitbang_read(device_t dev)
+{
+	struct tl_softc *sc;
+	uint32_t val;
+
+	sc = device_get_softc(dev);
+
+	val = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MII;
+	CSR_BARRIER(sc, TL_NETSIO, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
+ */
 static void
-tl_mii_sync(sc)
-	struct tl_softc		*sc;
+tl_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	register int		i;
+	struct tl_softc *sc;
 
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	}
-
-	return;
-}
-
-static void
-tl_mii_send(sc, bits, cnt)
-	struct tl_softc		*sc;
-	u_int32_t		bits;
-	int			cnt;
-{
-	int			i;
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-		if (bits & i) {
-			tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MDATA);
-		} else {
-			tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MDATA);
-		}
-		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	}
-}
-
-static int
-tl_mii_readreg(sc, frame)
-	struct tl_softc		*sc;
-	struct tl_mii_frame	*frame;
-	
-{
-	int			i, ack;
-	int			minten = 0;
-
-	tl_mii_sync(sc);
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = TL_MII_STARTDELIM;
-	frame->mii_opcode = TL_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-	
-	/*
-	 * Turn off MII interrupt by forcing MINTEN low.
-	 */
-	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
-	if (minten) {
-		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-	}
-
-	/*
- 	 * Turn on data xmit.
-	 */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MTXEN);
-
-	/*
-	 * Send command/address info.
-	 */
-	tl_mii_send(sc, frame->mii_stdelim, 2);
-	tl_mii_send(sc, frame->mii_opcode, 2);
-	tl_mii_send(sc, frame->mii_phyaddr, 5);
-	tl_mii_send(sc, frame->mii_regaddr, 5);
-
-	/*
-	 * Turn off xmit.
-	 */
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
-
-	/* Idle bit */
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-
-	/* Check for ack */
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	ack = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MDATA;
-
-	/* Complete the cycle */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHYs in sync.
-	 */
-	if (ack) {
-		for(i = 0; i < 16; i++) {
-			tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-			tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-		if (!ack) {
-			if (tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MDATA)
-				frame->mii_data |= i;
-		}
-		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	}
-
-fail:
-
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-
-	/* Reenable interrupts */
-	if (minten) {
-		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-	}
-
-	if (ack)
-		return(1);
-	return(0);
-}
-
-static int
-tl_mii_writereg(sc, frame)
-	struct tl_softc		*sc;
-	struct tl_mii_frame	*frame;
-	
-{
-	int			minten;
-
-	tl_mii_sync(sc);
-
-	/*
-	 * Set up frame for TX.
-	 */
-
-	frame->mii_stdelim = TL_MII_STARTDELIM;
-	frame->mii_opcode = TL_MII_WRITEOP;
-	frame->mii_turnaround = TL_MII_TURNAROUND;
-	
-	/*
-	 * Turn off MII interrupt by forcing MINTEN low.
-	 */
-	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
-	if (minten) {
-		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-	}
-
-	/*
- 	 * Turn on data output.
-	 */
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MTXEN);
-
-	tl_mii_send(sc, frame->mii_stdelim, 2);
-	tl_mii_send(sc, frame->mii_opcode, 2);
-	tl_mii_send(sc, frame->mii_phyaddr, 5);
-	tl_mii_send(sc, frame->mii_regaddr, 5);
-	tl_mii_send(sc, frame->mii_turnaround, 2);
-	tl_mii_send(sc, frame->mii_data, 16);
-
-	tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MCLK);
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MCLK);
-
-	/*
-	 * Turn off xmit.
-	 */
-	tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MTXEN);
-
-	/* Reenable interrupts */
-	if (minten)
-		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
-
-	return(0);
+	val = (tl_dio_read8(sc, TL_NETSIO) & ~TL_SIO_MII) | val;
+	CSR_BARRIER(sc, TL_NETSIO, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+	tl_dio_write8(sc, TL_NETSIO, val);
+	CSR_BARRIER(sc, TL_NETSIO, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
@@ -794,16 +706,26 @@ tl_miibus_readreg(dev, phy, reg)
 	int			phy, reg;
 {
 	struct tl_softc		*sc;
-	struct tl_mii_frame	frame;
+	int			minten, val;
 
 	sc = device_get_softc(dev);
-	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	tl_mii_readreg(sc, &frame);
+	/*
+	 * Turn off MII interrupt by forcing MINTEN low.
+	 */
+	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
+	if (minten) {
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
+	}
 
-	return(frame.mii_data);
+	val = mii_bitbang_readreg(dev, &tl_mii_bitbang_ops, phy, reg);
+
+	/* Reenable interrupts. */
+	if (minten) {
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
+	}
+
+	return (val);
 }
 
 static int
@@ -812,16 +734,24 @@ tl_miibus_writereg(dev, phy, reg, data)
 	int			phy, reg, data;
 {
 	struct tl_softc		*sc;
-	struct tl_mii_frame	frame;
+	int			minten;
 
 	sc = device_get_softc(dev);
-	bzero((char *)&frame, sizeof(frame));
 
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
+	/*
+	 * Turn off MII interrupt by forcing MINTEN low.
+	 */
+	minten = tl_dio_read8(sc, TL_NETSIO) & TL_SIO_MINTEN;
+	if (minten) {
+		tl_dio_clrbit(sc, TL_NETSIO, TL_SIO_MINTEN);
+	}
 
-	tl_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &tl_mii_bitbang_ops, phy, reg, data);
+
+	/* Reenable interrupts. */
+	if (minten) {
+		tl_dio_setbit(sc, TL_NETSIO, TL_SIO_MINTEN);
+	}
 
 	return(0);
 }
@@ -841,8 +771,6 @@ tl_miibus_statchg(dev)
 	} else {
 		tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 	}
-
-	return;
 }
 
 /*
@@ -865,8 +793,6 @@ tl_setmode(sc, media)
 			tl_dio_clrbit(sc, TL_NETCMD, TL_CMD_DUPLEX);
 		}
 	}
-
-	return;
 }
 
 /*
@@ -909,8 +835,6 @@ tl_setfilt(sc, addr, slot)
 
 	for (i = 0; i < ETHER_ADDR_LEN; i++)
 		tl_dio_write8(sc, regaddr + i, *(addr + i));
-
-	return;
 }
 
 /*
@@ -980,8 +904,6 @@ tl_setmulti(sc)
 
 	tl_dio_write32(sc, TL_HASH1, hashes[0]);
 	tl_dio_write32(sc, TL_HASH2, hashes[1]);
-
-	return;
 }
 
 /*
@@ -994,13 +916,10 @@ static void
 tl_hardreset(dev)
 	device_t		dev;
 {
-	struct tl_softc		*sc;
 	int			i;
 	u_int16_t		flags;
 
-	sc = device_get_softc(dev);
-
-	tl_mii_sync(sc);
+	mii_bitbang_sync(dev, &tl_mii_bitbang_ops);
 
 	flags = BMCR_LOOP|BMCR_ISO|BMCR_PDOWN;
 
@@ -1010,11 +929,10 @@ tl_hardreset(dev)
 	tl_miibus_writereg(dev, 31, MII_BMCR, BMCR_ISO);
 	DELAY(50000);
 	tl_miibus_writereg(dev, 31, MII_BMCR, BMCR_LOOP|BMCR_ISO);
-	tl_mii_sync(sc);
+	mii_bitbang_sync(dev, &tl_mii_bitbang_ops);
 	while(tl_miibus_readreg(dev, 31, MII_BMCR) & BMCR_RESET);
 
 	DELAY(50000);
-	return;
 }
 
 static void
@@ -1072,8 +990,6 @@ tl_softreset(sc, internal)
 
 	/* Wait for things to settle down a little. */
 	DELAY(500);
-
-        return;
 }
 
 /*
@@ -1084,7 +1000,7 @@ static int
 tl_probe(dev)
 	device_t		dev;
 {
-	struct tl_type		*t;
+	const struct tl_type	*t;
 
 	t = tl_devs;
 
@@ -1105,7 +1021,7 @@ tl_attach(dev)
 	device_t		dev;
 {
 	u_int16_t		did, vid;
-	struct tl_type		*t;
+	const struct tl_type	*t;
 	struct ifnet		*ifp;
 	struct tl_softc		*sc;
 	int			error, flags, i, rid, unit;
@@ -1415,9 +1331,9 @@ static int
 tl_list_rx_init(sc)
 	struct tl_softc		*sc;
 {
-	struct tl_chain_data	*cd;
-	struct tl_list_data	*ld;
-	int			i;
+	struct tl_chain_data		*cd;
+	struct tl_list_data		*ld;
+	int				i;
 
 	cd = &sc->tl_cdata;
 	ld = sc->tl_ldata;
@@ -1783,8 +1699,6 @@ tl_intr(xsc)
 		tl_start_locked(ifp);
 
 	TL_UNLOCK(sc);
-
-	return;
 }
 
 static void
@@ -1843,8 +1757,6 @@ tl_stats_update(xsc)
 		mii = device_get_softc(sc->tl_miibus);
 		mii_tick(mii);
 	}
-
-	return;
 }
 
 /*
@@ -2046,8 +1958,6 @@ tl_start_locked(ifp)
 	 * Set a timeout in case the chip goes out to lunch.
 	 */
 	sc->tl_timer = 5;
-
-	return;
 }
 
 static void
@@ -2143,8 +2053,6 @@ tl_init_locked(sc)
 
 	/* Start the stats update counter */
 	callout_reset(&sc->tl_stat_callout, hz, tl_stats_update, sc);
-
-	return;
 }
 
 /*
@@ -2204,8 +2112,6 @@ tl_ifmedia_sts(ifp, ifmr)
 		ifmr->ifm_status = mii->mii_media_status;
 	}
 	TL_UNLOCK(sc);
-
-	return;
 }
 
 static int
@@ -2284,8 +2190,6 @@ tl_watchdog(sc)
 
 	tl_softreset(sc, 1);
 	tl_init_locked(sc);
-
-	return;
 }
 
 /*
@@ -2351,8 +2255,6 @@ tl_stop(sc)
 		sizeof(sc->tl_ldata->tl_tx_list));
 
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
-
-	return;
 }
 
 /*

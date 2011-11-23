@@ -715,7 +715,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath",
-    "negnametimeo", "nocto",
+    "negnametimeo", "nocto", "wcommitsize",
     NULL };
 
 /*
@@ -948,6 +948,15 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 		args.flags |= NFSMNT_ACDIRMAX;
+	}
+	if (vfs_getopt(mp->mnt_optnew, "wcommitsize", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &args.wcommitsize);
+		if (ret != 1 || args.wcommitsize < 0) {
+			vfs_mount_error(mp, "illegal wcommitsize: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+		args.flags |= NFSMNT_WCOMMITSIZE;
 	}
 	if (vfs_getopt(mp->mnt_optnew, "timeout", (void **)&opt, NULL) == 0) {
 		ret = sscanf(opt, "%d", &args.timeo);
@@ -1212,7 +1221,20 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	vfs_getnewfsid(mp);
 	nmp->nm_mountp = mp;
 	mtx_init(&nmp->nm_mtx, "NFSmount lock", NULL, MTX_DEF | MTX_DUPOK);			
+
+	/*
+	 * Since nfs_decode_args() might optionally set them, these need to
+	 * set to defaults before the call, so that the optional settings
+	 * aren't overwritten.
+	 */
 	nmp->nm_negnametimeo = negnametimeo;
+	nmp->nm_timeo = NFS_TIMEO;
+	nmp->nm_retry = NFS_RETRANS;
+	nmp->nm_readahead = NFS_DEFRAHEAD;
+	if (desiredvnodes >= 11000)
+		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
+	else
+		nmp->nm_wcommitsize = hibufspace / 10;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1223,24 +1245,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 *
 	 * For V3, ncl_fsinfo will adjust this as necessary.  Assume maximum
 	 * that we can handle until we find out otherwise.
-	 * XXX Our "safe" limit on the client is what we can store in our
-	 * buffer cache using signed(!) block numbers.
 	 */
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0)
 		nmp->nm_maxfilesize = 0xffffffffLL;
 	else
 		nmp->nm_maxfilesize = OFF_MAX;
 
-	nmp->nm_timeo = NFS_TIMEO;
-	nmp->nm_retry = NFS_RETRANS;
 	if ((argp->flags & (NFSMNT_NFSV3 | NFSMNT_NFSV4)) == 0) {
 		nmp->nm_wsize = NFS_WSIZE;
 		nmp->nm_rsize = NFS_RSIZE;
 		nmp->nm_readdirsize = NFS_READDIRSIZE;
 	}
-	nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	nmp->nm_numgrps = NFS_MAXGRPS;
-	nmp->nm_readahead = NFS_DEFRAHEAD;
 	nmp->nm_tprintf_delay = nfs_tprintf_delay;
 	if (nmp->nm_tprintf_delay < 0)
 		nmp->nm_tprintf_delay = 0;

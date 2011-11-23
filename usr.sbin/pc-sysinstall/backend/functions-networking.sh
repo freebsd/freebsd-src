@@ -431,6 +431,10 @@ start_networking()
   elif [ "$NETDEV" = "IPv6-SLAAC" ]
   then
     enable_auto_slaac
+  elif [ "$NETDEV" = "AUTO-DHCP-SLAAC" ]
+  then
+    enable_auto_dhcp
+    enable_auto_slaac
   else
     enable_manual_nic ${NETDEV}
   fi
@@ -456,6 +460,10 @@ save_networking_install()
     save_auto_dhcp
   elif [ "$NETDEV" = "IPv6-SLAAC" ]
   then
+    save_auto_slaac
+  elif [ "$NETDEV" = "AUTO-DHCP-SLAAC" ]
+  then
+    save_auto_dhcp
     save_auto_slaac
   else
     save_manual_nic ${NETDEV}

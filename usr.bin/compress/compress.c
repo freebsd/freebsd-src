@@ -56,15 +56,15 @@ __FBSDID("$FreeBSD$");
 
 #include "zopen.h"
 
-void	compress(const char *, const char *, int);
-void	cwarn(const char *, ...) __printflike(1, 2);
-void	cwarnx(const char *, ...) __printflike(1, 2);
-void	decompress(const char *, const char *, int);
-int	permission(const char *);
-void	setfile(const char *, struct stat *);
-void	usage(int);
+static void	compress(const char *, const char *, int);
+static void	cwarn(const char *, ...) __printflike(1, 2);
+static void	cwarnx(const char *, ...) __printflike(1, 2);
+static void	decompress(const char *, const char *, int);
+static int	permission(const char *);
+static void	setfile(const char *, struct stat *);
+static void	usage(int);
 
-int eval, force, verbose;
+static int eval, force, verbose;
 
 int
 main(int argc, char *argv[])
@@ -191,7 +191,7 @@ main(int argc, char *argv[])
 	exit (eval);
 }
 
-void
+static void
 compress(const char *in, const char *out, int bits)
 {
 	size_t nr;
@@ -281,7 +281,7 @@ err:	if (ofp) {
 		(void)fclose(ifp);
 }
 
-void
+static void
 decompress(const char *in, const char *out, int bits)
 {
 	size_t nr;
@@ -357,7 +357,7 @@ err:	if (ofp) {
 		(void)fclose(ifp);
 }
 
-void
+static void
 setfile(const char *name, struct stat *fs)
 {
 	static struct timeval tv[2];
@@ -387,7 +387,7 @@ setfile(const char *name, struct stat *fs)
 		cwarn("chflags: %s", name);
 }
 
-int
+static int
 permission(const char *fname)
 {
 	int ch, first;
@@ -401,7 +401,7 @@ permission(const char *fname)
 	return (first == 'y');
 }
 
-void
+static void
 usage(int iscompress)
 {
 	if (iscompress)
@@ -413,7 +413,7 @@ usage(int iscompress)
 	exit(1);
 }
 
-void
+static void
 cwarnx(const char *fmt, ...)
 {
 	va_list ap;
@@ -424,7 +424,7 @@ cwarnx(const char *fmt, ...)
 	eval = 1;
 }
 
-void
+static void
 cwarn(const char *fmt, ...)
 {
 	va_list ap;

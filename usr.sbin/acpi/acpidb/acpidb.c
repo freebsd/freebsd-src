@@ -370,6 +370,7 @@ load_dsdt(const char *dsdtfile)
 	}
 	if (fstat(fd, &sb) == -1) {
 		perror("fstat");
+		close(fd);
 		return (-1);
 	}
 	code = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_PRIVATE, fd, (off_t)0);

@@ -112,11 +112,13 @@ struct ath_hal_5416 {
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
-	 * Extension Channel Rx Clear State
+	 * Primary/Extension Channel Tx, Rx, Rx Clear State
 	 */
 	uint32_t	ah_cycleCount;
 	uint32_t	ah_ctlBusy;
 	uint32_t	ah_extBusy;
+	uint32_t	ah_rxBusy;
+	uint32_t	ah_txBusy;
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
 
@@ -194,6 +196,9 @@ extern	uint32_t ar5416GetCurRssi(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);
+extern	uint32_t ar5416GetMibCycleCountsPct(struct ath_hal *ah,
+    uint32_t *rxc_pcnt, uint32_t *rxextc_pcnt, uint32_t *rxf_pcnt,
+    uint32_t *txf_pcnt);
 extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);

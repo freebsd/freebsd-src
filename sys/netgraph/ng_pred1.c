@@ -46,7 +46,7 @@
 
 #include "opt_netgraph.h"
 
-MALLOC_DEFINE(M_NETGRAPH_PRED1, "netgraph_pred1", "netgraph pred1 node ");
+static MALLOC_DEFINE(M_NETGRAPH_PRED1, "netgraph_pred1", "netgraph pred1 node");
 
 /* PRED1 header length */
 #define PRED1_HDRLEN		2

@@ -132,7 +132,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int mos_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, mos, CTLFLAG_RW, 0, "USB mos");
 SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
     "Debug level");
 #endif
@@ -220,15 +220,12 @@ static device_method_t mos_methods[] = {
 	DEVMETHOD(device_attach, mos_attach),
 	DEVMETHOD(device_detach, mos_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, mos_miibus_readreg),
 	DEVMETHOD(miibus_writereg, mos_miibus_writereg),
 	DEVMETHOD(miibus_statchg, mos_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t mos_driver = {

@@ -231,7 +231,7 @@ static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 static time_t t_malloc_fail;
 
 #if defined(MALLOC_MAKE_FAILURES) || (MALLOC_DEBUG_MAXZONES > 1)
-SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
     "Kernel malloc debugging options");
 #endif
 

@@ -232,10 +232,13 @@ void	ng_unname(node_p node);
 
 /* Our own netgraph malloc type */
 MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
-MALLOC_DEFINE(M_NETGRAPH_HOOK, "netgraph_hook", "netgraph hook structures");
-MALLOC_DEFINE(M_NETGRAPH_NODE, "netgraph_node", "netgraph node structures");
-MALLOC_DEFINE(M_NETGRAPH_ITEM, "netgraph_item", "netgraph item structures");
 MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
+static MALLOC_DEFINE(M_NETGRAPH_HOOK, "netgraph_hook",
+    "netgraph hook structures");
+static MALLOC_DEFINE(M_NETGRAPH_NODE, "netgraph_node",
+    "netgraph node structures");
+static MALLOC_DEFINE(M_NETGRAPH_ITEM, "netgraph_item",
+    "netgraph item structures");
 
 /* Should not be visible outside this file */
 
@@ -3515,7 +3518,7 @@ ng_address_hook(node_p here, item_p item, hook_p hook, ng_ID_t retaddr)
 }
 
 int
-ng_address_path(node_p here, item_p item, char *address, ng_ID_t retaddr)
+ng_address_path(node_p here, item_p item, const char *address, ng_ID_t retaddr)
 {
 	node_p	dest = NULL;
 	hook_p	hook = NULL;

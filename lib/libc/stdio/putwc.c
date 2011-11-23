@@ -2,6 +2,11 @@
  * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -33,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
 
 #undef putwc
 
@@ -41,8 +47,13 @@ __FBSDID("$FreeBSD$");
  * macro, may evaluate `fp' more than once.
  */
 wint_t
+putwc_l(wchar_t wc, FILE *fp, locale_t locale)
+{
+	FIX_LOCALE(locale);
+	return (fputwc_l(wc, fp, locale));
+}
+wint_t
 putwc(wchar_t wc, FILE *fp)
 {
-
-	return (fputwc(wc, fp));
+	return putwc_l(wc, fp, __get_locale());
 }

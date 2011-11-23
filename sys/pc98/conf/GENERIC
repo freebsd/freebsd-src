@@ -101,7 +101,7 @@ device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 # SCSI Controllers
 device		adv		# Advansys SCSI adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Tekram DC-390(T))
+device		esp		# AMD Am53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')

@@ -170,14 +170,11 @@ static device_method_t et_methods[] = {
 	DEVMETHOD(device_detach,	et_detach),
 	DEVMETHOD(device_shutdown,	et_shutdown),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	DEVMETHOD(miibus_readreg,	et_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	et_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	et_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t et_driver = {

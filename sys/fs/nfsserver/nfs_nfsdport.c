@@ -2624,7 +2624,7 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 	if (VFS_NEEDSGIANT(mp))
 		error = ESTALE;
 	else
-		error = VFS_FHTOVP(mp, &fhp->fh_fid, LK_EXCLUSIVE, vpp);
+		error = VFS_FHTOVP(mp, &fhp->fh_fid, lktype, vpp);
 	if (error != 0)
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;
@@ -2645,14 +2645,6 @@ nfsvno_fhtovp(struct mount *mp, fhandle_t *fhp, struct sockaddr *nam,
 				exp->nes_secflavors[i] = secflavors[i];
 		}
 	}
-	if (error == 0 && lktype == LK_SHARED)
-		/*
-		 * It would be much better to pass lktype to VFS_FHTOVP(),
-		 * but this will have to do until VFS_FHTOVP() has a lock
-		 * type argument like VFS_VGET().
-		 */
-		NFSVOPLOCK(*vpp, LK_DOWNGRADE | LK_RETRY);
-
 	NFSEXITCODE(error);
 	return (error);
 }

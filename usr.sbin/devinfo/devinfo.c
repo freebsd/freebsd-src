@@ -39,8 +39,8 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include "devinfo.h"
 
-int	rflag;
-int	vflag;
+static int	rflag;
+static int	vflag;
 
 static void	print_resource(struct devinfo_res *);
 static int	print_device_matching_resource(struct devinfo_res *, void *);

@@ -2,6 +2,11 @@
  * Copyright (c) 2002 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -30,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include "namespace.h"
 #include <stdio.h>
 #include <wchar.h>
+#include <xlocale.h>
 #include "un-namespace.h"
 #include "libc_private.h"
 #include "local.h"
@@ -45,4 +51,10 @@ getwc(FILE *fp)
 {
 
 	return (fgetwc(fp));
+}
+wint_t
+getwc_l(FILE *fp, locale_t locale)
+{
+
+	return (fgetwc_l(fp, locale));
 }

@@ -1337,6 +1337,36 @@ set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 static void
+set80211quiet(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_QUIET, d, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietperiod, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_PERIOD, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietcount, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_COUNT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietduration, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_DUR, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietoffset, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_OFFSET, atoi(val), 0, NULL);
+}
+
+static void
 set80211bgscan(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	set80211(s, IEEE80211_IOC_BGSCAN, d, 0, NULL);
@@ -5161,6 +5191,12 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("bgscanidle",	set80211bgscanidle),
 	DEF_CMD_ARG("bgscanintvl",	set80211bgscanintvl),
 	DEF_CMD_ARG("scanvalid",	set80211scanvalid),
+	DEF_CMD("quiet",        1,      set80211quiet),
+	DEF_CMD("-quiet",       0,      set80211quiet),
+	DEF_CMD_ARG("quiet_count",      set80211quietcount),
+	DEF_CMD_ARG("quiet_period",     set80211quietperiod),
+	DEF_CMD_ARG("quiet_dur",        set80211quietduration),
+	DEF_CMD_ARG("quiet_offset",     set80211quietoffset),
 	DEF_CMD_ARG("roam:rssi",	set80211roamrssi),
 	DEF_CMD_ARG("roam:rate",	set80211roamrate),
 	DEF_CMD_ARG("mcastrate",	set80211mcastrate),

@@ -403,7 +403,6 @@ static device_method_t siba_pcib_methods[] = {
 	DEVMETHOD(device_probe,		siba_pcib_probe),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	siba_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	siba_pcib_write_ivar),
 	DEVMETHOD(bus_setup_intr,	siba_pcib_setup_intr),
@@ -419,7 +418,7 @@ static device_method_t siba_pcib_methods[] = {
 	DEVMETHOD(pcib_write_config,	siba_pcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,	siba_pcib_route_interrupt),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t siba_pcib_driver = {

@@ -82,7 +82,7 @@ static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
+static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
     0, kdb_sysctl_available, "A", "list of available KDB backends");

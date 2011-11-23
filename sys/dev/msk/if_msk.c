@@ -334,11 +334,7 @@ static device_method_t mskc_methods[] = {
 	DEVMETHOD(device_resume,	mskc_resume),
 	DEVMETHOD(device_shutdown,	mskc_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t mskc_driver = {
@@ -356,16 +352,12 @@ static device_method_t msk_methods[] = {
 	DEVMETHOD(device_detach,	msk_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	msk_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	msk_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	msk_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t msk_driver = {
@@ -700,7 +692,7 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 {
 	struct msk_ring_data *rd;
 	struct msk_rxdesc *rxd;
-	int i, prod;
+	int i, nbuf, prod;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -710,11 +702,18 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 
 	rd = &sc_if->msk_rdata;
 	bzero(rd->msk_rx_ring, sizeof(struct msk_rx_desc) * MSK_RX_RING_CNT);
-	prod = sc_if->msk_cdata.msk_rx_prod;
-	i = 0;
+	for (i = prod = 0; i < MSK_RX_RING_CNT; i++) {
+		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
+		rxd->rx_m = NULL;
+		rxd->rx_le = &rd->msk_rx_ring[prod];
+		MSK_INC(prod, MSK_RX_RING_CNT);
+	}
+	nbuf = MSK_RX_BUF_CNT;
+	prod = 0;
 	/* Have controller know how to compute Rx checksum. */
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
 	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+#ifdef MSK_64BIT_DMA
 		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_rx_ring[prod];
@@ -723,15 +722,21 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
 		MSK_INC(prod, MSK_RX_RING_CNT);
 		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_RX_RING_CNT);
-		i++;
-	}
-	for (; i < MSK_RX_RING_CNT; i++) {
+#endif
 		rxd = &sc_if->msk_cdata.msk_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_rx_ring[prod];
+		rxd->rx_le->msk_addr = htole32(ETHER_HDR_LEN << 16 |
+		    ETHER_HDR_LEN);
+		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
+		MSK_INC(prod, MSK_RX_RING_CNT);
+		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_RX_RING_CNT);
+		nbuf--;
+	}
+	for (i = 0; i < nbuf; i++) {
 		if (msk_newbuf(sc_if, prod) != 0)
 			return (ENOBUFS);
-		MSK_INC(prod, MSK_RX_RING_CNT);
+		MSK_RX_INC(prod, MSK_RX_RING_CNT);
 	}
 
 	bus_dmamap_sync(sc_if->msk_cdata.msk_rx_ring_tag,
@@ -739,10 +744,11 @@ msk_init_rx_ring(struct msk_if_softc *sc_if)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Update prefetch unit. */
-	sc_if->msk_cdata.msk_rx_prod = MSK_RX_RING_CNT - 1;
+	sc_if->msk_cdata.msk_rx_prod = prod;
 	CSR_WRITE_2(sc_if->msk_softc,
 	    Y2_PREF_Q_ADDR(sc_if->msk_rxq, PREF_UNIT_PUT_IDX_REG),
-	    sc_if->msk_cdata.msk_rx_prod);
+	    (sc_if->msk_cdata.msk_rx_prod + MSK_RX_RING_CNT - 1) %
+	    MSK_RX_RING_CNT);
 	if (msk_rx_fill(sc_if, 0) != 0)
 		return (ENOBUFS);
 	return (0);
@@ -753,7 +759,7 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 {
 	struct msk_ring_data *rd;
 	struct msk_rxdesc *rxd;
-	int i, prod;
+	int i, nbuf, prod;
 
 	MSK_IF_LOCK_ASSERT(sc_if);
 
@@ -764,11 +770,18 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 	rd = &sc_if->msk_rdata;
 	bzero(rd->msk_jumbo_rx_ring,
 	    sizeof(struct msk_rx_desc) * MSK_JUMBO_RX_RING_CNT);
-	prod = sc_if->msk_cdata.msk_rx_prod;
-	i = 0;
+	for (i = prod = 0; i < MSK_JUMBO_RX_RING_CNT; i++) {
+		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
+		rxd->rx_m = NULL;
+		rxd->rx_le = &rd->msk_jumbo_rx_ring[prod];
+		MSK_INC(prod, MSK_JUMBO_RX_RING_CNT);
+	}
+	nbuf = MSK_RX_BUF_CNT;
+	prod = 0;
 	/* Have controller know how to compute Rx checksum. */
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
 	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
+#ifdef MSK_64BIT_DMA
 		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_jumbo_rx_ring[prod];
@@ -777,25 +790,33 @@ msk_init_jumbo_rx_ring(struct msk_if_softc *sc_if)
 		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
 		MSK_INC(prod, MSK_JUMBO_RX_RING_CNT);
 		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_JUMBO_RX_RING_CNT);
-		i++;
-	}
-	for (; i < MSK_JUMBO_RX_RING_CNT; i++) {
+#endif
 		rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[prod];
 		rxd->rx_m = NULL;
 		rxd->rx_le = &rd->msk_jumbo_rx_ring[prod];
+		rxd->rx_le->msk_addr = htole32(ETHER_HDR_LEN << 16 |
+		    ETHER_HDR_LEN);
+		rxd->rx_le->msk_control = htole32(OP_TCPSTART | HW_OWNER);
+		MSK_INC(prod, MSK_JUMBO_RX_RING_CNT);
+		MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_JUMBO_RX_RING_CNT);
+		nbuf--;
+	}
+	for (i = 0; i < nbuf; i++) {
 		if (msk_jumbo_newbuf(sc_if, prod) != 0)
 			return (ENOBUFS);
-		MSK_INC(prod, MSK_JUMBO_RX_RING_CNT);
+		MSK_RX_INC(prod, MSK_JUMBO_RX_RING_CNT);
 	}
 
 	bus_dmamap_sync(sc_if->msk_cdata.msk_jumbo_rx_ring_tag,
 	    sc_if->msk_cdata.msk_jumbo_rx_ring_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
-	sc_if->msk_cdata.msk_rx_prod = MSK_JUMBO_RX_RING_CNT - 1;
+	/* Update prefetch unit. */
+	sc_if->msk_cdata.msk_rx_prod = prod;
 	CSR_WRITE_2(sc_if->msk_softc,
 	    Y2_PREF_Q_ADDR(sc_if->msk_rxq, PREF_UNIT_PUT_IDX_REG),
-	    sc_if->msk_cdata.msk_rx_prod);
+	    (sc_if->msk_cdata.msk_rx_prod + MSK_JUMBO_RX_RING_CNT - 1) %
+	    MSK_JUMBO_RX_RING_CNT);
 	if (msk_rx_fill(sc_if, 1) != 0)
 		return (ENOBUFS);
 	return (0);
@@ -813,6 +834,7 @@ msk_init_tx_ring(struct msk_if_softc *sc_if)
 	sc_if->msk_cdata.msk_tx_prod = 0;
 	sc_if->msk_cdata.msk_tx_cons = 0;
 	sc_if->msk_cdata.msk_tx_cnt = 0;
+	sc_if->msk_cdata.msk_tx_high_addr = 0;
 
 	rd = &sc_if->msk_rdata;
 	bzero(rd->msk_tx_ring, sizeof(struct msk_tx_desc) * MSK_TX_RING_CNT);
@@ -834,6 +856,12 @@ msk_discard_rxbuf(struct msk_if_softc *sc_if, int idx)
 	struct msk_rxdesc *rxd;
 	struct mbuf *m;
 
+#ifdef MSK_64BIT_DMA
+	rxd = &sc_if->msk_cdata.msk_rxdesc[idx];
+	rx_le = rxd->rx_le;
+	rx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+	MSK_INC(idx, MSK_RX_RING_CNT);
+#endif
 	rxd = &sc_if->msk_cdata.msk_rxdesc[idx];
 	m = rxd->rx_m;
 	rx_le = rxd->rx_le;
@@ -847,6 +875,12 @@ msk_discard_jumbo_rxbuf(struct msk_if_softc *sc_if, int	idx)
 	struct msk_rxdesc *rxd;
 	struct mbuf *m;
 
+#ifdef MSK_64BIT_DMA
+	rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[idx];
+	rx_le = rxd->rx_le;
+	rx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+	MSK_INC(idx, MSK_JUMBO_RX_RING_CNT);
+#endif
 	rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[idx];
 	m = rxd->rx_m;
 	rx_le = rxd->rx_le;
@@ -884,10 +918,18 @@ msk_newbuf(struct msk_if_softc *sc_if, int idx)
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
 	rxd = &sc_if->msk_cdata.msk_rxdesc[idx];
+#ifdef MSK_64BIT_DMA
+	rx_le = rxd->rx_le;
+	rx_le->msk_addr = htole32(MSK_ADDR_HI(segs[0].ds_addr));
+	rx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+	MSK_INC(idx, MSK_RX_RING_CNT);
+	rxd = &sc_if->msk_cdata.msk_rxdesc[idx];
+#endif
 	if (rxd->rx_m != NULL) {
 		bus_dmamap_sync(sc_if->msk_cdata.msk_rx_tag, rxd->rx_dmamap,
 		    BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc_if->msk_cdata.msk_rx_tag, rxd->rx_dmamap);
+		rxd->rx_m = NULL;
 	}
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc_if->msk_cdata.msk_rx_sparemap;
@@ -937,11 +979,19 @@ msk_jumbo_newbuf(struct msk_if_softc *sc_if, int idx)
 	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
 	rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[idx];
+#ifdef MSK_64BIT_DMA
+	rx_le = rxd->rx_le;
+	rx_le->msk_addr = htole32(MSK_ADDR_HI(segs[0].ds_addr));
+	rx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+	MSK_INC(idx, MSK_JUMBO_RX_RING_CNT);
+	rxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[idx];
+#endif
 	if (rxd->rx_m != NULL) {
 		bus_dmamap_sync(sc_if->msk_cdata.msk_jumbo_rx_tag,
 		    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
 		bus_dmamap_unload(sc_if->msk_cdata.msk_jumbo_rx_tag,
 		    rxd->rx_dmamap);
+		rxd->rx_m = NULL;
 	}
 	map = rxd->rx_dmamap;
 	rxd->rx_dmamap = sc_if->msk_cdata.msk_jumbo_rx_sparemap;
@@ -1472,7 +1522,7 @@ mskc_reset(struct msk_softc *sc)
 
 	/* Clear status list. */
 	bzero(sc->msk_stat_ring,
-	    sizeof(struct msk_stat_desc) * MSK_STAT_RING_CNT);
+	    sizeof(struct msk_stat_desc) * sc->msk_stat_count);
 	sc->msk_stat_cons = 0;
 	bus_dmamap_sync(sc->msk_stat_tag, sc->msk_stat_map,
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -1483,7 +1533,7 @@ mskc_reset(struct msk_softc *sc)
 	CSR_WRITE_4(sc, STAT_LIST_ADDR_LO, MSK_ADDR_LO(addr));
 	CSR_WRITE_4(sc, STAT_LIST_ADDR_HI, MSK_ADDR_HI(addr));
 	/* Set the status list last index. */
-	CSR_WRITE_2(sc, STAT_LAST_IDX, MSK_STAT_RING_CNT - 1);
+	CSR_WRITE_2(sc, STAT_LAST_IDX, sc->msk_stat_count - 1);
 	if (sc->msk_hw_id == CHIP_ID_YUKON_EC &&
 	    sc->msk_hw_rev == CHIP_REV_YU_EC_A1) {
 		/* WA for dev. #4.3 */
@@ -2083,17 +2133,29 @@ static int
 msk_status_dma_alloc(struct msk_softc *sc)
 {
 	struct msk_dmamap_arg ctx;
-	int error;
+	bus_size_t stat_sz;
+	int count, error;
 
+	/*
+	 * It seems controller requires number of status LE entries
+	 * is power of 2 and the maximum number of status LE entries
+	 * is 4096.  For dual-port controllers, the number of status
+	 * LE entries should be large enough to hold both port's
+	 * status updates.
+	 */
+	count = 3 * MSK_RX_RING_CNT + MSK_TX_RING_CNT;
+	count = imin(4096, roundup2(count, 1024));
+	sc->msk_stat_count = count;
+	stat_sz = count * sizeof(struct msk_stat_desc);
 	error = bus_dma_tag_create(
 		    bus_get_dma_tag(sc->msk_dev),	/* parent */
 		    MSK_STAT_ALIGN, 0,		/* alignment, boundary */
 		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
-		    MSK_STAT_RING_SZ,		/* maxsize */
+		    stat_sz,			/* maxsize */
 		    1,				/* nsegments */
-		    MSK_STAT_RING_SZ,		/* maxsegsize */
+		    stat_sz,			/* maxsegsize */
 		    0,				/* flags */
 		    NULL, NULL,			/* lockfunc, lockarg */
 		    &sc->msk_stat_tag);
@@ -2114,9 +2176,8 @@ msk_status_dma_alloc(struct msk_softc *sc)
 	}
 
 	ctx.msk_busaddr = 0;
-	error = bus_dmamap_load(sc->msk_stat_tag,
-	    sc->msk_stat_map, sc->msk_stat_ring, MSK_STAT_RING_SZ,
-	    msk_dmamap_cb, &ctx, 0);
+	error = bus_dmamap_load(sc->msk_stat_tag, sc->msk_stat_map,
+	    sc->msk_stat_ring, stat_sz, msk_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc->msk_dev,
 		    "failed to load DMA'able memory for status ring\n");
@@ -2157,27 +2218,10 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 	int error, i;
 
 	/* Create parent DMA tag. */
-	/*
-	 * XXX
-	 * It seems that Yukon II supports full 64bits DMA operations. But
-	 * it needs two descriptors(list elements) for 64bits DMA operations.
-	 * Since we don't know what DMA address mappings(32bits or 64bits)
-	 * would be used in advance for each mbufs, we limits its DMA space
-	 * to be in range of 32bits address space. Otherwise, we should check
-	 * what DMA address is used and chain another descriptor for the
-	 * 64bits DMA operation. This also means descriptor ring size is
-	 * variable. Limiting DMA address to be in 32bit address space greatly
-	 * simplifies descriptor handling and possibly would increase
-	 * performance a bit due to efficient handling of descriptors.
-	 * Apart from harassing checksum offloading mechanisms, it seems
-	 * it's really bad idea to use a separate descriptor for 64bit
-	 * DMA operation to save small descriptor memory. Anyway, I've
-	 * never seen these exotic scheme on ethernet interface hardware.
-	 */
 	error = bus_dma_tag_create(
 		    bus_get_dma_tag(sc_if->msk_if_dev),	/* parent */
 		    1, 0,			/* alignment, boundary */
-		    BUS_SPACE_MAXADDR_32BIT,	/* lowaddr */
+		    BUS_SPACE_MAXADDR,		/* lowaddr */
 		    BUS_SPACE_MAXADDR,		/* highaddr */
 		    NULL, NULL,			/* filter, filterarg */
 		    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -2283,7 +2327,7 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 	ctx.msk_busaddr = 0;
 	error = bus_dmamap_load(sc_if->msk_cdata.msk_tx_ring_tag,
 	    sc_if->msk_cdata.msk_tx_ring_map, sc_if->msk_rdata.msk_tx_ring,
-	    MSK_TX_RING_SZ, msk_dmamap_cb, &ctx, 0);
+	    MSK_TX_RING_SZ, msk_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc_if->msk_if_dev,
 		    "failed to load DMA'able memory for Tx ring\n");
@@ -2304,7 +2348,7 @@ msk_txrx_dma_alloc(struct msk_if_softc *sc_if)
 	ctx.msk_busaddr = 0;
 	error = bus_dmamap_load(sc_if->msk_cdata.msk_rx_ring_tag,
 	    sc_if->msk_cdata.msk_rx_ring_map, sc_if->msk_rdata.msk_rx_ring,
-	    MSK_RX_RING_SZ, msk_dmamap_cb, &ctx, 0);
+	    MSK_RX_RING_SZ, msk_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc_if->msk_if_dev,
 		    "failed to load DMA'able memory for Rx ring\n");
@@ -2421,7 +2465,7 @@ msk_rx_dma_jalloc(struct msk_if_softc *sc_if)
 	error = bus_dmamap_load(sc_if->msk_cdata.msk_jumbo_rx_ring_tag,
 	    sc_if->msk_cdata.msk_jumbo_rx_ring_map,
 	    sc_if->msk_rdata.msk_jumbo_rx_ring, MSK_JUMBO_RX_RING_SZ,
-	    msk_dmamap_cb, &ctx, 0);
+	    msk_dmamap_cb, &ctx, BUS_DMA_NOWAIT);
 	if (error != 0) {
 		device_printf(sc_if->msk_if_dev,
 		    "failed to load DMA'able memory for jumbo Rx ring\n");
@@ -2781,6 +2825,18 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 		}
 	}
 
+#ifdef MSK_64BIT_DMA
+	if (MSK_ADDR_HI(txsegs[0].ds_addr) !=
+	    sc_if->msk_cdata.msk_tx_high_addr) {
+		sc_if->msk_cdata.msk_tx_high_addr =
+		    MSK_ADDR_HI(txsegs[0].ds_addr);
+		tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+		tx_le->msk_addr = htole32(MSK_ADDR_HI(txsegs[0].ds_addr));
+		tx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+		sc_if->msk_cdata.msk_tx_cnt++;
+		MSK_INC(prod, MSK_TX_RING_CNT);
+	}
+#endif
 	si = prod;
 	tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
 	tx_le->msk_addr = htole32(MSK_ADDR_LO(txsegs[0].ds_addr));
@@ -2795,6 +2851,20 @@ msk_encap(struct msk_if_softc *sc_if, struct mbuf **m_head)
 
 	for (i = 1; i < nseg; i++) {
 		tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+#ifdef MSK_64BIT_DMA
+		if (MSK_ADDR_HI(txsegs[i].ds_addr) !=
+		    sc_if->msk_cdata.msk_tx_high_addr) {
+			sc_if->msk_cdata.msk_tx_high_addr =
+			    MSK_ADDR_HI(txsegs[i].ds_addr);
+			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+			tx_le->msk_addr =
+			    htole32(MSK_ADDR_HI(txsegs[i].ds_addr));
+			tx_le->msk_control = htole32(OP_ADDR64 | HW_OWNER);
+			sc_if->msk_cdata.msk_tx_cnt++;
+			MSK_INC(prod, MSK_TX_RING_CNT);
+			tx_le = &sc_if->msk_rdata.msk_tx_ring[prod];
+		}
+#endif
 		tx_le->msk_addr = htole32(MSK_ADDR_LO(txsegs[i].ds_addr));
 		tx_le->msk_control = htole32(txsegs[i].ds_len | control |
 		    OP_BUFFER | HW_OWNER);
@@ -3147,7 +3217,12 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_discard_rxbuf(sc_if, cons);
 			break;
 		}
+#ifdef MSK_64BIT_DMA
+		rxd = &sc_if->msk_cdata.msk_rxdesc[(cons + 1) %
+		    MSK_RX_RING_CNT];
+#else
 		rxd = &sc_if->msk_cdata.msk_rxdesc[cons];
+#endif
 		m = rxd->rx_m;
 		if (msk_newbuf(sc_if, cons) != 0) {
 			ifp->if_iqdrops++;
@@ -3175,8 +3250,8 @@ msk_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		MSK_IF_LOCK(sc_if);
 	} while (0);
 
-	MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_RX_RING_CNT);
-	MSK_INC(sc_if->msk_cdata.msk_rx_prod, MSK_RX_RING_CNT);
+	MSK_RX_INC(sc_if->msk_cdata.msk_rx_cons, MSK_RX_RING_CNT);
+	MSK_RX_INC(sc_if->msk_cdata.msk_rx_prod, MSK_RX_RING_CNT);
 }
 
 static void
@@ -3207,7 +3282,12 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 			msk_discard_jumbo_rxbuf(sc_if, cons);
 			break;
 		}
+#ifdef MSK_64BIT_DMA
+		jrxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[(cons + 1) %
+		    MSK_JUMBO_RX_RING_CNT];
+#else
 		jrxd = &sc_if->msk_cdata.msk_jumbo_rxdesc[cons];
+#endif
 		m = jrxd->rx_m;
 		if (msk_jumbo_newbuf(sc_if, cons) != 0) {
 			ifp->if_iqdrops++;
@@ -3235,8 +3315,8 @@ msk_jumbo_rxeof(struct msk_if_softc *sc_if, uint32_t status, uint32_t control,
 		MSK_IF_LOCK(sc_if);
 	} while (0);
 
-	MSK_INC(sc_if->msk_cdata.msk_rx_cons, MSK_JUMBO_RX_RING_CNT);
-	MSK_INC(sc_if->msk_cdata.msk_rx_prod, MSK_JUMBO_RX_RING_CNT);
+	MSK_RX_INC(sc_if->msk_cdata.msk_rx_cons, MSK_JUMBO_RX_RING_CNT);
+	MSK_RX_INC(sc_if->msk_cdata.msk_rx_prod, MSK_JUMBO_RX_RING_CNT);
 }
 
 static void
@@ -3581,7 +3661,7 @@ msk_handle_events(struct msk_softc *sc)
 			    control & STLE_OP_MASK);
 			break;
 		}
-		MSK_INC(cons, MSK_STAT_RING_CNT);
+		MSK_INC(cons, sc->msk_stat_count);
 		if (rxprog > sc->msk_process_limit)
 			break;
 	}

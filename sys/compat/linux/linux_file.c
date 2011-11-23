@@ -565,16 +565,16 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	int error;
 
 	/* linux convention */
-	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->flags);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
-	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
+	error = kern_access(td, path, UIO_SYSSPACE, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -584,10 +584,12 @@ int
 linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 {
 	char *path;
-	int error, dfd;
+	int error, dfd, flag;
 
+	if (args->flag & ~LINUX_AT_EACCESS)
+		return (EINVAL);
 	/* linux convention */
-	if (args->mode & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
@@ -595,11 +597,11 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->mode);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0 /* XXX */,
-	    args->mode);
+	flag = (args->flag & LINUX_AT_EACCESS) == 0 ? 0 : AT_EACCESS;
+	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flag, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -982,13 +984,9 @@ int
 linux_linkat(struct thread *td, struct linux_linkat_args *args)
 {
 	char *path, *to;
-	int error, olddfd, newdfd;
+	int error, olddfd, newdfd, follow;
 
-	/*
-	 * They really introduced flags argument which is forbidden to
-	 * use.
-	 */
-	if (args->flags != 0)
+	if (args->flag & ~LINUX_AT_SYMLINK_FOLLOW)
 		return (EINVAL);
 
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
@@ -1004,10 +1002,12 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 #ifdef DEBUG
 	if (ldebug(linkat))
 		printf(ARGS(linkat, "%i, %s, %i, %s, %i"), args->olddfd, path,
-			args->newdfd, to, args->flags);
+			args->newdfd, to, args->flag);
 #endif
 
-	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, FOLLOW);
+	follow = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? NOFOLLOW :
+	    FOLLOW;
+	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, follow);
 	LFREEPATH(path);
 	LFREEPATH(to);
 	return (error);
@@ -1493,7 +1493,7 @@ int
 linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 {
 	char *path;
-	int error, dfd, follow;
+	int error, dfd, flag;
 
 	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
 		return (EINVAL);
@@ -1506,10 +1506,10 @@ linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 		printf(ARGS(fchownat, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
 
-	follow = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
 	    AT_SYMLINK_NOFOLLOW;
 	error = kern_fchownat(td, dfd, path, UIO_SYSSPACE, args->uid, args->gid,
-	    follow);
+	    flag);
 	LFREEPATH(path);
 	return (error);
 }

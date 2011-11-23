@@ -71,8 +71,8 @@ struct instance {
 static LIST_HEAD(, instance) root = LIST_HEAD_INITIALIZER(root);
 
 struct libalias *mla;
-struct instance *mip;
-int ninstance = 1;
+static struct instance *mip;
+static int ninstance = 1;
 
 /* 
  * Default values for input and output

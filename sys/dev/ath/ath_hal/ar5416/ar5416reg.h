@@ -612,10 +612,10 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 #define	AR_XSREV_VERSION_KIWI		0x180	/* Kiwi (AR9287) */
-#define	AR_XSREV_REVISION_KIWI_10	0
-#define	AR_XSREV_REVISION_KIWI_11	1
-#define	AR_XSREV_REVISION_KIWI_12	2
-#define	AR_XSREV_REVISION_KIWI_13	3
+#define	AR_XSREV_REVISION_KIWI_10	0	/* Kiwi 1.0 */
+#define	AR_XSREV_REVISION_KIWI_11	1	/* Kiwi 1.1 */
+#define	AR_XSREV_REVISION_KIWI_12	2	/* Kiwi 1.2 */
+#define	AR_XSREV_REVISION_KIWI_13	3	/* Kiwi 1.3 */
 
 /* Owl (AR5416) */
 #define	AR_SREV_OWL(_ah) \
@@ -701,6 +701,10 @@
 #define AR_SREV_KIWI(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KIWI)
 
+#define AR_SREV_KIWI_10_OR_LATER(_ah) \
+	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KIWI)
+
+/* XXX TODO: make these handle macVersion > Kiwi */
 #define AR_SREV_KIWI_11_OR_LATER(_ah) \
 	(AR_SREV_KIWI(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_11)

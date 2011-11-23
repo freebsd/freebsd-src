@@ -59,7 +59,7 @@ static	int lineno = 0;
 static	int verbose = 0;
 static	const char *ccdconf = _PATH_CCDCONF;
 
-struct	flagval {
+static struct flagval {
 	const char	*fv_flag;
 	int		fv_val;
 } flagvaltab[] = {

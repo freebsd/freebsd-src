@@ -362,7 +362,7 @@ tdev(KINFO *k, VARENT *ve)
 	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV)
-		str = strdup("??");
+		str = strdup("-");
 	else
 		asprintf(&str, "%#jx", (uintmax_t)dev);
 
@@ -379,7 +379,7 @@ tname(KINFO *k, VARENT *ve)
 	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		str = strdup("?? ");
+		str = strdup("- ");
 	else {
 		if (strncmp(ttname, "tty", 3) == 0 ||
 		    strncmp(ttname, "cua", 3) == 0)
@@ -403,7 +403,7 @@ longtname(KINFO *k, VARENT *ve)
 	v = ve->var;
 	dev = k->ki_p->ki_tdev;
 	if (dev == NODEV || (ttname = devname(dev, S_IFCHR)) == NULL)
-		ttname = "??";
+		ttname = "-";
 
 	return (strdup(ttname));
 }

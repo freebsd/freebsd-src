@@ -133,7 +133,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int axe_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, axe, CTLFLAG_RW, 0, "USB axe");
 SYSCTL_INT(_hw_usb_axe, OID_AUTO, debug, CTLFLAG_RW, &axe_debug, 0,
     "Debug level");
 #endif
@@ -251,15 +251,12 @@ static device_method_t axe_methods[] = {
 	DEVMETHOD(device_attach, axe_attach),
 	DEVMETHOD(device_detach, axe_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, axe_miibus_readreg),
 	DEVMETHOD(miibus_writereg, axe_miibus_writereg),
 	DEVMETHOD(miibus_statchg, axe_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t axe_driver = {

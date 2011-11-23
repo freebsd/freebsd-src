@@ -1009,14 +1009,13 @@ make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev,
 	}
 
 	sprintf(devfspath, "%s/%s", physpath, pdev->si_name);
-	if (old_alias != NULL
-	 && strcmp(old_alias->si_name, devfspath) == 0) {
+	if (old_alias != NULL && strcmp(old_alias->si_name, devfspath) == 0) {
 		/* Retain the existing alias. */
 		*cdev = old_alias;
 		old_alias = NULL;
 		ret = 0;
 	} else {
-		ret = make_dev_alias_p(flags, cdev, pdev, devfspath);
+		ret = make_dev_alias_p(flags, cdev, pdev, "%s", devfspath);
 	}
 out:
 	if (old_alias != NULL)	

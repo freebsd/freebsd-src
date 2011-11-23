@@ -291,7 +291,7 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
-		LD="${LD} -m elf32ppc"
+		LD="${LD} -m elf32ppc_fbsd"
 .endif
 
 
@@ -313,7 +313,8 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
-		-DWITHOUT_HTML -DNO_CTF -DNO_LINT DESTDIR=${LIB32TMP}
+		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
+		DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
@@ -1229,7 +1230,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie lib/libpam ${_lib_libthr} \
+		lib/libopie ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
@@ -1322,7 +1323,7 @@ ${_lib}__PL: .PHONY
 .endif
 .endfor
 
-.for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
+.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
@@ -1333,17 +1334,6 @@ ${_lib}__L: .PHONY
 		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
-
-# libpam is special: we need to build static PAM modules before
-# static PAM library, and dynamic PAM library before dynamic PAM
-# modules.
-lib/libpam__L: .PHONY
-	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
-		cd ${.CURDIR}/lib/libpam; \
-		${MAKE} DIRPRFX=lib/libpam/ obj; \
-		${MAKE} DIRPRFX=lib/libpam/ depend; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
-		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}

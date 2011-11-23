@@ -271,7 +271,7 @@ at91_udp_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	/* disable Transceiver */
 	AT91_UDP_WRITE_4(&sc->sc_dci, AT91_UDP_TXVC, AT91_UDP_TXVC_DIS);
@@ -346,10 +346,7 @@ static device_method_t at91_udp_methods[] = {
 	DEVMETHOD(device_detach, at91_udp_detach),
 	DEVMETHOD(device_shutdown, at91_udp_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t at91_udp_driver = {

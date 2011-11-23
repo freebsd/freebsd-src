@@ -75,10 +75,8 @@ static device_method_t xhci_device_methods[] = {
 	DEVMETHOD(device_suspend, xhci_pci_suspend),
 	DEVMETHOD(device_resume, xhci_pci_resume),
 	DEVMETHOD(device_shutdown, xhci_pci_shutdown),
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xhci_driver = {
@@ -244,7 +242,7 @@ xhci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	pci_disable_busmaster(self);
 

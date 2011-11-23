@@ -57,7 +57,7 @@ static device_method_t sc_methods[] = {
 	DEVMETHOD(device_probe,		sc_probe),
 	DEVMETHOD(device_attach,	sc_attach),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t sc_driver = {

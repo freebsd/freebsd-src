@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ohcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
 SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
     &ohcidebug, 0, "ohci debug level");
 
@@ -2347,7 +2347,7 @@ ohci_roothub_exec(struct usb_device *udev,
 
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
 		len = 16;
-		bzero(sc->sc_hub_desc.temp, 16);
+		memset(sc->sc_hub_desc.temp, 0, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
 		DPRINTFN(9, "get port status i=%d\n",

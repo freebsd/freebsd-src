@@ -402,7 +402,8 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
  * Sysctl entries for devstat.  The first one is a node that all the rest
  * hang off of. 
  */
-SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL, "Device Statistics");
+static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL,
+    "Device Statistics");
 
 SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
     NULL, 0, sysctl_devstat, "S,devstat", "All devices in the devstat list");

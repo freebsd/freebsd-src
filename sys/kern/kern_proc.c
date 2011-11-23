@@ -41,14 +41,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/elf.h>
+#include <sys/exec.h>
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/loginclass.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/ptrace.h>
 #include <sys/refcount.h>
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
@@ -75,6 +79,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 
 #ifdef COMPAT_FREEBSD32
@@ -1356,6 +1361,291 @@ pargs_drop(struct pargs *pa)
 		pargs_free(pa);
 }
 
+static int
+proc_read_mem(struct thread *td, struct proc *p, vm_offset_t offset, void* buf,
+    size_t len)
+{
+	struct iovec iov;
+	struct uio uio;
+
+	iov.iov_base = (caddr_t)buf;
+	iov.iov_len = len;
+	uio.uio_iov = &iov;
+	uio.uio_iovcnt = 1;
+	uio.uio_offset = offset;
+	uio.uio_resid = (ssize_t)len;
+	uio.uio_segflg = UIO_SYSSPACE;
+	uio.uio_rw = UIO_READ;
+	uio.uio_td = td;
+
+	return (proc_rwmem(p, &uio));
+}
+
+static int
+proc_read_string(struct thread *td, struct proc *p, const char *sptr, char *buf,
+    size_t len)
+{
+	size_t i;
+	int error;
+
+	error = proc_read_mem(td, p, (vm_offset_t)sptr, buf, len);
+	/*
+	 * Reading the chunk may validly return EFAULT if the string is shorter
+	 * than the chunk and is aligned at the end of the page, assuming the
+	 * next page is not mapped.  So if EFAULT is returned do a fallback to
+	 * one byte read loop.
+	 */
+	if (error == EFAULT) {
+		for (i = 0; i < len; i++, buf++, sptr++) {
+			error = proc_read_mem(td, p, (vm_offset_t)sptr, buf, 1);
+			if (error != 0)
+				return (error);
+			if (*buf == '\0')
+				break;
+		}
+		error = 0;
+	}
+	return (error);
+}
+
+#define PROC_AUXV_MAX	256	/* Safety limit on auxv size. */
+
+enum proc_vector_type {
+	PROC_ARG,
+	PROC_ENV,
+	PROC_AUX,
+};
+
+#ifdef COMPAT_FREEBSD32
+static int
+get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
+    size_t *vsizep, enum proc_vector_type type)
+{
+	struct freebsd32_ps_strings pss;
+	Elf32_Auxinfo aux;
+	vm_offset_t vptr, ptr;
+	uint32_t *proc_vector32;
+	char **proc_vector;
+	size_t vsize, size;
+	int i, error;
+
+	error = proc_read_mem(td, p, (vm_offset_t)(p->p_sysent->sv_psstrings),
+	    &pss, sizeof(pss));
+	if (error != 0)
+		return (error);
+	switch (type) {
+	case PROC_ARG:
+		vptr = (vm_offset_t)PTRIN(pss.ps_argvstr);
+		vsize = pss.ps_nargvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(int32_t);
+		break;
+	case PROC_ENV:
+		vptr = (vm_offset_t)PTRIN(pss.ps_envstr);
+		vsize = pss.ps_nenvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(int32_t);
+		break;
+	case PROC_AUX:
+		vptr = (vm_offset_t)PTRIN(pss.ps_envstr) +
+		    (pss.ps_nenvstr + 1) * sizeof(int32_t);
+		if (vptr % 4 != 0)
+			return (ENOEXEC);
+		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
+			error = proc_read_mem(td, p, ptr, &aux, sizeof(aux));
+			if (error != 0)
+				return (error);
+			if (aux.a_type == AT_NULL)
+				break;
+			ptr += sizeof(aux);
+		}
+		if (aux.a_type != AT_NULL)
+			return (ENOEXEC);
+		vsize = i + 1;
+		size = vsize * sizeof(aux);
+		break;
+	default:
+		KASSERT(0, ("Wrong proc vector type: %d", type));
+		return (EINVAL);
+	}
+	proc_vector32 = malloc(size, M_TEMP, M_WAITOK);
+	error = proc_read_mem(td, p, vptr, proc_vector32, size);
+	if (error != 0)
+		goto done;
+	if (type == PROC_AUX) {
+		*proc_vectorp = (char **)proc_vector32;
+		*vsizep = vsize;
+		return (0);
+	}
+	proc_vector = malloc(vsize * sizeof(char *), M_TEMP, M_WAITOK);
+	for (i = 0; i < (int)vsize; i++)
+		proc_vector[i] = PTRIN(proc_vector32[i]);
+	*proc_vectorp = proc_vector;
+	*vsizep = vsize;
+done:
+	free(proc_vector32, M_TEMP);
+	return (error);
+}
+#endif
+
+static int
+get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
+    size_t *vsizep, enum proc_vector_type type)
+{
+	struct ps_strings pss;
+	Elf_Auxinfo aux;
+	vm_offset_t vptr, ptr;
+	char **proc_vector;
+	size_t vsize, size;
+	int error, i;
+
+#ifdef COMPAT_FREEBSD32
+	if (SV_PROC_FLAG(p, SV_ILP32) != 0)
+		return (get_proc_vector32(td, p, proc_vectorp, vsizep, type));
+#endif
+	error = proc_read_mem(td, p, (vm_offset_t)(p->p_sysent->sv_psstrings),
+	    &pss, sizeof(pss));
+	if (error != 0)
+		return (error);
+	switch (type) {
+	case PROC_ARG:
+		vptr = (vm_offset_t)pss.ps_argvstr;
+		vsize = pss.ps_nargvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(char *);
+		break;
+	case PROC_ENV:
+		vptr = (vm_offset_t)pss.ps_envstr;
+		vsize = pss.ps_nenvstr;
+		if (vsize > ARG_MAX)
+			return (ENOEXEC);
+		size = vsize * sizeof(char *);
+		break;
+	case PROC_AUX:
+		/*
+		 * The aux array is just above env array on the stack. Check
+		 * that the address is naturally aligned.
+		 */
+		vptr = (vm_offset_t)pss.ps_envstr + (pss.ps_nenvstr + 1)
+		    * sizeof(char *);
+#if __ELF_WORD_SIZE == 64
+		if (vptr % sizeof(uint64_t) != 0)
+#else
+		if (vptr % sizeof(uint32_t) != 0)
+#endif
+			return (ENOEXEC);
+		/*
+		 * We count the array size reading the aux vectors from the
+		 * stack until AT_NULL vector is returned.  So (to keep the code
+		 * simple) we read the process stack twice: the first time here
+		 * to find the size and the second time when copying the vectors
+		 * to the allocated proc_vector.
+		 */
+		for (ptr = vptr, i = 0; i < PROC_AUXV_MAX; i++) {
+			error = proc_read_mem(td, p, ptr, &aux, sizeof(aux));
+			if (error != 0)
+				return (error);
+			if (aux.a_type == AT_NULL)
+				break;
+			ptr += sizeof(aux);
+		}
+		/*
+		 * If the PROC_AUXV_MAX entries are iterated over, and we have
+		 * not reached AT_NULL, it is most likely we are reading wrong
+		 * data: either the process doesn't have auxv array or data has
+		 * been modified. Return the error in this case.
+		 */
+		if (aux.a_type != AT_NULL)
+			return (ENOEXEC);
+		vsize = i + 1;
+		size = vsize * sizeof(aux);
+		break;
+	default:
+		KASSERT(0, ("Wrong proc vector type: %d", type));
+		return (EINVAL); /* In case we are built without INVARIANTS. */
+	}
+	proc_vector = malloc(size, M_TEMP, M_WAITOK);
+	if (proc_vector == NULL)
+		return (ENOMEM);
+	error = proc_read_mem(td, p, vptr, proc_vector, size);
+	if (error != 0) {
+		free(proc_vector, M_TEMP);
+		return (error);
+	}
+	*proc_vectorp = proc_vector;
+	*vsizep = vsize;
+
+	return (0);
+}
+
+#define GET_PS_STRINGS_CHUNK_SZ	256	/* Chunk size (bytes) for ps_strings operations. */
+
+static int
+get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
+    enum proc_vector_type type, size_t nchr)
+{
+	size_t done, len, vsize;
+	int error, i;
+	char **proc_vector, *sptr;
+	char pss_string[GET_PS_STRINGS_CHUNK_SZ];
+
+	PROC_ASSERT_HELD(p);
+
+	 /*
+	  * We are not going to read more than 2 * (PATH_MAX + ARG_MAX) bytes.
+	  */
+	if (nchr > 2 * (PATH_MAX + ARG_MAX))
+		nchr = 2 * (PATH_MAX + ARG_MAX);
+
+	error = get_proc_vector(td, p, &proc_vector, &vsize, type);
+	if (error != 0)
+		return (error);
+	for (done = 0, i = 0; i < (int)vsize && done < nchr; i++) {
+		/*
+		 * The program may have scribbled into its argv array, e.g. to
+		 * remove some arguments.  If that has happened, break out
+		 * before trying to read from NULL.
+		 */
+		if (proc_vector[i] == NULL)
+			break;
+		for (sptr = proc_vector[i]; ; sptr += GET_PS_STRINGS_CHUNK_SZ) {
+			error = proc_read_string(td, p, sptr, pss_string,
+			    sizeof(pss_string));
+			if (error != 0)
+				goto done;
+			len = strnlen(pss_string, GET_PS_STRINGS_CHUNK_SZ);
+			if (done + len >= nchr)
+				len = nchr - done - 1;
+			sbuf_bcat(sb, pss_string, len);
+			if (len != GET_PS_STRINGS_CHUNK_SZ)
+				break;
+			done += GET_PS_STRINGS_CHUNK_SZ;
+		}
+		sbuf_bcat(sb, "", 1);
+		done += len + 1;
+	}
+done:
+	free(proc_vector, M_TEMP);
+	return (error);
+}
+
+int
+proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+{
+
+	return (get_ps_strings(curthread, p, sb, PROC_ARG, nchr));
+}
+
+int
+proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+{
+
+	return (get_ps_strings(curthread, p, sb, PROC_ENV, nchr));
+}
+
 /*
  * This sysctl allows a process to retrieve the argument list or process
  * title for another process without groping around in the address space
@@ -1369,7 +1659,8 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	u_int namelen = arg2;
 	struct pargs *newpa, *pa;
 	struct proc *p;
-	int error = 0;
+	struct sbuf sb;
+	int error = 0, error2;
 
 	if (namelen != 1) 
 		return (EINVAL);
@@ -1389,11 +1680,24 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	}
 
 	pa = p->p_args;
-	pargs_hold(pa);
-	PROC_UNLOCK(p);
-	if (pa != NULL)
+	if (pa != NULL) {
+		pargs_hold(pa);
+		PROC_UNLOCK(p);
 		error = SYSCTL_OUT(req, pa->ar_args, pa->ar_length);
-	pargs_drop(pa);
+		pargs_drop(pa);
+	} else if ((p->p_flag & (P_WEXIT | P_SYSTEM)) == 0) {
+		_PHOLD(p);
+		PROC_UNLOCK(p);
+		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+		error = proc_getargv(curthread, p, &sb, req->oldlen);
+		error2 = sbuf_finish(&sb);
+		PRELE(p);
+		sbuf_delete(&sb);
+		if (error == 0 && error2 != 0)
+			error = error2;
+	} else {
+		PROC_UNLOCK(p);
+	}
 	if (error != 0 || req->newptr == NULL)
 		return (error);
 
@@ -1411,6 +1715,95 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 	PROC_UNLOCK(p);
 	pargs_drop(pa);
 	return (0);
+}
+
+/*
+ * This sysctl allows a process to retrieve environment of another process.
+ */
+static int
+sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	struct sbuf sb;
+	int error, error2;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	p = pfind((pid_t)name[0]);
+	if (p == NULL)
+		return (ESRCH);
+	if ((p->p_flag & P_WEXIT) != 0) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	if ((error = p_candebug(curthread, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+	_PHOLD(p);
+	PROC_UNLOCK(p);
+	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
+	error = proc_getenvv(curthread, p, &sb, req->oldlen);
+	error2 = sbuf_finish(&sb);
+	PRELE(p);
+	sbuf_delete(&sb);
+	return (error != 0 ? error : error2);
+}
+
+/*
+ * This sysctl allows a process to retrieve ELF auxiliary vector of
+ * another process.
+ */
+static int
+sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	size_t vsize;
+	char **auxv;
+	int error;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	p = pfind((pid_t)name[0]);
+	if (p == NULL)
+		return (ESRCH);
+	if (p->p_flag & P_WEXIT) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	if ((error = p_cansee(curthread, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+	_PHOLD(p);
+	PROC_UNLOCK(p);
+	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
+	PRELE(p);
+	if (error == 0) {
+#ifdef COMPAT_FREEBSD32
+		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
+			error = SYSCTL_OUT(req, auxv, vsize *
+			    sizeof(Elf32_Auxinfo));
+		else
+#endif
+		error = SYSCTL_OUT(req, auxv, vsize * sizeof(Elf_Auxinfo));
+		free(auxv, M_TEMP);
+	}
+	return (error);
 }
 
 /*
@@ -1526,7 +1919,7 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &p->p_vmspace->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
@@ -1704,13 +2097,14 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	}
 	kve = malloc(sizeof(*kve), M_TEMP, M_WAITOK);
 
-	map = &vm->vm_map;	/* XXXRW: More locking required? */
+	map = &vm->vm_map;
 	vm_map_lock_read(map);
 	for (entry = map->header.next; entry != &map->header;
 	    entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
-		int vfslocked;
+		vm_paddr_t locked_pa;
+		int vfslocked, mincoreinfo;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -1728,8 +2122,14 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		kve->kve_resident = 0;
 		addr = entry->start;
 		while (addr < entry->end) {
-			if (pmap_extract(map->pmap, addr))
+			locked_pa = 0;
+			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
+			if (locked_pa != 0)
+				vm_page_unlock(PHYS_TO_VM_PAGE(locked_pa));
+			if (mincoreinfo & MINCORE_INCORE)
 				kve->kve_resident++;
+			if (mincoreinfo & MINCORE_SUPER)
+				kve->kve_flags |= KVME_FLAG_SUPER;
 			addr += PAGE_SIZE;
 		}
 
@@ -2025,6 +2425,14 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PROC, proc, CTLFLAG_RD | CTLFLAG_MPSAFE
 static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
 	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env,
+	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+	sysctl_kern_proc_env, "Process environment");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_AUXV, auxv,
+	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+	sysctl_kern_proc_auxv, "Process ELF auxiliary vector");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_pathname, "Process executable path");

@@ -52,7 +52,7 @@ static device_method_t ssm_methods[] = {
 
 	/* ofw_bus interface */
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t ssm_devclass;

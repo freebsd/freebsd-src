@@ -1,11 +1,16 @@
 /*-
  * Copyright (c) 1990, 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
+ *	The Regents of the University of California.
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
  *
  * This code is derived from the Stanford/CMU enet packet filter,
  * (net/enet.c) distributed as part of 4.3BSD, and code contributed
  * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence
  * Berkeley Laboratory.
+ *
+ * Portions of this software were developed by Julien Ridoux at the University
+ * of Melbourne under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -170,11 +175,21 @@ enum bpf_direction {
 #define	BPF_T_MONOTONIC		0x0200
 #define	BPF_T_MONOTONIC_FAST	(BPF_T_FAST | BPF_T_MONOTONIC)
 #define	BPF_T_FLAG_MASK		0x0300
+#ifdef FFCLOCK
+#define	BPF_T_FFCLOCK		0x8000
+#define	BPF_T_CLOCK_MASK	0x8000
+#endif
 #define	BPF_T_FORMAT(t)		((t) & BPF_T_FORMAT_MASK)
 #define	BPF_T_FLAG(t)		((t) & BPF_T_FLAG_MASK)
+#ifdef FFCLOCK
+#define	BPF_T_VALID(t)						\
+    ((t) == BPF_T_NONE || (BPF_T_FORMAT(t) != BPF_T_NONE &&	\
+    ((t) & ~(BPF_T_FORMAT_MASK | BPF_T_FLAG_MASK | BPF_T_CLOCK_MASK)) == 0))
+#else
 #define	BPF_T_VALID(t)						\
     ((t) == BPF_T_NONE || (BPF_T_FORMAT(t) != BPF_T_NONE &&	\
     ((t) & ~(BPF_T_FORMAT_MASK | BPF_T_FLAG_MASK)) == 0))
+#endif
 
 #define	BPF_T_MICROTIME_FAST		(BPF_T_MICROTIME | BPF_T_FAST)
 #define	BPF_T_NANOTIME_FAST		(BPF_T_NANOTIME | BPF_T_FAST)
@@ -199,6 +214,9 @@ struct bpf_xhdr {
 	bpf_u_int32	bh_datalen;	/* original length of packet */
 	u_short		bh_hdrlen;	/* length of bpf header (this struct
 					   plus alignment padding) */
+#ifdef FFCLOCK
+	ffcounter	ffcount_stamp;	/* feed-forward counter timestamp */
+#endif
 };
 /* Obsolete */
 struct bpf_hdr {
@@ -207,6 +225,9 @@ struct bpf_hdr {
 	bpf_u_int32	bh_datalen;	/* original length of packet */
 	u_short		bh_hdrlen;	/* length of bpf header (this struct
 					   plus alignment padding) */
+#ifdef FFCLOCK
+	ffcounter	ffcount_stamp;	/* feed-forward counter timestamp */
+#endif
 };
 #ifdef _KERNEL
 #define	MTAG_BPF		0x627066

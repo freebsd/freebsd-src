@@ -972,6 +972,21 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_PUREG) != 0;
 		break;
+	case IEEE80211_IOC_QUIET:
+		ireq->i_val = vap->iv_quiet;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		ireq->i_val = vap->iv_quiet_count;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		ireq->i_val = vap->iv_quiet_period;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		ireq->i_val = vap->iv_quiet_duration;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		ireq->i_val = vap->iv_quiet_offset;
+		break;
 	case IEEE80211_IOC_BGSCAN:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_BGSCAN) != 0;
 		break;
@@ -2938,6 +2953,24 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* NB: reset only if we're operating on an 11g channel */
 		if (isvap11g(vap))
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_QUIET:
+		vap->iv_quiet= ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		vap->iv_quiet_count=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		vap->iv_quiet_period=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		vap->iv_quiet_offset=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		if(ireq->i_val < vap->iv_bss->ni_intval)
+			vap->iv_quiet_duration = ireq->i_val;
+		else
+			error = EINVAL;
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		if (ireq->i_val) {

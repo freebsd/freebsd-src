@@ -2,6 +2,11 @@
  * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * This code is derived from software contributed to Berkeley by
  * Chris Torek.
  *
@@ -51,6 +56,7 @@ __FBSDID("$FreeBSD$");
 #include "collate.h"
 #include "libc_private.h"
 #include "local.h"
+#include "xlocale_private.h"
 
 #ifndef NO_FLOATING_POINT
 #include <locale.h>
@@ -95,7 +101,7 @@ __FBSDID("$FreeBSD$");
 
 static const u_char *__sccl(char *, const u_char *);
 #ifndef NO_FLOATING_POINT
-static int parsefloat(FILE *, char *, char *);
+static int parsefloat(FILE *, char *, char *, locale_t);
 #endif
 
 __weak_reference(__vfscanf, vfscanf);
@@ -109,7 +115,18 @@ __vfscanf(FILE *fp, char const *fmt0, va_list ap)
 	int ret;
 
 	FLOCKFILE(fp);
-	ret = __svfscanf(fp, fmt0, ap);
+	ret = __svfscanf(fp, __get_locale(), fmt0, ap);
+	FUNLOCKFILE(fp);
+	return (ret);
+}
+int
+vfscanf_l(FILE *fp, locale_t locale, char const *fmt0, va_list ap)
+{
+	int ret;
+	FIX_LOCALE(locale);
+
+	FLOCKFILE(fp);
+	ret = __svfscanf(fp, locale, fmt0, ap);
 	FUNLOCKFILE(fp);
 	return (ret);
 }
@@ -118,7 +135,7 @@ __vfscanf(FILE *fp, char const *fmt0, va_list ap)
  * __svfscanf - non-MT-safe version of __vfscanf
  */
 int
-__svfscanf(FILE *fp, const char *fmt0, va_list ap)
+__svfscanf(FILE *fp, locale_t locale, const char *fmt0, va_list ap)
 {
 	const u_char *fmt = (const u_char *)fmt0;
 	int c;			/* character from format, or conversion */
@@ -733,9 +750,9 @@ literal:
 
 				*p = 0;
 				if ((flags & UNSIGNED) == 0)
-				    res = strtoimax(buf, (char **)NULL, base);
+				    res = strtoimax_l(buf, (char **)NULL, base, locale);
 				else
-				    res = strtoumax(buf, (char **)NULL, base);
+				    res = strtoumax_l(buf, (char **)NULL, base, locale);
 				if (flags & POINTER)
 					*va_arg(ap, void **) =
 							(void *)(uintptr_t)res;
@@ -766,17 +783,17 @@ literal:
 			/* scan a floating point number as if by strtod */
 			if (width == 0 || width > sizeof(buf) - 1)
 				width = sizeof(buf) - 1;
-			if ((width = parsefloat(fp, buf, buf + width)) == 0)
+			if ((width = parsefloat(fp, buf, buf + width, locale)) == 0)
 				goto match_failure;
 			if ((flags & SUPPRESS) == 0) {
 				if (flags & LONGDBL) {
-					long double res = strtold(buf, &p);
+					long double res = strtold_l(buf, &p, locale);
 					*va_arg(ap, long double *) = res;
 				} else if (flags & LONG) {
-					double res = strtod(buf, &p);
+					double res = strtod_l(buf, &p, locale);
 					*va_arg(ap, double *) = res;
 				} else {
-					float res = strtof(buf, &p);
+					float res = strtof_l(buf, &p, locale);
 					*va_arg(ap, float *) = res;
 				}
 				nassigned++;
@@ -805,6 +822,8 @@ __sccl(tab, fmt)
 	const u_char *fmt;
 {
 	int c, n, v, i;
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	/* first `clear' the whole table */
 	c = *fmt++;		/* first char hat => negated scanset */
@@ -858,8 +877,8 @@ doswitch:
 			 */
 			n = *fmt;
 			if (n == ']'
-			    || (__collate_load_error ? n < c :
-				__collate_range_cmp (n, c) < 0
+			    || (table->__collate_load_error ? n < c :
+				__collate_range_cmp (table, n, c) < 0
 			       )
 			   ) {
 				c = '-';
@@ -867,14 +886,14 @@ doswitch:
 			}
 			fmt++;
 			/* fill in the range */
-			if (__collate_load_error) {
+			if (table->__collate_load_error) {
 				do {
 					tab[++c] = v;
 				} while (c < n);
 			} else {
 				for (i = 0; i < 256; i ++)
-					if (   __collate_range_cmp (c, i) < 0
-					    && __collate_range_cmp (i, n) <= 0
+					if (   __collate_range_cmp (table, c, i) < 0
+					    && __collate_range_cmp (table, i, n) <= 0
 					   )
 						tab[i] = v;
 			}
@@ -908,7 +927,7 @@ doswitch:
 
 #ifndef NO_FLOATING_POINT
 static int
-parsefloat(FILE *fp, char *buf, char *end)
+parsefloat(FILE *fp, char *buf, char *end, locale_t locale)
 {
 	char *commit, *p;
 	int infnanpos = 0, decptpos = 0;
@@ -917,7 +936,7 @@ parsefloat(FILE *fp, char *buf, char *end)
 		S_DIGITS, S_DECPT, S_FRAC, S_EXP, S_EXPDIGITS
 	} state = S_START;
 	unsigned char c;
-	const char *decpt = localeconv()->decimal_point;
+	const char *decpt = localeconv_l(locale)->decimal_point;
 	_Bool gotmantdig = 0, ishex = 0;
 
 	/*

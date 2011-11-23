@@ -58,10 +58,10 @@ struct thread;
 struct lock_class {
 	const	char *lc_name;
 	u_int	lc_flags;
-	void	(*lc_assert)(struct lock_object *lock, int what);
-	void	(*lc_ddb_show)(struct lock_object *lock);
+	void	(*lc_assert)(const struct lock_object *lock, int what);
+	void	(*lc_ddb_show)(const struct lock_object *lock);
 	void	(*lc_lock)(struct lock_object *lock, int how);
-	int	(*lc_owner)(struct lock_object *lock, struct thread **owner);
+	int	(*lc_owner)(const struct lock_object *lock, struct thread **owner);
 	int	(*lc_unlock)(struct lock_object *lock);
 };
 
@@ -215,7 +215,7 @@ void	witness_restore(struct lock_object *, const char *, int);
 int	witness_list_locks(struct lock_list_entry **,
 	    int (*)(const char *, ...));
 int	witness_warn(int, struct lock_object *, const char *, ...);
-void	witness_assert(struct lock_object *, int, const char *, int);
+void	witness_assert(const struct lock_object *, int, const char *, int);
 void	witness_display_spinlock(struct lock_object *, struct thread *,
 	    int (*)(const char *, ...));
 int	witness_line(struct lock_object *);

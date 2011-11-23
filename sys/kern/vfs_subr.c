@@ -1191,7 +1191,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	do {
 		error = flushbuflist(&bo->bo_clean,
 		    flags, bo, slpflag, slptimeo);
-		if (error == 0)
+		if (error == 0 && !(flags & V_CLEANONLY))
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
@@ -1220,7 +1220,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
+	if (bo->bo_object != NULL &&
+	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
@@ -1229,7 +1230,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0 &&
 	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	BO_UNLOCK(bo);

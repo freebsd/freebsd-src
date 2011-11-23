@@ -178,6 +178,10 @@
 #define	RL_HWREV_8168C_SPIN2	0x3C400000
 #define	RL_HWREV_8168CP		0x3C800000
 #define	RL_HWREV_8105E		0x40800000
+#define	RL_HWREV_8105E_SPIN1	0x40C00000
+#define	RL_HWREV_8402		0x44000000
+#define	RL_HWREV_8168F		0x48000000
+#define	RL_HWREV_8411		0x48800000
 #define	RL_HWREV_8139		0x60000000
 #define	RL_HWREV_8139A		0x70000000
 #define	RL_HWREV_8139AG		0x70800000
@@ -597,32 +601,15 @@ struct rl_type {
 	uint16_t		rl_vid;
 	uint16_t		rl_did;
 	int			rl_basetype;
-	char			*rl_name;
+	const char		*rl_name;
 };
 
 struct rl_hwrev {
 	uint32_t		rl_rev;
 	int			rl_type;
-	char			*rl_desc;
+	const char		*rl_desc;
 	int			rl_max_mtu;
 };
-
-struct rl_mii_frame {
-	uint8_t		mii_stdelim;
-	uint8_t		mii_opcode;
-	uint8_t		mii_phyaddr;
-	uint8_t		mii_regaddr;
-	uint8_t		mii_turnaround;
-	uint16_t	mii_data;
-};
-
-/*
- * MII constants
- */
-#define	RL_MII_STARTDELIM	0x01
-#define	RL_MII_READOP		0x02
-#define	RL_MII_WRITEOP		0x01
-#define	RL_MII_TURNAROUND	0x02
 
 #define	RL_8129			1
 #define	RL_8139			2
@@ -880,9 +867,10 @@ struct rl_softc {
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
-	struct rl_hwrev		*rl_hwrev;
+	const struct rl_hwrev	*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
+	int			rl_expcap;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
@@ -949,6 +937,9 @@ struct rl_softc {
 	bus_space_read_2(sc->rl_btag, sc->rl_bhandle, reg)
 #define	CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->rl_btag, sc->rl_bhandle, reg)
+
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_space_barrier(sc->rl_btag, sc->rl_bhandle, reg, length, flags)
 
 #define	CSR_SETBIT_1(sc, offset, val)		\
 	CSR_WRITE_1(sc, offset, CSR_READ_1(sc, offset) | (val))

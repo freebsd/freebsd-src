@@ -4062,6 +4062,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				}
 			}
 			if (port) {
+				if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+					sctp_handle_no_route(stcb, net, so_locked);
+					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EHOSTUNREACH);
+					sctp_m_freem(m);
+					return (EHOSTUNREACH);
+				}
 				udp = (struct udphdr *)((caddr_t)ip + sizeof(struct ip));
 				udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 				udp->uh_dport = port;
@@ -4413,6 +4419,12 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			ip6h->ip6_src = lsa6->sin6_addr;
 
 			if (port) {
+				if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+					sctp_handle_no_route(stcb, net, so_locked);
+					SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, EHOSTUNREACH);
+					sctp_m_freem(m);
+					return (EHOSTUNREACH);
+				}
 				udp = (struct udphdr *)((caddr_t)ip6h + sizeof(struct ip6_hdr));
 				udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 				udp->uh_dport = port;
@@ -5711,6 +5723,8 @@ do_a_abort:
 			stc.laddress[2] = 0;
 			stc.laddress[3] = 0;
 			stc.laddr_type = SCTP_IPV4_ADDRESS;
+			/* scope_id is only for v6 */
+			stc.scope_id = 0;
 			break;
 #endif
 #ifdef INET6
@@ -5719,6 +5733,7 @@ do_a_abort:
 			memcpy(&stc.address, &sin6->sin6_addr,
 			    sizeof(struct in6_addr));
 			stc.addr_type = SCTP_IPV6_ADDRESS;
+			stc.scope_id = sin6->sin6_scope_id;
 			if (net->src_addr_selected == 0) {
 				/*
 				 * strange case here, the INIT should have
@@ -5746,6 +5761,7 @@ do_a_abort:
 	/* who are we */
 	memcpy(stc.identification, SCTP_VERSION_STRING,
 	    min(strlen(SCTP_VERSION_STRING), sizeof(stc.identification)));
+	memset(stc.reserved, 0, SCTP_RESERVE_SPACE);
 	/* now the chunk header */
 	initack->ch.chunk_type = SCTP_INITIATION_ACK;
 	initack->ch.chunk_flags = 0;
@@ -10961,6 +10977,10 @@ sctp_send_shutdown_complete2(struct mbuf *m, int iphlen, struct sctphdr *sh,
 		return;
 	}
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp = (struct udphdr *)comp_cp;
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
@@ -11921,6 +11941,10 @@ sctp_send_abort(struct mbuf *m, int iphlen, struct sctphdr *sh, uint32_t vtag,
 
 	udp = (struct udphdr *)abm;
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
 		/* set udp->uh_ulen later */
@@ -12182,6 +12206,10 @@ sctp_send_operr_to(struct mbuf *m, int iphlen, struct mbuf *scm, uint32_t vtag,
 
 	udp = (struct udphdr *)sh_out;
 	if (port) {
+		if (htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) == 0) {
+			sctp_m_freem(mout);
+			return;
+		}
 		udp->uh_sport = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 		udp->uh_dport = port;
 		/* set udp->uh_ulen later */

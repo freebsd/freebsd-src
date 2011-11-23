@@ -175,6 +175,14 @@ isp_attach_chan(ispsoftc_t *isp, struct cam_devq *devq, int chan)
 			isp_prt(isp, ISP_LOGERR, "cannot create test target thread");
 		}
 #endif
+		if (chan == 0) {
+			struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(isp->isp_osinfo.dev);
+			struct sysctl_oid *tree = device_get_sysctl_tree(isp->isp_osinfo.dev);
+			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwnn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwnn, "World Wide Node Name");
+			SYSCTL_ADD_QUAD(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "wwpn", CTLFLAG_RD, &FCPARAM(isp, 0)->isp_wwpn, "World Wide Port Name");
+			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "loop_down_limit", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->loop_down_limit, 0, "Loop Down Limit");
+			SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "gone_device_time", CTLFLAG_RW, &ISP_FC_PC(isp, 0)->gone_device_time, 0, "Gone Device Time");
+		}
 	}
 	return (0);
 }

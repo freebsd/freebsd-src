@@ -522,6 +522,9 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 		case IEEE80211_ELEMID_CSA:
 			scan->csa = frm;
 			break;
+		case IEEE80211_ELEMID_QUIET:
+			scan->quiet = frm;
+			break;
 		case IEEE80211_ELEMID_FHPARMS:
 			if (ic->ic_phytype == IEEE80211_T_FH) {
 				scan->fhdwell = LE_READ_2(&frm[2]);
