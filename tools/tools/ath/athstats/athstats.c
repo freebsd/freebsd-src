@@ -287,9 +287,9 @@ static const struct fmt athstats[] = {
 #define	S_TX_AGGR_OK		AFTER(S_TX_DELIM_UNDERRUN)
 	{ 5,	"txaggrok",	"TXAOK",	"A-MPDU sub-frame TX attempt success" },
 #define	S_TX_AGGR_FAIL		AFTER(S_TX_AGGR_OK)
-	{ 4,	"txaggrfail",	"TXAF",	"A-MPDU sub-frame TX attempt success" },
+	{ 4,	"txaggrfail",	"TXAF",	"A-MPDU sub-frame TX attempt failures" },
 #define	S_TX_AGGR_FAILALL	AFTER(S_TX_AGGR_FAIL)
-	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU sub-frame TX attempt success" },
+	{ 7,	"txaggrfailall",	"TXAFALL",	"A-MPDU TX frame failures" },
 #ifndef __linux__
 #define	S_CABQ_XMIT	AFTER(S_TX_AGGR_FAILALL)
 	{ 5,	"cabxmit",	"cabxmit",	"cabq frames transmitted" },
