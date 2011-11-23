@@ -1813,11 +1813,15 @@ scsi_done:
 		break;
 
 	case XPT_CALC_GEOMETRY:
+#if __FreeBSD_version >= 500000
+		cam_calc_geometry(&ccb->ccg, 1);
+#else
 		ccb->ccg.heads = 255;
 		ccb->ccg.secs_per_track = 63;
 		ccb->ccg.cylinders = ccb->ccg.volume_size /
 				(ccb->ccg.heads * ccb->ccg.secs_per_track);
 		ccb->ccb_h.status = CAM_REQ_CMP;
+#endif
 		break;
 
 	case XPT_PATH_INQ:
