@@ -1401,12 +1401,17 @@ re_attach(device_t dev)
 		    RL_FLAG_AUTOPAD | RL_FLAG_MACSLEEP;
 		break;
 	case RL_HWREV_8401E:
-	case RL_HWREV_8402:
 	case RL_HWREV_8105E:
 	case RL_HWREV_8105E_SPIN1:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
+		break;
+	case RL_HWREV_8402:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ;
 		break;
 	case RL_HWREV_8168B_SPIN1:
 	case RL_HWREV_8168B_SPIN2:
@@ -1424,10 +1429,14 @@ re_attach(device_t dev)
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
-	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		break;
+	case RL_HWREV_8168DP:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_AUTOPAD |
+		    RL_FLAG_JUMBOV2 | RL_FLAG_WAIT_TXPOLL;
 		break;
 	case RL_HWREV_8168E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
@@ -1439,7 +1448,8 @@ re_attach(device_t dev)
 	case RL_HWREV_8411:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -3466,10 +3476,32 @@ re_stop(struct rl_softc *sc)
 	    ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_MULTI |
 	    RL_RXCFG_RX_BROAD));
 
-	if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0)
+	if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
+		for (i = RL_TIMEOUT; i > 0; i--) {
+			if ((CSR_READ_1(sc, sc->rl_txstart) &
+			    RL_TXSTART_START) == 0)
+				break;
+			DELAY(20);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev,
+			    "stopping TX poll timed out!\n");
+		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	} else if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0) {
 		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_STOPREQ | RL_CMD_TX_ENB |
 		    RL_CMD_RX_ENB);
-	else
+		if ((sc->rl_flags & RL_FLAG_CMDSTOP_WAIT_TXQ) != 0) {
+			for (i = RL_TIMEOUT; i > 0; i--) {
+				if ((CSR_READ_4(sc, RL_TXCFG) &
+				    RL_TXCFG_QUEUE_EMPTY) != 0)
+					break;
+				DELAY(100);
+			}
+			if (i == 0)
+				device_printf(sc->rl_dev,
+				   "stopping TXQ timed out!\n");
+		}
+	} else
 		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
