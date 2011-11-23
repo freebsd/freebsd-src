@@ -226,51 +226,6 @@ root_bias(char *path)
     return tmp;
 }
 
-/*
- * These next routines are kind of specialized just for building item lists
- * for dialog_menu().
- */
-
-/* Add an item to an item list */
-dialogMenuItem *
-item_add(dialogMenuItem *list, char *prompt, char *title,
-	 int (*checked)(dialogMenuItem *self),
-	 int (*fire)(dialogMenuItem *self),
-	 void (*selected)(dialogMenuItem *self, int is_selected),
-	 void *data, int *aux, int *curr, int *max)
-{
-    dialogMenuItem *d;
-
-    if (*curr == *max) {
-	*max += 20;
-	list = (dialogMenuItem *)safe_realloc(list, sizeof(dialogMenuItem) * *max);
-    }
-    d = &list[(*curr)++];
-    bzero(d, sizeof(*d));
-    d->prompt = prompt ? strdup(prompt) : NULL;
-    d->title = title ? strdup(title) : NULL;
-    d->checked = checked;
-    d->fire = fire;
-    d->selected = selected;
-    d->data = data;
-    d->aux = (long)aux;
-    return list;
-}
-
-/* Toss the items out */
-void
-items_free(dialogMenuItem *list, int *curr, int *max)
-{
-    int i;
-
-    for (i = 0; list[i].prompt; i++) {
-	safe_free(list[i].prompt);
-	safe_free(list[i].title);
-    }
-    safe_free(list);
-    *curr = *max = 0;
-}
-
 int
 Mkdir(char *ipath)
 {
@@ -311,12 +266,6 @@ Mkdir(char *ipath)
 }
 
 int
-Mkdir_command(char *key, void *dir)
-{
-    return (Mkdir((char*)dir));
-}
-
-int
 Mount(char *mountp, void *dev)
 {
     struct ufs_args ufsargs;
@@ -350,126 +299,6 @@ Mount(char *mountp, void *dev)
 	return DITEM_FAILURE;
     }
     return DITEM_SUCCESS;
-}
-
-WINDOW *
-openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height)
-{
-    WINDOW		*win;
-    static char		help[FILENAME_MAX];
-
-    /* We need a curses window */
-    win = newwin(LINES, COLS, 0, 0);
-    if (win) {
-	/* Say where our help comes from */
-	if (helpfile) {
-	    use_helpline("Press F1 for more information on this screen.");
-	    use_helpfile(systemHelpFile(helpfile, help));
-	}
-	/* Setup a nice screen for us to splat stuff onto */
-	draw_box(win, y, x, height, width, dialog_attr, border_attr);
-	wattrset(win, dialog_attr);
-	mvwaddstr(win, y, x + (COLS - strlen(title)) / 2, title);
-    }
-    return win;
-}
-
-ComposeObj *
-initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max)
-{
-    ComposeObj *obj = NULL, *first;
-    int n;
-
-    /* Loop over the layout list, create the objects, and add them
-       onto the chain of objects that dialog uses for traversal*/
-    
-    n = 0;
-    while (layout[n].help != NULL) {
-	int t = TYPE_OF_OBJ(layout[n].type);
-
-	switch (t) {
-	case STRINGOBJ:
-	    layout[n].obj = NewStringObj(win, layout[n].prompt, layout[n].var,
-					 layout[n].y + y, layout[n].x + x, layout[n].len, layout[n].maxlen);
-	    ((StringObj *)layout[n].obj)->attr_mask = ATTR_OF_OBJ(layout[n].type);
-	    break;
-	    
-	case BUTTONOBJ:
-	    layout[n].obj = NewButtonObj(win, layout[n].prompt, layout[n].var, layout[n].y + y, layout[n].x + x);
-	    break;
-	    
-	default:
-	    msgFatal("Don't support this object yet!");
-	}
-	AddObj(&obj, t, (void *) layout[n].obj);
-	n++;
-    }
-    *max = n - 1;
-    /* Find the first object in the list */
-    for (first = obj; first->prev; first = first->prev);
-    return first;
-}
-
-int
-layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj, int *n, int max, int *cbutton, int *cancel)
-{
-    char help_line[80];
-    int ret, i, len = strlen(layout[*n].help);
-
-    /* Display the help line at the bottom of the screen */
-    for (i = 0; i < 79; i++)
-	help_line[i] = (i < len) ? layout[*n].help[i] : ' ';
-    help_line[i] = '\0';
-    use_helpline(help_line);
-    display_helpline(win, LINES - 1, COLS - 1);
-    wrefresh(win);
-	    
-    /* Ask for libdialog to do its stuff */
-    ret = PollObj(obj);
-    /* Handle special case stuff that libdialog misses. Sigh */
-    switch (ret) {
-    case SEL_ESC:	/* Bail out */
-	*cancel = TRUE;
-	return FALSE;
-	      
-	/* This doesn't work for list dialogs. Oh well. Perhaps
-	   should special case the move from the OK button ``up''
-	   to make it go to the interface list, but then it gets
-	   awkward for the user to go back and correct screw up's
-	   in the per-interface section */
-    case KEY_DOWN:
-    case SEL_CR:
-    case SEL_TAB:
-	if (*n < max)
-	    ++*n;
-	else
-	    *n = 0;
-	break;
-	      
-	/* The user has pressed enter over a button object */
-    case SEL_BUTTON:
-	if (cbutton && *cbutton)
-	    *cancel = TRUE;
-	else
-	    *cancel = FALSE;
-	return FALSE;
-	
-    case KEY_UP:
-    case SEL_BACKTAB:
-	if (*n)
-	    --*n;
-	else
-	    *n = max;
-	break;
-	
-    case KEY_F(1):
-	display_helpfile();
-	
-	/* They tried some key combination we don't support - tootle them forcefully! */
-    default:
-	beep();
-    }
-    return TRUE;
 }
 
 WINDOW *
