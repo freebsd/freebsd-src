@@ -148,12 +148,14 @@ struct ath_stats {
 	u_int32_t	ast_tx_swretrymax;	/* software TX retry max limit reach */
 	u_int32_t	ast_tx_data_underrun;
 	u_int32_t	ast_tx_delim_underrun;
-	u_int32_t	ast_tx_aggrfail;		/* aggregate TX failed in its entirety */
+	u_int32_t	ast_tx_aggr_failall;	/* aggregate TX failed in its entirety */
 	u_int32_t	ast_tx_getnobuf;
 	u_int32_t	ast_tx_getbusybuf;
 	u_int32_t	ast_tx_intr;
 	u_int32_t	ast_rx_intr;
-	u_int32_t	ast_pad[4];
+	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
+	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
+	u_int32_t	ast_pad[2];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
