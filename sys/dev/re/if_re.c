@@ -3456,6 +3456,16 @@ re_stop(struct rl_softc *sc)
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
+	/*
+	 * Disable accepting frames to put RX MAC into idle state.
+	 * Otherwise it's possible to get frames while stop command
+	 * execution is in progress and controller can DMA the frame
+	 * to already freed RX buffer during that period.
+	 */
+	CSR_WRITE_4(sc, RL_RXCFG, CSR_READ_4(sc, RL_RXCFG) &
+	    ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_MULTI |
+	    RL_RXCFG_RX_BROAD));
+
 	if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0)
 		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_STOPREQ | RL_CMD_TX_ENB |
 		    RL_CMD_RX_ENB);
@@ -3604,9 +3614,11 @@ re_setwol(struct rl_softc *sc)
 			CSR_WRITE_1(sc, RL_GPIO,
 			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
-	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
-	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
-		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		re_set_rxmode(sc);
+		if ((sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
+			CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
+	}
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
