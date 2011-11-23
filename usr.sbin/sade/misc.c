@@ -56,46 +56,12 @@ file_readable(char *fname)
     return FALSE;
 }
 
-/* Quick check to see if a file is executable */
-Boolean
-file_executable(char *fname)
-{
-    if (!access(fname, X_OK))
-	return TRUE;
-    return FALSE;
-}
-
-/* Concatenate two strings into static storage */
-char *
-string_concat(char *one, char *two)
-{
-    static char tmp[FILENAME_MAX];
-
-    /* Yes, we're deliberately cavalier about not checking for overflow */
-    strcpy(tmp, one);
-    strcat(tmp, two);
-    return tmp;
-}
-
 /* sane strncpy() function */
 char *
 sstrncpy(char *dst, const char *src, int size)
 {
     dst[size] = '\0';
     return strncpy(dst, src, size);
-}
-
-/* Concatenate three strings into static storage */
-char *
-string_concat3(char *one, char *two, char *three)
-{
-    static char tmp[FILENAME_MAX];
-
-    /* Yes, we're deliberately cavalier about not checking for overflow */
-    strcpy(tmp, one);
-    strcat(tmp, two);
-    strcat(tmp, three);
-    return tmp;
 }
 
 /* Clip the whitespace off the end of a string */
@@ -118,29 +84,6 @@ string_skipwhite(char *str)
     return str;
 }
 
-/* copy optionally and allow second arg to be null */
-char *
-string_copy(char *s1, char *s2)
-{
-    if (!s1)
-	return NULL;
-    if (!s2)
-	s1[0] = '\0';
-    else
-	strcpy(s1, s2);
-    return s1;
-}
-
-/* convert an integer to a string, using a static buffer */
-char *
-itoa(int value)
-{
-    static char buf[13];
-
-    snprintf(buf, 12, "%d", value);
-    return buf;
-}
-
 Boolean
 directory_exists(const char *dirname)
 {
@@ -157,22 +100,6 @@ directory_exists(const char *dirname)
 
     closedir(tptr);
     return (TRUE);
-}
-
-char *
-pathBaseName(const char *path)
-{
-    char *pt;
-    char *ret = (char *)path;
-
-    pt = strrchr(path,(int)'/');
-
-    if (pt != 0)			/* if there is a slash */
-    {
-	ret = ++pt;			/* start the file after it */
-    }
-    
-    return(ret);
 }
 
 /* A free guaranteed to take NULL ptrs */
@@ -196,34 +123,6 @@ safe_malloc(size_t size)
 	msgFatal("Out of memory!");
     bzero(ptr, size);
     return ptr;
-}
-
-/* A realloc that checks errors */
-void *
-safe_realloc(void *orig, size_t size)
-{
-    void *ptr;
-
-    if (size <= 0)
-	msgFatal("Invalid realloc size of %ld!", (long)size);
-    ptr = reallocf(orig, size);
-    if (!ptr)
-	msgFatal("Out of memory!");
-    return ptr;
-}
-
-/* Create a path biased from the VAR_INSTALL_ROOT variable (if not /) */
-char *
-root_bias(char *path)
-{
-    static char tmp[FILENAME_MAX];
-    char *cp = variable_get(VAR_INSTALL_ROOT);
-
-    if (!strcmp(cp, "/"))
-	return path;
-    strcpy(tmp, variable_get(VAR_INSTALL_ROOT));
-    strcat(tmp, path);
-    return tmp;
 }
 
 int
