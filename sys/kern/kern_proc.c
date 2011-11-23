@@ -1468,6 +1468,7 @@ get_proc_vector32(struct thread *td, struct proc *p, char ***proc_vectorp,
 		break;
 	default:
 		KASSERT(0, ("Wrong proc vector type: %d", type));
+		return (EINVAL);
 	}
 	proc_vector32 = malloc(size, M_TEMP, M_WAITOK);
 	error = proc_read_mem(td, p, vptr, proc_vector32, size);
@@ -1564,6 +1565,7 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 		break;
 	default:
 		KASSERT(0, ("Wrong proc vector type: %d", type));
+		return (EINVAL); /* In case we are built without INVARIANTS. */
 	}
 	proc_vector = malloc(size, M_TEMP, M_WAITOK);
 	if (proc_vector == NULL)
