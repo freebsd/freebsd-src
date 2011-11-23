@@ -1288,6 +1288,7 @@ LkNamespaceLocateBegin (
             {
             case ACPI_ADR_SPACE_EC:
             case ACPI_ADR_SPACE_CMOS:
+            case ACPI_ADR_SPACE_GPIO:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BYTE)
                 {
@@ -1297,6 +1298,7 @@ LkNamespaceLocateBegin (
 
             case ACPI_ADR_SPACE_SMBUS:
             case ACPI_ADR_SPACE_IPMI:
+            case ACPI_ADR_SPACE_GSBUS:
 
                 if ((UINT8) Op->Asl.Parent->Asl.Value.Integer != AML_FIELD_ACCESS_BUFFER)
                 {

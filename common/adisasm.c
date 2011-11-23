@@ -868,6 +868,7 @@ AdParseDeferredOps (
             break;
 
         case AML_REGION_OP:
+        case AML_DATA_REGION_OP:
         case AML_CREATE_QWORD_FIELD_OP:
         case AML_CREATE_DWORD_FIELD_OP:
         case AML_CREATE_WORD_FIELD_OP:

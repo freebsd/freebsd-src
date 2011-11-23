@@ -11,7 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = iasl
+PROG = $(OBJDIR)/iasl
 
 #
 # Search paths for source files
@@ -31,158 +31,160 @@ vpath %.c \
 
 HEADERS = \
     $(wildcard $(ASL_COMPILER)/*.h) \
-    aslcompiler.y.h \
-    dtparser.y.h
+    $(OBJDIR)/aslcompiler.y.h \
+    $(OBJDIR)/dtparser.y.h
 
 OBJECTS = \
-	aslcompilerlex.o \
-	aslcompilerparse.o \
-	dtparserlex.o \
-	dtparserparse.o \
-	adfile.o \
-	adisasm.o \
-	adwalk.o \
-	aslanalyze.o \
-	aslbtypes.o \
-	aslcodegen.o \
-	aslcompile.o \
-	aslerror.o \
-	aslfiles.o \
-	aslfold.o \
-	asllength.o \
-	asllisting.o \
-	aslload.o \
-	asllookup.o \
-	aslmain.o \
-	aslmap.o \
-	aslopcodes.o \
-	asloperands.o \
-	aslopt.o \
-	aslpredef.o \
-	aslresource.o \
-	aslrestype1.o \
-	aslrestype1i.o \
-	aslrestype2.o \
-	aslrestype2d.o \
-	aslrestype2e.o \
-	aslrestype2q.o \
-	aslrestype2w.o \
-	aslstartup.o \
-	aslstubs.o \
-	asltransform.o \
-	asltree.o \
-	aslutils.o \
-	asluuid.o \
-	aslwalks.o \
-	dtcompile.o \
-	dtexpress.o \
-	dtfield.o \
-	dtio.o \
-	dtsubtable.o \
-	dttable.o \
-	dttemplate.o \
-	dtutils.o \
-	dbfileio.o \
-	dmbuffer.o \
-	dmextern.o \
-	dmnames.o \
-	dmobject.o \
-	dmopcode.o \
-	dmresrc.o \
-	dmresrcl.o \
-	dmresrcs.o \
-	dmrestag.o \
-	dmtable.o \
-	dmtbdump.o \
-	dmtbinfo.o \
-	dmutils.o \
-	dmwalk.o \
-	dsargs.o \
-	dscontrol.o \
-	dsfield.o \
-	dsobject.o \
-	dsopcode.o \
-	dsutils.o \
-	dswexec.o \
-	dswload.o \
-	dswload2.o \
-	dswscope.o \
-	dswstate.o \
-	exconvrt.o \
-	excreate.o \
-	exdump.o \
-	exmisc.o \
-	exmutex.o \
-	exnames.o \
-	exoparg1.o \
-	exoparg2.o \
-	exoparg3.o \
-	exoparg6.o \
-	exprep.o \
-	exregion.o \
-	exresnte.o \
-	exresolv.o \
-	exresop.o \
-	exstore.o \
-	exstoren.o \
-	exstorob.o \
-	exsystem.o \
-	exutils.o \
-	getopt.o \
-	nsaccess.o \
-	nsalloc.o \
-	nsdump.o \
-	nsnames.o \
-	nsobject.o \
-	nsparse.o \
-	nssearch.o \
-	nsutils.o \
-	nswalk.o \
-	nsxfobj.o \
-	osunixxf.o \
-	psargs.o \
-	psloop.o \
-	psopcode.o \
-	psparse.o \
-	psscope.o \
-	pstree.o \
-	psutils.o \
-	pswalk.o \
-	tbfadt.o \
-	tbinstal.o \
-	tbutils.o \
-	tbxface.o \
-	utalloc.o \
-	utcache.o \
-	utcopy.o \
-	utdebug.o \
-	utdecode.o \
-	utdelete.o \
-	utglobal.o \
-	utinit.o \
-	utlock.o \
-	utmath.o \
-	utmisc.o \
-	utmutex.o \
-	utobject.o \
-	utresrc.o \
-	utstate.o \
-	utxferror.o \
-	utxface.o
+	$(OBJDIR)/aslcompilerlex.o \
+	$(OBJDIR)/aslcompilerparse.o \
+	$(OBJDIR)/dtparserlex.o \
+	$(OBJDIR)/dtparserparse.o \
+	$(OBJDIR)/adfile.o \
+	$(OBJDIR)/adisasm.o \
+	$(OBJDIR)/adwalk.o \
+	$(OBJDIR)/aslanalyze.o \
+	$(OBJDIR)/aslbtypes.o \
+	$(OBJDIR)/aslcodegen.o \
+	$(OBJDIR)/aslcompile.o \
+	$(OBJDIR)/aslerror.o \
+	$(OBJDIR)/aslfiles.o \
+	$(OBJDIR)/aslfold.o \
+	$(OBJDIR)/asllength.o \
+	$(OBJDIR)/asllisting.o \
+	$(OBJDIR)/aslload.o \
+	$(OBJDIR)/asllookup.o \
+	$(OBJDIR)/aslmain.o \
+	$(OBJDIR)/aslmap.o \
+	$(OBJDIR)/aslopcodes.o \
+	$(OBJDIR)/asloperands.o \
+	$(OBJDIR)/aslopt.o \
+	$(OBJDIR)/aslpredef.o \
+	$(OBJDIR)/aslresource.o \
+	$(OBJDIR)/aslrestype1.o \
+	$(OBJDIR)/aslrestype1i.o \
+	$(OBJDIR)/aslrestype2.o \
+	$(OBJDIR)/aslrestype2d.o \
+	$(OBJDIR)/aslrestype2e.o \
+	$(OBJDIR)/aslrestype2q.o \
+	$(OBJDIR)/aslrestype2s.o \
+	$(OBJDIR)/aslrestype2w.o \
+	$(OBJDIR)/aslstartup.o \
+	$(OBJDIR)/aslstubs.o \
+	$(OBJDIR)/asltransform.o \
+	$(OBJDIR)/asltree.o \
+	$(OBJDIR)/aslutils.o \
+	$(OBJDIR)/asluuid.o \
+	$(OBJDIR)/aslwalks.o \
+	$(OBJDIR)/dtcompile.o \
+	$(OBJDIR)/dtexpress.o \
+	$(OBJDIR)/dtfield.o \
+	$(OBJDIR)/dtio.o \
+	$(OBJDIR)/dtsubtable.o \
+	$(OBJDIR)/dttable.o \
+	$(OBJDIR)/dttemplate.o \
+	$(OBJDIR)/dtutils.o \
+	$(OBJDIR)/dbfileio.o \
+	$(OBJDIR)/dmbuffer.o \
+	$(OBJDIR)/dmextern.o \
+	$(OBJDIR)/dmnames.o \
+	$(OBJDIR)/dmobject.o \
+	$(OBJDIR)/dmopcode.o \
+	$(OBJDIR)/dmresrc.o \
+	$(OBJDIR)/dmresrcl.o \
+	$(OBJDIR)/dmresrcl2.o \
+	$(OBJDIR)/dmresrcs.o \
+	$(OBJDIR)/dmrestag.o \
+	$(OBJDIR)/dmtable.o \
+	$(OBJDIR)/dmtbdump.o \
+	$(OBJDIR)/dmtbinfo.o \
+	$(OBJDIR)/dmutils.o \
+	$(OBJDIR)/dmwalk.o \
+	$(OBJDIR)/dsargs.o \
+	$(OBJDIR)/dscontrol.o \
+	$(OBJDIR)/dsfield.o \
+	$(OBJDIR)/dsobject.o \
+	$(OBJDIR)/dsopcode.o \
+	$(OBJDIR)/dsutils.o \
+	$(OBJDIR)/dswexec.o \
+	$(OBJDIR)/dswload.o \
+	$(OBJDIR)/dswload2.o \
+	$(OBJDIR)/dswscope.o \
+	$(OBJDIR)/dswstate.o \
+	$(OBJDIR)/exconvrt.o \
+	$(OBJDIR)/excreate.o \
+	$(OBJDIR)/exdump.o \
+	$(OBJDIR)/exmisc.o \
+	$(OBJDIR)/exmutex.o \
+	$(OBJDIR)/exnames.o \
+	$(OBJDIR)/exoparg1.o \
+	$(OBJDIR)/exoparg2.o \
+	$(OBJDIR)/exoparg3.o \
+	$(OBJDIR)/exoparg6.o \
+	$(OBJDIR)/exprep.o \
+	$(OBJDIR)/exregion.o \
+	$(OBJDIR)/exresnte.o \
+	$(OBJDIR)/exresolv.o \
+	$(OBJDIR)/exresop.o \
+	$(OBJDIR)/exstore.o \
+	$(OBJDIR)/exstoren.o \
+	$(OBJDIR)/exstorob.o \
+	$(OBJDIR)/exsystem.o \
+	$(OBJDIR)/exutils.o \
+	$(OBJDIR)/getopt.o \
+	$(OBJDIR)/nsaccess.o \
+	$(OBJDIR)/nsalloc.o \
+	$(OBJDIR)/nsdump.o \
+	$(OBJDIR)/nsnames.o \
+	$(OBJDIR)/nsobject.o \
+	$(OBJDIR)/nsparse.o \
+	$(OBJDIR)/nssearch.o \
+	$(OBJDIR)/nsutils.o \
+	$(OBJDIR)/nswalk.o \
+	$(OBJDIR)/nsxfobj.o \
+	$(OBJDIR)/osunixxf.o \
+	$(OBJDIR)/psargs.o \
+	$(OBJDIR)/psloop.o \
+	$(OBJDIR)/psopcode.o \
+	$(OBJDIR)/psparse.o \
+	$(OBJDIR)/psscope.o \
+	$(OBJDIR)/pstree.o \
+	$(OBJDIR)/psutils.o \
+	$(OBJDIR)/pswalk.o \
+	$(OBJDIR)/tbfadt.o \
+	$(OBJDIR)/tbinstal.o \
+	$(OBJDIR)/tbutils.o \
+	$(OBJDIR)/tbxface.o \
+	$(OBJDIR)/utalloc.o \
+	$(OBJDIR)/utcache.o \
+	$(OBJDIR)/utcopy.o \
+	$(OBJDIR)/utdebug.o \
+	$(OBJDIR)/utdecode.o \
+	$(OBJDIR)/utdelete.o \
+	$(OBJDIR)/utglobal.o \
+	$(OBJDIR)/utinit.o \
+	$(OBJDIR)/utlock.o \
+	$(OBJDIR)/utmath.o \
+	$(OBJDIR)/utmisc.o \
+	$(OBJDIR)/utmutex.o \
+	$(OBJDIR)/utobject.o \
+	$(OBJDIR)/utresrc.o \
+	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utxferror.o \
+	$(OBJDIR)/utxface.o
 
 INTERMEDIATES = \
-	aslcompilerlex.c \
-	aslcompilerparse.c \
-	dtparserlex.c \
-	dtparserparse.c
+	$(OBJDIR)/aslcompilerlex.c \
+	$(OBJDIR)/aslcompilerparse.c \
+	$(OBJDIR)/dtparserlex.c \
+	$(OBJDIR)/dtparserparse.c
 
 MISC = \
-    aslcompilerparse.h \
-	aslcompiler.y.h \
-	aslcompilerparse.output \
-    dtparserparse.h \
-	dtparser.y.h \
-	dtparserparse.output
+   	$(OBJDIR)/aslcompilerparse.h \
+	$(OBJDIR)/aslcompiler.y.h \
+	$(OBJDIR)/aslcompilerparse.output \
+   	$(OBJDIR)/dtparserparse.h \
+	$(OBJDIR)/dtparser.y.h \
+	$(OBJDIR)/dtparserparse.output
 
 #
 # Flags specific to iASL compiler
@@ -190,7 +192,7 @@ MISC = \
 CFLAGS+= \
     -DACPI_ASL_COMPILER \
     -I$(ASL_COMPILER) \
-    -I.
+    -I$(OBJDIR)
 
 #
 # Root rule
@@ -202,27 +204,27 @@ $(PROG) : $(INTERMEDIATES) $(MISC) $(OBJECTS)
 #
 # Parser and Lexer - intermediate C files
 #
-aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l
+$(OBJDIR)/aslcompilerlex.c :   $(ASL_COMPILER)/aslcompiler.l
 	${LEX} ${LFLAGS} -PAslCompiler -o$@ $?
 
-aslcompilerparse.c aslcompilerparse.h : $(ASL_COMPILER)/aslcompiler.y
+$(OBJDIR)/aslcompilerparse.c $(OBJDIR)/aslcompilerparse.h : $(ASL_COMPILER)/aslcompiler.y
 	${YACC} ${YFLAGS} -pAslCompiler -o$@ $?
 
-dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
+$(OBJDIR)/dtparserlex.c :      $(ASL_COMPILER)/dtparser.l
 	${LEX} ${LFLAGS} -PDtParser -o$@ $?
 
-dtparserparse.c dtparserparse.h : $(ASL_COMPILER)/dtparser.y
+$(OBJDIR)/dtparserparse.c $(OBJDIR)/dtparserparse.h : $(ASL_COMPILER)/dtparser.y
 	${YACC} ${YFLAGS} -pDtParser -o$@ $?
 
 # Rename headers produced by bison/yacc
 
-dtparser.y.h: dtparserparse.h
+$(OBJDIR)/dtparser.y.h: $(OBJDIR)/dtparserparse.h
 	@echo Copy intermediate file:
-	@cp -f -v dtparserparse.h dtparser.y.h
+	@cp -f -v $(OBJDIR)/dtparserparse.h $(OBJDIR)/dtparser.y.h
 
-aslcompiler.y.h : aslcompilerparse.h
+$(OBJDIR)/aslcompiler.y.h : $(OBJDIR)/aslcompilerparse.h
 	@echo Copy intermediate file:
-	@cp -f -v aslcompilerparse.h aslcompiler.y.h
+	@cp -f -v $(OBJDIR)/aslcompilerparse.h $(OBJDIR)/aslcompiler.y.h
 
 
 #
@@ -231,20 +233,20 @@ aslcompiler.y.h : aslcompilerparse.h
 # Cannot use the common compile warning flags since the C files are created
 # by the utilities above and they are not necessarily ANSI C, etc.
 #
-aslcompilerlex.o :   aslcompilerlex.c
+$(OBJDIR)/aslcompilerlex.o :   $(OBJDIR)/aslcompilerlex.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
-aslcompilerparse.o : aslcompilerparse.c
+$(OBJDIR)/aslcompilerparse.o : $(OBJDIR)/aslcompilerparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
-dtparserlex.o :      dtparserlex.c
+$(OBJDIR)/dtparserlex.o :      $(OBJDIR)/dtparserlex.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
-dtparserparse.o :    dtparserparse.c
+$(OBJDIR)/dtparserparse.o :    $(OBJDIR)/dtparserparse.c
 	$(CC) -c $(CFLAGS) -Wall -Werror -o$@ $?
 
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

@@ -577,7 +577,6 @@ void
 AsBracesOnSameLine (
     char                    *Buffer)
 {
-    UINT32                  Length;
     char                    *SubBuffer = Buffer;
     char                    *Beginning;
     char                    *StartOfThisLine;
@@ -669,7 +668,6 @@ AsBracesOnSameLine (
                 {
                     Beginning++;
                     SubBuffer++;
-                    Length = strlen (SubBuffer);
 
                     Gbl_MadeChanges = TRUE;
 
@@ -1243,7 +1241,6 @@ AsInsertPrefix (
     char                    *SubString;
     char                    *SubBuffer;
     char                    *EndKeyword;
-    int                     StrLength;
     int                     InsertLength;
     char                    *InsertString;
     int                     TrailingSpaces;
@@ -1279,7 +1276,6 @@ AsInsertPrefix (
         /* Find an instance of the keyword */
 
         SubString = strstr (SubBuffer, LowerKeyword);
-
         if (!SubString)
         {
             return;
@@ -1320,7 +1316,6 @@ AsInsertPrefix (
             /* Prefix the keyword with the insert string */
 
             Gbl_MadeChanges = TRUE;
-            StrLength = strlen (SubString);
 
             /* Is there room for insertion */
 

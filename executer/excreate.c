@@ -284,7 +284,7 @@ Cleanup:
  *
  * PARAMETERS:  AmlStart            - Pointer to the region declaration AML
  *              AmlLength           - Max length of the declaration AML
- *              RegionSpace         - SpaceID for the region
+ *              SpaceId             - Address space ID for the region
  *              WalkState           - Current state
  *
  * RETURN:      Status
@@ -297,7 +297,7 @@ ACPI_STATUS
 AcpiExCreateRegion (
     UINT8                   *AmlStart,
     UINT32                  AmlLength,
-    UINT8                   RegionSpace,
+    UINT8                   SpaceId,
     ACPI_WALK_STATE         *WalkState)
 {
     ACPI_STATUS             Status;
@@ -326,16 +326,18 @@ AcpiExCreateRegion (
      * Space ID must be one of the predefined IDs, or in the user-defined
      * range
      */
-    if ((RegionSpace >= ACPI_NUM_PREDEFINED_REGIONS) &&
-        (RegionSpace < ACPI_USER_REGION_BEGIN) &&
-        (RegionSpace != ACPI_ADR_SPACE_DATA_TABLE))
+    if (!AcpiIsValidSpaceId (SpaceId))
     {
-        ACPI_ERROR ((AE_INFO, "Invalid AddressSpace type 0x%X", RegionSpace));
-        return_ACPI_STATUS (AE_AML_INVALID_SPACE_ID);
+        /*
+         * Print an error message, but continue. We don't want to abort
+         * a table load for this exception. Instead, if the region is
+         * actually used at runtime, abort the executing method.
+         */
+        ACPI_ERROR ((AE_INFO, "Invalid/unknown Address Space ID: 0x%2.2X", SpaceId));
     }
 
     ACPI_DEBUG_PRINT ((ACPI_DB_LOAD, "Region Type - %s (0x%X)\n",
-        AcpiUtGetRegionName (RegionSpace), RegionSpace));
+        AcpiUtGetRegionName (SpaceId), SpaceId));
 
     /* Create the region descriptor */
 
@@ -353,10 +355,18 @@ AcpiExCreateRegion (
     RegionObj2 = ObjDesc->Common.NextObject;
     RegionObj2->Extra.AmlStart = AmlStart;
     RegionObj2->Extra.AmlLength = AmlLength;
+    if (WalkState->ScopeInfo)
+    {
+        RegionObj2->Extra.ScopeNode = WalkState->ScopeInfo->Scope.Node;
+    }
+    else
+    {
+        RegionObj2->Extra.ScopeNode = Node;
+    }
 
     /* Init the region from the operands */
 
-    ObjDesc->Region.SpaceId = RegionSpace;
+    ObjDesc->Region.SpaceId = SpaceId;
     ObjDesc->Region.Address = 0;
     ObjDesc->Region.Length = 0;
     ObjDesc->Region.Node = Node;

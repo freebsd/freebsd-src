@@ -77,6 +77,10 @@ ExecuteOSI (
     UINT32                  ExpectedResult);
 
 static void
+AeMutexInterfaces (
+    void);
+
+static void
 AeHardwareInterfaces (
     void);
 
@@ -405,6 +409,52 @@ AeGenericRegisters (
 
 /******************************************************************************
  *
+ * FUNCTION:    AeMutexInterfaces
+ *
+ * DESCRIPTION: Exercise the AML mutex access interfaces
+ *
+ *****************************************************************************/
+
+static void
+AeMutexInterfaces (
+    void)
+{
+    ACPI_STATUS             Status;
+    ACPI_HANDLE             MutexHandle;
+
+
+    /* Get a handle to an AML mutex */
+
+    Status = AcpiGetHandle (NULL, "\\MTX1", &MutexHandle);
+    if (Status == AE_NOT_FOUND)
+    {
+        return;
+    }
+
+    AE_CHECK_OK (AcpiGetHandle, Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Acquire the  mutex */
+
+    Status = AcpiAcquireMutex (NULL, "\\MTX1", 0xFFFF);
+    AE_CHECK_OK (AcpiAcquireMutex, Status);
+    if (ACPI_FAILURE (Status))
+    {
+        return;
+    }
+
+    /* Release mutex with different parameters */
+
+    Status = AcpiReleaseMutex (MutexHandle, NULL);
+    AE_CHECK_OK (AcpiReleaseMutex, Status);
+}
+
+
+/******************************************************************************
+ *
  * FUNCTION:    AeHardwareInterfaces
  *
  * DESCRIPTION: Call various hardware support interfaces
@@ -418,6 +468,13 @@ AeHardwareInterfaces (
     ACPI_STATUS             Status;
     UINT32                  Value;
 
+
+    /* If Hardware Reduced flag is set, we are all done */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return;
+    }
 
     Status = AcpiWriteBitRegister (ACPI_BITREG_WAKE_STATUS, 1);
     AE_CHECK_OK (AcpiWriteBitRegister, Status);
@@ -474,7 +531,7 @@ AeMiscellaneousTests (
 
     AeTestBufferArgument();
     AeTestPackageArgument ();
-
+    AeMutexInterfaces ();
 
     Status = AcpiInstallInterface ("");
     AE_CHECK_STATUS (AcpiInstallInterface, Status, AE_BAD_PARAMETER);
@@ -511,11 +568,26 @@ AeMiscellaneousTests (
     Status = AcpiGetName (AcpiGbl_RootNode, ACPI_FULL_PATHNAME, &ReturnBuf);
     AE_CHECK_OK (AcpiGetName, Status);
 
-    Status = AcpiEnableEvent (ACPI_EVENT_GLOBAL, 0);
-    AE_CHECK_OK (AcpiEnableEvent, Status);
-
     Status = AcpiInstallGlobalEventHandler (AeGlobalEventHandler, NULL);
     AE_CHECK_OK (AcpiInstallGlobalEventHandler, Status);
+
+    /* Get Devices */
+
+    Status = AcpiGetDevices (NULL, AeGetDevices, NULL, NULL);
+    AE_CHECK_OK (AcpiGetDevices, Status);
+
+    Status = AcpiGetStatistics (&Stats);
+    AE_CHECK_OK (AcpiGetStatistics, Status);
+
+    /* If Hardware Reduced flag is set, we are all done */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return;
+    }
+
+    Status = AcpiEnableEvent (ACPI_EVENT_GLOBAL, 0);
+    AE_CHECK_OK (AcpiEnableEvent, Status);
 
     /*
      * GPEs: Handlers, enable/disable, etc.
@@ -629,12 +701,5 @@ AeMiscellaneousTests (
     Status = AcpiReleaseGlobalLock (LockHandle2);
     AE_CHECK_OK (AcpiReleaseGlobalLock, Status);
 
-    /* Get Devices */
-
-    Status = AcpiGetDevices (NULL, AeGetDevices, NULL, NULL);
-    AE_CHECK_OK (AcpiGetDevices, Status);
-
-    Status = AcpiGetStatistics (&Stats);
-    AE_CHECK_OK (AcpiGetStatistics, Status);
 }
 

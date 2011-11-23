@@ -13,7 +13,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpinames
+PROG = $(OBJDIR)/acpinames
 
 #
 # Search paths for source files
@@ -34,69 +34,69 @@ HEADERS = \
     $(wildcard $(ACPINAMES)/*.h)
 
 OBJECTS = \
-	anmain.o \
-	anstubs.o \
-	antables.o \
-	dbfileio.o \
-	dsfield.o \
-	dsmthdat.o \
-	dsobject.o \
-	dsutils.o \
-	dswload.o \
-	dswload2.o \
-	dswscope.o \
-	dswstate.o \
-	excreate.o \
-	exnames.o \
-	exresnte.o \
-	exresolv.o \
-	exutils.o \
-	getopt.o \
-	nsaccess.o \
-	nsalloc.o \
-	nsdump.o \
-	nsinit.o \
-	nsload.o \
-	nsnames.o \
-	nsobject.o \
-	nsparse.o \
-	nssearch.o \
-	nsutils.o \
-	nswalk.o \
-	nsxfeval.o \
-	nsxfname.o \
-	nsxfobj.o \
-	osunixxf.o \
-	psargs.o \
-	psloop.o \
-	psopcode.o \
-	psparse.o \
-	psscope.o \
-	pstree.o \
-	psutils.o \
-	pswalk.o \
-	psxface.o \
-	tbfadt.o \
-	tbfind.o \
-	tbinstal.o \
-	tbutils.o \
-	tbxface.o \
-	tbxfroot.o \
-	utalloc.o \
-	utcache.o \
-	utdebug.o \
-	utdecode.o \
-	utdelete.o \
-	utglobal.o \
-	utlock.o \
-	utmath.o \
-	utmisc.o \
-	utmutex.o \
-	utobject.o \
-	utstate.o \
-	utosi.o \
-	utxferror.o \
-	utxface.o
+	$(OBJDIR)/anmain.o \
+	$(OBJDIR)/anstubs.o \
+	$(OBJDIR)/antables.o \
+	$(OBJDIR)/dbfileio.o \
+	$(OBJDIR)/dsfield.o \
+	$(OBJDIR)/dsmthdat.o \
+	$(OBJDIR)/dsobject.o \
+	$(OBJDIR)/dsutils.o \
+	$(OBJDIR)/dswload.o \
+	$(OBJDIR)/dswload2.o \
+	$(OBJDIR)/dswscope.o \
+	$(OBJDIR)/dswstate.o \
+	$(OBJDIR)/excreate.o \
+	$(OBJDIR)/exnames.o \
+	$(OBJDIR)/exresnte.o \
+	$(OBJDIR)/exresolv.o \
+	$(OBJDIR)/exutils.o \
+	$(OBJDIR)/getopt.o \
+	$(OBJDIR)/nsaccess.o \
+	$(OBJDIR)/nsalloc.o \
+	$(OBJDIR)/nsdump.o \
+	$(OBJDIR)/nsinit.o \
+	$(OBJDIR)/nsload.o \
+	$(OBJDIR)/nsnames.o \
+	$(OBJDIR)/nsobject.o \
+	$(OBJDIR)/nsparse.o \
+	$(OBJDIR)/nssearch.o \
+	$(OBJDIR)/nsutils.o \
+	$(OBJDIR)/nswalk.o \
+	$(OBJDIR)/nsxfeval.o \
+	$(OBJDIR)/nsxfname.o \
+	$(OBJDIR)/nsxfobj.o \
+	$(OBJDIR)/osunixxf.o \
+	$(OBJDIR)/psargs.o \
+	$(OBJDIR)/psloop.o \
+	$(OBJDIR)/psopcode.o \
+	$(OBJDIR)/psparse.o \
+	$(OBJDIR)/psscope.o \
+	$(OBJDIR)/pstree.o \
+	$(OBJDIR)/psutils.o \
+	$(OBJDIR)/pswalk.o \
+	$(OBJDIR)/psxface.o \
+	$(OBJDIR)/tbfadt.o \
+	$(OBJDIR)/tbfind.o \
+	$(OBJDIR)/tbinstal.o \
+	$(OBJDIR)/tbutils.o \
+	$(OBJDIR)/tbxface.o \
+	$(OBJDIR)/tbxfroot.o \
+	$(OBJDIR)/utalloc.o \
+	$(OBJDIR)/utcache.o \
+	$(OBJDIR)/utdebug.o \
+	$(OBJDIR)/utdecode.o \
+	$(OBJDIR)/utdelete.o \
+	$(OBJDIR)/utglobal.o \
+	$(OBJDIR)/utlock.o \
+	$(OBJDIR)/utmath.o \
+	$(OBJDIR)/utmisc.o \
+	$(OBJDIR)/utmutex.o \
+	$(OBJDIR)/utobject.o \
+	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utosi.o \
+	$(OBJDIR)/utxferror.o \
+	$(OBJDIR)/utxface.o
 
 #
 # Flags specific to acpinames utility
@@ -112,7 +112,7 @@ $(PROG) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

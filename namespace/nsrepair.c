@@ -696,6 +696,7 @@ AcpiNsRemoveNullElements (
     case ACPI_PTYPE2_FIXED:
     case ACPI_PTYPE2_MIN:
     case ACPI_PTYPE2_REV_FIXED:
+    case ACPI_PTYPE2_FIX_VAR:
         break;
 
     default:

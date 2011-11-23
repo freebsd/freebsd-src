@@ -49,11 +49,15 @@
  */
 const AH_ASL_KEYWORD        AslKeywordInfo[] =
 {
-    {"AccessAttribKeyword", "SMBus Attributes",
-        ":= SMBQuick | SMBSendReceive | SMBByte | SMBWord | "
-        "SMBBlock | SMBProcessCall | SMBBlockProcessCall"},
+    {"AccessAttribKeyword", "Serial Bus Attributes (with legacy SMBus aliases)",
+        ":= AttribQuick (SMBusQuick) | AttribSendReceive (SMBusSendReceive) | "
+        "AttribByte (SMBusByte) | AttribWord (SMBusWord) | "
+        "AttribBlock (SMBusBlock) | AttribProcessCall (SMBusProcessCall) | "
+        "AttribBlockProcessCall (SMBusProcessCall)"},
     {"AccessTypeKeyword", "Field Access Types",
         ":= AnyAcc | ByteAcc | WordAcc | DWordAcc | QWordAcc | BufferAcc"},
+    {"AddressingModeKeyword", "Mode - Resource Descriptors",
+        ":= AddressingMode7Bit | AddressingMode10Bit"},
     {"AddressKeyword", "ACPI memory range types",
         ":= AddressRangeMemory | AddressRangeReserved | "
         "AddressRangeNVS | AddressRangeACPI"},
@@ -61,16 +65,32 @@ const AH_ASL_KEYWORD        AslKeywordInfo[] =
         ":= RegionSpaceKeyword | FFixedHW"},
     {"BusMasterKeyword", "DMA Bus Mastering",
         ":= BusMaster | NotBusMaster"},
+    {"ByteLengthKeyword", "Bits per Byte - Resource Descriptors",
+        ":= DataBitsFive | DataBitsSix | DataBitsSeven | DataBitsEight | DataBitsNine"},
+    {"ClockPhaseKeyword", "Resource Descriptors",
+        ":= ClockPhaseFirst | ClockPhaseSecond"},
+    {"ClockPolarityKeyword", "Resource Descriptors",
+        ":= ClockPolarityLow | ClockPolarityHigh"},
     {"DecodeKeyword", "Type of Memory Decoding - Resource Descriptors",
         ":= SubDecode | PosDecode"},
-    {"DMATypeKeyword", "DMA Types - DMA Resource Descriptor",
+    {"DmaTypeKeyword", "DMA Types - DMA Resource Descriptor",
         ":= Compatibility | TypeA | TypeB | TypeF"},
+    {"EndianKeyword", "Endian type - Resource Descriptor",
+        ":= BigEndian | LittleEndian"},
+    {"ExtendedAttribKeyword", "Extended Bus Attributes",
+        ":= AttribBytes (AccessLength) | AttribRawBytes (AccessLength) | "
+        "AttribRawProcessBytes (AccessLength)"},
+    {"FlowControlKeyword", "Resource Descriptor",
+        ":= FlowControlNone | FlowControlXon | FlowControlHardware"},
+    {"InterruptLevelKeyword", "Interrupt Active Types",
+        ":= ActiveHigh | ActiveLow | ActiveBoth"},
     {"InterruptTypeKeyword", "Interrupt Types",
         ":= Edge | Level"},
-    {"InterruptLevel", "Interrupt Active Types",
-        ":= ActiveHigh | ActiveLow"},
-    {"IODecodeKeyword", "I/O Decoding - IO Resource Descriptor",
+    {"IoDecodeKeyword", "I/O Decoding - IO Resource Descriptor",
         ":= Decode16 | Decode10"},
+    {"IoRestrictionKeyword", "I/O Restriction - GPIO Resource Descriptors",
+        ":= IoRestrictionNone | IoRestrictionInputOnly | "
+        "IoRestrictionOutputOnly | IoRestrictionNoneAndPreserve"},
     {"LockRuleKeyword", "Global Lock use for Field Operator",
         ":= Lock | NoLock"},
     {"MatchOpKeyword", "Types for Match Operator",
@@ -85,19 +105,34 @@ const AH_ASL_KEYWORD        AslKeywordInfo[] =
         ":= UnknownObj | IntObj | StrObj | BuffObj | PkgObj | FieldUnitObj | "
         "DeviceObj | EventObj | MethodObj | MutexObj | OpRegionObj | PowerResObj | "
         "ProcessorObj | ThermalZoneObj | BuffFieldObj | DDBHandleObj"},
+    {"ParityKeyword", "Resource Descriptors",
+        ":= ParityTypeNone | ParityTypeSpace | ParityTypeMark | "
+        "ParityTypeOdd | ParityTypeEven"},
+    {"PinConfigKeyword", "Pin Configuration - GPIO Resource Descriptors",
+        ":= PullDefault | PullUp | PullDown | PullNone"},
+    {"PolarityKeyword", "Resource Descriptors",
+        ":= PolarityHigh | PolarityLow"},
     {"RangeTypeKeyword", "I/O Range Types - Resource Descriptors",
         ":= ISAOnlyRanges | NonISAOnlyRanges | EntireRange"},
     {"ReadWriteKeyword", "Memory Access Types - Resource Descriptors",
         ":= ReadWrite | ReadOnly"},
     {"RegionSpaceKeyword", "Operation Region Address Space Types",
         ":= UserDefRegionSpace | SystemIO | SystemMemory | PCI_Config | "
-        "EmbeddedControl | SMBus | SystemCMOS | PciBarTarget | IPMI"},
+        "EmbeddedControl | SMBus | SystemCMOS | PciBarTarget | IPMI | "
+        "GeneralPurposeIo, GenericSerialBus"},
     {"ResourceTypeKeyword", "Resource Usage - Resource Descriptors",
         ":= ResourceConsumer | ResourceProducer"},
     {"SerializeRuleKeyword", "Control Method Serialization",
         ":= Serialized | NotSerialized"},
     {"ShareTypeKeyword", "Interrupt Sharing - Resource Descriptors",
-        ":= Shared | Exclusive"},
+        ":= Shared | Exclusive | SharedAndWake | ExclusiveAndWake"},
+    {"SlaveModeKeyword", "Resource Descriptors",
+        ":= ControllerInitiated | DeviceInitiated"},
+    {"StopBitsKeyword", "Resource Descriptors",
+        ":= StopBitsZero | StopBitsOne | StopBitsOnePlusHalf | StopBitsTwo"},
+    {"TransferWidthKeyword", "DMA Widths - Fixed DMA Resource Descriptor",
+        ":= Width8bit | Width16bit | Width32bit | Width64bit | "
+        "Width128bit | Width256bit"},
     {"TranslationKeyword", "Translation Density Types - Resource Descriptors",
         ":= SparseTranslation | DenseTranslation"},
     {"TypeKeyword", "Translation Types - Resource Descriptors",
@@ -106,6 +141,8 @@ const AH_ASL_KEYWORD        AslKeywordInfo[] =
         ":= Preserve | WriteAsOnes | WriteAsZeros"},
     {"UserDefRegionSpace", "User defined address spaces",
         ":= IntegerData => 0x80 - 0xFF"},
+    {"WireModeKeyword", "SPI Wire Mode - Resource Descriptors",
+        ":= ThreeWireMode | FourWireMode"},
     {"XferTypeKeyword", "DMA Transfer Types",
         ":= Transfer8 | Transfer16 | Transfer8_16"},
     {NULL, NULL, NULL}

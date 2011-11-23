@@ -11,7 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpixtract
+PROG = $(OBJDIR)/acpixtract
 
 #
 # Search paths for source files
@@ -24,9 +24,9 @@ HEADERS = \
     $(wildcard $(ACPIXTRACT)/*.h)
 
 OBJECTS = \
-    acpixtract.o \
-    axmain.o \
-    getopt.o
+    $(OBJDIR)/acpixtract.o \
+    $(OBJDIR)/axmain.o \
+    $(OBJDIR)/getopt.o
 
 #
 # Flags specific to acpixtract
@@ -41,7 +41,7 @@ $(PROG) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

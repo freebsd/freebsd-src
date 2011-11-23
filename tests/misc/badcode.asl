@@ -9,6 +9,10 @@
  *
  * To compile, use:
  * iasl badcode.asl
+ *
+ * Output:
+ * Compilation complete. 45 Errors, 22 Warnings, 3 Remarks, 16 Optimizations
+ *
  */
 DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
 {
@@ -117,10 +121,10 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
     }
 
     // Method MTH4 does not explicitly return a value
-    
-    Method (MTH4) {Return}
+
+    Method (MTH4) {}
     Method (MTH5) {Store (MTH4(), Local0)}
-    
+
     // Invalid _HID values
 
     Device (H1)
@@ -363,5 +367,34 @@ DefinitionBlock ("badcode.aml", "DSDT", 1, "Intel", "Example", 0x00000001)
 
         EndDependentFn ()
     })
+
+    // Test descriptor for CreateXxxxField operators in REM1 below
+
+    Name (RSC3, ResourceTemplate ()
+    {
+        DWordIO (ResourceProducer, MinFixed, MaxFixed, PosDecode, EntireRange,
+            0x00000000,         // Granularity
+            0x000C8000,         // Range Minimum
+            0x000C8FFF,         // Range Maximum
+            0x00000000,         // Translation Offset
+            0x00001000,         // Length
+            ,, DWI1)
+    })
+
+    Method (REM1)
+    {
+        // Tagged resource field larger than field being created
+
+        CreateWordField (RSC3, \DWI1._LEN, LEN)
+        CreateByteField (RSC3, \DWI1._MIN, MIN)
+        CreateBitField (RSC3, \DWI1._RNG, RNG1)
+
+        // Tagged resource field smaller than field being created
+
+        CreateQWordField (RSC3, \DWI1._MAX, MAX)
+        CreateBitField (RSC3, \DWI1._GRA, GRA)
+        CreateField (RSC3, \DWI1._MIF, 5, MIF)
+        CreateField (RSC3, \DWI1._RNG, 3, RNG2)
+    }
 }
 

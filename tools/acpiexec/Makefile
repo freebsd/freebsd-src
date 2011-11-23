@@ -94,6 +94,7 @@ OBJECTS = \
 	dmopcode.o \
 	dmresrc.o \
 	dmresrcl.o \
+	dmresrcl2.o \
 	dmresrcs.o \
 	dmutils.o \
 	dmwalk.o \
@@ -195,6 +196,7 @@ OBJECTS = \
 	rsirq.o \
 	rslist.o \
 	rsmemory.o \
+	rsserial.o \
 	rsmisc.o \
 	rsutils.o \
 	rsxface.o \
@@ -224,7 +226,8 @@ OBJECTS = \
 	uttrack.o \
 	utosi.o \
 	utxferror.o \
-	utxface.o
+	utxface.o \
+	utxfmutex.o
 
 CFLAGS+= \
     -D$(HOST) \

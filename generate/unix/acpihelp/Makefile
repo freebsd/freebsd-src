@@ -12,7 +12,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpihelp
+PROG = $(OBJDIR)/acpihelp
 
 #
 # Search paths for source files
@@ -25,13 +25,13 @@ HEADERS = \
     $(wildcard $(ACPIHELP)/*.h)
 
 OBJECTS = \
-	ahamlops.o \
-	ahaslkey.o \
-	ahaslops.o \
-	ahdecode.o \
-	ahpredef.o \
-	ahmain.o \
-	getopt.o
+	$(OBJDIR)/ahamlops.o \
+	$(OBJDIR)/ahaslkey.o \
+	$(OBJDIR)/ahaslops.o \
+	$(OBJDIR)/ahdecode.o \
+	$(OBJDIR)/ahpredef.o \
+	$(OBJDIR)/ahmain.o \
+	$(OBJDIR)/getopt.o
 
 #
 # Flags specific to acpihelp
@@ -47,7 +47,7 @@ $(PROG) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

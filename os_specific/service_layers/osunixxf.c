@@ -277,7 +277,6 @@ AcpiOsVprintf (
     const char              *Fmt,
     va_list                 Args)
 {
-    INT32                   Count = 0;
     UINT8                   Flags;
 
 
@@ -290,7 +289,7 @@ AcpiOsVprintf (
         {
             /* Output file is open, send the output there */
 
-            Count = vfprintf (AcpiGbl_DebugFile, Fmt, Args);
+            vfprintf (AcpiGbl_DebugFile, Fmt, Args);
         }
         else
         {
@@ -302,7 +301,7 @@ AcpiOsVprintf (
 
     if (Flags & ACPI_DB_CONSOLE_OUTPUT)
     {
-        Count = vfprintf (AcpiGbl_OutputFile, Fmt, Args);
+        vfprintf (AcpiGbl_OutputFile, Fmt, Args);
     }
 }
 
@@ -1172,8 +1171,11 @@ ACPI_THREAD_ID
 AcpiOsGetThreadId (
     void)
 {
+    pthread_t               thread;
 
-    return (ACPI_CAST_PTHREAD_T (pthread_self()));
+
+    thread = pthread_self();
+    return (ACPI_CAST_PTHREAD_T (thread));
 }
 
 

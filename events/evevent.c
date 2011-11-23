@@ -81,6 +81,13 @@ AcpiEvInitializeEvents (
     ACPI_FUNCTION_TRACE (EvInitializeEvents);
 
 
+    /* If Hardware Reduced flag is set, there are no fixed events */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /*
      * Initialize the Fixed and General Purpose Events. This is done prior to
      * enabling SCIs to prevent interrupts from occurring before the handlers
@@ -127,6 +134,13 @@ AcpiEvInstallXruptHandlers (
 
     ACPI_FUNCTION_TRACE (EvInstallXruptHandlers);
 
+
+    /* If Hardware Reduced flag is set, there is no ACPI h/w */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
 
     /* Install the SCI handler */
 

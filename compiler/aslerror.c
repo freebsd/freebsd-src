@@ -319,10 +319,23 @@ AePrintException (
 
         if (Enode->LineNumber)
         {
+            /* Main message: try to use string from AslMessages first */
+
+            if (!MainMessage)
+            {
+                MainMessage = "";
+            }
+
             MsgLength = strlen (MainMessage);
             if (MsgLength == 0)
             {
+                /* Use the secondary/extra message as main message */
+
                 MainMessage = Enode->Message;
+                if (!MainMessage)
+                {
+                    MainMessage = "";
+                }
 
                 MsgLength = strlen (MainMessage);
                 ExtraMessage = NULL;

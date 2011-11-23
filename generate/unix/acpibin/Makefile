@@ -11,7 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpibin
+PROG = $(OBJDIR)/acpibin
 
 #
 # Search paths for source files
@@ -26,21 +26,21 @@ HEADERS = \
     $(wildcard $(ACPIBIN)/*.h)
 
 OBJECTS = \
-    abcompare.o \
-    abmain.o \
-	utalloc.o \
-	utcache.o \
-	utdebug.o \
-	utdecode.o \
-	utglobal.o \
-	utlock.o \
-	utmath.o \
-	utmisc.o \
-	utmutex.o \
-	utstate.o \
-	utxferror.o \
-	osunixxf.o \
-    getopt.o
+   	$(OBJDIR)/abcompare.o \
+	$(OBJDIR)/abmain.o \
+	$(OBJDIR)/utalloc.o \
+	$(OBJDIR)/utcache.o \
+	$(OBJDIR)/utdebug.o \
+	$(OBJDIR)/utdecode.o \
+	$(OBJDIR)/utglobal.o \
+	$(OBJDIR)/utlock.o \
+	$(OBJDIR)/utmath.o \
+	$(OBJDIR)/utmisc.o \
+	$(OBJDIR)/utmutex.o \
+	$(OBJDIR)/utstate.o \
+	$(OBJDIR)/utxferror.o \
+	$(OBJDIR)/osunixxf.o \
+	$(OBJDIR)/getopt.o
 
 #
 # Flags specific to acpibin
@@ -56,7 +56,7 @@ $(PROG) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

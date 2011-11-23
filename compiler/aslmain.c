@@ -96,7 +96,7 @@ AslDoResponseFile (
 
 
 #define ASL_TOKEN_SEPARATORS    " \t\n"
-#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^no:p:r:s:t:T:G^v:w:x:z"
+#define ASL_SUPPORTED_OPTIONS   "@:2b:c:d^e:fgh^i^I:l^mno:p:r:s:t:T:G^v:w:x:z"
 
 
 /*******************************************************************************
@@ -158,6 +158,7 @@ Options (
     ACPI_OPTION ("-dc [file]",      "Disassemble AML and immediately compile it");
     ACPI_OPTION ("",                "(Obtain DSDT from current system if no input file)");
     ACPI_OPTION ("-e  [f1,f2]",     "Include ACPI table(s) for external symbol resolution");
+    ACPI_OPTION ("-m",              "Do not translate Buffers to Resource Templates");
     ACPI_OPTION ("-2",              "Emit ACPI 2.0 compatible ASL code");
     ACPI_OPTION ("-g",              "Get ACPI tables and write to files (*.dat)");
 
@@ -601,6 +602,20 @@ AslDoOptions (
         break;
 
 
+    case 'm':
+
+        AcpiGbl_NoResourceDisassembly = TRUE;
+        break;
+
+
+    case 'n':
+
+        /* Parse only */
+
+        Gbl_ParseOnlyFlag = TRUE;
+        break;
+
+
     case 'o':
 
         switch (AcpiGbl_Optarg[0])
@@ -646,14 +661,6 @@ AslDoOptions (
             printf ("Unknown option: -c%s\n", AcpiGbl_Optarg);
             return (-1);
         }
-        break;
-
-
-    case 'n':
-
-        /* Parse only */
-
-        Gbl_ParseOnlyFlag = TRUE;
         break;
 
 
