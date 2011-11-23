@@ -297,6 +297,10 @@ dhcpif()
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
 
+	if noafif $1; then
+		return 1
+	fi
+
 	for _arg in $_tmpargs; do
 		case $_arg in
 		[Dd][Hh][Cc][Pp])
@@ -321,6 +325,10 @@ syncdhcpif()
 {
 	local _tmpargs _arg
 	_tmpargs=`_ifconfig_getargs $1`
+
+	if noafif $1; then
+		return 1
+	fi
 
 	for _arg in $_tmpargs; do
 		case $_arg in
