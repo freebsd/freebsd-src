@@ -387,19 +387,11 @@ extern int	diskLabelCommit(dialogMenuItem *self);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
-extern Boolean	file_executable(char *fname);
 extern Boolean	directory_exists(const char *dirname);
-extern char	*root_bias(char *path);
-extern char	*itoa(int value);
-extern char	*string_concat(char *p1, char *p2);
-extern char	*string_concat3(char *p1, char *p2, char *p3);
 extern char	*string_prune(char *str);
 extern char	*string_skipwhite(char *str);
-extern char	*string_copy(char *s1, char *s2);
-extern char	*pathBaseName(const char *path);
 extern void	safe_free(void *ptr);
 extern void	*safe_malloc(size_t size);
-extern void	*safe_realloc(void *orig, size_t size);
 extern int	Mkdir(char *);
 extern int	Mount(char *, void *data);
 
