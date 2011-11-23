@@ -86,7 +86,7 @@ typedef struct qla_tx_buf qla_tx_buf_t;
 #define QLA_MAX_SEGMENTS	63	/* maximum # of segs in a sg list */
 #define QLA_MAX_FRAME_SIZE	MJUM9BYTES
 #define QLA_STD_FRAME_SIZE	1514
-#define QLA_MAX_TSO_FRAME_SIZE	(64 * 1024 - 1)
+#define QLA_MAX_TSO_FRAME_SIZE	((64 * 1024 - 1) + 22)
 
 /* Number of MSIX/MSI Vectors required */
 #define Q8_MSI_COUNT		4
