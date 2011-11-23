@@ -139,7 +139,9 @@ static const struct mii_phydesc brgphys[] = {
 	MII_PHY_DESC(BROADCOM2, BCM5754),
 	MII_PHY_DESC(BROADCOM2, BCM5761),
 	MII_PHY_DESC(BROADCOM2, BCM5784),
+#ifdef notyet	/* better handled by ukphy(4) until WARs are implemented */
 	MII_PHY_DESC(BROADCOM2, BCM5785),
+#endif
 	MII_PHY_DESC(BROADCOM3, BCM5717C),
 	MII_PHY_DESC(BROADCOM3, BCM5719C),
 	MII_PHY_DESC(BROADCOM3, BCM5720C),
