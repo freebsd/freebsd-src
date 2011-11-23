@@ -139,10 +139,12 @@ buildworld: upgrade_checks
 #
 # In the following, the first 'rm' in a series will usually remove all
 # files and directories.  If it does not, then there are probably some
-# files with chflags set, so this unsets them and tries the 'rm' a
+# files with file flags set, so this unsets them and tries the 'rm' a
 # second time.  There are situations where this target will be cleaning
 # some directories via more than one method, but that duplication is
-# needed to correctly handle all the possible situations.
+# needed to correctly handle all the possible situations.  Removing all
+# files without file flags set in the first 'rm' instance saves time,
+# because 'chflags' will need to operate on fewer files afterwards.
 #
 BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 cleanworld:
