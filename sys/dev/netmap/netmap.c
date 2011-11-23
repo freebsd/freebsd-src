@@ -1624,7 +1624,7 @@ netmap_memory_init(void)
 	nm_buf_pool.base += netmap_mem_d->nm_buf_start;
 	netmap_buffer_base = nm_buf_pool.base;
 	D("netmap_buffer_base %p (offset %d)",
-		netmap_buffer_base, netmap_mem_d->nm_buf_start);
+		netmap_buffer_base, (int)netmap_mem_d->nm_buf_start);
 	/* number of buffers, they all start as free */
 
 	netmap_total_buffers = nm_buf_pool.total_buffers =
@@ -1632,7 +1632,7 @@ netmap_memory_init(void)
 	nm_buf_pool.bufsize = NETMAP_BUF_SIZE;
 
 	D("Have %d MB, use %dKB for rings, %d buffers at %p",
-		(sz >> 20), (netmap_mem_d->nm_size >> 10),
+		(sz >> 20), (int)(netmap_mem_d->nm_size >> 10),
 		nm_buf_pool.total_buffers, nm_buf_pool.base);
 
 	/* allocate and initialize the bitmap. Entry 0 is considered
@@ -1673,7 +1673,7 @@ netmap_memory_fini(void)
 		TAILQ_REMOVE(&netmap_mem_d->nm_molist, mem_obj, nmo_next);
 		if (mem_obj->nmo_used == 1) {
 			printf("netmap: leaked %d bytes at %p\n",
-			       mem_obj->nmo_size,
+			       (int)mem_obj->nmo_size,
 			       mem_obj->nmo_data);
 		}
 		free(mem_obj, M_NETMAP);
@@ -1704,7 +1704,7 @@ netmap_init(void)
 		return (error);
 	}
 	printf("netmap: loaded module with %d Mbytes\n",
-		netmap_mem_d->nm_totalsize >> 20);
+		(int)(netmap_mem_d->nm_totalsize >> 20));
 
 	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 			      "netmap");
