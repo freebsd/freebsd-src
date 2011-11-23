@@ -294,6 +294,7 @@ static void re_set_rxmode		(struct rl_softc *);
 static void re_reset		(struct rl_softc *);
 static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
+static void re_set_linkspeed	(struct rl_softc *);
 
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
@@ -1431,17 +1432,18 @@ re_attach(device_t dev)
 	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_AUTOPAD |
-		    RL_FLAG_JUMBOV2 | RL_FLAG_WAIT_TXPOLL;
+		    RL_FLAG_JUMBOV2 | RL_FLAG_WAIT_TXPOLL | RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
 	case RL_HWREV_8168F:
@@ -1449,7 +1451,7 @@ re_attach(device_t dev)
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
-		    RL_FLAG_CMDSTOP_WAIT_TXQ;
+		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -3627,6 +3629,74 @@ re_shutdown(device_t dev)
 }
 
 static void
+re_set_linkspeed(struct rl_softc *sc)
+{
+	struct mii_softc *miisc;
+	struct mii_data *mii;
+	int aneg, i, phyno;
+
+	RL_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->rl_miibus);
+	mii_pollstat(mii);
+	aneg = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch IFM_SUBTYPE(mii->mii_media_active) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			return;
+		case IFM_1000_T:
+			aneg++;
+			break;
+		default:
+			break;
+		}
+	}
+	miisc = LIST_FIRST(&mii->mii_phys);
+	phyno = miisc->mii_phy;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	re_miibus_writereg(sc->rl_dev, phyno, MII_100T2CR, 0);
+	re_miibus_writereg(sc->rl_dev, phyno,
+	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
+	re_miibus_writereg(sc->rl_dev, phyno,
+	    MII_BMCR, BMCR_AUTOEN | BMCR_STARTNEG);
+	DELAY(1000);
+	if (aneg != 0) {
+		/*
+		 * Poll link state until re(4) get a 10/100Mbps link.
+		 */
+		for (i = 0; i < MII_ANEGTICKS_GIGE; i++) {
+			mii_pollstat(mii);
+			if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID))
+			    == (IFM_ACTIVE | IFM_AVALID)) {
+				switch (IFM_SUBTYPE(mii->mii_media_active)) {
+				case IFM_10_T:
+				case IFM_100_TX:
+					return;
+				default:
+					break;
+				}
+			}
+			RL_UNLOCK(sc);
+			pause("relnk", hz);
+			RL_LOCK(sc);
+		}
+		if (i == MII_ANEGTICKS_GIGE)
+			device_printf(sc->rl_dev,
+			    "establishing a link failed, WOL may not work!");
+	}
+	/*
+	 * No link, force MAC to have 100Mbps, full-duplex link.
+	 * MAC does not require reprogramming on resolved speed/duplex,
+	 * so this is just for completeness.
+	 */
+	mii->mii_media_status = IFM_AVALID | IFM_ACTIVE;
+	mii->mii_media_active = IFM_ETHER | IFM_100_TX | IFM_FDX;
+}
+
+static void
 re_setwol(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
@@ -3648,6 +3718,8 @@ re_setwol(struct rl_softc *sc)
 	}
 	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
 		re_set_rxmode(sc);
+		if ((sc->rl_flags & RL_FLAG_WOL_MANLINK) != 0)
+			re_set_linkspeed(sc);
 		if ((sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
 			CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
 	}
