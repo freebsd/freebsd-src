@@ -1230,12 +1230,7 @@ mfi_intr(void *arg)
 	if (sc->mfi_check_clear_intr(sc))
 		return;
 
-	/*
-	 * Do a dummy read to flush the interrupt ACK that we just performed,
-	 * ensuring that everything is really, truly consistent.
-	 */
-	(void)sc->mfi_read_fw_status(sc);
-
+restart:
 	pi = sc->mfi_comms->hw_pi;
 	ci = sc->mfi_comms->hw_ci;
 	mtx_lock(&sc->mfi_io_lock);
@@ -1259,6 +1254,14 @@ mfi_intr(void *arg)
 		sc->mfi_flags &= ~MFI_FLAGS_QFRZN;
 	mfi_startio(sc);
 	mtx_unlock(&sc->mfi_io_lock);
+
+	/*
+	 * Dummy read to flush the bus; this ensures that the indexes are up
+	 * to date.  Restart processing if more commands have come it.
+	 */
+	(void)sc->mfi_read_fw_status(sc);
+	if (pi != sc->mfi_comms->hw_pi)
+		goto restart;
 
 	return;
 }
