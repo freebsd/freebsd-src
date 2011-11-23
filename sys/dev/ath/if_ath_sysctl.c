@@ -842,9 +842,15 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_data_underrun, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_delim_underrun", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_delim_underrun, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggrfail", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_aggrfail, 0,
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_failall", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_failall, 0,
 	    "Number of aggregate TX failures (whole frame)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_ok", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_ok, 0,
+	    "Number of aggregate TX OK completions (subframe)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_fail", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_fail, 0,
+	    "Number of aggregate TX failures (subframe)");
 
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_intr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
