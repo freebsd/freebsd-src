@@ -5370,6 +5370,7 @@ ath_calibrate(void *arg)
 			sc->sc_doresetcal = AH_TRUE;
 			ATH_UNLOCK(sc);
 			ath_reset(ifp, ATH_RESET_NOLOSS);
+			ATH_LOCK(sc);
 			return;
 		}
 		/*
