@@ -330,10 +330,12 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 	    err(1, "%s", disk);
 	if (n != mbr_size)
 	    errx(1, "%s: short read", disk);
+	close(fd);
 	return (mbr_size);
     }
     *mbr = malloc(sizeof(buf));
     memcpy(*mbr, buf, sizeof(buf));
+    close(fd);
 
     return sizeof(buf);
 }
