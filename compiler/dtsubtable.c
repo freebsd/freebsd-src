@@ -296,6 +296,11 @@ DtGetSubtableLength (
 
     for (; Info->Name; Info++)
     {
+        if (Info->Opcode == ACPI_DMT_EXTRA_TEXT)
+        {
+            continue;
+        }
+
         if (!Field)
         {
             goto Error;

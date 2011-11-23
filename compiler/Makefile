@@ -96,6 +96,7 @@ OBJECTS = \
 	aslrestype2.o \
 	aslrestype2d.o \
 	aslrestype2e.o \
+	aslrestype2s.o \
 	aslrestype2q.o \
 	aslrestype2w.o \
 	aslstartup.o \
@@ -121,6 +122,7 @@ OBJECTS = \
 	dmopcode.o \
 	dmresrc.o \
 	dmresrcl.o \
+	dmresrcl2.o \
 	dmresrcs.o \
 	dmrestag.o \
 	dmtable.o \

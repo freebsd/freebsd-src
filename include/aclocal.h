@@ -54,7 +54,7 @@ typedef UINT32                          ACPI_MUTEX_HANDLE;
 
 /* Total number of aml opcodes defined */
 
-#define AML_NUM_OPCODES                 0x7F
+#define AML_NUM_OPCODES                 0x81
 
 
 /* Forward declarations */
@@ -285,12 +285,16 @@ typedef struct acpi_create_field_info
     ACPI_NAMESPACE_NODE             *FieldNode;
     ACPI_NAMESPACE_NODE             *RegisterNode;
     ACPI_NAMESPACE_NODE             *DataRegisterNode;
+    ACPI_NAMESPACE_NODE             *ConnectionNode;
+    UINT8                           *ResourceBuffer;
     UINT32                          BankValue;
     UINT32                          FieldBitPosition;
     UINT32                          FieldBitLength;
+    UINT16                          ResourceLength;
     UINT8                           FieldFlags;
     UINT8                           Attribute;
     UINT8                           FieldType;
+    UINT8                           AccessLength;
 
 } ACPI_CREATE_FIELD_INFO;
 
@@ -358,7 +362,8 @@ typedef struct acpi_name_info
 
 /*
  * Used for ACPI_PTYPE1_FIXED, ACPI_PTYPE1_VAR, ACPI_PTYPE2,
- * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT
+ * ACPI_PTYPE2_MIN, ACPI_PTYPE2_PKG_COUNT, ACPI_PTYPE2_COUNT,
+ * ACPI_PTYPE2_FIX_VAR
  */
 typedef struct acpi_package_info
 {
@@ -1124,7 +1129,7 @@ typedef struct acpi_port_info
 #define ACPI_RESOURCE_NAME_END_DEPENDENT        0x38
 #define ACPI_RESOURCE_NAME_IO                   0x40
 #define ACPI_RESOURCE_NAME_FIXED_IO             0x48
-#define ACPI_RESOURCE_NAME_RESERVED_S1          0x50
+#define ACPI_RESOURCE_NAME_FIXED_DMA            0x50
 #define ACPI_RESOURCE_NAME_RESERVED_S2          0x58
 #define ACPI_RESOURCE_NAME_RESERVED_S3          0x60
 #define ACPI_RESOURCE_NAME_RESERVED_S4          0x68
@@ -1146,7 +1151,9 @@ typedef struct acpi_port_info
 #define ACPI_RESOURCE_NAME_EXTENDED_IRQ         0x89
 #define ACPI_RESOURCE_NAME_ADDRESS64            0x8A
 #define ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64   0x8B
-#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8B
+#define ACPI_RESOURCE_NAME_GPIO                 0x8C
+#define ACPI_RESOURCE_NAME_SERIAL_BUS           0x8E
+#define ACPI_RESOURCE_NAME_LARGE_MAX            0x8E
 
 
 /*****************************************************************************

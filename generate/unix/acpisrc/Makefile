@@ -11,7 +11,7 @@
 # compile options, and prevents pollution of the source code.
 #
 include ../Makefile.config
-PROG = acpisrc
+PROG = $(OBJDIR)/acpisrc
 
 #
 # Search path for source files and individual source files
@@ -25,15 +25,15 @@ HEADERS = \
     $(wildcard $(ACPISRC)/*.h)
 
 OBJECTS = \
-    ascase.o \
-    asconvrt.o \
-    asfile.o \
-    asmain.o \
-    asremove.o \
-    astable.o \
-    asutils.o \
-    osunixdir.o \
-    getopt.o
+    $(OBJDIR)/ascase.o \
+    $(OBJDIR)/asconvrt.o \
+    $(OBJDIR)/asfile.o \
+    $(OBJDIR)/asmain.o \
+    $(OBJDIR)/asremove.o \
+    $(OBJDIR)/astable.o \
+    $(OBJDIR)/asutils.o \
+    $(OBJDIR)/osunixdir.o \
+    $(OBJDIR)/getopt.o
 
 #
 # Compile flags specific to acpisrc
@@ -49,7 +49,7 @@ $(PROG) : $(OBJECTS)
 	$(CC) $(LDFLAGS) $(OBJECTS) -o $(PROG)
 	$(COPYPROG)
 
-%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
+$(OBJDIR)/%.o : %.c $(HEADERS) $(ACPICA_HEADERS)
 	$(COMPILE)
 
 clean :

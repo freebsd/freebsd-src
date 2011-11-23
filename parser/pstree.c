@@ -85,7 +85,12 @@ AcpiPsGetArg (
 
     ACPI_FUNCTION_ENTRY ();
 
-
+/*
+    if (Op->Common.AmlOpcode == AML_INT_CONNECTION_OP)
+    {
+        return (Op->Common.Value.Arg);
+    }
+*/
     /* Get the info structure for this opcode */
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);

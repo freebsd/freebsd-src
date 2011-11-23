@@ -187,7 +187,9 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
     "SMBus",
     "SystemCMOS",
     "PCIBARTarget",
-    "IPMI"
+    "IPMI",
+    "GeneralPurposeIo",
+    "GenericSerialBus"
 };
 
 

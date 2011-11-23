@@ -270,18 +270,36 @@ AeBuildLocalTables (
          * as well as the checksum
          */
         ExternalFadt->Dsdt = DsdtAddress;
-        ExternalFadt->Facs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
+        if (!AcpiGbl_ReducedHardware)
+        {
+            ExternalFadt->Facs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
+        }
 
         if (ExternalFadt->Header.Length > ACPI_PTR_DIFF (&ExternalFadt->XDsdt, ExternalFadt))
         {
             ExternalFadt->XDsdt = DsdtAddress;
-            ExternalFadt->XFacs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
+
+            if (!AcpiGbl_ReducedHardware)
+            {
+                ExternalFadt->XFacs = ACPI_PTR_TO_PHYSADDR (&LocalFACS);
+            }
         }
+
         /* Complete the FADT with the checksum */
 
         ExternalFadt->Header.Checksum = 0;
         ExternalFadt->Header.Checksum = (UINT8) -AcpiTbChecksum (
             (void *) ExternalFadt, ExternalFadt->Header.Length);
+    }
+    else if (AcpiGbl_UseHwReducedFadt)
+    {
+        ACPI_MEMCPY (&LocalFADT, HwReducedFadtCode, sizeof (ACPI_TABLE_FADT));
+        LocalFADT.Dsdt = DsdtAddress;
+        LocalFADT.XDsdt = DsdtAddress;
+
+        LocalFADT.Header.Checksum = 0;
+        LocalFADT.Header.Checksum = (UINT8) -AcpiTbChecksum (
+            (void *) &LocalFADT, LocalFADT.Header.Length);
     }
     else
     {

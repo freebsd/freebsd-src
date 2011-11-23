@@ -54,6 +54,7 @@
 #include <sys/types.h>
 #include <fcntl.h>
 #include <ctype.h>
+#include <string.h>
 #ifdef WIN32
 #include <io.h>
 #include <direct.h>

@@ -516,11 +516,12 @@ AcpiNsRepair_HID (
     }
 
     /*
-     * Copy and uppercase the string. From the ACPI specification:
+     * Copy and uppercase the string. From the ACPI 5.0 specification:
      *
      * A valid PNP ID must be of the form "AAA####" where A is an uppercase
      * letter and # is a hex digit. A valid ACPI ID must be of the form
-     * "ACPI####" where # is a hex digit.
+     * "NNNN####" where N is an uppercase letter or decimal digit, and
+     * # is a hex digit.
      */
     for (Dest = NewString->String.Pointer; *Source; Dest++, Source++)
     {

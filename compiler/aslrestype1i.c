@@ -53,6 +53,7 @@
  * This module contains the I/O-related small resource descriptors:
  *
  * DMA
+ * FixedDMA
  * FixedIO
  * IO
  * IRQ
@@ -176,6 +177,81 @@ RsDoDmaDescriptor (
     /* Now we can set the channel mask */
 
     Descriptor->Dma.DmaChannelMask = DmaChannelMask;
+    return (Rnode);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    RsDoFixedDmaDescriptor
+ *
+ * PARAMETERS:  Op                  - Parent resource descriptor parse node
+ *              CurrentByteOffset   - Offset into the resource template AML
+ *                                    buffer (to track references to the desc)
+ *
+ * RETURN:      Completed resource node
+ *
+ * DESCRIPTION: Construct a short "FixedDMA" descriptor
+ *
+ ******************************************************************************/
+
+ASL_RESOURCE_NODE *
+RsDoFixedDmaDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset)
+{
+    AML_RESOURCE            *Descriptor;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  i;
+
+
+    InitializerOp = Op->Asl.Child;
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_DMA));
+
+    Descriptor = Rnode->Buffer;
+    Descriptor->FixedDma.DescriptorType =
+        ACPI_RESOURCE_NAME_FIXED_DMA | ASL_RDESC_FIXED_DMA_SIZE;
+
+    /* Process all child initialization nodes */
+
+    for (i = 0; InitializerOp; i++)
+    {
+        switch (i)
+        {
+        case 0: /* DMA Request Lines [WORD] (_DMA) */
+
+            Descriptor->FixedDma.RequestLines = (UINT16) InitializerOp->Asl.Value.Integer;
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_DMA,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.RequestLines));
+            break;
+
+        case 1: /* DMA Channel [WORD] (_TYP) */
+
+            Descriptor->FixedDma.Channels = (UINT16) InitializerOp->Asl.Value.Integer;
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_DMATYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.Channels));
+            break;
+
+        case 2: /* Transfer Width [BYTE] (_SIZ) */
+
+            Descriptor->FixedDma.Width = (UINT8) InitializerOp->Asl.Value.Integer;
+            RsCreateByteField (InitializerOp, ACPI_RESTAG_XFERTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.Width));
+            break;
+
+        case 3: /* Descriptor Name (optional) */
+
+            UtAttachNamepathToOwner (Op, InitializerOp);
+            break;
+
+        default:    /* Ignore any extra nodes */
+            break;
+        }
+
+        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+    }
+
     return (Rnode);
 }
 

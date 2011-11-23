@@ -131,6 +131,7 @@ enum AcpiExDebuggerCommands
     CMD_STATS,
     CMD_STOP,
     CMD_TABLES,
+    CMD_TEMPLATE,
     CMD_TERMINATE,
     CMD_THREADS,
     CMD_TRACE,
@@ -199,6 +200,7 @@ static const COMMAND_INFO       AcpiGbl_DbCommands[] =
     {"STATS",        0},
     {"STOP",         0},
     {"TABLES",       0},
+    {"TEMPLATE",     1},
     {"TERMINATE",    0},
     {"THREADS",      3},
     {"TRACE",        1},
@@ -268,9 +270,10 @@ AcpiDbDisplayHelp (
     AcpiOsPrintf ("  Predefined                          Check all predefined names\n");
     AcpiOsPrintf ("  Prefix [<NamePath>]                 Set or Get current execution prefix\n");
     AcpiOsPrintf ("  References <Addr>                   Find all references to object at addr\n");
-    AcpiOsPrintf ("  Resources <Device>                  Get and display Device resources\n");
+    AcpiOsPrintf ("  Resources <DeviceName | *>          Display Device resources (* = all devices)\n");
     AcpiOsPrintf ("  Set N <NamedObject> <Value>         Set value for named integer\n");
     AcpiOsPrintf ("  Sleep <SleepState>                  Simulate sleep/wake sequence\n");
+    AcpiOsPrintf ("  Template <Object>                   Format/dump a Buffer/ResourceTemplate\n");
     AcpiOsPrintf ("  Terminate                           Delete namespace and all internal objects\n");
     AcpiOsPrintf ("  Type <Object>                       Display object type\n");
 
@@ -852,6 +855,10 @@ AcpiDbCommandDispatch (
 
     case CMD_TABLES:
         AcpiDbDisplayTableInfo (AcpiGbl_DbArgs[1]);
+        break;
+
+    case CMD_TEMPLATE:
+        AcpiDbDisplayTemplate (AcpiGbl_DbArgs[1]);
         break;
 
     case CMD_TERMINATE:

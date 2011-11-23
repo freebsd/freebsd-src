@@ -334,7 +334,7 @@ AcpiExRegionRead (
 
     for (i = 0; i < Length; i++)
     {
-        Status = AcpiEvAddressSpaceDispatch (ObjDesc, ACPI_READ,
+        Status = AcpiEvAddressSpaceDispatch (ObjDesc, NULL, ACPI_READ,
                     RegionOffset, 8, &Value);
         if (ACPI_FAILURE (Status))
         {

@@ -499,4 +499,34 @@ AcpiExIntegerToString (
     }
 }
 
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiIsValidSpaceId
+ *
+ * PARAMETERS:  SpaceId             - ID to be validated
+ *
+ * RETURN:      TRUE if valid/supported ID.
+ *
+ * DESCRIPTION: Validate an operation region SpaceID.
+ *
+ ******************************************************************************/
+
+BOOLEAN
+AcpiIsValidSpaceId (
+    UINT8                   SpaceId)
+{
+
+    if ((SpaceId >= ACPI_NUM_PREDEFINED_REGIONS) &&
+        (SpaceId < ACPI_USER_REGION_BEGIN) &&
+        (SpaceId != ACPI_ADR_SPACE_DATA_TABLE) &&
+        (SpaceId != ACPI_ADR_SPACE_FIXED_HARDWARE))
+    {
+        return (FALSE);
+    }
+
+    return (TRUE);
+}
+
+
 #endif

@@ -513,6 +513,29 @@ RsSetFlagBits (
 }
 
 
+void
+RsSetFlagBits16 (
+    UINT16                  *Flags,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT8                   Position,
+    UINT8                   DefaultBit)
+{
+
+    if (Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
+    {
+        /* Use the default bit */
+
+        *Flags |= (DefaultBit << Position);
+    }
+    else
+    {
+        /* Use the bit specified in the initialization node */
+
+        *Flags |= (((UINT16) Op->Asl.Value.Integer) << Position);
+    }
+}
+
+
 /*******************************************************************************
  *
  * FUNCTION:    RsCompleteNodeAndGetNext
@@ -634,6 +657,11 @@ RsDoOneResourceDescriptor (
     {
     case PARSEOP_DMA:
         Rnode = RsDoDmaDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_FIXEDDMA:
+        Rnode = RsDoFixedDmaDescriptor (DescriptorTypeOp,
                     CurrentByteOffset);
         break;
 
@@ -820,6 +848,31 @@ RsDoOneResourceDescriptor (
                     CurrentByteOffset);
         break;
 
+    case PARSEOP_GPIO_INT:
+        Rnode = RsDoGpioIntDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_GPIO_IO:
+        Rnode = RsDoGpioIoDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_I2C_SERIALBUS:
+        Rnode = RsDoI2cSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_SPI_SERIALBUS:
+        Rnode = RsDoSpiSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_UART_SERIALBUS:
+        Rnode = RsDoUartSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
     case PARSEOP_DEFAULT_ARG:
         /* Just ignore any of these, they are used as fillers/placeholders */
         break;
@@ -994,10 +1047,12 @@ RsDoResourceTemplate (
     Op->Asl.ParseOpcode               = PARSEOP_BUFFER;
     Op->Asl.AmlOpcode                 = AML_BUFFER_OP;
     Op->Asl.CompileFlags              = NODE_AML_PACKAGE | NODE_IS_RESOURCE_DESC;
+    UtSetParseOpName (Op);
 
     BufferLengthOp->Asl.ParseOpcode   = PARSEOP_INTEGER;
     BufferLengthOp->Asl.Value.Integer = CurrentByteOffset;
     (void) OpcSetOptimalIntegerSize (BufferLengthOp);
+    UtSetParseOpName (BufferLengthOp);
 
     BufferOp->Asl.ParseOpcode         = PARSEOP_RAW_DATA;
     BufferOp->Asl.AmlOpcode           = AML_RAW_DATA_CHAIN;
@@ -1005,8 +1060,7 @@ RsDoResourceTemplate (
     BufferOp->Asl.AmlLength           = CurrentByteOffset;
     BufferOp->Asl.Value.Buffer        = (UINT8 *) HeadRnode.Next;
     BufferOp->Asl.CompileFlags       |= NODE_IS_RESOURCE_DATA;
+    UtSetParseOpName (BufferOp);
 
     return;
 }
-
-
