@@ -20,6 +20,10 @@ options		MSDOSFS
 options		GEOM_PART_BSD
 options		GEOM_PART_MBR
 
+# Enable the uboot environment stuff rather then the
+# redboot stuff.
+options		AR71XX_ENV_UBOOT
+
 # uzip - to boot natively from flash
 device		geom_uzip
 options		GEOM_UZIP
