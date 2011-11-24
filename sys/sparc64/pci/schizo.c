@@ -1175,7 +1175,7 @@ schizo_dmamap_sync(bus_dma_tag_t dt, bus_dmamap_t map, bus_dmasync_op_t op)
 			;
 		SCHIZO_PCI_WRITE_8(sc, sc->sc_cdma_clr, INTCLR_RECEIVED);
 		microuptime(&cur);
-		end.tv_sec = 1;
+		end.tv_sec = 15;
 		end.tv_usec = 0;
 		timevaladd(&end, &cur);
 		for (; (res = atomic_cmpset_rel_32(&sc->sc_cdma_state,
