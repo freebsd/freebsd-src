@@ -100,7 +100,6 @@ LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
-LIBODIALOG?=	${DESTDIR}${LIBDIR}/libodialog.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,
