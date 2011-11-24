@@ -29,13 +29,15 @@
  *
  */
 
-#include "sade.h"
+#include <sys/types.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <libdisk.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
+
+#include "sade.h"
 
 #define AUTO_HOME	0	/* do not create /home automatically */
 
@@ -161,7 +163,7 @@ diskLabelEditor(dialogMenuItem *self)
 		result = DITEM_FAILURE;
 	    }
 	    else {
-		result = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+		result = dmenuOpen(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 		free(menu);
 	    }
 	}
@@ -417,9 +419,8 @@ get_mountpoint(PartType type, struct chunk *old)
 static PartType
 get_partition_type(void)
 {
-    char selection[20];
     int i;
-    static unsigned char *fs_types[] = {
+    static char *fs_types[] = {
 #ifdef __ia64__
 	"EFI",	"An EFI system partition",
 #endif
@@ -428,6 +429,7 @@ get_partition_type(void)
     };
     WINDOW *w = savescr();
 
+    dlg_clr_result();
     i = dialog_menu("Please choose a partition type",
 	"If you want to use this partition for swap space, select Swap.\n"
 	"If you want to put a filesystem on it, choose FS.",
@@ -437,16 +439,16 @@ get_partition_type(void)
 #else
 	2, 2,
 #endif
-	fs_types, selection, NULL, NULL);
+	fs_types);
     restorescr(w);
     if (!i) {
 #ifdef __ia64__
-	if (!strcmp(selection, "EFI"))
+	if (!strcmp(dialog_vars.input_result, "EFI"))
 	    return PART_EFI;
 #endif
-	if (!strcmp(selection, "FS"))
+	if (!strcmp(dialog_vars.input_result, "FS"))
 	    return PART_FILESYSTEM;
-	else if (!strcmp(selection, "Swap"))
+	else if (!strcmp(dialog_vars.input_result, "Swap"))
 	    return PART_SWAP;
     }
     return PART_NONE;
@@ -1251,7 +1253,7 @@ diskLabel(Device *dev)
 	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
 			  "expected to understand!")) {
-		dialog_clear();
+		dlg_clear();
 		end_dialog();
 		DialogActive = FALSE;
 		if (dev->private) {
