@@ -541,10 +541,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		maskIsNew = 0;
 		hostIsNew = 1;
 		error = 0;
-		if (ifra->ifra_addr.sin_len == 0) {
-			ifra->ifra_addr = ia->ia_addr;
-			hostIsNew = 0;
-		} else if (ifra->ifra_addr.sin_addr.s_addr ==
+		if (ifra->ifra_addr.sin_addr.s_addr ==
 			    ia->ia_addr.sin_addr.s_addr)
 			hostIsNew = 0;
 		if (ifra->ifra_mask.sin_len) {
