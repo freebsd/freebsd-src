@@ -29,7 +29,6 @@
  *
  */
 
-#include "sade.h"
 #include <sys/fcntl.h>
 #include <sys/param.h>
 #include <sys/socket.h>
@@ -39,6 +38,8 @@
 #include <sys/stat.h>
 #include <ctype.h>
 #include <libdisk.h>
+
+#include "sade.h"
 
 /* how much to bias minor number for a given /dev/<ct#><un#>s<s#> slice */
 #define SLICE_DELTA	(0x10000)
@@ -247,7 +248,7 @@ deviceGetAll(void)
 	}
 	free(names);
     }
-    dialog_clear_norefresh();
+    dlg_clear();
 }
 
 /* Rescan all devices, after closing previous set - convenience function */
