@@ -29,7 +29,6 @@
  *
  */
 
-#include "sade.h"
 #include <ctype.h>
 #include <sys/consio.h>
 #include <sys/disklabel.h>
@@ -50,6 +49,8 @@
 #include <limits.h>
 #include <unistd.h>
 #include <termios.h>
+
+#include "sade.h"
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -177,7 +178,7 @@ installFilesystems(Device *dev)
                     sprintf(fname, "/dev/%s", c2->name);
                     i = (Fake || swapon(fname));
                     if (!i) {
-                        dialog_clear_norefresh();
+                        dlg_clear();
                         msgNotify("Added %s as an additional swap device", fname);
                     }
                     else {
@@ -209,7 +210,7 @@ installFilesystems(Device *dev)
 
     command_sort();
     command_execute();
-    dialog_clear_norefresh();
+    dlg_clear();
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 

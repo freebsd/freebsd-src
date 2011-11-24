@@ -31,7 +31,6 @@
  *
  */
 
-#include "sade.h"
 #include <ctype.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -46,6 +45,8 @@
 #include <sys/reboot.h>
 #include <sys/disklabel.h>
 #include <fs/msdosfs/msdosfsmount.h>
+
+#include "sade.h"
 
 /* Quick check to see if a file is readable */
 Boolean
@@ -217,3 +218,192 @@ restorescr(WINDOW *w)
     delwin(w);
 }
 
+static int
+xdialog_count_rows(const char *p)
+{
+	int rows = 0;
+
+	while ((p = strchr(p, '\n')) != NULL) {
+		p++;
+		if (*p == '\0')
+			break;
+		rows++;
+	}
+
+	return rows ? rows : 1;
+}
+
+int
+xdialog_menu(const char *title, const char *cprompt, int height, int width,
+	     int menu_height, int item_no, dialogMenuItem *ditems)
+{
+	int i, result, choice = 0;
+	DIALOG_LISTITEM *listitems;
+	DIALOG_VARS save_vars;
+
+	dlg_save_vars(&save_vars);
+
+	/* initialize list items */
+	listitems = dlg_calloc(DIALOG_LISTITEM, item_no + 1);
+	assert_ptr(listitems, "xdialog_menu");
+	for (i = 0; i < item_no; i++) {
+		listitems[i].name = ditems[i].prompt;
+		listitems[i].text = ditems[i].title;
+	}
+
+	/* calculate height */
+	if (height < 0)
+		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		int tag_x = 0;
+
+		for (i = 0; i < item_no; i++) {
+			int j, l;
+
+			l = strlen(listitems[i].name);
+			for (j = 0; j < item_no; j++) {
+				int k = strlen(listitems[j].text);
+				tag_x = MAX(tag_x, l + k + 2);
+			}
+		}
+		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(width, tag_x + 4) + 4;
+	}
+	width = MAX(width, 24);
+	if (width > COLS)
+		width = COLS;
+
+	/* show menu */
+	dialog_vars.default_item = listitems[choice].name;
+	result = dlg_menu(title, cprompt, height, width,
+	    menu_height, item_no, listitems, &choice, NULL);
+	switch (result) {
+	case DLG_EXIT_ESC:
+		result = -1;
+		break;
+	case DLG_EXIT_OK:
+		if (ditems[choice].fire != NULL) {
+			int status;
+			WINDOW *save;
+
+			save = savescr();
+			status = ditems[choice].fire(ditems + choice);
+			restorescr(save);
+		}
+		result = 0;
+		break;
+	case DLG_EXIT_CANCEL:
+	default:
+		result = 1;
+		break;
+	}
+
+	free(listitems);
+	dlg_restore_vars(&save_vars);
+	return result;
+}
+
+int
+xdialog_radiolist(const char *title, const char *cprompt, int height, int width,
+		  int menu_height, int item_no, dialogMenuItem *ditems)
+{
+	int i, result, choice = 0;
+	DIALOG_LISTITEM *listitems;
+	DIALOG_VARS save_vars;
+
+	dlg_save_vars(&save_vars);
+
+	/* initialize list items */
+	listitems = dlg_calloc(DIALOG_LISTITEM, item_no + 1);
+	assert_ptr(listitems, "xdialog_menu");
+	for (i = 0; i < item_no; i++) {
+		listitems[i].name = ditems[i].prompt;
+		listitems[i].text = ditems[i].title;
+		listitems[i].state = i == choice;
+	}
+
+	/* calculate height */
+	if (height < 0)
+		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		int check_x = 0;
+
+		for (i = 0; i < item_no; i++) {
+			int j, l;
+
+			l = strlen(listitems[i].name);
+			for (j = 0; j < item_no; j++) {
+				int k = strlen(listitems[j].text);
+				check_x = MAX(check_x, l + k + 6);
+			}
+		}
+		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(width, check_x + 4) + 4;
+	}
+	width = MAX(width, 24);
+	if (width > COLS)
+		width = COLS;
+
+	/* show menu */
+	dialog_vars.default_item = listitems[choice].name;
+	result = dlg_checklist(title, cprompt, height, width,
+	    menu_height, item_no, listitems, NULL, FLAG_RADIO, &choice);
+	switch (result) {
+	case DLG_EXIT_ESC:
+		result = -1;
+		break;
+	case DLG_EXIT_OK:
+		if (ditems[choice].fire != NULL) {
+			int status;
+			WINDOW *save;
+
+			save = savescr();
+			status = ditems[choice].fire(ditems + choice);
+			restorescr(save);
+		}
+		result = 0;
+		break;
+	case DLG_EXIT_CANCEL:
+	default:
+		result = 1;
+		break;
+	}
+
+	/* save result */
+	if (result == 0)
+		dlg_add_result(listitems[choice].name);
+	free(listitems);
+	dlg_restore_vars(&save_vars);
+	return result;
+}
+
+int
+xdialog_msgbox(const char *title, const char *cprompt,
+	       int height, int width, int pauseopt)
+{
+	/* calculate height */
+	if (height < 0)
+		height = 2 + xdialog_count_rows(cprompt) + 2 + !!pauseopt;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		width = title != NULL ? dlg_count_columns(title) : 0;
+		width = MAX(width, dlg_count_columns(cprompt)) + 4;
+	}
+	if (pauseopt)
+		width = MAX(width, 10);
+	if (width > COLS)
+		width = COLS;
+
+	return dialog_msgbox(title, cprompt, height, width, pauseopt);
+}

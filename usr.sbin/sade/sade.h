@@ -130,10 +130,25 @@ typedef int Boolean;
 typedef struct disk Disk;
 typedef struct chunk Chunk;
 
+/* special return codes for `fire' actions */
+#define DITEM_STATUS(flag)	((flag) & 0x0000FFFF)
+#define DITEM_SUCCESS		0
+#define DITEM_FAILURE		1
+
+/* flags - returned in upper 16 bits of return status */
+#define DITEM_LEAVE_MENU	(1 << 16)
+#define DITEM_RESTORE		(1 << 19)
+
+/* for use in describing more exotic behaviors */
+typedef struct _dmenu_item {
+    char *prompt;
+    char *title;
+    int (*fire)(struct _dmenu_item *self);
+} dialogMenuItem;
+
 /* Bitfields for menu options */
 #define DMENU_NORMAL_TYPE	0x1     /* Normal dialog menu           */
 #define DMENU_RADIO_TYPE	0x2     /* Radio dialog menu            */
-#define DMENU_CHECKLIST_TYPE	0x4     /* Multiple choice menu         */
 #define DMENU_SELECTION_RETURNS 0x8     /* Immediate return on item selection */
 
 typedef struct _dmenu {
@@ -332,22 +347,8 @@ extern int	dispatch_load_file_int(int);
 extern int	dispatch_load_file(dialogMenuItem *self);
 
 /* dmenu.c */
-extern int	dmenuDisplayFile(dialogMenuItem *tmp);
-extern int	dmenuSubmenu(dialogMenuItem *tmp);
-extern int	dmenuSystemCommand(dialogMenuItem *tmp);
-extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
-extern int	dmenuExit(dialogMenuItem *tmp);
-extern int	dmenuISetVariable(dialogMenuItem *tmp);
-extern int	dmenuSetVariable(dialogMenuItem *tmp);
-extern int	dmenuSetVariables(dialogMenuItem *tmp);
-extern int	dmenuToggleVariable(dialogMenuItem *tmp);
-extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
-extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *bscroll, int *curr, int *max, Boolean buttons);
-extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
-extern int	dmenuVarCheck(dialogMenuItem *item);
-extern int	dmenuVarsCheck(dialogMenuItem *item);
-extern int	dmenuFlagCheck(dialogMenuItem *item);
+extern Boolean	dmenuOpen(DMenu *menu);
 extern int	dmenuRadioCheck(dialogMenuItem *item);
 
 /* dos.c */
@@ -388,6 +389,15 @@ extern int	Mount(char *, void *data);
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
+
+extern int	xdialog_menu(const char *title, const char *cprompt,
+			     int height, int width, int menu_height,
+			     int item_no, dialogMenuItem *ditems);
+extern int	xdialog_radiolist(const char *title, const char *cprompt,
+				  int height, int width, int menu_height,
+				  int item_no, dialogMenuItem *ditems);
+extern int	xdialog_msgbox(const char *title, const char *cprompt,
+			       int height, int width, int pauseopt);
 
 /* msg.c */
 extern Boolean	isDebug(void);
