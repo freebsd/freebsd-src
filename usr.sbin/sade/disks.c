@@ -305,25 +305,6 @@ getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
 #endif
 #endif /* WITH_SLICES */
 
-int
-diskGetSelectCount(Device ***devs)
-{
-    int i, cnt, enabled;
-    char *cp;
-    Device **dp;
-
-    cp = variable_get(VAR_DISK);
-    dp = *devs = deviceFind(cp, DEVICE_TYPE_DISK);
-    cnt = deviceCount(dp);
-    if (!cnt)
-	return -1;
-    for (i = 0, enabled = 0; i < cnt; i++) {
-	if (dp[i]->enabled)
-	    ++enabled;
-    }
-    return enabled;
-}
-
 #ifdef WITH_SLICES
 void
 diskPartition(Device *dev)
@@ -641,7 +622,7 @@ diskPartition(Device *dev)
 		Set_Boot_Mgr(d, mbrContents, mbrSize);
 #endif
 
-		if (DITEM_STATUS(diskPartitionWrite(NULL)) != DITEM_SUCCESS)
+		if (DITEM_STATUS(diskPartitionWrite(dev)) != DITEM_SUCCESS)
 		    msgConfirm("Disk partition write returned an error status!");
 		else
 		    msgConfirm("Wrote FDISK partition information out successfully.");
@@ -770,7 +751,7 @@ bootalloc(char *name, size_t *size)
 }
 #endif /* !__ia64__ */
 
-#ifdef WITH_SLICES 
+#ifdef WITH_SLICES
 static int
 partitionHook(dialogMenuItem *selected)
 {
@@ -781,25 +762,8 @@ partitionHook(dialogMenuItem *selected)
 	msgConfirm("Unable to find disk %s!", selected->prompt);
 	return DITEM_FAILURE;
     }
-    /* Toggle enabled status? */
-    if (!devs[0]->enabled) {
-	devs[0]->enabled = TRUE;
-	diskPartition(devs[0]);
-    }
-    else
-	devs[0]->enabled = FALSE;
+    diskPartition(devs[0]);
     return DITEM_SUCCESS;
-}
-
-static int
-partitionCheck(dialogMenuItem *selected)
-{
-    Device **devs = NULL;
-
-    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
-    if (!devs || devs[0]->enabled == FALSE)
-	return FALSE;
-    return TRUE;
 }
 
 int
@@ -807,32 +771,19 @@ diskPartitionEditor(dialogMenuItem *self)
 {
     DMenu *menu;
     Device **devs;
-    int i, cnt, devcnt;
 
-    cnt = diskGetSelectCount(&devs);
-    devcnt = deviceCount(devs);
-    if (cnt == -1) {
+    devs = deviceFind(variable_get(VAR_DISK), DEVICE_TYPE_DISK);
+    if (devs == NULL) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
 	return DITEM_FAILURE;
     }
-    else if (cnt) {
-	/* Some are already selected */
-	for (i = 0; i < devcnt; i++) {
-	    if (devs[i]->enabled) {
-		if (variable_get(VAR_NONINTERACTIVE) &&
-		  !variable_get(VAR_DISKINTERACTIVE))
-		    diskPartitionNonInteractive(devs[i]);
-		else
-		    diskPartition(devs[i]);
-	    }
-	}
-    }
     else {
 	/* No disks are selected, fall-back case now */
-	if (devcnt == 1) {
-	    devs[0]->enabled = TRUE;
+        int cnt = deviceCount(devs);
+
+	if (cnt == 1) {
 	    if (variable_get(VAR_NONINTERACTIVE) &&
 	      !variable_get(VAR_DISKINTERACTIVE))
 		diskPartitionNonInteractive(devs[0]);
@@ -841,7 +792,9 @@ diskPartitionEditor(dialogMenuItem *self)
 	    return DITEM_SUCCESS;
 	}
 	else {
-	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook, partitionCheck);
+            int result;
+
+	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, partitionHook);
 	    if (!menu) {
 		msgConfirm("No devices suitable for installation found!\n\n"
 			   "Please verify that your disk controller (and attached drives)\n"
@@ -850,11 +803,10 @@ diskPartitionEditor(dialogMenuItem *self)
 			   "the boot messages.  Press [Scroll Lock] again to return.");
 		return DITEM_FAILURE;
 	    }
-	    else {
-		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
-		free(menu);
-	    }
-	    return i;
+
+	    result = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+	    free(menu);
+	    return result;
 	}
     }
     return DITEM_SUCCESS;
@@ -862,48 +814,34 @@ diskPartitionEditor(dialogMenuItem *self)
 #endif /* WITH_SLICES */
 
 int
-diskPartitionWrite(dialogMenuItem *self)
+diskPartitionWrite(Device *dev)
 {
-    Device **devs;
-    int i;
+    Disk *d = (Disk *)dev->private;
+#if !defined(__ia64__)
+    static u_char *boot1;
+#endif
+#if defined(__i386__) || defined(__amd64__)
+    static u_char *boot2;
+#endif
 
     if (!variable_cmp(DISK_PARTITIONED, "written"))
 	return DITEM_SUCCESS;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs) {
-	msgConfirm("Unable to find any disks to write to??");
-	return DITEM_FAILURE;
-    }
-    if (isDebug())
-	msgDebug("diskPartitionWrite: Examining %d devices\n", deviceCount(devs));
-    for (i = 0; devs[i]; i++) {
-	Disk *d = (Disk *)devs[i]->private;
-#if !defined(__ia64__)
-	static u_char *boot1;
-#endif
 #if defined(__i386__) || defined(__amd64__)
-	static u_char *boot2;
-#endif
-
-	if (!devs[i]->enabled)
-	    continue;
-
-#if defined(__i386__) || defined(__amd64__)
-	if (!boot1) boot1 = bootalloc("boot1", NULL);
-	if (!boot2) boot2 = bootalloc("boot2", NULL);
-	Set_Boot_Blocks(d, boot1, boot2);
+    if (!boot1) boot1 = bootalloc("boot1", NULL);
+    if (!boot2) boot2 = bootalloc("boot2", NULL);
+    Set_Boot_Blocks(d, boot1, boot2);
 #elif !defined(__ia64__)
-	if (!boot1) boot1 = bootalloc("boot1", NULL);
-	Set_Boot_Blocks(d, boot1, NULL);
+    if (!boot1) boot1 = bootalloc("boot1", NULL);
+    Set_Boot_Blocks(d, boot1, NULL);
 #endif
 
-	msgNotify("Writing partition information to drive %s", d->name);
-	if (!Fake && Write_Disk(d)) {
-	    msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
-	    return DITEM_FAILURE;
-	}
+    msgNotify("Writing partition information to drive %s", d->name);
+    if (!Fake && Write_Disk(d)) {
+        msgConfirm("ERROR: Unable to write data to disk %s!", d->name);
+        return DITEM_FAILURE;
     }
+
     /* Now it's not "yes", but "written" */
     variable_set2(DISK_PARTITIONED, "written", 0);
     return DITEM_SUCCESS | DITEM_RESTORE;

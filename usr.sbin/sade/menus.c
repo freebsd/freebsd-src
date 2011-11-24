@@ -42,14 +42,14 @@ static const char rcsid[] =
  */
 
 DMenu MenuDiskDevices = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Select Drive(s)",
-    "Please select the drive, or drives, on which you wish to perform\n"
-    "this operation.  If you are attempting to install a boot partition\n"
+    "Please select the drive on which you wish to perform this\n"
+    "operation.  If you are attempting to install a boot partition\n"
     "on a drive other than the first one or have multiple operating\n"
     "systems on your machine, you will have the option to install a boot\n"
     "manager later.  To select a drive, use the arrow keys to move to it\n"
-    "and press [SPACE] or [ENTER].  To de-select it, press it again.\n\n"
+    "and press [SPACE] or [ENTER].\n\n"
     "Use [TAB] to get to the buttons and leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
