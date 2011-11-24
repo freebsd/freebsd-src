@@ -69,6 +69,9 @@ PO_FLAG=-pg
 
 .c.o:
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
+		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
+		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
 
 .c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
