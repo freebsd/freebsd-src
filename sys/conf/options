@@ -899,4 +899,5 @@ RCTL		opt_global.h
 # that "lies" about the amount of RAM it has. Until a cleaner method is
 # defined, this option will suffice in overriding what Redboot says.
 AR71XX_REALMEM    opt_global.h
-
+AR71XX_ENV_UBOOT	opt_global.h
+AR71XX_ENV_REDBOOT	opt_global.h
