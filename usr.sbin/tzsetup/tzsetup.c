@@ -76,14 +76,14 @@ static int
 xdialog_menu(const char *title, const char *cprompt, int height, int width,
 	     int menu_height, int item_no, dialogMenuItem *ditems)
 {
-	int i, result, choice;
+	int i, result, choice = 0;
 	DIALOG_LISTITEM *listitems;
 	DIALOG_VARS save_vars;
 
 	dlg_save_vars(&save_vars);
 
 	/* initialize list items */
-	listitems = dlg_calloc(DIALOG_LISTITEM, item_no);
+	listitems = dlg_calloc(DIALOG_LISTITEM, item_no + 1);
 	assert_ptr(listitems, "xdialog_menu");
 	for (i = 0; i < item_no; i++) {
 		listitems[i].name = ditems[i].prompt;
@@ -111,7 +111,7 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 		width = COLS;
 
 again:
-	dialog_vars.default_item = ditems[choice].prompt;
+	dialog_vars.default_item = listitems[choice].name;
 	result = dlg_menu(title, cprompt, height, width,
 	    menu_height, item_no, listitems, &choice, NULL);
 	switch (result) {
