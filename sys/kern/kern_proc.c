@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/ptrace.h>
 #include <sys/refcount.h>
+#include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/sysent.h>
 #include <sys/sched.h>
@@ -2389,6 +2390,48 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to retrieve the resource limits for
+ * another process.
+ */
+static int
+sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct plimit *limp;
+	struct proc *p;
+	int error = 0;
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	p = pfind((pid_t)name[0]);
+	if (p == NULL)
+		return (ESRCH);
+
+	if ((error = p_cansee(curthread, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+
+	/*
+	 * Check the request size.  We alow sizes smaller rlimit array for
+	 * backward binary compatibility: the number of resource limits may
+	 * grow.
+	 */
+	if (sizeof(limp->pl_rlimit) < req->oldlen) {
+		PROC_UNLOCK(p);
+		return (EINVAL);
+	}
+
+	limp = lim_hold(p->p_limit);
+	PROC_UNLOCK(p);
+	error = SYSCTL_OUT(req, limp->pl_rlimit, req->oldlen);
+	lim_free(limp);
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2484,3 +2527,6 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit, "Process resource limits");
