@@ -301,13 +301,6 @@ extern void	command_execute(void);
 extern void	command_shell_add(char *key, const char *fmt, ...) __printflike(2, 3);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
-/* config.c */
-extern void	configEnvironmentRC_conf(void);
-extern void	configRC_conf(void);
-extern int	configFstab(dialogMenuItem *self);
-extern int	configRC(dialogMenuItem *self);
-extern int	configWriteRC_conf(dialogMenuItem *self);
-
 /* devices.c */
 extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
 				  int (*check)(dialogMenuItem *d));
