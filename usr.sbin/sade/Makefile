@@ -19,9 +19,10 @@ WARNS?=	3
 .if ${MACHINE} == "pc98"
 CFLAGS+= -DPC98
 .endif
-CFLAGS+= -I${.CURDIR}/../../gnu/lib/libodialog -I.
+CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
+DEBUG_FLAGS= -O0 -g
 
-DPADD=	${LIBODIALOG} ${LIBNCURSES} ${LIBUTIL} ${LIBDISK}
-LDADD=	-lodialog -lncurses -lutil -ldisk
+DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM} ${LIBUTIL} ${LIBDISK}
+LDADD=	-ldialog -lncursesw -lm -lutil -ldisk
 
 .include <bsd.prog.mk>

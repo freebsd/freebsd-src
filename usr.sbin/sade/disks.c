@@ -113,7 +113,7 @@ check_geometry(Disk *d)
     if (d->bios_cyl > 65536 || d->bios_hd > 256 || d->bios_sect >= 64)
 #endif
     {
-	dialog_clear_norefresh();
+	dlg_clear();
 	sg = msgYesNo("WARNING:  It is safe to use a geometry of %lu/%lu/%lu for %s on\n"
 		      "computers with modern BIOS versions.  If this disk is to be used\n"
 		      "on an old machine it is recommended that it does not have more\n"
@@ -223,21 +223,21 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
     char *cp;
     int i = 0;
 
+    dlg_clr_result();
     cp = variable_get(VAR_BOOTMGR);
     if (!cp) {
 	/* Figure out what kind of IPL the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuIPLType.title = str;
-	i = dmenuOpenSimple(&MenuIPLType, FALSE);
+	i = dmenuOpen(&MenuIPLType);
     } else {
 	if (!strncmp(cp, "boot", 4))
-	    BootMgr = 0;
+            dlg_add_result(MenuIPLType.items[0].prompt);
 	else
-	    BootMgr = 1;
+            dlg_add_result(MenuIPLType.items[1].prompt);
     }
     if (cp || i) {
-	switch (BootMgr) {
-	case 0:
+        if (!strcmp(dialog_vars.input_result, MenuIPLType.items[0].prompt)) {
 	    if (!boot0) boot0 = bootalloc("boot0", &boot0_size);
 	    *bootipl = boot0;
 	    *bootipl_size = boot0_size;
@@ -245,10 +245,7 @@ getBootMgr(char *dname, u_char **bootipl, size_t *bootipl_size,
 	    *bootmenu = boot05;
 	    *bootmenu_size = boot05_size;
 	    return;
-	case 1:
-	default:
-	    break;
-	}
+        }
     }
     *bootipl = NULL;
     *bootipl_size = 0;
@@ -266,36 +263,33 @@ getBootMgr(char *dname, u_char **bootCode, size_t *bootCodeSize)
     char *cp;
     int i = 0;
 
+    dlg_clr_result();
     cp = variable_get(VAR_BOOTMGR);
     if (!cp) {
 	/* Figure out what kind of MBR the user wants */
 	sprintf(str, "Install Boot Manager for drive %s?", dname);
 	MenuMBRType.title = str;
-	i = dmenuOpenSimple(&MenuMBRType, FALSE);
+	i = dmenuOpen(&MenuMBRType);
     }
     else {
+	if (!strcmp(cp, "standard"))
+            dlg_add_result(MenuMBRType.items[0].prompt);
 	if (!strncmp(cp, "boot", 4))
-	    BootMgr = 0;
-	else if (!strcmp(cp, "standard"))
-	    BootMgr = 1;
+            dlg_add_result(MenuMBRType.items[1].prompt);
 	else
-	    BootMgr = 2;
+            dlg_add_result(MenuMBRType.items[2].prompt);
     }
     if (cp || i) {
-	switch (BootMgr) {
-	case 0:
-	    if (!boot0) boot0 = bootalloc("boot0", &boot0_size);
-	    *bootCode = boot0;
-	    *bootCodeSize = boot0_size;
-	    return;
-	case 1:
+        if (!strcmp(dialog_vars.input_result, MenuMBRType.items[0].prompt)) {
 	    if (!mbr) mbr = bootalloc("mbr", &mbr_size);
 	    *bootCode = mbr;
 	    *bootCodeSize = mbr_size;
 	    return;
-	case 2:
-	default:
-	    break;
+	} else if (!strcmp(dialog_vars.input_result, MenuMBRType.items[1].prompt)) {
+	    if (!boot0) boot0 = bootalloc("boot0", &boot0_size);
+	    *bootCode = boot0;
+	    *bootCodeSize = boot0_size;
+	    return;
 	}
     }
 #endif
@@ -333,7 +327,7 @@ diskPartition(Device *dev)
 
     /* Flush both the dialog and curses library views of the screen
        since we don't always know who called us */
-    dialog_clear_norefresh(), clear();
+    dlg_clear(), clear();
     current_chunk = 0;
 
     /* Set up the chunk array */
@@ -705,12 +699,15 @@ diskPartition(Device *dev)
     p = CheckRules(d);
     if (p) {
 	char buf[FILENAME_MAX];
-	
-        use_helpline("Press F1 to read more about disk slices.");
-	use_helpfile(systemHelpFile("partition", buf));
+	DIALOG_VARS save_vars;
+
+	dlg_save_vars(&save_vars);
+        dialog_vars.help_line = "Press F1 to read more about disk slices.";
+	dialog_vars.help_file = systemHelpFile("partition", buf);
 	if (!variable_get(VAR_NO_WARN))
-	    dialog_mesgbox("Disk slicing warning:", p, -1, -1);
+	    xdialog_msgbox("Disk slicing warning:", p, -1, -1, 1);
 	free(p);
+	dlg_restore_vars(&save_vars);
     }
     restorescr(w);
 }
@@ -751,7 +748,7 @@ bootalloc(char *name, size_t *size)
 }
 #endif /* !__ia64__ */
 
-#ifdef WITH_SLICES
+#ifdef WITH_SLICES 
 static int
 partitionHook(dialogMenuItem *selected)
 {
@@ -804,7 +801,7 @@ diskPartitionEditor(dialogMenuItem *self)
 		return DITEM_FAILURE;
 	    }
 
-	    result = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+	    result = dmenuOpen(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 	    free(menu);
 	    return result;
 	}
