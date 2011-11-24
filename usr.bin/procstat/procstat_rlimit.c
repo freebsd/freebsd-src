@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2007 Robert N. M. Watson
+ * Copyright (c) 2011 Mikolaj Golub
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -26,26 +26,53 @@
  * $FreeBSD$
  */
 
-#ifndef PROCSTAT_H
-#define	PROCSTAT_H
+#include <sys/param.h>
+#include <sys/time.h>
+#define _RLIMIT_IDENT
+#include <sys/resourcevar.h>
+#include <sys/sysctl.h>
+#include <sys/user.h>
 
-extern int	hflag, nflag, Cflag;
+#include <err.h>
+#include <errno.h>
+#include <libprocstat.h>
+#include <limits.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
 
-struct kinfo_proc;
-void	kinfo_proc_sort(struct kinfo_proc *kipp, int count);
+#include "procstat.h"
 
-void	procstat_args(struct kinfo_proc *kipp);
-void	procstat_auxv(struct kinfo_proc *kipp);
-void	procstat_basic(struct kinfo_proc *kipp);
-void	procstat_bin(struct kinfo_proc *kipp);
-void	procstat_cred(struct kinfo_proc *kipp);
-void	procstat_env(struct kinfo_proc *kipp);
-void	procstat_files(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_kstack(struct kinfo_proc *kipp, int kflag);
-void	procstat_rlimit(struct kinfo_proc *kipp);
-void	procstat_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_threads(struct kinfo_proc *kipp);
-void	procstat_threads_sigs(struct procstat *prstat, struct kinfo_proc *kipp);
-void	procstat_vm(struct kinfo_proc *kipp);
+static struct rlimit rlimit[RLIM_NLIMITS];
 
-#endif /* !PROCSTAT_H */
+void
+procstat_rlimit(struct kinfo_proc *kipp)
+{
+	int error, i, name[4];
+	size_t len;
+
+	if (!hflag)
+		printf("%5s %-16s %-10s %12s %12s\n", "PID", "COMM", "RLIMIT",
+		    "CURRENT", "MAX");
+	name[0] = CTL_KERN;
+	name[1] = KERN_PROC;
+	name[2] = KERN_PROC_RLIMIT;
+	name[3] = kipp->ki_pid;
+	len = sizeof(rlimit);
+	error = sysctl(name, 4, rlimit, &len, NULL, 0);
+	if (error < 0 && errno != ESRCH) {
+		warn("sysctl: kern.proc.rlimit: %d", kipp->ki_pid);
+		return;
+	}
+	if (error < 0 || len != sizeof(rlimit))
+		return;
+
+	for (i = 0; i < RLIM_NLIMITS; i++) {
+		printf("%5d %-16s %-10s %12jd %12jd\n", kipp->ki_pid,
+		    kipp->ki_comm, rlimit_ident[i],
+		    rlimit[i].rlim_cur == RLIM_INFINITY ?
+		    -1 : rlimit[i].rlim_cur,
+		    rlimit[i].rlim_max == RLIM_INFINITY ?
+		    -1 : rlimit[i].rlim_max);
+        }
+}
