@@ -184,7 +184,6 @@ typedef struct _device {
     char *description;
     char *devname;
     DeviceType type;
-    Boolean enabled;
     Boolean (*init)(struct _device *dev);
     FILE * (*get)(struct _device *dev, char *file, Boolean probe);
     void (*shutdown)(struct _device *dev);
@@ -302,8 +301,7 @@ extern void	command_shell_add(char *key, const char *fmt, ...) __printflike(2, 3
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
 /* devices.c */
-extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
-				  int (*check)(dialogMenuItem *d));
+extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d));
 extern void	deviceGetAll(void);
 extern void	deviceReset(void);
 extern void	deviceRescan(void);
@@ -311,7 +309,7 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern Device	**deviceFindDescr(char *name, char *desc, DeviceType class);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
-extern Device	*deviceRegister(char *name, char *desc, char *devicename, DeviceType type, Boolean enabled,
+extern Device	*deviceRegister(char *name, char *desc, char *devicename, DeviceType type,
 				Boolean (*init)(Device *mediadev),
 				FILE * (*get)(Device *dev, char *file, Boolean probe),
 				void (*shutDown)(Device *mediadev),
@@ -325,8 +323,7 @@ extern void	dummyShutdown(Device *dev);
 extern void	diskPartition(Device *dev);
 extern int	diskPartitionEditor(dialogMenuItem *self);
 #endif
-extern int	diskPartitionWrite(dialogMenuItem *self);
-extern int	diskGetSelectCount(Device ***devs);
+extern int	diskPartitionWrite(Device *dev);
 
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
@@ -366,7 +363,7 @@ extern void	globalsInit(void);
 extern Boolean	checkLabels(Boolean whinge);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
-extern int	installFilesystems(dialogMenuItem *self);
+extern int	installFilesystems(Device *dev);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
@@ -376,7 +373,7 @@ extern int	kget(char *out);
 
 /* label.c */
 extern int	diskLabelEditor(dialogMenuItem *self);
-extern int	diskLabelCommit(dialogMenuItem *self);
+extern int	diskLabelCommit(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
