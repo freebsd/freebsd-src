@@ -26,7 +26,8 @@ hint.ath.0.eepromaddr=0x1fff1000
 # 128k: uboot
 # 1024k: kernel
 # 4096k: rootfs
-# 2880k: unknown
+# 2816: unknown
+# 64k: board config?
 # 64k: ART
 #
 # from printenv:
@@ -37,8 +38,9 @@ hint.ath.0.eepromaddr=0x1fff1000
 # So:
 # 128k: uboot
 # 2048k: kernel
-# 5888k: rootfs
-# (todo: 64k: config)
+# 5824k: rootfs
+# 64k: config
+# 64k: board config?
 # 64k: ART
 
 hint.map.0.at="flash/spi0"
@@ -55,19 +57,38 @@ hint.map.1.readonly=1
 
 hint.map.2.at="flash/spi0"
 hint.map.2.start=0x00220000
-#hint.map.2.end=0x007e0000
-hint.map.2.end=0x007f0000
+hint.map.2.end=0x007c0000
 hint.map.2.name="rootfs"
 hint.map.2.readonly=1
 
-#hint.map.3.at="flash/spi0"
-#hint.map.3.start=0x007e0000
-#hint.map.3.end=0x007f0000
-#hint.map.3.name="cfg"
-#hint.map.3.readonly=1
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x007c0000
+hint.map.3.end=0x007d0000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
 
+# I'm not sure what this is!
+#
+# It does however start with "55 aa" which is an AR5416 EEPROM
+# magic value, followed by what looks like a set of ethernet
+# MAC addresses, then a bunch of what looks like my local firmware
+# board configuration.
+#
+# For now, I'm going to leave this particular chunk of flash
+# alone.
+#
 hint.map.4.at="flash/spi0"
-hint.map.4.start=0x007f0000
-hint.map.4.end=0x00800000
-hint.map.4.name="art"
+hint.map.4.start=0x007d0000
+hint.map.4.end=0x007e0000
+hint.map.4.name="unknown"
 hint.map.4.readonly=1
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.5.at="flash/spi0"
+hint.map.5.start=0x007f0000
+hint.map.5.end=0x00800000
+hint.map.5.name="art"
+hint.map.5.readonly=1
