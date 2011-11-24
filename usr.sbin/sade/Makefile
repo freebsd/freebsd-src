@@ -7,7 +7,7 @@ _wizard=	wizard.c
 PROG=	sade
 MAN=	sade.8
 SRCS=	command.c devices.c \
-	disks.c dispatch.c dmenu.c \
+	disks.c dmenu.c \
 	globals.c install.c \
 	label.c main.c menus.c misc.c \
 	msg.c system.c termcap.c \
