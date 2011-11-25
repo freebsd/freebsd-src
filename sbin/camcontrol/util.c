@@ -162,7 +162,7 @@ arg_put(void *hook __unused, int letter, void *arg, int count, char *name)
  *    0: unconfirmed
  */
 int
-get_confirmation()
+get_confirmation(void)
 {
 	char str[1024];
 	int response = -1;
