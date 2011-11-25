@@ -553,6 +553,8 @@ MK_GCC:=	no
 MK_GDB:=	no
 .endif
 
+MK_LIBCPLUSPLUS?= no
+
 #
 # Set defaults for the MK_*_SUPPORT variables.
 #
