@@ -16,10 +16,10 @@
 // that it doesn't impact the rest of the program.
 #ifndef _GNU_SOURCE
 #	define _GNU_SOURCE 1
-#	include <unwind.h>
+#	include "unwind.h"
 #	undef _GNU_SOURCE
 #else
-#	include <unwind.h>
+#	include "unwind.h"
 #endif
 
 #include <stdint.h>
@@ -340,6 +340,9 @@ static inline struct dwarf_eh_lsda parse_lsda(_Unwind_Context *context,
 		lsda.type_table = type_table;
 		//lsda.type_table = (uintptr_t*)(data + v);
 	}
+#if __arm__
+	lsda.type_table_encoding = (DW_EH_PE_pcrel | DW_EH_PE_indirect);
+#endif
 
 	lsda.callsite_encoding = (enum dwarf_data_encoding)(*(data++));
 

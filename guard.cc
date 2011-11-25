@@ -16,6 +16,59 @@
  */
 #include <stdint.h>
 #include <pthread.h>
+#include <assert.h>
+
+#ifdef __arm__
+// ARM ABI - 32-bit guards.
+
+/**
+ * Acquires a lock on a guard, returning 0 if the object has already been
+ * initialised, and 1 if it has not.  If the object is already constructed then
+ * this function just needs to read a byte from memory and return.
+ */
+extern "C" int __cxa_guard_acquire(volatile int32_t *guard_object)
+{
+	if ((1<<31) == *guard_object) { return 0; }
+	// If we can atomically move the value from 0 -> 1, then this is
+	// uninitialised.
+	if (__sync_bool_compare_and_swap(guard_object, 0, 1))
+	{
+		return 1;
+	}
+	// If the value is not 0, some other thread was initialising this.  Spin
+	// until it's finished.
+	while (__sync_bool_compare_and_swap(guard_object, (1<<31), (1<<31)))
+	{
+		// If the other thread aborted, then we grab the lock
+		if (__sync_bool_compare_and_swap(guard_object, 0, 1))
+		{
+			return 1;
+		}
+		sched_yield();
+	}
+	return 0;
+}
+
+/**
+ * Releases the lock without marking the object as initialised.  This function
+ * is called if initialising a static causes an exception to be thrown.
+ */
+extern "C" void __cxa_guard_abort(int32_t *guard_object)
+{
+	assert(__sync_bool_compare_and_swap(guard_object, 1, 0));
+}
+/**
+ * Releases the guard and marks the object as initialised.  This function is
+ * called after successful initialisation of a static.
+ */
+extern "C" void __cxa_guard_release(int32_t *guard_object)
+{
+	assert(__sync_bool_compare_and_swap(guard_object, 1, (1<<31)));
+}
+
+
+#else
+// Itanium ABI: 64-bit guards
 
 /**
  * Returns a pointer to the low 32 bits in a 64-bit value, respecting the
@@ -78,3 +131,4 @@ extern "C" void __cxa_guard_release(int64_t *guard_object)
 	__cxa_guard_abort(guard_object);
 }
 
+#endif
