@@ -1,7 +1,7 @@
 #ifndef __CXXABI_H_
 #define __CXXABI_H_
 #include <stdint.h>
-#include <unwind.h>
+#include "unwind.h"
 namespace std 
 {
 	class type_info;
@@ -87,6 +87,18 @@ struct __cxa_exception
 	 * handler count reaches 0 (which it doesn't with the top bit set).
 	 */
 	int handlerCount;
+#ifdef __arm__
+	/**
+	 * The ARM EH ABI requires the unwind library to keep track of exceptions
+	 * during cleanups.  These support nesting, so we need to keep a list of
+	 * them.
+	 */
+	_Unwind_Exception *nextCleanup;
+	/**
+	 * The number of cleanups that are currently being run on this exception. 
+	 */
+	int cleanupCount;
+#endif
 	/**
 	 * The selector value to be returned when installing the catch handler.
 	 * Used at the call site to determine which catch() block should execute.
