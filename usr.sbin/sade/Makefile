@@ -20,7 +20,6 @@ WARNS?=	3
 CFLAGS+= -DPC98
 .endif
 CFLAGS+= -I${.CURDIR}/../../contrib/dialog -I.
-DEBUG_FLAGS= -O0 -g
 
 DPADD=	${LIBDIALOG} ${LIBNCURSESW} ${LIBM} ${LIBUTIL} ${LIBDISK}
 LDADD=	-ldialog -lncursesw -lm -lutil -ldisk
