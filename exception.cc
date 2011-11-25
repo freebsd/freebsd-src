@@ -2,12 +2,73 @@
 #include <dlfcn.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 #include <pthread.h>
 #include "typeinfo.h"
 #include "dwarf_eh.h"
 #include "cxxabi.h"
 
 using namespace ABI_NAMESPACE;
+
+/**
+ * Saves the result of the landing pad that we have found.  For ARM, this is
+ * stored in the generic unwind structure, while on other platforms it is
+ * stored in the C++ exception.
+ */
+static void saveLandingPad(struct _Unwind_Context *context,
+                           struct _Unwind_Exception *ucb,
+                           struct __cxa_exception *ex,
+                           int selector,
+                           dw_eh_ptr_t landingPad)
+{
+#ifdef __arm__
+	// On ARM, we store the saved exception in the generic part of the structure
+	ucb->barrier_cache.sp = _Unwind_GetGR(context, 13);
+	ucb->barrier_cache.bitpattern[1] = (uint32_t)selector;
+	ucb->barrier_cache.bitpattern[3] = (uint32_t)landingPad;
+#endif
+	// Cache the results for the phase 2 unwind, if we found a handler
+	// and this is not a foreign exception.  
+	if (ex)
+	{
+		ex->handlerSwitchValue = selector;
+		ex->catchTemp = landingPad;
+	}
+}
+
+/**
+ * Loads the saved landing pad.  Returns 1 on success, 0 on failure.
+ */
+static int loadLandingPad(struct _Unwind_Context *context,
+                          struct _Unwind_Exception *ucb,
+                          struct __cxa_exception *ex,
+                          unsigned long *selector,
+                          dw_eh_ptr_t *landingPad)
+{
+#ifdef __arm__
+	*selector = ucb->barrier_cache.bitpattern[1];
+	*landingPad = (dw_eh_ptr_t)ucb->barrier_cache.bitpattern[3];
+	return 1;
+#else
+	if (ex)
+	{
+		*selector = ex->handlerSwitchValue;
+		*landingPad = (dw_eh_ptr_t)ex->catchTemp;
+		return 0;
+	}
+	return 0;
+#endif
+}
+
+static inline _Unwind_Reason_Code continueUnwinding(struct _Unwind_Exception *ex,
+                                                    struct _Unwind_Context *context)
+{
+#ifdef __arm__
+	if (__gnu_unwind_frame(ex, context) != _URC_OK) { return _URC_FAILURE; }
+#endif
+	return _URC_CONTINUE_UNWIND;
+}
+
 
 extern "C" void __cxa_free_exception(void *thrown_exception);
 extern "C" void __cxa_free_dependent_exception(void *thrown_exception);
@@ -59,6 +120,10 @@ struct __cxa_thread_info
 	 */
 	int emergencyBuffersHeld;
 	/**
+	 * The exception currently running in a cleanup.
+	 */
+	_Unwind_Exception *currentCleanup;
+	/**
 	 * The public part of this structure, accessible from outside of this
 	 * module.
 	 */
@@ -78,6 +143,10 @@ struct __cxa_dependent_exception
 	terminate_handler terminateHandler;
 	__cxa_exception *nextException;
 	int handlerCount;
+#ifdef __arm__
+	_Unwind_Exception *nextCleanup;
+	int cleanupCount;
+#endif
 	int handlerSwitchValue;
 	const char *actionRecord;
 	const char *languageSpecificData;
@@ -519,9 +588,11 @@ static void report_failure(_Unwind_Reason_Code err, __cxa_exception *thrown_exce
 		case _URC_FATAL_PHASE1_ERROR:
 			fprintf(stderr, "Fatal error during phase 1 unwinding\n");
 			break;
+#ifndef __arm__
 		case _URC_FATAL_PHASE2_ERROR:
 			fprintf(stderr, "Fatal error during phase 2 unwinding\n");
 			break;
+#endif
 		case _URC_END_OF_STACK:
 			fprintf(stderr, "Terminating due to uncaught exception %p", 
 					(void*)thrown_exception);
@@ -696,6 +767,7 @@ static std::type_info *get_type_info_entry(_Unwind_Context *context,
 	// Get the address of the record in the table.
 	dw_eh_ptr_t record = lsda->type_table - 
 		dwarf_size_of_fixed_size_field(lsda->type_table_encoding)*filter;
+	//record -= 4;
 	dw_eh_ptr_t start = record;
 	// Read the value, but it's probably an indirect reference...
 	int64_t offset = read_value(lsda->type_table_encoding, &record);
@@ -707,6 +779,7 @@ static std::type_info *get_type_info_entry(_Unwind_Context *context,
 	return (std::type_info*)resolve_indirect_value(context,
 			lsda->type_table_encoding, offset, start);
 }
+
 
 
 /**
@@ -829,9 +902,22 @@ static handler_type check_action_record(_Unwind_Context *context,
 		}
 		else if (filter < 0 && 0 != ex)
 		{
-			unsigned char *type_index = ((unsigned char*)lsda->type_table - filter - 1);
 			bool matched = false;
 			*selector = filter;
+#ifdef __arm__
+			filter++;
+			std::type_info *handler_type = get_type_info_entry(context, lsda, filter--);
+			while (handler_type)
+			{
+				if (check_type_signature(ex, handler_type, adjustedPtr))
+				{
+					matched = true;
+					break;
+				}
+				handler_type = get_type_info_entry(context, lsda, filter--);
+			}
+#else
+			unsigned char *type_index = ((unsigned char*)lsda->type_table - filter - 1);
 			while (*type_index)
 			{
 				std::type_info *handler_type = get_type_info_entry(context, lsda, *(type_index++));
@@ -844,6 +930,7 @@ static handler_type check_action_record(_Unwind_Context *context,
 					break;
 				}
 			}
+#endif
 			if (matched) { continue; }
 			// If we don't find an allowed exception spec, we need to install
 			// the context for this action.  The landing pad will then call the
@@ -859,17 +946,32 @@ static handler_type check_action_record(_Unwind_Context *context,
 	return found;
 }
 
+static void pushCleanupException(_Unwind_Exception *exceptionObject,
+                                 __cxa_exception *ex)
+{
+#ifdef __arm__
+	__cxa_thread_info *info = thread_info_fast();
+	if (ex)
+	{
+		ex->cleanupCount++;
+		if (ex->cleanupCount > 1)
+		{
+			assert(exceptionObject == info->currentCleanup);
+			return;
+		}
+		ex->nextCleanup = info->currentCleanup;
+	}
+	info->currentCleanup = exceptionObject;
+#endif
+}
+
 /**
  * The exception personality function.  This is referenced in the unwinding
  * DWARF metadata and is called by the unwind library for each C++ stack frame
  * containing catch or cleanup code.
  */
-extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
-                                                     _Unwind_Action actions,
-                                                     uint64_t exceptionClass,
-                                                     struct _Unwind_Exception *exceptionObject,
-                                                     struct _Unwind_Context *context)
-{
+extern "C"
+BEGIN_PERSONALITY_FUNCTION(__gxx_personality_v0)
 	// This personality function is for version 1 of the ABI.  If you use it
 	// with a future version of the ABI, it won't know what to do, so it
 	// reports a fatal error and give up before it breaks anything.
@@ -896,7 +998,7 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 		(unsigned char*)_Unwind_GetLanguageSpecificData(context);
 
 	// No LSDA implies no landing pads - try the next frame
-	if (0 == lsda_addr) { return _URC_CONTINUE_UNWIND; }
+	if (0 == lsda_addr) { return continueUnwinding(exceptionObject, context); }
 
 	// These two variables define how the exception will be handled.
 	dwarf_eh_action action = {0};
@@ -941,15 +1043,14 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 			// and this is not a foreign exception.
 			if (ex)
 			{
-				ex->handlerSwitchValue = selector;
-				ex->actionRecord = (const char*)action.action_record;
+				saveLandingPad(context, exceptionObject, ex, selector, action.landing_pad);
 				ex->languageSpecificData = (const char*)lsda_addr;
-				ex->catchTemp = action.landing_pad;
+				ex->actionRecord = (const char*)action.action_record;
 				// ex->adjustedPtr is set when finding the action record.
 			}
 			return _URC_HANDLER_FOUND;
 		}
-		return _URC_CONTINUE_UNWIND;
+		return continueUnwinding(exceptionObject, context);
 	}
 
 
@@ -962,11 +1063,12 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 		// cleanup
 		struct dwarf_eh_lsda lsda = parse_lsda(context, lsda_addr);
 		dwarf_eh_find_callsite(context, &lsda, &action);
-		if (0 == action.landing_pad) { return _URC_CONTINUE_UNWIND; }
+		if (0 == action.landing_pad) { return continueUnwinding(exceptionObject, context); }
 		handler_type found_handler = check_action_record(context, &lsda,
 				action.action_record, realEx, &selector, ex->adjustedPtr);
 		// Ignore handlers this time.
-		if (found_handler != handler_cleanup) { return _URC_CONTINUE_UNWIND; }
+		if (found_handler != handler_cleanup) { return continueUnwinding(exceptionObject, context); }
+		pushCleanupException(exceptionObject, ex);
 	}
 	else if (foreignException)
 	{
@@ -983,9 +1085,8 @@ extern "C" _Unwind_Reason_Code  __gxx_personality_v0(int version,
 	else
 	{
 		// Restore the saved info if we saved some last time.
-		action.landing_pad = (dw_eh_ptr_t)ex->catchTemp;
+		loadLandingPad(context, exceptionObject, ex, &selector, &action.landing_pad);
 		ex->catchTemp = 0;
-		selector = (unsigned long)ex->handlerSwitchValue;
 		ex->handlerSwitchValue = 0;
 	}
 
@@ -1062,6 +1163,8 @@ extern "C" void *__cxa_begin_catch(void *e)
 	// __cxa_exception.  The throw object is after this
 	return ((char*)exceptionObject + sizeof(_Unwind_Exception));
 }
+
+
 
 /**
  * ABI function called when exiting a catch block.  This will free the current
@@ -1281,3 +1384,38 @@ namespace std
 		return terminateHandler;
 	}
 }
+#ifdef __arm__
+extern "C" _Unwind_Exception *__cxa_get_cleanup(void)
+{
+	__cxa_thread_info *info = thread_info_fast();
+	_Unwind_Exception *exceptionObject = info->currentCleanup;
+	if (isCXXException(exceptionObject->exception_class))
+	{
+		__cxa_exception *ex =  exceptionFromPointer(exceptionObject);
+		ex->cleanupCount--;
+		if (ex->cleanupCount == 0)
+		{
+			info->currentCleanup = ex->nextCleanup;
+			ex->nextCleanup = 0;
+		}
+	}
+	else
+	{
+		info->currentCleanup = 0;
+	}
+	return exceptionObject;
+}
+
+asm (
+".pushsection .text.__cxa_end_cleanup    \n"
+".global __cxa_end_cleanup               \n"
+".type __cxa_end_cleanup, \"function\"   \n"
+"__cxa_end_cleanup:                      \n"
+"	push {r1, r2, r3, r4}                \n"
+"	bl __cxa_get_cleanup                 \n"
+"	push {r1, r2, r3, r4}                \n"
+"	b _Unwind_Resume                     \n"
+"	bl abort                             \n"
+".popsection                             \n"
+);
+#endif
