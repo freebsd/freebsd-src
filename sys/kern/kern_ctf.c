@@ -90,7 +90,7 @@ link_elf_ctf_get(linker_file_t lf, linker_ctf_t *lc)
 	 * ctfcnt to -1. See below.
 	 */
 	if (ef->ctfcnt < 0)
-		return (0);
+		return (EFTYPE);
 
 	/* Now check if we've already loaded the CTF data.. */
 	if (ef->ctfcnt > 0) {
