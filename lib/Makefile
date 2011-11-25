@@ -50,6 +50,12 @@ SUBDIR_ORDERED=	${_csu} \
 	libutil \
 	${_libypclnt}
 
+.if ${MK_LIBCPLUSPLUS} != "no"
+SUBDIR_ORDERED+=libcxxrt\
+	libc++
+.endif
+
+
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
 	libarchive \
