@@ -246,6 +246,7 @@ static int	iwn_send_sensitivity(struct iwn_softc *);
 static int	iwn_set_pslevel(struct iwn_softc *, int, int, int);
 static int	iwn_send_btcoex(struct iwn_softc *);
 static int	iwn_send_advanced_btcoex(struct iwn_softc *);
+static int	iwn5000_runtime_calib(struct iwn_softc *);
 static int	iwn_config(struct iwn_softc *);
 static uint8_t	*ieee80211_add_ssid(uint8_t *, const uint8_t *, u_int);
 static int	iwn_scan(struct iwn_softc *);
@@ -2505,7 +2506,8 @@ iwn5000_rx_calib_results(struct iwn_softc *sc, struct iwn_rx_desc *desc,
 	case IWN5000_PHY_CALIB_DC:
 		if ((sc->sc_flags & IWN_FLAG_INTERNAL_PA) == 0 &&
 		    (sc->hw_type == IWN_HW_REV_TYPE_5150 ||
-		     sc->hw_type >= IWN_HW_REV_TYPE_6000))
+		     sc->hw_type >= IWN_HW_REV_TYPE_6000) &&
+		     sc->hw_type != IWN_HW_REV_TYPE_6050)
 			idx = 0;
 		break;
 	case IWN5000_PHY_CALIB_LO:
@@ -4996,6 +4998,19 @@ iwn_send_advanced_btcoex(struct iwn_softc *sc)
 }
 
 static int
+iwn5000_runtime_calib(struct iwn_softc *sc)
+{
+	struct iwn5000_calib_config cmd;
+
+	memset(&cmd, 0, sizeof cmd);
+	cmd.ucode.once.enable = 0xffffffff;
+	cmd.ucode.once.start = IWN5000_CALIB_DC;
+	DPRINTF(sc, IWN_DEBUG_CALIBRATE,
+	    "%s: configuring runtime calibration\n", __func__);
+	return iwn_cmd(sc, IWN5000_CMD_CALIB_CONFIG, &cmd, sizeof(cmd), 0);
+}
+
+static int
 iwn_config(struct iwn_softc *sc)
 {
 	struct iwn_ops *ops = &sc->ops;
@@ -5011,6 +5026,17 @@ iwn_config(struct iwn_softc *sc)
 		if (error != 0) {
 			device_printf(sc->sc_dev,
 			    "%s: could not set temperature offset\n", __func__);
+			return error;
+		}
+	}
+
+	if (sc->hw_type == IWN_HW_REV_TYPE_6050) {
+		/* Configure runtime DC calibration. */
+		error = iwn5000_runtime_calib(sc);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "%s: could not configure runtime calibration\n",
+			    __func__);
 			return error;
 		}
 	}
