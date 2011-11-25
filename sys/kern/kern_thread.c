@@ -518,6 +518,8 @@ calc_remaining(struct proc *p, int mode)
 {
 	int remaining;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	if (mode == SINGLE_EXIT)
 		remaining = p->p_numthreads;
 	else if (mode == SINGLE_BOUNDARY)
@@ -767,8 +769,11 @@ thread_suspend_check(int return_instead)
 			td->td_flags &= ~TDF_BOUNDARY;
 		thread_unlock(td);
 		PROC_LOCK(p);
-		if (return_instead == 0)
+		if (return_instead == 0) {
+			PROC_SLOCK(p);
 			p->p_boundary_count--;
+			PROC_SUNLOCK(p);
+		}
 	}
 	return (0);
 }
