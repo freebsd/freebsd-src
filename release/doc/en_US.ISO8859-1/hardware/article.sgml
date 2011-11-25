@@ -750,8 +750,6 @@
 
       &hwlist.aic;
 
-      &hwlist.amd;
-
       &hwlist.amr;
 
       &hwlist.arcmsr;
