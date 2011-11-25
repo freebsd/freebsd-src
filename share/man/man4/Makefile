@@ -32,7 +32,6 @@ MAN=	aac.4 \
 	ale.4 \
 	alpm.4 \
 	altq.4 \
-	amd.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \

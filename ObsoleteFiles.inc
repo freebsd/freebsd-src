@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20111125: amd(4) removed
+OLD_FILES+=usr/share/man/man4/amd.4.gz
 # 20111125: libodialog removed
 OLD_FILES+=usr/lib/libodialog.a
 OLD_FILES+=usr/lib/libodialog.so
