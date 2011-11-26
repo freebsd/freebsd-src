@@ -493,16 +493,12 @@ static device_method_t bge_methods[] = {
 	DEVMETHOD(device_suspend,	bge_suspend),
 	DEVMETHOD(device_resume,	bge_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bge_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bge_driver = {

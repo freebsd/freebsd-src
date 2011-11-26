@@ -424,7 +424,7 @@ device_t	device_add_child_ordered(device_t dev, u_int order,
 					 const char *name, int unit);
 void	device_busy(device_t dev);
 int	device_delete_child(device_t dev, device_t child);
-int	device_delete_all_children(device_t dev);
+int	device_delete_children(device_t dev);
 int	device_attach(device_t dev);
 int	device_detach(device_t dev);
 void	device_disable(device_t dev);
@@ -571,9 +571,10 @@ extern int bus_current_pass;
 void	bus_set_pass(int pass);
 
 /**
- * Shorthand for constructing method tables.
+ * Shorthands for constructing method tables.
  */
 #define	DEVMETHOD	KOBJMETHOD
+#define	DEVMETHOD_END	KOBJMETHOD_END
 
 /*
  * Some common device interfaces.

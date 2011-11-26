@@ -38,6 +38,19 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20111125: amd(4) removed
+OLD_FILES+=usr/share/man/man4/amd.4.gz
+# 20111125: libodialog removed
+OLD_FILES+=usr/lib/libodialog.a
+OLD_FILES+=usr/lib/libodialog.so
+OLD_LIBS+=usr/lib/libodialog.so.7
+OLD_FILES+=usr/lib/libodialog_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libodialog.a
+OLD_FILES+=usr/lib32/libodialog.so
+OLD_LIBS+=usr/lib32/libodialog.so.7
+OLD_FILES+=usr/lib32/libodialog_p.a
+.endif
 # 20110930: sysinstall removed
 OLD_FILES+=usr/sbin/sysinstall
 OLD_FILES+=usr/share/man/man8/sysinstall.8.gz

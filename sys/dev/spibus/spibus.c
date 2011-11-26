@@ -173,7 +173,6 @@ static device_method_t spibus_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	spibus_add_child),
 	DEVMETHOD(bus_print_child,	spibus_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_probe_nomatch,	spibus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	spibus_read_ivar),
 	DEVMETHOD(bus_child_pnpinfo_str, spibus_child_pnpinfo_str),
@@ -183,7 +182,7 @@ static device_method_t spibus_methods[] = {
 	/* spibus interface */
 	DEVMETHOD(spibus_transfer,	spibus_transfer_impl),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t spibus_driver = {

@@ -559,6 +559,9 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_PROC_VMMAP		32	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
 #define	KERN_PROC_GROUPS	34	/* process groups */
+#define	KERN_PROC_ENV		35	/* get environment */
+#define	KERN_PROC_AUXV		36	/* get ELF auxiliary vector */
+#define	KERN_PROC_RLIMIT	37	/* process resource limits */
 
 /*
  * KERN_IPC identifiers

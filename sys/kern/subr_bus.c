@@ -1862,7 +1862,7 @@ device_delete_child(device_t dev, device_t child)
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
 	/* remove children first */
-	while ( (grandchild = TAILQ_FIRST(&child->children)) ) {
+	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);
 		if (error)
 			return (error);
@@ -1894,7 +1894,7 @@ device_delete_child(device_t dev, device_t child)
  * @retval non-zero	a device would not detach
  */
 int
-device_delete_all_children(device_t dev)
+device_delete_children(device_t dev)
 {
 	device_t child;
 	int error;
@@ -1903,7 +1903,7 @@ device_delete_all_children(device_t dev)
 
 	error = 0;
 
-	while ( (child = TAILQ_FIRST(&dev->children)) ) {
+	while ((child = TAILQ_FIRST(&dev->children)) != NULL) {
 		error = device_delete_child(dev, child);
 		if (error) {
 			PDEBUG(("Failed deleting %s", DEVICENAME(child)));

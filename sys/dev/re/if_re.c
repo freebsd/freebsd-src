@@ -294,6 +294,7 @@ static void re_set_rxmode		(struct rl_softc *);
 static void re_reset		(struct rl_softc *);
 static void re_setwol		(struct rl_softc *);
 static void re_clrwol		(struct rl_softc *);
+static void re_set_linkspeed	(struct rl_softc *);
 
 #ifdef RE_DIAG
 static int re_diag		(struct rl_softc *);
@@ -313,16 +314,12 @@ static device_method_t re_methods[] = {
 	DEVMETHOD(device_resume,	re_resume),
 	DEVMETHOD(device_shutdown,	re_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	re_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	re_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	re_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t re_driver = {
@@ -1405,12 +1402,17 @@ re_attach(device_t dev)
 		    RL_FLAG_AUTOPAD | RL_FLAG_MACSLEEP;
 		break;
 	case RL_HWREV_8401E:
-	case RL_HWREV_8402:
 	case RL_HWREV_8105E:
 	case RL_HWREV_8105E_SPIN1:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
 		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD;
+		break;
+	case RL_HWREV_8402:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_FASTETHER | RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ;
 		break;
 	case RL_HWREV_8168B_SPIN1:
 	case RL_HWREV_8168B_SPIN2:
@@ -1428,22 +1430,28 @@ re_attach(device_t dev)
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
 	case RL_HWREV_8168D:
-	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168DP:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
+		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_AUTOPAD |
+		    RL_FLAG_JUMBOV2 | RL_FLAG_WAIT_TXPOLL | RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
 		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
-		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168E_VL:
 	case RL_HWREV_8168F:
 	case RL_HWREV_8411:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
-		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2;
+		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_CMDSTOP_WAIT_TXQ | RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8169_8110SB:
 	case RL_HWREV_8169_8110SBL:
@@ -1594,6 +1602,7 @@ re_attach(device_t dev)
 	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &reg) == 0)
 		ifp->if_capabilities |= IFCAP_WOL;
 	ifp->if_capenable = ifp->if_capabilities;
+	ifp->if_capenable &= ~(IFCAP_WOL_UCAST | IFCAP_WOL_MCAST);
 	/*
 	 * Don't enable TSO by default.  It is known to generate
 	 * corrupted TCP segments(bad TCP options) under certain
@@ -3197,14 +3206,14 @@ re_init_locked(struct rl_softc *sc)
 	if (sc->rl_testmode)
 		return;
 
-	mii_mediachg(mii);
-
 	CSR_WRITE_1(sc, RL_CFG1, CSR_READ_1(sc, RL_CFG1) | RL_CFG1_DRVLOAD);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->rl_flags &= ~RL_FLAG_LINK;
+	mii_mediachg(mii);
+
 	sc->rl_watchdog_timer = 0;
 	callout_reset(&sc->rl_stat_callout, hz, re_tick, sc);
 }
@@ -3459,10 +3468,42 @@ re_stop(struct rl_softc *sc)
 	callout_stop(&sc->rl_stat_callout);
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0)
+	/*
+	 * Disable accepting frames to put RX MAC into idle state.
+	 * Otherwise it's possible to get frames while stop command
+	 * execution is in progress and controller can DMA the frame
+	 * to already freed RX buffer during that period.
+	 */
+	CSR_WRITE_4(sc, RL_RXCFG, CSR_READ_4(sc, RL_RXCFG) &
+	    ~(RL_RXCFG_RX_ALLPHYS | RL_RXCFG_RX_INDIV | RL_RXCFG_RX_MULTI |
+	    RL_RXCFG_RX_BROAD));
+
+	if ((sc->rl_flags & RL_FLAG_WAIT_TXPOLL) != 0) {
+		for (i = RL_TIMEOUT; i > 0; i--) {
+			if ((CSR_READ_1(sc, sc->rl_txstart) &
+			    RL_TXSTART_START) == 0)
+				break;
+			DELAY(20);
+		}
+		if (i == 0)
+			device_printf(sc->rl_dev,
+			    "stopping TX poll timed out!\n");
+		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
+	} else if ((sc->rl_flags & RL_FLAG_CMDSTOP) != 0) {
 		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_STOPREQ | RL_CMD_TX_ENB |
 		    RL_CMD_RX_ENB);
-	else
+		if ((sc->rl_flags & RL_FLAG_CMDSTOP_WAIT_TXQ) != 0) {
+			for (i = RL_TIMEOUT; i > 0; i--) {
+				if ((CSR_READ_4(sc, RL_TXCFG) &
+				    RL_TXCFG_QUEUE_EMPTY) != 0)
+					break;
+				DELAY(100);
+			}
+			if (i == 0)
+				device_printf(sc->rl_dev,
+				   "stopping TXQ timed out!\n");
+		}
+	} else
 		CSR_WRITE_1(sc, RL_COMMAND, 0x00);
 	DELAY(1000);
 	CSR_WRITE_2(sc, RL_IMR, 0x0000);
@@ -3588,6 +3629,74 @@ re_shutdown(device_t dev)
 }
 
 static void
+re_set_linkspeed(struct rl_softc *sc)
+{
+	struct mii_softc *miisc;
+	struct mii_data *mii;
+	int aneg, i, phyno;
+
+	RL_LOCK_ASSERT(sc);
+
+	mii = device_get_softc(sc->rl_miibus);
+	mii_pollstat(mii);
+	aneg = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch IFM_SUBTYPE(mii->mii_media_active) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			return;
+		case IFM_1000_T:
+			aneg++;
+			break;
+		default:
+			break;
+		}
+	}
+	miisc = LIST_FIRST(&mii->mii_phys);
+	phyno = miisc->mii_phy;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	re_miibus_writereg(sc->rl_dev, phyno, MII_100T2CR, 0);
+	re_miibus_writereg(sc->rl_dev, phyno,
+	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
+	re_miibus_writereg(sc->rl_dev, phyno,
+	    MII_BMCR, BMCR_AUTOEN | BMCR_STARTNEG);
+	DELAY(1000);
+	if (aneg != 0) {
+		/*
+		 * Poll link state until re(4) get a 10/100Mbps link.
+		 */
+		for (i = 0; i < MII_ANEGTICKS_GIGE; i++) {
+			mii_pollstat(mii);
+			if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID))
+			    == (IFM_ACTIVE | IFM_AVALID)) {
+				switch (IFM_SUBTYPE(mii->mii_media_active)) {
+				case IFM_10_T:
+				case IFM_100_TX:
+					return;
+				default:
+					break;
+				}
+			}
+			RL_UNLOCK(sc);
+			pause("relnk", hz);
+			RL_LOCK(sc);
+		}
+		if (i == MII_ANEGTICKS_GIGE)
+			device_printf(sc->rl_dev,
+			    "establishing a link failed, WOL may not work!");
+	}
+	/*
+	 * No link, force MAC to have 100Mbps, full-duplex link.
+	 * MAC does not require reprogramming on resolved speed/duplex,
+	 * so this is just for completeness.
+	 */
+	mii->mii_media_status = IFM_AVALID | IFM_ACTIVE;
+	mii->mii_media_active = IFM_ETHER | IFM_100_TX | IFM_FDX;
+}
+
+static void
 re_setwol(struct rl_softc *sc)
 {
 	struct ifnet		*ifp;
@@ -3607,9 +3716,13 @@ re_setwol(struct rl_softc *sc)
 			CSR_WRITE_1(sc, RL_GPIO,
 			    CSR_READ_1(sc, RL_GPIO) & ~0x01);
 	}
-	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
-	    (sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
-		CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
+	if ((ifp->if_capenable & IFCAP_WOL) != 0) {
+		re_set_rxmode(sc);
+		if ((sc->rl_flags & RL_FLAG_WOL_MANLINK) != 0)
+			re_set_linkspeed(sc);
+		if ((sc->rl_flags & RL_FLAG_WOLRXENB) != 0)
+			CSR_WRITE_1(sc, RL_COMMAND, RL_CMD_RX_ENB);
+	}
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
@@ -3626,12 +3739,9 @@ re_setwol(struct rl_softc *sc)
 		v |= RL_CFG3_WOL_MAGIC;
 	CSR_WRITE_1(sc, RL_CFG3, v);
 
-	/* Config register write done. */
-	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
-
 	v = CSR_READ_1(sc, RL_CFG5);
-	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
-	v &= ~RL_CFG5_WOL_LANWAKE;
+	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST |
+	    RL_CFG5_WOL_LANWAKE);
 	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
 		v |= RL_CFG5_WOL_UCAST;
 	if ((ifp->if_capenable & IFCAP_WOL_MCAST) != 0)
@@ -3639,6 +3749,9 @@ re_setwol(struct rl_softc *sc)
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG5_WOL_LANWAKE;
 	CSR_WRITE_1(sc, RL_CFG5, v);
+
+	/* Config register write done. */
+	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
 	    (sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)

@@ -9,7 +9,7 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
 # Correct for gcc miscompilation when compiling on PPC with -O2
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+= -O1
 .endif
 

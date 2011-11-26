@@ -1218,6 +1218,9 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+.if ${MK_LIBCPLUSPLUS} != "no"
+_startup_libs+=	lib/libcxxrt
+.endif
 
 gnu/lib/libgcc__L: lib/libc__L
 
@@ -1636,4 +1639,7 @@ _xi-links:
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
+.else
+xdev xdev-buil xdev-install:
+	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif

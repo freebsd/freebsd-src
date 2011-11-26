@@ -1864,12 +1864,10 @@ ath_txrx_stop(struct ath_softc *sc)
 	int i = MAX_TXRX_ITERATIONS;
 
 	ATH_UNLOCK_ASSERT(sc);
-
 	/* Stop any new TX/RX from occuring */
 	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
-
 	/*
 	 * Sleep until all the pending operations have completed.
 	 *
@@ -1878,9 +1876,9 @@ ath_txrx_stop(struct ath_softc *sc)
 	 */
 	while (sc->sc_rxproc_cnt || sc->sc_txproc_cnt ||
 	    sc->sc_txstart_cnt || sc->sc_intr_cnt) {
-	    	if (i <= 0)
+		if (i <= 0)
 			break;
-		msleep(sc, &sc->sc_mtx, 0, "ath_txrx_stop", 1);
+		msleep(sc, &sc->sc_pcu_mtx, 0, "ath_txrx_stop", 1);
 		i--;
 	}
 	ATH_PCU_UNLOCK(sc);
@@ -5372,6 +5370,7 @@ ath_calibrate(void *arg)
 			sc->sc_doresetcal = AH_TRUE;
 			ATH_UNLOCK(sc);
 			ath_reset(ifp, ATH_RESET_NOLOSS);
+			ATH_LOCK(sc);
 			return;
 		}
 		/*

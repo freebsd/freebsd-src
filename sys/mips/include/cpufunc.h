@@ -272,6 +272,9 @@ MIPS_RW32_COP0(status, MIPS_COP_0_STATUS);
 MIPS_RW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
 #endif
+#ifdef CPU_NLM
+MIPS_RW32_COP0_SEL(pagegrain, MIPS_COP_0_TLB_PG_MASK, 1);
+#endif
 #if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
 MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);
 MIPS_RW32_COP0(entrylo1, MIPS_COP_0_TLB_LO1);

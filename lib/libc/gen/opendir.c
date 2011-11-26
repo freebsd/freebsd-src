@@ -75,6 +75,8 @@ __opendir2(const char *name, int flags)
 {
 	int fd;
 	struct stat statb;
+	DIR *dir;
+	int saved_errno;
 
 	/*
 	 * stat() before _open() because opening of special files may be
@@ -89,7 +91,13 @@ __opendir2(const char *name, int flags)
 	if ((fd = _open(name, O_RDONLY | O_NONBLOCK | O_DIRECTORY)) == -1)
 		return (NULL);
 
-	return __opendir_common(fd, name, flags);
+	dir = __opendir_common(fd, name, flags);
+	if (dir == NULL) {
+		saved_errno = errno;
+		_close(fd);
+		errno = saved_errno;
+	}
+	return (dir);
 }
 
 static int
@@ -110,6 +118,7 @@ __opendir_common(int fd, const char *name, int flags)
 	int incr;
 	int saved_errno;
 	int unionstack;
+	int fd2;
 	struct stat statb;
 
 	dirp = NULL;
@@ -199,14 +208,15 @@ __opendir_common(int fd, const char *name, int flags)
 		 * which has also been read -- see fts.c.
 		 */
 		if (flags & DTF_REWIND) {
-			(void)_close(fd);
-			if ((fd = _open(name, O_RDONLY | O_DIRECTORY)) == -1) {
+			if ((fd2 = _open(name, O_RDONLY | O_DIRECTORY)) == -1) {
 				saved_errno = errno;
 				free(buf);
 				free(dirp);
 				errno = saved_errno;
 				return (NULL);
 			}
+			(void)_dup2(fd2, fd);
+			_close(fd2);
 		}
 
 		/*
@@ -309,7 +319,6 @@ __opendir_common(int fd, const char *name, int flags)
 fail:
 	saved_errno = errno;
 	free(dirp);
-	(void)_close(fd);
 	errno = saved_errno;
 	return (NULL);
 }

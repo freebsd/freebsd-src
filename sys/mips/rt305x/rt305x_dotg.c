@@ -176,7 +176,7 @@ dotg_obio_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (sc->sc_dci.sc_irq_res && sc->sc_dci.sc_intr_hdl) {
 		/*
@@ -230,10 +230,7 @@ static device_method_t dotg_obio_methods[] = {
 	DEVMETHOD(device_detach, dotg_obio_detach),
 	DEVMETHOD(device_shutdown, dotg_obio_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t dotg_obio_driver = {

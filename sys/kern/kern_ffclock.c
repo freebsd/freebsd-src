@@ -30,14 +30,31 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ffclock.h"
+
 #include <sys/param.h>
+#include <sys/bus.h>
+#include <sys/kernel.h>
+#include <sys/lock.h>
+#include <sys/module.h>
+#include <sys/mutex.h>
+#include <sys/priv.h>
+#include <sys/proc.h>
 #include <sys/sbuf.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/timeffc.h>
 
+#ifdef FFCLOCK
+
+FEATURE(ffclock, "Feed-forward clock support");
+
 extern struct ffclock_estimate ffclock_estimate;
 extern struct bintime ffclock_boottime;
+extern int8_t ffclock_updated;
+extern struct mtx ffclock_mtx;
 
 /*
  * Feed-forward clock absolute time. This should be the preferred way to read
@@ -208,6 +225,12 @@ sysctl_kern_ffclock_active(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ffclock, OID_AUTO, active, CTLTYPE_STRING | CTLFLAG_RW,
     0, 0, sysctl_kern_ffclock_active, "A", "Kernel clock selected");
 
+int sysctl_kern_ffclock_ffcounter_bypass = 0;
+
+SYSCTL_INT(_kern_ffclock, OID_AUTO, ffcounter_bypass, CTLFLAG_RW,
+    &sysctl_kern_ffclock_ffcounter_bypass, 0,
+    "Use reliable hardware timecounter as the Feed-Forward Counter");
+
 /*
  * High level functions to access the Feed-Forward Clock.
  */
@@ -341,3 +364,112 @@ ffclock_microdifftime(ffcounter ffdelta, struct timeval *tvp)
 	ffclock_difftime(ffdelta, &bt, NULL);
 	bintime2timeval(&bt, tvp);
 }
+
+/*
+ * System call allowing userland applications to retrieve the current value of
+ * the Feed-Forward Clock counter.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct ffclock_getcounter_args {
+	ffcounter *ffcount;
+};
+#endif
+/* ARGSUSED */
+int
+sys_ffclock_getcounter(struct thread *td, struct ffclock_getcounter_args *uap)
+{
+	ffcounter ffcount;
+	int error;
+
+	ffcount = 0;
+	ffclock_read_counter(&ffcount);
+	if (ffcount == 0)
+		return (EAGAIN);
+	error = copyout(&ffcount, uap->ffcount, sizeof(ffcounter));
+
+	return (error);
+}
+
+/*
+ * System call allowing the synchronisation daemon to push new feed-foward clock
+ * estimates to the kernel. Acquire ffclock_mtx to prevent concurrent updates
+ * and ensure data consistency.
+ * NOTE: ffclock_updated signals the fftimehands that new estimates are
+ * available. The updated estimates are picked up by the fftimehands on next
+ * tick, which could take as long as 1/hz seconds (if ticks are not missed).
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct ffclock_setestimate_args {
+	struct ffclock_estimate *cest;
+};
+#endif
+/* ARGSUSED */
+int
+sys_ffclock_setestimate(struct thread *td, struct ffclock_setestimate_args *uap)
+{
+	struct ffclock_estimate cest;
+	int error;
+
+	/* Reuse of PRIV_CLOCK_SETTIME. */
+	if ((error = priv_check(td, PRIV_CLOCK_SETTIME)) != 0)
+		return (error);
+
+	if ((error = copyin(uap->cest, &cest, sizeof(struct ffclock_estimate)))
+	    != 0)
+		return (error);
+
+	mtx_lock(&ffclock_mtx);
+	memcpy(&ffclock_estimate, &cest, sizeof(struct ffclock_estimate));
+	ffclock_updated++;
+	mtx_unlock(&ffclock_mtx);
+	return (error);
+}
+
+/*
+ * System call allowing userland applications to retrieve the clock estimates
+ * stored within the kernel. It is useful to kickstart the synchronisation
+ * daemon with the kernel's knowledge of hardware timecounter.
+ */
+#ifndef _SYS_SYSPROTO_H_
+struct ffclock_getestimate_args {
+	struct ffclock_estimate *cest;
+};
+#endif
+/* ARGSUSED */
+int
+sys_ffclock_getestimate(struct thread *td, struct ffclock_getestimate_args *uap)
+{
+	struct ffclock_estimate cest;
+	int error;
+
+	mtx_lock(&ffclock_mtx);
+	memcpy(&cest, &ffclock_estimate, sizeof(struct ffclock_estimate));
+	mtx_unlock(&ffclock_mtx);
+	error = copyout(&cest, uap->cest, sizeof(struct ffclock_estimate));
+	return (error);
+}
+
+#else /* !FFCLOCK */
+
+int
+sys_ffclock_getcounter(struct thread *td, struct ffclock_getcounter_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_ffclock_setestimate(struct thread *td, struct ffclock_setestimate_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+int
+sys_ffclock_getestimate(struct thread *td, struct ffclock_getestimate_args *uap)
+{
+
+	return (ENOSYS);
+}
+
+#endif /* FFCLOCK */

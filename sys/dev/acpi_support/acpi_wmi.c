@@ -175,7 +175,6 @@ static device_method_t acpi_wmi_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* acpi_wmi interface */
 	DEVMETHOD(acpi_wmi_provides_guid_string,
@@ -189,7 +188,7 @@ static device_method_t acpi_wmi_methods[] = {
 	DEVMETHOD(acpi_wmi_get_block, acpi_wmi_get_block_method),
 	DEVMETHOD(acpi_wmi_set_block, acpi_wmi_set_block_method),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_wmi_driver = {
@@ -265,7 +264,7 @@ acpi_wmi_attach(device_t dev)
 		    acpi_wmi_ec_handler);
 	} else {
 		sc->wmistat_dev_t = make_dev(&wmistat_cdevsw, 0, UID_ROOT,
-		    GID_WHEEL, 0644, "wmistat");
+		    GID_WHEEL, 0644, "wmistat%d", device_get_unit(dev));
 		sc->wmistat_dev_t->si_drv1 = sc;
 		sc->wmistat_open_pid = 0;
 		sc->wmistat_bufptr = -1;

@@ -31,7 +31,6 @@
  *
  */
 
-#include "sade.h"
 #include <ctype.h>
 #include <unistd.h>
 #include <sys/stat.h>
@@ -47,6 +46,8 @@
 #include <sys/disklabel.h>
 #include <fs/msdosfs/msdosfsmount.h>
 
+#include "sade.h"
+
 /* Quick check to see if a file is readable */
 Boolean
 file_readable(char *fname)
@@ -56,46 +57,12 @@ file_readable(char *fname)
     return FALSE;
 }
 
-/* Quick check to see if a file is executable */
-Boolean
-file_executable(char *fname)
-{
-    if (!access(fname, X_OK))
-	return TRUE;
-    return FALSE;
-}
-
-/* Concatenate two strings into static storage */
-char *
-string_concat(char *one, char *two)
-{
-    static char tmp[FILENAME_MAX];
-
-    /* Yes, we're deliberately cavalier about not checking for overflow */
-    strcpy(tmp, one);
-    strcat(tmp, two);
-    return tmp;
-}
-
 /* sane strncpy() function */
 char *
 sstrncpy(char *dst, const char *src, int size)
 {
     dst[size] = '\0';
     return strncpy(dst, src, size);
-}
-
-/* Concatenate three strings into static storage */
-char *
-string_concat3(char *one, char *two, char *three)
-{
-    static char tmp[FILENAME_MAX];
-
-    /* Yes, we're deliberately cavalier about not checking for overflow */
-    strcpy(tmp, one);
-    strcat(tmp, two);
-    strcat(tmp, three);
-    return tmp;
 }
 
 /* Clip the whitespace off the end of a string */
@@ -118,29 +85,6 @@ string_skipwhite(char *str)
     return str;
 }
 
-/* copy optionally and allow second arg to be null */
-char *
-string_copy(char *s1, char *s2)
-{
-    if (!s1)
-	return NULL;
-    if (!s2)
-	s1[0] = '\0';
-    else
-	strcpy(s1, s2);
-    return s1;
-}
-
-/* convert an integer to a string, using a static buffer */
-char *
-itoa(int value)
-{
-    static char buf[13];
-
-    snprintf(buf, 12, "%d", value);
-    return buf;
-}
-
 Boolean
 directory_exists(const char *dirname)
 {
@@ -157,22 +101,6 @@ directory_exists(const char *dirname)
 
     closedir(tptr);
     return (TRUE);
-}
-
-char *
-pathBaseName(const char *path)
-{
-    char *pt;
-    char *ret = (char *)path;
-
-    pt = strrchr(path,(int)'/');
-
-    if (pt != 0)			/* if there is a slash */
-    {
-	ret = ++pt;			/* start the file after it */
-    }
-    
-    return(ret);
 }
 
 /* A free guaranteed to take NULL ptrs */
@@ -196,79 +124,6 @@ safe_malloc(size_t size)
 	msgFatal("Out of memory!");
     bzero(ptr, size);
     return ptr;
-}
-
-/* A realloc that checks errors */
-void *
-safe_realloc(void *orig, size_t size)
-{
-    void *ptr;
-
-    if (size <= 0)
-	msgFatal("Invalid realloc size of %ld!", (long)size);
-    ptr = reallocf(orig, size);
-    if (!ptr)
-	msgFatal("Out of memory!");
-    return ptr;
-}
-
-/* Create a path biased from the VAR_INSTALL_ROOT variable (if not /) */
-char *
-root_bias(char *path)
-{
-    static char tmp[FILENAME_MAX];
-    char *cp = variable_get(VAR_INSTALL_ROOT);
-
-    if (!strcmp(cp, "/"))
-	return path;
-    strcpy(tmp, variable_get(VAR_INSTALL_ROOT));
-    strcat(tmp, path);
-    return tmp;
-}
-
-/*
- * These next routines are kind of specialized just for building item lists
- * for dialog_menu().
- */
-
-/* Add an item to an item list */
-dialogMenuItem *
-item_add(dialogMenuItem *list, char *prompt, char *title,
-	 int (*checked)(dialogMenuItem *self),
-	 int (*fire)(dialogMenuItem *self),
-	 void (*selected)(dialogMenuItem *self, int is_selected),
-	 void *data, int *aux, int *curr, int *max)
-{
-    dialogMenuItem *d;
-
-    if (*curr == *max) {
-	*max += 20;
-	list = (dialogMenuItem *)safe_realloc(list, sizeof(dialogMenuItem) * *max);
-    }
-    d = &list[(*curr)++];
-    bzero(d, sizeof(*d));
-    d->prompt = prompt ? strdup(prompt) : NULL;
-    d->title = title ? strdup(title) : NULL;
-    d->checked = checked;
-    d->fire = fire;
-    d->selected = selected;
-    d->data = data;
-    d->aux = (long)aux;
-    return list;
-}
-
-/* Toss the items out */
-void
-items_free(dialogMenuItem *list, int *curr, int *max)
-{
-    int i;
-
-    for (i = 0; list[i].prompt; i++) {
-	safe_free(list[i].prompt);
-	safe_free(list[i].title);
-    }
-    safe_free(list);
-    *curr = *max = 0;
 }
 
 int
@@ -311,12 +166,6 @@ Mkdir(char *ipath)
 }
 
 int
-Mkdir_command(char *key, void *dir)
-{
-    return (Mkdir((char*)dir));
-}
-
-int
 Mount(char *mountp, void *dev)
 {
     struct ufs_args ufsargs;
@@ -353,126 +202,6 @@ Mount(char *mountp, void *dev)
 }
 
 WINDOW *
-openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height)
-{
-    WINDOW		*win;
-    static char		help[FILENAME_MAX];
-
-    /* We need a curses window */
-    win = newwin(LINES, COLS, 0, 0);
-    if (win) {
-	/* Say where our help comes from */
-	if (helpfile) {
-	    use_helpline("Press F1 for more information on this screen.");
-	    use_helpfile(systemHelpFile(helpfile, help));
-	}
-	/* Setup a nice screen for us to splat stuff onto */
-	draw_box(win, y, x, height, width, dialog_attr, border_attr);
-	wattrset(win, dialog_attr);
-	mvwaddstr(win, y, x + (COLS - strlen(title)) / 2, title);
-    }
-    return win;
-}
-
-ComposeObj *
-initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max)
-{
-    ComposeObj *obj = NULL, *first;
-    int n;
-
-    /* Loop over the layout list, create the objects, and add them
-       onto the chain of objects that dialog uses for traversal*/
-    
-    n = 0;
-    while (layout[n].help != NULL) {
-	int t = TYPE_OF_OBJ(layout[n].type);
-
-	switch (t) {
-	case STRINGOBJ:
-	    layout[n].obj = NewStringObj(win, layout[n].prompt, layout[n].var,
-					 layout[n].y + y, layout[n].x + x, layout[n].len, layout[n].maxlen);
-	    ((StringObj *)layout[n].obj)->attr_mask = ATTR_OF_OBJ(layout[n].type);
-	    break;
-	    
-	case BUTTONOBJ:
-	    layout[n].obj = NewButtonObj(win, layout[n].prompt, layout[n].var, layout[n].y + y, layout[n].x + x);
-	    break;
-	    
-	default:
-	    msgFatal("Don't support this object yet!");
-	}
-	AddObj(&obj, t, (void *) layout[n].obj);
-	n++;
-    }
-    *max = n - 1;
-    /* Find the first object in the list */
-    for (first = obj; first->prev; first = first->prev);
-    return first;
-}
-
-int
-layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj, int *n, int max, int *cbutton, int *cancel)
-{
-    char help_line[80];
-    int ret, i, len = strlen(layout[*n].help);
-
-    /* Display the help line at the bottom of the screen */
-    for (i = 0; i < 79; i++)
-	help_line[i] = (i < len) ? layout[*n].help[i] : ' ';
-    help_line[i] = '\0';
-    use_helpline(help_line);
-    display_helpline(win, LINES - 1, COLS - 1);
-    wrefresh(win);
-	    
-    /* Ask for libdialog to do its stuff */
-    ret = PollObj(obj);
-    /* Handle special case stuff that libdialog misses. Sigh */
-    switch (ret) {
-    case SEL_ESC:	/* Bail out */
-	*cancel = TRUE;
-	return FALSE;
-	      
-	/* This doesn't work for list dialogs. Oh well. Perhaps
-	   should special case the move from the OK button ``up''
-	   to make it go to the interface list, but then it gets
-	   awkward for the user to go back and correct screw up's
-	   in the per-interface section */
-    case KEY_DOWN:
-    case SEL_CR:
-    case SEL_TAB:
-	if (*n < max)
-	    ++*n;
-	else
-	    *n = 0;
-	break;
-	      
-	/* The user has pressed enter over a button object */
-    case SEL_BUTTON:
-	if (cbutton && *cbutton)
-	    *cancel = TRUE;
-	else
-	    *cancel = FALSE;
-	return FALSE;
-	
-    case KEY_UP:
-    case SEL_BACKTAB:
-	if (*n)
-	    --*n;
-	else
-	    *n = max;
-	break;
-	
-    case KEY_F(1):
-	display_helpfile();
-	
-	/* They tried some key combination we don't support - tootle them forcefully! */
-    default:
-	beep();
-    }
-    return TRUE;
-}
-
-WINDOW *
 savescr(void)
 {
     WINDOW *w;
@@ -489,3 +218,192 @@ restorescr(WINDOW *w)
     delwin(w);
 }
 
+static int
+xdialog_count_rows(const char *p)
+{
+	int rows = 0;
+
+	while ((p = strchr(p, '\n')) != NULL) {
+		p++;
+		if (*p == '\0')
+			break;
+		rows++;
+	}
+
+	return rows ? rows : 1;
+}
+
+int
+xdialog_menu(const char *title, const char *cprompt, int height, int width,
+	     int menu_height, int item_no, dialogMenuItem *ditems)
+{
+	int i, result, choice = 0;
+	DIALOG_LISTITEM *listitems;
+	DIALOG_VARS save_vars;
+
+	dlg_save_vars(&save_vars);
+
+	/* initialize list items */
+	listitems = dlg_calloc(DIALOG_LISTITEM, item_no + 1);
+	assert_ptr(listitems, "xdialog_menu");
+	for (i = 0; i < item_no; i++) {
+		listitems[i].name = ditems[i].prompt;
+		listitems[i].text = ditems[i].title;
+	}
+
+	/* calculate height */
+	if (height < 0)
+		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		int tag_x = 0;
+
+		for (i = 0; i < item_no; i++) {
+			int j, l;
+
+			l = strlen(listitems[i].name);
+			for (j = 0; j < item_no; j++) {
+				int k = strlen(listitems[j].text);
+				tag_x = MAX(tag_x, l + k + 2);
+			}
+		}
+		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(width, tag_x + 4) + 4;
+	}
+	width = MAX(width, 24);
+	if (width > COLS)
+		width = COLS;
+
+	/* show menu */
+	dialog_vars.default_item = listitems[choice].name;
+	result = dlg_menu(title, cprompt, height, width,
+	    menu_height, item_no, listitems, &choice, NULL);
+	switch (result) {
+	case DLG_EXIT_ESC:
+		result = -1;
+		break;
+	case DLG_EXIT_OK:
+		if (ditems[choice].fire != NULL) {
+			int status;
+			WINDOW *save;
+
+			save = savescr();
+			status = ditems[choice].fire(ditems + choice);
+			restorescr(save);
+		}
+		result = 0;
+		break;
+	case DLG_EXIT_CANCEL:
+	default:
+		result = 1;
+		break;
+	}
+
+	free(listitems);
+	dlg_restore_vars(&save_vars);
+	return result;
+}
+
+int
+xdialog_radiolist(const char *title, const char *cprompt, int height, int width,
+		  int menu_height, int item_no, dialogMenuItem *ditems)
+{
+	int i, result, choice = 0;
+	DIALOG_LISTITEM *listitems;
+	DIALOG_VARS save_vars;
+
+	dlg_save_vars(&save_vars);
+
+	/* initialize list items */
+	listitems = dlg_calloc(DIALOG_LISTITEM, item_no + 1);
+	assert_ptr(listitems, "xdialog_menu");
+	for (i = 0; i < item_no; i++) {
+		listitems[i].name = ditems[i].prompt;
+		listitems[i].text = ditems[i].title;
+		listitems[i].state = i == choice;
+	}
+
+	/* calculate height */
+	if (height < 0)
+		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		int check_x = 0;
+
+		for (i = 0; i < item_no; i++) {
+			int j, l;
+
+			l = strlen(listitems[i].name);
+			for (j = 0; j < item_no; j++) {
+				int k = strlen(listitems[j].text);
+				check_x = MAX(check_x, l + k + 6);
+			}
+		}
+		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(width, check_x + 4) + 4;
+	}
+	width = MAX(width, 24);
+	if (width > COLS)
+		width = COLS;
+
+	/* show menu */
+	dialog_vars.default_item = listitems[choice].name;
+	result = dlg_checklist(title, cprompt, height, width,
+	    menu_height, item_no, listitems, NULL, FLAG_RADIO, &choice);
+	switch (result) {
+	case DLG_EXIT_ESC:
+		result = -1;
+		break;
+	case DLG_EXIT_OK:
+		if (ditems[choice].fire != NULL) {
+			int status;
+			WINDOW *save;
+
+			save = savescr();
+			status = ditems[choice].fire(ditems + choice);
+			restorescr(save);
+		}
+		result = 0;
+		break;
+	case DLG_EXIT_CANCEL:
+	default:
+		result = 1;
+		break;
+	}
+
+	/* save result */
+	if (result == 0)
+		dlg_add_result(listitems[choice].name);
+	free(listitems);
+	dlg_restore_vars(&save_vars);
+	return result;
+}
+
+int
+xdialog_msgbox(const char *title, const char *cprompt,
+	       int height, int width, int pauseopt)
+{
+	/* calculate height */
+	if (height < 0)
+		height = 2 + xdialog_count_rows(cprompt) + 2 + !!pauseopt;
+	if (height > LINES)
+		height = LINES;
+
+	/* calculate width */
+	if (width < 0) {
+		width = title != NULL ? dlg_count_columns(title) : 0;
+		width = MAX(width, dlg_count_columns(cprompt)) + 4;
+	}
+	if (pauseopt)
+		width = MAX(width, 10);
+	if (width > COLS)
+		width = COLS;
+
+	return dialog_msgbox(title, cprompt, height, width, pauseopt);
+}

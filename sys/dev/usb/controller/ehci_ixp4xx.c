@@ -257,7 +257,7 @@ ehci_ixp_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
@@ -339,10 +339,7 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_resume, ehci_ixp_resume),
 	DEVMETHOD(device_shutdown, ehci_ixp_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {

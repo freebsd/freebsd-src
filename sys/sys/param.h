@@ -60,6 +60,22 @@
 #undef __FreeBSD_version
 #define __FreeBSD_version 1000001	/* Master, propagated to newvers */
 
+/*
+ * __FreeBSD_kernel__ indicates that this system uses the kernel of FreeBSD,
+ * which by definition is always true on FreeBSD. This macro is also defined
+ * on other systems that use the kernel of FreeBSD, such as GNU/kFreeBSD.
+ *
+ * It is tempting to use this macro in userland code when we want to enable
+ * kernel-specific routines, and in fact it's fine to do this in code that
+ * is part of FreeBSD itself.  However, be aware that as presence of this
+ * macro is still not widespread (e.g. older FreeBSD versions, 3rd party
+ * compilers, etc), it is STRONGLY DISCOURAGED to check for this macro in
+ * external applications without also checking for __FreeBSD__ as an
+ * alternative.
+ */
+#undef __FreeBSD_kernel__
+#define __FreeBSD_kernel__
+
 #ifdef _KERNEL
 #define	P_OSREL_SIGWAIT		700000
 #define	P_OSREL_SIGSEGV		700004

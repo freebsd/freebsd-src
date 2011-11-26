@@ -25,9 +25,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- *	$FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * AMCC'S 3ware driver for 9000 series storage controllers.
@@ -195,9 +196,7 @@ static device_method_t	twa_methods[] = {
 	DEVMETHOD(device_detach,	twa_detach),
 	DEVMETHOD(device_shutdown,	twa_shutdown),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t	twa_pci_driver = {
