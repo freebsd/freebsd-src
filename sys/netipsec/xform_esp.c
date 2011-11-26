@@ -76,8 +76,6 @@
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
-static int esp_max_ivlen;	/* max iv length over all algorithms */
-
 VNET_DEFINE(int, esp_enable) = 1;
 VNET_DEFINE(struct espstat, espstat);
 
@@ -146,7 +144,7 @@ esp_hdrsiz(struct secasvar *sav)
 		 * + sizeof (next header field)
 		 * + max icv supported.
 		 */
-		size = sizeof (struct newesp) + esp_max_ivlen + 9 + 16;
+		size = sizeof (struct newesp) + EALG_MAX_BLOCK_LEN + 9 + 16;
 	}
 	return size;
 }
@@ -1020,20 +1018,7 @@ static struct xformsw esp_xformsw = {
 static void
 esp_attach(void)
 {
-#define	MAXIV(xform)					\
-	if (xform.blocksize > esp_max_ivlen)		\
-		esp_max_ivlen = xform.blocksize		\
-
-	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
-	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
-	MAXIV(enc_xform_rijndael128);	/* SADB_X_EALG_AES */
-	MAXIV(enc_xform_blf);		/* SADB_X_EALG_BLOWFISHCBC */
-	MAXIV(enc_xform_cast5);		/* SADB_X_EALG_CAST128CBC */
-	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
-	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
-	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
 
 	xform_register(&esp_xformsw);
-#undef MAXIV
 }
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);
