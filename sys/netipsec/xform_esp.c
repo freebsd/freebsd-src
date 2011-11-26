@@ -918,7 +918,7 @@ esp_output_cb(struct cryptop *crp)
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int err, error;
+	int error;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
@@ -1000,10 +1000,10 @@ esp_output_cb(struct cryptop *crp)
 #endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
-	err = ipsec_process_done(m, isr);
+	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return err;
+	return error;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
