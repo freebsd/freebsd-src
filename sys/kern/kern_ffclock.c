@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FFCLOCK
 
+FEATURE(ffclock, "Feed-forward clock support");
+
 extern struct ffclock_estimate ffclock_estimate;
 extern struct bintime ffclock_boottime;
 extern int8_t ffclock_updated;
