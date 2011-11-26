@@ -1510,7 +1510,6 @@ hint.aic.0.at="isa"
 device		ahb
 device		ahc
 device		ahd
-device		amd
 device		esp
 device		iscsi_initiator
 device		isp
