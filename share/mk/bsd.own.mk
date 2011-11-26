@@ -413,6 +413,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
+    LIBCPLUSPLUS \
     OFED
 
 #
@@ -552,8 +553,6 @@ MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
 .endif
-
-MK_LIBCPLUSPLUS?= no
 
 #
 # Set defaults for the MK_*_SUPPORT variables.
