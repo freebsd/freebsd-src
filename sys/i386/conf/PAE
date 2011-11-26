@@ -24,7 +24,6 @@ device		ispfw
 # than 4 gigabytes of memory.
 
 nodevice	ahb
-nodevice	amd
 nodevice	sym
 nodevice	trm
 
