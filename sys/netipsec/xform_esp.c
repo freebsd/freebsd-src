@@ -195,10 +195,6 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	 */
 	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
 	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
-	if (sav->iv == NULL) {
-		DPRINTF(("%s: no memory for IV\n", __func__));
-		return EINVAL;
-	}
 	key_randomfill(sav->iv, sav->ivlen);	/*XXX*/
 
 	/*
