@@ -1218,7 +1218,7 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
-.if defined(MK_LIBCPLUSPLUS)
+.if ${MK_LIBCPLUSPLUS} != "no"
 _startup_libs+=	lib/libcxxrt
 .endif
 
