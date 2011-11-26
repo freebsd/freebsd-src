@@ -21,6 +21,5 @@ SRCS+=        libelftc_dem_gnu3.c\
 
 WARNS=        0
 CFLAGS+=      -I${SRCDIR}
-LDADD+=       -pthread
 
 .include <bsd.lib.mk>

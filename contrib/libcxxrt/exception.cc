@@ -8,6 +8,17 @@
 #include "dwarf_eh.h"
 #include "cxxabi.h"
 
+#pragma weak pthread_key_create
+#pragma weak pthread_setspecific
+#pragma weak pthread_getspecific
+#pragma weak pthread_once
+#pragma weak pthread_once
+#pragma weak pthread_cond_signal
+#pragma weak pthread_cond_wait
+#pragma weak pthread_mutex_lock
+#pragma weak pthread_mutex_unlock
+
+
 using namespace ABI_NAMESPACE;
 
 /**
@@ -289,11 +300,31 @@ static void thread_cleanup(void* thread_info)
 static pthread_once_t once_control = PTHREAD_ONCE_INIT;
 
 /**
+ * We may not be linked against a full pthread implementation.  If we're not,
+ * then we need to fake the thread-local storage by storing 'thread-local'
+ * things in a global.
+ */
+static bool fakeTLS;
+/**
+ * Thread-local storage for a single-threaded program.
+ */
+static __cxa_thread_info singleThreadInfo;
+/**
  * Initialise eh_key.
  */
 static void init_key(void)
 {
+	if ((0 == pthread_key_create) ||
+	    (0 == pthread_setspecific) ||
+	    (0 == pthread_getspecific))
+	{
+		fakeTLS = true;
+		return;
+	}
 	pthread_key_create(&eh_key, thread_cleanup);
+	pthread_setspecific(eh_key, (void*)0x42);
+	fakeTLS = (pthread_getspecific(eh_key) != (void*)0x42);
+	pthread_setspecific(eh_key, 0);
 }
 
 /**
@@ -301,7 +332,11 @@ static void init_key(void)
  */
 static __cxa_thread_info *thread_info()
 {
-	pthread_once(&once_control, init_key);
+	if ((0 == pthread_once) || pthread_once(&once_control, init_key))
+	{
+		fakeTLS = true;
+	}
+	if (fakeTLS) { return &singleThreadInfo; }
 	__cxa_thread_info *info = (__cxa_thread_info*)pthread_getspecific(eh_key);
 	if (0 == info)
 	{
@@ -316,6 +351,7 @@ static __cxa_thread_info *thread_info()
  */
 static __cxa_thread_info *thread_info_fast()
 {
+	if (fakeTLS) { return &singleThreadInfo; }
 	return (__cxa_thread_info*)pthread_getspecific(eh_key);
 }
 /**
@@ -367,7 +403,10 @@ static char *emergency_malloc(size_t size)
 	// Only 4 emergency buffers allowed per thread!
 	if (info->emergencyBuffersHeld > 3) { return 0; }
 
-	pthread_mutex_lock(&emergency_malloc_lock);
+	if (pthread_mutex_lock)
+	{
+		pthread_mutex_lock(&emergency_malloc_lock);
+	}
 	int buffer = -1;
 	while (buffer < 0)
 	{
@@ -378,7 +417,10 @@ static char *emergency_malloc(size_t size)
 		void *m = calloc(1, size);
 		if (0 != m)
 		{
-			pthread_mutex_unlock(&emergency_malloc_lock);
+			if (pthread_mutex_unlock)
+			{
+				pthread_mutex_unlock(&emergency_malloc_lock);
+			}
 			return (char*)m;
 		}
 		for (int i=0 ; i<16 ; i++)
@@ -395,10 +437,24 @@ static char *emergency_malloc(size_t size)
 		// of the emergency buffers.
 		if (buffer < 0)
 		{
+			// If we don't have pthread_cond_wait, then there is only one
+			// thread and it's already used all of the emergency buffers, so we
+			// have no alternative but to die.  Calling abort() instead of
+			// terminate, because terminate can throw exceptions, which can
+			// bring us back here and infinite loop.
+			if (!pthread_cond_wait)
+			{
+				fputs("Terminating while out of memory trying to throw an exception",
+				      stderr);
+				abort();
+			}
 			pthread_cond_wait(&emergency_malloc_wait, &emergency_malloc_lock);
 		}
 	}
-	pthread_mutex_unlock(&emergency_malloc_lock);
+	if (pthread_mutex_unlock)
+	{
+		pthread_mutex_unlock(&emergency_malloc_lock);
+	}
 	info->emergencyBuffersHeld++;
 	return emergency_buffer + (1024 * buffer);
 }
@@ -431,13 +487,19 @@ static void emergency_malloc_free(char *ptr)
 	memset((void*)ptr, 0, 1024);
 	// Signal the condition variable to wake up any threads that are blocking
 	// waiting for some space in the emergency buffer
-	pthread_mutex_lock(&emergency_malloc_lock);
+	if (pthread_mutex_lock)
+	{
+		pthread_mutex_lock(&emergency_malloc_lock);
+	}
 	// In theory, we don't need to do this with the lock held.  In practice,
 	// our array of bools will probably be updated using 32-bit or 64-bit
 	// memory operations, so this update may clobber adjacent values.
 	buffer_allocated[buffer] = false;
-	pthread_cond_signal(&emergency_malloc_wait);
-	pthread_mutex_unlock(&emergency_malloc_lock);
+	if (pthread_cond_signal && pthread_mutex_unlock)
+	{
+		pthread_cond_signal(&emergency_malloc_wait);
+		pthread_mutex_unlock(&emergency_malloc_lock);
+	}
 }
 
 static char *alloc_or_die(size_t size)

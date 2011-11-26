@@ -11,6 +11,10 @@
 #include <stdlib.h>
 #include "stdexcept.h"
 
+#if !__has_builtin(__sync_swap)
+#define __sync_swap __sync_lock_test_and_set
+#endif
+
 namespace std
 {
 	struct nothrow_t {};
@@ -33,7 +37,7 @@ namespace std
 	__attribute__((weak))
 	new_handler set_new_handler(new_handler handler)
 	{
-		return __sync_lock_test_and_set(&new_handl, handler);
+		return __sync_swap(&new_handl, handler);
 	}
 }
 
@@ -103,7 +107,7 @@ void * operator new[](size_t size)
 
 
 __attribute__((weak))
-void operator delete[](void * ptr)
+void operator delete[](void * ptr) throw()
 {
 	::operator delete(ptr);
 }
