@@ -770,10 +770,8 @@ ah_input_cb(struct cryptop *crp)
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
-		if (crp->crp_etype == EAGAIN) {
-			error = crypto_dispatch(crp);
-			return error;
-		}
+		if (crp->crp_etype == EAGAIN)
+			return (crypto_dispatch(crp));
 
 		V_ahstat.ahs_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -1164,8 +1162,7 @@ ah_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			IPSECREQUEST_UNLOCK(isr);
-			error = crypto_dispatch(crp);
-			return error;
+			return (crypto_dispatch(crp));
 		}
 
 		V_ahstat.ahs_noxform++;
