@@ -1639,4 +1639,7 @@ _xi-links:
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
+.else
+xdev xdev-buil xdev-install:
+	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif
