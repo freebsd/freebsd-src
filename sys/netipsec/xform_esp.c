@@ -76,6 +76,8 @@
 #include <opencrypto/cryptodev.h>
 #include <opencrypto/xform.h>
 
+static int esp_max_ivlen;	/* max iv length over all algorithms */
+
 VNET_DEFINE(int, esp_enable) = 1;
 VNET_DEFINE(struct espstat, espstat);
 
@@ -84,9 +86,6 @@ SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
 	esp_enable,	CTLFLAG_RW,	&VNET_NAME(esp_enable),	0, "");
 SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
-
-static VNET_DEFINE(int, esp_max_ivlen);	/* max iv length over all algorithms */
-#define	V_esp_max_ivlen	VNET(esp_max_ivlen)
 
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
@@ -147,7 +146,7 @@ esp_hdrsiz(struct secasvar *sav)
 		 * + sizeof (next header field)
 		 * + max icv supported.
 		 */
-		size = sizeof (struct newesp) + V_esp_max_ivlen + 9 + 16;
+		size = sizeof (struct newesp) + esp_max_ivlen + 9 + 16;
 	}
 	return size;
 }
@@ -1029,8 +1028,8 @@ static void
 esp_attach(void)
 {
 #define	MAXIV(xform)					\
-	if (xform.blocksize > V_esp_max_ivlen)		\
-		V_esp_max_ivlen = xform.blocksize	\
+	if (xform.blocksize > esp_max_ivlen)		\
+		esp_max_ivlen = xform.blocksize		\
 
 	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
 	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
