@@ -297,7 +297,7 @@ stub_self(void)
 static int
 stub_fail(void)
 {
-	return ENOSYS;
+	return (ENOSYS);
 }
 
 static int
