@@ -669,7 +669,7 @@ esp_output(
 {
 	struct enc_xform *espx;
 	struct auth_hash *esph;
-	int hlen, rlen, plen, padding, blks, alen, i, roff;
+	int hlen, rlen, padding, blks, alen, i, roff;
 	struct mbuf *mo = (struct mbuf *) NULL;
 	struct tdb_crypto *tc;
 	struct secasvar *sav;
@@ -701,7 +701,6 @@ esp_output(
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
-	plen = rlen + padding;		/* Padded payload length. */
 
 	if (esph)
 		switch (esph->type) {
