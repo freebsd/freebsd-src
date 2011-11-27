@@ -562,6 +562,7 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_PROC_ENV		35	/* get environment */
 #define	KERN_PROC_AUXV		36	/* get ELF auxiliary vector */
 #define	KERN_PROC_RLIMIT	37	/* process resource limits */
+#define	KERN_PROC_PS_STRINGS	38	/* get ps_strings location */
 
 /*
  * KERN_IPC identifiers
