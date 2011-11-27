@@ -140,7 +140,7 @@ ar71xx_chip_device_stopped(uint32_t mask)
 
 /* Speed is either 10, 100 or 1000 */
 static void
-ar71xx_chip_set_pll_ge0(int speed)
+ar71xx_chip_set_pll_ge(int unit, int speed)
 {
 	uint32_t pll;
 
@@ -155,46 +155,43 @@ ar71xx_chip_set_pll_ge0(int speed)
 			pll = PLL_ETH_INT_CLK_1000;
 			break;
 		default:
-			printf("ar71xx_chip_set_pll_ge0: invalid speed %d\n", speed);
+			printf("%s%d: invalid speed %d\n",
+			    __func__, unit, speed);
 			return;
 	}
-
-	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT0_CLK, pll, AR71XX_PLL_ETH0_SHIFT);
-}
-
-static void
-ar71xx_chip_set_pll_ge1(int speed)
-{
-	uint32_t pll;
-
-	switch(speed) {
-		case 10:
-			pll = PLL_ETH_INT_CLK_10;
-			break;
-		case 100:
-			pll = PLL_ETH_INT_CLK_100;
-			break;
-		case 1000:
-			pll = PLL_ETH_INT_CLK_1000;
-			break;
-		default:
-			printf("ar71xx_chip_set_pll_ge1: invalid speed %d\n", speed);
-			return;
+	switch (unit) {
+	case 0:
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
+		    AR71XX_PLL_ETH_INT0_CLK, pll,
+		    AR71XX_PLL_ETH0_SHIFT);
+		break;
+	case 1:
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
+		    AR71XX_PLL_ETH_INT1_CLK, pll,
+		    AR71XX_PLL_ETH1_SHIFT);
+		break;
+	default:
+		printf("%s: invalid PLL set for arge unit: %d\n",
+		    __func__, unit);
+		return;
 	}
-
-	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT1_CLK, pll, AR71XX_PLL_ETH1_SHIFT);
 }
 
 static void
-ar71xx_chip_ddr_flush_ge0(void)
+ar71xx_chip_ddr_flush_ge(int unit)
 {
-	ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE0);
-}
-
-static void
-ar71xx_chip_ddr_flush_ge1(void)
-{
-	ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE1);
+	switch (unit) {
+	case 0:
+		ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE0);
+		break;
+	case 1:
+		ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE1);
+		break;
+	default:
+		printf("%s: invalid DDR flush for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
@@ -234,10 +231,8 @@ struct ar71xx_cpu_def ar71xx_chip_def = {
 	&ar71xx_chip_device_stop,
 	&ar71xx_chip_device_start,
 	&ar71xx_chip_device_stopped,
-	&ar71xx_chip_set_pll_ge0,
-	&ar71xx_chip_set_pll_ge1,
-	&ar71xx_chip_ddr_flush_ge0,
-	&ar71xx_chip_ddr_flush_ge1,
+	&ar71xx_chip_set_pll_ge,
+	&ar71xx_chip_ddr_flush_ge,
 	&ar71xx_chip_get_eth_pll,
 	&ar71xx_chip_ddr_flush_ip2,
 	&ar71xx_chip_init_usb_peripheral,
