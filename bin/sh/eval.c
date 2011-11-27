@@ -343,8 +343,6 @@ evalfor(union node *n, int flags)
 	for (argp = n->nfor.args ; argp ; argp = argp->narg.next) {
 		oexitstatus = exitstatus;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
-		if (evalskip)
-			goto out;
 	}
 	*arglist.lastp = NULL;
 
@@ -364,7 +362,6 @@ evalfor(union node *n, int flags)
 		}
 	}
 	loopnest--;
-out:
 	popstackmark(&smark);
 }
 
