@@ -669,23 +669,17 @@ ntfs_uastricmp(ntmp, ustr, ustrlen, astr, astrlen)
 	const char *astr;
 	size_t astrlen;
 {
-	int len;
+	const char *astrp = astr;
+	int len, res;
 	size_t i, j, mbstrlen = astrlen;
-	int res;
-	wchar wc;
 
 	if (ntmp->ntm_ic_l2u) {
-		for (i = 0, j = 0; i < ustrlen && j < astrlen; i++, j++) {
-			if (j < astrlen -1) {
-				wc = (wchar)astr[j]<<8 | (astr[j+1]&0xFF);
-				len = 2;
-			} else {
-				wc = (wchar)astr[j]<<8 & 0xFF00;
-				len = 1;
-			}
+		for (i = 0, j = 0; i < ustrlen && j < astrlen; i++) {
+			len = 4;
 			res = ((int) NTFS_TOUPPER(ustr[i])) -
-				((int)NTFS_TOUPPER(NTFS_82U(wc, &len)));
-			j += len - 1;
+			    ((int)NTFS_TOUPPER(NTFS_82U(astrp, &len)));
+			astrp += len;
+			j += len;
 			mbstrlen -= len - 1;
 
 			if (res)
@@ -698,7 +692,8 @@ ntfs_uastricmp(ntmp, ustr, ustrlen, astr, astrlen)
 		 */
 		for (i = 0; i < ustrlen && i < astrlen; i++) {
 			res = ((int) NTFS_TOUPPER(NTFS_82U(NTFS_U28(ustr[i]), &len))) -
-				((int)NTFS_TOUPPER(NTFS_82U((wchar)astr[i], &len)));
+				((int)NTFS_TOUPPER(NTFS_82U(astrp, &len)));
+			astrp++;
 			if (res)
 				return res;
 		}
@@ -717,23 +712,18 @@ ntfs_uastrcmp(ntmp, ustr, ustrlen, astr, astrlen)
 	const char *astr;
 	size_t astrlen;
 {
-	char u, l;
+	char *c;
 	size_t i, j, mbstrlen = astrlen;
 	int res;
-	wchar wc;
 
-	for (i = 0, j = 0; (i < ustrlen) && (j < astrlen); i++, j++) {
-		res = 0;
-		wc = NTFS_U28(ustr[i]);
-		u = (char)(wc>>8);
-		l = (char)wc;
-		if (u != '\0' && j < astrlen -1) {
-			res = (int) (u - astr[j++]);
+	for (i = 0, j = 0; (i < ustrlen) && (j < astrlen); i++, mbstrlen++) {
+		c = NTFS_U28(ustr[i]);
+		while (*c != '\0') {
+			res = (int) (*c++ - astr[j++]);
+			if (res)
+				return res;
 			mbstrlen--;
 		}
-		res = (res<<8) + (int) (l - astr[j]);
-		if (res)
-			return res;
 	}
 	return (ustrlen - mbstrlen);
 }
@@ -2137,50 +2127,47 @@ ntfs_82u_uninit(struct ntfsmount *ntmp)
 }
 
 /*
- * maps the Unicode char to 8bit equivalent
- * XXX currently only gets lower 8bit from the Unicode char
- * and substitutes a '_' for it if the result would be '\0';
- * something better has to be definitely though out
+ * maps the Unicode char to local character
  */
-wchar
+char *
 ntfs_u28(
 	struct ntfsmount *ntmp, 
 	wchar wc)
 {
-	char *p, *outp, inbuf[3], outbuf[3];
+	char *p, *outp, inbuf[3], outbuf[5];;
 	size_t ilen, olen;
 
+	outp = outbuf;
 	if (ntfs_iconv && ntmp->ntm_ic_u2l) {
-		ilen = olen = 2;
+		ilen = 2;
+		olen = 4;
 
 		inbuf[0] = (char)(wc>>8);
 		inbuf[1] = (char)wc;
 		inbuf[2] = '\0';
 		p = inbuf;
-		outp = outbuf;
 		ntfs_iconv->convchr(ntmp->ntm_ic_u2l, (const char **)&p, &ilen,
 				    &outp, &olen);
-		if (olen == 1) {
-			return ((wchar)(outbuf[0]&0xFF));
-		} else if (olen == 0) {
-			return ((wchar)((outbuf[0]<<8) | (outbuf[1]&0xFF)));
-		}
-		return ('?');
+		if (olen == 4)
+			*outp++ = '?';
+		*outp = '\0';
+		outp = outbuf;
+		return (outp);
 	}
 
 	p = ntmp->ntm_u28[(wc>>8)&0xFF];
-	if (p == NULL)
-		return ('_');
-	return (p[wc&0xFF]&0xFF);
+	outbuf[0] = (p == NULL) ? '_' : p[wc&0xFF] & 0xFF;
+	outbuf[1] = '\0';
+	return (outp);
 }
 
 wchar
 ntfs_82u(
 	struct ntfsmount *ntmp, 
-	wchar wc,
+	const char *c,
 	int *len)
 {
-	char *p, *outp, inbuf[3], outbuf[3];
+	char *outp, outbuf[3];
 	wchar uc;
 	size_t ilen, olen;
 
@@ -2188,13 +2175,8 @@ ntfs_82u(
 		ilen = (size_t)*len;
 		olen = 2;
 
-		inbuf[0] = (char)(wc>>8);
-		inbuf[1] = (char)wc;
-		inbuf[2] = '\0';
-		p = inbuf;
 		outp = outbuf;
-		ntfs_iconv->convchr(ntmp->ntm_ic_l2u, (const char **)&p, &ilen,
-				    &outp, &olen);
+		ntfs_iconv->convchr(ntmp->ntm_ic_l2u, &c, &ilen, &outp, &olen);
 		*len -= (int)ilen;
 		uc = (wchar)((outbuf[0]<<8) | (outbuf[1]&0xFF));
 
@@ -2202,7 +2184,7 @@ ntfs_82u(
 	}
 
 	if (ntmp->ntm_82u != NULL)
-		return (ntmp->ntm_82u[wc&0xFF]);
+		return (ntmp->ntm_82u[*c&0xFF]);
 
 	return ('?');
 }
