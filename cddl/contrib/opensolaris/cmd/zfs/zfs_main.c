@@ -260,7 +260,8 @@ get_usage(zfs_help_t idx)
 	case HELP_ROLLBACK:
 		return (gettext("\trollback [-rRf] <snapshot>\n"));
 	case HELP_SEND:
-		return (gettext("\tsend [-RDp] [-[iI] snapshot] <snapshot>\n"));
+		return (gettext("\tsend [-DvRp] "
+		    "[-i snapshot | -I snapshot] <snapshot>\n"));
 	case HELP_SET:
 		return (gettext("\tset <property=value> "
 		    "<filesystem|volume|snapshot> ...\n"));
@@ -296,11 +297,11 @@ get_usage(zfs_help_t idx)
 		    "\tunallow [-r] -s @setname [<perm|@setname>[,...]] "
 		    "<filesystem|volume>\n"));
 	case HELP_USERSPACE:
-		return (gettext("\tuserspace [-hniHp] [-o field[,...]] "
+		return (gettext("\tuserspace [-niHp] [-o field[,...]] "
 		    "[-sS field] ... [-t type[,...]]\n"
 		    "\t    <filesystem|snapshot>\n"));
 	case HELP_GROUPSPACE:
-		return (gettext("\tgroupspace [-hniHpU] [-o field[,...]] "
+		return (gettext("\tgroupspace [-niHp] [-o field[,...]] "
 		    "[-sS field] ... [-t type[,...]]\n"
 		    "\t    <filesystem|snapshot>\n"));
 	case HELP_HOLD:
