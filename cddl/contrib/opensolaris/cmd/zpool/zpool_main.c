@@ -228,7 +228,7 @@ get_usage(zpool_help_t idx) {
 	case HELP_OFFLINE:
 		return (gettext("\toffline [-t] <pool> <device> ...\n"));
 	case HELP_ONLINE:
-		return (gettext("\tonline <pool> <device> ...\n"));
+		return (gettext("\tonline [-e] <pool> <device> ...\n"));
 	case HELP_REPLACE:
 		return (gettext("\treplace [-f] <pool> <device> "
 		    "[new-device]\n"));
@@ -240,8 +240,7 @@ get_usage(zpool_help_t idx) {
 		return (gettext("\tstatus [-vx] [-T d|u] [pool] ... [interval "
 		    "[count]]\n"));
 	case HELP_UPGRADE:
-		return (gettext("\tupgrade\n"
-		    "\tupgrade -v\n"
+		return (gettext("\tupgrade [-v]\n"
 		    "\tupgrade [-V version] <-a | pool ...>\n"));
 	case HELP_GET:
 		return (gettext("\tget <\"all\" | property[,...]> "
