@@ -123,25 +123,37 @@ ar724x_chip_device_stopped(uint32_t mask)
 }
 
 static void
-ar724x_chip_set_pll_ge0(int speed)
+ar724x_chip_set_pll_ge(int unit, int speed)
 {
+	switch (unit) {
+	case 0:
+		/* TODO */
+		break;
+	case 1:
+		/* TODO */
+		break;
+	default:
+		printf("%s: invalid PLL set for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
-ar724x_chip_set_pll_ge1(int speed)
+ar724x_chip_ddr_flush_ge(int unit)
 {
-}
-
-static void
-ar724x_chip_ddr_flush_ge0(void)
-{
-	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE0);
-}
-
-static void
-ar724x_chip_ddr_flush_ge1(void)
-{
-	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
+	switch (unit) {
+	case 0:
+		ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE0);
+		break;
+	case 1:
+		ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
+		break;
+	default:
+		printf("%s: invalid DDR flush for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
@@ -207,10 +219,8 @@ struct ar71xx_cpu_def ar724x_chip_def = {
         &ar724x_chip_device_stop,
         &ar724x_chip_device_start,
         &ar724x_chip_device_stopped,
-        &ar724x_chip_set_pll_ge0,
-        &ar724x_chip_set_pll_ge1,
-        &ar724x_chip_ddr_flush_ge0,
-        &ar724x_chip_ddr_flush_ge1,
+        &ar724x_chip_set_pll_ge,
+        &ar724x_chip_ddr_flush_ge,
         &ar724x_chip_get_eth_pll,
         &ar724x_chip_ddr_flush_ip2,
 	&ar724x_chip_init_usb_peripheral
