@@ -1768,7 +1768,7 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	size_t vsize;
+	size_t vsize, size;
 	char **auxv;
 	int error;
 
@@ -1793,16 +1793,18 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	_PHOLD(p);
 	PROC_UNLOCK(p);
 	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
-	PRELE(p);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-			error = SYSCTL_OUT(req, auxv, vsize *
-			    sizeof(Elf32_Auxinfo));
+			size = vsize * sizeof(Elf32_Auxinfo);
 		else
 #endif
-		error = SYSCTL_OUT(req, auxv, vsize * sizeof(Elf_Auxinfo));
+		size = vsize * sizeof(Elf_Auxinfo);
+		PRELE(p);
+		error = SYSCTL_OUT(req, auxv, size);
 		free(auxv, M_TEMP);
+	} else {
+		PRELE(p);
 	}
 	return (error);
 }
