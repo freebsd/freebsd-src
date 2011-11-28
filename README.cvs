@@ -1,0 +1,46 @@
+This file gives information regarding the cvs tree of flex. The cvs
+tree of flex contains the files which are under version control by
+the flex maintainers for the flex project. 
+
+You can learn about the details of retrieving a copy of the cvs flex
+tree from flex's SourceForge project page at:
+
+http://sourceforge.net/projects/flex
+
+If you are not interested in flex development or you are not in need
+of the latest bleeding-edge features, then the cvs flex tree is
+not for you.
+
+When you get a distribution of flex, a large number of intermediate
+files needed to make building flex easy are included. You don't have
+that in the cvs tree.
+
+You will need various external tools in order to build the distribution. Here is
+a (hopefully complete and correct) list of the required tools. Always get the latest
+version of each tool; we list the versions used in development of
+flex, but the listed versions may not work for you.
+
+compiler suite;  e.g., gcc
+bash or some other fairly robust sh-style shell
+GNU bison;  to generate parse.c from parse.y
+GNU m4 1.4; required by GNU autoconf (yes, it *must* be GNU m4)
+GNU autoconf 2.59 and GNU automake 1.9.6; for generating Makefiles etc.
+GNU gettext 0.14.5; for i18n
+flex (latest beta release);  for bootstrap of scan.l
+help2man 1.36; to generate the flex man page
+tar, gzip, etc.; for packaging of the source distribution
+GNU texinfo 4.8;  to build and test the flex manual
+perl; GNU automake and GNU autoconf now depend on perl to run
+GNU indent 2.8; for indenting the flex source the way we want it done
+
+Once you have all the necessary tools installed, life becomes
+simple. To prepare the flex tree for building, run the script:
+
+$ ./autogen.sh
+
+in the top level of the flex source tree.
+This script calls the various tools needed to get flex ready for the
+GNU-style configure script to be able to work.
+
+From this point on, building flex follows the usual configure, make,
+make install routine.
