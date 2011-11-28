@@ -174,14 +174,18 @@ FlGetFileSize (
 {
     FILE                    *fp;
     UINT32                  FileSize;
+    long                    Offset;
 
 
     fp = Gbl_Files[FileId].Handle;
+    Offset = ftell (fp);
 
     fseek (fp, 0, SEEK_END);
     FileSize = (UINT32) ftell (fp);
-    fseek (fp, 0, SEEK_SET);
 
+    /* Restore file pointer */
+
+    fseek (fp, Offset, SEEK_SET);
     return (FileSize);
 }
 

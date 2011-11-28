@@ -79,6 +79,13 @@ AcpiEvInitGlobalLockHandler (
     ACPI_FUNCTION_TRACE (EvInitGlobalLockHandler);
 
 
+    /* If Hardware Reduced flag is set, there is no global lock */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        return_ACPI_STATUS (AE_OK);
+    }
+
     /* Attempt installation of the global lock handler */
 
     Status = AcpiInstallFixedEventHandler (ACPI_EVENT_GLOBAL,

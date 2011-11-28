@@ -271,12 +271,17 @@ CgWriteAmlOpcode (
 
         /* Special opcodes for within a field definition */
 
-        Aml.Opcode = 0x00;
+        Aml.Opcode = AML_FIELD_OFFSET_OP;
         break;
 
     case AML_INT_ACCESSFIELD_OP:
 
-        Aml.Opcode = 0x01;
+        Aml.Opcode = AML_FIELD_ACCESS_OP;
+        break;
+
+    case AML_INT_CONNECTION_OP:
+
+        Aml.Opcode = AML_FIELD_CONNECTION_OP;
         break;
 
     default:
