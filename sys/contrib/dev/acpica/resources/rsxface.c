@@ -351,6 +351,52 @@ AcpiSetCurrentResources (
 ACPI_EXPORT_SYMBOL (AcpiSetCurrentResources)
 
 
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiGetEventResources
+ *
+ * PARAMETERS:  DeviceHandle    - Handle to the device object for the
+ *                                device we are getting resources
+ *              InBuffer        - Pointer to a buffer containing the
+ *                                resources to be set for the device
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the event resources for a
+ *              specific device. The caller must first acquire a handle for
+ *              the desired device. The resource data is passed to the routine
+ *              the buffer pointed to by the InBuffer variable. Uses the
+ *              _AEI method.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiGetEventResources (
+    ACPI_HANDLE             DeviceHandle,
+    ACPI_BUFFER             *RetBuffer)
+{
+    ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *Node;
+
+
+    ACPI_FUNCTION_TRACE (AcpiGetEventResources);
+
+
+    /* Validate parameters then dispatch to internal routine */
+
+    Status = AcpiRsValidateParameters (DeviceHandle, RetBuffer, &Node);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiRsGetAeiMethodData (Node, RetBuffer);
+    return_ACPI_STATUS (Status);
+}
+
+ACPI_EXPORT_SYMBOL (AcpiGetEventResources)
+
+
 /******************************************************************************
  *
  * FUNCTION:    AcpiResourceToAddress64
@@ -544,8 +590,9 @@ AcpiRsMatchVendorResource (
  *
  * PARAMETERS:  DeviceHandle    - Handle to the device object for the
  *                                device we are querying
- *              Name            - Method name of the resources we want
- *                                (METHOD_NAME__CRS or METHOD_NAME__PRS)
+ *              Name            - Method name of the resources we want.
+ *                                (METHOD_NAME__CRS, METHOD_NAME__PRS, or
+ *                                METHOD_NAME__AEI)
  *              UserFunction    - Called for each resource
  *              Context         - Passed to UserFunction
  *
@@ -577,12 +624,13 @@ AcpiWalkResources (
 
     if (!DeviceHandle || !UserFunction || !Name ||
         (!ACPI_COMPARE_NAME (Name, METHOD_NAME__CRS) &&
-         !ACPI_COMPARE_NAME (Name, METHOD_NAME__PRS)))
+         !ACPI_COMPARE_NAME (Name, METHOD_NAME__PRS) &&
+         !ACPI_COMPARE_NAME (Name, METHOD_NAME__AEI)))
     {
         return_ACPI_STATUS (AE_BAD_PARAMETER);
     }
 
-    /* Get the _CRS or _PRS resource list */
+    /* Get the _CRS/_PRS/_AEI resource list */
 
     Buffer.Length = ACPI_ALLOCATE_LOCAL_BUFFER;
     Status = AcpiRsGetMethodData (DeviceHandle, Name, &Buffer);

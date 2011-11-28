@@ -88,6 +88,14 @@ AcpiTbInitializeFacs (
     ACPI_STATUS             Status;
 
 
+    /* If Hardware Reduced flag is set, there is no FACS */
+
+    if (AcpiGbl_ReducedHardware)
+    {
+        AcpiGbl_FACS = NULL;
+        return (AE_OK);
+    }
+
     Status = AcpiGetTableByIndex (ACPI_TABLE_INDEX_FACS,
                 ACPI_CAST_INDIRECT_PTR (ACPI_TABLE_HEADER, &AcpiGbl_FACS));
     return (Status);

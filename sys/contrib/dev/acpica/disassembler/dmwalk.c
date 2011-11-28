@@ -464,7 +464,8 @@ AcpiDmDescendingOp (
 
     AcpiDmDisassembleOneOp (NULL, Info, Op);
 
-    if (Op->Common.DisasmOpcode == ACPI_DASM_LNOT_PREFIX)
+    if ((Op->Common.DisasmOpcode == ACPI_DASM_LNOT_PREFIX) ||
+        (Op->Common.AmlOpcode == AML_INT_CONNECTION_OP))
     {
         return (AE_OK);
     }

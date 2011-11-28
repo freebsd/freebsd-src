@@ -424,7 +424,7 @@ AcpiDsGetRegionArguments (
 
     /* Execute the argument AML */
 
-    Status = AcpiDsExecuteArguments (Node, Node->Parent,
+    Status = AcpiDsExecuteArguments (Node, ExtraDesc->Extra.ScopeNode,
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
     return_ACPI_STATUS (Status);
 }
