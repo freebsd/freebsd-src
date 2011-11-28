@@ -6,3 +6,9 @@ $FreeBSD$
 */texinfo.tex
 */tests
 */getopt*
+*/*.pdf
+*/*.vms
+*/*.texi
+*/*.texinfo
+*/*.msvc
+*/*.woe32
