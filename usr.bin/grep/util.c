@@ -246,9 +246,9 @@ procfile(const char *fn)
 		printf("%u\n", c);
 	}
 	if (lflag && !qflag && c != 0)
-		printf("%s\n", fn);
+		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (Lflag && !qflag && c == 0)
-		printf("%s\n", fn);
+		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
 		printf(getstr(8), fn);
@@ -440,13 +440,13 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	int i, n = 0;
 
 	if (!hflag) {
-		if (nullflag == 0)
+		if (!nullflag) {
 			fputs(line->file, stdout);
-		else {
+			++n;
+		} else {
 			printf("%s", line->file);
 			putchar(0);
 		}
-		++n;
 	}
 	if (nflag) {
 		if (n > 0)
