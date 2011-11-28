@@ -23,6 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #ifndef	_LIBFS_IMPL_H
@@ -116,7 +117,7 @@ struct zpool_handle {
 	diskaddr_t zpool_start_block;
 };
 
-typedef  enum {
+typedef enum {
 	PROTO_NFS = 0,
 	PROTO_SMB = 1,
 	PROTO_END = 2
@@ -148,6 +149,7 @@ int zpool_standard_error_fmt(libzfs_handle_t *, int, const char *, ...);
 
 int get_dependents(libzfs_handle_t *, boolean_t, const char *, char ***,
     size_t *);
+zfs_handle_t *make_dataset_handle_zc(libzfs_handle_t *, zfs_cmd_t *);
 
 
 int zprop_parse_value(libzfs_handle_t *, nvpair_t *, int, zfs_type_t,
