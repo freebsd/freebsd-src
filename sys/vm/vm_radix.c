@@ -648,11 +648,11 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 	while (level && rnode) {
 		stack[level] = rnode;
 		slot = vm_radix_slot(index, level);
-		rnode = rnode->rn_child[slot];
 		CTR6(KTR_VM,
 	"remove: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
 		    rtree, (void *)index, level, slot, rnode,
 		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		rnode = rnode->rn_child[slot];
 		level--;
 	}
 	KASSERT(rnode != NULL,
@@ -663,6 +663,12 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
 
 	for (;;) {
+		CTR6(KTR_VM,
+"remove: resetting tree %p, index %p, level %d, slot %d, rnode %p, child %p",
+		    rtree, (void *)index, level, slot, rnode,
+		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		CTR3(KTR_VM, "remove: rnode %p, count %p, color %d",
+		    rnode, (rnode != NULL) ? rnode->rn_count : NULL, color);
 		rnode->rn_child[slot] = NULL;
 		/*
 		 * Use atomics for the last level since red and black
