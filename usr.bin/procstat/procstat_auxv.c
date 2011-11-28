@@ -85,19 +85,19 @@ procstat_auxv(struct kinfo_proc *kipp)
 		case AT_IGNORE:
 			break;
 		case AT_EXECFD:
-			PRINT(AT_EXECFD, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_EXECFD, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PHDR:
 			PRINT(AT_PHDR, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_PHENT:
-			PRINT(AT_PHENT, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_PHENT, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PHNUM:
-			PRINT(AT_PHNUM, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_PHNUM, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PAGESZ:
-			PRINT(AT_PAGESZ, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_PAGESZ, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_BASE:
 			PRINT(AT_BASE, %p, auxv[i].a_un.a_ptr);
@@ -110,27 +110,27 @@ procstat_auxv(struct kinfo_proc *kipp)
 			break;
 #ifdef AT_NOTELF
 		case AT_NOTELF:
-			PRINT(AT_NOTELF, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_NOTELF, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_UID
 		case AT_UID:
-			PRINT(AT_UID, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_UID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_EUID
 		case AT_EUID:
-			PRINT(AT_EUID, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_EUID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_GID
 		case AT_GID:
-			PRINT(AT_GID, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_GID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_EGID
 		case AT_EGID:
-			PRINT(AT_EGID, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_EGID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 		case AT_EXECPATH:
@@ -140,19 +140,19 @@ procstat_auxv(struct kinfo_proc *kipp)
 			PRINT(AT_CANARY, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_CANARYLEN:
-			PRINT(AT_CANARYLEN, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_CANARYLEN, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_OSRELDATE:
-			PRINT(AT_OSRELDATE, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_OSRELDATE, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_NCPUS:
-			PRINT(AT_NCPUS, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_NCPUS, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PAGESIZES:
 			PRINT(AT_PAGESIZES, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_PAGESIZESLEN:
-			PRINT(AT_PAGESIZESLEN, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_PAGESIZESLEN, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_STACKPROT:
 			if ((auxv[i].a_un.a_val & VM_PROT_EXECUTE) != 0)
@@ -161,7 +161,7 @@ procstat_auxv(struct kinfo_proc *kipp)
 				PRINT(AT_STACKPROT, %s, "EXECUTABLE");
 			break;
 		case AT_COUNT:
-			PRINT(AT_COUNT, %ld, auxv[i].a_un.a_val);
+			PRINT(AT_COUNT, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		default:
 			PRINT_UNKNOWN(auxv[i].a_type, auxv[i].a_un.a_val);
