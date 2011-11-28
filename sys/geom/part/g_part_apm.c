@@ -443,7 +443,7 @@ g_part_apm_read(struct g_part_table *basetable, struct g_consumer *cp)
 
 	table = (struct g_part_apm_table *)basetable;
 
-	basetable->gpt_first = table->self.ent_pmblkcnt + 1;
+	basetable->gpt_first = table->self.ent_size + 1;
 	basetable->gpt_last = table->ddr.ddr_blkcount - 1;
 	basetable->gpt_entries = table->self.ent_pmblkcnt - 1;
 
