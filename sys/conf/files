@@ -172,6 +172,7 @@ contrib/dev/acpica/disassembler/dmopcode.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmobject.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrc.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcl.c	optional acpi acpi_debug
+contrib/dev/acpica/disassembler/dmresrcl2.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcs.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmwalk.c	optional acpi acpi_debug
@@ -272,6 +273,7 @@ contrib/dev/acpica/resources/rsirq.c		optional acpi
 contrib/dev/acpica/resources/rslist.c		optional acpi
 contrib/dev/acpica/resources/rsmemory.c		optional acpi
 contrib/dev/acpica/resources/rsmisc.c		optional acpi
+contrib/dev/acpica/resources/rsserial.c		optional acpi
 contrib/dev/acpica/resources/rsutils.c		optional acpi
 contrib/dev/acpica/resources/rsxface.c		optional acpi
 contrib/dev/acpica/tables/tbfadt.c		optional acpi
@@ -300,6 +302,7 @@ contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/dev/acpica/utilities/utxferror.c	optional acpi
+#contrib/dev/acpica/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \

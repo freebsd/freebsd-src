@@ -516,11 +516,12 @@ AcpiNsRepair_HID (
     }
 
     /*
-     * Copy and uppercase the string. From the ACPI specification:
+     * Copy and uppercase the string. From the ACPI 5.0 specification:
      *
      * A valid PNP ID must be of the form "AAA####" where A is an uppercase
      * letter and # is a hex digit. A valid ACPI ID must be of the form
-     * "ACPI####" where # is a hex digit.
+     * "NNNN####" where N is an uppercase letter or decimal digit, and
+     * # is a hex digit.
      */
     for (Dest = NewString->String.Pointer; *Source; Dest++, Source++)
     {
@@ -555,7 +556,22 @@ AcpiNsRepair_TSS (
 {
     ACPI_OPERAND_OBJECT     *ReturnObject = *ReturnObjectPtr;
     ACPI_STATUS             Status;
+    ACPI_NAMESPACE_NODE     *Node;
 
+
+    /*
+     * We can only sort the _TSS return package if there is no _PSS in the
+     * same scope. This is because if _PSS is present, the ACPI specification
+     * dictates that the _TSS Power Dissipation field is to be ignored, and
+     * therefore some BIOSs leave garbage values in the _TSS Power field(s).
+     * In this case, it is best to just return the _TSS package as-is.
+     * (May, 2011)
+     */
+    Status = AcpiNsGetNode (Data->Node, "^_PSS", ACPI_NS_NO_UPSEARCH, &Node);
+    if (ACPI_SUCCESS (Status))
+    {
+        return (AE_OK);
+    }
 
     Status = AcpiNsCheckSortedList (Data, ReturnObject, 5, 1,
                 ACPI_SORT_DESCENDING, "PowerDissipation");
