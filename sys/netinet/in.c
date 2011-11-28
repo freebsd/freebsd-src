@@ -533,7 +533,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		goto out;
 
 	case SIOCSIFNETMASK:
-		ia->ia_sockmask = *(struct sockaddr_in *)&ifr->ifr_addr;
+		ia->ia_sockmask.sin_addr = ((struct sockaddr_in *)
+		    &ifr->ifr_addr)->sin_addr;
 		ia->ia_subnetmask = ntohl(ia->ia_sockmask.sin_addr.s_addr);
 		goto out;
 
