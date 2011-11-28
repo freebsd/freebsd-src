@@ -1,0 +1,16 @@
+
+In 2001, Will Estes took over as maintainer of flex.
+
+John Millaway is a co-author of the current version of flex. He has
+contributed a large number of new features, fixed a large number of
+outstanding bugs and has made significant contributions to the flex
+documentation.
+
+Aaron Stone has contributed several bug fixes to the flex codebase.
+
+Vern Paxson wrote flex with the help of many ideas and much
+inspiration from Van Jacobson.  Original version by Jef Poskanzer.
+
+The fast table representation is a partial implementation of a design
+done by Van Jacobson.  The implementation was done by Kevin Gong and
+Vern Paxson.

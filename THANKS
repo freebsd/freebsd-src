@@ -1,0 +1,53 @@
+Vern had the following things to say:
+
+Many thanks to the 2.5 beta-testers for finding bugs and helping test and
+increase portability: Stan Adermann, Scott David Daniels, Charles Elliott,
+Joe Gayda, Chris Meier, James Nordby, Terrence O'Kane, Karsten Pahnke,
+Francois Pinard, Pat Rankin, Andreas Scherer, Marc Wiese, Nathan Zelle.
+
+Thanks to the many flex beta-testers, feedbackers, and contributors,
+especially Francois Pinard, Casey Leedom, Robert Abramovitz, Stan
+Adermann, Terry Allen, David Barker-Plummer, John Basrai, Neal Becker,
+Nelson H.F. Beebe, benson@odi.com, Karl Berry, Peter A. Bigot, Simon
+Blanchard, Keith Bostic, Frederic Brehm, Ian Brockbank, Kin Cho, Nick
+Christopher, Brian Clapper, J.T. Conklin, Jason Coughlin, Bill Cox,
+Nick Cropper, Dave Curtis, Scott David Daniels, Chris G. Demetriou,
+Theo Deraadt, Mike Donahue, Chuck Doucette, Tom Epperly, Leo Eskin,
+Chris Faylor, Chris Flatters, Jon Forrest, Jeffrey Friedl, Joe Gayda,
+Kaveh R. Ghazi, Wolfgang Glunz, Eric Goldman, Christopher M. Gould,
+Ulrich Grepel, Peer Griebel, Jan Hajic, Charles Hemphill, NORO Hideo,
+Jarkko Hietaniemi, Scott Hofmann, Jeff Honig, Dana Hudes, Eric Hughes,
+John Interrante, Ceriel Jacobs, Michal Jaegermann, Sakari Jalovaara,
+Jeffrey R. Jones, Henry Juengst, Klaus Kaempf, Jonathan I. Kamens,
+Terrence O Kane, Amir Katz, ken@ken.hilco.com, Kevin B. Kenny, Steve
+Kirsch, Winfried Koenig, Marq Kole, Ronald Lamprecht, Greg Lee, Rohan
+Lenard, Craig Leres, John Levine, Steve Liddle, David Loffredo, Mike
+Long, Mohamed el Lozy, Brian Madsen, Malte, Joe Marshall, Bengt
+Martensson, Chris Metcalf, Luke Mewburn, Jim Meyering, R. Alexander
+Milowski, Erik Naggum, G.T. Nicol, Landon Noll, James Nordby, Marc
+Nozell, Richard Ohnemus, Karsten Pahnke, Sven Panne, Roland Pesch,
+Walter Pelissero, Gaumond Pierre, Esmond Pitt, Jef Poskanzer, Joe
+Rahmeh, Jarmo Raiha, Frederic Raimbault, Pat Rankin, Rick Richardson,
+Kevin Rodgers, Kai Uwe Rommel, Jim Roskind, Alberto Santini, Andreas
+Scherer, Darrell Schiebel, Raf Schietekat, Doug Schmidt, Philippe
+Schnoebelen, Andreas Schwab, Larry Schwimmer, Alex Siegel, Eckehard
+Stolz, Jan-Erik Strvmquist, Mike Stump, Paul Stuart, Dave Tallman, Ian
+Lance Taylor, Chris Thewalt, Richard M. Timoney, Jodi Tsai, Paul
+Tuinenga, Gary Weik, Frank Whaley, Gerhard Wilhelms, Kent Williams,
+Ken Yap, Ron Zellar, Nathan Zelle, David Zuhn, and those whose names
+have slipped my marginal mail-archiving skills but whose contributions
+are appreciated all the same.
+
+Thanks to Keith Bostic, Jon Forrest, Noah Friedman,
+John Gilmore, Craig Leres, John Levine, Bob Mulcahy, G.T.
+Nicol, Francois Pinard, Rich Salz, and Richard Stallman for help with various
+distribution headaches.
+
+Thanks to Esmond Pitt and Earle Horton for 8-bit character support; to
+Benson Margulies and Fred Burke for C++ support; to Kent Williams and Tom
+Epperly for C++ class support; to Ove Ewerlid for support of NUL's; and to
+Eric Hughes for support of multiple buffers.
+
+This work was primarily done when I was with the Real Time Systems Group
+at the Lawrence Berkeley Laboratory in Berkeley, CA.  Many thanks to all there
+for the support I received.
