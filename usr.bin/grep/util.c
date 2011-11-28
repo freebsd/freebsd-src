@@ -130,7 +130,9 @@ grep_tree(char **argv)
 		case FTS_DNR:
 			/* FALLTHROUGH */
 		case FTS_ERR:
-			errx(2, "%s: %s", p->fts_path, strerror(p->fts_errno));
+			notfound = true;
+			if(!sflag)
+				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			break;
 		case FTS_D:
 			/* FALLTHROUGH */
