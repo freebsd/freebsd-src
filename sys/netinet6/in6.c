@@ -1802,7 +1802,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 		struct sockaddr_in6 mask, addr;
 
 		IF_AFDATA_LOCK(ifp);
-		ia->ia_ifa.ifa_rtrequest = NULL;
+		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
 
 		/* XXX QL
 		 * we need to report rt_newaddrmsg
