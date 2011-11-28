@@ -1,6 +1,8 @@
-/* $OpenBSD: expr.c,v 1.18 2010/09/07 19:58:09 marco Exp $ */
-/*
- * Copyright (c) 2004 Marc Espie <espie@cvs.openbsd.org>
+/* $OpenBSD: ohash_create_entry.c,v 1.2 2004/06/22 20:00:16 espie Exp $ */
+/* ex:ts=8 sw=4: 
+ */
+
+/* Copyright (c) 1999, 2004 Marc Espie <espie@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -17,31 +19,22 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stddef.h>
-#include "mdef.h"
-#include "extern.h"
+#include "ohash_int.h"
 
-int32_t end_result;
-const char *copy_toeval;
-int yyerror(const char *msg);
-
-extern void yy_scan_string(const char *);
-extern int yyparse(void);
-
-int
-yyerror(const char *msg)
+/* This handles the common case of variable length keys, where the 
+ * key is stored at the end of the record.
+ */
+void *
+ohash_create_entry(struct ohash_info *i, const char *start, const char **end)
 {
-	fprintf(stderr, "m4: %s in expr %s\n", msg, copy_toeval);
-	return(0);
-}
+	char *p;
 
-int
-expr(const char *toeval)
-{
-	copy_toeval = toeval;
-	yy_scan_string(toeval);
-	yyparse();
-	return end_result;
+	if (!*end)
+		*end = start + strlen(start);
+	p = (i->alloc)(i->key_offset + (*end - start) + 1, i->data);
+	if (p) {
+	    memcpy(p+i->key_offset, start, *end-start);
+	    p[i->key_offset + (*end - start)] = '\0';
+	}
+	return (void *)p;
 }
