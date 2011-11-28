@@ -192,9 +192,9 @@ static void
 arge_flush_ddr(struct arge_softc *sc)
 {
 	if (sc->arge_mac_unit == 0)
-		ar71xx_device_flush_ddr_ge0();
+		ar71xx_device_flush_ddr_ge(0);
 	else
-		ar71xx_device_flush_ddr_ge1();
+		ar71xx_device_flush_ddr_ge(1);
 }
 
 static int 
