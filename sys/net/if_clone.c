@@ -282,33 +282,34 @@ if_clone_destroyif(struct if_clone *ifc, struct ifnet *ifp)
 /*
  * Register a network interface cloner.
  */
-void
+int
 if_clone_attach(struct if_clone *ifc)
 {
-	int len, maxclone;
+	struct if_clone *ifc1;
 
-	/*
-	 * Compute bitmap size and allocate it.
-	 */
-	maxclone = ifc->ifc_maxunit + 1;
-	len = maxclone >> 3;
-	if ((len << 3) < maxclone)
-		len++;
-	ifc->ifc_units = malloc(len, M_CLONE, M_WAITOK | M_ZERO);
-	ifc->ifc_bmlen = len;
+	KASSERT(ifc->ifc_name != NULL, ("%s: no name\n", __func__));
+
 	IF_CLONE_LOCK_INIT(ifc);
 	IF_CLONE_ADDREF(ifc);
+	ifc->ifc_unrhdr = new_unrhdr(0, ifc->ifc_maxunit, &ifc->ifc_mtx);
+	LIST_INIT(&ifc->ifc_iflist);
 
 	IF_CLONERS_LOCK();
+	LIST_FOREACH(ifc1, &V_if_cloners, ifc_list)
+		if (strcmp(ifc->ifc_name, ifc1->ifc_name) == 0) {
+			IF_CLONERS_UNLOCK();
+			IF_CLONE_REMREF(ifc);
+			return (EEXIST);
+		}
 	LIST_INSERT_HEAD(&V_if_cloners, ifc, ifc_list);
 	V_if_cloners_count++;
 	IF_CLONERS_UNLOCK();
 
-	LIST_INIT(&ifc->ifc_iflist);
-
 	if (ifc->ifc_attach != NULL)
 		(*ifc->ifc_attach)(ifc);
 	EVENTHANDLER_INVOKE(if_clone_event, ifc);
+
+	return (0);
 }
 
 /*
@@ -338,16 +339,12 @@ if_clone_detach(struct if_clone *ifc)
 static void
 if_clone_free(struct if_clone *ifc)
 {
-	for (int bytoff = 0; bytoff < ifc->ifc_bmlen; bytoff++) {
-		KASSERT(ifc->ifc_units[bytoff] == 0x00,
-		    ("ifc_units[%d] is not empty", bytoff));
-	}
 
 	KASSERT(LIST_EMPTY(&ifc->ifc_iflist),
 	    ("%s: ifc_iflist not empty", __func__));
 
 	IF_CLONE_LOCK_DESTROY(ifc);
-	free(ifc->ifc_units, M_CLONE);
+	delete_unrhdr(ifc->ifc_unrhdr);
 }
 
 /*
@@ -441,73 +438,40 @@ ifc_name2unit(const char *name, int *unit)
 int
 ifc_alloc_unit(struct if_clone *ifc, int *unit)
 {
-	int wildcard, bytoff, bitoff;
-	int err = 0;
+	char name[IFNAMSIZ];
+	int wildcard;
 
-	IF_CLONE_LOCK(ifc);
-
-	bytoff = bitoff = 0;
 	wildcard = (*unit < 0);
-	/*
-	 * Find a free unit if none was given.
-	 */
+retry:
 	if (wildcard) {
-		while ((bytoff < ifc->ifc_bmlen)
-		    && (ifc->ifc_units[bytoff] == 0xff))
-			bytoff++;
-		if (bytoff >= ifc->ifc_bmlen) {
-			err = ENOSPC;
-			goto done;
-		}
-		while ((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0)
-			bitoff++;
-		*unit = (bytoff << 3) + bitoff;
+		*unit = alloc_unr(ifc->ifc_unrhdr);
+		if (*unit == -1)
+			return (ENOSPC);
+	} else {
+		*unit = alloc_unr_specific(ifc->ifc_unrhdr, *unit);
+		if (*unit == -1)
+			return (EEXIST);
 	}
 
-	if (*unit > ifc->ifc_maxunit) {
-		err = ENOSPC;
-		goto done;
+	snprintf(name, IFNAMSIZ, "%s%d", ifc->ifc_name, *unit);
+	if (ifunit(name) != NULL) {
+		if (wildcard)
+			goto retry;	/* XXXGL: yep, it's a unit leak */
+		else
+			return (EEXIST);
 	}
 
-	if (!wildcard) {
-		bytoff = *unit >> 3;
-		bitoff = *unit - (bytoff << 3);
-	}
+	IF_CLONE_ADDREF(ifc);
 
-	if((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0) {
-		err = EEXIST;
-		goto done;
-	}
-	/*
-	 * Allocate the unit in the bitmap.
-	 */
-	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) == 0,
-	    ("%s: bit is already set", __func__));
-	ifc->ifc_units[bytoff] |= (1 << bitoff);
-	IF_CLONE_ADDREF_LOCKED(ifc);
-
-done:
-	IF_CLONE_UNLOCK(ifc);
-	return (err);
+	return (0);
 }
 
 void
 ifc_free_unit(struct if_clone *ifc, int unit)
 {
-	int bytoff, bitoff;
 
-
-	/*
-	 * Compute offset in the bitmap and deallocate the unit.
-	 */
-	bytoff = unit >> 3;
-	bitoff = unit - (bytoff << 3);
-
-	IF_CLONE_LOCK(ifc);
-	KASSERT((ifc->ifc_units[bytoff] & (1 << bitoff)) != 0,
-	    ("%s: bit is already cleared", __func__));
-	ifc->ifc_units[bytoff] &= ~(1 << bitoff);
-	IF_CLONE_REMREF_LOCKED(ifc);	/* releases lock */
+	free_unr(ifc->ifc_unrhdr, unit);
+	IF_CLONE_REMREF(ifc);
 }
 
 void
