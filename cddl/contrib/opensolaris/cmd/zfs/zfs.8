@@ -1423,6 +1423,13 @@ Force an unmount of any file systems using the
 command. This option has no effect on non-file systems or unmounted file
 systems.
 .El
+.Pp
+Extreme care should be taken when applying either the
+.Fl r
+or the
+.Fl R
+options, as they can destroy large portions of a pool and cause unexpected
+behavior for mounted file systems in use.
 .It Xo
 .Nm
 .Cm destroy
@@ -1450,6 +1457,13 @@ Recursively destroy all dependents.
 .It Fl d
 Defer snapshot deletion.
 .El
+.Pp
+Extreme care should be taken when applying either the
+.Fl r
+or the
+.Fl R
+options, as they can destroy large portions of a pool and cause unexpected
+behavior for mounted file systems in use.
 .It Xo
 .Nm
 .Cm snapshot
