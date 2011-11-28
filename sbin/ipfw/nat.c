@@ -345,11 +345,12 @@ setup_redir_addr(char *buf, int *ac, char ***av)
 	space = sizeof(struct cfg_redir);
 
 	/* Extract local address. */
-	if ((sep = strtok(**av, ",")) != NULL) {
+	if (strchr(**av, ',') != NULL) {
 		struct cfg_spool *spool;
 
 		/* Setup LSNAT server pool. */
 		r->laddr.s_addr = INADDR_NONE;
+		sep = strtok(**av, ",");
 		while (sep != NULL) {
 			spool = (struct cfg_spool *)buf;
 			space += sizeof(struct cfg_spool);
