@@ -53,6 +53,7 @@
  * This module contains the I/O-related small resource descriptors:
  *
  * DMA
+ * FixedDMA
  * FixedIO
  * IO
  * IRQ
@@ -102,8 +103,8 @@ RsDoDmaDescriptor (
         case 0: /* DMA type */
 
             RsSetFlagBits (&Descriptor->Dma.Flags, InitializerOp, 5, 0);
-            RsCreateBitField (InitializerOp, ACPI_RESTAG_DMATYPE,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 5);
+            RsCreateMultiBitField (InitializerOp, ACPI_RESTAG_DMATYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 5, 2);
             break;
 
         case 1: /* Bus Master */
@@ -116,8 +117,8 @@ RsDoDmaDescriptor (
         case 2: /* Xfer Type (transfer width) */
 
             RsSetFlagBits (&Descriptor->Dma.Flags, InitializerOp, 0, 0);
-            RsCreateBitField (InitializerOp, ACPI_RESTAG_XFERTYPE,
-                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 0);
+            RsCreateMultiBitField (InitializerOp, ACPI_RESTAG_XFERTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (Dma.Flags), 0, 2);
             break;
 
         case 3: /* Name */
@@ -182,6 +183,81 @@ RsDoDmaDescriptor (
 
 /*******************************************************************************
  *
+ * FUNCTION:    RsDoFixedDmaDescriptor
+ *
+ * PARAMETERS:  Op                  - Parent resource descriptor parse node
+ *              CurrentByteOffset   - Offset into the resource template AML
+ *                                    buffer (to track references to the desc)
+ *
+ * RETURN:      Completed resource node
+ *
+ * DESCRIPTION: Construct a short "FixedDMA" descriptor
+ *
+ ******************************************************************************/
+
+ASL_RESOURCE_NODE *
+RsDoFixedDmaDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset)
+{
+    AML_RESOURCE            *Descriptor;
+    ACPI_PARSE_OBJECT       *InitializerOp;
+    ASL_RESOURCE_NODE       *Rnode;
+    UINT32                  i;
+
+
+    InitializerOp = Op->Asl.Child;
+    Rnode = RsAllocateResourceNode (sizeof (AML_RESOURCE_FIXED_DMA));
+
+    Descriptor = Rnode->Buffer;
+    Descriptor->FixedDma.DescriptorType =
+        ACPI_RESOURCE_NAME_FIXED_DMA | ASL_RDESC_FIXED_DMA_SIZE;
+
+    /* Process all child initialization nodes */
+
+    for (i = 0; InitializerOp; i++)
+    {
+        switch (i)
+        {
+        case 0: /* DMA Request Lines [WORD] (_DMA) */
+
+            Descriptor->FixedDma.RequestLines = (UINT16) InitializerOp->Asl.Value.Integer;
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_DMA,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.RequestLines));
+            break;
+
+        case 1: /* DMA Channel [WORD] (_TYP) */
+
+            Descriptor->FixedDma.Channels = (UINT16) InitializerOp->Asl.Value.Integer;
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_DMATYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.Channels));
+            break;
+
+        case 2: /* Transfer Width [BYTE] (_SIZ) */
+
+            Descriptor->FixedDma.Width = (UINT8) InitializerOp->Asl.Value.Integer;
+            RsCreateByteField (InitializerOp, ACPI_RESTAG_XFERTYPE,
+                CurrentByteOffset + ASL_RESDESC_OFFSET (FixedDma.Width));
+            break;
+
+        case 3: /* Descriptor Name (optional) */
+
+            UtAttachNamepathToOwner (Op, InitializerOp);
+            break;
+
+        default:    /* Ignore any extra nodes */
+            break;
+        }
+
+        InitializerOp = RsCompleteNodeAndGetNext (InitializerOp);
+    }
+
+    return (Rnode);
+}
+
+
+/*******************************************************************************
+ *
  * FUNCTION:    RsDoFixedIoDescriptor
  *
  * PARAMETERS:  Op                  - Parent resource descriptor parse node
@@ -223,7 +299,7 @@ RsDoFixedIoDescriptor (
 
             Descriptor->FixedIo.Address =
                 (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_BASEADDRESS,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (FixedIo.Address));
             AddressOp = InitializerOp;
             break;
@@ -314,7 +390,7 @@ RsDoIoDescriptor (
 
             Descriptor->Io.Minimum =
                 (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MINADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MINADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Minimum));
             MinOp = InitializerOp;
             break;
@@ -323,7 +399,7 @@ RsDoIoDescriptor (
 
             Descriptor->Io.Maximum =
                 (UINT16) InitializerOp->Asl.Value.Integer;
-            RsCreateByteField (InitializerOp, ACPI_RESTAG_MAXADDR,
+            RsCreateWordField (InitializerOp, ACPI_RESTAG_MAXADDR,
                 CurrentByteOffset + ASL_RESDESC_OFFSET (Io.Maximum));
             MaxOp = InitializerOp;
             break;
@@ -480,7 +556,7 @@ RsDoIrqDescriptor (
 
                 /* Create a named field at the start of the list */
 
-                RsCreateByteField (InitializerOp, ACPI_RESTAG_INTERRUPT,
+                RsCreateWordField (InitializerOp, ACPI_RESTAG_INTERRUPT,
                     CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.IrqMask));
             }
             break;
@@ -580,7 +656,7 @@ RsDoIrqNoFlagsDescriptor (
 
                 /* Create a named field at the start of the list */
 
-                RsCreateByteField (InitializerOp, ACPI_RESTAG_INTERRUPT,
+                RsCreateWordField (InitializerOp, ACPI_RESTAG_INTERRUPT,
                     CurrentByteOffset + ASL_RESDESC_OFFSET (Irq.IrqMask));
             }
             break;

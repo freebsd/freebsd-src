@@ -274,3 +274,35 @@ ACPI_RSCONVERT_INFO     AcpiRsConvertDma[6] =
                         ACPI_RS_OFFSET (Data.Dma.ChannelCount)}
 };
 
+
+/*******************************************************************************
+ *
+ * AcpiRsConvertFixedDma
+ *
+ ******************************************************************************/
+
+ACPI_RSCONVERT_INFO     AcpiRsConvertFixedDma[4] =
+{
+    {ACPI_RSC_INITGET,  ACPI_RESOURCE_TYPE_FIXED_DMA,
+                        ACPI_RS_SIZE (ACPI_RESOURCE_FIXED_DMA),
+                        ACPI_RSC_TABLE_SIZE (AcpiRsConvertFixedDma)},
+
+    {ACPI_RSC_INITSET,  ACPI_RESOURCE_NAME_FIXED_DMA,
+                        sizeof (AML_RESOURCE_FIXED_DMA),
+                        0},
+
+    /*
+     * These fields are contiguous in both the source and destination:
+     * RequestLines
+     * Channels
+     */
+
+    {ACPI_RSC_MOVE16,   ACPI_RS_OFFSET (Data.FixedDma.RequestLines),
+                        AML_OFFSET (FixedDma.RequestLines),
+                        2},
+
+    {ACPI_RSC_MOVE8,    ACPI_RS_OFFSET (Data.FixedDma.Width),
+                        AML_OFFSET (FixedDma.Width),
+                        1},
+
+};

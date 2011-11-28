@@ -716,8 +716,10 @@ typedef UINT8                           ACPI_ADR_SPACE_TYPE;
 #define ACPI_ADR_SPACE_CMOS             (ACPI_ADR_SPACE_TYPE) 5
 #define ACPI_ADR_SPACE_PCI_BAR_TARGET   (ACPI_ADR_SPACE_TYPE) 6
 #define ACPI_ADR_SPACE_IPMI             (ACPI_ADR_SPACE_TYPE) 7
+#define ACPI_ADR_SPACE_GPIO             (ACPI_ADR_SPACE_TYPE) 8
+#define ACPI_ADR_SPACE_GSBUS            (ACPI_ADR_SPACE_TYPE) 9
 
-#define ACPI_NUM_PREDEFINED_REGIONS     8
+#define ACPI_NUM_PREDEFINED_REGIONS     10
 
 /*
  * Special Address Spaces
@@ -1029,6 +1031,17 @@ ACPI_STATUS (*ACPI_ADR_SPACE_HANDLER) (
     void                            *RegionContext);
 
 #define ACPI_DEFAULT_HANDLER            NULL
+
+/* Special Context data for GenericSerialBus/GeneralPurposeIo (ACPI 5.0) */
+
+typedef struct acpi_connection_info
+{
+    UINT8                           *Connection;
+    UINT16                          Length;
+    UINT8                           AccessLength;
+
+} ACPI_CONNECTION_INFO;
+
 
 typedef
 ACPI_STATUS (*ACPI_ADR_SPACE_SETUP) (
