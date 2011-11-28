@@ -123,7 +123,7 @@ CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 CRUNCH_LIBS+= -lipx
 .endif
 .if ${MK_ZFS} != "no"
-CRUNCH_LIBS+= -lavl -lnvpair -lpthread -lzfs -luutil -lumem
+CRUNCH_LIBS+= -lavl -lnvpair -lzfs -lpthread -luutil -lumem
 .endif
 CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lreadline -lsbuf -lufs -lz
 
