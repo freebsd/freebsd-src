@@ -68,6 +68,7 @@ MAN=	aac.4 \
 	bt.4 \
 	bwi.4 \
 	bwn.4 \
+	capsicum.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
