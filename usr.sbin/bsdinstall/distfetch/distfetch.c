@@ -48,6 +48,7 @@ main(void)
 	urls = calloc(ndists, sizeof(const char *));
 	if (urls == NULL) {
 		fprintf(stderr, "Out of memory!\n");
+		free(diststring);
 		return (1);
 	}
 
