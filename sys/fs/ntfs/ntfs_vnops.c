@@ -481,7 +481,7 @@ ntfs_readdir(ap)
 	struct uio *uio = ap->a_uio;
 	struct ntfsmount *ntmp = ip->i_mp;
 	int i, j, error = 0;
-	wchar c;
+	char *c;
 	u_int32_t faked = 0, num;
 	int ncookies = 0;
 	struct dirent cde;
@@ -538,11 +538,10 @@ ntfs_readdir(ap)
 			if(!ntfs_isnamepermitted(ntmp,iep))
 				continue;
 
-			for(i=0, j=0; i<iep->ie_fnamelen; i++, j++) {
+			for(i=0, j=0; i<iep->ie_fnamelen; i++) {
 				c = NTFS_U28(iep->ie_fname[i]);
-				if (c&0xFF00)
-					cde.d_name[j++] = (char)(c>>8);
-				cde.d_name[j] = (char)c&0xFF;
+				while (*c != '\0')
+					cde.d_name[j++] = *c++;
 			}
 			cde.d_name[j] = '\0';
 			dprintf(("ntfs_readdir: elem: %d, fname:[%s] type: %d, flag: %d, ",

@@ -81,8 +81,7 @@ struct sctp_host_name_param {
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
-	uint16_t addr_type[SCTP_ARRAY_MIN_LEN];	/* array of supported address
-						 * types */
+	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
 /* ECN parameter */

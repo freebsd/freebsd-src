@@ -27,8 +27,11 @@
  */
 
 #include <sys/param.h>
+#include <sys/elf.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
+
+#include <vm/vm.h>
 
 #include <err.h>
 #include <errno.h>
@@ -38,11 +41,15 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include <machine/elf.h>
-
 #include "procstat.h"
 
 static Elf_Auxinfo auxv[256];
+static char prefix[256];
+
+#define	PRINT(name, spec, val)		\
+	printf("%s %-16s " #spec "\n", prefix, #name, (val))
+#define	PRINT_UNKNOWN(type, val)	\
+	printf("%s %16ld %#lx\n", prefix, (long)type, (u_long)(val))
 
 void
 procstat_auxv(struct kinfo_proc *kipp)
@@ -51,7 +58,7 @@ procstat_auxv(struct kinfo_proc *kipp)
 	size_t len, i;
 
 	if (!hflag)
-		printf("%5s %-16s %-53s\n", "PID", "COMM", "AUXV");
+		printf("%5s %-16s %-16s %-16s\n", "PID", "COMM", "AUXV", "VALUE");
 
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
@@ -63,124 +70,101 @@ procstat_auxv(struct kinfo_proc *kipp)
 		warn("sysctl: kern.proc.auxv: %d: %d", kipp->ki_pid, errno);
 		return;
 	}
-	if (error < 0)
+	if (error < 0 || len == 0)
 		return;
-	printf("%5d ", kipp->ki_pid);
-	printf("%-16s", kipp->ki_comm);
 	if (len == 0) {
 		printf(" -\n");
 		return;
 	}
+	snprintf(prefix, sizeof(prefix), "%5d %-16s", kipp->ki_pid,
+	    kipp->ki_comm);
 	for (i = 0; i < len; i++) {
 		switch(auxv[i].a_type) {
 		case AT_NULL:
-			printf(" (%zu)\n", i + 1);
 			return;
 		case AT_IGNORE:
-			printf(" AT_IGNORE=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
 			break;
 		case AT_EXECFD:
-			printf(" AT_EXECFD=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_EXECFD, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PHDR:
-			printf(" AT_PHDR=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PHDR, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_PHENT:
-			printf(" AT_PHENT=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PHENT, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PHNUM:
-			printf(" AT_PHNUM=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PHNUM, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PAGESZ:
-			printf(" AT_PAGESZ=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PAGESZ, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_BASE:
-			printf(" AT_BASE=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_BASE, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_FLAGS:
-			printf(" AT_FLAGS=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_FLAGS, %#lx, (u_long)auxv[i].a_un.a_val);
 			break;
 		case AT_ENTRY:
-			printf(" AT_ENTRY=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_ENTRY, %p, auxv[i].a_un.a_ptr);
 			break;
 #ifdef AT_NOTELF
 		case AT_NOTELF:
-			printf(" AT_NOTELF=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_NOTELF, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_UID
 		case AT_UID:
-			printf(" AT_UID=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_UID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_EUID
 		case AT_EUID:
-			printf(" AT_EUID=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_EUID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_GID
 		case AT_GID:
-			printf(" AT_GID=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_GID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 #ifdef AT_EGID
 		case AT_EGID:
-			printf(" AT_EGID=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_EGID, %ld, (long)auxv[i].a_un.a_val);
 			break;
 #endif
 		case AT_EXECPATH:
-			printf(" AT_EXECPATH=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_EXECPATH, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_CANARY:
-			printf(" AT_CANARY=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_CANARY, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_CANARYLEN:
-			printf(" AT_CANARYLEN=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_CANARYLEN, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_OSRELDATE:
-			printf(" AT_OSRELDATE=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_OSRELDATE, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_NCPUS:
-			printf(" AT_NCPUS=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_NCPUS, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_PAGESIZES:
-			printf(" AT_PAGESIZES=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PAGESIZES, %p, auxv[i].a_un.a_ptr);
 			break;
 		case AT_PAGESIZESLEN:
-			printf(" AT_PAGESIZESLEN=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_PAGESIZESLEN, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		case AT_STACKPROT:
-			printf(" AT_STACKPROT=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			if ((auxv[i].a_un.a_val & VM_PROT_EXECUTE) != 0)
+				PRINT(AT_STACKPROT, %s, "NONEXECUTABLE");
+			else
+				PRINT(AT_STACKPROT, %s, "EXECUTABLE");
 			break;
 		case AT_COUNT:
-			printf(" AT_COUNT=0x%lu",
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT(AT_COUNT, %ld, (long)auxv[i].a_un.a_val);
 			break;
 		default:
-			printf(" %ld=0x%lu", (long)auxv[i].a_type,
-			    (unsigned long)auxv[i].a_un.a_val);
+			PRINT_UNKNOWN(auxv[i].a_type, auxv[i].a_un.a_val);
 			break;
 		}
 	}

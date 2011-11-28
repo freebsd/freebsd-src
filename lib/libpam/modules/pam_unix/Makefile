@@ -34,9 +34,7 @@
 #
 # $FreeBSD$
 
-NO_PROFILE=
-NO_INSTALLLIB=
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 
 LIB=	pam_unix
 SRCS=	pam_unix.c

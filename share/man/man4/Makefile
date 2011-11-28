@@ -67,6 +67,7 @@ MAN=	aac.4 \
 	bt.4 \
 	bwi.4 \
 	bwn.4 \
+	capsicum.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -377,7 +378,7 @@ MAN=	aac.4 \
 	send.4 \
 	ses.4 \
 	sf.4 \
-	sfxge.4 \
+	${_sfxge.4} \
 	sge.4 \
 	si.4 \
 	siba.4 \
@@ -717,6 +718,7 @@ MLINKS+=lindev.4 full.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _qlxgb.4=	qlxgb.4
+_sfxge.4=	sfxge.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

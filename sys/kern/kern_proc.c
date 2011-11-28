@@ -1768,7 +1768,7 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	int *name = (int*) arg1;
 	u_int namelen = arg2;
 	struct proc *p;
-	size_t vsize;
+	size_t vsize, size;
 	char **auxv;
 	int error;
 
@@ -1793,16 +1793,18 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	_PHOLD(p);
 	PROC_UNLOCK(p);
 	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
-	PRELE(p);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
 		if (SV_PROC_FLAG(p, SV_ILP32) != 0)
-			error = SYSCTL_OUT(req, auxv, vsize *
-			    sizeof(Elf32_Auxinfo));
+			size = vsize * sizeof(Elf32_Auxinfo);
 		else
 #endif
-		error = SYSCTL_OUT(req, auxv, vsize * sizeof(Elf_Auxinfo));
+		size = vsize * sizeof(Elf_Auxinfo);
+		PRELE(p);
+		error = SYSCTL_OUT(req, auxv, size);
 		free(auxv, M_TEMP);
+	} else {
+		PRELE(p);
 	}
 	return (error);
 }
@@ -2432,6 +2434,59 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * This sysctl allows a process to retrieve ps_strings structure location of
+ * another process.
+ */
+static int
+sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
+{
+	int *name = (int*) arg1;
+	u_int namelen = arg2;
+	struct proc *p;
+	vm_offset_t ps_strings;
+	int error;
+#ifdef COMPAT_FREEBSD32
+	uint32_t ps_strings32;
+#endif
+
+	if (namelen != 1)
+		return (EINVAL);
+
+	p = pfind((pid_t)name[0]);
+	if (p == NULL)
+		return (ESRCH);
+	if (p->p_flag & P_WEXIT) {
+		PROC_UNLOCK(p);
+		return (ESRCH);
+	}
+	if ((error = p_cansee(curthread, p)) != 0) {
+		PROC_UNLOCK(p);
+		return (error);
+	}
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+#ifdef COMPAT_FREEBSD32
+	if ((req->flags & SCTL_MASK32) != 0) {
+		/*
+		 * We return 0 if the 32 bit emulation request is for a 64 bit
+		 * process.
+		 */
+		ps_strings32 = SV_PROC_FLAG(p, SV_ILP32) != 0 ?
+		    PTROUT(p->p_sysent->sv_psstrings) : 0;
+		PROC_UNLOCK(p);
+		error = SYSCTL_OUT(req, &ps_strings32, sizeof(ps_strings32));
+		return (error);
+	}
+#endif
+	ps_strings = p->p_sysent->sv_psstrings;
+	PROC_UNLOCK(p);
+	error = SYSCTL_OUT(req, &ps_strings, sizeof(ps_strings));
+	return (error);
+}
+
 SYSCTL_NODE(_kern, KERN_PROC, proc, CTLFLAG_RD,  0, "Process table");
 
 SYSCTL_PROC(_kern_proc, KERN_PROC_ALL, all, CTLFLAG_RD|CTLTYPE_STRUCT|
@@ -2530,3 +2585,7 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit, "Process resource limits");
+
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings,
+	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+	sysctl_kern_proc_ps_strings, "Process ps_strings location");

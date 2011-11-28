@@ -48,10 +48,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/kthread.h>
 
-#ifdef PC98
-#include <pc98/pc98/pc98_machdep.h>	/* geometry translation */
-#endif
-
 #include <cam/cam.h>
 #include <cam/cam_ccb.h>
 #include <cam/cam_periph.h>
@@ -66,7 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <cam/scsi/scsi_all.h>
 #include <cam/scsi/scsi_message.h>
 #include <cam/scsi/scsi_pass.h>
+
+#include <machine/md_var.h>	/* geometry translation */
 #include <machine/stdarg.h>	/* for xpt_print below */
+
 #include "opt_cam.h"
 
 /*
@@ -2456,7 +2455,7 @@ xpt_action_default(union ccb *start_ccb)
 			start_ccb->ccb_h.status = CAM_REQ_CMP;
 			break;
 		}
-#ifdef PC98
+#if defined(PC98) || defined(__sparc64__)
 		/*
 		 * In a PC-98 system, geometry translation depens on
 		 * the "real" device geometry obtained from mode page 4.
@@ -2465,6 +2464,9 @@ xpt_action_default(union ccb *start_ccb)
 		 * stored in host memory.  If the translation is available
 		 * in host memory, use it.  If not, rely on the default
 		 * translation the device driver performs.
+		 * For sparc64, we may need adjust the geometry of large
+		 * disks in order to fit the limitations of the 16-bit
+		 * fields of the VTOC8 disk label.
 		 */
 		if (scsi_da_bios_params(&start_ccb->ccg) != 0) {
 			start_ccb->ccb_h.status = CAM_REQ_CMP;

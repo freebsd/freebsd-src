@@ -191,10 +191,8 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-	if (sc->arge_mac_unit == 0)
-		ar71xx_device_flush_ddr_ge0();
-	else
-		ar71xx_device_flush_ddr_ge1();
+
+	ar71xx_device_flush_ddr_ge(sc->arge_mac_unit);
 }
 
 static int 
@@ -774,10 +772,7 @@ arge_set_pll(struct arge_softc *sc, int media, int duplex)
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_TX_THRESHOLD, fifo_tx);
 
 	/* set PLL registers */
-	if (sc->arge_mac_unit == 0)
-		ar71xx_device_set_pll_ge0(if_speed);
-	else
-		ar71xx_device_set_pll_ge1(if_speed);
+	ar71xx_device_set_pll_ge(sc->arge_mac_unit, if_speed);
 }
 
 
