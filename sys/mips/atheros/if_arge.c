@@ -191,10 +191,8 @@ MTX_SYSINIT(miibus_mtx, &miibus_mtx, "arge mii lock", MTX_DEF);
 static void
 arge_flush_ddr(struct arge_softc *sc)
 {
-	if (sc->arge_mac_unit == 0)
-		ar71xx_device_flush_ddr_ge(0);
-	else
-		ar71xx_device_flush_ddr_ge(1);
+
+	ar71xx_device_flush_ddr_ge(sc->arge_mac_unit);
 }
 
 static int 
