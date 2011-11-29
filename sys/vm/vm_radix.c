@@ -316,33 +316,37 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 		if (rnode->rn_child[slot] == NULL) {
 			rnode->rn_child[slot] = vm_radix_node_get();
     			if (rnode->rn_child[slot] == NULL) {
-				CTR6(KTR_VM,
-"insert: tree %p, index %jd, level %d, slot %d, rnode %p, child %p ENOMEM",
-		    		    rtree, index, level, slot, rnode,
-				    (rnode != NULL) ? rnode->rn_child[slot] :
-				    NULL);
+				CTR5(KTR_VM,
+	"insert: tree %p, index %jd, level %d, slot %d, rnode %p ENOMEM",
+		    		    rtree, index, level, slot, rnode);
+				CTR4(KTR_VM,
+			"insert: tree %p, rnode %p, child %p, count %u ENOMEM",
+		    		    rtree, rnode, rnode->rn_child[slot],
+				    rnode->rn_count);
 		    		return (ENOMEM);
 			}
 			rnode->rn_count++;
 	    	}
-		CTR6(KTR_VM,
-	"insert: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ?  rnode->rn_child[slot] : NULL);
+		CTR5(KTR_VM,
+		    "insert: tree %p, index %p, level %d, slot %d, rnode %p",
+		    rtree, (void *)index, level, slot, rnode);
+		CTR4(KTR_VM,
+		    "insert: tree %p, rnode %p, child %p, count %u",
+		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
 		rnode = rnode->rn_child[slot];
 	}
 
 	slot = vm_radix_slot(index, 0);
-	CTR6(KTR_VM,
-	    "insert: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-	    rtree, (void *)index, level, slot, rnode,
-	    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+	MPASS(rnode != NULL);
 	KASSERT(rnode->rn_child[slot] == NULL,
 	    ("vm_radix_insert: Duplicate value %p at index: %lu\n", 
 	    rnode->rn_child[slot], (u_long)index));
 	val = (void *)((uintptr_t)val | VM_RADIX_BLACK);
 	rnode->rn_child[slot] = val;
 	atomic_add_int((volatile int *)&rnode->rn_count, 1);
+	CTR6(KTR_VM,
+	    "insert: tree %p, index %p, level %d, slot %d, rnode %p, count %u",
+	    rtree, (void *)index, level, slot, rnode, rnode->rn_count);
 
 	return 0;
 }
@@ -367,7 +371,7 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index, int color)
 		CTR6(KTR_VM,
 	"lookup: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
 		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		    rnode->rn_child[slot]);
 		if (level == 0)
 			return vm_radix_match(rnode->rn_child[slot], color);
 		rnode = rnode->rn_child[slot];
@@ -395,7 +399,7 @@ vm_radix_color(struct vm_radix *rtree, vm_pindex_t index, int color)
 		CTR6(KTR_VM,
 	"color: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
 		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		    rnode->rn_child[slot]);
 		if (level == 0)
 			break;
 		rnode = rnode->rn_child[slot];
@@ -579,7 +583,7 @@ restart:
 		CTR6(KTR_VM,
 	"lookup_le: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
 		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		    rnode->rn_child[slot]);
 		if (level == 0)
 			break;
 		/*
@@ -648,10 +652,11 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 	while (level && rnode) {
 		stack[level] = rnode;
 		slot = vm_radix_slot(index, level);
-		CTR6(KTR_VM,
-	"remove: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
+		CTR5(KTR_VM,
+		    "remove: tree %p, index %p, level %d, slot %d, rnode %p",
+		    rtree, (void *)index, level, slot, rnode);
+		CTR4(KTR_VM, "remove: tree %p, rnode %p, child %p, count %u",
+		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
 		rnode = rnode->rn_child[slot];
 		level--;
 	}
@@ -663,12 +668,14 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
 
 	for (;;) {
-		CTR6(KTR_VM,
-"remove: resetting tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
-		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
-		CTR3(KTR_VM, "remove: rnode %p, count %d, color %d",
-		    rnode, (rnode != NULL) ? rnode->rn_count : -1, color);
+		CTR5(KTR_VM,
+	"remove: resetting tree %p, index %p, level %d, slot %d, rnode %p",
+		    rtree, (void *)index, level, slot, rnode);
+		CTR4(KTR_VM,
+		    "remove: resetting tree %p, rnode %p, child %p, count %u",
+		    rtree, rnode,
+		    (rnode != NULL) ? rnode->rn_child[slot] : NULL,
+		    (rnode != NULL) ? rnode->rn_count : 0);
 		rnode->rn_child[slot] = NULL;
 		/*
 		 * Use atomics for the last level since red and black
