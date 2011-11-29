@@ -197,7 +197,7 @@ fbclock_nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	binuptime(&bt);
+	fbclock_binuptime(&bt);
 	bintime2timespec(&bt, tsp);
 }
 
@@ -206,7 +206,7 @@ fbclock_microuptime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	binuptime(&bt);
+	fbclock_binuptime(&bt);
 	bintime2timeval(&bt, tvp);
 }
 
@@ -214,7 +214,7 @@ static void
 fbclock_bintime(struct bintime *bt)
 {
 
-	binuptime(bt);
+	fbclock_binuptime(bt);
 	bintime_add(bt, &boottimebin);
 }
 
@@ -223,7 +223,7 @@ fbclock_nanotime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	bintime(&bt);
+	fbclock_bintime(&bt);
 	bintime2timespec(&bt, tsp);
 }
 
@@ -232,7 +232,7 @@ fbclock_microtime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	bintime(&bt);
+	fbclock_bintime(&bt);
 	bintime2timeval(&bt, tvp);
 }
 
