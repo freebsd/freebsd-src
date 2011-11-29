@@ -118,7 +118,7 @@ SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
 	&ifdescr_maxlen, 0,
 	"administrative maximum length for interface description");
 
-MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
+static MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
 
 /* global sx for non-critical path ifdescr */
 static struct sx ifdescr_sx;
@@ -215,7 +215,7 @@ struct sx ifnet_sxlock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
+static MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
@@ -1475,7 +1475,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	} else if (error != 0)
-		log(LOG_INFO, "ifa_add_loopback_route: insertion failed\n");
+		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
 
 	return (error);
 }
@@ -1499,7 +1499,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
 
 	if (error != 0)
-		log(LOG_INFO, "ifa_del_loopback_route: deletion failed\n");
+		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
 
 	return (error);
 }

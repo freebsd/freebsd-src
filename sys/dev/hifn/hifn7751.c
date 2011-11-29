@@ -113,16 +113,12 @@ static device_method_t hifn_methods[] = {
 	DEVMETHOD(device_resume,	hifn_resume),
 	DEVMETHOD(device_shutdown,	hifn_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	hifn_newsession),
 	DEVMETHOD(cryptodev_freesession,hifn_freesession),
 	DEVMETHOD(cryptodev_process,	hifn_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t hifn_driver = {
 	"hifn",
@@ -184,7 +180,8 @@ READ_REG_1(struct hifn_softc *sc, bus_size_t reg)
 }
 #define	WRITE_REG_1(sc, reg, val)	hifn_write_reg_1(sc, reg, val)
 
-SYSCTL_NODE(_hw, OID_AUTO, hifn, CTLFLAG_RD, 0, "Hifn driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, hifn, CTLFLAG_RD, 0,
+	    "Hifn driver parameters");
 
 #ifdef HIFN_DEBUG
 static	int hifn_debug = 0;

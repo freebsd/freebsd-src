@@ -112,11 +112,13 @@ struct ath_hal_5416 {
 	int		ah_hangs;		/* h/w hangs state */
 	uint8_t		ah_keytype[AR5416_KEYTABLE_SIZE];
 	/*
-	 * Extension Channel Rx Clear State
+	 * Primary/Extension Channel Tx, Rx, Rx Clear State
 	 */
 	uint32_t	ah_cycleCount;
 	uint32_t	ah_ctlBusy;
 	uint32_t	ah_extBusy;
+	uint32_t	ah_rxBusy;
+	uint32_t	ah_txBusy;
 	uint32_t	ah_rx_chainmask;
 	uint32_t	ah_tx_chainmask;
 
@@ -194,6 +196,9 @@ extern	uint32_t ar5416GetCurRssi(struct ath_hal *ah);
 extern	HAL_BOOL ar5416SetAntennaSwitch(struct ath_hal *, HAL_ANT_SETTING);
 extern	HAL_BOOL ar5416SetDecompMask(struct ath_hal *, uint16_t, int);
 extern	void ar5416SetCoverageClass(struct ath_hal *, uint8_t, int);
+extern	uint32_t ar5416GetMibCycleCountsPct(struct ath_hal *ah,
+    uint32_t *rxc_pcnt, uint32_t *rxextc_pcnt, uint32_t *rxf_pcnt,
+    uint32_t *txf_pcnt);
 extern	uint32_t ar5416Get11nExtBusy(struct ath_hal *ah);
 extern	void ar5416Set11nMac2040(struct ath_hal *ah, HAL_HT_MACMODE mode);
 extern	HAL_HT_RXCLEAR ar5416Get11nRxClear(struct ath_hal *ah);
@@ -339,8 +344,14 @@ extern	u_int ar5416GetGlobalTxTimeout(struct ath_hal *ah);
 extern	void ar5416Set11nRateScenario(struct ath_hal *ah, struct ath_desc *ds,
 		u_int durUpdateEn, u_int rtsctsRate, HAL_11N_RATE_SERIES series[],
 		u_int nseries, u_int flags);
+
+extern void ar5416Set11nAggrFirst(struct ath_hal *ah, struct ath_desc *ds,
+		u_int aggrLen, u_int numDelims);
 extern	void ar5416Set11nAggrMiddle(struct ath_hal *ah, struct ath_desc *ds, u_int numDelims);
+extern void ar5416Set11nAggrLast(struct ath_hal *ah, struct ath_desc *ds);
+
 extern	void ar5416Clr11nAggr(struct ath_hal *ah, struct ath_desc *ds);
+
 extern	void ar5416Set11nBurstDuration(struct ath_hal *ah, struct ath_desc *ds, u_int burstDuration);
 
 extern	const HAL_RATE_TABLE *ar5416GetRateTable(struct ath_hal *, u_int mode);

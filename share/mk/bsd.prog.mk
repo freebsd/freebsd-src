@@ -60,9 +60,9 @@ ${PROG}: ${OBJS}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
-		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
+.if !defined(NO_CTF)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 
 .else	# !defined(SRCS)
 
@@ -90,9 +90,9 @@ ${PROG}: ${OBJS}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS} && \
-		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS})
+.if !defined(NO_CTF)
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
+.endif
 .endif
 
 .endif

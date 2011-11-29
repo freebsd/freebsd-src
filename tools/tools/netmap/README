@@ -1,0 +1,11 @@
+$FreeBSD$
+
+This directory contains examples that use netmap
+
+	pkt-gen		a packet sink/source using the netmap API
+
+	bridge		a two-port jumper wire, also using the native API
+
+	testpcap	a jumper wire using libnetmap (or libpcap)
+
+	click*		various click examples

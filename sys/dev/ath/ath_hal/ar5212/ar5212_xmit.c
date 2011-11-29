@@ -821,12 +821,14 @@ ar5212FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		 * copy the multi-rate transmit parameters from
 		 * the first frame for processing on completion. 
 		 */
-		ads->ds_ctl0 = 0;
 		ads->ds_ctl1 = segLen;
 #ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5212DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxInterReq;
 		ads->ds_ctl2 = __bswap32(AR5212DESC_CONST(ds0)->ds_ctl2);
 		ads->ds_ctl3 = __bswap32(AR5212DESC_CONST(ds0)->ds_ctl3);
 #else
+		ads->ds_ctl0 = AR5212DESC_CONST(ds0)->ds_ctl0 & AR_TxInterReq;
 		ads->ds_ctl2 = AR5212DESC_CONST(ds0)->ds_ctl2;
 		ads->ds_ctl3 = AR5212DESC_CONST(ds0)->ds_ctl3;
 #endif
@@ -834,7 +836,12 @@ ar5212FillTxDesc(struct ath_hal *ah, struct ath_desc *ds,
 		/*
 		 * Intermediate descriptor in a multi-descriptor frame.
 		 */
-		ads->ds_ctl0 = 0;
+#ifdef AH_NEED_DESC_SWAP
+		ads->ds_ctl0 = __bswap32(AR5212DESC_CONST(ds0)->ds_ctl0)
+		    & AR_TxInterReq;
+#else
+		ads->ds_ctl0 = AR5212DESC_CONST(ds0)->ds_ctl0 & AR_TxInterReq;
+#endif
 		ads->ds_ctl1 = segLen | AR_More;
 		ads->ds_ctl2 = 0;
 		ads->ds_ctl3 = 0;

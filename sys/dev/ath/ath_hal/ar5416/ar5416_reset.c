@@ -146,7 +146,9 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 
 	/* For chips on which the RTC reset is done, save TSF before it gets cleared */
 	if (AR_SREV_HOWL(ah) ||
-	    (AR_SREV_MERLIN(ah) && ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)))
+	    (AR_SREV_MERLIN(ah) &&
+	     ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) ||
+	    (ah->ah_config.ah_force_full_reset))
 		tsf = ar5416GetTsf64(ah);
 
 	/* Mark PHY as inactive; marked active in ar5416InitBB() */
@@ -278,9 +280,10 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	/* Restore previous antenna */
 	OS_REG_WRITE(ah, AR_DEF_ANTENNA, saveDefAntenna);
 
-	/* then our BSSID */
+	/* then our BSSID and associate id */
 	OS_REG_WRITE(ah, AR_BSS_ID0, LE_READ_4(ahp->ah_bssid));
-	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4));
+	OS_REG_WRITE(ah, AR_BSS_ID1, LE_READ_2(ahp->ah_bssid + 4) |
+	    (ahp->ah_assocId & 0x3fff) << AR_BSS_ID1_AID_S);
 
 	/* Restore bmiss rssi & count thresholds */
 	OS_REG_WRITE(ah, AR_RSSI_THR, ahp->ah_rssiThr);
@@ -357,12 +360,12 @@ ar5416Reset(struct ath_hal *ah, HAL_OPMODE opmode,
 	 */
 	OS_REG_WRITE(ah, AR_OBS, 8);
 
-#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * Disable the "general" TX/RX mitigation timers.
 	 */
 	OS_REG_WRITE(ah, AR_MIRT, 0);
 
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
 	/*
 	 * This initialises the RX interrupt mitigation timers.
 	 *
@@ -630,11 +633,11 @@ ar5416InitIMR(struct ath_hal *ah, HAL_OPMODE opmode)
                         | AR_IMR_BCNMISC;
 
 #ifdef	AH_AR5416_INTERRUPT_MITIGATION
-	ahp->ah_maskReg |= AR_IMR_TXINTM | AR_IMR_RXINTM
-			|  AR_IMR_TXMINTR | AR_IMR_RXMINTR;
+	ahp->ah_maskReg |= AR_IMR_RXINTM | AR_IMR_RXMINTR;
 #else
-	ahp->ah_maskReg |= AR_IMR_TXOK | AR_IMR_RXOK;
+	ahp->ah_maskReg |= AR_IMR_RXOK;
 #endif	
+	ahp->ah_maskReg |= AR_IMR_TXOK;
 
 	if (opmode == HAL_M_HOSTAP)
 		ahp->ah_maskReg |= AR_IMR_MIB;
@@ -721,6 +724,20 @@ ar5416SetRfMode(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		rfMode |= IEEE80211_IS_CHAN_5GHZ(chan) ?
 			AR_PHY_MODE_RF5GHZ : AR_PHY_MODE_RF2GHZ;
 	}
+
+	/*
+	 * Set half/quarter mode flags if required.
+	 *
+	 * This doesn't change the IFS timings at all; that needs to
+	 * be done as part of the MAC setup.  Similarly, the PLL
+	 * configuration also needs some changes for the half/quarter
+	 * rate clock.
+	 */
+	if (IEEE80211_IS_CHAN_HALF(chan))
+		rfMode |= AR_PHY_MODE_HALF;
+	else if (IEEE80211_IS_CHAN_QUARTER(chan))
+		rfMode |= AR_PHY_MODE_QUARTER;
+
 	OS_REG_WRITE(ah, AR_PHY_MODE, rfMode);
 }
 
@@ -732,10 +749,13 @@ ar5416ChipReset(struct ath_hal *ah, const struct ieee80211_channel *chan)
 {
 	OS_MARK(ah, AH_MARK_CHIPRESET, chan ? chan->ic_freq : 0);
 	/*
-	 * Warm reset is optimistic.
+	 * Warm reset is optimistic for open-loop TX power control.
 	 */
 	if (AR_SREV_MERLIN(ah) &&
 	    ath_hal_eepromGetFlag(ah, AR_EEP_OL_PWRCTRL)) {
+		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
+			return AH_FALSE;
+	} else if (ah->ah_config.ah_force_full_reset) {
 		if (!ar5416SetResetReg(ah, HAL_RESET_POWER_ON))
 			return AH_FALSE;
 	} else {
@@ -1177,7 +1197,7 @@ ar5416GetRfgain(struct ath_hal *ah)
 HAL_BOOL
 ar5416Disable(struct ath_hal *ah)
 {
-	if (!ar5212SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+	if (!ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
 		return AH_FALSE;
 	if (! ar5416SetResetReg(ah, HAL_RESET_COLD))
 		return AH_FALSE;
@@ -1208,6 +1228,12 @@ ar5416PhyDisable(struct ath_hal *ah)
 HAL_BOOL
 ar5416SetResetReg(struct ath_hal *ah, uint32_t type)
 {
+	/*
+	 * Set force wake
+	 */
+	OS_REG_WRITE(ah, AR_RTC_FORCE_WAKE,
+	    AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);
+
 	switch (type) {
 	case HAL_RESET_POWER_ON:
 		return ar5416SetResetPowerOn(ah);
@@ -1238,10 +1264,15 @@ ar5416SetResetPowerOn(struct ath_hal *ah)
             AR_RTC_FORCE_WAKE_EN | AR_RTC_FORCE_WAKE_ON_INT);    
 
     /*
-     * RTC reset and clear
+     * PowerOn reset can be used in open loop power control or failure recovery.
+     * If we do RTC reset while DMA is still running, hardware may corrupt memory.
+     * Therefore, we need to reset AHB first to stop DMA.
      */
     if (! AR_SREV_HOWL(ah))
     	OS_REG_WRITE(ah, AR_RC, AR_RC_AHB);
+    /*
+     * RTC reset and clear
+     */
     OS_REG_WRITE(ah, AR_RTC_RESET, 0);
     OS_DELAY(20);
 
@@ -1292,6 +1323,11 @@ ar5416SetReset(struct ath_hal *ah, int type)
 #endif	/* AH_SUPPORT_AR9130 */
         /*
          * Reset AHB
+         *
+         * (In case the last interrupt source was a bus timeout.)
+         * XXX TODO: this is not the way to do it! It should be recorded
+         * XXX by the interrupt handler and passed _into_ the
+         * XXX reset path routine so this occurs.
          */
         tmpReg = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
         if (tmpReg & (AR_INTR_SYNC_LOCAL_TIMEOUT|AR_INTR_SYNC_RADM_CPL_TIMEOUT)) {
@@ -2607,7 +2643,7 @@ ar5416OverrideIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		if (!AR_SREV_9271(ah))
 			val &= ~AR_PCU_MISC_MODE2_HWWAR1;
 
-		if (AR_SREV_KIWI_11_OR_LATER(ah))
+		if (AR_SREV_KIWI_10_OR_LATER(ah))
 			val = val & (~AR_PCU_MISC_MODE2_HWWAR2);
 
 		OS_REG_WRITE(ah, AR_PCU_MISC_MODE2, val);

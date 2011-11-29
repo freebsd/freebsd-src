@@ -1638,7 +1638,7 @@ find_local_scripts_old () {
 				    continue
 				zlist="$zlist $file"
 			done
-			for file in ${dir}/[^0-9]*.sh; do
+			for file in ${dir}/[!0-9]*.sh; do
 				grep '^# PROVIDE:' $file >/dev/null 2>&1 &&
 				    continue
 				slist="$slist $file"

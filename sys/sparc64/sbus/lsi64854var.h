@@ -49,6 +49,7 @@ struct lsi64854_softc {
 
 	bus_dma_tag_t		sc_parent_dmat;
 	bus_dma_tag_t		sc_buffer_dmat;
+	bus_size_t		sc_maxdmasize;
 	int			sc_datain;
 	size_t			sc_dmasize;
 	void			**sc_dmaaddr;

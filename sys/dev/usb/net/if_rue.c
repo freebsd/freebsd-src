@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, rue, CTLFLAG_RW, 0, "USB rue");
 SYSCTL_INT(_hw_usb_rue, OID_AUTO, debug, CTLFLAG_RW,
     &rue_debug, 0, "Debug level");
 #endif
@@ -186,15 +186,12 @@ static device_method_t rue_methods[] = {
 	DEVMETHOD(device_attach, rue_attach),
 	DEVMETHOD(device_detach, rue_detach),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, rue_miibus_readreg),
 	DEVMETHOD(miibus_writereg, rue_miibus_writereg),
 	DEVMETHOD(miibus_statchg, rue_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t rue_driver = {

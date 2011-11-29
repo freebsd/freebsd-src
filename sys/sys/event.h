@@ -147,10 +147,6 @@ struct knlist {
 
 #ifdef _KERNEL
 
-#ifdef MALLOC_DECLARE
-MALLOC_DECLARE(M_KQUEUE);
-#endif
-
 /*
  * Flags for knote call
  */

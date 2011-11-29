@@ -184,7 +184,7 @@ __FBSDID("$FreeBSD$");
 #define	WITNESS_INDEX_ASSERT(i)						\
 	MPASS((i) > 0 && (i) <= w_max_used_index && (i) < WITNESS_COUNT)
 
-MALLOC_DEFINE(M_WITNESS, "Witness", "Witness");
+static MALLOC_DEFINE(M_WITNESS, "Witness", "Witness");
 
 /*
  * Lock instances.  A lock instance is the data associated with a lock while
@@ -332,7 +332,7 @@ static void	depart(struct witness *w);
 static struct witness	*enroll(const char *description,
 			    struct lock_class *lock_class);
 static struct lock_instance	*find_instance(struct lock_list_entry *list,
-				    struct lock_object *lock);
+				    const struct lock_object *lock);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
 static void	itismychild(struct witness *parent, struct witness *child);
@@ -376,7 +376,8 @@ static void	witness_setflag(struct lock_object *lock, int flag, int set);
 #define	witness_debugger(c)
 #endif
 
-SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL, "Witness Locking");
+static SYSCTL_NODE(_debug, OID_AUTO, witness, CTLFLAG_RW, NULL,
+    "Witness Locking");
 
 /*
  * If set to 0, lock order checking is disabled.  If set to -1,
@@ -719,6 +720,18 @@ static int witness_cold = 1;
  */
 static int witness_spin_warn = 0;
 
+/* Trim useless garbage from filenames. */
+static const char *
+fixup_filename(const char *file)
+{
+
+	if (file == NULL)
+		return (NULL);
+	while (strncmp(file, "../", 3) == 0)
+		file += 3;
+	return (file);
+}
+
 /*
  * The WITNESS-enabled diagnostic code.  Note that the witness code does
  * assume that the early boot is single-threaded at least until after this
@@ -924,7 +937,7 @@ witness_ddb_display_descendants(int(*prnt)(const char *fmt, ...),
  	}
  	w->w_displayed = 1;
 	if (w->w_file != NULL && w->w_line != 0)
-		prnt(" -- last acquired @ %s:%d\n", w->w_file,
+		prnt(" -- last acquired @ %s:%d\n", fixup_filename(w->w_file),
 		    w->w_line);
 	else
 		prnt(" -- never acquired\n");
@@ -989,18 +1002,6 @@ witness_ddb_display(int(*prnt)(const char *fmt, ...))
 	}
 }
 #endif /* DDB */
-
-/* Trim useless garbage from filenames. */
-static const char *
-fixup_filename(const char *file)
-{
-
-	if (file == NULL)
-		return (NULL);
-	while (strncmp(file, "../", 3) == 0)
-		file += 3;
-	return (file);
-}
 
 int
 witness_defineorder(struct lock_object *lock1, struct lock_object *lock2)
@@ -1167,12 +1168,12 @@ witness_checkorder(struct lock_object *lock, int flags, const char *file,
 			    "acquiring duplicate lock of same type: \"%s\"\n", 
 			    w->w_name);
 			printf(" 1st %s @ %s:%d\n", plock->li_lock->lo_name,
-			       fixup_filename(plock->li_file), plock->li_line);
+			    fixup_filename(plock->li_file), plock->li_line);
 			printf(" 2nd %s @ %s:%d\n", lock->lo_name,
 			    fixup_filename(file), line);
 			witness_debugger(1);
-		    } else
-			    mtx_unlock_spin(&w_mtx);
+		} else
+			mtx_unlock_spin(&w_mtx);
 		return;
 	}
 	mtx_assert(&w_mtx, MA_OWNED);
@@ -1483,7 +1484,8 @@ witness_downgrade(struct lock_object *lock, int flags, const char *file,
 		if ((instance->li_flags & LI_RECURSEMASK) != 0)
 			panic("downgrade of recursed lock (%s) %s r=%d @ %s:%d",
 			    class->lc_name, lock->lo_name,
-			    instance->li_flags & LI_RECURSEMASK, file, line);
+			    instance->li_flags & LI_RECURSEMASK,
+			    fixup_filename(file), line);
 	}
 	instance->li_flags &= ~LI_EXCLUSIVE;
 }
@@ -1533,8 +1535,7 @@ found:
 	if ((instance->li_flags & LI_EXCLUSIVE) != 0 && witness_watch > 0 &&
 	    (flags & LOP_EXCLUSIVE) == 0) {
 		printf("shared unlock of (%s) %s @ %s:%d\n", class->lc_name,
-		    lock->lo_name,
-		    fixup_filename(file), line);
+		    lock->lo_name, fixup_filename(file), line);
 		printf("while exclusively locked from %s:%d\n",
 		    fixup_filename(instance->li_file), instance->li_line);
 		panic("excl->ushare");
@@ -2062,7 +2063,7 @@ witness_lock_list_free(struct lock_list_entry *lle)
 }
 
 static struct lock_instance *
-find_instance(struct lock_list_entry *list, struct lock_object *lock)
+find_instance(struct lock_list_entry *list, const struct lock_object *lock)
 {
 	struct lock_list_entry *lle;
 	struct lock_instance *instance;
@@ -2090,8 +2091,7 @@ witness_list_lock(struct lock_instance *instance,
 		prnt(" (%s)", lock->lo_witness->w_name);
 	prnt(" r = %d (%p) locked @ %s:%d\n",
 	    instance->li_flags & LI_RECURSEMASK, lock,
-	    fixup_filename(instance->li_file),
-	    instance->li_line);
+	    fixup_filename(instance->li_file), instance->li_line);
 }
 
 #ifdef DDB
@@ -2210,7 +2210,8 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 }
 
 void
-witness_assert(struct lock_object *lock, int flags, const char *file, int line)
+witness_assert(const struct lock_object *lock, int flags, const char *file,
+    int line)
 {
 #ifdef INVARIANT_SUPPORT
 	struct lock_instance *instance;

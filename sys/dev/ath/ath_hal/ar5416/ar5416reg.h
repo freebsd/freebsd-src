@@ -260,7 +260,13 @@
 
 #define	AR_ISR_S5		0x0098
 #define	AR_ISR_S5_S		0x00d8
-#define	AR_ISR_S5_TIM_TIMER	0x00000010
+#define	AR_ISR_S5_GENTIMER7	0x00000080 // Mask for timer 7 trigger
+#define	AR_ISR_S5_TIM_TIMER	0x00000010 // TIM Timer ISR
+#define	AR_ISR_S5_DTIM_TIMER	0x00000020 // DTIM Timer ISR
+#define	AR_ISR_S5_GENTIMER_TRIG	0x0000FF80 // ISR for generic timer trigger 7-15
+#define	AR_ISR_S5_GENTIMER_TRIG_S	0
+#define	AR_ISR_S5_GENTIMER_THRESH	0xFF800000 // ISR for generic timer threshold 7-15
+#define	AR_ISR_S5_GENTIMER_THRESH_S	16
 
 #define	AR_INTR_SPURIOUS	0xffffffff
 #define	AR_INTR_RTC_IRQ		0x00000001	/* rtc in shutdown state */
@@ -606,10 +612,10 @@
 #define	AR_XSREV_REVISION_KITE_11	1	/* Kite 1.1 */
 #define	AR_XSREV_REVISION_KITE_12	2	/* Kite 1.2 */
 #define	AR_XSREV_VERSION_KIWI		0x180	/* Kiwi (AR9287) */
-#define	AR_XSREV_REVISION_KIWI_10	0
-#define	AR_XSREV_REVISION_KIWI_11	1
-#define	AR_XSREV_REVISION_KIWI_12	2
-#define	AR_XSREV_REVISION_KIWI_13	3
+#define	AR_XSREV_REVISION_KIWI_10	0	/* Kiwi 1.0 */
+#define	AR_XSREV_REVISION_KIWI_11	1	/* Kiwi 1.1 */
+#define	AR_XSREV_REVISION_KIWI_12	2	/* Kiwi 1.2 */
+#define	AR_XSREV_REVISION_KIWI_13	3	/* Kiwi 1.3 */
 
 /* Owl (AR5416) */
 #define	AR_SREV_OWL(_ah) \
@@ -695,6 +701,10 @@
 #define AR_SREV_KIWI(_ah) \
 	(AH_PRIVATE((_ah))->ah_macVersion == AR_XSREV_VERSION_KIWI)
 
+#define AR_SREV_KIWI_10_OR_LATER(_ah) \
+	(AH_PRIVATE((_ah))->ah_macVersion >= AR_XSREV_VERSION_KIWI)
+
+/* XXX TODO: make these handle macVersion > Kiwi */
 #define AR_SREV_KIWI_11_OR_LATER(_ah) \
 	(AR_SREV_KIWI(_ah) && \
 	 AH_PRIVATE((_ah))->ah_macRev >= AR_XSREV_REVISION_KIWI_11)

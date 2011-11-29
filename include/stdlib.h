@@ -71,10 +71,11 @@ typedef struct {
 
 #define	RAND_MAX	0x7fffffff
 
-extern int __mb_cur_max;
-#define	MB_CUR_MAX	__mb_cur_max
-
 __BEGIN_DECLS
+extern int __mb_cur_max;
+extern int ___mb_cur_max(void);
+#define	MB_CUR_MAX	(___mb_cur_max())
+
 void	 abort(void) __dead2;
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));

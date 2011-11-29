@@ -472,7 +472,7 @@ carp_clone_destroy(struct ifnet *ifp)
 	mtx_unlock(&carp_mtx);
 	bpfdetach(ifp);
 	if_detach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 #ifdef INET
 	free(sc->sc_imo.imo_membership, M_CARP);
 #endif

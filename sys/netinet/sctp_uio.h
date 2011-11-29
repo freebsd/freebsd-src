@@ -521,8 +521,8 @@ struct sctp_paddrparams {
 #define SPP_IPV4_TOS            SPP_DSCP
 
 struct sctp_paddrthlds {
-	sctp_assoc_t spt_assoc_id;
 	struct sockaddr_storage spt_address;
+	sctp_assoc_t spt_assoc_id;
 	uint16_t spt_pathmaxrxt;
 	uint16_t spt_pathpfthld;
 };
@@ -669,6 +669,12 @@ struct sctp_timeouts {
 	uint32_t stimo_heartbeat;
 	uint32_t stimo_cookie;
 	uint32_t stimo_shutdownack;
+};
+
+struct sctp_udpencaps {
+	struct sockaddr_storage sue_address;
+	sctp_assoc_t sue_assoc_id;
+	uint16_t sue_port;
 };
 
 struct sctp_cwnd_args {

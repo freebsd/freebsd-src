@@ -73,8 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-const char *qfname = QUOTAFILENAME;
-const char *qfextension[] = INITQFNAMES;
+static const char *qfextension[] = INITQFNAMES;
 
 struct quotause {
 	struct	quotause *next;
@@ -101,12 +100,12 @@ static int callaurpc(char *host, int prognum, int versnum, int procnum,
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
-int	hflag;
-int	lflag;
-int	rflag;
-int	qflag;
-int	vflag;
-char	*filename = NULL;
+static int	hflag;
+static int	lflag;
+static int	rflag;
+static int	qflag;
+static int	vflag;
+static char	*filename = NULL;
 
 int
 main(int argc, char *argv[])

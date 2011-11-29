@@ -65,8 +65,9 @@ extern void (*nlminfo_release_p)(struct proc *p);
 vop_advlock_t	*nfs_advlock_p = nfs_dolock;
 vop_reclaim_t	*nfs_reclaim_p = NULL;
 
-MALLOC_DEFINE(M_NFSLOCK, "nfsclient_lock", "NFS lock request");
-MALLOC_DEFINE(M_NLMINFO, "nfsclient_nlminfo", "NFS lock process structure");
+static MALLOC_DEFINE(M_NFSLOCK, "nfsclient_lock", "NFS lock request");
+static MALLOC_DEFINE(M_NLMINFO, "nfsclient_nlminfo",
+    "NFS lock process structure");
 
 static int nfslockdans(struct thread *td, struct lockd_ans *ansp);
 static void nlminfo_release(struct proc *p);

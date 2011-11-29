@@ -70,8 +70,11 @@
 **     1.20.00.21	03/03/2011		Ching Huang			 if a command timeout, then wait its ccb back before free it
 **     1.20.00.22	07/04/2011		Ching Huang			 Fixed multiple MTX panic
 ******************************************************************************************
-* $FreeBSD$
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if 0
 #define ARCMSR_DEBUG1			1
 #endif
@@ -223,9 +226,8 @@ static device_method_t arcmsr_methods[]={
 	DEVMETHOD(device_shutdown,	arcmsr_shutdown),
 	DEVMETHOD(device_suspend,	arcmsr_suspend),
 	DEVMETHOD(device_resume,	arcmsr_resume),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 	
 static driver_t arcmsr_driver={
@@ -2712,16 +2714,20 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 			xpt_done(pccb);
 			break;
 		}
-	case XPT_CALC_GEOMETRY: {
-			struct ccb_calc_geometry *ccg;
-			u_int32_t size_mb;
-			u_int32_t secs_per_cylinder;
-	
+	case XPT_CALC_GEOMETRY:
 			if(pccb->ccb_h.target_id == 16) {
 				pccb->ccb_h.status |= CAM_FUNC_NOTAVAIL;
 				xpt_done(pccb);
 				break;
 			}
+#if __FreeBSD_version >= 500000
+			cam_calc_geometry(&pccb->ccg, 1);
+#else
+			{
+			struct ccb_calc_geometry *ccg;
+			u_int32_t size_mb;
+			u_int32_t secs_per_cylinder;
+
 			ccg= &pccb->ccg;
 			if (ccg->block_size == 0) {
 				pccb->ccb_h.status = CAM_REQ_INVALID;
@@ -2744,9 +2750,10 @@ static void arcmsr_action(struct cam_sim * psim, union ccb * pccb)
 			secs_per_cylinder=ccg->heads * ccg->secs_per_track;
 			ccg->cylinders=ccg->volume_size / secs_per_cylinder;
 			pccb->ccb_h.status |= CAM_REQ_CMP;
+			}
+#endif
 			xpt_done(pccb);
 			break;
-		}
 	default:
 		pccb->ccb_h.status |= CAM_REQ_INVALID;
 		xpt_done(pccb);

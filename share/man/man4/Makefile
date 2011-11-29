@@ -32,7 +32,6 @@ MAN=	aac.4 \
 	ale.4 \
 	alpm.4 \
 	altq.4 \
-	amd.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
@@ -68,6 +67,7 @@ MAN=	aac.4 \
 	bt.4 \
 	bwi.4 \
 	bwn.4 \
+	capsicum.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -253,6 +253,7 @@ MAN=	aac.4 \
 	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
+	netmap.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
@@ -347,6 +348,7 @@ MAN=	aac.4 \
 	pts.4 \
 	pty.4 \
 	puc.4 \
+	${_qlxgb.4} \
 	ral.4 \
 	random.4 \
 	rc.4 \
@@ -376,6 +378,7 @@ MAN=	aac.4 \
 	send.4 \
 	ses.4 \
 	sf.4 \
+	${_sfxge.4} \
 	sge.4 \
 	si.4 \
 	siba.4 \
@@ -711,6 +714,11 @@ _wpi.4=		wpi.4
 _xen.4=		xen.4
 
 MLINKS+=lindev.4 full.4
+.endif
+
+.if ${MACHINE_CPUARCH} == "amd64"
+_qlxgb.4=	qlxgb.4
+_sfxge.4=	sfxge.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

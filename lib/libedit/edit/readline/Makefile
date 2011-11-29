@@ -2,6 +2,7 @@
 # $FreeBSD$
 
 INCS=	readline.h history.h
+INCSLINKS=	readline.h ${INCSDIR}/tilde.h
 
 INCSDIR= ${INCLUDEDIR}/edit/readline
 

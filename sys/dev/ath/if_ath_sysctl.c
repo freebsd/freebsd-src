@@ -263,7 +263,8 @@ ath_sysctl_tpscale(SYSCTL_HANDLER_ARGS)
 	if (error || !req->newptr)
 		return error;
 	return !ath_hal_settpscale(sc->sc_ah, scale) ? EINVAL :
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	      ath_reset(ifp, ATH_RESET_NOLOSS) : 0;
 }
 
 static int
@@ -295,7 +296,70 @@ ath_sysctl_rfkill(SYSCTL_HANDLER_ARGS)
 		return 0;
 	if (!ath_hal_setrfkill(ah, rfkill))
 		return EINVAL;
-	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ? ath_reset(ifp) : 0;
+	return (ifp->if_drv_flags & IFF_DRV_RUNNING) ?
+	    ath_reset(ifp, ATH_RESET_FULL) : 0;
+}
+
+static int
+ath_sysctl_txagg(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int i, t, param = 0;
+	int error;
+	struct ath_buf *bf;
+
+	error = sysctl_handle_int(oidp, &param, 0, req);
+	if (error || !req->newptr)
+		return error;
+
+	if (param != 1)
+		return 0;
+
+	printf("no tx bufs (empty list): %d\n", sc->sc_stats.ast_tx_getnobuf);
+	printf("no tx bufs (was busy): %d\n", sc->sc_stats.ast_tx_getbusybuf);
+
+	printf("aggr single packet: %d\n",
+	    sc->sc_aggr_stats.aggr_single_pkt);
+	printf("aggr single packet w/ BAW closed: %d\n",
+	    sc->sc_aggr_stats.aggr_baw_closed_single_pkt);
+	printf("aggr non-baw packet: %d\n",
+	    sc->sc_aggr_stats.aggr_nonbaw_pkt);
+	printf("aggr aggregate packet: %d\n",
+	    sc->sc_aggr_stats.aggr_aggr_pkt);
+	printf("aggr single packet low hwq: %d\n",
+	    sc->sc_aggr_stats.aggr_low_hwq_single_pkt);
+	printf("aggr sched, no work: %d\n",
+	    sc->sc_aggr_stats.aggr_sched_nopkt);
+	for (i = 0; i < 64; i++) {
+		printf("%2d: %10d ", i, sc->sc_aggr_stats.aggr_pkts[i]);
+		if (i % 4 == 3)
+			printf("\n");
+	}
+	printf("\n");
+
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		if (ATH_TXQ_SETUP(sc, i)) {
+			printf("HW TXQ %d: axq_depth=%d, axq_aggr_depth=%d\n",
+			    i,
+			    sc->sc_txq[i].axq_depth,
+			    sc->sc_txq[i].axq_aggr_depth);
+		}
+	}
+
+	i = t = 0;
+	ATH_TXBUF_LOCK(sc);
+	TAILQ_FOREACH(bf, &sc->sc_txbuf, bf_list) {
+		if (bf->bf_flags & ATH_BUF_BUSY) {
+			printf("Busy: %d\n", t);
+			i++;
+		}
+		t++;
+	}
+	ATH_TXBUF_UNLOCK(sc);
+	printf("Total TX buffers: %d; Total TX buffers busy: %d\n",
+	    t, i);
+
+	return 0;
 }
 
 static int
@@ -366,7 +430,7 @@ ath_sysctl_intmit(SYSCTL_HANDLER_ARGS)
 	 * things in an inconsistent state.
 	 */
 	if (sc->sc_ifp->if_drv_flags & IFF_DRV_RUNNING)
-		ath_reset(sc->sc_ifp);
+		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
 
 	return 0;
 }
@@ -386,6 +450,24 @@ ath_sysctl_setcca(SYSCTL_HANDLER_ARGS)
 	return 0;
 }
 #endif /* IEEE80211_SUPPORT_TDMA */
+
+static int
+ath_sysctl_forcebstuck(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int val = 0;
+	int error;
+
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error || !req->newptr)
+		return error;
+	if (val == 0)
+		return 0;
+
+	taskqueue_enqueue_fast(sc->sc_tq, &sc->sc_bstucktask);
+	val = 0;
+	return 0;
+}
 
 void
 ath_sysctlattach(struct ath_softc *sc)
@@ -465,6 +547,15 @@ ath_sysctlattach(struct ath_softc *sc)
 			"rfkill", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 			ath_sysctl_rfkill, "I", "enable/disable RF kill switch");
 	}
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"txagg", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_txagg, "I", "");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"forcebstuck", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_forcebstuck, "I", "");
+
 	if (ath_hal_hasintmit(ah)) {
 		SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 			"intmit", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
@@ -474,6 +565,17 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"monpass", CTLFLAG_RW, &sc->sc_monpass, 0,
 		"mask of error frames to pass when monitoring");
+
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hwq_limit", CTLFLAG_RW, &sc->sc_hwq_limit, 0,
+		"");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tid_hwq_lo", CTLFLAG_RW, &sc->sc_tid_hwq_lo, 0,
+		"");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"tid_hwq_hi", CTLFLAG_RW, &sc->sc_tid_hwq_hi, 0,
+		"");
+
 #ifdef IEEE80211_SUPPORT_TDMA
 	if (ath_hal_macversion(ah) > 0x78) {
 		sc->sc_tdmadbaprep = 2;
@@ -510,6 +612,8 @@ ath_sysctl_clearstats(SYSCTL_HANDLER_ARGS)
 	if (val == 0)
 		return 0;       /* Not clearing the stats is still valid */
 	memset(&sc->sc_stats, 0, sizeof(sc->sc_stats));
+	memset(&sc->sc_aggr_stats, 0, sizeof(sc->sc_aggr_stats));
+
 	val = 0;
 	return 0;
 }
@@ -729,6 +833,29 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_timerexpired, 0, "TX exceeded TX_TIMER register");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_desccfgerr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_desccfgerr, 0, "TX Descriptor Cfg Error");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretries", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretries, 0, "TX software retry count");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_swretrymax", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_swretrymax, 0, "TX software retry max reached");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_data_underrun", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_data_underrun, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_delim_underrun", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_delim_underrun, 0, "");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_failall", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_failall, 0,
+	    "Number of aggregate TX failures (whole frame)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_ok", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_ok, 0,
+	    "Number of aggregate TX OK completions (subframe)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_fail", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_fail, 0,
+	    "Number of aggregate TX failures (subframe)");
+
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_intr", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_intr, 0, "TX interrupts");
 
 	/* Attach the RX phy error array */
 	ath_sysctl_stats_attach_rxphyerr(sc, child);
@@ -772,4 +899,16 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "swba_backoff", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_additional_swba_backoff, 0,
 	    "Atheros HAL additional SWBA backoff time");
+
+	sc->sc_ah->ah_config.ah_force_full_reset = 0;
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "force_full_reset", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_force_full_reset, 0,
+	    "Force full chip reset rather than a warm reset");
+
+	/*
+	 * This is initialised by the driver.
+	 */
+	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "serialise_reg_war", CTLFLAG_RW,
+	    &sc->sc_ah->ah_config.ah_serialise_reg_war, 0,
+	    "Force register access serialisation");
 }

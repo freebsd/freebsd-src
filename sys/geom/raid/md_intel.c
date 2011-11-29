@@ -1172,15 +1172,18 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	g_access(cp, -1, 0, 0);
 	if (meta == NULL) {
 		if (g_raid_aggressive_spare) {
-			if (vendor == 0x8086) {
+			if (vendor != 0x8086) {
+				G_RAID_DEBUG(1,
+				    "Intel vendor mismatch 0x%04x != 0x8086",
+				    vendor);
+			} else if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
+				G_RAID_DEBUG(1,
+				    "Intel disk '%s' is too big.", pp->name);
+			} else {
 				G_RAID_DEBUG(1,
 				    "No Intel metadata, forcing spare.");
 				spare = 2;
 				goto search;
-			} else {
-				G_RAID_DEBUG(1,
-				    "Intel vendor mismatch 0x%04x != 0x8086",
-				    vendor);
 			}
 		}
 		return (G_RAID_MD_TASTE_FAIL);
@@ -1194,9 +1197,9 @@ g_raid_md_taste_intel(struct g_raid_md_object *md, struct g_class *mp,
 	}
 	if (meta->disk[disk_pos].sectors !=
 	    (pp->mediasize / pp->sectorsize)) {
-		G_RAID_DEBUG(1, "Intel size mismatch %u != %u",
-		    meta->disk[disk_pos].sectors,
-		    (u_int)(pp->mediasize / pp->sectorsize));
+		G_RAID_DEBUG(1, "Intel size mismatch %ju != %ju",
+		    (off_t)meta->disk[disk_pos].sectors,
+		    (off_t)(pp->mediasize / pp->sectorsize));
 		goto fail1;
 	}
 
@@ -1448,6 +1451,13 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			cp->private = disk;
 			g_topology_unlock();
+
+			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
+				gctl_error(req,
+				    "Disk '%s' is too big.", diskname);
+				error = -8;
+				break;
+			}
 
 			error = g_raid_md_get_label(cp,
 			    &pd->pd_disk_meta.serial[0], INTEL_SERIAL_LEN);
@@ -1939,6 +1949,14 @@ g_raid_md_ctl_intel(struct g_raid_md_object *md,
 			}
 			pp = cp->provider;
 			g_topology_unlock();
+
+			if (pp->mediasize / pp->sectorsize > UINT32_MAX) {
+				gctl_error(req,
+				    "Disk '%s' is too big.", diskname);
+				g_raid_kill_consumer(sc, cp);
+				error = -8;
+				break;
+			}
 
 			/* Read disk serial. */
 			error = g_raid_md_get_label(cp,

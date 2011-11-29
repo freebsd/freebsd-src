@@ -60,16 +60,16 @@ static const char sccsid[] = "@(#)tcopy.c	8.2 (Berkeley) 4/17/94";
 #define	MAXREC	(64 * 1024)
 #define	NOCOUNT	(-2)
 
-int	filen, guesslen, maxblk = MAXREC;
-u_int64_t	lastrec, record, size, tsize;
-FILE	*msg;
+static int	filen, guesslen, maxblk = MAXREC;
+static uint64_t	lastrec, record, size, tsize;
+static FILE	*msg;
 
-void	*getspace(int);
-void	 intr(int);
+static void	*getspace(int);
+static void	 intr(int);
 static void	 usage(void) __dead2;
-void	 verify(int, int, char *);
-void	 writeop(int, int);
-void	rewind_tape(int);
+static void	 verify(int, int, char *);
+static void	 writeop(int, int);
+static void	 rewind_tape(int);
 
 int
 main(int argc, char *argv[])
@@ -223,7 +223,7 @@ r1:		guesslen = 0;
 	exit(0);
 }
 
-void
+static void
 verify(int inp, int outp, char *outb)
 {
 	int eot, inmaxblk, inn, outmaxblk, outn;
@@ -275,7 +275,7 @@ r2:		if (inn != outn) {
 	exit(1);
 }
 
-void
+static void
 intr(int signo __unused)
 {
 	if (record) {
@@ -289,7 +289,7 @@ intr(int signo __unused)
 	exit(1);
 }
 
-void *
+static void *
 getspace(int blk)
 {
 	void *bp;
@@ -299,7 +299,7 @@ getspace(int blk)
 	return (bp);
 }
 
-void
+static void
 writeop(int fd, int type)
 {
 	struct mtop op;
@@ -317,7 +317,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 rewind_tape(int fd)
 {
 	struct stat sp;

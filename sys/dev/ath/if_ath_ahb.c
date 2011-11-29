@@ -190,11 +190,13 @@ ath_ahb_attach(device_t dev)
 	}
 
 	ATH_LOCK_INIT(sc);
+	ATH_PCU_LOCK_INIT(sc);
 
 	error = ath_attach(AR9130_DEVID, sc);
 	if (error == 0)					/* success */
 		return 0;
 
+	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 	bus_dma_tag_destroy(sc->sc_dmat);
 bad3:
@@ -234,6 +236,7 @@ ath_ahb_detach(device_t dev)
 	if (sc->sc_eepromdata)
 		free(sc->sc_eepromdata, M_TEMP);
 
+	ATH_PCU_LOCK_DESTROY(sc);
 	ATH_LOCK_DESTROY(sc);
 
 	return (0);

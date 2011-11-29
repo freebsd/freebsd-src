@@ -56,9 +56,9 @@ typedef struct _list {
 	int fd;
 	const char *name;
 } LIST;
-LIST *head;
+static LIST *head;
 
-void add(int, const char *);
+static void add(int, const char *);
 static void usage(void);
 
 int
@@ -125,7 +125,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 add(int fd, const char *name)
 {
 	LIST *p;

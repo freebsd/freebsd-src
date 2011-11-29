@@ -145,15 +145,12 @@ static device_method_t udav_methods[] = {
 	DEVMETHOD(device_attach, udav_attach),
 	DEVMETHOD(device_detach, udav_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, udav_miibus_readreg),
 	DEVMETHOD(miibus_writereg, udav_miibus_writereg),
 	DEVMETHOD(miibus_statchg, udav_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t udav_driver = {
@@ -187,7 +184,7 @@ static const struct usb_ether_methods udav_ue_methods = {
 #ifdef USB_DEBUG
 static int udav_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, udav, CTLFLAG_RW, 0, "USB udav");
 SYSCTL_INT(_hw_usb_udav, OID_AUTO, debug, CTLFLAG_RW, &udav_debug, 0,
     "Debug level");
 #endif

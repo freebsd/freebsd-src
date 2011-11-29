@@ -21,6 +21,9 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
 #include <solaris.h>
@@ -66,6 +69,8 @@ static int zpool_do_status(int, char **);
 static int zpool_do_online(int, char **);
 static int zpool_do_offline(int, char **);
 static int zpool_do_clear(int, char **);
+
+static int zpool_do_reguid(int, char **);
 
 static int zpool_do_attach(int, char **);
 static int zpool_do_detach(int, char **);
@@ -125,7 +130,8 @@ typedef enum {
 	HELP_UPGRADE,
 	HELP_GET,
 	HELP_SET,
-	HELP_SPLIT
+	HELP_SPLIT,
+	HELP_REGUID
 } zpool_help_t;
 
 
@@ -171,6 +177,7 @@ static zpool_command_t command_table[] = {
 	{ "import",	zpool_do_import,	HELP_IMPORT		},
 	{ "export",	zpool_do_export,	HELP_EXPORT		},
 	{ "upgrade",	zpool_do_upgrade,	HELP_UPGRADE		},
+	{ "reguid",	zpool_do_reguid,	HELP_REGUID		},
 	{ NULL },
 	{ "history",	zpool_do_history,	HELP_HISTORY		},
 	{ "get",	zpool_do_get,		HELP_GET		},
@@ -227,7 +234,7 @@ get_usage(zpool_help_t idx) {
 	case HELP_OFFLINE:
 		return (gettext("\toffline [-t] <pool> <device> ...\n"));
 	case HELP_ONLINE:
-		return (gettext("\tonline <pool> <device> ...\n"));
+		return (gettext("\tonline [-e] <pool> <device> ...\n"));
 	case HELP_REPLACE:
 		return (gettext("\treplace [-f] <pool> <device> "
 		    "[new-device]\n"));
@@ -239,8 +246,7 @@ get_usage(zpool_help_t idx) {
 		return (gettext("\tstatus [-vx] [-T d|u] [pool] ... [interval "
 		    "[count]]\n"));
 	case HELP_UPGRADE:
-		return (gettext("\tupgrade\n"
-		    "\tupgrade -v\n"
+		return (gettext("\tupgrade [-v]\n"
 		    "\tupgrade [-V version] <-a | pool ...>\n"));
 	case HELP_GET:
 		return (gettext("\tget <\"all\" | property[,...]> "
@@ -251,6 +257,8 @@ get_usage(zpool_help_t idx) {
 		return (gettext("\tsplit [-n] [-R altroot] [-o mntopts]\n"
 		    "\t    [-o property=value] <pool> <newpool> "
 		    "[<device> ...]\n"));
+	case HELP_REGUID:
+		return (gettext("\treguid <pool>\n"));
 	}
 
 	abort();
@@ -1454,6 +1462,7 @@ show_import(nvlist_t *config)
 	const char *health;
 	uint_t vsc;
 	int namewidth;
+	char *comment;
 
 	verify(nvlist_lookup_string(config, ZPOOL_CONFIG_POOL_NAME,
 	    &name) == 0);
@@ -1470,9 +1479,9 @@ show_import(nvlist_t *config)
 
 	reason = zpool_import_status(config, &msgid);
 
-	(void) printf(gettext("  pool: %s\n"), name);
-	(void) printf(gettext("    id: %llu\n"), (u_longlong_t)guid);
-	(void) printf(gettext(" state: %s"), health);
+	(void) printf(gettext("   pool: %s\n"), name);
+	(void) printf(gettext("     id: %llu\n"), (u_longlong_t)guid);
+	(void) printf(gettext("  state: %s"), health);
 	if (pool_state == POOL_STATE_DESTROYED)
 		(void) printf(gettext(" (DESTROYED)"));
 	(void) printf("\n");
@@ -1481,58 +1490,59 @@ show_import(nvlist_t *config)
 	case ZPOOL_STATUS_MISSING_DEV_R:
 	case ZPOOL_STATUS_MISSING_DEV_NR:
 	case ZPOOL_STATUS_BAD_GUID_SUM:
-		(void) printf(gettext("status: One or more devices are missing "
-		    "from the system.\n"));
+		(void) printf(gettext(" status: One or more devices are "
+		    "missing from the system.\n"));
 		break;
 
 	case ZPOOL_STATUS_CORRUPT_LABEL_R:
 	case ZPOOL_STATUS_CORRUPT_LABEL_NR:
-		(void) printf(gettext("status: One or more devices contains "
+		(void) printf(gettext(" status: One or more devices contains "
 		    "corrupted data.\n"));
 		break;
 
 	case ZPOOL_STATUS_CORRUPT_DATA:
-		(void) printf(gettext("status: The pool data is corrupted.\n"));
+		(void) printf(
+		    gettext(" status: The pool data is corrupted.\n"));
 		break;
 
 	case ZPOOL_STATUS_OFFLINE_DEV:
-		(void) printf(gettext("status: One or more devices "
+		(void) printf(gettext(" status: One or more devices "
 		    "are offlined.\n"));
 		break;
 
 	case ZPOOL_STATUS_CORRUPT_POOL:
-		(void) printf(gettext("status: The pool metadata is "
+		(void) printf(gettext(" status: The pool metadata is "
 		    "corrupted.\n"));
 		break;
 
 	case ZPOOL_STATUS_VERSION_OLDER:
-		(void) printf(gettext("status: The pool is formatted using an "
+		(void) printf(gettext(" status: The pool is formatted using an "
 		    "older on-disk version.\n"));
 		break;
 
 	case ZPOOL_STATUS_VERSION_NEWER:
-		(void) printf(gettext("status: The pool is formatted using an "
+		(void) printf(gettext(" status: The pool is formatted using an "
 		    "incompatible version.\n"));
 		break;
 
 	case ZPOOL_STATUS_HOSTID_MISMATCH:
-		(void) printf(gettext("status: The pool was last accessed by "
+		(void) printf(gettext(" status: The pool was last accessed by "
 		    "another system.\n"));
 		break;
 
 	case ZPOOL_STATUS_FAULTED_DEV_R:
 	case ZPOOL_STATUS_FAULTED_DEV_NR:
-		(void) printf(gettext("status: One or more devices are "
+		(void) printf(gettext(" status: One or more devices are "
 		    "faulted.\n"));
 		break;
 
 	case ZPOOL_STATUS_BAD_LOG:
-		(void) printf(gettext("status: An intent log record cannot be "
+		(void) printf(gettext(" status: An intent log record cannot be "
 		    "read.\n"));
 		break;
 
 	case ZPOOL_STATUS_RESILVERING:
-		(void) printf(gettext("status: One or more devices were being "
+		(void) printf(gettext(" status: One or more devices were being "
 		    "resilvered.\n"));
 		break;
 
@@ -1548,26 +1558,26 @@ show_import(nvlist_t *config)
 	 */
 	if (vs->vs_state == VDEV_STATE_HEALTHY) {
 		if (reason == ZPOOL_STATUS_VERSION_OLDER)
-			(void) printf(gettext("action: The pool can be "
+			(void) printf(gettext(" action: The pool can be "
 			    "imported using its name or numeric identifier, "
 			    "though\n\tsome features will not be available "
 			    "without an explicit 'zpool upgrade'.\n"));
 		else if (reason == ZPOOL_STATUS_HOSTID_MISMATCH)
-			(void) printf(gettext("action: The pool can be "
+			(void) printf(gettext(" action: The pool can be "
 			    "imported using its name or numeric "
 			    "identifier and\n\tthe '-f' flag.\n"));
 		else
-			(void) printf(gettext("action: The pool can be "
+			(void) printf(gettext(" action: The pool can be "
 			    "imported using its name or numeric "
 			    "identifier.\n"));
 	} else if (vs->vs_state == VDEV_STATE_DEGRADED) {
-		(void) printf(gettext("action: The pool can be imported "
+		(void) printf(gettext(" action: The pool can be imported "
 		    "despite missing or damaged devices.  The\n\tfault "
 		    "tolerance of the pool may be compromised if imported.\n"));
 	} else {
 		switch (reason) {
 		case ZPOOL_STATUS_VERSION_NEWER:
-			(void) printf(gettext("action: The pool cannot be "
+			(void) printf(gettext(" action: The pool cannot be "
 			    "imported.  Access the pool on a system running "
 			    "newer\n\tsoftware, or recreate the pool from "
 			    "backup.\n"));
@@ -1575,15 +1585,19 @@ show_import(nvlist_t *config)
 		case ZPOOL_STATUS_MISSING_DEV_R:
 		case ZPOOL_STATUS_MISSING_DEV_NR:
 		case ZPOOL_STATUS_BAD_GUID_SUM:
-			(void) printf(gettext("action: The pool cannot be "
+			(void) printf(gettext(" action: The pool cannot be "
 			    "imported. Attach the missing\n\tdevices and try "
 			    "again.\n"));
 			break;
 		default:
-			(void) printf(gettext("action: The pool cannot be "
+			(void) printf(gettext(" action: The pool cannot be "
 			    "imported due to damaged devices or data.\n"));
 		}
 	}
+
+	/* Print the comment attached to the pool. */
+	if (nvlist_lookup_string(config, ZPOOL_CONFIG_COMMENT, &comment) == 0)
+		(void) printf(gettext("comment: %s\n"), comment);
 
 	/*
 	 * If the state is "closed" or "can't open", and the aux state
@@ -1605,7 +1619,7 @@ show_import(nvlist_t *config)
 		(void) printf(gettext("   see: http://www.sun.com/msg/%s\n"),
 		    msgid);
 
-	(void) printf(gettext("config:\n\n"));
+	(void) printf(gettext(" config:\n\n"));
 
 	namewidth = max_width(NULL, nvroot, 0, 0);
 	if (namewidth < 10)
@@ -2206,16 +2220,46 @@ print_vdev_stats(zpool_handle_t *zhp, const char *name, nvlist_t *oldnv,
 		return;
 
 	for (c = 0; c < children; c++) {
-		uint64_t ishole = B_FALSE;
+		uint64_t ishole = B_FALSE, islog = B_FALSE;
 
-		if (nvlist_lookup_uint64(newchild[c],
-		    ZPOOL_CONFIG_IS_HOLE, &ishole) == 0 && ishole)
+		(void) nvlist_lookup_uint64(newchild[c], ZPOOL_CONFIG_IS_HOLE,
+		    &ishole);
+
+		(void) nvlist_lookup_uint64(newchild[c], ZPOOL_CONFIG_IS_LOG,
+		    &islog);
+
+		if (ishole || islog)
 			continue;
 
 		vname = zpool_vdev_name(g_zfs, zhp, newchild[c], B_FALSE);
 		print_vdev_stats(zhp, vname, oldnv ? oldchild[c] : NULL,
 		    newchild[c], cb, depth + 2);
 		free(vname);
+	}
+
+	/*
+	 * Log device section
+	 */
+
+	if (num_logs(newnv) > 0) {
+		(void) printf("%-*s      -      -      -      -      -      "
+		    "-\n", cb->cb_namewidth, "logs");
+
+		for (c = 0; c < children; c++) {
+			uint64_t islog = B_FALSE;
+			(void) nvlist_lookup_uint64(newchild[c],
+			    ZPOOL_CONFIG_IS_LOG, &islog);
+
+			if (islog) {
+				vname = zpool_vdev_name(g_zfs, zhp, newchild[c],
+				    B_FALSE);
+				print_vdev_stats(zhp, vname, oldnv ?
+				    oldchild[c] : NULL, newchild[c],
+				    cb, depth + 2);
+				free(vname);
+			}
+		}
+
 	}
 
 	/*
@@ -3290,6 +3334,52 @@ zpool_do_clear(int argc, char **argv)
 	return (ret);
 }
 
+/*
+ * zpool reguid <pool>
+ */
+int
+zpool_do_reguid(int argc, char **argv)
+{
+	int c;
+	char *poolname;
+	zpool_handle_t *zhp;
+	int ret = 0;
+
+	/* check options */
+	while ((c = getopt(argc, argv, "")) != -1) {
+		switch (c) {
+		case '?':
+			(void) fprintf(stderr, gettext("invalid option '%c'\n"),
+			    optopt);
+			usage(B_FALSE);
+		}
+	}
+
+	argc -= optind;
+	argv += optind;
+
+	/* get pool name and check number of arguments */
+	if (argc < 1) {
+		(void) fprintf(stderr, gettext("missing pool name\n"));
+		usage(B_FALSE);
+	}
+
+	if (argc > 1) {
+		(void) fprintf(stderr, gettext("too many arguments\n"));
+		usage(B_FALSE);
+	}
+
+	poolname = argv[0];
+	if ((zhp = zpool_open(g_zfs, poolname)) == NULL)
+		return (1);
+
+	ret = zpool_reguid(zhp);
+
+	zpool_close(zhp);
+	return (ret);
+}
+
+
 typedef struct scrub_cbdata {
 	int	cb_type;
 	int	cb_argc;
@@ -3565,10 +3655,16 @@ print_dedup_stats(nvlist_t *config)
 	 * table continue processing the stats.
 	 */
 	if (nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_OBJ_STATS,
-	    (uint64_t **)&ddo, &c) != 0 || ddo->ddo_count == 0)
+	    (uint64_t **)&ddo, &c) != 0)
 		return;
 
 	(void) printf("\n");
+	(void) printf(gettext(" dedup: "));
+	if (ddo->ddo_count == 0) {
+		(void) printf(gettext("no DDT entries\n"));
+		return;
+	}
+
 	(void) printf("DDT entries %llu, size %llu on disk, %llu in core\n",
 	    (u_longlong_t)ddo->ddo_count,
 	    (u_longlong_t)ddo->ddo_dspace,

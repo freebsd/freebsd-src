@@ -101,7 +101,7 @@ static void ahci_process_request_sense(device_t dev, union ccb *ccb);
 static void ahciaction(struct cam_sim *sim, union ccb *ccb);
 static void ahcipoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
+static MALLOC_DEFINE(M_AHCI, "AHCI driver", "AHCI driver data buffers");
 
 static struct {
 	uint32_t	id;
@@ -498,13 +498,14 @@ ahci_attach(device_t dev)
 	}
 	/* Attach all channels on this controller */
 	for (unit = 0; unit < ctlr->channels; unit++) {
-		if ((ctlr->ichannels & (1 << unit)) == 0)
-			continue;
 		child = device_add_child(dev, "ahcich", -1);
-		if (child == NULL)
+		if (child == NULL) {
 			device_printf(dev, "failed to add channel device\n");
-		else
-			device_set_ivars(child, (void *)(intptr_t)unit);
+			continue;
+		}
+		device_set_ivars(child, (void *)(intptr_t)unit);
+		if ((ctlr->ichannels & (1 << unit)) == 0)
+			device_disable(child);
 	}
 	bus_generic_attach(dev);
 	return 0;
@@ -514,15 +515,11 @@ static int
 ahci_detach(device_t dev)
 {
 	struct ahci_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
+	int i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupts. */
 	for (i = 0; i < ctlr->numirqs; i++) {
 		if (ctlr->irqs[i].r_irq) {

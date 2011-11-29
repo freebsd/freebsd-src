@@ -123,7 +123,7 @@ enum {
 } while (0)
 #endif
 
-MALLOC_DEFINE(M_MALODEV, "malodev", "malo driver dma buffers");
+static MALLOC_DEFINE(M_MALODEV, "malodev", "malo driver dma buffers");
 
 static struct ieee80211vap *malo_vap_create(struct ieee80211com *ic,
 	const char name[IFNAMSIZ], int unit, int opmode, int flags,

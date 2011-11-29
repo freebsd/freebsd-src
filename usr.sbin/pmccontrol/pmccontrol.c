@@ -147,8 +147,9 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 	npmc = 0;
 	for (c = 0; c < ncpu; c++) {
 		if ((t = pmc_npmc(c)) < 0)
-			err(EX_OSERR, "Unable to determine the number of "
-			    "PMCs in CPU %d", c);
+			err(EX_OSERR,
+			    "Unable to determine the number of PMCs in CPU %d",
+			    c);
 		npmc = t > npmc ? t : npmc;
 	}
 
@@ -211,8 +212,8 @@ pmcc_do_enable_disable(struct pmcc_op_list *op_list)
 
 			if (error < 0)
 				err(EX_OSERR, "%s of PMC %d on CPU %d failed",
-				    b == PMCC_OP_ENABLE ? "Enable" :
-				    "Disable", j, i);
+				    b == PMCC_OP_ENABLE ? "Enable" : "Disable",
+				    j, i);
 		}
 
 	return error;
@@ -308,8 +309,9 @@ pmcc_do_list_events(void)
 
 		printf("%s\n", pmc_name_of_class(c));
 		if (pmc_event_names_of_class(c, &eventnamelist, &nevents) < 0)
-			err(EX_OSERR, "ERROR: Cannot find information for "
-			    "event class \"%s\"", pmc_name_of_class(c));
+			err(EX_OSERR,
+"ERROR: Cannot find information for event class \"%s\"",
+			    pmc_name_of_class(c));
 
 		for (j = 0; j < nevents; j++)
 			printf("\t%s\n", eventnamelist[j]);
@@ -481,7 +483,8 @@ main(int argc, char **argv)
 		break;
 	case PMCC_ENABLE_DISABLE:
 		if (STAILQ_EMPTY(&head))
-			errx(EX_USAGE, "No PMCs specified to enable or disable");
+			errx(EX_USAGE,
+			    "No PMCs specified to enable or disable");
 		error = pmcc_do_enable_disable(&head);
 		break;
 	default:

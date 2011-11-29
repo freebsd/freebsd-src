@@ -140,7 +140,6 @@ static device_method_t fire_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	fire_read_ivar),
 	DEVMETHOD(bus_setup_intr,	fire_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	fire_teardown_intr),
@@ -165,7 +164,7 @@ static device_method_t fire_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	fire_get_node),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t fire_devclass;

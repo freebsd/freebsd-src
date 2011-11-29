@@ -38,16 +38,31 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20111125: amd(4) removed
+OLD_FILES+=usr/share/man/man4/amd.4.gz
+# 20111125: libodialog removed
+OLD_FILES+=usr/lib/libodialog.a
+OLD_FILES+=usr/lib/libodialog.so
+OLD_LIBS+=usr/lib/libodialog.so.7
+OLD_FILES+=usr/lib/libodialog_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libodialog.a
+OLD_FILES+=usr/lib32/libodialog.so
+OLD_LIBS+=usr/lib32/libodialog.so.7
+OLD_FILES+=usr/lib32/libodialog_p.a
+.endif
 # 20110930: sysinstall removed
 OLD_FILES+=usr/sbin/sysinstall
 OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
 OLD_FILES+=usr/lib/libftpio.a
 OLD_FILES+=usr/lib/libftpio.so
 OLD_LIBS+=usr/lib/libftpio.so.8
+OLD_FILES+=usr/lib/libftpio_p.a
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libftpio.a
 OLD_FILES+=usr/lib32/libftpio.so
 OLD_LIBS+=usr/lib32/libftpio.so.8
+OLD_FILES+=usr/lib32/libftpio_p.a
 .endif
 OLD_FILES+=usr/include/ftpio.h
 OLD_FILES+=usr/share/man/man3/ftpio.3.gz
@@ -77,11 +92,22 @@ OLD_LIBS+=usr/lib32/libopie.so.6
 OLD_LIBS+=usr/lib32/librtld_db.so.1
 OLD_LIBS+=usr/lib32/libtacplus.so.4
 .endif
+# 20110817: no more acd.4, ad.4, afd.4 and ast.4
+OLD_FILES+=usr/share/man/man4/acd.4.gz
+OLD_FILES+=usr/share/man/man4/ad.4.gz
+OLD_FILES+=usr/share/man/man4/afd.4.gz
+OLD_FILES+=usr/share/man/man4/ast.4.gz
 # 20110718: no longer useful in the age of rc.d
 OLD_FILES+=usr/sbin/named.reconfig
 OLD_FILES+=usr/sbin/named.reload
+OLD_FILES+=usr/share/man/man8/named.reconfig.8.gz
+OLD_FILES+=usr/share/man/man8/named.reload.8.gz
 # 20110716: bind 9.8.0 import
 OLD_LIBS+=usr/lib/liblwres.so.50
+OLD_FILES+=usr/share/doc/bind9/KNOWN-DEFECTS
+OLD_FILES+=usr/share/doc/bind9/NSEC3-NOTES
+OLD_FILES+=usr/share/doc/bind9/README.idnkit
+OLD_FILES+=usr/share/doc/bind9/README.pkcs11
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.

@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 22, 2011
+.Dd October 26, 2011
 .Dt GRAID 8
 .Os
 .Sh NAME
@@ -250,6 +250,9 @@ If you started migration using BIOS or in some other way, make sure to
 complete it there.
 Do not run GEOM RAID class on migrating volumes under pain of possible data
 corruption!
+.Sh 2TiB BARRIERS
+Intel and Promise metadata formats do not support disks above 2TiB.
+NVIDIA metadata format does not support volumes above 2TiB.
 .Sh EXIT STATUS
 Exit status is 0 on success, and non-zero if the command fails.
 .Sh SEE ALSO

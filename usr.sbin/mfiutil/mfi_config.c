@@ -348,6 +348,7 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 		error = mfi_lookup_drive(fd, cp, &device_id);
 		if (error) {
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
@@ -355,12 +356,14 @@ parse_array(int fd, int raid_type, char *array_str, struct array_info *info)
 			error = errno;
 			warn("Failed to fetch drive info for drive %s", cp);
 			free(info->drives);
+			info->drives = NULL;
 			return (error);
 		}
 
 		if (pinfo->fw_state != MFI_PD_STATE_UNCONFIGURED_GOOD) {
 			warnx("Drive %u is not available", device_id);
 			free(info->drives);
+			info->drives = NULL;
 			return (EINVAL);
 		}
 	}
@@ -817,9 +820,11 @@ error:
 	free(config);
 	free(state.volumes);
 	free(state.arrays);
-	for (i = 0; i < narrays; i++)
-		free(arrays[i].drives);
-	free(arrays);
+	if (arrays != NULL) {
+		for (i = 0; i < narrays; i++)
+			free(arrays[i].drives);
+		free(arrays);
+	}
 	close(fd);
 
 	return (error);

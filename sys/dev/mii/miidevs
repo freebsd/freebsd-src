@@ -1,5 +1,5 @@
 $FreeBSD$
-/*$NetBSD: miidevs,v 1.99 2011/01/26 18:39:04 bouyer Exp $*/
+/*$NetBSD: miidevs,v 1.104 2011/11/12 11:10:49 sekiya Exp $*/
 
 /*-
  * Copyright (c) 1998, 1999 The NetBSD Foundation, Inc.
@@ -146,6 +146,7 @@ model xxBROADCOM BCM5214	0x0028 BCM5214 Quad 10/100 media interface
 model xxBROADCOM BCM5221	0x001e BCM5221 10/100 media interface
 model xxBROADCOM BCM5222	0x0032 BCM5222 Dual 10/100 media interface
 model xxBROADCOM BCM4401	0x0036 BCM4401 10/100 media interface
+model xxBROADCOM BCM5365	0x0037 BCM5365 10/100 5-port PHY switch
 model BROADCOM BCM5400		0x0004 BCM5400 1000BASE-T media interface
 model BROADCOM BCM5401		0x0005 BCM5401 1000BASE-T media interface
 model BROADCOM BCM5411		0x0007 BCM5411 1000BASE-T media interface
@@ -164,12 +165,14 @@ model BROADCOM BCM54K2		0x002e BCM54K2 1000BASE-T media interface
 model BROADCOM BCM5714		0x0034 BCM5714 1000BASE-T media interface
 model BROADCOM BCM5780		0x0035 BCM5780 1000BASE-T media interface
 model BROADCOM BCM5708C		0x0036 BCM5708C 1000BASE-T media interface
+model BROADCOM2 BCM5325		0x0003 BCM5325 10/100 5-port PHY switch
 model BROADCOM2 BCM5906		0x0004 BCM5906 10/100baseTX media interface
 model BROADCOM2 BCM5481		0x000a BCM5481 1000BASE-T media interface
 model BROADCOM2 BCM5482		0x000b BCM5482 1000BASE-T media interface
 model BROADCOM2 BCM5755		0x000c BCM5755 1000BASE-T media interface
 model BROADCOM2 BCM5754		0x000e BCM5754/5787 1000BASE-T media interface
 model BROADCOM2 BCM5708S	0x0015 BCM5708S 1000/2500baseSX PHY
+model BROADCOM2 BCM5785		0x0016 BCM5785 1000BASE-T media interface
 model BROADCOM2 BCM5709CAX	0x002c BCM5709CAX 10/100/1000baseT PHY
 model BROADCOM2 BCM5722		0x002d BCM5722 1000BASE-T media interface
 model BROADCOM2 BCM5784		0x003a BCM5784 10/100/1000baseT PHY
@@ -179,6 +182,7 @@ model BROADCOM2 BCM5709S	0x003f BCM5709S 1000/2500baseSX PHY
 model BROADCOM3 BCM5717C	0x0020 BCM5717C 1000BASE-T media interface
 model BROADCOM3 BCM5719C	0x0022 BCM5719C 1000BASE-T media interface
 model BROADCOM3 BCM57765	0x0024 BCM57765 1000BASE-T media interface
+model BROADCOM3 BCM5720C	0x0036 BCM5720C 1000BASE-T media interface
 model xxBROADCOM_ALT1 BCM5906	0x0004 BCM5906 10/100baseTX media interface
 
 /* Cicada Semiconductor PHYs (now owned by Vitesse?) */
@@ -217,6 +221,10 @@ model yyINTEL I82562ET		0x0033 i82562ET 10/100 media interface
 model yyINTEL I82553		0x0035 i82553 10/100 media interface
 model yyINTEL I82566		0x0039 i82566 10/100/1000 media interface
 model INTEL I82577		0x0005 i82577 10/100/1000 media interface
+model INTEL I82579		0x0009 i82579 10/100/1000 media interface
+model xxMARVELL I82563		0x000a i82563 10/100/1000 media interface
+
+model yyINTEL IGP01E1000	0x0038 Intel IGP01E1000 Gigabit PHY
 
 /* Jato Technologies PHYs */
 model xxJATO BASEX		0x0000 Jato 1000baseX media interface
@@ -245,17 +253,23 @@ model xxMARVELL E3082		0x0008 Marvell 88E3082 10/100 Fast Ethernet PHY
 model xxMARVELL E1112		0x0009 Marvell 88E1112 Gigabit PHY
 model xxMARVELL E1149		0x000b Marvell 88E1149 Gigabit PHY
 model xxMARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
+model xxMARVELL E1145		0x000d Marvell 88E1145 Quad Gigabit PHY
 model xxMARVELL E1116		0x0021 Marvell 88E1116 Gigabit PHY
 model xxMARVELL E1116R		0x0024 Marvell 88E1116R Gigabit PHY
 model xxMARVELL E1118		0x0022 Marvell 88E1118 Gigabit PHY
 model xxMARVELL E1149R		0x0025 Marvell 88E1149R Quad Gigabit PHY
 model xxMARVELL E3016		0x0026 Marvell 88E3016 10/100 Fast Ethernet PHY
 model xxMARVELL PHYG65G		0x0027 Marvell PHYG65G Gigabit PHY
+model xxMARVELL E1116R_29	0x0029 Marvell 88E1116R Gigabit PHY
 model MARVELL E1000		0x0005 Marvell 88E1000 Gigabit PHY
 model MARVELL E1011		0x0002 Marvell 88E1011 Gigabit PHY
 model MARVELL E1000_3		0x0003 Marvell 88E1000 Gigabit PHY
 model MARVELL E1000_5		0x0005 Marvell 88E1000 Gigabit PHY
 model MARVELL E1111		0x000c Marvell 88E1111 Gigabit PHY
+
+/* Myson Technology PHYs */
+model xxMYSON MTD972		0x0000 MTD972 10/100 media interface
+model MYSON MTD803		0x0000 MTD803 3-in-1 media interface
 
 /* National Semiconductor PHYs */
 model xxNATSEMI DP83840		0x0000 DP83840 10/100 media interface

@@ -218,7 +218,7 @@ static struct cdevsw ch_cdevsw = {
 	.d_name =	"ch",
 };
 
-MALLOC_DEFINE(M_SCSICH, "scsi_ch", "scsi_ch buffers");
+static MALLOC_DEFINE(M_SCSICH, "scsi_ch", "scsi_ch buffers");
 
 static void
 chinit(void)

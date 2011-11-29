@@ -29,21 +29,21 @@ options		KDB
 options		SCHED_4BSD		#4BSD scheduler
 options		INET			#InterNETworking
 options		INET6			#InterNETworking
-options		NFSCL			#Network Filesystem Client
+#options		NFSCL			#Network Filesystem Client
 options		PSEUDOFS		#Pseudo-filesystem framework
 options		_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
 
 # options		NFS_LEGACYRPC
 # Debugging for use in -current
-# options		INVARIANTS
-# options		INVARIANT_SUPPORT
-# options		WITNESS
-# options		WITNESS_SKIPSPIN
-options         FFS                     #Berkeley Fast Filesystem
-options         SOFTUPDATES             #Enable FFS soft updates support
-options         UFS_ACL                 #Support for access control lists
-options         UFS_DIRHASH             #Improve performance on big directories
-
+options		INVARIANTS
+options		INVARIANT_SUPPORT
+options		WITNESS
+options		WITNESS_SKIPSPIN
+options		FFS                     #Berkeley Fast Filesystem
+#options		SOFTUPDATES             #Enable FFS soft updates support
+#options		UFS_ACL                 #Support for access control lists
+#options		UFS_DIRHASH             #Improve performance on big directories
+options		NO_FFS_SNAPSHOT		# We don't require snapshot support
 
 # Wireless NIC cards
 options		IEEE80211_DEBUG
@@ -63,7 +63,19 @@ options 	ATH_DEBUG
 options		ATH_DIAGAPI
 option		ATH_ENABLE_11N
 
-device		ath_hal
+# Don't bother compiling the whole HAL - AH_SUPPORT_AR9130 breaks the
+# rest of the 11n chipset support at the moment and the pre-AR5212
+# HALs aren't required.
+# device		ath_hal
+
+# The AR9130 code requires AR5416; and AR5416 requires the AR5212 code.
+device		ath_ar5212
+device		ath_ar5416
+device		ath_ar9130
+# This is needed so at least one RF backend is present, or the current
+# HAL setup won't compile.  Remove this once the 11n chip RF backends
+# are converted over to be in the linker set.
+device		ath_rf5111
 
 options		AH_DEBUG
 option		AH_SUPPORT_AR5416

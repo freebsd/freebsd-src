@@ -188,9 +188,7 @@ static device_method_t ida_pci_methods[] = {
 	DEVMETHOD(device_attach,	ida_pci_attach),
 	DEVMETHOD(device_detach,	ida_detach),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t ida_pci_driver = {

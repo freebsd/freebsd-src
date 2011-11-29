@@ -149,6 +149,8 @@ AcpiHwValidateIoRequest (
         (BitWidth != 16) &&
         (BitWidth != 32))
     {
+        ACPI_ERROR ((AE_INFO,
+            "Bad BitWidth parameter: %8.8X", BitWidth));
         return (AE_BAD_PARAMETER);
     }
 

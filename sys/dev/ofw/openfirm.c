@@ -127,7 +127,7 @@ OF_init(void *cookie)
 	 * then statically initialize the OFW object.
 	 */
 	kobj_class_compile_static(ofw_def_impl, &ofw_kernel_kops);
-	kobj_init((kobj_t)ofw_obj, ofw_def_impl);
+	kobj_init_static((kobj_t)ofw_obj, ofw_def_impl);
 
 	rv = OFW_INIT(ofw_obj, cookie);
 

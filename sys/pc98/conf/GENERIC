@@ -66,8 +66,11 @@ options 	AUDIT			# Security event auditing
 options 	MAC			# TrustedBSD MAC Framework
 options 	INCLUDE_CONFIG_FILE     # Include this file in kernel
 
-# Debugging for use in -current
+# Debugging support.  Always need this:
 options 	KDB			# Enable kernel debugger support.
+# For minimum debugger support (stable branch) use:
+#options 	KDB_TRACE		# Print a stack trace for a panic.
+# For full debugger support use this instead:
 options 	DDB			# Support DDB.
 options 	GDB			# Support remote GDB.
 options 	DEADLKRES		# Enable the deadlock resolver
@@ -98,7 +101,7 @@ device		siis		# SiliconImage SiI3124/SiI3132/SiI3531 SATA
 # SCSI Controllers
 device		adv		# Advansys SCSI adapters
 device		ahc		# AHA2940 and onboard AIC7xxx devices
-device		amd		# AMD 53C974 (Tekram DC-390(T))
+device		esp		# AMD Am53C974 (Tekram DC-390(T))
 device		isp		# Qlogic family
 #device		ncr		# NCR/Symbios Logic
 device		sym		# NCR/Symbios Logic (newer chipsets + those of `ncr')

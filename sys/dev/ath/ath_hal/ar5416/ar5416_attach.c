@@ -168,7 +168,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
 	ah->ah_set11nRateScenario	= ar5416Set11nRateScenario;
+	ah->ah_set11nAggrFirst		= ar5416Set11nAggrFirst;
 	ah->ah_set11nAggrMiddle		= ar5416Set11nAggrMiddle;
+	ah->ah_set11nAggrLast		= ar5416Set11nAggrLast;
 	ah->ah_clr11nAggr		= ar5416Clr11nAggr;
 	ah->ah_set11nBurstDuration	= ar5416Set11nBurstDuration;
 	ah->ah_get11nExtBusy		= ar5416Get11nExtBusy;
@@ -906,7 +908,23 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
+	/*
+	 * The MAC will mark frames as RXed if there's a descriptor
+	 * to write them to. So if it hits a self-linked final descriptor,
+	 * it'll keep ACKing frames even though they're being silently
+	 * dropped. Thus, this particular feature of the driver can't
+	 * be used for 802.11n devices.
+	 */
 	ahpriv->ah_rxornIsFatal = AH_FALSE;
+
+	/*
+	 * If it's a PCI NIC, ask the HAL OS layer to serialise
+	 * register access, or SMP machines may cause the hardware
+	 * to hang. This is applicable to AR5416 and AR9220; I'm not
+	 * sure about AR9160 or AR9227.
+	 */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		pCap->halSerialiseRegWar = 1;
 
 	return AH_TRUE;
 }
@@ -914,9 +932,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 static const char*
 ar5416Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
-		return "Atheros 5416";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR5416_DEVID_PCI)
+			return "Atheros 5416";
+		if (devid == AR5416_DEVID_PCIE)
+			return "Atheros 5418";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR5416, ar5416Probe, ar5416Attach);

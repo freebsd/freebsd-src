@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int avr32dci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, avr32dci, CTLFLAG_RW, 0, "USB AVR32 DCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, avr32dci, CTLFLAG_RW, 0, "USB AVR32 DCI");
 SYSCTL_INT(_hw_usb_avr32dci, OID_AUTO, debug, CTLFLAG_RW,
     &avr32dci_debug, 0, "AVR32 DCI debug level");
 #endif
@@ -415,12 +415,11 @@ repeat:
 			buf_res.length = count;
 		}
 		/* receive data */
-		bcopy(sc->physdata +
+		memcpy(buf_res.buffer, sc->physdata +
 		    (AVR32_EPTSTA_CURRENT_BANK(temp) << td->bank_shift) +
-		    (td->ep_no << 16) + (td->offset % td->max_packet_size),
-		    buf_res.buffer, buf_res.length)
+		    (td->ep_no << 16) + (td->offset % td->max_packet_size), buf_res.length);
 		/* update counters */
-		    count -= buf_res.length;
+		count -= buf_res.length;
 		td->offset += buf_res.length;
 		td->remainder -= buf_res.length;
 	}
@@ -491,12 +490,12 @@ repeat:
 			buf_res.length = count;
 		}
 		/* transmit data */
-		bcopy(buf_res.buffer, sc->physdata +
+		memcpy(sc->physdata +
 		    (AVR32_EPTSTA_CURRENT_BANK(temp) << td->bank_shift) +
 		    (td->ep_no << 16) + (td->offset % td->max_packet_size),
-		    buf_res.length)
+		    buf_res.buffer, buf_res.length);
 		/* update counters */
-		    count -= buf_res.length;
+		count -= buf_res.length;
 		td->offset += buf_res.length;
 		td->remainder -= buf_res.length;
 	}

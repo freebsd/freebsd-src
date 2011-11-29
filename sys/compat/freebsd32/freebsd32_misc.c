@@ -2828,10 +2828,16 @@ int
 freebsd32_posix_fallocate(struct thread *td,
     struct freebsd32_posix_fallocate_args *uap)
 {
-	struct posix_fallocate_args ap;
 
-	ap.fd = uap->fd;
-	ap.offset = PAIR32TO64(off_t, uap->offset);
-	ap.len = PAIR32TO64(off_t, uap->len);
-	return (sys_posix_fallocate(td, &ap));
+	return (kern_posix_fallocate(td, uap->fd,
+	    PAIR32TO64(off_t, uap->offset), PAIR32TO64(off_t, uap->len)));
+}
+
+int
+freebsd32_posix_fadvise(struct thread *td,
+    struct freebsd32_posix_fadvise_args *uap)
+{
+
+	return (kern_posix_fadvise(td, uap->fd, PAIR32TO64(off_t, uap->offset),
+	    PAIR32TO64(off_t, uap->len), uap->advice));
 }

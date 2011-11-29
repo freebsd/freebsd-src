@@ -207,6 +207,9 @@ COMPRESS_EXT?=	.gz
     MAN \
     PROFILE
 .if defined(NO_${var})
+.if defined(WITH_${var})
+.undef WITH_${var}
+.endif
 WITHOUT_${var}=
 .endif
 .endfor
@@ -413,6 +416,7 @@ __DEFAULT_NO_OPTIONS = \
     HESIOD \
     ICONV \
     IDEA \
+    LIBCPLUSPLUS \
     OFED
 
 #
@@ -428,15 +432,14 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and 32-bit powerpc right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc"
+# Clang is only for x86 and powerpc right now, by default.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
 .endif
-# FDT is needed only for arm, mips and powerpc (and not powerpc64)
-.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc" || \
-    ${__T:Mmips*}
+# FDT is needed only for arm, mips and powerpc
+.if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
 __DEFAULT_YES_OPTIONS+=FDT
 .else
 __DEFAULT_NO_OPTIONS+=FDT

@@ -30,6 +30,8 @@
       <year>2007</year>
       <year>2008</year>
       <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -591,6 +593,10 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.fire; V250</para>
 	</listitem>
 
@@ -601,7 +607,8 @@
 
 	<listitem>
 	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
-	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
+	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE,
+	    other centerplanes might work beginning with 8.3-RELEASE and 9.0-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -624,10 +631,6 @@
       <itemizedlist>
 	<listitem>
 	  <para>&sun.fire; V125</para>
-	</listitem>
-
-	<listitem>
-	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -748,8 +751,6 @@
 
       &hwlist.aic;
 
-      &hwlist.amd;
-
       &hwlist.amr;
 
       &hwlist.arcmsr;
@@ -798,7 +799,11 @@
 
       &hwlist.mly;
 
+      &hwlist.mps;
+
       &hwlist.mpt;
+
+      &hwlist.mvs;
 
       &hwlist.ncr;
 
@@ -948,6 +953,8 @@
 
       &hwlist.pcn;
 
+      &hwlist.qlxgb;
+
       &hwlist.re;
 
       &hwlist.rl;
@@ -955,6 +962,8 @@
       &hwlist.rue;
 
       &hwlist.sf;
+
+      &hwlist.sfxge;
 
       &hwlist.sge;
 

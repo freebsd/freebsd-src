@@ -49,6 +49,7 @@
 #include <contrib/dev/acpica/include/acinterp.h>
 #include <contrib/dev/acpica/include/amlcode.h>
 #include <contrib/dev/acpica/include/acnamesp.h>
+#include <contrib/dev/acpica/include/acdispat.h>
 
 
 #define _COMPONENT          ACPI_EXECUTER
@@ -483,6 +484,32 @@ AcpiExPrepFieldValue (
     case ACPI_TYPE_LOCAL_REGION_FIELD:
 
         ObjDesc->Field.RegionObj = AcpiNsGetAttachedObject (Info->RegionNode);
+
+        /* Fields specific to GenericSerialBus fields */
+
+        ObjDesc->Field.AccessLength = Info->AccessLength;
+
+        if (Info->ConnectionNode)
+        {
+            SecondDesc = Info->ConnectionNode->Object;
+            if (!(SecondDesc->Common.Flags & AOPOBJ_DATA_VALID))
+            {
+                Status = AcpiDsGetBufferArguments (SecondDesc);
+                if (ACPI_FAILURE (Status))
+                {
+                    AcpiUtDeleteObjectDesc (ObjDesc);
+                    return_ACPI_STATUS (Status);
+                }
+            }
+
+            ObjDesc->Field.ResourceBuffer = SecondDesc->Buffer.Pointer;
+            ObjDesc->Field.ResourceLength = (UINT16) SecondDesc->Buffer.Length;
+        }
+        else if (Info->ResourceBuffer)
+        {
+            ObjDesc->Field.ResourceBuffer = Info->ResourceBuffer;
+            ObjDesc->Field.ResourceLength = Info->ResourceLength;
+        }
 
         /* Allow full data read from EC address space */
 

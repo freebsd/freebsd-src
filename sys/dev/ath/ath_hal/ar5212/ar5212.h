@@ -252,6 +252,7 @@ struct ath_hal_5212 {
 	uint8_t		ah_macaddr[IEEE80211_ADDR_LEN];
 	uint8_t		ah_bssid[IEEE80211_ADDR_LEN];
 	uint8_t		ah_bssidmask[IEEE80211_ADDR_LEN];
+	uint16_t	ah_assocId;
 
 	/*
 	 * Runtime state.

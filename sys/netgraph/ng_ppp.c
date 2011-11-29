@@ -108,7 +108,7 @@
 #include <netgraph/ng_vjc.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
+static MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
 #else
 #define M_NETGRAPH_PPP M_NETGRAPH
 #endif

@@ -344,7 +344,7 @@ static struct bstp_cb_ops bridge_ops = {
 };
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
+static SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
 static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
@@ -676,7 +676,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 
 	bstp_detach(&sc->sc_stp);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	/* Tear down the routing table. */
 	bridge_rtable_fini(sc);

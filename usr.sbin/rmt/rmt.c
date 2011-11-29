@@ -54,25 +54,25 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-int	tape = -1;
+static int	tape = -1;
 
-char	*record;
-int	maxrecsize = -1;
+static char	*record;
+static int	maxrecsize = -1;
 
 #define	SSIZE	64
-char	device[SSIZE];
-char	count[SSIZE], mode[SSIZE], pos[SSIZE], op[SSIZE];
+static char	device[SSIZE];
+static char	count[SSIZE], mode[SSIZE], pos[SSIZE], op[SSIZE];
 
-char	resp[BUFSIZ];
+static char	resp[BUFSIZ];
 
-FILE	*debug;
+static FILE	*debug;
 #define	DEBUG(f)	if (debug) fprintf(debug, f)
 #define	DEBUG1(f,a)	if (debug) fprintf(debug, f, a)
 #define	DEBUG2(f,a1,a2)	if (debug) fprintf(debug, f, a1, a2)
 
-char	*checkbuf(char *, int);
-void	 error(int);
-void	 getstring(char *);
+static char	*checkbuf(char *, int);
+static void	 error(int);
+static void	 getstring(char *);
 
 int
 main(int argc, char **argv)
@@ -220,7 +220,7 @@ getstring(char *bp)
 	cp[i] = '\0';
 }
 
-char *
+static char *
 checkbuf(char *rec, int size)
 {
 
@@ -240,7 +240,7 @@ checkbuf(char *rec, int size)
 	return (rec);
 }
 
-void
+static void
 error(int num)
 {
 
