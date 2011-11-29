@@ -164,6 +164,28 @@ void ffclock_bindifftime(ffcounter ffdelta, struct bintime *bt);
 void ffclock_nanodifftime(ffcounter ffdelta, struct timespec *tsp);
 void ffclock_microdifftime(ffcounter ffdelta, struct timeval *tvp);
 
+/*
+ * When FFCLOCK is enabled in the kernel, [get]{bin,nano,micro}[up]time() become
+ * wrappers around equivalent feedback or feed-forward functions. Provide access
+ * outside of kern_tc.c to the feedback clock equivalent functions for
+ * specialised use i.e. these are not for general consumption.
+ */
+void fbclock_bintime(struct bintime *bt);
+void fbclock_nanotime(struct timespec *tsp);
+void fbclock_microtime(struct timeval *tvp);
+
+void fbclock_getbintime(struct bintime *bt);
+void fbclock_getnanotime(struct timespec *tsp);
+void fbclock_getmicrotime(struct timeval *tvp);
+
+void fbclock_binuptime(struct bintime *bt);
+void fbclock_nanouptime(struct timespec *tsp);
+void fbclock_microuptime(struct timeval *tvp);
+
+void fbclock_getbinuptime(struct bintime *bt);
+void fbclock_getnanouptime(struct timespec *tsp);
+void fbclock_getmicrouptime(struct timeval *tvp);
+
 #else /* !_KERNEL */
 
 /* Feed-Forward Clock system calls. */
