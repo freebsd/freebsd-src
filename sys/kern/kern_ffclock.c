@@ -190,8 +190,6 @@ sysctl_kern_ffclock_choice(SYSCTL_HANDLER_ARGS)
 SYSCTL_PROC(_kern_ffclock, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
     0, 0, sysctl_kern_ffclock_choice, "A", "Clock paradigms available");
 
-extern int sysclock_active;
-
 static int
 sysctl_kern_ffclock_active(SYSCTL_HANDLER_ARGS)
 {

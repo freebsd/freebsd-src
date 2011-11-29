@@ -61,6 +61,7 @@ struct ffclock_estimate {
  */
 #define	SYSCLOCK_FBCK	0
 #define	SYSCLOCK_FFWD	1
+extern int sysclock_active;
 
 /*
  * Parameters of counter characterisation required by feed-forward algorithms.
