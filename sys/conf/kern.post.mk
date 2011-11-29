@@ -94,7 +94,7 @@ ${FULLKERNEL}: ${SYSTEM_DEP} vers.o
 	@rm -f ${.TARGET}
 	@echo linking ${.TARGET}
 	${SYSTEM_LD}
-.if !defined(NO_CTF)
+.if defined(WITH_CTF)
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 .endif
 .if !defined(DEBUG)
@@ -249,9 +249,7 @@ kernel-reinstall:
 
 config.o env.o hints.o vers.o vnode_if.o:
 	${NORMAL_C}
-.if !defined(NO_CTF)
-	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
-.endif
+	@${NORMAL_CTFCONVERT}
 
 config.ln env.ln hints.ln vers.ln vnode_if.ln:
 	${NORMAL_LINT}
