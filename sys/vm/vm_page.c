@@ -2843,6 +2843,36 @@ vm_page_test_dirty(vm_page_t m)
 		vm_page_dirty(m);
 }
 
+void
+vm_page_lock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	mtx_lock_flags_(vm_page_lockptr(m), 0, file, line);
+}
+
+void
+vm_page_unlock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	mtx_unlock_flags_(vm_page_lockptr(m), 0, file, line);
+}
+
+int
+vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	return (mtx_trylock_flags_(vm_page_lockptr(m), 0, file, line));
+}
+
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void
+vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
+{
+
+	mtx_assert_(vm_page_lockptr(m), a, file, line);
+}
+#endif
+
 int so_zerocp_fullpage = 0;
 
 /*
