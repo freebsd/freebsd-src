@@ -2,7 +2,7 @@
 # $FreeBSD$
 
 INCS=	readline.h history.h
-SYMLINKS=	readline.h ${INCLUDEDIR}/edit/readline/tilde.h
+INCSLINKS=	readline.h ${INCSDIR}/tilde.h
 
 INCSDIR= ${INCLUDEDIR}/edit/readline
 
