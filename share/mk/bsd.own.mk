@@ -207,6 +207,9 @@ COMPRESS_EXT?=	.gz
     MAN \
     PROFILE
 .if defined(NO_${var})
+.if defined(WITH_${var})
+.undef WITH_${var}
+.endif
 WITHOUT_${var}=
 .endif
 .endfor
