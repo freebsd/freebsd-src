@@ -125,7 +125,7 @@ CRUNCH_LIBS+= -lipx
 .if ${MK_ZFS} != "no"
 CRUNCH_LIBS+= -lavl -lnvpair -lzfs -lpthread -luutil -lumem
 .endif
-CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lreadline -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
