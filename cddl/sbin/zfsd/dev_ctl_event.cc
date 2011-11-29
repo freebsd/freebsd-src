@@ -455,9 +455,18 @@ DevfsEvent::ReadLabel(int devFd, bool &inUse, bool &degraded)
 		 || devLabel == NULL)
 			return (NULL);
 
-		Vdev vdev(devLabel);
-		degraded = vdev.State() != VDEV_STATE_HEALTHY;
-		return (devLabel);
+		try {
+			Vdev vdev(devLabel);
+			degraded = vdev.State() != VDEV_STATE_HEALTHY;
+			return (devLabel);
+		} catch (ZfsdException &exp) {
+			string devName = fdevname(devFd);
+			string devPath = _PATH_DEV + devName;
+			string context("DevfsEvent::ReadLabel: " + devPath + ": ");
+
+			exp.GetString().insert(0, context);
+			exp.Log();
+		}
 	}
 	return (NULL);
 }
