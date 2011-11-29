@@ -470,38 +470,6 @@ uint32_t ffclock_status;		/* Feed-forward clock status. */
 int8_t ffclock_updated;			/* New estimates are available. */
 struct mtx ffclock_mtx;			/* Mutex on ffclock_estimate. */
 
-struct sysclock_ops {
-	int active;
-	void (*binuptime) (struct bintime *bt);
-	void (*nanouptime) (struct timespec *tsp);
-	void (*microuptime) (struct timeval *tvp);
-	void (*bintime) (struct bintime *bt);
-	void (*nanotime) (struct timespec *tsp);
-	void (*microtime) (struct timeval *tvp);
-	void (*getbinuptime) (struct bintime *bt);
-	void (*getnanouptime) (struct timespec *tsp);
-	void (*getmicrouptime) (struct timeval *tvp);
-	void (*getbintime) (struct bintime *bt);
-	void (*getnanotime) (struct timespec *tsp);
-	void (*getmicrotime) (struct timeval *tvp);
-};
-
-static struct sysclock_ops sysclock = {
-	.active = SYSCLOCK_FBCK,
-	.binuptime = fbclock_binuptime,
-	.nanouptime = fbclock_nanouptime,
-	.microuptime = fbclock_microuptime,
-	.bintime = fbclock_bintime,
-	.nanotime = fbclock_nanotime,
-	.microtime = fbclock_microtime,
-	.getbinuptime = fbclock_getbinuptime,
-	.getnanouptime = fbclock_getnanouptime,
-	.getmicrouptime = fbclock_getmicrouptime,
-	.getbintime = fbclock_getbintime,
-	.getnanotime = fbclock_getnanotime,
-	.getmicrotime = fbclock_getmicrotime
-};
-
 struct fftimehands {
 	struct ffclock_estimate	cest;
 	struct bintime		tick_time;
@@ -794,46 +762,6 @@ ffclock_change_tc(struct timehands *th)
 	fftimehands = ffth;
 }
 
-static void
-change_sysclock(int new_sysclock)
-{
-
-	sysclock.active = new_sysclock;
-
-	switch (sysclock.active) {
-	case SYSCLOCK_FBCK:
-		sysclock.binuptime = fbclock_binuptime;
-		sysclock.nanouptime = fbclock_nanouptime;
-		sysclock.microuptime = fbclock_microuptime;
-		sysclock.bintime = fbclock_bintime;
-		sysclock.nanotime = fbclock_nanotime;
-		sysclock.microtime = fbclock_microtime;
-		sysclock.getbinuptime = fbclock_getbinuptime;
-		sysclock.getnanouptime = fbclock_getnanouptime;
-		sysclock.getmicrouptime = fbclock_getmicrouptime;
-		sysclock.getbintime = fbclock_getbintime;
-		sysclock.getnanotime = fbclock_getnanotime;
-		sysclock.getmicrotime = fbclock_getmicrotime;
-		break;
-	case SYSCLOCK_FFWD:
-		sysclock.binuptime = ffclock_binuptime;
-		sysclock.nanouptime = ffclock_nanouptime;
-		sysclock.microuptime = ffclock_microuptime;
-		sysclock.bintime = ffclock_bintime;
-		sysclock.nanotime = ffclock_nanotime;
-		sysclock.microtime = ffclock_microtime;
-		sysclock.getbinuptime = ffclock_getbinuptime;
-		sysclock.getnanouptime = ffclock_getnanouptime;
-		sysclock.getmicrouptime = ffclock_getmicrouptime;
-		sysclock.getbintime = ffclock_getbintime;
-		sysclock.getnanotime = ffclock_getnanotime;
-		sysclock.getmicrotime = ffclock_getmicrotime;
-		break;
-	default:
-		break;
-	}
-}
-
 /*
  * Retrieve feed-forward counter and time of last kernel tick.
  */
@@ -949,84 +877,84 @@ void
 binuptime(struct bintime *bt)
 {
 
-	sysclock.binuptime(bt);
+	binuptime_fromclock(bt, sysclock_active);
 }
 
 void
 nanouptime(struct timespec *tsp)
 {
 
-	sysclock.nanouptime(tsp);
+	nanouptime_fromclock(tsp, sysclock_active);
 }
 
 void
 microuptime(struct timeval *tvp)
 {
 
-	sysclock.microuptime(tvp);
+	microuptime_fromclock(tvp, sysclock_active);
 }
 
 void
 bintime(struct bintime *bt)
 {
 
-	sysclock.bintime(bt);
+	bintime_fromclock(bt, sysclock_active);
 }
 
 void
 nanotime(struct timespec *tsp)
 {
 
-	sysclock.nanotime(tsp);
+	nanotime_fromclock(tsp, sysclock_active);
 }
 
 void
 microtime(struct timeval *tvp)
 {
 
-	sysclock.microtime(tvp);
+	microtime_fromclock(tvp, sysclock_active);
 }
 
 void
 getbinuptime(struct bintime *bt)
 {
 
-	sysclock.getbinuptime(bt);
+	getbinuptime_fromclock(bt, sysclock_active);
 }
 
 void
 getnanouptime(struct timespec *tsp)
 {
 
-	sysclock.getnanouptime(tsp);
+	getnanouptime_fromclock(tsp, sysclock_active);
 }
 
 void
 getmicrouptime(struct timeval *tvp)
 {
 
-	sysclock.getmicrouptime(tvp);
+	getmicrouptime_fromclock(tvp, sysclock_active);
 }
 
 void
 getbintime(struct bintime *bt)
 {
 
-	sysclock.getbintime(bt);
+	getbintime_fromclock(bt, sysclock_active);
 }
 
 void
 getnanotime(struct timespec *tsp)
 {
 
-	sysclock.getnanotime(tsp);
+	getnanotime_fromclock(tsp, sysclock_active);
 }
 
 void
 getmicrotime(struct timeval *tvp)
 {
 
-	sysclock.getmicrouptime(tvp);
+	getmicrouptime_fromclock(tvp, sysclock_active);
 }
 #endif /* FFCLOCK */
 
@@ -1267,11 +1195,6 @@ tc_windup(void)
 	scale += (th->th_adjustment / 1024) * 2199;
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
-
-#ifdef FFCLOCK
-	if (sysclock_active != sysclock.active)
-		change_sysclock(sysclock_active);
-#endif
 
 	/*
 	 * Now that the struct timehands is again consistent, set the new
@@ -1641,7 +1564,6 @@ inittimecounter(void *dummy)
 
 #ifdef FFCLOCK
 	ffclock_init();
-	change_sysclock(sysclock_active);
 #endif
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);
