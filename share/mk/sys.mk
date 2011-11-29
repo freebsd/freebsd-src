@@ -158,15 +158,15 @@ YFLAGS		?=	-d
 # SINGLE SUFFIX RULES
 .c:
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .f:
 	${FC} ${FFLAGS} ${LDFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .sh:
 	cp -f ${.IMPSRC} ${.TARGET}
@@ -176,33 +176,33 @@ YFLAGS		?=	-d
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .f.o:
 	${FC} ${FFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c
 	rm -f y.tab.c
 	mv y.tab.o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .l.o:
 	${LEX} ${LFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c lex.yy.c
 	rm -f lex.yy.c
 	mv lex.yy.o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .y.c:
 	${YACC} ${YFLAGS} ${.IMPSRC}
@@ -240,15 +240,15 @@ YFLAGS		?=	-d
 
 .c:
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .c.o:
 	${CC} ${CFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .cc .cpp .cxx .C:
 	${CXX} ${CXXFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
@@ -258,15 +258,15 @@ YFLAGS		?=	-d
 
 .m.o:
 	${OBJC} ${OBJCFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .p.o:
 	${PC} ${PFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .e .r .F .f:
 	${FC} ${RFLAGS} ${EFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} \
@@ -277,38 +277,38 @@ YFLAGS		?=	-d
 
 .S.o:
 	${CC} ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .asm.o:
 	${CC} -x assembler-with-cpp ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .s.o:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 # XXX not -j safe
 .y.o:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} -c y.tab.c -o ${.TARGET}
 	rm -f y.tab.c
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .l.o:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} -c ${.PREFIX}.tmp.c -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 # XXX not -j safe
 .y.c:
@@ -320,34 +320,34 @@ YFLAGS		?=	-d
 
 .s.out .c.out .o.out:
 	${CC} ${CFLAGS} ${LDFLAGS} ${.IMPSRC} ${LDLIBS} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .f.out .F.out .r.out .e.out:
 	${FC} ${EFLAGS} ${RFLAGS} ${FFLAGS} ${LDFLAGS} ${.IMPSRC} \
 	    ${LDLIBS} -o ${.TARGET}
 	rm -f ${.PREFIX}.o
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 # XXX not -j safe
 .y.out:
 	${YACC} ${YFLAGS} ${.IMPSRC}
 	${CC} ${CFLAGS} ${LDFLAGS} y.tab.c ${LDLIBS} -ly -o ${.TARGET}
 	rm -f y.tab.c
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 .l.out:
 	${LEX} -t ${LFLAGS} ${.IMPSRC} > ${.PREFIX}.tmp.c
 	${CC} ${CFLAGS} ${LDFLAGS} ${.PREFIX}.tmp.c ${LDLIBS} -ll -o ${.TARGET}
 	rm -f ${.PREFIX}.tmp.c
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+.if !defined(NO_CTF)
+	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.endif
 
 # FreeBSD build pollution.  Hide it in the non-POSIX part of the ifdef.
 __MAKE_CONF?=/etc/make.conf
