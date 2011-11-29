@@ -186,6 +186,132 @@ void fbclock_getbinuptime(struct bintime *bt);
 void fbclock_getnanouptime(struct timespec *tsp);
 void fbclock_getmicrouptime(struct timeval *tvp);
 
+/*
+ * Public system clock wrapper API which allows consumers to select which clock
+ * to obtain time from, independent of the current default system clock. These
+ * wrappers should be used instead of directly calling the underlying fbclock_
+ * or ffclock_ functions.
+ */
+static inline void
+bintime_fromclock(struct bintime *bt, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_bintime(bt);
+	else
+		fbclock_bintime(bt);
+}
+
+static inline void
+nanotime_fromclock(struct timespec *tsp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_nanotime(tsp);
+	else
+		fbclock_nanotime(tsp);
+}
+
+static inline void
+microtime_fromclock(struct timeval *tvp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_microtime(tvp);
+	else
+		fbclock_microtime(tvp);
+}
+
+static inline void
+getbintime_fromclock(struct bintime *bt, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getbintime(bt);
+	else
+		fbclock_getbintime(bt);
+}
+
+static inline void
+getnanotime_fromclock(struct timespec *tsp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getnanotime(tsp);
+	else
+		fbclock_getnanotime(tsp);
+}
+
+static inline void
+getmicrotime_fromclock(struct timeval *tvp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getmicrotime(tvp);
+	else
+		fbclock_getmicrotime(tvp);
+}
+
+static inline void
+binuptime_fromclock(struct bintime *bt, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_binuptime(bt);
+	else
+		fbclock_binuptime(bt);
+}
+
+static inline void
+nanouptime_fromclock(struct timespec *tsp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_nanouptime(tsp);
+	else
+		fbclock_nanouptime(tsp);
+}
+
+static inline void
+microuptime_fromclock(struct timeval *tvp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_microuptime(tvp);
+	else
+		fbclock_microuptime(tvp);
+}
+
+static inline void
+getbinuptime_fromclock(struct bintime *bt, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getbinuptime(bt);
+	else
+		fbclock_getbinuptime(bt);
+}
+
+static inline void
+getnanouptime_fromclock(struct timespec *tsp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getnanouptime(tsp);
+	else
+		fbclock_getnanouptime(tsp);
+}
+
+static inline void
+getmicrouptime_fromclock(struct timeval *tvp, int whichclock)
+{
+
+	if (whichclock == SYSCLOCK_FFWD)
+		ffclock_getmicrouptime(tvp);
+	else
+		fbclock_getmicrouptime(tvp);
+}
+
 #else /* !_KERNEL */
 
 /* Feed-Forward Clock system calls. */
