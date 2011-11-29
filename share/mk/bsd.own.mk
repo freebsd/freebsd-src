@@ -189,6 +189,12 @@ STRIP?=		-s
 COMPRESS_CMD?=	gzip -cn
 COMPRESS_EXT?=	.gz
 
+.if defined(WITH_CTF)
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.else
+CTFCONVERT_CMD=	...
+.endif
+
 .if !defined(_WITHOUT_SRCCONF)
 #
 # Define MK_* variables (which are either "yes" or "no") for users
