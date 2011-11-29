@@ -178,7 +178,7 @@ tc_delta(struct timehands *th)
  */
 
 #ifdef FFCLOCK
-static void
+void
 fbclock_binuptime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -192,7 +192,7 @@ fbclock_binuptime(struct bintime *bt)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
@@ -201,7 +201,7 @@ fbclock_nanouptime(struct timespec *tsp)
 	bintime2timespec(&bt, tsp);
 }
 
-static void
+void
 fbclock_microuptime(struct timeval *tvp)
 {
 	struct bintime bt;
@@ -210,7 +210,7 @@ fbclock_microuptime(struct timeval *tvp)
 	bintime2timeval(&bt, tvp);
 }
 
-static void
+void
 fbclock_bintime(struct bintime *bt)
 {
 
@@ -218,7 +218,7 @@ fbclock_bintime(struct bintime *bt)
 	bintime_add(bt, &boottimebin);
 }
 
-static void
+void
 fbclock_nanotime(struct timespec *tsp)
 {
 	struct bintime bt;
@@ -227,7 +227,7 @@ fbclock_nanotime(struct timespec *tsp)
 	bintime2timespec(&bt, tsp);
 }
 
-static void
+void
 fbclock_microtime(struct timeval *tvp)
 {
 	struct bintime bt;
@@ -236,7 +236,7 @@ fbclock_microtime(struct timeval *tvp)
 	bintime2timeval(&bt, tvp);
 }
 
-static void
+void
 fbclock_getbinuptime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -249,7 +249,7 @@ fbclock_getbinuptime(struct bintime *bt)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getnanouptime(struct timespec *tsp)
 {
 	struct timehands *th;
@@ -262,7 +262,7 @@ fbclock_getnanouptime(struct timespec *tsp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getmicrouptime(struct timeval *tvp)
 {
 	struct timehands *th;
@@ -275,7 +275,7 @@ fbclock_getmicrouptime(struct timeval *tvp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getbintime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -289,7 +289,7 @@ fbclock_getbintime(struct bintime *bt)
 	bintime_add(bt, &boottimebin);
 }
 
-static void
+void
 fbclock_getnanotime(struct timespec *tsp)
 {
 	struct timehands *th;
@@ -302,7 +302,7 @@ fbclock_getnanotime(struct timespec *tsp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getmicrotime(struct timeval *tvp)
 {
 	struct timehands *th;
