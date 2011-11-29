@@ -15,16 +15,11 @@ CFLAGS+= -DNDEBUG
 NO_WERROR=
 .endif
 
-# Enable CTF conversion on request.
-.if defined(WITH_CTF)
-.undef NO_CTF
-.endif
-
 .if defined(DEBUG_FLAGS)
 CFLAGS+=${DEBUG_FLAGS}
 CXXFLAGS+=${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if defined(WITH_CTF) && (${DEBUG_FLAGS:M-g} != "")
 CTFFLAGS+= -g
 .endif
 .endif
@@ -60,7 +55,7 @@ ${PROG}: ${OBJS}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if !defined(NO_CTF)
+.if defined(WITH_CTF)
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 
@@ -90,7 +85,7 @@ ${PROG}: ${OBJS}
 .else
 	${CC} ${CFLAGS} ${LDFLAGS} -o ${.TARGET} ${OBJS} ${LDADD}
 .endif
-.if !defined(NO_CTF)
+.if defined(WITH_CTF)
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${OBJS}
 .endif
 .endif
