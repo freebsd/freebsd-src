@@ -301,7 +301,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 			 * have been zeroed.  Some of these valid bits may
 			 * have already been set.
 			 */
-			vm_page_set_valid(m, base, size);
+			vm_page_set_valid_range(m, base, size);
 
 			/*
 			 * Round "base" to the next block boundary so that the
