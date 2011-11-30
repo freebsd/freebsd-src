@@ -381,7 +381,7 @@ static int JobStart(GNode *, int, Job *);
 static void JobDoOutput(Job *, Boolean);
 static void JobInterrupt(int, int);
 static void JobRestartJobs(void);
-static int Compat_RunCommand(char *, struct GNode *);
+static int Compat_RunCommand(LstNode *, struct GNode *);
 
 static GNode	    *curTarg = NULL;
 static GNode	    *ENDNode;
@@ -647,7 +647,7 @@ JobPassSig(int signo)
  *	numCommands is incremented if the command is actually printed.
  */
 static int
-JobPrintCommand(char *cmd, Job *job)
+JobPrintCommand(LstNode *cmdNode, Job *job)
 {
 	Boolean	noSpecials;	/* true if we shouldn't worry about
 				 * inserting special commands into
@@ -658,40 +658,30 @@ JobPrintCommand(char *cmd, Job *job)
 				 * off before printing the command
 				 * and need to turn it back on */
 	const char *cmdTemplate;/* Template to use when printing the command */
-	char	*cmdStart;	/* Start of expanded command */
-	LstNode	*cmdNode;	/* Node for replacing the command */
+	char	*cmd;		/* Expanded command */
 
 	noSpecials = (noExecute && !(job->node->type & OP_MAKE));
-
-	if (strcmp(cmd, "...") == 0) {
-		job->node->type |= OP_SAVE_CMDS;
-		if ((job->flags & JOB_IGNDOTS) == 0) {
-			job->tailCmds =
-			    Lst_Succ(Lst_Member(&job->node->commands, cmd));
-			return (1);
-		}
-		return (0);
-	}
 
 #define	DBPRINTF(fmt, arg)			\
 	DEBUGF(JOB, (fmt, arg));		\
 	fprintf(job->cmdFILE, fmt, arg);	\
 	fflush(job->cmdFILE);
 
-	numCommands += 1;
-
 	/*
 	 * For debugging, we replace each command with the result of expanding
 	 * the variables in the command.
 	 */
-	cmdNode = Lst_Member(&job->node->commands, cmd);
-
-	cmd = Buf_Peel(Var_Subst(cmd, job->node, FALSE));
-	cmdStart = cmd;
-
-	Lst_Replace(cmdNode, cmdStart);
-
-	cmdTemplate = "%s\n";
+	cmd = Buf_Peel(Var_Subst(Lst_Datum(cmdNode), job->node, FALSE));
+	if (strcmp(cmd, "...") == 0) {
+		free(cmd);
+		job->node->type |= OP_SAVE_CMDS;
+		if ((job->flags & JOB_IGNDOTS) == 0) {
+			job->tailCmds = Lst_Succ(cmdNode);
+			return (1);
+		}
+		return (0);
+	}
+	Lst_Replace(cmdNode, cmd);
 
 	/*
 	 * Check for leading @', -' or +'s to control echoing, error checking,
@@ -715,7 +705,7 @@ JobPrintCommand(char *cmd, Job *job)
 				 * but this one needs to be - use compat mode
 				 * just for it.
 				 */
-				Compat_RunCommand(cmd, job->node);
+				Compat_RunCommand(cmdNode, job->node);
 				return (0);
 			}
 			break;
@@ -725,6 +715,16 @@ JobPrintCommand(char *cmd, Job *job)
 
 	while (isspace((unsigned char)*cmd))
 		cmd++;
+
+	/*
+	 * Ignore empty commands
+	 */
+	if (*cmd == '\0') {
+		return (0);
+	}
+
+	cmdTemplate = "%s\n";
+	numCommands += 1;
 
 	if (shutUp) {
 		if (!(job->flags & JOB_SILENT) && !noSpecials &&
@@ -1665,7 +1665,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 				    Lst_Succ(gn->compat_command);
 
 			if (gn->compat_command == NULL ||
-			    JobPrintCommand(Lst_Datum(gn->compat_command), job))
+			    JobPrintCommand(gn->compat_command, job))
 				noExec = TRUE;
 
 			if (noExec && !(job->flags & JOB_FIRST)) {
@@ -1689,7 +1689,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 			 */
 			numCommands = 0;
 			LST_FOREACH(ln, &gn->commands) {
-				if (JobPrintCommand(Lst_Datum(ln), job))
+				if (JobPrintCommand(ln, job))
 					break;
 			}
 
@@ -1723,7 +1723,7 @@ JobStart(GNode *gn, int flags, Job *previous)
 		 */
 		if (cmdsOK) {
 			LST_FOREACH(ln, &gn->commands) {
-				if (JobPrintCommand(Lst_Datum(ln), job))
+				if (JobPrintCommand(ln, job))
 					break;
 			}
 		}
@@ -2809,7 +2809,7 @@ CompatInterrupt(int signo)
 		gn = Targ_FindNode(".INTERRUPT", TARG_NOCREATE);
 		if (gn != NULL) {
 			LST_FOREACH(ln, &gn->commands) {
-				if (Compat_RunCommand(Lst_Datum(ln), gn))
+				if (Compat_RunCommand(ln, gn))
 					break;
 			}
 		}
@@ -2884,16 +2884,15 @@ shellneed(ArgArray *aa, char *cmd)
  *	The node's 'made' field may be set to ERROR.
  */
 static int
-Compat_RunCommand(char *cmd, GNode *gn)
+Compat_RunCommand(LstNode *cmdNode, GNode *gn)
 {
 	ArgArray	aa;
-	char		*cmdStart;	/* Start of expanded command */
+	char		*cmd;		/* Expanded command */
 	Boolean		silent;		/* Don't print command */
 	Boolean		doit;		/* Execute even in -n */
 	Boolean		errCheck;	/* Check errors */
 	int		reason;		/* Reason for child's death */
 	int		status;		/* Description of child's death */
-	LstNode		*cmdNode;	/* Node where current cmd is located */
 	char		**av;		/* Argument vector for thing to exec */
 	ProcStuff	ps;
 
@@ -2901,31 +2900,16 @@ Compat_RunCommand(char *cmd, GNode *gn)
 	errCheck = !(gn->type & OP_IGNORE);
 	doit = FALSE;
 
-	cmdNode = Lst_Member(&gn->commands, cmd);
-	cmdStart = Buf_Peel(Var_Subst(cmd, gn, FALSE));
-
-	/*
-	 * brk_string will return an argv with a NULL in av[0], thus causing
-	 * execvp() to choke and die horribly. Besides, how can we execute a
-	 * null command? In any case, we warn the user that the command
-	 * expanded to nothing (is this the right thing to do?).
-	 */
-	if (*cmdStart == '\0') {
-		free(cmdStart);
-		Error("%s expands to empty string", cmd);
-		return (0);
-	} else {
-		cmd = cmdStart;
-	}
-	Lst_Replace(cmdNode, cmdStart);
-
+	cmd = Buf_Peel(Var_Subst(Lst_Datum(cmdNode), gn, FALSE));
 	if ((gn->type & OP_SAVE_CMDS) && (gn != ENDNode)) {
-		Lst_AtEnd(&ENDNode->commands, cmdStart);
+		Lst_AtEnd(&ENDNode->commands, cmd);
 		return (0);
-	} else if (strcmp(cmdStart, "...") == 0) {
+	} else if (strcmp(cmd, "...") == 0) {
+		free(cmd);
 		gn->type |= OP_SAVE_CMDS;
 		return (0);
 	}
+	Lst_Replace(cmdNode, cmd);
 
 	while (*cmd == '@' || *cmd == '-' || *cmd == '+') {
 		switch (*cmd) {
@@ -2947,6 +2931,13 @@ Compat_RunCommand(char *cmd, GNode *gn)
 
 	while (isspace((unsigned char)*cmd))
 		cmd++;
+
+	/*
+	 * Ignore empty commands
+	 */
+	if (*cmd == '\0') {
+		return (0);
+	}
 
 	/*
 	 * Print the command before echoing if we're not supposed to be quiet
@@ -3022,7 +3013,8 @@ Compat_RunCommand(char *cmd, GNode *gn)
 		 * therefore do not free it when debugging.
 		 */
 		if (!DEBUG(GRAPH2)) {
-			free(cmdStart);
+			free(Lst_Datum(cmdNode));
+			Lst_Replace(cmdNode, NULL);
 		}
 
 		/*
@@ -3166,8 +3158,7 @@ Compat_Make(GNode *gn, GNode *pgn)
 			if (!touchFlag) {
 				curTarg = gn;
 				LST_FOREACH(ln, &gn->commands) {
-					if (Compat_RunCommand(Lst_Datum(ln),
-					    gn))
+					if (Compat_RunCommand(ln, gn))
 						break;
 				}
 				curTarg = NULL;
@@ -3345,7 +3336,7 @@ Compat_Run(Lst *targs)
 		gn = Targ_FindNode(".BEGIN", TARG_NOCREATE);
 		if (gn != NULL) {
 			LST_FOREACH(ln, &gn->commands) {
-				if (Compat_RunCommand(Lst_Datum(ln), gn))
+				if (Compat_RunCommand(ln, gn))
 					break;
 			}
 			if (gn->made == ERROR) {
@@ -3386,7 +3377,7 @@ Compat_Run(Lst *targs)
 	 */
 	if (makeErrors == 0) {
 		LST_FOREACH(ln, &ENDNode->commands) {
-			if (Compat_RunCommand(Lst_Datum(ln), ENDNode))
+			if (Compat_RunCommand(ln, ENDNode))
 				break;
 		}
 	}
