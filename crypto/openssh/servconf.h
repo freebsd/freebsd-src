@@ -1,4 +1,5 @@
 /* $OpenBSD: servconf.h,v 1.92 2010/03/04 10:36:03 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -156,6 +157,15 @@ typedef struct {
 	char   *chroot_directory;
 	char   *revoked_keys_file;
 	char   *trusted_user_ca_keys;
+
+	int	hpn_disabled;		/* Disable HPN functionality. */
+	int	hpn_buffer_size;	/* Set HPN buffer size - default 2MB.*/
+	int	tcp_rcv_buf_poll;	/* Poll TCP rcv window in autotuning
+					 * kernels. */
+
+#ifdef	NONE_CIPHER_ENABLED
+	int	none_enabled;		/* Enable NONE cipher switch. */
+#endif
 }       ServerOptions;
 
 void	 initialize_server_options(ServerOptions *);

@@ -1,4 +1,5 @@
 /* $OpenBSD: kex.c,v 1.82 2009/10/24 11:13:54 andreas Exp $ */
+/* $FreeBSD$ */
 /*
  * Copyright (c) 2000, 2001 Markus Friedl.  All rights reserved.
  *
@@ -62,8 +63,13 @@ extern const EVP_MD *evp_ssh_sha256(void);
 static void kex_kexinit_finish(Kex *);
 static void kex_choose_conf(Kex *);
 
-/* put algorithm proposal into buffer */
+/* Put algorithm proposal into buffer. */
+#ifndef NONE_CIPHER_ENABLED
 static void
+#else
+/* Also used in sshconnect2.c. */
+void
+#endif
 kex_prop2buf(Buffer *b, char *proposal[PROPOSAL_MAX])
 {
 	u_int i;
@@ -375,6 +381,9 @@ kex_choose_conf(Kex *kex)
 	int nenc, nmac, ncomp;
 	u_int mode, ctos, need;
 	int first_kex_follows, type;
+#ifdef	NONE_CIPHER_ENABLED
+	int auth_flag;
+#endif
 
 	my   = kex_buf2prop(&kex->my, NULL);
 	peer = kex_buf2prop(&kex->peer, &first_kex_follows);
@@ -398,6 +407,10 @@ kex_choose_conf(Kex *kex)
 	}
 
 	/* Algorithm Negotiation */
+#ifdef	NONE_CIPHER_ENABLED
+	auth_flag = packet_get_authentication_state();
+	debug ("AUTH STATE is %d", auth_flag);
+#endif
 	for (mode = 0; mode < MODE_MAX; mode++) {
 		newkeys = xcalloc(1, sizeof(*newkeys));
 		kex->newkeys[mode] = newkeys;
@@ -409,6 +422,17 @@ kex_choose_conf(Kex *kex)
 		choose_enc (&newkeys->enc,  cprop[nenc],  sprop[nenc]);
 		choose_mac (&newkeys->mac,  cprop[nmac],  sprop[nmac]);
 		choose_comp(&newkeys->comp, cprop[ncomp], sprop[ncomp]);
+#ifdef	NONE_CIPHER_ENABLED
+		debug("REQUESTED ENC.NAME is '%s'", newkeys->enc.name);
+		if (strcmp(newkeys->enc.name, "none") == 0) {
+			debug("Requesting NONE. Authflag is %d", auth_flag);			
+			if (auth_flag == 1)
+				debug("None requested post authentication.");
+			else
+				fatal("Pre-authentication none cipher requests "
+				    "are not allowed.");
+		} 
+#endif
 		debug("kex: %s %s %s %s",
 		    ctos ? "client->server" : "server->client",
 		    newkeys->enc.name,

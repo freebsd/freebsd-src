@@ -1,4 +1,5 @@
 /* $OpenBSD: channels.h,v 1.103 2010/01/26 01:28:35 djm Exp $ */
+/* $FreeBSD$ */
 
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
@@ -124,6 +125,8 @@ struct Channel {
 	u_int	local_window_max;
 	u_int	local_consumed;
 	u_int	local_maxpacket;
+	u_int 	tcpwinsz;	
+	int	dynamic_window;
 	int     extended_usage;
 	int	single_connection;
 
@@ -160,10 +163,14 @@ struct Channel {
 /* default window/packet sizes for tcp/x11-fwd-channel */
 #define CHAN_SES_PACKET_DEFAULT	(32*1024)
 #define CHAN_SES_WINDOW_DEFAULT	(64*CHAN_SES_PACKET_DEFAULT)
+
 #define CHAN_TCP_PACKET_DEFAULT	(32*1024)
 #define CHAN_TCP_WINDOW_DEFAULT	(64*CHAN_TCP_PACKET_DEFAULT)
+
 #define CHAN_X11_PACKET_DEFAULT	(16*1024)
 #define CHAN_X11_WINDOW_DEFAULT	(4*CHAN_X11_PACKET_DEFAULT)
+
+#define CHAN_HPN_MIN_WINDOW_DEFAULT	(2*1024*1024)
 
 /* possible input states */
 #define CHAN_INPUT_OPEN			0
@@ -291,5 +298,8 @@ void	 chan_ibuf_empty(Channel *);
 void	 chan_rcvd_ieof(Channel *);
 void	 chan_write_failed(Channel *);
 void	 chan_obuf_empty(Channel *);
+
+/* hpn handler */
+void     channel_set_hpn(int, u_int);
 
 #endif
