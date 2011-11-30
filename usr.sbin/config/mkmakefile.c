@@ -774,7 +774,7 @@ do_rules(FILE *f)
 			fprintf(f, "\t%s\n", compilewith);
 
 		if (!(ftp->f_flags & NO_OBJ))
-			fprintf(f, "\t@${NORMAL_CTFCONVERT}\n\n");
+			fprintf(f, "\t${NORMAL_CTFCONVERT}\n\n");
 		else
 			fprintf(f, "\n");
 	}
