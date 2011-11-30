@@ -2538,7 +2538,7 @@ vm_page_bits(int base, int size)
 }
 
 /*
- *	vm_page_set_valid:
+ *	vm_page_set_valid_range:
  *
  *	Sets portions of a page valid.  The arguments are expected
  *	to be DEV_BSIZE aligned but if they aren't the bitmap is inclusive
@@ -2548,7 +2548,7 @@ vm_page_bits(int base, int size)
  *	(base + size) must be less then or equal to PAGE_SIZE.
  */
 void
-vm_page_set_valid(vm_page_t m, int base, int size)
+vm_page_set_valid_range(vm_page_t m, int base, int size)
 {
 	int endoff, frag;
 
@@ -2581,7 +2581,7 @@ vm_page_set_valid(vm_page_t m, int base, int size)
 	 * is already dirty. 
 	 */
 	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
-	    ("vm_page_set_valid: page %p is dirty", m)); 
+	    ("vm_page_set_valid_range: page %p is dirty", m));
 
 	/*
 	 * Set valid bits inclusive of any overlap.

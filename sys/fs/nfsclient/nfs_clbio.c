@@ -211,7 +211,7 @@ ncl_getpages(struct vop_getpages_args *ap)
 			 * Read operation filled a partial page.
 			 */
 			m->valid = 0;
-			vm_page_set_valid(m, 0, size - toff);
+			vm_page_set_valid_range(m, 0, size - toff);
 			KASSERT(m->dirty == 0,
 			    ("nfs_getpages: page %p is dirty", m));
 		} else {
