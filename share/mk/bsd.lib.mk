@@ -36,7 +36,7 @@ NO_WERROR=
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if defined(WITH_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
 .endif
@@ -186,7 +186,7 @@ ${SHLIB_NAME}: ${SOBJS}
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-.if defined(WITH_CTF)
+.if ${MK_CTF} != "no"
 	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
 .endif
 .endif
