@@ -1324,14 +1324,14 @@ esac
 
 if [ -e "${DESTDIR}/etc/localtime" ]; then	# Ignore if TZ == UTC
   echo ''
+  [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
   if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then
     echo "*** Reinstalling `cat ${DESTDIR}/var/db/zoneinfo` as ${DESTDIR}/etc/localtime"
-    [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
     tzsetup $tzs_args -r
   else
     echo "*** There is no ${DESTDIR}/var/db/zoneinfo file to update ${DESTDIR}/etc/localtime."
     echo '    You should run tzsetup'
-    run_it_now tzsetup
+    run_it_now "tzsetup $tzs_args"
   fi
 fi
 
