@@ -1554,8 +1554,8 @@ pipeclose(cpipe)
 	} else
 		PIPE_UNLOCK(cpipe);
 
-	if (ino > 0)
-		free_unr(pipeino_unr, cpipe->pipe_ino);
+	if (ino != 0 && ino != (ino_t)-1)
+		free_unr(pipeino_unr, ino);
 }
 
 /*ARGSUSED*/
