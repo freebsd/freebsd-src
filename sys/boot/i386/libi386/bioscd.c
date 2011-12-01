@@ -118,7 +118,6 @@ bc_bios2unit(int biosdev)
 	int i;
     
 	DEBUG("looking for bios device 0x%x", biosdev);
-	printf("looking for bios device 0x%x, nbcinfo=%d\n", biosdev, nbcinfo);
 	for (i = 0; i < nbcinfo; i++) {
 		DEBUG("bc unit %d is BIOS device 0x%x", i, bcinfo[i].bc_unit);
 		if (bcinfo[i].bc_unit == biosdev)
@@ -150,7 +149,6 @@ bc_init(void)
 int
 bc_add(int biosdev)
 {
-	printf("bc_add(%d)\n", biosdev);
 
 	if (nbcinfo >= MAXBCDEV)
 		return (-1);
@@ -162,10 +160,8 @@ bc_add(int biosdev)
 	v86.ds = VTOPSEG(&bcinfo[nbcinfo].bc_sp);
 	v86.esi = VTOPOFF(&bcinfo[nbcinfo].bc_sp);
 	v86int();
-	if ((v86.eax & 0xff00) != 0) {
-                printf("CD probe failed, eax=0x%08x\n", v86.eax);
+	if ((v86.eax & 0xff00) != 0)
 		return (-1);
-        }
 
 	printf("BIOS CD is cd%d\n", nbcinfo);
 	nbcinfo++;
