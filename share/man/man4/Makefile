@@ -123,6 +123,7 @@ MAN=	aac.4 \
 	fdc.4 \
 	fdt.4 \
 	fdtbus.4 \
+	ffclock.4 \
 	firewire.4 \
 	fpa.4 \
 	fwe.4 \
