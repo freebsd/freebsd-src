@@ -383,6 +383,7 @@ __DEFAULT_YES_OPTIONS = \
     PMC \
     PORTSNAP \
     PPP \
+    PROFILE \
     QUOTAS \
     RCMDS \
     RCS \
@@ -418,8 +419,7 @@ __DEFAULT_NO_OPTIONS = \
     ICONV \
     IDEA \
     LIBCPLUSPLUS \
-    OFED \
-    PROFILE
+    OFED
 
 #
 # Default behaviour of some options depends on the architecture.  Unfortunately
