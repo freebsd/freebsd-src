@@ -2135,8 +2135,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	union mfi_sgl *sgl;
 	struct mfi_softc *sc;
 	int i, j, first, dir;
-	int sgl_mapped = 0;
-	int sge_size = 0;
+	int sge_size;
 
 	cm = (struct mfi_command *)arg;
 	sc = cm->cm_sc;
@@ -2165,8 +2164,8 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 			sgl->sg_skinny[i].flag = 0;
 		}
 		hdr->flags |= MFI_FRAME_IEEE_SGL | MFI_FRAME_SGL64;
-		sgl_mapped = 1;
 		sge_size = sizeof(struct mfi_sg_skinny);
+		hdr->sg_count = nsegs;
 	} else {
 		j = 0;
 		if (cm->cm_frame->header.cmd == MFI_CMD_STP) {
@@ -2195,8 +2194,8 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 			hdr->flags |= MFI_FRAME_SGL64;
 		}
 		hdr->sg_count = j;
+		sge_size = sc->mfi_sge_size;
 	}
-	hdr->sg_count = nsegs;
 
 	dir = 0;
 	if (cm->cm_flags & MFI_CMD_DATAIN) {
@@ -2216,7 +2215,7 @@ mfi_data_cb(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 	 * least 1 frame, so don't compensate for the modulo of the
 	 * following division.
 	 */
-	cm->cm_total_frame_size += (sge_size * nsegs);
+	cm->cm_total_frame_size += (sc->mfi_sge_size * nsegs);
 	cm->cm_extra_frames = (cm->cm_total_frame_size - 1) / MFI_FRAME_SIZE;
 
 	if(sc->MFA_enabled)
