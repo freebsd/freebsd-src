@@ -1479,6 +1479,10 @@ iap_event_westmere_ok_on_counter(enum pmc_event pe, int ri)
 		/*
 		 * Events valid only on counter 0.
 		 */
+	case PMC_EV_IAP_EVENT_60H_01H:
+	case PMC_EV_IAP_EVENT_60H_02H:
+	case PMC_EV_IAP_EVENT_60H_04H:
+	case PMC_EV_IAP_EVENT_60H_08H:	
 	case PMC_EV_IAP_EVENT_B3H_01H:
 	case PMC_EV_IAP_EVENT_B3H_02H:
 	case PMC_EV_IAP_EVENT_B3H_04H:
@@ -1488,6 +1492,10 @@ iap_event_westmere_ok_on_counter(enum pmc_event pe, int ri)
 		/*
 		 * Events valid only on counter 0, 1.
 		 */
+	case PMC_EV_IAP_EVENT_4CH_01H:
+	case PMC_EV_IAP_EVENT_4EH_01H:
+	case PMC_EV_IAP_EVENT_4EH_02H:
+	case PMC_EV_IAP_EVENT_4EH_04H:
 	case PMC_EV_IAP_EVENT_51H_01H:
 	case PMC_EV_IAP_EVENT_51H_02H:
 	case PMC_EV_IAP_EVENT_51H_04H:
