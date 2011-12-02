@@ -53,6 +53,7 @@ __FBSDID("$FreeBSD$");
 
 /* local prototypes */
 static int ata_ati_chipinit(device_t dev);
+static int ata_ati_dumb_ch_attach(device_t dev);
 static int ata_ati_ixp700_ch_attach(device_t dev);
 static int ata_ati_setmode(device_t dev, int target, int mode);
 
@@ -63,6 +64,8 @@ static int ata_ati_setmode(device_t dev, int target, int mode);
 #define SII_MEMIO       1
 #define SII_BUG         0x04
 
+static int force_ahci = 1;
+TUNABLE_INT("hw.ahci.force", &force_ahci);
 
 /*
  * ATI chipset support functions
@@ -111,7 +114,10 @@ ata_ati_probe(device_t dev)
 	ctlr->chipinit = ata_sii_chipinit;
 	break;
     case ATI_AHCI:
-	ctlr->chipinit = ata_ahci_chipinit;
+	if (force_ahci == 1 || pci_get_subclass(dev) != PCIS_STORAGE_IDE)
+		ctlr->chipinit = ata_ahci_chipinit;
+	else
+		ctlr->chipinit = ata_ati_chipinit;
 	break;
     }
     return (BUS_PROBE_DEFAULT);
@@ -127,6 +133,11 @@ ata_ati_chipinit(device_t dev)
     if (ata_setup_interrupt(dev, ata_generic_intr))
 	return ENXIO;
 
+    if (ctlr->chip->cfg1 == ATI_AHCI) {
+	ctlr->ch_attach = ata_ati_dumb_ch_attach;
+	ctlr->setmode = ata_sata_setmode;
+	return (0);
+    }
     switch (ctlr->chip->chipid) {
     case ATA_ATI_IXP600:
 	/* IXP600 only has 1 PATA channel */
@@ -162,6 +173,17 @@ ata_ati_chipinit(device_t dev)
 
     ctlr->setmode = ata_ati_setmode;
     return 0;
+}
+
+static int
+ata_ati_dumb_ch_attach(device_t dev)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+
+	if (ata_pci_ch_attach(dev))
+		return ENXIO;
+	ch->flags |= ATA_SATA;
+	return (0);
 }
 
 static int
