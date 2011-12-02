@@ -228,7 +228,8 @@ AcpiEvInitializeOpRegions (
 
 ACPI_STATUS
 AcpiEvAddressSpaceDispatch (
-    ACPI_OPERAND_OBJECT    *RegionObj,
+    ACPI_OPERAND_OBJECT     *RegionObj,
+    ACPI_OPERAND_OBJECT     *FieldObj,
     UINT32                  Function,
     UINT32                  RegionOffset,
     UINT32                  BitWidth,

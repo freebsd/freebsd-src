@@ -59,8 +59,6 @@ SUBDIR+=games
 .endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
-.else
-NO_CTF=1
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
@@ -239,7 +237,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
-		-DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
+		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # build-tools stage
@@ -438,7 +436,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DWITHOUT_PROFILE libraries
+	    -DWITHOUT_MAN -DNO_PROFILE libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1321,8 +1319,8 @@ ${_lib}__PL: .PHONY
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ obj; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1555,7 +1553,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
+	-DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE \
 	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}

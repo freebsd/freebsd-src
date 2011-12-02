@@ -1053,10 +1053,10 @@ urtw_init_locked(void *arg)
 
 	if (!(sc->sc_flags & URTW_INIT_ONCE)) {
 		ret = urtw_alloc_rx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		ret = urtw_alloc_tx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		sc->sc_flags |= URTW_INIT_ONCE;
 	}

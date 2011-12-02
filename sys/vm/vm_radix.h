@@ -61,8 +61,8 @@ struct vm_radix {
 CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 
 struct vm_radix_node {
-	void		*rn_child[VM_RADIX_COUNT];	/* child nodes. */
-    	uint16_t	rn_count;			/* Valid children. */
+	void	*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
+    	volatile uint16_t rn_count;		/* Valid children. */
 };
 
 void	vm_radix_init(void);

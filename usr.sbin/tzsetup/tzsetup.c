@@ -73,6 +73,38 @@ typedef struct dialogMenuItem {
 } dialogMenuItem;
 
 static int
+xdialog_count_rows(const char *p)
+{
+	int rows = 0;
+
+	while ((p = strchr(p, '\n')) != NULL) {
+		p++;
+		if (*p == '\0')
+			break;
+		rows++;
+	}
+
+	return rows ? rows : 1;
+}
+
+static int
+xdialog_count_columns(const char *p)
+{
+	int len;
+	int max_len = 0;
+	const char *q;
+
+	for (; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+		len = q - p;
+		max_len = MAX(max_len, len);
+	}
+
+	len = strlen(p);
+	max_len = MAX(max_len, len);
+	return max_len;
+}
+
+static int
 xdialog_menu(const char *title, const char *cprompt, int height, int width,
 	     int menu_height, int item_no, dialogMenuItem *ditems)
 {
@@ -90,6 +122,12 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 		listitems[i].text = ditems[i].title;
 	}
 
+	/* calculate height */
+	if (height < 0)
+		height = xdialog_count_rows(cprompt) + menu_height + 4 + 2;
+	if (height > LINES)
+		height = LINES;
+
 	/* calculate width */
 	if (width < 0) {
 		int tag_x = 0;
@@ -103,7 +141,7 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 				tag_x = MAX(tag_x, l + k + 2);
 			}
 		}
-		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(xdialog_count_columns(cprompt), title != NULL ? xdialog_count_columns(title) : 0);
 		width = MAX(width, tag_x + 4) + 4;
 	}
 	width = MAX(width, 24);

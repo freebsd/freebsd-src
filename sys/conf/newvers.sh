@@ -99,7 +99,6 @@ for dir in /bin /usr/bin /usr/local/bin; do
 done
 
 if [ -n "$svnversion" ] ; then
-	echo "$svnversion"
 	svn=`cd ${SYSDIR} && $svnversion`
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;

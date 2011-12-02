@@ -216,11 +216,23 @@ extern struct vpglocks pa_lock[];
 
 #define	PA_LOCK_ASSERT(pa, a)	mtx_assert(PA_LOCKPTR(pa), (a))
 
+#ifdef KLD_MODULE
+#define	vm_page_lock(m)		vm_page_lock_KBI((m), LOCK_FILE, LOCK_LINE)
+#define	vm_page_unlock(m)	vm_page_unlock_KBI((m), LOCK_FILE, LOCK_LINE)
+#define	vm_page_trylock(m)	vm_page_trylock_KBI((m), LOCK_FILE, LOCK_LINE)
+#if defined(INVARIANTS)
+#define	vm_page_lock_assert(m, a)		\
+    vm_page_lock_assert_KBI((m), (a), __FILE__, __LINE__)
+#else
+#define	vm_page_lock_assert(m, a)
+#endif
+#else	/* !KLD_MODULE */
 #define	vm_page_lockptr(m)	(PA_LOCKPTR(VM_PAGE_TO_PHYS((m))))
 #define	vm_page_lock(m)		mtx_lock(vm_page_lockptr((m)))
 #define	vm_page_unlock(m)	mtx_unlock(vm_page_lockptr((m)))
 #define	vm_page_trylock(m)	mtx_trylock(vm_page_lockptr((m)))
 #define	vm_page_lock_assert(m, a)	mtx_assert(vm_page_lockptr((m)), (a))
+#endif
 
 #define	vm_page_queue_free_mtx	vm_page_queue_free_lock.data
 /*
@@ -382,7 +394,7 @@ void vm_page_reference(vm_page_t m);
 void vm_page_remove (vm_page_t);
 void vm_page_rename (vm_page_t, vm_object_t, vm_pindex_t);
 void vm_page_requeue(vm_page_t m);
-void vm_page_set_valid(vm_page_t m, int base, int size);
+void vm_page_set_valid_range(vm_page_t m, int base, int size);
 void vm_page_sleep(vm_page_t m, const char *msg);
 vm_offset_t vm_page_startup(vm_offset_t vaddr);
 void vm_page_unhold_pages(vm_page_t *ma, int count);
@@ -401,6 +413,13 @@ void vm_page_zero_idle_wakeup(void);
 void vm_page_cowfault (vm_page_t);
 int vm_page_cowsetup(vm_page_t);
 void vm_page_cowclear (vm_page_t);
+
+void vm_page_lock_KBI(vm_page_t m, const char *file, int line);
+void vm_page_unlock_KBI(vm_page_t m, const char *file, int line);
+int vm_page_trylock_KBI(vm_page_t m, const char *file, int line);
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line);
+#endif
 
 #ifdef INVARIANTS
 void vm_page_object_lock_assert(vm_page_t m);

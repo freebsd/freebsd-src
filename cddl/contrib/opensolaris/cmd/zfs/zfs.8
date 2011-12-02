@@ -48,12 +48,16 @@
 .Ar size volume
 .Nm
 .Cm destroy
-.Op Fl rRf
+.Op Fl fnpRrv
 .Ar filesystem Ns | Ns Ar volume
 .Nm
 .Cm destroy
-.Op Fl rRd
+.Op Fl dnpRrv
+.Sm off
 .Ar snapshot
+.Ns Op % Ns Ar snapname
+.Ns Op , Ns Ar ...
+.Sm on
 .Nm
 .Cm snapshot
 .Op Fl r
@@ -160,7 +164,7 @@
 .Fl a | Ar filesystem Ns | Ns Ar mountpoint
 .Nm
 .Cm send
-.Op Fl DvRp
+.Op Fl DnPpRrv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Nm
@@ -487,6 +491,17 @@ The default value is
 .Cm off .
 .It Sy creation
 The time this dataset was created.
+.It Sy clones
+For snapshots, this property is a comma-separated list of filesystems or
+volumes which are clones of this snapshot.  The clones'
+.Sy origin
+property is this snapshot.  If the
+.Sy clones
+property is not empty, then this snapshot can not be destroyed (even with the
+.Fl r
+or
+.Fl f
+options).
 .It Sy defer_destroy
 This property is
 .Cm on
@@ -644,6 +659,28 @@ power of 2 from 512 bytes to 128 Kbytes is valid.
 .Pp
 This property can also be referred to by its shortened column name,
 .Sy volblock .
+.It Sy written
+The amount of
+.Sy referenced
+space written to this dataset since the previous snapshot.
+.It Sy written@ Ns Ar snapshot
+The amount of
+.Sy referenced
+space written to this dataset since the specified snapshot.  This is the space
+that is referenced by this dataset but was not referenced by the specified
+snapshot.
+.Pp
+The
+.Ar snapshot
+may be specified as a short snapshot name (just the part after the
+.Sy @ Ns ),
+in which case it will be interpreted as a snapshot in the same filesystem as
+this dataset. The
+.Ar snapshot
+may be a full snapshot name
+.Pq Em filesystem@snapshot ,
+which for clones may be a snapshot in the origin's filesystem (or the origin of
+the origin's filesystem, etc).
 .El
 .Pp
 The following native properties can be used to change the behavior of a
@@ -1403,7 +1440,7 @@ options.
 .It Xo
 .Nm
 .Cm destroy
-.Op Fl rRf
+.Op Fl fnpRrv
 .Ar filesystem Ns | Ns Ar volume
 .Xc
 .Pp
@@ -1422,6 +1459,17 @@ Force an unmount of any file systems using the
 .Qq Nm Cm unmount Fl f
 command. This option has no effect on non-file systems or unmounted file
 systems.
+.It Fl n
+Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
+conjunction with the
+.Fl v
+or
+.Fl p
+flags to determine what data would be deleted.
+.It Fl p
+Print machine-parsable verbose information about the deleted data.
+.It Fl v
+Print verbose information about the deleted data.
 .El
 .Pp
 Extreme care should be taken when applying either the
@@ -1433,11 +1481,15 @@ behavior for mounted file systems in use.
 .It Xo
 .Nm
 .Cm destroy
-.Op Fl rRd
+.Op Fl dnpRrv
+.Sm off
 .Ar snapshot
+.Ns Op % Ns Ar snapname
+.Ns Op , Ns Ar ...
+.Sm on
 .Xc
 .Pp
-The given snapshot is destroyed immediately if and only if the
+The given snapshots are destroyed immediately if and only if the
 .Qq Nm Cm destroy
 command without the
 .Fl d
@@ -1445,15 +1497,41 @@ option would have destroyed it. Such immediate destruction would occur, for
 example, if the snapshot had no clones and the user-initiated reference count
 were zero.
 .Pp
-If the snapshot does not qualify for immediate destruction, it is marked for
+If a snapshot does not qualify for immediate destruction, it is marked for
 deferred deletion. In this state, it exists as a usable, visible snapshot until
 both of the preconditions listed above are met, at which point it is destroyed.
+.Pp
+An inclusive range of snapshots may be specified by separating the
+first and last snapshots with a percent sign
+.Pq Sy % .
+The first and/or last snapshots may be left blank, in which case the
+filesystem's oldest or newest snapshot will be implied.
+.Pp
+Multiple snapshots
+(or ranges of snapshots) of the same filesystem or volume may be specified
+in a comma-separated list of snapshots.
+Only the snapshot's short name (the
+part after the
+.Sy @ )
+should be specified when using a range or comma-separated list to identify
+multiple snapshots.
 .Bl -tag -width indent
 .It Fl r
 Destroy (or mark for deferred deletion) all snapshots with this name in
 descendent file systems.
 .It Fl R
 Recursively destroy all dependents.
+.It Fl n
+Do a dry-run ("No-op") deletion. No data will be deleted. This is useful in
+conjunction with the
+.Fl v
+or
+.Fl p
+flags to determine what data would be deleted.
+.It Fl p
+Print machine-parsable verbose information about the deleted data.
+.It Fl v
+Print verbose information about the deleted data.
 .It Fl d
 Defer snapshot deletion.
 .El
@@ -2080,7 +2158,7 @@ file system shared on the system.
 .It Xo
 .Nm
 .Cm send
-.Op Fl DvRp
+.Op Fl DnPpRrv
 .Op Fl i Ar snapshot | Fl I Ar snapshot
 .Ar snapshot
 .Xc
@@ -2120,7 +2198,7 @@ Generate a stream package that sends all intermediary snapshots from the
 .Ar snapshot . For example,
 .Ic -I @a fs@d
 is similar to
-.Ic -i @a fs@b; -i @b fs@c; -i @c fs@d Ns .
+.Ic -i @a fs@b; -i @b fs@c; -i @c fs@d .
 The incremental source snapshot may be specified as with the
 .Fl i
 option.
@@ -2151,10 +2229,26 @@ be used regardless of the dataset's
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
 .Sy sha256 Ns ).
+.It Fl r
+Recursively send all descendant snapshots.  This is similar to the
+.Fl R
+flag, but information about deleted and renamed datasets is not included, and
+property information is only included if the
+.Fl p
+flag is specified.
 .It Fl p
 Include the dataset's properties in the stream. This flag is implicit when
 .Fl R
 is specified. The receiving system must also support this feature.
+.It Fl n
+Do a dry-run ("No-op") send.  Do not generate any actual send data.  This is
+useful in conjunction with the
+.Fl v
+or
+.Fl P
+flags to determine what data will be sent.
+.It Fl P
+Print machine-parsable verbose information about the stream package generated.
 .It Fl v
 Print verbose information about the stream package generated.
 .El
@@ -2320,7 +2414,7 @@ may be specified as a comma-separated list. Permission names are the same as
 .Tn ZFS
 subcommand and property names. See the property list below. Property set names,
 which begin with an at sign
-.Pq Sy @ Ns ,
+.Pq Sy @ ,
 may be specified. See the
 .Fl s
 form below for details.
@@ -2442,7 +2536,7 @@ commands for the specified file system and its descendents. Sets are evaluated
 dynamically, so changes to a set are immediately reflected. Permission sets
 follow the same naming restrictions as ZFS file systems, but the name must
 begin with an "at sign"
-.Pq Sy @ Ns ,
+.Pq Sy @ ,
 and can be no more than 64 characters long.
 .It Xo
 .Nm

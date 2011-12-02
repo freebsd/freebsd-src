@@ -2,7 +2,6 @@
 
 PROG=	iasl
 SRCS=	adfile.c adisasm.c adwalk.c
-SRCS+=	osunixxf.c
 
 # common
 SRCS+=	dmextern.c dmrestag.c dmtable.c dmtbdump.c dmtbinfo.c	\
@@ -16,18 +15,19 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 	aslopcodes.c asloperands.c aslopt.c aslpredef.c		\
 	aslresource.c aslrestype1.c aslrestype1i.c		\
 	aslrestype2.c aslrestype2d.c aslrestype2e.c		\
-	aslrestype2q.c aslrestype2w.c aslstartup.c aslstubs.c	\
-	asltransform.c asltree.c aslutils.c asluuid.c		\
-	aslwalks.c dtcompile.c dtexpress.c dtfield.c dtio.c	\
-	dtparser.y.h dtparserlex.c dtparserparse.c dtsubtable.c	\
-	dttable.c dttemplate.c dtutils.c
+	aslrestype2q.c aslrestype2s.c aslrestype2w.c		\
+	aslstartup.c aslstubs.c	asltransform.c asltree.c	\
+	aslutils.c asluuid.c aslwalks.c dtcompile.c dtexpress.c	\
+	dtfield.c dtio.c dtparser.y.h dtparserlex.c		\
+	dtparserparse.c dtsubtable.c dttable.c dttemplate.c	\
+	dtutils.c
 
 # debugger
 SRCS+=	dbfileio.c
 
 # disassembler
 SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
+	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # interpreter/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
@@ -48,6 +48,9 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
 	nsparse.c nssearch.c nsutils.c nswalk.c nsxfobj.c
 
+# os_specific/service_layers
+SRCS+=	osunixxf.c
+
 # tables
 SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
@@ -64,8 +67,6 @@ MAN=	iasl.8
 CFLAGS+= -DACPI_ASL_COMPILER -I.
 LFLAGS= -i -s
 YFLAGS= -d
-DPADD=	${LIBPTHREAD}
-LDADD=	-lpthread
 
 CLEANFILES= aslcompiler.y.h aslcompilerlex.c aslcompilerparse.c	\
 	aslcompilerparse.h dtparser.y.h dtparserlex.c		\
