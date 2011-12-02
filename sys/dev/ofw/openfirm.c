@@ -131,7 +131,7 @@ OF_init(void *cookie)
 
 	rv = OFW_INIT(ofw_obj, cookie);
 
-	if ((chosen = OF_finddevice("/chosen")) > 0)
+	if ((chosen = OF_finddevice("/chosen")) != -1)
 		if (OF_getprop(chosen, "stdout", &stdout, sizeof(stdout)) == -1)
 			stdout = -1;
 
