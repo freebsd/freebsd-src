@@ -39,39 +39,45 @@
 .In xlocale.h
 .Sh DESCRIPTION
 The extended locale support includes a set of functions for setting
-thread-local locales, as well convenience functions for performing locale-aware
+thread-local locales,
+as well convenience functions for performing locale-aware
 calls with a specified locale.
 .Pp
 The core of the xlocale API is the
 .Fa locale_t
-type.  This is an opaque type encapsulating a locale.  Instances of this can be
-either set as the locale for a specific thread or passed directly to the
+type.
+This is an opaque type encapsulating a locale.
+Instances of this can be either set as the locale for a specific thread or
+passed directly to the
 .Fa _l
-suffixed variants of various standard C functions.  Two special
+suffixed variants of various standard C functions.
+Two special
 .Fa locale_t
 values are available:
-.Bl -bullet -offset indent 
+.Bl -bullet -offset indent
 .It
-NULL refers to the current locale for the thread, or to the global locale if no
-locale has been set for this thread.
+NULL refers to the current locale for the thread,
+or to the global locale if no locale has been set for this thread.
 .It
 LC_GLOBAL_LOCALE refers to the global locale.
 .El
 .Pp
-The global locale is the locale set with the 
+The global locale is the locale set with the
 .Xr setlocale 3
 function.
 .Sh CAVEATS
-The 
+The
 .Xr setlocale 3
-function, and others in the family, refer to the global locale.  Other
-functions that depend on the locale, however, will take the thread-local locale
-if one has been set.  This means that the idiom of setting the locale using
+function, and others in the family, refer to the global locale.
+Other functions that depend on the locale, however,
+will take the thread-local locale if one has been set.
+This means that the idiom of setting the locale using
 .Xr setlocale 3 ,
-calling a locale-dependent function, and then restoring the locale will not
+calling a locale-dependent function,
+and then restoring the locale will not
 have the expected behavior if the current thread has had a locale set using
 .Xr uselocale 3 .
-You should avoid this idiom and prefer to use the 
+You should avoid this idiom and prefer to use the
 .Fa _l
 suffixed versions instead.
 .Sh SEE ALSO
@@ -84,29 +90,34 @@ suffixed versions instead.
 .Sh CONVENIENCE FUNCTIONS
 The xlocale API includes a number of
 .Fa _l
-suffixed convenience functions.  These are variants of standard C functions
-that have been modified to take an explicit 
+suffixed convenience functions.
+These are variants of standard C functions
+that have been modified to take an explicit
 .Fa locale_t
-parameter as the final argument or, in the case of variadic functions, as an
-additional argument directly before the format string.  Each of these functions
-accepts either NULL or LC_GLOBAL_LOCALE.  In these functions, NULL refers to
-the C locale, rather than the thread's current locale.  If you wish to use the
-thread's current locale, then use the unsuffixed version of the function.
+parameter as the final argument or, in the case of variadic functions,
+as an additional argument directly before the format string.
+Each of these functions accepts either NULL or LC_GLOBAL_LOCALE.
+In these functions, NULL refers to the C locale,
+rather than the thread's current locale.
+If you wish to use the thread's current locale,
+then use the unsuffixed version of the function.
 .Pp
-These functions are exposed by including 
+These functions are exposed by including
 .In xlocale.h
 .Em after
-including the relevant headers for the standard variant.  For example, the 
+including the relevant headers for the standard variant.
+For example, the
 .Xr strtol_l 3
-function is exposed by including 
+function is exposed by including
 .In xlocale.h
-after 
+after
 .In stdlib.h ,
 which defines
 .Xr strtol 3 .
 .Pp
-For reference, a complete list of the locale-aware functions that are available
-in this form, along with the headers that expose them, is provided here:
+For reference,
+a complete list of the locale-aware functions that are available in this form,
+along with the headers that expose them, is provided here:
 .Pp
 .Bl -tag -width "<monetary.h> "
 .It In wctype.h
@@ -117,7 +128,7 @@ in this form, along with the headers that expose them, is provided here:
 .Xr iswdigit_l 3 ,
 .Xr iswgraph_l 3 ,
 .Xr iswlower_l 3 ,
-.Xr iswprint_l 3 , 
+.Xr iswprint_l 3 ,
 .Xr iswpunct_l 3 ,
 .Xr iswspace_l 3 ,
 .Xr iswupper_l 3 ,
@@ -264,7 +275,7 @@ The functions
 conform to
 .St -p1003.1-2008 .
 .Sh HISTORY
-The xlocale APIs first appeared in Darwin 8.0.  This implementation was
-written by David Chisnall, under sponsorship from the FreeBSD Foundation and
-first appeared in
+The xlocale APIs first appeared in Darwin 8.0.
+This implementation was written by David Chisnall,
+under sponsorship from the FreeBSD Foundation and first appeared in
 .Fx 9.1 .
