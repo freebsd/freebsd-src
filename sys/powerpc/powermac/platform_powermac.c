@@ -163,7 +163,7 @@ powermac_smp_first_cpu(platform_t plat, struct cpuref *cpuref)
 		 * but it can be found directly
 		 */
 		dev = OF_finddevice("/cpus");
-		if (dev == 0)
+		if (dev == -1)
 			return (ENOENT);
 	}
 
@@ -209,7 +209,7 @@ powermac_smp_get_bsp(platform_t plat, struct cpuref *cpuref)
 	int res;
 
 	chosen = OF_finddevice("/chosen");
-	if (chosen == 0)
+	if (chosen == -1)
 		return (ENXIO);
 
 	res = OF_getprop(chosen, "cpu", &inst, sizeof(inst));

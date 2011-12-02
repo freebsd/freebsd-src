@@ -368,7 +368,7 @@ cpu_reset(void)
 		(cell_t)bspec
 	};
 
-	if ((chosen = OF_finddevice("/chosen")) != 0) {
+	if ((chosen = OF_finddevice("/chosen")) != -1) {
 		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
