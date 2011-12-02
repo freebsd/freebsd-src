@@ -177,7 +177,7 @@ fdtbus_attach(device_t dev)
 	u_long start, end;
 	int error;
 
-	if ((root = OF_peer(0)) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		panic("fdtbus_attach: no root node.");
 
 	sc = device_get_softc(dev);
