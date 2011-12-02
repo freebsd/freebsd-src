@@ -2198,7 +2198,7 @@ Generate a stream package that sends all intermediary snapshots from the
 .Ar snapshot . For example,
 .Ic -I @a fs@d
 is similar to
-.Ic -i @a fs@b; -i @b fs@c; -i @c fs@d Ns .
+.Ic -i @a fs@b; -i @b fs@c; -i @c fs@d .
 The incremental source snapshot may be specified as with the
 .Fl i
 option.
@@ -2414,7 +2414,7 @@ may be specified as a comma-separated list. Permission names are the same as
 .Tn ZFS
 subcommand and property names. See the property list below. Property set names,
 which begin with an at sign
-.Pq Sy @ Ns ,
+.Pq Sy @ ,
 may be specified. See the
 .Fl s
 form below for details.
@@ -2536,7 +2536,7 @@ commands for the specified file system and its descendents. Sets are evaluated
 dynamically, so changes to a set are immediately reflected. Permission sets
 follow the same naming restrictions as ZFS file systems, but the name must
 begin with an "at sign"
-.Pq Sy @ Ns ,
+.Pq Sy @ ,
 and can be no more than 64 characters long.
 .It Xo
 .Nm
