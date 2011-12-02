@@ -33,22 +33,22 @@
 .Nm freelocale
 .Nd Frees a locale created with
 .Xr duplocale 3
-or 
+or
 .Xr newlocale 3 .
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In xlocale.h 
+.In xlocale.h
 .Ft int
 .Fn freelocale "locale_t locale"
 .Sh DESCRIPTION
 Frees a
 .Fa locale_t .
-This relinquishes any resources held exclusively by this locale.  Note that
-locales share reference-counted components, so a call to this function is not
-guaranteed to free all of the components.
+This relinquishes any resources held exclusively by this locale.
+Note that locales share reference-counted components,
+so a call to this function is not guaranteed to free all of the components.
 .Sh RETURN VALUES
-Returns 0 on success or -1 on error.  
+Returns 0 on success or -1 on error.
 .Sh SEE ALSO
 .Xr duplocale 3 ,
 .Xr localeconv 3 ,
