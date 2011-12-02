@@ -55,7 +55,6 @@
 #include <sys/kdb.h>
 
 CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
-CTASSERT((sizeof(u_int) * NBBY) >= VM_RADIX_LIMIT);
 
 static uma_zone_t vm_radix_node_zone;
 
