@@ -26,6 +26,15 @@
  */
 
 /*
+ * This software is derived from Andre Albsmeier's fwprog.c which contained
+ * the following note:
+ *
+ * Many thanks goes to Marc Frajola <marc@terasolutions.com> from
+ * TeraSolutions for the initial idea and his programme for upgrading
+ * the firmware of I*M DDYS drives.
+ */
+
+/*
  * BEWARE:
  *
  * The fact that you see your favorite vendor listed below does not
