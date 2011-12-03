@@ -317,6 +317,7 @@ vendor ACTLABS		0x061c	Act Labs
 vendor ALARIS		0x0620	Alaris
 vendor APEX		0x0624	Apex
 vendor CREATIVE3	0x062a	Creative Labs
+vendor MICRON		0x0634	Micron Technology
 vendor VIVITAR		0x0636	Vivitar
 vendor GUNZE		0x0637	Gunze Electronics USA
 vendor AVISION		0x0638	Avision
@@ -2225,6 +2226,9 @@ product MSI RT3070_11		0x871a	RT3070
 product MSI RT3070_7		0x899a	RT3070
 product MSI RT2573_3		0xa861	RT2573
 product MSI RT2573_4		0xa874	RT2573
+
+/* Micron products */
+product MICRON REALSSD		0x0655	Real SSD eUSB
 
 /* Microsoft products */
 product MICROSOFT SIDEPREC	0x0008	SideWinder Precision Pro
