@@ -1364,7 +1364,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				    " duplicate.\n");
 			} else {
 				ND_IFINFO(ifp)->flags &= ~ND6_IFF_IFDISABLED;
-				in6_if_up(ifp);
+				if (ifp->if_flags & IFF_UP)
+					in6_if_up(ifp);
 			}
 		} else if (!(ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 			    (ND.flags & ND6_IFF_IFDISABLED)) {
@@ -1382,35 +1383,37 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			IF_ADDR_UNLOCK(ifp);
 		}
 
-		if (!(ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) &&
-		    (ND.flags & ND6_IFF_AUTO_LINKLOCAL)) {
-			/* auto_linklocal 0->1 transision */
+		if (ND.flags & ND6_IFF_AUTO_LINKLOCAL) {
+			if (!(ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL)) {
+				/* auto_linklocal 0->1 transision */
 
-			/* If no link-local address on ifp, configure */
-			ND_IFINFO(ifp)->flags |= ND6_IFF_AUTO_LINKLOCAL;
-			in6_ifattach(ifp, NULL);
-		} else if ((ND_IFINFO(ifp)->flags & ND6_IFF_AUTO_LINKLOCAL) &&
-		    !(ND.flags & ND6_IFF_IFDISABLED)) {
-			/*
-			 * When the IF already has
-			 * ND6_IFF_AUTO_LINKLOCAL and no link-local
-			 * address is assigned, try to assign one.
-			 */
-			int haslinklocal = 0;
-			
-			IF_ADDR_LOCK(ifp);
-			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-				if (ifa->ifa_addr->sa_family != AF_INET6)
-					continue;
-				ia = (struct in6_ifaddr *)ifa;
-				if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
-					haslinklocal = 1;
-					break;
-				}
-			}
-			IF_ADDR_UNLOCK(ifp);
-			if (!haslinklocal)
+				/* If no link-local address on ifp, configure */
+				ND_IFINFO(ifp)->flags |= ND6_IFF_AUTO_LINKLOCAL;
 				in6_ifattach(ifp, NULL);
+			} else if (!(ND.flags & ND6_IFF_IFDISABLED) &&
+			    ifp->if_flags & IFF_UP) {
+				/*
+				 * When the IF already has
+				 * ND6_IFF_AUTO_LINKLOCAL, no link-local
+				 * address is assigned, and IFF_UP, try to
+				 * assign one.
+				 */
+				int haslinklocal = 0;
+			
+				IF_ADDR_LOCK(ifp);
+				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
+					if (ifa->ifa_addr->sa_family != AF_INET6)
+						continue;
+					ia = (struct in6_ifaddr *)ifa;
+					if (IN6_IS_ADDR_LINKLOCAL(IA6_IN6(ia))) {
+						haslinklocal = 1;
+						break;
+					}
+				}
+				IF_ADDR_UNLOCK(ifp);
+				if (!haslinklocal)
+					in6_ifattach(ifp, NULL);
+			}
 		}
 	}
 		ND_IFINFO(ifp)->flags = ND.flags;
