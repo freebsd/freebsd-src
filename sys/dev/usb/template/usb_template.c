@@ -913,7 +913,7 @@ usb_hw_ep_resolve(struct usb_device *udev,
 	}
 	ues = udev->bus->scratch[0].hw_ep_scratch;
 
-	bzero(ues, sizeof(*ues));
+	memset(ues, 0, sizeof(*ues));
 
 	ues->ep_max = ues->ep;
 	ues->cd = (void *)desc;
@@ -1240,7 +1240,7 @@ usb_temp_setup(struct usb_device *udev,
 	}
 	uts = udev->bus->scratch[0].temp_setup;
 
-	bzero(uts, sizeof(*uts));
+	memset(uts, 0, sizeof(*uts));
 
 	uts->usb_speed = udev->speed;
 	uts->self_powered = udev->flags.self_powered;

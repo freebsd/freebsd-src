@@ -1153,7 +1153,7 @@ uhso_mux_read_callback(struct usb_xfer *xfer, usb_error_t error)
 		/* FALLTHROUGH */
 	case USB_ST_SETUP:
 tr_setup:
-		bzero(&req, sizeof(struct usb_device_request));
+		memset(&req, 0, sizeof(struct usb_device_request));
 		req.bmRequestType = UT_READ_CLASS_INTERFACE;
 		req.bRequest = UCDC_GET_ENCAPSULATED_RESPONSE;
 		USETW(req.wValue, 0);
@@ -1206,7 +1206,7 @@ uhso_mux_write_callback(struct usb_xfer *xfer, usb_error_t error)
 
 			usbd_get_page(pc, 0, &res);
 
-			bzero(&req, sizeof(struct usb_device_request));
+			memset(&req, 0, sizeof(struct usb_device_request));
 			req.bmRequestType = UT_WRITE_CLASS_INTERFACE;
 			req.bRequest = UCDC_SEND_ENCAPSULATED_COMMAND;
 			USETW(req.wValue, 0);
@@ -1731,7 +1731,7 @@ uhso_if_rxflush(void *arg)
 			 * copy the IP-packet into it.
 			 */
 			m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
-			bcopy(mtod(m0, uint8_t *), mtod(m, uint8_t *), iplen);
+			memcpy(mtod(m, uint8_t *), mtod(m0, uint8_t *), iplen);
 			m->m_pkthdr.len = m->m_len = iplen;
 
 			/* Adjust the size of the original mbuf */

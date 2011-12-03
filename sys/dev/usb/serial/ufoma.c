@@ -438,7 +438,7 @@ ufoma_attach(device_t dev)
 		goto detach;
 	}
 	sc->sc_modetable[0] = (elements + 1);
-	bcopy(mad->bMode, &sc->sc_modetable[1], elements);
+	memcpy(&sc->sc_modetable[1], mad->bMode, elements);
 
 	sc->sc_currentmode = UMCPC_ACM_MODE_UNLINKED;
 	sc->sc_modetoactivate = mad->bMode[0];
@@ -968,7 +968,7 @@ ufoma_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	}
 	DPRINTF("\n");
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 

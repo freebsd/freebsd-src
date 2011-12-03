@@ -440,7 +440,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_READ_VENDOR_DEVICE;
@@ -451,7 +451,7 @@ urio_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 			error = EPERM;
 			goto done;
 		}
-		bzero(&ur, sizeof(ur));
+		memset(&ur, 0, sizeof(ur));
 		rio_cmd = addr;
 		ur.ucr_request.bmRequestType =
 		    rio_cmd->requesttype | UT_WRITE_VENDOR_DEVICE;

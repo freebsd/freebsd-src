@@ -355,7 +355,7 @@ ustorage_fs_attach(device_t dev)
 	int unit;
 
 	/*
-	 * NOTE: the softc struct is bzero-ed in device_set_driver.
+	 * NOTE: the softc struct is cleared in device_set_driver.
 	 * We can safely call ustorage_fs_detach without specifically
 	 * initializing the struct.
 	 */
@@ -371,7 +371,9 @@ ustorage_fs_attach(device_t dev)
 			 * further
 			 */
 			ustorage_fs_ramdisk =
-			    malloc(USTORAGE_FS_RAM_SECT << 9, M_USB, M_ZERO | M_WAITOK);
+			    malloc(USTORAGE_FS_RAM_SECT << 9, M_USB,
+			    M_ZERO | M_WAITOK);
+
 			if (ustorage_fs_ramdisk == NULL) {
 				return (ENOMEM);
 			}
