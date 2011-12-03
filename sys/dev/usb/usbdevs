@@ -913,8 +913,10 @@ product ALCATEL OT535		0x02df	One Touch 535/735
 /* Alcor Micro, Inc. products */
 product ALCOR2 KBD_HUB		0x2802	Kbd Hub
 
+product ALCOR DUMMY		0x0000	Dummy product
 product ALCOR SDCR_6335		0x6335	SD/MMC Card Reader
 product ALCOR SDCR_6362		0x6362	SD/MMC Card Reader
+product ALCOR SDCR_6366		0x6366	SD/MMC Card Reader
 product ALCOR TRANSCEND		0x6387	Transcend JetFlash Drive
 product ALCOR MA_KBD_HUB	0x9213	MacAlly Kbd Hub
 product ALCOR AU9814		0x9215	AU9814 Hub
@@ -2082,6 +2084,7 @@ product LINKSYS4 RT3070		0x0078	RT3070
 product LINKSYS4 WUSB600NV2	0x0079	WUSB600N v2
 
 /* Logitech products */
+product LOGITECH LANW300NU2	0x0166  LAN-W300N/U2
 product LOGITECH M2452		0x0203	M2452 keyboard
 product LOGITECH M4848		0x0301	M4848 mouse
 product LOGITECH PAGESCAN	0x040f	PageScan
@@ -2177,6 +2180,7 @@ product MELCO RT2870_1		0x0148	RT2870
 product MELCO RT2870_2		0x0150	RT2870
 product MELCO WLIUCGN		0x015d	WLI-UC-GN
 product MELCO WLIUCG301N	0x016f	WLI-UC-G301N
+product MELCO WLIUCGNM		0x01a2  WLI-UC-GNM
 
 /* Merlin products */
 product MERLIN V620             0x1110  Merlin V620
