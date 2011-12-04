@@ -2456,17 +2456,9 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 	p = pfind((pid_t)name[0]);
 	if (p == NULL)
 		return (ESRCH);
-	if (p->p_flag & P_WEXIT) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
 	if ((error = p_cansee(curthread, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (error);
-	}
-	if ((p->p_flag & P_SYSTEM) != 0) {
-		PROC_UNLOCK(p);
-		return (0);
 	}
 #ifdef COMPAT_FREEBSD32
 	if ((req->flags & SCTL_MASK32) != 0) {
