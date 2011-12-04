@@ -48,8 +48,8 @@ __FBSDID("$FreeBSD$");
 
 #include "iicbb_if.h"
 
-#define	SCL_PIN		0	/* gpiobus mapped pin 6 */
-#define	SDA_PIN		1	/* gpiobus mapped pin 7 */
+#define	SCL_PIN_DEFAULT	0	/* default index of SCL pin on gpiobus */
+#define	SDA_PIN_DEFAULT	1
 
 struct gpioiic_softc 
 {
@@ -57,6 +57,8 @@ struct gpioiic_softc
 	device_t	sc_busdev;
 	struct mtx	sc_mtx;
 	struct cdev	*sc_leddev;
+	int		scl_pin;
+	int		sda_pin;
 };
 
 static int gpioiic_probe(device_t);
@@ -88,6 +90,12 @@ gpioiic_attach(device_t dev)
 
 	sc->sc_dev = dev;
 	sc->sc_busdev = device_get_parent(dev);
+	if (resource_int_value(device_get_name(dev),
+		device_get_unit(dev), "scl", &sc->scl_pin))
+		sc->scl_pin = SCL_PIN_DEFAULT;
+	if (resource_int_value(device_get_name(dev),
+		device_get_unit(dev), "sda", &sc->sda_pin))
+		sc->sda_pin = SDA_PIN_DEFAULT;
 
 	/* add generic bit-banging code */
 	bitbang = device_add_child(dev, "iicbb", -1);
@@ -105,9 +113,9 @@ gpioiic_reset_bus(device_t dev)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
 
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SDA_PIN,
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
 	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SCL_PIN,
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
 	    GPIO_PIN_INPUT);
 }
 
@@ -142,11 +150,11 @@ gpioiic_setsda(device_t dev, int val)
 
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
 	if (val == 0) {
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, SDA_PIN, 0);
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SDA_PIN,
+		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, sc->sda_pin, 0);
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
 		    GPIO_PIN_OUTPUT);
 	} else {
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SDA_PIN,
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
 		    GPIO_PIN_INPUT);
 	}
 	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
@@ -159,11 +167,11 @@ gpioiic_setscl(device_t dev, int val)
 
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
 	if (val == 0) {
-		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, SCL_PIN, 0);
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SCL_PIN,
+		GPIOBUS_PIN_SET(sc->sc_busdev, sc->sc_dev, sc->scl_pin, 0);
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
 		    GPIO_PIN_OUTPUT);
 	} else {
-		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SCL_PIN,
+		GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
 		    GPIO_PIN_INPUT);
 	}
 	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
@@ -176,9 +184,9 @@ gpioiic_getscl(device_t dev)
 	unsigned int			val;
 
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SCL_PIN,
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->scl_pin,
 	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, SCL_PIN, &val);
+	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, sc->scl_pin, &val);
 	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 
 	return ((int)val);
@@ -191,9 +199,9 @@ gpioiic_getsda(device_t dev)
 	unsigned int			val;
 
 	GPIOBUS_LOCK_BUS(sc->sc_busdev);
-	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, SDA_PIN,
+	GPIOBUS_PIN_SETFLAGS(sc->sc_busdev, sc->sc_dev, sc->sda_pin,
 	    GPIO_PIN_INPUT);
-	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, SDA_PIN, &val);
+	GPIOBUS_PIN_GET(sc->sc_busdev, sc->sc_dev, sc->sda_pin, &val);
 	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 
 	return ((int)val);
