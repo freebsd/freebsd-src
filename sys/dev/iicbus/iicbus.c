@@ -92,10 +92,16 @@ iicbus_attach(device_t dev)
 	unsigned char addr;
 #endif
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
+	int strict;
 
 	sc->dev = dev;
 	mtx_init(&sc->lock, "iicbus", NULL, MTX_DEF);
 	iicbus_reset(dev, IIC_FASTEST, 0, NULL);
+	if (resource_int_value(device_get_name(dev),
+		device_get_unit(dev), "strict", &strict) == 0)
+		sc->strict = strict;
+	else
+		sc->strict = 1;
 
 	/* device probing is meaningless since the bus is supposed to be
 	 * hot-plug. Moreover, some I2C chips do not appreciate random
