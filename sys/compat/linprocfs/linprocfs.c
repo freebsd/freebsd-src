@@ -967,7 +967,7 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 	int ret;
 
 	PROC_LOCK(p);
-	if ((ret = p_cansee(td, p)) != 0) {
+	if ((ret = p_candebug(td, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (ret);
 	}
