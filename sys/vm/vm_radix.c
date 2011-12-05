@@ -268,7 +268,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	int slot;
 
 	CTR3(KTR_VM,
-	    "insert: tree %p, index %p, val %p", rtree, (void *)index, val);
+	    "insert: tree %p, index %ju, val %p", rtree, (uintmax_t)index, val);
 	if (index == -1)
 		panic("vm_radix_insert: -1 is not a valid index.\n");
 	level = vm_radix_height(rtree, &root);
@@ -290,8 +290,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 			rnode = vm_radix_node_get();
 			if (rnode == NULL) {
 				CTR4(KTR_VM,
-			"insert: tree %p, root %p, index: %d, level: %d ENOMEM",
-				    rtree, root, index, level);
+		"insert: tree %p, root %p, index: %ju, level: %d ENOMEM",
+				    rtree, root, (uintmax_t)index, level);
 				return (ENOMEM);
 			}
 			/*
@@ -317,8 +317,9 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 			rnode->rn_child[slot] = vm_radix_node_get();
     			if (rnode->rn_child[slot] == NULL) {
 				CTR5(KTR_VM,
-	"insert: tree %p, index %jd, level %d, slot %d, rnode %p ENOMEM",
-		    		    rtree, index, level, slot, rnode);
+	"insert: tree %p, index %ju, level %d, slot %d, rnode %p ENOMEM",
+				     rtree, (uintmax_t)index, level, slot,
+				     rnode);
 				CTR4(KTR_VM,
 			"insert: tree %p, rnode %p, child %p, count %u ENOMEM",
 		    		    rtree, rnode, rnode->rn_child[slot],
@@ -328,8 +329,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 			rnode->rn_count++;
 	    	}
 		CTR5(KTR_VM,
-		    "insert: tree %p, index %p, level %d, slot %d, rnode %p",
-		    rtree, (void *)index, level, slot, rnode);
+		    "insert: tree %p, index %ju, level %d, slot %d, rnode %p",
+		    rtree, (uintmax_t)index, level, slot, rnode);
 		CTR4(KTR_VM,
 		    "insert: tree %p, rnode %p, child %p, count %u",
 		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
@@ -345,8 +346,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	rnode->rn_child[slot] = val;
 	atomic_add_int((volatile int *)&rnode->rn_count, 1);
 	CTR6(KTR_VM,
-	    "insert: tree %p, index %p, level %d, slot %d, rnode %p, count %u",
-	    rtree, (void *)index, level, slot, rnode, rnode->rn_count);
+	    "insert: tree %p, index %ju, level %d, slot %d, rnode %p, count %u",
+	    rtree, (uintmax_t)index, level, slot, rnode, rnode->rn_count);
 
 	return 0;
 }
@@ -369,15 +370,16 @@ vm_radix_lookup(struct vm_radix *rtree, vm_pindex_t index, int color)
 	while (rnode) {
 		slot = vm_radix_slot(index, level);
 		CTR6(KTR_VM,
-	"lookup: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
+	"lookup: tree %p, index %ju, level %d, slot %d, rnode %p, child %p",
+		    rtree, (uintmax_t)index, level, slot, rnode,
 		    rnode->rn_child[slot]);
 		if (level == 0)
 			return vm_radix_match(rnode->rn_child[slot], color);
 		rnode = rnode->rn_child[slot];
 		level--;
 	}
-	CTR2(KTR_VM, "lookup: tree %p, index %p failed", rtree, (void *)index);
+	CTR2(KTR_VM, "lookup: tree %p, index %ju failed", rtree,
+	     (uintmax_t)index);
 
 	return NULL;
 }
@@ -397,8 +399,8 @@ vm_radix_color(struct vm_radix *rtree, vm_pindex_t index, int color)
 	while (rnode) {
 		slot = vm_radix_slot(index, level);
 		CTR6(KTR_VM,
-	"color: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
+	"color: tree %p, index %ju, level %d, slot %d, rnode %p, child %p",
+		    rtree, (uintmax_t)index, level, slot, rnode,
 		    rnode->rn_child[slot]);
 		if (level == 0)
 			break;
@@ -441,8 +443,8 @@ restart:
 	for (level--; level; level--) {
 		slot = vm_radix_slot(start, level);
 		CTR6(KTR_VM,
-	"leaf: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)start, level, slot, rnode,
+	"leaf: tree %p, index %ju, level %d, slot %d, rnode %p, child %p",
+		    rtree, (uintmax_t)start, level, slot, rnode,
 		    (rnode != NULL) ? rnode->rn_child[slot] : NULL);
 		if (rnode->rn_child[slot] != NULL) {
 			rnode = rnode->rn_child[slot];
@@ -459,8 +461,8 @@ restart:
 		start += inc;
 		slot++;
 		CTR5(KTR_VM,
-		    "leaf: start %p end %p inc %d mask 0x%lX slot %d",
-		    (void *)start, (void *)end, inc,
+		    "leaf: start %ju end %ju inc %d mask 0x%lX slot %d",
+		    (uintmax_t)start, (uintmax_t)end, inc,
 		    ~VM_RADIX_MAX(level), slot);
 		for (; slot < VM_RADIX_COUNT; slot++, start += inc) {
 			if (end != 0 && start >= end) {
@@ -497,8 +499,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 	int slot;
 	int outidx;
 
-	CTR3(KTR_VM, "lookupn: tree %p, start %p, end %p",
-	    rtree, (void *)start, (void *)end);
+	CTR3(KTR_VM, "lookupn: tree %p, start %ju, end %ju",
+	    rtree, (uintmax_t)start, (uintmax_t)end);
 	if (rtree->rt_root == 0)
 		return (0);
 	outidx = 0;
@@ -511,8 +513,8 @@ vm_radix_lookupn(struct vm_radix *rtree, vm_pindex_t start,
 			if (val == NULL)
 				continue;
 			CTR4(KTR_VM,
-			    "lookupn: tree %p index %p slot %d found child %p",
-			    rtree, (void *)start, slot, val);
+			    "lookupn: tree %p index %ju slot %d found child %p",
+			    rtree, (uintmax_t)start, slot, val);
 			out[outidx] = val;
 			if (++outidx == cnt)
 				goto out;
@@ -565,7 +567,7 @@ vm_radix_lookup_le(struct vm_radix *rtree, vm_pindex_t index, int color)
 	int level;
 
 	CTR2(KTR_VM,
-	    "lookup_le: tree %p, index %p", rtree, (void *)index);
+	    "lookup_le: tree %p, index %ju", rtree, (uintmax_t)index);
 restart:
 	level = vm_radix_height(rtree, &rnode);
 	if (rnode == NULL)
@@ -581,8 +583,8 @@ restart:
 	while (rnode) {
 		slot = vm_radix_slot(index, level);
 		CTR6(KTR_VM,
-	"lookup_le: tree %p, index %p, level %d, slot %d, rnode %p, child %p",
-		    rtree, (void *)index, level, slot, rnode,
+	"lookup_le: tree %p, index %ju, level %d, slot %d, rnode %p, child %p",
+		    rtree, (uintmax_t)index, level, slot, rnode,
 		    rnode->rn_child[slot]);
 		if (level == 0)
 			break;
@@ -602,8 +604,8 @@ restart:
 			index -= inc;
 			slot--;
 			CTR4(KTR_VM,
-			    "lookup_le: start %p inc %ld mask 0x%lX slot %d",
-			    (void *)index, inc, VM_RADIX_MAX(level), slot);
+			    "lookup_le: start %ju inc %ld mask 0x%lX slot %d",
+			    (uintmax_t)index, inc, VM_RADIX_MAX(level), slot);
 			for (; slot >= 0; slot--, index -= inc) {
 				child = rnode->rn_child[slot];
 				if (child)
@@ -641,8 +643,8 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 
 	level = vm_radix_height(rtree, &root);
 	KASSERT(index <= VM_RADIX_MAX(level),
-	    ("vm_radix_remove: %p index %jd out of range %jd.",
-	    rtree, index, VM_RADIX_MAX(level)));
+	    ("vm_radix_remove: %p index %ju out of range %jd.",
+	     rtree, (uintmax_t)index, VM_RADIX_MAX(level)));
 	rnode = root;
 	val = NULL;
 	level--;
@@ -653,24 +655,26 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 		stack[level] = rnode;
 		slot = vm_radix_slot(index, level);
 		CTR5(KTR_VM,
-		    "remove: tree %p, index %p, level %d, slot %d, rnode %p",
-		    rtree, (void *)index, level, slot, rnode);
+		    "remove: tree %p, index %ju, level %d, slot %d, rnode %p",
+		    rtree, (uintmax_t)index, level, slot, rnode);
 		CTR4(KTR_VM, "remove: tree %p, rnode %p, child %p, count %u",
 		    rtree, rnode, rnode->rn_child[slot], rnode->rn_count);
 		rnode = rnode->rn_child[slot];
 		level--;
 	}
 	KASSERT(rnode != NULL,
-	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
+		("vm_radix_remove: index %ju not present in the tree.\n",
+		 (uintmax_t)index));
 	slot = vm_radix_slot(index, 0);
 	val = vm_radix_match(rnode->rn_child[slot], color);
 	KASSERT(val != NULL,
-	    ("vm_radix_remove: index %jd not present in the tree.\n", index));
+		("vm_radix_remove: index %ju not present in the tree.\n",
+		 (uintmax_t)index));
 
 	for (;;) {
 		CTR5(KTR_VM,
-	"remove: resetting tree %p, index %p, level %d, slot %d, rnode %p",
-		    rtree, (void *)index, level, slot, rnode);
+	"remove: resetting tree %p, index %ju, level %d, slot %d, rnode %p",
+		    rtree, (uintmax_t)index, level, slot, rnode);
 		CTR4(KTR_VM,
 		    "remove: resetting tree %p, rnode %p, child %p, count %u",
 		    rtree, rnode,
