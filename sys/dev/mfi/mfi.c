@@ -1335,32 +1335,28 @@ mfi_syspdprobe(struct mfi_softc *sc)
 			  hdr->cmd_status);
 	    goto out;
 	}
+	/* Get each PD and add it to the system */
 	for (i=0;i<pdlist->count;i++) {
 	    if(pdlist->addr[i].device_id == pdlist->addr[i].encl_device_id)
 		goto skip_sys_pd_add;
-	    /* Get each PD and add it to the system */
-	    if (!TAILQ_EMPTY(&sc->mfi_syspd_tqh)) {
-	        TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
+	    TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
 		if (syspd->pd_id == pdlist->addr[i].device_id)
 		    goto skip_sys_pd_add;
-	        }
 	    }
 	    mfi_add_sys_pd(sc,pdlist->addr[i].device_id);
 	    skip_sys_pd_add:;
 	
 	}
 	/* Delete SYSPD's whose state has been changed */
-	if (!TAILQ_EMPTY(&sc->mfi_syspd_tqh)) {
-	    TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
-			for (i=0;i<pdlist->count;i++) {
-				if (syspd->pd_id == pdlist->addr[i].device_id)
-				    goto skip_sys_pd_delete;
-			}
-			mtx_lock(&Giant);
-			device_delete_child(sc->mfi_dev,syspd->pd_dev);
-			mtx_unlock(&Giant);
-skip_sys_pd_delete:;
+	TAILQ_FOREACH(syspd, &sc->mfi_syspd_tqh,pd_link) {
+		for (i=0;i<pdlist->count;i++) {
+			if (syspd->pd_id == pdlist->addr[i].device_id)
+			    goto skip_sys_pd_delete;
 		}
+		mtx_lock(&Giant);
+		device_delete_child(sc->mfi_dev,syspd->pd_dev);
+		mtx_unlock(&Giant);
+skip_sys_pd_delete:;
 	}
 out:
 	if (pdlist)
@@ -1484,27 +1480,24 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail,uint8_t probe
 	case MR_EVT_ARGS_LD_STATE:
 		/* During load time driver reads all the events starting from the one that
 		 * has been logged after shutdown. Avoid these old events.
-		 */        
-		if (!TAILQ_EMPTY(&sc->mfi_ld_tqh)) {
-			if (detail->args.ld_state.new_state == MFI_LD_STATE_OFFLINE ) {
-				/* Remove the LD */
-				struct mfi_disk *ld = NULL;
-				TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
-					if (ld->ld_id == detail->args.ld_state.ld.target_id)
-						break;
-				}
-				/*
-				Fix: for kernel panics when SSCD is removed
-				KASSERT(ld != NULL, ("volume dissappeared"));
-				*/
-				if(ld != NULL)
-				{
-					mtx_lock(&Giant);
-					device_delete_child(sc->mfi_dev, ld->ld_dev);
-					mtx_unlock(&Giant);
-				}
+		 */
+		if (detail->args.ld_state.new_state == MFI_LD_STATE_OFFLINE ) {
+			/* Remove the LD */
+			struct mfi_disk *ld;
+			TAILQ_FOREACH(ld, &sc->mfi_ld_tqh, ld_link) {
+				if (ld->ld_id == detail->args.ld_state.ld.target_id)
+					break;
 			}
-		} 
+			/*
+			Fix: for kernel panics when SSCD is removed
+			KASSERT(ld != NULL, ("volume dissappeared"));
+			*/
+			if(ld != NULL) {
+				mtx_lock(&Giant);
+				device_delete_child(sc->mfi_dev, ld->ld_dev);
+				mtx_unlock(&Giant);
+			}
+		}
 		break;
 	case MR_EVT_ARGS_PD:
 #define MR_EVT_PD_REMOVED  0x0070
@@ -1512,16 +1505,14 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail,uint8_t probe
 		if (detail->code == MR_EVT_PD_REMOVED) {
 		    if (probe_sys_pd) {
 		    	/* If the removed device is a SYSPD then delete it */
-			if (!TAILQ_EMPTY(&sc->mfi_syspd_tqh)) {
-			    TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
+			TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
 				if (syspd->pd_id == detail->args.pd.device_id) {
 					mtx_lock(&Giant);
 					device_delete_child(sc->mfi_dev,syspd->pd_dev);
 					mtx_unlock(&Giant);
 					break;
 				}
-			   }
-			} 
+			}
 		    }
 		}
 		if (detail->code == MR_EVT_PD_INSERTED) {
@@ -2544,11 +2535,9 @@ mfi_check_command_pre(struct mfi_softc *sc, struct mfi_command *cm)
 		mbox = (uint16_t *) cm->cm_frame->dcmd.mbox;
 		syspd_id = mbox[0];
 		if (mbox[2] == MFI_PD_STATE_UNCONFIGURED_GOOD) {
-			if (!TAILQ_EMPTY(&sc->mfi_syspd_tqh)) {
-			    TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
+			TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
 				if(syspd->pd_id == syspd_id)
 					break;
-			   }
 			}
 		}
 		else
@@ -2611,11 +2600,9 @@ mfi_check_command_post(struct mfi_softc *sc, struct mfi_command *cm)
 		mbox = (uint16_t *) cm->cm_frame->dcmd.mbox;
 		syspd_id = mbox[0];
 		if (mbox[2] == MFI_PD_STATE_UNCONFIGURED_GOOD) {
-			if (!TAILQ_EMPTY(&sc->mfi_syspd_tqh)) {
-			    TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
+			TAILQ_FOREACH(syspd,&sc->mfi_syspd_tqh,pd_link) {
 				if(syspd->pd_id == syspd_id)
 					break;
-			   }
 			}
 		}
 		else
