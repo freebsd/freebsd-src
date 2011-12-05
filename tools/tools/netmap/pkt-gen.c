@@ -4,10 +4,10 @@
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: pkt-gen.c 9638 2011-11-07 18:07:43Z luigi $
+ * $Id: pkt-gen.c 9827 2011-12-05 11:29:34Z luigi $
  *
  * Example program to show how to build a multithreaded packet
  * source/sink using the netmap device.
@@ -45,6 +45,7 @@ const char *default_payload="netmap pkt-gen Luigi Rizzo and Matteo Landi\n"
 #include <signal.h>	/* signal */
 #include <stdlib.h>
 #include <stdio.h>
+#include <inttypes.h>	/* PRI* macros */
 #include <string.h>	/* strcmp */
 #include <fcntl.h>	/* open */
 #include <unistd.h>	/* close */
@@ -616,7 +617,7 @@ tx_output(uint64_t sent, int size, double delta)
 		punit += 1;
 	}
 
-	printf("Sent %llu packets, %d bytes each, in %.2f seconds.\n",
+	printf("Sent %" PRIu64 " packets, %d bytes each, in %.2f seconds.\n",
 	       sent, size, delta);
 	printf("Speed: %.2f%cpps. Bandwidth: %.2f%cbps.\n",
 	       pps, units[punit], amount, units[aunit]);
@@ -636,7 +637,7 @@ rx_output(uint64_t received, double delta)
 		punit += 1;
 	}
 
-	printf("Received %llu packets, in %.2f seconds.\n", received, delta);
+	printf("Received %" PRIu64 " packets, in %.2f seconds.\n", received, delta);
 	printf("Speed: %.2f%cpps.\n", pps, units[punit]);
 }
 
@@ -971,7 +972,7 @@ main(int arc, char **argv)
 		if (pps < 10000)
 			continue;
 		pps = (my_count - prev)*1000000 / pps;
-		D("%llu pps", pps);
+		D("%" PRIu64 " pps", pps);
 		prev = my_count;
 		toc = now;
 		if (done == g.nthreads)
