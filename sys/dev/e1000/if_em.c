@@ -399,6 +399,10 @@ SYSCTL_INT(_hw_em, OID_AUTO, eee_setting, CTLFLAG_RDTUN, &eee_setting, 0,
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
 
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_em_netmap.h>
+#endif /* DEV_NETMAP */
+
 /*********************************************************************
  *  Device identification routine
  *
@@ -714,6 +718,9 @@ em_attach(device_t dev)
 
 	adapter->led_dev = led_create(em_led_func, adapter,
 	    device_get_nameunit(dev));
+#ifdef DEV_NETMAP
+	em_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 
 	INIT_DEBUGOUT("em_attach: end");
 
@@ -784,6 +791,10 @@ em_detach(device_t dev)
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
+
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 
 	em_free_pci_resources(adapter);
 	bus_generic_detach(dev);
@@ -3213,9 +3224,17 @@ em_setup_transmit_ring(struct tx_ring *txr)
 	struct adapter *adapter = txr->adapter;
 	struct em_buffer *txbuf;
 	int i;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old descriptor contents */
 	EM_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_TX, txr->me, 0);
+#endif /* DEV_NETMAP */
+
 	bzero((void *)txr->tx_base,
 	      (sizeof(struct e1000_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -3232,6 +3251,22 @@ em_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		if (slot) {
+			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+			void *addr;
+
+			if (si >= na->num_tx_desc)
+				si -= na->num_tx_desc;
+			addr = NMB(slot + si);
+			txr->tx_base[i].buffer_addr =
+			    htole64(vtophys(addr));
+			/* reload the map for netmap mode */
+			netmap_load_map(txr->txtag,
+			    txbuf->map, addr, na->buff_size);
+		}
+#endif /* DEV_NETMAP */
+
 		/* clear the watch index */
 		txbuf->next_eop = -1;
         }
@@ -3682,6 +3717,19 @@ em_txeof(struct tx_ring *txr)
 	struct ifnet   *ifp = adapter->ifp;
 
 	EM_TX_LOCK_ASSERT(txr);
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+		EM_TX_UNLOCK(txr);
+		EM_CORE_LOCK(adapter);
+		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		EM_CORE_UNLOCK(adapter);
+		EM_TX_LOCK(txr);
+		return (FALSE);
+	}
+#endif /* DEV_NETMAP */
 
 	/* No work, make sure watchdog is off */
         if (txr->tx_avail == adapter->num_tx_desc) {
@@ -3978,6 +4026,57 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		if (++j == adapter->num_rx_desc)
 			j = 0;
 	}
+#ifdef DEV_NETMAP
+    {
+	/*
+	 * This driver is slightly different from the standard:
+	 * it refills the rings in blocks of 8, so the while()
+	 * above completes any leftover work. Also, after if_init()
+	 * the ring starts at rxr->next_to_check instead of 0.
+	 *
+	 * Currently: we leave the mbufs allocated even in netmap
+	 * mode, and simply make the NIC ring point to the
+	 * correct buffer (netmap_buf or mbuf) depending on
+	 * the mode. To avoid mbuf leaks, when in netmap mode we
+	 * must make sure that next_to_refresh == next_to_check - 1
+	 * so that the above while() loop is never run on init.
+	 *
+	 * A better way would be to free the mbufs when entering
+	 * netmap mode, and set next_to_refresh/check in
+	 * a way that the mbufs are completely reallocated
+	 * when going back to standard mode.
+	 */
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot = netmap_reset(na,
+		NR_RX, rxr->me, rxr->next_to_check);
+	int sj = slot ? na->rx_rings[rxr->me].nkr_hwofs : 0;
+
+	/* slot sj corresponds to entry j in the NIC ring */
+	if (sj < 0)
+		sj += adapter->num_rx_desc;
+
+	for (j = 0; j != adapter->num_rx_desc; j++, sj++) {
+		void *addr;
+		int sz;
+
+		rxbuf = &rxr->rx_buffers[j];
+		/* no mbuf and regular mode -> skip this entry */
+		if (rxbuf->m_head == NULL && !slot)
+			continue;
+		/* Handle wrap. Cannot use "na" here, could be NULL */
+		if (sj >= adapter->num_rx_desc)
+			sj -= adapter->num_rx_desc;
+		/* see comment, set slot addr and map */
+		addr = slot ? NMB(slot + sj) : rxbuf->m_head->m_data;
+		sz = slot ? na->buff_size : adapter->rx_mbuf_sz;
+		// XXX load or reload ?
+		netmap_load_map(rxr->rxtag, rxbuf->map, addr, sz);
+		/* Update descriptor */
+		rxr->rx_base[j].buffer_addr = htole64(vtophys(addr));
+		bus_dmamap_sync(rxr->rxtag, rxbuf->map, BUS_DMASYNC_PREREAD);
+	}
+    }
+#endif /* DEV_NETMAP */
 
 fail:
 	rxr->next_to_refresh = i;
@@ -4170,6 +4269,23 @@ em_initialize_receive_unit(struct adapter *adapter)
 		E1000_WRITE_REG(hw, E1000_RDBAL(i), (u32)bus_addr);
 		/* Setup the Head and Tail Descriptor Pointers */
 		E1000_WRITE_REG(hw, E1000_RDH(i), rxr->next_to_check);
+#ifdef DEV_NETMAP
+		/*
+		 * an init() while a netmap client is active must
+		 * preserve the rx buffers passed to userspace.
+		 * In this driver it means we adjust RDT to
+		 * something different from next_to_refresh.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = rxr->next_to_refresh - kring->nr_hwavail;
+
+			if (t < 0)
+				t += na->num_rx_desc;
+			E1000_WRITE_REG(hw, E1000_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rxr->next_to_refresh);
 	}
 
@@ -4246,6 +4362,19 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	struct e1000_rx_desc	*cur;
 
 	EM_RX_LOCK(rxr);
+
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
+		EM_RX_UNLOCK(rxr);
+		EM_CORE_LOCK(adapter);
+		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		EM_CORE_UNLOCK(adapter);
+		return (0);
+	}
+#endif /* DEV_NETMAP */
 
 	for (i = rxr->next_to_check, processed = 0; count != 0;) {
 
