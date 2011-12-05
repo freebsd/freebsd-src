@@ -31,6 +31,9 @@
 
 /*
  *	Superpage reservation management module
+ *
+ * Any external functions defined by this module are only to be used by the
+ * virtual memory system.
  */
 
 #include <sys/cdefs.h>
@@ -285,6 +288,201 @@ vm_reserv_populate(vm_reserv_t rv)
 }
 
 /*
+ * Allocates a contiguous set of physical pages of the given size "npages"
+ * from an existing or newly-created reservation.  All of the physical pages
+ * must be at or above the given physical address "low" and below the given
+ * physical address "high".  The given value "alignment" determines the
+ * alignment of the first physical page in the set.  If the given value
+ * "boundary" is non-zero, then the set of physical pages cannot cross any
+ * physical address boundary that is a multiple of that value.  Both
+ * "alignment" and "boundary" must be a power of two.
+ *
+ * The object and free page queue must be locked.
+ */
+vm_page_t
+vm_reserv_alloc_contig(vm_object_t object, vm_pindex_t pindex, u_long npages,
+    vm_paddr_t low, vm_paddr_t high, u_long alignment, vm_paddr_t boundary)
+{
+	vm_paddr_t pa, size;
+	vm_page_t m, m_ret, mpred, msucc;
+	vm_pindex_t first, leftcap, rightcap;
+	vm_reserv_t rv;
+	u_long allocpages, maxpages, minpages;
+	int i, index, n;
+
+	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT(npages != 0, ("vm_reserv_alloc_contig: npages is 0"));
+
+	/*
+	 * Is a reservation fundamentally impossible?
+	 */
+	if (pindex < VM_RESERV_INDEX(object, pindex) ||
+	    pindex + npages > object->size)
+		return (NULL);
+
+	/*
+	 * All reservations of a particular size have the same alignment.
+	 * Assuming that the first page is allocated from a reservation, the
+	 * least significant bits of its physical address can be determined
+	 * from its offset from the beginning of the reservation and the size
+	 * of the reservation.
+	 *
+	 * Could the specified index within a reservation of the smallest
+	 * possible size satisfy the alignment and boundary requirements?
+	 */
+	pa = VM_RESERV_INDEX(object, pindex) << PAGE_SHIFT;
+	if ((pa & (alignment - 1)) != 0)
+		return (NULL);
+	size = npages << PAGE_SHIFT;
+	if (((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
+		return (NULL);
+
+	/*
+	 * Look for an existing reservation.
+	 */
+	msucc = NULL;
+	mpred = object->root;
+	while (mpred != NULL) {
+		KASSERT(mpred->pindex != pindex,
+		    ("vm_reserv_alloc_contig: pindex already allocated"));
+		rv = vm_reserv_from_page(mpred);
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
+		else if (mpred->pindex < pindex) {
+			if (msucc != NULL ||
+			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
+				break;
+			KASSERT(msucc->pindex != pindex,
+		    ("vm_reserv_alloc_contig: pindex already allocated"));
+			rv = vm_reserv_from_page(msucc);
+			if (rv->object == object &&
+			    vm_reserv_has_pindex(rv, pindex))
+				goto found;
+			else if (pindex < msucc->pindex)
+				break;
+		} else if (msucc == NULL) {
+			msucc = mpred;
+			mpred = TAILQ_PREV(msucc, pglist, listq);
+			continue;
+		}
+		msucc = NULL;
+		mpred = object->root = vm_page_splay(pindex, object->root);
+	}
+
+	/*
+	 * Could at least one reservation fit between the first index to the
+	 * left that can be used and the first index to the right that cannot
+	 * be used?
+	 */
+	first = pindex - VM_RESERV_INDEX(object, pindex);
+	if (mpred != NULL) {
+		if ((rv = vm_reserv_from_page(mpred))->object != object)
+			leftcap = mpred->pindex + 1;
+		else
+			leftcap = rv->pindex + VM_LEVEL_0_NPAGES;
+		if (leftcap > first)
+			return (NULL);
+	}
+	minpages = VM_RESERV_INDEX(object, pindex) + npages;
+	maxpages = roundup2(minpages, VM_LEVEL_0_NPAGES);
+	allocpages = maxpages;
+	if (msucc != NULL) {
+		if ((rv = vm_reserv_from_page(msucc))->object != object)
+			rightcap = msucc->pindex;
+		else
+			rightcap = rv->pindex;
+		if (first + maxpages > rightcap) {
+			if (maxpages == VM_LEVEL_0_NPAGES)
+				return (NULL);
+			allocpages = minpages;
+		}
+	}
+
+	/*
+	 * Would the last new reservation extend past the end of the object?
+	 */
+	if (first + maxpages > object->size) {
+		/*
+		 * Don't allocate the last new reservation if the object is a
+		 * vnode or backed by another object that is a vnode. 
+		 */
+		if (object->type == OBJT_VNODE ||
+		    (object->backing_object != NULL &&
+		    object->backing_object->type == OBJT_VNODE)) {
+			if (maxpages == VM_LEVEL_0_NPAGES)
+				return (NULL);
+			allocpages = minpages;
+		}
+		/* Speculate that the object may grow. */
+	}
+
+	/*
+	 * Allocate and populate the new reservations.  The alignment and
+	 * boundary specified for this allocation may be different from the
+	 * alignment and boundary specified for the requested pages.  For
+	 * instance, the specified index may not be the first page within the
+	 * first new reservation.
+	 */
+	m = vm_phys_alloc_contig(allocpages, low, high, ulmax(alignment,
+	    VM_LEVEL_0_SIZE), boundary > VM_LEVEL_0_SIZE ? boundary : 0);
+	if (m == NULL)
+		return (NULL);
+	m_ret = NULL;
+	index = VM_RESERV_INDEX(object, pindex);
+	do {
+		rv = vm_reserv_from_page(m);
+		KASSERT(rv->pages == m,
+		    ("vm_reserv_alloc_contig: reserv %p's pages is corrupted",
+		    rv));
+		KASSERT(rv->object == NULL,
+		    ("vm_reserv_alloc_contig: reserv %p isn't free", rv));
+		LIST_INSERT_HEAD(&object->rvq, rv, objq);
+		rv->object = object;
+		rv->pindex = first;
+		KASSERT(rv->popcnt == 0,
+		    ("vm_reserv_alloc_contig: reserv %p's popcnt is corrupted",
+		    rv));
+		KASSERT(!rv->inpartpopq,
+		    ("vm_reserv_alloc_contig: reserv %p's inpartpopq is TRUE",
+		    rv));
+		n = ulmin(VM_LEVEL_0_NPAGES - index, npages);
+		for (i = 0; i < n; i++)
+			vm_reserv_populate(rv);
+		npages -= n;
+		if (m_ret == NULL) {
+			m_ret = &rv->pages[index];
+			index = 0;
+		}
+		m += VM_LEVEL_0_NPAGES;
+		first += VM_LEVEL_0_NPAGES;
+		allocpages -= VM_LEVEL_0_NPAGES;
+	} while (allocpages > VM_LEVEL_0_NPAGES);
+	return (m_ret);
+
+	/*
+	 * Found a matching reservation.
+	 */
+found:
+	index = VM_RESERV_INDEX(object, pindex);
+	/* Does the allocation fit within the reservation? */
+	if (index + npages > VM_LEVEL_0_NPAGES)
+		return (NULL);
+	m = &rv->pages[index];
+	pa = VM_PAGE_TO_PHYS(m);
+	if (pa < low || pa + size > high || (pa & (alignment - 1)) != 0 ||
+	    ((pa ^ (pa + size - 1)) & ~(boundary - 1)) != 0)
+		return (NULL);
+	/* Handle vm_page_rename(m, new_object, ...). */
+	for (i = 0; i < npages; i++)
+		if ((rv->pages[index + i].flags & (PG_CACHED | PG_FREE)) == 0)
+			return (NULL);
+	for (i = 0; i < npages; i++)
+		vm_reserv_populate(rv);
+	return (m);
+}
+
+/*
  * Allocates a page from an existing or newly-created reservation.
  *
  * The object and free page queue must be locked.
@@ -297,11 +495,11 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	vm_reserv_t rv;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 
 	/*
-	 * Is a reservation fundamentally not possible?
+	 * Is a reservation fundamentally impossible?
 	 */
-	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
 	if (pindex < VM_RESERV_INDEX(object, pindex) ||
 	    pindex >= object->size)
 		return (NULL);
@@ -315,14 +513,9 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 		KASSERT(mpred->pindex != pindex,
 		    ("vm_reserv_alloc_page: pindex already allocated"));
 		rv = vm_reserv_from_page(mpred);
-		if (rv->object == object && vm_reserv_has_pindex(rv, pindex)) {
-			m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
-			/* Handle vm_page_rename(m, new_object, ...). */
-			if ((m->flags & (PG_CACHED | PG_FREE)) == 0)
-				return (NULL);
-			vm_reserv_populate(rv);
-			return (m);
-		} else if (mpred->pindex < pindex) {
+		if (rv->object == object && vm_reserv_has_pindex(rv, pindex))
+			goto found;
+		else if (mpred->pindex < pindex) {
 			if (msucc != NULL ||
 			    (msucc = TAILQ_NEXT(mpred, listq)) == NULL)
 				break;
@@ -330,14 +523,9 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 			    ("vm_reserv_alloc_page: pindex already allocated"));
 			rv = vm_reserv_from_page(msucc);
 			if (rv->object == object &&
-			    vm_reserv_has_pindex(rv, pindex)) {
-				m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
-				/* Handle vm_page_rename(m, new_object, ...). */
-				if ((m->flags & (PG_CACHED | PG_FREE)) == 0)
-					return (NULL);
-				vm_reserv_populate(rv);
-				return (m);
-			} else if (pindex < msucc->pindex)
+			    vm_reserv_has_pindex(rv, pindex))
+				goto found;
+			else if (pindex < msucc->pindex)
 				break;
 		} else if (msucc == NULL) {
 			msucc = mpred;
@@ -349,38 +537,31 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	}
 
 	/*
-	 * Determine the first index to the left that can be used.
-	 */
-	if (mpred == NULL)
-		leftcap = 0;
-	else if ((rv = vm_reserv_from_page(mpred))->object != object)
-		leftcap = mpred->pindex + 1;
-	else
-		leftcap = rv->pindex + VM_LEVEL_0_NPAGES;
-
-	/*
-	 * Determine the first index to the right that cannot be used.
-	 */
-	if (msucc == NULL)
-		rightcap = pindex + VM_LEVEL_0_NPAGES;
-	else if ((rv = vm_reserv_from_page(msucc))->object != object)
-		rightcap = msucc->pindex;
-	else
-		rightcap = rv->pindex;
-
-	/*
-	 * Determine if a reservation fits between the first index to
-	 * the left that can be used and the first index to the right
-	 * that cannot be used. 
+	 * Could a reservation fit between the first index to the left that
+	 * can be used and the first index to the right that cannot be used?
 	 */
 	first = pindex - VM_RESERV_INDEX(object, pindex);
-	if (first < leftcap || first + VM_LEVEL_0_NPAGES > rightcap)
-		return (NULL);
+	if (mpred != NULL) {
+		if ((rv = vm_reserv_from_page(mpred))->object != object)
+			leftcap = mpred->pindex + 1;
+		else
+			leftcap = rv->pindex + VM_LEVEL_0_NPAGES;
+		if (leftcap > first)
+			return (NULL);
+	}
+	if (msucc != NULL) {
+		if ((rv = vm_reserv_from_page(msucc))->object != object)
+			rightcap = msucc->pindex;
+		else
+			rightcap = rv->pindex;
+		if (first + VM_LEVEL_0_NPAGES > rightcap)
+			return (NULL);
+	}
 
 	/*
-	 * Would a new reservation extend past the end of the given object? 
+	 * Would a new reservation extend past the end of the object? 
 	 */
-	if (object->size < first + VM_LEVEL_0_NPAGES) {
+	if (first + VM_LEVEL_0_NPAGES > object->size) {
 		/*
 		 * Don't allocate a new reservation if the object is a vnode or
 		 * backed by another object that is a vnode. 
@@ -393,28 +574,35 @@ vm_reserv_alloc_page(vm_object_t object, vm_pindex_t pindex)
 	}
 
 	/*
-	 * Allocate a new reservation.
+	 * Allocate and populate the new reservation.
 	 */
 	m = vm_phys_alloc_pages(VM_FREEPOOL_DEFAULT, VM_LEVEL_0_ORDER);
-	if (m != NULL) {
-		rv = vm_reserv_from_page(m);
-		KASSERT(rv->pages == m,
-		    ("vm_reserv_alloc_page: reserv %p's pages is corrupted",
-		    rv));
-		KASSERT(rv->object == NULL,
-		    ("vm_reserv_alloc_page: reserv %p isn't free", rv));
-		LIST_INSERT_HEAD(&object->rvq, rv, objq);
-		rv->object = object;
-		rv->pindex = first;
-		KASSERT(rv->popcnt == 0,
-		    ("vm_reserv_alloc_page: reserv %p's popcnt is corrupted",
-		    rv));
-		KASSERT(!rv->inpartpopq,
-		    ("vm_reserv_alloc_page: reserv %p's inpartpopq is TRUE",
-		    rv));
-		vm_reserv_populate(rv);
-		m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
-	}
+	if (m == NULL)
+		return (NULL);
+	rv = vm_reserv_from_page(m);
+	KASSERT(rv->pages == m,
+	    ("vm_reserv_alloc_page: reserv %p's pages is corrupted", rv));
+	KASSERT(rv->object == NULL,
+	    ("vm_reserv_alloc_page: reserv %p isn't free", rv));
+	LIST_INSERT_HEAD(&object->rvq, rv, objq);
+	rv->object = object;
+	rv->pindex = first;
+	KASSERT(rv->popcnt == 0,
+	    ("vm_reserv_alloc_page: reserv %p's popcnt is corrupted", rv));
+	KASSERT(!rv->inpartpopq,
+	    ("vm_reserv_alloc_page: reserv %p's inpartpopq is TRUE", rv));
+	vm_reserv_populate(rv);
+	return (&rv->pages[VM_RESERV_INDEX(object, pindex)]);
+
+	/*
+	 * Found a matching reservation.
+	 */
+found:
+	m = &rv->pages[VM_RESERV_INDEX(object, pindex)];
+	/* Handle vm_page_rename(m, new_object, ...). */
+	if ((m->flags & (PG_CACHED | PG_FREE)) == 0)
+		return (NULL);
+	vm_reserv_populate(rv);
 	return (m);
 }
 
@@ -627,16 +815,17 @@ vm_reserv_reclaim_inactive(void)
  * The free page queue lock must be held.
  */
 boolean_t
-vm_reserv_reclaim_contig(vm_paddr_t size, vm_paddr_t low, vm_paddr_t high,
+vm_reserv_reclaim_contig(u_long npages, vm_paddr_t low, vm_paddr_t high,
     u_long alignment, vm_paddr_t boundary)
 {
-	vm_paddr_t pa, pa_length;
+	vm_paddr_t pa, pa_length, size;
 	vm_reserv_t rv;
 	int i;
 
 	mtx_assert(&vm_page_queue_free_mtx, MA_OWNED);
-	if (size > VM_LEVEL_0_SIZE - PAGE_SIZE)
+	if (npages > VM_LEVEL_0_NPAGES - 1)
 		return (FALSE);
+	size = npages << PAGE_SHIFT;
 	TAILQ_FOREACH(rv, &vm_rvq_partpop, partpopq) {
 		pa = VM_PAGE_TO_PHYS(&rv->pages[VM_LEVEL_0_NPAGES - 1]);
 		if (pa + PAGE_SIZE - size < low) {
