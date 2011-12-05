@@ -66,7 +66,7 @@ procstat_auxv(struct kinfo_proc *kipp)
 	name[3] = kipp->ki_pid;
 	len = sizeof(auxv) * sizeof(*auxv);
 	error = sysctl(name, 4, auxv, &len, NULL, 0);
-	if (error < 0 && errno != ESRCH) {
+	if (error < 0 && errno != ESRCH && errno != EPERM) {
 		warn("sysctl: kern.proc.auxv: %d: %d", kipp->ki_pid, errno);
 		return;
 	}
