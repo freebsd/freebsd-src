@@ -338,7 +338,8 @@ et_attach(device_t dev)
 	ifp->if_mtu = ETHERMTU;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
+	ifp->if_snd.ifq_drv_maxlen = ET_TX_NDESC - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC - 1);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	et_chip_attach(sc);
@@ -1257,12 +1258,13 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 et_start_locked(struct ifnet *ifp)
 {
-	struct et_softc *sc = ifp->if_softc;
+	struct et_softc *sc;
+	struct mbuf *m_head = NULL;
 	struct et_txbuf_data *tbd;
-	int trans;
+	int enq;
 
+	sc = ifp->if_softc;
 	ET_LOCK_ASSERT(sc);
-	tbd = &sc->sc_tx_data;
 
 	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0)
 		return;
@@ -1270,30 +1272,32 @@ et_start_locked(struct ifnet *ifp)
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
 		return;
 
-	trans = 0;
-	for (;;) {
-		struct mbuf *m;
-
-		if ((tbd->tbd_used + ET_NSEG_SPARE) > ET_TX_NDESC) {
+	tbd = &sc->sc_tx_data;
+	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
+		if (tbd->tbd_used + ET_NSEG_SPARE >= ET_TX_NDESC) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		if (m_head == NULL)
 			break;
 
-		if (et_encap(sc, &m)) {
-			ifp->if_oerrors++;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		if (et_encap(sc, &m_head)) {
+			if (m_head == NULL) {
+				ifp->if_oerrors++;
+				break;
+			}
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if (tbd->tbd_used > 0)
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		trans = 1;
-
-		BPF_MTAP(ifp, m);
+		enq++;
+		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (trans)
+	if (enq > 0)
 		sc->watchdog_timer = 5;
 }
 
