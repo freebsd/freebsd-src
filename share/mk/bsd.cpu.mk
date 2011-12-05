@@ -242,11 +242,11 @@ LD += -EB
 .if ${MACHINE_ARCH} == "mips"
 . if defined(TARGET_BIG_ENDIAN)
 CFLAGS += -EB
-LDFLAGS += -Wl,-EB
+LDFLAGS += -EB
 LD += -EB
 . else
 CFLAGS += -EL
-LDFLAGS += -Wl,-EL
+LDFLAGS += -EL
 LD += -EL
 . endif
 CFLAGS += -msoft-float -G0 -mno-dsp -mabicalls
