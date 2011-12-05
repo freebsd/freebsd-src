@@ -32,7 +32,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap.h 9662 2011-11-16 13:18:06Z luigi $
+ * $Id: netmap.h 9753 2011-11-28 15:10:43Z luigi $
  *
  * This header contains the definitions of the constants and the
  * structures needed by the ``netmap'' module, both kernel and
@@ -186,13 +186,6 @@ struct netmap_ring {
 
 	const uint16_t	nr_buf_size;
 	uint16_t	flags;
-	/*
-	 * When a ring is reinitialized, the kernel sets kflags.
-	 * On exit from a syscall, if the flag is found set, we
-	 * also reinitialize the nr_* variables. The kflag is then
-	 * unconditionally copied to nr_flags and cleared.
-	 */
-#define	NR_REINIT	0x0001		/* ring reinitialized! */
 #define	NR_TIMESTAMP	0x0002		/* set timestamp on *sync() */
 
 	struct timeval	ts;		/* time of last *sync() */
