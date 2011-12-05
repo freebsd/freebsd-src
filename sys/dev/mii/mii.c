@@ -499,7 +499,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 	free(children, M_TEMP);
 
 	if (first != 0) {
-		rv = device_probe(*miibus);
+		rv = device_set_driver(*miibus, &miibus_driver);
 		if (rv != 0)
 			goto fail;
 		bus_enumerate_hinted_children(*miibus);
@@ -511,7 +511,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 			rv = ENXIO;
 			goto fail;
 		}
-		rv = device_attach(*miibus);
+		rv = bus_generic_attach(dev);
 		if (rv != 0)
 			goto fail;
 
@@ -626,7 +626,7 @@ mii_down(struct mii_data *mii)
 static unsigned char
 mii_bitreverse(unsigned char x)
 {
-	unsigned const char const nibbletab[16] = {
+	static unsigned const char const nibbletab[16] = {
 		0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
 	};
 
