@@ -575,7 +575,13 @@ netmap_mmap(__unused struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 
 
 /*
- * handler for synchronization of the queues from/to the host
+ * Handlers for synchronization of the queues from/to the host.
+ *
+ * netmap_sync_to_host() passes packets up. We are called from a
+ * system call in user process context, and the only contention
+ * can be among multiple user threads erroneously calling
+ * this routine concurrently. In principle we should not even
+ * need to lock.
  */
 static void
 netmap_sync_to_host(struct netmap_adapter *na)
@@ -583,15 +589,20 @@ netmap_sync_to_host(struct netmap_adapter *na)
 	struct netmap_kring *kring = &na->tx_rings[na->num_queues];
 	struct netmap_ring *ring = kring->ring;
 	struct mbuf *head = NULL, *tail = NULL, *m;
-	u_int n, lim = kring->nkr_num_slots - 1;
+	u_int k, n, lim = kring->nkr_num_slots - 1;
 
-	na->nm_lock(na->ifp->if_softc, NETMAP_CORE_LOCK, 0);
+	k = ring->cur;
+	if (k > lim) {
+		netmap_ring_reinit(kring);
+		return;
+	}
+	// na->nm_lock(na->ifp->if_softc, NETMAP_CORE_LOCK, 0);
 
 	/* Take packets from hwcur to cur and pass them up.
 	 * In case of no buffers we give up. At the end of the loop,
 	 * the queue is drained in all cases.
 	 */
-	for (n = kring->nr_hwcur; n != ring->cur;) {
+	for (n = kring->nr_hwcur; n != k;) {
 		struct netmap_slot *slot = &ring->slot[n];
 
 		n = (n == lim) ? 0 : n + 1;
@@ -610,9 +621,9 @@ netmap_sync_to_host(struct netmap_adapter *na)
 		tail = m;
 		m->m_nextpkt = NULL;
 	}
-	kring->nr_hwcur = ring->cur;
+	kring->nr_hwcur = k;
 	kring->nr_hwavail = ring->avail = lim;
-	na->nm_lock(na->ifp->if_softc, NETMAP_CORE_UNLOCK, 0);
+	// na->nm_lock(na->ifp->if_softc, NETMAP_CORE_UNLOCK, 0);
 
 	/* send packets up, outside the lock */
 	while ((m = head) != NULL) {
@@ -626,6 +637,10 @@ netmap_sync_to_host(struct netmap_adapter *na)
 }
 
 /*
+ * rxsync backend for packets coming from the host stack.
+ * They have been put in the queue by netmap_start() so we
+ * need to protect access to the kring using a lock.
+ *
  * This routine also does the selrecord if called from the poll handler
  * (we know because td != NULL).
  */
@@ -634,24 +649,29 @@ netmap_sync_from_host(struct netmap_adapter *na, struct thread *td)
 {
 	struct netmap_kring *kring = &na->rx_rings[na->num_queues];
 	struct netmap_ring *ring = kring->ring;
-	int delta;
+	int error = 1, delta;
+	u_int k = ring->cur, lim = kring->nkr_num_slots;
 
 	na->nm_lock(na->ifp->if_softc, NETMAP_CORE_LOCK, 0);
-
-	/* skip past packets processed by userspace,
-	 * and then sync cur/avail with hwcur/hwavail
-	 */
-	delta = ring->cur - kring->nr_hwcur;
+	if (k >= lim) /* bad value */
+		goto done;
+	delta = k - kring->nr_hwcur;
 	if (delta < 0)
-		delta += kring->nkr_num_slots;
+		delta += lim;
 	kring->nr_hwavail -= delta;
-	kring->nr_hwcur = ring->cur;
-	ring->avail = kring->nr_hwavail;
-	if (ring->avail == 0 && td)
+	if (kring->nr_hwavail < 0)	/* error */
+		goto done;
+	kring->nr_hwcur = k;
+	error = 0;
+	k = ring->avail = kring->nr_hwavail;
+	if (k == 0 && td)
 		selrecord(td, &kring->si);
-	if (ring->avail && (netmap_verbose & NM_VERB_HOST))
-		D("%d pkts from stack", ring->avail);
+	if (k && (netmap_verbose & NM_VERB_HOST))
+		D("%d pkts from stack", k);
+done:
 	na->nm_lock(na->ifp->if_softc, NETMAP_CORE_UNLOCK, 0);
+	if (error)
+		netmap_ring_reinit(kring);
 }
 
 
@@ -1262,25 +1282,24 @@ netmap_detach(struct ifnet *ifp)
 
 
 /*
- * intercept packets coming from the network stack and present
- * them to netmap as incoming packets on a separate ring.
+ * Intercept packets from the network stack and pass them
+ * to netmap as incoming packets on the 'software' ring.
  * We are not locked when called.
  */
 int
 netmap_start(struct ifnet *ifp, struct mbuf *m)
 {
 	struct netmap_adapter *na = NA(ifp);
-	u_int i, len, n = na->num_queues;
-	int error = EBUSY;
-	struct netmap_kring *kring = &na->rx_rings[n];
+	struct netmap_kring *kring = &na->rx_rings[na->num_queues];
+	u_int i, len = m->m_pkthdr.len;
+	int error = EBUSY, lim = kring->nkr_num_slots - 1;
 	struct netmap_slot *slot;
 
-	len = m->m_pkthdr.len;
 	if (netmap_verbose & NM_VERB_HOST)
 		D("%s packet %d len %d from the stack", ifp->if_xname,
 			kring->nr_hwcur + kring->nr_hwavail, len);
 	na->nm_lock(ifp->if_softc, NETMAP_CORE_LOCK, 0);
-	if (kring->nr_hwavail >= (int)kring->nkr_num_slots - 1) {
+	if (kring->nr_hwavail >= lim) {
 		D("stack ring %s full\n", ifp->if_xname);
 		goto done;	/* no space */
 	}
@@ -1291,8 +1310,8 @@ netmap_start(struct ifnet *ifp, struct mbuf *m)
 
 	/* compute the insert position */
 	i = kring->nr_hwcur + kring->nr_hwavail;
-	if (i >= kring->nkr_num_slots)
-		i -= kring->nkr_num_slots;
+	if (i > lim)
+		i -= lim + 1;
 	slot = &kring->ring->slot[i];
 	m_copydata(m, 0, len, NMB(slot));
 	slot->len = len;
