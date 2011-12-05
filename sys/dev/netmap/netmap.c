@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap.c 9662 2011-11-16 13:18:06Z luigi $
+ * $Id: netmap.c 9795 2011-12-02 11:39:08Z luigi $
  *
  * This module supports memory mapped access to network devices,
  * see netmap(4).
@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/errno.h>
 #include <sys/param.h>	/* defines used in kernel.h */
+#include <sys/jail.h>
 #include <sys/kernel.h>	/* types used in module initialization */
 #include <sys/conf.h>	/* cdevsw struct */
 #include <sys/uio.h>	/* uio struct */
@@ -70,6 +71,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/mman.h>	/* PROT_EXEC */
 #include <sys/poll.h>
+#include <sys/proc.h>
 #include <vm/vm.h>	/* vtophys */
 #include <vm/pmap.h>	/* vtophys */
 #include <sys/socket.h> /* sockaddrs */
@@ -78,6 +80,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <net/if.h>
 #include <net/bpf.h>		/* BIOCIMMEDIATE */
+#include <net/vnet.h>
 #include <net/netmap.h>
 #include <dev/netmap/netmap_kern.h>
 #include <machine/bus.h>	/* bus_dmamap_* */
@@ -678,6 +681,13 @@ get_ifp(const char *name, struct ifnet **ifp)
  * Error routine called when txsync/rxsync detects an error.
  * Can't do much more than resetting cur = hwcur, avail = hwavail.
  * Return 1 on reinit.
+ *
+ * This routine is only called by the upper half of the kernel.
+ * It only reads hwcur (which is changed only by the upper half, too)
+ * and hwavail (which may be changed by the lower half, but only on
+ * a tx ring and only to increase it, so any error will be recovered
+ * on the next call). For the above, we don't strictly need to call
+ * it under lock.
  */
 int
 netmap_ring_reinit(struct netmap_kring *kring)
@@ -717,29 +727,10 @@ netmap_ring_reinit(struct netmap_kring *kring)
 			ring->avail, kring->nr_hwavail);
 		ring->cur = kring->nr_hwcur;
 		ring->avail = kring->nr_hwavail;
-		ring->flags |= NR_REINIT;
-		kring->na->flags |= NR_REINIT;
 	}
 	return (errors ? 1 : 0);
 }
 
-/*
- * Clean the reinit flag for our rings.
- * XXX at the moment, clear for all rings
- */
-static void
-netmap_clean_reinit(struct netmap_adapter *na)
-{
-	//struct netmap_kring *kring;
-	u_int i;
-
-	na->flags &= ~NR_REINIT;
-	D("--- NR_REINIT reset on %s", na->ifp->if_xname);
-	for (i = 0; i < na->num_queues + 1; i++) {
-		na->tx_rings[i].ring->flags &= ~NR_REINIT;
-		na->rx_rings[i].ring->flags &= ~NR_REINIT;
-	}
-}
 
 /*
  * Set the ring ID. For devices with a single queue, a request
@@ -801,7 +792,7 @@ netmap_set_ringid(struct netmap_priv_d *priv, u_int ringid)
  */
 static int
 netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
-	__unused int fflag, __unused struct thread *td)
+	__unused int fflag, struct thread *td)
 {
 	struct netmap_priv_d *priv = NULL;
 	struct ifnet *ifp;
@@ -812,9 +803,13 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 	u_int i;
 	struct netmap_if *nifp;
 
+	CURVNET_SET(TD_TO_VNET(td));
+
 	error = devfs_get_cdevpriv((void **)&priv);
-	if (error != ENOENT && error != 0)
+	if (error != ENOENT && error != 0) {
+		CURVNET_RESTORE();
 		return (error);
+	}
 
 	error = 0;	/* Could be ENOENT */
 	switch (cmd) {
@@ -836,8 +831,10 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 		break;
 
 	case NIOCREGIF:
-		if (priv != NULL)	/* thread already registered */
-			return netmap_set_ringid(priv, nmr->nr_ringid);
+		if (priv != NULL) {	/* thread already registered */
+			error = netmap_set_ringid(priv, nmr->nr_ringid);
+			break;
+		}
 		/* find the interface and a reference */
 		error = get_ifp(nmr->nr_name, &ifp); /* keep reference */
 		if (error)
@@ -927,8 +924,10 @@ error:
 		break;
 
 	case NIOCUNREGIF:
-		if (priv == NULL)
-			return (ENXIO);
+		if (priv == NULL) {
+			error = ENXIO;
+			break;
+		}
 
 		/* the interface is unregistered inside the
 		   destructor of the private data. */
@@ -937,14 +936,13 @@ error:
 
 	case NIOCTXSYNC:
         case NIOCRXSYNC:
-		if (priv == NULL)
-			return (ENXIO);
+		if (priv == NULL) {
+			error = ENXIO;
+			break;
+		}
 		ifp = priv->np_ifp;	/* we have a reference */
 		na = NA(ifp); /* retrieve netmap adapter */
 		adapter = ifp->if_softc;	/* shorthand */
-
-		if (na->flags & NR_REINIT)
-			netmap_clean_reinit(na);
 
 		if (priv->np_qfirst == na->num_queues) {
 			/* queues to/from host */
@@ -952,7 +950,7 @@ error:
 				netmap_sync_to_host(na);
 			else
 				netmap_sync_from_host(na, NULL);
-			return error;
+			break;
 		}
 
 		for (i = priv->np_qfirst; i < priv->np_qlast; i++) {
@@ -999,6 +997,7 @@ error:
 	    }
 	}
 
+	CURVNET_RESTORE();
 	return (error);
 }
 
@@ -1039,13 +1038,6 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	adapter = ifp->if_softc;
 	na = NA(ifp); /* retrieve netmap adapter */
 
-	/* pending reinit, report up as a poll error. Pending
-	 * reads and writes are lost.
-	 */
-	if (na->flags & NR_REINIT) {
-		netmap_clean_reinit(na);
-		revents |= POLLERR;
-	}
 	/* how many queues we are scanning */
 	i = priv->np_qfirst;
 	if (i == na->num_queues) { /* from/to host */
@@ -1111,20 +1103,20 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	 * data available. If this fails, then lock and call the sync
 	 * routines.
 	 */
-	for (i = priv->np_qfirst; want_rx && i < priv->np_qlast; i++) {
-		kring = &na->rx_rings[i];
-		if (kring->ring->avail > 0) {
-			revents |= want_rx;
-			want_rx = 0;	/* also breaks the loop */
+		for (i = priv->np_qfirst; want_rx && i < priv->np_qlast; i++) {
+			kring = &na->rx_rings[i];
+			if (kring->ring->avail > 0) {
+				revents |= want_rx;
+				want_rx = 0;	/* also breaks the loop */
+			}
 		}
-	}
-	for (i = priv->np_qfirst; want_tx && i < priv->np_qlast; i++) {
-		kring = &na->tx_rings[i];
-		if (kring->ring->avail > 0) {
-			revents |= want_tx;
-			want_tx = 0;	/* also breaks the loop */
+		for (i = priv->np_qfirst; want_tx && i < priv->np_qlast; i++) {
+			kring = &na->tx_rings[i];
+			if (kring->ring->avail > 0) {
+				revents |= want_tx;
+				want_tx = 0;	/* also breaks the loop */
+			}
 		}
-	}
 
 	/*
 	 * If we to push packets out (priv->np_txpoll) or want_tx is
@@ -1326,24 +1318,6 @@ done:
  * netmap_reset() is called by the driver routines when reinitializing
  * a ring. The driver is in charge of locking to protect the kring.
  * If netmap mode is not set just return NULL.
- * Otherwise set NR_REINIT (in the ring and in na) to signal
- * that a ring has been reinitialized,
- * set cur = hwcur = 0 and avail = hwavail = num_slots - 1 .
- * IT IS IMPORTANT to leave one slot free even in the tx ring because
- * we rely on cur=hwcur only for empty rings.
- * These are good defaults but can be overridden later in the device
- * specific code if, after a reinit, the ring does not start from 0
- * (e.g. if_em.c does this).
- *
- * XXX we shouldn't be touching the ring, but there is a
- * race anyways and this is our best option.
- *
- * XXX setting na->flags makes the syscall code faster, as there is
- * only one place to check. On the other hand, we will need a better
- * way to notify multiple threads that rings have been reset.
- * One way is to increment na->rst_count at each ring reset.
- * Each thread in its own priv structure will keep a matching counter,
- * and on a reset will acknowledge and clean its own rings.
  */
 struct netmap_slot *
 netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
@@ -1351,8 +1325,7 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 {
 	struct netmap_kring *kring;
 	struct netmap_ring *ring;
-	struct netmap_slot *slot;
-	u_int i;
+	int new_hwofs, lim;
 
 	if (na == NULL)
 		return NULL;	/* no netmap support here */
@@ -1360,74 +1333,26 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 		return NULL;	/* nothing to reinitialize */
 	kring = tx == NR_TX ?  na->tx_rings + n : na->rx_rings + n;
 	ring = kring->ring;
-    if (tx == NR_TX) {
-	/*
-	 * The last argument is the new value of next_to_clean.
-	 *
-	 * In the TX ring, we have P pending transmissions (from
-	 * next_to_clean to nr_hwcur) followed by nr_hwavail free slots.
-	 * Generally we can use all the slots in the ring so
-	 * P = ring_size - nr_hwavail hence (modulo ring_size):
-	 *	next_to_clean == nr_hwcur + nr_hwavail
-	 * 
-	 * If, upon a reset, nr_hwavail == ring_size and next_to_clean
-	 * does not change we have nothing to report. Otherwise some
-	 * pending packets may be lost, or newly injected packets will.
-	 */
-	/* if hwcur does not change, nothing to report.
-	 * otherwise remember the change so perhaps we can
-	 * shift the block at the next reinit
-	 */
-	if (new_cur == kring->nr_hwcur &&
-		    kring->nr_hwavail == kring->nkr_num_slots - 1) {
-		/* all ok */
-		D("+++ NR_REINIT ok on %s TX[%d]", na->ifp->if_xname, n);
-	} else {
-		D("+++ NR_REINIT set on %s TX[%d]", na->ifp->if_xname, n);
-	}
-		ring->flags |= NR_REINIT;
-		na->flags |= NR_REINIT;
-		ring->avail = kring->nr_hwavail = kring->nkr_num_slots - 1;
-		ring->cur = kring->nr_hwcur = new_cur;
-    } else {
-	/*
-	 * The last argument is the next free slot.
-	 * In the RX ring we have nr_hwavail full buffers starting
-	 * from nr_hwcur.
-	 * If nr_hwavail == 0 and nr_hwcur does not change we are ok
-	 * otherwise we might be in trouble as the buffers are
-	 * changing.
-	 */
-	if (new_cur == kring->nr_hwcur && kring->nr_hwavail == 0) {
-		/* all ok */
-		D("+++ NR_REINIT ok on %s RX[%d]", na->ifp->if_xname, n);
-	} else {
-		D("+++ NR_REINIT set on %s RX[%d]", na->ifp->if_xname, n);
-	}
-	ring->flags |= NR_REINIT;
-	na->flags |= NR_REINIT;
-	ring->avail = kring->nr_hwavail = 0; /* no data */
-	ring->cur = kring->nr_hwcur = new_cur;
-    }
+	lim = kring->nkr_num_slots - 1;
 
-	slot = ring->slot;
+	if (tx == NR_TX)
+		new_hwofs = kring->nr_hwcur - new_cur;
+	else
+		new_hwofs = kring->nr_hwcur + kring->nr_hwavail - new_cur;
+	if (new_hwofs > lim)
+		new_hwofs -= lim + 1;
+
+	/* Alwayws set the new offset value and realign the ring. */
+	kring->nkr_hwofs = new_hwofs;
+	if (tx == NR_TX)
+		kring->nr_hwavail = kring->nkr_num_slots - 1;
+	D("new hwofs %d on %s %s[%d]",
+			kring->nkr_hwofs, na->ifp->if_xname,
+			tx == NR_TX ? "TX" : "RX", n);
+
 	/*
-	 * Check that buffer indexes are correct. If we find a
-	 * bogus value we are a bit in trouble because we cannot
-	 * recover easily. Best we can do is (probably) persistently
-	 * reset the ring.
-	 */
-	for (i = 0; i < kring->nkr_num_slots; i++) {
-		if (slot[i].buf_idx >= netmap_total_buffers) {
-			D("invalid buf_idx %d at slot %d", slot[i].buf_idx, i);
-			slot[i].buf_idx = 0; /* XXX reset */
-		}
-		/* XXX we don't really need to set the length */
-		slot[i].len = 0;
-	}
-	/* wakeup possible waiters, both on the ring and on the global
-	 * selfd. Perhaps a bit early now but the device specific
-	 * routine is locked so hopefully we won't have a race.
+	 * We do the wakeup here, but the ring is not yet reconfigured.
+	 * However, we are under lock so there are no races.
 	 */
 	selwakeuppri(&kring->si, PI_NET);
 	selwakeuppri(&kring[na->num_queues + 1 - n].si, PI_NET);
