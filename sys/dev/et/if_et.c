@@ -87,6 +87,8 @@ static int	et_probe(device_t);
 static int	et_attach(device_t);
 static int	et_detach(device_t);
 static int	et_shutdown(device_t);
+static int	et_suspend(device_t);
+static int	et_resume(device_t);
 
 static int	et_miibus_readreg(device_t, int, int);
 static int	et_miibus_writereg(device_t, int, int, int);
@@ -169,6 +171,8 @@ static device_method_t et_methods[] = {
 	DEVMETHOD(device_attach,	et_attach),
 	DEVMETHOD(device_detach,	et_detach),
 	DEVMETHOD(device_shutdown,	et_shutdown),
+	DEVMETHOD(device_suspend,	et_suspend),
+	DEVMETHOD(device_resume,	et_resume),
 
 	DEVMETHOD(miibus_readreg,	et_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	et_miibus_writereg),
@@ -2450,4 +2454,30 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);
+}
+
+static int
+et_suspend(device_t dev)
+{
+	struct et_softc *sc;
+
+	sc = device_get_softc(dev);
+	ET_LOCK(sc);
+	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		et_stop(sc);
+	ET_UNLOCK(sc);
+	return (0);
+}
+
+static int
+et_resume(device_t dev)
+{
+	struct et_softc *sc;
+
+	sc = device_get_softc(dev);
+	ET_LOCK(sc);
+	if ((sc->ifp->if_flags & IFF_UP) != 0)
+		et_init_locked(sc);
+	ET_UNLOCK(sc);
+	return (0);
 }
