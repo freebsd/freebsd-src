@@ -702,14 +702,14 @@ pmu_intr(void *arg)
 			len - 3,&resp[3]);
 	}
 	if (resp[1] & PMU_INT_ENVIRONMENT) {
-		// if the lid was just closed, notify devd.
+		/* if the lid was just closed, notify devd. */
 		if ((resp[2] & PMU_ENV_LID_CLOSED) && (!sc->lid_closed)) {
 			sc->lid_closed = 1;
 			if (devctl_process_running())
 				devctl_notify("PMU", "lid", "close", NULL);
 		}
 		else if (!(resp[2] & PMU_ENV_LID_CLOSED) && (sc->lid_closed)) {
-			// if the lid was just opened, notify devd.
+			/* if the lid was just opened, notify devd. */
 			if (devctl_process_running())
 				devctl_notify("PMU", "lid", "open", NULL);
 			sc->lid_closed = 0;
