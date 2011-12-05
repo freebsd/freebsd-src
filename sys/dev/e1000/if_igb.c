@@ -369,6 +369,9 @@ SYSCTL_INT(_hw_igb, OID_AUTO, rx_process_limit, CTLFLAG_RDTUN,
     &igb_rx_process_limit, 0,
     "Maximum number of received packets to process at a time, -1 means unlimited");
 
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_igb_netmap.h>
+#endif /* DEV_NETMAP */
 /*********************************************************************
  *  Device identification routine
  *
@@ -664,6 +667,9 @@ igb_attach(device_t dev)
 	adapter->led_dev = led_create(igb_led_func, adapter,
 	    device_get_nameunit(dev));
 
+#ifdef DEV_NETMAP
+	igb_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("igb_attach: end");
 
 	return (0);
@@ -742,6 +748,9 @@ igb_detach(device_t dev)
 
 	callout_drain(&adapter->timer);
 
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 	igb_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
@@ -3212,9 +3221,16 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 	struct adapter *adapter = txr->adapter;
 	struct igb_tx_buffer *txbuf;
 	int i;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old descriptor contents */
 	IGB_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_TX, txr->me, 0);
+#endif /* DEV_NETMAP */
 	bzero((void *)txr->tx_base,
 	      (sizeof(union e1000_adv_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -3231,6 +3247,17 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		if (slot) {
+			/* slot si is mapped to the i-th NIC-ring entry */
+			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+
+			if (si < 0)
+				si += na->num_tx_desc;
+			netmap_load_map(txr->txtag, txbuf->map,
+				NMB(slot + si), na->buff_size);
+		}
+#endif /* DEV_NETMAP */
 		/* clear the watch index */
 		txbuf->next_eop = -1;
         }
@@ -3626,6 +3653,19 @@ igb_txeof(struct tx_ring *txr)
 
 	IGB_TX_LOCK_ASSERT(txr);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+		IGB_TX_UNLOCK(txr);
+		IGB_CORE_LOCK(adapter);
+		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		IGB_CORE_UNLOCK(adapter);
+		IGB_TX_LOCK(txr);
+		return FALSE;
+	}
+#endif /* DEV_NETMAP */
         if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IGB_QUEUE_IDLE;
                 return FALSE;
@@ -3949,6 +3989,10 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
 	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(rxr->adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	adapter = rxr->adapter;
 	dev = adapter->dev;
@@ -3956,6 +4000,9 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Clear the ring contents */
 	IGB_RX_LOCK(rxr);
+#ifdef DEV_NETMAP
+	slot = netmap_reset(na, NR_RX, rxr->me, 0);
+#endif /* DEV_NETMAP */
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union e1000_adv_rx_desc), IGB_DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
@@ -3974,6 +4021,22 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+#ifdef DEV_NETMAP
+		if (slot) {
+			/* slot sj is mapped to the i-th NIC-ring entry */
+			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			void *addr;
+
+			if (sj < 0)
+				sj += na->num_rx_desc;
+			addr = NMB(slot + sj);
+			netmap_load_map(rxr->ptag,
+			    rxbuf->pmap, addr, na->buff_size);
+			/* Update descriptor */
+			rxr->rx_base[j].read.pkt_addr = htole64(vtophys(addr));
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		if (rxr->hdr_split == FALSE)
 			goto skip_head;
 
@@ -4258,6 +4321,26 @@ igb_initialize_receive_units(struct adapter *adapter)
 	for (int i = 0; i < adapter->num_queues; i++) {
 		rxr = &adapter->rx_rings[i];
 		E1000_WRITE_REG(hw, E1000_RDH(i), rxr->next_to_check);
+#ifdef DEV_NETMAP
+		/*
+		 * an init() while a netmap client is active must
+		 * preserve the rx buffers passed to userspace.
+		 * In this driver it means we adjust RDT to
+		 * somthing different from next_to_refresh
+		 * (which is not used in netmap mode).
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = rxr->next_to_refresh - kring->nr_hwavail;
+
+			if (t >= adapter->num_rx_desc)
+				t -= adapter->num_rx_desc;
+			else if (t < 0)
+				t += adapter->num_rx_desc;
+			E1000_WRITE_REG(hw, E1000_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		E1000_WRITE_REG(hw, E1000_RDT(i), rxr->next_to_refresh);
 	}
 	return;
@@ -4435,6 +4518,19 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	/* Sync the ring. */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
+
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
+		IGB_RX_UNLOCK(rxr);
+		IGB_CORE_LOCK(adapter);
+		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		IGB_CORE_UNLOCK(adapter);
+		return (0);
+	}
+#endif /* DEV_NETMAP */
 
 	/* Main clean loop */
 	for (i = rxr->next_to_check; count != 0;) {
