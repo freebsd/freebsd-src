@@ -1,15 +1,15 @@
 /*
  * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
- *
+ * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
- * 1. Redistributions of source code must retain the above copyright
- *    notice, this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright
- *    notice, this list of conditions and the following disclaimer in the
+ *   1. Redistributions of source code must retain the above copyright
+ *      notice, this list of conditions and the following disclaimer.
+ *   2. Redistributions in binary form must reproduce the above copyright
+ *      notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- *
+ * 
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: netmap_kern.h 9662 2011-11-16 13:18:06Z luigi $
+ * $Id: netmap_kern.h 9795 2011-12-02 11:39:08Z luigi $
  *
  * The header contains the definitions of constants and function
  * prototypes used only in kernelspace.
@@ -68,7 +68,7 @@ struct netmap_kring {
 	u_int nr_kflags;
 	u_int nkr_num_slots;
 
-	u_int	nkr_hwofs;	/* offset between NIC and netmap ring */
+	int	nkr_hwofs;	/* offset between NIC and netmap ring */
 	struct netmap_adapter *na;	 // debugging
 	struct selinfo si; /* poll/select wait queue */
 };
@@ -94,7 +94,7 @@ struct netmap_adapter {
 	u_int num_rx_desc;
 	u_int buff_size;
 
-	u_int	flags;	/* NR_REINIT */
+	u_int	flags;
 	/* tx_rings and rx_rings are private but allocated
 	 * as a contiguous chunk of memory. Each array has
 	 * N+1 entries, for the adapter queues and for the host queue.

@@ -39,8 +39,8 @@
 
 #include "procstat.h"
 
-static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, sflag, tflag;
-static int vflag, xflag;
+static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, lflag, sflag;
+static int tflag, vflag, xflag;
 int	hflag, nflag, Cflag;
 
 static void
@@ -50,7 +50,7 @@ usage(void)
 	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
 	    "[-w interval] \n");
 	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
-	    "-s | -t | -v | -x] [-a | pid ...]\n");
+	    "-l | -s | -t | -v | -x] [-a | pid ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -72,6 +72,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_threads_sigs(prstat, kipp);
 	else if (kflag)
 		procstat_kstack(kipp, kflag);
+	else if (lflag)
+		procstat_rlimit(kipp);
 	else if (sflag)
 		procstat_cred(kipp);
 	else if (tflag)
@@ -123,7 +125,7 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CN:M:abcefijkhstvw:x")) != -1) {
+	while ((ch = getopt(argc, argv, "CN:M:abcefijklhstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -165,6 +167,10 @@ main(int argc, char *argv[])
 
 		case 'k':
 			kflag++;
+			break;
+
+		case 'l':
+			lflag++;
 			break;
 
 		case 'n':
@@ -210,8 +216,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = bflag + cflag + eflag + fflag + (kflag ? 1 : 0) + sflag + tflag +
-	    vflag + xflag;
+	tmp = bflag + cflag + eflag + fflag + (kflag ? 1 : 0) + lflag + sflag +
+	    tflag + vflag + xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 

@@ -32,7 +32,6 @@ MAN=	aac.4 \
 	ale.4 \
 	alpm.4 \
 	altq.4 \
-	amd.4 \
 	amdpm.4 \
 	${_amdsbwd.4} \
 	${_amdsmb.4} \
@@ -68,6 +67,7 @@ MAN=	aac.4 \
 	bt.4 \
 	bwi.4 \
 	bwn.4 \
+	capsicum.4 \
 	cardbus.4 \
 	carp.4 \
 	cas.4 \
@@ -123,6 +123,7 @@ MAN=	aac.4 \
 	fdc.4 \
 	fdt.4 \
 	fdtbus.4 \
+	ffclock.4 \
 	firewire.4 \
 	fpa.4 \
 	fwe.4 \
@@ -378,7 +379,7 @@ MAN=	aac.4 \
 	send.4 \
 	ses.4 \
 	sf.4 \
-	sfxge.4 \
+	${_sfxge.4} \
 	sge.4 \
 	si.4 \
 	siba.4 \
@@ -718,6 +719,7 @@ MLINKS+=lindev.4 full.4
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _qlxgb.4=	qlxgb.4
+_sfxge.4=	sfxge.4
 .endif
 
 .if ${MACHINE_CPUARCH} == "powerpc"

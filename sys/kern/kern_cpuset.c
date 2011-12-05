@@ -900,6 +900,7 @@ struct cpuset_getid_args {
 	cpuwhich_t	which;
 	id_t		id;
 	cpusetid_t	*setid;
+};
 #endif
 int
 sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)

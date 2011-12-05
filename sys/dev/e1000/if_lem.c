@@ -316,6 +316,10 @@ TUNABLE_INT("hw.em.fc_setting", &lem_fc_setting);
 /* Global used in WOL setup with multiport cards */
 static int global_quad_port_a = 0;
 
+#ifdef DEV_NETMAP	/* see ixgbe.c for details */
+#include <dev/netmap/if_lem_netmap.h>
+#endif /* DEV_NETMAP */
+
 /*********************************************************************
  *  Device identification routine
  *
@@ -646,6 +650,9 @@ lem_attach(device_t dev)
 	adapter->led_dev = led_create(lem_led_func, adapter,
 	    device_get_nameunit(dev));
 
+#ifdef DEV_NETMAP
+	lem_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("lem_attach: end");
 
 	return (0);
@@ -724,6 +731,9 @@ lem_detach(device_t dev)
 	callout_drain(&adapter->timer);
 	callout_drain(&adapter->tx_fifo_timer);
 
+#ifdef DEV_NETMAP
+	netmap_detach(ifp);
+#endif /* DEV_NETMAP */
 	lem_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(ifp);
@@ -2637,6 +2647,11 @@ static void
 lem_setup_transmit_structures(struct adapter *adapter)
 {
 	struct em_buffer *tx_buffer;
+#ifdef DEV_NETMAP
+	/* we are already locked */
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot = netmap_reset(na, NR_TX, 0, 0);
+#endif /* DEV_NETMAP */
 
 	/* Clear the old ring contents */
 	bzero(adapter->tx_desc_base,
@@ -2650,6 +2665,22 @@ lem_setup_transmit_structures(struct adapter *adapter)
 		bus_dmamap_unload(adapter->txtag, tx_buffer->map);
 		m_freem(tx_buffer->m_head);
 		tx_buffer->m_head = NULL;
+#ifdef DEV_NETMAP
+		if (slot) {
+			/* slot si is mapped to the i-th NIC-ring entry */
+			int si = i + na->tx_rings[0].nkr_hwofs;
+			void *addr;
+
+			if (si > na->num_tx_desc)
+				si -= na->num_tx_desc;
+			addr = NMB(slot + si);
+			adapter->tx_desc_base[si].buffer_addr =
+			    htole64(vtophys(addr));
+			/* reload the map for netmap mode */
+			netmap_load_map(adapter->txtag,
+			    tx_buffer->map, addr, na->buff_size);
+		}
+#endif /* DEV_NETMAP */
 		tx_buffer->next_eop = -1;
 	}
 
@@ -2951,6 +2982,12 @@ lem_txeof(struct adapter *adapter)
 
 	EM_TX_LOCK_ASSERT(adapter);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		selwakeuppri(&NA(ifp)->tx_rings[0].si, PI_NET);
+		return;
+	}
+#endif /* DEV_NETMAP */
         if (adapter->num_tx_desc_avail == adapter->num_tx_desc)
                 return;
 
@@ -3181,6 +3218,11 @@ lem_setup_receive_structures(struct adapter *adapter)
 {
 	struct em_buffer *rx_buffer;
 	int i, error;
+#ifdef DEV_NETMAP
+	/* we are already under lock */
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot = netmap_reset(na, NR_RX, 0, 0);
+#endif
 
 	/* Reset descriptor ring */
 	bzero(adapter->rx_desc_base,
@@ -3200,6 +3242,23 @@ lem_setup_receive_structures(struct adapter *adapter)
 
 	/* Allocate new ones. */
 	for (i = 0; i < adapter->num_rx_desc; i++) {
+#ifdef DEV_NETMAP
+		if (slot) {
+			/* slot si is mapped to the i-th NIC-ring entry */
+			int si = i + na->rx_rings[0].nkr_hwofs;
+			void *addr;
+
+			if (si > na->num_rx_desc)
+				si -= na->num_rx_desc;
+			addr = NMB(slot + si);
+			netmap_load_map(adapter->rxtag,
+			    rx_buffer->map, addr, na->buff_size);
+			/* Update descriptor */
+			adapter->rx_desc_base[i].buffer_addr =
+			    htole64(vtophys(addr));
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		error = lem_get_buf(adapter, i);
 		if (error)
                         return (error);
@@ -3324,6 +3383,18 @@ lem_initialize_receive_unit(struct adapter *adapter)
 	 * Tail Descriptor Pointers
 	 */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDH(0), 0);
+#ifdef DEV_NETMAP
+	/* preserve buffers already made available to clients */
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(adapter->ifp);
+		struct netmap_kring *kring = &na->rx_rings[0];
+		int t = na->num_rx_desc - 1 - kring->nr_hwavail;
+
+		if (t >= na->num_rx_desc)
+			t -= na->num_rx_desc;
+		E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), t);
+	} else
+#endif /* DEV_NETMAP */
 	E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), adapter->num_rx_desc - 1);
 
 	return;
@@ -3406,6 +3477,14 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 	current_desc = &adapter->rx_desc_base[i];
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 	    BUS_DMASYNC_POSTREAD);
+
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		selwakeuppri(&NA(ifp)->rx_rings[0].si, PI_NET);
+		EM_RX_UNLOCK(adapter);
+		return (0);
+	}
+#endif /* DEV_NETMAP */
 
 	if (!((current_desc->status) & E1000_RXD_STAT_DD)) {
 		if (done != NULL)

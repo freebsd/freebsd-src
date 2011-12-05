@@ -1471,8 +1471,6 @@ options 	TEKEN_UTF8		# UTF-8 output handling
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
-# amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
-#      such as the Tekram DC-390(T).
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
@@ -1512,7 +1510,6 @@ hint.aic.0.at="isa"
 device		ahb
 device		ahc
 device		ahd
-device		amd
 device		esp
 device		iscsi_initiator
 device		isp

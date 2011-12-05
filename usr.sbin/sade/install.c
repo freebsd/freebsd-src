@@ -29,7 +29,6 @@
  *
  */
 
-#include "sade.h"
 #include <ctype.h>
 #include <sys/consio.h>
 #include <sys/disklabel.h>
@@ -50,6 +49,8 @@
 #include <limits.h>
 #include <unistd.h>
 #include <termios.h>
+
+#include "sade.h"
 
 #define TERMCAP_FILE	"/usr/share/misc/termcap"
 
@@ -113,12 +114,10 @@ performNewfs(PartInfo *pi, char *dname, int queue)
 
 /* Go newfs and/or mount all the filesystems we've been asked to */
 int
-installFilesystems(dialogMenuItem *self)
+installFilesystems(Device *dev)
 {
-    int i;
-    Disk *disk;
+    Disk *disk = (Disk *)dev->private;
     Chunk *c1, *c2;
-    Device **devs;
     PartInfo *root;
     char dname[80];
     Boolean upgrade = FALSE;
@@ -136,89 +135,82 @@ installFilesystems(dialogMenuItem *self)
     command_clear();
 
     /* Now buzz through the rest of the partitions and mount them too */
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    for (i = 0; devs[i]; i++) {
-	if (!devs[i]->enabled)
-	    continue;
-
-	disk = (Disk *)devs[i]->private;
-	if (!disk->chunks) {
-	    msgConfirm("No chunk list found for %s!", disk->name);
-	    return DITEM_FAILURE | DITEM_RESTORE;
-	}
-	for (c1 = disk->chunks->part; c1; c1 = c1->next) {
+    if (!disk->chunks) {
+        msgConfirm("No chunk list found for %s!", disk->name);
+        return DITEM_FAILURE | DITEM_RESTORE;
+    }
+    for (c1 = disk->chunks->part; c1; c1 = c1->next) {
 #ifdef __ia64__
-	if (c1->type == part) {
-		c2 = c1;
-		{
+    if (c1->type == part) {
+        c2 = c1;
+        {
 #elif defined(__powerpc__)
-	    if (c1->type == apple) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
+        if (c1->type == apple) {
+            for (c2 = c1->part; c2; c2 = c2->next) {
 #else
-	    if (c1->type == freebsd) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
+        if (c1->type == freebsd) {
+            for (c2 = c1->part; c2; c2 = c2->next) {
 #endif
-		    if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
-			PartInfo *tmp = (PartInfo *)c2->private_data;
+                if (c2->type == part && c2->subtype != FS_SWAP && c2->private_data) {
+                    PartInfo *tmp = (PartInfo *)c2->private_data;
 
-			/* Already did root */
-			if (c2 == RootChunk)
-			    continue;
+                    /* Already did root */
+                    if (c2 == RootChunk)
+                        continue;
 
-			sprintf(dname, "/dev/%s", c2->name);
+                    sprintf(dname, "/dev/%s", c2->name);
 
-			if (tmp->do_newfs && (!upgrade ||
-			    !msgNoYes("You are upgrading - are you SURE you"
-			    " want to newfs /dev/%s?", c2->name)))
-				performNewfs(tmp, dname, QUEUE_YES);
-			else
-			    command_shell_add(tmp->mountpoint,
-				"fsck_ffs -y /dev/%s", c2->name);
-			command_func_add(tmp->mountpoint, Mount, c2->name);
-		    }
-		    else if (c2->type == part && c2->subtype == FS_SWAP) {
-			char fname[80];
-			int i;
+                    if (tmp->do_newfs && (!upgrade ||
+                        !msgNoYes("You are upgrading - are you SURE you"
+                        " want to newfs /dev/%s?", c2->name)))
+                            performNewfs(tmp, dname, QUEUE_YES);
+                    else
+                        command_shell_add(tmp->mountpoint,
+                            "fsck_ffs -y /dev/%s", c2->name);
+                    command_func_add(tmp->mountpoint, Mount, c2->name);
+                }
+                else if (c2->type == part && c2->subtype == FS_SWAP) {
+                    char fname[80];
+                    int i;
 
-			if (c2 == SwapChunk)
-			    continue;
-			sprintf(fname, "/dev/%s", c2->name);
-			i = (Fake || swapon(fname));
-			if (!i) {
-			    dialog_clear_norefresh();
-			    msgNotify("Added %s as an additional swap device", fname);
-			}
-			else {
-			    msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
-			}
-		    }
-		}
-	    }
-	    else if (c1->type == fat && c1->private_data &&
-		(root->do_newfs || upgrade)) {
-		char name[FILENAME_MAX];
+                    if (c2 == SwapChunk)
+                        continue;
+                    sprintf(fname, "/dev/%s", c2->name);
+                    i = (Fake || swapon(fname));
+                    if (!i) {
+                        dlg_clear();
+                        msgNotify("Added %s as an additional swap device", fname);
+                    }
+                    else {
+                        msgConfirm("Unable to add %s as a swap device: %s", fname, strerror(errno));
+                    }
+                }
+            }
+        }
+        else if (c1->type == fat && c1->private_data &&
+            (root->do_newfs || upgrade)) {
+            char name[FILENAME_MAX];
 
-		sprintf(name, "/%s", ((PartInfo *)c1->private_data)->mountpoint);
-		Mkdir(name);
-	    }
+            sprintf(name, "/%s", ((PartInfo *)c1->private_data)->mountpoint);
+            Mkdir(name);
+        }
 #if defined(__ia64__)
-	    else if (c1->type == efi && c1->private_data) {
-		PartInfo *pi = (PartInfo *)c1->private_data;
+        else if (c1->type == efi && c1->private_data) {
+            PartInfo *pi = (PartInfo *)c1->private_data;
 
-		sprintf(dname, "/dev/%s", c1->name);
+            sprintf(dname, "/dev/%s", c1->name);
 
-		if (pi->do_newfs && (!upgrade ||
-		    !msgNoYes("You are upgrading - are you SURE you want to "
-		    "newfs /dev/%s?", c1->name)))
-			performNewfs(pi, dname, QUEUE_YES);
-	    }
+            if (pi->do_newfs && (!upgrade ||
+                !msgNoYes("You are upgrading - are you SURE you want to "
+                "newfs /dev/%s?", c1->name)))
+                    performNewfs(pi, dname, QUEUE_YES);
+        }
 #endif
-	}
     }
 
     command_sort();
     command_execute();
-    dialog_clear_norefresh();
+    dlg_clear();
     return DITEM_SUCCESS | DITEM_RESTORE;
 }
 

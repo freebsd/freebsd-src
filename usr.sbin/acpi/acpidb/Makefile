@@ -2,7 +2,6 @@
 
 PROG=	acpidb
 SRCS=	acpidb.c
-SRCS+=	osunixxf.c
 
 # debugger
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
@@ -11,7 +10,7 @@ SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c	\
 
 # disassembler
 SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcs.c dmutils.c dmwalk.c
+	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # events
 SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c	\
@@ -44,10 +43,13 @@ SRCS+=	nsaccess.c nsalloc.c nsdump.c nseval.c nsinit.c		\
 	nsrepair.c nsrepair2.c nssearch.c nsutils.c nswalk.c	\
 	nsxfeval.c nsxfname.c nsxfobj.c
 
+# os_specific/service_layers
+SRCS+=	osunixxf.c
+
 # resources
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c		\
 	rsio.c rsirq.c rslist.c rsmemory.c rsmisc.c		\
-	rsutils.c rsxface.c
+	rsserial.c rsutils.c rsxface.c
 
 # tables
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c	\

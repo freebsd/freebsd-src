@@ -541,10 +541,10 @@ main(void)
     }
 
     if (*cmd) {
-	if (parse())
-	    autoboot = 0;
 	if (!OPT_CHECK(RBX_QUIET))
 	    printf("%s: %s", PATH_CONFIG, cmd);
+	if (parse())
+	    autoboot = 0;
 	/* Do not process this command twice */
 	*cmd = 0;
     }

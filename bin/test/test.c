@@ -119,7 +119,7 @@ enum token_types {
 };
 
 static struct t_op {
-	const char *op_text;
+	char op_text[4];
 	short op_num, op_type;
 } const ops [] = {
 	{"-r",	FILRD,	UNOP},
@@ -162,7 +162,7 @@ static struct t_op {
 	{"-o",	BOR,	BBINOP},
 	{"(",	LPAREN,	PAREN},
 	{")",	RPAREN,	PAREN},
-	{0,	0,	0}
+	{"",	0,	0}
 };
 
 static struct t_op const *t_wp_op;
@@ -427,7 +427,7 @@ t_lex(char *s)
 		t_wp_op = NULL;
 		return EOI;
 	}
-	while (op->op_text) {
+	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0) {
 			if (((op->op_type == UNOP || op->op_type == BUNOP)
 						&& isunopoperand()) ||
@@ -456,7 +456,7 @@ isunopoperand(void)
 	if (nargc == 2)
 		return parenlevel == 1 && strcmp(s, ")") == 0;
 	t = *(t_wp + 2);
-	while (op->op_text) {
+	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
 			return op->op_type == BINOP &&
 			    (parenlevel == 0 || t[0] != ')' || t[1] != '\0');
@@ -478,7 +478,7 @@ islparenoperand(void)
 		return parenlevel == 1 && strcmp(s, ")") == 0;
 	if (nargc != 3)
 		return 0;
-	while (op->op_text) {
+	while (*op->op_text) {
 		if (strcmp(s, op->op_text) == 0)
 			return op->op_type == BINOP;
 		op++;

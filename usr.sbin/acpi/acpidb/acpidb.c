@@ -43,7 +43,8 @@
 #include <unistd.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/tools/acpiexec/aecommon.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 /*
  * Dummy DSDT Table Header

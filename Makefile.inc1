@@ -59,8 +59,6 @@ SUBDIR+=games
 .endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
-.else
-NO_CTF=1
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
@@ -239,7 +237,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
-		-DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
+		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # build-tools stage
@@ -438,7 +436,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DWITHOUT_PROFILE libraries
+	    -DWITHOUT_MAN -DNO_PROFILE libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -1218,6 +1216,9 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+.if ${MK_LIBCPLUSPLUS} != "no"
+_startup_libs+=	lib/libcxxrt
+.endif
 
 gnu/lib/libgcc__L: lib/libc__L
 
@@ -1230,7 +1231,7 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
-		lib/libopie ${_lib_libthr} \
+		lib/libopie lib/libpam ${_lib_libthr} \
 		lib/libradius lib/libsbuf lib/libtacplus \
 		${_cddl_lib_libumem} \
 		lib/libutil ${_lib_libypclnt} lib/libz lib/msun \
@@ -1318,12 +1319,12 @@ ${_lib}__PL: .PHONY
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ obj; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
-.for _lib in ${_startup_libs} ${_prebuild_libs} ${_generic_libs}
+.for _lib in ${_startup_libs} ${_prebuild_libs:Nlib/libpam} ${_generic_libs}
 ${_lib}__L: .PHONY
 .if exists(${.CURDIR}/${_lib})
 	${_+_}@${ECHODIR} "===> ${_lib} (obj,depend,all,install)"; \
@@ -1334,6 +1335,17 @@ ${_lib}__L: .PHONY
 		${MAKE} DIRPRFX=${_lib}/ install
 .endif
 .endfor
+
+# libpam is special: we need to build static PAM modules before
+# static PAM library, and dynamic PAM library before dynamic PAM
+# modules.
+lib/libpam__L: .PHONY
+	${_+_}@${ECHODIR} "===> lib/libpam (obj,depend,all,install)"; \
+		cd ${.CURDIR}/lib/libpam; \
+		${MAKE} DIRPRFX=lib/libpam/ obj; \
+		${MAKE} DIRPRFX=lib/libpam/ depend; \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET all; \
+		${MAKE} DIRPRFX=lib/libpam/ -D_NO_LIBPAM_SO_YET install
 
 _prereq_libs: ${_prereq_libs:S/$/__PL/}
 _startup_libs: ${_startup_libs:S/$/__L/}
@@ -1541,7 +1553,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
+	-DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE \
 	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
@@ -1625,4 +1637,7 @@ _xi-links:
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
+.else
+xdev xdev-buil xdev-install:
+	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif

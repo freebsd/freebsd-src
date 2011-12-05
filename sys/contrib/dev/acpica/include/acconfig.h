@@ -123,7 +123,7 @@
 
 /* Maximum sleep allowed via Sleep() operator */
 
-#define ACPI_MAX_SLEEP                  20000   /* Two seconds */
+#define ACPI_MAX_SLEEP                  2000    /* 2000 millisec == two seconds */
 
 
 /******************************************************************************
@@ -183,9 +183,10 @@
 #define ACPI_RSDP_CHECKSUM_LENGTH       20
 #define ACPI_RSDP_XCHECKSUM_LENGTH      36
 
-/* SMBus and IPMI bidirectional buffer size */
+/* SMBus, GSBus and IPMI bidirectional buffer size */
 
 #define ACPI_SMBUS_BUFFER_SIZE          34
+#define ACPI_GSBUS_BUFFER_SIZE          34
 #define ACPI_IPMI_BUFFER_SIZE           66
 
 /* _SxD and _SxW control methods */

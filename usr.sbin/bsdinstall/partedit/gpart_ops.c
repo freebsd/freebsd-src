@@ -301,7 +301,7 @@ gpart_bootcode(struct ggeom *gp)
 		return;
 
 	bootfd = open(bootcode, O_RDONLY);
-	if (bootfd <= 0) {
+	if (bootfd < 0) {
 		dialog_msgbox("Bootcode Error", strerror(errno), 0, 0,
 		    TRUE);
 		return;

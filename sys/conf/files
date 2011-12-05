@@ -172,6 +172,7 @@ contrib/dev/acpica/disassembler/dmopcode.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmobject.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrc.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcl.c	optional acpi acpi_debug
+contrib/dev/acpica/disassembler/dmresrcl2.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmresrcs.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmutils.c	optional acpi acpi_debug
 contrib/dev/acpica/disassembler/dmwalk.c	optional acpi acpi_debug
@@ -272,6 +273,7 @@ contrib/dev/acpica/resources/rsirq.c		optional acpi
 contrib/dev/acpica/resources/rslist.c		optional acpi
 contrib/dev/acpica/resources/rsmemory.c		optional acpi
 contrib/dev/acpica/resources/rsmisc.c		optional acpi
+contrib/dev/acpica/resources/rsserial.c		optional acpi
 contrib/dev/acpica/resources/rsutils.c		optional acpi
 contrib/dev/acpica/resources/rsxface.c		optional acpi
 contrib/dev/acpica/tables/tbfadt.c		optional acpi
@@ -300,6 +302,7 @@ contrib/dev/acpica/utilities/utresrc.c		optional acpi
 contrib/dev/acpica/utilities/utstate.c		optional acpi
 contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/dev/acpica/utilities/utxferror.c	optional acpi
+#contrib/dev/acpica/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
@@ -517,7 +520,6 @@ dev/aic7xxx/aic7xxx_osm.c	optional ahc
 dev/aic7xxx/aic7xxx_pci.c	optional ahc pci
 dev/alc/if_alc.c		optional alc pci
 dev/ale/if_ale.c		optional ale pci
-dev/amd/amd.c			optional amd
 dev/amr/amr.c			optional amr
 dev/amr/amr_cam.c		optional amrp amr
 dev/amr/amr_disk.c		optional amr
@@ -778,13 +780,15 @@ dev/ath/ath_hal/ar5416/ar5416_xmit.c \
 	ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 # ar9130 (depends upon ar5416) - also requires AH_SUPPORT_AR9130
-dev/ath/ath_hal/ar9001/ar9130_attach.c optional ath_hal | ath_ar9130 \
+#
+# Since this is an embedded MAC SoC, there's no need to compile it into the
+# default HAL.
+dev/ath/ath_hal/ar9001/ar9130_attach.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9001/ar9130_phy.c optional ath_hal | ath_ar9130 \
+dev/ath/ath_hal/ar9001/ar9130_phy.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar9001/ar9130_eeprom.c optional ath_hal | ath_ar9130 \
+dev/ath/ath_hal/ar9001/ar9130_eeprom.c optional ath_ar9130 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-
 # ar9160 (depends on ar5416)
 dev/ath/ath_hal/ar9001/ar9160_attach.c optional ath_hal | ath_ar9160 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -831,7 +835,8 @@ dev/ath/ath_hal/ar5212/ar5112.c	optional ath_hal | ath_rf5112 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar5212/ar5413.c	optional ath_hal | ath_rf5413 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
-dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | ath_ar9160 \
+dev/ath/ath_hal/ar5416/ar2133.c optional ath_hal | ath_ar5416 | \
+	ath_ar9130 | ath_ar9160 | ath_ar9280 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
 dev/ath/ath_hal/ar9002/ar9280.c optional ath_hal | ath_ar9280 | ath_ar9285 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -1672,37 +1677,6 @@ dev/scd/scd.c			optional scd isa
 dev/scd/scd_isa.c		optional scd isa
 dev/sdhci/sdhci.c		optional sdhci pci
 dev/sf/if_sf.c			optional sf pci
-dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
-dev/sfxge/common/efx_ev.c	optional sfxge inet pci
-dev/sfxge/common/efx_filter.c	optional sfxge inet pci
-dev/sfxge/common/efx_intr.c	optional sfxge inet pci
-dev/sfxge/common/efx_mac.c	optional sfxge inet pci
-dev/sfxge/common/efx_mcdi.c	optional sfxge inet pci
-dev/sfxge/common/efx_mon.c	optional sfxge inet pci
-dev/sfxge/common/efx_nic.c	optional sfxge inet pci
-dev/sfxge/common/efx_nvram.c	optional sfxge inet pci
-dev/sfxge/common/efx_phy.c	optional sfxge inet pci
-dev/sfxge/common/efx_port.c	optional sfxge inet pci
-dev/sfxge/common/efx_rx.c	optional sfxge inet pci
-dev/sfxge/common/efx_sram.c	optional sfxge inet pci
-dev/sfxge/common/efx_tx.c	optional sfxge inet pci
-dev/sfxge/common/efx_vpd.c	optional sfxge inet pci
-dev/sfxge/common/efx_wol.c	optional sfxge inet pci
-dev/sfxge/common/siena_mac.c	optional sfxge inet pci
-dev/sfxge/common/siena_mon.c	optional sfxge inet pci
-dev/sfxge/common/siena_nic.c	optional sfxge inet pci
-dev/sfxge/common/siena_nvram.c	optional sfxge inet pci
-dev/sfxge/common/siena_phy.c	optional sfxge inet pci
-dev/sfxge/common/siena_sram.c	optional sfxge inet pci
-dev/sfxge/common/siena_vpd.c	optional sfxge inet pci
-dev/sfxge/sfxge.c		optional sfxge inet pci
-dev/sfxge/sfxge_dma.c		optional sfxge inet pci
-dev/sfxge/sfxge_ev.c		optional sfxge inet pci
-dev/sfxge/sfxge_intr.c		optional sfxge inet pci
-dev/sfxge/sfxge_mcdi.c		optional sfxge inet pci
-dev/sfxge/sfxge_port.c		optional sfxge inet pci
-dev/sfxge/sfxge_rx.c		optional sfxge inet pci
-dev/sfxge/sfxge_tx.c		optional sfxge inet pci
 dev/sge/if_sge.c		optional sge pci
 dev/si/si.c			optional si
 dev/si/si2_z280.c		optional si

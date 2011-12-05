@@ -55,6 +55,10 @@ void	parse_options(struct packet *);
 void	parse_option_buffer(struct packet *, unsigned char *, int);
 int	store_options(unsigned char *, int, struct tree_cache **,
 	    unsigned char *, int, int, int, int);
+void	expand_domain_search(struct packet *packet);
+int	find_search_domain_name_len(struct option_data *option, int *offset);
+void	expand_search_domain_name(struct option_data *option, int *offset,
+	    unsigned char **domain_search);
 
 
 /*
@@ -93,6 +97,11 @@ parse_options(struct packet *packet)
 			parse_option_buffer(packet,
 			    (unsigned char *)packet->raw->sname,
 			    sizeof(packet->raw->sname));
+	}
+
+	/* Expand DHCP Domain Search option. */
+	if (packet->options_valid) {
+		expand_domain_search(packet);
 	}
 }
 
@@ -191,6 +200,163 @@ parse_option_buffer(struct packet *packet,
 		s += len + 2;
 	}
 	packet->options_valid = 1;
+}
+
+/*
+ * Expand DHCP Domain Search option. The value of this option is
+ * encoded like DNS' list of labels. See:
+ *   RFC 3397
+ *   RFC 1035
+ */
+void
+expand_domain_search(struct packet *packet)
+{
+	int offset, expanded_len;
+	struct option_data *option;
+	unsigned char *domain_search, *cursor;
+
+	if (packet->options[DHO_DOMAIN_SEARCH].data == NULL)
+		return;
+
+	option = &packet->options[DHO_DOMAIN_SEARCH];
+
+	/* Compute final expanded length. */
+	expanded_len = 0;
+	offset = 0;
+	while (offset < option->len) {
+		/* We add 1 for the space between domain names. */
+		expanded_len +=
+		    find_search_domain_name_len(option, &offset) + 1;
+	}
+	if (expanded_len > 0)
+		/* Remove 1 for the superfluous trailing space. */
+		--expanded_len;
+
+	domain_search = malloc(expanded_len + 1);
+	if (domain_search == NULL)
+		error("Can't allocate storage for expanded domain-search\n");
+
+	offset = 0;
+	cursor = domain_search;
+	while (offset < option->len) {
+		expand_search_domain_name(option, &offset, &cursor);
+		cursor[0] = ' ';
+		cursor++;
+	}
+	domain_search[expanded_len] = '\0';
+
+	free(option->data);
+	option->len = expanded_len;
+	option->data = domain_search;
+}
+
+int
+find_search_domain_name_len(struct option_data *option, int *offset)
+{
+	int domain_name_len, i, label_len, pointer, pointed_len;
+
+	domain_name_len = 0;
+
+	i = *offset;
+	while (i < option->len) {
+		label_len = option->data[i];
+		if (label_len == 0) {
+			/*
+			 * A zero-length label marks the end of this
+			 * domain name.
+			 */
+			*offset = i + 1;
+			return (domain_name_len);
+		} else if (label_len & 0xC0) {
+			/* This is a pointer to another list of labels. */
+			if (i + 1 >= option->len) {
+				/* The pointer is truncated. */
+				error("Truncated pointer in DHCP Domain "
+				    "Search option.");
+			}
+
+			pointer = ((label_len & ~(0xC0)) << 8) +
+			    option->data[i + 1];
+			if (pointer >= *offset) {
+				/*
+				 * The pointer must indicates a prior
+				 * occurance.
+				 */
+				error("Invalid forward pointer in DHCP Domain "
+				    "Search option compression.");
+			}
+
+			pointed_len = find_search_domain_name_len(option,
+			    &pointer);
+			domain_name_len += pointed_len;
+
+			*offset = i + 2;
+			return (domain_name_len);
+		}
+
+		if (i + label_len >= option->len) {
+			error("Truncated label in DHCP Domain Search option.");
+		}
+
+		/*
+		 * Update the domain name length with the length of the
+		 * current label, plus a trailing dot ('.').
+		 */
+		domain_name_len += label_len + 1;
+
+		/* Move cursor. */
+		i += label_len + 1;
+	}
+
+	error("Truncated DHCP Domain Search option.");
+
+	return (0);
+}
+
+void
+expand_search_domain_name(struct option_data *option, int *offset,
+    unsigned char **domain_search)
+{
+	int i, label_len, pointer;
+	unsigned char *cursor;
+
+	/*
+	 * This is the same loop than the function above
+	 * (find_search_domain_name_len). Therefore, we remove checks,
+	 * they're already done. Here, we just make the copy.
+	 */
+	i = *offset;
+	cursor = *domain_search;
+	while (i < option->len) {
+		label_len = option->data[i];
+		if (label_len == 0) {
+			/*
+			 * A zero-length label marks the end of this
+			 * domain name.
+			 */
+			*offset = i + 1;
+			*domain_search = cursor;
+			return;
+		} else if (label_len & 0xC0) {
+			/* This is a pointer to another list of labels. */
+			pointer = ((label_len & ~(0xC0)) << 8) +
+			    option->data[i + 1];
+
+			expand_search_domain_name(option, &pointer, &cursor);
+
+			*offset = i + 2;
+			*domain_search = cursor;
+			return;
+		}
+
+		/* Copy the label found. */
+		memcpy(cursor, option->data + i + 1, label_len);
+		cursor[label_len] = '.';
+
+		/* Move cursor. */
+		i += label_len + 1;
+		cursor += label_len + 1;
+	}
 }
 
 /*

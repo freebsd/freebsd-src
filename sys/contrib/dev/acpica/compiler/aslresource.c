@@ -437,13 +437,14 @@ RsAllocateResourceNode (
 
 /*******************************************************************************
  *
- * FUNCTION:    RsCreateBitField
+ * FUNCTION:    RsCreateResourceField
  *
  * PARAMETERS:  Op              - Resource field node
  *              Name            - Name of the field (Used only to reference
  *                                the field in the ASL, not in the AML)
  *              ByteOffset      - Offset from the field start
  *              BitOffset       - Additional bit offset
+ *              BitLength       - Number of bits in the field
  *
  * RETURN:      None, sets fields within the input node
  *
@@ -454,46 +455,20 @@ RsAllocateResourceNode (
  ******************************************************************************/
 
 void
-RsCreateBitField (
+RsCreateResourceField (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name,
     UINT32                  ByteOffset,
-    UINT32                  BitOffset)
+    UINT32                  BitOffset,
+    UINT32                  BitLength)
 {
 
-    Op->Asl.ExternalName      = Name;
-    Op->Asl.Value.Integer     = ((UINT64) ByteOffset * 8) + BitOffset;
-    Op->Asl.CompileFlags     |= (NODE_IS_RESOURCE_FIELD | NODE_IS_BIT_OFFSET);
-}
+    Op->Asl.ExternalName = Name;
+    Op->Asl.CompileFlags |= NODE_IS_RESOURCE_FIELD;
 
 
-/*******************************************************************************
- *
- * FUNCTION:    RsCreateByteField
- *
- * PARAMETERS:  Op              - Resource field node
- *              Name            - Name of the field (Used only to reference
- *                                the field in the ASL, not in the AML)
- *              ByteOffset      - Offset from the field start
- *
- * RETURN:      None, sets fields within the input node
- *
- * DESCRIPTION: Utility function to generate a named byte field within a
- *              resource descriptor.  Mark a node as 1) a field in a resource
- *              descriptor, and 2) set the value to be a BYTE offset
- *
- ******************************************************************************/
-
-void
-RsCreateByteField (
-    ACPI_PARSE_OBJECT       *Op,
-    char                    *Name,
-    UINT32                  ByteOffset)
-{
-
-    Op->Asl.ExternalName      = Name;
-    Op->Asl.Value.Integer     = ByteOffset;
-    Op->Asl.CompileFlags     |= NODE_IS_RESOURCE_FIELD;
+    Op->Asl.Value.Tag.BitOffset = (ByteOffset * 8) + BitOffset;
+    Op->Asl.Value.Tag.BitLength = BitLength;
 }
 
 
@@ -534,6 +509,29 @@ RsSetFlagBits (
         /* Use the bit specified in the initialization node */
 
         *Flags |= (((UINT8) Op->Asl.Value.Integer) << Position);
+    }
+}
+
+
+void
+RsSetFlagBits16 (
+    UINT16                  *Flags,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT8                   Position,
+    UINT8                   DefaultBit)
+{
+
+    if (Op->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG)
+    {
+        /* Use the default bit */
+
+        *Flags |= (DefaultBit << Position);
+    }
+    else
+    {
+        /* Use the bit specified in the initialization node */
+
+        *Flags |= (((UINT16) Op->Asl.Value.Integer) << Position);
     }
 }
 
@@ -659,6 +657,11 @@ RsDoOneResourceDescriptor (
     {
     case PARSEOP_DMA:
         Rnode = RsDoDmaDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_FIXEDDMA:
+        Rnode = RsDoFixedDmaDescriptor (DescriptorTypeOp,
                     CurrentByteOffset);
         break;
 
@@ -845,6 +848,31 @@ RsDoOneResourceDescriptor (
                     CurrentByteOffset);
         break;
 
+    case PARSEOP_GPIO_INT:
+        Rnode = RsDoGpioIntDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_GPIO_IO:
+        Rnode = RsDoGpioIoDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_I2C_SERIALBUS:
+        Rnode = RsDoI2cSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_SPI_SERIALBUS:
+        Rnode = RsDoSpiSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
+    case PARSEOP_UART_SERIALBUS:
+        Rnode = RsDoUartSerialBusDescriptor (DescriptorTypeOp,
+                    CurrentByteOffset);
+        break;
+
     case PARSEOP_DEFAULT_ARG:
         /* Just ignore any of these, they are used as fillers/placeholders */
         break;
@@ -1019,10 +1047,12 @@ RsDoResourceTemplate (
     Op->Asl.ParseOpcode               = PARSEOP_BUFFER;
     Op->Asl.AmlOpcode                 = AML_BUFFER_OP;
     Op->Asl.CompileFlags              = NODE_AML_PACKAGE | NODE_IS_RESOURCE_DESC;
+    UtSetParseOpName (Op);
 
     BufferLengthOp->Asl.ParseOpcode   = PARSEOP_INTEGER;
     BufferLengthOp->Asl.Value.Integer = CurrentByteOffset;
     (void) OpcSetOptimalIntegerSize (BufferLengthOp);
+    UtSetParseOpName (BufferLengthOp);
 
     BufferOp->Asl.ParseOpcode         = PARSEOP_RAW_DATA;
     BufferOp->Asl.AmlOpcode           = AML_RAW_DATA_CHAIN;
@@ -1030,8 +1060,7 @@ RsDoResourceTemplate (
     BufferOp->Asl.AmlLength           = CurrentByteOffset;
     BufferOp->Asl.Value.Buffer        = (UINT8 *) HeadRnode.Next;
     BufferOp->Asl.CompileFlags       |= NODE_IS_RESOURCE_DATA;
+    UtSetParseOpName (BufferOp);
 
     return;
 }
-
-

@@ -22,7 +22,6 @@ SUBDIR=	${_3dfx} \
 	alc \
 	ale \
 	alq \
-	${_amd} \
 	${_amdsbwd} \
 	${_amdtemp} \
 	amr \
@@ -405,7 +404,6 @@ _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _agp=		agp
 _aic=		aic
-_amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm

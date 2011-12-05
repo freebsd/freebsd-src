@@ -57,35 +57,54 @@ iswctype_l(wint_t wc, wctype_t charclass, locale_t locale)
 wctype_t
 wctype_l(const char *property, locale_t locale)
 {
-	static const struct {
-		const char	*name;
-		wctype_t	 mask;
-	} props[] = {
-		{ "alnum",	_CTYPE_A|_CTYPE_D },
-		{ "alpha",	_CTYPE_A },
-		{ "blank",	_CTYPE_B },
-		{ "cntrl",	_CTYPE_C },
-		{ "digit",	_CTYPE_D },
-		{ "graph",	_CTYPE_G },
-		{ "lower",	_CTYPE_L },
-		{ "print",	_CTYPE_R },
-		{ "punct",	_CTYPE_P },
-		{ "space",	_CTYPE_S },
-		{ "upper",	_CTYPE_U },
-		{ "xdigit",	_CTYPE_X },
-		{ "ideogram",	_CTYPE_I },	/* BSD extension */
-		{ "special",	_CTYPE_T },	/* BSD extension */
-		{ "phonogram",	_CTYPE_Q },	/* BSD extension */
-		{ "rune",	0xFFFFFF00L },	/* BSD extension */
-		{ NULL,		0UL },		/* Default */
+	const char *propnames = 
+		"alnum\0"
+		"alpha\0"
+		"blank\0"
+		"cntrl\0"
+		"digit\0"
+		"graph\0"
+		"lower\0"
+		"print\0"
+		"punct\0"
+		"space\0"
+		"upper\0"
+		"xdigit\0"
+		"ideogram\0"	/* BSD extension */
+		"special\0"	/* BSD extension */
+		"phonogram\0"	/* BSD extension */
+		"rune\0";	/* BSD extension */
+	static const wctype_t propmasks[] = {
+		_CTYPE_A|_CTYPE_D,
+		_CTYPE_A,
+		_CTYPE_B,
+		_CTYPE_C,
+		_CTYPE_D,
+		_CTYPE_G,
+		_CTYPE_L,
+		_CTYPE_R,
+		_CTYPE_P,
+		_CTYPE_S,
+		_CTYPE_U,
+		_CTYPE_X,
+		_CTYPE_I,
+		_CTYPE_T,
+		_CTYPE_Q,
+		0xFFFFFF00L
 	};
-	int i;
+	size_t len1, len2;
+	const char *p;
+	const wctype_t *q;
 
-	i = 0;
-	while (props[i].name != NULL && strcmp(props[i].name, property) != 0)
-		i++;
+	len1 = strlen(property);
+	q = propmasks;
+	for (p = propnames; (len2 = strlen(p)) != 0; p += len2 + 1) {
+		if (len1 == len2 && memcmp(property, p, len1) == 0)
+			return (*q);
+		q++;
+	}
 
-	return (props[i].mask);
+	return (0UL);
 }
 
 wctype_t wctype(const char *property)

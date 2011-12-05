@@ -159,6 +159,7 @@ jchandra [label="Jayachandran C.\njchandra@FreeBSD.org\n2010/05/19"]
 jeff [label="Jeff Roberson\njeff@FreeBSD.org\n2002/02/21"]
 jh [label="Jaakko Heinonen\njh@FreeBSD.org\n2009/10/02"]
 jhb [label="John Baldwin\njhb@FreeBSD.org\n1999/08/23"]
+jhibbits [label="Justin Hibbits\njhibbits@FreeBSD.org\n2011/11/30"]
 jilles [label="Jilles Tjoelker\njilles@FreeBSD.org\n2009/05/22"]
 jinmei [label="JINMEI Tatuya\njinmei@FreeBSD.org\n2007/03/17"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2005/07/06"]
@@ -497,6 +498,7 @@ njl -> rpaulo
 njl -> sepotvin
 
 nwhitehorn -> andreast
+nwhitehorn -> jhibbits
 
 obrien -> benno
 obrien -> groudier

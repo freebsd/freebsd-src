@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20111122:
+	The acpi_wmi(4) status device /dev/wmistat has been renamed to
+	/dev/wmistat0.
+
 20111108:
 	The option VFS_ALLOW_NONMPSAFE option has been added in order to
 	explicitely support non-MPSAFE filesystems.

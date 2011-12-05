@@ -820,9 +820,11 @@ error:
 	free(config);
 	free(state.volumes);
 	free(state.arrays);
-	for (i = 0; i < narrays; i++)
-		free(arrays[i].drives);
-	free(arrays);
+	if (arrays != NULL) {
+		for (i = 0; i < narrays; i++)
+			free(arrays[i].drives);
+		free(arrays);
+	}
 	close(fd);
 
 	return (error);

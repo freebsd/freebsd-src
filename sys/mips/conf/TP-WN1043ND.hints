@@ -17,3 +17,61 @@ hint.arge.1.phymask=0x0
 
 # Where the ART is
 hint.ath.0.eepromaddr=0x1fff1000
+
+#
+# Define a slightly custom flash layout.
+
+# The default flash layout:
+#
+# 128k: uboot
+# 1024k: kernel
+# 4096k: rootfs
+# 2816: unknown
+# 64k: board config?
+# 64k: ART
+#
+# from printenv:
+# bootargs=console=ttyS0,115200 root=31:02 rootfstype=jffs2 init=/sbin/init
+#    mtdparts=ar9100-nor0:128k(u-boot),1024k(kernel),4096k(rootfs),64k(art)
+
+# This isn't a lot of space!
+# So:
+# 128k: uboot
+# 2048k: kernel
+# 5888k: rootfs
+# 64k: config
+# 64k: ART
+
+hint.map.0.at="flash/spi0"
+hint.map.0.start=0x00000000
+hint.map.0.end=0x000200000
+hint.map.0.name="uboot"
+hint.map.0.readonly=1
+
+hint.map.1.at="flash/spi0"
+hint.map.1.start=0x00020000
+hint.map.1.end=0x00220000
+hint.map.1.name="kernel"
+hint.map.1.readonly=1
+
+hint.map.2.at="flash/spi0"
+hint.map.2.start=0x00220000
+hint.map.2.end=0x007e0000
+hint.map.2.name="rootfs"
+hint.map.2.readonly=1
+
+hint.map.3.at="flash/spi0"
+hint.map.3.start=0x007e0000
+hint.map.3.end=0x007f0000
+hint.map.3.name="cfg"
+hint.map.3.readonly=0
+
+# This is radio calibration section.  It is (or should be!) unique
+# for each board, to take into account thermal and electrical differences
+# as well as the regulatory compliance data.
+#
+hint.map.4.at="flash/spi0"
+hint.map.4.start=0x007f0000
+hint.map.4.end=0x00800000
+hint.map.4.name="art"
+hint.map.4.readonly=1

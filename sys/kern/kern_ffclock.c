@@ -49,6 +49,8 @@ __FBSDID("$FreeBSD$");
 
 #ifdef FFCLOCK
 
+FEATURE(ffclock, "Feed-forward clock support");
+
 extern struct ffclock_estimate ffclock_estimate;
 extern struct bintime ffclock_boottime;
 extern int8_t ffclock_updated;
@@ -146,31 +148,33 @@ ffclock_difftime(ffcounter ffdelta, struct bintime *bt,
 }
 
 /*
- * Sysctl for the Feed-Forward Clock.
+ * Create a new kern.sysclock sysctl node, which will be home to some generic
+ * sysclock configuration variables. Feed-forward clock specific variables will
+ * live under the ffclock subnode.
  */
 
-static int ffclock_version = 2;
-SYSCTL_NODE(_kern, OID_AUTO, ffclock, CTLFLAG_RW, 0,
-    "Feed-Forward Clock Support");
-SYSCTL_INT(_kern_ffclock, OID_AUTO, version, CTLFLAG_RD, &ffclock_version, 0,
-    "Version of Feed-Forward Clock Support");
+SYSCTL_NODE(_kern, OID_AUTO, sysclock, CTLFLAG_RW, 0,
+    "System clock related configuration");
+SYSCTL_NODE(_kern_sysclock, OID_AUTO, ffclock, CTLFLAG_RW, 0,
+    "Feed-forward clock configuration");
 
-/*
- * Sysctl to select which clock is read when calling any of the
- * [get]{bin,nano,micro}[up]time() functions.
- */
-char *sysclocks[] = {"feedback", "feed-forward"};
-
+static char *sysclocks[] = {"feedback", "feed-forward"};
+#define	MAX_SYSCLOCK_NAME_LEN 16
 #define	NUM_SYSCLOCKS (sizeof(sysclocks) / sizeof(*sysclocks))
 
-/* Report or change the active timecounter hardware. */
+static int ffclock_version = 2;
+SYSCTL_INT(_kern_sysclock_ffclock, OID_AUTO, version, CTLFLAG_RD,
+    &ffclock_version, 0, "Feed-forward clock kernel version");
+
+/* List available sysclocks. */
 static int
-sysctl_kern_ffclock_choice(SYSCTL_HANDLER_ARGS)
+sysctl_kern_sysclock_available(SYSCTL_HANDLER_ARGS)
 {
 	struct sbuf *s;
 	int clk, error;
 
-	s = sbuf_new_for_sysctl(NULL, NULL, 16 * NUM_SYSCLOCKS, req);
+	s = sbuf_new_for_sysctl(NULL, NULL,
+	    MAX_SYSCLOCK_NAME_LEN * NUM_SYSCLOCKS, req);
 	if (s == NULL)
 		return (ENOMEM);
 
@@ -185,49 +189,51 @@ sysctl_kern_ffclock_choice(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_PROC(_kern_ffclock, OID_AUTO, choice, CTLTYPE_STRING | CTLFLAG_RD,
-    0, 0, sysctl_kern_ffclock_choice, "A", "Clock paradigms available");
+SYSCTL_PROC(_kern_sysclock, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD,
+    0, 0, sysctl_kern_sysclock_available, "A",
+    "List of available system clocks");
 
-extern int sysclock_active;
-
+/*
+ * Return the name of the active system clock if read, or attempt to change
+ * the active system clock to the user specified one if written to. The active
+ * system clock is read when calling any of the [get]{bin,nano,micro}[up]time()
+ * functions.
+ */
 static int
-sysctl_kern_ffclock_active(SYSCTL_HANDLER_ARGS)
+sysctl_kern_sysclock_active(SYSCTL_HANDLER_ARGS)
 {
-	char newclock[32];
-	int error;
+	char newclock[MAX_SYSCLOCK_NAME_LEN];
+	int clk, error;
 
-	switch (sysclock_active) {
-	case SYSCLOCK_FBCK:
-		strlcpy(newclock, sysclocks[SYSCLOCK_FBCK], sizeof(newclock));
-		break;
-	case SYSCLOCK_FFWD:
-		strlcpy(newclock, sysclocks[SYSCLOCK_FFWD], sizeof(newclock));
-		break;
+	if (req->newptr == NULL) {
+		/* Return the name of the current active sysclock. */
+		strlcpy(newclock, sysclocks[sysclock_active], sizeof(newclock));
+		error = sysctl_handle_string(oidp, newclock,
+		    sizeof(newclock), req);
+	} else {
+		/* Change the active sysclock to the user specified one. */
+		error = EINVAL;
+		for (clk = 0; clk < NUM_SYSCLOCKS; clk++) {
+			if (strncmp((char *)req->newptr, sysclocks[clk],
+			    strlen(sysclocks[clk])) == 0) {
+				sysclock_active = clk;
+				error = 0;
+				break;
+			}
+		}
 	}
-
-	error = sysctl_handle_string(oidp, &newclock[0], sizeof(newclock), req);
-	if (error != 0 || req->newptr == NULL)
-		return (error);
-	if (strncmp(newclock, sysclocks[SYSCLOCK_FBCK],
-	    sizeof(sysclocks[SYSCLOCK_FBCK])) == 0)
-		sysclock_active = SYSCLOCK_FBCK;
-	else if (strncmp(newclock, sysclocks[SYSCLOCK_FFWD],
-	    sizeof(sysclocks[SYSCLOCK_FFWD])) == 0)
-		sysclock_active = SYSCLOCK_FFWD;
-	else
-		return (EINVAL);
 
 	return (error);
 }
 
-SYSCTL_PROC(_kern_ffclock, OID_AUTO, active, CTLTYPE_STRING | CTLFLAG_RW,
-    0, 0, sysctl_kern_ffclock_active, "A", "Kernel clock selected");
+SYSCTL_PROC(_kern_sysclock, OID_AUTO, active, CTLTYPE_STRING | CTLFLAG_RW,
+    0, 0, sysctl_kern_sysclock_active, "A",
+    "Name of the active system clock which is currently serving time");
 
-int sysctl_kern_ffclock_ffcounter_bypass = 0;
-
-SYSCTL_INT(_kern_ffclock, OID_AUTO, ffcounter_bypass, CTLFLAG_RW,
+static int sysctl_kern_ffclock_ffcounter_bypass = 0;
+SYSCTL_INT(_kern_sysclock_ffclock, OID_AUTO, ffcounter_bypass, CTLFLAG_RW,
     &sysctl_kern_ffclock_ffcounter_bypass, 0,
-    "Use reliable hardware timecounter as the Feed-Forward Counter");
+    "Use reliable hardware timecounter as the feed-forward counter");
 
 /*
  * High level functions to access the Feed-Forward Clock.
