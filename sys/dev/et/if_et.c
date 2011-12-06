@@ -244,6 +244,7 @@ et_attach(device_t dev)
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -335,7 +336,6 @@ et_attach(device_t dev)
 	ifp->if_init = et_init;
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
 	ifp->if_snd.ifq_drv_maxlen = ET_TX_NDESC - 1;
@@ -352,7 +352,9 @@ et_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, eaddr);
-	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
+
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, et_intr, sc, &sc->sc_irq_handle);
