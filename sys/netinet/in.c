@@ -73,7 +73,7 @@ static int	in_addprefix(struct in_ifaddr *, int);
 static int	in_scrubprefix(struct in_ifaddr *, u_int);
 static void	in_socktrim(struct sockaddr_in *);
 static int	in_ifinit(struct ifnet *,
-	    struct in_ifaddr *, struct sockaddr_in *, int);
+	    struct in_ifaddr *, struct sockaddr_in *, int, int);
 static void	in_purgemaddrs(struct ifnet *);
 
 static VNET_DEFINE(int, sameprefixcarponly);
@@ -517,7 +517,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	case SIOCSIFADDR:
 		error = in_ifinit(ifp, ia,
-		    (struct sockaddr_in *) &ifr->ifr_addr, 1);
+		    (struct sockaddr_in *) &ifr->ifr_addr, 1, 0);
 		if (error != 0 && iaIsNew)
 			break;
 		if (error == 0) {
@@ -569,7 +569,8 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			maskIsNew  = 1; /* We lie; but the effect's the same */
 		}
 		if (hostIsNew || maskIsNew)
-			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0);
+			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0,
+			    maskIsNew);
 		if (error != 0 && iaIsNew)
 			break;
 
@@ -842,7 +843,7 @@ in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia, u_int flags)
  */
 static int
 in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
-    int scrub)
+    int scrub, int masksupplied)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	int flags = RTF_UP, error = 0;
@@ -872,7 +873,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	 * Be compatible with network classes, if netmask isn't supplied,
 	 * guess it based on classes.
 	 */
-	if (ia->ia_subnetmask == 0) {
+	if (!masksupplied) {
 		if (IN_CLASSA(i))
 			ia->ia_subnetmask = IN_CLASSA_NET;
 		else if (IN_CLASSB(i))
