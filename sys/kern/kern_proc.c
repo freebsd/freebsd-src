@@ -2457,7 +2457,7 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 	p = pfind((pid_t)name[0]);
 	if (p == NULL)
 		return (ESRCH);
-	error = p_cansee(curthread, p);
+	error = p_candebug(curthread, p);
 	if (error != 0) {
 		PROC_UNLOCK(p);
 		return (error);
