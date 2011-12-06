@@ -73,6 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/proc.h>
 #include <sys/signalvar.h>
+#include <sys/taskqueue.h>
 
 #include <machine/bus.h>
 #include <machine/resource.h>
@@ -96,6 +97,7 @@ static void	mfi_startup(void *arg);
 static void	mfi_intr(void *arg);
 static void	mfi_ldprobe(struct mfi_softc *sc);
 static void	mfi_syspdprobe(struct mfi_softc *sc);
+static void	mfi_handle_evt(void *context, int pending);
 static int	mfi_aen_register(struct mfi_softc *sc, int seq, int locale);
 static void	mfi_aen_complete(struct mfi_command *);
 static int	mfi_add_ld(struct mfi_softc *sc, int);
@@ -368,6 +370,8 @@ mfi_attach(struct mfi_softc *sc)
 	sx_init(&sc->mfi_config_lock, "MFI config");
 	TAILQ_INIT(&sc->mfi_ld_tqh);
 	TAILQ_INIT(&sc->mfi_syspd_tqh);
+	TAILQ_INIT(&sc->mfi_evt_queue);
+	TASK_INIT(&sc->mfi_evt_task, 0, mfi_handle_evt, sc);
 	TAILQ_INIT(&sc->mfi_aen_pids);
 	TAILQ_INIT(&sc->mfi_cam_ccbq);
 
@@ -1462,6 +1466,10 @@ static void
 mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail,uint8_t probe_sys_pd)
 {
 	struct mfi_system_pd *syspd = NULL;
+
+	device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n", detail->seq,
+	    format_timestamp(detail->time), detail->evt_class.members.locale,
+	    format_class(detail->evt_class.members.evt_class), detail->description);
 	switch (detail->arg_type) {
 	case MR_EVT_ARGS_NONE:
 #define MR_EVT_CTRL_HOST_BUS_SCAN_REQUESTED 0x0152
@@ -1527,10 +1535,41 @@ mfi_decode_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail,uint8_t probe
 		}
 		break;
 	}
+}
 
-	device_printf(sc->mfi_dev, "%d (%s/0x%04x/%s) - %s\n", detail->seq,
-	    format_timestamp(detail->time), detail->evt_class.members.locale,
-	    format_class(detail->evt_class.members.evt_class), detail->description);
+static void
+mfi_queue_evt(struct mfi_softc *sc, struct mfi_evt_detail *detail,
+    uint8_t probe_sys_pd)
+{
+	struct mfi_evt_queue_elm *elm;
+
+	mtx_assert(&sc->mfi_io_lock, MA_OWNED);
+	elm = malloc(sizeof(*elm), M_MFIBUF, M_NOWAIT|M_ZERO);
+	if (elm == NULL)
+		return;
+	elm->probe_sys_pd = probe_sys_pd;
+	memcpy(&elm->detail, detail, sizeof(*detail));
+	TAILQ_INSERT_TAIL(&sc->mfi_evt_queue, elm, link);
+	taskqueue_enqueue(taskqueue_swi, &sc->mfi_evt_task);
+}
+
+static void
+mfi_handle_evt(void *context, int pending)
+{
+	TAILQ_HEAD(,mfi_evt_queue_elm) queue;
+	struct mfi_softc *sc;
+	struct mfi_evt_queue_elm *elm;
+
+	sc = context;
+	TAILQ_INIT(&queue);
+	mtx_lock(&sc->mfi_io_lock);
+	TAILQ_CONCAT(&queue, &sc->mfi_evt_queue, link);
+	mtx_unlock(&sc->mfi_io_lock);
+	while ((elm = TAILQ_FIRST(&queue)) != NULL) {
+		TAILQ_REMOVE(&queue, elm, link);
+		mfi_decode_evt(sc, &elm->detail, elm->probe_sys_pd);
+		free(elm, M_MFIBUF);
+	}
 }
 
 static int
@@ -1616,13 +1655,7 @@ mfi_aen_complete(struct mfi_command *cm)
 			selwakeup(&sc->mfi_select);
 		}
 		detail = cm->cm_data;
-		/*
-		 * XXX If this function is too expensive or is recursive, then
-		 * events should be put onto a queue and processed later.
-		 */
-		mtx_unlock(&sc->mfi_io_lock);
-		mfi_decode_evt(sc, detail,1);
-		mtx_lock(&sc->mfi_io_lock);
+		mfi_queue_evt(sc, detail, 1);
 		seq = detail->seq + 1;
 		TAILQ_FOREACH_SAFE(mfi_aen_entry, &sc->mfi_aen_pids, aen_link, tmp) {
 			TAILQ_REMOVE(&sc->mfi_aen_pids, mfi_aen_entry,
@@ -1738,7 +1771,9 @@ mfi_parse_entries(struct mfi_softc *sc, int start_seq, int stop_seq)
 				else if (el->event[i].seq < start_seq)
 					break;
 			}
-			mfi_decode_evt(sc, &el->event[i], 0);
+			mtx_lock(&sc->mfi_io_lock);
+			mfi_queue_evt(sc, &el->event[i], 0);
+			mtx_unlock(&sc->mfi_io_lock);
 		}
 		seq = el->event[el->count - 1].seq + 1;
 	}
