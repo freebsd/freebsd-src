@@ -226,7 +226,7 @@ et_probe(device_t dev)
 	for (d = et_devices; d->desc != NULL; ++d) {
 		if (vid == d->vid && did == d->did) {
 			device_set_desc(dev, d->desc);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return (ENXIO);
@@ -378,31 +378,27 @@ et_detach(device_t dev)
 	struct et_softc *sc = device_get_softc(dev);
 
 	if (device_is_attached(dev)) {
-		struct ifnet *ifp = sc->ifp;
-
+		ether_ifdetach(sc->ifp);
 		ET_LOCK(sc);
 		et_stop(sc);
-		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_handle);
 		ET_UNLOCK(sc);
-
-		ether_ifdetach(ifp);
+		callout_drain(&sc->sc_tick);
 	}
 
 	if (sc->sc_miibus != NULL)
 		device_delete_child(dev, sc->sc_miibus);
 	bus_generic_detach(dev);
 
-	if (sc->sc_irq_res != NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
-				     sc->sc_irq_res);
-	}
+	if (sc->sc_irq_handle != NULL)
+		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_handle);
+	if (sc->sc_irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 	if ((sc->sc_flags & ET_FLAG_MSI) != 0)
 		pci_release_msi(dev);
-
-	if (sc->sc_mem_res != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
-				     sc->sc_mem_res);
-	}
+	if (sc->sc_mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_mem_res), sc->sc_mem_res);
 
 	if (sc->ifp != NULL)
 		if_free(sc->ifp);
