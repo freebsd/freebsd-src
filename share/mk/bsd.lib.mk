@@ -167,6 +167,11 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+SOLINKOPTS=	-shared -Wl,-x
+.if !defined(ALLOW_SHARED_TEXTREL)
+SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+.endif
+
 .if target(beforelinking)
 ${SHLIB_NAME}: ${SOBJS} beforelinking
 .else
@@ -178,11 +183,11 @@ ${SHLIB_NAME}: ${SOBJS}
 	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
