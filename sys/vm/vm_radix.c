@@ -344,7 +344,7 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	    rnode->rn_child[slot], (u_long)index));
 	val = (void *)((uintptr_t)val | VM_RADIX_BLACK);
 	rnode->rn_child[slot] = val;
-	atomic_add_int((volatile int *)&rnode->rn_count, 1);
+	rnode->rn_count++;
 	CTR6(KTR_VM,
 	    "insert: tree %p, index %ju, level %d, slot %d, rnode %p, count %u",
 	    rtree, (uintmax_t)index, level, slot, rnode, rnode->rn_count);
@@ -681,14 +681,7 @@ vm_radix_remove(struct vm_radix *rtree, vm_pindex_t index, int color)
 		    (rnode != NULL) ? rnode->rn_child[slot] : NULL,
 		    (rnode != NULL) ? rnode->rn_count : 0);
 		rnode->rn_child[slot] = NULL;
-		/*
-		 * Use atomics for the last level since red and black
-		 * will both adjust it.
-		 */
-		if (level == 0)
-			atomic_add_int((volatile int *)&rnode->rn_count, -1);
-		else
-			rnode->rn_count--;
+		rnode->rn_count--;
 		/*
 		 * Only allow black removes to prune the tree.
 		 */
