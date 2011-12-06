@@ -60,6 +60,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 
 #include <sys/types.h>
+#include <sys/taskqueue.h>
 #include <machine/atomic.h>
 
 /*
@@ -136,6 +137,13 @@ struct mfi_system_pd {
 	struct disk	*pd_disk;
 	int		pd_flags;
 };
+
+struct mfi_evt_queue_elm {
+	TAILQ_ENTRY(mfi_evt_queue_elm)	link;
+	uint8_t				probe_sys_pd;
+	struct mfi_evt_detail		detail;
+};
+
 struct mfi_aen {
 	TAILQ_ENTRY(mfi_aen) aen_link;
 	struct proc			*p;
@@ -208,6 +216,8 @@ struct mfi_softc {
 	bus_addr_t			mfi_tb_ioc_init_busaddr;
 	union mfi_frame			*mfi_tb_init;
 
+	TAILQ_HEAD(,mfi_evt_queue_elm)	mfi_evt_queue;
+	struct task			mfi_evt_task;
 	TAILQ_HEAD(,mfi_aen)		mfi_aen_pids;
 	struct mfi_command		*mfi_aen_cm;
 	struct mfi_command		*mfi_skinny_cm;
