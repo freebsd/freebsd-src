@@ -220,6 +220,7 @@ et_attach(device_t dev)
 	struct et_softc *sc;
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
+	uint32_t pmcfg;
 	int cap, error, msic;
 
 	sc = device_get_softc(dev);
@@ -304,8 +305,11 @@ et_attach(device_t dev)
 
 	et_get_eaddr(dev, eaddr);
 
-	CSR_WRITE_4(sc, ET_PM,
-		    ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE);
+	/* Take PHY out of COMA and enable clocks. */
+	pmcfg = ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE;
+	if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+		pmcfg |= EM_PM_GIGEPHY_ENB;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 
 	et_reset(sc);
 
@@ -2636,11 +2640,18 @@ static int
 et_suspend(device_t dev)
 {
 	struct et_softc *sc;
+	uint32_t pmcfg;
 
 	sc = device_get_softc(dev);
 	ET_LOCK(sc);
 	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		et_stop(sc);
+	/* Diable all clocks and put PHY into COMA. */
+	pmcfg = CSR_READ_4(sc, ET_PM);
+	pmcfg &= ~(EM_PM_GIGEPHY_ENB | ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE |
+	    ET_PM_RXCLK_GATE);
+	pmcfg |= ET_PM_PHY_SW_COMA;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 	ET_UNLOCK(sc);
 	return (0);
 }
@@ -2649,9 +2660,15 @@ static int
 et_resume(device_t dev)
 {
 	struct et_softc *sc;
+	uint32_t pmcfg;
 
 	sc = device_get_softc(dev);
 	ET_LOCK(sc);
+	/* Take PHY out of COMA and enable clocks. */
+	pmcfg = ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE;
+	if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+		pmcfg |= EM_PM_GIGEPHY_ENB;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 	if ((sc->ifp->if_flags & IFF_UP) != 0)
 		et_init_locked(sc);
 	ET_UNLOCK(sc);
