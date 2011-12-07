@@ -23,13 +23,13 @@
 .\"  SUCH DAMAGE.
 .\" 
 .\"  $FreeBSD$
-.\" /
-.Dd December 7, 2011o.Dt ATEXIT 3
+.\"
+.Dd December 7, 2011
 .Dt QUICK_EXIT 3
 .Os
 .Sh NAME
 .Nm quick_exit
-.Nd Exits a program quickly, running minimal cleanup
+.Nd exits a program quickly, running minimal cleanup
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -44,12 +44,14 @@ with
 .Xr at_quick_exit 3
 but not any C++ destructors or cleanup code registered with
 .Xr atexit 3 .
-.El
+.Sh RETURN VALUES
+The
+.Fn quick_exit
+function does not return.
 .Sh SEE ALSO
-.Xr exit 3 ,
-.Xr at_quick_exit 3
+.Xr at_quick_exit 3 ,
+.Xr exit 3
 .Sh STANDARDS
 The
 .Fn quick_exit
 function conforms to the C1x draft specification.
-
