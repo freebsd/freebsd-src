@@ -218,6 +218,17 @@
 #endif
 #endif
 
+
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	__noreturn		[[noreturn]]
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
+#define	__noreturn		_Noreturn
+#elif defined(__GNUC__)
+#define	__noreturn		__attribute__((__noreturn__))
+#else
+#define	__noreturn
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
