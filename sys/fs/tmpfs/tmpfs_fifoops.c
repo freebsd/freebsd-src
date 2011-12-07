@@ -39,6 +39,7 @@
 #include <sys/param.h>
 #include <sys/filedesc.h>
 #include <sys/proc.h>
+#include <sys/systm.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>

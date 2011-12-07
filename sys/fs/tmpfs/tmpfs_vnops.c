@@ -505,11 +505,14 @@ tmpfs_mappedread(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *uio
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL))
+	if (vobj == NULL)
 		goto nocache;
 
 	VM_OBJECT_LOCK(vobj);
+	if (vobj->cached_page_count == 0) {
+		VM_OBJECT_UNLOCK(vobj);
+		goto nocache;
+	}
 lookupvpg:
 	if (((m = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(m, offset, tlen)) {
@@ -633,13 +636,17 @@ tmpfs_mappedwrite(vm_object_t vobj, vm_object_t tobj, size_t len, struct uio *ui
 	offset = addr & PAGE_MASK;
 	tlen = MIN(PAGE_SIZE - offset, len);
 
-	if ((vobj == NULL) ||
-	    (vobj->resident_page_count == 0 && vobj->cache == NULL)) {
+	if (vobj == NULL) {
 		vpg = NULL;
 		goto nocache;
 	}
 
 	VM_OBJECT_LOCK(vobj);
+	if (vobj->cached_page_count == 0) {
+		VM_OBJECT_UNLOCK(vobj);
+		vpg = NULL;
+		goto nocache;
+	}
 lookupvpg:
 	if (((vpg = vm_page_lookup(vobj, idx)) != NULL) &&
 	    vm_page_is_valid(vpg, offset, tlen)) {
@@ -657,8 +664,6 @@ lookupvpg:
 		VM_OBJECT_UNLOCK(vobj);
 		error = uiomove_fromphys(&vpg, offset, tlen, uio);
 	} else {
-		if (__predict_false(vobj->cache != NULL))
-			vm_page_cache_free(vobj, idx, idx + 1);
 		VM_OBJECT_UNLOCK(vobj);
 		vpg = NULL;
 	}
