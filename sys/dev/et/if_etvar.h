@@ -231,6 +231,56 @@ struct et_rxbuf_data {
 	void			(*rbd_discard)(struct et_rxbuf_data *, int);
 };
 
+struct et_hw_stats {
+	/* RX/TX stats. */
+	uint64_t		pkts_64;
+	uint64_t		pkts_65;
+	uint64_t		pkts_128;
+	uint64_t		pkts_256;
+	uint64_t		pkts_512;
+	uint64_t		pkts_1024;
+	uint64_t		pkts_1519;
+	/* RX stats. */
+	uint64_t		rx_bytes;
+	uint64_t		rx_frames;
+	uint32_t		rx_crcerrs;
+	uint64_t		rx_mcast;
+	uint64_t		rx_bcast;
+	uint32_t		rx_control;
+	uint32_t		rx_pause;
+	uint32_t		rx_unknown_control;
+	uint32_t		rx_alignerrs;
+	uint32_t		rx_lenerrs;
+	uint32_t		rx_codeerrs;
+	uint32_t		rx_cserrs;
+	uint32_t		rx_runts;
+	uint64_t		rx_oversize;
+	uint32_t		rx_fragments;
+	uint32_t		rx_jabbers;
+	uint32_t		rx_drop;
+	/* TX stats. */
+	uint64_t		tx_bytes;
+	uint64_t		tx_frames;
+	uint64_t		tx_mcast;
+	uint64_t		tx_bcast;
+	uint32_t		tx_pause;
+	uint32_t		tx_deferred;
+	uint32_t		tx_excess_deferred;
+	uint32_t		tx_single_colls;
+	uint32_t		tx_multi_colls;
+	uint32_t		tx_late_colls;
+	uint32_t		tx_excess_colls;
+	uint32_t		tx_total_colls;
+	uint32_t		tx_pause_honored;
+	uint32_t		tx_drop;
+	uint32_t		tx_jabbers;
+	uint32_t		tx_crcerrs;
+	uint32_t		tx_control;
+	uint64_t		tx_oversize;
+	uint32_t		tx_undersize;
+	uint32_t		tx_fragments;
+};
+
 struct et_softc {
 	struct ifnet		*ifp;
 	device_t		dev;
@@ -271,6 +321,7 @@ struct et_softc {
 	struct et_rxbuf_data	sc_rx_data[ET_RX_NRING];
 	struct et_txbuf_data	sc_tx_data;
 
+	struct et_hw_stats	sc_stats;
 	uint32_t		sc_tx;
 	uint32_t		sc_tx_intr;
 
