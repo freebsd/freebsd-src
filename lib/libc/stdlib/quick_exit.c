@@ -39,9 +39,6 @@ struct quick_exit_handler {
 	void (*cleanup)(void);
 };
 
-__attribute((weak))
-void _ZSt9terminatev(void);
-
 /**
  * Lock protecting the handlers list.
  */
@@ -56,26 +53,26 @@ at_quick_exit(void (*func)(void))
 {
 	struct quick_exit_handler *h = malloc(sizeof(struct quick_exit_handler));
 
-	if (0 == h) {
+	if (NULL == h)
 		return 1;
-	}
 	h->cleanup = func;
 	pthread_mutex_lock(&atexit_mutex);
 	h->next = handlers;
 	handlers = h;
 	pthread_mutex_unlock(&atexit_mutex);
-	return 0;
+	return (0);
 }
 
-void quick_exit(int status)
+void
+quick_exit(int status)
 {
+	struct quick_exit_handler *h;
+
 	/*
 	 * XXX: The C++ spec requires us to call std::terminate if there is an
 	 * exception here.
 	 */
-	for (struct quick_exit_handler *h = handlers ; NULL != h ; h = h->next)
-	{
+	for (h = handlers; NULL != h; h = h->next)
 		h->cleanup();
-	}
 	_Exit(status);
 }
