@@ -23,13 +23,13 @@
 .\"  SUCH DAMAGE.
 .\" 
 .\"  $FreeBSD$
-.\" /
-.Dd December 7, 2011o.Dt ATEXIT 3
+.\"
+.Dd December 7, 2011
 .Dt AT_QUICK_EXIT 3
 .Os
 .Sh NAME
 .Nm at_quick_exit
-.Nd Registers a cleanup function to run on quick exit.
+.Nd registers a cleanup function to run on quick exit
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
@@ -48,10 +48,13 @@ the program exits by calling
 .Xr _Exit 3 ,
 or
 .Xr abort 3 .
-.El
+.Sh RETURN VALUES
+The 
+.Fn at_quick_exit
+function returns the value 0 if successful and a non-zero value on failure.
 .Sh SEE ALSO
 .Xr exit 3 ,
-.Xr at_quick_exit 3
+.Xr quick_exit 3
 .Sh STANDARDS
 The
 .Fn at_quick_exit
