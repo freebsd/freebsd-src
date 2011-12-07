@@ -1287,11 +1287,11 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ET_LOCK(sc);
 			et_setmulti(sc);
 			ET_UNLOCK(sc);
-			error = 0;
 		}
 		break;
 
 	case SIOCSIFMTU:
+		ET_LOCK(sc);
 #if 0
 		if (sc->sc_flags & ET_FLAG_JUMBO)
 			max_framelen = ET_JUMBO_FRAMELEN;
@@ -1301,14 +1301,18 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (ET_FRAMELEN(ifr->ifr_mtu) > max_framelen) {
 			error = EOPNOTSUPP;
+			ET_UNLOCK(sc);
 			break;
 		}
 
 		if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			et_init(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				et_init_locked(sc);
+			}
 		}
+		ET_UNLOCK(sc);
 		break;
 
 	case SIOCSIFCAP:
