@@ -698,12 +698,9 @@ kmeminit(void *dummy)
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
-	 * more applicable for a wider range of machine sizes.
-	 * On an X86, a VM_KMEM_SIZE_SCALE value of 4 is good, while
-	 * a VM_KMEM_SIZE of 12MB is a fair compromise.  The
+	 * more applicable for a wider range of machine sizes.  The
 	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
-	 * available, and on an X86 with a total KVA space of 256MB,
-	 * try to keep VM_KMEM_SIZE_MAX at 80MB or below.
+	 * available.
 	 *
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
