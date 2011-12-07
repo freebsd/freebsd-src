@@ -289,7 +289,9 @@ struct et_softc {
 
 #define ET_FLAG_PCIE		0x0001
 #define ET_FLAG_MSI		0x0002
+#define ET_FLAG_FASTETHER	0x0004
 #define ET_FLAG_TXRX_ENABLED	0x0100
 #define ET_FLAG_JUMBO		0x0200
+#define ET_FLAG_LINK		0x8000
 
 #endif	/* !_IF_ETVAR_H */
