@@ -109,8 +109,6 @@ static int	et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS);
 static int	et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS);
 
 static void	et_intr(void *);
-static void	et_enable_intrs(struct et_softc *, uint32_t);
-static void	et_disable_intrs(struct et_softc *);
 static void	et_rxeof(struct et_softc *);
 static void	et_txeof(struct et_softc *);
 
@@ -308,8 +306,6 @@ et_attach(device_t dev)
 		    ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE);
 
 	et_reset(sc);
-
-	et_disable_intrs(sc);
 
 	error = et_dma_alloc(sc);
 	if (error)
@@ -540,11 +536,11 @@ et_stop(struct et_softc *sc)
 	ET_LOCK_ASSERT(sc);
 
 	callout_stop(&sc->sc_tick);
+	/* Disable interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
 	et_stop_rxdma(sc);
 	et_stop_txdma(sc);
-
-	et_disable_intrs(sc);
 
 	et_free_tx_ring(sc);
 	et_free_rx_ring(sc);
@@ -670,18 +666,8 @@ et_reset(struct et_softc *sc)
 		    ET_MAC_CFG1_RST_TXFUNC | ET_MAC_CFG1_RST_RXFUNC |
 		    ET_MAC_CFG1_RST_TXMC | ET_MAC_CFG1_RST_RXMC);
 	CSR_WRITE_4(sc, ET_MAC_CFG1, 0);
-}
-
-static void
-et_disable_intrs(struct et_softc *sc)
-{
+	/* Disable interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
-}
-
-static void
-et_enable_intrs(struct et_softc *sc, uint32_t intrs)
-{
-	CSR_WRITE_4(sc, ET_INTR_MASK, ~intrs);
 }
 
 struct et_dmamap_arg {
@@ -1083,12 +1069,12 @@ et_intr(void *xsc)
 		return;
 	}
 
-	et_disable_intrs(sc);
+	/* Disable further interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
 	intrs = CSR_READ_4(sc, ET_INTR_STATUS);
-	intrs &= ET_INTRS;
-	if (intrs == 0)	/* Not interested */
-		goto back;
+	if ((intrs & ET_INTRS) == 0)
+		goto done;
 
 	if (intrs & ET_INTR_RXEOF)
 		et_rxeof(sc);
@@ -1096,9 +1082,9 @@ et_intr(void *xsc)
 		et_txeof(sc);
 	if (intrs & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
-back:
+done:
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
-		et_enable_intrs(sc, ET_INTRS);
+		CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			et_start_locked(ifp);
 	}
@@ -1132,7 +1118,8 @@ et_init_locked(struct et_softc *sc)
 	if (error)
 		goto back;
 
-	et_enable_intrs(sc, ET_INTRS);
+	/* Enable interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
 
 	callout_reset(&sc->sc_tick, hz, et_tick, sc);
 
