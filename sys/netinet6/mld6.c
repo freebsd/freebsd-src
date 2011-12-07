@@ -3090,7 +3090,6 @@ mld_dispatch_packet(struct mbuf *m)
 		m0 = mld_v2_encap_report(ifp, m);
 		if (m0 == NULL) {
 			CTR2(KTR_MLD, "%s: dropped %p", __func__, m);
-			m_freem(m);
 			IP6STAT_INC(ip6s_odropped);
 			goto out;
 		}
