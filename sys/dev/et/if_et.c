@@ -146,6 +146,7 @@ static int	et_bus_config(struct et_softc *);
 static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
+static void	et_stats_update(struct et_softc *);
 
 static const struct et_dev {
 	uint16_t	vid;
@@ -635,6 +636,7 @@ et_stop(struct et_softc *sc)
 
 	et_stop_rxdma(sc);
 	et_stop_txdma(sc);
+	et_stats_update(sc);
 
 	et_free_tx_ring(sc);
 	et_free_rx_ring(sc);
@@ -2049,7 +2051,6 @@ et_rxeof(struct et_softc *sc)
 		m = rbd->rbd_buf[buf_idx].rb_mbuf;
 		if ((rxst_info1 & ET_RXST_INFO1_OK) == 0){
 			/* Discard errored frame. */
-			ifp->if_ierrors++;
 			rbd->rbd_discard(rbd, buf_idx);
 		} else if (rbd->rbd_newbuf(rbd, buf_idx) != 0) {
 			/* No available mbufs, discard it. */
@@ -2063,7 +2064,6 @@ et_rxeof(struct et_softc *sc)
 			} else {
 				m->m_pkthdr.len = m->m_len = buflen;
 				m->m_pkthdr.rcvif = ifp;
-				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
 				ET_LOCK(sc);
@@ -2229,7 +2229,6 @@ et_txeof(struct et_softc *sc)
 			bus_dmamap_unload(sc->sc_tx_tag, tb->tb_dmap);
 			m_freem(tb->tb_mbuf);
 			tb->tb_mbuf = NULL;
-			ifp->if_opackets++;
 		}
 
 		if (++tbd->tbd_start_index == ET_TX_NDESC) {
@@ -2259,6 +2258,7 @@ et_tick(void *xsc)
 	mii = device_get_softc(sc->sc_miibus);
 
 	mii_tick(mii);
+	et_stats_update(sc);
 	if (et_watchdog(sc) == EJUSTRETURN)
 		return;
 	callout_reset(&sc->sc_tick, hz, et_tick, sc);
@@ -2371,6 +2371,11 @@ et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
 	return (0);
 }
 
+#define	ET_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+#define	ET_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
 /*
  * Create sysctl tree
  */
@@ -2378,7 +2383,9 @@ static void
 et_add_sysctls(struct et_softc * sc)
 {
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *parent;
+	struct sysctl_oid *tree;
+	struct et_hw_stats *stats;
 
 	ctx = device_get_sysctl_ctx(sc->dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
@@ -2394,7 +2401,115 @@ et_add_sysctls(struct et_softc * sc)
 	    "TX IM, # segments per TX interrupt");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "timer",
 	    CTLFLAG_RW, &sc->sc_timer, 0, "TX timer");
+
+	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "ET statistics");
+        parent = SYSCTL_CHILDREN(tree);
+
+	/* TX/RX statistics. */
+	stats = &sc->sc_stats;
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_64", &stats->pkts_64,
+	    "0 to 64 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_65_127", &stats->pkts_65,
+	    "65 to 127 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_128_255", &stats->pkts_128,
+	    "128 to 255 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_256_511", &stats->pkts_256,
+	    "256 to 511 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_512_1023", &stats->pkts_512,
+	    "512 to 1023 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_1024_1518", &stats->pkts_1024,
+	    "1024 to 1518 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_1519_1522", &stats->pkts_1519,
+	    "1519 to 1522 bytes frames");
+
+	/* RX statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "RX MAC statistics");
+	children = SYSCTL_CHILDREN(tree);
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
+	    &stats->rx_bytes, "Good bytes");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "frames",
+	    &stats->rx_frames, "Good frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "crc_errs",
+	    &stats->rx_crcerrs, "CRC errors");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "mcast_frames",
+	    &stats->rx_mcast, "Multicast frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bcast_frames",
+	    &stats->rx_bcast, "Broadcast frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "control",
+	    &stats->rx_control, "Control frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause",
+	    &stats->rx_pause, "Pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "unknown_control",
+	    &stats->rx_unknown_control, "Unknown control frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "align_errs",
+	    &stats->rx_alignerrs, "Alignment errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "len_errs",
+	    &stats->rx_lenerrs, "Frames with length mismatched");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "code_errs",
+	    &stats->rx_codeerrs, "Frames with code error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "cs_errs",
+	    &stats->rx_cserrs, "Frames with carrier sense error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "runts",
+	    &stats->rx_runts, "Too short frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "oversize",
+	    &stats->rx_oversize, "Oversized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "fragments",
+	    &stats->rx_fragments, "Fragmented frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "jabbers",
+	    &stats->rx_jabbers, "Frames with jabber error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "drop",
+	    &stats->rx_drop, "Dropped frames");
+
+	/* TX statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "TX MAC statistics");
+	children = SYSCTL_CHILDREN(tree);
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
+	    &stats->tx_bytes, "Good bytes");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "frames",
+	    &stats->tx_frames, "Good frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "mcast_frames",
+	    &stats->tx_mcast, "Multicast frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bcast_frames",
+	    &stats->tx_bcast, "Broadcast frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause",
+	    &stats->tx_pause, "Pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "deferred",
+	    &stats->tx_deferred, "Deferred frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "excess_deferred",
+	    &stats->tx_excess_deferred, "Excessively deferred frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "single_colls",
+	    &stats->tx_single_colls, "Single collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "multi_colls",
+	    &stats->tx_multi_colls, "Multiple collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "late_colls",
+	    &stats->tx_late_colls, "Late collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "excess_colls",
+	    &stats->tx_excess_colls, "Excess collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "total_colls",
+	    &stats->tx_total_colls, "Total collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause_honored",
+	    &stats->tx_pause_honored, "Honored pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "drop",
+	    &stats->tx_drop, "Dropped frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "jabbers",
+	    &stats->tx_jabbers, "Frames with jabber errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "crc_errs",
+	    &stats->tx_crcerrs, "Frames with CRC errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "control",
+	    &stats->tx_control, "Control frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "oversize",
+	    &stats->tx_oversize, "Oversized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "undersize",
+	    &stats->tx_undersize, "Undersized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "fragments",
+	    &stats->tx_fragments, "Fragmented frames");
 }
+
+#undef	ET_SYSCTL_STAT_ADD32
+#undef	ET_SYSCTL_STAT_ADD64
 
 static int
 et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
@@ -2444,6 +2559,73 @@ et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 	}
 back:
 	return (error);
+}
+
+static void
+et_stats_update(struct et_softc *sc)
+{
+	struct ifnet *ifp;
+	struct et_hw_stats *stats;
+
+	stats = &sc->sc_stats;
+	stats->pkts_64 += CSR_READ_4(sc, ET_STAT_PKTS_64);
+	stats->pkts_65 += CSR_READ_4(sc, ET_STAT_PKTS_65_127);
+	stats->pkts_128 += CSR_READ_4(sc, ET_STAT_PKTS_128_255);
+	stats->pkts_256 += CSR_READ_4(sc, ET_STAT_PKTS_256_511);
+	stats->pkts_512 += CSR_READ_4(sc, ET_STAT_PKTS_512_1023);
+	stats->pkts_1024 += CSR_READ_4(sc, ET_STAT_PKTS_1024_1518);
+	stats->pkts_1519 += CSR_READ_4(sc, ET_STAT_PKTS_1519_1522);
+
+	stats->rx_bytes += CSR_READ_4(sc, ET_STAT_RX_BYTES);
+	stats->rx_frames += CSR_READ_4(sc, ET_STAT_RX_FRAMES);
+	stats->rx_crcerrs += CSR_READ_4(sc, ET_STAT_RX_CRC_ERR);
+	stats->rx_mcast += CSR_READ_4(sc, ET_STAT_RX_MCAST);
+	stats->rx_bcast += CSR_READ_4(sc, ET_STAT_RX_BCAST);
+	stats->rx_control += CSR_READ_4(sc, ET_STAT_RX_CTL);
+	stats->rx_pause += CSR_READ_4(sc, ET_STAT_RX_PAUSE);
+	stats->rx_unknown_control += CSR_READ_4(sc, ET_STAT_RX_UNKNOWN_CTL);
+	stats->rx_alignerrs += CSR_READ_4(sc, ET_STAT_RX_ALIGN_ERR);
+	stats->rx_lenerrs += CSR_READ_4(sc, ET_STAT_RX_LEN_ERR);
+	stats->rx_codeerrs += CSR_READ_4(sc, ET_STAT_RX_CODE_ERR);
+	stats->rx_cserrs += CSR_READ_4(sc, ET_STAT_RX_CS_ERR);
+	stats->rx_runts += CSR_READ_4(sc, ET_STAT_RX_RUNT);
+	stats->rx_oversize += CSR_READ_4(sc, ET_STAT_RX_OVERSIZE);
+	stats->rx_fragments += CSR_READ_4(sc, ET_STAT_RX_FRAG);
+	stats->rx_jabbers += CSR_READ_4(sc, ET_STAT_RX_JABBER);
+	stats->rx_drop += CSR_READ_4(sc, ET_STAT_RX_DROP);
+
+	stats->tx_bytes += CSR_READ_4(sc, ET_STAT_TX_BYTES);
+	stats->tx_frames += CSR_READ_4(sc, ET_STAT_TX_FRAMES);
+	stats->tx_mcast += CSR_READ_4(sc, ET_STAT_TX_MCAST);
+	stats->tx_bcast += CSR_READ_4(sc, ET_STAT_TX_BCAST);
+	stats->tx_pause += CSR_READ_4(sc, ET_STAT_TX_PAUSE);
+	stats->tx_deferred += CSR_READ_4(sc, ET_STAT_TX_DEFER);
+	stats->tx_excess_deferred += CSR_READ_4(sc, ET_STAT_TX_EXCESS_DEFER);
+	stats->tx_single_colls += CSR_READ_4(sc, ET_STAT_TX_SINGLE_COL);
+	stats->tx_multi_colls += CSR_READ_4(sc, ET_STAT_TX_MULTI_COL);
+	stats->tx_late_colls += CSR_READ_4(sc, ET_STAT_TX_LATE_COL);
+	stats->tx_excess_colls += CSR_READ_4(sc, ET_STAT_TX_EXCESS_COL);
+	stats->tx_total_colls += CSR_READ_4(sc, ET_STAT_TX_TOTAL_COL);
+	stats->tx_pause_honored += CSR_READ_4(sc, ET_STAT_TX_PAUSE_HONOR);
+	stats->tx_drop += CSR_READ_4(sc, ET_STAT_TX_DROP);
+	stats->tx_jabbers += CSR_READ_4(sc, ET_STAT_TX_JABBER);
+	stats->tx_crcerrs += CSR_READ_4(sc, ET_STAT_TX_CRC_ERR);
+	stats->tx_control += CSR_READ_4(sc, ET_STAT_TX_CTL);
+	stats->tx_oversize += CSR_READ_4(sc, ET_STAT_TX_OVERSIZE);
+	stats->tx_undersize += CSR_READ_4(sc, ET_STAT_TX_UNDERSIZE);
+	stats->tx_fragments += CSR_READ_4(sc, ET_STAT_TX_FRAG);
+
+	/* Update ifnet counters. */
+	ifp = sc->ifp;
+	ifp->if_opackets = (u_long)stats->tx_frames;
+	ifp->if_collisions = stats->tx_total_colls;
+	ifp->if_oerrors = stats->tx_drop + stats->tx_jabbers +
+	    stats->tx_crcerrs + stats->tx_excess_deferred +
+	    stats->tx_late_colls;
+	ifp->if_ipackets = (u_long)stats->rx_frames;
+	ifp->if_ierrors = stats->rx_crcerrs + stats->rx_alignerrs +
+	    stats->rx_lenerrs + stats->rx_codeerrs + stats->rx_cserrs +
+	    stats->rx_runts + stats->rx_jabbers + stats->rx_drop;
 }
 
 static int
