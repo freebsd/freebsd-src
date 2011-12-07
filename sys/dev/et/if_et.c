@@ -99,7 +99,7 @@ static void	et_init(void *);
 static int	et_ioctl(struct ifnet *, u_long, caddr_t);
 static void	et_start_locked(struct ifnet *);
 static void	et_start(struct ifnet *);
-static void	et_watchdog(struct et_softc *);
+static int	et_watchdog(struct et_softc *);
 static int	et_ifmedia_upd_locked(struct ifnet *);
 static int	et_ifmedia_upd(struct ifnet *);
 static void	et_ifmedia_sts(struct ifnet *, struct ifmediareq *);
@@ -114,24 +114,22 @@ static void	et_disable_intrs(struct et_softc *);
 static void	et_rxeof(struct et_softc *);
 static void	et_txeof(struct et_softc *);
 
-static int	et_dma_alloc(device_t);
-static void	et_dma_free(device_t);
-static int	et_dma_mem_create(device_t, bus_size_t, bus_dma_tag_t *,
-				  void **, bus_addr_t *, bus_dmamap_t *);
-static void	et_dma_mem_destroy(bus_dma_tag_t, void *, bus_dmamap_t);
-static int	et_dma_mbuf_create(device_t);
-static void	et_dma_mbuf_destroy(device_t, int, const int[]);
-static void	et_dma_ring_addr(void *, bus_dma_segment_t *, int, int);
-static void	et_dma_buf_addr(void *, bus_dma_segment_t *, int,
-				bus_size_t, int);
-static int	et_init_tx_ring(struct et_softc *);
+static int	et_dma_alloc(struct et_softc *);
+static void	et_dma_free(struct et_softc *);
+static void	et_dma_map_addr(void *, bus_dma_segment_t *, int, int);
+static int	et_dma_ring_alloc(struct et_softc *, bus_size_t, bus_size_t,
+		    bus_dma_tag_t *, uint8_t **, bus_dmamap_t *, bus_addr_t *,
+		    const char *);
+static void	et_dma_ring_free(struct et_softc *, bus_dma_tag_t *, uint8_t **,
+		    bus_dmamap_t *);
+static void	et_init_tx_ring(struct et_softc *);
 static int	et_init_rx_ring(struct et_softc *);
 static void	et_free_tx_ring(struct et_softc *);
 static void	et_free_rx_ring(struct et_softc *);
 static int	et_encap(struct et_softc *, struct mbuf **);
-static int	et_newbuf(struct et_rxbuf_data *, int, int, int);
-static int	et_newbuf_cluster(struct et_rxbuf_data *, int, int);
-static int	et_newbuf_hdr(struct et_rxbuf_data *, int, int);
+static int	et_newbuf_cluster(struct et_rxbuf_data *, int);
+static int	et_newbuf_hdr(struct et_rxbuf_data *, int);
+static void	et_rxbuf_discard(struct et_rxbuf_data *, int);
 
 static void	et_stop(struct et_softc *);
 static int	et_chip_init(struct et_softc *);
@@ -152,7 +150,6 @@ static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
 static void	et_setmedia(struct et_softc *);
-static void	et_setup_rxdesc(struct et_rxbuf_data *, int, bus_addr_t);
 
 static const struct et_dev {
 	uint16_t	vid;
@@ -201,18 +198,6 @@ TUNABLE_INT("hw.et.timer", &et_timer);
 TUNABLE_INT("hw.et.rx_intr_npkts", &et_rx_intr_npkts);
 TUNABLE_INT("hw.et.rx_intr_delay", &et_rx_intr_delay);
 TUNABLE_INT("hw.et.tx_intr_nsegs", &et_tx_intr_nsegs);
-
-struct et_bsize {
-	int		bufsize;
-	et_newbuf_t	newbuf;
-};
-
-static const struct et_bsize	et_bufsize_std[ET_RX_NRING] = {
-	{ .bufsize = ET_RXDMA_CTRL_RING0_128,
-	  .newbuf = et_newbuf_hdr },
-	{ .bufsize = ET_RXDMA_CTRL_RING1_2048,
-	  .newbuf = et_newbuf_cluster },
-};
 
 static int
 et_probe(device_t dev)
@@ -326,7 +311,7 @@ et_attach(device_t dev)
 
 	et_disable_intrs(sc);
 
-	error = et_dma_alloc(dev);
+	error = et_dma_alloc(sc);
 	if (error)
 		goto fail;
 
@@ -403,7 +388,7 @@ et_detach(device_t dev)
 	if (sc->ifp != NULL)
 		if_free(sc->ifp);
 
-	et_dma_free(dev);
+	et_dma_free(sc);
 
 	mtx_destroy(&sc->sc_mtx);
 
@@ -699,235 +684,250 @@ et_enable_intrs(struct et_softc *sc, uint32_t intrs)
 	CSR_WRITE_4(sc, ET_INTR_MASK, ~intrs);
 }
 
-static int
-et_dma_alloc(device_t dev)
+struct et_dmamap_arg {
+	bus_addr_t	et_busaddr;
+};
+
+static void
+et_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 {
-	struct et_softc *sc = device_get_softc(dev);
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
-	struct et_txstatus_data *txsd = &sc->sc_tx_status;
-	struct et_rxstat_ring *rxst_ring = &sc->sc_rxstat_ring;
-	struct et_rxstatus_data *rxsd = &sc->sc_rx_status;
+	struct et_dmamap_arg *ctx;
+
+	if (error)
+		return;
+
+	KASSERT(nseg == 1, ("%s: %d segments returned!", __func__, nseg));
+
+	ctx = arg;
+	ctx->et_busaddr = segs->ds_addr;
+}
+
+static int
+et_dma_ring_alloc(struct et_softc *sc, bus_size_t alignment, bus_size_t maxsize,
+    bus_dma_tag_t *tag, uint8_t **ring, bus_dmamap_t *map, bus_addr_t *paddr,
+    const char *msg)
+{
+	struct et_dmamap_arg ctx;
+	int error;
+
+	error = bus_dma_tag_create(sc->sc_dtag, alignment, 0, BUS_SPACE_MAXADDR,
+	    BUS_SPACE_MAXADDR, NULL, NULL, maxsize, 1, maxsize, 0, NULL, NULL,
+	    tag);
+	if (error != 0) {
+		device_printf(sc->dev, "could not create %s dma tag\n", msg);
+		return (error);
+	}
+	/* Allocate DMA'able memory for ring. */
+	error = bus_dmamem_alloc(*tag, (void **)ring,
+	    BUS_DMA_NOWAIT | BUS_DMA_ZERO | BUS_DMA_COHERENT, map);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not allocate DMA'able memory for %s\n", msg);
+		return (error);
+	}
+	/* Load the address of the ring. */
+	ctx.et_busaddr = 0;
+	error = bus_dmamap_load(*tag, *map, *ring, maxsize, et_dma_map_addr,
+	    &ctx, BUS_DMA_NOWAIT);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not load DMA'able memory for %s\n", msg);
+		return (error);
+	}
+	*paddr = ctx.et_busaddr;
+	return (0);
+}
+
+static void
+et_dma_ring_free(struct et_softc *sc, bus_dma_tag_t *tag, uint8_t **ring,
+    bus_dmamap_t *map)
+{
+
+	if (*map != NULL)
+		bus_dmamap_unload(*tag, *map);
+	if (*map != NULL && *ring != NULL) {
+		bus_dmamem_free(*tag, *ring, *map);
+		*ring = NULL;
+		*map = NULL;
+	}
+	if (*tag) {
+		bus_dma_tag_destroy(*tag);
+		*tag = NULL;
+	}
+}
+
+static int
+et_dma_alloc(struct et_softc *sc)
+{
+	struct et_txdesc_ring *tx_ring;
+	struct et_rxdesc_ring *rx_ring;
+	struct et_rxstat_ring *rxst_ring;
+	struct et_rxstatus_data *rxsd;
+	struct et_rxbuf_data *rbd;
+        struct et_txbuf_data *tbd;
+	struct et_txstatus_data *txsd;
 	int i, error;
 
-	/*
-	 * Create top level DMA tag
-	 */
-	error = bus_dma_tag_create(NULL, 1, 0,
-				   BUS_SPACE_MAXADDR_32BIT,
-				   BUS_SPACE_MAXADDR,
-				   NULL, NULL,
-				   MAXBSIZE,
-				   BUS_SPACE_UNRESTRICTED,
-				   BUS_SPACE_MAXSIZE_32BIT,
-				   0, NULL, NULL, &sc->sc_dtag);
-	if (error) {
-		device_printf(dev, "can't create DMA tag\n");
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->sc_dtag);
+	if (error != 0) {
+		device_printf(sc->dev, "could not allocate parent dma tag\n");
 		return (error);
 	}
 
-	/*
-	 * Create TX ring DMA stuffs
-	 */
-	error = et_dma_mem_create(dev, ET_TX_RING_SIZE, &tx_ring->tr_dtag,
-				  (void **)&tx_ring->tr_desc,
-				  &tx_ring->tr_paddr, &tx_ring->tr_dmap);
-	if (error) {
-		device_printf(dev, "can't create TX ring DMA stuffs\n");
-		return (error);
-	}
-
-	/*
-	 * Create TX status DMA stuffs
-	 */
-	error = et_dma_mem_create(dev, sizeof(uint32_t), &txsd->txsd_dtag,
-				  (void **)&txsd->txsd_status,
-				  &txsd->txsd_paddr, &txsd->txsd_dmap);
-	if (error) {
-		device_printf(dev, "can't create TX status DMA stuffs\n");
-		return (error);
-	}
-
-	/*
-	 * Create DMA stuffs for RX rings
-	 */
-	for (i = 0; i < ET_RX_NRING; ++i) {
-		static const uint32_t rx_ring_posreg[ET_RX_NRING] =
-		{ ET_RX_RING0_POS, ET_RX_RING1_POS };
-
-		struct et_rxdesc_ring *rx_ring = &sc->sc_rx_ring[i];
-
-		error = et_dma_mem_create(dev, ET_RX_RING_SIZE,
-					  &rx_ring->rr_dtag,
-					  (void **)&rx_ring->rr_desc,
-					  &rx_ring->rr_paddr,
-					  &rx_ring->rr_dmap);
-		if (error) {
-			device_printf(dev, "can't create DMA stuffs for "
-				      "the %d RX ring\n", i);
-			return (error);
-		}
-		rx_ring->rr_posreg = rx_ring_posreg[i];
-	}
-
-	/*
-	 * Create RX stat ring DMA stuffs
-	 */
-	error = et_dma_mem_create(dev, ET_RXSTAT_RING_SIZE,
-				  &rxst_ring->rsr_dtag,
-				  (void **)&rxst_ring->rsr_stat,
-				  &rxst_ring->rsr_paddr, &rxst_ring->rsr_dmap);
-	if (error) {
-		device_printf(dev, "can't create RX stat ring DMA stuffs\n");
-		return (error);
-	}
-
-	/*
-	 * Create RX status DMA stuffs
-	 */
-	error = et_dma_mem_create(dev, sizeof(struct et_rxstatus),
-				  &rxsd->rxsd_dtag,
-				  (void **)&rxsd->rxsd_status,
-				  &rxsd->rxsd_paddr, &rxsd->rxsd_dmap);
-	if (error) {
-		device_printf(dev, "can't create RX status DMA stuffs\n");
-		return (error);
-	}
-
-	/*
-	 * Create mbuf DMA stuffs
-	 */
-	error = et_dma_mbuf_create(dev);
+	/* TX ring. */
+	tx_ring = &sc->sc_tx_ring;
+	error = et_dma_ring_alloc(sc, ET_RING_ALIGN, ET_TX_RING_SIZE,
+	    &tx_ring->tr_dtag, (uint8_t **)&tx_ring->tr_desc, &tx_ring->tr_dmap,
+	    &tx_ring->tr_paddr, "TX ring");
 	if (error)
 		return (error);
 
-	return (0);
-}
+	/* TX status block. */
+	txsd = &sc->sc_tx_status;
+	error = et_dma_ring_alloc(sc, ET_STATUS_ALIGN, sizeof(uint32_t),
+	    &txsd->txsd_dtag, (uint8_t **)&txsd->txsd_status, &txsd->txsd_dmap,
+	    &txsd->txsd_paddr, "TX status block");
+	if (error)
+		return (error);
 
-static void
-et_dma_free(device_t dev)
-{
-	struct et_softc *sc = device_get_softc(dev);
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
-	struct et_txstatus_data *txsd = &sc->sc_tx_status;
-	struct et_rxstat_ring *rxst_ring = &sc->sc_rxstat_ring;
-	struct et_rxstatus_data *rxsd = &sc->sc_rx_status;
-	int i, rx_done[ET_RX_NRING];
+	/* RX ring 0, used as to recive small sized frames. */
+	rx_ring = &sc->sc_rx_ring[0];
+	error = et_dma_ring_alloc(sc, ET_RING_ALIGN, ET_RX_RING_SIZE,
+	    &rx_ring->rr_dtag, (uint8_t **)&rx_ring->rr_desc, &rx_ring->rr_dmap,
+	    &rx_ring->rr_paddr, "RX ring 0");
+	rx_ring->rr_posreg = ET_RX_RING0_POS;
+	if (error)
+		return (error);
 
-	/*
-	 * Destroy TX ring DMA stuffs
-	 */
-	et_dma_mem_destroy(tx_ring->tr_dtag, tx_ring->tr_desc,
-			   tx_ring->tr_dmap);
+	/* RX ring 1, used as to store normal sized frames. */
+	rx_ring = &sc->sc_rx_ring[1];
+	error = et_dma_ring_alloc(sc, ET_RING_ALIGN, ET_RX_RING_SIZE,
+	    &rx_ring->rr_dtag, (uint8_t **)&rx_ring->rr_desc, &rx_ring->rr_dmap,
+	    &rx_ring->rr_paddr, "RX ring 1");
+	rx_ring->rr_posreg = ET_RX_RING1_POS;
+	if (error)
+		return (error);
 
-	/*
-	 * Destroy TX status DMA stuffs
-	 */
-	et_dma_mem_destroy(txsd->txsd_dtag, txsd->txsd_status,
-			   txsd->txsd_dmap);
+	/* RX stat ring. */
+	rxst_ring = &sc->sc_rxstat_ring;
+	error = et_dma_ring_alloc(sc, ET_RING_ALIGN, ET_RXSTAT_RING_SIZE,
+	    &rxst_ring->rsr_dtag, (uint8_t **)&rxst_ring->rsr_stat,
+	    &rxst_ring->rsr_dmap, &rxst_ring->rsr_paddr, "RX stat ring");
+	if (error)
+		return (error);
 
-	/*
-	 * Destroy DMA stuffs for RX rings
-	 */
-	for (i = 0; i < ET_RX_NRING; ++i) {
-		struct et_rxdesc_ring *rx_ring = &sc->sc_rx_ring[i];
+	/* RX status block. */
+	rxsd = &sc->sc_rx_status;
+	error = et_dma_ring_alloc(sc, ET_STATUS_ALIGN,
+	    sizeof(struct et_rxstatus), &rxsd->rxsd_dtag,
+	    (uint8_t **)&rxsd->rxsd_status, &rxsd->rxsd_dmap,
+	    &rxsd->rxsd_paddr, "RX status block");
+	if (error)
+		return (error);
 
-		et_dma_mem_destroy(rx_ring->rr_dtag, rx_ring->rr_desc,
-				   rx_ring->rr_dmap);
-	}
-
-	/*
-	 * Destroy RX stat ring DMA stuffs
-	 */
-	et_dma_mem_destroy(rxst_ring->rsr_dtag, rxst_ring->rsr_stat,
-			   rxst_ring->rsr_dmap);
-
-	/*
-	 * Destroy RX status DMA stuffs
-	 */
-	et_dma_mem_destroy(rxsd->rxsd_dtag, rxsd->rxsd_status,
-			   rxsd->rxsd_dmap);
-
-	/*
-	 * Destroy mbuf DMA stuffs
-	 */
-	for (i = 0; i < ET_RX_NRING; ++i)
-		rx_done[i] = ET_RX_NDESC;
-	et_dma_mbuf_destroy(dev, ET_TX_NDESC, rx_done);
-
-	/*
-	 * Destroy top level DMA tag
-	 */
-	if (sc->sc_dtag != NULL)
-		bus_dma_tag_destroy(sc->sc_dtag);
-}
-
-static int
-et_dma_mbuf_create(device_t dev)
-{
-	struct et_softc *sc = device_get_softc(dev);
-	struct et_txbuf_data *tbd = &sc->sc_tx_data;
-	int i, error, rx_done[ET_RX_NRING];
-
-	/*
-	 * Create mbuf DMA tag
-	 */
-	error = bus_dma_tag_create(sc->sc_dtag, 1, 0,
-				   BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-				   NULL, NULL,
-				   ET_JUMBO_FRAMELEN, ET_NSEG_MAX,
-				   BUS_SPACE_MAXSIZE_32BIT,
-				   BUS_DMA_ALLOCNOW, NULL, NULL, &sc->sc_mbuf_dtag);
-	if (error) {
-		device_printf(dev, "can't create mbuf DMA tag\n");
+	/* Create parent DMA tag for mbufs. */
+	error = bus_dma_tag_create(bus_get_dma_tag(sc->dev), 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    BUS_SPACE_MAXSIZE_32BIT, 0, BUS_SPACE_MAXSIZE_32BIT, 0, NULL, NULL,
+	    &sc->sc_mbuf_dtag);
+	if (error != 0) {
+		device_printf(sc->dev,
+		    "could not allocate parent dma tag for mbuf\n");
 		return (error);
 	}
 
-	/*
-	 * Create spare DMA map for RX mbufs
-	 */
-	error = bus_dmamap_create(sc->sc_mbuf_dtag, 0, &sc->sc_mbuf_tmp_dmap);
+	/* Create DMA tag for mini RX mbufs to use RX ring 0. */
+	error = bus_dma_tag_create(sc->sc_mbuf_dtag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MHLEN, 1,
+	    MHLEN, 0, NULL, NULL, &sc->sc_rx_mini_tag);
 	if (error) {
-		device_printf(dev, "can't create spare mbuf DMA map\n");
-		bus_dma_tag_destroy(sc->sc_mbuf_dtag);
-		sc->sc_mbuf_dtag = NULL;
+		device_printf(sc->dev, "could not create mini RX dma tag\n");
 		return (error);
 	}
 
-	/*
-	 * Create DMA maps for RX mbufs
-	 */
-	bzero(rx_done, sizeof(rx_done));
-	for (i = 0; i < ET_RX_NRING; ++i) {
-		struct et_rxbuf_data *rbd = &sc->sc_rx_data[i];
-		int j;
-
-		for (j = 0; j < ET_RX_NDESC; ++j) {
-			error = bus_dmamap_create(sc->sc_mbuf_dtag, 0,
-				&rbd->rbd_buf[j].rb_dmap);
-			if (error) {
-				device_printf(dev, "can't create %d RX mbuf "
-					      "for %d RX ring\n", j, i);
-				rx_done[i] = j;
-				et_dma_mbuf_destroy(dev, 0, rx_done);
-				return (error);
-			}
-		}
-		rx_done[i] = ET_RX_NDESC;
-
-		rbd->rbd_softc = sc;
-		rbd->rbd_ring = &sc->sc_rx_ring[i];
+	/* Create DMA tag for standard RX mbufs to use RX ring 1. */
+	error = bus_dma_tag_create(sc->sc_mbuf_dtag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL, MCLBYTES, 1,
+	    MCLBYTES, 0, NULL, NULL, &sc->sc_rx_tag);
+	if (error) {
+		device_printf(sc->dev, "could not create RX dma tag\n");
+		return (error);
 	}
 
-	/*
-	 * Create DMA maps for TX mbufs
-	 */
-	for (i = 0; i < ET_TX_NDESC; ++i) {
-		error = bus_dmamap_create(sc->sc_mbuf_dtag, 0,
-					  &tbd->tbd_buf[i].tb_dmap);
+	/* Create DMA tag for TX mbufs. */
+	error = bus_dma_tag_create(sc->sc_mbuf_dtag, 1, 0,
+	    BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR, NULL, NULL,
+	    MCLBYTES * ET_NSEG_MAX, ET_NSEG_MAX, MCLBYTES, 0, NULL, NULL,
+	    &sc->sc_tx_tag);
+	if (error) {
+		device_printf(sc->dev, "could not create TX dma tag\n");
+		return (error);
+	}
+
+	/* Initialize RX ring 0. */
+	rbd = &sc->sc_rx_data[0];
+	rbd->rbd_bufsize = ET_RXDMA_CTRL_RING0_128;
+	rbd->rbd_newbuf = et_newbuf_hdr;
+	rbd->rbd_discard = et_rxbuf_discard;
+	rbd->rbd_softc = sc;
+	rbd->rbd_ring = &sc->sc_rx_ring[0];
+	/* Create DMA maps for mini RX buffers, ring 0. */
+	for (i = 0; i < ET_RX_NDESC; i++) {
+		error = bus_dmamap_create(sc->sc_rx_mini_tag, 0,
+		    &rbd->rbd_buf[i].rb_dmap);
 		if (error) {
-			device_printf(dev, "can't create %d TX mbuf "
-				      "DMA map\n", i);
-			et_dma_mbuf_destroy(dev, i, rx_done);
+			device_printf(sc->dev,
+			    "could not create DMA map for mini RX mbufs\n");
+			return (error);
+		}
+	}
+
+	/* Create a spare DMA map for mini RX buffers, ring 0. */
+	error = bus_dmamap_create(sc->sc_rx_mini_tag, 0,
+	    &sc->sc_rx_mini_sparemap);
+	if (error) {
+		device_printf(sc->dev,
+		    "could not create spare DMA map for mini RX mbuf\n");
+		return (error);
+	}
+
+	/* Initialize RX ring 1. */
+	rbd = &sc->sc_rx_data[1];
+	rbd->rbd_bufsize = ET_RXDMA_CTRL_RING1_2048;
+	rbd->rbd_newbuf = et_newbuf_cluster;
+	rbd->rbd_discard = et_rxbuf_discard;
+	rbd->rbd_softc = sc;
+	rbd->rbd_ring = &sc->sc_rx_ring[1];
+	/* Create DMA maps for standard RX buffers, ring 1. */
+	for (i = 0; i < ET_RX_NDESC; i++) {
+		error = bus_dmamap_create(sc->sc_rx_tag, 0,
+		    &rbd->rbd_buf[i].rb_dmap);
+		if (error) {
+			device_printf(sc->dev,
+			    "could not create DMA map for mini RX mbufs\n");
+			return (error);
+		}
+	}
+
+	/* Create a spare DMA map for standard RX buffers, ring 1. */
+	error = bus_dmamap_create(sc->sc_rx_tag, 0, &sc->sc_rx_sparemap);
+	if (error) {
+		device_printf(sc->dev,
+		    "could not create spare DMA map for RX mbuf\n");
+		return (error);
+	}
+
+	/* Create DMA maps for TX buffers. */
+	tbd = &sc->sc_tx_data;
+	for (i = 0; i < ET_TX_NDESC; i++) {
+		error = bus_dmamap_create(sc->sc_tx_tag, 0,
+		    &tbd->tbd_buf[i].tb_dmap);
+		if (error) {
+			device_printf(sc->dev,
+			    "could not create DMA map for TX mbufs\n");
 			return (error);
 		}
 	}
@@ -936,106 +936,97 @@ et_dma_mbuf_create(device_t dev)
 }
 
 static void
-et_dma_mbuf_destroy(device_t dev, int tx_done, const int rx_done[])
+et_dma_free(struct et_softc *sc)
 {
-	struct et_softc *sc = device_get_softc(dev);
-	struct et_txbuf_data *tbd = &sc->sc_tx_data;
+	struct et_txdesc_ring *tx_ring;
+	struct et_rxdesc_ring *rx_ring;
+	struct et_txstatus_data *txsd;
+	struct et_rxstat_ring *rxst_ring;
+	struct et_rxstatus_data *rxsd;
+	struct et_rxbuf_data *rbd;
+        struct et_txbuf_data *tbd;
 	int i;
 
-	if (sc->sc_mbuf_dtag == NULL)
-		return;
-
-	/*
-	 * Destroy DMA maps for RX mbufs
-	 */
-	for (i = 0; i < ET_RX_NRING; ++i) {
-		struct et_rxbuf_data *rbd = &sc->sc_rx_data[i];
-		int j;
-
-		for (j = 0; j < rx_done[i]; ++j) {
-			struct et_rxbuf *rb = &rbd->rbd_buf[j];
-
-			KASSERT(rb->rb_mbuf == NULL,
-			    ("RX mbuf in %d RX ring is not freed yet\n", i));
-			bus_dmamap_destroy(sc->sc_mbuf_dtag, rb->rb_dmap);
+	/* Destroy DMA maps for mini RX buffers, ring 0. */
+	rbd = &sc->sc_rx_data[0];
+	for (i = 0; i < ET_RX_NDESC; i++) {
+		if (rbd->rbd_buf[i].rb_dmap) {
+			bus_dmamap_destroy(sc->sc_rx_mini_tag,
+			    rbd->rbd_buf[i].rb_dmap);
+			rbd->rbd_buf[i].rb_dmap = NULL;
 		}
 	}
-
-	/*
-	 * Destroy DMA maps for TX mbufs
-	 */
-	for (i = 0; i < tx_done; ++i) {
-		struct et_txbuf *tb = &tbd->tbd_buf[i];
-
-		KASSERT(tb->tb_mbuf == NULL, ("TX mbuf is not freed yet\n"));
-		bus_dmamap_destroy(sc->sc_mbuf_dtag, tb->tb_dmap);
+	if (sc->sc_rx_mini_sparemap) {
+		bus_dmamap_destroy(sc->sc_rx_mini_tag, sc->sc_rx_mini_sparemap);
+		sc->sc_rx_mini_sparemap = NULL;
+	}
+	if (sc->sc_rx_mini_tag) {
+		bus_dma_tag_destroy(sc->sc_rx_mini_tag);
+		sc->sc_rx_mini_tag = NULL;
 	}
 
-	/*
-	 * Destroy spare mbuf DMA map
-	 */
-	bus_dmamap_destroy(sc->sc_mbuf_dtag, sc->sc_mbuf_tmp_dmap);
-
-	/*
-	 * Destroy mbuf DMA tag
-	 */
-	bus_dma_tag_destroy(sc->sc_mbuf_dtag);
-	sc->sc_mbuf_dtag = NULL;
-}
-
-static int
-et_dma_mem_create(device_t dev, bus_size_t size, bus_dma_tag_t *dtag,
-		  void **addr, bus_addr_t *paddr, bus_dmamap_t *dmap)
-{
-	struct et_softc *sc = device_get_softc(dev);
-	int error;
-
-	error = bus_dma_tag_create(sc->sc_dtag, ET_ALIGN, 0,
-				   BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
-				   NULL, NULL,
-				   size, 1, BUS_SPACE_MAXSIZE_32BIT,
-				   0, NULL, NULL, dtag);
-	if (error) {
-		device_printf(dev, "can't create DMA tag\n");
-		return (error);
+	/* Destroy DMA maps for standard RX buffers, ring 1. */
+	rbd = &sc->sc_rx_data[1];
+	for (i = 0; i < ET_RX_NDESC; i++) {
+		if (rbd->rbd_buf[i].rb_dmap) {
+			bus_dmamap_destroy(sc->sc_rx_tag,
+			    rbd->rbd_buf[i].rb_dmap);
+			rbd->rbd_buf[i].rb_dmap = NULL;
+		}
+	}
+	if (sc->sc_rx_sparemap) {
+		bus_dmamap_destroy(sc->sc_rx_tag, sc->sc_rx_sparemap);
+		sc->sc_rx_sparemap = NULL;
+	}
+	if (sc->sc_rx_tag) {
+		bus_dma_tag_destroy(sc->sc_rx_tag);
+		sc->sc_rx_tag = NULL;
 	}
 
-	error = bus_dmamem_alloc(*dtag, addr, BUS_DMA_WAITOK | BUS_DMA_ZERO,
-				 dmap);
-	if (error) {
-		device_printf(dev, "can't allocate DMA mem\n");
-		bus_dma_tag_destroy(*dtag);
-		*dtag = NULL;
-		return (error);
+	/* Destroy DMA maps for TX buffers. */
+	tbd = &sc->sc_tx_data;
+	for (i = 0; i < ET_TX_NDESC; i++) {
+		if (tbd->tbd_buf[i].tb_dmap) {
+			bus_dmamap_destroy(sc->sc_tx_tag,
+			    tbd->tbd_buf[i].tb_dmap);
+			tbd->tbd_buf[i].tb_dmap = NULL;
+		}
+	}
+	if (sc->sc_tx_tag) {
+		bus_dma_tag_destroy(sc->sc_tx_tag);
+		sc->sc_tx_tag = NULL;
 	}
 
-	error = bus_dmamap_load(*dtag, *dmap, *addr, size,
-				et_dma_ring_addr, paddr, BUS_DMA_WAITOK);
-	if (error) {
-		device_printf(dev, "can't load DMA mem\n");
-		bus_dmamem_free(*dtag, *addr, *dmap);
-		bus_dma_tag_destroy(*dtag);
-		*dtag = NULL;
-		return (error);
-	}
-	return (0);
-}
+	/* Destroy mini RX ring, ring 0. */
+	rx_ring = &sc->sc_rx_ring[0];
+	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
+	    &rx_ring->rr_dmap);
+	/* Destroy standard RX ring, ring 1. */
+	rx_ring = &sc->sc_rx_ring[1];
+	et_dma_ring_free(sc, &rx_ring->rr_dtag, (void *)&rx_ring->rr_desc,
+	    &rx_ring->rr_dmap);
+	/* Destroy RX stat ring. */
+	rxst_ring = &sc->sc_rxstat_ring;
+	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
+	    &rxst_ring->rsr_dmap);
+	/* Destroy RX status block. */
+	rxsd = &sc->sc_rx_status;
+	et_dma_ring_free(sc, &rxst_ring->rsr_dtag, (void *)&rxst_ring->rsr_stat,
+	    &rxst_ring->rsr_dmap);
+	/* Destroy TX ring. */
+	tx_ring = &sc->sc_tx_ring;
+	et_dma_ring_free(sc, &tx_ring->tr_dtag, (void *)&tx_ring->tr_desc,
+	    &tx_ring->tr_dmap);
+	/* Destroy TX status block. */
+	txsd = &sc->sc_tx_status;
+	et_dma_ring_free(sc, &txsd->txsd_dtag, (void *)&txsd->txsd_status,
+	    &txsd->txsd_dmap);
 
-static void
-et_dma_mem_destroy(bus_dma_tag_t dtag, void *addr, bus_dmamap_t dmap)
-{
-	if (dtag != NULL) {
-		bus_dmamap_unload(dtag, dmap);
-		bus_dmamem_free(dtag, addr, dmap);
-		bus_dma_tag_destroy(dtag);
+	/* Destroy the parent tag. */
+	if (sc->sc_dtag) {
+		bus_dma_tag_destroy(sc->sc_dtag);
+		sc->sc_dtag = NULL;
 	}
-}
-
-static void
-et_dma_ring_addr(void *arg, bus_dma_segment_t *seg, int nseg, int error)
-{
-	KASSERT(nseg == 1, ("too many segments\n"));
-	*((bus_addr_t *)arg) = seg->ds_addr;
 }
 
 static void
@@ -1113,30 +1104,21 @@ back:
 static void
 et_init_locked(struct et_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
-	const struct et_bsize *arr;
-	int error, i;
+	struct ifnet *ifp;
+	int error;
 
 	ET_LOCK_ASSERT(sc);
 
+	ifp = sc->ifp;
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING)
 		return;
 
 	et_stop(sc);
 
-	arr = et_bufsize_std;
-	for (i = 0; i < ET_RX_NRING; ++i) {
-		sc->sc_rx_data[i].rbd_bufsize = arr[i].bufsize;
-		sc->sc_rx_data[i].rbd_newbuf = arr[i].newbuf;
-	}
-
-	error = et_init_tx_ring(sc);
-	if (error)
-		goto back;
-
+	et_init_tx_ring(sc);
 	error = et_init_rx_ring(sc);
 	if (error)
-		goto back;
+		return;
 
 	error = et_chip_init(sc);
 	if (error)
@@ -1309,20 +1291,26 @@ et_start(struct ifnet *ifp)
 	ET_UNLOCK(sc);
 }
 
-static void
+static int
 et_watchdog(struct et_softc *sc)
 {
+	uint32_t status;
+
 	ET_LOCK_ASSERT(sc);
 
 	if (sc->watchdog_timer == 0 || --sc->watchdog_timer)
-		return;
+		return (0);
 
-	if_printf(sc->ifp, "watchdog timed out\n");
+	bus_dmamap_sync(sc->sc_tx_status.txsd_dtag, sc->sc_tx_status.txsd_dmap,
+	    BUS_DMASYNC_POSTREAD);
+	status = le32toh(*(sc->sc_tx_status.txsd_status));
+	if_printf(sc->ifp, "watchdog timed out (0x%08x) -- resetting\n",
+	    status);
 
 	sc->ifp->if_oerrors++;
 	sc->ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	et_init_locked(sc);
-	et_start_locked(sc->ifp);
+	return (EJUSTRETURN);
 }
 
 static int
@@ -1350,49 +1338,59 @@ et_stop_txdma(struct et_softc *sc)
 static void
 et_free_tx_ring(struct et_softc *sc)
 {
-	struct et_txbuf_data *tbd = &sc->sc_tx_data;
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
+	struct et_txdesc_ring *tx_ring;
+	struct et_txbuf_data *tbd;
+	struct et_txbuf *tb;
 	int i;
 
+	tbd = &sc->sc_tx_data;
+	tx_ring = &sc->sc_tx_ring;
 	for (i = 0; i < ET_TX_NDESC; ++i) {
-		struct et_txbuf *tb = &tbd->tbd_buf[i];
-
+		tb = &tbd->tbd_buf[i];
 		if (tb->tb_mbuf != NULL) {
+			bus_dmamap_sync(sc->sc_tx_tag, tb->tb_dmap,
+			    BUS_DMASYNC_POSTWRITE);
 			bus_dmamap_unload(sc->sc_mbuf_dtag, tb->tb_dmap);
 			m_freem(tb->tb_mbuf);
 			tb->tb_mbuf = NULL;
 		}
 	}
-
-	bzero(tx_ring->tr_desc, ET_TX_RING_SIZE);
-	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-			BUS_DMASYNC_PREWRITE);
 }
 
 static void
 et_free_rx_ring(struct et_softc *sc)
 {
-	int n;
+	struct et_rxbuf_data *rbd;
+	struct et_rxdesc_ring *rx_ring;
+	struct et_rxbuf *rb;
+	int i;
 
-	for (n = 0; n < ET_RX_NRING; ++n) {
-		struct et_rxbuf_data *rbd = &sc->sc_rx_data[n];
-		struct et_rxdesc_ring *rx_ring = &sc->sc_rx_ring[n];
-		int i;
-
-		for (i = 0; i < ET_RX_NDESC; ++i) {
-			struct et_rxbuf *rb = &rbd->rbd_buf[i];
-
-			if (rb->rb_mbuf != NULL) {
-				bus_dmamap_unload(sc->sc_mbuf_dtag,
-			  	    rb->rb_dmap);
-				m_freem(rb->rb_mbuf);
-				rb->rb_mbuf = NULL;
-			}
+	/* Ring 0 */
+	rx_ring = &sc->sc_rx_ring[0];
+	rbd = &sc->sc_rx_data[0];
+	for (i = 0; i < ET_RX_NDESC; ++i) {
+		rb = &rbd->rbd_buf[i];
+		if (rb->rb_mbuf != NULL) {
+			bus_dmamap_sync(sc->sc_rx_mini_tag, rx_ring->rr_dmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->sc_rx_mini_tag, rb->rb_dmap);
+			m_freem(rb->rb_mbuf);
+			rb->rb_mbuf = NULL;
 		}
+	}
 
-		bzero(rx_ring->rr_desc, ET_RX_RING_SIZE);
-		bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
-				BUS_DMASYNC_PREWRITE);
+	/* Ring 1 */
+	rx_ring = &sc->sc_rx_ring[1];
+	rbd = &sc->sc_rx_data[1];
+	for (i = 0; i < ET_RX_NDESC; ++i) {
+		rb = &rbd->rbd_buf[i];
+		if (rb->rb_mbuf != NULL) {
+			bus_dmamap_sync(sc->sc_rx_tag, rx_ring->rr_dmap,
+			    BUS_DMASYNC_POSTREAD);
+			bus_dmamap_unload(sc->sc_rx_tag, rb->rb_dmap);
+			m_freem(rb->rb_mbuf);
+			rb->rb_mbuf = NULL;
+		}
 	}
 }
 
@@ -1519,40 +1517,41 @@ et_chip_init(struct et_softc *sc)
 	return (0);
 }
 
-static int
+static void
 et_init_tx_ring(struct et_softc *sc)
 {
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
-	struct et_txstatus_data *txsd = &sc->sc_tx_status;
-	struct et_txbuf_data *tbd = &sc->sc_tx_data;
+	struct et_txdesc_ring *tx_ring;
+	struct et_txbuf_data *tbd;
+	struct et_txstatus_data *txsd;
 
+	tx_ring = &sc->sc_tx_ring;
 	bzero(tx_ring->tr_desc, ET_TX_RING_SIZE);
 	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-			BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREWRITE);
 
+	tbd = &sc->sc_tx_data;
 	tbd->tbd_start_index = 0;
 	tbd->tbd_start_wrap = 0;
 	tbd->tbd_used = 0;
 
+	txsd = &sc->sc_tx_status;
 	bzero(txsd->txsd_status, sizeof(uint32_t));
 	bus_dmamap_sync(txsd->txsd_dtag, txsd->txsd_dmap,
-			BUS_DMASYNC_PREWRITE);
-	return (0);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 }
 
 static int
 et_init_rx_ring(struct et_softc *sc)
 {
-	struct et_rxstatus_data *rxsd = &sc->sc_rx_status;
-	struct et_rxstat_ring *rxst_ring = &sc->sc_rxstat_ring;
-	int n;
+	struct et_rxstatus_data *rxsd;
+	struct et_rxstat_ring *rxst_ring;
+	struct et_rxbuf_data *rbd;
+	int i, error, n;
 
 	for (n = 0; n < ET_RX_NRING; ++n) {
-		struct et_rxbuf_data *rbd = &sc->sc_rx_data[n];
-		int i, error;
-
+		rbd = &sc->sc_rx_data[n];
 		for (i = 0; i < ET_RX_NDESC; ++i) {
-			error = rbd->rbd_newbuf(rbd, i, 1);
+			error = rbd->rbd_newbuf(rbd, i);
 			if (error) {
 				if_printf(sc->ifp, "%d ring %d buf, "
 					  "newbuf failed: %d\n", n, i, error);
@@ -1561,35 +1560,17 @@ et_init_rx_ring(struct et_softc *sc)
 		}
 	}
 
+	rxsd = &sc->sc_rx_status;
 	bzero(rxsd->rxsd_status, sizeof(struct et_rxstatus));
 	bus_dmamap_sync(rxsd->rxsd_dtag, rxsd->rxsd_dmap,
-			BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
+	rxst_ring = &sc->sc_rxstat_ring;
 	bzero(rxst_ring->rsr_stat, ET_RXSTAT_RING_SIZE);
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
-			BUS_DMASYNC_PREWRITE);
+	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	return (0);
-}
-
-static void
-et_dma_buf_addr(void *xctx, bus_dma_segment_t *segs, int nsegs,
-		bus_size_t mapsz __unused, int error)
-{
-	struct et_dmamap_ctx *ctx = xctx;
-	int i;
-
-	if (error)
-		return;
-
-	if (nsegs > ctx->nsegs) {
-		ctx->nsegs = 0;
-		return;
-	}
-
-	ctx->nsegs = nsegs;
-	for (i = 0; i < nsegs; ++i)
-		ctx->segs[i] = segs[i];
 }
 
 static int
@@ -1929,13 +1910,20 @@ et_enable_txrx(struct et_softc *sc, int media_upd)
 static void
 et_rxeof(struct et_softc *sc)
 {
-	struct ifnet *ifp;
 	struct et_rxstatus_data *rxsd;
 	struct et_rxstat_ring *rxst_ring;
-	uint32_t rxs_stat_ring, rxst_info2;
-	int rxst_wrap, rxst_index;
+	struct et_rxbuf_data *rbd;
+	struct et_rxdesc_ring *rx_ring;
+	struct et_rxstat *st;
+	struct ifnet *ifp;
+	struct mbuf *m;
+	uint32_t rxstat_pos, rxring_pos;
+	uint32_t rxst_info1, rxst_info2, rxs_stat_ring;
+	int buflen, buf_idx, npost[2], ring_idx;
+	int rxst_index, rxst_wrap;
 
 	ET_LOCK_ASSERT(sc);
+
 	ifp = sc->ifp;
 	rxsd = &sc->sc_rx_status;
 	rxst_ring = &sc->sc_rxstat_ring;
@@ -1944,26 +1932,24 @@ et_rxeof(struct et_softc *sc)
 		return;
 
 	bus_dmamap_sync(rxsd->rxsd_dtag, rxsd->rxsd_dmap,
-			BUS_DMASYNC_POSTREAD);
+	    BUS_DMASYNC_POSTREAD);
 	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
-			BUS_DMASYNC_POSTREAD);
+	    BUS_DMASYNC_POSTREAD);
 
+	npost[0] = npost[1] = 0;
 	rxs_stat_ring = le32toh(rxsd->rxsd_status->rxs_stat_ring);
 	rxst_wrap = (rxs_stat_ring & ET_RXS_STATRING_WRAP) ? 1 : 0;
 	rxst_index = (rxs_stat_ring & ET_RXS_STATRING_INDEX_MASK) >>
 	    ET_RXS_STATRING_INDEX_SHIFT;
 
 	while (rxst_index != rxst_ring->rsr_index ||
-	       rxst_wrap != rxst_ring->rsr_wrap) {
-		struct et_rxbuf_data *rbd;
-		struct et_rxdesc_ring *rx_ring;
-		struct et_rxstat *st;
-		struct mbuf *m;
-		int buflen, buf_idx, ring_idx;
-		uint32_t rxstat_pos, rxring_pos;
+	    rxst_wrap != rxst_ring->rsr_wrap) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 
 		MPASS(rxst_ring->rsr_index < ET_RX_NSTAT);
 		st = &rxst_ring->rsr_stat[rxst_ring->rsr_index];
+		rxst_info1 = le32toh(st->rxst_info1);
 		rxst_info2 = le32toh(st->rxst_info2);
 		buflen = (rxst_info2 & ET_RXST_INFO2_LEN_MASK) >>
 		    ET_RXST_INFO2_LEN_SHIFT;
@@ -1994,32 +1980,34 @@ et_rxeof(struct et_softc *sc)
 
 		rbd = &sc->sc_rx_data[ring_idx];
 		m = rbd->rbd_buf[buf_idx].rb_mbuf;
-
-		if (rbd->rbd_newbuf(rbd, buf_idx, 0) == 0) {
-			if (buflen < ETHER_CRC_LEN) {
+		if ((rxst_info1 & ET_RXST_INFO1_OK) == 0){
+			/* Discard errored frame. */
+			ifp->if_ierrors++;
+			rbd->rbd_discard(rbd, buf_idx);
+		} else if (rbd->rbd_newbuf(rbd, buf_idx) != 0) {
+			/* No available mbufs, discard it. */
+			ifp->if_iqdrops++;
+			rbd->rbd_discard(rbd, buf_idx);
+		} else {
+			buflen -= ETHER_CRC_LEN;
+			if (buflen < ETHER_HDR_LEN) {
 				m_freem(m);
-				m = NULL;
 				ifp->if_ierrors++;
 			} else {
-				m->m_pkthdr.len = m->m_len =
-				    buflen - ETHER_CRC_LEN;
+				m->m_pkthdr.len = m->m_len = buflen;
 				m->m_pkthdr.rcvif = ifp;
 				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
 				ET_LOCK(sc);
 			}
-		} else {
-			ifp->if_ierrors++;
 		}
-		m = NULL;	/* Catch invalid reference */
 
 		rx_ring = &sc->sc_rx_ring[ring_idx];
-
 		if (buf_idx != rx_ring->rr_index) {
-			if_printf(ifp, "WARNING!! ring %d, "
-				  "buf_idx %d, rr_idx %d\n",
-				  ring_idx, buf_idx, rx_ring->rr_index);
+			if_printf(ifp,
+			    "WARNING!! ring %d, buf_idx %d, rr_idx %d\n",
+			    ring_idx, buf_idx, rx_ring->rr_index);
 		}
 
 		MPASS(rx_ring->rr_index < ET_RX_NDESC);
@@ -2032,81 +2020,66 @@ et_rxeof(struct et_softc *sc)
 			rxring_pos |= ET_RX_RING_POS_WRAP;
 		CSR_WRITE_4(sc, rx_ring->rr_posreg, rxring_pos);
 	}
+
+	bus_dmamap_sync(rxsd->rxsd_dtag, rxsd->rxsd_dmap,
+	    BUS_DMASYNC_PREREAD);
+	bus_dmamap_sync(rxst_ring->rsr_dtag, rxst_ring->rsr_dmap,
+	    BUS_DMASYNC_PREREAD);
 }
 
 static int
 et_encap(struct et_softc *sc, struct mbuf **m0)
 {
-	struct mbuf *m = *m0;
-	bus_dma_segment_t segs[ET_NSEG_MAX];
-	struct et_dmamap_ctx ctx;
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
-	struct et_txbuf_data *tbd = &sc->sc_tx_data;
+	struct et_txdesc_ring *tx_ring;
+	struct et_txbuf_data *tbd;
 	struct et_txdesc *td;
+	struct mbuf *m;
+	bus_dma_segment_t segs[ET_NSEG_MAX];
 	bus_dmamap_t map;
-	int error, maxsegs, first_idx, last_idx, i;
-	uint32_t csum_flags, tx_ready_pos, last_td_ctrl2;
+	uint32_t csum_flags, last_td_ctrl2, tx_ready_pos;
+	int error, i, idx, first_idx, last_idx, nsegs;
 
-	maxsegs = ET_TX_NDESC - tbd->tbd_used;
-	if (maxsegs > ET_NSEG_MAX)
-		maxsegs = ET_NSEG_MAX;
-	KASSERT(maxsegs >= ET_NSEG_SPARE,
-		("not enough spare TX desc (%d)\n", maxsegs));
-
+	tx_ring = &sc->sc_tx_ring;
 	MPASS(tx_ring->tr_ready_index < ET_TX_NDESC);
+	tbd = &sc->sc_tx_data;
 	first_idx = tx_ring->tr_ready_index;
 	map = tbd->tbd_buf[first_idx].tb_dmap;
 
-	ctx.nsegs = maxsegs;
-	ctx.segs = segs;
-	error = bus_dmamap_load_mbuf(sc->sc_mbuf_dtag, map, m,
-				     et_dma_buf_addr, &ctx, BUS_DMA_NOWAIT);
-	if (!error && ctx.nsegs == 0) {
-		bus_dmamap_unload(sc->sc_mbuf_dtag, map);
-		error = EFBIG;
-	}
-	if (error && error != EFBIG) {
-		if_printf(sc->ifp, "can't load TX mbuf, error %d\n",
-			  error);
-		goto back;
-	}
-	if (error) {	/* error == EFBIG */
-		struct mbuf *m_new;
-
-		m_new = m_defrag(m, M_DONTWAIT);
-		if (m_new == NULL) {
-			if_printf(sc->ifp, "can't defrag TX mbuf\n");
-			error = ENOBUFS;
-			goto back;
-		} else {
-			*m0 = m = m_new;
+	error = bus_dmamap_load_mbuf_sg(sc->sc_tx_tag, map, *m0, segs, &nsegs,
+	    0);
+	if (error == EFBIG) {
+		m = m_collapse(*m0, M_DONTWAIT, ET_NSEG_MAX);
+		if (m == NULL) {
+			m_freem(*m0);
+			*m0 = NULL;
+			return (ENOMEM);
 		}
-
-		ctx.nsegs = maxsegs;
-		ctx.segs = segs;
-		error = bus_dmamap_load_mbuf(sc->sc_mbuf_dtag, map, m,
-					     et_dma_buf_addr, &ctx,
-					     BUS_DMA_NOWAIT);
-		if (error || ctx.nsegs == 0) {
-			if (ctx.nsegs == 0) {
-				bus_dmamap_unload(sc->sc_mbuf_dtag, map);
-				error = EFBIG;
-			}
-			if_printf(sc->ifp,
-				  "can't load defraged TX mbuf\n");
-			goto back;
+		*m0 = m;
+		error = bus_dmamap_load_mbuf_sg(sc->sc_tx_tag, map, *m0, segs,
+		    &nsegs, 0);
+		if (error != 0) {
+			m_freem(*m0);
+                        *m0 = NULL;
+			return (error);
 		}
-	}
+	} else if (error != 0)
+		return (error);
 
-	bus_dmamap_sync(sc->sc_mbuf_dtag, map, BUS_DMASYNC_PREWRITE);
+	/* Check for descriptor overruns. */
+	if (tbd->tbd_used + nsegs > ET_TX_NDESC - 1) {
+		bus_dmamap_unload(sc->sc_tx_tag, map);
+		return (ENOBUFS);
+	}
+	bus_dmamap_sync(sc->sc_tx_tag, map, BUS_DMASYNC_PREWRITE);
 
 	last_td_ctrl2 = ET_TDCTRL2_LAST_FRAG;
-	sc->sc_tx += ctx.nsegs;
+	sc->sc_tx += nsegs;
 	if (sc->sc_tx / sc->sc_tx_intr_nsegs != sc->sc_tx_intr) {
 		sc->sc_tx_intr = sc->sc_tx / sc->sc_tx_intr_nsegs;
 		last_td_ctrl2 |= ET_TDCTRL2_INTR;
 	}
 
+	m = *m0;
 	csum_flags = 0;
 	if ((m->m_pkthdr.csum_flags & ET_CSUM_FEATURES) != 0) {
 		if ((m->m_pkthdr.csum_flags & CSUM_IP) != 0)
@@ -2117,15 +2090,14 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 			csum_flags |= ET_TDCTRL2_CSUM_TCP;
 	}
 	last_idx = -1;
-	for (i = 0; i < ctx.nsegs; ++i) {
-		int idx;
-
+	for (i = 0; i < nsegs; ++i) {
 		idx = (first_idx + i) % ET_TX_NDESC;
 		td = &tx_ring->tr_desc[idx];
 		td->td_addr_hi = htole32(ET_ADDR_HI(segs[i].ds_addr));
 		td->td_addr_lo = htole32(ET_ADDR_LO(segs[i].ds_addr));
 		td->td_ctrl1 =  htole32(segs[i].ds_len & ET_TDCTRL1_LEN_MASK);
-		if (i == ctx.nsegs - 1) {	/* Last frag */
+		if (i == nsegs - 1) {
+			/* Last frag */
 			td->td_ctrl2 = htole32(last_td_ctrl2 | csum_flags);
 			last_idx = idx;
 		} else
@@ -2138,43 +2110,38 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 		}
 	}
 	td = &tx_ring->tr_desc[first_idx];
-	td->td_ctrl2 |= htole32(ET_TDCTRL2_FIRST_FRAG);	/* First frag */
+	/* First frag */
+	td->td_ctrl2 |= htole32(ET_TDCTRL2_FIRST_FRAG);
 
 	MPASS(last_idx >= 0);
 	tbd->tbd_buf[first_idx].tb_dmap = tbd->tbd_buf[last_idx].tb_dmap;
 	tbd->tbd_buf[last_idx].tb_dmap = map;
 	tbd->tbd_buf[last_idx].tb_mbuf = m;
 
-	tbd->tbd_used += ctx.nsegs;
+	tbd->tbd_used += nsegs;
 	MPASS(tbd->tbd_used <= ET_TX_NDESC);
 
 	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-			BUS_DMASYNC_PREWRITE);
-
+	    BUS_DMASYNC_PREWRITE);
 	tx_ready_pos = tx_ring->tr_ready_index & ET_TX_READY_POS_INDEX_MASK;
 	if (tx_ring->tr_ready_wrap)
 		tx_ready_pos |= ET_TX_READY_POS_WRAP;
 	CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
-
-	error = 0;
-back:
-	if (error) {
-		m_freem(m);
-		*m0 = NULL;
-	}
-	return (error);
+	return (0);
 }
 
 static void
 et_txeof(struct et_softc *sc)
 {
-	struct ifnet *ifp;
 	struct et_txdesc_ring *tx_ring;
 	struct et_txbuf_data *tbd;
+	struct et_txbuf *tb;
+	struct ifnet *ifp;
 	uint32_t tx_done;
 	int end, wrap;
 
 	ET_LOCK_ASSERT(sc);
+
 	ifp = sc->ifp;
 	tx_ring = &sc->sc_tx_ring;
 	tbd = &sc->sc_tx_data;
@@ -2185,23 +2152,20 @@ et_txeof(struct et_softc *sc)
 	if (tbd->tbd_used == 0)
 		return;
 
+	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
+	    BUS_DMASYNC_POSTWRITE);
+
 	tx_done = CSR_READ_4(sc, ET_TX_DONE_POS);
 	end = tx_done & ET_TX_DONE_POS_INDEX_MASK;
 	wrap = (tx_done & ET_TX_DONE_POS_WRAP) ? 1 : 0;
 
 	while (tbd->tbd_start_index != end || tbd->tbd_start_wrap != wrap) {
-		struct et_txbuf *tb;
-
 		MPASS(tbd->tbd_start_index < ET_TX_NDESC);
 		tb = &tbd->tbd_buf[tbd->tbd_start_index];
-
-		bzero(&tx_ring->tr_desc[tbd->tbd_start_index],
-		      sizeof(struct et_txdesc));
-		bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-				BUS_DMASYNC_PREWRITE);
-
 		if (tb->tb_mbuf != NULL) {
-			bus_dmamap_unload(sc->sc_mbuf_dtag, tb->tb_dmap);
+			bus_dmamap_sync(sc->sc_tx_tag, tb->tb_dmap,
+			    BUS_DMASYNC_POSTWRITE);
+			bus_dmamap_unload(sc->sc_tx_tag, tb->tb_dmap);
 			m_freem(tb->tb_mbuf);
 			tb->tb_mbuf = NULL;
 			ifp->if_opackets++;
@@ -2218,12 +2182,9 @@ et_txeof(struct et_softc *sc)
 
 	if (tbd->tbd_used == 0)
 		sc->watchdog_timer = 0;
-	if (tbd->tbd_used + ET_NSEG_SPARE <= ET_TX_NDESC)
+	if (tbd->tbd_used + ET_NSEG_SPARE < ET_TX_NDESC)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-
-	et_start_locked(ifp);
 }
-
 static void
 et_tick(void *xsc)
 {
@@ -2243,95 +2204,116 @@ et_tick(void *xsc)
 		if (et_enable_txrx(sc, 0) == 0)
 			et_start_locked(ifp);
 	}
-	et_watchdog(sc);
+	if (et_watchdog(sc) == EJUSTRETURN)
+		return;
 	callout_reset(&sc->sc_tick, hz, et_tick, sc);
 }
 
 static int
-et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx, int init)
+et_newbuf_cluster(struct et_rxbuf_data *rbd, int buf_idx)
 {
-	return (et_newbuf(rbd, buf_idx, init, MCLBYTES));
-}
-
-static int
-et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx, int init)
-{
-	return (et_newbuf(rbd, buf_idx, init, MHLEN));
-}
-
-static int
-et_newbuf(struct et_rxbuf_data *rbd, int buf_idx, int init, int len0)
-{
-	struct et_softc *sc = rbd->rbd_softc;
+	struct et_softc *sc;
+	struct et_rxdesc *desc;
 	struct et_rxbuf *rb;
 	struct mbuf *m;
-	struct et_dmamap_ctx ctx;
-	bus_dma_segment_t seg;
+	bus_dma_segment_t segs[1];
 	bus_dmamap_t dmap;
-	int error, len;
+	int nsegs;
 
 	MPASS(buf_idx < ET_RX_NDESC);
+	m = m_getcl(M_DONTWAIT, MT_DATA, M_PKTHDR);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MCLBYTES;
+	m_adj(m, ETHER_ALIGN);
+
+	sc = rbd->rbd_softc;
 	rb = &rbd->rbd_buf[buf_idx];
 
-	m = m_getl(len0, /* init ? M_WAIT :*/ M_DONTWAIT, MT_DATA, M_PKTHDR, &len);
-	if (m == NULL) {
-		error = ENOBUFS;
-
-		if (init) {
-			if_printf(sc->ifp,
-				  "m_getl failed, size %d\n", len0);
-			return (error);
-		} else {
-			goto back;
-		}
-	}
-	m->m_len = m->m_pkthdr.len = len;
-
-	/*
-	 * Try load RX mbuf into temporary DMA tag
-	 */
-	ctx.nsegs = 1;
-	ctx.segs = &seg;
-	error = bus_dmamap_load_mbuf(sc->sc_mbuf_dtag, sc->sc_mbuf_tmp_dmap, m,
-				     et_dma_buf_addr, &ctx,
-				     init ? BUS_DMA_WAITOK : BUS_DMA_NOWAIT);
-	if (error || ctx.nsegs == 0) {
-		if (!error) {
-			bus_dmamap_unload(sc->sc_mbuf_dtag,
-					  sc->sc_mbuf_tmp_dmap);
-			error = EFBIG;
-			if_printf(sc->ifp, "too many segments?!\n");
-		}
+	if (bus_dmamap_load_mbuf_sg(sc->sc_rx_tag, sc->sc_rx_sparemap, m,
+	    segs, &nsegs, 0) != 0) {
 		m_freem(m);
-		m = NULL;
-
-		if (init) {
-			if_printf(sc->ifp, "can't load RX mbuf\n");
-			return (error);
-		} else {
-			goto back;
-		}
+		return (ENOBUFS);
 	}
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
 
-	if (!init) {
-		bus_dmamap_sync(sc->sc_mbuf_dtag, rb->rb_dmap,
-				BUS_DMASYNC_POSTREAD);
-		bus_dmamap_unload(sc->sc_mbuf_dtag, rb->rb_dmap);
+	if (rb->rb_mbuf != NULL) {
+		bus_dmamap_sync(sc->sc_rx_tag, rb->rb_dmap,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->sc_rx_tag, rb->rb_dmap);
 	}
-	rb->rb_mbuf = m;
-	rb->rb_paddr = seg.ds_addr;
-
-	/*
-	 * Swap RX buf's DMA map with the loaded temporary one
-	 */
 	dmap = rb->rb_dmap;
-	rb->rb_dmap = sc->sc_mbuf_tmp_dmap;
-	sc->sc_mbuf_tmp_dmap = dmap;
+	rb->rb_dmap = sc->sc_rx_sparemap;
+	sc->sc_rx_sparemap = dmap;
+	bus_dmamap_sync(sc->sc_rx_tag, rb->rb_dmap, BUS_DMASYNC_PREREAD);
 
-	error = 0;
-back:
-	et_setup_rxdesc(rbd, buf_idx, rb->rb_paddr);
-	return (error);
+	rb->rb_mbuf = m;
+	desc = &rbd->rbd_ring->rr_desc[buf_idx];
+	desc->rd_addr_hi = htole32(ET_ADDR_HI(segs[0].ds_addr));
+	desc->rd_addr_lo = htole32(ET_ADDR_LO(segs[0].ds_addr));
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
+	bus_dmamap_sync(rbd->rbd_ring->rr_dtag, rbd->rbd_ring->rr_dmap,
+	    BUS_DMASYNC_PREWRITE);
+	return (0);
+}
+
+static void
+et_rxbuf_discard(struct et_rxbuf_data *rbd, int buf_idx)
+{
+	struct et_rxdesc *desc;
+
+	desc = &rbd->rbd_ring->rr_desc[buf_idx];
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
+	bus_dmamap_sync(rbd->rbd_ring->rr_dtag, rbd->rbd_ring->rr_dmap,
+	    BUS_DMASYNC_PREWRITE);
+}
+
+static int
+et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
+{
+	struct et_softc *sc;
+	struct et_rxdesc *desc;
+	struct et_rxbuf *rb;
+	struct mbuf *m;
+	bus_dma_segment_t segs[1];
+	bus_dmamap_t dmap;
+	int nsegs;
+
+	MPASS(buf_idx < ET_RX_NDESC);
+	MGETHDR(m, M_DONTWAIT, MT_DATA);
+	if (m == NULL)
+		return (ENOBUFS);
+	m->m_len = m->m_pkthdr.len = MHLEN;
+	m_adj(m, ETHER_ALIGN);
+
+	sc = rbd->rbd_softc;
+	rb = &rbd->rbd_buf[buf_idx];
+
+	if (bus_dmamap_load_mbuf_sg(sc->sc_rx_mini_tag, sc->sc_rx_mini_sparemap,
+	    m, segs, &nsegs, 0) != 0) {
+		m_freem(m);
+		return (ENOBUFS);
+	}
+	KASSERT(nsegs == 1, ("%s: %d segments returned!", __func__, nsegs));
+
+	if (rb->rb_mbuf != NULL) {
+		bus_dmamap_sync(sc->sc_rx_mini_tag, rb->rb_dmap,
+		    BUS_DMASYNC_POSTREAD);
+		bus_dmamap_unload(sc->sc_rx_mini_tag, rb->rb_dmap);
+	}
+	dmap = rb->rb_dmap;
+	rb->rb_dmap = sc->sc_rx_mini_sparemap;
+	sc->sc_rx_mini_sparemap = dmap;
+	bus_dmamap_sync(sc->sc_rx_mini_tag, rb->rb_dmap, BUS_DMASYNC_PREREAD);
+
+	rb->rb_mbuf = m;
+	desc = &rbd->rbd_ring->rr_desc[buf_idx];
+	desc->rd_addr_hi = htole32(ET_ADDR_HI(segs[0].ds_addr));
+	desc->rd_addr_lo = htole32(ET_ADDR_LO(segs[0].ds_addr));
+	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
+	bus_dmamap_sync(rbd->rbd_ring->rr_dtag, rbd->rbd_ring->rr_dmap,
+	    BUS_DMASYNC_PREWRITE);
+	return (0);
 }
 
 /*
@@ -2439,23 +2421,6 @@ et_setmedia(struct et_softc *sc)
 
 	CSR_WRITE_4(sc, ET_MAC_CTRL, ctrl);
 	CSR_WRITE_4(sc, ET_MAC_CFG2, cfg2);
-}
-
-static void
-et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
-{
-	struct et_rxdesc_ring *rx_ring = rbd->rbd_ring;
-	struct et_rxdesc *desc;
-
-	MPASS(buf_idx < ET_RX_NDESC);
-	desc = &rx_ring->rr_desc[buf_idx];
-
-	desc->rd_addr_hi = htole32(ET_ADDR_HI(paddr));
-	desc->rd_addr_lo = htole32(ET_ADDR_LO(paddr));
-	desc->rd_ctrl = htole32(buf_idx & ET_RDCTRL_BUFIDX_MASK);
-
-	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
-			BUS_DMASYNC_PREWRITE);
 }
 
 static int
