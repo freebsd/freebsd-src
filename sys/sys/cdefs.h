@@ -220,13 +220,13 @@
 
 
 #if defined(__cplusplus) && __cplusplus >= 201103L
-#define	__noreturn		[[noreturn]]
+#define	_Noreturn		[[noreturn]]
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
-#define	__noreturn		_Noreturn
+/* Do nothing - _Noreturn is a keyword */
 #elif defined(__GNUC__)
-#define	__noreturn		__attribute__((__noreturn__))
+#define	_Noreturn		__attribute__((__noreturn__))
 #else
-#define	__noreturn
+#define	_Noreturn
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
