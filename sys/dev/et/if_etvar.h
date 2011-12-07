@@ -41,7 +41,7 @@
 #define ET_RING_ALIGN		4096
 #define ET_STATUS_ALIGN		8
 #define ET_NSEG_MAX		32	/* XXX no limit actually */
-#define ET_NSEG_SPARE		8
+#define ET_NSEG_SPARE		4
 
 #define ET_TX_NDESC		512
 #define ET_RX_NDESC		512
