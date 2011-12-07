@@ -1097,7 +1097,11 @@ et_intr(void *xsc)
 	if (intrs & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
 back:
-	et_enable_intrs(sc, ET_INTRS);
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		et_enable_intrs(sc, ET_INTRS);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			et_start_locked(ifp);
+	}
 	ET_UNLOCK(sc);
 }
 
@@ -1240,7 +1244,9 @@ et_start_locked(struct ifnet *ifp)
 {
 	struct et_softc *sc;
 	struct mbuf *m_head = NULL;
+	struct et_txdesc_ring *tx_ring;
 	struct et_txbuf_data *tbd;
+	uint32_t tx_ready_pos;
 	int enq;
 
 	sc = ifp->if_softc;
@@ -1252,7 +1258,18 @@ et_start_locked(struct ifnet *ifp)
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
 		return;
 
+	/*
+	 * Driver does not request TX completion interrupt for every
+	 * queued frames to prevent generating excessive interrupts.
+	 * This means driver may wait for TX completion interrupt even
+	 * though some frames were sucessfully transmitted.  Reclaiming
+	 * transmitted frames will ensure driver see all available
+	 * descriptors.
+	 */
 	tbd = &sc->sc_tx_data;
+	if (tbd->tbd_used > (ET_TX_NDESC * 2) / 3)
+		et_txeof(sc);
+
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		if (tbd->tbd_used + ET_NSEG_SPARE >= ET_TX_NDESC) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1277,8 +1294,17 @@ et_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (enq > 0)
+	if (enq > 0) {
+		tx_ring = &sc->sc_tx_ring;
+		bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
+		    BUS_DMASYNC_PREWRITE);
+		tx_ready_pos = tx_ring->tr_ready_index &
+		    ET_TX_READY_POS_INDEX_MASK;
+		if (tx_ring->tr_ready_wrap)
+			tx_ready_pos |= ET_TX_READY_POS_WRAP;
+		CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
 		sc->watchdog_timer = 5;
+	}
 }
 
 static void
@@ -2036,7 +2062,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	struct mbuf *m;
 	bus_dma_segment_t segs[ET_NSEG_MAX];
 	bus_dmamap_t map;
-	uint32_t csum_flags, last_td_ctrl2, tx_ready_pos;
+	uint32_t csum_flags, last_td_ctrl2;
 	int error, i, idx, first_idx, last_idx, nsegs;
 
 	tx_ring = &sc->sc_tx_ring;
@@ -2121,12 +2147,6 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	tbd->tbd_used += nsegs;
 	MPASS(tbd->tbd_used <= ET_TX_NDESC);
 
-	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-	    BUS_DMASYNC_PREWRITE);
-	tx_ready_pos = tx_ring->tr_ready_index & ET_TX_READY_POS_INDEX_MASK;
-	if (tx_ring->tr_ready_wrap)
-		tx_ready_pos |= ET_TX_READY_POS_WRAP;
-	CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
 	return (0);
 }
 
