@@ -141,13 +141,11 @@ static int	et_start_rxdma(struct et_softc *);
 static int	et_start_txdma(struct et_softc *);
 static int	et_stop_rxdma(struct et_softc *);
 static int	et_stop_txdma(struct et_softc *);
-static int	et_enable_txrx(struct et_softc *, int);
 static void	et_reset(struct et_softc *);
 static int	et_bus_config(struct et_softc *);
 static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
-static void	et_setmedia(struct et_softc *);
 
 static const struct et_dev {
 	uint16_t	vid;
@@ -295,6 +293,9 @@ et_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
+
+	if (pci_get_device(dev) == PCI_PRODUCT_LUCENT_ET1310_FAST)
+		sc->sc_flags |= ET_FLAG_FASTETHER;
 
 	error = et_bus_config(sc);
 	if (error)
@@ -487,7 +488,89 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 static void
 et_miibus_statchg(device_t dev)
 {
-	et_setmedia(device_get_softc(dev));
+	struct et_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint32_t cfg1, cfg2, ctrl;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	mii = device_get_softc(sc->sc_miibus);
+	ifp = sc->ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->sc_flags &= ~ET_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->sc_flags |= ET_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+				sc->sc_flags |= ET_FLAG_LINK;
+			break;
+		}
+	}
+
+	/* XXX Stop TX/RX MAC? */
+	if ((sc->sc_flags & ET_FLAG_LINK) == 0)
+		return;
+
+	/* Program MACs with resolved speed/duplex/flow-control. */
+	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
+	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
+	cfg1 = CSR_READ_4(sc, ET_MAC_CFG1);
+	cfg1 &= ~(ET_MAC_CFG1_TXFLOW | ET_MAC_CFG1_RXFLOW |
+	    ET_MAC_CFG1_LOOPBACK);
+	cfg2 = CSR_READ_4(sc, ET_MAC_CFG2);
+	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
+	    ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
+	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
+	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
+	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
+
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T)
+		cfg2 |= ET_MAC_CFG2_MODE_GMII;
+	else {
+		cfg2 |= ET_MAC_CFG2_MODE_MII;
+		ctrl |= ET_MAC_CTRL_MODE_MII;
+	}
+
+	if (IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) {
+		cfg2 |= ET_MAC_CFG2_FDX;
+#ifdef notyet
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE)
+			cfg1 |= ET_MAC_CFG1_TXFLOW;
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE)
+			cfg1 |= ET_MAC_CFG1_RXFLOW;
+#endif
+	} else
+		ctrl |= ET_MAC_CTRL_GHDX;
+
+	CSR_WRITE_4(sc, ET_MAC_CTRL, ctrl);
+	CSR_WRITE_4(sc, ET_MAC_CFG2, cfg2);
+	cfg1 |= ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN;
+	CSR_WRITE_4(sc, ET_MAC_CFG1, cfg1);
+
+#define NRETRY	50
+
+	for (i = 0; i < NRETRY; ++i) {
+		cfg1 = CSR_READ_4(sc, ET_MAC_CFG1);
+		if ((cfg1 & (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN)) ==
+		    (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN))
+			break;
+		DELAY(100);
+	}
+	if (i == NRETRY)
+		if_printf(ifp, "can't enable RX/TX\n");
+	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
+
+#undef NRETRY
 }
 
 static int
@@ -518,10 +601,17 @@ et_ifmedia_upd(struct ifnet *ifp)
 static void
 et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct et_softc *sc = ifp->if_softc;
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
+	struct et_softc *sc;
+	struct mii_data *mii;
 
+	sc = ifp->if_softc;
 	ET_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		ET_UNLOCK(sc);
+		return;
+	}
+
+	mii = device_get_softc(sc->sc_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -539,13 +629,15 @@ et_stop(struct et_softc *sc)
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
+	CSR_WRITE_4(sc, ET_MAC_CFG1, CSR_READ_4(sc, ET_MAC_CFG1) & ~(
+	    ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN));
+	DELAY(100);
+
 	et_stop_rxdma(sc);
 	et_stop_txdma(sc);
 
 	et_free_tx_ring(sc);
 	et_free_rx_ring(sc);
-
-	et_reset(sc);
 
 	sc->sc_tx = 0;
 	sc->sc_tx_intr = 0;
@@ -1104,6 +1196,7 @@ et_init_locked(struct et_softc *sc)
 		return;
 
 	et_stop(sc);
+	et_reset(sc);
 
 	et_init_tx_ring(sc);
 	error = et_init_rx_ring(sc);
@@ -1112,22 +1205,33 @@ et_init_locked(struct et_softc *sc)
 
 	error = et_chip_init(sc);
 	if (error)
-		goto back;
+		goto fail;
 
-	error = et_enable_txrx(sc, 1);
+	/*
+	 * Start TX/RX DMA engine
+	 */
+	error = et_start_rxdma(sc);
 	if (error)
-		goto back;
+		return;
+
+	error = et_start_txdma(sc);
+	if (error)
+		return;
 
 	/* Enable interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
-
-	callout_reset(&sc->sc_tick, hz, et_tick, sc);
 
 	CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-back:
+
+	sc->sc_flags &= ~ET_FLAG_LINK;
+	et_ifmedia_upd_locked(ifp);
+
+	callout_reset(&sc->sc_tick, hz, et_tick, sc);
+
+fail:
 	if (error)
 		et_stop(sc);
 }
@@ -1239,10 +1343,10 @@ et_start_locked(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ET_LOCK_ASSERT(sc);
 
-	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0)
-		return;
-
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING ||
+	    (sc->sc_flags & (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED)) !=
+	    (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED))
 		return;
 
 	/*
@@ -1870,56 +1974,6 @@ et_start_txdma(struct et_softc *sc)
 	return (0);
 }
 
-static int
-et_enable_txrx(struct et_softc *sc, int media_upd)
-{
-	struct ifnet *ifp = sc->ifp;
-	uint32_t val;
-	int i, error;
-
-	val = CSR_READ_4(sc, ET_MAC_CFG1);
-	val |= ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN;
-	val &= ~(ET_MAC_CFG1_TXFLOW | ET_MAC_CFG1_RXFLOW |
-		 ET_MAC_CFG1_LOOPBACK);
-	CSR_WRITE_4(sc, ET_MAC_CFG1, val);
-
-	if (media_upd)
-		et_ifmedia_upd_locked(ifp);
-	else
-		et_setmedia(sc);
-
-#define NRETRY	50
-
-	for (i = 0; i < NRETRY; ++i) {
-		val = CSR_READ_4(sc, ET_MAC_CFG1);
-		if ((val & (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN)) ==
-		    (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN))
-			break;
-
-		DELAY(100);
-	}
-	if (i == NRETRY) {
-		if_printf(ifp, "can't enable RX/TX\n");
-		return (0);
-	}
-	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
-
-#undef NRETRY
-
-	/*
-	 * Start TX/RX DMA engine
-	 */
-	error = et_start_rxdma(sc);
-	if (error)
-		return (error);
-
-	error = et_start_txdma(sc);
-	if (error)
-		return (error);
-
-	return (0);
-}
-
 static void
 et_rxeof(struct et_softc *sc)
 {
@@ -2192,6 +2246,7 @@ et_txeof(struct et_softc *sc)
 	if (tbd->tbd_used + ET_NSEG_SPARE < ET_TX_NDESC)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
+
 static void
 et_tick(void *xsc)
 {
@@ -2204,13 +2259,6 @@ et_tick(void *xsc)
 	mii = device_get_softc(sc->sc_miibus);
 
 	mii_tick(mii);
-	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0 &&
-	    (mii->mii_media_status & IFM_ACTIVE) &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		if_printf(ifp, "Link up, enable TX/RX\n");
-		if (et_enable_txrx(sc, 0) == 0)
-			et_start_locked(ifp);
-	}
 	if (et_watchdog(sc) == EJUSTRETURN)
 		return;
 	callout_reset(&sc->sc_tick, hz, et_tick, sc);
@@ -2396,38 +2444,6 @@ et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 	}
 back:
 	return (error);
-}
-
-static void
-et_setmedia(struct et_softc *sc)
-{
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
-	uint32_t cfg2, ctrl;
-
-	cfg2 = CSR_READ_4(sc, ET_MAC_CFG2);
-	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
-		  ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
-	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
-	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
-	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
-
-	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
-	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
-
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
-		cfg2 |= ET_MAC_CFG2_MODE_GMII;
-	} else {
-		cfg2 |= ET_MAC_CFG2_MODE_MII;
-		ctrl |= ET_MAC_CTRL_MODE_MII;
-	}
-
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		cfg2 |= ET_MAC_CFG2_FDX;
-	else
-		ctrl |= ET_MAC_CTRL_GHDX;
-
-	CSR_WRITE_4(sc, ET_MAC_CTRL, ctrl);
-	CSR_WRITE_4(sc, ET_MAC_CFG2, cfg2);
 }
 
 static int
