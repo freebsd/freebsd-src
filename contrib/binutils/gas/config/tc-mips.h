@@ -89,15 +89,6 @@ enum mips_pic_level
 
 extern enum mips_pic_level mips_pic;
 
-struct mips_cl_insn
-{
-  unsigned long insn_opcode;
-  const struct mips_opcode *insn_mo;
-  /* The next two fields are used when generating mips16 code.  */
-  bfd_boolean use_extend;
-  unsigned short extend;
-};
-
 extern int tc_get_register (int frame);
 
 #define md_after_parse_args() mips_after_parse_args()
@@ -143,15 +134,6 @@ extern int mips_force_relocation (struct fix *);
 #define TC_FORCE_RELOCATION_SUB_SAME(FIX, SEG) \
   (! SEG_NORMAL (SEG) || mips_force_relocation (FIX))
 
-/* We use this to turn branches to global symbols into branches to
-   local symbols, so that they can be simplified.  */
-#define TC_VALIDATE_FIX(fixp, this_segment, skip_label) \
-  do \
-    if (! mips_validate_fix ((fixp), (this_segment))) \
-      goto skip_label; \
-  while (0)
-extern int mips_validate_fix (struct fix *, asection *);
-
 /* Register mask variables.  These are set by the MIPS assembly code
    and used by ECOFF and possibly other object file formats.  */
 extern unsigned long mips_gprmask;
@@ -174,8 +156,8 @@ extern void md_mips_end (void);
 extern void mips_pop_insert (void);
 #define md_pop_insert()		mips_pop_insert()
 
-extern void mips_flush_pending_output (void);
-#define md_flush_pending_output mips_flush_pending_output
+extern void mips_emit_delays (void);
+#define md_flush_pending_output mips_emit_delays
 
 extern void mips_enable_auto_align (void);
 #define md_elf_section_change_hook()	mips_enable_auto_align()
