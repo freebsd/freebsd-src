@@ -377,7 +377,7 @@ property. This directory is created as needed, and
 automatically mounts the file system when the
 .Qq Nm Cm mount Fl a
 command is invoked (without editing
-.Pa /etc/fstab Ns ).
+.Pa /etc/fstab ) .
 The
 .Sy mountpoint
 property can be inherited, so if
@@ -409,7 +409,7 @@ responsible for mounting and unmounting the file system.
 dataset can be attached to a jail by using the
 .Qq Nm Cm jail
 subcommand. You cannot attach a dataset to one jail and the children of the
-same dataset to another jails. To allow managment of the dataset from within
+same dataset to another jails. To allow management of the dataset from within
 a jail, the
 .Sy jailed
 property has to be set. The
@@ -624,10 +624,10 @@ symbol, using one of the following forms:
 .Bl -bullet -offset 2n
 .It
 POSIX name (for example,
-.Em joe Ns )
+.Em joe )
 .It
 POSIX numeric ID (for example,
-.Em 1001 Ns )
+.Em 1001 )
 .El
 .It Sy userrefs
 This property is set to the number of user holds on this snapshot. User holds
@@ -673,7 +673,7 @@ snapshot.
 The
 .Ar snapshot
 may be specified as a short snapshot name (just the part after the
-.Sy @ Ns ),
+.Sy @ ) ,
 in which case it will be interpreted as a snapshot in the same filesystem as
 this dataset. The
 .Ar snapshot
@@ -847,7 +847,7 @@ is an integer from 1 (fastest) to 9 (best compression ratio). Currently,
 is equivalent to
 .Cm gzip-6
 (which is also the default for
-.Xr gzip 1 Ns ).
+.Xr gzip 1 ) .
 The
 .Cm zle
 compression algorithm compresses runs of zeros.
@@ -952,7 +952,7 @@ space calculation does not include space that is used by descendent datasets,
 such as snapshots and clones. User space consumption is identified by the
 .Sy userspace@ Ns Ar user
 property.
-.sp
+.Pp
 Enforcement of user quotas may be delayed by several seconds. This delay means
 that a user might exceed their quota before the system notices that they are
 over quota and begins to refuse additional writes with the
@@ -960,14 +960,14 @@ over quota and begins to refuse additional writes with the
 error message. See the
 .Cm userspace
 subcommand for more information.
-.sp
+.Pp
 Unprivileged users can only access their own groups' space usage. The root
 user, or a user who has been granted the
 .Sy userquota
 privilege with
 .Qq Nm Cm allow ,
 can get and set everyone's quota.
-.sp
+.Pp
 This property is not available on volumes, on file systems before version 4, or
 on pools before version 15. The
 .Sy userquota@ Ns ...
@@ -979,17 +979,17 @@ symbol, using one of the following forms:
 .Bl -bullet -offset 2n
 .It
 POSIX name (for example,
-.Em joe Ns )
+.Em joe )
 .It
 POSIX numeric ID (for example,
-.Em 1001 Ns )
+.Em 1001 )
 .El
 .It Sy groupquota@ Ns Ar group Ns = Ns Ar size | Cm none
 Limits the amount of space consumed by the specified group. Group space
 consumption is identified by the
 .Sy userquota@ Ns Ar user
 property.
-.sp
+.Pp
 Unprivileged users can access only their own groups' space usage. The root
 user, or a user who has been granted the
 .Sy groupquota
@@ -1020,7 +1020,7 @@ than or equal to 128 Kbytes.
 Changing the file system's
 .Sy recordsize
 affects only files created afterward; existing files are unaffected.
-.sp
+.Pp
 This property can also be referred to by its shortened column name,
 .Sy recsize .
 .It Sy refquota Ns = Ns Ar size | Cm none
@@ -1036,13 +1036,13 @@ The
 .Sy refreservation
 reservation is accounted for in the parent datasets' space used, and counts
 against the parent datasets' quotas and reservations.
-.sp
+.Pp
 If
 .Sy refreservation
 is set, a snapshot is only allowed if there is enough free pool space outside
 of this reservation to accommodate the current number of "referenced" bytes in
 the dataset.
-.sp
+.Pp
 This property can also be referred to by its shortened column name,
 .Sy refreserv .
 .It Sy reservation Ns = Ns Ar size | Cm none
@@ -1161,7 +1161,7 @@ version number of 9 or higher, a
 is set instead. Any changes to
 .Sy volsize
 are reflected in an equivalent change to the reservation (or
-.Sy refreservation Ns ).
+.Sy refreservation ) .
 The
 .Sy volsize
 can only be set to a multiple of
@@ -1174,7 +1174,7 @@ run out of space, resulting in undefined behavior or data corruption, depending
 on how the volume is used. These effects can also occur when the volume size is
 changed while it is in use (particularly when shrinking the size). Extreme care
 should be used when adjusting the volume size.
-.sp
+.Pp
 Though not recommended, a "sparse volume" (also known as "thin provisioning")
 can be created by specifying the
 .Fl s
@@ -1708,7 +1708,7 @@ Snapshots are displayed if the
 property is
 .Cm on
 (the default is
-.Cm off Ns ).
+.Cm off ) .
 The following fields are displayed,
 .Sy name , used , available , referenced , mountpoint .
 .Bl -tag -width indent
@@ -2168,10 +2168,10 @@ Creates a stream representation of the last
 argument (not part of
 .Fl i
 or
-.Fl I Ns )
+.Fl I )
 which is written to standard output. The output can be redirected to
 a file or to a different system (for example, using
-.Xr ssh 1 Ns ).
+.Xr ssh 1 ) .
 By default, a full stream is generated.
 .Bl -tag -width indent
 .It Fl i Ar snapshot
@@ -2180,10 +2180,10 @@ Generate an incremental stream from the
 to the last
 .Ar snapshot .
 The incremental source (the
-.Fl i Ar snapshot Ns )
+.Fl i Ar snapshot )
 can be specified as the last component of the snapshot name (for example, the
 part after the
-.Sy @ Ns ),
+.Sy @ ) ,
 and it is assumed to be from the same file system as the last
 .Ar snapshot .
 .Pp
@@ -2191,11 +2191,13 @@ If the destination is a clone, the source may be the origin snapshot, which
 must be fully specified (for example, 
 .Cm pool/fs@origin ,
 not just
-.Cm @origin Ns ).
+.Cm @origin ) .
 .It Fl I Ar snapshot
 Generate a stream package that sends all intermediary snapshots from the
-.Fl I Ar snapshot to the last
-.Ar snapshot . For example,
+.Fl I Ar snapshot
+to the last
+.Ar snapshot .
+For example,
 .Ic -I @a fs@d
 is similar to
 .Ic -i @a fs@b; -i @b fs@c; -i @c fs@d .
@@ -2223,12 +2225,12 @@ flag is specified when this stream is received, snapshots and file systems that
 .It Fl D
 Generate a deduplicated stream. Blocks which would have been sent multiple
 times in the send stream will only be sent once.  The receiving system must
-also support this feature to recieve a deduplicated stream.  This flag can
+also support this feature to receive a deduplicated stream.  This flag can
 be used regardless of the dataset's
 .Sy dedup
 property, but performance will be much better if the filesystem uses a
 dedup-capable checksum (eg.
-.Sy sha256 Ns ).
+.Sy sha256 ) .
 .It Fl r
 Recursively send all descendant snapshots.  This is similar to the
 .Fl R
@@ -2323,14 +2325,14 @@ option is specified, all but the pool name of the sent snapshot path is
 appended (for example,
 .Sy b/c@1
 appended from sent snapshot
-.Sy a/b/c@1 Ns ),
+.Sy a/b/c@1 ) ,
 and if the
 .Fl e
 option is specified, only the tail of the sent snapshot path is appended (for
 example,
 .Sy c@1
 appended from sent snapshot
-.Sy a/b/c@1 Ns ).
+.Sy a/b/c@1 ) .
 In the case of
 .Fl d ,
 any file systems needed to replicate the path of the sent snapshot are created
@@ -2349,13 +2351,13 @@ Print verbose information about the stream and the time required to perform the
 receive operation.
 .It Fl n
 Do not actually receive the stream. This can be useful in conjunction with the
-.It Fl v
+.Fl v
 option to verify the name the receive operation would use.
 .It Fl F
 Force a rollback of the file system to the most recent snapshot before
 performing the receive operation. If receiving an incremental replication
 stream (for example, one generated by
-.Qq Nm Cm send Fl R Fi iI Ns ) ,
+.Qq Nm Cm send Fl R Fi iI ) ,
 destroy snapshots and file systems that do not exist on the sending side.
 .El
 .It Xo
@@ -2409,7 +2411,8 @@ option.
 .Op Fl e
 .Ar perm Ns | Ns Ar @setname Ns Op , Ns Ar ...
 .Xc
-Specifies that the permissions be delegated to "everyone." Multiple permissions
+Specifies that the permissions be delegated to "everyone".
+Multiple permissions
 may be specified as a comma-separated list. Permission names are the same as
 .Tn ZFS
 subcommand and property names. See the property list below. Property set names,
@@ -2655,7 +2658,7 @@ Describes differences between a snapshot and a successor dataset. The
 successor dataset can be a later snapshot or the current filesystem.
 .Pp
 The changed files are displayed including the change type. The change type
-is displayed ussing a single character. If a file or directory was renamed,
+is displayed useing a single character. If a file or directory was renamed,
 the old and the new names are displayed.
 .Pp
 The following change types can be displayed:
@@ -2680,9 +2683,9 @@ The following file types can be displayed:
 .It \&B Ta block device
 .It \&@ Ta symbolic link
 .It \&= Ta socket
-.It \&> Ta door (not supported on Fx Ns )
-.It \&| Ta FIFO (not supported on Fx Ns )
-.It \&P Ta event portal (not supported on Fx Ns )
+.It \&> Ta door (not supported on Fx )
+.It \&| Ta FIFO (not supported on Fx )
+.It \&P Ta event portal (not supported on Fx )
 .El
 .It Fl H
 Machine-parseable output, fields separated a tab character.
