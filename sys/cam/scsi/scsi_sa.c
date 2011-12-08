@@ -334,6 +334,10 @@ static struct sa_quirk_entry sa_quirk_table[] =
 		"STT20000*", "*"}, SA_QUIRK_1FM, 0
 	},
 	{
+		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "SEAGATE",
+		"DAT    06241-XXX", "*"}, SA_QUIRK_VARIABLE|SA_QUIRK_2FM, 0
+	},
+	{
 		{ T_SEQUENTIAL, SIP_MEDIA_REMOVABLE, "TANDBERG",
 		  " TDC 3600", "U07:"}, SA_QUIRK_NOCOMP|SA_QUIRK_1FM, 512
 	},
