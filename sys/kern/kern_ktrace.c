@@ -478,7 +478,7 @@ ktrsysret(code, error, retval)
 	ktp = &req->ktr_data.ktr_sysret;
 	ktp->ktr_code = code;
 	ktp->ktr_error = error;
-	ktp->ktr_retval = retval;		/* what about val2 ? */
+	ktp->ktr_retval = ((error == 0) ? retval: 0);		/* what about val2 ? */
 	ktr_submitrequest(curthread, req);
 }
 
