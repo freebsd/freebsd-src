@@ -769,13 +769,18 @@ By default, the following architecture keywords are defined:
 .
 \# we use `No' to avoid hyphenation
 .Bd -ragged -offset indent
-.No alpha , acorn26 , acorn32 , algor , amd64 , amiga , arc , arm26 ,
-.No arm32 , atari , bebox , cats , cesfic , cobalt , dreamcast , evbarm ,
-.No evbmips , evbppc , evbsh3 , hp300 , hp700 , hpcmips , i386 , luna68k ,
-.No m68k , mac68k , macppc , mips , mmeye , mvme68k , mvmeppc , netwinder ,
-.No news68k , newsmips , next68k , ofppc , pc532 , pmax , pmppc , powerpc ,
-.No prep , sandpoint , sgimips , sh3 , shark , sparc , sparc64 , sun3 ,
-.No tahoe , vax , x68k , x86_64
+.No acorn26 , acorn32 , algor , alpha , amd64 , amiga , amigappc ,
+.No arc , arm , arm26 , arm32 , armish , atari , aviion ,
+.No beagle , bebox , cats , cesfic , cobalt , dreamcast ,
+.No emips , evbarm , evbmips , evbppc , evbsh3 , ews4800mips ,
+.No hp300 , hp700 , hpcarm , hpcmips , hpcsh , hppa , hppa64 ,
+.No i386 , ia64 , ibmnws , iyonix , landisk , loongson , luna68k , luna88k ,
+.No m68k , mac68k , macppc , mips , mips64 , mipsco , mmeye ,
+.No mvme68k , mvme88k , mvmeppc , netwinder , news68k , newsmips , next68k ,
+.No ofppc , palm , pc532 , playstation2 , pmax , pmppc , powerpc , prep ,
+.No rs6000 , sandpoint , sbmips , sgi , sgimips , sh3 , shark ,
+.No socppc , solbourne , sparc , sparc64 , sun2 , sun3 ,
+.No tahoe , vax , x68k , x86_64 , xen , zaurus
 .Ed
 .Pp
 .
@@ -864,23 +869,25 @@ the release ID.
 .It NetBSD
 0.8, 0.8a, 0.9, 0.9a, 1.0, 1.0a, 1.1, 1.2, 1.2a, 1.2b, 1.2c, 1.2d, 1.2e,
 1.3, 1.3a, 1.4, 1.4.1, 1.4.2, 1.4.3, 1.5, 1.5.1, 1.5.2, 1.5.3, 1.6, 1.6.1,
-1.6.2, 1.6.3, 2.0, 2.0.1, 2.0.2, 2.0.3, 2.1, 3.0, 3.0.1, 3.0.2, 3.1, 4.0,
-4.0.1, 5.0, 5.0.1, 5.0.2
+1.6.2, 1.6.3, 2.0, 2.0.1, 2.0.2, 2.0.3, 2.1, 3.0, 3.0.1, 3.0.2, 3.0.3,
+3.1, 3.1.1, 4.0, 4.0.1, 5.0, 5.0.1, 5.0.2, 5.1, 6.0
 .It FreeBSD
 1.0, 1.1, 1.1.5, 1.1.5.1, 2.0, 2.0.5, 2.1, 2.1.5, 2.1.6, 2.1.7, 2.2, 2.2.1,
 2.2.2, 2.2.5, 2.2.6, 2.2.7, 2.2.8, 3.0, 3.1, 3.2, 3.3, 3.4, 3.5, 4.0, 4.1,
 4.1.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.6.2, 4.7, 4.8, 4.9, 4.10, 4.11, 5.0, 5.1,
 5.2, 5.2.1, 5.3, 5.4, 5.5, 6.0, 6.1, 6.2, 6.3, 6.4, 7.0, 7.1, 7.2, 7.3, 8.0,
-8.1
+8.1, 8.2, 9.0
 .It OpenBSD
 2.0, 2.1, 2.2, 2.3, 2.4, 2.5, 2.6, 2.7, 2.8, 2.9, 3.0, 3.1, 3.2, 3.3, 3.4,
-3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8
+3.5, 3.6, 3.7, 3.8, 3.9, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9,
+5.0
 .It DragonFly
 1.0, 1.1, 1.2, 1.3, 1.4, 1.5, 1.6, 1.8, 1.8.1, 1.10, 1.12, 1.12.2, 2.0, 2.2,
-2.4, 2.6, 2.8
+2.4, 2.6, 2.8, 2.9, 2.9.1, 2.10, 2.10.1, 2.11
 .It Darwin
 8.0.0, 8.1.0, 8.2.0, 8.3.0, 8.4.0, 8.5.0, 8.6.0, 8.7.0, 8.8.0, 8.9.0,
-8.10.0, 8.11.0, 9.0.0, 9.1.0, 9.2.0, 9.3.0, 9.4.0, 9.5.0, 9.6.0
+8.10.0, 8.11.0, 9.0.0, 9.1.0, 9.2.0, 9.3.0, 9.4.0, 9.5.0, 9.6.0, 9.7.0,
+9.8.0, 10.1.0, 10.2.0, 10.3.0, 10.4.0, 10.5.0, 10.6.0, 10.7.0, 11.0.0
 .El
 .Ed
 .Pp
@@ -1673,33 +1680,73 @@ Available arguments to
 and their results are:
 .
 .Pp
-.Bl -tag -width ".Li libossaudio" -compact -offset indent
+.Bl -tag -width ".Li librpcsec_gss" -compact -offset indent
+.It Li libarchive
+.Lb libarchive
 .It Li libarm
 .Lb libarm
 .It Li libarm32
 .Lb libarm32
+.It Li libbluetooth
+.Lb libbluetooth
+.It Li libbsm
+.Lb libbsm
 .It Li libc
 .Lb libc
+.It Li libc_r
+.Lb libc_r
+.It Li libcalendar
+.Lb libcalendar
+.It Li libcam
+.Lb libcam
 .It Li libcdk
 .Lb libcdk
+.It Li libcipher
+.Lb libcipher
 .It Li libcompat
 .Lb libcompat
 .It Li libcrypt
 .Lb libcrypt
 .It Li libcurses
 .Lb libcurses
+.It Li libdevinfo
+.Lb libdevinfo
+.It Li libdevstat
+.Lb libdevstat
+.It Li libdisk
+.Lb libdisk
+.It Li libdwarf
+.Lb libdwarf
 .It Li libedit
 .Lb libedit
+.It Li libelf
+.Lb libelf
 .It Li libevent
 .Lb libevent
+.It Li libfetch
+.Lb libfetch
 .It Li libform
 .Lb libform
+.It Li libgeom
+.Lb libgeom
+.It Li libgpib
+.Lb libgpib
 .It Li libi386
 .Lb libi386
 .It Li libintl
 .Lb libintl
 .It Li libipsec
 .Lb libipsec
+.It Li libipx
+.Lb libipx
+.It Li libiscsi
+.Lb libiscsi
+.It Li libjail
+.Lb libjail
+.It Li libkiconv
+.Lb libkiconv
+.It Li libkse
+.Lb libkse
 .It Li libkvm
 .Lb libkvm
 .It Li libm
@@ -1708,8 +1755,16 @@ and their results are:
 .Lb libm68k
 .It Li libmagic
 .Lb libmagic
+.It Li libmd
+.Lb libmd
+.It Li libmemstat
+.Lb libmemstat
 .It Li libmenu
 .Lb libmenu
+.It Li libnetgraph
+.Lb libnetgraph
+.It Li libnetpgp
+.Lb libnetpgp
 .It Li libossaudio
 .Lb libossaudio
 .It Li libpam
@@ -1722,18 +1777,46 @@ and their results are:
 .Lb libpmc
 .It Li libposix
 .Lb libposix
+.It Li libprop
+.Lb libprop
 .It Li libpthread
 .Lb libpthread
+.It Li libpuffs
+.Lb libpuffs
+.It Li librefuse
+.Lb librefuse
 .It Li libresolv
 .Lb libresolv
+.It Li librpcsec_gss
+.Lb librpcsec_gss
+.It Li librpcsvc
+.Lb librpcsvc
 .It Li librt
 .Lb librt
+.It Li libsdp
+.Lb libsdp
+.It Li libssp
+.Lb libssp
+.It Li libSystem
+.Lb libSystem
 .It Li libtermcap
 .Lb libtermcap
+.It Li libterminfo
+.Lb libterminfo
+.It Li libthr
+.Lb libthr
+.It Li libufs
+.Lb libufs
+.It Li libugidfw
+.Lb libugidfw
+.It Li libulog
+.Lb libulog
 .It Li libusbhid
 .Lb libusbhid
 .It Li libutil
 .Lb libutil
+.It Li libvgl
+.Lb libvgl
 .It Li libx86_64
 .Lb libx86_64
 .It Li libz
