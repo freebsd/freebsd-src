@@ -29,7 +29,7 @@ by Al Aho, Brian Kernighan, and Peter Weinberger
 Changes, mostly bug fixes and occasional enhancements, are listed
 in FIXES.  If you distribute this code further, please please please
 distribute FIXES with it.  If you find errors, please report them
-to bwk@bell-labs.com.  Thanks.
+to bwk@cs.princeton.edu.  Thanks.
 
 The program itself is created by
 	make

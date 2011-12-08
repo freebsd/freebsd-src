@@ -69,6 +69,7 @@ void tempfree(Cell *p) {
 
 jmp_buf env;
 extern	int	pairstack[];
+extern	Awkfloat	srand_seed;
 
 Node	*winner = NULL;	/* root of parse tree */
 Cell	*tmps;		/* free temporary cells for execution */
@@ -1238,6 +1239,12 @@ Cell *split(Node **a, int nnn)	/* split(a[0], a[1], a[2]); a[3] is type */
 	ap->sval = (char *) makesymtab(NSYMTAB);
 
 	n = 0;
+        if (arg3type == REGEXPR && strlen((char*)((fa*)a[2])->restr) == 0) {
+		/* split(s, a, //); have to arrange that it looks like empty sep */
+		arg3type = 0;
+		fs = "";
+		sep = 0;
+	}
 	if (*s != '\0' && (strlen(fs) > 1 || arg3type == REGEXPR)) {	/* reg expr */
 		fa *pfa;
 		if (arg3type == REGEXPR) {	/* it's ready already */
@@ -1469,6 +1476,7 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 	Cell *x, *y;
 	Awkfloat u;
 	int t;
+	Awkfloat tmp;
 	char *p, *buf;
 	Node *nextarg;
 	FILE *fp;
@@ -1520,7 +1528,10 @@ Cell *bltin(Node **a, int n)	/* builtin functions. a[0] is type, a[1] is arg lis
 			u = time((time_t *)0);
 		else
 			u = getfval(x);
+		tmp = u;
 		srand((unsigned int) u);
+		u = srand_seed;
+		srand_seed = tmp;
 		break;
 	case FTOUPPER:
 	case FTOLOWER:
@@ -1616,17 +1627,25 @@ struct files {
 	FILE	*fp;
 	const char	*fname;
 	int	mode;	/* '|', 'a', 'w' => LE/LT, GT */
-} files[FOPEN_MAX] ={
-	{ NULL,  "/dev/stdin",  LT },	/* watch out: don't free this! */
-	{ NULL, "/dev/stdout", GT },
-	{ NULL, "/dev/stderr", GT }
-};
+} *files;
+
+int nfiles;
 
 void stdinit(void)	/* in case stdin, etc., are not constants */
 {
-	files[0].fp = stdin;
-	files[1].fp = stdout;
-	files[2].fp = stderr;
+	nfiles = FOPEN_MAX;
+	files = calloc(nfiles, sizeof(*files));
+	if (files == NULL)
+		FATAL("can't allocate file memory for %u files", nfiles);
+        files[0].fp = stdin;
+	files[0].fname = "/dev/stdin";
+	files[0].mode = LT;
+        files[1].fp = stdout;
+	files[1].fname = "/dev/stdout";
+	files[1].mode = GT;
+        files[2].fp = stderr;
+	files[2].fname = "/dev/stderr";
+	files[2].mode = GT;
 }
 
 FILE *openfile(int a, const char *us)
@@ -1637,7 +1656,7 @@ FILE *openfile(int a, const char *us)
 
 	if (*s == '\0')
 		FATAL("null file name in print or getline");
-	for (i=0; i < FOPEN_MAX; i++)
+	for (i=0; i < nfiles; i++)
 		if (files[i].fname && strcmp(s, files[i].fname) == 0) {
 			if (a == files[i].mode || (a==APPEND && files[i].mode==GT))
 				return files[i].fp;
@@ -1647,11 +1666,19 @@ FILE *openfile(int a, const char *us)
 	if (a == FFLUSH)	/* didn't find it, so don't create it! */
 		return NULL;
 
-	for (i=0; i < FOPEN_MAX; i++)
+	for (i=0; i < nfiles; i++)
 		if (files[i].fp == 0)
 			break;
-	if (i >= FOPEN_MAX)
-		FATAL("%s makes too many open files", s);
+	if (i >= nfiles) {
+		struct files *nf;
+		int nnf = nfiles + FOPEN_MAX;
+		nf = realloc(files, nnf * sizeof(*nf));
+		if (nf == NULL)
+			FATAL("cannot grow files for %s and %d files", s, nnf);
+		memset(&nf[nfiles], 0, FOPEN_MAX * sizeof(*nf));
+		nfiles = nnf;
+		files = nf;
+	}
 	fflush(stdout);	/* force a semblance of order */
 	m = a;
 	if (a == GT) {
@@ -1679,7 +1706,7 @@ const char *filename(FILE *fp)
 {
 	int i;
 
-	for (i = 0; i < FOPEN_MAX; i++)
+	for (i = 0; i < nfiles; i++)
 		if (fp == files[i].fp)
 			return files[i].fname;
 	return "???";
@@ -1694,7 +1721,7 @@ Cell *closefile(Node **a, int n)
 	x = execute(a[0]);
 	getsval(x);
 	stat = -1;
-	for (i = 0; i < FOPEN_MAX; i++) {
+	for (i = 0; i < nfiles; i++) {
 		if (files[i].fname && strcmp(x->sval, files[i].fname) == 0) {
 			if (ferror(files[i].fp))
 				WARNING( "i/o error occurred on %s", files[i].fname );
@@ -1738,7 +1765,7 @@ void flush_all(void)
 {
 	int i;
 
-	for (i = 0; i < FOPEN_MAX; i++)
+	for (i = 0; i < nfiles; i++)
 		if (files[i].fp)
 			fflush(files[i].fp);
 }
@@ -1890,9 +1917,10 @@ Cell *gsub(Node **a, int nnn)	/* global substitute */
 		adjbuf(&buf, &bufsz, 1+strlen(sptr)+pb-buf, 0, &pb, "gsub");
 		while ((*pb++ = *sptr++) != 0)
 			;
-	done:	if (pb > buf + bufsz)
-			FATAL("gsub result2 %.30s too big; can't happen", buf);
-		*pb = '\0';
+	done:	if (pb < buf + bufsz)
+			*pb = '\0';
+		else if (*(pb-1) != '\0')
+			FATAL("gsub result2 %.30s truncated; can't happen", buf);
 		setsval(x, buf);	/* BUG: should be able to avoid copy + free */
 		pfa->initstat = tempstat;
 	}
