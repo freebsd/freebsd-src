@@ -21,7 +21,7 @@ ident		MALTA
 
 makeoptions	ARCH_FLAGS="-march=mips64 -mabi=64"
 makeoptions	MIPS_LITTLE_ENDIAN=defined
-makeoptions	LDSCRIPT_NAME=	ldscript.mips.mips64
+makeoptions	LDSCRIPT_NAME=	ldscript.mips.64
 
 options 	YAMON
 
