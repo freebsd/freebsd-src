@@ -117,7 +117,7 @@ defined in
 .Pp
 Any errors encountered during the allocation or composition of the
 string will be latched in the data structure,
-making a single error test at the end of the composition 
+making a single error test at the end of the composition
 sufficient to determine success or failure of the entire process.
 .Pp
 The
@@ -391,7 +391,8 @@ function returns the actual string;
 only works on a finished
 .Fa sbuf .
 The
-.Fn sbuf_len function returns the length of the string.
+.Fn sbuf_len
+function returns the length of the string.
 For an
 .Fa sbuf
 with an attached drain,
@@ -482,7 +483,7 @@ being finished,
 or returns the error code from the drain if one is attached.
 .Pp
 The
-.Fn sbuf_finish 3 
+.Fn sbuf_finish 3
 function (the userland version)
 will return zero for success and \-1 and set errno on error.
 .Sh EXAMPLES
