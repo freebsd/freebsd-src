@@ -1158,34 +1158,40 @@ et_intr(void *xsc)
 {
 	struct et_softc *sc = xsc;
 	struct ifnet *ifp;
-	uint32_t intrs;
+	uint32_t status;
 
 	ET_LOCK(sc);
 	ifp = sc->ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ET_UNLOCK(sc);
-		return;
-	}
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto done;
+
+	status = CSR_READ_4(sc, ET_INTR_STATUS);
+	if ((status & ET_INTRS) == 0)
+		goto done;
 
 	/* Disable further interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
-	intrs = CSR_READ_4(sc, ET_INTR_STATUS);
-	if ((intrs & ET_INTRS) == 0)
-		goto done;
-
-	if (intrs & ET_INTR_RXEOF)
+	if (status & (ET_INTR_RXDMA_ERROR | ET_INTR_TXDMA_ERROR)) {
+		device_printf(sc->dev, "DMA error(0x%08x) -- resetting\n",
+		    status);
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		et_init_locked(sc);
+		ET_UNLOCK(sc);
+		return;
+	}
+	if (status & ET_INTR_RXDMA)
 		et_rxeof(sc);
-	if (intrs & (ET_INTR_TXEOF | ET_INTR_TIMER))
+	if (status & (ET_INTR_TXDMA | ET_INTR_TIMER))
 		et_txeof(sc);
-	if (intrs & ET_INTR_TIMER)
+	if (status & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
-done:
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			et_start_locked(ifp);
 	}
+done:
 	ET_UNLOCK(sc);
 }
 
