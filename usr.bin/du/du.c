@@ -499,9 +499,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
-		"[file ...]\n");
+		"usage: du [-Aclnx] [-H | -L | -P] [-h | -k | -m ] "
+		"[-a | -s | -d depth] [-B blocksize] [-I mask] "
+		"[-t threshold] [file ...]\n");
 	exit(EX_USAGE);
 }
 
