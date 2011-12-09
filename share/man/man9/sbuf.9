@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2011
+.Dd December 9, 2011
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -463,12 +463,8 @@ function returns a non-zero value if the buffer has an overflow or
 drain error, and zero otherwise.
 .Pp
 The
-.Fn sbuf_data
-and
 .Fn sbuf_len
-functions return
-.Dv NULL
-and \-1, respectively, if the buffer overflowed.
+function returns \-1 if the buffer overflowed.
 .Pp
 The
 .Fn sbuf_copyin
