@@ -28,7 +28,7 @@
 .\"	@(#)du.1	8.2 (Berkeley) 4/1/94
 .\" $FreeBSD$
 .\"
-.Dd November 6, 2008
+.Dd December 8, 2011
 .Dt DU 1
 .Os
 .Sh NAME
@@ -36,15 +36,13 @@
 .Nd display disk usage statistics
 .Sh SYNOPSIS
 .Nm
-.Op Fl A
+.Op Fl Aclnx
 .Op Fl H | L | P
-.Op Fl a | s | d Ar depth | Fl t Ar threshold
-.Op Fl c
-.Op Fl l
-.Op Fl h | k | m | B Ar blocksize
-.Op Fl n
-.Op Fl x
+.Op Fl h | k | m
+.Op Fl a | s | d Ar depth
+.Op Fl B Ar blocksize
 .Op Fl I Ar mask
+.Op Fl t Ar threshold
 .Op Ar
 .Sh DESCRIPTION
 The
@@ -65,7 +63,9 @@ Calculate block counts in
 .Ar blocksize
 byte blocks.
 This is different from the
-.Fl k, m
+.Fl h, k
+and
+.Fl  m
 options or setting
 .Ev BLOCKSIZE
 and gives an estimate of how much space the examined file hierarchy would
@@ -79,20 +79,46 @@ is rounded up to the next multiple of 512.
 .It Fl H
 Symbolic links on the command line are followed, symbolic links in file
 hierarchies are not followed.
-.It Fl L
-Symbolic links on the command line and in file hierarchies are followed.
 .It Fl I Ar mask
 Ignore files and directories matching the specified
 .Ar mask .
+.It Fl L
+Symbolic links on the command line and in file hierarchies are followed.
 .It Fl P
 No symbolic links are followed.
 This is the default.
 .It Fl a
 Display an entry for each file in a file hierarchy.
+.It Fl c
+Display a grand total.
+.It Fl d Ar depth
+Display an entry for all files and directories
+.Ar depth
+directories deep.
 .It Fl h
-"Human-readable" output.
+.Dq Human-readable
+output.
 Use unit suffixes: Byte, Kilobyte, Megabyte,
 Gigabyte, Terabyte and Petabyte.
+.It Fl k
+Display block counts in 1024-byte (1-Kbyte) blocks.
+.It Fl l
+If a file has multiple hard links, count its size multiple times.
+The default behavior of
+.Nm
+is to count files with multiple hard links only once.
+When the
+.Fl l
+option is specified, the hard link checks are disabled, and these files
+are counted (and displayed) as many times as they are found.
+.It Fl m
+Display block counts in 1048576-byte (1-Mbyte) blocks.
+.It Fl n
+Ignore files and directories with user
+.Dq nodump
+flag
+.Pq Dv UF_NODUMP
+set.
 .It Fl r
 Generate messages about directories that cannot be read, files
 that cannot be opened, and so on.
@@ -111,31 +137,6 @@ If
 is negative, display only entries for which size is less than the absolute
 value of
 .Ar threshold .
-.It Fl d Ar depth
-Display an entry for all files and directories
-.Ar depth
-directories deep.
-.It Fl c
-Display a grand total.
-.It Fl k
-Display block counts in 1024-byte (1-Kbyte) blocks.
-.It Fl l
-If a file has multiple hard links, count its size many times.
-The default behavior of
-.Nm
-is to count files with multiple hard links only once.
-When the
-.Fl l
-option is specified, the hard link checks are disabled, and these files
-are counted (and displayed) as many times as they are found.
-.It Fl m
-Display block counts in 1048576-byte (1-Mbyte) blocks.
-.It Fl n
-Ignore files and directories with user
-.Dq nodump
-flag
-.Pq Dv UF_NODUMP
-set.
 .It Fl x
 File system mount points are not traversed.
 .El
@@ -152,25 +153,32 @@ If either the
 .Fl H
 or
 .Fl L
-options are specified, storage used by any symbolic links which are
-followed is not counted or displayed.
+option is specified, storage used by any symbolic links which are
+followed is not counted (or displayed).
+.Pp
+The
+.Fl h, k
+and
+.Fl m
+options all override each other; the last one specified determines
+the block counts used.
 .Sh ENVIRONMENT
 .Bl -tag -width BLOCKSIZE
 .It Ev BLOCKSIZE
 If the environment variable
 .Ev BLOCKSIZE
 is set, and the
-.Fl k, m
+.Fl h, k
 or
-.Fl h
+.Fl m
 options are not specified, the block counts will be displayed in units of
 that block size.
 If
 .Ev BLOCKSIZE
 is not set, and the
-.Fl k, m
+.Fl h, k
 or
-.Fl h
+.Fl m
 options are not specified, the block counts will be displayed in 512-byte
 blocks.
 .El
