@@ -332,7 +332,8 @@ et_attach(device_t dev)
 	et_chip_attach(sc);
 
 	error = mii_attach(dev, &sc->sc_miibus, ifp, et_ifmedia_upd,
-	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    MIIF_DOPAUSE);
 	if (error) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -548,12 +549,23 @@ et_miibus_statchg(device_t dev)
 
 	if (IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) {
 		cfg2 |= ET_MAC_CFG2_FDX;
+		/*
+		 * Controller lacks automatic TX pause frame
+		 * generation so it should be handled by driver.
+		 * Even though driver can send pause frame with
+		 * arbitrary pause time, controller does not
+		 * provide a way that tells how many free RX
+		 * buffers are available in controller.  This
+		 * limitation makes it hard to generate XON frame
+		 * in time on driver side so don't enable TX flow
+		 * control.
+		 */
 #ifdef notyet
 		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE)
 			cfg1 |= ET_MAC_CFG1_TXFLOW;
+#endif
 		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE)
 			cfg1 |= ET_MAC_CFG1_RXFLOW;
-#endif
 	} else
 		ctrl |= ET_MAC_CTRL_GHDX;
 
@@ -1949,8 +1961,12 @@ et_init_txmac(struct et_softc *sc)
 	/* Disable TX MAC and FC(?) */
 	CSR_WRITE_4(sc, ET_TXMAC_CTRL, ET_TXMAC_CTRL_FC_DISABLE);
 
-	/* No flow control yet */
-	CSR_WRITE_4(sc, ET_TXMAC_FLOWCTRL, 0);
+	/*
+	 * Initialize pause time.
+	 * This register should be set before XON/XOFF frame is
+	 * sent by driver.
+	 */
+	CSR_WRITE_4(sc, ET_TXMAC_FLOWCTRL, 0 << ET_TXMAC_FLOWCTRL_CFPT_SHIFT);
 
 	/* Enable TX MAC but leave FC(?) diabled */
 	CSR_WRITE_4(sc, ET_TXMAC_CTRL,
