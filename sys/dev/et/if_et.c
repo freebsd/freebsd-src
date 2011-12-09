@@ -250,9 +250,9 @@ et_attach(device_t dev)
 	/*
 	 * Allocate IO memory
 	 */
-	sc->sc_mem_rid = ET_PCIR_BAR;
+	sc->sc_mem_rid = PCIR_BAR(0);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-						&sc->sc_mem_rid, RF_ACTIVE);
+	    &sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "can't allocate IO memory\n");
 		return (ENXIO);
@@ -722,12 +722,7 @@ et_bus_config(struct et_softc *sc)
 	/*
 	 * Set max read request size to 2048 bytes
 	 */
-	val = pci_read_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-	val |= ET_PCIV_DEVICE_CTRL_RRSZ_2K;
-	pci_write_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	pci_set_max_read_req(sc->dev, 2048);
 
 	return (0);
 }
