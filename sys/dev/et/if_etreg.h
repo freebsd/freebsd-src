@@ -53,8 +53,6 @@
  * ET_PCIV_REPLAY_TIMER_{128,256} are from
  * PCI EXPRESS BASE SPECIFICATION, REV. 1.0a, Table 3-4
  */
-#define	ET_PCIR_BAR			PCIR_BAR(0)
-
 #define	ET_PCIR_DEVICE_CAPS		0x4C
 #define	ET_PCIM_DEVICE_CAPS_MAX_PLSZ	0x7	/* Max playload size */
 #define	ET_PCIV_DEVICE_CAPS_PLSZ_128	0x0
