@@ -1,5 +1,0 @@
-$ $tcsh: set21,v 1.2 2006/03/02 18:46:46 christos Exp $
-$ tc.disc.c
-$set 21 
-1 ne peut obtenir les caractères locaux.\n
-2 ne peut définir les catactères locaux.\n

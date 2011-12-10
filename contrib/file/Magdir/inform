@@ -1,8 +1,0 @@
-
-#------------------------------------------------------------------------------
-# inform:  file(1) magic for Inform interactive fiction language
-
-# URL:  http://www.inform-fiction.org/
-# From: Reuben Thomas <rrt@sc3d.org>
-
-0	search/cB/100	constant\ story		Inform source text

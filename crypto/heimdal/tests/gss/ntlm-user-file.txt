@@ -1,2 +1,0 @@
-# $Id: ntlm-user-file.txt 19406 2006-12-18 13:12:44Z lha $
-TEST:user1:u1

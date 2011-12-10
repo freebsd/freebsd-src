@@ -1,2 +1,0 @@
-gdiffmk:  The FILE2 and OUTPUT arguments both point to the same file,
-gdiffmk:  `tmp_file7', and it would be overwritten.
