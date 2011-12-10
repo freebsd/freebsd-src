@@ -257,6 +257,9 @@ int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);
+int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
+    struct mbuf **, uint16_t);
+void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, struct mbuf *);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
@@ -362,7 +365,7 @@ int nfsrpc_setclient(struct nfsmount *, struct nfsclclient *,
 int nfsrpc_getattr(vnode_t, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, void *);
 int nfsrpc_getattrnovp(struct nfsmount *, u_int8_t *, int, int,
-    struct ucred *, NFSPROC_T *, struct nfsvattr *, u_int64_t *);
+    struct ucred *, NFSPROC_T *, struct nfsvattr *, u_int64_t *, uint32_t *);
 int nfsrpc_setattr(vnode_t, struct vattr *, NFSACL_T *, struct ucred *,
     NFSPROC_T *, struct nfsvattr *, int *, void *);
 int nfsrpc_lookup(vnode_t, char *, int, struct ucred *, NFSPROC_T *,
@@ -426,6 +429,14 @@ int nfsrpc_delegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *, int);
 int nfsrpc_getacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
 int nfsrpc_setacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
+int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
+    struct ucred *, NFSPROC_T *);
+int nfsrpc_createsession(struct nfsmount *, struct nfsclclient *,
+    struct ucred *, NFSPROC_T *);
+int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
+    struct ucred *, NFSPROC_T *);
+int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
+    struct ucred *, NFSPROC_T *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
@@ -435,7 +446,7 @@ int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, struct ucred *,
     NFSPROC_T *, nfsv4stateid_t *, void **);
 void nfscl_ownerrelease(struct nfsclowner *, int, int, int);
 void nfscl_openrelease(struct nfsclopen *, int, int);
-int nfscl_getcl(vnode_t, struct ucred *, NFSPROC_T *,
+int nfscl_getcl(struct mount *, struct ucred *, NFSPROC_T *, int,
     struct nfsclclient **);
 struct nfsclclient *nfscl_findcl(struct nfsmount *);
 void nfscl_clientrelease(struct nfsclclient *);
@@ -487,6 +498,8 @@ void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
+void nfscl_setsequence(struct nfsrv_descript *, struct nfsmount *, int);
+void nfscl_freeslot(struct nfsmount *, int);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,

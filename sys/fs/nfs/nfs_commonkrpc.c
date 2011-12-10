@@ -77,23 +77,26 @@ dtrace_nfsclient_nfs23_done_probe_func_t
 /*
  * Registered probes by RPC type.
  */
-uint32_t	nfscl_nfs2_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs2_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs2_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs2_done_probes[NFSV41_NPROCS + 1];
 
-uint32_t	nfscl_nfs3_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs3_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs3_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs3_done_probes[NFSV41_NPROCS + 1];
 
-uint32_t	nfscl_nfs4_start_probes[NFS_NPROCS + 1];
-uint32_t	nfscl_nfs4_done_probes[NFS_NPROCS + 1];
+uint32_t	nfscl_nfs4_start_probes[NFSV41_NPROCS + 1];
+uint32_t	nfscl_nfs4_done_probes[NFSV41_NPROCS + 1];
 #endif
 
 NFSSTATESPINLOCK;
 NFSREQSPINLOCK;
+NFSDLOCKMUTEX;
 extern struct nfsstats newnfsstats;
 extern struct nfsreqhead nfsd_reqq;
 extern int nfscl_ticks;
 extern void (*ncl_call_invalcaches)(struct vnode *);
+extern int nfs_numnfscbd;
 
+SVCPOOL		*nfscbd_pool;
 static int	nfsrv_gsscallbackson = 0;
 static int	nfs_bufpackets = 4;
 static int	nfs_reconnects;
@@ -168,6 +171,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	struct socket *so;
 	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
+	SVCXPRT *xprt;
 
 	/*
 	 * We need to establish the socket using the credentials of
@@ -268,6 +272,24 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			retries = nmp->nm_retry;
 		else
 			retries = INT_MAX;
+		if (NFSHASNFSV4N(nmp)) {
+			/*
+			 * Make sure the nfscbd_pool doesn't get destroyed
+			 * while doing this.
+			 */
+			NFSD_LOCK();
+			if (nfs_numnfscbd > 0) {
+				nfs_numnfscbd++;
+				NFSD_UNLOCK();
+				xprt = svc_vc_create_backchannel(nfscbd_pool);
+				CLNT_CONTROL(client, CLSET_BACKCHANNEL, xprt);
+				NFSD_LOCK();
+				nfs_numnfscbd--;
+				if (nfs_numnfscbd == 0)
+					wakeup(&nfs_numnfscbd);
+			}
+			NFSD_UNLOCK();
+		}
 	} else {
 		/*
 		 * Three cases:
@@ -440,9 +462,9 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct thread *td, struct ucred *cred, u_int32_t prog, u_int32_t vers,
     u_char *retsum, int toplevel, u_int64_t *xidp)
 {
-	u_int32_t *tl;
+	u_int32_t retseq, retval, *tl;
 	time_t waituntil;
-	int i, j, set_uid = 0, set_sigset = 0;
+	int i = 0, j = 0, opcnt, set_uid = 0, set_sigset = 0, slot, freeslot;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -627,7 +649,9 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 #endif
 	}
 	trycnt = 0;
+	freeslot = -1;		/* Set to slot that needs to be free'd */
 tryagain:
+	slot = -1;		/* Slot that needs a sequence# increment. */
 	if (nmp == NULL) {
 		timo.tv_usec = 0;
 		if (clp == NULL)
@@ -714,6 +738,81 @@ tryagain:
 		 */
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
 		nd->nd_repstat = fxdr_unsigned(u_int32_t, *tl);
+if (nd->nd_repstat >= 10000) printf("proc=%d reps=%d\n",nd->nd_procnum,nd->nd_repstat);
+
+		/*
+		 * Get rid of the tag, return count and SEQUENCE result for
+		 * NFSv4.
+		 */
+		if ((nd->nd_flag & ND_NFSV4) != 0) {
+			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+			i = fxdr_unsigned(int, *tl);
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
+			opcnt = fxdr_unsigned(int, *tl++);
+			i = fxdr_unsigned(int, *tl++);
+			j = fxdr_unsigned(int, *tl);
+if (j >= 10000) printf("fop=%d fst=%d\n",i,j);
+			/*
+			 * If the first op is Sequence, free up the slot.
+			 */
+if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j);
+			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
+				    5 * NFSX_UNSIGNED);
+				NFSLOCKMNT(nmp);
+				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+				retseq = fxdr_unsigned(uint32_t, *tl++);
+				slot = fxdr_unsigned(int, *tl++);
+				freeslot = slot;
+				if (retseq != nmp->nm_slotseq[slot])
+					printf("retseq diff 0x%x\n", retseq);
+				retval = fxdr_unsigned(uint32_t, *++tl);
+#ifdef notyet
+				if ((retval + 1) < nmp->nm_foreslots)
+					nmp->nm_foreslots = (retval + 1);
+				else if ((retval + 1) > nmp->nm_foreslots)
+					nmp->nm_foreslots = (retval < 64) ?
+					    (retval + 1) : 64;
+#else
+				/*
+				 * There seems to be some confusion with
+				 * respect to whether this value is the
+				 * largest slot number to be used, numbered
+				 * 0<->N-1 or the size of the slot table.
+				 * In other words, is it N or N-1?
+				 * For now, play it safe and assume the
+				 * worst cases of the above, such that
+				 * nm_foreslots might be one less than the
+				 * server specified. This is safe, whereas
+				 * setting nm_foreslots one greater than
+				 * the server intended could cause grief.
+				 */
+				if (retval < nmp->nm_foreslots)
+{
+printf("foreslots shrinking %d\n", retval);
+					nmp->nm_foreslots = retval;
+}
+				else if (retval > nmp->nm_foreslots)
+{
+printf("foreslots growing %d\n", retval);
+					nmp->nm_foreslots = (retval < 64) ?
+					    retval : 64;
+}
+#endif	/* notyet */
+				NFSUNLOCKMNT(nmp);
+
+				/* Grab the op and status for the next one. */
+				if (opcnt > 1) {
+					NFSM_DISSECT(tl, uint32_t *,
+					    2 * NFSX_UNSIGNED);
+					i = fxdr_unsigned(int, *tl++);
+					j = fxdr_unsigned(int, *tl);
+				}
+			}
+		}
 		if (nd->nd_repstat != 0) {
 			if (((nd->nd_repstat == NFSERR_DELAY ||
 			      nd->nd_repstat == NFSERR_GRACE) &&
@@ -738,6 +837,13 @@ tryagain:
 				while (NFSD_MONOSEC < waituntil)
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
+				if (slot != -1) {
+					NFSLOCKMNT(nmp);
+					nmp->nm_slotseq[slot]++;
+					*nd->nd_slotseq = txdr_unsigned(
+					    nmp->nm_slotseq[slot]);
+					NFSUNLOCKMNT(nmp);
+				}
 				m_freem(nd->nd_mrep);
 				nd->nd_mrep = NULL;
 				goto tryagain;
@@ -754,34 +860,19 @@ tryagain:
 					(*ncl_call_invalcaches)(vp);
 			}
 		}
-
-		/*
-		 * Get rid of the tag, return count, and PUTFH result for V4.
-		 */
-		if (nd->nd_flag & ND_NFSV4) {
-			NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
-			i = fxdr_unsigned(int, *tl);
-			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
-			if (error)
-				goto nfsmout;
-			NFSM_DISSECT(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-			i = fxdr_unsigned(int, *++tl);
-
+		if ((nd->nd_flag & ND_NFSV4) != 0) {
+			/* Free the slot, as required. */
+			if (freeslot != -1)
+				nfscl_freeslot(nmp, freeslot);
 			/*
-			 * If the first op's status is non-zero, mark that
-			 * there is no more data to process.
+			 * If this op is Putfh, throw its results away.
 			 */
-			if (*++tl)
-				nd->nd_flag |= ND_NOMOREDATA;
-
-			/*
-			 * If the first op is Putfh, throw its results away
-			 * and toss the op# and status for the first op.
-			 */
-			if (nmp != NULL && i == NFSV4OP_PUTFH && *tl == 0) {
+if (j >= 10000) printf("nop=%d nst=%d\n",i,j);
+			if (nmp != NULL && i == NFSV4OP_PUTFH && j == 0) {
 				NFSM_DISSECT(tl,u_int32_t *,2 * NFSX_UNSIGNED);
 				i = fxdr_unsigned(int, *tl++);
 				j = fxdr_unsigned(int, *tl);
+if (j >= 10000) printf("n2op=%d n2st=%d\n",i,j);
 				/*
 				 * All Compounds that do an Op that must
 				 * be in sequence consist of NFSV4OP_PUTFH
@@ -804,13 +895,13 @@ tryagain:
 				      j != NFSERR_RESOURCE &&
 				      j != NFSERR_NOFILEHANDLE)))		 
 					nd->nd_flag |= ND_INCRSEQID;
-				/*
-				 * If the first op's status is non-zero, mark
-				 * that there is no more data to process.
-				 */
-				if (j)
-					nd->nd_flag |= ND_NOMOREDATA;
 			}
+			/*
+			 * If this op's status is non-zero, mark
+			 * that there is no more data to process.
+			 */
+			if (j)
+				nd->nd_flag |= ND_NOMOREDATA;
 
 			/*
 			 * If R_DONTRECOVER is set, replace the stale error

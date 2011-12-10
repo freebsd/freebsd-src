@@ -43,10 +43,11 @@ __FBSDID("$FreeBSD$");
 #include <fs/nfs/nfsport.h>
 
 extern struct nfsstats newnfsstats;
-extern struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS];
+extern struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS];
 extern int ncl_mbuf_mlen;
 extern enum vtype newnv2tov_type[8];
 extern enum vtype nv34tov_type[8];
+extern int	nfs_bigreply[NFSV41_NPROCS];
 NFSCLSTATEMUTEX;
 #endif	/* !APPLEKEXT */
 
@@ -56,7 +57,7 @@ static struct {
 	int	opcnt;
 	const u_char *tag;
 	int	taglen;
-} nfsv4_opmap[NFS_NPROCS] = {
+} nfsv4_opmap[NFSV41_NPROCS] = {
 	{ 0, 1, "Null", 4 },
 	{ NFSV4OP_GETATTR, 1, "Getattr", 7, },
 	{ NFSV4OP_SETATTR, 2, "Setattr", 7, },
@@ -98,15 +99,20 @@ static struct {
 	{ NFSV4OP_DELEGRETURN, 9, "DelegRename2", 12, },
 	{ NFSV4OP_GETATTR, 1, "Getacl", 6, },
 	{ NFSV4OP_SETATTR, 1, "Setacl", 6, },
+	{ NFSV4OP_EXCHANGEID, 1, "ExchangeID", 10, },
+	{ NFSV4OP_CREATESESSION, 1, "CreateSession", 13, },
+	{ NFSV4OP_DESTROYSESSION, 1, "DestroySession", 14, },
+	{ NFSV4OP_DESTROYCLIENTID, 1, "DestroyClient", 13, },
+	{ NFSV4OP_FREESTATEID, 1, "FreeStateID", 11, },
 };
 
 
 /*
  * NFS RPCS that have large request message size.
  */
-static int nfs_bigrequest[NFS_NPROCS] = {
+static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
 };
 
 /*
@@ -125,9 +131,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	/*
 	 * First, fill in some of the fields of nd.
 	 */
-	if (NFSHASNFSV4(nmp))
+	nd->nd_slotseq = NULL;
+	if (NFSHASNFSV4(nmp)) {
 		nd->nd_flag = ND_NFSV4;
-	else if (NFSHASNFSV3(nmp))
+		if (NFSHASNFSV4N(nmp))
+			nd->nd_flag |= ND_NFSV41;
+	} else if (NFSHASNFSV3(nmp))
 		nd->nd_flag = ND_NFSV3;
 	else
 		nd->nd_flag = ND_NFSV2;
@@ -151,17 +160,36 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 	if (nd->nd_flag & ND_NFSV4) {
 		opcnt = nfsv4_opmap[procnum].opcnt +
 		    nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh;
+		if ((nd->nd_flag & ND_NFSV41) != 0) {
+			opcnt += nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq;
+			if (procnum == NFSPROC_RENEW)
+				/*
+				 * For the special case of Renew, just do a
+				 * Sequence Op.
+				 */
+				opcnt = 1;
+		}
 		/*
 		 * What should the tag really be?
 		 */
 		(void) nfsm_strtom(nd, nfsv4_opmap[procnum].tag,
 			nfsv4_opmap[procnum].taglen);
-		NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-		*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
+		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
+		if ((nd->nd_flag & ND_NFSV41) != 0)
+			*tl++ = txdr_unsigned(NFSV41_MINORVERSION);
+		else
+			*tl++ = txdr_unsigned(NFSV4_MINORVERSION);
 		if (opcntpp != NULL)
 			*opcntpp = tl;
-		*tl++ = txdr_unsigned(opcnt);
+		*tl = txdr_unsigned(opcnt);
+		if ((nd->nd_flag & ND_NFSV41) != 0 &&
+		    nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq > 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
+			nfscl_setsequence(nd, nmp, nfs_bigreply[procnum]);
+		}
 		if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh > 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_PUTFH);
 			(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh==2){
@@ -171,13 +199,17 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 				(void) nfsrv_putattrbit(nd, &attrbits);
 				nd->nd_flag |= ND_V4WCCATTR;
 			}
-			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 		}
-		*tl = txdr_unsigned(nfsv4_opmap[procnum].op);
+		if (procnum != NFSPROC_RENEW ||
+		    (nd->nd_flag & ND_NFSV41) == 0) {
+			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
+			*tl = txdr_unsigned(nfsv4_opmap[procnum].op);
+		}
 	} else {
 		(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
 	}
-	NFSINCRGLOBAL(newnfsstats.rpccnt[procnum]);
+	if (procnum < NFSV4_NPROCS)
+		NFSINCRGLOBAL(newnfsstats.rpccnt[procnum]);
 }
 
 #ifndef APPLE

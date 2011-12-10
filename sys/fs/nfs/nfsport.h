@@ -229,6 +229,34 @@
  */
 #define	NFSV4OP_NOPS		40
 
+/*
+ * Additional Ops for NFSv4.1.
+ */
+#define	NFSV4OP_BACKCHANNELCTL	40
+#define	NFSV4OP_BINDCONNTOSESS	41
+#define	NFSV4OP_EXCHANGEID	42
+#define	NFSV4OP_CREATESESSION	43
+#define	NFSV4OP_DESTROYSESSION	44
+#define	NFSV4OP_FREESTATEID	45
+#define	NFSV4OP_GETDIRDELEG	46
+#define	NFSV4OP_GETDEVINFO	47
+#define	NFSV4OP_GETDEVLIST	48
+#define	NFSV4OP_LAYOUTCOMMIT	49
+#define	NFSV4OP_LAYOUTGET	50
+#define	NFSV4OP_LAYOUTRETURN	51
+#define	NFSV4OP_SECINFONONAME	52
+#define	NFSV4OP_SEQUENCE	53
+#define	NFSV4OP_SETSSV		54
+#define	NFSV4OP_TESTSTATEID	55
+#define	NFSV4OP_WANTDELEG	56
+#define	NFSV4OP_DESTROYCLIENTID	57
+#define	NFSV4OP_RECLAIMCOMPL	58
+
+/*
+ * Must be one more than last op#.
+ */
+#define	NFSV41_NOPS		59
+
 /* Quirky case if the illegal op code */
 #define	NFSV4OP_OPILLEGAL	10044
 
@@ -260,6 +288,20 @@
  * Must be one greater than the last Callback Operation#.
  */
 #define	NFSV4OP_CBNOPS		5
+
+/*
+ * Additional Callback Ops for NFSv4.1 only. Not yet in nfsstats.
+ */
+#define	NFSV4OP_CBLAYOUTRECALL	5
+#define	NFSV4OP_CBNOTIFY	6
+#define	NFSV4OP_CBPUSHDELEG	7
+#define	NFSV4OP_CBRECALLANY	8
+#define	NFSV4OP_CBRECALLOBJAVAIL 9
+#define	NFSV4OP_CBRECALLSLOT	10
+#define	NFSV4OP_CBSEQUENCE	11
+#define	NFSV4OP_CBWANTCANCELLED	12
+#define	NFSV4OP_CBNOTIFYLOCK	13
+#define	NFSV4OP_CBNOTIFYDEVID	14
 
 /*
  * The lower numbers -> 21 are used by NFSv2 and v3. These define higher
@@ -294,6 +336,19 @@
  * Must be defined as one higher than the last Proc# above.
  */
 #define	NFSV4_NPROCS		41
+
+/* Additional procedures for NFSv4.1. */
+#define	NFSPROC_EXCHANGEID	41
+#define	NFSPROC_CREATESESSION	42
+#define	NFSPROC_DESTROYSESSION	43
+#define	NFSPROC_DESTROYCLIENT	44
+#define	NFSPROC_FREESTATEID	45
+
+/*
+ * Must be defined as one higher than the last NFSv4.1 Proc# above.
+ */
+#define	NFSV41_NPROCS		46
+
 #endif	/* NFS_V3NPROCS */
 
 /*
@@ -766,6 +821,7 @@ void newnfs_realign(struct mbuf **);
 
 #define	NFSHASNFSV3(n)		((n)->nm_flag & NFSMNT_NFSV3)
 #define	NFSHASNFSV4(n)		((n)->nm_flag & NFSMNT_NFSV4)
+#define	NFSHASNFSV4N(n)		((n)->nm_minorvers > 0)
 #define	NFSHASNFSV3OR4(n)	((n)->nm_flag & (NFSMNT_NFSV3 | NFSMNT_NFSV4))
 #define	NFSHASGOTFSINFO(n)	((n)->nm_state & NFSSTA_GOTFSINFO)
 #define	NFSHASHASSETFSID(n)	((n)->nm_state & NFSSTA_HASSETFSID)

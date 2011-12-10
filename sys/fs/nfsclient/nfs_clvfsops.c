@@ -80,6 +80,7 @@ extern int nfscl_ticks;
 extern struct timeval nfsboottime;
 extern struct nfsstats	newnfsstats;
 extern int nfsrv_useacl;
+NFSCLSTATEMUTEX;
 
 MALLOC_DEFINE(M_NEWNFSREQ, "newnfsclient_req", "New NFS request header");
 MALLOC_DEFINE(M_NEWNFSMNT, "newnfsmnt", "New NFS mount struct");
@@ -104,7 +105,7 @@ static void	nfs_decode_args(struct mount *mp, struct nfsmount *nmp,
 static int	mountnfs(struct nfs_args *, struct mount *,
 		    struct sockaddr *, char *, u_char *, int, u_char *, int,
 		    u_char *, int, struct vnode **, struct ucred *,
-		    struct thread *, int);
+		    struct thread *, int, int);
 static void	nfs_getnlminfo(struct vnode *, uint8_t *, size_t *,
 		    struct sockaddr_storage *, int *, off_t *,
 		    struct timeval *);
@@ -296,9 +297,10 @@ nfs_statfs(struct mount *mp, struct statfs *sbp)
 	if (!error)
 		error = nfsrpc_statfs(vp, &sb, &fs, td->td_ucred, td, &nfsva,
 		    &attrflag, NULL);
+if (error) printf("statfs=%d\n", error);
 	if (attrflag == 0) {
 		ret = nfsrpc_getattrnovp(nmp, nmp->nm_fh, nmp->nm_fhsize, 1,
-		    td->td_ucred, td, &nfsva, NULL);
+		    td->td_ucred, td, &nfsva, NULL, NULL);
 		if (ret) {
 			/*
 			 * Just set default values to get things going.
@@ -520,7 +522,8 @@ nfs_mountdiskless(char *path,
 		dirlen = 0;
 	nam = sodupsockaddr((struct sockaddr *)sin, M_WAITOK);
 	if ((error = mountnfs(args, mp, nam, path, NULL, 0, dirpath, dirlen,
-	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO)) != 0) {
+	    NULL, 0, vpp, td->td_ucred, td, NFS_DEFAULT_NEGNAMETIMEO, 0)) !=
+	    0) {
 		printf("nfs_mountroot: mount %s on /: %d\n", path, error);
 		return (error);
 	}
@@ -715,7 +718,7 @@ static const char *nfs_opts[] = { "from", "nfs_args",
     "retrans", "acregmin", "acregmax", "acdirmin", "acdirmax", "resvport",
     "readahead", "hostname", "timeout", "addr", "fh", "nfsv3", "sec",
     "principal", "nfsv4", "gssname", "allgssname", "dirpath",
-    "negnametimeo", "nocto", "wcommitsize",
+    "negnametimeo", "nocto", "wcommitsize", "minvers",
     NULL };
 
 /*
@@ -760,7 +763,7 @@ nfs_mount(struct mount *mp)
 	char hst[MNAMELEN];
 	u_char nfh[NFSX_FHMAX], krbname[100], dirpath[100], srvkrbname[100];
 	char *opt, *name, *secname;
-	int negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
+	int minvers = 0, negnametimeo = NFS_DEFAULT_NEGNAMETIMEO;
 	int dirlen, has_nfs_args_opt, krbnamelen, srvkrbnamelen;
 	size_t hstlen;
 
@@ -978,6 +981,15 @@ nfs_mount(struct mount *mp)
 			goto out;
 		}
 	}
+	if (vfs_getopt(mp->mnt_optnew, "minvers", (void **)&opt, NULL) == 0) {
+		ret = sscanf(opt, "%d", &minvers);
+		if (ret != 1 || minvers < 0 || minvers > 1 ||
+		    (args.flags & NFSMNT_NFSV4) == 0) {
+			vfs_mount_error(mp, "illegal minvers: %s", opt);
+			error = EINVAL;
+			goto out;
+		}
+	}
 	if (vfs_getopt(mp->mnt_optnew, "sec",
 		(void **) &secname, NULL) == 0)
 		nfs_sec_name(secname, &args.flags);
@@ -1109,7 +1121,7 @@ nfs_mount(struct mount *mp)
 	args.fh = nfh;
 	error = mountnfs(&args, mp, nam, hst, krbname, krbnamelen, dirpath,
 	    dirlen, srvkrbname, srvkrbnamelen, &vp, td->td_ucred, td,
-	    negnametimeo);
+	    negnametimeo, minvers);
 out:
 	if (!error) {
 		MNT_ILOCK(mp);
@@ -1153,14 +1165,18 @@ static int
 mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
     char *hst, u_char *krbname, int krbnamelen, u_char *dirpath, int dirlen,
     u_char *srvkrbname, int srvkrbnamelen, struct vnode **vpp,
-    struct ucred *cred, struct thread *td, int negnametimeo)
+    struct ucred *cred, struct thread *td, int negnametimeo, int minvers)
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
 	int error, trycnt, ret;
 	struct nfsvattr nfsva;
+	struct nfsclclient *clp;
+	uint32_t lease;
 	static u_int64_t clval = 0;
 
+printf("in mnt\n");
+	clp = NULL;
 	if (mp->mnt_flag & MNT_UPDATE) {
 		nmp = VFSTONFS(mp);
 		printf("%s: MNT_UPDATE is no longer handled here\n", __func__);
@@ -1235,6 +1251,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		nmp->nm_wcommitsize = hibufspace / (desiredvnodes / 1000);
 	else
 		nmp->nm_wcommitsize = hibufspace / 10;
+	if ((argp->flags & NFSMNT_NFSV4) != 0)
+		nmp->nm_minorvers = minvers;
+	else
+		nmp->nm_minorvers = 0;
 
 	nfs_decode_args(mp, nmp, argp, hst, cred, td);
 
@@ -1282,6 +1302,35 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 
 	if ((error = newnfs_connect(nmp, &nmp->nm_sockreq, cred, td, 0)))
 		goto bad;
+	/* For NFSv4.1, get the clientid now. */
+	if (nmp->nm_minorvers > 0) {
+printf("at getcl\n");
+		error = nfscl_getcl(mp, cred, td, 0, &clp);
+printf("aft getcl=%d\n", error);
+		if (error != 0)
+			goto bad;
+	}
+
+	if (nmp->nm_fhsize == 0 && (nmp->nm_flag & NFSMNT_NFSV4) &&
+	    nmp->nm_dirpathlen > 0) {
+printf("in dirp\n");
+		/*
+		 * If the fhsize on the mount point == 0 for V4, the mount
+		 * path needs to be looked up.
+		 */
+		trycnt = 3;
+		do {
+			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
+			    cred, td);
+printf("aft dirp=%d\n",error);
+			if (error)
+				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
+		} while (error && --trycnt > 0);
+		if (error) {
+			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
+			goto bad;
+		}
+	}
 
 	/*
 	 * A reference count is needed on the nfsnode representing the
@@ -1291,24 +1340,6 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	 * this problem, because one can identify root inodes by their
 	 * number == ROOTINO (2).
 	 */
-	if (nmp->nm_fhsize == 0 && (nmp->nm_flag & NFSMNT_NFSV4) &&
-	    nmp->nm_dirpathlen > 0) {
-		/*
-		 * If the fhsize on the mount point == 0 for V4, the mount
-		 * path needs to be looked up.
-		 */
-		trycnt = 3;
-		do {
-			error = nfsrpc_getdirpath(nmp, NFSMNT_DIRPATH(nmp),
-			    cred, td);
-			if (error)
-				(void) nfs_catnap(PZERO, error, "nfsgetdirp");
-		} while (error && --trycnt > 0);
-		if (error) {
-			error = nfscl_maperr(td, error, (uid_t)0, (gid_t)0);
-			goto bad;
-		}
-	}
 	if (nmp->nm_fhsize > 0) {
 		/*
 		 * Set f_iosize to NFS_DIRBLKSIZ so that bo_bsize gets set
@@ -1328,7 +1359,7 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 		 * (*vpp)->v_type with the correct value.
 		 */
 		ret = nfsrpc_getattrnovp(nmp, nmp->nm_fh, nmp->nm_fhsize, 1,
-		    cred, td, &nfsva, NULL);
+		    cred, td, &nfsva, NULL, &lease);
 		if (ret) {
 			/*
 			 * Just set default values to get things going.
@@ -1343,8 +1374,25 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 			nfsva.na_vattr.va_gen = 1;
 			nfsva.na_vattr.va_blocksize = NFS_FABLKSIZE;
 			nfsva.na_vattr.va_size = 512 * 1024;
+			lease = 60;
 		}
 		(void) nfscl_loadattrcache(vpp, &nfsva, NULL, NULL, 0, 1);
+		if (nmp->nm_minorvers > 0) {
+printf("lease=%d\n", lease);
+			NFSLOCKCLSTATE();
+			clp->nfsc_renew = NFSCL_RENEW(lease);
+			clp->nfsc_expire = NFSD_MONOSEC + clp->nfsc_renew;
+			clp->nfsc_clientidrev++;
+			if (clp->nfsc_clientidrev == 0)
+				clp->nfsc_clientidrev++;
+			NFSUNLOCKCLSTATE();
+			/*
+			 * Mount will succeed, so the renew thread can be
+			 * started now.
+			 */
+			nfscl_start_renewthread(clp);
+			nfscl_clientrelease(clp);
+		}
 		if (argp->flags & NFSMNT_NFSV3)
 			ncl_fsinfo(nmp, *vpp, cred, td);
 	
@@ -1366,10 +1414,18 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 	error = EIO;
 
 bad:
+	if (clp != NULL)
+		nfscl_clientrelease(clp);
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
+	if (nmp->nm_clp != NULL) {
+		NFSLOCKCLSTATE();
+		LIST_REMOVE(nmp->nm_clp, nfsc_list);
+		NFSUNLOCKCLSTATE();
+		free(nmp->nm_clp, M_NFSCLCLIENT);
+	}
 	FREE(nmp, M_NEWNFSMNT);
 	FREE(nam, M_SONAME);
 	return (error);

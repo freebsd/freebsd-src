@@ -50,6 +50,8 @@ struct nfsclclient {
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
 	struct nfsv4lock nfsc_lock;
+	struct	nfsslot nfsc_cbslots[NFSV4_CBSLOTS]; /* NFSv4.1 cb slot table */
+	uint8_t	nfsc_sessionid[NFSX_V4SESSIONID]; /* NFSv4.1 session id */
 	struct proc	*nfsc_renewthread;
 	struct nfsmount	*nfsc_nmp;
 	nfsquad_t	nfsc_clientid;
@@ -58,6 +60,7 @@ struct nfsclclient {
 	u_int32_t	nfsc_renew;
 	u_int32_t	nfsc_cbident;
 	u_int16_t	nfsc_flags;
+	u_int16_t	nfsc_backslots;	/* Number of back channel slots. */
 	u_int16_t	nfsc_idlen;
 	u_int8_t	nfsc_id[1];	/* Malloc'd to correct length */
 };

@@ -62,7 +62,9 @@
 #define	NFS_MINPACKET	20
 #define	NFS_FABLKSIZE	512	/* Size in bytes of a block wrt fa_blocks */
 #define	NFSV4_MINORVERSION	0	/* V4 Minor version */
+#define	NFSV41_MINORVERSION	1	/* V4 Minor version */
 #define	NFSV4_CBVERS		1	/* V4 CB Version */
+#define	NFSV41_CBVERS		4	/* V4.1 CB Version */
 #define	NFSV4_SMALLSTR	50		/* Strings small enough for stack */
 
 /* Stat numbers for rpc returns (version 2, 3 and 4) */
@@ -145,6 +147,12 @@
 #define	NFSERR_ADMINREVOKED	10047
 #define	NFSERR_CBPATHDOWN	10048
 
+/* NFSv4.1 specific errors. */
+#define	NFSERR_BADSLOT		10053
+#define	NFSERR_SEQMISORDERED	10063
+#define	NFSERR_SEQUENCEPOS	10064
+#define	NFSERR_OPNOTINSESS	10071
+
 #define	NFSERR_STALEWRITEVERF	30001	/* Fake return for nfs_commit() */
 #define	NFSERR_DONTREPLY	30003	/* Don't process request */
 #define	NFSERR_RETVOID		30004	/* Return void, not error */
@@ -189,6 +197,7 @@
 #define	NFSX_V4SPECDATA		(2 * NFSX_UNSIGNED)
 #define	NFSX_V4TIME		(NFSX_HYPER + NFSX_UNSIGNED)
 #define	NFSX_V4SETTIME		(NFSX_UNSIGNED + NFSX_V4TIME)
+#define	NFSX_V4SESSIONID	16
 
 /* sizes common to multiple NFS versions */
 #define	NFSX_FHMAX		(NFSX_V4FHMAX)
@@ -258,6 +267,19 @@
  * Must be defined as one higher than the last Proc# above.
  */
 #define	NFSV4_NPROCS		41
+
+/* Additional procedures for NFSv4.1. */
+#define	NFSPROC_EXCHANGEID	41
+#define	NFSPROC_CREATESESSION	42
+#define	NFSPROC_DESTROYSESSION	43
+#define	NFSPROC_DESTROYCLIENT	44
+#define	NFSPROC_FREESTATEID	45
+
+/*
+ * Must be defined as one higher than the last NFSv4.1 Proc# above.
+ */
+#define	NFSV41_NPROCS		46
+
 #endif	/* NFS_V3NPROCS */
 
 /*
@@ -269,10 +291,10 @@
 
 /*
  * NFSPROC_NOOP is a fake op# that can't be the same as any V2/3/4 Procedure
- * or Operation#. Since the NFS V4 Op #s go higher, use NFSV4OP_NOPS, which
+ * or Operation#. Since the NFS V4 Op #s go higher, use NFSV41_NOPS, which
  * is one greater than the highest Op#.
  */
-#define	NFSPROC_NOOP		NFSV4OP_NOPS
+#define	NFSPROC_NOOP		NFSV41_NOPS
 
 /* Actual Version 2 procedure numbers */
 #define	NFSV2PROC_NULL		0
@@ -467,6 +489,42 @@
 #define	NFSV3FSINFO_SYMLINK		0x02
 #define	NFSV3FSINFO_HOMOGENEOUS		0x08
 #define	NFSV3FSINFO_CANSETTIME		0x10
+
+/* Flags for Exchange ID */
+#define	NFSV4EXCH_SUPPMOVEDREFER	0x00000001
+#define	NFSV4EXCH_SUPPMOVEDMIGR	0x00000002
+#define	NFSV4EXCH_BINDPRINCSTATEID	0x00000100
+#define	NFSV4EXCH_USENONPNFS		0x00010000
+#define	NFSV4EXCH_USEPNFSMDS		0x00020000
+#define	NFSV4EXCH_USEPNFSDS		0x00040000
+#define	NFSV4EXCH_MASKPNFS		0x00070000
+#define	NFSV4EXCH_UPDCONFIRMEDRECA	0x40000000
+#define	NFSV4EXCH_CONFIRMEDR		0x80000000
+
+/* State Protects */
+#define	NFSV4EXCH_SP4NONE		0
+#define	NFSV4EXCH_SP4MACHCRED		1
+#define	NFSV4EXCH_SP4SSV		2
+
+/* Flags for Create Session */
+#define	NFSV4CRSESS_PERSIST		0x00000001
+#define	NFSV4CRSESS_CONNBACKCHAN	0x00000002
+#define	NFSV4CRSESS_CONNRDMA		0x00000004
+
+/* Flags for Sequence */
+#define	NFSV4SEQ_CBPATHDOWN		0x00000001
+#define	NFSV4SEQ_CBGSSCONTEXPIRING	0x00000002
+#define	NFSV4SEQ_CBGSSCONTEXPIRED	0x00000004
+#define	NFSV4SEQ_EXPIREDALLSTATEREVOKED	0x00000008
+#define	NFSV4SEQ_EXPIREDSOMESTATEREVOKED 0x00000010
+#define	NFSV4SEQ_ADMINSTATEREVOKED	0x00000020
+#define	NFSV4SEQ_RECALLABLESTATEREVOKED	0x00000040
+#define	NFSV4SEQ_LEASEMOVED		0x00000080
+#define	NFSV4SEQ_RESTARTRECLAIMNEEDED	0x00000100
+#define	NFSV4SEQ_CBPATHDOWNSESSION	0x00000200
+#define	NFSV4SEQ_BACKCHANNELFAULT	0x00000400
+#define	NFSV4SEQ_DEVIDCHANGED		0x00000800
+#define	NFSV4SEQ_DEVIDDELETED		0x00001000
 
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\

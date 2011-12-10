@@ -83,47 +83,66 @@ NFSSOCKMUTEX;
  * non-idempotent Ops.
  * Define it here, since it is used by both the client and server.
  */
-struct nfsv4_opflag nfsv4_opflag[NFSV4OP_NOPS] = {
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* undef */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Access */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Close */
-	{ 0, 2, 0, 1, LK_EXCLUSIVE },		/* Commit */
-	{ 1, 2, 1, 1, LK_EXCLUSIVE },		/* Create */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Delegpurge */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Delegreturn */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Getattr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* GetFH */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Link */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Lock */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockT */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* LockU */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookup */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* Lookupp */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* NVerify */
-	{ 1, 1, 0, 1, LK_EXCLUSIVE },		/* Open */
-	{ 1, 1, 0, 0, LK_EXCLUSIVE },		/* OpenAttr */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* OpenDowngrade */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutPubFH */
-	{ 1, 0, 0, 0, LK_EXCLUSIVE },		/* PutRootFH */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Read */
-	{ 0, 1, 0, 0, LK_SHARED },		/* Readdir */
-	{ 0, 1, 0, 0, LK_SHARED },		/* ReadLink */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Remove */
-	{ 2, 1, 1, 1, LK_EXCLUSIVE },		/* Rename */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* Renew */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* RestoreFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SaveFH */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* SecInfo */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Setattr */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientID */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* SetClientIDConfirm */
-	{ 0, 1, 0, 0, LK_EXCLUSIVE },		/* Verify */
-	{ 0, 2, 1, 1, LK_EXCLUSIVE },		/* Write */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE },		/* ReleaseLockOwner */
+struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* undef */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Access */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Close */
+	{ 0, 2, 0, 1, LK_EXCLUSIVE, 1 },		/* Commit */
+	{ 1, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Create */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegpurge */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Delegreturn */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Getattr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* GetFH */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Link */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lock */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockT */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* LockU */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookup */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Lookupp */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* NVerify */
+	{ 1, 1, 0, 1, LK_EXCLUSIVE, 1 },		/* Open */
+	{ 1, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenAttr */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* OpenDowngrade */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutPubFH */
+	{ 1, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* PutRootFH */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Read */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* Readdir */
+	{ 0, 1, 0, 0, LK_SHARED, 1 },			/* ReadLink */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Remove */
+	{ 2, 1, 1, 1, LK_EXCLUSIVE, 1 },		/* Rename */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Renew */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* RestoreFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SaveFH */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* SecInfo */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Setattr */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* SetClientIDConfirm */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Verify */
+	{ 0, 2, 1, 1, LK_EXCLUSIVE, 1 },		/* Write */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* ReleaseLockOwner */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Backchannel Ctrl */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Bind Conn to Sess */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Exchange ID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Create Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy Session */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Free StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Dir Deleg */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device Info */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device List */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Commit */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Get */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Return */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Secinfo No name */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Sequence */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Set SSV */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Test StateID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Want Delegation */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 0 },		/* Destroy ClientID */
+	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Reclaim Complete */
 };
 #endif	/* !APPLEKEXT */
 
@@ -145,9 +164,9 @@ static struct nfsuserlruhead nfsuserlruhead;
  * marked 0 in this array, the code will still work, just not quite as
  * efficiently.)
  */
-static int nfs_bigreply[NFS_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
+int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);
@@ -1855,7 +1874,7 @@ nfsv4_getref(struct nfsv4lock *lp, int *isleptp, void *mutex,
 		if (isleptp)
 			*isleptp = 1;
 		(void) nfsmsleep(&lp->nfslock_lock, mutex,
-		    PZERO - 1, "nfsv4lck", NULL);
+		    PZERO - 1, "nfsv4gr", NULL);
 	}
 	if (mp != NULL && (mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0)
 		return;
@@ -3476,5 +3495,49 @@ newnfs_sndunlock(int *flagp)
 		wakeup((caddr_t)flagp);
 	}
 	NFSUNLOCKSOCK();
+}
+
+/*
+ * Handle an NFSv4.1 Sequence request for the session.
+ */
+int
+nfsv4_seqsession(uint32_t seqid, uint32_t slotid, uint32_t highslot,
+    struct nfsslot *slots, struct mbuf **reply, uint16_t maxslot)
+{
+	int error;
+
+	error = 0;
+	*reply = NULL;
+	if (slotid > maxslot)
+		return (NFSERR_BADSLOT);
+	if (seqid == slots[slotid].nfssl_seq) {
+		/* A retry. */
+		if (slots[slotid].nfssl_inprog != 0)
+			error = NFSERR_DELAY;
+		else if (slots[slotid].nfssl_reply != NULL) {
+			*reply = slots[slotid].nfssl_reply;
+			slots[slotid].nfssl_reply = NULL;
+			slots[slotid].nfssl_inprog = 1;
+		} else
+			error = NFSERR_SEQMISORDERED;
+	} else if ((slots[slotid].nfssl_seq + 1) == seqid) {
+		m_freem(slots[slotid].nfssl_reply);
+		slots[slotid].nfssl_reply = NULL;
+		slots[slotid].nfssl_inprog = 1;
+		slots[slotid].nfssl_seq++;
+	} else
+		error = NFSERR_SEQMISORDERED;
+	return (error);
+}
+
+/*
+ * Cache this reply for the slot.
+ */
+void
+nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
+{
+
+	slots[slotid].nfssl_reply = rep;
+	slots[slotid].nfssl_inprog = 0;
 }
 

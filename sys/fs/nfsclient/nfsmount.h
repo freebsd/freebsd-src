@@ -73,6 +73,11 @@ struct	nfsmount {
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
 	u_int64_t nm_fsid[2];		/* NFSv4 fsid */
+	int	nm_minorvers;		/* Minor version # for NFSv4 */
+	uint32_t nm_slotseq[64];	/* Max for 64bit nm_slots */
+	uint64_t nm_slots;		/* NFSv4.1 session slots */
+	uint32_t nm_sequenceid;		/* NFSv4.1 sequence number */
+	u_int16_t nm_foreslots;		/* Number of fore channel slots */
 	u_int16_t nm_krbnamelen;	/* Krb5 host principal, if any */
 	u_int16_t nm_dirpathlen;	/* and mount dirpath, for V4 */
 	u_int16_t nm_srvkrbnamelen;	/* and the server's target name */
