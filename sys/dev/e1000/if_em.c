@@ -4100,7 +4100,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 	if (sj < 0)
 		sj += adapter->num_rx_desc;
 
-	for (j = 0; j != adapter->num_rx_desc; j++, sj++) {
+	for (int j = 0; j != adapter->num_rx_desc; j++, sj++) {
 		void *addr;
 		int sz;
 
