@@ -74,7 +74,7 @@ usage(void)
  * WARNING! "FreeBSD a.out" must be first, or set_etype will not
  * work correctly.
  */
-struct ex_types {
+static struct ex_types {
 	const char *type;
 	void (*enter_syscall)(struct trussinfo *, int);
 	long (*exit_syscall)(struct trussinfo *, int);
