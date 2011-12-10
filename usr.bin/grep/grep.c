@@ -166,7 +166,7 @@ usage(void)
 
 static const char	*optstr = "0123456789A:B:C:D:EFGHIJMLOPSRUVZabcd:e:f:hilm:nopqrsuvwxXy";
 
-struct option long_options[] =
+static const struct option long_options[] =
 {
 	{"binary-files",	required_argument,	NULL, BIN_OPT},
 	{"help",		no_argument,		NULL, HELP_OPT},
