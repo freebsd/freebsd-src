@@ -51,6 +51,7 @@ TARGET_INC+=	${GCC_CPU}/elf.h
 .endif
 .if ${TARGET_CPUARCH} == "arm"
 TARGET_INC+=	${GCC_CPU}/aout.h
+TARGET_INC+=	${GCC_CPU}/bpabi.h
 .endif
 .if ${TARGET_ARCH} == "powerpc64"
 TARGET_INC+=	${GCC_CPU}/biarch64.h
@@ -358,7 +359,13 @@ gthr-default.h: ${GCCDIR}/gthr-posix.h
 
 GENSRCS+=	gthr-default.h
 
+.if ${TARGET_CPUARCH} == "arm"
+unwind.h: ${GCCDIR}/config/arm/unwind-arm.h
+.else
 unwind.h: ${GCCDIR}/unwind-generic.h
+.endif
+
+unwind.h:
 	ln -sf ${.ALLSRC} ${.TARGET}
 
 GENSRCS+=	unwind.h

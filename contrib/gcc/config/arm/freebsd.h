@@ -30,7 +30,7 @@
 
 #undef SUBTARGET_EXTRA_ASM_SPEC
 #define SUBTARGET_EXTRA_ASM_SPEC	\
-  "-matpcs %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
+  "%{mabi=apcs-gnu|mabi=atpcs:-meabi=gnu;:-meabi=4} %{fpic|fpie:-k} %{fPIC|fPIE:-k}"
 
 /* Default to full FPA if -mhard-float is specified. */
 #undef SUBTARGET_ASM_FLOAT_SPEC
@@ -56,20 +56,28 @@
 /************************[  Target stuff  ]***********************************/
 
 #undef  TARGET_VERSION
-#define TARGET_VERSION fprintf (stderr, " (FreeBSD/StrongARM ELF)");
+#define TARGET_VERSION fprintf (stderr, " (FreeBSD/ARM ELF)");
 
 #ifndef TARGET_ENDIAN_DEFAULT
 #define TARGET_ENDIAN_DEFAULT 0
 #endif
 
-/* Default it to use ATPCS with soft-VFP.  */
-#undef TARGET_DEFAULT
-#define TARGET_DEFAULT			\
-  (MASK_APCS_FRAME			\
-   | TARGET_ENDIAN_DEFAULT)
+/* We default to a soft-float ABI so that binaries can run on all
+   target hardware.  */
+#undef TARGET_DEFAULT_FLOAT_ABI
+#define TARGET_DEFAULT_FLOAT_ABI ARM_FLOAT_ABI_SOFT
 
 #undef ARM_DEFAULT_ABI
-#define ARM_DEFAULT_ABI ARM_ABI_ATPCS
+#define ARM_DEFAULT_ABI ARM_ABI_AAPCS_LINUX
+
+#undef  TARGET_OS_CPP_BUILTINS
+#define TARGET_OS_CPP_BUILTINS() 		\
+  do						\
+    {						\
+      FBSD_TARGET_OS_CPP_BUILTINS();		\
+      TARGET_BPABI_CPP_BUILTINS();		\
+    }						\
+  while (false)
 
 /* Define the actual types of some ANSI-mandated types.
    Needs to agree with <machine/ansi.h>.  GCC defaults come from c-decl.c,
@@ -87,7 +95,7 @@
 #undef WCHAR_TYPE
 
 #undef  SUBTARGET_CPU_DEFAULT
-#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_strongarm
+#define SUBTARGET_CPU_DEFAULT	TARGET_CPU_arm9
 
 /* FreeBSD does its profiling differently to the Acorn compiler. We
    don't need a word following the mcount call; and to skip it
@@ -121,5 +129,3 @@ do									\
   }									\
 while (0)
 
-#undef FPUTYPE_DEFAULT
-#define FPUTYPE_DEFAULT FPUTYPE_VFP

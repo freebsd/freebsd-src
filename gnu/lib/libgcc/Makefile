@@ -54,7 +54,9 @@ LIB2FUNCS+= _fixuns${mode}si
 # Likewise double-word routines.
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
+.if ${TARGET_CPUARCH} != "arm"
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
+.endif
 .endfor
 
 LIB2ADD = $(LIB2FUNCS_EXTRA)
@@ -108,15 +110,18 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 CFLAGS+=	-Dinhibit_libc -fno-inline
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-LIB2FUNCS_EXTRA = floatunsidf.c floatunsisf.c
+LIB1ASMFUNCS+=	_udivsi3 _divsi3 _umodsi3 _modsi3\
+	_call_via_rX _interwork_call_via_rX \
+	_lshrdi3 _ashrdi3 _ashldi3 \
+	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
+	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
+	_fixsfsi _fixunssfsi _floatdidf _floatdisf \
+	 _aeabi_ulcmp _aeabi_ldivmod _aeabi_uldivmod
+LIB2ADDEH = unwind-arm.c libunwind.S pr-support.c unwind-c.c
+LIB2FUNCS_EXTRA = bpabi.c
 
-# Not now
-#LIB1ASMFUNCS =  _udivsi3 _divsi3 _umodsi3 _modsi3 _dvmd_tls _bb_init_func
-#LIB1ASMFUNCS+=	_call_via_rX _interwork_call_via_rX \
-#	_lshrdi3 _ashrdi3 _ashldi3 \
-#	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
-#	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
-#	_fixsfsi _fixunssfsi _floatdidf _floatdisf
+# Make bpabi.So depend on bpabi.c and not bpabi.S
+bpabi.So: bpabi.c
 .endif
 
 .if ${TARGET_CPUARCH} == mips
@@ -322,6 +327,9 @@ CLEANFILES += cs-*.h option*
 SHLIB_MKMAP      = ${GCCDIR}/mkmap-symver.awk
 SHLIB_MKMAP_OPTS =
 SHLIB_MAPFILES   = ${GCCDIR}/libgcc-std.ver
+.if ${TARGET_CPUARCH} == "arm"
+SHLIB_MAPFILES  += ${GCCDIR}/config/arm/libgcc-bpabi.ver
+.endif
 VERSION_MAP      = libgcc.map
 
 libgcc.map: ${SHLIB_MKMAP} ${SHLIB_MAPFILES} ${SOBJS} ${OBJS:R:S/$/.So/}
