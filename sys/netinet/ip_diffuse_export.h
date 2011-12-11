@@ -149,7 +149,6 @@ static struct dip_info_descr dip_info[] = {
 	{DIP_IE_CLASSES,		49152,	-1,	"ClassNames"},
 	{DIP_IE_NOP,			0,	0,	"Unknown"}
 };
-#endif
 
 /* Default flow rule template. */
 static uint16_t def_flowrule_template[15] = {
@@ -171,5 +170,7 @@ static uint16_t def_flowrule_template[15] = {
 };
 #define	N_DEFAULT_FLOWRULE_TEMPLATE_ITEMS (sizeof(def_flowrule_template) / \
     sizeof(*def_flowrule_template))
+
+#endif /* WITH_DIP_INFO */
 
 #endif /* _NETINET_IP_DIFFUSE_EXPORT_H_ */
