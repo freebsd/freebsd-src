@@ -992,9 +992,9 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq	*ifr = (struct ifreq *)data;
 #if defined(INET) || defined(INET6)
 	struct ifaddr	*ifa = (struct ifaddr *)data;
+	bool		avoid_reset = FALSE;
 #endif
 	int		error = 0;
-	bool		avoid_reset = FALSE;
 
 	if (adapter->in_detach)
 		return (error);
@@ -1005,10 +1005,11 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		if (ifa->ifa_addr->sa_family == AF_INET)
 			avoid_reset = TRUE;
 #endif
-#ifdef INET
+#ifdef INET6
 		if (ifa->ifa_addr->sa_family == AF_INET6)
 			avoid_reset = TRUE;
 #endif
+#if defined(INET) || defined(INET6)
 		/*
 		** Calling init results in link renegotiation,
 		** so we avoid doing it when possible.
@@ -1017,12 +1018,11 @@ igb_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_flags |= IFF_UP;
 			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
 				igb_init(adapter);
-#ifdef INET
 			if (!(ifp->if_flags & IFF_NOARP))
 				arp_ifinit(ifp, ifa);
-#endif
 		} else
 			error = ether_ioctl(ifp, command, data);
+#endif
 		break;
 	case SIOCSIFMTU:
 	    {
