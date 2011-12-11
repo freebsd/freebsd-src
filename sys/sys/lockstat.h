@@ -185,17 +185,24 @@ extern uint64_t lockstat_nsecs(void);
 #define	LOCKSTAT_PROFILE_OBTAIN_LOCK_SUCCESS(probe, lp, c, wt, f, l)  do {   \
 	uint32_t id;							     \
 									     \
-    	lock_profile_obtain_lock_success(&(lp)->lock_object, c, wt, f, l);   \
-	if ((id = lockstat_probemap[(probe)])) 			     	     \
-		(*lockstat_probe_func)(id, (uintptr_t)(lp), 0, 0, 0, 0);     \
+	if (!SCHEDULER_STOPPED()) {					     \
+		lock_profile_obtain_lock_success(&(lp)->lock_object, c, wt,  \
+		    f, l);						     \
+		if ((id = lockstat_probemap[(probe)]))			     \
+			(*lockstat_probe_func)(id, (uintptr_t)(lp), 0, 0,    \
+			    0, 0);					     \
+	}								     \
 } while (0)
 
 #define	LOCKSTAT_PROFILE_RELEASE_LOCK(probe, lp)  do {			     \
 	uint32_t id;							     \
 									     \
-	lock_profile_release_lock(&(lp)->lock_object);			     \
-	if ((id = lockstat_probemap[(probe)])) 			     	     \
-		(*lockstat_probe_func)(id, (uintptr_t)(lp), 0, 0, 0, 0);     \
+	if (!SCHEDULER_STOPPED()) {					     \
+		lock_profile_release_lock(&(lp)->lock_object);		     \
+		if ((id = lockstat_probemap[(probe)])) 		     	     \
+			(*lockstat_probe_func)(id, (uintptr_t)(lp), 0, 0,    \
+			    0, 0);					     \
+	}								     \
 } while (0)
 
 #else	/* !KDTRACE_HOOKS */

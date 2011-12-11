@@ -233,6 +233,8 @@ void
 _rw_wlock(struct rwlock *rw, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wlock() of destroyed rwlock @ %s:%d", file, line));
@@ -248,6 +250,9 @@ int
 _rw_try_wlock(struct rwlock *rw, const char *file, int line)
 {
 	int rval;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_wlock() of destroyed rwlock @ %s:%d", file, line));
@@ -273,6 +278,8 @@ void
 _rw_wunlock(struct rwlock *rw, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_wunlock() of destroyed rwlock @ %s:%d", file, line));
@@ -316,6 +323,9 @@ _rw_rlock(struct rwlock *rw, const char *file, int line)
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_rlock() of destroyed rwlock @ %s:%d", file, line));
@@ -499,6 +509,9 @@ _rw_try_rlock(struct rwlock *rw, const char *file, int line)
 {
 	uintptr_t x;
 
+	if (SCHEDULER_STOPPED())
+		return (1);
+
 	for (;;) {
 		x = rw->rw_lock;
 		KASSERT(rw->rw_lock != RW_DESTROYED,
@@ -524,6 +537,9 @@ _rw_runlock(struct rwlock *rw, const char *file, int line)
 {
 	struct turnstile *ts;
 	uintptr_t x, v, queue;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_runlock() of destroyed rwlock @ %s:%d", file, line));
@@ -649,6 +665,9 @@ _rw_wlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (rw_wlocked(rw)) {
 		KASSERT(rw->lock_object.lo_flags & LO_RECURSABLE,
@@ -814,6 +833,9 @@ _rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file, int line)
 	uintptr_t v;
 	int queue;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	if (rw_wlocked(rw) && rw_recursed(rw)) {
 		rw->rw_recurse--;
 		if (LOCK_LOG_TEST(&rw->lock_object, 0))
@@ -875,6 +897,9 @@ _rw_try_upgrade(struct rwlock *rw, const char *file, int line)
 	uintptr_t v, x, tid;
 	struct turnstile *ts;
 	int success;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_try_upgrade() of destroyed rwlock @ %s:%d", file, line));
@@ -945,6 +970,9 @@ _rw_downgrade(struct rwlock *rw, const char *file, int line)
 	struct turnstile *ts;
 	uintptr_t tid, v;
 	int rwait, wwait;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	KASSERT(rw->rw_lock != RW_DESTROYED,
 	    ("rw_downgrade() of destroyed rwlock @ %s:%d", file, line));

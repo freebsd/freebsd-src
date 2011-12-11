@@ -1232,6 +1232,9 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 {
 	uintptr_t tid, x;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	tid = (uintptr_t)curthread;
 	_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
 
