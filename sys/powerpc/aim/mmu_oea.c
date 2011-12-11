@@ -824,6 +824,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
 	CPU_FILL(&kernel_pmap->pm_active);
+	LIST_INIT(&kernel_pmap->pmap_pvo);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -1582,6 +1583,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
+	LIST_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1765,10 +1767,17 @@ moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea_pvo_find_va(pm, sva, &pteidx);
-		if (pvo != NULL) {
-			moea_pvo_remove(pvo, pteidx);
+	if ((eva - sva)/PAGE_SIZE < 10) {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			pvo = moea_pvo_find_va(pm, sva, &pteidx);
+			if (pvo != NULL)
+				moea_pvo_remove(pvo, pteidx);
+		}
+	} else {
+		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
+				continue;
+			moea_pvo_remove(pvo, -1);
 		}
 	}
 	PMAP_UNLOCK(pm);
@@ -1931,6 +1940,11 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	moea_pte_create(&pvo->pvo_pte.pte, sr, va, pa | pte_lo);
 
 	/*
+	 * Add to pmap list
+	 */
+	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
+
+	/*
 	 * Remember if the list was empty and therefore will be the first
 	 * item.
 	 */
@@ -1996,9 +2010,10 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	}
 
 	/*
-	 * Remove this PVO from the PV list.
+	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
+	LIST_REMOVE(pvo, pvo_plink);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool
