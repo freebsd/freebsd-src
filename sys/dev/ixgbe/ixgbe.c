@@ -265,7 +265,7 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default. 
  */
-static bool ixgbe_header_split = FALSE;
+static int ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
@@ -3066,7 +3066,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
  *
  **********************************************************************/
 
-static boolean_t
+static bool
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3184,7 +3184,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3348,7 +3348,7 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
