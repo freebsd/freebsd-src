@@ -318,6 +318,7 @@ SUBDIR=	${_3dfx} \
 	${_vesa} \
 	${_virtio} \
 	vge \
+	${_viawd} \
 	vkbd \
 	${_vpo} \
 	vr \
@@ -528,6 +529,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
+_viawd=		viawd
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -637,6 +639,7 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
 _virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
