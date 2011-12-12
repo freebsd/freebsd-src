@@ -260,6 +260,7 @@ dev/tpm/tpm.c			optional	tpm
 dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_amd64.c	optional	uart
+dev/viawd/viawd.c		optional	viawd
 dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
