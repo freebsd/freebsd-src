@@ -504,6 +504,21 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	return (target);
 }
 
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
 
 /*
  * Setup the plt glue routines.
