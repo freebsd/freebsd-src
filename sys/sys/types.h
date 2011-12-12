@@ -261,6 +261,16 @@ typedef	__uint64_t	uoff_t;
 typedef	char		vm_memattr_t;	/* memory attribute codes */
 typedef	struct vm_page	*vm_page_t;
 
+#if !defined(__bool_true_false_are_defined) && !defined(__cplusplus)
+#define	__bool_true_false_are_defined	1
+#define	false	0
+#define	true	1
+#if __STDC_VERSION__ < 199901L && __GNUC__ < 3 && !defined(__INTEL_COMPILER)
+typedef	int	_Bool;
+#endif
+typedef	_Bool	bool;
+#endif /* !__bool_true_false_are_defined && !__cplusplus */
+
 #define offsetof(type, field) __offsetof(type, field)
 
 #endif /* !_KERNEL */
