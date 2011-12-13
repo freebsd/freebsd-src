@@ -218,15 +218,34 @@
 #endif
 #endif
 
-
+/*
+ * Keywords added in C1X.
+ */
 #if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignof(e)		alignof(e)
 #define	_Noreturn		[[noreturn]]
+#define	_Static_assert(e, s)	static_assert(e, s)
+#define	_Thread_local		thread_local
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
-/* Do nothing - _Noreturn is a keyword */
-#elif defined(__GNUC__)
-#define	_Noreturn		__attribute__((__noreturn__))
+/* Do nothing.  They are language keywords. */
 #else
+/* Not supported.  Implement them manually. */
+#ifdef __GNUC__
+#define	_Alignof(e)		__alignof__(e)
+#define	_Noreturn		__attribute__((__noreturn__))
+#define	_Thread_local		__thread
+#else
+#define	_Alignof(e)		__offsetof(struct { char __a; e __b; }, __b)
 #define	_Noreturn
+#define	_Thread_local
+#endif
+#ifdef __COUNTER__
+#define	_Static_assert(e, s)	__Static_assert(e, __COUNTER__)
+#else
+#define	_Static_assert(e, s)	__Static_assert(e, __LINE__)
+#endif
+#define	__Static_assert(e, c)	___Static_assert(e, c)
+#define	___Static_assert(e, c)	typedef char __assert ## c[(e) ? 1 : -1]
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
