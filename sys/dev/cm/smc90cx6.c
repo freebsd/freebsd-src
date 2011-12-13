@@ -596,7 +596,7 @@ cleanup:
 	}
 }
 
-__inline static void
+static inline void
 cm_tint_locked(sc, isr)
 	struct cm_softc *sc;
 	int isr;
