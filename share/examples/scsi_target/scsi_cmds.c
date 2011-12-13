@@ -103,8 +103,8 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 static struct scsi_inquiry_data inq_data;
 static struct initiator_state istates[MAX_INITIATORS];
 extern int		debug;
-extern uint64_t		volume_size;
-extern size_t		sector_size;
+extern off_t		volume_size;
+extern u_int		sector_size;
 extern size_t		buf_size;
 
 cam_status
@@ -609,7 +609,7 @@ start_io(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, int dir)
 	if (dir == CAM_DIR_IN) {
 		if (notaio) {
 			if (debug)
-				warnx("read sync %lud @ block " OFF_FMT,
+				warnx("read sync %lu @ block " OFF_FMT,
 				    (unsigned long)
 				    (ctio->dxfer_len / sector_size),
 				    c_descr->offset / sector_size);
@@ -625,7 +625,7 @@ start_io(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, int dir)
 			}
 		} else {
 			if (debug)
-				warnx("read async %lud @ block " OFF_FMT,
+				warnx("read async %lu @ block " OFF_FMT,
 				    (unsigned long)
 				    (ctio->dxfer_len / sector_size),
 				    c_descr->offset / sector_size);
@@ -725,7 +725,7 @@ tcmd_rdwr_done(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio,
 			a_descr->targ_req += ctio->dxfer_len;
 			if (notaio) {
 				if (debug)
-					warnx("write sync %lud @ block "
+					warnx("write sync %lu @ block "
 					    OFF_FMT, (unsigned long)
 					    (ctio->dxfer_len / sector_size),
 					    c_descr->offset / sector_size);
@@ -742,7 +742,7 @@ tcmd_rdwr_done(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio,
 				tcmd_rdwr_done(atio, ctio, AIO_DONE);
 			} else {
 				if (debug)
-					warnx("write async %lud @ block "
+					warnx("write async %lu @ block "
 					    OFF_FMT, (unsigned long)
 					    (ctio->dxfer_len / sector_size),
 					    c_descr->offset / sector_size);
