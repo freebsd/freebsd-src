@@ -2358,6 +2358,8 @@ bge_dma_free(struct bge_softc *sc)
 
 	if (sc->bge_cdata.bge_rx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_mtag);
+	if (sc->bge_cdata.bge_mtag_jumbo)
+		bus_dma_tag_destroy(sc->bge_cdata.bge_mtag_jumbo);
 	if (sc->bge_cdata.bge_tx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 
