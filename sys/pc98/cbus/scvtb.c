@@ -174,7 +174,7 @@ sc_vtb_geta(sc_vtb_t *vtb, int at)
 		return (*(u_int16_t *)(p + attr_offset(vtb)) & 0xff00);
 }
 
-__inline static void
+static inline void
 vtb_putc(sc_vtb_t *vtb, vm_offset_t p, int c, int a)
 {
 	if (vtb->vtb_type == VTB_FRAMEBUFFER) {
