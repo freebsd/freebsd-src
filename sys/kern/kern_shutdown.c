@@ -651,7 +651,7 @@ panic(const char *fmt, ...)
 static int poweroff_delay = POWEROFF_DELAY;
 
 SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
-	&poweroff_delay, 0, "");
+    &poweroff_delay, 0, "Delay before poweroff to write disk caches (msec)");
 
 static void
 poweroff_wait(void *junk, int howto)
@@ -671,7 +671,7 @@ poweroff_wait(void *junk, int howto)
  */
 static int kproc_shutdown_wait = 60;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, kproc_shutdown_wait, CTLFLAG_RW,
-    &kproc_shutdown_wait, 0, "");
+    &kproc_shutdown_wait, 0, "Max wait time (sec) to stop for each process");
 
 void
 kproc_shutdown(void *arg, int howto)
