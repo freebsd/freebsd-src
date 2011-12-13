@@ -1072,7 +1072,7 @@ static int
 in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
 	struct in_ifaddr *ia;
-	struct in_addr prefix, mask, p;
+	struct in_addr prefix, mask, p, m;
 	int error = 0;
 	struct sockaddr_in prefix0, mask0;
 
@@ -1118,9 +1118,10 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 			arp_ifscrub(target->ia_ifp, IA_SIN(target)->sin_addr.s_addr);
 	}
 
-	if (rtinitflags(target))
+	if (rtinitflags(target)) {
 		prefix = target->ia_dstaddr.sin_addr;
-	else {
+		mask.s_addr = 0;
+	} else {
 		prefix = target->ia_addr.sin_addr;
 		mask = target->ia_sockmask.sin_addr;
 		prefix.s_addr &= mask.s_addr;
@@ -1133,15 +1134,22 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 
 	IN_IFADDR_RLOCK();
 	TAILQ_FOREACH(ia, &V_in_ifaddrhead, ia_link) {
-		if (rtinitflags(ia))
+		if (rtinitflags(ia)) {
 			p = ia->ia_dstaddr.sin_addr;
-		else {
+
+			if (prefix.s_addr != p.s_addr)
+				continue;
+		} else {
 			p = ia->ia_addr.sin_addr;
-			p.s_addr &= ia->ia_sockmask.sin_addr.s_addr;
+			m = ia->ia_sockmask.sin_addr;
+			p.s_addr &= m.s_addr;
+
+			if (prefix.s_addr != p.s_addr ||
+			    mask.s_addr != m.s_addr)
+				continue;
 		}
 
-		if ((prefix.s_addr != p.s_addr) ||
-		    !(ia->ia_ifp->if_flags & IFF_UP))
+		if ((ia->ia_ifp->if_flags & IFF_UP) == 0)
 			continue;
 
 		/*
