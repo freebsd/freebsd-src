@@ -880,7 +880,8 @@ chroot_refuse_vdir_fds(fdp)
 static int chroot_allow_open_directories = 1;
 
 SYSCTL_INT(_kern, OID_AUTO, chroot_allow_open_directories, CTLFLAG_RW,
-     &chroot_allow_open_directories, 0, "");
+     &chroot_allow_open_directories, 0,
+     "Allow a process to chroot(2) if it has a directory open");
 
 /*
  * Change notion of root (``/'') directory.
