@@ -404,8 +404,8 @@ int	 vasprintf(char **, const char *, __va_list)
  * positive errno values.  Use strerror() or strerror_r() from <string.h>
  * instead.
  */
-extern __const int sys_nerr;
-extern __const char *__const sys_errlist[];
+extern const int sys_nerr;
+extern const char * const sys_errlist[];
 
 /*
  * Stdio function-access interface.

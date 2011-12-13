@@ -56,13 +56,13 @@ static struct uart_class *uart_classes[] = {
 static size_t uart_nclasses = sizeof(uart_classes) / sizeof(uart_classes[0]);
 
 static bus_addr_t
-uart_parse_addr(__const char **p)
+uart_parse_addr(const char **p)
 {
 	return (strtoul(*p, (char**)(uintptr_t)p, 0));
 }
 
 static struct uart_class *
-uart_parse_class(struct uart_class *class, __const char **p)
+uart_parse_class(struct uart_class *class, const char **p)
 {
 	struct uart_class *uc;
 	const char *nm;
@@ -84,13 +84,13 @@ uart_parse_class(struct uart_class *class, __const char **p)
 }
 
 static long
-uart_parse_long(__const char **p)
+uart_parse_long(const char **p)
 {
 	return (strtol(*p, (char**)(uintptr_t)p, 0));
 }
 
 static int
-uart_parse_parity(__const char **p)
+uart_parse_parity(const char **p)
 {
 	if (!strncmp(*p, "even", 4)) {
 		*p += 4;
@@ -116,7 +116,7 @@ uart_parse_parity(__const char **p)
 }
 
 static int
-uart_parse_tag(__const char **p)
+uart_parse_tag(const char **p)
 {
 	int tag;
 
@@ -192,7 +192,7 @@ out:
 int
 uart_getenv(int devtype, struct uart_devinfo *di, struct uart_class *class)
 {
-	__const char *spec;
+	const char *spec;
 	bus_addr_t addr = ~0U;
 	int error;
 
