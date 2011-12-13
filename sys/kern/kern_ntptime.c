@@ -301,13 +301,17 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
 #ifdef PPS_SYNC
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW,
+    &pps_shiftmax, 0, "Max interval duration (sec) (shift)");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW,
+    &pps_shift, 0, "Interval duration (sec) (shift)");
 SYSCTL_LONG(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD,
-    &time_monitor, 0, "");
+    &time_monitor, 0, "Last time offset scaled (ns)");
 
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
+    &pps_freq, sizeof(pps_freq), "I", "Scaled frequency offset (ns/sec)");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD,
+    &time_freq, sizeof(time_freq), "I", "Frequency offset (ns/sec)");
 #endif
 
 /*
