@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -50,11 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar71xxreg.h>
-
 #include <mips/atheros/ar71xx_chip.h>
-
 #include <mips/atheros/ar71xx_cpudef.h>
 
 #include <mips/sentry5/s5reg.h>
@@ -135,7 +133,7 @@ ar71xx_chip_device_stopped(uint32_t mask)
 	uint32_t reg;
 
 	reg = ATH_READ_REG(AR71XX_RST_RESET);
-        return ((reg & mask) == mask);
+	return ((reg & mask) == mask);
 }
 
 /* Speed is either 10, 100 or 1000 */
@@ -144,20 +142,20 @@ ar71xx_chip_set_pll_ge(int unit, int speed)
 {
 	uint32_t pll;
 
-	switch(speed) {
-		case 10:
-			pll = PLL_ETH_INT_CLK_10;
-			break;
-		case 100:
-			pll = PLL_ETH_INT_CLK_100;
-			break;
-		case 1000:
-			pll = PLL_ETH_INT_CLK_1000;
-			break;
-		default:
-			printf("%s%d: invalid speed %d\n",
-			    __func__, unit, speed);
-			return;
+	switch (speed) {
+	case 10:
+		pll = PLL_ETH_INT_CLK_10;
+		break;
+	case 100:
+		pll = PLL_ETH_INT_CLK_100;
+		break;
+	case 1000:
+		pll = PLL_ETH_INT_CLK_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n",
+		    __func__, unit, speed);
+		return;
 	}
 	switch (unit) {
 	case 0:
@@ -180,6 +178,7 @@ ar71xx_chip_set_pll_ge(int unit, int speed)
 static void
 ar71xx_chip_ddr_flush_ge(int unit)
 {
+
 	switch (unit) {
 	case 0:
 		ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE0);
@@ -209,18 +208,24 @@ ar71xx_chip_get_eth_pll(unsigned int mac, int speed)
 static void
 ar71xx_chip_init_usb_peripheral(void)
 {
-	ar71xx_device_stop(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+
+	ar71xx_device_stop(RST_RESET_USB_OHCI_DLL |
+	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
-	ar71xx_device_start(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+	ar71xx_device_start(RST_RESET_USB_OHCI_DLL |
+	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_CONFIG,
-	    USB_CTRL_CONFIG_OHCI_DES_SWAP | USB_CTRL_CONFIG_OHCI_BUF_SWAP |
-	    USB_CTRL_CONFIG_EHCI_DES_SWAP | USB_CTRL_CONFIG_EHCI_BUF_SWAP);
+	    USB_CTRL_CONFIG_OHCI_DES_SWAP |
+	    USB_CTRL_CONFIG_OHCI_BUF_SWAP |
+	    USB_CTRL_CONFIG_EHCI_DES_SWAP |
+	    USB_CTRL_CONFIG_EHCI_BUF_SWAP);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) | (3 << USB_CTRL_FLADJ_A5_SHIFT));
+	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) |
+	    (3 << USB_CTRL_FLADJ_A5_SHIFT));
 
 	DELAY(1000);
 }
