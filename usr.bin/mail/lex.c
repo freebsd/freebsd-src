@@ -482,7 +482,7 @@ setmsize(int sz)
  * to the passed command "word"
  */
 
-__const struct cmd *
+const struct cmd *
 lex(char word[])
 {
 	const struct cmd *cp;
