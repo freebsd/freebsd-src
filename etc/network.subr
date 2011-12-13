@@ -716,8 +716,15 @@ ifalias_ipv4_up()
 		inet\ *)
 			ifconfig $1 ${ifconfig_args} alias && _ret=0
 			;;
+		inet6\ *)
+			;;
 		"")
 			break
+			;;
+		*)
+			warn "\$ifconfig_$1_alias${alias} needs " \
+			    "\"inet\" keyword for an IPv4 address."
+			ifconfig $1 ${ifconfig_args} alias && _ret=0
 			;;
 		esac
 		alias=$((${alias} + 1))
