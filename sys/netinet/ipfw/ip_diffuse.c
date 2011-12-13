@@ -1534,7 +1534,7 @@ compute_space_feature(struct di_oid *cmd)
 	needed = 0;
 
 	if (cmd != NULL)
-		name = ((struct di_feature *)cmd)->name;
+		name = ((struct di_ctl_feature *)cmd)->name;
 	else
 		name = "all";
 	
@@ -1543,12 +1543,12 @@ compute_space_feature(struct di_oid *cmd)
 		if (s == NULL)
 			return (-1);
 
-		needed += sizeof(struct di_feature);
+		needed += sizeof(struct di_ctl_feature);
 		needed += s->alg->get_conf(&s->conf, NULL, 1);
 	} else {
 		/* All feature instances. */
 		LIST_FOREACH(s, &di_config.feature_inst_list, next) {
-			needed += sizeof(struct di_feature);
+			needed += sizeof(struct di_ctl_feature);
 			needed += s->alg->get_conf(&s->conf, NULL, 1);
 		}
 	}
@@ -1568,20 +1568,20 @@ compute_space_class(struct di_oid *cmd)
 	int needed;
 
 	needed = 0;
-	name = ((struct di_classifier *)cmd)->name;
+	name = ((struct di_ctl_classifier *)cmd)->name;
 
 	if (strcmp(name, "all")) {
 		s = search_classifier_instance(name);
 		if (s == NULL)
 			return (-1);
 
-		needed += sizeof(struct di_classifier);
+		needed += sizeof(struct di_ctl_classifier);
 		needed += (s->fscnt + s->ccnt)* sizeof(struct di_feature_stat);
 		needed += s->alg->get_conf(&s->conf, NULL, 1);
 	} else {
 		/* All classifier instances. */
 		LIST_FOREACH(s, &di_config.classifier_inst_list, next) {
-			needed += sizeof(struct di_classifier);
+			needed += sizeof(struct di_ctl_classifier);
 			needed += (s->fscnt + s->ccnt) * sizeof(struct di_feature_stat);
 		}
 	}
@@ -1601,18 +1601,18 @@ compute_space_export(struct di_oid *cmd)
 	int needed;
 
 	needed = 0;
-	name = ((struct di_export *)cmd)->name;
+	name = ((struct di_ctl_export *)cmd)->name;
 
 	if (strcmp(name, "all")) {
 		s = search_export_instance(name);
 		if (s == NULL)
 			return (-1);
 
-		needed += sizeof(struct di_export);
+		needed += sizeof(struct di_ctl_export);
 	} else {
 		/* All export instances. */
 		LIST_FOREACH(s, &di_config.export_list, next) {
-			needed += sizeof(struct di_export);
+			needed += sizeof(struct di_ctl_export);
 		}
 	}
 
@@ -1629,7 +1629,7 @@ copy_feature(char *buf, struct di_feature *s)
 
 	f->oid.type = DI_FEATURE;
 	f->oid.subtype = 0;
-	f->oid.len = sizeof(struct di_feature);
+	f->oid.len = sizeof(struct di_ctl_feature);
 	strcpy(f->name, s->name);
 	strcpy(f->mod_name, s->alg->name);
 
@@ -1664,7 +1664,7 @@ copy_features(struct di_oid *cmd, char **buf)
 	size = 0;
 
 	if (cmd != NULL)
-		name = ((struct di_feature *)cmd)->name;
+		name = ((struct di_ctl_feature *)cmd)->name;
 	else
 		name = "all";
 
@@ -1704,7 +1704,7 @@ copy_classifier(char *buf, struct di_classifier *s)
 
 	c->oid.type = DI_CLASSIFIER;
 	c->oid.subtype = 0;
-	c->oid.len = sizeof(struct di_classifier) +
+	c->oid.len = sizeof(struct di_ctl_classifier) +
 	    (s->fscnt + s->ccnt) * sizeof(struct di_feature_stat);
 	strcpy(c->name, s->name);
 	strcpy(c->mod_name, s->alg->name);
@@ -1746,7 +1746,7 @@ copy_classifiers(struct di_oid *cmd, char **buf)
 	int r, size;
 
 	size = 0;
-	name = ((struct di_classifier *)cmd)->name;
+	name = ((struct di_ctl_classifier *)cmd)->name;
 
 	if (strcmp(name, "all")) {
 		s = search_classifier_instance(name);
@@ -1781,11 +1781,11 @@ copy_export(char *buf, struct di_export *s)
 
 	e->oid.type = DI_EXPORT;
 	e->oid.subtype = 0;
-	e->oid.len = sizeof(struct di_export);
+	e->oid.len = sizeof(struct di_ctl_export);
 	strcpy(e->name, s->name);
 	e->conf = s->conf;
 
-	return (sizeof(struct di_export));
+	return (sizeof(struct di_ctl_export));
 }
 
 /*
@@ -1800,7 +1800,7 @@ copy_exports(struct di_oid *cmd, char **buf)
 	int r, size;
 
 	size = 0;
-	name = ((struct di_export *)cmd)->name;
+	name = ((struct di_ctl_export *)cmd)->name;
 
 	if (strcmp(name, "all")) {
 		s = search_export_instance(name);
