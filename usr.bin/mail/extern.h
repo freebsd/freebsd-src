@@ -154,7 +154,7 @@ int	 ishead(char []);
 int	 isign(const char *, struct ignoretab []);
 int	 isprefix(const char *, const char *);
 void	 istrncpy(char *, const char *, size_t);
-__const struct cmd *
+const struct cmd *
 	 lex(char []);
 void	 load(char *);
 struct var *
