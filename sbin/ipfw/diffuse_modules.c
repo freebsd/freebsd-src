@@ -69,11 +69,11 @@ SLIST_HEAD(di_featuremods_head, di_feature_module);
 SLIST_HEAD(di_classifiermods_head, di_classifier_module);
 
 /* List of feature modules. */
-static struct di_featuremods_head *featuremods =
+static struct di_featuremods_head featuremods =
     SLIST_HEAD_INITIALIZER(featuremods);
 
 /* List of classifier modules. */
-static struct di_classifiermods_head *classifiermods =
+static struct di_classifiermods_head classifiermods =
     SLIST_HEAD_INITIALIZER(classifiermods);
 
 struct di_classifier_module *
@@ -83,7 +83,7 @@ find_classifier_module(const char *name)
 
 	tmp = NULL;
 
-	SLIST_FOREACH(tmp, classifiermods, next) {
+	SLIST_FOREACH(tmp, &classifiermods, next) {
 		if (strcmp(tmp->name, name) == 0)
 			break;
 	}
@@ -96,7 +96,7 @@ print_classifier_modules()
 {
 	struct di_classifier_module *tmp;
 
-	SLIST_FOREACH(tmp, classifiermods, next) {
+	SLIST_FOREACH(tmp, &classifiermods, next) {
 		printf("%s ", tmp->name);
 	}
 	printf("\n");
@@ -109,7 +109,7 @@ find_feature_module(const char *name)
 
 	tmp = NULL;
 
-	SLIST_FOREACH(tmp, featuremods, next) {
+	SLIST_FOREACH(tmp, &featuremods, next) {
 		if (strcmp(tmp->name, name) == 0)
 			break;
 	}
@@ -122,7 +122,7 @@ print_feature_modules()
 {
 	struct di_feature_module *tmp;
 
-	SLIST_FOREACH(tmp, featuremods, next) {
+	SLIST_FOREACH(tmp, &featuremods, next) {
 		printf("%s ", tmp->name);
 	}
 	printf("\n");
@@ -132,22 +132,22 @@ void
 diffuse_classifier_modules_init()
 {
 
-	SLIST_INIT(classifiermods);
-	SLIST_INSERT_HEAD(classifiermods, c45_module(), next);
-	SLIST_INSERT_HEAD(classifiermods, nbayes_module(), next);
+	SLIST_INIT(&classifiermods);
+	SLIST_INSERT_HEAD(&classifiermods, c45_module(), next);
+	SLIST_INSERT_HEAD(&classifiermods, nbayes_module(), next);
 }
 
 void
 diffuse_feature_modules_init()
 {
 
-	SLIST_INIT(featuremods);
-	SLIST_INSERT_HEAD(featuremods, iat_module(), next);
-	SLIST_INSERT_HEAD(featuremods, iatbd_module(), next);
-	SLIST_INSERT_HEAD(featuremods, pcnt_module(), next);
-	SLIST_INSERT_HEAD(featuremods, plen_module(), next);
-	SLIST_INSERT_HEAD(featuremods, plenbd_module(), next);
-	SLIST_INSERT_HEAD(featuremods, skype_module(), next);
+	SLIST_INIT(&featuremods);
+	SLIST_INSERT_HEAD(&featuremods, iat_module(), next);
+	SLIST_INSERT_HEAD(&featuremods, iatbd_module(), next);
+	SLIST_INSERT_HEAD(&featuremods, pcnt_module(), next);
+	SLIST_INSERT_HEAD(&featuremods, plen_module(), next);
+	SLIST_INSERT_HEAD(&featuremods, plenbd_module(), next);
+	SLIST_INSERT_HEAD(&featuremods, skype_module(), next);
 }
 
 void
