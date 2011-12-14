@@ -1023,8 +1023,12 @@ MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_wunlock.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 RTFREE_LOCKED.9 \
 	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9
+	rtalloc.9 rtfree.9 \
+	rtalloc.9 rtalloc1_fib.9 \
+	rtalloc.9 rtalloc_ign_fib.9 \
+	rtalloc.9 rtalloc_fib.9
 MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
