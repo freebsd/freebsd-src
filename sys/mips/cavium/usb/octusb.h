@@ -140,8 +140,6 @@ struct octusb_softc {
 usb_bus_mem_cb_t octusb_iterate_hw_softc;
 usb_error_t octusb_init(struct octusb_softc *);
 usb_error_t octusb_uninit(struct octusb_softc *);
-void	octusb_suspend(struct octusb_softc *);
-void	octusb_resume(struct octusb_softc *);
 void	octusb_interrupt(struct octusb_softc *);
 
 #endif					/* _OCTUSB_H_ */
