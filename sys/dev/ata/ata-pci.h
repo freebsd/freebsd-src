@@ -193,6 +193,10 @@ struct ata_pci_controller {
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
+#define ATA_I82801IBM_S1        0x29288086
+#define ATA_I82801IBM_AH        0x29298086
+#define ATA_I82801IBM_R1        0x292a8086
+#define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
 #define ATA_I82801JIB_AH        0x3a228086
 #define ATA_I82801JIB_R1        0x3a258086
