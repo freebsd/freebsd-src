@@ -1349,7 +1349,8 @@ pipe_poll(fp, events, active_cred, td)
 		if (wpipe->pipe_present != PIPE_ACTIVE ||
 		    (wpipe->pipe_state & PIPE_EOF) ||
 		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
-		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
+		     ((wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF ||
+			 wpipe->pipe_buffer.size == 0)))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((events & POLLINIGNEOF) == 0) {
@@ -1660,7 +1661,8 @@ filt_pipewrite(struct knote *kn, long hint)
 		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
-	kn->kn_data = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
+	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
+	    (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) : PIPE_BUF;
 	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 
