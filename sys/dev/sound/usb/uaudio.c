@@ -765,7 +765,15 @@ uaudio_detach(device_t dev)
 {
 	struct uaudio_softc *sc = device_get_softc(dev);
 
-	if (bus_generic_detach(dev)) {
+	/*
+	 * Stop USB transfers early so that any audio applications
+	 * will time out and close opened /dev/dspX.Y device(s), if
+	 * any.
+	 */
+	uaudio_chan_stop(&sc->sc_play_chan);
+	uaudio_chan_stop(&sc->sc_rec_chan);
+
+	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
 	}
 	sbuf_delete(&sc->sc_sndstat);
