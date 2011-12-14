@@ -371,16 +371,21 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
     const Elf_Rel *rel;
     Elf_Addr *where, target;
 
+    if (!obj->irelative)
+	return (0);
     rellim = (const Elf_Rel *)((char *)obj->pltrel + obj->pltrelsize);
     for (rel = obj->pltrel;  rel < rellim;  rel++) {
 	switch (ELF_R_TYPE(rel->r_info)) {
 	case R_386_IRELATIVE:
 	  where = (Elf_Addr *)(obj->relocbase + rel->r_offset);
-	  target = ((Elf_Addr (*)(void))(*where))();
+	  lock_release(rtld_bind_lock, lockstate);
+	  target = ((Elf_Addr (*)(void))(obj->relocbase + *where))();
+	  wlock_acquire(rtld_bind_lock, lockstate);
 	  *where = target;
 	  break;
 	}
     }
+    obj->irelative = false;
     return (0);
 }
 
@@ -407,7 +412,9 @@ reloc_gnu_ifunc(Obj_Entry *obj, RtldLockState *lockstate)
 	      return (-1);
 	  if (ELF_ST_TYPE(def->st_info) != STT_GNU_IFUNC)
 	      continue;
+	  lock_release(rtld_bind_lock, lockstate);
 	  target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
+	  wlock_acquire(rtld_bind_lock, lockstate);
 	  reloc_jmpslot(where, target, defobj, obj, rel);
 	  break;
 	}
