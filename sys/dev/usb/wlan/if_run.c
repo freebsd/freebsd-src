@@ -2749,7 +2749,8 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		if (m->m_pkthdr.len > RUN_MAX_TXSZ) {
+		if ((m->m_pkthdr.len +
+		    sizeof(data->desc) + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -2764,6 +2765,14 @@ tr_setup:
 		size = sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
+		size += m->m_pkthdr.len;
+		/*
+		 * Align end on a 4-byte boundary, pad 8 bytes (CRC +
+		 * 4-byte padding), and be sure to zero those trailing
+		 * bytes:
+		 */
+		usbd_frame_zero(pc, size, ((-size) & 3) + 8);
+		size += ((-size) & 3) + 8;
 
 		vap = data->ni->ni_vap;
 		if (ieee80211_radiotap_active_vap(vap)) {
@@ -2782,10 +2791,10 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		DPRINTFN(11, "sending frame len=%u  @ index %d\n",
-			m->m_pkthdr.len, index);
+		DPRINTFN(11, "sending frame len=%u/%u  @ index %d\n",
+		    m->m_pkthdr.len, size, index);
 
-		usbd_xfer_set_frame_len(xfer, 0, size + m->m_pkthdr.len);
+		usbd_xfer_set_frame_len(xfer, 0, size);
 		usbd_xfer_set_priv(xfer, data);
 
 		usbd_transfer_submit(xfer);
@@ -2874,7 +2883,6 @@ run_bulk_tx_callback5(struct usb_xfer *xfer, usb_error_t error)
 static void
 run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 {
-	static const uint8_t ztail[16];
 	struct mbuf *m = data->m;
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = data->ni->ni_vap;
@@ -2931,13 +2939,6 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 
 	if (vap->iv_opmode != IEEE80211_M_STA && !IEEE80211_QOS_HAS_SEQ(wh))
 		txwi->xflags |= RT2860_TX_NSEQ;
-
-	/*
-	 * Align end on a 4-byte boundary, pad 8 bytes (CRC + 4-byte padding),
-	 * and be sure to zero those trailing bytes.
-	 */
-	m_append(m, ((m->m_pkthdr.len + 3) & ~3) - m->m_pkthdr.len + 8,
-	    (c_caddr_t)ztail);
 }
 
 /* This function must be called locked */
