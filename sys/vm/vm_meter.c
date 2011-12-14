@@ -270,59 +270,62 @@ static SYSCTL_NODE(_vm_stats, OID_AUTO, vm, CTLFLAG_RW, 0,
 	"VM meter vm stats");
 SYSCTL_NODE(_vm_stats, OID_AUTO, misc, CTLFLAG_RW, 0, "VM meter misc stats");
 
-#define VM_STATS_SYS(var, descr) SYSCTL_PROC(_vm_stats_sys, OID_AUTO, var, \
-    (CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE), &cnt.v_swtch, 0, vcnt, \
-    "IU", descr);
+#define	VM_STATS(parent, var, descr) \
+	SYSCTL_PROC(parent, OID_AUTO, var, \
+	    CTLTYPE_UINT | CTLFLAG_RD | CTLFLAG_MPSAFE, &cnt.var, 0, vcnt, \
+	    "IU", descr)
+#define	VM_STATS_VM(var, descr)		VM_STATS(_vm_stats_vm, var, descr)
+#define	VM_STATS_SYS(var, descr)	VM_STATS(_vm_stats_sys, var, descr)
 
 VM_STATS_SYS(v_swtch, "Context switches");
 VM_STATS_SYS(v_trap, "Traps");
 VM_STATS_SYS(v_syscall, "System calls");
 VM_STATS_SYS(v_intr, "Device interrupts");
 VM_STATS_SYS(v_soft, "Software interrupts");
-VM_STATS_SYS(v_vm_faults, "Address memory faults");
-VM_STATS_SYS(v_cow_faults, "Copy-on-write faults");
-VM_STATS_SYS(v_cow_optim, "Optimized COW faults")
-VM_STATS_SYS(v_zfod, "Pages zero-filled on demand")
-VM_STATS_SYS(v_ozfod, "Optimized zero fill pages")
-VM_STATS_SYS(v_swapin, "Swap pager pageins")
-VM_STATS_SYS(v_swapout, "Swap pager pageouts")
-VM_STATS_SYS(v_swappgsin, "Swap pages swapped in")
-VM_STATS_SYS(v_swappgsout, "Swap pages swapped out")
-VM_STATS_SYS(v_vnodein, "Vnode pager pageins")
-VM_STATS_SYS(v_vnodeout, "Vnode pager pageouts")
-VM_STATS_SYS(v_vnodepgsin, "Vnode pages paged in")
-VM_STATS_SYS(v_vnodepgsout, "Vnode pages paged out")
-VM_STATS_SYS(v_intrans, "In transit page faults")
-VM_STATS_SYS(v_reactivated, "Pages reactivated from free list")
-VM_STATS_SYS(v_pdwakeups, "Pagedaemon wakeups")
-VM_STATS_SYS(v_pdpages, "Pages analyzed by pagedaemon")
-VM_STATS_SYS(v_tcached, "Total pages cached")
-VM_STATS_SYS(v_dfree, "Pages freed by pagedaemon")
-VM_STATS_SYS(v_pfree, "Pages freed by exiting processes")
-VM_STATS_SYS(v_tfree, "Total pages freed")
-VM_STATS_SYS(v_page_size, "Page size in bytes")
-VM_STATS_SYS(v_page_count, "Total number of pages in system")
-VM_STATS_SYS(v_free_reserved, "Pages reserved for deadlock")
-VM_STATS_SYS(v_free_target, "Pages desired free")
-VM_STATS_SYS(v_free_min, "Minimum low-free-pages threshold")
-VM_STATS_SYS(v_free_count, "Free pages")
-VM_STATS_SYS(v_wire_count, "Wired pages")
-VM_STATS_SYS(v_active_count, "Active pages")
-VM_STATS_SYS(v_inactive_target, "Desired inactive pages")
-VM_STATS_SYS(v_inactive_count, "Inactive pages")
-VM_STATS_SYS(v_cache_count, "Pages on cache queue")
-VM_STATS_SYS(v_cache_min, "Min pages on cache queue")
-VM_STATS_SYS(v_cache_max, "Max pages on cached queue")
-VM_STATS_SYS(v_pageout_free_min, "Min pages reserved for kernel")
-VM_STATS_SYS(v_interrupt_free_min, "Reserved pages for interrupt code")
-VM_STATS_SYS(v_forks, "Number of fork() calls")
-VM_STATS_SYS(v_vforks, "Number of vfork() calls")
-VM_STATS_SYS(v_rforks, "Number of rfork() calls")
-VM_STATS_SYS(v_kthreads, "Number of fork() calls by kernel")
-VM_STATS_SYS(v_forkpages, "VM pages affected by fork()")
-VM_STATS_SYS(v_vforkpages, "VM pages affected by vfork()")
-VM_STATS_SYS(v_rforkpages, "VM pages affected by rfork()")
-VM_STATS_SYS(v_kthreadpages, "VM pages affected by fork() by kernel")
+VM_STATS_VM(v_vm_faults, "Address memory faults");
+VM_STATS_VM(v_cow_faults, "Copy-on-write faults");
+VM_STATS_VM(v_cow_optim, "Optimized COW faults");
+VM_STATS_VM(v_zfod, "Pages zero-filled on demand");
+VM_STATS_VM(v_ozfod, "Optimized zero fill pages");
+VM_STATS_VM(v_swapin, "Swap pager pageins");
+VM_STATS_VM(v_swapout, "Swap pager pageouts");
+VM_STATS_VM(v_swappgsin, "Swap pages swapped in");
+VM_STATS_VM(v_swappgsout, "Swap pages swapped out");
+VM_STATS_VM(v_vnodein, "Vnode pager pageins");
+VM_STATS_VM(v_vnodeout, "Vnode pager pageouts");
+VM_STATS_VM(v_vnodepgsin, "Vnode pages paged in");
+VM_STATS_VM(v_vnodepgsout, "Vnode pages paged out");
+VM_STATS_VM(v_intrans, "In transit page faults");
+VM_STATS_VM(v_reactivated, "Pages reactivated from free list");
+VM_STATS_VM(v_pdwakeups, "Pagedaemon wakeups");
+VM_STATS_VM(v_pdpages, "Pages analyzed by pagedaemon");
+VM_STATS_VM(v_tcached, "Total pages cached");
+VM_STATS_VM(v_dfree, "Pages freed by pagedaemon");
+VM_STATS_VM(v_pfree, "Pages freed by exiting processes");
+VM_STATS_VM(v_tfree, "Total pages freed");
+VM_STATS_VM(v_page_size, "Page size in bytes");
+VM_STATS_VM(v_page_count, "Total number of pages in system");
+VM_STATS_VM(v_free_reserved, "Pages reserved for deadlock");
+VM_STATS_VM(v_free_target, "Pages desired free");
+VM_STATS_VM(v_free_min, "Minimum low-free-pages threshold");
+VM_STATS_VM(v_free_count, "Free pages");
+VM_STATS_VM(v_wire_count, "Wired pages");
+VM_STATS_VM(v_active_count, "Active pages");
+VM_STATS_VM(v_inactive_target, "Desired inactive pages");
+VM_STATS_VM(v_inactive_count, "Inactive pages");
+VM_STATS_VM(v_cache_count, "Pages on cache queue");
+VM_STATS_VM(v_cache_min, "Min pages on cache queue");
+VM_STATS_VM(v_cache_max, "Max pages on cached queue");
+VM_STATS_VM(v_pageout_free_min, "Min pages reserved for kernel");
+VM_STATS_VM(v_interrupt_free_min, "Reserved pages for interrupt code");
+VM_STATS_VM(v_forks, "Number of fork() calls");
+VM_STATS_VM(v_vforks, "Number of vfork() calls");
+VM_STATS_VM(v_rforks, "Number of rfork() calls");
+VM_STATS_VM(v_kthreads, "Number of fork() calls by kernel");
+VM_STATS_VM(v_forkpages, "VM pages affected by fork()");
+VM_STATS_VM(v_vforkpages, "VM pages affected by vfork()");
+VM_STATS_VM(v_rforkpages, "VM pages affected by rfork()");
+VM_STATS_VM(v_kthreadpages, "VM pages affected by fork() by kernel");
 
 SYSCTL_INT(_vm_stats_misc, OID_AUTO, zero_page_count, CTLFLAG_RD,
 	&vm_page_zero_count, 0, "Number of zero-ed free pages");
