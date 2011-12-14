@@ -1187,7 +1187,7 @@ alloc_iq_fl(struct port_info *pi, struct sge_iq *iq, struct sge_fl *fl,
 		}
 		fl->needed = fl->cap;
 
-		c.iqns_to_fl0congen =
+		c.iqns_to_fl0congen |=
 		    htobe32(V_FW_IQ_CMD_FL0HOSTFCMODE(X_HOSTFCMODE_NONE) |
 			F_FW_IQ_CMD_FL0FETCHRO | F_FW_IQ_CMD_FL0DATARO |
 			F_FW_IQ_CMD_FL0PADEN);
