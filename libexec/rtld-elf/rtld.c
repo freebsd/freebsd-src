@@ -116,6 +116,8 @@ static void objlist_push_tail(Objlist *, Obj_Entry *);
 static void objlist_remove(Objlist *, Obj_Entry *);
 static void *path_enumerate(const char *, path_enum_proc, void *);
 static int relocate_objects(Obj_Entry *, bool, Obj_Entry *, RtldLockState *);
+static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
+    RtldLockState *lockstate);
 static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
 static void rtld_exit(void);
@@ -511,6 +513,10 @@ _rtld(Elf_Addr *sp, func_ptr_type *exit_proc, Obj_Entry **objp)
 
     if (relocate_objects(obj_main,
       ld_bind_now != NULL && *ld_bind_now != '\0', &obj_rtld, NULL) == -1)
+	die();
+
+    if (resolve_objects_ifunc(obj_main,
+      ld_bind_now != NULL && *ld_bind_now != '\0', NULL) == -1)
 	die();
 
     dbg("doing copy relocations");
@@ -1978,25 +1984,53 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	obj->version = RTLD_VERSION;
     }
 
-    /*
-     * The handling of R_MACHINE_IRELATIVE relocations and jumpslots
-     * referencing STT_GNU_IFUNC symbols is postponed till the other
-     * relocations are done.  The indirect functions specified as
-     * ifunc are allowed to call other symbols, so we need to have
-     * objects relocated before asking for resolution from indirects.
-     *
-     * The R_MACHINE_IRELATIVE slots are resolved in greedy fashion,
-     * instead of the usual lazy handling of PLT slots.  It is
-     * consistent with how GNU does it.
-     */
-    for (obj = first;  obj != NULL;  obj = obj->next) {
+    return (0);
+}
+
+/*
+ * The handling of R_MACHINE_IRELATIVE relocations and jumpslots
+ * referencing STT_GNU_IFUNC symbols is postponed till the other
+ * relocations are done.  The indirect functions specified as
+ * ifunc are allowed to call other symbols, so we need to have
+ * objects relocated before asking for resolution from indirects.
+ *
+ * The R_MACHINE_IRELATIVE slots are resolved in greedy fashion,
+ * instead of the usual lazy handling of PLT slots.  It is
+ * consistent with how GNU does it.
+ */
+static int
+resolve_object_ifunc(Obj_Entry *obj, bool bind_now, RtldLockState *lockstate)
+{
 	if (obj->irelative && reloc_iresolve(obj, lockstate) == -1)
-	    return (-1);
+		return (-1);
 	if ((obj->bind_now || bind_now) && obj->gnu_ifunc &&
-	  reloc_gnu_ifunc(obj, lockstate) == -1)
-	    return (-1);
-    }
-    return 0;
+	    reloc_gnu_ifunc(obj, lockstate) == -1)
+		return (-1);
+	return (0);
+}
+
+static int
+resolve_objects_ifunc(Obj_Entry *first, bool bind_now, RtldLockState *lockstate)
+{
+	Obj_Entry *obj;
+
+	for (obj = first;  obj != NULL;  obj = obj->next) {
+		if (resolve_object_ifunc(obj, bind_now, lockstate) == -1)
+			return (-1);
+	}
+	return (0);
+}
+
+static int
+initlist_objects_ifunc(Objlist *list, bool bind_now, RtldLockState *lockstate)
+{
+	Objlist_Entry *elm;
+
+	STAILQ_FOREACH(elm, list, link) {
+		if (resolve_object_ifunc(elm->obj, bind_now, lockstate) == -1)
+			return (-1);
+	}
+	return (0);
 }
 
 /*
@@ -2201,6 +2235,16 @@ dlopen(const char *name, int mode)
       mode & (RTLD_MODEMASK | RTLD_GLOBAL)));
 }
 
+static void
+dlopen_cleanup(Obj_Entry *obj)
+{
+
+	obj->dl_refcount--;
+	unref_dag(obj);
+	if (obj->refcount == 0)
+		unload_object(obj);
+}
+
 static Obj_Entry *
 dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
 {
@@ -2239,10 +2283,7 @@ dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
 		goto trace;
 	    if (result == -1 || (relocate_objects(obj, (mode & RTLD_MODEMASK)
 	      == RTLD_NOW, &obj_rtld, &lockstate)) == -1) {
-		obj->dl_refcount--;
-		unref_dag(obj);
-		if (obj->refcount == 0)
-		    unload_object(obj);
+		dlopen_cleanup(obj);
 		obj = NULL;
 	    } else {
 		/* Make list of init functions to call. */
@@ -2275,6 +2316,14 @@ dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
     GDB_STATE(RT_CONSISTENT,obj ? &obj->linkmap : NULL);
 
     map_stacks_exec(&lockstate);
+
+    if (initlist_objects_ifunc(&initlist, (mode & RTLD_MODEMASK) == RTLD_NOW,
+      &lockstate) == -1) {
+	objlist_clear(&initlist);
+	dlopen_cleanup(obj);
+	lock_release(rtld_bind_lock, &lockstate);
+	return (NULL);
+    }
 
     /* Call the init functions. */
     objlist_call_init(&initlist, &lockstate);
