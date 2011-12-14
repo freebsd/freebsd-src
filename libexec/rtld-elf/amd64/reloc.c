@@ -413,6 +413,8 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
     const Elf_Rela *relalim;
     const Elf_Rela *rela;
 
+    if (!obj->irelative)
+	return (0);
     relalim = (const Elf_Rela *)((char *)obj->pltrela + obj->pltrelasize);
     for (rela = obj->pltrela;  rela < relalim;  rela++) {
 	Elf_Addr *where, target, *ptr;
@@ -424,11 +426,14 @@ reloc_iresolve(Obj_Entry *obj, RtldLockState *lockstate)
 	case R_X86_64_IRELATIVE:
 	  ptr = (Elf_Addr *)(obj->relocbase + rela->r_addend);
 	  where = (Elf_Addr *)(obj->relocbase + rela->r_offset);
+	  lock_release(rtld_bind_lock, lockstate);
 	  target = ((Elf_Addr (*)(void))ptr)();
+	  wlock_acquire(rtld_bind_lock, lockstate);
 	  *where = target;
 	  break;
 	}
     }
+    obj->irelative = false;
     return (0);
 }
 
@@ -455,13 +460,15 @@ reloc_gnu_ifunc(Obj_Entry *obj, RtldLockState *lockstate)
 	      return (-1);
 	  if (ELF_ST_TYPE(def->st_info) != STT_GNU_IFUNC)
 	      continue;
+	  lock_release(rtld_bind_lock, lockstate);
 	  target = (Elf_Addr)rtld_resolve_ifunc(defobj, def);
+	  wlock_acquire(rtld_bind_lock, lockstate);
 	  reloc_jmpslot(where, target, defobj, obj, (const Elf_Rel *)rela);
 	  break;
 	}
     }
     obj->gnu_ifunc = false;
-    return 0;
+    return (0);
 }
 
 void
