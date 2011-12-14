@@ -116,6 +116,7 @@ MAN=	aac.4 \
 	epair.4 \
 	esp.4 \
 	et.4 \
+	eventtimers.4 \
 	exca.4 \
 	faith.4 \
 	fatm.4 \
