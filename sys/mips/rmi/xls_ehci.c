@@ -69,50 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehcireg.h>
 #include <mips/rmi/pic.h>
 
-static int ehci_xls_attach(device_t self);
-static int ehci_xls_detach(device_t self);
-static int ehci_xls_shutdown(device_t self);
-static int ehci_xls_suspend(device_t self);
-static int ehci_xls_resume(device_t self);
-
-static int
-ehci_xls_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_xls_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_xls_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
+static device_attach_t ehci_xls_attach;
+static device_detach_t ehci_xls_detach;
 
 static const char *xlr_usb_dev_desc = "RMI XLR USB 2.0 controller";
 static const char *xlr_vendor_desc = "RMI Corp";
@@ -248,17 +206,17 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ehci_xls_probe),
 	DEVMETHOD(device_attach, ehci_xls_attach),
 	DEVMETHOD(device_detach, ehci_xls_detach),
-	DEVMETHOD(device_suspend, ehci_xls_suspend),
-	DEVMETHOD(device_resume, ehci_xls_resume),
-	DEVMETHOD(device_shutdown, ehci_xls_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(struct ehci_softc),
+	.name = "ehci",
+	.methods = ehci_methods,
+	.size = sizeof(struct ehci_softc),
 };
 
 static devclass_t ehci_devclass;

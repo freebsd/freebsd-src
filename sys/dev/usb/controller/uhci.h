@@ -230,13 +230,11 @@ typedef struct uhci_softc {
 	uint32_t sc_loops;		/* number of QHs that wants looping */
 
 	uint16_t sc_intr_stat[UHCI_IFRAMELIST_COUNT];
-	uint16_t sc_saved_frnum;
 
 	uint8_t	sc_addr;		/* device address */
 	uint8_t	sc_conf;		/* device configuration */
 	uint8_t	sc_isreset;		/* bits set if a root hub is reset */
 	uint8_t	sc_isresumed;		/* bits set if a port was resumed */
-	uint8_t	sc_saved_sof;
 	uint8_t	sc_hub_idata[1];
 
 	char	sc_vendor[16];		/* vendor string for root hub */
@@ -245,8 +243,6 @@ typedef struct uhci_softc {
 usb_bus_mem_cb_t uhci_iterate_hw_softc;
 
 usb_error_t uhci_init(uhci_softc_t *sc);
-void	uhci_suspend(uhci_softc_t *sc);
-void	uhci_resume(uhci_softc_t *sc);
 void	uhci_reset(uhci_softc_t *sc);
 void	uhci_interrupt(uhci_softc_t *sc);
 
