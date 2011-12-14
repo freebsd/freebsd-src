@@ -42,10 +42,9 @@ __FBSDID("$FreeBSD$");
 
 #include "viawd.h"
 
-#define viawd_read_wd_4(sc, off) \
-	bus_space_read_4((sc)->wd_bst, (sc)->wd_bsh, (off))
-#define viawd_write_wd_4(sc, off, val) \
-	bus_space_write_4((sc)->wd_bst, (sc)->wd_bsh, (off), (val))
+#define	viawd_read_4(sc, off)	bus_read_4((sc)->wd_res, (off))
+#define	viawd_write_4(sc, off, val)	\
+	bus_write_4((sc)->wd_res, (off), (val))
 
 static struct viawd_device viawd_devices[] = {
 	{ DEVICEID_VT8251, "VIA VT8251 watchdog timer" },
@@ -58,37 +57,17 @@ static struct viawd_device viawd_devices[] = {
 
 static devclass_t viawd_devclass;
 
-static device_t
-viawd_find(struct viawd_device **id_p)
-{
-	struct viawd_device *id;
-	device_t sb_dev = NULL;
-
-	/* Look for a supported VIA south bridge. */
-	for (id = viawd_devices; id->desc != NULL; ++id)
-		if ((sb_dev = pci_find_device(VENDORID_VIA, id->device)) != NULL)
-			break;
-
-	if (sb_dev == NULL)
-		return (NULL);
-
-	if (id_p != NULL)
-		*id_p = id;
-
-	return (sb_dev);
-}
-
 static void
 viawd_tmr_state(struct viawd_softc *sc, int enable)
 {
 	uint32_t reg;
 
-	reg = viawd_read_wd_4(sc, VIAWD_MEM_CTRL);
+	reg = viawd_read_4(sc, VIAWD_MEM_CTRL);
 	if (enable)
 		reg |= VIAWD_MEM_CTRL_TRIGGER | VIAWD_MEM_CTRL_ENABLE;
 	else
 		reg &= ~VIAWD_MEM_CTRL_ENABLE;
-	viawd_write_wd_4(sc, VIAWD_MEM_CTRL, reg);
+	viawd_write_4(sc, VIAWD_MEM_CTRL, reg);
 }
 
 static void
@@ -101,7 +80,7 @@ viawd_tmr_set(struct viawd_softc *sc, unsigned int timeout)
 	else if (timeout > VIAWD_MEM_COUNT_MAX)
 		timeout = VIAWD_MEM_COUNT_MAX;
 
-	viawd_write_wd_4(sc, VIAWD_MEM_COUNT, timeout);
+	viawd_write_4(sc, VIAWD_MEM_COUNT, timeout);
 	sc->timeout = timeout;
 }
 
@@ -127,35 +106,40 @@ viawd_event(void *arg, unsigned int cmd, int *error)
 		viawd_tmr_state(sc, 0);
 }
 
+/* Look for a supported VIA south bridge. */
+static struct viawd_device *
+viawd_find(device_t dev)
+{
+	struct viawd_device *id;
+
+	if (pci_get_vendor(dev) != VENDORID_VIA)
+		return (NULL);
+	for (id = viawd_devices; id->desc != NULL; id++)
+		if (pci_get_device(dev) == id->device)
+			return (id);
+	return (NULL);
+}
+
 static void
 viawd_identify(driver_t *driver, device_t parent)
 {
-	device_t dev;
-	device_t sb_dev;
-	struct viawd_device *id_p;
 
-	sb_dev = viawd_find(&id_p);
-	if (sb_dev == NULL)
+	if (viawd_find(parent) == NULL)
 		return;
 
-	/* Good, add child to bus. */
-	if ((dev = device_find_child(parent, driver->name, 0)) == NULL)
-		dev = BUS_ADD_CHILD(parent, 0, driver->name, 0);
-
-	if (dev == NULL)
-		return;
-
-	device_set_desc_copy(dev, id_p->desc);
+	if (device_find_child(parent, driver->name, -1) == NULL)
+		BUS_ADD_CHILD(parent, 0, driver->name, 0);
 }
 
 static int
 viawd_probe(device_t dev)
 {
+	struct viawd_device *id;
 
-	/* Do not claim some ISA PnP device by accident. */
-	if (isa_get_logicalid(dev) != 0)
-		return (ENXIO);
-	return (0);
+	id = viawd_find(device_get_parent(dev));
+	KASSERT(id != NULL, ("parent should be a valid VIA SB"));
+	device_set_desc(dev, id->desc);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -163,13 +147,12 @@ viawd_attach(device_t dev)
 {
 	device_t sb_dev;
 	struct viawd_softc *sc;
-	struct viawd_device *id_p;
 	uint32_t pmbase, reg;
 
 	sc = device_get_softc(dev);
 	sc->dev = dev;
 
-	sb_dev = viawd_find(&id_p);
+	sb_dev = device_get_parent(dev);
 	if (sb_dev == NULL) {
 		device_printf(dev, "Can not find watchdog device.\n");
 		goto fail;
@@ -193,16 +176,14 @@ viawd_attach(device_t dev)
 		device_printf(dev, "Unable to map watchdog memory\n");
 		goto fail;
 	}
-	sc->wd_bst = rman_get_bustag(sc->wd_res);
-	sc->wd_bsh = rman_get_bushandle(sc->wd_res);
 
 	/* Check if watchdog fired last boot. */
-	reg = viawd_read_wd_4(sc, VIAWD_MEM_CTRL);
+	reg = viawd_read_4(sc, VIAWD_MEM_CTRL);
 	if (reg & VIAWD_MEM_CTRL_FIRED) {
 		device_printf(dev,
 		    "ERROR: watchdog rebooted the system\n");
 		/* Reset bit state. */
-		viawd_write_wd_4(sc, VIAWD_MEM_CTRL, reg);
+		viawd_write_4(sc, VIAWD_MEM_CTRL, reg);
 	}
 
 	/* Register the watchdog event handler. */
@@ -233,7 +214,7 @@ viawd_detach(device_t dev)
 	 * Do not stop the watchdog on shutdown if active but bump the
 	 * timer to avoid spurious reset.
 	 */
-	reg = viawd_read_wd_4(sc, VIAWD_MEM_CTRL);
+	reg = viawd_read_4(sc, VIAWD_MEM_CTRL);
 	if (reg & VIAWD_MEM_CTRL_ENABLE) {
 		viawd_tmr_set(sc, VIAWD_TIMEOUT_SHUTDOWN);
 		viawd_tmr_state(sc, 1);
@@ -264,23 +245,4 @@ static driver_t viawd_driver = {
 	sizeof(struct viawd_softc),
 };
 
-static int
-viawd_modevent(module_t mode, int type, void *data)
-{
-	int error = 0;
-
-	switch (type) {
-	case MOD_LOAD:
-		printf("viawd module loaded\n");
-		break;
-	case MOD_UNLOAD:
-		printf("viawd module unloaded\n");
-		break;
-	case MOD_SHUTDOWN:
-		printf("viawd module shutting down\n");
-		break;
-	}
-	return (error);
-}
-
-DRIVER_MODULE(viawd, isa, viawd_driver, viawd_devclass, viawd_modevent, NULL);
+DRIVER_MODULE(viawd, isab, viawd_driver, viawd_devclass, NULL, NULL);
