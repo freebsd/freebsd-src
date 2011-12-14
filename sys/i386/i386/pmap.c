@@ -1450,12 +1450,40 @@ vm_offset_t
 pmap_map(vm_offset_t *virt, vm_paddr_t start, vm_paddr_t end, int prot)
 {
 	vm_offset_t va, sva;
+	vm_paddr_t superpage_offset;
+	pd_entry_t newpde;
 
-	va = sva = *virt;
+	va = *virt;
+	/*
+	 * Does the physical address range's size and alignment permit at
+	 * least one superpage mapping to be created?
+	 */ 
+	superpage_offset = start & PDRMASK;
+	if ((end - start) - ((NBPDR - superpage_offset) & PDRMASK) >= NBPDR) {
+		/*
+		 * Increase the starting virtual address so that its alignment
+		 * does not preclude the use of superpage mappings.
+		 */
+		if ((va & PDRMASK) < superpage_offset)
+			va = (va & ~PDRMASK) + superpage_offset;
+		else if ((va & PDRMASK) > superpage_offset)
+			va = ((va + PDRMASK) & ~PDRMASK) + superpage_offset;
+	}
+	sva = va;
 	while (start < end) {
-		pmap_kenter(va, start);
-		va += PAGE_SIZE;
-		start += PAGE_SIZE;
+		if ((start & PDRMASK) == 0 && end - start >= NBPDR &&
+		    pseflag) {
+			KASSERT((va & PDRMASK) == 0,
+			    ("pmap_map: misaligned va %#x", va));
+			newpde = start | PG_PS | pgeflag | PG_RW | PG_V;
+			pmap_kenter_pde(va, newpde);
+			va += NBPDR;
+			start += NBPDR;
+		} else {
+			pmap_kenter(va, start);
+			va += PAGE_SIZE;
+			start += PAGE_SIZE;
+		}
 	}
 	pmap_invalidate_range(kernel_pmap, sva, va);
 	*virt = va;
