@@ -770,8 +770,10 @@ uaudio_detach(device_t dev)
 	 * will time out and close opened /dev/dspX.Y device(s), if
 	 * any.
 	 */
-	uaudio_chan_stop(&sc->sc_play_chan);
-	uaudio_chan_stop(&sc->sc_rec_chan);
+	if (sc->sc_play_chan.valid)
+		usbd_transfer_unsetup(sc->sc_play_chan.xfer, UAUDIO_NCHANBUFS);
+	if (sc->sc_rec_chan.valid)
+		usbd_transfer_unsetup(sc->sc_rec_chan.xfer, UAUDIO_NCHANBUFS);
 
 	if (bus_generic_detach(dev) != 0) {
 		DPRINTF("detach failed!\n");
