@@ -222,6 +222,7 @@
  * Keywords added in C1X.
  */
 #if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignas(e)		alignas(e)
 #define	_Alignof(e)		alignof(e)
 #define	_Noreturn		[[noreturn]]
 #define	_Static_assert(e, s)	static_assert(e, s)
@@ -231,21 +232,23 @@
 #else
 /* Not supported.  Implement them manually. */
 #ifdef __GNUC__
+#define	_Alignas(e)		__attribute__((__aligned__(e)))
 #define	_Alignof(e)		__alignof__(e)
 #define	_Noreturn		__attribute__((__noreturn__))
 #define	_Thread_local		__thread
 #else
+#define	_Alignas(e)
 #define	_Alignof(e)		__offsetof(struct { char __a; e __b; }, __b)
 #define	_Noreturn
 #define	_Thread_local
 #endif
 #ifdef __COUNTER__
 #define	_Static_assert(e, s)	__Static_assert(e, __COUNTER__)
-#else
-#define	_Static_assert(e, s)	__Static_assert(e, __LINE__)
-#endif
 #define	__Static_assert(e, c)	___Static_assert(e, c)
 #define	___Static_assert(e, c)	typedef char __assert ## c[(e) ? 1 : -1]
+#else
+#define	_Static_assert(e, s)
+#endif
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
