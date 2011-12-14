@@ -2720,7 +2720,6 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 	struct run_endpoint_queue *pq = &sc->sc_epq[index];
 	struct mbuf *m;
 	usb_frlength_t size;
-	unsigned int len;
 	int actlen;
 	int sumlen;
 
@@ -2783,13 +2782,10 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		/* align end on a 4-bytes boundary */
-		len = (size + IEEE80211_CRC_LEN + m->m_pkthdr.len + 3) & ~3;
+		DPRINTFN(11, "sending frame len=%u  @ index %d\n",
+			m->m_pkthdr.len, index);
 
-		DPRINTFN(11, "sending frame len=%u xferlen=%u @ index %d\n",
-			m->m_pkthdr.len, len, index);
-
-		usbd_xfer_set_frame_len(xfer, 0, len);
+		usbd_xfer_set_frame_len(xfer, 0, size + m->m_pkthdr.len);
 		usbd_xfer_set_priv(xfer, data);
 
 		usbd_transfer_submit(xfer);
@@ -2878,6 +2874,7 @@ run_bulk_tx_callback5(struct usb_xfer *xfer, usb_error_t error)
 static void
 run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 {
+	static const uint8_t ztail[16];
 	struct mbuf *m = data->m;
 	struct ieee80211com *ic = sc->sc_ifp->if_l2com;
 	struct ieee80211vap *vap = data->ni->ni_vap;
@@ -2934,6 +2931,13 @@ run_set_tx_desc(struct run_softc *sc, struct run_tx_data *data)
 
 	if (vap->iv_opmode != IEEE80211_M_STA && !IEEE80211_QOS_HAS_SEQ(wh))
 		txwi->xflags |= RT2860_TX_NSEQ;
+
+	/*
+	 * Align end on a 4-byte boundary, pad 8 bytes (CRC + 4-byte padding),
+	 * and be sure to zero those trailing bytes.
+	 */
+	m_append(m, ((m->m_pkthdr.len + 3) & ~3) - m->m_pkthdr.len + 8,
+	    (c_caddr_t)ztail);
 }
 
 /* This function must be called locked */
