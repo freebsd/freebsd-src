@@ -57,6 +57,19 @@ CWARNFLAGS	+=	-Wchar-subscripts -Winline -Wnested-externs\
 CWARNFLAGS	+=	-Wno-uninitialized
 .  endif
 CWARNFLAGS	+=	-Wno-pointer-sign
+# Clang has more warnings enabled by default, and when using -Wall, so if WARNS
+# is set to low values, these have to be disabled explicitly.
+.  if ${CC:T:Mclang} == "clang"
+.   if ${WARNS} <= 3
+CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value
+.   endif
+.   if ${WARNS} <= 2
+CWARNFLAGS	+=	-Wno-switch-enum
+.   endif
+.   if ${WARNS} <= 1
+CWARNFLAGS	+=	-Wno-parentheses
+.   endif
+.  endif
 . endif
 
 . if defined(FORMAT_AUDIT)
