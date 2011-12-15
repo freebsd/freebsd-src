@@ -145,9 +145,6 @@ static int bootAP;
 void *bootstacks[MAXCPU];
 static void *dpcpu;
 
-/* Hotwire a 0->4MB V==P mapping */
-extern pt_entry_t *KPTphys;
-
 struct pcb stoppcbs[MAXCPU];
 
 /* Variables needed for SMP tlb shootdown. */
@@ -931,7 +928,6 @@ start_all_aps(void)
 #ifndef PC98
 	u_char mpbiosreason;
 #endif
-	uintptr_t kptbase;
 	u_int32_t mpbioswarmvec;
 	int apic_id, cpu, i;
 
@@ -949,11 +945,8 @@ start_all_aps(void)
 
 	/* set up temporary P==V mapping for AP boot */
 	/* XXX this is a hack, we should boot the AP on its own stack/PTD */
-
-	kptbase = (uintptr_t)(void *)KPTphys;
 	for (i = TMPMAP_START; i < NKPT; i++)
-		PTD[i] = (pd_entry_t)(PG_V | PG_RW |
-		    ((kptbase + i * PAGE_SIZE) & PG_FRAME));
+		PTD[i] = PTD[KPTDI + i];
 	invltlb();
 
 	/* start each AP */
