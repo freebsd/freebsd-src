@@ -1402,7 +1402,6 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	 * kmem allocation routines, calling kmem for a new address here
 	 * can lead to multiply locking non-recursive mutexes.
 	 */
-	static vm_pindex_t color;
         vm_offset_t va;
 
         vm_page_t m;
@@ -1422,7 +1421,7 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
                 pflags |= VM_ALLOC_ZERO;
 
         for (;;) {
-                m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+                m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
                 if (m == NULL) {
                         if (wait & M_NOWAIT)
                                 return (NULL);
