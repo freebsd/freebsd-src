@@ -45,6 +45,16 @@
 #define EXT2_LINK_MAX		32000
 
 /*
+ * A summary of contiguous blocks of various sizes is maintained
+ * in each cylinder group. Normally this is set by the initial
+ * value of fs_maxcontig.
+ *
+ * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
+ * EXT2_MAXCONTIG to 32 for better performance.
+ */
+#define EXT2_MAXCONTIG		32
+
+/*
  * Constants relative to the data blocks
  */
 #define	EXT2_NDIR_BLOCKS		12
@@ -151,6 +161,10 @@ struct m_ext2fs {
 	char     e2fs_wasvalid;   /* valid at mount time */
 	off_t    e2fs_maxfilesize;
 	struct   ext2_gd *e2fs_gd; /* Group Descriptors */
+	int32_t  e2fs_maxcontig;        /* max number of contiguous blks */
+	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
+	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
+	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 };
 
 /*
@@ -251,6 +265,13 @@ struct ext2_gd {
 	uint16_t ext2bgd_ndirs;	/* number of directories */
 	uint16_t reserved;
 	uint32_t reserved2[3];
+};
+
+/* cluster summary information */
+
+struct csum {
+	int8_t   cs_init; /* cluster summary has been initialized */
+	int32_t *cs_sum;  /* cluster summary array */
 };
 
 /* EXT2FS metadatas are stored in little-endian byte order. These macros
