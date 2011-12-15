@@ -115,7 +115,6 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <inttypes.h>
 #include <limits.h>
-#include <libutil.h>
 #include <paths.h>
 #include <string.h>
 #include <signal.h>
@@ -1799,13 +1798,8 @@ JobStart(GNode *gn, int flags, Job *previous)
 		if (usePipes) {
 			int fd[2];
 
-			if (isatty(1)) {
-				if (openpty(fd + 1, fd + 0, NULL, NULL, NULL) == -1)
-					Punt("Cannot open pty: %s", strerror(errno));
-			} else {
-				if (pipe(fd) == -1)
-					Punt("Cannot create pipe: %s", strerror(errno));
-			}
+			if (pipe(fd) == -1)
+				Punt("Cannot create pipe: %s", strerror(errno));
 			job->inPipe = fd[0];
 			job->outPipe = fd[1];
 			fcntl(job->inPipe, F_SETFD, 1);
