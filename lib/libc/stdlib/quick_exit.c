@@ -51,10 +51,12 @@ static struct quick_exit_handler *handlers;
 int
 at_quick_exit(void (*func)(void))
 {
-	struct quick_exit_handler *h = malloc(sizeof(struct quick_exit_handler));
+	struct quick_exit_handler *h;
+	
+	h = malloc(sizeof(*h));
 
 	if (NULL == h)
-		return 1;
+		return (1);
 	h->cleanup = func;
 	pthread_mutex_lock(&atexit_mutex);
 	h->next = handlers;
