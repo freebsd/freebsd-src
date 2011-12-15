@@ -563,6 +563,7 @@ sctp_sendmsg(int s,
 #ifdef SYS_sctp_generic_sendmsg
 	struct sctp_sndrcvinfo sinfo;
 
+	memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	sinfo.sinfo_ppid = ppid;
 	sinfo.sinfo_flags = flags;
 	sinfo.sinfo_stream = stream_no;
