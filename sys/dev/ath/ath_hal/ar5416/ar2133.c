@@ -549,3 +549,11 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar2133Probe(struct ath_hal *ah)
+{
+	return (AR_SREV_OWL(ah) || AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah));
+}
+
+AH_RF(RF2133, ar2133Probe, ar2133RfAttach);
