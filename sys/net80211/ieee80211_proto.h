@@ -215,6 +215,7 @@ struct ieee80211_aclator {
 	int	(*iac_attach)(struct ieee80211vap *);
 	void	(*iac_detach)(struct ieee80211vap *);
 	int	(*iac_check)(struct ieee80211vap *,
+			const struct ieee80211_frame *wh,
 			const uint8_t mac[IEEE80211_ADDR_LEN]);
 	int	(*iac_add)(struct ieee80211vap *,
 			const uint8_t mac[IEEE80211_ADDR_LEN]);
