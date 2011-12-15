@@ -152,7 +152,8 @@ _acl_free(struct aclstate *as, struct acl *acl)
 }
 
 static int
-acl_check(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
+acl_check(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct aclstate *as = vap->iv_as;
 
