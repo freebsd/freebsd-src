@@ -61,7 +61,8 @@ CWARNFLAGS	+=	-Wno-pointer-sign
 # is set to low values, these have to be disabled explicitly.
 .  if ${CC:T:Mclang} == "clang"
 .   if ${WARNS} <= 3
-CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value
+CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value\
+			-Wno-parentheses-equality
 .   endif
 .   if ${WARNS} <= 2
 CWARNFLAGS	+=	-Wno-switch-enum
