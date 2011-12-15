@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
 #include <vm/vm_kern.h>
 #include <vm/vm_object.h>
@@ -790,15 +791,7 @@ shm_map(struct file *fp, size_t size, off_t offset, void **memp)
 	shmfd->shm_kmappings--;
 	VM_OBJECT_UNLOCK(obj);
 
-	switch (rv) {
-	case KERN_INVALID_ADDRESS:
-	case KERN_NO_SPACE:
-		return (ENOMEM);
-	case KERN_PROTECTION_FAILURE:
-		return (EACCES);
-	default:
-		return (EINVAL);
-	}
+	return (vm_mmap_to_errno(rv));
 }
 
 /*
