@@ -815,7 +815,6 @@ cpu_initialize_context(unsigned int cpu)
 	vm_offset_t boot_stack;
 	vm_offset_t newPTD;
 	vm_paddr_t ma[NPGPTD];
-	static int color;
 	int i;
 
 	/*
@@ -825,7 +824,7 @@ cpu_initialize_context(unsigned int cpu)
 	 *
 	 */
 	for (i = 0; i < NPGPTD + 2; i++) {
-		m[i] = vm_page_alloc(NULL, color++,
+		m[i] = vm_page_alloc(NULL, 0,
 		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 
