@@ -36,6 +36,9 @@
  * $FreeBSD$
  */
 
+#ifndef _FS_EXT2FS_FS_H_
+#define _FS_EXT2FS_FS_H_
+
 /*
  * Each disk drive contains some number of file systems.
  * A file system consists of a number of cylinder groups.
@@ -149,4 +152,4 @@
 extern int inside[], around[];
 extern u_char *fragtbl[];
 
-
+#endif /* !_FS_EXT2FS_FS_H_ */
