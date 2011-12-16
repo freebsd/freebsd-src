@@ -54,18 +54,26 @@ struct l2t_entry {
 	struct mbuf *arpq_head;		/* list of mbufs awaiting resolution */
 	struct mbuf *arpq_tail;
 	struct mtx lock;
-	volatile uint32_t refcnt;	/* entry reference count */
+	volatile int refcnt;		/* entry reference count */
 	uint16_t hash;			/* hash bucket the entry is on */
 	uint8_t v6;			/* whether entry is for IPv6 */
 	uint8_t lport;			/* associated offload logical port */
 	uint8_t dmac[ETHER_ADDR_LEN];	/* next hop's MAC address */
 };
 
-struct l2t_data *t4_init_l2t(int);
+int t4_init_l2t(struct adapter *, int);
 int t4_free_l2t(struct l2t_data *);
 struct l2t_entry *t4_l2t_alloc_switching(struct l2t_data *);
 int t4_l2t_set_switching(struct adapter *, struct l2t_entry *, uint16_t,
     uint8_t, uint8_t *);
 void t4_l2t_release(struct l2t_entry *);
+int sysctl_l2t(SYSCTL_HANDLER_ARGS);
+
+#ifndef TCP_OFFLOAD_DISABLE
+struct l2t_entry *t4_l2t_get(struct port_info *, struct ifnet *,
+    struct sockaddr *);
+int t4_l2t_send(struct adapter *, struct mbuf *, struct l2t_entry *);
+void t4_l2t_update(struct adapter *, struct llentry *);
+#endif
 
 #endif  /* __T4_L2T_H */
