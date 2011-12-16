@@ -705,7 +705,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	switch (ifp->if_type) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
-	case IFT_CARP:
 		return;
 	}
 

@@ -117,6 +117,7 @@ int	arpresolve(struct ifnet *ifp, struct rtentry *rt,
 		    struct llentry **lle);
 void	arp_ifinit(struct ifnet *, struct ifaddr *);
 void	arp_ifinit2(struct ifnet *, struct ifaddr *, u_char *);
+void	arp_ifscrub(struct ifnet *, uint32_t);
 
 #include <sys/eventhandler.h>
 typedef void (*llevent_arp_update_fn)(void *, struct llentry *);

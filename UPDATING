@@ -22,6 +22,17 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20111215:
+	The carp(4) facility has been changed significantly. Configuration
+	of the CARP protocol via ifconfig(8) has changed, as well as format
+	of CARP events submitted to devd(8) has changed. See manual pages
+	for more information. The arpbalance feature of carp(4) is currently
+	not supported anymore.
+
+	Size of struct in_aliasreq, struct in6_aliasreq has changed. User
+	utilities using SIOCAIFADDR, SIOCAIFADDR_IN6, e.g. ifconfig(8),
+	need to be recompiled.
+
 20111122:
 	The acpi_wmi(4) status device /dev/wmistat has been renamed to
 	/dev/wmistat0.
