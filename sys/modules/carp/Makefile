@@ -1,12 +1,14 @@
 # $FreeBSD$
 
 .PATH: ${.CURDIR}/../../netinet
+.PATH: ${.CURDIR}/../../crypto
 
 .include <bsd.own.mk>
 
-KMOD=	if_carp
-SRCS=	ip_carp.c
-SRCS+=	opt_carp.h opt_bpf.h opt_inet.h opt_inet6.h vnode_if.h
+KMOD=	carp
+SRCS=	ip_carp.c sha1.c
+SRCS+=	device_if.h bus_if.h vnode_if.h
+SRCS+=	opt_carp.h opt_bpf.h opt_inet.h opt_inet6.h opt_ofed.h
 
 .if !defined(KERNBUILDDIR)
 .if ${MK_INET_SUPPORT} != "no"
