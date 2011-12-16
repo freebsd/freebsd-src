@@ -364,7 +364,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 * ext2_dirpref else obtain it using ino_to_cg. The preferred inode is
 	 * always the next inode.
 	 */
-	if((mode & IFMT) == IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		cg = ext2_dirpref(pip);
 		if (fs->e2fs_contigdirs[cg] < 255)
 			fs->e2fs_contigdirs[cg]++;
@@ -557,13 +557,13 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 	/* if the next block is actually what we thought it is,
 	   then set the goal to what we thought it should be
 	*/
-	if(ip->i_next_alloc_block == lbn && ip->i_next_alloc_goal != 0)
+	if (ip->i_next_alloc_block == lbn && ip->i_next_alloc_goal != 0)
 		return ip->i_next_alloc_goal;
 
 	/* now check whether we were provided with an array that basically
 	   tells us previous blocks to which we want to stay closeby
 	*/
-	if(bap) 
+	if (bap) 
                 for (tmp = indx - 1; tmp >= 0; tmp--) 
 			if (bap[tmp]) 
 				return bap[tmp];

@@ -34,8 +34,8 @@
  * 
  */
 
-#ifndef _FS_EXT2FS_EXT2_FS_H_
-#define _FS_EXT2FS_EXT2_FS_H_
+#ifndef _FS_EXT2FS_EXT2FS_H_
+#define _FS_EXT2FS_EXT2FS_H_
 
 #include <sys/types.h>
 
@@ -62,7 +62,7 @@
 #define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
 #define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof (uint32_t))
+#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
 
 /*
  * The path name on which the file system is mounted is maintained
@@ -292,7 +292,7 @@ struct csum {
 #else
 # define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->e2fs_log_bsize)
 #endif
-#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (uint32_t))
+#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(uint32_t))
 #if defined(_KERNEL)
 # define EXT2_BLOCK_SIZE_BITS(s)	((s)->e2fs_blocksize_bits)
 #else
@@ -332,7 +332,7 @@ struct csum {
 # define EXT2_DESC_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT2_BLOCKS_PER_GROUP(s)	((s)->e2fs_bpg)
-# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_gd))
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(struct ext2_gd))
 
 #endif
 
