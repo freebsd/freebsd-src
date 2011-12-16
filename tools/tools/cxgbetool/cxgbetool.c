@@ -30,14 +30,17 @@ __FBSDID("$FreeBSD$");
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -83,10 +86,13 @@ usage(FILE *fp)
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\tloadfw <fw-image.bin>               install firmware\n"
+	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
 	    "\tstdio                               interactive mode\n"
+	    "\ttcb <tid>                           read TCB\n"
 	    );
 }
 
@@ -1353,6 +1359,169 @@ get_sge_context(int argc, const char *argv[])
 }
 
 static int
+loadfw(int argc, const char *argv[])
+{
+	int rc, fd;
+	struct t4_data data = {0};
+	const char *fname = argv[0];
+	struct stat st = {0};
+
+	if (argc != 1) {
+		warnx("loadfw: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	data.len = st.st_size;
+	data.data = mmap(0, data.len, PROT_READ, 0, fd, 0);
+	if (data.data == MAP_FAILED) {
+		warn("mmap");
+		close(fd);
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_LOAD_FW, &data);
+	munmap(data.data, data.len);
+	close(fd);
+	return (rc);
+}
+
+static int
+read_mem(uint32_t addr, uint32_t len, void (*output)(uint32_t *, uint32_t))
+{
+	int rc;
+	struct t4_mem_range mr;
+
+	mr.addr = addr;
+	mr.len = len;
+	mr.data = malloc(mr.len);
+
+	if (mr.data == 0) {
+		warn("read_mem: malloc");
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_GET_MEM, &mr);
+	if (rc != 0)
+		goto done;
+
+	if (output)
+		(*output)(mr.data, mr.len);
+done:
+	free(mr.data);
+	return (rc);
+}
+
+/*
+ * Display memory as list of 'n' 4-byte values per line.
+ */
+static void
+show_mem(uint32_t *buf, uint32_t len)
+{
+	const char *s;
+	int i, n = 8;
+
+	while (len) {
+		for (i = 0; len && i < n; i++, buf++, len -= 4) {
+			s = i ? " " : "";
+			printf("%s%08x", s, htonl(*buf));
+		}
+		printf("\n");
+	}
+}
+
+static int
+memdump(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	uint32_t addr, len;
+
+	if (argc != 2) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid address \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	addr = l;
+
+	p = str_to_number(argv[1], &l, NULL);
+	if (*p) {
+		warnx("memdump: invalid length \"%s\"", argv[1]);
+		return (EINVAL);
+	}
+	len = l;
+
+	return (read_mem(addr, len, show_mem));
+}
+
+/*
+ * Display TCB as list of 'n' 4-byte values per line.
+ */
+static void
+show_tcb(uint32_t *buf, uint32_t len)
+{
+	const char *s;
+	int i, n = 8;
+
+	while (len) {
+		for (i = 0; len && i < n; i++, buf++, len -= 4) {
+			s = i ? " " : "";
+			printf("%s%08x", s, htonl(*buf));
+		}
+		printf("\n");
+	}
+}
+
+#define A_TP_CMM_TCB_BASE 0x7d10
+#define TCB_SIZE 128
+static int
+read_tcb(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	long long val;
+	unsigned int tid;
+	uint32_t addr;
+	int rc;
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid tid \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	tid = l;
+
+	rc = read_reg(A_TP_CMM_TCB_BASE, 4, &val);
+	if (rc != 0)
+		return (rc);
+
+	addr = val + tid * TCB_SIZE;
+
+	return (read_mem(addr, TCB_SIZE, show_tcb));
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1372,6 +1541,12 @@ run_cmd(int argc, const char *argv[])
 		rc = filter_cmd(argc, argv);
 	else if (!strcmp(cmd, "context"))
 		rc = get_sge_context(argc, argv);
+	else if (!strcmp(cmd, "loadfw"))
+		rc = loadfw(argc, argv);
+	else if (!strcmp(cmd, "memdump"))
+		rc = memdump(argc, argv);
+	else if (!strcmp(cmd, "tcb"))
+		rc = read_tcb(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);
