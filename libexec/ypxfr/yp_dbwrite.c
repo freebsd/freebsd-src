@@ -58,10 +58,10 @@ yp_open_db_rw(const char *domain, const char *map, const int flags)
 	char buf[1025];
 
 
-	yp_errno = YPXFR_SUCC;
+	yp_errno = YP_TRUE;
 
 	if (map[0] == '.' || strchr(map, '/')) {
-		yp_errno = YPXFR_BADARGS;
+		yp_errno = YP_BADARGS;
 		return (NULL);
 	}
 
@@ -73,13 +73,13 @@ yp_open_db_rw(const char *domain, const char *map, const int flags)
 	if (dbp == NULL) {
 		switch (errno) {
 		case ENOENT:
-			yp_errno = YPXFR_NOMAP;
+			yp_errno = YP_NOMAP;
 			break;
 		case EFTYPE:
-			yp_errno = YPXFR_MADDR;
+			yp_errno = YP_BADDB;
 			break;
 		default:
-			yp_errno = YPXFR_YPERR;
+			yp_errno = YP_YPERR;
 			break;
 		}
 	}

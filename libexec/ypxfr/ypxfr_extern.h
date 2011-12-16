@@ -46,7 +46,7 @@ extern BTREEINFO openinfo_b;
 
 extern char	*yp_dir;
 extern int	debug;
-extern ypxfrstat yp_errno;
+extern enum ypstat	yp_errno;
 extern void	yp_error(const char *, ...);
 extern int	_yp_check(char **);
 extern const char *ypxfrerr_string(ypxfrstat);
