@@ -70,6 +70,9 @@ CWARNFLAGS	+=	-Wno-switch-enum
 .   if ${WARNS} <= 1
 CWARNFLAGS	+=	-Wno-parentheses
 .   endif
+.   if defined(NO_WARRAY_BOUNDS)
+CWARNFLAGS	+=	-Wno-array-bounds
+.   endif
 .  endif
 . endif
 
