@@ -388,7 +388,7 @@ chat_send(char const *str)
 {
 	int r = 0;
 
-	if (chat_debug && CHATDEBUG_SEND)
+	if (chat_debug & CHATDEBUG_SEND)
 		syslog(LOG_DEBUG, "chat_send '%s'", cleanstr(str, strlen(str)));
 
 	if (*str) {
