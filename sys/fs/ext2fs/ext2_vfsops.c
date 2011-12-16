@@ -349,7 +349,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	}
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg /fs->e2fs_ipb;
-	fs->e2fs_descpb = fs->e2fs_bsize / sizeof (struct ext2_gd);
+	fs->e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
 	/* s_resuid / s_resgid ? */
 	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
 	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
@@ -583,8 +583,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 			goto out;
 		}
 	}
-	ump = malloc(sizeof *ump, M_EXT2MNT, M_WAITOK);
-	bzero((caddr_t)ump, sizeof *ump);
+	ump = malloc(sizeof(*ump), M_EXT2MNT, M_WAITOK | M_ZERO);
 
 	/*
 	 * I don't know whether this is the right strategy. Note that
@@ -602,8 +601,8 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 
 	/*
 	 * Calculate the maximum contiguous blocks and size of cluster summary
-	 * array.  In FFS this is done by newfs; however the superblock in 
-	 * ext2fs doesn't have these variables so we just can calculate
+	 * array.  In FFS this is done by newfs; however, the superblock 
+	 * in ext2fs doesn't have these variables, so we can calculate 
 	 * them here.
 	 */
 	ump->um_e2fs->e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
@@ -978,7 +977,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 */
 	if(S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode)) {
 		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
-		for(i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
+		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
 /*
