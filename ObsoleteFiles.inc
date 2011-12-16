@@ -38,6 +38,8 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20111216: carp(4) module renamed
+OLD_FILES+=boot/kernel/if_carp.ko
 # 20111214: eventtimers(7) moved to eventtimers(4)
 OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
 # 20111125: amd(4) removed
