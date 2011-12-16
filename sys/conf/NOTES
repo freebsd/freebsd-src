@@ -916,7 +916,7 @@ device		lagg
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
 #
-# RADIX_MPATH provides support for multiple forwarding tables.
+# RADIX_MPATH provides support for equal-cost multi-path routing.
 #
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
