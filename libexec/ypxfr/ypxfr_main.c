@@ -88,7 +88,7 @@ ypxfr_exit(ypxfrstat retval, char *temp)
 			exit(1);
 		}
 
-		ypxfr_resp.status = retval;
+		ypxfr_resp.status = (yppush_status)retval;
 
 		if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL) {
 			yp_error("%s", clnt_sperror(clnt, "callback failed"));
