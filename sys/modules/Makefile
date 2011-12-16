@@ -50,6 +50,7 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	${_carp} \
 	cas \
 	${_cbb} \
 	cc \
@@ -117,7 +118,6 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
-	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
@@ -374,7 +374,7 @@ _if_gre=	if_gre
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
-_if_carp=	if_carp
+_carp=	carp
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
