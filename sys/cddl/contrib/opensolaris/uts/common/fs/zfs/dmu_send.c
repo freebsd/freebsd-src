@@ -20,6 +20,11 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ */
+/*
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/dmu.h>
@@ -43,6 +48,9 @@
 #include <sys/avl.h>
 #include <sys/ddt.h>
 #include <sys/zfs_onexit.h>
+
+/* Set this tunable to TRUE to replace corrupt data with 0x2f5baddb10c */
+int zfs_send_corrupt_data = B_FALSE;
 
 static char *dmu_recv_tag = "dmu_recv_tag";
 
@@ -381,8 +389,20 @@ backup_cb(spa_t *spa, zilog_t *zilog, const blkptr_t *bp, arc_buf_t *pbuf,
 
 		if (dsl_read(NULL, spa, bp, pbuf,
 		    arc_getbuf_func, &abuf, ZIO_PRIORITY_ASYNC_READ,
-		    ZIO_FLAG_CANFAIL, &aflags, zb) != 0)
-			return (EIO);
+		    ZIO_FLAG_CANFAIL, &aflags, zb) != 0) {
+			if (zfs_send_corrupt_data) {
+				/* Send a block filled with 0x"zfs badd bloc" */
+				abuf = arc_buf_alloc(spa, blksz, &abuf,
+				    ARC_BUFC_DATA);
+				uint64_t *ptr;
+				for (ptr = abuf->b_data;
+				    (char *)ptr < (char *)abuf->b_data + blksz;
+				    ptr++)
+					*ptr = 0x2f5baddb10c;
+			} else {
+				return (EIO);
+			}
+		}
 
 		err = dump_data(ba, type, zb->zb_object, zb->zb_blkid * blksz,
 		    blksz, bp, abuf->b_data);
@@ -508,6 +528,86 @@ dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, boolean_t fromorigin,
 	}
 
 	kmem_free(drr, sizeof (dmu_replay_record_t));
+
+	return (0);
+}
+
+int
+dmu_send_estimate(objset_t *tosnap, objset_t *fromsnap, boolean_t fromorigin,
+    uint64_t *sizep)
+{
+	dsl_dataset_t *ds = tosnap->os_dsl_dataset;
+	dsl_dataset_t *fromds = fromsnap ? fromsnap->os_dsl_dataset : NULL;
+	dsl_pool_t *dp = ds->ds_dir->dd_pool;
+	int err;
+	uint64_t size;
+
+	/* tosnap must be a snapshot */
+	if (ds->ds_phys->ds_next_snap_obj == 0)
+		return (EINVAL);
+
+	/* fromsnap must be an earlier snapshot from the same fs as tosnap */
+	if (fromds && (ds->ds_dir != fromds->ds_dir ||
+	    fromds->ds_phys->ds_creation_txg >= ds->ds_phys->ds_creation_txg))
+		return (EXDEV);
+
+	if (fromorigin) {
+		if (fromsnap)
+			return (EINVAL);
+
+		if (dsl_dir_is_clone(ds->ds_dir)) {
+			rw_enter(&dp->dp_config_rwlock, RW_READER);
+			err = dsl_dataset_hold_obj(dp,
+			    ds->ds_dir->dd_phys->dd_origin_obj, FTAG, &fromds);
+			rw_exit(&dp->dp_config_rwlock);
+			if (err)
+				return (err);
+		} else {
+			fromorigin = B_FALSE;
+		}
+	}
+
+	/* Get uncompressed size estimate of changed data. */
+	if (fromds == NULL) {
+		size = ds->ds_phys->ds_uncompressed_bytes;
+	} else {
+		uint64_t used, comp;
+		err = dsl_dataset_space_written(fromds, ds,
+		    &used, &comp, &size);
+		if (fromorigin)
+			dsl_dataset_rele(fromds, FTAG);
+		if (err)
+			return (err);
+	}
+
+	/*
+	 * Assume that space (both on-disk and in-stream) is dominated by
+	 * data.  We will adjust for indirect blocks and the copies property,
+	 * but ignore per-object space used (eg, dnodes and DRR_OBJECT records).
+	 */
+
+	/*
+	 * Subtract out approximate space used by indirect blocks.
+	 * Assume most space is used by data blocks (non-indirect, non-dnode).
+	 * Assume all blocks are recordsize.  Assume ditto blocks and
+	 * internal fragmentation counter out compression.
+	 *
+	 * Therefore, space used by indirect blocks is sizeof(blkptr_t) per
+	 * block, which we observe in practice.
+	 */
+	uint64_t recordsize;
+	rw_enter(&dp->dp_config_rwlock, RW_READER);
+	err = dsl_prop_get_ds(ds, "recordsize",
+	    sizeof (recordsize), 1, &recordsize, NULL);
+	rw_exit(&dp->dp_config_rwlock);
+	if (err)
+		return (err);
+	size -= size / recordsize * sizeof (blkptr_t);
+
+	/* Add in the space for the record associated with each block. */
+	size += size / recordsize * sizeof (dmu_replay_record_t);
+
+	*sizep = size;
 
 	return (0);
 }
@@ -848,61 +948,6 @@ guid_compare(const void *arg1, const void *arg2)
 		return (-1);
 	else if (gmep1->guid > gmep2->guid)
 		return (1);
-	return (0);
-}
-
-/*
- * This function is a callback used by dmu_objset_find() (which
- * enumerates the object sets) to build an avl tree that maps guids
- * to datasets.  The resulting table is used when processing DRR_WRITE_BYREF
- * send stream records.  These records, which are used in dedup'ed
- * streams, do not contain data themselves, but refer to a copy
- * of the data block that has already been written because it was
- * earlier in the stream.  That previous copy is identified by the
- * guid of the dataset with the referenced data.
- */
-int
-find_ds_by_guid(const char *name, void *arg)
-{
-	avl_tree_t *guid_map = arg;
-	dsl_dataset_t *ds, *snapds;
-	guid_map_entry_t *gmep;
-	dsl_pool_t *dp;
-	int err;
-	uint64_t lastobj, firstobj;
-
-	if (dsl_dataset_hold(name, FTAG, &ds) != 0)
-		return (0);
-
-	dp = ds->ds_dir->dd_pool;
-	rw_enter(&dp->dp_config_rwlock, RW_READER);
-	firstobj = ds->ds_dir->dd_phys->dd_origin_obj;
-	lastobj = ds->ds_phys->ds_prev_snap_obj;
-
-	while (lastobj != firstobj) {
-		err = dsl_dataset_hold_obj(dp, lastobj, guid_map, &snapds);
-		if (err) {
-			/*
-			 * Skip this snapshot and move on. It's not
-			 * clear why this would ever happen, but the
-			 * remainder of the snapshot streadm can be
-			 * processed.
-			 */
-			rw_exit(&dp->dp_config_rwlock);
-			dsl_dataset_rele(ds, FTAG);
-			return (0);
-		}
-
-		gmep = kmem_alloc(sizeof (guid_map_entry_t), KM_SLEEP);
-		gmep->guid = snapds->ds_phys->ds_guid;
-		gmep->gme_ds = snapds;
-		avl_add(guid_map, gmep);
-		lastobj = snapds->ds_phys->ds_prev_snap_obj;
-	}
-
-	rw_exit(&dp->dp_config_rwlock);
-	dsl_dataset_rele(ds, FTAG);
-
 	return (0);
 }
 
@@ -1413,9 +1458,6 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 			avl_create(ra.guid_to_ds_map, guid_compare,
 			    sizeof (guid_map_entry_t),
 			    offsetof(guid_map_entry_t, avlnode));
-			(void) dmu_objset_find(drc->drc_top_ds, find_ds_by_guid,
-			    (void *)ra.guid_to_ds_map,
-			    DS_FIND_CHILDREN);
 			ra.err = zfs_onexit_add_cb(minor,
 			    free_guid_map_onexit, ra.guid_to_ds_map,
 			    action_handlep);
@@ -1427,6 +1469,8 @@ dmu_recv_stream(dmu_recv_cookie_t *drc, struct file *fp, offset_t *voffp,
 			if (ra.err)
 				goto out;
 		}
+
+		drc->drc_guid_to_ds_map = ra.guid_to_ds_map;
 	}
 
 	/*
@@ -1565,11 +1609,35 @@ recv_end_sync(void *arg1, void *arg2, dmu_tx_t *tx)
 }
 
 static int
+add_ds_to_guidmap(avl_tree_t *guid_map, dsl_dataset_t *ds)
+{
+	dsl_pool_t *dp = ds->ds_dir->dd_pool;
+	uint64_t snapobj = ds->ds_phys->ds_prev_snap_obj;
+	dsl_dataset_t *snapds;
+	guid_map_entry_t *gmep;
+	int err;
+
+	ASSERT(guid_map != NULL);
+
+	rw_enter(&dp->dp_config_rwlock, RW_READER);
+	err = dsl_dataset_hold_obj(dp, snapobj, guid_map, &snapds);
+	if (err == 0) {
+		gmep = kmem_alloc(sizeof (guid_map_entry_t), KM_SLEEP);
+		gmep->guid = snapds->ds_phys->ds_guid;
+		gmep->gme_ds = snapds;
+		avl_add(guid_map, gmep);
+	}
+
+	rw_exit(&dp->dp_config_rwlock);
+	return (err);
+}
+
+static int
 dmu_recv_existing_end(dmu_recv_cookie_t *drc)
 {
 	struct recvendsyncarg resa;
 	dsl_dataset_t *ds = drc->drc_logical_ds;
-	int err;
+	int err, myerr;
 
 	/*
 	 * XXX hack; seems the ds is still dirty and dsl_pool_zil_clean()
@@ -1604,8 +1672,11 @@ dmu_recv_existing_end(dmu_recv_cookie_t *drc)
 
 out:
 	mutex_exit(&ds->ds_recvlock);
+	if (err == 0 && drc->drc_guid_to_ds_map != NULL)
+		(void) add_ds_to_guidmap(drc->drc_guid_to_ds_map, ds);
 	dsl_dataset_disown(ds, dmu_recv_tag);
-	(void) dsl_dataset_destroy(drc->drc_real_ds, dmu_recv_tag, B_FALSE);
+	myerr = dsl_dataset_destroy(drc->drc_real_ds, dmu_recv_tag, B_FALSE);
+	ASSERT3U(myerr, ==, 0);
 	return (err);
 }
 
@@ -1633,6 +1704,8 @@ dmu_recv_new_end(dmu_recv_cookie_t *drc)
 		/* clean up the fs we just recv'd into */
 		(void) dsl_dataset_destroy(ds, dmu_recv_tag, B_FALSE);
 	} else {
+		if (drc->drc_guid_to_ds_map != NULL)
+			(void) add_ds_to_guidmap(drc->drc_guid_to_ds_map, ds);
 		/* release the hold from dmu_recv_begin */
 		dsl_dataset_disown(ds, dmu_recv_tag);
 	}

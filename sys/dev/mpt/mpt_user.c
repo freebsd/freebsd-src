@@ -94,7 +94,7 @@ static MALLOC_DEFINE(M_MPTUSER, "mpt_user", "Buffers for mpt(4) ioctls");
 
 static uint32_t user_handler_id = MPT_HANDLER_ID_NONE;
 
-int
+static int
 mpt_user_probe(struct mpt_softc *mpt)
 {
 
@@ -102,7 +102,7 @@ mpt_user_probe(struct mpt_softc *mpt)
 	return (0);
 }
 
-int
+static int
 mpt_user_attach(struct mpt_softc *mpt)
 {
 	mpt_handler_t handler;
@@ -131,19 +131,20 @@ mpt_user_attach(struct mpt_softc *mpt)
 	return (0);
 }
 
-int
+static int
 mpt_user_enable(struct mpt_softc *mpt)
 {
 
 	return (0);
 }
 
-void
+static void
 mpt_user_ready(struct mpt_softc *mpt)
 {
+
 }
 
-int
+static int
 mpt_user_event(struct mpt_softc *mpt, request_t *req,
     MSG_EVENT_NOTIFY_REPLY *msg)
 {
@@ -152,12 +153,13 @@ mpt_user_event(struct mpt_softc *mpt, request_t *req,
 	return (0);
 }
 
-void
+static void
 mpt_user_reset(struct mpt_softc *mpt, int type)
 {
+
 }
 
-void
+static void
 mpt_user_detach(struct mpt_softc *mpt)
 {
 	mpt_handler_t handler;

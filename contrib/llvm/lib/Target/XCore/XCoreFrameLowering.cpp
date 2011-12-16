@@ -100,7 +100,8 @@ void XCoreFrameLowering::emitPrologue(MachineFunction &MF) const {
   DebugLoc dl = MBBI != MBB.end() ? MBBI->getDebugLoc() : DebugLoc();
 
   bool FP = hasFP(MF);
-  bool Nested = MF.getFunction()->getAttributes().hasAttrSomewhere(Attribute::Nest);
+  bool Nested = MF.getFunction()->
+                getAttributes().hasAttrSomewhere(Attribute::Nest);
 
   if (Nested) {
     loadFromStack(MBB, MBBI, XCore::R11, 0, dl, TII);
@@ -268,14 +269,6 @@ void XCoreFrameLowering::emitEpilogue(MachineFunction &MF,
       BuildMI(MBB, MBBI, dl, TII.get(Opcode), XCore::SP).addImm(FrameSize);
     }
   }
-}
-
-void XCoreFrameLowering::getInitialFrameState(std::vector<MachineMove> &Moves)
-                                                                        const {
-  // Initial state of the frame pointer is SP.
-  MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(XCore::SP, 0);
-  Moves.push_back(MachineMove(0, Dst, Src));
 }
 
 bool XCoreFrameLowering::spillCalleeSavedRegisters(MachineBasicBlock &MBB,

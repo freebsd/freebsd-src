@@ -10,6 +10,7 @@
 #ifndef LLVM_CODEGEN_BRANCHFOLDING_HPP
 #define LLVM_CODEGEN_BRANCHFOLDING_HPP
 
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include <vector>
 
@@ -19,11 +20,10 @@ namespace llvm {
   class RegScavenger;
   class TargetInstrInfo;
   class TargetRegisterInfo;
-  template<typename T> class SmallVectorImpl;
 
   class BranchFolder {
   public:
-    explicit BranchFolder(bool defaultEnableTailMerge);
+    explicit BranchFolder(bool defaultEnableTailMerge, bool CommonHoist);
 
     bool OptimizeFunction(MachineFunction &MF,
                           const TargetInstrInfo *tii,
@@ -48,6 +48,7 @@ namespace llvm {
     };
     typedef std::vector<MergePotentialsElt>::iterator MPIterator;
     std::vector<MergePotentialsElt> MergePotentials;
+    SmallPtrSet<const MachineBasicBlock*, 2> TriedMerging;
 
     class SameTailElt {
       MPIterator MPIter;
@@ -85,6 +86,7 @@ namespace llvm {
     std::vector<SameTailElt> SameTails;
 
     bool EnableTailMerge;
+    bool EnableHoistCommonCode;
     const TargetInstrInfo *TII;
     const TargetRegisterInfo *TRI;
     MachineModuleInfo *MMI;
@@ -93,6 +95,8 @@ namespace llvm {
     bool TailMergeBlocks(MachineFunction &MF);
     bool TryTailMergeBlocks(MachineBasicBlock* SuccBB,
                        MachineBasicBlock* PredBB);
+    void MaintainLiveIns(MachineBasicBlock *CurMBB,
+                         MachineBasicBlock *NewMBB);
     void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                  MachineBasicBlock *NewDest);
     MachineBasicBlock *SplitMBBAt(MachineBasicBlock &CurMBB,
@@ -110,6 +114,9 @@ namespace llvm {
     bool OptimizeBlock(MachineBasicBlock *MBB);
     void RemoveDeadBlock(MachineBasicBlock *MBB);
     bool OptimizeImpDefsBlock(MachineBasicBlock *MBB);
+
+    bool HoistCommonCode(MachineFunction &MF);
+    bool HoistCommonCodeInSuccs(MachineBasicBlock *MBB);
   };
 }
 

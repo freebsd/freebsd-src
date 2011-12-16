@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr_machdep.h>
 #include <machine/ktr.h>
 #include <machine/pstate.h>
+#include <machine/ver.h>
 
 #include "assym.s"
 
@@ -152,6 +153,29 @@ ENTRY(intr_vector)
 	 */
 	retry
 END(intr_vector)
+
+ENTRY(intr_vector_stray)
+	/*
+	 * SPARC64-VI trigger stray vector interrupts in order to indicate
+	 * uncorrectable errors in interrupt packets, which still need to be
+	 * acknowledged though.
+	 * US-IV occasionally trigger stray vector interrupts for reasons
+	 * unknown accompanied by a state in which they even fault on locked
+	 * TLB entries so we can't even log these here.  Just retrying the
+	 * instruction in that case gets the CPU back on track.
+	 */
+	rdpr	%ver, %g1
+	srlx	%g1, VER_IMPL_SHIFT, %g1
+	sll	%g1, VER_IMPL_SIZE, %g1
+	srl	%g1, VER_IMPL_SIZE, %g1
+	cmp	%g1, CPU_IMPL_SPARC64VI
+	bne,a,pn %icc, 1f
+	 nop
+	stxa	%g0, [%g0] ASI_INTR_RECEIVE
+	membar	#Sync
+
+1:	retry
+END(intr_vector_stray)
 
 ENTRY(intr_fast)
 	save	%sp, -CCFSZ, %sp

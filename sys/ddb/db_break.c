@@ -35,8 +35,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_comconsole.h"
-
 #include <sys/param.h>
 
 #include <vm/vm.h>

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2010
+.Dd December 8, 2011
 .Dt PERIODIC.CONF 5
 .Os
 .Sh NAME
@@ -631,7 +631,7 @@ If the list is empty or not set, all zfs pools are scrubbed.
 .It Va daily_scrub_zfs_default_threshold
 .Pq Vt int
 Number of days between a scrub if no pool-specific threshold is set.
-The default value if no value is set is 30.
+If not set, the default value is 35, corresponding to 5 weeks.
 .It Va daily_scrub_zfs_ Ns Ao Ar poolname Ac Ns Va _threshold
 .Pq Vt int
 The same as

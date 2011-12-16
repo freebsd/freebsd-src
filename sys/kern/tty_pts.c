@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/poll.h>
 #include <sys/proc.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/serial.h>
 #include <sys/stat.h>
@@ -294,7 +295,7 @@ ptsdev_ioctl(struct file *fp, u_long cmd, void *data,
 			return (EINVAL);
 		return copyout(p, fgn->buf, i);
 	}
-	
+
 	/*
 	 * We need to implement TIOCGPGRP and TIOCGSID here again. When
 	 * called on the pseudo-terminal master, it should not check if
@@ -562,7 +563,7 @@ ptsdev_stat(struct file *fp, struct stat *sb, struct ucred *active_cred,
 	sb->st_uid = dev->si_uid;
 	sb->st_gid = dev->si_gid;
 	sb->st_mode = dev->si_mode | S_IFCHR;
-	
+
 	return (0);
 }
 
@@ -596,6 +597,8 @@ static struct fileops ptsdev_ops = {
 	.fo_kqfilter	= ptsdev_kqfilter,
 	.fo_stat	= ptsdev_stat,
 	.fo_close	= ptsdev_close,
+	.fo_chmod	= invfo_chmod,
+	.fo_chown	= invfo_chown,
 	.fo_flags	= DFLAG_PASSABLE,
 };
 
@@ -682,8 +685,11 @@ ptsdrv_free(void *softc)
 		free_unr(pts_pool, psc->pts_unit);
 
 	chgptscnt(psc->pts_cred->cr_ruidinfo, -1, 0);
+	racct_sub_cred(psc->pts_cred, RACCT_NPTS, 1);
 	crfree(psc->pts_cred);
 
+	seldrain(&psc->pts_inpoll);
+	seldrain(&psc->pts_outpoll);
 	knlist_destroy(&psc->pts_inpoll.si_note);
 	knlist_destroy(&psc->pts_outpoll.si_note);
 
@@ -712,7 +718,7 @@ static
 int
 pts_alloc(int fflags, struct thread *td, struct file *fp)
 {
-	int unit, ok;
+	int unit, ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
@@ -720,14 +726,23 @@ pts_alloc(int fflags, struct thread *td, struct file *fp)
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Try to allocate a new pts unit number. */
 	unit = alloc_unr(pts_pool);
 	if (unit < 0) {
+		racct_sub(p, RACCT_NPTS, 1);
 		chgptscnt(cred->cr_ruidinfo, -1, 0);
 		return (EAGAIN);
 	}
@@ -757,7 +772,7 @@ int
 pts_alloc_external(int fflags, struct thread *td, struct file *fp,
     struct cdev *dev, const char *name)
 {
-	int ok;
+	int ok, error;
 	struct tty *tp;
 	struct pts_softc *psc;
 	struct proc *p = td->td_proc;
@@ -765,10 +780,18 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 
 	/* Resource limiting. */
 	PROC_LOCK(p);
-	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
-	PROC_UNLOCK(p);
-	if (!ok)
+	error = racct_add(p, RACCT_NPTS, 1);
+	if (error != 0) {
+		PROC_UNLOCK(p);
 		return (EAGAIN);
+	}
+	ok = chgptscnt(cred->cr_ruidinfo, 1, lim_cur(p, RLIMIT_NPTS));
+	if (!ok) {
+		racct_sub(p, RACCT_NPTS, 1);
+		PROC_UNLOCK(p);
+		return (EAGAIN);
+	}
+	PROC_UNLOCK(p);
 
 	/* Allocate TTY and softc. */
 	psc = malloc(sizeof(struct pts_softc), M_PTS, M_WAITOK|M_ZERO);
@@ -793,7 +816,7 @@ pts_alloc_external(int fflags, struct thread *td, struct file *fp,
 #endif /* PTS_EXTERNAL */
 
 int
-posix_openpt(struct thread *td, struct posix_openpt_args *uap)
+sys_posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 {
 	int error, fd;
 	struct file *fp;
@@ -804,8 +827,8 @@ posix_openpt(struct thread *td, struct posix_openpt_args *uap)
 	 */
 	if (uap->flags & ~(O_RDWR|O_NOCTTY))
 		return (EINVAL);
-	
-	error = falloc(td, &fp, &fd);
+
+	error = falloc(td, &fp, &fd, 0);
 	if (error)
 		return (error);
 

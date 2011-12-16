@@ -186,15 +186,19 @@
 #endif
 
 /*
- * Ceiling on amount of kmem_map kva space.
+ * Ceiling on the amount of kmem_map KVA space: 40% of the entire KVA space
+ * rounded to the nearest multiple of the superpage size.
  */
 #ifndef VM_KMEM_SIZE_MAX
-#define	VM_KMEM_SIZE_MAX	(320 * 1024 * 1024)
+#define	VM_KMEM_SIZE_MAX	(((((VM_MAX_KERNEL_ADDRESS - \
+    VM_MIN_KERNEL_ADDRESS) >> (PDRSHIFT - 2)) + 5) / 10) << PDRSHIFT)
 #endif
 
 /* initial pagein size of beginning of executable file */
 #ifndef VM_INITIAL_PAGEIN
 #define	VM_INITIAL_PAGEIN	16
 #endif
+
+#define	ZERO_REGION_SIZE	(64 * 1024)	/* 64KB */
 
 #endif /* _MACHINE_VMPARAM_H_ */

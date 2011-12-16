@@ -1191,9 +1191,9 @@ end_login(void)
 		ftpd_logwtmp(wtmpid, NULL, NULL);
 	pw = NULL;
 #ifdef	LOGIN_CAP
-	setusercontext(NULL, getpwuid(0), 0,
-		       LOGIN_SETPRIORITY|LOGIN_SETRESOURCES|LOGIN_SETUMASK|
-		       LOGIN_SETMAC);
+	setusercontext(NULL, getpwuid(0), 0, LOGIN_SETALL & ~(LOGIN_SETLOGIN |
+		       LOGIN_SETUSER | LOGIN_SETGROUP | LOGIN_SETPATH |
+		       LOGIN_SETENV));
 #endif
 #ifdef USE_PAM
 	if (pamh) {
@@ -1465,9 +1465,8 @@ skip:
 			return;
 		}
 	}
-	setusercontext(lc, pw, 0,
-		LOGIN_SETLOGIN|LOGIN_SETGROUP|LOGIN_SETPRIORITY|
-		LOGIN_SETRESOURCES|LOGIN_SETUMASK|LOGIN_SETMAC);
+	setusercontext(lc, pw, 0, LOGIN_SETALL &
+		       ~(LOGIN_SETUSER | LOGIN_SETPATH | LOGIN_SETENV));
 #else
 	setlogin(pw->pw_name);
 	(void) initgroups(pw->pw_name, pw->pw_gid);

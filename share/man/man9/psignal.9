@@ -28,14 +28,15 @@
 .\"	$NetBSD: psignal.9,v 1.1 1996/06/22 22:57:35 pk Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 22, 1996
+.Dd October 8, 2011
 .Dt PSIGNAL 9
 .Os
 .Sh NAME
 .Nm psignal ,
 .Nm pgsignal ,
-.Nm gsignal
-.Nd post signal to a process or process group
+.Nm gsignal ,
+.Nm tdsignal
+.Nd post signal to a thread, process, or process group
 .Sh SYNOPSIS
 .In sys/types.h
 .In sys/signalvar.h
@@ -45,8 +46,10 @@
 .Fn pgsignal "struct pgrp *pgrp" "int signum" "int checkctty"
 .Ft void
 .Fn gsignal "int pgid" "int signum"
+.Ft void
+.Fn tdsignal "struct thread *td" "int signum"
 .Sh DESCRIPTION
-These functions post a signal to one or more processes.
+These functions post a signal to a thread or one or more processes.
 The argument
 .Fa signum
 common to all three functions should be in the range
@@ -135,6 +138,13 @@ set to zero.
 If
 .Fa pgid
 is zero no action is taken.
+.Pp
+The
+.Fn tdsignal
+function posts signal number
+.Fa signum
+to the thread represented by the thread structure
+.Fa td .
 .Sh SEE ALSO
 .Xr sigaction 2 ,
 .Xr signal 9 ,

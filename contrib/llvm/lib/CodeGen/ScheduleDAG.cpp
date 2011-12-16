@@ -19,10 +19,17 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
 #include <climits>
 using namespace llvm;
+
+#ifndef NDEBUG
+static cl::opt<bool> StressSchedOpt(
+  "stress-sched", cl::Hidden, cl::init(false),
+  cl::desc("Stress test instruction scheduling"));
+#endif
 
 ScheduleDAG::ScheduleDAG(MachineFunction &mf)
   : TM(mf.getTarget()),
@@ -30,12 +37,15 @@ ScheduleDAG::ScheduleDAG(MachineFunction &mf)
     TRI(TM.getRegisterInfo()),
     MF(mf), MRI(mf.getRegInfo()),
     EntrySU(), ExitSU() {
+#ifndef NDEBUG
+  StressSched = StressSchedOpt;
+#endif
 }
 
 ScheduleDAG::~ScheduleDAG() {}
 
 /// getInstrDesc helper to handle SDNodes.
-const TargetInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
+const MCInstrDesc *ScheduleDAG::getNodeDesc(const SDNode *Node) const {
   if (!Node || !Node->isMachineOpcode()) return NULL;
   return &TII->get(Node->getMachineOpcode());
 }
@@ -130,6 +140,7 @@ void SUnit::removePred(const SDep &D) {
           break;
         }
       assert(FoundSucc && "Mismatching preds / succs lists!");
+      (void)FoundSucc;
       Preds.erase(I);
       // Update the bookkeeping.
       if (P.getKind() == SDep::Data) {
@@ -307,6 +318,8 @@ void SUnit::dumpAll(const ScheduleDAG *G) const {
       if (I->isArtificial())
         dbgs() << " *";
       dbgs() << ": Latency=" << I->getLatency();
+      if (I->isAssignedRegDep())
+        dbgs() << " Reg=" << G->TRI->getName(I->getReg());
       dbgs() << "\n";
     }
   }
@@ -472,7 +485,7 @@ void ScheduleDAGTopologicalSort::InitDAGTopologicalSorting() {
 #endif
 }
 
-/// AddPred - Updates the topological ordering to accomodate an edge
+/// AddPred - Updates the topological ordering to accommodate an edge
 /// to be added from SUnit X to SUnit Y.
 void ScheduleDAGTopologicalSort::AddPred(SUnit *Y, SUnit *X) {
   int UpperBound, LowerBound;
@@ -490,7 +503,7 @@ void ScheduleDAGTopologicalSort::AddPred(SUnit *Y, SUnit *X) {
   }
 }
 
-/// RemovePred - Updates the topological ordering to accomodate an
+/// RemovePred - Updates the topological ordering to accommodate an
 /// an edge to be removed from the specified node N from the predecessors
 /// of the current node M.
 void ScheduleDAGTopologicalSort::RemovePred(SUnit *M, SUnit *N) {

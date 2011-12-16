@@ -11,7 +11,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	db.h \
 	dirent.h dlfcn.h elf.h elf-hints.h err.h fmtmsg.h fnmatch.h fstab.h \
 	fts.h ftw.h getopt.h glob.h grp.h gssapi.h \
-	histedit.h ieeefp.h ifaddrs.h \
+	ieeefp.h ifaddrs.h \
 	inttypes.h iso646.h kenv.h langinfo.h libgen.h limits.h link.h \
 	locale.h malloc.h malloc_np.h memory.h monetary.h mpool.h mqueue.h \
 	ndbm.h netconfig.h \
@@ -24,7 +24,7 @@ INCS=	a.out.h ar.h assert.h bitstring.h complex.h cpio.h _ctype.h ctype.h \
 	strings.h sysexits.h tar.h termios.h tgmath.h \
 	time.h timeconv.h timers.h ttyent.h \
 	ulimit.h unistd.h utime.h utmpx.h uuid.h varargs.h vis.h \
-	wchar.h wctype.h wordexp.h
+	wchar.h wctype.h wordexp.h xlocale.h _xlocale_ctype.h
 
 MHDRS=	float.h floatingpoint.h stdarg.h
 
@@ -39,7 +39,7 @@ LDIRS=	bsm cam geom net net80211 netatalk netgraph netinet netinet6 \
 	sys vm
 
 LSUBDIRS=	cam/ata cam/scsi \
-	dev/acpica dev/an dev/bktr dev/firewire dev/hwpmc \
+	dev/acpica dev/an dev/bktr dev/ciss dev/firewire dev/hwpmc \
 	dev/ic dev/iicbus ${_dev_ieee488} dev/io dev/lmc dev/mfi dev/ofw \
 	dev/pbio ${_dev_powermac_nvram} dev/ppbus dev/smbus \
 	dev/speaker dev/usb dev/utopia dev/vkbd dev/wi \
@@ -47,7 +47,7 @@ LSUBDIRS=	cam/ata cam/scsi \
 	${_fs_nwfs} fs/portalfs fs/procfs fs/smbfs fs/udf fs/unionfs \
 	geom/cache geom/concat geom/eli geom/gate geom/journal geom/label \
 	geom/mirror geom/mountver geom/multipath geom/nop \
-	geom/raid3 geom/shsec geom/stripe geom/virstor \
+	geom/raid geom/raid3 geom/shsec geom/stripe geom/virstor \
 	netgraph/atm netgraph/netflow \
 	security/audit \
 	security/mac_biba security/mac_bsdextended security/mac_lomac \

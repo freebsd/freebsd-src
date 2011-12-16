@@ -109,14 +109,14 @@ static void HandleVRSaveUpdate(MachineInstr *MI, const TargetInstrInfo &TII) {
   for (MachineRegisterInfo::livein_iterator
        I = MF->getRegInfo().livein_begin(),
        E = MF->getRegInfo().livein_end(); I != E; ++I) {
-    unsigned RegNo = PPCRegisterInfo::getRegisterNumbering(I->first);
+    unsigned RegNo = getPPCRegisterNumbering(I->first);
     if (VRRegNo[RegNo] == I->first)        // If this really is a vector reg.
       UsedRegMask &= ~(1 << (31-RegNo));   // Doesn't need to be marked.
   }
   for (MachineRegisterInfo::liveout_iterator
        I = MF->getRegInfo().liveout_begin(),
        E = MF->getRegInfo().liveout_end(); I != E; ++I) {
-    unsigned RegNo = PPCRegisterInfo::getRegisterNumbering(*I);
+    unsigned RegNo = getPPCRegisterNumbering(*I);
     if (VRRegNo[RegNo] == *I)              // If this really is a vector reg.
       UsedRegMask &= ~(1 << (31-RegNo));   // Doesn't need to be marked.
   }
@@ -259,8 +259,7 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
   MachineModuleInfo &MMI = MF.getMMI();
   DebugLoc dl;
   bool needsFrameMoves = MMI.hasDebugInfo() ||
-       !MF.getFunction()->doesNotThrow() ||
-       UnwindTablesMandatory;
+    MF.getFunction()->needsUnwindTableEntry();
 
   // Prepare for frame info.
   MCSymbol *FrameLabel = 0;
@@ -488,6 +487,12 @@ void PPCFrameLowering::emitPrologue(MachineFunction &MF) const {
       int Offset = MFI->getObjectOffset(CSI[I].getFrameIdx());
       unsigned Reg = CSI[I].getReg();
       if (Reg == PPC::LR || Reg == PPC::LR8 || Reg == PPC::RM) continue;
+
+      // This is a bit of a hack: CR2LT, CR2GT, CR2EQ and CR2UN are just
+      // subregisters of CR2. We just need to emit a move of CR2.
+      if (PPC::CRBITRCRegisterClass->contains(Reg))
+        continue;
+
       MachineLocation CSDst(MachineLocation::VirtualFP, Offset);
       MachineLocation CSSrc(Reg);
       Moves.push_back(MachineMove(Label, CSDst, CSSrc));
@@ -705,13 +710,6 @@ void PPCFrameLowering::emitEpilogue(MachineFunction &MF,
   }
 }
 
-void PPCFrameLowering::getInitialFrameState(std::vector<MachineMove> &Moves) const {
-  // Initial state of the frame pointer is R1.
-  MachineLocation Dst(MachineLocation::VirtualFP);
-  MachineLocation Src(PPC::R1, 0);
-  Moves.push_back(MachineMove(0, Dst, Src));
-}
-
 static bool spillsCR(const MachineFunction &MF) {
   const PPCFunctionInfo *FuncInfo = MF.getInfo<PPCFunctionInfo>();
   return FuncInfo->isCRSpilled();
@@ -878,7 +876,7 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
       FFI->setObjectOffset(FI, LowerBound + FFI->getObjectOffset(FI));
     }
 
-    LowerBound -= (31 - PPCRegisterInfo::getRegisterNumbering(MinFPR) + 1) * 8;
+    LowerBound -= (31 - getPPCRegisterNumbering(MinFPR) + 1) * 8;
   }
 
   // Check whether the frame pointer register is allocated. If so, make sure it
@@ -912,8 +910,8 @@ void PPCFrameLowering::processFunctionBeforeFrameFinalized(MachineFunction &MF)
     }
 
     unsigned MinReg =
-      std::min<unsigned>(PPCRegisterInfo::getRegisterNumbering(MinGPR),
-                         PPCRegisterInfo::getRegisterNumbering(MinG8R));
+      std::min<unsigned>(getPPCRegisterNumbering(MinGPR),
+                         getPPCRegisterNumbering(MinG8R));
 
     if (Subtarget.isPPC64()) {
       LowerBound -= (31 - MinReg + 1) * 8;

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #include <mips/atheros/apbvar.h>
 #include <mips/atheros/ar71xxreg.h>
+#include <mips/atheros/ar71xx_setup.h>
 
 #undef APB_DEBUG
 #ifdef APB_DEBUG
@@ -337,6 +338,20 @@ apb_intr(void *arg)
 	reg = ATH_READ_REG(AR71XX_MISC_INTR_STATUS);
 	for (irq = 0; irq < APB_NIRQS; irq++) {
 		if (reg & (1 << irq)) {
+
+			switch (ar71xx_soc) {
+			case AR71XX_SOC_AR7240:
+			case AR71XX_SOC_AR7241:
+			case AR71XX_SOC_AR7242:
+				/* Ack/clear the irq on status register for AR724x */
+				ATH_WRITE_REG(AR71XX_MISC_INTR_STATUS,
+				    reg & ~(1 << irq));
+				break;
+			default:
+				/* fallthrough */
+				break;
+			}
+
 			event = sc->sc_eventstab[irq];
 			if (!event || TAILQ_EMPTY(&event->ie_handlers)) {
 				/* Ignore timer interrupts */
@@ -440,7 +455,6 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	apb_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	apb_get_resource_list),
 	DEVMETHOD(bus_hinted_child,		apb_hinted_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_release_resource,		apb_release_resource),
 	DEVMETHOD(bus_setup_intr,		apb_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		apb_teardown_intr),
@@ -449,7 +463,7 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t apb_driver = {

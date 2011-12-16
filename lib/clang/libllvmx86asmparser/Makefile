@@ -8,7 +8,8 @@ SRCS=	X86AsmLexer.cpp \
 	X86AsmParser.cpp
 
 TGHDRS=	X86GenAsmMatcher \
-	X86GenInstrNames \
-	X86GenRegisterNames
+	X86GenInstrInfo \
+	X86GenRegisterInfo \
+	X86GenSubtargetInfo
 
 .include "../clang.lib.mk"

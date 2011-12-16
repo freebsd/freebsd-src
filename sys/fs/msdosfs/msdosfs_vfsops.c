@@ -555,7 +555,9 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 		    || pmp->pm_FATsecs
 		    || getushort(b710->bpbFSVers)) {
 			error = EINVAL;
+#ifdef MSDOSFS_DEBUG
 			printf("mountmsdosfs(): bad FAT32 filesystem\n");
+#endif
 			goto error_exit;
 		}
 		pmp->pm_fatmask = FAT32_MASK;
@@ -633,8 +635,10 @@ mountmsdosfs(struct vnode *devvp, struct mount *mp)
 
 	clusters = (pmp->pm_fatsize / pmp->pm_fatmult) * pmp->pm_fatdiv;
 	if (pmp->pm_maxcluster >= clusters) {
+#ifdef MSDOSFS_DEBUG
 		printf("Warning: number of clusters (%ld) exceeds FAT "
 		    "capacity (%ld)\n", pmp->pm_maxcluster + 1, clusters);
+#endif
 		pmp->pm_maxcluster = clusters - 1;
 	}
 
@@ -963,7 +967,7 @@ loop:
 }
 
 static int
-msdosfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+msdosfs_fhtovp(struct mount *mp, struct fid *fhp, int flags, struct vnode **vpp)
 {
 	struct msdosfsmount *pmp = VFSTOMSDOSFS(mp);
 	struct defid *defhp = (struct defid *) fhp;

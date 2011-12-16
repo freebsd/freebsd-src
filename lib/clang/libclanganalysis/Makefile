@@ -11,11 +11,12 @@ SRCS=	AnalysisContext.cpp \
 	FormatString.cpp \
 	LiveVariables.cpp \
 	PrintfFormatString.cpp \
+	ProgramPoint.cpp \
 	PseudoConstantAnalysis.cpp \
 	ReachableCode.cpp \
 	ScanfFormatString.cpp \
-	UninitializedValues.cpp \
-	UninitializedValuesV2.cpp
+	ThreadSafety.cpp \
+	UninitializedValues.cpp
 
 TGHDRS=	AttrList \
 	Attrs \

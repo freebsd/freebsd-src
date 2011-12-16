@@ -1337,6 +1337,36 @@ set80211pureg(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 static void
+set80211quiet(const char *val, int d, int s, const struct afswtch *rafp)
+{
+	set80211(s, IEEE80211_IOC_QUIET, d, 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietperiod, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_PERIOD, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietcount, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_COUNT, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietduration, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_DUR, atoi(val), 0, NULL);
+}
+
+static
+DECL_CMD_FUNC(set80211quietoffset, val, d)
+{
+	set80211(s, IEEE80211_IOC_QUIET_OFFSET, atoi(val), 0, NULL);
+}
+
+static void
 set80211bgscan(const char *val, int d, int s, const struct afswtch *rafp)
 {
 	set80211(s, IEEE80211_IOC_BGSCAN, d, 0, NULL);
@@ -2025,18 +2055,6 @@ regdomain_addchans(struct ieee80211req_chaninfo *ci,
 					if (verbose)
 						printf("%u: skip, not an "
 						    "HT40 channel\n", freq);
-					continue;
-				}
-				/*
-				 * DFS and HT40 don't mix.  This should be
-				 * expressed in the regdomain database but
-				 * just in case enforce it here.
-				 */
-				if ((chanFlags & IEEE80211_CHAN_HT40) &&
-				    (flags & IEEE80211_CHAN_DFS)) {
-					if (verbose)
-						printf("%u: skip, HT40+DFS "
-						    "not permitted\n", freq);
 					continue;
 				}
 				/* NB: HT attribute comes from caller */
@@ -3451,10 +3469,21 @@ print_chaninfo(const struct ieee80211_channel *c, int verb)
 {
 	char buf[14];
 
+	if (verb)
+		printf("Channel %3u : %u%c%c%c%c%c MHz%-14.14s",
+		    ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
+		    IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
+		    IEEE80211_IS_CHAN_DFS(c) ? 'D' : ' ',
+		    IEEE80211_IS_CHAN_RADAR(c) ? 'R' : ' ',
+		    IEEE80211_IS_CHAN_CWINT(c) ? 'I' : ' ',
+		    IEEE80211_IS_CHAN_CACDONE(c) ? 'C' : ' ',
+		    get_chaninfo(c, verb, buf, sizeof(buf)));
+	else
 	printf("Channel %3u : %u%c MHz%-14.14s",
-		ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
-		IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
-		get_chaninfo(c, verb, buf, sizeof(buf)));
+	    ieee80211_mhz2ieee(c->ic_freq, c->ic_flags), c->ic_freq,
+	    IEEE80211_IS_CHAN_PASSIVE(c) ? '*' : ' ',
+	    get_chaninfo(c, verb, buf, sizeof(buf)));
+
 }
 
 static int
@@ -5162,6 +5191,12 @@ static struct cmd ieee80211_cmds[] = {
 	DEF_CMD_ARG("bgscanidle",	set80211bgscanidle),
 	DEF_CMD_ARG("bgscanintvl",	set80211bgscanintvl),
 	DEF_CMD_ARG("scanvalid",	set80211scanvalid),
+	DEF_CMD("quiet",        1,      set80211quiet),
+	DEF_CMD("-quiet",       0,      set80211quiet),
+	DEF_CMD_ARG("quiet_count",      set80211quietcount),
+	DEF_CMD_ARG("quiet_period",     set80211quietperiod),
+	DEF_CMD_ARG("quiet_dur",        set80211quietduration),
+	DEF_CMD_ARG("quiet_offset",     set80211quietoffset),
 	DEF_CMD_ARG("roam:rssi",	set80211roamrssi),
 	DEF_CMD_ARG("roam:rate",	set80211roamrate),
 	DEF_CMD_ARG("mcastrate",	set80211mcastrate),

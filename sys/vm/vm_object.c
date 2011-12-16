@@ -139,7 +139,8 @@ struct mtx vm_object_list_mtx;	/* lock for object list and count */
 struct vm_object kernel_object_store;
 struct vm_object kmem_object_store;
 
-SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD, 0, "VM object stats");
+static SYSCTL_NODE(_vm_stats, OID_AUTO, object, CTLFLAG_RD, 0,
+    "VM object stats");
 
 static long object_collapses;
 SYSCTL_LONG(_vm_stats_object, OID_AUTO, collapses, CTLFLAG_RD,
@@ -443,14 +444,21 @@ vm_object_vndeallocate(vm_object_t object)
 		/* vrele may need the vnode lock. */
 		vrele(vp);
 	} else {
+		vhold(vp);
 		VM_OBJECT_UNLOCK(object);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vdrop(vp);
 		VM_OBJECT_LOCK(object);
 		object->ref_count--;
-		if (object->ref_count == 0)
-			vp->v_vflag &= ~VV_TEXT;
-		VM_OBJECT_UNLOCK(object);
-		vput(vp);
+		if (object->type == OBJT_DEAD) {
+			VM_OBJECT_UNLOCK(object);
+			VOP_UNLOCK(vp, 0);
+		} else {
+			if (object->ref_count == 0)
+				vp->v_vflag &= ~VV_TEXT;
+			VM_OBJECT_UNLOCK(object);
+			vput(vp);
+		}
 	}
 }
 
@@ -845,6 +853,21 @@ rescan:
 		    flags, &clearobjflags);
 		if (object->generation != curgeneration)
 			goto rescan;
+
+		/*
+		 * If the VOP_PUTPAGES() did a truncated write, so
+		 * that even the first page of the run is not fully
+		 * written, vm_pageout_flush() returns 0 as the run
+		 * length.  Since the condition that caused truncated
+		 * write may be permanent, e.g. exhausted free space,
+		 * accepting n == 0 would cause an infinite loop.
+		 *
+		 * Forwarding the iterator leaves the unwritten page
+		 * behind, but there is not much we can do there if
+		 * filesystem refuses to write it.
+		 */
+		if (n == 0)
+			n = 1;
 		np = vm_page_find_least(object, pi + n);
 	}
 #if 0
@@ -901,6 +924,10 @@ vm_object_page_collect_flush(vm_object_t object, vm_page_t p, int pagerflags,
  * We invalidate (remove) all pages from the address space
  * for semantic correctness.
  *
+ * If the backing object is a device object with unmanaged pages, then any
+ * mappings to the specified range of pages must be removed before this
+ * function is called.
+ *
  * Note: certain anonymous maps, such as MAP_NOSYNC maps,
  * may start out with a NULL object.
  */
@@ -956,12 +983,19 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	}
 	if ((object->type == OBJT_VNODE ||
 	     object->type == OBJT_DEVICE) && invalidate) {
-		boolean_t purge;
-		purge = old_msync || (object->type == OBJT_DEVICE);
-		vm_object_page_remove(object,
-		    OFF_TO_IDX(offset),
-		    OFF_TO_IDX(offset + size + PAGE_MASK),
-		    purge ? FALSE : TRUE);
+		if (object->type == OBJT_DEVICE)
+			/*
+			 * The option OBJPR_NOTMAPPED must be passed here
+			 * because vm_object_page_remove() cannot remove
+			 * unmanaged mappings.
+			 */
+			flags = OBJPR_NOTMAPPED;
+		else if (old_msync)
+			flags = 0;
+		else
+			flags = OBJPR_CLEANONLY;
+		vm_object_page_remove(object, OFF_TO_IDX(offset),
+		    OFF_TO_IDX(offset + size + PAGE_MASK), flags);
 	}
 	VM_OBJECT_UNLOCK(object);
 }
@@ -1054,7 +1088,9 @@ shadowlookup:
 			vm_page_unlock(m);
 			goto unlock_tobject;
 		}
-		KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+		KASSERT((m->flags & PG_FICTITIOUS) == 0,
+		    ("vm_object_madvise: page %p is fictitious", m));
+		KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 		    ("vm_object_madvise: page %p is not managed", m));
 		if ((m->oflags & VPO_BUSY) || m->busy) {
 			if (advise == MADV_WILLNEED) {
@@ -1063,9 +1099,7 @@ shadowlookup:
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			}
 			vm_page_unlock(m);
 			if (object != tobject)
@@ -1461,6 +1495,24 @@ vm_object_backing_scan(vm_object_t object, int op)
 
 			pp = vm_page_lookup(object, new_pindex);
 			if (
+			    (op & OBSC_COLLAPSE_NOWAIT) != 0 &&
+			    (pp != NULL && pp->valid == 0)
+			) {
+				/*
+				 * The page in the parent is not (yet) valid.
+				 * We don't know anything about the state of
+				 * the original page.  It might be mapped,
+				 * so we must avoid the next if here.
+				 *
+				 * This is due to a race in vm_fault() where
+				 * we must unbusy the original (backing_obj)
+				 * page before we can (re)lock the parent.
+				 * Hence we can get here.
+				 */
+				p = next;
+				continue;
+			}
+			if (
 			    pp != NULL ||
 			    vm_pager_has_page(object, new_pindex, NULL, NULL)
 			) {
@@ -1714,76 +1766,70 @@ vm_object_collapse(vm_object_t object)
  *	vm_object_page_remove:
  *
  *	For the given object, either frees or invalidates each of the
- *	specified pages.  In general, a page is freed.  However, if a
- *	page is wired for any reason other than the existence of a
- *	managed, wired mapping, then it may be invalidated but not
- *	removed from the object.  Pages are specified by the given
- *	range ["start", "end") and Boolean "clean_only".  As a
- *	special case, if "end" is zero, then the range extends from
- *	"start" to the end of the object.  If "clean_only" is TRUE,
- *	then only the non-dirty pages within the specified range are
- *	affected.
+ *	specified pages.  In general, a page is freed.  However, if a page is
+ *	wired for any reason other than the existence of a managed, wired
+ *	mapping, then it may be invalidated but not removed from the object.
+ *	Pages are specified by the given range ["start", "end") and the option
+ *	OBJPR_CLEANONLY.  As a special case, if "end" is zero, then the range
+ *	extends from "start" to the end of the object.  If the option
+ *	OBJPR_CLEANONLY is specified, then only the non-dirty pages within the
+ *	specified range are affected.  If the option OBJPR_NOTMAPPED is
+ *	specified, then the pages within the specified range must have no
+ *	mappings.  Otherwise, if this option is not specified, any mappings to
+ *	the specified pages are removed before the pages are freed or
+ *	invalidated.
  *
- *	In general, this operation should only be performed on objects
- *	that contain managed pages.  There are two exceptions.  First,
- *	it may be performed on the kernel and kmem objects.  Second,
- *	it may be used by msync(..., MS_INVALIDATE) to invalidate
- *	device-backed pages.  In both of these cases, "clean_only"
- *	must be FALSE.
+ *	In general, this operation should only be performed on objects that
+ *	contain managed pages.  There are, however, two exceptions.  First, it
+ *	is performed on the kernel and kmem objects by vm_map_entry_delete().
+ *	Second, it is used by msync(..., MS_INVALIDATE) to invalidate device-
+ *	backed pages.  In both of these cases, the option OBJPR_CLEANONLY must
+ *	not be specified and the option OBJPR_NOTMAPPED must be specified.
  *
  *	The object must be locked.
  */
 void
 vm_object_page_remove(vm_object_t object, vm_pindex_t start, vm_pindex_t end,
-    boolean_t clean_only)
+    int options)
 {
 	vm_page_t p, next;
 	int wirings;
 
 	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_PHYS) ||
+	    (options & (OBJPR_CLEANONLY | OBJPR_NOTMAPPED)) == OBJPR_NOTMAPPED,
+	    ("vm_object_page_remove: illegal options for object %p", object));
 	if (object->resident_page_count == 0)
 		goto skipmemq;
-
-	/*
-	 * Since physically-backed objects do not use managed pages, we can't
-	 * remove pages from the object (we must instead remove the page
-	 * references, and then destroy the object).
-	 */
-	KASSERT(object->type != OBJT_PHYS || object == kernel_object ||
-	    object == kmem_object,
-	    ("attempt to remove pages from a physical object"));
-
 	vm_object_pip_add(object, 1);
 again:
 	p = vm_page_find_least(object, start);
 
 	/*
-	 * Assert: the variable p is either (1) the page with the
-	 * least pindex greater than or equal to the parameter pindex
-	 * or (2) NULL.
+	 * Here, the variable "p" is either (1) the page with the least pindex
+	 * greater than or equal to the parameter "start" or (2) NULL. 
 	 */
-	for (;
-	     p != NULL && (p->pindex < end || end == 0);
-	     p = next) {
+	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
 		next = TAILQ_NEXT(p, listq);
 
 		/*
-		 * If the page is wired for any reason besides the
-		 * existence of managed, wired mappings, then it cannot
-		 * be freed.  For example, fictitious pages, which
-		 * represent device memory, are inherently wired and
-		 * cannot be freed.  They can, however, be invalidated
-		 * if "clean_only" is FALSE.
+		 * If the page is wired for any reason besides the existence
+		 * of managed, wired mappings, then it cannot be freed.  For
+		 * example, fictitious pages, which represent device memory,
+		 * are inherently wired and cannot be freed.  They can,
+		 * however, be invalidated if the option OBJPR_CLEANONLY is
+		 * not specified.
 		 */
 		vm_page_lock(p);
 		if ((wirings = p->wire_count) != 0 &&
 		    (wirings = pmap_page_wired_mappings(p)) != p->wire_count) {
-			/* Fictitious pages do not have managed mappings. */
-			if ((p->flags & PG_FICTITIOUS) == 0)
+			if ((options & OBJPR_NOTMAPPED) == 0) {
 				pmap_remove_all(p);
-			/* Account for removal of managed, wired mappings. */
-			p->wire_count -= wirings;
-			if (!clean_only) {
+				/* Account for removal of wired mappings. */
+				if (wirings != 0)
+					p->wire_count -= wirings;
+			}
+			if ((options & OBJPR_CLEANONLY) == 0) {
 				p->valid = 0;
 				vm_page_undirty(p);
 			}
@@ -1794,17 +1840,20 @@ again:
 			goto again;
 		KASSERT((p->flags & PG_FICTITIOUS) == 0,
 		    ("vm_object_page_remove: page %p is fictitious", p));
-		if (clean_only && p->valid) {
-			pmap_remove_write(p);
+		if ((options & OBJPR_CLEANONLY) != 0 && p->valid != 0) {
+			if ((options & OBJPR_NOTMAPPED) == 0)
+				pmap_remove_write(p);
 			if (p->dirty) {
 				vm_page_unlock(p);
 				continue;
 			}
 		}
-		pmap_remove_all(p);
-		/* Account for removal of managed, wired mappings. */
-		if (wirings != 0)
-			p->wire_count -= wirings;
+		if ((options & OBJPR_NOTMAPPED) == 0) {
+			pmap_remove_all(p);
+			/* Account for removal of wired mappings. */
+			if (wirings != 0)
+				p->wire_count -= wirings;
+		}
 		vm_page_free(p);
 		vm_page_unlock(p);
 	}
@@ -1812,6 +1861,60 @@ again:
 skipmemq:
 	if (__predict_false(object->cache != NULL))
 		vm_page_cache_free(object, start, end);
+}
+
+/*
+ *	vm_object_page_cache:
+ *
+ *	For the given object, attempt to move the specified clean
+ *	pages to the cache queue.  If a page is wired for any reason,
+ *	then it will not be changed.  Pages are specified by the given
+ *	range ["start", "end").  As a special case, if "end" is zero,
+ *	then the range extends from "start" to the end of the object.
+ *	Any mappings to the specified pages are removed before the
+ *	pages are moved to the cache queue.
+ *
+ *	This operation should only be performed on objects that
+ *	contain managed pages.
+ *
+ *	The object must be locked.
+ */
+void
+vm_object_page_cache(vm_object_t object, vm_pindex_t start, vm_pindex_t end)
+{
+	struct mtx *mtx, *new_mtx;
+	vm_page_t p, next;
+
+	VM_OBJECT_LOCK_ASSERT(object, MA_OWNED);
+	KASSERT((object->type != OBJT_DEVICE && object->type != OBJT_SG &&
+	    object->type != OBJT_PHYS),
+	    ("vm_object_page_cache: illegal object %p", object));
+	if (object->resident_page_count == 0)
+		return;
+	p = vm_page_find_least(object, start);
+
+	/*
+	 * Here, the variable "p" is either (1) the page with the least pindex
+	 * greater than or equal to the parameter "start" or (2) NULL. 
+	 */
+	mtx = NULL;
+	for (; p != NULL && (p->pindex < end || end == 0); p = next) {
+		next = TAILQ_NEXT(p, listq);
+
+		/*
+		 * Avoid releasing and reacquiring the same page lock.
+		 */
+		new_mtx = vm_page_lockptr(p);
+		if (mtx != new_mtx) {
+			if (mtx != NULL)
+				mtx_unlock(mtx);
+			mtx = new_mtx;
+			mtx_lock(mtx);
+		}
+		vm_page_try_to_cache(p);
+	}
+	if (mtx != NULL)
+		mtx_unlock(mtx);
 }
 
 /*
@@ -1951,9 +2054,8 @@ vm_object_coalesce(vm_object_t prev_object, vm_ooffset_t prev_offset,
 	 * deallocation.
 	 */
 	if (next_pindex < prev_object->size) {
-		vm_object_page_remove(prev_object,
-				      next_pindex,
-				      next_pindex + next_size, FALSE);
+		vm_object_page_remove(prev_object, next_pindex, next_pindex +
+		    next_size, 0);
 		if (prev_object->type == OBJT_SWAP)
 			swap_pager_freespace(prev_object,
 					     next_pindex, next_size);

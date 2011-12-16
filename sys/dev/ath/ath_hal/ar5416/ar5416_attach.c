@@ -57,8 +57,9 @@ ar5416AniSetup(struct ath_hal *ah)
 		.rssiThrLow		= 7,
 		.period			= 100,
 	};
-	/* NB: ANI is not enabled yet */
-	ar5416AniAttach(ah, &aniparams, &aniparams, AH_FALSE);
+	/* NB: disable ANI noise immmunity for reliable RIFS rx */
+	AH5416(ah)->ah_ani_function &= ~(1 << HAL_ANI_NOISE_IMMUNITY_LEVEL);
+	ar5416AniAttach(ah, &aniparams, &aniparams, AH_TRUE);
 }
 
 /*
@@ -112,8 +113,12 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_fillTxDesc		= ar5416FillTxDesc;
 	ah->ah_procTxDesc		= ar5416ProcTxDesc;
 	ah->ah_getTxCompletionRates	= ar5416GetTxCompletionRates;
+	ah->ah_setupTxQueue		= ar5416SetupTxQueue;
+	ah->ah_resetTxQueue		= ar5416ResetTxQueue;
 
 	/* Receive Functions */
+	ah->ah_getRxFilter		= ar5416GetRxFilter;
+	ah->ah_setRxFilter		= ar5416SetRxFilter;
 	ah->ah_startPcuReceive		= ar5416StartPcuReceive;
 	ah->ah_stopPcuReceive		= ar5416StopPcuReceive;
 	ah->ah_setupRxDesc		= ar5416SetupRxDesc;
@@ -131,14 +136,22 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_gpioGet			= ar5416GpioGet;
 	ah->ah_gpioSet			= ar5416GpioSet;
 	ah->ah_gpioSetIntr		= ar5416GpioSetIntr;
+	ah->ah_getTsf64			= ar5416GetTsf64;
 	ah->ah_resetTsf			= ar5416ResetTsf;
 	ah->ah_getRfGain		= ar5416GetRfgain;
 	ah->ah_setAntennaSwitch		= ar5416SetAntennaSwitch;
 	ah->ah_setDecompMask		= ar5416SetDecompMask;
 	ah->ah_setCoverageClass		= ar5416SetCoverageClass;
+	ah->ah_setQuiet			= ar5416SetQuiet;
 
 	ah->ah_resetKeyCacheEntry	= ar5416ResetKeyCacheEntry;
 	ah->ah_setKeyCacheEntry		= ar5416SetKeyCacheEntry;
+
+	/* DFS Functions */
+	ah->ah_enableDfs		= ar5416EnableDfs;
+	ah->ah_getDfsThresh		= ar5416GetDfsThresh;
+	ah->ah_procRadarEvent		= ar5416ProcessRadarEvent;
+	ah->ah_isFastClockEnabled	= ar5416IsFastClockEnabled;
 
 	/* Power Management Functions */
 	ah->ah_setPowerMode		= ar5416SetPowerMode;
@@ -148,13 +161,16 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_beaconInit		= ar5416BeaconInit;
 	ah->ah_setStationBeaconTimers	= ar5416SetStaBeaconTimers;
 	ah->ah_resetStationBeaconTimers	= ar5416ResetStaBeaconTimers;
+	ah->ah_getNextTBTT		= ar5416GetNextTBTT;
 
 	/* 802.11n Functions */
 	ah->ah_chainTxDesc		= ar5416ChainTxDesc;
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
 	ah->ah_set11nRateScenario	= ar5416Set11nRateScenario;
+	ah->ah_set11nAggrFirst		= ar5416Set11nAggrFirst;
 	ah->ah_set11nAggrMiddle		= ar5416Set11nAggrMiddle;
+	ah->ah_set11nAggrLast		= ar5416Set11nAggrLast;
 	ah->ah_clr11nAggr		= ar5416Clr11nAggr;
 	ah->ah_set11nBurstDuration	= ar5416Set11nBurstDuration;
 	ah->ah_get11nExtBusy		= ar5416Get11nExtBusy;
@@ -178,6 +194,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_writeIni		= ar5416WriteIni;
 	AH5416(ah)->ah_spurMitigate	= ar5416SpurMitigate;
 
+	/* Internal baseband ops */
+	AH5416(ah)->ah_initPLL		= ar5416InitPLL;
+
 	/* Internal calibration ops */
 	AH5416(ah)->ah_cal_initcal	= ar5416InitCalHardware;
 
@@ -193,7 +212,10 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	AH5416(ah)->ah_tx_chainmask = AR5416_DEFAULT_TXCHAINMASK;
 
 	/* Enable all ANI functions to begin with */
-	AH5416(ah)->ah_ani_function = HAL_ANI_ALL;
+	AH5416(ah)->ah_ani_function = 0xffffffff;
+
+        /* Set overridable ANI methods */
+        AH5212(ah)->ah_aniControl = ar5416AniControl;
 }
 
 uint32_t
@@ -275,7 +297,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_bank7, ar5416Bank7, 2);
 	HAL_INI_INIT(&AH5416(ah)->ah_ini_addac, ar5416Addac, 2);
 
-	if (!IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+	if (! IS_5416V2_2(ah)) {		/* Owl 2.1/2.0 */
+		ath_hal_printf(ah, "[ath] Enabling CLKDRV workaround for AR5416 < v2.2\n");
 		struct ini {
 			uint32_t	*data;		/* NB: !const */
 			int		rows, cols;
@@ -316,7 +339,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 
 	/* Read Radio Chip Rev Extract */
-	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5416GetRadioRev(ah);
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
         case AR_RAD5122_SREV_MAJOR:	/* Fowl: 5G/2x2 */
         case AR_RAD2122_SREV_MAJOR:	/* Fowl: 2+5G/2x2 */
@@ -364,6 +387,8 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	/* Read Reg Domain */
 	AH_PRIVATE(ah)->ah_currentRD =
 	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_0, AH_NULL);
+	AH_PRIVATE(ah)->ah_currentRDext =
+	    ath_hal_eepromGet(ah, AR_EEP_REGDMN_1, AH_NULL);
 
 	/*
 	 * ah_miscMode is populated by ar5416FillCapabilityInfo()
@@ -372,7 +397,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	 * placed into hardware.
 	 */
 	if (ahp->ah_miscMode != 0)
-		OS_REG_WRITE(ah, AR_MISC_MODE, ahp->ah_miscMode);
+		OS_REG_WRITE(ah, AR_MISC_MODE, OS_REG_READ(ah, AR_MISC_MODE) | ahp->ah_miscMode);
 
 	rfStatus = ar2133RfAttach(ah, &ecode);
 	if (!rfStatus) {
@@ -410,6 +435,12 @@ ar5416Detach(struct ath_hal *ah)
 
 	HALASSERT(ah != AH_NULL);
 	HALASSERT(ah->ah_magic == AR5416_MAGIC);
+
+	/* Make sure that chip is awake before writing to it */
+	if (! ar5416SetPowerMode(ah, HAL_PM_AWAKE, AH_TRUE))
+		HALDEBUG(ah, HAL_DEBUG_UNMASKABLE,
+		    "%s: failed to wake up chip\n",
+		    __func__);
 
 	ar5416AniDetach(ah);
 	ar5212RfDetach(ah);
@@ -471,10 +502,11 @@ ar5416WriteIni(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	 * Write addac shifts
 	 */
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_EXTERNAL_RADIO);
-#if 0
+
 	/* NB: only required for Sowl */
-	ar5416EepromSetAddac(ah, chan);
-#endif
+	if (AR_SREV_SOWL(ah))
+		ar5416EepromSetAddac(ah, chan);
+
 	regWrites = ath_hal_ini_write(ah, &AH5416(ah)->ah_ini_addac, 1,
 	    regWrites);
 	OS_REG_WRITE(ah, AR_PHY_ADC_SERIAL_CTL, AR_PHY_SEL_INTERNAL_ADDAC);
@@ -800,8 +832,9 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halPSPollBroken = AH_TRUE;	/* XXX fixed in later revs? */
 	pCap->halVEOLSupport = AH_TRUE;
 	pCap->halBssIdMaskSupport = AH_TRUE;
-	pCap->halMcastKeySrchSupport = AH_FALSE;
+	pCap->halMcastKeySrchSupport = AH_TRUE;	/* Works on AR5416 and later */
 	pCap->halTsfAddSupport = AH_TRUE;
+	pCap->hal4AddrAggrSupport = AH_FALSE;	/* Broken in Owl */
 
 	if (ath_hal_eepromGet(ah, AR_EEP_MAXQCU, &val) == HAL_OK)
 		pCap->halTotalQueues = val;
@@ -838,6 +871,8 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
 	pCap->halAutoSleepSupport = AH_FALSE;
 	pCap->hal4kbSplitTransSupport = AH_TRUE;
+	/* Disable this so Block-ACK works correctly */
+	pCap->halHasRxSelfLinkedTail = AH_FALSE;
 #if 0	/* XXX not yet */
 	pCap->halNumAntCfg2GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_2GHZ);
 	pCap->halNumAntCfg5GHz = ar5416GetNumAntConfig(ahp, HAL_FREQ_BAND_5GHZ);
@@ -850,10 +885,21 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
-	pCap->halMbssidAggrSupport = AH_TRUE;
+	pCap->halMbssidAggrSupport = AH_FALSE;	/* Broken on Owl */
 	pCap->halForcePpmSupport = AH_TRUE;
 	pCap->halEnhancedPmSupport = AH_TRUE;
 	pCap->halBssidMatchSupport = AH_TRUE;
+	pCap->halGTTSupport = AH_TRUE;
+	pCap->halCSTSupport = AH_TRUE;
+	pCap->halEnhancedDfsSupport = AH_FALSE;
+	/* Hardware supports 32 bit TSF values in the RX descriptor */
+	pCap->halHasLongRxDescTsf = AH_TRUE;
+	/*
+	 * BB Read WAR: this is only for AR5008/AR9001 NICs
+	 * It is also set individually in the AR91xx attach functions.
+	 */
+	if (AR_SREV_OWL(ah))
+		pCap->halHasBBReadWar = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {
@@ -862,7 +908,23 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
+	/*
+	 * The MAC will mark frames as RXed if there's a descriptor
+	 * to write them to. So if it hits a self-linked final descriptor,
+	 * it'll keep ACKing frames even though they're being silently
+	 * dropped. Thus, this particular feature of the driver can't
+	 * be used for 802.11n devices.
+	 */
 	ahpriv->ah_rxornIsFatal = AH_FALSE;
+
+	/*
+	 * If it's a PCI NIC, ask the HAL OS layer to serialise
+	 * register access, or SMP machines may cause the hardware
+	 * to hang. This is applicable to AR5416 and AR9220; I'm not
+	 * sure about AR9160 or AR9227.
+	 */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		pCap->halSerialiseRegWar = 1;
 
 	return AH_TRUE;
 }
@@ -870,9 +932,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 static const char*
 ar5416Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
-		return "Atheros 5416";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR5416_DEVID_PCI)
+			return "Atheros 5416";
+		if (devid == AR5416_DEVID_PCIE)
+			return "Atheros 5418";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR5416, ar5416Probe, ar5416Attach);

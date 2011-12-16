@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include "namespace.h"
 #include <sys/queue.h>
+#include <sys/wait.h>
 
 #include <errno.h>
 #include <fcntl.h>
@@ -163,11 +164,8 @@ process_file_actions_entry(posix_spawn_file_actions_entry_t *fae)
 			return (errno);
 		break;
 	case FAE_CLOSE:
-		/* Perform a close() */
-		if (_close(fae->fae_fildes) != 0) {
-			if (errno == EBADF)
-				return (EBADF);
-		}
+		/* Perform a close(), do not fail if already closed */
+		(void)_close(fae->fae_fildes);
 		break;
 	}
 	return (0);
@@ -185,7 +183,7 @@ process_file_actions(const posix_spawn_file_actions_t fa)
 		if (error)
 			return (error);
 	}
-	return (0);	
+	return (0);
 }
 
 static int
@@ -196,7 +194,7 @@ do_posix_spawn(pid_t *pid, const char *path,
 {
 	pid_t p;
 	volatile int error = 0;
-	
+
 	p = vfork();
 	switch (p) {
 	case -1:
@@ -219,7 +217,9 @@ do_posix_spawn(pid_t *pid, const char *path,
 		error = errno;
 		_exit(127);
 	default:
-		if (pid != NULL)
+		if (error != 0)
+			_waitpid(p, NULL, WNOHANG);
+		else if (pid != NULL)
 			*pid = p;
 		return (error);
 	}

@@ -144,8 +144,8 @@ typedef enum {
 				/* Device statistics (error counts, etc.) */
 	XPT_FREEZE_QUEUE	= 0x0d,
 				/* Freeze device queue */
-	XPT_GDEV_ADVINFO	= 0x0e,
-				/* Advanced device information */
+	XPT_DEV_ADVINFO		= 0x0e,
+				/* Get/Set Device advanced information */
 /* SCSI Control Functions: 0x10->0x1F */
 	XPT_ABORT		= 0x10,
 				/* Abort the specified CCB */
@@ -257,6 +257,14 @@ typedef enum {
 	XPORT_SATA,	/* Serial AT Attachment */
 	XPORT_ISCSI,	/* iSCSI */
 } cam_xport;
+
+#define XPORT_IS_ATA(t)		((t) == XPORT_ATA || (t) == XPORT_SATA)
+#define XPORT_IS_SCSI(t)	((t) != XPORT_UNKNOWN && \
+				 (t) != XPORT_UNSPECIFIED && \
+				 !XPORT_IS_ATA(t))
+#define XPORT_DEVSTAT_TYPE(t)	(XPORT_IS_ATA(t) ? DEVSTAT_TYPE_IF_IDE : \
+				 XPORT_IS_SCSI(t) ? DEVSTAT_TYPE_IF_SCSI : \
+				 DEVSTAT_TYPE_IF_OTHER)
 
 #define PROTO_VERSION_UNKNOWN (UINT_MAX - 1)
 #define PROTO_VERSION_UNSPECIFIED UINT_MAX
@@ -383,15 +391,24 @@ typedef enum {
 	DEV_MATCH_TARGET	= 0x002,
 	DEV_MATCH_LUN		= 0x004,
 	DEV_MATCH_INQUIRY	= 0x008,
+	DEV_MATCH_DEVID		= 0x010,
 	DEV_MATCH_ANY		= 0x00f
 } dev_pattern_flags;
 
+struct device_id_match_pattern {
+	uint8_t id_len;
+	uint8_t id[256];
+};
+
 struct device_match_pattern {
-	path_id_t				path_id;
-	target_id_t				target_id;
-	lun_id_t				target_lun;
-	struct scsi_static_inquiry_pattern	inq_pat;
-	dev_pattern_flags			flags;
+	path_id_t					path_id;
+	target_id_t					target_id;
+	lun_id_t					target_lun;
+	dev_pattern_flags				flags;
+	union {
+		struct scsi_static_inquiry_pattern	inq_pat;
+		struct device_id_match_pattern		devid_pat;
+	} data;	
 };
 
 typedef enum {
@@ -522,7 +539,7 @@ struct ccb_dev_match {
 /*
  * Definitions for the path inquiry CCB fields.
  */
-#define CAM_VERSION	0x15	/* Hex value for current version */
+#define CAM_VERSION	0x16	/* Hex value for current version */
 
 typedef enum {
 	PI_MDP_ABLE	= 0x80,	/* Supports MDP message */
@@ -737,6 +754,7 @@ struct ccb_relsim {
  * Definitions for the asynchronous callback CCB fields.
  */
 typedef enum {
+	AC_ADVINFO_CHANGED	= 0x2000,/* Advance info might have changes */
 	AC_CONTRACT		= 0x1000,/* A contractual callback */
 	AC_GETDEV_CHANGED	= 0x800,/* Getdev info might have changed */
 	AC_INQ_CHANGED		= 0x400,/* Inquiry info might have changed */
@@ -889,6 +907,7 @@ struct ccb_trans_settings_sata {
 #define	CTS_SATA_CAPS_H_PMREQ		0x00000001
 #define	CTS_SATA_CAPS_H_APST		0x00000002
 #define	CTS_SATA_CAPS_H_DMAAA		0x00000010 /* Auto-activation */
+#define	CTS_SATA_CAPS_H_AN		0x00000020 /* Async. notification */
 #define	CTS_SATA_CAPS_D			0xffff0000
 #define	CTS_SATA_CAPS_D_PMREQ		0x00010000
 #define	CTS_SATA_CAPS_D_APST		0x00020000
@@ -1085,19 +1104,20 @@ struct ccb_eng_exec {	/* This structure must match SCSIIO size */
 #define XPT_CCB_INVALID	-1	/* for signaling a bad CCB to free */
 
 /*
- * CCB for getting advanced device information.  This operates in a fashion
+ * CCB for working with advanced device information.  This operates in a fashion
  * similar to XPT_GDEV_TYPE.  Specify the target in ccb_h, the buffer
  * type requested, and provide a buffer size/buffer to write to.  If the
- * buffer is too small, the handler will set GDEVAI_FLAG_MORE.
+ * buffer is too small, provsiz will be larger than bufsiz.
  */
-struct ccb_getdev_advinfo {
+struct ccb_dev_advinfo {
 	struct ccb_hdr ccb_h;
 	uint32_t flags;
-#define	CGDAI_FLAG_TRANSPORT	0x1
-#define	CGDAI_FLAG_PROTO	0x2
+#define	CDAI_FLAG_STORE		0x1	/* If set, action becomes store */
 	uint32_t buftype;		/* IN: Type of data being requested */
 	/* NB: buftype is interpreted on a per-transport basis */
-#define	CGDAI_TYPE_SCSI_DEVID	1
+#define	CDAI_TYPE_SCSI_DEVID	1
+#define	CDAI_TYPE_SERIAL_NUM	2
+#define	CDAI_TYPE_PHYS_PATH	3
 	off_t bufsiz;			/* IN: Size of external buffer */
 #define	CAM_SCSI_DEVID_MAXLEN	65536	/* length in buffer is an uint16_t */
 	off_t provsiz;			/* OUT: Size required/used */
@@ -1142,7 +1162,7 @@ union ccb {
 	struct 	ccb_rescan		crcn;
 	struct  ccb_debug		cdbg;
 	struct	ccb_ataio		ataio;
-	struct	ccb_getdev_advinfo	cgdai;
+	struct	ccb_dev_advinfo		cdai;
 };
 
 __BEGIN_DECLS

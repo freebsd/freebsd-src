@@ -15,8 +15,8 @@
 #ifndef INSTRINFO_EMITTER_H
 #define INSTRINFO_EMITTER_H
 
-#include "TableGenBackend.h"
 #include "CodeGenDAGPatterns.h"
+#include "llvm/TableGen/TableGenBackend.h"
 #include <vector>
 #include <map>
 
@@ -39,12 +39,12 @@ public:
   void run(raw_ostream &OS);
 
 private:
-  typedef std::map<std::vector<std::string>, unsigned> OperandInfoMapTy;
-  
+  void emitEnums(raw_ostream &OS);
+
+  typedef std::map<std::vector<std::string>, unsigned> OperandInfoMapTy;  
   void emitRecord(const CodeGenInstruction &Inst, unsigned Num,
                   Record *InstrInfo, 
                   std::map<std::vector<Record*>, unsigned> &EL,
-                  std::map<Record*, unsigned> &BM,
                   const OperandInfoMapTy &OpInfo,
                   raw_ostream &OS);
 
@@ -55,10 +55,6 @@ private:
   // Operand information.
   void EmitOperandInfo(raw_ostream &OS, OperandInfoMapTy &OperandInfoIDs);
   std::vector<std::string> GetOperandInfo(const CodeGenInstruction &Inst);
-
-  void DetectRegisterClassBarriers(std::vector<Record*> &Defs,
-                                   const std::vector<CodeGenRegisterClass> &RCs,
-                                   std::vector<Record*> &Barriers);
 };
 
 } // End llvm namespace

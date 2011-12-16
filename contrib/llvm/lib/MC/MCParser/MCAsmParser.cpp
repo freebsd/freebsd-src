@@ -8,11 +8,13 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/MC/MCParser/MCAsmParser.h"
-#include "llvm/ADT/Twine.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
+#include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Support/SourceMgr.h"
-#include "llvm/Target/TargetAsmParser.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/ADT/Twine.h"
 using namespace llvm;
 
 MCAsmParser::MCAsmParser() : TargetParser(0), ShowParsedOperands(0) {
@@ -21,7 +23,7 @@ MCAsmParser::MCAsmParser() : TargetParser(0), ShowParsedOperands(0) {
 MCAsmParser::~MCAsmParser() {
 }
 
-void MCAsmParser::setTargetParser(TargetAsmParser &P) {
+void MCAsmParser::setTargetParser(MCTargetAsmParser &P) {
   assert(!TargetParser && "Target parser is already initialized!");
   TargetParser = &P;
   TargetParser->Initialize(*this);
@@ -41,4 +43,6 @@ bool MCAsmParser::ParseExpression(const MCExpr *&Res) {
   return ParseExpression(Res, L);
 }
 
-
+void MCParsedAsmOperand::dump() const {
+  dbgs() << "  " << *this;
+}

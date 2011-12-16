@@ -312,7 +312,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 }
 
 int
-sigreturn(struct thread *td, struct sigreturn_args *uap)
+sys_sigreturn(struct thread *td, struct sigreturn_args *uap)
 {
 	ucontext_t uc;
 	int error;
@@ -341,7 +341,7 @@ int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
 
-	return sigreturn(td, (struct sigreturn_args *)uap);
+	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
 
@@ -1015,6 +1015,9 @@ cpu_set_upcall_kse(struct thread *td, void (*entry)(void *), void *arg,
 		tf->srr0 = (register_t)entry;
 	    #ifdef AIM
 		tf->srr1 = PSL_MBO | PSL_USERSET | PSL_FE_DFLT;
+		#ifdef __powerpc64__
+		tf->srr1 &= ~PSL_SF;
+		#endif
 	    #else
 		tf->srr1 = PSL_USERSET;
 	    #endif

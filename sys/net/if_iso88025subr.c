@@ -680,6 +680,7 @@ iso88025_input(ifp, m)
 		break;
 	}
 
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return;
 
@@ -780,7 +781,7 @@ iso88025_resolvemulti (ifp, llsa, sa)
 	return (0);
 }
 
-MALLOC_DEFINE(M_ISO88025, "arpcom", "802.5 interface internals");
+static MALLOC_DEFINE(M_ISO88025, "arpcom", "802.5 interface internals");
 
 static void*
 iso88025_alloc(u_char type, struct ifnet *ifp)

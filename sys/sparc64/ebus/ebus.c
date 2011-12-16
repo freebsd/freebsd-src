@@ -1,6 +1,5 @@
 /*-
  * Copyright (c) 1999, 2000 Matthew R. Green
- * Copyright (c) 2001 Thomas Moestl <tmm@FreeBSD.org>
  * Copyright (c) 2009 by Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
@@ -27,7 +26,34 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: ebus.c,v 1.26 2001/09/10 16:27:53 eeh Exp
+ *	from: NetBSD: ebus.c,v 1.52 2008/05/29 14:51:26 mrg Exp
+ */
+/*-
+ * Copyright (c) 2001 Thomas Moestl <tmm@FreeBSD.org>
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ * 3. The name of the author may not be used to endorse or promote products
+ *    derived from this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
+ * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
+ * OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED.
+ * IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR ANY DIRECT, INDIRECT,
+ * INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING,
+ * BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES;
+ * LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED
+ * AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,
+ * OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  */
 
 #include <sys/cdefs.h>
@@ -110,6 +136,8 @@ static device_attach_t ebus_pci_attach;
 static bus_print_child_t ebus_print_child;
 static bus_probe_nomatch_t ebus_probe_nomatch;
 static bus_alloc_resource_t ebus_alloc_resource;
+static bus_activate_resource_t ebus_activate_resource;
+static bus_adjust_resource_t ebus_adjust_resource;
 static bus_release_resource_t ebus_release_resource;
 static bus_setup_intr_t ebus_setup_intr;
 static bus_get_resource_list_t ebus_get_resource_list;
@@ -135,8 +163,9 @@ static device_method_t ebus_nexus_methods[] = {
 	DEVMETHOD(bus_print_child,	ebus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	ebus_probe_nomatch),
 	DEVMETHOD(bus_alloc_resource,	ebus_alloc_resource),
-	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
+	DEVMETHOD(bus_activate_resource, ebus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	ebus_adjust_resource),
 	DEVMETHOD(bus_release_resource,	ebus_release_resource),
 	DEVMETHOD(bus_setup_intr,	ebus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -152,7 +181,7 @@ static device_method_t ebus_nexus_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t ebus_nexus_driver = {
@@ -199,7 +228,7 @@ static device_method_t ebus_pci_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t ebus_pci_driver = {
@@ -316,14 +345,8 @@ ebus_pci_attach(device_t dev)
 		eri->eri_res = res;
 		eri->eri_rman.rm_type = RMAN_ARRAY;
 		eri->eri_rman.rm_descr = "EBus range";
-		if (rman_init(&eri->eri_rman) != 0) {
+		if (rman_init_from_resource(&eri->eri_rman, res) != 0) {
 			printf("%s: failed to initialize rman!", __func__);
-			goto fail;
-		}
-		if (rman_manage_region(&eri->eri_rman, rman_get_start(res),
-		    rman_get_end(res)) != 0) {
-			printf("%s: failed to register region!", __func__);
-			rman_fini(&eri->eri_rman);
 			goto fail;
 		}
 	}
@@ -397,12 +420,10 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	struct resource_list *rl;
 	struct resource_list_entry *rle = NULL;
 	struct resource *res;
-	struct ebus_rinfo *ri;
+	struct ebus_rinfo *eri;
 	struct ebus_nexus_ranges *enr;
-	bus_space_tag_t bt;
-	bus_space_handle_t bh;
 	uint64_t cend, cstart, offset;
-	int i, isdefault, passthrough, ridx, rv;
+	int i, isdefault, passthrough, ridx;
 
 	isdefault = (start == 0UL && end == ~0UL);
 	passthrough = (device_get_parent(child) != bus);
@@ -433,23 +454,17 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 			 */
 			(void)ofw_isa_range_map(sc->sc_range, sc->sc_nrange,
 			    &start, &end, &ridx);
-			ri = &sc->sc_rinfo[ridx];
-			res = rman_reserve_resource(&ri->eri_rman, start, end,
-			    count, flags, child);
+			eri = &sc->sc_rinfo[ridx];
+			res = rman_reserve_resource(&eri->eri_rman, start,
+			    end, count, flags & ~RF_ACTIVE, child);
 			if (res == NULL)
 				return (NULL);
 			rman_set_rid(res, *rid);
-			bt = rman_get_bustag(ri->eri_res);
-			rman_set_bustag(res, bt);
-			rv = bus_space_subregion(bt,
-			    rman_get_bushandle(ri->eri_res),
-			    rman_get_start(res) - rman_get_start(ri->eri_res),
-			    count, &bh);
-			if (rv != 0) {
+			if ((flags & RF_ACTIVE) != 0 && bus_activate_resource(
+			    child, type, *rid, res) != 0) {
 				rman_release_resource(res);
 				return (NULL);
 			}
-			rman_set_bushandle(res, bh);
 		} else {
 			/* Map EBus ranges to nexus ranges. */
 			for (i = 0; i < sc->sc_nrange; i++) {
@@ -470,7 +485,6 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 					break;
 				}
 			}
-
 		}
 		if (!passthrough)
 			rle->res = res;
@@ -480,6 +494,48 @@ ebus_alloc_resource(device_t bus, device_t child, int type, int *rid,
 		    end, count, flags));
 	}
 	return (NULL);
+}
+
+static int
+ebus_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+	struct ebus_softc *sc;
+	struct ebus_rinfo *eri;
+	bus_space_tag_t bt;
+	bus_space_handle_t bh;
+	int i, rv;
+
+	sc = device_get_softc(bus);
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+		for (i = 0; i < sc->sc_nrange; i++) {
+			eri = &sc->sc_rinfo[i];
+			if (rman_is_region_manager(res, &eri->eri_rman) != 0) {
+				bt = rman_get_bustag(eri->eri_res);
+				rv = bus_space_subregion(bt,
+				    rman_get_bushandle(eri->eri_res),
+				    rman_get_start(res) -
+				    rman_get_start(eri->eri_res),
+				    rman_get_size(res), &bh);
+				if (rv != 0)
+					return (rv);
+				rman_set_bustag(res, bt);
+				rman_set_bushandle(res, bh);
+				return (rman_activate_resource(res));
+			}
+		}
+		return (EINVAL);
+	}
+	return (bus_generic_activate_resource(bus, child, type, rid, res));
+}
+
+static int
+ebus_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *res __unused, u_long start __unused,
+    u_long end __unused)
+{
+
+	return (ENXIO);
 }
 
 static int
@@ -493,13 +549,15 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 
 	passthrough = (device_get_parent(child) != bus);
 	rl = BUS_GET_RESOURCE_LIST(bus, child);
-	switch (type) {
-	case SYS_RES_MEMORY:
-		sc = device_get_softc(bus);
-		if ((sc->sc_flags & EBUS_PCI) == 0)
-			return (resource_list_release(rl, bus, child, type,
-			    rid, res));
-		if ((rv = rman_release_resource(res)) != 0)
+	sc = device_get_softc(bus);
+	if ((sc->sc_flags & EBUS_PCI) != 0 && type == SYS_RES_MEMORY) {
+		if ((rman_get_flags(res) & RF_ACTIVE) != 0 ){
+			rv = bus_deactivate_resource(child, type, rid, res);
+			if (rv != 0)
+				return (rv);
+		}
+		rv = rman_release_resource(res);
+		if (rv != 0)
 			return (rv);
 		if (!passthrough) {
 			rle = resource_list_find(rl, type, rid);
@@ -509,13 +567,9 @@ ebus_release_resource(device_t bus, device_t child, int type, int rid,
 			   ("%s: resource entry is not busy", __func__));
 			rle->res = NULL;
 		}
-		break;
-	case SYS_RES_IRQ:
-		return (resource_list_release(rl, bus, child, type, rid, res));
-	default:
-		panic("%s: unsupported resource type %d", __func__, type);
+		return (0);
 	}
-	return (0);
+	return (resource_list_release(rl, bus, child, type, rid, res));
 }
 
 static int

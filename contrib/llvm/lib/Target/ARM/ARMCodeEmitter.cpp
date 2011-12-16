@@ -14,12 +14,12 @@
 
 #define DEBUG_TYPE "jit"
 #include "ARM.h"
-#include "ARMAddressingModes.h"
 #include "ARMConstantPoolValue.h"
 #include "ARMInstrInfo.h"
 #include "ARMRelocations.h"
 #include "ARMSubtarget.h"
 #include "ARMTargetMachine.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
 #include "llvm/Function.h"
@@ -96,13 +96,13 @@ namespace {
     void addPCLabel(unsigned LabelID);
     void emitPseudoInstruction(const MachineInstr &MI);
     unsigned getMachineSoRegOpValue(const MachineInstr &MI,
-                                    const TargetInstrDesc &TID,
+                                    const MCInstrDesc &MCID,
                                     const MachineOperand &MO,
                                     unsigned OpIdx);
 
     unsigned getMachineSoImmOpValue(unsigned SoImm);
     unsigned getAddrModeSBit(const MachineInstr &MI,
-                             const TargetInstrDesc &TID) const;
+                             const MCInstrDesc &MCID) const;
 
     void emitDataProcessingInstruction(const MachineInstr &MI,
                                        unsigned ImplicitRd = 0,
@@ -161,11 +161,11 @@ namespace {
     //  are already handled elsewhere. They are placeholders to allow this
     //  encoder to continue to function until the MC encoder is sufficiently
     //  far along that this one can be eliminated entirely.
-    unsigned NEONThumb2DataIPostEncoder(const MachineInstr &MI, unsigned Val) 
+    unsigned NEONThumb2DataIPostEncoder(const MachineInstr &MI, unsigned Val)
       const { return 0; }
-    unsigned NEONThumb2LoadStorePostEncoder(const MachineInstr &MI,unsigned Val) 
+    unsigned NEONThumb2LoadStorePostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
-    unsigned NEONThumb2DupPostEncoder(const MachineInstr &MI,unsigned Val) 
+    unsigned NEONThumb2DupPostEncoder(const MachineInstr &MI,unsigned Val)
       const { return 0; }
     unsigned VFPThumb2PostEncoder(const MachineInstr&MI, unsigned Val)
       const { return 0; }
@@ -189,13 +189,17 @@ namespace {
       unsigned Op) const { return 0; }
     unsigned getARMBranchTargetOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
+    unsigned getARMBLXTargetOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
     unsigned getCCOutOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getSOImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getT2SOImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
-    unsigned getSORegOpValue(const MachineInstr &MI, unsigned Op)
+    unsigned getSORegRegOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getSORegImmOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getThumbAddrModeRegRegOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -203,7 +207,11 @@ namespace {
       const { return 0; }
     unsigned getT2AddrModeImm8OpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
+    unsigned getT2Imm8s4OpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
     unsigned getT2AddrModeImm8s4OpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getT2AddrModeImm0_1020s4OpValue(const MachineInstr &MI,unsigned Op)
       const { return 0; }
     unsigned getT2AddrModeImm8OffsetOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -213,13 +221,12 @@ namespace {
       const { return 0; }
     unsigned getT2SORegOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
-    unsigned getRotImmOpValue(const MachineInstr &MI, unsigned Op)
-      const { return 0; }
-    unsigned getImmMinusOneOpValue(const MachineInstr &MI, unsigned Op)
-      const { return 0; }
     unsigned getT2AdrLabelOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
     unsigned getAddrMode6AddressOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getAddrMode6OneLane32AddressOpValue(const MachineInstr &MI,
+                                                 unsigned Op)
       const { return 0; }
     unsigned getAddrMode6DupAddressOpValue(const MachineInstr &MI, unsigned Op)
       const { return 0; }
@@ -227,8 +234,8 @@ namespace {
       const { return 0; }
     unsigned getBitfieldInvertedMaskOpValue(const MachineInstr &MI,
                                             unsigned Op) const { return 0; }
-    unsigned getMsbOpValue(const MachineInstr &MI,
-                           unsigned Op) const { return 0; }
+    unsigned getSsatBitPosValue(const MachineInstr &MI,
+                                unsigned Op) const { return 0; }
     uint32_t getLdStmModeOpValue(const MachineInstr &MI, unsigned OpIdx)
       const {return 0; }
     uint32_t getLdStSORegOpValue(const MachineInstr &MI, unsigned OpIdx)
@@ -262,6 +269,8 @@ namespace {
     uint32_t getAddrMode2OpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
     uint32_t getAddrMode2OffsetOpValue(const MachineInstr &MI, unsigned OpIdx)
+      const { return 0;}
+    uint32_t getPostIdxRegOpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
     uint32_t getAddrMode3OffsetOpValue(const MachineInstr &MI, unsigned OpIdx)
       const { return 0;}
@@ -310,6 +319,15 @@ namespace {
       const { return 0; }
 
     unsigned getRegisterListOpValue(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+
+    unsigned getShiftRight8Imm(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getShiftRight16Imm(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getShiftRight32Imm(const MachineInstr &MI, unsigned Op)
+      const { return 0; }
+    unsigned getShiftRight64Imm(const MachineInstr &MI, unsigned Op)
       const { return 0; }
 
     /// getMovi32Value - Return binary encoding of operand for movw/movt. If the
@@ -429,9 +447,9 @@ unsigned ARMCodeEmitter::getMachineOpValue(const MachineInstr &MI,
   else if (MO.isSymbol())
     emitExternalSymbolAddress(MO.getSymbolName(), ARM::reloc_arm_branch);
   else if (MO.isCPI()) {
-    const TargetInstrDesc &TID = MI.getDesc();
+    const MCInstrDesc &MCID = MI.getDesc();
     // For VFP load, the immediate offset is multiplied by 4.
-    unsigned Reloc =  ((TID.TSFlags & ARMII::FormMask) == ARMII::VFPLdStFrm)
+    unsigned Reloc =  ((MCID.TSFlags & ARMII::FormMask) == ARMII::VFPLdStFrm)
       ? ARM::reloc_arm_vfp_cp_entry : ARM::reloc_arm_cp_entry;
     emitConstPoolAddress(MO.getIndex(), Reloc);
   } else if (MO.isJTI())
@@ -618,15 +636,16 @@ void ARMCodeEmitter::emitConstPoolInstruction(const MachineInstr &MI) {
           << (void*)MCE.getCurrentPCValue() << " " << *ACPV << '\n');
 
     assert(ACPV->isGlobalValue() && "unsupported constant pool value");
-    const GlobalValue *GV = ACPV->getGV();
+    const GlobalValue *GV = cast<ARMConstantPoolConstant>(ACPV)->getGV();
     if (GV) {
       Reloc::Model RelocM = TM.getRelocationModel();
       emitGlobalAddress(GV, ARM::reloc_arm_machine_cp_entry,
                         isa<Function>(GV),
                         Subtarget->GVIsIndirectSymbol(GV, RelocM),
                         (intptr_t)ACPV);
-     } else  {
-      emitExternalSymbolAddress(ACPV->getSymbol(), ARM::reloc_arm_absolute);
+    } else  {
+      const char *Sym = cast<ARMConstantPoolSymbol>(ACPV)->getSymbol();
+      emitExternalSymbolAddress(Sym, ARM::reloc_arm_absolute);
     }
     emitWordLE(0);
   } else {
@@ -743,7 +762,7 @@ void ARMCodeEmitter::emitMOVi2piecesInstruction(const MachineInstr &MI) {
 void ARMCodeEmitter::emitLEApcrelJTInstruction(const MachineInstr &MI) {
   // It's basically add r, pc, (LJTI - $+8)
 
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Emit the 'add' instruction.
   unsigned Binary = 0x4 << 21;  // add: Insts{24-21} = 0b0100
@@ -752,7 +771,7 @@ void ARMCodeEmitter::emitLEApcrelJTInstruction(const MachineInstr &MI) {
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
 
   // Encode S bit if MI modifies CPSR.
-  Binary |= getAddrModeSBit(MI, TID);
+  Binary |= getAddrModeSBit(MI, MCID);
 
   // Encode Rd.
   Binary |= getMachineOpValue(MI, 0) << ARMII::RegRdShift;
@@ -898,7 +917,7 @@ void ARMCodeEmitter::emitPseudoInstruction(const MachineInstr &MI) {
 }
 
 unsigned ARMCodeEmitter::getMachineSoRegOpValue(const MachineInstr &MI,
-                                                const TargetInstrDesc &TID,
+                                                const MCInstrDesc &MCID,
                                                 const MachineOperand &MO,
                                                 unsigned OpIdx) {
   unsigned Binary = getMachineOpValue(MI, MO);
@@ -968,8 +987,8 @@ unsigned ARMCodeEmitter::getMachineSoImmOpValue(unsigned SoImm) {
 }
 
 unsigned ARMCodeEmitter::getAddrModeSBit(const MachineInstr &MI,
-                                         const TargetInstrDesc &TID) const {
-  for (unsigned i = MI.getNumOperands(), e = TID.getNumOperands(); i != e; --i){
+                                         const MCInstrDesc &MCID) const {
+  for (unsigned i = MI.getNumOperands(), e = MCID.getNumOperands(); i >= e;--i){
     const MachineOperand &MO = MI.getOperand(i-1);
     if (MO.isReg() && MO.isDef() && MO.getReg() == ARM::CPSR)
       return 1 << ARMII::S_BitShift;
@@ -980,7 +999,7 @@ unsigned ARMCodeEmitter::getAddrModeSBit(const MachineInstr &MI,
 void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
                                                    unsigned ImplicitRd,
                                                    unsigned ImplicitRn) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -989,10 +1008,10 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
 
   // Encode S bit if MI modifies CPSR.
-  Binary |= getAddrModeSBit(MI, TID);
+  Binary |= getAddrModeSBit(MI, MCID);
 
   // Encode register def if there is one.
-  unsigned NumDefs = TID.getNumDefs();
+  unsigned NumDefs = MCID.getNumDefs();
   unsigned OpIdx = 0;
   if (NumDefs)
     Binary |= getMachineOpValue(MI, OpIdx++) << ARMII::RegRdShift;
@@ -1000,7 +1019,7 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
     // Special handling for implicit use (e.g. PC).
     Binary |= (getARMRegisterNumbering(ImplicitRd) << ARMII::RegRdShift);
 
-  if (TID.Opcode == ARM::MOVi16) {
+  if (MCID.Opcode == ARM::MOVi16) {
       // Get immediate from MI.
       unsigned Lo16 = getMovi32Value(MI, MI.getOperand(OpIdx),
                       ARM::reloc_arm_movw);
@@ -1009,14 +1028,14 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
       Binary |= ((Lo16 >> 12) & 0xF) << 16;
       emitWordLE(Binary);
       return;
-  } else if(TID.Opcode == ARM::MOVTi16) {
+  } else if(MCID.Opcode == ARM::MOVTi16) {
       unsigned Hi16 = (getMovi32Value(MI, MI.getOperand(OpIdx),
                        ARM::reloc_arm_movt) >> 16);
       Binary |= Hi16 & 0xFFF;
       Binary |= ((Hi16 >> 12) & 0xF) << 16;
       emitWordLE(Binary);
       return;
-  } else if ((TID.Opcode == ARM::BFC) || (TID.Opcode == ARM::BFI)) {
+  } else if ((MCID.Opcode == ARM::BFC) || (MCID.Opcode == ARM::BFI)) {
       uint32_t v = ~MI.getOperand(2).getImm();
       int32_t lsb = CountTrailingZeros_32(v);
       int32_t msb = (32 - CountLeadingZeros_32(v)) - 1;
@@ -1025,7 +1044,7 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
       Binary |= (lsb & 0x1F) << 7;
       emitWordLE(Binary);
       return;
-  } else if ((TID.Opcode == ARM::UBFX) || (TID.Opcode == ARM::SBFX)) {
+  } else if ((MCID.Opcode == ARM::UBFX) || (MCID.Opcode == ARM::SBFX)) {
       // Encode Rn in Instr{0-3}
       Binary |= getMachineOpValue(MI, OpIdx++);
 
@@ -1040,11 +1059,11 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
   }
 
   // If this is a two-address operand, skip it. e.g. MOVCCr operand 1.
-  if (TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
 
   // Encode first non-shifter register operand if there is one.
-  bool isUnary = TID.TSFlags & ARMII::UnaryDP;
+  bool isUnary = MCID.TSFlags & ARMII::UnaryDP;
   if (!isUnary) {
     if (ImplicitRn)
       // Special handling for implicit use (e.g. PC).
@@ -1057,9 +1076,9 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
 
   // Encode shifter operand.
   const MachineOperand &MO = MI.getOperand(OpIdx);
-  if ((TID.TSFlags & ARMII::FormMask) == ARMII::DPSoRegFrm) {
+  if ((MCID.TSFlags & ARMII::FormMask) == ARMII::DPSoRegFrm) {
     // Encode SoReg.
-    emitWordLE(Binary | getMachineSoRegOpValue(MI, TID, MO, OpIdx));
+    emitWordLE(Binary | getMachineSoRegOpValue(MI, MCID, MO, OpIdx));
     return;
   }
 
@@ -1078,9 +1097,9 @@ void ARMCodeEmitter::emitDataProcessingInstruction(const MachineInstr &MI,
 void ARMCodeEmitter::emitLoadStoreInstruction(const MachineInstr &MI,
                                               unsigned ImplicitRd,
                                               unsigned ImplicitRn) {
-  const TargetInstrDesc &TID = MI.getDesc();
-  unsigned Form = TID.TSFlags & ARMII::FormMask;
-  bool IsPrePost = (TID.TSFlags & ARMII::IndexModeMask) != 0;
+  const MCInstrDesc &MCID = MI.getDesc();
+  unsigned Form = MCID.TSFlags & ARMII::FormMask;
+  bool IsPrePost = (MCID.TSFlags & ARMII::IndexModeMask) != 0;
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1120,7 +1139,7 @@ void ARMCodeEmitter::emitLoadStoreInstruction(const MachineInstr &MI,
     Binary |= getMachineOpValue(MI, OpIdx++) << ARMII::RegRnShift;
 
   // If this is a two-address operand, skip it. e.g. LDR_PRE.
-  if (!Skipped && TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (!Skipped && MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
 
   const MachineOperand &MO2 = MI.getOperand(OpIdx);
@@ -1156,9 +1175,9 @@ void ARMCodeEmitter::emitLoadStoreInstruction(const MachineInstr &MI,
 
 void ARMCodeEmitter::emitMiscLoadStoreInstruction(const MachineInstr &MI,
                                                   unsigned ImplicitRn) {
-  const TargetInstrDesc &TID = MI.getDesc();
-  unsigned Form = TID.TSFlags & ARMII::FormMask;
-  bool IsPrePost = (TID.TSFlags & ARMII::IndexModeMask) != 0;
+  const MCInstrDesc &MCID = MI.getDesc();
+  unsigned Form = MCID.TSFlags & ARMII::FormMask;
+  bool IsPrePost = (MCID.TSFlags & ARMII::IndexModeMask) != 0;
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1180,7 +1199,7 @@ void ARMCodeEmitter::emitMiscLoadStoreInstruction(const MachineInstr &MI,
   Binary |= getMachineOpValue(MI, OpIdx++) << ARMII::RegRdShift;
 
   // Skip LDRD and STRD's second operand.
-  if (TID.Opcode == ARM::LDRD || TID.Opcode == ARM::STRD)
+  if (MCID.Opcode == ARM::LDRD || MCID.Opcode == ARM::STRD)
     ++OpIdx;
 
   // Set second operand
@@ -1191,7 +1210,7 @@ void ARMCodeEmitter::emitMiscLoadStoreInstruction(const MachineInstr &MI,
     Binary |= getMachineOpValue(MI, OpIdx++) << ARMII::RegRnShift;
 
   // If this is a two-address operand, skip it. e.g. LDRH_POST.
-  if (!Skipped && TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (!Skipped && MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
 
   const MachineOperand &MO2 = MI.getOperand(OpIdx);
@@ -1241,8 +1260,8 @@ static unsigned getAddrModeUPBits(unsigned Mode) {
 }
 
 void ARMCodeEmitter::emitLoadStoreMultipleInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
-  bool IsUpdating = (TID.TSFlags & ARMII::IndexModeMask) != 0;
+  const MCInstrDesc &MCID = MI.getDesc();
+  bool IsUpdating = (MCID.TSFlags & ARMII::IndexModeMask) != 0;
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1281,7 +1300,7 @@ void ARMCodeEmitter::emitLoadStoreMultipleInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitMulFrmInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1290,12 +1309,12 @@ void ARMCodeEmitter::emitMulFrmInstruction(const MachineInstr &MI) {
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
 
   // Encode S bit if MI modifies CPSR.
-  Binary |= getAddrModeSBit(MI, TID);
+  Binary |= getAddrModeSBit(MI, MCID);
 
   // 32x32->64bit operations have two destination registers. The number
   // of register definitions will tell us if that's what we're dealing with.
   unsigned OpIdx = 0;
-  if (TID.getNumDefs() == 2)
+  if (MCID.getNumDefs() == 2)
     Binary |= getMachineOpValue (MI, OpIdx++) << ARMII::RegRdLoShift;
 
   // Encode Rd
@@ -1309,16 +1328,16 @@ void ARMCodeEmitter::emitMulFrmInstruction(const MachineInstr &MI) {
 
   // Many multiple instructions (e.g. MLA) have three src operands. Encode
   // it as Rn (for multiply, that's in the same offset as RdLo.
-  if (TID.getNumOperands() > OpIdx &&
-      !TID.OpInfo[OpIdx].isPredicate() &&
-      !TID.OpInfo[OpIdx].isOptionalDef())
+  if (MCID.getNumOperands() > OpIdx &&
+      !MCID.OpInfo[OpIdx].isPredicate() &&
+      !MCID.OpInfo[OpIdx].isOptionalDef())
     Binary |= getMachineOpValue(MI, OpIdx) << ARMII::RegRdLoShift;
 
   emitWordLE(Binary);
 }
 
 void ARMCodeEmitter::emitExtendInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1347,15 +1366,15 @@ void ARMCodeEmitter::emitExtendInstruction(const MachineInstr &MI) {
 
   // Encode rot imm (0, 8, 16, or 24) if it has a rotate immediate operand.
   if (MI.getOperand(OpIdx).isImm() &&
-      !TID.OpInfo[OpIdx].isPredicate() &&
-      !TID.OpInfo[OpIdx].isOptionalDef())
+      !MCID.OpInfo[OpIdx].isPredicate() &&
+      !MCID.OpInfo[OpIdx].isOptionalDef())
     Binary |= (getMachineOpValue(MI, OpIdx) / 8) << ARMII::ExtRotImmShift;
 
   emitWordLE(Binary);
 }
 
 void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1363,15 +1382,21 @@ void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
   // Set the conditional execution predicate
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
 
+  // PKH instructions are finished at this point
+  if (MCID.Opcode == ARM::PKHBT || MCID.Opcode == ARM::PKHTB) {
+    emitWordLE(Binary);
+    return;
+  }
+
   unsigned OpIdx = 0;
 
   // Encode Rd
   Binary |= getMachineOpValue(MI, OpIdx++) << ARMII::RegRdShift;
 
   const MachineOperand &MO = MI.getOperand(OpIdx++);
-  if (OpIdx == TID.getNumOperands() ||
-      TID.OpInfo[OpIdx].isPredicate() ||
-      TID.OpInfo[OpIdx].isOptionalDef()) {
+  if (OpIdx == MCID.getNumOperands() ||
+      MCID.OpInfo[OpIdx].isPredicate() ||
+      MCID.OpInfo[OpIdx].isOptionalDef()) {
     // Encode Rm and it's done.
     Binary |= getMachineOpValue(MI, MO);
     emitWordLE(Binary);
@@ -1386,7 +1411,7 @@ void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
 
   // Encode shift_imm.
   unsigned ShiftAmt = MI.getOperand(OpIdx).getImm();
-  if (TID.Opcode == ARM::PKHTB) {
+  if (MCID.Opcode == ARM::PKHTB) {
     assert(ShiftAmt != 0 && "PKHTB shift_imm is 0!");
     if (ShiftAmt == 32)
       ShiftAmt = 0;
@@ -1398,7 +1423,7 @@ void ARMCodeEmitter::emitMiscArithInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitSaturateInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGen.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1411,11 +1436,11 @@ void ARMCodeEmitter::emitSaturateInstruction(const MachineInstr &MI) {
 
   // Encode saturate bit position.
   unsigned Pos = MI.getOperand(1).getImm();
-  if (TID.Opcode == ARM::SSAT || TID.Opcode == ARM::SSAT16)
+  if (MCID.Opcode == ARM::SSAT || MCID.Opcode == ARM::SSAT16)
     Pos -= 1;
   assert((Pos < 16 || (Pos < 32 &&
-                       TID.Opcode != ARM::SSAT16 &&
-                       TID.Opcode != ARM::USAT16)) &&
+                       MCID.Opcode != ARM::SSAT16 &&
+                       MCID.Opcode != ARM::USAT16)) &&
          "saturate bit position out of range");
   Binary |= Pos << 16;
 
@@ -1423,7 +1448,7 @@ void ARMCodeEmitter::emitSaturateInstruction(const MachineInstr &MI) {
   Binary |= getMachineOpValue(MI, 2);
 
   // Encode shift_imm.
-  if (TID.getNumOperands() == 4) {
+  if (MCID.getNumOperands() == 4) {
     unsigned ShiftOp = MI.getOperand(3).getImm();
     ARM_AM::ShiftOpc Opc = ARM_AM::getSORegShOp(ShiftOp);
     if (Opc == ARM_AM::asr)
@@ -1439,9 +1464,9 @@ void ARMCodeEmitter::emitSaturateInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitBranchInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
-  if (TID.Opcode == ARM::TPsoft) {
+  if (MCID.Opcode == ARM::TPsoft) {
     llvm_unreachable("ARM::TPsoft FIXME"); // FIXME
   }
 
@@ -1478,20 +1503,20 @@ void ARMCodeEmitter::emitInlineJumpTable(unsigned JTIndex) {
 }
 
 void ARMCodeEmitter::emitMiscBranchInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Handle jump tables.
-  if (TID.Opcode == ARM::BR_JTr || TID.Opcode == ARM::BR_JTadd) {
+  if (MCID.Opcode == ARM::BR_JTr || MCID.Opcode == ARM::BR_JTadd) {
     // First emit a ldr pc, [] instruction.
     emitDataProcessingInstruction(MI, ARM::PC);
 
     // Then emit the inline jump table.
     unsigned JTIndex =
-      (TID.Opcode == ARM::BR_JTr)
+      (MCID.Opcode == ARM::BR_JTr)
       ? MI.getOperand(1).getIndex() : MI.getOperand(2).getIndex();
     emitInlineJumpTable(JTIndex);
     return;
-  } else if (TID.Opcode == ARM::BR_JTm) {
+  } else if (MCID.Opcode == ARM::BR_JTm) {
     // First emit a ldr pc, [] instruction.
     emitLoadStoreInstruction(MI, ARM::PC);
 
@@ -1506,7 +1531,7 @@ void ARMCodeEmitter::emitMiscBranchInstruction(const MachineInstr &MI) {
   // Set the conditional execution predicate
   Binary |= II->getPredicate(&MI) << ARMII::CondShift;
 
-  if (TID.Opcode == ARM::BX_RET || TID.Opcode == ARM::MOVPCLR)
+  if (MCID.Opcode == ARM::BX_RET || MCID.Opcode == ARM::MOVPCLR)
     // The return register is LR.
     Binary |= getARMRegisterNumbering(ARM::LR);
   else
@@ -1559,7 +1584,7 @@ static unsigned encodeVFPRm(const MachineInstr &MI, unsigned OpIdx) {
 }
 
 void ARMCodeEmitter::emitVFPArithInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1576,16 +1601,16 @@ void ARMCodeEmitter::emitVFPArithInstruction(const MachineInstr &MI) {
   Binary |= encodeVFPRd(MI, OpIdx++);
 
   // If this is a two-address operand, skip it, e.g. FMACD.
-  if (TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
 
   // Encode Dn / Sn.
-  if ((TID.TSFlags & ARMII::FormMask) == ARMII::VFPBinaryFrm)
+  if ((MCID.TSFlags & ARMII::FormMask) == ARMII::VFPBinaryFrm)
     Binary |= encodeVFPRn(MI, OpIdx++);
 
-  if (OpIdx == TID.getNumOperands() ||
-      TID.OpInfo[OpIdx].isPredicate() ||
-      TID.OpInfo[OpIdx].isOptionalDef()) {
+  if (OpIdx == MCID.getNumOperands() ||
+      MCID.OpInfo[OpIdx].isPredicate() ||
+      MCID.OpInfo[OpIdx].isOptionalDef()) {
     // FCMPEZD etc. has only one operand.
     emitWordLE(Binary);
     return;
@@ -1598,8 +1623,8 @@ void ARMCodeEmitter::emitVFPArithInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitVFPConversionInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
-  unsigned Form = TID.TSFlags & ARMII::FormMask;
+  const MCInstrDesc &MCID = MI.getDesc();
+  unsigned Form = MCID.TSFlags & ARMII::FormMask;
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1689,8 +1714,8 @@ void ARMCodeEmitter::emitVFPLoadStoreInstruction(const MachineInstr &MI) {
 
 void
 ARMCodeEmitter::emitVFPLoadStoreMultipleInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
-  bool IsUpdating = (TID.TSFlags & ARMII::IndexModeMask) != 0;
+  const MCInstrDesc &MCID = MI.getDesc();
+  bool IsUpdating = (MCID.TSFlags & ARMII::IndexModeMask) != 0;
 
   // Part of binary is determined by TableGn.
   unsigned Binary = getBinaryCodeForInstr(MI);
@@ -1775,8 +1800,8 @@ void ARMCodeEmitter::emitNEONLaneInstruction(const MachineInstr &MI) {
   unsigned Binary = getBinaryCodeForInstr(MI);
 
   unsigned RegTOpIdx, RegNOpIdx, LnOpIdx;
-  const TargetInstrDesc &TID = MI.getDesc();
-  if ((TID.TSFlags & ARMII::FormMask) == ARMII::NGetLnFrm) {
+  const MCInstrDesc &MCID = MI.getDesc();
+  if ((MCID.TSFlags & ARMII::FormMask) == ARMII::NGetLnFrm) {
     RegTOpIdx = 0;
     RegNOpIdx = 1;
     LnOpIdx = 2;
@@ -1843,12 +1868,12 @@ void ARMCodeEmitter::emitNEON1RegModImmInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitNEON2RegInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
   unsigned Binary = getBinaryCodeForInstr(MI);
   // Destination register is encoded in Dd; source register in Dm.
   unsigned OpIdx = 0;
   Binary |= encodeNEONRd(MI, OpIdx++);
-  if (TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
   Binary |= encodeNEONRm(MI, OpIdx);
   if (IsThumb)
@@ -1858,15 +1883,15 @@ void ARMCodeEmitter::emitNEON2RegInstruction(const MachineInstr &MI) {
 }
 
 void ARMCodeEmitter::emitNEON3RegInstruction(const MachineInstr &MI) {
-  const TargetInstrDesc &TID = MI.getDesc();
+  const MCInstrDesc &MCID = MI.getDesc();
   unsigned Binary = getBinaryCodeForInstr(MI);
   // Destination register is encoded in Dd; source registers in Dn and Dm.
   unsigned OpIdx = 0;
   Binary |= encodeNEONRd(MI, OpIdx++);
-  if (TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
   Binary |= encodeNEONRn(MI, OpIdx++);
-  if (TID.getOperandConstraint(OpIdx, TOI::TIED_TO) != -1)
+  if (MCID.getOperandConstraint(OpIdx, MCOI::TIED_TO) != -1)
     ++OpIdx;
   Binary |= encodeNEONRm(MI, OpIdx);
   if (IsThumb)

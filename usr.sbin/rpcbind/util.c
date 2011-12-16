@@ -283,7 +283,7 @@ freeit:
 }
 
 void
-network_init()
+network_init(void)
 {
 #ifdef INET6
 	struct ifaddrs *ifap, *ifp;

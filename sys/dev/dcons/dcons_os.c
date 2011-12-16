@@ -64,7 +64,6 @@
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
 
-#include "opt_comconsole.h"
 #include "opt_dcons.h"
 #include "opt_kdb.h"
 #include "opt_gdb.h"
@@ -94,7 +93,7 @@ static int poll_hz = DCONS_POLL_HZ;
 
 static struct dcons_softc sc[DCONS_NPORT];
 
-SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
+static SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
 SYSCTL_INT(_kern_dcons, OID_AUTO, poll_hz, CTLFLAG_RW, &poll_hz, 0,
 				"dcons polling rate");
 
@@ -133,38 +132,21 @@ static struct ttydevsw dcons_ttydevsw = {
 	.tsw_outwakeup  = dcons_outwakeup,
 };
 
-#if (defined(GDB) || defined(DDB)) && defined(ALT_BREAK_TO_DEBUGGER)
+#if (defined(GDB) || defined(DDB))
 static int
 dcons_check_break(struct dcons_softc *dc, int c)
 {
-	int kdb_brk;
 
 	if (c < 0)
 		return (c);
 
-	if ((kdb_brk = kdb_alt_break(c, &dc->brk_state)) != 0) {
-		switch (kdb_brk) {
-		case KDB_REQ_DEBUGGER:
-			if ((dc->flags & DC_GDB) != 0) {
 #ifdef GDB
-				if (gdb_cur == &dcons_gdb_dbgport) {
-					kdb_dbbe_select("gdb");
-					kdb_enter(KDB_WHY_BREAK,
-					    "Break sequence on dcons gdb port");
-				}
+	if ((dc->flags & DC_GDB) != 0 && gdb_cur == &dcons_gdb_dbgport)
+		kdb_alt_break_gdb(c, &dc->brk_state);
+	else
 #endif
-			} else
-				kdb_enter(KDB_WHY_BREAK,
-				    "Break sequence on dcons console port");
-			break;
-		case KDB_REQ_PANIC:
-			kdb_panic("Panic sequence on dcons console port");
-			break;
-		case KDB_REQ_REBOOT:
-			kdb_reboot();
-			break;
-		}
-	}
+		kdb_alt_break(c, &dc->brk_state);
+
 	return (c);
 }
 #else

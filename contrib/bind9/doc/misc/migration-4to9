@@ -2,7 +2,7 @@ Copyright (C) 2004  Internet Systems Consortium, Inc. ("ISC")
 Copyright (C) 2001  Internet Software Consortium.
 See COPYRIGHT in the source root or http://isc.org/copyright.html for terms.
 
-$Id: migration-4to9,v 1.4 2004/03/05 05:04:53 marka Exp $
+$Id: migration-4to9,v 1.4 2004-03-05 05:04:53 marka Exp $
 
 		   BIND 4 to BIND 9 Migration Notes
 

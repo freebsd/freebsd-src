@@ -161,20 +161,20 @@ static const struct morsetab iso8859_1tab[] = {
 
 static const struct morsetab iso8859_7tab[] = {
 	/*
-	 * The greek alphabet; you'll need an 8859-7 font in order
+	 * The Greek alphabet; you'll need an ISO8859-7 font in order
 	 * to see the actual characters.
 	 * This table does not implement:
 	 * - the special sequences for the seven diphthongs,
 	 * - the punctuation differences.
 	 * Implementing these features would introduce too many
 	 * special-cases in the program's main loop.
-	 * The diphtong sequences are:
+	 * The diphthong sequences are:
 	 * alpha iota		.-.-
 	 * alpha upsilon	..--
 	 * epsilon upsilon	---.
 	 * eta upsilon		...-
-	 * omikron iota		---..
-	 * omikron upsilon	..-
+	 * omicron iota		---..
+	 * omicron upsilon	..-
 	 * upsilon iota		.---
 	 * The different punctuation symbols are:
 	 * ;	..-.-
@@ -193,10 +193,10 @@ static const struct morsetab iso8859_7tab[] = {
 	{'è', "-.-."},	/* theta */
 	{'é', ".."},	/* iota */
 	{'ß', ".."},	/* iota with acute */
-	{'ú', ".."},	/* iota with diairesis */
-	{'À', ".."},	/* iota with acute and diairesis */
+	{'ú', ".."},	/* iota with diaeresis */
+	{'À', ".."},	/* iota with acute and diaeresis */
 	{'ê', "-.-"},	/* kappa */
-	{'ë', ".-.."},	/* lamda */
+	{'ë', ".-.."},	/* lambda */
 	{'ì', "--"},	/* mu */
 	{'í', "-."},	/* nu */
 	{'î', "-..-"},	/* xi */
@@ -209,8 +209,8 @@ static const struct morsetab iso8859_7tab[] = {
 	{'ô', "-"},	/* tau */
 	{'õ', "-.--"},	/* upsilon */
 	{'ý', "-.--"},	/* upsilon with acute */
-	{'û', "-.--"},	/* upsilon and diairesis */
-	{'à', "-.--"},	/* upsilon with acute and diairesis */
+	{'û', "-.--"},	/* upsilon and diaeresis */
+	{'à', "-.--"},	/* upsilon with acute and diaeresis */
 	{'ö', "..-."},	/* phi */
 	{'÷', "----"},	/* chi */
 	{'ø', "--.-"},	/* psi */
@@ -222,29 +222,29 @@ static const struct morsetab iso8859_7tab[] = {
 
 static const struct morsetab koi8rtab[] = {
 	/*
-	 * the cyrillic alphabet; you'll need a KOI8R font in order
+	 * The Cyrillic alphabet; you'll need a KOI8-R font in order
 	 * to see the actual characters
 	 */
-	{'Á', ".-"},		/* a */
+	{'Á', ".-"},	/* a */
 	{'Â', "-..."},	/* be */
 	{'×', ".--"},	/* ve */
 	{'Ç', "--."},	/* ge */
 	{'Ä', "-.."},	/* de */
-	{'Å', "."},		/* ye */
-	{'£', "."},         	/* yo, the same as ye */
+	{'Å', "."},	/* ye */
+	{'£', "."},	/* yo, the same as ye */
 	{'Ö', "...-"},	/* she */
 	{'Ú', "--.."},	/* ze */
-	{'É', ".."},		/* i */
+	{'É', ".."},	/* i */
 	{'Ê', ".---"},	/* i kratkoye */
 	{'Ë', "-.-"},	/* ka */
 	{'Ì', ".-.."},	/* el */
-	{'Í', "--"},		/* em */
-	{'Î', "-."},		/* en */
+	{'Í', "--"},	/* em */
+	{'Î', "-."},	/* en */
 	{'Ï', "---"},	/* o */
 	{'Ð', ".--."},	/* pe */
 	{'Ò', ".-."},	/* er */
 	{'Ó', "..."},	/* es */
-	{'Ô', "-"},		/* te */
+	{'Ô', "-"},	/* te */
 	{'Õ', "..-"},	/* u */
 	{'Æ', "..-."},	/* ef */
 	{'È', "...."},	/* kha */
@@ -261,33 +261,33 @@ static const struct morsetab koi8rtab[] = {
 	{'\0', ""}
 };
 
-void            show(const char *), play(const char *), morse(char);
-void		ttyout(const char *);
-void		sighandler(int);
+static void	show(const char *), play(const char *), morse(char);
+static void	ttyout(const char *);
+static void	sighandler(int);
 
 #define GETOPTOPTS "c:d:ef:lsw:"
 #define USAGE \
 "usage: morse [-els] [-d device] [-w speed] [-c speed] [-f frequency] [string ...]\n"
 
-static int      pflag, lflag, sflag, eflag;
-static int      wpm = 20;	/* effective words per minute */
-static int      cpm;		/* effective words per minute between
+static int	pflag, lflag, sflag, eflag;
+static int	wpm = 20;	/* effective words per minute */
+static int	cpm;		/* effective words per minute between
 				 * characters */
 #define FREQUENCY 600
-static int      freq = FREQUENCY;
+static int	freq = FREQUENCY;
 static char	*device;	/* for tty-controlled generator */
 
 #define DASH_LEN 3
 #define CHAR_SPACE 3
 #define WORD_SPACE (7 - CHAR_SPACE - 1)
-static float    dot_clock;
-static float    cdot_clock;
-int             spkr, line;
-struct termios	otty, ntty;
-int		olflags;
+static float	dot_clock;
+static float	cdot_clock;
+static int	spkr, line;
+static struct termios otty, ntty;
+static int	olflags;
 
 #ifdef SPEAKER
-tone_t          sound;
+static tone_t	sound;
 #undef GETOPTOPTS
 #define GETOPTOPTS "c:d:ef:lpsw:"
 #undef USAGE
@@ -305,9 +305,9 @@ main(int argc, char **argv)
 
 	while ((ch = getopt(argc, argv, GETOPTOPTS)) != -1)
 		switch ((char) ch) {
- 		case 'c':
- 			cpm = atoi(optarg);
- 			break;
+		case 'c':
+			cpm = atoi(optarg);
+			break;
 		case 'd':
 			device = optarg;
 			break;
@@ -439,7 +439,7 @@ main(int argc, char **argv)
 	exit(0);
 }
 
-void
+static void
 morse(char c)
 {
 	const struct morsetab *m;
@@ -473,7 +473,7 @@ morse(char c)
 	}
 }
 
-void
+static void
 show(const char *s)
 {
 	if (lflag) {
@@ -488,7 +488,7 @@ show(const char *s)
 	}
 }
 
-void
+static void
 play(const char *s)
 {
 #ifdef SPEAKER
@@ -530,7 +530,7 @@ play(const char *s)
 #endif
 }
 
-void
+static void
 ttyout(const char *s)
 {
 	const char *c;
@@ -572,7 +572,7 @@ ttyout(const char *s)
 	usleep(duration);
 }
 
-void
+static void
 sighandler(int signo)
 {
 

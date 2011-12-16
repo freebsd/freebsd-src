@@ -81,55 +81,55 @@ ibcs2_socksys(td, uap)
 	passargs = (void *)(realargs + 1);
 	switch (realargs[0]) {
 	case SOCKSYS_ACCEPT:
-		return accept(td, passargs);
+		return sys_accept(td, passargs);
 	case SOCKSYS_BIND:
-		return bind(td, passargs);
+		return sys_bind(td, passargs);
 	case SOCKSYS_CONNECT:
-		return connect(td, passargs);
+		return sys_connect(td, passargs);
 	case SOCKSYS_GETPEERNAME:
-		return getpeername(td, passargs);
+		return sys_getpeername(td, passargs);
 	case SOCKSYS_GETSOCKNAME:
-		return getsockname(td, passargs);
+		return sys_getsockname(td, passargs);
 	case SOCKSYS_GETSOCKOPT:
-		return getsockopt(td, passargs);
+		return sys_getsockopt(td, passargs);
 	case SOCKSYS_LISTEN:
-		return listen(td, passargs);
+		return sys_listen(td, passargs);
 	case SOCKSYS_RECV:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_RECVFROM:
-		return recvfrom(td, passargs);
+		return sys_recvfrom(td, passargs);
 	case SOCKSYS_SEND:
 		realargs[5] = realargs[6] = 0;
 		/* FALLTHROUGH */
 	case SOCKSYS_SENDTO:
-		return sendto(td, passargs);
+		return sys_sendto(td, passargs);
 	case SOCKSYS_SETSOCKOPT:
-		return setsockopt(td, passargs);
+		return sys_setsockopt(td, passargs);
 	case SOCKSYS_SHUTDOWN:
-		return shutdown(td, passargs);
+		return sys_shutdown(td, passargs);
 	case SOCKSYS_SOCKET:
-		return socket(td, passargs);
+		return sys_socket(td, passargs);
 	case SOCKSYS_SELECT:
-		return select(td, passargs);
+		return sys_select(td, passargs);
 	case SOCKSYS_GETIPDOMAIN:
 		return ibcs2_getipdomainname(td, passargs);
 	case SOCKSYS_SETIPDOMAIN:
 		return ibcs2_setipdomainname(td, passargs);
 	case SOCKSYS_ADJTIME:
-		return adjtime(td, passargs);
+		return sys_adjtime(td, passargs);
 	case SOCKSYS_SETREUID:
-		return setreuid(td, passargs);
+		return sys_setreuid(td, passargs);
 	case SOCKSYS_SETREGID:
-		return setregid(td, passargs);
+		return sys_setregid(td, passargs);
 	case SOCKSYS_GETTIME:
-		return gettimeofday(td, passargs);
+		return sys_gettimeofday(td, passargs);
 	case SOCKSYS_SETTIME:
-		return settimeofday(td, passargs);
+		return sys_settimeofday(td, passargs);
 	case SOCKSYS_GETITIMER:
-		return getitimer(td, passargs);
+		return sys_getitimer(td, passargs);
 	case SOCKSYS_SETITIMER:
-		return setitimer(td, passargs);
+		return sys_setitimer(td, passargs);
 
 	default:
 		printf("socksys unknown %08x %08x %08x %08x %08x %08x %08x\n",

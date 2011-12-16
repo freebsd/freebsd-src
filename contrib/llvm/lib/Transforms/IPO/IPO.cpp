@@ -13,6 +13,7 @@
 //
 //===----------------------------------------------------------------------===//
 
+#include "llvm-c/Initialization.h"
 #include "llvm-c/Transforms/IPO.h"
 #include "llvm/InitializePasses.h"
 #include "llvm/PassManager.h"
@@ -25,7 +26,6 @@ void llvm::initializeIPO(PassRegistry &Registry) {
   initializeConstantMergePass(Registry);
   initializeDAEPass(Registry);
   initializeDAHPass(Registry);
-  initializeDTEPass(Registry);
   initializeFunctionAttrsPass(Registry);
   initializeGlobalDCEPass(Registry);
   initializeGlobalOptPass(Registry);
@@ -36,7 +36,6 @@ void llvm::initializeIPO(PassRegistry &Registry) {
   initializeLoopExtractorPass(Registry);
   initializeBlockExtractorPassPass(Registry);
   initializeSingleLoopExtractorPass(Registry);
-  initializeLowerSetJmpPass(Registry);
   initializeMergeFunctionsPass(Registry);
   initializePartialInlinerPass(Registry);
   initializePruneEHPass(Registry);
@@ -45,7 +44,6 @@ void llvm::initializeIPO(PassRegistry &Registry) {
   initializeStripDebugDeclarePass(Registry);
   initializeStripDeadDebugInfoPass(Registry);
   initializeStripNonDebugSymbolsPass(Registry);
-  initializeSRETPromotionPass(Registry);
 }
 
 void LLVMInitializeIPO(LLVMPassRegistryRef R) {
@@ -64,16 +62,16 @@ void LLVMAddDeadArgEliminationPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createDeadArgEliminationPass());
 }
 
-void LLVMAddDeadTypeEliminationPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createDeadTypeEliminationPass());
-}
-
 void LLVMAddFunctionAttrsPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createFunctionAttrsPass());
 }
 
 void LLVMAddFunctionInliningPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createFunctionInliningPass());
+}
+
+void LLVMAddAlwaysInlinerPass(LLVMPassManagerRef PM) {
+  unwrap(PM)->add(llvm::createAlwaysInlinerPass());
 }
 
 void LLVMAddGlobalDCEPass(LLVMPassManagerRef PM) {
@@ -88,10 +86,6 @@ void LLVMAddIPConstantPropagationPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createIPConstantPropagationPass());
 }
 
-void LLVMAddLowerSetJmpPass(LLVMPassManagerRef PM) {
-  unwrap(PM)->add(createLowerSetJmpPass());
-}
-
 void LLVMAddPruneEHPass(LLVMPassManagerRef PM) {
   unwrap(PM)->add(createPruneEHPass());
 }
@@ -102,11 +96,6 @@ void LLVMAddIPSCCPPass(LLVMPassManagerRef PM) {
 
 void LLVMAddInternalizePass(LLVMPassManagerRef PM, unsigned AllButMain) {
   unwrap(PM)->add(createInternalizePass(AllButMain != 0));
-}
-
-
-void LLVMAddRaiseAllocationsPass(LLVMPassManagerRef PM) {
-  // FIXME: Remove in LLVM 3.0.
 }
 
 void LLVMAddStripDeadPrototypesPass(LLVMPassManagerRef PM) {

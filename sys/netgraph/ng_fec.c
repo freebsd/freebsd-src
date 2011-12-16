@@ -1197,9 +1197,7 @@ ng_fec_constructor(node_p node)
 	int error = 0;
 
 	/* Allocate node and interface private structures */
-	priv = malloc(sizeof(*priv), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	ifp = priv->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -1334,7 +1332,7 @@ ng_fec_shutdown(node_p node)
 	}
 
 	ether_ifdetach(priv->ifp);
-	if_free_type(priv->ifp, IFT_ETHER);
+	if_free(priv->ifp);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	free(priv, M_NETGRAPH);

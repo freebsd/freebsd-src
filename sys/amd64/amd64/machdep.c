@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_isa.h"
 #include "opt_kstack_pages.h"
 #include "opt_maxmem.h"
+#include "opt_mp_watchdog.h"
 #include "opt_perfmon.h"
 #include "opt_sched.h"
 #include "opt_kdtrace.h"
@@ -116,6 +117,7 @@ __FBSDID("$FreeBSD$");
 #include <x86/mca.h>
 #include <machine/md_var.h>
 #include <machine/metadata.h>
+#include <machine/mp_watchdog.h>
 #include <machine/pc/bios.h>
 #include <machine/pcb.h>
 #include <machine/proc.h>
@@ -156,6 +158,11 @@ static void get_fpcontext(struct thread *td, mcontext_t *mcp);
 static int  set_fpcontext(struct thread *td, const mcontext_t *mcp);
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
 
+/*
+ * The file "conf/ldscript.amd64" defines the symbol "kernphys".  Its value is
+ * the physical address at which the kernel is loaded.
+ */
+extern char kernphys[];
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
 #endif
@@ -414,7 +421,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
  * MPSAFE
  */
 int
-sigreturn(td, uap)
+sys_sigreturn(td, uap)
 	struct thread *td;
 	struct sigreturn_args /* {
 		const struct __ucontext *sigcntxp;
@@ -510,7 +517,7 @@ int
 freebsd4_sigreturn(struct thread *td, struct freebsd4_sigreturn_args *uap)
 {
  
-	return sigreturn(td, (struct sigreturn_args *)uap);
+	return sys_sigreturn(td, (struct sigreturn_args *)uap);
 }
 #endif
 
@@ -540,21 +547,19 @@ cpu_flush_dcache(void *ptr, size_t len)
 int
 cpu_est_clockrate(int cpu_id, uint64_t *rate)
 {
-	register_t reg;
 	uint64_t tsc1, tsc2;
+	uint64_t acnt, mcnt, perf;
+	register_t reg;
 
 	if (pcpu_find(cpu_id) == NULL || rate == NULL)
 		return (EINVAL);
 
-	/* If TSC is P-state invariant, DELAY(9) based logic fails. */
-	if (tsc_is_invariant && tsc_freq != 0)
+	/*
+	 * If TSC is P-state invariant and APERF/MPERF MSRs do not exist,
+	 * DELAY(9) based logic fails.
+	 */
+	if (tsc_is_invariant && !tsc_perf_stat)
 		return (EOPNOTSUPP);
-
-	/* If we're booting, trust the rate calibrated moments ago. */
-	if (cold && tsc_freq != 0) {
-		*rate = tsc_freq;
-		return (0);
-	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -567,10 +572,24 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 
 	/* Calibrate by measuring a short delay. */
 	reg = intr_disable();
-	tsc1 = rdtsc();
-	DELAY(1000);
-	tsc2 = rdtsc();
-	intr_restore(reg);
+	if (tsc_is_invariant) {
+		wrmsr(MSR_MPERF, 0);
+		wrmsr(MSR_APERF, 0);
+		tsc1 = rdtsc();
+		DELAY(1000);
+		mcnt = rdmsr(MSR_MPERF);
+		acnt = rdmsr(MSR_APERF);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		perf = 1000 * acnt / mcnt;
+		*rate = (tsc2 - tsc1) * perf;
+	} else {
+		tsc1 = rdtsc();
+		DELAY(1000);
+		tsc2 = rdtsc();
+		intr_restore(reg);
+		*rate = (tsc2 - tsc1) * 1000;
+	}
 
 #ifdef SMP
 	if (smp_cpus > 1) {
@@ -580,17 +599,6 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 	}
 #endif
 
-	tsc2 -= tsc1;
-	if (tsc_freq != 0) {
-		*rate = tsc2 * 1000;
-		return (0);
-	}
-
-	/*
-	 * Subtract 0.5% of the total.  Empirical testing has shown that
-	 * overhead in DELAY() works out to approximately this value.
-	 */
-	*rate = tsc2 * 1000 - tsc2 * 5;
 	return (0);
 }
 
@@ -601,7 +609,7 @@ void
 cpu_halt(void)
 {
 	for (;;)
-		__asm__ ("hlt");
+		halt();
 }
 
 void (*cpu_idle_hook)(void) = NULL;	/* ACPI idle hook. */
@@ -622,6 +630,8 @@ cpu_idle_acpi(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
+
+	/* See comments in cpu_idle_hlt(). */
 	disable_intr();
 	if (sched_runnable())
 		enable_intr();
@@ -639,9 +649,22 @@ cpu_idle_hlt(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
+
 	/*
-	 * We must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
+	 * Since we may be in a critical section from cpu_idle(), if
+	 * an interrupt fires during that critical section we may have
+	 * a pending preemption.  If the CPU halts, then that thread
+	 * may not execute until a later interrupt awakens the CPU.
+	 * To handle this race, check for a runnable thread after
+	 * disabling interrupts and immediately return if one is
+	 * found.  Also, we must absolutely guarentee that hlt is
+	 * the next instruction after sti.  This ensures that any
+	 * interrupt that fires after the call to disable_intr() will
+	 * immediately awaken the CPU from hlt.  Finally, please note
+	 * that on x86 this works fine because of interrupts enabled only
+	 * after the instruction following sti takes place, while IF is set
+	 * to 1 immediately, allowing hlt instruction to acknowledge the
+	 * interrupt.
 	 */
 	disable_intr();
 	if (sched_runnable())
@@ -667,11 +690,19 @@ cpu_idle_mwait(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_MWAIT;
-	if (!sched_runnable()) {
-		cpu_monitor(state, 0, 0);
-		if (*state == STATE_MWAIT)
-			cpu_mwait(0, MWAIT_C1);
+
+	/* See comments in cpu_idle_hlt(). */
+	disable_intr();
+	if (sched_runnable()) {
+		enable_intr();
+		*state = STATE_RUNNING;
+		return;
 	}
+	cpu_monitor(state, 0, 0);
+	if (*state == STATE_MWAIT)
+		__asm __volatile("sti; mwait" : : "a" (MWAIT_C1), "c" (0));
+	else
+		enable_intr();
 	*state = STATE_RUNNING;
 }
 
@@ -683,6 +714,12 @@ cpu_idle_spin(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_RUNNING;
+
+	/*
+	 * The sched_runnable() call is racy but as long as there is
+	 * a loop missing it one time will have just a little impact if any
+	 * (and it is much better than missing the check at all).
+	 */
 	for (i = 0; i < 1000; i++) {
 		if (sched_runnable())
 			return;
@@ -728,9 +765,8 @@ cpu_idle(int busy)
 
 	CTR2(KTR_SPARE2, "cpu_idle(%d) at %d",
 	    busy, curcpu);
-#ifdef SMP
-	if (mp_grab_cpu_hlt())
-		return;
+#ifdef MP_WATCHDOG
+	ap_watchdog(PCPU_GET(cpuid));
 #endif
 	/* If we are busy - try to use fast methods. */
 	if (busy) {
@@ -1292,9 +1328,6 @@ add_smap_entry(struct bios_smap *smap, vm_paddr_t *physmap, int *physmap_idxp)
  * available physical memory in the system, then test this memory and
  * build the phys_avail array describing the actually-available memory.
  *
- * If we cannot accurately determine the physical memory map, then use
- * value from the 0xE801 call, and failing that, the RTC.
- *
  * Total memory size may be set by the kernel environment variable
  * hw.physmem or the compile-time define MAXMEM.
  *
@@ -1305,7 +1338,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 {
 	int i, physmap_idx, pa_indx, da_indx;
 	vm_paddr_t pa, physmap[PHYSMAP_SIZE];
-	u_long physmem_tunable;
+	u_long physmem_tunable, memtest;
 	pt_entry_t *pte;
 	struct bios_smap *smapbase, *smap, *smapend;
 	u_int32_t smapsize;
@@ -1368,6 +1401,13 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 		Maxmem = atop(physmem_tunable);
 
 	/*
+	 * By default keep the memtest enabled.  Use a general name so that
+	 * one could eventually do more with the code than just disable it.
+	 */
+	memtest = 1;
+	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
+
+	/*
 	 * Don't allow MAXMEM or hw.physmem to extend the amount of memory
 	 * in the system.
 	 */
@@ -1417,7 +1457,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			/*
 			 * block out kernel memory as not available.
 			 */
-			if (pa >= 0x100000 && pa < first)
+			if (pa >= (vm_paddr_t)kernphys && pa < first)
 				goto do_dump_avail;
 
 			/*
@@ -1429,6 +1469,8 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 				goto do_dump_avail;
 
 			page_bad = FALSE;
+			if (memtest == 0)
+				goto skip_memtest;
 
 			/*
 			 * map page into kernel: valid, read/write,non-cacheable
@@ -1466,6 +1508,7 @@ getmemsize(caddr_t kmdp, u_int64_t first)
 			 */
 			*(int *)ptr = tmp;
 
+skip_memtest:
 			/*
 			 * Adjust array of valid/good pages.
 			 */
@@ -2004,7 +2047,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 	fpugetregs(td);
 	fill_fpregs_xmm(&td->td_pcb->pcb_user_save, fpregs);

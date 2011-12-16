@@ -1128,7 +1128,7 @@ nfsrv_fhtovp(fhandle_t *fhp, int flags, struct vnode **vpp, int *vfslockedp,
 			goto out;
 		}
 	}
-	error = VFS_FHTOVP(mp, &fhp->fh_fid, vpp);
+	error = VFS_FHTOVP(mp, &fhp->fh_fid, LK_EXCLUSIVE, vpp);
 	if (error) {
 		/* Make sure the server replies ESTALE to the client. */
 		error = ESTALE;

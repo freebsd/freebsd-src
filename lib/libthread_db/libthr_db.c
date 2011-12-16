@@ -202,7 +202,7 @@ static td_err_e
 pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 {
 	psaddr_t pt;
-	int32_t lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -214,7 +214,7 @@ pt_ta_map_id2thr(const td_thragent_t *ta, thread_t id, td_thrhandle_t *th)
 		return (TD_ERR);
 	/* Iterate through thread list to find pthread */
 	while (pt != 0) {
-		ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
+		ret = thr_pread_long(ta, pt + ta->thread_off_tid, &lwp);
 		if (ret != 0)
 			return (TD_ERR);
 		if (lwp == id)
@@ -245,7 +245,7 @@ pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
 {
 	td_thrhandle_t th;
 	psaddr_t pt;
-	int32_t lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -254,7 +254,7 @@ pt_ta_thr_iter(const td_thragent_t *ta, td_thr_iter_f *callback,
 	if (ret != 0)
 		return (TD_ERR);
 	while (pt != 0) {
-		ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
+		ret = thr_pread_long(ta, pt + ta->thread_off_tid, &lwp);
 		if (ret != 0)
 			return (TD_ERR);
 		if (lwp != 0 && lwp != TERMINATED) {
@@ -368,7 +368,7 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 
 	psaddr_t pt;
 	td_thr_events_e	tmp;
-	int32_t lwp;
+	int64_t lwp;
 	int ret;
 
 	TDBG_FUNC();
@@ -395,7 +395,7 @@ pt_ta_event_getmsg(const td_thragent_t *ta, td_event_msg_t *msg)
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
 	/* Convert event */
 	pt = msg->th_p;
-	ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
+	ret = thr_pread_long(ta, pt + ta->thread_off_tid, &lwp);
 	if (ret != 0)
 		return (TD_ERR);
 	handle.th_ta = ta;
@@ -672,7 +672,7 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	static td_thrhandle_t handle;
 	const td_thragent_t *ta = th->th_ta;
 	psaddr_t pt, pt_temp;
-	int32_t lwp;
+	int64_t lwp;
 	int ret;
 	td_thr_events_e	tmp;
 
@@ -699,7 +699,7 @@ pt_thr_event_getmsg(const td_thrhandle_t *th, td_event_msg_t *msg)
 	ps_pwrite(ta->ph, pt + ta->thread_off_event_buf, &tmp, sizeof(tmp));
 	/* Convert event */
 	pt = msg->th_p;
-	ret = thr_pread_int(ta, pt + ta->thread_off_tid, &lwp);
+	ret = thr_pread_long(ta, pt + ta->thread_off_tid, &lwp);
 	if (ret != 0)
 		return (TD_ERR);
 	handle.th_ta = ta;

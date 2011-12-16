@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2010
+.Dd April 8, 2011
 .Dt ADA 4
 .Os
 .Sh NAME
@@ -101,7 +101,7 @@ variables and
 .Xr loader 8
 tunables:
 .Bl -tag -width 12
-.It kern.cam.ada.retry_count
+.It Va kern.cam.ada.retry_count
 .Pp
 This variable determines how many times the
 .Nm
@@ -111,18 +111,27 @@ the
 .Nm
 driver dump routine.
 This value currently defaults to 4.
-.It kern.cam.ada.default_timeout
+.It Va kern.cam.ada.default_timeout
 .Pp
 This variable determines how long the
 .Nm
 driver will wait before timing out an outstanding command.
 The units for this value are seconds, and the default is currently 30
 seconds.
-.It kern.cam.ada.spindown_shutdown
+.It Va kern.cam.ada.spindown_shutdown
 .Pp
 This variable determines whether to spin-down disks when shutting down.
 Set to 1 to enable spin-down, 0 to disable.  
 The default is currently enabled.
+.It Va kern.cam.ada.write_cache
+.It Va kern.cam.ada. Ns Ar X Ns Va .write_cache
+.Pp
+These variables determines whether device write cache should be enabled
+globally or per-device or disabled.
+Set to 1 to enable write cache, 0 to disable, -1 to leave it as-is.
+Values modified in runtime take effect only after device reset.
+The global default is currently enabled.
+The per-device default is to leave it as-is (follow global setting).
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /dev/ada*" -compact

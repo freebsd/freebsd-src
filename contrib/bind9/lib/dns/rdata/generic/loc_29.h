@@ -18,7 +18,7 @@
 #ifndef GENERIC_LOC_29_H
 #define GENERIC_LOC_29_H 1
 
-/* $Id: loc_29.h,v 1.19 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: loc_29.h,v 1.19 2007-06-19 23:47:17 tbox Exp $ */
 
 /*!
  * \brief Per RFC1876 */

@@ -38,7 +38,8 @@ __FBSDID("$FreeBSD$");
 #include "cons.h"
 #include "gpt.h"
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG  "/boot.config"
+#define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
@@ -163,8 +164,8 @@ main(void)
 
 	for (;;) {
 		*kname = '\0';
-		ino = lookup(PATH_CONFIG);
-		if (ino > 0)
+		if ((ino = lookup(PATH_CONFIG)) ||
+		    (ino = lookup(PATH_DOTCONFIG)))
 			fsread(ino, cmd, sizeof(cmd));
 
 		if (*cmd != '\0') {

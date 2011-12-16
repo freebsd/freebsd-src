@@ -20,6 +20,10 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ */
+/*
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -191,7 +195,9 @@ int dmu_objset_create(const char *name, dmu_objset_type_t type, uint64_t flags,
 int dmu_objset_clone(const char *name, struct dsl_dataset *clone_origin,
     uint64_t flags);
 int dmu_objset_destroy(const char *name, boolean_t defer);
-int dmu_snapshots_destroy(char *fsname, char *snapname, boolean_t defer);
+int dmu_get_recursive_snaps_nvl(const char *fsname, const char *snapname,
+    struct nvlist *snaps);
+int dmu_snapshots_destroy_nvl(struct nvlist *snaps, boolean_t defer, char *);
 int dmu_objset_snapshot(char *fsname, char *snapname, char *tag,
     struct nvlist *props, boolean_t recursive, boolean_t temporary, int fd);
 int dmu_objset_rename(const char *name, const char *newname,
@@ -702,6 +708,8 @@ void dmu_traverse_objset(objset_t *os, uint64_t txg_start,
 
 int dmu_sendbackup(objset_t *tosnap, objset_t *fromsnap, boolean_t fromorigin,
     struct file *fp, offset_t *off);
+int dmu_send_estimate(objset_t *tosnap, objset_t *fromsnap,
+    boolean_t fromorigin, uint64_t *sizep);
 
 typedef struct dmu_recv_cookie {
 	/*
@@ -718,6 +726,7 @@ typedef struct dmu_recv_cookie {
 	char *drc_top_ds;
 	boolean_t drc_newfs;
 	boolean_t drc_force;
+	struct avl_tree *drc_guid_to_ds_map;
 } dmu_recv_cookie_t;
 
 int dmu_recv_begin(char *tofs, char *tosnap, char *topds, struct drr_begin *,

@@ -49,20 +49,22 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
-
-#define FCU_ZERO_C_TO_K     2732
+#include <powerpc/powermac/powermac_thermal.h>
 
 /* Inlet, Backside, U3 Heatsink sensor: MAX6690. */
 
 #define MAX6690_INT_TEMP    0x0
 #define MAX6690_EXT_TEMP    0x1
+#define MAX6690_RSL_STATUS  0x2
 #define MAX6690_EEXT_TEMP   0x10
 #define MAX6690_IEXT_TEMP   0x11
 #define MAX6690_TEMP_MASK   0xe0
 
 struct max6690_sensor {
+	struct pmac_therm therm;
+	device_t dev;
+
 	int     id;
-	char    location[32];
 };
 
 /* Regular bus attachment functions */
@@ -70,10 +72,11 @@ static int  max6690_probe(device_t);
 static int  max6690_attach(device_t);
 
 /* Utility functions */
+static int  max6690_sensor_read(struct max6690_sensor *sens);
 static int  max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS);
 static void max6690_start(void *xdev);
-static int  max6690_read_1(device_t dev, uint32_t addr, uint8_t reg,
-			   uint8_t *data);
+static int  max6690_read(device_t dev, uint32_t addr, uint8_t reg,
+			 uint8_t *data);
 
 struct max6690_softc {
 	device_t		sc_dev;
@@ -98,26 +101,46 @@ static driver_t max6690_driver = {
 static devclass_t max6690_devclass;
 
 DRIVER_MODULE(max6690, iicbus, max6690_driver, max6690_devclass, 0, 0);
-MALLOC_DEFINE(M_MAX6690, "max6690", "Temp-Monitor MAX6690");
+static MALLOC_DEFINE(M_MAX6690, "max6690", "Temp-Monitor MAX6690");
 
 static int
-max6690_read_1(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
+max6690_read(device_t dev, uint32_t addr, uint8_t reg, uint8_t *data)
 {
 	uint8_t buf[4];
+	uint8_t busy[1], rsl;
+	int err, try = 0;
 
-	struct iic_msg msg[2] = {
+	/* Busy register RSL. */
+	rsl = MAX6690_RSL_STATUS;
+	/* first read the status register, 0x2. If busy, retry. */
+	struct iic_msg msg[4] = {
+	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &rsl },
+	    { addr, IIC_M_RD, 1, busy },
 	    { addr, IIC_M_WR | IIC_M_NOSTOP, 1, &reg },
 	    { addr, IIC_M_RD, 1, buf },
 	};
 
-	if (iicbus_transfer(dev, msg, 2) != 0) {
-		device_printf(dev, "iicbus read failed\n");
-		return (EIO);
+	for (;;)
+	{
+		err = iicbus_transfer(dev, msg, 4);
+		if (err != 0)
+			goto retry;
+		if (busy[0] & 0x80)
+			goto retry;
+		/* Check for invalid value and retry. */
+		if (buf[0] == 0xff)
+			goto retry;
+
+		*data = *((uint8_t*)buf);
+		return (0);
+
+	retry:
+		if (++try > 5) {
+			device_printf(dev, "iicbus read failed\n");
+			return (-1);
+		}
+		pause("max6690_read", hz);
 	}
-
-	*data = *((uint8_t*)buf);
-
-	return (0);
 }
 
 static int
@@ -167,7 +190,7 @@ max6690_fill_sensor_prop(device_t dev)
 			      sizeof(location));
 	while (len < prop_len) {
 		if (sc->sc_sensors != NULL)
-			strcpy(sc->sc_sensors[i].location, location + len);
+			strcpy(sc->sc_sensors[i].therm.name, location + len);
 		prev_len = strlen(location + len) + 1;
 		len += prev_len;
 		i++;
@@ -179,6 +202,22 @@ max6690_fill_sensor_prop(device_t dev)
 	prop_len = OF_getprop(child, "hwsensor-id", id, sizeof(id));
 	for (j = 0; j < i; j++)
 		sc->sc_sensors[j].id = (id[j] & 0xf);
+
+	/* Fill the sensor zone property. */
+	prop_len = OF_getprop(child, "hwsensor-zone", id, sizeof(id));
+	for (j = 0; j < i; j++)
+		sc->sc_sensors[j].therm.zone = id[j];
+
+	/* Set up remaining sensor properties */
+	for (j = 0; j < i; j++) {
+		sc->sc_sensors[j].dev = dev;
+
+		sc->sc_sensors[j].therm.target_temp = 400 + ZERO_C_TO_K;
+		sc->sc_sensors[j].therm.max_temp = 800 + ZERO_C_TO_K;
+
+		sc->sc_sensors[j].therm.read =
+		    (int (*)(struct pmac_therm *))(max6690_sensor_read);
+	}
 
 	return (i);
 }
@@ -240,10 +279,15 @@ max6690_start(void *xdev)
 	/* Now we can fill the properties into the allocated struct. */
 	sc->sc_nsensors = max6690_fill_sensor_prop(dev);
 
+	/* Register with powermac_thermal */
+	for (i = 0; i < sc->sc_nsensors; i++)
+		pmac_thermal_sensor_register(&sc->sc_sensors[i].therm);
+
 	/* Add sysctls for the sensors. */
 	for (i = 0; i < sc->sc_nsensors; i++) {
-		for (j = 0; j < strlen(sc->sc_sensors[i].location); j++) {
-			sysctl_name[j] = tolower(sc->sc_sensors[i].location[j]);
+		for (j = 0; j < strlen(sc->sc_sensors[i].therm.name); j++) {
+			sysctl_name[j] =
+			    tolower(sc->sc_sensors[i].therm.name[j]);
 			if (isspace(sysctl_name[j]))
 				sysctl_name[j] = '_';
 		}
@@ -265,7 +309,7 @@ max6690_start(void *xdev)
 		device_printf(dev, "Sensors\n");
 		for (i = 0; i < sc->sc_nsensors; i++) {
 			device_printf(dev, "Location : %s ID: %d\n",
-				      sc->sc_sensors[i].location,
+				      sc->sc_sensors[i].therm.name,
 				      sc->sc_sensors[i].id);
 		}
 	}
@@ -274,16 +318,18 @@ max6690_start(void *xdev)
 }
 
 static int
-max6690_sensor_read(device_t dev, struct max6690_sensor *sens, int *temp)
+max6690_sensor_read(struct max6690_sensor *sens)
 {
 	uint8_t reg_int = 0, reg_ext = 0;
-	uint8_t integer;
-	uint8_t fraction;
+	uint8_t integer = 0;
+	uint8_t fraction = 0;
+	int err, temp;
+
 	struct max6690_softc *sc;
 
-	sc = device_get_softc(dev);
+	sc = device_get_softc(sens->dev);
 
-	/* The internal sensor id's are even, the external ar odd. */
+	/* The internal sensor id's are even, the external are odd. */
 	if ((sens->id % 2) == 0) {
 		reg_int = MAX6690_INT_TEMP;
 		reg_ext = MAX6690_IEXT_TEMP;
@@ -292,18 +338,20 @@ max6690_sensor_read(device_t dev, struct max6690_sensor *sens, int *temp)
 		reg_ext = MAX6690_EEXT_TEMP;
 	}
 
-	max6690_read_1(sc->sc_dev, sc->sc_addr, reg_int, &integer);
+	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_int, &integer);
+	err = max6690_read(sc->sc_dev, sc->sc_addr, reg_ext, &fraction);
 
-	max6690_read_1(sc->sc_dev, sc->sc_addr, reg_ext, &fraction);
+	if (err < 0)
+		return (-1);
 
 	fraction &= MAX6690_TEMP_MASK;
 
 	/* The temperature is in tenth kelvin, the fractional part resolution
 	   is 0.125.
 	*/
-	*temp = (integer * 10) + (fraction >> 5) * 10 / 8;
+	temp = (integer * 10) + (fraction >> 5) * 10 / 8;
 
-	return (0);
+	return (temp + ZERO_C_TO_K);
 }
 
 static int
@@ -312,7 +360,6 @@ max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	device_t dev;
 	struct max6690_softc *sc;
 	struct max6690_sensor *sens;
-	int value = 0;
 	int error;
 	unsigned int temp;
 
@@ -320,11 +367,9 @@ max6690_sensor_sysctl(SYSCTL_HANDLER_ARGS)
 	sc = device_get_softc(dev);
 	sens = &sc->sc_sensors[arg2];
 
-	error = max6690_sensor_read(dev, sens, &value);
-	if (error != 0)
-		return (error);
-
-	temp = value + FCU_ZERO_C_TO_K;
+	temp = max6690_sensor_read(sens);
+	if (temp < 0)
+		return (EIO);
 
 	error = sysctl_handle_int(oidp, &temp, 0, req);
 

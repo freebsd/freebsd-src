@@ -15,6 +15,7 @@
 #define X86_FRAMELOWERING_H
 
 #include "X86Subtarget.h"
+#include "llvm/MC/MCDwarf.h"
 #include "llvm/Target/TargetFrameLowering.h"
 
 namespace llvm {
@@ -40,6 +41,8 @@ public:
   void emitPrologue(MachineFunction &MF) const;
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
+  void adjustForSegmentedStacks(MachineFunction &MF) const;
+
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS = NULL) const;
 
@@ -56,8 +59,8 @@ public:
   bool hasFP(const MachineFunction &MF) const;
   bool hasReservedCallFrame(const MachineFunction &MF) const;
 
-  void getInitialFrameState(std::vector<MachineMove> &Moves) const;
   int getFrameIndexOffset(const MachineFunction &MF, int FI) const;
+  uint32_t getCompactUnwindEncoding(MachineFunction &MF) const;
 };
 
 } // End llvm namespace

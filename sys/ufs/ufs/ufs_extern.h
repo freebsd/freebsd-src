@@ -56,7 +56,7 @@ extern struct vop_vector ufs_vnodeops;
 int	 ufs_bmap(struct vop_bmap_args *);
 int	 ufs_bmaparray(struct vnode *, ufs2_daddr_t, ufs2_daddr_t *,
 	    struct buf *, int *, int *);
-int	 ufs_fhtovp(struct mount *, struct ufid *, struct vnode **);
+int	 ufs_fhtovp(struct mount *, struct ufid *, int, struct vnode **);
 int	 ufs_checkpath(ino_t, ino_t, struct inode *, struct ucred *, ino_t *);
 void	 ufs_dirbad(struct inode *, doff_t, char *);
 int	 ufs_dirbadentry(struct vnode *, struct direct *, int);
@@ -76,6 +76,7 @@ int	 ufs_inactive(struct vop_inactive_args *);
 int	 ufs_init(struct vfsconf *);
 void	 ufs_itimes(struct vnode *vp);
 int	 ufs_lookup(struct vop_cachedlookup_args *);
+void	 ufs_prepare_reclaim(struct vnode *vp);
 int	 ufs_readdir(struct vop_readdir_args *);
 int	 ufs_reclaim(struct vop_reclaim_args *);
 void	 ffs_snapgone(struct inode *);

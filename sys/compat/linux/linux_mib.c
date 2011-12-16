@@ -66,8 +66,12 @@ static struct linux_prison lprison0 = {
 
 static unsigned linux_osd_jail_slot;
 
-SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_compat, OID_AUTO, linux, CTLFLAG_RW, 0,
 	    "Linux mode");
+
+static int	linux_set_osname(struct thread *td, char *osname);
+static int	linux_set_osrelease(struct thread *td, char *osrelease);
+static int	linux_set_oss_version(struct thread *td, int oss_version);
 
 static int
 linux_sysctl_osname(SYSCTL_HANDLER_ARGS)
@@ -469,7 +473,7 @@ linux_get_osname(struct thread *td, char *dst)
 	mtx_unlock(&pr->pr_mtx);
 }
 
-int
+static int
 linux_set_osname(struct thread *td, char *osname)
 {
 	struct prison *pr;
@@ -505,7 +509,7 @@ linux_kernver(struct thread *td)
 	return (osrel);
 }
 
-int
+static int
 linux_set_osrelease(struct thread *td, char *osrelease)
 {
 	struct prison *pr;
@@ -533,7 +537,7 @@ linux_get_oss_version(struct thread *td)
 	return (version);
 }
 
-int
+static int
 linux_set_oss_version(struct thread *td, int oss_version)
 {
 	struct prison *pr;

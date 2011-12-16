@@ -249,8 +249,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 	struct linux32_ps_strings *arginfo;
 
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform);
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 
 	KASSERT(curthread->td_proc == imgp->proc,
 	    ("unsafe elf_linux_fixup(), should be curproc"));
@@ -411,8 +410,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode) +
-	    linux_sznonrtsigcode;
+	regs->tf_rip = p->p_sysent->sv_sigcode_base + linux_sznonrtsigcode;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -535,7 +533,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_rsp = PTROUT(fp);
-	regs->tf_rip = LINUX32_PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_rip = p->p_sysent->sv_sigcode_base;
 	regs->tf_rflags &= ~(PSL_T | PSL_D);
 	regs->tf_cs = _ucode32sel;
 	regs->tf_ss = _udatasel;
@@ -890,21 +888,15 @@ linux_copyout_strings(struct image_params *imgp)
 	 * Also deal with signal trampoline code for this exec type.
 	 */
 	arginfo = (struct linux32_ps_strings *)LINUX32_PS_STRINGS;
-	destp =	(caddr_t)arginfo - linux_szsigcode - SPARE_USRSPACE -
-	    linux_szplatform - roundup((ARG_MAX - imgp->args->stringspace),
+	destp =	(caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
+	    roundup((ARG_MAX - imgp->args->stringspace),
 	    sizeof(char *));
-
-	/*
-	 * install sigcode
-	 */
-	copyout(imgp->proc->p_sysent->sv_sigcode,
-	    ((caddr_t)arginfo - linux_szsigcode), linux_szsigcode);
 
 	/*
 	 * Install LINUX_PLATFORM
 	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform), linux_szplatform);
+	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
+	    linux_szplatform);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -985,7 +977,7 @@ linux_copyout_strings(struct image_params *imgp)
 	return ((register_t *)stack_base);
 }
 
-SYSCTL_NODE(_compat, OID_AUTO, linux32, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_compat, OID_AUTO, linux32, CTLFLAG_RW, 0,
     "32-bit Linux emulation");
 
 static u_long	linux32_maxdsiz = LINUX32_MAXDSIZ;
@@ -1050,7 +1042,7 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_minsigstksz	= LINUX_MINSIGSTKSZ,
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
-	.sv_maxuser	= LINUX32_USRSTACK,
+	.sv_maxuser	= LINUX32_MAXUSER,
 	.sv_usrstack	= LINUX32_USRSTACK,
 	.sv_psstrings	= LINUX32_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
@@ -1058,12 +1050,15 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= linux32_fixlimit,
 	.sv_maxssiz	= &linux32_maxssiz,
-	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32,
+	.sv_flags	= SV_ABI_LINUX | SV_ILP32 | SV_IA32 | SV_SHP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = linux32_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_shared_page_base = LINUX32_SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 };
+INIT_SYSENTVEC(elf_sysvec, &elf_linux_sysvec);
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;

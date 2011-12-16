@@ -15,16 +15,14 @@ dst=`realpath ./acpi_ca_destination`
 
 # files that should keep their full directory path
 fulldirs="common compiler debugger disassembler dispatcher events	\
-	executer hardware include namespace parser resources tables	\
-	tools utilities"
+	executer hardware include namespace os_specific parser		\
+	resources tables utilities"
 
 # files to remove
-stripdirs="acpinames acpisrc acpixtract examples generate os_specific	\
-	tests"
+stripdirs="generate tests tools"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
-	acos2.h accygwin.h acefi.h acwin.h acwin64.h aeexec.c		\
-	aehandlers.c aemain.c aetables.c aetables.h osunixdir.c		\
-	readme.txt utclib.c"
+	acos2.h accygwin.h acefi.h acwin.h acwin64.h osunixdir.c	\
+	oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"
 
 # include files to canonify
 src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
@@ -32,7 +30,7 @@ src_headers="acapps.h accommon.h acconfig.h acdebug.h acdisasm.h	\
 	aclocal.h acmacros.h acnames.h acnamesp.h acobject.h acopcode.h	\
 	acoutput.h acparser.h acpi.h acpiosxf.h acpixf.h acpredef.h	\
 	acresrc.h acrestyp.h acstruct.h actables.h actbl.h actbl1.h	\
-	actbl2.h actypes.h acutils.h amlcode.h amlresrc.h		\
+	actbl2.h actbl3.h actypes.h acutils.h amlcode.h amlresrc.h	\
 	platform/acenv.h platform/acfreebsd.h platform/acgcc.h"
 comp_headers="aslcompiler.h asldefine.h aslglobal.h aslmessages.h	\
 	asltypes.h dtcompiler.h dttemplate.h"
@@ -67,7 +65,7 @@ find ${wrk} -type f -print | xargs -J % mv % ${dst}
 
 # canonify include paths
 for H in ${src_headers}; do
-	find ${dst} -name "*.[chy]" -type f -print |	\
+	find ${dst} -name "*.[chly]" -type f -print |	\
 	xargs sed -i "" -e "s|[\"<]$H[\">]|\<contrib/dev/acpica/include/$H\>|g"
 done
 for H in ${comp_headers}; do
@@ -84,8 +82,8 @@ echo post-clean
 rm -rf ${wrk}
 
 # assist the developer in generating a diff
-echo "Directories you may want to 'cvs diff':"
-echo "    src/sys/contrib/dev/acpica src/sys/dev/acpica \\"
-echo "    src/sys/amd64/acpica src/sys/i386/acpica src/sys/ia64/acpica \\"
-echo "    src/sys/amd64/include src/sys/i386/include src/sys/ia64/include \\"
-echo "    src/sys/boot src/sys/conf src/sys/modules/acpi src/usr.sbin/acpi"
+echo "Directories you may want to 'svn diff':"
+echo "    sys/contrib/dev/acpica sys/dev/acpica \\"
+echo "    sys/amd64/acpica sys/i386/acpica sys/ia64/acpica sys/x86/acpica \\"
+echo "    sys/amd64/include sys/i386/include sys/ia64/include \\"
+echo "    sys/boot sys/conf sys/modules/acpi usr.sbin/acpi"

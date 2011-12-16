@@ -483,6 +483,7 @@ extern LZMA_API(size_t) lzma_block_buffer_bound(size_t uncompressed_size)
  *
  * \return      - LZMA_OK: Encoding was successful.
  *              - LZMA_BUF_ERROR: Not enough output buffer space.
+ *              - LZMA_UNSUPPORTED_CHECK
  *              - LZMA_OPTIONS_ERROR
  *              - LZMA_MEM_ERROR
  *              - LZMA_DATA_ERROR

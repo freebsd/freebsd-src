@@ -85,11 +85,11 @@ __FBSDID("$FreeBSD$");
 char	*inetname(struct in_addr *);
 void	inetprint(struct in_addr *, int, const char *, int);
 #ifdef INET6
-static int udp_done, tcp_done;
+static int udp_done, tcp_done, sdp_done;
 #endif /* INET6 */
 
 static int
-pcblist_sysctl(int proto, char **bufp, int istcp)
+pcblist_sysctl(int proto, const char *name, char **bufp, int istcp)
 {
 	const char *mibvar;
 	char *buf;
@@ -109,7 +109,8 @@ pcblist_sysctl(int proto, char **bufp, int istcp)
 		mibvar = "net.inet.raw.pcblist";
 		break;
 	}
-
+	if (strncmp(name, "sdp", 3) == 0)
+		mibvar = "net.inet.sdp.pcblist";
 	len = 0;
 	if (sysctlbyname(mibvar, 0, &len, 0, 0) < 0) {
 		if (errno != ENOENT)
@@ -315,10 +316,17 @@ protopr(u_long off, const char *name, int af1, int proto)
 	switch (proto) {
 	case IPPROTO_TCP:
 #ifdef INET6
-		if (tcp_done != 0)
-			return;
-		else
-			tcp_done = 1;
+		if (strncmp(name, "sdp", 3) != 0) {
+			if (tcp_done != 0)
+				return;
+			else
+				tcp_done = 1;
+		} else {
+			if (sdp_done != 0)
+				return;
+			else
+				sdp_done = 1;
+		}
 #endif
 		istcp = 1;
 		break;
@@ -332,7 +340,7 @@ protopr(u_long off, const char *name, int af1, int proto)
 		break;
 	}
 	if (live) {
-		if (!pcblist_sysctl(proto, &buf, istcp))
+		if (!pcblist_sysctl(proto, name, &buf, istcp))
 			return;
 	} else {
 		if (!pcblist_kvm(off, &buf, istcp))
@@ -403,44 +411,47 @@ protopr(u_long off, const char *name, int af1, int proto)
 	"Current listen queue sizes (qlen/incqlen/maxqlen)");
 			putchar('\n');
 			if (Aflag)
-				printf("%-8.8s ", "Tcpcb");
+				printf("%-*s ", 2 * (int)sizeof(void *), "Tcpcb");
 			if (Lflag)
-				printf("%-5.5s %-14.14s %-22.22s\n",
-				    "Proto", "Listen", "Local Address");
-			if (Tflag) 
 				printf((Aflag && !Wflag) ?
-			    "%-5.5s %-6.6s %-6.6s %-6.6s %-18.18s %s\n" :
-			    "%-5.5s %-6.6s %-6.6s %-6.6s %-22.22s %s\n",
+				    "%-5.5s %-14.14s %-18.18s" :
+				    "%-5.5s %-14.14s %-22.22s",
+				    "Proto", "Listen", "Local Address");
+			else if (Tflag)
+				printf((Aflag && !Wflag) ?
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-18.18s %s" :
+			    "%-5.5s %-6.6s %-6.6s %-6.6s %-22.22s %s",
 				    "Proto", "Rexmit", "OOORcv", "0-win",
 				    "Local Address", "Foreign Address");
+			else {
+				printf((Aflag && !Wflag) ? 
+				       "%-5.5s %-6.6s %-6.6s %-18.18s %-18.18s" :
+				       "%-5.5s %-6.6s %-6.6s %-22.22s %-22.22s",
+				       "Proto", "Recv-Q", "Send-Q",
+				       "Local Address", "Foreign Address");
+				if (!xflag)
+					printf(" (state)");
+			}
 			if (xflag) {
-				printf("%-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s ",
+				printf(" %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s %-6.6s",
 				       "R-MBUF", "S-MBUF", "R-CLUS", 
 				       "S-CLUS", "R-HIWA", "S-HIWA", 
 				       "R-LOWA", "S-LOWA", "R-BCNT", 
 				       "S-BCNT", "R-BMAX", "S-BMAX");
-				printf("%7.7s %7.7s %7.7s %7.7s %7.7s %7.7s %s\n",
+				printf(" %7.7s %7.7s %7.7s %7.7s %7.7s %7.7s",
 				       "rexmt", "persist", "keep",
-				       "2msl", "delack", "rcvtime",
-				       "(state)");
+				       "2msl", "delack", "rcvtime");
 			}
-			if (!xflag && !Tflag) {
-				printf((Aflag && !Wflag) ? 
-				       "%-5.5s %-6.6s %-6.6s  %-18.18s %-18.18s" :
-				       "%-5.5s %-6.6s %-6.6s  %-22.22s %-22.22s",
-				       "Proto", "Recv-Q", "Send-Q",
-				       "Local Address", "Foreign Address");
-				printf("(state)\n");
-			}
+			putchar('\n');
 			first = 0;
 		}
 		if (Lflag && so->so_qlimit == 0)
 			continue;
 		if (Aflag) {
 			if (istcp)
-				printf("%8lx ", (u_long)inp->inp_ppcb);
+				printf("%*lx ", 2 * (int)sizeof(void *), (u_long)inp->inp_ppcb);
 			else
-				printf("%8lx ", (u_long)so->so_pcb);
+				printf("%*lx ", 2 * (int)sizeof(void *), (u_long)so->so_pcb);
 		}
 #ifdef INET6
 		if ((inp->inp_vflag & INP_IPV6) != 0)
@@ -519,32 +530,21 @@ protopr(u_long off, const char *name, int af1, int proto)
 #endif /* INET6 */
 		}
 		if (xflag) {
-			if (Lflag)
-				printf("%21s %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
-				       " ",
-				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
-				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
-				       so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
-				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
-				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
-				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-			else {
-				printf("%6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u ",
-				       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
-				       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
-				       so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
-				       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
-				       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
-				       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
-				if (timer != NULL)
-					printf("%4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d ",
-					    timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
-					    timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
-					    timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
-					    timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
-					    timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
-					    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
-			}
+			printf("%6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u %6u",
+			       so->so_rcv.sb_mcnt, so->so_snd.sb_mcnt,
+			       so->so_rcv.sb_ccnt, so->so_snd.sb_ccnt,
+			       so->so_rcv.sb_hiwat, so->so_snd.sb_hiwat,
+			       so->so_rcv.sb_lowat, so->so_snd.sb_lowat,
+			       so->so_rcv.sb_mbcnt, so->so_snd.sb_mbcnt,
+			       so->so_rcv.sb_mbmax, so->so_snd.sb_mbmax);
+			if (timer != NULL)
+				printf(" %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d %4d.%02d",
+				    timer->tt_rexmt / 1000, (timer->tt_rexmt % 1000) / 10,
+				    timer->tt_persist / 1000, (timer->tt_persist % 1000) / 10,
+				    timer->tt_keep / 1000, (timer->tt_keep % 1000) / 10,
+				    timer->tt_2msl / 1000, (timer->tt_2msl % 1000) / 10,
+				    timer->tt_delack / 1000, (timer->tt_delack % 1000) / 10,
+				    timer->t_rcvtime / 1000, (timer->t_rcvtime % 1000) / 10);
 		}
 		if (istcp && !Lflag && !xflag && !Tflag) {
 			if (tp->t_state < 0 || tp->t_state >= TCP_NSTATES)

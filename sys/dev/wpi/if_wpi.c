@@ -273,6 +273,8 @@ static devclass_t wpi_devclass;
 
 DRIVER_MODULE(wpi, pci, wpi_driver, wpi_devclass, 0, 0);
 
+MODULE_VERSION(wpi, 1);
+
 static const uint8_t wpi_ridx_to_plcp[] = {
 	/* OFDM: IEEE Std 802.11a-1999, pp. 14 Table 80 */
 	/* R1-R4 (ral/ural is R4-R1) */
@@ -2298,7 +2300,7 @@ wpi_mrr_setup(struct wpi_softc *sc)
 	}
 
 	/* setup MRR for control frames */
-	mrr.which = htole32(WPI_MRR_CTL);
+	mrr.which = WPI_MRR_CTL;
 	error = wpi_cmd(sc, WPI_CMD_MRR_SETUP, &mrr, sizeof mrr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev,
@@ -2307,7 +2309,7 @@ wpi_mrr_setup(struct wpi_softc *sc)
 	}
 
 	/* setup MRR for data frames */
-	mrr.which = htole32(WPI_MRR_DATA);
+	mrr.which = WPI_MRR_DATA;
 	error = wpi_cmd(sc, WPI_CMD_MRR_SETUP, &mrr, sizeof mrr, 0);
 	if (error != 0) {
 		device_printf(sc->sc_dev,

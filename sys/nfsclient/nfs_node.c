@@ -47,6 +47,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/socket.h>
 #include <sys/sysctl.h>
+#include <sys/taskqueue.h>
 #include <sys/vnode.h>
 
 #include <vm/uma.h>
@@ -58,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfsmount.h>
 
 static uma_zone_t nfsnode_zone;
+
+static void	nfs_freesillyrename(void *arg, __unused int pending);
 
 #define TRUE	1
 #define	FALSE	0
@@ -185,6 +188,20 @@ nfs_nget(struct mount *mntp, nfsfh_t *fhp, int fhsize, struct nfsnode **npp, int
 	return (0);
 }
 
+/*
+ * Do the vrele(sp->s_dvp) as a separate task in order to avoid a
+ * deadlock because of a LOR when vrele() locks the directory vnode.
+ */
+static void
+nfs_freesillyrename(void *arg, __unused int pending)
+{
+	struct sillyrename *sp;
+
+	sp = arg;
+	vrele(sp->s_dvp);
+	free(sp, M_NFSREQ);
+}
+
 int
 nfs_inactive(struct vop_inactive_args *ap)
 {
@@ -207,8 +224,8 @@ nfs_inactive(struct vop_inactive_args *ap)
 		 */
 		(sp->s_removeit)(sp);
 		crfree(sp->s_cred);
-		vrele(sp->s_dvp);
-		free((caddr_t)sp, M_NFSREQ);
+		TASK_INIT(&sp->s_task, 0, nfs_freesillyrename, sp);
+		taskqueue_enqueue(taskqueue_thread, &sp->s_task);
 		mtx_lock(&np->n_mtx);
 	}
 	np->n_flag &= NMODIFIED;

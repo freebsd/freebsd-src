@@ -608,6 +608,7 @@ arc_input(struct ifnet *ifp, struct mbuf *m)
 		m_freem(m);
 		return;
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 
@@ -836,7 +837,7 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
+static MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
 
 static void*
 arc_alloc(u_char type, struct ifnet *ifp)

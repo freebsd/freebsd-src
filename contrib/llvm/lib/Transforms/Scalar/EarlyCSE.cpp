@@ -92,7 +92,7 @@ unsigned DenseMapInfo<SimpleValue>::getHashValue(SimpleValue Val) {
   // Hash in all of the operands as pointers.
   unsigned Res = 0;
   for (unsigned i = 0, e = Inst->getNumOperands(); i != e; ++i)
-    Res ^= getHash(Inst->getOperand(i)) << i;
+    Res ^= getHash(Inst->getOperand(i)) << (i & 0xF);
 
   if (CastInst *CI = dyn_cast<CastInst>(Inst))
     Res ^= getHash(CI->getType());
@@ -185,7 +185,7 @@ unsigned DenseMapInfo<CallValue>::getHashValue(CallValue Val) {
   for (unsigned i = 0, e = Inst->getNumOperands(); i != e; ++i) {
     assert(!Inst->getOperand(i)->getType()->isMetadataTy() &&
            "Cannot value number calls with metadata operands");
-    Res ^= getHash(Inst->getOperand(i)) << i;
+    Res ^= getHash(Inst->getOperand(i)) << (i & 0xF);
   }
   
   // Mix in the opcode.
@@ -357,7 +357,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
     // If this is a non-volatile load, process it.
     if (LoadInst *LI = dyn_cast<LoadInst>(Inst)) {
       // Ignore volatile loads.
-      if (LI->isVolatile()) {
+      if (!LI->isSimple()) {
         LastStore = 0;
         continue;
       }
@@ -437,7 +437,7 @@ bool EarlyCSE::processNode(DomTreeNode *Node) {
          std::pair<Value*, unsigned>(SI->getValueOperand(), CurrentGeneration));
         
         // Remember that this was the last store we saw for DSE.
-        if (!SI->isVolatile())
+        if (SI->isSimple())
           LastStore = SI;
       }
     }

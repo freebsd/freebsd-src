@@ -98,9 +98,6 @@ static bool isCopy(MachineInstr *MI) {
   case ARM::MOVr:
   case ARM::MOVr_TC:
   case ARM::tMOVr:
-  case ARM::tMOVgpr2tgpr:
-  case ARM::tMOVtgpr2gpr:
-  case ARM::tMOVgpr2gpr:
   case ARM::t2MOVr:
     return true;
   }
@@ -125,6 +122,27 @@ Thumb2ITBlockPass::MoveCopyOutOfITBlock(MachineInstr *MI,
 
   // First check if it's safe to move it.
   if (Uses.count(DstReg) || Defs.count(SrcReg))
+    return false;
+
+  // If the CPSR is defined by this copy, then we don't want to move it. E.g.,
+  // if we have:
+  //
+  //   movs  r1, r1
+  //   rsb   r1, 0
+  //   movs  r2, r2
+  //   rsb   r2, 0
+  //
+  // we don't want this to be converted to:
+  //
+  //   movs  r1, r1
+  //   movs  r2, r2
+  //   itt   mi
+  //   rsb   r1, 0
+  //   rsb   r2, 0
+  //
+  const MCInstrDesc &MCID = MI->getDesc();
+  if (MCID.hasOptionalDef() &&
+      MI->getOperand(MCID.getNumOperands() - 1).getReg() == ARM::CPSR)
     return false;
 
   // Then peek at the next instruction to see if it's predicated on CC or OCC.

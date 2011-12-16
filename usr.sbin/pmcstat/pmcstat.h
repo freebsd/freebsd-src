@@ -33,6 +33,8 @@
 #ifndef	_PMCSTAT_H_
 #define	_PMCSTAT_H_
 
+#include <sys/_cpuset.h>
+
 #define	FLAG_HAS_TARGET			0x00000001	/* process target */
 #define	FLAG_HAS_WAIT_INTERVAL		0x00000002	/* -w secs */
 #define	FLAG_HAS_OUTPUT_LOGFILE		0x00000004	/* -O file or pipe */
@@ -140,7 +142,7 @@ struct pmcstat_args {
 	FILE	*pa_graphfile;		/* where to send the callgraph */
 	int	pa_graphdepth;		/* print depth for callgraphs */
 	double	pa_interval;		/* printing interval in seconds */
-	uint32_t pa_cpumask;		/* filter for CPUs analysed */
+	cpuset_t	pa_cpumask;	/* filter for CPUs analysed */
 	int	pa_ctdumpinstr;		/* dump instructions with calltree */
 	int	pa_topmode;		/* delta or accumulative */
 	int	pa_toptty;		/* output to tty or file */
@@ -159,8 +161,6 @@ extern struct pmcstat_args args;	/* command line args */
 /* Function prototypes */
 void	pmcstat_attach_pmcs(void);
 void	pmcstat_cleanup(void);
-void	pmcstat_clone_event_descriptor(
-    struct pmcstat_ev *_ev, uint32_t _cpumask);
 int	pmcstat_close_log(void);
 void	pmcstat_create_process(void);
 void	pmcstat_find_targets(const char *_arg);
@@ -178,7 +178,6 @@ int	pmcstat_process_log(void);
 int	pmcstat_keypress_log(void);
 void	pmcstat_display_log(void);
 void	pmcstat_pluginconfigure_log(char *_opt);
-uint32_t pmcstat_get_cpumask(const char *_a);
 void    pmcstat_topexit(void);
 
 #endif	/* _PMCSTAT_H_ */

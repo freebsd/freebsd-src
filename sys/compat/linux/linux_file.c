@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/fcntl.h>
@@ -141,7 +142,7 @@ linux_common_open(struct thread *td, int dirfd, char *path, int l_flags, int mod
 	     * having the same filedesc could use that fd without
 	     * checking below.
 	     */
-	    error = fget(td, fd, &fp);
+	    error = fget(td, fd, CAP_IOCTL, &fp);
 	    if (!error) {
 		    sx_slock(&proctree_lock);
 		    PROC_LOCK(p);
@@ -231,7 +232,7 @@ linux_lseek(struct thread *td, struct linux_lseek_args *args)
     tmp_args.fd = args->fdes;
     tmp_args.offset = (off_t)args->off;
     tmp_args.whence = args->whence;
-    error = lseek(td, &tmp_args);
+    error = sys_lseek(td, &tmp_args);
     return error;
 }
 
@@ -253,7 +254,7 @@ linux_llseek(struct thread *td, struct linux_llseek_args *args)
 	bsd_args.offset = off;
 	bsd_args.whence = args->whence;
 
-	if ((error = lseek(td, &bsd_args)))
+	if ((error = sys_lseek(td, &bsd_args)))
 		return error;
 
 	if ((error = copyout(td->td_retval, args->res, sizeof (off_t))))
@@ -345,7 +346,7 @@ getdents_common(struct thread *td, struct linux_getdents64_args *args,
 	} else
 		justone = 0;
 
-	if ((error = getvnode(td->td_proc->p_fd, args->fd, &fp)) != 0)
+	if ((error = getvnode(td->td_proc->p_fd, args->fd, CAP_READ, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & FREAD) == 0) {
@@ -564,16 +565,16 @@ linux_access(struct thread *td, struct linux_access_args *args)
 	int error;
 
 	/* linux convention */
-	if (args->flags & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	LCONVPATHEXIST(td, args->path, &path);
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->flags);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
-	error = kern_access(td, path, UIO_SYSSPACE, args->flags);
+	error = kern_access(td, path, UIO_SYSSPACE, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -583,10 +584,12 @@ int
 linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 {
 	char *path;
-	int error, dfd;
+	int error, dfd, flag;
 
+	if (args->flag & ~LINUX_AT_EACCESS)
+		return (EINVAL);
 	/* linux convention */
-	if (args->mode & ~(F_OK | X_OK | W_OK | R_OK))
+	if (args->amode & ~(F_OK | X_OK | W_OK | R_OK))
 		return (EINVAL);
 
 	dfd = (args->dfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->dfd;
@@ -594,11 +597,11 @@ linux_faccessat(struct thread *td, struct linux_faccessat_args *args)
 
 #ifdef DEBUG
 	if (ldebug(access))
-		printf(ARGS(access, "%s, %d"), path, args->mode);
+		printf(ARGS(access, "%s, %d"), path, args->amode);
 #endif
 
-	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, 0 /* XXX */,
-	    args->mode);
+	flag = (args->flag & LINUX_AT_EACCESS) == 0 ? 0 : AT_EACCESS;
+	error = kern_accessat(td, dfd, path, UIO_SYSSPACE, flag, args->amode);
 	LFREEPATH(path);
 
 	return (error);
@@ -950,7 +953,7 @@ linux_ftruncate(struct thread *td, struct linux_ftruncate_args *args)
 	   
 	nuap.fd = args->fd;
 	nuap.length = args->length;
-	return (ftruncate(td, &nuap));
+	return (sys_ftruncate(td, &nuap));
 }
 
 int
@@ -981,13 +984,9 @@ int
 linux_linkat(struct thread *td, struct linux_linkat_args *args)
 {
 	char *path, *to;
-	int error, olddfd, newdfd;
+	int error, olddfd, newdfd, follow;
 
-	/*
-	 * They really introduced flags argument which is forbidden to
-	 * use.
-	 */
-	if (args->flags != 0)
+	if (args->flag & ~LINUX_AT_SYMLINK_FOLLOW)
 		return (EINVAL);
 
 	olddfd = (args->olddfd == LINUX_AT_FDCWD) ? AT_FDCWD : args->olddfd;
@@ -1003,10 +1002,12 @@ linux_linkat(struct thread *td, struct linux_linkat_args *args)
 #ifdef DEBUG
 	if (ldebug(linkat))
 		printf(ARGS(linkat, "%i, %s, %i, %s, %i"), args->olddfd, path,
-			args->newdfd, to, args->flags);
+			args->newdfd, to, args->flag);
 #endif
 
-	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, FOLLOW);
+	follow = (args->flag & LINUX_AT_SYMLINK_FOLLOW) == 0 ? NOFOLLOW :
+	    FOLLOW;
+	error = kern_linkat(td, olddfd, newdfd, path, to, UIO_SYSSPACE, follow);
 	LFREEPATH(path);
 	LFREEPATH(to);
 	return (error);
@@ -1020,7 +1021,7 @@ linux_fdatasync(td, uap)
 	struct fsync_args bsd;
 
 	bsd.fd = uap->fd;
-	return fsync(td, &bsd);
+	return sys_fsync(td, &bsd);
 }
 
 int
@@ -1037,11 +1038,11 @@ linux_pread(td, uap)
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
 
-	error = pread(td, &bsd);
+	error = sys_pread(td, &bsd);
 
 	if (error == 0) {
    	   	/* This seems to violate POSIX but linux does it */
-   	   	if ((error = fgetvp(td, uap->fd, &vp)) != 0)
+		if ((error = fgetvp(td, uap->fd, CAP_READ, &vp)) != 0)
    		   	return (error);
 		if (vp->v_type == VDIR) {
    		   	vrele(vp);
@@ -1064,7 +1065,7 @@ linux_pwrite(td, uap)
 	bsd.buf = uap->buf;
 	bsd.nbyte = uap->nbyte;
 	bsd.offset = uap->offset;
-	return pwrite(td, &bsd);
+	return sys_pwrite(td, &bsd);
 }
 
 int
@@ -1162,7 +1163,7 @@ linux_umount(struct thread *td, struct linux_umount_args *args)
 
 	bsd.path = args->path;
 	bsd.flags = args->flags;	/* XXX correct? */
-	return (unmount(td, &bsd));
+	return (sys_unmount(td, &bsd));
 }
 
 /*
@@ -1390,7 +1391,7 @@ fcntl_common(struct thread *td, struct linux_fcntl64_args *args)
 		 * significant effect for pipes (SIGIO is not delivered for
 		 * pipes under Linux-2.2.35 at least).
 		 */
-		error = fget(td, args->fd, &fp);
+		error = fget(td, args->fd, CAP_FCNTL, &fp);
 		if (error)
 			return (error);
 		if (fp->f_type == DTYPE_PIPE) {
@@ -1492,7 +1493,7 @@ int
 linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 {
 	char *path;
-	int error, dfd, follow;
+	int error, dfd, flag;
 
 	if (args->flag & ~LINUX_AT_SYMLINK_NOFOLLOW)
 		return (EINVAL);
@@ -1505,10 +1506,10 @@ linux_fchownat(struct thread *td, struct linux_fchownat_args *args)
 		printf(ARGS(fchownat, "%s, %d, %d"), path, args->uid, args->gid);
 #endif
 
-	follow = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
+	flag = (args->flag & LINUX_AT_SYMLINK_NOFOLLOW) == 0 ? 0 :
 	    AT_SYMLINK_NOFOLLOW;
 	error = kern_fchownat(td, dfd, path, UIO_SYSSPACE, args->uid, args->gid,
-	    follow);
+	    flag);
 	LFREEPATH(path);
 	return (error);
 }

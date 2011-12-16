@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
 #include "opt_param.h"
+#include "opt_vm.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -86,9 +87,11 @@ __FBSDID("$FreeBSD$");
 #include <vm/uma_int.h>
 #include <vm/uma_dbg.h>
 
-#include <machine/vmparam.h>
-
 #include <ddb/ddb.h>
+
+#ifdef DEBUG_MEMGUARD
+#include <vm/memguard.h>
+#endif
 
 /*
  * This is the zone and keg from which all zones are spawned.  The idea is that
@@ -112,7 +115,7 @@ static uma_zone_t slabrefzone;	/* With refcounters (for UMA_ZONE_REFCNT) */
 static uma_zone_t hashzone;
 
 /* The boot-time adjusted value for cache line alignment. */
-static int uma_align_cache = 64 - 1;
+int uma_align_cache = 64 - 1;
 
 static MALLOC_DEFINE(M_UMAHASH, "UMAHash", "UMA Hash Buckets");
 
@@ -136,6 +139,8 @@ static struct mtx uma_boot_pages_mtx;
 
 /* Is the VM done starting up? */
 static int booted = 0;
+#define	UMA_STARTUP	1
+#define	UMA_STARTUP2	2
 
 /* Maximum number of allowed items-per-slab if the slab header is OFFPAGE */
 static u_int uma_max_ipers;
@@ -961,7 +966,7 @@ startup_alloc(uma_zone_t zone, int bytes, u_int8_t *pflag, int wait)
 		return (tmps->us_data);
 	}
 	mtx_unlock(&uma_boot_pages_mtx);
-	if (booted == 0)
+	if (booted < UMA_STARTUP2)
 		panic("UMA: Increase vm.boot_pages");
 	/*
 	 * Now that we've booted reset these users to their real allocator.
@@ -1318,10 +1323,15 @@ keg_ctor(void *mem, int size, void *udata, int flags)
 #ifdef UMA_MD_SMALL_ALLOC
 		keg->uk_allocf = uma_small_alloc;
 		keg->uk_freef = uma_small_free;
-#endif
-		if (booted == 0)
+
+		if (booted < UMA_STARTUP)
 			keg->uk_allocf = startup_alloc;
-	} else if (booted == 0 && (keg->uk_flags & UMA_ZFLAG_INTERNAL))
+#else
+		if (booted < UMA_STARTUP2)
+			keg->uk_allocf = startup_alloc;
+#endif
+	} else if (booted < UMA_STARTUP2 &&
+	    (keg->uk_flags & UMA_ZFLAG_INTERNAL))
 		keg->uk_allocf = startup_alloc;
 
 	/*
@@ -1754,9 +1764,7 @@ uma_startup(void *bootmem, int boot_pages)
 
 	bucket_init();
 
-#if defined(UMA_MD_SMALL_ALLOC) && !defined(UMA_MD_SMALL_ALLOC_NEEDS_VM)
-	booted = 1;
-#endif
+	booted = UMA_STARTUP;
 
 #ifdef UMA_DEBUG
 	printf("UMA startup complete.\n");
@@ -1767,7 +1775,7 @@ uma_startup(void *bootmem, int boot_pages)
 void
 uma_startup2(void)
 {
-	booted = 1;
+	booted = UMA_STARTUP2;
 	bucket_enable();
 #ifdef UMA_DEBUG
 	printf("UMA startup2 complete.\n");
@@ -1975,7 +1983,29 @@ uma_zalloc_arg(uma_zone_t zone, void *udata, int flags)
 		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
 		    "uma_zalloc_arg: zone \"%s\"", zone->uz_name);
 	}
-
+#ifdef DEBUG_MEMGUARD
+	if (memguard_cmp_zone(zone)) {
+		item = memguard_alloc(zone->uz_size, flags);
+		if (item != NULL) {
+			/*
+			 * Avoid conflict with the use-after-free
+			 * protecting infrastructure from INVARIANTS.
+			 */
+			if (zone->uz_init != NULL &&
+			    zone->uz_init != mtrash_init &&
+			    zone->uz_init(item, zone->uz_size, flags) != 0)
+				return (NULL);
+			if (zone->uz_ctor != NULL &&
+			    zone->uz_ctor != mtrash_ctor &&
+			    zone->uz_ctor(item, zone->uz_size, udata, flags) != 0) {
+			    	zone->uz_fini(item, zone->uz_size);
+				return (NULL);
+			}
+			return (item);
+		}
+		/* This is unfortunate but should not be fatal. */
+	}
+#endif
 	/*
 	 * If possible, allocate from the per-CPU cache.  There are two
 	 * requirements for safe access to the per-CPU cache: (1) the thread
@@ -2541,7 +2571,16 @@ uma_zfree_arg(uma_zone_t zone, void *item, void *udata)
         /* uma_zfree(..., NULL) does nothing, to match free(9). */
         if (item == NULL)
                 return;
-
+#ifdef DEBUG_MEMGUARD
+	if (is_memguard_addr(item)) {
+		if (zone->uz_dtor != NULL && zone->uz_dtor != mtrash_dtor)
+			zone->uz_dtor(item, zone->uz_size, udata);
+		if (zone->uz_fini != NULL && zone->uz_fini != mtrash_fini)
+			zone->uz_fini(item, zone->uz_size);
+		memguard_free(item);
+		return;
+	}
+#endif
 	if (zone->uz_dtor)
 		zone->uz_dtor(item, zone->uz_size, udata);
 

@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -93,7 +95,7 @@ static int zfs_vget(vfs_t *vfsp, ino_t ino, int flags, vnode_t **vpp);
 static int zfs_sync(vfs_t *vfsp, int waitfor);
 static int zfs_checkexp(vfs_t *vfsp, struct sockaddr *nam, int *extflagsp,
     struct ucred **credanonp, int *numsecflavors, int **secflavors);
-static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp);
+static int zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp);
 static void zfs_objset_close(zfsvfs_t *zfsvfs);
 static void zfs_freevfs(vfs_t *vfsp);
 
@@ -364,6 +366,14 @@ vscan_changed_cb(void *arg, uint64_t newval)
 }
 
 static void
+acl_mode_changed_cb(void *arg, uint64_t newval)
+{
+	zfsvfs_t *zfsvfs = arg;
+
+	zfsvfs->z_acl_mode = newval;
+}
+
+static void
 acl_inherit_changed_cb(void *arg, uint64_t newval)
 {
 	zfsvfs_t *zfsvfs = arg;
@@ -488,6 +498,8 @@ zfs_register_callbacks(vfs_t *vfsp)
 	error = error ? error : dsl_prop_register(ds,
 	    "snapdir", snapdir_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
+	    "aclmode", acl_mode_changed_cb, zfsvfs);
+	error = error ? error : dsl_prop_register(ds,
 	    "aclinherit", acl_inherit_changed_cb, zfsvfs);
 	error = error ? error : dsl_prop_register(ds,
 	    "vscan", vscan_changed_cb, zfsvfs);
@@ -525,6 +537,7 @@ unregister:
 	(void) dsl_prop_unregister(ds, "setuid", setuid_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "exec", exec_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb, zfsvfs);
+	(void) dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb, zfsvfs);
 	(void) dsl_prop_unregister(ds, "aclinherit", acl_inherit_changed_cb,
 	    zfsvfs);
 	(void) dsl_prop_unregister(ds, "vscan", vscan_changed_cb, zfsvfs);
@@ -1200,6 +1213,9 @@ zfs_unregister_callbacks(zfsvfs_t *zfsvfs)
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "snapdir", snapdir_changed_cb,
+		    zfsvfs) == 0);
+
+		VERIFY(dsl_prop_unregister(ds, "aclmode", acl_mode_changed_cb,
 		    zfsvfs) == 0);
 
 		VERIFY(dsl_prop_unregister(ds, "aclinherit",
@@ -2007,7 +2023,7 @@ CTASSERT(SHORT_FID_LEN <= sizeof(struct fid));
 CTASSERT(LONG_FID_LEN <= sizeof(struct fid));
 
 static int
-zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
+zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, int flags, vnode_t **vpp)
 {
 	zfsvfs_t	*zfsvfs = vfsp->vfs_data;
 	znode_t		*zp;
@@ -2069,7 +2085,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 			VN_HOLD(*vpp);
 		}
 		ZFS_EXIT(zfsvfs);
-		err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+		err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 		if (err != 0)
 			*vpp = NULL;
 		return (err);
@@ -2096,7 +2112,7 @@ zfs_fhtovp(vfs_t *vfsp, fid_t *fidp, vnode_t **vpp)
 
 	*vpp = ZTOV(zp);
 	ZFS_EXIT(zfsvfs);
-	err = zfs_vnode_lock(*vpp, LK_EXCLUSIVE | LK_RETRY);
+	err = zfs_vnode_lock(*vpp, flags | LK_RETRY);
 	if (err == 0)
 		vnode_create_vobject(*vpp, zp->z_size, curthread);
 	else
@@ -2402,3 +2418,35 @@ zfs_get_zplprop(objset_t *os, zfs_prop_t prop, uint64_t *value)
 	}
 	return (error);
 }
+
+#ifdef _KERNEL
+void
+zfsvfs_update_fromname(const char *oldname, const char *newname)
+{
+	char tmpbuf[MAXPATHLEN];
+	struct mount *mp;
+	char *fromname;
+	size_t oldlen;
+
+	oldlen = strlen(oldname);
+
+	mtx_lock(&mountlist_mtx);
+	TAILQ_FOREACH(mp, &mountlist, mnt_list) {
+		fromname = mp->mnt_stat.f_mntfromname;
+		if (strcmp(fromname, oldname) == 0) {
+			(void)strlcpy(fromname, newname,
+			    sizeof(mp->mnt_stat.f_mntfromname));
+			continue;
+		}
+		if (strncmp(fromname, oldname, oldlen) == 0 &&
+		    (fromname[oldlen] == '/' || fromname[oldlen] == '@')) {
+			(void)snprintf(tmpbuf, sizeof(tmpbuf), "%s%s",
+			    newname, fromname + oldlen);
+			(void)strlcpy(fromname, tmpbuf,
+			    sizeof(mp->mnt_stat.f_mntfromname));
+			continue;
+		}
+	}
+	mtx_unlock(&mountlist_mtx);
+}
+#endif

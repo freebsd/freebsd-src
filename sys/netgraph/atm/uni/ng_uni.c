@@ -60,8 +60,8 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/atm/ng_sscfu.h>
 #include <netgraph/atm/ng_uni.h>
 
-MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
-MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
+static MALLOC_DEFINE(M_NG_UNI, "netgraph_uni_node", "netgraph uni node");
+static MALLOC_DEFINE(M_UNI, "netgraph_uni_data", "uni protocol data");
 
 MODULE_DEPEND(ng_uni, ngatmbase, 1, 1, 1);
 
@@ -223,8 +223,7 @@ ng_uni_constructor(node_p node)
 {
 	struct priv *priv;
 
-	if ((priv = malloc(sizeof(*priv), M_NG_UNI, M_NOWAIT | M_ZERO)) == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_UNI, M_WAITOK | M_ZERO);
 
 	if ((priv->uni = uni_create(node, &uni_funcs)) == NULL) {
 		free(priv, M_NG_UNI);

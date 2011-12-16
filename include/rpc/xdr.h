@@ -322,6 +322,7 @@ extern bool_t	xdr_hyper(XDR *, quad_t *);
 extern bool_t	xdr_u_hyper(XDR *, u_quad_t *);
 extern bool_t	xdr_longlong_t(XDR *, quad_t *);
 extern bool_t	xdr_u_longlong_t(XDR *, u_quad_t *);
+extern unsigned long	xdr_sizeof(xdrproc_t, void *);
 __END_DECLS
 
 /*

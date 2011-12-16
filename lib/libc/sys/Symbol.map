@@ -330,8 +330,6 @@ FBSD_1.0 {
 
 FBSD_1.1 {
 	__semctl;
-	cap_enter;
-	cap_getmode;
 	closefrom;
 	cpuset;
 	cpuset_getid;
@@ -363,8 +361,28 @@ FBSD_1.1 {
 };
 
 FBSD_1.2 {
+	cap_enter;
+	cap_getmode;
+	cap_new;
+	cap_getrights;
+	ffclock_getcounter;
+	ffclock_getestimate;
+	ffclock_setestimate;
 	getloginclass;
+	pdfork;
+	pdgetpid;
+	pdkill;
+	posix_fallocate;
+	rctl_get_racct;
+	rctl_get_rules;
+	rctl_get_limits;
+	rctl_add_rule;
+	rctl_remove_rule;
 	setloginclass;
+};
+
+FBSD_1.3 {
+	posix_fadvise;
 };
 
 FBSDprivate_1.0 {

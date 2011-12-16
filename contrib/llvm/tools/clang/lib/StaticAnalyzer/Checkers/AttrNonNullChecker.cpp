@@ -12,39 +12,33 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InternalChecks.h"
+#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
 class AttrNonNullChecker
-  : public CheckerVisitor<AttrNonNullChecker> {
-  BugType *BT;
+  : public Checker< check::PreStmt<CallExpr> > {
+  mutable llvm::OwningPtr<BugType> BT;
 public:
-  AttrNonNullChecker() : BT(0) {}
-  static void *getTag() {
-    static int x = 0;
-    return &x;
-  }
-  void PreVisitCallExpr(CheckerContext &C, const CallExpr *CE);
+
+  void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
-void ento::RegisterAttrNonNullChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new AttrNonNullChecker());
-}
-
-void AttrNonNullChecker::PreVisitCallExpr(CheckerContext &C, 
-                                          const CallExpr *CE) {
-  const GRState *state = C.getState();
+void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
+                                      CheckerContext &C) const {
+  const ProgramState *state = C.getState();
 
   // Check if the callee has a 'nonnull' attribute.
   SVal X = state->getSVal(CE->getCallee());
 
-  const FunctionDecl* FD = X.getAsFunctionDecl();
+  const FunctionDecl *FD = X.getAsFunctionDecl();
   if (!FD)
     return;
 
@@ -91,7 +85,7 @@ void AttrNonNullChecker::PreVisitCallExpr(CheckerContext &C,
     }
 
     ConstraintManager &CM = C.getConstraintManager();
-    const GRState *stateNotNull, *stateNull;
+    const ProgramState *stateNotNull, *stateNull;
     llvm::tie(stateNotNull, stateNull) = CM.assumeDual(state, *DV);
 
     if (stateNull && !stateNotNull) {
@@ -103,19 +97,18 @@ void AttrNonNullChecker::PreVisitCallExpr(CheckerContext &C,
         // created. Ownership is transferred to the BugReporter object once
         // the BugReport is passed to 'EmitWarning'.
         if (!BT)
-          BT = new BugType("Argument with 'nonnull' attribute passed null",
-                           "API");
+          BT.reset(new BugType("Argument with 'nonnull' attribute passed null",
+                               "API"));
 
-        EnhancedBugReport *R =
-          new EnhancedBugReport(*BT,
-                                "Null pointer passed as an argument to a "
-                                "'nonnull' parameter", errorNode);
+        BugReport *R =
+          new BugReport(*BT, "Null pointer passed as an argument to a "
+                             "'nonnull' parameter", errorNode);
 
         // Highlight the range of the argument that was null.
         const Expr *arg = *I;
         R->addRange(arg->getSourceRange());
-        R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, arg);
-
+        R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(errorNode,
+                                                                   arg));
         // Emit the bug report.
         C.EmitReport(R);
       }
@@ -133,4 +126,8 @@ void AttrNonNullChecker::PreVisitCallExpr(CheckerContext &C,
   // If we reach here all of the arguments passed the nonnull check.
   // If 'state' has been updated generated a new node.
   C.addTransition(state);
+}
+
+void ento::registerAttrNonNullChecker(CheckerManager &mgr) {
+  mgr.registerChecker<AttrNonNullChecker>();
 }

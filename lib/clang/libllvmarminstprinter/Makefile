@@ -7,7 +7,8 @@ INCDIR=	lib/Target/ARM
 SRCS=	ARMInstPrinter.cpp
 
 TGHDRS=	ARMGenAsmWriter \
-	ARMGenInstrNames \
-	ARMGenRegisterNames
+	ARMGenInstrInfo \
+	ARMGenRegisterInfo \
+	ARMGenSubtargetInfo
 
 .include "../clang.lib.mk"

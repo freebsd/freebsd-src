@@ -43,6 +43,14 @@
 
 #define	ATH_TIMEOUT		1000
 
+/*
+ * 802.11n requires more TX and RX buffers to do AMPDU.
+ */
+#ifdef	ATH_ENABLE_11N
+#define	ATH_TXBUF	512
+#define	ATH_RXBUF	512
+#endif
+
 #ifndef ATH_RXBUF
 #define	ATH_RXBUF	40		/* number of RX buffers */
 #endif
@@ -56,7 +64,7 @@
 #define	ATH_TXMGTTRY	4		/* xmit attempts for mgt/ctl frames */
 #define	ATH_TXINTR_PERIOD 5		/* max number of batched tx descriptors */
 
-#define	ATH_BEACON_AIFS_DEFAULT	 0	/* default aifs for ap beacon q */
+#define	ATH_BEACON_AIFS_DEFAULT	 1	/* default aifs for ap beacon q */
 #define	ATH_BEACON_CWMIN_DEFAULT 0	/* default cwmin for ap beacon q */
 #define	ATH_BEACON_CWMAX_DEFAULT 0	/* default cwmax for ap beacon q */
 
@@ -75,12 +83,73 @@ struct taskqueue;
 struct kthread;
 struct ath_buf;
 
+#define	ATH_TID_MAX_BUFS	(2 * IEEE80211_AGGR_BAWMAX)
+
+/*
+ * Per-TID state
+ *
+ * Note that TID 16 (WME_NUM_TID+1) is for handling non-QoS frames.
+ */
+struct ath_tid {
+	TAILQ_HEAD(,ath_buf) axq_q;		/* pending buffers */
+	u_int			axq_depth;	/* SW queue depth */
+	char			axq_name[48];	/* lock name */
+	struct ath_node		*an;		/* pointer to parent */
+	int			tid;		/* tid */
+	int			ac;		/* which AC gets this trafic */
+	int			hwq_depth;	/* how many buffers are on HW */
+
+	/*
+	 * Entry on the ath_txq; when there's traffic
+	 * to send
+	 */
+	TAILQ_ENTRY(ath_tid)	axq_qelem;
+	int			sched;
+	int			paused;	/* >0 if the TID has been paused */
+
+	/*
+	 * Is the TID being cleaned up after a transition
+	 * from aggregation to non-aggregation?
+	 * When this is set to 1, this TID will be paused
+	 * and no further traffic will be queued until all
+	 * the hardware packets pending for this TID have been
+	 * TXed/completed; at which point (non-aggregation)
+	 * traffic will resume being TXed.
+	 */
+	int			cleanup_inprogress;
+	/*
+	 * How many hardware-queued packets are
+	 * waiting to be cleaned up.
+	 * This is only valid if cleanup_inprogress is 1.
+	 */
+	int			incomp;
+
+	/*
+	 * The following implements a ring representing
+	 * the frames in the current BAW.
+	 * To avoid copying the array content each time
+	 * the BAW is moved, the baw_head/baw_tail point
+	 * to the current BAW begin/end; when the BAW is
+	 * shifted the head/tail of the array are also
+	 * appropriately shifted.
+	 */
+	/* active tx buffers, beginning at current BAW */
+	struct ath_buf		*tx_buf[ATH_TID_MAX_BUFS];
+	/* where the baw head is in the array */
+	int			baw_head;
+	/* where the BAW tail is in the array */
+	int			baw_tail;
+};
+
 /* driver-specific node state */
 struct ath_node {
 	struct ieee80211_node an_node;	/* base class */
 	u_int8_t	an_mgmtrix;	/* min h/w rate index */
 	u_int8_t	an_mcastrix;	/* mcast h/w rate index */
 	struct ath_buf	*an_ff_buf[WME_NUM_AC]; /* ff staging area */
+	struct ath_tid	an_tid[IEEE80211_TID_SIZE];	/* per-TID state */
+	char		an_name[32];	/* eg "wlan0_a1" */
+	struct mtx	an_mtx;		/* protecting the ath_node state */
 	/* variable-length rate control state follows */
 };
 #define	ATH_NODE(ni)	((struct ath_node *)(ni))
@@ -101,7 +170,8 @@ struct ath_node {
 #define	ATH_RSSI(x)		ATH_EP_RND(x, HAL_RSSI_EP_MULTIPLIER)
 
 struct ath_buf {
-	STAILQ_ENTRY(ath_buf)	bf_list;
+	TAILQ_ENTRY(ath_buf)	bf_list;
+	struct ath_buf *	bf_next;	/* next buffer in the aggregate */
 	int			bf_nseg;
 	uint16_t		bf_txflags;	/* tx descriptor flags */
 	uint16_t		bf_flags;	/* status flags (below) */
@@ -111,11 +181,65 @@ struct ath_buf {
 	bus_dmamap_t		bf_dmamap;	/* DMA map for mbuf chain */
 	struct mbuf		*bf_m;		/* mbuf for buf */
 	struct ieee80211_node	*bf_node;	/* pointer to the node */
+	struct ath_desc		*bf_lastds;	/* last descriptor for comp status */
+	struct ath_buf		*bf_last;	/* last buffer in aggregate, or self for non-aggregate */
 	bus_size_t		bf_mapsize;
 #define	ATH_MAX_SCATTER		ATH_TXDESC	/* max(tx,rx,beacon) desc's */
 	bus_dma_segment_t	bf_segs[ATH_MAX_SCATTER];
+
+	/* Completion function to call on TX complete (fail or not) */
+	/*
+	 * "fail" here is set to 1 if the queue entries were removed
+	 * through a call to ath_tx_draintxq().
+	 */
+	void(* bf_comp) (struct ath_softc *sc, struct ath_buf *bf, int fail);
+
+	/* This state is kept to support software retries and aggregation */
+	struct {
+		int bfs_seqno;		/* sequence number of this packet */
+		int bfs_retries;	/* retry count */
+		uint16_t bfs_tid;	/* packet TID (or TID_MAX for no QoS) */
+		uint16_t bfs_pri;	/* packet AC priority */
+		struct ath_txq *bfs_txq;	/* eventual dest hardware TXQ */
+		uint16_t bfs_pktdur;	/* packet duration (at current rate?) */
+		uint16_t bfs_nframes;	/* number of frames in aggregate */
+		uint16_t bfs_ndelim;	/* number of delims for padding */
+
+		int bfs_aggr:1;		/* part of aggregate? */
+		int bfs_aggrburst:1;	/* part of aggregate burst? */
+		int bfs_isretried:1;	/* retried frame? */
+		int bfs_dobaw:1;	/* actually check against BAW? */
+		int bfs_addedbaw:1;	/* has been added to the BAW */
+		int bfs_shpream:1;	/* use short preamble */
+		int bfs_istxfrag:1;	/* is fragmented */
+		int bfs_ismrr:1;	/* do multi-rate TX retry */
+		int bfs_doprot:1;	/* do RTS/CTS based protection */
+		int bfs_doratelookup:1;	/* do rate lookup before each TX */
+		int bfs_nfl;		/* next fragment length */
+
+		/*
+		 * These fields are passed into the
+		 * descriptor setup functions.
+		 */
+		HAL_PKT_TYPE bfs_atype;	/* packet type */
+		int bfs_pktlen;		/* length of this packet */
+		int bfs_hdrlen;		/* length of this packet header */
+		uint16_t bfs_al;	/* length of aggregate */
+		int bfs_flags;		/* HAL descriptor flags */
+		int bfs_txrate0;	/* first TX rate */
+		int bfs_try0;		/* first try count */
+		uint8_t bfs_ctsrate0;	/* Non-zero - use this as ctsrate */
+		int bfs_keyix;		/* crypto key index */
+		int bfs_txpower;	/* tx power */
+		int bfs_txantenna;	/* TX antenna config */
+		enum ieee80211_protmode bfs_protmode;
+		HAL_11N_RATE_SERIES bfs_rc11n[ATH_RC_NUM];	/* 11n TX series */
+		int bfs_ctsrate;	/* CTS rate */
+		int bfs_ctsduration;	/* CTS duration (pre-11n NICs) */
+		struct ath_rc_series bfs_rc[ATH_RC_NUM];	/* non-11n TX series */
+	} bf_state;
 };
-typedef STAILQ_HEAD(, ath_buf) ath_bufhead;
+typedef TAILQ_HEAD(ath_bufhead_s, ath_buf) ath_bufhead;
 
 #define	ATH_BUF_BUSY	0x00000002	/* (tx) desc owned by h/w */
 
@@ -143,18 +267,27 @@ struct ath_descdma {
  * hardware queue).
  */
 struct ath_txq {
+	struct ath_softc	*axq_softc;	/* Needed for scheduling */
 	u_int			axq_qnum;	/* hardware q number */
 #define	ATH_TXQ_SWQ	(HAL_NUM_TX_QUEUES+1)	/* qnum for s/w only queue */
 	u_int			axq_ac;		/* WME AC */
 	u_int			axq_flags;
 #define	ATH_TXQ_PUTPENDING	0x0001		/* ath_hal_puttxbuf pending */
 	u_int			axq_depth;	/* queue depth (stat only) */
+	u_int			axq_aggr_depth;	/* how many aggregates are queued */
 	u_int			axq_intrcnt;	/* interrupt count */
 	u_int32_t		*axq_link;	/* link ptr in last TX desc */
-	STAILQ_HEAD(, ath_buf)	axq_q;		/* transmit queue */
+	TAILQ_HEAD(axq_q_s, ath_buf)	axq_q;		/* transmit queue */
 	struct mtx		axq_lock;	/* lock on q and link */
 	char			axq_name[12];	/* e.g. "ath0_txq4" */
+
+	/* Per-TID traffic queue for software -> hardware TX */
+	TAILQ_HEAD(axq_t_s,ath_tid)	axq_tidq;
 };
+
+#define	ATH_NODE_LOCK(_an)		mtx_lock(&(_an)->an_mtx)
+#define	ATH_NODE_UNLOCK(_an)		mtx_unlock(&(_an)->an_mtx)
+#define	ATH_NODE_LOCK_ASSERT(_an)	mtx_assert(&(_an)->an_mtx, MA_OWNED)
 
 #define	ATH_TXQ_LOCK_INIT(_sc, _tq) do { \
 	snprintf((_tq)->axq_name, sizeof((_tq)->axq_name), "%s_txq%u", \
@@ -165,19 +298,21 @@ struct ath_txq {
 #define	ATH_TXQ_LOCK(_tq)		mtx_lock(&(_tq)->axq_lock)
 #define	ATH_TXQ_UNLOCK(_tq)		mtx_unlock(&(_tq)->axq_lock)
 #define	ATH_TXQ_LOCK_ASSERT(_tq)	mtx_assert(&(_tq)->axq_lock, MA_OWNED)
+#define	ATH_TXQ_IS_LOCKED(_tq)		mtx_owned(&(_tq)->axq_lock)
 
-#define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
-	STAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
+#define ATH_TXQ_INSERT_HEAD(_tq, _elm, _field) do { \
+	TAILQ_INSERT_HEAD(&(_tq)->axq_q, (_elm), _field); \
 	(_tq)->axq_depth++; \
 } while (0)
-#define ATH_TXQ_REMOVE_HEAD(_tq, _field) do { \
-	STAILQ_REMOVE_HEAD(&(_tq)->axq_q, _field); \
+#define ATH_TXQ_INSERT_TAIL(_tq, _elm, _field) do { \
+	TAILQ_INSERT_TAIL(&(_tq)->axq_q, (_elm), _field); \
+	(_tq)->axq_depth++; \
+} while (0)
+#define ATH_TXQ_REMOVE(_tq, _elm, _field) do { \
+	TAILQ_REMOVE(&(_tq)->axq_q, _elm, _field); \
 	(_tq)->axq_depth--; \
 } while (0)
-/* NB: this does not do the "head empty check" that STAILQ_LAST does */
-#define	ATH_TXQ_LAST(_tq) \
-	((struct ath_buf *)(void *) \
-	 ((char *)((_tq)->axq_q.stqh_last) - __offsetof(struct ath_buf, bf_list)))
+#define	ATH_TXQ_LAST(_tq, _field)	TAILQ_LAST(&(_tq)->axq_q, _field)
 
 struct ath_vap {
 	struct ieee80211vap av_vap;	/* base class */
@@ -197,9 +332,20 @@ struct ath_vap {
 struct taskqueue;
 struct ath_tx99;
 
+/*
+ * Whether to reset the TX/RX queue with or without
+ * a queue flush.
+ */
+typedef enum {
+	ATH_RESET_DEFAULT = 0,
+	ATH_RESET_NOLOSS = 1,
+	ATH_RESET_FULL = 2,
+} ATH_RESET_TYPE;
+
 struct ath_softc {
 	struct ifnet		*sc_ifp;	/* interface common */
 	struct ath_stats	sc_stats;	/* interface statistics */
+	struct ath_tx_aggr_stats	sc_aggr_stats;
 	int			sc_debug;
 	int			sc_nvaps;	/* # vaps */
 	int			sc_nstavaps;	/* # station vaps */
@@ -208,12 +354,15 @@ struct ath_softc {
 	u_int8_t		sc_nbssid0;	/* # vap's using base mac */
 	uint32_t		sc_bssidmask;	/* bssid mask */
 
+	void 			(*sc_node_cleanup)(struct ieee80211_node *);
 	void 			(*sc_node_free)(struct ieee80211_node *);
 	device_t		sc_dev;
 	HAL_BUS_TAG		sc_st;		/* bus space tag */
 	HAL_BUS_HANDLE		sc_sh;		/* bus space handle */
 	bus_dma_tag_t		sc_dmat;	/* bus DMA tag */
 	struct mtx		sc_mtx;		/* master lock (recursive) */
+	struct mtx		sc_pcu_mtx;	/* PCU access mutex */
+	char			sc_pcu_mtx_name[32];
 	struct taskqueue	*sc_tq;		/* private task queue */
 	struct ath_hal		*sc_ah;		/* Atheros HAL */
 	struct ath_ratectrl	*sc_rc;		/* tx rate control support */
@@ -245,7 +394,9 @@ struct ath_softc {
 				sc_resume_up: 1,/* on resume, start all vaps */
 				sc_tdma	    : 1,/* TDMA in use */
 				sc_setcca   : 1,/* set/clr CCA with TDMA */
-				sc_resetcal : 1;/* reset cal state next trip */
+				sc_resetcal : 1,/* reset cal state next trip */
+				sc_rxslink  : 1,/* do self-linked final descriptor */
+				sc_rxtsf32  : 1;/* RX dec TSF is 32 bits */
 	uint32_t		sc_eerd;	/* regdomain from EEPROM */
 	uint32_t		sc_eecc;	/* country code from EEPROM */
 						/* rate tables */
@@ -271,7 +422,26 @@ struct ath_softc {
 	u_int			sc_fftxqmin;	/* min frames before staging */
 	u_int			sc_fftxqmax;	/* max frames before drop */
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
+
 	HAL_INT			sc_imask;	/* interrupt mask copy */
+
+	/*
+	 * These are modified in the interrupt handler as well as
+	 * the task queues and other contexts. Thus these must be
+	 * protected by a mutex, or they could clash.
+	 *
+	 * For now, access to these is behind the ATH_LOCK,
+	 * just to save time.
+	 */
+	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
+	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+	uint32_t		sc_rxproc_cnt;	/* In RX processing */
+	uint32_t		sc_txproc_cnt;	/* In TX processing */
+	uint32_t		sc_txstart_cnt;	/* In TX output (raw/start) */
+	uint32_t		sc_inreset_cnt;	/* In active reset/chanchange */
+	uint32_t		sc_txrx_cnt;	/* refcount on stop/start'ing TX */
+	uint32_t		sc_intr_cnt;	/* refcount on interrupt handling */
+
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
@@ -348,6 +518,39 @@ struct ath_softc {
 	uint16_t		*sc_eepromdata;	/* Local eeprom data, if AR9100 */
 	int			sc_txchainmask;	/* currently configured TX chainmask */
 	int			sc_rxchainmask;	/* currently configured RX chainmask */
+
+	/*
+	 * Aggregation twiddles
+	 *
+	 * hwq_limit:	how busy to keep the hardware queue - don't schedule
+	 *		further packets to the hardware, regardless of the TID
+	 * tid_hwq_lo:	how low the per-TID hwq count has to be before the
+	 *		TID will be scheduled again
+	 * tid_hwq_hi:	how many frames to queue to the HWQ before the TID
+	 *		stops being scheduled.
+	 */
+	int			sc_hwq_limit;
+	int			sc_tid_hwq_lo;
+	int			sc_tid_hwq_hi;
+
+	/* DFS related state */
+	void			*sc_dfs;	/* Used by an optional DFS module */
+	int			sc_dodfs;	/* Whether to enable DFS rx filter bits */
+	struct task		sc_dfstask;	/* DFS processing task */
+
+	/* TX AMPDU handling */
+	int			(*sc_addba_request)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	int			(*sc_addba_response)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *, int, int, int);
+	void			(*sc_addba_stop)(struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
+	void			(*sc_addba_response_timeout)
+				    (struct ieee80211_node *,
+				    struct ieee80211_tx_ampdu *);
+	void			(*sc_bar_response)(struct ieee80211_node *ni,
+				    struct ieee80211_tx_ampdu *tap,
+				    int status);
 };
 
 #define	ATH_LOCK_INIT(_sc) \
@@ -357,6 +560,40 @@ struct ath_softc {
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
+
+/*
+ * The PCU lock is non-recursive and should be treated as a spinlock.
+ * Although currently the interrupt code is run in netisr context and
+ * doesn't require this, this may change in the future.
+ * Please keep this in mind when protecting certain code paths
+ * with the PCU lock.
+ *
+ * The PCU lock is used to serialise access to the PCU so things such
+ * as TX, RX, state change (eg channel change), channel reset and updates
+ * from interrupt context (eg kickpcu, txqactive bits) do not clash.
+ *
+ * Although the current single-thread taskqueue mechanism protects the
+ * majority of these situations by simply serialising them, there are
+ * a few others which occur at the same time. These include the TX path
+ * (which only acquires ATH_LOCK when recycling buffers to the free list),
+ * ath_set_channel, the channel scanning API and perhaps quite a bit more.
+ */
+#define	ATH_PCU_LOCK_INIT(_sc) do {\
+	snprintf((_sc)->sc_pcu_mtx_name,				\
+	    sizeof((_sc)->sc_pcu_mtx_name),				\
+	    "%s PCU lock",						\
+	    device_get_nameunit((_sc)->sc_dev));			\
+	mtx_init(&(_sc)->sc_pcu_mtx, (_sc)->sc_pcu_mtx_name,		\
+		 NULL, MTX_DEF);					\
+	} while (0)
+#define	ATH_PCU_LOCK_DESTROY(_sc)	mtx_destroy(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_LOCK(_sc)		mtx_lock(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_pcu_mtx)
+#define	ATH_PCU_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
+		MA_OWNED)
+#define	ATH_PCU_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
+		MA_NOTOWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 
@@ -467,6 +704,8 @@ void	ath_intr(void *);
 	((*(_ah)->ah_setBeaconTimers)((_ah), (_bt)))
 #define	ath_hal_beacontimers(_ah, _bs) \
 	((*(_ah)->ah_setStationBeaconTimers)((_ah), (_bs)))
+#define	ath_hal_getnexttbtt(_ah) \
+	((*(_ah)->ah_getNextTBTT)((_ah)))
 #define	ath_hal_setassocid(_ah, _bss, _associd) \
 	((*(_ah)->ah_writeAssocid)((_ah), (_bss), (_associd)))
 #define	ath_hal_phydisable(_ah) \
@@ -625,11 +864,11 @@ void	ath_intr(void *);
 #define	ath_hal_settpcts(_ah, _tpcts) \
 	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
 #define	ath_hal_hasintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_PRESENT, NULL) == HAL_OK)
 #define	ath_hal_getintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, 1, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, NULL) == HAL_OK)
 #define	ath_hal_setintmit(_ah, _v) \
-	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, 1, _v, NULL)
+	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
@@ -637,7 +876,13 @@ void	ath_intr(void *);
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
 #define	ath_hal_split4ktrans(_ah) \
-	(ath_hal_getcapability(_ah, HAP_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+#define	ath_hal_self_linked_final_rxdesc(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_RXDESC_SELFLINK, 0, NULL) == HAL_OK)
+#define	ath_hal_gtxto_supported(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_GTXTO, 0, NULL) == HAL_OK)
+#define	ath_hal_has_long_rxdesc_tsf(_ah) \
+	(ath_hal_getcapability(_ah, HAL_CAP_LONG_RXDESC_TSF, 0, NULL) == HAL_OK)
 
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
@@ -662,24 +907,48 @@ void	ath_intr(void *);
 #define ath_hal_gettxcompletionrates(_ah, _ds, _rates, _tries) \
 	((*(_ah)->ah_getTxCompletionRates)((_ah), (_ds), (_rates), (_tries)))
 
-#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
-	_cipher, _delims, _seglen, _first, _last) \
-	((*(_ah)->ah_chainTxDesc((_ah), (_ds), (_pktlen), (_hdrlen), \
-	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
-	(_first), (_last)))) 
 #define	ath_hal_setupfirsttxdesc(_ah, _ds, _aggrlen, _flags, _txpower, \
 		_txr0, _txtr0, _antm, _rcr, _rcd) \
 	((*(_ah)->ah_setupFirstTxDesc)((_ah), (_ds), (_aggrlen), (_flags), \
 	(_txpower), (_txr0), (_txtr0), (_antm), (_rcr), (_rcd)))
+#define	ath_hal_chaintxdesc(_ah, _ds, _pktlen, _hdrlen, _type, _keyix, \
+	_cipher, _delims, _seglen, _first, _last) \
+	((*(_ah)->ah_chainTxDesc)((_ah), (_ds), (_pktlen), (_hdrlen), \
+	(_type), (_keyix), (_cipher), (_delims), (_seglen), \
+	(_first), (_last)))
 #define	ath_hal_setuplasttxdesc(_ah, _ds, _ds0) \
 	((*(_ah)->ah_setupLastTxDesc)((_ah), (_ds), (_ds0)))
+
 #define	ath_hal_set11nratescenario(_ah, _ds, _dur, _rt, _series, _ns, _flags) \
 	((*(_ah)->ah_set11nRateScenario)((_ah), (_ds), (_dur), (_rt), \
 	(_series), (_ns), (_flags)))
+
+#define	ath_hal_set11n_aggr_first(_ah, _ds, _len, _num) \
+	((*(_ah)->ah_set11nAggrFirst)((_ah), (_ds), (_len), (_num)))
 #define	ath_hal_set11naggrmiddle(_ah, _ds, _num) \
-	((*(_ah)->ah_set11nAggrMiddle((_ah), (_ds), (_num))))
+	((*(_ah)->ah_set11nAggrMiddle)((_ah), (_ds), (_num)))
+#define	ath_hal_set11n_aggr_last(_ah, _ds) \
+	((*(_ah)->ah_set11nAggrLast)((_ah), (_ds)))
+
 #define	ath_hal_set11nburstduration(_ah, _ds, _dur) \
 	((*(_ah)->ah_set11nBurstDuration)((_ah), (_ds), (_dur)))
+#define	ath_hal_clr11n_aggr(_ah, _ds) \
+	((*(_ah)->ah_clr11nAggr)((_ah), (_ds)))
+
+/*
+ * This is badly-named; you need to set the correct parameters
+ * to begin to receive useful radar events; and even then
+ * it doesn't "enable" DFS. See the ath_dfs/null/ module for
+ * more information.
+ */
+#define	ath_hal_enabledfs(_ah, _param) \
+	((*(_ah)->ah_enableDfs)((_ah), (_param)))
+#define	ath_hal_getdfsthresh(_ah, _param) \
+	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
+#define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
+	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), (_buf), (_event)))
+#define	ath_hal_is_fast_clock_enabled(_ah) \
+	((*(_ah)->ah_isFastClockEnabled)((_ah)))
 
 #define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
         ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))

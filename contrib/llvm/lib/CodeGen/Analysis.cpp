@@ -31,7 +31,7 @@ using namespace llvm;
 /// of insertvalue or extractvalue indices that identify a member, return
 /// the linearized index of the start of the member.
 ///
-unsigned llvm::ComputeLinearIndex(const Type *Ty,
+unsigned llvm::ComputeLinearIndex(Type *Ty,
                                   const unsigned *Indices,
                                   const unsigned *IndicesEnd,
                                   unsigned CurIndex) {
@@ -40,7 +40,7 @@ unsigned llvm::ComputeLinearIndex(const Type *Ty,
     return CurIndex;
 
   // Given a struct type, recursively traverse the elements.
-  if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+  if (StructType *STy = dyn_cast<StructType>(Ty)) {
     for (StructType::element_iterator EB = STy->element_begin(),
                                       EI = EB,
                                       EE = STy->element_end();
@@ -52,8 +52,8 @@ unsigned llvm::ComputeLinearIndex(const Type *Ty,
     return CurIndex;
   }
   // Given an array type, recursively traverse the elements.
-  else if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    const Type *EltTy = ATy->getElementType();
+  else if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
+    Type *EltTy = ATy->getElementType();
     for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i) {
       if (Indices && *Indices == i)
         return ComputeLinearIndex(EltTy, Indices+1, IndicesEnd, CurIndex);
@@ -72,12 +72,12 @@ unsigned llvm::ComputeLinearIndex(const Type *Ty,
 /// If Offsets is non-null, it points to a vector to be filled in
 /// with the in-memory offsets of each of the individual values.
 ///
-void llvm::ComputeValueVTs(const TargetLowering &TLI, const Type *Ty,
+void llvm::ComputeValueVTs(const TargetLowering &TLI, Type *Ty,
                            SmallVectorImpl<EVT> &ValueVTs,
                            SmallVectorImpl<uint64_t> *Offsets,
                            uint64_t StartingOffset) {
   // Given a struct type, recursively traverse the elements.
-  if (const StructType *STy = dyn_cast<StructType>(Ty)) {
+  if (StructType *STy = dyn_cast<StructType>(Ty)) {
     const StructLayout *SL = TLI.getTargetData()->getStructLayout(STy);
     for (StructType::element_iterator EB = STy->element_begin(),
                                       EI = EB,
@@ -88,8 +88,8 @@ void llvm::ComputeValueVTs(const TargetLowering &TLI, const Type *Ty,
     return;
   }
   // Given an array type, recursively traverse the elements.
-  if (const ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
-    const Type *EltTy = ATy->getElementType();
+  if (ArrayType *ATy = dyn_cast<ArrayType>(Ty)) {
+    Type *EltTy = ATy->getElementType();
     uint64_t EltSize = TLI.getTargetData()->getTypeAllocSize(EltTy);
     for (unsigned i = 0, e = ATy->getNumElements(); i != e; ++i)
       ComputeValueVTs(TLI, EltTy, ValueVTs, Offsets,
@@ -211,7 +211,6 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
   const BasicBlock *ExitBB = I->getParent();
   const TerminatorInst *Term = ExitBB->getTerminator();
   const ReturnInst *Ret = dyn_cast<ReturnInst>(Term);
-  const Function *F = ExitBB->getParent();
 
   // The block must end in a return statement or unreachable.
   //
@@ -250,6 +249,7 @@ bool llvm::isInTailCallPosition(ImmutableCallSite CS, Attributes CalleeRetAttr,
 
   // Conservatively require the attributes of the call to match those of
   // the return. Ignore noalias because it doesn't affect the call sequence.
+  const Function *F = ExitBB->getParent();
   unsigned CallerRetAttr = F->getAttributes().getRetAttributes();
   if ((CalleeRetAttr ^ CallerRetAttr) & ~Attribute::NoAlias)
     return false;

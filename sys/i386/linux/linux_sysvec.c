@@ -90,6 +90,8 @@ MALLOC_DEFINE(M_LINUX, "linux", "Linux mode structures");
 #define	LINUX_SYS_linux_rt_sendsig	0
 #define	LINUX_SYS_linux_sendsig		0
 
+#define	LINUX_PS_STRINGS	(LINUX_USRSTACK - sizeof(struct ps_strings))
+
 extern char linux_sigcode[];
 extern int linux_szsigcode;
 
@@ -247,8 +249,7 @@ elf_linux_fixup(register_t **stack_base, struct image_params *imgp)
 
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
-	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform);
+	uplatform = (Elf32_Addr *)((caddr_t)arginfo - linux_szplatform);
 	args = (Elf32_Auxargs *)imgp->auxargs;
 	pos = *stack_base + (imgp->args->argc + imgp->args->envc + 2);
 
@@ -308,21 +309,14 @@ linux_copyout_strings(struct image_params *imgp)
 	 */
 	p = imgp->proc;
 	arginfo = (struct ps_strings *)p->p_sysent->sv_psstrings;
-	destp = (caddr_t)arginfo - linux_szsigcode - SPARE_USRSPACE -
-	    linux_szplatform - roundup((ARG_MAX - imgp->args->stringspace),
-	    sizeof(char *));
-
-	/*
-	 * install sigcode
-	 */
-	copyout(p->p_sysent->sv_sigcode, ((caddr_t)arginfo -
-	    linux_szsigcode), linux_szsigcode);
+	destp = (caddr_t)arginfo - SPARE_USRSPACE - linux_szplatform -
+	    roundup((ARG_MAX - imgp->args->stringspace), sizeof(char *));
 
 	/*
 	 * install LINUX_PLATFORM
 	 */
-	copyout(linux_platform, ((caddr_t)arginfo - linux_szsigcode -
-	    linux_szplatform), linux_szplatform);
+	copyout(linux_platform, ((caddr_t)arginfo - linux_szplatform),
+	    linux_szplatform);
 
 	/*
 	 * If we have a valid auxargs ptr, prepare some room
@@ -520,8 +514,7 @@ linux_rt_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode) +
-	    linux_sznonrtsigcode;
+	regs->tf_eip = p->p_sysent->sv_sigcode_base + linux_sznonrtsigcode;
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -640,7 +633,7 @@ linux_sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	 * Build context to run handler in.
 	 */
 	regs->tf_esp = (int)fp;
-	regs->tf_eip = PS_STRINGS - *(p->p_sysent->sv_szsigcode);
+	regs->tf_eip = p->p_sysent->sv_sigcode_base;
 	regs->tf_eflags &= ~(PSL_T | PSL_VM | PSL_D);
 	regs->tf_cs = _ucodesel;
 	regs->tf_ds = _udatasel;
@@ -986,7 +979,7 @@ struct sysentvec linux_sysvec = {
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
+	.sv_usrstack	= LINUX_USRSTACK,
 	.sv_psstrings	= PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = exec_copyout_strings,
@@ -997,8 +990,11 @@ struct sysentvec linux_sysvec = {
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = linux_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_shared_page_base = LINUX_SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 };
+INIT_SYSENTVEC(aout_sysvec, &linux_sysvec);
 
 struct sysentvec elf_linux_sysvec = {
 	.sv_size	= LINUX_SYS_MAXSYSCALL,
@@ -1021,19 +1017,22 @@ struct sysentvec elf_linux_sysvec = {
 	.sv_pagesize	= PAGE_SIZE,
 	.sv_minuser	= VM_MIN_ADDRESS,
 	.sv_maxuser	= VM_MAXUSER_ADDRESS,
-	.sv_usrstack	= USRSTACK,
-	.sv_psstrings	= PS_STRINGS,
+	.sv_usrstack	= LINUX_USRSTACK,
+	.sv_psstrings	= LINUX_PS_STRINGS,
 	.sv_stackprot	= VM_PROT_ALL,
 	.sv_copyout_strings = linux_copyout_strings,
 	.sv_setregs	= exec_linux_setregs,
 	.sv_fixlimit	= NULL,
 	.sv_maxssiz	= NULL,
-	.sv_flags	= SV_ABI_LINUX | SV_IA32 | SV_ILP32,
+	.sv_flags	= SV_ABI_LINUX | SV_IA32 | SV_ILP32 | SV_SHP,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
 	.sv_fetch_syscall_args = linux_fetch_syscall_args,
 	.sv_syscallnames = NULL,
+	.sv_shared_page_base = LINUX_SHAREDPAGE,
+	.sv_shared_page_len = PAGE_SIZE,
 	.sv_schedtail	= linux_schedtail,
 };
+INIT_SYSENTVEC(elf_sysvec, &elf_linux_sysvec);
 
 static char GNU_ABI_VENDOR[] = "GNU";
 static int GNULINUX_ABI_DESC = 0;

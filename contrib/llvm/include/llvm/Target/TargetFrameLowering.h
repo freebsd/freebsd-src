@@ -15,6 +15,8 @@
 #define LLVM_TARGET_TARGETFRAMELOWERING_H
 
 #include "llvm/CodeGen/MachineBasicBlock.h"
+#include "llvm/MC/MCDwarf.h"
+#include "llvm/ADT/ArrayRef.h"
 
 #include <utility>
 #include <vector>
@@ -112,6 +114,10 @@ public:
   virtual void emitEpilogue(MachineFunction &MF,
                             MachineBasicBlock &MBB) const = 0;
 
+  /// Adjust the prologue to have the function use segmented stacks. This works
+  /// by adding a check even before the "normal" function prologue.
+  virtual void adjustForSegmentedStacks(MachineFunction &MF) const { }
+
   /// spillCalleeSavedRegisters - Issues instruction(s) to spill all callee
   /// saved registers and returns true if it isn't possible / profitable to do
   /// so by issuing a series of store instructions via
@@ -158,11 +164,6 @@ public:
   virtual bool canSimplifyCallFramePseudos(const MachineFunction &MF) const {
     return hasReservedCallFrame(MF) || hasFP(MF);
   }
-
-  /// getInitialFrameState - Returns a list of machine moves that are assumed
-  /// on entry to all functions.  Note that LabelID is ignored (assumed to be
-  /// the beginning of the function.)
-  virtual void getInitialFrameState(std::vector<MachineMove> &Moves) const;
 
   /// getFrameIndexOffset - Returns the displacement from the frame register to
   /// the stack frame of the specified index.

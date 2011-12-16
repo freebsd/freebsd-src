@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int zyd_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, zyd, CTLFLAG_RW, 0, "USB zyd");
 SYSCTL_INT(_hw_usb_zyd, OID_AUTO, debug, CTLFLAG_RW, &zyd_debug, 0,
     "zyd debug level");
 
@@ -200,7 +200,7 @@ static const struct zyd_phy_pair zyd_def_phyB[] = ZYD_DEF_PHYB;
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, ZYD_ZD1211) }
 #define	ZYD_ZD1211B_DEV(v,p)	\
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, ZYD_ZD1211B) }
-static const struct usb_device_id zyd_devs[] = {
+static const STRUCT_USB_HOST_ID zyd_devs[] = {
 	/* ZYD_ZD1211 */
 	ZYD_ZD1211_DEV(3COM2, 3CRUSB10075),
 	ZYD_ZD1211_DEV(ABOCOM, WL54),
@@ -229,6 +229,7 @@ static const struct usb_device_id zyd_devs[] = {
 	ZYD_ZD1211_DEV(ZYXEL, ZYAIRG220),
 	ZYD_ZD1211_DEV(ZYXEL, G200V2),
 	/* ZYD_ZD1211B */
+	ZYD_ZD1211B_DEV(ACCTON, SMCWUSBG_NF),
 	ZYD_ZD1211B_DEV(ACCTON, SMCWUSBG),
 	ZYD_ZD1211B_DEV(ACCTON, ZD1211B),
 	ZYD_ZD1211B_DEV(ASUS, A9T_WIFI),
@@ -510,9 +511,6 @@ zyd_tx_free(struct zyd_tx_data *data, int txerr)
 		m_freem(data->m);
 		data->m = NULL;
 
-		if (txerr == 0)
-			ieee80211_ratectl_tx_complete(data->ni->ni_vap,
-			    data->ni, IEEE80211_RATECTL_TX_SUCCESS, NULL, NULL);
 		ieee80211_free_node(data->ni);
 		data->ni = NULL;
 	}
@@ -685,10 +683,10 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				if (i != cnt)
 					continue;
 				/* copy answer into caller-supplied buffer */
-				bcopy(cmd->data, rqp->odata, rqp->olen);
+				memcpy(rqp->odata, cmd->data, rqp->olen);
 				DPRINTF(sc, ZYD_DEBUG_CMD,
 				    "command %p complete, data = %*D \n",
-				    rqp, rqp->olen, rqp->odata, ":");
+				    rqp, rqp->olen, (char *)rqp->odata, ":");
 				wakeup(rqp);	/* wakeup caller */
 				break;
 			}
@@ -785,7 +783,7 @@ zyd_cmd(struct zyd_softc *sc, uint16_t code, const void *idata, int ilen,
 		return (EINVAL);
 
 	cmd.code = htole16(code);
-	bcopy(idata, cmd.data, ilen);
+	memcpy(cmd.data, idata, ilen);
 	DPRINTF(sc, ZYD_DEBUG_CMD, "sending cmd %p = %*D\n",
 	    &rq, ilen, idata, ":");
 

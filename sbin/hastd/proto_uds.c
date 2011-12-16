@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 /* UDS - UNIX Domain Socket */
 
 #include <sys/types.h>
+#include <sys/socket.h>
 #include <sys/un.h>
 
 #include <errno.h>
@@ -42,7 +43,6 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-#include "hast.h"
 #include "pjdlog.h"
 #include "proto_impl.h"
 
@@ -119,10 +119,17 @@ uds_common_setup(const char *addr, void **ctxp, int side)
 }
 
 static int
-uds_client(const char *addr, void **ctxp)
+uds_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 {
+	int ret;
 
-	return (uds_common_setup(addr, ctxp, UDS_SIDE_CLIENT));
+	ret = uds_common_setup(dstaddr, ctxp, UDS_SIDE_CLIENT);
+	if (ret != 0)
+		return (ret);
+
+	PJDLOG_ASSERT(srcaddr == NULL);
+
+	return (0);
 }
 
 static int
@@ -331,19 +338,19 @@ uds_close(void *ctx)
 	free(uctx);
 }
 
-static struct hast_proto uds_proto = {
-	.hp_name = "uds",
-	.hp_client = uds_client,
-	.hp_connect = uds_connect,
-	.hp_connect_wait = uds_connect_wait,
-	.hp_server = uds_server,
-	.hp_accept = uds_accept,
-	.hp_send = uds_send,
-	.hp_recv = uds_recv,
-	.hp_descriptor = uds_descriptor,
-	.hp_local_address = uds_local_address,
-	.hp_remote_address = uds_remote_address,
-	.hp_close = uds_close
+static struct proto uds_proto = {
+	.prt_name = "uds",
+	.prt_client = uds_client,
+	.prt_connect = uds_connect,
+	.prt_connect_wait = uds_connect_wait,
+	.prt_server = uds_server,
+	.prt_accept = uds_accept,
+	.prt_send = uds_send,
+	.prt_recv = uds_recv,
+	.prt_descriptor = uds_descriptor,
+	.prt_local_address = uds_local_address,
+	.prt_remote_address = uds_remote_address,
+	.prt_close = uds_close
 };
 
 static __constructor void

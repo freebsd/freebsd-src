@@ -43,7 +43,7 @@ let Namespace = "MBlaze" in {
   def R1  : MBlazeGPRReg< 1,  "r1">,   DwarfRegNum<[1]>;
   def R2  : MBlazeGPRReg< 2,  "r2">,   DwarfRegNum<[2]>;
   def R3  : MBlazeGPRReg< 3,  "r3">,   DwarfRegNum<[3]>;
-  def R4  : MBlazeGPRReg< 4,  "r4">,   DwarfRegNum<[5]>;
+  def R4  : MBlazeGPRReg< 4,  "r4">,   DwarfRegNum<[4]>;
   def R5  : MBlazeGPRReg< 5,  "r5">,   DwarfRegNum<[5]>;
   def R6  : MBlazeGPRReg< 6,  "r6">,   DwarfRegNum<[6]>;
   def R7  : MBlazeGPRReg< 7,  "r7">,   DwarfRegNum<[7]>;
@@ -85,67 +85,33 @@ let Namespace = "MBlaze" in {
   def RTLBX  : MBlazeSPRReg<0x1002, "rtlbx">,  DwarfRegNum<[41]>;
   def RTLBLO : MBlazeSPRReg<0x1003, "rtlblo">, DwarfRegNum<[42]>;
   def RTLBHI : MBlazeSPRReg<0x1004, "rtlbhi">, DwarfRegNum<[43]>;
-  def RPVR0  : MBlazeSPRReg<0x2000, "rpvr0">,  DwarfRegNum<[44]>;
-  def RPVR1  : MBlazeSPRReg<0x2001, "rpvr1">,  DwarfRegNum<[45]>;
-  def RPVR2  : MBlazeSPRReg<0x2002, "rpvr2">,  DwarfRegNum<[46]>;
-  def RPVR3  : MBlazeSPRReg<0x2003, "rpvr3">,  DwarfRegNum<[47]>;
-  def RPVR4  : MBlazeSPRReg<0x2004, "rpvr4">,  DwarfRegNum<[48]>;
-  def RPVR5  : MBlazeSPRReg<0x2005, "rpvr5">,  DwarfRegNum<[49]>;
-  def RPVR6  : MBlazeSPRReg<0x2006, "rpvr6">,  DwarfRegNum<[50]>;
-  def RPVR7  : MBlazeSPRReg<0x2007, "rpvr7">,  DwarfRegNum<[51]>;
-  def RPVR8  : MBlazeSPRReg<0x2008, "rpvr8">,  DwarfRegNum<[52]>;
-  def RPVR9  : MBlazeSPRReg<0x2009, "rpvr9">,  DwarfRegNum<[53]>;
-  def RPVR10 : MBlazeSPRReg<0x200A, "rpvr10">, DwarfRegNum<[54]>;
-  def RPVR11 : MBlazeSPRReg<0x200B, "rpvr11">, DwarfRegNum<[55]>;
+  def RTLBSX : MBlazeSPRReg<0x1004, "rtlbsx">, DwarfRegNum<[44]>;
+  def RPVR0  : MBlazeSPRReg<0x2000, "rpvr0">,  DwarfRegNum<[45]>;
+  def RPVR1  : MBlazeSPRReg<0x2001, "rpvr1">,  DwarfRegNum<[46]>;
+  def RPVR2  : MBlazeSPRReg<0x2002, "rpvr2">,  DwarfRegNum<[47]>;
+  def RPVR3  : MBlazeSPRReg<0x2003, "rpvr3">,  DwarfRegNum<[48]>;
+  def RPVR4  : MBlazeSPRReg<0x2004, "rpvr4">,  DwarfRegNum<[49]>;
+  def RPVR5  : MBlazeSPRReg<0x2005, "rpvr5">,  DwarfRegNum<[50]>;
+  def RPVR6  : MBlazeSPRReg<0x2006, "rpvr6">,  DwarfRegNum<[51]>;
+  def RPVR7  : MBlazeSPRReg<0x2007, "rpvr7">,  DwarfRegNum<[52]>;
+  def RPVR8  : MBlazeSPRReg<0x2008, "rpvr8">,  DwarfRegNum<[53]>;
+  def RPVR9  : MBlazeSPRReg<0x2009, "rpvr9">,  DwarfRegNum<[54]>;
+  def RPVR10 : MBlazeSPRReg<0x200A, "rpvr10">, DwarfRegNum<[55]>;
+  def RPVR11 : MBlazeSPRReg<0x200B, "rpvr11">, DwarfRegNum<[56]>;
 
   // The carry bit. In the Microblaze this is really bit 29 of the
   // MSR register but this is the only bit of that register that we
   // are interested in modeling.
-  def CARRY  : MBlazeSPRReg<0x0000, "rmsr[c]">, DwarfRegNum<[33]>;
+  def CARRY  : MBlazeSPRReg<0x0000, "rmsr[c]">;
 }
 
 //===----------------------------------------------------------------------===//
 // Register Classes
 //===----------------------------------------------------------------------===//
 
-def GPR : RegisterClass<"MBlaze", [i32,f32], 32,
-  [
-  // Return Values and Arguments
-  R3, R4, R5, R6, R7, R8, R9, R10,
+def GPR : RegisterClass<"MBlaze", [i32,f32], 32, (sequence "R%u", 0, 31)>;
 
-  // Not preserved across procedure calls
-  R11, R12,
-
-  // Callee save
-  R20, R21, R22, R23, R24, R25, R26, R27, R28, R29, R30, R31,
-
-  // Reserved
-  R0,  // Always zero
-  R1,  // The stack pointer
-  R2,  // Read-only small data area anchor
-  R13, // Read-write small data area anchor
-  R14, // Return address for interrupts
-  R15, // Return address for sub-routines
-  R16, // Return address for trap
-  R17, // Return address for exceptions
-  R18, // Reserved for assembler
-  R19  // The frame-pointer
-  ]>
-{
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    GPRClass::iterator
-    GPRClass::allocation_order_end(const MachineFunction &MF) const {
-      // The last 10 registers on the list above are reserved
-      return end()-10;
-    }
-  }];
-}
-
-def SPR : RegisterClass<"MBlaze", [i32], 32,
-  [
+def SPR : RegisterClass<"MBlaze", [i32], 32, (add
   // Reserved
   RPC,
   RMSR,
@@ -171,20 +137,12 @@ def SPR : RegisterClass<"MBlaze", [i32], 32,
   RPVR9,
   RPVR10,
   RPVR11
-  ]>
+  )>
 {
-  let MethodProtos = [{
-    iterator allocation_order_end(const MachineFunction &MF) const;
-  }];
-  let MethodBodies = [{
-    SPRClass::iterator
-    SPRClass::allocation_order_end(const MachineFunction &MF) const {
-      // None of the special purpose registers are allocatable.
-      return end()-24;
-    }
-  }];
+  // None of the special purpose registers are allocatable.
+  let isAllocatable = 0;
 }
 
-def CRC : RegisterClass<"MBlaze", [i32], 32, [CARRY]> {
+def CRC : RegisterClass<"MBlaze", [i32], 32, (add CARRY)> {
   let CopyCost = -1;
 }

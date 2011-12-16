@@ -4340,6 +4340,8 @@ grokdeclarator (const struct c_declarator *declarator,
 			  pedwarn ("ISO C90 forbids variable-size array %qs",
 				   name);
 		      }
+		    if (warn_variable_decl)
+		      warning (0, "variable-sized array %qs", name);
 		  }
 
 		if (integer_zerop (size))

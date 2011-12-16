@@ -51,6 +51,7 @@ typedef struct _Dwarf_Debug	*Dwarf_Debug;
 typedef struct _Dwarf_Die	*Dwarf_Die;
 typedef struct _Dwarf_Fde	*Dwarf_Fde;
 typedef struct _Dwarf_Func	*Dwarf_Func;
+typedef struct _Dwarf_Inlined_Func *Dwarf_Inlined_Func;
 typedef struct _Dwarf_Global	*Dwarf_Global;
 typedef struct _Dwarf_Line	*Dwarf_Line;
 typedef struct _Dwarf_Type	*Dwarf_Type;
@@ -70,6 +71,9 @@ typedef struct {
 	Dwarf_Half      ld_cents;
 	Dwarf_Loc	*ld_s;
 } Dwarf_Locdesc;
+
+/* receiver function for dwarf_function_iterate_inlined_instance() API */
+typedef void (*Dwarf_Inlined_Callback)(Dwarf_Inlined_Func, void *);
 
 /*
  * Error numbers which are specific to this implementation.
@@ -157,6 +161,16 @@ void		dwarf_dump_strtab(Dwarf_Debug);
 void		dwarf_dump_symtab(Dwarf_Debug);
 void		dwarf_dump_raw(Dwarf_Debug);
 void		dwarf_dump_tree(Dwarf_Debug);
+Dwarf_Func	dwarf_find_function_by_offset(Dwarf_Debug dbg, Dwarf_Off off);
+Dwarf_Func	dwarf_find_function_by_name(Dwarf_Debug dbg, const char *name);
+int		dwarf_function_get_addr_range(Dwarf_Func f,
+		    Dwarf_Addr *low_pc, Dwarf_Addr *high_pc);
+int		dwarf_function_is_inlined(Dwarf_Func f);
+void		dwarf_function_iterate_inlined_instance(Dwarf_Func func,
+		    Dwarf_Inlined_Callback f, void *data);
+int		dwarf_inlined_function_get_addr_range(Dwarf_Inlined_Func f,
+		    Dwarf_Addr *low_pc, Dwarf_Addr *high_pc);
+
 __END_DECLS
 
 #endif /* !_LIBDWARF_H_ */

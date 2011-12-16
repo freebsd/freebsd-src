@@ -69,7 +69,8 @@
 #include <netatalk/at.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock", "netgraph ksock node ");
+static MALLOC_DEFINE(M_NETGRAPH_KSOCKET, "netgraph_ksock",
+    "netgraph ksock node");
 #else
 #define M_NETGRAPH_KSOCKET M_NETGRAPH
 #endif
@@ -523,10 +524,7 @@ ng_ksocket_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv),
-	    M_NETGRAPH_KSOCKET, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_KSOCKET, M_WAITOK | M_ZERO);
 
 	LIST_INIT(&priv->embryos);
 	/* cross link them */

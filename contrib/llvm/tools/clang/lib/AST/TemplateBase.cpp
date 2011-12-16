@@ -33,7 +33,7 @@ using namespace clang;
 ///
 /// \param Out the raw_ostream instance to use for printing.
 static void printIntegral(const TemplateArgument &TemplArg,
-                          llvm::raw_ostream &Out) {
+                          raw_ostream &Out) {
   const ::clang::Type *T = TemplArg.getIntegralType().getTypePtr();
   const llvm::APSInt *Val = TemplArg.getAsIntegral();
 
@@ -68,8 +68,7 @@ TemplateArgument TemplateArgument::CreatePackCopy(ASTContext &Context,
 bool TemplateArgument::isDependent() const {
   switch (getKind()) {
   case Null:
-    assert(false && "Should not have a NULL template argument");
-    return false;
+    llvm_unreachable("Should not have a NULL template argument");
 
   case Type:
     return getAsType()->isDependentType();
@@ -101,6 +100,44 @@ bool TemplateArgument::isDependent() const {
     return false;
   }
 
+  return false;
+}
+
+bool TemplateArgument::isInstantiationDependent() const {
+  switch (getKind()) {
+  case Null:
+    llvm_unreachable("Should not have a NULL template argument");
+    
+  case Type:
+    return getAsType()->isInstantiationDependentType();
+    
+  case Template:
+    return getAsTemplate().isInstantiationDependent();
+    
+  case TemplateExpansion:
+    return true;
+    
+  case Declaration:
+    if (DeclContext *DC = dyn_cast<DeclContext>(getAsDecl()))
+      return DC->isDependentContext();
+    return getAsDecl()->getDeclContext()->isDependentContext();
+    
+  case Integral:
+    // Never dependent
+    return false;
+    
+  case Expression:
+    return getAsExpr()->isInstantiationDependent();
+    
+  case Pack:
+    for (pack_iterator P = pack_begin(), PEnd = pack_end(); P != PEnd; ++P) {
+      if (P->isInstantiationDependent())
+        return true;
+    }
+    
+    return false;
+  }
+  
   return false;
 }
 
@@ -270,15 +307,17 @@ TemplateArgument TemplateArgument::getPackExpansionPattern() const {
 }
 
 void TemplateArgument::print(const PrintingPolicy &Policy, 
-                             llvm::raw_ostream &Out) const {
+                             raw_ostream &Out) const {
   switch (getKind()) {
   case Null:
     Out << "<no value>";
     break;
     
   case Type: {
+    PrintingPolicy SubPolicy(Policy);
+    SubPolicy.SuppressStrongLifetime = true;
     std::string TypeStr;
-    getAsType().getAsStringInternal(TypeStr, Policy);
+    getAsType().getAsStringInternal(TypeStr, SubPolicy);
     Out << TypeStr;
     break;
   }
@@ -338,7 +377,7 @@ void TemplateArgument::print(const PrintingPolicy &Policy,
 //===----------------------------------------------------------------------===//
 
 TemplateArgumentLocInfo::TemplateArgumentLocInfo() {
-  memset(this, 0, sizeof(TemplateArgumentLocInfo));
+  memset((void*)this, 0, sizeof(TemplateArgumentLocInfo));
 }
 
 SourceRange TemplateArgumentLoc::getSourceRange() const {
@@ -356,14 +395,14 @@ SourceRange TemplateArgumentLoc::getSourceRange() const {
       return SourceRange();
 
   case TemplateArgument::Template:
-    if (getTemplateQualifierRange().isValid())
-      return SourceRange(getTemplateQualifierRange().getBegin(), 
+    if (getTemplateQualifierLoc())
+      return SourceRange(getTemplateQualifierLoc().getBeginLoc(), 
                          getTemplateNameLoc());
     return SourceRange(getTemplateNameLoc());
 
   case TemplateArgument::TemplateExpansion:
-    if (getTemplateQualifierRange().isValid())
-      return SourceRange(getTemplateQualifierRange().getBegin(), 
+    if (getTemplateQualifierLoc())
+      return SourceRange(getTemplateQualifierLoc().getBeginLoc(), 
                          getTemplateEllipsisLoc());
     return SourceRange(getTemplateNameLoc(), getTemplateEllipsisLoc());
 
@@ -425,7 +464,7 @@ TemplateArgumentLoc::getPackExpansionPattern(SourceLocation &Ellipsis,
     Ellipsis = getTemplateEllipsisLoc();
     NumExpansions = Argument.getNumTemplateExpansions();
     return TemplateArgumentLoc(Argument.getPackExpansionPattern(),
-                               getTemplateQualifierRange(),
+                               getTemplateQualifierLoc(),
                                getTemplateNameLoc());
     
   case TemplateArgument::Declaration:
@@ -488,4 +527,66 @@ const DiagnosticBuilder &clang::operator<<(const DiagnosticBuilder &DB,
   }
   
   return DB;
+}
+
+const ASTTemplateArgumentListInfo *
+ASTTemplateArgumentListInfo::Create(ASTContext &C,
+                                    const TemplateArgumentListInfo &List) {
+  std::size_t size = sizeof(CXXDependentScopeMemberExpr) +
+                     ASTTemplateArgumentListInfo::sizeFor(List);
+  void *Mem = C.Allocate(size, llvm::alignOf<ASTTemplateArgumentListInfo>());
+  ASTTemplateArgumentListInfo *TAI = new (Mem) ASTTemplateArgumentListInfo();
+  TAI->initializeFrom(List);
+  return TAI;
+}
+
+void ASTTemplateArgumentListInfo::initializeFrom(
+                                      const TemplateArgumentListInfo &Info) {
+  LAngleLoc = Info.getLAngleLoc();
+  RAngleLoc = Info.getRAngleLoc();
+  NumTemplateArgs = Info.size();
+
+  TemplateArgumentLoc *ArgBuffer = getTemplateArgs();
+  for (unsigned i = 0; i != NumTemplateArgs; ++i)
+    new (&ArgBuffer[i]) TemplateArgumentLoc(Info[i]);
+}
+
+void ASTTemplateArgumentListInfo::initializeFrom(
+                                          const TemplateArgumentListInfo &Info,
+                                                  bool &Dependent, 
+                                                  bool &InstantiationDependent,
+                                       bool &ContainsUnexpandedParameterPack) {
+  LAngleLoc = Info.getLAngleLoc();
+  RAngleLoc = Info.getRAngleLoc();
+  NumTemplateArgs = Info.size();
+
+  TemplateArgumentLoc *ArgBuffer = getTemplateArgs();
+  for (unsigned i = 0; i != NumTemplateArgs; ++i) {
+    Dependent = Dependent || Info[i].getArgument().isDependent();
+    InstantiationDependent = InstantiationDependent || 
+                             Info[i].getArgument().isInstantiationDependent();
+    ContainsUnexpandedParameterPack 
+      = ContainsUnexpandedParameterPack || 
+        Info[i].getArgument().containsUnexpandedParameterPack();
+
+    new (&ArgBuffer[i]) TemplateArgumentLoc(Info[i]);
+  }
+}
+
+void ASTTemplateArgumentListInfo::copyInto(
+                                      TemplateArgumentListInfo &Info) const {
+  Info.setLAngleLoc(LAngleLoc);
+  Info.setRAngleLoc(RAngleLoc);
+  for (unsigned I = 0; I != NumTemplateArgs; ++I)
+    Info.addArgument(getTemplateArgs()[I]);
+}
+
+std::size_t ASTTemplateArgumentListInfo::sizeFor(unsigned NumTemplateArgs) {
+  return sizeof(ASTTemplateArgumentListInfo) +
+         sizeof(TemplateArgumentLoc) * NumTemplateArgs;
+}
+
+std::size_t ASTTemplateArgumentListInfo::sizeFor(
+                                      const TemplateArgumentListInfo &Info) {
+  return sizeFor(Info.size());
 }

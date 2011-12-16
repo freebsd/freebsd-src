@@ -96,8 +96,12 @@ public:
     return DbgValues.empty() && ByvalParmDbgValues.empty();
   }
 
-  SmallVector<SDDbgValue*,2> &getSDDbgValues(const SDNode *Node) {
-    return DbgValMap[Node];
+  ArrayRef<SDDbgValue*> getSDDbgValues(const SDNode *Node) {
+    DenseMap<const SDNode*, SmallVector<SDDbgValue*, 2> >::iterator I =
+      DbgValMap.find(Node);
+    if (I != DbgValMap.end())
+      return I->second;
+    return ArrayRef<SDDbgValue*>();
   }
 
   typedef SmallVector<SDDbgValue*,32>::iterator DbgIterator;
@@ -284,7 +288,7 @@ public:
   ///
   /// Note that this is an involved process that may invalidate pointers into
   /// the graph.
-  void Legalize(CodeGenOpt::Level OptLevel);
+  void Legalize();
 
   /// LegalizeVectors - This transforms the SelectionDAG into a SelectionDAG
   /// that only uses vector math operations supported by the target.  This is
@@ -438,13 +442,17 @@ public:
   SDValue getConvertRndSat(EVT VT, DebugLoc dl, SDValue Val, SDValue DTy,
                            SDValue STy,
                            SDValue Rnd, SDValue Sat, ISD::CvtCode Code);
-  
+
   /// getVectorShuffle - Return an ISD::VECTOR_SHUFFLE node.  The number of
   /// elements in VT, which must be a vector type, must match the number of
   /// mask elements NumElts.  A integer mask element equal to -1 is treated as
   /// undefined.
-  SDValue getVectorShuffle(EVT VT, DebugLoc dl, SDValue N1, SDValue N2, 
+  SDValue getVectorShuffle(EVT VT, DebugLoc dl, SDValue N1, SDValue N2,
                            const int *MaskElts);
+
+  /// getAnyExtOrTrunc - Convert Op, which must be of integer type, to the
+  /// integer type VT, by either any-extending or truncating it.
+  SDValue getAnyExtOrTrunc(SDValue Op, DebugLoc DL, EVT VT);
 
   /// getSExtOrTrunc - Convert Op, which must be of integer type, to the
   /// integer type VT, by either sign-extending or truncating it.
@@ -556,15 +564,11 @@ public:
   ///
   SDValue getSetCC(DebugLoc DL, EVT VT, SDValue LHS, SDValue RHS,
                    ISD::CondCode Cond) {
+    assert(LHS.getValueType().isVector() == RHS.getValueType().isVector() &&
+      "Cannot compare scalars to vectors");
+    assert(LHS.getValueType().isVector() == VT.isVector() &&
+      "Cannot compare scalars to vectors");
     return getNode(ISD::SETCC, DL, VT, LHS, RHS, getCondCode(Cond));
-  }
-
-  /// getVSetCC - Helper function to make it easier to build VSetCC's nodes
-  /// if you just have an ISD::CondCode instead of an SDValue.
-  ///
-  SDValue getVSetCC(DebugLoc DL, EVT VT, SDValue LHS, SDValue RHS,
-                    ISD::CondCode Cond) {
-    return getNode(ISD::VSETCC, DL, VT, LHS, RHS, getCondCode(Cond));
   }
 
   /// getSelectCC - Helper function to make it easier to build SelectCC's if you
@@ -585,19 +589,37 @@ public:
   /// takes 3 operands
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
                     SDValue Ptr, SDValue Cmp, SDValue Swp,
-                    MachinePointerInfo PtrInfo, unsigned Alignment=0);
+                    MachinePointerInfo PtrInfo, unsigned Alignment,
+                    AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
                     SDValue Ptr, SDValue Cmp, SDValue Swp,
-                    MachineMemOperand *MMO);
+                    MachineMemOperand *MMO,
+                    AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
 
-  /// getAtomic - Gets a node for an atomic op, produces result and chain and
-  /// takes 2 operands.
+  /// getAtomic - Gets a node for an atomic op, produces result (if relevant)
+  /// and chain and takes 2 operands.
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
                     SDValue Ptr, SDValue Val, const Value* PtrVal,
-                    unsigned Alignment = 0);
+                    unsigned Alignment, AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
   SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, SDValue Chain,
-                    SDValue Ptr, SDValue Val,
-                    MachineMemOperand *MMO);
+                    SDValue Ptr, SDValue Val, MachineMemOperand *MMO,
+                    AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
+
+  /// getAtomic - Gets a node for an atomic op, produces result and chain and
+  /// takes 1 operand.
+  SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, EVT VT,
+                    SDValue Chain, SDValue Ptr, const Value* PtrVal,
+                    unsigned Alignment,
+                    AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
+  SDValue getAtomic(unsigned Opcode, DebugLoc dl, EVT MemVT, EVT VT,
+                    SDValue Chain, SDValue Ptr, MachineMemOperand *MMO,
+                    AtomicOrdering Ordering,
+                    SynchronizationScope SynchScope);
 
   /// getMemIntrinsicNode - Creates a MemIntrinsicNode that may produce a
   /// result and takes a list of operands. Opcode may be INTRINSIC_VOID,
@@ -671,10 +693,10 @@ public:
 
   /// getMDNode - Return an MDNodeSDNode which holds an MDNode.
   SDValue getMDNode(const MDNode *MD);
-  
+
   /// getShiftAmountOperand - Return the specified value casted to
   /// the target's desired shift amount type.
-  SDValue getShiftAmountOperand(SDValue Op);
+  SDValue getShiftAmountOperand(EVT LHSTy, SDValue Op);
 
   /// UpdateNodeOperands - *Mutate* the specified node in-place to have the
   /// specified operands.  If the resultant node already exists in the DAG,
@@ -829,7 +851,7 @@ public:
   /// These functions only replace all existing uses. It's possible that as
   /// these replacements are being performed, CSE may cause the From node
   /// to be given new uses. These new uses of From are left in place, and
-  /// not automatically transfered to To.
+  /// not automatically transferred to To.
   ///
   void ReplaceAllUsesWith(SDValue From, SDValue Op,
                           DAGUpdateListener *UpdateListener = 0);
@@ -898,10 +920,10 @@ public:
   void AddDbgValue(SDDbgValue *DB, SDNode *SD, bool isParameter);
 
   /// GetDbgValues - Get the debug values which reference the given SDNode.
-  SmallVector<SDDbgValue*,2> &GetDbgValues(const SDNode* SD) {
+  ArrayRef<SDDbgValue*> GetDbgValues(const SDNode* SD) {
     return DbgInfo->getSDDbgValues(SD);
   }
-  
+
   /// TransferDbgValues - Transfer SDDbgValues.
   void TransferDbgValues(SDValue From, SDValue To);
 
@@ -911,11 +933,11 @@ public:
 
   SDDbgInfo::DbgIterator DbgBegin() { return DbgInfo->DbgBegin(); }
   SDDbgInfo::DbgIterator DbgEnd()   { return DbgInfo->DbgEnd(); }
-  SDDbgInfo::DbgIterator ByvalParmDbgBegin() { 
-    return DbgInfo->ByvalParmDbgBegin(); 
+  SDDbgInfo::DbgIterator ByvalParmDbgBegin() {
+    return DbgInfo->ByvalParmDbgBegin();
   }
-  SDDbgInfo::DbgIterator ByvalParmDbgEnd()   { 
-    return DbgInfo->ByvalParmDbgEnd(); 
+  SDDbgInfo::DbgIterator ByvalParmDbgEnd()   {
+    return DbgInfo->ByvalParmDbgEnd();
   }
 
   void dump() const;
@@ -972,7 +994,7 @@ public:
   /// semantics as an ADD.  This handles the equivalence:
   ///     X|Cst == X+Cst iff X&Cst = 0.
   bool isBaseWithConstantOffset(SDValue Op) const;
-  
+
   /// isKnownNeverNan - Test whether the given SDValue is known to never be NaN.
   bool isKnownNeverNaN(SDValue Op) const;
 
@@ -985,10 +1007,6 @@ public:
   /// other positive zero.
   bool isEqualTo(SDValue A, SDValue B) const;
 
-  /// isVerifiedDebugInfoDesc - Returns true if the specified SDValue has
-  /// been verified as a debug information descriptor.
-  bool isVerifiedDebugInfoDesc(SDValue Op) const;
-
   /// UnrollVectorOp - Utility function used by legalize and lowering to
   /// "unroll" a vector operation by splitting out the scalars and operating
   /// on each element individually.  If the ResNE is 0, fully unroll the vector
@@ -997,8 +1015,8 @@ public:
   /// vector op and fill the end of the resulting vector with UNDEFS.
   SDValue UnrollVectorOp(SDNode *N, unsigned ResNE = 0);
 
-  /// isConsecutiveLoad - Return true if LD is loading 'Bytes' bytes from a 
-  /// location that is 'Dist' units away from the location that the 'Base' load 
+  /// isConsecutiveLoad - Return true if LD is loading 'Bytes' bytes from a
+  /// location that is 'Dist' units away from the location that the 'Base' load
   /// is loading from.
   bool isConsecutiveLoad(LoadSDNode *LD, LoadSDNode *Base,
                          unsigned Bytes, int Dist) const;
@@ -1032,7 +1050,7 @@ private:
   std::vector<SDNode*> ValueTypeNodes;
   std::map<EVT, SDNode*, EVT::compareRawBits> ExtendedValueTypeNodes;
   StringMap<SDNode*> ExternalSymbols;
-  
+
   std::map<std::pair<std::string, unsigned char>,SDNode*> TargetExternalSymbols;
 };
 

@@ -75,7 +75,8 @@ main(argc, argv)
 	 */
 	if (priv_resources() < 0)
 		errx(1, "could not get privileged resources");
-	(void) setuid(getuid());
+	if (setuid(getuid()) != 0)
+		err(1, "setuid()");
 
 	if (--argc > 0) {
 		c = getcmd(*++argv);

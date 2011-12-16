@@ -89,7 +89,8 @@ ULtox(UShort *L, ULong *bits, Long exp, int k)
 
 	  case STRTOG_Infinite:
 		L[_0] = 0x7fff;
-		L[_1] = L[_2] = L[_3] = L[_4] = 0;
+		L[_1] = 0x8000;
+		L[_2] = L[_3] = L[_4] = 0;
 		break;
 
 	  case STRTOG_NaN:
@@ -105,9 +106,10 @@ ULtox(UShort *L, ULong *bits, Long exp, int k)
 
  int
 #ifdef KR_headers
-strtorx(s, sp, rounding, L) CONST char *s; char **sp; int rounding; void *L;
+strtorx_l(s, sp, rounding, L, locale) CONST char *s; char **sp; int rounding;
+void *L; locale_t locale;
 #else
-strtorx(CONST char *s, char **sp, int rounding, void *L)
+strtorx_l(CONST char *s, char **sp, int rounding, void *L, locale_t locale)
 #endif
 {
 	static FPI fpi0 = { 64, 1-16383-64+1, 32766 - 16383 - 64 + 1, 1, SI };
@@ -122,7 +124,7 @@ strtorx(CONST char *s, char **sp, int rounding, void *L)
 		fpi1.rounding = rounding;
 		fpi = &fpi1;
 		}
-	k = strtodg(s, sp, fpi, &exp, bits);
+	k = strtodg_l(s, sp, fpi, &exp, bits, locale);
 	ULtox((UShort*)L, bits, exp, k);
 	return k;
 	}

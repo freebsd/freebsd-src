@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/endian.h>
+#include <sys/cpuset.h>
 #include <sys/gmon.h>
 #include <sys/imgact_aout.h>
 #include <sys/imgact_elf.h>
@@ -420,8 +421,8 @@ pmcstat_image_get_aout_params(struct pmcstat_image *image)
 	assert(path != NULL);
 
 	if (image->pi_iskernelmodule)
-		errx(EX_SOFTWARE, "ERROR: a.out kernel modules are "
-		    "unsupported \"%s\"", path);
+		errx(EX_SOFTWARE,
+		    "ERROR: a.out kernel modules are unsupported \"%s\"", path);
 
 	(void) snprintf(buffer, sizeof(buffer), "%s%s",
 	    args.pa_fsroot, path);
@@ -644,8 +645,9 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	}
 
 	if (gelf_getehdr(e, &eh) != &eh) {
-		warnx("WARNING: Cannot retrieve the ELF Header for "
-		    "\"%s\": %s.", buffer, elf_errmsg(-1));
+		warnx(
+		    "WARNING: Cannot retrieve the ELF Header for \"%s\": %s.",
+		    buffer, elf_errmsg(-1));
 		goto done;
 	}
 
@@ -666,16 +668,17 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	 */
 	if (eh.e_type == ET_EXEC) {
 		if (elf_getphnum(e, &nph) == 0) {
-			warnx("WARNING: Could not determine the number of "
-			    "program headers in \"%s\": %s.", buffer,
+			warnx(
+"WARNING: Could not determine the number of program headers in \"%s\": %s.",
+			    buffer,
 			    elf_errmsg(-1));
 			goto done;
 		}
 		for (i = 0; i < eh.e_phnum; i++) {
 			if (gelf_getphdr(e, i, &ph) != &ph) {
-				warnx("WARNING: Retrieval of PHDR entry #%ju "
-				    "in \"%s\" failed: %s.", (uintmax_t) i,
-				    buffer, elf_errmsg(-1));
+				warnx(
+"WARNING: Retrieval of PHDR entry #%ju in \"%s\" failed: %s.",
+				    (uintmax_t) i, buffer, elf_errmsg(-1));
 				goto done;
 			}
 			switch (ph.p_type) {
@@ -684,8 +687,8 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 				break;
 			case PT_INTERP:
 				if ((elfbase = elf_rawfile(e, NULL)) == NULL) {
-					warnx("WARNING: Cannot retrieve the "
-					    "interpreter for \"%s\": %s.",
+					warnx(
+"WARNING: Cannot retrieve the interpreter for \"%s\": %s.",
 					    buffer, elf_errmsg(-1));
 					goto done;
 				}
@@ -705,17 +708,18 @@ pmcstat_image_get_elf_params(struct pmcstat_image *image)
 	 * Get the min and max VA associated with this ELF object.
 	 */
 	if (elf_getshnum(e, &nsh) == 0) {
-		warnx("WARNING: Could not determine the number of sections "
-		    "for \"%s\": %s.", buffer, elf_errmsg(-1));
+		warnx(
+"WARNING: Could not determine the number of sections for \"%s\": %s.",
+		    buffer, elf_errmsg(-1));
 		goto done;
 	}
 
 	for (i = 0; i < nsh; i++) {
 		if ((scn = elf_getscn(e, i)) == NULL ||
 		    gelf_getshdr(scn, &sh) != &sh) {
-			warnx("WARNING: Could not retrieve section header "
-			    "#%ju in \"%s\": %s.", (uintmax_t) i, buffer,
-			    elf_errmsg(-1));
+			warnx(
+"WARNING: Could not retrieve section header #%ju in \"%s\": %s.",
+			    (uintmax_t) i, buffer, elf_errmsg(-1));
 			goto done;
 		}
 		if (sh.sh_flags & SHF_EXECINSTR) {
@@ -911,8 +915,8 @@ pmcstat_image_unmap(struct pmcstat_process *pp, uintfptr_t start,
 			 * the new one at [end].
 			 */
 			if ((pcmnew = malloc(sizeof(*pcmnew))) == NULL)
-				err(EX_OSERR, "ERROR: Cannot split a map "
-				    "entry");
+				err(EX_OSERR,
+				    "ERROR: Cannot split a map entry");
 
 			pcmnew->ppm_image = pcm->ppm_image;
 
@@ -963,8 +967,9 @@ pmcstat_image_addr2line(struct pmcstat_image *image, uintfptr_t addr,
 		if (image->pi_addr2line == NULL) {
 			if (!addr2line_warn) {
 				addr2line_warn = 1;
-				warnx("WARNING: addr2line is needed"
-				    "for source code information.");
+				warnx(
+"WARNING: addr2line is needed for source code information."
+				    );
 			}
 			return (0);
 		}
@@ -1213,22 +1218,23 @@ pmcstat_process_lookup(pid_t pid, int allocate)
 	hash = (uint32_t) pid & PMCSTAT_HASH_MASK;	/* simplicity wins */
 
 	LIST_FOREACH_SAFE(pp, &pmcstat_process_hash[hash], pp_next, pptmp)
-	    if (pp->pp_pid == pid) {
-		    /* Found a descriptor, check and process zombies */
-		    if (allocate && pp->pp_isactive == 0) {
-			    /* remove maps */
-			    TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next,
-				ppmtmp) {
-				    TAILQ_REMOVE(&pp->pp_map, ppm, ppm_next);
-				    free(ppm);
-			    }
-			    /* remove process entry */
-			    LIST_REMOVE(pp, pp_next);
-			    free(pp);
-			    break;
-		    }
-		    return (pp);
-	    }
+		if (pp->pp_pid == pid) {
+			/* Found a descriptor, check and process zombies */
+			if (allocate && pp->pp_isactive == 0) {
+				/* remove maps */
+				TAILQ_FOREACH_SAFE(ppm, &pp->pp_map, ppm_next,
+				    ppmtmp) {
+					TAILQ_REMOVE(&pp->pp_map, ppm,
+					    ppm_next);
+					free(ppm);
+				}
+				/* remove process entry */
+				LIST_REMOVE(pp, pp_next);
+				free(pp);
+				break;
+			}
+			return (pp);
+		}
 
 	if (!allocate)
 		return (NULL);
@@ -1282,8 +1288,9 @@ pmcstat_process_exec(struct pmcstat_process *pp,
 		break;
 
 	default:
-		err(EX_SOFTWARE, "ERROR: Unsupported executable type for "
-		    "\"%s\"", pmcstat_string_unintern(path));
+		err(EX_SOFTWARE,
+		    "ERROR: Unsupported executable type for \"%s\"",
+		    pmcstat_string_unintern(path));
 	}
 }
 
@@ -1337,10 +1344,9 @@ pmcstat_analyze_log(void)
 		case PMCLOG_TYPE_INITIALIZE:
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
 			    PMC_VERSION_MAJOR << 24 && args.pa_verbosity > 0)
-				warnx("WARNING: Log version 0x%x does not "
-				    "match compiled version 0x%x.",
-				    ev.pl_u.pl_i.pl_version,
-				    PMC_VERSION_MAJOR);
+				warnx(
+"WARNING: Log version 0x%x does not match compiled version 0x%x.",
+				    ev.pl_u.pl_i.pl_version, PMC_VERSION_MAJOR);
 			break;
 
 		case PMCLOG_TYPE_MAP_IN:
@@ -1435,7 +1441,7 @@ pmcstat_analyze_log(void)
 			cpu = PMC_CALLCHAIN_CPUFLAGS_TO_CPU(cpuflags);
 
 			/* Filter on the CPU id. */
-			if ((args.pa_cpumask & (1 << cpu)) == 0) {
+			if (!CPU_ISSET(cpu, &(args.pa_cpumask))) {
 				pmcstat_stats.ps_samples_skipped++;
 				break;
 			}
@@ -1555,8 +1561,9 @@ pmcstat_analyze_log(void)
 	else if (ev.pl_state == PMCLOG_REQUIRE_DATA)
 		return (PMCSTAT_RUNNING);
 
-	err(EX_DATAERR, "ERROR: event parsing failed (record %jd, "
-	    "offset 0x%jx)", (uintmax_t) ev.pl_count + 1, ev.pl_offset);
+	err(EX_DATAERR,
+	    "ERROR: event parsing failed (record %jd, offset 0x%jx)",
+	    (uintmax_t) ev.pl_count + 1, ev.pl_offset);
 }
 
 /*
@@ -1596,9 +1603,9 @@ pmcstat_print_log(void)
 			    pmc_name_of_cputype(ev.pl_u.pl_i.pl_arch));
 			if ((ev.pl_u.pl_i.pl_version & 0xFF000000) !=
 			    PMC_VERSION_MAJOR << 24 && args.pa_verbosity > 0)
-				warnx("WARNING: Log version 0x%x != expected "
-				    "version 0x%x.", ev.pl_u.pl_i.pl_version,
-				    PMC_VERSION);
+				warnx(
+"WARNING: Log version 0x%x != expected version 0x%x.",
+				    ev.pl_u.pl_i.pl_version, PMC_VERSION);
 			break;
 		case PMCLOG_TYPE_MAP_IN:
 			PMCSTAT_PRINT_ENTRY("map-in","%d %p \"%s\"",
@@ -1679,8 +1686,8 @@ pmcstat_print_log(void)
 	else if (ev.pl_state ==  PMCLOG_REQUIRE_DATA)
 		return (PMCSTAT_RUNNING);
 
-	errx(EX_DATAERR, "ERROR: event parsing failed "
-	    "(record %jd, offset 0x%jx).",
+	errx(EX_DATAERR,
+	    "ERROR: event parsing failed (record %jd, offset 0x%jx).",
 	    (uintmax_t) ev.pl_count + 1, ev.pl_offset);
 	/*NOTREACHED*/
 }
@@ -1701,7 +1708,7 @@ pmcstat_close_log(void)
 	 * so keep the status to EXITING.
 	 */
 	if (args.pa_logfd != -1) {
-		if (pmc_flush_logfile() < 0)
+		if (pmc_close_logfile() < 0)
 			err(EX_OSERR, "ERROR: logging failed");
 	}
 

@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fixedname.h,v 1.19 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: fixedname.h,v 1.19 2007-06-19 23:47:16 tbox Exp $ */
 
 #ifndef DNS_FIXEDNAME_H
 #define DNS_FIXEDNAME_H 1

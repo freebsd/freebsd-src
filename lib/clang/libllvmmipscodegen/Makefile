@@ -4,12 +4,17 @@ LIB=	llvmmipscodegen
 
 SRCDIR=	lib/Target/Mips
 SRCS=	MipsAsmPrinter.cpp \
+	MipsCodeEmitter.cpp \
 	MipsDelaySlotFiller.cpp \
+	MipsEmitGPRestore.cpp \
+	MipsExpandPseudo.cpp \
 	MipsFrameLowering.cpp \
 	MipsISelDAGToDAG.cpp \
 	MipsISelLowering.cpp \
 	MipsInstrInfo.cpp \
-	MipsMCAsmInfo.cpp \
+	MipsJITInfo.cpp \
+	MipsMCInstLower.cpp \
+	MipsMCSymbolRefExpr.cpp \
 	MipsRegisterInfo.cpp \
 	MipsSelectionDAGInfo.cpp \
 	MipsSubtarget.cpp \
@@ -19,12 +24,10 @@ SRCS=	MipsAsmPrinter.cpp \
 TGHDRS=	Intrinsics \
 	MipsGenAsmWriter \
 	MipsGenCallingConv \
+	MipsGenCodeEmitter \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
-	MipsGenInstrNames \
 	MipsGenRegisterInfo \
-	MipsGenRegisterInfo.h \
-	MipsGenRegisterNames \
-	MipsGenSubtarget
+	MipsGenSubtargetInfo
 
 .include "../clang.lib.mk"

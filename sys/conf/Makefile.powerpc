@@ -35,7 +35,7 @@ LDSCRIPT_NAME?= ldscript.${MACHINE_ARCH}
 
 INCLUDES+= -I$S/contrib/libfdt
 
-CFLAGS+= -msoft-float
+CFLAGS+= -msoft-float -Wa,-many
 
 DDB_ENABLED!=	grep DDB opt_ddb.h || true
 .if !empty(DDB_ENABLED)

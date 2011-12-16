@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
 #include <nfsclient/nfs.h>
 #include <nfsclient/nfsmount.h>
 #include <nfsclient/nfsnode.h>
-#include <nfsclient/nfs_kdtrace.h>
+#include <nfs/nfs_kdtrace.h>
 
 static struct buf *nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size,
 		    struct thread *td);
@@ -206,7 +206,7 @@ nfs_getpages(struct vop_getpages_args *ap)
 			 * Read operation filled a partial page.
 			 */
 			m->valid = 0;
-			vm_page_set_valid(m, 0, size - toff);
+			vm_page_set_valid_range(m, 0, size - toff);
 			KASSERT(m->dirty == 0,
 			    ("nfs_getpages: page %p is dirty", m));
 		} else {
@@ -300,7 +300,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	}
 
 	for (i = 0; i < npages; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 
 	/*
 	 * When putting pages, do not extend file past EOF.
@@ -344,11 +344,7 @@ nfs_putpages(struct vop_putpages_args *ap)
 	relpbuf(bp, &nfs_pbuf_freecnt);
 
 	if (!error) {
-		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-		for (i = 0; i < nwritten; i++) {
-			rtvals[i] = VM_PAGER_OK;
-			vm_page_undirty(pages[i]);
-		}
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
 		if (must_commit) {
 			nfs_clearcommit(vp->v_mount);
 		}
@@ -449,6 +445,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	struct thread *td;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn, rabn;
+	off_t end;
 	int bcount;
 	int seqcount;
 	int nra, error = 0, n = 0, on = 0;
@@ -468,8 +465,9 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 	} else
 		mtx_unlock(&nmp->nm_mtx);		
 
+	end = uio->uio_offset + uio->uio_resid;
 	if (vp->v_type != VDIR &&
-	    (uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	    (end > nmp->nm_maxfilesize || end < uio->uio_offset))
 		return (EFBIG);
 
 	if (nfs_directio_enable && (ioflag & IO_DIRECT) && (vp->v_type == VREG))
@@ -869,6 +867,7 @@ nfs_write(struct vop_write_args *ap)
 	struct vattr vattr;
 	struct nfsmount *nmp = VFSTONFS(vp->v_mount);
 	daddr_t lbn;
+	off_t end;
 	int bcount;
 	int n, on, error = 0;
 
@@ -936,7 +935,8 @@ flush_and_restart:
 
 	if (uio->uio_offset < 0)
 		return (EINVAL);
-	if ((uio->uio_offset + uio->uio_resid) > nmp->nm_maxfilesize)
+	end = uio->uio_offset + uio->uio_resid;
+	if (end > nmp->nm_maxfilesize || end < uio->uio_offset)
 		return (EFBIG);
 	if (uio->uio_resid == 0)
 		return (0);

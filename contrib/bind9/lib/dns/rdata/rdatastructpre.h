@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rdatastructpre.h,v 1.16 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: rdatastructpre.h,v 1.16 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef DNS_RDATASTRUCT_H
 #define DNS_RDATASTRUCT_H 1

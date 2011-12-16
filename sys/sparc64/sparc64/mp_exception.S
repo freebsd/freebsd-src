@@ -38,9 +38,21 @@ __FBSDID("$FreeBSD$");
 	.register	%g2, #ignore
 	.register	%g3, #ignore
 
-#define	IPI_DONE(r1, r2, r3, r4) \
-	lduw	[PCPU(CPUMASK)], r4 ;  \
-	ATOMIC_CLEAR_INT(r1, r2, r3, r4)
+#define	IPI_DONE(r1, r2, r3, r4, r5, r6)				\
+	rd	%y, r6 ;						\
+	lduw	[PCPU(CPUID)], r2 ;					\
+	mov	_NCPUBITS, r3 ;						\
+	mov	%g0, %y ;						\
+	udiv	r2, r3, r4 ;						\
+	srl	r4, 0, r5 ;						\
+	sllx	r5, PTR_SHIFT, r5 ;					\
+	add	r1, r5, r1 ;						\
+	smul	r4, r3, r3 ;						\
+	sub	r2, r3, r3 ;						\
+	mov	1, r4 ;							\
+	sllx	r4, r3, r4 ;						\
+	wr	r6, %y ;						\
+	ATOMIC_CLEAR_LONG(r1, r2, r3, r4)
 
 /*
  * Invalidate a physical page in the data cache.  For UltraSPARC I and II.
@@ -77,7 +89,7 @@ ENTRY(tl_ipi_spitfire_dcache_page_inval)
 2:	brgz,pt	%g2, 1b
 	 sub	%g2, %g4, %g2
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_spitfire_dcache_page_inval)
 
@@ -117,7 +129,7 @@ ENTRY(tl_ipi_spitfire_icache_page_inval)
 2:	brgz,pt	%g2, 1b
 	 sub	%g2, %g4, %g2
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_spitfire_icache_page_inval)
 
@@ -148,7 +160,7 @@ ENTRY(tl_ipi_cheetah_dcache_page_inval)
 	blt,a,pt %xcc, 1b
 	 nop
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_cheetah_dcache_page_inval)
 
@@ -204,7 +216,7 @@ ENTRY(tl_ipi_tlb_page_demap)
 	stxa	%g0, [%g2] ASI_IMMU_DEMAP
 	flush	%g3
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_tlb_page_demap)
 
@@ -235,8 +247,8 @@ ENTRY(tl_ipi_tlb_range_demap)
 	ldx	[%g5 + ITA_START], %g1
 	ldx	[%g5 + ITA_END], %g2
 
-1:	or	%g1, %g3, %g4
 	sethi	%hi(KERNBASE), %g6
+1:	or	%g1, %g3, %g4
 	stxa	%g0, [%g4] ASI_DMMU_DEMAP
 	stxa	%g0, [%g4] ASI_IMMU_DEMAP
 	flush	%g6
@@ -245,9 +257,9 @@ ENTRY(tl_ipi_tlb_range_demap)
 	add	%g1, %g6, %g1
 	cmp	%g1, %g2
 	blt,a,pt %xcc, 1b
-	 nop
+	 sethi	%hi(KERNBASE), %g6
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_tlb_range_demap)
 
@@ -271,7 +283,7 @@ ENTRY(tl_ipi_tlb_context_demap)
 	stxa	%g0, [%g1] ASI_IMMU_DEMAP
 	flush	%g3
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_tlb_context_demap)
 
@@ -283,7 +295,7 @@ ENTRY(tl_ipi_stick_rd)
 	rd	%asr24, %g2
 	stx	%g2, [%g1]
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_stick_rd)
 
@@ -295,6 +307,6 @@ ENTRY(tl_ipi_tick_rd)
 	rd	%tick, %g2
 	stx	%g2, [%g1]
 
-	IPI_DONE(%g5, %g1, %g2, %g3)
+	IPI_DONE(%g5, %g1, %g2, %g3, %g4, %g6)
 	retry
 END(tl_ipi_tick_rd)

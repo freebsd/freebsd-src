@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2010 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -13,7 +13,7 @@
 
 #include <sendmail.h>
 
-SM_RCSID("@(#)$Id: conf.c,v 8.1153 2009/12/18 17:25:12 ca Exp $")
+SM_RCSID("@(#)$Id: conf.c,v 8.1168 2011/01/25 18:31:30 ca Exp $")
 
 #include <sm/sendmail.h>
 #include <sendmail/pathnames.h>
@@ -50,8 +50,11 @@ static int	get_num_procs_online __P((void));
 static int	add_hostnames __P((SOCKADDR *));
 
 #if NETINET6 && NEEDSGETIPNODE
-static struct hostent *getipnodebyname __P((char *, int, int, int *));
-static struct hostent *getipnodebyaddr __P((char *, int, int, int *));
+static struct hostent *sm_getipnodebyname __P((const char *, int, int, int *));
+static struct hostent *sm_getipnodebyaddr __P((const void *, size_t, int, int *));
+#else /* NETINET6 && NEEDSGETIPNODE */
+#define sm_getipnodebyname getipnodebyname 
+#define sm_getipnodebyaddr getipnodebyaddr
 #endif /* NETINET6 && NEEDSGETIPNODE */
 
 
@@ -2600,7 +2603,7 @@ setproctitle(fmt, va_alist)
 **		none.
 */
 
-/*VARARGS2*/
+/*VARARGS3*/
 void
 #ifdef __STDC__
 sm_setproctitle(bool status, ENVELOPE *e, const char *fmt, ...)
@@ -4188,7 +4191,7 @@ strstr(big, little)
 /*
 **  SM_GETHOSTBY{NAME,ADDR} -- compatibility routines for gethostbyXXX
 **
-**	Some operating systems have wierd problems with the gethostbyXXX
+**	Some operating systems have weird problems with the gethostbyXXX
 **	routines.  For example, Solaris versions at least through 2.3
 **	don't properly deliver a canonical h_name field.  This tries to
 **	work around these problems.
@@ -4212,8 +4215,8 @@ strstr(big, little)
 # endif /* ! AI_ALL */
 
 static struct hostent *
-getipnodebyname(name, family, flags, err)
-	char *name;
+sm_getipnodebyname(name, family, flags, err)
+	const char *name;
 	int family;
 	int flags;
 	int *err;
@@ -4236,9 +4239,9 @@ getipnodebyname(name, family, flags, err)
 }
 
 static struct hostent *
-getipnodebyaddr(addr, len, family, err)
-	char *addr;
-	int len;
+sm_getipnodebyaddr(addr, len, family, err)
+	const void *addr;
+	size_t len;
 	int family;
 	int *err;
 {
@@ -4305,7 +4308,7 @@ sm_gethostbyname(name, family)
 #  if ADDRCONFIG_IS_BROKEN
 	flags &= ~AI_ADDRCONFIG;
 #  endif /* ADDRCONFIG_IS_BROKEN */
-	h = getipnodebyname(name, family, flags, &err);
+	h = sm_getipnodebyname(name, family, flags, &err);
 	SM_SET_H_ERRNO(err);
 # else /* NETINET6 */
 	h = gethostbyname(name);
@@ -4344,7 +4347,7 @@ sm_gethostbyname(name, family)
 					       hbuf, family);
 
 # if NETINET6
-				h = getipnodebyname(hbuf, family, flags, &err);
+				h = sm_getipnodebyname(hbuf, family, flags, &err);
 				SM_SET_H_ERRNO(err);
 				save_errno = errno;
 # else /* NETINET6 */
@@ -4441,7 +4444,7 @@ sm_gethostbyaddr(addr, len, type)
 	{
 		int err;
 
-		hp = getipnodebyaddr(addr, len, type, &err);
+		hp = sm_getipnodebyaddr(addr, len, type, &err);
 		SM_SET_H_ERRNO(err);
 	}
 # else /* NETINET6 */
@@ -4864,6 +4867,7 @@ load_if_names()
 		switch (af)
 		{
 		  case AF_INET6:
+			SETV6LOOPBACKADDRFOUND(*sa);
 #  ifdef __KAME__
 			/* convert into proper scoped address */
 			if ((IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr) ||
@@ -5063,6 +5067,7 @@ load_if_names()
 
 #   if NETINET6
 		  case AF_INET6:
+			SETV6LOOPBACKADDRFOUND(*sa);
 #    ifdef __KAME__
 			/* convert into proper scoped address */
 			if ((IN6_IS_ADDR_LINKLOCAL(&sa->sin6.sin6_addr) ||
@@ -5928,6 +5933,9 @@ char	*OsCompileOptions[] =
 #if HASWAITPID
 	"HASWAITPID",
 #endif /* HASWAITPID */
+#if HAVE_NANOSLEEP
+	"HAVE_NANOSLEEP",
+#endif /* HAVE_NANOSLEEP */
 #if IDENTPROTO
 	"IDENTPROTO",
 #endif /* IDENTPROTO */
@@ -6018,6 +6026,9 @@ char	*OsCompileOptions[] =
 #ifdef USESYSCTL
 	"USESYSCTL",
 #endif /* USESYSCTL */
+#if USE_OPENSSL_ENGINE
+	"USE_OPENSSL_ENGINE",
+#endif /* USE_OPENSSL_ENGINE */
 #if USING_NETSCAPE_LDAP
 	"USING_NETSCAPE_LDAP",
 #endif /* USING_NETSCAPE_LDAP */
@@ -6321,7 +6332,7 @@ char	*FFRCompileOptions[] =
 #endif /* _FFR_QUEUE_SCHED_DBG */
 #if _FFR_RCPTTHROTDELAY
 	/* configurable delay for BadRcptThrottle */
-	"_FFR_RCPTTHROTDELAY"
+	"_FFR_RCPTTHROTDELAY",
 #endif /* _FFR_RCPTTHROTDELAY */
 #if _FFR_REDIRECTEMPTY
 	/*

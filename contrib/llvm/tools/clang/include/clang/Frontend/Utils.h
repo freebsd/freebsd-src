@@ -14,8 +14,12 @@
 #ifndef LLVM_CLANG_FRONTEND_UTILS_H
 #define LLVM_CLANG_FRONTEND_UTILS_H
 
+#include "clang/Basic/Diagnostic.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/Support/raw_ostream.h"
+#include "clang/Basic/Diagnostic.h"
 
 namespace llvm {
 class Triple;
@@ -24,9 +28,10 @@ class Triple;
 namespace clang {
 class ASTConsumer;
 class CompilerInstance;
+class CompilerInvocation;
 class Decl;
 class DependencyOutputOptions;
-class Diagnostic;
+class DiagnosticsEngine;
 class DiagnosticOptions;
 class FileManager;
 class HeaderSearch;
@@ -43,7 +48,7 @@ class FrontendOptions;
 
 /// Normalize \arg File for use in a user defined #include directive (in the
 /// predefines buffer).
-std::string NormalizeDashIncludePath(llvm::StringRef File,
+std::string NormalizeDashIncludePath(StringRef File,
                                      FileManager &FileMgr);
 
 /// Apply the header search options to get given HeaderSearch object.
@@ -61,14 +66,11 @@ void InitializePreprocessor(Preprocessor &PP,
 
 /// ProcessWarningOptions - Initialize the diagnostic client and process the
 /// warning options specified on the command line.
-void ProcessWarningOptions(Diagnostic &Diags, const DiagnosticOptions &Opts);
+void ProcessWarningOptions(DiagnosticsEngine &Diags, const DiagnosticOptions &Opts);
 
 /// DoPrintPreprocessedInput - Implement -E mode.
-void DoPrintPreprocessedInput(Preprocessor &PP, llvm::raw_ostream* OS,
+void DoPrintPreprocessedInput(Preprocessor &PP, raw_ostream* OS,
                               const PreprocessorOutputOptions &Opts);
-
-/// CheckDiagnostics - Gather the expected diagnostics and check them.
-bool CheckDiagnostics(Preprocessor &PP);
 
 /// AttachDependencyFileGen - Create a dependency file generator, and attach
 /// it to the given preprocessor.  This takes ownership of the output stream.
@@ -85,11 +87,22 @@ void AttachDependencyFileGen(Preprocessor &PP,
 /// \param OutputPath - If non-empty, a path to write the header include
 /// information to, instead of writing to stderr.
 void AttachHeaderIncludeGen(Preprocessor &PP, bool ShowAllHeaders = false,
-                            llvm::StringRef OutputPath = "");
+                            StringRef OutputPath = "",
+                            bool ShowDepth = true);
 
 /// CacheTokens - Cache tokens for use with PCH. Note that this requires
 /// a seekable stream.
 void CacheTokens(Preprocessor &PP, llvm::raw_fd_ostream* OS);
+
+/// createInvocationFromCommandLine - Construct a compiler invocation object for
+/// a command line argument vector.
+///
+/// \return A CompilerInvocation, or 0 if none was built for the given
+/// argument vector.
+CompilerInvocation *
+createInvocationFromCommandLine(ArrayRef<const char *> Args,
+                            llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags =
+                                llvm::IntrusiveRefCntPtr<DiagnosticsEngine>());
 
 }  // end namespace clang
 

@@ -15,6 +15,7 @@
 #define LLVM_CLANG_SERIALIZATION_LIB_AST_COMMON_H
 
 #include "clang/Serialization/ASTBitCodes.h"
+#include "clang/AST/ASTContext.h"
 
 namespace clang {
 
@@ -23,13 +24,15 @@ namespace serialization {
 enum DeclUpdateKind {
   UPD_CXX_SET_DEFINITIONDATA,
   UPD_CXX_ADDED_IMPLICIT_MEMBER,
-  UPD_CXX_ADDED_TEMPLATE_SPECIALIZATION
+  UPD_CXX_ADDED_TEMPLATE_SPECIALIZATION,
+  UPD_CXX_ADDED_ANONYMOUS_NAMESPACE,
+  UPD_CXX_INSTANTIATED_STATIC_DATA_MEMBER
 };
 
 TypeIdx TypeIdxFromBuiltin(const BuiltinType *BT);
 
 template <typename IdxForTypeTy>
-TypeID MakeTypeID(QualType T, IdxForTypeTy IdxForType) {
+TypeID MakeTypeID(ASTContext &Context, QualType T, IdxForTypeTy IdxForType) {
   if (T.isNull())
     return PREDEF_TYPE_NULL_ID;
 
@@ -43,6 +46,11 @@ TypeID MakeTypeID(QualType T, IdxForTypeTy IdxForType) {
 
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(T.getTypePtr()))
     return TypeIdxFromBuiltin(BT).asTypeID(FastQuals);
+
+  if (T == Context.AutoDeductTy)
+    return TypeIdx(PREDEF_TYPE_AUTO_DEDUCT).asTypeID(FastQuals);
+  if (T == Context.AutoRRefDeductTy)
+    return TypeIdx(PREDEF_TYPE_AUTO_RREF_DEDUCT).asTypeID(FastQuals);
 
   return IdxForType(T).asTypeID(FastQuals);
 }

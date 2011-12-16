@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd May 14, 2010
+.Dd November 12, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -42,7 +42,7 @@
 .Op Fl n
 .Ar interface
 .Op Cm create
-.Op Ar address_family
+.Ar address_family
 .Oo
 .Ar address
 .Op Ar dest_address
@@ -165,8 +165,10 @@ and
 .Dq link .
 .\" and
 .\" .Dq ns .
-The default is
-.Dq inet .
+The default if available is
+.Dq inet
+or otherwise
+.Dq link .
 .Dq ether
 and
 .Dq lladdr
@@ -294,6 +296,19 @@ Remove the interface from the given
 Fill interface index
 (lowermost 64bit of an IPv6 address)
 automatically.
+.It Cm fib Ar fib_number
+Specify interface FIB.
+A FIB
+.Ar fib_number
+is assigned to all frames or packets received on that interface.
+The FIB is not inherited, e.g. vlans or other sub-interfaces will use
+the default FIB (0) irrespective of the parent interface's FIB.
+The kernel needs to be tuned to support more than the default FIB
+using the
+.Va ROUTETABLES
+kernel configuration option, or the
+.Va net.fibs
+tunable.
 .It Cm ipdst
 This is used to specify an Internet host who is willing to receive
 IP packets encapsulating IPX packets bound for a remote network.
@@ -611,12 +626,37 @@ is needed for them:
 .Bl -tag -width indent
 .It Cm accept_rtadv
 Set a flag to enable accepting ICMPv6 Router Advertisement messages.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.accept_rtadv
+controls whether this flag is set by default or not.
 .It Cm -accept_rtadv
 Clear a flag
 .Cm accept_rtadv .
+.It Cm no_radr
+Set a flag to control whether routers from which the system accepts
+Router Advertisement messages will be added to the Default Router List
+or not.
+When the
+.Cm accept_rtadv
+flag is disabled, this flag has no effect.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.no_radr
+controls whether this flag is set by default or not.
+.It Cm -no_radr
+Clear a flag
+.Cm no_radr .
 .It Cm auto_linklocal
 Set a flag to perform automatic link-local address configuration when
 the interface becomes available.
+The
+.Xr sysctl 8
+variable
+.Va net.inet6.ip6.auto_linklocal
+controls whether this flag is set by default or not.
 .It Cm -auto_linklocal
 Clear a flag
 .Cm auto_linklocal .
@@ -1048,6 +1088,38 @@ The
 specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
+.It Cm quiet
+Enable the use of quiet IE.  Hostap will use this to silent other
+stations to reduce interference for radar detection when
+operating on 5Ghz frequency and doth support is enabled.
+Use
+.Fl quiet
+to disable this functionality.
+.It Cm quiet_period Ar period
+Set the QUIET
+.Ar period
+to the number of beacon intervals between the start of regularly
+scheduled quiet intervals defined by Quiet element.
+.It Cm quiet_count Ar count
+Set the QUIET
+.Ar count
+to the number of TBTTs until the beacon interval during which the
+next quiet interval shall start.  A value of 1 indicates the quiet
+interval will start during the beacon interval starting at the next
+TBTT. A value 0 is reserved.
+.It Cm quiet_offset Ar offset
+Set the QUIET
+.Ar offset
+to the offset of the start of the quiet interval from the TBTT
+specified by the Quiet count, expressed in TUs.
+The value of the
+.Ar offset
+shall be less than one beacon interval.
+.It Cm quiet_duration Ar dur
+Set the QUIET
+.Ar dur
+to the duration of the Quiet interval, expressed in TUs.
+The value should be less than beacon interval.
 .It Cm dturbo
 Enable the use of Atheros Dynamic Turbo mode when communicating with
 another Dynamic Turbo-capable station.
@@ -2527,7 +2599,6 @@ to use 100baseTX, full duplex Ethernet media options:
 .Dl # ifconfig xl0 media 100baseTX mediaopt full-duplex
 .Pp
 Label the em0 interface as an uplink:
-.Pp
 .Dl # ifconfig em0 description \&"Uplink to Gigabit Switch 2\&"
 .Pp
 Create the software network interface
@@ -2537,6 +2608,10 @@ Create the software network interface
 Destroy the software network interface
 .Li gif1 :
 .Dl # ifconfig gif1 destroy
+.Pp
+Display available wireless networks using
+.Li wlan0 :
+.Dl # ifconfig wlan0 list scan
 .Sh DIAGNOSTICS
 Messages indicating the specified interface does not exist, the
 requested address is unknown, or the user is not privileged and

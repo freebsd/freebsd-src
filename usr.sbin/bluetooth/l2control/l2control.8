@@ -25,7 +25,7 @@
 .\" $Id: l2control.8,v 1.5 2003/05/21 00:53:00 max Exp $
 .\" $FreeBSD$
 .\"
-.Dd June 14, 2002
+.Dd April 9, 2011
 .Dt L2CONTROL 8
 .Os
 .Sh NAME
@@ -34,25 +34,27 @@
 .Sh SYNOPSIS
 .Nm
 .Op Fl hn
-.Fl a Ar BD_ADDR
+.Fl a Ar local
 .Ar command
 .Op Ar parameters ...
 .Sh DESCRIPTION
 The
 .Nm
-utility connects to the local device with the specified BD_ADDR and attempts
-to send the specified command.
+utility connects to the local device with the specified BD_ADDR or name
+and attempts to send the specified command.
 The
 .Nm
 utility will print results to the standard output and error messages to
-the standard error.
+the standard error output.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
-.It Fl a Ar BD_ADDR
-Connect to the local device with the specified BD_ADDR.
+.It Fl a Ar local
+Connect to the local device with the specified BD_ADDR or name.
 Example:
-.Fl a Li 00:01:02:03:04:05 .
+.Fl a Li 00:01:02:03:04:05
+or
+.Fl a Li bt_device .
 .It Fl h
 Display usage message and exit.
 .It Fl n
@@ -62,10 +64,10 @@ Normally
 attempts to resolve Bluetooth addresses, and display them symbolically.
 .It Ar command
 One of the supported commands (see below).
-Special command
+The special command
 .Cm help
-can be used to obtain the list of all supported commands.
-To get more information about specific command use
+can be used to obtain a list of all supported commands.
+To get more information about a specific command use
 .Cm help Ar command .
 .It Ar parameters
 One or more optional space separated command parameters.
@@ -92,4 +94,4 @@ are:
 .Xr ng_l2cap 4 ,
 .Xr l2ping 8
 .Sh AUTHORS
-.An Maksim Yevmenkin Aq m_evmenkin@yahoo.com
+.An Maksim Yevmenkin Aq emax@FreeBSD.org

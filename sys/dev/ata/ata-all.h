@@ -585,8 +585,9 @@ struct ata_channel {
 #ifdef ATA_CAM
 	struct cam_sim		*sim;
 	struct cam_path		*path;
-	struct ata_cam_device	user[16];       /* User-specified settings */                             
-	struct ata_cam_device	curr[16];       /* Current settings */                                    
+	struct ata_cam_device	user[16];       /* User-specified settings */
+	struct ata_cam_device	curr[16];       /* Current settings */
+	int			requestsense;	/* CCB waiting for SENSE. */
 #endif
 	struct callout		poll_callout;	/* Periodic status poll. */
 };

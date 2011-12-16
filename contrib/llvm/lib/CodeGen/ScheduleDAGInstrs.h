@@ -48,7 +48,8 @@ namespace llvm {
     /// VisitLoop - Clear out any previous state and analyze the given loop.
     ///
     void VisitLoop(const MachineLoop *Loop) {
-      Deps.clear();
+      assert(Deps.empty() && "stale loop dependencies");
+
       MachineBasicBlock *Header = Loop->getHeader();
       SmallSet<unsigned, 8> LoopLiveIns;
       for (MachineBasicBlock::livein_iterator LI = Header->livein_begin(),
@@ -109,10 +110,6 @@ namespace llvm {
     /// initialized and destructed for each block.
     std::vector<std::vector<SUnit *> > Defs;
     std::vector<std::vector<SUnit *> > Uses;
- 
-    /// DbgValueVec - Remember DBG_VALUEs that refer to a particular
-    /// register.
-    std::vector<MachineInstr *>DbgValueVec;
 
     /// PendingLoads - Remember where unknown loads are after the most recent
     /// unknown store, as we iterate. As with Defs and Uses, this is here
@@ -127,6 +124,14 @@ namespace llvm {
     /// back-edge-aware scheduling.
     ///
     SmallSet<unsigned, 8> LoopLiveInRegs;
+
+  protected:
+
+    /// DbgValues - Remember instruction that preceeds DBG_VALUE.
+    typedef std::vector<std::pair<MachineInstr *, MachineInstr *> >
+      DbgValueVector;
+    DbgValueVector DbgValues;
+    MachineInstr *FirstDbgValue;
 
   public:
     MachineBasicBlock::iterator Begin;    // The beginning of the range to

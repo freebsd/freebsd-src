@@ -1636,7 +1636,7 @@ obj_elf_init_stab_section (segT seg)
 
   /* Force the section to align to a longword boundary.  Without this,
      UnixWare ar crashes.  */
-  bfd_set_section_alignment (stdoutput, seg, 2);
+  (void) bfd_set_section_alignment (stdoutput, seg, 2);
 
   /* Make space for this first symbol.  */
   p = frag_more (12);

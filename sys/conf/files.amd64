@@ -106,7 +106,7 @@ amd64/amd64/exception.S		standard
 amd64/amd64/fpu.c		standard
 amd64/amd64/gdb_machdep.c	optional	gdb
 amd64/amd64/identcpu.c		standard
-amd64/amd64/in_cksum.c		optional	inet
+amd64/amd64/in_cksum.c		optional	inet | inet6
 amd64/amd64/initcpu.c		standard
 amd64/amd64/intr_machdep.c	standard
 amd64/amd64/io.c		optional	io
@@ -128,7 +128,6 @@ amd64/amd64/trap.c		standard
 amd64/amd64/uio_machdep.c	standard
 amd64/amd64/uma_machdep.c	standard
 amd64/amd64/vm_machdep.c	standard
-amd64/pci/pci_bus.c		optional	pci
 amd64/pci/pci_cfgreg.c		optional	pci
 crypto/aesni/aesencdec_amd64.S	optional aesni
 crypto/aesni/aeskeys_amd64.S	optional aesni
@@ -209,6 +208,43 @@ dev/lindev/lindev.c		optional	lindev
 dev/nfe/if_nfe.c		optional	nfe pci
 dev/nve/if_nve.c		optional	nve pci
 dev/nvram/nvram.c		optional	nvram isa
+dev/qlxgb/qla_dbg.c		optional	qlxgb pci
+dev/qlxgb/qla_hw.c		optional	qlxgb pci
+dev/qlxgb/qla_ioctl.c		optional	qlxgb pci
+dev/qlxgb/qla_isr.c		optional	qlxgb pci
+dev/qlxgb/qla_misc.c		optional	qlxgb pci
+dev/qlxgb/qla_os.c		optional	qlxgb pci
+dev/sfxge/common/efx_bootcfg.c	optional sfxge inet pci
+dev/sfxge/common/efx_ev.c	optional sfxge inet pci
+dev/sfxge/common/efx_filter.c	optional sfxge inet pci
+dev/sfxge/common/efx_intr.c	optional sfxge inet pci
+dev/sfxge/common/efx_mac.c	optional sfxge inet pci
+dev/sfxge/common/efx_mcdi.c	optional sfxge inet pci
+dev/sfxge/common/efx_mon.c	optional sfxge inet pci
+dev/sfxge/common/efx_nic.c	optional sfxge inet pci
+dev/sfxge/common/efx_nvram.c	optional sfxge inet pci
+dev/sfxge/common/efx_phy.c	optional sfxge inet pci
+dev/sfxge/common/efx_port.c	optional sfxge inet pci
+dev/sfxge/common/efx_rx.c	optional sfxge inet pci
+dev/sfxge/common/efx_sram.c	optional sfxge inet pci
+dev/sfxge/common/efx_tx.c	optional sfxge inet pci
+dev/sfxge/common/efx_vpd.c	optional sfxge inet pci
+dev/sfxge/common/efx_wol.c	optional sfxge inet pci
+dev/sfxge/common/siena_mac.c	optional sfxge inet pci
+dev/sfxge/common/siena_mon.c	optional sfxge inet pci
+dev/sfxge/common/siena_nic.c	optional sfxge inet pci
+dev/sfxge/common/siena_nvram.c	optional sfxge inet pci
+dev/sfxge/common/siena_phy.c	optional sfxge inet pci
+dev/sfxge/common/siena_sram.c	optional sfxge inet pci
+dev/sfxge/common/siena_vpd.c	optional sfxge inet pci
+dev/sfxge/sfxge.c		optional sfxge inet pci
+dev/sfxge/sfxge_dma.c		optional sfxge inet pci
+dev/sfxge/sfxge_ev.c		optional sfxge inet pci
+dev/sfxge/sfxge_intr.c		optional sfxge inet pci
+dev/sfxge/sfxge_mcdi.c		optional sfxge inet pci
+dev/sfxge/sfxge_port.c		optional sfxge inet pci
+dev/sfxge/sfxge_rx.c		optional sfxge inet pci
+dev/sfxge/sfxge_tx.c		optional sfxge inet pci
 dev/sio/sio.c			optional	sio
 dev/sio/sio_isa.c		optional	sio isa
 dev/sio/sio_pccard.c		optional	sio pccard
@@ -224,6 +260,7 @@ dev/tpm/tpm.c			optional	tpm
 dev/tpm/tpm_acpi.c		optional	tpm acpi
 dev/tpm/tpm_isa.c		optional	tpm isa
 dev/uart/uart_cpu_amd64.c	optional	uart
+dev/viawd/viawd.c		optional	viawd
 dev/wpi/if_wpi.c		optional	wpi
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
@@ -315,7 +352,8 @@ x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
 x86/isa/orm.c			optional	isa
-x86/pci/qpi.c			standard
+x86/pci/pci_bus.c		optional	pci
+x86/pci/qpi.c			optional	pci
 x86/x86/busdma_machdep.c	standard
 x86/x86/dump_machdep.c		standard
 x86/x86/io_apic.c		standard

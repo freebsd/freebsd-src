@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,7 +22,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include <sys/cdefs.h>
@@ -79,7 +79,7 @@ static char *floattotime(double f);
  *				'300' ... '359' | '360' ... '365'
  * ModifierIndex	::=	'Second' | 'Third' | 'Fourth' | 'Fifth' |
  *				'First' | 'Last'
- * 
+ *
  * SpecialDay		::=	'Easter' | 'Paskha' | 'ChineseNewYear'
  *
  */
@@ -313,7 +313,7 @@ fail:
 allfine:
 	*p = pold;
 	return (1);
-	
+
 }
 
 static void
@@ -407,7 +407,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 	 *
 	 * Month:     1-12
 	 * Monthname: Jan .. Dec
-	 * Day:       1-31
+	 * Day:	      1-31
 	 * Weekday:   Mon .. Sun
 	 *
 	 */
@@ -544,6 +544,24 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 					    yearp, monthp, dayp, edp,
 					    year, rm, rd, NULL);
 				d += 7;
+			}
+			continue;
+		}
+
+		/* Every so-manied dayofweek of every month of the year */
+		if (lflags == (F_DAYOFWEEK | F_MODIFIERINDEX | F_VARIABLE)) {
+			offset = indextooffset(modifierindex);
+
+			for (m = 0; m < 12; m++) {
+				dow = first_dayofweek_of_month(year, m);
+				d = (idayofweek - dow + 8) % 7;
+				d += (offset - 1) * 7;
+				if (remember_ymd(year, m, d)) {
+					remember(&remindex,
+					    yearp, monthp, dayp, edp,
+					    year, m, d, NULL);
+					continue;
+				}
 			}
 			continue;
 		}
@@ -736,10 +754,13 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 			continue;
 		}
 
-		printf("Unprocessed:\n");
-		debug_determinestyle(2, date, lflags, month, imonth,
-		    dayofmonth, idayofmonth, dayofweek, idayofweek,
-		    modifieroffset, modifierindex, specialday, syear, iyear);
+		if (debug) {
+		    printf("Unprocessed:\n");
+		    debug_determinestyle(2, date, lflags, month, imonth,
+			dayofmonth, idayofmonth, dayofweek, idayofweek,
+			modifieroffset, modifierindex, specialday, syear,
+			iyear);
+		}
 		retvalsign = -1;
 	}
 
@@ -800,6 +821,8 @@ showflags(int flags)
 static const char *
 getmonthname(int i)
 {
+	if (i <= 0 || i > 12)
+		return ("");
 	if (nmonths[i - 1].len != 0 && nmonths[i - 1].name != NULL)
 		return (nmonths[i - 1].name);
 	return (months[i - 1]);
@@ -918,6 +941,16 @@ indextooffset(char *s)
 	int i;
 	struct fixs *n;
 
+	if (s[0] == '+' || s[0] == '-') {
+		char ss[9];
+		for (i = -100; i < 100; i++) {
+			sprintf(ss, "%s%d", (i > 0) ? "+" : "", i);
+			if (strcmp(ss, s) == 0)
+				return (i);
+		}
+		return (0);
+	}
+
 	for (i = 0; i < 6; i++) {
 		if (strcasecmp(s, sequences[i]) == 0) {
 			if (i == 5)
@@ -1015,7 +1048,7 @@ dodebug(char *what)
 			printf("\n");
 
 		}
-	
+
 		return;
 	}
 

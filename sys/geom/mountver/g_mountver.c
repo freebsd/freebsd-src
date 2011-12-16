@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/bio.h>
 #include <sys/disk.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <sys/eventhandler.h>
@@ -44,7 +45,7 @@ __FBSDID("$FreeBSD$");
 
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW,
+static SYSCTL_NODE(_kern_geom, OID_AUTO, mountver, CTLFLAG_RW,
     0, "GEOM_MOUNTVER stuff");
 static u_int g_mountver_debug = 0;
 static u_int g_mountver_check_ident = 1;
@@ -248,10 +249,6 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 		}
 	}
 	gp = g_new_geomf(mp, name);
-	if (gp == NULL) {
-		gctl_error(req, "Cannot create geom %s.", name);
-		return (ENOMEM);
-	}
 	sc = g_malloc(sizeof(*sc), M_WAITOK | M_ZERO);
 	mtx_init(&sc->sc_mtx, "gmountver", NULL, MTX_DEF);
 	TAILQ_INIT(&sc->sc_queue);
@@ -263,20 +260,10 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	gp->dumpconf = g_mountver_dumpconf;
 
 	newpp = g_new_providerf(gp, gp->name);
-	if (newpp == NULL) {
-		gctl_error(req, "Cannot create provider %s.", name);
-		error = ENOMEM;
-		goto fail;
-	}
 	newpp->mediasize = pp->mediasize;
 	newpp->sectorsize = pp->sectorsize;
 
 	cp = g_new_consumer(gp);
-	if (cp == NULL) {
-		gctl_error(req, "Cannot create consumer for %s.", gp->name);
-		error = ENOMEM;
-		goto fail;
-	}
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		gctl_error(req, "Cannot attach to provider %s.", pp->name);
@@ -303,20 +290,13 @@ g_mountver_create(struct gctl_req *req, struct g_class *mp, struct g_provider *p
 	G_MOUNTVER_DEBUG(0, "Device %s created.", gp->name);
 	return (0);
 fail:
-	if (sc->sc_provider_name != NULL)
-		g_free(sc->sc_provider_name);
-	if (cp != NULL) {
-		if (cp->provider != NULL)
-			g_detach(cp);
-		g_destroy_consumer(cp);
-	}
-	if (newpp != NULL)
-		g_destroy_provider(newpp);
-	if (gp != NULL) {
-		if (gp->softc != NULL)
-			g_free(gp->softc);
-		g_destroy_geom(gp);
-	}
+	g_free(sc->sc_provider_name);
+	if (cp->provider != NULL)
+		g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_provider(newpp);
+	g_free(gp->softc);
+	g_destroy_geom(gp);
 	return (error);
 }
 

@@ -88,7 +88,7 @@ struct cpio {
 	struct name_cache *gname_cache;
 
 	/* Work data. */
-	struct matching  *matching;
+	struct lafe_matching  *matching;
 	char		 *buff;
 	size_t		  buff_size;
 };

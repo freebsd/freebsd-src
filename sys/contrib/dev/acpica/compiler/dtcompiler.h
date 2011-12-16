@@ -220,9 +220,20 @@ DtGetParentSubtable (
 
 /* dtexpress - Integer expressions and labels */
 
-UINT64
+ACPI_STATUS
 DtResolveIntegerExpression (
-    DT_FIELD                *Field);
+    DT_FIELD                *Field,
+    UINT64                  *ReturnValue);
+
+UINT64
+DtDoOperator (
+    UINT64                  LeftValue,
+    UINT32                  Operator,
+    UINT64                  RightValue);
+
+UINT64
+DtResolveLabel (
+    char                    *LabelString);
 
 void
 DtDetectAllLabels (
@@ -258,6 +269,25 @@ DtCompileFlag (
     UINT8                   *Buffer,
     DT_FIELD                *Field,
     ACPI_DMTABLE_INFO       *Info);
+
+
+/* dtparser - lex/yacc files */
+
+UINT64
+DtEvaluateExpression (
+    char                    *ExprString);
+
+int
+DtInitLexer (
+    char                    *String);
+
+void
+DtTerminateLexer (
+    void);
+
+char *
+DtGetOpName (
+    UINT32                  ParseOpcode);
 
 
 /* dtutils - Miscellaneous utilities */
@@ -306,8 +336,7 @@ DtGetFileSize (
 
 char*
 DtGetFieldValue (
-    DT_FIELD                *Field,
-    char                    *Name);
+    DT_FIELD                *Field);
 
 UINT8
 DtGetFieldType (
@@ -370,6 +399,10 @@ DtCompileFadt (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileFpdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileHest (
     void                    **PFieldList);
 
@@ -386,11 +419,27 @@ DtCompileMcfg (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompileMpst (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileMsct (
     void                    **PFieldList);
 
 ACPI_STATUS
+DtCompilePmtt (
+    void                    **PFieldList);
+
+ACPI_STATUS
 DtCompileRsdt (
+    void                    **PFieldList);
+
+ACPI_STATUS
+DtCompileS3pt (
+    DT_FIELD                **PFieldList);
+
+ACPI_STATUS
+DtCompileSlic (
     void                    **PFieldList);
 
 ACPI_STATUS
@@ -413,6 +462,10 @@ ACPI_STATUS
 DtCompileXsdt (
     void                    **PFieldList);
 
+ACPI_STATUS
+DtCompileGeneric (
+    void                    **PFieldList);
+
 ACPI_DMTABLE_INFO *
 DtGetGenericTableInfo (
     char                    *Name);
@@ -422,6 +475,7 @@ DtGetGenericTableInfo (
 extern const unsigned char  TemplateAsf[];
 extern const unsigned char  TemplateBoot[];
 extern const unsigned char  TemplateBert[];
+extern const unsigned char  TemplateBgrt[];
 extern const unsigned char  TemplateCpep[];
 extern const unsigned char  TemplateDbgp[];
 extern const unsigned char  TemplateDmar[];
@@ -429,14 +483,19 @@ extern const unsigned char  TemplateEcdt[];
 extern const unsigned char  TemplateEinj[];
 extern const unsigned char  TemplateErst[];
 extern const unsigned char  TemplateFadt[];
+extern const unsigned char  TemplateFpdt[];
+extern const unsigned char  TemplateGtdt[];
 extern const unsigned char  TemplateHest[];
 extern const unsigned char  TemplateHpet[];
 extern const unsigned char  TemplateIvrs[];
 extern const unsigned char  TemplateMadt[];
 extern const unsigned char  TemplateMcfg[];
 extern const unsigned char  TemplateMchi[];
+extern const unsigned char  TemplateMpst[];
 extern const unsigned char  TemplateMsct[];
+extern const unsigned char  TemplatePmtt[];
 extern const unsigned char  TemplateRsdt[];
+extern const unsigned char  TemplateS3pt[];
 extern const unsigned char  TemplateSbst[];
 extern const unsigned char  TemplateSlic[];
 extern const unsigned char  TemplateSlit[];

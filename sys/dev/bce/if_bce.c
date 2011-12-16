@@ -455,10 +455,6 @@ static device_method_t bce_methods[] = {
 /*	DEVMETHOD(device_resume,	bce_resume),        */
 /*	DEVMETHOD(device_quiesce,	bce_quiesce),       */
 
-	/* Bus interface (bus_if.h) */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface (miibus_if.h) */
 	DEVMETHOD(miibus_readreg,	bce_miibus_read_reg),
 	DEVMETHOD(miibus_writereg,	bce_miibus_write_reg),
@@ -467,7 +463,7 @@ static device_method_t bce_methods[] = {
 /*	DEVMETHOD(miibus_linkchg,	bce_miibus_linkchg),   */
 /*	DEVMETHOD(miibus_mediainit,	bce_miibus_mediainit), */
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bce_driver = {
@@ -489,7 +485,7 @@ DRIVER_MODULE(miibus, bce, miibus_driver, miibus_devclass, 0, 0);
 /****************************************************************************/
 /* Tunable device values                                                    */
 /****************************************************************************/
-SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bce, CTLFLAG_RD, 0, "bce driver parameters");
 
 /* Allowable values are TRUE or FALSE */
 static int bce_verbose = TRUE;
@@ -801,13 +797,13 @@ bce_probe_pci_caps(device_t dev, struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_LOAD);
 
 	/* Check if PCI-X capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_PCIX, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_PCIX, &reg) == 0) {
 		if (reg != 0)
 			sc->bce_cap_flags |= BCE_PCIX_CAPABLE_FLAG;
 	}
 
 	/* Check if PCIe capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		if (reg != 0) {
 			u16 link_status = pci_read_config(dev, reg + 0x12, 2);
 			DBPRINT(sc, BCE_INFO_LOAD, "PCIe link_status = "
@@ -820,13 +816,13 @@ bce_probe_pci_caps(device_t dev, struct bce_softc *sc)
 	}
 
 	/* Check if MSI capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_MSI, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_MSI, &reg) == 0) {
 		if (reg != 0)
 			sc->bce_cap_flags |= BCE_MSI_CAPABLE_FLAG;
 	}
 
 	/* Check if MSI-X capability is enabled. */
-	if (pci_find_extcap(dev, PCIY_MSIX, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_MSIX, &reg) == 0) {
 		if (reg != 0)
 			sc->bce_cap_flags |= BCE_MSIX_CAPABLE_FLAG;
 	}
@@ -1112,8 +1108,7 @@ bce_attach(device_t dev)
 			DBPRINT(sc, BCE_INFO_LOAD, "%s(): Using MSI "
 			    "interrupt.\n", __FUNCTION__);
 			sc->bce_flags |= BCE_USING_MSI_FLAG;
-			if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-				(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+			if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 				sc->bce_flags |= BCE_ONE_SHOT_MSI_FLAG;
 			sc->bce_irq_rid = 1;
 			sc->bce_intr = bce_intr;
@@ -1730,8 +1725,7 @@ bce_ctx_rd(struct bce_softc *sc, u32 cid_addr, u32 ctx_offset)
 
 	offset = ctx_offset + cid_addr;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 
 		REG_WR(sc, BCE_CTX_CTX_CTRL, (offset | BCE_CTX_CTX_CTRL_READ_REQ));
 
@@ -1783,8 +1777,7 @@ bce_ctx_wr(struct bce_softc *sc, u32 cid_addr, u32 ctx_offset, u32 ctx_val)
 		BCE_PRINTF("%s(): Invalid CID address: 0x%08X.\n",
 		    __FUNCTION__, cid_addr));
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 
 		REG_WR(sc, BCE_CTX_CTX_DATA, ctx_val);
 		REG_WR(sc, BCE_CTX_CTX_CTRL, (offset | BCE_CTX_CTX_CTRL_WRITE_REQ));
@@ -1989,6 +1982,7 @@ static void
 bce_miibus_statchg(device_t dev)
 {
 	struct bce_softc *sc;
+	struct ifnet *ifp;
 	struct mii_data *mii;
 	int val;
 
@@ -1996,41 +1990,56 @@ bce_miibus_statchg(device_t dev)
 
 	DBENTER(BCE_VERBOSE_PHY);
 
+	ifp = sc->bce_ifp;
 	mii = device_get_softc(sc->bce_miibus);
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
 
+	sc->bce_link_up = FALSE;
 	val = REG_RD(sc, BCE_EMAC_MODE);
 	val &= ~(BCE_EMAC_MODE_PORT | BCE_EMAC_MODE_HALF_DUPLEX |
 	    BCE_EMAC_MODE_MAC_LOOP | BCE_EMAC_MODE_FORCE_LINK |
 	    BCE_EMAC_MODE_25G);
 
 	/* Set MII or GMII interface based on the PHY speed. */
-	switch (IFM_SUBTYPE(mii->mii_media_active)) {
-	case IFM_10_T:
-		if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
-			DBPRINT(sc, BCE_INFO_PHY,
-			    "Enabling 10Mb interface.\n");
-			val |= BCE_EMAC_MODE_PORT_MII_10;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+			if (BCE_CHIP_NUM(sc) != BCE_CHIP_NUM_5706) {
+				DBPRINT(sc, BCE_INFO_PHY,
+				    "Enabling 10Mb interface.\n");
+				val |= BCE_EMAC_MODE_PORT_MII_10;
+				sc->bce_link_up = TRUE;
+				break;
+			}
+			/* FALLTHROUGH */
+		case IFM_100_TX:
+			DBPRINT(sc, BCE_INFO_PHY, "Enabling MII interface.\n");
+			val |= BCE_EMAC_MODE_PORT_MII;
+			sc->bce_link_up = TRUE;
+			break;
+		case IFM_2500_SX:
+			DBPRINT(sc, BCE_INFO_PHY, "Enabling 2.5G MAC mode.\n");
+			val |= BCE_EMAC_MODE_25G;
+			/* FALLTHROUGH */
+		case IFM_1000_T:
+		case IFM_1000_SX:
+			DBPRINT(sc, BCE_INFO_PHY, "Enabling GMII interface.\n");
+			val |= BCE_EMAC_MODE_PORT_GMII;
+			sc->bce_link_up = TRUE;
+			if (bce_verbose || bootverbose)
+				BCE_PRINTF("Gigabit link up!\n");
+			break;
+		default:
+			DBPRINT(sc, BCE_INFO_PHY, "Unknown link speed.\n");
 			break;
 		}
-		/* fall-through */
-	case IFM_100_TX:
-		DBPRINT(sc, BCE_INFO_PHY, "Enabling MII interface.\n");
-		val |= BCE_EMAC_MODE_PORT_MII;
-		break;
-	case IFM_2500_SX:
-		DBPRINT(sc, BCE_INFO_PHY, "Enabling 2.5G MAC mode.\n");
-		val |= BCE_EMAC_MODE_25G;
-		/* fall-through */
-	case IFM_1000_T:
-	case IFM_1000_SX:
-		DBPRINT(sc, BCE_INFO_PHY, "Enabling GMII interface.\n");
-		val |= BCE_EMAC_MODE_PORT_GMII;
-		break;
-	default:
-		DBPRINT(sc, BCE_INFO_PHY, "Unknown link speed, enabling "
-		    "default GMII interface.\n");
-		val |= BCE_EMAC_MODE_PORT_GMII;
 	}
+
+	if (sc->bce_link_up == FALSE)
+		return;
 
 	/* Set half or full duplex based on PHY settings. */
 	if ((mii->mii_media_active & IFM_GMASK) == IFM_HDX) {
@@ -2043,7 +2052,7 @@ bce_miibus_statchg(device_t dev)
 
 	REG_WR(sc, BCE_EMAC_MODE, val);
 
- 	if ((mii->mii_media_active & IFM_ETH_RXPAUSE) != 0) {
+	if ((mii->mii_media_active & IFM_ETH_RXPAUSE) != 0) {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Enabling RX flow control.\n", __FUNCTION__);
 		BCE_SETBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
@@ -2053,7 +2062,7 @@ bce_miibus_statchg(device_t dev)
 		BCE_CLRBIT(sc, BCE_EMAC_RX_MODE, BCE_EMAC_RX_MODE_FLOW_EN);
 	}
 
- 	if ((mii->mii_media_active & IFM_ETH_TXPAUSE) != 0) {
+	if ((mii->mii_media_active & IFM_ETH_TXPAUSE) != 0) {
 		DBPRINT(sc, BCE_INFO_PHY,
 		    "%s(): Enabling TX flow control.\n", __FUNCTION__);
 		BCE_SETBIT(sc, BCE_EMAC_TX_MODE, BCE_EMAC_TX_MODE_FLOW_EN);
@@ -2469,8 +2478,7 @@ bce_init_nvram(struct bce_softc *sc)
 
 	DBENTER(BCE_VERBOSE_NVRAM);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		sc->bce_flash_info = &flash_5709;
 		goto bce_init_nvram_get_flash_size;
 	}
@@ -3224,8 +3232,7 @@ bce_dma_free(struct bce_softc *sc)
 
 
 	/* Free, unmap and destroy all context memory pages. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		for (i = 0; i < sc->ctx_pages; i++ ) {
 			if (sc->ctx_block[i] != NULL) {
 				bus_dmamem_free(
@@ -3564,8 +3571,7 @@ bce_dma_alloc(device_t dev)
 	    __FUNCTION__, (uintmax_t) sc->stats_block_paddr);
 
 	/* BCM5709 uses host memory as cache for context memory. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		sc->ctx_pages = 0x2000 / BCM_PAGE_SIZE;
 		if (sc->ctx_pages == 0)
 			sc->ctx_pages = 1;
@@ -4206,8 +4212,7 @@ bce_init_rxp_cpu(struct bce_softc *sc)
 	cpu_reg.spad_base = BCE_RXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
  		fw.ver_major = bce_RXP_b09FwReleaseMajor;
 		fw.ver_minor = bce_RXP_b09FwReleaseMinor;
 		fw.ver_fix = bce_RXP_b09FwReleaseFix;
@@ -4305,8 +4310,7 @@ bce_init_txp_cpu(struct bce_softc *sc)
 	cpu_reg.spad_base = BCE_TXP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		fw.ver_major = bce_TXP_b09FwReleaseMajor;
 		fw.ver_minor = bce_TXP_b09FwReleaseMinor;
 		fw.ver_fix = bce_TXP_b09FwReleaseFix;
@@ -4403,8 +4407,7 @@ bce_init_tpat_cpu(struct bce_softc *sc)
 	cpu_reg.spad_base = BCE_TPAT_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		fw.ver_major = bce_TPAT_b09FwReleaseMajor;
 		fw.ver_minor = bce_TPAT_b09FwReleaseMinor;
 		fw.ver_fix = bce_TPAT_b09FwReleaseFix;
@@ -4501,8 +4504,7 @@ bce_init_cp_cpu(struct bce_softc *sc)
 	cpu_reg.spad_base = BCE_CP_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		fw.ver_major = bce_CP_b09FwReleaseMajor;
 		fw.ver_minor = bce_CP_b09FwReleaseMinor;
 		fw.ver_fix = bce_CP_b09FwReleaseFix;
@@ -4599,8 +4601,7 @@ bce_init_com_cpu(struct bce_softc *sc)
 	cpu_reg.spad_base = BCE_COM_SCRATCH;
 	cpu_reg.mips_view_base = 0x8000000;
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		fw.ver_major = bce_COM_b09FwReleaseMajor;
 		fw.ver_minor = bce_COM_b09FwReleaseMinor;
 		fw.ver_fix = bce_COM_b09FwReleaseFix;
@@ -4683,8 +4684,7 @@ bce_init_cpus(struct bce_softc *sc)
 {
 	DBENTER(BCE_VERBOSE_RESET);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 
 		if ((BCE_CHIP_REV(sc) == BCE_CHIP_REV_Ax)) {
 			bce_load_rv2p_fw(sc, bce_xi90_rv2p_proc1,
@@ -4732,8 +4732,7 @@ bce_init_ctx(struct bce_softc *sc)
 	rc = 0;
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_CTX);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		retry_cnt = CTX_INIT_RETRY_COUNT;
 
 		DBPRINT(sc, BCE_INFO_CTX, "Initializing 5709 context.\n");
@@ -4960,8 +4959,7 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	DELAY(5);
 
 	/* Disable DMA */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		val = REG_RD(sc, BCE_MISC_NEW_CORE_CTL);
 		val &= ~BCE_MISC_NEW_CORE_CTL_DMA_ENABLE;
 		REG_WR(sc, BCE_MISC_NEW_CORE_CTL, val);
@@ -4983,8 +4981,7 @@ bce_reset(struct bce_softc *sc, u32 reset_code)
 	val = REG_RD(sc, BCE_MISC_ID);
 
 	/* Chip reset. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		REG_WR(sc, BCE_MISC_COMMAND, BCE_MISC_COMMAND_SW_RESET);
 		REG_RD(sc, BCE_MISC_COMMAND);
 		DELAY(5);
@@ -5113,8 +5110,7 @@ bce_chipinit(struct bce_softc *sc)
 	val |= BCE_MQ_CONFIG_KNL_BYP_BLK_SIZE_256;
 
 	/* Enable bins used on the 5709. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		val |= BCE_MQ_CONFIG_BIN_MQ_MODE;
 		if (BCE_CHIP_ID(sc) == BCE_CHIP_ID_5709_A1)
 			val |= BCE_MQ_CONFIG_HALT_DIS;
@@ -5268,8 +5264,7 @@ bce_blockinit(struct bce_softc *sc)
 	}
 
 	/* Enable DMA */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		val = REG_RD(sc, BCE_MISC_NEW_CORE_CTL);
 		val |= BCE_MISC_NEW_CORE_CTL_DMA_ENABLE;
 		REG_WR(sc, BCE_MISC_NEW_CORE_CTL, val);
@@ -5293,8 +5288,7 @@ bce_blockinit(struct bce_softc *sc)
 	}
 
 	/* Enable all remaining blocks in the MAC. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 		REG_WR(sc, BCE_MISC_ENABLE_SET_BITS,
 		    BCE_MISC_ENABLE_DEFAULT_XI);
 	else
@@ -5565,8 +5559,7 @@ bce_init_tx_context(struct bce_softc *sc)
 	DBENTER(BCE_VERBOSE_RESET | BCE_VERBOSE_SEND | BCE_VERBOSE_CTX);
 
 	/* Initialize the context ID for an L2 TX chain. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		/* Set the CID type to support an L2 connection. */
 		val = BCE_L2CTX_TX_TYPE_TYPE_L2_XI |
 		    BCE_L2CTX_TX_TYPE_SIZE_L2_XI;
@@ -5729,8 +5722,7 @@ bce_init_rx_context(struct bce_softc *sc)
 	 * when pause frames can be stopped (the high
 	 * watermark).
 	 */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		u32 lo_water, hi_water;
 
 		if (sc->bce_flags & BCE_USING_TX_FLOW_CONTROL) {
@@ -5764,8 +5756,7 @@ bce_init_rx_context(struct bce_softc *sc)
 	CTX_WR(sc, GET_CID_ADDR(RX_CID), BCE_L2CTX_RX_CTX_TYPE, val);
 
 	/* Setup the MQ BIN mapping for l2_ctx_host_bseq. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		val = REG_RD(sc, BCE_MQ_MAP_L2_5);
 		REG_WR(sc, BCE_MQ_MAP_L2_5, val | BCE_MQ_MAP_L2_5_ARM);
 	}
@@ -5983,8 +5974,7 @@ bce_init_pg_chain(struct bce_softc *sc)
 	}
 
 	/* Setup the MQ BIN mapping for host_pg_bidx. */
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)	||
-		(BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 		REG_WR(sc, BCE_MQ_MAP_L2_3, BCE_MQ_MAP_L2_3_DEFAULT);
 
 	CTX_WR(sc, GET_CID_ADDR(RX_CID), BCE_L2CTX_RX_PG_BUF_SIZE, 0);
@@ -6141,6 +6131,7 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct bce_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error;
 
 	DBENTER(BCE_VERBOSE_PHY);
@@ -6153,12 +6144,8 @@ bce_ifmedia_upd_locked(struct ifnet *ifp)
 	/* Make sure the MII bus has been enumerated. */
 	if (mii) {
 		sc->bce_link_up = FALSE;
-		if (mii->mii_instance) {
-			struct mii_softc *miisc;
-
-			LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			    mii_phy_reset(miisc);
-		}
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		    PHY_RESET(miisc);
 		error = mii_mediachg(mii);
 	}
 
@@ -6235,15 +6222,11 @@ bce_phy_intr(struct bce_softc *sc)
 			DBPRINT(sc, BCE_INFO_PHY, "%s(): Link is now DOWN.\n",
 			    __FUNCTION__);
 		}
-
 		/*
-		 * Assume link is down and allow
-		 * tick routine to update the state
-		 * based on the actual media state.
+		 * Link state changed, allow tick routine to update
+		 * the state baased on actual media state.
 		 */
-		sc->bce_link_up = FALSE;
-		callout_stop(&sc->bce_tick_callout);
-		bce_tick(sc);
+		sc->bce_link_tick = TRUE;
 	}
 
 	/* Acknowledge the link change interrupt. */
@@ -6927,11 +6910,12 @@ bce_init_locked(struct bce_softc *sc)
 	/* Enable host interrupts. */
 	bce_enable_intr(sc, 1);
 
-	bce_ifmedia_upd_locked(ifp);
-
 	/* Let the OS know the driver is up and running. */
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	sc->bce_link_tick = TRUE;
+	bce_ifmedia_upd_locked(ifp);
 
 	callout_reset(&sc->bce_tick_callout, hz, bce_tick, sc);
 
@@ -8228,31 +8212,19 @@ bce_tick(void *xsc)
 	bce_watchdog(sc);
 
 	/* If link is up already up then we're done. */
-	if (sc->bce_link_up == TRUE)
+	if (sc->bce_link_tick == FALSE && sc->bce_link_up == TRUE)
 		goto bce_tick_exit;
 
 	/* Link is down.  Check what the PHY's doing. */
 	mii = device_get_softc(sc->bce_miibus);
 	mii_tick(mii);
 
-	/* Check if the link has come up. */
-	if ((mii->mii_media_status & IFM_ACTIVE) &&
-	    (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)) {
+	sc->bce_link_tick = FALSE;
+	/* Now that link is up, handle any outstanding TX traffic. */
+	if (sc->bce_link_up == TRUE && !IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
 		DBPRINT(sc, BCE_VERBOSE_MISC,
-		    "%s(): Link up!\n", __FUNCTION__);
-		sc->bce_link_up = TRUE;
-		if ((IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_SX ||
-		    IFM_SUBTYPE(mii->mii_media_active) == IFM_2500_SX) &&
-		    (bce_verbose || bootverbose))
-			BCE_PRINTF("Gigabit link up!\n");
-
-		/* Now that link is up, handle any outstanding TX traffic. */
-		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
-			DBPRINT(sc, BCE_VERBOSE_MISC, "%s(): Found "
-			    "pending TX traffic.\n", __FUNCTION__);
-			bce_start_locked(ifp);
-		}
+		    "%s(): Found pending TX traffic.\n", __FUNCTION__);
+		bce_start_locked(ifp);
 	}
 
 bce_tick_exit:
@@ -9915,8 +9887,7 @@ bce_dump_ctx(struct bce_softc *sc, u16 cid)
 		    "consumer index\n",	CTX_RD(sc, GET_CID_ADDR(cid),
 		    BCE_L2CTX_RX_NX_PG_BDIDX));
 	} else if (cid == TX_CID) {
-		if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-		    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+		if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 			BCE_PRINTF(" 0x%08X - (L2CTX_TX_TYPE_XI) ctx type\n",
 			    CTX_RD(sc, GET_CID_ADDR(cid),
 			    BCE_L2CTX_TX_TYPE_XI));
@@ -10178,8 +10149,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_CPQ_VALID_CNT  <<  8) |
 	    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_MGMQ_VALID_CNT);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716))
+	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709)
 		val = val |
 		    (BCE_HC_STAT_GEN_SEL_0_GEN_SEL_0_RV2PCSQ_VALID_CNT_XI <<
 		     24);
@@ -10212,8 +10182,7 @@ bce_dump_ftqs(struct bce_softc *sc)
 	BCE_PRINTF(" CS      0x%08X 0x%08X 0x%08X 0x%08X 0x%08X\n",
 	    cmd, ctl, cur_depth, max_depth, valid_cnt);
 
-	if ((BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) ||
-	    (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5716)) {
+	if (BCE_CHIP_NUM(sc) == BCE_CHIP_NUM_5709) {
 		/* Input queue to the RV2P Command Scheduler */
 		cmd = REG_RD(sc, BCE_RV2PCSR_FTQ_CMD);
 		ctl = REG_RD(sc, BCE_RV2PCSR_FTQ_CTL);

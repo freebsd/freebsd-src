@@ -84,6 +84,8 @@ _libelf_xlate_shtype(uint32_t sht)
 	case SHT_SUNW_dof:
 		return (ELF_T_BYTE);
 #endif
+	case SHT_MIPS_DWARF:
+		/* FALLTHROUGH */
 	case SHT_AMD64_UNWIND:	/* == SHT_IA_64_UNWIND */
 		return (ELF_T_BYTE);
 	default:

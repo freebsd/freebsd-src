@@ -63,7 +63,7 @@ struct file;
 # include <sys/stream.h>
 # include <sys/kmem.h>
 #endif
-#if __FreeBSD__ > 2
+#if __FreeBSD_version >= 300000
 # include <sys/queue.h>
 #endif
 #include <net/if.h>

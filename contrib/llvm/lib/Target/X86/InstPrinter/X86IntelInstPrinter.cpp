@@ -15,12 +15,12 @@
 #define DEBUG_TYPE "asm-printer"
 #include "X86IntelInstPrinter.h"
 #include "X86InstComments.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FormattedStream.h"
-#include "X86GenInstrNames.inc"
 #include <cctype>
 using namespace llvm;
 
@@ -28,12 +28,19 @@ using namespace llvm;
 #define GET_INSTRUCTION_NAME
 #include "X86GenAsmWriter1.inc"
 
-void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS) {
+void X86IntelInstPrinter::printRegName(raw_ostream &OS, unsigned RegNo) const {
+  OS << getRegisterName(RegNo);
+}
+
+void X86IntelInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
+                                    StringRef Annot) {
   printInstruction(MI, OS);
   
   // If verbose assembly is enabled, we can print some informative comments.
-  if (CommentStream)
+  if (CommentStream) {
+    printAnnotation(OS, Annot);
     EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
+  }
 }
 StringRef X86IntelInstPrinter::getOpcodeName(unsigned Opcode) const {
   return getInstructionName(Opcode);

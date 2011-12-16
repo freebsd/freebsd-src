@@ -345,7 +345,7 @@ ttyprt(struct xtty *xt)
 		errx(1, "struct xtty size mismatch");
 	if (usenumflag || xt->xt_dev == 0 ||
 	   (name = devname(xt->xt_dev, S_IFCHR)) == NULL)
-		printf("%5d,%4d ", major(xt->xt_dev), minor(xt->xt_dev));
+		printf("%#10jx ", (uintmax_t)xt->xt_dev);
 	else
 		printf("%10s ", name);
 	printf("%5zu %4zu %4zu %4zu %5zu %4zu %4zu %5u %5d %5d ",

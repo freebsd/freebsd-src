@@ -33,7 +33,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * The main module for truss.  Suprisingly simple, but, then, the other
+ * The main module for truss.  Surprisingly simple, but, then, the other
  * files handle the bulk of the work.  And, of course, the kernel has to
  * do a lot of the work :).
  */
@@ -74,7 +74,7 @@ usage(void)
  * WARNING! "FreeBSD a.out" must be first, or set_etype will not
  * work correctly.
  */
-struct ex_types {
+static struct ex_types {
 	const char *type;
 	void (*enter_syscall)(struct trussinfo *, int);
 	long (*exit_syscall)(struct trussinfo *, int);

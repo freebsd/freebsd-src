@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -42,24 +37,28 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar724xreg.h>
 
 #include <mips/atheros/ar71xx_cpudef.h>
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar724x_chip.h>
+
+#include <mips/sentry5/s5reg.h>
 
 static void
 ar724x_chip_detect_mem_size(void)
@@ -72,20 +71,20 @@ ar724x_chip_detect_sys_frequency(void)
 	uint32_t pll;
 	uint32_t freq;
 	uint32_t div;
-	 
+
 	pll = ATH_READ_REG(AR724X_PLL_REG_CPU_CONFIG);
-	
+
 	div = ((pll >> AR724X_PLL_DIV_SHIFT) & AR724X_PLL_DIV_MASK);
 	freq = div * AR724X_BASE_FREQ;
 
 	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
 	freq *= div;
-	
+
 	u_ar71xx_cpu_freq = freq;
-	
+
 	div = ((pll >> AR724X_DDR_DIV_SHIFT) & AR724X_DDR_DIV_MASK) + 1;
 	u_ar71xx_ddr_freq = freq / div;
-	
+
 	div = (((pll >> AR724X_AHB_DIV_SHIFT) & AR724X_AHB_DIV_MASK) + 1) * 2;
 	u_ar71xx_ahb_freq = u_ar71xx_cpu_freq / div;
 }
@@ -124,29 +123,94 @@ ar724x_chip_device_stopped(uint32_t mask)
 }
 
 static void
-ar724x_chip_set_pll_ge0(int speed)
+ar724x_chip_set_pll_ge(int unit, int speed)
 {
+
+	switch (unit) {
+	case 0:
+		/* XXX TODO */
+		break;
+	case 1:
+		/* XXX TODO */
+		break;
+	default:
+		printf("%s: invalid PLL set for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
-ar724x_chip_set_pll_ge1(int speed)
+ar724x_chip_ddr_flush_ge(int unit)
 {
+
+	switch (unit) {
+	case 0:
+		ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE0);
+		break;
+	case 1:
+		ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE1);
+		break;
+	default:
+		printf("%s: invalid DDR flush for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
-ar724x_chip_ddr_flush_ge0(void)
+ar724x_chip_ddr_flush_ip2(void)
 {
-}
 
-static void
-ar724x_chip_ddr_flush_ge1(void)
-{
+	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_PCIE);
 }
 
 static uint32_t
 ar724x_chip_get_eth_pll(unsigned int mac, int speed)
 {
-        return 0;
+
+	return 0;
+}
+
+static void
+ar724x_chip_init_usb_peripheral(void)
+{
+
+	switch (ar71xx_soc) {
+	case AR71XX_SOC_AR7240:
+		ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
+		    AR724X_RESET_USB_HOST);
+		DELAY(1000);
+
+		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
+		    AR724X_RESET_USB_HOST);
+		DELAY(1000);
+
+		/*
+		 * WAR for HW bug. Here it adjusts the duration
+		 * between two SOFS.
+		 */
+		ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
+		    (3 << USB_CTRL_FLADJ_A0_SHIFT));
+
+		break;
+
+	case AR71XX_SOC_AR7241:
+	case AR71XX_SOC_AR7242:
+		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL);
+		DELAY(100);
+
+		ar71xx_device_start(AR724X_RESET_USB_HOST);
+		DELAY(100);
+
+		ar71xx_device_start(AR724X_RESET_USB_PHY);
+		DELAY(100);
+
+		break;
+
+	default:
+		break;
+	}
 }
 
 struct ar71xx_cpu_def ar724x_chip_def = {
@@ -155,11 +219,9 @@ struct ar71xx_cpu_def ar724x_chip_def = {
         &ar724x_chip_device_stop,
         &ar724x_chip_device_start,
         &ar724x_chip_device_stopped,
-        &ar724x_chip_set_pll_ge0,
-        &ar724x_chip_set_pll_ge1,
-        &ar724x_chip_ddr_flush_ge0,
-        &ar724x_chip_ddr_flush_ge1,
+        &ar724x_chip_set_pll_ge,
+        &ar724x_chip_ddr_flush_ge,
         &ar724x_chip_get_eth_pll,
-	NULL,		/* ar71xx_chip_irq_flush_ip2 */
-	NULL		/* ar71xx_chip_init_usb_peripheral */
+        &ar724x_chip_ddr_flush_ip2,
+	&ar724x_chip_init_usb_peripheral
 };

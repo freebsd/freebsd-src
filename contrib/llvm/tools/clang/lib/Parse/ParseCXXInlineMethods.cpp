@@ -15,43 +15,116 @@
 #include "clang/Parse/Parser.h"
 #include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Scope.h"
+#include "clang/AST/DeclTemplate.h"
 using namespace clang;
 
 /// ParseCXXInlineMethodDef - We parsed and verified that the specified
 /// Declarator is a well formed C++ inline method definition. Now lex its body
 /// and store its tokens for parsing after the C++ class is complete.
-Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, ParsingDeclarator &D,
+Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS,
+                                      AttributeList *AccessAttrs,
+                                      ParsingDeclarator &D,
                                 const ParsedTemplateInfo &TemplateInfo,
-                                const VirtSpecifiers& VS) {
+                                const VirtSpecifiers& VS, ExprResult& Init) {
   assert(D.isFunctionDeclarator() && "This isn't a function declarator!");
-  assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try)) &&
-         "Current token not a '{', ':' or 'try'!");
+  assert((Tok.is(tok::l_brace) || Tok.is(tok::colon) || Tok.is(tok::kw_try) ||
+          Tok.is(tok::equal)) &&
+         "Current token not a '{', ':', '=', or 'try'!");
 
   MultiTemplateParamsArg TemplateParams(Actions,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->data() : 0,
           TemplateInfo.TemplateParams ? TemplateInfo.TemplateParams->size() : 0);
 
   Decl *FnD;
+  D.setFunctionDefinition(true);
   if (D.getDeclSpec().isFriendSpecified())
-    // FIXME: Friend templates
-    FnD = Actions.ActOnFriendFunctionDecl(getCurScope(), D, true,
+    FnD = Actions.ActOnFriendFunctionDecl(getCurScope(), D,
                                           move(TemplateParams));
-  else { // FIXME: pass template information through
-    if (VS.isOverrideSpecified())
-      Diag(VS.getOverrideLoc(), diag::ext_override_inline) << "override";
-    if (VS.isFinalSpecified())
-      Diag(VS.getFinalLoc(), diag::ext_override_inline) << "final";
-    if (VS.isNewSpecified())
-      Diag(VS.getNewLoc(), diag::ext_override_inline) << "new";
-
+  else {
     FnD = Actions.ActOnCXXMemberDeclarator(getCurScope(), AS, D,
                                            move(TemplateParams), 0, 
-                                           VS, 0, /*IsDefinition*/true);
+                                           VS, /*HasInit=*/false);
+    if (FnD) {
+      Actions.ProcessDeclAttributeList(getCurScope(), FnD, AccessAttrs,
+                                       false, true);
+      bool TypeSpecContainsAuto
+        = D.getDeclSpec().getTypeSpecType() == DeclSpec::TST_auto;
+      if (Init.get())
+        Actions.AddInitializerToDecl(FnD, Init.get(), false, 
+                                     TypeSpecContainsAuto);
+      else
+        Actions.ActOnUninitializedDecl(FnD, TypeSpecContainsAuto);
+    }
   }
 
   HandleMemberFunctionDefaultArgs(D, FnD);
 
   D.complete(FnD);
+
+  if (Tok.is(tok::equal)) {
+    ConsumeToken();
+
+    bool Delete = false;
+    SourceLocation KWLoc;
+    if (Tok.is(tok::kw_delete)) {
+      if (!getLang().CPlusPlus0x)
+        Diag(Tok, diag::warn_deleted_function_accepted_as_extension);
+
+      KWLoc = ConsumeToken();
+      Actions.SetDeclDeleted(FnD, KWLoc);
+      Delete = true;
+    } else if (Tok.is(tok::kw_default)) {
+      if (!getLang().CPlusPlus0x)
+        Diag(Tok, diag::warn_defaulted_function_accepted_as_extension);
+
+      KWLoc = ConsumeToken();
+      Actions.SetDeclDefaulted(FnD, KWLoc);
+    } else {
+      llvm_unreachable("function definition after = not 'delete' or 'default'");
+    }
+
+    if (Tok.is(tok::comma)) {
+      Diag(KWLoc, diag::err_default_delete_in_multiple_declaration)
+        << Delete;
+      SkipUntil(tok::semi);
+    } else {
+      ExpectAndConsume(tok::semi, diag::err_expected_semi_after,
+                       Delete ? "delete" : "default", tok::semi);
+    }
+
+    return FnD;
+  }
+
+  // In delayed template parsing mode, if we are within a class template
+  // or if we are about to parse function member template then consume
+  // the tokens and store them for parsing at the end of the translation unit.
+  if (getLang().DelayedTemplateParsing && 
+      ((Actions.CurContext->isDependentContext() ||
+        TemplateInfo.Kind != ParsedTemplateInfo::NonTemplate) && 
+        !Actions.IsInsideALocalClassWithinATemplateFunction()) &&
+        !D.getDeclSpec().isFriendSpecified()) {
+
+    if (FnD) {
+      LateParsedTemplatedFunction *LPT =
+        new LateParsedTemplatedFunction(this, FnD);
+
+      FunctionDecl *FD = 0;
+      if (FunctionTemplateDecl *FunTmpl = dyn_cast<FunctionTemplateDecl>(FnD))
+        FD = FunTmpl->getTemplatedDecl();
+      else
+        FD = cast<FunctionDecl>(FnD);
+      Actions.CheckForFunctionRedefinition(FD);
+
+      LateParsedTemplateMap[FD] = LPT;
+      Actions.MarkAsLateParsedTemplate(FD);
+      LexTemplateFunctionForLateParsing(LPT->Toks);
+    } else {
+      CachedTokens Toks;
+      LexTemplateFunctionForLateParsing(Toks);
+    }
+
+    return FnD;
+  }
 
   // Consume the tokens and store them for later parsing.
 
@@ -61,30 +134,24 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, ParsingDeclarator &D,
   CachedTokens &Toks = LM->Toks;
 
   tok::TokenKind kind = Tok.getKind();
-  // We may have a constructor initializer or function-try-block here.
-  if (kind == tok::colon || kind == tok::kw_try) {
-    // Consume everything up to (and including) the left brace.
-    if (!ConsumeAndStoreUntil(tok::l_brace, Toks)) {
-      // We didn't find the left-brace we expected after the
-      // constructor initializer.
-      if (Tok.is(tok::semi)) {
-        // We found a semicolon; complain, consume the semicolon, and
-        // don't try to parse this method later.
-        Diag(Tok.getLocation(), diag::err_expected_lbrace);
-        ConsumeAnyToken();
-        delete getCurrentClass().LateParsedDeclarations.back();
-        getCurrentClass().LateParsedDeclarations.pop_back();
-        return FnD;
-      }
+  // Consume everything up to (and including) the left brace of the
+  // function body.
+  if (ConsumeAndStoreFunctionPrologue(Toks)) {
+    // We didn't find the left-brace we expected after the
+    // constructor initializer.
+    if (Tok.is(tok::semi)) {
+      // We found a semicolon; complain, consume the semicolon, and
+      // don't try to parse this method later.
+      Diag(Tok.getLocation(), diag::err_expected_lbrace);
+      ConsumeAnyToken();
+      delete getCurrentClass().LateParsedDeclarations.back();
+      getCurrentClass().LateParsedDeclarations.pop_back();
+      return FnD;
     }
-
   } else {
-    // Begin by storing the '{' token.
-    Toks.push_back(Tok);
-    ConsumeBrace();
+    // Consume everything up to (and including) the matching right brace.
+    ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
   }
-  // Consume everything up to (and including) the matching right brace.
-  ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/false);
 
   // If we're in a function-try-block, we need to store all the catch blocks.
   if (kind == tok::kw_try) {
@@ -94,11 +161,61 @@ Decl *Parser::ParseCXXInlineMethodDef(AccessSpecifier AS, ParsingDeclarator &D,
     }
   }
 
+
+  if (!FnD) {
+    // If semantic analysis could not build a function declaration,
+    // just throw away the late-parsed declaration.
+    delete getCurrentClass().LateParsedDeclarations.back();
+    getCurrentClass().LateParsedDeclarations.pop_back();
+  }
+
   return FnD;
+}
+
+/// ParseCXXNonStaticMemberInitializer - We parsed and verified that the
+/// specified Declarator is a well formed C++ non-static data member
+/// declaration. Now lex its initializer and store its tokens for parsing
+/// after the class is complete.
+void Parser::ParseCXXNonStaticMemberInitializer(Decl *VarD) {
+  assert((Tok.is(tok::l_brace) || Tok.is(tok::equal)) &&
+         "Current token not a '{' or '='!");
+
+  LateParsedMemberInitializer *MI =
+    new LateParsedMemberInitializer(this, VarD);
+  getCurrentClass().LateParsedDeclarations.push_back(MI);
+  CachedTokens &Toks = MI->Toks;
+
+  tok::TokenKind kind = Tok.getKind();
+  if (kind == tok::equal) {
+    Toks.push_back(Tok);
+    ConsumeAnyToken();
+  }
+
+  if (kind == tok::l_brace) {
+    // Begin by storing the '{' token.
+    Toks.push_back(Tok);
+    ConsumeBrace();
+
+    // Consume everything up to (and including) the matching right brace.
+    ConsumeAndStoreUntil(tok::r_brace, Toks, /*StopAtSemi=*/true);
+  } else {
+    // Consume everything up to (but excluding) the comma or semicolon.
+    ConsumeAndStoreUntil(tok::comma, Toks, /*StopAtSemi=*/true,
+                         /*ConsumeFinalToken=*/false);
+  }
+
+  // Store an artificial EOF token to ensure that we don't run off the end of
+  // the initializer when we come to parse it.
+  Token Eof;
+  Eof.startToken();
+  Eof.setKind(tok::eof);
+  Eof.setLocation(Tok.getLocation());
+  Toks.push_back(Eof);
 }
 
 Parser::LateParsedDeclaration::~LateParsedDeclaration() {}
 void Parser::LateParsedDeclaration::ParseLexedMethodDeclarations() {}
+void Parser::LateParsedDeclaration::ParseLexedMemberInitializers() {}
 void Parser::LateParsedDeclaration::ParseLexedMethodDefs() {}
 
 Parser::LateParsedClass::LateParsedClass(Parser *P, ParsingClass *C)
@@ -112,6 +229,10 @@ void Parser::LateParsedClass::ParseLexedMethodDeclarations() {
   Self->ParseLexedMethodDeclarations(*Class);
 }
 
+void Parser::LateParsedClass::ParseLexedMemberInitializers() {
+  Self->ParseLexedMemberInitializers(*Class);
+}
+
 void Parser::LateParsedClass::ParseLexedMethodDefs() {
   Self->ParseLexedMethodDefs(*Class);
 }
@@ -122,6 +243,10 @@ void Parser::LateParsedMethodDeclaration::ParseLexedMethodDeclarations() {
 
 void Parser::LexedMethod::ParseLexedMethodDefs() {
   Self->ParseLexedMethodDef(*this);
+}
+
+void Parser::LateParsedMemberInitializer::ParseLexedMemberInitializers() {
+  Self->ParseLexedMemberInitializer(*this);
 }
 
 /// ParseLexedMethodDeclarations - We finished parsing the member
@@ -261,7 +386,7 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
   Actions.ActOnStartOfFunctionDef(getCurScope(), LM.D);
 
   if (Tok.is(tok::kw_try)) {
-    ParseFunctionTryBlock(LM.D);
+    ParseFunctionTryBlock(LM.D, FnScope);
     assert(!PP.getSourceManager().isBeforeInTranslationUnit(origLoc,
                                                          Tok.getLocation()) &&
            "ParseFunctionTryBlock went over the cached tokens!");
@@ -276,13 +401,16 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
 
     // Error recovery.
     if (!Tok.is(tok::l_brace)) {
+      FnScope.Exit();
       Actions.ActOnFinishFunctionBody(LM.D, 0);
+      while (Tok.getLocation() != origLoc && Tok.isNot(tok::eof))
+        ConsumeAnyToken();
       return;
     }
   } else
     Actions.ActOnDefaultCtorInitializers(LM.D);
 
-  ParseFunctionStatementBody(LM.D);
+  ParseFunctionStatementBody(LM.D, FnScope);
 
   if (Tok.getLocation() != origLoc) {
     // Due to parsing error, we either went over the cached tokens or
@@ -294,8 +422,70 @@ void Parser::ParseLexedMethodDef(LexedMethod &LM) {
                                                         origLoc))
       while (Tok.getLocation() != origLoc && Tok.isNot(tok::eof))
         ConsumeAnyToken();
-
   }
+}
+
+/// ParseLexedMemberInitializers - We finished parsing the member specification
+/// of a top (non-nested) C++ class. Now go over the stack of lexed data member
+/// initializers that were collected during its parsing and parse them all.
+void Parser::ParseLexedMemberInitializers(ParsingClass &Class) {
+  bool HasTemplateScope = !Class.TopLevelClass && Class.TemplateScope;
+  ParseScope ClassTemplateScope(this, Scope::TemplateParamScope,
+                                HasTemplateScope);
+  if (HasTemplateScope)
+    Actions.ActOnReenterTemplateScope(getCurScope(), Class.TagOrTemplate);
+
+  // Set or update the scope flags to include Scope::ThisScope.
+  bool AlreadyHasClassScope = Class.TopLevelClass;
+  unsigned ScopeFlags = Scope::ClassScope|Scope::DeclScope|Scope::ThisScope;
+  ParseScope ClassScope(this, ScopeFlags, !AlreadyHasClassScope);
+  ParseScopeFlags ClassScopeFlags(this, ScopeFlags, AlreadyHasClassScope);
+
+  if (!AlreadyHasClassScope)
+    Actions.ActOnStartDelayedMemberDeclarations(getCurScope(),
+                                                Class.TagOrTemplate);
+
+  for (size_t i = 0; i < Class.LateParsedDeclarations.size(); ++i) {
+    Class.LateParsedDeclarations[i]->ParseLexedMemberInitializers();
+  }
+
+  if (!AlreadyHasClassScope)
+    Actions.ActOnFinishDelayedMemberDeclarations(getCurScope(),
+                                                 Class.TagOrTemplate);
+
+  Actions.ActOnFinishDelayedMemberInitializers(Class.TagOrTemplate);
+}
+
+void Parser::ParseLexedMemberInitializer(LateParsedMemberInitializer &MI) {
+  if (!MI.Field || MI.Field->isInvalidDecl())
+    return;
+
+  // Append the current token at the end of the new token stream so that it
+  // doesn't get lost.
+  MI.Toks.push_back(Tok);
+  PP.EnterTokenStream(MI.Toks.data(), MI.Toks.size(), true, false);
+
+  // Consume the previously pushed token.
+  ConsumeAnyToken();
+
+  SourceLocation EqualLoc;
+  ExprResult Init = ParseCXXMemberInitializer(/*IsFunction=*/false, EqualLoc);
+
+  Actions.ActOnCXXInClassMemberInitializer(MI.Field, EqualLoc, Init.release());
+
+  // The next token should be our artificial terminating EOF token.
+  if (Tok.isNot(tok::eof)) {
+    SourceLocation EndLoc = PP.getLocForEndOfToken(PrevTokLocation);
+    if (!EndLoc.isValid())
+      EndLoc = Tok.getLocation();
+    // No fixit; we can't recover as if there were a semicolon here.
+    Diag(EndLoc, diag::err_expected_semi_decl_list);
+
+    // Consume tokens until we hit the artificial EOF.
+    while (Tok.isNot(tok::eof))
+      ConsumeAnyToken();
+  }
+  ConsumeAnyToken();
 }
 
 /// ConsumeAndStoreUntil - Consume and store the token at the passed token
@@ -368,8 +558,16 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
       ConsumeBrace();
       break;
 
+    case tok::code_completion:
+      Toks.push_back(Tok);
+      ConsumeCodeCompletionToken();
+      break;
+
     case tok::string_literal:
     case tok::wide_string_literal:
+    case tok::utf8_string_literal:
+    case tok::utf16_string_literal:
+    case tok::utf32_string_literal:
       Toks.push_back(Tok);
       ConsumeStringToken();
       break;
@@ -385,4 +583,71 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
     }
     isFirstTokenConsumed = false;
   }
+}
+
+/// \brief Consume tokens and store them in the passed token container until
+/// we've passed the try keyword and constructor initializers and have consumed
+/// the opening brace of the function body. The opening brace will be consumed
+/// if and only if there was no error.
+///
+/// \return True on error. 
+bool Parser::ConsumeAndStoreFunctionPrologue(CachedTokens &Toks) {
+  if (Tok.is(tok::kw_try)) {
+    Toks.push_back(Tok);
+    ConsumeToken();
+  }
+  if (Tok.is(tok::colon)) {
+    // Initializers can contain braces too.
+    Toks.push_back(Tok);
+    ConsumeToken();
+
+    while (Tok.is(tok::identifier) || Tok.is(tok::coloncolon)) {
+      if (Tok.is(tok::eof) || Tok.is(tok::semi))
+        return true;
+
+      // Grab the identifier.
+      if (!ConsumeAndStoreUntil(tok::l_paren, tok::l_brace, Toks,
+                                /*StopAtSemi=*/true,
+                                /*ConsumeFinalToken=*/false))
+        return true;
+
+      tok::TokenKind kind = Tok.getKind();
+      Toks.push_back(Tok);
+      if (kind == tok::l_paren)
+        ConsumeParen();
+      else {
+        assert(kind == tok::l_brace && "Must be left paren or brace here.");
+        ConsumeBrace();
+        // In C++03, this has to be the start of the function body, which
+        // means the initializer is malformed.
+        if (!getLang().CPlusPlus0x)
+          return false;
+      }
+
+      // Grab the initializer
+      if (!ConsumeAndStoreUntil(kind == tok::l_paren ? tok::r_paren :
+                                                       tok::r_brace,
+                                Toks, /*StopAtSemi=*/true))
+        return true;
+
+      // Grab the separating comma, if any.
+      if (Tok.is(tok::comma)) {
+        Toks.push_back(Tok);
+        ConsumeToken();
+      }
+    }
+  }
+
+  // Grab any remaining garbage to be diagnosed later. We stop when we reach a
+  // brace: an opening one is the function body, while a closing one probably
+  // means we've reached the end of the class.
+  if (!ConsumeAndStoreUntil(tok::l_brace, tok::r_brace, Toks,
+                            /*StopAtSemi=*/true, /*ConsumeFinalToken=*/false))
+    return true;
+  if(Tok.isNot(tok::l_brace))
+    return true;
+
+  Toks.push_back(Tok);
+  ConsumeBrace();
+  return false;
 }

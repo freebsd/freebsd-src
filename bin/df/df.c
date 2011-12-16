@@ -107,7 +107,7 @@ main(int argc, char *argv[])
 	const char *fstype;
 	char *mntpath, *mntpt;
 	const char **vfslist;
-	size_t i, mntsize;
+	int i, mntsize;
 	int ch, rv;
 
 	fstype = "ufs";
@@ -187,30 +187,21 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
-	bzero(&maxwidths, sizeof(maxwidths));
-	for (i = 0; i < mntsize; i++)
-		update_maxwidths(&maxwidths, &mntbuf[i]);
-
 	rv = 0;
 	if (!*argv) {
+		/* everything (modulo -t) */
+		mntsize = getmntinfo(&mntbuf, MNT_NOWAIT);
 		mntsize = regetmntinfo(&mntbuf, mntsize, vfslist);
-		bzero(&maxwidths, sizeof(maxwidths));
-		for (i = 0; i < mntsize; i++) {
-			if (cflag)
-				addstat(&totalbuf, &mntbuf[i]);
-			update_maxwidths(&maxwidths, &mntbuf[i]);
-		}
-		if (cflag)
-			update_maxwidths(&maxwidths, &totalbuf);
-		for (i = 0; i < mntsize; i++)
-			if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0)
-				prtstat(&mntbuf[i], &maxwidths);
-		if (cflag)
-			prtstat(&totalbuf, &maxwidths);
-		exit(rv);
+	} else {
+		/* just the filesystems specified on the command line */
+		mntbuf = malloc(argc * sizeof(*mntbuf));
+		if (mntbuf == 0)
+			err(1, "malloc()");
+		mntsize = 0;
+		/* continued in for loop below */
 	}
 
+	/* iterate through specified filesystems */
 	for (; *argv; argv++) {
 		if (stat(*argv, &stbuf) < 0) {
 			if ((mntpt = getmntpt(*argv)) == 0) {
@@ -279,14 +270,24 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if (argc == 1) {
-			bzero(&maxwidths, sizeof(maxwidths));
-			update_maxwidths(&maxwidths, &statfsbuf);
-		}
-		prtstat(&statfsbuf, &maxwidths);
-		if (cflag)
-			addstat(&totalbuf, &statfsbuf);
+		/* the user asked for it, so ignore the ignore flag */
+		statfsbuf.f_flags &= ~MNT_IGNORE;
+
+		/* add to list */
+		mntbuf[mntsize++] = statfsbuf;
 	}
+
+	bzero(&maxwidths, sizeof(maxwidths));
+	for (i = 0; i < mntsize; i++) {
+		if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0) {
+			update_maxwidths(&maxwidths, &mntbuf[i]);
+			if (cflag)
+				addstat(&totalbuf, &mntbuf[i]);
+		}
+	}
+	for (i = 0; i < mntsize; i++)
+		if (aflag || (mntbuf[i].f_flags & MNT_IGNORE) == 0)
+			prtstat(&mntbuf[i], &maxwidths);
 	if (cflag)
 		prtstat(&totalbuf, &maxwidths);
 	return (rv);

@@ -31,4 +31,4 @@ echo "FreeBSD Installer"
 echo "========================"
 echo "Add Users"
 echo
-chroot $BSDINSTALL_CHROOT adduser
+chroot $BSDINSTALL_CHROOT adduser 2>&1

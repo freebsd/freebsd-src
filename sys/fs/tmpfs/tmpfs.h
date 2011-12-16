@@ -502,11 +502,8 @@ int	tmpfs_truncate(struct vnode *, off_t);
 static __inline size_t
 tmpfs_mem_info(void)
 {
-	size_t size;
 
-	size = swap_pager_avail + cnt.v_free_count + cnt.v_inactive_count;
-	size -= size > cnt.v_wire_count ? cnt.v_wire_count : size;
-	return size;
+	return (swap_pager_avail + cnt.v_free_count + cnt.v_cache_count);
 }
 
 /* Returns the maximum size allowed for a tmpfs file system.  This macro

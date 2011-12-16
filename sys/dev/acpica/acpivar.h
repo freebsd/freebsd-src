@@ -273,6 +273,16 @@ acpi_get_type(device_t dev)
     return (t);
 }
 
+/* Find the difference between two PM tick counts. */
+static __inline uint32_t
+acpi_TimerDelta(uint32_t end, uint32_t start)
+{
+
+	if (end < start && (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER) == 0)
+		end |= 0x01000000;
+	return (end - start);
+}
+
 #ifdef ACPI_DEBUGGER
 void		acpi_EnterDebugger(void);
 #endif
@@ -311,7 +321,6 @@ BOOLEAN		acpi_DeviceIsPresent(device_t dev);
 BOOLEAN		acpi_BatteryIsPresent(device_t dev);
 ACPI_STATUS	acpi_GetHandleInScope(ACPI_HANDLE parent, char *path,
 		    ACPI_HANDLE *result);
-uint32_t	acpi_TimerDelta(uint32_t end, uint32_t start);
 ACPI_BUFFER	*acpi_AllocBuffer(int size);
 ACPI_STATUS	acpi_ConvertBufferToInteger(ACPI_BUFFER *bufp,
 		    UINT32 *number);
@@ -346,19 +355,19 @@ BOOLEAN		acpi_MatchHid(ACPI_HANDLE h, const char *hid);
 struct acpi_parse_resource_set {
     void	(*set_init)(device_t dev, void *arg, void **context);
     void	(*set_done)(device_t dev, void *context);
-    void	(*set_ioport)(device_t dev, void *context, uint32_t base,
-		    uint32_t length);
-    void	(*set_iorange)(device_t dev, void *context, uint32_t low,
-		    uint32_t high, uint32_t length, uint32_t align);
-    void	(*set_memory)(device_t dev, void *context, uint32_t base,
-		    uint32_t length);
-    void	(*set_memoryrange)(device_t dev, void *context, uint32_t low,
-		    uint32_t high, uint32_t length, uint32_t align);
-    void	(*set_irq)(device_t dev, void *context, u_int8_t *irq,
+    void	(*set_ioport)(device_t dev, void *context, uint64_t base,
+		    uint64_t length);
+    void	(*set_iorange)(device_t dev, void *context, uint64_t low,
+		    uint64_t high, uint64_t length, uint64_t align);
+    void	(*set_memory)(device_t dev, void *context, uint64_t base,
+		    uint64_t length);
+    void	(*set_memoryrange)(device_t dev, void *context, uint64_t low,
+		    uint64_t high, uint64_t length, uint64_t align);
+    void	(*set_irq)(device_t dev, void *context, uint8_t *irq,
 		    int count, int trig, int pol);
-    void	(*set_ext_irq)(device_t dev, void *context, u_int32_t *irq,
+    void	(*set_ext_irq)(device_t dev, void *context, uint32_t *irq,
 		    int count, int trig, int pol);
-    void	(*set_drq)(device_t dev, void *context, u_int8_t *drq,
+    void	(*set_drq)(device_t dev, void *context, uint8_t *drq,
 		    int count);
     void	(*set_start_dependent)(device_t dev, void *context,
 		    int preference);
@@ -373,6 +382,8 @@ ACPI_STATUS	acpi_lookup_irq_resource(device_t dev, int rid,
 		    struct resource *res, ACPI_RESOURCE *acpi_res);
 ACPI_STATUS	acpi_parse_resources(device_t dev, ACPI_HANDLE handle,
 		    struct acpi_parse_resource_set *set, void *arg);
+struct resource *acpi_alloc_sysres(device_t child, int type, int *rid,
+		    u_long start, u_long end, u_long count, u_int flags);
 
 /* ACPI event handling */
 UINT32		acpi_event_power_button_sleep(void *context);

@@ -10,8 +10,7 @@
 #ifndef LLVM_ADT_TRIPLE_H
 #define LLVM_ADT_TRIPLE_H
 
-#include "llvm/ADT/StringRef.h"
-#include <string>
+#include "llvm/ADT/Twine.h"
 
 // Some system headers or GCC predefined macros conflict with identifiers in
 // this file.  Undefine them here.
@@ -19,8 +18,6 @@
 #undef sparc
 
 namespace llvm {
-class StringRef;
-class Twine;
 
 /// Triple - Helper class for working with target triples.
 ///
@@ -52,6 +49,8 @@ public:
     cellspu, // CellSPU: spu, cellspu
     mips,    // MIPS: mips, mipsallegrex
     mipsel,  // MIPSEL: mipsel, mipsallegrexel, psp
+    mips64,  // MIPS64: mips64
+    mips64el,// MIPS64EL: mips64el
     msp430,  // MSP430: msp430
     ppc,     // PPC: powerpc
     ppc64,   // PPC64: powerpc64, ppu
@@ -64,7 +63,10 @@ public:
     x86_64,  // X86-64: amd64, x86_64
     xcore,   // XCore: xcore
     mblaze,  // MBlaze: mblaze
-    ptx,     // PTX: ptx
+    ptx32,   // PTX: ptx (32-bit)
+    ptx64,   // PTX: ptx (64-bit)
+    le32,    // le32: generic little-endian 32-bit CPU (PNaCl / Emscripten)
+    amdil,   // amdil: amd IL
 
     InvalidArch
   };
@@ -72,7 +74,8 @@ public:
     UnknownVendor,
 
     Apple,
-    PC
+    PC,
+    SCEI
   };
   enum OSType {
     UnknownOS,
@@ -82,8 +85,11 @@ public:
     Darwin,
     DragonFly,
     FreeBSD,
+    IOS,
+    KFreeBSD,
     Linux,
     Lv2,        // PS3
+    MacOSX,
     MinGW32,    // i*86-pc-mingw32, *-w64-mingw32
     NetBSD,
     OpenBSD,
@@ -91,7 +97,9 @@ public:
     Solaris,
     Win32,
     Haiku,
-    Minix
+    Minix,
+    RTEMS,
+    NativeClient
   };
   enum EnvironmentType {
     UnknownEnvironment,
@@ -129,24 +137,16 @@ public:
   /// @{
 
   Triple() : Data(), Arch(InvalidArch) {}
-  explicit Triple(StringRef Str) : Data(Str), Arch(InvalidArch) {}
-  explicit Triple(StringRef ArchStr, StringRef VendorStr, StringRef OSStr)
-    : Data(ArchStr), Arch(InvalidArch) {
-    Data += '-';
-    Data += VendorStr;
-    Data += '-';
-    Data += OSStr;
+  explicit Triple(const Twine &Str) : Data(Str.str()), Arch(InvalidArch) {}
+  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr)
+    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr).str()),
+      Arch(InvalidArch) {
   }
 
-  explicit Triple(StringRef ArchStr, StringRef VendorStr, StringRef OSStr,
-    StringRef EnvironmentStr)
-    : Data(ArchStr), Arch(InvalidArch) {
-    Data += '-';
-    Data += VendorStr;
-    Data += '-';
-    Data += OSStr;
-    Data += '-';
-    Data += EnvironmentStr;
+  Triple(const Twine &ArchStr, const Twine &VendorStr, const Twine &OSStr,
+         const Twine &EnvironmentStr)
+    : Data((ArchStr + Twine('-') + VendorStr + Twine('-') + OSStr + Twine('-') +
+            EnvironmentStr).str()), Arch(InvalidArch) {
   }
 
   /// @}
@@ -221,19 +221,70 @@ public:
   /// if the environment component is present).
   StringRef getOSAndEnvironmentName() const;
 
+  /// getOSVersion - Parse the version number from the OS name component of the
+  /// triple, if present.
+  ///
+  /// For example, "fooos1.2.3" would return (1, 2, 3).
+  ///
+  /// If an entry is not defined, it will be returned as 0.
+  void getOSVersion(unsigned &Major, unsigned &Minor, unsigned &Micro) const;
 
-  /// getDarwinNumber - Parse the 'darwin number' out of the specific target
-  /// triple.  For example, if we have darwin8.5 return 8,5,0.  If any entry is
-  /// not defined, return 0's.  This requires that the triple have an OSType of
-  /// darwin before it is called.
-  void getDarwinNumber(unsigned &Maj, unsigned &Min, unsigned &Revision) const;
-
-  /// getDarwinMajorNumber - Return just the major version number, this is
+  /// getOSMajorVersion - Return just the major version number, this is
   /// specialized because it is a common query.
-  unsigned getDarwinMajorNumber() const {
-    unsigned Maj, Min, Rev;
-    getDarwinNumber(Maj, Min, Rev);
+  unsigned getOSMajorVersion() const {
+    unsigned Maj, Min, Micro;
+    getOSVersion(Maj, Min, Micro);
     return Maj;
+  }
+
+  /// isOSVersionLT - Helper function for doing comparisons against version
+  /// numbers included in the target triple.
+  bool isOSVersionLT(unsigned Major, unsigned Minor = 0,
+                     unsigned Micro = 0) const {
+    unsigned LHS[3];
+    getOSVersion(LHS[0], LHS[1], LHS[2]);
+
+    if (LHS[0] != Major)
+      return LHS[0] < Major;
+    if (LHS[1] != Minor)
+      return LHS[1] < Minor;
+    if (LHS[2] != Micro)
+      return LHS[1] < Micro;
+
+    return false;
+  }
+
+  /// isMacOSX - Is this a Mac OS X triple. For legacy reasons, we support both
+  /// "darwin" and "osx" as OS X triples.
+  bool isMacOSX() const {
+    return getOS() == Triple::Darwin || getOS() == Triple::MacOSX;
+  }
+
+  /// isOSDarwin - Is this a "Darwin" OS (OS X or iOS).
+  bool isOSDarwin() const {
+    return isMacOSX() || getOS() == Triple::IOS;
+  }
+
+  /// isOSWindows - Is this a "Windows" OS.
+  bool isOSWindows() const {
+    return getOS() == Triple::Win32 || getOS() == Triple::Cygwin ||
+      getOS() == Triple::MinGW32;
+  }
+
+  /// isMacOSXVersionLT - Comparison function for checking OS X version
+  /// compatibility, which handles supporting skewed version numbering schemes
+  /// used by the "darwin" triples.
+  unsigned isMacOSXVersionLT(unsigned Major, unsigned Minor = 0,
+			     unsigned Micro = 0) const {
+    assert(isMacOSX() && "Not an OS X triple!");
+
+    // If this is OS X, expect a sane version number.
+    if (getOS() == Triple::MacOSX)
+      return isOSVersionLT(Major, Minor, Micro);
+
+    // Otherwise, compare to the "Darwin" number.
+    assert(Major == 10 && "Unexpected major version");
+    return isOSVersionLT(Minor + 4, Micro, 0);
   }
 
   /// @}

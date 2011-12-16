@@ -33,7 +33,8 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Mostek MK48T02, MK48T08, MK48T18, MK48T59 time-of-day chip subroutines
+ * Mostek MK48T02, MK48T08, MK48T18, MK48T37 and MK48T59 time-of-day chip
+ * subroutines
  */
 
 #include <sys/param.h>
@@ -67,6 +68,7 @@ static const struct {
 	{ "mk48t02", MK48T02_CLKSZ, MK48T02_CLKOFF, 0 },
 	{ "mk48t08", MK48T08_CLKSZ, MK48T08_CLKOFF, 0 },
 	{ "mk48t18", MK48T18_CLKSZ, MK48T18_CLKOFF, 0 },
+	{ "mk48t37", MK48T37_CLKSZ, MK48T37_CLKOFF, MK48TXX_EXT_REGISTERS },
 	{ "mk48t59", MK48T59_CLKSZ, MK48T59_CLKOFF, MK48TXX_EXT_REGISTERS },
 };
 

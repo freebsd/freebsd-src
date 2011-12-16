@@ -293,6 +293,7 @@ bs_be_ws_1(bus_space_handle_t bsh, bus_size_t ofs, uint8_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -303,6 +304,7 @@ bs_be_ws_2(bus_space_handle_t bsh, bus_size_t ofs, uint16_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -313,6 +315,7 @@ bs_be_ws_4(bus_space_handle_t bsh, bus_size_t ofs, uint32_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_BE_IO, "%s(bsh=%#x, ofs=%#x, val=%#x)", __func__, bsh, ofs, val);
 }
 
@@ -323,6 +326,7 @@ bs_be_ws_8(bus_space_handle_t bsh, bus_size_t ofs, uint64_t val)
 
 	addr = __ppc_ba(bsh, ofs);
 	*addr = val;
+	__asm __volatile("eieio; sync");
 }
 
 static void
@@ -488,6 +492,7 @@ bs_le_rs_1(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	res = *addr;
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -500,6 +505,7 @@ bs_le_rs_2(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("lhbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }
@@ -512,6 +518,7 @@ bs_le_rs_4(bus_space_handle_t bsh, bus_size_t ofs)
 
 	addr = __ppc_ba(bsh, ofs);
 	__asm __volatile("lwbrx %0, 0, %1" : "=r"(res) : "r"(addr));
+	__asm __volatile("eieio; sync");
 	CTR4(KTR_LE_IO, "%s(bsh=%#x, ofs=%#x) = %#x", __func__, bsh, ofs, res);
 	return (res);
 }

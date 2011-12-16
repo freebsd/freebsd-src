@@ -81,6 +81,7 @@ static device_method_t legacy_methods[] = {
 	DEVMETHOD(bus_read_ivar,	legacy_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
@@ -236,19 +237,17 @@ static device_method_t cpu_methods[] = {
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	cpu_add_child),
 	DEVMETHOD(bus_read_ivar,	cpu_read_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_get_resource_list, cpu_get_rlist),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cpu_driver = {
@@ -321,7 +320,8 @@ cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 		break;
 	case CPU_IVAR_NOMINAL_MHZ:
 		if (tsc_is_invariant) {
-			*result = (uintptr_t)(tsc_freq / 1000000);
+			*result = (uintptr_t)(atomic_load_acq_64(&tsc_freq) /
+			    1000000);
 			break;
 		}
 		/* FALLTHROUGH */

@@ -18,7 +18,7 @@
 #ifndef IN_1_KX_36_H
 #define IN_1_KX_36_H 1
 
-/* $Id: kx_36.h,v 1.20 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: kx_36.h,v 1.20 2007-06-19 23:47:17 tbox Exp $ */
 
 /*! 
  *  \brief Per RFC2230 */

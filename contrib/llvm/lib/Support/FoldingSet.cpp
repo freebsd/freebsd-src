@@ -64,10 +64,8 @@ void FoldingSetNodeID::AddPointer(const void *Ptr) {
   // depend on the host.  It doesn't matter however, because hashing on
   // pointer values in inherently unstable.  Nothing  should depend on the 
   // ordering of nodes in the folding set.
-  intptr_t PtrI = (intptr_t)Ptr;
-  Bits.push_back(unsigned(PtrI));
-  if (sizeof(intptr_t) > sizeof(unsigned))
-    Bits.push_back(unsigned(uint64_t(PtrI) >> 32));
+  Bits.append(reinterpret_cast<unsigned *>(&Ptr),
+              reinterpret_cast<unsigned *>(&Ptr+1));
 }
 void FoldingSetNodeID::AddInteger(signed I) {
   Bits.push_back(I);
@@ -92,7 +90,7 @@ void FoldingSetNodeID::AddInteger(long long I) {
 }
 void FoldingSetNodeID::AddInteger(unsigned long long I) {
   AddInteger(unsigned(I));
-  if ((uint64_t)(int)I != I)
+  if ((uint64_t)(unsigned)I != I)
     Bits.push_back(unsigned(I >> 32));
 }
 
@@ -145,6 +143,11 @@ void FoldingSetNodeID::AddString(StringRef String) {
   }
 
   Bits.push_back(V);
+}
+
+// AddNodeID - Adds the Bit data of another ID to *this.
+void FoldingSetNodeID::AddNodeID(const FoldingSetNodeID &ID) {
+  Bits.append(ID.Bits.begin(), ID.Bits.end());
 }
 
 /// ComputeHash - Compute a strong hash value for this FoldingSetNodeID, used to 

@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
@@ -34,7 +34,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class UnreachableCodeChecker : public CheckerV2<check::EndAnalysis> {
+class UnreachableCodeChecker : public Checker<check::EndAnalysis> {
 public:
   void checkEndAnalysis(ExplodedGraph &G, BugReporter &B,
                         ExprEngine &Eng) const;
@@ -60,11 +60,12 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
 
   CFG *C = 0;
   ParentMap *PM = 0;
+  const LocationContext *LC = 0;
   // Iterate over ExplodedGraph
   for (ExplodedGraph::node_iterator I = G.nodes_begin(), E = G.nodes_end();
       I != E; ++I) {
     const ProgramPoint &P = I->getLocation();
-    const LocationContext *LC = P.getLocationContext();
+    LC = P.getLocationContext();
 
     // Save the CFG if we don't have it already
     if (!C)
@@ -111,22 +112,30 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
     // FIXME: This should be extended to include other unreachable markers,
     // such as llvm_unreachable.
     if (!CB->empty()) {
-      CFGElement First = CB->front();
-      if (CFGStmt S = First.getAs<CFGStmt>()) {
-        if (const CallExpr *CE = dyn_cast<CallExpr>(S.getStmt())) {
-          if (CE->isBuiltinCall(Ctx) == Builtin::BI__builtin_unreachable)
-            continue;
-        }
+      bool foundUnreachable = false;
+      for (CFGBlock::const_iterator ci = CB->begin(), ce = CB->end();
+           ci != ce; ++ci) {
+        if (const CFGStmt *S = (*ci).getAs<CFGStmt>())
+          if (const CallExpr *CE = dyn_cast<CallExpr>(S->getStmt())) {
+            if (CE->isBuiltinCall(Ctx) == Builtin::BI__builtin_unreachable) {
+              foundUnreachable = true;
+              break;
+            }
+          }
       }
+      if (foundUnreachable)
+        continue;
     }
 
     // We found a block that wasn't covered - find the statement to report
     SourceRange SR;
+    PathDiagnosticLocation DL;
     SourceLocation SL;
     if (const Stmt *S = getUnreachableStmt(CB)) {
       SR = S->getSourceRange();
-      SL = S->getLocStart();
-      if (SR.isInvalid() || SL.isInvalid())
+      DL = PathDiagnosticLocation::createBegin(S, B.getSourceManager(), LC);
+      SL = DL.asLocation();
+      if (SR.isInvalid() || !SL.isValid())
         continue;
     }
     else
@@ -138,7 +147,7 @@ void UnreachableCodeChecker::checkEndAnalysis(ExplodedGraph &G,
       continue;
 
     B.EmitBasicReport("Unreachable code", "Dead code", "This statement is never"
-        " executed", SL, SR);
+        " executed", DL, SR);
   }
 }
 
@@ -164,8 +173,8 @@ void UnreachableCodeChecker::FindUnreachableEntryPoints(const CFGBlock *CB,
 // Find the Stmt* in a CFGBlock for reporting a warning
 const Stmt *UnreachableCodeChecker::getUnreachableStmt(const CFGBlock *CB) {
   for (CFGBlock::const_iterator I = CB->begin(), E = CB->end(); I != E; ++I) {
-    if (CFGStmt S = I->getAs<CFGStmt>())
-      return S;
+    if (const CFGStmt *S = I->getAs<CFGStmt>())
+      return S->getStmt();
   }
   if (const Stmt *S = CB->getTerminator())
     return S;
@@ -204,7 +213,7 @@ bool UnreachableCodeChecker::isInvalidPath(const CFGBlock *CB,
   // Run each of the checks on the conditions
   if (containsMacro(cond) || containsEnum(cond)
       || containsStaticLocal(cond) || containsBuiltinOffsetOf(cond)
-      || containsStmt<SizeOfAlignOfExpr>(cond))
+      || containsStmt<UnaryExprOrTypeTraitExpr>(cond))
     return true;
 
   return false;

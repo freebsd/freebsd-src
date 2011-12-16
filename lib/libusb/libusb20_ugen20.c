@@ -195,6 +195,11 @@ ugen20_enumerate(struct libusb20_device *pdev, const char *id)
 		break;
 	}
 
+	/* get parent HUB index and port */
+
+	pdev->parent_address = devinfo.udi_hubindex;
+	pdev->parent_port = devinfo.udi_hubport;
+
 	/* generate a nice description for printout */
 
 	snprintf(pdev->usb_desc, sizeof(pdev->usb_desc),

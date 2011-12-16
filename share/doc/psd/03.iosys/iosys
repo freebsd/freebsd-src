@@ -813,7 +813,7 @@ which have a separate argument
 which indicates read or write.
 .IP B_DONE 10
 This bit is set
-to 0 when a block is handed to the the device strategy
+to 0 when a block is handed to the device strategy
 routine and is turned on when the operation completes,
 whether normally as the result of an error.
 It is also used as part of the return argument of

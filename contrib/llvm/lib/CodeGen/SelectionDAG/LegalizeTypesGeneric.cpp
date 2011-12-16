@@ -31,6 +31,11 @@ using namespace llvm;
 // These routines assume that the Lo/Hi part is stored first in memory on
 // little/big-endian machines, followed by the Hi/Lo part.  This means that
 // they cannot be used as is on vectors, for which Lo is always stored first.
+void DAGTypeLegalizer::ExpandRes_MERGE_VALUES(SDNode *N, unsigned ResNo,
+                                              SDValue &Lo, SDValue &Hi) {
+  SDValue Op = DisintegrateMERGE_VALUES(N, ResNo);
+  GetExpandedOp(Op, Lo, Hi);
+}
 
 void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
   EVT OutVT = N->getValueType(0);
@@ -43,36 +48,36 @@ void DAGTypeLegalizer::ExpandRes_BITCAST(SDNode *N, SDValue &Lo, SDValue &Hi) {
   switch (getTypeAction(InVT)) {
     default:
       assert(false && "Unknown type action!");
-    case Legal:
-    case PromoteInteger:
+    case TargetLowering::TypeLegal:
+    case TargetLowering::TypePromoteInteger:
       break;
-    case SoftenFloat:
+    case TargetLowering::TypeSoftenFloat:
       // Convert the integer operand instead.
       SplitInteger(GetSoftenedFloat(InOp), Lo, Hi);
       Lo = DAG.getNode(ISD::BITCAST, dl, NOutVT, Lo);
       Hi = DAG.getNode(ISD::BITCAST, dl, NOutVT, Hi);
       return;
-    case ExpandInteger:
-    case ExpandFloat:
+    case TargetLowering::TypeExpandInteger:
+    case TargetLowering::TypeExpandFloat:
       // Convert the expanded pieces of the input.
       GetExpandedOp(InOp, Lo, Hi);
       Lo = DAG.getNode(ISD::BITCAST, dl, NOutVT, Lo);
       Hi = DAG.getNode(ISD::BITCAST, dl, NOutVT, Hi);
       return;
-    case SplitVector:
+    case TargetLowering::TypeSplitVector:
       GetSplitVector(InOp, Lo, Hi);
       if (TLI.isBigEndian())
         std::swap(Lo, Hi);
       Lo = DAG.getNode(ISD::BITCAST, dl, NOutVT, Lo);
       Hi = DAG.getNode(ISD::BITCAST, dl, NOutVT, Hi);
       return;
-    case ScalarizeVector:
+    case TargetLowering::TypeScalarizeVector:
       // Convert the element instead.
       SplitInteger(BitConvertToInteger(GetScalarizedVector(InOp)), Lo, Hi);
       Lo = DAG.getNode(ISD::BITCAST, dl, NOutVT, Lo);
       Hi = DAG.getNode(ISD::BITCAST, dl, NOutVT, Hi);
       return;
-    case WidenVector: {
+    case TargetLowering::TypeWidenVector: {
       assert(!(InVT.getVectorNumElements() & 1) && "Unsupported BITCAST");
       InOp = GetWidenedVector(InOp);
       EVT InNVT = EVT::getVectorVT(*DAG.getContext(), InVT.getVectorElementType(),
@@ -426,37 +431,34 @@ SDValue DAGTypeLegalizer::ExpandOp_NormalStore(SDNode *N, unsigned OpNo) {
 // bytes; for integers and floats it is Lo first if and only if the machine is
 // little-endian).
 
-void DAGTypeLegalizer::SplitRes_MERGE_VALUES(SDNode *N,
+void DAGTypeLegalizer::SplitRes_MERGE_VALUES(SDNode *N, unsigned ResNo,
                                              SDValue &Lo, SDValue &Hi) {
-  // A MERGE_VALUES node can produce any number of values.  We know that the
-  // first illegal one needs to be expanded into Lo/Hi.
-  unsigned i;
-
-  // The string of legal results gets turned into input operands, which have
-  // the same type.
-  for (i = 0; isTypeLegal(N->getValueType(i)); ++i)
-    ReplaceValueWith(SDValue(N, i), SDValue(N->getOperand(i)));
-
-  // The first illegal result must be the one that needs to be expanded.
-  GetSplitOp(N->getOperand(i), Lo, Hi);
-
-  // Legalize the rest of the results into the input operands whether they are
-  // legal or not.
-  unsigned e = N->getNumValues();
-  for (++i; i != e; ++i)
-    ReplaceValueWith(SDValue(N, i), SDValue(N->getOperand(i)));
+  SDValue Op = DisintegrateMERGE_VALUES(N, ResNo);
+  GetSplitOp(Op, Lo, Hi);
 }
 
 void DAGTypeLegalizer::SplitRes_SELECT(SDNode *N, SDValue &Lo,
                                        SDValue &Hi) {
-  SDValue LL, LH, RL, RH;
+  SDValue LL, LH, RL, RH, CL, CH;
   DebugLoc dl = N->getDebugLoc();
   GetSplitOp(N->getOperand(1), LL, LH);
   GetSplitOp(N->getOperand(2), RL, RH);
 
   SDValue Cond = N->getOperand(0);
-  Lo = DAG.getNode(ISD::SELECT, dl, LL.getValueType(), Cond, LL, RL);
-  Hi = DAG.getNode(ISD::SELECT, dl, LH.getValueType(), Cond, LH, RH);
+  CL = CH = Cond;
+  if (Cond.getValueType().isVector()) {
+    assert(Cond.getValueType().getVectorElementType() == MVT::i1 &&
+           "Condition legalized before result?");
+    unsigned NumElements = Cond.getValueType().getVectorNumElements();
+    EVT VCondTy = EVT::getVectorVT(*DAG.getContext(), MVT::i1, NumElements / 2);
+    CL = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, VCondTy, Cond,
+                     DAG.getIntPtrConstant(0));
+    CH = DAG.getNode(ISD::EXTRACT_SUBVECTOR, dl, VCondTy, Cond,
+                     DAG.getIntPtrConstant(NumElements / 2));
+  }
+
+  Lo = DAG.getNode(N->getOpcode(), dl, LL.getValueType(), CL, LL, RL);
+  Hi = DAG.getNode(N->getOpcode(), dl, LH.getValueType(), CH, LH, RH);
 }
 
 void DAGTypeLegalizer::SplitRes_SELECT_CC(SDNode *N, SDValue &Lo,

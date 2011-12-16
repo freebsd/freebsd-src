@@ -27,6 +27,10 @@
  * $FreeBSD$
  */
 
+#include "opt_inet.h"
+#include "opt_inet6.h"
+#include "opt_enc.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/kernel.h>
@@ -53,14 +57,12 @@
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/in_var.h>
-#include "opt_inet6.h"
 
 #ifdef INET6
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
 #endif
 
-#include "opt_enc.h"
 #include <netipsec/ipsec.h>
 #include <netipsec/xform.h>
 
@@ -100,9 +102,9 @@ IFC_SIMPLE_DECLARE(enc, 1);
  * Before and after are relative to when we are stripping the
  * outer IP header.
  */
-SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
+static SYSCTL_NODE(_net, OID_AUTO, enc, CTLFLAG_RW, 0, "enc sysctl");
 
-SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, in, CTLFLAG_RW, 0, "enc input sysctl");
 static int ipsec_filter_mask_in = ENC_BEFORE;
 SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
 	&ipsec_filter_mask_in, 0, "IPsec input firewall filter mask");
@@ -110,7 +112,7 @@ static int ipsec_bpf_mask_in = ENC_BEFORE;
 SYSCTL_INT(_net_enc_in, OID_AUTO, ipsec_bpf_mask, CTLFLAG_RW,
 	&ipsec_bpf_mask_in, 0, "IPsec input bpf mask");
 
-SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
+static SYSCTL_NODE(_net_enc, OID_AUTO, out, CTLFLAG_RW, 0, "enc output sysctl");
 static int ipsec_filter_mask_out = ENC_BEFORE;
 SYSCTL_INT(_net_enc_out, OID_AUTO, ipsec_filter_mask, CTLFLAG_RW,
 	&ipsec_filter_mask_out, 0, "IPsec output firewall filter mask");
@@ -243,11 +245,14 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	}
 
 	/* Skip pfil(9) if no filters are loaded */
-	if (!(PFIL_HOOKED(&V_inet_pfil_hook)
-#ifdef INET6
-	    || PFIL_HOOKED(&V_inet6_pfil_hook)
+	if (1
+#ifdef INET
+	    && !PFIL_HOOKED(&V_inet_pfil_hook)
 #endif
-	    )) {
+#ifdef INET6
+	    && !PFIL_HOOKED(&V_inet6_pfil_hook)
+#endif
+	    ) {
 		return (0);
 	}
 
@@ -263,6 +268,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 	error = 0;
 	ip = mtod(*mp, struct ip *);
 	switch (ip->ip_v) {
+#ifdef INET
 		case 4:
 			/*
 			 * before calling the firewall, swap fields the same as
@@ -282,7 +288,7 @@ ipsec_filter(struct mbuf **mp, int dir, int flags)
 			ip->ip_len = htons(ip->ip_len);
 			ip->ip_off = htons(ip->ip_off);
 			break;
-
+#endif
 #ifdef INET6
 		case 6:
 			error = pfil_run_hooks(&V_inet6_pfil_hook, mp,

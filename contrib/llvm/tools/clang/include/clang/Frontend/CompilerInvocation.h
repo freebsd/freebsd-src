@@ -22,18 +22,15 @@
 #include "clang/Frontend/LangStandard.h"
 #include "clang/Frontend/PreprocessorOptions.h"
 #include "clang/Frontend/PreprocessorOutputOptions.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringMap.h"
 #include <string>
 #include <vector>
 
-namespace llvm {
-  template<typename T> class SmallVectorImpl;
-}
-
 namespace clang {
 
-class Diagnostic;
+class DiagnosticsEngine;
 
 /// CompilerInvocation - Helper class for holding the data necessary to invoke
 /// the compiler.
@@ -41,7 +38,7 @@ class Diagnostic;
 /// This class is designed to represent an abstract "invocation" of the
 /// compiler, including data such as the include paths, the code generation
 /// options, the warning flags, and so on.
-class CompilerInvocation {
+class CompilerInvocation : public llvm::RefCountedBase<CompilerInvocation> {
   /// Options controlling the static analyzer.
   AnalyzerOptions AnalyzerOpts;
 
@@ -91,7 +88,7 @@ public:
   static void CreateFromArgs(CompilerInvocation &Res,
                              const char* const *ArgBegin,
                              const char* const *ArgEnd,
-                             Diagnostic &Diags);
+                             DiagnosticsEngine &Diags);
 
   /// GetBuiltinIncludePath - Get the directory where the compiler headers
   /// reside, relative to the compiler binary (found by the passed in
@@ -125,6 +122,10 @@ public:
   /// \param LangStd - The input language standard.
   static void setLangDefaults(LangOptions &Opts, InputKind IK,
                    LangStandard::Kind LangStd = LangStandard::lang_unspecified);
+  
+  /// \brief Retrieve a module hash string that is suitable for uniquely 
+  /// identifying the conditions under which the module was built.
+  std::string getModuleHash() const;
   
   /// @}
   /// @name Option Subgroups

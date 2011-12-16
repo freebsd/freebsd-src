@@ -198,3 +198,35 @@ mac_posixsem_check_wait(struct ucred *active_cred, struct ucred *file_cred,
 
 	return (error);
 }
+
+MAC_CHECK_PROBE_DEFINE3(posixsem_check_setmode, "struct ucred *",
+    "struct ksem *", "mode_t");
+
+int
+mac_posixsem_check_setmode(struct ucred *cred, struct ksem *ks, mode_t mode)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_setmode, cred, ks,
+	    ks->ks_label, mode);
+	MAC_CHECK_PROBE3(posixsem_check_setmode, error, cred, ks, mode);
+
+	return (error);
+}
+
+MAC_CHECK_PROBE_DEFINE4(posixsem_check_setowner, "struct ucred *",
+    "struct ks *", "uid_t", "gid_t");
+
+int
+mac_posixsem_check_setowner(struct ucred *cred, struct ksem *ks, uid_t uid,
+    gid_t gid)
+{
+	int error;
+
+	MAC_POLICY_CHECK_NOSLEEP(posixsem_check_setowner, cred, ks,
+	    ks->ks_label, uid, gid);
+	MAC_CHECK_PROBE4(posixsem_check_setowner, error, cred, ks,
+	    uid, gid);
+
+	return (error);
+}

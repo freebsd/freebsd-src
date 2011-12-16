@@ -26,19 +26,42 @@
  * $FreeBSD$
  */
 
+#include <sys/types.h>
+#include <sys/sysctl.h>
 #include <string.h>
 
 #include "partedit.h"
 
+static char platform[255] = "";
+
 const char *
 default_scheme(void) {
-	return ("APM");
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
+
+	if (strcmp(platform, "powermac") == 0)
+		return ("APM");
+	if (strcmp(platform, "chrp") == 0)
+		return ("MBR");
+
+	/* Pick GPT (bootable on PS3) as a generic default */
+	return ("GPT");
 }
 
 int
 is_scheme_bootable(const char *part_type) {
-	if (strcmp(part_type, "APM") == 0)
+	size_t platlen = sizeof(platform);
+	if (strlen(platform) == 0)
+		sysctlbyname("hw.platform", platform, &platlen, NULL, -1);
+
+	if (strcmp(platform, "powermac") == 0 && strcmp(part_type, "APM") == 0)
 		return (1);
+	if (strcmp(platform, "ps3") == 0 && strcmp(part_type, "GPT") == 0)
+		return (1);
+	if (strcmp(platform, "chrp") == 0 && strcmp(part_type, "MBR") == 0)
+		return (1);
+
 	return (0);
 }
 

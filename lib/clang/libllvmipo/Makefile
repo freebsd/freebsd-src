@@ -6,7 +6,6 @@ SRCDIR=	lib/Transforms/IPO
 SRCS=	ArgumentPromotion.cpp \
 	ConstantMerge.cpp \
 	DeadArgumentElimination.cpp \
-	DeadTypeElimination.cpp \
 	ExtractGV.cpp \
 	FunctionAttrs.cpp \
 	GlobalDCE.cpp \
@@ -17,13 +16,12 @@ SRCS=	ArgumentPromotion.cpp \
 	Inliner.cpp \
 	Internalize.cpp \
 	LoopExtractor.cpp \
-	LowerSetJmp.cpp \
 	MergeFunctions.cpp \
 	PartialInlining.cpp \
+	PassManagerBuilder.cpp \
 	PruneEH.cpp \
 	StripDeadPrototypes.cpp \
-	StripSymbols.cpp \
-	StructRetPromotion.cpp
+	StripSymbols.cpp
 
 TGHDRS=	Intrinsics
 

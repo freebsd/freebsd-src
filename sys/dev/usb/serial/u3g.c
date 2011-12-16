@@ -66,7 +66,7 @@
 #ifdef USB_DEBUG
 static int u3g_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
 SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
@@ -182,7 +182,7 @@ MODULE_DEPEND(u3g, ucom, 1, 1, 1);
 MODULE_DEPEND(u3g, usb, 1, 1, 1);
 MODULE_VERSION(u3g, 1);
 
-static const struct usb_device_id u3g_devs[] = {
+static const STRUCT_USB_HOST_ID u3g_devs[] = {
 #define	U3G_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	U3G_DEV(ACERP, H10, 0),
 	U3G_DEV(AIRPLUS, MCD650, 0),
@@ -280,6 +280,8 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(HUAWEI, E143D, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E143E, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E143F, U3GINIT_HUAWEI),
+	U3G_DEV(HUAWEI, E173, 0),
+	U3G_DEV(HUAWEI, E173_INIT, U3GINIT_HUAWEISCSI),
 	U3G_DEV(HUAWEI, E180V, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220, U3GINIT_HUAWEI),
 	U3G_DEV(HUAWEI, E220BIS, U3GINIT_HUAWEI),
@@ -293,6 +295,7 @@ static const struct usb_device_id u3g_devs[] = {
 	U3G_DEV(LONGCHEER, WM66, U3GINIT_HUAWEI),
 	U3G_DEV(LONGCHEER, DISK, U3GINIT_TCT),
 	U3G_DEV(LONGCHEER, W14, 0),
+	U3G_DEV(LONGCHEER, XSSTICK, 0),
 	U3G_DEV(MERLIN, V620, 0),
 	U3G_DEV(NEOTEL, PRIME, 0),
 	U3G_DEV(NOVATEL, E725, 0),

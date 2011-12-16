@@ -34,7 +34,7 @@ const unsigned MaxDepth = 6;
 
 /// getBitWidth - Returns the bitwidth of the given scalar or pointer type (if
 /// unknown returns 0).  For vector types, returns the element type's bitwidth.
-static unsigned getBitWidth(const Type *Ty, const TargetData *TD) {
+static unsigned getBitWidth(Type *Ty, const TargetData *TD) {
   if (unsigned BitWidth = Ty->getScalarSizeInBits())
     return BitWidth;
   assert(isa<PointerType>(Ty) && "Expected a pointer type!");
@@ -103,7 +103,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
   if (GlobalValue *GV = dyn_cast<GlobalValue>(V)) {
     unsigned Align = GV->getAlignment();
     if (Align == 0 && TD && GV->getType()->getElementType()->isSized()) {
-      const Type *ObjectType = GV->getType()->getElementType();
+      Type *ObjectType = GV->getType()->getElementType();
       // If the object is defined in the current Module, we'll be giving
       // it the preferred alignment. Otherwise, we have to assume that it
       // may only have the minimum ABI alignment.
@@ -131,8 +131,18 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     }
     return;
   }
+  
+  if (Argument *A = dyn_cast<Argument>(V)) {
+    // Get alignment information off byval arguments if specified in the IR.
+    if (A->hasByValAttr())
+      if (unsigned Align = A->getParamAlignment())
+        KnownZero = Mask & APInt::getLowBitsSet(BitWidth,
+                                                CountTrailingZeros_32(Align));
+    return;
+  }
 
-  KnownZero.clearAllBits(); KnownOne.clearAllBits();   // Start out not knowing anything.
+  // Start out not knowing anything.
+  KnownZero.clearAllBits(); KnownOne.clearAllBits();
 
   if (Depth == MaxDepth || Mask == 0)
     return;  // Limit search depth.
@@ -258,7 +268,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     // FALL THROUGH and handle them the same as zext/trunc.
   case Instruction::ZExt:
   case Instruction::Trunc: {
-    const Type *SrcTy = I->getOperand(0)->getType();
+    Type *SrcTy = I->getOperand(0)->getType();
     
     unsigned SrcBitWidth;
     // Note that we handle pointer operands here because of inttoptr/ptrtoint
@@ -281,7 +291,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     return;
   }
   case Instruction::BitCast: {
-    const Type *SrcTy = I->getOperand(0)->getType();
+    Type *SrcTy = I->getOperand(0)->getType();
     if ((SrcTy->isIntegerTy() || SrcTy->isPointerTy()) &&
         // TODO: For now, not handling conversions like:
         // (bitcast i64 %x to <2 x i32>)
@@ -429,6 +439,29 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
       KnownZero |= LHSKnownZero & Mask;
       KnownOne  |= LHSKnownOne & Mask;
     }
+
+    // Are we still trying to solve for the sign bit?
+    if (Mask.isNegative() && !KnownZero.isNegative() && !KnownOne.isNegative()){
+      OverflowingBinaryOperator *OBO = cast<OverflowingBinaryOperator>(I);
+      if (OBO->hasNoSignedWrap()) {
+        if (I->getOpcode() == Instruction::Add) {
+          // Adding two positive numbers can't wrap into negative
+          if (LHSKnownZero.isNegative() && KnownZero2.isNegative())
+            KnownZero |= APInt::getSignBit(BitWidth);
+          // and adding two negative numbers can't wrap into positive.
+          else if (LHSKnownOne.isNegative() && KnownOne2.isNegative())
+            KnownOne |= APInt::getSignBit(BitWidth);
+        } else {
+          // Subtracting a negative number from a positive one can't wrap
+          if (LHSKnownZero.isNegative() && KnownOne2.isNegative())
+            KnownZero |= APInt::getSignBit(BitWidth);
+          // neither can subtracting a positive number from a negative one.
+          else if (LHSKnownOne.isNegative() && KnownZero2.isNegative())
+            KnownOne |= APInt::getSignBit(BitWidth);
+        }
+      }
+    }
+
     return;
   }
   case Instruction::SRem:
@@ -460,6 +493,19 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
         assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?"); 
       }
     }
+
+    // The sign bit is the LHS's sign bit, except when the result of the
+    // remainder is zero.
+    if (Mask.isNegative() && KnownZero.isNonNegative()) {
+      APInt Mask2 = APInt::getSignBit(BitWidth);
+      APInt LHSKnownZero(BitWidth, 0), LHSKnownOne(BitWidth, 0);
+      ComputeMaskedBits(I->getOperand(0), Mask2, LHSKnownZero, LHSKnownOne, TD,
+                        Depth+1);
+      // If it's known zero, our sign bit is also zero.
+      if (LHSKnownZero.isNegative())
+        KnownZero |= LHSKnownZero;
+    }
+
     break;
   case Instruction::URem: {
     if (ConstantInt *Rem = dyn_cast<ConstantInt>(I->getOperand(1))) {
@@ -513,7 +559,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     gep_type_iterator GTI = gep_type_begin(I);
     for (unsigned i = 1, e = I->getNumOperands(); i != e; ++i, ++GTI) {
       Value *Index = I->getOperand(i);
-      if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
+      if (StructType *STy = dyn_cast<StructType>(*GTI)) {
         // Handle struct member offset arithmetic.
         if (!TD) return;
         const StructLayout *SL = TD->getStructLayout(STy);
@@ -523,7 +569,7 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
                           CountTrailingZeros_64(Offset));
       } else {
         // Handle array index arithmetic.
-        const Type *IndexedTy = GTI.getIndexedType();
+        Type *IndexedTy = GTI.getIndexedType();
         if (!IndexedTy->isSized()) return;
         unsigned GEPOpiBits = Index->getType()->getScalarSizeInBits();
         uint64_t TypeSize = TD ? TD->getTypeAllocSize(IndexedTy) : 1;
@@ -597,6 +643,10 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
     // Otherwise take the unions of the known bit sets of the operands,
     // taking conservative care to avoid excessive recursion.
     if (Depth < MaxDepth - 1 && !KnownZero && !KnownOne) {
+      // Skip if every incoming value references to ourself.
+      if (P->hasConstantValue() == P)
+        break;
+
       KnownZero = APInt::getAllOnesValue(BitWidth);
       KnownOne = APInt::getAllOnesValue(BitWidth);
       for (unsigned i = 0, e = P->getNumIncomingValues(); i != e; ++i) {
@@ -630,6 +680,10 @@ void llvm::ComputeMaskedBits(Value *V, const APInt &Mask,
         KnownZero = APInt::getHighBitsSet(BitWidth, BitWidth - LowBits);
         break;
       }
+      case Intrinsic::x86_sse42_crc32_64_8:
+      case Intrinsic::x86_sse42_crc32_64_64:
+        KnownZero = APInt::getHighBitsSet(64, 32);
+        break;
       }
     }
     break;
@@ -684,6 +738,16 @@ bool llvm::isPowerOfTwo(Value *V, const TargetData *TD, unsigned Depth) {
     return isPowerOfTwo(SI->getTrueValue(), TD, Depth) &&
       isPowerOfTwo(SI->getFalseValue(), TD, Depth);
 
+  // An exact divide or right shift can only shift off zero bits, so the result
+  // is a power of two only if the first operand is a power of two and not
+  // copying a sign bit (sdiv int_min, 2).
+  if (match(V, m_LShr(m_Value(), m_Value())) ||
+      match(V, m_UDiv(m_Value(), m_Value()))) {
+    PossiblyExactOperator *PEO = cast<PossiblyExactOperator>(V);
+    if (PEO->isExact())
+      return isPowerOfTwo(PEO->getOperand(0), TD, Depth);
+  }
+
   return false;
 }
 
@@ -720,6 +784,11 @@ bool llvm::isKnownNonZero(Value *V, const TargetData *TD, unsigned Depth) {
   // shl X, Y != 0 if X is odd.  Note that the value of the shift is undefined
   // if the lowest bit is shifted off the end.
   if (BitWidth && match(V, m_Shl(m_Value(X), m_Value(Y)))) {
+    // shl nuw can't remove any non-zero bits.
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->hasNoUnsignedWrap())
+      return isKnownNonZero(X, TD, Depth);
+
     APInt KnownZero(BitWidth, 0);
     APInt KnownOne(BitWidth, 0);
     ComputeMaskedBits(X, APInt(BitWidth, 1), KnownZero, KnownOne, TD, Depth);
@@ -729,10 +798,21 @@ bool llvm::isKnownNonZero(Value *V, const TargetData *TD, unsigned Depth) {
   // shr X, Y != 0 if X is negative.  Note that the value of the shift is not
   // defined if the sign bit is shifted off the end.
   else if (match(V, m_Shr(m_Value(X), m_Value(Y)))) {
+    // shr exact can only shift out zero bits.
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->isExact())
+      return isKnownNonZero(X, TD, Depth);
+
     bool XKnownNonNegative, XKnownNegative;
     ComputeSignBit(X, XKnownNonNegative, XKnownNegative, TD, Depth);
     if (XKnownNegative)
       return true;
+  }
+  // div exact can only produce a zero if the dividend is zero.
+  else if (match(V, m_IDiv(m_Value(X), m_Value()))) {
+    BinaryOperator *BO = cast<BinaryOperator>(V);
+    if (BO->isExact())
+      return isKnownNonZero(X, TD, Depth);
   }
   // X + Y.
   else if (match(V, m_Add(m_Value(X), m_Value(Y)))) {
@@ -818,7 +898,7 @@ unsigned llvm::ComputeNumSignBits(Value *V, const TargetData *TD,
   assert((TD || V->getType()->isIntOrIntVectorTy()) &&
          "ComputeNumSignBits requires a TargetData object to operate "
          "on non-integer values!");
-  const Type *Ty = V->getType();
+  Type *Ty = V->getType();
   unsigned TyBits = TD ? TD->getTypeSizeInBits(V->getType()->getScalarType()) :
                          Ty->getScalarSizeInBits();
   unsigned Tmp, Tmp2;
@@ -998,7 +1078,7 @@ bool llvm::ComputeMultiple(Value *V, unsigned Base, Value *&Multiple,
   assert(Depth <= MaxDepth && "Limit Search Depth");
   assert(V->getType()->isIntegerTy() && "Not integer or pointer type!");
 
-  const Type *T = V->getType();
+  Type *T = V->getType();
 
   ConstantInt *CI = dyn_cast<ConstantInt>(V);
 
@@ -1235,11 +1315,11 @@ Value *llvm::isBytewiseValue(Value *V) {
 // indices from Idxs that should be left out when inserting into the resulting
 // struct. To is the result struct built so far, new insertvalue instructions
 // build on that.
-static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
+static Value *BuildSubAggregate(Value *From, Value* To, Type *IndexedType,
                                 SmallVector<unsigned, 10> &Idxs,
                                 unsigned IdxSkip,
                                 Instruction *InsertBefore) {
-  const llvm::StructType *STy = llvm::dyn_cast<llvm::StructType>(IndexedType);
+  llvm::StructType *STy = llvm::dyn_cast<llvm::StructType>(IndexedType);
   if (STy) {
     // Save the original To argument so we can modify it
     Value *OrigTo = To;
@@ -1262,7 +1342,7 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
         break;
       }
     }
-    // If we succesfully found a value for each of our subaggregates 
+    // If we successfully found a value for each of our subaggregates
     if (To)
       return To;
   }
@@ -1272,14 +1352,14 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
   // we might be able to find the complete struct somewhere.
   
   // Find the value that is at that particular spot
-  Value *V = FindInsertedValue(From, Idxs.begin(), Idxs.end());
+  Value *V = FindInsertedValue(From, Idxs);
 
   if (!V)
     return NULL;
 
   // Insert the value in the new (sub) aggregrate
-  return llvm::InsertValueInst::Create(To, V, Idxs.begin() + IdxSkip,
-                                       Idxs.end(), "tmp", InsertBefore);
+  return llvm::InsertValueInst::Create(To, V, makeArrayRef(Idxs).slice(IdxSkip),
+                                       "tmp", InsertBefore);
 }
 
 // This helper takes a nested struct and extracts a part of it (which is again a
@@ -1294,15 +1374,13 @@ static Value *BuildSubAggregate(Value *From, Value* To, const Type *IndexedType,
 // insertvalue instruction somewhere).
 //
 // All inserted insertvalue instructions are inserted before InsertBefore
-static Value *BuildSubAggregate(Value *From, const unsigned *idx_begin,
-                                const unsigned *idx_end,
+static Value *BuildSubAggregate(Value *From, ArrayRef<unsigned> idx_range,
                                 Instruction *InsertBefore) {
   assert(InsertBefore && "Must have someplace to insert!");
-  const Type *IndexedType = ExtractValueInst::getIndexedType(From->getType(),
-                                                             idx_begin,
-                                                             idx_end);
+  Type *IndexedType = ExtractValueInst::getIndexedType(From->getType(),
+                                                             idx_range);
   Value *To = UndefValue::get(IndexedType);
-  SmallVector<unsigned, 10> Idxs(idx_begin, idx_end);
+  SmallVector<unsigned, 10> Idxs(idx_range.begin(), idx_range.end());
   unsigned IdxSkip = Idxs.size();
 
   return BuildSubAggregate(From, To, IndexedType, Idxs, IdxSkip, InsertBefore);
@@ -1314,39 +1392,37 @@ static Value *BuildSubAggregate(Value *From, const unsigned *idx_begin,
 ///
 /// If InsertBefore is not null, this function will duplicate (modified)
 /// insertvalues when a part of a nested struct is extracted.
-Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
-                         const unsigned *idx_end, Instruction *InsertBefore) {
+Value *llvm::FindInsertedValue(Value *V, ArrayRef<unsigned> idx_range,
+                               Instruction *InsertBefore) {
   // Nothing to index? Just return V then (this is useful at the end of our
   // recursion)
-  if (idx_begin == idx_end)
+  if (idx_range.empty())
     return V;
   // We have indices, so V should have an indexable type
   assert((V->getType()->isStructTy() || V->getType()->isArrayTy())
          && "Not looking at a struct or array?");
-  assert(ExtractValueInst::getIndexedType(V->getType(), idx_begin, idx_end)
+  assert(ExtractValueInst::getIndexedType(V->getType(), idx_range)
          && "Invalid indices for type?");
-  const CompositeType *PTy = cast<CompositeType>(V->getType());
+  CompositeType *PTy = cast<CompositeType>(V->getType());
 
   if (isa<UndefValue>(V))
     return UndefValue::get(ExtractValueInst::getIndexedType(PTy,
-                                                              idx_begin,
-                                                              idx_end));
+                                                              idx_range));
   else if (isa<ConstantAggregateZero>(V))
     return Constant::getNullValue(ExtractValueInst::getIndexedType(PTy, 
-                                                                  idx_begin,
-                                                                  idx_end));
+                                                                  idx_range));
   else if (Constant *C = dyn_cast<Constant>(V)) {
     if (isa<ConstantArray>(C) || isa<ConstantStruct>(C))
       // Recursively process this constant
-      return FindInsertedValue(C->getOperand(*idx_begin), idx_begin + 1,
-                               idx_end, InsertBefore);
+      return FindInsertedValue(C->getOperand(idx_range[0]), idx_range.slice(1),
+                               InsertBefore);
   } else if (InsertValueInst *I = dyn_cast<InsertValueInst>(V)) {
     // Loop the indices for the insertvalue instruction in parallel with the
     // requested indices
-    const unsigned *req_idx = idx_begin;
+    const unsigned *req_idx = idx_range.begin();
     for (const unsigned *i = I->idx_begin(), *e = I->idx_end();
          i != e; ++i, ++req_idx) {
-      if (req_idx == idx_end) {
+      if (req_idx == idx_range.end()) {
         if (InsertBefore)
           // The requested index identifies a part of a nested aggregate. Handle
           // this specially. For example,
@@ -1358,7 +1434,8 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
           // %C = insertvalue {i32, i32 } %A, i32 11, 1
           // which allows the unused 0,0 element from the nested struct to be
           // removed.
-          return BuildSubAggregate(V, idx_begin, req_idx, InsertBefore);
+          return BuildSubAggregate(V, makeArrayRef(idx_range.begin(), req_idx),
+                                   InsertBefore);
         else
           // We can't handle this without inserting insertvalues
           return 0;
@@ -1368,13 +1445,14 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
       // See if the (aggregrate) value inserted into has the value we are
       // looking for, then.
       if (*req_idx != *i)
-        return FindInsertedValue(I->getAggregateOperand(), idx_begin, idx_end,
+        return FindInsertedValue(I->getAggregateOperand(), idx_range,
                                  InsertBefore);
     }
     // If we end up here, the indices of the insertvalue match with those
     // requested (though possibly only partially). Now we recursively look at
     // the inserted value, passing any remaining indices.
-    return FindInsertedValue(I->getInsertedValueOperand(), req_idx, idx_end,
+    return FindInsertedValue(I->getInsertedValueOperand(),
+                             makeArrayRef(req_idx, idx_range.end()),
                              InsertBefore);
   } else if (ExtractValueInst *I = dyn_cast<ExtractValueInst>(V)) {
     // If we're extracting a value from an aggregrate that was extracted from
@@ -1382,24 +1460,20 @@ Value *llvm::FindInsertedValue(Value *V, const unsigned *idx_begin,
     // However, we will need to chain I's indices with the requested indices.
    
     // Calculate the number of indices required 
-    unsigned size = I->getNumIndices() + (idx_end - idx_begin);
+    unsigned size = I->getNumIndices() + idx_range.size();
     // Allocate some space to put the new indices in
     SmallVector<unsigned, 5> Idxs;
     Idxs.reserve(size);
     // Add indices from the extract value instruction
-    for (const unsigned *i = I->idx_begin(), *e = I->idx_end();
-         i != e; ++i)
-      Idxs.push_back(*i);
+    Idxs.append(I->idx_begin(), I->idx_end());
     
     // Add requested indices
-    for (const unsigned *i = idx_begin, *e = idx_end; i != e; ++i)
-      Idxs.push_back(*i);
+    Idxs.append(idx_range.begin(), idx_range.end());
 
     assert(Idxs.size() == size 
            && "Number of indices added not correct?");
     
-    return FindInsertedValue(I->getAggregateOperand(), Idxs.begin(), Idxs.end(),
-                             InsertBefore);
+    return FindInsertedValue(I->getAggregateOperand(), Idxs, InsertBefore);
   }
   // Otherwise, we don't know (such as, extracting from a function return value
   // or load instruction)
@@ -1429,7 +1503,7 @@ Value *llvm::GetPointerBaseWithConstantOffset(Value *Ptr, int64_t &Offset,
     if (OpC->isZero()) continue;
     
     // Handle a struct and array indices which add their offset to the pointer.
-    if (const StructType *STy = dyn_cast<StructType>(*GTI)) {
+    if (StructType *STy = dyn_cast<StructType>(*GTI)) {
       Offset += TD.getStructLayout(STy)->getElementOffset(OpC->getZExtValue());
     } else {
       uint64_t Size = TD.getTypeAllocSize(GTI.getIndexedType());
@@ -1480,8 +1554,8 @@ bool llvm::GetConstantStringInfo(const Value *V, std::string &Str,
       return false;
     
     // Make sure the index-ee is a pointer to array of i8.
-    const PointerType *PT = cast<PointerType>(GEP->getOperand(0)->getType());
-    const ArrayType *AT = dyn_cast<ArrayType>(PT->getElementType());
+    PointerType *PT = cast<PointerType>(GEP->getOperand(0)->getType());
+    ArrayType *AT = dyn_cast<ArrayType>(PT->getElementType());
     if (AT == 0 || !AT->getElementType()->isIntegerTy(8))
       return false;
     
@@ -1691,7 +1765,7 @@ llvm::GetUnderlyingObject(Value *V, const TargetData *TD, unsigned MaxLookup) {
     } else {
       // See if InstructionSimplify knows any relevant tricks.
       if (Instruction *I = dyn_cast<Instruction>(V))
-        // TODO: Aquire a DominatorTree and use it.
+        // TODO: Acquire a DominatorTree and use it.
         if (Value *Simplified = SimplifyInstruction(I, TD, 0)) {
           V = Simplified;
           continue;
@@ -1702,4 +1776,20 @@ llvm::GetUnderlyingObject(Value *V, const TargetData *TD, unsigned MaxLookup) {
     assert(V->getType()->isPointerTy() && "Unexpected operand type!");
   }
   return V;
+}
+
+/// onlyUsedByLifetimeMarkers - Return true if the only users of this pointer
+/// are lifetime markers.
+///
+bool llvm::onlyUsedByLifetimeMarkers(const Value *V) {
+  for (Value::const_use_iterator UI = V->use_begin(), UE = V->use_end();
+       UI != UE; ++UI) {
+    const IntrinsicInst *II = dyn_cast<IntrinsicInst>(*UI);
+    if (!II) return false;
+
+    if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
+        II->getIntrinsicID() != Intrinsic::lifetime_end)
+      return false;
+  }
+  return true;
 }

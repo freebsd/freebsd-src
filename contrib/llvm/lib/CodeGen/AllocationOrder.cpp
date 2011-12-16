@@ -15,6 +15,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "AllocationOrder.h"
+#include "RegisterClassInfo.h"
 #include "VirtRegMap.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 
@@ -23,8 +24,8 @@ using namespace llvm;
 // Compare VirtRegMap::getRegAllocPref().
 AllocationOrder::AllocationOrder(unsigned VirtReg,
                                  const VirtRegMap &VRM,
-                                 const BitVector &ReservedRegs)
-  : Pos(0), Reserved(ReservedRegs) {
+                                 const RegisterClassInfo &RegClassInfo)
+  : Begin(0), End(0), Pos(0), RCI(RegClassInfo), OwnedBegin(false) {
   const TargetRegisterClass *RC = VRM.getRegInfo().getRegClass(VirtReg);
   std::pair<unsigned, unsigned> HintPair =
     VRM.getRegInfo().getRegAllocationHint(VirtReg);
@@ -36,33 +37,43 @@ AllocationOrder::AllocationOrder(unsigned VirtReg,
   if (TargetRegisterInfo::isVirtualRegister(Hint))
     Hint = VRM.getPhys(Hint);
 
-  // The remaining allocation order may depend on the hint.
-  tie(Begin, End) = VRM.getTargetRegInfo()
-        .getAllocationOrder(RC, HintPair.first, Hint, VRM.getMachineFunction());
+  // The first hint pair component indicates a target-specific hint.
+  if (HintPair.first) {
+    const TargetRegisterInfo &TRI = VRM.getTargetRegInfo();
+    // The remaining allocation order may depend on the hint.
+    ArrayRef<unsigned> Order =
+      TRI.getRawAllocationOrder(RC, HintPair.first, Hint,
+                                VRM.getMachineFunction());
+    if (Order.empty())
+      return;
 
-  // Target-dependent hints require resolution.
-  if (HintPair.first)
-    Hint = VRM.getTargetRegInfo().ResolveRegAllocHint(HintPair.first, Hint,
-                                                      VRM.getMachineFunction());
+    // Copy the allocation order with reserved registers removed.
+    OwnedBegin = true;
+    unsigned *P = new unsigned[Order.size()];
+    Begin = P;
+    for (unsigned i = 0; i != Order.size(); ++i)
+      if (!RCI.isReserved(Order[i]))
+        *P++ = Order[i];
+    End = P;
+
+    // Target-dependent hints require resolution.
+    Hint = TRI.ResolveRegAllocHint(HintPair.first, Hint,
+                                   VRM.getMachineFunction());
+  } else {
+    // If there is no hint or just a normal hint, use the cached allocation
+    // order from RegisterClassInfo.
+    ArrayRef<unsigned> O = RCI.getOrder(RC);
+    Begin = O.begin();
+    End = O.end();
+  }
 
   // The hint must be a valid physreg for allocation.
   if (Hint && (!TargetRegisterInfo::isPhysicalRegister(Hint) ||
-               !RC->contains(Hint) || ReservedRegs.test(Hint)))
+               !RC->contains(Hint) || RCI.isReserved(Hint)))
     Hint = 0;
 }
 
-unsigned AllocationOrder::next() {
-  // First take the hint.
-  if (!Pos) {
-    Pos = Begin;
-    if (Hint)
-      return Hint;
-  }
-  // Then look at the order from TRI.
-  while(Pos != End) {
-    unsigned Reg = *Pos++;
-    if (Reg != Hint && !Reserved.test(Reg))
-      return Reg;
-  }
-  return 0;
+AllocationOrder::~AllocationOrder() {
+  if (OwnedBegin)
+    delete [] Begin;
 }

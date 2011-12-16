@@ -193,8 +193,6 @@ __FBSDID("$FreeBSD$");
 #define	PCIM_CMD_SERRESPEN	0x0100
 #endif
 
-
-
 static int mpt_pci_probe(device_t);
 static int mpt_pci_attach(device_t);
 static void mpt_free_bus_resources(struct mpt_softc *mpt);
@@ -203,6 +201,9 @@ static int mpt_pci_shutdown(device_t);
 static int mpt_dma_mem_alloc(struct mpt_softc *mpt);
 static void mpt_dma_mem_free(struct mpt_softc *mpt);
 static void mpt_read_config_regs(struct mpt_softc *mpt);
+#if 0
+static void mpt_set_config_regs(struct mpt_softc *mpt);
+#endif
 static void mpt_pci_intr(void *);
 
 static device_method_t mpt_methods[] = {
@@ -362,16 +363,16 @@ mpt_set_options(struct mpt_softc *mpt)
 		mpt->cfg_role = tval;
 		mpt->do_cfg_role = 1;
 	}
-
 	tval = 0;
 	mpt->msi_enable = 0;
-	if (resource_int_value(device_get_name(mpt->dev),
-	    device_get_unit(mpt->dev), "msi_enable", &tval) == 0 && tval == 1) {
+	if (mpt->is_sas)
 		mpt->msi_enable = 1;
+	if (resource_int_value(device_get_name(mpt->dev),
+	    device_get_unit(mpt->dev), "msi_enable", &tval) == 0) {
+		mpt->msi_enable = tval;
 	}
 }
 #endif
-
 
 static void
 mpt_link_peer(struct mpt_softc *mpt)
@@ -406,11 +407,11 @@ mpt_link_peer(struct mpt_softc *mpt)
 static void
 mpt_unlink_peer(struct mpt_softc *mpt)
 {
+
 	if (mpt->mpt2) {
 		mpt->mpt2->mpt2 = NULL;
 	}
 }
-
 
 static int
 mpt_pci_attach(device_t dev)
@@ -522,9 +523,9 @@ mpt_pci_attach(device_t dev)
 	 * certain reset operations (but must be disabled for
 	 * some cards otherwise).
 	 */
-	mpt->pci_pio_rid = PCIR_BAR(mpt_io_bar);
+	mpt_io_bar = PCIR_BAR(mpt_io_bar);
 	mpt->pci_pio_reg = bus_alloc_resource_any(dev, SYS_RES_IOPORT,
-			    &mpt->pci_pio_rid, RF_ACTIVE);
+	    &mpt_io_bar, RF_ACTIVE);
 	if (mpt->pci_pio_reg == NULL) {
 		device_printf(dev, "unable to map registers in PIO mode\n");
 		goto bad;
@@ -533,9 +534,9 @@ mpt_pci_attach(device_t dev)
 	mpt->pci_pio_sh = rman_get_bushandle(mpt->pci_pio_reg);
 
 	/* Allocate kernel virtual memory for the 9x9's Mem0 region */
-	mpt->pci_mem_rid = PCIR_BAR(mpt_mem_bar);
+	mpt_mem_bar = PCIR_BAR(mpt_mem_bar);
 	mpt->pci_reg = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-			&mpt->pci_mem_rid, RF_ACTIVE);
+	    &mpt_mem_bar, RF_ACTIVE);
 	if (mpt->pci_reg == NULL) {
 		device_printf(dev, "Unable to memory map registers.\n");
 		if (mpt->is_sas) {
@@ -575,7 +576,7 @@ mpt_pci_attach(device_t dev)
 		}
 	}
 	mpt->pci_irq = bus_alloc_resource_any(dev, SYS_RES_IRQ, &iqd,
-	    RF_ACTIVE | RF_SHAREABLE);
+	    RF_ACTIVE | (mpt->pci_msi_count ? 0 : RF_SHAREABLE));
 	if (mpt->pci_irq == NULL) {
 		device_printf(dev, "could not allocate interrupt\n");
 		goto bad;
@@ -594,7 +595,6 @@ mpt_pci_attach(device_t dev)
 	}
 
 	/* Allocate dma memory */
-/* XXX JGibbs -Should really be done based on IOCFacts. */
 	if (mpt_dma_mem_alloc(mpt)) {
 		mpt_prt(mpt, "Could not allocate DMA memory\n");
 		goto bad;
@@ -658,15 +658,16 @@ bad:
 static void
 mpt_free_bus_resources(struct mpt_softc *mpt)
 {
+
 	if (mpt->ih) {
 		bus_teardown_intr(mpt->dev, mpt->pci_irq, mpt->ih);
-		mpt->ih = 0;
+		mpt->ih = NULL;
 	}
 
 	if (mpt->pci_irq) {
 		bus_release_resource(mpt->dev, SYS_RES_IRQ,
-		    mpt->pci_msi_count ? 1 : 0, mpt->pci_irq);
-		mpt->pci_irq = 0;
+		    rman_get_rid(mpt->pci_irq), mpt->pci_irq);
+		mpt->pci_irq = NULL;
 	}
 
 	if (mpt->pci_msi_count) {
@@ -675,18 +676,17 @@ mpt_free_bus_resources(struct mpt_softc *mpt)
 	}
 		
 	if (mpt->pci_pio_reg) {
-		bus_release_resource(mpt->dev, SYS_RES_IOPORT, mpt->pci_pio_rid,
-			mpt->pci_pio_reg);
-		mpt->pci_pio_reg = 0;
+		bus_release_resource(mpt->dev, SYS_RES_IOPORT,
+		    rman_get_rid(mpt->pci_pio_reg), mpt->pci_pio_reg);
+		mpt->pci_pio_reg = NULL;
 	}
 	if (mpt->pci_reg) {
-		bus_release_resource(mpt->dev, SYS_RES_MEMORY, mpt->pci_mem_rid,
-			mpt->pci_reg);
-		mpt->pci_reg = 0;
+		bus_release_resource(mpt->dev, SYS_RES_MEMORY,
+		    rman_get_rid(mpt->pci_reg), mpt->pci_reg);
+		mpt->pci_reg = NULL;
 	}
 	MPT_LOCK_DESTROY(mpt);
 }
-
 
 /*
  * Disconnect ourselves from the system.
@@ -711,7 +711,6 @@ mpt_pci_detach(device_t dev)
 	}
 	return(0);
 }
-
 
 /*
  * Disable the hardware
@@ -783,7 +782,7 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 		return (1);
 	}
 
-	/* Allocate some DMA accessable memory for replies */
+	/* Allocate some DMA accessible memory for replies */
 	if (bus_dmamem_alloc(mpt->reply_dmat, (void **)&mpt->reply,
 	    BUS_DMA_NOWAIT, &mpt->reply_dmap) != 0) {
 		mpt_prt(mpt, "cannot allocate %lu bytes of reply memory\n",
@@ -808,8 +807,6 @@ mpt_dma_mem_alloc(struct mpt_softc *mpt)
 	return (0);
 }
 
-
-
 /* Deallocate memory that was allocated by mpt_dma_mem_alloc 
  */
 static void
@@ -826,18 +823,16 @@ mpt_dma_mem_free(struct mpt_softc *mpt)
 	bus_dmamem_free(mpt->reply_dmat, mpt->reply, mpt->reply_dmap);
 	bus_dma_tag_destroy(mpt->reply_dmat);
 	bus_dma_tag_destroy(mpt->parent_dmat);
-	mpt->reply_dmat = 0;
+	mpt->reply_dmat = NULL;
 	free(mpt->request_pool, M_DEVBUF);
-	mpt->request_pool = 0;
-
+	mpt->request_pool = NULL;
 }
-
-
 
 /* Reads modifiable (via PCI transactions) config registers */
 static void
 mpt_read_config_regs(struct mpt_softc *mpt)
 {
+
 	mpt->pci_cfg.Command = pci_read_config(mpt->dev, PCIR_COMMAND, 2);
 	mpt->pci_cfg.LatencyTimer_LineSize =
 	    pci_read_config(mpt->dev, PCIR_CACHELNSZ, 2);
@@ -851,8 +846,9 @@ mpt_read_config_regs(struct mpt_softc *mpt)
 	mpt->pci_cfg.PMCSR = pci_read_config(mpt->dev, 0x44, 4);
 }
 
+#if 0
 /* Sets modifiable config registers */
-void
+static void
 mpt_set_config_regs(struct mpt_softc *mpt)
 {
 	uint32_t val;
@@ -891,6 +887,7 @@ mpt_set_config_regs(struct mpt_softc *mpt)
 	pci_write_config(mpt->dev, PCIR_INTLINE, mpt->pci_cfg.IntLine, 1);
 	pci_write_config(mpt->dev, 0x44, mpt->pci_cfg.PMCSR, 4);
 }
+#endif
 
 static void
 mpt_pci_intr(void *arg)

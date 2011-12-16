@@ -75,6 +75,7 @@ struct	fpreg;
 struct  dbreg;
 struct	dumperinfo;
 
+void	amd64_syscall(struct thread *td, int traced);
 void	busdma_swi(void);
 void	cpu_setregs(void);
 void	doreti_iret(void) __asm(__STRING(doreti_iret));

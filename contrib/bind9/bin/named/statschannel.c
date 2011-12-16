@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2008-2011  Internet Systems Consortium, Inc. ("ISC")
  *
  * Permission to use, copy, modify, and/or distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: statschannel.c,v 1.14.64.11 2010/02/04 23:47:46 tbox Exp $ */
+/* $Id: statschannel.c,v 1.26.150.2 2011-03-12 04:59:14 tbox Exp $ */
 
 /*! \file */
 
@@ -29,6 +29,7 @@
 #include <isc/stats.h>
 #include <isc/task.h>
 
+#include <dns/cache.h>
 #include <dns/db.h>
 #include <dns/opcode.h>
 #include <dns/resolver.h>
@@ -637,7 +638,7 @@ rdatasetstats_dump(dns_rdatastatstype_t type, isc_uint64_t val, void *arg) {
 
 static void
 opcodestat_dump(dns_opcode_t code, isc_uint64_t val, void *arg) {
-	FILE *fp = arg;
+	FILE *fp;
 	isc_buffer_t b;
 	char codebuf[64];
 	stats_dumparg_t *dumparg = arg;
@@ -823,9 +824,9 @@ generatexml(ns_server_t *server, int *buflen, xmlChar **buf) {
 			TRY0(xmlTextWriterStartElement(writer,
 						       ISC_XMLCHAR "cache"));
 			TRY0(xmlTextWriterWriteAttribute(writer,
-							 ISC_XMLCHAR "name",
-							 ISC_XMLCHAR
-							 view->name));
+					 ISC_XMLCHAR "name",
+					 ISC_XMLCHAR
+					 dns_cache_getname(view->cache)));
 			dumparg.result = ISC_R_SUCCESS;
 			dns_rdatasetstats_dump(cachestats, rdatasetstats_dump,
 					       &dumparg, 0);
@@ -1405,7 +1406,15 @@ ns_stats_dump(ns_server_t *server, FILE *fp) {
 		if (strcmp(view->name, "_default") == 0)
 			fprintf(fp, "[View: default]\n");
 		else
-			fprintf(fp, "[View: %s]\n", view->name);
+			fprintf(fp, "[View: %s (Cache: %s)]\n", view->name,
+				dns_cache_getname(view->cache));
+		if (dns_view_iscacheshared(view)) {
+			/*
+			 * Avoid dumping redundant statistics when the cache is
+			 * shared.
+			 */
+			continue;
+		}
 		dns_rdatasetstats_dump(cachestats, rdatasetstats_dump, &dumparg,
 				       0);
 	}

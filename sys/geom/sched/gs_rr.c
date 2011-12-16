@@ -59,6 +59,7 @@
 #include <sys/module.h>
 #include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include "gs_scheduler.h"
 
@@ -197,7 +198,7 @@ static struct g_rr_params me = {
 struct g_rr_params *gs_rr_me = &me;
 
 SYSCTL_DECL(_kern_geom_sched);
-SYSCTL_NODE(_kern_geom_sched, OID_AUTO, rr, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_sched, OID_AUTO, rr, CTLFLAG_RW, 0,
     "GEOM_SCHED ROUND ROBIN stuff");
 SYSCTL_INT(_kern_geom_sched_rr, OID_AUTO, units, CTLFLAG_RD,
     &me.units, 0, "Scheduler instances");

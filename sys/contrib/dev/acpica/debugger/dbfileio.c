@@ -271,10 +271,11 @@ AcpiDbReadTable (
 
     fseek (fp, 0, SEEK_SET);
 
-    /* The RSDT and FACS tables do not have standard ACPI headers */
+    /* The RSDT, FACS and S3PT tables do not have standard ACPI headers */
 
     if (ACPI_COMPARE_NAME (TableHeader.Signature, "RSD ") ||
-        ACPI_COMPARE_NAME (TableHeader.Signature, "FACS"))
+        ACPI_COMPARE_NAME (TableHeader.Signature, "FACS") ||
+        ACPI_COMPARE_NAME (TableHeader.Signature, "S3PT"))
     {
         *TableLength = FileSize;
         StandardHeader = FALSE;

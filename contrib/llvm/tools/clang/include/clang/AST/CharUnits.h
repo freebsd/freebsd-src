@@ -34,7 +34,7 @@ namespace clang {
   /// architectures where the two are the same size.
   /// 
   /// For portability, never assume that a target character is 8 bits wide. Use 
-  /// CharUnit values whereever you calculate sizes, offsets, or alignments
+  /// CharUnit values wherever you calculate sizes, offsets, or alignments
   /// in character units.
   class CharUnits {
     public:
@@ -70,9 +70,23 @@ namespace clang {
         Quantity += Other.Quantity;
         return *this;
       }
+      CharUnits& operator++ () {
+        ++Quantity;
+        return *this;
+      }
+      CharUnits operator++ (int) {
+        return CharUnits(Quantity++);
+      }
       CharUnits& operator-= (const CharUnits &Other) {
         Quantity -= Other.Quantity;
         return *this;
+      }
+      CharUnits& operator-- () {
+        --Quantity;
+        return *this;
+      }
+      CharUnits operator-- (int) {
+        return CharUnits(Quantity--);
       }
        
       // Comparison operators.
@@ -110,6 +124,12 @@ namespace clang {
 
       /// isNegative - Test whether the quantity is less than zero.
       bool isNegative() const { return Quantity  < 0; }
+
+      /// isPowerOfTwo - Test whether the quantity is a power of two.
+      /// Zero is not a power of two.
+      bool isPowerOfTwo() const {
+        return (Quantity & -Quantity) == Quantity;
+      }
 
       // Arithmetic operators.
       CharUnits operator* (QuantityType N) const {

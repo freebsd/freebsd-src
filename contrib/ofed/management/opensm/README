@@ -1,0 +1,25 @@
+OpenSM README:
+--------------
+
+OpenSM provides an implementation for an InfiniBand Subnet Manager and
+Administrator. Such a software entity is required to run for in order
+to initialize the InfiniBand hardware (at least one per each
+InfiniBand subnet).
+
+The full list of OpenSM features is described in the user manual
+provided in the doc sub directory.
+
+The installation of OpenSM includes:
+
+sbin/
+   opensm - the SM/SA executable
+   osmtest - a test program for the SM/SA
+lib/
+   libosmcomp.{a,so} - component library with generic services and containers
+   libopensm.{a,so} - opensm services for logs and mad buffer pool
+   libosmvendor.{a,so} - interface to the user mad service of the driver
+include/
+   iba/ib_types.h - IBA types header file
+   complib/ - component library includes
+   vendor/  - vendor library includes
+   opensm/  - public opensm library includes

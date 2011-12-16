@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1998-2009 Sendmail, Inc. and its suppliers.
+ * Copyright (c) 1998-2009, 2011 Sendmail, Inc. and its suppliers.
  *	All rights reserved.
  * Copyright (c) 1983, 1995-1997 Eric P. Allman.  All rights reserved.
  * Copyright (c) 1988, 1993
@@ -14,7 +14,7 @@
 #include <sendmail.h>
 #include <sm/sem.h>
 
-SM_RCSID("@(#)$Id: queue.c,v 8.987 2009/12/18 17:08:01 ca Exp $")
+SM_RCSID("@(#)$Id: queue.c,v 8.991 2011/03/15 23:14:36 ca Exp $")
 
 #include <dirent.h>
 
@@ -203,7 +203,7 @@ static const char *FSPath[MAXFILESYS];	/* pathnames for file systems */
 **	tag -- should be a unique id to avoid misinterpretations by others.
 **		idea: hash over configuration data that will be stored here.
 **	NumFileSys -- number of file systems.
-**	FileSys -- (arrary of) structure for used file systems.
+**	FileSys -- (array of) structure for used file systems.
 **	RSATmpCnt -- counter for number of uses of ephemeral RSA key.
 **	QShm -- (array of) structure for information about queue directories.
 */
@@ -633,7 +633,6 @@ queueup(e, announce, msync)
 	}
 
 	/* output inode number of data file */
-	/* XXX should probably include device major/minor too */
 	if (e->e_dfino != -1)
 	{
 		(void) sm_io_fprintf(tfp, SM_TIME_DEFAULT, "I%ld/%ld/%llu\n",
@@ -5195,7 +5194,11 @@ queuename(e, type)
 
 	/* Assign an ID if needed */
 	if (e->e_id == NULL)
+	{
+		if (IntSig)
+			return NULL;
 		assign_queueid(e);
+	}
 	type = queue_letter(e, type);
 
 	/* begin of filename */
@@ -5239,7 +5242,11 @@ queuename(e, type)
 	else
 	{
 		if (e->e_qgrp == NOQGRP || e->e_qdir == NOQDIR)
+		{
+			if (IntSig)
+				return NULL;
 			(void) setnewqueue(e);
+		}
 		if (type ==  DATAFL_LETTER)
 		{
 			qd = e->e_dfqdir;
@@ -5279,6 +5286,8 @@ queuename(e, type)
 			break;
 
 		  default:
+			if (IntSig)
+				return NULL;
 			sm_abort("queuename: bad queue file type %d", type);
 		}
 

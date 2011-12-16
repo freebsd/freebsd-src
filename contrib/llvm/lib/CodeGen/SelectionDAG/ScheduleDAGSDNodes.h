@@ -80,6 +80,12 @@ namespace llvm {
     /// flagged together nodes with a single SUnit.
     virtual void BuildSchedGraph(AliasAnalysis *AA);
 
+    /// InitVRegCycleFlag - Set isVRegCycle if this node's single use is
+    /// CopyToReg and its only active data operands are CopyFromReg within a
+    /// single block loop.
+    ///
+    void InitVRegCycleFlag(SUnit *SU);
+
     /// InitNumRegDefsLeft - Determine the # of regs defined by this node.
     ///
     void InitNumRegDefsLeft(SUnit *SU);
@@ -127,6 +133,14 @@ namespace llvm {
       EVT GetValue() const {
         assert(IsValid() && "bad iterator");
         return ValueType;
+      }
+
+      const SDNode *GetNode() const {
+        return Node;
+      }
+
+      unsigned GetIdx() const {
+        return DefIdx-1;
       }
 
       void Advance();

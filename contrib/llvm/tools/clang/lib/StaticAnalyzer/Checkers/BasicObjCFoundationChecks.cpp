@@ -13,18 +13,17 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "BasicObjCFoundationChecks.h"
-
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/Analysis/DomainSpecific/CocoaConventions.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExplodedGraph.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ObjCMessage.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
-#include "clang/StaticAnalyzer/Checkers/LocalCheckers.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprObjC.h"
@@ -44,20 +43,21 @@ public:
 // Utility functions.
 //===----------------------------------------------------------------------===//
 
-static const ObjCInterfaceType* GetReceiverType(const ObjCMessage &msg) {
-  if (const ObjCInterfaceDecl *ID = msg.getReceiverInterface())
-    return ID->getTypeForDecl()->getAs<ObjCInterfaceType>();
-  return NULL;
-}
-
 static const char* GetReceiverNameType(const ObjCMessage &msg) {
-  if (const ObjCInterfaceType *ReceiverType = GetReceiverType(msg))
-    return ReceiverType->getDecl()->getIdentifier()->getNameStart();
-  return NULL;
+  if (const ObjCInterfaceDecl *ID = msg.getReceiverInterface())
+    return ID->getIdentifier()->getNameStart();
+  return 0;
 }
 
-static bool isNSString(llvm::StringRef ClassName) {
-  return ClassName == "NSString" || ClassName == "NSMutableString";
+static bool isReceiverClassOrSuperclass(const ObjCInterfaceDecl *ID,
+                                        StringRef ClassName) {
+  if (ID->getIdentifier()->getName() == ClassName)
+    return true;
+
+  if (const ObjCInterfaceDecl *Super = ID->getSuperClass())
+    return isReceiverClassOrSuperclass(Super, ClassName);
+
+  return false;
 }
 
 static inline bool isNil(SVal X) {
@@ -69,7 +69,7 @@ static inline bool isNil(SVal X) {
 //===----------------------------------------------------------------------===//
 
 namespace {
-  class NilArgChecker : public CheckerV2<check::PreObjCMessage> {
+  class NilArgChecker : public Checker<check::PreObjCMessage> {
     mutable llvm::OwningPtr<APIMisuse> BT;
 
     void WarnNilArg(CheckerContext &C,
@@ -93,7 +93,7 @@ void NilArgChecker::WarnNilArg(CheckerContext &C,
     os << "Argument to '" << GetReceiverNameType(msg) << "' method '"
        << msg.getSelector().getAsString() << "' cannot be nil";
 
-    RangedBugReport *R = new RangedBugReport(*BT, os.str(), N);
+    BugReport *R = new BugReport(*BT, os.str(), N);
     R->addRange(msg.getArgSourceRange(Arg));
     C.EmitReport(R);
   }
@@ -101,11 +101,11 @@ void NilArgChecker::WarnNilArg(CheckerContext &C,
 
 void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
                                         CheckerContext &C) const {
-  const ObjCInterfaceType *ReceiverType = GetReceiverType(msg);
-  if (!ReceiverType)
+  const ObjCInterfaceDecl *ID = msg.getReceiverInterface();
+  if (!ID)
     return;
   
-  if (isNSString(ReceiverType->getDecl()->getIdentifier()->getName())) {
+  if (isReceiverClassOrSuperclass(ID, "NSString")) {
     Selector S = msg.getSelector();
     
     if (S.isUnarySelector())
@@ -115,7 +115,7 @@ void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
     //  lexical comparisons.
     
     std::string NameStr = S.getAsString();
-    llvm::StringRef Name(NameStr);
+    StringRef Name(NameStr);
     assert(!Name.empty());
     
     // FIXME: Checking for initWithFormat: will not work in most cases
@@ -140,7 +140,7 @@ void NilArgChecker::checkPreObjCMessage(ObjCMessage msg,
 //===----------------------------------------------------------------------===//
 
 namespace {
-class CFNumberCreateChecker : public CheckerV2< check::PreStmt<CallExpr> > {
+class CFNumberCreateChecker : public Checker< check::PreStmt<CallExpr> > {
   mutable llvm::OwningPtr<APIMisuse> BT;
   mutable IdentifierInfo* II;
 public:
@@ -149,7 +149,7 @@ public:
   void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
 
 private:
-  void EmitError(const TypedRegion* R, const Expr* Ex,
+  void EmitError(const TypedRegion* R, const Expr *Ex,
                 uint64_t SourceSize, uint64_t TargetSize, uint64_t NumberKind);
 };
 } // end anonymous namespace
@@ -195,7 +195,7 @@ namespace {
   };
 }
 
-static Optional<uint64_t> GetCFNumberSize(ASTContext& Ctx, uint64_t i) {
+static Optional<uint64_t> GetCFNumberSize(ASTContext &Ctx, uint64_t i) {
   static const unsigned char FixedSize[] = { 8, 16, 32, 64, 32, 64 };
 
   if (i < kCFNumberCharType)
@@ -249,10 +249,10 @@ static const char* GetCFNumberTypeStr(uint64_t i) {
 
 void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
                                          CheckerContext &C) const {
-  const Expr* Callee = CE->getCallee();
-  const GRState *state = C.getState();
+  const Expr *Callee = CE->getCallee();
+  const ProgramState *state = C.getState();
   SVal CallV = state->getSVal(Callee);
-  const FunctionDecl* FD = CallV.getAsFunctionDecl();
+  const FunctionDecl *FD = CallV.getAsFunctionDecl();
 
   if (!FD)
     return;
@@ -291,7 +291,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
   if (!LV)
     return;
 
-  const TypedRegion* R = dyn_cast<TypedRegion>(LV->stripCasts());
+  const TypedValueRegion* R = dyn_cast<TypedValueRegion>(LV->stripCasts());
   if (!R)
     return;
 
@@ -336,7 +336,7 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
     if (!BT)
       BT.reset(new APIMisuse("Bad use of CFNumberCreate"));
     
-    RangedBugReport *report = new RangedBugReport(*BT, os.str(), N);
+    BugReport *report = new BugReport(*BT, os.str(), N);
     report->addRange(CE->getArg(2)->getSourceRange());
     C.EmitReport(report);
   }
@@ -347,26 +347,26 @@ void CFNumberCreateChecker::checkPreStmt(const CallExpr *CE,
 //===----------------------------------------------------------------------===//
 
 namespace {
-class CFRetainReleaseChecker : public CheckerV2< check::PreStmt<CallExpr> > {
+class CFRetainReleaseChecker : public Checker< check::PreStmt<CallExpr> > {
   mutable llvm::OwningPtr<APIMisuse> BT;
   mutable IdentifierInfo *Retain, *Release;
 public:
   CFRetainReleaseChecker(): Retain(0), Release(0) {}
-  void checkPreStmt(const CallExpr* CE, CheckerContext& C) const;
+  void checkPreStmt(const CallExpr *CE, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
 
-void CFRetainReleaseChecker::checkPreStmt(const CallExpr* CE,
-                                          CheckerContext& C) const {
+void CFRetainReleaseChecker::checkPreStmt(const CallExpr *CE,
+                                          CheckerContext &C) const {
   // If the CallExpr doesn't have exactly 1 argument just give up checking.
   if (CE->getNumArgs() != 1)
     return;
 
   // Get the function declaration of the callee.
-  const GRState* state = C.getState();
+  const ProgramState *state = C.getState();
   SVal X = state->getSVal(CE->getCallee());
-  const FunctionDecl* FD = X.getAsFunctionDecl();
+  const FunctionDecl *FD = X.getAsFunctionDecl();
 
   if (!FD)
     return;
@@ -401,7 +401,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr* CE,
   DefinedOrUnknownSVal ArgIsNull = svalBuilder.evalEQ(state, zero, *DefArgVal);
 
   // Are they equal?
-  const GRState *stateTrue, *stateFalse;
+  const ProgramState *stateTrue, *stateFalse;
   llvm::tie(stateTrue, stateFalse) = state->assume(ArgIsNull);
 
   if (stateTrue && !stateFalse) {
@@ -413,9 +413,9 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr* CE,
                             ? "Null pointer argument in call to CFRetain"
                             : "Null pointer argument in call to CFRelease";
 
-    EnhancedBugReport *report = new EnhancedBugReport(*BT, description, N);
+    BugReport *report = new BugReport(*BT, description, N);
     report->addRange(Arg->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, Arg);
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, Arg));
     C.EmitReport(report);
     return;
   }
@@ -429,7 +429,7 @@ void CFRetainReleaseChecker::checkPreStmt(const CallExpr* CE,
 //===----------------------------------------------------------------------===//
 
 namespace {
-class ClassReleaseChecker : public CheckerV2<check::PreObjCMessage> {
+class ClassReleaseChecker : public Checker<check::PreObjCMessage> {
   mutable Selector releaseS;
   mutable Selector retainS;
   mutable Selector autoreleaseS;
@@ -472,9 +472,168 @@ void ClassReleaseChecker::checkPreObjCMessage(ObjCMessage msg,
           "of class '" << Class->getName()
        << "' and not the class directly";
   
-    RangedBugReport *report = new RangedBugReport(*BT, os.str(), N);
+    BugReport *report = new BugReport(*BT, os.str(), N);
     report->addRange(msg.getSourceRange());
     C.EmitReport(report);
+  }
+}
+
+//===----------------------------------------------------------------------===//
+// Check for passing non-Objective-C types to variadic methods that expect
+// only Objective-C types.
+//===----------------------------------------------------------------------===//
+
+namespace {
+class VariadicMethodTypeChecker : public Checker<check::PreObjCMessage> {
+  mutable Selector arrayWithObjectsS;
+  mutable Selector dictionaryWithObjectsAndKeysS;
+  mutable Selector setWithObjectsS;
+  mutable Selector initWithObjectsS;
+  mutable Selector initWithObjectsAndKeysS;
+  mutable llvm::OwningPtr<BugType> BT;
+
+  bool isVariadicMessage(const ObjCMessage &msg) const;
+
+public:
+  void checkPreObjCMessage(ObjCMessage msg, CheckerContext &C) const;
+};
+}
+
+/// isVariadicMessage - Returns whether the given message is a variadic message,
+/// where all arguments must be Objective-C types.
+bool
+VariadicMethodTypeChecker::isVariadicMessage(const ObjCMessage &msg) const {
+  const ObjCMethodDecl *MD = msg.getMethodDecl();
+  
+  if (!MD || !MD->isVariadic() || isa<ObjCProtocolDecl>(MD->getDeclContext()))
+    return false;
+  
+  Selector S = msg.getSelector();
+  
+  if (msg.isInstanceMessage()) {
+    // FIXME: Ideally we'd look at the receiver interface here, but that's not
+    // useful for init, because alloc returns 'id'. In theory, this could lead
+    // to false positives, for example if there existed a class that had an
+    // initWithObjects: implementation that does accept non-Objective-C pointer
+    // types, but the chance of that happening is pretty small compared to the
+    // gains that this analysis gives.
+    const ObjCInterfaceDecl *Class = MD->getClassInterface();
+
+    // -[NSArray initWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSArray") &&
+        S == initWithObjectsS)
+      return true;
+
+    // -[NSDictionary initWithObjectsAndKeys:]
+    if (isReceiverClassOrSuperclass(Class, "NSDictionary") &&
+        S == initWithObjectsAndKeysS)
+      return true;
+
+    // -[NSSet initWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSSet") &&
+        S == initWithObjectsS)
+      return true;
+  } else {
+    const ObjCInterfaceDecl *Class = msg.getReceiverInterface();
+
+    // -[NSArray arrayWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSArray") &&
+        S == arrayWithObjectsS)
+      return true;
+
+    // -[NSDictionary dictionaryWithObjectsAndKeys:]
+    if (isReceiverClassOrSuperclass(Class, "NSDictionary") &&
+        S == dictionaryWithObjectsAndKeysS)
+      return true;
+
+    // -[NSSet setWithObjects:]
+    if (isReceiverClassOrSuperclass(Class, "NSSet") &&
+        S == setWithObjectsS)
+      return true;
+  }
+
+  return false;
+}
+
+void VariadicMethodTypeChecker::checkPreObjCMessage(ObjCMessage msg,
+                                                    CheckerContext &C) const {
+  if (!BT) {
+    BT.reset(new APIMisuse("Arguments passed to variadic method aren't all "
+                           "Objective-C pointer types"));
+
+    ASTContext &Ctx = C.getASTContext();
+    arrayWithObjectsS = GetUnarySelector("arrayWithObjects", Ctx);
+    dictionaryWithObjectsAndKeysS = 
+      GetUnarySelector("dictionaryWithObjectsAndKeys", Ctx);
+    setWithObjectsS = GetUnarySelector("setWithObjects", Ctx);
+
+    initWithObjectsS = GetUnarySelector("initWithObjects", Ctx);
+    initWithObjectsAndKeysS = GetUnarySelector("initWithObjectsAndKeys", Ctx);
+  }
+
+  if (!isVariadicMessage(msg))
+      return;
+
+  // We are not interested in the selector arguments since they have
+  // well-defined types, so the compiler will issue a warning for them.
+  unsigned variadicArgsBegin = msg.getSelector().getNumArgs();
+
+  // We're not interested in the last argument since it has to be nil or the
+  // compiler would have issued a warning for it elsewhere.
+  unsigned variadicArgsEnd = msg.getNumArgs() - 1;
+
+  if (variadicArgsEnd <= variadicArgsBegin)
+    return;
+
+  // Verify that all arguments have Objective-C types.
+  llvm::Optional<ExplodedNode*> errorNode;
+  const ProgramState *state = C.getState();
+  
+  for (unsigned I = variadicArgsBegin; I != variadicArgsEnd; ++I) {
+    QualType ArgTy = msg.getArgType(I);
+    if (ArgTy->isObjCObjectPointerType())
+      continue;
+
+    // Block pointers are treaded as Objective-C pointers.
+    if (ArgTy->isBlockPointerType())
+      continue;
+
+    // Ignore pointer constants.
+    if (isa<loc::ConcreteInt>(msg.getArgSVal(I, state)))
+      continue;
+    
+    // Ignore pointer types annotated with 'NSObject' attribute.
+    if (C.getASTContext().isObjCNSObjectType(ArgTy))
+      continue;
+    
+    // Ignore CF references, which can be toll-free bridged.
+    if (coreFoundation::isCFObjectRef(ArgTy))
+      continue;
+
+    // Generate only one error node to use for all bug reports.
+    if (!errorNode.hasValue()) {
+      errorNode = C.generateNode();
+    }
+
+    if (!errorNode.getValue())
+      continue;
+
+    llvm::SmallString<128> sbuf;
+    llvm::raw_svector_ostream os(sbuf);
+
+    if (const char *TypeName = GetReceiverNameType(msg))
+      os << "Argument to '" << TypeName << "' method '";
+    else
+      os << "Argument to method '";
+
+    os << msg.getSelector().getAsString() 
+      << "' should be an Objective-C pointer type, not '" 
+      << ArgTy.getAsString() << "'";
+
+    BugReport *R = new BugReport(*BT, os.str(),
+                                             errorNode.getValue());
+    R->addRange(msg.getArgSourceRange(I));
+    C.EmitReport(R);
   }
 }
 
@@ -496,4 +655,8 @@ void ento::registerCFRetainReleaseChecker(CheckerManager &mgr) {
 
 void ento::registerClassReleaseChecker(CheckerManager &mgr) {
   mgr.registerChecker<ClassReleaseChecker>();
+}
+
+void ento::registerVariadicMethodTypeChecker(CheckerManager &mgr) {
+  mgr.registerChecker<VariadicMethodTypeChecker>();
 }

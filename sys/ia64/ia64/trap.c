@@ -532,7 +532,7 @@ trap(int vector, struct trapframe *tf)
 		rv = 0;
 		va = trunc_page(tf->tf_special.ifa);
 
-		if (va >= VM_MAX_ADDRESS) {
+		if (va >= VM_MAXUSER_ADDRESS) {
 			/*
 			 * Don't allow user-mode faults for kernel virtual
 			 * addresses, including the gateway page.
@@ -809,7 +809,7 @@ trap(int vector, struct trapframe *tf)
 		 * iip and enable single stepping only when it's an user
 		 * address.
 		 */
-		if (tf->tf_special.iip >= VM_MAX_ADDRESS)
+		if (tf->tf_special.iip >= VM_MAXUSER_ADDRESS)
 			return;
 		tf->tf_special.psr &= ~IA64_PSR_TB;
 		tf->tf_special.psr |= IA64_PSR_SS;
@@ -928,6 +928,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 
 	return (0);
 }
+
+#include "../../kern/subr_syscall.c"
 
 /*
  * Process a system call.

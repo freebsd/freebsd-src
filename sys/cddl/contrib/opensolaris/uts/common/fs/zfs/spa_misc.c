@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -1307,13 +1309,24 @@ spa_guid(spa_t *spa)
 	/*
 	 * If we fail to parse the config during spa_load(), we can go through
 	 * the error path (which posts an ereport) and end up here with no root
-	 * vdev.  We stash the original pool guid in 'spa_load_guid' to handle
+	 * vdev.  We stash the original pool guid in 'spa_config_guid' to handle
 	 * this case.
 	 */
 	if (spa->spa_root_vdev != NULL)
 		return (spa->spa_root_vdev->vdev_guid);
 	else
-		return (spa->spa_load_guid);
+		return (spa->spa_config_guid);
+}
+
+uint64_t
+spa_load_guid(spa_t *spa)
+{
+	/*
+	 * This is a GUID that exists solely as a reference for the
+	 * purposes of the arc.  It is generated at load time, and
+	 * is never written to persistent storage.
+	 */
+	return (spa->spa_load_guid);
 }
 
 uint64_t
@@ -1673,4 +1686,10 @@ spa_scan_get_stats(spa_t *spa, pool_scan_stat_t *ps)
 	ps->pss_pass_exam = spa->spa_scan_pass_exam;
 
 	return (0);
+}
+
+boolean_t
+spa_debug_enabled(spa_t *spa)
+{
+	return (spa->spa_debug);
 }

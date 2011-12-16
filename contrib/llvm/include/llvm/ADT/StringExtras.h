@@ -16,11 +16,11 @@
 
 #include "llvm/Support/DataTypes.h"
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "llvm/ADT/StringRef.h"
 #include <cctype>
 #include <cstdio>
 #include <string>
-#include <vector>
 
 namespace llvm {
 template<typename T> class SmallVectorImpl;
@@ -153,7 +153,7 @@ void SplitString(StringRef Source,
                  SmallVectorImpl<StringRef> &OutFragments,
                  StringRef Delimiters = " \t\n\v\f\r");
 
-/// HashString - Hash funtion for strings.
+/// HashString - Hash function for strings.
 ///
 /// This is the Bernstein hash function.
 //

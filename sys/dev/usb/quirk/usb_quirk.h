@@ -102,6 +102,7 @@ enum {
 
 	UQ_BAD_MIDI,		/* device claims MIDI class, but isn't */
 	UQ_AU_VENDOR_CLASS,	/* audio device uses vendor and not audio class */
+	UQ_SINGLE_CMD_MIDI,	/* at most one command per USB packet */
 
 	USB_QUIRK_MAX
 };

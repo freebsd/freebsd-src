@@ -865,51 +865,41 @@ int
 cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 {
 	struct proc *p;
-	struct trapframe *frame;
-	u_int nap;
 	register_t *ap;
-	uint32_t insn;
 	int error;
 
-	p = td->td_proc;
-	frame = td->td_frame;
-	insn = *(u_int32_t *)(frame->tf_pc - INSN_SIZE);
-	sa->code = insn & 0x000fffff;
-
-	ap = &frame->tf_r0;
-	nap = 4;
+	sa->code = sa->insn & 0x000fffff;
+	ap = &td->td_frame->tf_r0;
 	if (sa->code == SYS_syscall) {
 		sa->code = *ap++;
-		nap--;
+		sa->nap--;
 	} else if (sa->code == SYS___syscall) {
 		sa->code = ap[_QUAD_LOWWORD];
-		nap -= 2;
+		sa->nap -= 2;
 		ap += 2;
 	}
+	p = td->td_proc;
 	if (p->p_sysent->sv_mask)
 		sa->code &= p->p_sysent->sv_mask;
-
 	if (sa->code >= p->p_sysent->sv_size)
 		sa->callp = &p->p_sysent->sv_table[0];
 	else
 		sa->callp = &p->p_sysent->sv_table[sa->code];
-
 	sa->narg = sa->callp->sy_narg;
-	KASSERT(sa->narg <= sizeof(sa->args) / sizeof(sa->args[0]),
-	    ("Too many syscall arguments!"));
 	error = 0;
-	memcpy(sa->args, ap, nap * sizeof(register_t));
-	if (sa->narg > nap) {
-		error = copyin((void *)frame->tf_usr_sp, sa->args + nap,
-		    (sa->narg - nap) * sizeof(register_t));
+	memcpy(sa->args, ap, sa->nap * sizeof(register_t));
+	if (sa->narg > sa->nap) {
+		error = copyin((void *)td->td_frame->tf_usr_sp, sa->args +
+		    sa->nap, (sa->narg - sa->nap) * sizeof(register_t));
 	}
 	if (error == 0) {
 		td->td_retval[0] = 0;
 		td->td_retval[1] = 0;
 	}
-
 	return (error);
 }
+
+#include "../../kern/subr_syscall.c"
 
 static void
 syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
@@ -917,8 +907,11 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	struct syscall_args sa;
 	int error;
 
+	td->td_frame = frame;
+	sa.insn = insn;
 	switch (insn & SWI_OS_MASK) {
 	case 0: /* XXX: we need our own one. */
+		sa.nap = 4;
 		break;
 	default:
 		call_trapsignal(td, SIGILL, 0);
@@ -927,9 +920,8 @@ syscall(struct thread *td, trapframe_t *frame, u_int32_t insn)
 	}
 
 	error = syscallenter(td, &sa);
-
-	KASSERT(td->td_ar == NULL, ("returning from syscall with td_ar set!"));
-
+	KASSERT(error != 0 || td->td_ar == NULL,
+	    ("returning from syscall with td_ar set!"));
 	syscallret(td, error, &sa);
 }
 

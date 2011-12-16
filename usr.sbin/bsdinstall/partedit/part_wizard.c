@@ -96,6 +96,7 @@ boot_disk(struct gmesh *mesh)
 
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
+		    strcmp(classp->lg_name, "RAID") != 0 &&
 		    strcmp(classp->lg_name, "MD") != 0)
 			continue;
 
@@ -169,6 +170,7 @@ provider_for_name(struct gmesh *mesh, const char *name)
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
 		    strcmp(classp->lg_name, "PART") != 0 &&
+		    strcmp(classp->lg_name, "RAID") != 0 &&
 		    strcmp(classp->lg_name, "MD") != 0)
 			continue;
 
@@ -252,7 +254,7 @@ query:
 		if (subchoice != 0)
 			goto query;
 
-		gpart_destroy(gpart, 1);
+		gpart_destroy(gpart);
 		gpart_partition(disk, default_scheme());
 		scheme = default_scheme();
 	}
@@ -265,7 +267,7 @@ query:
 			if (choice != 0)
 				goto query;
 
-			gpart_destroy(gpart, 1);
+			gpart_destroy(gpart);
 		}
 
 		gpart_partition(disk, default_scheme());

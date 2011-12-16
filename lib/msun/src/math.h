@@ -68,14 +68,11 @@ extern const union __nan_un {
 #define	MATH_ERREXCEPT	2
 #define	math_errhandling	MATH_ERREXCEPT
 
-/* XXX We need a <machine/math.h>. */
-#if defined(__ia64__) || defined(__sparc64__)
-#define	FP_FAST_FMA	1
-#endif
+#define	FP_FAST_FMAF	1
 #ifdef __ia64__
+#define	FP_FAST_FMA	1
 #define	FP_FAST_FMAL	1
 #endif
-#define	FP_FAST_FMAF	1
 
 /* Symbolic constants to classify floating point numbers. */
 #define	FP_INFINITE	0x01
@@ -398,34 +395,32 @@ float	significandf(float);
  * long double versions of ISO/POSIX math functions
  */
 #if __ISO_C_VISIBLE >= 1999
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	acoshl(long double);
 #endif
 long double	acosl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	asinhl(long double);
 #endif
 long double	asinl(long double);
 long double	atan2l(long double, long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	atanhl(long double);
 #endif
 long double	atanl(long double);
-#if 0
 long double	cbrtl(long double);
-#endif
 long double	ceill(long double);
 long double	copysignl(long double, long double) __pure2;
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	coshl(long double);
 #endif
 long double	cosl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	erfcl(long double);
 long double	erfl(long double);
 #endif
 long double	exp2l(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	expl(long double);
 long double	expm1l(long double);
 #endif
@@ -440,18 +435,18 @@ long double	frexpl(long double value, int *); /* fundamentally !__pure2 */
 long double	hypotl(long double, long double);
 int		ilogbl(long double) __pure2;
 long double	ldexpl(long double, int);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	lgammal(long double);
 #endif
 long long	llrintl(long double);
 long long	llroundl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	log10l(long double);
 long double	log1pl(long double);
 long double	log2l(long double);
 #endif
 long double	logbl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	logl(long double);
 #endif
 long		lrintl(long double);
@@ -463,7 +458,7 @@ long double	nextafterl(long double, long double);
 double		nexttoward(double, long double);
 float		nexttowardf(float, long double);
 long double	nexttowardl(long double, long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	powl(long double, long double);
 #endif
 long double	remainderl(long double, long double);
@@ -472,16 +467,16 @@ long double	rintl(long double);
 long double	roundl(long double);
 long double	scalblnl(long double, long);
 long double	scalbnl(long double, int);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	sinhl(long double);
 #endif
 long double	sinl(long double);
 long double	sqrtl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	tanhl(long double);
 #endif
 long double	tanl(long double);
-#if 0
+#if _DECLARE_C99_LDBL_MATH
 long double	tgammal(long double);
 #endif
 long double	truncl(long double);

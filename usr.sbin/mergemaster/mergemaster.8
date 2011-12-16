@@ -1,4 +1,4 @@
-.\" Copyright (c) 1998-2010 Douglas Barton
+.\" Copyright (c) 1998-2011 Douglas Barton
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 13, 2010
+.Dd November 1, 2011
 .Dt MERGEMASTER 8
 .Os
 .Sh NAME
@@ -34,6 +34,7 @@
 .Nm
 .Op Fl scrvhpCP
 .Op Fl a|iFU
+.Op Fl -run-updates=[always|never]
 .Op Fl m Ar /path/to/sources
 .Op Fl t Ar /path/to/temp/root
 .Op Fl d
@@ -244,6 +245,13 @@ or another directory you specify in your
 rc file.
 .It Fl U
 Attempt to auto upgrade files that have not been user modified.
+This option can be dangerous when there are critical changes
+in the new versions that affect your running system.
+.It Fl -run-updates=[always|never]
+Specify always or never to run newaliases, pwd_mkdb, etc.
+at the end of the comparison run.
+If this option is omitted the default is to prompt the user
+for each update as necessary.
 .It Fl m Ar /path/to/sources
 Specify the path to the directory where you want to do the
 .Xr make 1 .
@@ -360,7 +368,11 @@ with all values commented out:
 #AUTO_INSTALL=
 #
 # Automatically upgrade files that have not been user modified (-U)
+# ***DANGEROUS***
 #AUTO_UPGRADE=
+#
+# Either always or never run newaliases, pwd_mkdb at the end (--run-updates)
+#RUN_UPDATES=
 #
 # Compare /etc/rc.conf[.local] to /etc/defaults/rc.conf (-C)
 #COMP_CONFS=
@@ -461,7 +473,7 @@ temporary root environment comes from Nik Clayton's
 make world tutorial which is referenced above.
 .Sh AUTHORS
 This manual page and the script itself were written by
-.An Douglas Barton Aq DougB@FreeBSD.org .
+.An Douglas Barton Aq dougb@FreeBSD.org .
 .Sh BUGS
 There are no known bugs.
 Please report any problems,

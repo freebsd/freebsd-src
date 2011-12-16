@@ -39,6 +39,8 @@
 #define _MACHINE_IEEEFP_H_
 
 /*
+ * Deprecated historical FPU control interface
+ *
  * IEEE floating point type, constant and function definitions.
  * XXX: {FP,SSE}*FLD and {FP,SSE}*OFF are undocumented pollution.
  */
@@ -287,13 +289,16 @@ __fpgetsticky(void)
 #define	fpsetprec(m)	__fpsetprec(m)
 #define	fpsetround(m)	__fpsetround(m)
 
-/* Suppress prototypes in the MI header. */
-#define	_IEEEFP_INLINED_	1
-
 #else /* !(!__IEEEFP_NOINLINES__ && __GNUCLIKE_ASM) */
 
 /* Augment the userland declarations. */
 __BEGIN_DECLS
+extern fp_rnd_t    fpgetround(void);
+extern fp_rnd_t    fpsetround(fp_rnd_t);
+extern fp_except_t fpgetmask(void);
+extern fp_except_t fpsetmask(fp_except_t);
+extern fp_except_t fpgetsticky(void);
+extern fp_except_t fpsetsticky(fp_except_t);
 fp_prec_t	fpgetprec(void);
 fp_prec_t	fpsetprec(fp_prec_t);
 __END_DECLS

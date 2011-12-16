@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <pmc.h>
 #include <pmclog.h>
-#include <sysexits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -576,7 +575,8 @@ pmcpl_ct_topkeypress(int c, WINDOW *w)
 	switch (c) {
 	case 'f':
 		pmcstat_skiplink = !pmcstat_skiplink;
-		wprintw(w, "skip empty link %s", pmcstat_skiplink ? "on" : "off");
+		wprintw(w, "skip empty link %s",
+		    pmcstat_skiplink ? "on" : "off");
 		break;
 	}
 

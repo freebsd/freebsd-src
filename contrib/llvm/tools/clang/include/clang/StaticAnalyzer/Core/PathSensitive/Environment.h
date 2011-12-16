@@ -14,7 +14,6 @@
 #ifndef LLVM_CLANG_GR_ENVIRONMENT_H
 #define LLVM_CLANG_GR_ENVIRONMENT_H
 
-#include "clang/StaticAnalyzer/Core/PathSensitive/Store.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "llvm/ADT/ImmutableMap.h"
 
@@ -43,7 +42,7 @@ private:
   Environment(BindingsTy eb)
     : ExprBindings(eb) {}
 
-  SVal lookupExpr(const Stmt* E) const;
+  SVal lookupExpr(const Stmt *E) const;
 
 public:
   typedef BindingsTy::iterator iterator;
@@ -51,9 +50,10 @@ public:
   iterator end() const { return ExprBindings.end(); }
 
 
-  /// GetSVal - Fetches the current binding of the expression in the
+  /// getSVal - Fetches the current binding of the expression in the
   ///  Environment.
-  SVal getSVal(const Stmt* Ex, SValBuilder& svalBuilder) const;
+  SVal getSVal(const Stmt *Ex, SValBuilder& svalBuilder,
+	       bool useOnlyDirectBindings = false) const;
 
   /// Profile - Profile the contents of an Environment object for use
   ///  in a FoldingSet.
@@ -95,8 +95,7 @@ public:
                                   SVal V);
 
   Environment removeDeadBindings(Environment Env,
-                                 SymbolReaper &SymReaper, const GRState *ST,
-                          llvm::SmallVectorImpl<const MemRegion*>& RegionRoots);
+                                 SymbolReaper &SymReaper, const ProgramState *ST);
 };
 
 } // end GR namespace

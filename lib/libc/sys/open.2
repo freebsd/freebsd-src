@@ -28,7 +28,7 @@
 .\"     @(#)open.2	8.2 (Berkeley) 11/16/93
 .\" $FreeBSD$
 .\"
-.Dd February 28, 2009
+.Dd March 25, 2011
 .Dt OPEN 2
 .Os
 .Sh NAME
@@ -118,6 +118,7 @@ O_NOFOLLOW	do not follow symlinks
 O_NOCTTY	don't assign controlling terminal
 O_TTY_INIT	restore default terminal attributes
 O_DIRECTORY	error if file is not a directory
+O_CLOEXEC	set FD_CLOEXEC upon open
 .Ed
 .Pp
 Opening a file with
@@ -231,6 +232,11 @@ from opening files which are even unsafe to open with
 .Dv O_RDONLY ,
 such as device nodes.
 .Pp
+.Dv O_CLOEXEC
+may be used to set
+.Dv FD_CLOEXEC
+flag for the newly returned file descriptor.
+.Pp
 If successful,
 .Fn open
 returns a non-negative integer, termed a file descriptor.
@@ -241,12 +247,17 @@ file is set to the beginning of the file.
 When a new file is created it is given the group of the directory
 which contains it.
 .Pp
-The new descriptor is set to remain open across
+Unless
+.Dv O_CLOEXEC
+flag was specified,
+the new descriptor is set to remain open across
 .Xr execve 2
 system calls; see
-.Xr close 2
+.Xr close 2 ,
+.Xr fcntl 2
 and
-.Xr fcntl 2 .
+.Dv O_CLOEXEC
+description.
 .Pp
 The system imposes a limit on the number of file descriptors
 open simultaneously by one process.
@@ -404,7 +415,7 @@ of
 .Dv O_WRONLY ,
 .Dv O_RDWR
 and
-.Dv O_EXEC.
+.Dv O_EXEC .
 .It Bq Eq EBADF
 The
 .Fa path

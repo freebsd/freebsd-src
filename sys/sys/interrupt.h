@@ -149,10 +149,10 @@ extern struct	intr_event *clk_intr_event;
 extern void	*vm_ih;
 
 /* Counts and names for statistics (defined in MD code). */
-extern u_long 	eintrcnt[];	/* end of intrcnt[] */
-extern char 	eintrnames[];	/* end of intrnames[] */
 extern u_long 	intrcnt[];	/* counts for for each device and stray */
 extern char 	intrnames[];	/* string table containing device names */
+extern size_t	sintrcnt;	/* size of intrcnt table */
+extern size_t	sintrnames;	/* size of intrnames table */
 
 #ifdef DDB
 void	db_dump_intr_event(struct intr_event *ie, int handlers);
@@ -176,6 +176,7 @@ int	intr_event_remove_handler(void *cookie);
 int	intr_getaffinity(int irq, void *mask);
 void	*intr_handler_source(void *cookie);
 int	intr_setaffinity(int irq, void *mask);
+void	_intr_drain(int irq);  /* Linux compat only. */
 int	swi_add(struct intr_event **eventp, const char *name,
 	    driver_intr_t handler, void *arg, int pri, enum intr_type flags,
 	    void **cookiep);

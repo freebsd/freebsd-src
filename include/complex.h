@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001-2008 The FreeBSD Project.
+ * Copyright (c) 2001-2011 The FreeBSD Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -49,6 +49,10 @@ long double	cabsl(long double complex);
 double		carg(double complex);
 float		cargf(float complex);
 long double	cargl(long double complex);
+double complex	ccos(double complex);
+float complex	ccosf(float complex);
+double complex	ccosh(double complex);
+float complex	ccoshf(float complex);
 double complex	cexp(double complex);
 float complex	cexpf(float complex);
 double		cimag(double complex) __pure2;
@@ -65,10 +69,18 @@ long double complex
 double		creal(double complex) __pure2;
 float		crealf(float complex) __pure2;
 long double	creall(long double complex) __pure2;
+double complex	csin(double complex);
+float complex	csinf(float complex);
+double complex	csinh(double complex);
+float complex	csinhf(float complex);
 double complex	csqrt(double complex);
 float complex	csqrtf(float complex);
 long double complex
 		csqrtl(long double complex);
+double complex	ctan(double complex);
+float complex	ctanf(float complex);
+double complex	ctanh(double complex);
+float complex	ctanhf(float complex);
 
 __END_DECLS
 

@@ -409,7 +409,6 @@ init_main_thread(struct pthread *thread)
 
 	thread->cancel_enable = 1;
 	thread->cancel_async = 0;
-	thr_set_name(thread->tid, "initial thread");
 
 	/* Initialize the mutex queue: */
 	TAILQ_INIT(&thread->mutexq);

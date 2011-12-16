@@ -1,9 +1,9 @@
 /*
- *  $Id: menubox.c,v 1.118 2010/01/17 22:24:11 tom Exp $
+ *  $Id: menubox.c,v 1.122 2011/06/29 09:48:46 tom Exp $
  *
  *  menubox.c -- implements the menu box
  *
- *  Copyright 2000-2009,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public Licens, version 2.1e
@@ -117,7 +117,7 @@ print_item(WINDOW *win,
 	   Mode selected,
 	   bool is_inputmenu)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int n;
     int my_width = menu_width;
     int my_x = item_x;
@@ -188,7 +188,7 @@ input_menu_edit(WINDOW *win,
 		int choice,
 		char **resultp)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     char *result;
     int offset = 0;
     int key = 0, fkey = 0;
@@ -291,6 +291,7 @@ dlg_menu(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT,	KEY_RIGHT ),
@@ -312,6 +313,7 @@ dlg_menu(const char *title,
     };
     static DLG_KEYS_BINDING binding2[] = {
 	INPUTSTR_BINDINGS,
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	END_KEYS_BINDING
     };
@@ -685,7 +687,7 @@ dlg_menu(const char *title,
 				 FALSE, width);
 		break;
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = dlg_enter_buttoncode(button);
 
 		/*
 		 * If dlg_menu() is called from dialog_menu(), we want to

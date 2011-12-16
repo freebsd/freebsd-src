@@ -72,9 +72,9 @@ This manual contains no Invariant Sections.  The Front-Cover Texts are
 @ifnottex
 @node Top
 @top
-The C preprocessor implements the macro language used to transform C,
-C++, and Objective-C programs before they are compiled.  It can also be
-useful on its own.
+The C preprocessor implements the macro language used to transform C
+and C++ programs before they are compiled.  It can also be useful on
+its own.
 
 @menu
 * Overview::
@@ -186,14 +186,14 @@ before compilation.  It is called a macro processor because it allows
 you to define @dfn{macros}, which are brief abbreviations for longer
 constructs.
 
-The C preprocessor is intended to be used only with C, C++, and
-Objective-C source code.  In the past, it has been abused as a general
-text processor.  It will choke on input which does not obey C's lexical
-rules.  For example, apostrophes will be interpreted as the beginning of
-character constants, and cause errors.  Also, you cannot rely on it
-preserving characteristics of the input which are not significant to
-C-family languages.  If a Makefile is preprocessed, all the hard tabs
-will be removed, and the Makefile will not work.
+The C preprocessor is intended to be used only with C and C++ source
+code.  In the past, it has been abused as a general text processor.  It
+will choke on input which does not obey C's lexical rules.  For
+example, apostrophes will be interpreted as the beginning of character
+constants, and cause errors.  Also, you cannot rely on it preserving
+characteristics of the input which are not significant to C-family
+languages.  If a Makefile is preprocessed, all the hard tabs will be
+removed, and the Makefile will not work.
 
 Having said that, you can often get away with using cpp on things which
 are not C@.  Other Algol-ish programming languages are often safe
@@ -1878,7 +1878,7 @@ the 1999 revision of the C standard.  Support for the 1999 revision is
 not yet complete.
 
 This macro is not defined if the @option{-traditional-cpp} option is
-used, nor when compiling C++ or Objective-C@.
+used, nor when compiling C++.
 
 @item __STDC_HOSTED__
 This macro is defined, with value 1, if the compiler's target is a
@@ -1894,11 +1894,6 @@ of the 1998 C++ standard will define this macro to @code{199711L}.  The
 GNU C++ compiler is not yet fully conforming, so it uses @code{1}
 instead.  It is hoped to complete the implementation of standard C++
 in the near future.
-
-@item __OBJC__
-This macro is defined, with value 1, when the Objective-C compiler is in
-use.  You can use @code{__OBJC__} to test whether a header is compiled
-by a C compiler or a Objective-C compiler.
 
 @item __ASSEMBLER__
 This macro is defined with value 1 when preprocessing assembly
@@ -1921,9 +1916,9 @@ underscores.
 @itemx __GNUC_MINOR__
 @itemx __GNUC_PATCHLEVEL__
 These macros are defined by all GNU compilers that use the C
-preprocessor: C, C++, and Objective-C@.  Their values are the major
-version, minor version, and patch level of the compiler, as integer
-constants.  For example, GCC 3.2.1 will define @code{__GNUC__} to 3,
+preprocessor: C and C++.  Their values are the major version, minor
+version, and patch level of the compiler, as integer constants.  For
+example, GCC 3.2.1 will define @code{__GNUC__} to 3,
 @code{__GNUC_MINOR__} to 2, and @code{__GNUC_PATCHLEVEL__} to 1.  These
 macros are also defined if you invoke the preprocessor directly.
 
@@ -2124,12 +2119,6 @@ not collapse such symbols, this macro is defined with value 0.  In
 general, user code should not need to make use of this macro; the
 purpose of this macro is to ease implementation of the C++ runtime
 library provided with G++.
-
-@item __NEXT_RUNTIME__
-This macro is defined, with value 1, if (and only if) the NeXT runtime
-(as in @option{-fnext-runtime}) is in use for Objective-C@.  If the GNU
-runtime is used, this macro is not defined, so that you can use this
-macro to determine which runtime (NeXT or GNU) is being used.
 
 @item __LP64__
 @itemx _LP64
@@ -3433,11 +3422,10 @@ produce no output, rather than a line of output containing just a
 @node Preprocessor Output
 @chapter Preprocessor Output
 
-When the C preprocessor is used with the C, C++, or Objective-C
-compilers, it is integrated into the compiler and communicates a stream
-of binary tokens directly to the compiler's parser.  However, it can
-also be used in the more conventional standalone mode, where it produces
-textual output.
+When the C preprocessor is used with the C or C++ compilers, it is
+integrated into the compiler and communicates a stream of binary tokens
+directly to the compiler's parser.  However, it can also be used in the
+more conventional standalone mode, where it produces textual output.
 @c FIXME: Document the library interface.
 
 @cindex output format
@@ -4053,33 +4041,13 @@ You can also make or cancel assertions using command line options.
 @node Obsolete once-only headers
 @subsection Obsolete once-only headers
 
-CPP supports two more ways of indicating that a header file should be
-read only once.  Neither one is as portable as a wrapper @samp{#ifndef},
-and we recommend you do not use them in new programs.
+CPP supports one more way of indicating that a header file should be
+read only once.  This is not as portable as a wrapper @samp{#ifndef},
+and we recommend you do not use it in new programs.
 
-@findex #import
-In the Objective-C language, there is a variant of @samp{#include}
-called @samp{#import} which includes a file, but does so at most once.
-If you use @samp{#import} instead of @samp{#include}, then you don't
-need the conditionals inside the header file to prevent multiple
-inclusion of the contents.  GCC permits the use of @samp{#import} in C
-and C++ as well as Objective-C@.  However, it is not in standard C or C++
-and should therefore not be used by portable programs.
-
-@samp{#import} is not a well designed feature.  It requires the users of
-a header file to know that it should only be included once.  It is much
-better for the header file's implementor to write the file so that users
-don't need to know this.  Using a wrapper @samp{#ifndef} accomplishes
-this goal.
-
-In the present implementation, a single use of @samp{#import} will
-prevent the file from ever being read again, by either @samp{#import} or
-@samp{#include}.  You should not rely on this; do not use both
-@samp{#import} and @samp{#include} to refer to the same header file.
-
-Another way to prevent a header file from being included more than once
-is with the @samp{#pragma once} directive.  If @samp{#pragma once} is
-seen when scanning a header file, that file will never be read again, no
+A way to prevent a header file from being included more than once is
+with the @samp{#pragma once} directive.  If @samp{#pragma once} is seen
+when scanning a header file, that file will never be read again, no
 matter what.
 
 @samp{#pragma once} does not have the problems that @samp{#import} does,

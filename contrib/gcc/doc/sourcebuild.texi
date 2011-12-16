@@ -75,9 +75,6 @@ The Java runtime library.
 The @code{libmudflap} library, used for instrumenting pointer and array
 dereferencing operations.
 
-@item libobjc
-The Objective-C and Objective-C++ runtime library.
-
 @item libstdc++-v3
 The C++ runtime library.
 
@@ -125,8 +122,7 @@ The @file{gcc} directory contains the following subdirectories:
 @item @var{language}
 Subdirectories for various languages.  Directories containing a file
 @file{config-lang.in} are language subdirectories.  The contents of
-the subdirectories @file{cp} (for C++), @file{objc} (for Objective-C)
-and @file{objcp} (for Objective-C++) are documented in this manual
+the subdirectory @file{cp} (for C++) is documented in this manual
 (@pxref{Passes, , Passes and Files of the Compiler}); those for other
 languages are not.  @xref{Front End, , Anatomy of a Language Front End},
 for details of the files in these directories.
@@ -449,7 +445,7 @@ A pointer to the GNU Service Directory.
 @end table
 
 FIXME: document such files in subdirectories, at least @file{config},
-@file{cp}, @file{objc}, @file{testsuite}.
+@file{cp}, @file{testsuite}.
 
 @node Front End
 @subsection Anatomy of a Language Front End
@@ -682,13 +678,11 @@ Java front end depends on the C++ front end, so sets
 @samp{lang_requires=c++}.
 @item subdir_requires
 If defined, this variable lists (space-separated) front end directories
-other than C that this front end requires to be present.  For example,
-the Objective-C++ front end uses source files from the C++ and
-Objective-C front ends, so sets @samp{subdir_requires="cp objc"}.
+other than C that this front end requires to be present.
 @item target_libs
 If defined, this variable lists (space-separated) targets in the top
 level @file{Makefile} to build the runtime libraries for this
-language, such as @code{target-libobjc}.
+language.
 @item lang_dirs
 If defined, this variable lists (space-separated) top level
 directories (parallel to @file{gcc}), apart from the runtime libraries,

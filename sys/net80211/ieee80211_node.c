@@ -285,10 +285,7 @@ ieee80211_node_set_chan(struct ieee80211_node *ni,
 	mode = ieee80211_chan2mode(chan);
 	if (IEEE80211_IS_CHAN_HT(chan)) {
 		/*
-		 * XXX Gotta be careful here; the rate set returned by
-		 * ieee80211_get_suprates is actually any HT rate
-		 * set so blindly copying it will be bad.  We must
-		 * install the legacy rate est in ni_rates and the
+		 * We must install the legacy rate est in ni_rates and the
 		 * HT rate set in ni_htrates.
 		 */
 		ni->ni_htrates = *ieee80211_get_suphtrates(ic, chan);
@@ -1088,7 +1085,26 @@ static void
 node_getmimoinfo(const struct ieee80211_node *ni,
 	struct ieee80211_mimo_info *info)
 {
-	/* XXX zero data? */
+	int i;
+	uint32_t avgrssi;
+	int32_t rssi;
+
+	bzero(info, sizeof(*info));
+
+	for (i = 0; i < ni->ni_mimo_chains; i++) {
+		avgrssi = ni->ni_mimo_rssi_ctl[i];
+		if (avgrssi == IEEE80211_RSSI_DUMMY_MARKER) {
+			info->rssi[i] = 0;
+		} else {
+			rssi = IEEE80211_RSSI_GET(avgrssi);
+			info->rssi[i] = rssi < 0 ? 0 : rssi > 127 ? 127 : rssi;
+		}
+		info->noise[i] = ni->ni_mimo_noise_ctl[i];
+	}
+
+	/* XXX ext radios? */
+
+	/* XXX EVM? */
 }
 
 struct ieee80211_node *

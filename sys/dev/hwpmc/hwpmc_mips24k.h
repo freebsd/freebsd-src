@@ -35,7 +35,7 @@
 				 PMC_CAP_WRITE | PMC_CAP_INVERT |	\
 				 PMC_CAP_QUALIFIER)
 
-
+#define MIPS24K_PMC_INTERRUPT_ENABLE      0x10 /* Enable interrupts */
 #define MIPS24K_PMC_USER_ENABLE           0x08 /* Count in USER mode */
 #define MIPS24K_PMC_SUPER_ENABLE          0x04 /* Count in SUPERVISOR mode */
 #define MIPS24K_PMC_KERNEL_ENABLE         0x02 /* Count in KERNEL mode */
@@ -43,9 +43,12 @@
 			    MIPS24K_PMC_SUPER_ENABLE |	   \
 			    MIPS24K_PMC_KERNEL_ENABLE)
 
-
-#define	MIPS24K_RELOAD_COUNT_TO_PERFCTR_VALUE(R)	(-(R))
-#define	MIPS24K_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	(-(P))
+/*
+ * Interrupts are posted when bit 31 of the relevant
+ * counter is set.
+ */
+#define	MIPS24K_RELOAD_COUNT_TO_PERFCTR_VALUE(R)	(0x80000000 - (R))
+#define	MIPS24K_PERFCTR_VALUE_TO_RELOAD_COUNT(P)	((P) - 0x80000000)
 
 #define MIPS24K_PMC_SELECT 0x4 /* Which bit position the event starts at. */
 #define MIPS24K_PMC_OFFSET 2   /* Control registers are 0, 2, 4, etc. */

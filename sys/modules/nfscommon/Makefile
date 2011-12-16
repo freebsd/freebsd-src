@@ -7,9 +7,10 @@ SRCS=	vnode_if.h \
 	nfs_commonkrpc.c \
 	nfs_commonport.c \
 	nfs_commonsubs.c \
-	opt_kgssapi.h \
-	opt_ufs.h \
 	opt_inet6.h \
-	opt_nfs.h
+	opt_kdtrace.h \
+	opt_kgssapi.h \
+	opt_nfs.h \
+	opt_ufs.h
 
 .include <bsd.kmod.mk>

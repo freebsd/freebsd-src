@@ -58,6 +58,7 @@ static struct ar_obj	*create_obj_from_file(struct bsdar *bsdar,
 		    const char *name, time_t mtime);
 static void	create_symtab_entry(struct bsdar *bsdar, void *maddr,
 		    size_t size);
+static void	free_obj(struct bsdar *bsdar, struct ar_obj *obj);
 static void	insert_obj(struct bsdar *bsdar, struct ar_obj *obj,
 		    struct ar_obj *pos);
 static void	read_objs(struct bsdar *bsdar, const char *archive,
@@ -113,7 +114,7 @@ ar_mode_A(struct bsdar *bsdar)
 /*
  * Create object from file, return created obj upon success, or NULL
  * when an error occurs or the member is not newer than existing
- * one while -u is specifed.
+ * one while -u is specified.
  */
 static struct ar_obj *
 create_obj_from_file(struct bsdar *bsdar, const char *name, time_t mtime)
@@ -210,6 +211,22 @@ giveup:
 }
 
 /*
+ * Free object itself and its associated allocations.
+ */
+static void
+free_obj(struct bsdar *bsdar, struct ar_obj *obj)
+{
+	if (obj->fd == -1)
+		free(obj->maddr);
+	else
+		if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
+			bsdar_warnc(bsdar, errno,
+			    "can't munmap file: %s", obj->name);
+	free(obj->name);
+	free(obj);
+}
+
+/*
  * Insert obj to the tail, or before/after the pos obj.
  */
 static void
@@ -220,7 +237,7 @@ insert_obj(struct bsdar *bsdar, struct ar_obj *obj, struct ar_obj *pos)
 
 	if (pos == NULL || obj == pos)
 		/*
-		 * If the object to move happens to be the posistion obj,
+		 * If the object to move happens to be the position obj,
 		 * or if there is not a pos obj, move it to tail.
 		 */
 		goto tail;
@@ -418,7 +435,7 @@ write_archive(struct bsdar *bsdar, char mode)
 	if (mode == 'A') {
 		/*
 		 * Read objects from the target archive of ADDLIB command.
-		 * If there are members spcified in argv, read those members
+		 * If there are members specified in argv, read those members
 		 * only, otherwise the entire archive will be read.
 		 */
 		read_objs(bsdar, bsdar->addlib, 1);
@@ -438,7 +455,7 @@ write_archive(struct bsdar *bsdar, char mode)
 
 		/*
 		 * If can't find `pos' specified by user,
-		 * sliently insert objects at tail.
+		 * silently insert objects at tail.
 		 */
 		if (pos == NULL)
 			bsdar->options &= ~(AR_A | AR_B);
@@ -474,11 +491,8 @@ write_archive(struct bsdar *bsdar, char mode)
 				    *av);
 
 			TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-			if (mode == 'd' || mode == 'r') {
-				free(obj->maddr);
-				free(obj->name);
-				free(obj);
-			}
+			if (mode == 'd' || mode == 'r')
+				free_obj(bsdar, obj);
 
 			if (mode == 'm')
 				insert_obj(bsdar, obj, pos);
@@ -525,15 +539,8 @@ write_cleanup(struct bsdar *bsdar)
 	struct ar_obj		*obj, *obj_temp;
 
 	TAILQ_FOREACH_SAFE(obj, &bsdar->v_obj, objs, obj_temp) {
-		if (obj->fd == -1)
-			free(obj->maddr);
-		else
-			if (obj->maddr != NULL && munmap(obj->maddr, obj->size))
-				bsdar_warnc(bsdar, errno,
-				    "can't munmap file: %s", obj->name);
 		TAILQ_REMOVE(&bsdar->v_obj, obj, objs);
-		free(obj->name);
-		free(obj);
+		free_obj(bsdar, obj);
 	}
 
 	free(bsdar->as);
@@ -699,7 +706,7 @@ create_symtab_entry(struct bsdar *bsdar, void *maddr, size_t size)
 		return;
 	}
 	if (elf_kind(e) != ELF_K_ELF) {
-		/* Sliently ignore non-elf member. */
+		/* Silently ignore non-elf member. */
 		elf_end(e);
 		return;
 	}

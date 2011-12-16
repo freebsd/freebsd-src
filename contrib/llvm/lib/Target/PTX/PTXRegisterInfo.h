@@ -17,15 +17,20 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/ADT/BitVector.h"
 
-#include "PTXGenRegisterInfo.h.inc"
+#define GET_REGINFO_HEADER
+#include "PTXGenRegisterInfo.inc"
 
 namespace llvm {
 class PTXTargetMachine;
 class MachineFunction;
 
 struct PTXRegisterInfo : public PTXGenRegisterInfo {
+private:
+  const TargetInstrInfo &TII;
+
+public:
   PTXRegisterInfo(PTXTargetMachine &TM,
-                  const TargetInstrInfo &TII) {}
+                  const TargetInstrInfo &tii);
 
   virtual const unsigned
     *getCalleeSavedRegs(const MachineFunction *MF = 0) const {
@@ -38,24 +43,13 @@ struct PTXRegisterInfo : public PTXGenRegisterInfo {
     return Reserved; // reserve no regs
   }
 
-  virtual void eliminateFrameIndex(MachineBasicBlock::iterator MI,
+  virtual void eliminateFrameIndex(MachineBasicBlock::iterator II,
                                    int SPAdj,
-                                   RegScavenger *RS = NULL) const {
-    llvm_unreachable("PTX does not support general function call");
-  }
+                                   RegScavenger *RS = NULL) const;
 
   virtual unsigned getFrameRegister(const MachineFunction &MF) const {
     llvm_unreachable("PTX does not have a frame register");
     return 0;
-  }
-
-  virtual unsigned getRARegister() const {
-    llvm_unreachable("PTX does not have a return address register");
-    return 0;
-  }
-
-  virtual int getDwarfRegNum(unsigned RegNum, bool isEH) const {
-    return PTXGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
   }
 }; // struct PTXRegisterInfo
 } // namespace llvm

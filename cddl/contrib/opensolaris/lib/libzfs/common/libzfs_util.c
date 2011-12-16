@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /*
@@ -351,6 +352,7 @@ zfs_standard_error_fmt(libzfs_handle_t *hdl, int error, const char *fmt, ...)
 	switch (error) {
 	case ENXIO:
 	case ENODEV:
+	case EPIPE:
 		zfs_verror(hdl, EZFS_IO, fmt, ap);
 		break;
 
@@ -734,12 +736,13 @@ zfs_path_to_zhandle(libzfs_handle_t *hdl, char *path, zfs_type_t argtype)
 	{
 		struct statfs sfs;
 
-		if (statfs(path, &sfs) != 0) {
+		ret = statfs(path, &sfs);
+		if (ret == 0)
+			statfs2mnttab(&sfs, &entry);
+		else {
 			(void) fprintf(stderr, "%s: %s\n", path,
 			    strerror(errno));
-			ret = -1;
 		}
-		statfs2mnttab(&sfs, &entry);
 	}
 #endif	/* sun */
 	if (ret != 0) {
@@ -1323,7 +1326,8 @@ addlist(libzfs_handle_t *hdl, char *propname, zprop_list_t **listp,
 	 * dataset property,
 	 */
 	if (prop == ZPROP_INVAL && (type == ZFS_TYPE_POOL ||
-	    (!zfs_prop_user(propname) && !zfs_prop_userquota(propname)))) {
+	    (!zfs_prop_user(propname) && !zfs_prop_userquota(propname) &&
+	    !zfs_prop_written(propname)))) {
 		zfs_error_aux(hdl, dgettext(TEXT_DOMAIN,
 		    "invalid property '%s'"), propname);
 		return (zfs_error(hdl, EZFS_BADPROP,

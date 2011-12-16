@@ -70,6 +70,10 @@ static int rc, rp;
 static unsigned int cnsl_evt_reg;
 static unsigned int wc, wp; /* write_cons, write_prod */
 
+#ifdef KDB
+static int	xc_altbrk;
+#endif
+
 #define CDEV_MAJOR 12
 #define	XCUNIT(x)	(dev2unit(x))
 #define ISTTYOPEN(tp)	((tp) && ((tp)->t_state & TS_ISOPEN))
@@ -268,8 +272,12 @@ xencons_rx(char *buf, unsigned len)
 #endif
 		) {
 		tty_lock(tp);
-		for (i = 0; i < len; i++)
+		for (i = 0; i < len; i++) {
+#ifdef KDB
+			kdb_alt_break(buf[i], &xc_altbrk);
+#endif
 			ttydisc_rint(tp, buf[i], 0);
+		}
 		ttydisc_rint_done(tp);
 		tty_unlock(tp);
 	} else {

@@ -1,0 +1,144 @@
+#!/bin/sh
+
+IBPATH=${IBPATH:-@IBSCRIPTPATH@}
+
+function usage() {
+	echo Usage: `basename $0` "[-h] [-v] [-N | -nocolor] [-G]" \
+	   "[-C ca_name] [-P ca_port] [-t(imeout) timeout_ms] <lid|guid> <port>"
+	exit -1
+}
+
+function green() {
+	if [ "$bw" = "yes" ]; then
+		if [ "$verbose" = "yes" ]; then
+			echo $1
+		fi
+		return
+	fi
+	if [ "$verbose" = "yes" ]; then
+		echo -e "\\033[1;032m" $1 "\\033[0;39m"
+	fi
+}
+
+function red() {
+	if [ "$bw" = "yes" ]; then
+		echo $1
+		return
+	fi
+	echo -e "\\033[1;031m" $1 "\\033[0;39m"
+}
+
+guid_addr=""
+bw=""
+verbose=""
+ca_info=""
+
+while [ "$1" ]; do
+	case $1 in
+	-G)
+		guid_addr=yes
+		;;
+	-nocolor|-N)
+		bw=yes
+		;;
+	-v)
+		verbose=yes
+		;;
+	-P | -C | -t | -timeout)
+		case $2 in
+		-*)
+			usage
+			;;
+		esac
+		if [ x$2 = x ] ; then
+			usage
+		fi
+		ca_info="$ca_info $1 $2"
+		shift
+		;;
+	-*)
+		usage
+		;;
+	*)
+		break
+		;;
+	esac
+	shift
+done
+
+if [ $# -lt 2 ]; then
+	usage
+fi
+
+portnum=$2
+
+if [ "$guid_addr" ]; then
+	if ! lid=`$IBPATH/ibaddr $ca_info -G -L $1 | awk '/failed/{exit -1} {print $3}'`; then
+		echo -n "guid $1 address resolution: "
+		red "FAILED"
+		exit -1
+	fi
+	guid=$1
+else
+	lid=$1
+	if ! temp=`$IBPATH/ibaddr $ca_info -L $1 | awk '/failed/{exit -1} {print $1}'`; then
+		echo -n "lid $1 address resolution: "
+		red "FAILED"
+		exit -1
+	fi
+fi
+
+
+text="`eval $IBPATH/smpquery $ca_info portinfo $lid $portnum`"
+rv=$?
+if echo "$text" | awk -v mono=$bw -F '[.:]*' '
+function blue(s)
+{
+	if (mono)
+		printf s
+	else if (!quiet) {
+		printf "\033[1;034m" s
+		printf "\033[0;39m"
+	}
+}
+
+# Checks
+
+/^PhysLinkState/{ if ($2 != "LinkUp") {err = err "#error: Physical link state is " $2 "  lid '$lid' port '$portnum'\n"; exit -1}}
+
+/^LinkState/{ if ($2 != "Active") warn = warn "#warn: Logical link state is " $2 "  lid '$lid' port '$portnum'\n"}
+
+/^LinkWidthActive/{ if ($2 == "1X") warn = warn "#warn: Link configured as 1X  lid '$lid' port '$portnum'\n"}
+
+/^Lid/{ if ($2 == "0") warn = warn "#warn: Lid is not configured lid '$lid' port '$portnum'\n"}
+
+/^SMLid/{ if ($2 == "0") warn = warn "#warn: SM Lid is not configured\n"}
+
+#/^LocalPort/	{ if ($2 != '$portnum') {err = err "#error: port " $2 " does not match query ('$portnum')\n"; exit -1}}
+
+/^ib/	{print $0; next}
+/ibpanic:/	{print $0}
+/ibwarn:/	{print $0}
+/iberror:/	{print $0}
+
+END {
+	if (err != "") {
+		blue(err)
+		exit -1
+	}
+	if (warn != "") {
+		blue(warn)
+		exit -1
+	}
+	exit 0
+}' 2>&1 && test $rv -eq 0 ; then
+	if [ "$verbose" = "yes" ]; then
+		echo -n "Port check lid $lid port $portnum: "
+		green "OK"
+	fi
+	exit 0
+else
+	echo -n "Port check lid $lid port $portnum: "
+	red "FAILED"
+	exit -1
+fi

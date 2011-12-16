@@ -17,7 +17,9 @@
 
 #include "MBlaze.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "MBlazeGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "MBlazeGenRegisterInfo.inc"
 
 namespace llvm {
 class MBlazeSubtarget;
@@ -40,12 +42,6 @@ struct MBlazeRegisterInfo : public MBlazeGenRegisterInfo {
   MBlazeRegisterInfo(const MBlazeSubtarget &Subtarget,
                      const TargetInstrInfo &tii);
 
-  /// getRegisterNumbering - Given the enum value for some register, e.g.
-  /// MBlaze::RA, return the number that it corresponds to (e.g. 31).
-  static unsigned getRegisterNumbering(unsigned RegEnum);
-  static unsigned getRegisterFromNumbering(unsigned RegEnum);
-  static unsigned getSpecialRegisterFromNumbering(unsigned RegEnum);
-
   /// Get PIC indirect call register
   static unsigned getPICCallReg();
 
@@ -65,14 +61,11 @@ struct MBlazeRegisterInfo : public MBlazeGenRegisterInfo {
   void processFunctionBeforeFrameFinalized(MachineFunction &MF) const;
 
   /// Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
 
   /// Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
-
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 };
 
 } // end namespace llvm

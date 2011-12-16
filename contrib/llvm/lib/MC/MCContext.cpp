@@ -9,13 +9,14 @@
 
 #include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSectionELF.h"
 #include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCLabel.h"
 #include "llvm/MC/MCDwarf.h"
-#include "llvm/Target/TargetAsmInfo.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ELF.h"
@@ -26,9 +27,13 @@ typedef StringMap<const MCSectionELF*> ELFUniqueMapTy;
 typedef StringMap<const MCSectionCOFF*> COFFUniqueMapTy;
 
 
-MCContext::MCContext(const MCAsmInfo &mai, const TargetAsmInfo *tai) :
-  MAI(mai), TAI(tai), NextUniqueID(0),
-  CurrentDwarfLoc(0,0,0,DWARF2_FLAG_IS_STMT,0,0) {
+MCContext::MCContext(const MCAsmInfo &mai, const MCRegisterInfo &mri,
+                     const MCObjectFileInfo *mofi) :
+  MAI(mai), MRI(mri), MOFI(mofi),
+  Allocator(), Symbols(Allocator), UsedNames(Allocator),
+  NextUniqueID(0),
+  CurrentDwarfLoc(0,0,0,DWARF2_FLAG_IS_STMT,0,0),
+  AllowTemporaryLabels(true) {
   MachOUniquingMap = 0;
   ELFUniquingMap = 0;
   COFFUniquingMap = 0;
@@ -51,8 +56,6 @@ MCContext::~MCContext() {
 
   // If the stream for the .secure_log_unique directive was created free it.
   delete (raw_ostream*)SecureLog;
-
-  delete TAI;
 }
 
 //===----------------------------------------------------------------------===//
@@ -76,18 +79,19 @@ MCSymbol *MCContext::GetOrCreateSymbol(StringRef Name) {
 }
 
 MCSymbol *MCContext::CreateSymbol(StringRef Name) {
-  // Determine whether this is an assembler temporary or normal label.
-  bool isTemporary = Name.startswith(MAI.getPrivateGlobalPrefix());
+  // Determine whether this is an assembler temporary or normal label, if used.
+  bool isTemporary = false;
+  if (AllowTemporaryLabels)
+    isTemporary = Name.startswith(MAI.getPrivateGlobalPrefix());
 
   StringMapEntry<bool> *NameEntry = &UsedNames.GetOrCreateValue(Name);
   if (NameEntry->getValue()) {
     assert(isTemporary && "Cannot rename non temporary symbols");
-    SmallString<128> NewName;
+    SmallString<128> NewName = Name;
     do {
-      Twine T = Name + Twine(NextUniqueID++);
-      T.toVector(NewName);
-      StringRef foo = NewName;
-      NameEntry = &UsedNames.GetOrCreateValue(foo);
+      NewName.resize(Name.size());
+      raw_svector_ostream(NewName) << NextUniqueID++;
+      NameEntry = &UsedNames.GetOrCreateValue(NewName);
     } while (NameEntry->getValue());
   }
   NameEntry->setValue(true);
@@ -107,9 +111,8 @@ MCSymbol *MCContext::GetOrCreateSymbol(const Twine &Name) {
 
 MCSymbol *MCContext::CreateTempSymbol() {
   SmallString<128> NameSV;
-  Twine Name = Twine(MAI.getPrivateGlobalPrefix()) + "tmp" +
-    Twine(NextUniqueID++);
-  Name.toVector(NameSV);
+  raw_svector_ostream(NameSV)
+    << MAI.getPrivateGlobalPrefix() << "tmp" << NextUniqueID++;
   return CreateSymbol(NameSV);
 }
 
@@ -276,7 +279,8 @@ unsigned MCContext::GetDwarfFile(StringRef FileName, unsigned FileNumber) {
   } else {
     StringRef Directory = Slash.first;
     Name = Slash.second;
-    for (DirIndex = 0; DirIndex < MCDwarfDirs.size(); DirIndex++) {
+    DirIndex = 0;
+    for (unsigned End = MCDwarfDirs.size(); DirIndex < End; DirIndex++) {
       if (Directory == MCDwarfDirs[DirIndex])
         break;
     }

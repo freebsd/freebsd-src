@@ -90,7 +90,7 @@ ffs_update(vp, waitfor)
 		return (0);
 	ip->i_flag &= ~(IN_LAZYACCESS | IN_LAZYMOD | IN_MODIFIED);
 	fs = ip->i_fs;
-	if (fs->fs_ronly)
+	if (fs->fs_ronly && ip->i_ump->um_fsckpid == 0)
 		return (0);
 	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
 		(int)fs->fs_bsize, NOCRED, &bp);
@@ -120,18 +120,6 @@ ffs_update(vp, waitfor)
 	}
 }
 
-static void
-ffs_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
-{
-	vm_object_t object;
-
-	if ((object = vp->v_object) == NULL)
-		return;
-	VM_OBJECT_LOCK(object);
-	vm_object_page_remove(object, start, end, FALSE);
-	VM_OBJECT_UNLOCK(object);
-}
-
 #define	SINGLE	0	/* index of single indirect block */
 #define	DOUBLE	1	/* index of double indirect block */
 #define	TRIPLE	2	/* index of triple indirect block */
@@ -151,12 +139,12 @@ ffs_truncate(vp, length, flags, cred, td)
 	ufs2_daddr_t bn, lbn, lastblock, lastiblock[NIADDR], indir_lbn[NIADDR];
 	ufs2_daddr_t oldblks[NDADDR + NIADDR], newblks[NDADDR + NIADDR];
 	ufs2_daddr_t count, blocksreleased = 0, datablocks;
-	void *cookie;
 	struct bufobj *bo;
 	struct fs *fs;
 	struct buf *bp;
 	struct ufsmount *ump;
-	int needextclean, softdepslowdown, extblocks;
+	int softdeptrunc, journaltrunc;
+	int needextclean, extblocks;
 	int offset, size, level, nblocks;
 	int i, error, allerror;
 	off_t osize;
@@ -165,7 +153,6 @@ ffs_truncate(vp, length, flags, cred, td)
 	fs = ip->i_fs;
 	ump = ip->i_ump;
 	bo = &vp->v_bufobj;
-	cookie = NULL;
 
 	ASSERT_VOP_LOCKED(vp, "ffs_truncate");
 
@@ -173,6 +160,11 @@ ffs_truncate(vp, length, flags, cred, td)
 		return (EINVAL);
 	if (length > fs->fs_maxfilesize)
 		return (EFBIG);
+#ifdef QUOTA
+	error = getinoquota(ip);
+	if (error)
+		return (error);
+#endif
 	/*
 	 * Historically clients did not have to specify which data
 	 * they were truncating. So, if not specified, we assume
@@ -191,7 +183,10 @@ ffs_truncate(vp, length, flags, cred, td)
 	 */
 	allerror = 0;
 	needextclean = 0;
-	softdepslowdown = DOINGSOFTDEP(vp) && softdep_slowdown(vp);
+	softdeptrunc = 0;
+	journaltrunc = DOINGSUJ(vp);
+	if (journaltrunc == 0 && DOINGSOFTDEP(vp) && length == 0)
+		softdeptrunc = !softdep_slowdown(vp);
 	extblocks = 0;
 	datablocks = DIP(ip, i_blocks);
 	if (fs->fs_magic == FS_UFS2_MAGIC && ip->i_din2->di_extsize > 0) {
@@ -199,27 +194,23 @@ ffs_truncate(vp, length, flags, cred, td)
 		datablocks -= extblocks;
 	}
 	if ((flags & IO_EXT) && extblocks > 0) {
-		if (DOINGSOFTDEP(vp) && softdepslowdown == 0 && length == 0) {
-			if ((flags & IO_NORMAL) == 0) {
-				softdep_setup_freeblocks(ip, length, IO_EXT);
-				return (0);
-			}
+		if (length != 0)
+			panic("ffs_truncate: partial trunc of extdata");
+		if (softdeptrunc || journaltrunc) {
+			if ((flags & IO_NORMAL) == 0)
+				goto extclean;
 			needextclean = 1;
 		} else {
-			if (length != 0)
-				panic("ffs_truncate: partial trunc of extdata");
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
 				return (error);
-			if (DOINGSUJ(vp))
-				cookie = softdep_setup_trunc(vp, length, flags);
-			osize = ip->i_din2->di_extsize;
-			ip->i_din2->di_blocks -= extblocks;
 #ifdef QUOTA
 			(void) chkdq(ip, -extblocks, NOCRED, 0);
 #endif
 			vinvalbuf(vp, V_ALT, 0, 0);
-			ffs_pages_remove(vp,
+			vn_pages_remove(vp,
 			    OFF_TO_IDX(lblktosize(fs, -extblocks)), 0);
+			osize = ip->i_din2->di_extsize;
+			ip->i_din2->di_blocks -= extblocks;
 			ip->i_din2->di_extsize = 0;
 			for (i = 0; i < NXADDR; i++) {
 				oldblks[i] = ip->i_din2->di_extb[i];
@@ -227,19 +218,18 @@ ffs_truncate(vp, length, flags, cred, td)
 			}
 			ip->i_flag |= IN_CHANGE;
 			if ((error = ffs_update(vp, 1)))
-				goto out;
+				return (error);
 			for (i = 0; i < NXADDR; i++) {
 				if (oldblks[i] == 0)
 					continue;
 				ffs_blkfree(ump, fs, ip->i_devvp, oldblks[i],
-				    sblksize(fs, osize, i), ip->i_number, NULL);
+				    sblksize(fs, osize, i), ip->i_number,
+				    vp->v_type, NULL);
 			}
 		}
 	}
-	if ((flags & IO_NORMAL) == 0) {
-		error = 0;
-		goto out;
-	}
+	if ((flags & IO_NORMAL) == 0)
+		return (0);
 	if (vp->v_type == VLNK &&
 	    (ip->i_size < vp->v_mount->mnt_maxsymlinklen ||
 	     datablocks == 0)) {
@@ -252,24 +242,17 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP_SET(ip, i_size, 0);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
-			softdep_setup_freeblocks(ip, length, IO_EXT);
-		error = ffs_update(vp, 1);
-		goto out;
+			goto extclean;
+		return ffs_update(vp, 1);
 	}
 	if (ip->i_size == length) {
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
 		if (needextclean)
-			softdep_setup_freeblocks(ip, length, IO_EXT);
-		error = ffs_update(vp, 0);
-		goto out;
+			goto extclean;
+		return ffs_update(vp, 0);
 	}
 	if (fs->fs_ronly)
 		panic("ffs_truncate: read-only filesystem");
-#ifdef QUOTA
-	error = getinoquota(ip);
-	if (error)
-		goto out;
-#endif
 	if ((ip->i_flags & SF_SNAPSHOT) != 0)
 		ffs_snapremove(vp);
 	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
@@ -285,7 +268,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
 		if (error) {
 			vnode_pager_setsize(vp, osize);
-			goto out;
+			return (error);
 		}
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
@@ -296,11 +279,10 @@ ffs_truncate(vp, length, flags, cred, td)
 		else
 			bawrite(bp);
 		ip->i_flag |= IN_CHANGE | IN_UPDATE;
-		error = ffs_update(vp, 1);
-		goto out;
+		return ffs_update(vp, 1);
 	}
 	if (DOINGSOFTDEP(vp)) {
-		if (length > 0 || softdepslowdown) {
+		if (softdeptrunc == 0 && journaltrunc == 0) {
 			/*
 			 * If a file is only partially truncated, then
 			 * we have to clean up the data structures
@@ -311,29 +293,20 @@ ffs_truncate(vp, length, flags, cred, td)
 			 * so that it will have no data structures left.
 			 */
 			if ((error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
-				goto out;
-			/*
-			 * We have to journal the truncation before we change
-			 * any blocks so we don't leave the file partially
-			 * truncated.
-			 */
-			if (DOINGSUJ(vp) && cookie == NULL)
-				cookie = softdep_setup_trunc(vp, length, flags);
+				return (error);
 		} else {
-#ifdef QUOTA
-			(void) chkdq(ip, -datablocks, NOCRED, 0);
-#endif
-			softdep_setup_freeblocks(ip, length, needextclean ?
-			    IO_EXT | IO_NORMAL : IO_NORMAL);
+			flags = IO_NORMAL | (needextclean ? IO_EXT: 0);
+			if (journaltrunc)
+				softdep_journal_freeblocks(ip, cred, length,
+				    flags);
+			else
+				softdep_setup_freeblocks(ip, length, flags);
 			ASSERT_VOP_LOCKED(vp, "ffs_truncate1");
-			vinvalbuf(vp, needextclean ? 0 : V_NORMAL, 0, 0);
-			if (!needextclean)
-				ffs_pages_remove(vp, 0,
-				    OFF_TO_IDX(lblktosize(fs, -extblocks)));
-			vnode_pager_setsize(vp, 0);
-			ip->i_flag |= IN_CHANGE | IN_UPDATE;
-			error = ffs_update(vp, 0);
-			goto out;
+			if (journaltrunc == 0) {
+				ip->i_flag |= IN_CHANGE | IN_UPDATE;
+				error = ffs_update(vp, 0);
+			}
+			return (error);
 		}
 	}
 	/*
@@ -353,7 +326,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		flags |= BA_CLRBUF;
 		error = UFS_BALLOC(vp, length - 1, 1, cred, flags, &bp);
 		if (error)
-			goto out;
+			return (error);
 		/*
 		 * When we are doing soft updates and the UFS_BALLOC
 		 * above fills in a direct block hole with a full sized
@@ -365,7 +338,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		if (DOINGSOFTDEP(vp) && lbn < NDADDR &&
 		    fragroundup(fs, blkoff(fs, length)) < fs->fs_bsize &&
 		    (error = ffs_syncvnode(vp, MNT_WAIT)) != 0)
-			goto out;
+			return (error);
 		ip->i_size = length;
 		DIP_SET(ip, i_size, length);
 		size = blksize(fs, ip, lbn);
@@ -411,13 +384,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			DIP_SET(ip, i_db[i], 0);
 	}
 	ip->i_flag |= IN_CHANGE | IN_UPDATE;
-	/*
-	 * When doing softupdate journaling we must preserve the size along
-	 * with the old pointers until they are freed or we might not
-	 * know how many fragments remain.
-	 */
-	if (!DOINGSUJ(vp))
-		allerror = ffs_update(vp, 1);
+	allerror = ffs_update(vp, 1);
 	
 	/*
 	 * Having written the new inode to disk, save its new configuration
@@ -457,7 +424,8 @@ ffs_truncate(vp, length, flags, cred, td)
 			if (lastiblock[level] < 0) {
 				DIP_SET(ip, i_ib[level], 0);
 				ffs_blkfree(ump, fs, ip->i_devvp, bn,
-				    fs->fs_bsize, ip->i_number, NULL);
+				    fs->fs_bsize, ip->i_number,
+				    vp->v_type, NULL);
 				blocksreleased += nblocks;
 			}
 		}
@@ -477,7 +445,7 @@ ffs_truncate(vp, length, flags, cred, td)
 		DIP_SET(ip, i_db[i], 0);
 		bsize = blksize(fs, ip, i);
 		ffs_blkfree(ump, fs, ip->i_devvp, bn, bsize, ip->i_number,
-		    NULL);
+		    vp->v_type, NULL);
 		blocksreleased += btodb(bsize);
 	}
 	if (lastblock < 0)
@@ -509,7 +477,7 @@ ffs_truncate(vp, length, flags, cred, td)
 			 */
 			bn += numfrags(fs, newspace);
 			ffs_blkfree(ump, fs, ip->i_devvp, bn,
-			    oldspace - newspace, ip->i_number, NULL);
+			   oldspace - newspace, ip->i_number, vp->v_type, NULL);
 			blocksreleased += btodb(oldspace - newspace);
 		}
 	}
@@ -541,14 +509,14 @@ done:
 #ifdef QUOTA
 	(void) chkdq(ip, -blocksreleased, NOCRED, 0);
 #endif
-	error = allerror;
-out:
-	if (cookie) {
-		allerror = softdep_complete_trunc(vp, cookie);
-		if (allerror != 0 && error == 0)
-			error = allerror;
-	}
-	return (error);
+	return (allerror);
+
+extclean:
+	if (journaltrunc)
+		softdep_journal_freeblocks(ip, cred, length, IO_EXT);
+	else
+		softdep_setup_freeblocks(ip, length, IO_EXT);
+	return ffs_update(vp, MNT_WAIT);
 }
 
 /*
@@ -656,7 +624,7 @@ ffs_indirtrunc(ip, lbn, dbn, lastbn, level, countp)
 			blocksreleased += blkcount;
 		}
 		ffs_blkfree(ip->i_ump, fs, ip->i_devvp, nb, fs->fs_bsize,
-		    ip->i_number, NULL);
+		    ip->i_number, vp->v_type, NULL);
 		blocksreleased += nblocks;
 	}
 

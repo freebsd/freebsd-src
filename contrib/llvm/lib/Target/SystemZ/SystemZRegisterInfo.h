@@ -15,7 +15,9 @@
 #define SystemZREGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "SystemZGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "SystemZGenRegisterInfo.inc"
 
 namespace llvm {
 
@@ -34,6 +36,10 @@ struct SystemZRegisterInfo : public SystemZGenRegisterInfo {
 
   BitVector getReservedRegs(const MachineFunction &MF) const;
 
+  const TargetRegisterClass*
+  getMatchingSuperRegClass(const TargetRegisterClass *A,
+                           const TargetRegisterClass *B, unsigned Idx) const;
+
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
@@ -42,14 +48,11 @@ struct SystemZRegisterInfo : public SystemZGenRegisterInfo {
                            int SPAdj, RegScavenger *RS = NULL) const;
 
   // Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
 
   // Exception handling queries.
   unsigned getEHExceptionRegister() const;
   unsigned getEHHandlerRegister() const;
-
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 };
 
 } // end namespace llvm

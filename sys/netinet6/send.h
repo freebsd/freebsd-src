@@ -33,7 +33,7 @@
 #define	SND_IN		1	/* Incoming traffic. */
 
 struct sockaddr_send {
-	unsigned char		send_len;	/* total length */
+	uint8_t			send_len;	/* total length */
 	sa_family_t		send_family;	/* address family */
 	int			send_direction;
 	int			send_ifidx;

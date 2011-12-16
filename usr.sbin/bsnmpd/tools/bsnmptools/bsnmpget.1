@@ -126,7 +126,7 @@ The options are as follows (not all apply to all three programs):
 .Bl -tag -width ".It Fl D Ar options"
 .It Fl A Ar options
 Authentication options to use with SNMPv3 PDUs
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm proto=[md5|sha]
 The protocol to use when calculating the PDU message digest.
 .It Cm key=authkey
@@ -147,7 +147,7 @@ The maximum allowed length is 65535 according to the Structure of Management
 Information (SMIv2).
 .It Fl C Ar options
 The context to query with SNMPv3 PDUs.
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm context=name
 The context name. Default is "" (empty).
 .It Cm context-engine=engine-id
@@ -172,19 +172,21 @@ Print a short help text with default values for various options.
 Load each MIB description file from the given list to translate symbolic
 object names to their numerical representation and vice versa.
 Use the other options to obtain a non-default behaviour:
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm cut=OID
 Specifies the initial OID that was cut by
 .Xr gensnmpdef 1
 when producing the MIB description file.
 The default value is .iso(1).org(3).dod(6) which is what should have been
-used for all the files installed under /usr/share/snmp/defs/ .
-Use this only if you generated your own files, providing a '-c' option to
+used for all the files installed under /usr/share/snmp/defs.
+Use this only if you generated your own files, providing a
+.Fl c
+option to
 .Xr gensnmpdef 1 .
 .It Cm path=filedir
 The directory where files in the list will be searched.
 The default is
-.Pa /usr/share/snmp/defs/ .
+.Pa /usr/share/snmp/defs Ns .
 .It Cm file=filelist
 A comma separated list of files to which the two options above will apply.
 .El
@@ -206,7 +208,7 @@ will search to translate numerical OIDs to their symbolic object names.
 Multiple files can be provided either giving this option multiple times
 or a comma separated list of file names.
 If a filename begins with a letter the default directory,
-/usr/share/snmp/defs/ ,
+/usr/share/snmp/defs,
 will be searched.
 .It Fl K
 Calculate and display the localized authentication and privacy keys
@@ -239,7 +241,7 @@ representation and the value.
 In addition to the short output verbose prints the type before the value.
 .It Fl P Ar options
 Privacy options to use with SNMPv3 PDUs
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm proto=[aes|des]
 The protocol to use when encypting/decrypting SNMPv3 PDU data.
 .It Cm key=privkey
@@ -257,9 +259,11 @@ not respond after the first try.
 Default is 3.
 .It Fl s Ar [trans::] Ns Ar [community@] Ns Ar [server] Ns Ar [:port]
 Each of the server specification components is optional but at least one
-has to be provided if '-s' option is used.
+has to be provided if
+.Ar s
+option is used.
 The server specification is constructed in the following manner:
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm trans::
 Transport type may be one of udp, stream or dgram.
 If this option is not provided an udp inet/inet6 socket will be used, which
@@ -277,11 +281,16 @@ and the default "private" community string will be used for
 .It Cm server
 This might be either the IP address or the hostname where the agent is
 listening.
-The default is 'localhost'.
+The default is
+.Qq localhost .
 .It Cm port
 The destination port to send the requests to.
 This is useful if the SNMP agent listens on a non-default port.
-Default is given by the 'snmp' entry in /etc/services, port 161.
+Default is given by the
+.Qq snmp
+entry in
+.Pa /etc/services ,
+port 161.
 .El
 .It Fl t Ar timeout
 Number of seconds before resending a request packet if the agent does
@@ -289,7 +298,7 @@ not respond.
 The default value is 3 seconds.
 .It Fl U Ar options
 User credentials when sending SNMPv3 PDUs.
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm engine=id
 The Engine ID of the SNMP agent represented as a binary octet string.
 .It Cm engine-boots=value
@@ -331,14 +340,16 @@ at .iso(1).org(3).dod(6).internet(1).mgmt(2).mib2(1) .
 .Pp
 Any of the formats used to print a single variable
 is valid as input OID:
-.Bl -tag -width
+.Bl -tag -width \&
 .It 1.3.6.1.2.1.25.1.1.0
 .It sysDescr
 .It ifPhysAddress.1
 .It ifRcvAddressStatus.2.6.255.255.255.255.255.255
 .It ifRcvAddressType[2,ff:ff:ff:ff:ff:ff]
 .It ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]
-(requires '-o verbose' option)
+(requires
+.Fl o Ar verbose
+option)
 .El
 .Pp
 Square brackets are used to denote an entry's indexes.
@@ -350,33 +361,38 @@ The object identifier with its syntax type and value that is to be set.
 At least one such string OID=[syntax:]value should be provided to
 .Nm bsnmpset
 to be able to send a request.
-.Bl -tag -width
+.Bl -tag -width \&
 .It Cm OID
 OID may be input as a string, a string followed by a random number of integers
 (suboids) separated by dots, a sequence of integers separated by dots - that is
-if '-n' options is used - and in such case a syntax is required for every value,
+if
+.Ar n
+options is used - and in such case a syntax is required for every value,
 or a string followed by square brackets (used to denote an entry's indexes) and
 corresponding indexes.
 Any of formats used to print a single variable by
 .Nm bsnmpset is
 valid for inpit OID as well:
-.Bl -tag -width
+.Bl -tag -width \&
 .It 1.3.6.1.2.1.25.1.1.0=TimeTicks:537615486
-.It sysLocation=OctetString:"@ Home" (with '-o verbose' option)
+.It sysLocation=OctetString:"@ Home" (with Fl o Ar verbose No option)
 .It sysLocation.0="@ Home"
 .It 1.3.6.1.2.1.2.2.1.6.1=OctetString:ffffffffffff
 .It ifPhysAddress.1="00:02:b3:1d:1c:a3"
 .It ifRcvAddressStatus.1.6.255.255.255.255.255.255=1
 .It "ifRcvAddressStatus[Integer:1,OctetString:ff:ff:ff:ff:ff:ff]=Integer:1"
-(with '-o verbose' option)
+(with
+.Fl o Ar verbose
+option)
 .El
 .It Cm syntax
-where syntax string is one of :
+where syntax string is one of:
 Integer, OctetString, OID, IpAddress, Counter32, Gauge, TimeTicks, Counter64.
 .It Cm value
-The value to be set - IP address in form of u.u.u.u  - for example
+The value to be set - IP address in form of u.u.u.u - for example
 1.3.1.6.1.2.0=IpAddress:192.168.0.1, strings require inverted-commas if they
 contain any special characters or spaces, all other numeric types don't.
+.El
 .El
 .Sh ENVIRONMENT
 .Nm ,
@@ -395,6 +411,7 @@ Specifies a default SNMP USM user name.
 Specifies the SNMP USM plain text password to use when calculating localized
 authentication and privacy keys. If this variable exists in the environment,
 SMNPv3 is the default version to use for outgoing requests.
+.El
 .Sh SEE ALSO
 .Xr gensnmpdef 1
 .Sh AUTHORS

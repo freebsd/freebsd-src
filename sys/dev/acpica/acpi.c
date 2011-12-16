@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
 
 #include <vm/vm_param.h>
 
-MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
+static MALLOC_DEFINE(M_ACPIDEV, "acpidev", "ACPI devices");
 
 /* Hooks for the ACPI CA debugging infrastructure */
 #define _COMPONENT	ACPI_BUS
@@ -123,6 +123,8 @@ static int	acpi_set_resource(device_t dev, device_t child, int type,
 static struct resource *acpi_alloc_resource(device_t bus, device_t child,
 			int type, int *rid, u_long start, u_long end,
 			u_long count, u_int flags);
+static int	acpi_adjust_resource(device_t bus, device_t child, int type,
+			struct resource *r, u_long start, u_long end);
 static int	acpi_release_resource(device_t bus, device_t child, int type,
 			int rid, struct resource *r);
 static void	acpi_delete_resource(device_t bus, device_t child, int type,
@@ -149,6 +151,7 @@ static ACPI_STATUS acpi_sleep_disable(struct acpi_softc *sc);
 static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
+static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_prep_walk(int sstate);
@@ -193,6 +196,7 @@ static device_method_t acpi_methods[] = {
     DEVMETHOD(bus_set_resource,		acpi_set_resource),
     DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
     DEVMETHOD(bus_alloc_resource,	acpi_alloc_resource),
+    DEVMETHOD(bus_adjust_resource,	acpi_adjust_resource),
     DEVMETHOD(bus_release_resource,	acpi_release_resource),
     DEVMETHOD(bus_delete_resource,	acpi_delete_resource),
     DEVMETHOD(bus_child_pnpinfo_str,	acpi_child_pnpinfo_str_method),
@@ -570,7 +574,7 @@ acpi_attach(device_t dev)
 	&sc->acpi_suspend_sx, 0, acpi_sleep_state_sysctl, "A", "");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "sleep_delay", CTLFLAG_RW, &sc->acpi_sleep_delay, 0,
-	"sleep delay");
+	"sleep delay in seconds");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
 	OID_AUTO, "s4bios", CTLFLAG_RW, &sc->acpi_s4bios, 0, "S4BIOS mode");
     SYSCTL_ADD_INT(&sc->acpi_sysctl_ctx, SYSCTL_CHILDREN(sc->acpi_sysctl_tree),
@@ -1234,13 +1238,12 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     struct resource_list_entry *rle;
     struct resource_list *rl;
     struct resource *res;
-    struct rman *rm;
     int isdefault = (start == 0UL && end == ~0UL);
 
     /*
      * First attempt at allocating the resource.  For direct children,
      * use resource_list_alloc() to handle reserved resources.  For
-     * other dveices, pass the request up to our parent.
+     * other devices, pass the request up to our parent.
      */
     if (bus == device_get_parent(child)) {
 	ad = device_get_ivars(child);
@@ -1287,15 +1290,29 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
     } else
 	res = BUS_ALLOC_RESOURCE(device_get_parent(bus), child, type, rid,
 	    start, end, count, flags);
-    if (res != NULL || start + count - 1 != end)
-	return (res);
 
     /*
      * If the first attempt failed and this is an allocation of a
      * specific range, try to satisfy the request via a suballocation
-     * from our system resource regions.  Note that we only handle
-     * memory and I/O port system resources.
+     * from our system resource regions.
      */
+    if (res == NULL && start + count - 1 == end)
+	res = acpi_alloc_sysres(child, type, rid, start, end, count, flags);
+    return (res);
+}
+
+/*
+ * Attempt to allocate a specific resource range from the system
+ * resource ranges.  Note that we only handle memory and I/O port
+ * system resources.
+ */
+struct resource *
+acpi_alloc_sysres(device_t child, int type, int *rid, u_long start, u_long end,
+    u_long count, u_int flags)
+{
+    struct rman *rm;
+    struct resource *res;
+
     switch (type) {
     case SYS_RES_IOPORT:
 	rm = &acpi_rman_io;
@@ -1307,6 +1324,7 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 	return (NULL);
     }
 
+    KASSERT(start + count - 1 == end, ("wildcard resource range"));
     res = rman_reserve_resource(rm, start, end, count, flags & ~RF_ACTIVE,
 	child);
     if (res == NULL)
@@ -1325,29 +1343,40 @@ acpi_alloc_resource(device_t bus, device_t child, int type, int *rid,
 }
 
 static int
-acpi_release_resource(device_t bus, device_t child, int type, int rid,
-    struct resource *r)
+acpi_is_resource_managed(int type, struct resource *r)
 {
-    struct rman *rm;
-    int ret;
 
     /* We only handle memory and IO resources through rman. */
     switch (type) {
     case SYS_RES_IOPORT:
-	rm = &acpi_rman_io;
-	break;
+	return (rman_is_region_manager(r, &acpi_rman_io));
     case SYS_RES_MEMORY:
-	rm = &acpi_rman_mem;
-	break;
-    default:
-	rm = NULL;
+	return (rman_is_region_manager(r, &acpi_rman_mem));
     }
+    return (0);
+}
+
+static int
+acpi_adjust_resource(device_t bus, device_t child, int type, struct resource *r,
+    u_long start, u_long end)
+{
+
+    if (acpi_is_resource_managed(type, r))
+	return (rman_adjust_resource(r, start, end));
+    return (bus_generic_adjust_resource(bus, child, type, r, start, end));
+}
+
+static int
+acpi_release_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *r)
+{
+    int ret;
 
     /*
      * If this resource belongs to one of our internal managers,
      * deactivate it and release it to the local pool.
      */
-    if (rm != NULL && rman_is_region_manager(r, rm)) {
+    if (acpi_is_resource_managed(type, r)) {
 	if (rman_get_flags(r) & RF_ACTIVE) {
 	    ret = bus_deactivate_resource(child, type, rid, r);
 	    if (ret != 0)
@@ -1841,6 +1870,13 @@ acpi_probe_child(ACPI_HANDLE handle, UINT32 level, void *context, void **status)
 		break;
 	    if (acpi_parse_prw(handle, &prw) == 0)
 		AcpiSetupGpeForWake(handle, prw.gpe_handle, prw.gpe_bit);
+
+	    /*
+	     * Ignore devices that do not have a _HID or _CID.  They should
+	     * be discovered by other buses (e.g. the PCI bus driver).
+	     */
+	    if (!acpi_has_hid(handle))
+		break;
 	    /* FALLTHROUGH */
 	case ACPI_TYPE_PROCESSOR:
 	case ACPI_TYPE_THERMAL:
@@ -2029,6 +2065,30 @@ acpi_BatteryIsPresent(device_t dev)
 }
 
 /*
+ * Returns true if a device has at least one valid device ID.
+ */
+static BOOLEAN
+acpi_has_hid(ACPI_HANDLE h)
+{
+    ACPI_DEVICE_INFO	*devinfo;
+    BOOLEAN		ret;
+
+    if (h == NULL ||
+	ACPI_FAILURE(AcpiGetObjectInfo(h, &devinfo)))
+	return (FALSE);
+
+    ret = FALSE;
+    if ((devinfo->Valid & ACPI_VALID_HID) != 0)
+	ret = TRUE;
+    else if ((devinfo->Valid & ACPI_VALID_CID) != 0)
+	if (devinfo->CompatibleIdList.Count > 0)
+	    ret = TRUE;
+
+    AcpiOsFree(devinfo);
+    return (ret);
+}
+
+/*
  * Match a HID string against a handle
  */
 BOOLEAN
@@ -2082,21 +2142,6 @@ acpi_GetHandleInScope(ACPI_HANDLE parent, char *path, ACPI_HANDLE *result)
 	    return (AE_NOT_FOUND);
 	parent = r;
     }
-}
-
-/* Find the difference between two PM tick counts. */
-uint32_t
-acpi_TimerDelta(uint32_t end, uint32_t start)
-{
-    uint32_t delta;
-
-    if (end >= start)
-	delta = end - start;
-    else if (AcpiGbl_FADT.Flags & ACPI_FADT_32BIT_TIMER)
-	delta = ((0xFFFFFFFF - start) + end + 1);
-    else
-	delta = ((0x00FFFFFF - start) + end + 1) & 0x00FFFFFF;
-    return (delta);
 }
 
 /*
@@ -2609,6 +2654,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	return_ACPI_STATUS (AE_OK);
     }
 
+    EVENTHANDLER_INVOKE(power_suspend);
+
     if (smp_started) {
 	thread_lock(curthread);
 	sched_bind(curthread, 0);
@@ -2699,6 +2746,8 @@ backout:
 	sched_unbind(curthread);
 	thread_unlock(curthread);
     }
+
+    EVENTHANDLER_INVOKE(power_resume);
 
     /* Allow another sleep request after a while. */
     timeout(acpi_sleep_enable, sc, hz * ACPI_MINIMUM_AWAKETIME);

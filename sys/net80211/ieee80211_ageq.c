@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 void
 ieee80211_ageq_init(struct ieee80211_ageq *aq, int maxlen, const char *name)
 {
-	memset(aq, 0, sizeof(aq));
+	memset(aq, 0, sizeof(*aq));
 	aq->aq_maxlen = maxlen;
 	IEEE80211_AGEQ_INIT(aq, name);		/* OS-dependent setup */
 }

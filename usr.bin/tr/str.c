@@ -57,8 +57,7 @@ static int      genrange(STR *, int);
 static void	genseq(STR *);
 
 wint_t
-next(s)
-	STR *s;
+next(STR *s)
 {
 	int is_octal;
 	wint_t ch;
@@ -135,8 +134,7 @@ next(s)
 }
 
 static int
-bracket(s)
-	STR *s;
+bracket(STR *s)
 {
 	char *p;
 
@@ -173,8 +171,7 @@ bracket(s)
 }
 
 static void
-genclass(s)
-	STR *s;
+genclass(STR *s)
 {
 
 	if ((s->cclass = wctype(s->str)) == 0)
@@ -190,8 +187,7 @@ genclass(s)
 }
 
 static void
-genequiv(s)
-	STR *s;
+genequiv(STR *s)
 {
 	int i, p, pri;
 	char src[2], dst[3];
@@ -295,8 +291,7 @@ genrange(STR *s, int was_octal)
 }
 
 static void
-genseq(s)
-	STR *s;
+genseq(STR *s)
 {
 	char *ep;
 	wchar_t wc;

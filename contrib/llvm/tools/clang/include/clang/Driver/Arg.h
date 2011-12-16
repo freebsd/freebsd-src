@@ -13,7 +13,6 @@
 #include "Util.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
-#include <vector>
 #include <string>
 
 namespace clang {
@@ -52,7 +51,7 @@ namespace driver {
     mutable unsigned OwnsValues : 1;
 
     /// The argument values, as C strings.
-    llvm::SmallVector<const char *, 2> Values;
+    SmallVector<const char *, 2> Values;
 
   public:
     Arg(const Option *Opt, unsigned Index, const Arg *BaseArg = 0);
@@ -88,11 +87,11 @@ namespace driver {
       return Values[N];
     }
 
-    llvm::SmallVectorImpl<const char*> &getValues() {
+    SmallVectorImpl<const char*> &getValues() {
       return Values;
     }
 
-    bool containsValue(llvm::StringRef Value) const {
+    bool containsValue(StringRef Value) const {
       for (unsigned i = 0, e = getNumValues(); i != e; ++i)
         if (Values[i] == Value)
           return true;

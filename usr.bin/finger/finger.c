@@ -164,11 +164,15 @@ main(int argc, char **argv)
 	if (getuid() == 0 || geteuid() == 0) {
 		invoker_root = 1;
 		if ((pw = getpwnam(UNPRIV_NAME)) && pw->pw_uid > 0) {
-			 setgid(pw->pw_gid);
-			 setuid(pw->pw_uid);
+			if (setgid(pw->pw_gid) != 0)
+				err(1, "setgid()");
+			if (setuid(pw->pw_uid) != 0)
+				err(1, "setuid()");
 		} else {
-			 setgid(UNPRIV_UGID);
-			 setuid(UNPRIV_UGID);
+			if (setgid(UNPRIV_UGID) != 0)
+				err(1, "setgid()");
+			if (setuid(UNPRIV_UGID) != 0)
+				err(1, "setuid()");
 		}
 	}
 

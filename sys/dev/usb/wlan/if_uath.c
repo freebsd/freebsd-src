@@ -111,7 +111,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_uathreg.h>
 #include <dev/usb/wlan/if_uathvar.h>
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uath, CTLFLAG_RW, 0, "USB Atheros");
 
 static	int uath_countrycode = CTRY_DEFAULT;	/* country code */
 SYSCTL_INT(_hw_usb_uath, OID_AUTO, countrycode, CTLFLAG_RW, &uath_countrycode,
@@ -167,9 +167,8 @@ enum {
 	  (((u_int8_t *)(p))[2] << 16) | (((u_int8_t *)(p))[3] << 24)))
 
 /* recognized device vendors/products */
-static const struct usb_device_id uath_devs[] = {
+static const STRUCT_USB_HOST_ID uath_devs[] = {
 #define	UATH_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
-	UATH_DEV(ACCTON,		SMCWUSBG),
 	UATH_DEV(ACCTON,		SMCWUSBTG2),
 	UATH_DEV(ATHEROS,		AR5523),
 	UATH_DEV(ATHEROS2,		AR5523_1),
@@ -711,12 +710,12 @@ uath_cmdsend(struct uath_softc *sc, uint32_t code, const void *idata, int ilen,
 	cmd->buflen = roundup2(sizeof(struct uath_cmd_hdr) + ilen, 4);
 
 	hdr = (struct uath_cmd_hdr *)cmd->buf;
-	bzero(hdr, sizeof (struct uath_cmd_hdr));	/* XXX not needed */
+	memset(hdr, 0, sizeof(struct uath_cmd_hdr));
 	hdr->len   = htobe32(cmd->buflen);
 	hdr->code  = htobe32(code);
 	hdr->msgid = cmd->msgid;	/* don't care about endianness */
 	hdr->magic = htobe32((cmd->flags & UATH_CMD_FLAG_MAGIC) ? 1 << 24 : 0);
-	bcopy(idata, (uint8_t *)(hdr + 1), ilen);
+	memcpy((uint8_t *)(hdr + 1), idata, ilen);
 
 #ifdef UATH_DEBUG
 	if (sc->sc_debug & UATH_DEBUG_CMDS) {
@@ -1404,7 +1403,7 @@ uath_dataflush(struct uath_softc *sc)
 	chunk->flags = UATH_CFLAGS_FINAL;
 	chunk->length = htobe16(sizeof (struct uath_tx_desc));
 
-	bzero(desc, sizeof(struct uath_tx_desc));
+	memset(desc, 0, sizeof(struct uath_tx_desc));
 	desc->msglen = htobe32(sizeof(struct uath_tx_desc));
 	desc->msgid  = (sc->sc_msgid++) + 1; /* don't care about endianness */
 	desc->type   = htobe32(WDCMSG_FLUSH);
@@ -1483,7 +1482,7 @@ uath_set_chan(struct uath_softc *sc, struct ieee80211_channel *c)
 #endif
 	struct uath_cmd_reset reset;
 
-	bzero(&reset, sizeof reset);
+	memset(&reset, 0, sizeof(reset));
 	if (IEEE80211_IS_CHAN_2GHZ(c))
 		reset.flags |= htobe32(UATH_CHAN_2GHZ);
 	if (IEEE80211_IS_CHAN_5GHZ(c))
@@ -1972,7 +1971,7 @@ uath_create_connection(struct uath_softc *sc, uint32_t connid)
 	struct uath_cmd_create_connection create;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
-	bzero(&create, sizeof create);
+	memset(&create, 0, sizeof(create));
 	create.connid = htobe32(connid);
 	create.bssid = htobe32(0);
 	/* XXX packed or not?  */
@@ -2001,7 +2000,7 @@ uath_set_rates(struct uath_softc *sc, const struct ieee80211_rateset *rs)
 {
 	struct uath_cmd_rates rates;
 
-	bzero(&rates, sizeof rates);
+	memset(&rates, 0, sizeof(rates));
 	rates.connid = htobe32(UATH_ID_BSS);		/* XXX */
 	rates.size   = htobe32(sizeof(struct uath_cmd_rateset));
 	/* XXX bounds check rs->rs_nrates */
@@ -2023,7 +2022,7 @@ uath_write_associd(struct uath_softc *sc)
 	struct uath_cmd_set_associd associd;
 
 	ni = ieee80211_ref_node(vap->iv_bss);
-	bzero(&associd, sizeof associd);
+	memset(&associd, 0, sizeof(associd));
 	associd.defaultrateix = htobe32(1);	/* XXX */
 	associd.associd = htobe32(ni->ni_associd);
 	associd.timoffset = htobe32(0x3b);	/* XXX */
@@ -2169,7 +2168,7 @@ uath_set_key(struct uath_softc *sc, const struct ieee80211_key *wk,
 	struct uath_cmd_crypto crypto;
 	int i;
 
-	bzero(&crypto, sizeof crypto);
+	memset(&crypto, 0, sizeof(crypto));
 	crypto.keyidx = htobe32(index);
 	crypto.magic1 = htobe32(1);
 	crypto.size   = htobe32(368);
@@ -2177,7 +2176,7 @@ uath_set_key(struct uath_softc *sc, const struct ieee80211_key *wk,
 	crypto.flags  = htobe32(0x80000068);
 	if (index != UATH_DEFAULT_KEY)
 		crypto.flags |= htobe32(index << 16);
-	memset(crypto.magic2, 0xff, sizeof crypto.magic2);
+	memset(crypto.magic2, 0xff, sizeof(crypto.magic2));
 
 	/*
 	 * Each byte of the key must be XOR'ed with 10101010 before being

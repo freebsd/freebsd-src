@@ -209,7 +209,7 @@ pnp_get_resource_info(u_char *buffer, int len)
 		for (j = 0; j < 100; j++) {
 			if ((inb((pnp_rd_port << 2) | 0x3)) & 0x1)
 				break;
-			DELAY(1);
+			DELAY(10);
 		}
 		if (j == 100) {
 			printf("PnP device failed to report resource data\n");
@@ -743,10 +743,10 @@ pnp_isolation_protocol(device_t parent)
 					printf("A Normal-ISA-PnP card (%s).\n",
 					    pnp_eisaformat(id.vendor_id));
 			}
+#endif
 			if (bootverbose)
 				printf("Reading PnP configuration for %s.\n",
 				    pnp_eisaformat(id.vendor_id));
-#endif
 			error = pnp_read_resources(&resources, &space, &len);
 			if (error)
 				break;

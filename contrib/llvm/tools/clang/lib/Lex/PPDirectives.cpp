@@ -17,6 +17,7 @@
 #include "clang/Lex/MacroInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "clang/Lex/CodeCompletionHandler.h"
+#include "clang/Lex/ModuleLoader.h"
 #include "clang/Lex/Pragma.h"
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
@@ -81,17 +82,17 @@ void Preprocessor::ReleaseMacroInfo(MacroInfo *MI) {
 }
 
 /// DiscardUntilEndOfDirective - Read and discard all tokens remaining on the
-/// current line until the tok::eom token is found.
+/// current line until the tok::eod token is found.
 void Preprocessor::DiscardUntilEndOfDirective() {
   Token Tmp;
   do {
     LexUnexpandedToken(Tmp);
     assert(Tmp.isNot(tok::eof) && "EOF seen while discarding directive tokens");
-  } while (Tmp.isNot(tok::eom));
+  } while (Tmp.isNot(tok::eod));
 }
 
 /// ReadMacroName - Lex and validate a macro name, which occurs after a
-/// #define or #undef.  This sets the token kind to eom and discards the rest
+/// #define or #undef.  This sets the token kind to eod and discards the rest
 /// of the macro line if the macro name is invalid.  isDefineUndef is 1 if
 /// this is due to a a #define, 2 if #undef directive, 0 if it is something
 /// else (e.g. #ifdef).
@@ -102,12 +103,12 @@ void Preprocessor::ReadMacroName(Token &MacroNameTok, char isDefineUndef) {
   if (MacroNameTok.is(tok::code_completion)) {
     if (CodeComplete)
       CodeComplete->CodeCompleteMacroName(isDefineUndef == 1);
+    setCodeCompletionReached();
     LexUnexpandedToken(MacroNameTok);
-    return;
   }
   
   // Missing macro name?
-  if (MacroNameTok.is(tok::eom)) {
+  if (MacroNameTok.is(tok::eod)) {
     Diag(MacroNameTok, diag::err_pp_missing_macro_name);
     return;
   }
@@ -143,13 +144,13 @@ void Preprocessor::ReadMacroName(Token &MacroNameTok, char isDefineUndef) {
   }
 
   // Invalid macro name, read and discard the rest of the line.  Then set the
-  // token kind to tok::eom.
-  MacroNameTok.setKind(tok::eom);
+  // token kind to tok::eod.
+  MacroNameTok.setKind(tok::eod);
   return DiscardUntilEndOfDirective();
 }
 
-/// CheckEndOfDirective - Ensure that the next token is a tok::eom token.  If
-/// not, emit a diagnostic and consume up until the eom.  If EnableMacros is
+/// CheckEndOfDirective - Ensure that the next token is a tok::eod token.  If
+/// not, emit a diagnostic and consume up until the eod.  If EnableMacros is
 /// true, then we consider macros that expand to zero tokens as being ok.
 void Preprocessor::CheckEndOfDirective(const char *DirType, bool EnableMacros) {
   Token Tmp;
@@ -166,7 +167,7 @@ void Preprocessor::CheckEndOfDirective(const char *DirType, bool EnableMacros) {
   while (Tmp.is(tok::comment))  // Skip comments in -C mode.
     LexUnexpandedToken(Tmp);
 
-  if (Tmp.isNot(tok::eom)) {
+  if (Tmp.isNot(tok::eod)) {
     // Add a fixit in GNU/C99/C++ mode.  Don't offer a fixit for strict-C89,
     // or if this is a macro-style preprocessing directive, because it is more
     // trouble than it is worth to insert /**/ and check that there is no /**/
@@ -192,7 +193,8 @@ void Preprocessor::CheckEndOfDirective(const char *DirType, bool EnableMacros) {
 /// the first valid token.
 void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
                                                 bool FoundNonSkipPortion,
-                                                bool FoundElse) {
+                                                bool FoundElse,
+                                                SourceLocation ElseLoc) {
   ++NumSkipped;
   assert(CurTokenLexer == 0 && CurPPLexer && "Lexing a macro, not a file?");
 
@@ -214,6 +216,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
     if (Tok.is(tok::code_completion)) {
       if (CodeComplete)
         CodeComplete->CodeCompleteInConditionalExclusion();
+      setCodeCompletionReached();
       continue;
     }
     
@@ -222,7 +225,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
       // Emit errors for each unterminated conditional on the stack, including
       // the current one.
       while (!CurPPLexer->ConditionalStack.empty()) {
-        if (!isCodeCompletionFile(Tok.getLocation()))
+        if (CurLexer->getFileLoc() != CodeCompletionFileLoc)
           Diag(CurPPLexer->ConditionalStack.back().IfLoc,
                diag::err_pp_unterminated_conditional);
         CurPPLexer->ConditionalStack.pop_back();
@@ -238,7 +241,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
 
     // We just parsed a # character at the start of a line, so we're in
     // directive mode.  Tell the lexer this so any newlines we see will be
-    // converted into an EOM token (this terminates the macro).
+    // converted into an EOD token (this terminates the macro).
     CurPPLexer->ParsingPreprocessorDirective = true;
     if (CurLexer) CurLexer->SetCommentRetentionState(false);
 
@@ -275,9 +278,9 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
     // that we can't use Tok.getIdentifierInfo() because its lookup is disabled
     // when skipping.
     char DirectiveBuf[20];
-    llvm::StringRef Directive;
+    StringRef Directive;
     if (!Tok.needsCleaning() && Tok.getLength() < 20) {
-      Directive = llvm::StringRef(RawCharData, Tok.getLength());
+      Directive = StringRef(RawCharData, Tok.getLength());
     } else {
       std::string DirectiveStr = getSpelling(Tok);
       unsigned IdLen = DirectiveStr.size();
@@ -288,11 +291,11 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
         continue;
       }
       memcpy(DirectiveBuf, &DirectiveStr[0], IdLen);
-      Directive = llvm::StringRef(DirectiveBuf, IdLen);
+      Directive = StringRef(DirectiveBuf, IdLen);
     }
 
     if (Directive.startswith("if")) {
-      llvm::StringRef Sub = Directive.substr(2);
+      StringRef Sub = Directive.substr(2);
       if (Sub.empty() ||   // "if"
           Sub == "def" ||   // "ifdef"
           Sub == "ndef") {  // "ifndef"
@@ -307,7 +310,7 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
           Callbacks->Endif();
       }
     } else if (Directive[0] == 'e') {
-      llvm::StringRef Sub = Directive.substr(1);
+      StringRef Sub = Directive.substr(1);
       if (Sub == "ndif") {  // "endif"
         CheckEndOfDirective("endif");
         PPConditionalInfo CondInfo;
@@ -323,7 +326,6 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
         // #else directive in a skipping conditional.  If not in some other
         // skipping conditional, and if #else hasn't already been seen, enter it
         // as a non-skipping conditional.
-        DiscardUntilEndOfDirective();  // C99 6.10p4.
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
 
         // If this is a #else with a #else before it, report the error.
@@ -339,7 +341,10 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
         // entered, enter the #else block now.
         if (!CondInfo.WasSkipping && !CondInfo.FoundNonSkip) {
           CondInfo.FoundNonSkip = true;
+          CheckEndOfDirective("else");
           break;
+        } else {
+          DiscardUntilEndOfDirective();  // C99 6.10p4.
         }
       } else if (Sub == "lif") {  // "elif".
         PPConditionalInfo &CondInfo = CurPPLexer->peekConditionalLevel();
@@ -385,6 +390,11 @@ void Preprocessor::SkipExcludedConditionalBlock(SourceLocation IfTokenLoc,
   // of the file, just stop skipping and return to lexing whatever came after
   // the #if block.
   CurPPLexer->LexingRawMode = false;
+
+  if (Callbacks) {
+    SourceLocation BeginLoc = ElseLoc.isValid() ? ElseLoc : IfTokenLoc;
+    Callbacks->SourceRangeSkipped(SourceRange(BeginLoc, Tok.getLocation()));
+  }
 }
 
 void Preprocessor::PTHSkipExcludedConditionalBlock() {
@@ -425,7 +435,7 @@ void Preprocessor::PTHSkipExcludedConditionalBlock() {
       if (!CondInfo.FoundNonSkip) {
         CondInfo.FoundNonSkip = true;
 
-        // Scan until the eom token.
+        // Scan until the eod token.
         CurPTHLexer->ParsingPreprocessorDirective = true;
         DiscardUntilEndOfDirective();
         CurPTHLexer->ParsingPreprocessorDirective = false;
@@ -469,10 +479,14 @@ void Preprocessor::PTHSkipExcludedConditionalBlock() {
 /// LookupFile - Given a "foo" or <foo> reference, look up the indicated file,
 /// return null on failure.  isAngled indicates whether the file reference is
 /// for system #include's or not (i.e. using <> instead of "").
-const FileEntry *Preprocessor::LookupFile(llvm::StringRef Filename,
-                                          bool isAngled,
-                                          const DirectoryLookup *FromDir,
-                                          const DirectoryLookup *&CurDir) {
+const FileEntry *Preprocessor::LookupFile(
+    StringRef Filename,
+    bool isAngled,
+    const DirectoryLookup *FromDir,
+    const DirectoryLookup *&CurDir,
+    SmallVectorImpl<char> *SearchPath,
+    SmallVectorImpl<char> *RelativePath,
+    StringRef *SuggestedModule) {
   // If the header lookup mechanism may be relative to the current file, pass in
   // info about where the current file is.
   const FileEntry *CurFileEnt = 0;
@@ -494,16 +508,19 @@ const FileEntry *Preprocessor::LookupFile(llvm::StringRef Filename,
 
   // Do a standard file entry lookup.
   CurDir = CurDirLookup;
-  const FileEntry *FE =
-    HeaderInfo.LookupFile(Filename, isAngled, FromDir, CurDir, CurFileEnt);
+  const FileEntry *FE = HeaderInfo.LookupFile(
+      Filename, isAngled, FromDir, CurDir, CurFileEnt,
+      SearchPath, RelativePath, SuggestedModule);
   if (FE) return FE;
 
   // Otherwise, see if this is a subframework header.  If so, this is relative
   // to one of the headers on the #include stack.  Walk the list of the current
   // headers on the #include stack and pass them to HeaderInfo.
+  // FIXME: SuggestedModule!
   if (IsFileLexer()) {
     if ((CurFileEnt = SourceMgr.getFileEntryForID(CurPPLexer->getFileID())))
-      if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
+      if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt,
+                                                    SearchPath, RelativePath)))
         return FE;
   }
 
@@ -512,7 +529,8 @@ const FileEntry *Preprocessor::LookupFile(llvm::StringRef Filename,
     if (IsFileLexer(ISEntry)) {
       if ((CurFileEnt =
            SourceMgr.getFileEntryForID(ISEntry.ThePPLexer->getFileID())))
-        if ((FE = HeaderInfo.LookupSubframeworkHeader(Filename, CurFileEnt)))
+        if ((FE = HeaderInfo.LookupSubframeworkHeader(
+                Filename, CurFileEnt, SearchPath, RelativePath)))
           return FE;
     }
   }
@@ -535,7 +553,7 @@ void Preprocessor::HandleDirective(Token &Result) {
 
   // We just parsed a # character at the start of a line, so we're in directive
   // mode.  Tell the lexer this so any newlines we see will be converted into an
-  // EOM token (which terminates the directive).
+  // EOD token (which terminates the directive).
   CurPPLexer->ParsingPreprocessorDirective = true;
 
   ++NumDirectives;
@@ -563,7 +581,7 @@ void Preprocessor::HandleDirective(Token &Result) {
 
 TryAgain:
   switch (Result.getKind()) {
-  case tok::eom:
+  case tok::eod:
     return;   // null directive.
   case tok::comment:
     // Handle stuff like "# /*foo*/ define X" in -E -C mode.
@@ -573,6 +591,7 @@ TryAgain:
     if (CodeComplete)
       CodeComplete->CodeCompleteDirective(
                                     CurPPLexer->getConditionalStackDepth() > 0);
+    setCodeCompletionReached();
     return;
   case tok::numeric_constant:  // # 7  GNU line marker directive.
     if (getLangOptions().AsmPreprocessor)
@@ -644,6 +663,9 @@ TryAgain:
     case tok::pp_unassert:
       //isExtension = true;  // FIXME: implement #unassert
       break;
+        
+    case tok::pp___export_macro__:
+      return HandleMacroExportDirective(Result);
     }
     break;
   }
@@ -686,7 +708,7 @@ static bool GetLineValue(Token &DigitTok, unsigned &Val,
   if (DigitTok.isNot(tok::numeric_constant)) {
     PP.Diag(DigitTok, DiagID);
 
-    if (DigitTok.isNot(tok::eom))
+    if (DigitTok.isNot(tok::eod))
       PP.DiscardUntilEndOfDirective();
     return true;
   }
@@ -750,17 +772,21 @@ void Preprocessor::HandleLineDirective(Token &Tok) {
 
   // Enforce C99 6.10.4p3: "The digit sequence shall not specify ... a
   // number greater than 2147483647".  C90 requires that the line # be <= 32767.
-  unsigned LineLimit = Features.C99 ? 2147483648U : 32768U;
+  unsigned LineLimit = 32768U;
+  if (Features.C99 || Features.CPlusPlus0x)
+    LineLimit = 2147483648U;
   if (LineNo >= LineLimit)
     Diag(DigitTok, diag::ext_pp_line_too_big) << LineLimit;
+  else if (Features.CPlusPlus0x && LineNo >= 32768U)
+    Diag(DigitTok, diag::warn_cxx98_compat_pp_line_too_big);
 
   int FilenameID = -1;
   Token StrTok;
   Lex(StrTok);
 
-  // If the StrTok is "eom", then it wasn't present.  Otherwise, it must be a
-  // string followed by eom.
-  if (StrTok.is(tok::eom))
+  // If the StrTok is "eod", then it wasn't present.  Otherwise, it must be a
+  // string followed by eod.
+  if (StrTok.is(tok::eod))
     ; // ok
   else if (StrTok.isNot(tok::string_literal)) {
     Diag(StrTok, diag::err_pp_line_invalid_filename);
@@ -769,17 +795,16 @@ void Preprocessor::HandleLineDirective(Token &Tok) {
   } else {
     // Parse and validate the string, converting it into a unique ID.
     StringLiteralParser Literal(&StrTok, 1, *this);
-    assert(!Literal.AnyWide && "Didn't allow wide strings in");
+    assert(Literal.isAscii() && "Didn't allow wide strings in");
     if (Literal.hadError)
       return DiscardUntilEndOfDirective();
     if (Literal.Pascal) {
       Diag(StrTok, diag::err_pp_linemarker_invalid_filename);
       return DiscardUntilEndOfDirective();
     }
-    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString(),
-                                                  Literal.GetStringLength());
+    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString());
 
-    // Verify that there is nothing after the string, other than EOM.  Because
+    // Verify that there is nothing after the string, other than EOD.  Because
     // of C99 6.10.4p5, macros that expand to empty tokens are ok.
     CheckEndOfDirective("line", true);
   }
@@ -800,7 +825,7 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
   unsigned FlagVal;
   Token FlagTok;
   PP.Lex(FlagTok);
-  if (FlagTok.is(tok::eom)) return false;
+  if (FlagTok.is(tok::eod)) return false;
   if (GetLineValue(FlagTok, FlagVal, diag::err_pp_linemarker_invalid_flag, PP))
     return true;
 
@@ -808,7 +833,7 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
     IsFileEntry = true;
 
     PP.Lex(FlagTok);
-    if (FlagTok.is(tok::eom)) return false;
+    if (FlagTok.is(tok::eod)) return false;
     if (GetLineValue(FlagTok, FlagVal, diag::err_pp_linemarker_invalid_flag,PP))
       return true;
   } else if (FlagVal == 2) {
@@ -818,7 +843,7 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
     // If we are leaving the current presumed file, check to make sure the
     // presumed include stack isn't empty!
     FileID CurFileID =
-      SM.getDecomposedInstantiationLoc(FlagTok.getLocation()).first;
+      SM.getDecomposedExpansionLoc(FlagTok.getLocation()).first;
     PresumedLoc PLoc = SM.getPresumedLoc(FlagTok.getLocation());
     if (PLoc.isInvalid())
       return true;
@@ -827,14 +852,14 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
     // different physical file, then we aren't in a "1" line marker flag region.
     SourceLocation IncLoc = PLoc.getIncludeLoc();
     if (IncLoc.isInvalid() ||
-        SM.getDecomposedInstantiationLoc(IncLoc).first != CurFileID) {
+        SM.getDecomposedExpansionLoc(IncLoc).first != CurFileID) {
       PP.Diag(FlagTok, diag::err_pp_linemarker_invalid_pop);
       PP.DiscardUntilEndOfDirective();
       return true;
     }
 
     PP.Lex(FlagTok);
-    if (FlagTok.is(tok::eom)) return false;
+    if (FlagTok.is(tok::eod)) return false;
     if (GetLineValue(FlagTok, FlagVal, diag::err_pp_linemarker_invalid_flag,PP))
       return true;
   }
@@ -849,7 +874,7 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
   IsSystemHeader = true;
 
   PP.Lex(FlagTok);
-  if (FlagTok.is(tok::eom)) return false;
+  if (FlagTok.is(tok::eod)) return false;
   if (GetLineValue(FlagTok, FlagVal, diag::err_pp_linemarker_invalid_flag, PP))
     return true;
 
@@ -863,7 +888,7 @@ static bool ReadLineMarkerFlags(bool &IsFileEntry, bool &IsFileExit,
   IsExternCHeader = true;
 
   PP.Lex(FlagTok);
-  if (FlagTok.is(tok::eom)) return false;
+  if (FlagTok.is(tok::eod)) return false;
 
   // There are no more valid flags here.
   PP.Diag(FlagTok, diag::err_pp_linemarker_invalid_flag);
@@ -893,9 +918,9 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
   bool IsSystemHeader = false, IsExternCHeader = false;
   int FilenameID = -1;
 
-  // If the StrTok is "eom", then it wasn't present.  Otherwise, it must be a
-  // string followed by eom.
-  if (StrTok.is(tok::eom))
+  // If the StrTok is "eod", then it wasn't present.  Otherwise, it must be a
+  // string followed by eod.
+  if (StrTok.is(tok::eod))
     ; // ok
   else if (StrTok.isNot(tok::string_literal)) {
     Diag(StrTok, diag::err_pp_linemarker_invalid_filename);
@@ -903,15 +928,14 @@ void Preprocessor::HandleDigitDirective(Token &DigitTok) {
   } else {
     // Parse and validate the string, converting it into a unique ID.
     StringLiteralParser Literal(&StrTok, 1, *this);
-    assert(!Literal.AnyWide && "Didn't allow wide strings in");
+    assert(Literal.isAscii() && "Didn't allow wide strings in");
     if (Literal.hadError)
       return DiscardUntilEndOfDirective();
     if (Literal.Pascal) {
       Diag(StrTok, diag::err_pp_linemarker_invalid_filename);
       return DiscardUntilEndOfDirective();
     }
-    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString(),
-                                                  Literal.GetStringLength());
+    FilenameID = SourceMgr.getLineTableFilenameID(Literal.GetString());
 
     // If a filename was present, read any flags that are present.
     if (ReadLineMarkerFlags(IsFileEntry, IsFileExit,
@@ -978,12 +1002,12 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
   if (StrTok.isNot(tok::string_literal) &&
       StrTok.isNot(tok::wide_string_literal)) {
     Diag(StrTok, diag::err_pp_malformed_ident);
-    if (StrTok.isNot(tok::eom))
+    if (StrTok.isNot(tok::eod))
       DiscardUntilEndOfDirective();
     return;
   }
 
-  // Verify that there is nothing after the string, other than EOM.
+  // Verify that there is nothing after the string, other than EOD.
   CheckEndOfDirective("ident");
 
   if (Callbacks) {
@@ -992,6 +1016,37 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
     if (!Invalid)
       Callbacks->Ident(Tok.getLocation(), Str);
   }
+}
+
+/// \brief Handle a #__export_macro__ directive.
+void Preprocessor::HandleMacroExportDirective(Token &Tok) {
+  Token MacroNameTok;
+  ReadMacroName(MacroNameTok, 2);
+  
+  // Error reading macro name?  If so, diagnostic already issued.
+  if (MacroNameTok.is(tok::eod))
+    return;
+
+  // Check to see if this is the last token on the #__export_macro__ line.
+  CheckEndOfDirective("__export_macro__");
+
+  // Okay, we finally have a valid identifier to undef.
+  MacroInfo *MI = getMacroInfo(MacroNameTok.getIdentifierInfo());
+  
+  // If the macro is not defined, this is an error.
+  if (MI == 0) {
+    Diag(MacroNameTok, diag::err_pp_export_non_macro)
+      << MacroNameTok.getIdentifierInfo();
+    return;
+  }
+  
+  // Note that this macro has now been exported.
+  MI->setExportLocation(MacroNameTok.getLocation());
+  
+  // If this macro definition came from a PCH file, mark it
+  // as having changed since serialization.
+  if (MI->isFromAST())
+    MI->setChangedAfterLoad();
 }
 
 //===----------------------------------------------------------------------===//
@@ -1005,7 +1060,7 @@ void Preprocessor::HandleIdentSCCSDirective(Token &Tok) {
 /// spelling of the filename, but is also expected to handle the case when
 /// this method decides to use a different buffer.
 bool Preprocessor::GetIncludeFilenameSpelling(SourceLocation Loc,
-                                              llvm::StringRef &Buffer) {
+                                              StringRef &Buffer) {
   // Get the text form of the filename.
   assert(!Buffer.empty() && "Can't have tokens with empty spellings!");
 
@@ -1014,27 +1069,27 @@ bool Preprocessor::GetIncludeFilenameSpelling(SourceLocation Loc,
   if (Buffer[0] == '<') {
     if (Buffer.back() != '>') {
       Diag(Loc, diag::err_pp_expects_filename);
-      Buffer = llvm::StringRef();
+      Buffer = StringRef();
       return true;
     }
     isAngled = true;
   } else if (Buffer[0] == '"') {
     if (Buffer.back() != '"') {
       Diag(Loc, diag::err_pp_expects_filename);
-      Buffer = llvm::StringRef();
+      Buffer = StringRef();
       return true;
     }
     isAngled = false;
   } else {
     Diag(Loc, diag::err_pp_expects_filename);
-    Buffer = llvm::StringRef();
+    Buffer = StringRef();
     return true;
   }
 
   // Diagnose #include "" as invalid.
   if (Buffer.size() <= 2) {
     Diag(Loc, diag::err_pp_empty_filename);
-    Buffer = llvm::StringRef();
+    Buffer = StringRef();
     return true;
   }
 
@@ -1052,18 +1107,19 @@ bool Preprocessor::GetIncludeFilenameSpelling(SourceLocation Loc,
 ///
 /// This code concatenates and consumes tokens up to the '>' token.  It returns
 /// false if the > was found, otherwise it returns true if it finds and consumes
-/// the EOM marker.
+/// the EOD marker.
 bool Preprocessor::ConcatenateIncludeName(
                                         llvm::SmallString<128> &FilenameBuffer,
                                           SourceLocation &End) {
   Token CurTok;
 
   Lex(CurTok);
-  while (CurTok.isNot(tok::eom)) {
+  while (CurTok.isNot(tok::eod)) {
     End = CurTok.getLocation();
     
     // FIXME: Provide code completion for #includes.
     if (CurTok.is(tok::code_completion)) {
+      setCodeCompletionReached();
       Lex(CurTok);
       continue;
     }
@@ -1095,8 +1151,8 @@ bool Preprocessor::ConcatenateIncludeName(
     Lex(CurTok);
   }
 
-  // If we hit the eom marker, emit an error and return true so that the caller
-  // knows the EOM has been read.
+  // If we hit the eod marker, emit an error and return true so that the caller
+  // knows the EOD has been read.
   Diag(CurTok.getLocation(), diag::err_pp_expects_filename);
   return true;
 }
@@ -1116,12 +1172,12 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
 
   // Reserve a buffer to get the spelling.
   llvm::SmallString<128> FilenameBuffer;
-  llvm::StringRef Filename;
+  StringRef Filename;
   SourceLocation End;
   
   switch (FilenameTok.getKind()) {
-  case tok::eom:
-    // If the token kind is EOM, the error has already been diagnosed.
+  case tok::eod:
+    // If the token kind is EOD, the error has already been diagnosed.
     return;
 
   case tok::angle_string_literal:
@@ -1135,7 +1191,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     // case, glue the tokens together into FilenameBuffer and interpret those.
     FilenameBuffer.push_back('<');
     if (ConcatenateIncludeName(FilenameBuffer, End))
-      return;   // Found <eom> but no ">"?  Diagnostic already emitted.
+      return;   // Found <eod> but no ">"?  Diagnostic already emitted.
     Filename = FilenameBuffer.str();
     break;
   default:
@@ -1153,7 +1209,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     return;
   }
 
-  // Verify that there is nothing after the filename, other than EOM.  Note that
+  // Verify that there is nothing after the filename, other than EOD.  Note that
   // we allow macros that expand to nothing after the filename, because this
   // falls into the category of "#include pp-tokens new-line" specified in
   // C99 6.10.2p4.
@@ -1165,19 +1221,47 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
     return;
   }
 
+  // Complain about attempts to #include files in an audit pragma.
+  if (PragmaARCCFCodeAuditedLoc.isValid()) {
+    Diag(HashLoc, diag::err_pp_include_in_arc_cf_code_audited);
+    Diag(PragmaARCCFCodeAuditedLoc, diag::note_pragma_entered_here);
+
+    // Immediately leave the pragma.
+    PragmaARCCFCodeAuditedLoc = SourceLocation();
+  }
+
   // Search include directories.
   const DirectoryLookup *CurDir;
-  const FileEntry *File = LookupFile(Filename, isAngled, LookupFrom, CurDir);
+  llvm::SmallString<1024> SearchPath;
+  llvm::SmallString<1024> RelativePath;
+  // We get the raw path only if we have 'Callbacks' to which we later pass
+  // the path.
+  StringRef SuggestedModule;
+  const FileEntry *File = LookupFile(
+      Filename, isAngled, LookupFrom, CurDir,
+      Callbacks ? &SearchPath : NULL, Callbacks ? &RelativePath : NULL,
+      AutoModuleImport? &SuggestedModule : 0);
+
+  // If we are supposed to import a module rather than including the header,
+  // do so now.
+  if (!SuggestedModule.empty()) {
+    TheModuleLoader.loadModule(IncludeTok.getLocation(),
+                               Identifiers.get(SuggestedModule),
+                               FilenameTok.getLocation());
+    return;
+  }
+  
+  // Notify the callback object that we've seen an inclusion directive.
+  if (Callbacks)
+    Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled, File,
+                                  End, SearchPath, RelativePath);
+
   if (File == 0) {
-    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
+    if (!SuppressIncludeNotFoundError)
+      Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
     return;
   }
 
-  // Notify the callback object that we've seen an inclusion directive.
-  if (Callbacks)
-    Callbacks->InclusionDirective(HashLoc, IncludeTok, Filename, isAngled, File, 
-                                  End);
-  
   // The #included file will be considered to be a system header if either it is
   // in a system include directory, or if the #includer is a system include
   // header.
@@ -1196,10 +1280,7 @@ void Preprocessor::HandleIncludeDirective(SourceLocation HashLoc,
   // Look up the file, create a File ID for it.
   FileID FID = SourceMgr.createFileID(File, FilenameTok.getLocation(),
                                       FileCharacter);
-  if (FID.isInvalid()) {
-    Diag(FilenameTok, diag::err_pp_file_not_found) << Filename;
-    return;
-  }
+  assert(!FID.isInvalid() && "Expected valid file ID");
 
   // Finally, if all is good, enter the new file!
   EnterSourceFile(FID, CurDir, FilenameTok.getLocation());
@@ -1274,7 +1355,7 @@ void Preprocessor::HandleIncludeMacrosDirective(SourceLocation HashLoc,
 /// closing ), updating MI with what we learn.  Return true if an error occurs
 /// parsing the arg list.
 bool Preprocessor::ReadMacroDefinitionArgList(MacroInfo *MI) {
-  llvm::SmallVector<IdentifierInfo*, 32> Arguments;
+  SmallVector<IdentifierInfo*, 32> Arguments;
 
   Token Tok;
   while (1) {
@@ -1288,8 +1369,10 @@ bool Preprocessor::ReadMacroDefinitionArgList(MacroInfo *MI) {
       Diag(Tok, diag::err_pp_expected_ident_in_arg_list);
       return true;
     case tok::ellipsis:  // #define X(... -> C99 varargs
-      // Warn if use of C99 feature in non-C99 mode.
-      if (!Features.C99) Diag(Tok, diag::ext_variadic_macro);
+      if (!Features.C99)
+        Diag(Tok, Features.CPlusPlus0x ? 
+             diag::warn_cxx98_compat_variadic_macro :
+             diag::ext_variadic_macro);
 
       // Lex the token after the identifier.
       LexUnexpandedToken(Tok);
@@ -1302,7 +1385,7 @@ bool Preprocessor::ReadMacroDefinitionArgList(MacroInfo *MI) {
       MI->setIsC99Varargs();
       MI->setArgumentList(&Arguments[0], Arguments.size(), BP);
       return false;
-    case tok::eom:  // #define X(
+    case tok::eod:  // #define X(
       Diag(Tok, diag::err_pp_missing_rparen_in_macro_def);
       return true;
     default:
@@ -1366,7 +1449,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   ReadMacroName(MacroNameTok, 1);
 
   // Error reading macro name?  If so, diagnostic already issued.
-  if (MacroNameTok.is(tok::eom))
+  if (MacroNameTok.is(tok::eod))
     return;
 
   Token LastTok = MacroNameTok;
@@ -1384,7 +1467,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   // If this is a function-like macro definition, parse the argument list,
   // marking each of the identifiers as being used as macro arguments.  Also,
   // check other constraints on the first token of the macro body.
-  if (Tok.is(tok::eom)) {
+  if (Tok.is(tok::eod)) {
     // If there is no body to this macro, we have no special handling here.
   } else if (Tok.hasLeadingSpace()) {
     // This is a normal token with leading space.  Clear the leading space
@@ -1413,7 +1496,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
 
     // Read the first token after the arg list for down below.
     LexUnexpandedToken(Tok);
-  } else if (Features.C99) {
+  } else if (Features.C99 || Features.CPlusPlus0x) {
     // C99 requires whitespace between the macro definition and the body.  Emit
     // a diagnostic for something like "#define X+".
     Diag(Tok, diag::ext_c99_whitespace_required_after_macro_name);
@@ -1439,13 +1522,13 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
       Diag(Tok, diag::warn_missing_whitespace_after_macro_name);
   }
 
-  if (!Tok.is(tok::eom))
+  if (!Tok.is(tok::eod))
     LastTok = Tok;
 
   // Read the rest of the macro body.
   if (MI->isObjectLike()) {
     // Object-like macros are very simple, just read their body.
-    while (Tok.isNot(tok::eom)) {
+    while (Tok.isNot(tok::eod)) {
       LastTok = Tok;
       MI->AddTokenToBody(Tok);
       // Get the next token of the macro.
@@ -1456,7 +1539,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
     // Otherwise, read the body of a function-like macro.  While we are at it,
     // check C99 6.10.3.2p1: ensure that # operators are followed by macro
     // parameters in function-like macro expansions.
-    while (Tok.isNot(tok::eom)) {
+    while (Tok.isNot(tok::eod)) {
       LastTok = Tok;
 
       if (Tok.isNot(tok::hash)) {
@@ -1478,7 +1561,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
         // the '#' because '#' is often a comment character.  However, change
         // the kind of the token to tok::unknown so that the preprocessor isn't
         // confused.
-        if (getLangOptions().AsmPreprocessor && Tok.isNot(tok::eom)) {
+        if (getLangOptions().AsmPreprocessor && Tok.isNot(tok::eod)) {
           LastTok.setKind(tok::unknown);
         } else {
           Diag(Tok, diag::err_pp_stringize_not_parameter);
@@ -1504,7 +1587,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   // Disable __VA_ARGS__ again.
   Ident__VA_ARGS__->setIsPoisoned(true);
 
-  // Check that there is no paste (##) operator at the begining or end of the
+  // Check that there is no paste (##) operator at the beginning or end of the
   // replacement list.
   unsigned NumTokens = MI->getNumTokens();
   if (NumTokens != 0) {
@@ -1554,7 +1637,7 @@ void Preprocessor::HandleDefineDirective(Token &DefineTok) {
   // warn-because-unused-macro set. If it gets used it will be removed from set.
   if (isInPrimaryFile() && // don't warn for include'd macros.
       Diags->getDiagnosticLevel(diag::pp_macro_not_used,
-                               MI->getDefinitionLoc()) != Diagnostic::Ignored) {
+          MI->getDefinitionLoc()) != DiagnosticsEngine::Ignored) {
     MI->setIsWarnIfUnused(true);
     WarnUnusedMacroLocs.insert(MI->getDefinitionLoc());
   }
@@ -1573,7 +1656,7 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   ReadMacroName(MacroNameTok, 2);
 
   // Error reading macro name?  If so, diagnostic already issued.
-  if (MacroNameTok.is(tok::eom))
+  if (MacroNameTok.is(tok::eod))
     return;
 
   // Check to see if this is the last token on the #undef line.
@@ -1585,7 +1668,7 @@ void Preprocessor::HandleUndefDirective(Token &UndefTok) {
   // If the macro is not defined, this is a noop undef, just return.
   if (MI == 0) return;
 
-  if (!MI->isUsed())
+  if (!MI->isUsed() && MI->isWarnIfUnused())
     Diag(MI->getDefinitionLoc(), diag::pp_macro_not_used);
 
   // If the callbacks want to know, tell them about the macro #undef.
@@ -1619,7 +1702,7 @@ void Preprocessor::HandleIfdefDirective(Token &Result, bool isIfndef,
   ReadMacroName(MacroNameTok);
 
   // Error reading macro name?  If so, diagnostic already issued.
-  if (MacroNameTok.is(tok::eom)) {
+  if (MacroNameTok.is(tok::eod)) {
     // Skip code until we get to #endif.  This helps with recovery by not
     // emitting an error when the #endif is reached.
     SkipExcludedConditionalBlock(DirectiveTok.getLocation(),
@@ -1755,7 +1838,7 @@ void Preprocessor::HandleElseDirective(Token &Result) {
 
   // Finally, skip the rest of the contents of this block.
   SkipExcludedConditionalBlock(CI.IfLoc, /*Foundnonskip*/true,
-                               /*FoundElse*/true);
+                               /*FoundElse*/true, Result.getLocation());
 
   if (Callbacks)
     Callbacks->Else();
@@ -1788,7 +1871,8 @@ void Preprocessor::HandleElifDirective(Token &ElifToken) {
 
   // Finally, skip the rest of the contents of this block.
   SkipExcludedConditionalBlock(CI.IfLoc, /*Foundnonskip*/true,
-                               /*FoundElse*/CI.FoundElse);
+                               /*FoundElse*/CI.FoundElse,
+                               ElifToken.getLocation());
 
   if (Callbacks)
     Callbacks->Elif(SourceRange(ConditionalBegin, ConditionalEnd));

@@ -71,12 +71,22 @@ DEFINE_TEST(test_option_t)
 		    testprog);
 	assertEqualInt(r, 0);
 	assertTextFileContents("1 block\n", "itnv.err");
-	extract_reference_file("test_option_tnv.stdout");
-	/* This does work because numeric IDs come from archive. */
-	/* Unfortunately, the timestamp still gets localized, so
-	 * we can't just compare against a fixed result. */
-	/* TODO: Fix this. */
-	/* assertEqualFile("itnv.out", "test_option_tnv.stdout"); */
+	p = slurpfile(NULL, "itnv.out");
+	/* Since -n uses numeric UID/GID, this part should be the
+	 * same on every system. */
+	assertEqualMem(p, "-rw-r--r--   1 1000     1000            0 ",42);
+	/* Date varies depending on local timezone. */
+	if (memcmp(p + 42, "Dec 31  1969", 12) == 0) {
+		/* East of Greenwich we get Dec 31, 1969. */
+	} else {
+		/* West of Greenwich get Jan 1, 1970 */
+		assertEqualMem(p + 42, "Jan ", 4);
+		/* Some systems format "Jan 01", some "Jan  1" */
+		assert(p[46] == ' ' || p[46] == '0');
+		assertEqualMem(p + 47, "1  1970 ", 8);
+	}
+	assertEqualMem(p + 54, " file", 5);
+	free(p);
 
 	/* But "-n" without "-t" is an error. */
 	assert(0 != systemf("%s -in < test_option_t.cpio >in.out 2>in.err",

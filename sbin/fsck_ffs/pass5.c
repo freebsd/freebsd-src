@@ -49,7 +49,9 @@ __FBSDID("$FreeBSD$");
 
 #include "fsck.h"
 
-static void check_maps(u_char *, u_char *, int, ufs2_daddr_t, const char *, int *, int, int);
+static void check_maps(u_char *, u_char *, int, ufs2_daddr_t, const char *,
+			int *, int, int, int);
+static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end);
 
 void
 pass5(void)
@@ -58,8 +60,8 @@ pass5(void)
 	int inomapsize, blkmapsize;
 	struct fs *fs = &sblock;
 	struct cg *cg = &cgrp;
-	ufs2_daddr_t d, dbase, dmax;
-	int excessdirs, rewritecg = 0;
+	ufs2_daddr_t d, dbase, dmax, start;
+	int rewritecg = 0;
 	struct csum *cs;
 	struct csum_total cstotal;
 	struct inodesc idesc[3];
@@ -242,13 +244,21 @@ pass5(void)
 				setbit(cg_inosused(newcg), i);
 				newcg->cg_cs.cs_nifree--;
 			}
+		start = -1;
 		for (i = 0, d = dbase;
 		     d < dmax;
 		     d += fs->fs_frag, i += fs->fs_frag) {
 			frags = 0;
 			for (j = 0; j < fs->fs_frag; j++) {
-				if (testbmap(d + j))
+				if (testbmap(d + j)) {
+					if (Eflag && start != -1) {
+						clear_blocks(start, d + j - 1);
+						start = -1;
+					}
 					continue;
+				}
+				if (start == -1)
+					start = d + j;
 				setbit(cg_blksfree(newcg), i + j);
 				frags++;
 			}
@@ -263,6 +273,8 @@ pass5(void)
 				ffs_fragacct(fs, blk, newcg->cg_frsum, 1);
 			}
 		}
+		if (Eflag && start != -1)
+			clear_blocks(start, d - 1);
 		if (fs->fs_contigsumsize > 0) {
 			int32_t *sump = cg_clustersum(newcg);
 			u_char *mapp = cg_clustersfree(newcg);
@@ -321,27 +333,8 @@ pass5(void)
 			memmove(cg, newcg, (size_t)basesize);
 			cgdirty();
 		}
-		if (bkgrdflag != 0 || usedsoftdep || debug) {
-			excessdirs = cg->cg_cs.cs_ndir - newcg->cg_cs.cs_ndir;
-			if (excessdirs < 0) {
-				pfatal("LOST %d DIRECTORIES\n", -excessdirs);
-				excessdirs = 0;
-			}
-			if (excessdirs > 0)
-				check_maps(cg_inosused(newcg), cg_inosused(cg),
-				    inomapsize,
-				    cg->cg_cgx * (ufs2_daddr_t) fs->fs_ipg,
-				    "DIR",
-				    freedirs, 0, excessdirs);
-			check_maps(cg_inosused(newcg), cg_inosused(cg),
-			    inomapsize,
-			    cg->cg_cgx * (ufs2_daddr_t) fs->fs_ipg, "FILE",
-			    freefiles, excessdirs, fs->fs_ipg);
-			check_maps(cg_blksfree(cg), cg_blksfree(newcg),
-			    blkmapsize,
-			    cg->cg_cgx * (ufs2_daddr_t) fs->fs_fpg, "FRAG",
-			    freeblks, 0, fs->fs_fpg);
-		}
+		if (bkgrdflag != 0 || usedsoftdep || debug)
+			update_maps(cg, newcg, bkgrdflag);
 		if (cursnapshot == 0 &&
 		    memcmp(cg_inosused(newcg), cg_inosused(cg), mapsize) != 0 &&
 		    dofix(&idesc[1], "BLK(S) MISSING IN BIT MAPS")) {
@@ -414,6 +407,40 @@ pass5(void)
 	}
 }
 
+/*
+ * Compare the original cylinder group inode and block bitmaps with the
+ * updated cylinder group inode and block bitmaps. Free inodes and blocks
+ * that have been added. Complain if any previously freed inodes blocks
+ * are now allocated.
+ */
+void
+update_maps(
+	struct cg *oldcg,	/* cylinder group of claimed allocations */
+	struct cg *newcg,	/* cylinder group of determined allocations */
+	int usesysctl)		/* 1 => use sysctl interface to update maps */
+{
+	int inomapsize, excessdirs;
+	struct fs *fs = &sblock;
+
+	inomapsize = howmany(fs->fs_ipg, CHAR_BIT);
+	excessdirs = oldcg->cg_cs.cs_ndir - newcg->cg_cs.cs_ndir;
+	if (excessdirs < 0) {
+		pfatal("LOST %d DIRECTORIES\n", -excessdirs);
+		excessdirs = 0;
+	}
+	if (excessdirs > 0)
+		check_maps(cg_inosused(newcg), cg_inosused(oldcg), inomapsize,
+		    oldcg->cg_cgx * (ufs2_daddr_t)fs->fs_ipg, "DIR", freedirs,
+		    0, excessdirs, usesysctl);
+	check_maps(cg_inosused(newcg), cg_inosused(oldcg), inomapsize,
+	    oldcg->cg_cgx * (ufs2_daddr_t)fs->fs_ipg, "FILE", freefiles,
+	    excessdirs, fs->fs_ipg, usesysctl);
+	check_maps(cg_blksfree(oldcg), cg_blksfree(newcg),
+	    howmany(fs->fs_fpg, CHAR_BIT),
+	    oldcg->cg_cgx * (ufs2_daddr_t)fs->fs_fpg, "FRAG",
+	    freeblks, 0, fs->fs_fpg, usesysctl);
+}
+
 static void
 check_maps(
 	u_char *map1,	/* map of claimed allocations */
@@ -423,7 +450,8 @@ check_maps(
 	const char *name,	/* name of resource found in maps */
 	int *opcode,	/* sysctl opcode to free resource */
 	int skip,	/* number of entries to skip before starting to free */
-	int limit)	/* limit on number of entries to free */
+	int limit,	/* limit on number of entries to free */
+	int usesysctl)	/* 1 => use sysctl interface to update maps */
 {
 #	define BUFSIZE 16
 	char buf[BUFSIZE];
@@ -431,7 +459,7 @@ check_maps(
 	ufs2_daddr_t n, astart, aend, ustart, uend;
 	void (*msg)(const char *fmt, ...);
 
-	if (bkgrdflag)
+	if (usesysctl)
 		msg = pfatal;
 	else
 		msg = pwarn;
@@ -494,7 +522,7 @@ check_maps(
 					    " MARKED USED\n",
 					    "UNALLOCATED", name, ustart,
 					    ustart + size - 1);
-				if (bkgrdflag != 0) {
+				if (usesysctl != 0) {
 					cmd.value = ustart;
 					cmd.size = size;
 					if (sysctl(opcode, MIBSIZE, 0, 0,
@@ -540,7 +568,7 @@ check_maps(
 				    " MARKED USED\n",
 				    name, ustart, ustart + size - 1);
 		}
-		if (bkgrdflag != 0) {
+		if (usesysctl != 0) {
 			cmd.value = ustart;
 			cmd.size = size;
 			if (sysctl(opcode, MIBSIZE, 0, 0, &cmd,
@@ -550,4 +578,13 @@ check_maps(
 			}
 		}
 	}
+}
+
+static void clear_blocks(ufs2_daddr_t start, ufs2_daddr_t end)
+{
+
+	if (debug)
+		printf("Zero frags %jd to %jd\n", start, end);
+	blerase(fswritefd, fsbtodb(&sblock, start),
+	    lfragtosize(&sblock, end - start + 1));
 }

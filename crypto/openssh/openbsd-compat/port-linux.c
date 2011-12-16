@@ -1,4 +1,4 @@
-/* $Id: port-linux.c,v 1.8 2010/03/01 04:52:50 dtucker Exp $ */
+/* $Id: port-linux.c,v 1.16 2011/08/29 06:09:57 djm Exp $ */
 
 /*
  * Copyright (c) 2005 Daniel Walsh <dwalsh@redhat.com>
@@ -38,6 +38,10 @@
 #include <selinux/flask.h>
 #include <selinux/get_context_list.h>
 
+#ifndef SSH_SELINUX_UNCONFINED_TYPE
+# define SSH_SELINUX_UNCONFINED_TYPE ":unconfined_t:"
+#endif
+
 /* Wrapper around is_selinux_enabled() to log its return value once only */
 int
 ssh_selinux_enabled(void)
@@ -45,7 +49,7 @@ ssh_selinux_enabled(void)
 	static int enabled = -1;
 
 	if (enabled == -1) {
-		enabled = is_selinux_enabled();
+		enabled = (is_selinux_enabled() == 1);
 		debug("SELinux support %s", enabled ? "enabled" : "disabled");
 	}
 
@@ -177,12 +181,13 @@ ssh_selinux_change_context(const char *newname)
 {
 	int len, newlen;
 	char *oldctx, *newctx, *cx;
+	void (*switchlog) (const char *fmt,...) = logit;
 
 	if (!ssh_selinux_enabled())
 		return;
 
 	if (getcon((security_context_t *)&oldctx) < 0) {
-		logit("%s: getcon failed with %s", __func__, strerror (errno));
+		logit("%s: getcon failed with %s", __func__, strerror(errno));
 		return;
 	}
 	if ((cx = index(oldctx, ':')) == NULL || (cx = index(cx + 1, ':')) ==
@@ -191,6 +196,14 @@ ssh_selinux_change_context(const char *newname)
 		return;
 	}
 
+	/*
+	 * Check whether we are attempting to switch away from an unconfined
+	 * security context.
+	 */
+	if (strncmp(cx, SSH_SELINUX_UNCONFINED_TYPE,
+	    sizeof(SSH_SELINUX_UNCONFINED_TYPE) - 1) == 0)
+		switchlog = debug3;
+
 	newlen = strlen(oldctx) + strlen(newname) + 1;
 	newctx = xmalloc(newlen);
 	len = cx - oldctx + 1;
@@ -198,24 +211,49 @@ ssh_selinux_change_context(const char *newname)
 	strlcpy(newctx + len, newname, newlen - len);
 	if ((cx = index(cx + 1, ':')))
 		strlcat(newctx, cx, newlen);
-	debug3("%s: setting context from '%s' to '%s'", __func__, oldctx,
-	    newctx);
+	debug3("%s: setting context from '%s' to '%s'", __func__,
+	    oldctx, newctx);
 	if (setcon(newctx) < 0)
-		logit("%s: setcon failed with %s", __func__, strerror (errno));
+		switchlog("%s: setcon %s from %s failed with %s", __func__,
+		    newctx, oldctx, strerror(errno));
 	xfree(oldctx);
 	xfree(newctx);
 }
+
+void
+ssh_selinux_setfscreatecon(const char *path)
+{
+	security_context_t context;
+
+	if (!ssh_selinux_enabled())
+		return;
+	if (path == NULL) {
+		setfscreatecon(NULL);
+		return;
+	}
+	if (matchpathcon(path, 0700, &context) == 0)
+		setfscreatecon(context);
+}
+
 #endif /* WITH_SELINUX */
 
 #ifdef LINUX_OOM_ADJUST
-#define OOM_ADJ_PATH	"/proc/self/oom_adj"
 /*
- * The magic "don't kill me", as documented in eg:
+ * The magic "don't kill me" values, old and new, as documented in eg:
  * http://lxr.linux.no/#linux+v2.6.32/Documentation/filesystems/proc.txt
+ * http://lxr.linux.no/#linux+v2.6.36/Documentation/filesystems/proc.txt
  */
-#define OOM_ADJ_NOKILL	-17
 
 static int oom_adj_save = INT_MIN;
+static char *oom_adj_path = NULL;
+struct {
+	char *path;
+	int value;
+} oom_adjust[] = {
+	{"/proc/self/oom_score_adj", -1000},	/* kernels >= 2.6.36 */
+	{"/proc/self/oom_adj", -17},		/* kernels <= 2.6.35 */
+	{NULL, 0},
+};
 
 /*
  * Tell the kernel's out-of-memory killer to avoid sshd.
@@ -224,23 +262,31 @@ static int oom_adj_save = INT_MIN;
 void
 oom_adjust_setup(void)
 {
+	int i, value;
 	FILE *fp;
 
 	debug3("%s", __func__);
-	if ((fp = fopen(OOM_ADJ_PATH, "r+")) != NULL) {
-		if (fscanf(fp, "%d", &oom_adj_save) != 1)
-			verbose("error reading %s: %s", OOM_ADJ_PATH, strerror(errno));
-		else {
-			rewind(fp);
-			if (fprintf(fp, "%d\n", OOM_ADJ_NOKILL) <= 0)
-				verbose("error writing %s: %s",
-				    OOM_ADJ_PATH, strerror(errno));
-			else
-				verbose("Set %s from %d to %d",
-				    OOM_ADJ_PATH, oom_adj_save, OOM_ADJ_NOKILL);
+	 for (i = 0; oom_adjust[i].path != NULL; i++) {
+		oom_adj_path = oom_adjust[i].path;
+		value = oom_adjust[i].value;
+		if ((fp = fopen(oom_adj_path, "r+")) != NULL) {
+			if (fscanf(fp, "%d", &oom_adj_save) != 1)
+				verbose("error reading %s: %s", oom_adj_path,
+				    strerror(errno));
+			else {
+				rewind(fp);
+				if (fprintf(fp, "%d\n", value) <= 0)
+					verbose("error writing %s: %s",
+					   oom_adj_path, strerror(errno));
+				else
+					verbose("Set %s from %d to %d",
+					   oom_adj_path, oom_adj_save, value);
+			}
+			fclose(fp);
+			return;
 		}
-		fclose(fp);
 	}
+	oom_adj_path = NULL;
 }
 
 /* Restore the saved OOM adjustment */
@@ -250,13 +296,14 @@ oom_adjust_restore(void)
 	FILE *fp;
 
 	debug3("%s", __func__);
-	if (oom_adj_save == INT_MIN || (fp = fopen(OOM_ADJ_PATH, "w")) == NULL)
+	if (oom_adj_save == INT_MIN || oom_adj_path == NULL ||
+	    (fp = fopen(oom_adj_path, "w")) == NULL)
 		return;
 
 	if (fprintf(fp, "%d\n", oom_adj_save) <= 0)
-		verbose("error writing %s: %s", OOM_ADJ_PATH, strerror(errno));
+		verbose("error writing %s: %s", oom_adj_path, strerror(errno));
 	else
-		verbose("Set %s to %d", OOM_ADJ_PATH, oom_adj_save);
+		verbose("Set %s to %d", oom_adj_path, oom_adj_save);
 
 	fclose(fp);
 	return;

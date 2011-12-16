@@ -119,7 +119,7 @@ struct mpssas_devprobe {
 #define MPSSAS_DISCOVERY_TIMEOUT	20
 #define MPSSAS_MAX_DISCOVERY_TIMEOUTS	10 /* 200 seconds */
 
-MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
+static MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
 static __inline int mpssas_set_lun(uint8_t *lun, u_int ccblun);
 static struct mpssas_target * mpssas_alloc_target(struct mpssas_softc *,
@@ -925,7 +925,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
-		cpi->max_lun = 0;
+		cpi->max_lun = 8;
 		cpi->initiator_id = 255;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
@@ -1490,7 +1490,6 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	MPI2_SCSI_IO_REPLY *rep;
 	union ccb *ccb;
 	struct mpssas_softc *sassc;
-	u_int sense_len;
 	int dir = 0;
 
 	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
@@ -1666,10 +1665,17 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 	}
 
 	if (rep->SCSIState & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
-		sense_len = MIN(rep->SenseCount,
-		    sizeof(struct scsi_sense_data));
-		if (sense_len < rep->SenseCount)
-			ccb->csio.sense_resid = rep->SenseCount - sense_len;
+		int sense_len;
+
+		if (rep->SenseCount < ccb->csio.sense_len)
+			ccb->csio.sense_resid = ccb->csio.sense_len -
+				rep->SenseCount;
+		else
+			ccb->csio.sense_resid = 0;
+
+		sense_len = min(rep->SenseCount, ccb->csio.sense_len -
+		    ccb->csio.sense_resid);
+		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
 		bcopy(cm->cm_sense, &ccb->csio.sense_data, sense_len);
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/devicestat.h>
 #include <sys/bus.h>
+#include <sys/sbuf.h>
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
 
@@ -86,7 +87,7 @@ static int nperiph_drivers;
 static int initialized = 0;
 struct periph_driver **periph_drivers;
 
-MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
+static MALLOC_DEFINE(M_CAMPERIPH, "CAM periph", "CAM peripheral buffers");
 
 static int periph_selto_delay = 1000;
 TUNABLE_INT("kern.cam.periph_selto_delay", &periph_selto_delay);
@@ -301,6 +302,38 @@ cam_periph_find(struct cam_path *path, char *name)
 	}
 	xpt_unlock_buses();
 	return(NULL);
+}
+
+/*
+ * Find a peripheral structure with the specified path, target, lun, 
+ * and (optionally) type.  If the name is NULL, this function will return
+ * the first peripheral driver that matches the specified path.
+ */
+int
+cam_periph_list(struct cam_path *path, struct sbuf *sb)
+{
+	struct periph_driver **p_drv;
+	struct cam_periph *periph;
+	int count;
+
+	count = 0;
+	xpt_lock_buses();
+	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
+
+		TAILQ_FOREACH(periph, &(*p_drv)->units, unit_links) {
+			if (xpt_path_comp(periph->path, path) != 0)
+				continue;
+
+			if (sbuf_len(sb) != 0)
+				sbuf_cat(sb, ",");
+
+			sbuf_printf(sb, "%s%d", periph->periph_name,
+				    periph->unit_number);
+			count++;
+		}
+	}
+	xpt_unlock_buses();
+	return (count);
 }
 
 cam_status
@@ -527,8 +560,6 @@ cam_periph_invalidate(struct cam_periph *periph)
 	xpt_lock_buses();
 	if (periph->refcount == 0)
 		camperiphfree(periph);
-	else if (periph->refcount < 0)
-		printf("cam_invalidate_periph: refcount < 0!!\n");
 	xpt_unlock_buses();
 }
 
@@ -656,12 +687,12 @@ cam_periph_mapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		dirs[1] = CAM_DIR_IN;
 		numbufs = 2;
 		break;
-	case XPT_GDEV_ADVINFO:
-		if (ccb->cgdai.bufsiz == 0)
+	case XPT_DEV_ADVINFO:
+		if (ccb->cdai.bufsiz == 0)
 			return (0);
 
-		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
-		lengths[0] = ccb->cgdai.bufsiz;
+		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
+		lengths[0] = ccb->cdai.bufsiz;
 		dirs[0] = CAM_DIR_IN;
 		numbufs = 1;
 
@@ -815,9 +846,9 @@ cam_periph_unmapmem(union ccb *ccb, struct cam_periph_map_info *mapinfo)
 		data_ptrs[0] = &ccb->smpio.smp_request;
 		data_ptrs[1] = &ccb->smpio.smp_response;
 		break;
-	case XPT_GDEV_ADVINFO:
+	case XPT_DEV_ADVINFO:
 		numbufs = min(mapinfo->num_bufs_used, 1);
-		data_ptrs[0] = (uint8_t **)&ccb->cgdai.buf;
+		data_ptrs[0] = (uint8_t **)&ccb->cdai.buf;
 		break;
 	default:
 		/* allow ourselves to be swapped once again */
@@ -1054,7 +1085,6 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 	union ccb      *saved_ccb = (union ccb *)done_ccb->ccb_h.saved_ccb_ptr;
 	cam_status	status;
 	int		frozen = 0;
-	u_int		sense_key;
 	int		depth = done_ccb->ccb_h.recovery_depth;
 
 	status = done_ccb->ccb_h.status;
@@ -1070,22 +1100,25 @@ camperiphsensedone(struct cam_periph *periph, union ccb *done_ccb)
 	switch (status) {
 	case CAM_REQ_CMP:
 	{
+		int error_code, sense_key, asc, ascq;
+
+		scsi_extract_sense_len(&saved_ccb->csio.sense_data,
+				       saved_ccb->csio.sense_len -
+				       saved_ccb->csio.sense_resid,
+				       &error_code, &sense_key, &asc, &ascq,
+				       /*show_errors*/ 1);
 		/*
 		 * If we manually retrieved sense into a CCB and got
 		 * something other than "NO SENSE" send the updated CCB
 		 * back to the client via xpt_done() to be processed via
 		 * the error recovery code again.
 		 */
-		sense_key = saved_ccb->csio.sense_data.flags;
-		sense_key &= SSD_KEY;
-		if (sense_key != SSD_KEY_NO_SENSE) {
-			saved_ccb->ccb_h.status |=
-			    CAM_AUTOSNS_VALID;
+		if ((sense_key != -1)
+		 && (sense_key != SSD_KEY_NO_SENSE)) {
+			saved_ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		} else {
-			saved_ccb->ccb_h.status &=
-			    ~CAM_STATUS_MASK;
-			saved_ccb->ccb_h.status |=
-			    CAM_AUTOSENSE_FAIL;
+			saved_ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+			saved_ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
 		}
 		saved_ccb->csio.sense_resid = done_ccb->csio.resid;
 		bcopy(saved_ccb, done_ccb, sizeof(union ccb));
@@ -1167,12 +1200,15 @@ camperiphdone(struct cam_periph *periph, union ccb *done_ccb)
 		if (status & CAM_AUTOSNS_VALID) {
 			struct ccb_getdev cgd;
 			struct scsi_sense_data *sense;
-			int    error_code, sense_key, asc, ascq;	
+			int    error_code, sense_key, asc, ascq, sense_len;
 			scsi_sense_action err_action;
 
 			sense = &done_ccb->csio.sense_data;
-			scsi_extract_sense(sense, &error_code, 
-					   &sense_key, &asc, &ascq);
+			sense_len = done_ccb->csio.sense_len -
+				    done_ccb->csio.sense_resid;
+			scsi_extract_sense_len(sense, sense_len, &error_code, 
+					       &sense_key, &asc, &ascq,
+					       /*show_errors*/ 1);
 			/*
 			 * Grab the inquiry data for this device.
 			 */
@@ -1519,7 +1555,8 @@ camperiphscsisenseerror(union ccb *ccb, cam_flags camflags,
 		 * make sure we actually have retries available.
 		 */
 		if ((err_action & SSQ_DECREMENT_COUNT) != 0) {
-		 	if (ccb->ccb_h.retry_count > 0)
+		 	if (ccb->ccb_h.retry_count > 0 &&
+			    (periph->flags & CAM_PERIPH_INVALID) == 0)
 		 		ccb->ccb_h.retry_count--;
 			else {
 				*action_string = "Retries exhausted";
@@ -1687,6 +1724,7 @@ int
 cam_periph_error(union ccb *ccb, cam_flags camflags,
 		 u_int32_t sense_flags, union ccb *save_ccb)
 {
+	struct cam_periph *periph;
 	const char *action_string;
 	cam_status  status;
 	int	    frozen;
@@ -1694,7 +1732,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	int         openings;
 	u_int32_t   relsim_flags;
 	u_int32_t   timeout = 0;
-	
+
+	periph = xpt_path_periph(ccb->ccb_h.path);
 	action_string = NULL;
 	status = ccb->ccb_h.status;
 	frozen = (status & CAM_DEV_QFRZN) != 0;
@@ -1756,9 +1795,9 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			xpt_print(ccb->ccb_h.path, "Data overrun\n");
 			printed++;
 		}
-		error = EIO;	/* we have to kill the command */
 		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0) {
+		if (ccb->ccb_h.retry_count > 0 &&
+		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 		} else {
@@ -1777,7 +1816,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		struct cam_path *newpath;
 
 		if ((camflags & CAM_RETRY_SELTO) != 0) {
-			if (ccb->ccb_h.retry_count > 0) {
+			if (ccb->ccb_h.retry_count > 0 &&
+			    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 
 				ccb->ccb_h.retry_count--;
 				error = ERESTART;
@@ -1795,10 +1835,11 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 				timeout = periph_selto_delay;
 				break;
 			}
+			action_string = "Retries exhausted";
 		}
 		error = ENXIO;
 		/* Should we do more if we can't create the path?? */
-		if (xpt_create_path(&newpath, xpt_path_periph(ccb->ccb_h.path),
+		if (xpt_create_path(&newpath, periph,
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
 				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
@@ -1843,10 +1884,15 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* FALLTHROUGH */
 	case CAM_REQUEUE_REQ:
 		/* Unconditional requeue */
-		error = ERESTART;
 		if (bootverbose && printed == 0) {
 			xpt_print(ccb->ccb_h.path, "Request requeued\n");
 			printed++;
+		}
+		if ((periph->flags & CAM_PERIPH_INVALID) == 0)
+			error = ERESTART;
+		else {
+			action_string = "Retries exhausted";
+			error = EIO;
 		}
 		break;
 	case CAM_RESRC_UNAVAIL:
@@ -1862,7 +1908,8 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		/* FALLTHROUGH */
 	default:
 		/* decrement the number of retries */
-		if (ccb->ccb_h.retry_count > 0) {
+		if (ccb->ccb_h.retry_count > 0 &&
+		    (periph->flags & CAM_PERIPH_INVALID) == 0) {
 			ccb->ccb_h.retry_count--;
 			error = ERESTART;
 			if (bootverbose && printed == 0) {

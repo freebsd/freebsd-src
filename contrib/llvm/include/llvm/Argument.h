@@ -39,7 +39,7 @@ public:
   /// Argument ctor - If Function argument is specified, this argument is
   /// inserted at the end of the argument list for the function.
   ///
-  explicit Argument(const Type *Ty, const Twine &Name = "", Function *F = 0);
+  explicit Argument(Type *Ty, const Twine &Name = "", Function *F = 0);
 
   inline const Function *getParent() const { return Parent; }
   inline       Function *getParent()       { return Parent; }
@@ -51,6 +51,9 @@ public:
   /// hasByValAttr - Return true if this argument has the byval attribute on it
   /// in its containing function.
   bool hasByValAttr() const;
+  
+  /// getParamAlignment - If this is a byval argument, return its alignment.
+  unsigned getParamAlignment() const;
 
   /// hasNestAttr - Return true if this argument has the nest attribute on
   /// it in its containing function.

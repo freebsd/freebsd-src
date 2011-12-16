@@ -142,7 +142,7 @@ copyout(const void *kaddr, void *udaddr, size_t len)
 	char		*up, *p;
 	size_t		l;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
 	if (setfault(env)) {
@@ -183,7 +183,7 @@ copyin(const void *udaddr, void *kaddr, size_t len)
 	char		*kp, *p;
 	size_t		l;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
 	if (setfault(env)) {
@@ -225,7 +225,7 @@ copyinstr(const void *udaddr, void *kaddr, size_t len, size_t *done)
 	size_t		l;
 	int		rv, c;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 
 	if (setfault(env)) {
@@ -267,7 +267,7 @@ subyte(void *addr, int byte)
 	faultbuf	env;
 	char		*p;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (char *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -293,7 +293,7 @@ suword32(void *addr, int word)
 	faultbuf	env;
 	int		*p;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (int *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -319,7 +319,7 @@ suword(void *addr, long word)
 	faultbuf	env;
 	long		*p;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -359,7 +359,7 @@ fubyte(const void *addr)
 	u_char		*p;
 	int		val;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (u_char *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -385,7 +385,7 @@ fuword32(const void *addr)
 	faultbuf	env;
 	int32_t		*p, val;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (int32_t *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -411,7 +411,7 @@ fuword(const void *addr)
 	faultbuf	env;
 	long		*p, val;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -444,7 +444,7 @@ casuword32(volatile uint32_t *addr, uint32_t old, uint32_t new)
 	faultbuf env;
 	uint32_t *p, val;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (uint32_t *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 
@@ -489,7 +489,7 @@ casuword(volatile u_long *addr, u_long old, u_long new)
 	faultbuf env;
 	u_long *p, val;
 
-	td = PCPU_GET(curthread);
+	td = curthread;
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	p = (u_long *)(USER_ADDR + ((uintptr_t)addr & ~SEGMENT_MASK));
 

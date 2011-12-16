@@ -94,14 +94,14 @@ void	sx_sysinit(void *arg);
 #define	sx_init(sx, desc)	sx_init_flags((sx), (desc), 0)
 void	sx_init_flags(struct sx *sx, const char *description, int opts);
 void	sx_destroy(struct sx *sx);
+int	sx_try_slock_(struct sx *sx, const char *file, int line);
+int	sx_try_xlock_(struct sx *sx, const char *file, int line);
+int	sx_try_upgrade_(struct sx *sx, const char *file, int line);
+void	sx_downgrade_(struct sx *sx, const char *file, int line);
 int	_sx_slock(struct sx *sx, int opts, const char *file, int line);
 int	_sx_xlock(struct sx *sx, int opts, const char *file, int line);
-int	_sx_try_slock(struct sx *sx, const char *file, int line);
-int	_sx_try_xlock(struct sx *sx, const char *file, int line);
 void	_sx_sunlock(struct sx *sx, const char *file, int line);
 void	_sx_xunlock(struct sx *sx, const char *file, int line);
-int	_sx_try_upgrade(struct sx *sx, const char *file, int line);
-void	_sx_downgrade(struct sx *sx, const char *file, int line);
 int	_sx_xlock_hard(struct sx *sx, uintptr_t tid, int opts,
 	    const char *file, int line);
 int	_sx_slock_hard(struct sx *sx, int opts, const char *file, int line);
@@ -109,7 +109,7 @@ void	_sx_xunlock_hard(struct sx *sx, uintptr_t tid, const char *file, int
 	    line);
 void	_sx_sunlock_hard(struct sx *sx, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_sx_assert(struct sx *sx, int what, const char *file, int line);
+void	_sx_assert(const struct sx *sx, int what, const char *file, int line);
 #endif
 #ifdef DDB
 int	sx_chain(struct thread *td, struct thread **ownerp);
@@ -118,17 +118,21 @@ int	sx_chain(struct thread *td, struct thread **ownerp);
 struct sx_args {
 	struct sx 	*sa_sx;
 	const char	*sa_desc;
+	int		sa_flags;
 };
 
-#define	SX_SYSINIT(name, sxa, desc)					\
+#define	SX_SYSINIT_FLAGS(name, sxa, desc, flags)			\
 	static struct sx_args name##_args = {				\
 		(sxa),							\
-		(desc)							\
+		(desc),							\
+		(flags)							\
 	};								\
 	SYSINIT(name##_sx_sysinit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_sysinit, &name##_args);					\
 	SYSUNINIT(name##_sx_sysuninit, SI_SUB_LOCK, SI_ORDER_MIDDLE,	\
 	    sx_destroy, (sxa))
+
+#define	SX_SYSINIT(name, sxa, desc)	SX_SYSINIT_FLAGS(name, sxa, desc, 0)
 
 /*
  * Full lock operations that are suitable to be inlined in non-debug kernels.
@@ -204,30 +208,50 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 #error	"LOCK_DEBUG not defined, include <sys/lock.h> before <sys/sx.h>"
 #endif
 #if	(LOCK_DEBUG > 0) || defined(SX_NOINLINE)
-#define	sx_xlock(sx)		(void)_sx_xlock((sx), 0, LOCK_FILE, LOCK_LINE)
-#define	sx_xlock_sig(sx)						\
-	_sx_xlock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
-#define	sx_xunlock(sx)		_sx_xunlock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_slock(sx)		(void)_sx_slock((sx), 0, LOCK_FILE, LOCK_LINE)
-#define	sx_slock_sig(sx)						\
-	_sx_slock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
-#define	sx_sunlock(sx)		_sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xlock_(sx, file, line)					\
+	(void)_sx_xlock((sx), 0, (file), (line))
+#define	sx_xlock_sig_(sx, file, line)					\
+	_sx_xlock((sx), SX_INTERRUPTIBLE, (file), (line))
+#define	sx_xunlock_(sx, file, line)					\
+	_sx_xunlock((sx), (file), (line))
+#define	sx_slock_(sx, file, line)					\
+	(void)_sx_slock((sx), 0, (file), (line))
+#define	sx_slock_sig_(sx, file, line)					\
+	_sx_slock((sx), SX_INTERRUPTIBLE, (file) , (line))
+#define	sx_sunlock_(sx, file, line)					\
+	_sx_sunlock((sx), (file), (line))
 #else
-#define	sx_xlock(sx)							\
-	(void)__sx_xlock((sx), curthread, 0, LOCK_FILE, LOCK_LINE)
-#define	sx_xlock_sig(sx)						\
-	__sx_xlock((sx), curthread, SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
-#define	sx_xunlock(sx)							\
-	__sx_xunlock((sx), curthread, LOCK_FILE, LOCK_LINE)
-#define	sx_slock(sx)		(void)__sx_slock((sx), 0, LOCK_FILE, LOCK_LINE)
-#define	sx_slock_sig(sx)						\
-	__sx_slock((sx), SX_INTERRUPTIBLE, LOCK_FILE, LOCK_LINE)
-#define	sx_sunlock(sx)		__sx_sunlock((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xlock_(sx, file, line)					\
+	(void)__sx_xlock((sx), curthread, 0, (file), (line))
+#define	sx_xlock_sig_(sx, file, line)					\
+	__sx_xlock((sx), curthread, SX_INTERRUPTIBLE, (file), (line))
+#define	sx_xunlock_(sx, file, line)					\
+	__sx_xunlock((sx), curthread, (file), (line))
+#define	sx_slock_(sx, file, line)					\
+	(void)__sx_slock((sx), 0, (file), (line))
+#define	sx_slock_sig_(sx, file, line)					\
+	__sx_slock((sx), SX_INTERRUPTIBLE, (file), (line))
+#define	sx_sunlock_(sx, file, line)					\
+	__sx_sunlock((sx), (file), (line))
 #endif	/* LOCK_DEBUG > 0 || SX_NOINLINE */
-#define	sx_try_slock(sx)	_sx_try_slock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_try_xlock(sx)	_sx_try_xlock((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_try_upgrade(sx)	_sx_try_upgrade((sx), LOCK_FILE, LOCK_LINE)
-#define	sx_downgrade(sx)	_sx_downgrade((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_slock(sx)	sx_try_slock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_xlock(sx)	sx_try_xlock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_try_upgrade(sx)	sx_try_upgrade_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_downgrade(sx)	sx_downgrade_((sx), LOCK_FILE, LOCK_LINE)
+#ifdef INVARIANTS
+#define	sx_assert_(sx, what, file, line)				\
+	_sx_assert((sx), (what), (file), (line))
+#else
+#define	sx_assert_(sx, what, file, line)	(void)0
+#endif
+
+#define	sx_xlock(sx)		sx_xlock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xlock_sig(sx)	sx_xlock_sig_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_xunlock(sx)		sx_xunlock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_slock(sx)		sx_slock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_slock_sig(sx)	sx_slock_sig_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_sunlock(sx)		sx_sunlock_((sx), LOCK_FILE, LOCK_LINE)
+#define	sx_assert(sx, what)	sx_assert_((sx), (what), __FILE__, __LINE__)
 
 /*
  * Return a pointer to the owning thread if the lock is exclusively
@@ -241,12 +265,14 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 	(((sx)->sx_lock & ~(SX_LOCK_FLAGMASK & ~SX_LOCK_SHARED)) ==	\
 	    (uintptr_t)curthread)
 
-#define	sx_unlock(sx) do {						\
+#define	sx_unlock_(sx, file, line) do {					\
 	if (sx_xlocked(sx))						\
-		sx_xunlock(sx);						\
+		sx_xunlock_(sx, file, line);				\
 	else								\
-		sx_sunlock(sx);						\
+		sx_sunlock_(sx, file, line);				\
 } while (0)
+
+#define	sx_unlock(sx)	sx_unlock_((sx), LOCK_FILE, LOCK_LINE)
 
 #define	sx_sleep(chan, sx, pri, wmesg, timo)				\
 	_sleep((chan), &(sx)->lock_object, (pri), (wmesg), (timo))
@@ -281,12 +307,6 @@ __sx_sunlock(struct sx *sx, const char *file, int line)
 #define	SX_UNLOCKED		LA_UNLOCKED
 #define	SX_RECURSED		LA_RECURSED
 #define	SX_NOTRECURSED		LA_NOTRECURSED
-#endif
-
-#ifdef INVARIANTS
-#define	sx_assert(sx, what)	_sx_assert((sx), (what), LOCK_FILE, LOCK_LINE)
-#else
-#define	sx_assert(sx, what)	(void)0
 #endif
 
 #endif /* _KERNEL */

@@ -244,7 +244,7 @@ linux_proc_exit(void *arg __unused, struct proc *p)
 		KASSERT(em != NULL, ("linux_reparent: emuldata not found: %i\n", q->p_pid));
 		PROC_LOCK(q);
 		if ((q->p_flag & P_WEXIT) == 0 && em->pdeath_signal != 0) {
-			psignal(q, em->pdeath_signal);
+			kern_psignal(q, em->pdeath_signal);
 		}
 		PROC_UNLOCK(q);
 		EMUL_UNLOCK(&emul_lock);
@@ -362,7 +362,7 @@ linux_kill_threads(struct thread *td, int sig)
 
 		sp = pfind(em->pid);
 		if ((sp->p_flag & P_WEXIT) == 0)
-			psignal(sp, sig);
+			kern_psignal(sp, sig);
 		PROC_UNLOCK(sp);
 #ifdef DEBUG
 		printf(LMSG("linux_kill_threads: kill PID %d\n"), em->pid);

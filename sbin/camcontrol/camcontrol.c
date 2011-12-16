@@ -86,7 +86,8 @@ typedef enum {
 	CAM_CMD_SMP_RG		= 0x00000018,
 	CAM_CMD_SMP_PC		= 0x00000019,
 	CAM_CMD_SMP_PHYLIST	= 0x0000001a,
-	CAM_CMD_SMP_MANINFO	= 0x0000001b
+	CAM_CMD_SMP_MANINFO	= 0x0000001b,
+	CAM_CMD_DOWNLOAD_FW	= 0x0000001c
 } cam_cmdmask;
 
 typedef enum {
@@ -140,7 +141,7 @@ static const char smppc_opts[] = "a:A:d:lm:M:o:p:s:S:T:";
 static const char smpphylist_opts[] = "lq";
 #endif
 
-struct camcontrol_opts option_table[] = {
+static struct camcontrol_opts option_table[] = {
 #ifndef MINIMALISTIC
 	{"tur", CAM_CMD_TUR, CAM_ARG_NONE, NULL},
 	{"inquiry", CAM_CMD_INQUIRY, CAM_ARG_NONE, "DSR"},
@@ -180,6 +181,7 @@ struct camcontrol_opts option_table[] = {
 	{"idle", CAM_CMD_IDLE, CAM_ARG_NONE, "t:"},
 	{"standby", CAM_CMD_STANDBY, CAM_ARG_NONE, "t:"},
 	{"sleep", CAM_CMD_SLEEP, CAM_ARG_NONE, ""},
+	{"fwdownload", CAM_CMD_DOWNLOAD_FW, CAM_ARG_NONE, "f:ys"},
 #endif /* MINIMALISTIC */
 	{"help", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
 	{"-?", CAM_CMD_USAGE, CAM_ARG_NONE, NULL},
@@ -207,8 +209,8 @@ struct cam_devlist {
 	path_id_t path_id;
 };
 
-cam_cmdmask cmdlist;
-cam_argmask arglist;
+static cam_cmdmask cmdlist;
+static cam_argmask arglist;
 
 camcontrol_optret getoption(struct camcontrol_opts *table, char *arg,
 			    uint32_t *cmdnum, cam_argmask *argnum,
@@ -222,8 +224,6 @@ static int testunitready(struct cam_device *device, int retry_count,
 			 int timeout, int quiet);
 static int scsistart(struct cam_device *device, int startstop, int loadeject,
 		     int retry_count, int timeout);
-static int scsidoinquiry(struct cam_device *device, int argc, char **argv,
-			 char *combinedopt, int retry_count, int timeout);
 static int scsiinquiry(struct cam_device *device, int retry_count, int timeout);
 static int scsiserial(struct cam_device *device, int retry_count, int timeout);
 static int camxferrate(struct cam_device *device);
@@ -683,7 +683,7 @@ scsistart(struct cam_device *device, int startstop, int loadeject,
 	return(error);
 }
 
-static int
+int
 scsidoinquiry(struct cam_device *device, int argc, char **argv,
 	      char *combinedopt, int retry_count, int timeout)
 {
@@ -1131,7 +1131,7 @@ atacapprint(struct ata_params *parm)
 	printf("firmware revision     %.8s\n", parm->revision);
 	printf("serial number         %.20s\n", parm->serial);
 	if (parm->enabled.extension & ATA_SUPPORT_64BITWWN) {
-		printf("WWN                   %02x%02x%02x%02x\n",
+		printf("WWN                   %04x%04x%04x%04x\n",
 		    parm->wwn[0], parm->wwn[1], parm->wwn[2], parm->wwn[3]);
 	}
 	if (parm->enabled.extension & ATA_SUPPORT_MEDIASN) {
@@ -1907,7 +1907,9 @@ readdefects(struct cam_device *device, int argc, char **argv,
 		int error_code, sense_key, asc, ascq;
 
 		sense = &ccb->csio.sense_data;
-		scsi_extract_sense(sense, &error_code, &sense_key, &asc, &ascq);
+		scsi_extract_sense_len(sense, ccb->csio.sense_len -
+		    ccb->csio.sense_resid, &error_code, &sense_key, &asc,
+		    &ascq, /*show_errors*/ 1);
 
 		/*
 		 * According to the SCSI spec, if the disk doesn't support
@@ -2755,6 +2757,7 @@ tagcontrol(struct cam_device *device, int argc, char **argv,
 		bzero(&(&ccb->ccb_h)[1],
 		      sizeof(struct ccb_relsim) - sizeof(struct ccb_hdr));
 		ccb->ccb_h.func_code = XPT_REL_SIMQ;
+		ccb->ccb_h.flags = CAM_DEV_QFREEZE;
 		ccb->crs.release_flags = RELSIM_ADJUST_OPENINGS;
 		ccb->crs.openings = numtags;
 
@@ -3568,7 +3571,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	union ccb *ccb;
 	int c;
 	int ycount = 0, quiet = 0;
-	int error = 0, response = 0, retval = 0;
+	int error = 0, retval = 0;
 	int use_timeout = 10800 * 1000;
 	int immediate = 1;
 	struct format_defect_list_header fh;
@@ -3622,27 +3625,7 @@ scsiformat(struct cam_device *device, int argc, char **argv,
 	}
 
 	if (ycount == 0) {
-
-		do {
-			char str[1024];
-
-			fprintf(stdout, "Are you SURE you want to do "
-				"this? (yes/no) ");
-
-			if (fgets(str, sizeof(str), stdin) != NULL) {
-
-				if (strncasecmp(str, "yes", 3) == 0)
-					response = 1;
-				else if (strncasecmp(str, "no", 2) == 0)
-					response = -1;
-				else {
-					fprintf(stdout, "Please answer"
-						" \"yes\" or \"no\"\n");
-				}
-			}
-		} while (response == 0);
-
-		if (response == -1) {
+		if (!get_confirmation()) {
 			error = 1;
 			goto scsiformat_bailout;
 		}
@@ -3797,8 +3780,9 @@ doreport:
 			int error_code, sense_key, asc, ascq;
 
 			sense = &ccb->csio.sense_data;
-			scsi_extract_sense(sense, &error_code, &sense_key,
-					   &asc, &ascq);
+			scsi_extract_sense_len(sense, ccb->csio.sense_len -
+			    ccb->csio.sense_resid, &error_code, &sense_key,
+			    &asc, &ascq, /*show_errors*/ 1);
 
 			/*
 			 * According to the SCSI-2 and SCSI-3 specs, a
@@ -3809,15 +3793,15 @@ doreport:
 			 */
 			if ((sense_key == SSD_KEY_NOT_READY)
 			 && (asc == 0x04) && (ascq == 0x04)) {
-				if ((sense->extra_len >= 10)
-				 && ((sense->sense_key_spec[0] &
-				      SSD_SCS_VALID) != 0)
+				uint8_t sks[3];
+
+				if ((scsi_get_sks(sense, ccb->csio.sense_len -
+				     ccb->csio.sense_resid, sks) == 0)
 				 && (quiet == 0)) {
 					int val;
 					u_int64_t percentage;
 
-					val = scsi_2btoul(
-						&sense->sense_key_spec[1]);
+					val = scsi_2btoul(&sks[1]);
 					percentage = 10000 * val;
 
 					fprintf(stdout,
@@ -4642,7 +4626,7 @@ bailout:
 	return (error);
 }
 
-struct camcontrol_opts phy_ops[] = {
+static struct camcontrol_opts phy_ops[] = {
 	{"nop", SMP_PC_PHY_OP_NOP, CAM_ARG_NONE, NULL},
 	{"linkreset", SMP_PC_PHY_OP_LINK_RESET, CAM_ARG_NONE, NULL},
 	{"hardreset", SMP_PC_PHY_OP_HARD_RESET, CAM_ARG_NONE, NULL},
@@ -5043,13 +5027,13 @@ getdevid(struct cam_devitem *item)
 	 * then allocate that much memory and try again.
 	 */
 retry:
-	ccb->ccb_h.func_code = XPT_GDEV_ADVINFO;
+	ccb->ccb_h.func_code = XPT_DEV_ADVINFO;
 	ccb->ccb_h.flags = CAM_DIR_IN;
-	ccb->cgdai.flags = CGDAI_FLAG_PROTO;
-	ccb->cgdai.buftype = CGDAI_TYPE_SCSI_DEVID;
-	ccb->cgdai.bufsiz = item->device_id_len;
+	ccb->cdai.flags = 0;
+	ccb->cdai.buftype = CDAI_TYPE_SCSI_DEVID;
+	ccb->cdai.bufsiz = item->device_id_len;
 	if (item->device_id_len != 0)
-		ccb->cgdai.buf = (uint8_t *)item->device_id;
+		ccb->cdai.buf = (uint8_t *)item->device_id;
 
 	if (cam_send_ccb(dev, ccb) < 0) {
 		warn("%s: error sending XPT_GDEV_ADVINFO CCB", __func__);
@@ -5068,13 +5052,13 @@ retry:
 		 * This is our first time through.  Allocate the buffer,
 		 * and then go back to get the data.
 		 */
-		if (ccb->cgdai.provsiz == 0) {
+		if (ccb->cdai.provsiz == 0) {
 			warnx("%s: invalid .provsiz field returned with "
 			     "XPT_GDEV_ADVINFO CCB", __func__);
 			retval = 1;
 			goto bailout;
 		}
-		item->device_id_len = ccb->cgdai.provsiz;
+		item->device_id_len = ccb->cdai.provsiz;
 		item->device_id = malloc(item->device_id_len);
 		if (item->device_id == NULL) {
 			warn("%s: unable to allocate %d bytes", __func__,
@@ -5282,8 +5266,9 @@ findsasdevice(struct cam_devlist *devlist, uint64_t sasaddr)
 		/*
 		 * XXX KDM look for LUN IDs as well?
 		 */
-		item_addr = scsi_get_sas_addr(item->device_id,
-					      item->device_id_len);
+		item_addr = scsi_get_devid(item->device_id,
+					   item->device_id_len,
+					   scsi_devid_is_sas_target);
 		if (item_addr == NULL)
 			continue;
 
@@ -5688,6 +5673,7 @@ usage(int verbose)
 "        camcontrol idle       [dev_id][generic args][-t time]\n"
 "        camcontrol standby    [dev_id][generic args][-t time]\n"
 "        camcontrol sleep      [dev_id][generic args]\n"
+"        camcontrol fwdownload [dev_id][generic args] <-f fw_image> [-y][-s]\n"
 #endif /* MINIMALISTIC */
 "        camcontrol help\n");
 	if (!verbose)
@@ -5723,6 +5709,7 @@ usage(int verbose)
 "idle        send the ATA IDLE command to the named device\n"
 "standby     send the ATA STANDBY command to the named device\n"
 "sleep       send the ATA SLEEP command to the named device\n"
+"fwdownload  program firmware of the named device with the given image"
 "help        this message\n"
 "Device Identifiers:\n"
 "bus:target        specify the bus and target, lun defaults to 0\n"
@@ -5814,7 +5801,12 @@ usage(int verbose)
 "-w                don't send immediate format command\n"
 "-y                don't ask any questions\n"
 "idle/standby arguments:\n"
-"-t <arg>          number of seconds before respective state.\n");
+"-t <arg>          number of seconds before respective state.\n"
+"fwdownload arguments:\n"
+"-f fw_image       path to firmware image file\n"
+"-y                don't ask any questions\n"
+"-s                run in simulation mode\n"
+"-v                print info for every firmware segment sent to device\n");
 #endif /* MINIMALISTIC */
 }
 
@@ -6129,6 +6121,10 @@ main(int argc, char **argv)
 			error = atapm(cam_dev, argc, argv,
 						 combinedopt, retry_count,
 						 timeout);
+			break;
+		case CAM_CMD_DOWNLOAD_FW:
+			error = fwdownload(cam_dev, argc, argv, combinedopt,
+			    arglist & CAM_ARG_VERBOSE, retry_count, timeout);
 			break;
 #endif /* MINIMALISTIC */
 		case CAM_CMD_USAGE:

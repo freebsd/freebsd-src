@@ -178,12 +178,13 @@ main(int argc, char *argv[])
 	init_transport(nconf);
 
 	while ((nconf = getnetconfig(nc_handle))) {
-	    if (nconf->nc_flag & NC_VISIBLE)
+	    if (nconf->nc_flag & NC_VISIBLE) {
 	    	if (ipv6_only == 1 && strcmp(nconf->nc_protofmly,
 		    "inet") == 0) {
 		    /* DO NOTHING */
 		} else
 		    init_transport(nconf);
+	    }
 	}
 	endnetconfig(nc_handle);
 
@@ -766,7 +767,7 @@ terminate(int dummy __unused)
 }
 
 void
-rpcbind_abort()
+rpcbind_abort(void)
 {
 #ifdef WARMSTART
 	write_warmstart();	/* Dump yourself */

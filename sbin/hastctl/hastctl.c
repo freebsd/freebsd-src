@@ -36,11 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/stat.h>
 #include <sys/sysctl.h>
 
-#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <inttypes.h>
+#include <libutil.h>
 #include <limits.h>
 #include <signal.h>
 #include <stdio.h>
@@ -330,6 +329,9 @@ control_status(struct nv *nv)
 		    (unsigned int)nv_get_uint32(nv, "keepdirty%u", ii));
 		printf("  remoteaddr: %s\n",
 		    nv_get_string(nv, "remoteaddr%u", ii));
+		str = nv_get_string(nv, "sourceaddr%u", ii);
+		if (str != NULL)
+			printf("  sourceaddr: %s\n", str);
 		printf("  replication: %s\n",
 		    nv_get_string(nv, "replication%u", ii));
 		str = nv_get_string(nv, "status%u", ii);
@@ -338,34 +340,26 @@ control_status(struct nv *nv)
 		printf("  dirty: %ju (%NB)\n",
 		    (uintmax_t)nv_get_uint64(nv, "dirty%u", ii),
 		    (intmax_t)nv_get_uint64(nv, "dirty%u", ii));
+		printf("  statistics:\n");
+		printf("    reads: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_read%u", ii));
+		printf("    writes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_write%u", ii));
+		printf("    deletes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_delete%u", ii));
+		printf("    flushes: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_flush%u", ii));
+		printf("    activemap updates: %ju\n",
+		    (uint64_t)nv_get_uint64(nv, "stat_activemap_update%u", ii));
 	}
 	return (ret);
-}
-
-static int
-numfromstr(const char *str, intmax_t *nump)
-{
-	intmax_t num;
-	char *suffix;
-	int rerrno;
-
-	rerrno = errno;
-	errno = 0;
-	num = strtoimax(str, &suffix, 0);
-	if (errno == 0 && *suffix != '\0')
-		errno = EINVAL;
-	if (errno != 0)
-		return (-1);
-	*nump = num;
-	errno = rerrno;
-	return (0);
 }
 
 int
 main(int argc, char *argv[])
 {
 	struct nv *nv;
-	intmax_t mediasize, extentsize, keepdirty;
+	int64_t mediasize, extentsize, keepdirty;
 	int cmd, debug, error, ii;
 	const char *optstr;
 
@@ -407,16 +401,16 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 		case 'e':
-			if (numfromstr(optarg, &extentsize) < 0)
-				err(1, "Invalid extentsize");
+			if (expand_number(optarg, &extentsize) < 0)
+				errx(EX_USAGE, "Invalid extentsize");
 			break;
 		case 'k':
-			if (numfromstr(optarg, &keepdirty) < 0)
-				err(1, "Invalid keepdirty");
+			if (expand_number(optarg, &keepdirty) < 0)
+				errx(EX_USAGE, "Invalid keepdirty");
 			break;
 		case 'm':
-			if (numfromstr(optarg, &mediasize) < 0)
-				err(1, "Invalid mediasize");
+			if (expand_number(optarg, &mediasize) < 0)
+				errx(EX_USAGE, "Invalid mediasize");
 			break;
 		case 'h':
 		default:
@@ -438,19 +432,19 @@ main(int argc, char *argv[])
 	pjdlog_debug_set(debug);
 
 	cfg = yy_config_parse(cfgpath, true);
-	assert(cfg != NULL);
+	PJDLOG_ASSERT(cfg != NULL);
 
 	switch (cmd) {
 	case CMD_CREATE:
 		control_create(argc, argv, mediasize, extentsize, keepdirty);
 		/* NOTREACHED */
-		assert(!"What are we doing here?!");
+		PJDLOG_ABORT("What are we doing here?!");
 		break;
 	case CMD_DUMP:
 		/* Dump metadata from local component of the given resource. */
 		control_dump(argc, argv);
 		/* NOTREACHED */
-		assert(!"What are we doing here?!");
+		PJDLOG_ABORT("What are we doing here?!");
 		break;
 	case CMD_ROLE:
 		/* Change role for the given resources. */
@@ -481,11 +475,11 @@ main(int argc, char *argv[])
 		}
 		break;
 	default:
-		assert(!"Impossible role!");
+		PJDLOG_ABORT("Impossible command!");
 	}
 
 	/* Setup control connection... */
-	if (proto_client(cfg->hc_controladdr, &controlconn) < 0) {
+	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) < 0) {
 		pjdlog_exit(EX_OSERR,
 		    "Unable to setup control connection to %s",
 		    cfg->hc_controladdr);
@@ -496,9 +490,8 @@ main(int argc, char *argv[])
 		    cfg->hc_controladdr);
 	}
 
-	if (drop_privs() != 0)
+	if (drop_privs(NULL) != 0)
 		exit(EX_CONFIG);
-	pjdlog_debug(1, "Privileges successfully dropped.");
 
 	/* Send the command to the server... */
 	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) < 0) {
@@ -508,7 +501,7 @@ main(int argc, char *argv[])
 	}
 	nv_free(nv);
 	/* ...and receive reply. */
-	if (hast_proto_recv(NULL, controlconn, &nv, NULL, 0) < 0) {
+	if (hast_proto_recv_hdr(controlconn, &nv) < 0) {
 		pjdlog_exit(EX_UNAVAILABLE,
 		    "cannot receive reply from hastd via %s",
 		    cfg->hc_controladdr);
@@ -529,7 +522,7 @@ main(int argc, char *argv[])
 		error = control_status(nv);
 		break;
 	default:
-		assert(!"Impossible role!");
+		PJDLOG_ABORT("Impossible command!");
 	}
 
 	exit(error);

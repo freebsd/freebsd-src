@@ -71,7 +71,7 @@ namespace {
     void visitCallSite(CallSite CS);
     void visitMemoryReference(Instruction &I, Value *Ptr,
                               uint64_t Size, unsigned Align,
-                              const Type *Ty, unsigned Flags);
+                              Type *Ty, unsigned Flags);
 
     void visitCallInst(CallInst &I);
     void visitInvokeInst(InvokeInst &I);
@@ -201,7 +201,7 @@ void Lint::visitCallSite(CallSite CS) {
             "Undefined behavior: Caller and callee calling convention differ",
             &I);
 
-    const FunctionType *FT = F->getFunctionType();
+    FunctionType *FT = F->getFunctionType();
     unsigned NumActualArgs = unsigned(CS.arg_end()-CS.arg_begin());
 
     Assert1(FT->isVarArg() ?
@@ -240,7 +240,7 @@ void Lint::visitCallSite(CallSite CS) {
 
         // Check that an sret argument points to valid memory.
         if (Formal->hasStructRetAttr() && Actual->getType()->isPointerTy()) {
-          const Type *Ty =
+          Type *Ty =
             cast<PointerType>(Formal->getType())->getElementType();
           visitMemoryReference(I, Actual, AA->getTypeStoreSize(Ty),
                                TD ? TD->getABITypeAlignment(Ty) : 0,
@@ -364,7 +364,7 @@ void Lint::visitReturnInst(ReturnInst &I) {
 // TODO: Check readnone/readonly function attributes.
 void Lint::visitMemoryReference(Instruction &I,
                                 Value *Ptr, uint64_t Size, unsigned Align,
-                                const Type *Ty, unsigned Flags) {
+                                Type *Ty, unsigned Flags) {
   // If no memory is being referenced, it doesn't matter if the pointer
   // is valid.
   if (Size == 0)
@@ -592,8 +592,7 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
       return findValueImpl(CI->getOperand(0), OffsetOk, Visited);
   } else if (ExtractValueInst *Ex = dyn_cast<ExtractValueInst>(V)) {
     if (Value *W = FindInsertedValue(Ex->getAggregateOperand(),
-                                     Ex->idx_begin(),
-                                     Ex->idx_end()))
+                                     Ex->getIndices()))
       if (W != V)
         return findValueImpl(W, OffsetOk, Visited);
   } else if (ConstantExpr *CE = dyn_cast<ConstantExpr>(V)) {
@@ -606,10 +605,8 @@ Value *Lint::findValueImpl(Value *V, bool OffsetOk,
                                     Type::getInt64Ty(V->getContext())))
         return findValueImpl(CE->getOperand(0), OffsetOk, Visited);
     } else if (CE->getOpcode() == Instruction::ExtractValue) {
-      const SmallVector<unsigned, 4> &Indices = CE->getIndices();
-      if (Value *W = FindInsertedValue(CE->getOperand(0),
-                                       Indices.begin(),
-                                       Indices.end()))
+      ArrayRef<unsigned> Indices = CE->getIndices();
+      if (Value *W = FindInsertedValue(CE->getOperand(0), Indices))
         if (W != V)
           return findValueImpl(W, OffsetOk, Visited);
     }

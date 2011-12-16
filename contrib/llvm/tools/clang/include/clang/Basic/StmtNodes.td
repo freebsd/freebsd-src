@@ -37,10 +37,12 @@ def ObjCAtFinallyStmt : Stmt;
 def ObjCAtThrowStmt : Stmt;
 def ObjCAtSynchronizedStmt : Stmt;
 def ObjCForCollectionStmt : Stmt;
+def ObjCAutoreleasePoolStmt : Stmt;
 
 // C++ statments
 def CXXCatchStmt : Stmt;
 def CXXTryStmt : Stmt;
+def CXXForRangeStmt : Stmt;
 
 // Expressions
 def Expr : Stmt<1>;
@@ -54,7 +56,7 @@ def CharacterLiteral : DStmt<Expr>;
 def ParenExpr : DStmt<Expr>;
 def UnaryOperator : DStmt<Expr>;
 def OffsetOfExpr : DStmt<Expr>;
-def SizeOfAlignOfExpr : DStmt<Expr>;
+def UnaryExprOrTypeTraitExpr : DStmt<Expr>;
 def ArraySubscriptExpr : DStmt<Expr>;
 def CallExpr : DStmt<Expr>;
 def MemberExpr : DStmt<Expr>;
@@ -74,6 +76,10 @@ def DesignatedInitExpr : DStmt<Expr>;
 def ImplicitValueInitExpr : DStmt<Expr>;
 def ParenListExpr : DStmt<Expr>;
 def VAArgExpr : DStmt<Expr>;
+def GenericSelectionExpr : DStmt<Expr>;
+
+// Atomic expressions
+def AtomicExpr : DStmt<Expr>;
 
 // GNU Extensions.
 def AddrLabelExpr : DStmt<Expr>;
@@ -102,6 +108,8 @@ def CXXDeleteExpr : DStmt<Expr>;
 def CXXPseudoDestructorExpr : DStmt<Expr>;
 def UnaryTypeTraitExpr : DStmt<Expr>;
 def BinaryTypeTraitExpr : DStmt<Expr>;
+def ArrayTypeTraitExpr : DStmt<Expr>;
+def ExpressionTraitExpr : DStmt<Expr>;
 def DependentScopeDeclRefExpr : DStmt<Expr>;
 def CXXConstructExpr : DStmt<Expr>;
 def CXXBindTemporaryExpr : DStmt<Expr>;
@@ -115,7 +123,9 @@ def UnresolvedMemberExpr : DStmt<OverloadExpr>;
 def CXXNoexceptExpr : DStmt<Expr>;
 def PackExpansionExpr : DStmt<Expr>;
 def SizeOfPackExpr : DStmt<Expr>;
+def SubstNonTypeTemplateParmExpr : DStmt<Expr>;
 def SubstNonTypeTemplateParmPackExpr : DStmt<Expr>;
+def MaterializeTemporaryExpr : DStmt<Expr>;
 
 // Obj-C Expressions.
 def ObjCStringLiteral : DStmt<Expr>;
@@ -126,6 +136,10 @@ def ObjCProtocolExpr : DStmt<Expr>;
 def ObjCIvarRefExpr : DStmt<Expr>;
 def ObjCPropertyRefExpr : DStmt<Expr>;
 def ObjCIsaExpr : DStmt<Expr>;
+def ObjCIndirectCopyRestoreExpr : DStmt<Expr>;
+
+// Obj-C ARC Expressions.
+def ObjCBridgedCastExpr : DStmt<ExplicitCastExpr>;
 
 // CUDA Expressions.
 def CUDAKernelCallExpr : DStmt<CallExpr>;
@@ -138,4 +152,9 @@ def OpaqueValueExpr : DStmt<Expr>;
 
 // Microsoft Extensions.
 def CXXUuidofExpr : DStmt<Expr>; 
+def SEHTryStmt : Stmt;
+def SEHExceptStmt : Stmt;
+def SEHFinallyStmt : Stmt;
 
+// OpenCL Extensions.
+def AsTypeExpr : DStmt<Expr>;

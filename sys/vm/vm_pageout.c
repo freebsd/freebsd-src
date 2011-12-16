@@ -86,6 +86,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/mount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/signalvar.h>
@@ -215,15 +216,21 @@ static void vm_req_vmdaemon(int req);
 #endif
 static void vm_pageout_page_stats(void);
 
+/*
+ * Initialize a dummy page for marking the caller's place in the specified
+ * paging queue.  In principle, this function only needs to set the flag
+ * PG_MARKER.  Nonetheless, it sets the flag VPO_BUSY and initializes the hold
+ * count to one as safety precautions.
+ */ 
 static void
 vm_pageout_init_marker(vm_page_t marker, u_short queue)
 {
 
 	bzero(marker, sizeof(*marker));
-	marker->flags = PG_FICTITIOUS | PG_MARKER;
+	marker->flags = PG_MARKER;
 	marker->oflags = VPO_BUSY;
 	marker->queue = queue;
-	marker->wire_count = 1;
+	marker->hold_count = 1;
 }
 
 /*
@@ -490,7 +497,7 @@ vm_pageout_flush(vm_page_t *mc, int count, int flags, int mreq, int *prunlen)
 		vm_page_t mt = mc[i];
 
 		KASSERT(pageout_status[i] == VM_PAGER_PEND ||
-		    (mt->flags & PG_WRITEABLE) == 0,
+		    (mt->aflags & PGA_WRITEABLE) == 0,
 		    ("vm_pageout_flush: page %p is not write protected", mt));
 		switch (pageout_status[i]) {
 		case VM_PAGER_OK:
@@ -590,12 +597,10 @@ vm_pageout_object_deactivate_pages(pmap_t pmap, vm_object_t first_object,
 				continue;
 			}
 			actcount = pmap_ts_referenced(p);
-			if ((p->flags & PG_REFERENCED) != 0) {
+			if ((p->aflags & PGA_REFERENCED) != 0) {
 				if (actcount == 0)
 					actcount = 1;
-				vm_page_lock_queues();
-				vm_page_flag_clear(p, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_clear(p, PGA_REFERENCED);
 			}
 			if (p->queue != PQ_ACTIVE && actcount != 0) {
 				vm_page_activate(p);
@@ -839,7 +844,7 @@ rescan0:
 		 * references.
 		 */
 		if (object->ref_count == 0) {
-			vm_page_flag_clear(m, PG_REFERENCED);
+			vm_page_aflag_clear(m, PGA_REFERENCED);
 			KASSERT(!pmap_page_is_mapped(m),
 			    ("vm_pageout_scan: page %p is mapped", m));
 
@@ -852,7 +857,7 @@ rescan0:
 		 * level VM system not knowing anything about existing 
 		 * references.
 		 */
-		} else if (((m->flags & PG_REFERENCED) == 0) &&
+		} else if (((m->aflags & PGA_REFERENCED) == 0) &&
 			(actcount = pmap_ts_referenced(m))) {
 			vm_page_activate(m);
 			vm_page_unlock(m);
@@ -867,8 +872,8 @@ rescan0:
 		 * "activation count" higher than normal so that we will less 
 		 * likely place pages back onto the inactive queue again.
 		 */
-		if ((m->flags & PG_REFERENCED) != 0) {
-			vm_page_flag_clear(m, PG_REFERENCED);
+		if ((m->aflags & PGA_REFERENCED) != 0) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
 			actcount = pmap_ts_referenced(m);
 			vm_page_activate(m);
 			vm_page_unlock(m);
@@ -884,7 +889,7 @@ rescan0:
 		 * be updated.
 		 */
 		if (m->dirty != VM_PAGE_BITS_ALL &&
-		    (m->flags & PG_WRITEABLE) != 0) {
+		    (m->aflags & PGA_WRITEABLE) != 0) {
 			/*
 			 * Avoid a race condition: Unless write access is
 			 * removed from the page, another processor could
@@ -931,7 +936,7 @@ rescan0:
 			 * before being freed.  This significantly extends
 			 * the thrash point for a heavily loaded machine.
 			 */
-			vm_page_flag_set(m, PG_WINATCFLS);
+			m->flags |= PG_WINATCFLS;
 			vm_page_requeue(m);
 		} else if (maxlaunder > 0) {
 			/*
@@ -1171,7 +1176,7 @@ unlock_and_continue:
 		 */
 		actcount = 0;
 		if (object->ref_count != 0) {
-			if (m->flags & PG_REFERENCED) {
+			if (m->aflags & PGA_REFERENCED) {
 				actcount += 1;
 			}
 			actcount += pmap_ts_referenced(m);
@@ -1185,7 +1190,7 @@ unlock_and_continue:
 		/*
 		 * Since we have "tested" this bit, we need to clear it now.
 		 */
-		vm_page_flag_clear(m, PG_REFERENCED);
+		vm_page_aflag_clear(m, PGA_REFERENCED);
 
 		/*
 		 * Only if an object is currently being used, do we use the
@@ -1286,7 +1291,8 @@ vm_pageout_oom(int shortage)
 		/*
 		 * If this is a system, protected or killed process, skip it.
 		 */
-		if ((p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
+		if (p->p_state != PRS_NORMAL ||
+		    (p->p_flag & (P_INEXEC | P_PROTECTED | P_SYSTEM)) ||
 		    (p->p_pid == 1) || P_KILLED(p) ||
 		    ((p->p_pid < 48) && (swap_pager_avail != 0))) {
 			PROC_UNLOCK(p);
@@ -1301,7 +1307,8 @@ vm_pageout_oom(int shortage)
 			thread_lock(td);
 			if (!TD_ON_RUNQ(td) &&
 			    !TD_IS_RUNNING(td) &&
-			    !TD_IS_SLEEPING(td)) {
+			    !TD_IS_SLEEPING(td) &&
+			    !TD_IS_SUSPENDED(td)) {
 				thread_unlock(td);
 				breakout = 1;
 				break;
@@ -1426,8 +1433,8 @@ vm_pageout_page_stats()
 		}
 
 		actcount = 0;
-		if (m->flags & PG_REFERENCED) {
-			vm_page_flag_clear(m, PG_REFERENCED);
+		if (m->aflags & PGA_REFERENCED) {
+			vm_page_aflag_clear(m, PGA_REFERENCED);
 			actcount += 1;
 		}
 
@@ -1630,11 +1637,18 @@ vm_daemon()
 	struct proc *p;
 	struct thread *td;
 	struct vmspace *vm;
-	int breakout, swapout_flags;
+	int breakout, swapout_flags, tryagain, attempts;
+#ifdef RACCT
+	uint64_t rsize, ravailable;
+#endif
 
 	while (TRUE) {
 		mtx_lock(&vm_daemon_mtx);
+#ifdef RACCT
+		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", hz);
+#else
 		msleep(&vm_daemon_needed, &vm_daemon_mtx, PPAUSE, "psleep", 0);
+#endif
 		swapout_flags = vm_pageout_req_swapout;
 		vm_pageout_req_swapout = 0;
 		mtx_unlock(&vm_daemon_mtx);
@@ -1645,6 +1659,10 @@ vm_daemon()
 		 * scan the processes for exceeding their rlimits or if
 		 * process is swapped out -- deactivate pages
 		 */
+		tryagain = 0;
+		attempts = 0;
+again:
+		attempts++;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			vm_pindex_t limit, size;
@@ -1654,7 +1672,8 @@ vm_daemon()
 			 * looked at this process, skip it.
 			 */
 			PROC_LOCK(p);
-			if (p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
+			if (p->p_state != PRS_NORMAL ||
+			    p->p_flag & (P_INEXEC | P_SYSTEM | P_WEXIT)) {
 				PROC_UNLOCK(p);
 				continue;
 			}
@@ -1667,7 +1686,8 @@ vm_daemon()
 				thread_lock(td);
 				if (!TD_ON_RUNQ(td) &&
 				    !TD_IS_RUNNING(td) &&
-				    !TD_IS_SLEEPING(td)) {
+				    !TD_IS_SLEEPING(td) &&
+				    !TD_IS_SUSPENDED(td)) {
 					thread_unlock(td);
 					breakout = 1;
 					break;
@@ -1702,9 +1722,41 @@ vm_daemon()
 				vm_pageout_map_deactivate_pages(
 				    &vm->vm_map, limit);
 			}
+#ifdef RACCT
+			rsize = IDX_TO_OFF(size);
+			PROC_LOCK(p);
+			racct_set(p, RACCT_RSS, rsize);
+			ravailable = racct_get_available(p, RACCT_RSS);
+			PROC_UNLOCK(p);
+			if (rsize > ravailable) {
+				/*
+				 * Don't be overly aggressive; this might be
+				 * an innocent process, and the limit could've
+				 * been exceeded by some memory hog.  Don't
+				 * try to deactivate more than 1/4th of process'
+				 * resident set size.
+				 */
+				if (attempts <= 8) {
+					if (ravailable < rsize - (rsize / 4))
+						ravailable = rsize - (rsize / 4);
+				}
+				vm_pageout_map_deactivate_pages(
+				    &vm->vm_map, OFF_TO_IDX(ravailable));
+				/* Update RSS usage after paging out. */
+				size = vmspace_resident_count(vm);
+				rsize = IDX_TO_OFF(size);
+				PROC_LOCK(p);
+				racct_set(p, RACCT_RSS, rsize);
+				PROC_UNLOCK(p);
+				if (rsize > ravailable)
+					tryagain = 1;
+			}
+#endif
 			vmspace_free(vm);
 		}
 		sx_sunlock(&allproc_lock);
+		if (tryagain != 0 && attempts <= 10)
+			goto again;
 	}
 }
 #endif			/* !defined(NO_SWAPPING) */

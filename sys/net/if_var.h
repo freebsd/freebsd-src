@@ -195,17 +195,18 @@ struct ifnet {
 					/* protected by if_addr_mtx */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
-	u_char	 if_alloctype;		/* if_type at time of allocation */
+	char	*if_description;	/* interface description */
+	u_int	if_fib;			/* interface FIB */
+	u_char	if_alloctype;		/* if_type at time of allocation */
 
 	/*
 	 * Spare fields are added so that we can modify sensitive data
 	 * structures without changing the kernel binary interface, and must
 	 * be used with care where binary compatibility is required.
 	 */
-	char	 if_cspare[3];
-	char	*if_description;	/* interface description */
-	void	*if_pspare[7];
+	char	if_cspare[3];
 	int	if_ispare[4];
+	void	*if_pspare[8];		/* 1 netmap, 7 TDB */
 };
 
 typedef void if_init_f_t(void *);
@@ -320,6 +321,18 @@ void	if_maddr_runlock(struct ifnet *ifp);	/* if_multiaddrs */
 	IF_UNLOCK(ifq); 					\
 } while (0)
 
+#define	_IF_DEQUEUE_ALL(ifq, m) do {				\
+	(m) = (ifq)->ifq_head;					\
+	(ifq)->ifq_head = (ifq)->ifq_tail = NULL;		\
+	(ifq)->ifq_len = 0;					\
+} while (0)
+
+#define	IF_DEQUEUE_ALL(ifq, m) do {				\
+	IF_LOCK(ifq); 						\
+	_IF_DEQUEUE_ALL(ifq, m);				\
+	IF_UNLOCK(ifq); 					\
+} while (0)
+
 #define	_IF_POLL(ifq, m)	((m) = (ifq)->ifq_head)
 #define	IF_POLL(ifq, m)		_IF_POLL(ifq, m)
 
@@ -352,6 +365,9 @@ EVENTHANDLER_DECLARE(ifnet_arrival_event, ifnet_arrival_event_handler_t);
 /* interface departure event */
 typedef void (*ifnet_departure_event_handler_t)(void *, struct ifnet *);
 EVENTHANDLER_DECLARE(ifnet_departure_event, ifnet_departure_event_handler_t);
+/* Interface link state change event */
+typedef void (*ifnet_link_event_handler_t)(void *, struct ifnet *, int);
+EVENTHANDLER_DECLARE(ifnet_link_event, ifnet_link_event_handler_t);
 
 /*
  * interface groups
@@ -849,7 +865,6 @@ void	if_down(struct ifnet *);
 struct ifmultiaddr *
 	if_findmulti(struct ifnet *, struct sockaddr *);
 void	if_free(struct ifnet *);
-void	if_free_type(struct ifnet *, u_char);
 void	if_initname(struct ifnet *, const char *, int);
 void	if_link_state_change(struct ifnet *, int);
 int	if_printf(struct ifnet *, const char *, ...) __printflike(2, 3);

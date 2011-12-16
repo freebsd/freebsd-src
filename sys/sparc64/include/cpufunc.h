@@ -187,7 +187,7 @@ int fasword32(u_long asi, void *addr, uint32_t *val);
 /*
  * Macro intended to be used instead of wr(asr23, val, xorval) for writing to
  * the TICK_COMPARE register in order to avoid a bug in BlackBird CPUs that
- * can cause these writes to fail under certain condidtions which in turn
+ * can cause these writes to fail under certain conditions which in turn
  * causes the hardclock to stop.  The workaround is to read the TICK_COMPARE
  * register back immediately after writing to it with these two instructions
  * aligned to a quadword boundary in order to ensure that I$ misses won't

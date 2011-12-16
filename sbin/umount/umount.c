@@ -63,9 +63,9 @@ static const char rcsid[] =
 
 typedef enum { FIND, REMOVE, CHECKUNIQUE } dowhat;
 
-struct  addrinfo *nfshost_ai = NULL;
-int	fflag, vflag;
-char   *nfshost;
+static struct addrinfo *nfshost_ai = NULL;
+static int	fflag, vflag;
+static char	*nfshost;
 
 struct statfs *checkmntlist(char *);
 int	 checkvfsname (const char *, char **);
@@ -89,9 +89,6 @@ main(int argc, char *argv[])
 	char **typelist = NULL;
 	struct statfs *mntbuf, *sfs;
 	struct addrinfo hints;
-
-	/* Start disks transferring immediately. */
-	sync();
 
 	all = errs = 0;
 	while ((ch = getopt(argc, argv, "AaF:fh:t:v")) != -1)
@@ -127,6 +124,10 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
+	/* Start disks transferring immediately. */
+	if ((fflag & MNT_FORCE) == 0)
+		sync();
+
 	if ((argc == 0 && !all) || (argc != 0 && all))
 		usage();
 
@@ -152,6 +153,8 @@ main(int argc, char *argv[])
 		for (errs = 0, mntsize--; mntsize > 0; mntsize--) {
 			sfs = &mntbuf[mntsize];
 			if (checkvfsname(sfs->f_fstypename, typelist))
+				continue;
+			if (strcmp(sfs->f_mntonname, "/dev") == 0)
 				continue;
 			if (umountfs(sfs) != 0)
 				errs = 1;
@@ -599,7 +602,7 @@ usage(void)
 {
 
 	(void)fprintf(stderr, "%s\n%s\n",
-	    "usage: umount [-fv] special | node | fsid",
+	    "usage: umount [-fv] special ... | node ... | fsid ...",
 	    "       umount -a | -A [-F fstab] [-fv] [-h host] [-t type]");
 	exit(1);
 }

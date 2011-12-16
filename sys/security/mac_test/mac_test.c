@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1999-2002, 2007-2009 Robert N. M. Watson
+ * Copyright (c) 1999-2002, 2007-2011 Robert N. M. Watson
  * Copyright (c) 2001-2005 McAfee, Inc.
  * Copyright (c) 2006 SPARTA, Inc.
  * Copyright (c) 2008 Apple Inc.
@@ -80,7 +80,7 @@
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, test, CTLFLAG_RW, 0,
     "TrustedBSD mac_test policy controls");
 
 #define	MAGIC_BPF	0xfe1ad1b6
@@ -112,7 +112,7 @@ static int	test_slot;
 SYSCTL_INT(_security_mac_test, OID_AUTO, slot, CTLFLAG_RD,
     &test_slot, 0, "Slot allocated by framework");
 
-SYSCTL_NODE(_security_mac_test, OID_AUTO, counter, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac_test, OID_AUTO, counter, CTLFLAG_RW, 0,
     "TrustedBSD mac_test counters controls");
 
 #define	COUNTER_DECL(variable)						\
@@ -1297,6 +1297,30 @@ test_posixsem_check_post(struct ucred *active_cred, struct ucred *file_cred,
 	return (0);
 }
 
+COUNTER_DECL(posixsem_check_setmode);
+static int
+test_posixsem_check_setmode(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, mode_t mode)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixsem_check_setmode);
+	return (0);
+}
+
+COUNTER_DECL(posixsem_check_setowner);
+static int
+test_posixsem_check_setowner(struct ucred *cred, struct ksem *ks,
+    struct label *kslabel, uid_t uid, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(kslabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixsem_check_setowner);
+	return (0);
+}
+
 COUNTER_DECL(posixsem_check_stat);
 static int
 test_posixsem_check_stat(struct ucred *active_cred,
@@ -1366,6 +1390,15 @@ test_posixsem_init_label(struct label *label)
 	COUNTER_INC(posixsem_init_label);
 }
 
+COUNTER_DECL(posixshm_check_create);
+static int
+test_posixshm_check_create(struct ucred *cred, const char *path)
+{
+
+	COUNTER_INC(posixshm_check_create);
+	return (0);
+}
+
 COUNTER_DECL(posixshm_check_mmap);
 static int
 test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
@@ -1381,12 +1414,36 @@ test_posixshm_check_mmap(struct ucred *cred, struct shmfd *shmfd,
 COUNTER_DECL(posixshm_check_open);
 static int
 test_posixshm_check_open(struct ucred *cred, struct shmfd *shmfd,
-    struct label *shmfdlabel)
+    struct label *shmfdlabel, accmode_t accmode)
 {
 
 	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
 	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
 	COUNTER_INC(posixshm_check_open);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_setmode);
+static int
+test_posixshm_check_setmode(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel, mode_t mode)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_setmode);
+	return (0);
+}
+
+COUNTER_DECL(posixshm_check_setowner);
+static int
+test_posixshm_check_setowner(struct ucred *cred, struct shmfd *shmfd,
+    struct label *shmfdlabel, uid_t uid, gid_t gid)
+{
+
+	LABEL_CHECK(cred->cr_label, MAGIC_CRED);
+	LABEL_CHECK(shmfdlabel, MAGIC_POSIX_SHM);
+	COUNTER_INC(posixshm_check_setowner);
 	return (0);
 }
 
@@ -3045,6 +3102,8 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_check_getvalue = test_posixsem_check_getvalue,
 	.mpo_posixsem_check_open = test_posixsem_check_open,
 	.mpo_posixsem_check_post = test_posixsem_check_post,
+	.mpo_posixsem_check_setmode = test_posixsem_check_setmode,
+	.mpo_posixsem_check_setowner = test_posixsem_check_setowner,
 	.mpo_posixsem_check_stat = test_posixsem_check_stat,
 	.mpo_posixsem_check_unlink = test_posixsem_check_unlink,
 	.mpo_posixsem_check_wait = test_posixsem_check_wait,
@@ -3052,8 +3111,11 @@ static struct mac_policy_ops test_ops =
 	.mpo_posixsem_destroy_label = test_posixsem_destroy_label,
 	.mpo_posixsem_init_label = test_posixsem_init_label,
 
+	.mpo_posixshm_check_create = test_posixshm_check_create,
 	.mpo_posixshm_check_mmap = test_posixshm_check_mmap,
 	.mpo_posixshm_check_open = test_posixshm_check_open,
+	.mpo_posixshm_check_setmode = test_posixshm_check_setmode,
+	.mpo_posixshm_check_setowner = test_posixshm_check_setowner,
 	.mpo_posixshm_check_stat = test_posixshm_check_stat,
 	.mpo_posixshm_check_truncate = test_posixshm_check_truncate,
 	.mpo_posixshm_check_unlink = test_posixshm_check_unlink,

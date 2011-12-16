@@ -452,7 +452,7 @@ nwfs_getpages(ap)
 			    ("nwfs_getpages: page %p is dirty", m));
 		} else {
 			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_valid(m, 0, nvalid);
+			vm_page_set_valid_range(m, 0, nvalid);
 			KASSERT((m->dirty & vm_page_bits(0, nvalid)) == 0,
 			    ("nwfs_getpages: page %p is dirty", m));
 		}
@@ -544,7 +544,7 @@ nwfs_putpages(ap)
 	npages = btoc(count);
 
 	for (i = 0; i < npages; i++) {
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 	}
 
 	bp = getpbuf(&nwfs_pbuf_freecnt);
@@ -569,13 +569,8 @@ nwfs_putpages(ap)
 	pmap_qremove(kva, npages);
 	relpbuf(bp, &nwfs_pbuf_freecnt);
 
-	if (!error) {
-		int nwritten = round_page(count - uio.uio_resid) / PAGE_SIZE;
-		for (i = 0; i < nwritten; i++) {
-			rtvals[i] = VM_PAGER_OK;
-			vm_page_undirty(pages[i]);
-		}
-	}
+	if (!error)
+		vnode_pager_undirty_pages(pages, rtvals, count - uio.uio_resid);
 	return rtvals[0];
 #endif /* NWFS_RWCACHE */
 }

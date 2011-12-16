@@ -57,8 +57,11 @@ __FBSDID("$FreeBSD$");
 #include <net80211/ieee80211_wds.h>
 #include <net80211/ieee80211_mesh.h>
 
-#ifdef INET
+#if defined(INET) || defined(INET6)
 #include <netinet/in.h> 
+#endif
+
+#ifdef INET
 #include <netinet/if_ether.h>
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
@@ -419,7 +422,8 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		    "block %s frame in CAC state\n", "raw data");
 		vap->iv_stats.is_tx_badstate++;
 		senderr(EIO);		/* XXX */
-	}
+	} else if (vap->iv_state == IEEE80211_S_SCAN)
+		senderr(EIO);
 	/* XXX bypass bridge, pfil, carp, etc. */
 
 	if (m->m_pkthdr.len < sizeof(struct ieee80211_frame_ack))
@@ -512,6 +516,7 @@ ieee80211_send_setup(
 {
 #define	WH4(wh)	((struct ieee80211_frame_addr4 *)wh)
 	struct ieee80211vap *vap = ni->ni_vap;
+	struct ieee80211_tx_ampdu *tap;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
 	ieee80211_seq seqno;
 
@@ -579,9 +584,15 @@ ieee80211_send_setup(
 	}
 	*(uint16_t *)&wh->i_dur[0] = 0;
 
-	seqno = ni->ni_txseqs[tid]++;
-	*(uint16_t *)&wh->i_seq[0] = htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
-	M_SEQNO_SET(m, seqno);
+	tap = &ni->ni_tx_ampdu[TID_TO_WME_AC(tid)];
+	if (tid != IEEE80211_NONQOS_TID && IEEE80211_AMPDU_RUNNING(tap))
+		m->m_flags |= M_AMPDU_MPDU;
+	else {
+		seqno = ni->ni_txseqs[tid]++;
+		*(uint16_t *)&wh->i_seq[0] =
+		    htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+		M_SEQNO_SET(m, seqno);
+	}
 
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1))
 		m->m_flags |= M_MCAST;
@@ -1650,6 +1661,33 @@ ieee80211_add_supportedchannels(uint8_t *frm, struct ieee80211com *ic)
 }
 
 /*
+ * Add an 11h Quiet time element to a frame.
+ */
+static uint8_t *
+ieee80211_add_quiet(uint8_t *frm, struct ieee80211vap *vap)
+{
+	struct ieee80211_quiet_ie *quiet = (struct ieee80211_quiet_ie *) frm;
+
+	quiet->quiet_ie = IEEE80211_ELEMID_QUIET;
+	quiet->len = 6;
+	if (vap->iv_quiet_count_value == 1)
+		vap->iv_quiet_count_value = vap->iv_quiet_count;
+	else if (vap->iv_quiet_count_value > 1)
+		vap->iv_quiet_count_value--;
+
+	if (vap->iv_quiet_count_value == 0) {
+		/* value 0 is reserved as per 802.11h standerd */
+		vap->iv_quiet_count_value = 1;
+	}
+
+	quiet->tbttcount = vap->iv_quiet_count_value;
+	quiet->period = vap->iv_quiet_period;
+	quiet->duration = htole16(vap->iv_quiet_duration);
+	quiet->offset = htole16(vap->iv_quiet_offset);
+	return frm + sizeof(*quiet);
+}
+
+/*
  * Add an 11h Channel Switch Announcement element to a frame.
  * Note that we use the per-vap CSA count to adjust the global
  * counter so we can use this routine to form probe response
@@ -2242,6 +2280,7 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 	       + IEEE80211_COUNTRY_MAX_SIZE
 	       + 3
 	       + sizeof(struct ieee80211_csa_ie)
+	       + sizeof(struct ieee80211_quiet_ie)
 	       + 3
 	       + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 	       + sizeof(struct ieee80211_ie_wpa)
@@ -2307,6 +2346,13 @@ ieee80211_alloc_proberesp(struct ieee80211_node *bss, int legacy)
 			frm = ieee80211_add_powerconstraint(frm, vap);
 		if (ic->ic_flags & IEEE80211_F_CSAPENDING)
 			frm = ieee80211_add_csa(frm, vap);
+	}
+	if (vap->iv_flags & IEEE80211_F_DOTH) {
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet)
+				frm = ieee80211_add_quiet(frm, vap);
+		}
 	}
 	if (IEEE80211_IS_CHAN_ANYG(bss->ni_chan))
 		frm = ieee80211_add_erp(frm, ic);
@@ -2606,9 +2652,20 @@ ieee80211_beacon_construct(struct mbuf *m, uint8_t *frm,
 			frm = ieee80211_add_powerconstraint(frm, vap);
 		bo->bo_csa = frm;
 		if (ic->ic_flags & IEEE80211_F_CSAPENDING)
-			frm = ieee80211_add_csa(frm, vap);
+			frm = ieee80211_add_csa(frm, vap);	
 	} else
 		bo->bo_csa = frm;
+
+	if (vap->iv_flags & IEEE80211_F_DOTH) {
+		bo->bo_quiet = frm;
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS)) {
+			if (vap->iv_quiet)
+				frm = ieee80211_add_quiet(frm,vap);
+		}
+	} else
+		bo->bo_quiet = frm;
+
 	if (IEEE80211_IS_CHAN_ANYG(ni->ni_chan)) {
 		bo->bo_erp = frm;
 		frm = ieee80211_add_erp(frm, ic);
@@ -2722,7 +2779,8 @@ ieee80211_beacon_alloc(struct ieee80211_node *ni,
 		 + 2 + 4 + vap->iv_tim_len		/* DTIM/IBSSPARMS */
 		 + IEEE80211_COUNTRY_MAX_SIZE		/* country */
 		 + 2 + 1				/* power control */
-	         + sizeof(struct ieee80211_csa_ie)	/* CSA */
+		 + sizeof(struct ieee80211_csa_ie)	/* CSA */
+		 + sizeof(struct ieee80211_quiet_ie)	/* Quiet */
 		 + 2 + 1				/* ERP */
 	         + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 		 + (vap->iv_caps & IEEE80211_C_WPA ?	/* WPA 1+2 */
@@ -2781,6 +2839,8 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 	struct ieee80211com *ic = ni->ni_ic;
 	int len_changed = 0;
 	uint16_t capinfo;
+	struct ieee80211_frame *wh;
+	ieee80211_seq seqno;
 
 	IEEE80211_LOCK(ic);
 	/*
@@ -2811,6 +2871,12 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 		IEEE80211_UNLOCK(ic);
 		return 1;		/* just assume length changed */
 	}
+
+	wh = mtod(m, struct ieee80211_frame *);
+	seqno = ni->ni_txseqs[IEEE80211_NONQOS_TID]++;
+	*(uint16_t *)&wh->i_seq[0] =
+		htole16(seqno << IEEE80211_SEQ_SEQ_SHIFT);
+	M_SEQNO_SET(m, seqno);
 
 	/* XXX faster to recalculate entirely or just changes? */
 	capinfo = ieee80211_getcapinfo(vap, ni->ni_chan);
@@ -2934,6 +3000,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				bo->bo_appie += adjust;
 				bo->bo_wme += adjust;
 				bo->bo_csa += adjust;
+				bo->bo_quiet += adjust;
 				bo->bo_tim_len = timlen;
 
 				/* update information element */
@@ -2987,6 +3054,7 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 #endif
 				bo->bo_appie += sizeof(*csa);
 				bo->bo_csa_trailer_len += sizeof(*csa);
+				bo->bo_quiet += sizeof(*csa);
 				bo->bo_tim_trailer_len += sizeof(*csa);
 				m->m_len += sizeof(*csa);
 				m->m_pkthdr.len += sizeof(*csa);
@@ -2996,6 +3064,11 @@ ieee80211_beacon_update(struct ieee80211_node *ni,
 				csa->csa_count--;
 			vap->iv_csa_count++;
 			/* NB: don't clear IEEE80211_BEACON_CSA */
+		}
+		if (IEEE80211_IS_CHAN_DFS(ic->ic_bsschan) &&
+		    (vap->iv_flags_ext & IEEE80211_FEXT_DFS) ){
+			if (vap->iv_quiet)
+				ieee80211_add_quiet(bo->bo_quiet, vap);
 		}
 		if (isset(bo->bo_flags, IEEE80211_BEACON_ERP)) {
 			/*

@@ -40,6 +40,23 @@ bool match(Val *V, const Pattern &P) {
   return const_cast<Pattern&>(P).match(V);
 }
 
+  
+template<typename SubPattern_t>
+struct OneUse_match {
+  SubPattern_t SubPattern;
+  
+  OneUse_match(const SubPattern_t &SP) : SubPattern(SP) {}
+  
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    return V->hasOneUse() && SubPattern.match(V);
+  }
+};
+
+template<typename T>
+inline OneUse_match<T> m_OneUse(const T &SubPattern) { return SubPattern; }
+  
+  
 template<typename Class>
 struct class_match {
   template<typename ITy>
@@ -227,7 +244,25 @@ struct specificval_ty {
 /// m_Specific - Match if we have a specific specified value.
 inline specificval_ty m_Specific(const Value *V) { return V; }
 
+struct bind_const_intval_ty {
+  uint64_t &VR;
+  bind_const_intval_ty(uint64_t &V) : VR(V) {}
+  
+  template<typename ITy>
+  bool match(ITy *V) {
+    if (ConstantInt *CV = dyn_cast<ConstantInt>(V))
+      if (CV->getBitWidth() <= 64) {
+        VR = CV->getZExtValue();
+        return true;
+      }
+    return false;
+  }
+};
 
+/// m_ConstantInt - Match a ConstantInt and bind to its value.  This does not
+/// match ConstantInts wider than 64-bits.
+inline bind_const_intval_ty m_ConstantInt(uint64_t &V) { return V; }
+  
 //===----------------------------------------------------------------------===//
 // Matchers for specific binary operators.
 //
@@ -657,6 +692,99 @@ struct brc_match {
 template<typename Cond_t>
 inline brc_match<Cond_t> m_Br(const Cond_t &C, BasicBlock *&T, BasicBlock *&F) {
   return brc_match<Cond_t>(C, T, F);
+}
+
+
+//===----------------------------------------------------------------------===//
+// Matchers for max/min idioms, eg: "select (sgt x, y), x, y" -> smax(x,y).
+//
+
+template<typename LHS_t, typename RHS_t, typename Pred_t>
+struct MaxMin_match {
+  LHS_t L;
+  RHS_t R;
+
+  MaxMin_match(const LHS_t &LHS, const RHS_t &RHS)
+    : L(LHS), R(RHS) {}
+
+  template<typename OpTy>
+  bool match(OpTy *V) {
+    // Look for "(x pred y) ? x : y" or "(x pred y) ? y : x".
+    SelectInst *SI = dyn_cast<SelectInst>(V);
+    if (!SI)
+      return false;
+    ICmpInst *Cmp = dyn_cast<ICmpInst>(SI->getCondition());
+    if (!Cmp)
+      return false;
+    // At this point we have a select conditioned on a comparison.  Check that
+    // it is the values returned by the select that are being compared.
+    Value *TrueVal = SI->getTrueValue();
+    Value *FalseVal = SI->getFalseValue();
+    Value *LHS = Cmp->getOperand(0);
+    Value *RHS = Cmp->getOperand(1);
+    if ((TrueVal != LHS || FalseVal != RHS) &&
+        (TrueVal != RHS || FalseVal != LHS))
+      return false;
+    ICmpInst::Predicate Pred = LHS == TrueVal ?
+      Cmp->getPredicate() : Cmp->getSwappedPredicate();
+    // Does "(x pred y) ? x : y" represent the desired max/min operation?
+    if (!Pred_t::match(Pred))
+      return false;
+    // It does!  Bind the operands.
+    return L.match(LHS) && R.match(RHS);
+  }
+};
+
+/// smax_pred_ty - Helper class for identifying signed max predicates.
+struct smax_pred_ty {
+  static bool match(ICmpInst::Predicate Pred) {
+    return Pred == CmpInst::ICMP_SGT || Pred == CmpInst::ICMP_SGE;
+  }
+};
+
+/// smin_pred_ty - Helper class for identifying signed min predicates.
+struct smin_pred_ty {
+  static bool match(ICmpInst::Predicate Pred) {
+    return Pred == CmpInst::ICMP_SLT || Pred == CmpInst::ICMP_SLE;
+  }
+};
+
+/// umax_pred_ty - Helper class for identifying unsigned max predicates.
+struct umax_pred_ty {
+  static bool match(ICmpInst::Predicate Pred) {
+    return Pred == CmpInst::ICMP_UGT || Pred == CmpInst::ICMP_UGE;
+  }
+};
+
+/// umin_pred_ty - Helper class for identifying unsigned min predicates.
+struct umin_pred_ty {
+  static bool match(ICmpInst::Predicate Pred) {
+    return Pred == CmpInst::ICMP_ULT || Pred == CmpInst::ICMP_ULE;
+  }
+};
+
+template<typename LHS, typename RHS>
+inline MaxMin_match<LHS, RHS, smax_pred_ty>
+m_SMax(const LHS &L, const RHS &R) {
+  return MaxMin_match<LHS, RHS, smax_pred_ty>(L, R);
+}
+
+template<typename LHS, typename RHS>
+inline MaxMin_match<LHS, RHS, smin_pred_ty>
+m_SMin(const LHS &L, const RHS &R) {
+  return MaxMin_match<LHS, RHS, smin_pred_ty>(L, R);
+}
+
+template<typename LHS, typename RHS>
+inline MaxMin_match<LHS, RHS, umax_pred_ty>
+m_UMax(const LHS &L, const RHS &R) {
+  return MaxMin_match<LHS, RHS, umax_pred_ty>(L, R);
+}
+
+template<typename LHS, typename RHS>
+inline MaxMin_match<LHS, RHS, umin_pred_ty>
+m_UMin(const LHS &L, const RHS &R) {
+  return MaxMin_match<LHS, RHS, umin_pred_ty>(L, R);
 }
 
 } // end namespace PatternMatch

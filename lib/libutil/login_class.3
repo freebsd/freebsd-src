@@ -19,7 +19,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 6, 2011
+.Dd March 24, 2011
 .Dt LOGIN_CLASS 3
 .Os
 .Sh NAME
@@ -105,17 +105,19 @@ Class capability tags used, with and without -cur (soft limit)
 or -max (hard limit) suffixes and the corresponding resource
 setting:
 .Bd -literal
-cputime       RLIMIT_CPU
-filesize      RLIMIT_FSIZE
-datasize      RLIMIT_DATA
-stacksize     RLIMIT_STACK
-coredumpsize  RLIMIT_CORE
-memoryuse     RLIMIT_RSS
-memorylocked  RLIMIT_MEMLOCK
-maxproc       RLIMIT_NPROC
-openfiles     RLIMIT_NOFILE
-sbsize        RLIMIT_SBSIZE
-vmemoryuse    RLIMIT_VMEM
+cputime          RLIMIT_CPU
+filesize         RLIMIT_FSIZE
+datasize         RLIMIT_DATA
+stacksize        RLIMIT_STACK
+coredumpsize     RLIMIT_CORE
+memoryuse        RLIMIT_RSS
+memorylocked     RLIMIT_MEMLOCK
+maxproc          RLIMIT_NPROC
+openfiles        RLIMIT_NOFILE
+sbsize           RLIMIT_SBSIZE
+vmemoryuse       RLIMIT_VMEM
+pseudoterminals  RLIMIT_NPTS
+swapuse          RLIMIT_SWAP
 .Ed
 .It LOGIN_SETPRIORITY
 Set the scheduling priority for the current process based on the

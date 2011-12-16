@@ -52,6 +52,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/tlb.h>
 #include <machine/hwfunc.h>
 
+#if defined(CPU_CNMIPS)
+#include <contrib/octeon-sdk/cvmx.h>
+#include <contrib/octeon-sdk/octeon-model.h>
+#endif
+
 static void cpu_identify(void);
 
 struct mips_cpuinfo cpuinfo;
@@ -70,6 +75,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 	u_int32_t prid;
 	u_int32_t cfg0;
 	u_int32_t cfg1;
+#if defined(CPU_CNMIPS)
+	u_int32_t cfg4;
+#endif
 	u_int32_t tmp;
 
 	memset(cpuinfo, 0, sizeof(struct mips_cpuinfo));
@@ -93,8 +101,21 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 
 	/* Learn TLB size and L1 cache geometry. */
 	cfg1 = mips_rd_config1();
+#ifndef CPU_NLM
 	cpuinfo->tlb_nentries = 
 	    ((cfg1 & MIPS_CONFIG1_TLBSZ_MASK) >> MIPS_CONFIG1_TLBSZ_SHIFT) + 1;
+#else
+	/* Account for Extended TLB entries in XLP */
+	tmp = mips_rd_config6();
+	cpuinfo->tlb_nentries = ((tmp >> 16) & 0xffff) + 1;
+#endif
+
+	/* Add extended TLB size information from config4.  */
+#if defined(CPU_CNMIPS)
+	cfg4 = mips_rd_config4();
+	if ((cfg4 & MIPS_CONFIG4_MMUEXTDEF) == MIPS_CONFIG4_MMUEXTDEF_MMUSIZEEXT)
+		cpuinfo->tlb_nentries += (cfg4 & MIPS_CONFIG4_MMUSIZEEXT) * 0x40;
+#endif
 
 	/* L1 instruction cache. */
 	tmp = (cfg1 & MIPS_CONFIG1_IL_MASK) >> MIPS_CONFIG1_IL_SHIFT;
@@ -103,10 +124,9 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		cpuinfo->l1.ic_nways = (((cfg1 & MIPS_CONFIG1_IA_MASK) >> MIPS_CONFIG1_IA_SHIFT)) + 1;
 		cpuinfo->l1.ic_nsets = 
 	    		1 << (((cfg1 & MIPS_CONFIG1_IS_MASK) >> MIPS_CONFIG1_IS_SHIFT) + 6);
-		cpuinfo->l1.ic_size = 
-		    cpuinfo->l1.ic_linesize * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
 	}
 
+#ifndef CPU_CNMIPS
 	/* L1 data cache. */
 	tmp = (cfg1 & MIPS_CONFIG1_DL_MASK) >> MIPS_CONFIG1_DL_SHIFT;
 	if (tmp != 0) {
@@ -116,15 +136,36 @@ mips_get_identity(struct mips_cpuinfo *cpuinfo)
 		cpuinfo->l1.dc_nsets = 
 		    1 << (((cfg1 & MIPS_CONFIG1_DS_MASK) >> MIPS_CONFIG1_DS_SHIFT) + 6);
 	}
-#ifdef CPU_CNMIPS
+#else
 	/*
-	 * Octeon does 128 byte line-size. But Config-Sel1 doesn't show
-	 * 128 line-size, 1 Set, 64 ways.
+	 * Some Octeon cache configuration parameters are by model family, not
+	 * config1.
 	 */
+	if (OCTEON_IS_MODEL(OCTEON_CN3XXX)) {
+		/* Octeon and Octeon XL.  */
+		cpuinfo->l1.dc_nsets = 1;
+		cpuinfo->l1.dc_nways = 64;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN5XXX)) {
+		/* Octeon Plus.  */
+		cpuinfo->l1.dc_nsets = 2;
+		cpuinfo->l1.dc_nways = 64;
+	} else if (OCTEON_IS_MODEL(OCTEON_CN6XXX)) {
+		/* Octeon II.  */
+		cpuinfo->l1.dc_nsets = 8;
+		cpuinfo->l1.dc_nways = 32;
+
+		cpuinfo->l1.ic_nsets = 8;
+		cpuinfo->l1.ic_nways = 37;
+	} else {
+		panic("%s: unsupported Cavium Networks CPU.", __func__);
+	}
+
+	/* All Octeon models use 128 byte line size.  */
 	cpuinfo->l1.dc_linesize = 128;
-	cpuinfo->l1.dc_nsets = 1;
-	cpuinfo->l1.dc_nways = 64;
 #endif
+
+	cpuinfo->l1.ic_size = cpuinfo->l1.ic_linesize
+	    * cpuinfo->l1.ic_nsets * cpuinfo->l1.ic_nways;
 	cpuinfo->l1.dc_size = cpuinfo->l1.dc_linesize 
 	    * cpuinfo->l1.dc_nsets * cpuinfo->l1.dc_nways;
 }

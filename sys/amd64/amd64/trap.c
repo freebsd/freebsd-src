@@ -125,7 +125,7 @@ void dblfault_handler(struct trapframe *frame);
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 
-#define MAX_TRAP_MSG		30
+#define MAX_TRAP_MSG		33
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -158,16 +158,21 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 	"SIMD floating-point exception",	/* 29 T_XMMFLT */
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
+	"",					/* 31 unused (reserved) */
+	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
+	"DTrace fasttrap probe trap",		/* 33 T_DTRACE_PROBE */
 };
 
 #ifdef KDB
 static int kdb_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, kdb_on_nmi, CTLFLAG_RW,
 	&kdb_on_nmi, 0, "Go to KDB on NMI");
+TUNABLE_INT("machdep.kdb_on_nmi", &kdb_on_nmi);
 #endif
 static int panic_on_nmi = 1;
 SYSCTL_INT(_machdep, OID_AUTO, panic_on_nmi, CTLFLAG_RW,
 	&panic_on_nmi, 0, "Panic on NMI");
+TUNABLE_INT("machdep.panic_on_nmi", &panic_on_nmi);
 static int prot_fault_translation = 0;
 SYSCTL_INT(_machdep, OID_AUTO, prot_fault_translation, CTLFLAG_RW,
 	&prot_fault_translation, 0, "Select signal to deliver on protection fault");
@@ -243,28 +248,26 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (dtrace_trap_func != NULL)
-		if ((*dtrace_trap_func)(frame, type))
-			goto out;
 	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
 	    type == T_BPTFLT) {
 		struct reg regs;
-		
+
 		fill_frame_regs(frame, &regs);
 		if (type == T_DTRACE_PROBE &&
 		    dtrace_fasttrap_probe_ptr != NULL &&
 		    dtrace_fasttrap_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_BPTFLT &&
+			goto out;
+		else if (type == T_BPTFLT &&
 		    dtrace_pid_probe_ptr != NULL &&
 		    dtrace_pid_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_DTRACE_RET &&
+			goto out;
+		else if (type == T_DTRACE_RET &&
 		    dtrace_return_probe_ptr != NULL &&
 		    dtrace_return_probe_ptr(&regs) == 0)
 			goto out;
-
 	}
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		goto out;
 #endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
@@ -672,6 +675,19 @@ trap_pfault(frame, usermode)
 			goto nogo;
 
 		map = &vm->vm_map;
+
+		/*
+		 * When accessing a usermode address, kernel must be
+		 * ready to accept the page fault, and provide a
+		 * handling routine.  Since accessing the address
+		 * without the handler is a bug, do not try to handle
+		 * it normally, and panic immediately.
+		 */
+		if (!usermode && (td->td_intr_nesting_level != 0 ||
+		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
 	}
 
 	/*
@@ -881,41 +897,37 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 /*
- *	syscall -	system call request C handler
- *
- *	A system call is essentially treated as a trap.
+ * System call handler for native binaries.  The trap frame is already
+ * set up by the assembler trampoline and a pointer to it is saved in
+ * td_frame.
  */
 void
-syscall(struct trapframe *frame)
+amd64_syscall(struct thread *td, int traced)
 {
-	struct thread *td;
 	struct syscall_args sa;
-	register_t orig_tf_rflags;
 	int error;
 	ksiginfo_t ksi;
 
 #ifdef DIAGNOSTIC
-	if (ISPL(frame->tf_cs) != SEL_UPL) {
+	if (ISPL(td->td_frame->tf_cs) != SEL_UPL) {
 		panic("syscall");
 		/* NOT REACHED */
 	}
 #endif
-	orig_tf_rflags = frame->tf_rflags;
-	td = curthread;
-	td->td_frame = frame;
-
 	error = syscallenter(td, &sa);
 
 	/*
 	 * Traced syscall.
 	 */
-	if (orig_tf_rflags & PSL_T) {
-		frame->tf_rflags &= ~PSL_T;
+	if (__predict_false(traced)) {
+		td->td_frame->tf_rflags &= ~PSL_T;
 		ksiginfo_init_trap(&ksi);
 		ksi.ksi_signo = SIGTRAP;
 		ksi.ksi_code = TRAP_TRACE;
-		ksi.ksi_addr = (void *)frame->tf_rip;
+		ksi.ksi_addr = (void *)td->td_frame->tf_rip;
 		trapsignal(td, &ksi);
 	}
 

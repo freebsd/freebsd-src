@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -739,10 +739,7 @@ g_eli_suspend_one(struct g_eli_softc *sc, struct gctl_req *req)
 	 * Clear sensitive data on suspend, they will be recovered on resume.
 	 */
 	bzero(sc->sc_mkey, sizeof(sc->sc_mkey));
-	bzero(sc->sc_ekeys,
-	    sc->sc_nekeys * (sizeof(uint8_t *) + G_ELI_DATAKEYLEN));
-	free(sc->sc_ekeys, M_ELI);
-	sc->sc_ekeys = NULL;
+	g_eli_key_destroy(sc);
 	bzero(sc->sc_akey, sizeof(sc->sc_akey));
 	bzero(&sc->sc_akeyctx, sizeof(sc->sc_akeyctx));
 	bzero(sc->sc_ivkey, sizeof(sc->sc_ivkey));
@@ -1017,7 +1014,12 @@ g_eli_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 		gctl_error(req, "No '%s' argument.", "version");
 		return;
 	}
-	if (*version != G_ELI_VERSION) {
+	while (*version != G_ELI_VERSION) {
+		if (G_ELI_VERSION == G_ELI_VERSION_06 &&
+		    *version == G_ELI_VERSION_05) {
+			/* Compatible. */
+			break;
+		}
 		gctl_error(req, "Userland and kernel parts are out of sync.");
 		return;
 	}

@@ -267,7 +267,7 @@ static driver_filter_t fdc_intr_fast;
 static void fdc_reset(struct fdc_data *);
 static int fd_probe_disk(struct fd_data *, int *);
 
-SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
+static SYSCTL_NODE(_debug, OID_AUTO, fdc, CTLFLAG_RW, 0, "fdc driver");
 
 static int fifo_threshold = 8;
 SYSCTL_INT(_debug_fdc, OID_AUTO, fifo, CTLFLAG_RW, &fifo_threshold, 0,
@@ -314,14 +314,14 @@ fdsettype(struct fd_data *fd, struct fd_type *ft)
 /*
  * Bus space handling (access to low-level IO).
  */
-__inline static void
+static inline void
 fdregwr(struct fdc_data *fdc, int reg, uint8_t v)
 {
 
 	bus_space_write_1(fdc->iot, fdc->ioh[reg], fdc->ioff[reg], v);
 }
 
-__inline static uint8_t
+static inline uint8_t
 fdregrd(struct fdc_data *fdc, int reg)
 {
 

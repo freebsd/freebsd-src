@@ -76,7 +76,7 @@
 #ifdef USB_DEBUG
 static int uhub_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhub, CTLFLAG_RW, 0, "USB HUB");
 SYSCTL_INT(_hw_usb_uhub, OID_AUTO, debug, CTLFLAG_RW, &uhub_debug, 0,
     "Debug level");
 
@@ -242,9 +242,14 @@ uhub_explore_sub(struct uhub_softc *sc, struct usb_port *up)
 	if (child->flags.usb_mode == USB_MODE_HOST) {
 		usbd_enum_lock(child);
 		if (child->re_enumerate_wait) {
-			err = usbd_set_config_index(child, USB_UNCONFIG_INDEX);
-			if (err == 0)
-				err = usbd_req_re_enumerate(child, NULL);
+			err = usbd_set_config_index(child,
+			    USB_UNCONFIG_INDEX);
+			if (err != 0) {
+				DPRINTF("Unconfigure failed: "
+				    "%s: Ignored.\n",
+				    usbd_errstr(err));
+			}
+			err = usbd_req_re_enumerate(child, NULL);
 			if (err == 0)
 				err = usbd_set_config_index(child, 0);
 			if (err == 0) {
@@ -606,6 +611,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
 		case UPS_PORT_LS_U0:
 		case UPS_PORT_LS_U1:
+		case UPS_PORT_LS_RESUME:
 			is_suspend = 0;
 			break;
 		default:
@@ -1329,15 +1335,19 @@ uhub_child_pnpinfo_string(device_t parent, device_t child,
 		    "devclass=0x%02x devsubclass=0x%02x "
 		    "sernum=\"%s\" "
 		    "release=0x%04x "
-		    "intclass=0x%02x intsubclass=0x%02x" "%s%s",
+		    "mode=%s "
+		    "intclass=0x%02x intsubclass=0x%02x "
+		    "intprotocol=0x%02x " "%s%s",
 		    UGETW(res.udev->ddesc.idVendor),
 		    UGETW(res.udev->ddesc.idProduct),
 		    res.udev->ddesc.bDeviceClass,
 		    res.udev->ddesc.bDeviceSubClass,
 		    usb_get_serial(res.udev),
 		    UGETW(res.udev->ddesc.bcdDevice),
+		    (res.udev->flags.usb_mode == USB_MODE_HOST) ? "host" : "device",
 		    iface->idesc->bInterfaceClass,
 		    iface->idesc->bInterfaceSubClass,
+		    iface->idesc->bInterfaceProtocol,
 		    iface->pnpinfo ? " " : "",
 		    iface->pnpinfo ? iface->pnpinfo : "");
 	} else {
@@ -2470,4 +2480,20 @@ usbd_filter_power_mode(struct usb_device *udev, uint8_t power_mode)
 
 	/* use fixed power mode given by hardware driver */
 	return (temp);
+}
+
+/*------------------------------------------------------------------------*
+ *	usbd_start_re_enumerate
+ *
+ * This function starts re-enumeration of the given USB device. This
+ * function does not need to be called BUS-locked. This function does
+ * not wait until the re-enumeration is completed.
+ *------------------------------------------------------------------------*/
+void
+usbd_start_re_enumerate(struct usb_device *udev)
+{
+	if (udev->re_enumerate_wait == 0) {
+		udev->re_enumerate_wait = 1;
+		usb_needs_explore(udev->bus, 0);
+	}
 }

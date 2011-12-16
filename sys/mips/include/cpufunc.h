@@ -69,7 +69,7 @@
 static __inline void
 mips_barrier(void)
 {
-#ifdef CPU_CNMIPS
+#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
 	__asm __volatile("" : : : "memory");
 #else
 	__asm __volatile (".set noreorder\n\t"
@@ -254,6 +254,10 @@ MIPS_RW32_COP0_SEL(config3, MIPS_COP_0_CONFIG, 3);
 #ifdef CPU_CNMIPS
 MIPS_RW32_COP0_SEL(config4, MIPS_COP_0_CONFIG, 4);
 #endif
+#ifdef CPU_NLM
+MIPS_RW32_COP0_SEL(config6, MIPS_COP_0_CONFIG, 6);
+MIPS_RW32_COP0_SEL(config7, MIPS_COP_0_CONFIG, 7);
+#endif
 MIPS_RW32_COP0(count, MIPS_COP_0_COUNT);
 MIPS_RW32_COP0(index, MIPS_COP_0_TLB_INDEX);
 MIPS_RW32_COP0(wired, MIPS_COP_0_TLB_WIRED);
@@ -267,6 +271,9 @@ MIPS_RW32_COP0(status, MIPS_COP_0_STATUS);
 #if !defined(__mips_n64)
 MIPS_RW32_COP0(entryhi, MIPS_COP_0_TLB_HI);
 MIPS_RW32_COP0(pagemask, MIPS_COP_0_TLB_PG_MASK);
+#endif
+#ifdef CPU_NLM
+MIPS_RW32_COP0_SEL(pagegrain, MIPS_COP_0_TLB_PG_MASK, 1);
 #endif
 #if !defined(__mips_n64) && !defined(__mips_n32) /* !PHYSADDR_64_BIT */
 MIPS_RW32_COP0(entrylo0, MIPS_COP_0_TLB_LO0);

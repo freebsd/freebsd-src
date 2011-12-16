@@ -83,7 +83,8 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int atmegadci_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0, "USB ATMEGA DCI");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, atmegadci, CTLFLAG_RW, 0,
+    "USB ATMEGA DCI");
 SYSCTL_INT(_hw_usb_atmegadci, OID_AUTO, debug, CTLFLAG_RW,
     &atmegadci_debug, 0, "ATMEGA DCI debug level");
 #endif
@@ -1351,16 +1352,16 @@ atmegadci_uninit(struct atmegadci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 atmegadci_suspend(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 atmegadci_resume(struct atmegadci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -2125,6 +2126,26 @@ atmegadci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 	}
 }
 
+static void
+atmegadci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct atmegadci_softc *sc = ATMEGA_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		atmegadci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		atmegadci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		atmegadci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods atmegadci_bus_methods =
 {
 	.endpoint_init = &atmegadci_ep_init,
@@ -2135,4 +2156,5 @@ struct usb_bus_methods atmegadci_bus_methods =
 	.clear_stall = &atmegadci_clear_stall,
 	.roothub_exec = &atmegadci_roothub_exec,
 	.xfer_poll = &atmegadci_do_poll,
+	.set_hw_power_sleep = &atmegadci_set_hw_power_sleep,
 };

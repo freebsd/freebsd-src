@@ -3786,6 +3786,7 @@ catstrg(strg_t *strg1, strg_t *strg2)
 			     (len2 + 1) * sizeof (wchar_t));
 		free(strg2->st_wcp);
 	}
+	strg1->st_len = len;
 	free(strg2);
 
 	return (strg1);

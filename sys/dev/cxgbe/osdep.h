@@ -70,12 +70,12 @@ typedef uint64_t __be64;
 #error "Must set BYTE_ORDER"
 #endif
 
+#ifndef __bool_true_false_are_defined
 typedef boolean_t bool;
 #define false FALSE
 #define true TRUE
+#endif
 
-#undef msleep
-#define msleep(x) DELAY((x) * 1000)
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
 
@@ -84,6 +84,7 @@ typedef boolean_t bool;
 #define DIV_ROUND_UP(x, y) howmany(x, y)
 
 #define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+#define container_of(p, s, f) ((s *)(((uint8_t *)(p)) - offsetof(s, f)))
 
 #define swab16(x) bswap16(x) 
 #define swab32(x) bswap32(x) 

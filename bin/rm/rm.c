@@ -57,10 +57,10 @@ __FBSDID("$FreeBSD$");
 #include <sysexits.h>
 #include <unistd.h>
 
-int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
-int rflag, Iflag;
-uid_t uid;
-volatile sig_atomic_t info;
+static int dflag, eval, fflag, iflag, Pflag, vflag, Wflag, stdin_ok;
+static int rflag, Iflag;
+static uid_t uid;
+static volatile sig_atomic_t info;
 
 int	check(char *, char *, struct stat *);
 int	check2(char **);
@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 	 * "unlink", for which the functionality provided is greatly
 	 * simplified.
 	 */
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		++p;

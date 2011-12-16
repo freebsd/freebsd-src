@@ -2527,6 +2527,7 @@ lmc_raw_input(struct ifnet *ifp, struct mbuf *mbuf)
   {
   softc_t *sc = IFP2SC(ifp);
 
+  M_SETFIB(mbuf, ifp->if_fib);
 # if INET
   if (mbuf->m_data[0]>>4 == 4)
     netisr_dispatch(NETISR_IP,   mbuf);
@@ -4944,7 +4945,9 @@ lmc_ifnet_detach(softc_t *sc)
   /* Detach from the ifnet kernel interface. */
   if_detach(sc->ifp);
 
-# if (__FreeBSD_version >= 600000)
+# if (defined(__FreeBSD__) && __FreeBSD_version >= 800082)
+  if_free(sc->ifp);
+# elif (defined(__FreeBSD__) && __FreeBSD_version >= 600000)
   if_free_type(sc->ifp, NSPPP ? IFT_PPP : IFT_OTHER);
 # endif
   }

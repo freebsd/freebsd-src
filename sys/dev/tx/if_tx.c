@@ -1053,8 +1053,7 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 		sc->phyid = EPIC_UNKN_PHY;
 
 		/* Lookup selected PHY. */
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		     miisc = LIST_NEXT(miisc, mii_list)) {
+		LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
 			if (IFM_INST(media) == miisc->mii_inst) {
 				sc->physc = miisc;
 				break;
@@ -1071,12 +1070,12 @@ epic_ifmedia_upd_locked(struct ifnet *ifp)
 			oui = MII_OUI(id1, id2);
 			model = MII_MODEL(id2);
 			switch (oui) {
-			case MII_OUI_QUALSEMI:
-				if (model == MII_MODEL_QUALSEMI_QS6612)
+			case MII_OUI_xxQUALSEMI:
+				if (model == MII_MODEL_xxQUALSEMI_QS6612)
 					sc->phyid = EPIC_QS6612_PHY;
 				break;
-			case MII_OUI_xxALTIMA:
-				if (model == MII_MODEL_xxALTIMA_AC101)
+			case MII_OUI_ALTIMA:
+				if (model == MII_MODEL_ALTIMA_AC101)
 					sc->phyid = EPIC_AC101_PHY;
 				break;
 			case MII_OUI_xxLEVEL1:

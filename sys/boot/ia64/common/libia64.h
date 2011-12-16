@@ -31,28 +31,45 @@
 
 #include <bootstrap.h>
 #include <ia64/include/bootinfo.h>
+#include <machine/vmparam.h>
+
+#define	IS_LEGACY_KERNEL()	(ia64_legacy_kernel)
 
 /*
  * Portability functions provided by the loader
  * implementation specific to the platform.
  */
-extern uint64_t ldr_alloc(vm_offset_t);
-extern int ldr_bootinfo(struct bootinfo *, uint64_t *);
-extern int ldr_enter(const char *);
+vm_paddr_t ia64_platform_alloc(vm_offset_t, vm_size_t);
+void ia64_platform_free(vm_offset_t, vm_paddr_t, vm_size_t);
+int ia64_platform_bootinfo(struct bootinfo *, struct bootinfo **);
+int ia64_platform_enter(const char *);
 
 /*
  * Functions and variables provided by the ia64 common code
  * and shared by all loader implementations.
  */
+extern u_int ia64_legacy_kernel;
 
-extern int ia64_autoload(void);
+extern uint64_t *ia64_pgtbl;
+extern uint32_t ia64_pgtblsz;
 
-extern ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
-extern ssize_t ia64_copyout(vm_offset_t, void *, size_t);
-extern ssize_t ia64_readin(int, vm_offset_t, size_t);
+int ia64_autoload(void);
+int ia64_bootinfo(struct preloaded_file *, struct bootinfo **);
+uint64_t ia64_loadaddr(u_int, void *, uint64_t);
+#ifdef __elfN
+void ia64_loadseg(Elf_Ehdr *, Elf_Phdr *, uint64_t);
+#else
+void ia64_loadseg(void *, void *, uint64_t);
+#endif
 
-extern char *ia64_fmtdev(struct devdesc *);
-extern int ia64_getdev(void **, const char *, const char **);
-extern int ia64_setcurrdev(struct env_var *, int, const void *);
+ssize_t ia64_copyin(const void *, vm_offset_t, size_t);
+ssize_t ia64_copyout(vm_offset_t, void *, size_t);
+void ia64_sync_icache(vm_offset_t, size_t);
+ssize_t ia64_readin(int, vm_offset_t, size_t);
+void *ia64_va2pa(vm_offset_t, size_t *);
+
+char *ia64_fmtdev(struct devdesc *);
+int ia64_getdev(void **, const char *, const char **);
+int ia64_setcurrdev(struct env_var *, int, const void *);
 
 #endif /* !_LIBIA64_H_ */

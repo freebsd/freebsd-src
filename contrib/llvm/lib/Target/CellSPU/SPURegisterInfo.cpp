@@ -14,7 +14,6 @@
 #define DEBUG_TYPE "reginfo"
 #include "SPU.h"
 #include "SPURegisterInfo.h"
-#include "SPURegisterNames.h"
 #include "SPUInstrBuilder.h"
 #include "SPUSubtarget.h"
 #include "SPUMachineFunction.h"
@@ -26,7 +25,6 @@
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
 #include "llvm/CodeGen/ValueTypes.h"
@@ -42,6 +40,9 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include <cstdlib>
+
+#define GET_REGINFO_TARGET_DESC
+#include "SPUGenRegisterInfo.inc"
 
 using namespace llvm;
 
@@ -185,9 +186,7 @@ unsigned SPURegisterInfo::getRegisterNumbering(unsigned RegEnum) {
 
 SPURegisterInfo::SPURegisterInfo(const SPUSubtarget &subtarget,
                                  const TargetInstrInfo &tii) :
-  SPUGenRegisterInfo(SPU::ADJCALLSTACKDOWN, SPU::ADJCALLSTACKUP),
-  Subtarget(subtarget),
-  TII(tii)
+  SPUGenRegisterInfo(SPU::R0), Subtarget(subtarget), TII(tii)
 {
 }
 
@@ -311,21 +310,9 @@ SPURegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
 }
 
 unsigned
-SPURegisterInfo::getRARegister() const
-{
-  return SPU::R0;
-}
-
-unsigned
 SPURegisterInfo::getFrameRegister(const MachineFunction &MF) const
 {
   return SPU::R1;
-}
-
-int
-SPURegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  // FIXME: Most probably dwarf numbers differs for Linux and Darwin
-  return SPUGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
 }
 
 int
@@ -367,5 +354,3 @@ SPURegisterInfo::findScratchRegister(MachineBasicBlock::iterator II,
   assert( Reg && "Register scavenger failed");
   return Reg;
 }
-
-#include "SPUGenRegisterInfo.inc"

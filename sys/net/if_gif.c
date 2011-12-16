@@ -112,7 +112,7 @@ IFC_SIMPLE_DECLARE(gif, 0);
 static int gifmodevent(module_t, int, void *);
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_net_link, IFT_GIF, gif, CTLFLAG_RW, 0,
     "Generic Tunnel Interface");
 #ifndef MAX_GIF_NEST
 /*
@@ -609,6 +609,7 @@ gif_input(m, af, ifp)
 
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

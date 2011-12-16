@@ -35,6 +35,8 @@ SRCS+=  __getosreldate.c __xuname.c \
 	usleep.c utime.c utxdb.c valloc.c vis.c wait.c wait3.c waitpid.c \
 	wordexp.c
 
+MISRCS+=modf.c
+
 CANCELPOINTS_SRCS=sem.c sem_new.c
 .for src in ${CANCELPOINTS_SRCS}
 SRCS+=cancelpoints_${src}

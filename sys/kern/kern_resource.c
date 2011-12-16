@@ -50,11 +50,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/refcount.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/rwlock.h>
 #include <sys/sched.h>
 #include <sys/sx.h>
 #include <sys/syscallsubr.h>
+#include <sys/sysctl.h>
 #include <sys/sysent.h>
 #include <sys/time.h>
 #include <sys/umtx.h>
@@ -88,7 +90,7 @@ struct getpriority_args {
 };
 #endif
 int
-getpriority(td, uap)
+sys_getpriority(td, uap)
 	struct thread *td;
 	register struct getpriority_args *uap;
 {
@@ -128,7 +130,8 @@ getpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				if (p->p_nice < low)
 					low = p->p_nice;
 			}
@@ -142,11 +145,9 @@ getpriority(td, uap)
 			uap->who = td->td_ucred->cr_uid;
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
-			/* Do not bother to check PRS_NEW processes */
-			if (p->p_state == PRS_NEW)
-				continue;
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0 &&
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0 &&
 			    p->p_ucred->cr_uid == uap->who) {
 				if (p->p_nice < low)
 					low = p->p_nice;
@@ -174,7 +175,7 @@ struct setpriority_args {
 };
 #endif
 int
-setpriority(td, uap)
+sys_setpriority(td, uap)
 	struct thread *td;
 	struct setpriority_args *uap;
 {
@@ -216,7 +217,8 @@ setpriority(td, uap)
 		sx_sunlock(&proctree_lock);
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) == 0) {
+			if (p->p_state == PRS_NORMAL &&
+			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
 			}
@@ -231,7 +233,8 @@ setpriority(td, uap)
 		sx_slock(&allproc_lock);
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
-			if (p->p_ucred->cr_uid == uap->who &&
+			if (p->p_state == PRS_NORMAL &&
+			    p->p_ucred->cr_uid == uap->who &&
 			    p_cansee(td, p) == 0) {
 				error = donice(td, p, uap->prio);
 				found++;
@@ -271,6 +274,10 @@ donice(struct thread *td, struct proc *p, int n)
 	return (0);
 }
 
+static int unprivileged_idprio;
+SYSCTL_INT(_security_bsd, OID_AUTO, unprivileged_idprio, CTLFLAG_RW,
+    &unprivileged_idprio, 0, "Allow non-root users to set an idle priority");
+
 /*
  * Set realtime priority for LWP.
  */
@@ -282,7 +289,7 @@ struct rtprio_thread_args {
 };
 #endif
 int
-rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
+sys_rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 {
 	struct proc *p;
 	struct rtprio rtp;
@@ -319,18 +326,26 @@ rtprio_thread(struct thread *td, struct rtprio_thread_args *uap)
 			break;
 
 		/* Disallow setting rtprio in most cases if not superuser. */
-/*
- * Realtime priority has to be restricted for reasons which should be
- * obvious.  However, for idle priority, there is a potential for
- * system deadlock if an idleprio process gains a lock on a resource
- * that other processes need (and the idleprio process can't run
- * due to a CPU-bound normal process).  Fix me!  XXX
- */
-#if 0
-		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
-#else
-		if (rtp.type != RTP_PRIO_NORMAL) {
-#endif
+
+		/*
+		 * Realtime priority has to be restricted for reasons which
+		 * should be obvious.  However, for idleprio processes, there is
+		 * a potential for system deadlock if an idleprio process gains
+		 * a lock on a resource that other processes need (and the
+		 * idleprio process can't run due to a CPU-bound normal
+		 * process).  Fix me!  XXX
+		 *
+		 * This problem is not only related to idleprio process.
+		 * A user level program can obtain a file lock and hold it
+		 * indefinitely.  Additionally, without idleprio processes it is
+		 * still conceivable that a program with low priority will never
+		 * get to run.  In short, allowing this feature might make it
+		 * easier to lock a resource indefinitely, but it is not the
+		 * only thing that makes it possible.
+		 */
+		if (RTP_PRIO_BASE(rtp.type) == RTP_PRIO_REALTIME ||
+		    (RTP_PRIO_BASE(rtp.type) == RTP_PRIO_IDLE &&
+		    unprivileged_idprio == 0)) {
 			error = priv_check(td, PRIV_SCHED_RTPRIO);
 			if (error)
 				break;
@@ -356,7 +371,7 @@ struct rtprio_args {
 };
 #endif
 int
-rtprio(td, uap)
+sys_rtprio(td, uap)
 	struct thread *td;		/* curthread */
 	register struct rtprio_args *uap;
 {
@@ -415,19 +430,14 @@ rtprio(td, uap)
 		if ((error = p_cansched(td, p)) || (error = cierror))
 			break;
 
-		/* Disallow setting rtprio in most cases if not superuser. */
-/*
- * Realtime priority has to be restricted for reasons which should be
- * obvious.  However, for idle priority, there is a potential for
- * system deadlock if an idleprio process gains a lock on a resource
- * that other processes need (and the idleprio process can't run
- * due to a CPU-bound normal process).  Fix me!  XXX
- */
-#if 0
-		if (RTP_PRIO_IS_REALTIME(rtp.type)) {
-#else
-		if (rtp.type != RTP_PRIO_NORMAL) {
-#endif
+		/*
+		 * Disallow setting rtprio in most cases if not superuser.
+		 * See the comment in sys_rtprio_thread about idprio
+		 * threads holding a lock.
+		 */
+		if (RTP_PRIO_BASE(rtp.type) == RTP_PRIO_REALTIME ||
+		    (RTP_PRIO_BASE(rtp.type) == RTP_PRIO_IDLE &&
+		    !unprivileged_idprio)) {
 			error = priv_check(td, PRIV_SCHED_RTPRIO);
 			if (error)
 				break;
@@ -486,8 +496,9 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	sched_class(td, rtp->type);	/* XXX fix */
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
-	if (curthread == td)
-		sched_prio(curthread, td->td_user_pri); /* XXX dubious */
+	if (td->td_user_pri != oldpri && (td == curthread ||
+	    td->td_priority == oldpri || td->td_user_pri >= PRI_MAX_REALTIME))
+		sched_prio(td, td->td_user_pri);
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
 		critical_enter();
 		thread_unlock(td);
@@ -590,7 +601,7 @@ struct __setrlimit_args {
 };
 #endif
 int
-setrlimit(td, uap)
+sys_setrlimit(td, uap)
 	struct thread *td;
 	register struct __setrlimit_args *uap;
 {
@@ -630,7 +641,7 @@ lim_cb(void *arg)
 		} else {
 			if (p->p_cpulimit < rlim.rlim_max)
 				p->p_cpulimit += 5;
-			psignal(p, SIGXCPU);
+			kern_psignal(p, SIGXCPU);
 		}
 	}
 	if ((p->p_flag & P_WEXIT) == 0)
@@ -769,7 +780,7 @@ struct __getrlimit_args {
 #endif
 /* ARGSUSED */
 int
-getrlimit(td, uap)
+sys_getrlimit(td, uap)
 	struct thread *td;
 	register struct __getrlimit_args *uap;
 {
@@ -811,7 +822,7 @@ void
 calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 {
 	struct thread *td;
-	uint64_t u;
+	uint64_t runtime, u;
 
 	PROC_LOCK_ASSERT(p, MA_OWNED);
 	PROC_SLOCK_ASSERT(p, MA_OWNED);
@@ -824,7 +835,9 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 	td = curthread;
 	if (td->td_proc == p) {
 		u = cpu_ticks();
-		p->p_rux.rux_runtime += u - PCPU_GET(switchtime);
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
 		PCPU_SET(switchtime, u);
 	}
 	/* Make sure the per-thread stats are current. */
@@ -834,6 +847,34 @@ calcru(struct proc *p, struct timeval *up, struct timeval *sp)
 		ruxagg(p, td);
 	}
 	calcru1(p, &p->p_rux, up, sp);
+}
+
+/* Collect resource usage for a single thread. */
+void
+rufetchtd(struct thread *td, struct rusage *ru)
+{
+	struct proc *p;
+	uint64_t runtime, u;
+
+	p = td->td_proc;
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	/*
+	 * If we are getting stats for the current thread, then add in the
+	 * stats that this thread has accumulated in its current time slice.
+	 * We reset the thread and CPU state as if we had performed a context
+	 * switch right here.
+	 */
+	if (td == curthread) {
+		u = cpu_ticks();
+		runtime = u - PCPU_GET(switchtime);
+		td->td_runtime += runtime;
+		td->td_incruntime += runtime;
+		PCPU_SET(switchtime, u);
+	}
+	ruxagg(p, td);
+	*ru = td->td_ru;
+	calcru1(p, &td->td_rux, &ru->ru_utime, &ru->ru_stime);
 }
 
 static void
@@ -918,7 +959,7 @@ struct getrusage_args {
 };
 #endif
 int
-getrusage(td, uap)
+sys_getrusage(td, uap)
 	register struct thread *td;
 	register struct getrusage_args *uap;
 {
@@ -953,12 +994,10 @@ kern_getrusage(struct thread *td, int who, struct rusage *rup)
 
 	case RUSAGE_THREAD:
 		PROC_SLOCK(p);
-		ruxagg(p, td);
-		PROC_SUNLOCK(p);
 		thread_lock(td);
-		*rup = td->td_ru;
-		calcru1(p, &td->td_rux, &rup->ru_utime, &rup->ru_stime);
+		rufetchtd(td, rup);
 		thread_unlock(td);
+		PROC_SUNLOCK(p);
 		break;
 
 	default:
@@ -1088,6 +1127,10 @@ lim_hold(limp)
 void
 lim_fork(struct proc *p1, struct proc *p2)
 {
+
+	PROC_LOCK_ASSERT(p1, MA_OWNED);
+	PROC_LOCK_ASSERT(p2, MA_OWNED);
+
 	p2->p_limit = lim_hold(p1->p_limit);
 	callout_init_mtx(&p2->p_limco, &p2->p_mtx, 0);
 	if (p1->p_cpulimit != RLIM_INFINITY)
@@ -1203,6 +1246,7 @@ uifind(uid)
 	if (uip == NULL) {
 		rw_runlock(&uihashtbl_lock);
 		uip = malloc(sizeof(*uip), M_UIDINFO, M_WAITOK | M_ZERO);
+		racct_create(&uip->ui_racct);
 		rw_wlock(&uihashtbl_lock);
 		/*
 		 * There's a chance someone created our uidinfo while we
@@ -1211,6 +1255,7 @@ uifind(uid)
 		 */
 		if ((old_uip = uilookup(uid)) != NULL) {
 			/* Someone else beat us to it. */
+			racct_destroy(&uip->ui_racct);
 			free(uip, M_UIDINFO);
 			uip = old_uip;
 		} else {
@@ -1266,6 +1311,7 @@ uifree(uip)
 	/* Prepare for suboptimal case. */
 	rw_wlock(&uihashtbl_lock);
 	if (refcount_release(&uip->ui_ref)) {
+		racct_destroy(&uip->ui_racct);
 		LIST_REMOVE(uip, ui_hash);
 		rw_wunlock(&uihashtbl_lock);
 		if (uip->ui_sbsize != 0)
@@ -1286,6 +1332,22 @@ uifree(uip)
 	 * rw_wlock(&uihashtbl_lock).
 	 */
 	rw_wunlock(&uihashtbl_lock);
+}
+
+void
+ui_racct_foreach(void (*callback)(struct racct *racct,
+    void *arg2, void *arg3), void *arg2, void *arg3)
+{
+	struct uidinfo *uip;
+	struct uihashhead *uih;
+
+	rw_rlock(&uihashtbl_lock);
+	for (uih = &uihashtbl[uihash]; uih >= uihashtbl; uih--) {
+		LIST_FOREACH(uip, uih, ui_hash) {
+			(callback)(uip->ui_racct, arg2, arg3);
+		}
+	}
+	rw_runlock(&uihashtbl_lock);
 }
 
 /*

@@ -20,13 +20,14 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/Function.h"
 #include <vector>
 
 using namespace llvm;
 
 // FIXME: We use ManagedStatic to erase the pass registrar on shutdown.
 // Unfortunately, passes are registered with static ctors, and having
-// llvm_shutdown clear this map prevents successful ressurection after 
+// llvm_shutdown clear this map prevents successful resurrection after
 // llvm_shutdown is run.  Ideally we should find a solution so that we don't
 // leak the map, AND can still resurrect after shutdown.
 static ManagedStatic<PassRegistry> PassRegistryObj;

@@ -11,7 +11,7 @@ SUBDIR= ${_binutils} \
 	${_dtc} \
 	${_gdb} \
 	${_gperf} \
-	${_grep} \
+	grep \
 	${_groff} \
 	patch \
 	${_rcs} \
@@ -25,10 +25,6 @@ _gperf=		gperf
 .if ${MK_GROFF} != "no"
 _groff=		groff
 .endif
-.endif
-
-.if ${MK_BSD_GREP} != "yes"
-_grep=          grep
 .endif
 
 .if ${MK_CVS} != "no"
@@ -47,12 +43,14 @@ _texinfo=	texinfo
 _rcs=		rcs
 .endif
 
-.if ${MK_TOOLCHAIN} != "no"
+.if ${MK_BINUTILS} != "no"
 _binutils=	binutils
+.endif
+.if ${MK_GCC} != "no"
 _cc=		cc
+.endif
 .if ${MK_GDB} != "no"
 _gdb=		gdb
-.endif
 .endif
 
 .include <bsd.subdir.mk>

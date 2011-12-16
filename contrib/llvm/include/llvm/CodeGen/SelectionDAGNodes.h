@@ -20,9 +20,11 @@
 #define LLVM_CODEGEN_SELECTIONDAGNODES_H
 
 #include "llvm/Constants.h"
+#include "llvm/Instructions.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/ADT/GraphTraits.h"
 #include "llvm/ADT/ilist_node.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/CodeGen/ISDOpcodes.h"
@@ -496,11 +498,29 @@ public:
   ///
   bool isOperandOf(SDNode *N) const;
 
-  /// isPredecessorOf - Return true if this node is a predecessor of N. This
-  /// node is either an operand of N or it can be reached by recursively
+  /// isPredecessorOf - Return true if this node is a predecessor of N.
+  /// NOTE: Implemented on top of hasPredecessor and every bit as
+  /// expensive. Use carefully.
+  bool isPredecessorOf(const SDNode *N) const { return N->hasPredecessor(this); }
+
+  /// hasPredecessor - Return true if N is a predecessor of this node.
+  /// N is either an operand of this node, or can be reached by recursively
   /// traversing up the operands.
-  /// NOTE: this is an expensive method. Use it carefully.
-  bool isPredecessorOf(SDNode *N) const;
+  /// NOTE: This is an expensive method. Use it carefully.
+  bool hasPredecessor(const SDNode *N) const;
+
+  /// hasPredecesorHelper - Return true if N is a predecessor of this node.
+  /// N is either an operand of this node, or can be reached by recursively
+  /// traversing up the operands.
+  /// In this helper the Visited and worklist sets are held externally to
+  /// cache predecessors over multiple invocations. If you want to test for
+  /// multiple predecessors this method is preferable to multiple calls to
+  /// hasPredecessor. Be sure to clear Visited and Worklist if the DAG
+  /// changes.
+  /// NOTE: This is still very expensive. Use carefully.
+  bool hasPredecessorHelper(const SDNode *N,
+                            SmallPtrSet<const SDNode *, 32> &Visited,
+                            SmallVector<const SDNode *, 16> &Worklist) const; 
 
   /// getNumOperands - Return the number of values used by this operation.
   ///
@@ -838,7 +858,7 @@ public:
 
 
 /// HandleSDNode - This class is used to form a handle around another node that
-/// is persistant and is updated across invocations of replaceAllUsesWith on its
+/// is persistent and is updated across invocations of replaceAllUsesWith on its
 /// operand.  This node should be directly created by end-users and not added to
 /// the AllNodes list.
 class HandleSDNode : public SDNode {
@@ -898,6 +918,13 @@ public:
   bool isVolatile() const { return (SubclassData >> 5) & 1; }
   bool isNonTemporal() const { return (SubclassData >> 6) & 1; }
 
+  AtomicOrdering getOrdering() const {
+    return AtomicOrdering((SubclassData >> 7) & 15);
+  }
+  SynchronizationScope getSynchScope() const {
+    return SynchronizationScope((SubclassData >> 11) & 1);
+  }
+
   /// Returns the SrcValue and offset that describes the location of the access
   const Value *getSrcValue() const { return MMO->getValue(); }
   int64_t getSrcValueOffset() const { return MMO->getOffset(); }
@@ -949,6 +976,8 @@ public:
            N->getOpcode() == ISD::ATOMIC_LOAD_MAX     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMIN    ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
+           N->getOpcode() == ISD::ATOMIC_LOAD         ||
+           N->getOpcode() == ISD::ATOMIC_STORE        ||
            N->isTargetMemoryOpcode();
   }
 };
@@ -957,6 +986,23 @@ public:
 ///
 class AtomicSDNode : public MemSDNode {
   SDUse Ops[4];
+
+  void InitAtomic(AtomicOrdering Ordering, SynchronizationScope SynchScope) {
+    // This must match encodeMemSDNodeFlags() in SelectionDAG.cpp.
+    assert((Ordering & 15) == Ordering &&
+           "Ordering may not require more than 4 bits!");
+    assert((SynchScope & 1) == SynchScope &&
+           "SynchScope may not require more than 1 bit!");
+    SubclassData |= Ordering << 7;
+    SubclassData |= SynchScope << 11;
+    assert(getOrdering() == Ordering && "Ordering encoding error!");
+    assert(getSynchScope() == SynchScope && "Synch-scope encoding error!");
+
+    assert((readMem() || getOrdering() <= Monotonic) &&
+           "Acquire/Release MachineMemOperand must be a load!");
+    assert((writeMem() || getOrdering() <= Monotonic) &&
+           "Acquire/Release MachineMemOperand must be a store!");
+  }
 
 public:
   // Opc:   opcode for atomic
@@ -969,19 +1015,27 @@ public:
   // Align:  alignment of memory
   AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
                SDValue Chain, SDValue Ptr,
-               SDValue Cmp, SDValue Swp, MachineMemOperand *MMO)
+               SDValue Cmp, SDValue Swp, MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
     : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
-    assert(readMem() && "Atomic MachineMemOperand is not a load!");
-    assert(writeMem() && "Atomic MachineMemOperand is not a store!");
+    InitAtomic(Ordering, SynchScope);
     InitOperands(Ops, Chain, Ptr, Cmp, Swp);
   }
   AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
                SDValue Chain, SDValue Ptr,
-               SDValue Val, MachineMemOperand *MMO)
+               SDValue Val, MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
     : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
-    assert(readMem() && "Atomic MachineMemOperand is not a load!");
-    assert(writeMem() && "Atomic MachineMemOperand is not a store!");
+    InitAtomic(Ordering, SynchScope);
     InitOperands(Ops, Chain, Ptr, Val);
+  }
+  AtomicSDNode(unsigned Opc, DebugLoc dl, SDVTList VTL, EVT MemVT,
+               SDValue Chain, SDValue Ptr,
+               MachineMemOperand *MMO,
+               AtomicOrdering Ordering, SynchronizationScope SynchScope)
+    : MemSDNode(Opc, dl, VTL, MemVT, MMO) {
+    InitAtomic(Ordering, SynchScope);
+    InitOperands(Ops, Chain, Ptr);
   }
 
   const SDValue &getBasePtr() const { return getOperand(1); }
@@ -1006,7 +1060,9 @@ public:
            N->getOpcode() == ISD::ATOMIC_LOAD_MIN     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_MAX     ||
            N->getOpcode() == ISD::ATOMIC_LOAD_UMIN    ||
-           N->getOpcode() == ISD::ATOMIC_LOAD_UMAX;
+           N->getOpcode() == ISD::ATOMIC_LOAD_UMAX    ||
+           N->getOpcode() == ISD::ATOMIC_LOAD         ||
+           N->getOpcode() == ISD::ATOMIC_STORE;
   }
 };
 
@@ -1272,7 +1328,7 @@ public:
   unsigned getAlignment() const { return Alignment; }
   unsigned char getTargetFlags() const { return TargetFlags; }
 
-  const Type *getType() const;
+  Type *getType() const;
 
   static bool classof(const ConstantPoolSDNode *) { return true; }
   static bool classof(const SDNode *N) {

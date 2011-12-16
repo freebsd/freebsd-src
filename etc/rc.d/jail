@@ -219,12 +219,12 @@ set_sysctl()
 	if checkyesno $_knob ; then
 		if [ "$_current" -ne 1 ]; then
 			echo -n " ${_msg}=YES"
-			${SYSCTL_W} 1>/dev/null ${_mib}=1
+			${SYSCTL} 1>/dev/null ${_mib}=1
 		fi
 	else
 		if [ "$_current" -ne 0 ]; then
 			echo -n " ${_msg}=NO"
-			${SYSCTL_W} 1>/dev/null ${_mib}=0
+			${SYSCTL} 1>/dev/null ${_mib}=0
 		fi
 	fi
 }

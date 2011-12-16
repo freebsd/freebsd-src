@@ -18,10 +18,10 @@
  - PERFORMANCE OF THIS SOFTWARE.
 -->
 
-<!-- $Id: nsupdate.docbook,v 1.34.48.5 2010-07-09 23:45:50 tbox Exp $ -->
+<!-- $Id: nsupdate.docbook,v 1.44 2010-07-09 23:46:51 tbox Exp $ -->
 <refentry id="man.nsupdate">
   <refentryinfo>
-    <date>Jun 30, 2000</date>
+    <date>Aug 25, 2009</date>
   </refentryinfo>
   <refmeta>
     <refentrytitle><application>nsupdate</application></refentrytitle>
@@ -61,6 +61,7 @@
       <group>
 	<arg><option>-g</option></arg>
 	<arg><option>-o</option></arg>
+	<arg><option>-l</option></arg>
         <arg><option>-y <replaceable class="parameter"><optional>hmac:</optional>keyname:secret</replaceable></option></arg>
         <arg><option>-k <replaceable class="parameter">keyfile</replaceable></option></arg>
       </group>
@@ -76,7 +77,7 @@
   <refsect1>
     <title>DESCRIPTION</title>
     <para><command>nsupdate</command>
-      is used to submit Dynamic DNS Update requests as defined in RFC2136
+      is used to submit Dynamic DNS Update requests as defined in RFC 2136
       to a name server.
       This allows resource records to be added or removed from a zone
       without manually editing the zone file.
@@ -112,10 +113,14 @@
       report additional debugging information to <option>-d</option>.
     </para>
     <para>
+      The <option>-L</option> option with an integer argument of zero or
+      higher sets the logging debug level.  If zero, logging is disabled.
+    </para>
+    <para>
       Transaction signatures can be used to authenticate the Dynamic
       DNS updates.  These use the TSIG resource record type described
-      in RFC2845 or the SIG(0) record described in RFC3535 and
-      RFC2931 or GSS-TSIG as described in RFC3645.  TSIG relies on
+      in RFC 2845 or the SIG(0) record described in RFC 2535 and
+      RFC 2931 or GSS-TSIG as described in RFC 3645.  TSIG relies on
       a shared secret that should only be known to
       <command>nsupdate</command> and the name server.  Currently,
       the only supported encryption algorithm for TSIG is HMAC-MD5,
@@ -132,46 +137,61 @@
       record in a zone served by the name server.
       <command>nsupdate</command> does not read
       <filename>/etc/named.conf</filename>.
-      GSS-TSIG uses Kerberos credentials.
+    </para>
+    <para>
+      GSS-TSIG uses Kerberos credentials.  Standard GSS-TSIG mode
+      is switched on with the <option>-g</option> flag.  A
+      non-standards-compliant variant of GSS-TSIG used by Windows
+      2000 can be switched on with the <option>-o</option> flag.
     </para>
     <para><command>nsupdate</command>
       uses the <option>-y</option> or <option>-k</option> option
       to provide the shared secret needed to generate a TSIG record
       for authenticating Dynamic DNS update requests, default type
-      HMAC-MD5.  These options are mutually exclusive.  With the
-      <option>-k</option> option, <command>nsupdate</command> reads
-      the shared secret from the file <parameter>keyfile</parameter>,
-      whose name is of the form
-      <filename>K{name}.+157.+{random}.private</filename>.  For
-      historical reasons, the file
-      <filename>K{name}.+157.+{random}.key</filename> must also be
-      present.  When the <option>-y</option> option is used, a
-      signature is generated from
-      <optional><parameter>hmac:</parameter></optional><parameter>keyname:secret.</parameter>
-      <parameter>keyname</parameter> is the name of the key, and
-      <parameter>secret</parameter> is the base64 encoded shared
-      secret.  Use of the <option>-y</option> option is discouraged
-      because the shared secret is supplied as a command line
-      argument in clear text.  This may be visible in the output
-      from
-      <citerefentry>
-	<refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
-      </citerefentry> or in a history file maintained by the user's
-      shell.
+      HMAC-MD5.  These options are mutually exclusive. 
     </para>
     <para>
+      When the <option>-y</option> option is used, a signature is
+      generated from
+      <optional><parameter>hmac:</parameter></optional><parameter>keyname:secret.</parameter>
+      <parameter>keyname</parameter> is the name of the key, and
+      <parameter>secret</parameter> is the base64 encoded shared secret.
+      Use of the <option>-y</option> option is discouraged because the
+      shared secret is supplied as a command line argument in clear text.
+      This may be visible in the output from
+      <citerefentry>
+        <refentrytitle>ps</refentrytitle><manvolnum>1</manvolnum>
+      </citerefentry>
+      or in a history file maintained by the user's shell.
+    </para>
+    <para>
+      With the
+      <option>-k</option> option, <command>nsupdate</command> reads
+      the shared secret from the file <parameter>keyfile</parameter>.
+      Keyfiles may be in two formats: a single file containing
+      a <filename>named.conf</filename>-format <command>key</command>
+      statement, which may be generated automatically by
+      <command>ddns-confgen</command>, or a pair of files whose names are
+      of the format <filename>K{name}.+157.+{random}.key</filename> and
+      <filename>K{name}.+157.+{random}.private</filename>, which can be
+      generated by <command>dnssec-keygen</command>.
       The <option>-k</option> may also be used to specify a SIG(0) key used
       to authenticate Dynamic DNS update requests.  In this case, the key
       specified is not an HMAC-MD5 key.
     </para>
     <para>
-      The <option>-g</option> and <option>-o</option> specify that
-      GSS-TSIG is to be used.  The <option>-o</option> should only
-      be used with old Microsoft Windows 2000 servers.
+      <command>nsupdate</command> can be run in a local-host only mode
+      using the <option>-l</option> flag.  This sets the server address to
+      localhost (disabling the <command>server</command> so that the server
+      address cannot be overridden).  Connections to the local server will
+      use a TSIG key found in <filename>/var/run/named/session.key</filename>,
+      which is automatically generated by <command>named</command> if any
+      local master zone has set <command>update-policy</command> to
+      <command>local</command>.  The location of this key file can be
+      overridden with the <option>-k</option> option.
     </para>
     <para>
-      By default,
-      <command>nsupdate</command>
+      By default, <command>nsupdate</command>
       uses UDP to send update requests to the name server unless they are too
       large to fit in a UDP request in which case TCP will be used.
       The
@@ -180,6 +200,10 @@
       <command>nsupdate</command>
       use a TCP connection.
       This may be preferable when a batch of update requests is made.
+    </para>
+    <para>
+      The <option>-p</option> sets the default port number to use for
+      connections to a name server.  The default is 53.
     </para>
     <para>
       The <option>-t</option> option sets the maximum time an update request
@@ -650,9 +674,9 @@
       If there are, the update request fails.
       If this name does not exist, a CNAME for it is added.
       This ensures that when the CNAME is added, it cannot conflict with the
-      long-standing rule in RFC1034 that a name must not exist as any other
+      long-standing rule in RFC 1034 that a name must not exist as any other
       record type if it exists as a CNAME.
-      (The rule has been updated for DNSSEC in RFC2535 to allow CNAMEs to have
+      (The rule has been updated for DNSSEC in RFC 2535 to allow CNAMEs to have
       RRSIG, DNSKEY and NSEC records.)
     </para>
   </refsect1>
@@ -666,6 +690,15 @@
         <listitem>
           <para>
             used to identify default name server
+          </para>
+        </listitem>
+      </varlistentry>
+
+      <varlistentry>
+        <term><constant>/var/run/named/session.key</constant></term>
+        <listitem>
+          <para>
+            sets the default TSIG key for use in local-only mode
           </para>
         </listitem>
       </varlistentry>
@@ -699,36 +732,26 @@
 
   <refsect1>
     <title>SEE ALSO</title>
-    <para><citerefentry>
-        <refentrytitle>RFC2136</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC3007</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC2104</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC2845</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC1034</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC2535</refentrytitle>
-      </citerefentry>,
-      <citerefentry>
-        <refentrytitle>RFC2931</refentrytitle>
-      </citerefentry>,
+    <para>
+      <citetitle>RFC 2136</citetitle>,
+      <citetitle>RFC 3007</citetitle>,
+      <citetitle>RFC 2104</citetitle>,
+      <citetitle>RFC 2845</citetitle>,
+      <citetitle>RFC 1034</citetitle>,
+      <citetitle>RFC 2535</citetitle>,
+      <citetitle>RFC 2931</citetitle>,
       <citerefentry>
         <refentrytitle>named</refentrytitle><manvolnum>8</manvolnum>
+      </citerefentry>,
+      <citerefentry>
+        <refentrytitle>ddns-confgen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>,
       <citerefentry>
         <refentrytitle>dnssec-keygen</refentrytitle><manvolnum>8</manvolnum>
       </citerefentry>.
     </para>
-
   </refsect1>
+
   <refsect1>
     <title>BUGS</title>
     <para>

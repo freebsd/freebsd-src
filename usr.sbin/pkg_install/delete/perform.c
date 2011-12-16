@@ -22,7 +22,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <err.h>
-#include <pkg.h>
+#include "lib.h"
 #include "delete.h"
 
 static int pkg_do(char *);
@@ -324,8 +324,8 @@ pkg_do(char *pkg)
      */
     if (delete_package(FALSE, CleanDirs, &Plist) == FAIL)
 	warnx(
-	"couldn't entirely delete package (perhaps the packing list is\n"
-	"incorrectly specified?)");
+	"couldn't entirely delete package `%s'\n"
+	"(perhaps the packing list is incorrectly specified?)", pkg);
 
     if (chdir(LogDir) == FAIL) {
  	warnx("unable to change directory to %s! deinstall failed", LogDir);

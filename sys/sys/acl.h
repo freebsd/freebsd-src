@@ -217,11 +217,22 @@ typedef void *acl_t;
 #define	ACL_WRITE_OWNER		0x00004000
 #define	ACL_SYNCHRONIZE		0x00008000
 
-#define	ACL_NFS4_PERM_BITS	(ACL_READ_DATA | ACL_WRITE_DATA | \
+#define	ACL_FULL_SET		(ACL_READ_DATA | ACL_WRITE_DATA | \
     ACL_APPEND_DATA | ACL_READ_NAMED_ATTRS | ACL_WRITE_NAMED_ATTRS | \
     ACL_EXECUTE | ACL_DELETE_CHILD | ACL_READ_ATTRIBUTES | \
     ACL_WRITE_ATTRIBUTES | ACL_DELETE | ACL_READ_ACL | ACL_WRITE_ACL | \
     ACL_WRITE_OWNER | ACL_SYNCHRONIZE)
+
+#define	ACL_MODIFY_SET		(ACL_FULL_SET & \
+    ~(ACL_WRITE_ACL | ACL_WRITE_OWNER))
+
+#define	ACL_READ_SET		(ACL_READ_DATA | ACL_READ_NAMED_ATTRS | \
+    ACL_READ_ATTRIBUTES | ACL_READ_ACL)
+
+#define	ACL_WRITE_SET		(ACL_WRITE_DATA | ACL_APPEND_DATA | \
+    ACL_WRITE_NAMED_ATTRS | ACL_WRITE_ATTRIBUTES)
+
+#define	ACL_NFS4_PERM_BITS	ACL_FULL_SET
 
 /*
  * Possible entry_id values for acl_get_entry(3).
@@ -285,8 +296,6 @@ mode_t			acl_posix1e_newfilemode(mode_t cmode,
 struct acl		*acl_alloc(int flags);
 void			acl_free(struct acl *aclp);
 
-void			acl_nfs4_trivial_from_mode(struct acl *aclp,
-			    mode_t mode);
 void			acl_nfs4_sync_acl_from_mode(struct acl *aclp,
 			    mode_t mode, int file_owner_id);
 void			acl_nfs4_sync_mode_from_acl(mode_t *mode,

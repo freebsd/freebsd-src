@@ -104,7 +104,8 @@ static	scr_stat	main_console;
 static	struct tty 	*main_devs[MAXCONS];
 
 static  char        	init_done = COLD;
-static  char		shutdown_in_progress = FALSE;
+static	int		shutdown_in_progress = FALSE;
+static	int		suspend_in_progress = FALSE;
 static	char		sc_malloc = FALSE;
 
 static	int		saver_mode = CONS_NO_SAVER; /* LKM/user saver */
@@ -128,8 +129,15 @@ static	void		none_saver(sc_softc_t *sc, int blank) { }
 static	void		(*current_saver)(sc_softc_t *, int) = none_saver;
 #endif
 
-SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
-SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
+#ifdef SC_NO_SUSPEND_VTYSWITCH
+static	int		sc_no_suspend_vtswitch = 1;
+#else
+static	int		sc_no_suspend_vtswitch = 0;
+#endif
+static	int		sc_susp_scr;
+
+static SYSCTL_NODE(_hw, OID_AUTO, syscons, CTLFLAG_RD, 0, "syscons");
+static SYSCTL_NODE(_hw_syscons, OID_AUTO, saver, CTLFLAG_RD, 0, "saver");
 SYSCTL_INT(_hw_syscons_saver, OID_AUTO, keybonly, CTLFLAG_RW,
     &sc_saver_keyb_only, 0, "screen saver interrupted by input only");
 SYSCTL_INT(_hw_syscons, OID_AUTO, bell, CTLFLAG_RW, &enable_bell, 
@@ -142,6 +150,9 @@ SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_reboot, CTLFLAG_RW|CTLFLAG_SECURE, &enable
 SYSCTL_INT(_hw_syscons, OID_AUTO, kbd_debug, CTLFLAG_RW|CTLFLAG_SECURE, &enable_kdbkey,
     0, "enable keyboard debug");
 #endif
+TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
+SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
+    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 #if !defined(SC_NO_FONT_LOADING) && defined(SC_DFLT_FONT)
 #include "font.h"
 #endif
@@ -170,8 +181,11 @@ static kbd_callback_func_t sckbdevent;
 static void scinit(int unit, int flags);
 static scr_stat *sc_get_stat(struct tty *tp);
 static void scterm(int unit, int flags);
-static void scshutdown(void *arg, int howto);
+static void scshutdown(void *, int);
+static void scsuspend(void *);
+static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
+static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -518,10 +532,15 @@ sc_attach_unit(int unit, int flags)
 	printf("\n");
     }
 
-    /* register a shutdown callback for the kernel console */
-    if (sc_console_unit == unit)
-	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, 
-			      (void *)(uintptr_t)unit, SHUTDOWN_PRI_DEFAULT);
+    /* Register suspend/resume/shutdown callbacks for the kernel console. */
+    if (sc_console_unit == unit) {
+	EVENTHANDLER_REGISTER(power_suspend, scsuspend, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(power_resume, scresume, NULL,
+			      EVENTHANDLER_PRI_ANY);
+	EVENTHANDLER_REGISTER(shutdown_pre_sync, scshutdown, NULL,
+			      SHUTDOWN_PRI_DEFAULT);
+    }
 
     for (vc = 0; vc < sc->vtys; vc++) {
 	if (sc->dev[vc] == NULL) {
@@ -1432,6 +1451,8 @@ sctty_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 
     case GIO_KEYMAP:		/* get keyboard translation table */
     case PIO_KEYMAP:		/* set keyboard translation table */
+    case OGIO_KEYMAP:		/* get keyboard translation table (compat) */
+    case OPIO_KEYMAP:		/* set keyboard translation table (compat) */
     case GIO_DEADKEYMAP:	/* get accent key translation table */
     case PIO_DEADKEYMAP:	/* set accent key translation table */
     case GETFKEY:		/* get function key string */
@@ -1718,7 +1739,7 @@ sccnupdate(scr_stat *scp)
 {
     /* this is a cut-down version of scrn_timer()... */
 
-    if (scp->sc->suspend_in_progress || scp->sc->font_loading_in_progress)
+    if (suspend_in_progress || scp->sc->font_loading_in_progress)
 	return;
 
     if (debugger > 0 || panicstr || shutdown_in_progress) {
@@ -1768,7 +1789,7 @@ scrn_timer(void *arg)
 	return;
 
     /* don't do anything when we are performing some I/O operations */
-    if (sc->suspend_in_progress || sc->font_loading_in_progress) {
+    if (suspend_in_progress || sc->font_loading_in_progress) {
 	if (again)
 	    timeout(scrn_timer, sc, hz / 10);
 	return;
@@ -2488,7 +2509,7 @@ signal_vt_rel(scr_stat *scp)
 	return FALSE;
     scp->status |= SWITCH_WAIT_REL;
     PROC_LOCK(scp->proc);
-    psignal(scp->proc, scp->smode.relsig);
+    kern_psignal(scp->proc, scp->smode.relsig);
     PROC_UNLOCK(scp->proc);
     DPRINTF(5, ("sending relsig to %d\n", scp->pid));
     return TRUE;
@@ -2503,7 +2524,7 @@ signal_vt_acq(scr_stat *scp)
 	cnavailable(sc_consptr,  FALSE);
     scp->status |= SWITCH_WAIT_ACQ;
     PROC_LOCK(scp->proc);
-    psignal(scp->proc, scp->smode.acqsig);
+    kern_psignal(scp->proc, scp->smode.acqsig);
     PROC_UNLOCK(scp->proc);
     DPRINTF(5, ("sending acqsig to %d\n", scp->pid));
     return TRUE;
@@ -2583,7 +2604,7 @@ exchange_scr(sc_softc_t *sc)
     mark_all(scp);
 }
 
-void
+static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
     int need_unlock = 0;
@@ -3007,16 +3028,64 @@ scterm(int unit, int flags)
 }
 
 static void
-scshutdown(void *arg, int howto)
+scshutdown(__unused void *arg, __unused int howto)
 {
-    /* assert(sc_console != NULL) */
 
-    sc_touch_scrn_saver();
-    if (!cold && sc_console
-	&& sc_console->sc->cur_scp->smode.mode == VT_AUTO 
-	&& sc_console->smode.mode == VT_AUTO)
-	sc_switch_scr(sc_console->sc, sc_console->index);
-    shutdown_in_progress = TRUE;
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_touch_scrn_saver();
+	if (!cold &&
+	    sc_console->sc->cur_scp->index != sc_console->index &&
+	    sc_console->sc->cur_scp->smode.mode == VT_AUTO &&
+	    sc_console->smode.mode == VT_AUTO)
+		sc_switch_scr(sc_console->sc, sc_console->index);
+	shutdown_in_progress = TRUE;
+}
+
+static void
+scsuspend(__unused void *arg)
+{
+	int retry;
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	sc_susp_scr = sc_console->sc->cur_scp->index;
+	if (sc_no_suspend_vtswitch ||
+	    sc_susp_scr == sc_console->index) {
+		sc_touch_scrn_saver();
+		sc_susp_scr = -1;
+		return;
+	}
+	for (retry = 0; retry < 10; retry++) {
+		sc_switch_scr(sc_console->sc, sc_console->index);
+		if (!sc_console->sc->switch_in_progress)
+			break;
+		pause("scsuspend", hz);
+	}
+	suspend_in_progress = TRUE;
+}
+
+static void
+scresume(__unused void *arg)
+{
+
+	KASSERT(sc_console != NULL, ("sc_console != NULL"));
+	KASSERT(sc_console->sc != NULL, ("sc_console->sc != NULL"));
+	KASSERT(sc_console->sc->cur_scp != NULL,
+	    ("sc_console->sc->cur_scp != NULL"));
+
+	suspend_in_progress = FALSE;
+	if (sc_susp_scr < 0) {
+		mark_all(sc_console->sc->cur_scp);
+		return;
+	}
+	sc_switch_scr(sc_console->sc, sc_susp_scr);
 }
 
 int
@@ -3446,7 +3515,7 @@ next_code:
 	    case DBG:
 #ifndef SC_DISABLE_KDBKEY
 		if (enable_kdbkey)
-			kdb_enter(KDB_WHY_BREAK, "manual escape to debugger");
+			kdb_break();
 #endif
 		break;
 
@@ -3494,6 +3563,10 @@ next_code:
 	    /* goto next_code */
 	} else {
 	    /* regular keys (maybe MKEY is set) */
+#if !defined(SC_DISABLE_KDBKEY) && defined(KDB)
+	    if (enable_kdbkey)
+		kdb_alt_break(c, &sc->sc_altbrk);
+#endif
 	    if (!(sc->flags & SC_SCRN_BLANKED))
 		return c;
 	}

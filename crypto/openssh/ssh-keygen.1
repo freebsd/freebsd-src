@@ -1,7 +1,5 @@
-.\"	$OpenBSD: ssh-keygen.1,v 1.98 2010/08/04 06:07:11 djm Exp $
+.\"	$OpenBSD: ssh-keygen.1,v 1.106 2011/04/13 04:09:37 djm Exp $
 .\"	$FreeBSD$
-.\"
-.\"  -*- nroff -*-
 .\"
 .\" Author: Tatu Ylonen <ylo@cs.hut.fi>
 .\" Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -38,7 +36,7 @@
 .\" (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
 .\" THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 .\"
-.Dd August 4, 2010
+.Dd April 13, 2011
 .Dt SSH-KEYGEN 1
 .Os
 .Sh NAME
@@ -120,13 +118,15 @@
 .Nm ssh-keygen
 .Fl L
 .Op Fl f Ar input_keyfile
+.Nm ssh-keygen
+.Fl A
 .Ek
 .Sh DESCRIPTION
 .Nm
 generates, manages and converts authentication keys for
 .Xr ssh 1 .
 .Nm
-can create RSA keys for use by SSH protocol version 1 and RSA or DSA
+can create RSA keys for use by SSH protocol version 1 and DSA, ECDSA or RSA
 keys for use by SSH protocol version 2.
 The type of key to be generated is specified with the
 .Fl t
@@ -143,9 +143,10 @@ See the
 section for details.
 .Pp
 Normally each user wishing to use SSH
-with RSA or DSA authentication runs this once to create the authentication
+with public key authentication runs this once to create the authentication
 key in
 .Pa ~/.ssh/identity ,
+.Pa ~/.ssh/id_ecdsa ,
 .Pa ~/.ssh/id_dsa
 or
 .Pa ~/.ssh/id_rsa .
@@ -175,9 +176,8 @@ The passphrase can be changed later by using the
 option.
 .Pp
 There is no way to recover a lost passphrase.
-If the passphrase is
-lost or forgotten, a new key must be generated and copied to the
-corresponding public key to other machines.
+If the passphrase is lost or forgotten, a new key must be generated
+and the corresponding public key copied to other machines.
 .Pp
 For RSA1 keys,
 there is also a comment field in the key file that is only for
@@ -194,6 +194,13 @@ should be placed to be activated.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl A
+For each of the key types (rsa1, rsa, dsa and ecdsa) for which host keys
+do not exist, generate the host keys with the default key file path,
+an empty passphrase, default bits for the key type, and default comment.
+This is used by
+.Pa /etc/rc
+to generate new host keys.
 .It Fl a Ar trials
 Specifies the number of primality tests to perform when screening DH-GEX
 candidates using the
@@ -206,6 +213,12 @@ Specifies the number of bits in the key to create.
 For RSA keys, the minimum size is 768 bits and the default is 2048 bits.
 Generally, 2048 bits is considered sufficient.
 DSA keys must be exactly 1024 bits as specified by FIPS 186-2.
+For ECDSA keys, the
+.Fl b
+flag determines they key length by selecting from one of three elliptic
+curve sizes: 256, 384 or 521 bits.
+Attempting to use bit lengths other than these three values for ECDSA keys
+will fail.
 .It Fl C Ar comment
 Provides a new comment.
 .It Fl c
@@ -395,9 +408,6 @@ new passphrase.
 .It Fl q
 Silence
 .Nm ssh-keygen .
-Used by
-.Pa /etc/rc
-when creating a new key.
 .It Fl R Ar hostname
 Removes all keys belonging to
 .Ar hostname
@@ -427,9 +437,10 @@ Specifies the type of key to create.
 The possible values are
 .Dq rsa1
 for protocol version 1 and
-.Dq rsa
+.Dq dsa ,
+.Dq ecdsa
 or
-.Dq dsa
+.Dq rsa
 for protocol version 2.
 .It Fl V Ar validity_interval
 Specify a validity interval when signing a certificate.
@@ -606,18 +617,19 @@ or
 .Xr ssh 1 .
 Please refer to those manual pages for details.
 .Sh FILES
-.Bl -tag -width Ds
+.Bl -tag -width Ds -compact
 .It Pa ~/.ssh/identity
 Contains the protocol version 1 RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 128-bit AES.
+used to encrypt the private part of this file using 3DES.
 This file is not automatically accessed by
 .Nm
 but it is offered as the default file for the private key.
 .Xr ssh 1
 will read this file when a login attempt is made.
+.Pp
 .It Pa ~/.ssh/identity.pub
 Contains the protocol version 1 RSA public key for authentication.
 The contents of this file should be added to
@@ -625,26 +637,11 @@ The contents of this file should be added to
 on all machines
 where the user wishes to log in using RSA authentication.
 There is no need to keep the contents of this file secret.
+.Pp
 .It Pa ~/.ssh/id_dsa
-Contains the protocol version 2 DSA authentication identity of the user.
-This file should not be readable by anyone but the user.
-It is possible to
-specify a passphrase when generating the key; that passphrase will be
-used to encrypt the private part of this file using 128-bit AES.
-This file is not automatically accessed by
-.Nm
-but it is offered as the default file for the private key.
-.Xr ssh 1
-will read this file when a login attempt is made.
-.It Pa ~/.ssh/id_dsa.pub
-Contains the protocol version 2 DSA public key for authentication.
-The contents of this file should be added to
-.Pa ~/.ssh/authorized_keys
-on all machines
-where the user wishes to log in using public key authentication.
-There is no need to keep the contents of this file secret.
+.It Pa ~/.ssh/id_ecdsa
 .It Pa ~/.ssh/id_rsa
-Contains the protocol version 2 RSA authentication identity of the user.
+Contains the protocol version 2 DSA, ECDSA or RSA authentication identity of the user.
 This file should not be readable by anyone but the user.
 It is possible to
 specify a passphrase when generating the key; that passphrase will be
@@ -654,13 +651,17 @@ This file is not automatically accessed by
 but it is offered as the default file for the private key.
 .Xr ssh 1
 will read this file when a login attempt is made.
+.Pp
+.It Pa ~/.ssh/id_dsa.pub
+.It Pa ~/.ssh/id_ecdsa.pub
 .It Pa ~/.ssh/id_rsa.pub
-Contains the protocol version 2 RSA public key for authentication.
+Contains the protocol version 2 DSA, ECDSA or RSA public key for authentication.
 The contents of this file should be added to
 .Pa ~/.ssh/authorized_keys
 on all machines
 where the user wishes to log in using public key authentication.
 There is no need to keep the contents of this file secret.
+.Pp
 .It Pa /etc/moduli
 Contains Diffie-Hellman groups used for DH-GEX.
 The file format is described in

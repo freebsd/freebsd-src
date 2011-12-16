@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -85,6 +86,7 @@ kmem_cache_t *zio_data_buf_cache[SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT];
 #ifdef _KERNEL
 extern vmem_t *zio_alloc_arena;
 #endif
+extern int zfs_mg_alloc_failures;
 
 /*
  * An allocating zio is one that either currently has the DVA allocate
@@ -159,6 +161,15 @@ zio_init(void)
 		if (zio_data_buf_cache[c - 1] == NULL)
 			zio_data_buf_cache[c - 1] = zio_data_buf_cache[c];
 	}
+
+	/*
+	 * The zio write taskqs have 1 thread per cpu, allow 1/2 of the taskqs
+	 * to fail 3 times per txg or 8 failures, whichever is greater.
+	 */
+	if (zfs_mg_alloc_failures == 0)
+		zfs_mg_alloc_failures = MAX((3 * max_ncpus / 2), 8);
+	else if (zfs_mg_alloc_failures < 8)
+		zfs_mg_alloc_failures = 8;
 
 	zio_inject_init();
 }
@@ -1068,18 +1079,8 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 	spa_t *spa = zio->io_spa;
 	zio_type_t t = zio->io_type;
 	int flags = TQ_SLEEP | (cutinline ? TQ_FRONT : 0);
-#ifdef _KERNEL
-	struct ostask *task;
-#endif
 
 	ASSERT(q == ZIO_TASKQ_ISSUE || q == ZIO_TASKQ_INTERRUPT);
-
-#ifdef _KERNEL
-	if (q == ZIO_TASKQ_ISSUE)
-		task = &zio->io_task_issue;
-	else /* if (q == ZIO_TASKQ_INTERRUPT) */
-		task = &zio->io_task_interrupt;
-#endif
 
 	/*
 	 * If we're a config writer or a probe, the normal issue and
@@ -1105,7 +1106,7 @@ zio_taskq_dispatch(zio_t *zio, enum zio_taskq_type q, boolean_t cutinline)
 	ASSERT3U(q, <, ZIO_TASKQ_TYPES);
 #ifdef _KERNEL
 	(void) taskq_dispatch_safe(spa->spa_zio_taskq[t][q],
-	    (task_func_t *)zio_execute, zio, flags, task);
+	    (task_func_t *)zio_execute, zio, flags, &zio->io_task);
 #else
 	(void) taskq_dispatch(spa->spa_zio_taskq[t][q],
 	    (task_func_t *)zio_execute, zio, flags);
@@ -2145,6 +2146,7 @@ zio_dva_allocate(zio_t *zio)
 	metaslab_class_t *mc = spa_normal_class(spa);
 	blkptr_t *bp = zio->io_bp;
 	int error;
+	int flags = 0;
 
 	if (zio->io_gang_leader == NULL) {
 		ASSERT(zio->io_child_type > ZIO_CHILD_GANG);
@@ -2157,10 +2159,21 @@ zio_dva_allocate(zio_t *zio)
 	ASSERT3U(zio->io_prop.zp_copies, <=, spa_max_replication(spa));
 	ASSERT3U(zio->io_size, ==, BP_GET_PSIZE(bp));
 
+	/*
+	 * The dump device does not support gang blocks so allocation on
+	 * behalf of the dump device (i.e. ZIO_FLAG_NODATA) must avoid
+	 * the "fast" gang feature.
+	 */
+	flags |= (zio->io_flags & ZIO_FLAG_NODATA) ? METASLAB_GANG_AVOID : 0;
+	flags |= (zio->io_flags & ZIO_FLAG_GANG_CHILD) ?
+	    METASLAB_GANG_CHILD : 0;
 	error = metaslab_alloc(spa, mc, zio->io_size, bp,
-	    zio->io_prop.zp_copies, zio->io_txg, NULL, 0);
+	    zio->io_prop.zp_copies, zio->io_txg, NULL, flags);
 
 	if (error) {
+		spa_dbgmsg(spa, "%s: metaslab allocation failure: zio %p, "
+		    "size %llu, error %d", spa_name(spa), zio, zio->io_size,
+		    error);
 		if (error == ENOSPC && zio->io_size > SPA_MINBLOCKSIZE)
 			return (zio_write_gang_block(zio));
 		zio->io_error = error;
@@ -2904,7 +2917,7 @@ zio_done(zio_t *zio)
 			(void) taskq_dispatch_safe(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],
 			    (task_func_t *)zio_reexecute, zio, TQ_SLEEP,
-			    &zio->io_task_issue);
+			    &zio->io_task);
 #else
 			(void) taskq_dispatch(
 			    spa->spa_zio_taskq[ZIO_TYPE_CLAIM][ZIO_TASKQ_ISSUE],

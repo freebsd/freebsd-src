@@ -1,4 +1,4 @@
-.\"	$OpenBSD: pflogd.8,v 1.32 2006/12/08 10:26:38 joel Exp $
+.\"	$OpenBSD: pflogd.8,v 1.37 2008/10/22 08:16:49 henning Exp $
 .\"
 .\" Copyright (c) 2001 Can Erkin Acar.  All rights reserved.
 .\"
@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 9, 2001
+.Dd October 22 2008
 .Dt PFLOGD 8
 .Os
 .Sh NAME
@@ -34,12 +34,14 @@
 .Nd packet filter logging daemon
 .Sh SYNOPSIS
 .Nm pflogd
+.Bk -words
 .Op Fl Dx
 .Op Fl d Ar delay
 .Op Fl f Ar filename
 .Op Fl i Ar interface
 .Op Fl s Ar snaplen
 .Op Ar expression
+.Ek
 .Sh DESCRIPTION
 .Nm
 is a background daemon which reads packets logged by
@@ -94,6 +96,13 @@ or a
 .Dv SIGALRM
 is received.
 .Pp
+.Nm
+will also log the pcap statistics for the
+.Xr pflog 4
+interface to syslog when a
+.Dv SIGUSR1
+is received.
+.Pp
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl D
@@ -116,6 +125,11 @@ By default,
 .Nm
 will use
 .Ar pflog0 .
+Writes a file containing the process ID of the program to
+.Pa /var/run .
+The file name has the form
+The default is
+.Ar pflogd .
 .It Fl s Ar snaplen
 Analyze at most the first
 .Ar snaplen
@@ -204,12 +218,12 @@ the wi0 interface:
 # tcpdump -n -e -ttt -i pflog0 inbound and action block and on wi0
 .Ed
 .Sh SEE ALSO
-.Xr tcpdump 1 ,
 .Xr pcap 3 ,
 .Xr pf 4 ,
 .Xr pflog 4 ,
 .Xr pf.conf 5 ,
-.Xr newsyslog 8
+.Xr newsyslog 8 ,
+.Xr tcpdump 1
 .Sh HISTORY
 The
 .Nm

@@ -21,7 +21,7 @@
 
 using namespace llvm;
 
-bool Thumb1FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const {
+bool Thumb1FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const{
   const MachineFrameInfo *FFI = MF.getFrameInfo();
   unsigned CFSize = FFI->getMaxCallFrameSize();
   // It's not always a good idea to include the call frame as part of the
@@ -34,13 +34,14 @@ bool Thumb1FrameLowering::hasReservedCallFrame(const MachineFunction &MF) const 
   return !MF.getFrameInfo()->hasVarSizedObjects();
 }
 
-static void emitSPUpdate(MachineBasicBlock &MBB,
-                         MachineBasicBlock::iterator &MBBI,
-                         const TargetInstrInfo &TII, DebugLoc dl,
-                         const Thumb1RegisterInfo &MRI,
-                         int NumBytes) {
-  emitThumbRegPlusImmediate(MBB, MBBI, ARM::SP, ARM::SP, NumBytes, TII,
-                            MRI, dl);
+static void
+emitSPUpdate(MachineBasicBlock &MBB,
+             MachineBasicBlock::iterator &MBBI,
+             const TargetInstrInfo &TII, DebugLoc dl,
+             const Thumb1RegisterInfo &MRI,
+             int NumBytes, unsigned MIFlags = MachineInstr::NoFlags)  {
+  emitThumbRegPlusImmediate(MBB, MBBI, dl, ARM::SP, ARM::SP, NumBytes, TII,
+                            MRI, MIFlags);
 }
 
 void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
@@ -70,11 +71,13 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
   int FramePtrSpillFI = 0;
 
   if (VARegSaveSize)
-    emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -VARegSaveSize);
+    emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -VARegSaveSize,
+                 MachineInstr::FrameSetup);
 
   if (!AFI->hasStackFrame()) {
     if (NumBytes != 0)
-      emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -NumBytes);
+      emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -NumBytes,
+                   MachineInstr::FrameSetup);
     return;
   }
 
@@ -130,17 +133,19 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
 
   // Adjust FP so it point to the stack slot that contains the previous FP.
   if (hasFP(MF)) {
-    BuildMI(MBB, MBBI, dl, TII.get(ARM::tADDrSPi), FramePtr)
-      .addFrameIndex(FramePtrSpillFI).addImm(0);
-    if (NumBytes > 7)
-      // If offset is > 7 then sp cannot be adjusted in a single instruction,
+    AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tADDrSPi), FramePtr)
+      .addFrameIndex(FramePtrSpillFI).addImm(0)
+      .setMIFlags(MachineInstr::FrameSetup));
+    if (NumBytes > 508)
+      // If offset is > 508 then sp cannot be adjusted in a single instruction,
       // try restoring from fp instead.
       AFI->setShouldRestoreSPFromFP(true);
   }
 
   if (NumBytes)
     // Insert it after all the callee-save spills.
-    emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -NumBytes);
+    emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, -NumBytes,
+                 MachineInstr::FrameSetup);
 
   if (STI.isTargetELF() && hasFP(MF))
     MFI->setOffsetAdjustment(MFI->getOffsetAdjustment() -
@@ -150,13 +155,19 @@ void Thumb1FrameLowering::emitPrologue(MachineFunction &MF) const {
   AFI->setGPRCalleeSavedArea2Size(GPRCS2Size);
   AFI->setDPRCalleeSavedAreaSize(DPRCSSize);
 
+  // Thumb1 does not currently support dynamic stack realignment.  Report a
+  // fatal error rather then silently generate bad code.
+  if (RegInfo->needsStackRealignment(MF))
+      report_fatal_error("Dynamic stack realignment not supported for thumb1.");
+
   // If we need a base pointer, set it up here. It's whatever the value
   // of the stack pointer is at this point. Any variable size objects
   // will be allocated after this, so we can still use the base pointer
   // to reference locals.
   if (RegInfo->hasBasePointer(MF))
-    BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVgpr2gpr), BasePtr).addReg(ARM::SP);
-    
+    AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVr), BasePtr)
+                   .addReg(ARM::SP));
+
   // If the frame has variable sized objects then the epilogue must restore
   // the sp from fp. We can assume there's an FP here since hasFP already
   // checks for hasVarSizedObjects.
@@ -172,7 +183,7 @@ static bool isCalleeSavedRegister(unsigned Reg, const unsigned *CSRegs) {
 }
 
 static bool isCSRestore(MachineInstr *MI, const unsigned *CSRegs) {
-  if (MI->getOpcode() == ARM::tRestore &&
+  if (MI->getOpcode() == ARM::tLDRspi &&
       MI->getOperand(1).isFI() &&
       isCalleeSavedRegister(MI->getOperand(0).getReg(), CSRegs))
     return true;
@@ -232,13 +243,15 @@ void Thumb1FrameLowering::emitEpilogue(MachineFunction &MF,
       if (NumBytes) {
         assert(MF.getRegInfo().isPhysRegUsed(ARM::R4) &&
                "No scratch register to restore SP from FP!");
-        emitThumbRegPlusImmediate(MBB, MBBI, ARM::R4, FramePtr, -NumBytes,
-                                  TII, *RegInfo, dl);
-        BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVtgpr2gpr), ARM::SP)
-          .addReg(ARM::R4);
+        emitThumbRegPlusImmediate(MBB, MBBI, dl, ARM::R4, FramePtr, -NumBytes,
+                                  TII, *RegInfo);
+        AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVr),
+                               ARM::SP)
+          .addReg(ARM::R4));
       } else
-        BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVtgpr2gpr), ARM::SP)
-          .addReg(FramePtr);
+        AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tMOVr),
+                               ARM::SP)
+          .addReg(FramePtr));
     } else {
       if (MBBI->getOpcode() == ARM::tBX_RET &&
           &MBB.front() != MBBI &&
@@ -265,8 +278,8 @@ void Thumb1FrameLowering::emitEpilogue(MachineFunction &MF,
 
     emitSPUpdate(MBB, MBBI, TII, dl, *RegInfo, VARegSaveSize);
 
-    BuildMI(MBB, MBBI, dl, TII.get(ARM::tBX_RET_vararg))
-      .addReg(ARM::R3, RegState::Kill);
+    AddDefaultPred(BuildMI(MBB, MBBI, dl, TII.get(ARM::tBX_RET_vararg))
+      .addReg(ARM::R3, RegState::Kill));
     // erase the old tBX_RET instruction
     MBB.erase(MBBI);
   }
@@ -307,6 +320,7 @@ spillCalleeSavedRegisters(MachineBasicBlock &MBB,
 
     MIB.addReg(Reg, getKillRegState(isKill));
   }
+  MIB.setMIFlags(MachineInstr::FrameSetup);
   return true;
 }
 

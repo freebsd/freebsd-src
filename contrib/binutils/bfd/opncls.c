@@ -231,7 +231,7 @@ bfd_fopen (const char *filename, const char *target, const char *mode, int fd)
      then it may have been opened with special flags that make it
      unsafe to close and reopen the file.  */
   if (fd == -1)
-    bfd_set_cacheable (nbfd, TRUE);
+    (void) bfd_set_cacheable (nbfd, TRUE);
 
   return nbfd;
 }

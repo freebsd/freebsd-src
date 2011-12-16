@@ -31,6 +31,12 @@
 #define _MACHINE_IA64_CPU_H_
 
 /*
+ * Local Interrupt ID.
+ */
+#define	IA64_LID_GET_SAPIC_ID(x)	((u_int)((x) >> 16) & 0xffff)
+#define	IA64_LID_SET_SAPIC_ID(x)	((u_int)((x) & 0xffff) << 16)
+
+/*
  * Definition of DCR bits.
  */
 #define	IA64_DCR_PP		0x0000000000000001
@@ -260,7 +266,7 @@ ia64_ptc_e(uint64_t v)
 static __inline void
 ia64_ptc_g(uint64_t va, uint64_t log2size)
 {
-	__asm __volatile("ptc.g %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.g %0,%1;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -269,7 +275,7 @@ ia64_ptc_g(uint64_t va, uint64_t log2size)
 static __inline void
 ia64_ptc_ga(uint64_t va, uint64_t log2size)
 {
-	__asm __volatile("ptc.ga %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+	__asm __volatile("ptc.ga %0,%1;;" :: "r"(va), "r"(log2size));
 }
 
 /*
@@ -279,6 +285,15 @@ static __inline void
 ia64_ptc_l(uint64_t va, uint64_t log2size)
 {
 	__asm __volatile("ptc.l %0,%1;; srlz.i;;" :: "r"(va), "r"(log2size));
+}
+
+/*
+ * Invalidate the ALAT on the local processor.
+ */
+static __inline void
+ia64_invala(void)
+{
+	__asm __volatile("invala;;");
 }
 
 /*
@@ -502,17 +517,14 @@ ia64_enable_highfp(void)
 	__asm __volatile("rsm psr.dfh;; srlz.d");
 }
 
-static __inline void
-ia64_srlz_d(void)
-{
-	__asm __volatile("srlz.d");
-}
-
-static __inline void
-ia64_srlz_i(void)
-{
-	__asm __volatile("srlz.i;;");
-}
+/*
+ * Avoid inline functions for the following so that they still work
+ * correctly when inlining is not enabled (e.g. -O0). Function calls
+ * need data serialization after setting psr, which results in a
+ * hazard.
+ */
+#define	ia64_srlz_d()	__asm __volatile("srlz.d")
+#define	ia64_srlz_i()	__asm __volatile("srlz.i;;")
 
 #endif /* !LOCORE */
 

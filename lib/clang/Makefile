@@ -2,6 +2,7 @@
 
 .if !make(install)
 SUBDIR=	libclanganalysis \
+	libclangarcmigrate \
 	libclangast \
 	libclangbasic \
 	libclangcodegen \
@@ -14,9 +15,9 @@ SUBDIR=	libclanganalysis \
 	libclangrewrite \
 	libclangsema \
 	libclangserialization \
+	libclangstaticanalyzercheckers \
 	libclangstaticanalyzercore \
 	libclangstaticanalyzerfrontend \
-	libclangstaticanalyzercheckers \
 	\
 	libllvmanalysis \
 	libllvmasmparser \
@@ -24,8 +25,9 @@ SUBDIR=	libclanganalysis \
 	libllvmbitreader \
 	libllvmbitwriter \
 	libllvmcodegen \
-	libllvminstcombine \
 	libllvmcore \
+	libllvminstcombine \
+	libllvminstrumentation \
 	libllvmipa \
 	libllvmipo \
 	libllvmmc \
@@ -33,24 +35,30 @@ SUBDIR=	libclanganalysis \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
+	libllvmtablegen \
 	libllvmtarget \
 	libllvmtransformutils \
 	\
 	libllvmarmasmparser \
-	libllvmarminstprinter \
 	libllvmarmcodegen \
+	libllvmarmdesc \
 	libllvmarmdisassembler \
 	libllvmarminfo \
+	libllvmarminstprinter \
 	libllvmmipscodegen \
+	libllvmmipsdesc \
 	libllvmmipsinfo \
-	libllvmpowerpcinstprinter \
+	libllvmmipsinstprinter \
 	libllvmpowerpccodegen \
+	libllvmpowerpcdesc \
 	libllvmpowerpcinfo \
+	libllvmpowerpcinstprinter \
 	libllvmx86asmparser \
-	libllvmx86instprinter \
 	libllvmx86codegen \
+	libllvmx86desc \
 	libllvmx86disassembler \
 	libllvmx86info \
+	libllvmx86instprinter \
 	libllvmx86utils
 .endif
 

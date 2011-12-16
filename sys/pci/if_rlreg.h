@@ -143,6 +143,7 @@
  */
 #define	RL_TXCFG_CLRABRT	0x00000001	/* retransmit aborted pkt */
 #define	RL_TXCFG_MAXDMA		0x00000700	/* max DMA burst size */
+#define	RL_TXCFG_QUEUE_EMPTY	0x00000800	/* 8168E-VL or higher */
 #define	RL_TXCFG_CRCAPPEND	0x00010000	/* CRC append (0 = yes) */
 #define	RL_TXCFG_LOOPBKTST	0x00060000	/* loopback test */
 #define	RL_TXCFG_IFG2		0x00080000	/* 8169 only */
@@ -178,6 +179,10 @@
 #define	RL_HWREV_8168C_SPIN2	0x3C400000
 #define	RL_HWREV_8168CP		0x3C800000
 #define	RL_HWREV_8105E		0x40800000
+#define	RL_HWREV_8105E_SPIN1	0x40C00000
+#define	RL_HWREV_8402		0x44000000
+#define	RL_HWREV_8168F		0x48000000
+#define	RL_HWREV_8411		0x48800000
 #define	RL_HWREV_8139		0x60000000
 #define	RL_HWREV_8139A		0x70000000
 #define	RL_HWREV_8139AG		0x70800000
@@ -597,32 +602,15 @@ struct rl_type {
 	uint16_t		rl_vid;
 	uint16_t		rl_did;
 	int			rl_basetype;
-	char			*rl_name;
+	const char		*rl_name;
 };
 
 struct rl_hwrev {
 	uint32_t		rl_rev;
 	int			rl_type;
-	char			*rl_desc;
+	const char		*rl_desc;
 	int			rl_max_mtu;
 };
-
-struct rl_mii_frame {
-	uint8_t		mii_stdelim;
-	uint8_t		mii_opcode;
-	uint8_t		mii_phyaddr;
-	uint8_t		mii_regaddr;
-	uint8_t		mii_turnaround;
-	uint16_t	mii_data;
-};
-
-/*
- * MII constants
- */
-#define	RL_MII_STARTDELIM	0x01
-#define	RL_MII_READOP		0x02
-#define	RL_MII_WRITEOP		0x01
-#define	RL_MII_TURNAROUND	0x02
 
 #define	RL_8129			1
 #define	RL_8139			2
@@ -880,9 +868,10 @@ struct rl_softc {
 	device_t		rl_miibus;
 	bus_dma_tag_t		rl_parent_tag;
 	uint8_t			rl_type;
-	struct rl_hwrev		*rl_hwrev;
+	const struct rl_hwrev	*rl_hwrev;
 	int			rl_eecmd_read;
 	int			rl_eewidth;
+	int			rl_expcap;
 	int			rl_txthresh;
 	struct rl_chain_data	rl_cdata;
 	struct rl_list_data	rl_ldata;
@@ -909,22 +898,25 @@ struct rl_softc {
 	int			rl_int_rx_act;
 	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
-#define	RL_FLAG_MSI		0x0001
-#define	RL_FLAG_AUTOPAD		0x0002
-#define	RL_FLAG_PHYWAKE_PM	0x0004
-#define	RL_FLAG_PHYWAKE		0x0008
-#define	RL_FLAG_JUMBOV2		0x0010
-#define	RL_FLAG_PAR		0x0020
-#define	RL_FLAG_DESCV2		0x0040
-#define	RL_FLAG_MACSTAT		0x0080
-#define	RL_FLAG_FASTETHER	0x0100
-#define	RL_FLAG_CMDSTOP		0x0200
-#define	RL_FLAG_MACRESET	0x0400
-#define	RL_FLAG_MSIX		0x0800
-#define	RL_FLAG_WOLRXENB	0x1000
-#define	RL_FLAG_MACSLEEP	0x2000
-#define	RL_FLAG_PCIE		0x4000
-#define	RL_FLAG_LINK		0x8000
+#define	RL_FLAG_MSI		0x00000001
+#define	RL_FLAG_AUTOPAD		0x00000002
+#define	RL_FLAG_PHYWAKE_PM	0x00000004
+#define	RL_FLAG_PHYWAKE		0x00000008
+#define	RL_FLAG_JUMBOV2		0x00000010
+#define	RL_FLAG_PAR		0x00000020
+#define	RL_FLAG_DESCV2		0x00000040
+#define	RL_FLAG_MACSTAT		0x00000080
+#define	RL_FLAG_FASTETHER	0x00000100
+#define	RL_FLAG_CMDSTOP		0x00000200
+#define	RL_FLAG_MACRESET	0x00000400
+#define	RL_FLAG_MSIX		0x00000800
+#define	RL_FLAG_WOLRXENB	0x00001000
+#define	RL_FLAG_MACSLEEP	0x00002000
+#define	RL_FLAG_WAIT_TXPOLL	0x00004000
+#define	RL_FLAG_CMDSTOP_WAIT_TXQ	0x00008000
+#define	RL_FLAG_WOL_MANLINK	0x00010000
+#define	RL_FLAG_PCIE		0x40000000
+#define	RL_FLAG_LINK		0x80000000
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)
@@ -949,6 +941,9 @@ struct rl_softc {
 	bus_space_read_2(sc->rl_btag, sc->rl_bhandle, reg)
 #define	CSR_READ_1(sc, reg)		\
 	bus_space_read_1(sc->rl_btag, sc->rl_bhandle, reg)
+
+#define	CSR_BARRIER(sc, reg, length, flags)				\
+	bus_space_barrier(sc->rl_btag, sc->rl_bhandle, reg, length, flags)
 
 #define	CSR_SETBIT_1(sc, offset, val)		\
 	CSR_WRITE_1(sc, offset, CSR_READ_1(sc, offset) | (val))
@@ -1042,6 +1037,7 @@ struct rl_softc {
  * D-Link DFE-5280T device ID
  */
 #define	DLINK_DEVICEID_528T			0x4300
+#define	DLINK_DEVICEID_530T_REVC		0x4302
 
 /*
  * D-Link DFE-690TXD device ID

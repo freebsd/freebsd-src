@@ -445,11 +445,40 @@ error_code file_size(const Twine &path, uint64_t &result) {
   return success;
 }
 
+static bool isReservedName(StringRef path) {
+  // This list of reserved names comes from MSDN, at:
+  // http://msdn.microsoft.com/en-us/library/aa365247%28v=vs.85%29.aspx
+  static const char *sReservedNames[] = { "nul", "con", "prn", "aux",
+                              "com1", "com2", "com3", "com4", "com5", "com6",
+                              "com7", "com8", "com9", "lpt1", "lpt2", "lpt3",
+                              "lpt4", "lpt5", "lpt6", "lpt7", "lpt8", "lpt9" };
+
+  // First, check to see if this is a device namespace, which always
+  // starts with \\.\, since device namespaces are not legal file paths.
+  if (path.startswith("\\\\.\\"))
+    return true;
+
+  // Then compare against the list of ancient reserved names
+  for (size_t i = 0; i < sizeof(sReservedNames) / sizeof(const char *); ++i) {
+    if (path.equals_lower(sReservedNames[i]))
+      return true;
+  }
+
+  // The path isn't what we consider reserved.
+  return false;
+}
+
 error_code status(const Twine &path, file_status &result) {
   SmallString<128> path_storage;
   SmallVector<wchar_t, 128> path_utf16;
 
-  if (error_code ec = UTF8ToUTF16(path.toStringRef(path_storage),
+  StringRef path8 = path.toStringRef(path_storage);
+  if (isReservedName(path8)) {
+    result = file_status(file_type::character_file);
+    return success;
+  }
+
+  if (error_code ec = UTF8ToUTF16(path8,
                                   path_utf16))
     return ec;
 
@@ -494,7 +523,8 @@ handle_status_error:
 }
 
 error_code unique_file(const Twine &model, int &result_fd,
-                             SmallVectorImpl<char> &result_path) {
+                             SmallVectorImpl<char> &result_path,
+                             bool makeAbsolute) {
   // Use result_path as temp storage.
   result_path.set_size(0);
   StringRef m = model.toStringRef(result_path);
@@ -502,17 +532,19 @@ error_code unique_file(const Twine &model, int &result_fd,
   SmallVector<wchar_t, 128> model_utf16;
   if (error_code ec = UTF8ToUTF16(m, model_utf16)) return ec;
 
-  // Make model absolute by prepending a temp directory if it's not already.
-  bool absolute = path::is_absolute(m);
-
-  if (!absolute) {
-    SmallVector<wchar_t, 64> temp_dir;
-    if (error_code ec = TempDir(temp_dir)) return ec;
-    // Handle c: by removing it.
-    if (model_utf16.size() > 2 && model_utf16[1] == L':') {
-      model_utf16.erase(model_utf16.begin(), model_utf16.begin() + 2);
+  if (makeAbsolute) {
+    // Make model absolute by prepending a temp directory if it's not already.
+    bool absolute = path::is_absolute(m);
+  
+    if (!absolute) {
+      SmallVector<wchar_t, 64> temp_dir;
+      if (error_code ec = TempDir(temp_dir)) return ec;
+      // Handle c: by removing it.
+      if (model_utf16.size() > 2 && model_utf16[1] == L':') {
+        model_utf16.erase(model_utf16.begin(), model_utf16.begin() + 2);
+      }
+      model_utf16.insert(model_utf16.begin(), temp_dir.begin(), temp_dir.end());
     }
-    model_utf16.insert(model_utf16.begin(), temp_dir.begin(), temp_dir.end());
   }
 
   // Replace '%' with random chars. From here on, DO NOT modify model. It may be
@@ -649,7 +681,7 @@ error_code get_magic(const Twine &path, uint32_t len,
   ::CloseHandle(file);
   if (!read_success || (bytes_read != len)) {
     // Set result size to the number of bytes read if it's valid.
-    if (bytes_read >= 0 && bytes_read <= len)
+    if (bytes_read <= len)
       result.set_size(bytes_read);
     // ERROR_HANDLE_EOF is mapped to errc::value_too_large.
     return ec;

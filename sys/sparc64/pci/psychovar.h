@@ -10,8 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. The name of the author may not be used to endorse or promote products
- *    derived from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR ``AS IS'' AND ANY EXPRESS OR
  * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
@@ -25,7 +23,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- *	from: NetBSD: psychovar.h,v 1.6 2001/07/20 00:07:13 eeh Exp
+ *	from: NetBSD: psychovar.h,v 1.15 2008/05/29 14:51:26 mrg Exp
  *
  * $FreeBSD$
  */
@@ -38,6 +36,8 @@
  * per pair of psychos.
  */
 struct psycho_softc {
+	struct bus_dma_methods		*sc_dma_methods;
+
 	device_t			sc_dev;
 
 	struct mtx			*sc_mtx;
@@ -65,7 +65,6 @@ struct psycho_softc {
 
 	/* Tags for PCI access */
 	bus_space_tag_t			sc_pci_cfgt;
-	bus_space_tag_t			sc_pci_memt;
 	bus_space_tag_t			sc_pci_iot;
 	bus_dma_tag_t			sc_pci_dmat;
 

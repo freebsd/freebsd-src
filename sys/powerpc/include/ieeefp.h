@@ -8,6 +8,8 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
 
+/* Deprecated historical FPU control interface */
+
 typedef int fp_except_t;
 #define FP_X_IMP	0x01	/* imprecise (loss of precision) */
 #define FP_X_DZ		0x02	/* divide-by-zero exception */
@@ -21,5 +23,13 @@ typedef enum {
     FP_RP=2,			/* round toward positive infinity */
     FP_RM=3			/* round toward negative infinity */
 } fp_rnd_t;
+
+__BEGIN_DECLS
+extern fp_rnd_t    fpgetround(void);
+extern fp_rnd_t    fpsetround(fp_rnd_t);
+extern fp_except_t fpgetmask(void);
+extern fp_except_t fpsetmask(fp_except_t);
+extern fp_except_t fpgetsticky(void);
+__END_DECLS
 
 #endif /* _MACHINE_IEEEFP_H_ */

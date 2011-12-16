@@ -19,54 +19,42 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <machine/psl.h>
-
 #include <btxv86.h>
 
 #include "rbx.h"
 #include "util.h"
 #include "drv.h"
-#ifndef GPT
+#include "edd.h"
+#ifdef USE_XREAD
 #include "xreadorg.h"
 #endif
 
-#define	V86_CY(x)	((x) & PSL_C)
-#define	V86_ZR(x)	((x) & PSL_Z)
-
 #ifdef GPT
+static struct edd_params params;
+
 uint64_t
 drvsize(struct dsk *dskp)
 {
-	unsigned char params[0x42];
-	uint64_t sectors;
 
-	*(uint32_t *)params = sizeof(params);
-
+	params.len = sizeof(struct edd_params);
 	v86.ctl = V86_FLAGS;
 	v86.addr = 0x13;
 	v86.eax = 0x4800;
 	v86.edx = dskp->drive;
-	v86.ds = VTOPSEG(params);
-	v86.esi = VTOPOFF(params);
+	v86.ds = VTOPSEG(&params);
+	v86.esi = VTOPOFF(&params);
 	v86int();
 	if (V86_CY(v86.efl)) {
 		printf("error %u\n", v86.eax >> 8 & 0xff);
 		return (0);
 	}
-	memcpy(&sectors, params + 0x10, sizeof(sectors));
-	return (sectors);
+	return (params.sectors);
 }
 #endif	/* GPT */
 
-#ifdef GPT
-static struct {
-	uint16_t	len;
-	uint16_t	count;
-	uint16_t	off;
-	uint16_t	seg;
-	uint64_t	lba;
-} packet;
-#endif	/* GPT */
+#ifndef USE_XREAD
+static struct edd_packet packet;
+#endif
 
 int
 drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
@@ -75,8 +63,8 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 
 	if (!OPT_CHECK(RBX_QUIET))
 		printf("%c\b", c = c << 8 | c >> 24);
-#ifdef GPT
-	packet.len = 0x10;
+#ifndef USE_XREAD
+	packet.len = sizeof(struct edd_packet);
 	packet.count = nblk;
 	packet.off = VTOPOFF(buf);
 	packet.seg = VTOPSEG(buf);
@@ -87,7 +75,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	v86.edx = dskp->drive;
 	v86.ds = VTOPSEG(&packet);
 	v86.esi = VTOPOFF(&packet);
-#else	/* !GPT */
+#else	/* USE_XREAD */
 	v86.ctl = V86_ADDR | V86_CALLF | V86_FLAGS;
 	v86.addr = XREADORG;		/* call to xread in boot1 */
 	v86.es = VTOPSEG(buf);
@@ -95,7 +83,7 @@ drvread(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 	v86.ebx = VTOPOFF(buf);
 	v86.ecx = lba >> 32;
 	v86.edx = nblk << 8 | dskp->drive;
-#endif	/* !GPT */
+#endif	/* USE_XREAD */
 	v86int();
 	if (V86_CY(v86.efl)) {
 		printf("%s: error %u lba %u\n",
@@ -110,7 +98,7 @@ int
 drvwrite(struct dsk *dskp, void *buf, daddr_t lba, unsigned nblk)
 {
 
-	packet.len = 0x10;
+	packet.len = sizeof(struct edd_packet);
 	packet.count = nblk;
 	packet.off = VTOPOFF(buf);
 	packet.seg = VTOPSEG(buf);

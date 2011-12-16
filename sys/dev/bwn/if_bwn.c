@@ -73,7 +73,8 @@ __FBSDID("$FreeBSD$");
 #include <dev/bwn/if_bwnreg.h>
 #include <dev/bwn/if_bwnvar.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0, "Broadcom driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, bwn, CTLFLAG_RD, 0,
+    "Broadcom driver parameters");
 
 /*
  * Tunable & sysctl variables.
@@ -979,7 +980,7 @@ bwn_attach(device_t dev)
 	/*
 	 * setup PCI resources and interrupt.
 	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(sc->sc_dev, "MSI count : %d\n", msic);
@@ -3213,8 +3214,6 @@ bwn_core_init(struct bwn_mac *mac)
 		bwn_pio_init(mac);
 	else
 		bwn_dma_init(mac);
-	if (error)
-		goto fail1;
 	bwn_wme_init(mac);
 	bwn_spu_setdelay(mac, 1);
 	bwn_bt_enable(mac);
@@ -3230,8 +3229,6 @@ bwn_core_init(struct bwn_mac *mac)
 
 	return (error);
 
-fail1:
-	bwn_chip_exit(mac);
 fail0:
 	siba_powerdown(sc->sc_dev);
 	KASSERT(mac->mac_status == BWN_MAC_STATUS_UNINIT,
@@ -14229,7 +14226,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",

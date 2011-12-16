@@ -62,6 +62,7 @@ enum {
 	HAL_DIAG_ANI_PARAMS	= 31,	/* ANI noise immunity parameters */
 	HAL_DIAG_CHECK_HANGS	= 32,	/* check h/w hangs */
 	HAL_DIAG_SETREGS	= 33,	/* write registers */
+	HAL_DIAG_CHANSURVEY	= 34,	/* channel survey */
 };
 
 #endif /* _ATH_AH_DIAGCODES_H_ */

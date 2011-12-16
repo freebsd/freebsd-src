@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -82,8 +81,8 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
-		assert(cfg != NULL);
-		assert(name != NULL);
+		PJDLOG_ASSERT(cfg != NULL);
+		PJDLOG_ASSERT(name != NULL);
 
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
@@ -94,7 +93,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 
 	/* Send previous role back. */
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
@@ -155,14 +154,13 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	const char *str;
 	int error;
 
-	cnvin = cnvout = NULL;
-	error = 0;
+	cnvin = NULL;
 
 	/*
 	 * Prepare and send command to worker process.
 	 */
 	cnvout = nv_alloc();
-	nv_add_uint8(cnvout, HASTCTL_STATUS, "cmd");
+	nv_add_uint8(cnvout, CONTROL_STATUS, "cmd");
 	error = nv_error(cnvout);
 	if (error != 0) {
 		pjdlog_common(LOG_ERR, 0, error,
@@ -199,6 +197,16 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	    "extentsize%u", no);
 	nv_add_uint32(nvout, nv_get_uint32(cnvin, "keepdirty"),
 	    "keepdirty%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_read"),
+	    "stat_read%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_write"),
+	    "stat_write%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_delete"),
+	    "stat_delete%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_flush"),
+	    "stat_flush%u", no);
+	nv_add_uint64(nvout, nv_get_uint64(cnvin, "stat_activemap_update"),
+	    "stat_activemap_update%u", no);
 end:
 	if (cnvin != NULL)
 		nv_free(cnvin);
@@ -213,9 +221,9 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
     struct hast_resource *res, const char *name, unsigned int no)
 {
 
-	assert(cfg != NULL);
-	assert(nvout != NULL);
-	assert(name != NULL);
+	PJDLOG_ASSERT(cfg != NULL);
+	PJDLOG_ASSERT(nvout != NULL);
+	PJDLOG_ASSERT(name != NULL);
 
 	/* Name is always needed. */
 	nv_add_string(nvout, name, "resource%u", no);
@@ -230,10 +238,12 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 	nv_add_string(nvout, res->hr_provname, "provname%u", no);
 	nv_add_string(nvout, res->hr_localpath, "localpath%u", no);
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr%u", no);
+	if (res->hr_sourceaddr[0] != '\0')
+		nv_add_string(nvout, res->hr_sourceaddr, "sourceaddr%u", no);
 	switch (res->hr_replication) {
 	case HAST_REPLICATION_FULLSYNC:
 		nv_add_string(nvout, "fullsync", "replication%u", no);
@@ -256,7 +266,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 
 	switch (res->hr_role) {
 	case HAST_ROLE_PRIMARY:
-		assert(res->hr_workerpid != 0);
+		PJDLOG_ASSERT(res->hr_workerpid != 0);
 		/* FALLTHROUGH */
 	case HAST_ROLE_SECONDARY:
 		if (res->hr_workerpid != 0)
@@ -322,10 +332,10 @@ control_handle(struct hastd_config *cfg)
 		error = EHAST_INVALID;
 		goto fail;
 	}
-	if (cmd == HASTCTL_SET_ROLE) {
+	if (cmd == HASTCTL_CMD_SETROLE) {
 		role = nv_get_uint8(nvin, "role");
 		switch (role) {
-		case HAST_ROLE_INIT:	/* Is that valid to set, hmm? */
+		case HAST_ROLE_INIT:
 		case HAST_ROLE_PRIMARY:
 		case HAST_ROLE_SECONDARY:
 			break;
@@ -343,11 +353,11 @@ control_handle(struct hastd_config *cfg)
 		ii = 0;
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
+			case HASTCTL_CMD_SETROLE:
 				control_set_role_common(cfg, nvout, role, res,
 				    res->hr_name, ii++);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, res, res->hr_name,
 				    ii++);
 				break;
@@ -366,11 +376,11 @@ control_handle(struct hastd_config *cfg)
 			if (str == NULL)
 				break;
 			switch (cmd) {
-			case HASTCTL_SET_ROLE:
+			case HASTCTL_CMD_SETROLE:
 				control_set_role_common(cfg, nvout, role, NULL,
 				    str, ii);
 				break;
-			case HASTCTL_STATUS:
+			case HASTCTL_CMD_STATUS:
 				control_status(cfg, nvout, NULL, str, ii);
 				break;
 			default:
@@ -425,7 +435,7 @@ ctrl_thread(void *arg)
 		}
 		nvout = nv_alloc();
 		switch (cmd) {
-		case HASTCTL_STATUS:
+		case CONTROL_STATUS:
 			if (res->hr_remotein != NULL &&
 			    res->hr_remoteout != NULL) {
 				nv_add_string(nvout, "complete", "status");
@@ -444,15 +454,22 @@ ctrl_thread(void *arg)
 				nv_add_uint32(nvout, (uint32_t)0, "keepdirty");
 				nv_add_uint64(nvout, (uint64_t)0, "dirty");
 			}
+			nv_add_uint64(nvout, res->hr_stat_read, "stat_read");
+			nv_add_uint64(nvout, res->hr_stat_write, "stat_write");
+			nv_add_uint64(nvout, res->hr_stat_delete,
+			    "stat_delete");
+			nv_add_uint64(nvout, res->hr_stat_flush, "stat_flush");
+			nv_add_uint64(nvout, res->hr_stat_activemap_update,
+			    "stat_activemap_update");
 			nv_add_int16(nvout, 0, "error");
 			break;
-		case HASTCTL_RELOAD:
+		case CONTROL_RELOAD:
 			/*
 			 * When parent receives SIGHUP and discovers that
 			 * something related to us has changes, it sends reload
 			 * message to us.
 			 */
-			assert(res->hr_role == HAST_ROLE_PRIMARY);
+			PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 			primary_config_reload(res, nvin);
 			nv_add_int16(nvout, 0, "error");
 			break;

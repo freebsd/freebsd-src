@@ -100,7 +100,7 @@ __FBSDID("$FreeBSD$");
 /*
  * Various supported device vendors/products.
  */
-static const struct usb_device_id kue_devs[] = {
+static const STRUCT_USB_HOST_ID kue_devs[] = {
 #define	KUE_DEV(v,p) { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
 	KUE_DEV(3COM, 3C19250),
 	KUE_DEV(3COM, 3C460),
@@ -165,7 +165,7 @@ static void	kue_reset(struct kue_softc *);
 #ifdef USB_DEBUG
 static int kue_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, kue, CTLFLAG_RW, 0, "USB kue");
 SYSCTL_INT(_hw_usb_kue, OID_AUTO, debug, CTLFLAG_RW, &kue_debug, 0,
     "Debug level");
 #endif
@@ -380,8 +380,9 @@ kue_setmulti(struct usb_ether *ue)
 		 */
 		if (i == KUE_MCFILTCNT(sc))
 			break;
-		bcopy(LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
-		    KUE_MCFILT(sc, i), ETHER_ADDR_LEN);
+		memcpy(KUE_MCFILT(sc, i),
+		    LLADDR((struct sockaddr_dl *)ifma->ifma_addr),
+		    ETHER_ADDR_LEN);
 		i++;
 	}
 	if_maddr_runlock(ifp);

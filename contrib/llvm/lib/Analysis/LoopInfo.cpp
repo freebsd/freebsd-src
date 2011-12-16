@@ -18,6 +18,7 @@
 #include "llvm/Constants.h"
 #include "llvm/Instructions.h"
 #include "llvm/Analysis/Dominators.h"
+#include "llvm/Analysis/LoopIterator.h"
 #include "llvm/Assembly/Writer.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/CommandLine.h"
@@ -55,12 +56,12 @@ bool Loop::isLoopInvariant(Value *V) const {
 }
 
 /// hasLoopInvariantOperands - Return true if all the operands of the
-/// specified instruction are loop invariant. 
+/// specified instruction are loop invariant.
 bool Loop::hasLoopInvariantOperands(Instruction *I) const {
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i)
     if (!isLoopInvariant(I->getOperand(i)))
       return false;
-  
+
   return true;
 }
 
@@ -98,6 +99,9 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
     return false;
   if (I->mayReadFromMemory())
     return false;
+  // The landingpad instruction is immobile.
+  if (isa<LandingPadInst>(I))
+    return false;
   // Determine the insertion point, unless one was given.
   if (!InsertPt) {
     BasicBlock *Preheader = getLoopPreheader();
@@ -110,7 +114,7 @@ bool Loop::makeLoopInvariant(Instruction *I, bool &Changed,
   for (unsigned i = 0, e = I->getNumOperands(); i != e; ++i)
     if (!makeLoopInvariant(I->getOperand(i), Changed, InsertPt))
       return false;
-  
+
   // Hoist.
   I->moveBefore(InsertPt);
   Changed = true;
@@ -383,12 +387,273 @@ void Loop::dump() const {
 }
 
 //===----------------------------------------------------------------------===//
+// UnloopUpdater implementation
+//
+
+namespace {
+/// Find the new parent loop for all blocks within the "unloop" whose last
+/// backedges has just been removed.
+class UnloopUpdater {
+  Loop *Unloop;
+  LoopInfo *LI;
+
+  LoopBlocksDFS DFS;
+
+  // Map unloop's immediate subloops to their nearest reachable parents. Nested
+  // loops within these subloops will not change parents. However, an immediate
+  // subloop's new parent will be the nearest loop reachable from either its own
+  // exits *or* any of its nested loop's exits.
+  DenseMap<Loop*, Loop*> SubloopParents;
+
+  // Flag the presence of an irreducible backedge whose destination is a block
+  // directly contained by the original unloop.
+  bool FoundIB;
+
+public:
+  UnloopUpdater(Loop *UL, LoopInfo *LInfo) :
+    Unloop(UL), LI(LInfo), DFS(UL), FoundIB(false) {}
+
+  void updateBlockParents();
+
+  void removeBlocksFromAncestors();
+
+  void updateSubloopParents();
+
+protected:
+  Loop *getNearestLoop(BasicBlock *BB, Loop *BBLoop);
+};
+} // end anonymous namespace
+
+/// updateBlockParents - Update the parent loop for all blocks that are directly
+/// contained within the original "unloop".
+void UnloopUpdater::updateBlockParents() {
+  if (Unloop->getNumBlocks()) {
+    // Perform a post order CFG traversal of all blocks within this loop,
+    // propagating the nearest loop from sucessors to predecessors.
+    LoopBlocksTraversal Traversal(DFS, LI);
+    for (LoopBlocksTraversal::POTIterator POI = Traversal.begin(),
+           POE = Traversal.end(); POI != POE; ++POI) {
+
+      Loop *L = LI->getLoopFor(*POI);
+      Loop *NL = getNearestLoop(*POI, L);
+
+      if (NL != L) {
+        // For reducible loops, NL is now an ancestor of Unloop.
+        assert((NL != Unloop && (!NL || NL->contains(Unloop))) &&
+               "uninitialized successor");
+        LI->changeLoopFor(*POI, NL);
+      }
+      else {
+        // Or the current block is part of a subloop, in which case its parent
+        // is unchanged.
+        assert((FoundIB || Unloop->contains(L)) && "uninitialized successor");
+      }
+    }
+  }
+  // Each irreducible loop within the unloop induces a round of iteration using
+  // the DFS result cached by Traversal.
+  bool Changed = FoundIB;
+  for (unsigned NIters = 0; Changed; ++NIters) {
+    assert(NIters < Unloop->getNumBlocks() && "runaway iterative algorithm");
+
+    // Iterate over the postorder list of blocks, propagating the nearest loop
+    // from successors to predecessors as before.
+    Changed = false;
+    for (LoopBlocksDFS::POIterator POI = DFS.beginPostorder(),
+           POE = DFS.endPostorder(); POI != POE; ++POI) {
+
+      Loop *L = LI->getLoopFor(*POI);
+      Loop *NL = getNearestLoop(*POI, L);
+      if (NL != L) {
+        assert(NL != Unloop && (!NL || NL->contains(Unloop)) &&
+               "uninitialized successor");
+        LI->changeLoopFor(*POI, NL);
+        Changed = true;
+      }
+    }
+  }
+}
+
+/// removeBlocksFromAncestors - Remove unloop's blocks from all ancestors below
+/// their new parents.
+void UnloopUpdater::removeBlocksFromAncestors() {
+  // Remove unloop's blocks from all ancestors below their new parents.
+  for (Loop::block_iterator BI = Unloop->block_begin(),
+         BE = Unloop->block_end(); BI != BE; ++BI) {
+    Loop *NewParent = LI->getLoopFor(*BI);
+    // If this block is an immediate subloop, remove all blocks (including
+    // nested subloops) from ancestors below the new parent loop.
+    // Otherwise, if this block is in a nested subloop, skip it.
+    if (SubloopParents.count(NewParent))
+      NewParent = SubloopParents[NewParent];
+    else if (Unloop->contains(NewParent))
+      continue;
+
+    // Remove blocks from former Ancestors except Unloop itself which will be
+    // deleted.
+    for (Loop *OldParent = Unloop->getParentLoop(); OldParent != NewParent;
+         OldParent = OldParent->getParentLoop()) {
+      assert(OldParent && "new loop is not an ancestor of the original");
+      OldParent->removeBlockFromLoop(*BI);
+    }
+  }
+}
+
+/// updateSubloopParents - Update the parent loop for all subloops directly
+/// nested within unloop.
+void UnloopUpdater::updateSubloopParents() {
+  while (!Unloop->empty()) {
+    Loop *Subloop = *llvm::prior(Unloop->end());
+    Unloop->removeChildLoop(llvm::prior(Unloop->end()));
+
+    assert(SubloopParents.count(Subloop) && "DFS failed to visit subloop");
+    if (SubloopParents[Subloop])
+      SubloopParents[Subloop]->addChildLoop(Subloop);
+    else
+      LI->addTopLevelLoop(Subloop);
+  }
+}
+
+/// getNearestLoop - Return the nearest parent loop among this block's
+/// successors. If a successor is a subloop header, consider its parent to be
+/// the nearest parent of the subloop's exits.
+///
+/// For subloop blocks, simply update SubloopParents and return NULL.
+Loop *UnloopUpdater::getNearestLoop(BasicBlock *BB, Loop *BBLoop) {
+
+  // Initially for blocks directly contained by Unloop, NearLoop == Unloop and
+  // is considered uninitialized.
+  Loop *NearLoop = BBLoop;
+
+  Loop *Subloop = 0;
+  if (NearLoop != Unloop && Unloop->contains(NearLoop)) {
+    Subloop = NearLoop;
+    // Find the subloop ancestor that is directly contained within Unloop.
+    while (Subloop->getParentLoop() != Unloop) {
+      Subloop = Subloop->getParentLoop();
+      assert(Subloop && "subloop is not an ancestor of the original loop");
+    }
+    // Get the current nearest parent of the Subloop exits, initially Unloop.
+    if (!SubloopParents.count(Subloop))
+      SubloopParents[Subloop] = Unloop;
+    NearLoop = SubloopParents[Subloop];
+  }
+
+  succ_iterator I = succ_begin(BB), E = succ_end(BB);
+  if (I == E) {
+    assert(!Subloop && "subloop blocks must have a successor");
+    NearLoop = 0; // unloop blocks may now exit the function.
+  }
+  for (; I != E; ++I) {
+    if (*I == BB)
+      continue; // self loops are uninteresting
+
+    Loop *L = LI->getLoopFor(*I);
+    if (L == Unloop) {
+      // This successor has not been processed. This path must lead to an
+      // irreducible backedge.
+      assert((FoundIB || !DFS.hasPostorder(*I)) && "should have seen IB");
+      FoundIB = true;
+    }
+    if (L != Unloop && Unloop->contains(L)) {
+      // Successor is in a subloop.
+      if (Subloop)
+        continue; // Branching within subloops. Ignore it.
+
+      // BB branches from the original into a subloop header.
+      assert(L->getParentLoop() == Unloop && "cannot skip into nested loops");
+
+      // Get the current nearest parent of the Subloop's exits.
+      L = SubloopParents[L];
+      // L could be Unloop if the only exit was an irreducible backedge.
+    }
+    if (L == Unloop) {
+      continue;
+    }
+    // Handle critical edges from Unloop into a sibling loop.
+    if (L && !L->contains(Unloop)) {
+      L = L->getParentLoop();
+    }
+    // Remember the nearest parent loop among successors or subloop exits.
+    if (NearLoop == Unloop || !NearLoop || NearLoop->contains(L))
+      NearLoop = L;
+  }
+  if (Subloop) {
+    SubloopParents[Subloop] = NearLoop;
+    return BBLoop;
+  }
+  return NearLoop;
+}
+
+//===----------------------------------------------------------------------===//
 // LoopInfo implementation
 //
 bool LoopInfo::runOnFunction(Function &) {
   releaseMemory();
   LI.Calculate(getAnalysis<DominatorTree>().getBase());    // Update
   return false;
+}
+
+/// updateUnloop - The last backedge has been removed from a loop--now the
+/// "unloop". Find a new parent for the blocks contained within unloop and
+/// update the loop tree. We don't necessarily have valid dominators at this
+/// point, but LoopInfo is still valid except for the removal of this loop.
+///
+/// Note that Unloop may now be an empty loop. Calling Loop::getHeader without
+/// checking first is illegal.
+void LoopInfo::updateUnloop(Loop *Unloop) {
+
+  // First handle the special case of no parent loop to simplify the algorithm.
+  if (!Unloop->getParentLoop()) {
+    // Since BBLoop had no parent, Unloop blocks are no longer in a loop.
+    for (Loop::block_iterator I = Unloop->block_begin(),
+         E = Unloop->block_end(); I != E; ++I) {
+
+      // Don't reparent blocks in subloops.
+      if (getLoopFor(*I) != Unloop)
+        continue;
+
+      // Blocks no longer have a parent but are still referenced by Unloop until
+      // the Unloop object is deleted.
+      LI.changeLoopFor(*I, 0);
+    }
+
+    // Remove the loop from the top-level LoopInfo object.
+    for (LoopInfo::iterator I = LI.begin();; ++I) {
+      assert(I != LI.end() && "Couldn't find loop");
+      if (*I == Unloop) {
+        LI.removeLoop(I);
+        break;
+      }
+    }
+
+    // Move all of the subloops to the top-level.
+    while (!Unloop->empty())
+      LI.addTopLevelLoop(Unloop->removeChildLoop(llvm::prior(Unloop->end())));
+
+    return;
+  }
+
+  // Update the parent loop for all blocks within the loop. Blocks within
+  // subloops will not change parents.
+  UnloopUpdater Updater(Unloop, this);
+  Updater.updateBlockParents();
+
+  // Remove blocks from former ancestor loops.
+  Updater.removeBlocksFromAncestors();
+
+  // Add direct subloops as children in their new parent loop.
+  Updater.updateSubloopParents();
+
+  // Remove unloop from its parent loop.
+  Loop *ParentLoop = Unloop->getParentLoop();
+  for (Loop::iterator I = ParentLoop->begin();; ++I) {
+    assert(I != ParentLoop->end() && "Couldn't find loop");
+    if (*I == Unloop) {
+      ParentLoop->removeChildLoop(I);
+      break;
+    }
+  }
 }
 
 void LoopInfo::verifyAnalysis() const {
@@ -400,12 +665,21 @@ void LoopInfo::verifyAnalysis() const {
 
   if (!VerifyLoopInfo) return;
 
+  DenseSet<const Loop*> Loops;
   for (iterator I = begin(), E = end(); I != E; ++I) {
     assert(!(*I)->getParentLoop() && "Top-level loop has a parent!");
-    (*I)->verifyLoopNest();
+    (*I)->verifyLoopNest(&Loops);
   }
 
-  // TODO: check BBMap consistency.
+  // Verify that blocks are mapped to valid loops.
+  //
+  // FIXME: With an up-to-date DFS (see LoopIterator.h) and DominatorTree, we
+  // could also verify that the blocks are still in the correct loops.
+  for (DenseMap<BasicBlock*, Loop*>::const_iterator I = LI.BBMap.begin(),
+         E = LI.BBMap.end(); I != E; ++I) {
+    assert(Loops.count(I->second) && "orphaned loop");
+    assert(I->second->contains(I->first) && "orphaned block");
+  }
 }
 
 void LoopInfo::getAnalysisUsage(AnalysisUsage &AU) const {
@@ -417,3 +691,15 @@ void LoopInfo::print(raw_ostream &OS, const Module*) const {
   LI.print(OS);
 }
 
+//===----------------------------------------------------------------------===//
+// LoopBlocksDFS implementation
+//
+
+/// Traverse the loop blocks and store the DFS result.
+/// Useful for clients that just want the final DFS result and don't need to
+/// visit blocks during the initial traversal.
+void LoopBlocksDFS::perform(LoopInfo *LI) {
+  LoopBlocksTraversal Traversal(*this, LI);
+  for (LoopBlocksTraversal::POTIterator POI = Traversal.begin(),
+         POE = Traversal.end(); POI != POE; ++POI) ;
+}

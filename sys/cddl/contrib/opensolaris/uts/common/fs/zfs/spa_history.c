@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #include <sys/spa.h>
@@ -101,11 +102,11 @@ spa_history_create_obj(spa_t *spa, dmu_tx_t *tx)
 
 	/*
 	 * Figure out maximum size of history log.  We set it at
-	 * 1% of pool size, with a max of 32MB and min of 128KB.
+	 * 0.1% of pool size, with a max of 1G and min of 128KB.
 	 */
 	shpp->sh_phys_max_off =
-	    metaslab_class_get_dspace(spa_normal_class(spa)) / 100;
-	shpp->sh_phys_max_off = MIN(shpp->sh_phys_max_off, 32<<20);
+	    metaslab_class_get_dspace(spa_normal_class(spa)) / 1000;
+	shpp->sh_phys_max_off = MIN(shpp->sh_phys_max_off, 1<<30);
 	shpp->sh_phys_max_off = MAX(shpp->sh_phys_max_off, 128<<10);
 
 	dmu_buf_rele(dbp, FTAG);
@@ -500,9 +501,11 @@ spa_history_log_version(spa_t *spa, history_internal_events_t event)
 		    utsname.nodename, utsname.release, utsname.version,
 		    utsname.machine);
 	}
+#if 0
 	cmn_err(CE_CONT, "!%s version %llu pool %s using %llu",
 	    event == LOG_POOL_IMPORT ? "imported" :
 	    event == LOG_POOL_CREATE ? "created" : "accessed",
 	    (u_longlong_t)current_vers, spa_name(spa), SPA_VERSION);
+#endif
 #endif
 }

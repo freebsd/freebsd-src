@@ -49,8 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ata/ata-pci.h>
 #include <ata_if.h>
 
-/* local vars */
-static MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
+MALLOC_DEFINE(M_ATAPCI, "ata_pci", "ATA driver PCI");
 
 /* misc defines */
 #define IOMASK                  0xfffffffc
@@ -137,15 +136,9 @@ int
 ata_pci_detach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    device_t *children;
-    int nchildren, i;
 
     /* detach & delete all children */
-    if (!device_get_children(dev, &children, &nchildren)) {
-	for (i = 0; i < nchildren; i++)
-	    device_delete_child(dev, children[i]);
-	free(children, M_TEMP);
-    }
+    device_delete_children(dev);
 
     if (ctlr->r_irq) {
 	bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle);
@@ -153,10 +146,22 @@ ata_pci_detach(device_t dev)
 	if (ctlr->r_irq_rid != ATA_IRQ_RID)
 	    pci_release_msi(dev);
     }
-    if (ctlr->r_res2)
+    if (ctlr->chipdeinit != NULL)
+	ctlr->chipdeinit(dev);
+    if (ctlr->r_res2) {
+#ifdef __sparc64__
+	bus_space_unmap(rman_get_bustag(ctlr->r_res2),
+	    rman_get_bushandle(ctlr->r_res2), rman_get_size(ctlr->r_res2));
+#endif
 	bus_release_resource(dev, ctlr->r_type2, ctlr->r_rid2, ctlr->r_res2);
-    if (ctlr->r_res1)
+    }
+    if (ctlr->r_res1) {
+#ifdef __sparc64__
+	bus_space_unmap(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1));
+#endif
 	bus_release_resource(dev, ctlr->r_type1, ctlr->r_rid1, ctlr->r_res1);
+    }
 
     return 0;
 }
@@ -545,6 +550,19 @@ ata_pci_dmafini(device_t dev)
 }
 
 int
+ata_pci_print_child(device_t dev, device_t child)
+{
+	int retval;
+
+	retval = bus_print_child_header(dev, child);
+	retval += printf(" at channel %d",
+	    (int)(intptr_t)device_get_ivars(child));
+	retval += bus_print_child_footer(dev, child);
+
+	return (retval);
+}
+
+int
 ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen)
 {
@@ -574,6 +592,7 @@ static device_method_t ata_pci_methods[] = {
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr),
     DEVMETHOD(pci_read_config,		ata_pci_read_config),
     DEVMETHOD(pci_write_config,		ata_pci_write_config),
+    DEVMETHOD(bus_print_child,		ata_pci_print_child),
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str),
 
     { 0, 0 }
@@ -594,12 +613,10 @@ MODULE_DEPEND(atapci, ata, 1, 1, 1);
 static int
 ata_pcichannel_probe(device_t dev)
 {
-    char buffer[32];
 
     if ((intptr_t)device_get_ivars(dev) < 0)
 	    return (ENXIO);
-    sprintf(buffer, "ATA channel %d", (int)(intptr_t)device_get_ivars(dev));
-    device_set_desc_copy(dev, buffer);
+    device_set_desc(dev, "ATA channel");
 
     return ata_probe(dev);
 }
@@ -763,7 +780,6 @@ driver_t ata_pcichannel_driver = {
 
 DRIVER_MODULE(ata, atapci, ata_pcichannel_driver, ata_devclass, 0, 0);
 
-
 /*
  * misc support fucntions
  */
@@ -924,4 +940,3 @@ ata_mode2idx(int mode)
 	return (mode & ATA_MODE_MASK) + 5;
     return (mode & ATA_MODE_MASK) - ATA_PIO0;
 }
-

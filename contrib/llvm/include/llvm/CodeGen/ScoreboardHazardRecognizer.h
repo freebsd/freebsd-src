@@ -21,12 +21,10 @@
 
 #include <cassert>
 #include <cstring>
-#include <string>
 
 namespace llvm {
 
 class InstrItineraryData;
-class TargetInstrDesc;
 class ScheduleDAG;
 class SUnit;
 

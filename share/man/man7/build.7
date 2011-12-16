@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 10, 2011
+.Dd September 29, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -196,6 +196,13 @@ variable
 .Va DISTDIR .
 This target is used while building a release; see
 .Xr release 7 .
+.It Cm packageworld
+Archive the results of
+.Cm distributeworld ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm installworld
 Install everything built by a preceding
 .Cm buildworld
@@ -231,7 +238,7 @@ This command takes a long time.
 Get updated sources as configured in
 .Xr make.conf 5 .
 .It Cm targets
-Print a list of supported 
+Print a list of supported
 .Va TARGET
 /
 .Va TARGET_ARCH
@@ -248,7 +255,7 @@ Create a build toolchain for each architecture supported by the build system.
 Kernel specific build targets in
 .Pa /usr/src
 are:
-.Bl -tag -width ".Cm reinstallkernel"
+.Bl -tag -width ".Cm distributekernel"
 .It Cm buildkernel
 Rebuild the kernel and the kernel modules.
 .It Cm installkernel
@@ -265,6 +272,18 @@ and
 .Va KODIR
 .Xr make 1
 variables.
+.It Cm distributekernel
+Install the kernel to the directory
+.Pa ${DISTDIR}/kernel/boot/kernel .
+This target is used while building a release; see
+.Xr release 7 .
+.It Cm packagekernel
+Archive the results of
+.Cm distributekernel ,
+placing the results in
+.Va DISTDIR .
+This target is used while building a release; see
+.Xr release 7 .
 .It Cm kernel
 Equivalent to
 .Cm buildkernel
@@ -380,21 +399,31 @@ It defaults to
 .It Va KERNFAST
 If set, the build target
 .Cm buildkernel
-defaults to setting 
+defaults to setting
 .Va NO_KERNELCLEAN ,
 .Va NO_KERNELCONFIG ,
-.Va NO_KERNELDEPEND 
+.Va NO_KERNELDEPEND
 and
 .Va NO_KERNELOBJ .
 When set to a value other than
 .Cm 1
-then 
-.Va KERNCONF 
-is set to the value of 
+then
+.Va KERNCONF
+is set to the value of
 .Va KERNFAST .
 .It Va LOCAL_DIRS
 If set, this variable supplies a list of additional directories to
 build, relative to the root of the source tree.
+.It Va PORTS_MODULES
+A list of ports with kernel modules that should be built and installed
+as part of the
+.Cm buildkernel
+and
+.Cm installkernel
+process.
+.Bd -literal -offset indent
+make PORTS_MODULES=emulators/kqemu-kmod kernel
+.Ed
 .It Va SUBDIR_OVERRIDE
 Override the default list of sub-directories and only build the
 sub-directory named in this variable.
@@ -423,11 +452,11 @@ output.
 Set this to cross-build for a different architecture.
 If not set,
 .Va TARGET_ARCH
-defaults to the current machine architecture, unless 
+defaults to the current machine architecture, unless
 .Va TARGET
 is also set, in which case it defaults to the appropriate
 value for that platform.
-Typically, one only needs to set 
+Typically, one only needs to set
 .Va TARGET .
 .El
 .Pp
@@ -496,6 +525,10 @@ documentation as part of the
 target.
 .It Va NO_PORTSUPDATE
 If set, the update process does not update the Ports tree as part of the
+.Dq make update
+target.
+.It Va NO_WWWUPDATE
+If set, the update process does not update the www tree as part of the
 .Dq make update
 target.
 .El

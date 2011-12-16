@@ -128,9 +128,9 @@ struct rpcbdump_short {
 
 
 #ifdef PORTMAP
-static void	ip_ping(u_short, char *, int, char **);
+static void	ip_ping(u_short, const char *, int, char **);
 static CLIENT	*clnt_com_create(struct sockaddr_in *, u_long, u_long, int *,
-				 char *);
+				 const char *);
 static void	pmapdump(int, char **);
 static void	get_inet_address(struct sockaddr_in *, char *);
 #endif
@@ -336,7 +336,7 @@ local_rpcb(u_long prog, u_long vers)
 #ifdef PORTMAP
 static CLIENT *
 clnt_com_create(struct sockaddr_in *addr, u_long prog, u_long vers,
-    int *fdp, char *trans)
+    int *fdp, const char *trans)
 {
 	CLIENT *clnt;
 
@@ -369,7 +369,7 @@ clnt_com_create(struct sockaddr_in *addr, u_long prog, u_long vers,
  * version 0 calls succeeds, it tries for MAXVERS call and repeats the same.
  */
 static void
-ip_ping(u_short portnum, char *trans, int argc, char **argv)
+ip_ping(u_short portnum, const char *trans, int argc, char **argv)
 {
 	CLIENT *client;
 	int fd = RPC_ANYFD;
@@ -594,7 +594,7 @@ reply_proc(void *res, struct netbuf *who, struct netconfig *nconf)
 {
 	char *uaddr;
 	char hostbuf[NI_MAXHOST];
-	char *hostname;
+	const char *hostname;
 	struct sockaddr *sa = (struct sockaddr *)who->buf;
 
 	if (getnameinfo(sa, sa->sa_len, hostbuf, NI_MAXHOST, NULL, 0, 0)) {
@@ -987,15 +987,15 @@ rpcbgetstat(int argc, char **argv)
 #define	MAXLINE		256
 	char linebuf[MAXLINE];
 	char *cp, *lp;
-	char *pmaphdr[] = {
+	const char *pmaphdr[] = {
 		"NULL", "SET", "UNSET", "GETPORT",
 		"DUMP", "CALLIT"
 	};
-	char *rpcb3hdr[] = {
+	const char *rpcb3hdr[] = {
 		"NULL", "SET", "UNSET", "GETADDR", "DUMP", "CALLIT", "TIME",
 		"U2T", "T2U"
 	};
-	char *rpcb4hdr[] = {
+	const char *rpcb4hdr[] = {
 		"NULL", "SET", "UNSET", "GETADDR", "DUMP", "CALLIT", "TIME",
 		"U2T",  "T2U", "VERADDR", "INDRECT", "GETLIST", "GETSTAT"
 	};
@@ -1455,7 +1455,7 @@ progping(char *netid, int argc, char **argv)
 }
 
 static void
-usage()
+usage(void)
 {
 	fprintf(stderr, "usage: rpcinfo [-m | -s] [host]\n");
 #ifdef PORTMAP
@@ -1536,7 +1536,7 @@ pstatus(register CLIENT *client, u_long prog, u_long vers)
 static CLIENT *
 clnt_rpcbind_create(char *host, int rpcbversnum, struct netbuf **targaddr)
 {
-	static char *tlist[3] = {
+	static const char *tlist[3] = {
 		"circuit_n", "circuit_v", "datagram_v"
 	};
 	int i;

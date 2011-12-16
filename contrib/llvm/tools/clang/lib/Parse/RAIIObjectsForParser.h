@@ -30,9 +30,9 @@ namespace clang {
   class ExtensionRAIIObject {
     void operator=(const ExtensionRAIIObject &);     // DO NOT IMPLEMENT
     ExtensionRAIIObject(const ExtensionRAIIObject&); // DO NOT IMPLEMENT
-    Diagnostic &Diags;
+    DiagnosticsEngine &Diags;
   public:
-    ExtensionRAIIObject(Diagnostic &diags) : Diags(diags) {
+    ExtensionRAIIObject(DiagnosticsEngine &diags) : Diags(diags) {
       Diags.IncrementAllExtensionsSilenced();
     }
 
@@ -112,7 +112,31 @@ namespace clang {
       P.BraceCount = BraceCount;
     }
   };
-  
+
+  class PoisonSEHIdentifiersRAIIObject {
+    PoisonIdentifierRAIIObject Ident_AbnormalTermination;
+    PoisonIdentifierRAIIObject Ident_GetExceptionCode;
+    PoisonIdentifierRAIIObject Ident_GetExceptionInfo;
+    PoisonIdentifierRAIIObject Ident__abnormal_termination;
+    PoisonIdentifierRAIIObject Ident__exception_code;
+    PoisonIdentifierRAIIObject Ident__exception_info;
+    PoisonIdentifierRAIIObject Ident___abnormal_termination;
+    PoisonIdentifierRAIIObject Ident___exception_code;
+    PoisonIdentifierRAIIObject Ident___exception_info;
+  public:
+    PoisonSEHIdentifiersRAIIObject(Parser &Self, bool NewValue)
+      : Ident_AbnormalTermination(Self.Ident_AbnormalTermination, NewValue),
+        Ident_GetExceptionCode(Self.Ident_GetExceptionCode, NewValue),
+        Ident_GetExceptionInfo(Self.Ident_GetExceptionInfo, NewValue),
+        Ident__abnormal_termination(Self.Ident__abnormal_termination, NewValue),
+        Ident__exception_code(Self.Ident__exception_code, NewValue),
+        Ident__exception_info(Self.Ident__exception_info, NewValue),
+        Ident___abnormal_termination(Self.Ident___abnormal_termination, NewValue),
+        Ident___exception_code(Self.Ident___exception_code, NewValue),
+        Ident___exception_info(Self.Ident___exception_info, NewValue) {
+    }
+  };
+
 } // end namespace clang
 
 #endif

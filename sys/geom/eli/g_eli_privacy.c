@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2005-2010 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ * Copyright (c) 2005-2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -87,6 +87,8 @@ g_eli_crypto_read_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	sc = bp->bio_to->geom->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_key);
 	/*
 	 * Do we have all sectors already?
 	 */
@@ -102,7 +104,6 @@ g_eli_crypto_read_done(struct cryptop *crp)
 	/*
 	 * Read is finished, send it up.
 	 */
-	sc = bp->bio_to->geom->softc;
 	g_io_deliver(bp, bp->bio_error);
 	atomic_subtract_int(&sc->sc_inflight, 1);
 	return (0);
@@ -136,6 +137,9 @@ g_eli_crypto_write_done(struct cryptop *crp)
 		if (bp->bio_error == 0)
 			bp->bio_error = crp->crp_etype;
 	}
+	gp = bp->bio_to->geom;
+	sc = gp->softc;
+	g_eli_key_drop(sc, crp->crp_desc->crd_key);
 	/*
 	 * All sectors are already encrypted?
 	 */
@@ -145,14 +149,12 @@ g_eli_crypto_write_done(struct cryptop *crp)
 	bp->bio_children = 1;
 	cbp = bp->bio_driver1;
 	bp->bio_driver1 = NULL;
-	gp = bp->bio_to->geom;
 	if (bp->bio_error != 0) {
 		G_ELI_LOGREQ(0, bp, "Crypto WRITE request failed (error=%d).",
 		    bp->bio_error);
 		free(bp->bio_driver2, M_ELI);
 		bp->bio_driver2 = NULL;
 		g_destroy_bio(cbp);
-		sc = gp->softc;
 		g_io_deliver(bp, bp->bio_error);
 		atomic_subtract_int(&sc->sc_inflight, 1);
 		return (0);
@@ -307,12 +309,12 @@ g_eli_crypto_run(struct g_eli_worker *wr, struct bio *bp)
 		crd->crd_skip = 0;
 		crd->crd_len = secsize;
 		crd->crd_flags = CRD_F_IV_EXPLICIT | CRD_F_IV_PRESENT;
-		if (sc->sc_nekeys > 1)
+		if ((sc->sc_flags & G_ELI_FLAG_SINGLE_KEY) == 0)
 			crd->crd_flags |= CRD_F_KEY_EXPLICIT;
 		if (bp->bio_cmd == BIO_WRITE)
 			crd->crd_flags |= CRD_F_ENCRYPT;
 		crd->crd_alg = sc->sc_ealgo;
-		crd->crd_key = g_eli_crypto_key(sc, dstoff, secsize);
+		crd->crd_key = g_eli_key_hold(sc, dstoff, secsize);
 		crd->crd_klen = sc->sc_ekeylen;
 		if (sc->sc_ealgo == CRYPTO_AES_XTS)
 			crd->crd_klen <<= 1;

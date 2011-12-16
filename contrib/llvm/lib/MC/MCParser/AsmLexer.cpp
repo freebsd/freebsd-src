@@ -24,6 +24,7 @@ using namespace llvm;
 AsmLexer::AsmLexer(const MCAsmInfo &_MAI) : MAI(_MAI)  {
   CurBuf = NULL;
   CurPtr = NULL;
+  isAtStartOfLine = true;
 }
 
 AsmLexer::~AsmLexer() {
@@ -146,7 +147,7 @@ AsmToken AsmLexer::LexLineComment() {
   // FIXME: This is broken if we happen to a comment at the end of a file, which
   // was .included, and which doesn't end with a newline.
   int CurChar = getNextChar();
-  while (CurChar != '\n' && CurChar != '\n' && CurChar != EOF)
+  while (CurChar != '\n' && CurChar != '\r' && CurChar != EOF)
     CurChar = getNextChar();
 
   if (CurChar == EOF)
@@ -213,13 +214,13 @@ AsmToken AsmLexer::LexDigit() {
 
     // Requires at least one binary digit.
     if (CurPtr == NumStart)
-      return ReturnError(TokStart, "Invalid binary number");
+      return ReturnError(TokStart, "invalid binary number");
 
     StringRef Result(TokStart, CurPtr - TokStart);
 
     long long Value;
     if (Result.substr(2).getAsInteger(2, Value))
-      return ReturnError(TokStart, "Invalid binary number");
+      return ReturnError(TokStart, "invalid binary number");
 
     // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
     // suffixes on integer literals.
@@ -236,11 +237,11 @@ AsmToken AsmLexer::LexDigit() {
 
     // Requires at least one hex digit.
     if (CurPtr == NumStart)
-      return ReturnError(CurPtr-2, "Invalid hexadecimal number");
+      return ReturnError(CurPtr-2, "invalid hexadecimal number");
 
     unsigned long long Result;
     if (StringRef(TokStart, CurPtr - TokStart).getAsInteger(0, Result))
-      return ReturnError(TokStart, "Invalid hexadecimal number");
+      return ReturnError(TokStart, "invalid hexadecimal number");
 
     // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
     // suffixes on integer literals.
@@ -251,13 +252,13 @@ AsmToken AsmLexer::LexDigit() {
   }
 
   // Must be an octal number, it starts with 0.
-  while (*CurPtr >= '0' && *CurPtr <= '7')
+  while (*CurPtr >= '0' && *CurPtr <= '9')
     ++CurPtr;
 
   StringRef Result(TokStart, CurPtr - TokStart);
   long long Value;
   if (Result.getAsInteger(8, Value))
-    return ReturnError(TokStart, "Invalid octal number");
+    return ReturnError(TokStart, "invalid octal number");
 
   // The darwin/x86 (and x86-64) assembler accepts and ignores ULL and LL
   // suffixes on integer literals.
@@ -324,9 +325,20 @@ AsmToken AsmLexer::LexQuote() {
 StringRef AsmLexer::LexUntilEndOfStatement() {
   TokStart = CurPtr;
 
-  while (!isAtStartOfComment(*CurPtr) && // Start of line comment.
-          *CurPtr != ';' &&  // End of statement marker.
+  while (!isAtStartOfComment(*CurPtr) &&    // Start of line comment.
+         !isAtStatementSeparator(CurPtr) && // End of statement marker.
          *CurPtr != '\n' &&
+         *CurPtr != '\r' &&
+         (*CurPtr != 0 || CurPtr != CurBuf->getBufferEnd())) {
+    ++CurPtr;
+  }
+  return StringRef(TokStart, CurPtr-TokStart);
+}
+
+StringRef AsmLexer::LexUntilEndOfLine() {
+  TokStart = CurPtr;
+
+  while (*CurPtr != '\n' &&
          *CurPtr != '\r' &&
          (*CurPtr != 0 || CurPtr != CurBuf->getBufferEnd())) {
     ++CurPtr;
@@ -339,14 +351,39 @@ bool AsmLexer::isAtStartOfComment(char Char) {
   return Char == *MAI.getCommentString();
 }
 
+bool AsmLexer::isAtStatementSeparator(const char *Ptr) {
+  return strncmp(Ptr, MAI.getSeparatorString(),
+                 strlen(MAI.getSeparatorString())) == 0;
+}
+
 AsmToken AsmLexer::LexToken() {
   TokStart = CurPtr;
   // This always consumes at least one character.
   int CurChar = getNextChar();
 
-  if (isAtStartOfComment(CurChar))
+  if (isAtStartOfComment(CurChar)) {
+    // If this comment starts with a '#', then return the Hash token and let
+    // the assembler parser see if it can be parsed as a cpp line filename
+    // comment. We do this only if we are at the start of a line.
+    if (CurChar == '#' && isAtStartOfLine)
+      return AsmToken(AsmToken::Hash, StringRef(TokStart, 1));
+    isAtStartOfLine = true;
     return LexLineComment();
+  }
+  if (isAtStatementSeparator(TokStart)) {
+    CurPtr += strlen(MAI.getSeparatorString()) - 1;
+    return AsmToken(AsmToken::EndOfStatement,
+                    StringRef(TokStart, strlen(MAI.getSeparatorString())));
+  }
 
+  // If we're missing a newline at EOF, make sure we still get an
+  // EndOfStatement token before the Eof token.
+  if (CurChar == EOF && !isAtStartOfLine) {
+    isAtStartOfLine = true;
+    return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
+  }
+
+  isAtStartOfLine = false;
   switch (CurChar) {
   default:
     // Handle identifier: [a-zA-Z_.][a-zA-Z0-9_$.@]*
@@ -362,8 +399,9 @@ AsmToken AsmLexer::LexToken() {
     // Ignore whitespace.
     return LexToken();
   case '\n': // FALL THROUGH.
-  case '\r': // FALL THROUGH.
-  case ';': return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
+  case '\r':
+    isAtStartOfLine = true;
+    return AsmToken(AsmToken::EndOfStatement, StringRef(TokStart, 1));
   case ':': return AsmToken(AsmToken::Colon, StringRef(TokStart, 1));
   case '+': return AsmToken(AsmToken::Plus, StringRef(TokStart, 1));
   case '-': return AsmToken(AsmToken::Minus, StringRef(TokStart, 1));
@@ -378,6 +416,7 @@ AsmToken AsmLexer::LexToken() {
   case ',': return AsmToken(AsmToken::Comma, StringRef(TokStart, 1));
   case '$': return AsmToken(AsmToken::Dollar, StringRef(TokStart, 1));
   case '@': return AsmToken(AsmToken::At, StringRef(TokStart, 1));
+  case '\\': return AsmToken(AsmToken::BackSlash, StringRef(TokStart, 1));
   case '=':
     if (*CurPtr == '=')
       return ++CurPtr, AsmToken(AsmToken::EqualEqual, StringRef(TokStart, 2));

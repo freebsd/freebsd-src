@@ -38,5 +38,7 @@ if [ -z $VERB ]; then
 	VERB=auto
 fi
 
-exec /usr/libexec/bsdinstall/$VERB $@
+test -d "$BSDINSTALL_TMPETC" || mkdir "$BSDINSTALL_TMPETC"
+echo Running installation step: $VERB $@ >> "$BSDINSTALL_LOG"
+exec /usr/libexec/bsdinstall/$VERB $@ 2>>"$BSDINSTALL_LOG"
 

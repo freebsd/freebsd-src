@@ -41,20 +41,11 @@
 
 #include <sys/cdefs.h>
 #include <sys/_types.h>
+#include <sys/_stdint.h>
 
 #ifndef _GID_T_DECLARED
 typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
-#endif
-
-#ifndef _INT64_T_DECLARED
-typedef	__int64_t	int64_t;
-#define	_INT64_T_DECLARED
-#endif
-
-#ifndef _UINT64_T_DECLARED
-typedef	__uint64_t	uint64_t;
-#define	_UINT64_T_DECLARED
 #endif
 
 #ifndef _PID_T_DECLARED
@@ -97,6 +88,7 @@ struct termios;
 struct winsize;
 struct in_addr;
 struct kinfo_file;
+struct kinfo_proc;
 struct kinfo_vmentry;
 
 __BEGIN_DECLS
@@ -135,6 +127,10 @@ struct kinfo_file *
 	kinfo_getfile(pid_t _pid, int *_cntp);
 struct kinfo_vmentry *
 	kinfo_getvmmap(pid_t _pid, int *_cntp);
+struct kinfo_proc *
+	kinfo_getallproc(int *_cntp);
+struct kinfo_proc *
+	kinfo_getproc(pid_t _pid);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
 char   *fparseln(FILE *, size_t *, size_t *, const char[3], int);
@@ -220,7 +216,9 @@ __END_DECLS
 #define HN_NOSPACE		0x02
 #define HN_B			0x04
 #define HN_DIVISOR_1000		0x08
+#define HN_IEC_PREFIXES		0x10
 
+/* maxscale = 0x07 */
 #define HN_GETSCALE		0x10
 #define HN_AUTOSCALE		0x20
 

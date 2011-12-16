@@ -1,4 +1,4 @@
-/*	$OpenBSD: socks.c,v 1.18 2010/04/20 07:26:35 nicm Exp $	*/
+/*	$OpenBSD: socks.c,v 1.19 2011/02/12 15:54:18 okan Exp $	*/
 
 /*
  * Copyright (c) 1999 Niklas Hallqvist.  All rights reserved.
@@ -222,11 +222,25 @@ socks_connect(const char *host, const char *port,
 		if (cnt != wlen)
 			err(1, "write failed (%zu/%zu)", cnt, wlen);
 
-		cnt = atomicio(read, proxyfd, buf, 10);
-		if (cnt != 10)
-			err(1, "read failed (%zu/10)", cnt);
+		cnt = atomicio(read, proxyfd, buf, 4);
+		if (cnt != 4)
+			err(1, "read failed (%zu/4)", cnt);
 		if (buf[1] != 0)
 			errx(1, "connection failed, SOCKS error %d", buf[1]);
+		switch (buf[3]) {
+		case SOCKS_IPV4:
+			cnt = atomicio(read, proxyfd, buf + 4, 6);
+			if (cnt != 6)
+				err(1, "read failed (%zd/6)", cnt);
+			break;
+		case SOCKS_IPV6:
+			cnt = atomicio(read, proxyfd, buf + 4, 18);
+			if (cnt != 18)
+				err(1, "read failed (%zd/18)", cnt);
+			break;
+		default:
+			errx(1, "connection failed, unsupported address type");
+		}
 	} else if (socksv == 4) {
 		/* This will exit on lookup failure */
 		decode_addrport(host, port, (struct sockaddr *)&addr,

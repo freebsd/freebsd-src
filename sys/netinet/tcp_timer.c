@@ -490,11 +490,18 @@ tcp_timer_rexmt(void * xtp)
 		INP_WUNLOCK(inp);
 		INP_INFO_WLOCK(&V_tcbinfo);
 		INP_WLOCK(inp);
-		if (in_pcbrele(inp)) {
+		if (in_pcbrele_wlocked(inp)) {
 			INP_INFO_WUNLOCK(&V_tcbinfo);
 			CURVNET_RESTORE();
 			return;
 		}
+		if (inp->inp_flags & INP_DROPPED) {
+			INP_WUNLOCK(inp);
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
+
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		headlocked = 1;
@@ -524,7 +531,9 @@ tcp_timer_rexmt(void * xtp)
 		else
 			tp->t_flags &= ~TF_WASCRECOVERY;
 		tp->t_badrxtwin = ticks + (tp->t_srtt >> (TCP_RTT_SHIFT + 1));
-	}
+		tp->t_flags |= TF_PREVVALID;
+	} else
+		tp->t_flags &= ~TF_PREVVALID;
 	TCPSTAT_INC(tcps_rexmttimeo);
 	if (tp->t_state == TCPS_SYN_SENT)
 		rexmt = TCP_REXMTVAL(tp) * tcp_syn_backoff[tp->t_rxtshift];

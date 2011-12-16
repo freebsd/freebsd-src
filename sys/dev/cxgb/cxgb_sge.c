@@ -2092,18 +2092,14 @@ t3_free_qset(adapter_t *sc, struct sge_qset *q)
  *	Frees resources used by the SGE queue sets.
  */
 void
-t3_free_sge_resources(adapter_t *sc)
+t3_free_sge_resources(adapter_t *sc, int nqsets)
 {
-	int i, nqsets;
-	
-	for (nqsets = i = 0; i < (sc)->params.nports; i++) 
-		nqsets += sc->port[i].nqsets;
+	int i;
 
 	for (i = 0; i < nqsets; ++i) {
 		TXQ_LOCK(&sc->sge.qs[i]);
 		t3_free_qset(sc, &sc->sge.qs[i]);
 	}
-	
 }
 
 /**

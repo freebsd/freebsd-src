@@ -35,9 +35,7 @@ their equivalents in other scales.
 The
 .Nm
 program can only
-handle multiplicative scale changes.
-It cannot convert Celsius
-to Fahrenheit, for example.
+handle multiplicative or affine scale changes.
 It works interactively by prompting
 the user for input:
 .Bd -literal
@@ -60,6 +58,10 @@ the user for input:
     You want: cm
             * 1.27
             / 0.78740157
+
+    You have: 85 degF
+    You want: degC
+	29.444444
 .Ed
 .Pp
 Powers of units can be specified using the '^' character as shown in

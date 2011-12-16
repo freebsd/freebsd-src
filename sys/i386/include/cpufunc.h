@@ -55,13 +55,13 @@ extern u_int read_eflags(void);
 
 struct region_descriptor;
 
-#define readb(va)	(*(volatile u_int8_t *) (va))
-#define readw(va)	(*(volatile u_int16_t *) (va))
-#define readl(va)	(*(volatile u_int32_t *) (va))
+#define readb(va)	(*(volatile uint8_t *) (va))
+#define readw(va)	(*(volatile uint16_t *) (va))
+#define readl(va)	(*(volatile uint32_t *) (va))
 
-#define writeb(va, d)	(*(volatile u_int8_t *) (va) = (d))
-#define writew(va, d)	(*(volatile u_int16_t *) (va) = (d))
-#define writel(va, d)	(*(volatile u_int32_t *) (va) = (d))
+#define writeb(va, d)	(*(volatile uint8_t *) (va) = (d))
+#define writew(va, d)	(*(volatile uint16_t *) (va) = (d))
+#define writel(va, d)	(*(volatile uint32_t *) (va) = (d))
 
 #if defined(__GNUCLIKE_ASM) && defined(__CC_SUPPORTS___INLINE)
 
@@ -133,16 +133,18 @@ enable_intr(void)
 }
 
 static __inline void
-cpu_monitor(const void *addr, int extensions, int hints)
+cpu_monitor(const void *addr, u_long extensions, u_int hints)
 {
-	__asm __volatile("monitor;"
-	    : :"a" (addr), "c" (extensions), "d"(hints));
+
+	__asm __volatile("monitor"
+	    : : "a" (addr), "c" (extensions), "d" (hints));
 }
 
 static __inline void
-cpu_mwait(int extensions, int hints)
+cpu_mwait(u_long extensions, u_int hints)
 {
-	__asm __volatile("mwait;" : :"a" (hints), "c" (extensions));
+
+	__asm __volatile("mwait" : : "a" (hints), "c" (extensions));
 }
 
 static __inline void
@@ -189,7 +191,7 @@ inb(u_int port)
 {
 	u_char	data;
 
-	__asm volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inb %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -198,7 +200,7 @@ inl(u_int port)
 {
 	u_int	data;
 
-	__asm volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inl %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -240,7 +242,7 @@ inw(u_int port)
 {
 	u_short	data;
 
-	__asm volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
+	__asm __volatile("inw %w1, %0" : "=a" (data) : "Nd" (port));
 	return (data);
 }
 
@@ -253,7 +255,7 @@ outb(u_int port, u_char data)
 static __inline void
 outl(u_int port, u_int data)
 {
-	__asm volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outl %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -283,7 +285,7 @@ outsl(u_int port, const void *addr, size_t count)
 static __inline void
 outw(u_int port, u_short data)
 {
-	__asm volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
+	__asm __volatile("outw %0, %w1" : : "a" (data), "Nd" (port));
 }
 
 static __inline void
@@ -329,6 +331,15 @@ rdtsc(void)
 	uint64_t rv;
 
 	__asm __volatile("rdtsc" : "=A" (rv));
+	return (rv);
+}
+
+static __inline uint32_t
+rdtsc32(void)
+{
+	uint32_t rv;
+
+	__asm __volatile("rdtsc" : "=a" (rv) : : "edx");
 	return (rv);
 }
 

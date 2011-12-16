@@ -29,7 +29,8 @@
 .Sh NAME
 .Nm pmc_configure_logfile ,
 .Nm pmc_flush_logfile ,
-.Nm pmc_writelog
+.Nm pmc_writelog ,
+.Nm pmc_close_logfile
 .Nd log file management
 .Sh LIBRARY
 .Lb libpmc
@@ -41,6 +42,8 @@
 .Fn pmc_flush_logfile void
 .Ft int
 .Fn pmc_writelog "uint32_t userdata"
+.Ft int
+.Fn pmc_close_logfile void
 .Sh DESCRIPTION
 The functions manage logging of
 .Xr hwpmc 4
@@ -72,6 +75,12 @@ Function
 will append a log entry containing the value of argument
 .Fa userdata
 to the log file.
+.Pp
+Function
+.Fn pmc_close_logfile
+will flush all pending log data and close
+.Xr hwpmc 4 Ns Ap s
+side of the stream.
 .Sh RETURN VALUES
 .Rv -std
 .Sh ERRORS

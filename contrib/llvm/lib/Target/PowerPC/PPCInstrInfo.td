@@ -300,7 +300,6 @@ def calltarget : Operand<iPTR> {
 def aaddr : Operand<iPTR> {
   let PrintMethod = "printAbsAddrOperand";
 }
-def piclabel: Operand<iPTR> {}
 def symbolHi: Operand<i32> {
   let PrintMethod = "printSymbolHi";
   let EncoderMethod = "getHA16Encoding";
@@ -413,7 +412,7 @@ let isTerminator = 1, isBarrier = 1, PPC970_Unit = 7 in {
 }
 
 let Defs = [LR] in
-  def MovePCtoLR : Pseudo<(outs), (ins piclabel:$label), "", []>,
+  def MovePCtoLR : Pseudo<(outs), (ins), "", []>,
                    PPC970_Unit_BRU;
 
 let isBranch = 1, isTerminator = 1, hasCtrlDep = 1, PPC970_Unit = 7 in {
@@ -550,7 +549,7 @@ def DCBZL  : DCB_Form<1014, 1, (outs), (ins memrr:$dst),
 
 // Atomic operations
 let usesCustomInserter = 1 in {
-  let Uses = [CR0] in {
+  let Defs = [CR0] in {
     def ATOMIC_LOAD_ADD_I8 : Pseudo<
       (outs GPRC:$dst), (ins memrr:$ptr, GPRC:$incr), "",
       [(set GPRC:$dst, (atomic_load_add_8 xoaddr:$ptr, GPRC:$incr))]>;
@@ -1054,6 +1053,10 @@ def CRSET  : XLForm_1_ext<19, 289, (outs CRBITRC:$dst), (ins),
               "creqv $dst, $dst, $dst", BrCR,
               []>;
 
+def CRUNSET: XLForm_1_ext<19, 193, (outs CRBITRC:$dst), (ins),
+              "crxor $dst, $dst, $dst", BrCR,
+              []>;
+
 // XFX-Form instructions.  Instructions that deal with SPRs.
 //
 let Uses = [CTR] in {
@@ -1472,6 +1475,8 @@ def : Pat<(membarrier (i32 imm /*ll*/),
                       (i32 imm /*ss*/),
                       (i32 imm /*device*/)),
            (SYNC)>;
+
+def : Pat<(atomic_fence (imm), (imm)), (SYNC)>;
 
 include "PPCInstrAltivec.td"
 include "PPCInstr64Bit.td"

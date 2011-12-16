@@ -51,16 +51,16 @@ __FBSDID("$FreeBSD$");
 #define KASSERT(a, b) assert(a)
 #define CTASSERT(a)
 
-void		acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
-
 #endif /* !_KERNEL */
-
-static int	acl_nfs4_old_semantics = 1;
 
 #ifdef _KERNEL
 
+static void	acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode);
+
+static int	acl_nfs4_old_semantics = 0;
+
 SYSCTL_INT(_vfs, OID_AUTO, acl_nfs4_old_semantics, CTLFLAG_RW,
-    &acl_nfs4_old_semantics, 1, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
+    &acl_nfs4_old_semantics, 0, "Use pre-PSARC/2010/029 NFSv4 ACL semantics");
 
 static struct {
 	accmode_t accmode;
@@ -114,7 +114,6 @@ _acl_denies(const struct acl *aclp, int access_mask, struct ucred *cred,
 	if (denied_explicitly != NULL)
 		*denied_explicitly = 0;
 
-	KASSERT(aclp->acl_cnt > 0, ("aclp->acl_cnt > 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -703,6 +702,7 @@ acl_nfs4_sync_acl_from_mode_draft(struct acl *aclp, mode_t mode,
 		a5->ae_perm |= ACL_EXECUTE;
 }
 
+#ifdef _KERNEL
 void
 acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode,
     int file_owner_id)
@@ -713,6 +713,7 @@ acl_nfs4_sync_acl_from_mode(struct acl *aclp, mode_t mode,
 	else
 		acl_nfs4_trivial_from_mode(aclp, mode);
 }
+#endif /* _KERNEL */
 
 void
 acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
@@ -721,7 +722,6 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 	mode_t old_mode = *_mode, mode = 0, seen = 0;
 	const struct acl_entry *entry;
 
-	KASSERT(aclp->acl_cnt > 0, ("aclp->acl_cnt > 0"));
 	KASSERT(aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -837,6 +837,7 @@ acl_nfs4_sync_mode_from_acl(mode_t *_mode, const struct acl *aclp)
 	*_mode = mode | (old_mode & ACL_PRESERVE_MASK);
 }
 
+#ifdef _KERNEL
 /*
  * Calculate inherited ACL in a manner compatible with NFSv4 Minor Version 1,
  * draft-ietf-nfsv4-minorversion1-03.txt.
@@ -851,7 +852,6 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 	struct acl_entry *entry, *copy;
 
 	KASSERT(child_aclp->acl_cnt == 0, ("child_aclp->acl_cnt == 0"));
-	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
 	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -1000,6 +1000,7 @@ acl_nfs4_compute_inherited_acl_draft(const struct acl *parent_aclp,
 	 */
 	acl_nfs4_sync_acl_from_mode(child_aclp, mode, file_owner_id);
 }
+#endif /* _KERNEL */
 
 /*
  * Populate the ACL with entries inherited from parent_aclp.
@@ -1013,7 +1014,6 @@ acl_nfs4_inherit_entries(const struct acl *parent_aclp,
 	const struct acl_entry *parent_entry;
 	struct acl_entry *entry;
 
-	KASSERT(parent_aclp->acl_cnt > 0, ("parent_aclp->acl_cnt > 0"));
 	KASSERT(parent_aclp->acl_cnt <= ACL_MAX_ENTRIES,
 	    ("parent_aclp->acl_cnt <= ACL_MAX_ENTRIES"));
 
@@ -1182,6 +1182,7 @@ acl_nfs4_compute_inherited_acl_psarc(const struct acl *parent_aclp,
 	_acl_append(aclp, ACL_EVERYONE, everyone_allow, ACL_ENTRY_TYPE_ALLOW);
 }
 
+#ifdef _KERNEL
 void		
 acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
     struct acl *child_aclp, mode_t mode, int file_owner_id,
@@ -1195,23 +1196,38 @@ acl_nfs4_compute_inherited_acl(const struct acl *parent_aclp,
 		acl_nfs4_compute_inherited_acl_psarc(parent_aclp, child_aclp,
 		    mode, file_owner_id, is_directory);
 }
+#endif /* _KERNEL */
 
 /*
  * Calculate trivial ACL in a manner compatible with PSARC/2010/029.
  * Note that this results in an ACL different from (but semantically
  * equal to) the "canonical six" trivial ACL computed using algorithm
  * described in draft-ietf-nfsv4-minorversion1-03.txt, 3.16.6.2.
- *
- * This routine is not static only because the code is being used in libc.
- * Kernel code should call acl_nfs4_sync_acl_from_mode() instead.
  */
-void
+static void
 acl_nfs4_trivial_from_mode(struct acl *aclp, mode_t mode)
 {
 
 	aclp->acl_cnt = 0;
 	acl_nfs4_compute_inherited_acl_psarc(NULL, aclp, mode, -1, -1);
 }
+
+#ifndef _KERNEL
+/*
+ * This routine is used by libc to implement acl_strip_np(3)
+ * and acl_is_trivial_np(3).
+ */
+void
+acl_nfs4_trivial_from_mode_libc(struct acl *aclp, int mode, int canonical_six)
+{
+
+	aclp->acl_cnt = 0;
+	if (canonical_six)
+		acl_nfs4_sync_acl_from_mode_draft(aclp, mode, -1);
+	else
+		acl_nfs4_trivial_from_mode(aclp, mode);
+}
+#endif /* !_KERNEL */
 
 #ifdef _KERNEL
 static int

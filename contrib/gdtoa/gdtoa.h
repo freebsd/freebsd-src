@@ -36,7 +36,7 @@ THIS SOFTWARE.
 #include <stddef.h> /* for size_t */
 
 #ifndef Long
-#define Long long
+#define Long int
 #endif
 #ifndef ULong
 typedef unsigned Long ULong;

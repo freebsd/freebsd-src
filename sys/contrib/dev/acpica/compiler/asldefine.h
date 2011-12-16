@@ -56,7 +56,7 @@
 #define ASL_INVOCATION_NAME         "iasl"
 #define ASL_CREATOR_ID              "INTL"
 
-#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 4.0a"
+#define ASL_COMPLIANCE              "Supports ACPI Specification Revision 5.0"
 
 
 /* Configuration constants */
@@ -66,9 +66,20 @@
 #define ASL_STRING_CACHE_SIZE       32768
 
 #define ASL_FIRST_PARSE_OPCODE      PARSEOP_ACCESSAS
-#define ASL_YYTNAME_START           3
-
 #define ASL_PARSE_OPCODE_BASE       PARSEOP_ACCESSAS        /* First Lex type */
+
+
+/*
+ * Per-parser-generator configuration. These values are used to cheat and
+ * directly access the bison/yacc token name table (yyname or yytname).
+ * Note: These values are the index in yyname for the first lex token
+ * (PARSEOP_ACCCESSAS).
+ */
+#if defined (YYBISON)
+#define ASL_YYTNAME_START           3   /* Bison */
+#elif defined (YYBYACC)
+#define ASL_YYTNAME_START           257 /* Berkeley yacc */
+#endif
 
 
 /*
@@ -97,6 +108,7 @@
 
 /* filename suffixes for output files */
 
+#define FILE_SUFFIX_PREPROCESSOR    "i"
 #define FILE_SUFFIX_AML_CODE        "aml"
 #define FILE_SUFFIX_LISTING         "lst"
 #define FILE_SUFFIX_HEX_DUMP        "hex"
@@ -123,6 +135,7 @@
 #define ASL_EXTERNAL_METHOD         255
 #define ASL_ABORT                   TRUE
 #define ASL_NO_ABORT                FALSE
+#define ASL_EOF                     ACPI_UINT32_MAX
 
 
 /* Support for reserved method names */
@@ -139,6 +152,26 @@
 #define NEGATIVE                    1
 #define POSITIVE                    0
 
+
+/* Helper macros for resource tag creation */
+
+#define RsCreateMultiBitField \
+    RsCreateResourceField
+
+#define RsCreateBitField(Op, Name, ByteOffset, BitOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, BitOffset, 1)
+
+#define RsCreateByteField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 8);
+
+#define RsCreateWordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 16);
+
+#define RsCreateDwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 32);
+
+#define RsCreateQwordField(Op, Name, ByteOffset) \
+    RsCreateResourceField (Op, Name, ByteOffset, 0, 64);
 
 #endif /* ASLDEFINE.H */
 

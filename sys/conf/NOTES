@@ -163,6 +163,7 @@ options 	GEOM_PART_MBR		# MBR partitioning
 options 	GEOM_PART_PC98		# PC-9800 disk partitioning
 options 	GEOM_PART_VTOC8		# SMI VTOC8 disk label
 options 	GEOM_PC98		# NEC PC9800 partitioning
+options 	GEOM_RAID		# Soft RAID functionality.
 options 	GEOM_RAID3		# RAID3 functionality.
 options 	GEOM_SHSEC		# Shared secret.
 options 	GEOM_STRIPE		# Disk striping.
@@ -211,6 +212,10 @@ options 	SCHED_STATS
 
 # Mandatory:
 options 	SMP			# Symmetric MultiProcessor Kernel
+
+# MAXCPU defines the maximum number of CPUs that can boot in the system.
+# A default value should be already present, for every architecture.
+options 	MAXCPU=32
 
 # ADAPTIVE_MUTEXES changes the behavior of blocking mutexes to spin
 # if the thread that currently owns the mutex is executing on another
@@ -431,7 +436,10 @@ options 	KTRACE_REQUEST_POOL=101
 # defined by the KTR_* constants in <sys/ktr.h>.  KTR_MASK defines the
 # initial value of the ktr_mask variable which determines at runtime
 # what events to trace.  KTR_CPUMASK determines which CPU's log
-# events, with bit X corresponding to CPU X.  KTR_VERBOSE enables
+# events, with bit X corresponding to CPU X.  The layout of the string
+# passed as KTR_CPUMASK must match a serie of bitmasks each of them
+# separated by the ", " characters (ie:
+# KTR_CPUMASK=("0xAF, 0xFFFFFFFFFFFFFFFF")).  KTR_VERBOSE enables
 # dumping of KTR events to the console by default.  This functionality
 # can be toggled via the debug.ktr_verbose sysctl and defaults to off
 # if KTR_VERBOSE is not defined.  See ktr(4) and ktrdump(8) for details.
@@ -440,7 +448,7 @@ options 	KTR
 options 	KTR_ENTRIES=1024
 options 	KTR_COMPILE=(KTR_INTR|KTR_PROC)
 options 	KTR_MASK=KTR_INTR
-options 	KTR_CPUMASK=0x3
+options 	KTR_CPUMASK=("0x3")
 options 	KTR_VERBOSE
 
 #
@@ -489,16 +497,6 @@ options 	DIAGNOSTIC
 # impossible) scenarios.
 #
 options 	REGRESSION
-
-#
-# RESTARTABLE_PANICS allows one to continue from a panic as if it were
-# a call to the debugger to continue from a panic as instead.  It is only
-# useful if a kernel debugger is present.  To restart from a panic, reset
-# the panicstr variable to NULL and continue execution.  This option is
-# for development use only and should NOT be used in production systems
-# to "workaround" a panic.
-#
-#options 	RESTARTABLE_PANICS
 
 #
 # This option lets some drivers co-exist that can't co-exist in a running
@@ -801,6 +799,12 @@ device		sppp
 #  option.  DHCP requires bpf.
 device		bpf
 
+#  The `netmap' device implements memory-mapped access to network
+#  devices from userspace, enabling wire-speed packet capture and
+#  generation even at 10Gbit/s. Requires support in the device
+#  driver. Supported drivers are ixgbe, e1000, re.
+device		netmap
+
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing and benchmarking purposes.
@@ -967,11 +971,10 @@ options 	ZERO_COPY_SOCKETS
 # FILESYSTEM OPTIONS
 
 #
-# Only the root, /usr, and /tmp filesystems need be statically
-# compiled; everything else will be automatically loaded at mount
-# time.  (Exception: the UFS family--- FFS --- cannot
-# currently be demand-loaded.)  Some people still prefer to statically
-# compile other filesystems as well.
+# Only the root filesystem needs to be statically compiled or preloaded
+# as module; everything else will be automatically loaded at mount
+# time.  Some people still prefer to statically compile other
+# filesystems as well.
 #
 # NB: The PORTAL filesystem is known to be buggy, and WILL panic your
 # system if you attempt to do anything with it.  It is included here
@@ -1106,6 +1109,9 @@ options 	XFS
 # unsuitable for inclusion on machines with untrusted local users.
 options 	VFS_AIO
 
+# Enable mounting of non-MPSAFE filesystems.
+options 	VFS_ALLOW_NONMPSAFE
+
 # Cryptographically secure random number generator; /dev/random
 device		random
 
@@ -1158,7 +1164,11 @@ options 	MAC_STUB
 options 	MAC_TEST
 
 # Support for Capsicum
-options 	CAPABILITIES
+options 	CAPABILITIES	# fine-grained rights on file descriptors
+options 	CAPABILITY_MODE	# sandboxes with no global namespace access
+
+# Support for process descriptors
+options		PROCDESC
 
 
 #####################################################################
@@ -1180,6 +1190,14 @@ options 	HZ=100
 # More info in ntpd documentation: http://www.eecis.udel.edu/~ntp
 
 options 	PPS_SYNC
+
+# Enable support for generic feed-forward clocks in the kernel.
+# The feed-forward clock support is an alternative to the feedback oriented
+# ntpd/system clock approach, and is to be used with a feed-forward
+# synchronization algorithm such as the RADclock:
+# More info here: http://www.synclab.org/radclock
+
+options 	FFCLOCK
 
 
 #####################################################################
@@ -1453,11 +1471,11 @@ options 	TEKEN_UTF8		# UTF-8 output handling
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
-# amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
-#      such as the Tekram DC-390(T).
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
-# esp: NCR53c9x.  Only for SBUS hardware right now.
+# esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
+#      including the AMD Am53C974 (found on devices such as the Tekram
+#      DC-390(T)) and the Sun ESP and FAS families of controllers
 # isp: Qlogic ISP 1020, 1040 and 1040B PCI SCSI host adapters,
 #      ISP 1240 Dual Ultra SCSI, ISP 1080 and 1280 (Dual) Ultra2,
 #      ISP 12160 Ultra3 SCSI,
@@ -1492,7 +1510,6 @@ hint.aic.0.at="isa"
 device		ahb
 device		ahc
 device		ahd
-device		amd
 device		esp
 device		iscsi_initiator
 device		isp
@@ -1755,7 +1772,7 @@ hint.ata.1.irq="15"
 
 options 	ATA_STATIC_ID
 #options 	ATA_REQUEST_TIMEOUT=10
-#options 	ATA_CAM
+options 	ATA_CAM
 
 #
 # Standard floppy disk controllers and floppy tapes, supports
@@ -1844,13 +1861,15 @@ device		puc
 # MII bus support is required for many PCI Ethernet NICs,
 # namely those which use MII-compliant transceivers or implement
 # transceiver control interfaces that operate like an MII.  Adding
-# "device miibus" to the kernel config pulls in support for
-# the generic miibus API and all of the PHY drivers, including a
-# generic one for PHYs that aren't specifically handled by an
-# individual driver.  Support for specific PHYs may be built by adding
-# "device mii" then adding the appropriate PHY driver.
-device  	miibus		# MII support including all PHYs
+# "device miibus" to the kernel config pulls in support for the generic
+# miibus API, the common support for for bit-bang'ing the MII and all
+# of the PHY drivers, including a generic one for PHYs that aren't
+# specifically handled by an individual driver.  Support for specific
+# PHYs may be built by adding "device mii", "device mii_bitbang" if
+# needed by the NIC driver and then adding the appropriate PHY driver.
 device  	mii		# Minimal MII support
+device  	mii_bitbang	# Common module for bit-bang'ing the MII
+device  	miibus		# MII support w/ bit-bang'ing and all PHYs
 
 device  	acphy		# Altima Communications AC101
 device  	amphy		# AMD AM79c873 / Davicom DM910{1,2}
@@ -1860,10 +1879,8 @@ device  	bmtphy		# Broadcom BCM5201/BCM5202 and 3Com 3c905C
 device  	brgphy		# Broadcom BCM54xx/57xx 1000baseTX
 device  	ciphy		# Cicada/Vitesse CS/VSC8xxx
 device  	e1000phy	# Marvell 88E1000 1000/100/10-BT
-device  	exphy		# 3Com internal PHY
 device  	gentbi		# Generic 10-bit 1000BASE-{LX,SX} fiber ifaces
 device  	icsphy		# ICS ICS1889-1893
-device  	inphy		# Intel 82553/82555
 device  	ip1000phy	# IC Plus IP1000A/IP1001
 device  	jmphy		# JMicron JMP211/JMP202
 device  	lxtphy		# Level One LXT-970
@@ -1877,7 +1894,6 @@ device  	rdcphy		# RDC Semiconductor R6040
 device  	rgephy		# RealTek 8169S/8110S/8211B/8211C
 device  	rlphy		# RealTek 8139
 device  	rlswitch	# RealTek 8305
-device  	ruephy		# RealTek RTL8150
 device  	smcphy		# SMSC LAN91C111
 device  	tdkphy		# TDK 89Q2120
 device  	tlphy		# Texas Instruments ThunderLAN
@@ -1900,6 +1916,8 @@ device		xmphy		# XaQti XMAC II
 #	BCM570x family of controllers, including the 3Com 3c996-T,
 #	the Netgear GA302T, the SysKonnect SK-9D21 and SK-9D41, and
 #	the embedded gigE NICs on Dell PowerEdge 2550 servers.
+# bxe:	Broadcom NetXtreme II (BCM57710/57711/57711E) PCIe 10b Ethernet
+#       adapters.
 # bwi:	Broadcom BCM430* and BCM431* family of wireless adapters.
 # bwn:	Broadcom BCM43xx family of wireless adapters.
 # cas:	Sun Cassini/Cassini+ and National Semiconductor DP83065 Saturn
@@ -1937,6 +1955,8 @@ device		xmphy		# XaQti XMAC II
 # lge:	Support for PCI gigabit ethernet adapters based on the Level 1
 #	LXT1001 NetCellerator chipset. This includes the D-Link DGE-500SX,
 #	SMC TigerCard 1000 (SMC9462SX), and some Addtron cards.
+# malo: Marvell Libertas wireless NICs.
+# mwl:  Marvell 88W8363 802.11n wireless NICs.
 # msk:	Support for gigabit ethernet adapters based on the Marvell/SysKonnect
 #	Yukon II Gigabit controllers, including 88E8021, 88E8022, 88E8061,
 #	88E8062, 88E8035, 88E8036, 88E8038, 88E8050, 88E8052, 88E8053,
@@ -2078,6 +2098,7 @@ device		wb		# Winbond W89C840F
 device		xl		# 3Com 3c90x (``Boomerang'', ``Cyclone'')
 
 # PCI Ethernet NICs.
+device		bxe		# Broadcom BCM57710/BCM57711/BCM57711E 10Gb Ethernet
 device		cxgbe		# Chelsio T4 10GbE PCIe adapter
 device		de		# DEC/Intel DC21x4x (``Tulip'')
 device		em		# Intel Pro/1000 Gigabit Ethernet
@@ -2090,6 +2111,7 @@ device		nxge		# Neterion Xframe 10GbE Server/Storage Adapter
 device		ti		# Alteon Networks Tigon I/II gigabit Ethernet
 device		txp		# 3Com 3cR990 (``Typhoon'')
 device		vx		# 3Com 3c590, 3c595 (``Vortex'')
+device		vxge		# Exar/Neterion XFrame 3100 10GbE
 
 # PCI FDDI NICs.
 device		fpa
@@ -2126,14 +2148,16 @@ options	   	AH_RXCFG_SDMAMW_4BYTES
 device		ath_rate_sample	# SampleRate tx rate control for ath
 device		bwi		# Broadcom BCM430* BCM431*
 device		bwn		# Broadcom BCM43xx
+device		malo		# Marvell Libertas wireless NICs.
+device		mwl		# Marvell 88W8363 802.11n wireless NICs.
 device		ral		# Ralink Technology RT2500 wireless NICs.
 
-# Use "private" jumbo buffers allocated exclusively for the ti(4) driver.
-# This option is incompatible with the TI_JUMBO_HDRSPLIT option below.
-#options 	TI_PRIVATE_JUMBOS
+# Use sf_buf(9) interface for jumbo buffers on ti(4) controllers.
+#options 	TI_SF_BUF_JUMBO
 # Turn on the header splitting option for the ti(4) driver firmware.  This
 # only works for Tigon II chips, and has no effect for Tigon I chips.
-options 	TI_JUMBO_HDRSPLIT
+# This option requires the TI_SF_BUF_JUMBO option above.
+#options 	TI_JUMBO_HDRSPLIT
 
 #
 # Use header splitting feature on bce(4) adapters.
@@ -2240,14 +2264,14 @@ device		sound
 #			conjunction with snd_sbc.
 # snd_sbc:		Creative SoundBlaster ISA PnP/non-PnP.
 #			Supports ESS and Avance ISA chips as well.
-# snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_solo:		ESS Solo-1x PCI.
+# snd_spicds:		SPI codec driver, needed by Envy24/Envy24HT drivers.
 # snd_t4dwave:		Trident 4DWave DX/NX PCI, Sis 7018 PCI and Acer Labs
 #			M5451 PCI.
+# snd_uaudio:		USB audio.
 # snd_via8233:		VIA VT8233x PCI.
 # snd_via82c686:	VIA VT82C686A PCI.
 # snd_vibes:		S3 Sonicvibes PCI.
-# snd_uaudio:		USB audio.
 
 device		snd_ad1816
 device		snd_als4000
@@ -2277,10 +2301,10 @@ device		snd_sbc
 device		snd_solo
 device		snd_spicds
 device		snd_t4dwave
+device		snd_uaudio
 device		snd_via8233
 device		snd_via82c686
 device		snd_vibes
-device		snd_uaudio
 
 # For non-PnP sound cards:
 hint.pcm.0.at="isa"
@@ -2707,6 +2731,9 @@ device		rue
 # Davicom DM9601E USB to fast ethernet. Supports the Corega FEther USB-TXC.
 device		udav
 #
+# Moschip MCS7730/MCS7840 USB to fast ethernet. Supports the Sitecom LN030.
+device		mos
+#
 # HSxPA devices from Option N.V
 device		uhso
 
@@ -2719,8 +2746,14 @@ device		run
 # Atheros AR5523 wireless driver
 device		uath
 #
+# Conexant/Intersil PrismGT wireless driver
+device		upgt
+#
 # Ralink Technology RT2500USB wireless driver
 device		ural
+#
+# Realtek RTL8187B/L wireless driver
+device		urtw
 #
 # ZyDas ZD1211/ZD1211B wireless driver
 device		zyd
@@ -2793,7 +2826,7 @@ options 	UBSEC_RNDTEST	# enable rndtest support
 # Embedded system options:
 #
 # An embedded system might want to run something other than init.
-options 	INIT_PATH=/sbin/init:/stand/sysinstall
+options 	INIT_PATH=/sbin/init:/rescue/init
 
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
@@ -2811,9 +2844,6 @@ options 	VERBOSE_SYSINIT
 #####################################################################
 # SYSV IPC KERNEL PARAMETERS
 #
-# Maximum number of entries in a semaphore map.
-options 	SEMMAP=31
-
 # Maximum number of System V semaphores that can be used on the system at
 # one time.
 options 	SEMMNI=11
@@ -2913,7 +2943,6 @@ options 	SCSI_NCR_MYADDR=7
 options 	SC_DEBUG_LEVEL=5	# Syscons debug level
 options 	SC_RENDER_DEBUG	# syscons rendering debugging
 
-options 	SHOW_BUSYBUFS	# List buffers that prevent root unmount
 options 	VFS_BIO_DEBUG	# VFS buffer I/O debugging
 
 options 	KSTACK_MAX_PAGES=32 # Maximum pages to give the kernel stack
@@ -2925,6 +2954,12 @@ options 	AAC_DEBUG	# Debugging levels:
 				#     points and things done
 				# 2 - extremely noisy, emit trace
 				#     items in loops, etc.
+
+# Resource Accounting
+options 	RACCT
+
+# Resource Limits
+options 	RCTL
 
 # Yet more undocumented options for linting.
 # BKTR_ALLOC_PAGES has no effect except to cause warnings, and

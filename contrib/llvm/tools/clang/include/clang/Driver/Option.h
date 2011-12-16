@@ -11,12 +11,8 @@
 #define CLANG_DRIVER_OPTION_H_
 
 #include "clang/Driver/OptSpecifier.h"
-#include "llvm/Support/Casting.h"
-using llvm::isa;
-using llvm::cast;
-using llvm::cast_or_null;
-using llvm::dyn_cast;
-using llvm::dyn_cast_or_null;
+#include "llvm/ADT/StringRef.h"
+#include "clang/Basic/LLVM.h"
 
 namespace clang {
 namespace driver {
@@ -64,7 +60,7 @@ namespace driver {
     OptSpecifier ID;
 
     /// The option name.
-    const char *Name;
+    StringRef Name;
 
     /// Group this option is a member of, if any.
     const OptionGroup *Group;
@@ -103,7 +99,7 @@ namespace driver {
 
     unsigned getID() const { return ID.getID(); }
     OptionClass getKind() const { return Kind; }
-    const char *getName() const { return Name; }
+    StringRef getName() const { return Name; }
     const OptionGroup *getGroup() const { return Group; }
     const Option *getAlias() const { return Alias; }
 
@@ -143,7 +139,7 @@ namespace driver {
 
     /// getRenderName - Return the name to use when rendering this
     /// option.
-    const char *getRenderName() const {
+    StringRef getRenderName() const {
       return getUnaliasedOption()->getName();
     }
 

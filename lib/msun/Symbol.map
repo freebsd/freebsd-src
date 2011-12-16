@@ -222,8 +222,31 @@ FBSD_1.1 {
 /* First added in 9.0-CURRENT */
 FBSD_1.2 {
 	__isnanf;
+	cbrtl;
 	cexp;
 	cexpf;
 	log2;
 	log2f;
+};
+
+/* First added in 10.0-CURRENT */
+FBSD_1.3 {
+	feclearexcept;
+	fegetexceptflag;
+	fetestexcept;
+	fegetround;
+	fesetround;
+	fesetenv;
+	csin;
+	csinf;
+	csinh;
+	csinhf;
+	ccos;
+	ccosf;
+	ccosh;
+	ccoshf;
+	ctan;
+	ctanf;
+	ctanh;
+	ctanhf;
 };

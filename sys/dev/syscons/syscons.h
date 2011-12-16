@@ -230,7 +230,6 @@ typedef struct sc_softc {
 	char        	switch_in_progress;
 	char        	write_in_progress;
 	char        	blink_in_progress;
-	char		suspend_in_progress;
 	struct mtx	video_mtx;
 
 	long		scrn_time_stamp;
@@ -267,6 +266,9 @@ typedef struct sc_softc {
 	u_char		cursor_char;
 	u_char		mouse_char;
 
+#ifdef KDB
+	int		sc_altbrk;
+#endif
 } sc_softc_t;
 
 /* virtual screen */
@@ -560,7 +562,6 @@ void		sc_save_font(scr_stat *scp, int page, int size, int width,
 void		sc_show_font(scr_stat *scp, int page);
 
 void		sc_touch_scrn_saver(void);
-void		sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 void		sc_draw_cursor_image(scr_stat *scp);
 void		sc_remove_cursor_image(scr_stat *scp);
 void		sc_set_cursor_image(scr_stat *scp);

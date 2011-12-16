@@ -25,10 +25,12 @@
  * $FreeBSD$
  */
 
-#include <err.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
+#include "rtld.h"
+#include "rtld_printf.h"
 
 void *xcalloc(size_t);
 void *xmalloc(size_t);
@@ -44,8 +46,10 @@ void *
 xmalloc(size_t size)
 {
     void *p = malloc(size);
-    if (p == NULL)
-	err(1, "Out of memory");
+    if (p == NULL) {
+	rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
+	_exit(1);
+    }
     return p;
 }
 
@@ -53,7 +57,9 @@ char *
 xstrdup(const char *s)
 {
     char *p = strdup(s);
-    if (p == NULL)
-	err(1, "Out of memory");
+    if (p == NULL) {
+	 rtld_fdputstr(STDERR_FILENO, "Out of memory\n");
+	 _exit(1);
+    }
     return p;
 }

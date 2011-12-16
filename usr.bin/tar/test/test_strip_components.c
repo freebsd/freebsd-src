@@ -28,50 +28,49 @@ __FBSDID("$FreeBSD$");
 static int
 touch(const char *fn)
 {
-	int fd = open(fn, O_RDWR | O_CREAT, 0644);
-	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
-	    fn, fd, errno, strerror(errno));
-	if (!assert(fd > 0))
+	FILE *f = fopen(fn, "w");
+	failure("Couldn't create file '%s', errno=%d (%s)\n",
+	    fn, errno, strerror(errno));
+	if (!assert(f != NULL))
 		return (0); /* Failure. */
-	close(fd);
+	fclose(f);
 	return (1); /* Success */
 }
 
 DEFINE_TEST(test_strip_components)
 {
-	struct stat st;
-
-	assertEqualInt(0, mkdir("d0", 0755));
-	assertEqualInt(0, chdir("d0"));
-	assertEqualInt(0, mkdir("d1", 0755));
-	assertEqualInt(0, mkdir("d1/d2", 0755));
-	assertEqualInt(0, mkdir("d1/d2/d3", 0755));
+	assertMakeDir("d0", 0755);
+	assertChdir("d0");
+	assertMakeDir("d1", 0755);
+	assertMakeDir("d1/d2", 0755);
+	assertMakeDir("d1/d2/d3", 0755);
 	assertEqualInt(1, touch("d1/d2/f1"));
-	assertEqualInt(0, link("d1/d2/f1", "l1"));
-	assertEqualInt(0, link("d1/d2/f1", "d1/l2"));
-	assertEqualInt(0, symlink("d1/d2/f1", "s1"));
-	assertEqualInt(0, symlink("d2/f1", "d1/s2"));
-	assertEqualInt(0, chdir(".."));
+	assertMakeHardlink("l1", "d1/d2/f1");
+	assertMakeHardlink("d1/l2", "d1/d2/f1");
+	if (canSymlink()) {
+		assertMakeSymlink("s1", "d1/d2/f1");
+		assertMakeSymlink("d1/s2", "d2/f1");
+	}
+	assertChdir("..");
 
 	assertEqualInt(0, systemf("%s -cf test.tar d0", testprog));
 
-	assertEqualInt(0, mkdir("target", 0755));
+	assertMakeDir("target", 0755);
 	assertEqualInt(0, systemf("%s -x -C target --strip-components 2 "
 	    "-f test.tar", testprog));
 
 	failure("d0/ is too short and should not get restored");
-	assertEqualInt(-1, lstat("target/d0", &st));
+	assertFileNotExists("target/d0");
 	failure("d0/d1/ is too short and should not get restored");
-	assertEqualInt(-1, lstat("target/d1", &st));
+	assertFileNotExists("target/d1");
 	failure("d0/d1/s2 is a symlink to something that won't be extracted");
-#if !defined(_WIN32) || defined(__CYGWIN__)
-	assertEqualInt(-1, stat("target/s2", &st));
-#else
-	skipping("symlink with stat()");
-#endif
-	assertEqualInt(0, lstat("target/s2", &st));
+	/* If platform supports symlinks, target/s2 is a broken symlink. */
+	/* If platform does not support symlink, target/s2 doesn't exist. */
+	assertFileNotExists("target/s2");
+	if (canSymlink())
+		assertIsSymlink("target/s2", "d2/f1");
 	failure("d0/d1/d2 should be extracted");
-	assertEqualInt(0, lstat("target/d2", &st));
+	assertIsDir("target/d2", -1);
 
 	/*
 	 * This next is a complicated case.  d0/l1, d0/d1/l2, and
@@ -102,9 +101,9 @@ DEFINE_TEST(test_strip_components)
 	 * parallel tests for cpio and newc formats.
 	 */
 	failure("d0/l1 is too short and should not get restored");
-	assertEqualInt(-1, lstat("target/l1", &st));
+	assertFileNotExists("target/l1");
 	failure("d0/d1/l2 is a hardlink to file whose name was too short");
-	assertEqualInt(-1, lstat("target/l2", &st));
+	assertFileNotExists("target/l2");
 	failure("d0/d1/d2/f1 is a hardlink to file whose name was too short");
-	assertEqualInt(-1, lstat("target/d2/f1", &st));
+	assertFileNotExists("target/d2/f1");
 }

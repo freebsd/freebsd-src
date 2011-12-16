@@ -4968,7 +4968,7 @@ make_rtl_for_nonlocal_decl (tree decl, tree init, const char* asmspec)
       /* An in-class declaration of a static data member should be
 	 external; it is only a declaration, and not a definition.  */
       if (init == NULL_TREE)
-	gcc_assert (DECL_EXTERNAL (decl));
+	gcc_assert (DECL_EXTERNAL (decl) || !TREE_PUBLIC (decl));
     }
 
   /* We don't create any RTL for local variables.  */
@@ -11273,7 +11273,7 @@ finish_function (int flags)
   gcc_assert (stmts_are_full_exprs_p ());
 
   /* Set up the named return value optimization, if we can.  Candidate
-     variables are selected in check_return_value.  */
+     variables are selected in check_return_expr.  */
   if (current_function_return_value)
     {
       tree r = current_function_return_value;

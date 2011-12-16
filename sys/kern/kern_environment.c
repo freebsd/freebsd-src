@@ -77,7 +77,7 @@ int	dynamic_kenv = 0;
 			    panic("%s: called before SI_SUB_KMEM", __func__)
 
 int
-kenv(td, uap)
+sys_kenv(td, uap)
 	struct thread *td;
 	struct kenv_args /* {
 		int what;
@@ -225,13 +225,19 @@ static void
 init_dynamic_kenv(void *data __unused)
 {
 	char *cp;
-	int len, i;
+	size_t len;
+	int i;
 
 	kenvp = malloc((KENV_SIZE + 1) * sizeof(char *), M_KENV,
 		M_WAITOK | M_ZERO);
 	i = 0;
 	for (cp = kern_envp; cp != NULL; cp = kernenv_next(cp)) {
 		len = strlen(cp) + 1;
+		if (len > KENV_MNAMELEN + 1 + KENV_MVALLEN + 1) {
+			printf("WARNING: too long kenv string, ignoring %s\n",
+			    cp);
+			continue;
+		}
 		if (i < KENV_SIZE) {
 			kenvp[i] = malloc(len, M_KENV, M_WAITOK);
 			strcpy(kenvp[i++], cp);
@@ -321,6 +327,8 @@ getenv(const char *name)
 		} else {
 			mtx_unlock(&kenv_lock);
 			ret = NULL;
+			WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+			    "getenv");
 		}
 	} else
 		ret = _getenv_static(name);

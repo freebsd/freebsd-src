@@ -62,7 +62,7 @@ struct partentry {
 	char		  	*p_type;	/* file system type */
 };
 
-TAILQ_HEAD(part, partentry) badh;
+static TAILQ_HEAD(part, partentry) badh;
 
 struct diskentry {
 	TAILQ_ENTRY(diskentry) 	    d_entries;
@@ -71,7 +71,7 @@ struct diskentry {
 	int			    d_pid;	/* 0 or pid of fsck proc */
 };
 
-TAILQ_HEAD(disk, diskentry) diskh;
+static TAILQ_HEAD(disk, diskentry) diskh;
 
 static int nrun = 0, ndisks = 0;
 

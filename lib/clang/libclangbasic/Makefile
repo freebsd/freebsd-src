@@ -10,11 +10,13 @@ SRCS=	Builtins.cpp \
 	FileManager.cpp \
 	FileSystemStatCache.cpp \
 	IdentifierTable.cpp \
+	LangOptions.cpp \
 	SourceLocation.cpp \
 	SourceManager.cpp \
 	TargetInfo.cpp \
 	Targets.cpp \
 	TokenKinds.cpp \
+	VersionTuple.cpp \
 	Version.cpp
 
 TGHDRS=	DiagnosticAnalysisKinds \
@@ -23,6 +25,7 @@ TGHDRS=	DiagnosticAnalysisKinds \
 	DiagnosticDriverKinds \
 	DiagnosticFrontendKinds \
 	DiagnosticGroups \
+	DiagnosticIndexName \
 	DiagnosticLexKinds \
 	DiagnosticParseKinds \
 	DiagnosticSemaKinds \

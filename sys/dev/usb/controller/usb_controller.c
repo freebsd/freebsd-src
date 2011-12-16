@@ -61,12 +61,16 @@
 #include <dev/usb/usb_controller.h>
 #include <dev/usb/usb_bus.h>
 #include <dev/usb/usb_pf.h>
+#include "usb_if.h"
 
 /* function prototypes  */
 
 static device_probe_t usb_probe;
 static device_attach_t usb_attach;
 static device_detach_t usb_detach;
+static device_suspend_t usb_suspend;
+static device_resume_t usb_resume;
+static device_shutdown_t usb_shutdown;
 
 static void	usb_attach_sub(device_t, struct usb_bus *);
 
@@ -75,7 +79,7 @@ static void	usb_attach_sub(device_t, struct usb_bus *);
 #ifdef USB_DEBUG
 static int usb_ctrl_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ctrl, CTLFLAG_RW, 0, "USB controller");
 SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
     "Debug level");
 #endif
@@ -91,9 +95,9 @@ static device_method_t usb_methods[] = {
 	DEVMETHOD(device_probe, usb_probe),
 	DEVMETHOD(device_attach, usb_attach),
 	DEVMETHOD(device_detach, usb_detach),
-	DEVMETHOD(device_suspend, bus_generic_suspend),
-	DEVMETHOD(device_resume, bus_generic_resume),
-	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(device_suspend, usb_suspend),
+	DEVMETHOD(device_resume, usb_resume),
+	DEVMETHOD(device_shutdown, usb_shutdown),
 	{0, 0}
 };
 
@@ -182,12 +186,12 @@ usb_detach(device_t dev)
 	usb_root_mount_rel(bus);
 
 	USB_BUS_LOCK(bus);
-	if (usb_proc_msignal(&bus->explore_proc,
-	    &bus->detach_msg[0], &bus->detach_msg[1])) {
-		/* ignore */
-	}
-	/* Wait for detach to complete */
 
+	/* Queue detach job */
+	usb_proc_msignal(&bus->explore_proc,
+	    &bus->detach_msg[0], &bus->detach_msg[1]);
+
+	/* Wait for detach to complete */
 	usb_proc_mwait(&bus->explore_proc,
 	    &bus->detach_msg[0], &bus->detach_msg[1]);
 
@@ -213,6 +217,75 @@ usb_detach(device_t dev)
 }
 
 /*------------------------------------------------------------------------*
+ *	usb_suspend
+ *------------------------------------------------------------------------*/
+static int
+usb_suspend(device_t dev)
+{
+	struct usb_bus *bus = device_get_softc(dev);
+
+	DPRINTF("\n");
+
+	if (bus == NULL) {
+		/* was never setup properly */
+		return (0);
+	}
+
+	USB_BUS_LOCK(bus);
+	usb_proc_msignal(&bus->explore_proc,
+	    &bus->suspend_msg[0], &bus->suspend_msg[1]);
+	USB_BUS_UNLOCK(bus);
+
+	return (0);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_resume
+ *------------------------------------------------------------------------*/
+static int
+usb_resume(device_t dev)
+{
+	struct usb_bus *bus = device_get_softc(dev);
+
+	DPRINTF("\n");
+
+	if (bus == NULL) {
+		/* was never setup properly */
+		return (0);
+	}
+
+	USB_BUS_LOCK(bus);
+	usb_proc_msignal(&bus->explore_proc,
+	    &bus->resume_msg[0], &bus->resume_msg[1]);
+	USB_BUS_UNLOCK(bus);
+
+	return (0);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_shutdown
+ *------------------------------------------------------------------------*/
+static int
+usb_shutdown(device_t dev)
+{
+	struct usb_bus *bus = device_get_softc(dev);
+
+	DPRINTF("\n");
+
+	if (bus == NULL) {
+		/* was never setup properly */
+		return (0);
+	}
+
+	USB_BUS_LOCK(bus);
+	usb_proc_msignal(&bus->explore_proc,
+	    &bus->shutdown_msg[0], &bus->shutdown_msg[1]);
+	USB_BUS_UNLOCK(bus);
+
+	return (0);
+}
+
+/*------------------------------------------------------------------------*
  *	usb_bus_explore
  *
  * This function is used to explore the device tree from the root.
@@ -225,6 +298,9 @@ usb_bus_explore(struct usb_proc_msg *pm)
 
 	bus = ((struct usb_bus_msg *)pm)->bus;
 	udev = bus->devices[USB_ROOT_HUB_ADDR];
+
+	if (bus->no_explore != 0)
+		return;
 
 	if (udev && udev->hub) {
 
@@ -294,6 +370,133 @@ usb_bus_detach(struct usb_proc_msg *pm)
 	USB_BUS_LOCK(bus);
 	/* clear bdev variable last */
 	bus->bdev = NULL;
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_bus_suspend
+ *
+ * This function is used to suspend the USB contoller.
+ *------------------------------------------------------------------------*/
+static void
+usb_bus_suspend(struct usb_proc_msg *pm)
+{
+	struct usb_bus *bus;
+	struct usb_device *udev;
+	usb_error_t err;
+
+	bus = ((struct usb_bus_msg *)pm)->bus;
+	udev = bus->devices[USB_ROOT_HUB_ADDR];
+
+	if (udev == NULL || bus->bdev == NULL)
+		return;
+
+	bus_generic_shutdown(bus->bdev);
+
+	usbd_enum_lock(udev);
+
+	err = usbd_set_config_index(udev, USB_UNCONFIG_INDEX);
+	if (err)
+		device_printf(bus->bdev, "Could not unconfigure root HUB\n");
+
+	USB_BUS_LOCK(bus);
+	bus->hw_power_state = 0;
+	bus->no_explore = 1;
+	USB_BUS_UNLOCK(bus);
+
+	if (bus->methods->set_hw_power != NULL)
+		(bus->methods->set_hw_power) (bus);
+
+	if (bus->methods->set_hw_power_sleep != NULL)
+		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SUSPEND);
+
+	usbd_enum_unlock(udev);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_bus_resume
+ *
+ * This function is used to resume the USB contoller.
+ *------------------------------------------------------------------------*/
+static void
+usb_bus_resume(struct usb_proc_msg *pm)
+{
+	struct usb_bus *bus;
+	struct usb_device *udev;
+	usb_error_t err;
+
+	bus = ((struct usb_bus_msg *)pm)->bus;
+	udev = bus->devices[USB_ROOT_HUB_ADDR];
+
+	if (udev == NULL || bus->bdev == NULL)
+		return;
+
+	usbd_enum_lock(udev);
+#if 0
+	DEVMETHOD(usb_take_controller, NULL);	/* dummy */
+#endif
+	USB_TAKE_CONTROLLER(device_get_parent(bus->bdev));
+
+	USB_BUS_LOCK(bus);
+ 	bus->hw_power_state =
+	  USB_HW_POWER_CONTROL |
+	  USB_HW_POWER_BULK |
+	  USB_HW_POWER_INTERRUPT |
+	  USB_HW_POWER_ISOC |
+	  USB_HW_POWER_NON_ROOT_HUB;
+	bus->no_explore = 0;
+	USB_BUS_UNLOCK(bus);
+
+	if (bus->methods->set_hw_power_sleep != NULL)
+		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_RESUME);
+
+	if (bus->methods->set_hw_power != NULL)
+		(bus->methods->set_hw_power) (bus);
+
+	err = usbd_set_config_index(udev, 0);
+	if (err)
+		device_printf(bus->bdev, "Could not configure root HUB\n");
+
+	usbd_enum_unlock(udev);
+}
+
+/*------------------------------------------------------------------------*
+ *	usb_bus_shutdown
+ *
+ * This function is used to shutdown the USB contoller.
+ *------------------------------------------------------------------------*/
+static void
+usb_bus_shutdown(struct usb_proc_msg *pm)
+{
+	struct usb_bus *bus;
+	struct usb_device *udev;
+	usb_error_t err;
+
+	bus = ((struct usb_bus_msg *)pm)->bus;
+	udev = bus->devices[USB_ROOT_HUB_ADDR];
+
+	if (udev == NULL || bus->bdev == NULL)
+		return;
+
+	bus_generic_shutdown(bus->bdev);
+
+	usbd_enum_lock(udev);
+
+	err = usbd_set_config_index(udev, USB_UNCONFIG_INDEX);
+	if (err)
+		device_printf(bus->bdev, "Could not unconfigure root HUB\n");
+
+	USB_BUS_LOCK(bus);
+	bus->hw_power_state = 0;
+	bus->no_explore = 1;
+	USB_BUS_UNLOCK(bus);
+
+	if (bus->methods->set_hw_power != NULL)
+		(bus->methods->set_hw_power) (bus);
+
+	if (bus->methods->set_hw_power_sleep != NULL)
+		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SHUTDOWN);
+
+	usbd_enum_unlock(udev);
 }
 
 static void
@@ -374,8 +577,6 @@ usb_bus_attach(struct usb_proc_msg *pm)
 		return;
 	}
 
-	USB_BUS_UNLOCK(bus);
-
 	/* default power_mask value */
 	bus->hw_power_state =
 	  USB_HW_POWER_CONTROL |
@@ -384,13 +585,15 @@ usb_bus_attach(struct usb_proc_msg *pm)
 	  USB_HW_POWER_ISOC |
 	  USB_HW_POWER_NON_ROOT_HUB;
 
+	USB_BUS_UNLOCK(bus);
+
 	/* make sure power is set at least once */
 
 	if (bus->methods->set_hw_power != NULL) {
 		(bus->methods->set_hw_power) (bus);
 	}
 
-	/* Allocate the Root USB device */
+	/* allocate the Root USB device */
 
 	child = usb_alloc_device(bus->bdev, bus, NULL, 0, 0, 1,
 	    speed, USB_MODE_HOST);
@@ -456,6 +659,21 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 	bus->attach_msg[1].hdr.pm_callback = &usb_bus_attach;
 	bus->attach_msg[1].bus = bus;
 
+	bus->suspend_msg[0].hdr.pm_callback = &usb_bus_suspend;
+	bus->suspend_msg[0].bus = bus;
+	bus->suspend_msg[1].hdr.pm_callback = &usb_bus_suspend;
+	bus->suspend_msg[1].bus = bus;
+
+	bus->resume_msg[0].hdr.pm_callback = &usb_bus_resume;
+	bus->resume_msg[0].bus = bus;
+	bus->resume_msg[1].hdr.pm_callback = &usb_bus_resume;
+	bus->resume_msg[1].bus = bus;
+
+	bus->shutdown_msg[0].hdr.pm_callback = &usb_bus_shutdown;
+	bus->shutdown_msg[0].bus = bus;
+	bus->shutdown_msg[1].hdr.pm_callback = &usb_bus_shutdown;
+	bus->shutdown_msg[1].bus = bus;
+
 	/* Create USB explore and callback processes */
 
 	if (usb_proc_create(&bus->giant_callback_proc,
@@ -477,10 +695,8 @@ usb_attach_sub(device_t dev, struct usb_bus *bus)
 	} else {
 		/* Get final attach going */
 		USB_BUS_LOCK(bus);
-		if (usb_proc_msignal(&bus->explore_proc,
-		    &bus->attach_msg[0], &bus->attach_msg[1])) {
-			/* ignore */
-		}
+		usb_proc_msignal(&bus->explore_proc,
+		    &bus->attach_msg[0], &bus->attach_msg[1]);
 		USB_BUS_UNLOCK(bus);
 
 		/* Do initial explore */
@@ -602,4 +818,3 @@ usb_bus_mem_free_all(struct usb_bus *bus, usb_bus_mem_cb_t *cb)
 
 	mtx_destroy(&bus->bus_mtx);
 }
-

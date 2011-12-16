@@ -95,7 +95,7 @@ namespace ISD {
     // execution to HANDLER. Many platform-related details also :)
     EH_RETURN,
 
-    // OUTCHAIN = EH_SJLJ_SETJMP(INCHAIN, buffer)
+    // RESULT, OUTCHAIN = EH_SJLJ_SETJMP(INCHAIN, buffer)
     // This corresponds to the eh.sjlj.setjmp intrinsic.
     // It takes an input chain and a pointer to the jump buffer as inputs
     // and returns an outchain.
@@ -107,11 +107,11 @@ namespace ISD {
     // and returns an outchain.
     EH_SJLJ_LONGJMP,
 
-    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, context)
+    // OUTCHAIN = EH_SJLJ_DISPATCHSETUP(INCHAIN, setjmpval)
     // This corresponds to the eh.sjlj.dispatchsetup intrinsic. It takes an
-    // input chain and a pointer to the sjlj function context as inputs and
-    // returns an outchain. By default, this does nothing. Targets can lower
-    // this to unwind setup code if needed.
+    // input chain and the value returning from setjmp as inputs and returns an
+    // outchain. By default, this does nothing. Targets can lower this to unwind
+    // setup code if needed.
     EH_SJLJ_DISPATCHSETUP,
 
     // TargetConstant* - Like Constant*, but the DAG does not do any folding,
@@ -219,7 +219,7 @@ namespace ISD {
     // RESULT, BOOL = [SU]ADDO(LHS, RHS) - Overflow-aware nodes for addition.
     // These nodes take two operands: the normal LHS and RHS to the add. They
     // produce two results: the normal result of the add, and a boolean that
-    // indicates if an overflow occured (*not* a flag, because it may be stored
+    // indicates if an overflow occurred (*not* a flag, because it may be stored
     // to memory, etc.).  If the type of the boolean is not i1 then the high
     // bits conform to getBooleanContents.
     // These nodes are generated from the llvm.[su]add.with.overflow intrinsics.
@@ -232,7 +232,7 @@ namespace ISD {
     SMULO, UMULO,
 
     // Simple binary floating point operators.
-    FADD, FSUB, FMUL, FDIV, FREM,
+    FADD, FSUB, FMUL, FMA, FDIV, FREM,
 
     // FCOPYSIGN(X, Y) - Return the value of X with the sign of Y.  NOTE: This
     // DAG node does not require that X and Y have the same type, just that they
@@ -323,6 +323,12 @@ namespace ISD {
     // i1 then the high bits must conform to getBooleanContents.
     SELECT,
 
+    // Select with a vector condition (op #0) and two vector operands (ops #1
+    // and #2), returning a vector result.  All vectors have the same length.
+    // Much like the scalar select and setcc, each bit in the condition selects
+    // whether the corresponding result element is taken from op #1 or op #2.
+    VSELECT,
+
     // Select with condition operator - This selects between a true value and
     // a false value (ops #2 and #3) based on the boolean result of comparing
     // the lhs and rhs (ops #0 and #1) of a conditional expression with the
@@ -333,15 +339,9 @@ namespace ISD {
     // true.  If the result value type is not i1 then the high bits conform
     // to getBooleanContents.  The operands to this are the left and right
     // operands to compare (ops #0, and #1) and the condition code to compare
-    // them with (op #2) as a CondCodeSDNode.
+    // them with (op #2) as a CondCodeSDNode. If the operands are vector types
+    // then the result type must also be a vector type.
     SETCC,
-
-    // RESULT = VSETCC(LHS, RHS, COND) operator - This evaluates to a vector of
-    // integer elements with all bits of the result elements set to true if the
-    // comparison is true or all cleared if the comparison is false.  The
-    // operands to this are the left and right operands to compare (LHS/RHS) and
-    // the condition code to compare them with (COND) as a CondCodeSDNode.
-    VSETCC,
 
     // SHL_PARTS/SRA_PARTS/SRL_PARTS - These operators are used for expanded
     // integer shift operations, just like ADD/SUB_PARTS.  The operation
@@ -566,21 +566,27 @@ namespace ISD {
     // HANDLENODE node - Used as a handle for various purposes.
     HANDLENODE,
 
-    // TRAMPOLINE - This corresponds to the init_trampoline intrinsic.
-    // It takes as input a token chain, the pointer to the trampoline,
-    // the pointer to the nested function, the pointer to pass for the
-    // 'nest' parameter, a SRCVALUE for the trampoline and another for
-    // the nested function (allowing targets to access the original
-    // Function*).  It produces the result of the intrinsic and a token
-    // chain as output.
-    TRAMPOLINE,
+    // INIT_TRAMPOLINE - This corresponds to the init_trampoline intrinsic.  It
+    // takes as input a token chain, the pointer to the trampoline, the pointer
+    // to the nested function, the pointer to pass for the 'nest' parameter, a
+    // SRCVALUE for the trampoline and another for the nested function (allowing
+    // targets to access the original Function*).  It produces a token chain as
+    // output.
+    INIT_TRAMPOLINE,
+
+    // ADJUST_TRAMPOLINE - This corresponds to the adjust_trampoline intrinsic.
+    // It takes a pointer to the trampoline and produces a (possibly) new
+    // pointer to the same trampoline with platform-specific adjustments
+    // applied.  The pointer it returns points to an executable block of code.
+    ADJUST_TRAMPOLINE,
 
     // TRAP - Trapping instruction
     TRAP,
 
     // PREFETCH - This corresponds to a prefetch intrinsic. It takes chains are
     // their first operand. The other operands are the address to prefetch,
-    // read / write specifier, and locality specifier.
+    // read / write specifier, locality specifier and instruction / data cache
+    // specifier.
     PREFETCH,
 
     // OUTCHAIN = MEMBARRIER(INCHAIN, load-load, load-store, store-load,
@@ -591,22 +597,27 @@ namespace ISD {
     // and produces an output chain.
     MEMBARRIER,
 
+    // OUTCHAIN = ATOMIC_FENCE(INCHAIN, ordering, scope)
+    // This corresponds to the fence instruction. It takes an input chain, and
+    // two integer constants: an AtomicOrdering and a SynchronizationScope.
+    ATOMIC_FENCE,
+
+    // Val, OUTCHAIN = ATOMIC_LOAD(INCHAIN, ptr)
+    // This corresponds to "load atomic" instruction.
+    ATOMIC_LOAD,
+
+    // OUTCHAIN = ATOMIC_LOAD(INCHAIN, ptr, val)
+    // This corresponds to "store atomic" instruction.
+    ATOMIC_STORE,
+
     // Val, OUTCHAIN = ATOMIC_CMP_SWAP(INCHAIN, ptr, cmp, swap)
-    // this corresponds to the atomic.lcs intrinsic.
-    // cmp is compared to *ptr, and if equal, swap is stored in *ptr.
-    // the return is always the original value in *ptr
+    // This corresponds to the cmpxchg instruction.
     ATOMIC_CMP_SWAP,
 
     // Val, OUTCHAIN = ATOMIC_SWAP(INCHAIN, ptr, amt)
-    // this corresponds to the atomic.swap intrinsic.
-    // amt is stored to *ptr atomically.
-    // the return is always the original value in *ptr
-    ATOMIC_SWAP,
-
     // Val, OUTCHAIN = ATOMIC_LOAD_[OpName](INCHAIN, ptr, amt)
-    // this corresponds to the atomic.load.[OpName] intrinsic.
-    // op(*ptr, amt) is stored to *ptr atomically.
-    // the return is always the original value in *ptr
+    // These correspond to the atomicrmw instruction.
+    ATOMIC_SWAP,
     ATOMIC_LOAD_ADD,
     ATOMIC_LOAD_SUB,
     ATOMIC_LOAD_AND,

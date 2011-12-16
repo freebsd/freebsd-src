@@ -101,7 +101,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_gdb.h"
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ucom, CTLFLAG_RW, 0, "USB ucom");
 
 #ifdef USB_DEBUG
 static int ucom_debug = 0;
@@ -288,6 +288,9 @@ void
 ucom_detach(struct ucom_super_softc *ssc, struct ucom_softc *sc)
 {
 	uint32_t subunit;
+
+	if (ssc->sc_subunits == 0)
+		return;		/* not initialized */
 
 	usb_proc_drain(&ssc->sc_tq);
 

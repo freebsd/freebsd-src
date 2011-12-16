@@ -40,7 +40,7 @@ DEFINE_TEST(test_0)
 	struct stat st;
 
 	failure("File %s does not exist?!", testprog);
-	if (!assertEqualInt(0, stat(testprog, &st)))
+	if (!assertEqualInt(0, stat(testprogfile, &st)))
 		exit(1);
 
 	failure("%s is not executable?!", testprog);

@@ -69,17 +69,6 @@ struct netif_driver *netif_drivers[] = {
 };
 
 /* 
- * Sort formats so that those that can detect based on arguments
- * rather than reading the file go first.
- */
-extern struct file_format ia64_elf;
-
-struct file_format *file_formats[] = {
-	&ia64_elf,
-	NULL
-};
-
-/* 
  * Consoles 
  *
  * We don't prototype these in efiboot.h because they require

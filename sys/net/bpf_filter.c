@@ -177,6 +177,8 @@ bpf_filter(const struct bpf_insn *pc, u_char *p, u_int wirelen, u_int buflen)
 	bpf_u_int32 k;
 	u_int32_t mem[BPF_MEMWORDS];
 
+	bzero(mem, sizeof(mem));
+
 	if (pc == NULL)
 		/*
 		 * No filter means accept all.

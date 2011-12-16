@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -532,6 +532,7 @@ error(fmt, parg)
 
 	get_return();
 	lower_left();
+    clear_eol();
 
 	if (col >= sc_width)
 		/*

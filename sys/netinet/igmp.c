@@ -185,7 +185,7 @@ static const struct netisr_handler igmp_nh = {
 struct mtx		 igmp_mtx;
 
 struct mbuf		*m_raopt;		 /* Router Alert option */
-MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
+static MALLOC_DEFINE(M_IGMP, "igmp", "igmp state");
 
 /*
  * VIMAGE-wide globals.
@@ -280,8 +280,9 @@ SYSCTL_VNET_PROC(_net_inet_igmp, OID_AUTO, gsrdelay,
 /*
  * Non-virtualized sysctls.
  */
-SYSCTL_NODE(_net_inet_igmp, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    sysctl_igmp_ifinfo, "Per-interface IGMPv3 state");
+static SYSCTL_NODE(_net_inet_igmp, OID_AUTO, ifinfo,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_igmp_ifinfo,
+    "Per-interface IGMPv3 state");
 
 static __inline void
 igmp_save_context(struct mbuf *m, struct ifnet *ifp)

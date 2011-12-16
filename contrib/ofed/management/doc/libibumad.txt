@@ -1,0 +1,392 @@
+libibumad:
+
+Overview: libibumad provides the following functionality:
+	* Provide information about the IB devices installed. This includes
+		list of IB devices names, list of port, device and port
+		attributes.
+	* Basic user mode mad functions: open/close port,
+		register/unregister, send/receive/poll mad, etc.
+	* Umad packet helper functions.
+	* debugging support.
+
+
+Library objects:
+
+umad_ca: encapsulate an IB device. Identified by CA_NAME.
+
+umad_port: encapsulate an IB port within an IB device. Identified by CA_NAME
+	and port number.
+
+ib_umad_addr: IB destination address structure.
+
+portid (int): opened port handle.
+
+agentid (int): mad multiplexing agent handle.
+
+
+Module management functions:
+
+umad_init:
+
+Synopsis:
+	int umad_init(void)
+
+Description: library main initialization function. Must be called before any
+other call to the library. Return zero on success, -1 if the infiniband mad
+class can't be opened, or the abi version doesn't match.
+
+umad_done:
+
+Synopsis:
+	int umad_done(void)
+
+Description: library main destruction function. library should not be called after calling this function. Return zero on success, -1 on errors.
+
+
+IB devices and ports information functions:
+
+umad_get_cas_names:
+
+Synopsis:
+	int	umad_get_cas_names(char cas[][UMAD_CA_NAME_LEN], int max);
+
+Description: Fill 'cas' array with up to 'max' local ib devices (CAs) names.
+The return value is the number of entries actually filled, or -1 on errors.
+
+umad_get_ca_portguids:
+
+Synopsis:
+	int	umad_get_ca_portguids(char *ca_name, uint64_t *portguids,
+				      int max);
+
+Description: Fill 'portguids' array with up to 'max' port GUIDs belonging the
+specified IB device 'ca_name', or to the default ib device if 'ca_name' is null.
+The return value is the number of entries actually filled, or -1 on errors.
+
+umad_get_ca:
+
+Synopsis:
+	int	umad_get_ca(char *ca_name, umad_ca_t *ca);
+
+Description: Fill 'ca' structure with the ib device attributes specified by
+'ca_name', or with the default ib device attributes if 'ca_name' is null.
+Return zero on success, -1 on error.
+Note that the library allocates memory for some of the 'ca' fields, and
+therefore umad_release_ca() should be used to free these fields before the
+'ca' structure can be de-allocated.
+
+See also:
+	umad_release_ca
+
+umad_release_ca:
+
+Synopsis:
+	int	umad_release_ca(umad_ca_t *ca);
+
+Description: de-allocated any fields within 'ca' that were allocated by
+umad_get_ca(). Return zero on success, -1 on error.
+
+See also:
+	umad_get_ca
+
+umad_get_port:
+
+Synopsis:
+	int	umad_get_port(char *ca_name, int portnum, umad_port_t *port);
+
+Description: Fill the 'port' structure with the specified ib port attributes
+specified by 'ca_name' and 'portnum', or the default port if 'ca_name' is null
+and 'portnum' is zero. If only one of the 'ca_name' and 'portnum' are specified,
+the other is used as a filter. For example, passing a null ca_name and 2 for the
+portnum means - get a port from any of the local ib devices, as long as it is
+the second port. Return zero on success, -1 on error.
+Note that the library may use some reference scheme to support port caching
+therefore umad_release_port() should be called before the 'port' structure can
+be deallocated.
+
+See also:
+	umad_release_port
+
+umad_release_port:
+
+Synopsis:
+	int	umad_release_port(umad_port_t *port);
+
+Description: Notify the library that the 'port' that was filled by
+umad_get_port() is not required anymore. Return zero on success, -1 on error.
+
+See also:
+	umad_get_port
+
+
+Port oriented functions:
+
+umad_open_port:
+
+Synopsis:
+	int	umad_open_port(char *ca_name, int portnum);
+
+Description: Open the port specified by 'ca_name' and 'portnum' for umad IO.
+The port is selected by the library if not all parameters are provided (see
+umad_get_port() for details). Return non-negative portid handle (int) or
+negative value on errors.
+
+Errors:
+	-ENODEV	ib device can't be resolved
+	-EINVAL	port is not valid (bad 'portnum' or no umad device)
+	-EIO	umad device for this port can't be opened
+
+See also:
+	umad_get_port
+
+umad_close_port:
+
+Synopsis:
+	int	umad_close_port(int portid);
+
+Description: Close the port specified by the handle 'portid'. Return 0 on
+success and -EINVAL if the portid is not a handle to a valid (open) port.
+
+See also:
+	umad_open_port
+
+Register/unregister functions:
+
+umad_register:
+
+Synopsis:
+	int	umad_register(int portid, int mgmt_class,
+			      int mgmt_version, uint32_t method_mask[4]);
+
+Description: Register to the specified management class and version in the port
+specified by the 'portid' handle. If 'method_mask' array is provided, the caller
+is registered as a replier (server) for the methods having their coresponding
+bit on in the 'method_mask'. If 'method_mask' is null, the caller is registered
+as a mad client, meaning that it can only receive replies on mads it sent
+(solicited mads).
+Return non-negative agent id number on success, and a negative value on errors.
+
+Errors:
+	-EINVAL	invalid port handle
+	-EPERM	registration failed
+
+umad_register_oui:
+
+Synopsis:
+	int	umad_register_oui(int portid, int mgmt_class, uint8_t
+rmpp_version,
+				  uint8 oui[3], uint32 method_mask[4]);
+
+Description: Register to the specified vendor class range 2, the specified
+oui, and whether rmpp is being used. Otherwise operate similarly to
+umad_register().
+
+Errors:
+	-EINVAL	invalid port handle or class is not in the vendor class 2 range
+	-EPERM	registration failed
+
+umad_unregister:
+
+Synopsis:
+	int	umad_unregister(int portid, int agentid);
+
+Description: Unregister the specified 'agentid' previously registered using
+umad_register() or umad_register_oui(). Returns 0 on success and negative
+value on errors.
+
+Errors:
+	-EINVAL	invalid port handle or agentid
+	*	(kernel error codes)
+
+
+Port IO functions:
+
+umad_send:
+
+Synopsis:
+	int	umad_send(int portid, int agentid, void *umad,
+			  int timeout_ms, int retries);
+
+Description: Send the specified 'umad' buffer from the port specified by
+'portid' and using the agent specified by 'agentid'. 'timeout_ms' controls
+solicited mads behavior as follows: zero value means not solicited. Positive
+value makes the kernel indicate timeout if the reply is not received within the
+specified value, and return the original buffer in the read channel with
+the status field set (non zero). Negative 'timeout_ms' value makes the kernel
+wait forever for the reply. Returns 0 on success and negative value on errors.
+
+Errors:
+	-EINVAL	invalid port handle or agentid
+	-EIO	send operation failed
+
+umad_recv:
+
+Synopsis:
+	int	umad_recv(int portid, void *umad, int timeout_ms);
+
+Description: Wait up to 'timeout_ms' for a packet to be received from the
+port specified by 'portid'. The packet is copied to the 'umad' buffer.
+Negative 'timeout_ms' value makes the function block until a packet
+is received. Zero 'timeout_ms' indicates a non blocking read.
+Return non negative receiving agentid on success and negative value on errors.
+
+Errors:
+	-EINVAL		invalid port handle or agentid
+	-EIO		receive operation failed
+	-EWOULDBLOCK 	non blocking read can't be fulfilled
+
+umad_poll:
+
+Synopsis:
+	int	umad_poll(int portid, int timeout_ms);
+
+Description: Wait up to 'timeout_ms' for a packet to be received from the
+port specified by 'portid'. Once a packet is ready to be read the function
+returns 0 after that the packet can be read using umad_recv(). Otherwise
+-ETIMEDOUT is returned. Note that successfully polling a port does not guarantee
+that the following umad_recv will be non blocking when several threads are using
+the same port. Instead, use timeout_ms parameter of zero to umad_recv to ensure
+a non-blocking read.
+
+Errors:
+	-EINVAL		invalid port handle or agentid
+	-ETIMEDOUT	poll operation timed out
+	-EIO		poll operation failed
+
+umad_get_fd:
+
+Synopsis:
+	int	umad_get_fd(int portid)
+
+Description: Return umad fd for port specified by 'portid'. Returns fd
+for port or -EINVAL if portid is invalid.
+
+Errors:
+	-EINVAL		invalid port handle
+
+
+umad helper functions:
+
+umad_get_mad:
+
+Synopsis:
+	void *	umad_get_mad(void *umad);
+
+Description: Return a pointer to the mad image within the 'umad' buffer.
+
+umad_size:
+
+Synopsis:
+	size_t	umad_size(void);
+
+Description: Return the size of umad buffer (in bytes).
+
+umad_status:
+
+Synopsis:
+	int	umad_status(void *umad);
+
+Description: Return the internal 'umad' status field. After a packet is
+received, a non zero status means the packet had a send-timeout
+indication. Otherwise, it is a valid packet.
+
+umad_get_mad_addr:
+
+Synopsis:
+	ib_mad_addr_t	*umad_get_mad_addr(void *umad);
+
+Description: Return a pointer to the ib_mad_addr struct within 'umad' buffer.
+
+umad_set_grh_net:
+
+Synopsis:
+	int	umad_set_grh_net(void *umad, void *grh);
+
+Description: set the GRH fields within the 'umad' buffer. The given 'grh'
+fields are expected to be in network order. Returns 0 on success, -1 on errors.
+
+BUGS:
+	not implemented.
+
+umad_set_grh:
+
+Synopsis:
+	int	umad_set_grh(void *umad, void *grh);
+
+Description: set the GRH fields within the 'umad' buffer. The given 'grh'
+fields are expected to be in host order. Returns 0 on success, -1 on errors.
+
+umad_set_addr_net:
+
+Synopsis:
+	int	umad_set_addr_net(void *umad, int dlid, int dqp,
+				  int sl, int qkey);
+
+Description: Set the mad address fields within the 'umad' buffer using
+the given network ordered fields. Return 0 on success, -1 on errors.
+
+umad_set_addr:
+
+Synopsis:
+	int	umad_set_addr(void *umad, int dlid, int dqp, int sl, int qkey);
+
+Description: Set the mad address fields within the 'umad' buffer using
+the given host ordered fields. Return 0 on success, -1 on errors.
+
+umad_set_pkey:
+
+Synopsis:
+	int	umad_set_pkey(void *umad, int pkey_index);
+
+Description: Set the pkey within the 'umad' buffer.  Return 0 on success,
+-1 on errors.
+
+BUGS:
+	not implemented.
+
+umad_alloc:
+
+Synopsis:
+	void *umad_alloc(int num);
+
+Description: Allocate memory for 'num' umad buffers array. Return null if
+out of memory.
+
+umad_free:
+
+Synopsis:
+	void umad_free(void *umad);
+
+Description: Deallocate memory previously allocated with uamd_alloc().
+
+See also:
+	umad_alloc
+
+
+Debugging support functions:
+
+umad_debug:
+
+Synopsis:
+	int	umad_debug(int level);
+
+Description: Set the library internal debugging level to 'level'. The following
+debugging levels are supported: 0 - no debugging (the default),
+1 - basic debugging information, 2 - verbose debugging. Negative values are
+ignored. Returns the new level. Note that the current debugging level can
+be queried by passing negative values.
+
+umad_addr_dump:
+
+Synopsis:
+	void	umad_addr_dump(ib_mad_addr_t *addr);
+
+Description: Dump the given 'addr' structure to the stderr.
+
+umad_dump:
+
+Synopsis:
+	void	umad_dump(void *umad);
+
+Description: Dump the given 'umad' buffer to the stderr.
+

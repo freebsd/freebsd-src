@@ -26,12 +26,13 @@ namespace driver {
   class HostInfo;
   class InputArgList;
   class JobAction;
+  class ObjCRuntime;
   class Tool;
 
 /// ToolChain - Access to tools for a single platform.
 class ToolChain {
 public:
-  typedef llvm::SmallVector<std::string, 4> path_list;
+  typedef SmallVector<std::string, 4> path_list;
 
   enum CXXStdlibType {
     CST_Libcxx,
@@ -62,9 +63,9 @@ public:
   const llvm::Triple &getTriple() const { return Triple; }
 
   llvm::Triple::ArchType getArch() const { return Triple.getArch(); }
-  llvm::StringRef getArchName() const { return Triple.getArchName(); }
-  llvm::StringRef getPlatform() const { return Triple.getVendorName(); }
-  llvm::StringRef getOS() const { return Triple.getOSName(); }
+  StringRef getArchName() const { return Triple.getArchName(); }
+  StringRef getPlatform() const { return Triple.getVendorName(); }
+  StringRef getOS() const { return Triple.getOSName(); }
 
   std::string getTripleString() const {
     return Triple.getTriple();
@@ -88,8 +89,10 @@ public:
     return 0;
   }
 
-  /// SelectTool - Choose a tool to use to handle the action \arg JA.
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const = 0;
+  /// SelectTool - Choose a tool to use to handle the action \arg JA with the
+  /// given \arg Inputs.
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const = 0;
 
   // Helper methods
 
@@ -136,7 +139,9 @@ public:
 
   /// GetDefaultStackProtectorLevel - Get the default stack protector level for
   /// this tool chain (0=off, 1=on, 2=all).
-  virtual unsigned GetDefaultStackProtectorLevel() const { return 0; }
+  virtual unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const {
+    return 0;
+  }
 
   /// IsUnwindTablesDefault - Does this tool chain use -funwind-tables
   /// by default.
@@ -151,8 +156,11 @@ public:
   /// particular PIC mode.
   virtual const char *GetForcedPicModel() const = 0;
 
+  /// SupportsProfiling - Does this tool chain support -pg.
+  virtual bool SupportsProfiling() const { return true; }
+
   /// Does this tool chain support Objective-C garbage collection.
-  virtual bool SupportsObjCGC() const { return false; }
+  virtual bool SupportsObjCGC() const { return true; }
 
   /// UseDwarfDebugFlags - Embed the compile options to clang into the Dwarf
   /// compile unit information.
@@ -163,14 +171,36 @@ public:
 
   /// ComputeLLVMTriple - Return the LLVM target triple to use, after taking
   /// command line arguments into account.
-  virtual std::string ComputeLLVMTriple(const ArgList &Args) const;
+  virtual std::string ComputeLLVMTriple(const ArgList &Args,
+                                 types::ID InputType = types::TY_INVALID) const;
 
   /// ComputeEffectiveClangTriple - Return the Clang triple to use for this
   /// target, which may take into account the command line arguments. For
   /// example, on Darwin the -mmacosx-version-min= command line argument (which
   /// sets the deployment target) determines the version in the triple passed to
   /// Clang.
-  virtual std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
+  virtual std::string ComputeEffectiveClangTriple(const ArgList &Args,
+                                 types::ID InputType = types::TY_INVALID) const;
+
+  /// configureObjCRuntime - Configure the known properties of the
+  /// Objective-C runtime for this platform.
+  ///
+  /// FIXME: this really belongs on some sort of DeploymentTarget abstraction
+  virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
+
+  /// hasBlocksRuntime - Given that the user is compiling with
+  /// -fblocks, does this tool chain guarantee the existence of a
+  /// blocks runtime?
+  ///
+  /// FIXME: this really belongs on some sort of DeploymentTarget abstraction
+  virtual bool hasBlocksRuntime() const { return true; }
+
+  /// \brief Add the clang cc1 arguments for system include paths.
+  ///
+  /// This routine is responsible for adding the necessary cc1 arguments to
+  /// include headers from standard system header directories.
+  virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                         ArgStringList &CC1Args) const;
 
   // GetCXXStdlibType - Determine the C++ standard library type to use with the
   // given compilation arguments.
@@ -178,8 +208,8 @@ public:
 
   /// AddClangCXXStdlibIncludeArgs - Add the clang -cc1 level arguments to set
   /// the include paths to use for the given C++ standard library type.
-  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                            ArgStringList &CmdArgs) const;
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
 
   /// AddCXXStdlibLibArgs - Add the system specific linker arguments to use
   /// for the given C++ standard library type.

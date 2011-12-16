@@ -54,7 +54,7 @@
 static rpcb_stat_byvers inf;
 
 void
-rpcbs_init()
+rpcbs_init(void)
 {
 
 }

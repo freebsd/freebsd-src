@@ -8,7 +8,8 @@ SRCS=	krb5_mech.c \
 	kcrypto_des.c \
 	kcrypto_des3.c \
 	kcrypto_aes.c \
-	kcrypto_arcfour.c
+	kcrypto_arcfour.c \
+	opt_inet6.h
 
 SRCS+=		kgss_if.h gssd.h
 MFILES=		kgssapi/kgss_if.m

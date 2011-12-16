@@ -6,16 +6,18 @@ TAR_SRCDIR=${.CURDIR}/..
 
 # Some tar sources are pulled in for white-box tests
 TAR_SRCS=					\
-	../getdate.c
+	getdate.c
 
 TESTS=	\
 	test_0.c				\
 	test_basic.c				\
 	test_copy.c				\
+	test_empty_mtree.c			\
 	test_getdate.c				\
 	test_help.c				\
-	test_option_T.c				\
+	test_option_T_upper.c			\
 	test_option_q.c				\
+	test_option_r.c				\
 	test_option_s.c				\
 	test_patterns.c				\
 	test_stdio.c				\

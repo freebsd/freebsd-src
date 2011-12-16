@@ -573,11 +573,13 @@ kvtop(void *addr)
 static void
 cpu_reset_proxy()
 {
+	cpuset_t tcrp;
 
 	cpu_reset_proxy_active = 1;
 	while (cpu_reset_proxy_active == 1)
 		;	/* Wait for other cpu to see that we've started */
-	stop_cpus((1<<cpu_reset_proxyid));
+	CPU_SETOF(cpu_reset_proxyid, &tcrp);
+	stop_cpus(tcrp);
 	printf("cpu_reset_proxy: Stopped CPU %d\n", cpu_reset_proxyid);
 	DELAY(1000000);
 	cpu_reset_real();
@@ -596,12 +598,14 @@ cpu_reset()
 #endif
 
 #ifdef SMP
-	cpumask_t map;
+	cpuset_t map;
 	u_int cnt;
 
 	if (smp_active) {
-		map = PCPU_GET(other_cpus) & ~stopped_cpus;
-		if (map != 0) {
+		map = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &map);
+		CPU_NAND(&map, &stopped_cpus);
+		if (!CPU_EMPTY(&map)) {
 			printf("cpu_reset: Stopping other CPUs\n");
 			stop_cpus(map);
 		}
@@ -614,7 +618,8 @@ cpu_reset()
 
 			/* Restart CPU #0. */
 			/* XXX: restart_cpus(1 << 0); */
-			atomic_store_rel_int(&started_cpus, (1 << 0));
+			CPU_SETOF(0, &started_cpus);
+			wmb();
 
 			cnt = 0;
 			while (cpu_reset_proxy_active == 0 && cnt < 10000000)
@@ -795,7 +800,8 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	struct sf_head *hash_list;
 	struct sf_buf *sf;
 #ifdef SMP
-	cpumask_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 #endif
 	int error;
 
@@ -867,22 +873,24 @@ sf_buf_alloc(struct vm_page *m, int flags)
 	 */
 #ifdef SMP
 	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
-		sf->cpumask = 0;
+		CPU_ZERO(&sf->cpumask);
 shootdown:
 	sched_pin();
-	cpumask = PCPU_GET(cpumask);
-	if ((sf->cpumask & cpumask) == 0) {
-		sf->cpumask |= cpumask;
+	cpuid = PCPU_GET(cpuid);
+	if (!CPU_ISSET(cpuid, &sf->cpumask)) {
+		CPU_SET(cpuid, &sf->cpumask);
 		invlpg(sf->kva);
 	}
 	if ((flags & SFB_CPUPRIVATE) == 0) {
-		other_cpus = PCPU_GET(other_cpus) & ~sf->cpumask;
-		if (other_cpus != 0) {
-			sf->cpumask |= other_cpus;
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		CPU_NAND(&other_cpus, &sf->cpumask);
+		if (!CPU_EMPTY(&other_cpus)) {
+			CPU_OR(&sf->cpumask, &other_cpus);
 			smp_masked_invlpg(other_cpus, sf->kva);
 		}
 	}
-	sched_unpin();	
+	sched_unpin();
 #else
 	if ((opte & (PG_V | PG_A)) ==  (PG_V | PG_A))
 		pmap_invalidate_page(kernel_pmap, sf->kva);

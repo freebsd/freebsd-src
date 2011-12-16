@@ -127,6 +127,8 @@ struct inode {
 #define	IN_EA_LOCKED	0x0200
 #define	IN_EA_LOCKWAIT	0x0400
 
+#define	IN_TRUNCATED	0x0800		/* Journaled truncation pending. */
+
 #define i_devvp i_ump->um_devvp
 #define i_umbufobj i_ump->um_bo
 #define i_dirhash i_un.dirhash
@@ -172,9 +174,11 @@ struct indir {
 #define ITOV(ip)	((ip)->i_vnode)
 
 /* Determine if soft dependencies are being done */
-#define DOINGSOFTDEP(vp)	((vp)->v_mount->mnt_flag & MNT_SOFTDEP)
-#define DOINGASYNC(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
-#define DOINGSUJ(vp)		((vp)->v_mount->mnt_kern_flag & MNTK_SUJ)
+#define DOINGSOFTDEP(vp)   ((vp)->v_mount->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
+#define MOUNTEDSOFTDEP(mp) ((mp)->mnt_flag & (MNT_SOFTDEP | MNT_SUJ))
+#define DOINGASYNC(vp)	   ((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC)
+#define DOINGSUJ(vp)	   ((vp)->v_mount->mnt_flag & MNT_SUJ)
+#define MOUNTEDSUJ(mp)	   ((mp)->mnt_flag & MNT_SUJ)
 
 /* This overlays the fid structure (see mount.h). */
 struct ufid {

@@ -85,16 +85,18 @@ ia64/ia64/emulate.c		standard
 ia64/ia64/exception.S		standard
 ia64/ia64/gdb_machdep.c		optional	gdb
 ia64/ia64/highfp.c		standard
-ia64/ia64/in_cksum.c		optional	inet
+ia64/ia64/in_cksum.c		optional	inet | inet6
 ia64/ia64/interrupt.c		standard
 ia64/ia64/iodev_machdep.c	optional	io
 ia64/ia64/locore.S		standard	no-obj
 ia64/ia64/machdep.c		standard
 ia64/ia64/mca.c			standard
 ia64/ia64/mem.c			optional	mem
+ia64/ia64/mp_locore.S		optional	smp
 ia64/ia64/mp_machdep.c		optional	smp
 ia64/ia64/nexus.c		standard
 ia64/ia64/pal.S			standard
+ia64/ia64/physical.S		standard
 ia64/ia64/pmap.c		standard
 ia64/ia64/ptrace_machdep.c	standard
 ia64/ia64/sal.c			standard
@@ -118,6 +120,7 @@ ia64/pci/pci_cfgreg.c		optional	pci
 isa/syscons_isa.c		optional	sc
 isa/vga_isa.c			optional	vga
 kern/imgact_elf32.c		optional	compat_freebsd32
+kern/kern_clocksource.c		standard
 libkern/bcmp.c			standard
 libkern/ffsl.c			standard
 libkern/fls.c			standard

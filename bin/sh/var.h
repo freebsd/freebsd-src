@@ -46,11 +46,13 @@
 #define VUNSET		0x20	/* the variable is not set */
 #define VNOFUNC		0x40	/* don't call the callback function */
 #define VNOSET		0x80	/* do not set variable - just readonly test */
+#define VNOLOCAL	0x100	/* ignore forcelocal */
 
 
 struct var {
 	struct var *next;		/* next entry in hash list */
 	int flags;			/* flags are defined above */
+	int name_len;			/* length of name */
 	char *text;			/* name=value */
 	void (*func)(const char *);
 					/* function to be called when  */
@@ -67,6 +69,7 @@ struct localvar {
 
 
 struct localvar *localvars;
+extern int forcelocal;
 
 extern struct var vifs;
 extern struct var vmail;
@@ -80,6 +83,10 @@ extern struct var vps4;
 extern struct var vhistsize;
 extern struct var vterm;
 #endif
+
+extern int localeisutf8;
+/* The parser uses the locale that was in effect at startup. */
+extern int initial_localeisutf8;
 
 /*
  * The following macros access the values of the above variables.
@@ -112,13 +119,11 @@ char *lookupvar(const char *);
 char *bltinlookup(const char *, int);
 void bltinsetlocale(void);
 void bltinunsetlocale(void);
+void updatecharset(void);
+void initcharset(void);
 char **environment(void);
 int showvarscmd(int, char **);
-int exportcmd(int, char **);
-int localcmd(int, char **);
 void mklocal(char *);
 void poplocalvars(void);
-int setvarcmd(int, char **);
-int unsetcmd(int, char **);
 int unsetvar(const char *);
 int setvarsafe(const char *, const char *, int);

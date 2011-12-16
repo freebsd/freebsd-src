@@ -84,7 +84,8 @@ static struct option {
 	{ "file",                 1, 'f' },
 	{ "files-from",           1, 'T' },
 	{ "format",               1, OPTION_FORMAT },
-	{ "options",              1, OPTION_OPTIONS },
+	{ "gid",		  1, OPTION_GID },
+	{ "gname",		  1, OPTION_GNAME },
 	{ "gunzip",               0, 'z' },
 	{ "gzip",                 0, 'z' },
 	{ "help",                 0, OPTION_HELP },
@@ -110,6 +111,7 @@ static struct option {
 	{ "null",		  0, OPTION_NULL },
 	{ "numeric-owner",	  0, OPTION_NUMERIC_OWNER },
 	{ "one-file-system",	  0, OPTION_ONE_FILE_SYSTEM },
+	{ "options",              1, OPTION_OPTIONS },
 	{ "posix",		  0, OPTION_POSIX },
 	{ "preserve-permissions", 0, 'p' },
 	{ "read-full-blocks",	  0, 'B' },
@@ -118,6 +120,8 @@ static struct option {
 	{ "strip-components",	  1, OPTION_STRIP_COMPONENTS },
 	{ "to-stdout",            0, 'O' },
 	{ "totals",		  0, OPTION_TOTALS },
+	{ "uid",		  1, OPTION_UID },
+	{ "uname",		  1, OPTION_UNAME },
 	{ "uncompress",           0, 'Z' },
 	{ "unlink",		  0, 'U' },
 	{ "unlink-first",	  0, 'U' },
@@ -221,7 +225,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			if (p[1] == ':') {
 				bsdtar->optarg = *bsdtar->argv;
 				if (bsdtar->optarg == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option %c requires an argument",
 					    opt);
 					return ('?');
@@ -288,7 +292,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 				/* Otherwise, pick up the next word. */
 				opt_word = *bsdtar->argv;
 				if (opt_word == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option -%c requires an argument",
 					    opt);
 					return ('?');
@@ -339,13 +343,13 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 
 		/* Fail if there wasn't a unique match. */
 		if (match == NULL) {
-			bsdtar_warnc(0,
+			lafe_warnc(0,
 			    "Option %s%s is not supported",
 			    long_prefix, opt_word);
 			return ('?');
 		}
 		if (match2 != NULL) {
-			bsdtar_warnc(0,
+			lafe_warnc(0,
 			    "Ambiguous option %s%s (matches --%s and --%s)",
 			    long_prefix, opt_word, match->name, match2->name);
 			return ('?');
@@ -357,7 +361,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 			if (bsdtar->optarg == NULL) {
 				bsdtar->optarg = *bsdtar->argv;
 				if (bsdtar->optarg == NULL) {
-					bsdtar_warnc(0,
+					lafe_warnc(0,
 					    "Option %s%s requires an argument",
 					    long_prefix, match->name);
 					return ('?');
@@ -368,7 +372,7 @@ bsdtar_getopt(struct bsdtar *bsdtar)
 		} else {
 			/* Argument forbidden: fail if there is one. */
 			if (bsdtar->optarg != NULL) {
-				bsdtar_warnc(0,
+				lafe_warnc(0,
 				    "Option %s%s does not allow an argument",
 				    long_prefix, match->name);
 				return ('?');

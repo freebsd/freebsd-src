@@ -474,8 +474,6 @@ print_ksemtotal(struct seminfo seminfo)
 {
 
 	printf("seminfo:\n");
-	printf("\tsemmap: %12d\t(# of entries in semaphore map)\n",
-	    seminfo.semmap);
 	printf("\tsemmni: %12d\t(# of semaphore identifiers)\n",
 	    seminfo.semmni);
 	printf("\tsemmns: %12d\t(# of semaphores in system)\n",

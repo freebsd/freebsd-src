@@ -68,7 +68,7 @@ v1EepromGet(struct ath_hal *ah, int param, void *val)
 	}
 }
 
-static HAL_BOOL
+static HAL_STATUS
 v1EepromSet(struct ath_hal *ah, int param, int v)
 {
 	return HAL_EINVAL;

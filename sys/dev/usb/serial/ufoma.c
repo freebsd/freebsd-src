@@ -327,6 +327,11 @@ MODULE_DEPEND(ufoma, ucom, 1, 1, 1);
 MODULE_DEPEND(ufoma, usb, 1, 1, 1);
 MODULE_VERSION(ufoma, 1);
 
+static const STRUCT_USB_HOST_ID ufoma_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_CDC),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_MCPC),},
+};
+
 static int
 ufoma_probe(device_t dev)
 {
@@ -334,30 +339,31 @@ ufoma_probe(device_t dev)
 	struct usb_interface_descriptor *id;
 	struct usb_config_descriptor *cd;
 	usb_mcpc_acm_descriptor *mad;
+	int error;
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
+
+	error = usbd_lookup_id_by_uaa(ufoma_devs, sizeof(ufoma_devs), uaa);
+	if (error)
+		return (error);
+
 	id = usbd_get_interface_descriptor(uaa->iface);
 	cd = usbd_get_config_descriptor(uaa->device);
 
-	if ((id == NULL) ||
-	    (cd == NULL) ||
-	    (id->bInterfaceClass != UICLASS_CDC) ||
-	    (id->bInterfaceSubClass != UISUBCLASS_MCPC)) {
+	if (id == NULL || cd == NULL)
 		return (ENXIO);
-	}
+
 	mad = ufoma_get_intconf(cd, id, UDESC_VS_INTERFACE, UDESCSUB_MCPC_ACM);
-	if (mad == NULL) {
+	if (mad == NULL)
 		return (ENXIO);
-	}
+
 #ifndef UFOMA_HANDSFREE
 	if ((mad->bType == UMCPC_ACM_TYPE_AB5) ||
-	    (mad->bType == UMCPC_ACM_TYPE_AB6)) {
+	    (mad->bType == UMCPC_ACM_TYPE_AB6))
 		return (ENXIO);
-	}
 #endif
-	return (0);
+	return (BUS_PROBE_GENERIC);
 }
 
 static int
@@ -432,7 +438,7 @@ ufoma_attach(device_t dev)
 		goto detach;
 	}
 	sc->sc_modetable[0] = (elements + 1);
-	bcopy(mad->bMode, &sc->sc_modetable[1], elements);
+	memcpy(&sc->sc_modetable[1], mad->bMode, elements);
 
 	sc->sc_currentmode = UMCPC_ACM_MODE_UNLINKED;
 	sc->sc_modetoactivate = mad->bMode[0];
@@ -962,7 +968,7 @@ ufoma_cfg_param(struct ucom_softc *ucom, struct termios *t)
 	}
 	DPRINTF("\n");
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 

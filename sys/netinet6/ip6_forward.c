@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 
 #include "opt_inet.h"
 #include "opt_inet6.h"
+#include "opt_ipfw.h"
 #include "opt_ipsec.h"
 #include "opt_ipstealth.h"
 
@@ -50,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 
 #include <net/if.h>
+#include <net/netisr.h>
 #include <net/route.h>
 #include <net/pfil.h>
 
@@ -98,10 +100,16 @@ ip6_forward(struct mbuf *m, int srcrt)
 	struct mbuf *mcopy = NULL;
 	struct ifnet *origifp;	/* maybe unnecessary */
 	u_int32_t inzone, outzone;
-	struct in6_addr src_in6, dst_in6;
+	struct in6_addr src_in6, dst_in6, odst;
 #ifdef IPSEC
 	struct secpolicy *sp = NULL;
 	int ipsecrt = 0;
+#endif
+#ifdef SCTP
+	int sw_csum;
+#endif
+#ifdef IPFIREWALL_FORWARD
+	struct m_tag *fwd_tag;
 #endif
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
@@ -345,13 +353,15 @@ ip6_forward(struct mbuf *m, int srcrt)
 		goto skip_routing;
 skip_ipsec:
 #endif
-
+again:
 	bzero(&rin6, sizeof(struct route_in6));
 	dst = (struct sockaddr_in6 *)&rin6.ro_dst;
 	dst->sin6_len = sizeof(struct sockaddr_in6);
 	dst->sin6_family = AF_INET6;
 	dst->sin6_addr = ip6->ip6_dst;
-
+#ifdef IPFIREWALL_FORWARD
+again2:
+#endif
 	rin6.ro_rt = rtalloc1((struct sockaddr *)dst, 0, 0);
 	if (rin6.ro_rt != NULL)
 		RT_UNLOCK(rin6.ro_rt);
@@ -554,6 +564,7 @@ skip_routing:
 	if (!PFIL_HOOKED(&V_inet6_pfil_hook))
 		goto pass;
 
+	odst = ip6->ip6_dst;
 	/* Run through list of hooks for output packets. */
 	error = pfil_run_hooks(&V_inet6_pfil_hook, &m, rt->rt_ifp, PFIL_OUT, NULL);
 	if (error != 0)
@@ -561,6 +572,59 @@ skip_routing:
 	if (m == NULL)
 		goto freecopy;
 	ip6 = mtod(m, struct ip6_hdr *);
+
+	/* See if destination IP address was changed by packet filter. */
+	if (!IN6_ARE_ADDR_EQUAL(&odst, &ip6->ip6_dst)) {
+		m->m_flags |= M_SKIP_FIREWALL;
+		/* If destination is now ourself drop to ip6_input(). */
+		if (in6_localip(&ip6->ip6_dst)) {
+			m->m_flags |= M_FASTFWD_OURS;
+			if (m->m_pkthdr.rcvif == NULL)
+				m->m_pkthdr.rcvif = V_loif;
+			if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+				m->m_pkthdr.csum_flags |=
+				    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+				m->m_pkthdr.csum_data = 0xffff;
+			}
+			m->m_pkthdr.csum_flags |=
+			    CSUM_IP_CHECKED | CSUM_IP_VALID;
+#ifdef SCTP
+			if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+				m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif
+			error = netisr_queue(NETISR_IPV6, m);
+			goto out;
+		} else
+			goto again;	/* Redo the routing table lookup. */
+	}
+
+#ifdef IPFIREWALL_FORWARD
+	/* See if local, if yes, send it to netisr. */
+	if (m->m_flags & M_FASTFWD_OURS) {
+		if (m->m_pkthdr.rcvif == NULL)
+			m->m_pkthdr.rcvif = V_loif;
+		if (m->m_pkthdr.csum_flags & CSUM_DELAY_DATA) {
+			m->m_pkthdr.csum_flags |=
+			    CSUM_DATA_VALID | CSUM_PSEUDO_HDR;
+			m->m_pkthdr.csum_data = 0xffff;
+		}
+#ifdef SCTP
+		if (m->m_pkthdr.csum_flags & CSUM_SCTP)
+		m->m_pkthdr.csum_flags |= CSUM_SCTP_VALID;
+#endif   
+		error = netisr_queue(NETISR_IPV6, m);
+		goto out;
+	}
+	/* Or forward to some other address? */
+	fwd_tag = m_tag_find(m, PACKET_TAG_IPFORWARD, NULL);
+	if (fwd_tag) {
+		dst = (struct sockaddr_in6 *)&rin6.ro_dst;
+		bcopy((fwd_tag+1), dst, sizeof(struct sockaddr_in6));
+		m->m_flags |= M_SKIP_FIREWALL;
+		m_tag_delete(m, fwd_tag);
+		goto again2;
+	}
+#endif /* IPFIREWALL_FORWARD */
 
 pass:
 	error = nd6_output(rt->rt_ifp, origifp, m, dst, rt);

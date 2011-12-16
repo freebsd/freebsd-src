@@ -118,6 +118,7 @@
 #define         ATA_SE_LINKSEQ_ERR      0x00800000
 #define         ATA_SE_TRANSPORT_ERR    0x01000000
 #define         ATA_SE_UNKNOWN_FIS      0x02000000
+#define         ATA_SE_EXCHANGED        0x04000000
 
 #define ATA_SCONTROL                    15
 #define         ATA_SC_DET_MASK         0x0000000f
@@ -221,7 +222,7 @@
 #define         AHCI_P_IX_UF        0x00000010
 #define         AHCI_P_IX_DP        0x00000020
 #define         AHCI_P_IX_PC        0x00000040
-#define         AHCI_P_IX_DI        0x00000080
+#define         AHCI_P_IX_MP        0x00000080
 
 #define         AHCI_P_IX_PRC       0x00400000
 #define         AHCI_P_IX_IPM       0x00800000
@@ -375,6 +376,15 @@ struct ahci_device {
 	u_int			caps;
 };
 
+struct ahci_led {
+	device_t		dev;		/* Device handle */
+	struct cdev		*led;
+	uint8_t			num;		/* Number of this led */
+	uint8_t			state;		/* State of this led */
+};
+
+#define	AHCI_NUM_LEDS		3
+
 /* structure describing an ATA channel */
 struct ahci_channel {
 	device_t		dev;            /* Device handle */
@@ -385,6 +395,7 @@ struct ahci_channel {
 	struct ata_dma		dma;            /* DMA data */
 	struct cam_sim		*sim;
 	struct cam_path		*path;
+	struct ahci_led		leds[3];
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		chcaps;		/* Channel capabilities */
@@ -407,13 +418,18 @@ struct ahci_channel {
 	int			numrslotspd[16];/* Number of running slots per dev */
 	int			numtslots;	/* Number of tagged slots */
 	int			numtslotspd[16];/* Number of tagged slots per dev */
-	int			numhslots;	/* Number of holden slots */
-	int			readlog;	/* Our READ LOG active */
+	int			numhslots;	/* Number of held slots */
+	int			recoverycmd;	/* Our READ LOG active */
 	int			fatalerr;	/* Fatal error happend */
 	int			lastslot;	/* Last used slot */
 	int			taggedtarget;	/* Last tagged target */
+	int			resetting;	/* Hard-reset in progress. */
+	int			resetpolldiv;	/* Hard-reset poll divider. */
+	int			listening;	/* SUD bit is cleared. */
+	int			wrongccs;	/* CCS field in CMD was wrong */
 	union ccb		*frozen;	/* Frozen command */
 	struct callout		pm_timer;	/* Power management events */
+	struct callout		reset_timer;	/* Hard-reset timeout */
 
 	struct ahci_device	user[16];	/* User-specified settings */
 	struct ahci_device	curr[16];	/* Current settings */
@@ -438,6 +454,7 @@ struct ahci_controller {
 	uint32_t		caps;		/* Controller capabilities */
 	uint32_t		caps2;		/* Controller capabilities */
 	uint32_t		capsem;		/* Controller capabilities */
+	uint32_t		emloc;		/* EM buffer location */
 	int			quirks;
 	int			numirqs;
 	int			channels;
@@ -448,6 +465,7 @@ struct ahci_controller {
 		void			(*function)(void *);
 		void			*argument;
 	} interrupt[AHCI_MAX_PORTS];
+	struct mtx		em_mtx;		/* EM access lock */
 };
 
 enum ahci_err_type {

@@ -46,7 +46,7 @@ public:
 void AggExprVisitor::VisitCastExpr(CastExpr *E) {
   switch (E->getCastKind()) {
   default: 
-    assert(0 && "Unhandled cast kind");
+    llvm_unreachable("Unhandled cast kind");
   case CK_NoOp:
   case CK_ConstructorConversion:
   case CK_UserDefinedConversion:
@@ -60,7 +60,7 @@ void AggExprVisitor::VisitCXXConstructExpr(CXXConstructExpr *E) {
 }
 
 void AggExprVisitor::VisitCXXMemberCallExpr(CXXMemberCallExpr *E) {
-  Eng.VisitCXXMemberCallExpr(E, Pred, DstSet);
+  Eng.Visit(E, Pred, DstSet);
 }
 
 void ExprEngine::VisitAggExpr(const Expr *E, const MemRegion *Dest, 

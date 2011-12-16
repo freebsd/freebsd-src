@@ -277,7 +277,7 @@ DtCompileDataTable (
 
     /* Verify that we at least have a table signature and save it */
 
-    Signature = DtGetFieldValue (*FieldList, "Signature");
+    Signature = DtGetFieldValue (*FieldList);
     if (!Signature)
     {
         sprintf (MsgBuffer, "Expected \"%s\"", "Signature");
@@ -310,19 +310,16 @@ DtCompileDataTable (
         Status = DtCompileRsdp (FieldList);
         return (Status);
     }
-    else if (!ACPI_STRNCMP (Signature, "OEM", 3))
+    else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_S3PT))
     {
-        DtFatal (ASL_MSG_OEM_TABLE, *FieldList, Signature);
-        return (AE_ERROR);
-    }
+        Status = DtCompileS3pt (FieldList);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
 
-    /* Validate the signature via the ACPI table list */
-
-    TableData = AcpiDmGetTableData (Signature);
-    if (!TableData)
-    {
-        DtFatal (ASL_MSG_UNKNOWN_TABLE, *FieldList, Signature);
-        return (AE_ERROR);
+        DtSetTableLength ();
+        return (Status);
     }
 
     /*
@@ -339,6 +336,15 @@ DtCompileDataTable (
     }
 
     DtPushSubtable (Gbl_RootTable);
+
+    /* Validate the signature via the ACPI table list */
+
+    TableData = AcpiDmGetTableData (Signature);
+    if (!TableData || Gbl_CompileGeneric)
+    {
+        DtCompileGeneric ((void **) FieldList);
+        goto Out;
+    }
 
     /* Dispatch to per-table compile */
 
@@ -374,6 +380,7 @@ DtCompileDataTable (
         return (AE_ERROR);
     }
 
+Out:
     /* Set the final table length and then the checksum */
 
     DtSetTableLength ();
@@ -415,6 +422,7 @@ DtCompileTable (
     UINT8                   FieldType;
     UINT8                   *Buffer;
     UINT8                   *FlagBuffer = NULL;
+    UINT32                  CurrentFlagByteOffset = 0;
     ACPI_STATUS             Status;
 
 
@@ -424,6 +432,11 @@ DtCompileTable (
     }
 
     Length = DtGetSubtableLength (*Field, Info);
+    if (Length == ASL_EOF)
+    {
+        return (AE_ERROR);
+    }
+
     Subtable = UtLocalCalloc (sizeof (DT_SUBTABLE));
 
     if (Length > 0)
@@ -441,6 +454,11 @@ DtCompileTable (
      */
     for (; Info->Name; Info++)
     {
+        if (Info->Opcode == ACPI_DMT_EXTRA_TEXT)
+        {
+            continue;
+        }
+
         if (!LocalField)
         {
             sprintf (MsgBuffer, "Found NULL field - Field name \"%s\" needed",
@@ -448,29 +466,6 @@ DtCompileTable (
             DtFatal (ASL_MSG_COMPILER_INTERNAL, NULL, MsgBuffer);
             Status = AE_BAD_DATA;
             goto Error;
-        }
-
-        /* Does input field name match what is expected? */
-
-        if (ACPI_STRCMP (LocalField->Name, Info->Name))
-        {
-            /*
-             * If Required = TRUE, the subtable must exist.
-             * If Required = FALSE, the subtable is optional
-             * (For example, AcpiDmTableInfoDmarScope in DMAR table is
-             * optional)
-             */
-            if (Required)
-            {
-                sprintf (MsgBuffer, "Expected \"%s\"", Info->Name);
-                DtNameError (ASL_ERROR, ASL_MSG_INVALID_FIELD_NAME,
-                    LocalField, MsgBuffer);
-            }
-            else
-            {
-                Status = AE_NOT_FOUND;
-                goto Error;
-            }
         }
 
         /* Maintain table offsets */
@@ -494,6 +489,7 @@ DtCompileTable (
             *Field = LocalField;
 
             FlagBuffer = Buffer;
+            CurrentFlagByteOffset = Info->Offset;
             break;
 
         case DT_FIELD_TYPE_FLAG:
@@ -502,6 +498,14 @@ DtCompileTable (
 
             if (FlagBuffer)
             {
+                /*
+                 * We must increment the FlagBuffer when we have crossed
+                 * into the next flags byte within the flags field
+                 * of type DT_FIELD_TYPE_FLAGS_INTEGER.
+                 */
+                FlagBuffer += (Info->Offset - CurrentFlagByteOffset);
+                CurrentFlagByteOffset = Info->Offset;
+
                 DtCompileFlag (FlagBuffer, LocalField, Info);
             }
             else
@@ -518,7 +522,6 @@ DtCompileTable (
              * Recursion (one level max): compile GAS (Generic Address)
              * or Notify in-line subtable
              */
-            LocalField = LocalField->Next;
             *Field = LocalField;
 
             if (Info->Opcode == ACPI_DMT_GAS)

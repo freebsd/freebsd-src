@@ -16,6 +16,7 @@
 
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/Expr.h"
+#include "clang/AST/SelectorLocationsKind.h"
 #include "clang/Basic/IdentifierTable.h"
 
 namespace clang {
@@ -30,7 +31,7 @@ class ObjCStringLiteral : public Expr {
 public:
   ObjCStringLiteral(StringLiteral *SL, QualType T, SourceLocation L)
     : Expr(ObjCStringLiteralClass, T, VK_RValue, OK_Ordinary, false, false,
-           false),
+           false, false),
       String(SL), AtLoc(L) {}
   explicit ObjCStringLiteral(EmptyShell Empty)
     : Expr(ObjCStringLiteralClass, Empty) {}
@@ -67,6 +68,7 @@ public:
     : Expr(ObjCEncodeExprClass, T, VK_LValue, OK_Ordinary,
            EncodedType->getType()->isDependentType(),
            EncodedType->getType()->isDependentType(),
+           EncodedType->getType()->isInstantiationDependentType(),
            EncodedType->getType()->containsUnexpandedParameterPack()), 
       EncodedType(EncodedType), AtLoc(at), RParenLoc(rp) {}
 
@@ -106,7 +108,7 @@ public:
   ObjCSelectorExpr(QualType T, Selector selInfo,
                    SourceLocation at, SourceLocation rp)
     : Expr(ObjCSelectorExprClass, T, VK_RValue, OK_Ordinary, false, false, 
-           false),
+           false, false),
     SelName(selInfo), AtLoc(at), RParenLoc(rp){}
   explicit ObjCSelectorExpr(EmptyShell Empty)
    : Expr(ObjCSelectorExprClass, Empty) {}
@@ -146,7 +148,7 @@ public:
   ObjCProtocolExpr(QualType T, ObjCProtocolDecl *protocol,
                    SourceLocation at, SourceLocation rp)
     : Expr(ObjCProtocolExprClass, T, VK_RValue, OK_Ordinary, false, false,
-           false),
+           false, false),
       TheProtocol(protocol), AtLoc(at), RParenLoc(rp) {}
   explicit ObjCProtocolExpr(EmptyShell Empty)
     : Expr(ObjCProtocolExprClass, Empty) {}
@@ -186,6 +188,7 @@ public:
                   bool arrow = false, bool freeIvar = false) :
     Expr(ObjCIvarRefExprClass, t, VK_LValue, OK_Ordinary,
          /*TypeDependent=*/false, base->isValueDependent(), 
+         base->isInstantiationDependent(),
          base->containsUnexpandedParameterPack()), 
     D(d), Loc(l), Base(base), IsArrow(arrow), IsFreeIvar(freeIvar) {}
 
@@ -248,6 +251,7 @@ public:
                       SourceLocation l, Expr *base)
     : Expr(ObjCPropertyRefExprClass, t, VK, OK,
            /*TypeDependent=*/false, base->isValueDependent(),
+           base->isInstantiationDependent(),
            base->containsUnexpandedParameterPack()),
       PropertyOrGetter(PD, false), Setter(0),
       IdLoc(l), ReceiverLoc(), Receiver(base) {
@@ -257,7 +261,7 @@ public:
                       ExprValueKind VK, ExprObjectKind OK,
                       SourceLocation l, SourceLocation sl, QualType st)
     : Expr(ObjCPropertyRefExprClass, t, VK, OK,
-           /*TypeDependent=*/false, false, 
+           /*TypeDependent=*/false, false, st->isInstantiationDependentType(),
            st->containsUnexpandedParameterPack()),
       PropertyOrGetter(PD, false), Setter(0),
       IdLoc(l), ReceiverLoc(sl), Receiver(st.getTypePtr()) {
@@ -267,7 +271,7 @@ public:
                       QualType T, ExprValueKind VK, ExprObjectKind OK,
                       SourceLocation IdLoc, Expr *Base)
     : Expr(ObjCPropertyRefExprClass, T, VK, OK, false,
-           Base->isValueDependent(), 
+           Base->isValueDependent(), Base->isInstantiationDependent(),
            Base->containsUnexpandedParameterPack()),
       PropertyOrGetter(Getter, true), Setter(Setter),
       IdLoc(IdLoc), ReceiverLoc(), Receiver(Base) {
@@ -277,7 +281,7 @@ public:
                       QualType T, ExprValueKind VK, ExprObjectKind OK,
                       SourceLocation IdLoc,
                       SourceLocation SuperLoc, QualType SuperTy)
-    : Expr(ObjCPropertyRefExprClass, T, VK, OK, false, false, false),
+    : Expr(ObjCPropertyRefExprClass, T, VK, OK, false, false, false, false),
       PropertyOrGetter(Getter, true), Setter(Setter),
       IdLoc(IdLoc), ReceiverLoc(SuperLoc), Receiver(SuperTy.getTypePtr()) {
   }
@@ -286,7 +290,7 @@ public:
                       QualType T, ExprValueKind VK, ExprObjectKind OK,
                       SourceLocation IdLoc,
                       SourceLocation ReceiverLoc, ObjCInterfaceDecl *Receiver)
-    : Expr(ObjCPropertyRefExprClass, T, VK, OK, false, false, false),
+    : Expr(ObjCPropertyRefExprClass, T, VK, OK, false, false, false, false),
       PropertyOrGetter(Getter, true), Setter(Setter),
       IdLoc(IdLoc), ReceiverLoc(ReceiverLoc), Receiver(Receiver) {
   }
@@ -337,6 +341,39 @@ public:
   QualType getSuperReceiverType() const { 
     return QualType(Receiver.get<const Type*>(), 0); 
   }
+  QualType getGetterResultType() const {
+    QualType ResultType;
+    if (isExplicitProperty()) {
+      const ObjCPropertyDecl *PDecl = getExplicitProperty();
+      if (const ObjCMethodDecl *Getter = PDecl->getGetterMethodDecl())
+        ResultType = Getter->getResultType();
+      else
+        ResultType = getType();
+    } else {
+      const ObjCMethodDecl *Getter = getImplicitPropertyGetter();
+      ResultType = Getter->getResultType(); // with reference!
+    }
+    return ResultType;
+  }
+  
+  QualType getSetterArgType() const {
+    QualType ArgType;
+    if (isImplicitProperty()) {
+      const ObjCMethodDecl *Setter = getImplicitPropertySetter();
+      ObjCMethodDecl::param_const_iterator P = Setter->param_begin(); 
+      ArgType = (*P)->getType();
+    } else {
+      if (ObjCPropertyDecl *PDecl = getExplicitProperty())
+        if (const ObjCMethodDecl *Setter = PDecl->getSetterMethodDecl()) {
+          ObjCMethodDecl::param_const_iterator P = Setter->param_begin(); 
+          ArgType = (*P)->getType();
+        }
+      if (ArgType.isNull())
+        ArgType = getType();
+    }
+    return ArgType;
+  }
+  
   ObjCInterfaceDecl *getClassReceiver() const {
     return Receiver.get<ObjCInterfaceDecl*>();
   }
@@ -408,9 +445,21 @@ private:
 /// class, and can be distinguished via \c getReceiverKind(). Example:
 ///
 class ObjCMessageExpr : public Expr {
+  /// \brief Stores either the selector that this message is sending
+  /// to (when \c HasMethod is zero) or an \c ObjCMethodDecl pointer
+  /// referring to the method that we type-checked against.
+  uintptr_t SelectorOrMethod;
+
+  enum { NumArgsBitWidth = 16 };
+
   /// \brief The number of arguments in the message send, not
   /// including the receiver.
-  unsigned NumArgs : 16;
+  unsigned NumArgs : NumArgsBitWidth;
+  
+  void setNumArgs(unsigned Num) {
+    assert((Num >> NumArgsBitWidth) == 0 && "Num of args is out of range!");
+    NumArgs = Num;
+  }
 
   /// \brief The kind of message send this is, which is one of the
   /// ReceiverKind values.
@@ -423,27 +472,29 @@ class ObjCMessageExpr : public Expr {
   ///
   /// When non-zero, we have a method declaration; otherwise, we just
   /// have a selector.
-  unsigned HasMethod : 8;
+  unsigned HasMethod : 1;
+
+  /// \brief Whether this message send is a "delegate init call",
+  /// i.e. a call of an init method on self from within an init method.
+  unsigned IsDelegateInitCall : 1;
+  
+  /// \brief Whether the locations of the selector identifiers are in a
+  /// "standard" position, a enum SelectorLocationsKind.
+  unsigned SelLocsKind : 2;
 
   /// \brief When the message expression is a send to 'super', this is
   /// the location of the 'super' keyword.
   SourceLocation SuperLoc;
-
-  /// \brief Stores either the selector that this message is sending
-  /// to (when \c HasMethod is zero) or an \c ObjCMethodDecl pointer
-  /// referring to the method that we type-checked against.
-  uintptr_t SelectorOrMethod;
-
-  /// \brief Location of the selector.
-  SourceLocation SelectorLoc;
 
   /// \brief The source locations of the open and close square
   /// brackets ('[' and ']', respectively).
   SourceLocation LBracLoc, RBracLoc;
 
   ObjCMessageExpr(EmptyShell Empty, unsigned NumArgs)
-    : Expr(ObjCMessageExprClass, Empty), NumArgs(NumArgs), Kind(0), 
-      HasMethod(0), SelectorOrMethod(0) { }
+    : Expr(ObjCMessageExprClass, Empty), SelectorOrMethod(0), Kind(0), 
+      HasMethod(0), IsDelegateInitCall(0) {
+    setNumArgs(NumArgs);
+  }
 
   ObjCMessageExpr(QualType T, ExprValueKind VK,
                   SourceLocation LBracLoc,
@@ -451,26 +502,33 @@ class ObjCMessageExpr : public Expr {
                   bool IsInstanceSuper,
                   QualType SuperType,
                   Selector Sel, 
-                  SourceLocation SelLoc,
+                  ArrayRef<SourceLocation> SelLocs,
+                  SelectorLocationsKind SelLocsK,
                   ObjCMethodDecl *Method,
-                  Expr **Args, unsigned NumArgs,
+                  ArrayRef<Expr *> Args,
                   SourceLocation RBracLoc);
   ObjCMessageExpr(QualType T, ExprValueKind VK,
                   SourceLocation LBracLoc,
                   TypeSourceInfo *Receiver,
                   Selector Sel, 
-                  SourceLocation SelLoc,
+                  ArrayRef<SourceLocation> SelLocs,
+                  SelectorLocationsKind SelLocsK,
                   ObjCMethodDecl *Method,
-                  Expr **Args, unsigned NumArgs,
+                  ArrayRef<Expr *> Args,
                   SourceLocation RBracLoc);
   ObjCMessageExpr(QualType T, ExprValueKind VK,
                   SourceLocation LBracLoc,
                   Expr *Receiver,
                   Selector Sel, 
-                  SourceLocation SelLoc,
+                  ArrayRef<SourceLocation> SelLocs,
+                  SelectorLocationsKind SelLocsK,
                   ObjCMethodDecl *Method,
-                  Expr **Args, unsigned NumArgs,
+                  ArrayRef<Expr *> Args,
                   SourceLocation RBracLoc);
+
+  void initArgsAndSelLocs(ArrayRef<Expr *> Args,
+                          ArrayRef<SourceLocation> SelLocs,
+                          SelectorLocationsKind SelLocsK);
 
   /// \brief Retrieve the pointer value of the message receiver.
   void *getReceiverPointer() const {
@@ -482,6 +540,40 @@ class ObjCMessageExpr : public Expr {
   void setReceiverPointer(void *Value) {
     *reinterpret_cast<void **>(this + 1) = Value;
   }
+
+  SelectorLocationsKind getSelLocsKind() const {
+    return (SelectorLocationsKind)SelLocsKind;
+  }
+  bool hasStandardSelLocs() const {
+    return getSelLocsKind() != SelLoc_NonStandard;
+  }
+
+  /// \brief Get a pointer to the stored selector identifiers locations array.
+  /// No locations will be stored if HasStandardSelLocs is true.
+  SourceLocation *getStoredSelLocs() {
+    return reinterpret_cast<SourceLocation*>(getArgs() + getNumArgs());
+  }
+  const SourceLocation *getStoredSelLocs() const {
+    return reinterpret_cast<const SourceLocation*>(getArgs() + getNumArgs());
+  }
+
+  /// \brief Get the number of stored selector identifiers locations.
+  /// No locations will be stored if HasStandardSelLocs is true.
+  unsigned getNumStoredSelLocs() const {
+    if (hasStandardSelLocs())
+      return 0;
+    return getNumSelectorLocs();
+  }
+
+  static ObjCMessageExpr *alloc(ASTContext &C,
+                                ArrayRef<Expr *> Args,
+                                SourceLocation RBraceLoc,
+                                ArrayRef<SourceLocation> SelLocs,
+                                Selector Sel,
+                                SelectorLocationsKind &SelLocsK);
+  static ObjCMessageExpr *alloc(ASTContext &C,
+                                unsigned NumArgs,
+                                unsigned NumStoredSelLocs);
 
 public:
   /// \brief The kind of receiver this message is sending to.
@@ -530,9 +622,9 @@ public:
                                  bool IsInstanceSuper,
                                  QualType SuperType,
                                  Selector Sel, 
-                                 SourceLocation SelLoc,
+                                 ArrayRef<SourceLocation> SelLocs,
                                  ObjCMethodDecl *Method,
-                                 Expr **Args, unsigned NumArgs,
+                                 ArrayRef<Expr *> Args,
                                  SourceLocation RBracLoc);
 
   /// \brief Create a class message send.
@@ -565,9 +657,9 @@ public:
                                  SourceLocation LBracLoc,
                                  TypeSourceInfo *Receiver,
                                  Selector Sel, 
-                                 SourceLocation SelLoc,
+                                 ArrayRef<SourceLocation> SelLocs,
                                  ObjCMethodDecl *Method,
-                                 Expr **Args, unsigned NumArgs,
+                                 ArrayRef<Expr *> Args,
                                  SourceLocation RBracLoc);
 
   /// \brief Create an instance message send.
@@ -600,9 +692,9 @@ public:
                                  SourceLocation LBracLoc,
                                  Expr *Receiver,
                                  Selector Sel, 
-                                 SourceLocation SelLoc,
+                                 ArrayRef<SourceLocation> SeLocs,
                                  ObjCMethodDecl *Method,
-                                 Expr **Args, unsigned NumArgs,
+                                 ArrayRef<Expr *> Args,
                                  SourceLocation RBracLoc);
 
   /// \brief Create an empty Objective-C message expression, to be
@@ -612,7 +704,9 @@ public:
   ///
   /// \param NumArgs The number of message arguments, not including
   /// the receiver.
-  static ObjCMessageExpr *CreateEmpty(ASTContext &Context, unsigned NumArgs);
+  static ObjCMessageExpr *CreateEmpty(ASTContext &Context,
+                                      unsigned NumArgs,
+                                      unsigned NumStoredSelLocs);
 
   /// \brief Determine the kind of receiver that this message is being
   /// sent to.
@@ -741,6 +835,11 @@ public:
     SelectorOrMethod = reinterpret_cast<uintptr_t>(MD);
   }
 
+  ObjCMethodFamily getMethodFamily() const {
+    if (HasMethod) return getMethodDecl()->getMethodFamily();
+    return getSelector().getMethodFamily();
+  }
+
   /// \brief Return the number of actual arguments in this message,
   /// not counting the receiver.
   unsigned getNumArgs() const { return NumArgs; }
@@ -769,9 +868,35 @@ public:
     getArgs()[Arg] = ArgExpr;
   }
 
+  /// isDelegateInitCall - Answers whether this message send has been
+  /// tagged as a "delegate init call", i.e. a call to a method in the
+  /// -init family on self from within an -init method implementation.
+  bool isDelegateInitCall() const { return IsDelegateInitCall; }
+  void setDelegateInitCall(bool isDelegate) { IsDelegateInitCall = isDelegate; }
+
   SourceLocation getLeftLoc() const { return LBracLoc; }
   SourceLocation getRightLoc() const { return RBracLoc; }
-  SourceLocation getSelectorLoc() const { return SelectorLoc; }
+
+  SourceLocation getSelectorStartLoc() const { return getSelectorLoc(0); }
+  SourceLocation getSelectorLoc(unsigned Index) const {
+    assert(Index < getNumSelectorLocs() && "Index out of range!");
+    if (hasStandardSelLocs())
+      return getStandardSelectorLoc(Index, getSelector(),
+                                   getSelLocsKind() == SelLoc_StandardWithSpace,
+                               llvm::makeArrayRef(const_cast<Expr**>(getArgs()),
+                                                  getNumArgs()),
+                                   RBracLoc);
+    return getStoredSelLocs()[Index];
+  }
+
+  void getSelectorLocs(SmallVectorImpl<SourceLocation> &SelLocs) const;
+
+  unsigned getNumSelectorLocs() const {
+    Selector Sel = getSelector();
+    if (Sel.isUnarySelector())
+      return 1;
+    return Sel.getNumArgs();
+  }
 
   void setSourceRange(SourceRange R) {
     LBracLoc = R.getBegin();
@@ -808,7 +933,7 @@ public:
 };
 
 /// ObjCIsaExpr - Represent X->isa and X.isa when X is an ObjC 'id' type.
-/// (similiar in spirit to MemberExpr).
+/// (similar in spirit to MemberExpr).
 class ObjCIsaExpr : public Expr {
   /// Base - the expression for the base object pointer.
   Stmt *Base;
@@ -822,6 +947,7 @@ public:
   ObjCIsaExpr(Expr *base, bool isarrow, SourceLocation l, QualType ty)
     : Expr(ObjCIsaExprClass, ty, VK_LValue, OK_Ordinary,
            /*TypeDependent=*/false, base->isValueDependent(),
+           base->isInstantiationDependent(),
            /*ContainsUnexpandedParameterPack=*/false),
       Base(base), IsaMemberLoc(l), IsArrow(isarrow) {}
 
@@ -854,6 +980,123 @@ public:
   child_range children() { return child_range(&Base, &Base+1); }
 };
 
+
+/// ObjCIndirectCopyRestoreExpr - Represents the passing of a function
+/// argument by indirect copy-restore in ARC.  This is used to support
+/// passing indirect arguments with the wrong lifetime, e.g. when
+/// passing the address of a __strong local variable to an 'out'
+/// parameter.  This expression kind is only valid in an "argument"
+/// position to some sort of call expression.
+///
+/// The parameter must have type 'pointer to T', and the argument must
+/// have type 'pointer to U', where T and U agree except possibly in
+/// qualification.  If the argument value is null, then a null pointer
+/// is passed;  otherwise it points to an object A, and:
+/// 1. A temporary object B of type T is initialized, either by
+///    zero-initialization (used when initializing an 'out' parameter)
+///    or copy-initialization (used when initializing an 'inout'
+///    parameter).
+/// 2. The address of the temporary is passed to the function.
+/// 3. If the call completes normally, A is move-assigned from B.
+/// 4. Finally, A is destroyed immediately.
+///
+/// Currently 'T' must be a retainable object lifetime and must be
+/// __autoreleasing;  this qualifier is ignored when initializing
+/// the value.
+class ObjCIndirectCopyRestoreExpr : public Expr {
+  Stmt *Operand;
+
+  // unsigned ObjCIndirectCopyRestoreBits.ShouldCopy : 1;
+
+  friend class ASTReader;
+  friend class ASTStmtReader;
+
+  void setShouldCopy(bool shouldCopy) {
+    ObjCIndirectCopyRestoreExprBits.ShouldCopy = shouldCopy;
+  }
+
+  explicit ObjCIndirectCopyRestoreExpr(EmptyShell Empty)
+    : Expr(ObjCIndirectCopyRestoreExprClass, Empty) { }
+
+public:
+  ObjCIndirectCopyRestoreExpr(Expr *operand, QualType type, bool shouldCopy)
+    : Expr(ObjCIndirectCopyRestoreExprClass, type, VK_LValue, OK_Ordinary,
+           operand->isTypeDependent(), operand->isValueDependent(),
+           operand->isInstantiationDependent(),
+           operand->containsUnexpandedParameterPack()),
+      Operand(operand) {
+    setShouldCopy(shouldCopy);
+  }
+
+  Expr *getSubExpr() { return cast<Expr>(Operand); }
+  const Expr *getSubExpr() const { return cast<Expr>(Operand); }
+
+  /// shouldCopy - True if we should do the 'copy' part of the
+  /// copy-restore.  If false, the temporary will be zero-initialized.
+  bool shouldCopy() const { return ObjCIndirectCopyRestoreExprBits.ShouldCopy; }
+
+  child_range children() { return child_range(&Operand, &Operand+1); }  
+
+  // Source locations are determined by the subexpression.
+  SourceRange getSourceRange() const { return Operand->getSourceRange(); }
+  SourceLocation getExprLoc() const { return getSubExpr()->getExprLoc(); }
+
+  static bool classof(const Stmt *s) {
+    return s->getStmtClass() == ObjCIndirectCopyRestoreExprClass;
+  }
+  static bool classof(const ObjCIndirectCopyRestoreExpr *) { return true; }
+};
+
+/// \brief An Objective-C "bridged" cast expression, which casts between
+/// Objective-C pointers and C pointers, transferring ownership in the process.
+///
+/// \code
+/// NSString *str = (__bridge_transfer NSString *)CFCreateString();
+/// \endcode
+class ObjCBridgedCastExpr : public ExplicitCastExpr {
+  SourceLocation LParenLoc;
+  SourceLocation BridgeKeywordLoc;
+  unsigned Kind : 2;
+  
+  friend class ASTStmtReader;
+  friend class ASTStmtWriter;
+  
+public:
+  ObjCBridgedCastExpr(SourceLocation LParenLoc, ObjCBridgeCastKind Kind,
+                      CastKind CK, SourceLocation BridgeKeywordLoc,
+                      TypeSourceInfo *TSInfo, Expr *Operand)
+    : ExplicitCastExpr(ObjCBridgedCastExprClass, TSInfo->getType(), VK_RValue,
+                       CK, Operand, 0, TSInfo),
+      LParenLoc(LParenLoc), BridgeKeywordLoc(BridgeKeywordLoc), Kind(Kind) { }
+  
+  /// \brief Construct an empty Objective-C bridged cast.
+  explicit ObjCBridgedCastExpr(EmptyShell Shell)
+    : ExplicitCastExpr(ObjCBridgedCastExprClass, Shell, 0) { }
+
+  SourceLocation getLParenLoc() const { return LParenLoc; }
+
+  /// \brief Determine which kind of bridge is being performed via this cast.
+  ObjCBridgeCastKind getBridgeKind() const { 
+    return static_cast<ObjCBridgeCastKind>(Kind); 
+  }
+  
+  /// \brief Retrieve the kind of bridge being performed as a string.
+  StringRef getBridgeKindName() const;
+  
+  /// \brief The location of the bridge keyword.
+  SourceLocation getBridgeKeywordLoc() const { return BridgeKeywordLoc; }
+  
+  SourceRange getSourceRange() const {
+    return SourceRange(LParenLoc, getSubExpr()->getLocEnd());
+  }
+  
+  static bool classof(const Stmt *T) {
+    return T->getStmtClass() == ObjCBridgedCastExprClass;
+  }
+  static bool classof(const ObjCBridgedCastExpr *) { return true; }
+ 
+};
+  
 }  // end namespace clang
 
 #endif

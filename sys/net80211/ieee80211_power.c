@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 static void ieee80211_update_ps(struct ieee80211vap *, int);
 static int ieee80211_set_tim(struct ieee80211_node *, int);
 
-MALLOC_DEFINE(M_80211_POWER, "80211power", "802.11 power save state");
+static MALLOC_DEFINE(M_80211_POWER, "80211power", "802.11 power save state");
 
 void
 ieee80211_power_attach(struct ieee80211com *ic)
@@ -102,7 +102,7 @@ ieee80211_power_vdetach(struct ieee80211vap *vap)
 void
 ieee80211_psq_init(struct ieee80211_psq *psq, const char *name)
 {
-	memset(psq, 0, sizeof(psq));
+	memset(psq, 0, sizeof(*psq));
 	psq->psq_maxlen = IEEE80211_PS_MAX_QUEUE;
 	IEEE80211_PSQ_INIT(psq, name);		/* OS-dependent setup */
 }

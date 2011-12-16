@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <net/if.h>
 #include <net/if_media.h>
 #include <net/if_llc.h>
+#include <net/if_dl.h>
+#include <net/if_var.h>
 #include <net/ethernet.h>
 
 #include <net/bpf.h>
@@ -108,6 +110,8 @@ static void
 sta_beacon_miss(struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
+
+	IEEE80211_LOCK_ASSERT(ic);
 
 	KASSERT((ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
 	KASSERT(vap->iv_state >= IEEE80211_S_RUN,
@@ -512,7 +516,6 @@ doprint(struct ieee80211vap *vap, int subtype)
 static int
 sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 {
-#define	SEQ_LEQ(a,b)	((int)((a)-(b)) <= 0)
 #define	HAS_SEQ(type)	((type & 0x4) == 0)
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
@@ -583,6 +586,30 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_wrongbss++;
 			goto out;
 		}
+
+		/*
+		 * Some devices may be in a promiscuous mode
+		 * where they receive frames for multiple station
+		 * addresses.
+		 *
+		 * If we receive a data frame that isn't
+		 * destined to our VAP MAC, drop it.
+		 *
+		 * XXX TODO: This is only enforced when not scanning;
+		 * XXX it assumes a software-driven scan will put the NIC
+		 * XXX into a "no data frames" mode before setting this
+		 * XXX flag. Otherwise it may be possible that we'll still
+		 * XXX process data frames whilst scanning.
+		 */
+		if ((! IEEE80211_IS_MULTICAST(wh->i_addr1))
+		    && (! IEEE80211_ADDR_EQ(wh->i_addr1, IF_LLADDR(ifp)))) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
+			    bssid, NULL, "not to cur sta: lladdr=%6D, addr1=%6D",
+			    IF_LLADDR(ifp), ":", wh->i_addr1, ":");
+			vap->iv_stats.is_rx_wrongbss++;
+			goto out;
+		}
+
 		IEEE80211_RSSI_LPF(ni->ni_avgrssi, rssi);
 		ni->ni_noise = nf;
 		if (HAS_SEQ(type) && !IEEE80211_IS_MULTICAST(wh->i_addr1)) {
@@ -591,9 +618,7 @@ sta_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			    TID_TO_WME_AC(tid) >= WME_AC_VI)
 				ic->ic_wme.wme_hipri_traffic++;
 			rxseq = le16toh(*(uint16_t *)wh->i_seq);
-			if ((ni->ni_flags & IEEE80211_NODE_HT) == 0 &&
-			    (wh->i_fc[1] & IEEE80211_FC1_RETRY) &&
-			    SEQ_LEQ(rxseq, ni->ni_rxseqs[tid])) {
+			if (! ieee80211_check_rxseq(ni, wh)) {
 				/* duplicate, discard */
 				IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_INPUT,
 				    bssid, "duplicate",
@@ -910,7 +935,6 @@ out:
 		m_freem(m);
 	}
 	return type;
-#undef SEQ_LEQ
 }
 
 static void
@@ -1349,6 +1373,8 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 				    scan.htcap, scan.htinfo);
 				/* XXX state changes? */
 			}
+			if (scan.quiet)
+				ic->ic_set_quiet(ni, scan.quiet);
 			if (scan.tim != NULL) {
 				struct ieee80211_tim_ie *tim =
 				    (struct ieee80211_tim_ie *) scan.tim;
@@ -1544,7 +1570,7 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 							htcap = frm;
 					} else if (ishtinfooui(frm)) {
 						if (htinfo == NULL)
-							htcap = frm;
+							htinfo = frm;
 					}
 				}
 				/* XXX Atheros OUI support */

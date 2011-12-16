@@ -2596,6 +2596,12 @@ pmc_flush_logfile(void)
 }
 
 int
+pmc_close_logfile(void)
+{
+	return (PMC_CALL(CLOSELOG,0));
+}
+
+int
 pmc_get_driver_stats(struct pmc_driverstats *ds)
 {
 	struct pmc_op_getdriverstats gms;

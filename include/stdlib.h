@@ -71,11 +71,12 @@ typedef struct {
 
 #define	RAND_MAX	0x7fffffff
 
-extern int __mb_cur_max;
-#define	MB_CUR_MAX	__mb_cur_max
-
 __BEGIN_DECLS
-void	 abort(void) __dead2;
+extern int __mb_cur_max;
+extern int ___mb_cur_max(void);
+#define	MB_CUR_MAX	(___mb_cur_max())
+
+_Noreturn void	 abort(void);
 int	 abs(int) __pure2;
 int	 atexit(void (*)(void));
 double	 atof(const char *);
@@ -85,7 +86,7 @@ void	*bsearch(const void *, const void *, size_t,
 	    size_t, int (*)(const void *, const void *));
 void	*calloc(size_t, size_t) __malloc_like;
 div_t	 div(int, int) __pure2;
-void	 exit(int) __dead2;
+_Noreturn void	 exit(int);
 void	 free(void *);
 char	*getenv(const char *);
 long	 labs(long) __pure2;
@@ -144,9 +145,17 @@ unsigned long long
 	 strtoull(const char * __restrict, char ** __restrict, int);
 #endif /* __LONG_LONG_SUPPORTED */
 
-void	 _Exit(int) __dead2;
+_Noreturn void	 _Exit(int);
 #endif /* __ISO_C_VISIBLE >= 1999 */
 
+/*
+ * If we're in a mode greater than C99, expose C1x functions.
+ */
+#if __ISO_C_VISIBLE > 1999
+_Noreturn void quick_exit(int)
+int
+at_quick_exit(void (*func)(void));
+#endif /* __ISO_C_VISIBLE > 1999 */
 /*
  * Extensions made by POSIX relative to C.  We don't know yet which edition
  * of POSIX made these extensions, so assume they've always been there until
@@ -262,7 +271,7 @@ char 	*devname_r(__dev_t, __mode_t, char *, int);
 char	*fdevname(int);
 char 	*fdevname_r(int, char *, int);
 int	 getloadavg(double [], int);
-__const char *
+const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));

@@ -61,6 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <limits.h>
 #include <locale.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -76,14 +77,14 @@ static char _path_words[] = _PATH_WORDS;
 #define	GREATER		1
 #define	LESS		(-1)
 
-int dflag, fflag;
+static int dflag, fflag;
 
-char    *binary_search(wchar_t *, unsigned char *, unsigned char *);
-int      compare(wchar_t *, unsigned char *, unsigned char *);
-char    *linear_search(wchar_t *, unsigned char *, unsigned char *);
-int      look(wchar_t *, unsigned char *, unsigned char *);
-wchar_t	*prepkey(const char *, wchar_t);
-void     print_from(wchar_t *, unsigned char *, unsigned char *);
+static char	*binary_search(wchar_t *, unsigned char *, unsigned char *);
+static int	 compare(wchar_t *, unsigned char *, unsigned char *);
+static char	*linear_search(wchar_t *, unsigned char *, unsigned char *);
+static int	 look(wchar_t *, unsigned char *, unsigned char *);
+static wchar_t	*prepkey(const char *, wchar_t);
+static void	 print_from(wchar_t *, unsigned char *, unsigned char *);
 
 static void usage(void);
 
@@ -134,7 +135,7 @@ main(int argc, char *argv[])
 	do {
 		if ((fd = open(file, O_RDONLY, 0)) < 0 || fstat(fd, &sb))
 			err(2, "%s", file);
-		if (sb.st_size > SIZE_T_MAX)
+		if ((uintmax_t)sb.st_size > (uintmax_t)SIZE_T_MAX)
 			errx(2, "%s: %s", file, strerror(EFBIG));
 		if (sb.st_size == 0) {
 			close(fd);
@@ -150,7 +151,7 @@ main(int argc, char *argv[])
 	exit(match);
 }
 
-wchar_t *
+static wchar_t *
 prepkey(const char *string, wchar_t termchar)
 {
 	const char *readp;
@@ -181,7 +182,7 @@ prepkey(const char *string, wchar_t termchar)
 	return (key);
 }
 
-int
+static int
 look(wchar_t *string, unsigned char *front, unsigned char *back)
 {
 
@@ -235,7 +236,7 @@ look(wchar_t *string, unsigned char *front, unsigned char *back)
 #define	SKIP_PAST_NEWLINE(p, back) \
 	while (p < back && *p++ != '\n');
 
-char *
+static char *
 binary_search(wchar_t *string, unsigned char *front, unsigned char *back)
 {
 	unsigned char *p;
@@ -269,7 +270,7 @@ binary_search(wchar_t *string, unsigned char *front, unsigned char *back)
  * 	o front points at the first character in a line.
  *	o front is before or at the first line to be printed.
  */
-char *
+static char *
 linear_search(wchar_t *string, unsigned char *front, unsigned char *back)
 {
 	while (front < back) {
@@ -289,7 +290,7 @@ linear_search(wchar_t *string, unsigned char *front, unsigned char *back)
 /*
  * Print as many lines as match string, starting at front.
  */
-void
+static void
 print_from(wchar_t *string, unsigned char *front, unsigned char *back)
 {
 	for (; front < back && compare(string, front, back) == EQUAL; ++front) {
@@ -314,7 +315,7 @@ print_from(wchar_t *string, unsigned char *front, unsigned char *back)
  * The string "s1" is null terminated.  The string s2 is '\n' terminated (or
  * "back" terminated).
  */
-int
+static int
 compare(wchar_t *s1, unsigned char *s2, unsigned char *back)
 {
 	wchar_t ch1, ch2;

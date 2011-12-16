@@ -1,4 +1,4 @@
-/*	$OpenBSD: pf_print_state.c,v 1.44 2007/03/01 17:20:53 deraadt Exp $	*/
+/*	$OpenBSD: pf_print_state.c,v 1.52 2008/08/12 16:40:18 david Exp $	*/
 
 /*
  * Copyright (c) 2001 Daniel Hartmeier
@@ -35,7 +35,10 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/types.h>
 #include <sys/socket.h>
+#ifdef __FreeBSD__
 #include <sys/endian.h>
+#define	betoh64	be64toh
+#endif
 #include <net/if.h>
 #define TCPSTATES
 #include <netinet/tcp_fsm.h>
@@ -83,6 +86,19 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 		else
 			printf("<%s>", addr->v.tblname);
 		return;
+	case PF_ADDR_RANGE: {
+		char buf[48];
+
+		if (inet_ntop(af, &addr->v.a.addr, buf, sizeof(buf)) == NULL)
+			printf("?");
+		else
+			printf("%s", buf);
+		if (inet_ntop(af, &addr->v.a.mask, buf, sizeof(buf)) == NULL)
+			printf(" - ?");
+		else
+			printf(" - %s", buf);
+		break;
+	}
 	case PF_ADDR_ADDRMASK:
 		if (PF_AZERO(&addr->v.a.addr, AF_INET6) &&
 		    PF_AZERO(&addr->v.a.mask, AF_INET6))
@@ -112,7 +128,8 @@ print_addr(struct pf_addr_wrap *addr, sa_family_t af, int verbose)
 	}
 
 	/* mask if not _both_ address and mask are zero */
-	if (!(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
+	if (addr->type != PF_ADDR_RANGE &&
+	    !(PF_AZERO(&addr->v.a.addr, AF_INET6) &&
 	    PF_AZERO(&addr->v.a.mask, AF_INET6))) {
 		int bits = unmask(&addr->v.a.mask, af);
 
@@ -155,17 +172,15 @@ print_name(struct pf_addr *addr, sa_family_t af)
 }
 
 void
-print_host(struct pf_state_host *h, sa_family_t af, int opts)
+print_host(struct pf_addr *addr, u_int16_t port, sa_family_t af, int opts)
 {
-	u_int16_t p = ntohs(h->port);
-
 	if (opts & PF_OPT_USEDNS)
-		print_name(&h->addr, af);
+		print_name(addr, af);
 	else {
 		struct pf_addr_wrap aw;
 
 		memset(&aw, 0, sizeof(aw));
-		aw.v.a.addr = h->addr;
+		aw.v.a.addr = *addr;
 		if (af == AF_INET)
 			aw.v.a.mask.addr32[0] = 0xffffffff;
 		else {
@@ -175,57 +190,72 @@ print_host(struct pf_state_host *h, sa_family_t af, int opts)
 		print_addr(&aw, af, opts & PF_OPT_VERBOSE2);
 	}
 
-	if (p) {
+	if (port) {
 		if (af == AF_INET)
-			printf(":%u", p);
+			printf(":%u", ntohs(port));
 		else
-			printf("[%u]", p);
+			printf("[%u]", ntohs(port));
 	}
 }
 
 void
-print_seq(struct pf_state_peer *p)
+print_seq(struct pfsync_state_peer *p)
 {
 	if (p->seqdiff)
-		printf("[%u + %u](+%u)", p->seqlo, p->seqhi - p->seqlo,
-		    p->seqdiff);
+		printf("[%u + %u](+%u)", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo), ntohl(p->seqdiff));
 	else
-		printf("[%u + %u]", p->seqlo, p->seqhi - p->seqlo);
+		printf("[%u + %u]", ntohl(p->seqlo),
+		    ntohl(p->seqhi) - ntohl(p->seqlo));
 }
 
 void
-print_state(struct pf_state *s, int opts)
+print_state(struct pfsync_state *s, int opts)
 {
-	struct pf_state_peer *src, *dst;
+	struct pfsync_state_peer *src, *dst;
+	struct pfsync_state_key *sk, *nk;
 	struct protoent *p;
 	int min, sec;
 
 	if (s->direction == PF_OUT) {
 		src = &s->src;
 		dst = &s->dst;
+		sk = &s->key[PF_SK_STACK];
+		nk = &s->key[PF_SK_WIRE];
+		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6) 
+			sk->port[0] = nk->port[0];
 	} else {
 		src = &s->dst;
 		dst = &s->src;
+		sk = &s->key[PF_SK_WIRE];
+		nk = &s->key[PF_SK_STACK];
+		if (s->proto == IPPROTO_ICMP || s->proto == IPPROTO_ICMPV6) 
+			sk->port[1] = nk->port[1];
 	}
-	printf("%s ", s->u.ifname);
+	printf("%s ", s->ifname);
 	if ((p = getprotobynumber(s->proto)) != NULL)
 		printf("%s ", p->p_name);
 	else
 		printf("%u ", s->proto);
-	if (PF_ANEQ(&s->lan.addr, &s->gwy.addr, s->af) ||
-	    (s->lan.port != s->gwy.port)) {
-		print_host(&s->lan, s->af, opts);
-		if (s->direction == PF_OUT)
-			printf(" -> ");
-		else
-			printf(" <- ");
+
+	print_host(&nk->addr[1], nk->port[1], s->af, opts);
+	if (PF_ANEQ(&nk->addr[1], &sk->addr[1], s->af) ||
+	    nk->port[1] != sk->port[1]) {
+		printf(" (");
+		print_host(&sk->addr[1], sk->port[1], s->af, opts);
+		printf(")");
 	}
-	print_host(&s->gwy, s->af, opts);
 	if (s->direction == PF_OUT)
 		printf(" -> ");
 	else
 		printf(" <- ");
-	print_host(&s->ext, s->af, opts);
+	print_host(&nk->addr[0], nk->port[0], s->af, opts);
+	if (PF_ANEQ(&nk->addr[0], &sk->addr[0], s->af) ||
+	    nk->port[0] != sk->port[0]) {
+		printf(" (");
+		print_host(&sk->addr[0], sk->port[0], s->af, opts);
+		printf(")");
+	}
 
 	printf("    ");
 	if (s->proto == IPPROTO_TCP) {
@@ -271,45 +301,63 @@ print_state(struct pf_state *s, int opts)
 	}
 
 	if (opts & PF_OPT_VERBOSE) {
-		sec = s->creation % 60;
-		s->creation /= 60;
-		min = s->creation % 60;
-		s->creation /= 60;
-		printf("   age %.2u:%.2u:%.2u", s->creation, min, sec);
-		sec = s->expire % 60;
-		s->expire /= 60;
-		min = s->expire % 60;
-		s->expire /= 60;
-		printf(", expires in %.2u:%.2u:%.2u", s->expire, min, sec);
+		u_int64_t packets[2];
+		u_int64_t bytes[2];
+		u_int32_t creation = ntohl(s->creation);
+		u_int32_t expire = ntohl(s->expire);
+
+		sec = creation % 60;
+		creation /= 60;
+		min = creation % 60;
+		creation /= 60;
+		printf("   age %.2u:%.2u:%.2u", creation, min, sec);
+		sec = expire % 60;
+		expire /= 60;
+		min = expire % 60;
+		expire /= 60;
+		printf(", expires in %.2u:%.2u:%.2u", expire, min, sec);
+
+		bcopy(s->packets[0], &packets[0], sizeof(u_int64_t));
+		bcopy(s->packets[1], &packets[1], sizeof(u_int64_t));
+		bcopy(s->bytes[0], &bytes[0], sizeof(u_int64_t));
+		bcopy(s->bytes[1], &bytes[1], sizeof(u_int64_t));
 		printf(", %llu:%llu pkts, %llu:%llu bytes",
 #ifdef __FreeBSD__
-		    (unsigned long long)s->packets[0],
-		    (unsigned long long)s->packets[1],
-		    (unsigned long long)s->bytes[0],
-		    (unsigned long long)s->bytes[1]);
+		    (unsigned long long)betoh64(packets[0]),
+		    (unsigned long long)betoh64(packets[1]),
+		    (unsigned long long)betoh64(bytes[0]),
+		    (unsigned long long)betoh64(bytes[1]));
 #else
-		    s->packets[0], s->packets[1], s->bytes[0], s->bytes[1]);
+		    betoh64(packets[0]),
+		    betoh64(packets[1]),
+		    betoh64(bytes[0]),
+		    betoh64(bytes[1]));
 #endif
-		if (s->anchor.nr != -1)
-			printf(", anchor %u", s->anchor.nr);
-		if (s->rule.nr != -1)
-			printf(", rule %u", s->rule.nr);
+		if (ntohl(s->anchor) != -1)
+			printf(", anchor %u", ntohl(s->anchor));
+		if (ntohl(s->rule) != -1)
+			printf(", rule %u", ntohl(s->rule));
 		if (s->state_flags & PFSTATE_SLOPPY)
 			printf(", sloppy");
-		if (s->src_node != NULL)
+		if (s->state_flags & PFSTATE_PFLOW)
+			printf(", pflow");
+		if (s->sync_flags & PFSYNC_FLAG_SRCNODE)
 			printf(", source-track");
-		if (s->nat_src_node != NULL)
+		if (s->sync_flags & PFSYNC_FLAG_NATSRCNODE)
 			printf(", sticky-address");
 		printf("\n");
 	}
 	if (opts & PF_OPT_VERBOSE2) {
-		printf("   id: %016llx creatorid: %08x%s\n",
+		u_int64_t id;
+
+		bcopy(&s->id, &id, sizeof(u_int64_t));
+		printf("   id: %016llx creatorid: %08x",
 #ifdef __FreeBSD__
-		    (unsigned long long)be64toh(s->id), ntohl(s->creatorid),
+		    (unsigned long long)betoh64(id), ntohl(s->creatorid));
 #else
-		    betoh64(s->id), ntohl(s->creatorid),
+		    betoh64(id), ntohl(s->creatorid));
 #endif
-		    ((s->sync_flags & PFSTATE_NOSYNC) ? " (no-sync)" : ""));
+		printf("\n");
 	}
 }
 

@@ -65,7 +65,11 @@ MachineFunction::MachineFunction(const Function *F, const TargetMachine &TM,
     FrameInfo->setMaxAlignment(Attribute::getStackAlignmentFromAttrs(
         Fn->getAttributes().getFnAttributes()));
   ConstantPool = new (Allocator) MachineConstantPool(TM.getTargetData());
-  Alignment = TM.getTargetLowering()->getFunctionAlignment(F);
+  Alignment = TM.getTargetLowering()->getMinFunctionAlignment();
+  // FIXME: Shouldn't use pref alignment if explicit alignment is set on Fn.
+  if (!Fn->hasFnAttr(Attribute::OptimizeForSize))
+    Alignment = std::max(Alignment,
+                         TM.getTargetLowering()->getPrefFunctionAlignment());
   FunctionNumber = FunctionNum;
   JumpTableInfo = 0;
 }
@@ -148,10 +152,10 @@ void MachineFunction::RenumberBlocks(MachineBasicBlock *MBB) {
 /// of `new MachineInstr'.
 ///
 MachineInstr *
-MachineFunction::CreateMachineInstr(const TargetInstrDesc &TID,
+MachineFunction::CreateMachineInstr(const MCInstrDesc &MCID,
                                     DebugLoc DL, bool NoImp) {
   return new (InstructionRecycler.Allocate<MachineInstr>(Allocator))
-    MachineInstr(TID, DL, NoImp);
+    MachineInstr(MCID, DL, NoImp);
 }
 
 /// CloneMachineInstr - Create a new MachineInstr which is a copy of the
@@ -300,31 +304,19 @@ void MachineFunction::print(raw_ostream &OS, SlotIndexes *Indexes) const {
     OS << "Function Live Ins: ";
     for (MachineRegisterInfo::livein_iterator
          I = RegInfo->livein_begin(), E = RegInfo->livein_end(); I != E; ++I) {
-      if (TRI)
-        OS << "%" << TRI->getName(I->first);
-      else
-        OS << " %physreg" << I->first;
-      
+      OS << PrintReg(I->first, TRI);
       if (I->second)
-        OS << " in reg%" << I->second;
-
+        OS << " in " << PrintReg(I->second, TRI);
       if (llvm::next(I) != E)
         OS << ", ";
     }
     OS << '\n';
   }
   if (RegInfo && !RegInfo->liveout_empty()) {
-    OS << "Function Live Outs: ";
+    OS << "Function Live Outs:";
     for (MachineRegisterInfo::liveout_iterator
-         I = RegInfo->liveout_begin(), E = RegInfo->liveout_end(); I != E; ++I){
-      if (TRI)
-        OS << '%' << TRI->getName(*I);
-      else
-        OS << "%physreg" << *I;
-
-      if (llvm::next(I) != E)
-        OS << " ";
-    }
+         I = RegInfo->liveout_begin(), E = RegInfo->liveout_end(); I != E; ++I)
+      OS << ' ' << PrintReg(*I, TRI);
     OS << '\n';
   }
   
@@ -627,7 +619,7 @@ void MachineJumpTableInfo::dump() const { print(dbgs()); }
 //  MachineConstantPool implementation
 //===----------------------------------------------------------------------===//
 
-const Type *MachineConstantPoolEntry::getType() const {
+Type *MachineConstantPoolEntry::getType() const {
   if (isMachineConstantPoolEntry())
     return Val.MachineCPVal->getType();
   return Val.ConstVal->getType();

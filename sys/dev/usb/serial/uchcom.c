@@ -103,7 +103,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uchcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uchcom, CTLFLAG_RW, 0, "USB uchcom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uchcom, CTLFLAG_RW, 0, "USB uchcom");
 SYSCTL_INT(_hw_usb_uchcom, OID_AUTO, debug, CTLFLAG_RW,
     &uchcom_debug, 0, "uchcom debug level");
 #endif
@@ -204,7 +204,7 @@ static const struct uchcom_divider_record dividers[] =
 
 #define	NUM_DIVIDERS	(sizeof (dividers) / sizeof (dividers[0]))
 
-static const struct usb_device_id uchcom_devs[] = {
+static const STRUCT_USB_HOST_ID uchcom_devs[] = {
 	{USB_VPI(USB_VENDOR_WCH, USB_PRODUCT_WCH_CH341SER, 0)},
 	{USB_VPI(USB_VENDOR_WCH2, USB_PRODUCT_WCH2_CH341SER, 0)},
 };

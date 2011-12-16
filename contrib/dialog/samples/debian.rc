@@ -1,6 +1,14 @@
-# $Id: debian.rc,v 1.4 2005/12/01 01:18:57 tom Exp $
+# $Id: debian.rc,v 1.5 2011/01/17 00:14:53 tom Exp $
+# vile:confmode
 # Run-time configuration file for dialog, matches Debian color scheme.
 # (these are the default values for dialog)
+#
+# Types of values:
+#
+# Number     -  <number>
+# String     -  "string"
+# Boolean    -  <ON|OFF>
+# Attribute  -  (foreground,background,highlight?)
 
 # Set aspect-ration.
 aspect = 0
@@ -115,3 +123,9 @@ form_active_text_color = (WHITE,BLUE,ON)
 
 # Form text color
 form_text_color = (WHITE,CYAN,ON)
+
+# Readonly form item color
+form_item_readonly_color = (CYAN,WHITE,ON)
+
+# Dialog box gauge color
+gauge_color = (BLUE,WHITE,ON)

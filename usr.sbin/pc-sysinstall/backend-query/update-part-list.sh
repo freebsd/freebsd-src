@@ -37,16 +37,22 @@ FSMNT="/mnt"
 # Get the freebsd version on this partition
 get_fbsd_ver()
 {
+  sFiles="/bin/sh /boot/kernel/kernel"
+  for file in $sFiles
+  do
+     if [ ! -e "${FSMNT}/$file" ] ; then continue ; fi
 
-  VER="`file ${FSMNT}/bin/sh | grep 'for FreeBSD' | sed 's|for FreeBSD |;|g' | cut -d ';' -f 2 | cut -d ',' -f 1`"
-  if [ "$?" = "0" ] ; then
-    file ${FSMNT}/bin/sh | grep '32-bit' >/dev/null 2>/dev/null
-    if [ "${?}" = "0" ] ; then
-      echo "${1}: FreeBSD ${VER} (32bit)"
-    else
-      echo "${1}: FreeBSD ${VER} (64bit)"
+     VER="`file ${FSMNT}/$file | grep 'for FreeBSD' | sed 's|for FreeBSD |;|g' | cut -d ';' -f 2 | cut -d ',' -f 1`"
+    if [ "$?" = "0" ] ; then
+      file ${FSMNT}/$file | grep '32-bit' >/dev/null 2>/dev/null
+      if [ "${?}" = "0" ] ; then
+        echo "${1}: FreeBSD ${VER} (32bit)"
+      else
+        echo "${1}: FreeBSD ${VER} (64bit)"
+      fi
     fi
-  fi
+    break
+  done
 
 }
 
@@ -86,25 +92,8 @@ do
   fi
 
   mount -o ro ${_dsk} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-  if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
+  if [ $? -eq 0 ] ; then
     get_fbsd_ver "`echo ${_dsk} | sed 's|/dev/||g'`"
-    umount -f ${FSMNT} >/dev/null 2>/dev/null
-  fi
-done
-
-# Now search for any ZFS root partitions
-zpool import -o altroot=${FSMNT} -a
-
-# Unmount any auto-mounted stuff
-umount_all_dir "${FSMNT}"
-
-# Get pools
-_zps="`zpool list | grep -v 'NAME' | cut -d ' ' -f 1`"
-for _zpools in ${_zps}
-do
-  mount -o ro -t zfs ${_zpools} ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-  if [ "${?}" = "0" -a -e "${FSMNT}/bin/sh" ] ; then
-    get_fbsd_ver "${_zpools}"
     umount -f ${FSMNT} >/dev/null 2>/dev/null
   fi
 done

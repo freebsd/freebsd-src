@@ -110,6 +110,12 @@ enum {
 	FW_IQ_QSIZE = 256,
 	FW_IQ_ESIZE = 64,	/* At least 64 mandated by the firmware spec */
 
+	INTR_IQ_QSIZE = 64,
+	INTR_IQ_ESIZE = 64,	/* Handles some CPLs too, do not reduce */
+
+	CTRL_EQ_QSIZE = 128,
+	CTRL_EQ_ESIZE = 64,
+
 	RX_IQ_QSIZE = 1024,
 	RX_IQ_ESIZE = 64,	/* At least 64 so CPL_RX_PKT will fit */
 
@@ -128,10 +134,17 @@ enum {
 };
 
 enum {
+	/* adapter intr_type */
+	INTR_INTX	= (1 << 0),
+	INTR_MSI 	= (1 << 1),
+	INTR_MSIX	= (1 << 2)
+};
+
+enum {
 	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	FW_OK		= (1 << 1),
-	INTR_FWD	= (1 << 2),
+	INTR_SHARED	= (1 << 2),	/* one set of intrq's for all ports */
 
 	CXGBE_BUSY	= (1 << 9),
 
@@ -211,7 +224,7 @@ struct tx_map {
 
 struct tx_sdesc {
 	uint8_t desc_used;	/* # of hardware descriptors used by the WR */
-	uint8_t map_used;	/* # of frames sent out in the WR */
+	uint8_t credits;	/* NIC txq: # of frames sent out in the WR */
 };
 
 typedef void (iq_intr_handler_t)(void *);
@@ -220,6 +233,11 @@ enum {
 	/* iq flags */
 	IQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
 	IQ_STARTED	= (1 << 2),	/* started */
+
+	/* iq state */
+	IQS_DISABLED	= 0,
+	IQS_BUSY	= 1,
+	IQS_IDLE	= 2,
 };
 
 /*
@@ -237,7 +255,7 @@ struct sge_iq {
 	iq_intr_handler_t *handler;
 	__be64  *desc;		/* KVA of descriptor ring */
 
-	struct mtx iq_lock;
+	volatile uint32_t state;
 	struct adapter *adapter;
 	const __be64 *cdesc;	/* current descriptor */
 	uint8_t  gen;		/* generation bit */
@@ -253,7 +271,7 @@ enum {
 	/* eq flags */
 	EQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
 	EQ_STARTED	= (1 << 2),	/* started */
-	EQ_STALLED	= (1 << 3),	/* currently stalled */
+	EQ_CRFLUSHED	= (1 << 3),	/* expecting an update from SGE */
 };
 
 /*
@@ -263,7 +281,6 @@ enum {
  * consumes them) but it's special enough to have its own struct (see sge_fl).
  */
 struct sge_eq {
-	bus_dma_tag_t tx_tag;	/* tag for transmit buffers */
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
 	char lockname[16];
@@ -272,8 +289,6 @@ struct sge_eq {
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
 	bus_addr_t ba;		/* bus address of descriptor ring */
-	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
-	struct buf_ring *br;	/* tx buffer ring */
 	struct sge_qstat *spg;	/* status page, for convenience */
 	uint16_t cap;		/* max # of desc, for convenience */
 	uint16_t avail;		/* available descriptors, for convenience */
@@ -282,15 +297,8 @@ struct sge_eq {
 	uint16_t pidx;		/* producer idx (desc idx) */
 	uint16_t pending;	/* # of descriptors used since last doorbell */
 	uint16_t iqid;		/* iq that gets egr_update for the eq */
-	uint32_t cntxt_id;	/* SGE context id for the eq */
-
-	/* DMA maps used for tx */
-	struct tx_map *maps;
-	uint32_t map_total;	/* # of DMA maps */
-	uint32_t map_pidx;	/* next map to be used */
-	uint32_t map_cidx;	/* reclaimed up to this index */
-	uint32_t map_avail;	/* # of available maps */
-} __aligned(CACHE_LINE_SIZE);
+	unsigned int  cntxt_id;	/* SGE context id for the eq */
+};
 
 struct sge_fl {
 	bus_dma_tag_t desc_tag;
@@ -313,13 +321,23 @@ struct sge_fl {
 	unsigned int dmamap_failed;
 };
 
-/* txq: SGE egress queue + miscellaneous items */
+/* txq: SGE egress queue + what's needed for Ethernet NIC */
 struct sge_txq {
 	struct sge_eq eq;	/* MUST be first */
+
+	struct ifnet *ifp;	/* the interface this txq belongs to */
+	bus_dma_tag_t tx_tag;	/* tag for transmit buffers */
+	struct buf_ring *br;	/* tx buffer ring */
+	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct mbuf *m;		/* held up due to temporary resource shortage */
 	struct task resume_tx;
 
-	struct ifnet *ifp;	/* the interface this txq belongs to */
+	/* DMA maps used for tx */
+	struct tx_map *maps;
+	uint32_t map_total;	/* # of DMA maps */
+	uint32_t map_pidx;	/* next map to be used */
+	uint32_t map_cidx;	/* reclaimed up to this index */
+	uint32_t map_avail;	/* # of available maps */
 
 	/* stats for common events first */
 
@@ -337,11 +355,12 @@ struct sge_txq {
 	uint32_t no_dmamap;	/* no DMA map to load the mbuf */
 	uint32_t no_desc;	/* out of hardware descriptors */
 	uint32_t egr_update;	/* # of SGE_EGR_UPDATE notifications for txq */
-};
+} __aligned(CACHE_LINE_SIZE);
 
 enum {
 	RXQ_LRO_ENABLED	= (1 << 0)
 };
+
 /* rxq: SGE ingress queue + SGE free list + miscellaneous items */
 struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
@@ -362,9 +381,22 @@ struct sge_rxq {
 
 } __aligned(CACHE_LINE_SIZE);
 
+/* ctrlq: SGE egress queue + stats for control queue */
+struct sge_ctrlq {
+	struct sge_eq eq;	/* MUST be first */
+
+	/* stats for common events first */
+
+
+	/* stats for not-that-common events */
+
+	uint32_t no_desc;	/* out of hardware descriptors */
+} __aligned(CACHE_LINE_SIZE);
+
 struct sge {
 	uint16_t timer_val[SGE_NTIMERS];
 	uint8_t  counter_val[SGE_NCOUNTERS];
+	int fl_starve_threshold;
 
 	int nrxq;	/* total rx queues (all ports and the rest) */
 	int ntxq;	/* total tx queues (all ports and the rest) */
@@ -372,7 +404,8 @@ struct sge {
 	int neq;	/* total egress queues */
 
 	struct sge_iq fwq;	/* Firmware event queue */
-	struct sge_iq *fiq;	/* Forwarded interrupt queues (INTR_FWD) */
+	struct sge_ctrlq *ctrlq;/* Control queues */
+	struct sge_iq *intrq;	/* Interrupt queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
 
@@ -414,6 +447,7 @@ struct adapter {
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
 
+	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
 	int registered_device_map;
@@ -423,6 +457,11 @@ struct adapter {
 	char fw_version[32];
 	struct adapter_params params;
 	struct t4_virt_res vres;
+
+	struct sysctl_ctx_list ctx; /* from first_port_up to last_port_down */
+	struct sysctl_oid *oid_fwq;
+	struct sysctl_oid *oid_ctrlq;
+	struct sysctl_oid *oid_intrq;
 
 	struct mtx sc_lock;
 	char lockname[16];
@@ -438,21 +477,11 @@ struct adapter {
 #define PORT_LOCK_ASSERT_OWNED(pi)	mtx_assert(&(pi)->pi_lock, MA_OWNED)
 #define PORT_LOCK_ASSERT_NOTOWNED(pi)	mtx_assert(&(pi)->pi_lock, MA_NOTOWNED)
 
-#define IQ_LOCK(iq)			mtx_lock(&(iq)->iq_lock)
-#define IQ_UNLOCK(iq)			mtx_unlock(&(iq)->iq_lock)
-#define IQ_LOCK_ASSERT_OWNED(iq)	mtx_assert(&(iq)->iq_lock, MA_OWNED)
-#define IQ_LOCK_ASSERT_NOTOWNED(iq)	mtx_assert(&(iq)->iq_lock, MA_NOTOWNED)
-
 #define FL_LOCK(fl)			mtx_lock(&(fl)->fl_lock)
 #define FL_TRYLOCK(fl)			mtx_trylock(&(fl)->fl_lock)
 #define FL_UNLOCK(fl)			mtx_unlock(&(fl)->fl_lock)
 #define FL_LOCK_ASSERT_OWNED(fl)	mtx_assert(&(fl)->fl_lock, MA_OWNED)
 #define FL_LOCK_ASSERT_NOTOWNED(fl)	mtx_assert(&(fl)->fl_lock, MA_NOTOWNED)
-
-#define RXQ_LOCK(rxq)			IQ_LOCK(&(rxq)->iq)
-#define RXQ_UNLOCK(rxq)			IQ_UNLOCK(&(rxq)->iq)
-#define RXQ_LOCK_ASSERT_OWNED(rxq)	IQ_LOCK_ASSERT_OWNED(&(rxq)->iq)
-#define RXQ_LOCK_ASSERT_NOTOWNED(rxq)	IQ_LOCK_ASSERT_NOTOWNED(&(rxq)->iq)
 
 #define RXQ_FL_LOCK(rxq)		FL_LOCK(&(rxq)->fl)
 #define RXQ_FL_UNLOCK(rxq)		FL_UNLOCK(&(rxq)->fl)
@@ -478,7 +507,10 @@ struct adapter {
 	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
 	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
 
-#define NFIQ(sc) ((sc)->intr_count > 1 ? (sc)->intr_count - 1 : 1)
+/* One for errors, one for firmware events */
+#define T4_EXTRA_INTR 2
+#define NINTRQ(sc) ((sc)->intr_count > T4_EXTRA_INTR ? \
+    (sc)->intr_count - T4_EXTRA_INTR : 1)
 
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
@@ -570,15 +602,15 @@ void t4_sge_modload(void);
 void t4_sge_init(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
-int t4_setup_adapter_iqs(struct adapter *);
-int t4_teardown_adapter_iqs(struct adapter *);
+int t4_setup_adapter_queues(struct adapter *);
+int t4_teardown_adapter_queues(struct adapter *);
 int t4_setup_eth_queues(struct port_info *);
 int t4_teardown_eth_queues(struct port_info *);
 void t4_intr_all(void *);
-void t4_intr_fwd(void *);
+void t4_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
-void t4_intr_data(void *);
+int t4_mgmt_tx(struct adapter *, struct mbuf *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
 

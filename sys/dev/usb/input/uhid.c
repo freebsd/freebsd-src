@@ -78,7 +78,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uhid_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uhid, CTLFLAG_RW, 0, "USB uhid");
 SYSCTL_INT(_hw_usb_uhid, OID_AUTO, debug, CTLFLAG_RW,
     &uhid_debug, 0, "Debug level");
 #endif
@@ -566,8 +566,10 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
+		if (id != 0)
+			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_get_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, size);
+		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
 		break;
 
 	case USB_SET_REPORT:
@@ -592,8 +594,10 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 		default:
 			return (EINVAL);
 		}
+		if (id != 0)
+			copyin(ugd->ugd_data, &id, 1);
 		error = uhid_set_report(sc, ugd->ugd_report_type, id,
-		    NULL, ugd->ugd_data, size);
+		    NULL, ugd->ugd_data, imin(ugd->ugd_maxlen, size));
 		break;
 
 	case USB_GET_REPORT_ID:
@@ -607,33 +611,45 @@ uhid_ioctl(struct usb_fifo *fifo, u_long cmd, void *addr,
 	return (error);
 }
 
+static const STRUCT_USB_HOST_ID uhid_devs[] = {
+	/* generic HID class */
+	{USB_IFACE_CLASS(UICLASS_HID),},
+	/* the Xbox 360 gamepad doesn't use the HID class */
+	{USB_IFACE_CLASS(UICLASS_VENDOR),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_XBOX360_CONTROLLER),
+	 USB_IFACE_PROTOCOL(UIPROTO_XBOX360_GAMEPAD),},
+};
+
 static int
 uhid_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
+	int error;
 
 	DPRINTFN(11, "\n");
 
-	if (uaa->usb_mode != USB_MODE_HOST) {
+	if (uaa->usb_mode != USB_MODE_HOST)
 		return (ENXIO);
-	}
-	if (uaa->use_generic == 0) {
-		/* give Mouse and Keyboard drivers a try first */
-		return (ENXIO);
-	}
-	if (uaa->info.bInterfaceClass != UICLASS_HID) {
 
-		/* the Xbox 360 gamepad doesn't use the HID class */
+	error = usbd_lookup_id_by_uaa(uhid_devs, sizeof(uhid_devs), uaa);
+	if (error)
+		return (error);
 
-		if ((uaa->info.bInterfaceClass != UICLASS_VENDOR) ||
-		    (uaa->info.bInterfaceSubClass != UISUBCLASS_XBOX360_CONTROLLER) ||
-		    (uaa->info.bInterfaceProtocol != UIPROTO_XBOX360_GAMEPAD)) {
-			return (ENXIO);
-		}
-	}
-	if (usb_test_quirk(uaa, UQ_HID_IGNORE)) {
+	if (usb_test_quirk(uaa, UQ_HID_IGNORE))
+		return (ENXIO);
+
+	/*
+	 * Don't attach to mouse and keyboard devices, hence then no
+	 * "nomatch" event is generated and then ums and ukbd won't
+	 * attach properly when loaded.
+	 */
+	if ((uaa->info.bInterfaceClass == UICLASS_HID) &&
+	    (uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
+	    ((uaa->info.bInterfaceProtocol == UIPROTO_BOOT_KEYBOARD) ||
+	     (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))) {
 		return (ENXIO);
 	}
+
 	return (BUS_PROBE_GENERIC);
 }
 

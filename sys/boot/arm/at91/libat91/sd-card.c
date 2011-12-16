@@ -94,14 +94,14 @@ MCIDeviceWaitReady(unsigned int timeout)
 	}	// End of if AT91C_MCI_RXBUFF
 }
 
-inline static unsigned int
+static inline unsigned int
 swap(unsigned int a)
 {
     return (((a & 0xff) << 24) | ((a & 0xff00) << 8) | ((a & 0xff0000) >> 8)
       | ((a & 0xff000000) >> 24));
 }
 
-inline static void
+static inline void
 wait_ready()
 {
 	int status;

@@ -119,7 +119,7 @@ printf(const char *fmt, ...)
 {
 	va_list ap;
 	const char *hex = "0123456789abcdef";
-	char buf[10], *s;
+	char buf[32], *s;
 	unsigned long long u;
 	int c, l;
 

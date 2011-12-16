@@ -36,6 +36,10 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noreturn ";
   if (Attrs & Attribute::NoUnwind)
     Result += "nounwind ";
+  if (Attrs & Attribute::UWTable)
+    Result += "uwtable ";
+  if (Attrs & Attribute::ReturnsTwice)
+    Result += "returns_twice ";
   if (Attrs & Attribute::InReg)
     Result += "inreg ";
   if (Attrs & Attribute::NoAlias)
@@ -70,8 +74,8 @@ std::string Attribute::getAsString(Attributes Attrs) {
     Result += "noimplicitfloat ";
   if (Attrs & Attribute::Naked)
     Result += "naked ";
-  if (Attrs & Attribute::Hotpatch)
-    Result += "hotpatch ";
+  if (Attrs & Attribute::NonLazyBind)
+    Result += "nonlazybind ";
   if (Attrs & Attribute::StackAlignment) {
     Result += "alignstack(";
     Result += utostr(Attribute::getStackAlignmentFromAttrs(Attrs));
@@ -88,7 +92,7 @@ std::string Attribute::getAsString(Attributes Attrs) {
   return Result;
 }
 
-Attributes Attribute::typeIncompatible(const Type *Ty) {
+Attributes Attribute::typeIncompatible(Type *Ty) {
   Attributes Incompatible = None;
   
   if (!Ty->isIntegerTy())

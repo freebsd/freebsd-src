@@ -160,11 +160,11 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		archive_read_support_compression_all(a);
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
-		bsdtar_errc(1, 0, "%s", archive_error_string(a));
+		lafe_errc(1, 0, "%s", archive_error_string(a));
 	if (archive_read_open_file(a, bsdtar->filename,
 	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
 	    DEFAULT_BYTES_PER_BLOCK))
-		bsdtar_errc(1, 0, "Error opening archive: %s",
+		lafe_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
 	do_chdir(bsdtar);
@@ -180,9 +180,9 @@ read_archive(struct bsdtar *bsdtar, char mode)
 	if (mode == 'x' && bsdtar->option_chroot) {
 #if HAVE_CHROOT
 		if (chroot(".") != 0)
-			bsdtar_errc(1, errno, "Can't chroot to \".\"");
+			lafe_errc(1, errno, "Can't chroot to \".\"");
 #else
-		bsdtar_errc(1, 0,
+		lafe_errc(1, 0,
 		    "chroot isn't supported on this platform");
 #endif
 	}
@@ -198,21 +198,29 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		if (r == ARCHIVE_EOF)
 			break;
 		if (r < ARCHIVE_OK)
-			bsdtar_warnc(0, "%s", archive_error_string(a));
+			lafe_warnc(0, "%s", archive_error_string(a));
 		if (r <= ARCHIVE_WARN)
 			bsdtar->return_value = 1;
 		if (r == ARCHIVE_RETRY) {
 			/* Retryable error: try again */
-			bsdtar_warnc(0, "Retrying...");
+			lafe_warnc(0, "Retrying...");
 			continue;
 		}
 		if (r == ARCHIVE_FATAL)
 			break;
 
-		if (bsdtar->option_numeric_owner) {
+		if (bsdtar->uid >= 0) {
+			archive_entry_set_uid(entry, bsdtar->uid);
 			archive_entry_set_uname(entry, NULL);
+		}
+		if (bsdtar->gid >= 0) {
+			archive_entry_set_gid(entry, bsdtar->gid);
 			archive_entry_set_gname(entry, NULL);
 		}
+		if (bsdtar->uname)
+			archive_entry_set_uname(entry, bsdtar->uname);
+		if (bsdtar->gname)
+			archive_entry_set_gname(entry, bsdtar->gname);
 
 		/*
 		 * Exclude entries that are too old.
@@ -267,17 +275,17 @@ read_archive(struct bsdtar *bsdtar, char mode)
 			r = archive_read_data_skip(a);
 			if (r == ARCHIVE_WARN) {
 				fprintf(out, "\n");
-				bsdtar_warnc(0, "%s",
+				lafe_warnc(0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_RETRY) {
 				fprintf(out, "\n");
-				bsdtar_warnc(0, "%s",
+				lafe_warnc(0, "%s",
 				    archive_error_string(a));
 			}
 			if (r == ARCHIVE_FATAL) {
 				fprintf(out, "\n");
-				bsdtar_warnc(0, "%s",
+				lafe_warnc(0, "%s",
 				    archive_error_string(a));
 				bsdtar->return_value = 1;
 				break;
@@ -329,7 +337,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 
 	r = archive_read_close(a);
 	if (r != ARCHIVE_OK)
-		bsdtar_warnc(0, "%s", archive_error_string(a));
+		lafe_warnc(0, "%s", archive_error_string(a));
 	if (r <= ARCHIVE_WARN)
 		bsdtar->return_value = 1;
 

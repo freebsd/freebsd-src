@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007, 2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2001-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: builtin.c,v 1.12.334.3 2010-08-03 23:45:47 tbox Exp $ */
+/* $Id: builtin.c,v 1.20 2011-01-07 23:47:07 tbox Exp $ */
 
 /*! \file
  * \brief
@@ -47,6 +47,7 @@ static isc_result_t do_hostname_lookup(dns_sdblookup_t *lookup);
 static isc_result_t do_authors_lookup(dns_sdblookup_t *lookup);
 static isc_result_t do_id_lookup(dns_sdblookup_t *lookup);
 static isc_result_t do_empty_lookup(dns_sdblookup_t *lookup);
+static isc_result_t do_dns64_lookup(dns_sdblookup_t *lookup);
 
 /*
  * We can't use function pointers as the db_data directly
@@ -65,8 +66,178 @@ static builtin_t hostname_builtin = { do_hostname_lookup, NULL, NULL };
 static builtin_t authors_builtin = { do_authors_lookup, NULL, NULL };
 static builtin_t id_builtin = { do_id_lookup, NULL, NULL };
 static builtin_t empty_builtin = { do_empty_lookup, NULL, NULL };
+static builtin_t dns64_builtin = { do_dns64_lookup, NULL, NULL };
 
 static dns_sdbimplementation_t *builtin_impl;
+
+static const char hex[] = "0123456789abcdef";
+static const char HEX[] = "0123456789ABCDEF";
+
+static isc_result_t
+dns64_cname(const char *zone, const char *name, dns_sdblookup_t *lookup) {
+	size_t zlen, nlen, j;
+	const char *s;
+	unsigned char v[16];
+	unsigned int i;
+	char reverse[sizeof("123.123.123.123.in-addr.arpa.")];
+
+	/*
+	 * The sum the length of the relative name and the length of the zone
+	 * name for a IPv6 reverse lookup comes to 71.
+	 *
+	 * The reverse of 2001::10.0.0.1 (dns64 2001::/96) has a zone of
+	 * "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.1.0.0.2.ip6.arpa"
+	 * and a name of "1.0.0.0.0.0.a.0".  The sum of the lengths of these
+	 * two strings is 71.
+	 *
+	 * The minimum length for a ip6.arpa zone name is 8.
+	 *
+	 * The length of name should always be odd as we are expecting
+	 * a series of nibbles.
+	 */
+	zlen = strlen(zone);
+	nlen = strlen(name);
+	if ((zlen + nlen) > 71U || zlen < 8U || (nlen % 2) != 1U)
+		return (ISC_R_NOTFOUND);
+
+	/*
+	 * We assume the zone name is well formed.
+	 */
+
+	/*
+	 * XXXMPA We could check the dns64 suffix here if we need to.
+	 */
+	/*
+	 * Check that name is a series of nibbles.
+	 * Compute the byte values that correspond to the nibbles as we go.
+	 *
+	 * Shift the final result 4 bits, by setting 'i' to 1, if we if we
+	 * have a odd number of nibbles so that "must be zero" tests below
+	 * are byte aligned and we correctly return ISC_R_NOTFOUND or
+	 * ISC_R_SUCCESS.  We will not generate a CNAME in this case.
+	 */
+	i = (nlen % 4) == 1U ? 1 : 0;
+	j = nlen;
+	memset(v, 0, sizeof(v));
+	while (j >= 1U) {
+		INSIST((i/2) < sizeof(v));
+		if (j > 1U && name[1] != '.')
+			return (ISC_R_NOTFOUND);
+		v[i/2] >>= 4;
+		if ((s = strchr(hex, name[0])) != NULL)
+			v[i/2] |= (s - hex) << 4;
+		else if ((s = strchr(HEX, name[0])) != NULL)
+			v[i/2] |= (s - HEX) << 4;
+		else
+			return (ISC_R_NOTFOUND);
+		if (j > 1U)
+			j -= 2;
+		else
+			j -= 1;
+		name += 2;
+		i++;
+	}
+
+	/*
+	 * If we get here then we know name only consisted of nibbles.
+	 * Now we need to determine if the name exists or not and whether
+	 * it corresponds to a empty node in the zone or there should be
+	 * a CNAME.
+	 */
+	switch (zlen) {
+	case 24:	/* prefix len 32 */
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[8], v[9], v[10], v[11]);
+		break;
+	case 28:	/* prefix len 40 */
+		/*
+		 * The nibbles that map to this byte must be zero for 'name'
+		 * to exist in the zone.
+		 */
+		if (nlen > 11U && v[nlen/4 - 3] != 0)
+			return (ISC_R_NOTFOUND);
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[6], v[8], v[9], v[10]);
+		break;
+	case 32:	/* prefix len 48 */
+		/*
+		 * The nibbles that map to this byte must be zero for 'name'
+		 * to exist in the zone.
+		 */
+		if (nlen > 7U && v[nlen/4 - 2] != 0)
+			return (ISC_R_NOTFOUND);
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[5], v[6], v[8], v[9]);
+		break;
+	case 36:	/* prefix len 56 */
+		/*
+		 * The nibbles that map to this byte must be zero for 'name'
+		 * to exist in the zone.
+		 */
+		if (nlen > 3U && v[nlen/4 - 1] != 0)
+			return (ISC_R_NOTFOUND);
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[4], v[5], v[6], v[8]);
+		break;
+	case 40:	/* prefix len 64 */
+		/*
+		 * The nibbles that map to this byte must be zero for 'name'
+		 * to exist in the zone.
+		 */
+		if (v[nlen/4] != 0)
+			return (ISC_R_NOTFOUND);
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[3], v[4], v[5], v[6]);
+		break;
+	case 56:	/* prefix len 96 */
+		/*
+		 * If the total length is not 71 then this is a empty node
+		 * so return success.
+		 */
+		if (nlen + zlen != 71U)
+			return (ISC_R_SUCCESS);
+		snprintf(reverse, sizeof(reverse), "%u.%u.%u.%u.in-addr.arpa.",
+			 v[0], v[1], v[2], v[3]);
+		break;
+	default:
+		/*
+		 * This should never be reached unless someone adds a
+		 * zone declaration with this internal type to named.conf.
+		 */
+		return (ISC_R_NOTFOUND);
+	}
+	return (dns_sdb_putrr(lookup, "CNAME", 600, reverse));
+}
 
 static isc_result_t
 builtin_lookup(const char *zone, const char *name, void *dbdata,
@@ -78,6 +249,8 @@ builtin_lookup(const char *zone, const char *name, void *dbdata,
 
 	if (strcmp(name, "@") == 0)
 		return (b->do_lookup(lookup));
+	else if (b->do_lookup == do_dns64_lookup)
+		return (dns64_cname(zone, name, lookup));
 	else
 		return (ISC_R_NOTFOUND);
 }
@@ -132,11 +305,13 @@ do_authors_lookup(dns_sdblookup_t *lookup) {
 		"Michael Graff",
 		"Andreas Gustafsson",
 		"Bob Halley",
+		"Evan Hunt",
 		"JINMEI Tatuya",
 		"David Lawrence",
 		"Danny Mayer",
 		"Damien Neil",
 		"Matt Nelson",
+		"Jeremy C. Reed",
 		"Michael Sawyer",
 		"Brian Wellington",
 		NULL
@@ -171,6 +346,12 @@ do_id_lookup(dns_sdblookup_t *lookup) {
 		return (ISC_R_SUCCESS);
 	else
 		return (put_txt(lookup, ns_g_server->server_id));
+}
+
+static isc_result_t
+do_dns64_lookup(dns_sdblookup_t *lookup) {
+	UNUSED(lookup);
+	return (ISC_R_SUCCESS);
 }
 
 static isc_result_t
@@ -220,7 +401,7 @@ builtin_create(const char *zone, int argc, char **argv,
 	UNUSED(zone);
 	UNUSED(driverdata);
 
-	if (strcmp(argv[0], "empty") == 0) {
+	if (strcmp(argv[0], "empty") == 0 || strcmp(argv[0], "dns64") == 0) {
 		if (argc != 3)
 			return (DNS_R_SYNTAX);
 	} else if (argc != 1)
@@ -234,7 +415,8 @@ builtin_create(const char *zone, int argc, char **argv,
 		*dbdata = &authors_builtin;
 	else if (strcmp(argv[0], "id") == 0)
 		*dbdata = &id_builtin;
-	else if (strcmp(argv[0], "empty") == 0) {
+	else if (strcmp(argv[0], "empty") == 0 ||
+		 strcmp(argv[0], "dns64") == 0) {
 		builtin_t *empty;
 		char *server;
 		char *contact;
@@ -246,7 +428,10 @@ builtin_create(const char *zone, int argc, char **argv,
 		server = isc_mem_strdup(ns_g_mctx, argv[1]);
 		contact = isc_mem_strdup(ns_g_mctx, argv[2]);
 		if (empty == NULL || server == NULL || contact == NULL) {
-			*dbdata = &empty_builtin;
+			if (strcmp(argv[0], "empty") == 0)
+				*dbdata = &empty_builtin;
+			else
+				*dbdata = &dns64_builtin;
 			if (server != NULL)
 				isc_mem_free(ns_g_mctx, server);
 			if (contact != NULL)
@@ -254,7 +439,12 @@ builtin_create(const char *zone, int argc, char **argv,
 			if (empty != NULL)
 				isc_mem_put(ns_g_mctx, empty, sizeof (*empty));
 		} else {
-			memcpy(empty, &empty_builtin, sizeof (empty_builtin));
+			if (strcmp(argv[0], "empty") == 0)
+				memcpy(empty, &empty_builtin,
+				       sizeof (empty_builtin));
+			else
+				memcpy(empty, &dns64_builtin,
+				       sizeof (empty_builtin));
 			empty->server = server;
 			empty->contact = contact;
 			*dbdata = empty;
@@ -276,7 +466,7 @@ builtin_destroy(const char *zone, void *driverdata, void **dbdata) {
 	 */
 	if (*dbdata == &version_builtin || *dbdata == &hostname_builtin ||
 	    *dbdata == &authors_builtin || *dbdata == &id_builtin ||
-	    *dbdata == &empty_builtin)
+	    *dbdata == &empty_builtin || *dbdata == &dns64_builtin)
 		return;
 
 	isc_mem_free(ns_g_mctx, b->server);
@@ -306,3 +496,4 @@ void
 ns_builtin_deinit(void) {
 	dns_sdb_unregister(&builtin_impl);
 }
+

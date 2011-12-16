@@ -1,4 +1,4 @@
-/*	$OpenBSD: glob.h,v 1.10 2005/12/13 00:35:22 millert Exp $	*/
+/*	$OpenBSD: glob.h,v 1.11 2010/09/24 13:32:55 djm Exp $	*/
 /*	$NetBSD: glob.h,v 1.5 1994/10/26 00:55:56 cgd Exp $	*/
 
 /*
@@ -38,12 +38,14 @@
 /* OPENBSD ORIGINAL: include/glob.h */
 
 #if !defined(HAVE_GLOB_H) || !defined(GLOB_HAS_ALTDIRFUNC) || \
-    !defined(GLOB_HAS_GL_MATCHC) || \
+    !defined(GLOB_HAS_GL_MATCHC) || !defined(GLOB_HAS_GL_STATV) || \
     !defined(HAVE_DECL_GLOB_NOMATCH) || HAVE_DECL_GLOB_NOMATCH == 0 || \
     defined(BROKEN_GLOB)
 
 #ifndef _GLOB_H_
 #define	_GLOB_H_
+
+#include <sys/stat.h>
 
 struct stat;
 typedef struct {
@@ -52,6 +54,7 @@ typedef struct {
 	int gl_offs;		/* Reserved at beginning of gl_pathv. */
 	int gl_flags;		/* Copy of flags parameter to glob. */
 	char **gl_pathv;	/* List of paths matching pattern. */
+	struct stat **gl_statv;	/* Stat entries corresponding to gl_pathv */
 				/* Copy of errfunc parameter to glob. */
 	int (*gl_errfunc)(const char *, int);
 
@@ -75,12 +78,10 @@ typedef struct {
 #define	GLOB_NOSORT	0x0020	/* Don't sort. */
 #define	GLOB_NOESCAPE	0x1000	/* Disable backslash escaping. */
 
-/* Error values returned by glob(3) */
 #define	GLOB_NOSPACE	(-1)	/* Malloc call failed. */
 #define	GLOB_ABORTED	(-2)	/* Unignored error. */
 #define	GLOB_NOMATCH	(-3)	/* No match and GLOB_NOCHECK not set. */
 #define	GLOB_NOSYS	(-4)	/* Function not supported. */
-#define GLOB_ABEND	GLOB_ABORTED
 
 #define	GLOB_ALTDIRFUNC	0x0040	/* Use alternately specified directory funcs. */
 #define	GLOB_BRACE	0x0080	/* Expand braces ala csh. */
@@ -89,6 +90,8 @@ typedef struct {
 #define	GLOB_QUOTE	0x0400	/* Quote special chars with \. */
 #define	GLOB_TILDE	0x0800	/* Expand tilde names from the passwd file. */
 #define GLOB_LIMIT	0x2000	/* Limit pattern match output to ARG_MAX */
+#define	GLOB_KEEPSTAT	0x4000	/* Retain stat data for paths in gl_statv. */
+#define GLOB_ABEND	GLOB_ABORTED /* backward compatibility */
 
 int	glob(const char *, int, int (*)(const char *, int), glob_t *);
 void	globfree(glob_t *);
@@ -96,5 +99,5 @@ void	globfree(glob_t *);
 #endif /* !_GLOB_H_ */
 
 #endif /* !defined(HAVE_GLOB_H) || !defined(GLOB_HAS_ALTDIRFUNC)  ||
-	  !defined(GLOB_HAS_GL_MATCHC */
+	  !defined(GLOB_HAS_GL_MATCHC) || !defined(GLOH_HAS_GL_STATV) */
 

@@ -50,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/cpuset.h>
 #include <sys/sx.h>
 #include <sys/queue.h>
+#include <sys/libkern.h>
 #include <sys/limits.h>
 #include <sys/bus.h>
 #include <sys/interrupt.h>
@@ -617,6 +618,86 @@ out:
 }
 
 /*
+ * Calculate the ffs() of the cpuset.
+ */
+int
+cpusetobj_ffs(const cpuset_t *set)
+{
+	size_t i;
+	int cbit;
+
+	cbit = 0;
+	for (i = 0; i < _NCPUWORDS; i++) {
+		if (set->__bits[i] != 0) {
+			cbit = ffsl(set->__bits[i]);
+			cbit += i * _NCPUBITS;
+			break;
+		}
+	}
+	return (cbit);
+}
+
+/*
+ * Return a string representing a valid layout for a cpuset_t object.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+char *
+cpusetobj_strprint(char *buf, const cpuset_t *set)
+{
+	char *tbuf;
+	size_t i, bytesp, bufsiz;
+
+	tbuf = buf;
+	bytesp = 0;
+	bufsiz = CPUSETBUFSIZ;
+
+	for (i = _NCPUWORDS - 1; i > 0; i--) {
+		bytesp = snprintf(tbuf, bufsiz, "%lx, ", set->__bits[i]);
+		bufsiz -= bytesp;
+		tbuf += bytesp;
+	}
+	snprintf(tbuf, bufsiz, "%lx", set->__bits[0]);
+	return (buf);
+}
+
+/*
+ * Build a valid cpuset_t object from a string representation.
+ * It expects an incoming buffer at least sized as CPUSETBUFSIZ.
+ */
+int
+cpusetobj_strscan(cpuset_t *set, const char *buf)
+{
+	u_int nwords;
+	int i, ret;
+
+	if (strlen(buf) > CPUSETBUFSIZ - 1)
+		return (-1);
+
+	/* Allow to pass a shorter version of the mask when necessary. */
+	nwords = 1;
+	for (i = 0; buf[i] != '\0'; i++)
+		if (buf[i] == ',')
+			nwords++;
+	if (nwords > _NCPUWORDS)
+		return (-1);
+
+	CPU_ZERO(set);
+	for (i = nwords - 1; i > 0; i--) {
+		ret = sscanf(buf, "%lx, ", &set->__bits[i]);
+		if (ret == 0 || ret == -1)
+			return (-1);
+		buf = strstr(buf, " ");
+		if (buf == NULL)
+			return (-1);
+		buf++;
+	}
+	ret = sscanf(buf, "%lx", &set->__bits[0]);
+	if (ret == 0 || ret == -1)
+		return (-1);
+	return (0);
+}
+
+/*
  * Apply an anonymous mask to a single thread.
  */
 int
@@ -676,7 +757,7 @@ cpuset_thread0(void)
 	 * cpuset_create() due to NULL parent.
 	 */
 	set = uma_zalloc(cpuset_zone, M_WAITOK | M_ZERO);
-	set->cs_mask.__bits[0] = -1;
+	CPU_FILL(&set->cs_mask);
 	LIST_INIT(&set->cs_children);
 	LIST_INSERT_HEAD(&cpuset_ids, set, cs_link);
 	set->cs_ref = 1;
@@ -754,12 +835,7 @@ cpuset_init(void *arg)
 {
 	cpuset_t mask;
 
-	CPU_ZERO(&mask);
-#ifdef SMP
-	mask.__bits[0] = all_cpus;
-#else
-	mask.__bits[0] = 1;
-#endif
+	mask = all_cpus;
 	if (cpuset_modify(cpuset_zero, &mask))
 		panic("Can't set initial cpuset mask.\n");
 	cpuset_zero->cs_flags |= CPU_SET_RDONLY;
@@ -772,7 +848,7 @@ struct cpuset_args {
 };
 #endif
 int
-cpuset(struct thread *td, struct cpuset_args *uap)
+sys_cpuset(struct thread *td, struct cpuset_args *uap)
 {
 	struct cpuset *root;
 	struct cpuset *set;
@@ -800,7 +876,7 @@ struct cpuset_setid_args {
 };
 #endif
 int
-cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
+sys_cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
 {
 	struct cpuset *set;
 	int error;
@@ -824,9 +900,10 @@ struct cpuset_getid_args {
 	cpuwhich_t	which;
 	id_t		id;
 	cpusetid_t	*setid;
+};
 #endif
 int
-cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
+sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -883,7 +960,7 @@ struct cpuset_getaffinity_args {
 };
 #endif
 int
-cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
+sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
 	struct thread *ttd;
 	struct cpuset *nset;
@@ -973,7 +1050,7 @@ struct cpuset_setaffinity_args {
 };
 #endif
 int
-cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
+sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;

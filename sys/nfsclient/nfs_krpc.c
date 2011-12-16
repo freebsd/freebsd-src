@@ -93,16 +93,16 @@ static int	nfs3_jukebox_delay = 10;
 static int	nfs_skip_wcc_data_onerr = 1;
 static int	fake_wchan;
 
-SYSCTL_DECL(_vfs_nfs);
+SYSCTL_DECL(_vfs_oldnfs);
 
-SYSCTL_INT(_vfs_nfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, bufpackets, CTLFLAG_RW, &nfs_bufpackets, 0,
     "Buffer reservation size 2 < x < 64");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, reconnects, CTLFLAG_RD, &nfs_reconnects, 0,
     "Number of times the nfs client has had to reconnect");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, nfs3_jukebox_delay, CTLFLAG_RW,
     &nfs3_jukebox_delay, 0,
     "Number of seconds to delay a retry after receiving EJUKEBOX");
-SYSCTL_INT(_vfs_nfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW,
+SYSCTL_INT(_vfs_oldnfs, OID_AUTO, skip_wcc_data_onerr, CTLFLAG_RW,
     &nfs_skip_wcc_data_onerr, 0,
     "Disable weak cache consistency checking when server returns an error");
 
@@ -306,9 +306,7 @@ nfs_disconnect(struct nfsmount *nmp)
 		client = nmp->nm_client;
 		nmp->nm_client = NULL;
 		mtx_unlock(&nmp->nm_mtx);
-#ifdef KGSSAPI
-		rpc_gss_secpurge(client);
-#endif
+		rpc_gss_secpurge_call(client);
 		CLNT_CLOSE(client);
 		CLNT_RELEASE(client);
 	} else
@@ -325,18 +323,15 @@ nfs_safedisconnect(struct nfsmount *nmp)
 static AUTH *
 nfs_getauth(struct nfsmount *nmp, struct ucred *cred)
 {
-#ifdef KGSSAPI
 	rpc_gss_service_t svc;
 	AUTH *auth;
-#endif
 
 	switch (nmp->nm_secflavor) {
-#ifdef KGSSAPI
 	case RPCSEC_GSS_KRB5:
 	case RPCSEC_GSS_KRB5I:
 	case RPCSEC_GSS_KRB5P:
 		if (!nmp->nm_mech_oid)
-			if (!rpc_gss_mech_to_oid("kerberosv5",
+			if (!rpc_gss_mech_to_oid_call("kerberosv5",
 			    &nmp->nm_mech_oid))
 				return (NULL);
 		if (nmp->nm_secflavor == RPCSEC_GSS_KRB5)
@@ -345,12 +340,11 @@ nfs_getauth(struct nfsmount *nmp, struct ucred *cred)
 			svc = rpc_gss_svc_integrity;
 		else
 			svc = rpc_gss_svc_privacy;
-		auth = rpc_gss_secfind(nmp->nm_client, cred,
+		auth = rpc_gss_secfind_call(nmp->nm_client, cred,
 		    nmp->nm_principal, nmp->nm_mech_oid, svc);
 		if (auth)
 			return (auth);
 		/* fallthrough */
-#endif
 	case AUTH_SYS:
 	default:
 		return (authunix_create(cred));
@@ -546,6 +540,11 @@ tryagain:
 				    hz);
 			goto tryagain;
 		}
+		/*
+		 * Make sure NFSERR_RETERR isn't bogusly set by a server
+		 * such as amd. (No actual NFS error has bit 31 set.)
+		 */
+		error &= ~NFSERR_RETERR;
 
 		/*
 		 * If the File Handle was stale, invalidate the lookup

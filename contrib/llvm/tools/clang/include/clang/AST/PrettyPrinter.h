@@ -15,10 +15,7 @@
 #define LLVM_CLANG_AST_PRETTY_PRINTER_H
 
 #include "clang/Basic/LangOptions.h"
-
-namespace llvm {
-  class raw_ostream;
-}
+#include "clang/Basic/LLVM.h"
 
 namespace clang {
 
@@ -29,7 +26,7 @@ class LangOptions;
 class PrinterHelper {
 public:
   virtual ~PrinterHelper();
-  virtual bool handledStmt(Stmt* E, llvm::raw_ostream& OS) = 0;
+  virtual bool handledStmt(Stmt* E, raw_ostream& OS) = 0;
 };
 
 /// \brief Describes how types, statements, expressions, and
@@ -38,15 +35,17 @@ struct PrintingPolicy {
   /// \brief Create a default printing policy for C.
   PrintingPolicy(const LangOptions &LO)
     : Indentation(2), LangOpts(LO), SuppressSpecifiers(false),
-      SuppressTag(false), SuppressScope(false),
+      SuppressTagKeyword(false), SuppressTag(false), SuppressScope(false),
+      SuppressInitializers(false),
       Dump(false), ConstantArraySizeAsWritten(false),
-      AnonymousTagLocations(true) { }
+      AnonymousTagLocations(true), SuppressStrongLifetime(false),
+      Bool(LO.Bool) { }
 
   /// \brief The number of spaces to use to indent each line.
   unsigned Indentation : 8;
 
   /// \brief What language we're printing.
-  const LangOptions LangOpts;
+  LangOptions LangOpts;
 
   /// \brief Whether we should suppress printing of the actual specifiers for
   /// the given type or declaration.
@@ -64,6 +63,16 @@ struct PrintingPolicy {
   /// "const int" type specifier and instead only print the "*y".
   bool SuppressSpecifiers : 1;
 
+  /// \brief Whether type printing should skip printing the tag keyword.
+  ///
+  /// This is used when printing the inner type of elaborated types,
+  /// (as the tag keyword is part of the elaborated type):
+  ///
+  /// \code
+  /// struct Geometry::Point;
+  /// \endcode
+  bool SuppressTagKeyword : 1;
+
   /// \brief Whether type printing should skip printing the actual tag type.
   ///
   /// This is used when the caller needs to print a tag definition in front
@@ -76,6 +85,19 @@ struct PrintingPolicy {
 
   /// \brief Suppresses printing of scope specifiers.
   bool SuppressScope : 1;
+
+  /// \brief Suppress printing of variable initializers.
+  ///
+  /// This flag is used when printing the loop variable in a for-range
+  /// statement. For example, given:
+  ///
+  /// \code
+  /// for (auto x : coll)
+  /// \endcode
+  ///
+  /// SuppressInitializers will be true when printing "auto x", so that the
+  /// internal initializer constructed for x will not be printed.
+  bool SuppressInitializers : 1;
 
   /// \brief True when we are "dumping" rather than "pretty-printing",
   /// where dumping involves printing the internal details of the AST
@@ -105,6 +127,14 @@ struct PrintingPolicy {
   /// that entity (e.g., "enum <anonymous at t.h:10:5>"). Otherwise, just 
   /// prints "<anonymous>" for the name.
   bool AnonymousTagLocations : 1;
+  
+  /// \brief When true, suppress printing of the __strong lifetime qualifier in
+  /// ARC.
+  unsigned SuppressStrongLifetime : 1;
+  
+  /// \brief Whether we can use 'bool' rather than '_Bool', even if the language
+  /// doesn't actually have 'bool' (because, e.g., it is defined as a macro).
+  unsigned Bool : 1;
 };
 
 } // end namespace clang

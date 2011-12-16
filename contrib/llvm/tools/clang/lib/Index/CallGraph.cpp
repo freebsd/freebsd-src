@@ -74,7 +74,7 @@ void CallGraph::addTU(ASTContext& Ctx) {
        I != E; ++I) {
 
     if (FunctionDecl *FD = dyn_cast<FunctionDecl>(*I)) {
-      if (FD->isThisDeclarationADefinition()) {
+      if (FD->doesThisDeclarationHaveABody()) {
         // Set caller's ASTContext.
         Entity Ent = Entity::get(FD, Prog);
         CallGraphNode *Node = getOrInsertFunction(Ent);
@@ -110,7 +110,7 @@ Decl *CallGraph::getDecl(CallGraphNode *Node) {
   return Node->getDecl(*Ctx);
 }
 
-void CallGraph::print(llvm::raw_ostream &os) {
+void CallGraph::print(raw_ostream &os) {
   for (iterator I = begin(), E = end(); I != E; ++I) {
     if (I->second->hasCallee()) {
       os << "function: " << I->first.getPrintableName()

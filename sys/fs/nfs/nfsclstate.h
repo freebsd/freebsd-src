@@ -34,6 +34,7 @@
  */
 LIST_HEAD(nfsclopenhead, nfsclopen);
 LIST_HEAD(nfscllockownerhead, nfscllockowner);
+SLIST_HEAD(nfscllockownerfhhead, nfscllockownerfh);
 LIST_HEAD(nfscllockhead, nfscllock);
 LIST_HEAD(nfsclhead, nfsclclient);
 LIST_HEAD(nfsclownerhead, nfsclowner);
@@ -48,7 +49,6 @@ struct nfsclclient {
 	struct nfsclownerhead	nfsc_owner;
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
-	struct nfscllockownerhead nfsc_defunctlockowner;
 	struct nfsv4lock nfsc_lock;
 	struct proc	*nfsc_renewthread;
 	struct nfsmount	*nfsc_nmp;
@@ -150,8 +150,8 @@ struct nfscllockowner {
 	struct nfsclopen	*nfsl_open;
 	NFSPROC_T		*nfsl_inprog;
 	nfsv4stateid_t		nfsl_stateid;
+	int			nfsl_lockflags;
 	u_int32_t		nfsl_seqid;
-	u_int32_t		nfsl_defunct;
 	struct nfsv4lock	nfsl_rwlock;
 	u_int8_t		nfsl_owner[NFSV4CL_LOCKNAMELEN];
 	u_int8_t		nfsl_openowner[NFSV4CL_LOCKNAMELEN];
@@ -165,6 +165,14 @@ struct nfscllock {
 	u_int64_t		nfslo_first;
 	u_int64_t		nfslo_end;
 	short			nfslo_type;
+};
+
+/* This structure is used to collect a list of lockowners to free up. */
+struct nfscllockownerfh {
+	SLIST_ENTRY(nfscllockownerfh)	nfslfh_list;
+	struct nfscllockownerhead	nfslfh_lock;
+	int				nfslfh_len;
+	uint8_t				nfslfh_fh[NFSX_V4FHMAX];
 };
 
 /*

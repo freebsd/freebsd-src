@@ -443,7 +443,7 @@ Sets the list of binaries which the kernel will try to run as the initial
 process.
 The first matching binary is used.
 The default list is
-.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init:/stand/sysinstall .
+.Dq Li /sbin/init:/sbin/oinit:/sbin/init.bak:\:/rescue/init .
 .It Va init_script
 If set to a valid file name in the root file system,
 instructs
@@ -597,7 +597,7 @@ Modifies kernel option
 Limits the amount of KVM reserved for use by the
 buffer cache, specified in bytes.
 The default maximum is 200MB on i386,
-and 400MB on amd64, sparc64, and sun4v.
+and 400MB on amd64 and sparc64.
 This parameter is used to
 prevent the buffer cache from eating too much
 KVM in large-memory machine configurations.

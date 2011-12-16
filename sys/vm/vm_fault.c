@@ -209,6 +209,8 @@ vm_fault(vm_map_t map, vm_offset_t vaddr, vm_prot_t fault_type,
     int fault_flags)
 {
 
+	if ((curthread->td_pflags & TDP_NOFAULTING) != 0)
+		return (KERN_PROTECTION_FAILURE);
 	return (vm_fault_hold(map, vaddr, fault_type, fault_flags, NULL));
 }
 
@@ -343,9 +345,7 @@ RetryFault:;
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(fs.m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
 					if (!VM_OBJECT_TRYLOCK(
@@ -1058,6 +1058,8 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 	int count;
 	boolean_t pmap_failed;
 
+	if (len == 0)
+		return (0);
 	end = round_page(addr + len);	
 	addr = trunc_page(addr);
 
@@ -1087,10 +1089,11 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 			 * caller's changes may go unnoticed because they are
 			 * performed through an unmanaged mapping or by a DMA
 			 * operation.
+			 *
+			 * The object lock is not held here.
+			 * See vm_page_clear_dirty_mask().
 			 */
-			vm_page_lock_queues();
 			vm_page_dirty(*mp);
-			vm_page_unlock_queues();
 		}
 	}
 	if (pmap_failed) {
@@ -1463,4 +1466,18 @@ vm_fault_additional_pages(m, rbehind, rahead, marray, reqpage)
 
 	/* return number of pages */
 	return i;
+}
+
+int
+vm_fault_disable_pagefaults(void)
+{
+
+	return (curthread_pflags_set(TDP_NOFAULTING));
+}
+
+void
+vm_fault_enable_pagefaults(int save)
+{
+
+	curthread_pflags_restore(save);
 }

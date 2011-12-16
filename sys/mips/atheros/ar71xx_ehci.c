@@ -54,6 +54,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
 
+#include <mips/atheros/ar71xx_setup.h>
 #include <mips/atheros/ar71xx_bus_space_reversed.h>
 
 #define EHCI_HC_DEVSTR		"AR71XX Integrated USB 2.0 controller"
@@ -64,51 +65,9 @@ struct ar71xx_ehci_softc {
 
 static device_attach_t ar71xx_ehci_attach;
 static device_detach_t ar71xx_ehci_detach;
-static device_shutdown_t ar71xx_ehci_shutdown;
-static device_suspend_t ar71xx_ehci_suspend;
-static device_resume_t ar71xx_ehci_resume;
 
 bs_r_1_proto(reversed);
 bs_w_1_proto(reversed);
-
-static int
-ar71xx_ehci_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ar71xx_ehci_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ar71xx_ehci_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
 
 static int
 ar71xx_ehci_probe(device_t self)
@@ -192,6 +151,26 @@ ar71xx_ehci_attach(device_t self)
 	 * register following a port enable.
 	 */
 	sc->sc_flags = EHCI_SCFLG_SETMODE;
+
+	switch (ar71xx_soc) {
+		case AR71XX_SOC_AR7241:
+		case AR71XX_SOC_AR7242:
+		case AR71XX_SOC_AR9130:
+		case AR71XX_SOC_AR9132:
+			sc->sc_flags |= EHCI_SCFLG_TT | EHCI_SCFLG_NORESTERM;
+			break;
+		default:
+			/* fallthrough */
+			break;
+	}
+
+	/*
+	 * ehci_reset() needs the correct offset to access the host controller
+	 * registers. The AR724x/AR913x offsets aren't 0.
+	*/
+	sc->sc_offs = EHCI_CAPLENGTH(EREAD4(sc, EHCI_CAPLEN_HCIVERSION));
+
+
 	(void) ehci_reset(sc);
 
 	err = ehci_init(sc);
@@ -223,14 +202,7 @@ ar71xx_ehci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
-
-	/*
-	 * disable interrupts that might have been switched on in ehci_init
-	 */
-	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
-	}
+	device_delete_children(self);
 
  	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*
@@ -266,20 +238,17 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ar71xx_ehci_probe),
 	DEVMETHOD(device_attach, ar71xx_ehci_attach),
 	DEVMETHOD(device_detach, ar71xx_ehci_detach),
-	DEVMETHOD(device_suspend, ar71xx_ehci_suspend),
-	DEVMETHOD(device_resume, ar71xx_ehci_resume),
-	DEVMETHOD(device_shutdown, ar71xx_ehci_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(struct ar71xx_ehci_softc),
+	.name = "ehci",
+	.methods = ehci_methods,
+	.size = sizeof(struct ar71xx_ehci_softc),
 };
 
 static devclass_t ehci_devclass;

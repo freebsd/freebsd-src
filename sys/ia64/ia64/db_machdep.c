@@ -260,7 +260,7 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 		sym = db_search_symbol(ip, DB_STGY_ANY, &offset);
 		db_symbol_values(sym, &name, NULL);
 		db_printf("%s(", name);
-		if (bsp >= IA64_RR_BASE(5)) {
+		if (bsp >= VM_MAXUSER_ADDRESS) {
 			for (i = 0; i < args; i++) {
 				if ((bsp & 0x1ff) == 0x1f8)
 					bsp += 8;
@@ -279,12 +279,12 @@ db_backtrace(struct thread *td, struct pcb *pcb, int count)
 
 		if (error != ERESTART)
 			continue;
-		if (sp < IA64_RR_BASE(5))
+		if (sp < VM_MAXUSER_ADDRESS)
 			break;
 
 		tf = (struct trapframe *)(sp + 16);
 		if ((tf->tf_flags & FRAME_SYSCALL) != 0 ||
-		    tf->tf_special.iip < IA64_RR_BASE(5))
+		    tf->tf_special.iip < VM_MAXUSER_ADDRESS)
 			break;
 
 		/* XXX ask if we should unwind across the trapframe. */
@@ -578,11 +578,13 @@ db_show_mdpcpu(struct pcpu *pc)
 {
 	struct pcpu_md *md = &pc->pc_md;
 
-	db_printf("MD: vhpt     = %#lx\n", md->vhpt);
-	db_printf("MD: lid      = %#lx\n", md->lid);
-	db_printf("MD: clock    = %#lx/%#lx\n", md->clock, md->clockadj);
-	db_printf("MD: stats    = %p\n", &md->stats);
-	db_printf("MD: pmap     = %p\n", md->current_pmap);
+	db_printf("MD: vhpt       = %#lx\n", md->vhpt);
+	db_printf("MD: lid        = %#lx\n", md->lid);
+	db_printf("MD: clock      = %#lx\n", md->clock);
+	db_printf("MD: clock_mode = %u\n", md->clock_mode);
+	db_printf("MD: clock_load = %#lx\n", md->clock_load);
+	db_printf("MD: stats      = %p\n", &md->stats);
+	db_printf("MD: pmap       = %p\n", md->current_pmap);
 }
 
 void

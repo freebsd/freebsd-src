@@ -277,7 +277,7 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 	   "Number of times pmap_pte_quick didn't change PMAP1");
 static struct mtx PMAP2mutex;
 
-SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
+static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
 static int pg_ps_enabled;
 SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
     "Are large page mappings enabled?");
@@ -286,7 +286,7 @@ SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
 	"Max number of PV entries");
 SYSCTL_INT(_vm_pmap, OID_AUTO, shpgperproc, CTLFLAG_RD, &shpgperproc, 0,
 	"Page share factor per proc");
-SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_vm_pmap, OID_AUTO, pde, CTLFLAG_RD, 0,
     "2/4MB page mapping counters");
 
 static u_long pmap_pde_mappings;
@@ -422,7 +422,7 @@ pmap_bootstrap(vm_paddr_t firstaddr)
 #ifdef PAE
 	kernel_pmap->pm_pdpt = (pdpt_entry_t *) (KERNBASE + (u_int)IdlePDPT);
 #endif
-	kernel_pmap->pm_active = -1;	/* don't allow deactivation */
+	CPU_FILL(&kernel_pmap->pm_active);	/* don't allow deactivation */
 	TAILQ_INIT(&kernel_pmap->pm_pvchunk);
 	LIST_INIT(&allpmaps);
 	mtx_init(&allpmaps_lock, "allpmaps", NULL, MTX_SPIN);
@@ -802,22 +802,25 @@ pmap_cache_bits(int mode, boolean_t is_pde)
 void
 pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	CTR2(KTR_PMAP, "pmap_invalidate_page: pmap=%p va=0x%x",
 	    pmap, va);
 	
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invlpg(va);
 		smp_invlpg(va);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invlpg(va);
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invlpg(pmap->pm_active & other_cpus, va);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg(other_cpus, va);
 	}
 	sched_unpin();
 	PT_UPDATES_FLUSH();
@@ -826,26 +829,28 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 void
 pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t other_cpus;
 	vm_offset_t addr;
+	u_int cpuid;
 
 	CTR3(KTR_PMAP, "pmap_invalidate_page: pmap=%p eva=0x%x sva=0x%x",
 	    pmap, sva, eva);
 
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 		smp_invlpg_range(sva, eva);
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			for (addr = sva; addr < eva; addr += PAGE_SIZE)
 				invlpg(addr);
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invlpg_range(pmap->pm_active & other_cpus,
-			    sva, eva);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invlpg_range(other_cpus, sva, eva);
 	}
 	sched_unpin();
 	PT_UPDATES_FLUSH();
@@ -854,21 +859,24 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 void
 pmap_invalidate_all(pmap_t pmap)
 {
-	cpumask_t cpumask, other_cpus;
+	cpuset_t other_cpus;
+	u_int cpuid;
 
 	CTR1(KTR_PMAP, "pmap_invalidate_page: pmap=%p", pmap);
 
 	sched_pin();
-	if (pmap == kernel_pmap || pmap->pm_active == all_cpus) {
+	if (pmap == kernel_pmap || !CPU_CMP(&pmap->pm_active, &all_cpus)) {
 		invltlb();
 		smp_invltlb();
 	} else {
-		cpumask = PCPU_GET(cpumask);
-		other_cpus = PCPU_GET(other_cpus);
-		if (pmap->pm_active & cpumask)
+		cpuid = PCPU_GET(cpuid);
+		other_cpus = all_cpus;
+		CPU_CLR(cpuid, &other_cpus);
+		if (CPU_ISSET(cpuid, &pmap->pm_active))
 			invltlb();
-		if (pmap->pm_active & other_cpus)
-			smp_masked_invltlb(pmap->pm_active & other_cpus);
+		CPU_AND(&other_cpus, &pmap->pm_active);
+		if (!CPU_EMPTY(&other_cpus))
+			smp_masked_invltlb(other_cpus);
 	}
 	sched_unpin();
 }
@@ -893,7 +901,7 @@ pmap_invalidate_page(pmap_t pmap, vm_offset_t va)
 	CTR2(KTR_PMAP, "pmap_invalidate_page: pmap=%p va=0x%x",
 	    pmap, va);
 
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		invlpg(va);
 	PT_UPDATES_FLUSH();
 }
@@ -907,7 +915,7 @@ pmap_invalidate_range(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		CTR3(KTR_PMAP, "pmap_invalidate_range: pmap=%p sva=0x%x eva=0x%x",
 		    pmap, sva, eva);
 
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		for (addr = sva; addr < eva; addr += PAGE_SIZE)
 			invlpg(addr);
 	PT_UPDATES_FLUSH();
@@ -919,7 +927,7 @@ pmap_invalidate_all(pmap_t pmap)
 
 	CTR1(KTR_PMAP, "pmap_invalidate_all: pmap=%p", pmap);
 	
-	if (pmap == kernel_pmap || pmap->pm_active)
+	if (pmap == kernel_pmap || !CPU_EMPTY(&pmap->pm_active))
 		invltlb();
 }
 
@@ -1449,7 +1457,7 @@ pmap_pinit0(pmap_t pmap)
 #ifdef PAE
 	pmap->pm_pdpt = (pdpt_entry_t *)(KERNBASE + (vm_offset_t)IdlePDPT);
 #endif
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	PCPU_SET(curpmap, pmap);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
@@ -1467,7 +1475,6 @@ pmap_pinit(pmap_t pmap)
 {
 	vm_page_t m, ptdpg[NPGPTD + 1];
 	int npgptd = NPGPTD + 1;
-	static int color;
 	int i;
 
 #ifdef HAMFISTED_LOCKING
@@ -1499,9 +1506,8 @@ pmap_pinit(pmap_t pmap)
 	 * allocate the page directory page(s)
 	 */
 	for (i = 0; i < npgptd;) {
-		m = vm_page_alloc(NULL, color++,
-		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
-		    VM_ALLOC_ZERO);
+		m = vm_page_alloc(NULL, 0, VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED | VM_ALLOC_ZERO);
 		if (m == NULL)
 			VM_WAIT;
 		else {
@@ -1556,7 +1562,7 @@ pmap_pinit(pmap_t pmap)
 	}
 	xen_flush_queue();
 	vm_page_unlock_queues();
-	pmap->pm_active = 0;
+	CPU_ZERO(&pmap->pm_active);
 	TAILQ_INIT(&pmap->pm_pvchunk);
 	bzero(&pmap->pm_stats, sizeof pmap->pm_stats);
 
@@ -1686,7 +1692,7 @@ retry:
  * Deal with a SMP shootdown of other users of the pmap that we are
  * trying to dispose of.  This can be a bit hairy.
  */
-static cpumask_t *lazymask;
+static cpuset_t *lazymask;
 static u_int lazyptd;
 static volatile u_int lazywait;
 
@@ -1695,46 +1701,55 @@ void pmap_lazyfix_action(void);
 void
 pmap_lazyfix_action(void)
 {
-	cpumask_t mymask = PCPU_GET(cpumask);
 
 #ifdef COUNT_IPIS
 	(*ipi_lazypmap_counts[PCPU_GET(cpuid)])++;
 #endif
 	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	atomic_clear_int(lazymask, mymask);
+	CPU_CLR_ATOMIC(PCPU_GET(cpuid), lazymask);
 	atomic_store_rel_int(&lazywait, 1);
 }
 
 static void
-pmap_lazyfix_self(cpumask_t mymask)
+pmap_lazyfix_self(u_int cpuid)
 {
 
 	if (rcr3() == lazyptd)
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-	atomic_clear_int(lazymask, mymask);
+	CPU_CLR_ATOMIC(cpuid, lazymask);
 }
 
 
 static void
 pmap_lazyfix(pmap_t pmap)
 {
-	cpumask_t mymask, mask;
-	u_int spins;
+	cpuset_t mymask, mask;
+	u_int cpuid, spins;
+	int lsb;
 
-	while ((mask = pmap->pm_active) != 0) {
+	mask = pmap->pm_active;
+	while (!CPU_EMPTY(&mask)) {
 		spins = 50000000;
-		mask = mask & -mask;	/* Find least significant set bit */
+
+		/* Find least significant set bit. */
+		lsb = cpusetobj_ffs(&mask);
+		MPASS(lsb != 0);
+		lsb--;
+		CPU_SETOF(lsb, &mask);
 		mtx_lock_spin(&smp_ipi_mtx);
 #ifdef PAE
 		lazyptd = vtophys(pmap->pm_pdpt);
 #else
 		lazyptd = vtophys(pmap->pm_pdir);
 #endif
-		mymask = PCPU_GET(cpumask);
-		if (mask == mymask) {
+		cpuid = PCPU_GET(cpuid);
+
+		/* Use a cpuset just for having an easy check. */
+		CPU_SETOF(cpuid, &mymask);
+		if (!CPU_CMP(&mask, &mymask)) {
 			lazymask = &pmap->pm_active;
-			pmap_lazyfix_self(mymask);
+			pmap_lazyfix_self(cpuid);
 		} else {
 			atomic_store_rel_int((u_int *)&lazymask,
 			    (u_int)&pmap->pm_active);
@@ -1749,6 +1764,7 @@ pmap_lazyfix(pmap_t pmap)
 		mtx_unlock_spin(&smp_ipi_mtx);
 		if (spins == 0)
 			printf("pmap_lazyfix: spun for 50000000\n");
+		mask = pmap->pm_active;
 	}
 }
 
@@ -1768,7 +1784,7 @@ pmap_lazyfix(pmap_t pmap)
 	cr3 = vtophys(pmap->pm_pdir);
 	if (cr3 == rcr3()) {
 		load_cr3(PCPU_GET(curpcb)->pcb_cr3);
-		pmap->pm_active &= ~(PCPU_GET(cpumask));
+		CPU_CLR(PCPU_GET(cpuid), &pmap->pm_active);
 	}
 }
 #endif	/* SMP */
@@ -2003,7 +2019,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 
 	sched_pin();
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
-		if (m->hold_count || m->busy)
+		if ((m->flags & PG_MARKER) != 0 || m->hold_count || m->busy)
 			continue;
 		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
 			va = pv->pv_va;
@@ -2019,7 +2035,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			KASSERT((tpte & PG_W) == 0,
 			    ("pmap_collect: wired pte %#jx", (uintmax_t)tpte));
 			if (tpte & PG_A)
-				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			if ((tpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 				vm_page_dirty(m);
 			free = NULL;
@@ -2032,7 +2048,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 				PMAP_UNLOCK(pmap);
 		}
 		if (TAILQ_EMPTY(&m->md.pv_list))
-			vm_page_flag_clear(m, PG_WRITEABLE);
+			vm_page_aflag_clear(m, PGA_WRITEABLE);
 	}
 	sched_unpin();
 }
@@ -2085,7 +2101,6 @@ get_pv_entry(pmap_t pmap, int try)
 {
 	static const struct timeval printinterval = { 60, 0 };
 	static struct timeval lastprint;
-	static vm_pindex_t colour;
 	struct vpgqueues *pq;
 	int bit, field;
 	pv_entry_t pv;
@@ -2131,7 +2146,7 @@ retry:
 	 * queues lock.  If "pv_vafree" is currently non-empty, it will
 	 * remain non-empty until pmap_ptelist_alloc() completes.
 	 */
-	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, colour, (pq ==
+	if (pv_vafree == 0 || (m = vm_page_alloc(NULL, 0, (pq ==
 	    &vm_page_queues[PQ_ACTIVE] ? VM_ALLOC_SYSTEM : VM_ALLOC_NORMAL) |
 	    VM_ALLOC_NOOBJ | VM_ALLOC_WIRED)) == NULL) {
 		if (try) {
@@ -2157,7 +2172,6 @@ retry:
 	}
 	PV_STAT(pc_chunk_count++);
 	PV_STAT(pc_chunk_allocs++);
-	colour++;
 	pc = (struct pv_chunk *)pmap_ptelist_alloc(&pv_vafree);
 	pmap_qenter((vm_offset_t)pc, &m, 1);
 	if ((m->flags & PG_ZERO) == 0)
@@ -2204,7 +2218,7 @@ pmap_remove_entry(pmap_t pmap, vm_page_t m, vm_offset_t va)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	pmap_pvh_free(&m->md, pmap, va);
 	if (TAILQ_EMPTY(&m->md.pv_list))
-		vm_page_flag_clear(m, PG_WRITEABLE);
+		vm_page_aflag_clear(m, PGA_WRITEABLE);
 }
 
 /*
@@ -2256,7 +2270,7 @@ pmap_remove_pte(pmap_t pmap, pt_entry_t *ptq, vm_offset_t va, vm_page_t *free)
 		if ((oldpte & (PG_M | PG_RW)) == (PG_M | PG_RW))
 			vm_page_dirty(m);
 		if (oldpte & PG_A)
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 		pmap_remove_entry(pmap, m, va);
 	}
 	return (pmap_unuse_pt(pmap, va, free));
@@ -2412,8 +2426,8 @@ pmap_remove_all(vm_page_t m)
 	pt_entry_t *pte, tpte;
 	vm_page_t free;
 
-	KASSERT((m->flags & PG_FICTITIOUS) == 0,
-	    ("pmap_remove_all: page %p is fictitious", m));
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
+	    ("pmap_remove_all: page %p is not managed", m));
 	free = NULL;
 	vm_page_lock_queues();
 	sched_pin();
@@ -2428,7 +2442,7 @@ pmap_remove_all(vm_page_t m)
 		if (tpte & PG_W)
 			pmap->pm_stats.wired_count--;
 		if (tpte & PG_A)
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 
 		/*
 		 * Update the vm_page_t clean and reference bits.
@@ -2441,7 +2455,7 @@ pmap_remove_all(vm_page_t m)
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	PT_UPDATES_FLUSH();
 	if (*PMAP1)
 		PT_SET_MA(PADDR1, 0);
@@ -2598,8 +2612,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	KASSERT(va < UPT_MIN_ADDRESS || va >= UPT_MAX_ADDRESS,
 	    ("pmap_enter: invalid to pmap_enter page table pages (va: 0x%x)",
 	    va));
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0,
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0,
 	    ("pmap_enter: page %p is not busy", m));
 
 	mpte = NULL;
@@ -2697,7 +2710,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0) {
+	if ((m->oflags & VPO_UNMANAGED) == 0) {
 		KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva,
 		    ("pmap_enter: managed mapping within the clean submap"));
 		if (pv == NULL)
@@ -2722,7 +2735,7 @@ validate:
 	if ((prot & VM_PROT_WRITE) != 0) {
 		newpte |= PG_RW;
 		if ((newpte & PG_MANAGED) != 0)
-			vm_page_flag_set(m, PG_WRITEABLE);
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	}
 #ifdef PAE
 	if ((prot & VM_PROT_EXECUTE) == 0)
@@ -2747,7 +2760,7 @@ validate:
 			PT_SET_VA(pte, newpte | PG_A, FALSE);
 			if (origpte & PG_A) {
 				if (origpte & PG_MANAGED)
-					vm_page_flag_set(om, PG_REFERENCED);
+					vm_page_aflag_set(om, PGA_REFERENCED);
 				if (opa != VM_PAGE_TO_PHYS(m))
 					invlva = TRUE;
 #ifdef PAE
@@ -2764,7 +2777,7 @@ validate:
 			}
 			if ((origpte & PG_MANAGED) != 0 &&
 			    TAILQ_EMPTY(&om->md.pv_list))
-				vm_page_flag_clear(om, PG_WRITEABLE);
+				vm_page_aflag_clear(om, PGA_WRITEABLE);
 			if (invlva)
 				pmap_invalidate_page(pmap, va);
 		} else{
@@ -2897,7 +2910,7 @@ pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_o
 	multicall_entry_t *mcl = *mclpp;
 	
 	KASSERT(va < kmi.clean_sva || va >= kmi.clean_eva ||
-	    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0,
+	    (m->oflags & VPO_UNMANAGED) != 0,
 	    ("pmap_enter_quick_locked: managed mapping within the clean submap"));
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
@@ -2961,7 +2974,7 @@ pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_o
 	/*
 	 * Enter on the PV list if part of our managed memory.
 	 */
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0 &&
+	if ((m->oflags & VPO_UNMANAGED) == 0 &&
 	    !pmap_try_insert_pv_entry(pmap, va, m)) {
 		if (mpte != NULL) {
 			free = NULL;
@@ -2990,7 +3003,7 @@ pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_o
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	if (m->flags & (PG_FICTITIOUS|PG_UNMANAGED))
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		pte_store(pte, pa | PG_V | PG_U);
 	else
 		pte_store(pte, pa | PG_V | PG_U | PG_MANAGED);
@@ -2998,7 +3011,7 @@ pmap_enter_quick_locked(multicall_entry_t **mclpp, int *count, pmap_t pmap, vm_o
 	/*
 	 * Now validate mapping with RO protection
 	 */
-	if (m->flags & (PG_FICTITIOUS|PG_UNMANAGED))
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		pa = 	xpmap_ptom(pa | PG_V | PG_U);
 	else
 		pa = xpmap_ptom(pa | PG_V | PG_U | PG_MANAGED);
@@ -3385,7 +3398,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	int loops = 0;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
@@ -3417,7 +3430,7 @@ pmap_page_wired_mappings(vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	sched_pin();
@@ -3443,7 +3456,7 @@ pmap_page_is_mapped(vm_page_t m)
 {
 	boolean_t rv;
 
-	if ((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (FALSE);
 	vm_page_lock_queues();
 	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
@@ -3532,7 +3545,7 @@ pmap_remove_pages(pmap_t pmap)
 
 				TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
 				if (TAILQ_EMPTY(&m->md.pv_list))
-					vm_page_flag_clear(m, PG_WRITEABLE);
+					vm_page_aflag_clear(m, PGA_WRITEABLE);
 
 				pmap_unuse_pt(pmap, pv->pv_va, &free);
 
@@ -3582,18 +3595,18 @@ pmap_is_modified(vm_page_t m)
 	pmap_t pmap;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_modified: page %p is not managed", m));
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PG_M set.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	vm_page_lock_queues();
 	sched_pin();
@@ -3653,7 +3666,7 @@ pmap_is_referenced(vm_page_t m)
 	pmap_t pmap;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_is_referenced: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
@@ -3714,17 +3727,17 @@ pmap_remove_write(vm_page_t m)
 	pmap_t pmap;
 	pt_entry_t oldpte, *pte;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	sched_pin();
@@ -3752,7 +3765,7 @@ retry:
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	PT_UPDATES_FLUSH();
 	if (*PMAP1)
 		PT_SET_MA(PADDR1, 0);
@@ -3780,7 +3793,7 @@ pmap_ts_referenced(vm_page_t m)
 	pt_entry_t *pte;
 	int rtval = 0;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_ts_referenced: page %p is not managed", m));
 	vm_page_lock_queues();
 	sched_pin();
@@ -3822,18 +3835,18 @@ pmap_clear_modify(vm_page_t m)
 	pmap_t pmap;
 	pt_entry_t *pte;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("pmap_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no PTEs can have PG_M set.
+	 * If the page is not PGA_WRITEABLE, then no PTEs can have PG_M set.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	sched_pin();
@@ -3868,7 +3881,7 @@ pmap_clear_reference(vm_page_t m)
 	pmap_t pmap;
 	pt_entry_t *pte;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("pmap_clear_reference: page %p is not managed", m));
 	vm_page_lock_queues();
 	sched_pin();
@@ -4117,17 +4130,19 @@ void
 pmap_activate(struct thread *td)
 {
 	pmap_t	pmap, oldpmap;
+	u_int	cpuid;
 	u_int32_t  cr3;
 
 	critical_enter();
 	pmap = vmspace_pmap(td->td_proc->p_vmspace);
 	oldpmap = PCPU_GET(curpmap);
+	cpuid = PCPU_GET(cpuid);
 #if defined(SMP)
-	atomic_clear_int(&oldpmap->pm_active, PCPU_GET(cpumask));
-	atomic_set_int(&pmap->pm_active, PCPU_GET(cpumask));
+	CPU_CLR_ATOMIC(cpuid, &oldpmap->pm_active);
+	CPU_SET_ATOMIC(cpuid, &pmap->pm_active);
 #else
-	oldpmap->pm_active &= ~1;
-	pmap->pm_active |= 1;
+	CPU_CLR(cpuid, &oldpmap->pm_active);
+	CPU_SET(cpuid, &pmap->pm_active);
 #endif
 #ifdef PAE
 	cr3 = vtophys(pmap->pm_pdpt);

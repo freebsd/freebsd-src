@@ -108,6 +108,10 @@ ipdn_bound_var(int *v, int dflt, int lo, int hi, const char *msg)
 {
 	int oldv = *v;
 	const char *op = NULL;
+	if (dflt < lo)
+		dflt = lo;
+	if (dflt > hi)
+		dflt = hi;
 	if (oldv < lo) {
 		*v = dflt;
 		op = "Bump";
@@ -748,9 +752,10 @@ schk_delete_cb(void *obj, void *arg)
 #endif
 	fsk_detach_list(&s->fsk_list, arg ? DN_DESTROY : 0);
 	/* no more flowset pointing to us now */
-	if (s->sch.flags & DN_HAVE_MASK)
+	if (s->sch.flags & DN_HAVE_MASK) {
 		dn_ht_scan(s->siht, si_destroy, NULL);
-	else if (s->siht)
+		dn_ht_free(s->siht, 0);
+	} else if (s->siht)
 		si_destroy(s->siht, NULL);
 	if (s->profile) {
 		free(s->profile, M_DUMMYNET);
@@ -803,6 +808,7 @@ copy_obj(char **start, char *end, void *_o, const char *msg, int i)
 		/* Adjust burst parameter for link */
 		struct dn_link *l = (struct dn_link *)*start;
 		l->burst =  div64(l->burst, 8 * hz);
+		l->delay = l->delay * 1000 / hz;
 	} else if (o->type == DN_SCH) {
 		/* Set id->id to the number of instances */
 		struct dn_schk *s = _o;
@@ -1039,7 +1045,7 @@ config_red(struct dn_fsk *fs)
 
 	fs->w_q = fs->fs.w_q;
 	fs->max_p = fs->fs.max_p;
-	D("called");
+	ND("called");
 	/* Doing stuff that was in userland */
 	i = fs->sched->link.bandwidth;
 	s = (i <= 0) ? 0 :
@@ -1103,7 +1109,7 @@ config_red(struct dn_fsk *fs)
 	if (dn_cfg.red_max_pkt_size < 1)
 		dn_cfg.red_max_pkt_size = 1500;
 	fs->max_pkt_size = dn_cfg.red_max_pkt_size;
-	D("exit");
+	ND("exit");
 	return 0;
 }
 
@@ -1835,9 +1841,7 @@ dummynet_get(struct sockopt *sopt, void **compat)
 #endif
 		if (l > sizeof(r)) {
 			/* request larger than default, allocate buffer */
-			cmd = malloc(l,  M_DUMMYNET, M_WAIT);
-			if (cmd == NULL)
-				return ENOMEM; //XXX
+			cmd = malloc(l,  M_DUMMYNET, M_WAITOK);
 			error = sooptcopyin(sopt, cmd, l, l);
 			sopt->sopt_valsize = sopt_valsize;
 			if (error)
@@ -1893,10 +1897,6 @@ dummynet_get(struct sockopt *sopt, void **compat)
 
 		have = need;
 		start = malloc(have, M_DUMMYNET, M_WAITOK | M_ZERO);
-		if (start == NULL) {
-			error = ENOMEM;
-			goto done;
-		}
 	}
 
 	if (start == NULL) {
@@ -2133,7 +2133,7 @@ ip_dn_init(void)
 	dn_cfg.red_max_pkt_size = 1500;	/* default max packet size */
 
 	/* hash tables */
-	dn_cfg.max_hash_size = 1024;	/* max in the hash tables */
+	dn_cfg.max_hash_size = 65536;	/* max in the hash tables */
 	dn_cfg.hash_size = 64;		/* default hash size */
 
 	/* create hash tables for schedulers and flowsets.
@@ -2176,7 +2176,7 @@ ip_dn_destroy(int last)
 
 	DN_BH_WLOCK();
 	if (last) {
-		printf("%s removing last instance\n", __FUNCTION__);
+		ND("removing last instance\n");
 		ip_dn_ctl_ptr = NULL;
 		ip_dn_io_ptr = NULL;
 	}
@@ -2256,13 +2256,13 @@ unload_dn_sched(struct dn_alg *s)
 	struct dn_alg *tmp, *r;
 	int err = EINVAL;
 
-	D("called for %s", s->name);
+	ND("called for %s", s->name);
 
 	DN_BH_WLOCK();
 	SLIST_FOREACH_SAFE(r, &dn_cfg.schedlist, next, tmp) {
 		if (strcmp(s->name, r->name) != 0)
 			continue;
-		D("ref_count = %d", r->ref_count);
+		ND("ref_count = %d", r->ref_count);
 		err = (r->ref_count != 0) ? EBUSY : 0;
 		if (err == 0)
 			SLIST_REMOVE(&dn_cfg.schedlist, r, dn_alg, next);

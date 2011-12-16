@@ -102,10 +102,8 @@ static void	usb_notify_addq(const char *type, struct usb_device *);
 #endif
 #if USB_HAVE_UGEN
 static void	usb_fifo_free_wrap(struct usb_device *, uint8_t, uint8_t);
-static struct cdev *usb_make_dev(struct usb_device *, int, int);
 static void	usb_cdev_create(struct usb_device *);
 static void	usb_cdev_free(struct usb_device *);
-static void	usb_cdev_cleanup(void *);
 #endif
 
 /* This variable is global to allow easy access to it: */
@@ -1241,7 +1239,7 @@ static void
 usb_init_attach_arg(struct usb_device *udev,
     struct usb_attach_arg *uaa)
 {
-	bzero(uaa, sizeof(*uaa));
+	memset(uaa, 0, sizeof(*uaa));
 
 	uaa->device = udev;
 	uaa->usb_mode = udev->flags.usb_mode;
@@ -1297,6 +1295,21 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 
 	usb_init_attach_arg(udev, &uaa);
 
+	/*
+	 * If the whole USB device is targeted, invoke the USB event
+	 * handler(s):
+	 */
+	if (iface_index == USB_IFACE_INDEX_ANY) {
+
+		EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
+
+		if (uaa.dev_state != UAA_DEV_READY) {
+			/* leave device unconfigured */
+			usb_unconfigure(udev, 0);
+			goto done;
+		}
+	}
+
 	/* Check if only one interface should be probed: */
 	if (iface_index != USB_IFACE_INDEX_ANY) {
 		i = iface_index;
@@ -1334,7 +1347,6 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		uaa.info.bIfaceIndex = i;
 		uaa.info.bIfaceNum =
 		    iface->idesc->bInterfaceNumber;
-		uaa.use_generic = 0;
 		uaa.driver_info = 0;	/* reset driver_info */
 
 		DPRINTFN(2, "iclass=%u/%u/%u iindex=%u/%u\n",
@@ -1344,27 +1356,18 @@ usb_probe_and_attach(struct usb_device *udev, uint8_t iface_index)
 		    uaa.info.bIfaceIndex,
 		    uaa.info.bIfaceNum);
 
-		/* try specific interface drivers first */
+		usb_probe_and_attach_sub(udev, &uaa);
 
-		if (usb_probe_and_attach_sub(udev, &uaa)) {
-			/* ignore */
-		}
-		/* try generic interface drivers last */
-
-		uaa.use_generic = 1;
-		uaa.driver_info = 0;	/* reset driver_info */
-
-		if (usb_probe_and_attach_sub(udev, &uaa)) {
-			/* ignore */
-		}
-	}
-
-	if (uaa.temp_dev) {
-		/* remove the last created child; it is unused */
-
-		if (device_delete_child(udev->parent_dev, uaa.temp_dev)) {
+		/*
+		 * Remove the leftover child, if any, to enforce that
+		 * a new nomatch devd event is generated for the next
+		 * interface if no driver is found:
+		 */
+		if (uaa.temp_dev == NULL)
+			continue;
+		if (device_delete_child(udev->parent_dev, uaa.temp_dev))
 			DPRINTFN(0, "device delete child failed\n");
-		}
+		uaa.temp_dev = NULL;
 	}
 done:
 	if (do_unlock)
@@ -1537,7 +1540,7 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 
 	/* initialise our SX-lock */
 	sx_init_flags(&udev->enum_sx, "USB config SX lock", SX_DUPOK);
-	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_DUPOK);
+	sx_init_flags(&udev->sr_sx, "USB suspend and resume SX lock", SX_NOWITNESS);
 
 	cv_init(&udev->ctrlreq_cv, "WCTRL");
 	cv_init(&udev->ref_cv, "UGONE");
@@ -1621,10 +1624,12 @@ usb_alloc_device(device_t parent_dev, struct usb_bus *bus,
 	LIST_INIT(&udev->pd_list);
 
 	/* Create the control endpoint device */
-	udev->ctrl_dev = usb_make_dev(udev, 0, FREAD|FWRITE);
+	udev->ctrl_dev = usb_make_dev(udev, NULL, 0, 0,
+	    FREAD|FWRITE, UID_ROOT, GID_OPERATOR, 0600);
 
 	/* Create a link from /dev/ugenX.X to the default endpoint */
-	make_dev_alias(udev->ctrl_dev, "%s", udev->ugen_name);
+	if (udev->ctrl_dev != NULL)
+		make_dev_alias(udev->ctrl_dev->cdev, "%s", udev->ugen_name);
 #endif
 	/* Initialise device */
 	if (bus->methods->device_init != NULL) {
@@ -1845,10 +1850,20 @@ repeat_set_config:
 			}
 		}
 	}
-	EVENTHANDLER_INVOKE(usb_dev_configured, udev, &uaa);
-	if (uaa.dev_state != UAA_DEV_READY) {
-		/* leave device unconfigured */
-		usb_unconfigure(udev, 0);
+	if (set_config_failed == 0 && config_index == 0 &&
+	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0 &&
+	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0) {
+
+		/*
+		 * Try to figure out if there are any MSC quirks we
+		 * should apply automatically:
+		 */
+		err = usb_msc_auto_quirk(udev, 0);
+
+		if (err != 0) {
+			set_config_failed = 1;
+			goto repeat_set_config;
+		}
 	}
 
 config_done:
@@ -1884,11 +1899,12 @@ done:
 }
 
 #if USB_HAVE_UGEN
-static struct cdev *
-usb_make_dev(struct usb_device *udev, int ep, int mode)
+struct usb_fs_privdata *
+usb_make_dev(struct usb_device *udev, const char *devname, int ep,
+    int fi, int rwmode, uid_t uid, gid_t gid, int mode)
 {
 	struct usb_fs_privdata* pd;
-	char devname[20];
+	char buffer[32];
 
 	/* Store information to locate ourselves again later */
 	pd = malloc(sizeof(struct usb_fs_privdata), M_USBDEV,
@@ -1896,16 +1912,39 @@ usb_make_dev(struct usb_device *udev, int ep, int mode)
 	pd->bus_index = device_get_unit(udev->bus->bdev);
 	pd->dev_index = udev->device_index;
 	pd->ep_addr = ep;
-	pd->mode = mode;
+	pd->fifo_index = fi;
+	pd->mode = rwmode;
 
 	/* Now, create the device itself */
-	snprintf(devname, sizeof(devname), "%u.%u.%u",
-	    pd->bus_index, pd->dev_index, pd->ep_addr);
-	pd->cdev = make_dev(&usb_devsw, 0, UID_ROOT,
-	    GID_OPERATOR, 0600, USB_DEVICE_DIR "/%s", devname);
+	if (devname == NULL) {
+		devname = buffer;
+		snprintf(buffer, sizeof(buffer), USB_DEVICE_DIR "/%u.%u.%u",
+		    pd->bus_index, pd->dev_index, pd->ep_addr);
+	}
+
+	pd->cdev = make_dev(&usb_devsw, 0, uid, gid, mode, "%s", devname);
+
+	if (pd->cdev == NULL) {
+		DPRINTFN(0, "Failed to create device %s\n", devname);
+		free(pd, M_USBDEV);
+		return (NULL);
+	}
+
+	/* XXX setting si_drv1 and creating the device is not atomic! */
 	pd->cdev->si_drv1 = pd;
 
-	return (pd->cdev);
+	return (pd);
+}
+
+void
+usb_destroy_dev(struct usb_fs_privdata *pd)
+{
+	if (pd == NULL)
+		return;
+
+	destroy_dev(pd->cdev);
+
+	free(pd, M_USBDEV);
 }
 
 static void
@@ -1915,7 +1954,6 @@ usb_cdev_create(struct usb_device *udev)
 	struct usb_endpoint_descriptor *ed;
 	struct usb_descriptor *desc;
 	struct usb_fs_privdata* pd;
-	struct cdev *dev;
 	int inmode, outmode, inmask, outmask, mode;
 	uint8_t ep;
 
@@ -1957,14 +1995,16 @@ usb_cdev_create(struct usb_device *udev)
 
 	/* Create all available endpoints except EP0 */
 	for (ep = 1; ep < 16; ep++) {
-		mode = inmask & (1 << ep) ? inmode : 0;
-		mode |= outmask & (1 << ep) ? outmode : 0;
+		mode = (inmask & (1 << ep)) ? inmode : 0;
+		mode |= (outmask & (1 << ep)) ? outmode : 0;
 		if (mode == 0)
 			continue;	/* no IN or OUT endpoint */
 
-		dev = usb_make_dev(udev, ep, mode);
-		pd = dev->si_drv1;
-		LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
+		pd = usb_make_dev(udev, NULL, ep, 0,
+		    mode, UID_ROOT, GID_OPERATOR, 0600);
+
+		if (pd != NULL)
+			LIST_INSERT_HEAD(&udev->pd_list, pd, pd_next);
 	}
 }
 
@@ -1972,25 +2012,16 @@ static void
 usb_cdev_free(struct usb_device *udev)
 {
 	struct usb_fs_privdata* pd;
-	struct cdev* pcdev;
 
 	DPRINTFN(2, "Freeing device nodes\n");
 
 	while ((pd = LIST_FIRST(&udev->pd_list)) != NULL) {
 		KASSERT(pd->cdev->si_drv1 == pd, ("privdata corrupt"));
 
-		pcdev = pd->cdev;
-		pd->cdev = NULL;
 		LIST_REMOVE(pd, pd_next);
-		if (pcdev != NULL)
-			destroy_dev_sched_cb(pcdev, usb_cdev_cleanup, pd);
-	}
-}
 
-static void
-usb_cdev_cleanup(void* arg)
-{
-	free(arg, M_USBDEV);
+		usb_destroy_dev(pd);
+	}
 }
 #endif
 
@@ -2046,8 +2077,7 @@ usb_free_device(struct usb_device *udev, uint8_t flag)
 	}
 	mtx_unlock(&usb_ref_lock);
 
-	destroy_dev_sched_cb(udev->ctrl_dev, usb_cdev_cleanup,
-	    udev->ctrl_dev->si_drv1);
+	usb_destroy_dev(udev->ctrl_dev);
 #endif
 
 	if (udev->flags.usb_mode == USB_MODE_DEVICE) {
@@ -2355,8 +2385,22 @@ uint8_t
 usb_test_quirk(const struct usb_attach_arg *uaa, uint16_t quirk)
 {
 	uint8_t found;
+	uint8_t x;
+
+	if (quirk == UQ_NONE)
+		return (0);
+
+	/* search the automatic per device quirks first */
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (uaa->device->autoQuirk[x] == quirk)
+			return (1);
+	}
+
+	/* search global quirk table, if any */
 
 	found = (usb_test_quirk_p) (&uaa->info, quirk);
+
 	return (found);
 }
 
@@ -2387,87 +2431,12 @@ usbd_get_device_index(struct usb_device *udev)
 }
 
 #if USB_HAVE_DEVCTL
-/*------------------------------------------------------------------------*
- *	usb_notify_addq
- *
- * This function will generate events for dev.
- *------------------------------------------------------------------------*/
-#ifndef BURN_BRIDGES
-static void
-usb_notify_addq_compat(const char *type, struct usb_device *udev)
-{
-	char *data = NULL;
-	const char *ntype;
-	struct malloc_type *mt;
-	const size_t buf_size = 512;
-
-	/* Convert notify type */
-	if (strcmp(type, "ATTACH") == 0)
-		ntype = "+";
-	else if (strcmp(type, "DETACH") == 0)
-		ntype = "-";
-	else
-		return;
-
-	mtx_lock(&malloc_mtx);
-	mt = malloc_desc2type("bus");	/* XXX M_BUS */
-	mtx_unlock(&malloc_mtx);
-	if (mt == NULL)
-		return;
-
-	data = malloc(buf_size, mt, M_NOWAIT);
-	if (data == NULL)
-		return;
-
-	/* String it all together. */
-	snprintf(data, buf_size,
-	    "%s"
-#if USB_HAVE_UGEN
-	    "%s "
-#endif
-	    "at port=%u "
-	    "vendor=0x%04x "
-	    "product=0x%04x "
-	    "devclass=0x%02x "
-	    "devsubclass=0x%02x "
-	    "sernum=\"%s\" "
-	    "release=0x%04x "
-#if USB_HAVE_UGEN
-	    "on %s\n"
-#endif
-	    "",
-	    ntype,
-#if USB_HAVE_UGEN
-	    udev->ugen_name,
-#endif
-	    udev->port_no,
-	    UGETW(udev->ddesc.idVendor),
-	    UGETW(udev->ddesc.idProduct),
-	    udev->ddesc.bDeviceClass,
-	    udev->ddesc.bDeviceSubClass,
-	    usb_get_serial(udev),
-	    UGETW(udev->ddesc.bcdDevice)
-#if USB_HAVE_UGEN
-	    , udev->parent_hub != NULL ?
-		udev->parent_hub->ugen_name :
-		device_get_nameunit(device_get_parent(udev->bus->bdev))
-#endif
-	    );
-
-	devctl_queue_data(data);
-}
-#endif
-
 static void
 usb_notify_addq(const char *type, struct usb_device *udev)
 {
 	struct usb_interface *iface;
 	struct sbuf *sb;
 	int i;
-
-#ifndef BURN_BRIDGES
-	usb_notify_addq_compat(type, udev);
-#endif
 
 	/* announce the device */
 	sb = sbuf_new_auto();
@@ -2758,3 +2727,17 @@ usbd_set_pnpinfo(struct usb_device *udev, uint8_t iface_index, const char *pnpin
 	return (0);			/* success */
 }
 
+usb_error_t
+usbd_add_dynamic_quirk(struct usb_device *udev, uint16_t quirk)
+{
+	uint8_t x;
+
+	for (x = 0; x != USB_MAX_AUTO_QUIRK; x++) {
+		if (udev->autoQuirk[x] == 0 ||
+		    udev->autoQuirk[x] == quirk) {
+			udev->autoQuirk[x] = quirk;
+			return (0);	/* success */
+		}
+	}
+	return (USB_ERR_NOMEM);
+}

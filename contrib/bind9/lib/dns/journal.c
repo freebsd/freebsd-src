@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2010  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2002  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: journal.c,v 1.103.48.8 2010-11-17 23:45:45 tbox Exp $ */
+/* $Id: journal.c,v 1.112.38.2 2011-03-12 04:59:17 tbox Exp $ */
 
 #include <config.h>
 
@@ -163,7 +163,7 @@ dns_db_createsoatuple(dns_db_t *db, dns_dbversion_t *ver, isc_mem_t *mctx,
 
 	dns_rdataset_disassociate(&rdataset);
 	dns_db_detachnode(db, &node);
-	return (ISC_R_SUCCESS);
+	return (result);
 
  freenode:
 	dns_db_detachnode(db, &node);
@@ -562,11 +562,9 @@ journal_open(isc_mem_t *mctx, const char *filename, isc_boolean_t write,
 
 	if (result == ISC_R_FILENOTFOUND) {
 		if (create) {
-			isc_log_write(JOURNAL_COMMON_LOGARGS,
-				      ISC_LOG_INFO,
+			isc_log_write(JOURNAL_COMMON_LOGARGS, ISC_LOG_DEBUG(1),
 				      "journal file %s does not exist, "
-				      "creating it",
-				      j->filename);
+				      "creating it", j->filename);
 			CHECK(journal_file_create(mctx, filename));
 			/*
 			 * Retry.
@@ -2172,6 +2170,7 @@ dns_journal_compact(isc_mem_t *mctx, char *filename, isc_uint32_t serial,
 		CHECK(journal_fsync(new));
 
 		indexend = new->header.end.offset;
+		POST(indexend);
 	}
 
 	/*

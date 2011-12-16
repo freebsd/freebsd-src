@@ -15,29 +15,15 @@
 #define X86REGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "X86GenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "X86GenRegisterInfo.inc"
 
 namespace llvm {
   class Type;
   class TargetInstrInfo;
   class X86TargetMachine;
 
-/// N86 namespace - Native X86 register numbers
-///
-namespace N86 {
-  enum {
-    EAX = 0, ECX = 1, EDX = 2, EBX = 3, ESP = 4, EBP = 5, ESI = 6, EDI = 7
-  };
-}
-
-/// DWARFFlavour - Flavour of dwarf regnumbers
-///
-namespace DWARFFlavour {
-  enum {
-    X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
-  };
-} 
-  
 class X86RegisterInfo : public X86GenRegisterInfo {
 public:
   X86TargetMachine &TM;
@@ -56,10 +42,6 @@ private:
   ///
   unsigned SlotSize;
 
-  /// StackAlign - Default stack alignment.
-  ///
-  unsigned StackAlign;
-
   /// StackPtr - X86 physical register used as stack ptr.
   ///
   unsigned StackPtr;
@@ -75,11 +57,12 @@ public:
   /// register identifier.
   static unsigned getX86RegNum(unsigned RegNo);
 
-  unsigned getStackAlignment() const { return StackAlign; }
+  // FIXME: This should be tablegen'd like getDwarfRegNum is
+  int getSEHRegNum(unsigned i) const;
 
-  /// getDwarfRegNum - allows modification of X86GenRegisterInfo::getDwarfRegNum
-  /// (created by TableGen) for target dependencies.
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
+  /// getCompactUnwindRegNum - This function maps the register to the number for
+  /// compact unwind encoding. Return -1 if the register isn't valid.
+  int getCompactUnwindRegNum(unsigned RegNum, bool isEH) const;
 
   /// Code Generation virtual methods...
   /// 
@@ -91,6 +74,12 @@ public:
   getMatchingSuperRegClass(const TargetRegisterClass *A,
                            const TargetRegisterClass *B, unsigned Idx) const;
 
+  virtual const TargetRegisterClass *
+  getSubClassWithSubReg(const TargetRegisterClass *RC, unsigned Idx) const;
+
+  const TargetRegisterClass*
+  getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
+
   /// getPointerRegClass - Returns a TargetRegisterClass used for pointer
   /// values.
   const TargetRegisterClass *getPointerRegClass(unsigned Kind = 0) const;
@@ -100,6 +89,9 @@ public:
   /// between a two registers of the specified class.
   const TargetRegisterClass *
   getCrossCopyRegClass(const TargetRegisterClass *RC) const;
+
+  unsigned getRegPressureLimit(const TargetRegisterClass *RC,
+                               MachineFunction &MF) const;
 
   /// getCalleeSavedRegs - Return a null-terminated list of all of the
   /// callee-save registers on this target.
@@ -126,7 +118,6 @@ public:
                            int SPAdj, RegScavenger *RS = NULL) const;
 
   // Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
   unsigned getStackRegister() const { return StackPtr; }
   // FIXME: Move to FrameInfok

@@ -89,7 +89,14 @@ void Preprocessor::EnterSourceFile(FileID FID, const DirectoryLookup *CurDir,
       << std::string(SourceMgr.getBufferName(FileStart)) << "";
     return;
   }
-  
+
+  if (isCodeCompletionEnabled() &&
+      SourceMgr.getFileEntryForID(FID) == CodeCompletionFile) {
+    CodeCompletionFileLoc = SourceMgr.getLocForStartOfFile(FID);
+    CodeCompletionLoc =
+        CodeCompletionFileLoc.getLocWithOffset(CodeCompletionOffset);
+  }
+
   EnterSourceFileWithLexer(new Lexer(FID, InputFile, *this), CurDir);
   return;
 }
@@ -106,7 +113,9 @@ void Preprocessor::EnterSourceFileWithLexer(Lexer *TheLexer,
   CurLexer.reset(TheLexer);
   CurPPLexer = TheLexer;
   CurDirLookup = CurDir;
-
+  if (CurLexerKind != CLK_LexAfterModuleImport)
+    CurLexerKind = CLK_Lexer;
+  
   // Notify the client, if desired, that we are in a new source file.
   if (Callbacks && !CurLexer->Is_PragmaLexer) {
     SrcMgr::CharacteristicKind FileType =
@@ -128,7 +137,9 @@ void Preprocessor::EnterSourceFileWithPTH(PTHLexer *PL,
   CurDirLookup = CurDir;
   CurPTHLexer.reset(PL);
   CurPPLexer = CurPTHLexer.get();
-
+  if (CurLexerKind != CLK_LexAfterModuleImport)
+    CurLexerKind = CLK_PTHLexer;
+  
   // Notify the client, if desired, that we are in a new source file.
   if (Callbacks) {
     FileID FID = CurPPLexer->getFileID();
@@ -152,6 +163,8 @@ void Preprocessor::EnterMacro(Token &Tok, SourceLocation ILEnd,
     CurTokenLexer.reset(TokenLexerCache[--NumCachedTokenLexers]);
     CurTokenLexer->Init(Tok, ILEnd, Args);
   }
+  if (CurLexerKind != CLK_LexAfterModuleImport)
+    CurLexerKind = CLK_TokenLexer;
 }
 
 /// EnterTokenStream - Add a "macro" context to the top of the include stack,
@@ -181,6 +194,8 @@ void Preprocessor::EnterTokenStream(const Token *Toks, unsigned NumToks,
     CurTokenLexer.reset(TokenLexerCache[--NumCachedTokenLexers]);
     CurTokenLexer->Init(Toks, NumToks, DisableMacroExpansion, OwnsTokens);
   }
+  if (CurLexerKind != CLK_LexAfterModuleImport)
+    CurLexerKind = CLK_TokenLexer;
 }
 
 /// HandleEndOfFile - This callback is invoked when the lexer hits the end of
@@ -201,9 +216,50 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
     }
   }
 
+  // Complain about reaching an EOF within arc_cf_code_audited.
+  if (PragmaARCCFCodeAuditedLoc.isValid()) {
+    Diag(PragmaARCCFCodeAuditedLoc, diag::err_pp_eof_in_arc_cf_code_audited);
+
+    // Recover by leaving immediately.
+    PragmaARCCFCodeAuditedLoc = SourceLocation();
+  }
+
   // If this is a #include'd file, pop it off the include stack and continue
   // lexing the #includer file.
   if (!IncludeMacroStack.empty()) {
+
+    // If we lexed the code-completion file, act as if we reached EOF.
+    if (isCodeCompletionEnabled() && CurPPLexer &&
+        SourceMgr.getLocForStartOfFile(CurPPLexer->getFileID()) ==
+            CodeCompletionFileLoc) {
+      if (CurLexer) {
+        Result.startToken();
+        CurLexer->FormTokenWithChars(Result, CurLexer->BufferEnd, tok::eof);
+        CurLexer.reset();
+      } else {
+        assert(CurPTHLexer && "Got EOF but no current lexer set!");
+        CurPTHLexer->getEOF(Result);
+        CurPTHLexer.reset();
+      }
+
+      CurPPLexer = 0;
+      return true;
+    }
+
+    if (!isEndOfMacro && CurPPLexer &&
+        SourceMgr.getIncludeLoc(CurPPLexer->getFileID()).isValid()) {
+      // Notify SourceManager to record the number of FileIDs that were created
+      // during lexing of the #include'd file.
+      unsigned NumFIDs =
+          SourceMgr.local_sloc_entry_size() -
+          CurPPLexer->getInitialNumSLocEntries() + 1/*#include'd file*/;
+      SourceMgr.setNumCreatedFIDsForFileID(CurPPLexer->getFileID(), NumFIDs);
+    }
+
+    FileID ExitedFID;
+    if (Callbacks && !isEndOfMacro && CurPPLexer)
+      ExitedFID = CurPPLexer->getFileID();
+    
     // We're done with the #included file.
     RemoveTopOfLexerStack();
 
@@ -212,7 +268,7 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
       SrcMgr::CharacteristicKind FileType =
         SourceMgr.getFileCharacteristic(CurPPLexer->getSourceLocation());
       Callbacks->FileChanged(CurPPLexer->getSourceLocation(),
-                             PPCallbacks::ExitFile, FileType);
+                             PPCallbacks::ExitFile, FileType, ExitedFID);
     }
 
     // Client should lex another token.
@@ -265,6 +321,10 @@ bool Preprocessor::HandleEndOfTokenLexer(Token &Result) {
   assert(CurTokenLexer && !CurPPLexer &&
          "Ending a macro when currently in a #include file!");
 
+  if (!MacroExpandingLexersStack.empty() &&
+      MacroExpandingLexersStack.back().first == CurTokenLexer.get())
+    removeCachedMacroExpandedTokensOfLastLexer();
+
   // Delete or cache the now-dead macro expander.
   if (NumCachedTokenLexers == TokenLexerCacheSize)
     CurTokenLexer.reset();
@@ -301,7 +361,7 @@ void Preprocessor::HandleMicrosoftCommentPaste(Token &Tok) {
 
   // We handle this by scanning for the closest real lexer, switching it to
   // raw mode and preprocessor mode.  This will cause it to return \n as an
-  // explicit EOM token.
+  // explicit EOD token.
   PreprocessorLexer *FoundLexer = 0;
   bool LexerWasInPPMode = false;
   for (unsigned i = 0, e = IncludeMacroStack.size(); i != e; ++i) {
@@ -309,11 +369,11 @@ void Preprocessor::HandleMicrosoftCommentPaste(Token &Tok) {
     if (ISI.ThePPLexer == 0) continue;  // Scan for a real lexer.
 
     // Once we find a real lexer, mark it as raw mode (disabling macro
-    // expansions) and preprocessor mode (return EOM).  We know that the lexer
+    // expansions) and preprocessor mode (return EOD).  We know that the lexer
     // was *not* in raw mode before, because the macro that the comment came
     // from was expanded.  However, it could have already been in preprocessor
     // mode (#if COMMENT) in which case we have to return it to that mode and
-    // return EOM.
+    // return EOD.
     FoundLexer = ISI.ThePPLexer;
     FoundLexer->LexingRawMode = true;
     LexerWasInPPMode = FoundLexer->ParsingPreprocessorDirective;
@@ -326,22 +386,22 @@ void Preprocessor::HandleMicrosoftCommentPaste(Token &Tok) {
   // the next token.
   if (!HandleEndOfTokenLexer(Tok)) Lex(Tok);
 
-  // Discarding comments as long as we don't have EOF or EOM.  This 'comments
+  // Discarding comments as long as we don't have EOF or EOD.  This 'comments
   // out' the rest of the line, including any tokens that came from other macros
   // that were active, as in:
   //  #define submacro a COMMENT b
   //    submacro c
   // which should lex to 'a' only: 'b' and 'c' should be removed.
-  while (Tok.isNot(tok::eom) && Tok.isNot(tok::eof))
+  while (Tok.isNot(tok::eod) && Tok.isNot(tok::eof))
     Lex(Tok);
 
-  // If we got an eom token, then we successfully found the end of the line.
-  if (Tok.is(tok::eom)) {
+  // If we got an eod token, then we successfully found the end of the line.
+  if (Tok.is(tok::eod)) {
     assert(FoundLexer && "Can't get end of line without an active lexer");
     // Restore the lexer back to normal mode instead of raw mode.
     FoundLexer->LexingRawMode = false;
 
-    // If the lexer was already in preprocessor mode, just return the EOM token
+    // If the lexer was already in preprocessor mode, just return the EOD token
     // to finish the preprocessor line.
     if (LexerWasInPPMode) return;
 
@@ -352,7 +412,7 @@ void Preprocessor::HandleMicrosoftCommentPaste(Token &Tok) {
 
   // If we got an EOF token, then we reached the end of the token stream but
   // didn't find an explicit \n.  This can only happen if there was no lexer
-  // active (an active lexer would return EOM at EOF if there was no \n in
+  // active (an active lexer would return EOD at EOF if there was no \n in
   // preprocessor directive mode), so just return EOF as our token.
-  assert(!FoundLexer && "Lexer should return EOM before EOF in PP mode");
+  assert(!FoundLexer && "Lexer should return EOD before EOF in PP mode");
 }

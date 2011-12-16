@@ -80,12 +80,12 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int rum_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, rum, CTLFLAG_RW, 0, "USB rum");
 SYSCTL_INT(_hw_usb_rum, OID_AUTO, debug, CTLFLAG_RW, &rum_debug, 0,
     "Debug level");
 #endif
 
-static const struct usb_device_id rum_devs[] = {
+static const STRUCT_USB_HOST_ID rum_devs[] = {
 #define	RUM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     RUM_DEV(ABOCOM, HWU54DM),
     RUM_DEV(ABOCOM, RT2573_2),
@@ -208,7 +208,7 @@ static void		rum_init(void *);
 static void		rum_stop(struct rum_softc *);
 static void		rum_load_microcode(struct rum_softc *, const uint8_t *,
 			    size_t);
-static int		rum_prepare_beacon(struct rum_softc *,
+static void		rum_prepare_beacon(struct rum_softc *,
 			    struct ieee80211vap *);
 static int		rum_raw_xmit(struct ieee80211_node *, struct mbuf *,
 			    const struct ieee80211_bpf_params *);
@@ -1407,20 +1407,27 @@ rum_write_multi(struct rum_softc *sc, uint16_t reg, void *buf, size_t len)
 {
 	struct usb_device_request req;
 	usb_error_t error;
+	int offset;
 
 	req.bmRequestType = UT_WRITE_VENDOR_DEVICE;
 	req.bRequest = RT2573_WRITE_MULTI_MAC;
 	USETW(req.wValue, 0);
-	USETW(req.wIndex, reg);
-	USETW(req.wLength, len);
 
-	error = rum_do_request(sc, &req, buf);
-	if (error != 0) {
-		device_printf(sc->sc_dev,
-		    "could not multi write MAC register: %s\n",
-		    usbd_errstr(error));
+	/* write at most 64 bytes at a time */
+	for (offset = 0; offset < len; offset += 64) {
+		USETW(req.wIndex, reg + offset);
+		USETW(req.wLength, MIN(len - offset, 64));
+
+		error = rum_do_request(sc, &req, (char *)buf + offset);
+		if (error != 0) {
+			device_printf(sc->sc_dev,
+			    "could not multi write MAC register: %s\n",
+			    usbd_errstr(error));
+			return (error);
+		}
 	}
-	return (error);
+
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 static void
@@ -2119,7 +2126,7 @@ rum_load_microcode(struct rum_softc *sc, const uint8_t *ucode, size_t size)
 	rum_pause(sc, hz / 8);
 }
 
-static int
+static void
 rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 {
 	struct ieee80211com *ic = vap->iv_ic;
@@ -2127,9 +2134,12 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	struct rum_tx_desc desc;
 	struct mbuf *m0;
 
+	if (vap->iv_bss->ni_chan == IEEE80211_CHAN_ANYC)
+		return;
+
 	m0 = ieee80211_beacon_alloc(vap->iv_bss, &RUM_VAP(vap)->bo);
 	if (m0 == NULL) {
-		return ENOBUFS;
+		return;
 	}
 
 	tp = &vap->iv_txparms[ieee80211_chan2mode(ic->ic_bsschan)];
@@ -2144,8 +2154,6 @@ rum_prepare_beacon(struct rum_softc *sc, struct ieee80211vap *vap)
 	    m0->m_pkthdr.len);
 
 	m_freem(m0);
-
-	return 0;
 }
 
 static int

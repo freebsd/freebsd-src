@@ -27,12 +27,19 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2009
+.Dd October 9, 2011
 .Dt BURNCD 8
 .Os
 .Sh NAME
 .Nm burncd
 .Nd control the ATAPI CD-R/RW driver
+.Pp
+This utility was
+.Em deprecated
+in
+.Fx 9.0 .
+See
+.Sx NOTES .
 .Sh SYNOPSIS
 .Nm
 .Op Fl deFlmnpqtv
@@ -211,6 +218,10 @@ The
 .Nm
 utility appeared in
 .Fx 4.0 .
+.Pp
+.Nm
+was deprecated in
+.Fx 9.0 .
 .Sh AUTHORS
 The
 .Nm
@@ -220,3 +231,19 @@ Denmark
 .Aq sos@FreeBSD.org .
 .Sh BUGS
 Probably, please report when found.
+.Sh NOTES
+When
+.Bd -ragged -offset indent
+.Cd "options ATA_CAM"
+.Ed
+.Pp
+is compiled into the kernel, then
+.Xr cdrecord 1 ,
+available in the
+.Fx
+Ports Collection as part of the
+.Pa sysutils/cdrtools
+port, must be used instead.
+Refer to:
+.Pp
+http://www.freebsd.org/doc/handbook/creating-cds.html#CDRECORD

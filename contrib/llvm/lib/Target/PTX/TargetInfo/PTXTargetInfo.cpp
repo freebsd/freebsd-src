@@ -9,13 +9,17 @@
 
 #include "PTX.h"
 #include "llvm/Module.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
-Target llvm::ThePTXTarget;
+Target llvm::ThePTX32Target;
+Target llvm::ThePTX64Target;
 
 extern "C" void LLVMInitializePTXTargetInfo() {
   // see llvm/ADT/Triple.h
-  RegisterTarget<Triple::ptx> X(ThePTXTarget, "ptx", "PTX");
+  RegisterTarget<Triple::ptx32> X32(ThePTX32Target, "ptx32",
+                                    "PTX (32-bit) [Experimental]");
+  RegisterTarget<Triple::ptx64> X64(ThePTX64Target, "ptx64",
+                                    "PTX (64-bit) [Experimental]");
 }

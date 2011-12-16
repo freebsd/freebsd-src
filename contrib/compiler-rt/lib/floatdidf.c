@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  *===----------------------------------------------------------------------===
  *
@@ -11,6 +11,7 @@
  *
  *===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 #include <float.h>
@@ -23,13 +24,15 @@
 
 /* seee eeee eeee mmmm mmmm mmmm mmmm mmmm | mmmm mmmm mmmm mmmm mmmm mmmm mmmm mmmm */
 
+ARM_EABI_FNALIAS(l2d, floatdidf);
+
 #ifndef __SOFT_FP__
 /* Support for systems that have hardware floating-point; we'll set the inexact flag
  * as a side-effect of this computation.
  */
 #include <stdint.h>
 
-double
+COMPILER_RT_ABI double
 __floatdidf(di_int a)
 {
 	static const double twop52 = 0x1.0p52;
@@ -49,7 +52,7 @@ __floatdidf(di_int a)
  * set, and we don't want to code-gen to an unknown soft-float implementation.
  */
 
-double
+COMPILER_RT_ABI double
 __floatdidf(di_int a)
 {
     if (a == 0)

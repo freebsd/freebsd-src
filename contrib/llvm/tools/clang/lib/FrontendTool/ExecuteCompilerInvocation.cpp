@@ -14,6 +14,7 @@
 
 #include "clang/FrontendTool/Utils.h"
 #include "clang/StaticAnalyzer/Frontend/FrontendActions.h"
+#include "clang/ARCMigrate/ARCMTActions.h"
 #include "clang/CodeGen/CodeGenAction.h"
 #include "clang/Driver/CC1Options.h"
 #include "clang/Driver/OptTable.h"
@@ -37,10 +38,7 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case ASTDump:                return new ASTDumpAction();
   case ASTDumpXML:             return new ASTDumpXMLAction();
   case ASTPrint:               return new ASTPrintAction();
-  case ASTPrintXML:            return new ASTPrintXMLAction();
   case ASTView:                return new ASTViewAction();
-  case BoostCon:               return new BoostConAction();
-  case CreateModule:           return 0;
   case DumpRawTokens:          return new DumpRawTokensAction();
   case DumpTokens:             return new DumpTokensAction();
   case EmitAssembly:           return new EmitAssemblyAction();
@@ -51,7 +49,8 @@ static FrontendAction *CreateFrontendBaseAction(CompilerInstance &CI) {
   case EmitCodeGenOnly:        return new EmitCodeGenOnlyAction();
   case EmitObj:                return new EmitObjAction();
   case FixIt:                  return new FixItAction();
-  case GeneratePCH:            return new GeneratePCHAction();
+  case GenerateModule:         return new GeneratePCHAction(true);
+  case GeneratePCH:            return new GeneratePCHAction(false);
   case GeneratePTH:            return new GeneratePTHAction();
   case InitOnly:               return new InitOnlyAction();
   case ParseSyntaxOnly:        return new SyntaxOnlyAction();
@@ -90,6 +89,24 @@ static FrontendAction *CreateFrontendAction(CompilerInstance &CI) {
   if (!Act)
     return 0;
 
+  // Potentially wrap the base FE action in an ARC Migrate Tool action.
+  switch (CI.getFrontendOpts().ARCMTAction) {
+  case FrontendOptions::ARCMT_None:
+    break;
+  case FrontendOptions::ARCMT_Check:
+    Act = new arcmt::CheckAction(Act);
+    break;
+  case FrontendOptions::ARCMT_Modify:
+    Act = new arcmt::ModifyAction(Act);
+    break;
+  case FrontendOptions::ARCMT_Migrate:
+    Act = new arcmt::MigrateAction(Act,
+                                   CI.getFrontendOpts().ARCMTMigrateDir,
+                                   CI.getFrontendOpts().ARCMTMigrateReportOut,
+                                CI.getFrontendOpts().ARCMTMigrateEmitARCErrors);
+    break;
+  }
+
   // If there are any AST files to merge, create a frontend action
   // adaptor to perform the merge.
   if (!CI.getFrontendOpts().ASTMergeFiles.empty())
@@ -108,31 +125,12 @@ bool clang::ExecuteCompilerInvocation(CompilerInstance *Clang) {
     return 0;
   }
 
-  // Honor -analyzer-checker-help.
-  if (Clang->getAnalyzerOpts().ShowCheckerHelp) {
-    ento::printCheckerHelp(llvm::outs());
-    return 0;
-  }
-
   // Honor -version.
   //
   // FIXME: Use a better -version message?
   if (Clang->getFrontendOpts().ShowVersion) {
     llvm::cl::PrintVersionMessage();
     return 0;
-  }
-
-  // Honor -mllvm.
-  //
-  // FIXME: Remove this, one day.
-  if (!Clang->getFrontendOpts().LLVMArgs.empty()) {
-    unsigned NumArgs = Clang->getFrontendOpts().LLVMArgs.size();
-    const char **Args = new const char*[NumArgs + 2];
-    Args[0] = "clang (LLVM option parsing)";
-    for (unsigned i = 0; i != NumArgs; ++i)
-      Args[i + 1] = Clang->getFrontendOpts().LLVMArgs[i].c_str();
-    Args[NumArgs + 1] = 0;
-    llvm::cl::ParseCommandLineOptions(NumArgs + 1, const_cast<char **>(Args));
   }
 
   // Load any requested plugins.
@@ -143,6 +141,27 @@ bool clang::ExecuteCompilerInvocation(CompilerInstance *Clang) {
     if (llvm::sys::DynamicLibrary::LoadLibraryPermanently(Path.c_str(), &Error))
       Clang->getDiagnostics().Report(diag::err_fe_unable_to_load_plugin)
         << Path << Error;
+  }
+
+  // Honor -mllvm.
+  //
+  // FIXME: Remove this, one day.
+  // This should happen AFTER plugins have been loaded!
+  if (!Clang->getFrontendOpts().LLVMArgs.empty()) {
+    unsigned NumArgs = Clang->getFrontendOpts().LLVMArgs.size();
+    const char **Args = new const char*[NumArgs + 2];
+    Args[0] = "clang (LLVM option parsing)";
+    for (unsigned i = 0; i != NumArgs; ++i)
+      Args[i + 1] = Clang->getFrontendOpts().LLVMArgs[i].c_str();
+    Args[NumArgs + 1] = 0;
+    llvm::cl::ParseCommandLineOptions(NumArgs + 1, const_cast<char **>(Args));
+  }
+
+  // Honor -analyzer-checker-help.
+  // This should happen AFTER plugins have been loaded!
+  if (Clang->getAnalyzerOpts().ShowCheckerHelp) {
+    ento::printCheckerHelp(llvm::outs(), Clang->getFrontendOpts().Plugins);
+    return 0;
   }
 
   // If there were errors in processing arguments, don't do anything else.

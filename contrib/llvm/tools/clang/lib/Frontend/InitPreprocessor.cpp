@@ -30,15 +30,15 @@ using namespace clang;
 // Append a #define line to Buf for Macro.  Macro should be of the form XXX,
 // in which case we emit "#define XXX 1" or "XXX=Y z W" in which case we emit
 // "#define XXX Y z W".  To get a #define with no value, use "XXX=".
-static void DefineBuiltinMacro(MacroBuilder &Builder, llvm::StringRef Macro,
-                               Diagnostic &Diags) {
-  std::pair<llvm::StringRef, llvm::StringRef> MacroPair = Macro.split('=');
-  llvm::StringRef MacroName = MacroPair.first;
-  llvm::StringRef MacroBody = MacroPair.second;
+static void DefineBuiltinMacro(MacroBuilder &Builder, StringRef Macro,
+                               DiagnosticsEngine &Diags) {
+  std::pair<StringRef, StringRef> MacroPair = Macro.split('=');
+  StringRef MacroName = MacroPair.first;
+  StringRef MacroBody = MacroPair.second;
   if (MacroName.size() != Macro.size()) {
     // Per GCC -D semantics, the macro ends at \n if it exists.
-    llvm::StringRef::size_type End = MacroBody.find_first_of("\n\r");
-    if (End != llvm::StringRef::npos)
+    StringRef::size_type End = MacroBody.find_first_of("\n\r");
+    if (End != StringRef::npos)
       Diags.Report(diag::warn_fe_macro_contains_embedded_newline)
         << MacroName;
     Builder.defineMacro(MacroName, MacroBody.substr(0, End));
@@ -48,7 +48,7 @@ static void DefineBuiltinMacro(MacroBuilder &Builder, llvm::StringRef Macro,
   }
 }
 
-std::string clang::NormalizeDashIncludePath(llvm::StringRef File,
+std::string clang::NormalizeDashIncludePath(StringRef File,
                                             FileManager &FileMgr) {
   // Implicit include paths should be resolved relative to the current
   // working directory first, and then use the regular header search
@@ -70,17 +70,17 @@ std::string clang::NormalizeDashIncludePath(llvm::StringRef File,
 
 /// AddImplicitInclude - Add an implicit #include of the specified file to the
 /// predefines buffer.
-static void AddImplicitInclude(MacroBuilder &Builder, llvm::StringRef File,
+static void AddImplicitInclude(MacroBuilder &Builder, StringRef File,
                                FileManager &FileMgr) {
   Builder.append("#include \"" +
-                 llvm::Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
+                 Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
 }
 
 static void AddImplicitIncludeMacros(MacroBuilder &Builder,
-                                     llvm::StringRef File,
+                                     StringRef File,
                                      FileManager &FileMgr) {
   Builder.append("#__include_macros \"" +
-                 llvm::Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
+                 Twine(NormalizeDashIncludePath(File, FileMgr)) + "\"");
   // Marker token to stop the __include_macros fetch loop.
   Builder.append("##"); // ##?
 }
@@ -88,7 +88,7 @@ static void AddImplicitIncludeMacros(MacroBuilder &Builder,
 /// AddImplicitIncludePTH - Add an implicit #include using the original file
 ///  used to generate a PTH cache.
 static void AddImplicitIncludePTH(MacroBuilder &Builder, Preprocessor &PP,
-                                  llvm::StringRef ImplicitIncludePTH) {
+                                  StringRef ImplicitIncludePTH) {
   PTHManager *P = PP.getPTHManager();
   // Null check 'P' in the corner case where it couldn't be created.
   const char *OriginalFile = P ? P->getOriginalSourceFile() : 0;
@@ -120,7 +120,7 @@ static T PickFP(const llvm::fltSemantics *Sem, T IEEESingleVal,
   return IEEEQuadVal;
 }
 
-static void DefineFloatMacros(MacroBuilder &Builder, llvm::StringRef Prefix,
+static void DefineFloatMacros(MacroBuilder &Builder, StringRef Prefix,
                               const llvm::fltSemantics *Sem) {
   const char *DenormMin, *Epsilon, *Max, *Min;
   DenormMin = PickFP(Sem, "1.40129846e-45F", "4.9406564584124654e-324",
@@ -153,27 +153,27 @@ static void DefineFloatMacros(MacroBuilder &Builder, llvm::StringRef Prefix,
 
   Builder.defineMacro(DefPrefix + "DENORM_MIN__", DenormMin);
   Builder.defineMacro(DefPrefix + "HAS_DENORM__");
-  Builder.defineMacro(DefPrefix + "DIG__", llvm::Twine(Digits));
-  Builder.defineMacro(DefPrefix + "EPSILON__", llvm::Twine(Epsilon));
+  Builder.defineMacro(DefPrefix + "DIG__", Twine(Digits));
+  Builder.defineMacro(DefPrefix + "EPSILON__", Twine(Epsilon));
   Builder.defineMacro(DefPrefix + "HAS_INFINITY__");
   Builder.defineMacro(DefPrefix + "HAS_QUIET_NAN__");
-  Builder.defineMacro(DefPrefix + "MANT_DIG__", llvm::Twine(MantissaDigits));
+  Builder.defineMacro(DefPrefix + "MANT_DIG__", Twine(MantissaDigits));
 
-  Builder.defineMacro(DefPrefix + "MAX_10_EXP__", llvm::Twine(Max10Exp));
-  Builder.defineMacro(DefPrefix + "MAX_EXP__", llvm::Twine(MaxExp));
-  Builder.defineMacro(DefPrefix + "MAX__", llvm::Twine(Max));
+  Builder.defineMacro(DefPrefix + "MAX_10_EXP__", Twine(Max10Exp));
+  Builder.defineMacro(DefPrefix + "MAX_EXP__", Twine(MaxExp));
+  Builder.defineMacro(DefPrefix + "MAX__", Twine(Max));
 
-  Builder.defineMacro(DefPrefix + "MIN_10_EXP__","("+llvm::Twine(Min10Exp)+")");
-  Builder.defineMacro(DefPrefix + "MIN_EXP__", "("+llvm::Twine(MinExp)+")");
-  Builder.defineMacro(DefPrefix + "MIN__", llvm::Twine(Min));
+  Builder.defineMacro(DefPrefix + "MIN_10_EXP__","("+Twine(Min10Exp)+")");
+  Builder.defineMacro(DefPrefix + "MIN_EXP__", "("+Twine(MinExp)+")");
+  Builder.defineMacro(DefPrefix + "MIN__", Twine(Min));
 }
 
 
 /// DefineTypeSize - Emit a macro to the predefines buffer that declares a macro
 /// named MacroName with the max value for a type with width 'TypeWidth' a
 /// signedness of 'isSigned' and with a value suffix of 'ValSuffix' (e.g. LL).
-static void DefineTypeSize(llvm::StringRef MacroName, unsigned TypeWidth,
-                           llvm::StringRef ValSuffix, bool isSigned,
+static void DefineTypeSize(StringRef MacroName, unsigned TypeWidth,
+                           StringRef ValSuffix, bool isSigned,
                            MacroBuilder &Builder) {
   llvm::APInt MaxVal = isSigned ? llvm::APInt::getSignedMaxValue(TypeWidth)
                                 : llvm::APInt::getMaxValue(TypeWidth);
@@ -182,26 +182,26 @@ static void DefineTypeSize(llvm::StringRef MacroName, unsigned TypeWidth,
 
 /// DefineTypeSize - An overloaded helper that uses TargetInfo to determine
 /// the width, suffix, and signedness of the given type
-static void DefineTypeSize(llvm::StringRef MacroName, TargetInfo::IntType Ty,
+static void DefineTypeSize(StringRef MacroName, TargetInfo::IntType Ty,
                            const TargetInfo &TI, MacroBuilder &Builder) {
   DefineTypeSize(MacroName, TI.getTypeWidth(Ty), TI.getTypeConstantSuffix(Ty), 
                  TI.isTypeSigned(Ty), Builder);
 }
 
-static void DefineType(const llvm::Twine &MacroName, TargetInfo::IntType Ty,
+static void DefineType(const Twine &MacroName, TargetInfo::IntType Ty,
                        MacroBuilder &Builder) {
   Builder.defineMacro(MacroName, TargetInfo::getTypeName(Ty));
 }
 
-static void DefineTypeWidth(llvm::StringRef MacroName, TargetInfo::IntType Ty,
+static void DefineTypeWidth(StringRef MacroName, TargetInfo::IntType Ty,
                             const TargetInfo &TI, MacroBuilder &Builder) {
-  Builder.defineMacro(MacroName, llvm::Twine(TI.getTypeWidth(Ty)));
+  Builder.defineMacro(MacroName, Twine(TI.getTypeWidth(Ty)));
 }
 
-static void DefineTypeSizeof(llvm::StringRef MacroName, unsigned BitWidth,
+static void DefineTypeSizeof(StringRef MacroName, unsigned BitWidth,
                              const TargetInfo &TI, MacroBuilder &Builder) {
   Builder.defineMacro(MacroName,
-                      llvm::Twine(BitWidth / TI.getCharWidth()));
+                      Twine(BitWidth / TI.getCharWidth()));
 }
 
 static void DefineExactWidthIntType(TargetInfo::IntType Ty, 
@@ -213,12 +213,106 @@ static void DefineExactWidthIntType(TargetInfo::IntType Ty,
   if (TypeWidth == 64)
     Ty = TI.getInt64Type();
 
-  DefineType("__INT" + llvm::Twine(TypeWidth) + "_TYPE__", Ty, Builder);
+  DefineType("__INT" + Twine(TypeWidth) + "_TYPE__", Ty, Builder);
 
-  llvm::StringRef ConstSuffix(TargetInfo::getTypeConstantSuffix(Ty));
+  StringRef ConstSuffix(TargetInfo::getTypeConstantSuffix(Ty));
   if (!ConstSuffix.empty())
-    Builder.defineMacro("__INT" + llvm::Twine(TypeWidth) + "_C_SUFFIX__",
+    Builder.defineMacro("__INT" + Twine(TypeWidth) + "_C_SUFFIX__",
                         ConstSuffix);
+}
+
+/// \brief Add definitions required for a smooth interaction between
+/// Objective-C++ automated reference counting and libstdc++ (4.2).
+static void AddObjCXXARCLibstdcxxDefines(const LangOptions &LangOpts, 
+                                         MacroBuilder &Builder) {
+  Builder.defineMacro("_GLIBCXX_PREDEFINED_OBJC_ARC_IS_SCALAR");
+  
+  std::string Result;
+  {
+    // Provide specializations for the __is_scalar type trait so that 
+    // lifetime-qualified objects are not considered "scalar" types, which
+    // libstdc++ uses as an indicator of the presence of trivial copy, assign,
+    // default-construct, and destruct semantics (none of which hold for
+    // lifetime-qualified objects in ARC).
+    llvm::raw_string_ostream Out(Result);
+    
+    Out << "namespace std {\n"
+        << "\n"
+        << "struct __true_type;\n"
+        << "struct __false_type;\n"
+        << "\n";
+    
+    Out << "template<typename _Tp> struct __is_scalar;\n"
+        << "\n";
+      
+    Out << "template<typename _Tp>\n"
+        << "struct __is_scalar<__attribute__((objc_ownership(strong))) _Tp> {\n"
+        << "  enum { __value = 0 };\n"
+        << "  typedef __false_type __type;\n"
+        << "};\n"
+        << "\n";
+      
+    if (LangOpts.ObjCRuntimeHasWeak) {
+      Out << "template<typename _Tp>\n"
+          << "struct __is_scalar<__attribute__((objc_ownership(weak))) _Tp> {\n"
+          << "  enum { __value = 0 };\n"
+          << "  typedef __false_type __type;\n"
+          << "};\n"
+          << "\n";
+    }
+    
+    Out << "template<typename _Tp>\n"
+        << "struct __is_scalar<__attribute__((objc_ownership(autoreleasing)))"
+        << " _Tp> {\n"
+        << "  enum { __value = 0 };\n"
+        << "  typedef __false_type __type;\n"
+        << "};\n"
+        << "\n";
+      
+    Out << "}\n";
+  }
+  Builder.append(Result);
+}
+
+static void InitializeStandardPredefinedMacros(const TargetInfo &TI,
+                                               const LangOptions &LangOpts,
+                                               const FrontendOptions &FEOpts,
+                                               MacroBuilder &Builder) {
+  if (!LangOpts.MicrosoftExt && !LangOpts.TraditionalCPP)
+    Builder.defineMacro("__STDC__");
+  if (LangOpts.Freestanding)
+    Builder.defineMacro("__STDC_HOSTED__", "0");
+  else
+    Builder.defineMacro("__STDC_HOSTED__");
+
+  if (!LangOpts.CPlusPlus) {
+    if (LangOpts.C99)
+      Builder.defineMacro("__STDC_VERSION__", "199901L");
+    else if (!LangOpts.GNUMode && LangOpts.Digraphs)
+      Builder.defineMacro("__STDC_VERSION__", "199409L");
+  } else {
+    if (LangOpts.GNUMode)
+      Builder.defineMacro("__cplusplus");
+    else {
+      // C++0x [cpp.predefined]p1:
+      //   The name_ _cplusplus is defined to the value 201103L when compiling a
+      //   C++ translation unit.
+      if (LangOpts.CPlusPlus0x)
+        Builder.defineMacro("__cplusplus", "201103L");
+      // C++03 [cpp.predefined]p1:
+      //   The name_ _cplusplus is defined to the value 199711L when compiling a
+      //   C++ translation unit.
+      else
+        Builder.defineMacro("__cplusplus", "199711L");
+    }
+  }
+
+  if (LangOpts.ObjC1)
+    Builder.defineMacro("__OBJC__");
+
+  // Not "standard" per se, but available even with the -undef flag.
+  if (LangOpts.AsmPreprocessor)
+    Builder.defineMacro("__ASSEMBLER__");
 }
 
 static void InitializePredefinedMacros(const TargetInfo &TI,
@@ -247,23 +341,14 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   Builder.defineMacro("__GNUC_PATCHLEVEL__", "1");
   Builder.defineMacro("__GNUC__", "4");
   Builder.defineMacro("__GXX_ABI_VERSION", "1002");
-  Builder.defineMacro("__VERSION__", "\"4.2.1 Compatible Clang Compiler\"");
+
+  // As sad as it is, enough software depends on the __VERSION__ for version
+  // checks that it is necessary to report 4.2.1 (the base GCC version we claim
+  // compatibility with) first.
+  Builder.defineMacro("__VERSION__", "\"4.2.1 Compatible " + 
+                      Twine(getClangFullCPPVersion()) + "\"");
 
   // Initialize language-specific preprocessor defines.
-
-  // These should all be defined in the preprocessor according to the
-  // current language configuration.
-  if (!LangOpts.Microsoft)
-    Builder.defineMacro("__STDC__");
-  if (LangOpts.AsmPreprocessor)
-    Builder.defineMacro("__ASSEMBLER__");
-
-  if (!LangOpts.CPlusPlus) {
-    if (LangOpts.C99)
-      Builder.defineMacro("__STDC_VERSION__", "199901L");
-    else if (!LangOpts.GNUMode && LangOpts.Digraphs)
-      Builder.defineMacro("__STDC_VERSION__", "199409L");
-  }
 
   // Standard conforming mode?
   if (!LangOpts.GNUMode)
@@ -272,19 +357,15 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.CPlusPlus0x)
     Builder.defineMacro("__GXX_EXPERIMENTAL_CXX0X__");
 
-  if (LangOpts.Freestanding)
-    Builder.defineMacro("__STDC_HOSTED__", "0");
-  else
-    Builder.defineMacro("__STDC_HOSTED__");
-
   if (LangOpts.ObjC1) {
-    Builder.defineMacro("__OBJC__");
     if (LangOpts.ObjCNonFragileABI) {
       Builder.defineMacro("__OBJC2__");
-      Builder.defineMacro("OBJC_ZEROCOST_EXCEPTIONS");
+      
+      if (LangOpts.ObjCExceptions)
+        Builder.defineMacro("OBJC_ZEROCOST_EXCEPTIONS");
     }
 
-    if (LangOpts.getGCMode() != LangOptions::NonGC)
+    if (LangOpts.getGC() != LangOptions::NonGC)
       Builder.defineMacro("__OBJC_GC__");
 
     if (LangOpts.NeXTRuntime)
@@ -293,7 +374,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 
   // darwin_constant_cfstrings controls this. This is also dependent
   // on other things like the runtime I believe.  This is set even for C code.
-  Builder.defineMacro("__CONSTANT_CFSTRINGS__");
+  if (!LangOpts.NoConstantCFStrings)
+      Builder.defineMacro("__CONSTANT_CFSTRINGS__");
 
   if (LangOpts.ObjC2)
     Builder.defineMacro("OBJC_NEW_PROPERTIES");
@@ -306,34 +388,23 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__BLOCKS__");
   }
 
-  if (LangOpts.Exceptions)
+  if (LangOpts.CXXExceptions)
     Builder.defineMacro("__EXCEPTIONS");
   if (LangOpts.RTTI)
     Builder.defineMacro("__GXX_RTTI");
   if (LangOpts.SjLjExceptions)
     Builder.defineMacro("__USING_SJLJ_EXCEPTIONS__");
 
-  if (LangOpts.CPlusPlus) {
+  if (LangOpts.Deprecated)
     Builder.defineMacro("__DEPRECATED");
+
+  if (LangOpts.CPlusPlus) {
     Builder.defineMacro("__GNUG__", "4");
     Builder.defineMacro("__GXX_WEAK__");
-    if (LangOpts.GNUMode)
-      Builder.defineMacro("__cplusplus");
-    else
-      // C++ [cpp.predefined]p1:
-      //   The name_ _cplusplusis defined to the value 199711L when compiling a
-      //   C++ translation unit.
-      Builder.defineMacro("__cplusplus", "199711L");
     Builder.defineMacro("__private_extern__", "extern");
   }
 
-  if (LangOpts.Microsoft) {
-    // Filter out some microsoft extensions when trying to parse in ms-compat
-    // mode.
-    Builder.defineMacro("__int8", "__INT8_TYPE__");
-    Builder.defineMacro("__int16", "__INT16_TYPE__");
-    Builder.defineMacro("__int32", "__INT32_TYPE__");
-    Builder.defineMacro("__int64", "__INT64_TYPE__");
+  if (LangOpts.MicrosoftExt) {
     // Both __PRETTY_FUNCTION__ and __FUNCTION__ are GCC extensions, however
     // VC++ appears to only like __FUNCTION__.
     Builder.defineMacro("__PRETTY_FUNCTION__", "__FUNCTION__");
@@ -342,6 +413,8 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
       // Since we define wchar_t in C++ mode.
       Builder.defineMacro("_WCHAR_T_DEFINED");
       Builder.defineMacro("_NATIVE_WCHAR_T_DEFINED");
+      // FIXME: Support Microsoft's __identifier extension in the lexer.
+      Builder.append("#define __identifier(x) x");
       Builder.append("class type_info;");
     }
 
@@ -409,13 +482,16 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
 
   // Define a __POINTER_WIDTH__ macro for stdint.h.
   Builder.defineMacro("__POINTER_WIDTH__",
-                      llvm::Twine((int)TI.getPointerWidth(0)));
+                      Twine((int)TI.getPointerWidth(0)));
 
   if (!LangOpts.CharIsSigned)
     Builder.defineMacro("__CHAR_UNSIGNED__");
 
+  if (!TargetInfo::isTypeSigned(TI.getWIntType()))
+    Builder.defineMacro("__WINT_UNSIGNED__");
+
   // Define exact-width integer types for stdint.h
-  Builder.defineMacro("__INT" + llvm::Twine(TI.getCharWidth()) + "_TYPE__",
+  Builder.defineMacro("__INT" + Twine(TI.getCharWidth()) + "_TYPE__",
                       "char");
 
   if (TI.getShortWidth() > TI.getCharWidth())
@@ -449,19 +525,19 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
     Builder.defineMacro("__NO_INLINE__");
 
   if (unsigned PICLevel = LangOpts.PICLevel) {
-    Builder.defineMacro("__PIC__", llvm::Twine(PICLevel));
-    Builder.defineMacro("__pic__", llvm::Twine(PICLevel));
+    Builder.defineMacro("__PIC__", Twine(PICLevel));
+    Builder.defineMacro("__pic__", Twine(PICLevel));
   }
 
   // Macros to control C99 numerics and <float.h>
   Builder.defineMacro("__FLT_EVAL_METHOD__", "0");
   Builder.defineMacro("__FLT_RADIX__", "2");
   int Dig = PickFP(&TI.getLongDoubleFormat(), -1/*FIXME*/, 17, 21, 33, 36);
-  Builder.defineMacro("__DECIMAL_DIG__", llvm::Twine(Dig));
+  Builder.defineMacro("__DECIMAL_DIG__", Twine(Dig));
 
-  if (LangOpts.getStackProtectorMode() == LangOptions::SSPOn)
+  if (LangOpts.getStackProtector() == LangOptions::SSPOn)
     Builder.defineMacro("__SSP__");
-  else if (LangOpts.getStackProtectorMode() == LangOptions::SSPReq)
+  else if (LangOpts.getStackProtector() == LangOptions::SSPReq)
     Builder.defineMacro("__SSP_ALL__", "2");
 
   if (FEOpts.ProgramAction == frontend::RewriteObjC)
@@ -474,13 +550,22 @@ static void InitializePredefinedMacros(const TargetInfo &TI,
   if (LangOpts.FastRelaxedMath)
     Builder.defineMacro("__FAST_RELAXED_MATH__");
 
+  if (LangOpts.ObjCAutoRefCount) {
+    Builder.defineMacro("__weak", "__attribute__((objc_ownership(weak)))");
+    Builder.defineMacro("__strong", "__attribute__((objc_ownership(strong)))");
+    Builder.defineMacro("__autoreleasing",
+                        "__attribute__((objc_ownership(autoreleasing)))");
+    Builder.defineMacro("__unsafe_unretained",
+                        "__attribute__((objc_ownership(none)))");
+  }
+
   // Get other target #defines.
   TI.getTargetDefines(LangOpts, Builder);
 }
 
 // Initialize the remapping of files to alternative contents, e.g.,
 // those specified through other files.
-static void InitializeFileRemapping(Diagnostic &Diags,
+static void InitializeFileRemapping(DiagnosticsEngine &Diags,
                                     SourceManager &SourceMgr,
                                     FileManager &FileMgr,
                                     const PreprocessorOptions &InitOpts) {
@@ -531,20 +616,13 @@ static void InitializeFileRemapping(Diagnostic &Diags,
       continue;
     }
     
-    // Load the contents of the file we're mapping to.
-    std::string ErrorStr;
-    const llvm::MemoryBuffer *Buffer
-      = FileMgr.getBufferForFile(ToFile->getName(), &ErrorStr);
-    if (!Buffer) {
-      Diags.Report(diag::err_fe_error_opening)
-        << Remap->second << ErrorStr;
-      continue;
-    }
-    
     // Override the contents of the "from" file with the contents of
     // the "to" file.
-    SourceMgr.overrideFileContents(FromFile, Buffer);
+    SourceMgr.overrideFileContents(FromFile, ToFile);
   }
+
+  SourceMgr.setOverridenFilesKeepOriginalName(
+                                        InitOpts.RemappedFilesKeepOriginalName);
 }
 
 /// InitializePreprocessor - Initialize the preprocessor getting it and the
@@ -554,6 +632,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                                    const PreprocessorOptions &InitOpts,
                                    const HeaderSearchOptions &HSOpts,
                                    const FrontendOptions &FEOpts) {
+  const LangOptions &LangOpts = PP.getLangOptions();
   std::string PredefineBuffer;
   PredefineBuffer.reserve(4080);
   llvm::raw_string_ostream Predefines(PredefineBuffer);
@@ -562,6 +641,10 @@ void clang::InitializePreprocessor(Preprocessor &PP,
   InitializeFileRemapping(PP.getDiagnostics(), PP.getSourceManager(),
                           PP.getFileManager(), InitOpts);
 
+  // Specify whether the preprocessor should replace #include/#import with
+  // module imports when plausible.
+  PP.setAutoModuleImport(InitOpts.AutoModuleImport);
+
   // Emit line markers for various builtin sections of the file.  We don't do
   // this in asm preprocessor mode, because "# 4" is not a line marker directive
   // in this mode.
@@ -569,9 +652,29 @@ void clang::InitializePreprocessor(Preprocessor &PP,
     Builder.append("# 1 \"<built-in>\" 3");
 
   // Install things like __POWERPC__, __GNUC__, etc into the macro table.
-  if (InitOpts.UsePredefines)
-    InitializePredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
-                               FEOpts, Builder);
+  if (InitOpts.UsePredefines) {
+    InitializePredefinedMacros(PP.getTargetInfo(), LangOpts, FEOpts, Builder);
+
+    // Install definitions to make Objective-C++ ARC work well with various
+    // C++ Standard Library implementations.
+    if (LangOpts.ObjC1 && LangOpts.CPlusPlus && LangOpts.ObjCAutoRefCount) {
+      switch (InitOpts.ObjCXXARCStandardLibrary) {
+      case ARCXX_nolib:
+        case ARCXX_libcxx:
+        break;
+
+      case ARCXX_libstdcxx:
+        AddObjCXXARCLibstdcxxDefines(LangOpts, Builder);
+        break;
+      }
+    }
+  }
+  
+  // Even with predefines off, some macros are still predefined.
+  // These should all be defined in the preprocessor according to the
+  // current language configuration.
+  InitializeStandardPredefinedMacros(PP.getTargetInfo(), PP.getLangOptions(),
+                                     FEOpts, Builder);
 
   // Add on the predefines from the driver.  Wrap in a #line directive to report
   // that they come from the command line.
@@ -612,7 +715,7 @@ void clang::InitializePreprocessor(Preprocessor &PP,
                           
   // Copy PredefinedBuffer into the Preprocessor.
   PP.setPredefines(Predefines.str());
-
+  
   // Initialize the header search object.
   ApplyHeaderSearchOptions(PP.getHeaderSearchInfo(), HSOpts,
                            PP.getLangOptions(),

@@ -80,7 +80,7 @@
 #ifdef USB_DEBUG
 static int uvisor_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uvisor, CTLFLAG_RW, 0, "USB uvisor");
 SYSCTL_INT(_hw_usb_uvisor, OID_AUTO, debug, CTLFLAG_RW,
     &uvisor_debug, 0, "Debug level");
 #endif
@@ -253,7 +253,7 @@ MODULE_DEPEND(uvisor, ucom, 1, 1, 1);
 MODULE_DEPEND(uvisor, usb, 1, 1, 1);
 MODULE_VERSION(uvisor, 1);
 
-static const struct usb_device_id uvisor_devs[] = {
+static const STRUCT_USB_HOST_ID uvisor_devs[] = {
 #define	UVISOR_DEV(v,p,i) { USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, i) }
 	UVISOR_DEV(ACEECA, MEZ1000, UVISOR_FLAG_PALM4),
 	UVISOR_DEV(ALPHASMART, DANA_SYNC, UVISOR_FLAG_PALM4),
@@ -311,8 +311,9 @@ uvisor_attach(device_t dev)
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
-	bcopy(uvisor_config, uvisor_config_copy,
+	memcpy(uvisor_config_copy, uvisor_config,
 	    sizeof(uvisor_config_copy));
+
 	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uvisor", NULL, MTX_DEF);

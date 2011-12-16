@@ -198,12 +198,12 @@
 #endif
 
 /* CPU dependent mtc0 hazard hook */
-#ifdef CPU_CNMIPS
-#define	COP0_SYNC  nop; nop; nop; nop; nop;
+#if defined(CPU_CNMIPS) || defined(CPU_RMI)
+#define	COP0_SYNC
+#elif defined(CPU_NLM)
+#define	COP0_SYNC	.word 0xc0	/* ehb */
 #elif defined(CPU_SB1)
 #define COP0_SYNC  ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop; ssnop
-#elif defined(CPU_RMI)
-#define COP0_SYNC
 #else
 /*
  * Pick a reasonable default based on the "typical" spacing described in the
@@ -571,6 +571,7 @@
  * 16/1	MIPS_COP_0_CONFIG1	..33 Configuration register 1.
  * 16/2	MIPS_COP_0_CONFIG2	..33 Configuration register 2.
  * 16/3	MIPS_COP_0_CONFIG3	..33 Configuration register 3.
+ * 16/4 MIPS_COP_0_CONFIG4	..33 Configuration register 4.
  * 17	MIPS_COP_0_LLADDR	.336 Load Linked Address.
  * 18	MIPS_COP_0_WATCH_LO	.336 WatchLo register.
  * 19	MIPS_COP_0_WATCH_HI	.333 WatchHi register.
@@ -656,7 +657,7 @@
 
 #define MIPS_CONFIG1_TLBSZ_MASK		0x7E000000	/* bits 30..25 # tlb entries minus one */
 #define MIPS_CONFIG1_TLBSZ_SHIFT	25
-#define	MIPS_MAX_TLB_ENTRIES		64
+#define	MIPS_MAX_TLB_ENTRIES		128
 
 #define MIPS_CONFIG1_IS_MASK		0x01C00000	/* bits 24..22 icache sets per way */
 #define MIPS_CONFIG1_IS_SHIFT		22
@@ -678,6 +679,10 @@
 #define MIPS_CONFIG1_CA			0x00000004	/* MIPS16e ISA implemented */
 #define MIPS_CONFIG1_EP			0x00000002	/* EJTAG implemented */
 #define MIPS_CONFIG1_FP			0x00000001	/* FPU implemented */
+
+#define MIPS_CONFIG4_MMUSIZEEXT		0x000000FF	/* bits 7.. 0 MMU Size Extension */
+#define MIPS_CONFIG4_MMUEXTDEF		0x0000C000	/* bits 15.14 MMU Extension Definition */
+#define MIPS_CONFIG4_MMUEXTDEF_MMUSIZEEXT	0x00004000 /* This values denotes CONFIG4 bits  */
 
 /*
  * Values for the code field in a break instruction.

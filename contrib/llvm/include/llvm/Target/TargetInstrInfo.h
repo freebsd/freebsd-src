@@ -14,7 +14,7 @@
 #ifndef LLVM_TARGET_TARGETINSTRINFO_H
 #define LLVM_TARGET_TARGETINSTRINFO_H
 
-#include "llvm/Target/TargetInstrDesc.h"
+#include "llvm/MC/MCInstrInfo.h"
 #include "llvm/CodeGen/MachineFunction.h"
 
 namespace llvm {
@@ -32,6 +32,7 @@ class SelectionDAG;
 class ScheduleDAG;
 class TargetRegisterClass;
 class TargetRegisterInfo;
+class BranchProbability;
 
 template<class T> class SmallVectorImpl;
 
@@ -40,25 +41,22 @@ template<class T> class SmallVectorImpl;
 ///
 /// TargetInstrInfo - Interface to description of machine instruction set
 ///
-class TargetInstrInfo {
-  const TargetInstrDesc *Descriptors; // Raw array to allow static init'n
-  unsigned NumOpcodes;                // Number of entries in the desc array
-
+class TargetInstrInfo : public MCInstrInfo {
   TargetInstrInfo(const TargetInstrInfo &);  // DO NOT IMPLEMENT
   void operator=(const TargetInstrInfo &);   // DO NOT IMPLEMENT
 public:
-  TargetInstrInfo(const TargetInstrDesc *desc, unsigned NumOpcodes);
+  TargetInstrInfo(int CFSetupOpcode = -1, int CFDestroyOpcode = -1)
+    : CallFrameSetupOpcode(CFSetupOpcode),
+      CallFrameDestroyOpcode(CFDestroyOpcode) {
+  }
+
   virtual ~TargetInstrInfo();
 
-  unsigned getNumOpcodes() const { return NumOpcodes; }
-
-  /// get - Return the machine instruction descriptor that corresponds to the
-  /// specified instruction opcode.
-  ///
-  const TargetInstrDesc &get(unsigned Opcode) const {
-    assert(Opcode < NumOpcodes && "Invalid opcode!");
-    return Descriptors[Opcode];
-  }
+  /// getRegClass - Givem a machine instruction descriptor, returns the register
+  /// class constraint for OpNum, or NULL.
+  const TargetRegisterClass *getRegClass(const MCInstrDesc &TID,
+                                         unsigned OpNum,
+                                         const TargetRegisterInfo *TRI) const;
 
   /// isTriviallyReMaterializable - Return true if the instruction is trivially
   /// rematerializable, meaning it has no side effects and requires no operands
@@ -93,6 +91,15 @@ private:
                                                 AliasAnalysis *AA) const;
 
 public:
+  /// getCallFrameSetup/DestroyOpcode - These methods return the opcode of the
+  /// frame setup/destroy instructions if they exist (-1 otherwise).  Some
+  /// targets use pseudo instructions in order to abstract away the difference
+  /// between operating with a frame pointer and operating without, through the
+  /// use of these two instructions.
+  ///
+  int getCallFrameSetupOpcode() const { return CallFrameSetupOpcode; }
+  int getCallFrameDestroyOpcode() const { return CallFrameDestroyOpcode; }
+
   /// isCoalescableExtInstr - Return true if the instruction is a "coalescable"
   /// extension instruction. That is, it's like a copy where it's legal for the
   /// source to overlap the destination. e.g. X86::MOVSX64rr32. If this returns
@@ -315,7 +322,7 @@ public:
   virtual
   bool isProfitableToIfCvt(MachineBasicBlock &MBB, unsigned NumCyles,
                            unsigned ExtraPredCycles,
-                           float Probability, float Confidence) const {
+                           const BranchProbability &Probability) const {
     return false;
   }
 
@@ -330,7 +337,7 @@ public:
                       unsigned NumTCycles, unsigned ExtraTCycles,
                       MachineBasicBlock &FMBB,
                       unsigned NumFCycles, unsigned ExtraFCycles,
-                      float Probability, float Confidence) const {
+                      const BranchProbability &Probability) const {
     return false;
   }
 
@@ -342,7 +349,7 @@ public:
   /// will be properly predicted.
   virtual bool
   isProfitableToDupForIfCvt(MachineBasicBlock &MBB, unsigned NumCyles,
-                            float Probability, float Confidence) const {
+                            const BranchProbability &Probability) const {
     return false;
   }
 
@@ -377,6 +384,16 @@ public:
                                     const TargetRegisterClass *RC,
                                     const TargetRegisterInfo *TRI) const {
   assert(0 && "Target didn't implement TargetInstrInfo::loadRegFromStackSlot!");
+  }
+
+  /// expandPostRAPseudo - This function is called for all pseudo instructions
+  /// that remain after register allocation. Many pseudo instructions are
+  /// created to help register allocation. This is the place to convert them
+  /// into real instructions. The target can edit MI in place, or it can insert
+  /// new instructions and erase MI. The function should return true if
+  /// anything was changed.
+  virtual bool expandPostRAPseudo(MachineBasicBlock::iterator MI) const {
+    return false;
   }
 
   /// emitFrameIndexDebugValue - Emit a target-dependent form of
@@ -477,7 +494,7 @@ public:
   }
 
   /// shouldScheduleLoadsNear - This is a used by the pre-regalloc scheduler to
-  /// determine (in conjuction with areLoadsFromSameBasePtr) if two loads should
+  /// determine (in conjunction with areLoadsFromSameBasePtr) if two loads should
   /// be scheduled togther. On some targets if two loads are loading from
   /// addresses in the same cache line, it's better if they are scheduled
   /// together. This function takes two integers that represent the load offsets
@@ -641,6 +658,10 @@ public:
   virtual int getInstrLatency(const InstrItineraryData *ItinData,
                               SDNode *Node) const;
 
+  /// isHighLatencyDef - Return true if this opcode has high latency to its
+  /// result.
+  virtual bool isHighLatencyDef(int opc) const { return false; }
+
   /// hasHighOperandLatency - Compute operand latency between a def of 'Reg'
   /// and an use in the current loop, return true if the target considered
   /// it 'high'. This is used by optimization passes such as machine LICM to
@@ -659,6 +680,46 @@ public:
   virtual
   bool hasLowDefLatency(const InstrItineraryData *ItinData,
                         const MachineInstr *DefMI, unsigned DefIdx) const;
+
+  /// verifyInstruction - Perform target specific instruction verification.
+  virtual
+  bool verifyInstruction(const MachineInstr *MI, StringRef &ErrInfo) const {
+    return true;
+  }
+
+  /// getExecutionDomain - Return the current execution domain and bit mask of
+  /// possible domains for instruction.
+  ///
+  /// Some micro-architectures have multiple execution domains, and multiple
+  /// opcodes that perform the same operation in different domains.  For
+  /// example, the x86 architecture provides the por, orps, and orpd
+  /// instructions that all do the same thing.  There is a latency penalty if a
+  /// register is written in one domain and read in another.
+  ///
+  /// This function returns a pair (domain, mask) containing the execution
+  /// domain of MI, and a bit mask of possible domains.  The setExecutionDomain
+  /// function can be used to change the opcode to one of the domains in the
+  /// bit mask.  Instructions whose execution domain can't be changed should
+  /// return a 0 mask.
+  ///
+  /// The execution domain numbers don't have any special meaning except domain
+  /// 0 is used for instructions that are not associated with any interesting
+  /// execution domain.
+  ///
+  virtual std::pair<uint16_t, uint16_t>
+  getExecutionDomain(const MachineInstr *MI) const {
+    return std::make_pair(0, 0);
+  }
+
+  /// setExecutionDomain - Change the opcode of MI to execute in Domain.
+  ///
+  /// The bit (1 << Domain) must be set in the mask returned from
+  /// getExecutionDomain(MI).
+  ///
+  virtual void setExecutionDomain(MachineInstr *MI, unsigned Domain) const {}
+
+private:
+  int CallFrameSetupOpcode, CallFrameDestroyOpcode;
 };
 
 /// TargetInstrInfoImpl - This is the default implementation of
@@ -667,8 +728,9 @@ public:
 /// libcodegen, not in libtarget.
 class TargetInstrInfoImpl : public TargetInstrInfo {
 protected:
-  TargetInstrInfoImpl(const TargetInstrDesc *desc, unsigned NumOpcodes)
-  : TargetInstrInfo(desc, NumOpcodes) {}
+  TargetInstrInfoImpl(int CallFrameSetupOpcode = -1,
+                      int CallFrameDestroyOpcode = -1)
+    : TargetInstrInfo(CallFrameSetupOpcode, CallFrameDestroyOpcode) {}
 public:
   virtual void ReplaceTailWithBranchTo(MachineBasicBlock::iterator OldInst,
                                        MachineBasicBlock *NewDest) const;
@@ -678,6 +740,12 @@ public:
                                      unsigned &SrcOpIdx2) const;
   virtual bool canFoldMemoryOperand(const MachineInstr *MI,
                                     const SmallVectorImpl<unsigned> &Ops) const;
+  virtual bool hasLoadFromStackSlot(const MachineInstr *MI,
+                                    const MachineMemOperand *&MMO,
+                                    int &FrameIndex) const;
+  virtual bool hasStoreToStackSlot(const MachineInstr *MI,
+                                   const MachineMemOperand *&MMO,
+                                   int &FrameIndex) const;
   virtual bool PredicateInstruction(MachineInstr *MI,
                             const SmallVectorImpl<MachineOperand> &Pred) const;
   virtual void reMaterialize(MachineBasicBlock &MBB,

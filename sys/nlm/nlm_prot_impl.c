@@ -84,8 +84,9 @@ MALLOC_DEFINE(M_NLM, "NLM", "Network Lock Manager");
 /*
  * Support for sysctl vfs.nlm.sysid
  */
-SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL, "Network Lock Manager");
-SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
+static SYSCTL_NODE(_vfs, OID_AUTO, nlm, CTLFLAG_RW, NULL,
+    "Network Lock Manager");
+static SYSCTL_NODE(_vfs_nlm, OID_AUTO, sysid, CTLFLAG_RW, NULL, "");
 
 /*
  * Syscall hooks
@@ -1718,7 +1719,7 @@ out:
 }
 
 int
-nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
+sys_nlm_syscall(struct thread *td, struct nlm_syscall_args *uap)
 {
 	int error;
 
@@ -1797,7 +1798,7 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, &vs->vs_vp);
+	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, LK_EXCLUSIVE, &vs->vs_vp);
 	if (error)
 		goto out;
 	vs->vs_vnlocked = TRUE;

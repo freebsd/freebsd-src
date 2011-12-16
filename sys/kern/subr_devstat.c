@@ -49,8 +49,9 @@ static long devstat_generation = 1;
 static int devstat_version = DEVSTAT_VERSION;
 static int devstat_current_devnumber;
 static struct mtx devstat_mutex;
+MTX_SYSINIT(devstat_mutex, &devstat_mutex, "devstat", MTX_DEF);
 
-static struct devstatlist device_statq;
+static struct devstatlist device_statq = STAILQ_HEAD_INITIALIZER(device_statq);
 static struct devstat *devstat_alloc(void);
 static void devstat_free(struct devstat *);
 static void devstat_add_entry(struct devstat *ds, const void *dev_name, 
@@ -70,13 +71,7 @@ devstat_new_entry(const void *dev_name,
 		  devstat_priority priority)
 {
 	struct devstat *ds;
-	static int once;
 
-	if (!once) {
-		STAILQ_INIT(&device_statq);
-		mtx_init(&devstat_mutex, "devstat", NULL, MTX_DEF);
-		once = 1;
-	}
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 
 	ds = devstat_alloc();
@@ -407,7 +402,8 @@ sysctl_devstat(SYSCTL_HANDLER_ARGS)
  * Sysctl entries for devstat.  The first one is a node that all the rest
  * hang off of. 
  */
-SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL, "Device Statistics");
+static SYSCTL_NODE(_kern, OID_AUTO, devstat, CTLFLAG_RD, NULL,
+    "Device Statistics");
 
 SYSCTL_PROC(_kern_devstat, OID_AUTO, all, CTLFLAG_RD|CTLTYPE_OPAQUE,
     NULL, 0, sysctl_devstat, "S,devstat", "All devices in the devstat list");
@@ -476,8 +472,9 @@ devstat_alloc(void)
 
 	mtx_assert(&devstat_mutex, MA_NOTOWNED);
 	if (!once) {
-		make_dev_credf(MAKEDEV_ETERNAL, &devstat_cdevsw, 0, NULL,
-		    UID_ROOT, GID_WHEEL, 0400, DEVSTAT_DEVICE_NAME);
+		make_dev_credf(MAKEDEV_ETERNAL | MAKEDEV_CHECKNAME,
+		    &devstat_cdevsw, 0, NULL, UID_ROOT, GID_WHEEL, 0400,
+		    DEVSTAT_DEVICE_NAME);
 		once = 1;
 	}
 	spp2 = NULL;

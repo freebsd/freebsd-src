@@ -28,7 +28,7 @@
 .\"	@(#)mpool.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd February 25, 1999
+.Dd June 17, 2011
 .Dt MPOOL 3
 .Os
 .Sh NAME
@@ -147,7 +147,14 @@ is returned and
 is set.
 The
 .Fa flags
-argument is not currently used.
+argument is specified by
+.Em or Ns 'ing
+any of the following values:
+.Bl -tag -width indent
+.It Dv MPOOL_IGNOREPIN
+The page returned is not pinned;
+page will otherwise be pinned on return.
+.El
 .Pp
 The
 .Fn mpool_put

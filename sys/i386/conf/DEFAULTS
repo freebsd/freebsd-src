@@ -28,3 +28,8 @@ options 	GEOM_PART_MBR
 # enable support for native hardware
 options 	NATIVE
 device		atpic
+
+options 	NEW_PCIB
+
+# Allow mounting non-MPSAFE filesystems
+options		VFS_ALLOW_NONMPSAFE

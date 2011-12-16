@@ -42,15 +42,16 @@ umount_all_dir()
 start_gmirror_sync()
 {
 
- cd ${MIRRORCFGDIR}
-  for DISK in `ls *`
+  cd ${MIRRORCFGDIR}
+  for DISK in `ls ${MIRRORCFGDIR}`
   do
     MIRRORDISK="`cat ${DISK} | cut -d ':' -f 1`"
     MIRRORBAL="`cat ${DISK} | cut -d ':' -f 2`"
     MIRRORNAME="`cat ${DISK} | cut -d ':' -f 3`"
    
     # Start the mirroring service
-    rc_halt "gmirror insert ${MIRRORNAME} /dev/${MIRRORDISK}"
+    rc_nohalt "gmirror forget ${MIRRORNAME}"
+    rc_halt "gmirror insert ${MIRRORNAME} ${MIRRORDISK}"
 
   done
 
@@ -70,7 +71,7 @@ unmount_all_filesystems()
   ##################################################################
   for PART in `ls ${PARTDIR}`
   do
-         
+    PARTDEV=`echo $PART | sed 's|-|/|g'`    
     PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
     PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
     PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
@@ -83,24 +84,24 @@ unmount_all_filesystems()
       EXT=""
     fi
 
-    #if [ "${PARTFS}" = "SWAP" ]
-    #then
-    #  rc_nohalt "swapoff /dev/${PART}${EXT}"
-    #fi
+    if [ "${PARTFS}" = "SWAP" ]
+    then
+      rc_nohalt "swapoff ${PARTDEV}${EXT}"
+    fi
 
     # Check if we've found "/", and unmount that last
     if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
     then
-      rc_halt "umount -f /dev/${PART}${EXT}"
+      rc_halt "umount -f ${PARTDEV}${EXT}"
 
       # Re-check if we are missing a label for this device and create it again if so
       if [ ! -e "/dev/label/${PARTLABEL}" ]
       then
         case ${PARTFS} in
-          UFS) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+S) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+SUJ) glabel label ${PARTLABEL} /dev/${PART}${EXT} ;;
-          UFS+J) glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal ;;
+          UFS) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+S) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+SUJ) glabel label ${PARTLABEL} ${PARTDEV}${EXT} ;;
+          UFS+J) glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal ;;
           *) ;;
         esac 
       fi
@@ -112,10 +113,10 @@ unmount_all_filesystems()
       if [ ! -e "/dev/label/${PARTLABEL}" ]
       then
         case ${PARTFS} in
-          UFS) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+S) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}" ;;
-          UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} /dev/${PART}${EXT}.journal" ;;
+          UFS) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+S) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+SUJ) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}" ;;
+          UFS+J) ROOTRELABEL="glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal" ;;
           *) ;;
         esac 
       fi
@@ -143,7 +144,7 @@ unmount_all_filesystems()
 
   # Check if we need to run any gmirror syncing
   ls ${MIRRORCFGDIR}/* >/dev/null 2>/dev/null
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
     # Lets start syncing now
     start_gmirror_sync
@@ -166,44 +167,44 @@ unmount_all_filesystems_failure()
     then
     for PART in `ls ${PARTDIR}`
     do
-     
+      PARTDEV=`echo $PART | sed 's|-|/|g'` 
       PARTFS="`cat ${PARTDIR}/${PART} | cut -d ':' -f 1`"
       PARTMNT="`cat ${PARTDIR}/${PART} | cut -d ':' -f 2`"
       PARTENC="`cat ${PARTDIR}/${PART} | cut -d ':' -f 3`"
 
-      #if [ "${PARTFS}" = "SWAP" ]
-      #then
-      #  if [ "${PARTENC}" = "ON" ]
-      #  then
-      #    rc_nohalt "swapoff /dev/${PART}.eli"
-      #  else
-      #    rc_nohalt "swapoff /dev/${PART}"
-      #  fi
-      #fi
+      if [ "${PARTFS}" = "SWAP" ]
+      then
+        if [ "${PARTENC}" = "ON" ]
+        then
+          swapoff ${PARTDEV}.eli >/dev/null 2>/dev/null
+        else
+          swapoff ${PARTDEV} >/dev/null 2>/dev/null
+        fi
+      fi
 
       # Check if we've found "/" again, don't need to mount it twice
       if [ "$PARTMNT" != "/" -a "${PARTMNT}" != "none" -a "${PARTFS}" != "ZFS" ]
       then
-        rc_nohalt "umount -f /dev/${PART}"
-        rc_nohalt "umount -f ${FSMNT}${PARTMNT}"
+        umount -f ${PARTDEV} >/dev/null 2>/dev/null
+        umount -f ${FSMNT}${PARTMNT} >/dev/null 2>/dev/null
       fi
     done
 
     # Last lets the /mnt partition
     #########################################################
-    rc_nohalt "umount -f ${FSMNT}"
+    umount -f ${FSMNT} >/dev/null 2>/dev/null
 
    fi
   else
     # We are doing a upgrade, try unmounting any of these filesystems
-    chroot ${FSMNT} /sbin/umount -a >>${LOGOUT} >>${LOGOUT}
-    umount -f ${FSMNT}/usr >>${LOGOUT} 2>>${LOGOUT}
-    umount -f ${FSMNT}/dev >>${LOGOUT} 2>>${LOGOUT}
-    umount -f ${FSMNT} >>${LOGOUT} 2>>${LOGOUT}
-    rc_nohalt "sh ${TMPDIR}/.upgrade-unmount"
+    chroot ${FSMNT} /sbin/umount -a >/dev/null 2>/dev/null
+    umount -f ${FSMNT}/usr >/dev/null 2>/dev/null
+    umount -f ${FSMNT}/dev >/dev/null 2>/dev/null
+    umount -f ${FSMNT} >/dev/null 2>/dev/null 
+    sh ${TMPDIR}/.upgrade-unmount >/dev/null 2>/dev/null
   fi
    
   # Unmount our CDMNT
-  rc_nohalt "umount ${CDMNT}"
+  umount ${CDMNT} >/dev/null 2>/dev/null
 
 };

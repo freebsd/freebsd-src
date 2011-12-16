@@ -41,6 +41,8 @@ SRCF=	absvdi2 \
 	ctzti2 \
 	divdc3 \
 	divdi3 \
+	divmoddi4 \
+	divmodsi4 \
 	divsc3 \
 	divti3 \
 	divxc3 \
@@ -114,6 +116,7 @@ SRCF=	absvdi2 \
 	ucmpti2 \
 	udivdi3 \
 	udivmoddi4 \
+	udivmodsi4 \
 	udivmodti4 \
 	udivti3 \
 	umoddi3 \
@@ -134,6 +137,8 @@ SRCF+=	adddf3 \
 	modsi3 \
 	muldf3 \
 	mulsf3 \
+	subdf3 \
+	subsf3 \
 	truncdfsf2 \
 	udivsi3 \
 	umodsi3

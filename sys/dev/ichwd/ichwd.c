@@ -157,9 +157,41 @@ static struct ichwd_device ichwd_devices[] = {
 	{ DEVICEID_CPT29,    "Intel Cougar Point watchdog timer",	10 },
 	{ DEVICEID_CPT30,    "Intel Cougar Point watchdog timer",	10 },
 	{ DEVICEID_CPT31,    "Intel Cougar Point watchdog timer",	10 },
-	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
 	{ DEVICEID_PATSBURG_LPC1, "Intel Patsburg watchdog timer",	10 },
 	{ DEVICEID_PATSBURG_LPC2, "Intel Patsburg watchdog timer",	10 },
+	{ DEVICEID_PPT0,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT1,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT2,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT3,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT4,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT5,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT6,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT7,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT8,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT9,     "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT10,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT11,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT12,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT13,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT14,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT15,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT16,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT17,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT18,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT19,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT20,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT21,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT22,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT23,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT24,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT25,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT26,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT27,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT28,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT29,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT30,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_PPT31,    "Intel Panther Point watchdog timer",	10 },
+	{ DEVICEID_DH89XXCC_LPC,  "Intel DH89xxCC watchdog timer",	10 },
 	{ 0, NULL, 0 },
 };
 
@@ -217,6 +249,15 @@ ichwd_smi_enable(struct ichwd_softc *sc)
 }
 
 /*
+ * Check if the watchdog SMI triggering is enabled.
+ */
+static __inline int
+ichwd_smi_is_enabled(struct ichwd_softc *sc)
+{
+	return ((ichwd_read_smi_4(sc, SMI_EN) & SMI_TCO_EN) != 0);
+}
+
+/*
  * Reset the watchdog status bits.
  */
 static __inline void
@@ -228,8 +269,8 @@ ichwd_sts_reset(struct ichwd_softc *sc)
 	 * by writing a 1, not a 0.
 	 */
 	ichwd_write_tco_2(sc, TCO1_STS, TCO_TIMEOUT);
-	/* 
-	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must 
+	/*
+	 * According to Intel's docs, clearing SECOND_TO_STS and BOOT_STS must
 	 * be done in two separate operations.
 	 */
 	ichwd_write_tco_2(sc, TCO2_STS, TCO_SECOND_TO_STS);
@@ -361,11 +402,10 @@ ichwd_event(void *arg, unsigned int cmd, int *error)
 	cmd &= WD_INTERVAL;
 	timeout = ((uint64_t)1 << cmd) / ICHWD_TICK;
 	if (cmd) {
-		if (timeout != sc->timeout) {
-			if (!sc->active)
-				ichwd_tmr_enable(sc);
+		if (!sc->active)
+			ichwd_tmr_enable(sc);
+		if (timeout != sc->timeout)
 			ichwd_tmr_set(sc, timeout);
-		}
 		ichwd_tmr_reload(sc);
 		*error = 0;
 	} else {
@@ -534,6 +574,7 @@ ichwd_attach(device_t dev)
 	sc->ev_tag = EVENTHANDLER_REGISTER(watchdog_list, ichwd_event, sc, 0);
 
 	/* disable the SMI handler */
+	sc->smi_enabled = ichwd_smi_is_enabled(sc);
 	ichwd_smi_disable(sc);
 
 	return (0);
@@ -565,7 +606,8 @@ ichwd_detach(device_t dev)
 		ichwd_tmr_disable(sc);
 
 	/* enable the SMI handler */
-	ichwd_smi_enable(sc);
+	if (sc->smi_enabled != 0)
+		ichwd_smi_enable(sc);
 
 	/* deregister event handler */
 	if (sc->ev_tag != NULL)

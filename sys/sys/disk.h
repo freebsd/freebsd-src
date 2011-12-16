@@ -116,4 +116,12 @@ void disk_err(struct bio *bp, const char *what, int blkdone, int nl);
 	 * This should be a multiple of the sector size.
 	 */
 
+#define	DIOCGPHYSPATH _IOR('d', 141, char[MAXPATHLEN])
+	/*
+	 * Get a string defining the physical path for a given provider.
+	 * This has similar rules to ident, but is intended to uniquely
+	 * identify the physical location of the device, not the current
+	 * occupant of that location.
+	 */
+
 #endif /* _SYS_DISK_H_ */

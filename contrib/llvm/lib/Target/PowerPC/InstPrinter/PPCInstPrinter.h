@@ -17,7 +17,8 @@
 #include "llvm/MC/MCInstPrinter.h"
 
 namespace llvm {
-  class MCOperand;
+
+class MCOperand;
 
 class PPCInstPrinter : public MCInstPrinter {
   // 0 -> AIX, 1 -> Darwin.
@@ -30,7 +31,8 @@ public:
     return SyntaxVariant == 1;
   }
   
-  virtual void printInst(const MCInst *MI, raw_ostream &O);
+  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
+  virtual void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);
   virtual StringRef getOpcodeName(unsigned Opcode) const;
   
   static const char *getInstructionName(unsigned Opcode);

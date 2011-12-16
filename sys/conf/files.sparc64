@@ -79,6 +79,7 @@ sparc64/pci/fire.c		optional	pci
 sparc64/pci/ofw_pcib.c		optional	pci
 sparc64/pci/ofw_pcib_subr.c	optional	pci
 sparc64/pci/ofw_pcibus.c	optional	pci
+sparc64/pci/ofw_pci_if.m	optional	pci
 sparc64/pci/psycho.c		optional	pci
 sparc64/pci/sbbc.c		optional	sbbc uart
 sparc64/pci/schizo.c		optional	pci
@@ -89,6 +90,7 @@ sparc64/sparc64/ata_machdep.c	optional	ada | atadisk | da
 sparc64/sparc64/autoconf.c	standard
 sparc64/sparc64/bus_machdep.c	standard
 sparc64/sparc64/cache.c		standard
+sparc64/sparc64/cam_machdep.c	optional	scbus
 sparc64/sparc64/cheetah.c	standard
 sparc64/sparc64/clock.c		standard
 sparc64/sparc64/counter.c	standard
@@ -104,7 +106,7 @@ sparc64/sparc64/eeprom.c	optional	eeprom ebus | eeprom fhc | \
 						eeprom sbus
 sparc64/sparc64/gdb_machdep.c	optional	gdb
 sparc64/sparc64/identcpu.c	standard
-sparc64/sparc64/in_cksum.c	optional	inet
+sparc64/sparc64/in_cksum.c	optional	inet | inet6
 sparc64/sparc64/interrupt.S	standard	no-obj			\
 	compile-with "${NORMAL_S} -mcpu=ultrasparc"
 sparc64/sparc64/intr_machdep.c	standard

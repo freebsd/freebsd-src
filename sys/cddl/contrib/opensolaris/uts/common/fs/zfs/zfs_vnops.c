@@ -331,8 +331,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it.
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(pp, PG_REFERENCED);
+				vm_page_reference(pp);
 				vm_page_sleep(pp, "zfsmwb");
 				continue;
 			}
@@ -612,7 +611,8 @@ zfs_read(vnode_t *vp, uio_t *uio, int ioflag, cred_t *cr, caller_context_t *ct)
 	/*
 	 * If we're in FRSYNC mode, sync out this znode before reading it.
 	 */
-	if (ioflag & FRSYNC || zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS)
+	if (zfsvfs->z_log &&
+	    (ioflag & FRSYNC || zfsvfs->z_os->os_sync == ZFS_SYNC_ALWAYS))
 		zil_commit(zfsvfs->z_log, zp->z_id);
 
 	/*
@@ -2642,11 +2642,11 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	uint32_t blksize;
 	u_longlong_t nblocks;
 	uint64_t links;
-	uint64_t mtime[2], ctime[2], crtime[2];
+	uint64_t mtime[2], ctime[2], crtime[2], rdev;
 	xvattr_t *xvap = (xvattr_t *)vap;	/* vap may be an xvattr_t * */
 	xoptattr_t *xoap = NULL;
 	boolean_t skipaclchk = (flags & ATTR_NOACLCHECK) ? B_TRUE : B_FALSE;
-	sa_bulk_attr_t bulk[3];
+	sa_bulk_attr_t bulk[4];
 	int count = 0;
 
 	ZFS_ENTER(zfsvfs);
@@ -2657,6 +2657,9 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_MTIME(zfsvfs), NULL, &mtime, 16);
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &ctime, 16);
 	SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_CTIME(zfsvfs), NULL, &crtime, 16);
+	if (vp->v_type == VBLK || vp->v_type == VCHR)
+		SA_ADD_BULK_ATTR(bulk, count, SA_ZPL_RDEV(zfsvfs), NULL,
+		    &rdev, 8);
 
 	if ((error = sa_bulk_lookup(zp->z_sa_hdl, bulk, count)) != 0) {
 		ZFS_EXIT(zfsvfs);
@@ -2685,7 +2688,11 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 	mutex_enter(&zp->z_lock);
 	vap->va_type = IFTOVT(zp->z_mode);
 	vap->va_mode = zp->z_mode & ~S_IFMT;
-//	vap->va_fsid = zp->z_zfsvfs->z_vfs->vfs_dev;
+#ifdef sun
+	vap->va_fsid = zp->z_zfsvfs->z_vfs->vfs_dev;
+#else
+	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
+#endif
 	vap->va_nodeid = zp->z_id;
 	if ((vp->v_flag & VROOT) && zfs_show_ctldir(zp))
 		links = zp->z_links + 1;
@@ -2693,8 +2700,12 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 		links = zp->z_links;
 	vap->va_nlink = MIN(links, UINT32_MAX);	/* nlink_t limit! */
 	vap->va_size = zp->z_size;
-	vap->va_fsid = vp->v_mount->mnt_stat.f_fsid.val[0];
-//	vap->va_rdev = zfs_cmpldev(pzp->zp_rdev);
+#ifdef sun
+	vap->va_rdev = vp->v_rdev;
+#else
+	if (vp->v_type == VBLK || vp->v_type == VCHR)
+		vap->va_rdev = zfs_cmpldev(rdev);
+#endif
 	vap->va_seq = zp->z_seq;
 	vap->va_flags = 0;	/* FreeBSD: Reset chflags(2) flags. */
 
@@ -2962,11 +2973,6 @@ top:
 	 */
 
 	if (mask & AT_SIZE) {
-		err = zfs_zaccess(zp, ACE_WRITE_DATA, 0, skipaclchk, cr);
-		if (err) {
-			ZFS_EXIT(zfsvfs);
-			return (err);
-		}
 		/*
 		 * XXX - Note, we are not providing any open
 		 * mode flags here (like FNDELAY), so we may
@@ -3228,7 +3234,8 @@ top:
 		uint64_t acl_obj;
 		new_mode = (pmode & S_IFMT) | (vap->va_mode & ~S_IFMT);
 
-		zfs_acl_chmod_setattr(zp, &aclp, new_mode);
+		if (err = zfs_acl_chmod_setattr(zp, &aclp, new_mode))
+			goto out;
 
 		mutex_enter(&zp->z_lock);
 		if (!zp->z_is_sa && ((acl_obj = zfs_external_acl(zp)) != 0)) {
@@ -6333,7 +6340,7 @@ vop_getextattr {
 		if (error == 0)
 			*ap->a_size = (size_t)va.va_size;
 	} else if (ap->a_uio != NULL)
-		error = VOP_READ(vp, ap->a_uio, IO_UNIT | IO_SYNC, ap->a_cred);
+		error = VOP_READ(vp, ap->a_uio, IO_UNIT, ap->a_cred);
 
 	VOP_UNLOCK(vp, 0);
 	vn_close(vp, flags, ap->a_cred, td);

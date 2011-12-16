@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Usage ibstatus [devname[:port]]
+
+infiniband_base="/sys/class/infiniband"
+def_ibdev="mthca0"
+
+usage() {
+	prog=`basename $0`
+	echo "Usage: " $prog " [-h] [devname[:portnum]]"
+	echo "	-h:	this help screen"
+	echo "	Examples:"
+	echo "		$prog mthca1		# shows status of all ports of 'mthca1'"
+	echo "		$prog mthca0:2	# shows status port number 2 of 'mthca0'"
+	echo "		$prog		# default: shows status of all '$def_ibdev' ports"
+	exit -1
+}
+
+fatal() {
+	echo "Fatal error: " $*
+	exit -1
+}
+
+
+port_status() {
+	port_dir="$infiniband_base/$1/ports/$2"
+	echo "Infiniband device '$1' port $2 status:"
+	echo "	default gid:	" `[ -r $port_dir/gids/0 ] && cat $port_dir/gids/0 || echo unknown`
+	echo "	base lid:	" `[ -r $port_dir/lid ] && cat $port_dir/lid || echo unknown`
+	echo "	sm lid:		" `[ -r $port_dir/sm_lid ] && cat $port_dir/sm_lid || echo unknown`
+	echo "	state:		" `[ -r $port_dir/state ] && cat $port_dir/state || echo unknown`
+	echo "	phys state:	" `[ -r $port_dir/phys_state ] && cat $port_dir/phys_state || echo unknown`
+	echo "	rate:		" `[ -r $port_dir/rate ] && cat $port_dir/rate || echo unknown`
+	echo
+}
+
+ib_status() {
+	ports_dir="$infiniband_base/$1/ports"
+
+	if ! [ -d "$ports_dir" ]; then
+		fatal "device '$1': sys files not found ($ports_dir)"
+	fi
+
+	if [ "$2" = "+" ]; then
+		ports=`(cd "$infiniband_base/$1/ports" 2>/dev/null || fatal No devices; echo *)`
+	else
+		ports=$2
+	fi
+
+	for i in $ports; do
+		port_status $1 $i
+	done
+}
+
+if [ "$1" = "-h" ]; then
+	usage
+fi
+
+if [ -z "$1" ]; then
+	cd $infiniband_base 2>/dev/null || fatal No devices
+	for dev in *; do
+		ib_status $dev "+";
+	done
+	exit 0
+fi
+
+while [ "$1" ]; do
+	dev=`echo $1 | sed 's/:.*$//'`
+	port=`echo $1 | sed 's/^.*://'`
+
+	if [ "$port" = "$dev" ]; then
+		port="+"
+	fi
+
+	ib_status $dev $port
+	shift
+done

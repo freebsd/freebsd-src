@@ -142,6 +142,7 @@ cam_status cam_periph_alloc(periph_ctor_t *periph_ctor,
 			    char *name, cam_periph_type type, struct cam_path *,
 			    ac_callback_t *, ac_code, void *arg);
 struct cam_periph *cam_periph_find(struct cam_path *path, char *name);
+int		cam_periph_list(struct cam_path *, struct sbuf *);
 cam_status	cam_periph_acquire(struct cam_periph *periph);
 void		cam_periph_release(struct cam_periph *periph);
 void		cam_periph_release_locked(struct cam_periph *periph);
@@ -198,6 +199,13 @@ static __inline int
 cam_periph_owned(struct cam_periph *periph)
 {
 	return (mtx_owned(periph->sim->mtx));
+}
+
+static __inline int
+cam_periph_sleep(struct cam_periph *periph, void *chan, int priority,
+		 const char *wmesg, int timo)
+{
+	return (msleep(chan, periph->sim->mtx, priority, wmesg, timo));
 }
 
 #endif /* _KERNEL */

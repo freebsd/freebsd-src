@@ -22,9 +22,10 @@ namespace llvm {
 class formatted_raw_ostream;
 
 struct CPPTargetMachine : public TargetMachine {
-  CPPTargetMachine(const Target &T, const std::string &TT,
-                   const std::string &FS)
-    : TargetMachine(T) {}
+  CPPTargetMachine(const Target &T, StringRef TT,
+                   StringRef CPU, StringRef FS,
+                   Reloc::Model RM, CodeModel::Model CM)
+    : TargetMachine(T, TT, CPU, FS) {}
 
   virtual bool addPassesToEmitFile(PassManagerBase &PM,
                                    formatted_raw_ostream &Out,

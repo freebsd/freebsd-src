@@ -38,6 +38,7 @@
 typedef	__uint32_t	__blksize_t;	/* file block size */
 typedef	__int64_t	__blkcnt_t;	/* file block count */
 typedef	__int32_t	__clockid_t;	/* clock_gettime()... */
+typedef	__uint64_t	__cap_rights_t;	/* capability rights */
 typedef	__uint32_t	__fflags_t;	/* file flags */
 typedef	__uint64_t	__fsblkcnt_t;
 typedef	__uint64_t	__fsfilcnt_t;

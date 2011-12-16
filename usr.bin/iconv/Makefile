@@ -7,8 +7,6 @@ PROG=	iconv
 #SRCS=	iconv.c
 MAN=	iconv.1
 
-WARNS?=	6
-
 LDADD+=	-lcrypt
 DPADD+=	${LIBCRYPT}
 

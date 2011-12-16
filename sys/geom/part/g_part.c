@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/queue.h>
 #include <sys/sbuf.h>
+#include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/uuid.h>
 #include <geom/geom.h>
@@ -103,6 +104,14 @@ struct g_part_alias_list {
 	{ "netbsd-raid", G_PART_ALIAS_NETBSD_RAID },
 	{ "netbsd-swap", G_PART_ALIAS_NETBSD_SWAP },
 };
+
+SYSCTL_DECL(_kern_geom);
+static SYSCTL_NODE(_kern_geom, OID_AUTO, part, CTLFLAG_RW, 0,
+    "GEOM_PART stuff");
+static u_int check_integrity = 1;
+TUNABLE_INT("kern.geom.part.check_integrity", &check_integrity);
+SYSCTL_UINT(_kern_geom_part, OID_AUTO, check_integrity, CTLFLAG_RW,
+    &check_integrity, 1, "Enable integrity checking");
 
 /*
  * The GEOM partitioning class.
@@ -231,6 +240,123 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 	}
 }
 
+#define	DPRINTF(...)	if (bootverbose) {	\
+	printf("GEOM_PART: " __VA_ARGS__);	\
+}
+
+static int
+g_part_check_integrity(struct g_part_table *table, struct g_consumer *cp)
+{
+	struct g_part_entry *e1, *e2;
+	struct g_provider *pp;
+	off_t offset;
+	int failed;
+
+	failed = 0;
+	pp = cp->provider;
+	if (table->gpt_last < table->gpt_first) {
+		DPRINTF("last LBA is below first LBA: %jd < %jd\n",
+		    (intmax_t)table->gpt_last, (intmax_t)table->gpt_first);
+		failed++;
+	}
+	if (table->gpt_last > pp->mediasize / pp->sectorsize - 1) {
+		DPRINTF("last LBA extends beyond mediasize: "
+		    "%jd > %jd\n", (intmax_t)table->gpt_last,
+		    (intmax_t)pp->mediasize / pp->sectorsize - 1);
+		failed++;
+	}
+	LIST_FOREACH(e1, &table->gpt_entry, gpe_entry) {
+		if (e1->gpe_deleted || e1->gpe_internal)
+			continue;
+		if (e1->gpe_start < table->gpt_first) {
+			DPRINTF("partition %d has start offset below first "
+			    "LBA: %jd < %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_start,
+			    (intmax_t)table->gpt_first);
+			failed++;
+		}
+		if (e1->gpe_start > table->gpt_last) {
+			DPRINTF("partition %d has start offset beyond last "
+			    "LBA: %jd > %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_start,
+			    (intmax_t)table->gpt_last);
+			failed++;
+		}
+		if (e1->gpe_end < e1->gpe_start) {
+			DPRINTF("partition %d has end offset below start "
+			    "offset: %jd < %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_end,
+			    (intmax_t)e1->gpe_start);
+			failed++;
+		}
+		if (e1->gpe_end > table->gpt_last) {
+			DPRINTF("partition %d has end offset beyond last "
+			    "LBA: %jd > %jd\n", e1->gpe_index,
+			    (intmax_t)e1->gpe_end,
+			    (intmax_t)table->gpt_last);
+			failed++;
+		}
+		if (pp->stripesize > 0) {
+			offset = e1->gpe_start * pp->sectorsize;
+			if (e1->gpe_offset > offset)
+				offset = e1->gpe_offset;
+			if ((offset + pp->stripeoffset) % pp->stripesize) {
+				DPRINTF("partition %d is not aligned on %u "
+				    "bytes\n", e1->gpe_index, pp->stripesize);
+				/* Don't treat this as a critical failure */
+			}
+		}
+		e2 = e1;
+		while ((e2 = LIST_NEXT(e2, gpe_entry)) != NULL) {
+			if (e2->gpe_deleted || e2->gpe_internal)
+				continue;
+			if (e1->gpe_start >= e2->gpe_start &&
+			    e1->gpe_start <= e2->gpe_end) {
+				DPRINTF("partition %d has start offset inside "
+				    "partition %d: start[%d] %jd >= start[%d] "
+				    "%jd <= end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e1->gpe_index, (intmax_t)e1->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_end);
+				failed++;
+			}
+			if (e1->gpe_end >= e2->gpe_start &&
+			    e1->gpe_end <= e2->gpe_end) {
+				DPRINTF("partition %d has end offset inside "
+				    "partition %d: start[%d] %jd >= end[%d] "
+				    "%jd <= end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e1->gpe_index, (intmax_t)e1->gpe_end,
+				    e2->gpe_index, (intmax_t)e2->gpe_end);
+				failed++;
+			}
+			if (e1->gpe_start < e2->gpe_start &&
+			    e1->gpe_end > e2->gpe_end) {
+				DPRINTF("partition %d contains partition %d: "
+				    "start[%d] %jd > start[%d] %jd, end[%d] "
+				    "%jd < end[%d] %jd\n",
+				    e1->gpe_index, e2->gpe_index,
+				    e1->gpe_index, (intmax_t)e1->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_start,
+				    e2->gpe_index, (intmax_t)e2->gpe_end,
+				    e1->gpe_index, (intmax_t)e1->gpe_end);
+				failed++;
+			}
+		}
+	}
+	if (failed != 0) {
+		printf("GEOM_PART: integrity check failed (%s, %s)\n",
+		    pp->name, table->gpt_scheme->name);
+		if (check_integrity != 0)
+			return (EINVAL);
+		table->gpt_corrupt = 1;
+	}
+	return (0);
+}
+#undef	DPRINTF
+
 struct g_part_entry *
 g_part_new_entry(struct g_part_table *table, int index, quad_t start,
     quad_t end)
@@ -325,6 +451,10 @@ g_part_parm_geom(struct gctl_req *req, const char *name, struct g_geom **v)
 	if (gp == NULL) {
 		gctl_error(req, "%d %s '%s'", EINVAL, name, gname);
 		return (EINVAL);
+	}
+	if ((gp->flags & G_GEOM_WITHER) != 0) {
+		gctl_error(req, "%d %s", ENXIO, gname);
+		return (ENXIO);
 	}
 	*v = gp;
 	return (0);
@@ -609,7 +739,11 @@ g_part_ctl_add(struct gctl_req *req, struct g_part_parms *gpp)
 	if (gpp->gpp_parms & G_PART_PARM_OUTPUT) {
 		sb = sbuf_new_auto();
 		G_PART_FULLNAME(table, entry, sb, gp->name);
-		sbuf_cat(sb, " added\n");
+		if (pp->stripesize > 0 && entry->gpe_pp->stripeoffset != 0)
+			sbuf_printf(sb, " added, but partition is not "
+			    "aligned on %u bytes\n", pp->stripesize);
+		else
+			sbuf_cat(sb, " added\n");
 		sbuf_finish(sb);
 		gctl_set_param(req, "output", sbuf_data(sb), sbuf_len(sb) + 1);
 		sbuf_delete(sb);
@@ -1310,9 +1444,11 @@ g_part_ctl_undo(struct gctl_req *req, struct g_part_parms *gpp)
 	error = G_PART_READ(table, cp);
 	if (error)
 		goto fail;
+	error = g_part_check_integrity(table, cp);
+	if (error)
+		goto fail;
 
 	g_topology_lock();
-
 	LIST_FOREACH(entry, &table->gpt_entry, gpe_entry) {
 		if (!entry->gpe_internal)
 			g_part_new_provider(gp, table, entry);
@@ -1771,6 +1907,9 @@ g_part_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 	g_part_geometry(table, cp, pp->mediasize / pp->sectorsize);
 
 	error = G_PART_READ(table, cp);
+	if (error)
+		goto fail;
+	error = g_part_check_integrity(table, cp);
 	if (error)
 		goto fail;
 

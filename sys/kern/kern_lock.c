@@ -131,15 +131,16 @@ CTASSERT(LK_UNLOCKED == (LK_UNLOCKED &
 #define	lockmgr_xlocked(lk)						\
 	(((lk)->lk_lock & ~(LK_FLAGMASK & ~LK_SHARE)) == (uintptr_t)curthread)
 
-static void	 assert_lockmgr(struct lock_object *lock, int how);
+static void	assert_lockmgr(const struct lock_object *lock, int how);
 #ifdef DDB
-static void	 db_show_lockmgr(struct lock_object *lock);
+static void	db_show_lockmgr(const struct lock_object *lock);
 #endif
-static void	 lock_lockmgr(struct lock_object *lock, int how);
+static void	lock_lockmgr(struct lock_object *lock, int how);
 #ifdef KDTRACE_HOOKS
-static int	 owner_lockmgr(struct lock_object *lock, struct thread **owner);
+static int	owner_lockmgr(const struct lock_object *lock,
+		    struct thread **owner);
 #endif
-static int	 unlock_lockmgr(struct lock_object *lock);
+static int	unlock_lockmgr(struct lock_object *lock);
 
 struct lock_class lock_class_lockmgr = {
 	.lc_name = "lockmgr",
@@ -158,13 +159,14 @@ struct lock_class lock_class_lockmgr = {
 #ifdef ADAPTIVE_LOCKMGRS
 static u_int alk_retries = 10;
 static u_int alk_loops = 10000;
-SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL, "lockmgr debugging");
+static SYSCTL_NODE(_debug, OID_AUTO, lockmgr, CTLFLAG_RD, NULL,
+    "lockmgr debugging");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, retries, CTLFLAG_RW, &alk_retries, 0, "");
 SYSCTL_UINT(_debug_lockmgr, OID_AUTO, loops, CTLFLAG_RW, &alk_loops, 0, "");
 #endif
 
 static __inline struct thread *
-lockmgr_xholder(struct lock *lk)
+lockmgr_xholder(const struct lock *lk)
 {
 	uintptr_t x;
 
@@ -334,7 +336,7 @@ wakeupshlk(struct lock *lk, const char *file, int line)
 }
 
 static void
-assert_lockmgr(struct lock_object *lock, int what)
+assert_lockmgr(const struct lock_object *lock, int what)
 {
 
 	panic("lockmgr locks do not support assertions");
@@ -356,7 +358,7 @@ unlock_lockmgr(struct lock_object *lock)
 
 #ifdef KDTRACE_HOOKS
 static int
-owner_lockmgr(struct lock_object *lock, struct thread **owner)
+owner_lockmgr(const struct lock_object *lock, struct thread **owner)
 {
 
 	panic("lockmgr locks do not support owner inquiring");
@@ -477,8 +479,18 @@ __lockmgr_args(struct lock *lk, u_int flags, struct lock_object *ilk,
 		return (0);
 	}
 
-	if (op == LK_SHARED && (lk->lock_object.lo_flags & LK_NOSHARE))
-		op = LK_EXCLUSIVE;
+	if (lk->lock_object.lo_flags & LK_NOSHARE) {
+		switch (op) {
+		case LK_SHARED:
+			op = LK_EXCLUSIVE;
+			break;
+		case LK_UPGRADE:
+		case LK_DOWNGRADE:
+			_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED,
+			    file, line);
+			return (0);
+		}
+	}
 
 	wakeup_swapper = 0;
 	switch (op) {
@@ -1220,6 +1232,9 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 {
 	uintptr_t tid, x;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	tid = (uintptr_t)curthread;
 	_lockmgr_assert(lk, KA_XLOCKED | KA_NOTRECURSED, file, line);
 
@@ -1249,7 +1264,7 @@ _lockmgr_disown(struct lock *lk, const char *file, int line)
 }
 
 void
-lockmgr_printinfo(struct lock *lk)
+lockmgr_printinfo(const struct lock *lk)
 {
 	struct thread *td;
 	uintptr_t x;
@@ -1278,7 +1293,7 @@ lockmgr_printinfo(struct lock *lk)
 }
 
 int
-lockstatus(struct lock *lk)
+lockstatus(const struct lock *lk)
 {
 	uintptr_t v, x;
 	int ret;
@@ -1308,7 +1323,7 @@ FEATURE(invariant_support,
 #endif
 
 void
-_lockmgr_assert(struct lock *lk, int what, const char *file, int line)
+_lockmgr_assert(const struct lock *lk, int what, const char *file, int line)
 {
 	int slocked = 0;
 
@@ -1401,12 +1416,12 @@ lockmgr_chain(struct thread *td, struct thread **ownerp)
 }
 
 static void
-db_show_lockmgr(struct lock_object *lock)
+db_show_lockmgr(const struct lock_object *lock)
 {
 	struct thread *td;
-	struct lock *lk;
+	const struct lock *lk;
 
-	lk = (struct lock *)lock;
+	lk = (const struct lock *)lock;
 
 	db_printf(" state: ");
 	if (lk->lk_lock == LK_UNLOCKED)

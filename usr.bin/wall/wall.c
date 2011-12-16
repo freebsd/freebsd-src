@@ -68,14 +68,14 @@ static const char sccsid[] = "@(#)wall.c	8.2 (Berkeley) 11/16/93";
 static void makemsg(char *);
 static void usage(void);
 
-struct wallgroup {
+static struct wallgroup {
 	struct wallgroup *next;
 	char		*name;
 	gid_t		gid;
 } *grouplist;
-int nobanner;
-int mbufsize;
-char *mbuf;
+static int nobanner;
+static int mbufsize;
+static char *mbuf;
 
 static int
 ttystat(char *line)
@@ -239,8 +239,9 @@ makemsg(char *fname)
 			err(1, "can't read %s", fname);
 		setegid(egid);
 	}
+	cnt = 0;
 	while (fgets(lbuf, sizeof(lbuf), stdin)) {
-		for (cnt = 0, p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
+		for (p = lbuf; (ch = *p) != '\0'; ++p, ++cnt) {
 			if (ch == '\r') {
 				putc('\r', fp);
 				cnt = 0;

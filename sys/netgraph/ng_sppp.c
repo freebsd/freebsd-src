@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <netgraph/ng_sppp.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_SPPP, "netgraph_sppp", "netgraph sppp node ");
+static MALLOC_DEFINE(M_NETGRAPH_SPPP, "netgraph_sppp", "netgraph sppp node");
 #else
 #define M_NETGRAPH_SPPP M_NETGRAPH
 #endif
@@ -108,7 +108,7 @@ static unsigned char	ng_units_in_use = 0;
  * Find the first free unit number for a new interface.
  * Increase the size of the unit bitmap as necessary.
  */
-static __inline int
+static __inline void
 ng_sppp_get_unit (int *unit)
 {
 	int index, bit;
@@ -122,9 +122,7 @@ ng_sppp_get_unit (int *unit)
 		
 		newlen = (2 * ng_sppp_units_len) + sizeof (*ng_sppp_units);
 		newarray = malloc (newlen * sizeof (*ng_sppp_units),
-		    M_NETGRAPH_SPPP, M_NOWAIT);
-		if (newarray == NULL)
-			return (ENOMEM);
+		    M_NETGRAPH_SPPP, M_WAITOK);
 		bcopy (ng_sppp_units, newarray,
 		    ng_sppp_units_len * sizeof (*ng_sppp_units));
 		bzero (newarray + ng_sppp_units_len,
@@ -142,7 +140,6 @@ ng_sppp_get_unit (int *unit)
 	ng_sppp_units[index] |= (1 << bit);
 	*unit = (index * NBBY) + bit;
 	ng_units_in_use++;
-	return (0);
 }
 
 /*
@@ -245,12 +242,9 @@ ng_sppp_constructor (node_p node)
 	struct sppp *pp;
 	struct ifnet *ifp;
 	priv_p priv;
-	int error = 0;
 
 	/* Allocate node and interface private structures */
-	priv = malloc (sizeof(*priv), M_NETGRAPH_SPPP, M_NOWAIT|M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_SPPP, M_WAITOK | M_ZERO);
 
 	ifp = if_alloc(IFT_PPP);
 	if (ifp == NULL) {
@@ -264,12 +258,7 @@ ng_sppp_constructor (node_p node)
 	priv->ifp = ifp;
 
 	/* Get an interface unit number */
-	if ((error = ng_sppp_get_unit(&priv->unit)) != 0) {
-		free (pp, M_NETGRAPH_SPPP);
-		free (priv, M_NETGRAPH_SPPP);
-		return (error);
-	}
-
+	ng_sppp_get_unit(&priv->unit);
 
 	/* Link together node and private info */
 	NG_NODE_SET_PRIVATE (node, priv);

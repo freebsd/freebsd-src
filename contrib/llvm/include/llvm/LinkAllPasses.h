@@ -49,7 +49,6 @@ namespace {
       (void) llvm::createAliasAnalysisCounterPass();
       (void) llvm::createAliasDebugger();
       (void) llvm::createArgumentPromotionPass();
-      (void) llvm::createStructRetPromotionPass();
       (void) llvm::createBasicAliasAnalysisPass();
       (void) llvm::createLibCallAliasAnalysisPass(0);
       (void) llvm::createScalarEvolutionAliasAnalysisPass();
@@ -63,7 +62,6 @@ namespace {
       (void) llvm::createDeadCodeEliminationPass();
       (void) llvm::createDeadInstEliminationPass();
       (void) llvm::createDeadStoreEliminationPass();
-      (void) llvm::createDeadTypeEliminationPass();
       (void) llvm::createDomOnlyPrinterPass();
       (void) llvm::createDomPrinterPass();
       (void) llvm::createDomOnlyViewerPass();
@@ -71,6 +69,7 @@ namespace {
       (void) llvm::createEdgeProfilerPass();
       (void) llvm::createOptimalEdgeProfilerPass();
       (void) llvm::createPathProfilerPass();
+      (void) llvm::createGCOVProfilerPass(true, true, false);
       (void) llvm::createFunctionInliningPass();
       (void) llvm::createAlwaysInlinerPass();
       (void) llvm::createGlobalDCEPass();
@@ -84,7 +83,6 @@ namespace {
       (void) llvm::createLCSSAPass();
       (void) llvm::createLICMPass();
       (void) llvm::createLazyValueInfoPass();
-      (void) llvm::createLiveValuesPass();
       (void) llvm::createLoopDependenceAnalysisPass();
       (void) llvm::createLoopExtractorPass();
       (void) llvm::createLoopSimplifyPass();
@@ -93,11 +91,15 @@ namespace {
       (void) llvm::createLoopUnswitchPass();
       (void) llvm::createLoopIdiomPass();
       (void) llvm::createLoopRotatePass();
+      (void) llvm::createLowerExpectIntrinsicPass();
       (void) llvm::createLowerInvokePass();
-      (void) llvm::createLowerSetJmpPass();
       (void) llvm::createLowerSwitchPass();
       (void) llvm::createNoAAPass();
       (void) llvm::createNoProfileInfoPass();
+      (void) llvm::createObjCARCAliasAnalysisPass();
+      (void) llvm::createObjCARCExpandPass();
+      (void) llvm::createObjCARCContractPass();
+      (void) llvm::createObjCARCOptPass();
       (void) llvm::createProfileEstimatorPass();
       (void) llvm::createProfileVerifierPass();
       (void) llvm::createPathProfileVerifierPass();
@@ -119,14 +121,12 @@ namespace {
       (void) llvm::createSCCPPass();
       (void) llvm::createScalarReplAggregatesPass();
       (void) llvm::createSimplifyLibCallsPass();
-      (void) llvm::createSimplifyHalfPowrLibCallsPass();
       (void) llvm::createSingleLoopExtractorPass();
       (void) llvm::createStripSymbolsPass();
       (void) llvm::createStripNonDebugSymbolsPass();
       (void) llvm::createStripDeadDebugInfoPass();
       (void) llvm::createStripDeadPrototypesPass();
       (void) llvm::createTailCallEliminationPass();
-      (void) llvm::createTailDuplicationPass();
       (void) llvm::createJumpThreadingPass();
       (void) llvm::createUnifyFunctionExitNodesPass();
       (void) llvm::createInstCountPass();
@@ -136,7 +136,6 @@ namespace {
       (void) llvm::createMemCpyOptPass();
       (void) llvm::createLoopDeletionPass();
       (void) llvm::createPostDomTree();
-      (void) llvm::createPostDomFrontier();
       (void) llvm::createInstructionNamerPass();
       (void) llvm::createFunctionAttrsPass();
       (void) llvm::createMergeFunctionsPass();
@@ -145,7 +144,6 @@ namespace {
       (void) llvm::createDbgInfoPrinterPass();
       (void) llvm::createModuleDebugInfoPrinterPass();
       (void) llvm::createPartialInliningPass();
-      (void) llvm::createGEPSplitterPass();
       (void) llvm::createLintPass();
       (void) llvm::createSinkingPass();
       (void) llvm::createLowerAtomicPass();
@@ -157,7 +155,7 @@ namespace {
       (void)new llvm::FindUsedTypes();
       (void)new llvm::ScalarEvolution();
       ((llvm::Function*)0)->viewCFGOnly();
-      llvm::RGPassManager RGM(0);
+      llvm::RGPassManager RGM;
       ((llvm::RegionPass*)0)->runOnRegion((llvm::Region*)0, RGM);
       llvm::AliasSetTracker X(*(llvm::AliasAnalysis*)0);
       X.add((llvm::Value*)0, 0, 0);  // for -print-alias-sets

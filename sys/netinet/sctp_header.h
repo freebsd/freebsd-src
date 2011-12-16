@@ -81,8 +81,7 @@ struct sctp_host_name_param {
 /* supported address type */
 struct sctp_supported_addr_param {
 	struct sctp_paramhdr ph;/* type=SCTP_SUPPORTED_ADDRTYPE */
-	uint16_t addr_type[SCTP_ARRAY_MIN_LEN];	/* array of supported address
-						 * types */
+	uint16_t addr_type[2];	/* array of supported address types */
 }                         SCTP_PACKED;
 
 /* ECN parameter */
@@ -98,9 +97,10 @@ struct sctp_heartbeat_info_param {
 	uint32_t time_value_2;
 	uint32_t random_value1;
 	uint32_t random_value2;
-	uint16_t user_req;
 	uint8_t addr_family;
 	uint8_t addr_len;
+	/* make sure that this structure is 4 byte aligned */
+	uint8_t padding[2];
 	char address[SCTP_ADDRMAX];
 }                         SCTP_PACKED;
 

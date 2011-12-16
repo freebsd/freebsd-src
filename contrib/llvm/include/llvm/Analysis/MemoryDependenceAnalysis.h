@@ -48,8 +48,10 @@ namespace llvm {
       /// this occurs when we see a may-aliased store to the memory location we
       /// care about.
       ///
-      /// A dependence query on the first instruction of the entry block will
-      /// return a clobber(self) result.
+      /// There are several cases that may be interesting here:
+      ///   1. Loads are clobbered by may-alias stores.
+      ///   2. Loads are considered clobbered by partially-aliased loads.  The
+      ///      client may choose to analyze deeper into these cases.
       Clobber,
 
       /// Def - This is a dependence on the specified instruction which
@@ -71,11 +73,27 @@ namespace llvm {
       ///      operands to the calls are the same.
       Def,
       
+      /// Other - This marker indicates that the query has no known dependency
+      /// in the specified block.  More detailed state info is encoded in the
+      /// upper part of the pair (i.e. the Instruction*)
+      Other
+    };
+    /// If DepType is "Other", the upper part of the pair
+    /// (i.e. the Instruction* part) is instead used to encode more detailed
+    /// type information as follows
+    enum OtherType {
       /// NonLocal - This marker indicates that the query has no dependency in
       /// the specified block.  To find out more, the client should query other
       /// predecessor blocks.
-      NonLocal
+      NonLocal = 0x4,
+      /// NonFuncLocal - This marker indicates that the query has no
+      /// dependency in the specified function.
+      NonFuncLocal = 0x8,
+      /// Unknown - This marker indicates that the query dependency
+      /// is unknown.
+      Unknown = 0xc
     };
+
     typedef PointerIntPair<Instruction*, 2, DepType> PairTy;
     PairTy Value;
     explicit MemDepResult(PairTy V) : Value(V) {}
@@ -85,13 +103,24 @@ namespace llvm {
     /// get methods: These are static ctor methods for creating various
     /// MemDepResult kinds.
     static MemDepResult getDef(Instruction *Inst) {
+      assert(Inst && "Def requires inst");
       return MemDepResult(PairTy(Inst, Def));
     }
     static MemDepResult getClobber(Instruction *Inst) {
+      assert(Inst && "Clobber requires inst");
       return MemDepResult(PairTy(Inst, Clobber));
     }
     static MemDepResult getNonLocal() {
-      return MemDepResult(PairTy(0, NonLocal));
+      return MemDepResult(
+        PairTy(reinterpret_cast<Instruction*>(NonLocal), Other));
+    }
+    static MemDepResult getNonFuncLocal() {
+      return MemDepResult(
+        PairTy(reinterpret_cast<Instruction*>(NonFuncLocal), Other));
+    }
+    static MemDepResult getUnknown() {
+      return MemDepResult(
+        PairTy(reinterpret_cast<Instruction*>(Unknown), Other));
     }
 
     /// isClobber - Return true if this MemDepResult represents a query that is
@@ -105,11 +134,31 @@ namespace llvm {
     /// isNonLocal - Return true if this MemDepResult represents a query that
     /// is transparent to the start of the block, but where a non-local hasn't
     /// been done.
-    bool isNonLocal() const { return Value.getInt() == NonLocal; }
+    bool isNonLocal() const {
+      return Value.getInt() == Other
+        && Value.getPointer() == reinterpret_cast<Instruction*>(NonLocal);
+    }
+
+    /// isNonFuncLocal - Return true if this MemDepResult represents a query
+    /// that is transparent to the start of the function.
+    bool isNonFuncLocal() const {
+      return Value.getInt() == Other
+        && Value.getPointer() == reinterpret_cast<Instruction*>(NonFuncLocal);
+    }
     
+    /// isUnknown - Return true if this MemDepResult represents a query which
+    /// cannot and/or will not be computed.
+    bool isUnknown() const {
+      return Value.getInt() == Other
+        && Value.getPointer() == reinterpret_cast<Instruction*>(Unknown);
+    }
+
     /// getInst() - If this is a normal dependency, return the instruction that
     /// is depended on.  Otherwise, return null.
-    Instruction *getInst() const { return Value.getPointer(); }
+    Instruction *getInst() const {
+      if (Value.getInt() == Other) return NULL;
+      return Value.getPointer();
+    }
     
     bool operator==(const MemDepResult &M) const { return Value == M.Value; }
     bool operator!=(const MemDepResult &M) const { return Value != M.Value; }
@@ -349,6 +398,20 @@ namespace llvm {
                                           bool isLoad, 
                                           BasicBlock::iterator ScanIt,
                                           BasicBlock *BB);
+    
+    
+    /// getLoadLoadClobberFullWidthSize - This is a little bit of analysis that
+    /// looks at a memory location for a load (specified by MemLocBase, Offs,
+    /// and Size) and compares it against a load.  If the specified load could
+    /// be safely widened to a larger integer load that is 1) still efficient,
+    /// 2) safe for the target, and 3) would provide the specified memory
+    /// location value, then this function returns the size in bytes of the
+    /// load width to use.  If not, this returns zero.
+    static unsigned getLoadLoadClobberFullWidthSize(const Value *MemLocBase,
+                                                    int64_t MemLocOffs,
+                                                    unsigned MemLocSize,
+                                                    const LoadInst *LI,
+                                                    const TargetData &TD);
     
   private:
     MemDepResult getCallSiteDependencyFrom(CallSite C, bool isReadOnlyCall,

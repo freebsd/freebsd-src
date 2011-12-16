@@ -17,12 +17,19 @@ namespace clang {
 
 namespace frontend {
   /// IncludeDirGroup - Identifiers the group a include entry belongs to, which
-  /// represents its relative positive in the search list.
+  /// represents its relative positive in the search list.  A #include of a ""
+  /// path starts at the -iquote group, then searches the Angled group, then
+  /// searches the system group, etc.
   enum IncludeDirGroup {
-    Quoted = 0,     ///< `#include ""` paths. Thing `gcc -iquote`.
-    Angled,         ///< Paths for both `#include ""` and `#include <>`. (`-I`)
+    Quoted = 0,     ///< '#include ""' paths, added by'gcc -iquote'.
+    Angled,         ///< Paths for '#include <>' added by '-I'.
+    IndexHeaderMap, ///< Like Angled, but marks header maps used when
+                       ///  building frameworks.
     System,         ///< Like Angled, but marks system directories.
+    CSystem,        ///< Like System, but only used for C.
     CXXSystem,      ///< Like System, but only used for C++.
+    ObjCSystem,     ///< Like System, but only used for ObjC.
+    ObjCXXSystem,   ///< Like System, but only used for ObjC++.
     After           ///< Like System, but searched after the system directories.
   };
 }
@@ -37,15 +44,29 @@ public:
     unsigned IsUserSupplied : 1;
     unsigned IsFramework : 1;
     
-    /// IsSysRootRelative - This is true if an absolute path should be treated
-    /// relative to the sysroot, or false if it should always be the absolute
+    /// IgnoreSysRoot - This is false if an absolute path should be treated
+    /// relative to the sysroot, or true if it should always be the absolute
     /// path.
-    unsigned IsSysRootRelative : 1;
+    unsigned IgnoreSysRoot : 1;
 
-    Entry(llvm::StringRef path, frontend::IncludeDirGroup group,
-          bool isUserSupplied, bool isFramework, bool isSysRootRelative)
+    /// \brief True if this entry is an internal search path.
+    ///
+    /// This typically indicates that users didn't directly provide it, but
+    /// instead it was provided by a compatibility layer for a particular
+    /// system. This isn't redundant with IsUserSupplied (even though perhaps
+    /// it should be) because that is false for user provided '-iwithprefix'
+    /// header search entries.
+    unsigned IsInternal : 1;
+
+    /// \brief True if this entry's headers should be wrapped in extern "C".
+    unsigned ImplicitExternC : 1;
+
+    Entry(StringRef path, frontend::IncludeDirGroup group,
+          bool isUserSupplied, bool isFramework, bool ignoreSysRoot,
+          bool isInternal, bool implicitExternC)
       : Path(path), Group(group), IsUserSupplied(isUserSupplied),
-        IsFramework(isFramework), IsSysRootRelative(isSysRootRelative) {}
+        IsFramework(isFramework), IgnoreSysRoot(ignoreSysRoot),
+        IsInternal(isInternal), ImplicitExternC(implicitExternC) {}
   };
 
   /// If non-empty, the directory to use as a "virtual system root" for include
@@ -55,45 +76,46 @@ public:
   /// User specified include entries.
   std::vector<Entry> UserEntries;
 
-  /// A (system-path) delimited list of include paths to be added from the
-  /// environment following the user specified includes (but prior to builtin
-  /// and standard includes). This is parsed in the same manner as the CPATH
-  /// environment variable for gcc.
-  std::string EnvIncPath;
-
-  /// Per-language environmental include paths, see \see EnvIncPath.
-  std::string CEnvIncPath;
-  std::string ObjCEnvIncPath;
-  std::string CXXEnvIncPath;
-  std::string ObjCXXEnvIncPath;
-
   /// The directory which holds the compiler resource files (builtin includes,
   /// etc.).
   std::string ResourceDir;
 
+  /// \brief The directory used for the module cache.
+  std::string ModuleCachePath;
+  
+  /// \brief Whether we should disable the use of the hash string within the
+  /// module cache.
+  ///
+  /// Note: Only used for testing!
+  unsigned DisableModuleHash : 1;
+  
   /// Include the compiler builtin includes.
   unsigned UseBuiltinIncludes : 1;
 
   /// Include the system standard include search directories.
-  unsigned UseStandardIncludes : 1;
+  unsigned UseStandardSystemIncludes : 1;
 
   /// Include the system standard C++ library include search directories.
   unsigned UseStandardCXXIncludes : 1;
+
+  /// Use libc++ instead of the default libstdc++.
+  unsigned UseLibcxx : 1;
 
   /// Whether header search information should be output as for -v.
   unsigned Verbose : 1;
 
 public:
-  HeaderSearchOptions(llvm::StringRef _Sysroot = "/")
-    : Sysroot(_Sysroot), UseBuiltinIncludes(true),
-      UseStandardIncludes(true), UseStandardCXXIncludes(true),
-      Verbose(false) {}
+  HeaderSearchOptions(StringRef _Sysroot = "/")
+    : Sysroot(_Sysroot), DisableModuleHash(0), UseBuiltinIncludes(true),
+      UseStandardSystemIncludes(true), UseStandardCXXIncludes(true),
+      UseLibcxx(false), Verbose(false) {}
 
   /// AddPath - Add the \arg Path path to the specified \arg Group list.
-  void AddPath(llvm::StringRef Path, frontend::IncludeDirGroup Group,
-               bool IsUserSupplied, bool IsFramework, bool IsSysRootRelative) {
+  void AddPath(StringRef Path, frontend::IncludeDirGroup Group,
+               bool IsUserSupplied, bool IsFramework, bool IgnoreSysRoot,
+               bool IsInternal = false, bool ImplicitExternC = false) {
     UserEntries.push_back(Entry(Path, Group, IsUserSupplied, IsFramework,
-                                IsSysRootRelative));
+                                IgnoreSysRoot, IsInternal, ImplicitExternC));
   }
 };
 

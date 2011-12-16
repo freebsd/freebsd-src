@@ -3,6 +3,7 @@ $FreeBSD$
 NOTE ANY CHANGES YOU MAKE TO THE BOOTBLOCKS HERE.  The format of this
 file is important.  Make sure the current version number is on line 6.
 
+2.0:    Add support for PBVM.
 1.2:    Restructured. Has some user visible differences. Due to code
 	sharing, has been given the same version number as the EFI
 	loader.

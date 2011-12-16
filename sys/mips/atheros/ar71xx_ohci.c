@@ -49,8 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ohci.h>
 #include <dev/usb/controller/ohcireg.h>
 
-#include <sys/rman.h>
-
 static int ar71xx_ohci_attach(device_t dev);
 static int ar71xx_ohci_detach(device_t dev);
 static int ar71xx_ohci_probe(device_t dev);
@@ -152,7 +150,7 @@ ar71xx_ohci_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	/*
 	 * Put the controller into reset, then disable clocks and do
@@ -196,18 +194,17 @@ static device_method_t ohci_methods[] = {
 	DEVMETHOD(device_probe, ar71xx_ohci_probe),
 	DEVMETHOD(device_attach, ar71xx_ohci_attach),
 	DEVMETHOD(device_detach, ar71xx_ohci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ohci_driver = {
-	"ohci",
-	ohci_methods,
-	sizeof(struct ar71xx_ohci_softc),
+	.name = "ohci",
+	.methods = ohci_methods,
+	.size = sizeof(struct ar71xx_ohci_softc),
 };
 
 static devclass_t ohci_devclass;

@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <sys/module.h>
 #include <sys/msg.h>
+#include <sys/racct.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysent.h>
@@ -79,6 +80,7 @@ static MALLOC_DEFINE(M_MSG, "msg", "SVID compatible message queues");
 static int msginit(void);
 static int msgunload(void);
 static int sysvmsg_modload(struct module *, int, void *);
+
 
 #ifdef MSG_DEBUG
 #define DPRINTF(a)	printf a
@@ -162,7 +164,7 @@ static struct syscall_helper_data msg_syscalls[] = {
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
 	SYSCALL_INIT_HELPER(msgsys),
-	SYSCALL_INIT_HELPER(freebsd7_msgctl),
+	SYSCALL_INIT_HELPER_COMPAT(freebsd7_msgctl),
 #endif
 	SYSCALL_INIT_LAST
 };
@@ -179,7 +181,7 @@ static struct syscall_helper_data msg32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_msgctl),
 	SYSCALL32_INIT_HELPER(freebsd32_msgsnd),
 	SYSCALL32_INIT_HELPER(freebsd32_msgrcv),
-	SYSCALL32_INIT_HELPER(msgget),
+	SYSCALL32_INIT_HELPER_COMPAT(msgget),
 	SYSCALL32_INIT_HELPER(freebsd32_msgsys),
 #if defined(COMPAT_FREEBSD4) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD7)
@@ -378,7 +380,7 @@ struct msgctl_args {
 };
 #endif
 int
-msgctl(td, uap)
+sys_msgctl(td, uap)
 	struct thread *td;
 	register struct msgctl_args *uap;
 {
@@ -466,6 +468,12 @@ kern_msgctl(td, msqid, cmd, msqbuf)
 		}
 #endif
 
+		racct_sub_cred(msqkptr->cred, RACCT_NMSGQ, 1);
+		racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, msqkptr->u.msg_qnum);
+		racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msqkptr->u.msg_cbytes);
+		crfree(msqkptr->cred);
+		msqkptr->cred = NULL;
+
 		/* Free the message headers */
 		msghdr = msqkptr->u.msg_first;
 		while (msghdr != NULL) {
@@ -548,8 +556,9 @@ struct msgget_args {
 	int	msgflg;
 };
 #endif
+
 int
-msgget(td, uap)
+sys_msgget(td, uap)
 	struct thread *td;
 	register struct msgget_args *uap;
 {
@@ -613,6 +622,15 @@ msgget(td, uap)
 			error = ENOSPC;
 			goto done2;
 		}
+#ifdef RACCT
+		PROC_LOCK(td->td_proc);
+		error = racct_add(td->td_proc, RACCT_NMSGQ, 1);
+		PROC_UNLOCK(td->td_proc);
+		if (error != 0) {
+			error = ENOSPC;
+			goto done2;
+		}
+#endif
 		DPRINTF(("msqid %d is available\n", msqid));
 		msqkptr->u.msg_perm.key = key;
 		msqkptr->u.msg_perm.cuid = cred->cr_uid;
@@ -620,6 +638,7 @@ msgget(td, uap)
 		msqkptr->u.msg_perm.cgid = cred->cr_gid;
 		msqkptr->u.msg_perm.gid = cred->cr_gid;
 		msqkptr->u.msg_perm.mode = (msgflg & 0777);
+		msqkptr->cred = crhold(cred);
 		/* Make sure that the returned msqid is unique */
 		msqkptr->u.msg_perm.seq = (msqkptr->u.msg_perm.seq + 1) & 0x7fff;
 		msqkptr->u.msg_first = NULL;
@@ -670,6 +689,9 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	register struct msqid_kernel *msqkptr;
 	register struct msg *msghdr;
 	short next;
+#ifdef RACCT
+	size_t saved_msgsz;
+#endif
 
 	if (!prison_allow(td->td_ucred, PR_ALLOW_SYSVIPC))
 		return (ENOSYS);
@@ -707,6 +729,23 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		goto done2;
 #endif
 
+#ifdef RACCT
+	PROC_LOCK(td->td_proc);
+	if (racct_add(td->td_proc, RACCT_MSGQQUEUED, 1)) {
+		PROC_UNLOCK(td->td_proc);
+		error = EAGAIN;
+		goto done2;
+	}
+	saved_msgsz = msgsz;
+	if (racct_add(td->td_proc, RACCT_MSGQSIZE, msgsz)) {
+		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+		PROC_UNLOCK(td->td_proc);
+		error = EAGAIN;
+		goto done2;
+	}
+	PROC_UNLOCK(td->td_proc);
+#endif
+
 	segs_needed = (msgsz + msginfo.msgssz - 1) / msginfo.msgssz;
 	DPRINTF(("msgsz=%zu, msgssz=%d, segs_needed=%d\n", msgsz,
 	    msginfo.msgssz, segs_needed));
@@ -721,7 +760,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		if (msgsz > msqkptr->u.msg_qbytes) {
 			DPRINTF(("msgsz > msqkptr->u.msg_qbytes\n"));
 			error = EINVAL;
-			goto done2;
+			goto done3;
 		}
 
 		if (msqkptr->u.msg_perm.mode & MSG_LOCKED) {
@@ -748,7 +787,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 				DPRINTF(("need more resources but caller "
 				    "doesn't want to wait\n"));
 				error = EAGAIN;
-				goto done2;
+				goto done3;
 			}
 
 			if ((msqkptr->u.msg_perm.mode & MSG_LOCKED) != 0) {
@@ -774,7 +813,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			if (error != 0) {
 				DPRINTF(("msgsnd:  interrupted system call\n"));
 				error = EINTR;
-				goto done2;
+				goto done3;
 			}
 
 			/*
@@ -784,7 +823,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			if (msqkptr->u.msg_qbytes == 0) {
 				DPRINTF(("msqid deleted\n"));
 				error = EIDRM;
-				goto done2;
+				goto done3;
 			}
 
 		} else {
@@ -866,7 +905,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		wakeup(msqkptr);
 		DPRINTF(("mtype (%ld) < 1\n", msghdr->msg_type));
 		error = EINVAL;
-		goto done2;
+		goto done3;
 	}
 
 	/*
@@ -893,7 +932,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 			msg_freehdr(msghdr);
 			msqkptr->u.msg_perm.mode &= ~MSG_LOCKED;
 			wakeup(msqkptr);
-			goto done2;
+			goto done3;
 		}
 		mtx_lock(&msq_mtx);
 		msgsz -= tlen;
@@ -917,7 +956,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
 		error = EIDRM;
-		goto done2;
+		goto done3;
 	}
 
 #ifdef MAC
@@ -936,7 +975,7 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 	if (error != 0) {
 		msg_freehdr(msghdr);
 		wakeup(msqkptr);
-		goto done2;
+		goto done3;
 	}
 #endif
 
@@ -959,13 +998,22 @@ kern_msgsnd(td, msqid, msgp, msgsz, msgflg, mtype)
 
 	wakeup(msqkptr);
 	td->td_retval[0] = 0;
+done3:
+#ifdef RACCT
+	if (error != 0) {
+		PROC_LOCK(td->td_proc);
+		racct_sub(td->td_proc, RACCT_MSGQQUEUED, 1);
+		racct_sub(td->td_proc, RACCT_MSGQSIZE, saved_msgsz);
+		PROC_UNLOCK(td->td_proc);
+	}
+#endif
 done2:
 	mtx_unlock(&msq_mtx);
 	return (error);
 }
 
 int
-msgsnd(td, uap)
+sys_msgsnd(td, uap)
 	struct thread *td;
 	register struct msgsnd_args *uap;
 {
@@ -1192,6 +1240,9 @@ kern_msgrcv(td, msqid, msgp, msgsz, msgtyp, msgflg, mtype)
 	msqkptr->u.msg_lrpid = td->td_proc->p_pid;
 	msqkptr->u.msg_rtime = time_second;
 
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQQUEUED, 1);
+	racct_sub_cred(msqkptr->cred, RACCT_MSGQSIZE, msghdr->msg_ts);
+
 	/*
 	 * Make msgsz the actual amount that we'll be returning.
 	 * Note that this effectively truncates the message if it is too long
@@ -1247,7 +1298,7 @@ done2:
 }
 
 int
-msgrcv(td, uap)
+sys_msgrcv(td, uap)
 	struct thread *td;
 	register struct msgrcv_args *uap;
 {
@@ -1307,7 +1358,7 @@ freebsd32_msgsys(struct thread *td, struct freebsd32_msgsys_args *uap)
 		return (freebsd32_msgrcv(td,
 		    (struct freebsd32_msgrcv_args *)&uap->a2));
 	default:
-		return (msgsys(td, (struct msgsys_args *)uap));
+		return (sys_msgsys(td, (struct msgsys_args *)uap));
 	}
 #else
 	return (nosys(td, NULL));
@@ -1445,15 +1496,15 @@ freebsd32_msgrcv(struct thread *td, struct freebsd32_msgrcv_args *uap)
 
 /* XXX casting to (sy_call_t *) is bogus, as usual. */
 static sy_call_t *msgcalls[] = {
-	(sy_call_t *)freebsd7_msgctl, (sy_call_t *)msgget,
-	(sy_call_t *)msgsnd, (sy_call_t *)msgrcv
+	(sy_call_t *)freebsd7_msgctl, (sy_call_t *)sys_msgget,
+	(sy_call_t *)sys_msgsnd, (sy_call_t *)sys_msgrcv
 };
 
 /*
  * Entry point for all MSG calls.
  */
 int
-msgsys(td, uap)
+sys_msgsys(td, uap)
 	struct thread *td;
 	/* XXX actually varargs. */
 	struct msgsys_args /* {

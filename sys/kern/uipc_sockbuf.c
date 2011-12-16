@@ -61,7 +61,7 @@ void	(*aio_swake)(struct socket *, struct sockbuf *);
 
 u_long	sb_max = SB_MAX;
 u_long sb_max_adj =
-       SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
+       (quad_t)SB_MAX * MCLBYTES / (MSIZE + MCLBYTES); /* adjusted sb_max */
 
 static	u_long sb_efficiency = 8;	/* parameter for sbreserve() */
 
@@ -528,9 +528,6 @@ sbappendstream_locked(struct sockbuf *sb, struct mbuf *m)
 
 	SBLASTMBUFCHK(sb);
 
-	/* Remove all packet headers and mbuf tags to get a pure data chain. */
-	m_demote(m, 1);
-	
 	sbcompress(sb, m, sb->sb_mbtail);
 
 	sb->sb_lastrecord = sb->sb_mb;
@@ -1051,4 +1048,4 @@ SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLTYPE_ULONG|CTLFLAG_RW,
     &sb_max, 0, sysctl_handle_sb_max, "LU", "Maximum socket buffer size");
 SYSCTL_ULONG(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
-    &sb_efficiency, 0, "");
+    &sb_efficiency, 0, "Socket buffer size waste factor");

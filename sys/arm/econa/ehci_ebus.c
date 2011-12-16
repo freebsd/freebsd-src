@@ -75,54 +75,11 @@ __FBSDID("$FreeBSD$");
 
 static device_attach_t ehci_ebus_attach;
 static device_detach_t ehci_ebus_detach;
-static device_shutdown_t ehci_ebus_shutdown;
-static device_suspend_t ehci_ebus_suspend;
-static device_resume_t ehci_ebus_resume;
-
 
 static void *ih_err;
 
 #define	EHCI_HC_DEVSTR "CNS11XX USB EHCI"
 #define	USB_BRIDGE_INTR_MASK   0x214
-
-static int
-ehci_ebus_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_ebus_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_ebus_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
 
 static int
 ehci_ebus_probe(device_t self)
@@ -235,13 +192,13 @@ ehci_ebus_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	/*
-	 * disable interrupts that might have been switched on in ehci_init
+	 * disable interrupts that might have been switched on in
+	 * ehci_ebus_attach()
 	 */
 	if (sc->sc_io_res) {
-		EWRITE4(sc, EHCI_USBINTR, 0);
 		EWRITE4(sc, USB_BRIDGE_INTR_MASK, 0);
 	}
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
@@ -277,20 +234,17 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ehci_ebus_probe),
 	DEVMETHOD(device_attach, ehci_ebus_attach),
 	DEVMETHOD(device_detach, ehci_ebus_detach),
-	DEVMETHOD(device_suspend, ehci_ebus_suspend),
-	DEVMETHOD(device_resume, ehci_ebus_resume),
-	DEVMETHOD(device_shutdown, ehci_ebus_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(ehci_softc_t),
+	.name = "ehci",
+	.methods = ehci_methods,
+	.size = sizeof(ehci_softc_t),
 };
 
 static devclass_t ehci_devclass;

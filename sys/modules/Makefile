@@ -22,7 +22,6 @@ SUBDIR=	${_3dfx} \
 	alc \
 	ale \
 	alq \
-	${_amd} \
 	${_amdsbwd} \
 	${_amdtemp} \
 	amr \
@@ -35,10 +34,12 @@ SUBDIR=	${_3dfx} \
 	${_asr} \
 	ata \
 	ath \
+	ath_pci \
 	${_auxio} \
 	bce \
 	bfe \
 	bge \
+	${_bxe} \
 	${_bios} \
 	${_bktr} \
 	${_bm} \
@@ -87,6 +88,7 @@ SUBDIR=	${_3dfx} \
 	en \
 	${_ep} \
 	${_epic} \
+	esp \
 	${_et} \
 	${_ex} \
 	${_exca} \
@@ -100,6 +102,7 @@ SUBDIR=	${_3dfx} \
 	fxp \
 	gem \
 	geom \
+	${_glxiic} \
 	${_glxsb} \
 	hatm \
 	hifn \
@@ -114,14 +117,14 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
-	if_carp \
+	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
 	if_epair \
 	if_faith \
 	if_gif \
-	if_gre \
+	${_if_gre} \
 	if_lagg \
 	${_if_ndis} \
 	if_stf \
@@ -133,7 +136,7 @@ SUBDIR=	${_3dfx} \
 	${_io} \
 	ipdivert \
 	${_ipfilter} \
-	ipfw \
+	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
 	ip_mroute_mod \
@@ -152,6 +155,8 @@ SUBDIR=	${_3dfx} \
 	jme \
 	joy \
 	kbdmux \
+	kgssapi \
+	kgssapi_krb5 \
 	khelp \
 	krpc \
 	ksyms \
@@ -185,6 +190,9 @@ SUBDIR=	${_3dfx} \
 	mfi \
 	mii \
 	mlx \
+	${_mlx4} \
+	${_mlx4ib} \
+	${_mlxen} \
 	${_mly} \
 	mmc \
 	mmcsd \
@@ -195,6 +203,7 @@ SUBDIR=	${_3dfx} \
 	msdosfs_iconv \
 	${_mse} \
 	msk \
+	${_mthca} \
 	mvs \
 	mwl \
 	mwlfw \
@@ -232,6 +241,7 @@ SUBDIR=	${_3dfx} \
 	pcn \
 	${_pf} \
 	${_pflog} \
+	${_pfsync} \
 	plip \
 	${_pmc} \
 	portalfs \
@@ -244,6 +254,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxgb} \
 	ral \
 	ralfw \
 	${_random} \
@@ -263,6 +274,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	send \
 	sf \
+	${_sfxge} \
 	sge \
 	siba_bwn \
 	siftr \
@@ -292,6 +304,7 @@ SUBDIR=	${_3dfx} \
 	trm \
 	${_twa} \
 	twe \
+	tws \
 	tx \
 	txp \
 	uart \
@@ -303,12 +316,15 @@ SUBDIR=	${_3dfx} \
 	usb \
 	utopia \
 	${_vesa} \
+	${_virtio} \
 	vge \
+	${_viawd} \
 	vkbd \
 	${_vpo} \
 	vr \
 	vte \
 	vx \
+	${_vxge} \
 	wb \
 	${_wi} \
 	wlan \
@@ -352,17 +368,34 @@ _random=	random
 .endif
 .endif
 
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
+.endif
+
+.if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
+	defined(ALL_MODULES)
+_if_carp=	if_carp
+.endif
+
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw=		ipfw
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
 _netgraph=	netgraph
 .endif
 
-.if ${MK_PF} != "no" || defined(ALL_MODULES)
+.if (${MK_PF} != "no" && (${MK_INET_SUPPORT} != "no" || \
+	${MK_INET6_SUPPORT} != "no")) || defined(ALL_MODULES)
 _pf=		pf
 _pflog=		pflog
+.if ${MK_INET_SUPPORT} != "no"
+_pfsync=	pfsync
+.endif
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
@@ -372,12 +405,12 @@ _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _agp=		agp
 _aic=		aic
-_amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm
 _arcnet=	arcnet
 _bktr=		bktr
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _ce=		ce
@@ -402,6 +435,7 @@ _et=		et
 _exca=		exca
 _ext2fs=	ext2fs
 _fe=		fe
+_glxiic=	glxiic
 _glxsb=		glxsb
 _i2c=		i2c
 _ibcs2=		ibcs2
@@ -414,6 +448,12 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mse=		mse
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 .if ${MK_NCP} != "no"
 _ncp=		ncp
 .endif
@@ -441,6 +481,7 @@ _sppp=		sppp
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
+_vxge=  	vxge
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -488,6 +529,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
+_viawd=		viawd
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -496,6 +538,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_virtio=	virtio
 _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
@@ -507,6 +550,7 @@ _snc=		snc
 
 .if ${MACHINE_CPUARCH} == "amd64"
 _aac=		aac
+_aout=		aout
 _acpi=		acpi
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _aesni=		aesni
@@ -517,6 +561,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
 _cmx=		cmx
@@ -562,6 +607,12 @@ _linprocfs=	linprocfs
 _linsysfs=	linsysfs
 _linux=		linux
 _mly=		mly
+.if ${MK_OFED} != "no" || defined(ALL_MODULES)
+_mlx4=		mlx4
+_mlx4ib=	mlx4ib
+_mlxen=		mlxen
+_mthca=		mthca
+.endif
 _ndis=		ndis
 _nfe=		nfe
 _nve=		nve
@@ -574,10 +625,12 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_qlxgb=		qlxgb
 _rdma=		rdma	
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
+_sfxge=		sfxge
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -586,6 +639,9 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
+_virtio=	virtio
+_vxge=  	vxge
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi

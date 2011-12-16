@@ -67,7 +67,7 @@
 # SRC points to your FreeBSD source tree.
 # l_usrtree points to the /usr subdir for the source tree.
 #     Normally /usr or ${SRC}/../usr
-# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico
+# l_objtree points to the obj tree. Normally ${l_usrtree}/obj-pico-${o_arch}
 # c_label is either bsdlabel or disklabel
 # PICO_TREE is where standard picobsd stuff resides.
 #     Normally ${SRC}/release/picobsd
@@ -121,6 +121,7 @@ set_defaults() {	# no arguments
     o_no_devfs=			# default is use devfs.
 	# You should only set it when building 4.x images
     o_do_modules=""		# do not build modules
+    o_arch=`uname -m`		# default to amd64 or i386 ...
 
     SRC="/usr/src"		# default location for sources
     c_startdir=`pwd`		# directory where we start
@@ -451,6 +452,7 @@ do_kernel() {		# OK
     log "do_kernel() Preparing kernel \"$name\" in $MY_TREE"
     (cd $MY_TREE; export name SRC BUILDDIR # used in this makefile ;
 	# export CONFIG
+	export WARNS CWARNFLAGS
 	[ "${o_do_modules}" = "yes" ] && export MODULES=""
 	${BINMAKE} ${o_par} -v -f ${PICO_TREE}/build/Makefile.conf ) || \
 	fail $? missing_kernel
@@ -973,7 +975,7 @@ set_build_parameters() {
     else
 	l_usrtree=${USR:-${SRC}/../usr}
     fi
-    l_objtree=${l_usrtree}/obj-pico
+    l_objtree=${l_usrtree}/obj-pico-${o_arch}
 
     PICO_TREE=${PICO_TREE:-${SRC}/release/picobsd}
     set `grep "#define[\t ]__FreeBSD_version" ${SRC}/sys/sys/param.h`
@@ -981,7 +983,8 @@ set_build_parameters() {
     log "OSVERSION is ${OSVERSION}"
     if [ ${OSVERSION} -ge 500035 ] ; then
 	export MAKEOBJDIRPREFIX=${l_objtree}
-	export TARGET_ARCH=i386 TARGET=i386
+	export TARGET_ARCH=${o_arch} TARGET=${o_arch}
+	# export CWARNFLAGS="-Wextra -Wno-sign-compare -Wno-missing-field-initializers"
 	eval "export BINMAKE=\"`cd ${SRC}; make -f Makefile -V BINMAKE`\""
 	eval export `cd ${SRC}; ${BINMAKE} -f Makefile.inc1 -V WMAKEENV`
     fi
@@ -1033,6 +1036,11 @@ while [ true ]; do
 	;;
     --init)
 	o_init_src="YES"
+	;;
+
+    --arch)
+	o_arch=$2
+	shift
 	;;
 
     --floppy_size)

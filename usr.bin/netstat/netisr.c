@@ -60,8 +60,7 @@ static u_int				 numthreads;
 static u_int				 defaultqlimit;
 static u_int				 maxqlimit;
 
-static u_int				 direct;
-static u_int				 direct_force;
+static char				 dispatch_policy[20];
 
 static struct sysctl_netisr_proto	*proto_array;
 static u_int				 proto_array_len;
@@ -75,6 +74,32 @@ static u_int				 work_array_len;
 static u_int				*nws_array;
 
 static u_int				 maxprot;
+
+static void
+netisr_dispatch_policy_to_string(u_int dispatch_policy, char *buf,
+    size_t buflen)
+{
+	const char *str;
+
+	switch (dispatch_policy) {
+	case NETISR_DISPATCH_DEFAULT:
+		str = "default";
+		break;
+	case NETISR_DISPATCH_DEFERRED:
+		str = "deferred";
+		break;
+	case NETISR_DISPATCH_HYBRID:
+		str = "hybrid";
+		break;
+	case NETISR_DISPATCH_DIRECT:
+		str = "direct";
+		break;
+	default:
+		str = "unknown";
+		break;
+	}
+	snprintf(buf, buflen, "%s", str);
+}
 
 static void
 netisr_load_kvm_uint(kvm_t *kd, char *name, u_int *p)
@@ -144,6 +169,7 @@ netisr_protoispresent(u_int proto)
 static void
 netisr_load_kvm_config(kvm_t *kd)
 {
+	u_int tmp;
 
 	netisr_load_kvm_uint(kd, "_netisr_bindthreads", &bindthreads);
 	netisr_load_kvm_uint(kd, "_netisr_maxthreads", &maxthreads);
@@ -152,8 +178,9 @@ netisr_load_kvm_config(kvm_t *kd)
 	netisr_load_kvm_uint(kd, "_netisr_defaultqlimit", &defaultqlimit);
 	netisr_load_kvm_uint(kd, "_netisr_maxqlimit", &maxqlimit);
 
-	netisr_load_kvm_uint(kd, "_netisr_direct", &direct);
-	netisr_load_kvm_uint(kd, "_netisr_direct_force", &direct_force);
+	netisr_load_kvm_uint(kd, "_netisr_dispatch_policy", &tmp);
+	netisr_dispatch_policy_to_string(tmp, dispatch_policy,
+	    sizeof(dispatch_policy));
 }
 
 static void
@@ -169,6 +196,17 @@ netisr_load_sysctl_uint(const char *name, u_int *p)
 }
 
 static void
+netisr_load_sysctl_string(const char *name, char *p, size_t len)
+{
+	size_t retlen;
+
+	retlen = len;
+	if (sysctlbyname(name, p, &retlen, NULL, 0) < 0)
+		err(-1, "%s", name);
+	p[len - 1] = '\0';
+}
+
+static void
 netisr_load_sysctl_config(void)
 {
 
@@ -179,8 +217,8 @@ netisr_load_sysctl_config(void)
 	netisr_load_sysctl_uint("net.isr.defaultqlimit", &defaultqlimit);
 	netisr_load_sysctl_uint("net.isr.maxqlimit", &maxqlimit);
 
-	netisr_load_sysctl_uint("net.isr.direct", &direct);
-	netisr_load_sysctl_uint("net.isr.direct_force", &direct_force);
+	netisr_load_sysctl_string("net.isr.dispatch", dispatch_policy,
+	    sizeof(dispatch_policy));
 }
 
 static void
@@ -244,6 +282,7 @@ netisr_load_kvm_proto(kvm_t *kd)
 		snpp->snp_proto = i;
 		snpp->snp_qlimit = npp->np_qlimit;
 		snpp->snp_policy = npp->np_policy;
+		snpp->snp_dispatch = npp->np_dispatch;
 		if (npp->np_m2flow != NULL)
 			snpp->snp_flags |= NETISR_SNP_FLAGS_M2FLOW;
 		if (npp->np_m2cpuid != NULL)
@@ -418,6 +457,7 @@ netisr_load_sysctl_work(void)
 static void
 netisr_print_proto(struct sysctl_netisr_proto *snpp)
 {
+	char tmp[20];
 
 	printf("%-6s", snpp->snp_name);
 	printf(" %5u", snpp->snp_proto);
@@ -426,6 +466,9 @@ netisr_print_proto(struct sysctl_netisr_proto *snpp)
 	    (snpp->snp_policy == NETISR_POLICY_SOURCE) ?  "source" :
 	    (snpp->snp_policy == NETISR_POLICY_FLOW) ? "flow" :
 	    (snpp->snp_policy == NETISR_POLICY_CPU) ? "cpu" : "-");
+	netisr_dispatch_policy_to_string(snpp->snp_dispatch, tmp,
+	    sizeof(tmp));
+	printf(" %8s", tmp);
 	printf("   %s%s%s\n",
 	    (snpp->snp_flags & NETISR_SNP_FLAGS_M2CPUID) ?  "C" : "-",
 	    (snpp->snp_flags & NETISR_SNP_FLAGS_DRAINEDCPU) ?  "D" : "-",
@@ -483,17 +526,15 @@ netisr_stats(void *kvmd)
 	printf("%-25s %12u %12u\n", "Thread count", numthreads, maxthreads);
 	printf("%-25s %12u %12u\n", "Default queue limit", defaultqlimit,
 	    maxqlimit);
-	printf("%-25s %12s %12s\n", "Direct dispatch", 
-	    direct ? "enabled" : "disabled", "n/a");
-	printf("%-25s %12s %12s\n", "Forced direct dispatch",
-	    direct_force ? "enabled" : "disabled", "n/a");
+	printf("%-25s %12s %12s\n", "Dispatch policy", dispatch_policy,
+	    "n/a");
 	printf("%-25s %12s %12s\n", "Threads bound to CPUs",
 	    bindthreads ? "enabled" : "disabled", "n/a");
 	printf("\n");
 
 	printf("Protocols:\n");
-	printf("%-6s %5s %6s %-6s %-5s\n", "Name", "Proto", "QLimit",
-	    "Policy", "Flags");
+	printf("%-6s %5s %6s %-6s %-8s %-5s\n", "Name", "Proto", "QLimit",
+	    "Policy", "Dispatch", "Flags");
 	for (i = 0; i < proto_array_len; i++) {
 		snpp = &proto_array[i];
 		netisr_print_proto(snpp);

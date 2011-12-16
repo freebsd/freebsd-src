@@ -480,7 +480,7 @@ lz_encoder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 static lzma_ret
 lz_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
-		const lzma_filter *filters_null lzma_attribute((unused)),
+		const lzma_filter *filters_null lzma_attribute((__unused__)),
 		const lzma_filter *reversed_filters)
 {
 	if (coder->lz.options_update == NULL)

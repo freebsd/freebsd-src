@@ -70,7 +70,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uvscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uvscom, CTLFLAG_RW, 0, "USB uvscom");
 SYSCTL_INT(_hw_usb_uvscom, OID_AUTO, debug, CTLFLAG_RW,
     &uvscom_debug, 0, "Debug level");
 #endif
@@ -233,7 +233,7 @@ static const struct ucom_callback uvscom_callback = {
 	.ucom_poll = &uvscom_poll,
 };
 
-static const struct usb_device_id uvscom_devs[] = {
+static const STRUCT_USB_HOST_ID uvscom_devs[] = {
 	/* SUNTAC U-Cable type A4 */
 	{USB_VPI(USB_VENDOR_SUNTAC, USB_PRODUCT_SUNTAC_AS144L4, 0)},
 	/* SUNTAC U-Cable type D2 */

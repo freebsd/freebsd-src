@@ -15,6 +15,8 @@
 #ifndef TARGET_X86_H
 #define TARGET_X86_H
 
+#include "MCTargetDesc/X86BaseInfo.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/Target/TargetMachine.h"
 
@@ -22,15 +24,9 @@ namespace llvm {
 
 class FunctionPass;
 class JITCodeEmitter;
-class MCCodeEmitter;
-class MCContext;
-class MCObjectWriter;
 class MachineCodeEmitter;
 class Target;
-class TargetAsmBackend;
 class X86TargetMachine;
-class formatted_raw_ostream;
-class raw_ostream;
 
 /// createX86ISelDag - This pass converts a legalized DAG into a 
 /// X86-specific DAG, ready for instruction scheduling.
@@ -48,22 +44,15 @@ FunctionPass* createGlobalBaseRegPass();
 ///
 FunctionPass *createX86FloatingPointStackifierPass();
 
-/// createSSEDomainFixPass - This pass twiddles SSE opcodes to prevent domain
-/// crossings.
-FunctionPass *createSSEDomainFixPass();
+/// createX86IssueVZeroUpperPass - This pass inserts AVX vzeroupper instructions
+/// before each call to avoid transition penalty between functions encoded with
+/// AVX and SSE.
+FunctionPass *createX86IssueVZeroUpperPass();
 
 /// createX86CodeEmitterPass - Return a pass that emits the collected X86 code
 /// to the specified MCE object.
 FunctionPass *createX86JITCodeEmitterPass(X86TargetMachine &TM,
                                           JITCodeEmitter &JCE);
-
-MCCodeEmitter *createX86_32MCCodeEmitter(const Target &, TargetMachine &TM,
-                                         MCContext &Ctx);
-MCCodeEmitter *createX86_64MCCodeEmitter(const Target &, TargetMachine &TM,
-                                         MCContext &Ctx);
-
-TargetAsmBackend *createX86_32AsmBackend(const Target &, const std::string &);
-TargetAsmBackend *createX86_64AsmBackend(const Target &, const std::string &);
 
 /// createX86EmitCodeToMemory - Returns a pass that converts a register
 /// allocated function into raw machine code in a dynamically
@@ -77,24 +66,6 @@ FunctionPass *createEmitX86CodeToMemory();
 ///
 FunctionPass *createX86MaxStackAlignmentHeuristicPass();
 
-
-/// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
-MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,
-                                          bool Is64Bit,
-                                          uint32_t CPUType,
-                                          uint32_t CPUSubtype);
-
-extern Target TheX86_32Target, TheX86_64Target;
-
 } // End llvm namespace
-
-// Defines symbolic names for X86 registers.  This defines a mapping from
-// register name to register number.
-//
-#include "X86GenRegisterNames.inc"
-
-// Defines symbolic names for the X86 instructions.
-//
-#include "X86GenInstrNames.inc"
 
 #endif

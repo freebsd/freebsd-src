@@ -29,6 +29,8 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
 
+/* Deprecated historical FPU control interface */
+
 #include <machine/fpu.h>
 
 typedef int fp_except_t;
@@ -44,5 +46,12 @@ typedef enum {
 	FP_RP,			/* round toward plus infinity */
 	FP_RZ			/* round toward zero */
 } fp_rnd_t;
+
+__BEGIN_DECLS
+extern fp_rnd_t    fpgetround(void);
+extern fp_rnd_t    fpsetround(fp_rnd_t);
+extern fp_except_t fpgetmask(void);
+extern fp_except_t fpsetmask(fp_except_t);
+__END_DECLS
 
 #endif /* !_MACHINE_IEEEFP_H_ */

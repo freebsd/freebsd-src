@@ -35,9 +35,8 @@ static const char rcsid[] =
   "$FreeBSD$";
 #endif /* not lint */
 
+#define	TSPTYPES
 #include "globals.h"
-
-extern char *tsptype[];
 
 /*
  * LOOKAT checks if the message is of the requested type and comes from

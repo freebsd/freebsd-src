@@ -67,6 +67,7 @@
 #include <sys/kernel.h>
 #include <sys/queue.h>
 #include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/interrupt.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
@@ -88,7 +89,7 @@
 
 #define	MAX_STRAY_LOG	5
 
-MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
+static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
 	struct intr_event *event;
@@ -98,7 +99,7 @@ struct powerpc_intr {
 	u_int	intline;
 	u_int	vector;
 	u_int	cntindex;
-	cpumask_t cpu;
+	cpuset_t cpu;
 	enum intr_trigger trig;
 	enum intr_polarity pol;
 };
@@ -205,7 +206,7 @@ intr_lookup(u_int irq)
 #ifdef SMP
 	i->cpu = all_cpus;
 #else
-	i->cpu = 1;
+	CPU_SETOF(0, &i->cpu);
 #endif
 
 	for (vector = 0; vector < INTR_VECTORS && vector <= nvectors;
@@ -296,7 +297,7 @@ powerpc_assign_intr_cpu(void *arg, u_char cpu)
 	if (cpu == NOCPU)
 		i->cpu = all_cpus;
 	else
-		i->cpu = 1 << cpu;
+		CPU_SETOF(cpu, &i->cpu);
 
 	if (!cold && i->pic != NULL && i->pic == root_pic)
 		PIC_BIND(i->pic, i->intline, i->cpu);
@@ -397,18 +398,22 @@ powerpc_enable_intr(void)
 
 #ifdef SMP
 	/* Install an IPI handler. */
-	for (n = 0; n < npics; n++) {
-		if (piclist[n].dev != root_pic)
-			continue;
+	if (mp_ncpus > 1) {
+		for (n = 0; n < npics; n++) {
+			if (piclist[n].dev != root_pic)
+				continue;
 
-		KASSERT(piclist[n].ipis != 0, ("%s", __func__));
-		error = powerpc_setup_intr("IPI",
-		    MAP_IRQ(piclist[n].node, piclist[n].irqs),
-		    powerpc_ipi_handler, NULL, NULL,
-		    INTR_TYPE_MISC | INTR_EXCL, &ipi_cookie);
-		if (error) {
-			printf("unable to setup IPI handler\n");
-			return (error);
+			KASSERT(piclist[n].ipis != 0,
+			    ("%s: SMP root PIC does not supply any IPIs",
+			    __func__));
+			error = powerpc_setup_intr("IPI",
+			    MAP_IRQ(piclist[n].node, piclist[n].irqs),
+			    powerpc_ipi_handler, NULL, NULL,
+			    INTR_TYPE_MISC | INTR_EXCL, &ipi_cookie);
+			if (error) {
+				printf("unable to setup IPI handler\n");
+				return (error);
+			}
 		}
 	}
 #endif

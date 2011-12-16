@@ -14,7 +14,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ipseckey_45.c,v 1.4.332.5 2011-01-13 04:48:23 tbox Exp $ */
+/* $Id: ipseckey_45.c,v 1.11 2011-01-13 04:59:26 tbox Exp $ */
 
 #ifndef RDATA_GENERIC_IPSECKEY_45_C
 #define RDATA_GENERIC_IPSECKEY_45_C
@@ -454,6 +454,45 @@ checknames_ipseckey(ARGS_CHECKNAMES) {
 	UNUSED(bad);
 
 	return (ISC_TRUE);
+}
+
+static inline int
+casecompare_ipseckey(ARGS_COMPARE) {
+	isc_region_t region1;
+	isc_region_t region2;
+	dns_name_t name1;
+	dns_name_t name2;
+	int order;
+
+	REQUIRE(rdata1->type == rdata2->type);
+	REQUIRE(rdata1->rdclass == rdata2->rdclass);
+	REQUIRE(rdata1->type == 45);
+	REQUIRE(rdata1->length >= 3);
+	REQUIRE(rdata2->length >= 3);
+
+	dns_rdata_toregion(rdata1, &region1);
+	dns_rdata_toregion(rdata2, &region2);
+
+	if (memcmp(region1.base, region2.base, 3) != 0 || region1.base[1] != 3)
+		return (isc_region_compare(&region1, &region2));
+
+	dns_name_init(&name1, NULL);
+	dns_name_init(&name2, NULL);
+
+	isc_region_consume(&region1, 3);
+	isc_region_consume(&region2, 3);
+
+	dns_name_fromregion(&name1, &region1);
+	dns_name_fromregion(&name2, &region2);
+
+	order = dns_name_rdatacompare(&name1, &name2);
+	if (order != 0)
+		return (order);
+
+	isc_region_consume(&region1, name_length(&name1));
+	isc_region_consume(&region2, name_length(&name2));
+
+	return (isc_region_compare(&region1, &region2));
 }
 
 #endif	/* RDATA_GENERIC_IPSECKEY_45_C */

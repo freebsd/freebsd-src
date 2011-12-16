@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: fsaccess.c,v 1.13 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: fsaccess.c,v 1.13 2007-06-19 23:47:18 tbox Exp $ */
 
 #include <config.h>
 

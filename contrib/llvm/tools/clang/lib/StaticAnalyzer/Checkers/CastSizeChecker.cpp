@@ -12,7 +12,7 @@
 //
 //===----------------------------------------------------------------------===//
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -22,7 +22,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class CastSizeChecker : public CheckerV2< check::PreStmt<CastExpr> > {
+class CastSizeChecker : public Checker< check::PreStmt<CastExpr> > {
   mutable llvm::OwningPtr<BuiltinBug> BT;
 public:
   void checkPreStmt(const CastExpr *CE, CheckerContext &C) const;
@@ -44,7 +44,7 @@ void CastSizeChecker::checkPreStmt(const CastExpr *CE,CheckerContext &C) const {
   if (ToPointeeTy->isIncompleteType())
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const MemRegion *R = state->getSVal(E).getAsRegion();
   if (R == 0)
     return;
@@ -72,7 +72,7 @@ void CastSizeChecker::checkPreStmt(const CastExpr *CE,CheckerContext &C) const {
         BT.reset(new BuiltinBug("Cast region with wrong size.",
                             "Cast a region whose size is not a multiple of the"
                             " destination type size."));
-      RangedBugReport *R = new RangedBugReport(*BT, BT->getDescription(),
+      BugReport *R = new BugReport(*BT, BT->getDescription(),
                                                errorNode);
       R->addRange(CE->getSourceRange());
       C.EmitReport(R);

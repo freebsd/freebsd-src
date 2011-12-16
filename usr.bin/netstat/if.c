@@ -394,7 +394,7 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 				n = cp - sa->sa_data + 1;
 				cp = sa->sa_data;
 			hexprint:
-				while (--n >= 0)
+				while ((--n >= 0) && (m < 30))
 					m += printf("%02x%c", *cp++ & 0xff,
 						    n > 0 ? ':' : ' ');
 				m = 32 - m;

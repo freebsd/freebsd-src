@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -23,7 +23,7 @@ using namespace clang;
 using namespace ento;
 
 namespace {
-class CastToStructChecker : public CheckerV2< check::PreStmt<CastExpr> > {
+class CastToStructChecker : public Checker< check::PreStmt<CastExpr> > {
   mutable llvm::OwningPtr<BuiltinBug> BT;
 
 public:
@@ -62,7 +62,7 @@ void CastToStructChecker::checkPreStmt(const CastExpr *CE,
                             "Casting a non-structure type to a structure type "
                             "and accessing a field can lead to memory access "
                             "errors or data corruption."));
-      RangedBugReport *R = new RangedBugReport(*BT,BT->getDescription(), N);
+      BugReport *R = new BugReport(*BT,BT->getDescription(), N);
       R->addRange(CE->getSourceRange());
       C.EmitReport(R);
     }

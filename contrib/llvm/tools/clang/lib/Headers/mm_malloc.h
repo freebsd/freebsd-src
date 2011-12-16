@@ -40,6 +40,7 @@ extern "C" int posix_memalign(void **memptr, size_t alignment, size_t size);
 #endif
 #endif
 
+#if !(defined(_WIN32) && defined(_mm_malloc))
 static __inline__ void *__attribute__((__always_inline__, __nodebug__,
                                        __malloc__))
 _mm_malloc(size_t size, size_t align)
@@ -52,7 +53,9 @@ _mm_malloc(size_t size, size_t align)
     align = sizeof(void *);
 
   void *mallocedMemory;
-#ifdef _WIN32
+#if defined(__MINGW32__)
+  mallocedMemory = __mingw_aligned_malloc(size, align);
+#elif defined(_WIN32)
   mallocedMemory = _aligned_malloc(size, align);
 #else
   if (posix_memalign(&mallocedMemory, align, size))
@@ -67,5 +70,6 @@ _mm_free(void *p)
 {
   free(p);
 }
+#endif
 
 #endif /* __MM_MALLOC_H */

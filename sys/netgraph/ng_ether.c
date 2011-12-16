@@ -55,6 +55,7 @@
 #include <sys/proc.h>
 #include <sys/syslog.h>
 #include <sys/socket.h>
+#include <sys/taskqueue.h>
 
 #include <net/if.h>
 #include <net/if_dl.h>
@@ -336,6 +337,7 @@ ng_ether_detach(struct ifnet *ifp)
 	const node_p node = IFP2NG(ifp);
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
+	taskqueue_drain(taskqueue_swi, &ifp->if_linktask);
 	NG_NODE_REALLY_DIE(node);	/* Force real removal of node */
 	/*
 	 * We can't assume the ifnet is still around when we run shutdown
@@ -602,9 +604,6 @@ ng_ether_rcvdata(hook_p hook, item_p item)
 	NG_FREE_ITEM(item);
 
 	panic("%s: weird hook", __func__);
-#ifdef RESTARTABLE_PANICS /* so we don't get an error msg in LINT */
-	return (0);
-#endif
 }
 
 /*
@@ -718,7 +717,6 @@ ng_ether_shutdown(node_p node)
 		(void)ifpromisc(priv->ifp, 0);
 		priv->promisc = 0;
 	}
-	priv->autoSrcAddr = 1;		/* reset auto-src-addr flag */
 	NG_NODE_REVIVE(node);		/* Signal ng_rmnode we are persisant */
 
 	return (0);

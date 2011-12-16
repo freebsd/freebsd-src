@@ -15,30 +15,46 @@
 #define DEBUG_TYPE "asm-printer"
 #include "X86ATTInstPrinter.h"
 #include "X86InstComments.h"
+#include "MCTargetDesc/X86MCTargetDesc.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCAsmInfo.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
-#include "X86GenInstrNames.inc"
+#include <map>
 using namespace llvm;
 
 // Include the auto-generated portion of the assembly writer.
 #define GET_INSTRUCTION_NAME
+#define PRINT_ALIAS_INSTR
 #include "X86GenAsmWriter.inc"
 
-void X86ATTInstPrinter::printInst(const MCInst *MI, raw_ostream &OS) {
-  printInstruction(MI, OS);
+X86ATTInstPrinter::X86ATTInstPrinter(const MCAsmInfo &MAI)
+  : MCInstPrinter(MAI) {
+}
+
+void X86ATTInstPrinter::printRegName(raw_ostream &OS,
+                                     unsigned RegNo) const {
+  OS << '%' << getRegisterName(RegNo);
+}
+
+void X86ATTInstPrinter::printInst(const MCInst *MI, raw_ostream &OS,
+                                  StringRef Annot) {
+  // Try to print any aliases first.
+  if (!printAliasInstr(MI, OS))
+    printInstruction(MI, OS);
   
   // If verbose assembly is enabled, we can print some informative comments.
-  if (CommentStream)
+  if (CommentStream) {
+    printAnnotation(OS, Annot);
     EmitAnyX86InstComments(MI, *CommentStream, getRegisterName);
+  }
 }
+
 StringRef X86ATTInstPrinter::getOpcodeName(unsigned Opcode) const {
   return getInstructionName(Opcode);
 }
-
 
 void X86ATTInstPrinter::printSSECC(const MCInst *MI, unsigned Op,
                                    raw_ostream &O) {
@@ -77,7 +93,8 @@ void X86ATTInstPrinter::printOperand(const MCInst *MI, unsigned OpNo,
   if (Op.isReg()) {
     O << '%' << getRegisterName(Op.getReg());
   } else if (Op.isImm()) {
-    O << '$' << Op.getImm();
+    // Print X86 immediates as signed values.
+    O << '$' << (int64_t)Op.getImm();
     
     if (CommentStream && (Op.getImm() > 255 || Op.getImm() < -256))
       *CommentStream << format("imm = 0x%llX\n", (long long)Op.getImm());

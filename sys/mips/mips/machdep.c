@@ -163,6 +163,9 @@ extern char MipsTLBMiss[], MipsTLBMissEnd[];
 /* Cache error handler */
 extern char MipsCache[], MipsCacheEnd[];
 
+/* MIPS wait skip region */
+extern char MipsWaitStart[], MipsWaitEnd[];
+
 extern char edata[], end[];
 #ifdef DDB
 extern vm_offset_t ksym_start, ksym_end;
@@ -327,6 +330,12 @@ void
 mips_vector_init(void)
 {
 	/*
+	 * Make sure that the Wait region logic is not been 
+	 * changed
+	 */
+	if (MipsWaitEnd - MipsWaitStart != 16)
+		panic("startup: MIPS wait region not correct");
+	/*
 	 * Copy down exception vector code.
 	 */
 	if (MipsTLBMissEnd - MipsTLBMiss > 0x80)
@@ -338,7 +347,7 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(CPU_CNMIPS) || defined(CPU_RMI)
+#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
 /* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
 	bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
@@ -497,7 +506,7 @@ cpu_idle(int busy)
 		critical_enter();
 		cpu_idleclock();
 	}
-	__asm __volatile ("wait");
+	mips_wait();
 	if (!busy) {
 		cpu_activeclock();
 		critical_exit();

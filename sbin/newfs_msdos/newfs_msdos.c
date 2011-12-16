@@ -44,6 +44,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <inttypes.h>
 #include <paths.h>
+#include <signal.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -98,7 +99,7 @@ static const char rcsid[] =
 struct bs {
     u_int8_t bsJump[3];		/* bootstrap entry point */
     u_int8_t bsOemName[8];		/* OEM name and version */
-};
+} __packed;
 
 struct bsbpb {
     u_int8_t bpbBytesPerSec[2];		/* bytes per sector */
@@ -113,7 +114,7 @@ struct bsbpb {
     u_int8_t bpbHeads[2];		/* drive heads */
     u_int8_t bpbHiddenSecs[4];		/* hidden sectors */
     u_int8_t bpbHugeSectors[4];		/* big total sectors */
-};
+} __packed;
 
 struct bsxbpb {
     u_int8_t bpbBigFATsecs[4];		/* big sectors per FAT */
@@ -123,7 +124,7 @@ struct bsxbpb {
     u_int8_t bpbFSInfo[2];		/* file system info sector */
     u_int8_t bpbBackup[2];		/* backup boot sector */
     u_int8_t bpbReserved[12];			/* reserved */
-};
+} __packed;
 
 struct bsx {
     u_int8_t exDriveNumber;		/* drive number */
@@ -132,7 +133,7 @@ struct bsx {
     u_int8_t exVolumeID[4];		/* volume ID number */
     u_int8_t exVolumeLabel[11]; 	/* volume label */
     u_int8_t exFileSysType[8];		/* file system type */
-};
+} __packed;
 
 struct de {
     u_int8_t deName[11];	/* name and extension */
@@ -142,7 +143,7 @@ struct de {
     u_int8_t deMDate[2];	/* creation date */
     u_int8_t deStartCluster[2];	/* starting cluster */
     u_int8_t deFileSize[4];	/* size */
-};
+} __packed;
 
 struct bpb {
     u_int bpbBytesPerSec;		/* bytes per sector */
@@ -216,6 +217,9 @@ static const u_int8_t bootcode[] = {
     0
 };
 
+static volatile sig_atomic_t got_siginfo;
+static void infohandler(int);
+
 static void check_mounted(const char *, mode_t);
 static void getstdfmt(const char *, struct bpb *);
 static void getdiskinfo(int, const char *, const char *, int,
@@ -243,6 +247,7 @@ main(int argc, char *argv[])
     int opt_N = 0;
     int Iflag = 0, mflag = 0, oflag = 0;
     char buf[MAXPATHLEN];
+    struct sigaction si_sa;
     struct stat sb;
     struct timeval tv;
     struct bpb bpb;
@@ -604,7 +609,19 @@ main(int argc, char *argv[])
 	if (!(img = malloc(bpb.bpbBytesPerSec)))
 	    err(1, NULL);
 	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs : bpb.bpbBigFATsecs) * bpb.bpbFATs;
+	memset(&si_sa, 0, sizeof(si_sa));
+	si_sa.sa_handler = infohandler;
+	if (sigaction(SIGINFO, &si_sa, NULL) == -1)
+		err(1, "sigaction SIGINFO");
 	for (lsn = 0; lsn < dir + (fat == 32 ? bpb.bpbSecPerClust : rds); lsn++) {
+	    if (got_siginfo) {
+		    fprintf(stderr,"%s: writing sector %u of %u (%u%%)\n",
+			fname, lsn,
+			(dir + (fat == 32 ? bpb.bpbSecPerClust: rds)),
+			(lsn * 100) / (dir +
+			    (fat == 32 ? bpb.bpbSecPerClust: rds)));
+		    got_siginfo = 0;
+	    }
 	    x = lsn;
 	    if (opt_B &&
 		fat == 32 && bpb.bpbBackup != MAXU16 &&
@@ -1016,4 +1033,11 @@ usage(void)
 	    "\t-s file system size (sectors)\n"
 	    "\t-u sectors/track\n");
 	exit(1);
+}
+
+static void
+infohandler(int sig __unused)
+{
+
+	got_siginfo = 1;
 }

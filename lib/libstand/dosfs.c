@@ -358,7 +358,7 @@ dos_stat(struct open_file *fd, struct stat *sb)
 static int
 dos_readdir(struct open_file *fd, struct dirent *d)
 {
-    DOS_FILE *f = (DOS_FILE *)fd->f_fsdata;
+    /* DOS_FILE *f = (DOS_FILE *)fd->f_fsdata; */
     u_char fn[261];
     DOS_DIR dd;
     size_t res;
@@ -414,7 +414,7 @@ dos_readdir(struct open_file *fd, struct dirent *d)
 	}
     }
 
-    d->d_fileno = dd.de.clus[1] << 8 + dd.de.clus[0];
+    d->d_fileno = (dd.de.clus[1] << 8) + dd.de.clus[0];
     d->d_reclen = sizeof(*d);
     d->d_type = (dd.de.attr & FA_DIR) ? DT_DIR : DT_REG;
     memcpy(d->d_name, fn, sizeof(d->d_name));

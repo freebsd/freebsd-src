@@ -40,6 +40,7 @@
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/conf.h>
 #include <sys/dirent.h>
 #include <sys/filedesc.h>
@@ -305,7 +306,10 @@ fdesc_lookup(ap)
 		fd = fd1;
 	}
 
-	if ((error = fget(td, fd, &fp)) != 0)
+	/*
+	 * No rights to check since 'fp' isn't actually used.
+	 */
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		goto bad;
 
 	/* Check if we're looking up ourselves. */
@@ -455,7 +459,7 @@ fdesc_setattr(ap)
 	/*
 	 * Allow setattr where there is an underlying vnode.
 	 */
-	error = getvnode(td->td_proc->p_fd, fd, &fp);
+	error = getvnode(td->td_proc->p_fd, fd, CAP_EXTATTR_SET, &fp);
 	if (error) {
 		/*
 		 * getvnode() returns EINVAL if the file descriptor is not
@@ -500,15 +504,11 @@ fdesc_readdir(ap)
 	struct dirent *dp = &d;
 	int error, i, off, fcnt;
 
-	/*
-	 * We don't allow exporting fdesc mounts, and currently local
-	 * requests do not need cookies.
-	 */
-	if (ap->a_ncookies)
-		panic("fdesc_readdir: not hungry");
-
 	if (VTOFDESC(ap->a_vp)->fd_type != Froot)
 		panic("fdesc_readdir: not dir");
+
+	if (ap->a_ncookies != NULL)
+		*ap->a_ncookies = 0;
 
 	off = (int)uio->uio_offset;
 	if (off != uio->uio_offset || off < 0 || (u_int)off % UIO_MX != 0 ||

@@ -33,6 +33,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/ata.h>
 #include <sys/bus.h>
+#include <sys/conf.h>
 #include <sys/endian.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
@@ -75,7 +76,7 @@ static int mvs_sata_phy_reset(device_t dev);
 static int mvs_wait(device_t dev, u_int s, u_int c, int t);
 static void mvs_tfd_read(device_t dev, union ccb *ccb);
 static void mvs_tfd_write(device_t dev, union ccb *ccb);
-static void mvs_legacy_intr(device_t dev);
+static void mvs_legacy_intr(device_t dev, int poll);
 static void mvs_crbq_intr(device_t dev);
 static void mvs_begin_transaction(device_t dev, union ccb *ccb);
 static void mvs_legacy_execute_transaction(struct mvs_slot *slot);
@@ -86,13 +87,20 @@ static void mvs_requeue_frozen(device_t dev);
 static void mvs_execute_transaction(struct mvs_slot *slot);
 static void mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et);
 
-static void mvs_issue_read_log(device_t dev);
+static void mvs_issue_recovery(device_t dev);
 static void mvs_process_read_log(device_t dev, union ccb *ccb);
+static void mvs_process_request_sense(device_t dev, union ccb *ccb);
 
 static void mvsaction(struct cam_sim *sim, union ccb *ccb);
 static void mvspoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_MVS, "MVS driver", "MVS driver data buffers");
+static MALLOC_DEFINE(M_MVS, "MVS driver", "MVS driver data buffers");
+
+#define recovery_type		spriv_field0
+#define RECOVERY_NONE		0
+#define RECOVERY_READ_LOG	1
+#define RECOVERY_REQUEST_SENSE	2
+#define recovery_slot		spriv_field1
 
 static int
 mvs_ch_probe(device_t dev)
@@ -118,6 +126,7 @@ mvs_ch_attach(device_t dev)
 	    device_get_unit(dev), "pm_level", &ch->pm_level);
 	if (ch->pm_level > 3)
 		callout_init_mtx(&ch->pm_timer, &ch->mtx, 0);
+	callout_init_mtx(&ch->reset_timer, &ch->mtx, 0);
 	resource_int_value(device_get_name(dev),
 	    device_get_unit(dev), "sata_rev", &sata_rev);
 	for (i = 0; i < 16; i++) {
@@ -131,6 +140,7 @@ mvs_ch_attach(device_t dev)
 			    CTS_SATA_CAPS_H_APST |
 			    CTS_SATA_CAPS_D_PMREQ | CTS_SATA_CAPS_D_APST;
 		}
+		ch->user[i].caps |= CTS_SATA_CAPS_H_AN;
 	}
 	rid = ch->unit;
 	if (!(ch->r_mem = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
@@ -210,6 +220,11 @@ mvs_ch_detach(device_t dev)
 
 	mtx_lock(&ch->mtx);
 	xpt_async(AC_LOST_DEVICE, ch->path, NULL);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	xpt_free_path(ch->path);
 	xpt_bus_deregister(cam_sim_path(ch->sim));
 	cam_sim_free(ch->sim, /*free_devq*/TRUE);
@@ -217,6 +232,7 @@ mvs_ch_detach(device_t dev)
 
 	if (ch->pm_level > 3)
 		callout_drain(&ch->pm_timer);
+	callout_drain(&ch->reset_timer);
 	bus_teardown_intr(dev, ch->r_irq, ch->ih);
 	bus_release_resource(dev, SYS_RES_IRQ, ATA_IRQ_RID, ch->r_irq);
 
@@ -278,6 +294,12 @@ mvs_ch_suspend(device_t dev)
 	xpt_freeze_simq(ch->sim, 1);
 	while (ch->oslots)
 		msleep(ch, &ch->mtx, PRIBIO, "mvssusp", hz/100);
+	/* Forget about reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	mvs_ch_deinit(dev);
 	mtx_unlock(&ch->mtx);
 	return (0);
@@ -796,7 +818,7 @@ mvs_ch_intr(void *data)
 	}
 	/* Legacy mode device interrupt. */
 	if ((arg->cause & 2) && !edma)
-		mvs_legacy_intr(dev);
+		mvs_legacy_intr(dev, arg->cause & 4);
 }
 
 static uint8_t
@@ -815,14 +837,15 @@ mvs_getstatus(device_t dev, int clear)
 }
 
 static void
-mvs_legacy_intr(device_t dev)
+mvs_legacy_intr(device_t dev, int poll)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	struct mvs_slot *slot = &ch->slot[0]; /* PIO is always in slot 0. */
 	union ccb *ccb = slot->ccb;
 	enum mvs_err_type et = MVS_ERR_NONE;
 	int port;
-	u_int length;
+	u_int length, resid, size;
+	uint8_t buf[2];
 	uint8_t status, ireason;
 
 	/* Clear interrupt and get status. */
@@ -832,6 +855,8 @@ mvs_legacy_intr(device_t dev)
 	port = ccb->ccb_h.target_id & 0x0f;
 	/* Wait a bit for late !BUSY status update. */
 	if (status & ATA_S_BUSY) {
+		if (poll)
+			return;
 		DELAY(100);
 		if ((status = mvs_getstatus(dev, 1)) & ATA_S_BUSY) {
 			DELAY(1000);
@@ -853,6 +878,8 @@ mvs_legacy_intr(device_t dev)
 			if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
 			    device_printf(dev, "timeout waiting for read DRQ\n");
 			    et = MVS_ERR_TIMEOUT;
+			    xpt_freeze_simq(ch->sim, 1);
+			    ch->toslots |= (1 << slot->slot);
 			    goto end_finished;
 			}
 			ATA_INSW_STRM(ch->r_mem, ATA_DATA,
@@ -872,6 +899,8 @@ mvs_legacy_intr(device_t dev)
 				    device_printf(dev,
 					"timeout waiting for write DRQ\n");
 				    et = MVS_ERR_TIMEOUT;
+				    xpt_freeze_simq(ch->sim, 1);
+				    ch->toslots |= (1 << slot->slot);
 				    goto end_finished;
 				}
 				ATA_OUTSW_STRM(ch->r_mem, ATA_DATA,
@@ -895,6 +924,7 @@ mvs_legacy_intr(device_t dev)
 	} else {			/* ATAPI PIO */
 		length = ATA_INB(ch->r_mem,ATA_CYL_LSB) |
 		    (ATA_INB(ch->r_mem,ATA_CYL_MSB) << 8);
+		size = min(ch->transfersize, length);
 		ireason = ATA_INB(ch->r_mem,ATA_IREASON);
 		switch ((ireason & (ATA_I_CMD | ATA_I_IN)) |
 			(status & ATA_S_DRQ)) {
@@ -913,7 +943,10 @@ mvs_legacy_intr(device_t dev)
 		    }
 		    ATA_OUTSW_STRM(ch->r_mem, ATA_DATA,
 			(uint16_t *)(ccb->csio.data_ptr + ch->donecount),
-			length / 2);
+			(size + 1) / 2);
+		    for (resid = ch->transfersize + (size & 1);
+			resid < length; resid += sizeof(int16_t))
+			    ATA_OUTW(ch->r_mem, ATA_DATA, 0);
 		    ch->donecount += length;
 		    /* Set next transfer size according to HW capabilities */
 		    ch->transfersize = min(ccb->csio.dxfer_len - ch->donecount,
@@ -927,9 +960,19 @@ mvs_legacy_intr(device_t dev)
 			et = MVS_ERR_TFE;
 			goto end_finished;
 		    }
-		    ATA_INSW_STRM(ch->r_mem, ATA_DATA,
-			(uint16_t *)(ccb->csio.data_ptr + ch->donecount),
-			length / 2);
+		    if (size >= 2) {
+			ATA_INSW_STRM(ch->r_mem, ATA_DATA,
+			    (uint16_t *)(ccb->csio.data_ptr + ch->donecount),
+			    size / 2);
+		    }
+		    if (size & 1) {
+			ATA_INSW_STRM(ch->r_mem, ATA_DATA, (void*)buf, 1);
+			((uint8_t *)ccb->csio.data_ptr + ch->donecount +
+			    (size & ~1))[0] = buf[0];
+		    }
+		    for (resid = ch->transfersize + (size & 1);
+			resid < length; resid += sizeof(int16_t))
+			    ATA_INW(ch->r_mem, ATA_DATA);
 		    ch->donecount += length;
 		    /* Set next transfer size according to HW capabilities */
 		    ch->transfersize = min(ccb->csio.dxfer_len - ch->donecount,
@@ -1290,7 +1333,7 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			    DELAY(10);
 			    ccb->ataio.res.status = ATA_INB(ch->r_mem, ATA_STATUS);
 			} while (ccb->ataio.res.status & ATA_S_BUSY && timeout--);
-			mvs_legacy_intr(dev);
+			mvs_legacy_intr(dev, 1);
 			return;
 		}
 		ch->donecount = 0;
@@ -1303,6 +1346,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			if (mvs_wait(dev, ATA_S_DRQ, ATA_S_BUSY, 1000) < 0) {
 				device_printf(dev,
 				    "timeout waiting for write DRQ\n");
+				xpt_freeze_simq(ch->sim, 1);
+				ch->toslots |= (1 << slot->slot);
 				mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 				return;
 			}
@@ -1329,6 +1374,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		/* Wait for ready to write ATAPI command block */
 		if (mvs_wait(dev, 0, ATA_S_BUSY, 1000) < 0) {
 			device_printf(dev, "timeout waiting for ATAPI !BUSY\n");
+			xpt_freeze_simq(ch->sim, 1);
+			ch->toslots |= (1 << slot->slot);
 			mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 			return;
 		}
@@ -1345,6 +1392,8 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 		if (timeout <= 0) {
 			device_printf(dev,
 			    "timeout waiting for ATAPI command ready\n");
+			xpt_freeze_simq(ch->sim, 1);
+			ch->toslots |= (1 << slot->slot);
 			mvs_end_transaction(slot, MVS_ERR_TIMEOUT);
 			return;
 		}
@@ -1363,8 +1412,7 @@ mvs_legacy_execute_transaction(struct mvs_slot *slot)
 			ATA_OUTL(ch->r_mem, DMA_C, DMA_C_START |
 			    (((ccb->ccb_h.flags & CAM_DIR_MASK) == CAM_DIR_IN) ?
 			    DMA_C_READ : 0));
-		} else if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE)
-			ch->fake_busy = 1;
+		}
 	}
 	/* Start command execution timeout */
 	callout_reset(&slot->timeout, (int)ccb->ccb_h.timeout * hz / 1000,
@@ -1579,6 +1627,10 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 			mvs_tfd_read(dev, ccb);
 		} else
 			bzero(res, sizeof(*res));
+	} else {
+		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE &&
+		    ch->basic_dma == 0)
+			ccb->csio.resid = ccb->csio.dxfer_len - ch->donecount;
 	}
 	if (ch->numpslots == 0 || ch->basic_dma) {
 		if ((ccb->ccb_h.flags & CAM_DIR_MASK) != CAM_DIR_NONE) {
@@ -1591,7 +1643,7 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 	if (et != MVS_ERR_NONE)
 		ch->eslots |= (1 << slot->slot);
 	/* In case of error, freeze device for proper recovery. */
-	if ((et != MVS_ERR_NONE) && (!ch->readlog) &&
+	if ((et != MVS_ERR_NONE) && (!ch->recoverycmd) &&
 	    !(ccb->ccb_h.status & CAM_DEV_QFRZN)) {
 		xpt_freeze_devq(ccb->ccb_h.path, 1);
 		ccb->ccb_h.status |= CAM_DEV_QFRZN;
@@ -1622,7 +1674,7 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 		break;
 	case MVS_ERR_SATA:
 		ch->fatalerr = 1;
-		if (!ch->readlog) {
+		if (!ch->recoverycmd) {
 			xpt_freeze_simq(ch->sim, 1);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
@@ -1630,7 +1682,7 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 		ccb->ccb_h.status |= CAM_UNCOR_PARITY;
 		break;
 	case MVS_ERR_TIMEOUT:
-		if (!ch->readlog) {
+		if (!ch->recoverycmd) {
 			xpt_freeze_simq(ch->sim, 1);
 			ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 			ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
@@ -1672,22 +1724,20 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 			xpt_release_simq(ch->sim, TRUE);
 	}
 	/* If it was our READ LOG command - process it. */
-	if (ch->readlog) {
+	if (ccb->ccb_h.recovery_type == RECOVERY_READ_LOG) {
 		mvs_process_read_log(dev, ccb);
-	/* If it was NCQ command error, put result on hold. */
-	} else if (et == MVS_ERR_NCQ) {
+	/* If it was our REQUEST SENSE command - process it. */
+	} else if (ccb->ccb_h.recovery_type == RECOVERY_REQUEST_SENSE) {
+		mvs_process_request_sense(dev, ccb);
+	/* If it was NCQ or ATAPI command error, put result on hold. */
+	} else if (et == MVS_ERR_NCQ ||
+	    ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
+	     (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)) {
 		ch->hold[slot->slot] = ccb;
 		ch->holdtag[slot->slot] = slot->tag;
 		ch->numhslots++;
 	} else
 		xpt_done(ccb);
-	/* Unfreeze frozen command. */
-	if (ch->frozen && !mvs_check_collision(dev, ch->frozen)) {
-		union ccb *fccb = ch->frozen;
-		ch->frozen = NULL;
-		mvs_begin_transaction(dev, fccb);
-		xpt_release_simq(ch->sim, TRUE);
-	}
 	/* If we have no other active commands, ... */
 	if (ch->rslots == 0) {
 		/* if there was fatal error - reset port. */
@@ -1700,13 +1750,20 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 				ch->eslots = 0;
 			}
 			/* if there commands on hold, we can do READ LOG. */
-			if (!ch->readlog && ch->numhslots)
-				mvs_issue_read_log(dev);
+			if (!ch->recoverycmd && ch->numhslots)
+				mvs_issue_recovery(dev);
 		}
 	/* If all the rest of commands are in timeout - give them chance. */
 	} else if ((ch->rslots & ~ch->toslots) == 0 &&
 	    et != MVS_ERR_TIMEOUT)
 		mvs_rearm_timeout(dev);
+	/* Unfreeze frozen command. */
+	if (ch->frozen && !mvs_check_collision(dev, ch->frozen)) {
+		union ccb *fccb = ch->frozen;
+		ch->frozen = NULL;
+		mvs_begin_transaction(dev, fccb);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Start PM timer. */
 	if (ch->numrslots == 0 && ch->pm_level > 3 &&
 	    (ch->curr[ch->pm_present ? 15 : 0].caps & CTS_SATA_CAPS_D_PMREQ)) {
@@ -1716,45 +1773,78 @@ mvs_end_transaction(struct mvs_slot *slot, enum mvs_err_type et)
 }
 
 static void
-mvs_issue_read_log(device_t dev)
+mvs_issue_recovery(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	union ccb *ccb;
 	struct ccb_ataio *ataio;
+	struct ccb_scsiio *csio;
 	int i;
 
-	ch->readlog = 1;
-	/* Find some holden command. */
+	/* Find some held command. */
 	for (i = 0; i < MVS_MAX_SLOTS; i++) {
 		if (ch->hold[i])
 			break;
 	}
 	ccb = xpt_alloc_ccb_nowait();
 	if (ccb == NULL) {
-		device_printf(dev, "Unable allocate READ LOG command");
-		return; /* XXX */
+		device_printf(dev, "Unable to allocate recovery command\n");
+completeall:
+		/* We can't do anything -- complete held commands. */
+		for (i = 0; i < MVS_MAX_SLOTS; i++) {
+			if (ch->hold[i] == NULL)
+				continue;
+			ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
+			ch->hold[i]->ccb_h.status |= CAM_RESRC_UNAVAIL;
+			xpt_done(ch->hold[i]);
+			ch->hold[i] = NULL;
+			ch->numhslots--;
+		}
+		mvs_reset(dev);
+		return;
 	}
 	ccb->ccb_h = ch->hold[i]->ccb_h;	/* Reuse old header. */
-	ccb->ccb_h.func_code = XPT_ATA_IO;
-	ccb->ccb_h.flags = CAM_DIR_IN;
-	ccb->ccb_h.timeout = 1000;	/* 1s should be enough. */
-	ataio = &ccb->ataio;
-	ataio->data_ptr = malloc(512, M_MVS, M_NOWAIT);
-	if (ataio->data_ptr == NULL) {
-		xpt_free_ccb(ccb);
-		device_printf(dev, "Unable allocate memory for READ LOG command");
-		return; /* XXX */
+	if (ccb->ccb_h.func_code == XPT_ATA_IO) {
+		/* READ LOG */
+		ccb->ccb_h.recovery_type = RECOVERY_READ_LOG;
+		ccb->ccb_h.func_code = XPT_ATA_IO;
+		ccb->ccb_h.flags = CAM_DIR_IN;
+		ccb->ccb_h.timeout = 1000;	/* 1s should be enough. */
+		ataio = &ccb->ataio;
+		ataio->data_ptr = malloc(512, M_MVS, M_NOWAIT);
+		if (ataio->data_ptr == NULL) {
+			xpt_free_ccb(ccb);
+			device_printf(dev,
+			    "Unable to allocate memory for READ LOG command\n");
+			goto completeall;
+		}
+		ataio->dxfer_len = 512;
+		bzero(&ataio->cmd, sizeof(ataio->cmd));
+		ataio->cmd.flags = CAM_ATAIO_48BIT;
+		ataio->cmd.command = 0x2F;	/* READ LOG EXT */
+		ataio->cmd.sector_count = 1;
+		ataio->cmd.sector_count_exp = 0;
+		ataio->cmd.lba_low = 0x10;
+		ataio->cmd.lba_mid = 0;
+		ataio->cmd.lba_mid_exp = 0;
+	} else {
+		/* REQUEST SENSE */
+		ccb->ccb_h.recovery_type = RECOVERY_REQUEST_SENSE;
+		ccb->ccb_h.recovery_slot = i;
+		ccb->ccb_h.func_code = XPT_SCSI_IO;
+		ccb->ccb_h.flags = CAM_DIR_IN;
+		ccb->ccb_h.status = 0;
+		ccb->ccb_h.timeout = 1000;	/* 1s should be enough. */
+		csio = &ccb->csio;
+		csio->data_ptr = (void *)&ch->hold[i]->csio.sense_data;
+		csio->dxfer_len = ch->hold[i]->csio.sense_len;
+		csio->cdb_len = 6;
+		bzero(&csio->cdb_io, sizeof(csio->cdb_io));
+		csio->cdb_io.cdb_bytes[0] = 0x03;
+		csio->cdb_io.cdb_bytes[4] = csio->dxfer_len;
 	}
-	ataio->dxfer_len = 512;
-	bzero(&ataio->cmd, sizeof(ataio->cmd));
-	ataio->cmd.flags = CAM_ATAIO_48BIT;
-	ataio->cmd.command = 0x2F;	/* READ LOG EXT */
-	ataio->cmd.sector_count = 1;
-	ataio->cmd.sector_count_exp = 0;
-	ataio->cmd.lba_low = 0x10;
-	ataio->cmd.lba_mid = 0;
-	ataio->cmd.lba_mid_exp = 0;
-	/* Freeze SIM while doing READ LOG EXT. */
+	/* Freeze SIM while doing recovery. */
+	ch->recoverycmd = 1;
 	xpt_freeze_simq(ch->sim, 1);
 	mvs_begin_transaction(dev, ccb);
 }
@@ -1767,7 +1857,7 @@ mvs_process_read_log(device_t dev, union ccb *ccb)
 	struct ata_res *res;
 	int i;
 
-	ch->readlog = 0;
+	ch->recoverycmd = 0;
 
 	data = ccb->ataio.data_ptr;
 	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP &&
@@ -1820,6 +1910,28 @@ mvs_process_read_log(device_t dev, union ccb *ccb)
 	xpt_release_simq(ch->sim, TRUE);
 }
 
+static void
+mvs_process_request_sense(device_t dev, union ccb *ccb)
+{
+	struct mvs_channel *ch = device_get_softc(dev);
+	int i;
+
+	ch->recoverycmd = 0;
+
+	i = ccb->ccb_h.recovery_slot;
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_REQ_CMP) {
+		ch->hold[i]->ccb_h.status |= CAM_AUTOSNS_VALID;
+	} else {
+		ch->hold[i]->ccb_h.status &= ~CAM_STATUS_MASK;
+		ch->hold[i]->ccb_h.status |= CAM_AUTOSENSE_FAIL;
+	}
+	xpt_done(ch->hold[i]);
+	ch->hold[i] = NULL;
+	ch->numhslots--;
+	xpt_free_ccb(ccb);
+	xpt_release_simq(ch->sim, TRUE);
+}
+
 static int
 mvs_wait(device_t dev, u_int s, u_int c, int t)
 {
@@ -1827,11 +1939,13 @@ mvs_wait(device_t dev, u_int s, u_int c, int t)
 	uint8_t st;
 
 	while (((st =  mvs_getstatus(dev, 0)) & (s | c)) != s) {
-		DELAY(1000);
-		if (timeout++ > t) {
-			device_printf(dev, "Wait status %02x\n", st);
+		if (timeout >= t) {
+			if (t != 0)
+				device_printf(dev, "Wait status %02x\n", st);
 			return (-1);
 		}
+		DELAY(1000);
+		timeout++;
 	} 
 	return (timeout);
 }
@@ -1854,6 +1968,35 @@ mvs_requeue_frozen(device_t dev)
 }
 
 static void
+mvs_reset_to(void *arg)
+{
+	device_t dev = arg;
+	struct mvs_channel *ch = device_get_softc(dev);
+	int t;
+
+	if (ch->resetting == 0)
+		return;
+	ch->resetting--;
+	if ((t = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, 0)) >= 0) {
+		if (bootverbose) {
+			device_printf(dev,
+			    "MVS reset: device ready after %dms\n",
+			    (310 - ch->resetting) * 100);
+		}
+		ch->resetting = 0;
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	if (ch->resetting == 0) {
+		device_printf(dev,
+		    "MVS reset: device not ready after 31000ms\n");
+		xpt_release_simq(ch->sim, TRUE);
+		return;
+	}
+	callout_schedule(&ch->reset_timer, hz / 10);
+}
+
+static void
 mvs_reset(device_t dev)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
@@ -1862,6 +2005,12 @@ mvs_reset(device_t dev)
 	xpt_freeze_simq(ch->sim, 1);
 	if (bootverbose)
 		device_printf(dev, "MVS reset...\n");
+	/* Forget about previous reset. */
+	if (ch->resetting) {
+		ch->resetting = 0;
+		callout_stop(&ch->reset_timer);
+		xpt_release_simq(ch->sim, TRUE);
+	}
 	/* Requeue freezed command. */
 	mvs_requeue_frozen(dev);
 	/* Kill the engine and requeue all running commands. */
@@ -1886,6 +2035,7 @@ mvs_reset(device_t dev)
 	ch->eslots = 0;
 	ch->toslots = 0;
 	ch->fatalerr = 0;
+	ch->fake_busy = 0;
 	/* Tell the XPT about the event */
 	xpt_async(AC_BUS_RESET, ch->path, NULL);
 	ATA_OUTL(ch->r_mem, EDMA_IEM, 0);
@@ -1895,8 +2045,7 @@ mvs_reset(device_t dev)
 	/* Reset and reconnect PHY, */
 	if (!mvs_sata_phy_reset(dev)) {
 		if (bootverbose)
-			device_printf(dev,
-			    "MVS reset done: phy reset found no device\n");
+			device_printf(dev, "MVS reset: device not found\n");
 		ch->devices = 0;
 		ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
 		ATA_OUTL(ch->r_mem, EDMA_IEC, 0);
@@ -1904,18 +2053,26 @@ mvs_reset(device_t dev)
 		xpt_release_simq(ch->sim, TRUE);
 		return;
 	}
+	if (bootverbose)
+		device_printf(dev, "MVS reset: device found\n");
 	/* Wait for clearing busy status. */
-	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, 15000)) < 0)
-		device_printf(dev, "device is not ready\n");
-	else if (bootverbose)                                                        
-		device_printf(dev, "ready wait time=%dms\n", i);
+	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ,
+	    dumping ? 31000 : 0)) < 0) {
+		if (dumping) {
+			device_printf(dev,
+			    "MVS reset: device not ready after 31000ms\n");
+		} else
+			ch->resetting = 310;
+	} else if (bootverbose)
+		device_printf(dev, "MVS reset: device ready after %dms\n", i);
 	ch->devices = 1;
 	ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
 	ATA_OUTL(ch->r_mem, EDMA_IEC, 0);
 	ATA_OUTL(ch->r_mem, EDMA_IEM, ~EDMA_IE_TRANSIENT);
-	if (bootverbose)
-		device_printf(dev, "MVS reset done: device found\n");
-	xpt_release_simq(ch->sim, TRUE);
+	if (ch->resetting)
+		callout_reset(&ch->reset_timer, hz / 10, mvs_reset_to, dev);
+	else
+		xpt_release_simq(ch->sim, TRUE);
 }
 
 static void
@@ -1923,7 +2080,8 @@ mvs_softreset(device_t dev, union ccb *ccb)
 {
 	struct mvs_channel *ch = device_get_softc(dev);
 	int port = ccb->ccb_h.target_id & 0x0f;
-	int i;
+	int i, stuck;
+	uint8_t status;
 
 	mvs_set_edma_mode(dev, MVS_EDMA_OFF);
 	ATA_OUTB(ch->r_mem, SATA_SATAICTL, port << SATA_SATAICTL_PMPTX_SHIFT);
@@ -1932,12 +2090,35 @@ mvs_softreset(device_t dev, union ccb *ccb)
 	ATA_OUTB(ch->r_mem, ATA_CONTROL, 0);
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	/* Wait for clearing busy status. */
-	if ((i = mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, ccb->ccb_h.timeout)) < 0) {
+	if ((i = mvs_wait(dev, 0, ATA_S_BUSY, ccb->ccb_h.timeout)) < 0) {
 		ccb->ccb_h.status |= CAM_CMD_TIMEOUT;
+		stuck = 1;
 	} else {
-		ccb->ccb_h.status |= CAM_REQ_CMP;
+		status = mvs_getstatus(dev, 0);
+		if (status & ATA_S_ERROR)
+			ccb->ccb_h.status |= CAM_ATA_STATUS_ERROR;
+		else
+			ccb->ccb_h.status |= CAM_REQ_CMP;
+		if (status & ATA_S_DRQ)
+			stuck = 1;
+		else
+			stuck = 0;
 	}
 	mvs_tfd_read(dev, ccb);
+
+	/*
+	 * XXX: If some device on PMP failed to soft-reset,
+	 * try to recover by sending dummy soft-reset to PMP.
+	 */
+	if (stuck && ch->pm_present && port != 15) {
+		ATA_OUTB(ch->r_mem, SATA_SATAICTL,
+		    15 << SATA_SATAICTL_PMPTX_SHIFT);
+		ATA_OUTB(ch->r_mem, ATA_CONTROL, ATA_A_RESET);
+		DELAY(10000);
+		ATA_OUTB(ch->r_mem, ATA_CONTROL, 0);
+		mvs_wait(dev, 0, ATA_S_BUSY | ATA_S_DRQ, ccb->ccb_h.timeout);
+	}
+
 	xpt_done(ccb);
 }
 
@@ -1945,11 +2126,13 @@ static int
 mvs_sata_connect(struct mvs_channel *ch)
 {
 	u_int32_t status;
-	int timeout;
+	int timeout, found = 0;
 
 	/* Wait up to 100ms for "connect well" */
-	for (timeout = 0; timeout < 100 ; timeout++) {
+	for (timeout = 0; timeout < 1000 ; timeout++) {
 		status = ATA_INL(ch->r_mem, SATA_SS);
+		if ((status & SATA_SS_DET_MASK) != SATA_SS_DET_NO_DEVICE)
+			found = 1;
 		if (((status & SATA_SS_DET_MASK) == SATA_SS_DET_PHY_ONLINE) &&
 		    ((status & SATA_SS_SPD_MASK) != SATA_SS_SPD_NO_SPEED) &&
 		    ((status & SATA_SS_IPM_MASK) == SATA_SS_IPM_ACTIVE))
@@ -1961,18 +2144,21 @@ mvs_sata_connect(struct mvs_channel *ch)
 			}
 			return (0);
 		}
-		DELAY(1000);
+		if (found == 0 && timeout >= 100)
+			break;
+		DELAY(100);
 	}
-	if (timeout >= 100) {
+	if (timeout >= 1000 || !found) {
 		if (bootverbose) {
-			device_printf(ch->dev, "SATA connect timeout status=%08x\n",
-			    status);
+			device_printf(ch->dev,
+			    "SATA connect timeout time=%dus status=%08x\n",
+			    timeout * 100, status);
 		}
 		return (0);
 	}
 	if (bootverbose) {
-		device_printf(ch->dev, "SATA connect time=%dms status=%08x\n",
-		    timeout, status);
+		device_printf(ch->dev, "SATA connect time=%dus status=%08x\n",
+		    timeout * 100, status);
 	}
 	/* Clear SATA error register */
 	ATA_OUTL(ch->r_mem, SATA_SE, 0xffffffff);
@@ -1998,11 +2184,10 @@ mvs_sata_phy_reset(device_t dev)
 	ATA_OUTL(ch->r_mem, SATA_SC,
 	    SATA_SC_DET_RESET | val |
 	    SATA_SC_IPM_DIS_PARTIAL | SATA_SC_IPM_DIS_SLUMBER);
-	DELAY(5000);
+	DELAY(1000);
 	ATA_OUTL(ch->r_mem, SATA_SC,
 	    SATA_SC_DET_IDLE | val | ((ch->pm_level > 0) ? 0 :
 	    (SATA_SC_IPM_DIS_PARTIAL | SATA_SC_IPM_DIS_SLUMBER)));
-	DELAY(5000);
 	if (!mvs_sata_connect(ch)) {
 		if (ch->pm_level > 0)
 			ATA_OUTL(ch->r_mem, SATA_SC, SATA_SC_DET_DISABLE);
@@ -2052,6 +2237,7 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 			ccb->ccb_h.status = CAM_SEL_TIMEOUT;
 			break;
 		}
+		ccb->ccb_h.recovery_type = RECOVERY_NONE;
 		/* Check for command collision. */
 		if (mvs_check_collision(dev, ccb)) {
 			/* Freeze command. */
@@ -2132,6 +2318,7 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.caps = d->caps & CTS_SATA_CAPS_D;
 //			if (ch->pm_level)
 //				cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_PMREQ;
+			cts->xport_specific.sata.caps |= CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.caps &=
 			    ch->user[ccb->ccb_h.target_id].caps;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
@@ -2139,6 +2326,9 @@ mvsaction(struct cam_sim *sim, union ccb *ccb)
 			cts->xport_specific.sata.revision = d->revision;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_REVISION;
 			cts->xport_specific.sata.caps = d->caps;
+			if (cts->type == CTS_TYPE_CURRENT_SETTINGS/* &&
+			    (ch->quirks & MVS_Q_GENIIE) == 0*/)
+				cts->xport_specific.sata.caps &= ~CTS_SATA_CAPS_H_AN;
 			cts->xport_specific.sata.valid |= CTS_SATA_VALID_CAPS;
 		}
 		cts->xport_specific.sata.mode = d->mode;
@@ -2219,7 +2409,12 @@ mvspoll(struct cam_sim *sim)
 	struct mvs_intr_arg arg;
 
 	arg.arg = ch->dev;
-	arg.cause = 2; /* XXX */
+	arg.cause = 2 | 4; /* XXX */
 	mvs_ch_intr(&arg);
+	if (ch->resetting != 0 &&
+	    (--ch->resetpolldiv <= 0 || !callout_pending(&ch->reset_timer))) {
+		ch->resetpolldiv = 1000;
+		mvs_reset_to(ch->dev);
+	}
 }
 

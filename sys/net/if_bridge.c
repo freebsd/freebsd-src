@@ -85,6 +85,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/protosw.h>
 #include <sys/systm.h>
+#include <sys/jail.h>
 #include <sys/time.h>
 #include <sys/socket.h> /* for net/if.h */
 #include <sys/sockio.h>
@@ -343,7 +344,7 @@ static struct bstp_cb_ops bridge_ops = {
 };
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
+static SYSCTL_NODE(_net_link, IFT_BRIDGE, bridge, CTLFLAG_RW, 0, "Bridge");
 
 static int pfil_onlyip = 1; /* only pass IP[46] packets when pfil is enabled */
 static int pfil_bridge = 1; /* run pfil hooks on the bridge interface */
@@ -560,7 +561,8 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 {
 	struct bridge_softc *sc, *sc2;
 	struct ifnet *bifp, *ifp;
-	int retry;
+	int fb, retry;
+	unsigned long hostid;
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
@@ -593,17 +595,30 @@ bridge_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	/*
-	 * Generate a random ethernet address with a locally administered
-	 * address.
+	 * Generate an ethernet address with a locally administered address.
 	 *
 	 * Since we are using random ethernet addresses for the bridge, it is
 	 * possible that we might have address collisions, so make sure that
 	 * this hardware address isn't already in use on another bridge.
+	 * The first try uses the hostid and falls back to arc4rand().
 	 */
+	fb = 0;
+	getcredhostid(curthread->td_ucred, &hostid);
 	for (retry = 1; retry != 0;) {
-		arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
-		sc->sc_defaddr[0] &= ~1;	/* clear multicast bit */
-		sc->sc_defaddr[0] |= 2;		/* set the LAA bit */
+		if (fb || hostid == 0) {
+			arc4rand(sc->sc_defaddr, ETHER_ADDR_LEN, 1);
+			sc->sc_defaddr[0] &= ~1;/* clear multicast bit */
+			sc->sc_defaddr[0] |= 2;	/* set the LAA bit */
+		} else {
+			sc->sc_defaddr[0] = 0x2;
+			sc->sc_defaddr[1] = (hostid >> 24) & 0xff;
+			sc->sc_defaddr[2] = (hostid >> 16) & 0xff;
+			sc->sc_defaddr[3] = (hostid >> 8 ) & 0xff;
+			sc->sc_defaddr[4] =  hostid        & 0xff;
+			sc->sc_defaddr[5] = ifp->if_dunit & 0xff;
+		}
+
+		fb = 1;
 		retry = 0;
 		mtx_lock(&bridge_list_mtx);
 		LIST_FOREACH(sc2, &bridge_list, sc_list) {
@@ -661,7 +676,7 @@ bridge_clone_destroy(struct ifnet *ifp)
 
 	bstp_detach(&sc->sc_stp);
 	ether_ifdetach(ifp);
-	if_free_type(ifp, IFT_ETHER);
+	if_free(ifp);
 
 	/* Tear down the routing table. */
 	bridge_rtable_fini(sc);
@@ -3083,6 +3098,7 @@ bridge_pfil(struct mbuf **mp, struct ifnet *bifp, struct ifnet *ifp, int dir)
 		args.m = *mp;
 		args.oif = ifp;
 		args.next_hop = NULL;
+		args.next_hop6 = NULL;
 		args.eh = &eh2;
 		args.inp = NULL;	/* used by ipfw uid/gid/jail rules */
 		i = V_ip_fw_chk_ptr(&args);

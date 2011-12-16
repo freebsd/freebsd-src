@@ -33,7 +33,8 @@ public:
   Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple);
   ~Generic_GCC();
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsUnwindTablesDefault() const;
   virtual const char *GetDefaultRelocationModel() const;
@@ -56,15 +57,36 @@ private:
   // the argument translation business.
   mutable bool TargetInitialized;
 
-  /// Whether we are targetting iPhoneOS target.
+  // FIXME: Remove this once there is a proper way to detect an ARC runtime
+  // for the simulator.
+ public:
+  mutable enum {
+    ARCSimulator_None,
+    ARCSimulator_HasARCRuntime,
+    ARCSimulator_NoARCRuntime
+  } ARCRuntimeForSimulator;
+
+  mutable enum {
+    LibCXXSimulator_None,
+    LibCXXSimulator_NotAvailable,
+    LibCXXSimulator_Available
+  } LibCXXForSimulator;
+
+private:
+  /// Whether we are targeting iPhoneOS target.
   mutable bool TargetIsIPhoneOS;
 
-  /// The OS version we are targetting.
+  /// Whether we are targeting the iPhoneOS simulator target.
+  mutable bool TargetIsIPhoneOSSimulator;
+
+  /// The OS version we are targeting.
   mutable unsigned TargetVersion[3];
 
   /// The default macosx-version-min of this tool chain; empty until
   /// initialized.
   std::string MacosxVersionMin;
+
+  bool hasARCRuntime() const;
 
 private:
   void AddDeploymentTarget(DerivedArgList &Args) const;
@@ -73,25 +95,30 @@ public:
   Darwin(const HostInfo &Host, const llvm::Triple& Triple);
   ~Darwin();
 
-  std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
+  std::string ComputeEffectiveClangTriple(const ArgList &Args,
+                                          types::ID InputType) const;
 
   /// @name Darwin Specific Toolchain API
   /// {
 
   // FIXME: Eliminate these ...Target functions and derive separate tool chains
   // for these targets and put version in constructor.
-  void setTarget(bool isIPhoneOS, unsigned Major, unsigned Minor,
-                 unsigned Micro) const {
+  void setTarget(bool IsIPhoneOS, unsigned Major, unsigned Minor,
+                 unsigned Micro, bool IsIOSSim) const {
+    assert((!IsIOSSim || IsIPhoneOS) && "Unexpected deployment target!");
+
     // FIXME: For now, allow reinitialization as long as values don't
     // change. This will go away when we move away from argument translation.
-    if (TargetInitialized && TargetIsIPhoneOS == isIPhoneOS &&
+    if (TargetInitialized && TargetIsIPhoneOS == IsIPhoneOS &&
+        TargetIsIPhoneOSSimulator == IsIOSSim &&
         TargetVersion[0] == Major && TargetVersion[1] == Minor &&
         TargetVersion[2] == Micro)
       return;
 
     assert(!TargetInitialized && "Target already initialized!");
     TargetInitialized = true;
-    TargetIsIPhoneOS = isIPhoneOS;
+    TargetIsIPhoneOS = IsIPhoneOS;
+    TargetIsIPhoneOSSimulator = IsIOSSim;
     TargetVersion[0] = Major;
     TargetVersion[1] = Minor;
     TargetVersion[2] = Micro;
@@ -100,6 +127,11 @@ public:
   bool isTargetIPhoneOS() const {
     assert(TargetInitialized && "Target not initialized!");
     return TargetIsIPhoneOS;
+  }
+
+  bool isTargetIOSSimulator() const {
+    assert(TargetInitialized && "Target not initialized!");
+    return TargetIsIPhoneOSSimulator;
   }
 
   bool isTargetInitialized() const { return TargetInitialized; }
@@ -114,7 +146,7 @@ public:
   /// getDarwinArchName - Get the "Darwin" arch name for a particular compiler
   /// invocation. For example, Darwin treats different ARM variations as
   /// distinct architectures.
-  llvm::StringRef getDarwinArchName(const ArgList &Args) const;
+  StringRef getDarwinArchName(const ArgList &Args) const;
 
   static bool isVersionLT(unsigned (&A)[3], unsigned (&B)[3]) {
     for (unsigned i=0; i < 3; ++i) {
@@ -144,11 +176,15 @@ public:
   virtual void AddLinkSearchPathArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const = 0;
 
+  /// AddLinkARCArgs - Add the linker arguments to link the ARC runtime library.
+  virtual void AddLinkARCArgs(const ArgList &Args,
+                              ArgStringList &CmdArgs) const = 0;
+  
   /// AddLinkRuntimeLibArgs - Add the linker arguments to link the compiler
   /// runtime library.
   virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const = 0;
-
+  
   /// }
   /// @name ToolChain Implementation
   /// {
@@ -157,10 +193,14 @@ public:
 
   virtual bool HasNativeLLVMSupport() const;
 
+  virtual void configureObjCRuntime(ObjCRuntime &runtime) const;
+  virtual bool hasBlocksRuntime() const;
+
   virtual DerivedArgList *TranslateArgs(const DerivedArgList &Args,
                                         const char *BoundArch) const;
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsBlocksDefault() const {
     // Always allow blocks on Darwin; users interested in versioning are
@@ -205,12 +245,17 @@ public:
     return !(!isTargetIPhoneOS() && isMacosxVersionLT(10, 6));
   }
   virtual bool IsUnwindTablesDefault() const;
-  virtual unsigned GetDefaultStackProtectorLevel() const {
-    // Stack protectors default to on for 10.6 and beyond.
-    return !isTargetIPhoneOS() && !isMacosxVersionLT(10, 6);
+  virtual unsigned GetDefaultStackProtectorLevel(bool KernelOrKext) const {
+    // Stack protectors default to on for user code on 10.5,
+    // and for everything in 10.6 and beyond
+    return !isTargetIPhoneOS() &&
+      (!isMacosxVersionLT(10, 6) ||
+         (!isMacosxVersionLT(10, 5) && !KernelOrKext));
   }
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
+
+  virtual bool SupportsProfiling() const;
 
   virtual bool SupportsObjCGC() const;
 
@@ -223,6 +268,9 @@ public:
 
 /// DarwinClang - The Darwin toolchain used by Clang.
 class LLVM_LIBRARY_VISIBILITY DarwinClang : public Darwin {
+private:
+  void AddGCCLibexecPath(unsigned darwinVersion);
+
 public:
   DarwinClang(const HostInfo &Host, const llvm::Triple& Triple);
 
@@ -234,36 +282,17 @@ public:
 
   virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
                                      ArgStringList &CmdArgs) const;
-
+  void AddLinkRuntimeLib(const ArgList &Args, ArgStringList &CmdArgs, 
+                         const char *DarwinStaticLib) const;
+  
   virtual void AddCXXStdlibLibArgs(const ArgList &Args,
                                    ArgStringList &CmdArgs) const;
 
   virtual void AddCCKextLibArgs(const ArgList &Args,
                                 ArgStringList &CmdArgs) const;
 
-  /// }
-};
-
-/// DarwinGCC - The Darwin toolchain used by GCC.
-class LLVM_LIBRARY_VISIBILITY DarwinGCC : public Darwin {
-  /// GCC version to use.
-  unsigned GCCVersion[3];
-
-  /// The directory suffix for this tool chain.
-  std::string ToolChainDir;
-
-public:
-  DarwinGCC(const HostInfo &Host, const llvm::Triple& Triple);
-
-  /// @name Darwin ToolChain Implementation
-  /// {
-
-  virtual void AddLinkSearchPathArgs(const ArgList &Args,
-                                    ArgStringList &CmdArgs) const;
-
-  virtual void AddLinkRuntimeLibArgs(const ArgList &Args,
-                                     ArgStringList &CmdArgs) const;
-
+  virtual void AddLinkARCArgs(const ArgList &Args,
+                              ArgStringList &CmdArgs) const;
   /// }
 };
 
@@ -273,7 +302,8 @@ public:
   Darwin_Generic_GCC(const HostInfo &Host, const llvm::Triple& Triple)
     : Generic_GCC(Host, Triple) {}
 
-  std::string ComputeEffectiveClangTriple(const ArgList &Args) const;
+  std::string ComputeEffectiveClangTriple(const ArgList &Args,
+                                          types::ID InputType) const;
 
   virtual const char *GetDefaultRelocationModel() const { return "pic"; }
 };
@@ -294,51 +324,146 @@ class LLVM_LIBRARY_VISIBILITY AuroraUX : public Generic_GCC {
 public:
   AuroraUX(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY OpenBSD : public Generic_ELF {
 public:
   OpenBSD(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY FreeBSD : public Generic_ELF {
 public:
   FreeBSD(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY NetBSD : public Generic_ELF {
-public:
-  NetBSD(const HostInfo &Host, const llvm::Triple& Triple);
+  const llvm::Triple ToolTriple;
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+public:
+  NetBSD(const HostInfo &Host, const llvm::Triple& Triple,
+         const llvm::Triple& ToolTriple);
+
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY Minix : public Generic_GCC {
 public:
   Minix(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY DragonFly : public Generic_ELF {
 public:
   DragonFly(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 };
 
 class LLVM_LIBRARY_VISIBILITY Linux : public Generic_ELF {
+  /// \brief Struct to store and manipulate GCC versions.
+  ///
+  /// We rely on assumptions about the form and structure of GCC version
+  /// numbers: they consist of at most three '.'-separated components, and each
+  /// component is a non-negative integer except for the last component. For
+  /// the last component we are very flexible in order to tolerate release
+  /// candidates or 'x' wildcards.
+  ///
+  /// Note that the ordering established among GCCVersions is based on the
+  /// preferred version string to use. For example we prefer versions without
+  /// a hard-coded patch number to those with a hard coded patch number.
+  ///
+  /// Currently this doesn't provide any logic for textual suffixes to patches
+  /// in the way that (for example) Debian's version format does. If that ever
+  /// becomes necessary, it can be added.
+  struct GCCVersion {
+    /// \brief The unparsed text of the version.
+    std::string Text;
+
+    /// \brief The parsed major, minor, and patch numbers.
+    int Major, Minor, Patch;
+
+    /// \brief Any textual suffix on the patch number.
+    std::string PatchSuffix;
+
+    static GCCVersion Parse(StringRef VersionText);
+    bool operator<(const GCCVersion &RHS) const;
+    bool operator>(const GCCVersion &RHS) const { return RHS < *this; }
+    bool operator<=(const GCCVersion &RHS) const { return !(*this > RHS); }
+    bool operator>=(const GCCVersion &RHS) const { return !(*this < RHS); }
+  };
+
+
+  /// \brief This is a class to find a viable GCC installation for Clang to
+  /// use.
+  ///
+  /// This class tries to find a GCC installation on the system, and report
+  /// information about it. It starts from the host information provided to the
+  /// Driver, and has logic for fuzzing that where appropriate.
+  class GCCInstallationDetector {
+
+    bool IsValid;
+    std::string GccTriple;
+
+    // FIXME: These might be better as path objects.
+    std::string GccInstallPath;
+    std::string GccParentLibPath;
+
+    GCCVersion Version;
+
+  public:
+    GCCInstallationDetector(const Driver &D);
+
+    /// \brief Check whether we detected a valid GCC install.
+    bool isValid() const { return IsValid; }
+
+    /// \brief Get the GCC triple for the detected install.
+    StringRef getTriple() const { return GccTriple; }
+
+    /// \brief Get the detected GCC installation path.
+    StringRef getInstallPath() const { return GccInstallPath; }
+
+    /// \brief Get the detected GCC parent lib path.
+    StringRef getParentLibPath() const { return GccParentLibPath; }
+
+    /// \brief Get the detected GCC version string.
+    StringRef getVersion() const { return Version.Text; }
+
+  private:
+    static void CollectLibDirsAndTriples(llvm::Triple::ArchType HostArch,
+                                         SmallVectorImpl<StringRef> &LibDirs,
+                                         SmallVectorImpl<StringRef> &Triples);
+
+    void ScanLibDirForGCCTriple(llvm::Triple::ArchType HostArch,
+                                const std::string &LibDir,
+                                StringRef CandidateTriple);
+  };
+
+  GCCInstallationDetector GCCInstallation;
+
 public:
   Linux(const HostInfo &Host, const llvm::Triple& Triple);
 
   virtual bool HasNativeLLVMSupport() const;
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
+
+  virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                         ArgStringList &CC1Args) const;
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
 
   std::string Linker;
   std::vector<std::string> ExtraOpts;
@@ -352,7 +477,8 @@ public:
   TCEToolChain(const HostInfo &Host, const llvm::Triple& Triple);
   ~TCEToolChain();
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
   bool IsMathErrnoDefault() const;
   bool IsUnwindTablesDefault() const;
   const char* GetDefaultRelocationModel() const;
@@ -369,12 +495,19 @@ class LLVM_LIBRARY_VISIBILITY Windows : public ToolChain {
 public:
   Windows(const HostInfo &Host, const llvm::Triple& Triple);
 
-  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA) const;
+  virtual Tool &SelectTool(const Compilation &C, const JobAction &JA,
+                           const ActionList &Inputs) const;
 
   virtual bool IsIntegratedAssemblerDefault() const;
   virtual bool IsUnwindTablesDefault() const;
   virtual const char *GetDefaultRelocationModel() const;
   virtual const char *GetForcedPicModel() const;
+
+  virtual void AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                         ArgStringList &CC1Args) const;
+  virtual void AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                            ArgStringList &CC1Args) const;
+
 };
 
 } // end namespace toolchains

@@ -87,27 +87,17 @@ GLOBAL(tmpstk)
 GLOBAL(esym)
 	.long	0			/* end of symbol table */
 
-GLOBAL(ofmsr)
-	.long	0, 0, 0, 0, 0		/* msr/sprg0-3 used in Open Firmware */
-
 #define	INTRCNT_COUNT	256		/* max(HROWPIC_IRQMAX,OPENPIC_IRQMAX) */
 GLOBAL(intrnames)
 	.space	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
-GLOBAL(eintrnames)
+GLOBAL(sintrnames)
+	.long	INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
+
 	.align 4
 GLOBAL(intrcnt)
 	.space	INTRCNT_COUNT * 4 * 2
-GLOBAL(eintrcnt)
-
-/*
- * File-scope for locore.S
- */
-idle_u:
-	.long	0			/* fake uarea during idle after exit */
-openfirmware_entry:
-	.long	0			/* Open Firmware entry point */
-srsave:
-	.long	0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+GLOBAL(sintrcnt)
+	.long	INTRCNT_COUNT * 4 * 2
 
 	.text
 	.globl	btext
@@ -194,8 +184,7 @@ setfault:
 	mflr	0
 	mfcr	12
 	mfsprg	4,0
-	lwz	4,PC_CURTHREAD(4)
-	lwz	4,TD_PCB(4)
+	lwz	4,TD_PCB(2)	/* curthread = r2 */
 	stw	3,PCB_ONFAULT(4)
 	stw	0,0(3)
 	stw	1,4(3)

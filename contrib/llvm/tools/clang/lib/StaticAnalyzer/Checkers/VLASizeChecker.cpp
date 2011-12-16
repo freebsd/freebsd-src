@@ -14,32 +14,27 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InternalChecks.h"
-#include "clang/AST/CharUnits.h"
+#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
+#include "clang/AST/CharUnits.h"
 
 using namespace clang;
 using namespace ento;
 
 namespace {
-class VLASizeChecker : public CheckerVisitor<VLASizeChecker> {
-  BugType *BT_zero;
-  BugType *BT_undef;
+class VLASizeChecker : public Checker< check::PreStmt<DeclStmt> > {
+  mutable llvm::OwningPtr<BugType> BT_zero;
+  mutable llvm::OwningPtr<BugType> BT_undef;
   
 public:
-  VLASizeChecker() : BT_zero(0), BT_undef(0) {}
-  static void *getTag() { static int tag = 0; return &tag; }
-  void PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS);
+  void checkPreStmt(const DeclStmt *DS, CheckerContext &C) const;
 };
 } // end anonymous namespace
 
-void ento::RegisterVLASizeChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new VLASizeChecker());
-}
-
-void VLASizeChecker::PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS) {
+void VLASizeChecker::checkPreStmt(const DeclStmt *DS, CheckerContext &C) const {
   if (!DS->isSingleDecl())
     return;
   
@@ -53,8 +48,8 @@ void VLASizeChecker::PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS) {
     return;
 
   // FIXME: Handle multi-dimensional VLAs.
-  const Expr* SE = VLA->getSizeExpr();
-  const GRState *state = C.getState();
+  const Expr *SE = VLA->getSizeExpr();
+  const ProgramState *state = C.getState();
   SVal sizeV = state->getSVal(SE);
 
   if (sizeV.isUndef()) {
@@ -64,13 +59,13 @@ void VLASizeChecker::PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS) {
       return;
     
     if (!BT_undef)
-      BT_undef = new BuiltinBug("Declared variable-length array (VLA) uses a "
-                                "garbage value as its size");
+      BT_undef.reset(new BuiltinBug("Declared variable-length array (VLA) "
+                                    "uses a garbage value as its size"));
 
-    EnhancedBugReport *report =
-      new EnhancedBugReport(*BT_undef, BT_undef->getName(), N);
+    BugReport *report =
+      new BugReport(*BT_undef, BT_undef->getName(), N);
     report->addRange(SE->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, SE);
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
     C.EmitReport(report);
     return;
   }
@@ -83,19 +78,19 @@ void VLASizeChecker::PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS) {
   // Check if the size is zero.
   DefinedSVal sizeD = cast<DefinedSVal>(sizeV);
 
-  const GRState *stateNotZero, *stateZero;
+  const ProgramState *stateNotZero, *stateZero;
   llvm::tie(stateNotZero, stateZero) = state->assume(sizeD);
 
   if (stateZero && !stateNotZero) {
-    ExplodedNode* N = C.generateSink(stateZero);
+    ExplodedNode *N = C.generateSink(stateZero);
     if (!BT_zero)
-      BT_zero = new BuiltinBug("Declared variable-length array (VLA) has zero "
-                               "size");
+      BT_zero.reset(new BuiltinBug("Declared variable-length array (VLA) has "
+                                   "zero size"));
 
-    EnhancedBugReport *report =
-      new EnhancedBugReport(*BT_zero, BT_zero->getName(), N);
+    BugReport *report =
+      new BugReport(*BT_zero, BT_zero->getName(), N);
     report->addRange(SE->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, SE);
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N, SE));
     C.EmitReport(report);
     return;
   }
@@ -135,4 +130,8 @@ void VLASizeChecker::PreVisitDeclStmt(CheckerContext &C, const DeclStmt *DS) {
 
   // Remember our assumptions!
   C.addTransition(state);
+}
+
+void ento::registerVLASizeChecker(CheckerManager &mgr) {
+  mgr.registerChecker<VLASizeChecker>();
 }

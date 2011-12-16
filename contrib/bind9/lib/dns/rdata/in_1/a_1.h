@@ -19,7 +19,7 @@
 #ifndef IN_1_A_1_H
 #define IN_1_A_1_H 1
 
-/* $Id: a_1.h,v 1.28 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: a_1.h,v 1.28 2007-06-19 23:47:17 tbox Exp $ */
 
 typedef struct dns_rdata_in_a {
 	dns_rdatacommon_t	common;

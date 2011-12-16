@@ -195,7 +195,7 @@ clnt_reconnect_connect(CLIENT *cl)
 	else
 		newclient = clnt_vc_create(so,
 		    (struct sockaddr *) &rc->rc_addr, rc->rc_prog, rc->rc_vers,
-		    rc->rc_sendsz, rc->rc_recvsz);
+		    rc->rc_sendsz, rc->rc_recvsz, rc->rc_intr);
 	td->td_ucred = oldcred;
 
 	if (!newclient) {

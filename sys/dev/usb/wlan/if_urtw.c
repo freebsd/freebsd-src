@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_urtwreg.h>
 #include <dev/usb/wlan/if_urtwvar.h>
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
 SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RW, &urtw_debug, 0,
@@ -102,7 +102,7 @@ TUNABLE_INT("hw.usb.urtw.preamble_mode", &urtw_preamble_mode);
 	{ USB_VPI(USB_VENDOR_##v, USB_PRODUCT_##v##_##p, URTW_REV_RTL8187L) }
 #define	URTW_REV_RTL8187B	0
 #define	URTW_REV_RTL8187L	1
-static const struct usb_device_id urtw_devs[] = {
+static const STRUCT_USB_HOST_ID urtw_devs[] = {
 	URTW_DEV_B(NETGEAR, WG111V3),
 	URTW_DEV_B(REALTEK, RTL8187B_0),
 	URTW_DEV_B(REALTEK, RTL8187B_1),
@@ -115,7 +115,7 @@ static const struct usb_device_id urtw_devs[] = {
 	URTW_DEV_L(REALTEK, RTL8187),
 	URTW_DEV_L(SITECOMEU, WL168V1),
 	URTW_DEV_L(SURECOM, EP9001G2A),
-	{ USB_VPI(0x1b75, 0x8187, URTW_REV_RTL8187L) },
+	{ USB_VPI(USB_VENDOR_OVISLINK, 0x8187, URTW_REV_RTL8187L) },
 	{ USB_VPI(USB_VENDOR_DICKSMITH, 0x9401, URTW_REV_RTL8187L) },
 	{ USB_VPI(USB_VENDOR_HP, 0xca02, URTW_REV_RTL8187L) },
 	{ USB_VPI(USB_VENDOR_LOGITEC, 0x010c, URTW_REV_RTL8187L) },
@@ -1053,10 +1053,10 @@ urtw_init_locked(void *arg)
 
 	if (!(sc->sc_flags & URTW_INIT_ONCE)) {
 		ret = urtw_alloc_rx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		ret = urtw_alloc_tx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		sc->sc_flags |= URTW_INIT_ONCE;
 	}
@@ -1745,7 +1745,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	if ((0 == xferlen % 64) || (0 == xferlen % 512))
 		xferlen += 1;
 
-	bzero(data->buf, URTW_TX_MAXSIZE);
+	memset(data->buf, 0, URTW_TX_MAXSIZE);
 	flags = m0->m_pkthdr.len & 0xfff;
 	flags |= URTW_TX_FLAG_NO_ENC;
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&

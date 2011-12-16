@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -45,8 +46,11 @@
 	errno = _rerrno;						\
 } while (0)
 
+int vsnprlcat(char *str, size_t size, const char *fmt, va_list ap);
+int snprlcat(char *str, size_t size, const char *fmt, ...);
+
 int provinfo(struct hast_resource *res, bool dowrite);
 const char *role2str(int role);
-int drop_privs(void);
+int drop_privs(struct hast_resource *res);
 
 #endif	/* !_SUBR_H_ */

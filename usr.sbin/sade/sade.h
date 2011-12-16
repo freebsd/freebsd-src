@@ -40,9 +40,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <dialog.h>
-#include "ui_objects.h"
-#include "dir.h"
-#include "colors.h"
 
 /*** Defines ***/
 
@@ -133,10 +130,25 @@ typedef int Boolean;
 typedef struct disk Disk;
 typedef struct chunk Chunk;
 
+/* special return codes for `fire' actions */
+#define DITEM_STATUS(flag)	((flag) & 0x0000FFFF)
+#define DITEM_SUCCESS		0
+#define DITEM_FAILURE		1
+
+/* flags - returned in upper 16 bits of return status */
+#define DITEM_LEAVE_MENU	(1 << 16)
+#define DITEM_RESTORE		(1 << 19)
+
+/* for use in describing more exotic behaviors */
+typedef struct _dmenu_item {
+    char *prompt;
+    char *title;
+    int (*fire)(struct _dmenu_item *self);
+} dialogMenuItem;
+
 /* Bitfields for menu options */
 #define DMENU_NORMAL_TYPE	0x1     /* Normal dialog menu           */
 #define DMENU_RADIO_TYPE	0x2     /* Radio dialog menu            */
-#define DMENU_CHECKLIST_TYPE	0x4     /* Multiple choice menu         */
 #define DMENU_SELECTION_RETURNS 0x8     /* Immediate return on item selection */
 
 typedef struct _dmenu {
@@ -187,7 +199,6 @@ typedef struct _device {
     char *description;
     char *devname;
     DeviceType type;
-    Boolean enabled;
     Boolean (*init)(struct _device *dev);
     FILE * (*get)(struct _device *dev, char *file, Boolean probe);
     void (*shutdown)(struct _device *dev);
@@ -304,16 +315,8 @@ extern void	command_execute(void);
 extern void	command_shell_add(char *key, const char *fmt, ...) __printflike(2, 3);
 extern void	command_func_add(char *key, commandFunc func, void *data);
 
-/* config.c */
-extern void	configEnvironmentRC_conf(void);
-extern void	configRC_conf(void);
-extern int	configFstab(dialogMenuItem *self);
-extern int	configRC(dialogMenuItem *self);
-extern int	configWriteRC_conf(dialogMenuItem *self);
-
 /* devices.c */
-extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d),
-				  int (*check)(dialogMenuItem *d));
+extern DMenu	*deviceCreateMenu(DMenu *menu, DeviceType type, int (*hook)(dialogMenuItem *d));
 extern void	deviceGetAll(void);
 extern void	deviceReset(void);
 extern void	deviceRescan(void);
@@ -321,7 +324,7 @@ extern Device	**deviceFind(char *name, DeviceType type);
 extern Device	**deviceFindDescr(char *name, char *desc, DeviceType class);
 extern int	deviceCount(Device **devs);
 extern Device	*new_device(char *name);
-extern Device	*deviceRegister(char *name, char *desc, char *devicename, DeviceType type, Boolean enabled,
+extern Device	*deviceRegister(char *name, char *desc, char *devicename, DeviceType type,
 				Boolean (*init)(Device *mediadev),
 				FILE * (*get)(Device *dev, char *file, Boolean probe),
 				void (*shutDown)(Device *mediadev),
@@ -335,8 +338,7 @@ extern void	dummyShutdown(Device *dev);
 extern void	diskPartition(Device *dev);
 extern int	diskPartitionEditor(dialogMenuItem *self);
 #endif
-extern int	diskPartitionWrite(dialogMenuItem *self);
-extern int	diskGetSelectCount(Device ***devs);
+extern int	diskPartitionWrite(Device *dev);
 
 /* dispatch.c */
 extern int	dispatchCommand(char *command);
@@ -345,22 +347,8 @@ extern int	dispatch_load_file_int(int);
 extern int	dispatch_load_file(dialogMenuItem *self);
 
 /* dmenu.c */
-extern int	dmenuDisplayFile(dialogMenuItem *tmp);
-extern int	dmenuSubmenu(dialogMenuItem *tmp);
-extern int	dmenuSystemCommand(dialogMenuItem *tmp);
-extern int	dmenuSystemCommandBox(dialogMenuItem *tmp);
-extern int	dmenuExit(dialogMenuItem *tmp);
-extern int	dmenuISetVariable(dialogMenuItem *tmp);
-extern int	dmenuSetVariable(dialogMenuItem *tmp);
-extern int	dmenuSetVariables(dialogMenuItem *tmp);
-extern int	dmenuToggleVariable(dialogMenuItem *tmp);
-extern int	dmenuSetFlag(dialogMenuItem *tmp);
 extern int	dmenuSetValue(dialogMenuItem *tmp);
-extern Boolean	dmenuOpen(DMenu *menu, int *choice, int *bscroll, int *curr, int *max, Boolean buttons);
-extern Boolean	dmenuOpenSimple(DMenu *menu, Boolean buttons);
-extern int	dmenuVarCheck(dialogMenuItem *item);
-extern int	dmenuVarsCheck(dialogMenuItem *item);
-extern int	dmenuFlagCheck(dialogMenuItem *item);
+extern Boolean	dmenuOpen(DMenu *menu);
 extern int	dmenuRadioCheck(dialogMenuItem *item);
 
 /* dos.c */
@@ -376,7 +364,7 @@ extern void	globalsInit(void);
 extern Boolean	checkLabels(Boolean whinge);
 extern int	installCommit(dialogMenuItem *self);
 extern int	installCustomCommit(dialogMenuItem *self);
-extern int	installFilesystems(dialogMenuItem *self);
+extern int	installFilesystems(Device *dev);
 extern int	installVarDefaults(dialogMenuItem *self);
 extern void	installEnvironment(void);
 extern Boolean	copySelf(void);
@@ -386,40 +374,30 @@ extern int	kget(char *out);
 
 /* label.c */
 extern int	diskLabelEditor(dialogMenuItem *self);
-extern int	diskLabelCommit(dialogMenuItem *self);
+extern int	diskLabelCommit(Device *dev);
 
 /* misc.c */
 extern Boolean	file_readable(char *fname);
-extern Boolean	file_executable(char *fname);
 extern Boolean	directory_exists(const char *dirname);
-extern char	*root_bias(char *path);
-extern char	*itoa(int value);
-extern char	*string_concat(char *p1, char *p2);
-extern char	*string_concat3(char *p1, char *p2, char *p3);
 extern char	*string_prune(char *str);
 extern char	*string_skipwhite(char *str);
-extern char	*string_copy(char *s1, char *s2);
-extern char	*pathBaseName(const char *path);
 extern void	safe_free(void *ptr);
 extern void	*safe_malloc(size_t size);
-extern void	*safe_realloc(void *orig, size_t size);
-extern dialogMenuItem *item_add(dialogMenuItem *list, char *prompt, char *title, 
-				int (*checked)(dialogMenuItem *self),
-				int (*fire)(dialogMenuItem *self),
-				void (*selected)(dialogMenuItem *self, int is_selected),
-				void *data, int *aux, int *curr, int *max);
-extern void	items_free(dialogMenuItem *list, int *curr, int *max);
 extern int	Mkdir(char *);
-extern int	Mkdir_command(char *key, void *data);
 extern int	Mount(char *, void *data);
-extern WINDOW	*openLayoutDialog(char *helpfile, char *title, int x, int y, int width, int height);
-extern ComposeObj *initLayoutDialog(WINDOW *win, Layout *layout, int x, int y, int *max);
-extern int	layoutDialogLoop(WINDOW *win, Layout *layout, ComposeObj **obj,
-				 int *n, int max, int *cbutton, int *cancel);
 
 extern WINDOW	*savescr(void);
 extern void	restorescr(WINDOW *w);
 extern char	*sstrncpy(char *dst, const char *src, int size);
+
+extern int	xdialog_menu(const char *title, const char *cprompt,
+			     int height, int width, int menu_height,
+			     int item_no, dialogMenuItem *ditems);
+extern int	xdialog_radiolist(const char *title, const char *cprompt,
+				  int height, int width, int menu_height,
+				  int item_no, dialogMenuItem *ditems);
+extern int	xdialog_msgbox(const char *title, const char *cprompt,
+			       int height, int width, int pauseopt);
 
 /* msg.c */
 extern Boolean	isDebug(void);

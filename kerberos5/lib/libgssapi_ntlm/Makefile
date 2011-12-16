@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	gssapi_ntlm
-LDFLAGS= -Wl,-Bsymbolic
-LDADD=	-lkrb5 -lhx509 -lheimntlm -lroken
-DPADD=	${LIBKRB5} ${LIBHX509} ${LIBHEIMNTLM} ${LIBROKEN}
+LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
+LDADD=	-lcrypto -lgssapi -lkrb5 -lhx509 -lheimntlm -lroken
+DPADD=	${LIBCRYPTO} ${LIBGSSAPI} ${LIBKRB5} ${LIBHX509} ${LIBHEIMNTLM} ${LIBROKEN}
 
 SRCS=	accept_sec_context.c \
 	acquire_cred.c \

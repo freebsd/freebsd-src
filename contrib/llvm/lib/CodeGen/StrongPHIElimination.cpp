@@ -47,6 +47,7 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/Debug.h"
 using namespace llvm;
@@ -587,7 +588,7 @@ StrongPHIElimination::SplitInterferencesForBasicBlock(
   }
 
   // We now walk the PHIs in successor blocks and check for interferences. This
-  // is necesary because the use of a PHI's operands are logically contained in
+  // is necessary because the use of a PHI's operands are logically contained in
   // the predecessor block. The def of a PHI's destination register is processed
   // along with the other defs in a basic block.
 
@@ -673,7 +674,7 @@ void StrongPHIElimination::InsertCopiesForPHI(MachineInstr *PHI,
     if (PHIColor && SrcColor == PHIColor) {
       LiveInterval &SrcInterval = LI->getInterval(SrcReg);
       SlotIndex PredIndex = LI->getMBBEndIdx(PredBB);
-      VNInfo *SrcVNI = SrcInterval.getVNInfoAt(PredIndex.getPrevIndex());
+      VNInfo *SrcVNI = SrcInterval.getVNInfoBefore(PredIndex);
       assert(SrcVNI);
       SrcVNI->setHasPHIKill(true);
       continue;

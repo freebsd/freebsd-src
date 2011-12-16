@@ -35,6 +35,16 @@
 #ifndef _DEV_ATH_ATHIOCTL_H
 #define _DEV_ATH_ATHIOCTL_H
 
+struct ath_tx_aggr_stats {
+	u_int32_t	aggr_pkts[64];
+	u_int32_t	aggr_single_pkt;
+	u_int32_t	aggr_nonbaw_pkt;
+	u_int32_t	aggr_aggr_pkt;
+	u_int32_t	aggr_baw_closed_single_pkt;
+	u_int32_t	aggr_low_hwq_single_pkt;
+	u_int32_t	aggr_sched_nopkt;
+};
+
 struct ath_stats {
 	u_int32_t	ast_watchdog;	/* device reset by watchdog */
 	u_int32_t	ast_hardware;	/* fatal hardware error interrupts */
@@ -121,14 +131,31 @@ struct ath_stats {
 	u_int32_t	ast_be_missed;	/* missed beacons */
 	u_int32_t	ast_ani_cal;	/* ANI calibrations performed */
 	u_int32_t	ast_rx_agg;	/* number of aggregate frames RX'ed */
-	u_int32_t	ast_rx_halfgi;
-	u_int32_t	ast_rx_2040;
-	u_int32_t	ast_rx_pre_crc_err;
-	u_int32_t	ast_rx_post_crc_err;
-	u_int32_t	ast_rx_decrypt_busy_err;
+	u_int32_t	ast_rx_halfgi;	/* RX half-GI */
+	u_int32_t	ast_rx_2040;	/* RX 40mhz frame */
+	u_int32_t	ast_rx_pre_crc_err;	/* RX pre-delimiter CRC error */
+	u_int32_t	ast_rx_post_crc_err;	/* RX post-delimiter CRC error */
+	u_int32_t	ast_rx_decrypt_busy_err;	/* RX decrypt engine busy error */
 	u_int32_t	ast_rx_hi_rx_chain;
 	u_int32_t	ast_tx_htprotect;	/* HT tx frames with protection */
-	u_int32_t	ast_pad[3];
+	u_int32_t	ast_rx_hitqueueend;	/* RX hit descr queue end */
+	u_int32_t	ast_tx_timeout;		/* Global TX timeout */
+	u_int32_t	ast_tx_cst;		/* Carrier sense timeout */
+	u_int32_t	ast_tx_xtxop;	/* tx exceeded TXOP */
+	u_int32_t	ast_tx_timerexpired;	/* tx exceeded TX_TIMER */
+	u_int32_t	ast_tx_desccfgerr;	/* tx desc cfg error */
+	u_int32_t	ast_tx_swretries;	/* software TX retries */
+	u_int32_t	ast_tx_swretrymax;	/* software TX retry max limit reach */
+	u_int32_t	ast_tx_data_underrun;
+	u_int32_t	ast_tx_delim_underrun;
+	u_int32_t	ast_tx_aggr_failall;	/* aggregate TX failed in its entirety */
+	u_int32_t	ast_tx_getnobuf;
+	u_int32_t	ast_tx_getbusybuf;
+	u_int32_t	ast_tx_intr;
+	u_int32_t	ast_rx_intr;
+	u_int32_t	ast_tx_aggr_ok;		/* aggregate TX ok */
+	u_int32_t	ast_tx_aggr_fail;	/* aggregate TX failed */
+	u_int32_t	ast_pad[2];
 };
 
 #define	SIOCGATHSTATS	_IOWR('i', 137, struct ifreq)
@@ -148,6 +175,7 @@ struct ath_diag {
 
 };
 #define	SIOCGATHDIAG	_IOWR('i', 138, struct ath_diag)
+#define	SIOCGATHPHYERR	_IOWR('i', 140, struct ath_diag)
 
 /*
  * Radio capture format.
@@ -198,5 +226,35 @@ struct ath_tx_radiotap_header {
 	u_int8_t	wt_chan_ieee;
 	int8_t		wt_chan_maxpow;
 } __packed;
+
+/*
+ * DFS ioctl commands
+ */
+
+#define	DFS_SET_THRESH		2
+#define	DFS_GET_THRESH		3
+#define	DFS_RADARDETECTS	6
+
+/*
+ * DFS ioctl parameter types
+ */
+#define DFS_PARAM_FIRPWR	1
+#define DFS_PARAM_RRSSI		2
+#define DFS_PARAM_HEIGHT	3
+#define DFS_PARAM_PRSSI		4
+#define DFS_PARAM_INBAND	5
+#define DFS_PARAM_NOL		6	/* XXX not used in FreeBSD */
+#define DFS_PARAM_RELSTEP_EN	7
+#define DFS_PARAM_RELSTEP	8
+#define DFS_PARAM_RELPWR_EN	9
+#define DFS_PARAM_RELPWR	10
+#define DFS_PARAM_MAXLEN	11
+#define DFS_PARAM_USEFIR128	12
+#define DFS_PARAM_BLOCKRADAR	13
+#define DFS_PARAM_MAXRSSI_EN	14
+
+/* FreeBSD-specific start at 32 */
+#define	DFS_PARAM_ENABLE	32
+#define	DFS_PARAM_EN_EXTCH	33
 
 #endif /* _DEV_ATH_ATHIOCTL_H */

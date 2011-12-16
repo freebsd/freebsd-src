@@ -83,7 +83,9 @@ static void bswap(int8_t *, int);
 static void btrim(int8_t *, int);
 static void bpack(int8_t *, int8_t *, int);
 static void ata_interrupt_locked(void *data);
+#ifdef ATA_CAM
 static void ata_periodic_poll(void *data);
+#endif
 
 /* global vars */
 MALLOC_DEFINE(M_ATA, "ata_generic", "ATA driver generic layer");
@@ -101,7 +103,7 @@ static int ata_dma = 1;
 static int atapi_dma = 1;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ata, CTLFLAG_RD, 0, "ATA driver parameters");
 TUNABLE_INT("hw.ata.ata_dma", &ata_dma);
 SYSCTL_INT(_hw_ata, OID_AUTO, ata_dma, CTLFLAG_RDTUN, &ata_dma, 0,
 	   "ATA disk DMA mode control");
@@ -118,6 +120,9 @@ SYSCTL_INT(_hw_ata, OID_AUTO, wc, CTLFLAG_RDTUN, &ata_wc, 0,
 TUNABLE_INT("hw.ata.setmax", &ata_setmax);
 SYSCTL_INT(_hw_ata, OID_AUTO, setmax, CTLFLAG_RDTUN, &ata_setmax, 0,
 	   "ATA disk set max native address");
+#ifdef ATA_CAM
+FEATURE(ata_cam, "ATA devices are accessed through the cam(4) driver");
+#endif
 
 /*
  * newbus device interface related functions
@@ -178,8 +183,8 @@ ata_attach(device_t dev)
 		if (ch->pm_level > 1)
 			ch->user[i].caps |= CTS_SATA_CAPS_D_PMREQ;
 	}
-#endif
 	callout_init(&ch->poll_callout, 1);
+#endif
 
     /* reset the controller HW, the channel and device(s) */
     while (ATA_LOCKING(dev, ATA_LF_LOCK) != ch->unit)
@@ -207,8 +212,6 @@ ata_attach(device_t dev)
 	device_printf(dev, "unable to setup interrupt\n");
 	return error;
     }
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 
 #ifndef ATA_CAM
     /* probe and attach devices on this channel unless we are in early boot */
@@ -216,6 +219,8 @@ ata_attach(device_t dev)
 	ata_identify(dev);
     return (0);
 #else
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 	mtx_lock(&ch->state_mtx);
 	/* Create the device queue for our SIM. */
 	devq = cam_simq_alloc(1);
@@ -278,8 +283,10 @@ ata_detach(device_t dev)
     mtx_lock(&ch->state_mtx);
     ch->state |= ATA_STALL_QUEUE;
     mtx_unlock(&ch->state_mtx);
+#ifdef ATA_CAM
     if (ch->flags & ATA_PERIODIC_POLL)
 	callout_drain(&ch->poll_callout);
+#endif
 
 #ifndef ATA_CAM
     /* detach & delete all children */
@@ -467,9 +474,9 @@ ata_suspend(device_t dev)
     if (!dev || !(ch = device_get_softc(dev)))
 	return ENXIO;
 
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_drain(&ch->poll_callout);
 #ifdef ATA_CAM
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_drain(&ch->poll_callout);
 	mtx_lock(&ch->state_mtx);
 	xpt_freeze_simq(ch->sim, 1);
 	while (ch->state != ATA_IDLE)
@@ -507,14 +514,14 @@ ata_resume(device_t dev)
 	error = ata_reinit(dev);
 	xpt_release_simq(ch->sim, TRUE);
 	mtx_unlock(&ch->state_mtx);
+	if (ch->flags & ATA_PERIODIC_POLL)
+		callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
 #else
     /* reinit the devices, we dont know what mode/state they are in */
     error = ata_reinit(dev);
     /* kick off requests on the queue */
     ata_start(dev);
 #endif
-    if (ch->flags & ATA_PERIODIC_POLL)
-	callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
     return error;
 }
 
@@ -581,6 +588,7 @@ ata_interrupt_locked(void *data)
 #endif
 }
 
+#ifdef ATA_CAM
 static void
 ata_periodic_poll(void *data)
 {
@@ -589,6 +597,7 @@ ata_periodic_poll(void *data)
     callout_reset(&ch->poll_callout, hz, ata_periodic_poll, ch);
     ata_interrupt(ch);
 }
+#endif
 
 void
 ata_print_cable(device_t dev, u_int8_t *who)
@@ -831,7 +840,7 @@ ata_boot_attach(void)
 
     mtx_lock(&Giant);       /* newbus suckage it needs Giant */
 
-    /* kick of probe and attach on all channels */
+    /* kick off probe and attach on all channels */
     for (ctlr = 0; ctlr < devclass_get_maxunit(ata_devclass); ctlr++) {
 	if ((ch = devclass_get_softc(ata_devclass, ctlr))) {
 	    ata_identify(ch->dev);
@@ -1475,12 +1484,83 @@ ata_cam_begin_transaction(device_t dev, union ccb *ccb)
 	}
 }
 
+static void
+ata_cam_request_sense(device_t dev, struct ata_request *request)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb = request->ccb;
+
+	ch->requestsense = 1;
+
+	bzero(request, sizeof(&request));
+	request->dev = NULL;
+	request->parent = dev;
+	request->unit = ccb->ccb_h.target_id;
+	request->data = (void *)&ccb->csio.sense_data;
+	request->bytecount = ccb->csio.sense_len;
+	request->u.atapi.ccb[0] = ATAPI_REQUEST_SENSE;
+	request->u.atapi.ccb[4] = ccb->csio.sense_len;
+	request->flags |= ATA_R_ATAPI;
+	if (ch->curr[ccb->ccb_h.target_id].atapi == 16)
+		request->flags |= ATA_R_ATAPI16;
+	if (ch->curr[ccb->ccb_h.target_id].mode >= ATA_DMA)
+		request->flags |= ATA_R_DMA;
+	request->flags |= ATA_R_READ;
+	request->transfersize = min(request->bytecount,
+	    ch->curr[ccb->ccb_h.target_id].bytecount);
+	request->retries = 0;
+	request->timeout = (ccb->ccb_h.timeout + 999) / 1000;
+	callout_init_mtx(&request->callout, &ch->state_mtx, CALLOUT_RETURNUNLOCKED);
+	request->ccb = ccb;
+
+	ch->running = request;
+	ch->state = ATA_ACTIVE;
+	if (ch->hw.begin_transaction(request) == ATA_OP_FINISHED) {
+		ch->running = NULL;
+		ch->state = ATA_IDLE;
+		ata_cam_end_transaction(dev, request);
+		return;
+	}
+}
+
+static void
+ata_cam_process_sense(device_t dev, struct ata_request *request)
+{
+	struct ata_channel *ch = device_get_softc(dev);
+	union ccb *ccb = request->ccb;
+	int fatalerr = 0;
+
+	ch->requestsense = 0;
+
+	if (request->flags & ATA_R_TIMEOUT)
+		fatalerr = 1;
+	if ((request->flags & ATA_R_TIMEOUT) == 0 &&
+	    (request->status & ATA_S_ERROR) == 0 &&
+	    request->result == 0) {
+		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
+	} else {
+		ccb->ccb_h.status &= ~CAM_STATUS_MASK;
+		ccb->ccb_h.status |= CAM_AUTOSENSE_FAIL;
+	}
+
+	ata_free_request(request);
+	xpt_done(ccb);
+	/* Do error recovery if needed. */
+	if (fatalerr)
+		ata_reinit(dev);
+}
+
 void
 ata_cam_end_transaction(device_t dev, struct ata_request *request)
 {
 	struct ata_channel *ch = device_get_softc(dev);
 	union ccb *ccb = request->ccb;
 	int fatalerr = 0;
+
+	if (ch->requestsense) {
+		ata_cam_process_sense(dev, request);
+		return;
+	}
 
 	ccb->ccb_h.status &= ~CAM_STATUS_MASK;
 	if (request->flags & ATA_R_TIMEOUT) {
@@ -1531,8 +1611,13 @@ ata_cam_end_transaction(device_t dev, struct ata_request *request)
 			    ccb->csio.dxfer_len - request->donecount;
 		}
 	}
-	ata_free_request(request);
-	xpt_done(ccb);
+	if ((ccb->ccb_h.status & CAM_STATUS_MASK) == CAM_SCSI_STATUS_ERROR &&
+	    (ccb->ccb_h.flags & CAM_DIS_AUTOSENSE) == 0)
+		ata_cam_request_sense(dev, request);
+	else {
+		ata_free_request(request);
+		xpt_done(ccb);
+	}
 	/* Do error recovery if needed. */
 	if (fatalerr)
 		ata_reinit(dev);

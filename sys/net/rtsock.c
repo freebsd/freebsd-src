@@ -122,6 +122,13 @@ MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
 
+/*
+ * Used by rtsock/raw_input callback code to decide whether to filter the update
+ * notification to a socket bound to a particular FIB.
+ */
+#define	RTS_FILTER_FIB	M_PROTO8
+#define	RTS_ALLFIBS	-1
+
 static struct {
 	int	ip_count;	/* attached w/ AF_INET */
 	int	ip6_count;	/* attached w/ AF_INET6 */
@@ -136,7 +143,7 @@ MTX_SYSINIT(rtsock, &rtsock_mtx, "rtsock route_cb lock", MTX_DEF);
 #define	RTSOCK_UNLOCK()	mtx_unlock(&rtsock_mtx)
 #define	RTSOCK_LOCK_ASSERT()	mtx_assert(&rtsock_mtx, MA_OWNED)
 
-SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_net, OID_AUTO, route, CTLFLAG_RD, 0, "");
 
 struct walkarg {
 	int	w_tmemsize;
@@ -159,7 +166,7 @@ static void	rt_setmetrics(u_long which, const struct rt_metrics *in,
 			struct rt_metrics_lite *out);
 static void	rt_getmetrics(const struct rt_metrics_lite *in,
 			struct rt_metrics *out);
-static void	rt_dispatch(struct mbuf *, const struct sockaddr *);
+static void	rt_dispatch(struct mbuf *, sa_family_t);
 
 static struct netisr_handler rtsock_nh = {
 	.nh_name = "rtsock",
@@ -196,6 +203,31 @@ rts_init(void)
 }
 SYSINIT(rtsock, SI_SUB_PROTO_DOMAIN, SI_ORDER_THIRD, rts_init, 0);
 
+static int
+raw_input_rts_cb(struct mbuf *m, struct sockproto *proto, struct sockaddr *src,
+    struct rawcb *rp)
+{
+	int fibnum;
+
+	KASSERT(m != NULL, ("%s: m is NULL", __func__));
+	KASSERT(proto != NULL, ("%s: proto is NULL", __func__));
+	KASSERT(rp != NULL, ("%s: rp is NULL", __func__));
+
+	/* No filtering requested. */
+	if ((m->m_flags & RTS_FILTER_FIB) == 0)
+		return (0);
+
+	/* Check if it is a rts and the fib matches the one of the socket. */
+	fibnum = M_GETFIB(m);
+	if (proto->sp_family != PF_ROUTE ||
+	    rp->rcb_socket == NULL ||
+	    rp->rcb_socket->so_fibnum == fibnum)
+		return (0);
+
+	/* Filtering requested and no match, the socket shall be skipped. */
+	return (1);
+}
+
 static void
 rts_input(struct mbuf *m)
 {
@@ -212,7 +244,7 @@ rts_input(struct mbuf *m)
 	} else
 		route_proto.sp_protocol = 0;
 
-	raw_input(m, &route_proto, &route_src);
+	raw_input_ext(m, &route_proto, &route_src, raw_input_rts_cb);
 }
 
 /*
@@ -513,6 +545,7 @@ route_output(struct mbuf *m, struct socket *so)
 	int len, error = 0;
 	struct ifnet *ifp = NULL;
 	union sockaddr_union saun;
+	sa_family_t saf = AF_UNSPEC;
 
 #define senderr(e) { error = e; goto flush;}
 	if (m == NULL || ((m->m_len < sizeof(long)) &&
@@ -549,6 +582,7 @@ route_output(struct mbuf *m, struct socket *so)
 	    (info.rti_info[RTAX_GATEWAY] != NULL &&
 	     info.rti_info[RTAX_GATEWAY]->sa_family >= AF_MAX))
 		senderr(EINVAL);
+	saf = info.rti_info[RTAX_DST]->sa_family;
 	/*
 	 * Verify that the caller has the appropriate privilege; RTM_GET
 	 * is the only operation the non-superuser is allowed.
@@ -885,6 +919,8 @@ flush:
 			m_adj(m, rtm->rtm_msglen - m->m_pkthdr.len);
 	}
 	if (m) {
+		M_SETFIB(m, so->so_fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
 		if (rp) {
 			/*
 			 * XXX insure we don't get a copy by
@@ -892,10 +928,10 @@ flush:
 			 */
 			unsigned short family = rp->rcb_proto.sp_family;
 			rp->rcb_proto.sp_family = 0;
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 			rp->rcb_proto.sp_family = family;
 		} else
-			rt_dispatch(m, info.rti_info[RTAX_DST]);
+			rt_dispatch(m, saf);
 	}
 	/* info.rti_info[RTAX_DST] (used above) can point inside of rtm */
 	if (rtm)
@@ -1127,7 +1163,8 @@ again:
  * destination.
  */
 void
-rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
+rt_missmsg_fib(int type, struct rt_addrinfo *rtinfo, int flags, int error,
+    int fibnum)
 {
 	struct rt_msghdr *rtm;
 	struct mbuf *m;
@@ -1138,11 +1175,26 @@ rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
 	m = rt_msg1(type, rtinfo);
 	if (m == NULL)
 		return;
+
+	if (fibnum != RTS_ALLFIBS) {
+		KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: fibnum out "
+		    "of range 0 <= %d < %d", __func__, fibnum, rt_numfibs));
+		M_SETFIB(m, fibnum);
+		m->m_flags |= RTS_FILTER_FIB;
+	}
+
 	rtm = mtod(m, struct rt_msghdr *);
 	rtm->rtm_flags = RTF_DONE | flags;
 	rtm->rtm_errno = error;
 	rtm->rtm_addrs = rtinfo->rti_addrs;
-	rt_dispatch(m, sa);
+	rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
+}
+
+void
+rt_missmsg(int type, struct rt_addrinfo *rtinfo, int flags, int error)
+{
+
+	rt_missmsg_fib(type, rtinfo, flags, error, RTS_ALLFIBS);
 }
 
 /*
@@ -1167,7 +1219,7 @@ rt_ifmsg(struct ifnet *ifp)
 	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 	ifm->ifm_data = ifp->if_data;
 	ifm->ifm_addrs = 0;
-	rt_dispatch(m, NULL);
+	rt_dispatch(m, AF_UNSPEC);
 }
 
 /*
@@ -1179,7 +1231,8 @@ rt_ifmsg(struct ifnet *ifp)
  * copies of it.
  */
 void
-rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+rt_newaddrmsg_fib(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt,
+    int fibnum)
 {
 	struct rt_addrinfo info;
 	struct sockaddr *sa = NULL;
@@ -1237,8 +1290,22 @@ rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
 			rtm->rtm_errno = error;
 			rtm->rtm_addrs = info.rti_addrs;
 		}
-		rt_dispatch(m, sa);
+		if (fibnum != RTS_ALLFIBS) {
+			KASSERT(fibnum >= 0 && fibnum < rt_numfibs, ("%s: "
+			    "fibnum out of range 0 <= %d < %d", __func__,
+			     fibnum, rt_numfibs));
+			M_SETFIB(m, fibnum);
+			m->m_flags |= RTS_FILTER_FIB;
+		}
+		rt_dispatch(m, sa ? sa->sa_family : AF_UNSPEC);
 	}
+}
+
+void
+rt_newaddrmsg(int cmd, struct ifaddr *ifa, int error, struct rtentry *rt)
+{
+
+	rt_newaddrmsg_fib(cmd, ifa, error, rt, RTS_ALLFIBS);
 }
 
 /*
@@ -1273,7 +1340,7 @@ rt_newmaddrmsg(int cmd, struct ifmultiaddr *ifma)
 	    __func__));
 	ifmam->ifmam_index = ifp->if_index;
 	ifmam->ifmam_addrs = info.rti_addrs;
-	rt_dispatch(m, ifma->ifma_addr);
+	rt_dispatch(m, ifma->ifma_addr ? ifma->ifma_addr->sa_family : AF_UNSPEC);
 }
 
 static struct mbuf *
@@ -1333,7 +1400,7 @@ rt_ieee80211msg(struct ifnet *ifp, int what, void *data, size_t data_len)
 		if (m->m_flags & M_PKTHDR)
 			m->m_pkthdr.len += data_len;
 		mtod(m, struct if_announcemsghdr *)->ifan_msglen += data_len;
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 	}
 }
 
@@ -1349,11 +1416,11 @@ rt_ifannouncemsg(struct ifnet *ifp, int what)
 
 	m = rt_makeifannouncemsg(ifp, RTM_IFANNOUNCE, what, &info);
 	if (m != NULL)
-		rt_dispatch(m, NULL);
+		rt_dispatch(m, AF_UNSPEC);
 }
 
 static void
-rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
+rt_dispatch(struct mbuf *m, sa_family_t saf)
 {
 	struct m_tag *tag;
 
@@ -1362,14 +1429,14 @@ rt_dispatch(struct mbuf *m, const struct sockaddr *sa)
 	 * use when injecting the mbuf into the routing socket buffer from
 	 * the netisr.
 	 */
-	if (sa != NULL) {
+	if (saf != AF_UNSPEC) {
 		tag = m_tag_get(PACKET_TAG_RTSOCKFAM, sizeof(unsigned short),
 		    M_NOWAIT);
 		if (tag == NULL) {
 			m_freem(m);
 			return;
 		}
-		*(unsigned short *)(tag + 1) = sa->sa_family;
+		*(unsigned short *)(tag + 1) = saf;
 		m_tag_prepend(m, tag);
 	}
 #ifdef VIMAGE
@@ -1670,7 +1737,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
+static SYSCTL_NODE(_net, PF_ROUTE, routetable, CTLFLAG_RD, sysctl_rtsock, "");
 
 /*
  * Definitions of protocols supported in the ROUTE domain.

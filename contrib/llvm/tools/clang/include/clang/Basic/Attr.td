@@ -46,6 +46,7 @@ class Argument<string name> {
   string Name = name;
 }
 
+class BoolArgument<string name> : Argument<name>;
 class IdentifierArgument<string name> : Argument<name>;
 class IntArgument<string name> : Argument<name>;
 class StringArgument<string name> : Argument<name>;
@@ -53,7 +54,12 @@ class ExprArgument<string name> : Argument<name>;
 class FunctionArgument<string name> : Argument<name>;
 class TypeArgument<string name> : Argument<name>;
 class UnsignedArgument<string name> : Argument<name>;
+class SourceLocArgument<string name> : Argument<name>;
 class VariadicUnsignedArgument<string name> : Argument<name>;
+class VariadicExprArgument<string name> : Argument<name>;
+
+// A version of the form major.minor[.subminor].
+class VersionArgument<string name> : Argument<name>;
 
 // This one's a doozy, so it gets its own special type
 // It can be an unsigned integer, or a type. Either can
@@ -85,11 +91,18 @@ class Attr {
   // The attribute will not be permitted in C++0x attribute-specifiers if
   // this is empty; the empty string can be used as a namespace.
   list<string> Namespaces = [];
-  // Any additional text that should be included verbatim in the class.
+  // Set to true for attributes with arguments which require delayed parsing. 
+  bit LateParsed = 0;  
+  // Any additional text that should be included verbatim in the class.  
   code AdditionalMembers = [{}];
 }
 
+/// An inheritable attribute is inherited by later redeclarations.
 class InheritableAttr : Attr;
+
+/// An inheritable parameter attribute is inherited by later
+/// redeclarations, even when it's written on a parameter.
+class InheritableParamAttr : InheritableAttr;
 
 //
 // Attributes begin here
@@ -101,7 +114,7 @@ def Alias : InheritableAttr {
 }
 
 def Aligned : InheritableAttr {
-  let Spellings = ["align", "aligned"];
+  let Spellings = ["aligned"];
   let Subjects = [NonBitField, NormalVar, Tag];
   let Args = [AlignedArgument<"Alignment">];
   let Namespaces = ["", "std"];
@@ -119,7 +132,7 @@ def AnalyzerNoReturn : InheritableAttr {
   let Spellings = ["analyzer_noreturn"];
 }
 
-def Annotate : InheritableAttr {
+def Annotate : InheritableParamAttr {
   let Spellings = ["annotate"];
   let Args = [StringArgument<"Annotation">];
 }
@@ -129,12 +142,26 @@ def AsmLabel : InheritableAttr {
   let Args = [StringArgument<"Label">];
 }
 
+def Availability : InheritableAttr {
+  let Spellings = ["availability"];
+  let Args = [IdentifierArgument<"platform">, VersionArgument<"introduced">,
+              VersionArgument<"deprecated">, VersionArgument<"obsoleted">,
+              BoolArgument<"unavailable">];
+  let AdditionalMembers =
+[{static llvm::StringRef getPrettyPlatformName(llvm::StringRef Platform) {
+    return llvm::StringSwitch<llvm::StringRef>(Platform)
+             .Case("ios", "iOS")
+             .Case("macosx", "Mac OS X")
+             .Default(llvm::StringRef());
+} }];
+}
+
 def Blocks : InheritableAttr {
   let Spellings = ["blocks"];
   let Args = [EnumArgument<"Type", "BlockType", ["byref"], ["ByRef"]>];
 }
 
-def CarriesDependency : InheritableAttr {
+def CarriesDependency : InheritableParamAttr {
   let Spellings = ["carries_dependency"];
   let Subjects = [ParmVar, Function];
   let Namespaces = ["", "std"];
@@ -142,6 +169,23 @@ def CarriesDependency : InheritableAttr {
 
 def CDecl : InheritableAttr {
   let Spellings = ["cdecl", "__cdecl"];
+}
+
+// cf_audited_transfer indicates that the given function has been
+// audited and has been marked with the appropriate cf_consumed and
+// cf_returns_retained attributes.  It is generally applied by
+// '#pragma clang arc_cf_code_audited' rather than explicitly.
+def CFAuditedTransfer : InheritableAttr {
+  let Spellings = ["cf_audited_transfer"];
+  let Subjects = [Function];
+}
+
+// cf_unknown_transfer is an explicit opt-out of cf_audited_transfer.
+// It indicates that the function has unknown or unautomatable
+// transfer semantics.
+def CFUnknownTransfer : InheritableAttr {
+  let Spellings = ["cf_unknown_transfer"];
+  let Subjects = [Function];
 }
 
 def CFReturnsRetained : InheritableAttr {
@@ -154,7 +198,7 @@ def CFReturnsNotRetained : InheritableAttr {
   let Subjects = [ObjCMethod, Function];
 }
 
-def CFConsumed : InheritableAttr {
+def CFConsumed : InheritableParamAttr {
   let Spellings = ["cf_consumed"];
   let Subjects = [ParmVar];
 }
@@ -224,16 +268,16 @@ def DLLImport : InheritableAttr {
   let Spellings = ["dllimport"];
 }
 
-def Explicit : InheritableAttr {
-  let Spellings = [];
-}
-
 def FastCall : InheritableAttr {
   let Spellings = ["fastcall", "__fastcall"];
 }
 
 def Final : InheritableAttr { 
   let Spellings = [];
+}
+
+def MsStruct : InheritableAttr {
+  let Spellings = ["__ms_struct__"];
 }
 
 def Format : InheritableAttr {
@@ -261,7 +305,7 @@ def IBOutlet : InheritableAttr {
 
 def IBOutletCollection : InheritableAttr {
   let Spellings = ["iboutletcollection"];
-  let Args = [TypeArgument<"Interface">];
+  let Args = [TypeArgument<"Interface">, SourceLocArgument<"InterfaceLoc">];
 }
 
 def Malloc : InheritableAttr {
@@ -292,6 +336,10 @@ def MBlazeSaveVolatiles : InheritableAttr {
 
 def Naked : InheritableAttr {
   let Spellings = ["naked"];
+}
+
+def ReturnsTwice : InheritableAttr {
+  let Spellings = ["returns_twice"];
 }
 
 def NoCommon : InheritableAttr {
@@ -335,6 +383,12 @@ def NoThrow : InheritableAttr {
   let Spellings = ["nothrow"];
 }
 
+def NSBridged : InheritableAttr {
+  let Spellings = ["ns_bridged"];
+  let Subjects = [Record];
+  let Args = [IdentifierArgument<"BridgedType">];
+}
+
 def NSReturnsRetained : InheritableAttr {
   let Spellings = ["ns_returns_retained"];
   let Subjects = [ObjCMethod, Function];
@@ -355,7 +409,7 @@ def NSConsumesSelf : InheritableAttr {
   let Subjects = [ObjCMethod];
 }
 
-def NSConsumed : InheritableAttr {
+def NSConsumed : InheritableParamAttr {
   let Spellings = ["ns_consumed"];
   let Subjects = [ParmVar];
 }
@@ -364,8 +418,27 @@ def ObjCException : InheritableAttr {
   let Spellings = ["objc_exception"];
 }
 
+def ObjCMethodFamily : InheritableAttr {
+  let Spellings = ["objc_method_family"];
+  let Subjects = [ObjCMethod];
+  let Args = [EnumArgument<"Family", "FamilyKind",
+               ["none", "alloc", "copy", "init", "mutableCopy", "new"],
+               ["OMF_None", "OMF_alloc", "OMF_copy", "OMF_init",
+                "OMF_mutableCopy", "OMF_new"]>];
+}
+
 def ObjCNSObject : InheritableAttr {
   let Spellings = ["NSObject"];
+}
+
+def ObjCPreciseLifetime : Attr {
+  let Spellings = ["objc_precise_lifetime"];
+  let Subjects = [Var];
+}
+
+def ObjCReturnsInnerPointer : Attr {
+  let Spellings = ["objc_returns_inner_pointer"];
+  let Subjects = [ObjCMethod];
 }
 
 def Overloadable : Attr {
@@ -386,6 +459,13 @@ def Ownership : InheritableAttr {
 
 def Packed : InheritableAttr {
   let Spellings = ["packed"];
+}
+
+def Pcs : InheritableAttr {
+  let Spellings = ["pcs"];
+  let Args = [EnumArgument<"PCS", "PCSType",
+                           ["aapcs", "aapcs-vfp"],
+                           ["AAPCS", "AAPCS_VFP"]>];
 }
 
 def Pure : InheritableAttr {
@@ -440,6 +520,10 @@ def Unavailable : InheritableAttr {
   let Args = [StringArgument<"Message">];
 }
 
+def ArcWeakrefUnavailable : InheritableAttr {
+  let Spellings = ["objc_arc_weak_reference_unavailable"];
+}
+
 def Unused : InheritableAttr {
   let Spellings = ["unused"];
 }
@@ -484,4 +568,109 @@ def WeakRef : InheritableAttr {
 
 def X86ForceAlignArgPointer : InheritableAttr {
   let Spellings = [];
+}
+
+
+// C/C++ Thread safety attributes (e.g. for deadlock, data race checking)
+
+def GuardedVar : InheritableAttr {
+  let Spellings = ["guarded_var"];
+}
+
+def PtGuardedVar : InheritableAttr {
+  let Spellings = ["pt_guarded_var"];
+}
+
+def Lockable : InheritableAttr {
+  let Spellings = ["lockable"];
+}
+
+def ScopedLockable : InheritableAttr {
+  let Spellings = ["scoped_lockable"];
+}
+
+def NoThreadSafetyAnalysis : InheritableAttr {
+  let Spellings = ["no_thread_safety_analysis"];
+}
+
+def GuardedBy : InheritableAttr {
+  let Spellings = ["guarded_by"];
+  let Args = [ExprArgument<"Arg">];
+  let LateParsed = 1;
+}
+
+def PtGuardedBy : InheritableAttr {
+  let Spellings = ["pt_guarded_by"];
+  let Args = [ExprArgument<"Arg">];
+  let LateParsed = 1;
+}
+
+def AcquiredAfter : InheritableAttr {
+  let Spellings = ["acquired_after"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def AcquiredBefore : InheritableAttr {
+  let Spellings = ["acquired_before"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def ExclusiveLockFunction : InheritableAttr {
+  let Spellings = ["exclusive_lock_function"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def SharedLockFunction : InheritableAttr {
+  let Spellings = ["shared_lock_function"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+// The first argument is an integer or boolean value specifying the return value
+// of a successful lock acquisition.
+def ExclusiveTrylockFunction : InheritableAttr {
+  let Spellings = ["exclusive_trylock_function"];
+  let Args = [ExprArgument<"SuccessValue">, VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+// The first argument is an integer or boolean value specifying the return value
+// of a successful lock acquisition.
+def SharedTrylockFunction : InheritableAttr {
+  let Spellings = ["shared_trylock_function"];
+  let Args = [ExprArgument<"SuccessValue">, VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def UnlockFunction : InheritableAttr {
+  let Spellings = ["unlock_function"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def LockReturned : InheritableAttr {
+  let Spellings = ["lock_returned"];
+  let Args = [ExprArgument<"Arg">];
+  let LateParsed = 1;
+}
+
+def LocksExcluded : InheritableAttr {
+  let Spellings = ["locks_excluded"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def ExclusiveLocksRequired : InheritableAttr {
+  let Spellings = ["exclusive_locks_required"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
+}
+
+def SharedLocksRequired : InheritableAttr {
+  let Spellings = ["shared_locks_required"];
+  let Args = [VariadicExprArgument<"Args">];
+  let LateParsed = 1;
 }

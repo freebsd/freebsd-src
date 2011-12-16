@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/cpuset.h>
 #include <sys/proc.h>
 #include <sys/types.h>
 #include <sys/signal.h>
@@ -37,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <defs.h>
 #include <frame-unwind.h>
@@ -48,7 +50,7 @@ static CORE_ADDR dumppcb;
 static int dumptid;
 
 static CORE_ADDR stoppcbs;
-static __cpumask_t stopped_cpus;
+static cpuset_t stopped_cpus;
 
 static struct kthr *first;
 struct kthr *curkthr;
@@ -71,11 +73,53 @@ kgdb_thr_first(void)
 	return (first);
 }
 
-struct kthr *
-kgdb_thr_init(void)
+static void
+kgdb_thr_add_procs(uintptr_t paddr)
 {
 	struct proc p;
 	struct thread td;
+	struct kthr *kt;
+	CORE_ADDR addr;
+
+	while (paddr != 0) {
+		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p)) {
+			warnx("kvm_read: %s", kvm_geterr(kvm));
+			break;
+		}
+		addr = (uintptr_t)TAILQ_FIRST(&p.p_threads);
+		while (addr != 0) {
+			if (kvm_read(kvm, addr, &td, sizeof(td)) !=
+			    sizeof(td)) {
+				warnx("kvm_read: %s", kvm_geterr(kvm));
+				break;
+			}
+			kt = malloc(sizeof(*kt));
+			kt->next = first;
+			kt->kaddr = addr;
+			if (td.td_tid == dumptid)
+				kt->pcb = dumppcb;
+			else if (td.td_state == TDS_RUNNING && stoppcbs != 0 &&
+			    CPU_ISSET(td.td_oncpu, &stopped_cpus))
+				kt->pcb = (uintptr_t)stoppcbs +
+				    sizeof(struct pcb) * td.td_oncpu;
+			else
+				kt->pcb = (uintptr_t)td.td_pcb;
+			kt->kstack = td.td_kstack;
+			kt->tid = td.td_tid;
+			kt->pid = p.p_pid;
+			kt->paddr = paddr;
+			kt->cpu = td.td_oncpu;
+			first = kt;
+			addr = (uintptr_t)TAILQ_NEXT(&td, td_plist);
+		}
+		paddr = (uintptr_t)LIST_NEXT(&p, p_list);
+	}
+}
+
+struct kthr *
+kgdb_thr_init(void)
+{
+	long cpusetsize;
 	struct kthr *kt;
 	CORE_ADDR addr;
 	uintptr_t paddr;
@@ -102,44 +146,19 @@ kgdb_thr_init(void)
 		dumptid = -1;
 
 	addr = kgdb_lookup("stopped_cpus");
-	if (addr != 0)
-		kvm_read(kvm, addr, &stopped_cpus, sizeof(stopped_cpus));
-	else
-		stopped_cpus = 0;
+	CPU_ZERO(&stopped_cpus);
+	cpusetsize = sysconf(_SC_CPUSET_SIZE);
+	if (cpusetsize != -1 && (u_long)cpusetsize <= sizeof(cpuset_t) &&
+	    addr != 0)
+		kvm_read(kvm, addr, &stopped_cpus, cpusetsize);
 
 	stoppcbs = kgdb_lookup("stoppcbs");
 
-	while (paddr != 0) {
-		if (kvm_read(kvm, paddr, &p, sizeof(p)) != sizeof(p)) {
-			warnx("kvm_read: %s", kvm_geterr(kvm));
-			break;
-		}
-		addr = (uintptr_t)TAILQ_FIRST(&p.p_threads);
-		while (addr != 0) {
-			if (kvm_read(kvm, addr, &td, sizeof(td)) !=
-			    sizeof(td)) {
-				warnx("kvm_read: %s", kvm_geterr(kvm));
-				break;
-			}
-			kt = malloc(sizeof(*kt));
-			kt->next = first;
-			kt->kaddr = addr;
-			if (td.td_tid == dumptid)
-				kt->pcb = dumppcb;
-			else if (td.td_state == TDS_RUNNING && ((1 << td.td_oncpu) & stopped_cpus)
-				&& stoppcbs != 0)
-				kt->pcb = (uintptr_t) stoppcbs + sizeof(struct pcb) * td.td_oncpu;
-			else
-				kt->pcb = (uintptr_t)td.td_pcb;
-			kt->kstack = td.td_kstack;
-			kt->tid = td.td_tid;
-			kt->pid = p.p_pid;
-			kt->paddr = paddr;
-			kt->cpu = td.td_oncpu;
-			first = kt;
-			addr = (uintptr_t)TAILQ_NEXT(&td, td_plist);
-		}
-		paddr = (uintptr_t)LIST_NEXT(&p, p_list);
+	kgdb_thr_add_procs(paddr);
+	addr = kgdb_lookup("zombproc");
+	if (addr != 0) {
+		kvm_read(kvm, addr, &paddr, sizeof(paddr));
+		kgdb_thr_add_procs(paddr);
 	}
 	curkthr = kgdb_thr_lookup_tid(dumptid);
 	if (curkthr == NULL)

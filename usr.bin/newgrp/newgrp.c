@@ -140,7 +140,7 @@ restoregrps(void)
 	if (initres < 0)
 		warn("initgroups");
 	if (setres < 0)
-		warn("setgroups");
+		warn("setgid");
 }
 
 static void

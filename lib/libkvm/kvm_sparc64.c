@@ -188,11 +188,9 @@ fail_vm:
 int
 _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 {
-#if !defined(SUN4V)
 	struct tte tte;
 	off_t tte_off;
 	u_long vpn;
-#endif
 	off_t pa_off;
 	u_long pg_off;
 	int rest;
@@ -200,7 +198,6 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 	pg_off = va & PAGE_MASK;
 	if (va >= VM_MIN_DIRECT_ADDRESS)
 		pa_off = TLB_DIRECT_TO_PHYS(va) & ~PAGE_MASK;
-#if !defined(SUN4V)
 	else {
 		vpn = btop(va);
 		tte_off = kd->vmst->vm_tsb_off +
@@ -211,7 +208,6 @@ _kvm_kvatop(kvm_t *kd, u_long va, off_t *pa)
 			goto invalid;
 		pa_off = TTE_GET_PA(&tte);
 	}
-#endif
 	rest = PAGE_SIZE - pg_off;
 	pa_off = _kvm_find_off(kd->vmst, pa_off, rest);
 	if (pa_off == KVM_OFF_NOTFOUND)

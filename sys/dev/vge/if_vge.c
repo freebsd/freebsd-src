@@ -173,6 +173,7 @@ static __inline void
 static void	vge_freebufs(struct vge_softc *);
 static void	vge_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static int	vge_ifmedia_upd(struct ifnet *);
+static int	vge_ifmedia_upd_locked(struct vge_softc *);
 static void	vge_init(void *);
 static void	vge_init_locked(struct vge_softc *);
 static void	vge_intr(void *);
@@ -180,7 +181,6 @@ static void	vge_intr_holdoff(struct vge_softc *);
 static int	vge_ioctl(struct ifnet *, u_long, caddr_t);
 static void	vge_link_statchg(void *);
 static int	vge_miibus_readreg(device_t, int, int);
-static void	vge_miibus_statchg(device_t);
 static int	vge_miibus_writereg(device_t, int, int, int);
 static void	vge_miipoll_start(struct vge_softc *);
 static void	vge_miipoll_stop(struct vge_softc *);
@@ -190,6 +190,7 @@ static void	vge_reset(struct vge_softc *);
 static int	vge_rx_list_init(struct vge_softc *);
 static int	vge_rxeof(struct vge_softc *, int);
 static void	vge_rxfilter(struct vge_softc *);
+static void	vge_setmedia(struct vge_softc *);
 static void	vge_setvlan(struct vge_softc *);
 static void	vge_setwol(struct vge_softc *);
 static void	vge_start(struct ifnet *);
@@ -211,16 +212,11 @@ static device_method_t vge_methods[] = {
 	DEVMETHOD(device_resume,	vge_resume),
 	DEVMETHOD(device_shutdown,	vge_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	vge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	vge_miibus_writereg),
-	DEVMETHOD(miibus_statchg,	vge_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t vge_driver = {
@@ -685,7 +681,18 @@ vge_dma_alloc(struct vge_softc *sc)
 	bus_addr_t lowaddr, tx_ring_end, rx_ring_end;
 	int error, i;
 
-	lowaddr = BUS_SPACE_MAXADDR;
+	/*
+	 * It seems old PCI controllers do not support DAC.  DAC
+	 * configuration can be enabled by accessing VGE_CHIPCFG3
+	 * register but honor EEPROM configuration instead of
+	 * blindly overriding DAC configuration.  PCIe based
+	 * controllers are supposed to support 64bit DMA so enable
+	 * 64bit DMA on these controllers.
+	 */
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = BUS_SPACE_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 
 again:
 	/* Create parent ring tag. */
@@ -802,10 +809,14 @@ again:
 		goto again;
 	}
 
+	if ((sc->vge_flags & VGE_FLAG_PCIE) != 0)
+		lowaddr = VGE_BUF_DMA_MAXADDR;
+	else
+		lowaddr = BUS_SPACE_MAXADDR_32BIT;
 	/* Create parent buffer tag. */
 	error = bus_dma_tag_create(bus_get_dma_tag(sc->vge_dev),/* parent */
 	    1, 0,			/* algnmnt, boundary */
-	    VGE_BUF_DMA_MAXADDR,	/* lowaddr */
+	    lowaddr,			/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
 	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
@@ -1004,12 +1015,12 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PCIE;
 		sc->vge_expcap = cap;
 	} else
 		sc->vge_flags |= VGE_FLAG_JUMBO;
-	if (pci_find_extcap(dev, PCIY_PMG, &cap) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &cap) == 0) {
 		sc->vge_flags |= VGE_FLAG_PMCAP;
 		sc->vge_pmcap = cap;
 	}
@@ -1084,10 +1095,11 @@ vge_attach(device_t dev)
 		goto fail;
 	}
 
+	vge_miipoll_start(sc);
 	/* Do MII setup */
 	error = mii_attach(dev, &sc->vge_miibus, ifp, vge_ifmedia_upd,
 	    vge_ifmedia_sts, BMSR_DEFCAPMASK, sc->vge_phyaddr, MII_OFFSET_ANY,
-	    0);
+	    MIIF_DOPAUSE);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -1645,30 +1657,41 @@ vge_link_statchg(void *xsc)
 {
 	struct vge_softc *sc;
 	struct ifnet *ifp;
-	struct mii_data *mii;
+	uint8_t physts;
 
 	sc = xsc;
 	ifp = sc->vge_ifp;
 	VGE_LOCK_ASSERT(sc);
-	mii = device_get_softc(sc->vge_miibus);
 
-	mii_pollstat(mii);
-	if ((sc->vge_flags & VGE_FLAG_LINK) != 0) {
-		if (!(mii->mii_media_status & IFM_ACTIVE)) {
+	physts = CSR_READ_1(sc, VGE_PHYSTS0);
+	if ((physts & VGE_PHYSTS_RESETSTS) == 0) {
+		if ((physts & VGE_PHYSTS_LINK) == 0) {
 			sc->vge_flags &= ~VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_DOWN);
-		}
-	} else {
-		if (mii->mii_media_status & IFM_ACTIVE &&
-		    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
+		} else {
 			sc->vge_flags |= VGE_FLAG_LINK;
 			if_link_state_change(sc->vge_ifp,
 			    LINK_STATE_UP);
+			CSR_WRITE_1(sc, VGE_CRC2, VGE_CR2_FDX_TXFLOWCTL_ENABLE |
+			    VGE_CR2_FDX_RXFLOWCTL_ENABLE);
+			if ((physts & VGE_PHYSTS_FDX) != 0) {
+				if ((physts & VGE_PHYSTS_TXFLOWCAP) != 0)
+					CSR_WRITE_1(sc, VGE_CRS2,
+					    VGE_CR2_FDX_TXFLOWCTL_ENABLE);
+				if ((physts & VGE_PHYSTS_RXFLOWCAP) != 0)
+					CSR_WRITE_1(sc, VGE_CRS2,
+					    VGE_CR2_FDX_RXFLOWCTL_ENABLE);
+			}
 			if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 				vge_start_locked(ifp);
 		}
 	}
+	/*
+	 * Restart MII auto-polling because link state change interrupt
+	 * will disable it.
+	 */
+	vge_miipoll_start(sc);
 }
 
 #ifdef DEVICE_POLLING
@@ -1737,6 +1760,10 @@ vge_intr(void *arg)
 
 #ifdef DEVICE_POLLING
 	if  (ifp->if_capenable & IFCAP_POLLING) {
+		status = CSR_READ_4(sc, VGE_ISR);
+		CSR_WRITE_4(sc, VGE_ISR, status);
+		if (status != 0xFFFFFFFF && (status & VGE_ISR_LINKSTS) != 0)
+			vge_link_statchg(sc);
 		VGE_UNLOCK(sc);
 		return;
 	}
@@ -2009,6 +2036,7 @@ vge_init_locked(struct vge_softc *sc)
 	 */
 	vge_stop(sc);
 	vge_reset(sc);
+	vge_miipoll_start(sc);
 
 	/*
 	 * Initialize the RX and TX descriptors and mbufs.
@@ -2080,9 +2108,16 @@ vge_init_locked(struct vge_softc *sc)
 	vge_rxfilter(sc);
 	vge_setvlan(sc);
 
-	/* Enable flow control */
-
-	CSR_WRITE_1(sc, VGE_CRS2, 0x8B);
+	/* Initialize pause timer. */
+	CSR_WRITE_2(sc, VGE_TX_PAUSE_TIMER, 0xFFFF);
+	/*
+	 * Initialize flow control parameters.
+	 *  TX XON high threshold : 48
+	 *  TX pause low threshold : 24
+	 *  Disable hald-duplex flow control
+	 */
+	CSR_WRITE_1(sc, VGE_CRC2, 0xFF);
+	CSR_WRITE_1(sc, VGE_CRS2, VGE_CR2_XON_ENABLE | 0x0B);
 
 	/* Enable jumbo frame reception (if desired) */
 
@@ -2094,11 +2129,10 @@ vge_init_locked(struct vge_softc *sc)
 
 #ifdef DEVICE_POLLING
 	/*
-	 * Disable interrupts if we are polling.
+	 * Disable interrupts except link state change if we are polling.
 	 */
 	if (ifp->if_capenable & IFCAP_POLLING) {
-		CSR_WRITE_4(sc, VGE_IMR, 0);
-		CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
+		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
 	} else	/* otherwise ... */
 #endif
 	{
@@ -2106,12 +2140,12 @@ vge_init_locked(struct vge_softc *sc)
 	 * Enable interrupts.
 	 */
 		CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS);
-		CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
-		CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 	}
+	CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
+	CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 
 	sc->vge_flags &= ~VGE_FLAG_LINK;
-	mii_mediachg(mii);
+	vge_ifmedia_upd_locked(sc);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -2125,14 +2159,28 @@ static int
 vge_ifmedia_upd(struct ifnet *ifp)
 {
 	struct vge_softc *sc;
-	struct mii_data *mii;
 	int error;
 
 	sc = ifp->if_softc;
 	VGE_LOCK(sc);
-	mii = device_get_softc(sc->vge_miibus);
-	error = mii_mediachg(mii);
+	error = vge_ifmedia_upd_locked(sc);
 	VGE_UNLOCK(sc);
+
+	return (error);
+}
+
+static int
+vge_ifmedia_upd_locked(struct vge_softc *sc)
+{
+	struct mii_data *mii;
+	struct mii_softc *miisc;
+	int error;
+
+	mii = device_get_softc(sc->vge_miibus);
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
+	vge_setmedia(sc);
+	error = mii_mediachg(mii);
 
 	return (error);
 }
@@ -2155,19 +2203,17 @@ vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	}
 	mii_pollstat(mii);
-	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	VGE_UNLOCK(sc);
 }
 
 static void
-vge_miibus_statchg(device_t dev)
+vge_setmedia(struct vge_softc *sc)
 {
-	struct vge_softc *sc;
 	struct mii_data *mii;
 	struct ifmedia_entry *ife;
 
-	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->vge_miibus);
 	ife = mii->mii_media.ifm_cur;
 
@@ -2201,7 +2247,7 @@ vge_miibus_statchg(device_t dev)
 		}
 		break;
 	default:
-		device_printf(dev, "unknown media type: %x\n",
+		device_printf(sc->vge_dev, "unknown media type: %x\n",
 		    IFM_SUBTYPE(ife->ifm_media));
 		break;
 	}
@@ -2265,8 +2311,9 @@ vge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 					return (error);
 				VGE_LOCK(sc);
 					/* Disable interrupts */
-				CSR_WRITE_4(sc, VGE_IMR, 0);
-				CSR_WRITE_1(sc, VGE_CRC3, VGE_CR3_INT_GMSK);
+				CSR_WRITE_4(sc, VGE_IMR, VGE_INTRS_POLLING);
+				CSR_WRITE_4(sc, VGE_ISR, 0xFFFFFFFF);
+				CSR_WRITE_1(sc, VGE_CRS3, VGE_CR3_INT_GMSK);
 				ifp->if_capenable |= IFCAP_POLLING;
 				VGE_UNLOCK(sc);
 			} else {
@@ -2753,6 +2800,9 @@ vge_setlinkspeed(struct vge_softc *sc)
 			break;
 		}
 	}
+	/* Clear forced MAC speed/duplex configuration. */
+	CSR_CLRBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_MACFORCE);
+	CSR_CLRBIT_1(sc, VGE_DIAGCTL, VGE_DIAGCTL_FDXFORCE);
 	vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_100T2CR, 0);
 	vge_miibus_writereg(sc->vge_dev, sc->vge_phyaddr, MII_ANAR,
 	    ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);

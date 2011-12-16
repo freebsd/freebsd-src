@@ -28,15 +28,15 @@ __FBSDID("$FreeBSD$");
 static int
 mkfile(const char *fn, const char *contents)
 {
-	int fd = open(fn, O_RDWR | O_CREAT, 0644);
-	failure("Couldn't create file '%s', fd=%d, errno=%d (%s)\n",
-	    fn, fd, errno, strerror(errno));
-	if (!assert(fd > 0))
+	FILE *f = fopen(fn, "w");
+	failure("Couldn't create file '%s', errno=%d (%s)\n",
+	    fn, errno, strerror(errno));
+	if (!assert(f != NULL))
 		return (1); /* Failure. */
 	if (contents != NULL)
 		assertEqualInt(strlen(contents),
-		    write(fd, contents, strlen(contents)));
-	assertEqualInt(0, close(fd));
+		    fwrite(contents, 1, strlen(contents), f));
+	assertEqualInt(0, fclose(f));
 	return (0); /* Success */
 }
 
@@ -44,9 +44,9 @@ DEFINE_TEST(test_option_s)
 {
 	struct stat st;
 
-	/* Create a sample file hierarchy. */
-	assertEqualInt(0, mkdir("in", 0755));
-	assertEqualInt(0, mkdir("in/d1", 0755));
+	/* Create a sample file heirarchy. */
+	assertMakeDir("in", 0755);
+	assertMakeDir("in/d1", 0755);
 	assertEqualInt(0, mkfile("in/d1/foo", "foo"));
 	assertEqualInt(0, mkfile("in/d1/bar", "bar"));
 
@@ -55,14 +55,15 @@ DEFINE_TEST(test_option_s)
 	    testprog);
 	assertEqualInt(0, stat("check.err", &st));
 	if (st.st_size != 0) {
-		skipping("bsdtar does not support -s option on this platform");
+		skipping("%s does not support -s option on this platform",
+			testprog);
 		return;
 	}
 
 	/*
 	 * Test 1: Filename substitution when creating archives.
 	 */
-	assertEqualInt(0, mkdir("test1", 0755));
+	assertMakeDir("test1", 0755);
 	systemf("%s -cf - -s /foo/bar/ in/d1/foo | %s -xf - -C test1",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test1/in/d1/bar");
@@ -74,7 +75,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 2: Basic substitution when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test2", 0755));
+	assertMakeDir("test2", 0755);
 	systemf("%s -cf - in/d1/foo | %s -xf - -s /foo/bar/ -C test2",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test2/in/d1/bar");
@@ -89,7 +90,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 4: Multiple substitutions when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test4", 0755));
+	assertMakeDir("test4", 0755);
 	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}baz} -C test4",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test4/in/d1/bar");
@@ -98,7 +99,7 @@ DEFINE_TEST(test_option_s)
 	/*
 	 * Test 5: Name-switching substitutions when extracting archive.
 	 */
-	assertEqualInt(0, mkdir("test5", 0755));
+	assertMakeDir("test5", 0755);
 	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}foo} -C test5",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test5/in/d1/bar");

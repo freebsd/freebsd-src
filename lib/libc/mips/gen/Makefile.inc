@@ -1,7 +1,7 @@
 #	$NetBSD: Makefile.inc,v 1.27 2005/10/07 17:16:40 tsutsui Exp $
 # $FreeBSD$
 
-SRCS+=	infinity.c fabs.c ldexp.c modf.c
+SRCS+=	infinity.c fabs.c ldexp.c
 
 # SRCS+=	flt_rounds.c fpgetmask.c fpgetround.c fpgetsticky.c fpsetmask.c \
 #	fpsetround.c fpsetsticky.c

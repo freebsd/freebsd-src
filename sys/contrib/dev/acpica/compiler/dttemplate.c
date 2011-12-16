@@ -121,7 +121,8 @@ DtCreateTemplates (
 
     /* Create all known templates if requested */
 
-    if (!ACPI_STRNCMP (Signature, "ALL", 3))
+    if (!ACPI_STRNCMP (Signature, "ALL", 3) ||
+        !ACPI_STRCMP (Signature, "*"))
     {
         Status = DtCreateAllTemplates ();
         return (Status);

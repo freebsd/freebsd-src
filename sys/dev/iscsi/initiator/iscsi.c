@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_iscsi_initiator.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/conf.h>
@@ -65,7 +66,7 @@ static struct isc_softc *isc;
 
 MALLOC_DEFINE(M_ISCSI, "iSCSI", "iSCSI driver");
 MALLOC_DEFINE(M_ISCSIBUF, "iSCbuf", "iSCSI buffers");
-MALLOC_DEFINE(M_TMP, "iSCtmp", "iSCSI tmp");
+static MALLOC_DEFINE(M_TMP, "iSCtmp", "iSCSI tmp");
 
 #ifdef ISCSI_INITIATOR_DEBUG
 int iscsi_debug = ISCSI_INITIATOR_DEBUG;
@@ -387,11 +388,11 @@ i_setsoc(isc_session_t *sp, int fd, struct thread *td)
      if(sp->soc != NULL)
 	  isc_stop_receiver(sp);
 
-     error = fget(td, fd, &sp->fp);
+     error = fget(td, fd, CAP_SOCK_ALL, &sp->fp);
      if(error)
 	  return error;
 
-     if((error = fgetsock(td, fd, &sp->soc, 0)) == 0) {
+     if((error = fgetsock(td, fd, CAP_SOCK_ALL, &sp->soc, 0)) == 0) {
 	  sp->td = td;
 	  isc_start_receiver(sp);
      }

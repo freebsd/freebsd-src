@@ -73,7 +73,8 @@ static void ChangeToUnreachable(Instruction *I, bool UseLLVMTrap) {
   if (UseLLVMTrap) {
     Function *TrapFn =
       Intrinsic::getDeclaration(BB->getParent()->getParent(), Intrinsic::trap);
-    CallInst::Create(TrapFn, "", I);
+    CallInst *CallTrap = CallInst::Create(TrapFn, "", I);
+    CallTrap->setDebugLoc(I->getDebugLoc());
   }
   new UnreachableInst(I->getContext(), I);
   
@@ -90,11 +91,11 @@ static void ChangeToUnreachable(Instruction *I, bool UseLLVMTrap) {
 static void ChangeToCall(InvokeInst *II) {
   BasicBlock *BB = II->getParent();
   SmallVector<Value*, 8> Args(II->op_begin(), II->op_end() - 3);
-  CallInst *NewCall = CallInst::Create(II->getCalledValue(), Args.begin(),
-                                       Args.end(), "", II);
+  CallInst *NewCall = CallInst::Create(II->getCalledValue(), Args, "", II);
   NewCall->takeName(II);
   NewCall->setCallingConv(II->getCallingConv());
   NewCall->setAttributes(II->getAttributes());
+  NewCall->setDebugLoc(II->getDebugLoc());
   II->replaceAllUsesWith(NewCall);
 
   // Follow the call by a branch to the normal destination.
@@ -162,7 +163,7 @@ static bool MarkAliveBlocks(BasicBlock *BB,
         Changed = true;
       }
 
-    Changed |= ConstantFoldTerminator(BB);
+    Changed |= ConstantFoldTerminator(BB, true);
     for (succ_iterator SI = succ_begin(BB), SE = succ_end(BB); SI != SE; ++SI)
       Worklist.push_back(*SI);
   } while (!Worklist.empty());
@@ -259,11 +260,12 @@ static bool MergeEmptyReturnBlocks(Function &F) {
     PHINode *RetBlockPHI = dyn_cast<PHINode>(RetBlock->begin());
     if (RetBlockPHI == 0) {
       Value *InVal = cast<ReturnInst>(RetBlock->getTerminator())->getOperand(0);
-      RetBlockPHI = PHINode::Create(Ret->getOperand(0)->getType(), "merge",
+      pred_iterator PB = pred_begin(RetBlock), PE = pred_end(RetBlock);
+      RetBlockPHI = PHINode::Create(Ret->getOperand(0)->getType(),
+                                    std::distance(PB, PE), "merge",
                                     &RetBlock->front());
       
-      for (pred_iterator PI = pred_begin(RetBlock), E = pred_end(RetBlock);
-           PI != E; ++PI)
+      for (pred_iterator PI = PB; PI != PE; ++PI)
         RetBlockPHI->addIncoming(InVal, *PI);
       RetBlock->getTerminator()->setOperand(0, RetBlockPHI);
     }

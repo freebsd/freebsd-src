@@ -1,6 +1,6 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../nfsclient ${.CURDIR}/../../rpc
+.PATH: ${.CURDIR}/../../nfsclient ${.CURDIR}/../../nfs ${.CURDIR}/../../rpc
 
 KMOD=	nfsclient
 SRCS=	vnode_if.h \

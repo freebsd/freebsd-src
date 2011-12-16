@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2011
+.Dd October 27, 2011
 .Dt GETUTXENT 3
 .Os
 .Sh NAME
@@ -175,7 +175,7 @@ prefix, corresponding with the device used to facilitate the user login
 session.
 If no TTY character device is used, this field is left blank.
 This field is only applicable to entries of type
-.Dv USER_PROCESS 
+.Dv USER_PROCESS
 and
 .Dv LOGIN_PROCESS .
 .It Fa ut_host
@@ -243,7 +243,7 @@ or
 .Dv LOGIN_PROCESS
 and whose
 .Fa ut_line
-is equal to the the same field in
+is equal to the same field in
 .Fa line .
 .Pp
 The
@@ -301,7 +301,6 @@ The value of
 determines which databases are modified.
 .Pp
 Entries of type
-.Dv BOOT_TIME ,
 .Dv SHUTDOWN_TIME ,
 .Dv OLD_TIME
 and
@@ -335,7 +334,7 @@ In addition, entries of type
 .Dv BOOT_TIME
 and
 .Dv SHUTDOWN_TIME
-will cause all entries in
+will cause all existing entries in
 .Pa /var/run/utx.active
 to be discarded.
 .Pp
@@ -386,10 +385,10 @@ Otherwise, -1 is returned and the global variable
 is set to indicate the error.
 .Sh ERRORS
 In addition to the error conditions described in
+.Xr open 2 ,
 .Xr fdopen 3 ,
 .Xr fopen 3 ,
 .Xr fseek 3 ,
-.Xr open 3 ,
 the
 .Fn pututxline
 function can generate the following errors:
@@ -473,7 +472,7 @@ are extensions.
 .Sh HISTORY
 These functions appeared in
 .Fx 9.0 .
-They replaced the 
+They replaced the
 .In utmp.h
 interface.
 .Sh AUTHORS

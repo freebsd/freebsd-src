@@ -84,7 +84,7 @@ void raw_ostream::SetBuffered() {
 }
 
 void raw_ostream::SetBufferAndMode(char *BufferStart, size_t Size,
-                                    BufferKind Mode) {
+                                   BufferKind Mode) {
   assert(((Mode == Unbuffered && BufferStart == 0 && Size == 0) ||
           (Mode != Unbuffered && BufferStart && Size)) &&
          "stream must be unbuffered or have at least one byte");
@@ -121,7 +121,8 @@ raw_ostream &raw_ostream::operator<<(unsigned long N) {
 raw_ostream &raw_ostream::operator<<(long N) {
   if (N <  0) {
     *this << '-';
-    N = -N;
+    // Avoid undefined behavior on LONG_MIN with a cast.
+    N = -(unsigned long)N;
   }
 
   return this->operator<<(static_cast<unsigned long>(N));
@@ -220,6 +221,36 @@ raw_ostream &raw_ostream::operator<<(const void *P) {
 }
 
 raw_ostream &raw_ostream::operator<<(double N) {
+#ifdef _WIN32
+  // On MSVCRT and compatible, output of %e is incompatible to Posix
+  // by default. Number of exponent digits should be at least 2. "%+03d"
+  // FIXME: Implement our formatter to here or Support/Format.h!
+  int fpcl = _fpclass(N);
+
+  // negative zero
+  if (fpcl == _FPCLASS_NZ)
+    return *this << "-0.000000e+00";
+
+  char buf[16];
+  unsigned len;
+  len = snprintf(buf, sizeof(buf), "%e", N);
+  if (len <= sizeof(buf) - 2) {
+    if (len >= 5 && buf[len - 5] == 'e' && buf[len - 3] == '0') {
+      int cs = buf[len - 4];
+      if (cs == '+' || cs == '-') {
+        int c1 = buf[len - 2];
+        int c0 = buf[len - 1];
+        if (isdigit(c1) && isdigit(c0)) {
+          // Trim leading '0': "...e+012" -> "...e+12\0"
+          buf[len - 3] = c1;
+          buf[len - 2] = c0;
+          buf[--len] = 0;
+        }
+      }
+    }
+    return this->operator<<(buf);
+  }
+#endif
   return this->operator<<(format("%e", N));
 }
 
@@ -254,7 +285,7 @@ raw_ostream &raw_ostream::write(unsigned char C) {
 
 raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
   // Group exceptional cases into a single branch.
-  if (BUILTIN_EXPECT(OutBufCur+Size > OutBufEnd, false)) {
+  if (BUILTIN_EXPECT(size_t(OutBufEnd - OutBufCur) < Size, false)) {
     if (BUILTIN_EXPECT(!OutBufStart, false)) {
       if (BufferMode == Unbuffered) {
         write_impl(Ptr, Size);
@@ -265,15 +296,23 @@ raw_ostream &raw_ostream::write(const char *Ptr, size_t Size) {
       return write(Ptr, Size);
     }
 
-    // Write out the data in buffer-sized blocks until the remainder
-    // fits within the buffer.
-    do {
-      size_t NumBytes = OutBufEnd - OutBufCur;
-      copy_to_buffer(Ptr, NumBytes);
-      flush_nonempty();
-      Ptr += NumBytes;
-      Size -= NumBytes;
-    } while (OutBufCur+Size > OutBufEnd);
+    size_t NumBytes = OutBufEnd - OutBufCur;
+
+    // If the buffer is empty at this point we have a string that is larger
+    // than the buffer. Directly write the chunk that is a multiple of the
+    // preferred buffer size and put the remainder in the buffer.
+    if (BUILTIN_EXPECT(OutBufCur == OutBufStart, false)) {
+      size_t BytesToWrite = Size - (Size % NumBytes);
+      write_impl(Ptr, BytesToWrite);
+      copy_to_buffer(Ptr + BytesToWrite, Size - BytesToWrite);
+      return *this;
+    }
+
+    // We don't have enough space in the buffer to fit the string in. Insert as
+    // much as possible, flush and start over with the remainder.
+    copy_to_buffer(Ptr, NumBytes);
+    flush_nonempty();
+    return write(Ptr + NumBytes, Size - NumBytes);
   }
 
   copy_to_buffer(Ptr, Size);
@@ -457,6 +496,14 @@ raw_fd_ostream::~raw_fd_ostream() {
           break;
         }
   }
+
+#ifdef __MINGW32__
+  // On mingw, global dtors should not call exit().
+  // report_fatal_error() invokes exit(). We know report_fatal_error()
+  // might not write messages to stderr when any errors were detected
+  // on FD == 2.
+  if (FD == 2) return;
+#endif
 
   // If there are any pending errors, report them now. Clients wishing
   // to avoid report_fatal_error calls should check for errors with

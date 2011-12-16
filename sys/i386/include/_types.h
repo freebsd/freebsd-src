@@ -48,7 +48,7 @@
 /*
  * Basic types upon which most other types are built.
  */
-typedef	__signed char		__int8_t;
+typedef	signed char		__int8_t;
 typedef	unsigned char		__uint8_t;
 typedef	short			__int16_t;
 typedef	unsigned short		__uint16_t;
@@ -69,7 +69,6 @@ typedef	unsigned long long	__uint64_t;
  * Standard type definitions.
  */
 typedef	unsigned long	__clock_t;		/* clock()... */
-typedef	unsigned int	__cpumask_t;
 typedef	__int32_t	__critical_t;
 typedef	long double	__double_t;
 typedef	long double	__float_t;

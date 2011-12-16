@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,9 +11,9 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
-
 /* Returns: convert a to a unsigned long long, rounding toward zero.
  *          Negative values all become zero.
  */
@@ -26,7 +26,9 @@
 
 /* seee eeee emmm mmmm mmmm mmmm mmmm mmmm */
 
-du_int
+ARM_EABI_FNALIAS(f2ulz, fixunssfdi);
+
+COMPILER_RT_ABI du_int
 __fixunssfdi(float a)
 {
     float_bits fb;

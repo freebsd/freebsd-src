@@ -23,7 +23,6 @@
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetAsmInfo.h"
 
 using namespace llvm;
 
@@ -101,7 +100,7 @@ public:
   /// @{
 
   virtual void ChangeSection(const MCSection *Section);
-  virtual void InitSections() {}
+  virtual void InitSections() { /* PTX does not use sections */ }
 
   virtual void EmitLabel(MCSymbol *Symbol);
 
@@ -115,7 +114,8 @@ public:
 
   virtual void EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                         const MCSymbol *LastLabel,
-                                        const MCSymbol *Label);
+                                        const MCSymbol *Label,
+                                        unsigned PointerSize);
 
   virtual void EmitSymbolAttribute(MCSymbol *Symbol, MCSymbolAttr Attribute);
 
@@ -132,7 +132,9 @@ public:
   ///
   /// @param Symbol - The common symbol to emit.
   /// @param Size - The size of the common symbol.
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size);
+  /// @param ByteAlignment - The alignment of the common symbol in bytes.
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment);
 
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
@@ -143,9 +145,9 @@ public:
   virtual void EmitBytes(StringRef Data, unsigned AddrSpace);
 
   virtual void EmitValueImpl(const MCExpr *Value, unsigned Size,
-                             bool isPCRel, unsigned AddrSpace);
-  virtual void EmitULEB128Value(const MCExpr *Value, unsigned AddrSpace = 0);
-  virtual void EmitSLEB128Value(const MCExpr *Value, unsigned AddrSpace = 0);
+                             unsigned AddrSpace);
+  virtual void EmitULEB128Value(const MCExpr *Value);
+  virtual void EmitSLEB128Value(const MCExpr *Value);
   virtual void EmitGPRel32Value(const MCExpr *Value);
 
 
@@ -260,7 +262,8 @@ void PTXMCAsmStreamer::EmitWeakReference(MCSymbol *Alias,
 
 void PTXMCAsmStreamer::EmitDwarfAdvanceLineAddr(int64_t LineDelta,
                                                 const MCSymbol *LastLabel,
-                                                const MCSymbol *Label) {
+                                                const MCSymbol *Label,
+                                                unsigned PointerSize) {
   report_fatal_error("Unimplemented.");
 }
 
@@ -282,7 +285,8 @@ void PTXMCAsmStreamer::EmitELFSize(MCSymbol *Symbol, const MCExpr *Value) {}
 void PTXMCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
                                         unsigned ByteAlignment) {}
 
-void PTXMCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {}
+void PTXMCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                             unsigned ByteAlignment) {}
 
 void PTXMCAsmStreamer::EmitZerofill(const MCSection *Section, MCSymbol *Symbol,
                                     unsigned Size, unsigned ByteAlignment) {}
@@ -352,9 +356,8 @@ void PTXMCAsmStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
 }
 
 void PTXMCAsmStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
-                                     bool isPCRel, unsigned AddrSpace) {
+                                     unsigned AddrSpace) {
   assert(getCurrentSection() && "Cannot emit contents before setting section!");
-  assert(!isPCRel && "Cannot emit pc relative relocations!");
   const char *Directive = 0;
   switch (Size) {
   default: break;
@@ -368,7 +371,7 @@ void PTXMCAsmStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
     int64_t IntValue;
     if (!Value->EvaluateAsAbsolute(IntValue))
       report_fatal_error("Don't know how to emit this value.");
-    if (getContext().getTargetAsmInfo().isLittleEndian()) {
+    if (getContext().getAsmInfo().isLittleEndian()) {
       EmitIntValue((uint32_t)(IntValue >> 0 ), 4, AddrSpace);
       EmitIntValue((uint32_t)(IntValue >> 32), 4, AddrSpace);
     } else {
@@ -383,15 +386,13 @@ void PTXMCAsmStreamer::EmitValueImpl(const MCExpr *Value, unsigned Size,
   EmitEOL();
 }
 
-void PTXMCAsmStreamer::EmitULEB128Value(const MCExpr *Value,
-                                        unsigned AddrSpace) {
+void PTXMCAsmStreamer::EmitULEB128Value(const MCExpr *Value) {
   assert(MAI.hasLEB128() && "Cannot print a .uleb");
   OS << ".uleb128 " << *Value;
   EmitEOL();
 }
 
-void PTXMCAsmStreamer::EmitSLEB128Value(const MCExpr *Value,
-                                        unsigned AddrSpace) {
+void PTXMCAsmStreamer::EmitSLEB128Value(const MCExpr *Value) {
   assert(MAI.hasLEB128() && "Cannot print a .sleb");
   OS << ".sleb128 " << *Value;
   EmitEOL();
@@ -423,7 +424,8 @@ void PTXMCAsmStreamer::EmitFill(uint64_t NumBytes, uint8_t FillValue,
   MCStreamer::EmitFill(NumBytes, FillValue, AddrSpace);
 }
 
-void PTXMCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment, int64_t Value,
+void PTXMCAsmStreamer::EmitValueToAlignment(unsigned ByteAlignment,
+                                            int64_t Value,
                                             unsigned ValueSize,
                                             unsigned MaxBytesToEmit) {
   // Some assemblers don't support non-power of two alignments, so we always
@@ -511,7 +513,7 @@ void PTXMCAsmStreamer::EmitInstruction(const MCInst &Inst) {
 
   // If we have an AsmPrinter, use that to print, otherwise print the MCInst.
   if (InstPrinter)
-    InstPrinter->printInst(&Inst, OS);
+    InstPrinter->printInst(&Inst, OS, "");
   else
     Inst.print(OS, &MAI);
   EmitEOL();
@@ -532,9 +534,9 @@ void PTXMCAsmStreamer::Finish() {}
 namespace llvm {
   MCStreamer *createPTXAsmStreamer(MCContext &Context,
                                    formatted_raw_ostream &OS,
-                                   bool isVerboseAsm, bool useLoc,
+                                   bool isVerboseAsm, bool useLoc, bool useCFI,
                                    MCInstPrinter *IP,
-                                   MCCodeEmitter *CE, TargetAsmBackend *TAB,
+                                   MCCodeEmitter *CE, MCAsmBackend *MAB,
                                    bool ShowInst) {
     return new PTXMCAsmStreamer(Context, OS, isVerboseAsm, useLoc,
                                 IP, CE, ShowInst);

@@ -37,7 +37,8 @@
 
 struct proto_conn;
 
-int proto_client(const char *addr, struct proto_conn **connp);
+int proto_client(const char *srcaddr, const char *dstaddr,
+    struct proto_conn **connp);
 int proto_connect(struct proto_conn *conn, int timeout);
 int proto_connect_wait(struct proto_conn *conn, int timeout);
 int proto_server(const char *addr, struct proto_conn **connp);

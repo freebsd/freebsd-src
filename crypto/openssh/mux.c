@@ -1,4 +1,4 @@
-/* $OpenBSD: mux.c,v 1.21 2010/06/25 23:15:36 djm Exp $ */
+/* $OpenBSD: mux.c,v 1.29 2011/06/22 22:08:42 djm Exp $ */
 /*
  * Copyright (c) 2002-2008 Damien Miller <djm@openbsd.org>
  *
@@ -87,7 +87,6 @@
 
 /* from ssh.c */
 extern int tty_flag;
-extern int force_tty_flag;
 extern Options options;
 extern int stdin_null_flag;
 extern char *host;
@@ -146,6 +145,7 @@ struct mux_master_state {
 #define MUX_C_OPEN_FWD		0x10000006
 #define MUX_C_CLOSE_FWD		0x10000007
 #define MUX_C_NEW_STDIO_FWD	0x10000008
+#define MUX_C_STOP_LISTENING	0x10000009
 #define MUX_S_OK		0x80000001
 #define MUX_S_PERMISSION_DENIED	0x80000002
 #define MUX_S_FAILURE		0x80000003
@@ -153,6 +153,7 @@ struct mux_master_state {
 #define MUX_S_ALIVE		0x80000005
 #define MUX_S_SESSION_OPENED	0x80000006
 #define MUX_S_REMOTE_PORT	0x80000007
+#define MUX_S_TTY_ALLOC_FAIL	0x80000008
 
 /* type codes for MUX_C_OPEN_FWD and MUX_C_CLOSE_FWD */
 #define MUX_FWD_LOCAL   1
@@ -168,6 +169,7 @@ static int process_mux_terminate(u_int, Channel *, Buffer *, Buffer *);
 static int process_mux_open_fwd(u_int, Channel *, Buffer *, Buffer *);
 static int process_mux_close_fwd(u_int, Channel *, Buffer *, Buffer *);
 static int process_mux_stdio_fwd(u_int, Channel *, Buffer *, Buffer *);
+static int process_mux_stop_listening(u_int, Channel *, Buffer *, Buffer *);
 
 static const struct {
 	u_int type;
@@ -180,6 +182,7 @@ static const struct {
 	{ MUX_C_OPEN_FWD, process_mux_open_fwd },
 	{ MUX_C_CLOSE_FWD, process_mux_close_fwd },
 	{ MUX_C_NEW_STDIO_FWD, process_mux_stdio_fwd },
+	{ MUX_C_STOP_LISTENING, process_mux_stop_listening },
 	{ 0, NULL }
 };
 
@@ -879,7 +882,7 @@ process_mux_stdio_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 
 	if (options.control_master == SSHCTL_MASTER_ASK ||
 	    options.control_master == SSHCTL_MASTER_AUTO_ASK) {
-		if (!ask_permission("Allow forward to to %s:%u? ",
+		if (!ask_permission("Allow forward to %s:%u? ",
 		    chost, cport)) {
 			debug2("%s: stdio fwd refused by user", __func__);
 			/* prepare reply */
@@ -911,6 +914,39 @@ process_mux_stdio_fwd(u_int rid, Channel *c, Buffer *m, Buffer *r)
 	buffer_put_int(r, MUX_S_SESSION_OPENED);
 	buffer_put_int(r, rid);
 	buffer_put_int(r, nc->self);
+
+	return 0;
+}
+
+static int
+process_mux_stop_listening(u_int rid, Channel *c, Buffer *m, Buffer *r)
+{
+	debug("%s: channel %d: stop listening", __func__, c->self);
+
+	if (options.control_master == SSHCTL_MASTER_ASK ||
+	    options.control_master == SSHCTL_MASTER_AUTO_ASK) {
+		if (!ask_permission("Disable further multiplexing on shared "
+		    "connection to %s? ", host)) {
+			debug2("%s: stop listen refused by user", __func__);
+			buffer_put_int(r, MUX_S_PERMISSION_DENIED);
+			buffer_put_int(r, rid);
+			buffer_put_cstring(r, "Permission denied");
+			return 0;
+		}
+	}
+
+	if (mux_listener_channel != NULL) {
+		channel_free(mux_listener_channel);
+		client_stop_mux();
+		xfree(options.control_path);
+		options.control_path = NULL;
+		mux_listener_channel = NULL;
+		muxserver_sock = -1;
+	}
+
+	/* prepare reply */
+	buffer_put_int(r, MUX_S_OK);
+	buffer_put_int(r, rid);
 
 	return 0;
 }
@@ -1019,6 +1055,27 @@ mux_exit_message(Channel *c, int exitval)
 	buffer_free(&m);
 }
 
+void
+mux_tty_alloc_failed(Channel *c)
+{
+	Buffer m;
+	Channel *mux_chan;
+
+	debug3("%s: channel %d: TTY alloc failed", __func__, c->self);
+
+	if ((mux_chan = channel_by_id(c->ctl_chan)) == NULL)
+		fatal("%s: channel %d missing mux channel %d",
+		    __func__, c->self, c->ctl_chan);
+
+	/* Append exit message packet to control socket output queue */
+	buffer_init(&m);
+	buffer_put_int(&m, MUX_S_TTY_ALLOC_FAIL);
+	buffer_put_int(&m, c->self);
+
+	buffer_put_string(&mux_chan->output, buffer_ptr(&m), buffer_len(&m));
+	buffer_free(&m);
+}
+
 /* Prepare a mux master to listen on a Unix domain socket. */
 void
 muxserver_listen(void)
@@ -1026,6 +1083,9 @@ muxserver_listen(void)
 	struct sockaddr_un addr;
 	socklen_t sun_len;
 	mode_t old_umask;
+	char *orig_control_path = options.control_path;
+	char rbuf[16+1];
+	u_int i, r;
 
 	if (options.control_path == NULL ||
 	    options.control_master == SSHCTL_MASTER_NO)
@@ -1033,26 +1093,48 @@ muxserver_listen(void)
 
 	debug("setting up multiplex master socket");
 
+	/*
+	 * Use a temporary path before listen so we can pseudo-atomically
+	 * establish the listening socket in its final location to avoid
+	 * other processes racing in between bind() and listen() and hitting
+	 * an unready socket.
+	 */
+	for (i = 0; i < sizeof(rbuf) - 1; i++) {
+		r = arc4random_uniform(26+26+10);
+		rbuf[i] = (r < 26) ? 'a' + r :
+		    (r < 26*2) ? 'A' + r - 26 :
+		    '0' + r - 26 - 26;
+	}
+	rbuf[sizeof(rbuf) - 1] = '\0';
+	options.control_path = NULL;
+	xasprintf(&options.control_path, "%s.%s", orig_control_path, rbuf);
+	debug3("%s: temporary control path %s", __func__, options.control_path);
+
 	memset(&addr, '\0', sizeof(addr));
 	addr.sun_family = AF_UNIX;
 	sun_len = offsetof(struct sockaddr_un, sun_path) +
 	    strlen(options.control_path) + 1;
 
 	if (strlcpy(addr.sun_path, options.control_path,
-	    sizeof(addr.sun_path)) >= sizeof(addr.sun_path))
-		fatal("ControlPath too long");
+	    sizeof(addr.sun_path)) >= sizeof(addr.sun_path)) {
+		error("ControlPath \"%s\" too long for Unix domain socket",
+		    options.control_path);
+		goto disable_mux_master;
+	}
 
 	if ((muxserver_sock = socket(PF_UNIX, SOCK_STREAM, 0)) < 0)
 		fatal("%s socket(): %s", __func__, strerror(errno));
 
 	old_umask = umask(0177);
 	if (bind(muxserver_sock, (struct sockaddr *)&addr, sun_len) == -1) {
-		muxserver_sock = -1;
 		if (errno == EINVAL || errno == EADDRINUSE) {
 			error("ControlSocket %s already exists, "
 			    "disabling multiplexing", options.control_path);
-			close(muxserver_sock);
-			muxserver_sock = -1;
+ disable_mux_master:
+			if (muxserver_sock != -1) {
+				close(muxserver_sock);
+				muxserver_sock = -1;
+			}
 			xfree(options.control_path);
 			options.control_path = NULL;
 			options.control_master = SSHCTL_MASTER_NO;
@@ -1065,12 +1147,29 @@ muxserver_listen(void)
 	if (listen(muxserver_sock, 64) == -1)
 		fatal("%s listen(): %s", __func__, strerror(errno));
 
+	/* Now atomically "move" the mux socket into position */
+	if (link(options.control_path, orig_control_path) != 0) {
+		if (errno != EEXIST) {
+			fatal("%s: link mux listener %s => %s: %s", __func__, 
+			    options.control_path, orig_control_path,
+			    strerror(errno));
+		}
+		error("ControlSocket %s already exists, disabling multiplexing",
+		    orig_control_path);
+		xfree(orig_control_path);
+		unlink(options.control_path);
+		goto disable_mux_master;
+	}
+	unlink(options.control_path);
+	xfree(options.control_path);
+	options.control_path = orig_control_path;
+
 	set_nonblock(muxserver_sock);
 
 	mux_listener_channel = channel_new("mux listener",
 	    SSH_CHANNEL_MUX_LISTENER, muxserver_sock, muxserver_sock, -1,
 	    CHAN_TCP_WINDOW_DEFAULT, CHAN_TCP_PACKET_DEFAULT,
-	    0, addr.sun_path, 1);
+	    0, options.control_path, 1);
 	mux_listener_channel->mux_rcb = mux_master_read_cb;
 	debug3("%s: mux listener channel %d fd %d", __func__,
 	    mux_listener_channel->self, mux_listener_channel->sock);
@@ -1115,8 +1214,10 @@ mux_session_confirm(int id, int success, void *arg)
 		/* Request forwarding with authentication spoofing. */
 		debug("Requesting X11 forwarding with authentication "
 		    "spoofing.");
-		x11_request_forwarding_with_spoofing(id, display, proto, data);
-		/* XXX wait for reply */
+		x11_request_forwarding_with_spoofing(id, display, proto,
+		    data, 1);
+		client_expect_confirm(id, "X11 forwarding", CONFIRM_WARN);
+		/* XXX exit_on_forward_failure */
 	}
 
 	if (cctx->want_agent_fwd && options.forward_agent) {
@@ -1492,7 +1593,7 @@ mux_client_request_forward(int fd, u_int ftype, Forward *fwd)
 	case MUX_S_FAILURE:
 		e = buffer_get_string(&m, NULL);
 		buffer_free(&m);
-		error("%s: session request failed: %s", __func__, e);
+		error("%s: forwarding request failed: %s", __func__, e);
 		return -1;
 	default:
 		fatal("%s: unexpected response from master 0x%08x",
@@ -1535,7 +1636,7 @@ mux_client_request_session(int fd)
 	char *e, *term;
 	u_int i, rid, sid, esid, exitval, type, exitval_seen;
 	extern char **environ;
-	int devnull;
+	int devnull, rawmode;
 
 	debug3("%s: entering", __func__);
 
@@ -1611,12 +1712,12 @@ mux_client_request_session(int fd)
 	case MUX_S_PERMISSION_DENIED:
 		e = buffer_get_string(&m, NULL);
 		buffer_free(&m);
-		error("Master refused forwarding request: %s", e);
+		error("Master refused session request: %s", e);
 		return -1;
 	case MUX_S_FAILURE:
 		e = buffer_get_string(&m, NULL);
 		buffer_free(&m);
-		error("%s: forwarding request failed: %s", __func__, e);
+		error("%s: session request failed: %s", __func__, e);
 		return -1;
 	default:
 		buffer_free(&m);
@@ -1631,8 +1732,9 @@ mux_client_request_session(int fd)
 	signal(SIGTERM, control_client_sighandler);
 	signal(SIGWINCH, control_client_sigrelay);
 
+	rawmode = tty_flag;
 	if (tty_flag)
-		enter_raw_mode(force_tty_flag);
+		enter_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
 
 	/*
 	 * Stick around until the controlee closes the client_fd.
@@ -1646,22 +1748,35 @@ mux_client_request_session(int fd)
 		if (mux_client_read_packet(fd, &m) != 0)
 			break;
 		type = buffer_get_int(&m);
-		if (type != MUX_S_EXIT_MESSAGE) {
+		switch (type) {
+		case MUX_S_TTY_ALLOC_FAIL:
+			if ((esid = buffer_get_int(&m)) != sid)
+				fatal("%s: tty alloc fail on unknown session: "
+				    "my id %u theirs %u",
+				    __func__, sid, esid);
+			leave_raw_mode(options.request_tty ==
+			    REQUEST_TTY_FORCE);
+			rawmode = 0;
+			continue;
+		case MUX_S_EXIT_MESSAGE:
+			if ((esid = buffer_get_int(&m)) != sid)
+				fatal("%s: exit on unknown session: "
+				    "my id %u theirs %u",
+				    __func__, sid, esid);
+			if (exitval_seen)
+				fatal("%s: exitval sent twice", __func__);
+			exitval = buffer_get_int(&m);
+			exitval_seen = 1;
+			continue;
+		default:
 			e = buffer_get_string(&m, NULL);
 			fatal("%s: master returned error: %s", __func__, e);
 		}
-		if ((esid = buffer_get_int(&m)) != sid)
-			fatal("%s: exit on unknown session: my id %u theirs %u",
-			    __func__, sid, esid);
-		debug("%s: master session id: %u", __func__, sid);
-		if (exitval_seen)
-			fatal("%s: exitval sent twice", __func__);
-		exitval = buffer_get_int(&m);
-		exitval_seen = 1;
 	}
 
 	close(fd);
-	leave_raw_mode(force_tty_flag);
+	if (rawmode)
+		leave_raw_mode(options.request_tty == REQUEST_TTY_FORCE);
 
 	if (muxclient_terminate) {
 		debug2("Exiting on signal %d", muxclient_terminate);
@@ -1743,7 +1858,7 @@ mux_client_request_stdio_fwd(int fd)
 	case MUX_S_PERMISSION_DENIED:
 		e = buffer_get_string(&m, NULL);
 		buffer_free(&m);
-		fatal("Master refused forwarding request: %s", e);
+		fatal("Master refused stdio forwarding request: %s", e);
 	case MUX_S_FAILURE:
 		e = buffer_get_string(&m, NULL);
 		buffer_free(&m);
@@ -1773,6 +1888,50 @@ mux_client_request_stdio_fwd(int fd)
 		    __func__, strerror(errno));
 	}
 	fatal("%s: master returned unexpected message %u", __func__, type);
+}
+
+static void
+mux_client_request_stop_listening(int fd)
+{
+	Buffer m;
+	char *e;
+	u_int type, rid;
+
+	debug3("%s: entering", __func__);
+
+	buffer_init(&m);
+	buffer_put_int(&m, MUX_C_STOP_LISTENING);
+	buffer_put_int(&m, muxclient_request_id);
+
+	if (mux_client_write_packet(fd, &m) != 0)
+		fatal("%s: write packet: %s", __func__, strerror(errno));
+
+	buffer_clear(&m);
+
+	/* Read their reply */
+	if (mux_client_read_packet(fd, &m) != 0)
+		fatal("%s: read from master failed: %s",
+		    __func__, strerror(errno));
+
+	type = buffer_get_int(&m);
+	if ((rid = buffer_get_int(&m)) != muxclient_request_id)
+		fatal("%s: out of sequence reply: my id %u theirs %u",
+		    __func__, muxclient_request_id, rid);
+	switch (type) {
+	case MUX_S_OK:
+		break;
+	case MUX_S_PERMISSION_DENIED:
+		e = buffer_get_string(&m, NULL);
+		fatal("Master refused stop listening request: %s", e);
+	case MUX_S_FAILURE:
+		e = buffer_get_string(&m, NULL);
+		fatal("%s: stop listening request failed: %s", __func__, e);
+	default:
+		fatal("%s: unexpected response from master 0x%08x",
+		    __func__, type);
+	}
+	buffer_free(&m);
+	muxclient_request_id++;
 }
 
 /* Multiplex client main loop. */
@@ -1823,9 +1982,13 @@ muxclient(const char *path)
 			fatal("Control socket connect(%.100s): %s", path,
 			    strerror(errno));
 		}
-		if (errno == ENOENT)
+		if (errno == ECONNREFUSED &&
+		    options.control_master != SSHCTL_MASTER_NO) {
+			debug("Stale control socket %.100s, unlinking", path);
+			unlink(path);
+		} else if (errno == ENOENT) {
 			debug("Control socket \"%.100s\" does not exist", path);
-		else {
+		} else {
 			error("Control socket connect(%.100s): %s", path,
 			    strerror(errno));
 		}
@@ -1863,6 +2026,10 @@ muxclient(const char *path)
 		return;
 	case SSHMUX_COMMAND_STDIO_FWD:
 		mux_client_request_stdio_fwd(sock);
+		exit(0);
+	case SSHMUX_COMMAND_STOP:
+		mux_client_request_stop_listening(sock);
+		fprintf(stderr, "Stop listening request sent.\r\n");
 		exit(0);
 	default:
 		fatal("unrecognised muxclient_command %d", muxclient_command);

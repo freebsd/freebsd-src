@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/ofw/ofw_bus.h>
@@ -105,16 +106,27 @@ static void bm_tick		(void *xsc);
 static int bm_ifmedia_upd	(struct ifnet *);
 static void bm_ifmedia_sts	(struct ifnet *, struct ifmediareq *);
 
-static void bm_miicsr_dwrite	(struct bm_softc *, u_int16_t);
-static void bm_mii_writebit	(struct bm_softc *, int);
-static int bm_mii_readbit	(struct bm_softc *);
-static void bm_mii_sync		(struct bm_softc *);
-static void bm_mii_send		(struct bm_softc *, u_int32_t, int);
-static int bm_mii_readreg	(struct bm_softc *, struct bm_mii_frame *);
-static int bm_mii_writereg	(struct bm_softc *, struct bm_mii_frame *);
 static int bm_miibus_readreg	(device_t, int, int);
 static int bm_miibus_writereg	(device_t, int, int, int);
 static void bm_miibus_statchg	(device_t);
+
+/*
+ * MII bit-bang glue
+ */
+static uint32_t bm_mii_bitbang_read(device_t);
+static void bm_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops bm_mii_bitbang_ops = {
+	bm_mii_bitbang_read,
+	bm_mii_bitbang_write,
+	{
+		BM_MII_DATAOUT,	/* MII_BIT_MDO */
+		BM_MII_DATAIN,	/* MII_BIT_MDI */
+		BM_MII_CLK,	/* MII_BIT_MDC */
+		BM_MII_OENABLE,	/* MII_BIT_DIR_HOST_PHY */
+		0,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
 
 static device_method_t bm_methods[] = {
 	/* Device interface */
@@ -123,15 +135,12 @@ static device_method_t bm_methods[] = {
 	DEVMETHOD(device_detach,	bm_detach),
 	DEVMETHOD(device_shutdown,	bm_shutdown),
 
-	/* bus interface, for miibus */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bm_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bm_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bm_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t bm_macio_driver = {
@@ -150,171 +159,36 @@ DRIVER_MODULE(miibus, bm, miibus_driver, miibus_devclass, 0, 0);
  */
 
 /*
- * Write to the MII csr, introducing a delay to allow valid
- * MII clock pulses to be formed
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-bm_miicsr_dwrite(struct bm_softc *sc, u_int16_t val)
+bm_mii_bitbang_write(device_t dev, uint32_t val)
 {
+	struct bm_softc *sc;
+
+	sc = device_get_softc(dev);
+
 	CSR_WRITE_2(sc, BM_MII_CSR, val);
-	/*
-	 * Assume this is a clock toggle and generate a 1us delay
-	 * to cover both MII's 160ns high/low minimum and 400ns
-	 * cycle miniumum
-	 */
-	DELAY(1);
+	CSR_BARRIER(sc, BM_MII_CSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 /*
- * Write a bit to the MII bus.
+ * Read the MII serial port for the MII bit-bang module.
  */
-static void
-bm_mii_writebit(struct bm_softc *sc, int bit)
+static uint32_t
+bm_mii_bitbang_read(device_t dev)
 {
-	u_int16_t regval;
+	struct bm_softc *sc;
+	uint32_t reg;
 
-	regval = BM_MII_OENABLE;
-	if (bit)
-		regval |= BM_MII_DATAOUT;
+	sc = device_get_softc(dev);
 
-	bm_miicsr_dwrite(sc, regval);
-	bm_miicsr_dwrite(sc, regval | BM_MII_CLK);
-	bm_miicsr_dwrite(sc, regval);
-}
+	reg = CSR_READ_2(sc, BM_MII_CSR);
+	CSR_BARRIER(sc, BM_MII_CSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
-/*
- * Read a bit from the MII bus.
- */
-static int
-bm_mii_readbit(struct bm_softc *sc)
-{
-	u_int16_t regval, bitin;
-
-	/* ~BM_MII_OENABLE */
-	regval = 0;
-
-	bm_miicsr_dwrite(sc, regval);
-	bm_miicsr_dwrite(sc, regval | BM_MII_CLK);
-	bm_miicsr_dwrite(sc, regval);
-	bitin = CSR_READ_2(sc, BM_MII_CSR) & BM_MII_DATAIN;
-
-	return (bitin == BM_MII_DATAIN);
-}
-
-/*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
- */
-static void
-bm_mii_sync(struct bm_softc *sc)
-{
-	int i;
-	u_int16_t regval;
-
-	regval = BM_MII_OENABLE | BM_MII_DATAOUT;
-
-	bm_miicsr_dwrite(sc, regval);
-	for (i = 0; i < 32; i++) {
-		bm_miicsr_dwrite(sc, regval | BM_MII_CLK);
-		bm_miicsr_dwrite(sc, regval);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-bm_mii_send(struct bm_softc *sc, u_int32_t bits, int cnt)
-{
-	int i;
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1)
-		bm_mii_writebit(sc, bits & i);
-}
-
-/*
- * Read a PHY register through the MII.
- */
-static int
-bm_mii_readreg(struct bm_softc *sc, struct bm_mii_frame *frame)
-{
-	int i, ack, bit;
-
-	/*
-	 * Set up frame for RX.
-	 */
-	frame->mii_stdelim = BM_MII_STARTDELIM;
-	frame->mii_opcode = BM_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	/*
-	 * Sync the PHYs
-	 */
-	bm_mii_sync(sc);
-
-	/*
-	 * Send command/address info
-	 */
-	bm_mii_send(sc, frame->mii_stdelim, 2);
-	bm_mii_send(sc, frame->mii_opcode, 2);
-	bm_mii_send(sc, frame->mii_phyaddr, 5);
-	bm_mii_send(sc, frame->mii_regaddr, 5);
-
-	/*
-	 * Check for ack.
-	 */
-	ack = bm_mii_readbit(sc);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	for (i = 0x8000; i; i >>= 1) {
-		bit = bm_mii_readbit(sc);
-		if (!ack && bit)
-			frame->mii_data |= i;
-	}
-
-	/*
-	 * Skip through idle bit-times
-	 */
-	bm_mii_writebit(sc, 0);
-	bm_mii_writebit(sc, 0);
-
-	return ((ack) ? 1 : 0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-bm_mii_writereg(struct bm_softc *sc, struct bm_mii_frame *frame)
-{
-	/*
-	 * Set up frame for tx
-	 */
-	frame->mii_stdelim = BM_MII_STARTDELIM;
-	frame->mii_opcode = BM_MII_WRITEOP;
-	frame->mii_turnaround = BM_MII_TURNAROUND;
-
-	/*
-	 * Sync the phy and start the bitbang write sequence
-	 */
-	bm_mii_sync(sc);
-
-	bm_mii_send(sc, frame->mii_stdelim, 2);
-	bm_mii_send(sc, frame->mii_opcode, 2);
-	bm_mii_send(sc, frame->mii_phyaddr, 5);
-	bm_mii_send(sc, frame->mii_regaddr, 5);
-	bm_mii_send(sc, frame->mii_turnaround, 2);
-	bm_mii_send(sc, frame->mii_data, 16);
-
-	/*
-	 * Idle bit.
-	 */
-	bm_mii_writebit(sc, 0);
-
-	return (0);
+	return (reg);
 }
 
 /*
@@ -323,34 +197,15 @@ bm_mii_writereg(struct bm_softc *sc, struct bm_mii_frame *frame)
 static int
 bm_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct bm_softc *sc;
-	struct bm_mii_frame frame;
 
-	sc = device_get_softc(dev);
-	bzero(&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-
-	bm_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &bm_mii_bitbang_ops, phy, reg));
 }
 
 static int
 bm_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
-	struct bm_softc *sc;
-	struct bm_mii_frame frame;
 
-	sc = device_get_softc(dev);
-	bzero(&frame, sizeof(frame));
-
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-
-	bm_mii_writereg(sc, &frame);
+	mii_bitbang_readreg(dev, &bm_mii_bitbang_ops, phy, reg);
 
 	return (0);
 }
@@ -558,6 +413,7 @@ bm_attach(device_t dev)
 	}
 
 	/* alloc interrupt */
+	bm_disable_interrupts(sc);
 
 	sc->sc_txdmairqid = BM_TXDMA_INTERRUPT;
 	sc->sc_txdmairq = bus_alloc_resource_any(dev, SYS_RES_IRQ,
@@ -591,9 +447,6 @@ bm_attach(device_t dev)
 	eaddr = sc->sc_enaddr;
 	OF_getprop(node, "local-mac-address", eaddr, ETHER_ADDR_LEN);
 
-	/* reset the adapter  */
-	bm_chip_setup(sc);
-
 	/*
 	 * Setup MII
 	 * On Apple BMAC controllers, we end up in a weird state of
@@ -607,6 +460,9 @@ bm_attach(device_t dev)
 		device_printf(dev, "attaching PHYs failed\n");
 		return (error);
 	}
+
+	/* reset the adapter  */
+	bm_chip_setup(sc);
 
 	sc->sc_mii = device_get_softc(sc->sc_miibus);
 
@@ -1129,31 +985,16 @@ bm_chip_setup(struct bm_softc *sc)
 {
 	uint16_t reg;
 	uint16_t *eaddr_sect;
-	char path[128];
-	ihandle_t bmac_ih;
 
 	eaddr_sect = (uint16_t *)(sc->sc_enaddr);
-
-	/* 
-	 * Enable BMAC cell by opening and closing its OF node. This enables 
-	 * the cell in macio as a side effect. We should probably directly 
-	 * twiddle the FCR bits, but we lack a good interface for this at the
-	 * present time. 
-	 */
-
-	OF_package_to_path(ofw_bus_get_node(sc->sc_dev), path, sizeof(path));
-	bmac_ih = OF_open(path);
-	if (bmac_ih == -1) {
-		device_printf(sc->sc_dev,
-		    "Enabling BMAC cell failed! Hoping it's already active.\n");
-	} else {
-		OF_close(bmac_ih);
-	}
+	dbdma_stop(sc->sc_txdma);
+	dbdma_stop(sc->sc_rxdma);
 
 	/* Reset chip */
 	CSR_WRITE_2(sc, BM_RX_RESET, 0x0000);
 	CSR_WRITE_2(sc, BM_TX_RESET, 0x0001);
 	do {
+		DELAY(10);
 		reg = CSR_READ_2(sc, BM_TX_RESET);
 	} while (reg & 0x0001);
 

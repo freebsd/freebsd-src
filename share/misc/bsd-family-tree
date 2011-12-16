@@ -245,8 +245,11 @@ FreeBSD 5.2           |      |                 |                       |
  |     |        |     |      |    |        OpenBSD 4.8                 |
  |     |        |     |      | NetBSD 5.1      |                       |
  |  FreeBSD  FreeBSD  |      |                 |                       |
- |    8.2      7.4    |      |                 |                       |
- |     v              |      |                 |                       |
+ |    8.2      7.4    |      |                 |               DragonFly 2.10.1
+ |     v              |      |             OpenBSD 4.9                 |
+ |                    |      |                 |                       |
+ |                    |      |                 |                       |
+ |                    |      |             OpenBSD 5.0                 |
  |                    |      |                 |                       |
 FreeBSD 9 -current    |  NetBSD -current  OpenBSD -current             |
  |                    |      |                 |                       |
@@ -532,6 +535,9 @@ OpenBSD 4.8		2010-11-01 [OBD]
 NetBSD 5.1		2010-11-19 [NBD]
 FreeBSD 7.4		2011-02-24 [FBD]
 FreeBSD 8.2		2011-02-24 [FBD]
+DragonFly 2.10.1	2011-04-26 [DFB]
+OpenBSD 4.9		2011-05-01 [OBD]
+OpenBSD 5.0		2011-11-01 [OBD]
 
 Bibliography
 ------------------------
@@ -560,7 +566,7 @@ Australian Computer Society, Hobart, August 1993.
 Peter H. Salus. Unix at 25. Byte Magazine, October 1994.
 URL: http://www.byte.com/art/9410/sec8/art3.htm
 
-Andreas Klemm, Lars Köller. If you're going to San Francisco ...
+Andreas Klemm, Lars KÃ¶ller. If you're going to San Francisco ...
 Die freien BSD-Varianten von Unix. c't April 1997, page 368ff.
 
 BSD Release Announcements collection.

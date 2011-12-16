@@ -1,5 +1,5 @@
 # $FreeBSD$
 
-SUBDIR=		bind9 dns isc isccc isccfg lwres
+SUBDIR=		isc isccc dns isccfg bind9 lwres
 
 .include <bsd.subdir.mk>

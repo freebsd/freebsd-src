@@ -1,0 +1,246 @@
+#!/bin/bash
+#
+# Copyright (c) 2008 Voltaire, Inc. All rights reserved.
+# Copyright (c) 2006 Mellanox Technologies. All rights reserved.
+#
+# This Software is licensed under one of the following licenses:
+#
+# 1) under the terms of the "Common Public License 1.0" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/cpl.php.
+#
+# 2) under the terms of the "The BSD License" a copy of which is
+#    available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/bsd-license.php.
+#
+# 3) under the terms of the "GNU General Public License (GPL) Version 2" a
+#    copy of which is available from the Open Source Initiative, see
+#    http://www.opensource.org/licenses/gpl-license.php.
+#
+# Licensee has the right to choose one of the above licenses.
+#
+# Redistributions of source code must retain the above copyright
+# notice and one of the license notices.
+#
+# Redistributions in binary form must reproduce both the above copyright
+# notice, one of the license notices in the documentation
+# and/or other materials provided with the distribution.
+#
+#
+
+# OpenSM found to have the following problem
+# when handover is performed:
+# If some of the cluster nodes are rebooted during the handover they loose their LID assignment.
+# The reason for it is that the standby SM does not obey its own Guid to LID table
+# and simply uses the discovered LIDs. If some nodes are not available for it
+# their previous LID assignment is lost forever.
+
+# The idea is to use an external daemon that will distribute
+# the semi-static LID assignment table from the master SM to all standby SMs.
+# A standby SM, becoming a master . needs to obey the copied semi static LID assignment table.
+
+prefix=@prefix@
+exec_prefix=@exec_prefix@
+
+CONFIG=@sysconfdir@/sysconfig/opensm
+if [ -f $CONFIG ]; then
+	. $CONFIG
+fi
+
+SLDD_DEBUG=${SLDD_DEBUG:-0}
+
+CACHE_FILE=${CACHE_FILE:-/var/cache/opensm/guid2lid}
+CACHE_DIR=$(dirname ${CACHE_FILE})
+tmp_cache=${CACHE_FILE}.tmp
+
+PING='ping -w 1 -c 1'
+
+RCP=${RCP:-/usr/bin/scp}
+RSH=${RSH:-/usr/bin/ssh}
+IFCONFIG=${IFCONFIG:-'/sbin/ifconfig -a'}
+
+declare -i SLDD_DEBUG
+RESCAN_TIME=${RESCAN_TIME:-60}
+
+if [ -z "${OSM_HOSTS}" ]; then
+	[ $SLDD_DEBUG -eq 1 ] &&
+	echo "No OpenSM servers (OSM_HOSTS) configured for the IB subnet."
+	exit 0
+fi
+
+
+declare -a arr_OSM_HOSTS
+arr_OSM_HOSTS=(${OSM_HOSTS})
+
+num_of_osm_hosts=${#arr_OSM_HOSTS[@]}
+
+if [ ${num_of_osm_hosts} -eq 1 ]; then
+	[ $SLDD_DEBUG -eq 1 ] &&
+	echo "One OpenSM server configured in the IB subnet." &&
+	echo "Nothing to be done for SLDD"
+
+	exit 0
+fi
+
+trap 'trap_handler' 15
+
+trap_handler()
+{
+	logger -i "SLDD: Exiting."
+	exit 0
+}
+
+is_alive()
+{
+	$PING $1 > /dev/null 2>&1
+	return $?
+}
+
+is_local()
+{
+	$IFCONFIG | grep -w "$1" > /dev/null 2>&1
+	return $?
+}
+
+update_remote_cache()
+{
+	/bin/rm -f ${CACHE_FILE}.upd
+	/bin/cp -a ${CACHE_FILE} ${CACHE_FILE}.upd
+
+	[ $SLDD_DEBUG -eq 1 ] &&
+	echo "Updating remote cache file"
+
+	for host in ${OSM_HOSTS}
+	do
+		# Skip local host update
+		if [ "${host}" == "${local_host}" ]; then
+			continue
+		fi
+
+		if is_alive $host; then
+			stat=$($RSH $host "/bin/mkdir -p ${CACHE_DIR} > /dev/null 2>&1; /bin/rm -f ${CACHE_FILE}.${local_host} > /dev/null 2>&1; echo \$?" | tr -d '[:space:]')
+			if [ "X${stat}" == "X0" ]; then
+				[ $SLDD_DEBUG -eq 1 ] &&
+				echo "Updating $host"
+				logger -i "SLDD: updating $host with ${CACHE_FILE}"
+				$RCP ${CACHE_FILE}.upd ${host}:${CACHE_FILE}.${local_host}
+				/bin/cp ${CACHE_FILE}.upd ${CACHE_FILE}.${host}
+			else
+				[ $SLDD_DEBUG -eq 1 ] &&
+				echo "$RSH to $host failed."
+				logger -i "SLDD: Failed to update $host with ${CACHE_FILE}. $RSH without password should be enabled"
+				exit 5
+			fi
+		else
+			[ $SLDD_DEBUG -eq 1 ] &&
+			echo "$host is down."
+			continue
+		fi
+	done
+}
+
+get_latest_remote_cache()
+{
+	# Find most updated remote cache file (the suffix should be like ip address: *.*.*.*)
+	echo -n "$(/bin/ls -1t ${CACHE_FILE}.*.* 2> /dev/null | head -1)"
+}
+
+get_largest_remote_cache()
+{
+	# Find largest (size) remote cache file (the suffix should be like ip address: *.*.*.*)
+	echo -n "$(/bin/ls -1S ${CACHE_FILE}.*.* 2> /dev/null | head -1)"
+}
+
+swap_cache_files()
+{
+	/bin/rm -f ${CACHE_FILE}.old
+	/bin/mv ${CACHE_FILE} ${CACHE_FILE}.old
+	/bin/cp ${largest_remote_cache} ${CACHE_FILE}
+	touch ${CACHE_FILE}.tmp
+}
+
+# Find local host in the osm hosts list
+local_host=""
+for host in ${OSM_HOSTS}
+do
+	if is_local $host; then
+		local_host=${host}
+	fi
+done
+
+# Get cache file info
+declare -i new_size=0
+declare -i last_size=0
+declare -i largest_remote_cache_size=0
+
+if [ -e ${CACHE_FILE} ]; then
+	last_size=$(du -b ${CACHE_FILE} | awk '{print$1}' | tr -d '[:space:]')
+else
+	touch ${CACHE_FILE} ${CACHE_FILE}.tmp
+fi
+
+# if [ ${last_size} -gt 0 ]; then
+# 	# First time update
+# 	update_remote_cache
+# fi
+
+while true
+do
+	if [ -s "${CACHE_FILE}" ]; then
+		new_size=$(du -b ${CACHE_FILE} | awk '{print$1}' | tr -d '[:space:]')
+		# Check if local cache file grew from its last version or the time stamp changed
+		if [ ${new_size} -gt ${last_size} ]
+		   [ "$(/bin/ls -1t ${CACHE_FILE} ${CACHE_FILE}.tmp 2> /dev/null | head -1)"  != "${CACHE_FILE}.tmp" ]; then
+			largest_remote_cache=$(get_largest_remote_cache)
+			if [[ -n "${largest_remote_cache}" && -s "${largest_remote_cache}" ]]; then
+				largest_remote_cache_size=$(du -b ${largest_remote_cache} 2> /dev/null | awk '{print$1}' | tr -d '[:space:]')
+			else
+				largest_remote_cache_size=0
+			fi
+
+			# Check if local cache file larger than remote chache file
+			if [ ${new_size} -gt ${largest_remote_cache_size} ]; then
+				[ $SLDD_DEBUG -eq 1 ] &&
+				echo "Local cache file larger then remote. Update remote cache files"
+				last_size=${new_size}
+				update_remote_cache
+				continue
+			fi
+		fi
+
+		largest_remote_cache=$(get_largest_remote_cache)
+		if [[ -n "${largest_remote_cache}" && -s "${largest_remote_cache}" ]]; then
+			largest_remote_cache_size=$(du -b ${largest_remote_cache} 2> /dev/null | awk '{print$1}' | tr -d '[:space:]')
+		else
+			largest_remote_cache_size=0
+		fi
+
+		# Update local cache file from remote
+		if [ ${largest_remote_cache_size} -gt ${new_size} ]; then
+			[ $SLDD_DEBUG -eq 1 ] &&
+			echo "Local cache file shorter then remote. Use ${largest_remote_cache}"
+			logger -i "SLDD: updating local cache file with ${largest_remote_cache}"
+			swap_cache_files
+			last_size=${largest_remote_cache_size}
+		fi
+
+	else # The local cache file is empty
+		[ $SLDD_DEBUG -eq 1 ] &&
+		echo "${CACHE_FILE} is empty"
+
+		largest_remote_cache=$(get_largest_remote_cache)
+		if [[ -n "${largest_remote_cache}" && -s "${largest_remote_cache}" ]]; then
+			# Copy it to the current cache
+			[ $SLDD_DEBUG -eq 1 ] &&
+			echo "Local cache file is empty. Use ${largest_remote_cache}"
+			logger -i "SLDD: updating local cache file with ${largest_remote_cache}"
+			swap_cache_files
+		fi
+
+	fi
+
+	[ $SLDD_DEBUG -eq 1 ] &&
+	echo "Sleeping ${RESCAN_TIME} seconds."
+	sleep ${RESCAN_TIME}
+
+done

@@ -11,16 +11,19 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SPURegisterNames.h"
 #include "SPUInstrInfo.h"
 #include "SPUInstrBuilder.h"
 #include "SPUTargetMachine.h"
-#include "SPUGenInstrInfo.inc"
 #include "SPUHazardRecognizers.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
+
+#define GET_INSTRINFO_CTOR
+#include "SPUGenInstrInfo.inc"
 
 using namespace llvm;
 
@@ -50,7 +53,7 @@ namespace {
 }
 
 SPUInstrInfo::SPUInstrInfo(SPUTargetMachine &tm)
-  : TargetInstrInfoImpl(SPUInsts, sizeof(SPUInsts)/sizeof(SPUInsts[0])),
+  : SPUGenInstrInfo(SPU::ADJCALLSTACKDOWN, SPU::ADJCALLSTACKUP),
     TM(tm),
     RI(*TM.getSubtargetImpl(), *this)
 { /* NOP */ }
@@ -281,9 +284,22 @@ SPUInstrInfo::AnalyzeBranch(MachineBasicBlock &MBB, MachineBasicBlock *&TBB,
   return true;
 }
 
+// search MBB for branch hint labels and branch hit ops
+static void removeHBR( MachineBasicBlock &MBB) {
+  for (MachineBasicBlock::iterator I = MBB.begin(); I != MBB.end(); ++I){
+    if (I->getOpcode() == SPU::HBRA ||
+        I->getOpcode() == SPU::HBR_LABEL){
+      I=MBB.erase(I);
+      if (I == MBB.end())
+        break;
+    }
+  }
+}
+
 unsigned
 SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   MachineBasicBlock::iterator I = MBB.end();
+  removeHBR(MBB);
   if (I == MBB.begin())
     return 0;
   --I;
@@ -314,6 +330,23 @@ SPUInstrInfo::RemoveBranch(MachineBasicBlock &MBB) const {
   return 2;
 }
 
+/** Find the optimal position for a hint branch instruction in a basic block.
+ * This should take into account:
+ *   -the branch hint delays
+ *   -congestion of the memory bus
+ *   -dual-issue scheduling (i.e. avoid insertion of nops)
+ * Current implementation is rather simplistic.
+ */
+static MachineBasicBlock::iterator findHBRPosition(MachineBasicBlock &MBB)
+{
+   MachineBasicBlock::iterator J = MBB.end();
+	for( int i=0; i<8; i++) {
+		if( J == MBB.begin() ) return J;
+		J--;
+	}
+	return J;
+}
+
 unsigned
 SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
                            MachineBasicBlock *FBB,
@@ -324,31 +357,60 @@ SPUInstrInfo::InsertBranch(MachineBasicBlock &MBB, MachineBasicBlock *TBB,
   assert((Cond.size() == 2 || Cond.size() == 0) &&
          "SPU branch conditions have two components!");
 
+  MachineInstrBuilder MIB;
+  //TODO: make a more accurate algorithm.
+  bool haveHBR = MBB.size()>8;
+  
+  removeHBR(MBB);
+  MCSymbol *branchLabel = MBB.getParent()->getContext().CreateTempSymbol();
+  // Add a label just before the branch
+  if (haveHBR)
+    MIB = BuildMI(&MBB, DL, get(SPU::HBR_LABEL)).addSym(branchLabel);
+
   // One-way branch.
   if (FBB == 0) {
     if (Cond.empty()) {
       // Unconditional branch
-      MachineInstrBuilder MIB = BuildMI(&MBB, DL, get(SPU::BR));
+      MIB = BuildMI(&MBB, DL, get(SPU::BR));
       MIB.addMBB(TBB);
 
       DEBUG(errs() << "Inserted one-way uncond branch: ");
       DEBUG((*MIB).dump());
+
+      // basic blocks have just one branch so it is safe to add the hint a its
+      if (haveHBR) {
+        MIB = BuildMI( MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
+        MIB.addSym(branchLabel);
+        MIB.addMBB(TBB);
+      }	
     } else {
       // Conditional branch
-      MachineInstrBuilder  MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
+      MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
       MIB.addReg(Cond[1].getReg()).addMBB(TBB);
+
+      if (haveHBR) {
+        MIB = BuildMI(MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
+        MIB.addSym(branchLabel);
+        MIB.addMBB(TBB);
+      }	
 
       DEBUG(errs() << "Inserted one-way cond branch:   ");
       DEBUG((*MIB).dump());
     }
     return 1;
   } else {
-    MachineInstrBuilder MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
+    MIB = BuildMI(&MBB, DL, get(Cond[0].getImm()));
     MachineInstrBuilder MIB2 = BuildMI(&MBB, DL, get(SPU::BR));
 
     // Two-way Conditional Branch.
     MIB.addReg(Cond[1].getReg()).addMBB(TBB);
     MIB2.addMBB(FBB);
+
+    if (haveHBR) {
+      MIB = BuildMI( MBB, findHBRPosition(MBB), DL, get(SPU::HBRA));
+      MIB.addSym(branchLabel);
+      MIB.addMBB(FBB);
+    }	
 
     DEBUG(errs() << "Inserted conditional branch:    ");
     DEBUG((*MIB).dump());

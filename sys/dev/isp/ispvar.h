@@ -953,6 +953,11 @@ void isp_async(ispsoftc_t *, ispasync_t, ...);
 #define	ISPASYNC_CHANGE_OTHER	2
 
 /*
+ * Platform Independent Error Prinout
+ */
+void isp_prt_endcmd(ispsoftc_t *, XS_T *);
+
+/*
  * Platform Dependent Error and Debug Printout
  *
  * Two required functions for each platform must be provided:

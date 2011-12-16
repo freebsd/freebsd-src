@@ -1,0 +1,687 @@
+libibmad:
+
+Overview: libibmad provides the following functionalities:
+	* common declarations: IB structures, fields, and enumerations
+	* general IB mad interface encapsulation (init port, registration,
+	  etc.)
+	* IB mads marshaling and de-marshaling
+	* Reliable mad RPC mechanisms (solicited mads)
+	* Server side mad io functions (send, receive)
+	* General SMP support
+	* General SA (queries) support
+	* Port performance class support
+	* IB addresses resolution (path record queries)
+	* Fields parsing and dump functions
+	* Debugging support
+
+Model of operation: libibmad is designed to easy the implementation of MAD
+	client and server tools and applications. Mad clients (i.e. application
+	that do not reply to requests) should use the mad RPC mechanism. Mad
+	servers should use the send/receive mechanisms. Applications are
+	assumed to be single threaded, but some multiple threading support
+	is provided.  Most IO mechanisms may be blocking. Currently no
+	explicit asynchronous support is implemented.
+
+Marshaling/De-marshaling model: libibmad handles two types of data - opaque
+	network data images and native host ordered fields. libibmad do
+	not define C structures to access MAD fields. Instead, it defines
+	a field structure for every separate field and implements a set
+	of conversion functions from the native types to the opaque
+	network image and back. The advantage of this approach is
+	that the marshaling/de-marshaling problems are transparent to most
+	of the application code resulting a clean, machine independent
+	code. Furthermore, even the marshaling/de-marshaling code itself
+	is extremely straight-forward due that fact that the library
+	automatically knows what marshaling/de-marshaling method it has
+	to apply to each field. The disadvantage of this approach is that
+	the marshaling/de-marshaling implementation itself is somehow less
+	efficient then manually crafted manipulations, but this seem a fair
+	tradeoff comparing to the simplicity and cleanness factors.
+
+Field dump functions: a side benefit of the marshaling/de-marshaling model
+	(see above), is that the library is aware to the size and the type
+	of each field and therefore is able to print out a human readable
+	representation of the field value.
+
+
+Library objects:
+
+ib_field_t: IB field structure
+
+ib_dr_path_t: direct routed address structure
+
+ib_portid_t: (endpoint) address structure
+
+ib_attr_t: mad attribute and modifier
+
+ib_rpc_t: encapsulate information required for the RPC mechanism
+
+ib_rmpp_hdr_t: RMPP information structure (currently not supported)
+
+ib_sa_call_t: SA request structure
+
+ib_vendor_call_t: vendor specific mad structure
+
+
+Mad RPC functions:
+
+madrpc_init:
+
+Synopsis:
+	void	madrpc_init(char *dev_name, int dev_port,
+			    int *mgmt_classes, int num_classes);
+
+Description: library main initialization function. Open the user mad port
+specified by 'dev_name' and 'dev_port', and registers the application as mad
+client for the 'num_classes' management classes specified in 'mgmt_classes'
+array.  This function must be called before any other call to the library.
+Initialization errors cause this function to panic.
+
+madrpc:
+
+Synopsis:
+	void *	madrpc(ib_rpc_t *rpc, ib_portid_t *dport,
+		       void *payload, void *rcvdata);
+
+Description: Perform RPC to the destination port specified by 'dport' using
+'rpc' parameters. If 'payload' in non-null, copy the payload buffer to the
+outgoing packet, while if the 'rcvdata' is non-null, copy the received packet
+payload to the 'rcvdata' buffer. Both buffer must be big enough to contain the
+maximal mad data payload length. If in doubt, use 256 bytes sized buffers.
+Return rcvdata pointer on success, and null on errors.
+
+madrpc_rmpp:
+
+Synopsis:
+	void *  madrpc_rmpp(ib_rpc_t *rpc, ib_portid_t *dport,
+			    ib_rmpp_hdr_t *rmpp, void *data);
+
+Description: Same as madrpc but supports also RMPP mads.
+
+Bugs:
+	RMPP is not supported yet.
+
+madrpc_portid:
+
+Synopsis:
+	int	madrpc_portid(void);
+
+Description: return the portid the library uses. See libibumad:portid for
+details.
+
+See also:
+	libibumad:umad_open_port
+
+madrpc_set_retries:
+
+Synopsis:
+	int	madrpc_set_retries(int retries);
+
+Description: Change the maximal number of retries attempted by the library
+before it times out to 'retries'. Non-positive values are ignored. Return
+the current retries count.
+
+madrpc_set_timeout:
+
+Synopsis:
+	int	madrpc_set_timeout(int timeout);
+
+Description: Change the default timeout value used for solicited mads to
+'timeout' milliseconds. Return 0 on success, -1 on errors.  Note that the
+'timeout' value is used per retry, meaning the total timeout value is acctualy
+'timeout' * max_retries (see madrpc_set_retries()).
+
+madrpc_save_mad:
+
+Synopsis:
+	void	madrpc_save_mad(void *madbuf, int len);
+
+Description: Save the next replied mad image in 'madbuf', copying maximux 'len'
+bytes. In fact, this function snoop a single incoming mad. To snoop several
+packets, this function has to be called repeatedly after each RPC operation.
+
+Bugs:
+	Not applicable to mad_receive
+
+madrpc_lock:
+
+Synopsis:
+	void	madrpc_lock(void);
+
+Description: Locks the mad RPC mechanism until madrpc_unlock() is called. Calls
+to this function while the RPC mechanism is already locked cause the calling
+process to be blocked until madrpc_unlock(). This function should be used
+only by multiple-threaded applications.
+
+See also:
+	madrpc_unlock
+
+madrpc_unlock:
+
+Synopsis:
+	void	madrpc_unlock(void);
+
+Description: Unlock the mad RPC mechanism. See madrpc_lock() for details.
+
+madrpc_show_errors:
+
+Synopsis:
+	void	madrpc_show_errors(int set);
+
+Description: If 'set' is non-null, print out warning messages on some error
+events: retries, timeouts, replies with error status, etc. Zero 'set' value
+causes the library to be quiet.
+
+ib_mad_dump_fn:
+
+Synopsis:
+	typedef void (ib_mad_dump_fn)(char *buf, int bufsz,
+				      void *val, int valsz);
+
+Description: Dump the value given in 'val' that have 'valsz' size (in bytes),
+to the specified 'buf' buffer and limit the output to 'bufsz' bytes. The
+output is expected to be human readable.
+
+
+Management classes' registration functions:
+
+Synopsis:
+	int	mad_register_client(int mgmt);
+
+Description: Register the application as a client of the specified
+'mgmt'.  Return a non-negative agentid on success and -1 on errors.
+Note that madrpc_init provides more efficient method to register to several
+classes.
+
+See also:
+	madrpc_init
+
+mad_register_server:
+
+Synopsis:
+	int	mad_register_server(int mgmt, uint32 method_mask[4],
+				    uint32 class_oui);
+
+Description: Register the appication as the default responder of the class
+methods specified by 'mngt' and 'method_mask' bitmap. Vendor classes in
+range 2 require also non-zero 'class_oui'. Return a non-negative agentid on
+success and -1 on errors.
+
+mad_class_agent:
+
+Synopsis:
+	int	mad_class_agent(int mgmt);
+
+Description: Map the given 'mgmt' class to agentid of the agent handling
+this class.  Return non-negative agentid or -1 if the specified class is
+not registered.
+
+Synopsis:
+	int	mad_agent_class(int agent);
+
+Description: Map the given 'agent' id to the management class registered
+for it.  Return positive class value on success, 0 if no management class
+is registered for this agentid, or -1 if the agent id is invalid.
+
+MAD client functions:
+
+ib_vendor_call:
+
+Synopsis:
+	uint8 *ib_vendor_call(void *data, ib_portid_t *dport,
+			      ib_vendor_call_t *call);
+
+Description: Perform vendor specific RPC specified by 'call' to the destination
+port specified by 'dport'. The buffer pointed by 'data' is used as payload
+for the outgoing packet, and the received packet payload is copied back
+to the 'data' buffer. The 'data' buffer must be big enough to contain the
+replied data.  Note that if the 'call' method is not get/set/trap, then a
+simple send operation is performed and the function returns immediately.
+Return the 'data' pointer on success, or null on errors.
+
+mad_is_vendor_range1:
+
+Synopsis:
+	int	mad_is_vendor_range1(int mgmt);
+
+Description: return non-zero value if 'mgmt' is in the vendor specific range
+1, and zero otherwise.
+
+mad_is_vendor_range2:
+
+Synopsis:
+	int	mad_is_vendor_range2(int mgmt);
+
+Description: return non-zero value if 'mgmt' is in the vendor specific range
+2, and zero otherwise.
+
+smp_query:
+
+Synopsis:
+	uint8 *	smp_query(void *buf, ib_portid_t *dport,
+			  uint attrid, uint mod, uint timeout);
+
+Description: Perform the SMP query (get) RPC specified by 'attrid' and 'mod'
+to the destination port 'dport'. The data in 'buf' is used as the outgoing
+SMP payload, and the replied packet's data is copied back to 'buf'. The
+buffer pointed by 'buf' should be big enough to contain the reply - i.e. at
+least 64 bytes.  If timeout is non-zero then it is used as the query's
+timeout. Otherwise the default timeout value is used.
+
+See also:
+	madrpc_set_timeout
+
+smp_set:
+
+Synopsis:
+	uint8 *	smp_set(void *buf, ib_portid_t *dport,
+			uint attrid, uint mod, uint timeout);
+
+Description: Same as smp_query() but a set method is used instead of get.
+Note that SMP sets may lead to many (desired or less desired) results.
+Specifically it may cause the destination port to malfunction, confuse the
+current master SM, and lead to non-functioning network. Do not use this
+function unless you really know what you are doing.
+
+See also:
+	smp_set
+
+Bugs:
+	very dangerous. Shouldn't be allowed to non-privileged applications
+
+Synopsis:
+	uint8 *	safe_smp_query(void *rcvbuf, ib_portid_t *portid,
+			       uint attrid, uint mod, uint timeout)
+
+Description: Thread-safe version of smp_query().
+
+See also:
+	smp_query
+
+safe_smp_set:
+
+Synopsis:
+	uint8 *	safe_smp_set(void *rcvbuf, ib_portid_t *portid,
+			     uint attrid, uint mod, uint timeout)
+
+Description: Thread-safe version of smp_set().
+
+See also:
+	smp_set
+
+sa_call:
+
+Synopsis:
+	uint8 *	sa_call(void *data, ib_portid_t *dport,
+			ib_sa_call_t *sa, uint timeout);
+
+Description: Perform SA RPC specified by 'sa' to the specified port
+'dport'. The 'data' buffer is used as the outgoing mad payload, and the
+returned packet's payload is copied back to the 'data' buffer. The buffer
+must be big enough to contain the response. If timeout is non-zero then it
+is used as the query's timeout. Otherwise the default timeout value is used.
+Return 'data' pointer on success, and null on errors.
+
+See also:
+	smp_query, smp_set_timeout
+
+Bugs:
+	RMPP support is missing, not all methods are supported
+
+ib_path_query:
+
+Synopsis:
+	int	ib_path_query(ib_gid_t srcgid, ib_gid_t destgid,
+			      ib_portid_t *sm_id, void *buf);
+
+Description: Perform a simple path record get query using the 'srcgid' and the
+'destgid' arguments. The query is targeted to the SM specified by 'sm_id'.
+Copy the query's result to the buffer 'buf' and returns the destination
+LID. If the query fails return -1.
+
+
+Synopsis:
+	uint8 *	safe_sa_call(void *rcvbuf, ib_portid_t *portid,
+			     ib_sa_call_t *sa, uint timeout);
+
+Description: Thread-safe version of sa_call().
+
+See also
+	sa_call
+
+port_performance_query:
+
+Synopsis:
+	uint8 *port_performance_query(void *rcvbuf, ib_portid_t *dport,
+				      int portnum, uint timeout);
+
+Description: Perform a port counters get query to the destination port(s)
+specified by 'dport' and portnum. Use portnum of 0xff to get the aggregated
+counters of the entire node. The query result is copied to the 'rcvbuf' that
+must be big enough to contain the response. If timeout is non-zero then it
+is used as the query's timeout. Otherwise the default timeout value is used.
+Return 'rcvbuf' pointer on success, and null on errors.
+
+port_performance_reset:
+
+Synopsis:
+	uint8 *port_performance_reset(void *rcvbuf, ib_portid_t *dest,
+				      int portnum, uint mask, uint timeout);
+
+Description: Perform a port counters set operation to clear the counters of the
+destination port(s) specified by 'dport' and 'portnum'. the 'mask' bit-field
+is used to specify which counters are cleared. Use 'portnum' of 0xff to clear
+the aggregated counters of the entire node. The operation result is copied
+to the 'rcvbuf' that must be big enough to contain the response. If timeout
+is non-zero then it is used as the query's timeout. Otherwise the default
+timeout value is used.  Return 'rcvbuf' pointer on success, and null on errors.
+
+Mad server functions:
+
+mad_send:
+
+Synopsis:
+	int	mad_send(ib_rpc_t *rpc, ib_portid_t *dport,
+			 ib_rmpp_hdr_t *rmpp, void *data);
+
+Description: Send a single mad to the destination port specified by
+'dport'. The mad is build using 'rpc' and rmpp arguments and the payload
+'data'. Note that this function operates similarly to send part of madrpc
+and madrpc_rmpp returns immediately after the send without retrying or
+waiting for the response (if any). Note that if solicited mads are send
+using this function, it is the caller responsibility to handle retries and
+timeouts. Return zero on success, -1 on errors.
+
+See also:
+	madrpc, madrpc_rmpp
+
+mad_receive:
+
+Synopsis:
+	void *	mad_receive(void *umad, int timeout_ms);
+
+Description: Wait 'timeout_ms' milliseconds for a packet to be received. Once
+a packet is received, it is copied to the specified 'umad' buffer allocated
+by mad_alloc() or to a internally allocated umad buffer if 'umad' is null. In
+any case it is the caller responsibility to free the received packet using
+mad_free(). Negative 'timeout_ms' value makes the function to block until
+a packet is received. Zero 'timeout_ms' guarantees non blocking read,
+i.e. either the function returns immediately with new received packet,
+or it will return with error.  Return a pointer to the received umad buffer
+or null in case of errors.
+
+mad_respond:
+
+Synopsis:
+	int	mad_respond(void *umad, ib_portid_t *portid, uint32 rstatus);
+
+Description: Respond to the request mad specified by 'umad'. Send the
+response mad to the port specified by 'portid' or the original caller of
+'umad' if 'portid' is null. The status 'rstatus' is used to fill the mad
+status field. The following outgoing fields are set by the function using the
+original 'umad' fields: mgt_class, method, attribute_id, attribute_modifier,
+SA attribute offset, vendor class OUI, mad transaction id (only the relevant
+fields are set). Return zero on success, -1 on errors.
+
+mad_alloc:
+
+Synopsis:
+	void *	mad_alloc(void);
+
+Description: Allocate a user mad buffer. This buffer should be de-allocated
+using mad_free(). The mad buffer (umad) should be used be used as opaque.
+Return a pointer to the buffer, or null if the allocation fails.
+
+See also:
+	mad_free
+
+Synopsis:
+	void	mad_free(void *umad);
+
+Description: Free a umad buffer previously allocated by mad_alloc
+
+See also:
+	mad_alloc
+
+Address resolving functions:
+
+ib_resolve_smlid:
+
+Synopsis:
+	int	ib_resolve_smlid(ib_portid_t *sm_id, int timeout);
+
+Description: Resolve the current SM address (LID) and copy it to
+'sm_id'. Internally this function queries the local port for the smlid
+field. 'timeout' is used similarly to madrpc(). Return zero on success,
+-1 on errors.
+
+ib_resolve_guid:
+
+Synopsis:
+	int	ib_resolve_guid(ib_portid_t *portid, uint64_t *guid,
+				ib_portid_t *sm_id, int timeout);
+
+Description: Resolve the given 'guid' to find the port lid and set 'portid'
+accordingly. The resolving process is done by sending a path record query
+to the SM using the specified address 'sm_id'. If the 'sm_id' is null, the
+SM address is resolved using ib_resove_smlid(). 'timeout' is used similary
+to madrpc(). Return zero on success, -1 on errors.
+
+See also:
+	ib_resolve_smlid, ib_path_query, madrpc
+
+ib_resolve_portid_str:
+
+Synopsis:
+	int	ib_resolve_portid_str(ib_portid_t *portid, char *addr_str,
+				      int dest_type, ib_portid_t *sm_id);
+
+Description: Resolve the port address specified by the string 'addr_str'
+and the type 'dest_type' and set 'portid' accordingly. If the dest_type
+is IB_DEST_GUID, then a path record query is sent to the SM specified by
+'sm_id' or to the SM address found by ib_resolve_smlid() if sm_id is null. The
+following string formats are supported:
+	Type		String
+	IB_DEST_LID:	(Decimal/Hex) integer 	(see strtoul for details)
+	IB_DEST_DRPATH	out-ports vector "p1,p2,p3" (e.g. "0,1,6,5,20,1")
+	IB_DEST_GUID:	64 bit integer		(see strtoll for details)
+Return zero on success, -1 on errors.
+
+See also:
+	str2drpath, ib_resolve_smlid, ib_resolve_guid
+
+ib_resolve_self:
+
+Synopsis:
+	int	ib_resolve_self(ib_portid_t *portid, int *portnum,
+				ib_gid_t *gid);
+
+Description: Resolve the local port address and set 'portid', 'portnum' and
+'gid' accordingly. The resolve process is done by issuing a NodeInfo and
+PortInfo to the local port. Return zero on success, -1 on errors.
+
+Port ID helper functions:
+
+portid2str:
+
+Synopsis:
+	char *	portid2str(ib_portid_t *portid);
+
+Description: Return a string representation of the specified 'portid'.
+
+Bugs:
+	uses a static string buffer and therefore not thread safe.
+
+portid2portnum:
+
+Synopsis:
+	int	portid2portnum(ib_portid_t *portid);
+
+Description: Return the port number of the destination port specified by
+the direct routed address 'portid'. Return -1 if the portid is not directed
+route address, and 0 if it is local port address (vector [0]).
+
+str2drpath:
+
+Synopsis:
+	int	str2drpath(ib_dr_path_t *path, char *routepath,
+			   int drslid, int drdlid);
+
+Description: Parse the 'routepath' string, and use the given 'drslid' and
+'drdlid' set the given 'path'. Return path count or -1 on invalid string.
+
+ib_portid_set:
+
+Synopsis:
+	int	ib_portid_set(ib_portid_t *portid, int lid, int qp, int qkey);
+
+Description: Set the given 'portid' fields using the 'lid', 'qp' and 'qkey'
+arguments.
+
+Mad fields manipulation functions:
+
+mad_get_field:
+
+Synopsis:
+	uint32	mad_get_field(void *buf, int base_offset, int field);
+
+Description: Return the value of 'field' from the mad buffer specified by
+'buf' and the offset 'base_offset' within. The result is in host order.
+
+See also:
+	ib_mad_f fields array, model of operation
+
+mad_set_field:
+
+Synopsis:
+	void	mad_set_field(void *buf, int base_offs, int field, uint32 val);
+
+Description: Set the value of 'field' in the mad buffer specified by 'buf'
+and the offset 'base_offset' within, using host ordered 'val'.
+
+See also:
+	ib_mad_f fields array, model of operation
+
+mad_get_field64:
+
+Synopsis:
+	uint64	mad_get_field64(void *buf, int base_offs, int field);
+
+Description: Same as mad_get_field, but for 64 bit fields.
+
+mad_set_field64:
+
+Synopsis:
+	void	mad_set_field64(void *buf, int base_offs,
+				int field, uint64 val);
+
+Description: Same as mad_set_field, but for 64 bit fields.
+
+mad_set_array:
+
+Synopsis:
+	void	mad_set_array(void *buf, int base_offs, int field, void *val);
+
+Description: Same as mad_get_field, but for opaque byte arrays.
+
+mad_get_array:
+
+Synopsis:
+	void	mad_get_array(void *buf, int base_offs, int field, void *val);
+
+Description: Same as mad_set_field, but for opaque byte arrays.
+
+mad_decode_field:
+
+Synopsis:
+	void	mad_decode_field(uint8 *buf, int field, void *val);
+
+Description: Decode 'field' within the mad buffer specified by 'buf' and
+return it in 'val'. The result is in host order. Note that the buffer pointer
+by 'val' must be big enough to contain the value.
+
+See also:
+	ib_mad_f fields array, model of operation
+
+mad_encode_field:
+
+Synopsis:
+	void	mad_encode_field(uint8 *buf, int field, void *val);
+
+Description: Encode the 'field' within the mad buffer specified by 'buf'
+using the host ordered value 'val'.
+
+See also:
+	ib_mad_f fields array, model of operation
+
+mad_encode:
+
+Synopsis:
+	void *	mad_encode(void *buf, ib_rpc_t *rpc,
+			   ib_dr_path_t *drpath, void *data);
+Description: Encode an outgoing mad headers in 'buf' using the given 'rpc',
+the optional direct routed address 'drpath', and the optional payload
+'data'. Return a pointer to the first byte after the mad image, or null
+on errors.
+
+mad_trid:
+
+Synopsis:
+	uint64	mad_trid(void);
+
+Description: Set the given 'portid' fields using the 'lid', 'qp' and 'qkey'
+
+mad_build_pkt:
+
+Synopsis:
+	int	mad_build_pkt(void *umad, ib_rpc_t *rpc, ib_portid_t *dport,
+			      ib_rmpp_hdr_t *rmpp, void *data);
+
+Description: Encode a mad in the buffer 'umad' given the structures 'rpc',
+'dport', the optional 'rmpp' structure and the payload 'data'. Return
+number of encode bytes or a negative number if failed.
+
+Dump functions:
+
+mad_print_field:
+
+Synopsis:
+	int	mad_print_field(int field, char *name, void *val);
+
+Description: Print a human readable format of the 'field' given the value
+'val' to the standard output. If 'name' is non-null, it is printed as the
+field name. Otherwise the default field name is used. Return the number of
+printed bytes.
+
+See also:
+	ib_mad_f fields array, model of operation
+
+mad_dump_field:
+
+Synopsis:
+	char *	mad_dump_field(int field, char *buf, int bufsz, void *val);
+
+Description: Print a human readable format of the 'field' given the value
+'val' to the given buffer 'buf'. The default field name is used. No more than
+'bufsz' bytes are printed.  Return the number of printed bytes.
+
+mad_dump_val:
+
+Synopsis:
+	char *	mad_dump_val(int field, char *buf, int bufsz, void *val);
+
+Description: Same as mad_print_field, but only the field value is printed.
+
+Debugging support:
+
+ibdebug:
+
+Synopsis:
+	extern int ibdebug;
+
+Description: Control the library debugging level. The following levels
+are supported:
+	0 - no debugging
+	1 - print debugging information
+	2 - as level 1 but also xdump the umad IO
+

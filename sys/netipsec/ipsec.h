@@ -123,7 +123,7 @@ struct ipsecrequest {
 
 	struct secasvar *sav;	/* place holder of SA for use */
 	struct secpolicy *sp;	/* back pointer to SP */
-	struct mtx lock;	/* to interlock updates */
+	struct rwlock lock;	/* to interlock updates */
 };
 
 /*
@@ -132,11 +132,15 @@ struct ipsecrequest {
  * hard it is to remove this...
  */
 #define	IPSECREQUEST_LOCK_INIT(_isr) \
-	mtx_init(&(_isr)->lock, "ipsec request", NULL, MTX_DEF | MTX_RECURSE)
-#define	IPSECREQUEST_LOCK(_isr)		mtx_lock(&(_isr)->lock)
-#define	IPSECREQUEST_UNLOCK(_isr)	mtx_unlock(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_DESTROY(_isr)	mtx_destroy(&(_isr)->lock)
-#define	IPSECREQUEST_LOCK_ASSERT(_isr)	mtx_assert(&(_isr)->lock, MA_OWNED)
+	rw_init_flags(&(_isr)->lock, "ipsec request", RW_RECURSE)
+#define	IPSECREQUEST_LOCK(_isr)		rw_rlock(&(_isr)->lock)
+#define	IPSECREQUEST_UNLOCK(_isr)	rw_runlock(&(_isr)->lock)
+#define	IPSECREQUEST_WLOCK(_isr)	rw_wlock(&(_isr)->lock)
+#define	IPSECREQUEST_WUNLOCK(_isr)	rw_wunlock(&(_isr)->lock)
+#define	IPSECREQUEST_UPGRADE(_isr)	rw_try_upgrade(&(_isr)->lock)
+#define	IPSECREQUEST_DOWNGRADE(_isr)	rw_downgrade(&(_isr)->lock)
+#define	IPSECREQUEST_LOCK_DESTROY(_isr)	rw_destroy(&(_isr)->lock)
+#define	IPSECREQUEST_LOCK_ASSERT(_isr)	rw_assert(&(_isr)->lock, RA_LOCKED)
 
 /* security policy in PCB */
 struct inpcbpolicy {

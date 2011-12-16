@@ -17,7 +17,6 @@
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFrameInfo.h"
-#include "llvm/CodeGen/MachineLocation.h"
 #include "llvm/CodeGen/MachineModuleInfo.h"
 #include "llvm/CodeGen/MachineRegisterInfo.h"
 #include "llvm/CodeGen/RegisterScavenging.h"
@@ -33,11 +32,13 @@
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "XCoreGenRegisterInfo.inc"
+
 using namespace llvm;
 
 XCoreRegisterInfo::XCoreRegisterInfo(const TargetInstrInfo &tii)
-  : XCoreGenRegisterInfo(XCore::ADJCALLSTACKDOWN, XCore::ADJCALLSTACKUP),
-    TII(tii) {
+  : XCoreGenRegisterInfo(XCore::LR), TII(tii) {
 }
 
 // helper functions
@@ -68,8 +69,8 @@ unsigned XCoreRegisterInfo::getNumArgRegs(const MachineFunction *MF)
 }
 
 bool XCoreRegisterInfo::needsFrameMoves(const MachineFunction &MF) {
-  return MF.getMMI().hasDebugInfo() || !MF.getFunction()->doesNotThrow() ||
-          UnwindTablesMandatory;
+  return MF.getMMI().hasDebugInfo() ||
+    MF.getFunction()->needsUnwindTableEntry();
 }
 
 const unsigned* XCoreRegisterInfo::getCalleeSavedRegs(const MachineFunction *MF)
@@ -102,6 +103,11 @@ XCoreRegisterInfo::requiresRegisterScavenging(const MachineFunction &MF) const {
 
   // TODO can we estimate stack size?
   return TFI->hasFP(MF);
+}
+
+bool
+XCoreRegisterInfo::useFPForScavengingIndex(const MachineFunction &MF) const {
+  return false;
 }
 
 // This function eliminates ADJCALLSTACKDOWN,
@@ -188,7 +194,16 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   #endif
 
   Offset += StackSize;
-  
+
+  unsigned FrameReg = getFrameRegister(MF);
+
+  // Special handling of DBG_VALUE instructions.
+  if (MI.isDebugValue()) {
+    MI.getOperand(i).ChangeToRegister(FrameReg, false /*isDef*/);
+    MI.getOperand(i+1).ChangeToImmediate(Offset);
+    return;
+  }
+
   // fold constant into offset.
   Offset += MI.getOperand(i + 1).getImm();
   MI.getOperand(i + 1).ChangeToImmediate(0);
@@ -200,7 +215,7 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   Offset/=4;
   
   bool FP = TFI->hasFP(MF);
-  
+
   unsigned Reg = MI.getOperand(0).getReg();
   bool isKill = MI.getOpcode() == XCore::STWFI && MI.getOperand(0).isKill();
 
@@ -211,7 +226,6 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   
   if (FP) {
     bool isUs = isImmUs(Offset);
-    unsigned FramePtr = XCore::R10;
     
     if (!isUs) {
       if (!RS)
@@ -223,18 +237,18 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       switch (MI.getOpcode()) {
       case XCore::LDWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDW_3r), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       case XCore::STWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::STW_3r))
               .addReg(Reg, getKillRegState(isKill))
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       case XCore::LDAWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l3r), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addReg(ScratchReg, RegState::Kill);
         break;
       default:
@@ -244,18 +258,18 @@ XCoreRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
       switch (MI.getOpcode()) {
       case XCore::LDWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDW_2rus), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       case XCore::STWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::STW_2rus))
               .addReg(Reg, getKillRegState(isKill))
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       case XCore::LDAWFI:
         BuildMI(MBB, II, dl, TII.get(XCore::LDAWF_l2rus), Reg)
-              .addReg(FramePtr)
+              .addReg(FrameReg)
               .addImm(Offset);
         break;
       default:
@@ -306,19 +320,8 @@ loadConstant(MachineBasicBlock &MBB, MachineBasicBlock::iterator I,
   BuildMI(MBB, I, dl, TII.get(Opcode), DstReg).addImm(Value);
 }
 
-int XCoreRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  return XCoreGenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
-}
-
 unsigned XCoreRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? XCore::R10 : XCore::SP;
 }
-
-unsigned XCoreRegisterInfo::getRARegister() const {
-  return XCore::LR;
-}
-
-#include "XCoreGenRegisterInfo.inc"
-

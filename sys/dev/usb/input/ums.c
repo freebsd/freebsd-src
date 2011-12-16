@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ums_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ums, CTLFLAG_RW, 0, "USB ums");
 SYSCTL_INT(_hw_usb_ums, OID_AUTO, debug, CTLFLAG_RW,
     &ums_debug, 0, "Debug level");
 #endif
@@ -355,12 +355,21 @@ static const struct usb_config ums_config[UMS_N_TRANSFER] = {
 	},
 };
 
+/* A match on these entries will load ums */
+static const STRUCT_USB_HOST_ID __used ums_devs[] = {
+	{USB_IFACE_CLASS(UICLASS_HID),
+	 USB_IFACE_SUBCLASS(UISUBCLASS_BOOT),
+	 USB_IFACE_PROTOCOL(UIPROTO_MOUSE),},
+};
+
 static int
 ums_probe(device_t dev)
 {
 	struct usb_attach_arg *uaa = device_get_ivars(dev);
 	void *d_ptr;
-	int error;
+	struct hid_data *hd;
+	struct hid_item hi;
+	int error, mdepth, found;
 	uint16_t d_len;
 
 	DPRINTFN(11, "\n");
@@ -373,7 +382,7 @@ ums_probe(device_t dev)
 
 	if ((uaa->info.bInterfaceSubClass == UISUBCLASS_BOOT) &&
 	    (uaa->info.bInterfaceProtocol == UIPROTO_MOUSE))
-		return (BUS_PROBE_GENERIC);
+		return (BUS_PROBE_DEFAULT);
 
 	error = usbd_req_get_hid_desc(uaa->device, NULL,
 	    &d_ptr, &d_len, M_TEMP, uaa->info.bIfaceIndex);
@@ -381,14 +390,44 @@ ums_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
-	if (hid_is_collection(d_ptr, d_len,
-	    HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE)))
-		error = BUS_PROBE_GENERIC;
-	else
-		error = ENXIO;
-
+	hd = hid_start_parse(d_ptr, d_len, 1 << hid_input);
+	if (hd == NULL)
+		return (0);
+	mdepth = 0;
+	found = 0;
+	while (hid_get_item(hd, &hi)) {
+		switch (hi.kind) {
+		case hid_collection:
+			if (mdepth != 0)
+				mdepth++;
+			else if (hi.collection == 1 &&
+			     hi.usage ==
+			      HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_MOUSE))
+				mdepth++;
+			break;
+		case hid_endcollection:
+			if (mdepth != 0)
+				mdepth--;
+			break;
+		case hid_input:
+			if (mdepth == 0)
+				break;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_X) &&
+			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+				found++;
+			if (hi.usage ==
+			     HID_USAGE2(HUP_GENERIC_DESKTOP, HUG_Y) &&
+			    (hi.flags & MOUSE_FLAGS_MASK) == MOUSE_FLAGS)
+				found++;
+			break;
+		default:
+			break;
+		}
+	}
+	hid_end_parse(hd);
 	free(d_ptr, M_TEMP);
-	return (error);
+	return (found ? BUS_PROBE_DEFAULT : ENXIO);
 }
 
 static void
@@ -668,7 +707,7 @@ ums_attach(device_t dev)
 	    SYSCTL_CHILDREN(device_get_sysctl_tree(dev)),
 	    OID_AUTO, "parseinfo", CTLTYPE_STRING|CTLFLAG_RD,
 	    sc, 0, ums_sysctl_handler_parseinfo,
-	    "", "Dump UMS report parsing information");
+	    "", "Dump of parsed HID report descriptor");
 
 	return (0);
 
@@ -949,10 +988,10 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 	struct ums_softc *sc = arg1;
 	struct ums_info *info;
 	struct sbuf *sb;
-	int i, j, err;
+	int i, j, err, had_output;
 
 	sb = sbuf_new_auto();
-	for (i = 0; i < UMS_INFO_MAX; i++) {
+	for (i = 0, had_output = 0; i < UMS_INFO_MAX; i++) {
 		info = &sc->sc_info[i];
 
 		/* Don't emit empty info */
@@ -962,6 +1001,9 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 		    info->sc_buttons == 0)
 			continue;
 
+		if (had_output)
+			sbuf_printf(sb, "\n");
+		had_output = 1;
 		sbuf_printf(sb, "i%d:", i + 1);
 		if (info->sc_flags & UMS_FLAG_X_AXIS)
 			sbuf_printf(sb, " X:r%d, p%d, s%d;",
@@ -995,7 +1037,6 @@ ums_sysctl_handler_parseinfo(SYSCTL_HANDLER_ARGS)
 			    (int)info->sc_loc_btn[j].pos,
 			    (int)info->sc_loc_btn[j].size);
 		}
-		sbuf_printf(sb, "\n");
 	}
 	sbuf_finish(sb);
 	err = SYSCTL_OUT(req, sbuf_data(sb), sbuf_len(sb) + 1);

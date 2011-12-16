@@ -92,6 +92,7 @@ ata_isa_probe(device_t dev)
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_CTLADDR_RID, ctlio);
     bus_release_resource(dev, SYS_RES_IOPORT, ATA_IOADDR_RID, io);
 
+    device_set_desc(dev, "ATA channel");
     return (ata_probe(dev));
 }
 

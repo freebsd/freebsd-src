@@ -62,11 +62,14 @@ typedef UINT32                          ACPI_RSDESC_SIZE;  /* Max Resource Descr
 #define ACPI_WRITE_COMBINING_MEMORY     (UINT8) 0x02
 #define ACPI_PREFETCHABLE_MEMORY        (UINT8) 0x03
 
+/*! [Begin] no source code translation */
 /*
  * IO Attributes
  * The ISA IO ranges are:     n000-n0FFh,  n400-n4FFh, n800-n8FFh, nC00-nCFFh.
  * The non-ISA IO ranges are: n100-n3FFh,  n500-n7FFh, n900-nBFFh, nCD0-nFFFh.
  */
+/*! [End] no source code translation !*/
+
 #define ACPI_NON_ISA_ONLY_RANGES        (UINT8) 0x01
 #define ACPI_ISA_ONLY_RANGES            (UINT8) 0x02
 #define ACPI_ENTIRE_RANGE               (ACPI_NON_ISA_ONLY_RANGES | ACPI_ISA_ONLY_RANGES)
@@ -82,16 +85,26 @@ typedef UINT32                          ACPI_RSDESC_SIZE;  /* Max Resource Descr
 #define ACPI_DECODE_16                  (UINT8) 0x01    /* 16-bit IO address decode */
 
 /*
- * IRQ Attributes
+ * Interrupt attributes - used in multiple descriptors
  */
+
+/* Triggering */
+
 #define ACPI_LEVEL_SENSITIVE            (UINT8) 0x00
 #define ACPI_EDGE_SENSITIVE             (UINT8) 0x01
 
+/* Polarity */
+
 #define ACPI_ACTIVE_HIGH                (UINT8) 0x00
 #define ACPI_ACTIVE_LOW                 (UINT8) 0x01
+#define ACPI_ACTIVE_BOTH                (UINT8) 0x02
+
+/* Sharing */
 
 #define ACPI_EXCLUSIVE                  (UINT8) 0x00
 #define ACPI_SHARED                     (UINT8) 0x01
+#define ACPI_EXCLUSIVE_AND_WAKE         (UINT8) 0x02
+#define ACPI_SHARED_AND_WAKE            (UINT8) 0x03
 
 /*
  * DMA Attributes
@@ -127,6 +140,8 @@ typedef UINT32                          ACPI_RSDESC_SIZE;  /* Max Resource Descr
 
 #define ACPI_POS_DECODE                 (UINT8) 0x00
 #define ACPI_SUB_DECODE                 (UINT8) 0x01
+
+/* Producer/Consumer */
 
 #define ACPI_PRODUCER                   (UINT8) 0x00
 #define ACPI_CONSUMER                   (UINT8) 0x01
@@ -167,7 +182,7 @@ typedef struct acpi_resource_irq
 
 } ACPI_RESOURCE_IRQ;
 
-typedef struct ACPI_RESOURCE_DMA
+typedef struct acpi_resource_dma
 {
     UINT8                           Type;
     UINT8                           BusMaster;
@@ -208,6 +223,24 @@ typedef struct acpi_resource_fixed_io
     UINT8                           AddressLength;
 
 } ACPI_RESOURCE_FIXED_IO;
+
+typedef struct acpi_resource_fixed_dma
+{
+    UINT16                          RequestLines;
+    UINT16                          Channels;
+    UINT8                           Width;
+
+} ACPI_RESOURCE_FIXED_DMA;
+
+/* Values for Width field above */
+
+#define ACPI_DMA_WIDTH8                         0
+#define ACPI_DMA_WIDTH16                        1
+#define ACPI_DMA_WIDTH32                        2
+#define ACPI_DMA_WIDTH64                        3
+#define ACPI_DMA_WIDTH128                       4
+#define ACPI_DMA_WIDTH256                       5
+
 
 typedef struct acpi_resource_vendor
 {
@@ -385,6 +418,184 @@ typedef struct acpi_resource_generic_register
 
 } ACPI_RESOURCE_GENERIC_REGISTER;
 
+typedef struct acpi_resource_gpio
+{
+    UINT8                           RevisionId;
+    UINT8                           ConnectionType;
+    UINT8                           ProducerConsumer;   /* For values, see Producer/Consumer above */
+    UINT8                           PinConfig;
+    UINT8                           Sharable;           /* For values, see Interrupt Attributes above */
+    UINT8                           IoRestriction;
+    UINT8                           Triggering;         /* For values, see Interrupt Attributes above */
+    UINT8                           Polarity;           /* For values, see Interrupt Attributes above */
+    UINT16                          DriveStrength;
+    UINT16                          DebounceTimeout;
+    UINT16                          PinTableLength;
+    UINT16                          VendorLength;
+    ACPI_RESOURCE_SOURCE            ResourceSource;
+    UINT16                          *PinTable;
+    UINT8                           *VendorData;
+
+} ACPI_RESOURCE_GPIO;
+
+/* Values for GPIO ConnectionType field above */
+
+#define ACPI_RESOURCE_GPIO_TYPE_INT             0
+#define ACPI_RESOURCE_GPIO_TYPE_IO              1
+
+/* Values for PinConfig field above */
+
+#define ACPI_PIN_CONFIG_DEFAULT                 0
+#define ACPI_PIN_CONFIG_PULLUP                  1
+#define ACPI_PIN_CONFIG_PULLDOWN                2
+#define ACPI_PIN_CONFIG_NOPULL                  3
+
+/* Values for IoRestriction field above */
+
+#define ACPI_IO_RESTRICT_NONE                   0
+#define ACPI_IO_RESTRICT_INPUT                  1
+#define ACPI_IO_RESTRICT_OUTPUT                 2
+#define ACPI_IO_RESTRICT_NONE_PRESERVE          3
+
+
+/* Common structure for I2C, SPI, and UART serial descriptors */
+
+#define ACPI_RESOURCE_SERIAL_COMMON \
+    UINT8                           RevisionId; \
+    UINT8                           Type; \
+    UINT8                           ProducerConsumer;    /* For values, see Producer/Consumer above */\
+    UINT8                           SlaveMode; \
+    UINT8                           TypeRevisionId; \
+    UINT16                          TypeDataLength; \
+    UINT16                          VendorLength; \
+    ACPI_RESOURCE_SOURCE            ResourceSource; \
+    UINT8                           *VendorData;
+
+typedef struct acpi_resource_common_serialbus
+{
+    ACPI_RESOURCE_SERIAL_COMMON
+
+} ACPI_RESOURCE_COMMON_SERIALBUS;
+
+/* Values for the Type field above */
+
+#define ACPI_RESOURCE_SERIAL_TYPE_I2C           1
+#define ACPI_RESOURCE_SERIAL_TYPE_SPI           2
+#define ACPI_RESOURCE_SERIAL_TYPE_UART          3
+
+/* Values for SlaveMode field above */
+
+#define ACPI_CONTROLLER_INITIATED               0
+#define ACPI_DEVICE_INITIATED                   1
+
+
+typedef struct acpi_resource_i2c_serialbus
+{
+    ACPI_RESOURCE_SERIAL_COMMON
+    UINT8                           AccessMode;
+    UINT16                          SlaveAddress;
+    UINT32                          ConnectionSpeed;
+
+} ACPI_RESOURCE_I2C_SERIALBUS;
+
+/* Values for AccessMode field above */
+
+#define ACPI_I2C_7BIT_MODE                      0
+#define ACPI_I2C_10BIT_MODE                     1
+
+
+typedef struct acpi_resource_spi_serialbus
+{
+    ACPI_RESOURCE_SERIAL_COMMON
+    UINT8                           WireMode;
+    UINT8                           DevicePolarity;
+    UINT8                           DataBitLength;
+    UINT8                           ClockPhase;
+    UINT8                           ClockPolarity;
+    UINT16                          DeviceSelection;
+    UINT32                          ConnectionSpeed;
+
+} ACPI_RESOURCE_SPI_SERIALBUS;
+
+/* Values for WireMode field above */
+
+#define ACPI_SPI_4WIRE_MODE                     0
+#define ACPI_SPI_3WIRE_MODE                     1
+
+/* Values for DevicePolarity field above */
+
+#define ACPI_SPI_ACTIVE_LOW                     0
+#define ACPI_SPI_ACTIVE_HIGH                    1
+
+/* Values for ClockPhase field above */
+
+#define ACPI_SPI_FIRST_PHASE                    0
+#define ACPI_SPI_SECOND_PHASE                   1
+
+/* Values for ClockPolarity field above */
+
+#define ACPI_SPI_START_LOW                      0
+#define ACPI_SPI_START_HIGH                     1
+
+
+typedef struct acpi_resource_uart_serialbus
+{
+    ACPI_RESOURCE_SERIAL_COMMON
+    UINT8                           Endian;
+    UINT8                           DataBits;
+    UINT8                           StopBits;
+    UINT8                           FlowControl;
+    UINT8                           Parity;
+    UINT8                           LinesEnabled;
+    UINT16                          RxFifoSize;
+    UINT16                          TxFifoSize;
+    UINT32                          DefaultBaudRate;
+
+} ACPI_RESOURCE_UART_SERIALBUS;
+
+/* Values for Endian field above */
+
+#define ACPI_UART_LITTLE_ENDIAN                 0
+#define ACPI_UART_BIG_ENDIAN                    1
+
+/* Values for DataBits field above */
+
+#define ACPI_UART_5_DATA_BITS                   0
+#define ACPI_UART_6_DATA_BITS                   1
+#define ACPI_UART_7_DATA_BITS                   2
+#define ACPI_UART_8_DATA_BITS                   3
+#define ACPI_UART_9_DATA_BITS                   4
+
+/* Values for StopBits field above */
+
+#define ACPI_UART_NO_STOP_BITS                  0
+#define ACPI_UART_1_STOP_BIT                    1
+#define ACPI_UART_1P5_STOP_BITS                 2
+#define ACPI_UART_2_STOP_BITS                   3
+
+/* Values for FlowControl field above */
+
+#define ACPI_UART_FLOW_CONTROL_NONE             0
+#define ACPI_UART_FLOW_CONTROL_HW               1
+#define ACPI_UART_FLOW_CONTROL_XON_XOFF         2
+
+/* Values for Parity field above */
+
+#define ACPI_UART_PARITY_NONE                   0
+#define ACPI_UART_PARITY_EVEN                   1
+#define ACPI_UART_PARITY_ODD                    2
+#define ACPI_UART_PARITY_MARK                   3
+#define ACPI_UART_PARITY_SPACE                  4
+
+/* Values for LinesEnabled bitfield above */
+
+#define ACPI_UART_CARRIER_DETECT                (1<<2)
+#define ACPI_UART_RING_INDICATOR                (1<<3)
+#define ACPI_UART_DATA_SET_READY                (1<<4)
+#define ACPI_UART_DATA_TERMINAL_READY           (1<<5)
+#define ACPI_UART_CLEAR_TO_SEND                 (1<<6)
+#define ACPI_UART_REQUEST_TO_SEND               (1<<7)
+
 
 /* ACPI_RESOURCE_TYPEs */
 
@@ -405,7 +616,10 @@ typedef struct acpi_resource_generic_register
 #define ACPI_RESOURCE_TYPE_EXTENDED_ADDRESS64   14  /* ACPI 3.0 */
 #define ACPI_RESOURCE_TYPE_EXTENDED_IRQ         15
 #define ACPI_RESOURCE_TYPE_GENERIC_REGISTER     16
-#define ACPI_RESOURCE_TYPE_MAX                  16
+#define ACPI_RESOURCE_TYPE_GPIO                 17  /* ACPI 5.0 */
+#define ACPI_RESOURCE_TYPE_FIXED_DMA            18  /* ACPI 5.0 */
+#define ACPI_RESOURCE_TYPE_SERIAL_BUS           19  /* ACPI 5.0 */
+#define ACPI_RESOURCE_TYPE_MAX                  19
 
 /* Master union for resource descriptors */
 
@@ -416,6 +630,7 @@ typedef union acpi_resource_data
     ACPI_RESOURCE_START_DEPENDENT           StartDpf;
     ACPI_RESOURCE_IO                        Io;
     ACPI_RESOURCE_FIXED_IO                  FixedIo;
+    ACPI_RESOURCE_FIXED_DMA                 FixedDma;
     ACPI_RESOURCE_VENDOR                    Vendor;
     ACPI_RESOURCE_VENDOR_TYPED              VendorTyped;
     ACPI_RESOURCE_END_TAG                   EndTag;
@@ -428,6 +643,11 @@ typedef union acpi_resource_data
     ACPI_RESOURCE_EXTENDED_ADDRESS64        ExtAddress64;
     ACPI_RESOURCE_EXTENDED_IRQ              ExtendedIrq;
     ACPI_RESOURCE_GENERIC_REGISTER          GenericReg;
+    ACPI_RESOURCE_GPIO                      Gpio;
+    ACPI_RESOURCE_I2C_SERIALBUS             I2cSerialBus;
+    ACPI_RESOURCE_SPI_SERIALBUS             SpiSerialBus;
+    ACPI_RESOURCE_UART_SERIALBUS            UartSerialBus;
+    ACPI_RESOURCE_COMMON_SERIALBUS          CommonSerialBus;
 
     /* Common fields */
 

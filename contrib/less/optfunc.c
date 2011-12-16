@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 1984-2009  Mark Nudelman
+ * Copyright (C) 1984-2011  Mark Nudelman
  *
  * You may distribute under the terms of either the GNU General Public
  * License or the Less License, as specified in the README file.
@@ -130,34 +130,6 @@ opt__O(type, s)
 	opt_o(type, s);
 }
 #endif
-
-/*
- * Handlers for -l option.
- */
-	public void
-opt_l(type, s)
-	int type;
-	char *s;
-{
-	int err;
-	int n;
-	char *t;
-	
-	switch (type)
-	{
-	case INIT:
-		t = s;
-		n = getnum(&t, "l", &err);
-		if (err || n <= 0)
-		{
-			error("Line number is required after -l", NULL_PARG);
-			return;
-		}
-		plusoption = TRUE;
-		ungetsc(s);
-		break;
-	}
-}
 
 /*
  * Handlers for -j option.

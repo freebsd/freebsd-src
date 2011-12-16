@@ -151,7 +151,7 @@ static device_method_t vte_methods[] = {
 	DEVMETHOD(miibus_writereg,	vte_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	vte_miibus_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t vte_driver = {
@@ -284,9 +284,9 @@ vte_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->vte_miibus);
 
 	mii_pollstat(mii);
-	VTE_UNLOCK(sc);
 	ifmr->ifm_status = mii->mii_media_status;
 	ifmr->ifm_active = mii->mii_media_active;
+	VTE_UNLOCK(sc);
 }
 
 static int
@@ -312,10 +312,8 @@ vte_mediachange_locked(struct ifnet *ifp)
 
 	sc = ifp->if_softc;
 	mii = device_get_softc(sc->vte_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 
 	return (error);
@@ -1623,14 +1621,12 @@ static void
 vte_init_locked(struct vte_softc *sc)
 {
 	struct ifnet *ifp;
-	struct mii_data *mii;
 	bus_addr_t paddr;
 	uint8_t *eaddr;
 
 	VTE_LOCK_ASSERT(sc);
 
 	ifp = sc->vte_ifp;
-	mii = device_get_softc(sc->vte_miibus);
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		return;
@@ -1963,9 +1959,10 @@ vte_rxfilter(struct vte_softc *sc)
 	}
 
 	mcr = CSR_READ_2(sc, VTE_MCR0);
-	mcr &= ~(MCR0_PROMISC | MCR0_BROADCAST | MCR0_MULTICAST);
+	mcr &= ~(MCR0_PROMISC | MCR0_MULTICAST);
+	mcr |= MCR0_BROADCAST_DIS;
 	if ((ifp->if_flags & IFF_BROADCAST) != 0)
-		mcr |= MCR0_BROADCAST;
+		mcr &= ~MCR0_BROADCAST_DIS;
 	if ((ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) != 0) {
 		if ((ifp->if_flags & IFF_PROMISC) != 0)
 			mcr |= MCR0_PROMISC;

@@ -91,26 +91,29 @@ class REX_W  { bit hasREX_WPrefix = 1; }
 class LOCK   { bit hasLockPrefix = 1; }
 class SegFS  { bits<2> SegOvrBits = 1; }
 class SegGS  { bits<2> SegOvrBits = 2; }
-class TB     { bits<4> Prefix = 1; }
-class REP    { bits<4> Prefix = 2; }
-class D8     { bits<4> Prefix = 3; }
-class D9     { bits<4> Prefix = 4; }
-class DA     { bits<4> Prefix = 5; }
-class DB     { bits<4> Prefix = 6; }
-class DC     { bits<4> Prefix = 7; }
-class DD     { bits<4> Prefix = 8; }
-class DE     { bits<4> Prefix = 9; }
-class DF     { bits<4> Prefix = 10; }
-class XD     { bits<4> Prefix = 11; }
-class XS     { bits<4> Prefix = 12; }
-class T8     { bits<4> Prefix = 13; }
-class TA     { bits<4> Prefix = 14; }
-class TF     { bits<4> Prefix = 15; }
+class TB     { bits<5> Prefix = 1; }
+class REP    { bits<5> Prefix = 2; }
+class D8     { bits<5> Prefix = 3; }
+class D9     { bits<5> Prefix = 4; }
+class DA     { bits<5> Prefix = 5; }
+class DB     { bits<5> Prefix = 6; }
+class DC     { bits<5> Prefix = 7; }
+class DD     { bits<5> Prefix = 8; }
+class DE     { bits<5> Prefix = 9; }
+class DF     { bits<5> Prefix = 10; }
+class XD     { bits<5> Prefix = 11; }
+class XS     { bits<5> Prefix = 12; }
+class T8     { bits<5> Prefix = 13; }
+class TA     { bits<5> Prefix = 14; }
+class A6     { bits<5> Prefix = 15; }
+class A7     { bits<5> Prefix = 16; }
+class TF     { bits<5> Prefix = 17; }
 class VEX    { bit hasVEXPrefix = 1; }
 class VEX_W  { bit hasVEX_WPrefix = 1; }
 class VEX_4V : VEX { bit hasVEX_4VPrefix = 1; }
 class VEX_I8IMM { bit hasVEX_i8ImmReg = 1; }
 class VEX_L  { bit hasVEX_L = 1; }
+class VEX_LIG { bit ignoresVEX_L = 1; }
 class Has3DNow0F0FOpcode  { bit has3DNow0F0FOpcode = 1; }
 
 class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
@@ -136,7 +139,7 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   bit hasOpSizePrefix = 0;  // Does this inst have a 0x66 prefix?
   bit hasAdSizePrefix = 0;  // Does this inst have a 0x67 prefix?
 
-  bits<4> Prefix = 0;       // Which prefix byte does this inst have?
+  bits<5> Prefix = 0;       // Which prefix byte does this inst have?
   bit hasREX_WPrefix  = 0;  // Does this inst require the REX.W prefix?
   FPFormat FPForm = NotFP;  // What flavor of FP instruction is this?
   bit hasLockPrefix = 0;    // Does this inst have a 0xF0 prefix?
@@ -148,26 +151,28 @@ class X86Inst<bits<8> opcod, Format f, ImmType i, dag outs, dag ins,
   bit hasVEX_i8ImmReg = 0;  // Does this inst require the last source register
                             // to be encoded in a immediate field?
   bit hasVEX_L = 0;         // Does this inst use large (256-bit) registers?
+  bit ignoresVEX_L = 0;     // Does this instruction ignore the L-bit
   bit has3DNow0F0FOpcode =0;// Wacky 3dNow! encoding?
 
   // TSFlags layout should be kept in sync with X86InstrInfo.h.
   let TSFlags{5-0}   = FormBits;
   let TSFlags{6}     = hasOpSizePrefix;
   let TSFlags{7}     = hasAdSizePrefix;
-  let TSFlags{11-8}  = Prefix;
-  let TSFlags{12}    = hasREX_WPrefix;
-  let TSFlags{15-13} = ImmT.Value;
-  let TSFlags{18-16} = FPForm.Value;
-  let TSFlags{19}    = hasLockPrefix;
-  let TSFlags{21-20} = SegOvrBits;
-  let TSFlags{23-22} = ExeDomain.Value;
-  let TSFlags{31-24} = Opcode;
-  let TSFlags{32}    = hasVEXPrefix;
-  let TSFlags{33}    = hasVEX_WPrefix;
-  let TSFlags{34}    = hasVEX_4VPrefix;
-  let TSFlags{35}    = hasVEX_i8ImmReg;
-  let TSFlags{36}    = hasVEX_L;
-  let TSFlags{37}    = has3DNow0F0FOpcode;
+  let TSFlags{12-8}  = Prefix;
+  let TSFlags{13}    = hasREX_WPrefix;
+  let TSFlags{16-14} = ImmT.Value;
+  let TSFlags{19-17} = FPForm.Value;
+  let TSFlags{20}    = hasLockPrefix;
+  let TSFlags{22-21} = SegOvrBits;
+  let TSFlags{24-23} = ExeDomain.Value;
+  let TSFlags{32-25} = Opcode;
+  let TSFlags{33}    = hasVEXPrefix;
+  let TSFlags{34}    = hasVEX_WPrefix;
+  let TSFlags{35}    = hasVEX_4VPrefix;
+  let TSFlags{36}    = hasVEX_i8ImmReg;
+  let TSFlags{37}    = hasVEX_L;
+  let TSFlags{38}    = ignoresVEX_L;
+  let TSFlags{39}    = has3DNow0F0FOpcode;
 }
 
 class PseudoI<dag oops, dag iops, list<dag> pattern>
@@ -319,7 +324,7 @@ class VSSI<bits<8> o, Format F, dag outs, dag ins, string asm,
         Requires<[HasAVX]>;
 class VPSI<bits<8> o, Format F, dag outs, dag ins, string asm,
            list<dag> pattern>
-      : I<o, F, outs, ins, !strconcat("v", asm), pattern, SSEPackedSingle>,
+      : I<o, F, outs, ins, !strconcat("v", asm), pattern, SSEPackedSingle>, TB,
         Requires<[HasAVX]>;
 
 // SSE2 Instruction Templates:
@@ -353,7 +358,7 @@ class VSDI<bits<8> o, Format F, dag outs, dag ins, string asm,
         Requires<[HasAVX]>;
 class VPDI<bits<8> o, Format F, dag outs, dag ins, string asm,
            list<dag> pattern>
-      : I<o, F, outs, ins, !strconcat("v", asm), pattern, SSEPackedDouble>,
+      : I<o, F, outs, ins, !strconcat("v", asm), pattern, SSEPackedDouble>, TB,
         OpSize, Requires<[HasAVX]>;
 
 // SSE3 Instruction Templates:
@@ -458,6 +463,11 @@ class AESAI<bits<8> o, Format F, dag outs, dag ins, string asm,
 class CLMULIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
                list<dag>pattern>
       : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
+        OpSize, Requires<[HasCLMUL]>;
+
+class AVXCLMULIi8<bits<8> o, Format F, dag outs, dag ins, string asm,
+                  list<dag>pattern>
+      : Ii8<o, F, outs, ins, asm, pattern, SSEPackedInt>, TA,
         OpSize, VEX_4V, Requires<[HasAVX, HasCLMUL]>;
 
 // FMA3 Instruction Templates
@@ -494,6 +504,9 @@ class RSDI<bits<8> o, Format F, dag outs, dag ins, string asm,
 class RPDI<bits<8> o, Format F, dag outs, dag ins, string asm,
            list<dag> pattern>
       : PDI<o, F, outs, ins, asm, pattern>, REX_W;
+class VRPDI<bits<8> o, Format F, dag outs, dag ins, string asm,
+           list<dag> pattern>
+      : VPDI<o, F, outs, ins, asm, pattern>, VEX_W;
 
 // MMX Instruction templates
 //

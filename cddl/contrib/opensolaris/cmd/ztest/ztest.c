@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
  */
 
 /*
@@ -204,6 +206,7 @@ typedef struct ztest_od {
  */
 typedef struct ztest_ds {
 	objset_t	*zd_os;
+	rwlock_t	zd_zilog_lock;
 	zilog_t		*zd_zilog;
 	uint64_t	zd_seq;
 	ztest_od_t	*zd_od;		/* debugging aid */
@@ -237,6 +240,7 @@ ztest_func_t ztest_dmu_commit_callbacks;
 ztest_func_t ztest_zap;
 ztest_func_t ztest_zap_parallel;
 ztest_func_t ztest_zil_commit;
+ztest_func_t ztest_zil_remount;
 ztest_func_t ztest_dmu_read_write_zcopy;
 ztest_func_t ztest_dmu_objset_create_destroy;
 ztest_func_t ztest_dmu_prealloc;
@@ -256,6 +260,7 @@ ztest_func_t ztest_vdev_LUN_growth;
 ztest_func_t ztest_vdev_add_remove;
 ztest_func_t ztest_vdev_aux_add_remove;
 ztest_func_t ztest_split_pool;
+ztest_func_t ztest_reguid;
 
 uint64_t zopt_always = 0ULL * NANOSEC;		/* all the time */
 uint64_t zopt_incessant = 1ULL * NANOSEC / 10;	/* every 1/10 second */
@@ -272,6 +277,7 @@ ztest_info_t ztest_info[] = {
 	{ ztest_zap_parallel,			100,	&zopt_always	},
 	{ ztest_split_pool,			1,	&zopt_always	},
 	{ ztest_zil_commit,			1,	&zopt_incessant	},
+	{ ztest_zil_remount,			1,	&zopt_sometimes	},
 	{ ztest_dmu_read_write_zcopy,		1,	&zopt_often	},
 	{ ztest_dmu_objset_create_destroy,	1,	&zopt_often	},
 	{ ztest_dsl_prop_get_set,		1,	&zopt_often	},
@@ -285,6 +291,7 @@ ztest_info_t ztest_info[] = {
 	{ ztest_fault_inject,			1,	&zopt_sometimes	},
 	{ ztest_ddt_repair,			1,	&zopt_sometimes	},
 	{ ztest_dmu_snapshot_hold,		1,	&zopt_sometimes	},
+	{ ztest_reguid,				1,	&zopt_sometimes },
 	{ ztest_spa_rename,			1,	&zopt_rarely	},
 	{ ztest_scrub,				1,	&zopt_rarely	},
 	{ ztest_dsl_dataset_promote_busy,	1,	&zopt_rarely	},
@@ -321,6 +328,7 @@ typedef struct ztest_shared {
 	uint64_t	zs_vdev_aux;
 	uint64_t	zs_alloc;
 	uint64_t	zs_space;
+	uint64_t	zs_guid;
 	mutex_t		zs_vdev_lock;
 	rwlock_t	zs_name_lock;
 	ztest_info_t	zs_info[ZTEST_FUNCS];
@@ -985,6 +993,7 @@ ztest_zd_init(ztest_ds_t *zd, objset_t *os)
 	zd->zd_seq = 0;
 	dmu_objset_name(os, zd->zd_name);
 
+	VERIFY(rwlock_init(&zd->zd_zilog_lock, USYNC_THREAD, NULL) == 0);
 	VERIFY(_mutex_init(&zd->zd_dirobj_lock, USYNC_THREAD, NULL) == 0);
 
 	for (int l = 0; l < ZTEST_OBJECT_LOCKS; l++)
@@ -1964,6 +1973,8 @@ ztest_io(ztest_ds_t *zd, uint64_t object, uint64_t offset)
 	if (ztest_random(2) == 0)
 		io_type = ZTEST_IO_WRITE_TAG;
 
+	(void) rw_rdlock(&zd->zd_zilog_lock);
+
 	switch (io_type) {
 
 	case ZTEST_IO_WRITE_TAG:
@@ -1998,6 +2009,8 @@ ztest_io(ztest_ds_t *zd, uint64_t object, uint64_t offset)
 		(void) ztest_setattr(zd, object);
 		break;
 	}
+
+	(void) rw_unlock(&zd->zd_zilog_lock);
 
 	umem_free(data, blocksize);
 }
@@ -2053,6 +2066,8 @@ ztest_zil_commit(ztest_ds_t *zd, uint64_t id)
 {
 	zilog_t *zilog = zd->zd_zilog;
 
+	(void) rw_rdlock(&zd->zd_zilog_lock);
+
 	zil_commit(zilog, ztest_random(ZTEST_OBJECTS));
 
 	/*
@@ -2064,6 +2079,31 @@ ztest_zil_commit(ztest_ds_t *zd, uint64_t id)
 	ASSERT(zd->zd_seq <= zilog->zl_commit_lr_seq);
 	zd->zd_seq = zilog->zl_commit_lr_seq;
 	mutex_exit(&zilog->zl_lock);
+
+	(void) rw_unlock(&zd->zd_zilog_lock);
+}
+
+/*
+ * This function is designed to simulate the operations that occur during a
+ * mount/unmount operation.  We hold the dataset across these operations in an
+ * attempt to expose any implicit assumptions about ZIL management.
+ */
+/* ARGSUSED */
+void
+ztest_zil_remount(ztest_ds_t *zd, uint64_t id)
+{
+	objset_t *os = zd->zd_os;
+
+	(void) rw_wrlock(&zd->zd_zilog_lock);
+
+	/* zfsvfs_teardown() */
+	zil_close(zd->zd_zilog);
+
+	/* zfsvfs_setup() */
+	VERIFY(zil_open(os, ztest_get_data) == zd->zd_zilog);
+	zil_replay(os, zd, ztest_replay_vector);
+
+	(void) rw_unlock(&zd->zd_zilog_lock);
 }
 
 /*
@@ -4610,7 +4650,7 @@ ztest_ddt_repair(ztest_ds_t *zd, uint64_t id)
 
 	object = od[0].od_object;
 	blocksize = od[0].od_blocksize;
-	pattern = spa_guid(spa) ^ dmu_objset_fsid_guid(os);
+	pattern = zs->zs_guid ^ dmu_objset_fsid_guid(os);
 
 	ASSERT(object != 0);
 
@@ -4678,6 +4718,31 @@ ztest_scrub(ztest_ds_t *zd, uint64_t id)
 	(void) spa_scan(spa, POOL_SCAN_SCRUB);
 	(void) poll(NULL, 0, 100); /* wait a moment, then force a restart */
 	(void) spa_scan(spa, POOL_SCAN_SCRUB);
+}
+
+/*
+ * Change the guid for the pool.
+ */
+/* ARGSUSED */
+void
+ztest_reguid(ztest_ds_t *zd, uint64_t id)
+{
+	ztest_shared_t *zs = ztest_shared;
+	spa_t *spa = zs->zs_spa;
+	uint64_t orig, load;
+
+	orig = spa_guid(spa);
+	load = spa_load_guid(spa);
+	if (spa_change_guid(spa) != 0)
+		return;
+
+	if (zopt_verbose >= 3) {
+		(void) printf("Changed guid old %llu -> %llu\n",
+		    (u_longlong_t)orig, (u_longlong_t)spa_guid(spa));
+	}
+
+	VERIFY3U(orig, !=, spa_guid(spa));
+	VERIFY3U(load, ==, spa_load_guid(spa));
 }
 
 /*
@@ -5109,6 +5174,7 @@ ztest_run(ztest_shared_t *zs)
 {
 	thread_t *tid;
 	spa_t *spa;
+	objset_t *os;
 	thread_t resume_tid;
 	int error;
 
@@ -5137,7 +5203,12 @@ ztest_run(ztest_shared_t *zs)
 	 */
 	kernel_init(FREAD | FWRITE);
 	VERIFY(spa_open(zs->zs_pool, &spa, FTAG) == 0);
+	spa->spa_debug = B_TRUE;
 	zs->zs_spa = spa;
+
+	VERIFY3U(0, ==, dmu_objset_hold(zs->zs_pool, FTAG, &os));
+	zs->zs_guid = dmu_objset_fsid_guid(os);
+	dmu_objset_rele(os, FTAG);
 
 	spa->spa_dedup_ditto = 2 * ZIO_DEDUPDITTO_MIN;
 

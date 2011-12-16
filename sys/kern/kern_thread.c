@@ -566,6 +566,8 @@ calc_remaining(struct proc *p, int mode)
 {
 	int remaining;
 
+	PROC_LOCK_ASSERT(p, MA_OWNED);
+	PROC_SLOCK_ASSERT(p, MA_OWNED);
 	if (mode == SINGLE_EXIT)
 		remaining = p->p_numthreads;
 	else if (mode == SINGLE_BOUNDARY)
@@ -819,8 +821,11 @@ thread_suspend_check(int return_instead)
 			td->td_flags &= ~TDF_BOUNDARY;
 		thread_unlock(td);
 		PROC_LOCK(p);
-		if (return_instead == 0)
+		if (return_instead == 0) {
+			PROC_SLOCK(p);
 			p->p_boundary_count--;
+			PROC_SUNLOCK(p);
+		}
 	}
 	return (0);
 }
@@ -981,7 +986,9 @@ tdfind(lwpid_t tid, pid_t pid)
 				td = NULL;
 				break;
 			}
+			PROC_LOCK(td->td_proc);
 			if (td->td_proc->p_state == PRS_NEW) {
+				PROC_UNLOCK(td->td_proc);
 				td = NULL;
 				break;
 			}
@@ -990,12 +997,10 @@ tdfind(lwpid_t tid, pid_t pid)
 					LIST_REMOVE(td, td_hash);
 					LIST_INSERT_HEAD(TIDHASH(td->td_tid),
 						td, td_hash);
-					PROC_LOCK(td->td_proc);
 					rw_wunlock(&tidhash_lock);
 					return (td);
 				}
 			}
-			PROC_LOCK(td->td_proc);
 			break;
 		}
 		run++;

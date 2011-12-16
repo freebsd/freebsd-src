@@ -30,12 +30,6 @@
 #define	_MEMSTAT_H_
 
 /*
- * Number of CPU slots in library-internal data structures.  This should be
- * at least the value of MAXCPU from param.h.
- */
-#define	MEMSTAT_MAXCPU	32
-
-/*
  * Amount of caller data to maintain for each caller data slot.  Applications
  * must not request more than this number of caller save data, or risk
  * corrupting internal libmemstat(3) data structures.  A compile time check
@@ -70,7 +64,6 @@
 #define	MEMSTAT_ERROR_NOMEMORY		1	/* Out of memory. */
 #define	MEMSTAT_ERROR_VERSION		2	/* Unsupported version. */
 #define	MEMSTAT_ERROR_PERMISSION	3	/* Permission denied. */
-#define	MEMSTAT_ERROR_TOOMANYCPUS	4	/* Too many CPUs. */
 #define	MEMSTAT_ERROR_DATAERROR		5	/* Error in stat data. */
 #define	MEMSTAT_ERROR_KVM		6	/* See kvm_geterr() for err. */
 #define	MEMSTAT_ERROR_KVM_NOSYMBOL	7	/* Symbol not available. */

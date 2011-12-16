@@ -118,16 +118,12 @@ static device_method_t kr_methods[] = {
 	DEVMETHOD(device_resume,	kr_resume),
 	DEVMETHOD(device_shutdown,	kr_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	kr_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	kr_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	kr_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t kr_driver = {
@@ -925,10 +921,8 @@ kr_ifmedia_upd(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	KR_LOCK(sc);
 	mii = device_get_softc(sc->kr_miibus);
-	if (mii->mii_instance) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	KR_UNLOCK(sc);
 
@@ -947,9 +941,9 @@ kr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->kr_miibus);
 	KR_LOCK(sc);
 	mii_pollstat(mii);
-	KR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	KR_UNLOCK(sc);
 }
 
 struct kr_dmamap_arg {

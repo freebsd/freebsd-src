@@ -22,6 +22,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+/*
+ * Since we are compiled outside of the normal kernel build process, we
+ * need to include opt_global.h manually.
+ */
+#include "opt_global.h"
+#include "opt_kernname.h"
+
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 #include <machine/asm.h>
@@ -32,13 +39,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/pte.h>
 #include <machine/cpufunc.h>
 #include <machine/armreg.h>
-
-/*
- * Since we are compiled outside of the normal kernel build process, we
- * need to include opt_global.h manually.
- */
-#include "opt_global.h"
-#include "opt_kernname.h"
 
 extern char kernel_start[];
 extern char kernel_end[];

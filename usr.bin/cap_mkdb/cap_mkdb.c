@@ -53,15 +53,15 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void	 db_build(char **);
-void	 dounlink(void);
-void	 usage(void);
+static void	 db_build(char **);
+static void	 dounlink(void);
+static void	 usage(void);
 
-DB *capdbp;
-int verbose;
-char *capdb, *capname, buf[8 * 1024];
+static DB	*capdbp;
+static int	 verbose;
+static char	*capname, buf[8 * 1024];
 
-HASHINFO openinfo = {
+static HASHINFO openinfo = {
 	4096,		/* bsize */
 	0,		/* ffactor */
 	0,		/* nelem */
@@ -134,7 +134,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-void
+static void
 dounlink(void)
 {
 	if (capname != NULL)
@@ -153,7 +153,7 @@ dounlink(void)
  * Db_build() builds the name and capability databases according to the
  * details above.
  */
-void
+static void
 db_build(char **ifiles)
 {
 	DBT key, data;
@@ -259,7 +259,7 @@ db_build(char **ifiles)
 		(void)printf("cap_mkdb: %d capability records\n", reccnt);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr,

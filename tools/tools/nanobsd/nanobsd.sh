@@ -413,8 +413,8 @@ populate_slice ( ) (
 	dir=$2
 	mnt=$3
 	lbl=$4
-	test -z $2 && dir=/var/empty
-	test -d $dir || dir=/var/empty
+	test -z $2 && dir=${NANO_WORLDDIR}/var/empty
+	test -d $dir || dir=${NANO_WORLDDIR}/var/empty
 	echo "Creating ${dev} with ${dir} (mounting on ${mnt})"
 	newfs_part $dev $mnt $lbl
 	cd ${dir}
@@ -567,8 +567,10 @@ create_i386_diskimage ( ) (
 		dd if=/dev/${MD} of=${IMG} bs=64k
 	fi
 
-	echo "Writing out _.disk.image..."
-	dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	if ${do_copyout_partition} ; then
+		echo "Writing out _.disk.image..."
+		dd if=/dev/${MD}s1 of=${NANO_DISKIMGDIR}/_.disk.image bs=64k
+	fi
 	mdconfig -d -u $MD
 
 	trap - 1 2 15 EXIT
@@ -658,7 +660,7 @@ cust_comconsole () (
 	sed -i "" -e '/^ttyv[0-8]/s/	on/	off/' ${NANO_WORLDDIR}/etc/ttys
 
 	# Tell loader to use serial console early.
-	echo " -h" > ${NANO_WORLDDIR}/boot.config
+	echo "${NANO_BOOT2CFG}" > ${NANO_WORLDDIR}/boot.config
 )
 
 #######################################################################
@@ -674,7 +676,7 @@ cust_allow_ssh_root () (
 
 cust_install_files () (
 	cd ${NANO_TOOLS}/Files
-	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -dumpv ${NANO_WORLDDIR}
+	find . -print | grep -Ev '/(CVS|\.svn)' | cpio -Ldumpv ${NANO_WORLDDIR}
 )
 
 #######################################################################
@@ -682,12 +684,18 @@ cust_install_files () (
 
 cust_pkg () (
 
+	# If the package directory doesn't exist, we're done.
+	if [ ! -d ${NANO_PACKAGE_DIR} ]; then
+		echo "DONE 0 packages"
+		return 0
+	fi
+
 	# Copy packages into chroot
 	mkdir -p ${NANO_WORLDDIR}/Pkg
 	(
 		cd ${NANO_PACKAGE_DIR}
 		find ${NANO_PACKAGE_LIST} -print |
-		    cpio -dumpv ${NANO_WORLDDIR}/Pkg
+		    cpio -Ldumpv ${NANO_WORLDDIR}/Pkg
 	)
 
 	# Count & report how many we have to install
@@ -758,8 +766,9 @@ pprint() {
 
 usage () {
 	(
-	echo "Usage: $0 [-biknqvw] [-c config_file]"
+	echo "Usage: $0 [-bfiknqvw] [-c config_file]"
 	echo "	-b	suppress builds (both kernel and world)"
+	echo "	-f	suppress code slice extraction"
 	echo "	-i	suppress disk image build"
 	echo "	-k	suppress buildkernel"
 	echo "	-n	add -DNO_CLEAN to buildworld, buildkernel, etc"
@@ -778,9 +787,10 @@ do_clean=true
 do_kernel=true
 do_world=true
 do_image=true
+do_copyout_partition=true
 
 set +e
-args=`getopt bc:hiknqvw $*`
+args=`getopt bc:fhiknqvw $*`
 if [ $? -ne 0 ] ; then
 	usage
 	exit 2
@@ -804,6 +814,10 @@ do
 	-c)
 		. "$2"
 		shift
+		shift
+		;;
+	-f)
+		do_copyout_partition=false
 		shift
 		;;
 	-h)

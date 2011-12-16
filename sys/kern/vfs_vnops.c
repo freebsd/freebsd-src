@@ -61,7 +61,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/unistd.h>
 
+#include <security/audit/audit.h>
 #include <security/mac/mac_framework.h>
+
+#include <vm/vm.h>
+#include <vm/vm_object.h>
 
 static fo_rdwr_t	vn_read;
 static fo_rdwr_t	vn_write;
@@ -81,6 +85,8 @@ struct 	fileops vnops = {
 	.fo_kqfilter = vn_kqfilter,
 	.fo_stat = vn_statfile,
 	.fo_close = vn_closefile,
+	.fo_chmod = vn_chmod,
+	.fo_chown = vn_chown,
 	.fo_flags = DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 
@@ -491,7 +497,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 			break;
 		offset += chunk;
 		base = (char *)base + chunk;
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 	} while (len);
 	if (aresid)
 		*aresid = len + iaresid;
@@ -512,7 +518,7 @@ vn_read(fp, uio, active_cred, flags, td)
 	struct vnode *vp;
 	int error, ioflag;
 	struct mtx *mtxp;
-	int vfslocked;
+	int advice, vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -523,27 +529,48 @@ vn_read(fp, uio, active_cred, flags, td)
 		ioflag |= IO_NDELAY;
 	if (fp->f_flag & O_DIRECT)
 		ioflag |= IO_DIRECT;
+	advice = POSIX_FADV_NORMAL;
 	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 	/*
 	 * According to McKusick the vn lock was protecting f_offset here.
 	 * It is now protected by the FOFFSET_LOCKED flag.
 	 */
-	if ((flags & FOF_OFFSET) == 0) {
+	if ((flags & FOF_OFFSET) == 0 || fp->f_advice != NULL) {
 		mtxp = mtx_pool_find(mtxpool_sleep, fp);
 		mtx_lock(mtxp);
-		while(fp->f_vnread_flags & FOFFSET_LOCKED) {
-			fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
-			msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
-			    "vnread offlock", 0);
+		if ((flags & FOF_OFFSET) == 0) {
+			while (fp->f_vnread_flags & FOFFSET_LOCKED) {
+				fp->f_vnread_flags |= FOFFSET_LOCK_WAITING;
+				msleep(&fp->f_vnread_flags, mtxp, PUSER -1,
+				    "vnread offlock", 0);
+			}
+			fp->f_vnread_flags |= FOFFSET_LOCKED;
+			uio->uio_offset = fp->f_offset;
 		}
-		fp->f_vnread_flags |= FOFFSET_LOCKED;
+		if (fp->f_advice != NULL &&
+		    uio->uio_offset >= fp->f_advice->fa_start &&
+		    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
+			advice = fp->f_advice->fa_advice;
 		mtx_unlock(mtxp);
-		vn_lock(vp, LK_SHARED | LK_RETRY);
-		uio->uio_offset = fp->f_offset;
-	} else
-		vn_lock(vp, LK_SHARED | LK_RETRY);
+	}
+	vn_lock(vp, LK_SHARED | LK_RETRY);
 
-	ioflag |= sequential_heuristic(uio, fp);
+	switch (advice) {
+	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_SEQUENTIAL:
+		ioflag |= sequential_heuristic(uio, fp);
+		break;
+	case POSIX_FADV_RANDOM:
+		/* Disable read-ahead for random I/O. */
+		break;
+	case POSIX_FADV_NOREUSE:
+		/*
+		 * Request the underlying FS to discard the buffers
+		 * and pages after the I/O is complete.
+		 */
+		ioflag |= IO_DIRECT;
+		break;
+	}
 
 #ifdef MAC
 	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
@@ -578,7 +605,8 @@ vn_write(fp, uio, active_cred, flags, td)
 	struct vnode *vp;
 	struct mount *mp;
 	int error, ioflag, lock_flags;
-	int vfslocked;
+	struct mtx *mtxp;
+	int advice, vfslocked;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -612,7 +640,33 @@ vn_write(fp, uio, active_cred, flags, td)
 	vn_lock(vp, lock_flags | LK_RETRY);
 	if ((flags & FOF_OFFSET) == 0)
 		uio->uio_offset = fp->f_offset;
-	ioflag |= sequential_heuristic(uio, fp);
+	advice = POSIX_FADV_NORMAL;
+	if (fp->f_advice != NULL) {
+		mtxp = mtx_pool_find(mtxpool_sleep, fp);
+		mtx_lock(mtxp);
+		if (fp->f_advice != NULL &&
+		    uio->uio_offset >= fp->f_advice->fa_start &&
+		    uio->uio_offset + uio->uio_resid <= fp->f_advice->fa_end)
+			advice = fp->f_advice->fa_advice;
+		mtx_unlock(mtxp);
+	}
+	switch (advice) {
+	case POSIX_FADV_NORMAL:
+	case POSIX_FADV_SEQUENTIAL:
+		ioflag |= sequential_heuristic(uio, fp);
+		break;
+	case POSIX_FADV_RANDOM:
+		/* XXX: Is this correct? */
+		break;
+	case POSIX_FADV_NOREUSE:
+		/*
+		 * Request the underlying FS to discard the buffers
+		 * and pages after the I/O is complete.
+		 */
+		ioflag |= IO_DIRECT;
+		break;
+	}
+
 #ifdef MAC
 	error = mac_vnode_check_write(active_cred, fp->f_cred, vp);
 	if (error == 0)
@@ -1350,10 +1404,60 @@ vn_rlimit_fsize(const struct vnode *vp, const struct uio *uio,
 	PROC_LOCK(td->td_proc);
 	if ((uoff_t)uio->uio_offset + uio->uio_resid >
 	    lim_cur(td->td_proc, RLIMIT_FSIZE)) {
-		psignal(td->td_proc, SIGXFSZ);
+		kern_psignal(td->td_proc, SIGXFSZ);
 		PROC_UNLOCK(td->td_proc);
 		return (EFBIG);
 	}
 	PROC_UNLOCK(td->td_proc);
 	return (0);
+}
+
+int
+vn_chmod(struct file *fp, mode_t mode, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfmode(td, active_cred, vp, mode);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+int
+vn_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
+    struct thread *td)
+{
+	struct vnode *vp;
+	int error, vfslocked;
+
+	vp = fp->f_vnode;
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+#ifdef AUDIT
+	vn_lock(vp, LK_SHARED | LK_RETRY);
+	AUDIT_ARG_VNODE1(vp);
+	VOP_UNLOCK(vp, 0);
+#endif
+	error = setfown(td, active_cred, vp, uid, gid);
+	VFS_UNLOCK_GIANT(vfslocked);
+	return (error);
+}
+
+void
+vn_pages_remove(struct vnode *vp, vm_pindex_t start, vm_pindex_t end)
+{
+	vm_object_t object;
+
+	if ((object = vp->v_object) == NULL)
+		return;
+	VM_OBJECT_LOCK(object);
+	vm_object_page_remove(object, start, end, 0);
+	VM_OBJECT_UNLOCK(object);
 }

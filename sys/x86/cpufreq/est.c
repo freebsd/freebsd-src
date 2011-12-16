@@ -1215,7 +1215,7 @@ est_msr_info(device_t dev, uint64_t msr, freq_info **freqs)
 		return (EOPNOTSUPP);
 
 	/* Figure out the bus clock. */
-	freq = tsc_freq / 1000000;
+	freq = atomic_load_acq_64(&tsc_freq) / 1000000;
 	id = msr >> 32;
 	bus = freq / (id >> 8);
 	device_printf(dev, "Guessed bus clock (high) of %d MHz\n", bus);

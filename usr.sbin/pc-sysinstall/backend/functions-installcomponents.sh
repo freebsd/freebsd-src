@@ -120,9 +120,11 @@ COMPTMPDIR=\"${COMPTMPDIR}\"
 export COMPTMPDIR
 CFILE=\"${CFILE}\"
 export CFILE
+mount -t devfs devfs /dev
 
 sh ${COMPTMPDIR}/install.sh
 
+umount /dev
 " >${FSMNT}/.componentwrapper.sh
   chmod 755 ${FSMNT}/.componentwrapper.sh
    
@@ -140,7 +142,7 @@ install_components()
 {
   # First, lets check and see if we even have any optional modules
   get_value_from_cfg installComponents
-  if [ ! -z "${VAL}" ]
+  if [ -n "${VAL}" ]
   then
     # Lets start by cleaning up the string and getting it ready to parse
     strip_white_space ${VAL}

@@ -205,6 +205,29 @@ struct ar5416_desc {
 #define	AR_STBC2	    0x40000000
 #define	AR_STBC3	    0x80000000
 
+/* ds_ctl8 */
+#define	AR_AntCtl0	    0x00ffffff
+#define	AR_AntCtl0_S	    0
+/* Xmit 0 TPC is AR_XmitPower in ctl0 */
+
+/* ds_ctl9 */
+#define	AR_AntCtl1	    0x00ffffff
+#define	AR_AntCtl1_S	    0
+#define	AR_XmitPower1	    0xff000000
+#define	AR_XmitPower1_S	    24
+
+/* ds_ctl10 */
+#define	AR_AntCtl2	    0x00ffffff
+#define	AR_AntCtl2_S	    0
+#define	AR_XmitPower2	    0xff000000
+#define	AR_XmitPower2_S	    24
+
+/* ds_ctl11 */
+#define	AR_AntCtl3	    0x00ffffff
+#define	AR_AntCtl3_S	    0
+#define	AR_XmitPower3	    0xff000000
+#define	AR_XmitPower3_S	    24
+
 /*************
  * TX Status *
  *************/
@@ -279,6 +302,8 @@ struct ar5416_desc {
 #define AR_FinalTxIdx_S     21
 #define AR_TxStatusRsvd82   0x01800000
 #define AR_PowerMgmt        0x02000000
+#define AR_TxTid            0xf0000000
+#define AR_TxTid_S          28
 #define AR_TxStatusRsvd83   0xfc000000
 
 /***********
@@ -387,11 +412,11 @@ struct ar5416_desc {
 #define RXSTATUS_OFFSET(ah)	4
 #define RXSTATUS_NUMWORDS(ah)	9
 #define RXSTATUS_RATE(ah, ads) \
-	(AR_SREV_OWL_20_OR_LATER(ah) ? \
+	(AR_SREV_5416_V20_OR_LATER(ah) ? \
 	 MS((ads)->ds_rxstatus0, AR_RxRate) : \
 	 ((ads)->ds_rxstatus3 >> 2) & 0xFF)
 #define RXSTATUS_DUPLICATE(ah, ads) \
-	(AR_SREV_OWL_20_OR_LATER(ah) ?	\
+	(AR_SREV_5416_V20_OR_LATER(ah) ?	\
 	 MS((ads)->ds_rxstatus3, AR_Parallel40) : \
 	 ((ads)->ds_rxstatus3 >> 10) & 0x1)
 #endif /* _ATH_AR5416_DESC_H_ */

@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/mdioctl.h>
+#include <sys/mount.h>
 #include <sys/stat.h>
 #include <sys/wait.h>
 
@@ -60,6 +61,7 @@ struct mtpt_info {
 	bool		 mi_have_gid;
 	mode_t		 mi_mode;
 	bool		 mi_have_mode;
+	bool		 mi_forced_pw;
 };
 
 static	bool debug;		/* Emit debugging information? */
@@ -127,7 +129,7 @@ main(int argc, char **argv)
 	}
 
 	while ((ch = getopt(argc, argv,
-	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:t:Uv:w:X")) != -1)
+	    "a:b:Cc:Dd:E:e:F:f:hi:LlMm:NnO:o:Pp:Ss:tUv:w:X")) != -1)
 		switch (ch) {
 		case 'a':
 			argappend(&newfs_arg, "-a %s", optarg);
@@ -204,6 +206,7 @@ main(int argc, char **argv)
 				usage();
 			mi.mi_mode = getmode(set, S_IRWXU | S_IRWXG | S_IRWXO);
 			mi.mi_have_mode = true;
+			mi.mi_forced_pw = true;
 			free(set);
 			break;
 		case 'S':
@@ -211,6 +214,9 @@ main(int argc, char **argv)
 			break;
 		case 's':
 			argappend(&mdconfig_arg, "-s %s", optarg);
+			break;
+		case 't':
+			argappend(&newfs_arg, "-t");
 			break;
 		case 'U':
 			softdep = true;
@@ -220,6 +226,7 @@ main(int argc, char **argv)
 			break;
 		case 'w':
 			extract_ugid(optarg, &mi);
+			mi.mi_forced_pw = true;
 			break;
 		case 'X':
 			debug = true;
@@ -282,7 +289,7 @@ argappend(char **dstp, const char *fmt, ...)
 {
 	char *old, *new;
 	va_list ap;
-	
+
 	old = *dstp;
 	assert(old != NULL);
 
@@ -417,7 +424,7 @@ do_mdconfig_detach(void)
 	rv = run(NULL, "%s -d -u %s%d", path_mdconfig, mdname, unit);
 	if (rv && debug)	/* This is allowed to fail. */
 		warnx("mdconfig (detach) exited with error code %d (ignored)",
-		      rv);
+		    rv);
 }
 
 /*
@@ -440,6 +447,29 @@ do_mount(const char *args, const char *mtpoint)
 static void
 do_mtptsetup(const char *mtpoint, struct mtpt_info *mip)
 {
+	struct statfs sfs;
+
+	if (!mip->mi_have_mode && !mip->mi_have_uid && !mip->mi_have_gid)
+		return;
+
+	if (!norun) {
+		if (statfs(mtpoint, &sfs) == -1) {
+			warn("statfs: %s", mtpoint);
+			return;
+		}
+		if ((sfs.f_flags & MNT_RDONLY) != 0) {
+			if (mip->mi_forced_pw) {
+				warnx(
+	"Not changing mode/owner of %s since it is read-only",
+				    mtpoint);
+			} else {
+				debugprintf(
+	"Not changing mode/owner of %s since it is read-only",
+				    mtpoint);
+			}
+			return;
+		}
+	}
 
 	if (mip->mi_have_mode) {
 		debugprintf("changing mode of %s to %o.", mtpoint,
@@ -656,7 +686,7 @@ usage(void)
 {
 
 	fprintf(stderr,
-"usage: %s [-DLlMNnPSUX] [-a maxcontig] [-b block-size]\n"
+"usage: %s [-DLlMNnPStUX] [-a maxcontig] [-b block-size]\n"
 "\t[-c blocks-per-cylinder-group][-d max-extent-size] [-E path-mdconfig]\n"
 "\t[-e maxbpg] [-F file] [-f frag-size] [-i bytes] [-m percent-free]\n"
 "\t[-O optimization] [-o mount-options]\n"

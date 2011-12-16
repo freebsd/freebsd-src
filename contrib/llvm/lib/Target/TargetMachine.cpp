@@ -40,15 +40,14 @@ namespace llvm {
   bool JITExceptionHandling;
   bool JITEmitDebugInfo;
   bool JITEmitDebugInfoToDisk;
-  bool UnwindTablesMandatory;
-  Reloc::Model RelocationModel;
-  CodeModel::Model CMModel;
   bool GuaranteedTailCallOpt;
-  unsigned StackAlignment;
+  unsigned StackAlignmentOverride;
   bool RealignStack;
   bool DisableJumpTables;
   bool StrongPHIElim;
+  bool HasDivModLibcall;
   bool AsmVerbosityDefault(false);
+  bool EnableSegmentedStacks;
 }
 
 static cl::opt<bool, true>
@@ -142,44 +141,7 @@ EmitJitDebugInfoToDisk("jit-emit-debug-to-disk",
   cl::desc("Emit debug info objfiles to disk"),
   cl::location(JITEmitDebugInfoToDisk),
   cl::init(false));
-static cl::opt<bool, true>
-EnableUnwindTables("unwind-tables",
-  cl::desc("Generate unwinding tables for all functions"),
-  cl::location(UnwindTablesMandatory),
-  cl::init(false));
 
-static cl::opt<llvm::Reloc::Model, true>
-DefRelocationModel("relocation-model",
-  cl::desc("Choose relocation model"),
-  cl::location(RelocationModel),
-  cl::init(Reloc::Default),
-  cl::values(
-    clEnumValN(Reloc::Default, "default",
-               "Target default relocation model"),
-    clEnumValN(Reloc::Static, "static",
-               "Non-relocatable code"),
-    clEnumValN(Reloc::PIC_, "pic",
-               "Fully relocatable, position independent code"),
-    clEnumValN(Reloc::DynamicNoPIC, "dynamic-no-pic",
-               "Relocatable external references, non-relocatable code"),
-    clEnumValEnd));
-static cl::opt<llvm::CodeModel::Model, true>
-DefCodeModel("code-model",
-  cl::desc("Choose code model"),
-  cl::location(CMModel),
-  cl::init(CodeModel::Default),
-  cl::values(
-    clEnumValN(CodeModel::Default, "default",
-               "Target default code model"),
-    clEnumValN(CodeModel::Small, "small",
-               "Small code model"),
-    clEnumValN(CodeModel::Kernel, "kernel",
-               "Kernel code model"),
-    clEnumValN(CodeModel::Medium, "medium",
-               "Medium code model"),
-    clEnumValN(CodeModel::Large, "large",
-               "Large code model"),
-    clEnumValEnd));
 static cl::opt<bool, true>
 EnableGuaranteedTailCallOpt("tailcallopt",
   cl::desc("Turn fastcc calls into tail calls by (potentially) changing ABI."),
@@ -188,7 +150,7 @@ EnableGuaranteedTailCallOpt("tailcallopt",
 static cl::opt<unsigned, true>
 OverrideStackAlignment("stack-alignment",
   cl::desc("Override default stack alignment"),
-  cl::location(StackAlignment),
+  cl::location(StackAlignmentOverride),
   cl::init(0));
 static cl::opt<bool, true>
 EnableRealignStack("realign-stack",
@@ -205,6 +167,10 @@ EnableStrongPHIElim(cl::Hidden, "strong-phi-elim",
   cl::desc("Use strong PHI elimination."),
   cl::location(StrongPHIElim),
   cl::init(false));
+static cl::opt<std::string>
+TrapFuncName("trap-func", cl::Hidden,
+  cl::desc("Emit a call to trap function rather than a trap instruction"),
+  cl::init(""));
 static cl::opt<bool>
 DataSections("fdata-sections",
   cl::desc("Emit data into separate sections"),
@@ -213,15 +179,25 @@ static cl::opt<bool>
 FunctionSections("ffunction-sections",
   cl::desc("Emit functions into separate sections"),
   cl::init(false));
+static cl::opt<bool, true>
+SegmentedStacks("segmented-stacks",
+  cl::desc("Use segmented stacks if possible."),
+  cl::location(EnableSegmentedStacks),
+  cl::init(false));
+                         
 //---------------------------------------------------------------------------
 // TargetMachine Class
 //
 
-TargetMachine::TargetMachine(const Target &T) 
-  : TheTarget(T), AsmInfo(0),
+TargetMachine::TargetMachine(const Target &T,
+                             StringRef TT, StringRef CPU, StringRef FS)
+  : TheTarget(T), TargetTriple(TT), TargetCPU(CPU), TargetFS(FS),
+    CodeGenInfo(0), AsmInfo(0),
     MCRelaxAll(false),
     MCNoExecStack(false),
-    MCUseLoc(true) {
+    MCSaveTempLabels(false),
+    MCUseLoc(true),
+    MCUseCFI(true) {
   // Typically it will be subtargets that will adjust FloatABIType from Default
   // to Soft or Hard.
   if (UseSoftFloat)
@@ -229,29 +205,24 @@ TargetMachine::TargetMachine(const Target &T)
 }
 
 TargetMachine::~TargetMachine() {
+  delete CodeGenInfo;
   delete AsmInfo;
 }
 
 /// getRelocationModel - Returns the code generation relocation model. The
 /// choices are static, PIC, and dynamic-no-pic, and target default.
-Reloc::Model TargetMachine::getRelocationModel() {
-  return RelocationModel;
-}
-
-/// setRelocationModel - Sets the code generation relocation model.
-void TargetMachine::setRelocationModel(Reloc::Model Model) {
-  RelocationModel = Model;
+Reloc::Model TargetMachine::getRelocationModel() const {
+  if (!CodeGenInfo)
+    return Reloc::Default;
+  return CodeGenInfo->getRelocationModel();
 }
 
 /// getCodeModel - Returns the code model. The choices are small, kernel,
 /// medium, large, and target default.
-CodeModel::Model TargetMachine::getCodeModel() {
-  return CMModel;
-}
-
-/// setCodeModel - Sets the code model.
-void TargetMachine::setCodeModel(CodeModel::Model Model) {
-  CMModel = Model;
+CodeModel::Model TargetMachine::getCodeModel() const {
+  if (!CodeGenInfo)
+    return CodeModel::Default;
+  return CodeGenInfo->getCodeModel();
 }
 
 bool TargetMachine::getAsmVerbosityDefault() {
@@ -302,5 +273,12 @@ namespace llvm {
   /// that the rounding mode of the FPU can change from its default.
   bool HonorSignDependentRoundingFPMath() {
     return !UnsafeFPMath && HonorSignDependentRoundingFPMathOption;
+  }
+
+  /// getTrapFunctionName - If this returns a non-empty string, this means isel
+  /// should lower Intrinsic::trap to a call to the specified function name
+  /// instead of an ISD::TRAP node.
+  StringRef getTrapFunctionName() {
+    return TrapFuncName;
   }
 }

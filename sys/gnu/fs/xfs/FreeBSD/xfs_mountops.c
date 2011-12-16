@@ -71,7 +71,7 @@
 
 #include <xfs_mountops.h>
 
-MALLOC_DEFINE(M_XFSNODE, "XFS node", "XFS vnode private part");
+static MALLOC_DEFINE(M_XFSNODE, "XFS node", "XFS vnode private part");
 
 static vfs_mount_t	_xfs_mount;
 static vfs_unmount_t	_xfs_unmount;
@@ -370,9 +370,10 @@ _xfs_vget(mp, ino, flags, vpp)
 }
 
 static int
-_xfs_fhtovp(mp, fidp, vpp)
+_xfs_fhtovp(mp, fidp, flags, vpp)
 	struct mount *mp;
 	struct fid *fidp;
+	int flags;
 	struct vnode **vpp;
 {
 	printf("xfs_fhtovp\n");

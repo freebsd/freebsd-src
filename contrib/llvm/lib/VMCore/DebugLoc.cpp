@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/Support/DebugLoc.h"
+#include "llvm/ADT/DenseMapInfo.h"
 #include "LLVMContextImpl.h"
 using namespace llvm;
 
@@ -103,12 +104,12 @@ MDNode *DebugLoc::getAsMDNode(const LLVMContext &Ctx) const {
   assert(Scope && "If scope is null, this should be isUnknown()");
   
   LLVMContext &Ctx2 = Scope->getContext();
-  const Type *Int32 = Type::getInt32Ty(Ctx2);
+  Type *Int32 = Type::getInt32Ty(Ctx2);
   Value *Elts[] = {
     ConstantInt::get(Int32, getLine()), ConstantInt::get(Int32, getCol()),
     Scope, IA
   };
-  return MDNode::get(Ctx2, &Elts[0], 4);
+  return MDNode::get(Ctx2, Elts);
 }
 
 /// getFromDILocation - Translate the DILocation quad into a DebugLoc.
@@ -125,6 +126,61 @@ DebugLoc DebugLoc::getFromDILocation(MDNode *N) {
     ColNo = Col->getZExtValue();
   
   return get(LineNo, ColNo, Scope, dyn_cast_or_null<MDNode>(N->getOperand(3)));
+}
+
+/// getFromDILexicalBlock - Translate the DILexicalBlock into a DebugLoc.
+DebugLoc DebugLoc::getFromDILexicalBlock(MDNode *N) {
+  if (N == 0 || N->getNumOperands() < 3) return DebugLoc();
+  
+  MDNode *Scope = dyn_cast_or_null<MDNode>(N->getOperand(1));
+  if (Scope == 0) return DebugLoc();
+  
+  unsigned LineNo = 0, ColNo = 0;
+  if (ConstantInt *Line = dyn_cast_or_null<ConstantInt>(N->getOperand(2)))
+    LineNo = Line->getZExtValue();
+  if (ConstantInt *Col = dyn_cast_or_null<ConstantInt>(N->getOperand(3)))
+    ColNo = Col->getZExtValue();
+  
+  return get(LineNo, ColNo, Scope, NULL);
+}
+
+void DebugLoc::dump(const LLVMContext &Ctx) const {
+#ifndef NDEBUG
+  if (!isUnknown()) {
+    dbgs() << getLine();
+    if (getCol() != 0)
+      dbgs() << ',' << getCol();
+    DebugLoc InlinedAtDL = DebugLoc::getFromDILocation(getInlinedAt(Ctx));
+    if (!InlinedAtDL.isUnknown()) {
+      dbgs() << " @ ";
+      InlinedAtDL.dump(Ctx);
+    } else
+      dbgs() << "\n";
+  }
+#endif
+}
+
+//===----------------------------------------------------------------------===//
+// DenseMap specialization
+//===----------------------------------------------------------------------===//
+
+DebugLoc DenseMapInfo<DebugLoc>::getEmptyKey() {
+  return DebugLoc::getEmptyKey();
+}
+
+DebugLoc DenseMapInfo<DebugLoc>::getTombstoneKey() {
+  return DebugLoc::getTombstoneKey();
+}
+
+unsigned DenseMapInfo<DebugLoc>::getHashValue(const DebugLoc &Key) {
+  FoldingSetNodeID ID;
+  ID.AddInteger(Key.LineCol);
+  ID.AddInteger(Key.ScopeIdx);
+  return ID.ComputeHash();
+}
+
+bool DenseMapInfo<DebugLoc>::isEqual(const DebugLoc &LHS, const DebugLoc &RHS) {
+  return LHS == RHS;
 }
 
 //===----------------------------------------------------------------------===//
@@ -184,7 +240,7 @@ int LLVMContextImpl::getOrAddScopeInlinedAtIdxEntry(MDNode *Scope, MDNode *IA,
 /// deleted - The MDNode this is pointing to got deleted, so this pointer needs
 /// to drop to null and we need remove our entry from the DenseMap.
 void DebugRecVH::deleted() {
-  // If this is a  non-canonical reference, just drop the value to null, we know
+  // If this is a non-canonical reference, just drop the value to null, we know
   // it doesn't have a map entry.
   if (Idx == 0) {
     setValPtr(0);

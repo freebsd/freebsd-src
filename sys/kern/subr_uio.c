@@ -44,13 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
+#include <sys/mman.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/resourcevar.h>
 #include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/vnode.h>
 
 #include <vm/vm.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_page.h>
 #include <vm/vm_map.h>
 #ifdef ZERO_COPY_SOCKETS
@@ -60,6 +63,8 @@ __FBSDID("$FreeBSD$");
 
 SYSCTL_INT(_kern, KERN_IOV_MAX, iov_max, CTLFLAG_RD, NULL, UIO_MAXIOV,
 	"Maximum number of elements in an I/O vector; sysconf(_SC_IOV_MAX)");
+
+static int uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault);
 
 #ifdef ZERO_COPY_SOCKETS
 /* Declared in uipc_socket.c */
@@ -126,23 +131,65 @@ retry:
 #endif /* ZERO_COPY_SOCKETS */
 
 int
+copyin_nofault(const void *udaddr, void *kaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyin(udaddr, kaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+
+int
+copyout_nofault(const void *kaddr, void *udaddr, size_t len)
+{
+	int error, save;
+
+	save = vm_fault_disable_pagefaults();
+	error = copyout(kaddr, udaddr, len);
+	vm_fault_enable_pagefaults(save);
+	return (error);
+}
+
+int
 uiomove(void *cp, int n, struct uio *uio)
 {
-	struct thread *td = curthread;
+
+	return (uiomove_faultflag(cp, n, uio, 0));
+}
+
+int
+uiomove_nofault(void *cp, int n, struct uio *uio)
+{
+
+	return (uiomove_faultflag(cp, n, uio, 1));
+}
+
+static int
+uiomove_faultflag(void *cp, int n, struct uio *uio, int nofault)
+{
+	struct thread *td;
 	struct iovec *iov;
 	u_int cnt;
-	int error = 0;
-	int save = 0;
+	int error, newflags, save;
+
+	td = curthread;
+	error = 0;
 
 	KASSERT(uio->uio_rw == UIO_READ || uio->uio_rw == UIO_WRITE,
 	    ("uiomove: mode"));
-	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == curthread,
+	KASSERT(uio->uio_segflg != UIO_USERSPACE || uio->uio_td == td,
 	    ("uiomove proc"));
-	WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
-	    "Calling uiomove()");
+	if (!nofault)
+		WITNESS_WARN(WARN_GIANTOK | WARN_SLEEPOK, NULL,
+		    "Calling uiomove()");
 
-	save = td->td_pflags & TDP_DEADLKTREAT;
-	td->td_pflags |= TDP_DEADLKTREAT;
+	/* XXX does it make a sense to set TDP_DEADLKTREAT for UIO_SYSSPACE ? */
+	newflags = TDP_DEADLKTREAT;
+	if (uio->uio_segflg == UIO_USERSPACE && nofault)
+		newflags |= TDP_NOFAULTING;
+	save = curthread_pflags_set(newflags);
 
 	while (n > 0 && uio->uio_resid) {
 		iov = uio->uio_iov;
@@ -184,8 +231,7 @@ uiomove(void *cp, int n, struct uio *uio)
 		n -= cnt;
 	}
 out:
-	if (save == 0)
-		td->td_pflags &= ~TDP_DEADLKTREAT;
+	curthread_pflags_restore(save);
 	return (error);
 }
 
@@ -391,7 +437,7 @@ copyinstrfrom(const void * __restrict src, void * __restrict dst, size_t len,
 }
 
 int
-copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
+copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 {
 	u_int iovlen;
 
@@ -409,7 +455,7 @@ copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov, int error)
 }
 
 int
-copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop)
+copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop)
 {
 	struct iovec *iov;
 	struct uio *uio;
@@ -456,4 +502,55 @@ cloneuio(struct uio *uiop)
 	uio->uio_iov = (struct iovec *)(uio + 1);
 	bcopy(uiop->uio_iov, uio->uio_iov, iovlen);
 	return (uio);
+}
+
+/*
+ * Map some anonymous memory in user space of size sz, rounded up to the page
+ * boundary.
+ */
+int
+copyout_map(struct thread *td, vm_offset_t *addr, size_t sz)
+{
+	struct vmspace *vms;
+	int error;
+	vm_size_t size;
+
+	vms = td->td_proc->p_vmspace;
+
+	/*
+	 * Map somewhere after heap in process memory.
+	 */
+	PROC_LOCK(td->td_proc);
+	*addr = round_page((vm_offset_t)vms->vm_daddr +
+	    lim_max(td->td_proc, RLIMIT_DATA));
+	PROC_UNLOCK(td->td_proc);
+
+	/* round size up to page boundry */
+	size = (vm_size_t)round_page(sz);
+
+	error = vm_mmap(&vms->vm_map, addr, size, PROT_READ | PROT_WRITE,
+	    VM_PROT_ALL, MAP_PRIVATE | MAP_ANON, OBJT_DEFAULT, NULL, 0);
+
+	return (error);
+}
+
+/*
+ * Unmap memory in user space.
+ */
+int
+copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz)
+{
+	vm_map_t map;
+	vm_size_t size;
+
+	if (sz == 0)
+		return (0);
+
+	map = &td->td_proc->p_vmspace->vm_map;
+	size = (vm_size_t)round_page(sz);
+
+	if (vm_map_remove(map, addr, addr + size) != KERN_SUCCESS)
+		return (EINVAL);
+
+	return (0);
 }

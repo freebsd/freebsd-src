@@ -376,6 +376,8 @@ extern const struct in6_addr in6addr_linklocal_allv2routers;
 struct route_in6 {
 	struct	rtentry *ro_rt;
 	struct	llentry *ro_lle;
+	struct	in6_addr *ro_ia6;
+	int		ro_flags;
 	struct	sockaddr_in6 ro_dst;
 };
 #endif
@@ -397,8 +399,8 @@ struct route_in6 {
 #define IPV6_MULTICAST_IF	9  /* u_int; set/get IP6 multicast i/f  */
 #define IPV6_MULTICAST_HOPS	10 /* int; set/get IP6 multicast hops */
 #define IPV6_MULTICAST_LOOP	11 /* u_int; set/get IP6 multicast loopback */
-#define IPV6_JOIN_GROUP		12 /* ip6_mreq; join a group membership */
-#define IPV6_LEAVE_GROUP	13 /* ip6_mreq; leave a group membership */
+#define IPV6_JOIN_GROUP		12 /* ipv6_mreq; join a group membership */
+#define IPV6_LEAVE_GROUP	13 /* ipv6_mreq; leave a group membership */
 #define IPV6_PORTRANGE		14 /* int; range to choose for unspec port */
 #define ICMP6_FILTER		18 /* icmp6_filter; icmp6 filter */
 /* RFC2292 options */
@@ -611,7 +613,12 @@ struct ip6_mtuinfo {
 #define IPV6CTL_STEALTH		45
 
 #define	ICMPV6CTL_ND6_ONLINKNSRFC4861	47
-#define IPV6CTL_MAXID		48
+#define	IPV6CTL_NO_RADR		48	/* No defroute from RA */
+#define	IPV6CTL_NORBIT_RAIF	49	/* Disable R-bit in NA on RA
+					 * receiving IF. */
+#define	IPV6CTL_RFC6204W3	50	/* Accept defroute even when forwarding
+					   enabled */
+#define	IPV6CTL_MAXID		51
 #endif /* __BSD_VISIBLE */
 
 /*
@@ -628,6 +635,7 @@ struct cmsghdr;
 
 int	in6_cksum __P((struct mbuf *, u_int8_t, u_int32_t, u_int32_t));
 int	in6_localaddr __P((struct in6_addr *));
+int	in6_localip(struct in6_addr *);
 int	in6_addrscope __P((struct in6_addr *));
 struct	in6_ifaddr *in6_ifawithifp __P((struct ifnet *, struct in6_addr *));
 extern void in6_if_up __P((struct ifnet *));

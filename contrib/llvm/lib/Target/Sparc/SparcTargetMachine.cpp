@@ -11,28 +11,25 @@
 //===----------------------------------------------------------------------===//
 
 #include "Sparc.h"
-#include "SparcMCAsmInfo.h"
 #include "SparcTargetMachine.h"
 #include "llvm/PassManager.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
 extern "C" void LLVMInitializeSparcTarget() {
   // Register the target.
   RegisterTargetMachine<SparcV8TargetMachine> X(TheSparcTarget);
   RegisterTargetMachine<SparcV9TargetMachine> Y(TheSparcV9Target);
-
-  RegisterAsmInfo<SparcELFMCAsmInfo> A(TheSparcTarget);
-  RegisterAsmInfo<SparcELFMCAsmInfo> B(TheSparcV9Target);
-
 }
 
 /// SparcTargetMachine ctor - Create an ILP32 architecture model
 ///
-SparcTargetMachine::SparcTargetMachine(const Target &T, const std::string &TT, 
-                                       const std::string &FS, bool is64bit)
-  : LLVMTargetMachine(T, TT),
-    Subtarget(TT, FS, is64bit),
+SparcTargetMachine::SparcTargetMachine(const Target &T, StringRef TT, 
+                                       StringRef CPU, StringRef FS,
+                                       Reloc::Model RM, CodeModel::Model CM,
+                                       bool is64bit)
+  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
+    Subtarget(TT, CPU, FS, is64bit),
     DataLayout(Subtarget.getDataLayout()),
     TLInfo(*this), TSInfo(*this), InstrInfo(Subtarget),
     FrameLowering(Subtarget) {
@@ -55,13 +52,15 @@ bool SparcTargetMachine::addPreEmitPass(PassManagerBase &PM,
 }
 
 SparcV8TargetMachine::SparcV8TargetMachine(const Target &T,
-                                           const std::string &TT, 
-                                           const std::string &FS)
-  : SparcTargetMachine(T, TT, FS, false) {
+                                           StringRef TT, StringRef CPU,
+                                           StringRef FS, Reloc::Model RM,
+                                           CodeModel::Model CM)
+  : SparcTargetMachine(T, TT, CPU, FS, RM, CM, false) {
 }
 
 SparcV9TargetMachine::SparcV9TargetMachine(const Target &T, 
-                                           const std::string &TT, 
-                                           const std::string &FS)
-  : SparcTargetMachine(T, TT, FS, true) {
+                                           StringRef TT,  StringRef CPU,
+                                           StringRef FS, Reloc::Model RM,
+                                           CodeModel::Model CM)
+  : SparcTargetMachine(T, TT, CPU, FS, RM, CM, true) {
 }

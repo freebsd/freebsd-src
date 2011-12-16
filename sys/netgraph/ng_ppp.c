@@ -108,7 +108,7 @@
 #include <netgraph/ng_vjc.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
+static MALLOC_DEFINE(M_NETGRAPH_PPP, "netgraph_ppp", "netgraph ppp node");
 #else
 #define M_NETGRAPH_PPP M_NETGRAPH
 #endif
@@ -490,9 +490,7 @@ ng_ppp_constructor(node_p node)
 	int i;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_PPP, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_PPP, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 

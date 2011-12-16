@@ -5,7 +5,7 @@ BINOWN=	root
 BINMODE=4555
 NO_MAN=
 
-DPADD=	${LIBULOG} ${LIBMD}
-LDADD=	-lulog -lmd
+DPADD=	${LIBULOG}
+LDADD=	-lulog
 
 .include <bsd.prog.mk>

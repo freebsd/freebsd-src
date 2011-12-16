@@ -137,16 +137,12 @@ static device_method_t bfe_methods[] = {
 	DEVMETHOD(device_suspend,	bfe_suspend),
 	DEVMETHOD(device_resume,	bfe_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bfe_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bfe_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bfe_driver = {
@@ -1736,18 +1732,15 @@ bfe_ifmedia_upd(struct ifnet *ifp)
 {
 	struct bfe_softc *sc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 	int error;
 
 	sc = ifp->if_softc;
 	BFE_LOCK(sc);
 
 	mii = device_get_softc(sc->bfe_miibus);
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-				miisc = LIST_NEXT(miisc, mii_list))
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	BFE_UNLOCK(sc);
 

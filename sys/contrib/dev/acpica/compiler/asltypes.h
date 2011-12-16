@@ -68,7 +68,7 @@
 #define NODE_METHOD_SOME_NO_RETVAL  0x00000200
 #define NODE_RESULT_NOT_USED        0x00000400
 #define NODE_METHOD_TYPED           0x00000800
-#define NODE_IS_BIT_OFFSET          0x00001000
+#define NODE_UNUSED_FLAG            0x00001000
 #define NODE_COMPILE_TIME_CONST     0x00002000
 #define NODE_IS_TERM_ARG            0x00004000
 #define NODE_WAS_ONES_OP            0x00008000
@@ -76,6 +76,7 @@
 #define NODE_COMPILER_EMITTED       0x00020000
 #define NODE_IS_DUPLICATE           0x00040000
 #define NODE_IS_RESOURCE_DATA       0x00080000
+#define NODE_IS_NULL_RETURN         0x00100000
 
 /* Keeps information about individual control methods */
 
@@ -143,8 +144,10 @@ typedef struct asl_file_status
 } ASL_FILE_STATUS;
 
 
-/* File types */
-
+/*
+ * File types. Note: Any changes to this table must also be reflected
+ * in the AslFileTypeNames array.
+ */
 typedef enum
 {
     ASL_FILE_STDOUT             = 0,

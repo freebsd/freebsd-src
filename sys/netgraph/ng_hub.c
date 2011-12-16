@@ -37,7 +37,7 @@
 #include <netgraph/netgraph.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
+static MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
 #else
 #define M_NETGRAPH_HUB M_NETGRAPH
 #endif
@@ -86,9 +86,7 @@ ng_hub_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_HUB, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_HUB, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 	return (0);
@@ -157,6 +155,8 @@ ng_hub_shutdown(node_p node)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 
 	free(priv, M_NETGRAPH_HUB);
+	NG_NODE_SET_PRIVATE(node, NULL);
+	NG_NODE_UNREF(node);
 	return (0);
 }
 

@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_colors.h,v 1.15 2007/02/18 18:23:29 tom Exp $
+ *  $Id: dlg_colors.h,v 1.16 2011/01/17 00:20:32 tom Exp $
  *
  *  colors.h -- color attribute definitions
  *
- *  Copyright 2000-2005,2006	Thomas E. Dickey
+ *  Copyright 2000-2007,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -167,6 +167,10 @@
 #define DLGC_FG_FORM_TEXT              COLOR_WHITE
 #define DLGC_BG_FORM_TEXT              COLOR_CYAN
 #define DLGC_HL_FORM_TEXT              TRUE
+
+#define DLGC_FG_GAUGE                  COLOR_BLUE
+#define DLGC_BG_GAUGE                  COLOR_WHITE
+#define DLGC_HL_GAUGE                  TRUE
 
 /* End of default color definitions */
 

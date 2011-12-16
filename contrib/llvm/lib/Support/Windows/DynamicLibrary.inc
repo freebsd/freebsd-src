@@ -39,43 +39,14 @@ using namespace sys;
 //===          and must not be UNIX code.
 //===----------------------------------------------------------------------===//
 
-static std::vector<HMODULE> OpenedHandles;
-
-#ifdef _WIN64
-  typedef DWORD64 ModuleBaseType;
-#else
-  typedef ULONG ModuleBaseType;
-#endif
+static DenseSet<HMODULE> *OpenedHandles;
 
 extern "C" {
-// Use old callback if:
-//  - Not using Visual Studio
-//  - Visual Studio 2005 or earlier but only if we are not using the Windows SDK
-//    or Windows SDK version is older than 6.0
-// Use new callback if:
-//  - Newer Visual Studio (comes with newer SDK).
-//  - Visual Studio 2005 with Windows SDK 6.0+
-#if defined(_MSC_VER)
-  #if _MSC_VER < 1500 && (!defined(VER_PRODUCTBUILD) || VER_PRODUCTBUILD < 6000)
-    #define OLD_ELM_CALLBACK_DECL 1
-  #endif
-#elif defined(__MINGW64__)
-  // Use new callback.
-#elif defined(__MINGW32__)
-  #define OLD_ELM_CALLBACK_DECL 1
-#endif
 
-#ifdef OLD_ELM_CALLBACK_DECL
-  static BOOL CALLBACK ELM_Callback(PSTR  ModuleName,
-                                    ModuleBaseType ModuleBase,
+  static BOOL CALLBACK ELM_Callback(WIN32_ELMCB_PCSTR ModuleName,
+                                    ULONG_PTR ModuleBase,
                                     ULONG ModuleSize,
                                     PVOID UserContext)
-#else
-  static BOOL CALLBACK ELM_Callback(PCSTR  ModuleName,
-                                    ModuleBaseType ModuleBase,
-                                    ULONG ModuleSize,
-                                    PVOID UserContext)
-#endif
   {
     // Ignore VC++ runtimes prior to 7.1.  Somehow some of them get loaded
     // into the process.
@@ -92,30 +63,43 @@ extern "C" {
 #endif
         stricmp(ModuleName, "msvcrt20") != 0 &&
         stricmp(ModuleName, "msvcrt40") != 0) {
-      OpenedHandles.push_back((HMODULE)ModuleBase);
+      OpenedHandles->insert((HMODULE)ModuleBase);
     }
     return TRUE;
   }
 }
 
-bool DynamicLibrary::LoadLibraryPermanently(const char *filename,
-                                            std::string *ErrMsg) {
-  if (filename) {
-    HMODULE a_handle = LoadLibrary(filename);
+DynamicLibrary DynamicLibrary::getPermanentLibrary(const char *filename,
+                                                   std::string *errMsg) {
+  SmartScopedLock<true> lock(getMutex());
 
-    if (a_handle == 0)
-      return MakeErrMsg(ErrMsg, std::string(filename) + ": Can't open : ");
+  if (!filename) {
+    // When no file is specified, enumerate all DLLs and EXEs in the process.
+    if (OpenedHandles == 0)
+      OpenedHandles = new DenseSet<HMODULE>();
 
-    OpenedHandles.push_back(a_handle);
-  } else {
-    // When no file is specified, enumerate all DLLs and EXEs in the
-    // process.
     EnumerateLoadedModules(GetCurrentProcess(), ELM_Callback, 0);
+    // Dummy library that represents "search all handles".
+    // This is mostly to ensure that the return value still shows up as "valid".
+    return DynamicLibrary(&OpenedHandles);
+  }
+  
+  HMODULE a_handle = LoadLibrary(filename);
+
+  if (a_handle == 0) {
+    MakeErrMsg(errMsg, std::string(filename) + ": Can't open : ");
+    return DynamicLibrary();
   }
 
-  // Because we don't remember the handle, we will never free it; hence,
-  // it is loaded permanently.
-  return false;
+  if (OpenedHandles == 0)
+    OpenedHandles = new DenseSet<HMODULE>();
+
+  // If we've already loaded this library, FreeLibrary() the handle in order to
+  // keep the internal refcount at +1.
+  if (!OpenedHandles->insert(a_handle).second)
+    FreeLibrary(a_handle);
+
+  return DynamicLibrary(a_handle);
 }
 
 // Stack probing routines are in the support library (e.g. libgcc), but we don't
@@ -130,21 +114,24 @@ bool DynamicLibrary::LoadLibraryPermanently(const char *filename,
 #undef EXPLICIT_SYMBOL2
 
 void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
+  SmartScopedLock<true> Lock(getMutex());
+
   // First check symbols added via AddSymbol().
   if (ExplicitSymbols) {
-    std::map<std::string, void *>::iterator I =
-      ExplicitSymbols->find(symbolName);
-    std::map<std::string, void *>::iterator E = ExplicitSymbols->end();
-    if (I != E)
-      return I->second;
+    StringMap<void *>::iterator i = ExplicitSymbols->find(symbolName);
+
+    if (i != ExplicitSymbols->end())
+      return i->second;
   }
 
   // Now search the libraries.
-  for (std::vector<HMODULE>::iterator I = OpenedHandles.begin(),
-       E = OpenedHandles.end(); I != E; ++I) {
-    FARPROC ptr = GetProcAddress((HMODULE)*I, symbolName);
-    if (ptr) {
-      return (void *) ptr;
+  if (OpenedHandles) {
+    for (DenseSet<HMODULE>::iterator I = OpenedHandles->begin(),
+         E = OpenedHandles->end(); I != E; ++I) {
+      FARPROC ptr = GetProcAddress((HMODULE)*I, symbolName);
+      if (ptr) {
+        return (void *)(intptr_t)ptr;
+      }
     }
   }
 
@@ -162,5 +149,15 @@ void* DynamicLibrary::SearchForAddressOfSymbol(const char* symbolName) {
 
   return 0;
 }
+
+
+void *DynamicLibrary::getAddressOfSymbol(const char *symbolName) {
+  if (!isValid())
+    return NULL;
+  if (Data == &OpenedHandles)
+    return SearchForAddressOfSymbol(symbolName);
+  return (void *)(intptr_t)GetProcAddress((HMODULE)Data, symbolName);
+}
+
 
 }

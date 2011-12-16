@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
  */
 #include "opt_inet.h"
 #include "opt_wlan.h"
+#include "opt_ah.h"
 
 #include <sys/param.h>
 #include <sys/systm.h> 
@@ -146,6 +147,8 @@ ath_rate_node_cleanup(struct ath_softc *sc, struct ath_node *an)
 static int
 dot11rate(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return -1;
 	return rt->info[rix].phy == IEEE80211_T_HT ?
 	    rt->info[rix].dot11Rate : (rt->info[rix].dot11Rate & IEEE80211_RATE_VAL) / 2;
 }
@@ -153,6 +156,8 @@ dot11rate(const HAL_RATE_TABLE *rt, int rix)
 static const char *
 dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
 {
+	if (rix < 0)
+		return "";
 	return rt->info[rix].phy == IEEE80211_T_HT ? "MCS" : "Mb ";
 }
 
@@ -161,18 +166,26 @@ dot11rate_label(const HAL_RATE_TABLE *rt, int rix)
  * or -1 if all the average_tx_times are 0.
  */
 static __inline int
-pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
+pick_best_rate(struct ath_node *an, const HAL_RATE_TABLE *rt,
     int size_bin, int require_acked_before)
 {
-        int best_rate_rix, best_rate_tt;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+        int best_rate_rix, best_rate_tt, best_rate_pct;
 	uint32_t mask;
-	int rix, tt;
+	int rix, tt, pct;
 
         best_rate_rix = 0;
         best_rate_tt = 0;
+	best_rate_pct = 0;
 	for (mask = sn->ratemask, rix = 0; mask != 0; mask >>= 1, rix++) {
 		if ((mask & 1) == 0)		/* not a supported rate */
 			continue;
+
+		/* Don't pick a non-HT rate for a HT node */
+		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
+		    (rt->info[rix].phy != IEEE80211_T_HT)) {
+			continue;
+		}
 
 		tt = sn->stats[size_bin][rix].average_tx_time;
 		if (tt <= 0 ||
@@ -180,13 +193,54 @@ pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
 		     !sn->stats[size_bin][rix].packets_acked))
 			continue;
 
+		/* Calculate percentage if possible */
+		if (sn->stats[size_bin][rix].total_packets > 0) {
+			pct = sn->stats[size_bin][rix].ewma_pct;
+		} else {
+			/* XXX for now, assume 95% ok */
+			pct = 95;
+		}
+
 		/* don't use a bit-rate that has been failing */
 		if (sn->stats[size_bin][rix].successive_failures > 3)
 			continue;
 
-		if (best_rate_tt == 0 || tt < best_rate_tt) {
-			best_rate_tt = tt;
-			best_rate_rix = rix;
+		/*
+		 * For HT, Don't use a bit rate that is much more
+		 * lossy than the best.
+		 *
+		 * XXX this isn't optimal; it's just designed to
+		 * eliminate rates that are going to be obviously
+		 * worse.
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if (best_rate_pct > (pct + 50))
+				continue;
+		}
+
+		/*
+		 * For non-MCS rates, use the current average txtime for
+		 * comparison.
+		 */
+		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			if (best_rate_tt == 0 || tt <= best_rate_tt) {
+				best_rate_tt = tt;
+				best_rate_rix = rix;
+				best_rate_pct = pct;
+			}
+		}
+
+		/*
+		 * Since 2 stream rates have slightly higher TX times,
+		 * allow a little bit of leeway. This should later
+		 * be abstracted out and properly handled.
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if (best_rate_tt == 0 || (tt * 8 <= best_rate_tt * 10)) {
+				best_rate_tt = tt;
+				best_rate_rix = rix;
+				best_rate_pct = pct;
+			}
 		}
         }
         return (best_rate_tt ? best_rate_rix : -1);
@@ -196,11 +250,12 @@ pick_best_rate(struct sample_node *sn, const HAL_RATE_TABLE *rt,
  * Pick a good "random" bit-rate to sample other than the current one.
  */
 static __inline int
-pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
+pick_sample_rate(struct sample_softc *ssc , struct ath_node *an,
     const HAL_RATE_TABLE *rt, int size_bin)
 {
 #define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
 #define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	int current_rix, rix;
 	unsigned current_tt;
 	uint32_t mask;
@@ -208,6 +263,7 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 	current_rix = sn->current_rix[size_bin];
 	if (current_rix < 0) {
 		/* no successes yet, send at the lowest bit-rate */
+		/* XXX should return MCS0 if HT */
 		return 0;
 	}
 
@@ -223,6 +279,13 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 			continue;
 		}
 
+		/* if the node is HT and the rate isn't HT, don't bother sample */
+		if ((an->an_node.ni_flags & IEEE80211_NODE_HT) &&
+		    (rt->info[rix].phy != IEEE80211_T_HT)) {
+			mask &= ~(1<<rix);
+			goto nextrate;
+		}
+
 		/* this bit-rate is always worse than the current one */
 		if (sn->stats[size_bin][rix].perfect_tx_time > current_tt) {
 			mask &= ~(1<<rix);
@@ -236,10 +299,34 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 			goto nextrate;
 		}
 
-		/* don't sample more than 2 rates higher for rates > 11M */
-		if (DOT11RATE(rix) > 2*11 && rix > current_rix + 2) {
-			mask &= ~(1<<rix);
-			goto nextrate;
+		/*
+		 * When doing aggregation, successive failures don't happen
+		 * as often, as sometimes some of the sub-frames get through.
+		 *
+		 * If the sample rix average tx time is greater than the
+		 * average tx time of the current rix, don't immediately use
+		 * the rate for sampling.
+		 */
+		if (an->an_node.ni_flags & IEEE80211_NODE_HT) {
+			if ((sn->stats[size_bin][rix].average_tx_time * 10 >
+			    sn->stats[size_bin][current_rix].average_tx_time * 9) &&
+			    (ticks - sn->stats[size_bin][rix].last_tx < ssc->stale_failure_timeout)) {
+				mask &= ~(1<<rix);
+				goto nextrate;
+			}
+		}
+
+		/*
+		 * XXX TODO
+		 * For HT, limit sample somehow?
+		 */
+
+		/* Don't sample more than 2 rates higher for rates > 11M for non-HT rates */
+		if (! (an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			if (DOT11RATE(rix) > 2*11 && rix > current_rix + 2) {
+				mask &= ~(1<<rix);
+				goto nextrate;
+			}
 		}
 
 		sn->last_sample_rix[size_bin] = rix;
@@ -249,6 +336,145 @@ pick_sample_rate(struct sample_softc *ssc , struct sample_node *sn,
 #undef DOT11RATE
 #undef	MCS
 }
+
+static int
+ath_rate_get_static_rix(struct ath_softc *sc, const struct ieee80211_node *ni)
+{
+#define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
+#define	DOT11RATE(_ix)	(rt->info[(_ix)].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(_ix)	(ni->ni_htrates.rs_rates[_ix] | IEEE80211_RATE_MCS)
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
+	int srate;
+
+	/* Check MCS rates */
+	for (srate = ni->ni_htrates.rs_nrates - 1; srate >= 0; srate--) {
+		if (MCS(srate) == tp->ucastrate)
+			return sc->sc_rixmap[tp->ucastrate];
+	}
+
+	/* Check legacy rates */
+	for (srate = ni->ni_rates.rs_nrates - 1; srate >= 0; srate--) {
+		if (RATE(srate) == tp->ucastrate)
+			return sc->sc_rixmap[tp->ucastrate];
+	}
+	return -1;
+#undef	RATE
+#undef	DOT11RATE
+#undef	MCS
+}
+
+static void
+ath_rate_update_static_rix(struct ath_softc *sc, struct ieee80211_node *ni)
+{
+	struct ath_node *an = ATH_NODE(ni);
+	const struct ieee80211_txparam *tp = ni->ni_txparms;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+
+	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
+		/*
+		 * A fixed rate is to be used; ucastrate is the IEEE code
+		 * for this rate (sans basic bit).  Check this against the
+		 * negotiated rate set for the node.  Note the fixed rate
+		 * may not be available for various reasons so we only
+		 * setup the static rate index if the lookup is successful.
+		 */
+		sn->static_rix = ath_rate_get_static_rix(sc, ni);
+	} else {
+		sn->static_rix = -1;
+	}
+}
+
+/*
+ * Pick a non-HT rate to begin using.
+ */
+static int
+ath_rate_pick_seed_rate_legacy(struct ath_softc *sc, struct ath_node *an,
+    int frameLen)
+{
+#define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+#define	RATE(ix)	(DOT11RATE(ix) / 2)
+	int rix = -1;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const int size_bin = size_to_bin(frameLen);
+
+	/* no packet has been sent successfully yet */
+	for (rix = rt->rateCount-1; rix > 0; rix--) {
+		if ((sn->ratemask & (1<<rix)) == 0)
+			continue;
+
+		/* Skip HT rates */
+		if (rt->info[rix].phy == IEEE80211_T_HT)
+			continue;
+
+		/*
+		 * Pick the highest rate <= 36 Mbps
+		 * that hasn't failed.
+		 */
+		if (DOT11RATE(rix) <= 72 &&
+		    sn->stats[size_bin][rix].successive_failures == 0) {
+			break;
+		}
+	}
+	return rix;
+#undef	RATE
+#undef	MCS
+#undef	DOT11RATE
+}
+
+/*
+ * Pick a HT rate to begin using.
+ *
+ * Don't use any non-HT rates; only consider HT rates.
+ */
+static int
+ath_rate_pick_seed_rate_ht(struct ath_softc *sc, struct ath_node *an,
+    int frameLen)
+{
+#define	DOT11RATE(ix)	(rt->info[ix].dot11Rate & IEEE80211_RATE_VAL)
+#define	MCS(ix)		(rt->info[ix].dot11Rate | IEEE80211_RATE_MCS)
+#define	RATE(ix)	(DOT11RATE(ix) / 2)
+	int rix = -1, ht_rix = -1;
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	const int size_bin = size_to_bin(frameLen);
+
+	/* no packet has been sent successfully yet */
+	for (rix = rt->rateCount-1; rix > 0; rix--) {
+		/* Skip rates we can't use */
+		if ((sn->ratemask & (1<<rix)) == 0)
+			continue;
+
+		/* Keep a copy of the last seen HT rate index */
+		if (rt->info[rix].phy == IEEE80211_T_HT)
+			ht_rix = rix;
+
+		/* Skip non-HT rates */
+		if (rt->info[rix].phy != IEEE80211_T_HT)
+			continue;
+
+		/*
+		 * Pick a medium-speed rate regardless of stream count
+		 * which has not seen any failures. Higher rates may fail;
+		 * we'll try them later.
+		 */
+		if (((MCS(rix) & 0x7) <= 4) &&
+		    sn->stats[size_bin][rix].successive_failures == 0) {
+			break;
+		}
+	}
+
+	/*
+	 * If all the MCS rates have successive failures, rix should be
+	 * > 0; otherwise use the lowest MCS rix (hopefully MCS 0.)
+	 */
+	return MAX(rix, ht_rix);
+#undef	RATE
+#undef	MCS
+#undef	DOT11RATE
+}
+
 
 void
 ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
@@ -267,6 +493,8 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	int rix, mrr, best_rix, change_rates;
 	unsigned average_tx_time;
 
+	ath_rate_update_static_rix(sc, &an->an_node);
+
 	if (sn->static_rix != -1) {
 		rix = sn->static_rix;
 		*try0 = ATH_TXMAXTRY;
@@ -276,7 +504,7 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	/* XXX TODO: this doesn't know about 11gn vs 11g protection; teach it */
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 
-	best_rix = pick_best_rate(sn, rt, size_bin, !mrr);
+	best_rix = pick_best_rate(an, rt, size_bin, !mrr);
 	if (best_rix >= 0) {
 		average_tx_time = sn->stats[size_bin][best_rix].average_tx_time;
 	} else {
@@ -287,11 +515,16 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 	 * rates to sample_rate% of the total transmission time.
 	 */
 	if (sn->sample_tt[size_bin] < average_tx_time * (sn->packets_since_sample[size_bin]*ssc->sample_rate/100)) {
-		rix = pick_sample_rate(ssc, sn, rt, size_bin);
+		rix = pick_sample_rate(ssc, an, rt, size_bin);
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "size %u sample rate %d current rate %d",
-		     bin_to_size(size_bin), RATE(rix),
-		     RATE(sn->current_rix[size_bin]));
+		     &an->an_node, "att %d sample_tt %d size %u sample rate %d %s current rate %d %s",
+		     average_tx_time,
+		     sn->sample_tt[size_bin],
+		     bin_to_size(size_bin),
+		     dot11rate(rt, rix),
+		     dot11rate_label(rt, rix),
+		     dot11rate(rt, sn->current_rix[size_bin]),
+		     dot11rate_label(rt, sn->current_rix[size_bin]));
 		if (rix != sn->current_rix[size_bin]) {
 			sn->current_sample_rix[size_bin] = rix;
 		} else {
@@ -302,29 +535,58 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
 		change_rates = 0;
 		if (!sn->packets_sent[size_bin] || best_rix == -1) {
 			/* no packet has been sent successfully yet */
-			for (rix = rt->rateCount-1; rix > 0; rix--) {
-				if ((sn->ratemask & (1<<rix)) == 0)
-					continue;
-				/* 
-				 * Pick the highest rate <= 36 Mbps
-				 * that hasn't failed.
-				 */
-				if (DOT11RATE(rix) <= 72 && 
-				    sn->stats[size_bin][rix].successive_failures == 0) {
-					break;
-				}
-			}
 			change_rates = 1;
-			best_rix = rix;
+			if (an->an_node.ni_flags & IEEE80211_NODE_HT)
+				best_rix =
+				    ath_rate_pick_seed_rate_ht(sc, an, frameLen);
+			else
+				best_rix =
+				    ath_rate_pick_seed_rate_legacy(sc, an, frameLen);
 		} else if (sn->packets_sent[size_bin] < 20) {
 			/* let the bit-rate switch quickly during the first few packets */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: switching quickly..", __func__);
 			change_rates = 1;
 		} else if (ticks - ssc->min_switch > sn->ticks_since_switch[size_bin]) {
 			/* min_switch seconds have gone by */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: min_switch %d > ticks_since_switch %d..",
+			    __func__, ticks - ssc->min_switch, sn->ticks_since_switch[size_bin]);
 			change_rates = 1;
-		} else if (2*average_tx_time < sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time) {
+		} else if ((! (an->an_node.ni_flags & IEEE80211_NODE_HT)) &&
+		    (2*average_tx_time < sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time)) {
 			/* the current bit-rate is twice as slow as the best one */
+			IEEE80211_NOTE(an->an_node.ni_vap,
+			    IEEE80211_MSG_RATECTL, &an->an_node,
+			    "%s: 2x att (= %d) < cur_rix att %d",
+			    __func__,
+			    2 * average_tx_time, sn->stats[size_bin][sn->current_rix[size_bin]].average_tx_time);
 			change_rates = 1;
+		} else if ((an->an_node.ni_flags & IEEE80211_NODE_HT)) {
+			int cur_rix = sn->current_rix[size_bin];
+			int cur_att = sn->stats[size_bin][cur_rix].average_tx_time;
+			/*
+			 * If the node is HT, upgrade it if the MCS rate is
+			 * higher and the average tx time is within 20% of
+			 * the current rate. It can fail a little.
+			 *
+			 * This is likely not optimal!
+			 */
+#if 0
+			printf("cur rix/att %x/%d, best rix/att %x/%d\n",
+			    MCS(cur_rix), cur_att, MCS(best_rix), average_tx_time);
+#endif
+			if ((MCS(best_rix) > MCS(cur_rix)) &&
+			    (average_tx_time * 8) <= (cur_att * 10)) {
+				IEEE80211_NOTE(an->an_node.ni_vap,
+				    IEEE80211_MSG_RATECTL, &an->an_node,
+				    "%s: HT: best_rix 0x%d > cur_rix 0x%x, average_tx_time %d, cur_att %d",
+				    __func__,
+				    MCS(best_rix), MCS(cur_rix), average_tx_time, cur_att);
+				change_rates = 1;
+			}
 		}
 
 		sn->packets_since_sample[size_bin]++;
@@ -376,22 +638,24 @@ done:
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, uint8_t *rix, uint8_t *try)
+    uint8_t rix0, struct ath_rc_series *rc)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const struct txschedule *sched = &sn->sched[rix0];
 
 	KASSERT(rix0 == sched->r0, ("rix0 (%x) != sched->r0 (%x)!\n", rix0, sched->r0));
 
-/*	rix[0] = sched->r0; */
-	rix[1] = sched->r1;
-	rix[2] = sched->r2;
-	rix[3] = sched->r3;
+	rc[0].flags = rc[1].flags = rc[2].flags = rc[3].flags = 0;
 
-	try[0] = sched->t0;
-	try[1] = sched->t1;
-	try[2] = sched->t2;
-	try[3] = sched->t3;
+	rc[0].rix = sched->r0;
+	rc[1].rix = sched->r1;
+	rc[2].rix = sched->r2;
+	rc[3].rix = sched->r3;
+
+	rc[0].tries = sched->t0;
+	rc[1].tries = sched->t1;
+	rc[2].tries = sched->t2;
+	rc[3].tries = sched->t3;
 }
 
 void
@@ -419,6 +683,71 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 	    s3code, sched->t3);		/* series 3 */
 }
 
+/*
+ * Update the EWMA percentage.
+ *
+ * This is a simple hack to track an EWMA based on the current
+ * rate scenario. For the rate codes which failed, this will
+ * record a 0% against it. For the rate code which succeeded,
+ * EWMA will record the nbad*100/nframes percentage against it.
+ */
+static void
+update_ewma_stats(struct ath_softc *sc, struct ath_node *an,
+    int frame_size,
+    int rix0, int tries0,
+    int rix1, int tries1,
+    int rix2, int tries2,
+    int rix3, int tries3,
+    int short_tries, int tries, int status,
+    int nframes, int nbad)
+{
+	struct sample_node *sn = ATH_NODE_SAMPLE(an);
+	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
+	const int size_bin = size_to_bin(frame_size);
+	int tries_so_far;
+	int pct;
+	int rix = rix0;
+
+	/* Calculate percentage based on current rate */
+	if (nframes == 0)
+		nframes = nbad = 1;
+	pct = ((nframes - nbad) * 1000) / nframes;
+
+	/* Figure out which rate index succeeded */
+	tries_so_far = tries0;
+
+	if (tries1 && tries_so_far < tries) {
+		tries_so_far += tries1;
+		rix = rix1;
+		/* XXX bump ewma pct */
+	}
+
+	if (tries2 && tries_so_far < tries) {
+		tries_so_far += tries2;
+		rix = rix2;
+		/* XXX bump ewma pct */
+	}
+
+	if (tries3 && tries_so_far < tries) {
+		rix = rix3;
+		/* XXX bump ewma pct */
+	}
+
+	/* rix is the successful rate, update EWMA for final rix */
+	if (sn->stats[size_bin][rix].total_packets <
+	    ssc->smoothing_minpackets) {
+		/* just average the first few packets */
+		int a_pct = (sn->stats[size_bin][rix].packets_acked * 1000) /
+		    (sn->stats[size_bin][rix].total_packets);
+		sn->stats[size_bin][rix].ewma_pct = a_pct;
+	} else {
+		/* use a ewma */
+		sn->stats[size_bin][rix].ewma_pct =
+			((sn->stats[size_bin][rix].ewma_pct * ssc->smoothing_rate) +
+			 (pct * (100 - ssc->smoothing_rate))) / 100;
+	}
+}
+
 static void
 update_stats(struct ath_softc *sc, struct ath_node *an, 
 		  int frame_size,
@@ -426,14 +755,18 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		  int rix1, int tries1,
 		  int rix2, int tries2,
 		  int rix3, int tries3,
-		  int short_tries, int tries, int status)
+		  int short_tries, int tries, int status,
+		  int nframes, int nbad)
 {
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	struct sample_softc *ssc = ATH_SOFTC_SAMPLE(sc);
+#ifdef IEEE80211_DEBUG
+	const HAL_RATE_TABLE *rt = sc->sc_currates;
+#endif
 	const int size_bin = size_to_bin(frame_size);
 	const int size = bin_to_size(size_bin);
 	int tt, tries_so_far;
-	int is_ht40 = (an->an_node.ni_htcap & IEEE80211_HTCAP_CHWIDTH40);
+	int is_ht40 = (an->an_node.ni_chw == 40);
 
 	if (!IS_RATE_DEFINED(sn, rix0))
 		return;
@@ -468,7 +801,7 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 		/* just average the first few packets */
 		int avg_tx = sn->stats[size_bin][rix0].average_tx_time;
 		int packets = sn->stats[size_bin][rix0].total_packets;
-		sn->stats[size_bin][rix0].average_tx_time = (tt+(avg_tx*packets))/(packets+1);
+		sn->stats[size_bin][rix0].average_tx_time = (tt+(avg_tx*packets))/(packets+nframes);
 	} else {
 		/* use a ewma */
 		sn->stats[size_bin][rix0].average_tx_time = 
@@ -476,38 +809,50 @@ update_stats(struct ath_softc *sc, struct ath_node *an,
 			 (tt * (100 - ssc->smoothing_rate))) / 100;
 	}
 	
-	if (status != 0) {
+	/*
+	 * XXX Don't mark the higher bit rates as also having failed; as this
+	 * unfortunately stops those rates from being tasted when trying to
+	 * TX. This happens with 11n aggregation.
+	 */
+	if (nframes == nbad) {
+#if 0
 		int y;
-		sn->stats[size_bin][rix0].successive_failures++;
+#endif
+		sn->stats[size_bin][rix0].successive_failures += nbad;
+#if 0
 		for (y = size_bin+1; y < NUM_PACKET_SIZE_BINS; y++) {
 			/*
 			 * Also say larger packets failed since we
 			 * assume if a small packet fails at a
 			 * bit-rate then a larger one will also.
 			 */
-			sn->stats[y][rix0].successive_failures++;
+			sn->stats[y][rix0].successive_failures += nbad;
 			sn->stats[y][rix0].last_tx = ticks;
 			sn->stats[y][rix0].tries += tries;
-			sn->stats[y][rix0].total_packets++;
+			sn->stats[y][rix0].total_packets += nframes;
 		}
+#endif
 	} else {
-		sn->stats[size_bin][rix0].packets_acked++;
+		sn->stats[size_bin][rix0].packets_acked += (nframes - nbad);
 		sn->stats[size_bin][rix0].successive_failures = 0;
 	}
 	sn->stats[size_bin][rix0].tries += tries;
 	sn->stats[size_bin][rix0].last_tx = ticks;
-	sn->stats[size_bin][rix0].total_packets++;
+	sn->stats[size_bin][rix0].total_packets += nframes;
 
 	if (rix0 == sn->current_sample_rix[size_bin]) {
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		   &an->an_node,
-"%s: size %d %s sample rate %d tries (%d/%d) tt %d avg_tt (%d/%d)", 
+"%s: size %d %s sample rate %d %s tries (%d/%d) tt %d avg_tt (%d/%d) nfrm %d nbad %d", 
 		    __func__, 
 		    size,
 		    status ? "FAIL" : "OK",
-		    rix0, short_tries, tries, tt, 
+		    dot11rate(rt, rix0),
+		    dot11rate_label(rt, rix0),
+		    short_tries, tries, tt, 
 		    sn->stats[size_bin][rix0].average_tx_time,
-		    sn->stats[size_bin][rix0].perfect_tx_time);
+		    sn->stats[size_bin][rix0].perfect_tx_time,
+		    nframes, nbad);
 		sn->sample_tt[size_bin] = tt;
 		sn->current_sample_rix[size_bin] = -1;
 	}
@@ -522,21 +867,21 @@ badrate(struct ifnet *ifp, int series, int hwrate, int tries, int status)
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_buf *bf)
+	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
+	int frame_size, int nframes, int nbad)
 {
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
-	const struct ath_desc *ds0 = &bf->bf_desc[0];
-	int final_rix, short_tries, long_tries, frame_size;
+	int final_rix, short_tries, long_tries;
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
+	int status = ts->ts_status;
 	int mrr;
 
 	final_rix = rt->rateCodeToIndex[ts->ts_rate];
 	short_tries = ts->ts_shortretry;
 	long_tries = ts->ts_longretry + 1;
-	frame_size = ds0->ds_ctl0 & 0x0fff; /* low-order 12 bits of ds_ctl0 */
+
 	if (frame_size == 0)		    /* NB: should not happen */
 		frame_size = 1500;
 
@@ -546,61 +891,73 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		    "%s: size %d %s rate/try %d/%d no rates yet", 
 		    __func__,
 		    bin_to_size(size_to_bin(frame_size)),
-		    ts->ts_status ? "FAIL" : "OK",
+		    status ? "FAIL" : "OK",
 		    short_tries, long_tries);
 		return;
 	}
 	mrr = sc->sc_mrretry && !(ic->ic_flags & IEEE80211_F_USEPROT);
 	if (!mrr || ts->ts_finaltsi == 0) {
 		if (!IS_RATE_DEFINED(sn, final_rix)) {
-			badrate(ifp, 0, ts->ts_rate, long_tries, ts->ts_status);
+			badrate(ifp, 0, ts->ts_rate, long_tries, status);
 			return;
 		}
 		/*
 		 * Only one rate was used; optimize work.
 		 */
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
-		     &an->an_node, "%s: size %d %s rate/try %d %s/%d/%d",
+		     &an->an_node, "%s: size %d (%d bytes) %s rate/try %d %s/%d/%d nframes/nbad [%d/%d]",
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
-		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix), short_tries, long_tries);
+		     frame_size,
+		     status ? "FAIL" : "OK",
+		     dot11rate(rt, final_rix), dot11rate_label(rt, final_rix),
+		     short_tries, long_tries, nframes, nbad);
 		update_stats(sc, an, frame_size, 
 			     final_rix, long_tries,
 			     0, 0,
 			     0, 0,
 			     0, 0,
-			     short_tries, long_tries, ts->ts_status);
+			     short_tries, long_tries, status,
+			     nframes, nbad);
+		update_ewma_stats(sc, an, frame_size, 
+			     final_rix, long_tries,
+			     0, 0,
+			     0, 0,
+			     0, 0,
+			     short_tries, long_tries, status,
+			     nframes, nbad);
+
 	} else {
-		int hwrates[4], tries[4], rix[4];
 		int finalTSIdx = ts->ts_finaltsi;
 		int i;
 
 		/*
 		 * Process intermediate rates that failed.
 		 */
-		ath_hal_gettxcompletionrates(sc->sc_ah, ds0, hwrates, tries);
-
-		for (i = 0; i < 4; i++) {
-			rix[i] = rt->rateCodeToIndex[hwrates[i]];
-		}
 
 		IEEE80211_NOTE(an->an_node.ni_vap, IEEE80211_MSG_RATECTL,
 		    &an->an_node,
-"%s: size %d finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d]", 
+"%s: size %d (%d bytes) finaltsidx %d tries %d %s rate/try [%d %s/%d %d %s/%d %d %s/%d %d %s/%d] nframes/nbad [%d/%d]", 
 		     __func__,
 		     bin_to_size(size_to_bin(frame_size)),
+		     frame_size,
 		     finalTSIdx,
-		     long_tries, 
-		     ts->ts_status ? "FAIL" : "OK",
-		     dot11rate(rt, rix[0]), dot11rate_label(rt, rix[0]), tries[0],
-		     dot11rate(rt, rix[1]), dot11rate_label(rt, rix[1]), tries[1],
-		     dot11rate(rt, rix[2]), dot11rate_label(rt, rix[2]), tries[2],
-		     dot11rate(rt, rix[3]), dot11rate_label(rt, rix[3]), tries[3]);
+		     long_tries,
+		     status ? "FAIL" : "OK",
+		     dot11rate(rt, rc[0].rix),
+		      dot11rate_label(rt, rc[0].rix), rc[0].tries,
+		     dot11rate(rt, rc[1].rix),
+		      dot11rate_label(rt, rc[1].rix), rc[1].tries,
+		     dot11rate(rt, rc[2].rix),
+		      dot11rate_label(rt, rc[2].rix), rc[2].tries,
+		     dot11rate(rt, rc[3].rix),
+		      dot11rate_label(rt, rc[3].rix), rc[3].tries,
+		     nframes, nbad);
 
 		for (i = 0; i < 4; i++) {
-			if (tries[i] && !IS_RATE_DEFINED(sn, rix[i]))
-				badrate(ifp, 0, hwrates[i], tries[i], ts->ts_status);
+			if (rc[i].tries && !IS_RATE_DEFINED(sn, rc[i].rix))
+				badrate(ifp, 0, rc[i].ratecode, rc[i].tries,
+				    status);
 		}
 
 		/*
@@ -610,48 +967,62 @@ ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
 		 * sample higher rates 1 try at a time doing so
 		 * may unfairly penalize them.
 		 */
-		if (tries[0]) {
-			update_stats(sc, an, frame_size, 
-				     rix[0], tries[0], 
-				     rix[1], tries[1], 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
-				     short_tries, long_tries, 
-				     long_tries > tries[0]);
-			long_tries -= tries[0];
+		if (rc[0].tries) {
+			update_stats(sc, an, frame_size,
+				     rc[0].rix, rc[0].tries,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     short_tries, long_tries,
+				     long_tries > rc[0].tries,
+				     nframes, nbad);
+			long_tries -= rc[0].tries;
 		}
 		
-		if (tries[1] && finalTSIdx > 0) {
-			update_stats(sc, an, frame_size, 
-				     rix[1], tries[1], 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
-				     0, 0, 
-				     short_tries, long_tries, 
-				     ts->ts_status);
-			long_tries -= tries[1];
+		if (rc[1].tries && finalTSIdx > 0) {
+			update_stats(sc, an, frame_size,
+				     rc[1].rix, rc[1].tries,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
+				     0, 0,
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
+			long_tries -= rc[1].tries;
 		}
 
-		if (tries[2] && finalTSIdx > 1) {
-			update_stats(sc, an, frame_size, 
-				     rix[2], tries[2], 
-				     rix[3], tries[3], 
+		if (rc[2].tries && finalTSIdx > 1) {
+			update_stats(sc, an, frame_size,
+				     rc[2].rix, rc[2].tries,
+				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     0, 0,
-				     short_tries, long_tries, 
-				     ts->ts_status);
-			long_tries -= tries[2];
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
+			long_tries -= rc[2].tries;
 		}
 
-		if (tries[3] && finalTSIdx > 2) {
-			update_stats(sc, an, frame_size, 
-				     rix[3], tries[3],
+		if (rc[3].tries && finalTSIdx > 2) {
+			update_stats(sc, an, frame_size,
+				     rc[3].rix, rc[3].tries,
 				     0, 0,
 				     0, 0,
 				     0, 0,
-				     short_tries, long_tries, 
-				     ts->ts_status);
+				     short_tries, long_tries,
+				     status,
+				     nframes, nbad);
 		}
+
+		update_ewma_stats(sc, an, frame_size,
+			     rc[0].rix, rc[0].tries,
+			     rc[1].rix, rc[1].tries,
+			     rc[2].rix, rc[2].tries,
+			     rc[3].rix, rc[3].tries,
+			     short_tries, long_tries,
+			     long_tries > rc[0].tries,
+			     nframes, nbad);
+
 	}
 }
 
@@ -686,12 +1057,10 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 #define	RATE(_ix)	(ni->ni_rates.rs_rates[(_ix)] & IEEE80211_RATE_VAL)
 #define	DOT11RATE(_ix)	(rt->info[(_ix)].dot11Rate & IEEE80211_RATE_VAL)
 #define	MCS(_ix)	(ni->ni_htrates.rs_rates[_ix] | IEEE80211_RATE_MCS)
-
 	struct ath_node *an = ATH_NODE(ni);
-	const struct ieee80211_txparam *tp = ni->ni_txparms;
 	struct sample_node *sn = ATH_NODE_SAMPLE(an);
 	const HAL_RATE_TABLE *rt = sc->sc_currates;
-	int x, y, srate, rix;
+	int x, y, rix;
 
 	KASSERT(rt != NULL, ("no rate table, mode %u", sc->sc_curmode));
 
@@ -702,33 +1071,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 	    ("no mrr schedule for mode %u", sc->sc_curmode));
 
         sn->static_rix = -1;
-	if (tp != NULL && tp->ucastrate != IEEE80211_FIXED_RATE_NONE) {
-		/*
-		 * A fixed rate is to be used; ucastrate is the IEEE code
-		 * for this rate (sans basic bit).  Check this against the
-		 * negotiated rate set for the node.  Note the fixed rate
-		 * may not be available for various reasons so we only
-		 * setup the static rate index if the lookup is successful.
-		 */
-
-		/* XXX todo: check MCS rates */
-
-		/* Check legacy rates */
-		for (srate = ni->ni_rates.rs_nrates - 1; srate >= 0; srate--)
-			if (RATE(srate) == tp->ucastrate) {
-				sn->static_rix = sc->sc_rixmap[tp->ucastrate];
-				break;
-			}
-#ifdef IEEE80211_DEBUG
-			if (sn->static_rix == -1) {
-				IEEE80211_NOTE(ni->ni_vap,
-				    IEEE80211_MSG_RATECTL, ni,
-				    "%s: ucastrate %u not found, nrates %u",
-				    __func__, tp->ucastrate,
-				    ni->ni_rates.rs_nrates);
-			}
-#endif
-	}
+	ath_rate_update_static_rix(sc, ni);
 
 	/*
 	 * Construct a bitmask of usable rates.  This has all
@@ -774,7 +1117,7 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 				continue;
 			printf(" %d %s/%d", dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    calc_usecs_unicast_packet(sc, 1600, rix, 0,0,
-			        (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40)));
+			        (ni->ni_chw == 40)));
 		}
 		printf("\n");
 	}
@@ -801,10 +1144,11 @@ ath_rate_ctl_reset(struct ath_softc *sc, struct ieee80211_node *ni)
 			sn->stats[y][rix].total_packets = 0;
 			sn->stats[y][rix].packets_acked = 0;
 			sn->stats[y][rix].last_tx = 0;
+			sn->stats[y][rix].ewma_pct = 0;
 			
 			sn->stats[y][rix].perfect_tx_time =
 			    calc_usecs_unicast_packet(sc, size, rix, 0, 0,
-			    (ni->ni_htcap & IEEE80211_HTCAP_CHWIDTH40));
+			    (ni->ni_chw == 40));
 			sn->stats[y][rix].average_tx_time =
 			    sn->stats[y][rix].perfect_tx_time;
 		}
@@ -838,18 +1182,24 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 	uint32_t mask;
 	int rix, y;
 
-	printf("\n[%s] refcnt %d static_rix %d ratemask 0x%x\n",
+	printf("\n[%s] refcnt %d static_rix (%d %s) ratemask 0x%x\n",
 	    ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni),
-	    sn->static_rix, sn->ratemask);
+	    dot11rate(rt, sn->static_rix),
+	    dot11rate_label(rt, sn->static_rix),
+	    sn->ratemask);
 	for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 		printf("[%4u] cur rix %d (%d %s) since switch: packets %d ticks %u\n",
 		    bin_to_size(y), sn->current_rix[y],
 		    dot11rate(rt, sn->current_rix[y]),
 		    dot11rate_label(rt, sn->current_rix[y]),
 		    sn->packets_since_switch[y], sn->ticks_since_switch[y]);
-		printf("[%4u] last sample %d cur sample %d packets sent %d\n",
-		    bin_to_size(y), sn->last_sample_rix[y],
-		    sn->current_sample_rix[y], sn->packets_sent[y]);
+		printf("[%4u] last sample (%d %s) cur sample (%d %s) packets sent %d\n",
+		    bin_to_size(y),
+		    dot11rate(rt, sn->last_sample_rix[y]),
+		    dot11rate_label(rt, sn->last_sample_rix[y]),
+		    dot11rate(rt, sn->current_sample_rix[y]),
+		    dot11rate_label(rt, sn->current_sample_rix[y]),
+		    sn->packets_sent[y]);
 		printf("[%4u] packets since sample %d sample tt %u\n",
 		    bin_to_size(y), sn->packets_since_sample[y],
 		    sn->sample_tt[y]);
@@ -860,13 +1210,16 @@ sample_stats(void *arg, struct ieee80211_node *ni)
 		for (y = 0; y < NUM_PACKET_SIZE_BINS; y++) {
 			if (sn->stats[y][rix].total_packets == 0)
 				continue;
-			printf("[%2u %s:%4u] %8d:%-8d (%3d%%) T %8d F %4d avg %5u last %u\n",
+			printf("[%2u %s:%4u] %8ju:%-8ju (%3d%%) (EWMA %3d.%1d%%) T %8ju F %4d avg %5u last %u\n",
 			    dot11rate(rt, rix), dot11rate_label(rt, rix),
 			    bin_to_size(y),
-			    sn->stats[y][rix].total_packets,
-			    sn->stats[y][rix].packets_acked,
-			    (100*sn->stats[y][rix].packets_acked)/sn->stats[y][rix].total_packets,
-			    sn->stats[y][rix].tries,
+			    (uintmax_t) sn->stats[y][rix].total_packets,
+			    (uintmax_t) sn->stats[y][rix].packets_acked,
+			    (int) ((sn->stats[y][rix].packets_acked * 100ULL) /
+			     sn->stats[y][rix].total_packets),
+			    sn->stats[y][rix].ewma_pct / 10,
+			    sn->stats[y][rix].ewma_pct % 10,
+			    (uintmax_t) sn->stats[y][rix].tries,
 			    sn->stats[y][rix].successive_failures,
 			    sn->stats[y][rix].average_tx_time,
 			    ticks - sn->stats[y][rix].last_tx);

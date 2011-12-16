@@ -28,11 +28,16 @@
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/Statistic.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Debug.h"
 #include <algorithm>
-#include <map>
 using namespace llvm;
+
+static cl::opt<bool>
+DisableEdgeSplitting("disable-phi-elim-edge-splitting", cl::init(false),
+                     cl::Hidden, cl::desc("Disable critical edge splitting "
+                                          "during PHI elimination"));
 
 namespace {
   class PHIElimination : public MachineFunctionPass {
@@ -104,11 +109,16 @@ bool PHIElimination::runOnMachineFunction(MachineFunction &MF) {
 
   bool Changed = false;
 
+  // This pass takes the function out of SSA form.
+  MRI->leaveSSA();
+
   // Split critical edges to help the coalescer
-  if (LiveVariables *LV = getAnalysisIfAvailable<LiveVariables>()) {
-    MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
-    for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)
-      Changed |= SplitPHIEdges(MF, *I, *LV, MLI);
+  if (!DisableEdgeSplitting) {
+    if (LiveVariables *LV = getAnalysisIfAvailable<LiveVariables>()) {
+      MachineLoopInfo *MLI = getAnalysisIfAvailable<MachineLoopInfo>();
+      for (MachineFunction::iterator I = MF.begin(), E = MF.end(); I != E; ++I)
+        Changed |= SplitPHIEdges(MF, *I, *LV, MLI);
+    }
   }
 
   // Populate VRegPHIUseCount

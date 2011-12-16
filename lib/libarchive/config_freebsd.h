@@ -47,13 +47,30 @@
 #define	HAVE_OPENSSL_MD5_H 1
 #define	HAVE_OPENSSL_RIPEMD_H 1
 #define	HAVE_OPENSSL_SHA_H 1
+#define	HAVE_OPENSSL_SHA256_INIT 1
+#define	HAVE_OPENSSL_SHA384_INIT 1
+#define	HAVE_OPENSSL_SHA512_INIT 1
+#define	HAVE_SHA256 1
 #define	HAVE_SHA384 1
 #define	HAVE_SHA512 1
+#else
+#define	HAVE_MD5_H 1
+#define	HAVE_MD5INIT 1
+#define	HAVE_SHA_H 1
+#define	HAVE_SHA1 1
+#define	HAVE_SHA1_INIT 1
+#define	HAVE_SHA256 1
+#define	HAVE_SHA256_H 1
+#define	HAVE_SHA256_INIT 1
+#define	HAVE_SHA512 1
+#define	HAVE_SHA512_H 1
+#define	HAVE_SHA512_INIT 1
 #endif
 
 #define	HAVE_BSDXML_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
+#define	HAVE_DECL_EXTATTR_NAMESPACE_USER 1
 #define	HAVE_DECL_INT64_MAX 1
 #define	HAVE_DECL_INT64_MIN 1
 #define	HAVE_DECL_SIZE_MAX 1
@@ -76,7 +93,9 @@
 #define	HAVE_FTRUNCATE 1
 #define	HAVE_FUTIMES 1
 #define	HAVE_GETEUID 1
+#define	HAVE_GETGRGID_R 1
 #define	HAVE_GETPID 1
+#define	HAVE_GETPWUID_R 1
 #define	HAVE_GRP_H 1
 #define	HAVE_INTTYPES_H 1
 #define	HAVE_LCHFLAGS 1
@@ -88,7 +107,6 @@
 #define	HAVE_LUTIMES 1
 #define	HAVE_MALLOC 1
 #define	HAVE_MD5 1
-#define	HAVE_MD5_H 1
 #define	HAVE_MEMMOVE 1
 #define	HAVE_MKDIR 1
 #define	HAVE_MKFIFO 1
@@ -101,10 +119,6 @@
 #define	HAVE_RMD160 1
 #define	HAVE_SELECT 1
 #define	HAVE_SETENV 1
-#define	HAVE_SHA_H 1
-#define	HAVE_SHA1 1
-#define	HAVE_SHA256 1
-#define	HAVE_SHA256_H 1
 #define	HAVE_SIGNAL_H 1
 #define	HAVE_STDINT_H 1
 #define	HAVE_STDLIB_H 1
@@ -138,6 +152,7 @@
 #define	HAVE_UTIME_H 1
 #define	HAVE_VFORK 1
 #define	HAVE_WCHAR_H 1
+#define	HAVE_WCSCMP 1
 #define	HAVE_WCSCPY 1
 #define	HAVE_WCSLEN 1
 #define	HAVE_WCTOMB 1
@@ -150,4 +165,19 @@
 #if __FreeBSD__ < 5
 #define	intmax_t int64_t
 #define	uintmax_t uint64_t
+#endif
+
+/* FreeBSD defines for archive_hash.h */
+#ifdef WITH_OPENSSL
+#define	ARCHIVE_HASH_MD5_OPENSSL 1
+#define	ARCHIVE_HASH_RMD160_OPENSSL 1
+#define	ARCHIVE_HASH_SHA1_OPENSSL
+#define	ARCHIVE_HASH_SHA256_OPENSSL 1
+#define	ARCHIVE_HASH_SHA384_OPENSSL 1
+#define	ARCHIVE_HASH_SHA512_OPENSSL 1
+#else
+#define	ARCHIVE_HASH_MD5_LIBMD 1
+#define	ARCHIVE_HASH_SHA1_LIBMD 1
+#define	ARCHIVE_HASH_SHA256_LIBMD 1
+#define	ARCHIVE_HASH_SHA512_LIBMD 1
 #endif

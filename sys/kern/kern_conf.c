@@ -764,7 +764,8 @@ make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw, int unit,
 				LIST_REMOVE(dev, si_list);
 				dev_unlock();
 				devfs_free(dev);
-			}
+			} else
+				dev_unlock();
 			return (res);
 		}
 	}
@@ -893,23 +894,34 @@ dev_depends(struct cdev *pdev, struct cdev *cdev)
 	dev_unlock();
 }
 
-struct cdev *
-make_dev_alias(struct cdev *pdev, const char *fmt, ...)
+static int
+make_dev_alias_v(int flags, struct cdev **cdev, struct cdev *pdev,
+    const char *fmt, va_list ap)
 {
 	struct cdev *dev;
-	va_list ap;
 	int error;
 
-	KASSERT(pdev != NULL, ("NULL pdev"));
-	dev = devfs_alloc(MAKEDEV_WAITOK);
+	KASSERT(pdev != NULL, ("make_dev_alias_v: pdev is NULL"));
+	KASSERT((flags & MAKEDEV_WAITOK) == 0 || (flags & MAKEDEV_NOWAIT) == 0,
+	    ("make_dev_alias_v: both WAITOK and NOWAIT specified"));
+	KASSERT((flags & ~(MAKEDEV_WAITOK | MAKEDEV_NOWAIT |
+	    MAKEDEV_CHECKNAME)) == 0,
+	    ("make_dev_alias_v: invalid flags specified (flags=%02x)", flags));
+
+	dev = devfs_alloc(flags);
+	if (dev == NULL)
+		return (ENOMEM);
 	dev_lock();
 	dev->si_flags |= SI_ALIAS;
-	va_start(ap, fmt);
 	error = prep_devname(dev, fmt, ap);
-	va_end(ap);
 	if (error != 0) {
-		panic("make_dev_alias: bad si_name (error=%d, si_name=%s)",
-		    error, dev->si_name);
+		if ((flags & MAKEDEV_CHECKNAME) == 0) {
+			panic("make_dev_alias_v: bad si_name "
+			    "(error=%d, si_name=%s)", error, dev->si_name);
+		}
+		dev_unlock();
+		devfs_free(dev);
+		return (error);
 	}
 	dev->si_flags |= SI_NAMED;
 	devfs_create(dev);
@@ -917,9 +929,100 @@ make_dev_alias(struct cdev *pdev, const char *fmt, ...)
 	clean_unrhdrl(devfs_inos);
 	dev_unlock();
 
-	notify_create(dev, MAKEDEV_WAITOK);
+	notify_create(dev, flags);
+	*cdev = dev;
 
+	return (0);
+}
+
+struct cdev *
+make_dev_alias(struct cdev *pdev, const char *fmt, ...)
+{
+	struct cdev *dev;
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_alias_v(MAKEDEV_WAITOK, &dev, pdev, fmt, ap);
+	va_end(ap);
+
+	KASSERT(res == 0 && dev != NULL,
+	    ("make_dev_alias: failed make_dev_alias_v (error=%d)", res));
 	return (dev);
+}
+
+int
+make_dev_alias_p(int flags, struct cdev **cdev, struct cdev *pdev,
+    const char *fmt, ...)
+{
+	va_list ap;
+	int res;
+
+	va_start(ap, fmt);
+	res = make_dev_alias_v(flags, cdev, pdev, fmt, ap);
+	va_end(ap);
+	return (res);
+}
+
+int
+make_dev_physpath_alias(int flags, struct cdev **cdev, struct cdev *pdev, 
+    struct cdev *old_alias, const char *physpath)
+{
+	char *devfspath;
+	int physpath_len;
+	int max_parentpath_len;
+	int parentpath_len;
+	int devfspathbuf_len;
+	int mflags;
+	int ret;
+
+	*cdev = NULL;
+	devfspath = NULL;
+	physpath_len = strlen(physpath);
+	ret = EINVAL;
+	if (physpath_len == 0)
+		goto out;
+
+	if (strncmp("id1,", physpath, 4) == 0) {
+		physpath += 4;
+		physpath_len -= 4;
+		if (physpath_len == 0)
+			goto out;
+	}
+
+	max_parentpath_len = SPECNAMELEN - physpath_len - /*/*/1;
+	parentpath_len = strlen(pdev->si_name);
+	if (max_parentpath_len < parentpath_len) {
+		printf("make_dev_physpath_alias: WARNING - Unable to alias %s "
+		    "to %s/%s - path too long\n",
+		    pdev->si_name, physpath, pdev->si_name);
+		ret = ENAMETOOLONG;
+		goto out;
+	}
+
+	mflags = (flags & MAKEDEV_NOWAIT) ? M_NOWAIT : M_WAITOK;
+	devfspathbuf_len = physpath_len + /*/*/1 + parentpath_len + /*NUL*/1;
+	devfspath = malloc(devfspathbuf_len, M_DEVBUF, mflags);
+	if (devfspath == NULL) {
+		ret = ENOMEM;
+		goto out;
+	}
+
+	sprintf(devfspath, "%s/%s", physpath, pdev->si_name);
+	if (old_alias != NULL && strcmp(old_alias->si_name, devfspath) == 0) {
+		/* Retain the existing alias. */
+		*cdev = old_alias;
+		old_alias = NULL;
+		ret = 0;
+	} else {
+		ret = make_dev_alias_p(flags, cdev, pdev, "%s", devfspath);
+	}
+out:
+	if (old_alias != NULL)	
+		destroy_dev(old_alias);
+	if (devfspath != NULL)
+		free(devfspath, M_DEVBUF);
+	return (ret);
 }
 
 static void
@@ -940,6 +1043,8 @@ destroy_devl(struct cdev *dev)
 	/* Remove name marking */
 	dev->si_flags &= ~SI_NAMED;
 
+	dev->si_refcount++;	/* Avoid race with dev_rel() */
+
 	/* If we are a child, remove us from the parents list */
 	if (dev->si_flags & SI_CHILD) {
 		LIST_REMOVE(dev, si_siblings);
@@ -956,7 +1061,6 @@ destroy_devl(struct cdev *dev)
 		dev->si_flags &= ~SI_CLONELIST;
 	}
 
-	dev->si_refcount++;	/* Avoid race with dev_rel() */
 	csw = dev->si_devsw;
 	dev->si_devsw = NULL;	/* already NULL for SI_ALIAS */
 	while (csw != NULL && csw->d_purge != NULL && dev->si_threadcount) {

@@ -11,6 +11,8 @@
 #define INSTCOMBINE_INSTCOMBINE_H
 
 #include "InstCombineWorklist.h"
+#include "llvm/IntrinsicInst.h"
+#include "llvm/Operator.h"
 #include "llvm/Pass.h"
 #include "llvm/Analysis/ValueTracking.h"
 #include "llvm/Support/IRBuilder.h"
@@ -69,7 +71,6 @@ class LLVM_LIBRARY_VISIBILITY InstCombiner
                              : public FunctionPass,
                                public InstVisitor<InstCombiner, Instruction*> {
   TargetData *TD;
-  bool MustPreserveLCSSA;
   bool MadeIRChange;
 public:
   /// Worklist - All of the instructions that need to be simplified.
@@ -103,7 +104,7 @@ public:
   //
   Instruction *visitAdd(BinaryOperator &I);
   Instruction *visitFAdd(BinaryOperator &I);
-  Value *OptimizePointerDifference(Value *LHS, Value *RHS, const Type *Ty);
+  Value *OptimizePointerDifference(Value *LHS, Value *RHS, Type *Ty);
   Instruction *visitSub(BinaryOperator &I);
   Instruction *visitFSub(BinaryOperator &I);
   Instruction *visitMul(BinaryOperator &I);
@@ -192,15 +193,16 @@ public:
   Instruction *visitExtractElementInst(ExtractElementInst &EI);
   Instruction *visitShuffleVectorInst(ShuffleVectorInst &SVI);
   Instruction *visitExtractValueInst(ExtractValueInst &EV);
+  Instruction *visitLandingPadInst(LandingPadInst &LI);
 
   // visitInstruction - Specify what to return for unhandled instructions...
   Instruction *visitInstruction(Instruction &I) { return 0; }
 
 private:
-  bool ShouldChangeType(const Type *From, const Type *To) const;
+  bool ShouldChangeType(Type *From, Type *To) const;
   Value *dyn_castNegVal(Value *V) const;
   Value *dyn_castFNegVal(Value *V) const;
-  const Type *FindElementAtOffset(const Type *Ty, int64_t Offset, 
+  Type *FindElementAtOffset(Type *Ty, int64_t Offset, 
                                   SmallVectorImpl<Value*> &NewIndices);
   Instruction *FoldOpIntoSelect(Instruction &Op, SelectInst *SI);
                                  
@@ -209,16 +211,17 @@ private:
   /// the cast can be eliminated by some other simple transformation, we prefer
   /// to do the simplification first.
   bool ShouldOptimizeCast(Instruction::CastOps opcode,const Value *V,
-                          const Type *Ty);
+                          Type *Ty);
 
   Instruction *visitCallSite(CallSite CS);
   Instruction *tryOptimizeCall(CallInst *CI, const TargetData *TD);
   bool transformConstExprCastCall(CallSite CS);
-  Instruction *transformCallThroughTrampoline(CallSite CS);
+  Instruction *transformCallThroughTrampoline(CallSite CS,
+                                              IntrinsicInst *Tramp);
   Instruction *transformZExtICmp(ICmpInst *ICI, Instruction &CI,
                                  bool DoXform = true);
+  Instruction *transformSExtICmp(ICmpInst *ICI, Instruction &CI);
   bool WillNotOverflowSignedAdd(Value *LHS, Value *RHS);
-  DbgDeclareInst *hasOneUsePlusDeclare(Value *V);
   Value *EmitGEPOffset(User *GEP);
 
 public:
@@ -233,7 +236,15 @@ public:
     Worklist.Add(New);
     return New;
   }
-      
+
+  // InsertNewInstWith - same as InsertNewInstBefore, but also sets the 
+  // debug loc.
+  //
+  Instruction *InsertNewInstWith(Instruction *New, Instruction &Old) {
+    New->setDebugLoc(Old.getDebugLoc());
+    return InsertNewInstBefore(New, Old);
+  }
+
   // ReplaceInstUsesWith - This method is to be used when an instruction is
   // found to be dead, replacable with another preexisting expression.  Here
   // we add all uses of I to the worklist, replace all uses of I with the new
@@ -247,7 +258,10 @@ public:
     // segment of unreachable code, so just clobber the instruction.
     if (&I == V) 
       V = UndefValue::get(I.getType());
-      
+
+    DEBUG(errs() << "IC: Replacing " << I << "\n"
+                    "    with " << *V << '\n');
+
     I.replaceAllUsesWith(V);
     return &I;
   }
@@ -346,7 +360,7 @@ private:
   Instruction *SimplifyMemSet(MemSetInst *MI);
 
 
-  Value *EvaluateInDifferentType(Value *V, const Type *Ty, bool isSigned);
+  Value *EvaluateInDifferentType(Value *V, Type *Ty, bool isSigned);
 };
 
       

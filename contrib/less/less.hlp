@@ -112,6 +112,8 @@
                   Display help (from command line).
   -a  ........  --search-skip-screen
                   Forward search skips current screen.
+  -A  ........  --SEARCH-SKIP-SCREEN
+                  Forward search always skips target line.
   -b [_N]  ....  --buffers=[_N]
                   Number of buffers.
   -B  ........  --auto-buffers
@@ -144,6 +146,8 @@
                   Display a status column at left edge of screen.
   -k [_f_i_l_e]  .  --lesskey-file=[_f_i_l_e]
                   Use a lesskey file.
+  -K            --quit-on-intr
+                  Exit less in response to ctrl-C.
   -L  ........  --no-lessopen
                   Ignore the LESSOPEN environment variable.
   -m  -M  ....  --long-prompt  --LONG-PROMPT
@@ -194,6 +198,11 @@
                   Don't display tildes after end of file.
   -# [_N]  ....  --shift=[_N]
                   Horizontal scroll amount (0 = one half screen width)
+      ........  --no-keypad
+                  Don't send keypad init/deinit sequence.
+      ........  --follow-name
+                  The F command changes files if the input file is renamed.
+
 
  ---------------------------------------------------------------------------
 

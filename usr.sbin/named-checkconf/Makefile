@@ -13,6 +13,7 @@ PROG=		named-checkconf
 SRCS+=		named-checkconf.c check-tool.c
 
 CFLAGS+=	-I${LIB_BIND_DIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
 WARNS?=		3
 

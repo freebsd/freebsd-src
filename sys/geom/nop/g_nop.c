@@ -34,6 +34,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/bio.h>
+#include <sys/sbuf.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
 #include <geom/geom.h>
@@ -41,7 +42,7 @@ __FBSDID("$FreeBSD$");
 
 
 SYSCTL_DECL(_kern_geom);
-SYSCTL_NODE(_kern_geom, OID_AUTO, nop, CTLFLAG_RW, 0, "GEOM_NOP stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, nop, CTLFLAG_RW, 0, "GEOM_NOP stuff");
 static u_int g_nop_debug = 0;
 SYSCTL_UINT(_kern_geom_nop, OID_AUTO, debug, CTLFLAG_RW, &g_nop_debug, 0,
     "Debug level");
@@ -189,10 +190,6 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 		}
 	}
 	gp = g_new_geomf(mp, name);
-	if (gp == NULL) {
-		gctl_error(req, "Cannot create geom %s.", name);
-		return (ENOMEM);
-	}
 	sc = g_malloc(sizeof(*sc), M_WAITOK);
 	sc->sc_offset = offset;
 	sc->sc_error = ioerror;
@@ -209,20 +206,10 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	gp->dumpconf = g_nop_dumpconf;
 
 	newpp = g_new_providerf(gp, gp->name);
-	if (newpp == NULL) {
-		gctl_error(req, "Cannot create provider %s.", name);
-		error = ENOMEM;
-		goto fail;
-	}
 	newpp->mediasize = size;
 	newpp->sectorsize = secsize;
 
 	cp = g_new_consumer(gp);
-	if (cp == NULL) {
-		gctl_error(req, "Cannot create consumer for %s.", gp->name);
-		error = ENOMEM;
-		goto fail;
-	}
 	error = g_attach(cp, pp);
 	if (error != 0) {
 		gctl_error(req, "Cannot attach to provider %s.", pp->name);
@@ -233,18 +220,12 @@ g_nop_create(struct gctl_req *req, struct g_class *mp, struct g_provider *pp,
 	G_NOP_DEBUG(0, "Device %s created.", gp->name);
 	return (0);
 fail:
-	if (cp != NULL) {
-		if (cp->provider != NULL)
-			g_detach(cp);
-		g_destroy_consumer(cp);
-	}
-	if (newpp != NULL)
-		g_destroy_provider(newpp);
-	if (gp != NULL) {
-		if (gp->softc != NULL)
-			g_free(gp->softc);
-		g_destroy_geom(gp);
-	}
+	if (cp->provider != NULL)
+		g_detach(cp);
+	g_destroy_consumer(cp);
+	g_destroy_provider(newpp);
+	g_free(gp->softc);
+	g_destroy_geom(gp);
 	return (error);
 }
 

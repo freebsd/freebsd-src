@@ -32,12 +32,18 @@
 #ifndef	_SYNCH_H_
 #define	_SYNCH_H_
 
-#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <pthread_np.h>
 #include <stdbool.h>
 #include <time.h>
+
+#include <pjdlog.h>
+
+#ifndef	PJDLOG_ASSERT
+#include <assert.h>
+#define	PJDLOG_ASSERT(...)	assert(__VA_ARGS__)
+#endif
 
 static __inline void
 mtx_init(pthread_mutex_t *lock)
@@ -45,7 +51,7 @@ mtx_init(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_init(lock, NULL);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 mtx_destroy(pthread_mutex_t *lock)
@@ -53,7 +59,7 @@ mtx_destroy(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_destroy(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 mtx_lock(pthread_mutex_t *lock)
@@ -61,7 +67,7 @@ mtx_lock(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_lock(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline bool
 mtx_trylock(pthread_mutex_t *lock)
@@ -69,7 +75,7 @@ mtx_trylock(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_trylock(lock);
-	assert(error == 0 || error == EBUSY);
+	PJDLOG_ASSERT(error == 0 || error == EBUSY);
 	return (error == 0);
 }
 static __inline void
@@ -78,7 +84,7 @@ mtx_unlock(pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_mutex_unlock(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline bool
 mtx_owned(pthread_mutex_t *lock)
@@ -93,7 +99,7 @@ rw_init(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_init(lock, NULL);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 rw_destroy(pthread_rwlock_t *lock)
@@ -101,7 +107,7 @@ rw_destroy(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_destroy(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 rw_rlock(pthread_rwlock_t *lock)
@@ -109,7 +115,7 @@ rw_rlock(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_rdlock(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 rw_wlock(pthread_rwlock_t *lock)
@@ -117,7 +123,7 @@ rw_wlock(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_wrlock(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 rw_unlock(pthread_rwlock_t *lock)
@@ -125,7 +131,7 @@ rw_unlock(pthread_rwlock_t *lock)
 	int error;
 
 	error = pthread_rwlock_unlock(lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 
 static __inline void
@@ -135,13 +141,13 @@ cv_init(pthread_cond_t *cv)
 	int error;
 
 	error = pthread_condattr_init(&attr);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	error = pthread_condattr_setclock(&attr, CLOCK_MONOTONIC);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	error = pthread_cond_init(cv, &attr);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	error = pthread_condattr_destroy(&attr);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 cv_wait(pthread_cond_t *cv, pthread_mutex_t *lock)
@@ -149,7 +155,7 @@ cv_wait(pthread_cond_t *cv, pthread_mutex_t *lock)
 	int error;
 
 	error = pthread_cond_wait(cv, lock);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline bool
 cv_timedwait(pthread_cond_t *cv, pthread_mutex_t *lock, int timeout)
@@ -163,10 +169,10 @@ cv_timedwait(pthread_cond_t *cv, pthread_mutex_t *lock, int timeout)
 	}
 
         error = clock_gettime(CLOCK_MONOTONIC, &ts);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 	ts.tv_sec += timeout;
 	error = pthread_cond_timedwait(cv, lock, &ts);
-	assert(error == 0 || error == ETIMEDOUT);
+	PJDLOG_ASSERT(error == 0 || error == ETIMEDOUT);
 	return (error == ETIMEDOUT);
 }
 static __inline void
@@ -175,7 +181,7 @@ cv_signal(pthread_cond_t *cv)
 	int error;
 
 	error = pthread_cond_signal(cv);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 static __inline void
 cv_broadcast(pthread_cond_t *cv)
@@ -183,6 +189,6 @@ cv_broadcast(pthread_cond_t *cv)
 	int error;
 
 	error = pthread_cond_broadcast(cv);
-	assert(error == 0);
+	PJDLOG_ASSERT(error == 0);
 }
 #endif	/* !_SYNCH_H_ */

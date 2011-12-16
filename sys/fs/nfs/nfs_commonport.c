@@ -69,12 +69,14 @@ void (*ncl_call_invalcaches)(struct vnode *) = NULL;
 static int nfs_realign_test;
 static int nfs_realign_count;
 
-SYSCTL_NODE(_vfs, OID_AUTO, newnfs, CTLFLAG_RW, 0, "New NFS filesystem");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_test, CTLFLAG_RW, &nfs_realign_test, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, newnfs_realign_count, CTLFLAG_RW, &nfs_realign_count, 0, "");
-SYSCTL_INT(_vfs_newnfs, OID_AUTO, nfs4acl_enable, CTLFLAG_RW, &nfsrv_useacl, 0, "");
-SYSCTL_STRING(_vfs_newnfs, OID_AUTO, callback_addr, CTLFLAG_RW,
-    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr), "");
+SYSCTL_NODE(_vfs, OID_AUTO, nfs, CTLFLAG_RW, 0, "New NFS filesystem");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_test, CTLFLAG_RW, &nfs_realign_test,
+    0, "Number of realign tests done");
+SYSCTL_INT(_vfs_nfs, OID_AUTO, realign_count, CTLFLAG_RW, &nfs_realign_count,
+    0, "Number of mbuf realignments done");
+SYSCTL_STRING(_vfs_nfs, OID_AUTO, callback_addr, CTLFLAG_RW,
+    nfsv4_callbackaddr, sizeof(nfsv4_callbackaddr),
+    "NFSv4 callback addr for server to use");
 
 /*
  * Defines for malloc
@@ -287,6 +289,50 @@ nfsvno_getfs(struct nfsfsinfo *sip, int isdgram)
 	    NFSV3FSINFO_CANSETTIME);
 }
 
+/*
+ * Do the pathconf vnode op.
+ */
+int
+nfsvno_pathconf(struct vnode *vp, int flag, register_t *retf,
+    struct ucred *cred, struct thread *p)
+{
+	int error;
+
+	error = VOP_PATHCONF(vp, flag, retf);
+	if (error == EOPNOTSUPP || error == EINVAL) {
+		/*
+		 * Some file systems return EINVAL for name arguments not
+		 * supported and some return EOPNOTSUPP for this case.
+		 * So the NFSv3 Pathconf RPC doesn't fail for these cases,
+		 * just fake them.
+		 */
+		switch (flag) {
+		case _PC_LINK_MAX:
+			*retf = LINK_MAX;
+			break;
+		case _PC_NAME_MAX:
+			*retf = NAME_MAX;
+			break;
+		case _PC_CHOWN_RESTRICTED:
+			*retf = 1;
+			break;
+		case _PC_NO_TRUNC:
+			*retf = 1;
+			break;
+		default:
+			/*
+			 * Only happens if a _PC_xxx is added to the server,
+			 * but this isn't updated.
+			 */
+			*retf = 0;
+			printf("nfsrvd pathconf flag=%d not supp\n", flag);
+		};
+		error = 0;
+	}
+	NFSEXITCODE(error);
+	return (error);
+}
+
 /* Fake nfsrv_atroot. Just return 0 */
 int
 nfsrv_atroot(struct vnode *vp, long *retp)
@@ -382,6 +428,7 @@ nfssvc_nfscommon(struct thread *td, struct nfssvc_args *uap)
 	int error;
 
 	error = nfssvc_call(td, uap, td->td_ucred);
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -394,13 +441,71 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 	if (uap->flag & NFSSVC_IDNAME) {
 		error = copyin(uap->argp, (caddr_t)&nid, sizeof (nid));
 		if (error)
-			return (error);
+			goto out;
 		error = nfssvc_idname(&nid);
-		return (error);
+		goto out;
 	} else if (uap->flag & NFSSVC_GETSTATS) {
 		error = copyout(&newnfsstats,
 		    CAST_USER_ADDR_T(uap->argp), sizeof (newnfsstats));
-		return (error);
+		if (error == 0) {
+			if ((uap->flag & NFSSVC_ZEROCLTSTATS) != 0) {
+				newnfsstats.attrcache_hits = 0;
+				newnfsstats.attrcache_misses = 0;
+				newnfsstats.lookupcache_hits = 0;
+				newnfsstats.lookupcache_misses = 0;
+				newnfsstats.direofcache_hits = 0;
+				newnfsstats.direofcache_misses = 0;
+				newnfsstats.accesscache_hits = 0;
+				newnfsstats.accesscache_misses = 0;
+				newnfsstats.biocache_reads = 0;
+				newnfsstats.read_bios = 0;
+				newnfsstats.read_physios = 0;
+				newnfsstats.biocache_writes = 0;
+				newnfsstats.write_bios = 0;
+				newnfsstats.write_physios = 0;
+				newnfsstats.biocache_readlinks = 0;
+				newnfsstats.readlink_bios = 0;
+				newnfsstats.biocache_readdirs = 0;
+				newnfsstats.readdir_bios = 0;
+				newnfsstats.rpcretries = 0;
+				newnfsstats.rpcrequests = 0;
+				newnfsstats.rpctimeouts = 0;
+				newnfsstats.rpcunexpected = 0;
+				newnfsstats.rpcinvalid = 0;
+				bzero(newnfsstats.rpccnt,
+				    sizeof(newnfsstats.rpccnt));
+			}
+			if ((uap->flag & NFSSVC_ZEROSRVSTATS) != 0) {
+				newnfsstats.srvrpc_errs = 0;
+				newnfsstats.srv_errs = 0;
+				newnfsstats.srvcache_inproghits = 0;
+				newnfsstats.srvcache_idemdonehits = 0;
+				newnfsstats.srvcache_nonidemdonehits = 0;
+				newnfsstats.srvcache_misses = 0;
+				newnfsstats.srvcache_tcppeak = 0;
+				newnfsstats.srvcache_size = 0;
+				newnfsstats.srvclients = 0;
+				newnfsstats.srvopenowners = 0;
+				newnfsstats.srvopens = 0;
+				newnfsstats.srvlockowners = 0;
+				newnfsstats.srvlocks = 0;
+				newnfsstats.srvdelegates = 0;
+				newnfsstats.clopenowners = 0;
+				newnfsstats.clopens = 0;
+				newnfsstats.cllockowners = 0;
+				newnfsstats.cllocks = 0;
+				newnfsstats.cldelegates = 0;
+				newnfsstats.cllocalopenowners = 0;
+				newnfsstats.cllocalopens = 0;
+				newnfsstats.cllocallockowners = 0;
+				newnfsstats.cllocallocks = 0;
+				bzero(newnfsstats.srvrpccnt,
+				    sizeof(newnfsstats.srvrpccnt));
+				bzero(newnfsstats.cbrpccnt,
+				    sizeof(newnfsstats.cbrpccnt));
+			}
+		}
+		goto out;
 	} else if (uap->flag & NFSSVC_NFSUSERDPORT) {
 		u_short sockport;
 
@@ -412,6 +517,9 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 		nfsrv_nfsuserddelport();
 		error = 0;
 	}
+
+out:
+	NFSEXITCODE(error);
 	return (error);
 }
 
@@ -437,18 +545,18 @@ newnfs_portinit(void)
  * Return 1 if it does, 0 otherwise.
  */
 int
-nfs_supportsnfsv4acls(struct mount *mp)
+nfs_supportsnfsv4acls(struct vnode *vp)
 {
+	int error;
+	register_t retval;
 
-	if (mp->mnt_stat.f_fstypename == NULL)
+	ASSERT_VOP_LOCKED(vp, "nfs supports nfsv4acls");
+
+	if (nfsrv_useacl == 0)
 		return (0);
-	if (strcmp(mp->mnt_stat.f_fstypename, "ufs") == 0) {
-		/* Not yet */
-		return (0);
-	} else if (strcmp(mp->mnt_stat.f_fstypename, "zfs") == 0) {
-		/* Always supports them */
+	error = VOP_PATHCONF(vp, _PC_ACL_NFS4, &retval);
+	if (error == 0 && retval != 0)
 		return (1);
-	}
 	return (0);
 }
 
@@ -466,7 +574,7 @@ nfscommon_modevent(module_t mod, int type, void *data)
 	switch (type) {
 	case MOD_LOAD:
 		if (loaded)
-			return (0);
+			goto out;
 		newnfs_portinit();
 		mtx_init(&nfs_nameid_mutex, "nfs_nameid_mutex", NULL, MTX_DEF);
 		mtx_init(&nfs_sockl_mutex, "nfs_sockl_mutex", NULL, MTX_DEF);
@@ -503,6 +611,9 @@ nfscommon_modevent(module_t mod, int type, void *data)
 		error = EOPNOTSUPP;
 		break;
 	}
+
+out:
+	NFSEXITCODE(error);
 	return error;
 }
 static moduledata_t nfscommon_mod = {

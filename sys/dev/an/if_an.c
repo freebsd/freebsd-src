@@ -102,7 +102,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 
 #include <sys/module.h>
-#include <sys/sysctl.h>
 #include <sys/bus.h>
 #include <machine/bus.h>
 #include <sys/rman.h>
@@ -204,7 +203,8 @@ static char an_conf_cache[256];
 
 /* sysctl vars */
 
-SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0, "Wireless driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0,
+    "Wireless driver parameters");
 
 /* XXX violate ethernet/netgraph callback hooks */
 extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);

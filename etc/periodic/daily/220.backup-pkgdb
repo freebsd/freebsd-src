@@ -1,0 +1,51 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# If there is a global system configuration file, suck it in.
+#
+if [ -r /etc/defaults/periodic.conf ]
+then
+    . /etc/defaults/periodic.conf
+    source_periodic_confs
+fi
+
+rc=0
+
+case "$daily_backup_pkgdb_enable" in
+    [Yy][Ee][Ss])
+	bak="${daily_backup_pkgdb_dir:-/var/backups}"
+	bak_file="${bak}/pkgdb.bak.tbz"
+
+	pkg_dbdir=`make -f/usr/share/mk/bsd.port.mk -V PKG_DBDIR 2>/dev/null` ||
+	  pkg_dbdir=/var/db/pkg
+
+	if [ ! -d "$bak" ]
+	then
+	    install -d -o root -g wheel -m 750 $bak || {
+		echo '$daily_backup_pkgdb_enable is enabled but' \
+		    "$daily_backup_pkgdb_dir doesn't exist" ;
+		exit 2 ; }
+	fi
+
+	echo ''
+	echo 'Backing up package db directory:'
+
+	new_bak_file=`mktemp ${bak_file}-XXXXX`
+
+	if tar -cjHf "${new_bak_file}" "$pkg_dbdir" 2>/dev/null; then
+	    chmod 644 "${new_bak_file}"
+
+	    if [ -e "${bak_file}.2" -a -e "${bak_file}" ]; then
+		unlink "${bak_file}.2"
+		mv "${bak_file}" "${bak_file}.2"
+	    fi
+	    [ -e "${bak_file}" ] && mv "${bak_file}" "${bak_file}.2"
+	    mv "${new_bak_file}" "${bak_file}"
+	else
+	    rc=3
+	fi ;;
+esac
+
+exit $rc

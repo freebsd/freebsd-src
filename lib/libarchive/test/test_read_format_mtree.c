@@ -134,10 +134,53 @@ test_read_format_mtree2(void)
 	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
 }
 
+/*
+ * Reported to libarchive.googlecode.com as Issue 121.
+ */
+static void
+test_read_format_mtree3(void)
+{
+	static char archive[] =
+	    "#mtree\n"
+	    "a type=file contents=file\n"
+	    "b type=link link=a\n"
+	    "c type=file contents=file\n";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assertMakeDir("mtree3", 0777);
+	assertChdir("mtree3");
+	assertMakeFile("file", 0644, "file contents");
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_read_open_memory(a, archive, sizeof(archive)));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "a");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "b");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFLNK);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString(archive_entry_pathname(ae), "c");
+	assertEqualInt(archive_entry_filetype(ae), AE_IFREG);
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+
+	assertChdir("..");
+}
+
 
 
 DEFINE_TEST(test_read_format_mtree)
 {
 	test_read_format_mtree1();
 	test_read_format_mtree2();
+	test_read_format_mtree3();
 }

@@ -89,7 +89,7 @@ int oexitstatus;		/* saved exit status */
 
 static void evalloop(union node *, int);
 static void evalfor(union node *, int);
-static void evalcase(union node *, int);
+static union node *evalcase(union node *, int);
 static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
 static void expredir(union node *);
@@ -140,7 +140,7 @@ evalcmd(int argc, char **argv)
                         STPUTC('\0', concat);
                         p = grabstackstr(concat);
                 }
-                evalstring(p, builtin_flags & EV_TESTED);
+                evalstring(p, builtin_flags);
         } else
                 exitstatus = 0;
         return exitstatus;
@@ -165,7 +165,7 @@ evalstring(char *s, int flags)
 	setstackmark(&smark);
 	setinputstring(s, 1);
 	while ((n = parsecmd(0)) != NEOF) {
-		if (n != NULL) {
+		if (n != NULL && !nflag) {
 			if (flags_exit && preadateof())
 				evaltree(n, flags | EV_EXIT);
 			else
@@ -179,7 +179,7 @@ evalstring(char *s, int flags)
 	if (!any)
 		exitstatus = 0;
 	if (flags_exit)
-		exitshell(exitstatus);
+		exraise(EXEXIT);
 }
 
 
@@ -256,7 +256,7 @@ evaltree(union node *n, int flags)
 			evalfor(n, flags & ~EV_EXIT);
 			break;
 		case NCASE:
-			evalcase(n, flags);
+			next = evalcase(n, flags);
 			break;
 		case NDEFUN:
 			defun(n->narg.text, n->narg.next);
@@ -285,8 +285,10 @@ evaltree(union node *n, int flags)
 out:
 	if (pendingsigs)
 		dotrap();
-	if ((flags & EV_EXIT) || (eflag && exitstatus != 0 && do_etest))
+	if (eflag && exitstatus != 0 && do_etest)
 		exitshell(exitstatus);
+	if (flags & EV_EXIT)
+		exraise(EXEXIT);
 }
 
 
@@ -341,8 +343,6 @@ evalfor(union node *n, int flags)
 	for (argp = n->nfor.args ; argp ; argp = argp->narg.next) {
 		oexitstatus = exitstatus;
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
-		if (evalskip)
-			goto out;
 	}
 	*arglist.lastp = NULL;
 
@@ -362,13 +362,12 @@ evalfor(union node *n, int flags)
 		}
 	}
 	loopnest--;
-out:
 	popstackmark(&smark);
 }
 
 
 
-static void
+static union node *
 evalcase(union node *n, int flags)
 {
 	union node *cp;
@@ -381,18 +380,24 @@ evalcase(union node *n, int flags)
 	oexitstatus = exitstatus;
 	exitstatus = 0;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
-	for (cp = n->ncase.cases ; cp && evalskip == 0 ; cp = cp->nclist.next) {
+	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
 			if (casematch(patp, arglist.list->text)) {
-				if (evalskip == 0) {
-					evaltree(cp->nclist.body, flags);
+				popstackmark(&smark);
+				while (cp->nclist.next &&
+				    cp->type == NCLISTFALLTHRU) {
+					evaltree(cp->nclist.body,
+					    flags & ~EV_EXIT);
+					if (evalskip != 0)
+						return (NULL);
+					cp = cp->nclist.next;
 				}
-				goto out;
+				return (cp->nclist.body);
 			}
 		}
 	}
-out:
 	popstackmark(&smark);
+	return (NULL);
 }
 
 
@@ -407,6 +412,7 @@ evalsubshell(union node *n, int flags)
 	struct job *jp;
 	int backgnd = (n->type == NBACKGND);
 
+	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	if ((!backgnd && flags & EV_EXIT && !have_traps()) ||
 			forkshell(jp = makejob(n, 1), n, backgnd) == 0) {
@@ -418,7 +424,8 @@ evalsubshell(union node *n, int flags)
 		INTOFF;
 		exitstatus = waitforjob(jp, (int *)NULL);
 		INTON;
-	}
+	} else
+		exitstatus = 0;
 }
 
 
@@ -433,6 +440,7 @@ evalredir(union node *n, int flags)
 	struct jmploc *savehandler;
 	volatile int in_redirect = 1;
 
+	oexitstatus = exitstatus;
 	expredir(n->nredir.redirect);
 	savehandler = handler;
 	if (setjmp(jmploc.loc)) {
@@ -440,8 +448,8 @@ evalredir(union node *n, int flags)
 
 		handler = savehandler;
 		e = exception;
+		popredir();
 		if (e == EXERROR || e == EXEXEC) {
-			popredir();
 			if (in_redirect) {
 				exitstatus = 2;
 				return;
@@ -475,7 +483,6 @@ expredir(union node *n)
 	for (redir = n ; redir ; redir = redir->nfile.next) {
 		struct arglist fn;
 		fn.lastp = &fn.list;
-		oexitstatus = exitstatus;
 		switch (redir->type) {
 		case NFROM:
 		case NTO:
@@ -549,7 +556,8 @@ evalpipe(union node *n)
 		if (prevfd >= 0)
 			close(prevfd);
 		prevfd = pip[0];
-		close(pip[1]);
+		if (pip[1] != -1)
+			close(pip[1]);
 	}
 	INTON;
 	if (n->npipe.backgnd == 0) {
@@ -557,7 +565,8 @@ evalpipe(union node *n)
 		exitstatus = waitforjob(jp, (int *)NULL);
 		TRACE(("evalpipe:  job done exit status %d\n", exitstatus));
 		INTON;
-	}
+	} else
+		exitstatus = 0;
 }
 
 
@@ -565,14 +574,8 @@ evalpipe(union node *n)
 static int
 is_valid_fast_cmdsubst(union node *n)
 {
-	union node *argp;
 
-	if (n->type != NCMD)
-		return 0;
-	for (argp = n->ncmd.args ; argp ; argp = argp->narg.next)
-		if (expandhassideeffects(argp->narg.text))
-			return 0;
-	return 1;
+	return (n->type == NCMD);
 }
 
 /*
@@ -590,6 +593,7 @@ evalbackcmd(union node *n, struct backcmd *result)
 	struct stackmark smark;		/* unnecessary */
 	struct jmploc jmploc;
 	struct jmploc *savehandler;
+	struct localvar *savelocalvars;
 
 	setstackmark(&smark);
 	result->fd = -1;
@@ -602,12 +606,18 @@ evalbackcmd(union node *n, struct backcmd *result)
 	}
 	if (is_valid_fast_cmdsubst(n)) {
 		exitstatus = oexitstatus;
+		savelocalvars = localvars;
+		localvars = NULL;
+		forcelocal++;
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			if (exception == EXERROR || exception == EXEXEC)
 				exitstatus = 2;
 			else if (exception != 0) {
 				handler = savehandler;
+				forcelocal--;
+				poplocalvars();
+				localvars = savelocalvars;
 				longjmp(handler->loc, 1);
 			}
 		} else {
@@ -615,6 +625,9 @@ evalbackcmd(union node *n, struct backcmd *result)
 			evalcommand(n, EV_BACKCMD, result);
 		}
 		handler = savehandler;
+		forcelocal--;
+		poplocalvars();
+		localvars = savelocalvars;
 	} else {
 		exitstatus = 0;
 		if (pipe(pip) < 0)
@@ -709,15 +722,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	oexitstatus = exitstatus;
 	exitstatus = 0;
 	for (argp = cmd->ncmd.args ; argp ; argp = argp->narg.next) {
-		char *p = argp->narg.text;
-		if (varflag && is_name(*p)) {
-			do {
-				p++;
-			} while (is_in_name(*p));
-			if (*p == '=') {
-				expandarg(argp, &varlist, EXP_VARTILDE);
-				continue;
-			}
+		if (varflag && isassignment(argp->narg.text)) {
+			expandarg(argp, &varlist, EXP_VARTILDE);
+			continue;
 		}
 		expandarg(argp, &arglist, EXP_FULL | EXP_TILDE);
 		varflag = 0;
@@ -745,8 +752,9 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	/* Print the command if xflag is set. */
 	if (xflag) {
 		char sep = 0;
-		const char *p;
-		out2str(ps4val());
+		const char *p, *ps4;
+		ps4 = expandstr(ps4val());
+		out2str(ps4 != NULL ? ps4 : ps4val());
 		for (sp = varlist.list ; sp ; sp = sp->next) {
 			if (sep != 0)
 				out2c(' ');
@@ -881,14 +889,13 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 	}
 
 	/* Fork off a child process if necessary. */
-	if (cmd->ncmd.backgnd
-	 || ((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
+	if (((cmdentry.cmdtype == CMDNORMAL || cmdentry.cmdtype == CMDUNKNOWN)
 	    && ((flags & EV_EXIT) == 0 || have_traps()))
 	 || ((flags & EV_BACKCMD) != 0
 	    && (cmdentry.cmdtype != CMDBUILTIN ||
 		 !safe_builtin(cmdentry.u.index, argc, argv)))) {
 		jp = makejob(cmd, 1);
-		mode = cmd->ncmd.backgnd;
+		mode = FORK_FG;
 		if (flags & EV_BACKCMD) {
 			mode = FORK_NOJOB;
 			if (pipe(pip) < 0)
@@ -903,6 +910,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 				dup2(pip[1], 1);
 				close(pip[1]);
 			}
+			flags &= ~EV_BACKCMD;
 		}
 		flags |= EV_EXIT;
 	}
@@ -927,8 +935,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		if (setjmp(jmploc.loc)) {
 			freeparam(&shellparam);
 			shellparam = saveparam;
-			if (exception == EXERROR || exception == EXEXEC)
-				popredir();
+			popredir();
 			unreffunc(cmdentry.u.func);
 			poplocalvars();
 			localvars = savelocalvars;
@@ -943,10 +950,8 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		for (sp = varlist.list ; sp ; sp = sp->next)
 			mklocal(sp->text);
 		exitstatus = oexitstatus;
-		if (flags & EV_TESTED)
-			evaltree(getfuncnode(cmdentry.u.func), EV_TESTED);
-		else
-			evaltree(getfuncnode(cmdentry.u.func), 0);
+		evaltree(getfuncnode(cmdentry.u.func),
+		    flags & (EV_TESTED | EV_EXIT));
 		INTOFF;
 		unreffunc(cmdentry.u.func);
 		poplocalvars();
@@ -982,7 +987,10 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		savehandler = handler;
 		if (setjmp(jmploc.loc)) {
 			e = exception;
-			exitstatus = (e == EXINT)? SIGINT+128 : 2;
+			if (e == EXINT)
+				exitstatus = SIGINT+128;
+			else if (e != EXEXIT)
+				exitstatus = 2;
 			goto cmddone;
 		}
 		handler = &jmploc;
@@ -1018,8 +1026,7 @@ cmddone:
 			backcmd->nleft = memout.nextc - memout.buf;
 			memout.buf = NULL;
 		}
-		if (cmdentry.u.index != EXECCMD &&
-				(e == -1 || e == EXERROR || e == EXEXEC))
+		if (cmdentry.u.index != EXECCMD)
 			popredir();
 		if (e != -1) {
 			if ((e != EXERROR && e != EXEXEC)

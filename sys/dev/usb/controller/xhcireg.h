@@ -33,7 +33,6 @@
 #define	PCI_XHCI_USBREV		0x60	/* RO USB protocol revision */
 #define	PCI_USB_REV_3_0		0x30	/* USB 3.0 */
 #define	PCI_XHCI_FLADJ		0x61	/* RW frame length adjust */
-#define	PCI_INTERFACE_XHCI	0x30	/* USB 3.0 - XHCI */
 
 /* XHCI capability registers */
 #define	XHCI_CAPLENGTH		0x00	/* RO capability */
@@ -116,7 +115,7 @@
 #define	XHCI_PS_PR		0x00000010	/* RW - port reset */
 #define	XHCI_PS_PLS_GET(x)	(((x) >> 5) & 0xF)	/* RW - port link state */
 #define	XHCI_PS_PLS_SET(x)	(((x) & 0xF) << 5)	/* RW - port link state */
-#define	XHCI_PS_PP		0x00000100	/* RW - port power */
+#define	XHCI_PS_PP		0x00000200	/* RW - port power */
 #define	XHCI_PS_SPEED_GET(x)	(((x) >> 10) & 0xF)	/* RO - port speed */
 #define	XHCI_PS_PIC_GET(x)	(((x) >> 14) & 0x3)	/* RW - port indicator */
 #define	XHCI_PS_PIC_SET(x)	(((x) & 0x3) << 14)	/* RW - port indicator */
@@ -134,7 +133,7 @@
 #define	XHCI_PS_WOE		0x08000000	/* RW - wake on over-current enable */
 #define	XHCI_PS_DR		0x40000000	/* RO - device removable */
 #define	XHCI_PS_WPR		0x80000000U	/* RW - warm port reset */
-#define	XHCI_PS_CLEAR		0x80FF00F7U	/* command bits */
+#define	XHCI_PS_CLEAR		0x80FF01FFU	/* command bits */
 
 #define	XHCI_PORTPMSC(n)	(0x3F4 + (0x10 * (n)))	/* XHCI status and control */
 #define	XHCI_PM3_U1TO_GET(x)	(((x) >> 0) & 0xFF)	/* RW - U1 timeout */

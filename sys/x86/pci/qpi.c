@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 #include <sys/systm.h>
 
 #include <machine/cputypes.h>
@@ -291,7 +292,6 @@ static device_method_t qpi_pcib_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	qpi_pcib_read_ivar),
 	DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
@@ -310,7 +310,7 @@ static device_method_t qpi_pcib_methods[] = {
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		qpi_pcib_map_msi),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t qpi_pcib_devclass;

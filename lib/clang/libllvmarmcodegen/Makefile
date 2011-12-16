@@ -3,8 +3,7 @@
 LIB=	llvmarmcodegen
 
 SRCDIR=	lib/Target/ARM
-SRCS=	ARMAsmBackend.cpp \
-	ARMAsmPrinter.cpp \
+SRCS=	ARMAsmPrinter.cpp \
 	ARMBaseInstrInfo.cpp \
 	ARMBaseRegisterInfo.cpp \
 	ARMCodeEmitter.cpp \
@@ -20,10 +19,7 @@ SRCS=	ARMAsmBackend.cpp \
 	ARMISelLowering.cpp \
 	ARMInstrInfo.cpp \
 	ARMJITInfo.cpp \
-	ARMMCCodeEmitter.cpp \
-	ARMMCExpr.cpp \
 	ARMLoadStoreOptimizer.cpp \
-	ARMMCAsmInfo.cpp \
 	ARMMCInstLower.cpp \
 	ARMRegisterInfo.cpp \
 	ARMSelectionDAGInfo.cpp \
@@ -31,7 +27,6 @@ SRCS=	ARMAsmBackend.cpp \
 	ARMTargetMachine.cpp \
 	ARMTargetObjectFile.cpp \
 	MLxExpansionPass.cpp \
-	NEONMoveFix.cpp \
 	Thumb1FrameLowering.cpp \
 	Thumb1InstrInfo.cpp \
 	Thumb1RegisterInfo.cpp \
@@ -46,12 +41,10 @@ TGHDRS=	ARMGenAsmWriter \
 	ARMGenDAGISel \
 	ARMGenFastISel \
 	ARMGenInstrInfo \
-	ARMGenInstrNames \
 	ARMGenMCCodeEmitter \
+	ARMGenMCPseudoLowering \
 	ARMGenRegisterInfo \
-	ARMGenRegisterInfo.h \
-	ARMGenRegisterNames \
-	ARMGenSubtarget \
+	ARMGenSubtargetInfo \
 	Intrinsics
 
 .include "../clang.lib.mk"

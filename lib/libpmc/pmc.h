@@ -76,6 +76,7 @@ int	pmc_attach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_capabilities(pmc_id_t _pmc, uint32_t *_caps);
 int	pmc_configure_logfile(int _fd);
 int	pmc_flush_logfile(void);
+int	pmc_close_logfile(void);
 int	pmc_detach(pmc_id_t _pmcid, pid_t _pid);
 int	pmc_disable(int _cpu, int _pmc);
 int	pmc_enable(int _cpu, int _pmc);

@@ -544,6 +544,12 @@ may not be opened for writing;
 kernel modules (see
 .Xr kld 4 )
 may not be loaded or unloaded.
+The kernel debugger may not be entered using the
+.Va debug.kdb.enter
+sysctl.
+A panic or trap cannot be forced using the
+.Va debug.kdb.panic
+and other sysctl's.
 .It Ic 2
 Highly secure mode \- same as secure mode, plus disks may not be
 opened for writing (except by

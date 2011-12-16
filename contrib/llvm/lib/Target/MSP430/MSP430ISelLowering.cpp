@@ -79,6 +79,7 @@ MSP430TargetLowering::MSP430TargetLowering(MSP430TargetMachine &tm) :
 
   setStackPointerRegisterToSaveRestore(MSP430::SPW);
   setBooleanContents(ZeroOrOneBooleanContent);
+  setBooleanVectorContents(ZeroOrOneBooleanContent); // FIXME: Is this correct?
   setSchedulingPreference(Sched::Latency);
 
   // We have post-incremented loads / stores.
@@ -170,6 +171,9 @@ MSP430TargetLowering::MSP430TargetLowering(MSP430TargetMachine &tm) :
     setLibcallName(RTLIB::MUL_I8,  "__mulqi3hw_noint");
     setLibcallName(RTLIB::MUL_I16, "__mulhi3hw_noint");
   }
+
+  setMinFunctionAlignment(1);
+  setPrefFunctionAlignment(2);
 }
 
 SDValue MSP430TargetLowering::LowerOperation(SDValue Op,
@@ -191,11 +195,6 @@ SDValue MSP430TargetLowering::LowerOperation(SDValue Op,
     llvm_unreachable("unimplemented operand");
     return SDValue();
   }
-}
-
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned MSP430TargetLowering::getFunctionAlignment(const Function *F) const {
-  return F->hasFnAttr(Attribute::OptimizeForSize) ? 1 : 2;
 }
 
 //===----------------------------------------------------------------------===//
@@ -314,8 +313,8 @@ MSP430TargetLowering::LowerCCCArguments(SDValue Chain,
 
   // Assign locations to all of the incoming arguments.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
   CCInfo.AnalyzeFormalArguments(Ins, CC_MSP430);
 
   assert(!isVarArg && "Varargs not supported yet");
@@ -397,8 +396,8 @@ MSP430TargetLowering::LowerReturn(SDValue Chain,
   }
 
   // CCState - Info about the registers and stack slot.
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
   // Analize return values.
   CCInfo.AnalyzeReturn(Outs, RetCC_MSP430);
@@ -451,8 +450,8 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
                                      SmallVectorImpl<SDValue> &InVals) const {
   // Analyze operands of the call, assigning locations to each operand.
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 ArgLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
 
   CCInfo.AnalyzeCallOperands(Outs, CC_MSP430);
 
@@ -515,7 +514,7 @@ MSP430TargetLowering::LowerCCCCallTo(SDValue Chain, SDValue Callee,
 
   // Build a sequence of copy-to-reg nodes chained together with token chain and
   // flag operands which copy the outgoing args into registers.  The InFlag in
-  // necessary since all emited instructions must be stuck together.
+  // necessary since all emitted instructions must be stuck together.
   SDValue InFlag;
   for (unsigned i = 0, e = RegsToPass.size(); i != e; ++i) {
     Chain = DAG.getCopyToReg(Chain, dl, RegsToPass[i].first,
@@ -574,8 +573,8 @@ MSP430TargetLowering::LowerCallResult(SDValue Chain, SDValue InFlag,
 
   // Assign locations to each value returned by this call.
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
 
   CCInfo.AnalyzeCallResult(Ins, RetCC_MSP430);
 
@@ -989,8 +988,8 @@ const char *MSP430TargetLowering::getTargetNodeName(unsigned Opcode) const {
   }
 }
 
-bool MSP430TargetLowering::isTruncateFree(const Type *Ty1,
-                                          const Type *Ty2) const {
+bool MSP430TargetLowering::isTruncateFree(Type *Ty1,
+                                          Type *Ty2) const {
   if (!Ty1->isIntegerTy() || !Ty2->isIntegerTy())
     return false;
 
@@ -1004,7 +1003,7 @@ bool MSP430TargetLowering::isTruncateFree(EVT VT1, EVT VT2) const {
   return (VT1.getSizeInBits() > VT2.getSizeInBits());
 }
 
-bool MSP430TargetLowering::isZExtFree(const Type *Ty1, const Type *Ty2) const {
+bool MSP430TargetLowering::isZExtFree(Type *Ty1, Type *Ty2) const {
   // MSP430 implicitly zero-extends 8-bit results in 16-bit registers.
   return 0 && Ty1->isIntegerTy(8) && Ty2->isIntegerTy(16);
 }

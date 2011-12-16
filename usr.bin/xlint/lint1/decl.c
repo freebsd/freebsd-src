@@ -415,9 +415,6 @@ tdeferr(type_t *td, tspec_t t)
 	case UINT:
 	case INT:
 		break;
-
-	case NTSPEC:	/* this value unused */
-		break;
 	}
 
 	/* Anything other is not accepted. */

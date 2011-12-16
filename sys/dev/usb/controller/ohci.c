@@ -80,7 +80,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int ohcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ohci, CTLFLAG_RW, 0, "USB ohci");
 SYSCTL_INT(_hw_usb_ohci, OID_AUTO, debug, CTLFLAG_RW,
     &ohcidebug, 0, "ohci debug level");
 
@@ -166,7 +166,7 @@ ohci_iterate_hw_softc(struct usb_bus *bus, usb_bus_mem_sub_cb_t *cb)
 }
 
 static usb_error_t
-ohci_controller_init(ohci_softc_t *sc)
+ohci_controller_init(ohci_softc_t *sc, int do_suspend)
 {
 	struct usb_page_search buf_res;
 	uint32_t i;
@@ -232,6 +232,11 @@ reset:
 		ohci_dumpregs(sc);
 	}
 #endif
+
+	if (do_suspend) {
+		OWRITE4(sc, OHCI_CONTROL, OHCI_HCFS_SUSPEND);
+		return (USB_ERR_NORMAL_COMPLETION);
+	}
 
 	/* The controller is now in SUSPEND state, we have 2ms to finish. */
 
@@ -415,13 +420,12 @@ ohci_init(ohci_softc_t *sc)
 
 	sc->sc_bus.usbrev = USB_REV_1_0;
 
-	if (ohci_controller_init(sc)) {
+	if (ohci_controller_init(sc, 0) != 0)
 		return (USB_ERR_INVAL);
-	} else {
-		/* catch any lost interrupts */
-		ohci_do_poll(&sc->sc_bus);
-		return (USB_ERR_NORMAL_COMPLETION);
-	}
+
+	/* catch any lost interrupts */
+	ohci_do_poll(&sc->sc_bus);
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 /*
@@ -445,75 +449,32 @@ ohci_detach(struct ohci_softc *sc)
 	usb_callout_drain(&sc->sc_tmo_rhsc);
 }
 
-/* NOTE: suspend/resume is called from
- * interrupt context and cannot sleep!
- */
-void
+static void
 ohci_suspend(ohci_softc_t *sc)
 {
-	uint32_t ctl;
-
-	USB_BUS_LOCK(&sc->sc_bus);
+	DPRINTF("\n");
 
 #ifdef USB_DEBUG
-	DPRINTF("\n");
-	if (ohcidebug > 2) {
+	if (ohcidebug > 2)
 		ohci_dumpregs(sc);
-	}
 #endif
 
-	ctl = OREAD4(sc, OHCI_CONTROL) & ~OHCI_HCFS_MASK;
-	if (sc->sc_control == 0) {
-		/*
-		 * Preserve register values, in case that APM BIOS
-		 * does not recover them.
-		 */
-		sc->sc_control = ctl;
-		sc->sc_intre = OREAD4(sc, OHCI_INTERRUPT_ENABLE);
-	}
-	ctl |= OHCI_HCFS_SUSPEND;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-
-	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
+	/* reset HC and leave it suspended */
+	ohci_controller_init(sc, 1);
 }
 
-void
+static void
 ohci_resume(ohci_softc_t *sc)
 {
-	uint32_t ctl;
+	DPRINTF("\n");
 
 #ifdef USB_DEBUG
-	DPRINTF("\n");
-	if (ohcidebug > 2) {
+	if (ohcidebug > 2)
 		ohci_dumpregs(sc);
-	}
 #endif
+
 	/* some broken BIOSes never initialize the Controller chip */
-	ohci_controller_init(sc);
-
-	USB_BUS_LOCK(&sc->sc_bus);
-	if (sc->sc_intre) {
-		OWRITE4(sc, OHCI_INTERRUPT_ENABLE,
-		    sc->sc_intre & (OHCI_ALL_INTRS | OHCI_MIE));
-	}
-	if (sc->sc_control)
-		ctl = sc->sc_control;
-	else
-		ctl = OREAD4(sc, OHCI_CONTROL);
-	ctl |= OHCI_HCFS_RESUME;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
-	ctl = (ctl & ~OHCI_HCFS_MASK) | OHCI_HCFS_OPERATIONAL;
-	OWRITE4(sc, OHCI_CONTROL, ctl);
-	usb_pause_mtx(&sc->sc_bus.bus_mtx, 
-	    USB_MS_TO_TICKS(USB_RESUME_RECOVERY));
-	sc->sc_control = sc->sc_intre = 0;
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
+	ohci_controller_init(sc, 0);
 
 	/* catch any lost interrupts */
 	ohci_do_poll(&sc->sc_bus);
@@ -2347,7 +2308,7 @@ ohci_roothub_exec(struct usb_device *udev,
 
 	case C(UR_GET_STATUS, UT_READ_CLASS_DEVICE):
 		len = 16;
-		bzero(sc->sc_hub_desc.temp, 16);
+		memset(sc->sc_hub_desc.temp, 0, 16);
 		break;
 	case C(UR_GET_STATUS, UT_READ_CLASS_OTHER):
 		DPRINTFN(9, "get port status i=%d\n",
@@ -2713,6 +2674,24 @@ ohci_device_suspend(struct usb_device *udev)
 }
 
 static void
+ohci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct ohci_softc *sc = OHCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+	case USB_HW_POWER_SHUTDOWN:
+		ohci_suspend(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		ohci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
 ohci_set_hw_power(struct usb_bus *bus)
 {
 	struct ohci_softc *sc = OHCI_BUS2SC(bus);
@@ -2756,6 +2735,7 @@ struct usb_bus_methods ohci_bus_methods =
 	.device_resume = ohci_device_resume,
 	.device_suspend = ohci_device_suspend,
 	.set_hw_power = ohci_set_hw_power,
+	.set_hw_power_sleep = ohci_set_hw_power_sleep,
 	.roothub_exec = ohci_roothub_exec,
 	.xfer_poll = ohci_do_poll,
 };

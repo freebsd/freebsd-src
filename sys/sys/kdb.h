@@ -64,6 +64,8 @@ extern struct pcb *kdb_thrctx;		/* Current context. */
 extern struct thread *kdb_thread;	/* Current thread. */
 
 int	kdb_alt_break(int, int *);
+int	kdb_alt_break_gdb(int, int *);
+int	kdb_break(void);
 void	kdb_backtrace(void);
 int	kdb_dbbe_select(const char *);
 void	kdb_enter(const char *, const char *);
@@ -101,7 +103,7 @@ extern const char * volatile kdb_why;
 #define	KDB_WHY_CAM		"cam"		/* CAM has entered debugger. */
 #define	KDB_WHY_NDIS		"ndis"		/* NDIS entered debugger. */
 #define	KDB_WHY_ACPI		"acpi"		/* ACPI entered debugger. */
-#define	KDB_WHY_TRAPSIG		"trapsig"	/* Sun4v/Sparc fault. */
+#define	KDB_WHY_TRAPSIG		"trapsig"	/* Sparc fault. */
 #define	KDB_WHY_POWERFAIL	"powerfail"	/* Powerfail NMI. */
 #define	KDB_WHY_MAC		"mac"		/* MAC Framework. */
 #define	KDB_WHY_POWERPC		"powerpc"	/* Unhandled powerpc intr. */

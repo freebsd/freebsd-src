@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: callbacks.c,v 1.17 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: callbacks.c,v 1.17 2007-06-19 23:47:16 tbox Exp $ */
 
 /*! \file */
 

@@ -35,7 +35,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
@@ -52,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include <pjdlog.h>
 
 #include "hooks.h"
+#include "subr.h"
 #include "synch.h"
 
 /* Report processes that are running for too long not often than this value. */
@@ -137,7 +137,7 @@ void
 hook_init(void)
 {
 
-	assert(!hooks_initialized);
+	PJDLOG_ASSERT(!hooks_initialized);
 
 	mtx_init(&hookprocs_lock);
 	TAILQ_INIT(&hookprocs);
@@ -149,12 +149,12 @@ hook_fini(void)
 {
 	struct hookproc *hp;
 
-	assert(hooks_initialized);
+	PJDLOG_ASSERT(hooks_initialized);
 
 	mtx_lock(&hookprocs_lock);
 	while ((hp = TAILQ_FIRST(&hookprocs)) != NULL) {
-		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
-		assert(hp->hp_pid > 0);
+		PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		PJDLOG_ASSERT(hp->hp_pid > 0);
 
 		hook_remove(hp);
 		hook_free(hp);
@@ -184,8 +184,8 @@ hook_alloc(const char *path, char **args)
 	(void)strlcpy(hp->hp_comm, path, sizeof(hp->hp_comm));
 	/* We start at 2nd argument as we don't want to have exec name twice. */
 	for (ii = 1; args[ii] != NULL; ii++) {
-		(void)strlcat(hp->hp_comm, " ", sizeof(hp->hp_comm));
-		(void)strlcat(hp->hp_comm, args[ii], sizeof(hp->hp_comm));
+		(void)snprlcat(hp->hp_comm, sizeof(hp->hp_comm), " %s",
+		    args[ii]);
 	}
 	if (strlen(hp->hp_comm) >= sizeof(hp->hp_comm) - 1) {
 		pjdlog_error("Exec path too long, correct configuration file.");
@@ -200,8 +200,8 @@ static void
 hook_add(struct hookproc *hp, pid_t pid)
 {
 
-	assert(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
-	assert(hp->hp_pid == 0);
+	PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
+	PJDLOG_ASSERT(hp->hp_pid == 0);
 
 	hp->hp_pid = pid;
 	mtx_lock(&hookprocs_lock);
@@ -214,9 +214,9 @@ static void
 hook_remove(struct hookproc *hp)
 {
 
-	assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
-	assert(hp->hp_pid > 0);
-	assert(mtx_owned(&hookprocs_lock));
+	PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+	PJDLOG_ASSERT(hp->hp_pid > 0);
+	PJDLOG_ASSERT(mtx_owned(&hookprocs_lock));
 
 	TAILQ_REMOVE(&hookprocs, hp, hp_next);
 	hp->hp_magic = HOOKPROC_MAGIC_ALLOCATED;
@@ -226,8 +226,8 @@ static void
 hook_free(struct hookproc *hp)
 {
 
-	assert(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
-	assert(hp->hp_pid > 0);
+	PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ALLOCATED);
+	PJDLOG_ASSERT(hp->hp_pid > 0);
 
 	hp->hp_magic = 0;
 	free(hp);
@@ -238,11 +238,11 @@ hook_find(pid_t pid)
 {
 	struct hookproc *hp;
 
-	assert(mtx_owned(&hookprocs_lock));
+	PJDLOG_ASSERT(mtx_owned(&hookprocs_lock));
 
 	TAILQ_FOREACH(hp, &hookprocs, hp_next) {
-		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
-		assert(hp->hp_pid > 0);
+		PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		PJDLOG_ASSERT(hp->hp_pid > 0);
 
 		if (hp->hp_pid == pid)
 			break;
@@ -285,7 +285,9 @@ hook_check(void)
 	struct hookproc *hp, *hp2;
 	time_t now;
 
-	assert(hooks_initialized);
+	PJDLOG_ASSERT(hooks_initialized);
+
+	pjdlog_debug(2, "Checking hooks.");
 
 	/*
 	 * Report about processes that are running for a long time.
@@ -293,8 +295,8 @@ hook_check(void)
 	now = time(NULL);
 	mtx_lock(&hookprocs_lock);
 	TAILQ_FOREACH_SAFE(hp, &hookprocs, hp_next, hp2) {
-		assert(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
-		assert(hp->hp_pid > 0);
+		PJDLOG_ASSERT(hp->hp_magic == HOOKPROC_MAGIC_ONLIST);
+		PJDLOG_ASSERT(hp->hp_pid > 0);
 
 		/*
 		 * If process doesn't exists we somehow missed it.
@@ -344,7 +346,7 @@ hook_execv(const char *path, va_list ap)
 	sigset_t mask;
 	pid_t pid;
 
-	assert(hooks_initialized);
+	PJDLOG_ASSERT(hooks_initialized);
 
 	if (path == NULL || path[0] == '\0')
 		return;
@@ -356,11 +358,13 @@ hook_execv(const char *path, va_list ap)
 		if (args[ii] == NULL)
 			break;
 	}
-	assert(ii < sizeof(args) / sizeof(args[0]));
+	PJDLOG_ASSERT(ii < sizeof(args) / sizeof(args[0]));
 
 	hp = hook_alloc(path, args);
 	if (hp == NULL)
 		return;
+
+	pjdlog_debug(1, "Executing hook: %s", hp->hp_comm);
 
 	pid = fork();
 	switch (pid) {

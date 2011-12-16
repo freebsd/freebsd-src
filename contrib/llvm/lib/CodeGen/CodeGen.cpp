@@ -27,6 +27,7 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeLiveIntervalsPass(Registry);
   initializeLiveStacksPass(Registry);
   initializeLiveVariablesPass(Registry);
+  initializeMachineBlockFrequencyInfoPass(Registry);
   initializeMachineCSEPass(Registry);
   initializeMachineDominatorTreePass(Registry);
   initializeMachineLICMPass(Registry);
@@ -37,13 +38,11 @@ void llvm::initializeCodeGen(PassRegistry &Registry) {
   initializeOptimizePHIsPass(Registry);
   initializePHIEliminationPass(Registry);
   initializePeepholeOptimizerPass(Registry);
-  initializePreAllocSplittingPass(Registry);
   initializeProcessImplicitDefsPass(Registry);
   initializePEIPass(Registry);
   initializeRALinScanPass(Registry);
-  initializeRegisterCoalescerAnalysisGroup(Registry);
+  initializeRegisterCoalescerPass(Registry);
   initializeRenderMachineFunctionPass(Registry);
-  initializeSimpleRegisterCoalescingPass(Registry);
   initializeSlotIndexesPass(Registry);
   initializeLoopSplitterPass(Registry);
   initializeStackProtectorPass(Registry);

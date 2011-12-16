@@ -73,8 +73,7 @@ __FBSDID("$FreeBSD$");
 #include <time.h>
 #include <unistd.h>
 
-const char *qfname = QUOTAFILENAME;
-const char *qfextension[] = INITQFNAMES;
+static const char *qfextension[] = INITQFNAMES;
 
 struct quotause {
 	struct	quotause *next;
@@ -101,12 +100,12 @@ static int callaurpc(char *host, int prognum, int versnum, int procnum,
 	xdrproc_t inproc, char *in, xdrproc_t outproc, char *out);
 static int alldigits(char *s);
 
-int	hflag;
-int	lflag;
-int	rflag;
-int	qflag;
-int	vflag;
-char	*filename = NULL;
+static int	hflag;
+static int	lflag;
+static int	rflag;
+static int	qflag;
+static int	vflag;
+static char	*filename = NULL;
 
 int
 main(int argc, char *argv[])
@@ -264,8 +263,11 @@ prthumanval(int len, u_int64_t bytes)
 {
 	char buf[len + 1];
 
-	humanize_number(buf, sizeof(buf), bytes, "", HN_AUTOSCALE,
-	    HN_B | HN_NOSPACE | HN_DECIMAL);
+	/*
+	 * Limit the width to 5 bytes as that is what users expect.
+	 */
+	humanize_number(buf, sizeof(buf) < 5 ? sizeof(buf) : 5, bytes, "",
+	    HN_AUTOSCALE, HN_B | HN_NOSPACE | HN_DECIMAL);
 
 	(void)printf(" %*s", len, buf);
 }
@@ -352,10 +354,13 @@ showquotas(int type, u_long id, const char *name)
 			prthumanval(7, dbtob(qup->dqblk.dqb_bhardlimit));
 		} else {
 			printf(" %7ju%c %7ju %7ju",
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_curblocks,
+			    (uintmax_t)dbtob(qup->dqblk.dqb_curblocks)
+				/ 1024,
 			    (msgb == NULL) ? ' ' : '*',
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bsoftlimit,
-			    dbtob(1024) * (uintmax_t)qup->dqblk.dqb_bhardlimit);
+			    (uintmax_t)dbtob(qup->dqblk.dqb_bsoftlimit)
+				/ 1024,
+			    (uintmax_t)dbtob(qup->dqblk.dqb_bhardlimit)
+				/ 1024);
 		}
 		if (msgb != NULL)
 			bgrace = timeprt(qup->dqblk.dqb_btime);

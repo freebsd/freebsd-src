@@ -5,10 +5,6 @@ LIB=	kvm
 SHLIBDIR?= /lib
 CFLAGS+=-DLIBC_SCCS -I${.CURDIR}
 
-.if ${MACHINE} == "sun4v"
-CFLAGS+=-DSUN4V
-.endif
-
 .if exists(${.CURDIR}/kvm_${MACHINE_ARCH}.c)
 KVM_ARCH=${MACHINE_ARCH}
 .else

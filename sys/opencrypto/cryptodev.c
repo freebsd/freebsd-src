@@ -301,7 +301,9 @@ static struct fileops cryptofops = {
     .fo_poll = cryptof_poll,
     .fo_kqfilter = cryptof_kqfilter,
     .fo_stat = cryptof_stat,
-    .fo_close = cryptof_close
+    .fo_close = cryptof_close,
+    .fo_chmod = invfo_chmod,
+    .fo_chown = invfo_chown,
 };
 
 static struct csession *csefind(struct fcrypt *, u_int);
@@ -1109,7 +1111,7 @@ cryptoioctl(struct cdev *dev, u_long cmd, caddr_t data, int flag, struct thread 
 		TAILQ_INIT(&fcr->csessions);
 		fcr->sesn = 0;
 
-		error = falloc(td, &f, &fd);
+		error = falloc(td, &f, &fd, 0);
 
 		if (error) {
 			free(fcr, M_XDATA);

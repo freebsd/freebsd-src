@@ -86,6 +86,7 @@ struct ip_fw_args {
 	struct mbuf	*m;		/* the mbuf chain		*/
 	struct ifnet	*oif;		/* output interface		*/
 	struct sockaddr_in *next_hop;	/* forward address		*/
+	struct sockaddr_in6 *next_hop6; /* ipv6 forward address		*/
 
 	/*
 	 * On return, it points to the matching rule.
@@ -225,6 +226,7 @@ struct ip_fw_chain {
 	struct rwlock	uh_lock;	/* lock for upper half */
 #endif
 	uint32_t	id;		/* ruleset id */
+	uint32_t	gencnt;		/* generation count */
 };
 
 struct sockopt;	/* used by tcp_var.h */

@@ -24,15 +24,15 @@ namespace CodeGen {
 
 /// The exceptions personality for a function.  When 
 class EHPersonality {
-  llvm::StringRef PersonalityFn;
+  StringRef PersonalityFn;
 
   // If this is non-null, this personality requires a non-standard
   // function for rethrowing an exception after a catchall cleanup.
   // This function must have prototype void(void*).
-  llvm::StringRef CatchallRethrowFn;
+  StringRef CatchallRethrowFn;
 
-  EHPersonality(llvm::StringRef PersonalityFn,
-                llvm::StringRef CatchallRethrowFn = llvm::StringRef())
+  EHPersonality(StringRef PersonalityFn,
+                StringRef CatchallRethrowFn = StringRef())
     : PersonalityFn(PersonalityFn),
       CatchallRethrowFn(CatchallRethrowFn) {}
 
@@ -41,12 +41,13 @@ public:
   static const EHPersonality GNU_C;
   static const EHPersonality GNU_C_SJLJ;
   static const EHPersonality GNU_ObjC;
+  static const EHPersonality GNU_ObjCXX;
   static const EHPersonality NeXT_ObjC;
   static const EHPersonality GNU_CPlusPlus;
   static const EHPersonality GNU_CPlusPlus_SJLJ;
 
-  llvm::StringRef getPersonalityFnName() const { return PersonalityFn; }
-  llvm::StringRef getCatchallRethrowFnName() const { return CatchallRethrowFn; }
+  StringRef getPersonalityFnName() const { return PersonalityFn; }
+  StringRef getCatchallRethrowFnName() const { return CatchallRethrowFn; }
 };
 
 }

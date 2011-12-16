@@ -14,9 +14,10 @@
 #ifndef LLVM_CLANG_LEX_HEADERMAP_H
 #define LLVM_CLANG_LEX_HEADERMAP_H
 
+#include "clang/Basic/LLVM.h"
+
 namespace llvm {
   class MemoryBuffer;
-  class StringRef;
 }
 namespace clang {
   class FileEntry;
@@ -47,7 +48,11 @@ public:
 
   /// LookupFile - Check to see if the specified relative filename is located in
   /// this HeaderMap.  If so, open it and return its FileEntry.
-  const FileEntry *LookupFile(llvm::StringRef Filename, FileManager &FM) const;
+  /// If RawPath is not NULL and the file is found, RawPath will be set to the
+  /// raw path at which the file was found in the file system. For example,
+  /// for a search path ".." and a filename "../file.h" this would be
+  /// "../../file.h".
+  const FileEntry *LookupFile(StringRef Filename, FileManager &FM) const;
 
   /// getFileName - Return the filename of the headermap.
   const char *getFileName() const;

@@ -49,17 +49,6 @@ __FBSDID("$FreeBSD$");
 static devclass_t	sc_devclass;
 
 static sc_softc_t	main_softc;
-#ifdef SC_NO_SUSPEND_VTYSWITCH
-static int sc_no_suspend_vtswitch = 1;
-#else
-static int sc_no_suspend_vtswitch = 0;
-#endif
-static int sc_cur_scr;
-
-TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
-SYSCTL_DECL(_hw_syscons);
-SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
-    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 
 static void
 scidentify(driver_t *driver, device_t parent)
@@ -85,47 +74,6 @@ scattach(device_t dev)
 {
 
 	return sc_attach_unit(device_get_unit(dev), device_get_flags(dev));
-}
-
-static int
-scsuspend(device_t dev)
-{
-	int		retry = 10;
-	sc_softc_t	*sc;
-
-	sc = &main_softc;
-
-	if (sc->cur_scp == NULL)
-		return (0);
-
-	sc_cur_scr = sc->cur_scp->index;
-
-	if (sc_no_suspend_vtswitch)
-		return (0);
-
-	do {
-		sc_switch_scr(sc, 0);
-		if (!sc->switch_in_progress) {
-			break;
-		}
-		pause("scsuspend", hz);
-	} while (retry--);
-
-	return (0);
-}
-
-static int
-scresume(device_t dev)
-{
-	sc_softc_t	*sc;
-
-	if (sc_no_suspend_vtswitch)
-		return (0);
-
-	sc = &main_softc;
-	sc_switch_scr(sc, sc_cur_scr);
-
-	return (0);
 }
 
 int
@@ -242,8 +190,6 @@ static device_method_t sc_methods[] = {
 	DEVMETHOD(device_identify,	scidentify),
 	DEVMETHOD(device_probe,         scprobe),
 	DEVMETHOD(device_attach,        scattach),
-	DEVMETHOD(device_suspend,       scsuspend),
-	DEVMETHOD(device_resume,        scresume),
 	{ 0, 0 }
 };
 

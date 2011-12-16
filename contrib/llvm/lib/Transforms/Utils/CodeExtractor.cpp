@@ -50,14 +50,14 @@ namespace {
     DominatorTree* DT;
     bool AggregateArgs;
     unsigned NumExitBlocks;
-    const Type *RetTy;
+    Type *RetTy;
   public:
     CodeExtractor(DominatorTree* dt = 0, bool AggArgs = false)
       : DT(dt), AggregateArgs(AggArgs||AggregateArgsOpt), NumExitBlocks(~0U) {}
 
-    Function *ExtractCodeRegion(const std::vector<BasicBlock*> &code);
+    Function *ExtractCodeRegion(ArrayRef<BasicBlock*> code);
 
-    bool isEligible(const std::vector<BasicBlock*> &code);
+    bool isEligible(ArrayRef<BasicBlock*> code);
 
   private:
     /// definedInRegion - Return true if the specified value is defined in the
@@ -104,7 +104,7 @@ namespace {
 /// region, we need to split the entry block of the region so that the PHI node
 /// is easier to deal with.
 void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
-  bool HasPredsFromRegion = false;
+  unsigned NumPredsFromRegion = 0;
   unsigned NumPredsOutsideRegion = 0;
 
   if (Header != &Header->getParent()->getEntryBlock()) {
@@ -116,7 +116,7 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
     // header block into two.
     for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
       if (BlocksToExtract.count(PN->getIncomingBlock(i)))
-        HasPredsFromRegion = true;
+        ++NumPredsFromRegion;
       else
         ++NumPredsOutsideRegion;
 
@@ -147,7 +147,7 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
 
   // Okay, now we need to adjust the PHI nodes and any branches from within the
   // region to go to the new header block instead of the old header block.
-  if (HasPredsFromRegion) {
+  if (NumPredsFromRegion) {
     PHINode *PN = cast<PHINode>(OldPred->begin());
     // Loop over all of the predecessors of OldPred that are in the region,
     // changing them to branch to NewBB instead.
@@ -157,14 +157,14 @@ void CodeExtractor::severSplitPHINodes(BasicBlock *&Header) {
         TI->replaceUsesOfWith(OldPred, NewBB);
       }
 
-    // Okay, everthing within the region is now branching to the right block, we
+    // Okay, everything within the region is now branching to the right block, we
     // just have to update the PHI nodes now, inserting PHI nodes into NewBB.
     for (AfterPHIs = OldPred->begin(); isa<PHINode>(AfterPHIs); ++AfterPHIs) {
       PHINode *PN = cast<PHINode>(AfterPHIs);
       // Create a new PHI node in the new region, which has an incoming value
       // from OldPred of PN.
-      PHINode *NewPN = PHINode::Create(PN->getType(), PN->getName()+".ce",
-                                       NewBB->begin());
+      PHINode *NewPN = PHINode::Create(PN->getType(), 1 + NumPredsFromRegion,
+                                       PN->getName()+".ce", NewBB->begin());
       NewPN->addIncoming(PN, OldPred);
 
       // Loop over all of the incoming value in PN, moving them to NewPN if they
@@ -258,7 +258,7 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
   default: RetTy = Type::getInt16Ty(header->getContext()); break;
   }
 
-  std::vector<const Type*> paramTy;
+  std::vector<Type*> paramTy;
 
   // Add the types of the input values to the function's argument list
   for (Values::const_iterator i = inputs.begin(),
@@ -279,7 +279,7 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
   }
 
   DEBUG(dbgs() << "Function type: " << *RetTy << " f(");
-  for (std::vector<const Type*>::iterator i = paramTy.begin(),
+  for (std::vector<Type*>::iterator i = paramTy.begin(),
          e = paramTy.end(); i != e; ++i)
     DEBUG(dbgs() << **i << ", ");
   DEBUG(dbgs() << ")\n");
@@ -290,7 +290,7 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
     paramTy.clear();
     paramTy.push_back(StructPtr);
   }
-  const FunctionType *funcType =
+  FunctionType *funcType =
                   FunctionType::get(RetTy, paramTy, false);
 
   // Create the new function
@@ -317,8 +317,7 @@ Function *CodeExtractor::constructFunction(const Values &inputs,
       Idx[1] = ConstantInt::get(Type::getInt32Ty(header->getContext()), i);
       TerminatorInst *TI = newFunction->begin()->getTerminator();
       GetElementPtrInst *GEP = 
-        GetElementPtrInst::Create(AI, Idx, Idx+2, 
-                                  "gep_" + inputs[i]->getName(), TI);
+        GetElementPtrInst::Create(AI, Idx, "gep_" + inputs[i]->getName(), TI);
       RewriteVal = new LoadInst(GEP, "loadgep_" + inputs[i]->getName(), TI);
     } else
       RewriteVal = AI++;
@@ -403,7 +402,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
 
   AllocaInst *Struct = 0;
   if (AggregateArgs && (inputs.size() + outputs.size() > 0)) {
-    std::vector<const Type*> ArgTypes;
+    std::vector<Type*> ArgTypes;
     for (Values::iterator v = StructValues.begin(),
            ve = StructValues.end(); v != ve; ++v)
       ArgTypes.push_back((*v)->getType());
@@ -420,7 +419,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
       Idx[0] = Constant::getNullValue(Type::getInt32Ty(Context));
       Idx[1] = ConstantInt::get(Type::getInt32Ty(Context), i);
       GetElementPtrInst *GEP =
-        GetElementPtrInst::Create(Struct, Idx, Idx + 2,
+        GetElementPtrInst::Create(Struct, Idx,
                                   "gep_" + StructValues[i]->getName());
       codeReplacer->getInstList().push_back(GEP);
       StoreInst *SI = new StoreInst(StructValues[i], GEP);
@@ -429,7 +428,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
   }
 
   // Emit the call to the function
-  CallInst *call = CallInst::Create(newFunction, params.begin(), params.end(),
+  CallInst *call = CallInst::Create(newFunction, params,
                                     NumExitBlocks > 1 ? "targetBlock" : "");
   codeReplacer->getInstList().push_back(call);
 
@@ -446,7 +445,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
       Idx[0] = Constant::getNullValue(Type::getInt32Ty(Context));
       Idx[1] = ConstantInt::get(Type::getInt32Ty(Context), FirstOut + i);
       GetElementPtrInst *GEP
-        = GetElementPtrInst::Create(Struct, Idx, Idx + 2,
+        = GetElementPtrInst::Create(Struct, Idx,
                                     "gep_reload_" + outputs[i]->getName());
       codeReplacer->getInstList().push_back(GEP);
       Output = GEP;
@@ -561,7 +560,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
                 Idx[1] = ConstantInt::get(Type::getInt32Ty(Context),
                                           FirstOut+out);
                 GetElementPtrInst *GEP =
-                  GetElementPtrInst::Create(OAI, Idx, Idx + 2,
+                  GetElementPtrInst::Create(OAI, Idx,
                                             "gep_" + outputs[out]->getName(),
                                             NTRet);
                 new StoreInst(outputs[out], GEP, NTRet);
@@ -580,7 +579,7 @@ emitCallAndSwitchStatement(Function *newFunction, BasicBlock *codeReplacer,
   }
 
   // Now that we've done the deed, simplify the switch instruction.
-  const Type *OldFnRetTy = TheSwitch->getParent()->getParent()->getReturnType();
+  Type *OldFnRetTy = TheSwitch->getParent()->getParent()->getReturnType();
   switch (NumExitBlocks) {
   case 0:
     // There are no successors (the block containing the switch itself), which
@@ -655,7 +654,7 @@ void CodeExtractor::moveCodeToFunction(Function *newFunction) {
 /// computed result back into memory.
 ///
 Function *CodeExtractor::
-ExtractCodeRegion(const std::vector<BasicBlock*> &code) {
+ExtractCodeRegion(ArrayRef<BasicBlock*> code) {
   if (!isEligible(code))
     return 0;
 
@@ -755,9 +754,13 @@ ExtractCodeRegion(const std::vector<BasicBlock*> &code) {
   return newFunction;
 }
 
-bool CodeExtractor::isEligible(const std::vector<BasicBlock*> &code) {
+bool CodeExtractor::isEligible(ArrayRef<BasicBlock*> code) {
+  // Deny a single basic block that's a landing pad block.
+  if (code.size() == 1 && code[0]->isLandingPad())
+    return false;
+
   // Deny code region if it contains allocas or vastarts.
-  for (std::vector<BasicBlock*>::const_iterator BB = code.begin(), e=code.end();
+  for (ArrayRef<BasicBlock*>::iterator BB = code.begin(), e=code.end();
        BB != e; ++BB)
     for (BasicBlock::const_iterator I = (*BB)->begin(), Ie = (*BB)->end();
          I != Ie; ++I)
@@ -771,25 +774,23 @@ bool CodeExtractor::isEligible(const std::vector<BasicBlock*> &code) {
 }
 
 
-/// ExtractCodeRegion - slurp a sequence of basic blocks into a brand new
-/// function
+/// ExtractCodeRegion - Slurp a sequence of basic blocks into a brand new
+/// function.
 ///
 Function* llvm::ExtractCodeRegion(DominatorTree &DT,
-                                  const std::vector<BasicBlock*> &code,
+                                  ArrayRef<BasicBlock*> code,
                                   bool AggregateArgs) {
   return CodeExtractor(&DT, AggregateArgs).ExtractCodeRegion(code);
 }
 
-/// ExtractBasicBlock - slurp a natural loop into a brand new function
+/// ExtractLoop - Slurp a natural loop into a brand new function.
 ///
 Function* llvm::ExtractLoop(DominatorTree &DT, Loop *L, bool AggregateArgs) {
   return CodeExtractor(&DT, AggregateArgs).ExtractCodeRegion(L->getBlocks());
 }
 
-/// ExtractBasicBlock - slurp a basic block into a brand new function
+/// ExtractBasicBlock - Slurp a basic block into a brand new function.
 ///
-Function* llvm::ExtractBasicBlock(BasicBlock *BB, bool AggregateArgs) {
-  std::vector<BasicBlock*> Blocks;
-  Blocks.push_back(BB);
-  return CodeExtractor(0, AggregateArgs).ExtractCodeRegion(Blocks);
+Function* llvm::ExtractBasicBlock(ArrayRef<BasicBlock*> BBs, bool AggregateArgs){
+  return CodeExtractor(0, AggregateArgs).ExtractCodeRegion(BBs);
 }

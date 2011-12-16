@@ -14,7 +14,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
@@ -24,7 +24,7 @@ using namespace ento;
 
 namespace {
 class FixedAddressChecker 
-  : public CheckerV2< check::PreStmt<BinaryOperator> > {
+  : public Checker< check::PreStmt<BinaryOperator> > {
   mutable llvm::OwningPtr<BuiltinBug> BT;
 
 public:
@@ -44,7 +44,7 @@ void FixedAddressChecker::checkPreStmt(const BinaryOperator *B,
   if (!T->isPointerType())
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   SVal RV = state->getSVal(B->getRHS());
 
@@ -57,7 +57,7 @@ void FixedAddressChecker::checkPreStmt(const BinaryOperator *B,
                           "Using a fixed address is not portable because that "
                           "address will probably not be valid in all "
                           "environments or platforms."));
-    RangedBugReport *R = new RangedBugReport(*BT, BT->getDescription(), N);
+    BugReport *R = new BugReport(*BT, BT->getDescription(), N);
     R->addRange(B->getRHS()->getSourceRange());
     C.EmitReport(R);
   }

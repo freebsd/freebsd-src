@@ -201,7 +201,9 @@ add_new_resolv_conf() {
 	local tmpres=/var/run/resolv.conf.${interface}
 	rm -f $tmpres
 
-	if [ -n "$new_domain_name" ]; then
+	if [ -n "$new_domain_search" ]; then
+		echo "search $new_domain_search" >>$tmpres
+	elif [ -n "$new_domain_name" ]; then
 		echo "search $new_domain_name" >>$tmpres
 	fi
 
@@ -216,29 +218,40 @@ add_new_resolv_conf() {
 			cat /etc/resolv.conf.tail >>$tmpres
 		fi
 
-		# When resolv.conf is not changed actually, we don't
-		# need to update it.
-		# If /usr is not mounted yet, we cannot use cmp, then
-		# the following test fails.  In such case, we simply
-		# ignore an error and do update resolv.conf.
-		if cmp -s $tmpres /etc/resolv.conf; then
-			rm -f $tmpres
-			return 0
-		fi 2>/dev/null
+		case $resolvconf_enable in
+		# "no", "false", "off", or "0"
+		[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+			# When resolv.conf is not changed actually, we don't
+			# need to update it.
+			# If /usr is not mounted yet, we cannot use cmp, then
+			# the following test fails.  In such case, we simply
+			# ignore an error and do update resolv.conf.
+			if cmp -s $tmpres /etc/resolv.conf; then
+				rm -f $tmpres
+				return 0
+			fi 2>/dev/null
 
-		# In case (e.g. during OpenBSD installs) /etc/resolv.conf
-		# is a symbolic link, take care to preserve the link and write
-		# the new data in the correct location.
+			# In case (e.g. during OpenBSD installs)
+			# /etc/resolv.conf is a symbolic link, take
+			# care to preserve the link and write the new
+			# data in the correct location.
 
-		if [ -f /etc/resolv.conf ]; then
-			cat /etc/resolv.conf > /etc/resolv.conf.save
-		fi
-		cat $tmpres > /etc/resolv.conf
+			if [ -f /etc/resolv.conf ]; then
+				cat /etc/resolv.conf > /etc/resolv.conf.save
+			fi
+			cat $tmpres > /etc/resolv.conf
+
+			# Try to ensure correct ownership and permissions.
+			chown -RL root:wheel /etc/resolv.conf
+			chmod -RL 644 /etc/resolv.conf
+			;;
+
+		*)
+			/sbin/resolvconf -a ${interface} < $tmpres
+			;;
+		esac
+
 		rm -f $tmpres
-
-		# Try to ensure correct ownership and permissions.
-		chown -RL root:wheel /etc/resolv.conf
-		chmod -RL 644 /etc/resolv.conf
 
 		return 0
 	fi
@@ -296,6 +309,8 @@ if [ -f /etc/dhclient-enter-hooks ]; then
 	fi
 fi
 
+: ${resolvconf_enable="YES"}
+
 case $reason in
 MEDIUM)
 	eval "$IFCONFIG $interface $medium"
@@ -305,7 +320,7 @@ MEDIUM)
 
 PREINIT)
 	delete_old_alias
-	$IFCONFIG $interface inet alias 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	$IFCONFIG $interface inet alias 0.0.0.0 netmask 255.0.0.0 broadcast 255.255.255.255 up
 	;;
 
 ARPCHECK|ARPSEND)
@@ -349,9 +364,17 @@ EXPIRE|FAIL)
 	# XXX Why add alias we just deleted above?
 	add_new_alias
 	if is_default_interface; then
-		if [ -f /etc/resolv.conf.save ]; then
-			cat /etc/resolv.conf.save > /etc/resolv.conf
-		fi
+		case $resolvconf_enable in
+		# "no", "false", "off", or "0"
+		[Nn][Oo]|[Ff][Aa][Ll][Ss][Ee]|[Oo][Ff][Ff]|0)
+			if [ -f /etc/resolv.conf.save ]; then
+				cat /etc/resolv.conf.save > /etc/resolv.conf
+			fi
+			;;
+		*)
+			/sbin/resolvconf -d ${interface}
+			;;
+		esac
 	fi
 	;;
 

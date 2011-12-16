@@ -1,0 +1,36 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_REGISTER 3  "May 11, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_register \- register the specified management class and version for port
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_register(int " "portid" ", int " "mgmt_class" ", int " "mgmt_version" " , uint8_t " "rmpp_version" ", uint32_t " "method_mask[4]");
+.fi
+.SH "DESCRIPTION"
+.B umad_register()
+registers the specified management class, management version,
+and whether RMPP is being used for the port specified by the
+.I portid\fR
+parameter. If
+.I method_mask\fR
+array is provided, the caller is registered as a replier (server) for the
+methods having their corresponding bit on in the
+.I method_mask\fR.
+If
+.I method_mask\fR
+is NULL, the caller is registered as a MAD client, meaning that it can
+only receive replies on MADs that it sent (solicited MADs).
+.SH "RETURN VALUE"
+.B umad_register()
+returns non-negative agent id number on success, and a negative value on error as follows:
+ -EINVAL invalid port handle
+ -EPERM  registration failed
+.SH "SEE ALSO"
+.BR umad_register_oui(3),
+.BR umad_unregister (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

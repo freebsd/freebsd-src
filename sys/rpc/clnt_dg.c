@@ -467,7 +467,10 @@ send_again:
 		    cu->cu_waitflag, "rpccwnd", 0);
 		if (error) {
 			errp->re_errno = error;
-			errp->re_status = stat = RPC_CANTSEND;
+			if (error == EINTR || error == ERESTART)
+				errp->re_status = stat = RPC_INTR;
+			else
+				errp->re_status = stat = RPC_CANTSEND;
 			goto out;
 		}
 	}
@@ -636,7 +639,7 @@ get_reply:
 		 */
 		if (error != EWOULDBLOCK) {
 			errp->re_errno = error;
-			if (error == EINTR)
+			if (error == EINTR || error == ERESTART)
 				errp->re_status = stat = RPC_INTR;
 			else
 				errp->re_status = stat = RPC_CANTRECV;
@@ -998,12 +1001,12 @@ clnt_dg_destroy(CLIENT *cl)
 	cs = cu->cu_socket->so_rcv.sb_upcallarg;
 	clnt_dg_close(cl);
 
+	SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
 	mtx_lock(&cs->cs_lock);
 
 	cs->cs_refs--;
 	if (cs->cs_refs == 0) {
 		mtx_unlock(&cs->cs_lock);
-		SOCKBUF_LOCK(&cu->cu_socket->so_rcv);
 		soupcall_clear(cu->cu_socket, SO_RCV);
 		clnt_dg_upcallsdone(cu->cu_socket, cs);
 		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
@@ -1012,6 +1015,7 @@ clnt_dg_destroy(CLIENT *cl)
 		lastsocketref = TRUE;
 	} else {
 		mtx_unlock(&cs->cs_lock);
+		SOCKBUF_UNLOCK(&cu->cu_socket->so_rcv);
 		lastsocketref = FALSE;
 	}
 
@@ -1086,11 +1090,13 @@ clnt_dg_soupcall(struct socket *so, void *arg, int waitflag)
 		/*
 		 * The XID is in the first uint32_t of the reply.
 		 */
-		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid))
+		if (m->m_len < sizeof(xid) && m_length(m, NULL) < sizeof(xid)) {
 			/*
 			 * Should never happen.
 			 */
+			m_freem(m);
 			continue;
+		}
 
 		m_copydata(m, 0, sizeof(xid), (char *)&xid);
 		xid = ntohl(xid);

@@ -441,7 +441,7 @@ ece_attach(device_t dev)
 	taskqueue_start_threads(&sc->sc_tq, 1, PI_NET, "%s taskq",
 	    device_get_nameunit(sc->dev));
 
-out:;
+out:
 	if (err)
 		ece_deactivate(dev);
 	if (err && ifp)

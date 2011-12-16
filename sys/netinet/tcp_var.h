@@ -203,9 +203,9 @@ struct tcpcb {
 	struct cc_var	*ccv;		/* congestion control specific vars */
 	struct osd	*osd;		/* storage for Khelp module data */
 
-	int	t_ispare;		/* explicit pad for 64bit alignment */
+	uint32_t t_ispare[12];		/* 4 keep timers, 5 UTO, 3 TBD */
 	void	*t_pspare2[4];		/* 4 TBD */
-	uint64_t _pad[12];		/* 7 UTO, 5 TBD (1-2 CC/RTT?) */
+	uint64_t _pad[6];		/* 6 TBD (1-2 CC/RTT?) */
 };
 
 /*
@@ -224,6 +224,7 @@ struct tcpcb {
 #define	TF_NEEDSYN	0x000400	/* send SYN (implicit state) */
 #define	TF_NEEDFIN	0x000800	/* send FIN (implicit state) */
 #define	TF_NOPUSH	0x001000	/* don't push */
+#define	TF_PREVVALID	0x002000	/* saved values for bad rxmit valid */
 #define	TF_MORETOCOME	0x010000	/* More data to be appended to sock */
 #define	TF_LQ_OVERFLOW	0x020000	/* listen queue overflow */
 #define	TF_LASTIDLE	0x040000	/* connection was previously idle */
@@ -299,6 +300,7 @@ struct tcpopt {
 	u_int16_t	to_mss;		/* maximum segment size */
 	u_int8_t	to_wscale;	/* window scaling */
 	u_int8_t	to_nsacks;	/* number of SACK blocks */
+	u_int32_t	to_spare;	/* UTO */
 };
 
 /*
@@ -485,6 +487,13 @@ struct	tcpstat {
 	u_long	tcps_ecn_shs;		/* ECN successful handshakes */
 	u_long	tcps_ecn_rcwnd;		/* # times ECN reduced the cwnd */
 
+	/* TCP_SIGNATURE related stats */
+	u_long	tcps_sig_rcvgoodsig;	/* Total matching signature received */
+	u_long	tcps_sig_rcvbadsig;	/* Total bad signature received */
+	u_long	tcps_sig_err_buildsig;	/* Mismatching signature received */
+	u_long	tcps_sig_err_sigopt;	/* No signature expected by socket */
+	u_long	tcps_sig_err_nosigopt;	/* No signature provided by segment */
+
 	u_long	_pad[12];		/* 6 UTO, 6 TBD */
 };
 
@@ -597,9 +606,9 @@ VNET_DECLARE(int, tcp_mssdflt);	/* XXX */
 VNET_DECLARE(int, tcp_minmss);
 VNET_DECLARE(int, tcp_delack_enabled);
 VNET_DECLARE(int, tcp_do_rfc3390);
+VNET_DECLARE(int, tcp_sendspace);
+VNET_DECLARE(int, tcp_recvspace);
 VNET_DECLARE(int, path_mtu_discovery);
-VNET_DECLARE(int, ss_fltsz);
-VNET_DECLARE(int, ss_fltsz_local);
 VNET_DECLARE(int, tcp_do_rfc3465);
 VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcb			VNET(tcb)
@@ -609,9 +618,9 @@ VNET_DECLARE(int, tcp_abc_l_var);
 #define	V_tcp_minmss		VNET(tcp_minmss)
 #define	V_tcp_delack_enabled	VNET(tcp_delack_enabled)
 #define	V_tcp_do_rfc3390	VNET(tcp_do_rfc3390)
+#define	V_tcp_sendspace		VNET(tcp_sendspace)
+#define	V_tcp_recvspace		VNET(tcp_recvspace)
 #define	V_path_mtu_discovery	VNET(path_mtu_discovery)
-#define	V_ss_fltsz		VNET(ss_fltsz)
-#define	V_ss_fltsz_local	VNET(ss_fltsz_local)
 #define	V_tcp_do_rfc3465	VNET(tcp_do_rfc3465)
 #define	V_tcp_abc_l_var		VNET(tcp_abc_l_var)
 
@@ -684,6 +693,8 @@ int	 tcp_twrespond(struct tcptw *, int);
 void	 tcp_setpersist(struct tcpcb *);
 #ifdef TCP_SIGNATURE
 int	 tcp_signature_compute(struct mbuf *, int, int, int, u_char *, u_int);
+int	 tcp_signature_verify(struct mbuf *, int, int, int, struct tcpopt *,
+	    struct tcphdr *, u_int);
 #endif
 void	 tcp_slowtimo(void);
 struct tcptemp *
@@ -705,8 +716,6 @@ void	 tcp_hc_updatemtu(struct in_conninfo *, u_long);
 void	 tcp_hc_update(struct in_conninfo *, struct hc_metrics_lite *);
 
 extern	struct pr_usrreqs tcp_usrreqs;
-extern	u_long tcp_sendspace;
-extern	u_long tcp_recvspace;
 tcp_seq tcp_new_isn(struct tcpcb *);
 
 void	 tcp_sack_doack(struct tcpcb *, struct tcpopt *, tcp_seq);

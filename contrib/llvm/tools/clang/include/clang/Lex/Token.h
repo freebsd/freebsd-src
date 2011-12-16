@@ -63,9 +63,7 @@ class Token {
 
   /// Kind - The actual flavor of token this is.
   ///
-  unsigned char Kind; // DON'T make Kind a 'tok::TokenKind';
-                      // MSVC will treat it as a signed char and
-                      // TokenKinds > 127 won't be handled correctly.
+  unsigned short Kind;
 
   /// Flags - Bits we track about this token, members of the TokenFlags enum.
   unsigned char Flags;
@@ -98,7 +96,10 @@ public:
   /// constant, string, etc.
   bool isLiteral() const {
     return is(tok::numeric_constant) || is(tok::char_constant) ||
-           is(tok::string_literal) || is(tok::wide_string_literal) ||
+           is(tok::wide_char_constant) || is(tok::utf16_char_constant) ||
+           is(tok::utf32_char_constant) || is(tok::string_literal) ||
+           is(tok::wide_string_literal) || is(tok::utf8_string_literal) ||
+           is(tok::utf16_string_literal) || is(tok::utf32_string_literal) ||
            is(tok::angle_string_literal);
   }
 

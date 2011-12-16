@@ -15,9 +15,11 @@
 #define LLVM_ASMPARSER_LLPARSER_H
 
 #include "LLLexer.h"
+#include "llvm/Instructions.h"
 #include "llvm/Module.h"
 #include "llvm/Type.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/ValueHandle.h"
 #include <map>
 
@@ -32,6 +34,7 @@ namespace llvm {
   class GlobalValue;
   class MDString;
   class MDNode;
+  class StructType;
 
   /// ValID - Represents a reference of a definition of some sort with no type.
   /// There are several cases where we have to parse the value but where the
@@ -47,7 +50,9 @@ namespace llvm {
       t_Constant,                 // Value in ConstantVal.
       t_InlineAsm,                // Value in StrVal/StrVal2/UIntVal.
       t_MDNode,                   // Value in MDNodeVal.
-      t_MDString                  // Value in MDStringVal.
+      t_MDString,                 // Value in MDStringVal.
+      t_ConstantStruct,           // Value in ConstantStructElts.
+      t_PackedConstantStruct      // Value in ConstantStructElts.
     } Kind;
     
     LLLexer::LocTy Loc;
@@ -58,12 +63,19 @@ namespace llvm {
     Constant *ConstantVal;
     MDNode *MDNodeVal;
     MDString *MDStringVal;
-    ValID() : APFloatVal(0.0) {}
+    Constant **ConstantStructElts;
+    
+    ValID() : Kind(t_LocalID), APFloatVal(0.0) {}
+    ~ValID() {
+      if (Kind == t_ConstantStruct || Kind == t_PackedConstantStruct)
+        delete [] ConstantStructElts;
+    }
     
     bool operator<(const ValID &RHS) const {
       if (Kind == t_LocalID || Kind == t_GlobalID)
         return UIntVal < RHS.UIntVal;
-      assert((Kind == t_LocalName || Kind == t_GlobalName) && 
+      assert((Kind == t_LocalName || Kind == t_GlobalName ||
+              Kind == t_ConstantStruct || Kind == t_PackedConstantStruct) && 
              "Ordering not defined for this ValID kind yet");
       return StrVal < RHS.StrVal;
     }
@@ -93,33 +105,13 @@ namespace llvm {
     };
     DenseMap<Instruction*, std::vector<MDRef> > ForwardRefInstMetadata;
 
-    // Type resolution handling data structures.
-    std::map<std::string, std::pair<PATypeHolder, LocTy> > ForwardRefTypes;
-    std::map<unsigned, std::pair<PATypeHolder, LocTy> > ForwardRefTypeIDs;
-    std::vector<PATypeHolder> NumberedTypes;
+    // Type resolution handling data structures.  The location is set when we
+    // have processed a use of the type but not a definition yet.
+    StringMap<std::pair<Type*, LocTy> > NamedTypes;
+    std::vector<std::pair<Type*, LocTy> > NumberedTypes;
+    
     std::vector<TrackingVH<MDNode> > NumberedMetadata;
     std::map<unsigned, std::pair<TrackingVH<MDNode>, LocTy> > ForwardRefMDNodes;
-    struct UpRefRecord {
-      /// Loc - This is the location of the upref.
-      LocTy Loc;
-
-      /// NestingLevel - The number of nesting levels that need to be popped
-      /// before this type is resolved.
-      unsigned NestingLevel;
-
-      /// LastContainedTy - This is the type at the current binding level for
-      /// the type.  Every time we reduce the nesting level, this gets updated.
-      const Type *LastContainedTy;
-
-      /// UpRefTy - This is the actual opaque type that the upreference is
-      /// represented with.
-      OpaqueType *UpRefTy;
-
-      UpRefRecord(LocTy L, unsigned NL, OpaqueType *URTy)
-        : Loc(L), NestingLevel(NL), LastContainedTy((Type*)URTy),
-          UpRefTy(URTy) {}
-    };
-    std::vector<UpRefRecord> UpRefs;
 
     // Global Value reference information.
     std::map<std::string, std::pair<GlobalValue*, LocTy> > ForwardRefVals;
@@ -131,14 +123,13 @@ namespace llvm {
     std::map<ValID, std::vector<std::pair<ValID, GlobalValue*> > >
       ForwardRefBlockAddresses;
     
-    Function *MallocF;
   public:
     LLParser(MemoryBuffer *F, SourceMgr &SM, SMDiagnostic &Err, Module *m) : 
       Context(m->getContext()), Lex(F, SM, Err, m->getContext()),
-      M(m), MallocF(NULL) {}
+      M(m) {}
     bool Run();
 
-    LLVMContext& getContext() { return Context; }
+    LLVMContext &getContext() { return Context; }
 
   private:
 
@@ -152,8 +143,8 @@ namespace llvm {
     /// GetGlobalVal - Get a value with the specified name or ID, creating a
     /// forward reference record if needed.  This can return null if the value
     /// exists but does not have the right type.
-    GlobalValue *GetGlobalVal(const std::string &N, const Type *Ty, LocTy Loc);
-    GlobalValue *GetGlobalVal(unsigned ID, const Type *Ty, LocTy Loc);
+    GlobalValue *GetGlobalVal(const std::string &N, Type *Ty, LocTy Loc);
+    GlobalValue *GetGlobalVal(unsigned ID, Type *Ty, LocTy Loc);
 
     // Helper Routines.
     bool ParseToken(lltok::Kind T, const char *ErrMsg);
@@ -188,6 +179,8 @@ namespace llvm {
     bool ParseOptionalVisibility(unsigned &Visibility);
     bool ParseOptionalCallingConv(CallingConv::ID &CC);
     bool ParseOptionalAlignment(unsigned &Alignment);
+    bool ParseScopeAndOrdering(bool isAtomic, SynchronizationScope &Scope,
+                               AtomicOrdering &Ordering);
     bool ParseOptionalStackAlignment(unsigned &Alignment);
     bool ParseOptionalCommaAlign(unsigned &Alignment, bool &AteExtraComma);
     bool ParseIndexList(SmallVectorImpl<unsigned> &Indices,bool &AteExtraComma);
@@ -223,16 +216,19 @@ namespace llvm {
     bool ParseMDNodeID(MDNode *&Result, unsigned &SlotNo);
 
     // Type Parsing.
-    bool ParseType(PATypeHolder &Result, bool AllowVoid = false);
-    bool ParseType(PATypeHolder &Result, LocTy &Loc, bool AllowVoid = false) {
+    bool ParseType(Type *&Result, bool AllowVoid = false);
+    bool ParseType(Type *&Result, LocTy &Loc, bool AllowVoid = false) {
       Loc = Lex.getLoc();
       return ParseType(Result, AllowVoid);
     }
-    bool ParseTypeRec(PATypeHolder &H);
-    bool ParseStructType(PATypeHolder &H, bool Packed);
-    bool ParseArrayVectorType(PATypeHolder &H, bool isVector);
-    bool ParseFunctionType(PATypeHolder &Result);
-    PATypeHolder HandleUpRefs(const Type *Ty);
+    bool ParseAnonStructType(Type *&Result, bool Packed);
+    bool ParseStructBody(SmallVectorImpl<Type*> &Body);
+    bool ParseStructDefinition(SMLoc TypeLoc, StringRef Name,
+                               std::pair<Type*, LocTy> &Entry,
+                               Type *&ResultTy);
+
+    bool ParseArrayVectorType(Type *&Result, bool isVector);
+    bool ParseFunctionType(Type *&Result);
 
     // Function Semantic Analysis.
     class PerFunctionState {
@@ -256,8 +252,8 @@ namespace llvm {
       /// GetVal - Get a value with the specified name or ID, creating a
       /// forward reference record if needed.  This can return null if the value
       /// exists but does not have the right type.
-      Value *GetVal(const std::string &Name, const Type *Ty, LocTy Loc);
-      Value *GetVal(unsigned ID, const Type *Ty, LocTy Loc);
+      Value *GetVal(const std::string &Name, Type *Ty, LocTy Loc);
+      Value *GetVal(unsigned ID, Type *Ty, LocTy Loc);
 
       /// SetInstName - After an instruction is parsed and inserted into its
       /// basic block, this installs its name.
@@ -276,17 +272,23 @@ namespace llvm {
       BasicBlock *DefineBB(const std::string &Name, LocTy Loc);
     };
 
-    bool ConvertValIDToValue(const Type *Ty, ValID &ID, Value *&V,
+    bool ConvertValIDToValue(Type *Ty, ValID &ID, Value *&V,
                              PerFunctionState *PFS);
 
-    bool ParseValue(const Type *Ty, Value *&V, PerFunctionState &PFS);
-    bool ParseValue(const Type *Ty, Value *&V, LocTy &Loc,
+    bool ParseValue(Type *Ty, Value *&V, PerFunctionState *PFS);
+    bool ParseValue(Type *Ty, Value *&V, PerFunctionState &PFS) {
+      return ParseValue(Ty, V, &PFS);
+    }
+    bool ParseValue(Type *Ty, Value *&V, LocTy &Loc,
                     PerFunctionState &PFS) {
       Loc = Lex.getLoc();
-      return ParseValue(Ty, V, PFS);
+      return ParseValue(Ty, V, &PFS);
     }
 
-    bool ParseTypeAndValue(Value *&V, PerFunctionState &PFS);
+    bool ParseTypeAndValue(Value *&V, PerFunctionState *PFS);
+    bool ParseTypeAndValue(Value *&V, PerFunctionState &PFS) {
+      return ParseTypeAndValue(V, &PFS);
+    }
     bool ParseTypeAndValue(Value *&V, LocTy &Loc, PerFunctionState &PFS) {
       Loc = Lex.getLoc();
       return ParseTypeAndValue(V, PFS);
@@ -311,7 +313,7 @@ namespace llvm {
 
     // Constant Parsing.
     bool ParseValID(ValID &ID, PerFunctionState *PFS = NULL);
-    bool ParseGlobalValue(const Type *Ty, Constant *&V);
+    bool ParseGlobalValue(Type *Ty, Constant *&V);
     bool ParseGlobalTypeAndValue(Constant *&V);
     bool ParseGlobalValueVector(SmallVectorImpl<Constant*> &Elts);
     bool ParseMetadataListValue(ValID &ID, PerFunctionState *PFS);
@@ -322,14 +324,13 @@ namespace llvm {
     // Function Parsing.
     struct ArgInfo {
       LocTy Loc;
-      PATypeHolder Type;
+      Type *Ty;
       unsigned Attrs;
       std::string Name;
-      ArgInfo(LocTy L, PATypeHolder Ty, unsigned Attr, const std::string &N)
-        : Loc(L), Type(Ty), Attrs(Attr), Name(N) {}
+      ArgInfo(LocTy L, Type *ty, unsigned Attr, const std::string &N)
+        : Loc(L), Ty(ty), Attrs(Attr), Name(N) {}
     };
-    bool ParseArgumentList(std::vector<ArgInfo> &ArgList,
-                           bool &isVarArg, bool inType);
+    bool ParseArgumentList(SmallVectorImpl<ArgInfo> &ArgList, bool &isVarArg);
     bool ParseFunctionHeader(Function *&Fn, bool isDefine);
     bool ParseFunctionBody(Function &Fn);
     bool ParseBasicBlock(PerFunctionState &PFS);
@@ -341,11 +342,12 @@ namespace llvm {
                          PerFunctionState &PFS);
     bool ParseCmpPredicate(unsigned &Pred, unsigned Opc);
 
-    int ParseRet(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
+    bool ParseRet(Instruction *&Inst, BasicBlock *BB, PerFunctionState &PFS);
     bool ParseBr(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseSwitch(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseIndirectBr(Instruction *&Inst, PerFunctionState &PFS);
     bool ParseInvoke(Instruction *&Inst, PerFunctionState &PFS);
+    bool ParseResume(Instruction *&Inst, PerFunctionState &PFS);
 
     bool ParseArithmetic(Instruction *&I, PerFunctionState &PFS, unsigned Opc,
                          unsigned OperandType);
@@ -358,13 +360,14 @@ namespace llvm {
     bool ParseInsertElement(Instruction *&I, PerFunctionState &PFS);
     bool ParseShuffleVector(Instruction *&I, PerFunctionState &PFS);
     int ParsePHI(Instruction *&I, PerFunctionState &PFS);
+    bool ParseLandingPad(Instruction *&I, PerFunctionState &PFS);
     bool ParseCall(Instruction *&I, PerFunctionState &PFS, bool isTail);
-    int ParseAlloc(Instruction *&I, PerFunctionState &PFS,
-                    BasicBlock *BB = 0, bool isAlloca = true);
-    bool ParseFree(Instruction *&I, PerFunctionState &PFS, BasicBlock *BB);
+    int ParseAlloc(Instruction *&I, PerFunctionState &PFS);
     int ParseLoad(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
     int ParseStore(Instruction *&I, PerFunctionState &PFS, bool isVolatile);
-    bool ParseGetResult(Instruction *&I, PerFunctionState &PFS);
+    int ParseCmpXchg(Instruction *&I, PerFunctionState &PFS);
+    int ParseAtomicRMW(Instruction *&I, PerFunctionState &PFS);
+    int ParseFence(Instruction *&I, PerFunctionState &PFS);
     int ParseGetElementPtr(Instruction *&I, PerFunctionState &PFS);
     int ParseExtractValue(Instruction *&I, PerFunctionState &PFS);
     int ParseInsertValue(Instruction *&I, PerFunctionState &PFS);

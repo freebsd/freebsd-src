@@ -22,6 +22,7 @@
 
 namespace llvm {
 
+class LandingPadInst;
 class TerminatorInst;
 class LLVMContext;
 class BlockAddress;
@@ -110,7 +111,7 @@ public:
         Function *getParent()       { return Parent; }
 
   /// use_back - Specialize the methods defined in Value, as we know that an
-  /// BasicBlock can only be used by Users (specifically PHI nodes, terminators,
+  /// BasicBlock can only be used by Users (specifically terminators
   /// and BlockAddress's).
   User       *use_back()       { return cast<User>(*use_begin());}
   const User *use_back() const { return cast<User>(*use_begin());}
@@ -136,6 +137,20 @@ public:
   Instruction* getFirstNonPHIOrDbg();
   const Instruction* getFirstNonPHIOrDbg() const {
     return const_cast<BasicBlock*>(this)->getFirstNonPHIOrDbg();
+  }
+
+  // Same as above, but also skip lifetime intrinsics.
+  Instruction* getFirstNonPHIOrDbgOrLifetime();
+  const Instruction* getFirstNonPHIOrDbgOrLifetime() const {
+    return const_cast<BasicBlock*>(this)->getFirstNonPHIOrDbgOrLifetime();
+  }
+
+  /// getFirstInsertionPt - Returns an iterator to the first instruction in this
+  /// block that is suitable for inserting a non-PHI instruction. In particular,
+  /// it skips all PHIs and LandingPad instructions.
+  iterator getFirstInsertionPt();
+  const_iterator getFirstInsertionPt() const {
+    return const_cast<BasicBlock*>(this)->getFirstInsertionPt();
   }
 
   /// removeFromParent - This method unlinks 'this' from the containing
@@ -247,6 +262,18 @@ public:
   /// hasAddressTaken - returns true if there are any uses of this basic block
   /// other than direct branches, switches, etc. to it.
   bool hasAddressTaken() const { return getSubclassDataFromValue() != 0; }
+
+  /// replaceSuccessorsPhiUsesWith - Update all phi nodes in all our successors
+  /// to refer to basic block New instead of to us.
+  void replaceSuccessorsPhiUsesWith(BasicBlock *New);
+
+  /// isLandingPad - Return true if this basic block is a landing pad. I.e.,
+  /// it's the destination of the 'unwind' edge of an invoke instruction.
+  bool isLandingPad() const;
+
+  /// getLandingPadInst() - Return the landingpad instruction associated with
+  /// the landing pad.
+  LandingPadInst *getLandingPadInst();
 
 private:
   /// AdjustBlockAddressRefCount - BasicBlock stores the number of BlockAddress

@@ -56,7 +56,8 @@ scc_ebus_probe(device_t dev)
 	cmpt = ofw_bus_get_compat(dev);
 	if (cmpt == NULL)
 		cmpt = "";
-	if (!strcmp(nm, "se") || !strcmp(cmpt, "sab82532")) {
+	if (!strcmp(nm, "se") || !strcmp(nm, "FJSV,se") ||
+	    !strcmp(cmpt, "sab82532")) {
 		device_set_desc(dev, "Siemens SAB 82532 dual channel SCC");
 		sc->sc_class = &scc_sab82532_class;
 		return (scc_bfe_probe(dev, EBUS_REGSHFT, EBUS_RCLK, 0));
@@ -83,9 +84,8 @@ static device_method_t scc_ebus_methods[] = {
 	DEVMETHOD(bus_read_ivar,	scc_bus_read_ivar),
 	DEVMETHOD(bus_setup_intr,	scc_bus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	scc_bus_teardown_intr),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t scc_ebus_driver = {

@@ -101,10 +101,7 @@ namespace llvm {
                                   MachineBasicBlock *MBB) const;
 
     virtual bool isLegalAddressingMode(const AddrMode &AM,
-                                       const Type *Ty) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
+                                       Type *Ty) const;
 
   private:
     const XCoreTargetMachine &TM;
@@ -148,12 +145,13 @@ namespace llvm {
     SDValue LowerUMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSMUL_LOHI(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerFRAMEADDR(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
 
     // Inline asm support
-    std::vector<unsigned>
-    getRegClassForInlineAsmConstraint(const std::string &Constraint,
-              EVT VT) const;
+    std::pair<unsigned, const TargetRegisterClass*>
+    getRegForInlineAsmConstraint(const std::string &Constraint,
+				 EVT VT) const;
 
     // Expand specifics
     SDValue TryExpandADDWithMul(SDNode *Op, SelectionDAG &DAG) const;
@@ -194,7 +192,8 @@ namespace llvm {
                   DebugLoc dl, SelectionDAG &DAG) const;
 
     virtual bool
-      CanLowerReturn(CallingConv::ID CallConv, bool isVarArg,
+      CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+		     bool isVarArg,
                      const SmallVectorImpl<ISD::OutputArg> &ArgsFlags,
                      LLVMContext &Context) const;
   };

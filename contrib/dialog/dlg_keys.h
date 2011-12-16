@@ -1,9 +1,9 @@
 /*
- *  $Id: dlg_keys.h,v 1.24 2010/01/19 00:57:36 tom Exp $
+ *  $Id: dlg_keys.h,v 1.26 2011/06/21 22:09:22 tom Exp $
  *
- * dlg_keys.h -- runtime binding support for dialog
+ *  dlg_keys.h -- runtime binding support for dialog
  *
- * Copyright 2005-2007,2010 Thomas E.  Dickey
+ *  Copyright 2005-2010,2011 Thomas E.  Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -89,11 +89,17 @@ typedef enum {
     DLGK_BEGIN,
     DLGK_FINAL,
     DLGK_SELECT,
+    DLGK_HELPFILE,
     DLGK_TRACE
 } DLG_KEYS_ENUM;
 
 #define is_DLGK_MOUSE(code)	((code) >= M_EVENT)
 #define DLGK_MOUSE(code)	((code) + M_EVENT)
+
+#define HELPKEY_BINDINGS \
+	DLG_KEYS_DATA( DLGK_HELPFILE,	   CHR_HELP ), \
+	DLG_KEYS_DATA( DLGK_HELPFILE,	   KEY_F(1) ), \
+	DLG_KEYS_DATA( DLGK_HELPFILE,	   KEY_HELP )
 
 #define ENTERKEY_BINDINGS \
 	DLG_KEYS_DATA( DLGK_ENTER,	   '\n' ), \

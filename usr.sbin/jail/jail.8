@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 17, 2010
+.Dd July 23, 2011
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -393,6 +393,9 @@ The
 .Xr lsvfs 1
 command can be used to find file system types available for mount from
 within a jail.
+This permission is effective only if
+.Va enforce_statfs
+is set to a value lower than 2.
 .It Va allow.quotas
 The prison root may administer quotas on the jail's filesystem(s).
 This includes filesystems that the jail may share with other jails or
@@ -746,9 +749,11 @@ It is not possible to
 or
 .Xr umount 8
 any file system inside a jail unless the file system is marked
-jail-friendly and the jail's
+jail-friendly, the jail's
 .Va allow.mount
-parameter is set.
+parameter is set and the jail's
+.Va enforce_statfs
+parameter is lower than 2.
 .Pp
 Multiple jails sharing the same file system can influence each other.
 For example a user in one jail can fill the file system also
@@ -907,3 +912,10 @@ Currently, the simplest answer is to minimize services
 offered on the host, possibly limiting it to services offered from
 .Xr inetd 8
 which is easily configurable.
+.Sh NOTES
+Great care should be taken when managing directories visible within the jail.
+For example, if a jailed process has its current working directory set to a
+directory that is moved out of the jail's chroot, then the process may gain
+access to the file space outside of the jail.
+It is recommended that directories always be copied, rather than moved, out
+of a jail.

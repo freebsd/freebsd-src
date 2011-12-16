@@ -88,6 +88,9 @@ struct ctlname {
 #define CTLFLAG_VNET	0x00020000	/* Prisons with vnet can fiddle */
 #define CTLFLAG_RDTUN	(CTLFLAG_RD|CTLFLAG_TUN)
 #define	CTLFLAG_DYING	0x00010000	/* oid is being removed */
+#define CTLFLAG_CAPRD	0x00008000	/* Can be read in capability mode */
+#define CTLFLAG_CAPWR	0x00004000	/* Can be written in capability mode */
+#define CTLFLAG_CAPRW	(CTLFLAG_CAPRD|CTLFLAG_CAPWR)
 
 /*
  * Secure level.   Note that CTLFLAG_SECURE == CTLFLAG_SECURE1.  
@@ -117,8 +120,8 @@ struct ctlname {
 #ifdef _KERNEL
 #include <sys/linker_set.h>
 
-#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1, int arg2, \
-	struct sysctl_req *req
+#define SYSCTL_HANDLER_ARGS struct sysctl_oid *oidp, void *arg1,	\
+	intptr_t arg2, struct sysctl_req *req
 
 /* definitions for sysctl_req 'lock' member */
 #define	REQ_UNWIRED	1
@@ -160,7 +163,7 @@ struct sysctl_oid {
 	int		oid_number;
 	u_int		oid_kind;
 	void		*oid_arg1;
-	int		oid_arg2;
+	intptr_t	oid_arg2;
 	const char	*oid_name;
 	int 		(*oid_handler)(SYSCTL_HANDLER_ARGS);
 	const char	*oid_fmt;
@@ -407,7 +410,8 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
  * kernel features.
  */
 #define	FEATURE(name, desc)						\
-	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD, 0, 1, desc)
+	SYSCTL_INT(_kern_features, OID_AUTO, name, CTLFLAG_RD | CTLFLAG_CAPRD, \
+	    0, 1, desc)
 
 #endif /* _KERNEL */
 
@@ -555,6 +559,10 @@ SYSCTL_ALLOWED_TYPES(UINT64, uint64_t *a; unsigned long long *b; );
 #define	KERN_PROC_VMMAP		32	/* VM map entries for process */
 #define	KERN_PROC_FILEDESC	33	/* File descriptors for process */
 #define	KERN_PROC_GROUPS	34	/* process groups */
+#define	KERN_PROC_ENV		35	/* get environment */
+#define	KERN_PROC_AUXV		36	/* get ELF auxiliary vector */
+#define	KERN_PROC_RLIMIT	37	/* process resource limits */
+#define	KERN_PROC_PS_STRINGS	38	/* get ps_strings location */
 
 /*
  * KERN_IPC identifiers
@@ -746,9 +754,11 @@ extern char	kern_ident[];
 /* Dynamic oid handling */
 struct sysctl_oid *sysctl_add_oid(struct sysctl_ctx_list *clist,
 		struct sysctl_oid_list *parent, int nbr, const char *name,
-		int kind, void *arg1, int arg2,
+		int kind, void *arg1, intptr_t arg2,
 		int (*handler) (SYSCTL_HANDLER_ARGS),
 		const char *fmt, const char *descr);
+int	sysctl_remove_name(struct sysctl_oid *parent, const char *name, int del,
+		int recurse);
 void	sysctl_rename_oid(struct sysctl_oid *oidp, const char *name);
 int	sysctl_move_oid(struct sysctl_oid *oidp,
 		struct sysctl_oid_list *parent);

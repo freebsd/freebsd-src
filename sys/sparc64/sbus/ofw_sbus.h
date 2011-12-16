@@ -26,7 +26,7 @@
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
  *
- *	from: NetBSD: sbusvar.h,v 1.12 2001/09/24 23:49:34 eeh Exp
+ *	from: NetBSD: sbusvar.h,v 1.15 2008/04/28 20:23:36 martin Exp
  *
  * $FreeBSD$
  */
@@ -41,7 +41,7 @@ struct sbus_regs {
 	u_int32_t	sbr_size;
 };
 
-/* Address translation accross busses */
+/* Address translation across busses */
 struct sbus_ranges {
 	u_int32_t	cspace;		/* Client space */
 	u_int32_t	coffset;	/* Client offset */

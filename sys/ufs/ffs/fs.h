@@ -214,7 +214,9 @@
 #define FFS_SET_CWD		12	/* set current directory */
 #define	FFS_SET_DOTDOT		13	/* set inode number for ".." */
 #define	FFS_UNLINK		14	/* remove a name in the filesystem */
-#define	FFS_MAXID		15	/* number of valid ffs ids */
+#define	FFS_SET_INODE		15	/* update an on-disk inode */
+#define	FFS_SET_BUFOUTPUT	16	/* set buffered writing on descriptor */
+#define	FFS_MAXID		16	/* number of valid ffs ids */
 
 /*
  * Command structure passed in to the filesystem to adjust filesystem values.
@@ -336,7 +338,7 @@ struct fs {
 	ufs2_daddr_t fs_csaddr;		/* blk addr of cyl grp summary area */
 	int64_t	 fs_pendingblocks;	/* (u) blocks being freed */
 	u_int32_t fs_pendinginodes;	/* (u) inodes being freed */
-	ino_t	 fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
+	uint32_t fs_snapinum[FSMAXSNAP];/* list of snapshot inode numbers */
 	u_int32_t fs_avgfilesize;	/* expected average file size */
 	u_int32_t fs_avgfpdir;		/* expected # of files per directory */
 	int32_t	 fs_save_cgsize;	/* save real cg size to use fs_bsize */
@@ -664,6 +666,7 @@ lbn_offset(struct fs *fs, int level)
 #define	JOP_FREEBLK	4	/* Free a block or a tree of blocks. */
 #define	JOP_MVREF	5	/* Move a reference from one off to another. */
 #define	JOP_TRUNC	6	/* Partial truncation record. */
+#define	JOP_SYNC	7	/* fsync() complete record. */
 
 #define	JREC_SIZE	32	/* Record and segment header size. */
 
@@ -692,11 +695,11 @@ struct jsegrec {
  */
 struct jrefrec {
 	uint32_t	jr_op;
-	ino_t		jr_ino;
-	ino_t		jr_parent;
+	uint32_t	jr_ino;
+	uint32_t	jr_parent;
 	uint16_t	jr_nlink;
 	uint16_t	jr_mode;
-	off_t		jr_diroff;
+	int64_t		jr_diroff;
 	uint64_t	jr_unused;
 };
 
@@ -706,11 +709,11 @@ struct jrefrec {
  */
 struct jmvrec {
 	uint32_t	jm_op;
-	ino_t		jm_ino;
-	ino_t		jm_parent;
+	uint32_t	jm_ino;
+	uint32_t	jm_parent;
 	uint16_t	jm_unused;
-	off_t		jm_oldoff;
-	off_t		jm_newoff;
+	int64_t		jm_oldoff;
+	int64_t		jm_newoff;
 };
 
 /*
@@ -729,12 +732,12 @@ struct jblkrec {
 
 /*
  * Truncation record.  Records a partial truncation so that it may be
- * completed later.
+ * completed at check time.  Also used for sync records.
  */
 struct jtrncrec {
 	uint32_t	jt_op;
 	uint32_t	jt_ino;
-	off_t		jt_size;
+	int64_t		jt_size;
 	uint32_t	jt_extsize;
 	uint32_t	jt_pad[3];
 };

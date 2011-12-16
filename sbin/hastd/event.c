@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 
 #include "hast.h"
@@ -46,8 +45,8 @@ event_send(const struct hast_resource *res, int event)
 	struct nv *nvin, *nvout;
 	int error;
 
-	assert(res != NULL);
-	assert(event >= EVENT_MIN && event <= EVENT_MAX);
+	PJDLOG_ASSERT(res != NULL);
+	PJDLOG_ASSERT(event >= EVENT_MIN && event <= EVENT_MAX);
 
 	nvin = nvout = NULL;
 
@@ -89,7 +88,7 @@ event_recv(const struct hast_resource *res)
 	uint8_t event;
 	int error;
 
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 
 	nvin = nvout = NULL;
 

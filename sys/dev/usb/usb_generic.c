@@ -126,7 +126,7 @@ struct usb_fifo_methods usb_ugen_methods = {
 #ifdef USB_DEBUG
 static int ugen_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
 SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
     0, "Debug level");
 
@@ -240,7 +240,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;
@@ -308,7 +308,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;
@@ -966,10 +966,8 @@ ugen_re_enumerate(struct usb_fifo *f)
 		/* ignore any errors */
 		DPRINTFN(6, "no FIFOs\n");
 	}
-	if (udev->re_enumerate_wait == 0) {
-		udev->re_enumerate_wait = 1;
-		usb_needs_explore(udev->bus, 0);
-	}
+	/* start re-enumeration of device */
+	usbd_start_re_enumerate(udev);
 	return (0);
 }
 
@@ -1399,6 +1397,7 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 	}     u;
 	struct usb_endpoint *ep;
 	struct usb_endpoint_descriptor *ed;
+	struct usb_xfer *xfer;
 	int error = 0;
 	uint8_t iface_index;
 	uint8_t isread;
@@ -1425,11 +1424,11 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 
 	case USB_FS_START:
 		error = ugen_fs_copy_in(f, u.pstart->ep_index);
-		if (error) {
+		if (error)
 			break;
-		}
 		mtx_lock(f->priv_mtx);
-		usbd_transfer_start(f->fs_xfer[u.pstart->ep_index]);
+		xfer = f->fs_xfer[u.pstart->ep_index];
+		usbd_transfer_start(xfer);
 		mtx_unlock(f->priv_mtx);
 		break;
 
@@ -1439,7 +1438,19 @@ ugen_ioctl(struct usb_fifo *f, u_long cmd, void *addr, int fflags)
 			break;
 		}
 		mtx_lock(f->priv_mtx);
-		usbd_transfer_stop(f->fs_xfer[u.pstop->ep_index]);
+		xfer = f->fs_xfer[u.pstart->ep_index];
+		if (usbd_transfer_pending(xfer)) {
+			usbd_transfer_stop(xfer);
+			/*
+			 * Check if the USB transfer was stopped
+			 * before it was even started. Else a cancel
+			 * callback will be pending.
+			 */
+			if (!xfer->flags_int.transferring) {
+				ugen_fs_set_complete(xfer->priv_sc,
+				    USB_P2U(xfer->priv_fifo));
+			}
+		}
 		mtx_unlock(f->priv_mtx);
 		break;
 

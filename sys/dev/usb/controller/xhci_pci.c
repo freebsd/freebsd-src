@@ -58,27 +58,24 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/xhci.h>
 #include <dev/usb/controller/xhcireg.h>
+#include "usb_if.h"
 
 static device_probe_t xhci_pci_probe;
 static device_attach_t xhci_pci_attach;
 static device_detach_t xhci_pci_detach;
-static device_suspend_t xhci_pci_suspend;
-static device_resume_t xhci_pci_resume;
-static device_shutdown_t xhci_pci_shutdown;
-static void xhci_pci_takecontroller(device_t);
+static usb_take_controller_t xhci_pci_take_controller;
 
 static device_method_t xhci_device_methods[] = {
 	/* device interface */
 	DEVMETHOD(device_probe, xhci_pci_probe),
 	DEVMETHOD(device_attach, xhci_pci_attach),
 	DEVMETHOD(device_detach, xhci_pci_detach),
-	DEVMETHOD(device_suspend, xhci_pci_suspend),
-	DEVMETHOD(device_resume, xhci_pci_resume),
-	DEVMETHOD(device_shutdown, xhci_pci_shutdown),
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, xhci_pci_take_controller),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xhci_driver = {
@@ -92,52 +89,13 @@ static devclass_t xhci_devclass;
 DRIVER_MODULE(xhci, pci, xhci_driver, xhci_devclass, 0, 0);
 MODULE_DEPEND(xhci, usb, 1, 1, 1);
 
-static int
-xhci_pci_suspend(device_t self)
-{
-	struct xhci_softc *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	xhci_suspend(sc);
-	return (0);
-}
-
-static int
-xhci_pci_resume(device_t self)
-{
-	struct xhci_softc *sc = device_get_softc(self);
-
-	xhci_pci_takecontroller(self);
-	xhci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-xhci_pci_shutdown(device_t self)
-{
-	struct xhci_softc *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	xhci_shutdown(sc);
-
-	return (0);
-}
 
 static const char *
 xhci_pci_match(device_t self)
 {
 	if ((pci_get_class(self) == PCIC_SERIALBUS)
 	    && (pci_get_subclass(self) == PCIS_SERIALBUS_USB)
-	    && (pci_get_progif(self) == PCI_INTERFACE_XHCI)) {
+	    && (pci_get_progif(self) == PCIP_SERIALBUS_USB_XHCI)) {
 		return ("XHCI (generic) USB 3.0 controller");
 	}
 	return (NULL);			/* dunno */
@@ -211,7 +169,7 @@ xhci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
-	xhci_pci_takecontroller(self);
+	xhci_pci_take_controller(self);
 
 	err = xhci_halt_controller(sc);
 
@@ -244,7 +202,7 @@ xhci_pci_detach(device_t self)
 		device_delete_child(self, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(self);
+	device_delete_children(self);
 
 	pci_disable_busmaster(self);
 
@@ -270,8 +228,8 @@ xhci_pci_detach(device_t self)
 	return (0);
 }
 
-static void
-xhci_pci_takecontroller(device_t self)
+static int
+xhci_pci_take_controller(device_t self)
 {
 	struct xhci_softc *sc = device_get_softc(self);
 	uint32_t cparams;
@@ -314,4 +272,5 @@ xhci_pci_takecontroller(device_t self)
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
+	return (0);
 }

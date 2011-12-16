@@ -26,7 +26,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/bootinfo.h>
 #include <machine/cpufunc.h>
 #include <machine/elf.h>
-#include <machine/psl.h>
 
 #include <stdarg.h>
 
@@ -77,15 +76,14 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_GDB ) | OPT_SET(RBX_MUTE) | \
 			OPT_SET(RBX_PAUSE) | OPT_SET(RBX_DUAL))
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG	"/boot.config"
+#define PATH_CONFIG	"/boot/config"
 #define PATH_BOOT3	"/boot/loader"
 #define PATH_KERNEL	"/boot/kernel/kernel"
 
 #define ARGS		0x900
 #define NOPT		14
 #define NDEV		3
-#define V86_CY(x)	((x) & PSL_C)
-#define V86_ZR(x)	((x) & PSL_Z)
 
 #define DRV_DISK	0xf0
 #define DRV_UNIT	0x0f
@@ -137,7 +135,7 @@ static const char *kname = NULL;
 static uint32_t opts;
 static int comspeed = SIOSPD;
 static struct bootinfo bootinfo;
-static unsigned ioctrl = IO_KEYBOARD;
+static uint8_t ioctrl = IO_KEYBOARD;
 
 void exit(int);
 static void load(void);
@@ -150,7 +148,7 @@ static int drvread(void *, unsigned);
 static int keyhit(unsigned);
 static int xputc(int);
 static int xgetc(int);
-static int getc(int);
+static inline int getc(int);
 
 static void memcpy(void *, const void *, int);
 static void
@@ -379,7 +377,8 @@ main(void)
 
     autoboot = 1;
 
-    if ((ino = lookup(PATH_CONFIG)))
+    if ((ino = lookup(PATH_CONFIG)) ||
+        (ino = lookup(PATH_DOTCONFIG)))
 	fsread(ino, cmd, sizeof(cmd));
 
     if (*cmd) {
@@ -445,9 +444,8 @@ load(void)
     static Elf32_Shdr es[2];
     caddr_t p;
     ino_t ino;
-    uint32_t addr, x;
+    uint32_t addr;
     int i, j;
-    uint8_t fmt;
 
     if (!(ino = lookup(kname))) {
 	if (!ls)
@@ -456,15 +454,8 @@ load(void)
     }
     if (xfsread(ino, &hdr, sizeof(hdr)))
 	return;
-    if (N_GETMAGIC(hdr.ex) == ZMAGIC)
-	fmt = 0;
-    else if (IS_ELF(hdr.eh))
-	fmt = 1;
-    else {
-	printf("Invalid %s\n", "format");
-	return;
-    }
-    if (fmt == 0) {
+
+    if (N_GETMAGIC(hdr.ex) == ZMAGIC) {
 	addr = hdr.ex.a_entry & 0xffffff;
 	p = PTOV(addr);
 	fs_off = PAGE_SIZE;
@@ -473,7 +464,7 @@ load(void)
 	p += roundup2(hdr.ex.a_text, PAGE_SIZE);
 	if (xfsread(ino, p, hdr.ex.a_data))
 	    return;
-    } else {
+    } else if (IS_ELF(hdr.eh)) {
 	fs_off = hdr.eh.e_phoff;
 	for (j = i = 0; i < hdr.eh.e_phnum && j < 2; i++) {
 	    if (xfsread(ino, ep + j, sizeof(ep[0])))
@@ -505,7 +496,11 @@ load(void)
 	}
 	addr = hdr.eh.e_entry & 0xffffff;
 	bootinfo.bi_esymtab = VTOP(p);
+    } else {
+	printf("Invalid %s\n", "format");
+	return;
     }
+
     bootinfo.bi_kernelname = VTOP(kname);
     bootinfo.bi_bios_dev = dsk.daua;
     __exec((caddr_t)addr, RB_BOOTINFO | (opts & RBX_MASK),
@@ -672,7 +667,7 @@ static void
 printf(const char *fmt,...)
 {
     va_list ap;
-    char buf[10];
+    static char buf[10];
     char *s;
     unsigned u;
     int c;
@@ -783,6 +778,18 @@ xputc(int c)
 }
 
 static int
+getc(int fn)
+{
+    v86.addr = 0x18;
+    v86.eax = fn << 8;
+    v86int();
+    if (fn)
+	return (v86.ebx >> 8) & 0x01;
+    else
+	return v86.eax & 0xff;
+}
+
+static int
 xgetc(int fn)
 {
     if (OPT_CHECK(RBX_NOINTR))
@@ -795,16 +802,4 @@ xgetc(int fn)
 	if (fn)
 	    return 0;
     }
-}
-
-static int
-getc(int fn)
-{
-    v86.addr = 0x18;
-    v86.eax = fn << 8;
-    v86int();
-    if (fn)
-	return (v86.ebx >> 8) & 0x01;
-    else
-	return v86.eax & 0xff;
 }

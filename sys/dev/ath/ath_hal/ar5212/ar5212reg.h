@@ -94,7 +94,9 @@
 #define	AR_QTXDP(_i)	(AR_Q0_TXDP + ((_i)<<2))
 
 #define	AR_Q_TXE	0x0840	/* MAC Transmit Queue enable */
+#define	AR_Q_TXE_M	0x000003FF	/* Mask for TXE (QCU 0-9) */
 #define	AR_Q_TXD	0x0880	/* MAC Transmit Queue disable */
+#define	AR_Q_TXD_M	0x000003FF	/* Mask for TXD (QCU 0-9) */
 
 #define	AR_Q0_CBRCFG	0x08c0	/* MAC CBR configuration */
 #define	AR_Q1_CBRCFG	0x08c4	/* MAC CBR configuration */
@@ -300,6 +302,7 @@
 #define AR_QUIET1_NEXT_QUIET    0xffff
 #define AR_QUIET1_QUIET_ENABLE  0x10000 /* Enable Quiet time operation */
 #define AR_QUIET1_QUIET_ACK_CTS_ENABLE  0x20000 /* Do we ack/cts during quiet period */
+#define	AR_QUIET1_QUIET_ACK_CTS_ENABLE_S 17
 
 #define AR_QUIET2   0x8100  /* More Quiet time programming */
 #define AR_QUIET2_QUIET_PER_S   0   /* Periodicity of quiet period (TU) */

@@ -39,5 +39,3 @@ extern struct jmploc main_handler;	/* top level exception handler */
 
 void readcmdfile(const char *);
 void cmdloop(int);
-int dotcmd(int, char **);
-int exitcmd(int, char **);

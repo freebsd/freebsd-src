@@ -1328,8 +1328,15 @@ public:
   /// const_iterator - Create an iterator that isn't pointing anywhere.
   const_iterator() : map(0) {}
 
+  /// setMap - Change the map iterated over. This call must be followed by a
+  /// call to goToBegin(), goToEnd(), or find()
+  void setMap(const IntervalMap &m) { map = const_cast<IntervalMap*>(&m); }
+
   /// valid - Return true if the current position is valid, false for end().
   bool valid() const { return path.valid(); }
+
+  /// atBegin - Return true if the current position is the first map entry.
+  bool atBegin() const { return path.atBegin(); }
 
   /// start - Return the beginning of the current interval.
   const KeyT &start() const { return unsafeStart(); }

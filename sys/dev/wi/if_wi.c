@@ -166,7 +166,8 @@ wi_write_val(struct wi_softc *sc, int rid, u_int16_t val)
 	return wi_write_rid(sc, rid, &val, sizeof(val));
 }
 
-SYSCTL_NODE(_hw, OID_AUTO, wi, CTLFLAG_RD, 0, "Wireless driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, wi, CTLFLAG_RD, 0,
+	    "Wireless driver parameters");
 
 static	struct timeval lasttxerror;	/* time of last tx error msg */
 static	int curtxeps;			/* current tx error msgs/sec */

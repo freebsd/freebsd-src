@@ -586,9 +586,10 @@ cd9660_statfs(mp, sbp)
 
 /* ARGSUSED */
 static int
-cd9660_fhtovp(mp, fhp, vpp)
+cd9660_fhtovp(mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
 	struct ifid ifh;

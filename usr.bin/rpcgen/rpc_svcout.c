@@ -349,7 +349,7 @@ write_real_program(definition *def)
 			f_print(fout, "(");
 			/* arg name */
 			if (proc->arg_num > 1)
-				f_print(fout, proc->args.argname);
+				fputs(proc->args.argname, fout);
 			else
 				ptype(proc->args.decls->decl.prefix,
 				      proc->args.decls->decl.type, 0);

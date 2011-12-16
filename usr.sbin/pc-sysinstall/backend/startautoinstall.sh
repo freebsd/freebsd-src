@@ -49,8 +49,8 @@ SHUTDOWN_CMD=`grep "shutdown_cmd:" ${CONF} | grep -v "^#" | sed "s|shutdown_cmd:
 CONFIRM_INS=`grep "confirm_install:" ${CONF} | grep -v "^#" | sed "s|confirm_install: ||g" | sed "s|confirm_install:||g"`
 
 # Check that this isn't a http / ftp file we need to fetch later
-echo "${PCCFG}" | grep -e "^http" -e "^ftp" > /dev/null 2>/dev/null
-if [ "$?" != "0" ]
+echo "${PCCFG}" | grep -q -e "^http" -e "^ftp" 2>/dev/null
+if [ $? -ne 0 ]
 then
   # Copy over the install cfg file, if not done already
   if [ ! -e "${INSTALL_CFG}" ]
@@ -92,7 +92,7 @@ else
   # Now try to fetch the remove file
   echo "Fetching cfg with: \"fetch -o ${INSTALL_CFG} ${PCCFG}\""
   fetch -o "${INSTALL_CFG}" "${PCCFG}"
-  if [ "$?" != "0" ]
+  if [ $? -ne 0 ]
   then
     echo "ERROR: Failed to fetch ${PCCFG}, install aborted"
     exit 150
@@ -115,9 +115,9 @@ then
   fi
 
   ${PROGDIR}/pc-sysinstall -c ${INSTALL_CFG}
-  if [ "$?" = "0" ]
+  if [ $? -eq 0 ]
   then
-    if [ ! -z "$SHUTDOWN_CMD" ]
+    if [ -n "$SHUTDOWN_CMD" ]
     then
       ${SHUTDOWN_CMD}
     else 

@@ -29,13 +29,15 @@
  *
  */
 
-#include "sade.h"
+#include <sys/types.h>
 #include <ctype.h>
 #include <inttypes.h>
 #include <libdisk.h>
 #include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/sysctl.h>
+
+#include "sade.h"
 
 #define AUTO_HOME	0	/* do not create /home automatically */
 
@@ -110,7 +112,7 @@ static int label_focus = 0, pslice_focus = 0;
 
 static int diskLabel(Device *dev);
 static int diskLabelNonInteractive(Device *dev);
-static char *try_auto_label(Device **devs, Device *dev, int perc, int *req);
+static char *try_auto_label(Device *dev, int perc, int *req);
 
 static int
 labelHook(dialogMenuItem *selected)
@@ -122,25 +124,8 @@ labelHook(dialogMenuItem *selected)
 	msgConfirm("Unable to find disk %s!", selected->prompt);
 	return DITEM_FAILURE;
     }
-    /* Toggle enabled status? */
-    if (!devs[0]->enabled) {
-	devs[0]->enabled = TRUE;
-	diskLabel(devs[0]);
-    }
-    else
-	devs[0]->enabled = FALSE;
+    diskLabel(devs[0]);
     return DITEM_SUCCESS;
-}
-
-static int
-labelCheck(dialogMenuItem *selected)
-{
-    Device **devs = NULL;
-
-    devs = deviceFind(selected->prompt, DEVICE_TYPE_DISK);
-    if (!devs || devs[0]->enabled == FALSE)
-	return FALSE;
-    return TRUE;
 }
 
 int
@@ -148,60 +133,50 @@ diskLabelEditor(dialogMenuItem *self)
 {
     DMenu *menu;
     Device **devs;
-    int i, cnt;
+    int result;
 
-    i = 0;
-    cnt = diskGetSelectCount(&devs);
-    if (cnt == -1) {
+    devs = deviceFind(variable_get(VAR_DISK), DEVICE_TYPE_DISK);
+    if (devs == NULL) {
 	msgConfirm("No disks found!  Please verify that your disk controller is being\n"
 		   "properly probed at boot time.  See the Hardware Guide on the\n"
 		   "Documentation menu for clues on diagnosing this type of problem.");
 	return DITEM_FAILURE;
     }
-    else if (cnt) {
-	/* Some are already selected */
-	if (variable_get(VAR_NONINTERACTIVE) &&
-	  !variable_get(VAR_DISKINTERACTIVE))
-	    i = diskLabelNonInteractive(NULL);
-	else
-	    i = diskLabel(NULL);
-    }
     else {
 	/* No disks are selected, fall-back case now */
-	cnt = deviceCount(devs);
+	int cnt = deviceCount(devs);
 	if (cnt == 1) {
-	    devs[0]->enabled = TRUE;
 	    if (variable_get(VAR_NONINTERACTIVE) &&
 	      !variable_get(VAR_DISKINTERACTIVE))
-		i = diskLabelNonInteractive(devs[0]);
+		result = diskLabelNonInteractive(devs[0]);
 	    else
-		i = diskLabel(devs[0]);
+		result = diskLabel(devs[0]);
 	}
 	else {
-	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook, labelCheck);
+	    menu = deviceCreateMenu(&MenuDiskDevices, DEVICE_TYPE_DISK, labelHook);
 	    if (!menu) {
 		msgConfirm("No devices suitable for installation found!\n\n"
 			   "Please verify that your disk controller (and attached drives)\n"
 			   "were detected properly.  This can be done by pressing the\n"
 			   "[Scroll Lock] key and using the Arrow keys to move back to\n"
 			   "the boot messages.  Press [Scroll Lock] again to return.");
-		i = DITEM_FAILURE;
+		result = DITEM_FAILURE;
 	    }
 	    else {
-		i = dmenuOpenSimple(menu, FALSE) ? DITEM_SUCCESS : DITEM_FAILURE;
+		result = dmenuOpen(menu) ? DITEM_SUCCESS : DITEM_FAILURE;
 		free(menu);
 	    }
 	}
     }
-    if (DITEM_STATUS(i) != DITEM_FAILURE) {
+    if (DITEM_STATUS(result) != DITEM_FAILURE) {
 	if (variable_cmp(DISK_LABELLED, "written"))
 	    variable_set2(DISK_LABELLED, "yes", 0);
     }
-    return i;
+    return result;
 }
 
 int
-diskLabelCommit(dialogMenuItem *self)
+diskLabelCommit(Device *dev)
 {
     char *cp;
     int i;
@@ -214,9 +189,9 @@ diskLabelCommit(dialogMenuItem *self)
 	i = DITEM_FAILURE;
     }
     /* The routine will guard against redundant writes, just as this one does */
-    else if (DITEM_STATUS(diskPartitionWrite(self)) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(diskPartitionWrite(dev)) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
-    else if (DITEM_STATUS(installFilesystems(self)) != DITEM_SUCCESS)
+    else if (DITEM_STATUS(installFilesystems(dev)) != DITEM_SUCCESS)
 	i = DITEM_FAILURE;
     else {
 	msgInfo("All filesystem information written successfully.");
@@ -258,98 +233,87 @@ space_free(struct chunk *c)
 
 /* Snapshot the current situation into the displayed chunks structure */
 static void
-record_label_chunks(Device **devs, Device *dev)
+record_label_chunks(Device *dev)
 {
-    int i, j, p;
+    int j, p;
     struct chunk *c1, *c2;
-    Disk *d;
+    Disk *d = (Disk *)dev->private;
 
     j = p = 0;
     /* First buzz through and pick up the FreeBSD slices */
-    for (i = 0; devs[i]; i++) {
-	if ((dev && devs[i] != dev) || !devs[i]->enabled)
-	    continue;
-	d = (Disk *)devs[i]->private;
-	if (!d->chunks)
-	    msgFatal("No chunk list found for %s!", d->name);
+    if (!d->chunks)
+        msgFatal("No chunk list found for %s!", d->name);
 
 #ifdef __ia64__
-	label_chunk_info[j].type = PART_SLICE;
-	label_chunk_info[j].c = d->chunks;
-	j++;
+    label_chunk_info[j].type = PART_SLICE;
+    label_chunk_info[j].c = d->chunks;
+    j++;
 #endif
 
-	/* Put the slice entries first */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		label_chunk_info[j].type = PART_SLICE;
-		label_chunk_info[j].c = c1;
-		++j;
-	    }
+    /* Put the slice entries first */
+    for (c1 = d->chunks->part; c1; c1 = c1->next) {
+        if (c1->type == freebsd) {
+            label_chunk_info[j].type = PART_SLICE;
+            label_chunk_info[j].c = c1;
+            ++j;
+        }
 #ifdef __powerpc__
-	    if (c1->type == apple) {
-    	        label_chunk_info[j].type = PART_SLICE;
-		label_chunk_info[j].c = c1;
-		++j;
-	    }
+        if (c1->type == apple) {
+            label_chunk_info[j].type = PART_SLICE;
+            label_chunk_info[j].c = c1;
+            ++j;
+        }
 #endif
-	}
     }
 
-    /* Now run through again and get the FreeBSD partition entries */
-    for (i = 0; devs[i]; i++) {
-	if (!devs[i]->enabled)
-	    continue;
-	d = (Disk *)devs[i]->private;
-	/* Then buzz through and pick up the partitions */
-	for (c1 = d->chunks->part; c1; c1 = c1->next) {
-	    if (c1->type == freebsd) {
-		for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part) {
-			if (c2->subtype == FS_SWAP)
-			    label_chunk_info[j].type = PART_SWAP;
-			else
-			    label_chunk_info[j].type = PART_FILESYSTEM;
-			label_chunk_info[j].c = c2;
-			++j;
-		    }
-		}
-	    }
-	    else if (c1->type == fat) {
-		label_chunk_info[j].type = PART_FAT;
-		label_chunk_info[j].c = c1;
-		++j;
-	    }
+    /* Then buzz through and pick up the partitions */
+    for (c1 = d->chunks->part; c1; c1 = c1->next) {
+        if (c1->type == freebsd) {
+            for (c2 = c1->part; c2; c2 = c2->next) {
+                if (c2->type == part) {
+                    if (c2->subtype == FS_SWAP)
+                        label_chunk_info[j].type = PART_SWAP;
+                    else
+                        label_chunk_info[j].type = PART_FILESYSTEM;
+                    label_chunk_info[j].c = c2;
+                    ++j;
+                }
+            }
+        }
+        else if (c1->type == fat) {
+            label_chunk_info[j].type = PART_FAT;
+            label_chunk_info[j].c = c1;
+            ++j;
+        }
 #ifdef __ia64__
-	    else if (c1->type == efi) {
-		label_chunk_info[j].type = PART_EFI;
-		label_chunk_info[j].c = c1;
-		++j;
-	    }
-	    else if (c1->type == part) {
-		if (c1->subtype == FS_SWAP)
-		    label_chunk_info[j].type = PART_SWAP;
-		else
-		    label_chunk_info[j].type = PART_FILESYSTEM;
-		label_chunk_info[j].c = c1;
-		++j;
-	    }
+        else if (c1->type == efi) {
+            label_chunk_info[j].type = PART_EFI;
+            label_chunk_info[j].c = c1;
+            ++j;
+        }
+        else if (c1->type == part) {
+            if (c1->subtype == FS_SWAP)
+                label_chunk_info[j].type = PART_SWAP;
+            else
+                label_chunk_info[j].type = PART_FILESYSTEM;
+            label_chunk_info[j].c = c1;
+            ++j;
+        }
 #endif
 #ifdef __powerpc__
-	    else if (c1->type == apple) {
-	        for (c2 = c1->part; c2; c2 = c2->next) {
-		    if (c2->type == part) {
-		        if (c2->subtype == FS_SWAP)
-			    label_chunk_info[j].type = PART_SWAP;
-			else
-			    label_chunk_info[j].type = PART_FILESYSTEM;
-			label_chunk_info[j].c = c2;
-			++j;
-		    }
-		}
-	    }
+        else if (c1->type == apple) {
+            for (c2 = c1->part; c2; c2 = c2->next) {
+                if (c2->type == part) {
+                    if (c2->subtype == FS_SWAP)
+                        label_chunk_info[j].type = PART_SWAP;
+                    else
+                        label_chunk_info[j].type = PART_FILESYSTEM;
+                    label_chunk_info[j].c = c2;
+                    ++j;
+                }
+            }
+        }
 #endif
-	}
     }
     label_chunk_info[j].c = NULL;
     if (here >= j) {
@@ -455,9 +419,8 @@ get_mountpoint(PartType type, struct chunk *old)
 static PartType
 get_partition_type(void)
 {
-    char selection[20];
     int i;
-    static unsigned char *fs_types[] = {
+    static char *fs_types[] = {
 #ifdef __ia64__
 	"EFI",	"An EFI system partition",
 #endif
@@ -466,6 +429,7 @@ get_partition_type(void)
     };
     WINDOW *w = savescr();
 
+    dlg_clr_result();
     i = dialog_menu("Please choose a partition type",
 	"If you want to use this partition for swap space, select Swap.\n"
 	"If you want to put a filesystem on it, choose FS.",
@@ -475,16 +439,16 @@ get_partition_type(void)
 #else
 	2, 2,
 #endif
-	fs_types, selection, NULL, NULL);
+	fs_types);
     restorescr(w);
     if (!i) {
 #ifdef __ia64__
-	if (!strcmp(selection, "EFI"))
+	if (!strcmp(dialog_vars.input_result, "EFI"))
 	    return PART_EFI;
 #endif
-	if (!strcmp(selection, "FS"))
+	if (!strcmp(dialog_vars.input_result, "FS"))
 	    return PART_FILESYSTEM;
-	else if (!strcmp(selection, "Swap"))
+	else if (!strcmp(dialog_vars.input_result, "Swap"))
 	    return PART_SWAP;
     }
     return PART_NONE;
@@ -845,22 +809,15 @@ diskLabel(Device *dev)
     char *msg = NULL;
     PartInfo *p, *oldp;
     PartType type;
-    Device **devs;
     WINDOW *w = savescr();
 
     label_focus = 0;
     pslice_focus = 0;
     here = 0;
 
-    devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-    if (!devs) {
-	msgConfirm("No disks found!");
-	restorescr(w);
-	return DITEM_FAILURE;
-    }
     labeling = TRUE;
     keypad(stdscr, TRUE);
-    record_label_chunks(devs, dev);
+    record_label_chunks(dev);
 
     clear();
     while (labeling) {
@@ -883,7 +840,6 @@ diskLabel(Device *dev)
 	refresh();
 	key = getch();
 	switch (toupper(key)) {
-	    int i;
 	    static char _msg[40];
 
 	case '\014':	/* ^L */
@@ -972,7 +928,7 @@ diskLabel(Device *dev)
 
 		for (perc = 100; perc > 0; perc -= 5) {
 		    req = 0;	/* reset for each loop */
-		    if ((msg = try_auto_label(devs, dev, perc, &req)) == NULL)
+		    if ((msg = try_auto_label(dev, perc, &req)) == NULL)
 			break;
 		}
 		if (msg) {
@@ -1114,7 +1070,7 @@ diskLabel(Device *dev)
 		tmp->private_free = safe_free;
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
-		record_label_chunks(devs, dev);
+		record_label_chunks(dev);
 		clear_wins();
                 /* This is where we assign focus to new label so it shows. */
                 {
@@ -1151,7 +1107,7 @@ diskLabel(Device *dev)
 	    Delete_Chunk2(label_chunk_info[here].c->disk, label_chunk_info[here].c, rflags);
 	    if (variable_cmp(DISK_LABELLED, "written"))
 		variable_set2(DISK_LABELLED, "yes", 0);
-	    record_label_chunks(devs, dev);
+	    record_label_chunks(dev);
 	    break;
 
 	case 'M':	/* mount */
@@ -1183,7 +1139,7 @@ diskLabel(Device *dev)
 		}
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
-		record_label_chunks(devs, dev);
+		record_label_chunks(dev);
 		clear_wins();
 		break;
 
@@ -1252,22 +1208,18 @@ diskLabel(Device *dev)
 			   "it's too late to undo!");
 	    }
 	    else if (!msgNoYes("Are you SURE you want to Undo everything?")) {
+		Disk *d;
+
 		variable_unset(DISK_PARTITIONED);
 		variable_unset(DISK_LABELLED);
-		for (i = 0; devs[i]; i++) {
-		    Disk *d;
-
-		    if (!devs[i]->enabled)
-			continue;
-		    else if ((d = Open_Disk(devs[i]->name)) != NULL) {
-			Free_Disk(devs[i]->private);
-			devs[i]->private = d;
+		if ((d = Open_Disk(dev->name)) != NULL) {
+		    Free_Disk(dev->private);
+		    dev->private = d;
 #ifdef WITH_SLICES
-			diskPartition(devs[i]);
+		    diskPartition(dev);
 #endif
-		    }
 		}
-		record_label_chunks(devs, dev);
+		record_label_chunks(dev);
 	    }
 	    clear_wins();
 	    break;
@@ -1282,7 +1234,7 @@ diskLabel(Device *dev)
 			  "installation.\n\n"
 			  "Are you absolutely sure you want to continue?")) {
 		variable_set2(DISK_LABELLED, "yes", 0);
-		diskLabelCommit(NULL);
+		diskLabelCommit(dev);
 	    }
 	    clear_wins();
 	    break;
@@ -1301,25 +1253,16 @@ diskLabel(Device *dev)
 	    if (!msgNoYes("Are you sure you want to go into Wizard mode?\n\n"
 			  "This is an entirely undocumented feature which you are not\n"
 			  "expected to understand!")) {
-		int i;
-		Device **devs;
-
-		dialog_clear();
+		dlg_clear();
 		end_dialog();
 		DialogActive = FALSE;
-		devs = deviceFind(NULL, DEVICE_TYPE_DISK);
-		if (!devs) {
-		    msgConfirm("Can't find any disk devices!");
-		    break;
-		}
-		for (i = 0; devs[i] && ((Disk *)devs[i]->private); i++) {
-		    if (devs[i]->enabled)
-		    	slice_wizard(((Disk *)devs[i]->private));
+		if (dev->private) {
+		    slice_wizard(((Disk *)dev->private));
 		}
 		if (variable_cmp(DISK_LABELLED, "written"))
 		    variable_set2(DISK_LABELLED, "yes", 0);
 		DialogActive = TRUE;
-		record_label_chunks(devs, dev);
+		record_label_chunks(dev);
 		clear_wins();
 	    }
 	    else
@@ -1378,7 +1321,7 @@ requested_part_size(char *varName, daddr_t nom, int def, int perc)
  * and /home.  /home receives any extra left over disk space. 
  */
 static char *
-try_auto_label(Device **devs, Device *dev, int perc, int *req)
+try_auto_label(Device *dev, int perc, int *req)
 {
     daddr_t sz;
     Chunk *AutoHome, *AutoRoot, *AutoSwap;
@@ -1413,7 +1356,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	AutoEfi->private_data = new_part(PART_EFI, "/efi", TRUE);
 	AutoEfi->private_free = safe_free;
 	AutoEfi->flags |= CHUNK_NEWFS;
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
 #endif
 
@@ -1431,7 +1374,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	AutoRoot->private_data = new_part(PART_FILESYSTEM, "/", TRUE);
 	AutoRoot->private_free = safe_free;
 	AutoRoot->flags |= CHUNK_NEWFS;
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
     if (SwapChunk == NULL) {
 	sz = requested_part_size(VAR_SWAP_SIZE, 0, 0, perc);
@@ -1461,7 +1404,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	}
 	AutoSwap->private_data = 0;
 	AutoSwap->private_free = safe_free;
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
     if (VarChunk == NULL) {
 	/* Work out how much extra space we want for a crash dump */
@@ -1492,7 +1435,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	AutoVar->private_data = new_part(PART_FILESYSTEM, "/var", TRUE);
 	AutoVar->private_free = safe_free;
 	AutoVar->flags |= CHUNK_NEWFS;
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
     if (TmpChunk == NULL && !variable_get(VAR_NO_TMP)) {
 	sz = requested_part_size(VAR_TMP_SIZE, TMP_NOMINAL_SIZE, TMP_DEFAULT_SIZE, perc);
@@ -1509,7 +1452,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	AutoTmp->private_data = new_part(PART_FILESYSTEM, "/tmp", TRUE);
 	AutoTmp->private_free = safe_free;
 	AutoTmp->flags |= CHUNK_NEWFS;
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
     if (UsrChunk == NULL && !variable_get(VAR_NO_USR)) {
 	sz = requested_part_size(VAR_USR_SIZE, USR_NOMINAL_SIZE, USR_DEFAULT_SIZE, perc);
@@ -1535,7 +1478,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    AutoUsr->private_data = new_part(PART_FILESYSTEM, "/usr", TRUE);
 	    AutoUsr->private_free = safe_free;
 	    AutoUsr->flags |= CHUNK_NEWFS;
-	    record_label_chunks(devs, dev);
+	    record_label_chunks(dev);
 	}
     }
 #if AUTO_HOME == 1
@@ -1562,7 +1505,7 @@ try_auto_label(Device **devs, Device *dev, int perc, int *req)
 	    AutoHome->private_data = new_part(PART_FILESYSTEM, "/home", TRUE);
 	    AutoHome->private_free = safe_free;
 	    AutoHome->flags |= CHUNK_NEWFS;
-	    record_label_chunks(devs, dev);
+	    record_label_chunks(dev);
 	}
     }
 #endif
@@ -1585,7 +1528,7 @@ done:
 	    Delete_Chunk(AutoUsr->disk, AutoUsr);
 	if (AutoHome != NULL)
 	    Delete_Chunk(AutoHome->disk, AutoHome);
-	record_label_chunks(devs, dev);
+	record_label_chunks(dev);
     }
     return(msg);
 }
@@ -1616,7 +1559,7 @@ diskLabelNonInteractive(Device *dev)
 	d = dev->private;
     else
 	d = devs[0]->private;
-    record_label_chunks(devs, dev);
+    record_label_chunks(dev);
     for (i = 0; label_chunk_info[i].c; i++) {
 	Chunk *c1 = label_chunk_info[i].c;
 

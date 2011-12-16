@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Expand Psuedo-instructions produced by ISel. These are usually to allow
+// Expand Pseudo-instructions produced by ISel. These are usually to allow
 // the expansion to contain control flow, such as a conditional move
 // implemented with a conditional branch and a phi, or an atomic operation
 // implemented with a loop.
@@ -62,8 +62,8 @@ bool ExpandISelPseudos::runOnMachineFunction(MachineFunction &MF) {
       MachineInstr *MI = MBBI++;
 
       // If MI is a pseudo, expand it.
-      const TargetInstrDesc &TID = MI->getDesc();
-      if (TID.usesCustomInsertionHook()) {
+      const MCInstrDesc &MCID = MI->getDesc();
+      if (MCID.usesCustomInsertionHook()) {
         Changed = true;
         MachineBasicBlock *NewMBB =
           TLI->EmitInstrWithCustomInserter(MI, MBB);

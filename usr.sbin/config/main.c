@@ -577,7 +577,7 @@ cleanheaders(char *p)
 	struct dirent *dp;
 	struct file_list *fl;
 	struct hdr_list *hl;
-	int i;
+	size_t len;
 
 	remember("y.tab.h");
 	remember("setdefs.h");
@@ -591,12 +591,13 @@ cleanheaders(char *p)
 	if ((dirp = opendir(p)) == NULL)
 		err(EX_OSERR, "opendir %s", p);
 	while ((dp = readdir(dirp)) != NULL) {
-		i = dp->d_namlen - 2;
+		len = strlen(dp->d_name);
 		/* Skip non-headers */
-		if (dp->d_name[i] != '.' || dp->d_name[i + 1] != 'h')
+		if (len < 2 || dp->d_name[len - 2] != '.' ||
+		    dp->d_name[len - 1] != 'h')
 			continue;
 		/* Skip special stuff, eg: bus_if.h, but check opt_*.h */
-		if (index(dp->d_name, '_') &&
+		if (strchr(dp->d_name, '_') &&
 		    strncmp(dp->d_name, "opt_", 4) != 0)
 			continue;
 		/* Check if it is a target file */

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2009-2010 The FreeBSD Foundation
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>
  * All rights reserved.
  *
  * This software was developed by Pawel Jakub Dawidek under sponsorship from
@@ -34,8 +35,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 
 #include <errno.h>
+#include <fcntl.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <strings.h>
+#include <unistd.h>
 
 #include "pjdlog.h"
 #include "proto_impl.h"
@@ -44,6 +48,16 @@ __FBSDID("$FreeBSD$");
 #ifndef MAX_SEND_SIZE
 #define	MAX_SEND_SIZE	32768
 #endif
+
+static bool
+blocking_socket(int sock)
+{
+	int flags;
+
+	flags = fcntl(sock, F_GETFL);
+	PJDLOG_ASSERT(flags >= 0);
+	return ((flags & O_NONBLOCK) == 0);
+}
 
 static int
 proto_descriptor_send(int sock, int fd)
@@ -80,31 +94,71 @@ proto_common_send(int sock, const unsigned char *data, size_t size, int fd)
 {
 	ssize_t done;
 	size_t sendsize;
+	int errcount = 0;
 
 	PJDLOG_ASSERT(sock >= 0);
+
+	if (data == NULL) {
+		/* The caller is just trying to decide about direction. */
+
+		PJDLOG_ASSERT(size == 0);
+
+		if (shutdown(sock, SHUT_RD) == -1)
+			return (errno);
+		return (0);
+	}
+
 	PJDLOG_ASSERT(data != NULL);
 	PJDLOG_ASSERT(size > 0);
 
 	do {
 		sendsize = size < MAX_SEND_SIZE ? size : MAX_SEND_SIZE;
 		done = send(sock, data, sendsize, MSG_NOSIGNAL);
-		if (done == 0)
+		if (done == 0) {
 			return (ENOTCONN);
-		else if (done < 0) {
+		} else if (done < 0) {
 			if (errno == EINTR)
 				continue;
+			if (errno == ENOBUFS) {
+				/*
+				 * If there are no buffers we retry.
+				 * After each try we increase delay before the
+				 * next one and we give up after fifteen times.
+				 * This gives 11s of total wait time.
+				 */
+				if (errcount == 15) {
+					pjdlog_warning("Getting ENOBUFS errors for 11s on send(), giving up.");
+				} else {
+					if (errcount == 0)
+						pjdlog_warning("Got ENOBUFS error on send(), retrying for a bit.");
+					errcount++;
+					usleep(100000 * errcount);
+					continue;
+				}
+			}
+			/*
+			 * If this is blocking socket and we got EAGAIN, this
+			 * means the request timed out. Translate errno to
+			 * ETIMEDOUT, to give administrator a hint to
+			 * eventually increase timeout.
+			 */
+			if (errno == EAGAIN && blocking_socket(sock))
+				errno = ETIMEDOUT;
 			return (errno);
 		}
 		data += done;
 		size -= done;
 	} while (size > 0);
+	if (errcount > 0) {
+		pjdlog_info("Data sent successfully after %d ENOBUFS error%s.",
+		    errcount, errcount == 1 ? "" : "s");
+	}
 
 	if (fd == -1)
 		return (0);
 	return (proto_descriptor_send(sock, fd));
 }
 
-#include <stdio.h>
 static int
 proto_descriptor_recv(int sock, int *fdp)
 {
@@ -142,16 +196,36 @@ proto_common_recv(int sock, unsigned char *data, size_t size, int *fdp)
 	ssize_t done;
 
 	PJDLOG_ASSERT(sock >= 0);
+
+	if (data == NULL) {
+		/* The caller is just trying to decide about direction. */
+
+		PJDLOG_ASSERT(size == 0);
+
+		if (shutdown(sock, SHUT_WR) == -1)
+			return (errno);
+		return (0);
+	}
+
 	PJDLOG_ASSERT(data != NULL);
 	PJDLOG_ASSERT(size > 0);
 
 	do {
 		done = recv(sock, data, size, MSG_WAITALL);
 	} while (done == -1 && errno == EINTR);
-	if (done == 0)
+	if (done == 0) {
 		return (ENOTCONN);
-	else if (done < 0)
+	} else if (done < 0) {
+		/*
+		 * If this is blocking socket and we got EAGAIN, this
+		 * means the request timed out. Translate errno to
+		 * ETIMEDOUT, to give administrator a hint to
+		 * eventually increase timeout.
+		 */
+		if (errno == EAGAIN && blocking_socket(sock))
+			errno = ETIMEDOUT;
 		return (errno);
+	}
 	if (fdp == NULL)
 		return (0);
 	return (proto_descriptor_recv(sock, fdp));

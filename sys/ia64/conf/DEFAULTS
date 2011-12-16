@@ -18,3 +18,8 @@ device		uart_ns8250
 options 	GEOM_PART_BSD
 options 	GEOM_PART_GPT
 options 	GEOM_PART_MBR
+
+options 	NEW_PCIB
+
+# Allow mounting non-MPSAFE filesystems
+options		VFS_ALLOW_NONMPSAFE

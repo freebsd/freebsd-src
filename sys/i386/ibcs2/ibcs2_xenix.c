@@ -103,7 +103,7 @@ xenix_chsize(td, uap)
 	DPRINTF(("IBCS2: 'xenix chsize'\n"));
 	sa.fd = uap->fd;
 	sa.length = uap->size;
-	return ftruncate(td, &sa);
+	return sys_ftruncate(td, &sa);
 }
 
 

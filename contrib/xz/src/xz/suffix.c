@@ -21,12 +21,6 @@
 static char *custom_suffix = NULL;
 
 
-struct suffix_pair {
-	const char *compressed;
-	const char *uncompressed;
-};
-
-
 /// \brief      Test if the char is a directory separator
 static bool
 is_dir_sep(char c)
@@ -86,7 +80,10 @@ test_suffix(const char *suffix, const char *src_name, size_t src_len)
 static char *
 uncompressed_name(const char *src_name, const size_t src_len)
 {
-	static const struct suffix_pair suffixes[] = {
+	static const struct {
+		const char *compressed;
+		const char *uncompressed;
+	} suffixes[] = {
 		{ ".xz",    "" },
 		{ ".txz",   ".tar" }, // .txz abbreviation for .txt.gz is rare.
 		{ ".lzma",  "" },
@@ -145,25 +142,25 @@ static char *
 compressed_name(const char *src_name, const size_t src_len)
 {
 	// The order of these must match the order in args.h.
-	static const struct suffix_pair all_suffixes[][3] = {
+	static const char *const all_suffixes[][3] = {
 		{
-			{ ".xz",    "" },
-			{ ".txz",   ".tar" },
-			{ NULL, NULL }
+			".xz",
+			".txz",
+			NULL
 		}, {
-			{ ".lzma",  "" },
-			{ ".tlz",   ".tar" },
-			{ NULL,     NULL }
+			".lzma",
+			".tlz",
+			NULL
 /*
 		}, {
-			{ ".gz",    "" },
-			{ ".tgz",   ".tar" },
-			{ NULL,     NULL }
+			".gz",
+			".tgz",
+			NULL
 */
 		}, {
 			// --format=raw requires specifying the suffix
 			// manually or using stdout.
-			{ NULL,     NULL }
+			NULL
 		}
 	};
 
@@ -171,14 +168,22 @@ compressed_name(const char *src_name, const size_t src_len)
 	assert(opt_format != FORMAT_AUTO);
 
 	const size_t format = opt_format - 1;
-	const struct suffix_pair *const suffixes = all_suffixes[format];
+	const char *const *suffixes = all_suffixes[format];
 
-	for (size_t i = 0; suffixes[i].compressed != NULL; ++i) {
-		if (test_suffix(suffixes[i].compressed, src_name, src_len)
-				!= 0) {
+	for (size_t i = 0; suffixes[i] != NULL; ++i) {
+		if (test_suffix(suffixes[i], src_name, src_len) != 0) {
 			message_warning(_("%s: File already has `%s' "
 					"suffix, skipping"), src_name,
-					suffixes[i].compressed);
+					suffixes[i]);
+			return NULL;
+		}
+	}
+
+	if (custom_suffix != NULL) {
+		if (test_suffix(custom_suffix, src_name, src_len) != 0) {
+			message_warning(_("%s: File already has `%s' "
+					"suffix, skipping"), src_name,
+					custom_suffix);
 			return NULL;
 		}
 	}
@@ -193,7 +198,7 @@ compressed_name(const char *src_name, const size_t src_len)
 	}
 
 	const char *suffix = custom_suffix != NULL
-			? custom_suffix : suffixes[0].compressed;
+			? custom_suffix : suffixes[0];
 	const size_t suffix_len = strlen(suffix);
 
 	char *dest_name = xmalloc(src_len + suffix_len + 1);

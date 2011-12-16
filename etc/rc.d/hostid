@@ -50,9 +50,9 @@ hostid_set()
 	# Set both kern.hostuuid and kern.hostid.
 	#
 	check_startmsgs && echo "Setting hostuuid: ${uuid}."
-	${SYSCTL_W} kern.hostuuid="${uuid}" >/dev/null
+	${SYSCTL} kern.hostuuid="${uuid}" >/dev/null
 	check_startmsgs && echo "Setting hostid: ${id}."
-	${SYSCTL_W} kern.hostid=${id} >/dev/null
+	${SYSCTL} kern.hostid=${id} >/dev/null
 }
 
 hostid_hardware()

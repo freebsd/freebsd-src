@@ -20,6 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
@@ -101,6 +102,13 @@ zfs_prop_init(void)
 	static zprop_index_t snapdir_table[] = {
 		{ "hidden",	ZFS_SNAPDIR_HIDDEN },
 		{ "visible",	ZFS_SNAPDIR_VISIBLE },
+		{ NULL }
+	};
+
+	static zprop_index_t acl_mode_table[] = {
+		{ "discard",	ZFS_ACL_DISCARD },
+		{ "groupmask",	ZFS_ACL_GROUPMASK },
+		{ "passthrough", ZFS_ACL_PASSTHROUGH },
 		{ NULL }
 	};
 
@@ -207,6 +215,9 @@ zfs_prop_init(void)
 	zprop_register_index(ZFS_PROP_SNAPDIR, "snapdir", ZFS_SNAPDIR_HIDDEN,
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "hidden | visible", "SNAPDIR", snapdir_table);
+	zprop_register_index(ZFS_PROP_ACLMODE, "aclmode", ZFS_ACL_DISCARD,
+	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
+	    "discard | groupmask | passthrough", "ACLMODE", acl_mode_table);
 	zprop_register_index(ZFS_PROP_ACLINHERIT, "aclinherit",
 	    ZFS_ACL_RESTRICTED, PROP_INHERIT, ZFS_TYPE_FILESYSTEM,
 	    "discard | noallow | restricted | passthrough | passthrough-x",
@@ -256,7 +267,7 @@ zfs_prop_init(void)
 	/* default index properties */
 	zprop_register_index(ZFS_PROP_VERSION, "version", 0, PROP_DEFAULT,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_SNAPSHOT,
-	    "1 | 2 | 3 | 4 | current", "VERSION", version_table);
+	    "1 | 2 | 3 | 4 | 5 | current", "VERSION", version_table);
 	zprop_register_index(ZFS_PROP_CANMOUNT, "canmount", ZFS_CANMOUNT_ON,
 	    PROP_DEFAULT, ZFS_TYPE_FILESYSTEM, "on | off | noauto",
 	    "CANMOUNT", canmount_table);
@@ -286,6 +297,8 @@ zfs_prop_init(void)
 	/* string properties */
 	zprop_register_string(ZFS_PROP_ORIGIN, "origin", NULL, PROP_READONLY,
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<snapshot>", "ORIGIN");
+	zprop_register_string(ZFS_PROP_CLONES, "clones", NULL, PROP_READONLY,
+	    ZFS_TYPE_SNAPSHOT, "<dataset>[,...]", "CLONES");
 	zprop_register_string(ZFS_PROP_MOUNTPOINT, "mountpoint", "/",
 	    PROP_INHERIT, ZFS_TYPE_FILESYSTEM, "<path> | legacy | none",
 	    "MOUNTPOINT");
@@ -311,6 +324,9 @@ zfs_prop_init(void)
 	zprop_register_number(ZFS_PROP_COMPRESSRATIO, "compressratio", 0,
 	    PROP_READONLY, ZFS_TYPE_DATASET,
 	    "<1.00x or higher if compressed>", "RATIO");
+	zprop_register_number(ZFS_PROP_REFRATIO, "refcompressratio", 0,
+	    PROP_READONLY, ZFS_TYPE_DATASET,
+	    "<1.00x or higher if compressed>", "REFRATIO");
 	zprop_register_number(ZFS_PROP_VOLBLOCKSIZE, "volblocksize",
 	    ZVOL_DEFAULT_BLOCKSIZE, PROP_ONETIME,
 	    ZFS_TYPE_VOLUME, "512 to 128k, power of 2",	"VOLBLOCK");
@@ -328,6 +344,8 @@ zfs_prop_init(void)
 	    ZFS_TYPE_FILESYSTEM | ZFS_TYPE_VOLUME, "<size>", "USEDREFRESERV");
 	zprop_register_number(ZFS_PROP_USERREFS, "userrefs", 0, PROP_READONLY,
 	    ZFS_TYPE_SNAPSHOT, "<count>", "USERREFS");
+	zprop_register_number(ZFS_PROP_WRITTEN, "written", 0, PROP_READONLY,
+	    ZFS_TYPE_DATASET, "<size>", "WRITTEN");
 
 	/* default number properties */
 	zprop_register_number(ZFS_PROP_QUOTA, "quota", 0, PROP_DEFAULT,
@@ -369,13 +387,6 @@ zfs_prop_init(void)
 	    PROP_READONLY, ZFS_TYPE_DATASET, "UNIQUE");
 	zprop_register_hidden(ZFS_PROP_OBJSETID, "objsetid", PROP_TYPE_NUMBER,
 	    PROP_READONLY, ZFS_TYPE_DATASET, "OBJSETID");
-
-	/*
-	 * Property to be removed once libbe is integrated
-	 */
-	zprop_register_hidden(ZFS_PROP_PRIVATE, "priv_prop",
-	    PROP_TYPE_NUMBER, PROP_READONLY, ZFS_TYPE_FILESYSTEM,
-	    "PRIV_PROP");
 
 	/* oddball properties */
 	zprop_register_impl(ZFS_PROP_CREATION, "creation", PROP_TYPE_NUMBER, 0,
@@ -458,6 +469,18 @@ zfs_prop_userquota(const char *name)
 	}
 
 	return (B_FALSE);
+}
+
+/*
+ * Returns true if this is a valid written@ property.
+ * Note that after the @, any character is valid (eg, another @, for
+ * written@pool/fs@origin).
+ */
+boolean_t
+zfs_prop_written(const char *name)
+{
+	static const char *prefix = "written@";
+	return (strncmp(name, prefix, strlen(prefix)) == 0);
 }
 
 /*

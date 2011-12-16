@@ -4,9 +4,9 @@
  * All rights reserved.
  *
  * This software was developed by Lawrence Stewart while studying at the Centre
- * for Advanced Internet Architectures, Swinburne University, made possible in
- * part by grants from the FreeBSD Foundation and Cisco University Research
- * Program Fund at Community Foundation Silicon Valley.
+ * for Advanced Internet Architectures, Swinburne University of Technology,
+ * made possible in part by grants from the FreeBSD Foundation and Cisco
+ * University Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
@@ -58,8 +58,7 @@ struct hhook {
 	STAILQ_ENTRY(hhook)	hhk_next;
 };
 
-MALLOC_DECLARE(M_HHOOK);
-MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
+static MALLOC_DEFINE(M_HHOOK, "hhook", "Helper hooks are linked off hhook_head lists");
 
 LIST_HEAD(hhookheadhead, hhook_head);
 VNET_DEFINE(struct hhookheadhead, hhook_head_list);

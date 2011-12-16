@@ -311,6 +311,12 @@ extern const char *buf_wmesg;		/* Default buffer lock message */
 	lockdestroy(&(bp)->b_lock)
 
 /*
+ * Print informations on a buffer lock.
+ */
+#define BUF_LOCKPRINTINFO(bp) 						\
+	lockmgr_printinfo(&(bp)->b_lock)
+
+/*
  * Buffer lock assertions.
  */
 #if defined(INVARIANTS) && defined(INVARIANT_SUPPORT)

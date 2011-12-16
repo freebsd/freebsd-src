@@ -26,7 +26,7 @@
 #endif
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 help(void)
 {
 	printf(
@@ -45,7 +45,7 @@ _("Usage: %s [--help] [--version] [FILE]...\n"
 }
 
 
-static void lzma_attribute((noreturn))
+static void lzma_attribute((__noreturn__))
 version(void)
 {
 	puts("lzmainfo (" PACKAGE_NAME ") " LZMA_VERSION_STRING);

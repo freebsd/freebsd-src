@@ -8,6 +8,7 @@ SRCS=	APFloat.cpp \
 	APSInt.cpp \
 	Allocator.cpp \
 	Atomic.cpp \
+	BranchProbability.cpp \
 	CommandLine.cpp \
 	ConstantRange.cpp \
 	CrashRecoveryContext.cpp \

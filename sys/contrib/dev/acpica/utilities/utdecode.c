@@ -188,7 +188,8 @@ const char        *AcpiGbl_RegionTypes[ACPI_NUM_PREDEFINED_REGIONS] =
     "SystemCMOS",
     "PCIBARTarget",
     "IPMI",
-    "DataTable"
+    "GeneralPurposeIo",
+    "GenericSerialBus"
 };
 
 
@@ -200,6 +201,10 @@ AcpiUtGetRegionName (
     if (SpaceId >= ACPI_USER_REGION_BEGIN)
     {
         return ("UserDefinedRegion");
+    }
+    else if (SpaceId == ACPI_ADR_SPACE_DATA_TABLE)
+    {
+        return ("DataTable");
     }
     else if (SpaceId == ACPI_ADR_SPACE_FIXED_HARDWARE)
     {

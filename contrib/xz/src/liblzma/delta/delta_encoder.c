@@ -85,7 +85,7 @@ delta_encode(lzma_coder *coder, lzma_allocator *allocator,
 
 static lzma_ret
 delta_encoder_update(lzma_coder *coder, lzma_allocator *allocator,
-		const lzma_filter *filters_null lzma_attribute((unused)),
+		const lzma_filter *filters_null lzma_attribute((__unused__)),
 		const lzma_filter *reversed_filters)
 {
 	// Delta doesn't and will never support changing the options in

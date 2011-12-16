@@ -12,7 +12,7 @@
 //
 // Global variables are constant pointers that refer to hunks of space that are
 // allocated by either the VM, or by the linker in a static compiler.  A global
-// variable may have an intial value, which is copied into the executables .data
+// variable may have an initial value, which is copied into the executables .data
 // area.  Global Constants are required to have initializers.
 //
 //===----------------------------------------------------------------------===//
@@ -50,12 +50,12 @@ public:
   }
   /// GlobalVariable ctor - If a parent module is specified, the global is
   /// automatically inserted into the end of the specified modules global list.
-  GlobalVariable(const Type *Ty, bool isConstant, LinkageTypes Linkage,
+  GlobalVariable(Type *Ty, bool isConstant, LinkageTypes Linkage,
                  Constant *Initializer = 0, const Twine &Name = "",
                  bool ThreadLocal = false, unsigned AddressSpace = 0);
   /// GlobalVariable ctor - This creates a global and inserts it before the
   /// specified other global.
-  GlobalVariable(Module &M, const Type *Ty, bool isConstant,
+  GlobalVariable(Module &M, Type *Ty, bool isConstant,
                  LinkageTypes Linkage, Constant *Initializer,
                  const Twine &Name,
                  GlobalVariable *InsertBefore = 0, bool ThreadLocal = false,
@@ -67,11 +67,6 @@ public:
 
   /// Provide fast operand accessors
   DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// isDeclaration - Is this global variable lacking an initializer?  If so,
-  /// the global variable is defined in some other translation unit, and is thus
-  /// only a declaration here.
-  virtual bool isDeclaration() const { return getNumOperands() == 0; }
 
   /// hasInitializer - Unless a global variable isExternal(), it has an
   /// initializer.  The initializer for the global variable/constant is held by
@@ -119,7 +114,7 @@ public:
   /// illegal to call this method if the global is external, because we cannot
   /// tell what the value is initialized to!
   ///
-  inline /*const FIXME*/ Constant *getInitializer() const {
+  inline const Constant *getInitializer() const {
     assert(hasInitializer() && "GV doesn't have initializer!");
     return static_cast<Constant*>(Op<0>().get());
   }

@@ -22,13 +22,11 @@ def OP_SUB   : Op;
 def OP_SUBL  : Op;
 def OP_SUBW  : Op;
 def OP_MUL   : Op;
-def OP_MULL  : Op;
 def OP_MLA   : Op;
 def OP_MLAL  : Op;
 def OP_MLS   : Op;
 def OP_MLSL  : Op;
 def OP_MUL_N : Op;
-def OP_MULL_N: Op;
 def OP_MLA_N : Op;
 def OP_MLS_N : Op;
 def OP_MLAL_N : Op;
@@ -77,6 +75,7 @@ class Inst <string n, string p, string t, Op o> {
   string Types = t;
   Op Operand = o;
   bit isShift = 0;
+  bit isVCVT_N = 0;
 }
 
 // Used to generate Builtins.def:
@@ -144,8 +143,7 @@ def VQDMULH  : SInst<"vqdmulh", "ddd", "siQsQi">;
 def VQRDMULH : SInst<"vqrdmulh", "ddd", "siQsQi">;
 def VQDMLAL  : SInst<"vqdmlal", "wwdd", "si">;
 def VQDMLSL  : SInst<"vqdmlsl", "wwdd", "si">;
-def VMULL    : Inst<"vmull", "wdd", "csiUcUsUi", OP_MULL>;
-def VMULLP   : SInst<"vmull", "wdd", "Pc">;
+def VMULL    : SInst<"vmull", "wdd", "csiUcUsUiPc">;
 def VQDMULL  : SInst<"vqdmull", "wdd", "si">;
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -184,7 +182,7 @@ def VMAX : SInst<"vmax", "ddd", "csiUcUsUifQcQsQiQUcQUsQUiQf">;
 def VMIN : SInst<"vmin", "ddd", "csiUcUsUifQcQsQiQUcQUsQUiQf">;
 
 ////////////////////////////////////////////////////////////////////////////////
-// E.3.7 Pairdise Addition
+// E.3.7 Pairwise Addition
 def VPADD  : IInst<"vpadd", "ddd", "csiUcUsUif">;
 def VPADDL : SInst<"vpaddl", "nd",  "csiUcUsUiQcQsQiQUcQUsQUi">;
 def VPADAL : SInst<"vpadal", "nnd", "csiUcUsUiQcQsQiQUcQUsQUi">;
@@ -300,11 +298,13 @@ def VGET_LOW  : Inst<"vget_low", "dk", "csilhfUcUsUiUlPcPs", OP_LO>;
 def VCVT_S32     : SInst<"vcvt_s32", "xd",  "fQf">;
 def VCVT_U32     : SInst<"vcvt_u32", "ud",  "fQf">;
 def VCVT_F16     : SInst<"vcvt_f16", "hk",  "f">;
-def VCVT_N_S32   : SInst<"vcvt_n_s32", "xdi", "fQf">;
-def VCVT_N_U32   : SInst<"vcvt_n_u32", "udi", "fQf">;
 def VCVT_F32     : SInst<"vcvt_f32", "fd",  "iUiQiQUi">;
 def VCVT_F32_F16 : SInst<"vcvt_f32_f16", "fd",  "h">;
+let isVCVT_N = 1 in {
+def VCVT_N_S32   : SInst<"vcvt_n_s32", "xdi", "fQf">;
+def VCVT_N_U32   : SInst<"vcvt_n_u32", "udi", "fQf">;
 def VCVT_N_F32   : SInst<"vcvt_n_f32", "fdi", "iUiQiQUi">;
+}
 def VMOVN        : IInst<"vmovn", "hk",  "silUsUiUl">;
 def VMOVL        : SInst<"vmovl", "wd",  "csiUcUsUi">;
 def VQMOVN       : SInst<"vqmovn", "hk",  "silUsUiUl">;
@@ -331,7 +331,7 @@ def VMLSL_LANE   : Inst<"vmlsl_lane", "wwddi", "siUsUi", OP_MLSL_LN>;
 def VQDMLSL_LANE : Inst<"vqdmlsl_lane", "wwddi", "si", OP_QDMLSL_LN>;
 def VMUL_N       : Inst<"vmul_n", "dds", "sifUsUiQsQiQfQUsQUi", OP_MUL_N>;
 def VMUL_LANE    : Inst<"vmul_lane", "ddgi", "sifUsUiQsQiQfQUsQUi", OP_MUL_LN>;
-def VMULL_N      : Inst<"vmull_n", "wda", "siUsUi", OP_MULL_N>;
+def VMULL_N      : SInst<"vmull_n", "wda", "siUsUi">;
 def VMULL_LANE   : Inst<"vmull_lane", "wddi", "siUsUi", OP_MULL_LN>;
 def VQDMULL_N    : SInst<"vqdmull_n", "wda", "si">;
 def VQDMULL_LANE : Inst<"vqdmull_lane", "wddi", "si", OP_QDMULL_LN>;
@@ -352,7 +352,7 @@ def VEXT : WInst<"vext", "dddi",
                  "cUcPcsUsPsiUilUlfQcQUcQPcQsQUsQPsQiQUiQlQUlQf">;
 
 ////////////////////////////////////////////////////////////////////////////////
-// E.3.27 Reverse vector elements (sdap endianness)
+// E.3.27 Reverse vector elements
 def VREV64 : Inst<"vrev64", "dd", "csiUcUsUiPcPsfQcQsQiQUcQUsQUiQPcQPsQf",
                   OP_REV64>;
 def VREV32 : Inst<"vrev32", "dd", "csUcUsPcPsQcQsQUcQUsQPcQPs", OP_REV32>;

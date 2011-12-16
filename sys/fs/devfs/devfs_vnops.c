@@ -261,7 +261,7 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	} else if (vp->v_type == VDIR) {
 		if (dd == dmp->dm_rootdir) {
 			*dvp = vp;
-			vhold(*dvp);
+			vref(*dvp);
 			goto finished;
 		}
 		i -= dd->de_dirent->d_namlen;
@@ -289,6 +289,8 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(*dvp);
 		VI_UNLOCK(*dvp);
+		vref(*dvp);
+		vdrop(*dvp);
 	} else {
 		mtx_unlock(&devfs_de_interlock);
 		error = ENOENT;
@@ -397,6 +399,7 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 		sx_xunlock(&dmp->dm_lock);
 		return (ENOENT);
 	}
+loop:
 	DEVFS_DE_HOLD(de);
 	DEVFS_DMP_HOLD(dmp);
 	mtx_lock(&devfs_de_interlock);
@@ -405,16 +408,21 @@ devfs_allocv(struct devfs_dirent *de, struct mount *mp, int lockmode,
 		VI_LOCK(vp);
 		mtx_unlock(&devfs_de_interlock);
 		sx_xunlock(&dmp->dm_lock);
-		error = vget(vp, lockmode | LK_INTERLOCK, curthread);
+		vget(vp, lockmode | LK_INTERLOCK | LK_RETRY, curthread);
 		sx_xlock(&dmp->dm_lock);
 		if (devfs_allocv_drop_refs(0, dmp, de)) {
-			if (error == 0)
-				vput(vp);
+			vput(vp);
 			return (ENOENT);
 		}
-		else if (error) {
-			sx_xunlock(&dmp->dm_lock);
-			return (error);
+		else if ((vp->v_iflag & VI_DOOMED) != 0) {
+			mtx_lock(&devfs_de_interlock);
+			if (de->de_vnode == vp) {
+				de->de_vnode = NULL;
+				vp->v_data = NULL;
+			}
+			mtx_unlock(&devfs_de_interlock);
+			vput(vp);
+			goto loop;
 		}
 		sx_xunlock(&dmp->dm_lock);
 		*vpp = vp;
@@ -594,10 +602,21 @@ devfs_close_f(struct file *fp, struct thread *td)
 	int error;
 	struct file *fpop;
 
-	fpop = td->td_fpop;
-	td->td_fpop = fp;
+	/*
+	 * NB: td may be NULL if this descriptor is closed due to
+	 * garbage collection from a closed UNIX domain socket.
+	 */
+	fpop = curthread->td_fpop;
+	curthread->td_fpop = fp;
 	error = vnops.fo_close(fp, td);
-	td->td_fpop = fpop;
+	curthread->td_fpop = fpop;
+
+	/*
+	 * The f_cdevpriv cannot be assigned non-NULL value while we
+	 * are destroying the file.
+	 */
+	if (fp->f_cdevpriv != NULL)
+		devfs_fpdrop(fp);
 	return (error);
 }
 
@@ -1044,6 +1063,10 @@ devfs_open(struct vop_open_args *ap)
 	dsw = dev_refthread(dev, &ref);
 	if (dsw == NULL)
 		return (ENXIO);
+	if (fp == NULL && dsw->d_fdopen != NULL) {
+		dev_relthread(dev, ref);
+		return (ENXIO);
+	}
 
 	vlocked = VOP_ISLOCKED(vp);
 	VOP_UNLOCK(vp, 0);
@@ -1659,6 +1682,8 @@ static struct fileops devfs_ops_f = {
 	.fo_kqfilter =	devfs_kqfilter_f,
 	.fo_stat =	devfs_stat_f,
 	.fo_close =	devfs_close_f,
+	.fo_chmod =	vn_chmod,
+	.fo_chown =	vn_chown,
 	.fo_flags =	DFLAG_PASSABLE | DFLAG_SEEKABLE
 };
 

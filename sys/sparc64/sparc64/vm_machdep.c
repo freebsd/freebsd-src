@@ -17,10 +17,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -372,7 +368,7 @@ cpu_reset(void)
 		(cell_t)bspec
 	};
 
-	if ((chosen = OF_finddevice("/chosen")) != 0) {
+	if ((chosen = OF_finddevice("/chosen")) != -1) {
 		if (OF_getprop(chosen, "bootpath", bspec, sizeof(bspec)) == -1)
 			bspec[0] = '\0';
 		bspec[sizeof(bspec) - 1] = '\0';
@@ -497,7 +493,6 @@ swi_vm(void *v)
 void *
 uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 {
-	static vm_pindex_t color;
 	vm_paddr_t pa;
 	vm_page_t m;
 	int pflags;
@@ -516,7 +511,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		pflags |= VM_ALLOC_ZERO;
 
 	for (;;) {
-		m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+		m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);
@@ -529,7 +524,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	pa = VM_PAGE_TO_PHYS(m);
 	if (dcache_color_ignore == 0 && m->md.color != DCACHE_COLOR(pa)) {
 		KASSERT(m->md.colors[0] == 0 && m->md.colors[1] == 0,
-		    ("uma_small_alloc: free page still has mappings!"));
+		    ("uma_small_alloc: free page %p still has mappings!", m));
 		PMAP_STATS_INC(uma_nsmall_alloc_oc);
 		m->md.color = DCACHE_COLOR(pa);
 		dcache_page_inval(pa);

@@ -26,6 +26,7 @@
  * $FreeBSD$
  */
 
+#include <sys/param.h>
 #include <stdio.h>
 #include <errno.h>
 #include <limits.h>
@@ -48,6 +49,7 @@ main(void)
 	dists = calloc(ndists, sizeof(const char *));
 	if (dists == NULL) {
 		fprintf(stderr, "Out of memory!\n");
+		free(diststring);
 		return (1);
 	}
 
@@ -75,6 +77,65 @@ main(void)
 	free(dists);
 
 	return (retval);
+}
+
+static int
+count_files(const char *file)
+{
+	struct archive *archive;
+	struct archive_entry *entry;
+	static FILE *manifest = NULL;
+	char path[MAXPATHLEN];
+	char errormsg[512];
+	int file_count, err;
+
+	if (manifest == NULL) {
+		sprintf(path, "%s/MANIFEST", getenv("BSDINSTALL_DISTDIR"));
+		manifest = fopen(path, "r");
+	}
+
+	if (manifest != NULL) {
+		char line[512];
+		char *tok1, *tok2;
+
+		rewind(manifest);
+		while (fgets(line, sizeof(line), manifest) != NULL) {
+			tok2 = line;
+			tok1 = strsep(&tok2, "\t");
+			if (tok1 == NULL || strcmp(tok1, file) != 0)
+				continue;
+
+			/*
+			 * We're at the right manifest line. The file count is
+			 * in the third element
+			 */
+			tok1 = strsep(&tok2, "\t");
+			tok1 = strsep(&tok2, "\t");
+			if (tok1 != NULL)
+				return atoi(tok1);
+		}
+	}
+
+	/* Either we didn't have a manifest, or this archive wasn't there */
+	archive = archive_read_new();
+	archive_read_support_format_all(archive);
+	archive_read_support_compression_all(archive);
+	sprintf(path, "%s/%s", getenv("BSDINSTALL_DISTDIR"), file);
+	err = archive_read_open_filename(archive, path, 4096);
+	if (err != ARCHIVE_OK) {
+		snprintf(errormsg, sizeof(errormsg),
+		    "Error while extracting %s: %s\n", file,
+		    archive_error_string(archive));
+		dialog_msgbox("Extract Error", errormsg, 0, 0, TRUE);
+		return (-1);
+	}
+
+	file_count = 0;
+	while (archive_read_next_header(archive, &entry) == ARCHIVE_OK)
+		file_count++;
+	archive_read_free(archive);
+
+	return (file_count);
 }
 
 static int
@@ -106,28 +167,13 @@ extract_files(int nfiles, const char **files)
 	dialog_msgbox("",
 	    "Checking distribution archives.\nPlease wait...", 0, 0, FALSE);
 
-	/* Open all the archives */
+	/* Count all the files */
 	total_files = 0;
 	for (i = 0; i < nfiles; i++) {
-		archive = archive_read_new();
-		archive_read_support_format_all(archive);
-		archive_read_support_compression_all(archive);
-		sprintf(path, "%s/%s", getenv("BSDINSTALL_DISTDIR"), files[i]);
-		err = archive_read_open_filename(archive, path, 4096);
-		if (err != ARCHIVE_OK) {
-			snprintf(errormsg, sizeof(errormsg),
-			    "Error while extracting %s: %s\n", items[i*2],
-			    archive_error_string(archive));
-			items[i*2 + 1] = "Failed";
-			dialog_msgbox("Extract Error", errormsg, 0, 0,
-			    TRUE);
-			return (err);
-		}
-		archive_files[i] = 0;
-		while (archive_read_next_header(archive, &entry) == ARCHIVE_OK)
-			archive_files[i]++;
+		archive_files[i] = count_files(files[i]);
+		if (archive_files[i] < 0)
+			return (-1);
 		total_files += archive_files[i];
-		archive_read_free(archive);
 	}
 
 	current_files = 0;

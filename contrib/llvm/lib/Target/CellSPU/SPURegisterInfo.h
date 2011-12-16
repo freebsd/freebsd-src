@@ -16,7 +16,9 @@
 #define SPU_REGISTERINFO_H
 
 #include "SPU.h"
-#include "SPUGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "SPUGenRegisterInfo.inc"
 
 namespace llvm {
   class SPUSubtarget;
@@ -46,6 +48,14 @@ namespace llvm {
     virtual const TargetRegisterClass *
     getPointerRegClass(unsigned Kind = 0) const;
 
+    /// After allocating this many registers, the allocator should feel
+    /// register pressure. The value is a somewhat random guess, based on the
+    /// number of non callee saved registers in the C calling convention.
+    virtual unsigned getRegPressureLimit( const TargetRegisterClass *RC,
+                                          MachineFunction &MF) const{
+      return 50;
+    }
+
     //! Return the array of callee-saved registers
     virtual const unsigned* getCalleeSavedRegs(const MachineFunction *MF) const;
 
@@ -64,17 +74,12 @@ namespace llvm {
     void eliminateFrameIndex(MachineBasicBlock::iterator II, int SPAdj,
                              RegScavenger *RS = NULL) const;
 
-    //! Get return address register (LR, aka R0)
-    unsigned getRARegister() const;
     //! Get the stack frame register (SP, aka R1)
     unsigned getFrameRegister(const MachineFunction &MF) const;
 
     //------------------------------------------------------------------------
     // New methods added:
     //------------------------------------------------------------------------
-
-    //! Get DWARF debugging register number
-    int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 
     //! Convert D-form load/store to X-form load/store
     /*!

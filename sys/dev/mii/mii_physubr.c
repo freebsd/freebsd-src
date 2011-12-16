@@ -109,7 +109,7 @@ mii_phy_setmedia(struct mii_softc *sc)
 		/*
 		 * Force renegotiation if MIIF_DOPAUSE or MIIF_FORCEANEG.
 		 * The former is necessary as we might switch from flow-
-		 * control advertisment being off to on or vice versa.
+		 * control advertisement being off to on or vice versa.
 		 */
 		if ((PHY_READ(sc, MII_BMCR) & BMCR_AUTOEN) == 0 ||
 		    (sc->mii_flags & (MIIF_DOPAUSE | MIIF_FORCEANEG)) != 0)
@@ -149,9 +149,6 @@ mii_phy_setmedia(struct mii_softc *sc)
 				anar |= ANAR_X_PAUSE_ASYM;
 		}
 	}
-
-	if ((ife->ifm_media & IFM_LOOP) != 0)
-		bmcr |= BMCR_LOOP;
 
 	PHY_WRITE(sc, MII_ANAR, anar);
 	PHY_WRITE(sc, MII_BMCR, bmcr);
@@ -251,7 +248,7 @@ mii_phy_tick(struct mii_softc *sc)
 		return (EJUSTRETURN);
 
 	sc->mii_ticks = 0;
-	mii_phy_reset(sc);
+	PHY_RESET(sc);
 	mii_phy_auto(sc);
 	return (0);
 }
@@ -260,7 +257,7 @@ void
 mii_phy_reset(struct mii_softc *sc)
 {
 	struct ifmedia_entry *ife = sc->mii_pdata->mii_media.ifm_cur;
-	int reg, i;
+	int i, reg;
 
 	if ((sc->mii_flags & MIIF_NOISOLATE) != 0)
 		reg = BMCR_RESET;
@@ -276,11 +273,14 @@ mii_phy_reset(struct mii_softc *sc)
 		DELAY(1000);
 	}
 
-	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
-		if ((ife == NULL && sc->mii_inst != 0) ||
-		    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst))
-			PHY_WRITE(sc, MII_BMCR, reg | BMCR_ISO);
-	}
+	/* NB: a PHY may default to being powered down and/or isolated. */
+	reg &= ~(BMCR_PDOWN | BMCR_ISO);
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0 &&
+	    ((ife == NULL && sc->mii_inst != 0) ||
+	    (ife != NULL && IFM_INST(ife->ifm_media) != sc->mii_inst)))
+		reg |= BMCR_ISO;
+	if (PHY_READ(sc, MII_BMCR) != reg)
+		PHY_WRITE(sc, MII_BMCR, reg);
 }
 
 void
@@ -332,9 +332,11 @@ mii_phy_add_media(struct mii_softc *sc)
 #define	ADD(m, c)	ifmedia_add(&mii->mii_media, (m), (c), NULL)
 #define	PRINT(s)	printf("%s%s", sep, s); sep = ", "
 
-	if ((sc->mii_flags & MIIF_NOISOLATE) == 0)
+	if ((sc->mii_flags & MIIF_NOISOLATE) == 0) {
 		ADD(IFM_MAKEWORD(IFM_ETHER, IFM_NONE, 0, sc->mii_inst),
 		    MII_MEDIA_NONE);
+		PRINT("none");
+	}
 
 	/*
 	 * There are different interpretations for the bits in
@@ -519,6 +521,50 @@ mii_phy_dev_probe(device_t dev, const struct mii_phydesc *mpd, int mrv)
 		return (mrv);
 	}
 	return (ENXIO);
+}
+
+void
+mii_phy_dev_attach(device_t dev, u_int flags, const struct mii_phy_funcs *mpf,
+    int add_media)
+{
+	struct mii_softc *sc;
+	struct mii_attach_args *ma;
+	struct mii_data *mii;
+
+	sc = device_get_softc(dev);
+	ma = device_get_ivars(dev);
+	sc->mii_dev = device_get_parent(dev);
+	mii = ma->mii_data;
+	LIST_INSERT_HEAD(&mii->mii_phys, sc, mii_list);
+
+	sc->mii_flags = flags | miibus_get_flags(dev);
+	sc->mii_mpd_oui = MII_OUI(ma->mii_id1, ma->mii_id2);
+	sc->mii_mpd_model = MII_MODEL(ma->mii_id2);
+	sc->mii_mpd_rev = MII_REV(ma->mii_id2);
+	sc->mii_capmask = ma->mii_capmask;
+	sc->mii_inst = mii->mii_instance++;
+	sc->mii_phy = ma->mii_phyno;
+	sc->mii_offset = ma->mii_offset;
+	sc->mii_funcs = mpf;
+	sc->mii_pdata = mii;
+
+	if (bootverbose)
+		device_printf(dev, "OUI 0x%06x, model 0x%04x, rev. %d\n",
+		    sc->mii_mpd_oui, sc->mii_mpd_model, sc->mii_mpd_rev);
+
+	if (add_media == 0)
+		return;
+
+	PHY_RESET(sc);
+
+	sc->mii_capabilities = PHY_READ(sc, MII_BMSR) & sc->mii_capmask;
+	if (sc->mii_capabilities & BMSR_EXTSTAT)
+		sc->mii_extcapabilities = PHY_READ(sc, MII_EXTSR);
+	device_printf(dev, " ");
+	mii_phy_add_media(sc);
+	printf("\n");
+
+	MIIBUS_MEDIAINIT(sc->mii_dev);
 }
 
 /*

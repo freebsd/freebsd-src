@@ -213,6 +213,7 @@ FBSD_1.0 {
 	ldexp;
 	lockf;
 	lrand48;
+	modf;
 	mrand48;
 	nftw;
 	nice;

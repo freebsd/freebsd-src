@@ -66,9 +66,9 @@ static void set_events(file_info_t *files);
 #define USE_KQUEUE	1
 #define ADD_EVENTS	2
 
-struct kevent *ev;
-int action = USE_SLEEP;
-int kq;
+static struct kevent *ev;
+static int action = USE_SLEEP;
+static int kq;
 
 static const file_info_t *last;
 
@@ -361,8 +361,10 @@ follow(file_info_t *files, enum STYLE style, off_t off)
 					if (errno != ENOENT)
 						ierr(file->file_name);
 					show(file);
-					fclose(file->fp);
-					file->fp = NULL;
+					if (file->fp != NULL) {
+						fclose(file->fp);
+						file->fp = NULL;
+					}
 					ev_change++;
 					continue;
 				}

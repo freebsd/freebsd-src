@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_page.h>
 
-MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
+static MALLOC_DEFINE(M_BALLOON, "Balloon", "Xen Balloon Driver");
 
 struct mtx balloon_mutex;
 
@@ -84,7 +84,7 @@ static struct balloon_stats balloon_stats;
 #define bs balloon_stats
 
 SYSCTL_DECL(_dev_xen);
-SYSCTL_NODE(_dev_xen, OID_AUTO, balloon, CTLFLAG_RD, NULL, "Balloon");
+static SYSCTL_NODE(_dev_xen, OID_AUTO, balloon, CTLFLAG_RD, NULL, "Balloon");
 SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, current, CTLFLAG_RD,
     &bs.current_pages, 0, "Current allocation");
 SYSCTL_ULONG(_dev_xen_balloon, OID_AUTO, target, CTLFLAG_RD,
@@ -145,12 +145,6 @@ balloon_retrieve(void)
 	bs.balloon_low--;
 
 	return page;
-}
-
-static void 
-balloon_alarm(void *unused)
-{
-	wakeup(balloon_process);
 }
 
 static unsigned long 
@@ -304,8 +298,7 @@ decrease_reservation(unsigned long nr_pages)
 		nr_pages = ARRAY_SIZE(frame_list);
 
 	for (i = 0; i < nr_pages; i++) {
-		int color = 0;
-		if ((page = vm_page_alloc(NULL, color++, 
+		if ((page = vm_page_alloc(NULL, 0, 
 			    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | 
 			    VM_ALLOC_WIRED | VM_ALLOC_ZERO)) == NULL) {
 			nr_pages = i;
@@ -378,6 +371,8 @@ balloon_process(void *unused)
 	
 	mtx_lock(&balloon_mutex);
 	for (;;) {
+		int sleep_time;
+
 		do {
 			credit = current_target() - bs.current_pages;
 			if (credit > 0)
@@ -389,9 +384,12 @@ balloon_process(void *unused)
 		
 		/* Schedule more work if there is some still to be done. */
 		if (current_target() != bs.current_pages)
-			timeout(balloon_alarm, NULL, ticks + hz);
+			sleep_time = hz;
+		else
+			sleep_time = 0;
 
-		msleep(balloon_process, &balloon_mutex, 0, "balloon", -1);
+		msleep(balloon_process, &balloon_mutex, 0, "balloon",
+		       sleep_time);
 	}
 	mtx_unlock(&balloon_mutex);
 }
@@ -474,9 +472,6 @@ balloon_init(void *arg)
 	bs.hard_limit    = ~0UL;
 
 	kproc_create(balloon_process, NULL, NULL, 0, 0, "balloon");
-//	init_timer(&balloon_timer);
-//	balloon_timer.data = 0;
-//	balloon_timer.function = balloon_alarm;
     
 #ifndef XENHVM
 	/* Initialise the balloon with excess memory space. */

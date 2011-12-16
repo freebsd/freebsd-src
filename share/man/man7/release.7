@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 17, 2009
+.Dd March 18, 2011
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -37,310 +37,214 @@ full releases of the
 .Fx
 operating system.
 All of the tools necessary to build a release are available from the
-CVS repository in
+.Fx
+source code repository in
 .Pa src/release .
 A complete release can actually be built with only a single command,
 including the creation of ISO images suitable for burning to CD-ROM,
-installation floppies, and an FTP install directory.
+memory stick images, and an FTP install directory.
 This command is aptly named
 .Dq Li "make release" .
+.Pp
+For some users, it may be desirable to provide an absolutely clean
+build environment, with no local modifications to the source tree or to
+.Xr make.conf 5 ,
+and with clean checkouts of specific versions of the doc, src, and ports
+trees. For this purpose, a script
+.Pq Pa src/release/generate-release.sh
+is provided to automate these checkouts and then execute
+.Dq Li "make release" 
+in a clean
+.Xr chroot 8 .
 .Pp
 Before attempting to build a release, the user is expected to be
 familiar with the contents of
 .Xr build 7 ,
 and should have experience upgrading systems from source.
+.Pp
 The release build process requires that
 .Pa /usr/obj
 be populated with the output of
-a native
-.Dq Li "make buildworld"
-compiled from sources matching the currently running kernel.
-This is necessary so that the object files for a complete system can
-be installed into a clean
+.Dq Li "make buildworld" 
+and
+.Dq Li "make buildkernel" .
+This is necessary to provide the object files for the release or, when
+using
+.Pa generate-release.sh ,
+so that the object files for a complete system can be installed into a clean
 .Xr chroot 8
-environment.
-The release procedure also requires that the
+environment. In this second case, the built world must be capable of running
+on the build system (i.e. it must be for the same architecture and be
+compatible with the installed kernel).
+The release procedure on some architectures may also require that the
 .Xr md 4
 (memory disk) device driver be present in the kernel
 (either by being compiled in or available as a module).
 .Pp
 This document does not cover source code management, quality
 assurance, or other aspects of the release engineering process.
-.Sh TARGETS
+.Sh CLEAN RELEASE GENERATION
+Official releases of FreeBSD are produced in a totally clean environment to
+ensure consistency between the versions of the src, ports, and doc trees
+and to avoid contamination from the host system (e.g. local patches, changes
+to
+.Xr make.conf 5 ,
+etc.). This is accomplished using the wrapper script
+.Pa src/release/generate-release.sh .
+.Pp
+.Ic generate-release.sh
+svn-branch scratch-dir
+.Pp
+.Ic generate-release.sh
+calls
+.Dq Li "make installworld"
+to generate a
+.Xr chroot 8
+environment in
+.Ar scratch-dir .
+It then checks out the src tree specified by
+.Ar svn-branch
+using
+.Xr svn 1
+and (optionally) the ports and documentation trees using
+.Xr csup 1
+or
+.Xr cvs 1 .
+Once the various source trees have been obtained, it executes
+.Dq Li "make release"
+within the
+.Xr chroot 8
+environment and places the result in
+.Pa $scratch-dir/R .
+Note that because this uses a chroot, it cannot be used to cross-build
+.Fx
+release media.
+.Pp
+Environment variables:
+.Bl -tag -width ".Cm MAKE_FLAGS"
+.It Ev CVSUP_HOST
+The CVSUP server to use for the doc and ports trees. One of
+.Ev CVSUP_HOST
+or
+.Ev CVSROOT
+must be specified for ports and documentation to be included in the release.
+.It Ev CVSROOT
+The location of the
+.Fx
+CVS repository to use for the doc and ports trees. One of
+.Ev CVSUP_HOST
+or
+.Ev CVSROOT
+must be specified for ports and documentation to be included in the release.
+.It Ev CVS_TAG
+If the variable
+.Ev CVS_TAG
+is set, that tag will be used for CVS checkouts (doc and ports), otherwise 
+.Ic generate-release.sh
+will use HEAD.
+.It Ev MAKE_FLAGS
+This environment variable can be set to pass flags (e.g. -j) to
+.Xr make 1
+when invoked by the script.
+.It Ev SVNROOT
+The location of the FreeBSD SVN source repository. Defaults to
+.Pa svn://svn.freebsd.org/base .
+.It Ev RELSTRING
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of 
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
+.El
+.Sh MAKEFILE TARGETS
 The release makefile
 .Pq Pa src/release/Makefile
 is fairly abstruse.
 Most developers will only be concerned with the
 .Cm release
-target.
-.\" XXX: Some sort of introduction to this list?  All the others have one.
-.Bl -tag -width ".Cm package-split"
-.It Cm release
-Uses
-.Dq Li "make installworld"
-to install a clean system into a
-.Xr chroot 8
-environment on the file system.
-Checks out the specified version of the source code and then rebuilds
-the entire system in the clean environment with
-.Dq Li "make buildworld" .
-The detailed steps that follow are then executed to package up the
-different distributions, build the installation floppy disks, build
-release documentation, and so on.
-.Pp
-This target must be built as root with the
-.Va kern.securelevel
-sysctl set to \-1 (the default).
-.It Cm rerelease
-Assumes that the output of a release build has been manually modified,
-and performs the minimal number of steps to rebuild the release using
-the intermediate output of the previous
-.Dq Li "make release" .
-.It Cm floppies
-Generate a new set of boot and fixit floppies.
-This will call the
-.Cm release.4 ,
-.Cm release.8 ,
-.Cm floppies.1 ,
-.Cm floppies.2 ,
 and
-.Cm floppies.3
-targets to re-generate the floppy images of a previous
-.Dq Li "make release" .
-This is most often used to build custom boot floppies.
-.It Cm package-split
-Generates the portions of the disc 1 and disc 2 images related to packages.
-It uses the list of desired packages from the
-.Pa src/release/scripts/package-split.py
-script to pull packages out of a package build provided by the ports team
-and organize them appropriately.
-The resulting directory can then be passed to
-.Dq Li "make release"
-via the
-.Va CD_PACKAGE_TREE
-variable to populate the ISO images built by the
-.Cm iso.1
-target with the correct package related bits.
+.Cm install
+targets.
+.\" XXX: Some sort of introduction to this list?  All the others have one.
+.Bl -tag -width ".Cm packagesystem"
+.It Cm release
+Meta-target to build all release media and distributions applicable to this
+platform.
+.It Cm install
+Copy all produced release media to 
+.Pa ${DESTDIR} .
+.It Cm cdrom
+Builds installation CD-ROM images. On some systems, this may require that
+.Xr mkisofs 8
+be installed 
+.Pq Pa sysutils/cdrtools
+and possibly that the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or available as a module). This target
+produces files called
+.Pa release.iso
+and
+.Pa bootonly.iso
+as its output.
+.It Cm memstick
+Builds an installation memory stick image named
+.Pa memstick .
+Not applicable on all platforms. Requires that the
+.Xr md 4
+(memory disk) device driver be present in the kernel
+(either by being compiled in or available as a module).
+.It Cm ftp
+Creates a directory named
+.Pa ftp
+containing the distribution files used in network installations
+and suitable for upload to an FTP mirror.
 .El
 .Pp
-Targets called by
-.Dq Li "make release" :
-.Bl -tag -width ".Cm fetch-distfiles"
-.It Cm release.1
-Cleans out the
-.Pa ${CHROOTDIR}/R
-directory and uses
-.Xr mtree 8
-to build the directory hierarchy for the system.
-.It Cm release.2
-Installs the system into the distribution directories.
-.It Cm release.3
-Makes and installs the
-.Pa GENERIC
-kernel as well as any other kernels listed in
-.Va KERNELS .
-.It Cm release.4
-Uses
-.Xr crunchgen 1
-to build
-.Dq crunched
-binaries to live on the installation floppies.
-.It Cm release.5
-Builds synthetic distributions, and cleans up the previously built
-distribution trees.
-.It Cm release.6
-Creates tarballs of the assembled distribution trees.
-.It Cm release.7
-Makes source distributions.
-.It Cm release.8
-Creates the MFS root file systems.
-.It Cm floppies.1
-Creates the boot and kernel floppies.
-.It Cm floppies.2
-Creates the fixit floppy.
-.It Cm floppies.3
-Finalizes the
-.Pa ${CHROOTDIR}/R/ftp/stage/floppies
-staging directory.
-.It Cm ftp.1
-Sets up a suitable area for FTP installations in
-.Pa ${CHROOTDIR}/R/ftp .
-.It Cm cdrom.1
-Create the layout for the live file system CD-ROM image in
-.Pa ${CHROOTDIR}/R/cdrom .
-.It Cm cdrom.2
-Create the layout for the first and second CD-ROM images.
-.It Cm cdrom.3
-Create the layout for the boot-only CD-ROM image and the boot-only UFS
-miniroot image.
-.It Cm iso.1
-Builds ISO images (installation and
-.Dq live
-file system) from the CD-ROM release area
-(disabled by default, see
-.Va MAKE_ISOS
-below).
-.It Cm fetch-distfiles
-Fetches distfiles needed during the release build that are not already in
-.Va RELEASEDISTFILES .
-.It Cm doc.1
-Builds all of the necessary tools to turn the
-.Fx
-Documentation Project source documents (SGML, XML) into HTML
-and text documents that will accompany the release.
-Also, builds and installs the actual user documentation.
-This includes the Handbook, FAQ, articles, and so on.
-.It Cm doc.2
+Major subtargets called by targets above:
+.Bl -tag -width ".Cm packagesystem"
+.It Cm packagesystem
+Generates all the distribution archives (e.g. base, kernel, ports, doc)
+applicable on this platform.
+.It Cm system
+Builds a bootable installation system containing all the distribution files
+packaged by the
+.Cm packagesystem
+target, and suitable for imaging by the
+.Cm cdrom
+and
+.Cm memstick
+targets.
+.It Cm reldoc
 Builds the release documentation.
 This includes the release notes,
-hardware guide, and installation instructions.
+hardware guide, and installation instructions. Other documentation (e.g.
+the Handbook) is built during the
+.Cm base.txz
+target invoked by
+.Cm packagesystem.
 .El
 .Sh ENVIRONMENT
-Variables that must be specified:
-.Bl -tag -width ".Va CHROOTDIR"
-.It Va CHROOTDIR
-The directory to be used as the
-.Xr chroot 8
-environment for the entire release build.
-.\" XXX: I recommend against hardcoding specific numbers like "2.3" here;
-.\" XXX: perhaps it should be replaced with something to the effect of
-.\" XXX: "we do not know how much space you'll need, but make sure you have
-.\" XXX: at least 3 GB to be safe" (I know i'm still hardcoding a number,
-.\" XXX: but at least it looks less like a decree and more like an estimate.
-This file system should have at least 3.2 gigabytes of free space on the
-i386 architecture.
-.It Va CVSROOT
-The location of the
-.Fx
-CVS repository.
-This path name is in reference to the real system root,
-.Em not
-the root of the
-.Xr chroot 8
-directory tree.
-.El
-.Pp
 Optional variables:
-.Bl -tag -width ".Va NO_PREFETCHDISTFILES"
-.It Va BUILDNAME
-The name of the release to be built.
-This is used to set the
-.Va RELEASE
-value in
-.Pa sys/conf/newvers.sh ,
-which affects the output of
-.Xr uname 1 .
-If not set, a name with the timestamp and the
-.Dq Li -SNAP
-suffix will be generated.
-.It Va CD_PACKAGE_TREE
-A directory containing extra bits for the first and second CD-ROM images.
-The extra files for the first disc should be in
-.Pa ${CD_PACKAGE_TREE}/disc1
-and the extra files for the second disc should be in
-.Pa ${CD_PACKAGE_TREE}/disc2 .
-Typically, this variable will be set to the output directory of an earlier
-invocation of the
-.Cm package-split
-target.
-.It Va CVSARGS
-Additional arguments for
-.Xr cvs 1
-that come before the subcommands such as
-.Dq Li "-qR" .
-.It Va CVSCMDARGS
-Additional arguments for
-.Xr cvs 1
-.Ic checkout
-and
-.Ic update
-commands.
-For example, setting this variable to
-.Dq Li "-D '01/01/2002 00:00:00 GMT'"
-for
-.Dq Li "make release"
-or
-.Dq Li "make rerelease"
-will ask
-.Xr cvs 1
-to check out or update sources as of 00:00:00 GMT, January 1 2002, respectively.
-.It Va DOC_LANG
-The list of languages and encodings the SGML-based documentation
-should be built for.
-If not set, the documentation is built for all available languages.
-.It Va DOCRELEASETAG
-The CVS tag to use when checking out the documentation tree.
-Usually,
-the head of the documentation tree is used by default.
-If
-.Va RELEASETAG
-specifies a release tag,
-then the associated release version is used as the default instead.
-.It Va EXTLOCALDIR
-The directory that will be copied to
-.Pa ${CHROOTDIR}/usr/local .
-.It Va EXTSRCDIR
-The directory specified by this variable will be copied into
-.Pa ${CHROOTDIR}/usr/src
-instead of that directory being populated by a CVS checkout.
-For
-.Dq Li "rerelease" ,
-this will NOT be copied; cvs update will be used instead.
-.It Va EXTDOCDIR
-The directory specified by this variable will be copied into
-.Pa ${CHROOTDIR}/usr/doc .
-For
-.Dq Li "rerelease" ,
-this will NOT be copied again.
-.It Va EXTPORTSDIR
-The directory specified by this variable will be copied into
-.Pa ${CHROOTDIR}/usr/ports .
-For
-.Dq Li "rerelease" ,
-this will do NOTHING.
-.It Va KERNEL_FLAGS
-The contents of this variable are passed to
-.Xr make 1
-when building kernels during the release build.
-For example, setting this variable to
-.Dq Li "-j 4"
-will instruct
-.Xr make 1
-to execute up to four processes at a time.
-.It Va KERNELS
-Specifies a list of additional kernel configurations to compile and
-install into the
-.Dq base
-distribution.
-Each kernel is installed into
-.Pa /boot/<config>
-so that it can be booted from the loader via
-.Dq Li "boot <config>" .
-.It Va LOCAL_PATCHES
-Patch files against
-.Pa /usr/src
-that will be applied in the
-.Xr chroot 8
-environment before the release build begins.
-.It Va PATCH_FLAGS
-Arguments for the
-.Xr patch 1
-command used to apply
-.Va LOCAL_PATCHES
-patch file.
-.It Va LOCAL_SCRIPT
-A script that will be run in the
-.Xr chroot 8
-environment immediately after any local patches are applied.
-.It Va MAKE_DVD
-If defined, build a bootable ISO DVD image in the CD-ROM
-stage directory.
-This option may not be available for all architectures.
-.It Va MAKE_ISOS
-If defined, bootable ISO CD-ROM images will be created from the
-contents of the CD-ROM stage directory.
-.It Va NOCDROM
-If defined, the CD-ROM stage directories will not be created.
+.Bl -tag -width ".Va TARGET_ARCH"
+.It Va WORLDDIR
+Location of a directory containing the src tree. By default, the directory
+above the one containing the makefile
+.Pq Pa src .
+.It Va PORTSDIR
+Location of a directory containing the ports tree. By default,
+.Pa /usr/ports .
+If it is unset or cannot be found, ports will not be included in the release.
+.It Va DOCDIR
+Location of a directory containing the doc tree. By default,
+.Pa /usr/doc .
+If it is unset or cannot be found, most documentation will not be included in
+the release; see
+.Ev NODOC 
+below.
+.It Va NOPORTS
+If defined, the Ports Collection will be omitted from the release.
+.It Va NOSRC
+If set, do not include system source code in the release.
 .It Va NODOC
 If defined, the SGML-based documentation from the
 .Fx
@@ -350,85 +254,6 @@ However, the
 distribution will still be created with the minimal documentation set
 provided in
 .Pa src/share/doc .
-.It Va NO_FLOPPIES
-If defined, no boot and fixit floppy disk images will be created (for those
-platforms supporting them).
-.It Va NOPORTS
-If defined, the Ports Collection will be omitted from the release.
-.It Va PORTSRELEASETAG
-The CVS tag to use when checking out the ports tree.
-Usually,
-the head of the ports tree is used by default.
-If
-.Va RELEASETAG
-specifies a release tag,
-then the associated release version is used as the default instead.
-.It Va NO_PREFETCHDISTFILES
-If this variable is defined,
-then distfiles needed during the release build will not be downloaded prior to
-entering the
-.Xr chroot 8
-environment.
-Note that if
-.Va NO_PREFETCHDISTFILES
-is not set,
-the fetching is done after any distfiles are obtained via
-.Va RELEASEDISTFILES .
-.It Va RELEASEDISTFILES
-The directory where the distribution files for ports required by the
-release build can be found.
-This may save a significant amount of time over downloading the
-distfiles through a slow link.
-.It Va RELEASENOUPDATE
-If this variable is defined for
-.Dq Li "make rerelease" ,
-the source code will not be updated with
-.Dq Li "cvs update" .
-.It Va RELEASETAG
-The CVS tag corresponding to the release that is to be built.
-If undefined, the release will be built from the
-.Dv HEAD
-of the CVS tree
-(a
-.Dq "-CURRENT snapshot" ) .
-.It Va SEPARATE_LIVEFS
-Store the live file system on its own CD-ROM image rather than placing it on
-the first disc.
-.It Va SVNCMDARGS
-Additional arguments for svn
-.Ic checkout
-and
-.Ic switch
-commands.
-.It Va SVNROOT
-The location of the FreeBSD SVN source repository.
-If this variable is set,
-then the source tree will be extracted using Subversion rather than
-CVS.
-.It Va SVNBRANCH
-The branch to check out from a SVN source repository.
-It is specified as a path such as
-.Pa head
-or
-.Pa stable/7 .
-If this variable is not set,
-then the branch that corresponds to the current value of
-.Va RELEASETAG
-will be used.
-If neither
-.Va SVNBRANCH
-nor
-.Va RELEASETAG
-are set,
-then the
-.Pa head
-branch will be used.
-.It Va TARGET_ARCH
-The target machine processor architecture.
-This is analogous to the
-.Dq Nm uname Fl p
-output.
-Set this to cross-build for a different architecture.
 .It Va TARGET
 The target hardware platform.
 This is analogous to the
@@ -439,22 +264,23 @@ For example, cross-building for PC98 machines requires
 .Va TARGET_ARCH Ns = Ns Li i386
 and
 .Va TARGET Ns = Ns Li pc98 .
-.It Va WORLDDIR
-The directory where
-.Dq Li "make buildworld"
-was run; defaults to
-.Pa ${.CURDIR}/..
-which usually points to
-.Pa /usr/src .
-.It Va WORLD_FLAGS
-The contents of this variable are passed to
-.Xr make 1
-when building world during the release build.
-For example, setting this variable to
-.Dq Li "-j 4"
-will instruct
-.Xr make 1
-to execute up to four processes at a time.
+If not set,
+.Va TARGET
+defaults to the current hardware platform.
+.It Va TARGET_ARCH
+The target machine processor architecture.
+This is analogous to the
+.Dq Nm uname Fl p
+output.
+Set this to cross-build for a different architecture.
+If not set,
+.Va TARGET_ARCH
+defaults to the current machine architecture, unless
+.Va TARGET
+is also set, in which case it defaults to the appropriate
+value for that platform.
+Typically, one only needs to set
+.Va TARGET .
 .El
 .Sh FILES
 .Bl -tag -compact
@@ -466,47 +292,45 @@ to execute up to four processes at a time.
 .It Pa /usr/src/Makefile
 .It Pa /usr/src/Makefile.inc1
 .It Pa /usr/src/release/Makefile
-.It Pa /usr/src/release/${arch}/boot_crunch.conf
-.It Pa /usr/src/release/${arch}/fixit_crunch.conf
+.It Pa /usr/src/release/generate-release.sh
 .El
 .Sh EXAMPLES
-The following sequence of commands was used to build the
-.Fx 4.9
-release:
+The following sequence of commands can be used to build a
+.Dq "-CURRENT snapshot":
 .Bd -literal -offset indent
 cd /usr
-cvs co -rRELENG_4_9_0_RELEASE src
+svn co svn://svn.freebsd.org/base/head src
 cd src
-make buildworld
+make buildworld buildkernel
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=4.9-RELEASE \\
-  CVSROOT=/host/cvs/usr/home/ncvs RELEASETAG=RELENG_4_9_0_RELEASE
+make release
+make install DESTDIR=/var/freebsd-snapshot
 .Ed
 .Pp
-After running these commands, a complete system suitable for FTP or
-CD-ROM distribution is available in the
-.Pa /local3/release/R
+After running these commands, all produced distribution files (tarballs
+for FTP, CD-ROM images, etc.) are available in the
+.Pa /var/freebsd-snapshot
 directory.
 .Pp
 The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot"
-of a
-locally modified source tree:
+in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
 cd /usr/src
-cvs diff -u > /path/to/local.patch
 make buildworld
 cd release
-make release CHROOTDIR=/local3/release BUILDNAME=6.0-CURRENT \\
-  CVSROOT=/host/cvs/usr/home/ncvs LOCAL_PATCHES=/path/to/local.patch
+export CVSUP_HOST=cvsupN.freebsd.org
+sh generate-release.sh head /local3/release
 .Ed
+.Pp
+After running these commands, all prepared release files are available in the
+.Pa /local3/release/R
+directory.
 .Sh SEE ALSO
 .Xr cc 1 ,
-.Xr crunchgen 1 ,
 .Xr cvs 1 ,
 .Xr install 1 ,
 .Xr make 1 ,
-.Xr patch 1 ,
 .Xr svn 1 Pq Pa ports/devel/subversion-freebsd ,
 .Xr uname 1 ,
 .Xr md 4 ,
@@ -545,6 +369,14 @@ effort was spent getting
 into a shape where it could at least automate most of the tediousness
 of building a release in a sterile environment.
 .Pp
+For the
+.Fx 9.0
+release, 
+.Pa src/release/Makefile
+was overhauled and the wrapper script
+.Pa src/release/generate-release.sh
+introduced to support the introduction of a new installer.
+.Pp
 At near 1000 revisions spread over multiple branches, the
 .Xr cvs 1
 log of
@@ -561,14 +393,3 @@ and
 .An Poul-Henning Kamp .
 This manual page was written by
 .An Murray Stokely Aq murray@FreeBSD.org .
-.Sh BUGS
-Infrastructure changes are occasionally made to the
-.Fx
-documentation set in such a way that release builds on security
-branches can fail.
-To work around this, release builds can be made to checkout the
-documentation from the last fully supported release of
-.Fx .
-For example:
-.Pp
-.Dl "make release RELEASETAG=RELENG_4_9 DOCRELEASETAG=RELEASE_4_9_0 ..."

@@ -21,6 +21,7 @@ namespace llvm {
 
 class BlockAddress;
 class ConstantFP;
+class ConstantInt;
 class GlobalValue;
 class MachineBasicBlock;
 class MachineInstr;
@@ -38,6 +39,7 @@ public:
   enum MachineOperandType {
     MO_Register,               ///< Register operand.
     MO_Immediate,              ///< Immediate operand
+    MO_CImmediate,             ///< Immediate >64bit operand
     MO_FPImmediate,            ///< Floating-point immediate operand
     MO_MachineBasicBlock,      ///< MachineBasicBlock reference
     MO_FrameIndex,             ///< Abstract Stack Frame Index
@@ -81,8 +83,23 @@ private:
   /// This is only valid on definitions of registers.
   bool IsDead : 1;
 
-  /// IsUndef - True if this is a register def / use of "undef", i.e. register
-  /// defined by an IMPLICIT_DEF. This is only valid on registers.
+  /// IsUndef - True if this register operand reads an "undef" value, i.e. the
+  /// read value doesn't matter.  This flag can be set on both use and def
+  /// operands.  On a sub-register def operand, it refers to the part of the
+  /// register that isn't written.  On a full-register def operand, it is a
+  /// noop.  See readsReg().
+  ///
+  /// This is only valid on registers.
+  ///
+  /// Note that an instruction may have multiple <undef> operands referring to
+  /// the same register.  In that case, the instruction may depend on those
+  /// operands reading the same dont-care value.  For example:
+  ///
+  ///   %vreg1<def> = XOR %vreg2<undef>, %vreg2<undef>
+  ///
+  /// Any register can be used for %vreg2, and its value doesn't matter, but
+  /// the two operands must be the same register.
+  ///
   bool IsUndef : 1;
 
   /// IsEarlyClobber - True if this MO_Register 'def' operand is written to
@@ -94,8 +111,8 @@ private:
   /// not a real instruction.  Such uses should be ignored during codegen.
   bool IsDebug : 1;
 
-  /// SmallContents - Thisreally should be part of the Contents union, but lives
-  /// out here so we can get a better packed struct.
+  /// SmallContents - This really should be part of the Contents union, but
+  /// lives out here so we can get a better packed struct.
   /// MO_Register: Register number.
   /// OffsetedInfo: Low bits of offset.
   union {
@@ -111,6 +128,7 @@ private:
   union {
     MachineBasicBlock *MBB;   // For MO_MachineBasicBlock.
     const ConstantFP *CFP;    // For MO_FPImmediate.
+    const ConstantInt *CI;    // For MO_CImmediate. Integers > 64bit.
     int64_t ImmVal;           // For MO_Immediate.
     const MDNode *MD;         // For MO_Metadata.
     MCSymbol *Sym;            // For MO_MCSymbol
@@ -173,6 +191,8 @@ public:
   bool isReg() const { return OpKind == MO_Register; }
   /// isImm - Tests if this is a MO_Immediate operand.
   bool isImm() const { return OpKind == MO_Immediate; }
+  /// isCImm - Test if t his is a MO_CImmediate operand.
+  bool isCImm() const { return OpKind == MO_CImmediate; }
   /// isFPImm - Tests if this is a MO_FPImmediate operand.
   bool isFPImm() const { return OpKind == MO_FPImmediate; }
   /// isMBB - Tests if this is a MO_MachineBasicBlock operand.
@@ -246,6 +266,15 @@ public:
   bool isDebug() const {
     assert(isReg() && "Wrong MachineOperand accessor");
     return IsDebug;
+  }
+
+  /// readsReg - Returns true if this operand reads the previous value of its
+  /// register.  A use operand with the <undef> flag set doesn't read its
+  /// register.  A sub-register def implicitly reads the other parts of the
+  /// register being redefined unless the <undef> flag is set.
+  bool readsReg() const {
+    assert(isReg() && "Wrong MachineOperand accessor");
+    return !isUndef() && (isUse() || getSubReg());
   }
 
   /// getNextOperandForReg - Return the next MachineOperand in the function that
@@ -331,6 +360,11 @@ public:
   int64_t getImm() const {
     assert(isImm() && "Wrong MachineOperand accessor");
     return Contents.ImmVal;
+  }
+
+  const ConstantInt *getCImm() const {
+    assert(isCImm() && "Wrong MachineOperand accessor");
+    return Contents.CI;
   }
 
   const ConstantFP *getFPImm() const {
@@ -440,6 +474,12 @@ public:
     return Op;
   }
 
+  static MachineOperand CreateCImm(const ConstantInt *CI) {
+    MachineOperand Op(MachineOperand::MO_CImmediate);
+    Op.Contents.CI = CI;
+    return Op;
+  }
+
   static MachineOperand CreateFPImm(const ConstantFP *CFP) {
     MachineOperand Op(MachineOperand::MO_FPImmediate);
     Op.Contents.CFP = CFP;
@@ -473,7 +513,7 @@ public:
     Op.setTargetFlags(TargetFlags);
     return Op;
   }
-  static MachineOperand CreateFI(unsigned Idx) {
+  static MachineOperand CreateFI(int Idx) {
     MachineOperand Op(MachineOperand::MO_FrameIndex);
     Op.setIndex(Idx);
     return Op;

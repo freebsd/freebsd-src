@@ -35,11 +35,11 @@ Communications driver
 .Sh SYNOPSIS
 .Cd "device pci"
 .Cd "device puc"
-.Cd "device sio"
+.Cd "device uart"
 .Cd "device ppc"
 .Sh DESCRIPTION
 This driver acts as a shim to connect PCI serial and parallel ports to the
-.Xr sio 4
+.Xr uart 4
 and
 .Xr ppc 4
 driver.
@@ -49,14 +49,9 @@ The list of supported devices is in
 Support for new cards should be added there.
 .Sh SEE ALSO
 .Xr ppc 4 ,
-.Xr sio 4
+.Xr uart 4
 .Sh HISTORY
 This driver took the idea from the
 .Nx
 .Xr puc 4
-driver and still uses the same structure to describe cards, to ease exchanging
-card info.
-.Sh BUGS
-Only serial ports are supported through the
-.Xr sio 4
-driver at the moment.
+driver.

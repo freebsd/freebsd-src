@@ -155,9 +155,15 @@
 	stw	%r28,FRAME_AIM_DAR+8(1);				\
 	stw	%r29,FRAME_AIM_DSISR+8(1); /* save dsisr/srr0/srr1 */	\
 	stw	%r30,FRAME_SRR0+8(1);					\
-	stw	%r31,FRAME_SRR1+8(1)
+	stw	%r31,FRAME_SRR1+8(1);					\
+	lwz	%r2,PC_CURTHREAD(%r2)	/* set curthread pointer */
 
 #define	FRAME_LEAVE(savearea)						\
+/* Disable exceptions: */						\
+	mfmsr	%r2;							\
+	andi.	%r2,%r2,~PSL_EE@l;					\
+	mtmsr	%r2;							\
+	isync;								\
 /* Now restore regs: */							\
 	lwz	%r2,FRAME_SRR0+8(%r1);					\
 	lwz	%r3,FRAME_SRR1+8(%r1);					\
@@ -209,7 +215,7 @@
 	mtsprg3	%r3;							\
 /* Disable translation, machine check and recoverability: */		\
 	mfmsr	%r2;							\
-	andi.	%r2,%r2,~(PSL_DR|PSL_IR|PSL_EE|PSL_ME|PSL_RI)@l;	\
+	andi.	%r2,%r2,~(PSL_DR|PSL_IR|PSL_ME|PSL_RI)@l;	\
 	mtmsr	%r2;							\
 	isync;								\
 /* Decide whether we return to user mode: */				\
@@ -297,6 +303,7 @@ cpu_reset:
 
 	lis	%r3,1@l
 	bla	CNAME(cpudep_ap_early_bootstrap)
+	lis	%r3,1@l
 	bla	CNAME(pmap_cpu_bootstrap)
 	bla	CNAME(cpudep_ap_bootstrap)
 	mr	%r1,%r3
@@ -659,8 +666,8 @@ disitrap:
 	GET_CPUINFO(%r1)
 	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DAR)(%r1) /* get DAR */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DAR)(%r1) /* save DAR */
-	lwz	%r30,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1) /* get DSISR */
-	stw	%r30,(PC_DBSAVE  +CPUSAVE_AIM_DSISR)(%r1) /* save DSISR */
+	lwz	%r31,(PC_TEMPSAVE+CPUSAVE_AIM_DSISR)(%r1) /* get DSISR */
+	stw	%r31,(PC_DBSAVE  +CPUSAVE_AIM_DSISR)(%r1) /* save DSISR */
 	lwz	%r30,(PC_DISISAVE+CPUSAVE_R28)(%r1) /* get  r28 */
 	stw	%r30,(PC_DBSAVE  +CPUSAVE_R28)(%r1) /* save r28 */
 	lwz	%r31,(PC_DISISAVE+CPUSAVE_R29)(%r1) /* get  r29 */
@@ -762,8 +769,8 @@ CNAME(trapexit):
 	bf	17,1f			/* branch if PSL_PR is false */
 
 	GET_CPUINFO(%r3)		/* get per-CPU pointer */
-	lwz	%r4, PC_CURTHREAD(%r3)	/* deref to get curthread */
-	lwz	%r4, TD_FLAGS(%r4)	/* get thread flags value */
+	lwz	%r4, TD_FLAGS(%r2)	/* get thread flags value
+					 * (r2 is curthread) */
 	lis	%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@h
 	ori	%r5,%r5, (TDF_ASTPENDING|TDF_NEEDRESCHED)@l
 	and.	%r4,%r4,%r5

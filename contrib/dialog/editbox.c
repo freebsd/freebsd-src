@@ -1,9 +1,9 @@
 /*
- *  $Id: editbox.c,v 1.54 2010/04/28 21:02:01 tom Exp $
+ *  $Id: editbox.c,v 1.55 2011/06/21 00:10:46 tom Exp $
  *
  *  editbox.c -- implements the edit box
  *
- *  Copyright 2007-2009,2010 Thomas E. Dickey
+ *  Copyright 2007-2010,2011 Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -312,12 +312,14 @@ dlg_editbox(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
 	END_KEYS_BINDING
     };
     static DLG_KEYS_BINDING binding2[] = {
 	INPUTSTR_BINDINGS,
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	NAVIGATE_BINDINGS,
 	END_KEYS_BINDING

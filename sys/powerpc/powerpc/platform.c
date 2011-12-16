@@ -93,7 +93,7 @@ mem_valid(vm_offset_t addr, int len)
 
 	for (i = 0; i < npregions; i++)
 		if ((addr >= pregions[i].mr_start) 
-		   && (addr + len < pregions[i].mr_start + pregions[i].mr_size))
+		   && (addr + len <= pregions[i].mr_start + pregions[i].mr_size))
 			return (0);
 
 	return (EFAULT);
@@ -184,7 +184,7 @@ platform_probe_and_attach()
 		 * then statically initialise the MMU object
 		 */
 		kobj_class_compile_static(platp, &plat_kernel_kops);
-		kobj_init((kobj_t)plat_obj, platp);
+		kobj_init_static((kobj_t)plat_obj, platp);
 
 		prio = PLATFORM_PROBE(plat_obj);
 
@@ -223,7 +223,7 @@ platform_probe_and_attach()
 	 */
 
 	kobj_class_compile_static(plat_def_impl, &plat_kernel_kops);
-	kobj_init((kobj_t)plat_obj, plat_def_impl);
+	kobj_init_static((kobj_t)plat_obj, plat_def_impl);
 
 	strlcpy(plat_name,plat_def_impl->name,sizeof(plat_name));
 

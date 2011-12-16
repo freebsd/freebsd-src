@@ -10,7 +10,6 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "SPURegisterNames.h"
 #include "SPUISelLowering.h"
 #include "SPUTargetMachine.h"
 #include "SPUFrameLowering.h"
@@ -70,7 +69,7 @@ namespace {
     TargetLowering::ArgListEntry Entry;
     for (unsigned i = 0, e = Op.getNumOperands(); i != e; ++i) {
       EVT ArgVT = Op.getOperand(i).getValueType();
-      const Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
+      Type *ArgTy = ArgVT.getTypeForEVT(*DAG.getContext());
       Entry.Node = Op.getOperand(i);
       Entry.Ty = ArgTy;
       Entry.isSExt = isSigned;
@@ -81,7 +80,7 @@ namespace {
                                            TLI.getPointerTy());
 
     // Splice the libcall in wherever FindInputOutputChains tells us to.
-    const Type *RetTy =
+    Type *RetTy =
                 Op.getNode()->getValueType(0).getTypeForEVT(*DAG.getContext());
     std::pair<SDValue, SDValue> CallInfo =
             TLI.LowerCallTo(InChain, RetTy, isSigned, !isSigned, false, false,
@@ -175,6 +174,7 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
 
   // SPU has no intrinsics for these particular operations:
   setOperationAction(ISD::MEMBARRIER, MVT::Other, Expand);
+  setOperationAction(ISD::ATOMIC_FENCE, MVT::Other, Expand);
 
   // SPU has no division/remainder instructions
   setOperationAction(ISD::SREM,    MVT::i8,   Expand);
@@ -220,6 +220,9 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   // for f32!)
   setOperationAction(ISD::FSQRT, MVT::f64, Expand);
   setOperationAction(ISD::FSQRT, MVT::f32, Expand);
+
+  setOperationAction(ISD::FMA, MVT::f64, Expand);
+  setOperationAction(ISD::FMA, MVT::f32, Expand);
 
   setOperationAction(ISD::FCOPYSIGN, MVT::f64, Expand);
   setOperationAction(ISD::FCOPYSIGN, MVT::f32, Expand);
@@ -399,6 +402,9 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
        i <= (unsigned)MVT::LAST_VECTOR_VALUETYPE; ++i) {
     MVT::SimpleValueType VT = (MVT::SimpleValueType)i;
 
+    // Set operation actions to legal types only.
+    if (!isTypeLegal(VT)) continue;
+
     // add/sub are legal for all supported vector VT's.
     setOperationAction(ISD::ADD,     VT, Legal);
     setOperationAction(ISD::SUB,     VT, Legal);
@@ -436,6 +442,7 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   setOperationAction(ISD::FDIV, MVT::v4f32, Legal);
 
   setBooleanContents(ZeroOrNegativeOneBooleanContent);
+  setBooleanVectorContents(ZeroOrNegativeOneBooleanContent); // FIXME: Is this correct?
 
   setStackPointerRegisterToSaveRestore(SPU::R1);
 
@@ -444,6 +451,8 @@ SPUTargetLowering::SPUTargetLowering(SPUTargetMachine &TM)
   setTargetDAGCombine(ISD::ZERO_EXTEND);
   setTargetDAGCombine(ISD::SIGN_EXTEND);
   setTargetDAGCombine(ISD::ANY_EXTEND);
+
+  setMinFunctionAlignment(3);
 
   computeRegisterProperties();
 
@@ -489,16 +498,11 @@ SPUTargetLowering::getTargetNodeName(unsigned Opcode) const
   return ((i != node_names.end()) ? i->second : 0);
 }
 
-/// getFunctionAlignment - Return the Log2 alignment of this function.
-unsigned SPUTargetLowering::getFunctionAlignment(const Function *) const {
-  return 3;
-}
-
 //===----------------------------------------------------------------------===//
 // Return the Cell SPU's SETCC result type
 //===----------------------------------------------------------------------===//
 
-MVT::SimpleValueType SPUTargetLowering::getSetCCResultType(EVT VT) const {
+EVT SPUTargetLowering::getSetCCResultType(EVT VT) const {
   // i8, i16 and i32 are valid SETCC result types
   MVT::SimpleValueType retval;
 
@@ -705,7 +709,7 @@ LowerLOAD(SDValue Op, SelectionDAG &DAG, const SPUSubtarget *ST) {
                                                  offset
                                                 ));
 
-    // Shift the low similarily
+    // Shift the low similarly
     // TODO: add SPUISD::SHL_BYTES
     low = DAG.getNode(SPUISD::SHL_BYTES, dl, MVT::i128, low, offset );
 
@@ -1120,8 +1124,8 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
   EVT PtrVT = DAG.getTargetLoweringInfo().getPointerTy();
 
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(), ArgLocs,
-                 *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
   // FIXME: allow for other calling conventions
   CCInfo.AnalyzeFormalArguments(Ins, CCC_SPU);
 
@@ -1218,7 +1222,7 @@ SPUTargetLowering::LowerFormalArguments(SDValue Chain,
       FuncInfo->setVarArgsFrameIndex(
         MFI->CreateFixedObject(StackSlotSize, ArgOffset, true));
       SDValue FIN = DAG.getFrameIndex(FuncInfo->getVarArgsFrameIndex(), PtrVT);
-      unsigned VReg = MF.addLiveIn(ArgRegs[ArgRegIdx], &SPU::R32CRegClass);
+      unsigned VReg = MF.addLiveIn(ArgRegs[ArgRegIdx], &SPU::VECREGRegClass);
       SDValue ArgVal = DAG.getRegister(VReg, MVT::v16i8);
       SDValue Store = DAG.getStore(Chain, dl, ArgVal, FIN, MachinePointerInfo(),
                                    false, false, 0);
@@ -1267,8 +1271,8 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
   unsigned StackSlotSize = SPUFrameLowering::stackSlotSize();
 
   SmallVector<CCValAssign, 16> ArgLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(), ArgLocs,
-                 *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), ArgLocs, *DAG.getContext());
   // FIXME: allow for other calling conventions
   CCInfo.AnalyzeCallOperands(Outs, CCC_SPU);
 
@@ -1428,8 +1432,8 @@ SPUTargetLowering::LowerCall(SDValue Chain, SDValue Callee,
 
   // Now handle the return value(s)
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCRetInfo(CallConv, isVarArg, getTargetMachine(),
-                    RVLocs, *DAG.getContext());
+  CCState CCRetInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		    getTargetMachine(), RVLocs, *DAG.getContext());
   CCRetInfo.AnalyzeCallResult(Ins, CCC_SPU);
 
 
@@ -1455,8 +1459,8 @@ SPUTargetLowering::LowerReturn(SDValue Chain,
                                DebugLoc dl, SelectionDAG &DAG) const {
 
   SmallVector<CCValAssign, 16> RVLocs;
-  CCState CCInfo(CallConv, isVarArg, getTargetMachine(),
-                 RVLocs, *DAG.getContext());
+  CCState CCInfo(CallConv, isVarArg, DAG.getMachineFunction(),
+		 getTargetMachine(), RVLocs, *DAG.getContext());
   CCInfo.AnalyzeReturn(Outs, RetCC_SPU);
 
   // If this is the first return lowered for this function, add the regs to the
@@ -2728,6 +2732,7 @@ static SDValue LowerSIGN_EXTEND(SDValue Op, SelectionDAG &DAG)
   // the type to extend from needs to be i64 or i32.
   assert((OpVT == MVT::i128 && (Op0VT == MVT::i64 || Op0VT == MVT::i32)) &&
           "LowerSIGN_EXTEND: input and/or output operand have wrong size");
+  (void)OpVT;
 
   // Create shuffle mask
   unsigned mask1 = 0x10101010; // byte 0 - 3 and 4 - 7
@@ -3207,17 +3212,17 @@ SPUTargetLowering::ComputeNumSignBitsForTargetNode(SDValue Op,
 // LowerAsmOperandForConstraint
 void
 SPUTargetLowering::LowerAsmOperandForConstraint(SDValue Op,
-                                                char ConstraintLetter,
+                                                std::string &Constraint,
                                                 std::vector<SDValue> &Ops,
                                                 SelectionDAG &DAG) const {
   // Default, for the time being, to the base class handler
-  TargetLowering::LowerAsmOperandForConstraint(Op, ConstraintLetter, Ops, DAG);
+  TargetLowering::LowerAsmOperandForConstraint(Op, Constraint, Ops, DAG);
 }
 
 /// isLegalAddressImmediate - Return true if the integer value can be used
 /// as the offset of the target addressing mode.
 bool SPUTargetLowering::isLegalAddressImmediate(int64_t V,
-                                                const Type *Ty) const {
+                                                Type *Ty) const {
   // SPU's addresses are 256K:
   return (V > -(1 << 18) && V < (1 << 18) - 1);
 }
@@ -3240,7 +3245,7 @@ bool SPUTargetLowering::isLegalICmpImmediate(int64_t Imm) const {
 
 bool
 SPUTargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                         const Type * ) const{
+                                         Type * ) const{
 
   // A-form: 18bit absolute address.
   if (AM.BaseGV && !AM.HasBaseReg && AM.Scale == 0 && AM.BaseOffs == 0)

@@ -28,7 +28,7 @@
 .\"     @(#)getsockopt.2	8.4 (Berkeley) 5/2/95
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2008
+.Dd November 21, 2011
 .Dt GETSOCKOPT 2
 .Os
 .Sh NAME
@@ -533,7 +533,9 @@ on a non-listening socket was attempted.
 .Sh HISTORY
 The
 .Fn getsockopt
-system call appeared in
+and
+.Fn setsockopt
+system calls appeared in
 .Bx 4.2 .
 .Sh BUGS
 Several of the socket options should be handled at lower levels of the system.

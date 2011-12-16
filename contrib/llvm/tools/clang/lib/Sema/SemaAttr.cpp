@@ -129,6 +129,12 @@ void Sema::AddAlignmentAttributesForRecord(RecordDecl *RD) {
   }
 }
 
+void Sema::AddMsStructLayoutForRecord(RecordDecl *RD) {
+  if (!MSStructPragmaOn)
+    return;
+  RD->addAttr(::new (Context) MsStructAttr(SourceLocation(), Context));
+}
+
 void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
                                    SourceLocation PragmaLoc,
                                    SourceLocation KindLoc) {
@@ -183,7 +189,7 @@ void Sema::ActOnPragmaOptionsAlign(PragmaOptionsAlignKind Kind,
 }
 
 void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
-                           ExprTy *alignment, SourceLocation PragmaLoc,
+                           Expr *alignment, SourceLocation PragmaLoc,
                            SourceLocation LParenLoc, SourceLocation RParenLoc) {
   Expr *Alignment = static_cast<Expr *>(alignment);
 
@@ -259,8 +265,12 @@ void Sema::ActOnPragmaPack(PragmaPackKind Kind, IdentifierInfo *Name,
     break;
 
   default:
-    assert(0 && "Invalid #pragma pack kind.");
+    llvm_unreachable("Invalid #pragma pack kind.");
   }
+}
+
+void Sema::ActOnPragmaMSStruct(PragmaMSStructKind Kind) { 
+  MSStructPragmaOn = (Kind == PMSST_ON);
 }
 
 void Sema::ActOnPragmaUnused(const Token &IdTok, Scope *curScope,
@@ -290,6 +300,18 @@ void Sema::ActOnPragmaUnused(const Token &IdTok, Scope *curScope,
   VD->addAttr(::new (Context) UnusedAttr(IdTok.getLocation(), Context));
 }
 
+void Sema::AddCFAuditedAttribute(Decl *D) {
+  SourceLocation Loc = PP.getPragmaARCCFCodeAuditedLoc();
+  if (!Loc.isValid()) return;
+
+  // Don't add a redundant or conflicting attribute.
+  if (D->hasAttr<CFAuditedTransferAttr>() ||
+      D->hasAttr<CFUnknownTransferAttr>())
+    return;
+
+  D->addAttr(::new (Context) CFAuditedTransferAttr(Loc, Context));
+}
+
 typedef std::vector<std::pair<unsigned, SourceLocation> > VisStack;
 enum { NoVisibility = (unsigned) -1 };
 
@@ -297,7 +319,7 @@ void Sema::AddPushedVisibilityAttribute(Decl *D) {
   if (!VisContext)
     return;
 
-  if (D->hasAttr<VisibilityAttr>())
+  if (isa<NamedDecl>(D) && cast<NamedDecl>(D)->getExplicitVisibility())
     return;
 
   VisStack *Stack = static_cast<VisStack*>(VisContext);

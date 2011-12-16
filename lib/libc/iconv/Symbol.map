@@ -6,6 +6,18 @@ FBSD_1.2 {
 	__iconv;
 	__iconv_free_list;
 	__iconv_get_list;
+	_libiconv_version;
+	iconv_canonicalize;
+	libiconv;
+	libiconv_close;
+	libiconv_open;
+	libiconv_open_into;
+	libiconv_set_relocation_prefix;
+	libiconvctl;
+	libiconvlist;
+};
+
+FBSDprivate_1.0 {
 	_citrus_bcs_convert_to_lower;
 	_citrus_bcs_convert_to_upper;
 	_citrus_bcs_isalnum;
@@ -89,13 +101,4 @@ FBSD_1.2 {
 	_citrus_stdenc_close;
 	_citrus_stdenc_open;
 	_citrus_unmap_file;
-	_libiconv_version;
-	iconv_canonicalize;
-	libiconv;
-	libiconv_close;
-	libiconv_open;
-	libiconv_open_into;
-	libiconv_set_relocation_prefix;
-	libiconvctl;
-	libiconvlist;
 };

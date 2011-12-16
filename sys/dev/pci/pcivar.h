@@ -46,7 +46,14 @@ struct pcicfg_pp {
     uint8_t	pp_bse;		/* conf. space addr. of PM BSE reg */
     uint8_t	pp_data;	/* conf. space addr. of PM data reg */
 };
- 
+
+struct pci_map {
+    pci_addr_t	pm_value;	/* Raw BAR value */
+    pci_addr_t	pm_size;
+    uint8_t	pm_reg;
+    STAILQ_ENTRY(pci_map) pm_link;
+};
+
 struct vpd_readonly {
     char	keyword[2];
     char	*value;
@@ -110,6 +117,7 @@ struct pcicfg_msix {
 
 /* Interesting values for HyperTransport */
 struct pcicfg_ht {
+    uint8_t	ht_slave;	/* Non-zero if device is an HT slave. */
     uint8_t	ht_msimap;	/* Offset of MSI mapping cap registers. */
     uint16_t	ht_msictrl;	/* MSI mapping control */
     uint64_t	ht_msiaddr;	/* MSI mapping base address */
@@ -119,8 +127,7 @@ struct pcicfg_ht {
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
 
-    uint32_t	bar[PCI_MAXMAPS_0]; /* BARs */
-    uint32_t	bios;		/* BIOS mapping */
+    STAILQ_HEAD(, pci_map) maps; /* BARs */
 
     uint16_t	subvendor;	/* card vendor ID */
     uint16_t	subdevice;	/* card device ID, assigned by card vendor */
@@ -400,9 +407,15 @@ pci_get_powerstate(device_t dev)
 }
 
 static __inline int
+pci_find_cap(device_t dev, int capability, int *capreg)
+{
+    return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
+}
+
+static __inline int
 pci_find_extcap(device_t dev, int capability, int *capreg)
 {
-    return PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg);
+    return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
@@ -444,6 +457,7 @@ pci_msix_count(device_t dev)
 device_t pci_find_bsf(uint8_t, uint8_t, uint8_t);
 device_t pci_find_dbsf(uint32_t, uint8_t, uint8_t, uint8_t);
 device_t pci_find_device(uint16_t, uint16_t);
+device_t pci_find_class(uint8_t class, uint8_t subclass);
 
 /* Can be used by drivers to manage the MSI-X table. */
 int	pci_pending_msix(device_t dev, u_int index);
@@ -469,5 +483,8 @@ STAILQ_HEAD(devlist, pci_devinfo);
 
 extern struct devlist	pci_devq;
 extern uint32_t	pci_generation;
+
+struct pci_map *pci_find_bar(device_t dev, int reg);
+int	pci_bar_enabled(device_t dev, struct pci_map *pm);
 
 #endif /* _PCIVAR_H_ */

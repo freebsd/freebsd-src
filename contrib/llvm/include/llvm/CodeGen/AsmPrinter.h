@@ -183,6 +183,17 @@ namespace llvm {
     /// function.
     void EmitFunctionBody();
 
+    void emitPrologLabel(const MachineInstr &MI);
+
+    enum CFIMoveType {
+      CFI_M_None,
+      CFI_M_EH,
+      CFI_M_Debug
+    };
+    CFIMoveType needsCFIMoves();
+
+    bool needsSEHMoves();
+
     /// EmitConstantPool - Print to the current output stream assembly
     /// representations of the constants in the constant pool MCP. This is
     /// used to print out constants which have been "spilled to memory" by
@@ -381,15 +392,16 @@ namespace llvm {
     /// encoding specified.
     virtual unsigned getISAEncoding() { return 0; }
 
+    /// EmitDwarfRegOp - Emit dwarf register operation.
+    virtual void EmitDwarfRegOp(const MachineLocation &MLoc) const;
+
     //===------------------------------------------------------------------===//
     // Dwarf Lowering Routines
     //===------------------------------------------------------------------===//
 
-    /// EmitFrameMoves - Emit frame instructions to describe the layout of the
+    /// EmitCFIFrameMove - Emit frame instruction to describe the layout of the
     /// frame.
-    void EmitFrameMoves(const std::vector<MachineMove> &Moves,
-                        MCSymbol *BaseLabel, bool isEH) const;
-    void EmitCFIFrameMoves(const std::vector<MachineMove> &Moves) const;
+    void EmitCFIFrameMove(const MachineMove &Move) const;
 
     //===------------------------------------------------------------------===//
     // Inline Asm Support
@@ -453,8 +465,8 @@ namespace llvm {
     void EmitJumpTableEntry(const MachineJumpTableInfo *MJTI,
                             const MachineBasicBlock *MBB,
                             unsigned uid) const;
-    void EmitLLVMUsedList(Constant *List);
-    void EmitXXStructorList(Constant *List);
+    void EmitLLVMUsedList(const Constant *List);
+    void EmitXXStructorList(const Constant *List);
     GCMetadataPrinter *GetOrCreateGCPrinter(GCStrategy *C);
   };
 }

@@ -1,4 +1,4 @@
-//===--- PreprocessorOptionms.h ---------------------------------*- C++ -*-===//
+//===--- PreprocessorOptions.h ----------------------------------*- C++ -*-===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -26,6 +26,15 @@ namespace clang {
 class Preprocessor;
 class LangOptions;
 
+/// \brief Enumerate the kinds of standard library that 
+enum ObjCXXARCStandardLibraryKind {
+  ARCXX_nolib,
+  /// \brief libc++
+  ARCXX_libcxx,
+  /// \brief libstdc++
+  ARCXX_libstdcxx
+};
+  
 /// PreprocessorOptions - This class is used for passing the various options
 /// used in preprocessor initialization to InitializePreprocessor().
 class PreprocessorOptions {
@@ -39,10 +48,21 @@ public:
 
   unsigned DetailedRecord : 1; /// Whether we should maintain a detailed
                                /// record of all macro definitions and
-                               /// instantiations.
+                               /// expansions.
+  
+  /// \brief Whether we should automatically translate #include or #import
+  /// operations into module imports when possible.
+  unsigned AutoModuleImport : 1;
+
+  /// \brief Whether the detailed preprocessing record includes nested macro 
+  /// expansions.
+  unsigned DetailedRecordIncludesNestedMacroExpansions : 1;
   
   /// The implicit PCH included at the start of the translation unit, or empty.
   std::string ImplicitPCHInclude;
+
+  /// \brief Headers that will be converted to chained PCHs in memory.
+  std::vector<std::string> ChainedIncludes;
 
   /// \brief When true, disables most of the normal validation performed on
   /// precompiled headers.
@@ -73,6 +93,10 @@ public:
   /// If given, a PTH cache file to use for speeding up header parsing.
   std::string TokenCache;
 
+  /// \brief True if the SourceManager should report the original file name for
+  /// contents of files that were remapped to other files. Defaults to true.
+  bool RemappedFilesKeepOriginalName;
+
   /// \brief The set of file remappings, which take existing files on
   /// the system (the first part of each pair) and gives them the
   /// contents of other files on the system (the second part of each
@@ -92,6 +116,19 @@ public:
   /// manipulation of the compiler invocation object, in cases where the 
   /// compiler invocation and its buffers will be reused.
   bool RetainRemappedFileBuffers;
+  
+  /// \brief The Objective-C++ ARC standard library that we should support,
+  /// by providing appropriate definitions to retrofit the standard library
+  /// with support for lifetime-qualified pointers.
+  ObjCXXARCStandardLibraryKind ObjCXXARCStandardLibrary;
+    
+  /// \brief The path of modules being build, which is used to detect
+  /// cycles in the module dependency graph as modules are being built.
+  ///
+  /// There is no way to set this value from the command line. If we ever need
+  /// to do so (e.g., if on-demand module construction moves out-of-process),
+  /// we can add a cc1-level option to do so.
+  SmallVector<std::string, 2> ModuleBuildPath;
   
   typedef std::vector<std::pair<std::string, std::string> >::iterator
     remapped_file_iterator;
@@ -129,18 +166,22 @@ public:
   
 public:
   PreprocessorOptions() : UsePredefines(true), DetailedRecord(false),
+                          AutoModuleImport(false),
+                          DetailedRecordIncludesNestedMacroExpansions(true),
                           DisablePCHValidation(false), DisableStatCache(false),
                           DumpDeserializedPCHDecls(false),
                           PrecompiledPreambleBytes(0, true),
-                          RetainRemappedFileBuffers(false) { }
+                          RemappedFilesKeepOriginalName(true),
+                          RetainRemappedFileBuffers(false),
+                          ObjCXXARCStandardLibrary(ARCXX_nolib) { }
 
-  void addMacroDef(llvm::StringRef Name) {
+  void addMacroDef(StringRef Name) {
     Macros.push_back(std::make_pair(Name, false));
   }
-  void addMacroUndef(llvm::StringRef Name) {
+  void addMacroUndef(StringRef Name) {
     Macros.push_back(std::make_pair(Name, true));
   }
-  void addRemappedFile(llvm::StringRef From, llvm::StringRef To) {
+  void addRemappedFile(StringRef From, StringRef To) {
     RemappedFiles.push_back(std::make_pair(From, To));
   }
   
@@ -148,7 +189,7 @@ public:
     return RemappedFiles.erase(Remapped);
   }
   
-  void addRemappedFile(llvm::StringRef From, const llvm::MemoryBuffer * To) {
+  void addRemappedFile(StringRef From, const llvm::MemoryBuffer * To) {
     RemappedFileBuffers.push_back(std::make_pair(From, To));
   }
   
@@ -160,6 +201,21 @@ public:
   void clearRemappedFiles() {
     RemappedFiles.clear();
     RemappedFileBuffers.clear();
+  }
+  
+  /// \brief Reset any options that are not considered when building a
+  /// module.
+  void resetNonModularOptions() {
+    Includes.clear();
+    MacroIncludes.clear();
+    ChainedIncludes.clear();
+    DumpDeserializedPCHDecls = false;
+    ImplicitPCHInclude.clear();
+    ImplicitPTHInclude.clear();
+    TokenCache.clear();
+    RetainRemappedFileBuffers = true;
+    PrecompiledPreambleBytes.first = 0;
+    PrecompiledPreambleBytes.second = 0;
   }
 };
 

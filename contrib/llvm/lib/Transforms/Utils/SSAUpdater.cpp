@@ -12,16 +12,22 @@
 //===----------------------------------------------------------------------===//
 
 #define DEBUG_TYPE "ssaupdater"
+#include "llvm/Constants.h"
 #include "llvm/Instructions.h"
+#include "llvm/IntrinsicInst.h"
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Analysis/InstructionSimplify.h"
 #include "llvm/Support/AlignOf.h"
 #include "llvm/Support/Allocator.h"
 #include "llvm/Support/CFG.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Transforms/Utils/BasicBlockUtils.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/Transforms/Utils/SSAUpdater.h"
 #include "llvm/Transforms/Utils/SSAUpdaterImpl.h"
+
 using namespace llvm;
 
 typedef DenseMap<BasicBlock*, Value*> AvailableValsTy;
@@ -38,7 +44,7 @@ SSAUpdater::~SSAUpdater() {
 
 /// Initialize - Reset this object to get ready for a new set of SSA
 /// updates with type 'Ty'.  PHI nodes get a name based on 'Name'.
-void SSAUpdater::Initialize(const Type *Ty, StringRef Name) {
+void SSAUpdater::Initialize(Type *Ty, StringRef Name) {
   if (AV == 0)
     AV = new AvailableValsTy();
   else
@@ -170,8 +176,8 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
   }
 
   // Ok, we have no way out, insert a new one now.
-  PHINode *InsertedPHI = PHINode::Create(ProtoType, ProtoName, &BB->front());
-  InsertedPHI->reserveOperandSpace(PredValues.size());
+  PHINode *InsertedPHI = PHINode::Create(ProtoType, PredValues.size(),
+                                         ProtoName, &BB->front());
 
   // Fill in all the predecessors of the PHI.
   for (unsigned i = 0, e = PredValues.size(); i != e; ++i)
@@ -183,6 +189,9 @@ Value *SSAUpdater::GetValueInMiddleOfBlock(BasicBlock *BB) {
     InsertedPHI->eraseFromParent();
     return V;
   }
+
+  // Set DebugLoc.
+  InsertedPHI->setDebugLoc(GetFirstDebugLocInBasicBlock(BB));
 
   // If the client wants to know about all new instructions, tell it.
   if (InsertedPHIs) InsertedPHIs->push_back(InsertedPHI);
@@ -289,9 +298,8 @@ public:
   /// Reserve space for the operands but do not fill them in yet.
   static Value *CreateEmptyPHI(BasicBlock *BB, unsigned NumPreds,
                                SSAUpdater *Updater) {
-    PHINode *PHI = PHINode::Create(Updater->ProtoType, Updater->ProtoName,
-                                   &BB->front());
-    PHI->reserveOperandSpace(NumPreds);
+    PHINode *PHI = PHINode::Create(Updater->ProtoType, NumPreds,
+                                   Updater->ProtoName, &BB->front());
     return PHI;
   }
 
@@ -371,8 +379,7 @@ run(const SmallVectorImpl<Instruction*> &Insts) const {
   // First step: bucket up uses of the alloca by the block they occur in.
   // This is important because we have to handle multiple defs/uses in a block
   // ourselves: SSAUpdater is purely for cross-block references.
-  // FIXME: Want a TinyVector<Instruction*> since there is often 0/1 element.
-  DenseMap<BasicBlock*, std::vector<Instruction*> > UsesByBlock;
+  DenseMap<BasicBlock*, TinyPtrVector<Instruction*> > UsesByBlock;
   
   for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
     Instruction *User = Insts[i];
@@ -388,7 +395,7 @@ run(const SmallVectorImpl<Instruction*> &Insts) const {
   for (unsigned i = 0, e = Insts.size(); i != e; ++i) {
     Instruction *User = Insts[i];
     BasicBlock *BB = User->getParent();
-    std::vector<Instruction*> &BlockUses = UsesByBlock[BB];
+    TinyPtrVector<Instruction*> &BlockUses = UsesByBlock[BB];
     
     // If this block has already been processed, ignore this repeat use.
     if (BlockUses.empty()) continue;
@@ -397,9 +404,10 @@ run(const SmallVectorImpl<Instruction*> &Insts) const {
     // single user in it, we can rewrite it trivially.
     if (BlockUses.size() == 1) {
       // If it is a store, it is a trivial def of the value in the block.
-      if (StoreInst *SI = dyn_cast<StoreInst>(User))
+      if (StoreInst *SI = dyn_cast<StoreInst>(User)) {
+        updateDebugInfo(SI);
         SSA.AddAvailableValue(BB, SI->getOperand(0));
-      else 
+      } else 
         // Otherwise it is a load, queue it to rewrite as a live-in load.
         LiveInLoads.push_back(cast<LoadInst>(User));
       BlockUses.clear();
@@ -448,12 +456,13 @@ run(const SmallVectorImpl<Instruction*> &Insts) const {
         continue;
       }
       
-      if (StoreInst *S = dyn_cast<StoreInst>(II)) {
+      if (StoreInst *SI = dyn_cast<StoreInst>(II)) {
         // If this is a store to an unrelated pointer, ignore it.
-        if (!isInstInList(S, Insts)) continue;
-        
+        if (!isInstInList(SI, Insts)) continue;
+        updateDebugInfo(SI);
+
         // Remember that this is the active value in the block.
-        StoredValue = S->getOperand(0);
+        StoredValue = SI->getOperand(0);
       }
     }
     

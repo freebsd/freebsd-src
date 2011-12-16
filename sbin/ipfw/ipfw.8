@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 27, 2010
+.Dd November 10, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -565,9 +565,9 @@ if the sysctl variable
 is set to 0 (default), one can use
 .Xr bpf 4
 attached to the
-.Xr ipfw0
+.Li ipfw0
 pseudo interface. There is no overhead if no 
-.Xr bpf
+.Xr bpf 4
 is attached to the pseudo interface.
 .Pp
 If
@@ -726,7 +726,7 @@ The search terminates.
 Change the next-hop on matching packets to
 .Ar ipaddr ,
 which can be an IP address or a host name.
-The next hop can also be supplied by the last table
+For IPv4, the next hop can also be supplied by the last table
 looked up for the packet by using the
 .Cm tablearg
 keyword instead of an explicit address.
@@ -769,7 +769,7 @@ To enable
 .Cm fwd
 a custom kernel needs to be compiled with the option
 .Cd "options IPFIREWALL_FORWARD" .
-.It Cm nat Ar nat_nr
+.It Cm nat Ar nat_nr | tablearg
 Pass packet to a
 nat instance
 (for network address translation, address redirect, etc.):
@@ -822,6 +822,78 @@ skipto, but care should be used, as no destination caching
 is possible in this case so the rules are always walked to find it,
 starting from the 
 .Cm skipto .
+.It Cm call Ar number | tablearg
+The current rule number is saved in the internal stack and
+ruleset processing continues with the first rule numbered
+.Ar number
+or higher.
+If later a rule with the
+.Cm return
+action is encountered, the processing returns to the first rule
+with number of this
+.Cm call
+rule plus one or higher
+(the same behaviour as with packets returning from
+.Xr divert 4
+socket after a
+.Cm divert
+action).
+This could be used to make somewhat like an assembly language
+.Dq subroutine
+calls to rules with common checks for different interfaces, etc.
+.Pp
+Rule with any number could be called, not just forward jumps as with
+.Cm skipto .
+So, to prevent endless loops in case of mistakes, both
+.Cm call
+and
+.Cm return
+actions don't do any jumps and simply go to the next rule if memory
+can't be allocated or stack overflowed/undeflowed.
+.Pp
+Internally stack for rule numbers is implemented using
+.Xr mbuf_tags 9
+facility and currently has size of 16 entries.
+As mbuf tags are lost when packet leaves the kernel,
+.Cm divert
+should not be used in subroutines to avoid endless loops
+and other undesired effects.
+.It Cm return
+Takes rule number saved to internal stack by the last
+.Cm call
+action and returns ruleset processing to the first rule
+with number greater than number of corresponding
+.Cm call
+rule. See description of the
+.Cm call
+action for more details.
+.Pp
+Note that
+.Cm return
+rules usually end a
+.Dq subroutine
+and thus are unconditional, but
+.Nm
+command-line utility currently requires every action except
+.Cm check-state
+to have body.
+While it is sometimes useful to return only on some packets,
+usually you want to print just
+.Dq return
+for readability.
+A workaround for this is to use new syntax and
+.Fl c
+switch:
+.Pp
+.Bd -literal -offset indent
+# Add a rule without actual body
+ipfw add 2999 return via any
+
+# List rules without "from any to any" part
+ipfw -c list
+.Ed
+.Pp
+This cosmetic annoyance may be fixed in future releases.
 .It Cm tee Ar port
 Send a copy of packets matching this rule to the
 .Xr divert 4
@@ -871,13 +943,16 @@ for more information on
 and
 .Cm ngtee
 actions.
-.It Cm setfib Ar fibnum
+.It Cm setfib Ar fibnum | tablearg
 The packet is tagged so as to use the FIB (routing table)
 .Ar fibnum
 in any subsequent forwarding decisions.
 Initially this is limited to the values 0 through 15, see
 .Xr setfib 1 .
 Processing continues at the next rule.
+It is possible to use the 
+.Cm tablearg
+keyword with a setfib. If tablearg value is not within compiled FIB range packet fib is set to 0.
 .It Cm reass
 Queue and reassemble ip fragments.
 If the packet is not fragmented, counters are updated and processing continues with the next rule.
@@ -1711,7 +1786,7 @@ is used.
 The
 .Cm tablearg
 argument can be used with the following actions:
-.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto
+.Cm nat, pipe , queue, divert, tee, netgraph, ngtee, fwd, skipto, setfib,
 action parameters:
 .Cm tag, untag,
 rule options:
@@ -2432,6 +2507,27 @@ Reset table of the packet aliasing engine on address change.
 Reverse the way libalias handles aliasing.
 .It Cm proxy_only
 Obey transparent proxy rules only, packet aliasing is not performed.
+.It Cm skip_global
+Skip instance in case of global state lookup (see below).
+.El
+.Pp
+Some specials value can be supplied instead of
+.Va nat_number:
+.Bl -tag -width indent
+.It Cm global
+Looks up translation state in all configured nat instances.
+If an entry is found, packet is aliased according to that entry.
+If no entry was found in any of the instances, packet is passed unchanged,
+and no new entry will be created.
+See section
+.Sx MULTIPLE INSTANCES
+in
+.Xr natd 8
+for more information.
+.It Cm tablearg
+Uses argument supplied in lookup table. See
+.Sx LOOKUP TABLES
+section below for more information on lookup tables.
 .El
 .Pp
 To let the packet continue after being (de)aliased, set the sysctl variable
@@ -3229,3 +3325,18 @@ for the respective conversations.
 To avoid failures of network error detection and path MTU discovery,
 ICMP error messages may need to be allowed explicitly through static
 rules.
+.Pp
+Rules using
+.Cm call
+and
+.Cm return
+actions may lead to confusing behaviour if ruleset has mistakes,
+and/or interaction with other subsystems (netgraph, dummynet, etc.) is used.
+One possible case for this is packet leaving
+.Nm
+in subroutine on the input pass, while later on output encountering unpaired
+.Cm return
+first.
+As the call stack is kept intact after input pass, packet will suddenly
+return to the rule number used on input pass, not on output one.
+Order of processing should be checked carefully to avoid such mistakes.

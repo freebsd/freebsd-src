@@ -29,10 +29,10 @@
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -182,6 +182,10 @@ namespace {
       printOp(MI->getOperand(OpNo), O);
     }
 
+    void printHBROperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O) {
+      printOp(MI->getOperand(OpNo), O);
+    }
+
     void printPCRelativeOperand(const MachineInstr *MI, unsigned OpNo, raw_ostream &O) {
       // Used to generate a ".-<target>", but it turns out that the assembler
       // really wants the target.
@@ -278,6 +282,9 @@ void SPUAsmPrinter::printOp(const MachineOperand &MO, raw_ostream &O) {
       }
     }
     O << *Mang->getSymbol(MO.getGlobal());
+    return;
+  case MachineOperand::MO_MCSymbol:
+    O << *(MO.getMCSymbol());
     return;
   default:
     O << "<unknown operand type: " << MO.getType() << ">";

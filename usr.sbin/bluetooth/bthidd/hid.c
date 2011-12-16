@@ -229,6 +229,17 @@ hid_interrupt(bthid_session_p s, uint8_t *data, int32_t len)
 				break;
 
 			switch (usage) {
+			case HUC_AC_PAN:
+				/* Horizontal scroll */
+				if (val < 0)
+					mouse_butt |= (1 << 5);
+				else
+					mouse_butt |= (1 << 6);
+
+				mevents ++;
+				val = 0;
+				break;
+
 			case 0xb5: /* Scan Next Track */
 				val = 0x19;
 				break;

@@ -1,9 +1,9 @@
 /*
- *  $Id: checklist.c,v 1.121 2010/01/17 19:32:17 tom Exp $
+ *  $Id: checklist.c,v 1.127 2011/06/29 23:04:09 tom Exp $
  *
  *  checklist.c -- implements the checklist box
  *
- *  Copyright 2000-2009,2010	Thomas E. Dickey
+ *  Copyright 2000-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -50,10 +50,10 @@ print_arrows(WINDOW *win,
 	     int list_height)
 {
     dlg_draw_scrollbar(win,
-		       scrollamt,
-		       scrollamt,
-		       scrollamt + choice,
-		       item_no,
+		       (long) (scrollamt),
+		       (long) (scrollamt),
+		       (long) (scrollamt + choice),
+		       (long) (item_no),
 		       box_x + check_x,
 		       box_x + list_width,
 		       box_y,
@@ -73,7 +73,7 @@ print_item(WINDOW *win,
 	   int choice,
 	   int selected)
 {
-    chtype save = getattrs(win);
+    chtype save = dlg_get_attrs(win);
     int i;
     chtype attr = A_NORMAL;
     const int *cols;
@@ -149,6 +149,7 @@ dlg_checklist(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, KEY_RIGHT ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
@@ -193,6 +194,24 @@ dlg_checklist(const char *title,
     dlg_does_output();
     dlg_tab_correct_str(prompt);
 
+    /*
+     * If this is a radiobutton list, ensure that no more than one item is
+     * selected initially.  Allow none to be selected, since some users may
+     * wish to provide this flavor.
+     */
+    if (flag == FLAG_RADIO) {
+	bool first = TRUE;
+
+	for (i = 0; i < item_no; i++) {
+	    if (items[i].state) {
+		if (first) {
+		    first = FALSE;
+		} else {
+		    items[i].state = 0;
+		}
+	    }
+	}
+    }
 #ifdef KEY_RESIZE
   retry:
 #endif
@@ -291,11 +310,12 @@ dlg_checklist(const char *title,
 	choice = max_choice - 1;
     }
     /* Print the list */
-    for (i = 0; i < max_choice; i++)
+    for (i = 0; i < max_choice; i++) {
 	print_item(list,
 		   &items[i + scrollamt],
 		   states,
 		   i, i == choice);
+    }
     (void) wnoutrefresh(list);
 
     /* register the new window, along with its borders */
@@ -565,7 +585,7 @@ dlg_checklist(const char *title,
 	if (fkey) {
 	    switch (key) {
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = dlg_enter_buttoncode(button);
 		break;
 	    case DLGK_FIELD_PREV:
 		button = dlg_prev_button(buttons, button);
@@ -643,7 +663,7 @@ dialog_checklist(const char *title,
 			     : dlg_strempty());
 	listitems[i].state = !dlg_strcmp(ItemStatus(i), "on");
     }
-    dlg_align_columns(&listitems[0].text, sizeof(DIALOG_LISTITEM), item_no);
+    dlg_align_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
 
     result = dlg_checklist(title,
 			   cprompt,
@@ -706,7 +726,7 @@ dialog_checklist(const char *title,
 	}
     }
 
-    dlg_free_columns(&listitems[0].text, sizeof(DIALOG_LISTITEM), item_no);
+    dlg_free_columns(&listitems[0].text, (int) sizeof(DIALOG_LISTITEM), item_no);
     free(listitems);
     return result;
 }

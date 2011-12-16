@@ -522,7 +522,7 @@ blk_setmask(struct jblkrec *brec, int *mask)
  * Determine whether a given block has been reallocated to a new location.
  * Returns a mask of overlapping bits if any frags have been reused or
  * zero if the block has not been re-used and the contents can be trusted.
- * 
+ *
  * This is used to ensure that an orphaned pointer due to truncate is safe
  * to be freed.  The mask value can be used to free partial blocks.
  */
@@ -554,7 +554,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
 		 * exactly it's a new allocation.  If it matches
 		 * exactly this record refers to the current
 		 * location.
-		 */ 
+		 */
 		if (blk_overlaps(brec, blk, frags) == 0)
 			continue;
 		if (blk_equals(brec, ino, lbn, blk, frags) == 1)
@@ -576,7 +576,7 @@ blk_freemask(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t lbn, int frags)
  * It is also not safe to follow an indirect if the cg bitmap has been
  * cleared as a new allocation may write to the block prior to the journal
  * being written.
- * 
+ *
  * Returns 1 if it's safe to follow the indirect and 0 otherwise.
  */
 static int
@@ -718,7 +718,7 @@ indir_blkatoff(ufs2_daddr_t blk, ino_t ino, ufs_lbn_t cur, ufs_lbn_t lbn)
 	base = -(cur + level);
 	for (i = level; i > 0; i--)
 		lbnadd *= NINDIR(fs);
-	if (lbn > 0) 
+	if (lbn > 0)
 		i = (lbn - base) / lbnadd;
 	else
 		i = (-lbn - base) / lbnadd;
@@ -1572,7 +1572,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * last populated lbn is.  We will set the size to this last lbn
 	 * rather than worrying about allocating the final lbn as the kernel
 	 * would've done.  This is consistent with normal fsck behavior.
-	 */ 
+	 */
 	visitlbn = 0;
 	totalfrags = ino_visit(ip, ino, null_visit, VISIT_INDIR | VISIT_EXT);
 	if (size > lblktosize(fs, visitlbn + 1))
@@ -1604,7 +1604,7 @@ ino_trunc(ino_t ino, off_t size)
 	 * uninitialized space later.
 	 */
 	off = blkoff(fs, size);
-	if (off) {
+	if (off && DIP(ip, di_mode) != IFDIR) {
 		uint8_t *buf;
 		long clrsize;
 
@@ -1650,7 +1650,7 @@ ino_check(struct suj_ino *sino)
 	removes = sino->si_nlinkadj;
 	TAILQ_FOREACH(srec, &sino->si_recs, sr_next) {
 		rrec = (struct jrefrec *)srec->sr_rec;
-		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff, 
+		isat = ino_isat(rrec->jr_parent, rrec->jr_diroff,
 		    rrec->jr_ino, &mode, &isdot);
 		if (isat && (mode & IFMT) != (rrec->jr_mode & IFMT))
 			err_suj("Inode mode/directory type mismatch %o != %o\n",
@@ -1775,13 +1775,18 @@ cg_trunc(struct suj_cg *sc)
 	struct suj_ino *sino;
 	int i;
 
-	for (i = 0; i < SUJ_HASHSIZE; i++)
-		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
+	for (i = 0; i < SUJ_HASHSIZE; i++) {
+		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next) {
 			if (sino->si_trunc) {
 				ino_trunc(sino->si_ino,
 				    sino->si_trunc->jt_size);
+				sino->si_blkadj = 0;
 				sino->si_trunc = NULL;
 			}
+			if (sino->si_blkadj)
+				ino_adjblks(sino);
+		}
+	}
 }
 
 /*
@@ -1791,7 +1796,6 @@ cg_trunc(struct suj_cg *sc)
 static void
 cg_check_blk(struct suj_cg *sc)
 {
-	struct suj_ino *sino;
 	struct suj_blk *sblk;
 	int i;
 
@@ -1799,15 +1803,6 @@ cg_check_blk(struct suj_cg *sc)
 	for (i = 0; i < SUJ_HASHSIZE; i++)
 		LIST_FOREACH(sblk, &sc->sc_blkhash[i], sb_next)
 			blk_check(sblk);
-	/*
-	 * Now that we've freed blocks which are not referenced we
-	 * make a second pass over all inodes to adjust their block
-	 * counts.
-	 */
-	for (i = 0; i < SUJ_HASHSIZE; i++)
-		LIST_FOREACH(sino, &sc->sc_inohash[i], si_next)
-			if (sino->si_blkadj)
-				ino_adjblks(sino);
 }
 
 /*
@@ -1952,23 +1947,16 @@ ino_append(union jrec *rec)
 	mvrec = &rec->rec_jmvrec;
 	refrec = &rec->rec_jrefrec;
 	if (debug && mvrec->jm_op == JOP_MVREF)
-		printf("ino move: ino %d, parent %d, diroff %jd, oldoff %jd\n", 
+		printf("ino move: ino %d, parent %d, diroff %jd, oldoff %jd\n",
 		    mvrec->jm_ino, mvrec->jm_parent, mvrec->jm_newoff,
 		    mvrec->jm_oldoff);
 	else if (debug &&
 	    (refrec->jr_op == JOP_ADDREF || refrec->jr_op == JOP_REMREF))
 		printf("ino ref: op %d, ino %d, nlink %d, "
-		    "parent %d, diroff %jd\n", 
+		    "parent %d, diroff %jd\n",
 		    refrec->jr_op, refrec->jr_ino, refrec->jr_nlink,
 		    refrec->jr_parent, refrec->jr_diroff);
-	/*
-	 * Lookup the ino and clear truncate if one is found.  Partial
-	 * truncates are always done synchronously so if we discover
-	 * an operation that requires a lock the truncation has completed
-	 * and can be discarded.
-	 */
 	sino = ino_lookup(((struct jrefrec *)rec)->jr_ino, 1);
-	sino->si_trunc = NULL;
 	sino->si_hasrecs = 1;
 	srec = errmalloc(sizeof(*srec));
 	srec->sr_rec = rec;
@@ -2174,9 +2162,7 @@ blk_build(struct jblkrec *blkrec)
 	struct suj_rec *srec;
 	struct suj_blk *sblk;
 	struct jblkrec *blkrn;
-	struct suj_ino *sino;
 	ufs2_daddr_t blk;
-	off_t foff;
 	int frag;
 
 	if (debug)
@@ -2185,17 +2171,6 @@ blk_build(struct jblkrec *blkrec)
 		    blkrec->jb_op, blkrec->jb_blkno, blkrec->jb_frags,
 		    blkrec->jb_oldfrags, blkrec->jb_ino, blkrec->jb_lbn);
 
-	/*
-	 * Look up the inode and clear the truncate if any lbns after the
-	 * truncate lbn are freed or allocated.
-	 */
-	sino = ino_lookup(blkrec->jb_ino, 0);
-	if (sino && sino->si_trunc) {
-		foff = lblktosize(fs, blkrec->jb_lbn);
-		foff += lfragtosize(fs, blkrec->jb_frags);
-		if (foff > sino->si_trunc->jt_size)
-			sino->si_trunc = NULL;
-	}
 	blk = blknum(fs, blkrec->jb_blkno);
 	frag = fragnum(fs, blkrec->jb_blkno);
 	sblk = blk_lookup(blk, 1);
@@ -2242,10 +2217,15 @@ ino_build_trunc(struct jtrncrec *rec)
 	struct suj_ino *sino;
 
 	if (debug)
-		printf("ino_build_trunc: ino %d, size %jd\n",
-		    rec->jt_ino, rec->jt_size);
+		printf("ino_build_trunc: op %d ino %d, size %jd\n",
+		    rec->jt_op, rec->jt_ino, rec->jt_size);
 	sino = ino_lookup(rec->jt_ino, 1);
-	sino->si_trunc = rec;
+	if (rec->jt_op == JOP_SYNC) {
+		sino->si_trunc = NULL;
+		return;
+	}
+	if (sino->si_trunc == NULL || sino->si_trunc->jt_size > rec->jt_size)
+		sino->si_trunc = rec;
 }
 
 /*
@@ -2281,6 +2261,7 @@ suj_build(void)
 				blk_build((struct jblkrec *)rec);
 				break;
 			case JOP_TRUNC:
+			case JOP_SYNC:
 				ino_build_trunc((struct jtrncrec *)rec);
 				break;
 			default:
@@ -2330,7 +2311,7 @@ suj_prune(void)
 		TAILQ_REMOVE(&allsegs, seg, ss_next);
 		TAILQ_INSERT_HEAD(&allsegs, seg, ss_next);
 		newseq = seg->ss_rec.jsr_seq;
-		
+
 	}
 	if (newseq != oldseq) {
 		err_suj("Journal file sequence mismatch %jd != %jd\n",
@@ -2609,7 +2590,7 @@ restart:
 				recn = (void *)((uintptr_t)rec) + i *
 				    real_dev_bsize;
 				if (recn->jsr_seq == rec->jsr_seq &&
-				    recn->jsr_time == rec->jsr_time) 
+				    recn->jsr_time == rec->jsr_time)
 					continue;
 				if (debug)
 					printf("Incomplete record %jd (%d)\n",

@@ -174,7 +174,7 @@
 #define STATE_ACK_SENT	8
 #define STATE_OPENED	9
 
-MALLOC_DEFINE(M_SPPP, "sppp", "synchronous PPP interface internals");
+static MALLOC_DEFINE(M_SPPP, "sppp", "synchronous PPP interface internals");
 
 struct ppp_header {
 	u_char address;
@@ -737,6 +737,7 @@ sppp_input(struct ifnet *ifp, struct mbuf *m)
 		goto drop;
 
 	SPPP_UNLOCK(sp);
+	M_SETFIB(m, ifp->if_fib);
 	/* Check queue. */
 	if (netisr_queue(isr, m)) {	/* (0) on success. */
 		if (debug)

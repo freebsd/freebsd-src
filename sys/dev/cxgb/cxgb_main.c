@@ -129,11 +129,7 @@ static device_method_t cxgb_controller_methods[] = {
 	DEVMETHOD(device_attach,	cxgb_controller_attach),
 	DEVMETHOD(device_detach,	cxgb_controller_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cxgb_controller_driver = {
@@ -458,7 +454,7 @@ cxgb_controller_attach(device_t dev)
 	ai = cxgb_get_adapter_info(dev);
 
 	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t lnk;
 
 		lnk = pci_read_config(dev, reg + PCIR_EXPRESS_LINK_STA, 2);
@@ -717,7 +713,7 @@ cxgb_controller_detach(device_t dev)
 static void
 cxgb_free(struct adapter *sc)
 {
-	int i;
+	int i, nqsets = 0;
 
 	ADAPTER_LOCK(sc);
 	sc->flags |= CXGB_SHUTDOWN;
@@ -731,6 +727,7 @@ cxgb_free(struct adapter *sc)
 		if (sc->portdev[i] &&
 		    device_delete_child(sc->dev, sc->portdev[i]) != 0)
 			device_printf(sc->dev, "failed to delete child port\n");
+		nqsets += sc->port[i].nqsets;
 	}
 
 	/*
@@ -756,7 +753,7 @@ cxgb_free(struct adapter *sc)
 	 * sysctls are cleaned up by the kernel linker.
 	 */
 	if (sc->flags & FULL_INIT_DONE) {
- 		t3_free_sge_resources(sc);
+ 		t3_free_sge_resources(sc, nqsets);
  		sc->flags &= ~FULL_INIT_DONE;
  	}
 
@@ -842,9 +839,9 @@ setup_sge_qsets(adapter_t *sc)
 			    (sc->flags & USING_MSIX) ? qset_idx + 1 : irq_idx,
 			    &sc->params.sge.qset[qset_idx], ntxq, pi);
 			if (err) {
-				t3_free_sge_resources(sc);
-				device_printf(sc->dev, "t3_sge_alloc_qset failed with %d\n",
-				    err);
+				t3_free_sge_resources(sc, qset_idx);
+				device_printf(sc->dev,
+				    "t3_sge_alloc_qset failed with %d\n", err);
 				return (err);
 			}
 		}

@@ -270,9 +270,9 @@ ale_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->ale_miibus);
 
 	mii_pollstat(mii);
-	ALE_UNLOCK(sc);
 	ifmr->ifm_status = mii->mii_media_status;
 	ifmr->ifm_active = mii->mii_media_active;
+	ALE_UNLOCK(sc);
 }
 
 static int
@@ -286,10 +286,8 @@ ale_mediachange(struct ifnet *ifp)
 	sc = ifp->if_softc;
 	ALE_LOCK(sc);
 	mii = device_get_softc(sc->ale_miibus);
-	if (mii->mii_instance != 0) {
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	error = mii_mediachg(mii);
 	ALE_UNLOCK(sc);
 
@@ -330,7 +328,7 @@ ale_get_macaddr(struct ale_softc *sc)
 		CSR_WRITE_4(sc, ALE_SPI_CTRL, reg);
 	}
 
-	if (pci_find_extcap(sc->ale_dev, PCIY_VPD, &vpdc) == 0) {
+	if (pci_find_cap(sc->ale_dev, PCIY_VPD, &vpdc) == 0) {
 		/*
 		 * PCI VPD capability found, let TWSI reload EEPROM.
 		 * This will set ethernet address of controller.
@@ -544,7 +542,7 @@ ale_attach(device_t dev)
 	}
 
 	/* Get DMA parameters from PCIe device control register. */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &i) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &i) == 0) {
 		sc->ale_flags |= ALE_FLAG_PCIE;
 		burst = pci_read_config(dev, i + 0x08, 2);
 		/* Max read request size. */
@@ -591,7 +589,7 @@ ale_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 	ifp->if_capabilities = IFCAP_RXCSUM | IFCAP_TXCSUM | IFCAP_TSO4;
 	ifp->if_hwassist = ALE_CSUM_FEATURES | CSUM_TSO;
-	if (pci_find_extcap(dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(dev, PCIY_PMG, &pmc) == 0) {
 		sc->ale_flags |= ALE_FLAG_PMCAP;
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC | IFCAP_WOL_MCAST;
 	}
@@ -1469,7 +1467,7 @@ ale_setwol(struct ale_softc *sc)
 
 	ALE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->ale_dev, PCIY_PMG, &pmc) != 0) {
+	if (pci_find_cap(sc->ale_dev, PCIY_PMG, &pmc) != 0) {
 		/* Disable WOL. */
 		CSR_WRITE_4(sc, ALE_WOL_CFG, 0);
 		reg = CSR_READ_4(sc, ALE_PCIE_PHYMISC);
@@ -1548,7 +1546,7 @@ ale_resume(device_t dev)
 	sc = device_get_softc(dev);
 
 	ALE_LOCK(sc);
-	if (pci_find_extcap(sc->ale_dev, PCIY_PMG, &pmc) == 0) {
+	if (pci_find_cap(sc->ale_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->ale_dev,
 		    pmc + PCIR_POWER_STATUS, 2);

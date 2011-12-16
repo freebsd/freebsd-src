@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * Portions of this software were developed for the FreeBSD Project by
@@ -56,6 +57,7 @@ PAM_EXTERN int
 pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
     int argc __unused, const char *argv[] __unused)
 {
+	int local, remote;
 	const char *group, *user;
 	const void *ruser;
 	char *const *list;
@@ -69,10 +71,24 @@ pam_sm_authenticate(pam_handle_t *pamh, int flags __unused,
 	if (pwd->pw_uid != 0 && openpam_get_option(pamh, "root_only"))
 		return (PAM_IGNORE);
 
-	/* get applicant */
-	if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS
-	    || ruser == NULL || (pwd = getpwnam(ruser)) == NULL)
-		return (PAM_AUTH_ERR);
+	/* check local / remote */
+	local = openpam_get_option(pamh, "luser") ? 1 : 0;
+	remote = openpam_get_option(pamh, "ruser") ? 1 : 0;
+	if (local && remote) {
+		openpam_log(PAM_LOG_ERROR, "(pam_group) "
+		    "the luser and ruser options are mutually exclusive");
+		return (PAM_SERVICE_ERR);
+	} else if (local) {
+		/* we already have the correct struct passwd */
+	} else {
+		if (!remote)
+			openpam_log(PAM_LOG_NOTICE, "(pam_group) "
+			    "neither luser nor ruser specified, assuming ruser");
+		/* default / historical behavior */
+		if (pam_get_item(pamh, PAM_RUSER, &ruser) != PAM_SUCCESS ||
+		    ruser == NULL || (pwd = getpwnam(ruser)) == NULL)
+			return (PAM_AUTH_ERR);
+	}
 
 	/* get regulating group */
 	if ((group = openpam_get_option(pamh, "group")) == NULL)

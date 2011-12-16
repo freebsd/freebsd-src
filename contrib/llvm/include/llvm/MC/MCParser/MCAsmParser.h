@@ -20,11 +20,10 @@ class MCAsmParserExtension;
 class MCContext;
 class MCExpr;
 class MCStreamer;
+class MCTargetAsmParser;
 class SMLoc;
 class SourceMgr;
 class StringRef;
-class Target;
-class TargetAsmParser;
 class Twine;
 
 /// MCAsmParser - Generic assembler parser interface, for use by target specific
@@ -37,7 +36,7 @@ private:
   MCAsmParser(const MCAsmParser &);   // DO NOT IMPLEMENT
   void operator=(const MCAsmParser &);  // DO NOT IMPLEMENT
 
-  TargetAsmParser *TargetParser;
+  MCTargetAsmParser *TargetParser;
 
   unsigned ShowParsedOperands : 1;
 
@@ -60,8 +59,8 @@ public:
   /// getStreamer - Return the output streamer for the assembler.
   virtual MCStreamer &getStreamer() = 0;
 
-  TargetAsmParser &getTargetParser() const { return *TargetParser; }
-  void setTargetParser(TargetAsmParser &P);
+  MCTargetAsmParser &getTargetParser() const { return *TargetParser; }
+  void setTargetParser(MCTargetAsmParser &P);
 
   bool getShowParsedOperands() const { return ShowParsedOperands; }
   void setShowParsedOperands(bool Value) { ShowParsedOperands = Value; }
@@ -71,7 +70,9 @@ public:
 
   /// Warning - Emit a warning at the location \arg L, with the message \arg
   /// Msg.
-  virtual void Warning(SMLoc L, const Twine &Msg) = 0;
+  ///
+  /// \return The return value is true, if warnings are fatal.
+  virtual bool Warning(SMLoc L, const Twine &Msg) = 0;
 
   /// Error - Emit an error at the location \arg L, with the message \arg
   /// Msg.
@@ -129,7 +130,7 @@ public:
 };
 
 /// \brief Create an MCAsmParser instance.
-MCAsmParser *createMCAsmParser(const Target &, SourceMgr &, MCContext &,
+MCAsmParser *createMCAsmParser(SourceMgr &, MCContext &,
                                MCStreamer &, const MCAsmInfo &);
 
 } // End llvm namespace

@@ -93,7 +93,8 @@ static u_int g_journal_accept_immediately = 64;
 static u_int g_journal_record_entries = GJ_RECORD_HEADER_NENTRIES;
 static u_int g_journal_do_optimize = 1;
 
-SYSCTL_NODE(_kern_geom, OID_AUTO, journal, CTLFLAG_RW, 0, "GEOM_JOURNAL stuff");
+static SYSCTL_NODE(_kern_geom, OID_AUTO, journal, CTLFLAG_RW, 0,
+    "GEOM_JOURNAL stuff");
 SYSCTL_INT(_kern_geom_journal, OID_AUTO, debug, CTLFLAG_RW, &g_journal_debug, 0,
     "Debug level");
 SYSCTL_UINT(_kern_geom_journal, OID_AUTO, switch_time, CTLFLAG_RW,
@@ -140,7 +141,7 @@ static u_int g_journal_cache_misses = 0;
 static u_int g_journal_cache_alloc_failures = 0;
 static u_int g_journal_cache_low = 0;
 
-SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, cache, CTLFLAG_RW, 0,
     "GEOM_JOURNAL cache");
 SYSCTL_UINT(_kern_geom_journal_cache, OID_AUTO, used, CTLFLAG_RD,
     &g_journal_cache_used, 0, "Number of allocated bytes");
@@ -195,7 +196,7 @@ static u_long g_journal_stats_wait_for_copy = 0;
 static u_long g_journal_stats_journal_full = 0;
 static u_long g_journal_stats_low_mem = 0;
 
-SYSCTL_NODE(_kern_geom_journal, OID_AUTO, stats, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_journal, OID_AUTO, stats, CTLFLAG_RW, 0,
     "GEOM_JOURNAL statistics");
 SYSCTL_ULONG(_kern_geom_journal_stats, OID_AUTO, skipped_bytes, CTLFLAG_RW,
     &g_journal_stats_bytes_skipped, 0, "Number of skipped bytes");
@@ -2097,7 +2098,6 @@ g_journal_worker(void *arg)
 	gp = sc->sc_geom;
 	g_topology_lock();
 	pp = g_new_providerf(gp, "%s.journal", sc->sc_name);
-	KASSERT(pp != NULL, ("Cannot create %s.journal.", sc->sc_name));
 	pp->mediasize = sc->sc_mediasize;
 	/*
 	 * There could be a problem when data provider and journal providers
@@ -2527,7 +2527,8 @@ g_journal_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		return (NULL);
 	gp = NULL;
 
-	if (md.md_provider[0] != '\0' && strcmp(md.md_provider, pp->name) != 0)
+	if (md.md_provider[0] != '\0' &&
+	    !g_compare_names(md.md_provider, pp->name))
 		return (NULL);
 	if (md.md_provsize != 0 && md.md_provsize != pp->mediasize)
 		return (NULL);

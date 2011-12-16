@@ -53,7 +53,7 @@ BasicBlock::BasicBlock(LLVMContext &C, const Twine &Name, Function *NewParent,
   } else if (NewParent) {
     NewParent->getBasicBlockList().push_back(this);
   }
-  
+
   setName(Name);
 }
 
@@ -76,7 +76,7 @@ BasicBlock::~BasicBlock() {
       BA->destroyConstant();
     }
   }
-  
+
   assert(getParent() == 0 && "BasicBlock still linked into the program!");
   dropAllReferences();
   InstList.clear();
@@ -147,6 +147,32 @@ Instruction* BasicBlock::getFirstNonPHIOrDbg() {
   return &*i;
 }
 
+Instruction* BasicBlock::getFirstNonPHIOrDbgOrLifetime() {
+  // All valid basic blocks should have a terminator,
+  // which is not a PHINode. If we have an invalid basic
+  // block we'll get an assertion failure when dereferencing
+  // a past-the-end iterator.
+  BasicBlock::iterator i = begin();
+  for (;; ++i) {
+    if (isa<PHINode>(i) || isa<DbgInfoIntrinsic>(i))
+      continue;
+
+    const IntrinsicInst *II = dyn_cast<IntrinsicInst>(i);
+    if (!II)
+      break;
+    if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
+        II->getIntrinsicID() != Intrinsic::lifetime_end)
+      break;
+  }
+  return &*i;
+}
+
+BasicBlock::iterator BasicBlock::getFirstInsertionPt() {
+  iterator InsertPt = getFirstNonPHI();
+  if (isa<LandingPadInst>(InsertPt)) ++InsertPt;
+  return InsertPt;
+}
+
 void BasicBlock::dropAllReferences() {
   for(iterator I = begin(), E = end(); I != E; ++I)
     I->dropAllReferences();
@@ -164,8 +190,8 @@ BasicBlock *BasicBlock::getSinglePredecessor() {
 
 /// getUniquePredecessor - If this basic block has a unique predecessor block,
 /// return the block, otherwise return a null pointer.
-/// Note that unique predecessor doesn't mean single edge, there can be 
-/// multiple edges from the unique predecessor to this block (for example 
+/// Note that unique predecessor doesn't mean single edge, there can be
+/// multiple edges from the unique predecessor to this block (for example
 /// a switch statement with multiple cases having the same destination).
 BasicBlock *BasicBlock::getUniquePredecessor() {
   pred_iterator PI = pred_begin(this), E = pred_end(this);
@@ -227,8 +253,8 @@ void BasicBlock::removePredecessor(BasicBlock *Pred,
 
       // If the PHI _HAD_ two uses, replace PHI node with its now *single* value
       if (max_idx == 2) {
-        if (PN->getOperand(0) != PN)
-          PN->replaceAllUsesWith(PN->getOperand(0));
+        if (PN->getIncomingValue(0) != PN)
+          PN->replaceAllUsesWith(PN->getIncomingValue(0));
         else
           // We are left with an infinite loop with no entries: kill the PHI.
           PN->replaceAllUsesWith(UndefValue::get(PN->getType()));
@@ -308,3 +334,35 @@ BasicBlock *BasicBlock::splitBasicBlock(iterator I, const Twine &BBName) {
   return New;
 }
 
+void BasicBlock::replaceSuccessorsPhiUsesWith(BasicBlock *New) {
+  TerminatorInst *TI = getTerminator();
+  if (!TI)
+    // Cope with being called on a BasicBlock that doesn't have a terminator
+    // yet. Clang's CodeGenFunction::EmitReturnBlock() likes to do this.
+    return;
+  for (unsigned i = 0, e = TI->getNumSuccessors(); i != e; ++i) {
+    BasicBlock *Succ = TI->getSuccessor(i);
+    // N.B. Succ might not be a complete BasicBlock, so don't assume
+    // that it ends with a non-phi instruction.
+    for (iterator II = Succ->begin(), IE = Succ->end(); II != IE; ++II) {
+      PHINode *PN = dyn_cast<PHINode>(II);
+      if (!PN)
+        break;
+      int i;
+      while ((i = PN->getBasicBlockIndex(this)) >= 0)
+        PN->setIncomingBlock(i, New);
+    }
+  }
+}
+
+/// isLandingPad - Return true if this basic block is a landing pad. I.e., it's
+/// the destination of the 'unwind' edge of an invoke instruction.
+bool BasicBlock::isLandingPad() const {
+  return isa<LandingPadInst>(getFirstNonPHI());
+}
+
+/// getLandingPadInst() - Return the landingpad instruction associated with
+/// the landing pad.
+LandingPadInst *BasicBlock::getLandingPadInst() {
+  return dyn_cast<LandingPadInst>(getFirstNonPHI());
+}

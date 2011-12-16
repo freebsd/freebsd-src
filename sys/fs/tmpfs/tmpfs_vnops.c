@@ -518,8 +518,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_reference(m);
 			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
 		}
@@ -538,8 +537,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_reference(m);
 			vm_page_sleep(m, "tmfsmr");
 			goto lookupvpg;
 		}
@@ -650,8 +648,7 @@ lookupvpg:
 			 * Reference the page before unlocking and sleeping so
 			 * that the page daemon is less likely to reclaim it.  
 			 */
-			vm_page_lock_queues();
-			vm_page_flag_set(vpg, PG_REFERENCED);
+			vm_page_reference(vpg);
 			vm_page_sleep(vpg, "tmfsmw");
 			goto lookupvpg;
 		}
@@ -968,11 +965,8 @@ tmpfs_rename(struct vop_rename_args *v)
 
 	/* If we need to move the directory between entries, lock the
 	 * source so that we can safely operate on it. */
-	if (tdvp != fdvp) {
-		error = vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
-		if (error != 0)
-			goto out;
-	}
+	if (fdvp != tdvp && fdvp != tvp)
+		vn_lock(fdvp, LK_EXCLUSIVE | LK_RETRY);
 	fdnode = VP_TO_TMPFS_DIR(fdvp);
 	fnode = VP_TO_TMPFS_NODE(fvp);
 	de = tmpfs_dir_lookup(fdnode, fnode, fcnp);
@@ -1141,11 +1135,12 @@ tmpfs_rename(struct vop_rename_args *v)
 		 * really reclaimed. */
 		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
 	}
+	cache_purge(fvp);
 
 	error = 0;
 
 out_locked:
-	if (fdnode != tdnode)
+	if (fdvp != tdvp && fdvp != tvp)
 		VOP_UNLOCK(fdvp, 0);
 
 out:

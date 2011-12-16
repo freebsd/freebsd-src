@@ -88,12 +88,7 @@ extern int in_dowait;		/* are we in dowait()? */
 extern volatile sig_atomic_t breakwaitcmd; /* break wait to process traps? */
 
 void setjobctl(int);
-int fgcmd(int, char **);
-int bgcmd(int, char **);
-int jobscmd(int, char **);
 void showjobs(int, int);
-int waitcmd(int, char **);
-int jobidcmd(int, char **);
 struct job *makejob(union node *, int);
 pid_t forkshell(struct job *, union node *, int);
 int waitforjob(struct job *, int *);

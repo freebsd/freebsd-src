@@ -44,14 +44,14 @@
 
 #include "fdutil.h"
 
-int	quiet, recover;
-unsigned char fillbyte = 0xf0;	/* "foo" */
+static int	quiet, recover;
+static unsigned char fillbyte = 0xf0;	/* "foo" */
 
-int	doread(int fd, FILE *of, const char *_devname);
-int	doreadid(int fd, unsigned int numids, unsigned int trackno);
-void	usage(void);
+static int	doread(int fd, FILE *of, const char *_devname);
+static int	doreadid(int fd, unsigned int numids, unsigned int trackno);
+static void	usage(void);
 
-void
+static void
 usage(void)
 {
 
@@ -149,13 +149,13 @@ main(int argc, char **argv)
 			err(EX_OSERR, "cannot create output file %s", fname);
 	}
 
-	if ((fd = open(_devname, O_RDWR)) == -1)
+	if ((fd = open(_devname, O_RDONLY)) == -1)
 		err(EX_OSERR, "cannot open device %s", _devname);
 
 	return (numids? doreadid(fd, numids, trackno): doread(fd, of, _devname));
 }
 
-int
+static int
 doread(int fd, FILE *of, const char *_devname)
 {
 	char *trackbuf;
@@ -294,7 +294,7 @@ doread(int fd, FILE *of, const char *_devname)
 	return (nerrs? EX_IOERR: EX_OK);
 }
 
-int
+static int
 doreadid(int fd, unsigned int numids, unsigned int trackno)
 {
 	int rv = 0;

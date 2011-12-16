@@ -93,6 +93,7 @@ static void gpart_restore(struct gctl_req *, unsigned int);
 
 struct g_command PUBSYM(class_commands)[] = {
 	{ "add", 0, gpart_issue, {
+		{ 'a', "alignment", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 'b', "start", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 's', "size", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 't', "type", NULL, G_TYPE_STRING },
@@ -100,7 +101,8 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'l', "label", G_VAL_OPTIONAL, G_TYPE_STRING },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-b start] [-s size] -t type [-i index] [-l label] [-f flags] geom"
+	    "-t type [-a alignment] [-b start] [-s size] [-i index] "
+		"[-l label] [-f flags] geom"
 	},
 	{ "backup", 0, gpart_backup, G_NULL_OPTS,
 	    "geom"
@@ -111,7 +113,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'i', GPART_PARAM_INDEX, G_VAL_OPTIONAL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-b bootcode] [-p partcode] [-i index] [-f flags] geom"
+	    "[-b bootcode] [-p partcode -i index] [-f flags] geom"
 	},
 	{ "commit", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -155,7 +157,7 @@ struct g_command PUBSYM(class_commands)[] = {
 		{ 'r', "show_rawtype", NULL, G_TYPE_BOOL },
 		{ 'p', "show_providers", NULL, G_TYPE_BOOL },
 		G_OPT_SENTINEL },
-	    "[-lrp] [geom ...]"
+	    "[-l | -r] [-p] [geom ...]"
 	},
 	{ "undo", 0, gpart_issue, G_NULL_OPTS,
 	    "geom"
@@ -168,11 +170,12 @@ struct g_command PUBSYM(class_commands)[] = {
 	    "-a attrib -i index [-f flags] geom"
 	},
 	{ "resize", 0, gpart_issue, {
+		{ 'a', "alignment", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 's', "size", GPART_AUTOFILL, G_TYPE_STRING },
 		{ 'i', GPART_PARAM_INDEX, NULL, G_TYPE_NUMBER },
 		{ 'f', "flags", GPART_FLAGS, G_TYPE_STRING },
 		G_OPT_SENTINEL },
-	    "[-s size] -i index [-f flags] geom"
+	    "-i index [-a alignment] [-s size] [-f flags] geom"
 	},
 	{ "restore", 0, gpart_restore, {
 		{ 'F', "force", NULL, G_TYPE_BOOL },
@@ -250,13 +253,7 @@ find_provider(struct ggeom *gp, off_t minsector)
 	bestsector = 0;
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector =
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
-
+		sector = (off_t)strtoimax(s, NULL, 0);
 		if (sector < minsector)
 			continue;
 		if (bestpp != NULL && sector >= bestsector)
@@ -298,6 +295,9 @@ fmtattrib(struct gprovider *pp)
 	return (buf);
 }
 
+#define	ALIGNDOWN(d, a)	((d) - (d) % (a))
+#define	ALIGNUP(d, a)	((d) % (a) ? (d) - (d) % (a) + (a): (d))
+
 static int
 gpart_autofill_resize(struct gctl_req *req)
 {
@@ -306,9 +306,9 @@ gpart_autofill_resize(struct gctl_req *req)
 	struct ggeom *gp;
 	struct gprovider *pp;
 	off_t last, size, start, new_size;
-	off_t lba, new_lba;
+	off_t lba, new_lba, alignment, offset;
 	const char *s;
-	int error, idx;
+	int error, idx, has_alignment;
 
 	idx = (int)gctl_get_intmax(req, GPART_PARAM_INDEX);
 	if (idx < 1)
@@ -333,6 +333,24 @@ gpart_autofill_resize(struct gctl_req *req)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
 
+	s = gctl_get_ascii(req, "alignment");
+	has_alignment = (*s == '*') ? 0 : 1;
+	alignment = 1;
+	if (has_alignment) {
+		error = g_parse_lba(s, pp->lg_sectorsize, &alignment);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid alignment param");
+		if (alignment == 0)
+			errx(EXIT_FAILURE, "Invalid alignment param");
+	} else {
+		lba = pp->lg_stripesize / pp->lg_sectorsize;
+		if (lba > 0)
+			alignment = lba;
+	}
+	error = gctl_delete_param(req, "alignment");
+	if (error)
+		errc(EXIT_FAILURE, error, "internal error");
+
 	s = gctl_get_ascii(req, "size");
 	if (*s == '*')
 		new_size = 0;
@@ -341,9 +359,11 @@ gpart_autofill_resize(struct gctl_req *req)
 		if (error)
 			errc(EXIT_FAILURE, error, "Invalid size param");
 		/* no autofill necessary. */
-		goto done;
+		if (has_alignment == 0)
+			goto done;
 	}
 
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "index");
@@ -356,39 +376,33 @@ gpart_autofill_resize(struct gctl_req *req)
 		errx(EXIT_FAILURE, "invalid partition index");
 
 	s = find_provcfg(pp, "start");
-	if (s == NULL) {
-		s = find_provcfg(pp, "offset");
-		start = (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-	} else
-		start = (off_t)strtoimax(s, NULL, 0);
+	start = (off_t)strtoimax(s, NULL, 0);
 	s = find_provcfg(pp, "end");
-	if (s == NULL) {
-		s = find_provcfg(pp, "length");
-		lba = start +
-		    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-	} else
-		lba = (off_t)strtoimax(s, NULL, 0) + 1;
+	lba = (off_t)strtoimax(s, NULL, 0);
+	size = lba - start + 1;
 
-	if (lba > last) {
-		geom_deletetree(&mesh);
-		return (ENOSPC);
+	pp = find_provider(gp, lba + 1);
+	if (new_size > 0 && (new_size <= size || pp == NULL)) {
+		/* The start offset may be not aligned, so we align the end
+		 * offset and then calculate the size.
+		 */
+		new_size = ALIGNDOWN(start + offset + new_size,
+		    alignment) - start - offset;
+		goto done;
 	}
-	size = lba - start;
-	pp = find_provider(gp, lba);
-	if (pp == NULL)
-		new_size = last - start + 1;
-	else {
+	if (pp == NULL) {
+		new_size = ALIGNDOWN(last + offset + 1, alignment) -
+		    start - offset;
+		if (new_size < size)
+			return (ENOSPC);
+	} else {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			new_lba =
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			new_lba = (off_t)strtoimax(s, NULL, 0);
+		new_lba = (off_t)strtoimax(s, NULL, 0);
 		/*
 		 * Is there any free space between current and
 		 * next providers?
 		 */
+		new_lba = ALIGNDOWN(new_lba + offset, alignment) - offset;
 		if (new_lba > lba)
 			new_size = new_lba - start;
 		else {
@@ -410,12 +424,12 @@ gpart_autofill(struct gctl_req *req)
 	struct gclass *cp;
 	struct ggeom *gp;
 	struct gprovider *pp;
-	off_t first, last;
-	off_t size, start;
-	off_t lba, len;
+	off_t first, last, a_first;
+	off_t size, start, a_lba;
+	off_t lba, len, alignment, offset;
 	uintmax_t grade;
 	const char *s;
-	int error, has_size, has_start;
+	int error, has_size, has_start, has_alignment;
 
 	s = gctl_get_ascii(req, "verb");
 	if (strcmp(s, "resize") == 0)
@@ -442,6 +456,20 @@ gpart_autofill(struct gctl_req *req)
 	if (pp == NULL)
 		errx(EXIT_FAILURE, "Provider for geom %s not found.", s);
 
+	s = gctl_get_ascii(req, "alignment");
+	has_alignment = (*s == '*') ? 0 : 1;
+	alignment = 1;
+	if (has_alignment) {
+		error = g_parse_lba(s, pp->lg_sectorsize, &alignment);
+		if (error)
+			errc(EXIT_FAILURE, error, "Invalid alignment param");
+		if (alignment == 0)
+			errx(EXIT_FAILURE, "Invalid alignment param");
+	}
+	error = gctl_delete_param(req, "alignment");
+	if (error)
+		errc(EXIT_FAILURE, error, "internal error");
+
 	s = gctl_get_ascii(req, "size");
 	has_size = (*s == '*') ? 0 : 1;
 	size = 0;
@@ -461,37 +489,45 @@ gpart_autofill(struct gctl_req *req)
 	}
 
 	/* No autofill necessary. */
-	if (has_size && has_start)
+	if (has_size && has_start && !has_alignment)
 		goto done;
+
+	len = pp->lg_stripesize / pp->lg_sectorsize;
+	if (len > 0 && !has_alignment)
+		alignment = len;
+
+	/* Adjust parameters to stripeoffset */
+	offset = (pp->lg_stripeoffset / pp->lg_sectorsize) % alignment;
+	start = ALIGNUP(start + offset, alignment);
+	if (size > alignment)
+		size = ALIGNDOWN(size, alignment);
 
 	first = (off_t)strtoimax(find_geomcfg(gp, "first"), NULL, 0);
 	last = (off_t)strtoimax(find_geomcfg(gp, "last"), NULL, 0);
 	grade = ~0ULL;
+	a_first = ALIGNUP(first + offset, alignment);
+	last = ALIGNDOWN(last + offset, alignment);
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			lba = (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			lba = (off_t)strtoimax(s, NULL, 0);
-
-		if (first < lba) {
+		lba = (off_t)strtoimax(s, NULL, 0);
+		a_lba = ALIGNDOWN(lba + offset, alignment);
+		if (first < a_lba && a_first < a_lba) {
 			/* Free space [first, lba> */
-			len = lba - first;
+			len = a_lba - a_first;
 			if (has_size) {
 				if (len >= size &&
 				    (uintmax_t)(len - size) < grade) {
-					start = first;
+					start = a_first;
 					grade = len - size;
 				}
 			} else if (has_start) {
-				if (start >= first && start < lba) {
-					size = lba - start;
-					grade = start - first;
+				if (start >= a_first && start < a_lba) {
+					size = a_lba - start;
+					grade = start - a_first;
 				}
 			} else {
 				if (grade == ~0ULL || len > size) {
-					start = first;
+					start = a_first;
 					size = len;
 					grade = 0;
 				}
@@ -499,41 +535,36 @@ gpart_autofill(struct gctl_req *req)
 		}
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			first = lba +
-			    (off_t)strtoimax(s, NULL, 0) / pp->lg_sectorsize;
-		} else
-			first = (off_t)strtoimax(s, NULL, 0) + 1;
+		first = (off_t)strtoimax(s, NULL, 0) + 1;
+		a_first = ALIGNUP(first + offset, alignment);
 	}
-	if (first <= last) {
+	if (a_first <= last) {
 		/* Free space [first-last] */
-		len = last - first + 1;
+		len = ALIGNDOWN(last - a_first + 1, alignment);
 		if (has_size) {
 			if (len >= size &&
 			    (uintmax_t)(len - size) < grade) {
-				start = first;
+				start = a_first;
 				grade = len - size;
 			}
 		} else if (has_start) {
-			if (start >= first && start <= last) {
-				size = last - start + 1;
-				grade = start - first;
+			if (start >= a_first && start <= last) {
+				size = ALIGNDOWN(last - start + 1, alignment);
+				grade = start - a_first;
 			}
 		} else {
 			if (grade == ~0ULL || len > size) {
-				start = first;
+				start = a_first;
 				size = len;
 				grade = 0;
 			}
 		}
 	}
-
 	if (grade == ~0ULL) {
 		geom_deletetree(&mesh);
 		return (ENOSPC);
 	}
-
+	start -= offset;	/* Return back to real offset */
 done:
 	snprintf(ssize, sizeof(ssize), "%jd", (intmax_t)size);
 	gctl_change_param(req, "size", -1, ssize);
@@ -580,21 +611,12 @@ gpart_show_geom(struct ggeom *gp, const char *element, int show_providers)
 
 	while ((pp = find_provider(gp, first)) != NULL) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
+		sector = (off_t)strtoimax(s, NULL, 0);
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			length = (off_t)strtoimax(s, NULL, 0) / secsz;
-			end = sector + length - 1;
-		} else {
-			end = (off_t)strtoimax(s, NULL, 0);
-			length = end - sector + 1;
-		}
+		end = (off_t)strtoimax(s, NULL, 0);
+		length = end - sector + 1;
+
 		s = find_provcfg(pp, "index");
 		idx = atoi(s);
 		if (first < sector) {
@@ -737,20 +759,12 @@ gpart_backup(struct gctl_req *req, unsigned int fl __unused)
 	printf("%s %s\n", scheme, s);
 	LIST_FOREACH(pp, &gp->lg_provider, lg_provider) {
 		s = find_provcfg(pp, "start");
-		if (s == NULL) {
-			s = find_provcfg(pp, "offset");
-			sector = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else
-			sector = (off_t)strtoimax(s, NULL, 0);
+		sector = (off_t)strtoimax(s, NULL, 0);
 
 		s = find_provcfg(pp, "end");
-		if (s == NULL) {
-			s = find_provcfg(pp, "length");
-			length = (off_t)strtoimax(s, NULL, 0) / secsz;
-		} else {
-			end = (off_t)strtoimax(s, NULL, 0);
-			length = end - sector + 1;
-		}
+		end = (off_t)strtoimax(s, NULL, 0);
+		length = end - sector + 1;
+
 		s = find_provcfg(pp, "label");
 		printf("%-*s %*s %*jd %*jd %s %s\n",
 		    windex, find_provcfg(pp, "index"),
@@ -913,6 +927,7 @@ gpart_restore(struct gctl_req *req, unsigned int fl __unused)
 			gctl_ro_param(r, "size", -1, argv[3]);
 			if (rl != 0 && label != NULL)
 				gctl_ro_param(r, "label", -1, argv[4]);
+			gctl_ro_param(r, "alignment", -1, GPART_AUTOFILL);
 			gctl_ro_param(r, "arg0", -1, s);
 			error = gpart_autofill(r);
 			if (error != 0)
@@ -1193,8 +1208,11 @@ gpart_bootcode(struct gctl_req *req, unsigned int fl)
 			if (idx == 0)
 				errx(EXIT_FAILURE, "missing -i option");
 			gpart_write_partcode(gp, idx, partcode, partsize);
-		} else
+		} else {
+			if (partsize != VTOC_BOOTSIZE)
+				errx(EXIT_FAILURE, "invalid bootcode");
 			gpart_write_partcode_vtoc8(gp, idx, partcode);
+		}
 	} else
 		if (bootcode == NULL)
 			errx(EXIT_FAILURE, "no -b nor -p");

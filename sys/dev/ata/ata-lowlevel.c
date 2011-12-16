@@ -535,7 +535,7 @@ ata_generic_reset(device_t dev)
 		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_MASTER;
 		    }
-		    else if (stat0 & ATA_S_READY) {
+		    else if (lsb == 0 && msb == 0 && (stat0 & ATA_S_READY)) {
 			ch->devices |= ATA_ATA_MASTER;
 		    }
 		}
@@ -568,7 +568,7 @@ ata_generic_reset(device_t dev)
 		    if (lsb == ATAPI_MAGIC_LSB && msb == ATAPI_MAGIC_MSB) {
 			ch->devices |= ATA_ATAPI_SLAVE;
 		    }
-		    else if (stat1 & ATA_S_READY) {
+		    else if (lsb == 0 && msb == 0 && (stat1 & ATA_S_READY)) {
 			ch->devices |= ATA_ATA_SLAVE;
 		    }
 		}

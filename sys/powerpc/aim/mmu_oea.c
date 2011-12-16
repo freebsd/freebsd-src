@@ -118,11 +118,14 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/kernel.h>
+#include <sys/queue.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/lock.h>
 #include <sys/msgbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/sched.h>
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/vmmeter.h>
@@ -160,8 +163,6 @@ __FBSDID("$FreeBSD$");
 #define	VSID_MAKE(sr, hash)	((sr) | (((hash) & 0xfffff) << 4))
 #define	VSID_TO_SR(vsid)	((vsid) & 0xf)
 #define	VSID_TO_HASH(vsid)	(((vsid) >> 4) & 0xfffff)
-
-#define	MOEA_PVO_CHECK(pvo)
 
 struct ofw_map {
 	vm_offset_t	om_va;
@@ -586,24 +587,7 @@ moea_pte_change(struct pte *pt, struct pte *pvo_pt, vm_offset_t va)
 /*
  * Quick sort callout for comparing memory regions.
  */
-static int	mr_cmp(const void *a, const void *b);
 static int	om_cmp(const void *a, const void *b);
-
-static int
-mr_cmp(const void *a, const void *b)
-{
-	const struct	mem_region *regiona;
-	const struct	mem_region *regionb;
-
-	regiona = a;
-	regionb = b;
-	if (regiona->mr_start < regionb->mr_start)
-		return (-1);
-	else if (regiona->mr_start > regionb->mr_start)
-		return (1);
-	else
-		return (0);
-}
 
 static int
 om_cmp(const void *a, const void *b)
@@ -722,7 +706,6 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	mem_regions(&pregions, &pregions_sz, &regions, &regions_sz);
 	CTR0(KTR_PMAP, "moea_bootstrap: physical memory");
 
-	qsort(pregions, pregions_sz, sizeof(*pregions), mr_cmp);
 	for (i = 0; i < pregions_sz; i++) {
 		vm_offset_t pa;
 		vm_offset_t end;
@@ -751,7 +734,7 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	if (sizeof(phys_avail)/sizeof(phys_avail[0]) < regions_sz)
 		panic("moea_bootstrap: phys_avail too small");
-	qsort(regions, regions_sz, sizeof(*regions), mr_cmp);
+
 	phys_avail_count = 0;
 	physsz = 0;
 	hwphyssz = 0;
@@ -840,7 +823,8 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	PMAP_LOCK_INIT(kernel_pmap);
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
-	kernel_pmap->pm_active = ~0;
+	CPU_FILL(&kernel_pmap->pm_active);
+	LIST_INIT(&kernel_pmap->pmap_pvo);
 
 	/*
 	 * Set up the Open Firmware mappings
@@ -962,7 +946,7 @@ moea_activate(mmu_t mmu, struct thread *td)
 	pm = &td->td_proc->p_vmspace->vm_pmap;
 	pmr = pm->pmap_phys;
 
-	pm->pm_active |= PCPU_GET(cpumask);
+	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, pmr);
 }
 
@@ -972,7 +956,7 @@ moea_deactivate(mmu_t mmu, struct thread *td)
 	pmap_t	pm;
 
 	pm = &td->td_proc->p_vmspace->vm_pmap;
-	pm->pm_active &= ~PCPU_GET(cpumask);
+	CPU_CLR(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(curpmap, NULL);
 }
 
@@ -1090,12 +1074,12 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (pmap_bootstrapped)
 		mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) != 0 ||
-	    (m->oflags & VPO_BUSY) != 0 || VM_OBJECT_LOCKED(m->object),
+	KASSERT((m->oflags & (VPO_UNMANAGED | VPO_BUSY)) != 0 ||
+	    VM_OBJECT_LOCKED(m->object),
 	    ("moea_enter_locked: page %p is not busy", m));
 
 	/* XXX change the pvo head for fake pages */
-	if ((m->flags & PG_FICTITIOUS) == PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		pvo_flags &= ~PVO_MANAGED;
 		pvo_head = &moea_pvo_kunmanaged;
 		zone = moea_upvo_zone;
@@ -1105,7 +1089,7 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	 * If this is a managed page, and it's the first reference to the page,
 	 * clear the execness of the page.  Otherwise fetch the execness.
 	 */
-	if ((pg != NULL) && ((m->flags & PG_FICTITIOUS) == 0)) {
+	if ((pg != NULL) && ((m->oflags & VPO_UNMANAGED) == 0)) {
 		if (LIST_EMPTY(pvo_head)) {
 			moea_attr_clear(pg, PTE_EXEC);
 		} else {
@@ -1118,8 +1102,8 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 	if (prot & VM_PROT_WRITE) {
 		pte_lo |= PTE_BW;
 		if (pmap_bootstrapped &&
-		    (m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0)
-			vm_page_flag_set(m, PG_WRITEABLE);
+		    (m->oflags & VPO_UNMANAGED) == 0)
+			vm_page_aflag_set(m, PGA_WRITEABLE);
 	} else
 		pte_lo |= PTE_BR;
 
@@ -1128,9 +1112,6 @@ moea_enter_locked(pmap_t pmap, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 
 	if (wired)
 		pvo_flags |= PVO_WIRED;
-
-	if ((m->flags & PG_FICTITIOUS) != 0)
-		pvo_flags |= PVO_FAKE;
 
 	error = moea_pvo_enter(pmap, zone, pvo_head, va, VM_PAGE_TO_PHYS(m),
 	    pte_lo, pvo_flags);
@@ -1262,7 +1243,7 @@ boolean_t
 moea_is_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_referenced: page %p is not managed", m));
 	return (moea_query_bit(m, PTE_REF));
 }
@@ -1271,17 +1252,17 @@ boolean_t
 moea_is_modified(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_is_modified: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no PTEs can have PTE_CHG set.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (FALSE);
 	return (moea_query_bit(m, PTE_CHG));
 }
@@ -1303,7 +1284,7 @@ void
 moea_clear_reference(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_reference: page %p is not managed", m));
 	moea_clear_bit(m, PTE_REF);
 }
@@ -1312,18 +1293,18 @@ void
 moea_clear_modify(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_clear_modify: page %p is not managed", m));
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	KASSERT((m->oflags & VPO_BUSY) == 0,
 	    ("moea_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no PTEs can have PTE_CHG
+	 * If the page is not PGA_WRITEABLE, then no PTEs can have PTE_CHG
 	 * set.  If the object containing the page is locked and the page is
-	 * not VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * not VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	moea_clear_bit(m, PTE_CHG);
 }
@@ -1339,17 +1320,17 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 	pmap_t	pmap;
 	u_int	lo;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	lo = moea_attr_fetch(m);
@@ -1376,7 +1357,7 @@ moea_remove_write(mmu_t mmu, vm_page_t m)
 		moea_attr_clear(m, PTE_CHG);
 		vm_page_dirty(m);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -1396,7 +1377,7 @@ boolean_t
 moea_ts_referenced(mmu_t mmu, vm_page_t m)
 {
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_ts_referenced: page %p is not managed", m));
 	return (moea_clear_bit(m, PTE_REF));
 }
@@ -1413,7 +1394,7 @@ moea_page_set_memattr(mmu_t mmu, vm_page_t m, vm_memattr_t ma)
 	pmap_t	pmap;
 	u_int	lo;
 
-	if (m->flags & PG_FICTITIOUS) {
+	if ((m->oflags & VPO_UNMANAGED) != 0) {
 		m->md.mdpg_cache_attrs = ma;
 		return;
 	}
@@ -1554,7 +1535,7 @@ moea_page_exists_quick(mmu_t mmu, pmap_t pmap, vm_page_t m)
 	struct pvo_entry *pvo;
 	boolean_t rv;
 
-	KASSERT((m->flags & (PG_FICTITIOUS | PG_UNMANAGED)) == 0,
+	KASSERT((m->oflags & VPO_UNMANAGED) == 0,
 	    ("moea_page_exists_quick: page %p is not managed", m));
 	loops = 0;
 	rv = FALSE;
@@ -1582,7 +1563,7 @@ moea_page_wired_mappings(mmu_t mmu, vm_page_t m)
 	int count;
 
 	count = 0;
-	if ((m->flags & PG_FICTITIOUS) != 0)
+	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (count);
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink)
@@ -1602,6 +1583,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
+	LIST_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1644,6 +1626,8 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 			hash &= 0xfffff & ~(VSID_NBPW - 1);
 			hash |= i;
 		}
+		KASSERT(!(moea_vsid_bitmap[n] & mask),
+		    ("Allocating in-use VSID group %#x\n", hash));
 		moea_vsid_bitmap[n] |= mask;
 		for (i = 0; i < 16; i++)
 			pmap->pm_sr[i] = VSID_MAKE(i, hash);
@@ -1783,10 +1767,17 @@ moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea_pvo_find_va(pm, sva, &pteidx);
-		if (pvo != NULL) {
-			moea_pvo_remove(pvo, pteidx);
+	if ((eva - sva)/PAGE_SIZE < 10) {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			pvo = moea_pvo_find_va(pm, sva, &pteidx);
+			if (pvo != NULL)
+				moea_pvo_remove(pvo, pteidx);
+		}
+	} else {
+		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
+				continue;
+			moea_pvo_remove(pvo, -1);
 		}
 	}
 	PMAP_UNLOCK(pm);
@@ -1809,17 +1800,16 @@ moea_remove_all(mmu_t mmu, vm_page_t m)
 	for (pvo = LIST_FIRST(pvo_head); pvo != NULL; pvo = next_pvo) {
 		next_pvo = LIST_NEXT(pvo, pvo_vlink);
 
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pmap = pvo->pvo_pmap;
 		PMAP_LOCK(pmap);
 		moea_pvo_remove(pvo, -1);
 		PMAP_UNLOCK(pmap);
 	}
-	if ((m->flags & PG_WRITEABLE) && moea_is_modified(mmu, m)) {
+	if ((m->aflags & PGA_WRITEABLE) && moea_is_modified(mmu, m)) {
 		moea_attr_clear(m, PTE_CHG);
 		vm_page_dirty(m);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -1946,10 +1936,13 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 		pvo->pvo_vaddr |= PVO_MANAGED;
 	if (bootstrap)
 		pvo->pvo_vaddr |= PVO_BOOTSTRAP;
-	if (flags & PVO_FAKE)
-		pvo->pvo_vaddr |= PVO_FAKE;
 
 	moea_pte_create(&pvo->pvo_pte.pte, sr, va, pa | pte_lo);
+
+	/*
+	 * Add to pmap list
+	 */
+	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
 
 	/*
 	 * Remember if the list was empty and therefore will be the first
@@ -2006,7 +1999,7 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	/*
 	 * Save the REF/CHG bits into their cache if the page is managed.
 	 */
-	if ((pvo->pvo_vaddr & (PVO_MANAGED|PVO_FAKE)) == PVO_MANAGED) {
+	if ((pvo->pvo_vaddr & PVO_MANAGED) == PVO_MANAGED) {
 		struct	vm_page *pg;
 
 		pg = PHYS_TO_VM_PAGE(pvo->pvo_pte.pte.pte_lo & PTE_RPGN);
@@ -2017,9 +2010,10 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	}
 
 	/*
-	 * Remove this PVO from the PV list.
+	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
+	LIST_REMOVE(pvo, pvo_plink);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool
@@ -2163,7 +2157,6 @@ moea_pte_spill(vm_offset_t addr)
 		/*
 		 * We need to find a pvo entry for this address.
 		 */
-		MOEA_PVO_CHECK(pvo);
 		if (source_pvo == NULL &&
 		    moea_pte_match(&pvo->pvo_pte.pte, sr, addr,
 		    pvo->pvo_pte.pte.pte_hi & PTE_HID)) {
@@ -2176,7 +2169,6 @@ moea_pte_spill(vm_offset_t addr)
 			if (j >= 0) {
 				PVO_PTEGIDX_SET(pvo, j);
 				moea_pte_overflow--;
-				MOEA_PVO_CHECK(pvo);
 				mtx_unlock(&moea_table_mutex);
 				return (1);
 			}
@@ -2215,7 +2207,6 @@ moea_pte_spill(vm_offset_t addr)
 		 */
 		LIST_FOREACH(pvo, &moea_pvo_table[ptegidx ^ moea_pteg_mask],
 		    pvo_olink) {
-			MOEA_PVO_CHECK(pvo);
 			/*
 			 * We also need the pvo entry of the victim we are
 			 * replacing so save the R & C bits of the PTE.
@@ -2244,9 +2235,6 @@ moea_pte_spill(vm_offset_t addr)
 	PVO_PTEGIDX_CLR(victim_pvo);
 	PVO_PTEGIDX_SET(source_pvo, i);
 	moea_pte_replacements++;
-
-	MOEA_PVO_CHECK(victim_pvo);
-	MOEA_PVO_CHECK(source_pvo);
 
 	mtx_unlock(&moea_table_mutex);
 	return (1);
@@ -2299,7 +2287,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 
 	vm_page_lock_queues();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if we saved the bit off.  If so, cache it and return
@@ -2307,7 +2294,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 		 */
 		if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 			moea_attr_save(m, ptebit);
-			MOEA_PVO_CHECK(pvo);	/* sanity check */
 			vm_page_unlock_queues();
 			return (TRUE);
 		}
@@ -2320,7 +2306,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 	 */
 	powerpc_sync();
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 
 		/*
 		 * See if this pvo has a valid PTE.  if so, fetch the
@@ -2333,7 +2318,6 @@ moea_query_bit(vm_page_t m, int ptebit)
 			mtx_unlock(&moea_table_mutex);
 			if (pvo->pvo_pte.pte.pte_lo & ptebit) {
 				moea_attr_save(m, ptebit);
-				MOEA_PVO_CHECK(pvo);	/* sanity check */
 				vm_page_unlock_queues();
 				return (TRUE);
 			}
@@ -2373,7 +2357,6 @@ moea_clear_bit(vm_page_t m, int ptebit)
 	 */
 	count = 0;
 	LIST_FOREACH(pvo, vm_page_to_pvoh(m), pvo_vlink) {
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 		pt = moea_pvo_to_pte(pvo, -1);
 		if (pt != NULL) {
 			moea_pte_synch(pt, &pvo->pvo_pte.pte);
@@ -2384,7 +2367,6 @@ moea_clear_bit(vm_page_t m, int ptebit)
 			mtx_unlock(&moea_table_mutex);
 		}
 		pvo->pvo_pte.pte.pte_lo &= ~ptebit;
-		MOEA_PVO_CHECK(pvo);	/* sanity check */
 	}
 
 	vm_page_unlock_queues();

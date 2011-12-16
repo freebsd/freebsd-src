@@ -113,6 +113,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -130,7 +131,7 @@ MODULE_DEPEND(rl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static struct rl_type rl_devs[] = {
+static const struct rl_type const rl_devs[] = {
 	{ RT_VENDORID, RT_DEVICEID_8129, RL_8129,
 		"RealTek 8129 10/100BaseTX" },
 	{ RT_VENDORID, RT_DEVICEID_8139, RL_8139,
@@ -187,10 +188,6 @@ static int rl_ioctl(struct ifnet *, u_long, caddr_t);
 static void rl_intr(void *);
 static void rl_init(void *);
 static void rl_init_locked(struct rl_softc *sc);
-static void rl_mii_send(struct rl_softc *, uint32_t, int);
-static void rl_mii_sync(struct rl_softc *);
-static int rl_mii_readreg(struct rl_softc *, struct rl_mii_frame *);
-static int rl_mii_writereg(struct rl_softc *, struct rl_mii_frame *);
 static int rl_miibus_readreg(device_t, int, int);
 static void rl_miibus_statchg(device_t);
 static int rl_miibus_writereg(device_t, int, int, int);
@@ -215,6 +212,24 @@ static void rl_watchdog(struct rl_softc *);
 static void rl_setwol(struct rl_softc *);
 static void rl_clrwol(struct rl_softc *);
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t rl_mii_bitbang_read(device_t);
+static void rl_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops rl_mii_bitbang_ops = {
+	rl_mii_bitbang_read,
+	rl_mii_bitbang_write,
+	{
+		RL_MII_DATAOUT,	/* MII_BIT_MDO */
+		RL_MII_DATAIN,	/* MII_BIT_MDI */
+		RL_MII_CLK,	/* MII_BIT_MDC */
+		RL_MII_DIR,	/* MII_BIT_DIR_HOST_PHY */
+		0,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 static device_method_t rl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		rl_probe),
@@ -224,16 +239,12 @@ static device_method_t rl_methods[] = {
 	DEVMETHOD(device_resume,	rl_resume),
 	DEVMETHOD(device_shutdown,	rl_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	rl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	rl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	rl_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t rl_driver = {
@@ -340,181 +351,43 @@ rl_read_eeprom(struct rl_softc *sc, uint8_t *dest, int off, int cnt, int swap)
 }
 
 /*
- * MII access routines are provided for the 8129, which
- * doesn't have a built-in PHY. For the 8139, we fake things
- * up by diverting rl_phy_readreg()/rl_phy_writereg() to the
- * direct access PHY registers.
+ * Read the MII serial port for the MII bit-bang module.
  */
-#define MII_SET(x)					\
-	CSR_WRITE_1(sc, RL_MII,				\
-		CSR_READ_1(sc, RL_MII) | (x))
+static uint32_t
+rl_mii_bitbang_read(device_t dev)
+{
+	struct rl_softc *sc;
+	uint32_t val;
 
-#define MII_CLR(x)					\
-	CSR_WRITE_1(sc, RL_MII,				\
-		CSR_READ_1(sc, RL_MII) & ~(x))
+	sc = device_get_softc(dev);
+
+	val = CSR_READ_1(sc, RL_MII);
+	CSR_BARRIER(sc, RL_MII, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-rl_mii_sync(struct rl_softc *sc)
+rl_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	register int		i;
+	struct rl_softc *sc;
 
-	MII_SET(RL_MII_DIR|RL_MII_DATAOUT);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		MII_SET(RL_MII_CLK);
-		DELAY(1);
-		MII_CLR(RL_MII_CLK);
-		DELAY(1);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-rl_mii_send(struct rl_softc *sc, uint32_t bits, int cnt)
-{
-	int			i;
-
-	MII_CLR(RL_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			MII_SET(RL_MII_DATAOUT);
-		} else {
-			MII_CLR(RL_MII_DATAOUT);
-		}
-		DELAY(1);
-		MII_CLR(RL_MII_CLK);
-		DELAY(1);
-		MII_SET(RL_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-rl_mii_readreg(struct rl_softc *sc, struct rl_mii_frame *frame)
-{
-	int			i, ack;
-
-	/* Set up frame for RX. */
-	frame->mii_stdelim = RL_MII_STARTDELIM;
-	frame->mii_opcode = RL_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	CSR_WRITE_2(sc, RL_MII, 0);
-
-	/* Turn on data xmit. */
-	MII_SET(RL_MII_DIR);
-
-	rl_mii_sync(sc);
-
-	/* Send command/address info. */
-	rl_mii_send(sc, frame->mii_stdelim, 2);
-	rl_mii_send(sc, frame->mii_opcode, 2);
-	rl_mii_send(sc, frame->mii_phyaddr, 5);
-	rl_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	MII_CLR((RL_MII_CLK|RL_MII_DATAOUT));
-	DELAY(1);
-	MII_SET(RL_MII_CLK);
-	DELAY(1);
-
-	/* Turn off xmit. */
-	MII_CLR(RL_MII_DIR);
-
-	/* Check for ack */
-	MII_CLR(RL_MII_CLK);
-	DELAY(1);
-	ack = CSR_READ_2(sc, RL_MII) & RL_MII_DATAIN;
-	MII_SET(RL_MII_CLK);
-	DELAY(1);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for(i = 0; i < 16; i++) {
-			MII_CLR(RL_MII_CLK);
-			DELAY(1);
-			MII_SET(RL_MII_CLK);
-			DELAY(1);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		MII_CLR(RL_MII_CLK);
-		DELAY(1);
-		if (!ack) {
-			if (CSR_READ_2(sc, RL_MII) & RL_MII_DATAIN)
-				frame->mii_data |= i;
-			DELAY(1);
-		}
-		MII_SET(RL_MII_CLK);
-		DELAY(1);
-	}
-
-fail:
-	MII_CLR(RL_MII_CLK);
-	DELAY(1);
-	MII_SET(RL_MII_CLK);
-	DELAY(1);
-
-	return (ack ? 1 : 0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-rl_mii_writereg(struct rl_softc *sc, struct rl_mii_frame *frame)
-{
-
-	/* Set up frame for TX. */
-	frame->mii_stdelim = RL_MII_STARTDELIM;
-	frame->mii_opcode = RL_MII_WRITEOP;
-	frame->mii_turnaround = RL_MII_TURNAROUND;
-
-	/* Turn on data output. */
-	MII_SET(RL_MII_DIR);
-
-	rl_mii_sync(sc);
-
-	rl_mii_send(sc, frame->mii_stdelim, 2);
-	rl_mii_send(sc, frame->mii_opcode, 2);
-	rl_mii_send(sc, frame->mii_phyaddr, 5);
-	rl_mii_send(sc, frame->mii_regaddr, 5);
-	rl_mii_send(sc, frame->mii_turnaround, 2);
-	rl_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	MII_SET(RL_MII_CLK);
-	DELAY(1);
-	MII_CLR(RL_MII_CLK);
-	DELAY(1);
-
-	/* Turn off xmit. */
-	MII_CLR(RL_MII_DIR);
-
-	return (0);
+	CSR_WRITE_1(sc, RL_MII, val);
+	CSR_BARRIER(sc, RL_MII, 1,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 rl_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct rl_softc		*sc;
-	struct rl_mii_frame	frame;
-	uint16_t		rval = 0;
-	uint16_t		rl8139_reg = 0;
+	uint16_t		rl8139_reg;
 
 	sc = device_get_softc(dev);
 
@@ -545,30 +418,22 @@ rl_miibus_readreg(device_t dev, int phy, int reg)
 		 * us the results of parallel detection.
 		 */
 		case RL_MEDIASTAT:
-			rval = CSR_READ_1(sc, RL_MEDIASTAT);
-			return (rval);
+			return (CSR_READ_1(sc, RL_MEDIASTAT));
 		default:
 			device_printf(sc->rl_dev, "bad phy register\n");
 			return (0);
 		}
-		rval = CSR_READ_2(sc, rl8139_reg);
-		return (rval);
+		return (CSR_READ_2(sc, rl8139_reg));
 	}
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	rl_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &rl_mii_bitbang_ops, phy, reg));
 }
 
 static int
 rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct rl_softc		*sc;
-	struct rl_mii_frame	frame;
-	uint16_t		rl8139_reg = 0;
+	uint16_t		rl8139_reg;
 
 	sc = device_get_softc(dev);
 
@@ -601,11 +466,7 @@ rl_miibus_writereg(device_t dev, int phy, int reg, int data)
 		return (0);
 	}
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
-	rl_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &rl_mii_bitbang_ops, phy, reg, data);
 
 	return (0);
 }
@@ -719,7 +580,7 @@ rl_reset(struct rl_softc *sc)
 static int
 rl_probe(device_t dev)
 {
-	struct rl_type		*t;
+	const struct rl_type	*t;
 	uint16_t		devid, revid, vendor;
 	int			i;
 	
@@ -773,7 +634,7 @@ rl_attach(device_t dev)
 	uint16_t		as[3];
 	struct ifnet		*ifp;
 	struct rl_softc		*sc;
-	struct rl_type		*t;
+	const struct rl_type	*t;
 	struct sysctl_ctx_list	*ctx;
 	struct sysctl_oid_list	*children;
 	int			error = 0, hwrev, i, phy, pmc, rid;
@@ -939,7 +800,7 @@ rl_attach(device_t dev)
 	ifp->if_capabilities = IFCAP_VLAN_MTU;
 	/* Check WOL for RTL8139B or newer controllers. */
 	if (sc->rl_type == RL_8139 &&
-	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
 		hwrev = CSR_READ_4(sc, RL_TXCFG) & RL_TXCFG_HWREV;
 		switch (hwrev) {
 		case RL_HWREV_8139B:
@@ -1932,9 +1793,9 @@ rl_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	RL_LOCK(sc);
 	mii_pollstat(mii);
-	RL_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	RL_UNLOCK(sc);
 }
 
 static int
@@ -2122,7 +1983,7 @@ rl_resume(device_t dev)
 	RL_LOCK(sc);
 
 	if ((ifp->if_capabilities & IFCAP_WOL) != 0 &&
-	    pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
+	    pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) == 0) {
 		/* Disable PME and clear PME status. */
 		pmstat = pci_read_config(sc->rl_dev,
 		    pmc + PCIR_POWER_STATUS, 2);
@@ -2187,7 +2048,7 @@ rl_setwol(struct rl_softc *sc)
 	ifp = sc->rl_ifp;
 	if ((ifp->if_capabilities & IFCAP_WOL) == 0)
 		return;
-	if (pci_find_extcap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->rl_dev, PCIY_PMG, &pmc) != 0)
 		return;
 
 	/* Enable config register write. */

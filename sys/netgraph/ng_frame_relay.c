@@ -212,9 +212,7 @@ ngfrm_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (!sc)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 	sc->addrlen = 2;	/* default */
 
 	/* Link the node and our private info */

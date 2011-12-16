@@ -1,0 +1,27 @@
+# OSM List of todo, open issues, and futures:
+
+1	041228 - Handle local events (local lid change, port state change, etc.)
+2	041228 - SM port fail over to next port upon request ?
+3	050912 - Handle busy status in SA client API/implementation
+4	050912 - Handle o15-0.1.13 (SA ServiceRecord) as well as updates
+		 to osmtest for this
+5	051207 - Client reregistration is indicated before SA is
+		 ready to accept subscriptions
+6	060109 - Use LID routing for light sweep to guarantee trap
+                 delivery path to the SM.
+7	061201 - Finer grained locking ?
+8	061201 - Mapping multiple MGIDs on single MLID when characteristics
+                 match (PKey, etc.)
+9	070329 - Add ssh support into remote socket/console support
+10	070329 - Add authentication for (at least remote) console
+11	070413 - Add dynamic rate adjustment for multicast groups
+
+
+Futures
+
+LID partitioning ?
+Advanced failover
+Management
+Regression tests and automation
+Additional pathing algorithms
+

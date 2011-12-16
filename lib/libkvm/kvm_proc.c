@@ -72,9 +72,6 @@ __FBSDID("$FreeBSD$");
 #include <nlist.h>
 #include <kvm.h>
 
-#include <vm/vm.h>
-#include <vm/vm_param.h>
-
 #include <sys/sysctl.h>
 
 #include <limits.h>
@@ -426,10 +423,10 @@ nopgrp:
 			kp->ki_lastcpu = mtd.td_lastcpu;
 			kp->ki_wchan = mtd.td_wchan;
 			if (mtd.td_name[0] != 0)
-				strlcpy(kp->ki_ocomm, mtd.td_name, MAXCOMLEN);
+				strlcpy(kp->ki_tdname, mtd.td_name, MAXCOMLEN);
 			kp->ki_oncpu = mtd.td_oncpu;
 			if (mtd.td_name[0] != '\0')
-				strlcpy(kp->ki_ocomm, mtd.td_name, sizeof(kp->ki_ocomm));
+				strlcpy(kp->ki_tdname, mtd.td_name, sizeof(kp->ki_tdname));
 			kp->ki_pctcpu = 0;
 			kp->ki_rqindex = 0;
 		} else {
@@ -623,276 +620,16 @@ _kvm_realloc(kvm_t *kd, void *p, size_t n)
 	return (np);
 }
 
-#ifndef MAX
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
-#endif
-
 /*
- * Read in an argument vector from the user address space of process kp.
- * addr if the user-space base address of narg null-terminated contiguous
- * strings.  This is used to read in both the command arguments and
- * environment strings.  Read at most maxcnt characters of strings.
+ * Get the command args or environment.
  */
 static char **
-kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, u_long addr, int narg,
-    int maxcnt)
-{
-	char *np, *cp, *ep, *ap;
-	u_long oaddr = -1;
-	int len, cc;
-	char **argv;
-
-	/*
-	 * Check that there aren't an unreasonable number of arguments,
-	 * and that the address is in user space.  Special test for
-	 * VM_MIN_ADDRESS as it evaluates to zero, but is not a simple zero
-	 * constant for some archs.  We cannot use the pre-processor here and
-	 * for some archs the compiler would trigger a signedness warning.
-	 */
-	if (narg > 512 || addr + 1 < VM_MIN_ADDRESS + 1 || addr >= VM_MAXUSER_ADDRESS)
-		return (0);
-
-	/*
-	 * kd->argv : work space for fetching the strings from the target 
-	 *            process's space, and is converted for returning to caller
-	 */
-	if (kd->argv == 0) {
-		/*
-		 * Try to avoid reallocs.
-		 */
-		kd->argc = MAX(narg + 1, 32);
-		kd->argv = (char **)_kvm_malloc(kd, kd->argc *
-						sizeof(*kd->argv));
-		if (kd->argv == 0)
-			return (0);
-	} else if (narg + 1 > kd->argc) {
-		kd->argc = MAX(2 * kd->argc, narg + 1);
-		kd->argv = (char **)_kvm_realloc(kd, kd->argv, kd->argc *
-						sizeof(*kd->argv));
-		if (kd->argv == 0)
-			return (0);
-	}
-	/*
-	 * kd->argspc : returned to user, this is where the kd->argv
-	 *              arrays are left pointing to the collected strings.
-	 */
-	if (kd->argspc == 0) {
-		kd->argspc = (char *)_kvm_malloc(kd, PAGE_SIZE);
-		if (kd->argspc == 0)
-			return (0);
-		kd->arglen = PAGE_SIZE;
-	}
-	/*
-	 * kd->argbuf : used to pull in pages from the target process.
-	 *              the strings are copied out of here.
-	 */
-	if (kd->argbuf == 0) {
-		kd->argbuf = (char *)_kvm_malloc(kd, PAGE_SIZE);
-		if (kd->argbuf == 0)
-			return (0);
-	}
-
-	/* Pull in the target process'es argv vector */
-	cc = sizeof(char *) * narg;
-	if (kvm_uread(kd, kp, addr, (char *)kd->argv, cc) != cc)
-		return (0);
-	/*
-	 * ap : saved start address of string we're working on in kd->argspc
-	 * np : pointer to next place to write in kd->argspc
-	 * len: length of data in kd->argspc
-	 * argv: pointer to the argv vector that we are hunting around the
-	 *       target process space for, and converting to addresses in
-	 *       our address space (kd->argspc).
-	 */
-	ap = np = kd->argspc;
-	argv = kd->argv;
-	len = 0;
-	/*
-	 * Loop over pages, filling in the argument vector.
-	 * Note that the argv strings could be pointing *anywhere* in
-	 * the user address space and are no longer contiguous.
-	 * Note that *argv is modified when we are going to fetch a string
-	 * that crosses a page boundary.  We copy the next part of the string
-	 * into to "np" and eventually convert the pointer.
-	 */
-	while (argv < kd->argv + narg && *argv != 0) {
-
-		/* get the address that the current argv string is on */
-		addr = (u_long)*argv & ~(PAGE_SIZE - 1);
-
-		/* is it the same page as the last one? */
-		if (addr != oaddr) {
-			if (kvm_uread(kd, kp, addr, kd->argbuf, PAGE_SIZE) !=
-			    PAGE_SIZE)
-				return (0);
-			oaddr = addr;
-		}
-
-		/* offset within the page... kd->argbuf */
-		addr = (u_long)*argv & (PAGE_SIZE - 1);
-
-		/* cp = start of string, cc = count of chars in this chunk */
-		cp = kd->argbuf + addr;
-		cc = PAGE_SIZE - addr;
-
-		/* dont get more than asked for by user process */
-		if (maxcnt > 0 && cc > maxcnt - len)
-			cc = maxcnt - len;
-
-		/* pointer to end of string if we found it in this page */
-		ep = memchr(cp, '\0', cc);
-		if (ep != 0)
-			cc = ep - cp + 1;
-		/*
-		 * at this point, cc is the count of the chars that we are
-		 * going to retrieve this time. we may or may not have found
-		 * the end of it.  (ep points to the null if the end is known)
-		 */
-
-		/* will we exceed the malloc/realloced buffer? */
-		if (len + cc > kd->arglen) {
-			int off;
-			char **pp;
-			char *op = kd->argspc;
-
-			kd->arglen *= 2;
-			kd->argspc = (char *)_kvm_realloc(kd, kd->argspc,
-							  kd->arglen);
-			if (kd->argspc == 0)
-				return (0);
-			/*
-			 * Adjust argv pointers in case realloc moved
-			 * the string space.
-			 */
-			off = kd->argspc - op;
-			for (pp = kd->argv; pp < argv; pp++)
-				*pp += off;
-			ap += off;
-			np += off;
-		}
-		/* np = where to put the next part of the string in kd->argspc*/
-		/* np is kinda redundant.. could use "kd->argspc + len" */
-		memcpy(np, cp, cc);
-		np += cc;	/* inc counters */
-		len += cc;
-
-		/*
-		 * if end of string found, set the *argv pointer to the
-		 * saved beginning of string, and advance. argv points to
-		 * somewhere in kd->argv..  This is initially relative
-		 * to the target process, but when we close it off, we set
-		 * it to point in our address space.
-		 */
-		if (ep != 0) {
-			*argv++ = ap;
-			ap = np;
-		} else {
-			/* update the address relative to the target process */
-			*argv += cc;
-		}
-
-		if (maxcnt > 0 && len >= maxcnt) {
-			/*
-			 * We're stopping prematurely.  Terminate the
-			 * current string.
-			 */
-			if (ep == 0) {
-				*np = '\0';
-				*argv++ = ap;
-			}
-			break;
-		}
-	}
-	/* Make sure argv is terminated. */
-	*argv = 0;
-	return (kd->argv);
-}
-
-static void
-ps_str_a(struct ps_strings *p, u_long *addr, int *n)
-{
-	*addr = (u_long)p->ps_argvstr;
-	*n = p->ps_nargvstr;
-}
-
-static void
-ps_str_e (struct ps_strings *p, u_long *addr, int *n)
-{
-	*addr = (u_long)p->ps_envstr;
-	*n = p->ps_nenvstr;
-}
-
-/*
- * Determine if the proc indicated by p is still active.
- * This test is not 100% foolproof in theory, but chances of
- * being wrong are very low.
- */
-static int
-proc_verify(const struct kinfo_proc *curkp)
-{
-	struct kinfo_proc newkp;
-	int mib[4];
-	size_t len;
-
-	mib[0] = CTL_KERN;
-	mib[1] = KERN_PROC;
-	mib[2] = KERN_PROC_PID;
-	mib[3] = curkp->ki_pid;
-	len = sizeof(newkp);
-	if (sysctl(mib, 4, &newkp, &len, NULL, 0) == -1)
-		return (0);
-	return (curkp->ki_pid == newkp.ki_pid &&
-	    (newkp.ki_stat != SZOMB || curkp->ki_stat == SZOMB));
-}
-
-static char **
-kvm_doargv(kvm_t *kd, const struct kinfo_proc *kp, int nchr,
-    void (*info)(struct ps_strings *, u_long *, int *))
-{
-	char **ap;
-	u_long addr;
-	int cnt;
-	static struct ps_strings arginfo;
-	static u_long ps_strings;
-	size_t len;
-
-	if (ps_strings == 0) {
-		len = sizeof(ps_strings);
-		if (sysctlbyname("kern.ps_strings", &ps_strings, &len, NULL,
-		    0) == -1)
-			ps_strings = PS_STRINGS;
-	}
-
-	/*
-	 * Pointers are stored at the top of the user stack.
-	 */
-	if (kp->ki_stat == SZOMB ||
-	    kvm_uread(kd, kp, ps_strings, (char *)&arginfo,
-		      sizeof(arginfo)) != sizeof(arginfo))
-		return (0);
-
-	(*info)(&arginfo, &addr, &cnt);
-	if (cnt == 0)
-		return (0);
-	ap = kvm_argv(kd, kp, addr, cnt, nchr);
-	/*
-	 * For live kernels, make sure this process didn't go away.
-	 */
-	if (ap != 0 && ISALIVE(kd) && !proc_verify(kp))
-		ap = 0;
-	return (ap);
-}
-
-/*
- * Get the command args.  This code is now machine independent.
- */
-char **
-kvm_getargv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
+kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 {
 	int oid[4];
 	int i;
 	size_t bufsz;
-	static unsigned long buflen;
+	static int buflen;
 	static char *buf, *p;
 	static char **bufp;
 	static int argc;
@@ -903,24 +640,28 @@ kvm_getargv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
 		return (0);
 	}
 
-	if (!buflen) {
-		bufsz = sizeof(buflen);
-		i = sysctlbyname("kern.ps_arg_cache_limit", 
-		    &buflen, &bufsz, NULL, 0);
-		if (i == -1) {
-			buflen = 0;
-		} else {
-			buf = malloc(buflen);
-			if (buf == NULL)
-				buflen = 0;
-			argc = 32;
-			bufp = malloc(sizeof(char *) * argc);
+	if (nchr == 0 || nchr > ARG_MAX)
+		nchr = ARG_MAX;
+	if (buflen == 0) {
+		buf = malloc(nchr);
+		if (buf == NULL) {
+			_kvm_err(kd, kd->program, "cannot allocate memory");
+			return (0);
+		}
+		buflen = nchr;
+		argc = 32;
+		bufp = malloc(sizeof(char *) * argc);
+	} else if (nchr > buflen) {
+		p = realloc(buf, nchr);
+		if (p != NULL) {
+			buf = p;
+			buflen = nchr;
 		}
 	}
 	if (buf != NULL) {
 		oid[0] = CTL_KERN;
 		oid[1] = KERN_PROC;
-		oid[2] = KERN_PROC_ARGS;
+		oid[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
 		oid[3] = kp->ki_pid;
 		bufsz = buflen;
 		i = sysctl(oid, 4, buf, &bufsz, 0, 0);
@@ -940,65 +681,17 @@ kvm_getargv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
 			return (bufp);
 		}
 	}
-	if (kp->ki_flag & P_SYSTEM)
-		return (NULL);
-	return (kvm_doargv(kd, kp, nchr, ps_str_a));
+	return (NULL);
+}
+
+char **
+kvm_getargv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
+{
+	return (kvm_argv(kd, kp, 0, nchr));
 }
 
 char **
 kvm_getenvv(kvm_t *kd, const struct kinfo_proc *kp, int nchr)
 {
-	return (kvm_doargv(kd, kp, nchr, ps_str_e));
-}
-
-/*
- * Read from user space.  The user context is given by p.
- */
-ssize_t
-kvm_uread(kvm_t *kd, const struct kinfo_proc *kp, u_long uva, char *buf,
-	size_t len)
-{
-	char *cp;
-	char procfile[MAXPATHLEN];
-	ssize_t amount;
-	int fd;
-
-	if (!ISALIVE(kd)) {
-		_kvm_err(kd, kd->program,
-		    "cannot read user space from dead kernel");
-		return (0);
-	}
-
-	sprintf(procfile, "/proc/%d/mem", kp->ki_pid);
-	fd = open(procfile, O_RDONLY, 0);
-	if (fd < 0) {
-		_kvm_err(kd, kd->program, "cannot open %s", procfile);
-		return (0);
-	}
-
-	cp = buf;
-	while (len > 0) {
-		errno = 0;
-		if (lseek(fd, (off_t)uva, 0) == -1 && errno != 0) {
-			_kvm_err(kd, kd->program, "invalid address (%lx) in %s",
-			    uva, procfile);
-			break;
-		}
-		amount = read(fd, cp, len);
-		if (amount < 0) {
-			_kvm_syserr(kd, kd->program, "error reading %s",
-			    procfile);
-			break;
-		}
-		if (amount == 0) {
-			_kvm_err(kd, kd->program, "EOF reading %s", procfile);
-			break;
-		}
-		cp += amount;
-		uva += amount;
-		len -= amount;
-	}
-
-	close(fd);
-	return ((ssize_t)(cp - buf));
+	return (kvm_argv(kd, kp, 1, nchr));
 }

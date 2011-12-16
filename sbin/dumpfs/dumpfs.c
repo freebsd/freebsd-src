@@ -68,6 +68,7 @@ static const char rcsid[] =
 #include <fcntl.h>
 #include <fstab.h>
 #include <libufs.h>
+#include <paths.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -76,33 +77,37 @@ static const char rcsid[] =
 #define	afs	disk.d_fs
 #define	acg	disk.d_cg
 
-struct uufsd disk;
+static struct uufsd disk;
 
-int	dumpfs(const char *);
-int	dumpcg(void);
-int	dumpfreespace(const char *, int);
-void	dumpfreespacecg(int);
-int	marshal(const char *);
-void	pbits(void *, int);
-void	pblklist(void *, int, off_t, int);
-void	ufserr(const char *);
-void	usage(void) __dead2;
+static int	dumpfs(const char *);
+static int	dumpfsid(void);
+static int	dumpcg(void);
+static int	dumpfreespace(const char *, int);
+static void	dumpfreespacecg(int);
+static int	marshal(const char *);
+static void	pbits(void *, int);
+static void	pblklist(void *, int, off_t, int);
+static void	ufserr(const char *);
+static void	usage(void) __dead2;
 
 int
 main(int argc, char *argv[])
 {
 	const char *name;
-	int ch, dofreespace, domarshal, eval;
+	int ch, dofreespace, domarshal, dolabel, eval;
 
-	dofreespace = domarshal = eval = 0;
+	dofreespace = domarshal = dolabel = eval = 0;
 
-	while ((ch = getopt(argc, argv, "fm")) != -1) {
+	while ((ch = getopt(argc, argv, "lfm")) != -1) {
 		switch (ch) {
 		case 'f':
 			dofreespace++;
 			break;
 		case 'm':
 			domarshal = 1;
+			break;
+		case 'l':
+			dolabel = 1;
 			break;
 		case '?':
 		default:
@@ -129,6 +134,8 @@ main(int argc, char *argv[])
 			eval |= dumpfreespace(name, dofreespace);
 		else if (domarshal)
 			eval |= marshal(name);
+		else if (dolabel)
+			eval |= dumpfsid();
 		else
 			eval |= dumpfs(name);
 		ufs_disk_close(&disk);
@@ -136,7 +143,15 @@ main(int argc, char *argv[])
 	exit(eval);
 }
 
-int
+static int
+dumpfsid(void)
+{
+
+	printf("%sufsid/%08x%08x\n", _PATH_DEV, afs.fs_id[0], afs.fs_id[1]);
+	return 0;
+}
+
+static int
 dumpfs(const char *name)
 {
 	time_t fstime;
@@ -294,7 +309,7 @@ err:	ufserr(name);
 	return (1);
 }
 
-int
+static int
 dumpcg(void)
 {
 	time_t cgtime;
@@ -355,7 +370,7 @@ dumpcg(void)
 	return (0);
 }
 
-int
+static int
 dumpfreespace(const char *name, int fflag)
 {
 	int i;
@@ -371,7 +386,7 @@ err:
 	return (1);
 }
 
-void
+static void
 dumpfreespacecg(int fflag)
 {
 
@@ -379,7 +394,7 @@ dumpfreespacecg(int fflag)
 	    fflag);
 }
 
-int
+static int
 marshal(const char *name)
 {
 	struct fs *fs;
@@ -402,7 +417,9 @@ marshal(const char *name)
 	printf("-g %d ", fs->fs_avgfilesize);
 	printf("-h %d ", fs->fs_avgfpdir);
 	/* -i is dumb */
-	/* -j..l unimplemented */
+	if (fs->fs_flags & FS_SUJ)
+		printf("-j ");
+	/* -k..l unimplemented */
 	printf("-m %d ", fs->fs_minfree);
 	/* -n unimplemented */
 	printf("-o ");
@@ -419,13 +436,15 @@ marshal(const char *name)
 	}
 	/* -p..r unimplemented */
 	printf("-s %jd ", (intmax_t)fsbtodb(fs, fs->fs_size));
+	if (fs->fs_flags & FS_TRIM)
+		printf("-t ");
 	printf("%s ", disk.d_name);
 	printf("\n");
 
 	return 0;
 }
 
-void
+static void
 pbits(void *vp, int max)
 {
 	int i;
@@ -447,7 +466,7 @@ pbits(void *vp, int max)
 	printf("\n");
 }
 
-void
+static void
 pblklist(void *vp, int max, off_t offset, int fflag)
 {
 	int i, j;
@@ -468,7 +487,7 @@ pblklist(void *vp, int max, off_t offset, int fflag)
 	}
 }
 
-void
+static void
 ufserr(const char *name)
 {
 	if (disk.d_error != NULL)
@@ -477,7 +496,7 @@ ufserr(const char *name)
 		warn("%s", name);
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: dumpfs [-fm] filesys | device\n");

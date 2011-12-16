@@ -212,7 +212,7 @@ simple_coder_end(lzma_coder *coder, lzma_allocator *allocator)
 
 static lzma_ret
 simple_coder_update(lzma_coder *coder, lzma_allocator *allocator,
-		const lzma_filter *filters_null lzma_attribute((unused)),
+		const lzma_filter *filters_null lzma_attribute((__unused__)),
 		const lzma_filter *reversed_filters)
 {
 	// No update support, just call the next filter in the chain.

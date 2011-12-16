@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 #include <arm/mv/mvreg.h>
 #include <arm/mv/mvvar.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 #include "mvs.h"
 
 /* local prototypes */
@@ -72,6 +74,9 @@ mvs_probe(device_t dev)
 	char buf[64];
 	int i;
 	uint32_t devid, revid;
+
+	if (!ofw_bus_is_compatible(dev, "mrvl,sata"))
+		return (ENXIO);
 
 	soc_id(&devid, &revid);
 	for (i = 0; mvs_ids[i].id != 0; i++) {
@@ -168,15 +173,10 @@ static int
 mvs_detach(device_t dev)
 {
 	struct mvs_controller *ctlr = device_get_softc(dev);
-	device_t *children;
-	int nchildren, i;
 
 	/* Detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
+
 	/* Free interrupt. */
 	if (ctlr->irq.r_irq) {
 		bus_teardown_intr(dev, ctlr->irq.r_irq,
@@ -440,10 +440,10 @@ static device_method_t mvs_methods[] = {
 	{ 0, 0 }
 };
 static driver_t mvs_driver = {
-        "sata",
+        "mvs",
         mvs_methods,
         sizeof(struct mvs_controller)
 };
-DRIVER_MODULE(sata, mbus, mvs_driver, mvs_devclass, 0, 0);
-MODULE_VERSION(sata, 1);
-
+DRIVER_MODULE(mvs, simplebus, mvs_driver, mvs_devclass, 0, 0);
+MODULE_VERSION(mvs, 1);
+MODULE_DEPEND(mvs, cam, 1, 1, 1);

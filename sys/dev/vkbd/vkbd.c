@@ -158,7 +158,7 @@ static int		vkbd_data_read(vkbd_state_t *, int);
 
 static struct cdevsw	vkbd_dev_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDGIANT | D_NEEDMINOR,
+	.d_flags =	D_NEEDGIANT | D_NEEDMINOR,
 	.d_open =	vkbd_dev_open,
 	.d_close =	vkbd_dev_close,
 	.d_read =	vkbd_dev_read,
@@ -1208,6 +1208,7 @@ vkbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		break;
 
 	case PIO_KEYMAP:	/* set keyboard translation table */
+	case OPIO_KEYMAP:	/* set keyboard translation table (compat) */
 	case PIO_KEYMAPENT:	/* set keyboard translation table entry */
 	case PIO_DEADKEYMAP:	/* set accent key translation table */
 		state->ks_accents = 0;

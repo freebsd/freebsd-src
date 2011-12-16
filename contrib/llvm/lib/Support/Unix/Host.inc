@@ -22,6 +22,7 @@
 #include <sys/utsname.h>
 #include <cctype>
 #include <string>
+#include <cstdlib> // ::getenv
 
 using namespace llvm;
 
@@ -35,6 +36,9 @@ static std::string getOSVersion() {
 }
 
 std::string sys::getHostTriple() {
+#ifdef __FreeBSD__
+  return LLVM_HOSTTRIPLE;
+#else
   // FIXME: Derive directly instead of relying on the autoconf generated
   // variable.
 
@@ -43,35 +47,6 @@ std::string sys::getHostTriple() {
 
   // Normalize the arch, since the host triple may not actually match the host.
   std::string Arch = ArchSplit.first;
-
-  // It would be nice to do this in terms of llvm::Triple, but that is in
-  // Support which is layered above us.
-#if defined(__x86_64__)
-  Arch = "x86_64";
-#elif defined(__i386__)
-  Arch = "i386";
-#elif defined(__ppc64__)
-  Arch = "powerpc64";
-#elif defined(__ppc__)
-  Arch = "powerpc";
-#elif defined(__arm__)
-
-  // FIXME: We need to pick the right ARM triple (which involves querying the
-  // chip). However, for now this is most important for LLVM arch selection, so
-  // we only need to make sure to distinguish ARM and Thumb.
-#  if defined(__thumb__)
-  Arch = "thumb";
-#  else
-  Arch = "arm";
-#  endif
-
-#else
-
-  // FIXME: When enough auto-detection is in place, this should just
-  // #error. Then at least the arch selection is done, and we only need the OS
-  // etc selection to kill off the use of LLVM_HOSTTRIPLE.
-
-#endif
 
   std::string Triple(Arch);
   Triple += '-';
@@ -87,11 +62,9 @@ std::string sys::getHostTriple() {
   std::string::size_type DarwinDashIdx = Triple.find("-darwin");
   if (DarwinDashIdx != std::string::npos) {
     Triple.resize(DarwinDashIdx + strlen("-darwin"));
-
-    // Only add the major part of the os version.
-    std::string Version = getOSVersion();
-    Triple += Version.substr(0, Version.find('.'));
+    Triple += getOSVersion();
   }
 
   return Triple;
+#endif
 }

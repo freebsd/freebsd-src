@@ -116,7 +116,7 @@ union dinode {
 	} while (0)
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
-ino_t			maxino;			/* last valid inode */
+static ino_t		maxino;			/* last valid inode */
 static int		unlabeled;     /* unlabeled partition, e.g. vinum volume etc. */
 
 /*
@@ -2146,8 +2146,8 @@ main(int argc, char **argv)
 	if(ExpertFlag == 0) {
 		for(j=0; j<FSMAXSNAP; j++) {
 			if(sblock.fs_snapinum[j]) {
-				errx(1, "active snapshot found in file system\n"
-				    "	please remove all snapshots before "
+				errx(1, "active snapshot found in file system; "
+				    "please remove all snapshots before "
 				    "using growfs");
 			}
 			if(!sblock.fs_snapinum[j]) { /* list is dense */
@@ -2159,16 +2159,16 @@ main(int argc, char **argv)
 
 	if (ExpertFlag == 0 && Nflag == 0) {
 		printf("We strongly recommend you to make a backup "
-		    "before growing the Filesystem\n\n"
-		    " Did you backup your data (Yes/No) ? ");
+		    "before growing the file system.\n"
+		    "Did you backup your data (Yes/No)? ");
 		fgets(reply, (int)sizeof(reply), stdin);
 		if (strcmp(reply, "Yes\n")){
-			printf("\n Nothing done \n");
+			printf("\nNothing done\n");
 			exit (0);
 		}
 	}
 
-	printf("new file systemsize is: %jd frags\n", (intmax_t)sblock.fs_size);
+	printf("New file system size is %jd frags\n", (intmax_t)sblock.fs_size);
 
 	/*
 	 * Try to access our new last block in the file system. Even if we

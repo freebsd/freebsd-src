@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -50,6 +45,7 @@ __FBSDID("$FreeBSD$");
  
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
@@ -63,6 +59,8 @@ __FBSDID("$FreeBSD$");
 #include <mips/atheros/ar71xx_chip.h>
 #include <mips/atheros/ar724x_chip.h>
 #include <mips/atheros/ar91xx_chip.h>
+
+#include <mips/sentry5/s5reg.h>
 
 #define	AR71XX_SYS_TYPE_LEN		128
 

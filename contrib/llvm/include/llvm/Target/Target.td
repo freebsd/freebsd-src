@@ -26,22 +26,19 @@ class SubRegIndex {
   string Namespace = "";
 }
 
+// RegAltNameIndex - The alternate name set to use for register operands of
+// this register class when printing.
+class RegAltNameIndex {
+  string Namespace = "";
+}
+def NoRegAltName : RegAltNameIndex;
+
 // Register - You should define one instance of this class for each register
 // in the target machine.  String n will become the "name" of the register.
-class Register<string n> {
+class Register<string n, list<string> altNames = []> {
   string Namespace = "";
   string AsmName = n;
-
-  // SpillSize - If this value is set to a non-zero value, it is the size in
-  // bits of the spill slot required to hold this register.  If this value is
-  // set to zero, the information is inferred from any register classes the
-  // register belongs to.
-  int SpillSize = 0;
-
-  // SpillAlignment - This value is used to specify the alignment required for
-  // spilling the register.  Like SpillSize, this should only be explicitly
-  // specified if the register is not in a register class.
-  int SpillAlignment = 0;
+  list<string> AltNames = altNames;
 
   // Aliases - A list of registers that this register overlaps with.  A read or
   // modification of this register can potentially read or modify the aliased
@@ -58,6 +55,10 @@ class Register<string n> {
   // to address it. Sub-sub-register indices are automatically inherited from
   // SubRegs.
   list<SubRegIndex> SubRegIndices = [];
+
+  // RegAltNameIndices - The alternate name indices which are valid for this
+  // register.
+  list<RegAltNameIndex> RegAltNameIndices = [];
 
   // CompositeIndices - Specify subreg indices that don't correspond directly to
   // a register in SubRegs and are not inherited. The following formats are
@@ -78,6 +79,13 @@ class Register<string n> {
   // -1 indicates that the gcc number is undefined and -2 that register number
   // is invalid for this mode/flavour.
   list<int> DwarfNumbers = [];
+
+  // CostPerUse - Additional cost of instructions using this register compared
+  // to other registers in its class. The register allocator will try to
+  // minimize the number of instructions using a register with a CostPerUse.
+  // This is used by the x86-64 and ARM Thumb targets where some registers 
+  // require larger instruction encodings.
+  int CostPerUse = 0;
 }
 
 // RegisterWithSubRegs - This can be used to define instances of Register which
@@ -96,7 +104,7 @@ class RegisterWithSubRegs<string n, list<Register> subregs> : Register<n> {
 // registers by register allocators.
 //
 class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
-                    list<Register> regList> {
+                    dag regList, RegAltNameIndex idx = NoRegAltName> {
   string Namespace = namespace;
 
   // RegType - Specify the list ValueType of the registers in this register
@@ -126,17 +134,107 @@ class RegisterClass<string namespace, list<ValueType> regTypes, int alignment,
   // allocation_order_* method are not specified, this also defines the order of
   // allocation used by the register allocator.
   //
-  list<Register> MemberList = regList;
+  dag MemberList = regList;
+
+  // AltNameIndex - The alternate register name to use when printing operands
+  // of this register class. Every register in the register class must have
+  // a valid alternate name for the given index.
+  RegAltNameIndex altNameIndex = idx;
 
   // SubRegClasses - Specify the register class of subregisters as a list of
   // dags: (RegClass SubRegIndex, SubRegindex, ...)
   list<dag> SubRegClasses = [];
 
-  // MethodProtos/MethodBodies - These members can be used to insert arbitrary
-  // code into a generated register class.   The normal usage of this is to
-  // overload virtual methods.
-  code MethodProtos = [{}];
-  code MethodBodies = [{}];
+  // isAllocatable - Specify that the register class can be used for virtual
+  // registers and register allocation.  Some register classes are only used to
+  // model instruction operand constraints, and should have isAllocatable = 0.
+  bit isAllocatable = 1;
+
+  // AltOrders - List of alternative allocation orders. The default order is
+  // MemberList itself, and that is good enough for most targets since the
+  // register allocators automatically remove reserved registers and move
+  // callee-saved registers to the end.
+  list<dag> AltOrders = [];
+
+  // AltOrderSelect - The body of a function that selects the allocation order
+  // to use in a given machine function. The code will be inserted in a
+  // function like this:
+  //
+  //   static inline unsigned f(const MachineFunction &MF) { ... }
+  //
+  // The function should return 0 to select the default order defined by
+  // MemberList, 1 to select the first AltOrders entry and so on.
+  code AltOrderSelect = [{}];
+}
+
+// The memberList in a RegisterClass is a dag of set operations. TableGen
+// evaluates these set operations and expand them into register lists. These
+// are the most common operation, see test/TableGen/SetTheory.td for more
+// examples of what is possible:
+//
+// (add R0, R1, R2) - Set Union. Each argument can be an individual register, a
+// register class, or a sub-expression. This is also the way to simply list
+// registers.
+//
+// (sub GPR, SP) - Set difference. Subtract the last arguments from the first.
+//
+// (and GPR, CSR) - Set intersection. All registers from the first set that are
+// also in the second set.
+//
+// (sequence "R%u", 0, 15) -> [R0, R1, ..., R15]. Generate a sequence of
+// numbered registers.
+//
+// (shl GPR, 4) - Remove the first N elements.
+//
+// (trunc GPR, 4) - Truncate after the first N elements.
+//
+// (rotl GPR, 1) - Rotate N places to the left.
+//
+// (rotr GPR, 1) - Rotate N places to the right.
+//
+// (decimate GPR, 2) - Pick every N'th element, starting with the first.
+//
+// All of these operators work on ordered sets, not lists. That means
+// duplicates are removed from sub-expressions.
+
+// Set operators. The rest is defined in TargetSelectionDAG.td.
+def sequence;
+def decimate;
+
+// RegisterTuples - Automatically generate super-registers by forming tuples of
+// sub-registers. This is useful for modeling register sequence constraints
+// with pseudo-registers that are larger than the architectural registers.
+//
+// The sub-register lists are zipped together:
+//
+//   def EvenOdd : RegisterTuples<[sube, subo], [(add R0, R2), (add R1, R3)]>;
+//
+// Generates the same registers as:
+//
+//   let SubRegIndices = [sube, subo] in {
+//     def R0_R1 : RegisterWithSubRegs<"", [R0, R1]>;
+//     def R2_R3 : RegisterWithSubRegs<"", [R2, R3]>;
+//   }
+//
+// The generated pseudo-registers inherit super-classes and fields from their
+// first sub-register. Most fields from the Register class are inferred, and
+// the AsmName and Dwarf numbers are cleared.
+//
+// RegisterTuples instances can be used in other set operations to form
+// register classes and so on. This is the only way of using the generated
+// registers.
+class RegisterTuples<list<SubRegIndex> Indices, list<dag> Regs> {
+  // SubRegs - N lists of registers to be zipped up. Super-registers are
+  // synthesized from the first element of each SubRegs list, the second
+  // element and so on.
+  list<dag> SubRegs = Regs;
+
+  // SubRegIndices - N SubRegIndex instances. This provides the names of the
+  // sub-registers in the synthesized super-registers.
+  list<SubRegIndex> SubRegIndices = Indices;
+
+  // Compose sub-register indices like in a normal Register.
+  list<dag> CompositeIndices = [];
 }
 
 
@@ -153,6 +251,14 @@ class DwarfRegNum<list<int> Numbers> {
   // -1 indicates that the gcc number is undefined and -2 that register number
   // is invalid for this mode/flavour.
   list<int> DwarfNumbers = Numbers;
+}
+
+// DwarfRegAlias - This class declares that a given register uses the same dwarf
+// numbers as another one. This is useful for making it clear that the two
+// registers do have the same number. It also lets us build a mapping
+// from dwarf register number to llvm register.
+class DwarfRegAlias<Register reg> {
+      Register DwarfAlias = reg;
 }
 
 //===----------------------------------------------------------------------===//
@@ -187,7 +293,16 @@ class Instruction {
   // code.
   list<Predicate> Predicates = [];
 
-  // Code size.
+  // Size - Size of encoded instruction, or zero if the size cannot be determined
+  // from the opcode.
+  int Size = 0;
+
+  // DecoderNamespace - The "namespace" in which this instruction exists, on
+  // targets like ARM which multiple ISA namespaces exist.
+  string DecoderNamespace = "";
+
+  // Code size, for instruction selection.
+  // FIXME: What does this actually mean?
   int CodeSize = 0;
 
   // Added complexity passed onto matching pattern.
@@ -200,6 +315,7 @@ class Instruction {
   bit isIndirectBranch = 0; // Is this instruction an indirect branch?
   bit isCompare    = 0;     // Is this instruction a comparison instruction?
   bit isMoveImm    = 0;     // Is this instruction a move immediate instruction?
+  bit isBitcast    = 0;     // Is this instruction a bitcast instruction?
   bit isBarrier    = 0;     // Can control flow fall through this instruction?
   bit isCall       = 0;     // Is this instruction a call instruction?
   bit canFoldAsLoad = 0;    // Can this be folded as a simple memory operand?
@@ -212,11 +328,15 @@ class Instruction {
   bit isPredicable = 0;     // Is this instruction predicable?
   bit hasDelaySlot = 0;     // Does this instruction have an delay slot?
   bit usesCustomInserter = 0; // Pseudo instr needing special help.
+  bit hasPostISelHook = 0;  // To be *adjusted* after isel by target hook.
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
   bit hasExtraSrcRegAllocReq = 0; // Sources have special regalloc requirement?
   bit hasExtraDefRegAllocReq = 0; // Defs have special regalloc requirement?
+  bit isPseudo     = 0;     // Is this instruction a pseudo-instruction?
+                            // If so, won't have encoding information for
+                            // the [MC]CodeEmitter stuff.
 
   // Side effect flags - When set, the flags have these meanings:
   //
@@ -231,6 +351,11 @@ class Instruction {
   // Is this instruction a "real" instruction (with a distinct machine
   // encoding), or is it a pseudo instruction used for codegen modeling
   // purposes.
+  // FIXME: For now this is distinct from isPseudo, above, as code-gen-only
+  // instructions can (and often do) still have encoding information
+  // associated with them. Once we've migrated all of them over to true
+  // pseudo-instructions that are lowered to real instructions prior to
+  // the printer/emitter, we can remove this attribute and just use isPseudo.
   bit isCodeGenOnly = 0;
 
   // Is this instruction a pseudo instruction for use by the assembler parser.
@@ -258,6 +383,14 @@ class Instruction {
   ///@}
 }
 
+/// PseudoInstExpansion - Expansion information for a pseudo-instruction.
+/// Which instruction it expands to and how the operands map from the
+/// pseudo.
+class PseudoInstExpansion<dag Result> {
+  dag ResultInst = Result;     // The instruction to generate.
+  bit isPseudo = 1;
+}
+
 /// Predicates - These are extra conditionals which are turned into instruction
 /// selector matching code. Currently each predicate is just a string.
 class Predicate<string cond> {
@@ -267,6 +400,15 @@ class Predicate<string cond> {
   /// matcher, this is true.  Targets should set this by inheriting their
   /// feature from the AssemblerPredicate class in addition to Predicate.
   bit AssemblerMatcherPredicate = 0;
+
+  /// AssemblerCondString - Name of the subtarget feature being tested used
+  /// as alternative condition string used for assembler matcher.
+  /// e.g. "ModeThumb" is translated to "(Bits & ModeThumb) != 0".
+  ///      "!ModeThumb" is translated to "(Bits & ModeThumb) == 0".
+  /// It can also list multiple features separated by ",".
+  /// e.g. "ModeThumb,FeatureThumb2" is translated to
+  ///      "(Bits & ModeThumb) != 0 && (Bits & FeatureThumb2) != 0".
+  string AssemblerCondString = "";
 }
 
 /// NoHonorSignDependentRounding - This predicate is true if support for
@@ -363,6 +505,7 @@ class Operand<ValueType ty> {
   string EncoderMethod = "";
   string DecoderMethod = "";
   string AsmOperandLowerMethod = ?;
+  string OperandType = "OPERAND_UNKNOWN";
   dag MIOperandInfo = (ops);
 
   // ParserMatchClass - The "match class" that operands of this type fit
@@ -376,6 +519,25 @@ class Operand<ValueType ty> {
   AsmOperandClass ParserMatchClass = ImmAsmOperand;
 }
 
+class RegisterOperand<RegisterClass regclass, string pm = "printOperand"> {
+  // RegClass - The register class of the operand.
+  RegisterClass RegClass = regclass;
+  // PrintMethod - The target method to call to print register operands of
+  // this type. The method normally will just use an alt-name index to look
+  // up the name to print. Default to the generic printOperand().
+  string PrintMethod = pm;
+  // ParserMatchClass - The "match class" that operands of this type fit
+  // in. Match classes are used to define the order in which instructions are
+  // match, to ensure that which instructions gets matched is deterministic.
+  //
+  // The target specific parser must be able to classify an parsed operand into
+  // a unique class, which does not partially overlap with any other classes. It
+  // can match a subset of some other class, in which case the AsmOperandClass
+  // should declare the other operand as one of its super classes.
+  AsmOperandClass ParserMatchClass;
+}
+
+let OperandType = "OPERAND_IMMEDIATE" in {
 def i1imm  : Operand<i1>;
 def i8imm  : Operand<i8>;
 def i16imm : Operand<i16>;
@@ -384,6 +546,7 @@ def i64imm : Operand<i64>;
 
 def f32imm : Operand<f32>;
 def f64imm : Operand<f64>;
+}
 
 /// zero_reg definition - Special node to stand for the zero register.
 ///
@@ -423,7 +586,7 @@ class InstrInfo {
 // Standard Pseudo Instructions.
 // This list must match TargetOpcodes.h and CodeGenTarget.cpp.
 // Only these instructions are allowed in the TargetOpcode namespace.
-let isCodeGenOnly = 1, Namespace = "TargetOpcode" in {
+let isCodeGenOnly = 1, isPseudo = 1, Namespace = "TargetOpcode" in {
 def PHI : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);
@@ -556,8 +719,9 @@ def DefaultAsmParser : AsmParser;
 
 /// AssemblerPredicate - This is a Predicate that can be used when the assembler
 /// matches instructions and aliases.
-class AssemblerPredicate {
+class AssemblerPredicate<string cond> {
   bit AssemblerMatcherPredicate = 1;
+  string AssemblerCondString = cond;
 }
 
 
@@ -590,9 +754,10 @@ class MnemonicAlias<string From, string To> {
 /// InstAlias - This defines an alternate assembly syntax that is allowed to
 /// match an instruction that has a different (more canonical) assembly
 /// representation.
-class InstAlias<string Asm, dag Result> {
+class InstAlias<string Asm, dag Result, bit Emit = 0b1> {
   string AsmString = Asm;      // The .s format to match the instruction with.
   dag ResultInst = Result;     // The MCInst to generate.
+  bit EmitAlias = Emit;        // Emit the alias instead of what's aliased.
 
   // Predicates - Predicates that must be true for this to match.
   list<Predicate> Predicates = [];

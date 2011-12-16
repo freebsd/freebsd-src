@@ -74,7 +74,7 @@
 #endif
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node ");
+static MALLOC_DEFINE(M_NETGRAPH_MPPC, "netgraph_mppc", "netgraph mppc node");
 #else
 #define M_NETGRAPH_MPPC M_NETGRAPH
 #endif
@@ -201,9 +201,7 @@ ng_mppc_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate private structure */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_MPPC, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_MPPC, M_WAITOK | M_ZERO);
 
 	NG_NODE_SET_PRIVATE(node, priv);
 
@@ -406,9 +404,6 @@ ng_mppc_rcvdata(hook_p hook, item_p item)
 
 	/* Oops */
 	panic("%s: unknown hook", __func__);
-#ifdef RESTARTABLE_PANICS
-	return (EINVAL);
-#endif
 }
 
 /*

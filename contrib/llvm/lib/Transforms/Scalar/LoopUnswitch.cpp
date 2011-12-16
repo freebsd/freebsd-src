@@ -258,6 +258,7 @@ bool LoopUnswitch::processCurrentLoop() {
       if (LoopCond && SI->getNumCases() > 1) {
         // Find a value to unswitch on:
         // FIXME: this should chose the most expensive case!
+        // FIXME: scan for a case with a non-critical edge?
         Constant *UnswitchVal = SI->getCaseValue(1);
         // Do not process same value again and again.
         if (!UnswitchedVals.insert(UnswitchVal))
@@ -491,7 +492,7 @@ void LoopUnswitch::EmitPreheaderBranchOnCondition(Value *LIC, Constant *Val,
   Value *BranchVal = LIC;
   if (!isa<ConstantInt>(Val) ||
       Val->getType() != Type::getInt1Ty(LIC->getContext()))
-    BranchVal = new ICmpInst(InsertPt, ICmpInst::ICMP_EQ, LIC, Val, "tmp");
+    BranchVal = new ICmpInst(InsertPt, ICmpInst::ICMP_EQ, LIC, Val);
   else if (Val != ConstantInt::getTrue(Val->getContext()))
     // We want to enter the new loop when the condition is true.
     std::swap(TrueDest, FalseDest);
@@ -560,8 +561,17 @@ void LoopUnswitch::SplitExitEdges(Loop *L,
     BasicBlock *ExitBlock = ExitBlocks[i];
     SmallVector<BasicBlock *, 4> Preds(pred_begin(ExitBlock),
                                        pred_end(ExitBlock));
-    SplitBlockPredecessors(ExitBlock, Preds.data(), Preds.size(),
-                           ".us-lcssa", this);
+
+    // Although SplitBlockPredecessors doesn't preserve loop-simplify in
+    // general, if we call it on all predecessors of all exits then it does.
+    if (!ExitBlock->isLandingPad()) {
+      SplitBlockPredecessors(ExitBlock, Preds.data(), Preds.size(),
+                             ".us-lcssa", this);
+    } else {
+      SmallVector<BasicBlock*, 2> NewBBs;
+      SplitLandingPadPredecessors(ExitBlock, Preds, ".us-lcssa", ".us-lcssa",
+                                  this, NewBBs);
+    }
   }
 }
 
@@ -629,7 +639,7 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
     // as well.
     ParentLoop->addBasicBlockToLoop(NewBlocks[0], LI->getBase());
   }
-  
+
   for (unsigned i = 0, e = ExitBlocks.size(); i != e; ++i) {
     BasicBlock *NewExit = cast<BasicBlock>(VMap[ExitBlocks[i]]);
     // The new exit block should be in the same loop as the old one.
@@ -649,6 +659,19 @@ void LoopUnswitch::UnswitchNontrivialCondition(Value *LIC, Constant *Val,
       ValueToValueMapTy::iterator It = VMap.find(V);
       if (It != VMap.end()) V = It->second;
       PN->addIncoming(V, NewExit);
+    }
+
+    if (LandingPadInst *LPad = NewExit->getLandingPadInst()) {
+      PN = PHINode::Create(LPad->getType(), 0, "",
+                           ExitSucc->getFirstInsertionPt());
+
+      for (pred_iterator I = pred_begin(ExitSucc), E = pred_end(ExitSucc);
+           I != E; ++I) {
+        BasicBlock *BB = *I;
+        LandingPadInst *LPI = BB->getLandingPadInst();
+        LPI->replaceAllUsesWith(PN);
+        PN->addIncoming(LPI, BB);
+      }
     }
   }
 
@@ -786,8 +809,13 @@ void LoopUnswitch::RemoveBlockIfDead(BasicBlock *BB,
   // If this is the edge to the header block for a loop, remove the loop and
   // promote all subloops.
   if (Loop *BBLoop = LI->getLoopFor(BB)) {
-    if (BBLoop->getLoopLatch() == BB)
+    if (BBLoop->getLoopLatch() == BB) {
       RemoveLoopFromHierarchy(BBLoop);
+      if (currentLoop == BBLoop) {
+        currentLoop = 0;
+        redoLoop = false;
+      }
+    }
   }
 
   // Remove the block from the loop info, which removes it from any loops it
@@ -859,7 +887,6 @@ void LoopUnswitch::RewriteLoopBodyWithConditionConstant(Loop *L, Value *LIC,
   
   // FOLD boolean conditions (X|LIC), (X&LIC).  Fold conditional branches,
   // selects, switches.
-  std::vector<User*> Users(LIC->use_begin(), LIC->use_end());
   std::vector<Instruction*> Worklist;
   LLVMContext &Context = Val->getContext();
 
@@ -875,13 +902,14 @@ void LoopUnswitch::RewriteLoopBodyWithConditionConstant(Loop *L, Value *LIC,
       Replacement = ConstantInt::get(Type::getInt1Ty(Val->getContext()), 
                                      !cast<ConstantInt>(Val)->getZExtValue());
     
-    for (unsigned i = 0, e = Users.size(); i != e; ++i)
-      if (Instruction *U = cast<Instruction>(Users[i])) {
-        if (!L->contains(U))
-          continue;
-        U->replaceUsesOfWith(LIC, Replacement);
-        Worklist.push_back(U);
-      }
+    for (Value::use_iterator UI = LIC->use_begin(), E = LIC->use_end();
+         UI != E; ++UI) {
+      Instruction *U = dyn_cast<Instruction>(*UI);
+      if (!U || !L->contains(U))
+        continue;
+      U->replaceUsesOfWith(LIC, Replacement);
+      Worklist.push_back(U);
+    }
     SimplifyCode(Worklist, L);
     return;
   }
@@ -889,9 +917,10 @@ void LoopUnswitch::RewriteLoopBodyWithConditionConstant(Loop *L, Value *LIC,
   // Otherwise, we don't know the precise value of LIC, but we do know that it
   // is certainly NOT "Val".  As such, simplify any uses in the loop that we
   // can.  This case occurs when we unswitch switch statements.
-  for (unsigned i = 0, e = Users.size(); i != e; ++i) {
-    Instruction *U = cast<Instruction>(Users[i]);
-    if (!L->contains(U))
+  for (Value::use_iterator UI = LIC->use_begin(), E = LIC->use_end();
+       UI != E; ++UI) {
+    Instruction *U = dyn_cast<Instruction>(*UI);
+    if (!U || !L->contains(U))
       continue;
 
     Worklist.push_back(U);
@@ -909,13 +938,22 @@ void LoopUnswitch::RewriteLoopBodyWithConditionConstant(Loop *L, Value *LIC,
     // Found a dead case value.  Don't remove PHI nodes in the 
     // successor if they become single-entry, those PHI nodes may
     // be in the Users list.
-        
+
+    BasicBlock *Switch = SI->getParent();
+    BasicBlock *SISucc = SI->getSuccessor(DeadCase);
+    BasicBlock *Latch = L->getLoopLatch();
+    if (!SI->findCaseDest(SISucc)) continue;  // Edge is critical.
+    // If the DeadCase successor dominates the loop latch, then the
+    // transformation isn't safe since it will delete the sole predecessor edge
+    // to the latch.
+    if (Latch && DT->dominates(SISucc, Latch))
+      continue;
+
     // FIXME: This is a hack.  We need to keep the successor around
     // and hooked up so as to preserve the loop structure, because
     // trying to update it is complicated.  So instead we preserve the
     // loop structure and put the block on a dead code path.
-    BasicBlock *Switch = SI->getParent();
-    SplitEdge(Switch, SI->getSuccessor(DeadCase), this);
+    SplitEdge(Switch, SISucc, this);
     // Compute the successors instead of relying on the return value
     // of SplitEdge, since it may have split the switch successor
     // after PHI nodes.
@@ -1003,16 +1041,16 @@ void LoopUnswitch::SimplifyCode(std::vector<Instruction*> &Worklist, Loop *L) {
         while (PHINode *PN = dyn_cast<PHINode>(Succ->begin()))
           ReplaceUsesOfWith(PN, PN->getIncomingValue(0), Worklist, L, LPM);
         
+        // If Succ has any successors with PHI nodes, update them to have
+        // entries coming from Pred instead of Succ.
+        Succ->replaceAllUsesWith(Pred);
+        
         // Move all of the successor contents from Succ to Pred.
         Pred->getInstList().splice(BI, Succ->getInstList(), Succ->begin(),
                                    Succ->end());
         LPM->deleteSimpleAnalysisValue(BI, L);
         BI->eraseFromParent();
         RemoveFromWorklist(BI, Worklist);
-        
-        // If Succ has any successors with PHI nodes, update them to have
-        // entries coming from Pred instead of Succ.
-        Succ->replaceAllUsesWith(Pred);
         
         // Remove Succ from the loop tree.
         LI->removeBlock(Succ);

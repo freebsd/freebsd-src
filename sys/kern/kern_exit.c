@@ -40,22 +40,26 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 #include "opt_kdtrace.h"
 #include "opt_ktrace.h"
+#include "opt_procdesc.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/sysproto.h>
+#include <sys/capability.h>
 #include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/procdesc.h>
 #include <sys/pioctl.h>
 #include <sys/jail.h>
 #include <sys/tty.h>
 #include <sys/wait.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/sbuf.h>
 #include <sys/signalvar.h>
@@ -93,9 +97,6 @@ SDT_PROVIDER_DECLARE(proc);
 SDT_PROBE_DEFINE(proc, kernel, , exit, exit);
 SDT_PROBE_ARGTYPE(proc, kernel, , exit, 0, "int");
 
-/* Required to be non-static for SysVR4 emulator */
-MALLOC_DEFINE(M_ZOMBIE, "zombie", "zombie proc status");
-
 /* Hook for NFS teardown procedure. */
 void (*nlminfo_release_p)(struct proc *p);
 
@@ -103,7 +104,7 @@ void (*nlminfo_release_p)(struct proc *p);
  * exit -- death of process.
  */
 void
-sys_exit(struct thread *td, struct sys_exit_args *uap)
+sys_sys_exit(struct thread *td, struct sys_exit_args *uap)
 {
 
 	exit1(td, W_EXITCODE(uap->rval, 0));
@@ -176,6 +177,7 @@ exit1(struct thread *td, int rv)
 	}
 	KASSERT(p->p_numthreads == 1,
 	    ("exit1: proc %p exiting with %d threads", p, p->p_numthreads));
+	racct_sub(p, RACCT_NTHR, 1);
 	/*
 	 * Wakeup anyone in procfs' PIOCWAIT.  They should have a hold
 	 * on our vmspace, so we should block below until they have
@@ -222,7 +224,7 @@ exit1(struct thread *td, int rv)
 		q = p->p_peers;
 		while (q != NULL) {
 			PROC_LOCK(q);
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 			PROC_UNLOCK(q);
 			q = q->p_peers;
 		}
@@ -419,7 +421,7 @@ exit1(struct thread *td, int rv)
 			q->p_flag &= ~(P_TRACED | P_STOPPED_TRACE);
 			FOREACH_THREAD_IN_PROC(q, temp)
 				temp->td_dbgflags &= ~TDB_SUSPEND;
-			psignal(q, SIGKILL);
+			kern_psignal(q, SIGKILL);
 		}
 		PROC_UNLOCK(q);
 	}
@@ -462,39 +464,54 @@ exit1(struct thread *td, int rv)
 	knlist_clear(&p->p_klist, 1);
 
 	/*
-	 * Notify parent that we're gone.  If parent has the PS_NOCLDWAIT
-	 * flag set, or if the handler is set to SIG_IGN, notify process
-	 * 1 instead (and hope it will handle this situation).
+	 * If this is a process with a descriptor, we may not need to deliver
+	 * a signal to the parent.  proctree_lock is held over
+	 * procdesc_exit() to serialize concurrent calls to close() and
+	 * exit().
 	 */
-	PROC_LOCK(p->p_pptr);
-	mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
-	if (p->p_pptr->p_sigacts->ps_flag & (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
-		struct proc *pp;
-
-		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
-		pp = p->p_pptr;
-		PROC_UNLOCK(pp);
-		proc_reparent(p, initproc);
-		p->p_sigparent = SIGCHLD;
-		PROC_LOCK(p->p_pptr);
-
+#ifdef PROCDESC
+	if (p->p_procdesc == NULL || procdesc_exit(p)) {
+#endif
 		/*
-		 * Notify parent, so in case he was wait(2)ing or
-		 * executing waitpid(2) with our pid, he will
-		 * continue.
+		 * Notify parent that we're gone.  If parent has the
+		 * PS_NOCLDWAIT flag set, or if the handler is set to SIG_IGN,
+		 * notify process 1 instead (and hope it will handle this
+		 * situation).
 		 */
-		wakeup(pp);
-	} else
-		mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+		PROC_LOCK(p->p_pptr);
+		mtx_lock(&p->p_pptr->p_sigacts->ps_mtx);
+		if (p->p_pptr->p_sigacts->ps_flag &
+		    (PS_NOCLDWAIT | PS_CLDSIGIGN)) {
+			struct proc *pp;
 
-	if (p->p_pptr == initproc)
-		psignal(p->p_pptr, SIGCHLD);
-	else if (p->p_sigparent != 0) {
-		if (p->p_sigparent == SIGCHLD)
-			childproc_exited(p);
-		else	/* LINUX thread */
-			psignal(p->p_pptr, p->p_sigparent);
-	}
+			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+			pp = p->p_pptr;
+			PROC_UNLOCK(pp);
+			proc_reparent(p, initproc);
+			p->p_sigparent = SIGCHLD;
+			PROC_LOCK(p->p_pptr);
+
+			/*
+			 * Notify parent, so in case he was wait(2)ing or
+			 * executing waitpid(2) with our pid, he will
+			 * continue.
+			 */
+			wakeup(pp);
+		} else
+			mtx_unlock(&p->p_pptr->p_sigacts->ps_mtx);
+
+		if (p->p_pptr == initproc)
+			kern_psignal(p->p_pptr, SIGCHLD);
+		else if (p->p_sigparent != 0) {
+			if (p->p_sigparent == SIGCHLD)
+				childproc_exited(p);
+			else	/* LINUX thread */
+				kern_psignal(p->p_pptr, p->p_sigparent);
+		}
+#ifdef PROCDESC
+	} else
+		PROC_LOCK(p->p_pptr);
+#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -551,7 +568,7 @@ struct abort2_args {
 #endif
 
 int
-abort2(struct thread *td, struct abort2_args *uap)
+sys_abort2(struct thread *td, struct abort2_args *uap)
 {
 	struct proc *p = td->td_proc;
 	struct sbuf *sb;
@@ -639,7 +656,7 @@ owait(struct thread *td, struct owait_args *uap __unused)
  * The dirty work is handled by kern_wait().
  */
 int
-wait4(struct thread *td, struct wait_args *uap)
+sys_wait4(struct thread *td, struct wait_args *uap)
 {
 	struct rusage ru, *rup;
 	int error, status;
@@ -661,7 +678,7 @@ wait4(struct thread *td, struct wait_args *uap)
  * rusage.  Asserts and will release both the proctree_lock and the process
  * lock as part of its work.
  */
-static void
+void
 proc_reap(struct thread *td, struct proc *p, int *status, int options,
     struct rusage *rusage)
 {
@@ -702,8 +719,9 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 */
 	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 		PROC_LOCK(p);
-		p->p_oppid = 0;
 		proc_reparent(p, t);
+		p->p_pptr->p_dbg_child--;
+		p->p_oppid = 0;
 		PROC_UNLOCK(p);
 		pksignal(t, SIGCHLD, p->p_ksi);
 		wakeup(t);
@@ -722,6 +740,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
 	leavepgrp(p);
+#ifdef PROCDESC
+	if (p->p_procdesc != NULL)
+		procdesc_reap(p);
+#endif
 	sx_xunlock(&proctree_lock);
 
 	/*
@@ -739,6 +761,16 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	 * Decrement the count of procs running with this uid.
 	 */
 	(void)chgproccnt(p->p_ucred->cr_ruidinfo, -1, 0);
+
+	/*
+	 * Destroy resource accounting information associated with the process.
+	 */
+#ifdef RACCT
+	PROC_LOCK(p);
+	racct_sub(p, RACCT_NPROC, 1);
+	PROC_UNLOCK(p);
+#endif
+	racct_proc_exit(p);
 
 	/*
 	 * Free credentials, arguments, and sigacts.
@@ -787,7 +819,8 @@ kern_wait(struct thread *td, pid_t pid, int *status, int options,
 		pid = -q->p_pgid;
 		PROC_UNLOCK(q);
 	}
-	if (options &~ (WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
+	/* If we don't know the option, just return. */
+	if (options & ~(WUNTRACED|WNOHANG|WCONTINUED|WNOWAIT|WLINUXCLONE))
 		return (EINVAL);
 loop:
 	if (q->p_flag & P_STATCHILD) {
@@ -866,7 +899,10 @@ loop:
 	}
 	if (nfound == 0) {
 		sx_xunlock(&proctree_lock);
-		return (ECHILD);
+		if (td->td_proc->p_dbg_child)
+			return (0);
+		else
+			return (ECHILD);
 	}
 	if (options & WNOHANG) {
 		sx_xunlock(&proctree_lock);

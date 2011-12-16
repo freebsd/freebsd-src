@@ -26,10 +26,11 @@ namespace llvm {
   class MCLabel;
   class MCDwarfFile;
   class MCDwarfLoc;
+  class MCObjectFileInfo;
+  class MCRegisterInfo;
   class MCLineSection;
   class StringRef;
   class Twine;
-  class TargetAsmInfo;
   class MCSectionMachO;
   class MCSectionELF;
 
@@ -39,18 +40,31 @@ namespace llvm {
   class MCContext {
     MCContext(const MCContext&); // DO NOT IMPLEMENT
     MCContext &operator=(const MCContext&); // DO NOT IMPLEMENT
+  public:
+    typedef StringMap<MCSymbol*, BumpPtrAllocator&> SymbolTable;
+  private:
 
     /// The MCAsmInfo for this target.
     const MCAsmInfo &MAI;
 
-    const TargetAsmInfo *TAI;
+    /// The MCRegisterInfo for this target.
+    const MCRegisterInfo &MRI;
+
+    /// The MCObjectFileInfo for this target.
+    const MCObjectFileInfo *MOFI;
+
+    /// Allocator - Allocator object used for creating machine code objects.
+    ///
+    /// We use a bump pointer allocator to avoid the need to track all allocated
+    /// objects.
+    BumpPtrAllocator Allocator;
 
     /// Symbols - Bindings of names to symbols.
-    StringMap<MCSymbol*> Symbols;
+    SymbolTable Symbols;
 
     /// UsedNames - Keeps tracks of names that were used both for used declared
     /// and artificial symbols.
-    StringMap<bool> UsedNames;
+    StringMap<bool, BumpPtrAllocator&> UsedNames;
 
     /// NextUniqueID - The next ID to dole out to an unnamed assembler temporary
     /// symbol.
@@ -84,6 +98,11 @@ namespace llvm {
     MCDwarfLoc CurrentDwarfLoc;
     bool DwarfLocSeen;
 
+    /// Honor temporary labels, this is useful for debugging semantic
+    /// differences between temporary and non-temporary labels (primarily on
+    /// Darwin).
+    bool AllowTemporaryLabels;
+
     /// The dwarf line information from the .loc directives for the sections
     /// with assembled machine instructions have after seeing .loc directives.
     DenseMap<const MCSection *, MCLineSection *> MCLineSections;
@@ -91,23 +110,22 @@ namespace llvm {
     /// the elements were added.
     std::vector<const MCSection *> MCLineSectionOrder;
 
-    /// Allocator - Allocator object used for creating machine code objects.
-    ///
-    /// We use a bump pointer allocator to avoid the need to track all allocated
-    /// objects.
-    BumpPtrAllocator Allocator;
-
     void *MachOUniquingMap, *ELFUniquingMap, *COFFUniquingMap;
 
     MCSymbol *CreateSymbol(StringRef Name);
 
   public:
-    explicit MCContext(const MCAsmInfo &MAI, const TargetAsmInfo *TAI);
+    explicit MCContext(const MCAsmInfo &MAI, const MCRegisterInfo &MRI,
+                       const MCObjectFileInfo *MOFI);
     ~MCContext();
 
     const MCAsmInfo &getAsmInfo() const { return MAI; }
 
-    const TargetAsmInfo &getTargetAsmInfo() const { return *TAI; }
+    const MCRegisterInfo &getRegisterInfo() const { return MRI; }
+
+    const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
+
+    void setAllowTemporaryLabels(bool Value) { AllowTemporaryLabels = Value; }
 
     /// @name Symbol Management
     /// @{
@@ -134,6 +152,14 @@ namespace llvm {
 
     /// LookupSymbol - Get the symbol for \p Name, or null.
     MCSymbol *LookupSymbol(StringRef Name) const;
+
+    /// getSymbols - Get a reference for the symbol table for clients that
+    /// want to, for example, iterate over all symbols. 'const' because we
+    /// still want any modifications to the table itself to use the MCContext
+    /// APIs.
+    const SymbolTable &getSymbols() const {
+      return Symbols;
+    }
 
     /// @}
 

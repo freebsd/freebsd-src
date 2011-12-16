@@ -73,7 +73,7 @@ void			 pfctl_insert_altq_node(struct pf_altq_node **,
 struct pf_altq_node	*pfctl_find_altq_node(struct pf_altq_node *,
 			    const char *, const char *);
 void			 pfctl_print_altq_node(int, const struct pf_altq_node *,
-			     unsigned, int);
+			    unsigned, int);
 void			 print_cbqstats(struct queue_stats);
 void			 print_priqstats(struct queue_stats);
 void			 print_hfscstats(struct queue_stats);
@@ -185,8 +185,8 @@ pfctl_update_qstats(int dev, struct pf_altq_node **root)
 			}
 		}
 #ifdef __FreeBSD__
-		  else if (pa.altq.local_flags & PFALTQ_FLAG_IF_REMOVED) {
-		  	memset(&qstats.data, 0, sizeof(qstats.data));
+		else if (pa.altq.local_flags & PFALTQ_FLAG_IF_REMOVED) {
+			memset(&qstats.data, 0, sizeof(qstats.data));
 			if ((node = pfctl_find_altq_node(*root, pa.altq.qname,
 			    pa.altq.ifname)) != NULL) {
 				memcpy(&node->qstats.data, &qstats.data,
@@ -194,7 +194,7 @@ pfctl_update_qstats(int dev, struct pf_altq_node **root)
 				update_avg(node);
 			} else {
 				pfctl_insert_altq_node(root, pa.altq, qstats);
-			}		
+			}
 		}
 #endif
 	}
@@ -262,8 +262,8 @@ pfctl_find_altq_node(struct pf_altq_node *root, const char *qname,
 }
 
 void
-pfctl_print_altq_node(int dev, const struct pf_altq_node *node, unsigned level,
-    int opts)
+pfctl_print_altq_node(int dev, const struct pf_altq_node *node,
+    unsigned int level, int opts)
 {
 	const struct pf_altq_node	*child;
 
@@ -302,11 +302,11 @@ pfctl_print_altq_nodestat(int dev, const struct pf_altq_node *a)
 {
 	if (a->altq.qid == 0)
 		return;
+
 #ifdef __FreeBSD__
 	if (a->altq.local_flags & PFALTQ_FLAG_IF_REMOVED)
 		return;
 #endif
-
 	switch (a->altq.scheduler) {
 	case ALTQT_CBQ:
 		print_cbqstats(a->qstats);

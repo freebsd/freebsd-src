@@ -293,6 +293,8 @@ struct sctp_pcb {
 
 	uint16_t def_net_failure;
 
+	uint16_t def_net_pf_threshold;
+
 	/* number of streams to pre-open on a association */
 	uint16_t pre_open_stream_count;
 	uint16_t max_open_streams_intome;
@@ -320,8 +322,13 @@ struct sctp_pcb {
 	uint32_t store_at;
 	uint32_t max_burst;
 	uint32_t fr_max_burst;
+#ifdef INET6
+	uint32_t default_flowlabel;
+#endif
+	uint8_t default_dscp;
 	char current_secret_number;
 	char last_secret_number;
+	uint16_t port;		/* remote UDP encapsulation port */
 };
 
 #ifndef SCTP_ALIGNMENT
@@ -582,7 +589,7 @@ void sctp_remove_laddr(struct sctp_laddr *);
 
 void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
-int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, int, int);
+int sctp_add_remote_addr(struct sctp_tcb *, struct sockaddr *, struct sctp_nets **, int, int);
 
 void sctp_remove_net(struct sctp_tcb *, struct sctp_nets *);
 

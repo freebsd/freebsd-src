@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 30, 2010
+.Dd October 27, 2011
 .Dt HAST.CONF 5
 .Os
 .Sh NAME
@@ -63,17 +63,21 @@ checksum <algorithm>
 compression <algorithm>
 timeout <seconds>
 exec <path>
+metaflush "on" | "off"
+pidfile <path>
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 on <node> {
 	# Node section
         control <addr>
         listen <addr>
+        pidfile <path>
 }
 
 resource <name> {
@@ -85,22 +89,27 @@ resource <name> {
 	local <path>
 	timeout <seconds>
 	exec <path>
+	metaflush "on" | "off"
 
 	on <node> {
 		# Resource-node section
 		name <name>
 		# Required
 		local <path>
+		metaflush "on" | "off"
 		# Required
 		remote <addr>
+		source <addr>
 	}
 	on <node> {
 		# Resource-node section
 		name <name>
 		# Required
 		local <path>
+		metaflush "on" | "off"
 		# Required
 		remote <addr>
+		source <addr>
 	}
 }
 .Ed
@@ -140,6 +149,14 @@ unix:///var/run/hastctl
 .Pp
 The default value is
 .Pa uds:///var/run/hastctl .
+.It Ic pidfile Aq path
+.Pp
+File in which to store the process ID of the main
+.Xr hastd 8
+process.
+.Pp
+The default value is
+.Pa /var/run/hastd.pid .
 .It Ic listen Aq addr
 .Pp
 Address to listen on in form of:
@@ -157,8 +174,14 @@ tcp4://0.0.0.0
 tcp4://0.0.0.0:8457
 .Ed
 .Pp
-The default value is
-.Pa tcp4://0.0.0.0:8457 .
+Multiple listen addresses can be specified.
+By default
+.Nm hastd
+listens on
+.Pa tcp4://0.0.0.0:8457
+and
+.Pa tcp6://[::]:8457
+if kernel supports IPv4 and IPv6 respectively.
 .It Ic replication Aq mode
 .Pp
 Replication mode should be one of the following:
@@ -201,9 +224,6 @@ completes.
 This is the fastest and the most dangerous replication mode.
 This mode should be used when replicating to a distant node where
 latency is too high for other modes.
-The
-.Ic async
-replication mode is currently not implemented.
 .El
 .It Ic checksum Aq algorithm
 .Pp
@@ -239,7 +259,7 @@ LZF is very fast, general purpose compression algorithm.
 .Pp
 Connection timeout in seconds.
 The default value is
-.Va 5 .
+.Va 20 .
 .It Ic exec Aq path
 .Pp
 Execute the given program on various HAST events.
@@ -310,6 +330,25 @@ It can be one of:
 .Ar secondary ,
 .Ar primary .
 .Pp
+.It Ic metaflush on | off
+.Pp
+When set to
+.Va on ,
+flush write cache of the local provider after every metadata (activemap) update.
+Flushing write cache ensures that provider will not reorder writes and that
+metadata will be properly updated before real data is stored.
+If the local provider does not support flushing write cache (it returns
+.Er EOPNOTSUPP
+on the
+.Cm BIO_FLUSH
+request),
+.Nm hastd
+will disable
+.Ic metaflush
+automatically.
+The default value is
+.Va on .
+.Pp
 .It Ic name Aq name
 .Pp
 GEOM provider name that will appear as
@@ -337,6 +376,14 @@ A special value of
 .Va none
 can be used when the remote address is not yet known (eg. the other node is not
 set up yet).
+.It Ic source Aq addr
+.Pp
+Local address to bind to before connecting to the remote
+.Nm hastd
+daemon.
+Format is the same as for the
+.Ic listen
+statement.
 .El
 .Sh FILES
 .Bl -tag -width ".Pa /var/run/hastctl" -compact
@@ -354,24 +401,35 @@ daemon.
 .Sh EXAMPLES
 The example configuration file can look as follows:
 .Bd -literal -offset indent
+listen tcp://0.0.0.0
+
+on hasta {
+	listen tcp://2001:db8::1/64
+}
+on hastb {
+	listen tcp://2001:db8::2/64
+}
+
 resource shared {
 	local /dev/da0
 
 	on hasta {
-		remote tcp4://10.0.0.2
+		remote tcp://10.0.0.2
 	}
 	on hastb {
-		remote tcp4://10.0.0.1
+		remote tcp://10.0.0.1
 	}
 }
 resource tank {
 	on hasta {
 		local /dev/mirror/tanka
-		remote tcp4://10.0.0.2
+		source tcp://10.0.0.1
+		remote tcp://10.0.0.2
 	}
 	on hastb {
 		local /dev/mirror/tankb
-		remote tcp4://10.0.0.1
+		source tcp://10.0.0.2
+		remote tcp://10.0.0.1
 	}
 }
 .Ed

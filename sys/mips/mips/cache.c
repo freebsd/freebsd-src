@@ -80,6 +80,13 @@ __FBSDID("$FreeBSD$");
 
 struct mips_cache_ops mips_cache_ops;
 
+#if defined(MIPS_DISABLE_L1_CACHE) || defined(CPU_RMI) || defined(CPU_NLM)
+static void
+cache_noop(vm_offset_t va, vm_size_t size)
+{
+}
+#endif
+
 void
 mips_config_cache(struct mips_cpuinfo * cpuinfo)
 {
@@ -143,16 +150,31 @@ mips_config_cache(struct mips_cpuinfo * cpuinfo)
 		mips_cache_ops.mco_pdcache_wbinv_all =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_all =
 		    mipsNN_pdcache_wbinv_all_32;
+#if defined(CPU_RMI) || defined(CPU_NLM)
+		mips_cache_ops.mco_pdcache_wbinv_range = cache_noop;
+#else
 		mips_cache_ops.mco_pdcache_wbinv_range =
 		    mipsNN_pdcache_wbinv_range_32;
+#endif
+#if defined(CPU_RMI) || defined(CPU_NLM)
+		mips_cache_ops.mco_pdcache_wbinv_range_index =
+		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index = cache_noop;
+		mips_cache_ops.mco_pdcache_inv_range = cache_noop;
+#else
 		mips_cache_ops.mco_pdcache_wbinv_range_index =
 		    mips_cache_ops.mco_intern_pdcache_wbinv_range_index =
 		    mipsNN_pdcache_wbinv_range_index_32;
 		mips_cache_ops.mco_pdcache_inv_range =
 		    mipsNN_pdcache_inv_range_32;
+#endif
+#if defined(CPU_RMI) || defined(CPU_NLM)
+		mips_cache_ops.mco_pdcache_wb_range =
+		    mips_cache_ops.mco_intern_pdcache_wb_range = cache_noop;
+#else
 		mips_cache_ops.mco_pdcache_wb_range =
 		    mips_cache_ops.mco_intern_pdcache_wb_range =
 		    mipsNN_pdcache_wb_range_32;
+#endif
 		break;
 #ifdef CPU_CNMIPS
 	case 128:

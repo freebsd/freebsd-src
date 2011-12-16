@@ -382,14 +382,9 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 	if (buf.u8[0] == 0)
 		goto data_error;
 
-	lzma_block block;
-	lzma_filter filters[LZMA_FILTERS_MAX + 1];
-
-	// Initialize the pointers so that they can be passed to free().
-	for (size_t i = 0; i < ARRAY_SIZE(filters); ++i)
-		filters[i].options = NULL;
-
 	// Initialize the block structure and decode Block Header Size.
+	lzma_filter filters[LZMA_FILTERS_MAX + 1];
+	lzma_block block;
 	block.version = 0;
 	block.check = iter->stream.flags->check;
 	block.filters = filters;
@@ -437,6 +432,10 @@ parse_block_header(file_pair *pair, const lzma_index_iter *iter,
 		break;
 
 	case LZMA_DATA_ERROR:
+		// Free the memory allocated by lzma_block_header_decode().
+		for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i)
+			free(filters[i].options);
+
 		goto data_error;
 
 	default:
@@ -466,14 +465,6 @@ data_error:
 	// Show the error message.
 	message_error("%s: %s", pair->src_name,
 			message_strm(LZMA_DATA_ERROR));
-
-	// Free the memory allocated by lzma_block_header_decode().
-	// This is truly needed only if we get here after a succcessful
-	// call to lzma_block_header_decode() but it doesn't hurt to
-	// always do it.
-	for (size_t i = 0; filters[i].id != LZMA_VLI_UNKNOWN; ++i)
-		free(filters[i].options);
-
 	return true;
 }
 

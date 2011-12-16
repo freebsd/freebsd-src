@@ -11,8 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InternalChecks.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerVisitor.h"
+#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
 #include "llvm/Support/raw_ostream.h"
@@ -22,19 +24,13 @@ using namespace ento;
 
 namespace {
 class UndefCapturedBlockVarChecker
-  : public CheckerVisitor<UndefCapturedBlockVarChecker> {
- BugType *BT;
+  : public Checker< check::PostStmt<BlockExpr> > {
+ mutable llvm::OwningPtr<BugType> BT;
 
 public:
-  UndefCapturedBlockVarChecker() : BT(0) {}
-  static void *getTag() { static int tag = 0; return &tag; }
-  void PostVisitBlockExpr(CheckerContext &C, const BlockExpr *BE);
+  void checkPostStmt(const BlockExpr *BE, CheckerContext &C) const;
 };
 } // end anonymous namespace
-
-void ento::RegisterUndefCapturedBlockVarChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new UndefCapturedBlockVarChecker());
-}
 
 static const BlockDeclRefExpr *FindBlockDeclRefExpr(const Stmt *S,
                                                     const VarDecl *VD){
@@ -54,12 +50,12 @@ static const BlockDeclRefExpr *FindBlockDeclRefExpr(const Stmt *S,
 }
 
 void
-UndefCapturedBlockVarChecker::PostVisitBlockExpr(CheckerContext &C,
-                                                 const BlockExpr *BE) {
+UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
+                                            CheckerContext &C) const {
   if (!BE->getBlockDecl()->hasCaptures())
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const BlockDataRegion *R =
     cast<BlockDataRegion>(state->getSVal(BE).getAsRegion());
 
@@ -78,11 +74,12 @@ UndefCapturedBlockVarChecker::PostVisitBlockExpr(CheckerContext &C,
     // Get the VarRegion associated with VD in the local stack frame.
     const LocationContext *LC = C.getPredecessor()->getLocationContext();
     VR = C.getSValBuilder().getRegionManager().getVarRegion(VD, LC);
+    SVal VRVal = state->getSVal(VR);
 
-    if (state->getSVal(VR).isUndef())
+    if (VRVal.isUndef())
       if (ExplodedNode *N = C.generateSink()) {
         if (!BT)
-          BT = new BuiltinBug("uninitialized variable captured by block");
+          BT.reset(new BuiltinBug("uninitialized variable captured by block"));
 
         // Generate a bug report.
         llvm::SmallString<128> buf;
@@ -91,12 +88,16 @@ UndefCapturedBlockVarChecker::PostVisitBlockExpr(CheckerContext &C,
         os << "Variable '" << VD->getName() 
            << "' is uninitialized when captured by block";
 
-        EnhancedBugReport *R = new EnhancedBugReport(*BT, os.str(), N);
+        BugReport *R = new BugReport(*BT, os.str(), N);
         if (const Expr *Ex = FindBlockDeclRefExpr(BE->getBody(), VD))
           R->addRange(Ex->getSourceRange());
-        R->addVisitorCreator(bugreporter::registerFindLastStore, VR);
+        R->addVisitor(new FindLastStoreBRVisitor(VRVal, VR));
         // need location of block
         C.EmitReport(R);
       }
   }
+}
+
+void ento::registerUndefCapturedBlockVarChecker(CheckerManager &mgr) {
+  mgr.registerChecker<UndefCapturedBlockVarChecker>();
 }

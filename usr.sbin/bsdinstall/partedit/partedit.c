@@ -50,11 +50,27 @@ static void init_fstab_metadata(void);
 static void get_mount_points(struct partedit_item *items, int nitems);
 static int validate_setup(void);
 
+static void
+sigint_handler(int sig)
+{
+	struct gmesh mesh;
+
+	/* Revert all changes and exit dialog-mode cleanly on SIGINT */
+	geom_gettree(&mesh);
+	gpart_revert_all(&mesh);
+	geom_deletetree(&mesh);
+
+	end_dialog();
+
+	exit(1);
+}
+
 int
-main(int argc, const char **argv) {
+main(int argc, const char **argv)
+{
 	struct partition_metadata *md;
 	const char *prompt;
-	struct partedit_item *items;
+	struct partedit_item *items = NULL;
 	struct gmesh mesh;
 	int i, op, nitems, nscroll;
 	int error;
@@ -69,22 +85,34 @@ main(int argc, const char **argv) {
 	dialog_vars.item_help = TRUE;
 	nscroll = i = 0;
 
+	/* Revert changes on SIGINT */
+	signal(SIGINT, sigint_handler);
+
 	if (strcmp(basename(argv[0]), "autopart") == 0) { /* Guided */
 		prompt = "Please review the disk setup. When complete, press "
-		    "the Exit button.";
+		    "the Finish button.";
 		part_wizard();
 	} else {
 		prompt = "Create partitions for FreeBSD. No changes will be "
-		    "made until you select Exit.";
+		    "made until you select Finish.";
 	}
 
 	/* Show the part editor either immediately, or to confirm wizard */
 	while (1) {
-		error = geom_gettree(&mesh);
-		items = read_geom_mesh(&mesh, &nitems);
-		get_mount_points(items, nitems);
 		dlg_clear();
 		dlg_put_backtitle();
+
+		error = geom_gettree(&mesh);
+		if (error == 0)
+			items = read_geom_mesh(&mesh, &nitems);
+		if (error || items == NULL) {
+			dialog_msgbox("Error", "No disks found. If you need to "
+			    "install a kernel driver, choose Shell at the "
+			    "installation menu.", 0, 0, TRUE);
+			break;
+		}
+			
+		get_mount_points(items, nitems);
 
 		if (i >= nitems)
 			i = nitems - 1;
@@ -129,21 +157,24 @@ main(int argc, const char **argv) {
 
 		error = 0;
 		if (op == 5) { /* Finished */
-			dialog_vars.extra_button = TRUE;
+			dialog_vars.ok_label = __DECONST(char *, "Commit");
 			dialog_vars.extra_label =
-			    __DECONST(char *, "Abort");
-			dialog_vars.ok_label = __DECONST(char *, "Save");
+			    __DECONST(char *, "Revert & Exit");
+			dialog_vars.extra_button = TRUE;
+			dialog_vars.cancel_label = __DECONST(char *, "Back");
 			op = dialog_yesno("Confirmation", "Your changes will "
 			    "now be written to disk. If you have chosen to "
 			    "overwrite existing data, it will be PERMANENTLY "
-			    "ERASED. Are you sure you want to proceed?", 0, 0);
-			dialog_vars.extra_button = FALSE;
+			    "ERASED. Are you sure you want to commit your "
+			    "changes?", 0, 0);
 			dialog_vars.ok_label = NULL;
+			dialog_vars.extra_button = FALSE;
+			dialog_vars.cancel_label = NULL;
 
 			if (op == 0 && validate_setup()) { /* Save */
 				error = apply_changes(&mesh);
 				break;
-			} else if (op == 3) { /* Don't save => Quit */
+			} else if (op == 3) { /* Quit */
 				gpart_revert_all(&mesh);
 				error =	-1;
 				break;
@@ -181,7 +212,8 @@ get_part_metadata(const char *name, int create)
 }
 	
 void
-delete_part_metadata(const char *name) {
+delete_part_metadata(const char *name)
+{
 	struct partition_metadata *md;
 
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
@@ -305,7 +337,7 @@ apply_changes(struct gmesh *mesh)
 	fprintf(fstab, "# Device\tMountpoint\tFStype\tOptions\tDump\tPass#\n");
 	TAILQ_FOREACH(md, &part_metadata, metadata) {
 		if (md->fstab != NULL)
-			fprintf(fstab, "%s\t%s\t%s\t%s\t%d\t%d\n",
+			fprintf(fstab, "%s\t%s\t\t%s\t%s\t%d\t%d\n",
 			    md->fstab->fs_spec, md->fstab->fs_file,
 			    md->fstab->fs_vfstype, md->fstab->fs_mntops,
 			    md->fstab->fs_freq, md->fstab->fs_passno);
@@ -316,7 +348,8 @@ apply_changes(struct gmesh *mesh)
 }
 
 static struct partedit_item *
-read_geom_mesh(struct gmesh *mesh, int *nitems) {
+read_geom_mesh(struct gmesh *mesh, int *nitems)
+{
 	struct gclass *classp;
 	struct ggeom *gp;
 	struct partedit_item *items;
@@ -330,7 +363,7 @@ read_geom_mesh(struct gmesh *mesh, int *nitems) {
 	
 	LIST_FOREACH(classp, &mesh->lg_class, lg_class) {
 		if (strcmp(classp->lg_name, "DISK") != 0 &&
-		     strcmp(classp->lg_name, "MD") != 0)
+		    strcmp(classp->lg_name, "MD") != 0)
 			continue;
 
 		/* Now recurse into all children */
@@ -343,7 +376,8 @@ read_geom_mesh(struct gmesh *mesh, int *nitems) {
 
 static void
 add_geom_children(struct ggeom *gp, int recurse, struct partedit_item **items,
-    int *nitems) {
+    int *nitems)
+{
 	struct gconsumer *cp;
 	struct gprovider *pp;
 	struct gconfig *gc;

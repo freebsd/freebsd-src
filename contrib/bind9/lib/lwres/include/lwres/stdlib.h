@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: stdlib.h,v 1.6 2007/06/19 23:47:23 tbox Exp $ */
+/* $Id: stdlib.h,v 1.6 2007-06-19 23:47:23 tbox Exp $ */
 
 #ifndef LWRES_STDLIB_H
 #define LWRES_STDLIB_H 1

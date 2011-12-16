@@ -8,27 +8,18 @@
 //===----------------------------------------------------------------------===//
 //
 //  This file defines the ExternalASTSource interface, which enables
-//  construction of AST nodes from some external source.x
+//  construction of AST nodes from some external source.
 //
 //===----------------------------------------------------------------------===//
 #ifndef LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 #define LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H
 
 #include "clang/AST/DeclBase.h"
-#include <cassert>
-#include <vector>
-
-namespace llvm {
-template <class T> class SmallVectorImpl;
-}
 
 namespace clang {
 
 class ASTConsumer;
 class CXXBaseSpecifier;
-class Decl;
-class DeclContext;
-class DeclContextLookupResult;
 class DeclarationName;
 class ExternalSemaSource; // layering violation required for downcasting
 class NamedDecl;
@@ -36,6 +27,20 @@ class Selector;
 class Stmt;
 class TagDecl;
 
+/// \brief Enumeration describing the result of loading information from
+/// an external source.
+enum ExternalLoadResult {
+  /// \brief Loading the external information has succeeded.
+  ELR_Success,
+  
+  /// \brief Loading the external information has failed.
+  ELR_Failure,
+  
+  /// \brief The external information has already been loaded, and therefore
+  /// no additional processing is required.
+  ELR_AlreadyLoaded
+};
+  
 /// \brief Abstract interface for external sources of AST nodes.
 ///
 /// External AST sources provide AST nodes constructed from some
@@ -74,17 +79,23 @@ public:
   ///
   /// This method only needs to be implemented if the AST source ever
   /// passes back decl sets as VisibleDeclaration objects.
-  virtual Decl *GetExternalDecl(uint32_t ID) = 0;
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual Decl *GetExternalDecl(uint32_t ID);
 
   /// \brief Resolve a selector ID into a selector.
   ///
   /// This operation only needs to be implemented if the AST source
   /// returns non-zero for GetNumKnownSelectors().
-  virtual Selector GetExternalSelector(uint32_t ID) = 0;
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual Selector GetExternalSelector(uint32_t ID);
 
   /// \brief Returns the number of selectors known to the external AST
   /// source.
-  virtual uint32_t GetNumExternalSelectors() = 0;
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual uint32_t GetNumExternalSelectors();
 
   /// \brief Resolve the offset of a statement in the decl stream into
   /// a statement.
@@ -92,29 +103,26 @@ public:
   /// This operation is meant to be used via a LazyOffsetPtr.  It only
   /// needs to be implemented if the AST source uses methods like
   /// FunctionDecl::setLazyBody when building decls.
-  virtual Stmt *GetExternalDeclStmt(uint64_t Offset) = 0;
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual Stmt *GetExternalDeclStmt(uint64_t Offset);
 
   /// \brief Resolve the offset of a set of C++ base specifiers in the decl
   /// stream into an array of specifiers.
-  virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset) = 0;
-  
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual CXXBaseSpecifier *GetExternalCXXBaseSpecifiers(uint64_t Offset);
+
   /// \brief Finds all declarations with the given name in the
   /// given context.
   ///
   /// Generally the final step of this method is either to call
   /// SetExternalVisibleDeclsForName or to recursively call lookup on
   /// the DeclContext after calling SetExternalVisibleDecls.
-  virtual DeclContextLookupResult
-  FindExternalVisibleDeclsByName(const DeclContext *DC,
-                                 DeclarationName Name) = 0;
-
-  /// \brief Deserialize all the visible declarations from external storage.
   ///
-  /// Name lookup deserializes visible declarations lazily, thus a DeclContext
-  /// may not have a complete name lookup table. This function deserializes
-  /// the rest of visible declarations from the external storage and completes
-  /// the name lookup table of the DeclContext.
-  virtual void MaterializeVisibleDecls(const DeclContext *DC) = 0;
+  /// The default implementation of this method is a no-op.
+  virtual DeclContextLookupResult
+  FindExternalVisibleDeclsByName(const DeclContext *DC, DeclarationName Name);
 
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext, after applying an optional filter predicate.
@@ -123,23 +131,25 @@ public:
   /// declaration kind is one we are looking for. If NULL, all declarations
   /// are returned.
   ///
-  /// \return true if an error occurred
-  virtual bool FindExternalLexicalDecls(const DeclContext *DC,
+  /// \return an indication of whether the load succeeded or failed.
+  ///
+  /// The default implementation of this method is a no-op.
+  virtual ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
                                         bool (*isKindWeWant)(Decl::Kind),
-                                      llvm::SmallVectorImpl<Decl*> &Result) = 0;
+                                        SmallVectorImpl<Decl*> &Result);
 
   /// \brief Finds all declarations lexically contained within the given
   /// DeclContext.
   ///
   /// \return true if an error occurred
-  bool FindExternalLexicalDecls(const DeclContext *DC,
-                                llvm::SmallVectorImpl<Decl*> &Result) {
+  ExternalLoadResult FindExternalLexicalDecls(const DeclContext *DC,
+                                SmallVectorImpl<Decl*> &Result) {
     return FindExternalLexicalDecls(DC, 0, Result);
   }
 
   template <typename DeclTy>
-  bool FindExternalLexicalDeclsBy(const DeclContext *DC,
-                                llvm::SmallVectorImpl<Decl*> &Result) {
+  ExternalLoadResult FindExternalLexicalDeclsBy(const DeclContext *DC,
+                                  SmallVectorImpl<Decl*> &Result) {
     return FindExternalLexicalDecls(DC, DeclTy::classofKind, Result);
   }
 
@@ -154,7 +164,7 @@ public:
   /// set on the ObjCInterfaceDecl via the function 
   /// \c ObjCInterfaceDecl::setExternallyCompleted().
   virtual void CompleteType(ObjCInterfaceDecl *Class) { }
-  
+
   /// \brief Notify ExternalASTSource that we started deserialization of
   /// a decl or type so until FinishedDeserializing is called there may be
   /// decls that are initializing. Must be paired with FinishedDeserializing.
@@ -179,20 +189,38 @@ public:
   ///
   /// The default implementation of this method is a no-op.
   virtual void PrintStats();
+  
+  //===--------------------------------------------------------------------===//
+  // Queries for performance analysis.
+  //===--------------------------------------------------------------------===//
+  
+  struct MemoryBufferSizes {
+    size_t malloc_bytes;
+    size_t mmap_bytes;
+    
+    MemoryBufferSizes(size_t malloc_bytes, size_t mmap_bytes)
+    : malloc_bytes(malloc_bytes), mmap_bytes(mmap_bytes) {}
+  };
+  
+  /// Return the amount of memory used by memory buffers, breaking down
+  /// by heap-backed versus mmap'ed memory.
+  MemoryBufferSizes getMemoryBufferSizes() const {
+    MemoryBufferSizes sizes(0, 0);
+    getMemoryBufferSizes(sizes);
+    return sizes;
+  }
+
+  virtual void getMemoryBufferSizes(MemoryBufferSizes &sizes) const;
 
 protected:
   static DeclContextLookupResult
   SetExternalVisibleDeclsForName(const DeclContext *DC,
                                  DeclarationName Name,
-                                 llvm::SmallVectorImpl<NamedDecl*> &Decls);
+                                 ArrayRef<NamedDecl*> Decls);
 
   static DeclContextLookupResult
   SetNoExternalVisibleDeclsForName(const DeclContext *DC,
                                    DeclarationName Name);
-
-  void MaterializeVisibleDeclsForName(const DeclContext *DC,
-                                      DeclarationName Name,
-                                 llvm::SmallVectorImpl<NamedDecl*> &Decls);
 };
 
 /// \brief A lazy pointer to an AST node (of base type T) that resides
@@ -258,6 +286,178 @@ public:
   }
 };
 
+/// \brief Represents a lazily-loaded vector of data.
+///
+/// The lazily-loaded vector of data contains data that is partially loaded
+/// from an external source and partially added by local translation. The 
+/// items loaded from the external source are loaded lazily, when needed for
+/// iteration over the complete vector.
+template<typename T, typename Source, 
+         void (Source::*Loader)(SmallVectorImpl<T>&),
+         unsigned LoadedStorage = 2, unsigned LocalStorage = 4>
+class LazyVector {
+  SmallVector<T, LoadedStorage> Loaded;
+  SmallVector<T, LocalStorage> Local;
+
+public:
+  // Iteration over the elements in the vector.
+  class iterator {
+    LazyVector *Self;
+    
+    /// \brief Position within the vector..
+    ///
+    /// In a complete iteration, the Position field walks the range [-M, N),
+    /// where negative values are used to indicate elements
+    /// loaded from the external source while non-negative values are used to
+    /// indicate elements added via \c push_back().
+    /// However, to provide iteration in source order (for, e.g., chained
+    /// precompiled headers), dereferencing the iterator flips the negative
+    /// values (corresponding to loaded entities), so that position -M 
+    /// corresponds to element 0 in the loaded entities vector, position -M+1
+    /// corresponds to element 1 in the loaded entities vector, etc. This
+    /// gives us a reasonably efficient, source-order walk.
+    int Position;
+    
+    friend class LazyVector;
+    
+  public:
+    typedef T                   value_type;
+    typedef value_type&         reference;
+    typedef value_type*         pointer;
+    typedef std::random_access_iterator_tag iterator_category;
+    typedef int                 difference_type;
+    
+    iterator() : Self(0), Position(0) { }
+    
+    iterator(LazyVector *Self, int Position) 
+      : Self(Self), Position(Position) { }
+    
+    reference operator*() const {
+      if (Position < 0)
+        return Self->Loaded.end()[Position];
+      return Self->Local[Position];
+    }
+    
+    pointer operator->() const {
+      if (Position < 0)
+        return &Self->Loaded.end()[Position];
+      
+      return &Self->Local[Position];        
+    }
+    
+    reference operator[](difference_type D) {
+      return *(*this + D);
+    }
+    
+    iterator &operator++() {
+      ++Position;
+      return *this;
+    }
+    
+    iterator operator++(int) {
+      iterator Prev(*this);
+      ++Position;
+      return Prev;
+    }
+    
+    iterator &operator--() {
+      --Position;
+      return *this;
+    }
+    
+    iterator operator--(int) {
+      iterator Prev(*this);
+      --Position;
+      return Prev;
+    }
+    
+    friend bool operator==(const iterator &X, const iterator &Y) {
+      return X.Position == Y.Position;
+    }
+    
+    friend bool operator!=(const iterator &X, const iterator &Y) {
+      return X.Position != Y.Position;
+    }
+    
+    friend bool operator<(const iterator &X, const iterator &Y) {
+      return X.Position < Y.Position;
+    }
+    
+    friend bool operator>(const iterator &X, const iterator &Y) {
+      return X.Position > Y.Position;
+    }
+    
+    friend bool operator<=(const iterator &X, const iterator &Y) {
+      return X.Position < Y.Position;
+    }
+    
+    friend bool operator>=(const iterator &X, const iterator &Y) {
+      return X.Position > Y.Position;
+    }
+    
+    friend iterator& operator+=(iterator &X, difference_type D) {
+      X.Position += D;
+      return X;
+    }
+    
+    friend iterator& operator-=(iterator &X, difference_type D) {
+      X.Position -= D;
+      return X;
+    }
+    
+    friend iterator operator+(iterator X, difference_type D) {
+      X.Position += D;
+      return X;
+    }
+    
+    friend iterator operator+(difference_type D, iterator X) {
+      X.Position += D;
+      return X;
+    }
+    
+    friend difference_type operator-(const iterator &X, const iterator &Y) {
+      return X.Position - Y.Position;
+    }
+    
+    friend iterator operator-(iterator X, difference_type D) {
+      X.Position -= D;
+      return X;
+    }
+  };
+  friend class iterator;
+  
+  iterator begin(Source *source, bool LocalOnly = false) {
+    if (LocalOnly)
+      return iterator(this, 0);
+    
+    if (source)
+      (source->*Loader)(Loaded);
+    return iterator(this, -(int)Loaded.size());
+  }
+  
+  iterator end() {
+    return iterator(this, Local.size());
+  }
+  
+  void push_back(const T& LocalValue) {
+    Local.push_back(LocalValue);
+  }
+  
+  void erase(iterator From, iterator To) {
+    if (From.Position < 0 && To.Position < 0) {
+      Loaded.erase(Loaded.end() + From.Position, Loaded.end() + To.Position);
+      return;
+    }
+    
+    if (From.Position < 0) {
+      Loaded.erase(Loaded.end() + From.Position, Loaded.end());
+      From = begin(0, true);
+    }
+    
+    Local.erase(Local.begin() + From.Position, Local.begin() + To.Position);
+  }
+};
+
 /// \brief A lazy pointer to a statement.
 typedef LazyOffsetPtr<Stmt, uint64_t, &ExternalASTSource::GetExternalDeclStmt>
   LazyDeclStmtPtr;
@@ -270,7 +470,7 @@ typedef LazyOffsetPtr<Decl, uint32_t, &ExternalASTSource::GetExternalDecl>
 typedef LazyOffsetPtr<CXXBaseSpecifier, uint64_t, 
                       &ExternalASTSource::GetExternalCXXBaseSpecifiers>
   LazyCXXBaseSpecifiersPtr;
-  
+
 } // end namespace clang
 
 #endif // LLVM_CLANG_AST_EXTERNAL_AST_SOURCE_H

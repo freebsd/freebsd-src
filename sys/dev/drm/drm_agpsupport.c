@@ -51,7 +51,7 @@ drm_device_find_capability(struct drm_device *dev, int cap)
 {
 #if __FreeBSD_version >= 602102
 
-	return (pci_find_extcap(dev->device, cap, NULL) == 0);
+	return (pci_find_cap(dev->device, cap, NULL) == 0);
 #else
 	/* Code taken from agp.c.  IWBNI that was a public interface. */
 	u_int32_t status;

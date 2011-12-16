@@ -79,7 +79,8 @@
 #ifdef USB_DEBUG
 static int uss820dcidebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uss820dci, CTLFLAG_RW, 0, "USB uss820dci");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uss820dci, CTLFLAG_RW, 0,
+    "USB uss820dci");
 SYSCTL_INT(_hw_usb_uss820dci, OID_AUTO, debug, CTLFLAG_RW,
     &uss820dcidebug, 0, "uss820dci debug level");
 #endif
@@ -1512,16 +1513,16 @@ uss820dci_uninit(struct uss820dci_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 uss820dci_suspend(struct uss820dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 uss820dci_resume(struct uss820dci_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -2359,6 +2360,26 @@ uss820dci_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc
 	}
 }
 
+static void
+uss820dci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct uss820dci_softc *sc = USS820_DCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		uss820dci_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		uss820dci_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		uss820dci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods uss820dci_bus_methods =
 {
 	.endpoint_init = &uss820dci_ep_init,
@@ -2369,4 +2390,5 @@ struct usb_bus_methods uss820dci_bus_methods =
 	.clear_stall = &uss820dci_clear_stall,
 	.roothub_exec = &uss820dci_roothub_exec,
 	.xfer_poll = &uss820dci_do_poll,
+	.set_hw_power_sleep = uss820dci_set_hw_power_sleep,
 };

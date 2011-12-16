@@ -27,7 +27,6 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/Statistic.h"
 #include "llvm/Support/CFG.h"
-#include <set>
 #include <algorithm>
 using namespace llvm;
 
@@ -102,8 +101,9 @@ bool PruneEH::runOnSCC(CallGraphSCC &SCC) {
       // Check to see if this function performs an unwind or calls an
       // unwinding function.
       for (Function::iterator BB = F->begin(), E = F->end(); BB != E; ++BB) {
-        if (CheckUnwind && isa<UnwindInst>(BB->getTerminator())) {
-          // Uses unwind!
+        if (CheckUnwind && (isa<UnwindInst>(BB->getTerminator()) ||
+                            isa<ResumeInst>(BB->getTerminator()))) {
+          // Uses unwind / resume!
           SCCMightUnwind = true;
         } else if (CheckReturn && isa<ReturnInst>(BB->getTerminator())) {
           SCCMightReturn = true;
@@ -176,11 +176,11 @@ bool PruneEH::SimplifyFunction(Function *F) {
       if (II->doesNotThrow()) {
         SmallVector<Value*, 8> Args(II->op_begin(), II->op_end() - 3);
         // Insert a call instruction before the invoke.
-        CallInst *Call = CallInst::Create(II->getCalledValue(),
-                                          Args.begin(), Args.end(), "", II);
+        CallInst *Call = CallInst::Create(II->getCalledValue(), Args, "", II);
         Call->takeName(II);
         Call->setCallingConv(II->getCallingConv());
         Call->setAttributes(II->getAttributes());
+        Call->setDebugLoc(II->getDebugLoc());
 
         // Anything that used the value produced by the invoke instruction
         // now uses the value produced by the call instruction.  Note that we
@@ -239,7 +239,7 @@ void PruneEH::DeleteBasicBlock(BasicBlock *BB) {
   for (BasicBlock::iterator I = BB->end(), E = BB->begin(); I != E; ) {
     --I;
     if (CallInst *CI = dyn_cast<CallInst>(I)) {
-      if (!isa<DbgInfoIntrinsic>(I))
+      if (!isa<IntrinsicInst>(I))
         CGN->removeCallEdgeFor(CI);
     } else if (InvokeInst *II = dyn_cast<InvokeInst>(I))
       CGN->removeCallEdgeFor(II);

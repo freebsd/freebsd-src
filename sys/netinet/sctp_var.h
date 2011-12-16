@@ -50,6 +50,30 @@ extern struct pr_usrreqs sctp_usrreqs;
 #define sctp_is_feature_on(inp, feature) ((inp->sctp_features & feature) == feature)
 #define sctp_is_feature_off(inp, feature) ((inp->sctp_features & feature) == 0)
 
+#define sctp_stcb_feature_on(inp, stcb, feature) {\
+	if (stcb) { \
+		stcb->asoc.sctp_features |= feature; \
+	} else { \
+		inp->sctp_features |= feature; \
+	} \
+}
+#define sctp_stcb_feature_off(inp, stcb, feature) {\
+	if (stcb) { \
+		stcb->asoc.sctp_features &= ~feature; \
+	} else { \
+		inp->sctp_features &= ~feature; \
+	} \
+}
+#define sctp_stcb_is_feature_on(inp, stcb, feature) \
+	(((stcb != NULL) && \
+	  ((stcb->asoc.sctp_features & feature) == feature)) || \
+	 ((stcb == NULL) && \
+	  ((inp->sctp_features & feature) == feature)))
+#define sctp_stcb_is_feature_off(inp, stcb, feature) \
+	(((stcb != NULL) && \
+	  ((stcb->asoc.sctp_features & feature) == 0)) || \
+	 ((stcb == NULL) && \
+	  ((inp->sctp_features & feature) == 0)))
 
 /* managing mobility_feature in inpcb (by micchie) */
 #define sctp_mobility_feature_on(inp, feature)  (inp->sctp_mobility_features |= feature)
@@ -87,9 +111,9 @@ extern struct pr_usrreqs sctp_usrreqs;
 	} \
 }
 
-#define sctp_free_a_strmoq(_stcb, _strmoq) { \
+#define sctp_free_a_strmoq(_stcb, _strmoq, _so_locked) { \
 	if ((_strmoq)->holds_key_ref) { \
-		sctp_auth_key_release(stcb, sp->auth_keyid); \
+		sctp_auth_key_release(stcb, sp->auth_keyid, _so_locked); \
 		(_strmoq)->holds_key_ref = 0; \
 	} \
 	SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_strmoq), (_strmoq)); \
@@ -105,9 +129,9 @@ extern struct pr_usrreqs sctp_usrreqs;
  	} \
 }
 
-#define sctp_free_a_chunk(_stcb, _chk) { \
+#define sctp_free_a_chunk(_stcb, _chk, _so_locked) { \
 	if ((_chk)->holds_key_ref) {\
-		sctp_auth_key_release((_stcb), (_chk)->auth_keyid); \
+		sctp_auth_key_release((_stcb), (_chk)->auth_keyid, _so_locked); \
 		(_chk)->holds_key_ref = 0; \
 	} \
         if (_stcb) { \
@@ -155,7 +179,6 @@ extern struct pr_usrreqs sctp_usrreqs;
 		if (SCTP_DECREMENT_AND_CHECK_REFCOUNT(&(__net)->ref_count)) { \
 			(void)SCTP_OS_TIMER_STOP(&(__net)->rxt_timer.timer); \
 			(void)SCTP_OS_TIMER_STOP(&(__net)->pmtu_timer.timer); \
-			(void)SCTP_OS_TIMER_STOP(&(__net)->fr_timer.timer); \
                         if ((__net)->ro.ro_rt) { \
 				RTFREE((__net)->ro.ro_rt); \
 				(__net)->ro.ro_rt = NULL; \
@@ -165,7 +188,7 @@ extern struct pr_usrreqs sctp_usrreqs;
 				(__net)->ro._s_addr = NULL; \
 			} \
                         (__net)->src_addr_selected = 0; \
-			(__net)->dest_state = SCTP_ADDR_NOT_REACHABLE; \
+			(__net)->dest_state &= ~SCTP_ADDR_REACHABLE; \
 			SCTP_ZONE_FREE(SCTP_BASE_INFO(ipi_zone_net), (__net)); \
 			SCTP_DECR_RADDR_COUNT(); \
 		} \
@@ -288,6 +311,8 @@ extern struct pr_usrreqs sctp_usrreqs;
 
 #endif
 
+#define SCTP_PF_ENABLED(_net) (_net->pf_threshold < _net->failure_threshold)
+#define SCTP_NET_IS_PF(_net) (_net->pf_threshold < _net->error_count)
 
 struct sctp_nets;
 struct sctp_inpcb;
@@ -300,8 +325,15 @@ int sctp_disconnect(struct socket *so);
 
 void sctp_ctlinput __P((int, struct sockaddr *, void *));
 int sctp_ctloutput __P((struct socket *, struct sockopt *));
+
+#ifdef INET
 void sctp_input_with_port __P((struct mbuf *, int, uint16_t));
+
+#endif
+#ifdef INET
 void sctp_input __P((struct mbuf *, int));
+
+#endif
 void sctp_pathmtu_adjustment __P((struct sctp_inpcb *, struct sctp_tcb *, struct sctp_nets *, uint16_t));
 void sctp_drain __P((void));
 void sctp_init __P((void));

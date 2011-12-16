@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb.h>
 #include <dev/usb/usbdi.h>
 #include <dev/usb/usbdi_util.h>
+#include <dev/usb/usb_ioctl.h>
 #include "usbdevs.h"
 
 #define	USB_DEBUG_VAR uslcom_debug
@@ -52,7 +53,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uslcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uslcom, CTLFLAG_RW, 0, "USB uslcom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uslcom, CTLFLAG_RW, 0, "USB uslcom");
 SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
     &uslcom_debug, 0, "Debug level");
 #endif
@@ -63,49 +64,72 @@ SYSCTL_INT(_hw_usb_uslcom, OID_AUTO, debug, CTLFLAG_RW,
 
 #define	USLCOM_SET_DATA_BITS(x)	((x) << 8)
 
+/* Request types */
 #define	USLCOM_WRITE		0x41
 #define	USLCOM_READ		0xc1
 
+/* Request codes */
 #define	USLCOM_UART		0x00
 #define	USLCOM_BAUD_RATE	0x01	
 #define	USLCOM_DATA		0x03
 #define	USLCOM_BREAK		0x05
 #define	USLCOM_CTRL		0x07
+#define	USLCOM_RCTRL            0x08
+#define	USLCOM_SET_FLOWCTRL     0x13
+#define	USLCOM_VENDOR_SPECIFIC	0xff
 
+/* USLCOM_UART values */
 #define	USLCOM_UART_DISABLE	0x00
 #define	USLCOM_UART_ENABLE	0x01
 
+/* USLCOM_CTRL/USLCOM_RCTRL values */
 #define	USLCOM_CTRL_DTR_ON	0x0001	
 #define	USLCOM_CTRL_DTR_SET	0x0100
 #define	USLCOM_CTRL_RTS_ON	0x0002
 #define	USLCOM_CTRL_RTS_SET	0x0200
 #define	USLCOM_CTRL_CTS		0x0010
 #define	USLCOM_CTRL_DSR		0x0020
+#define	USLCOM_CTRL_RI          0x0040
 #define	USLCOM_CTRL_DCD		0x0080
 
+/* USLCOM_BAUD_RATE values */
 #define	USLCOM_BAUD_REF		0x384000
 
+/* USLCOM_DATA values */
 #define	USLCOM_STOP_BITS_1	0x00
 #define	USLCOM_STOP_BITS_2	0x02
-
 #define	USLCOM_PARITY_NONE	0x00
 #define	USLCOM_PARITY_ODD	0x10
 #define	USLCOM_PARITY_EVEN	0x20
 
-#define	USLCOM_PORT_NO		0xFFFF /* XXX think this should be 0 --hps */
+#define	USLCOM_PORT_NO		0x0000
 
+/* USLCOM_BREAK values */
 #define	USLCOM_BREAK_OFF	0x00
 #define	USLCOM_BREAK_ON		0x01
+
+/* USLCOM_SET_FLOWCTRL values - 1st word */
+#define	USLCOM_FLOW_DTR_ON      0x00000001 /* DTR static active */
+#define	USLCOM_FLOW_CTS_HS      0x00000008 /* CTS handshake */
+/* USLCOM_SET_FLOWCTRL values - 2nd word */
+#define	USLCOM_FLOW_RTS_ON      0x00000040 /* RTS static active */
+#define	USLCOM_FLOW_RTS_HS      0x00000080 /* RTS handshake */
+
+/* USLCOM_VENDOR_SPECIFIC values */
+#define	USLCOM_WRITE_LATCH	0x37E1
+#define	USLCOM_READ_LATCH	0x00C2
 
 enum {
 	USLCOM_BULK_DT_WR,
 	USLCOM_BULK_DT_RD,
+	USLCOM_CTRL_DT_RD,
 	USLCOM_N_TRANSFER,
 };
 
 struct uslcom_softc {
 	struct ucom_super_softc sc_super_ucom;
 	struct ucom_softc sc_ucom;
+	struct usb_callout sc_watchdog;
 
 	struct usb_xfer *sc_xfer[USLCOM_N_TRANSFER];
 	struct usb_device *sc_udev;
@@ -121,12 +145,15 @@ static device_detach_t uslcom_detach;
 
 static usb_callback_t uslcom_write_callback;
 static usb_callback_t uslcom_read_callback;
+static usb_callback_t uslcom_control_callback;
 
 static void uslcom_open(struct ucom_softc *);
 static void uslcom_close(struct ucom_softc *);
 static void uslcom_set_dtr(struct ucom_softc *, uint8_t);
 static void uslcom_set_rts(struct ucom_softc *, uint8_t);
 static void uslcom_set_break(struct ucom_softc *, uint8_t);
+static int uslcom_ioctl(struct ucom_softc *, uint32_t, caddr_t, int,
+		struct thread *);
 static int uslcom_pre_param(struct ucom_softc *, struct termios *);
 static void uslcom_param(struct ucom_softc *, struct termios *);
 static void uslcom_get_status(struct ucom_softc *, uint8_t *, uint8_t *);
@@ -143,7 +170,7 @@ static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = USLCOM_BULK_BUF_SIZE,
-		.flags = {.pipe_bof = 1,.force_short_xfer = 1,},
+               .flags = {.pipe_bof = 1,},
 		.callback = &uslcom_write_callback,
 	},
 
@@ -155,6 +182,15 @@ static const struct usb_config uslcom_config[USLCOM_N_TRANSFER] = {
 		.flags = {.pipe_bof = 1,.short_xfer_ok = 1,},
 		.callback = &uslcom_read_callback,
 	},
+	[USLCOM_CTRL_DT_RD] = {
+		.type = UE_CONTROL,
+		.endpoint = 0x00,
+		.direction = UE_DIR_ANY,
+		.bufsize = sizeof(struct usb_device_request) + 8,
+		.flags = {.pipe_bof = 1,},
+		.callback = &uslcom_control_callback,
+		.timeout = 1000,	/* 1 second timeout */
+	},
 };
 
 static struct ucom_callback uslcom_callback = {
@@ -164,6 +200,7 @@ static struct ucom_callback uslcom_callback = {
 	.ucom_cfg_set_dtr = &uslcom_set_dtr,
 	.ucom_cfg_set_rts = &uslcom_set_rts,
 	.ucom_cfg_set_break = &uslcom_set_break,
+	.ucom_ioctl = &uslcom_ioctl,
 	.ucom_cfg_param = &uslcom_param,
 	.ucom_pre_param = &uslcom_pre_param,
 	.ucom_start_read = &uslcom_start_read,
@@ -173,7 +210,7 @@ static struct ucom_callback uslcom_callback = {
 	.ucom_poll = &uslcom_poll,
 };
 
-static const struct usb_device_id uslcom_devs[] = {
+static const STRUCT_USB_HOST_ID uslcom_devs[] = {
 #define	USLCOM_DEV(v,p)  { USB_VP(USB_VENDOR_##v, USB_PRODUCT_##v##_##p) }
     USLCOM_DEV(BALTECH, CARDREADER),
     USLCOM_DEV(CLIPSAL, 5500PCU),
@@ -280,6 +317,19 @@ MODULE_DEPEND(uslcom, ucom, 1, 1, 1);
 MODULE_DEPEND(uslcom, usb, 1, 1, 1);
 MODULE_VERSION(uslcom, 1);
 
+static void
+uslcom_watchdog(void *arg)
+{
+	struct uslcom_softc *sc = arg;
+
+	mtx_assert(&sc->sc_mtx, MA_OWNED);
+
+	usbd_transfer_start(sc->sc_xfer[USLCOM_CTRL_DT_RD]);
+
+	usb_callout_reset(&sc->sc_watchdog,
+	    hz / 4, &uslcom_watchdog, sc);
+}
+
 static int
 uslcom_probe(device_t dev)
 {
@@ -310,6 +360,7 @@ uslcom_attach(device_t dev)
 
 	device_set_usb_desc(dev);
 	mtx_init(&sc->sc_mtx, "uslcom", NULL, MTX_DEF);
+	usb_callout_init_mtx(&sc->sc_watchdog, &sc->sc_mtx, 0);
 
 	sc->sc_udev = uaa->device;
 
@@ -350,6 +401,8 @@ uslcom_detach(device_t dev)
 
 	ucom_detach(&sc->sc_super_ucom, &sc->sc_ucom);
 	usbd_transfer_unsetup(sc->sc_xfer, USLCOM_N_TRANSFER);
+
+	usb_callout_drain(&sc->sc_watchdog);
 	mtx_destroy(&sc->sc_mtx);
 
 	return (0);
@@ -371,6 +424,9 @@ uslcom_open(struct ucom_softc *ucom)
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("UART enable failed (ignored)\n");
 	}
+
+	/* start polling status */
+	uslcom_watchdog(sc);
 }
 
 static void
@@ -379,13 +435,16 @@ uslcom_close(struct ucom_softc *ucom)
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
 
+	/* stop polling status */
+	usb_callout_stop(&sc->sc_watchdog);
+
 	req.bmRequestType = USLCOM_WRITE;
 	req.bRequest = USLCOM_UART;
 	USETW(req.wValue, USLCOM_UART_DISABLE);
 	USETW(req.wIndex, USLCOM_PORT_NO);
 	USETW(req.wLength, 0);
 
-        if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("UART disable failed (ignored)\n");
 	}
@@ -452,6 +511,7 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 {
 	struct uslcom_softc *sc = ucom->sc_parent;
 	struct usb_device_request req;
+	uint32_t flowctrl[4];
 	uint16_t data;
 
 	DPRINTF("\n");
@@ -503,7 +563,28 @@ uslcom_param(struct ucom_softc *ucom, struct termios *t)
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Set format failed (ignored)\n");
 	}
-	return;
+       
+	if (t->c_cflag & CRTSCTS) {
+		flowctrl[0] = htole32(USLCOM_FLOW_DTR_ON | USLCOM_FLOW_CTS_HS);
+		flowctrl[1] = htole32(USLCOM_FLOW_RTS_HS);
+		flowctrl[2] = 0;
+		flowctrl[3] = 0;
+	} else {
+		flowctrl[0] = htole32(USLCOM_FLOW_DTR_ON);
+		flowctrl[1] = htole32(USLCOM_FLOW_RTS_ON);
+		flowctrl[2] = 0;
+		flowctrl[3] = 0;
+	}
+	req.bmRequestType = USLCOM_WRITE;
+	req.bRequest = USLCOM_SET_FLOWCTRL;
+	USETW(req.wValue, 0);
+	USETW(req.wIndex, USLCOM_PORT_NO);
+	USETW(req.wLength, sizeof(flowctrl));
+
+	if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+	    &req, flowctrl, 0, 1000)) {
+		DPRINTF("Set flowcontrol failed (ignored)\n");
+	}
 }
 
 static void
@@ -534,6 +615,55 @@ uslcom_set_break(struct ucom_softc *ucom, uint8_t onoff)
 	    &req, NULL, 0, 1000)) {
 		DPRINTF("Set BREAK failed (ignored)\n");
 	}
+}
+
+static int
+uslcom_ioctl(struct ucom_softc *ucom, uint32_t cmd, caddr_t data,
+    int flag, struct thread *td)
+{
+	struct uslcom_softc *sc = ucom->sc_parent;
+	struct usb_device_request req;
+	int error = 0;
+	uint8_t latch;
+
+	DPRINTF("cmd=0x%08x\n", cmd);
+
+	switch (cmd) {
+	case USB_GET_GPIO:
+		req.bmRequestType = USLCOM_READ;
+		req.bRequest = USLCOM_VENDOR_SPECIFIC;
+		USETW(req.wValue, USLCOM_READ_LATCH);
+		USETW(req.wIndex, 0);
+		USETW(req.wLength, sizeof(latch));
+
+		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		    &req, &latch, 0, 1000)) {
+			DPRINTF("Get LATCH failed\n");
+			error = EIO;
+		}
+		*(int *)data = latch;
+		break;
+
+	case USB_SET_GPIO:
+		req.bmRequestType = USLCOM_WRITE;
+		req.bRequest = USLCOM_VENDOR_SPECIFIC;
+		USETW(req.wValue, USLCOM_WRITE_LATCH);
+		USETW(req.wIndex, (*(int *)data));
+		USETW(req.wLength, 0);
+		
+		if (ucom_cfg_do_request(sc->sc_udev, &sc->sc_ucom, 
+		    &req, NULL, 0, 1000)) {
+			DPRINTF("Set LATCH failed\n");
+			error = EIO;
+		}
+		break;
+
+	default:
+		DPRINTF("Unknown IOCTL\n");
+		error = ENOIOCTL;
+		break;
+	}
+	return (error);
 }
 
 static void
@@ -595,6 +725,59 @@ tr_setup:
 			goto tr_setup;
 		}
 		return;
+	}
+}
+
+static void
+uslcom_control_callback(struct usb_xfer *xfer, usb_error_t error)
+{
+	struct uslcom_softc *sc = usbd_xfer_softc(xfer);
+	struct usb_page_cache *pc;
+	struct usb_device_request req;
+	uint8_t msr = 0;
+	uint8_t buf;
+
+	switch (USB_GET_STATE(xfer)) {
+	case USB_ST_TRANSFERRED:
+		pc = usbd_xfer_get_frame(xfer, 1);
+		usbd_copy_out(pc, 0, &buf, sizeof(buf));
+		if (buf & USLCOM_CTRL_CTS)
+			msr |= SER_CTS;
+		if (buf & USLCOM_CTRL_DSR)
+			msr |= SER_DSR;
+		if (buf & USLCOM_CTRL_RI)
+			msr |= SER_RI;
+		if (buf & USLCOM_CTRL_DCD)
+			msr |= SER_DCD;
+
+		if (msr != sc->sc_msr) {
+			DPRINTF("status change msr=0x%02x "
+			    "(was 0x%02x)\n", msr, sc->sc_msr);
+			sc->sc_msr = msr;
+			ucom_status_change(&sc->sc_ucom);
+		}
+		break;
+
+	case USB_ST_SETUP:
+		req.bmRequestType = USLCOM_READ;
+		req.bRequest = USLCOM_RCTRL;
+		USETW(req.wValue, 0);
+		USETW(req.wIndex, USLCOM_PORT_NO);
+		USETW(req.wLength, sizeof(buf));
+               
+		usbd_xfer_set_frames(xfer, 2);
+		usbd_xfer_set_frame_len(xfer, 0, sizeof(req));
+		usbd_xfer_set_frame_len(xfer, 1, sizeof(buf));
+
+		pc = usbd_xfer_get_frame(xfer, 0);
+		usbd_copy_in(pc, 0, &req, sizeof(req));
+		usbd_transfer_submit(xfer);
+		break;
+
+	default:		/* error */
+		if (error != USB_ERR_CANCELLED)
+			DPRINTF("error=%s\n", usbd_errstr(error));
+		break;
 	}
 }
 

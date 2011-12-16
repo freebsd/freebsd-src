@@ -590,7 +590,7 @@ macro_input (char *buffer, unsigned size)
 void
 yyerror (const char *s)
 {
-  error_at_line (&lexer_line, s);
+  error_at_line (&lexer_line, "%s", s);
 }
 
 void

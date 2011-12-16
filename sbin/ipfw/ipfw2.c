@@ -21,6 +21,7 @@
  */
 
 #include <sys/types.h>
+#include <sys/param.h>
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
@@ -210,9 +211,11 @@ static struct _s_x rule_actions[] = {
 	{ "unreach",		TOK_UNREACH },
 	{ "check-state",	TOK_CHECKSTATE },
 	{ "//",			TOK_COMMENT },
-	{ "nat",                TOK_NAT },
+	{ "nat",		TOK_NAT },
 	{ "reass",		TOK_REASS },
 	{ "setfib",		TOK_SETFIB },
+	{ "call",		TOK_CALL },
+	{ "return",		TOK_RETURN },
 	{ NULL, 0 }	/* terminator */
 };
 
@@ -380,8 +383,8 @@ do_cmd(int optname, void *optval, uintptr_t optlen)
 
 	if (optname == IP_FW_GET || optname == IP_DUMMYNET_GET ||
 	    optname == IP_FW_ADD || optname == IP_FW_TABLE_LIST ||
-	    optname == IP_FW_TABLE_GETSIZE || 
-	    optname == IP_FW_NAT_GET_CONFIG || 
+	    optname == IP_FW_TABLE_GETSIZE ||
+	    optname == IP_FW_NAT_GET_CONFIG ||
 	    optname < 0 ||
 	    optname == IP_FW_NAT_GET_LOG) {
 		if (optname < 0)
@@ -435,7 +438,7 @@ match_value(struct _s_x *p, int value)
 int
 _substrcmp(const char *str1, const char* str2)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str1)) != 0)
 		return 1;
 
@@ -463,7 +466,7 @@ _substrcmp(const char *str1, const char* str2)
 int
 _substrcmp2(const char *str1, const char* str2, const char* str3)
 {
-	
+
 	if (strncmp(str1, str2, strlen(str2)) != 0)
 		return 1;
 
@@ -1028,7 +1031,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	/*
 	 * first print actions
 	 */
-        for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
+	for (l = rule->cmd_len - rule->act_ofs, cmd = ACTION_PTR(rule);
 			l > 0 ; l -= F_LEN(cmd), cmd += F_LEN(cmd)) {
 		switch(cmd->opcode) {
 		case O_CHECK_STATE:
@@ -1108,6 +1111,18 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		    }
 			break;
 
+		case O_FORWARD_IP6:
+		    {
+			char buf[4 + INET6_ADDRSTRLEN + 1];
+			ipfw_insn_sa6 *s = (ipfw_insn_sa6 *)cmd;
+
+			printf("fwd %s", inet_ntop(AF_INET6, &s->sa.sin6_addr,
+			    buf, sizeof(buf)));
+			if (s->sa.sin6_port)
+				printf(",%d", s->sa.sin6_port);
+		    }
+			break;
+
 		case O_LOG: /* O_LOG is printed last */
 			logptr = (ipfw_insn_log *)cmd;
 			break;
@@ -1121,9 +1136,12 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 			break;
 
 		case O_NAT:
-			PRINT_UINT_ARG("nat ", cmd->arg1);
- 			break;
-			
+			if (cmd->arg1 != 0)
+				PRINT_UINT_ARG("nat ", cmd->arg1);
+			else
+				printf("nat global");
+			break;
+
 		case O_SETFIB:
 			PRINT_UINT_ARG("setfib ", cmd->arg1);
  			break;
@@ -1131,7 +1149,14 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		case O_REASS:
 			printf("reass");
 			break;
-			
+
+		case O_CALLRETURN:
+			if (cmd->len & F_NOT)
+				printf("return");
+			else
+				PRINT_UINT_ARG("call ", cmd->arg1);
+			break;
+
 		default:
 			printf("** unrecognized action %d len %d ",
 				cmd->opcode, cmd->len);
@@ -1158,7 +1183,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	/*
 	 * then print the body.
 	 */
-        for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		if ((cmd->len & F_OR) || (cmd->len & F_NOT))
 			continue;
@@ -1168,7 +1193,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		} else if (cmd->opcode == O_IP6) {
 			flags |= HAVE_PROTO6;
 			break;
-		}			
+		}
 	}
 	if (rule->_pad & 1) {	/* empty rules before options */
 		if (!co.do_compact) {
@@ -1182,7 +1207,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 	if (co.comment_only)
 		comment = "...";
 
-        for (l = rule->act_ofs, cmd = rule->cmd ;
+	for (l = rule->act_ofs, cmd = rule->cmd ;
 			l > 0 ; l -= F_LEN(cmd) , cmd += F_LEN(cmd)) {
 		/* useful alias */
 		ipfw_insn_u32 *cmd32 = (ipfw_insn_u32 *)cmd;
@@ -1269,6 +1294,8 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				HAVE_PROTO | HAVE_SRCIP |
 				HAVE_DSTIP | HAVE_IP, 0);
 		case O_IP_SRCPORT:
+			if (flags & HAVE_DSTIP)
+				flags |= HAVE_IP;
 			show_prerequisites(&flags,
 				HAVE_PROTO | HAVE_SRCIP, 0);
 			if ((cmd->len & F_OR) && !or_block)
@@ -1569,7 +1596,7 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 		}
 	}
 	show_prerequisites(&flags, HAVE_PROTO | HAVE_SRCIP | HAVE_DSTIP
-				              | HAVE_IP, 0);
+					      | HAVE_IP, 0);
 	if (comment)
 		printf(" // %s", comment);
 	printf("\n");
@@ -1625,7 +1652,7 @@ show_dyn_ipfw(ipfw_dyn_rule *d, int pcwidth, int bcwidth)
 		    sizeof(buf)), d->id.dst_port);
 	} else
 		printf(" UNKNOWN <-> UNKNOWN\n");
-	
+
 	printf("\n");
 }
 
@@ -2198,7 +2225,6 @@ n2mask(struct in6_addr *mask, int n)
 	}
 	return;
 }
- 
 
 /*
  * helper function to process a set of flags and set bits in the
@@ -2229,9 +2255,9 @@ fill_flags(ipfw_insn *cmd, enum ipfw_opcodes opcode,
 		*which |= (uint8_t)val;
 		p = q;
 	}
-        cmd->opcode = opcode;
-        cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
-        cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
+	cmd->opcode = opcode;
+	cmd->len =  (cmd->len & (F_NOT | F_OR)) | 1;
+	cmd->arg1 = (set & 0xff) | ( (clear & 0xff) << 8);
 }
 
 
@@ -2289,7 +2315,7 @@ ipfw_delete(char *av[])
  * fill the interface structure. We do not check the name as we can
  * create interfaces dynamically, so checking them at insert time
  * makes relatively little sense.
- * Interface names containing '*', '?', or '[' are assumed to be shell 
+ * Interface names containing '*', '?', or '[' are assumed to be shell
  * patterns which match interfaces.
  */
 static void
@@ -2739,9 +2765,14 @@ ipfw_add(char *av[])
 		break;
 
 	case TOK_NAT:
- 		action->opcode = O_NAT;
- 		action->len = F_INSN_SIZE(ipfw_insn_nat);
-		goto chkarg;
+		action->opcode = O_NAT;
+		action->len = F_INSN_SIZE(ipfw_insn_nat);
+		if (_substrcmp(*av, "global") == 0) {
+			action->arg1 = 0;
+			av++;
+			break;
+		} else
+			goto chkarg;
 
 	case TOK_QUEUE:
 		action->opcode = O_QUEUE;
@@ -2763,7 +2794,10 @@ ipfw_add(char *av[])
 		goto chkarg;
 	case TOK_TEE:
 		action->opcode = O_TEE;
-chkarg:	
+		goto chkarg;
+	case TOK_CALL:
+		action->opcode = O_CALLRETURN;
+chkarg:
 		if (!av[0])
 			errx(EX_USAGE, "missing argument for %s", *(av - 1));
 		if (isdigit(**av)) {
@@ -2787,40 +2821,96 @@ chkarg:
 		break;
 
 	case TOK_FORWARD: {
-		ipfw_insn_sa *p = (ipfw_insn_sa *)action;
+		/*
+		 * Locate the address-port separator (':' or ',').
+		 * Could be one of the following:
+		 *	hostname:port
+		 *	IPv4 a.b.c.d,port
+		 *	IPv4 a.b.c.d:port
+		 *	IPv6 w:x:y::z,port
+		 * The ':' can only be used with hostname and IPv4 address.
+		 * XXX-BZ Should we also support [w:x:y::z]:port?
+		 */
+		struct sockaddr_storage result;
+		struct addrinfo *res;
 		char *s, *end;
+		int family;
+		u_short port_number;
 
 		NEED1("missing forward address[:port]");
 
-		action->opcode = O_FORWARD_IP;
-		action->len = F_INSN_SIZE(ipfw_insn_sa);
-
-		/*
-		 * In the kernel we assume AF_INET and use only
-		 * sin_port and sin_addr. Remember to set sin_len as
-		 * the routing code seems to use it too.
-		 */
-		p->sa.sin_family = AF_INET;
-		p->sa.sin_len = sizeof(struct sockaddr_in);
-		p->sa.sin_port = 0;
 		/*
 		 * locate the address-port separator (':' or ',')
 		 */
-		s = strchr(*av, ':');
-		if (s == NULL)
-			s = strchr(*av, ',');
+		s = strchr(*av, ',');
+		if (s == NULL) {
+			/* Distinguish between IPv4:port and IPv6 cases. */
+			s = strchr(*av, ':');
+			if (s && strchr(s+1, ':'))
+				s = NULL; /* no port */
+		}
+
+		port_number = 0;
 		if (s != NULL) {
+			/* Terminate host portion and set s to start of port. */
 			*(s++) = '\0';
 			i = strtoport(s, &end, 0 /* base */, 0 /* proto */);
 			if (s == end)
 				errx(EX_DATAERR,
 				    "illegal forwarding port ``%s''", s);
-			p->sa.sin_port = (u_short)i;
+			port_number = (u_short)i;
 		}
-		if (_substrcmp(*av, "tablearg") == 0) 
-			p->sa.sin_addr.s_addr = INADDR_ANY;
-		else
-			lookup_host(*av, &(p->sa.sin_addr));
+
+		if (_substrcmp(*av, "tablearg") == 0) {
+			family = PF_INET;
+			((struct sockaddr_in*)&result)->sin_addr.s_addr =
+			    INADDR_ANY;
+		} else {
+			/* 
+			 * Resolve the host name or address to a family and a
+			 * network representation of the addres.
+			 */
+			if (getaddrinfo(*av, NULL, NULL, &res))
+				errx(EX_DATAERR, NULL);
+			/* Just use the first host in the answer. */
+			family = res->ai_family;
+			memcpy(&result, res->ai_addr, res->ai_addrlen);
+			freeaddrinfo(res);
+		}
+
+ 		if (family == PF_INET) {
+			ipfw_insn_sa *p = (ipfw_insn_sa *)action;
+
+			action->opcode = O_FORWARD_IP;
+			action->len = F_INSN_SIZE(ipfw_insn_sa);
+
+			/*
+			 * In the kernel we assume AF_INET and use only
+			 * sin_port and sin_addr. Remember to set sin_len as
+			 * the routing code seems to use it too.
+			 */
+			p->sa.sin_len = sizeof(struct sockaddr_in);
+			p->sa.sin_family = AF_INET;
+			p->sa.sin_port = port_number;
+			p->sa.sin_addr.s_addr =
+			     ((struct sockaddr_in *)&result)->sin_addr.s_addr;
+		} else if (family == PF_INET6) {
+			ipfw_insn_sa6 *p = (ipfw_insn_sa6 *)action;
+
+			action->opcode = O_FORWARD_IP6;
+			action->len = F_INSN_SIZE(ipfw_insn_sa6);
+
+			p->sa.sin6_len = sizeof(struct sockaddr_in6);
+			p->sa.sin6_family = AF_INET6;
+			p->sa.sin6_port = port_number;
+			p->sa.sin6_flowinfo = 0;
+			p->sa.sin6_scope_id = 0;
+			/* No table support for v6 yet. */
+			bcopy(&((struct sockaddr_in6*)&result)->sin6_addr,
+			    &p->sa.sin6_addr, sizeof(p->sa.sin6_addr));
+		} else {
+			errx(EX_DATAERR, "Invalid address family in forward action");
+		}
 		av++;
 		break;
 	    }
@@ -2836,20 +2926,29 @@ chkarg:
 		size_t intsize = sizeof(int);
 
 		action->opcode = O_SETFIB;
- 		NEED1("missing fib number");
- 	        action->arg1 = strtoul(*av, NULL, 10);
-		if (sysctlbyname("net.fibs", &numfibs, &intsize, NULL, 0) == -1)
-			errx(EX_DATAERR, "fibs not suported.\n");
-		if (action->arg1 >= numfibs)  /* Temporary */
-			errx(EX_DATAERR, "fib too large.\n");
- 		av++;
- 		break;
+		NEED1("missing fib number");
+		if (_substrcmp(*av, "tablearg") == 0) {
+			action->arg1 = IP_FW_TABLEARG;
+		} else {
+		        action->arg1 = strtoul(*av, NULL, 10);
+			if (sysctlbyname("net.fibs", &numfibs, &intsize,
+			    NULL, 0) == -1)
+				errx(EX_DATAERR, "fibs not suported.\n");
+			if (action->arg1 >= numfibs)  /* Temporary */
+				errx(EX_DATAERR, "fib too large.\n");
+		}
+		av++;
+		break;
 	    }
 
 	case TOK_REASS:
 		action->opcode = O_REASS;
 		break;
-		
+
+	case TOK_RETURN:
+		fill_cmd(action, O_CALLRETURN, F_NOT, 0);
+		break;
+
 	default:
 		errx(EX_DATAERR, "invalid action %s\n", av[-1]);
 	}
@@ -3144,7 +3243,7 @@ read_options:
 				errx(EX_USAGE, "+missing \")\"\n");
 			open_par = 0;
 			prev = NULL;
-        		break;
+			break;
 
 		case TOK_IN:
 			fill_cmd(cmd, O_IN, 0, 0);
@@ -3197,7 +3296,7 @@ read_options:
 			fill_icmptypes((ipfw_insn_u32 *)cmd, *av);
 			av++;
 			break;
-		
+
 		case TOK_ICMP6TYPES:
 			NEED1("icmptypes requires list of types");
 			fill_icmp6types((ipfw_insn_icmp6 *)cmd, *av);
@@ -3433,7 +3532,7 @@ read_options:
 				av++;
 			}
 			break;
-				
+
 		case TOK_DSTIP6:
 			NEED1("missing destination IP6");
 			if (add_dstip6(cmd, *av)) {
@@ -3555,7 +3654,7 @@ read_options:
 			}
 			if (lookup_key[j] <= 0)
 				errx(EX_USAGE, "format: cannot lookup on %s", *av);
-			c->d[1] = j; // i converted to option
+			__PAST_END(c->d, 1) = j; // i converted to option
 			av++;
 			cmd->arg1 = strtoul(*av, &p, 0);
 			if (p && *p)
@@ -3829,10 +3928,10 @@ ipfw_table_handler(int ac, char *av[])
 			if (strchr(*av, (int)'.') == NULL && isdigit(**av))  {
 				ent.value = strtoul(*av, NULL, 0);
 			} else {
-		        	if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
+				if (lookup_host(*av, (struct in_addr *)&tval) == 0) {
 					/* The value must be stored in host order	 *
 					 * so that the values < 65k can be distinguished */
-		       			ent.value = ntohl(tval); 
+		       			ent.value = ntohl(tval);
 				} else {
 					errx(EX_NOHOST, "hostname ``%s'' unknown", *av);
 				}
@@ -3851,7 +3950,7 @@ ipfw_table_handler(int ac, char *av[])
 				if (do_cmd(IP_FW_TABLE_ADD,
 				    &ent, sizeof(ent)) < 0)
 					err(EX_OSERR,
-				            "setsockopt(IP_FW_TABLE_ADD)");
+					    "setsockopt(IP_FW_TABLE_ADD)");
 			}
 		}
 	} else if (_substrcmp(*av, "flush") == 0) {

@@ -545,7 +545,7 @@ again:
 }
 
 static int
-cd9660_write(struct open_file *f, void *start, size_t size, size_t *resid)
+cd9660_write(struct open_file *f __unused, void *start __unused, size_t size __unused, size_t *resid __unused)
 {
 	return EROFS;
 }

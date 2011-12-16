@@ -86,7 +86,7 @@
 				    struct l_utimbuf *times); }
 31	AUE_NULL	UNIMPL	stty
 32	AUE_NULL	UNIMPL	gtty
-33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int flags); }
+33	AUE_ACCESS	STD	{ int linux_access(char *path, l_int amode); }
 34	AUE_NICE	STD	{ int linux_nice(l_int inc); }
 35	AUE_NULL	UNIMPL	ftime
 36	AUE_SYNC	NOPROTO	{ int sync(void); }
@@ -291,7 +291,7 @@
 				    l_uid16_t *euid, l_uid16_t *suid); }
 166	AUE_NULL	UNIMPL	vm86
 167	AUE_NULL	STD	{ int linux_query_module(void); }
-168	AUE_POLL	NOPROTO	{ int poll(struct pollfd*, \
+168	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, \
 				    unsigned int nfds, int timeout); }
 169	AUE_NULL	STD	{ int linux_nfsservctl(void); }
 170	AUE_SETRESGID	STD	{ int linux_setresgid16(l_gid16_t rgid, \
@@ -326,8 +326,10 @@
 				    l_uid16_t uid, l_gid16_t gid); }
 183	AUE_GETCWD	STD	{ int linux_getcwd(char *buf, \
 				    l_ulong bufsize); }
-184	AUE_CAPGET	STD	{ int linux_capget(void); }
-185	AUE_CAPSET	STD	{ int linux_capset(void); }
+184	AUE_CAPGET	STD	{ int linux_capget(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
+185	AUE_CAPSET	STD	{ int linux_capset(struct l_user_cap_header *hdrp, \
+				    struct l_user_cap_data *datap); }
 186	AUE_NULL	STD	{ int linux_sigaltstack(l_stack_t *uss, \
 				    l_stack_t *uoss); }
 187	AUE_SENDFILE	STD	{ int linux_sendfile(void); }
@@ -481,14 +483,14 @@
 302	AUE_RENAMEAT	STD	{ int linux_renameat(l_int olddfd, const char *oldname, \
 					l_int newdfd, const char *newname); }
 303	AUE_LINKAT	STD	{ int linux_linkat(l_int olddfd, const char *oldname, \
-					l_int newdfd, const char *newname, l_int flags); }
+					l_int newdfd, const char *newname, l_int flag); }
 304	AUE_SYMLINKAT	STD	{ int linux_symlinkat(const char *oldname, l_int newdfd, \
 					const char *newname); }
 305	AUE_READLINKAT	STD	{ int linux_readlinkat(l_int dfd, const char *path, \
 					char *buf, l_int bufsiz); }
 306	AUE_FCHMODAT	STD	{ int linux_fchmodat(l_int dfd, const char *filename, \
 					l_mode_t mode); }
-307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int mode); }
+307	AUE_FACCESSAT	STD	{ int linux_faccessat(l_int dfd, const char *filename, l_int amode, int flag); }
 308	AUE_NULL	STD	{ int linux_pselect6(void); }
 309	AUE_NULL	STD	{ int linux_ppoll(void); }
 310	AUE_NULL	STD	{ int linux_unshare(void); }

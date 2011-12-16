@@ -89,15 +89,18 @@ struct vm_page;
 struct uio *cloneuio(struct uio *uiop);
 int	copyinfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, int seg);
-int	copyiniov(struct iovec *iovp, u_int iovcnt, struct iovec **iov,
+int	copyiniov(const struct iovec *iovp, u_int iovcnt, struct iovec **iov,
 	    int error);
 int	copyinstrfrom(const void * __restrict src, void * __restrict dst,
 	    size_t len, size_t * __restrict copied, int seg);
-int	copyinuio(struct iovec *iovp, u_int iovcnt, struct uio **uiop);
+int	copyinuio(const struct iovec *iovp, u_int iovcnt, struct uio **uiop);
+int	copyout_map(struct thread *td, vm_offset_t *addr, size_t sz);
+int	copyout_unmap(struct thread *td, vm_offset_t addr, size_t sz);
 int	uiomove(void *cp, int n, struct uio *uio);
 int	uiomove_frombuf(void *buf, int buflen, struct uio *uio);
 int	uiomove_fromphys(struct vm_page *ma[], vm_offset_t offset, int n,
 	    struct uio *uio);
+int	uiomove_nofault(void *cp, int n, struct uio *uio);
 int	uiomoveco(void *cp, int n, struct uio *uio, int disposable);
 
 #else /* !_KERNEL */

@@ -52,6 +52,8 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <wchar.h>
+#include <wctype.h>
 
 /*
  * Routines to expand arguments to commands.  We have to deal with
@@ -75,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "arith.h"
 #include "show.h"
+#include "builtins.h"
 
 /*
  * Structure specifying which parts of the string should be searched
@@ -111,16 +114,16 @@ static void addfname(char *);
 static struct strlist *expsort(struct strlist *);
 static struct strlist *msort(struct strlist *, int);
 static char *cvtnum(int, char *);
-static int collate_range_cmp(int, int);
+static int collate_range_cmp(wchar_t, wchar_t);
 
 static int
-collate_range_cmp(int c1, int c2)
+collate_range_cmp(wchar_t c1, wchar_t c2)
 {
-	static char s1[2], s2[2];
+	static wchar_t s1[2], s2[2];
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return (strcoll(s1, s2));
+	return (wcscoll(s1, s2));
 }
 
 /*
@@ -173,6 +176,7 @@ expandarg(union node *arg, struct arglist *arglist, int flag)
 	ifslastp = NULL;
 	argstr(arg->narg.text, flag);
 	if (arglist == NULL) {
+		STACKSTRNUL(expdest);
 		return;			/* here document expanded */
 	}
 	STPUTC('\0', expdest);
@@ -665,6 +669,7 @@ evalvar(char *p, int flag)
 	int special;
 	int startloc;
 	int varlen;
+	int varlenb;
 	int easy;
 	int quotes = flag & (EXP_FULL | EXP_CASE | EXP_REDIR);
 
@@ -712,8 +717,15 @@ again: /* jump here after setting a variable with ${var=text} */
 		if (special) {
 			varvalue(var, varflags & VSQUOTE, subtype, flag);
 			if (subtype == VSLENGTH) {
-				varlen = expdest - stackblock() - startloc;
-				STADJUST(-varlen, expdest);
+				varlenb = expdest - stackblock() - startloc;
+				varlen = varlenb;
+				if (localeisutf8) {
+					val = stackblock() + startloc;
+					for (;val != expdest; val++)
+						if ((*val & 0xC0) == 0x80)
+							varlen--;
+				}
+				STADJUST(-varlenb, expdest);
 			}
 		} else {
 			char const *syntax = (varflags & VSQUOTE) ? DQSYNTAX
@@ -721,7 +733,9 @@ again: /* jump here after setting a variable with ${var=text} */
 
 			if (subtype == VSLENGTH) {
 				for (;*val; val++)
-					varlen++;
+					if (!localeisutf8 ||
+					    (*val & 0xC0) != 0x80)
+						varlen++;
 			}
 			else {
 				if (quotes)
@@ -750,7 +764,8 @@ again: /* jump here after setting a variable with ${var=text} */
 			break;
 record:
 		recordregion(startloc, expdest - stackblock(),
-			     varflags & VSQUOTE);
+		    varflags & VSQUOTE || (ifsset() && ifsval()[0] == '\0' &&
+		    (*var == '@' || *var == '*')));
 		break;
 
 	case VSPLUS:
@@ -936,7 +951,9 @@ numvar:
 			sep = ' ';
 		for (ap = shellparam.p ; (p = *ap++) != NULL ; ) {
 			strtodest(p, flag, subtype, quoted);
-			if (*ap && sep)
+			if (!*ap)
+				break;
+			if (sep || (flag & EXP_FULL && !quoted && **ap != '\0'))
 				STPUTC(sep, expdest);
 		}
 		break;
@@ -1367,6 +1384,53 @@ msort(struct strlist *list, int len)
 
 
 
+static wchar_t
+get_wc(const char **p)
+{
+	wchar_t c;
+	int chrlen;
+
+	chrlen = mbtowc(&c, *p, 4);
+	if (chrlen == 0)
+		return 0;
+	else if (chrlen == -1)
+		c = 0;
+	else
+		*p += chrlen;
+	return c;
+}
+
+
+/*
+ * See if a character matches a character class, starting at the first colon
+ * of "[:class:]".
+ * If a valid character class is recognized, a pointer to the next character
+ * after the final closing bracket is stored into *end, otherwise a null
+ * pointer is stored into *end.
+ */
+static int
+match_charclass(const char *p, wchar_t chr, const char **end)
+{
+	char name[20];
+	const char *nameend;
+	wctype_t cclass;
+
+	*end = NULL;
+	p++;
+	nameend = strstr(p, ":]");
+	if (nameend == NULL || nameend - p >= sizeof(name) || nameend == p)
+		return 0;
+	memcpy(name, p, nameend - p);
+	name[nameend - p] = '\0';
+	*end = nameend + 2;
+	cclass = wctype(name);
+	/* An unknown class matches nothing but is valid nevertheless. */
+	if (cclass == 0)
+		return 0;
+	return iswctype(chr, cclass);
+}
+
+
 /*
  * Returns true if the pattern matches the string.
  */
@@ -1374,8 +1438,9 @@ msort(struct strlist *list, int len)
 int
 patmatch(const char *pattern, const char *string, int squoted)
 {
-	const char *p, *q;
+	const char *p, *q, *end;
 	char c;
+	wchar_t wc, wc2;
 
 	p = pattern;
 	q = string;
@@ -1394,7 +1459,11 @@ patmatch(const char *pattern, const char *string, int squoted)
 		case '?':
 			if (squoted && *q == CTLESC)
 				q++;
-			if (*q++ == '\0')
+			if (localeisutf8)
+				wc = get_wc(&q);
+			else
+				wc = (unsigned char)*q++;
+			if (wc == '\0')
 				return 0;
 			break;
 		case '*':
@@ -1424,7 +1493,7 @@ patmatch(const char *pattern, const char *string, int squoted)
 		case '[': {
 			const char *endp;
 			int invert, found;
-			char chr;
+			wchar_t chr;
 
 			endp = p;
 			if (*endp == '!' || *endp == '^')
@@ -1445,30 +1514,50 @@ patmatch(const char *pattern, const char *string, int squoted)
 				p++;
 			}
 			found = 0;
-			chr = *q++;
-			if (squoted && chr == CTLESC)
-				chr = *q++;
+			if (squoted && *q == CTLESC)
+				q++;
+			if (localeisutf8)
+				chr = get_wc(&q);
+			else
+				chr = (unsigned char)*q++;
 			if (chr == '\0')
 				return 0;
 			c = *p++;
 			do {
 				if (c == CTLQUOTEMARK)
 					continue;
+				if (c == '[' && *p == ':') {
+					found |= match_charclass(p, chr, &end);
+					if (end != NULL)
+						p = end;
+				}
 				if (c == CTLESC)
 					c = *p++;
+				if (localeisutf8 && c & 0x80) {
+					p--;
+					wc = get_wc(&p);
+					if (wc == 0) /* bad utf-8 */
+						return 0;
+				} else
+					wc = (unsigned char)c;
 				if (*p == '-' && p[1] != ']') {
 					p++;
 					while (*p == CTLQUOTEMARK)
 						p++;
 					if (*p == CTLESC)
 						p++;
-					if (   collate_range_cmp(chr, c) >= 0
-					    && collate_range_cmp(chr, *p) <= 0
+					if (localeisutf8) {
+						wc2 = get_wc(&p);
+						if (wc2 == 0) /* bad utf-8 */
+							return 0;
+					} else
+						wc2 = (unsigned char)*p++;
+					if (   collate_range_cmp(chr, wc) >= 0
+					    && collate_range_cmp(chr, wc2) <= 0
 					   )
 						found = 1;
-					p++;
 				} else {
-					if (chr == c)
+					if (chr == wc)
 						found = 1;
 				}
 			} while ((c = *p++) != ']');
@@ -1566,78 +1655,6 @@ cvtnum(int num, char *buf)
 
 	STPUTS(p, buf);
 	return buf;
-}
-
-/*
- * Check statically if expanding a string may have side effects.
- */
-int
-expandhassideeffects(const char *p)
-{
-	int c;
-	int arinest;
-
-	arinest = 0;
-	while ((c = *p++) != '\0') {
-		switch (c) {
-		case CTLESC:
-			p++;
-			break;
-		case CTLVAR:
-			c = *p++;
-			/* Expanding $! sets the job to remembered. */
-			if (*p == '!')
-				return 1;
-			if ((c & VSTYPE) == VSASSIGN)
-				return 1;
-			/*
-			 * If we are in arithmetic, the parameter may contain
-			 * '=' which may cause side effects. Exceptions are
-			 * the length of a parameter and $$, $# and $? which
-			 * are always numeric.
-			 */
-			if ((c & VSTYPE) == VSLENGTH) {
-				while (*p != '=')
-					p++;
-				p++;
-				break;
-			}
-			if ((*p == '$' || *p == '#' || *p == '?') &&
-			    p[1] == '=') {
-				p += 2;
-				break;
-			}
-			if (arinest > 0)
-				return 1;
-			break;
-		case CTLBACKQ:
-		case CTLBACKQ | CTLQUOTE:
-			if (arinest > 0)
-				return 1;
-			break;
-		case CTLARI:
-			arinest++;
-			break;
-		case CTLENDARI:
-			arinest--;
-			break;
-		case '=':
-			if (*p == '=') {
-				/* Allow '==' operator. */
-				p++;
-				continue;
-			}
-			if (arinest > 0)
-				return 1;
-			break;
-		case '!': case '<': case '>':
-			/* Allow '!=', '<=', '>=' operators. */
-			if (*p == '=')
-				p++;
-			break;
-		}
-	}
-	return 0;
 }
 
 /*

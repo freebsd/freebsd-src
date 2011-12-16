@@ -6,9 +6,9 @@
  * All rights reserved.
  *
  * This software was developed at the Centre for Advanced Internet
- * Architectures, Swinburne University, by Lawrence Stewart and James Healy,
- * made possible in part by a grant from the Cisco University Research Program
- * Fund at Community Foundation Silicon Valley.
+ * Architectures, Swinburne University of Technology, by Lawrence Stewart and
+ * James Healy, made possible in part by a grant from the Cisco University
+ * Research Program Fund at Community Foundation Silicon Valley.
  *
  * Portions of this software were developed at the Centre for Advanced
  * Internet Architectures, Swinburne University of Technology, Melbourne,
@@ -40,10 +40,10 @@
  * An implementation of the H-TCP congestion control algorithm for FreeBSD,
  * based on the Internet Draft "draft-leith-tcp-htcp-06.txt" by Leith and
  * Shorten. Originally released as part of the NewTCP research project at
- * Swinburne University's Centre for Advanced Internet Architectures, Melbourne,
- * Australia, which was made possible in part by a grant from the Cisco
- * University Research Program Fund at Community Foundation Silicon Valley. More
- * details are available at:
+ * Swinburne University of Technology's Centre for Advanced Internet
+ * Architectures, Melbourne, Australia, which was made possible in part by a
+ * grant from the Cisco University Research Program Fund at Community Foundation
+ * Silicon Valley. More details are available at:
  *   http://caia.swin.edu.au/urp/newtcp/
  */
 
@@ -173,8 +173,7 @@ static VNET_DEFINE(u_int, htcp_rtt_scaling) = 0;
 #define	V_htcp_adaptive_backoff    VNET(htcp_adaptive_backoff)
 #define	V_htcp_rtt_scaling    VNET(htcp_rtt_scaling)
 
-MALLOC_DECLARE(M_HTCP);
-MALLOC_DEFINE(M_HTCP, "htcp data",
+static MALLOC_DEFINE(M_HTCP, "htcp data",
     "Per connection data required for the HTCP congestion control algorithm");
 
 struct cc_algo htcp_cc_algo = {

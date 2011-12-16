@@ -25,12 +25,13 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 21, 2010
+.Dd July 9, 2011
 .Dt UIO 9
 .Os
 .Sh NAME
 .Nm uio ,
-.Nm uiomove
+.Nm uiomove ,
+.Nm uiomove_nofault
 .Nd device driver I/O routines
 .Sh SYNOPSIS
 .In sys/types.h
@@ -48,11 +49,15 @@ struct uio {
 .Ed
 .Ft int
 .Fn uiomove "void *buf" "int howmuch" "struct uio *uiop"
+.Ft int
+.Fn uiomove_nofault "void *buf" "int howmuch" "struct uio *uiop"
 .Sh DESCRIPTION
-The function
+The functions
 .Fn uiomove
-is used to handle transfer of data between buffers and I/O vectors
-that might possibly also cross the user/kernel space boundary.
+and
+.Fn uiomove_nofault
+are used to transfer data between buffers and I/O vectors that might
+possibly cross the user/kernel space boundary.
 .Pp
 As a result of any
 .Xr read 2 ,
@@ -71,6 +76,8 @@ being passed.
 The transfer request is encoded in this structure.
 The driver itself should use
 .Fn uiomove
+or
+.Fn uiomove_nofault
 to get at the data in this structure.
 .Pp
 The fields in the
@@ -99,7 +106,7 @@ Do not copy, already in object.
 .El
 .It Va uio_rw
 The direction of the desired transfer, either
-.Dv UIO_READ ,
+.Dv UIO_READ
 or
 .Dv UIO_WRITE .
 .It Va uio_td
@@ -110,10 +117,24 @@ for the associated thread; used if
 indicates that the transfer is to be made from/to a process's address
 space.
 .El
+.Pp
+The function
+.Fn uiomove_nofault
+requires that the buffer and I/O vectors be accessible without
+incurring a page fault.
+The source and destination addresses must be physically mapped for
+read and write access, respectively, and neither the source nor
+destination addresses may be pageable.
+Thus, the function
+.Fn uiomove_nofault
+can be called from contexts where acquiring virtual memory system
+locks or sleeping are prohibited.
 .Sh RETURN VALUES
 On success
 .Fn uiomove
-will return 0, on error it will return an appropriate errno.
+and
+.Fn uiomove_nofault
+will return 0; on error they will return an appropriate error code.
 .Sh EXAMPLES
 The idea is that the driver maintains a private buffer for its data,
 and processes the request in chunks of maximal the size of this
@@ -156,6 +177,8 @@ fooread(dev_t dev, struct uio *uio, int flag)
 .Ed
 .Sh ERRORS
 .Fn uiomove
+and
+.Fn uiomove_nofault
 will fail and return the following error code if:
 .Bl -tag -width Er
 .It Bq Er EFAULT
@@ -165,6 +188,14 @@ or
 .Xr copyout 9
 returned
 .Er EFAULT
+.El
+.Pp
+In addition,
+.Fn uiomove_nofault
+will fail and return the following error code if:
+.Bl -tag -width Er
+.It Bq Er EFAULT
+A page fault occurs.
 .El
 .Sh SEE ALSO
 .Xr read 2 ,

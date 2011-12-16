@@ -63,6 +63,15 @@
 # SHAREMODE	ASCII text file mode. [${NOBINMODE}]
 #
 #
+# CONFDIR	Base path for configuration files. [/etc]
+#
+# CONFOWN	Configuration file owner. [root]
+#
+# CONFGRP	Configuration file group. [wheel]
+#
+# CONFMODE	Configuration file mode. [644]
+#
+#
 # DOCDIR	Base path for system documentation (e.g. PSD, USD,
 #		handbook, FAQ etc.). [${SHAREDIR}/doc]
 #
@@ -145,6 +154,11 @@ SHAREOWN?=	root
 SHAREGRP?=	wheel
 SHAREMODE?=	${NOBINMODE}
 
+CONFDIR?=	/etc
+CONFOWN?=	root
+CONFGRP?=	wheel
+CONFMODE?=	644
+
 MANDIR?=	${SHAREDIR}/man/man
 MANOWN?=	${SHAREOWN}
 MANGRP?=	${SHAREGRP}
@@ -189,10 +203,14 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
+    CTF \
     INSTALLLIB \
     MAN \
     PROFILE
 .if defined(NO_${var})
+.if defined(WITH_${var})
+.undef WITH_${var}
+.endif
 WITHOUT_${var}=
 .endif
 .endfor
@@ -248,7 +266,6 @@ WITHOUT_${var}=
     NLS \
     NLS_CATALOGS \
     NS_CACHING \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -281,22 +298,7 @@ WITH_HESIOD=
 WITH_IDEA=
 .endif
 
-#
-# Default behaviour of MK_CLANG depends on the architecture.
-#
-.if ${MACHINE_ARCH} == "amd64" || ${MACHINE_ARCH} == "i386" || \
-    ${MACHINE_ARCH} == "powerpc"
-_clang_yes=CLANG
-_clang_no=
-.else
-_clang_yes=
-_clang_no=CLANG
-.endif
-
-#
-# MK_* options which default to "yes".
-#
-.for var in \
+__DEFAULT_YES_OPTIONS = \
     ACCT \
     ACPI \
     AMD \
@@ -321,7 +323,6 @@ _clang_no=CLANG
     BZIP2 \
     CALENDAR \
     CDDL \
-    ${_clang_yes} \
     CPP \
     CRYPT \
     CTM \
@@ -330,7 +331,6 @@ _clang_no=CLANG
     DICT \
     DYNAMICROOT \
     EXAMPLES \
-    FDT \
     FLOPPY \
     FORTH \
     FP_LIBC \
@@ -341,8 +341,10 @@ _clang_no=CLANG
     GDB \
     GNU \
     GPIB \
+    GPIO \
     GROFF \
     HTML \
+    INET \
     INET6 \
     INFO \
     INSTALLLIB \
@@ -351,6 +353,7 @@ _clang_no=CLANG
     IPX \
     JAIL \
     KERBEROS \
+    KERNEL_SYMBOLS \
     KVM \
     LEGACY_CONSOLE \
     LIB32 \
@@ -372,7 +375,6 @@ _clang_no=CLANG
     NLS_CATALOGS \
     NS_CACHING \
     NTP \
-    OBJC \
     OPENSSH \
     OPENSSL \
     PAM \
@@ -399,10 +401,57 @@ _clang_no=CLANG
     TEXTPROC \
     TOOLCHAIN \
     USB \
+    UTMPX \
     WIRELESS \
     WPA_SUPPLICANT_EAPOL \
     ZFS \
     ZONEINFO
+
+__DEFAULT_NO_OPTIONS = \
+    BSD_GREP \
+    BIND_IDN \
+    BIND_LARGE_FILE \
+    BIND_LIBS \
+    BIND_SIGCHASE \
+    BIND_XML \
+    CTF \
+    HESIOD \
+    ICONV \
+    IDEA \
+    LIBCPLUSPLUS \
+    OFED
+
+#
+# Default behaviour of some options depends on the architecture.  Unfortunately
+# this means that we have to test TARGET_ARCH (the buildworld case) as well
+# as MACHINE_ARCH (the non-buildworld case).  Normally TARGET_ARCH is not
+# used at all in bsd.*.mk, but we have to make an exception here if we want
+# to allow defaults for some things like clang and fdt to vary by target
+# architecture.
+#
+.if defined(TARGET_ARCH)
+__T=${TARGET_ARCH}
+.else
+__T=${MACHINE_ARCH}
+.endif
+# Clang is only for x86 and powerpc right now, by default.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
+__DEFAULT_YES_OPTIONS+=CLANG
+.else
+__DEFAULT_NO_OPTIONS+=CLANG
+.endif
+# FDT is needed only for arm, mips and powerpc
+.if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
+__DEFAULT_YES_OPTIONS+=FDT
+.else
+__DEFAULT_NO_OPTIONS+=FDT
+.endif
+.undef __T
+
+#
+# MK_* options which default to "yes".
+#
+.for var in ${__DEFAULT_YES_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -415,22 +464,12 @@ MK_${var}:=	no
 MK_${var}:=	yes
 .endif
 .endfor
+.undef __DEFAULT_YES_OPTIONS
 
 #
 # MK_* options which default to "no".
 #
-.for var in \
-    BIND_IDN \
-    BIND_LARGE_FILE \
-    BIND_LIBS \
-    BIND_SIGCHASE \
-    BIND_XML \
-    BSD_GREP \
-    ${_clang_no} \
-    GPIO \
-    HESIOD \
-    ICONV \
-    IDEA
+.for var in ${__DEFAULT_NO_OPTIONS}
 .if defined(WITH_${var}) && defined(WITHOUT_${var})
 .error WITH_${var} and WITHOUT_${var} can't both be set.
 .endif
@@ -443,6 +482,7 @@ MK_${var}:=	yes
 MK_${var}:=	no
 .endif
 .endfor
+.undef __DEFAULT_NO_OPTIONS
 
 #
 # Force some options off if their dependencies are off.
@@ -472,12 +512,18 @@ MK_BIND_ETC:=	no
 
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+MK_CTF:=	no
 .endif
 
 .if ${MK_CRYPT} == "no"
 MK_OPENSSL:=	no
 MK_OPENSSH:=	no
 MK_KERBEROS:=	no
+.endif
+
+.if ${MK_CXX} == "no"
+MK_CLANG:=	no
+MK_GROFF:=	no
 .endif
 
 .if ${MK_IPX} == "no"
@@ -508,7 +554,9 @@ MK_GROFF:=	no
 .endif
 
 .if ${MK_TOOLCHAIN} == "no"
+MK_BINUTILS:=	no
 MK_CLANG:=	no
+MK_GCC:=	no
 MK_GDB:=	no
 .endif
 
@@ -523,6 +571,7 @@ MK_GDB:=	no
 .for var in \
     BZIP2 \
     GNU \
+    INET \
     INET6 \
     IPX \
     KERBEROS \
@@ -563,6 +612,14 @@ MK_${vv:H}:=	no
 MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
+
+.if ${MK_CTF} != "no"
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+CTFCONVERT_CMD=
+.else
+CTFCONVERT_CMD=	@:
+.endif 
 
 .endif # !_WITHOUT_SRCCONF
 

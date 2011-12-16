@@ -193,10 +193,14 @@ DEFINE_TEST(test_write_compress_xz)
 	archive_write_close(a);
 	assert(0 == archive_write_finish(a));
 
-	/* Level 0 really does result in larger data. */
+	/* I would like to assert that compression-level=0 results in
+	 * larger data than the default compression, but that's not true
+	 * for all versions of liblzma. */
+	/*
 	failure("Compression-level=0 wrote %d bytes; default wrote %d bytes",
 	    (int)used2, (int)used1);
 	assert(used2 > used1);
+	*/
 
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));

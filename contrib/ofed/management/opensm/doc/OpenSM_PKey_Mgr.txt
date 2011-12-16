@@ -1,0 +1,78 @@
+OpenSM Partition Management
+---------------------------
+
+Roadmap:
+Phase 1 - provide partition management at the EndPort (HCA, Router and Switch
+          Port 0) level with no routing affects.
+Phase 2 - routing engine should take partitions into account.
+
+Phase 1 functionality:
+
+Supported Policy:
+
+1. EndPort partition groups are to be defined by listing the
+   PortGUIDs as full and limited members.
+
+2. Each partition group might be assigned an explicit P_Key (only the 15
+   LSB bits are valid) or the SM should assign it randomly.
+
+3. A flag should control the generation of IPoIB broadcast group for
+   that partition. Extra optional MGIDs can be provided to be setup (on
+   top of the IPoIB broadcast group).
+
+4. A global flag "Disconnect Unconfigured EndPorts": If TRUE prevents
+   EndPorts that are not explicitly defined as part of any partition
+   (thus "unconfigured") to communicate with any other EndPort. Otherwise, it
+   will let these EndPorts send packets to all other EndPorts.
+
+Functionality:
+
+1. The policy should be updated:
+   - during SM bringup
+   - after kill -HUP
+   - through SNMP (once it is supported)
+
+2. Partition tables will be updated on full sweep (new port/trap etc).
+   As a first step, the policy feasibility should be
+   verified. Feasibility could be limited by the EndPorts supports for
+   number of partitions, etc. Unrealizable policy should be reported
+   and extra rules ignored after providing error messages.
+
+3. Each EndPort will be assigned P_Keys as follows:
+
+   a. Default partition group limited membership as defined by rule #4 below.
+     (only the SM port will get 0xffff).
+
+   b. P_Keys for all partition groups it is part of as defined in
+      the policy.
+
+   c. P_Key update will preserve index for the existing P_Keys on the
+      port. If port has limited resources that will require reuse of,
+      on index a message will be provided and some of the settings will be
+      ommitted. P_Key indexes will not change under any circumstances.
+
+4. Each Switch Leaf Port (a switch port that is connected to an
+   EndPort) should be configured according to the same rules that
+   apply to the EndPort connected to that switch port.
+   This actually enables unauthorized port isolation (with future
+   usage of M_Key and ProtectBits).
+
+5. Policy entries matching a non EndPort will be flagged as
+   erroneous in the log file and ignored.
+
+6. At the end of the P_Key setting phase, a check for successful
+   setting should be made.
+   Errors should be clearly logged and cause a new sweep.
+
+7. Each partition that is marked to support IPoIB should define a
+   broadcast MGRP. If the partition does not support IPoIB, it should
+   define a dummy MGRP with parameters blocking IPoIB drivers from
+   registering to it.
+
+Phase 2 functionality:
+
+The partition policy should be considered during the routing such that
+links are associated with particular partition or a set of
+partitions. Policy should be enhanced to provide hints for how to do
+that (correlating to QoS too). The exact algorithm is TBD.
+

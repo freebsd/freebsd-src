@@ -35,7 +35,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/limits.h>
+#include <limits.h>
 #include <errno.h>
 #include <inttypes.h>
 #include <stdlib.h>
@@ -97,6 +97,8 @@ static arith_t arith_lookupvarint(char *varname)
 	arith_t result;
 
 	str = lookupvar(varname);
+	if (uflag && str == NULL)
+		yyerror("variable not set");
 	if (str == NULL || *str == '\0')
 		str = "0";
 	errno = 0;
@@ -129,11 +131,11 @@ static arith_t do_binop(int op, arith_t a, arith_t b)
 			yyerror("divide error");
 		return op == ARITH_REM ? a % b : a / b;
 	case ARITH_MUL:
-		return a * b;
+		return (uintmax_t)a * (uintmax_t)b;
 	case ARITH_ADD:
-		return a + b;
+		return (uintmax_t)a + (uintmax_t)b;
 	case ARITH_SUB:
-		return a - b;
+		return (uintmax_t)a - (uintmax_t)b;
 	case ARITH_LSHIFT:
 		return a << b;
 	case ARITH_RSHIFT:
@@ -342,7 +344,7 @@ arith_t arith(const char *s)
  *  The exp(1) builtin.
  */
 int
-expcmd(int argc, char **argv)
+letcmd(int argc, char **argv)
 {
 	const char *p;
 	char *concat;

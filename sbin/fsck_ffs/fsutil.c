@@ -39,9 +39,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/time.h>
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/disk.h>
 #include <sys/disklabel.h>
+#include <sys/ioctl.h>
 #include <sys/stat.h>
-#include <sys/disklabel.h>
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ufs/dir.h>
@@ -418,6 +419,20 @@ blwrite(int fd, char *buf, ufs2_daddr_t blk, long size)
 			printf(" %jd,", (intmax_t)blk + i / dev_bsize);
 		}
 	printf("\n");
+	return;
+}
+
+void
+blerase(int fd, ufs2_daddr_t blk, long size)
+{
+	off_t ioarg[2];
+
+	if (fd < 0)
+		return;
+	ioarg[0] = blk * dev_bsize;
+	ioarg[1] = size;
+	ioctl(fd, DIOCGDELETE, ioarg);
+	/* we don't really care if we succeed or not */
 	return;
 }
 

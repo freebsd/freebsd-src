@@ -15,6 +15,7 @@
 #define LLVM_CODEGEN_ASMPRINTER_DWARFEXCEPTION_H
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/CodeGen/AsmPrinter.h"
 #include <vector>
 
 namespace llvm {
@@ -140,17 +141,20 @@ public:
 };
 
 class DwarfCFIException : public DwarfException {
-  /// shouldEmitTable - Per-function flag to indicate if EH tables should
-  /// be emitted.
-  bool shouldEmitTable;
+  /// shouldEmitPersonality - Per-function flag to indicate if .cfi_personality
+  /// should be emitted.
+  bool shouldEmitPersonality;
+
+  /// shouldEmitLSDA - Per-function flag to indicate if .cfi_lsda
+  /// should be emitted.
+  bool shouldEmitLSDA;
 
   /// shouldEmitMoves - Per-function flag to indicate if frame moves info
   /// should be emitted.
   bool shouldEmitMoves;
 
-  /// shouldEmitTableModule - Per-module flag to indicate if EH tables
-  /// should be emitted.
-  bool shouldEmitTableModule;
+  AsmPrinter::CFIMoveType moveTypeModule;
+
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
@@ -170,7 +174,7 @@ public:
   virtual void EndFunction();
 };
 
-class DwarfTableException : public DwarfException {
+class ARMException : public DwarfException {
   /// shouldEmitTable - Per-function flag to indicate if EH tables should
   /// be emitted.
   bool shouldEmitTable;
@@ -182,48 +186,44 @@ class DwarfTableException : public DwarfException {
   /// shouldEmitTableModule - Per-module flag to indicate if EH tables
   /// should be emitted.
   bool shouldEmitTableModule;
-
-  /// shouldEmitMovesModule - Per-module flag to indicate if frame moves
-  /// should be emitted.
-  bool shouldEmitMovesModule;
-
-  struct FunctionEHFrameInfo {
-    MCSymbol *FunctionEHSym;  // L_foo.eh
-    unsigned Number;
-    unsigned PersonalityIndex;
-    bool adjustsStack;
-    bool hasLandingPads;
-    std::vector<MachineMove> Moves;
-    const Function *function;
-
-    FunctionEHFrameInfo(MCSymbol *EHSym, unsigned Num, unsigned P,
-                        bool hC, bool hL,
-                        const std::vector<MachineMove> &M,
-                        const Function *f):
-      FunctionEHSym(EHSym), Number(Num), PersonalityIndex(P),
-      adjustsStack(hC), hasLandingPads(hL), Moves(M), function (f) { }
-  };
-
-  std::vector<FunctionEHFrameInfo> EHFrames;
-
-  /// UsesLSDA - Indicates whether an FDE that uses the CIE at the given index
-  /// uses an LSDA. If so, then we need to encode that information in the CIE's
-  /// augmentation.
-  DenseMap<unsigned, bool> UsesLSDA;
-
-  /// EmitCIE - Emit a Common Information Entry (CIE). This holds information
-  /// that is shared among many Frame Description Entries.  There is at least
-  /// one CIE in every non-empty .debug_frame section.
-  void EmitCIE(const Function *Personality, unsigned Index);
-
-  /// EmitFDE - Emit the Frame Description Entry (FDE) for the function.
-  void EmitFDE(const FunctionEHFrameInfo &EHFrameInfo);
 public:
   //===--------------------------------------------------------------------===//
   // Main entry points.
   //
-  DwarfTableException(AsmPrinter *A);
-  virtual ~DwarfTableException();
+  ARMException(AsmPrinter *A);
+  virtual ~ARMException();
+
+  /// EndModule - Emit all exception information that should come after the
+  /// content.
+  virtual void EndModule();
+
+  /// BeginFunction - Gather pre-function exception information.  Assumes being
+  /// emitted immediately after the function entry point.
+  virtual void BeginFunction(const MachineFunction *MF);
+
+  /// EndFunction - Gather and emit post-function exception information.
+  virtual void EndFunction();
+};
+
+class Win64Exception : public DwarfException {
+  /// shouldEmitPersonality - Per-function flag to indicate if personality
+  /// info should be emitted.
+  bool shouldEmitPersonality;
+
+  /// shouldEmitLSDA - Per-function flag to indicate if the LSDA
+  /// should be emitted.
+  bool shouldEmitLSDA;
+
+  /// shouldEmitMoves - Per-function flag to indicate if frame moves info
+  /// should be emitted.
+  bool shouldEmitMoves;
+
+public:
+  //===--------------------------------------------------------------------===//
+  // Main entry points.
+  //
+  Win64Exception(AsmPrinter *A);
+  virtual ~Win64Exception();
 
   /// EndModule - Emit all exception information that should come after the
   /// content.

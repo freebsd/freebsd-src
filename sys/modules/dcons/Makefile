@@ -5,7 +5,7 @@
 
 KMOD	= dcons
 SRCS	= dcons.c dcons.h dcons_os.c dcons_os.h \
-		opt_dcons.h opt_kdb.h opt_ddb.h opt_gdb.h opt_comconsole.h
+		opt_dcons.h opt_kdb.h opt_ddb.h opt_gdb.h
 
 .if !defined(KERNBUILDDIR)
 opt_kdb.h:
@@ -13,9 +13,6 @@ opt_kdb.h:
 
 opt_ddb.h:
 	echo "#define DDB 1" > $@
-
-opt_comconsole.h:
-	echo "#define ALT_BREAK_TO_DEBUGGER 1" > $@
 .endif
 
 CFLAGS+= -I${.CURDIR}/../.. 

@@ -82,16 +82,12 @@ static device_method_t gem_pci_methods[] = {
 	/* Use the suspend handler here, it is all that is required. */
 	DEVMETHOD(device_shutdown,	gem_pci_suspend),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	gem_mii_readreg),
 	DEVMETHOD(miibus_writereg,	gem_mii_writereg),
 	DEVMETHOD(miibus_statchg,	gem_mii_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t gem_pci_driver = {
@@ -176,6 +172,10 @@ gem_pci_attach(device_t dev)
 	 */
 	if (pci_get_intpin(dev) == 0)
 		pci_set_intpin(dev, 1);
+
+	/* Set the PCI latency timer for Sun ERIs. */
+	if (sc->sc_variant == GEM_SUN_ERI)
+		pci_write_config(dev, PCIR_LATTIMER, GEM_ERI_LATENCY_TIMER, 1);
 
 	sc->sc_dev = dev;
 	sc->sc_flags |= GEM_PCI;

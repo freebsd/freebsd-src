@@ -63,6 +63,16 @@ enum libusb_descriptor_type {
 	LIBUSB_DT_REPORT = 0x22,
 	LIBUSB_DT_PHYSICAL = 0x23,
 	LIBUSB_DT_HUB = 0x29,
+	LIBUSB_DT_BOS = 0x0f,
+	LIBUSB_DT_DEVICE_CAPABILITY = 0x10,
+	LIBUSB_DT_SS_ENDPOINT_COMPANION = 0x30,
+};
+
+enum libusb_device_capability_type {
+	LIBUSB_WIRELESS_USB_DEVICE_CAPABILITY = 0x1,
+	LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY = 0x2,
+	LIBUSB_SS_USB_DEVICE_CAPABILITY = 0x3,
+	LIBUSB_CONTAINER_ID_DEVICE_CAPABILITY = 0x4,
 };
 
 #define	LIBUSB_DT_DEVICE_SIZE		18
@@ -71,6 +81,10 @@ enum libusb_descriptor_type {
 #define	LIBUSB_DT_ENDPOINT_SIZE		7
 #define	LIBUSB_DT_ENDPOINT_AUDIO_SIZE	9
 #define	LIBUSB_DT_HUB_NONVAR_SIZE	7
+#define	LIBUSB_DT_SS_ENDPOINT_COMPANION_SIZE	6
+#define	LIBUSB_DT_BOS_SIZE		5
+#define	LIBUSB_USB_2_0_EXTENSION_DEVICE_CAPABILITY_SIZE	7
+#define	LIBUSB_SS_USB_DEVICE_CAPABILITY_SIZE	10
 
 #define	LIBUSB_ENDPOINT_ADDRESS_MASK	0x0f
 #define	LIBUSB_ENDPOINT_DIR_MASK	0x80
@@ -151,6 +165,14 @@ enum libusb_error {
 	LIBUSB_ERROR_OTHER = -99,
 };
 
+enum libusb_speed {
+	LIBUSB_SPEED_UNKNOWN = 0,
+	LIBUSB_SPEED_LOW = 1,
+	LIBUSB_SPEED_FULL = 2,
+	LIBUSB_SPEED_HIGH = 3,
+	LIBUSB_SPEED_SUPER = 4,
+};
+
 enum libusb_transfer_status {
 	LIBUSB_TRANSFER_COMPLETED,
 	LIBUSB_TRANSFER_ERROR,
@@ -222,6 +244,14 @@ typedef struct libusb_endpoint_descriptor {
 	int	extra_length;
 }	libusb_endpoint_descriptor __aligned(sizeof(void *));
 
+typedef struct libusb_ss_endpoint_companion_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bMaxBurst;
+	uint8_t bmAttributes;
+	uint16_t wBytesPerInterval;
+}	libusb_ss_endpoint_companion_descriptor __aligned(sizeof(void *));
+
 typedef struct libusb_interface_descriptor {
 	uint8_t	bLength;
 	uint8_t	bDescriptorType;
@@ -255,6 +285,39 @@ typedef struct libusb_config_descriptor {
 	uint8_t *extra;
 	int	extra_length;
 }	libusb_config_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_usb_2_0_device_capability_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint32_t bmAttributes;
+#define LIBUSB_USB_2_0_CAPABILITY_LPM_SUPPORT  (1 << 1)
+}	libusb_usb_2_0_device_capability_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_ss_usb_device_capability_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint8_t bDevCapabilityType;
+	uint8_t bmAttributes;
+#define LIBUSB_SS_USB_CAPABILITY_LPM_SUPPORT   (1 << 1)
+	uint16_t wSpeedSupported;
+#define LIBUSB_CAPABILITY_LOW_SPEED_OPERATION  (1)
+#define LIBUSB_CAPABILITY_FULL_SPEED_OPERATION (1 << 1)
+#define LIBUSB_CAPABILITY_HIGH_SPEED_OPERATION (1 << 2)
+#define LIBUSB_CAPABILITY_5GBPS_OPERATION      (1 << 3)
+	uint8_t bFunctionalitySupport;
+	uint8_t bU1DevExitLat;
+	uint16_t wU2DevExitLat;
+}	libusb_ss_usb_device_capability_descriptor __aligned(sizeof(void *));
+
+typedef struct libusb_bos_descriptor {
+	uint8_t bLength;
+	uint8_t bDescriptorType;
+	uint16_t wTotalLength;
+	uint8_t bNumDeviceCapabilities;
+	struct libusb_usb_2_0_device_capability_descriptor *usb_2_0_ext_cap;
+	struct libusb_ss_usb_device_capability_descriptor *ss_usb_cap;
+}	libusb_bos_descriptor __aligned(sizeof(void *));
 
 typedef struct libusb_control_setup {
 	uint8_t	bmRequestType;
@@ -295,6 +358,7 @@ typedef struct libusb_transfer {
 
 void	libusb_set_debug(libusb_context * ctx, int level);
 const char *libusb_strerror(int code);
+const char *libusb_error_name(int code);
 int	libusb_init(libusb_context ** context);
 void	libusb_exit(struct libusb_context *ctx);
 
@@ -304,6 +368,7 @@ ssize_t libusb_get_device_list(libusb_context * ctx, libusb_device *** list);
 void	libusb_free_device_list(libusb_device ** list, int unref_devices);
 uint8_t	libusb_get_bus_number(libusb_device * dev);
 uint8_t	libusb_get_device_address(libusb_device * dev);
+enum libusb_speed libusb_get_device_speed(libusb_device * dev);
 int	libusb_clear_halt(libusb_device_handle *devh, uint8_t endpoint);
 int	libusb_get_max_packet_size(libusb_device * dev, uint8_t endpoint);
 libusb_device *libusb_ref_device(libusb_device * dev);
@@ -335,6 +400,10 @@ int	libusb_get_config_descriptor_by_value(libusb_device * dev, uint8_t bConfigur
 void	libusb_free_config_descriptor(struct libusb_config_descriptor *config);
 int	libusb_get_string_descriptor_ascii(libusb_device_handle * devh, uint8_t desc_index, uint8_t *data, int length);
 int	libusb_get_descriptor(libusb_device_handle * devh, uint8_t desc_type, uint8_t desc_index, uint8_t *data, int length);
+int	libusb_parse_ss_endpoint_comp(const void *buf, int len, struct libusb_ss_endpoint_companion_descriptor **ep_comp);
+void	libusb_free_ss_endpoint_comp(struct libusb_ss_endpoint_companion_descriptor *ep_comp);
+int	libusb_parse_bos_descriptor(const void *buf, int len, struct libusb_bos_descriptor **bos);
+void	libusb_free_bos_descriptor(struct libusb_bos_descriptor *bos);
 
 /* Asynchronous device I/O */
 

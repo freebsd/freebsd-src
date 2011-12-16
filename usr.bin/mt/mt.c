@@ -73,7 +73,7 @@ __FBSDID("$FreeBSD$");
 #define FALSE 0
 #endif
 
-struct commands {
+static const struct commands {
 	const char *c_name;
 	int c_code;
 	int c_ronly;
@@ -114,22 +114,22 @@ struct commands {
 	{ NULL, 0, 0, 0 }
 };
 
-const char *getblksiz(int);
-void printreg(const char *, u_int, const char *);
-void status(struct mtget *);
-void usage(void);
-void st_status (struct mtget *);
-int stringtodens (const char *s);
-const char *denstostring (int d);
-int denstobp(int d, int bpi);
-u_int32_t stringtocomp(const char *s);
-const char *comptostring(u_int32_t comp);
-void warn_eof(void);
+static const char *getblksiz(int);
+static void printreg(const char *, u_int, const char *);
+static void status(struct mtget *);
+static void usage(void);
+static void st_status(struct mtget *);
+static int stringtodens(const char *s);
+static const char *denstostring(int d);
+static int denstobp(int d, int bpi);
+static u_int32_t stringtocomp(const char *s);
+static const char *comptostring(u_int32_t comp);
+static void warn_eof(void);
 
 int
 main(int argc, char *argv[])
 {
-	struct commands *comp;
+	const struct commands *comp;
 	struct mtget mt_status;
 	struct mtop mt_com;
 	int ch, len, mtfd;
@@ -303,7 +303,7 @@ main(int argc, char *argv[])
 	/* NOTREACHED */
 }
 
-struct tape_desc {
+static const struct tape_desc {
 	short	t_type;		/* type of magtape device */
 	const char *t_name;	/* printing name */
 	const char *t_dsbits;	/* "drive status" register */
@@ -316,10 +316,10 @@ struct tape_desc {
 /*
  * Interpret the status buffer returned
  */
-void
+static void
 status(struct mtget *bp)
 {
-	struct tape_desc *mt;
+	const struct tape_desc *mt;
 
 	for (mt = tapes;; mt++) {
 		if (mt->t_type == 0) {
@@ -344,7 +344,7 @@ status(struct mtget *bp)
 /*
  * Print a register a la the %b format of the kernel's printf.
  */
-void
+static void
 printreg(const char *s, u_int v, const char *bits)
 {
 	int i, any = 0;
@@ -374,14 +374,14 @@ printreg(const char *s, u_int v, const char *bits)
 	}
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "usage: mt [-f device] command [count]\n");
 	exit(1);
 }
 
-struct densities {
+static const struct densities {
 	int dens;
 	int bpmm;
 	int bpi;
@@ -437,7 +437,7 @@ struct densities {
 	{ 0, 0, 0, NULL }
 };
 
-struct compression_types {
+static const struct compression_types {
 	u_int32_t	comp_number;
 	const char 	*name;
 } comp_types[] = {
@@ -450,11 +450,11 @@ struct compression_types {
 	{ 0xf0f0f0f0, NULL}
 };
 
-const char *
+static const char *
 denstostring(int d)
 {
 	static char buf[20];
-	struct densities *sd;
+	const struct densities *sd;
 
 	/* densities 0 and 0x7f are handled as special cases */
 	if (d == 0)
@@ -475,10 +475,10 @@ denstostring(int d)
  * Given a specific density number, return either the bits per inch or bits
  * per millimeter for the given density.
  */
-int
+static int
 denstobp(int d, int bpi)
 {
-	struct densities *sd;
+	const struct densities *sd;
 
 	for (sd = dens; sd->dens; sd++)
 		if (sd->dens == d)
@@ -493,10 +493,10 @@ denstobp(int d, int bpi)
 	}
 }
 
-int
+static int
 stringtodens(const char *s)
 {
-	struct densities *sd;
+	const struct densities *sd;
 	size_t l = strlen(s);
 
 	for (sd = dens; sd->dens; sd++)
@@ -506,7 +506,7 @@ stringtodens(const char *s)
 }
 
 
-const char *
+static const char *
 getblksiz(int bs)
 {
 	static char buf[25];
@@ -518,11 +518,11 @@ getblksiz(int bs)
 	}
 }
 
-const char *
+static const char *
 comptostring(u_int32_t comp)
 {
 	static char buf[20];
-	struct compression_types *ct;
+	const struct compression_types *ct;
 
 	if (comp == MT_COMP_DISABLED)
 		return "disabled";
@@ -540,10 +540,10 @@ comptostring(u_int32_t comp)
 		return(ct->name);
 }
 
-u_int32_t
+static u_int32_t
 stringtocomp(const char *s)
 {
-	struct compression_types *ct;
+	const struct compression_types *ct;
 	size_t l = strlen(s);
 
 	for (ct = comp_types; ct->name; ct++)
@@ -553,7 +553,7 @@ stringtocomp(const char *s)
 	return(ct->comp_number);
 }
 
-void
+static void
 st_status(struct mtget *bp)
 {
 	printf("Mode      Density              Blocksize      bpi      "
@@ -634,7 +634,7 @@ st_status(struct mtget *bp)
 	    bp->mt_fileno, bp->mt_blkno, bp->mt_resid);
 }
 
-void
+static void
 warn_eof(void)
 {
 	fprintf(stderr,

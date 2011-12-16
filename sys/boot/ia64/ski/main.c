@@ -97,11 +97,13 @@ ski_main(void)
 	    env_nounset);
 
 	setenv("LINES", "24", 1);	/* optional */
-    
+
 	archsw.arch_autoload = ia64_autoload;
-	archsw.arch_getdev = ia64_getdev;
 	archsw.arch_copyin = ia64_copyin;
 	archsw.arch_copyout = ia64_copyout;
+	archsw.arch_getdev = ia64_getdev;
+	archsw.arch_loadaddr = ia64_loadaddr;
+	archsw.arch_loadseg = ia64_loadseg;
 	archsw.arch_readin = ia64_readin;
 
 	interact();			/* doesn't return */

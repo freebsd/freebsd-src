@@ -83,7 +83,11 @@ namespace llvm {
 
       isVoid         =  35,   // This has no value
 
-      LAST_VALUETYPE =  36,   // This always remains at the end of the list.
+      untyped        =  36,   // This value takes a register, but has
+                              // unspecified type.  The register class
+                              // will be determined by the opcode.
+
+      LAST_VALUETYPE =  37,   // This always remains at the end of the list.
 
       // This is the current maximum for LAST_VALUETYPE.
       // MVT::MAX_ALLOWED_VALUETYPE is used for asserts and to size bit vectors
@@ -140,14 +144,14 @@ namespace llvm {
     /// isFloatingPoint - Return true if this is a FP, or a vector FP type.
     bool isFloatingPoint() const {
       return ((SimpleTy >= MVT::f32 && SimpleTy <= MVT::ppcf128) ||
-        (SimpleTy >= MVT::v2f32 && SimpleTy <= MVT::v4f64));
+	      (SimpleTy >= MVT::v2f32 && SimpleTy <= MVT::v4f64));
     }
 
     /// isInteger - Return true if this is an integer, or a vector integer type.
     bool isInteger() const {
       return ((SimpleTy >= MVT::FIRST_INTEGER_VALUETYPE &&
                SimpleTy <= MVT::LAST_INTEGER_VALUETYPE) ||
-               (SimpleTy >= MVT::v2i8 && SimpleTy <= MVT::v8i64));
+	      (SimpleTy >= MVT::v2i8 && SimpleTy <= MVT::v8i64));
     }
 
     /// isVector - Return true if this is a vector value type.
@@ -376,7 +380,7 @@ namespace llvm {
   struct EVT {
   private:
     MVT V;
-    const Type *LLVMTy;
+    Type *LLVMTy;
 
   public:
     EVT() : V((MVT::SimpleValueType)(MVT::INVALID_SIMPLE_VALUE_TYPE)),
@@ -432,6 +436,21 @@ namespace llvm {
       case 16: return MVT::v16i8;
       }
       return MVT::INVALID_SIMPLE_VALUE_TYPE;
+    }
+
+    /// changeVectorElementTypeToInteger - Return a vector with the same number
+    /// of elements as this vector, but with the element type converted to an
+    /// integer type with the same bitwidth.
+    EVT changeVectorElementTypeToInteger() const {
+      if (!isSimple())
+        return changeExtendedVectorElementTypeToInteger();
+      MVT EltTy = getSimpleVT().getVectorElementType();
+      unsigned BitWidth = EltTy.getSizeInBits();
+      MVT IntTy = MVT::getIntegerVT(BitWidth);
+      MVT VecTy = MVT::getVectorVT(IntTy, getVectorNumElements());
+      assert(VecTy != MVT::INVALID_SIMPLE_VALUE_TYPE &&
+             "Simple vector VT not representable by simple integer vector VT!");
+      return VecTy;
     }
 
     /// isSimple - Test if the given EVT is simple (as opposed to being
@@ -641,12 +660,12 @@ namespace llvm {
     /// getTypeForEVT - This method returns an LLVM type corresponding to the
     /// specified EVT.  For integer types, this returns an unsigned type.  Note
     /// that this will abort for types that cannot be represented.
-    const Type *getTypeForEVT(LLVMContext &Context) const;
+    Type *getTypeForEVT(LLVMContext &Context) const;
 
     /// getEVT - Return the value type corresponding to the specified type.
     /// This returns all pointers as iPTR.  If HandleUnknown is true, unknown
     /// types are returned as Other, otherwise they are invalid.
-    static EVT getEVT(const Type *Ty, bool HandleUnknown = false);
+    static EVT getEVT(Type *Ty, bool HandleUnknown = false);
 
     intptr_t getRawBits() {
       if (isSimple())
@@ -670,6 +689,7 @@ namespace llvm {
     // Methods for handling the Extended-type case in functions above.
     // These are all out-of-line to prevent users of this header file
     // from having a dependency on Type.h.
+    EVT changeExtendedVectorElementTypeToInteger() const;
     static EVT getExtendedIntegerVT(LLVMContext &C, unsigned BitWidth);
     static EVT getExtendedVectorVT(LLVMContext &C, EVT VT,
                                    unsigned NumElements);

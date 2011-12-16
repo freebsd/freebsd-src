@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: nsec.h,v 1.12 2008/09/25 04:02:39 tbox Exp $ */
+/* $Id: nsec.h,v 1.12 2008-09-25 04:02:39 tbox Exp $ */
 
 #ifndef DNS_NSEC_H
 #define DNS_NSEC_H 1

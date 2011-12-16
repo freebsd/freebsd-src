@@ -201,6 +201,10 @@ deadlkres(void)
 		tryl = 0;
 		FOREACH_PROC_IN_SYSTEM(p) {
 			PROC_LOCK(p);
+			if (p->p_state == PRS_NEW) {
+				PROC_UNLOCK(p);
+				continue;
+			}
 			FOREACH_THREAD_IN_PROC(p, td) {
 
 				/*
@@ -300,7 +304,8 @@ static struct kthread_desc deadlkres_kd = {
 
 SYSINIT(deadlkres, SI_SUB_CLOCKS, SI_ORDER_ANY, kthread_start, &deadlkres_kd);
 
-SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW, 0, "Deadlock resolver");
+static SYSCTL_NODE(_debug, OID_AUTO, deadlkres, CTLFLAG_RW, 0,
+    "Deadlock resolver");
 SYSCTL_INT(_debug_deadlkres, OID_AUTO, slptime_threshold, CTLFLAG_RW,
     &slptime_threshold, 0,
     "Number of seconds within is valid to sleep on a sleepqueue");
@@ -838,7 +843,7 @@ watchdog_fire(void)
 	curintr = intrcnt;
 	curname = intrnames;
 	inttotal = 0;
-	nintr = eintrcnt - intrcnt;
+	nintr = sintrcnt / sizeof(u_long);
 
 	printf("interrupt                   total\n");
 	while (--nintr >= 0) {

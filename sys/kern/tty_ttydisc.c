@@ -270,13 +270,13 @@ ttydisc_read_raw_interbyte_timer(struct tty *tp, struct uio *uio, int ioflag)
 
 	MPASS(tp->t_termios.c_cc[VMIN] != 0);
 	MPASS(tp->t_termios.c_cc[VTIME] != 0);
-	
+
 	/*
 	 * When using the interbyte timer, the timer should be started
 	 * after the first byte has been received. We just call into the
 	 * generic read timer code after we've received the first byte.
 	 */
-	
+
 	for (;;) {
 		error = ttyinq_read_uio(&tp->t_inq, tp, uio,
 		    uio->uio_resid, 0);
@@ -331,7 +331,7 @@ ttydisc_read(struct tty *tp, struct uio *uio, int ioflag)
 		/* Unset the input watermark when we've got enough space. */
 		tty_hiwat_in_unblock(tp);
 	}
-	
+
 	return (error);
 }
 
@@ -521,7 +521,7 @@ ttydisc_write(struct tty *tp, struct uio *uio, int ioflag)
 				error = EWOULDBLOCK;
 				goto done;
 			}
-			
+
 			/*
 			 * The driver may write back the data
 			 * synchronously. Be sure to check the high
@@ -567,7 +567,7 @@ ttydisc_optimize(struct tty *tp)
 	} else if (!CMP_FLAG(i, ICRNL|IGNCR|IMAXBEL|INLCR|ISTRIP|IXON) &&
 	    (!CMP_FLAG(i, BRKINT) || CMP_FLAG(i, IGNBRK)) &&
 	    (!CMP_FLAG(i, PARMRK) ||
-	        CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
+		CMP_FLAG(i, IGNPAR|IGNBRK) == (IGNPAR|IGNBRK)) &&
 	    !CMP_FLAG(l, ECHO|ICANON|IEXTEN|ISIG|PENDIN)) {
 		tp->t_flags |= TF_BYPASS;
 	} else {
@@ -583,7 +583,7 @@ ttydisc_modem(struct tty *tp, int open)
 
 	if (open)
 		cv_broadcast(&tp->t_dcdwait);
-	
+
 	/*
 	 * Ignore modem status lines when CLOCAL is turned on, but don't
 	 * enter the zombie state when the TTY isn't opened, because
@@ -834,7 +834,7 @@ ttydisc_rint(struct tty *tp, char c, int flags)
 
 	if (ttyhook_hashook(tp, rint))
 		return ttyhook_rint(tp, c, flags);
-	
+
 	if (tp->t_flags & TF_BYPASS)
 		goto processed;
 
@@ -1072,7 +1072,7 @@ ttydisc_rint_bypass(struct tty *tp, const void *buf, size_t len)
 	size_t ret;
 
 	tty_lock_assert(tp, MA_OWNED);
-	
+
 	MPASS(tp->t_flags & TF_BYPASS);
 
 	atomic_add_long(&tty_nin, len);
@@ -1122,7 +1122,7 @@ ttydisc_rint_poll(struct tty *tp)
 	l = ttyinq_bytesleft(&tp->t_inq);
 	if (l == 0 && (tp->t_flags & TF_HIWAT_IN) == 0)
 		return (1);
-	
+
 	return (l);
 }
 
@@ -1201,7 +1201,7 @@ ttydisc_getc_uio(struct tty *tp, struct uio *uio)
 			tty_unlock(tp);
 			error = uiomove(buf, len, uio);
 			tty_lock(tp);
-			
+
 			if (error != 0)
 				break;
 		}

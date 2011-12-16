@@ -76,8 +76,8 @@
 #include <netgraph/ng_socket.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info ");
-MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info ");
+static MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info");
+static MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info");
 #else
 #define M_NETGRAPH_PATH M_NETGRAPH
 #define M_NETGRAPH_SOCK M_NETGRAPH
@@ -525,32 +525,31 @@ ng_attach_cntl(struct socket *so)
 {
 	struct ngsock *priv;
 	struct ngpcb *pcbp;
+	node_p node;
 	int error;
+
+	/* Setup protocol control block */
+	if ((error = ng_attach_common(so, NG_CONTROL)) != 0)
+		return (error);
+	pcbp = sotongpcb(so);
+
+	/* Make the generic node components */
+	if ((error = ng_make_node_common(&typestruct, &node)) != 0) {
+		ng_detach_common(pcbp, NG_CONTROL);
+		return (error);
+	}
 
 	/* Allocate node private info */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
 
-	/* Setup protocol control block */
-	if ((error = ng_attach_common(so, NG_CONTROL)) != 0) {
-		free(priv, M_NETGRAPH_SOCK);
-		return (error);
-	}
-	pcbp = sotongpcb(so);
+	/* Initialize mutex. */
+	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
 
 	/* Link the pcb the private data. */
 	priv->ctlsock = pcbp;
 	pcbp->sockdata = priv;
 	priv->refs++;
-
-	/* Initialize mutex. */
-	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
-
-	/* Make the generic node components */
-	if ((error = ng_make_node_common(&typestruct, &priv->node)) != 0) {
-		free(priv, M_NETGRAPH_SOCK);
-		ng_detach_common(pcbp, NG_CONTROL);
-		return (error);
-	}
+	priv->node = node;
 
 	/* Store a hint for netstat(1). */
 	priv->node_id = priv->node->nd_ID;
@@ -695,7 +694,7 @@ ng_internalize(struct mbuf *control, struct thread *td)
 	/* Check that the FD given is legit. and change it to a pointer to a
 	 * struct file. */
 	fd = CMSG_DATA(cm);
-	if ((error = fget(td, fd, &fp)) != 0)
+	if ((error = fget(td, fd, 0, &fp)) != 0)
 		return (error);
 
 	/* Depending on what kind of resource it is, act differently. For
@@ -1173,8 +1172,8 @@ ngs_mod_event(module_t mod, int event, void *data)
 VNET_DOMAIN_SET(ng);
 
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
+static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
 SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
+static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
 SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, 0, NG_CONTROL, "");
 

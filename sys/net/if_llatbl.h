@@ -30,6 +30,8 @@ __FBSDID("$FreeBSD$");
 #ifndef	_NET_IF_LLATBL_H_
 #define	_NET_IF_LLATBL_H_
 
+#include "opt_ofed.h"
+
 #include <sys/_rwlock.h>
 #include <netinet/in.h>
 
@@ -57,6 +59,7 @@ struct llentry {
 	struct rwlock		 lle_lock;
 	struct lltable		 *lle_tbl;
 	struct llentries	 *lle_head;
+	void			(*lle_free)(struct lltable *, struct llentry *);
 	struct mbuf		 *la_hold;
 	int     		 la_numheld;  /* # of packets currently held */
 	time_t			 la_expire;
@@ -72,6 +75,9 @@ struct llentry {
 	union {
 		uint64_t	mac_aligned;
 		uint16_t	mac16[3];
+#ifdef OFED
+		uint8_t		mac8[20];	/* IB needs 20 bytes. */
+#endif
 	} ll_addr;
 
 	/* XXX af-private? */
@@ -146,15 +152,13 @@ struct lltable {
 	int			llt_af;
 	struct ifnet		*llt_ifp;
 
-	struct llentry *	(*llt_new)(const struct sockaddr *, u_int);
 	void			(*llt_free)(struct lltable *, struct llentry *);
 	void			(*llt_prefix_free)(struct lltable *,
 				    const struct sockaddr *prefix,
-				    const struct sockaddr *mask);
+				    const struct sockaddr *mask,
+				    u_int flags);
 	struct llentry *	(*llt_lookup)(struct lltable *, u_int flags,
 				    const struct sockaddr *l3addr);
-	int			(*llt_rtcheck)(struct ifnet *, u_int flags,
-				    const struct sockaddr *);
 	int			(*llt_dump)(struct lltable *,
 				     struct sysctl_req *);
 };
@@ -179,7 +183,7 @@ MALLOC_DECLARE(M_LLTABLE);
 struct lltable *lltable_init(struct ifnet *, int);
 void		lltable_free(struct lltable *);
 void		lltable_prefix_free(int, struct sockaddr *, 
-                       struct sockaddr *);
+                       struct sockaddr *, u_int);
 #if 0
 void		lltable_drain(int);
 #endif

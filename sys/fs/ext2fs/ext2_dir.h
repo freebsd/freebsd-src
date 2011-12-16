@@ -35,9 +35,9 @@
 #define EXT2FS_MAXNAMLEN 255
 
 struct	ext2fs_direct {
-	u_int32_t e2d_ino;		/* inode number of entry */
-	u_int16_t e2d_reclen;		/* length of this record */
-	u_int16_t e2d_namlen;		/* length of string in d_name */
+	uint32_t e2d_ino;		/* inode number of entry */
+	uint16_t e2d_reclen;		/* length of this record */
+	uint16_t e2d_namlen;		/* length of string in d_name */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
 /*
@@ -47,10 +47,10 @@ struct	ext2fs_direct {
  * file_type field.
  */
 struct	ext2fs_direct_2 {
-	u_int32_t e2d_ino;		/* inode number of entry */
-	u_int16_t e2d_reclen;		/* length of this record */
-	u_int8_t e2d_namlen;		/* length of string in d_name */
-	u_int8_t e2d_type;		/* file type */
+	uint32_t e2d_ino;		/* inode number of entry */
+	uint16_t e2d_reclen;		/* length of this record */
+	uint8_t e2d_namlen;		/* length of string in d_name */
+	uint8_t e2d_type;		/* file type */
 	char e2d_name[EXT2FS_MAXNAMLEN];/* name with length<=EXT2FS_MAXNAMLEN */
 };
 /*

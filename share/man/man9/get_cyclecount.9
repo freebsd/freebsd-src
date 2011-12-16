@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2009
+.Dd March 15, 2011
 .Dt GET_CYCLECOUNT 9
 .Os
 .Sh NAME
@@ -65,14 +65,16 @@ do not have such a register,
 so
 .Fn get_cyclecount
 on these platforms
-returns a (non-monotonic) combination of numbers
+returns a (monotonic) combination of numbers
 represented by the
 structure returned by
 .Xr binuptime 9 .
 .Pp
 The
-.Tn Pentium
-processors all use the
+.Tn AMD64
+and
+.Tn Intel 64
+processors use the
 .Li TSC
 register.
 .Pp

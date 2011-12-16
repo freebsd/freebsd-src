@@ -22,7 +22,7 @@
 
 namespace llvm {
 
-class TargetInstrDesc;
+class MCInstrDesc;
 class SDDbgValue;
 
 class InstrEmitter {
@@ -49,7 +49,7 @@ class InstrEmitter {
                                     unsigned ResNo) const;
 
   void CreateVirtualRegisters(SDNode *Node, MachineInstr *MI,
-                              const TargetInstrDesc &II,
+                              const MCInstrDesc &II,
                               bool IsClone, bool IsCloned,
                               DenseMap<SDValue, unsigned> &VRBaseMap);
 
@@ -63,7 +63,7 @@ class InstrEmitter {
   /// not in the required register class.
   void AddRegisterOperand(MachineInstr *MI, SDValue Op,
                           unsigned IIOpNum,
-                          const TargetInstrDesc *II,
+                          const MCInstrDesc *II,
                           DenseMap<SDValue, unsigned> &VRBaseMap,
                           bool IsDebug, bool IsClone, bool IsCloned);
 
@@ -73,9 +73,15 @@ class InstrEmitter {
   /// assertions only.
   void AddOperand(MachineInstr *MI, SDValue Op,
                   unsigned IIOpNum,
-                  const TargetInstrDesc *II,
+                  const MCInstrDesc *II,
                   DenseMap<SDValue, unsigned> &VRBaseMap,
                   bool IsDebug, bool IsClone, bool IsCloned);
+
+  /// ConstrainForSubReg - Try to constrain VReg to a register class that
+  /// supports SubIdx sub-registers.  Emit a copy if that isn't possible.
+  /// Return the virtual register to use.
+  unsigned ConstrainForSubReg(unsigned VReg, unsigned SubIdx,
+                              EVT VT, DebugLoc DL);
 
   /// EmitSubregNode - Generate machine code for subreg nodes.
   ///

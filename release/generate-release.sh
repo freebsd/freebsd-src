@@ -1,15 +1,20 @@
 #!/bin/sh
 
 # generate-release.sh: check out source trees, and build release components with
-#  totally clean, fresh trees
+#  totally clean, fresh trees.
 #
 #  Usage: generate-release.sh svn-branch scratch-dir
 #
 # Environment variables:
-#  CVSUP_HOST: Host of a cvsup server to obtain the ports tree. Must be set
-#   to include ports.
-#  CVSUP_TAG:  CVS tag for ports (HEAD by default)
+#  CVSUP_HOST: Host of a cvsup server to obtain the ports and documentation
+#   trees. This or CVSROOT must be set to include ports and documentation.
+#  CVSROOT:    CVS root to obtain the ports and documentation trees. This or
+#   CVSUP_HOST must be set to include ports and documentation.
+#  CVS_TAG:    CVS tag for ports and documentation (HEAD by default)
+#  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
+#   svn://svn.freebsd.org/base)
 #  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
+#  RELSTRING:  optional base name for media images (e.g. FreeBSD-9.0-RC2-amd64)
 # 
 #  Note: Since this requires a chroot, release cross-builds will not work!
 #
@@ -17,31 +22,56 @@
 #
 
 mkdir -p $2/usr/src
-svn co svn://svn.freebsd.org/base/$1 $2/usr/src || exit 1
+set -e # Everything must succeed
+
+svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src
 if [ ! -z $CVSUP_HOST ]; then
-	cat > $2/ports-supfile << EOF
+	cat > $2/docports-supfile << EOF
 	*default host=$CVSUP_HOST
 	*default base=/var/db
 	*default prefix=/usr
-	*default release=cvs tag=${CVSUP_TAG:-.}
+	*default release=cvs tag=${CVS_TAG:-.}
 	*default delete use-rel-suffix
 	*default compress
 	ports-all
+	doc-all
 EOF
-else
-	RELEASE_FLAGS=-DNOPORTS
+elif [ ! -z $CVSROOT ]; then
+	cd $2/usr
+	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} ports
+	cvs -R ${CVSARGS} -d ${CVSROOT} co -P -r ${CVS_TAG:-HEAD} doc
 fi
 
 cd $2/usr/src
-make $MAKE_FLAGS buildworld || exit 1
-make installworld distribution DESTDIR=$2 || exit 1
+make $MAKE_FLAGS buildworld
+make installworld distribution DESTDIR=$2
 mount -t devfs devfs $2/dev
+trap "umount $2/dev" EXIT # Clean up devfs mount on exit
 
 if [ ! -z $CVSUP_HOST ]; then 
 	cp /etc/resolv.conf $2/etc/resolv.conf
-	chroot $2 /usr/bin/csup /ports-supfile || exit 1
+
+	# Checkout ports and doc trees
+	chroot $2 /usr/bin/csup /docports-supfile
 fi
-chroot $2 /bin/sh -c "cd /usr/src && make $MAKE_FLAGS buildworld buildkernel" || exit 1
-mkdir $2/R
-chroot $2 /bin/sh -c "cd /usr/src/release && MAKEOBJDIR=/R make -f Makefile.bsdinstall release $RELEASE_FLAGS" || exit 1
+
+if [ -d $2/usr/doc ]; then 
+	cp /etc/resolv.conf $2/etc/resolv.conf
+
+	# Build ports to build release documentation
+	chroot $2 /bin/sh -c 'pkg_add -r docproj || (cd /usr/ports/textproc/docproj && make install clean BATCH=yes WITHOUT_X11=yes JADETEX=no WITHOUT_PYTHON=yes)'
+fi
+
+chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
+chroot $2 make -C /usr/src/release release
+chroot $2 make -C /usr/src/release install DESTDIR=/R
+
+: ${RELSTRING=`chroot $2 uname -s`-`chroot $2 uname -r`-`chroot $2 uname -p`}
+
+cd $2/R
+for i in release.iso bootonly.iso memstick; do
+	mv $i $RELSTRING-$i
+done
+sha256 $RELSTRING-* > CHECKSUM.SHA256
+md5 $RELSTRING-* > CHECKSUM.MD5
 

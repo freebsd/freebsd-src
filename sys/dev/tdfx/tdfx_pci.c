@@ -42,7 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 
 #include <sys/bus.h>
-#include <sys/cdefs.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
 #include <sys/file.h>
@@ -90,7 +89,7 @@ static device_method_t tdfx_methods[] = {
 	{ 0, 0 }
 };
 
-MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerator(s)");
+static MALLOC_DEFINE(M_TDFX,"tdfx_driver","3DFX Graphics[/2D]/3D Accelerators");
 
 /* Char. Dev. file operations structure */
 static struct cdevsw tdfx_cdev = {

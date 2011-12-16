@@ -27,6 +27,16 @@ __FBSDID("$FreeBSD$");
 
 #include <locale.h>
 
+#ifndef HAVE_WCSCPY
+static wchar_t * wcscpy(wchar_t *s1, const wchar_t *s2)
+{
+	wchar_t *dest = s1;
+	while ((*s1 = *s2) != L'\0')
+		++s1, ++s2;
+	return dest;
+}
+#endif
+
 /*
  * Most of these tests are system-independent, though a few depend on
  * features of the local system.  Such tests are conditionalized on
@@ -866,6 +876,7 @@ DEFINE_TEST(test_entry)
 		assert(NULL == archive_entry_symlink_w(e));
 	}
 
+#if HAVE_WCSCPY
 	l = 0x12345678L;
 	wc = (wchar_t)l; /* Wide character too big for UTF-8. */
 	if (NULL == setlocale(LC_ALL, "C") || (long)wc != l) {
@@ -885,6 +896,7 @@ DEFINE_TEST(test_entry)
 		failure("Converting wide characters from Unicode should fail.");
 		assertEqualString(NULL, archive_entry_pathname(e));
 	}
+#endif
 
 	/* Release the experimental entry. */
 	archive_entry_free(e);

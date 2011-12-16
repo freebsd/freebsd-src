@@ -22,7 +22,7 @@ namespace RTLIB {
   /// RTLIB::Libcall enum - This enum defines all of the runtime library calls
   /// the backend can emit.  The various long double types cannot be merged,
   /// because 80-bit library functions use "xf" and 128-bit use "tf".
-  /// 
+  ///
   /// When adding PPCF128 functions here, note that their names generally need
   /// to be overridden for Darwin with the xxx$LDBL128 form.  See
   /// PPCISelLowering.cpp.
@@ -46,6 +46,9 @@ namespace RTLIB {
     MUL_I32,
     MUL_I64,
     MUL_I128,
+    MULO_I32,
+    MULO_I64,
+    MULO_I128,
     SDIV_I8,
     SDIV_I16,
     SDIV_I32,
@@ -66,6 +69,16 @@ namespace RTLIB {
     UREM_I32,
     UREM_I64,
     UREM_I128,
+    SDIVREM_I8,
+    SDIVREM_I16,
+    SDIVREM_I32,
+    SDIVREM_I64,
+    SDIVREM_I128,
+    UDIVREM_I8,
+    UDIVREM_I16,
+    UDIVREM_I32,
+    UDIVREM_I64,
+    UDIVREM_I128,
     NEG_I32,
     NEG_I64,
 
@@ -90,6 +103,10 @@ namespace RTLIB {
     REM_F64,
     REM_F80,
     REM_PPCF128,
+    FMA_F32,
+    FMA_F64,
+    FMA_F80,
+    FMA_PPCF128,
     POWI_F32,
     POWI_F64,
     POWI_F80,

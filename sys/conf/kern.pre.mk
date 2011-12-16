@@ -23,38 +23,29 @@ NM?=		nm
 OBJCOPY?=	objcopy
 SIZE?=		size
 
-.if ${CC:T:Micc} == "icc"
-COPTFLAGS?=	-O
-.else
-. if defined(DEBUG)
+.if defined(DEBUG)
 _MINUS_O=	-O
 CTFFLAGS+=	-g
-. else
+.else
+.if ${MACHINE_CPUARCH} == "powerpc"
+_MINUS_O=	-O	# gcc miscompiles some code at -O2
+.else
 _MINUS_O=	-O2
-. endif
-. if ${MACHINE_CPUARCH} == "amd64"
+.endif
+.endif
+.if ${MACHINE_CPUARCH} == "amd64"
 COPTFLAGS?=-O2 -frename-registers -pipe
-. else
+.else
 COPTFLAGS?=${_MINUS_O} -pipe
-. endif
-. if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
+.endif
+.if !empty(COPTFLAGS:M-O[23s]) && empty(COPTFLAGS:M-fno-strict-aliasing)
 COPTFLAGS+= -fno-strict-aliasing
-. endif
 .endif
 .if !defined(NO_CPU_COPTFLAGS)
-. if ${CC:T:Micc} == "icc"
-COPTFLAGS+= ${_ICC_CPUCFLAGS:C/(-x[^M^K^W]+)[MKW]+|-x[MKW]+/\1/}
-. else
 COPTFLAGS+= ${_CPUCFLAGS}
-. endif
 .endif
-.if ${CC:T:Micc} == "icc"
-C_DIALECT=
-NOSTDINC= -X
-.else
 C_DIALECT= -std=c99
 NOSTDINC= -nostdinc
-.endif
 
 INCLUDES= ${NOSTDINC} ${INCLMAGIC} -I. -I$S
 
@@ -89,7 +80,6 @@ INCLUDES+= -I$S/dev/cxgb -I$S/dev/cxgbe
 
 CFLAGS=	${COPTFLAGS} ${C_DIALECT} ${DEBUG} ${CWARNFLAGS}
 CFLAGS+= ${INCLUDES} -D_KERNEL -DHAVE_KERNEL_OPTION_HEADERS -include opt_global.h
-.if ${CC:T:Micc} != "icc"
 .if ${CC:T:Mclang} != "clang"
 CFLAGS+= -fno-common -finline-limit=${INLINE_LIMIT}
 .if ${MACHINE_CPUARCH} != "mips"
@@ -103,15 +93,11 @@ CFLAGS+= --param max-inline-insns-single=10000
 .endif
 .endif
 WERROR?= -Werror
-.endif
 
 # XXX LOCORE means "don't declare C stuff" not "for locore.s".
 ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
-.if ${CC:T:Micc} == "icc"
-.error "Profiling doesn't work with icc"
-.endif
 CFLAGS+=	-DGPROF -falign-functions=16
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
@@ -137,10 +123,23 @@ NORMAL_C_NOWERROR= ${CC} -c ${CFLAGS} ${PROF} ${.IMPSRC}
 NORMAL_M= ${AWK} -f $S/tools/makeobjops.awk ${.IMPSRC} -c ; \
 	  ${CC} -c ${CFLAGS} ${WERROR} ${PROF} ${.PREFIX}.c
 
-NORMAL_CTFCONVERT= [ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		   ${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.if ${MK_CTF} != "no"
+NORMAL_CTFCONVERT=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+NORMAL_CTFCONVERT=
+.else
+NORMAL_CTFCONVERT=	@:
+.endif
 
 NORMAL_LINT=	${LINT} ${LINTFLAGS} ${CFLAGS:M-[DIU]*} ${.IMPSRC}
+
+# Infiniband C flags.  Correct include paths and omit errors that linux
+# does not honor.
+OFEDINCLUDES=	-I$S/ofed/include/
+OFEDNOERR=	-Wno-cast-qual -Wno-pointer-arith -fms-extensions
+OFEDCFLAGS=	${CFLAGS:N-I*} ${OFEDINCLUDES} ${CFLAGS:M-I*} ${OFEDNOERR}
+OFED_C_NOIMP=	${CC} -c -o ${.TARGET} ${OFEDCFLAGS} ${WERROR} ${PROF}
+OFED_C=		${OFED_C_NOIMP} ${.IMPSRC}
 
 GEN_CFILES= $S/$M/$M/genassym.c ${MFILES:T:S/.m$/.c/}
 SYSTEM_CFILES= config.c env.c hints.c vnode_if.c
@@ -148,7 +147,6 @@ SYSTEM_DEP= Makefile ${SYSTEM_OBJS}
 SYSTEM_OBJS= locore.o ${MDOBJS} ${OBJS}
 SYSTEM_OBJS+= ${SYSTEM_CFILES:.c=.o}
 SYSTEM_OBJS+= hack.So
-SYSTEM_CTFMERGE= [ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SYSTEM_OBJS} vers.o
 SYSTEM_LD= @${LD} -Bdynamic -T ${LDSCRIPT} \
 	-warn-common -export-dynamic -dynamic-linker /red/herring \
 	-o ${.TARGET} -X ${SYSTEM_OBJS} vers.o
@@ -159,7 +157,7 @@ SYSTEM_DEP+= ${LDSCRIPT}
 # MKMODULESENV is set here so that port makefiles can augment
 # them.
 
-MKMODULESENV=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
+MKMODULESENV+=	MAKEOBJDIRPREFIX=${.OBJDIR}/modules KMODDIR=${KODIR}
 MKMODULESENV+=	MACHINE_CPUARCH=${MACHINE_CPUARCH}
 .if (${KERN_IDENT} == LINT)
 MKMODULESENV+=	ALL_MODULES=LINT

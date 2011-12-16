@@ -23,8 +23,6 @@
 #include "llvm/CodeGen/MachineCodeEmitter.h"
 #include "llvm/ADT/DenseMap.h"
 
-using namespace std;
-
 namespace llvm {
 
 class MachineBasicBlock;
@@ -38,7 +36,7 @@ class GlobalValue;
 class Function;
   
 /// JITCodeEmitter - This class defines two sorts of methods: those for
-/// emitting the actual bytes of machine code, and those for emitting auxillary
+/// emitting the actual bytes of machine code, and those for emitting auxiliary
 /// structures, such as jump tables, relocations, etc.
 ///
 /// Emission of machine code is complicated by the fact that we don't (in

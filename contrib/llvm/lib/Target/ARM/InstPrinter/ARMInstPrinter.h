@@ -15,16 +15,19 @@
 #define ARMINSTPRINTER_H
 
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 
 namespace llvm {
-  class MCOperand;
+
+class MCOperand;
 
 class ARMInstPrinter : public MCInstPrinter {
 public:
-  ARMInstPrinter(const MCAsmInfo &MAI) : MCInstPrinter(MAI) {}
+    ARMInstPrinter(const MCAsmInfo &MAI, const MCSubtargetInfo &STI);
 
-  virtual void printInst(const MCInst *MI, raw_ostream &O);
+  virtual void printInst(const MCInst *MI, raw_ostream &O, StringRef Annot);
   virtual StringRef getOpcodeName(unsigned Opcode) const;
+  virtual void printRegName(raw_ostream &OS, unsigned RegNo) const;
 
   static const char *getInstructionName(unsigned Opcode);
 
@@ -35,18 +38,33 @@ public:
 
   void printOperand(const MCInst *MI, unsigned OpNo, raw_ostream &O);
 
-  void printSOImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printSORegRegOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printSORegImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
-  void printSORegOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAddrModeTBB(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAddrModeTBH(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode2Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM2PostIndexOp(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAM2PreOrOffsetIndexOp(const MCInst *MI, unsigned OpNum,
+                                  raw_ostream &O);
   void printAddrMode2OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
+
   void printAddrMode3Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode3OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
+  void printAM3PostIndexOp(const MCInst *MI, unsigned Op, raw_ostream &O);
+  void printAM3PreOrOffsetIndexOp(const MCInst *MI, unsigned Op,raw_ostream &O);
+  void printPostIdxImm8Operand(const MCInst *MI, unsigned OpNum,
+                               raw_ostream &O);
+  void printPostIdxRegOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printPostIdxImm8s4Operand(const MCInst *MI, unsigned OpNum,
+                               raw_ostream &O);
+
   void printLdStmModeOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode5Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode6Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printAddrMode7Operand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printAddrMode6OffsetOperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
 
@@ -54,8 +72,11 @@ public:
                                       raw_ostream &O);
   void printMemBOption(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printShiftImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printPKHLSLShiftImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printPKHASRShiftImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printThumbS4ImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printThumbSRImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printThumbITMask(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printThumbAddrModeRROperand(const MCInst *MI, unsigned OpNum,
                                    raw_ostream &O);
@@ -77,6 +98,8 @@ public:
                                   raw_ostream &O);
   void printT2AddrModeImm8s4Operand(const MCInst *MI, unsigned OpNum,
                                     raw_ostream &O);
+  void printT2AddrModeImm0_1020s4Operand(const MCInst *MI, unsigned OpNum,
+                                    raw_ostream &O);
   void printT2AddrModeImm8OffsetOperand(const MCInst *MI, unsigned OpNum,
                                         raw_ostream &O);
   void printT2AddrModeImm8s4OffsetOperand(const MCInst *MI, unsigned OpNum,
@@ -87,9 +110,7 @@ public:
   void printSetendOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printCPSIMod(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printCPSIFlag(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printCPSOptionOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printMSRMaskOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printNegZeroOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printPredicateOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printMandatoryPredicateOperand(const MCInst *MI, unsigned OpNum,
                                       raw_ostream &O);
@@ -99,11 +120,15 @@ public:
   void printNoHashImmediate(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printPImmediate(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printCImmediate(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printVFPf32ImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
-  void printVFPf64ImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printCoprocOptionImm(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printFPImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
   void printNEONModImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printImmPlusOneOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printRotImmOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 
   void printPCLabel(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printT2LdrLabelOperand(const MCInst *MI, unsigned OpNum, raw_ostream &O);
+  void printVectorIndex(const MCInst *MI, unsigned OpNum, raw_ostream &O);
 };
 
 } // end namespace llvm

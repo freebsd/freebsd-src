@@ -37,6 +37,7 @@ archive_read_support_format_all(struct archive *a)
 	archive_read_support_format_iso9660(a);
 	archive_read_support_format_mtree(a);
 	archive_read_support_format_tar(a);
+	archive_read_support_format_xar(a);
 	archive_read_support_format_zip(a);
 	return (ARCHIVE_OK);
 }

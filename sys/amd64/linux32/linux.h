@@ -47,7 +47,10 @@ extern u_char linux_debug_map[];
 MALLOC_DECLARE(M_LINUX);
 #endif
 
-#define	LINUX32_USRSTACK	((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_MAXUSER		((1ul << 32) - PAGE_SIZE)
+#define	LINUX32_SHAREDPAGE	(LINUX32_MAXUSER - PAGE_SIZE)
+#define	LINUX32_USRSTACK	LINUX32_SHAREDPAGE
+
 /* XXX 16 = sizeof(linux32_ps_strings) */
 #define	LINUX32_PS_STRINGS	(LINUX32_USRSTACK - 16)
 #define	LINUX32_MAXDSIZ		(512 * 1024 * 1024)	/* 512MB */

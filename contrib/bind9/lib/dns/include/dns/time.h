@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: time.h,v 1.17 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: time.h,v 1.17 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef DNS_TIME_H
 #define DNS_TIME_H 1

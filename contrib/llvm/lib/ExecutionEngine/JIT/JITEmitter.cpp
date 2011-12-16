@@ -123,17 +123,18 @@ namespace {
       return FunctionToLazyStubMap;
     }
 
-    GlobalToIndirectSymMapTy& getGlobalToIndirectSymMap(const MutexGuard& locked) {
-      assert(locked.holds(TheJIT->lock));
+    GlobalToIndirectSymMapTy& getGlobalToIndirectSymMap(const MutexGuard& lck) {
+      assert(lck.holds(TheJIT->lock));
       return GlobalToIndirectSymMap;
     }
 
-    pair<void *, Function *> LookupFunctionFromCallSite(
+    std::pair<void *, Function *> LookupFunctionFromCallSite(
         const MutexGuard &locked, void *CallSite) const {
       assert(locked.holds(TheJIT->lock));
 
-      // The address given to us for the stub may not be exactly right, it might be
-      // a little bit after the stub.  As such, use upper_bound to find it.
+      // The address given to us for the stub may not be exactly right, it
+      // might be a little bit after the stub.  As such, use upper_bound to
+      // find it.
       CallSiteToFunctionMapTy::const_iterator I =
         CallSiteToFunctionMap.upper_bound(CallSite);
       assert(I != CallSiteToFunctionMap.begin() &&
@@ -645,7 +646,7 @@ void *JITResolver::JITCompilerFn(void *Stub) {
 
     // The address given to us for the stub may not be exactly right, it might
     // be a little bit after the stub.  As such, use upper_bound to find it.
-    pair<void*, Function*> I =
+    std::pair<void*, Function*> I =
       JR->state.LookupFunctionFromCallSite(locked, Stub);
     F = I.second;
     ActualPtr = I.first;
@@ -659,13 +660,15 @@ void *JITResolver::JITCompilerFn(void *Stub) {
 
     // If lazy compilation is disabled, emit a useful error message and abort.
     if (!JR->TheJIT->isCompilingLazily()) {
-      report_fatal_error("LLVM JIT requested to do lazy compilation of function '"
+      report_fatal_error("LLVM JIT requested to do lazy compilation of"
+                         " function '"
                         + F->getName() + "' when lazy compiles are disabled!");
     }
 
     DEBUG(dbgs() << "JIT: Lazily resolving function '" << F->getName()
           << "' In stub ptr = " << Stub << " actual ptr = "
           << ActualPtr << "\n");
+    (void)ActualPtr;
 
     Result = JR->TheJIT->getPointerToFunction(F);
   }
@@ -745,7 +748,7 @@ void *JITEmitter::getPointerToGVIndirectSym(GlobalValue *V, void *Reference) {
 void JITEmitter::processDebugLoc(DebugLoc DL, bool BeforePrintingInsn) {
   if (DL.isUnknown()) return;
   if (!BeforePrintingInsn) return;
-  
+
   const LLVMContext &Context = EmissionDetails.MF->getFunction()->getContext();
 
   if (DL.getScope(Context) != 0 && PrevDL != DL) {
@@ -768,7 +771,7 @@ static unsigned GetConstantPoolSizeInBytes(MachineConstantPool *MCP,
     MachineConstantPoolEntry CPE = Constants[i];
     unsigned AlignMask = CPE.getAlignment() - 1;
     Size = (Size + AlignMask) & ~AlignMask;
-    const Type *Ty = CPE.getType();
+    Type *Ty = CPE.getType();
     Size += TD->getTypeAllocSize(Ty);
   }
   return Size;
@@ -781,7 +784,7 @@ void JITEmitter::startFunction(MachineFunction &F) {
   uintptr_t ActualSize = 0;
   // Set the memory writable, if it's not already
   MemMgr->setMemoryWritable();
-  
+
   if (SizeEstimate > 0) {
     // SizeEstimate will be non-zero on reallocation attempts.
     ActualSize = SizeEstimate;
@@ -859,7 +862,8 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
         } else if (MR.isBasicBlock()) {
           ResultPtr = (void*)getMachineBasicBlockAddress(MR.getBasicBlock());
         } else if (MR.isConstantPoolIndex()) {
-          ResultPtr = (void*)getConstantPoolEntryAddress(MR.getConstantPoolIndex());
+          ResultPtr =
+            (void*)getConstantPoolEntryAddress(MR.getConstantPoolIndex());
         } else {
           assert(MR.isJumpTableIndex());
           ResultPtr=(void*)getJumpTableEntryAddress(MR.getJumpTableIndex());
@@ -985,7 +989,7 @@ bool JITEmitter::finishFunction(MachineFunction &F) {
     CurBufferPtr = SavedCurBufferPtr;
 
     if (JITExceptionHandling) {
-      TheJIT->RegisterTable(FrameRegister);
+      TheJIT->RegisterTable(F.getFunction(), FrameRegister);
     }
 
     if (JITEmitDebugInfo) {
@@ -1033,8 +1037,9 @@ void JITEmitter::deallocateMemForFunction(const Function *F) {
     EmittedFunctions.erase(Emitted);
   }
 
-  // TODO: Do we need to unregister exception handling information from libgcc
-  // here?
+  if(JITExceptionHandling) {
+    TheJIT->DeregisterTable(F);
+  }
 
   if (JITEmitDebugInfo) {
     DR->UnregisterFunction(F);
@@ -1094,7 +1099,7 @@ void JITEmitter::emitConstantPool(MachineConstantPool *MCP) {
     DEBUG(dbgs() << "JIT:   CP" << i << " at [0x";
           dbgs().write_hex(CAddr) << "]\n");
 
-    const Type *Ty = CPE.Val.ConstVal->getType();
+    Type *Ty = CPE.Val.ConstVal->getType();
     Offset += TheJIT->getTargetData()->getTypeAllocSize(Ty);
   }
 }
@@ -1129,7 +1134,7 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   if (JT.empty() || JumpTableBase == 0) return;
 
-  
+
   switch (MJTI->getEntryKind()) {
   case MachineJumpTableInfo::EK_Inline:
     return;
@@ -1138,11 +1143,11 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
     //     .word LBB123
     assert(MJTI->getEntrySize(*TheJIT->getTargetData()) == sizeof(void*) &&
            "Cross JIT'ing?");
-    
+
     // For each jump table, map each target in the jump table to the address of
     // an emitted MachineBasicBlock.
     intptr_t *SlotPtr = (intptr_t*)JumpTableBase;
-    
+
     for (unsigned i = 0, e = JT.size(); i != e; ++i) {
       const std::vector<MachineBasicBlock*> &MBBs = JT[i].MBBs;
       // Store the address of the basic block for this jump table slot in the
@@ -1152,7 +1157,7 @@ void JITEmitter::emitJumpTableInfo(MachineJumpTableInfo *MJTI) {
     }
     break;
   }
-      
+
   case MachineJumpTableInfo::EK_Custom32:
   case MachineJumpTableInfo::EK_GPRel32BlockAddress:
   case MachineJumpTableInfo::EK_LabelDifference32: {

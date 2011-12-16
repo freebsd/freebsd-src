@@ -26,7 +26,7 @@
  *
  */
 
-/*	$NetBSD: ncr53c9x.c,v 1.125 2007/01/09 12:53:12 itohy Exp $	*/
+/*	$NetBSD: ncr53c9x.c,v 1.143 2011/07/31 18:39:00 jakllsch Exp $	*/
 
 /*-
  * Copyright (c) 1998, 2002 The NetBSD Foundation, Inc.
@@ -43,13 +43,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *        This product includes software developed by the NetBSD
- *        Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -130,10 +123,12 @@ __FBSDID("$FreeBSD$");
 #include <dev/esp/ncr53c9xreg.h>
 #include <dev/esp/ncr53c9xvar.h>
 
+devclass_t esp_devclass;
+
 MODULE_DEPEND(esp, cam, 1, 1, 1);
 
 #ifdef NCR53C9X_DEBUG
-static int ncr53c9x_debug =
+int ncr53c9x_debug =
     NCR_SHOWMISC /* | NCR_SHOWPHASE | NCR_SHOWTRAC | NCR_SHOWCMDS */;
 #endif
 
@@ -167,7 +162,7 @@ static void	ncr53c9x_sched(struct ncr53c9x_softc *sc);
 static void	ncr53c9x_select(struct ncr53c9x_softc *sc,
 		    struct ncr53c9x_ecb *ecb);
 static void	ncr53c9x_watch(void *arg);
-static void	ncr53c9x_wrfifo(struct ncr53c9x_softc *sc, u_char *p,
+static void	ncr53c9x_wrfifo(struct ncr53c9x_softc *sc, uint8_t *p,
 		    int len);
 
 static struct ncr53c9x_ecb	*ncr53c9x_get_ecb(struct ncr53c9x_softc *sc);
@@ -186,14 +181,11 @@ static inline int	ncr53c9x_stp2cpb(struct ncr53c9x_softc *sc,
 #define	NCR_SET_COUNT(sc, size) do {					\
 		NCR_WRITE_REG((sc), NCR_TCL, (size));			\
 		NCR_WRITE_REG((sc), NCR_TCM, (size) >> 8);		\
-		if ((sc->sc_cfg2 & NCRCFG2_FE) ||			\
-		    (sc->sc_rev == NCR_VARIANT_FAS366)) {		\
+		if ((sc->sc_features & NCR_F_LARGEXFER) != 0)		\
 			NCR_WRITE_REG((sc), NCR_TCH, (size) >> 16);	\
-		}							\
-		if (sc->sc_rev == NCR_VARIANT_FAS366) {			\
+		if (sc->sc_rev == NCR_VARIANT_FAS366)			\
 			NCR_WRITE_REG(sc, NCR_RCH, 0);			\
-		}							\
-} while (0)
+} while (/* CONSTCOND */0)
 
 #ifndef mstohz
 #define	mstohz(ms) \
@@ -324,7 +316,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	 * The recommended timeout is 250ms.  This register is loaded
 	 * with a value calculated as follows, from the docs:
 	 *
-	 *		(timout period) x (CLK frequency)
+	 *		(timeout period) x (CLK frequency)
 	 *	reg = -------------------------------------
 	 *		 8192 x (Clock Conversion Factor)
 	 *
@@ -400,6 +392,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 		ecb = &sc->ecb_array[i];
 		ecb->sc = sc;
 		ecb->tag_id = i;
+		callout_init_mtx(&ecb->ch, &sc->sc_lock, 0);
 		TAILQ_INSERT_HEAD(&sc->free_list, ecb, free_links);
 	}
 
@@ -458,10 +451,10 @@ ncr53c9x_detach(struct ncr53c9x_softc *sc)
 	xpt_register_async(0, ncr53c9x_async, sc->sc_sim, sc->sc_path);
 	xpt_free_path(sc->sc_path);
 	xpt_bus_deregister(cam_sim_path(sc->sc_sim));
+	cam_sim_free(sc->sc_sim, TRUE);
 
 	NCR_UNLOCK(sc);
 
-	cam_sim_free(sc->sc_sim, TRUE);
 	free(sc->ecb_array, M_DEVBUF);
 	free(sc->sc_tinfo, M_DEVBUF);
 	if (sc->sc_imess_self)
@@ -513,6 +506,8 @@ ncr53c9x_reset(struct ncr53c9x_softc *sc)
 		/* FALLTHROUGH */
 	case NCR_VARIANT_ESP100A:
 		sc->sc_features |= NCR_F_SELATN3;
+		if ((sc->sc_cfg2 & NCRCFG2_FE) != 0)
+			sc->sc_features |= NCR_F_LARGEXFER;
 		NCR_WRITE_REG(sc, NCR_CFG2, sc->sc_cfg2);
 		/* FALLTHROUGH */
 	case NCR_VARIANT_ESP100:
@@ -523,8 +518,8 @@ ncr53c9x_reset(struct ncr53c9x_softc *sc)
 		break;
 
 	case NCR_VARIANT_FAS366:
-		sc->sc_features |=
-		    NCR_F_HASCFG3 | NCR_F_FASTSCSI | NCR_F_SELATN3;
+		sc->sc_features |= NCR_F_HASCFG3 | NCR_F_FASTSCSI |
+		    NCR_F_SELATN3 | NCR_F_LARGEXFER;
 		sc->sc_cfg3 = NCRFASCFG3_FASTCLK | NCRFASCFG3_OBAUTO;
 		if (sc->sc_id > 7)
 			sc->sc_cfg3 |= NCRFASCFG3_IDBIT3;
@@ -551,11 +546,10 @@ ncr53c9x_reset(struct ncr53c9x_softc *sc)
 		NCR_WRITE_REG(sc, NCR_AMDCFG4, sc->sc_cfg4);
 
 #if 0
-	device_printf(sc->sc_dev, "ncr53c9x_reset: revision %d\n",
-	    sc->sc_rev);
-	device_printf(sc->sc_dev, "ncr53c9x_reset: cfg1 0x%x, cfg2 0x%x, "
-	    "cfg3 0x%x, ccf 0x%x, timeout 0x%x\n",
-	    sc->sc_cfg1, sc->sc_cfg2, sc->sc_cfg3, sc->sc_ccf, sc->sc_timeout);
+	device_printf(sc->sc_dev, "%s: revision %d\n", __func__, sc->sc_rev);
+	device_printf(sc->sc_dev, "%s: cfg1 0x%x, cfg2 0x%x, cfg3 0x%x, ccf "
+	    "0x%x, timeout 0x%x\n", __func__, sc->sc_cfg1, sc->sc_cfg2,
+	    sc->sc_cfg3, sc->sc_ccf, sc->sc_timeout);
 #endif
 }
 
@@ -573,7 +567,8 @@ ncr53c9x_clear(struct ncr53c9x_softc *sc, cam_status result)
 	/* Cancel any active commands. */
 	sc->sc_state = NCR_CLEANING;
 	sc->sc_msgify = 0;
-	if ((ecb = sc->sc_nexus) != NULL) {
+	ecb = sc->sc_nexus;
+	if (ecb != NULL) {
 		ecb->ccb->ccb_h.status = result;
 		ncr53c9x_done(sc, ecb);
 	}
@@ -597,7 +592,8 @@ ncr53c9x_clear_target(struct ncr53c9x_softc *sc, int target,
 
 	/* Cancel outstanding disconnected commands on each LUN. */
 	LIST_FOREACH(li, &sc->sc_tinfo[target].luns, link) {
-		if ((ecb = li->untagged) != NULL) {
+		ecb = li->untagged;
+		if (ecb != NULL) {
 			li->untagged = NULL;
 			/*
 			 * XXX should we terminate a command
@@ -607,12 +603,14 @@ ncr53c9x_clear_target(struct ncr53c9x_softc *sc, int target,
 			ecb->ccb->ccb_h.status = result;
 			ncr53c9x_done(sc, ecb);
 		}
-		for (i = 0; i < NCR_TAG_DEPTH; i++)
-			if ((ecb = li->queued[i])) {
+		for (i = 0; i < NCR_TAG_DEPTH; i++) {
+			ecb = li->queued[i];
+			if (ecb != NULL) {
 				li->queued[i] = NULL;
 				ecb->ccb->ccb_h.status = result;
 				ncr53c9x_done(sc, ecb);
 			}
+		}
 		li->used = 0;
 	}
 }
@@ -635,7 +633,7 @@ ncr53c9x_init(struct ncr53c9x_softc *sc, int doreset)
 
 		TAILQ_INIT(&sc->ready_list);
 		sc->sc_nexus = NULL;
-		memset(sc->sc_tinfo, 0, sizeof(sc->sc_tinfo));
+		memset(sc->sc_tinfo, 0, sizeof(*sc->sc_tinfo));
 		for (r = 0; r < sc->sc_ntarg; r++) {
 			LIST_INIT(&sc->sc_tinfo[r].luns);
 		}
@@ -717,9 +715,6 @@ ncr53c9x_readregs(struct ncr53c9x_softc *sc)
 
 	sc->sc_espintr = NCR_READ_REG(sc, NCR_INTR);
 
-	if (sc->sc_glue->gl_clear_latched_intr != NULL)
-		(*sc->sc_glue->gl_clear_latched_intr)(sc);
-
 	/*
 	 * Determine the SCSI bus phase, return either a real SCSI bus phase
 	 * or some pseudo phase we use to detect certain exceptions.
@@ -751,7 +746,7 @@ ncr53c9x_stp2cpb(struct ncr53c9x_softc *sc, int period)
 static inline void
 ncr53c9x_setsync(struct ncr53c9x_softc *sc, struct ncr53c9x_tinfo *ti)
 {
-	u_char cfg3, syncoff, synctp;
+	uint8_t cfg3, syncoff, synctp;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -810,16 +805,16 @@ static void
 ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 {
 	struct ncr53c9x_tinfo *ti;
-	u_char *cmd;
+	uint8_t *cmd;
 	size_t dmasize;
-	int clen, selatn3, selatns;
+	int clen, error, selatn3, selatns;
 	int lun = ecb->ccb->ccb_h.target_lun;
 	int target = ecb->ccb->ccb_h.target_id;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_select(t%d,l%d,cmd:%x,tag:%x,%x)] ",
-	    target, lun, ecb->cmd.cmd.opcode, ecb->tag[0], ecb->tag[1]));
+	NCR_TRACE(("[%s(t%d,l%d,cmd:%x,tag:%x,%x)] ", __func__, target, lun,
+	    ecb->cmd.cmd.opcode, ecb->tag[0], ecb->tag[1]));
 
 	ti = &sc->sc_tinfo[target];
 	sc->sc_state = NCR_SELECTING;
@@ -838,9 +833,8 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		NCRCMD(sc, NCRCMD_FLUSH);
 		NCR_WRITE_REG(sc, NCR_SELID, target | NCR_BUSID_HMEXC32 |
 		    NCR_BUSID_HMEENCID);
-	} else {
+	} else
 		NCR_WRITE_REG(sc, NCR_SELID, target);
-	}
 
 	/*
 	 * If we are requesting sense, force a renegotiation if we are
@@ -873,7 +867,7 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		selatns = 1;
 	}
 
-	cmd = (u_char *)&ecb->cmd.cmd;
+	cmd = (uint8_t *)&ecb->cmd.cmd;
 
 	if (selatn3) {
 		/* We'll use tags with SELATN3. */
@@ -894,13 +888,19 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		dmasize = clen;
 		sc->sc_cmdlen = clen;
 		sc->sc_cmdp = cmd;
-		NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen, 0, &dmasize);
+		error = NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen, 0,
+		    &dmasize);
+		if (error != 0) {
+			sc->sc_cmdlen = 0;
+			sc->sc_cmdp = NULL;
+			goto cmd;
+		}
+
 		/* Program the SCSI counter. */
 		NCR_SET_COUNT(sc, dmasize);
 
 		/* Load the count in. */
-		/* if (sc->sc_rev != NCR_VARIANT_FAS366) */
-			NCRCMD(sc, NCRCMD_NOP | NCRCMD_DMA);
+		NCRCMD(sc, NCRCMD_NOP | NCRCMD_DMA);
 
 		/* And get the target's attention. */
 		if (selatn3) {
@@ -913,6 +913,7 @@ ncr53c9x_select(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		return;
 	}
 
+cmd:
 	/*
 	 * Who am I?  This is where we tell the target that we are
 	 * happy for it to disconnect etc.
@@ -954,7 +955,7 @@ ncr53c9x_get_ecb(struct ncr53c9x_softc *sc)
 	ecb = TAILQ_FIRST(&sc->free_list);
 	if (ecb) {
 		if (ecb->flags != 0)
-			panic("ecb flags not cleared\n");
+			panic("%s: ecb flags not cleared", __func__);
 		TAILQ_REMOVE(&sc->free_list, ecb, free_links);
 		ecb->flags = ECB_ALLOC;
 		bzero(&ecb->ccb, sizeof(struct ncr53c9x_ecb) -
@@ -990,19 +991,17 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_action %d]", ccb->ccb_h.func_code));
+	NCR_TRACE(("[%s %d]", __func__, ccb->ccb_h.func_code));
 
 	switch (ccb->ccb_h.func_code) {
 	case XPT_RESET_BUS:
 		ncr53c9x_init(sc, 1);
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_CALC_GEOMETRY:
 		cam_calc_geometry(&ccb->ccg, sc->sc_extended_geom);
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_PATH_INQ:
 		cpi = &ccb->cpi;
@@ -1016,19 +1015,19 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->max_target = sc->sc_ntarg - 1;
 		cpi->max_lun = 7;
 		cpi->initiator_id = sc->sc_id;
-		cpi->bus_id = 0;
-		cpi->base_transfer_speed = 3300;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
-		strncpy(cpi->hba_vid, "Sun", HBA_IDLEN);
+		strncpy(cpi->hba_vid, "NCR", HBA_IDLEN);
 		strncpy(cpi->dev_name, cam_sim_name(sim), DEV_IDLEN);
 		cpi->unit_number = cam_sim_unit(sim);
-		cpi->transport = XPORT_SPI;
-		cpi->transport_version = 2;
+		cpi->bus_id = 0;
+		cpi->base_transfer_speed = 3300;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_2;
+		cpi->transport = XPORT_SPI;
+		cpi->transport_version = 2;
+		cpi->maxio = sc->sc_maxxfer;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_GET_TRAN_SETTINGS:
 		cts = &ccb->cts;
@@ -1071,28 +1070,24 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		    CTS_SPI_VALID_DISC;
 		scsi->valid = CTS_SCSI_VALID_TQ;
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_ABORT:
 		device_printf(sc->sc_dev, "XPT_ABORT called\n");
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_TERM_IO:
 		device_printf(sc->sc_dev, "XPT_TERM_IO called\n");
 		ccb->ccb_h.status = CAM_FUNC_NOTAVAIL;
-		xpt_done(ccb);
-		return;
+		break;
 
 	case XPT_RESET_DEV:
 	case XPT_SCSI_IO:
 		if (ccb->ccb_h.target_id < 0 ||
 		    ccb->ccb_h.target_id >= sc->sc_ntarg) {
 			ccb->ccb_h.status = CAM_PATH_INVALID;
-			xpt_done(ccb);
-			return;
+			goto done;
 		}
 		/* Get an ECB to use. */
 		ecb = ncr53c9x_get_ecb(sc);
@@ -1104,8 +1099,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 			xpt_freeze_simq(sim, 1);
 			ccb->ccb_h.status = CAM_REQUEUE_REQ;
 			device_printf(sc->sc_dev, "unable to allocate ecb\n");
-			xpt_done(ccb);
-			return;
+			goto done;
 		}
 
 		/* Initialize ecb. */
@@ -1134,7 +1128,7 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		ecb->flags |= ECB_READY;
 		if (sc->sc_state == NCR_IDLE)
 			ncr53c9x_sched(sc);
-		break;
+		return;
 
 	case XPT_SET_TRAN_SETTINGS:
 		cts = &ccb->cts;
@@ -1172,16 +1166,16 @@ ncr53c9x_action(struct cam_sim *sim, union ccb *ccb)
 		}
 
 		ccb->ccb_h.status = CAM_REQ_CMP;
-		xpt_done(ccb);
-		return;
+		break;
 
 	default:
 		device_printf(sc->sc_dev, "Unhandled function code %d\n",
 		    ccb->ccb_h.func_code);
 		ccb->ccb_h.status = CAM_PROVIDE_FAIL;
-		xpt_done(ccb);
-		return;
 	}
+
+done:
+	xpt_done(ccb);
 }
 
 /*
@@ -1196,7 +1190,7 @@ ncr53c9x_poll(struct cam_sim *sim)
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_poll] "));
+	NCR_TRACE(("[%s] ", __func__));
 
 	if (NCRDMA_ISINTR(sc))
 		ncr53c9x_intr1(sc);
@@ -1260,10 +1254,10 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_sched] "));
+	NCR_TRACE(("[%s] ", __func__));
 
 	if (sc->sc_state != NCR_IDLE)
-		panic("ncr53c9x_sched: not IDLE (state=%d)", sc->sc_state);
+		panic("%s: not IDLE (state=%d)", __func__, sc->sc_state);
 
 	/*
 	 * Find first ecb in ready queue that is for a target/lunit
@@ -1288,10 +1282,9 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 		li = TINFO_LUN(ti, lun);
 		if (li == NULL) {
 			/* Initialize LUN info and add to list. */
-			if ((li = malloc(sizeof(*li),
-			    M_DEVBUF, M_NOWAIT | M_ZERO)) == NULL) {
+			li = malloc(sizeof(*li), M_DEVBUF, M_NOWAIT | M_ZERO);
+			if (li == NULL)
 				continue;
-			}
 			li->lun = lun;
 
 			LIST_INSERT_HEAD(&ti->luns, li, link);
@@ -1337,11 +1330,10 @@ ncr53c9x_sched(struct ncr53c9x_softc *sc)
 			sc->sc_nexus = ecb;
 			ncr53c9x_select(sc, ecb);
 			break;
-		} else {
-			NCR_TRACE(("%d:%d busy\n",
+		} else
+			NCR_TRACE(("[%s %d:%d busy] \n", __func__,
 			    ecb->ccb->ccb_h.target_id,
 			    ecb->ccb->ccb_h.target_lun));
-		}
 	}
 }
 
@@ -1356,7 +1348,7 @@ ncr53c9x_sense(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("requesting sense "));
+	NCR_TRACE(("[%s] ", __func__));
 
 	lun = ccb->ccb_h.target_lun;
 	ti = &sc->sc_tinfo[ccb->ccb_h.target_id];
@@ -1367,7 +1359,8 @@ ncr53c9x_sense(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	ss->byte2 = ccb->ccb_h.target_lun << SCSI_CMD_LUN_SHIFT;
 	ss->length = sizeof(struct scsi_sense_data);
 	ecb->clen = sizeof(*ss);
-	ecb->daddr = (char *)&ecb->ccb->csio.sense_data;
+	memset(&ccb->csio.sense_data, 0, sizeof(ccb->csio.sense_data));
+	ecb->daddr = (uint8_t *)&ccb->csio.sense_data;
 	ecb->dleft = sizeof(struct scsi_sense_data);
 	ecb->flags |= ECB_SENSE;
 	ecb->timeout = NCR_SENSE_TIMEOUT;
@@ -1378,9 +1371,9 @@ ncr53c9x_sense(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	ncr53c9x_dequeue(sc, ecb);
 	li->untagged = ecb;	/* Must be executed first to fix C/A. */
 	li->busy = 2;
-	if (ecb == sc->sc_nexus) {
+	if (ecb == sc->sc_nexus)
 		ncr53c9x_select(sc, ecb);
-	} else {
+	else {
 		TAILQ_INSERT_HEAD(&sc->ready_list, ecb, chain);
 		ecb->flags |= ECB_READY;
 		if (sc->sc_state == NCR_IDLE)
@@ -1397,11 +1390,11 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	union ccb *ccb = ecb->ccb;
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
-	int lun;
+	int lun, sense_returned;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_done(status:%x)] ", ccb->ccb_h.status));
+	NCR_TRACE(("[%s(status:%x)] ", __func__, ccb->ccb_h.status));
 
 	ti = &sc->sc_tinfo[ccb->ccb_h.target_id];
 	lun = ccb->ccb_h.target_lun;
@@ -1419,13 +1412,20 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	 */
 	if (ccb->ccb_h.status == CAM_REQ_CMP) {
 		ccb->csio.scsi_status = ecb->stat;
-		if ((ecb->flags & ECB_ABORT) != 0) {
+		if ((ecb->flags & ECB_ABORT) != 0)
 			ccb->ccb_h.status = CAM_CMD_TIMEOUT;
-		} else if ((ecb->flags & ECB_SENSE) != 0 &&
-			   (ecb->stat != SCSI_STATUS_CHECK_COND)) {
+		else if ((ecb->flags & ECB_SENSE) != 0 &&
+		   (ecb->stat != SCSI_STATUS_CHECK_COND)) {
 			ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 			    CAM_AUTOSNS_VALID;
+			sense_returned = sizeof(ccb->csio.sense_data) -
+			    ecb->dleft;
+			if (sense_returned < ccb->csio.sense_len)
+				ccb->csio.sense_resid = ccb->csio.sense_len -
+				    sense_returned;
+			else
+				ccb->csio.sense_resid = 0;
 		} else if (ecb->stat == SCSI_STATUS_CHECK_COND) {
 			if ((ecb->flags & ECB_SENSE) != 0)
 				ccb->ccb_h.status = CAM_AUTOSENSE_FAIL;
@@ -1439,17 +1439,19 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 				}
 				ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 			}
-		} else {
+		} else
 			ccb->csio.resid = ecb->dleft;
-		}
 		if (ecb->stat == SCSI_STATUS_QUEUE_FULL)
 			ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR;
 		else if (ecb->stat == SCSI_STATUS_BUSY)
 			ccb->ccb_h.status = CAM_SCSI_BUSY;
+	} else if ((ccb->ccb_h.status & CAM_DEV_QFRZN) == 0) {
+		ccb->ccb_h.status |= CAM_DEV_QFRZN;
+		xpt_freeze_devq(ccb->ccb_h.path, 1);
 	}
 
 #ifdef NCR53C9X_DEBUG
-	if (ncr53c9x_debug & NCR_SHOWTRAC) {
+	if ((ncr53c9x_debug & NCR_SHOWTRAC) != 0) {
 		if (ccb->csio.resid != 0)
 			printf("resid=%d ", ccb->csio.resid);
 		if ((ccb->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
@@ -1473,7 +1475,7 @@ ncr53c9x_done(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 		}
 	}
 
-	if (ccb->ccb_h.status == CAM_SEL_TIMEOUT) {
+	if ((ccb->ccb_h.status & CAM_SEL_TIMEOUT) != 0) {
 		/* Selection timeout -- discard this LUN if empty. */
 		if (li->untagged == NULL && li->used == 0) {
 			if (lun < NCR_NLUN)
@@ -1502,7 +1504,7 @@ ncr53c9x_dequeue(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	li = TINFO_LUN(ti, lun);
 #ifdef DIAGNOSTIC
 	if (li == NULL || li->lun != lun)
-		panic("ncr53c9x_dequeue: lun %qx for ecb %p does not exist",
+		panic("%s: lun %qx for ecb %p does not exist", __func__,
 		    (long long)lun, ecb);
 #endif
 	if (li->untagged == ecb) {
@@ -1513,9 +1515,9 @@ ncr53c9x_dequeue(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 #ifdef DIAGNOSTIC
 		if (li->queued[ecb->tag[1]] != NULL &&
 		    (li->queued[ecb->tag[1]] != ecb))
-			panic("ncr53c9x_dequeue: slot %d for lun %qx has %p "
-			    "instead of ecb %p\n", ecb->tag[1],
-			    (long long)lun, li->queued[ecb->tag[1]], ecb);
+			panic("%s: slot %d for lun %qx has %p instead of ecb "
+			    "%p", __func__, ecb->tag[1], (long long)lun,
+			    li->queued[ecb->tag[1]], ecb);
 #endif
 		li->queued[ecb->tag[1]] = NULL;
 		li->used--;
@@ -1542,7 +1544,7 @@ ncr53c9x_dequeue(struct ncr53c9x_softc *sc, struct ncr53c9x_ecb *ecb)
 	NCRCMD(sc, NCRCMD_SETATN);					\
 	sc->sc_flags |= NCR_ATN;					\
 	sc->sc_msgpriq |= (m);						\
-} while (0)
+} while (/* CONSTCOND */0)
 
 static void
 ncr53c9x_flushfifo(struct ncr53c9x_softc *sc)
@@ -1550,7 +1552,7 @@ ncr53c9x_flushfifo(struct ncr53c9x_softc *sc)
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[flushfifo] "));
+	NCR_TRACE(("[%s] ", __func__));
 
 	NCRCMD(sc, NCRCMD_FLUSH);
 
@@ -1562,8 +1564,8 @@ ncr53c9x_flushfifo(struct ncr53c9x_softc *sc)
 static int
 ncr53c9x_rdfifo(struct ncr53c9x_softc *sc, int how)
 {
-	u_char *ibuf;
 	int i, n;
+	uint8_t *ibuf;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -1578,7 +1580,7 @@ ncr53c9x_rdfifo(struct ncr53c9x_softc *sc, int how)
 		break;
 
 	default:
-		panic("ncr53c9x_rdfifo: bad flag");
+		panic("%s: bad flag", __func__);
 		/* NOTREACHED */
 	}
 
@@ -1603,10 +1605,9 @@ ncr53c9x_rdfifo(struct ncr53c9x_softc *sc, int how)
 
 			ncr53c9x_flushfifo(sc);
 		}
-	} else {
+	} else
 		for (i = 0; i < n; i++)
 			ibuf[i] = NCR_READ_REG(sc, NCR_FIFO);
-	}
 
 	sc->sc_imlen += i;
 
@@ -1614,7 +1615,7 @@ ncr53c9x_rdfifo(struct ncr53c9x_softc *sc, int how)
 #ifdef NCR53C9X_DEBUG
 	NCR_TRACE(("\n[rdfifo %s (%d):",
 	    (how == NCR_RDFIFO_START) ? "start" : "cont", (int)sc->sc_imlen));
-	if (ncr53c9x_debug & NCR_SHOWTRAC) {
+	if ((ncr53c9x_debug & NCR_SHOWTRAC) != 0) {
 		for (i = 0; i < sc->sc_imlen; i++)
 			printf(" %02x", sc->sc_imess[i]);
 		printf("]\n");
@@ -1625,7 +1626,7 @@ ncr53c9x_rdfifo(struct ncr53c9x_softc *sc, int how)
 }
 
 static void
-ncr53c9x_wrfifo(struct ncr53c9x_softc *sc, u_char *p, int len)
+ncr53c9x_wrfifo(struct ncr53c9x_softc *sc, uint8_t *p, int len)
 {
 	int i;
 
@@ -1633,7 +1634,7 @@ ncr53c9x_wrfifo(struct ncr53c9x_softc *sc, u_char *p, int len)
 
 #ifdef NCR53C9X_DEBUG
 	NCR_MSGS(("[wrfifo(%d):", len));
-	if (ncr53c9x_debug & NCR_SHOWMSGS) {
+	if ((ncr53c9x_debug & NCR_SHOWMSGS) != 0) {
 		for (i = 0; i < len; i++)
 			printf(" %02x", p[i]);
 		printf("]\n");
@@ -1655,13 +1656,13 @@ ncr53c9x_reselect(struct ncr53c9x_softc *sc, int message, int tagtype,
 	struct ncr53c9x_ecb *ecb = NULL;
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
-	u_char lun, selid, target;
+	uint8_t lun, selid, target;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	if (sc->sc_rev == NCR_VARIANT_FAS366) {
+	if (sc->sc_rev == NCR_VARIANT_FAS366)
 		target = sc->sc_selid;
-	} else {
+	else {
 		/*
 		 * The SCSI chip made a snapshot of the data bus
 		 * while the reselection was being negotiated.
@@ -1743,7 +1744,7 @@ abort:
 #define	MSG_IS2BYTE(m)		(((m) & 0xf0) == 0x20)
 
 static inline int
-__verify_msg_format(u_char *p, int len)
+__verify_msg_format(uint8_t *p, int len)
 {
 
 	if (len == 1 && MSG_IS1BYTE(p[0]))
@@ -1769,12 +1770,12 @@ ncr53c9x_msgin(struct ncr53c9x_softc *sc)
 	struct ncr53c9x_ecb *ecb;
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
-	u_char *pb;
+	uint8_t *pb;
 	int lun, plen;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_msgin(curmsglen:%ld)] ", (long)sc->sc_imlen));
+	NCR_TRACE(("[%s(curmsglen:%ld)] ", __func__, (long)sc->sc_imlen));
 
 	if (sc->sc_imlen == 0) {
 		device_printf(sc->sc_dev, "msgin: no msg byte available\n");
@@ -2031,8 +2032,8 @@ gotit:
 
 			default:
 				xpt_print_path(ecb->ccb->ccb_h.path);
-				printf("unrecognized MESSAGE EXTENDED;"
-				    " sending REJECT\n");
+				printf("unrecognized MESSAGE EXTENDED 0x%x;"
+				    " sending REJECT\n", sc->sc_imess[2]);
 				goto reject;
 			}
 			break;
@@ -2040,7 +2041,8 @@ gotit:
 		default:
 			NCR_MSGS(("ident "));
 			xpt_print_path(ecb->ccb->ccb_h.path);
-			printf("unrecognized MESSAGE; sending REJECT\n");
+			printf("unrecognized MESSAGE 0x%x; sending REJECT\n",
+			    sc->sc_imess[0]);
 			/* FALLTHROUGH */
 		reject:
 			ncr53c9x_sched_msgout(SEND_REJECT);
@@ -2060,19 +2062,19 @@ gotit:
 			    sc->sc_imess[0]);
 			goto reset;
 		}
-		(void) ncr53c9x_reselect(sc, sc->sc_msgify,
+		(void)ncr53c9x_reselect(sc, sc->sc_msgify,
 		    sc->sc_imess[0], sc->sc_imess[1]);
 		break;
 
 	case NCR_RESELECTED:
-		if (MSG_ISIDENTIFY(sc->sc_imess[1])) {
+		if (MSG_ISIDENTIFY(sc->sc_imess[1]))
 			sc->sc_msgify = sc->sc_imess[1];
-		} else {
+		else {
 			device_printf(sc->sc_dev, "reselect without IDENTIFY;"
 			    " MSG %x; sending DEVICE RESET\n", sc->sc_imess[1]);
 			goto reset;
 		}
-		(void) ncr53c9x_reselect(sc, sc->sc_msgify, 0, 0);
+		(void)ncr53c9x_reselect(sc, sc->sc_msgify, 0, 0);
 		break;
 
 	default:
@@ -2110,14 +2112,15 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 	struct ncr53c9x_tinfo *ti;
 	struct ncr53c9x_ecb *ecb;
 	size_t size;
+	int error;
 #ifdef NCR53C9X_DEBUG
 	int i;
 #endif
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
-	NCR_TRACE(("[ncr53c9x_msgout(priq:%x, prevphase:%x)]",
-	    sc->sc_msgpriq, sc->sc_prevphase));
+	NCR_TRACE(("[%s(priq:%x, prevphase:%x)]", __func__, sc->sc_msgpriq,
+	    sc->sc_prevphase));
 
 	/*
 	 * XXX - the NCR_ATN flag is not in sync with the actual ATN
@@ -2130,7 +2133,9 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 		if (sc->sc_prevphase != MESSAGE_OUT_PHASE) {
 		new:
 			NCRCMD(sc, NCRCMD_FLUSH);
-/*			DELAY(1); */
+#if 0
+			DELAY(1);
+#endif
 			sc->sc_msgoutq = 0;
 			sc->sc_omlen = 0;
 		}
@@ -2138,10 +2143,9 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 		if (sc->sc_prevphase == MESSAGE_OUT_PHASE) {
 			ncr53c9x_sched_msgout(sc->sc_msgoutq);
 			goto new;
-		} else {
+		} else
 			device_printf(sc->sc_dev, "at line %d: unexpected "
 			    "MESSAGE OUT phase\n", __LINE__);
-		}
 	}
 
 	if (sc->sc_omlen == 0) {
@@ -2173,20 +2177,18 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 			break;
 
 		case SEND_IDENTIFY:
-			if (sc->sc_state != NCR_CONNECTED) {
+			if (sc->sc_state != NCR_CONNECTED)
 				device_printf(sc->sc_dev, "at line %d: no "
 				    "nexus\n", __LINE__);
-			}
 			ecb = sc->sc_nexus;
 			sc->sc_omess[0] =
 			    MSG_IDENTIFY(ecb->ccb->ccb_h.target_lun, 0);
 			break;
 
 		case SEND_TAG:
-			if (sc->sc_state != NCR_CONNECTED) {
+			if (sc->sc_state != NCR_CONNECTED)
 				device_printf(sc->sc_dev, "at line %d: no "
 				    "nexus\n", __LINE__);
-			}
 			ecb = sc->sc_nexus;
 			sc->sc_omess[0] = ecb->tag[0];
 			sc->sc_omess[1] = ecb->tag[1];
@@ -2241,24 +2243,21 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 	}
 
 #ifdef NCR53C9X_DEBUG
-	if (ncr53c9x_debug & NCR_SHOWMSGS) {
+	if ((ncr53c9x_debug & NCR_SHOWMSGS) != 0) {
 		NCR_MSGS(("<msgout:"));
 		for (i = 0; i < sc->sc_omlen; i++)
 			NCR_MSGS((" %02x", sc->sc_omess[i]));
 		NCR_MSGS(("> "));
 	}
 #endif
-	if (sc->sc_rev == NCR_VARIANT_FAS366) {
-		/*
-		 * XXX FIFO size
-		 */
-		ncr53c9x_flushfifo(sc);
-		ncr53c9x_wrfifo(sc, sc->sc_omp, sc->sc_omlen);
-		NCRCMD(sc, NCRCMD_TRANS);
-	} else {
+
+	if (sc->sc_rev != NCR_VARIANT_FAS366) {
 		/* (Re)send the message. */
 		size = ulmin(sc->sc_omlen, sc->sc_maxxfer);
-		NCRDMA_SETUP(sc, &sc->sc_omp, &sc->sc_omlen, 0, &size);
+		error = NCRDMA_SETUP(sc, &sc->sc_omp, &sc->sc_omlen, 0, &size);
+		if (error != 0)
+			goto cmd;
+
 		/* Program the SCSI counter. */
 		NCR_SET_COUNT(sc, size);
 
@@ -2266,7 +2265,16 @@ ncr53c9x_msgout(struct ncr53c9x_softc *sc)
 		NCRCMD(sc, NCRCMD_NOP | NCRCMD_DMA);
 		NCRCMD(sc, NCRCMD_TRANS | NCRCMD_DMA);
 		NCRDMA_GO(sc);
+		return;
 	}
+
+cmd:
+	/*
+	 * XXX FIFO size
+	 */
+	ncr53c9x_flushfifo(sc);
+	ncr53c9x_wrfifo(sc, sc->sc_omp, sc->sc_omlen);
+	NCRCMD(sc, NCRCMD_TRANS);
 }
 
 void
@@ -2301,8 +2309,8 @@ ncr53c9x_intr1(struct ncr53c9x_softc *sc)
 	struct ncr53c9x_tinfo *ti;
 	struct timeval cur, wait;
 	size_t size;
-	int i, nfifo;
-	u_char msg;
+	int error, i, nfifo;
+	uint8_t msg;
 
 	NCR_LOCK_ASSERT(sc, MA_OWNED);
 
@@ -2377,7 +2385,7 @@ again:
 				 * while we were trying to select
 				 * another target.
 				 */
-#ifdef DEBUG
+#ifdef NCR53C9X_DEBUG
 				device_printf(sc->sc_dev, "ESP100 work-around "
 				    "activated\n");
 #endif
@@ -2484,7 +2492,9 @@ again:
 		    sc->sc_espintr,sc->sc_espstat,sc->sc_espstep));
 		if (NCR_READ_REG(sc, NCR_FFLAG) & NCRFIFO_FF) {
 			NCRCMD(sc, NCRCMD_FLUSH);
-/*			DELAY(1); */
+#if 0
+			DELAY(1);
+#endif
 		}
 		/*
 		 * This command must (apparently) be issued within
@@ -2560,7 +2570,7 @@ again:
 				 * XXX This will cause a chip reset and will
 				 *     prevent us from finding out the real
 				 *     problem with the device.  However, it's
-				 *     neccessary until a way can be found to
+				 *     necessary until a way can be found to
 				 *     safely cancel the DMA that is in
 				 *     progress.
 				 */
@@ -2726,7 +2736,7 @@ again:
 				if (sc->sc_state == NCR_IDLE &&
 				    sc->sc_espstep == 0)
 					return;
-				panic("ncr53c9x: no nexus");
+				panic("%s: no nexus", __func__);
 			}
 
 			ti = &sc->sc_tinfo[ecb->ccb->ccb_h.target_id];
@@ -2804,8 +2814,8 @@ again:
 					if (sc->sc_cmdlen == 0)
 						/* Hope for the best... */
 						break;
-				} else if ((NCR_READ_REG(sc, NCR_FFLAG)
-				    & NCRFIFO_FF) == 0) {
+				} else if ((NCR_READ_REG(sc, NCR_FFLAG) &
+				    NCRFIFO_FF) == 0) {
 					/* Hope for the best... */
 					break;
 				}
@@ -2864,7 +2874,7 @@ again:
 			/* "Initiate Command Complete Steps" in progress */
 			sc->sc_flags &= ~NCR_ICCS;
 
-			if (!(sc->sc_espintr & NCRINTR_DONE)) {
+			if ((sc->sc_espintr & NCRINTR_DONE) == 0) {
 				device_printf(sc->sc_dev, "ICCS: "
 				    ": [intr %x, stat %x, step %x]\n",
 				    sc->sc_espintr, sc->sc_espstat,
@@ -2904,9 +2914,8 @@ again:
 	 * Driver is now in state NCR_CONNECTED, i.e. we
 	 * have a current command working the SCSI bus.
 	 */
-	if (sc->sc_state != NCR_CONNECTED || ecb == NULL) {
-		panic("ncr53c9x: no nexus");
-	}
+	if (sc->sc_state != NCR_CONNECTED || ecb == NULL)
+		panic("%s: no nexus", __func__);
 
 	switch (sc->sc_phase) {
 	case MESSAGE_OUT_PHASE:
@@ -2920,7 +2929,7 @@ msgin:
 		NCR_PHASE(("MESSAGE_IN_PHASE "));
 		if ((sc->sc_espintr & NCRINTR_BS) != 0) {
 			if ((sc->sc_rev != NCR_VARIANT_FAS366) ||
-			    !(sc->sc_espstat2 & NCRFAS_STAT2_EMPTY)) {
+			    (sc->sc_espstat2 & NCRFAS_STAT2_EMPTY) == 0) {
 				NCRCMD(sc, NCRCMD_FLUSH);
 			}
 			sc->sc_flags |= NCR_WAITI;
@@ -2937,11 +2946,10 @@ msgin:
 			    (sc->sc_prevphase == sc->sc_phase) ?
 			    NCR_RDFIFO_CONTINUE : NCR_RDFIFO_START);
 			ncr53c9x_msgin(sc);
-		} else {
+		} else
 			device_printf(sc->sc_dev, "MSGIN: weird bits: "
 			    "[intr %x, stat %x, step %x]\n",
 			    sc->sc_espintr, sc->sc_espstat, sc->sc_espstep);
-		}
 		sc->sc_prevphase = MESSAGE_IN_PHASE;
 		goto shortcut;	/* i.e. expect data to be ready */
 
@@ -2958,7 +2966,9 @@ msgin:
 		    ecb->cmd.cmd.opcode, ecb->clen));
 		if (NCR_READ_REG(sc, NCR_FFLAG) & NCRFIFO_FF) {
 			NCRCMD(sc, NCRCMD_FLUSH);
-/*			DELAY(1);*/
+#if 0
+			DELAY(1);
+#endif
 		}
 		/*
 		 * If we have more messages to send, e.g. WDTR or SDTR
@@ -2973,9 +2983,15 @@ msgin:
 			/* Setup DMA transfer for command. */
 			size = ecb->clen;
 			sc->sc_cmdlen = size;
-			sc->sc_cmdp = (caddr_t)&ecb->cmd.cmd;
-			NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen,
+			sc->sc_cmdp = (void *)&ecb->cmd.cmd;
+			error = NCRDMA_SETUP(sc, &sc->sc_cmdp, &sc->sc_cmdlen,
 			    0, &size);
+			if (error != 0) {
+				sc->sc_cmdlen = 0;
+				sc->sc_cmdp = NULL;
+				goto cmd;
+			}
+
 			/* Program the SCSI counter. */
 			NCR_SET_COUNT(sc, size);
 
@@ -2985,29 +3001,51 @@ msgin:
 			/* Start the command transfer. */
 			NCRCMD(sc, NCRCMD_TRANS | NCRCMD_DMA);
 			NCRDMA_GO(sc);
-		} else {
-			ncr53c9x_wrfifo(sc, (u_char *)&ecb->cmd.cmd, ecb->clen);
-			NCRCMD(sc, NCRCMD_TRANS);
+			sc->sc_prevphase = COMMAND_PHASE;
+			break;
 		}
+cmd:
+		ncr53c9x_wrfifo(sc, (uint8_t *)&ecb->cmd.cmd, ecb->clen);
+		NCRCMD(sc, NCRCMD_TRANS);
 		sc->sc_prevphase = COMMAND_PHASE;
 		break;
 
 	case DATA_OUT_PHASE:
 		NCR_PHASE(("DATA_OUT_PHASE [%ld] ", (long)sc->sc_dleft));
+		sc->sc_prevphase = DATA_OUT_PHASE;
 		NCRCMD(sc, NCRCMD_FLUSH);
 		size = ulmin(sc->sc_dleft, sc->sc_maxxfer);
-		NCRDMA_SETUP(sc, &sc->sc_dp, &sc->sc_dleft, 0, &size);
-		sc->sc_prevphase = DATA_OUT_PHASE;
+		error = NCRDMA_SETUP(sc, &sc->sc_dp, &sc->sc_dleft, 0, &size);
 		goto setup_xfer;
 
 	case DATA_IN_PHASE:
 		NCR_PHASE(("DATA_IN_PHASE "));
+		sc->sc_prevphase = DATA_IN_PHASE;
 		if (sc->sc_rev == NCR_VARIANT_ESP100)
 			NCRCMD(sc, NCRCMD_FLUSH);
 		size = ulmin(sc->sc_dleft, sc->sc_maxxfer);
-		NCRDMA_SETUP(sc, &sc->sc_dp, &sc->sc_dleft, 1, &size);
-		sc->sc_prevphase = DATA_IN_PHASE;
-	setup_xfer:
+		error = NCRDMA_SETUP(sc, &sc->sc_dp, &sc->sc_dleft, 1, &size);
+setup_xfer:
+		if (error != 0) {
+			switch (error) {
+			case EFBIG:
+				ecb->ccb->ccb_h.status |= CAM_REQ_TOO_BIG;
+				break;
+			case EINPROGRESS:
+				panic("%s: cannot deal with deferred DMA",
+				    __func__);
+			case EINVAL:
+				ecb->ccb->ccb_h.status |= CAM_REQ_INVALID;
+				break;
+			case ENOMEM:
+				ecb->ccb->ccb_h.status |= CAM_REQUEUE_REQ;
+				break;
+			default:
+				ecb->ccb->ccb_h.status |= CAM_REQ_CMP_ERR;
+			}
+			goto finish;
+		}
+
 		/* Target returned to data phase: wipe "done" memory */
 		ecb->flags &= ~ECB_TENTATIVE_DONE;
 
@@ -3167,7 +3205,7 @@ ncr53c9x_callout(void *arg)
 static void
 ncr53c9x_watch(void *arg)
 {
-	struct ncr53c9x_softc *sc = (struct ncr53c9x_softc *)arg;
+	struct ncr53c9x_softc *sc = arg;
 	struct ncr53c9x_linfo *li;
 	struct ncr53c9x_tinfo *ti;
 	time_t old;

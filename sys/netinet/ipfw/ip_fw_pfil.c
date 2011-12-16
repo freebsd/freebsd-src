@@ -27,15 +27,12 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
-#include "opt_ipdn.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
-#endif /* KLD_MODULE */
-#include "opt_inet6.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -58,6 +55,10 @@ __FBSDID("$FreeBSD$");
 #include <netinet/ip.h>
 #include <netinet/ip_var.h>
 #include <netinet/ip_fw.h>
+#ifdef INET6
+#include <netinet/ip6.h>
+#include <netinet6/ip6_var.h>
+#endif
 #include <netinet/ipfw/ip_fw_private.h>
 #include <netgraph/ng_ipfw.h>
 
@@ -127,8 +128,9 @@ again:
 		args.rule = *((struct ipfw_rule_ref *)(tag+1));
 		m_tag_delete(*m0, tag);
 		if (args.rule.info & IPFW_ONEPASS) {
-			SET_HOST_IPLEN(mtod(*m0, struct ip *));
-			return 0;
+			if (mtod(*m0, struct ip *)->ip_v == 4)
+				SET_HOST_IPLEN(mtod(*m0, struct ip *));
+			return (0);
 		}
 	}
 
@@ -147,13 +149,26 @@ again:
 	switch (ipfw) {
 	case IP_FW_PASS:
 		/* next_hop may be set by ipfw_chk */
-		if (args.next_hop == NULL)
+		if (args.next_hop == NULL && args.next_hop6 == NULL)
 			break; /* pass */
-#ifndef IPFIREWALL_FORWARD
+#if !defined(IPFIREWALL_FORWARD) || (!defined(INET6) && !defined(INET))
 		ret = EACCES;
 #else
 	    {
 		struct m_tag *fwd_tag;
+		size_t len;
+
+		KASSERT(args.next_hop == NULL || args.next_hop6 == NULL,
+		    ("%s: both next_hop=%p and next_hop6=%p not NULL", __func__,
+		     args.next_hop, args.next_hop6));
+#ifdef INET6
+		if (args.next_hop6 != NULL)
+			len = sizeof(struct sockaddr_in6);
+#endif
+#ifdef INET
+		if (args.next_hop != NULL)
+			len = sizeof(struct sockaddr_in);
+#endif
 
 		/* Incoming packets should not be tagged so we do not
 		 * m_tag_find. Outgoing packets may be tagged, so we
@@ -164,20 +179,30 @@ again:
 		if (fwd_tag != NULL) {
 			m_tag_unlink(*m0, fwd_tag);
 		} else {
-			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD,
-				sizeof(struct sockaddr_in), M_NOWAIT);
+			fwd_tag = m_tag_get(PACKET_TAG_IPFORWARD, len,
+			    M_NOWAIT);
 			if (fwd_tag == NULL) {
 				ret = EACCES;
 				break; /* i.e. drop */
 			}
 		}
-		bcopy(args.next_hop, (fwd_tag+1), sizeof(struct sockaddr_in));
-		m_tag_prepend(*m0, fwd_tag);
-
-		if (in_localip(args.next_hop->sin_addr))
-			(*m0)->m_flags |= M_FASTFWD_OURS;
-	    }
+#ifdef INET6
+		if (args.next_hop6 != NULL) {
+			bcopy(args.next_hop6, (fwd_tag+1), len);
+			if (in6_localip(&args.next_hop6->sin6_addr))
+				(*m0)->m_flags |= M_FASTFWD_OURS;
+		}
 #endif
+#ifdef INET
+		if (args.next_hop != NULL) {
+			bcopy(args.next_hop, (fwd_tag+1), len);
+			if (in_localip(args.next_hop->sin_addr))
+				(*m0)->m_flags |= M_FASTFWD_OURS;
+		}
+#endif
+		m_tag_prepend(*m0, fwd_tag);
+	    }
+#endif /* IPFIREWALL_FORWARD */
 		break;
 
 	case IP_FW_DENY:
@@ -264,7 +289,7 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	 * If not tee, consume packet and send it to divert socket.
 	 */
 	struct mbuf *clone;
-	struct ip *ip;
+	struct ip *ip = mtod(*m0, struct ip *);
 	struct m_tag *tag;
 
 	/* Cloning needed for tee? */
@@ -288,8 +313,9 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 	 * Note that we now have the 'reass' ipfw option so if we care
 	 * we can do it before a 'tee'.
 	 */
-	ip = mtod(clone, struct ip *);
-	if (!tee && ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
+	if (!tee) switch (ip->ip_v) {
+	case IPVERSION:
+	    if (ntohs(ip->ip_off) & (IP_MF | IP_OFFMASK)) {
 		int hlen;
 		struct mbuf *reass;
 
@@ -311,7 +337,26 @@ ipfw_divert(struct mbuf **m0, int incoming, struct ipfw_rule_ref *rule,
 		else
 			ip->ip_sum = in_cksum(reass, hlen);
 		clone = reass;
+	    }
+	    break;
+#ifdef INET6
+	case IPV6_VERSION >> 4:
+	    {
+	    struct ip6_hdr *const ip6 = mtod(clone, struct ip6_hdr *);
+
+		if (ip6->ip6_nxt == IPPROTO_FRAGMENT) {
+			int nxt, off;
+
+			off = sizeof(struct ip6_hdr);
+			nxt = frag6_input(&clone, &off, 0);
+			if (nxt == IPPROTO_DONE)
+				return (0);
+		}
+		break;
+	    }
+#endif
 	}
+
 	/* attach a tag to the packet with the reinject info */
 	tag = m_tag_alloc(MTAG_IPFW_RULE, 0,
 		    sizeof(struct ipfw_rule_ref), M_NOWAIT);

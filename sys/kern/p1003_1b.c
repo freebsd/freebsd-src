@@ -108,7 +108,7 @@ sched_attach(void)
 }
 
 int
-sched_setparam(struct thread *td, struct sched_setparam_args *uap)
+sys_sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 {
 	struct thread *targettd;
 	struct proc *targetp;
@@ -140,7 +140,7 @@ sched_setparam(struct thread *td, struct sched_setparam_args *uap)
 }
 
 int
-sched_getparam(struct thread *td, struct sched_getparam_args *uap)
+sys_sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
@@ -170,7 +170,7 @@ sched_getparam(struct thread *td, struct sched_getparam_args *uap)
 }
 
 int
-sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
+sys_sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 {
 	int e;
 	struct sched_param sched_param;
@@ -207,7 +207,7 @@ sched_setscheduler(struct thread *td, struct sched_setscheduler_args *uap)
 }
 
 int
-sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
+sys_sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 {
 	int e, policy;
 	struct thread *targettd;
@@ -235,7 +235,7 @@ sched_getscheduler(struct thread *td, struct sched_getscheduler_args *uap)
 }
 
 int
-sched_yield(struct thread *td, struct sched_yield_args *uap)
+sys_sched_yield(struct thread *td, struct sched_yield_args *uap)
 {
 
 	sched_relinquish(curthread);
@@ -243,7 +243,7 @@ sched_yield(struct thread *td, struct sched_yield_args *uap)
 }
 
 int
-sched_get_priority_max(struct thread *td,
+sys_sched_get_priority_max(struct thread *td,
     struct sched_get_priority_max_args *uap)
 {
 	int error, prio;
@@ -254,7 +254,7 @@ sched_get_priority_max(struct thread *td,
 }
 
 int
-sched_get_priority_min(struct thread *td,
+sys_sched_get_priority_min(struct thread *td,
     struct sched_get_priority_min_args *uap)
 {
 	int error, prio;
@@ -265,7 +265,7 @@ sched_get_priority_min(struct thread *td,
 }
 
 int
-sched_rr_get_interval(struct thread *td,
+sys_sched_rr_get_interval(struct thread *td,
     struct sched_rr_get_interval_args *uap)
 {
 	struct timespec timespec;

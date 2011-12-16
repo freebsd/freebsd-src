@@ -721,9 +721,10 @@ void	__bs_c(f,_bs_c_8) (void *t, bus_space_handle_t bsh1,	\
 DECLARE_BUS_SPACE_PROTOTYPES(generic);
 extern bus_space_tag_t mips_bus_space_generic;
 /* Special bus space for RMI processors */
-#ifdef CPU_RMI
+#if defined(CPU_RMI) || defined (CPU_NLM)
 extern bus_space_tag_t rmi_bus_space;
 extern bus_space_tag_t rmi_pci_bus_space;
+extern bus_space_tag_t rmi_uart_bus_space;
 #endif
 
 #include <machine/bus_dma.h>

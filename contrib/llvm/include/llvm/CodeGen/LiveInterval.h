@@ -100,6 +100,7 @@ namespace llvm {
     bool isDefByCopy() const { return copy != 0; }
 
     /// Returns true if one or more kills are PHI nodes.
+    /// Obsolete, do not use!
     bool hasPHIKill() const { return flags & HAS_PHI_KILL; }
     /// Set the PHI kill flag on this value.
     void setHasPHIKill(bool hasKill) {
@@ -286,6 +287,11 @@ namespace llvm {
       return valnos[ValNo];
     }
 
+    /// containsValue - Returns true if VNI belongs to this interval.
+    bool containsValue(const VNInfo *VNI) const {
+      return VNI && VNI->id < getNumValNums() && VNI == getValNumInfo(VNI->id);
+    }
+
     /// getNextValue - Create a new value number and return it.  MIIdx specifies
     /// the instruction that defines the value number.
     VNInfo *getNextValue(SlotIndex def, MachineInstr *CopyMI,
@@ -308,7 +314,6 @@ namespace llvm {
 
     /// RenumberValues - Renumber all values in order of appearance and remove
     /// unused values.
-    /// Recalculate phi-kill flags in case any phi-def values were removed.
     void RenumberValues(LiveIntervals &lis);
 
     /// isOnlyLROfValNo - Return true if the specified live range is the only
@@ -406,6 +411,14 @@ namespace llvm {
       return I == end() ? 0 : I->valno;
     }
 
+    /// getVNInfoBefore - Return the VNInfo that is live up to but not
+    /// necessarilly including Idx, or NULL. Use this to find the reaching def
+    /// used by an instruction at this SlotIndex position.
+    VNInfo *getVNInfoBefore(SlotIndex Idx) const {
+      const_iterator I = FindLiveRangeContaining(Idx.getPrevSlot());
+      return I == end() ? 0 : I->valno;
+    }
+
     /// FindLiveRangeContaining - Return an iterator to the live range that
     /// contains the specified index, or end() if there is none.
     iterator FindLiveRangeContaining(SlotIndex Idx) {
@@ -447,6 +460,11 @@ namespace llvm {
       addRangeFrom(LR, ranges.begin());
     }
 
+    /// extendInBlock - If this interval is live before Kill in the basic block
+    /// that starts at StartIdx, extend it to be live up to Kill, and return
+    /// the value. If there is no live range before Kill, return NULL.
+    VNInfo *extendInBlock(SlotIndex StartIdx, SlotIndex Kill);
+
     /// join - Join two live intervals (this, and other) together.  This applies
     /// mappings to the value numbers in the LHS/RHS intervals as specified.  If
     /// the intervals are not joinable, this aborts.
@@ -482,9 +500,10 @@ namespace llvm {
 
     /// Returns true if the live interval is zero length, i.e. no live ranges
     /// span instructions. It doesn't pay to spill such an interval.
-    bool isZeroLength() const {
+    bool isZeroLength(SlotIndexes *Indexes) const {
       for (const_iterator i = begin(), e = end(); i != e; ++i)
-        if (i->end.getPrevIndex() > i->start)
+        if (Indexes->getNextNonNullIndex(i->start).getBaseIndex() <
+            i->end.getBaseIndex())
           return false;
       return true;
     }
@@ -543,8 +562,8 @@ namespace llvm {
   /// }
 
   class ConnectedVNInfoEqClasses {
-    LiveIntervals &lis_;
-    IntEqClasses eqClass_;
+    LiveIntervals &LIS;
+    IntEqClasses EqClass;
 
     // Note that values a and b are connected.
     void Connect(unsigned a, unsigned b);
@@ -552,7 +571,7 @@ namespace llvm {
     unsigned Renumber();
 
   public:
-    explicit ConnectedVNInfoEqClasses(LiveIntervals &lis) : lis_(lis) {}
+    explicit ConnectedVNInfoEqClasses(LiveIntervals &lis) : LIS(lis) {}
 
     /// Classify - Classify the values in LI into connected components.
     /// Return the number of connected components.
@@ -560,12 +579,13 @@ namespace llvm {
 
     /// getEqClass - Classify creates equivalence classes numbered 0..N. Return
     /// the equivalence class assigned the VNI.
-    unsigned getEqClass(const VNInfo *VNI) const { return eqClass_[VNI->id]; }
+    unsigned getEqClass(const VNInfo *VNI) const { return EqClass[VNI->id]; }
 
     /// Distribute - Distribute values in LIV[0] into a separate LiveInterval
     /// for each connected component. LIV must have a LiveInterval for each
     /// connected component. The LiveIntervals in Liv[1..] must be empty.
-    void Distribute(LiveInterval *LIV[]);
+    /// Instructions using LIV[0] are rewritten.
+    void Distribute(LiveInterval *LIV[], MachineRegisterInfo &MRI);
 
   };
 

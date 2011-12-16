@@ -123,7 +123,7 @@ bool StackProtector::RequiresStackProtector() const {
           // protectors.
           return true;
 
-        if (const ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
+        if (ArrayType *AT = dyn_cast<ArrayType>(AI->getAllocatedType())) {
           // We apparently only care about character arrays.
           if (!AT->getElementType()->isIntegerTy(8))
             continue;
@@ -153,7 +153,6 @@ bool StackProtector::InsertStackProtectors() {
 
   for (Function::iterator I = F->begin(), E = F->end(); I != E; ) {
     BasicBlock *BB = I++;
-
     ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator());
     if (!RI) continue;
 
@@ -166,7 +165,7 @@ bool StackProtector::InsertStackProtectors() {
       //     StackGuard = load __stack_chk_guard
       //     call void @llvm.stackprotect.create(StackGuard, StackGuardSlot)
       // 
-      const PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
+      PointerType *PtrTy = Type::getInt8PtrTy(RI->getContext());
       unsigned AddressSpace, Offset;
       if (TLI->getStackCookieLocation(AddressSpace, Offset)) {
         Constant *OffsetVal =
@@ -187,12 +186,10 @@ bool StackProtector::InsertStackProtectors() {
       Value *Args[] = { LI, AI };
       CallInst::
         Create(Intrinsic::getDeclaration(M, Intrinsic::stackprotector),
-               &Args[0], array_endof(Args), "", InsPt);
+               Args, "", InsPt);
 
       // Create the basic block to jump to when the guard check fails.
       FailBB = CreateFailBB();
-      if (DT)
-        FailBBDom = DT->isReachableFromEntry(BB) ? BB : 0;
     }
 
     // For each block with a return instruction, convert this:
@@ -219,9 +216,10 @@ bool StackProtector::InsertStackProtectors() {
 
     // Split the basic block before the return instruction.
     BasicBlock *NewBB = BB->splitBasicBlock(RI, "SP_return");
-    if (DT) {
-      DT->addNewBlock(NewBB, DT->isReachableFromEntry(BB) ? BB : 0);
-      FailBBDom = DT->findNearestCommonDominator(FailBBDom, BB);
+
+    if (DT && DT->isReachableFromEntry(BB)) {
+      DT->addNewBlock(NewBB, BB);
+      FailBBDom = FailBBDom ? DT->findNearestCommonDominator(FailBBDom, BB) :BB;
     }
 
     // Remove default branch instruction to the new BB.
@@ -242,7 +240,7 @@ bool StackProtector::InsertStackProtectors() {
   // statements in the function.
   if (!FailBB) return false;
 
-  if (DT)
+  if (DT && FailBBDom)
     DT->addNewBlock(FailBB, FailBBDom);
 
   return true;

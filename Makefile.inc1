@@ -12,6 +12,7 @@
 #	-DNO_KERNELOBJ do not run ${MAKE} obj in ${MAKE} buildkernel
 #	-DNO_PORTSUPDATE do not update ports in ${MAKE} update
 #	-DNO_DOCUPDATE do not update doc in ${MAKE} update
+#	-DNO_WWWUPDATE do not update www in ${MAKE} update
 #	-DNO_CTF do not run the DTrace CTF conversion tools on built objects
 #	LOCAL_DIRS="list of dirs" to add additional dirs to the SUBDIR list
 #	TARGET="machine" to crossbuild world for a different machine type
@@ -58,8 +59,6 @@ SUBDIR+=games
 .endif
 .if ${MK_CDDL} != "no"
 SUBDIR+=cddl
-.else
-NO_CTF=1
 .endif
 SUBDIR+=gnu include
 .if ${MK_KERBEROS} != "no"
@@ -76,6 +75,9 @@ SUBDIR+=secure
 SUBDIR+=share
 .endif
 SUBDIR+=sys usr.bin usr.sbin
+.if ${MK_OFED} != "no"
+SUBDIR+=contrib/ofed
+.endif
 #
 # We must do etc/ last for install/distribute to work.
 #
@@ -127,7 +129,7 @@ VERSION!=	uname -srp
 VERSION+=	${OSRELDATE}
 .endif
 
-KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64 sparc64/sun4v
+KNOWN_ARCHES?=	amd64 arm armeb/arm i386 i386/pc98 ia64 mipsel/mips mipseb/mips mips64el/mips mips64eb/mips mipsn32el/mips mipsn32eb/mips powerpc powerpc64/powerpc sparc64
 .if ${TARGET} == ${TARGET_ARCH}
 _t=		${TARGET}
 .else
@@ -235,7 +237,7 @@ BMAKE=		MAKEOBJDIRPREFIX=${WORLDTMP} \
 		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
 		-DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT -DWITHOUT_MAN \
-		-DNO_PIC -DWITHOUT_PROFILE -DNO_SHARED \
+		-DNO_PIC -DNO_PROFILE -DNO_SHARED \
 		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # build-tools stage
@@ -243,9 +245,10 @@ TMAKE=		MAKEOBJDIRPREFIX=${OBJTREE} \
 		${BMAKEENV} ${MAKE} -f Makefile.inc1 \
 		TARGET=${TARGET} TARGET_ARCH=${TARGET_ARCH} \
 		DESTDIR= \
+		BOOTSTRAPPING=${OSRELDATE} \
 		SSP_CFLAGS= \
-		BOOTSTRAPPING=${OSRELDATE} -DNO_LINT -DNO_CPU_CFLAGS \
-		-DNO_WARNS -DNO_CTF
+		-DNO_LINT \
+		-DNO_CPU_CFLAGS -DNO_WARNS -DNO_CTF
 
 # cross-tools stage
 XMAKE=		TOOLS_PREFIX=${WORLDTMP} ${BMAKE} \
@@ -286,7 +289,7 @@ LIB32CPUFLAGS=	-mcpu=powerpc
 LIB32CPUFLAGS=	-mcpu=${TARGET_CPUTYPE}
 .endif
 LIB32WMAKEENV=	MACHINE=powerpc MACHINE_ARCH=powerpc \
-		LD="${LD} -m elf32ppc"
+		LD="${LD} -m elf32ppc_fbsd"
 .endif
 
 
@@ -303,13 +306,13 @@ LIB32WMAKEENV+=	MAKEOBJDIRPREFIX=${OBJTREE}/lib32 \
 		PATH=${TMPPATH} \
 		CC="${CC} ${LIB32FLAGS}" \
 		CXX="${CXX} ${LIB32FLAGS}" \
-		OBJC="${OBJC} ${LIB32FLAGS}" \
 		LIBDIR=/usr/lib32 \
 		SHLIBDIR=/usr/lib32
 
 LIB32WMAKE=	${LIB32WMAKEENV} ${MAKE} -DNO_CPU_CFLAGS -DCOMPAT_32BIT \
 		-DWITHOUT_BIND -DWITHOUT_MAN -DWITHOUT_INFO \
-		-DWITHOUT_HTML -DNO_CTF -DNO_LINT DESTDIR=${LIB32TMP}
+		-DWITHOUT_HTML -DNO_CTF -DNO_LINT -ECC -ECXX -EAS -ELD \
+		DESTDIR=${LIB32TMP}
 LIB32IMAKE=	${LIB32WMAKE:NINSTALL=*:NDESTDIR=*} -DNO_INCS
 .endif
 
@@ -433,7 +436,7 @@ _libraries:
 	@echo "--------------------------------------------------------------"
 	${_+_}cd ${.CURDIR}; \
 	    ${WMAKE} -DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	    -DWITHOUT_MAN -DWITHOUT_PROFILE libraries
+	    -DWITHOUT_MAN -DNO_PROFILE libraries
 _depend:
 	@echo
 	@echo "--------------------------------------------------------------"
@@ -827,7 +830,7 @@ buildkernel:
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${_kernel}; \
 	    MAKESRCPATH=${KERNSRCDIR}/dev/aic7xxx/aicasm \
-	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS \
+	    ${MAKE} SSP_CFLAGS= -DNO_CPU_CFLAGS -DNO_CTF \
 	    -f ${KERNSRCDIR}/dev/aic7xxx/aicasm/Makefile
 # XXX - Gratuitously builds aicasm in the ``makeoptions NO_MODULES'' case.
 .if !defined(MODULES_WITH_WORLD) && !defined(NO_MODULES) && exists(${KERNSRCDIR}/modules)
@@ -866,7 +869,7 @@ reinstallkernel reinstallkernel.debug: installcheck
 	false
 .endif
 	@echo "--------------------------------------------------------------"
-	@echo ">>> Installing kernel"
+	@echo ">>> Installing kernel ${INSTALLKERNEL}"
 	@echo "--------------------------------------------------------------"
 	cd ${KRNLOBJDIR}/${INSTALLKERNEL}; \
 	    ${CROSSENV} PATH=${TMPPATH} \
@@ -901,7 +904,7 @@ doxygen:
 #
 # update
 #
-# Update the source tree, by running cvsup and/or running cvs to update to the
+# Update the source tree(s), by running cvsup/cvs/svn to update to the
 # latest copy.
 #
 update:
@@ -923,6 +926,9 @@ update:
 .endif
 .if defined(DOCSUPFILE) && !defined(NO_DOCUPDATE)
 	@${SUP} ${SUPFLAGS} ${DOCSUPFILE}
+.endif
+.if defined(WWWSUPFILE) && !defined(NO_WWWUPDATE)
+	@${SUP} ${SUPFLAGS} ${WWWSUPFILE}
 .endif
 .endif
 .if defined(CVS_UPDATE)
@@ -1007,7 +1013,12 @@ _lex=		usr.bin/lex
 _yacc=		usr.bin/yacc
 .endif
 
-.if ${BOOTSTRAPPING} < 700018
+.if ${BOOTSTRAPPING} >= 900040 && ${BOOTSTRAPPING} < 900041
+_awk=		usr.bin/awk
+.endif
+
+.if ${MK_BSNMP} != "no" && \
+    (${BOOTSTRAPPING} < 700018 || !exists(/usr/sbin/gensnmptree))
 _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 .endif
 
@@ -1016,13 +1027,17 @@ _gensnmptree=	usr.sbin/bsnmpd/gensnmptree
 _crunchgen=	usr.sbin/crunch/crunchgen
 .endif
 
-# XXX: There is no way to specify bootstrap tools depending on MK-flags
-# with different per-architecture default values. Always build tblgen.
+.if ${MK_CLANG} != "no"
 _clang_tblgen= \
 	lib/clang/libllvmsupport \
-	usr.bin/clang/tblgen
+	lib/clang/libllvmtablegen \
+	usr.bin/clang/tblgen \
+	usr.bin/clang/clang-tblgen
+.endif
 
-.if ${MK_CDDL} != "no"
+.if ${MK_CDDL} != "no" && \
+    ${BOOTSTRAPPING} < 800038 && \
+    !(${BOOTSTRAPPING} >= 700112 && ${BOOTSTRAPPING} < 799999)
 _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
     lib/libdwarf cddl/usr.bin/ctfconvert cddl/usr.bin/ctfmerge
 .endif
@@ -1031,6 +1046,9 @@ _dtrace_tools= cddl/usr.bin/sgsmsg cddl/lib/libctf lib/libelf \
 _dtc= gnu/usr.bin/dtc
 .endif
 
+#	Please document (add comment) why something is in 'bootstrap-tools'.
+#	Try to bound the building of the bootstrap-tool to just the
+#	FreeBSD versions that need the tool built at this stage of the build.
 bootstrap-tools:
 .for _tool in \
     ${_clang_tblgen} \
@@ -1040,6 +1058,7 @@ bootstrap-tools:
     ${_groff} \
     ${_ar} \
     ${_dtc} \
+    ${_awk} \
     usr.bin/lorder \
     usr.bin/makewhatis \
     ${_mklocale} \
@@ -1089,7 +1108,6 @@ build-tools:
     ${_aicasm} \
     usr.bin/awk \
     lib/libmagic \
-    usr.sbin/sysinstall \
     usr.bin/mkesdb_static \
     usr.bin/mkcsmapper_static
 	${_+_}@${ECHODIR} "===> ${_tool} (obj,build-tools)"; \
@@ -1124,17 +1142,27 @@ _kgzip=		usr.sbin/kgzip
 .endif
 .endif
 
+.if ${MK_BINUTILS} != "no"
+_binutils=	gnu/usr.bin/binutils
+.endif
+
+.if ${MK_CLANG} != "no"
 .if ${CC:T:Mclang} == "clang"
 _clang=		usr.bin/clang
 _clang_libs=	lib/clang
+.endif
+.endif
+
+.if ${MK_GCC} != "no"
+_cc=		gnu/usr.bin/cc
 .endif
 
 cross-tools:
 .for _tool in \
     ${_clang_libs} \
     ${_clang} \
-    gnu/usr.bin/binutils \
-    gnu/usr.bin/cc \
+    ${_binutils} \
+    ${_cc} \
     usr.bin/xlint/lint1 usr.bin/xlint/lint2 usr.bin/xlint/xlint \
     ${_btxld} \
     ${_crunchide} \
@@ -1188,14 +1216,18 @@ _startup_libs+=	lib/csu/${MACHINE_CPUARCH}
 _startup_libs+=	gnu/lib/libgcc
 _startup_libs+=	lib/libcompiler_rt
 _startup_libs+=	lib/libc
+.if ${MK_LIBCPLUSPLUS} != "no"
+_startup_libs+=	lib/libcxxrt
+.endif
 
 gnu/lib/libgcc__L: lib/libc__L
 
-_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
+_prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libhdb} \
+		${_kerberos5_lib_libheimntlm} \
 		${_kerberos5_lib_libhx509} ${_kerberos5_lib_libkrb5} \
 		${_kerberos5_lib_libroken} \
 		lib/libbz2 lib/libcom_err lib/libcrypt \
-		lib/libexpat lib/libfetch \
+		lib/libexpat \
 		${_lib_libgssapi} ${_lib_libipx} \
 		lib/libkiconv lib/libkvm lib/liblzma lib/libmd \
 		lib/ncurses/ncurses lib/ncurses/ncursesw \
@@ -1210,7 +1242,11 @@ _prebuild_libs=	${_kerberos5_lib_libasn1} ${_kerberos5_lib_libheimntlm} \
 _lib_libthr=	lib/libthr
 .endif
 
-_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib
+.if ${MK_OFED} != "no"
+_ofed_lib=	contrib/ofed/usr.lib/
+.endif
+
+_generic_libs=	${_cddl_lib} gnu/lib ${_kerberos5_lib} lib ${_secure_lib} usr.bin/lex/lib ${_ofed_lib}
 
 lib/libopie__L lib/libtacplus__L: lib/libmd__L
 
@@ -1224,7 +1260,6 @@ _cddl_lib= cddl/lib
 _secure_lib_libcrypto= secure/lib/libcrypto
 _secure_lib_libssl= secure/lib/libssl
 lib/libradius__L secure/lib/libssl__L: secure/lib/libcrypto__L
-lib/libfetch__L: secure/lib/libcrypto__L secure/lib/libssl__L lib/libmd__L
 .if ${MK_OPENSSH} != "no"
 _secure_lib_libssh= secure/lib/libssh
 secure/lib/libssh__L: lib/libz__L secure/lib/libcrypto__L lib/libcrypt__L
@@ -1238,6 +1273,19 @@ secure/lib/libssh__L: lib/libgssapi__L kerberos5/lib/libkrb5__L \
 _secure_lib=	secure/lib
 .endif
 
+.if ${MK_KERBEROS} != "no"
+kerberos5/lib/libasn1__L: lib/libcom_err__L kerberos5/lib/libroken__L
+kerberos5/lib/libhdb__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    kerberos5/lib/libkrb5__L kerberos5/lib/libroken__L
+kerberos5/lib/libheimntlm__L: secure/lib/libcrypto__L kerberos5/lib/libkrb5__L
+kerberos5/lib/libhx509__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    secure/lib/libcrypto__L kerberos5/lib/libroken__L
+kerberos5/lib/libkrb5__L: kerberos5/lib/libasn1__L lib/libcom_err__L \
+    lib/libcrypt__L secure/lib/libcrypto__L kerberos5/lib/libhx509__L \
+    kerberos5/lib/libroken__L
+kerberos5/lib/libroken__L: lib/libcrypt__L
+.endif
+
 .if ${MK_GSSAPI} != "no"
 _lib_libgssapi=	lib/libgssapi
 .endif
@@ -1249,6 +1297,7 @@ _lib_libipx=	lib/libipx
 .if ${MK_KERBEROS} != "no"
 _kerberos5_lib=	kerberos5/lib
 _kerberos5_lib_libasn1= kerberos5/lib/libasn1
+_kerberos5_lib_libhdb= kerberos5/lib/libhdb
 _kerberos5_lib_libkrb5= kerberos5/lib/libkrb5
 _kerberos5_lib_libhx509= kerberos5/lib/libhx509
 _kerberos5_lib_libroken= kerberos5/lib/libroken
@@ -1260,7 +1309,7 @@ _lib_libypclnt=	lib/libypclnt
 .endif
 
 .if ${MK_OPENSSL} == "no"
-lib/libfetch__L lib/libradius__L: lib/libmd__L
+lib/libradius__L: lib/libmd__L
 .endif
 
 .for _lib in ${_prereq_libs}
@@ -1270,8 +1319,8 @@ ${_lib}__PL: .PHONY
 		cd ${.CURDIR}/${_lib}; \
 		${MAKE} DIRPRFX=${_lib}/ obj; \
 		${MAKE} DIRPRFX=${_lib}/ depend; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
-		${MAKE} -DWITHOUT_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ all; \
+		${MAKE} -DNO_PROFILE -DNO_PIC DIRPRFX=${_lib}/ install
 .endif
 .endfor
 
@@ -1348,10 +1397,16 @@ delete-old-files:
 	@echo ">>> Removing old files (only deletes safe to delete libs)"
 # Ask for every old file if the user really wants to remove it.
 # It's annoying, but better safe than sorry.
-	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
+# NB: We cannot pass the list of OLD_FILES as a parameter because the
+# argument list will get too long. Using .for/.endfor make "loops" will make
+# the Makefile parser segfault.
+	@exec 3<&0; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}"; \
+			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
 	done
 # Remove catpages without corresponding manpages.
@@ -1361,14 +1416,16 @@ delete-old-files:
 	while read catpage; do \
 		read manpage; \
 		if [ ! -e "$${manpage}" ]; then \
-			rm ${RM_I} $${catpage} <&3 ; \
+			rm ${RM_I} $${catpage} <&3; \
 	        fi; \
 	done
 	@echo ">>> Old files removed"
 
 check-old-files:
 	@echo ">>> Checking for old files"
-	@for file in ${OLD_FILES} ${OLD_FILES:Musr/share/*.gz:R}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_FILES -V "OLD_FILES:Musr/share/*.gz:R" | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 		 	echo "${DESTDIR}/$${file}"; \
 		fi; \
@@ -1379,24 +1436,29 @@ check-old-files:
 	while read catpage; do \
 		read manpage; \
 		if [ ! -e "$${manpage}" ]; then \
-			echo $${catpage} ; \
+			echo $${catpage}; \
 	        fi; \
 	done
 
 delete-old-libs:
 	@echo ">>> Removing old libraries"
 	@echo "${OLD_LIBS_MESSAGE}" | fmt
-	@for file in ${OLD_LIBS}; do \
+	@exec 3<&0; \
+	${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_LIBS | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			chflags noschg "${DESTDIR}/$${file}" 2>/dev/null || true; \
-			rm ${RM_I} "${DESTDIR}/$${file}"; \
+			rm ${RM_I} "${DESTDIR}/$${file}" <&3; \
 		fi; \
 	done
 	@echo ">>> Old libraries removed"
 
 check-old-libs:
 	@echo ">>> Checking for old libraries"
-	@for file in ${OLD_LIBS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_LIBS | xargs -n1 | \
+	while read file; do \
 		if [ -f "${DESTDIR}/$${file}" -o -L "${DESTDIR}/$${file}" ]; then \
 			echo "${DESTDIR}/$${file}"; \
 		fi; \
@@ -1404,7 +1466,9 @@ check-old-libs:
 
 delete-old-dirs:
 	@echo ">>> Removing old directories"
-	@for dir in ${OLD_DIRS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | \
+	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			rmdir -v "${DESTDIR}/$${dir}" || true; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
@@ -1415,7 +1479,9 @@ delete-old-dirs:
 
 check-old-dirs:
 	@echo ">>> Checking for old directories"
-	@for dir in ${OLD_DIRS}; do \
+	@${MAKE} -f ${.CURDIR}/Makefile.inc1 ${.MAKEFLAGS} ${.TARGET} \
+	    -V OLD_DIRS | xargs -n1 | \
+	while read dir; do \
 		if [ -d "${DESTDIR}/$${dir}" ]; then \
 			echo "${DESTDIR}/$${dir}"; \
 		elif [ -L "${DESTDIR}/$${dir}" ]; then \
@@ -1487,7 +1553,7 @@ XDEV_CPUTYPE?=${TARGET_CPUTYPE}
 .endif
 
 NOFUN=-DNO_FSCHG -DWITHOUT_HTML -DWITHOUT_INFO -DNO_LINT \
-	-DWITHOUT_MAN -DWITHOUT_NLS -DWITHOUT_PROFILE \
+	-DWITHOUT_MAN -DWITHOUT_NLS -DNO_PROFILE \
 	-DWITHOUT_KERBEROS -DWITHOUT_RESCUE -DNO_WARNS \
 	TARGET=${XDEV} TARGET_ARCH=${XDEV_ARCH} \
 	CPUTYPE=${XDEV_CPUTYPE}
@@ -1522,7 +1588,8 @@ _xb-build-tools:
 _xb-cross-tools:
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (obj,depend,all)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ obj; \
@@ -1547,7 +1614,8 @@ _xi-cross-tools:
 	@echo "_xi-cross-tools"
 .for _tool in \
     gnu/usr.bin/binutils \
-    gnu/usr.bin/cc
+    gnu/usr.bin/cc \
+    usr.bin/ar
 	${_+_}@${ECHODIR} "===> xdev ${_tool} (install)"; \
 	cd ${.CURDIR}/${_tool}; \
 	${CDMAKE} DIRPRFX=${_tool}/ install DESTDIR=${XDDESTDIR}
@@ -1569,4 +1637,7 @@ _xi-links:
 			ln -sf ../../${XDTP}/usr/bin/$$i \
 			    ../../../../usr/bin/${XDDIR}${OSREL}-$$i; \
 		done
+.else
+xdev xdev-buil xdev-install:
+	@echo "*** Error: Both XDEV and XDEV_ARCH must be defined for \"${.TARGET}\" target"
 .endif

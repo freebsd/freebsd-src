@@ -231,7 +231,7 @@ static d_kqfilter_t	audit_pipe_kqfilter;
 
 static struct cdevsw	audit_pipe_cdevsw = {
 	.d_version =	D_VERSION,
-	.d_flags =	D_PSEUDO | D_NEEDMINOR,
+	.d_flags =	D_NEEDMINOR,
 	.d_open =	audit_pipe_open,
 	.d_close =	audit_pipe_close,
 	.d_read =	audit_pipe_read,
@@ -646,6 +646,7 @@ audit_pipe_free(struct audit_pipe *ap)
 	cv_destroy(&ap->ap_cv);
 	AUDIT_PIPE_SX_LOCK_DESTROY(ap);
 	AUDIT_PIPE_LOCK_DESTROY(ap);
+	seldrain(&ap->ap_selinfo);
 	knlist_destroy(&ap->ap_selinfo.si_note);
 	TAILQ_REMOVE(&audit_pipe_list, ap, ap_list);
 	free(ap, M_AUDIT_PIPE);

@@ -9,11 +9,12 @@
 
 #include "DisassemblerEmitter.h"
 #include "CodeGenTarget.h"
-#include "Record.h"
 #include "X86DisassemblerTables.h"
 #include "X86RecognizableInstr.h"
 #include "ARMDecoderEmitter.h"
 #include "FixedLenDecoderEmitter.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 
 using namespace llvm;
 using namespace llvm::X86Disassembler;
@@ -40,12 +41,12 @@ using namespace llvm::X86Disassembler;
 ///   all cases as a 64-bit instruction with only OPSIZE set.  (The XS prefix
 ///   may have effects on its execution, but does not change the instruction
 ///   returned.)  This allows considerable space savings in other tables.
-/// - Four tables (ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, and
-///   THREEBYTE3A_SYM) contain the hierarchy that the decoder traverses while
-///   decoding an instruction.  At the lowest level of this hierarchy are
-///   instruction UIDs, 16-bit integers that can be used to uniquely identify
-///   the instruction and correspond exactly to its position in the list of
-///   CodeGenInstructions for the target.
+/// - Six tables (ONEBYTE_SYM, TWOBYTE_SYM, THREEBYTE38_SYM, THREEBYTE3A_SYM,
+///   THREEBYTEA6_SYM, and THREEBYTEA7_SYM contain the hierarchy that the
+///   decoder traverses while decoding an instruction.  At the lowest level of
+///   this hierarchy are instruction UIDs, 16-bit integers that can be used to
+///   uniquely identify the instruction and correspond exactly to its position
+///   in the list of CodeGenInstructions for the target.
 /// - One table (INSTRUCTIONS_SYM) contains information about the operands of
 ///   each instruction and how to decode them.
 ///
@@ -127,12 +128,16 @@ void DisassemblerEmitter::run(raw_ostream &OS) {
     return;
   }
 
-  // Fixed-instruction-length targets use a common disassembler.
-  // ARM use its own implementation for now.
-  if (Target.getName() == "ARM") {
-    ARMDecoderEmitter(Records).run(OS);
+  // ARM and Thumb have a CHECK() macro to deal with DecodeStatuses.
+  if (Target.getName() == "ARM" ||
+      Target.getName() == "Thumb") {
+    FixedLenDecoderEmitter(Records,
+                           "ARM",
+                           "if (!Check(S, ", ")) return MCDisassembler::Fail;",
+                           "S", "MCDisassembler::Fail",
+                           "  MCDisassembler::DecodeStatus S = MCDisassembler::Success;\n(void)S;").run(OS);
     return;
-  }  
+  }
 
-  FixedLenDecoderEmitter(Records).run(OS);
+  FixedLenDecoderEmitter(Records, Target.getName()).run(OS);
 }

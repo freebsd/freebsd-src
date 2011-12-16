@@ -35,39 +35,21 @@ using namespace llvm;
 //                              Generic Code
 //===----------------------------------------------------------------------===//
 
-TargetLoweringObjectFile::TargetLoweringObjectFile() : Ctx(0) {
-  TextSection = 0;
-  DataSection = 0;
-  BSSSection = 0;
-  ReadOnlySection = 0;
-  StaticCtorSection = 0;
-  StaticDtorSection = 0;
-  LSDASection = 0;
-
-  CommDirectiveSupportsAlignment = true;
-  DwarfAbbrevSection = 0;
-  DwarfInfoSection = 0;
-  DwarfLineSection = 0;
-  DwarfFrameSection = 0;
-  DwarfPubNamesSection = 0;
-  DwarfPubTypesSection = 0;
-  DwarfDebugInlineSection = 0;
-  DwarfStrSection = 0;
-  DwarfLocSection = 0;
-  DwarfARangesSection = 0;
-  DwarfRangesSection = 0;
-  DwarfMacroInfoSection = 0;
-  
-  IsFunctionEHSymbolGlobal = false;
-  IsFunctionEHFrameSymbolPrivate = true;
-  SupportsWeakOmittedEHFrame = true;
+/// Initialize - this method must be called before any actual lowering is
+/// done.  This specifies the current context for codegen, and gives the
+/// lowering implementations a chance to set up their default sections.
+void TargetLoweringObjectFile::Initialize(MCContext &ctx,
+                                          const TargetMachine &TM) {
+  Ctx = &ctx;
+  InitMCObjectFileInfo(TM.getTargetTriple(),
+                       TM.getRelocationModel(), TM.getCodeModel(), *Ctx);
 }
-
+  
 TargetLoweringObjectFile::~TargetLoweringObjectFile() {
 }
 
 static bool isSuitableForBSS(const GlobalVariable *GV) {
-  Constant *C = GV->getInitializer();
+  const Constant *C = GV->getInitializer();
 
   // Must have zero initializer.
   if (!C->isNullValue())
@@ -93,7 +75,7 @@ static bool isSuitableForBSS(const GlobalVariable *GV) {
 /// known to have a type that is an array of 1/2/4 byte elements) ends with a
 /// nul value and contains no other nuls in it.
 static bool IsNullTerminatedString(const Constant *C) {
-  const ArrayType *ATy = cast<ArrayType>(C->getType());
+  ArrayType *ATy = cast<ArrayType>(C->getType());
 
   // First check: is we have constant array of i8 terminated with zero
   if (const ConstantArray *CVA = dyn_cast<ConstantArray>(C)) {
@@ -119,6 +101,18 @@ static bool IsNullTerminatedString(const Constant *C) {
 
   return false;
 }
+
+MCSymbol *TargetLoweringObjectFile::
+getCFIPersonalitySymbol(const GlobalValue *GV, Mangler *Mang,
+                        MachineModuleInfo *MMI) const {
+  return Mang->getSymbol(GV);
+}
+
+void TargetLoweringObjectFile::emitPersonalityValue(MCStreamer &Streamer,
+                                                    const TargetMachine &TM,
+                                                    const MCSymbol *Sym) const {
+}
+
 
 /// getKindForGlobal - This is a top-level target-independent classifier for
 /// a global variable.  Given an global variable and information from TM, it
@@ -157,7 +151,7 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
     return SectionKind::getBSS();
   }
 
-  Constant *C = GVar->getInitializer();
+  const Constant *C = GVar->getInitializer();
 
   // If the global is marked constant, we can put it into a mergable section,
   // a mergable string section, or general .data if it contains relocations.
@@ -176,8 +170,8 @@ SectionKind TargetLoweringObjectFile::getKindForGlobal(const GlobalValue *GV,
         
       // If initializer is a null-terminated string, put it in a "cstring"
       // section of the right width.
-      if (const ArrayType *ATy = dyn_cast<ArrayType>(C->getType())) {
-        if (const IntegerType *ITy =
+      if (ArrayType *ATy = dyn_cast<ArrayType>(C->getType())) {
+        if (IntegerType *ITy =
               dyn_cast<IntegerType>(ATy->getElementType())) {
           if ((ITy->getBitWidth() == 8 || ITy->getBitWidth() == 16 ||
                ITy->getBitWidth() == 32) &&
@@ -305,16 +299,15 @@ getExprForDwarfGlobalReference(const GlobalValue *GV, Mangler *Mang,
                                MachineModuleInfo *MMI, unsigned Encoding,
                                MCStreamer &Streamer) const {
   const MCSymbol *Sym = Mang->getSymbol(GV);
-  return getExprForDwarfReference(Sym, Mang, MMI, Encoding, Streamer);
+  return getExprForDwarfReference(Sym, Encoding, Streamer);
 }
 
 const MCExpr *TargetLoweringObjectFile::
-getExprForDwarfReference(const MCSymbol *Sym, Mangler *Mang,
-                         MachineModuleInfo *MMI, unsigned Encoding,
+getExprForDwarfReference(const MCSymbol *Sym, unsigned Encoding,
                          MCStreamer &Streamer) const {
   const MCExpr *Res = MCSymbolRefExpr::Create(Sym, getContext());
 
-  switch (Encoding & 0xF0) {
+  switch (Encoding & 0x70) {
   default:
     report_fatal_error("We do not support this DWARF encoding yet!");
   case dwarf::DW_EH_PE_absptr:
@@ -330,20 +323,3 @@ getExprForDwarfReference(const MCSymbol *Sym, Mangler *Mang,
   }
   }
 }
-
-unsigned TargetLoweringObjectFile::getPersonalityEncoding() const {
-  return dwarf::DW_EH_PE_absptr;
-}
-
-unsigned TargetLoweringObjectFile::getLSDAEncoding() const {
-  return dwarf::DW_EH_PE_absptr;
-}
-
-unsigned TargetLoweringObjectFile::getFDEEncoding() const {
-  return dwarf::DW_EH_PE_absptr;
-}
-
-unsigned TargetLoweringObjectFile::getTTypeEncoding() const {
-  return dwarf::DW_EH_PE_absptr;
-}
-

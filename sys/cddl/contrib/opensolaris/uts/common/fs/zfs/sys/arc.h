@@ -37,8 +37,8 @@ extern "C" {
 
 typedef struct arc_buf_hdr arc_buf_hdr_t;
 typedef struct arc_buf arc_buf_t;
-typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *private);
-typedef int arc_evict_func_t(void *private);
+typedef void arc_done_func_t(zio_t *zio, arc_buf_t *buf, void *priv);
+typedef int arc_evict_func_t(void *priv);
 
 /* generic arc_done_func_t's which you can use */
 arc_done_func_t arc_bcopy_func;
@@ -103,17 +103,17 @@ int arc_referenced(arc_buf_t *buf);
 #endif
 
 int arc_read(zio_t *pio, spa_t *spa, const blkptr_t *bp, arc_buf_t *pbuf,
-    arc_done_func_t *done, void *private, int priority, int zio_flags,
+    arc_done_func_t *done, void *priv, int priority, int zio_flags,
     uint32_t *arc_flags, const zbookmark_t *zb);
 int arc_read_nolock(zio_t *pio, spa_t *spa, const blkptr_t *bp,
-    arc_done_func_t *done, void *private, int priority, int flags,
+    arc_done_func_t *done, void *priv, int priority, int flags,
     uint32_t *arc_flags, const zbookmark_t *zb);
 zio_t *arc_write(zio_t *pio, spa_t *spa, uint64_t txg,
     blkptr_t *bp, arc_buf_t *buf, boolean_t l2arc, const zio_prop_t *zp,
-    arc_done_func_t *ready, arc_done_func_t *done, void *private,
+    arc_done_func_t *ready, arc_done_func_t *done, void *priv,
     int priority, int zio_flags, const zbookmark_t *zb);
 
-void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *private);
+void arc_set_callback(arc_buf_t *buf, arc_evict_func_t *func, void *priv);
 int arc_buf_evict(arc_buf_t *buf);
 
 void arc_flush(spa_t *spa);

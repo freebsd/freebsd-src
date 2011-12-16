@@ -37,6 +37,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/time.h>
 
+#include <grp.h>
+#include <pwd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -153,7 +155,7 @@ show_serverlist(char *server)
 {
 	int found = 0, connid;
 	struct ncp_bindery_object obj;
-	char *pattern = "*";
+	const char *pattern = "*";
 
 	connid = ncp_get_connid(server, 1);
 	if (connid < 0)
@@ -229,7 +231,7 @@ show_userlist(char *server)
 	return;
 }
 
-void
+static void
 show_queuelist(char *server, char *patt)
 {
 	struct ncp_bindery_object q;
@@ -298,8 +300,8 @@ list_volumes(char *server)
 }
 
 struct ncp_bind_type {
-	u_long	type;
-	char	*name;
+	u_long		type;
+	const char	*name;
 };
 
 static struct ncp_bind_type btypes[] = {
@@ -310,7 +312,7 @@ static struct ncp_bind_type btypes[] = {
 	{0, NULL}
 };
 
-void
+static void
 list_bindery(char *server, char *type, char *patt)
 {
 	struct ncp_bindery_object q;

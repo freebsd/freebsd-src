@@ -38,12 +38,14 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_capsicum.h"
 #include "opt_compat.h"
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
 #include <sys/fail.h>
 #include <sys/systm.h>
+#include <sys/capability.h>
 #include <sys/kernel.h>
 #include <sys/sysctl.h>
 #include <sys/malloc.h>
@@ -365,10 +367,31 @@ sysctl_remove_oid(struct sysctl_oid *oidp, int del, int recurse)
 	return (error);
 }
 
+int
+sysctl_remove_name(struct sysctl_oid *parent, const char *name,
+    int del, int recurse)
+{
+	struct sysctl_oid *p, *tmp;
+	int error;
+
+	error = ENOENT;
+	SYSCTL_XLOCK();
+	SLIST_FOREACH_SAFE(p, SYSCTL_CHILDREN(parent), oid_link, tmp) {
+		if (strcmp(p->oid_name, name) == 0) {
+			error = sysctl_remove_oid_locked(p, del, recurse);
+			break;
+		}
+	}
+	SYSCTL_XUNLOCK();
+
+	return (error);
+}
+
+
 static int
 sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 {
-	struct sysctl_oid *p;
+	struct sysctl_oid *p, *tmp;
 	int error;
 
 	SYSCTL_ASSERT_XLOCKED();
@@ -387,7 +410,8 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	 */
 	if ((oidp->oid_kind & CTLTYPE) == CTLTYPE_NODE) {
 		if (oidp->oid_refcnt == 1) {
-			SLIST_FOREACH(p, SYSCTL_CHILDREN(oidp), oid_link) {
+			SLIST_FOREACH_SAFE(p,
+			    SYSCTL_CHILDREN(oidp), oid_link, tmp) {
 				if (!recurse)
 					return (ENOTEMPTY);
 				error = sysctl_remove_oid_locked(p, del,
@@ -428,14 +452,13 @@ sysctl_remove_oid_locked(struct sysctl_oid *oidp, int del, int recurse)
 	}
 	return (0);
 }
-
 /*
  * Create new sysctls at run time.
  * clist may point to a valid context initialized with sysctl_ctx_init().
  */
 struct sysctl_oid *
 sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
-	int number, const char *name, int kind, void *arg1, int arg2,
+	int number, const char *name, int kind, void *arg1, intptr_t arg2,
 	int (*handler)(SYSCTL_HANDLER_ARGS), const char *fmt, const char *descr)
 {
 	struct sysctl_oid *oidp;
@@ -479,6 +502,7 @@ sysctl_add_oid(struct sysctl_ctx_list *clist, struct sysctl_oid_list *parent,
 		SYSCTL_CHILDREN_SET(oidp, malloc(sizeof(struct sysctl_oid_list),
 		    M_SYSCTLOID, M_WAITOK));
 		SLIST_INIT(SYSCTL_CHILDREN(oidp));
+		oidp->oid_arg2 = arg2;
 	} else {
 		oidp->oid_arg1 = arg1;
 		oidp->oid_arg2 = arg2;
@@ -703,7 +727,12 @@ sysctl_sysctl_name(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD, sysctl_sysctl_name, "");
+/*
+ * XXXRW/JA: Shouldn't return name data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 1, name, CTLFLAG_RD | CTLFLAG_CAPRD,
+    sysctl_sysctl_name, "");
 
 static int
 sysctl_sysctl_next_ls(struct sysctl_oid_list *lsp, int *name, u_int namelen, 
@@ -784,7 +813,12 @@ sysctl_sysctl_next(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD, sysctl_sysctl_next, "");
+/*
+ * XXXRW/JA: Shouldn't return next data for nodes that we don't permit in
+ * capability mode.
+ */
+static SYSCTL_NODE(_sysctl, 2, next, CTLFLAG_RD | CTLFLAG_CAPRD,
+    sysctl_sysctl_next, "");
 
 static int
 name2oid(char *name, int *oid, int *len, struct sysctl_oid **oidpp)
@@ -880,9 +914,13 @@ sysctl_sysctl_name2oid(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
+/*
+ * XXXRW/JA: Shouldn't return name2oid data for nodes that we don't permit in
+ * capability mode.
+ */
 SYSCTL_PROC(_sysctl, 3, name2oid,
-    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-    0, 0, sysctl_sysctl_name2oid, "I", "");
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE
+    | CTLFLAG_CAPRW, 0, 0, sysctl_sysctl_name2oid, "I", "");
 
 static int
 sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
@@ -909,7 +947,7 @@ sysctl_sysctl_oidfmt(SYSCTL_HANDLER_ARGS)
 }
 
 
-static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE,
+static SYSCTL_NODE(_sysctl, 4, oidfmt, CTLFLAG_RD|CTLFLAG_MPSAFE|CTLFLAG_CAPRD,
     sysctl_sysctl_oidfmt, "");
 
 static int
@@ -933,7 +971,8 @@ sysctl_sysctl_oiddescr(SYSCTL_HANDLER_ARGS)
 	return (error);
 }
 
-static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD, sysctl_sysctl_oiddescr, "");
+static SYSCTL_NODE(_sysctl, 5, oiddescr, CTLFLAG_RD|CTLFLAG_CAPRD,
+    sysctl_sysctl_oiddescr, "");
 
 /*
  * Default "handler" functions.
@@ -1407,6 +1446,19 @@ sysctl_root(SYSCTL_HANDLER_ARGS)
 
 	KASSERT(req->td != NULL, ("sysctl_root(): req->td == NULL"));
 
+#ifdef CAPABILITY_MODE
+	/*
+	 * If the process is in capability mode, then don't permit reading or
+	 * writing unless specifically granted for the node.
+	 */
+	if (IN_CAPABILITY_MODE(req->td)) {
+		if (req->oldptr && !(oid->oid_kind & CTLFLAG_CAPRD))
+			return (EPERM);
+		if (req->newptr && !(oid->oid_kind & CTLFLAG_CAPWR))
+			return (EPERM);
+	}
+#endif
+
 	/* Is this sysctl sensitive to securelevels? */
 	if (req->newptr && (oid->oid_kind & CTLFLAG_SECURE)) {
 		lvl = (oid->oid_kind & CTLMASK_SECURE) >> CTLSHIFT_SECURE;
@@ -1478,7 +1530,7 @@ struct sysctl_args {
 };
 #endif
 int
-__sysctl(struct thread *td, struct sysctl_args *uap)
+sys___sysctl(struct thread *td, struct sysctl_args *uap)
 {
 	int error, i, name[CTL_MAXNAME];
 	size_t j;
@@ -1568,7 +1620,7 @@ userland_sysctl(struct thread *td, int *name, u_int namelen, void *old,
 		SYSCTL_XUNLOCK();
 		if (error != EAGAIN)
 			break;
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 	}
 
 	CURVNET_RESTORE();

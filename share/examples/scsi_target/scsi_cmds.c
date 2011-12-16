@@ -103,8 +103,8 @@ static struct targ_cdb_handlers cdb_handlers[] = {
 static struct scsi_inquiry_data inq_data;
 static struct initiator_state istates[MAX_INITIATORS];
 extern int		debug;
-extern uint64_t		volume_size;
-extern size_t		sector_size;
+extern off_t		volume_size;
+extern u_int		sector_size;
 extern size_t		buf_size;
 
 cam_status
@@ -242,22 +242,22 @@ tcmd_sense(u_int init_id, struct ccb_scsiio *ctio, u_int8_t flags,
 	       u_int8_t asc, u_int8_t ascq)
 {
 	struct initiator_state *istate;
-	struct scsi_sense_data *sense;
+	struct scsi_sense_data_fixed *sense;
 
 	/* Set our initiator's istate */
 	istate = tcmd_get_istate(init_id);
 	if (istate == NULL)
 		return;
 	istate->pending_ca |= CA_CMD_SENSE; /* XXX set instead of or? */
-	sense = &istate->sense_data;
+	sense = (struct scsi_sense_data_fixed *)&istate->sense_data;
 	bzero(sense, sizeof(*sense));
 	sense->error_code = SSD_CURRENT_ERROR;
 	sense->flags = flags;
 	sense->add_sense_code = asc;
 	sense->add_sense_code_qual = ascq;
 	sense->extra_len =
-		offsetof(struct scsi_sense_data, sense_key_spec[2]) -
-		offsetof(struct scsi_sense_data, extra_len);
+		offsetof(struct scsi_sense_data_fixed, sense_key_spec[2]) -
+		offsetof(struct scsi_sense_data_fixed, extra_len);
 
 	/* Fill out the supplied CTIO */
 	if (ctio != NULL) {
@@ -298,7 +298,7 @@ tcmd_inquiry(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	struct scsi_inquiry *inq;
 	struct atio_descr *a_descr;
 	struct initiator_state *istate;
-	struct scsi_sense_data *sense;
+	struct scsi_sense_data_fixed *sense;
 
 	a_descr = (struct atio_descr *)atio->ccb_h.targ_descr;
 	inq = (struct scsi_inquiry *)a_descr->cdb;
@@ -310,7 +310,7 @@ tcmd_inquiry(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	 * complain if EVPD or CMDDT is set.
 	 */
 	istate = tcmd_get_istate(ctio->init_id);
-	sense = &istate->sense_data;
+	sense = (struct scsi_sense_data_fixed *)&istate->sense_data;
 	if ((inq->byte2 & SI_EVPD) != 0) {
 		tcmd_illegal_req(atio, ctio);
 		sense->sense_key_spec[0] = SSD_SCS_VALID | SSD_FIELDPTR_CMD |
@@ -376,7 +376,7 @@ static int
 tcmd_req_sense(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 {
 	struct scsi_request_sense *rsense;
-	struct scsi_sense_data *sense;
+	struct scsi_sense_data_fixed *sense;
 	struct initiator_state *istate;
 	size_t dlen;
 	struct atio_descr *a_descr;
@@ -385,7 +385,7 @@ tcmd_req_sense(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	rsense = (struct scsi_request_sense *)a_descr->cdb;
 	
 	istate = tcmd_get_istate(ctio->init_id);
-	sense = &istate->sense_data;
+	sense = (struct scsi_sense_data_fixed *)&istate->sense_data;
 
 	if (debug) {
 		cdb_debug(a_descr->cdb, "REQ SENSE from %u: ", atio->init_id);
@@ -400,7 +400,7 @@ tcmd_req_sense(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	}
 
 	bcopy(sense, ctio->data_ptr, sizeof(struct scsi_sense_data));
-	dlen = offsetof(struct scsi_sense_data, extra_len) +
+	dlen = offsetof(struct scsi_sense_data_fixed, extra_len) +
 			sense->extra_len + 1;
 	ctio->dxfer_len = min(dlen, SCSI_CDB6_LEN(rsense->length));
 	ctio->ccb_h.flags |= CAM_DIR_IN | CAM_SEND_STATUS;
@@ -482,7 +482,7 @@ tcmd_rdwr(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio)
 	c_descr = (struct ctio_descr *)ctio->ccb_h.targ_descr;
 
 	/* Command needs to be decoded */
-	if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_RESV) {
+	if ((a_descr->flags & CAM_DIR_MASK) == CAM_DIR_BOTH) {
 		if (debug)
 			warnx("Calling rdwr_decode");
 		ret = tcmd_rdwr_decode(atio, ctio);
@@ -609,7 +609,7 @@ start_io(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, int dir)
 	if (dir == CAM_DIR_IN) {
 		if (notaio) {
 			if (debug)
-				warnx("read sync %lud @ block " OFF_FMT,
+				warnx("read sync %lu @ block " OFF_FMT,
 				    (unsigned long)
 				    (ctio->dxfer_len / sector_size),
 				    c_descr->offset / sector_size);
@@ -625,7 +625,7 @@ start_io(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio, int dir)
 			}
 		} else {
 			if (debug)
-				warnx("read async %lud @ block " OFF_FMT,
+				warnx("read async %lu @ block " OFF_FMT,
 				    (unsigned long)
 				    (ctio->dxfer_len / sector_size),
 				    c_descr->offset / sector_size);
@@ -725,7 +725,7 @@ tcmd_rdwr_done(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio,
 			a_descr->targ_req += ctio->dxfer_len;
 			if (notaio) {
 				if (debug)
-					warnx("write sync %lud @ block "
+					warnx("write sync %lu @ block "
 					    OFF_FMT, (unsigned long)
 					    (ctio->dxfer_len / sector_size),
 					    c_descr->offset / sector_size);
@@ -742,7 +742,7 @@ tcmd_rdwr_done(struct ccb_accept_tio *atio, struct ccb_scsiio *ctio,
 				tcmd_rdwr_done(atio, ctio, AIO_DONE);
 			} else {
 				if (debug)
-					warnx("write async %lud @ block "
+					warnx("write async %lu @ block "
 					    OFF_FMT, (unsigned long)
 					    (ctio->dxfer_len / sector_size),
 					    c_descr->offset / sector_size);

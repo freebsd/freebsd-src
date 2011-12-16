@@ -26,13 +26,15 @@
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/ErrorHandling.h"
 
+#define GET_REGINFO_TARGET_DESC
+#include "MSP430GenRegisterInfo.inc"
+
 using namespace llvm;
 
 // FIXME: Provide proper call frame setup / destroy opcodes.
 MSP430RegisterInfo::MSP430RegisterInfo(MSP430TargetMachine &tm,
                                        const TargetInstrInfo &tii)
-  : MSP430GenRegisterInfo(MSP430::ADJCALLSTACKDOWN, MSP430::ADJCALLSTACKUP),
-    TM(tm), TII(tii) {
+  : MSP430GenRegisterInfo(MSP430::PCW), TM(tm), TII(tii) {
   StackAlign = TM.getFrameLowering()->getStackAlignment();
 }
 
@@ -76,7 +78,11 @@ BitVector MSP430RegisterInfo::getReservedRegs(const MachineFunction &MF) const {
   BitVector Reserved(getNumRegs());
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
-  // Mark 4 special registers as reserved.
+  // Mark 4 special registers with subregisters as reserved.
+  Reserved.set(MSP430::PCB);
+  Reserved.set(MSP430::SPB);
+  Reserved.set(MSP430::SRB);
+  Reserved.set(MSP430::CGB);
   Reserved.set(MSP430::PCW);
   Reserved.set(MSP430::SPW);
   Reserved.set(MSP430::SRW);
@@ -113,12 +119,12 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
       Amount = (Amount+StackAlign-1)/StackAlign*StackAlign;
 
       MachineInstr *New = 0;
-      if (Old->getOpcode() == getCallFrameSetupOpcode()) {
+      if (Old->getOpcode() == TII.getCallFrameSetupOpcode()) {
         New = BuildMI(MF, Old->getDebugLoc(),
                       TII.get(MSP430::SUB16ri), MSP430::SPW)
           .addReg(MSP430::SPW).addImm(Amount);
       } else {
-        assert(Old->getOpcode() == getCallFrameDestroyOpcode());
+        assert(Old->getOpcode() == TII.getCallFrameDestroyOpcode());
         // factor out the amount the callee already popped.
         uint64_t CalleeAmt = Old->getOperand(1).getImm();
         Amount -= CalleeAmt;
@@ -136,7 +142,7 @@ eliminateCallFramePseudoInstr(MachineFunction &MF, MachineBasicBlock &MBB,
         MBB.insert(I, New);
       }
     }
-  } else if (I->getOpcode() == getCallFrameDestroyOpcode()) {
+  } else if (I->getOpcode() == TII.getCallFrameDestroyOpcode()) {
     // If we are performing frame pointer elimination and if the callee pops
     // something off the stack pointer, add it back.
     if (uint64_t CalleeAmt = I->getOperand(1).getImm()) {
@@ -227,19 +233,8 @@ MSP430RegisterInfo::processFunctionBeforeFrameFinalized(MachineFunction &MF)
   }
 }
 
-unsigned MSP430RegisterInfo::getRARegister() const {
-  return MSP430::PCW;
-}
-
 unsigned MSP430RegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
   return TFI->hasFP(MF) ? MSP430::FPW : MSP430::SPW;
 }
-
-int MSP430RegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  llvm_unreachable("Not implemented yet!");
-  return 0;
-}
-
-#include "MSP430GenRegisterInfo.inc"

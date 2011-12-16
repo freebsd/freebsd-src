@@ -116,12 +116,6 @@ VNET_DEFINE(int, rttrash);		/* routes not in table but not freed */
 static VNET_DEFINE(uma_zone_t, rtzone);		/* Routing table UMA zone. */
 #define	V_rtzone	VNET(rtzone)
 
-#if 0
-/* default fib for tunnels to use */
-u_int tunnel_fib = 0;
-SYSCTL_INT(_net, OID_AUTO, tunnelfib, CTLFLAG_RD, &tunnel_fib, 0, "");
-#endif
-
 /*
  * handler for net.my_fibnum
  */
@@ -266,7 +260,7 @@ struct setfib_args {
 };
 #endif
 int
-setfib(struct thread *td, struct setfib_args *uap)
+sys_setfib(struct thread *td, struct setfib_args *uap)
 {
 	if (uap->fibnum < 0 || uap->fibnum >= rt_numfibs)
 		return EINVAL;
@@ -338,7 +332,6 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		    u_int fibnum)
 {
 	struct radix_node_head *rnh;
-	struct rtentry *rt;
 	struct radix_node *rn;
 	struct rtentry *newrt;
 	struct rt_addrinfo info;
@@ -350,13 +343,12 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 		fibnum = 0;
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	newrt = NULL;
+	if (rnh == NULL)
+		goto miss;
+
 	/*
 	 * Look up the address in the table for that Address Family
 	 */
-	if (rnh == NULL) {
-		V_rtstat.rts_unreach++;
-		goto miss;
-	}
 	needlock = !(ignflags & RTF_RNH_LOCKED);
 	if (needlock)
 		RADIX_NODE_HEAD_RLOCK(rnh);
@@ -366,7 +358,7 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 #endif
 	rn = rnh->rnh_matchaddr(dst, rnh);
 	if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
-		newrt = rt = RNTORT(rn);
+		newrt = RNTORT(rn);
 		RT_LOCK(newrt);
 		RT_ADDREF(newrt);
 		if (needlock)
@@ -381,8 +373,9 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	 * Which basically means
 	 * "caint get there frm here"
 	 */
-	V_rtstat.rts_unreach++;
 miss:
+	V_rtstat.rts_unreach++;
+
 	if (report) {
 		/*
 		 * If required, report the failure to the supervising
@@ -391,7 +384,7 @@ miss:
 		 */
 		bzero(&info, sizeof(info));
 		info.rti_info[RTAX_DST] = dst;
-		rt_missmsg(msgtype, &info, 0, err);
+		rt_missmsg_fib(msgtype, &info, 0, err, fibnum);
 	}	
 done:
 	if (newrt)
@@ -616,7 +609,7 @@ out:
 	info.rti_info[RTAX_GATEWAY] = gateway;
 	info.rti_info[RTAX_NETMASK] = netmask;
 	info.rti_info[RTAX_AUTHOR] = src;
-	rt_missmsg(RTM_REDIRECT, &info, flags, error);
+	rt_missmsg_fib(RTM_REDIRECT, &info, flags, error, fibnum);
 	if (ifa != NULL)
 		ifa_free(ifa);
 }
@@ -1032,6 +1025,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 	register struct radix_node_head *rnh;
 	struct ifaddr *ifa;
 	struct sockaddr *ndst;
+	struct sockaddr_storage mdst;
 #define senderr(x) { error = x ; goto bad; }
 
 	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
@@ -1058,6 +1052,10 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 
 	switch (req) {
 	case RTM_DELETE:
+		if (netmask) {
+			rt_maskedcopy(dst, (struct sockaddr *)&mdst, netmask);
+			dst = (struct sockaddr *)&mdst;
+		}
 #ifdef RADIX_MPATH
 		if (rn_mpath_capable(rnh)) {
 			error = rn_mpath_update(req, info, rnh, ret_nrt);
@@ -1190,6 +1188,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt0 = NULL;
 		/* XXX
 		 * "flow-table" only support IPv4 at the moment.
+		 * XXX-BZ as of r205066 it would support IPv6.
 		 */
 #ifdef INET
 		if (dst->sa_family == AF_INET) {
@@ -1484,7 +1483,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		 */
 		bzero((caddr_t)&info, sizeof(info));
 		info.rti_ifa = ifa;
-		info.rti_flags = flags | ifa->ifa_flags;
+		info.rti_flags = flags | (ifa->ifa_flags & ~IFA_RTSELF);
 		info.rti_info[RTAX_DST] = dst;
 		/* 
 		 * doing this for compatibility reasons
@@ -1528,7 +1527,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 			}
 			RT_ADDREF(rt);
 			RT_UNLOCK(rt);
-			rt_newaddrmsg(cmd, ifa, error, rt);
+			rt_newaddrmsg_fib(cmd, ifa, error, rt, fibnum);
 			RT_LOCK(rt);
 			RT_REMREF(rt);
 			if (cmd == RTM_DELETE) {

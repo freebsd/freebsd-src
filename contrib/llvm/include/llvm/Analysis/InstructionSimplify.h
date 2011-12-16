@@ -24,6 +24,8 @@ namespace llvm {
   class Instruction;
   class Value;
   class TargetData;
+  template<typename T>
+  class ArrayRef;
 
   /// SimplifyAddInst - Given operands for an Add, see if we can
   /// fold the result.  If not, this returns null.
@@ -53,6 +55,21 @@ namespace llvm {
   /// SimplifyFDivInst - Given operands for an FDiv, see if we can
   /// fold the result.  If not, this returns null.
   Value *SimplifyFDivInst(Value *LHS, Value *RHS, const TargetData *TD = 0,
+                          const DominatorTree *DT = 0);
+
+  /// SimplifySRemInst - Given operands for an SRem, see if we can
+  /// fold the result.  If not, this returns null.
+  Value *SimplifySRemInst(Value *LHS, Value *RHS, const TargetData *TD = 0,
+                          const DominatorTree *DT = 0);
+
+  /// SimplifyURemInst - Given operands for a URem, see if we can
+  /// fold the result.  If not, this returns null.
+  Value *SimplifyURemInst(Value *LHS, Value *RHS, const TargetData *TD = 0,
+                          const DominatorTree *DT = 0);
+
+  /// SimplifyFRemInst - Given operands for an FRem, see if we can
+  /// fold the result.  If not, this returns null.
+  Value *SimplifyFRemInst(Value *LHS, Value *RHS, const TargetData *TD = 0,
                           const DominatorTree *DT = 0);
 
   /// SimplifyShlInst - Given operands for a Shl, see if we can
@@ -106,8 +123,15 @@ namespace llvm {
 
   /// SimplifyGEPInst - Given operands for an GetElementPtrInst, see if we can
   /// fold the result.  If not, this returns null.
-  Value *SimplifyGEPInst(Value * const *Ops, unsigned NumOps,
+  Value *SimplifyGEPInst(ArrayRef<Value *> Ops,
                          const TargetData *TD = 0, const DominatorTree *DT = 0);
+
+  /// SimplifyInsertValueInst - Given operands for an InsertValueInst, see if we
+  /// can fold the result.  If not, this returns null.
+  Value *SimplifyInsertValueInst(Value *Agg, Value *Val,
+                                 ArrayRef<unsigned> Idxs,
+                                 const TargetData *TD = 0,
+                                 const DominatorTree *DT = 0);
 
   //=== Helper functions for higher up the class hierarchy.
 

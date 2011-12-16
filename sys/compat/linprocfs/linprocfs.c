@@ -221,6 +221,7 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 {
 	int hw_model[2];
 	char model[128];
+	uint64_t freq;
 	size_t size;
 	int class, fqmhz, fqkhz;
 	int i;
@@ -303,9 +304,10 @@ linprocfs_docpuinfo(PFS_FILL_ARGS)
 		if (cpu_feature & (1 << i))
 			sbuf_printf(sb, " %s", flags[i]);
 	sbuf_cat(sb, "\n");
-	if (class >= 5) {
-		fqmhz = (tsc_freq + 4999) / 1000000;
-		fqkhz = ((tsc_freq + 4999) / 10000) % 100;
+	freq = atomic_load_acq_64(&tsc_freq);
+	if (freq != 0) {
+		fqmhz = (freq + 4999) / 1000000;
+		fqkhz = ((freq + 4999) / 10000) % 100;
 		sbuf_printf(sb,
 		    "cpu MHz\t\t: %d.%02d\n"
 		    "bogomips\t: %d.%02d\n",
@@ -497,6 +499,33 @@ linprocfs_dostat(PFS_FILL_ARGS)
 	    cnt.v_intr,
 	    cnt.v_swtch,
 	    (long long)boottime.tv_sec);
+	return (0);
+}
+
+static int
+linprocfs_doswaps(PFS_FILL_ARGS)
+{
+	struct xswdev xsw;
+	uintmax_t total, used;
+	int n;
+	char devname[SPECNAMELEN + 1];
+
+	sbuf_printf(sb, "Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n");
+	mtx_lock(&Giant);
+	for (n = 0; ; n++) {
+		if (swap_dev_info(n, &xsw, devname, sizeof(devname)) != 0)
+			break;
+		total = (uintmax_t)xsw.xsw_nblks * PAGE_SIZE / 1024;
+		used  = (uintmax_t)xsw.xsw_used * PAGE_SIZE / 1024;
+
+		/*
+		 * The space and not tab after the device name is on
+		 * purpose.  Linux does so.
+		 */
+		sbuf_printf(sb, "/dev/%-34s unknown\t\t%jd\t%jd\t-1\n",
+		    devname, total, used);
+	}
+	mtx_unlock(&Giant);
 	return (0);
 }
 
@@ -740,7 +769,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 	if (P_SHOULDSTOP(p)) {
 		state = "T (stopped)";
 	} else {
-		PROC_SLOCK(p);
 		switch(p->p_state) {
 		case PRS_NEW:
 			state = "I (idle)";
@@ -770,7 +798,6 @@ linprocfs_doprocstatus(PFS_FILL_ARGS)
 			state = "? (unknown)";
 			break;
 		}
-		PROC_SUNLOCK(p);
 	}
 
 	fill_kinfo_proc(p, &kp);
@@ -892,150 +919,6 @@ linprocfs_doprocroot(PFS_FILL_ARGS)
 	return (0);
 }
 
-#define MAX_ARGV_STR	512	/* Max number of argv-like strings */
-#define UIO_CHUNK_SZ	256	/* Max chunk size (bytes) for uiomove */
-
-static int
-linprocfs_doargv(struct thread *td, struct proc *p, struct sbuf *sb,
-    void (*resolver)(const struct ps_strings, u_long *, int *))
-{
-	struct iovec iov;
-	struct uio tmp_uio;
-	struct ps_strings pss;
-	int ret, i, n_elements, elm_len;
-	u_long addr, pbegin;
-	char **env_vector, *envp;
-	char env_string[UIO_CHUNK_SZ];
-#ifdef COMPAT_FREEBSD32
-	struct freebsd32_ps_strings pss32;
-	uint32_t *env_vector32;
-#endif
-
-#define	UIO_HELPER(uio, iov, base, len, cnt, offset, sz, flg, rw, td)	\
-do {									\
-	iov.iov_base = (caddr_t)(base);					\
-	iov.iov_len = (len); 						\
-	uio.uio_iov = &(iov); 						\
-	uio.uio_iovcnt = (cnt);	 					\
-	uio.uio_offset = (off_t)(offset);				\
-	uio.uio_resid = (sz); 						\
-	uio.uio_segflg = (flg);						\
-	uio.uio_rw = (rw); 						\
-	uio.uio_td = (td);						\
-} while (0)
-
-	env_vector = malloc(sizeof(char *) * MAX_ARGV_STR, M_TEMP, M_WAITOK);
-
-#ifdef COMPAT_FREEBSD32
-	env_vector32 = NULL;
-	if (SV_PROC_FLAG(p, SV_ILP32) != 0) {
-		env_vector32 = malloc(sizeof(*env_vector32) * MAX_ARGV_STR,
-		    M_TEMP, M_WAITOK);
-		elm_len = sizeof(int32_t);
-		envp = (char *)env_vector32;
-
-		UIO_HELPER(tmp_uio, iov, &pss32, sizeof(pss32), 1,
-		    (off_t)(p->p_sysent->sv_psstrings),
-		    sizeof(pss32), UIO_SYSSPACE, UIO_READ, td);
-		ret = proc_rwmem(p, &tmp_uio);
-		if (ret != 0)
-			goto done;
-		pss.ps_argvstr = PTRIN(pss32.ps_argvstr);
-		pss.ps_nargvstr = pss32.ps_nargvstr;
-		pss.ps_envstr = PTRIN(pss32.ps_envstr);
-		pss.ps_nenvstr = pss32.ps_nenvstr;
-	} else {
-#endif
-		elm_len = sizeof(char *);
-		envp = (char *)env_vector;
-
-		UIO_HELPER(tmp_uio, iov, &pss, sizeof(pss), 1,
-		    (off_t)(p->p_sysent->sv_psstrings),
-		    sizeof(pss), UIO_SYSSPACE, UIO_READ, td);
-		ret = proc_rwmem(p, &tmp_uio);
-		if (ret != 0)
-			goto done;
-#ifdef COMPAT_FREEBSD32
-	}
-#endif
-
-	/* Get the array address and the number of elements */
-	resolver(pss, &addr, &n_elements);
-
-	/* Consistent with lib/libkvm/kvm_proc.c */
-	if (n_elements > MAX_ARGV_STR) {
-		ret = E2BIG;
-		goto done;
-	}
-
-	UIO_HELPER(tmp_uio, iov, envp, n_elements * elm_len, 1,
-	    (vm_offset_t)(addr), iov.iov_len, UIO_SYSSPACE, UIO_READ, td);
-	ret = proc_rwmem(p, &tmp_uio);
-	if (ret != 0)
-		goto done;
-#ifdef COMPAT_FREEBSD32
-	if (env_vector32 != NULL) {
-		for (i = 0; i < n_elements; i++)
-			env_vector[i] = PTRIN(env_vector32[i]);
-	}
-#endif
-
-	/* Now we can iterate through the list of strings */
-	for (i = 0; i < n_elements; i++) {
-		pbegin = (vm_offset_t)env_vector[i];
-		for (;;) {
-			UIO_HELPER(tmp_uio, iov, env_string, sizeof(env_string),
-			    1, pbegin, iov.iov_len, UIO_SYSSPACE, UIO_READ, td);
-			ret = proc_rwmem(p, &tmp_uio);
-			if (ret != 0)
-				goto done;
-
-			if (!strvalid(env_string, UIO_CHUNK_SZ)) {
-				/*
-				 * We didn't find the end of the string.
-				 * Add the string to the buffer and move
-				 * the pointer.  But do not allow strings
-				 * of unlimited length.
-				 */
-				sbuf_bcat(sb, env_string, UIO_CHUNK_SZ);
-				if (sbuf_len(sb) >= ARG_MAX) {
-					ret = E2BIG;
-					goto done;
-				}
-				pbegin += UIO_CHUNK_SZ;
-			} else {
-				sbuf_cat(sb, env_string);
-				break;
-			}
-		}
-		sbuf_bcat(sb, "", 1);
-	}
-#undef UIO_HELPER
-
-done:
-	free(env_vector, M_TEMP);
-#ifdef COMPAT_FREEBSD32
-	free(env_vector32, M_TEMP);
-#endif
-	return (ret);
-}
-
-static void
-ps_string_argv(const struct ps_strings ps, u_long *addr, int *n)
-{
-
-	*addr = (u_long) ps.ps_argvstr;
-	*n = ps.ps_nargvstr;
-}
-
-static void
-ps_string_env(const struct ps_strings ps, u_long *addr, int *n)
-{
-
-	*addr = (u_long) ps.ps_envstr;
-	*n = ps.ps_nenvstr;
-}
-
 /*
  * Filler function for proc/pid/cmdline
  */
@@ -1049,14 +932,29 @@ linprocfs_doproccmdline(PFS_FILL_ARGS)
 		PROC_UNLOCK(p);
 		return (ret);
 	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
 	if (p->p_args != NULL) {
 		sbuf_bcpy(sb, p->p_args->ar_args, p->p_args->ar_length);
 		PROC_UNLOCK(p);
 		return (0);
 	}
+
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
 	PROC_UNLOCK(p);
 
-	ret = linprocfs_doargv(td, p, sb, ps_string_argv);
+	ret = proc_getargv(td, p, sb, ARG_MAX);
 	return (ret);
 }
 
@@ -1069,13 +967,28 @@ linprocfs_doprocenviron(PFS_FILL_ARGS)
 	int ret;
 
 	PROC_LOCK(p);
-	if ((ret = p_cansee(td, p)) != 0) {
+	if ((ret = p_candebug(td, p)) != 0) {
 		PROC_UNLOCK(p);
 		return (ret);
 	}
+
+	/*
+	 * Mimic linux behavior and pass only processes with usermode
+	 * address space as valid.  Return zero silently otherwize.
+	 */
+	if (p->p_vmspace == &vmspace0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
+	if ((p->p_flag & P_SYSTEM) != 0) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
 	PROC_UNLOCK(p);
 
-	ret = linprocfs_doargv(td, p, sb, ps_string_env);
+	ret = proc_getenvv(td, p, sb, ARG_MAX);
 	return (ret);
 }
 
@@ -1471,6 +1384,8 @@ linprocfs_init(PFS_INIT_ARGS)
 	pfs_create_link(root, "self", &procfs_docurproc,
 	    NULL, NULL, NULL, 0);
 	pfs_create_file(root, "stat", &linprocfs_dostat,
+	    NULL, NULL, NULL, PFS_RD);
+	pfs_create_file(root, "swaps", &linprocfs_doswaps,
 	    NULL, NULL, NULL, PFS_RD);
 	pfs_create_file(root, "uptime", &linprocfs_douptime,
 	    NULL, NULL, NULL, PFS_RD);

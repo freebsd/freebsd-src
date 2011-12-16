@@ -822,11 +822,15 @@ static char *
 ether_str(struct sockaddr_dl *sdl)
 {
 	static char hbuf[NI_MAXHOST];
+	char *cp;
 
-	if (sdl->sdl_alen > 0)
+	if (sdl->sdl_alen == ETHER_ADDR_LEN) {
 		strlcpy(hbuf, ether_ntoa((struct ether_addr *)LLADDR(sdl)),
 		    sizeof(hbuf));
-	else
+	} else if (sdl->sdl_alen) {
+		int n = sdl->sdl_nlen > 0 ? sdl->sdl_nlen + 1 : 0;
+		snprintf(hbuf, sizeof(hbuf), "%s", link_ntoa(sdl) + n);
+	} else
 		snprintf(hbuf, sizeof(hbuf), "(incomplete)");
 
 	return(hbuf);

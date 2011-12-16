@@ -125,6 +125,8 @@ static const struct cmode modes[] = {
 	  IEEE80211_CHAN_A | IEEE80211_CHAN_HT40D },
 };
 
+static void ath_hal_update_dfsdomain(struct ath_hal *ah);
+
 static OS_INLINE uint16_t
 getEepromRD(struct ath_hal *ah)
 {
@@ -526,6 +528,7 @@ getchannels(struct ath_hal *ah,
 					    "skip ecm channel\n");
 					continue;
 				}
+#if 0
 				if ((fband->useDfs & dfsMask) && 
 				    (cm->flags & IEEE80211_CHAN_HT40)) {
 					/* NB: DFS and HT40 don't mix */
@@ -533,6 +536,7 @@ getchannels(struct ath_hal *ah,
 					    "skip HT40 chan, DFS required\n");
 					continue;
 				}
+#endif
 				/*
 				 * Make sure that channel separation
 				 * meets the requirement.
@@ -698,8 +702,12 @@ ath_hal_init_channels(struct ath_hal *ah,
 		ah->ah_countryCode = country->countryCode;
 		HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s: cc %u\n",
 		    __func__, ah->ah_countryCode);
+
+		/* Update current DFS domain */
+		ath_hal_update_dfsdomain(ah);
 	} else
 		status = HAL_EINVAL;
+
 	return status;
 }
 
@@ -744,6 +752,11 @@ ath_hal_set_channels(struct ath_hal *ah,
 		    __func__, ah->ah_countryCode);
 	} else
 		status = HAL_EINVAL;
+
+	if (status == HAL_OK) {
+		/* Update current DFS domain */
+		(void) ath_hal_update_dfsdomain(ah);
+	}
 	return status;
 }
 
@@ -808,6 +821,33 @@ ath_hal_getctl(struct ath_hal *ah, const struct ieee80211_channel *c)
 		return ctl | CTL_11A;
 	return ctl;
 }
+
+
+/*
+ * Update the current dfsDomain setting based on the given
+ * country code.
+ *
+ * Since FreeBSD/net80211 allows the channel set to change
+ * after the card has been setup (via ath_hal_init_channels())
+ * this function method is needed to update ah_dfsDomain.
+ */
+void
+ath_hal_update_dfsdomain(struct ath_hal *ah)
+{
+	const REG_DOMAIN *rd5GHz = AH_PRIVATE(ah)->ah_rd5GHz;
+	HAL_DFS_DOMAIN dfsDomain = HAL_DFS_UNINIT_DOMAIN;
+
+	if (rd5GHz->dfsMask & DFS_FCC3)
+		dfsDomain = HAL_DFS_FCC_DOMAIN;
+	if (rd5GHz->dfsMask & DFS_ETSI)
+		dfsDomain = HAL_DFS_ETSI_DOMAIN;
+	if (rd5GHz->dfsMask & DFS_MKK4)
+		dfsDomain = HAL_DFS_MKK4_DOMAIN;
+	AH_PRIVATE(ah)->ah_dfsDomain = dfsDomain;
+	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN, "%s ah_dfsDomain: %d\n",
+	    __func__, AH_PRIVATE(ah)->ah_dfsDomain);
+}
+
 
 /*
  * Return the max allowed antenna gain and apply any regulatory

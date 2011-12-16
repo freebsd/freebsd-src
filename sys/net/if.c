@@ -58,6 +58,8 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
+#include <sys/priv.h>
+
 #include <machine/stdarg.h>
 #include <vm/uma.h>
 
@@ -116,7 +118,7 @@ SYSCTL_UINT(_net, OID_AUTO, ifdescr_maxlen, CTLFLAG_RW,
 	&ifdescr_maxlen, 0,
 	"administrative maximum length for interface description");
 
-MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
+static MALLOC_DEFINE(M_IFDESCR, "ifdescr", "ifnet descriptions");
 
 /* global sx for non-critical path ifdescr */
 static struct sx ifdescr_sx;
@@ -213,7 +215,7 @@ struct sx ifnet_sxlock;
 static	if_com_alloc_t *if_com_alloc[256];
 static	if_com_free_t *if_com_free[256];
 
-MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
+static MALLOC_DEFINE(M_IFNET, "ifnet", "interface internals");
 MALLOC_DEFINE(M_IFADDR, "ifaddr", "interface address");
 MALLOC_DEFINE(M_IFMADDR, "ether_multi", "link-level multicast address");
 
@@ -465,8 +467,8 @@ if_alloc(u_char type)
 }
 
 /*
- * Do the actual work of freeing a struct ifnet, associated index, and layer
- * 2 common structure.  This call is made when the last reference to an
+ * Do the actual work of freeing a struct ifnet, and layer 2 common
+ * structure.  This call is made when the last reference to an
  * interface is released.
  */
 static void
@@ -475,13 +477,6 @@ if_free_internal(struct ifnet *ifp)
 
 	KASSERT((ifp->if_flags & IFF_DYING),
 	    ("if_free_internal: interface not dying"));
-
-	IFNET_WLOCK();
-	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
-	    ("%s: freeing unallocated ifnet", ifp->if_xname));
-
-	ifindex_free_locked(ifp->if_index);
-	IFNET_WUNLOCK();
 
 	if (if_com_free[ifp->if_alloctype] != NULL)
 		if_com_free[ifp->if_alloctype](ifp->if_l2com,
@@ -499,35 +494,24 @@ if_free_internal(struct ifnet *ifp)
 }
 
 /*
- * This version should only be called by intefaces that switch their type
- * after calling if_alloc().  if_free_type() will go away again now that we
- * have if_alloctype to cache the original allocation type.  For now, assert
- * that they match, since we require that in practice.
- */
-void
-if_free_type(struct ifnet *ifp, u_char type)
-{
-
-	KASSERT(ifp->if_alloctype == type,
-	    ("if_free_type: type (%d) != alloctype (%d)", type,
-	    ifp->if_alloctype));
-
-	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
-	if (!refcount_release(&ifp->if_refcount))
-		return;
-	if_free_internal(ifp);
-}
-
-/*
- * This is the normal version of if_free(), used by device drivers to free a
- * detached network interface.  The contents of if_free_type() will move into
- * here when if_free_type() goes away.
+ * Deregister an interface and free the associated storage.
  */
 void
 if_free(struct ifnet *ifp)
 {
 
-	if_free_type(ifp, ifp->if_alloctype);
+	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
+
+	IFNET_WLOCK();
+	KASSERT(ifp == ifnet_byindex_locked(ifp->if_index),
+	    ("%s: freeing unallocated ifnet", ifp->if_xname));
+
+	ifindex_free_locked(ifp->if_index);
+	IFNET_WUNLOCK();
+
+	if (!refcount_release(&ifp->if_refcount))
+		return;
+	if_free_internal(ifp);
 }
 
 /*
@@ -1472,7 +1456,7 @@ ifa_add_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 		RT_REMREF(rt);
 		RT_UNLOCK(rt);
 	} else if (error != 0)
-		log(LOG_INFO, "ifa_add_loopback_route: insertion failed\n");
+		log(LOG_DEBUG, "%s: insertion failed: %u\n", __func__, error);
 
 	return (error);
 }
@@ -1496,7 +1480,7 @@ ifa_del_loopback_route(struct ifaddr *ifa, struct sockaddr *ia)
 	error = rtrequest1_fib(RTM_DELETE, &info, NULL, 0);
 
 	if (error != 0)
-		log(LOG_INFO, "ifa_del_loopback_route: deletion failed\n");
+		log(LOG_DEBUG, "%s: deletion failed: %u\n", __func__, error);
 
 	return (error);
 }
@@ -1881,6 +1865,11 @@ if_route(struct ifnet *ifp, int flag, int fam)
 
 void	(*vlan_link_state_p)(struct ifnet *);	/* XXX: private from if_vlan */
 void	(*vlan_trunk_cap_p)(struct ifnet *);		/* XXX: private from if_vlan */
+struct ifnet *(*vlan_trunkdev_p)(struct ifnet *);
+struct	ifnet *(*vlan_devat_p)(struct ifnet *, uint16_t);
+int	(*vlan_tag_p)(struct ifnet *, uint16_t *);
+int	(*vlan_setcookie_p)(struct ifnet *, void *);
+void	*(*vlan_cookie_p)(struct ifnet *);
 
 /*
  * Handle a change in the interface link state. To avoid LORs
@@ -1935,6 +1924,7 @@ do_link_state_change(void *arg, int pending)
 	if (log_link_state_change)
 		log(LOG_NOTICE, "%s: link state changed to %s\n", ifp->if_xname,
 		    (link_state == LINK_STATE_UP) ? "UP" : "DOWN" );
+	EVENTHANDLER_INVOKE(ifnet_link_event, ifp, ifp->if_link_state);
 	CURVNET_RESTORE();
 }
 
@@ -2126,6 +2116,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 		getmicrotime(&ifp->if_lastchange);
 		free(odescrbuf, M_IFDESCR);
+		break;
+
+	case SIOCGIFFIB:
+		ifr->ifr_fib = ifp->if_fib;
+		break;
+
+	case SIOCSIFFIB:
+		error = priv_check(td, PRIV_NET_SETIFFIB);
+		if (error)
+			return (error);
+		if (ifr->ifr_fib >= rt_numfibs)
+			return (EINVAL);
+
+		ifp->if_fib = ifr->ifr_fib;
 		break;
 
 	case SIOCSIFFLAGS:
@@ -2460,6 +2464,8 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 
 			error = ifconf(SIOCGIFCONF, (void *)&ifc);
 			CURVNET_RESTORE();
+			if (error == 0)
+				ifc32->ifc_len = ifc.ifc_len;
 			return (error);
 		}
 #endif

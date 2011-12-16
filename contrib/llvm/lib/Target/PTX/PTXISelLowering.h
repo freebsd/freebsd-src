@@ -24,11 +24,16 @@ class PTXTargetMachine;
 namespace PTXISD {
   enum NodeType {
     FIRST_NUMBER = ISD::BUILTIN_OP_END,
+    LOAD_PARAM,
+    STORE_PARAM,
     READ_PARAM,
+    WRITE_PARAM,
     EXIT,
-    RET
+    RET,
+    COPY_ADDRESS,
+    CALL
   };
-} // namespace PTXISD
+}                               // namespace PTXISD
 
 class PTXTargetLowering : public TargetLowering {
   public:
@@ -36,10 +41,9 @@ class PTXTargetLowering : public TargetLowering {
 
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
-    virtual unsigned getFunctionAlignment(const Function *F) const {
-      return 2; }
-
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
+
+    virtual SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
@@ -58,6 +62,20 @@ class PTXTargetLowering : public TargetLowering {
                   const SmallVectorImpl<SDValue> &OutVals,
                   DebugLoc dl,
                   SelectionDAG &DAG) const;
+
+    virtual SDValue
+      LowerCall(SDValue Chain, SDValue Callee,
+                CallingConv::ID CallConv, bool isVarArg,
+                bool &isTailCall,
+                const SmallVectorImpl<ISD::OutputArg> &Outs,
+                const SmallVectorImpl<SDValue> &OutVals,
+                const SmallVectorImpl<ISD::InputArg> &Ins,
+                DebugLoc dl, SelectionDAG &DAG,
+                SmallVectorImpl<SDValue> &InVals) const;
+
+    virtual EVT getSetCCResultType(EVT VT) const;
+
+    virtual unsigned getNumRegisters(LLVMContext &Context, EVT VT);
 
   private:
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;

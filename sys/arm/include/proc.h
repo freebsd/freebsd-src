@@ -66,15 +66,14 @@ struct mdproc {
 #define	KINFO_PROC_SIZE 792
 #endif
 
-#ifdef _KERNEL
+#define MAXARGS	8
 struct syscall_args {
 	u_int code;
 	struct sysent *callp;
-	register_t args[8];
+	register_t args[MAXARGS];
 	int narg;
+	u_int nap;
+	u_int32_t insn;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
-
-#endif
 
 #endif /* !_MACHINE_PROC_H_ */

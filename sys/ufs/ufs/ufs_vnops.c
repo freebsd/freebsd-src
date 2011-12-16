@@ -1519,6 +1519,15 @@ relock:
 		cache_purge(fdvp);
 	}
 	error = ufs_dirremove(fdvp, fip, fcnp->cn_flags, 0);
+	/*
+	 * The kern_renameat() looks up the fvp using the DELETE flag, which
+	 * causes the removal of the name cache entry for fvp.
+	 * As the relookup of the fvp is done in two steps:
+	 * ufs_lookup_ino() and then VFS_VGET(), another thread might do a
+	 * normal lookup of the from name just before the VFS_VGET() call,
+	 * causing the cache entry to be re-instantiated.
+	 */
+	cache_purge(fvp);
 
 unlockout:
 	vput(fdvp);
@@ -1838,6 +1847,8 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
+			if (DOINGSOFTDEP(tvp))
+				softdep_revert_link(dp, ip);
 			UFS_VFREE(tvp, ip->i_number, dmode);
 			vput(tvp);
 			return (error);
@@ -1850,6 +1861,8 @@ ufs_mkdir(ap)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		if (DOINGSOFTDEP(tvp))
+			softdep_revert_link(dp, ip);
 		UFS_VFREE(tvp, ip->i_number, dmode);
 		vput(tvp);
 		return (error);
@@ -2608,6 +2621,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 		if ((error = getinoquota(ip)) ||
 	    	    (error = chkiq(ip, 1, ucp, 0))) {
+			if (DOINGSOFTDEP(tvp))
+				softdep_revert_link(pdir, ip);
 			UFS_VFREE(tvp, ip->i_number, mode);
 			vput(tvp);
 			return (error);
@@ -2620,6 +2635,8 @@ ufs_makeinode(mode, dvp, vpp, cnp)
 #ifdef QUOTA
 	if ((error = getinoquota(ip)) ||
 	    (error = chkiq(ip, 1, cnp->cn_cred, 0))) {
+		if (DOINGSOFTDEP(tvp))
+			softdep_revert_link(pdir, ip);
 		UFS_VFREE(tvp, ip->i_number, mode);
 		vput(tvp);
 		return (error);

@@ -66,7 +66,7 @@ namespace llvm {
     virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i64; }
 
     /// getSetCCResultType - Get the SETCC result ValueType
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    virtual EVT getSetCCResultType(EVT VT) const;
 
     /// LowerOperation - Provide custom lowering hooks for some operations.
     ///
@@ -94,18 +94,15 @@ namespace llvm {
     ConstraintWeight getSingleConstraintMatchWeight(
       AsmOperandInfo &info, const char *constraint) const;
 
-    std::vector<unsigned>
-      getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                        EVT VT) const;
+    std::pair<unsigned, const TargetRegisterClass*>
+    getRegForInlineAsmConstraint(const std::string &Constraint,
+				 EVT VT) const;
 
     MachineBasicBlock *
       EmitInstrWithCustomInserter(MachineInstr *MI,
                                   MachineBasicBlock *BB) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
 
     /// isFPImmLegal - Returns true if the target can instruction select the
     /// specified FP immediate natively. If false, the legalizer will

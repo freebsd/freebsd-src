@@ -89,15 +89,9 @@
  * info available in register 15, but 802.3 section 22.2.4.3 also
  * states that that all 1000 Mb/s capable PHYs will set this bit to 1.
  */
-#if 0
-#define	BMSR_MEDIAMASK	(BMSR_100T4|BMSR_100TXFDX|BMSR_100TXHDX|BMSR_10TFDX| \
-			 BMSR_10THDX|BMSR_ANEG)
 
-#else
-/* NetBSD uses: */
 #define	BMSR_MEDIAMASK	(BMSR_100T4|BMSR_100TXFDX|BMSR_100TXHDX| \
 			 BMSR_10TFDX|BMSR_10THDX|BMSR_100T2FDX|BMSR_100T2HDX)
-#endif
 
 /*
  * Convert BMSR media capabilities to ANAR bits for autonegotiation.
@@ -111,10 +105,6 @@
 #define	IDR2_OUILSB	0xfc00	/* OUI LSB */
 #define	IDR2_MODEL	0x03f0	/* vendor model */
 #define	IDR2_REV	0x000f	/* vendor revision */
-
-#define	MII_OUI(id1, id2)	(((id1) << 6) | ((id2) >> 10))
-#define	MII_MODEL(id2)		(((id2) & IDR2_MODEL) >> 4)
-#define	MII_REV(id2)		((id2) & IDR2_REV)
 
 #define	MII_ANAR	0x04	/* Autonegotiation advertisement (rw) */
 		/* section 28.2.4.1 and 37.2.6.1 */

@@ -1,5 +1,28 @@
 #!/bin/sh
 #
+# Copyright (c) 2006 "David Kirchner" <dpk@dpk.net>. All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
 # $FreeBSD$
 #
 # Generates kdump_subr.c
@@ -46,10 +69,10 @@ auto_or_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
-	int	or = 0;
-	printf("%#x<", arg);
+	int or = 0;
+	printf("%#jx<", (uintmax_t)arg);
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
 		$include_dir/$file | \
@@ -57,11 +80,11 @@ _EOF_
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tif(!((arg>0)^((%s)>0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
+		printf "\tif (!((arg > 0) ^ ((%s) > 0)))\n\t\tif_print_or(arg, %s, or);\n", $i, $i }'
 cat <<_EOF_
 	printf(">");
 	if (or == 0)
-		(void)printf("<invalid>%ld", (long)arg);
+		printf("<invalid>%jd", arg);
 }
 
 _EOF_
@@ -80,7 +103,7 @@ auto_switch_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
 	switch (arg) {
 _EOF_
@@ -90,10 +113,10 @@ _EOF_
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
+		printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)arg);
+		printf("<invalid=%jd>", arg);
 	}
 }
 
@@ -113,7 +136,7 @@ auto_if_type () {
 	cat <<_EOF_
 /* AUTO */
 void
-$name (int arg)
+$name(intmax_t arg)
 {
 _EOF_
 	egrep "^#[[:space:]]*define[[:space:]]+"${grep}"[[:space:]]*" \
@@ -124,7 +147,7 @@ _EOF_
 		printf "if (arg == %s) \n\t\tprintf(\"%s\");\n", $2, $2 }'
 cat <<_EOF_
 	else /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)arg);
+		printf("<invalid=%jd>", arg);
 }
 
 _EOF_
@@ -133,6 +156,7 @@ _EOF_
 # C start
 
 cat <<_EOF_
+#include <stdint.h>
 #include <stdio.h>
 #include <sys/fcntl.h>
 #include <sys/stat.h>
@@ -162,6 +186,7 @@ cat <<_EOF_
 #include <sys/shm.h>
 #include <nfsserver/nfs.h>
 #include <ufs/ufs/quota.h>
+#include <sys/capability.h>
 
 #include "kdump_subr.h"
 
@@ -184,76 +209,78 @@ cat <<_EOF_
 /* MANUAL */
 extern char *signames[]; /* from kdump.c */
 void
-signame (int sig)
+signame(int sig)
 {
 	if (sig > 0 && sig < NSIG)
-		(void)printf("SIG%s",signames[sig]);
+		printf("SIG%s",signames[sig]);
 	else
-		(void)printf("SIG %d", sig);
+		printf("SIG %d", sig);
 }
 
 /* MANUAL */
 void
-semctlname (int cmd)
+semctlname(int cmd)
 {
 	switch (cmd) {
 	case GETNCNT:
-		(void)printf("GETNCNT");
+		printf("GETNCNT");
 		break;
 	case GETPID:
-		(void)printf("GETPID");
+		printf("GETPID");
 		break;
 	case GETVAL:
-		(void)printf("GETVAL");
+		printf("GETVAL");
 		break;
 	case GETALL:
-		(void)printf("GETALL");
+		printf("GETALL");
 		break;
 	case GETZCNT:
-		(void)printf("GETZCNT");
+		printf("GETZCNT");
 		break;
 	case SETVAL:
-		(void)printf("SETVAL");
+		printf("SETVAL");
 		break;
 	case SETALL:
-		(void)printf("SETALL");
+		printf("SETALL");
 		break;
 	case IPC_RMID:
-		(void)printf("IPC_RMID");
+		printf("IPC_RMID");
 		break;
 	case IPC_SET:
-		(void)printf("IPC_SET");
+		printf("IPC_SET");
 		break;
 	case IPC_STAT:
-		(void)printf("IPC_STAT");
+		printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		printf("<invalid=%d>", cmd);
 	}
 }
 
 /* MANUAL */
 void
-shmctlname (int cmd) {
+shmctlname(int cmd)
+{
 	switch (cmd) {
 	case IPC_RMID:
-		(void)printf("IPC_RMID");
+		printf("IPC_RMID");
 		break;
 	case IPC_SET:
-		(void)printf("IPC_SET");
+		printf("IPC_SET");
 		break;
 	case IPC_STAT:
-		(void)printf("IPC_STAT");
+		printf("IPC_STAT");
 		break;
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		printf("<invalid=%d>", cmd);
 	}
 }
 
 /* MANUAL */
 void
-semgetname (int flag) {
-	int	or = 0;
+semgetname(int flag)
+{
+	int or = 0;
 	if_print_or(flag, IPC_CREAT, or);
 	if_print_or(flag, IPC_EXCL, or);
 	if_print_or(flag, SEM_R, or);
@@ -271,16 +298,17 @@ semgetname (int flag) {
  * mode argument is unused (and often bogus and misleading).
  */
 void
-flagsandmodename (int flags, int mode, int decimal) {
-	flagsname (flags);
-	(void)putchar(',');
+flagsandmodename(int flags, int mode, int decimal)
+{
+	flagsname(flags);
+	putchar(',');
 	if ((flags & O_CREAT) == O_CREAT) {
 		modename (mode);
 	} else {
 		if (decimal) {
-			(void)printf("<unused>%ld", (long)mode);
+			printf("<unused>%d", mode);
 		} else {
-			(void)printf("<unused>%#lx", (long)mode);
+			printf("<unused>%#x", (unsigned int)mode);
 		}
 	}
 }
@@ -293,59 +321,59 @@ flagsandmodename (int flags, int mode, int decimal) {
  * to use getprotoent(3) here.
  */
 void
-sockoptlevelname (int level, int decimal)
+sockoptlevelname(int level, int decimal)
 {
 	if (level == SOL_SOCKET) {
-		(void)printf("SOL_SOCKET");
+		printf("SOL_SOCKET");
 	} else {
 		if (decimal) {
-			(void)printf("%ld", (long)level);
+			printf("%d", level);
 		} else {
-			(void)printf("%#lx", (long)level);
+			printf("%#x", (unsigned int)level);
 		}
 	}
 }
 
 _EOF_
 
-auto_or_type "modename" "S_[A-Z]+[[:space:]]+[0-6]{7}" "sys/stat.h"
-auto_or_type "flagsname" "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+" "sys/fcntl.h"
-auto_or_type "accessmodename" "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+" "sys/unistd.h"
-auto_or_type "mmapprotname" "PROT_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+" "sys/mman.h"
-auto_or_type "mmapflagsname" "MAP_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+" "sys/mman.h"
-auto_or_type "wait4optname" "W[A-Z]+[[:space:]]+[0-9]+" "sys/wait.h"
-auto_or_type "getfsstatflagsname" "MNT_[A-Z]+[[:space:]]+[1-9][0-9]*" "sys/mount.h"
-auto_or_type "mountflagsname" "MNT_[A-Z]+[[:space:]]+0x[0-9]+" "sys/mount.h"
-auto_or_type "rebootoptname" "RB_[A-Z]+[[:space:]]+0x[0-9]+" "sys/reboot.h"
-auto_or_type "flockname" "LOCK_[A-Z]+[[:space:]]+0x[0-9]+" "sys/fcntl.h"
-auto_or_type "thrcreateflagsname" "THR_[A-Z]+[[:space:]]+0x[0-9]+" "sys/thr.h"
-auto_or_type "mlockallname" "MCL_[A-Z]+[[:space:]]+0x[0-9]+" "sys/mman.h"
-auto_or_type "shmatname" "SHM_[A-Z]+[[:space:]]+[0-9]{6}+" "sys/shm.h"
-auto_or_type "rforkname" "RF[A-Z]+[[:space:]]+\([0-9]+<<[0-9]+\)" "sys/unistd.h"
-auto_or_type "nfssvcname" "NFSSVC_[A-Z]+[[:space:]]+0x[0-9]+" "nfsserver/nfs.h"
-
-auto_switch_type "whencename" "SEEK_[A-Z]+[[:space:]]+[0-9]+" "sys/unistd.h"
-auto_switch_type "rlimitname" "RLIMIT_[A-Z]+[[:space:]]+[0-9]+" "sys/resource.h"
-auto_switch_type "shutdownhowname" "SHUT_[A-Z]+[[:space:]]+[0-9]+" "sys/socket.h"
-auto_switch_type "prioname" "PRIO_[A-Z]+[[:space:]]+[0-9]" "sys/resource.h"
-auto_switch_type "madvisebehavname" "_?MADV_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.h"
-auto_switch_type "msyncflagsname" "MS_[A-Z]+[[:space:]]+0x[0-9]+" "sys/mman.h"
-auto_switch_type "schedpolicyname" "SCHED_[A-Z]+[[:space:]]+[0-9]+" "sched.h"
-auto_switch_type "kldunloadfflagsname" "LINKER_UNLOAD_[A-Z]+[[:space:]]+[0-9]+" "sys/linker.h"
-auto_switch_type "extattrctlname" "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
-auto_switch_type "kldsymcmdname" "KLDSYM_[A-Z]+[[:space:]]+[0-9]+" "sys/linker.h"
-auto_switch_type "sendfileflagsname" "SF_[A-Z]+[[:space:]]+[0-9]+" "sys/socket.h"
-auto_switch_type "acltypename" "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+" "sys/acl.h"
-auto_switch_type "sigprocmaskhowname" "SIG_[A-Z]+[[:space:]]+[0-9]+" "sys/signal.h"
-auto_switch_type "lio_listioname" "LIO_(NO)?WAIT[[:space:]]+[0-9]+" "aio.h"
-auto_switch_type "minheritname" "INHERIT_[A-Z]+[[:space:]]+[0-9]+" "sys/mman.h"
-auto_switch_type "quotactlname" "Q_[A-Z]+[[:space:]]+0x[0-9]+" "ufs/ufs/quota.h"
-auto_if_type "sockdomainname" "PF_[[:alnum:]]+[[:space:]]+" "sys/socket.h"
-auto_if_type "sockfamilyname" "AF_[[:alnum:]]+[[:space:]]+" "sys/socket.h"
-auto_if_type "sockipprotoname" "IPPROTO_[[:alnum:]]+[[:space:]]+" "netinet/in.h"
-auto_switch_type "sockoptname" "SO_[A-Z]+[[:space:]]+0x[0-9]+" "sys/socket.h"
-auto_switch_type "socktypename" "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*" "sys/socket.h"
-auto_switch_type "ptraceopname" "PT_[[:alnum:]]+[[:space:]]+[0-9]+" "sys/ptrace.h"
+auto_or_type     "accessmodename"      "[A-Z]_OK[[:space:]]+0?x?[0-9A-Fa-f]+"         "sys/unistd.h"
+auto_switch_type "acltypename"         "ACL_TYPE_[A-Z4_]+[[:space:]]+0x[0-9]+"        "sys/acl.h"
+auto_or_type     "capname"             "CAP_[A-Z]+[[:space:]]+0x[01248]{16}ULL"       "sys/capability.h"
+auto_switch_type "extattrctlname"      "EXTATTR_NAMESPACE_[A-Z]+[[:space:]]+0x[0-9]+" "sys/extattr.h"
+auto_or_type     "flagsname"           "O_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"           "sys/fcntl.h"
+auto_or_type     "flockname"           "LOCK_[A-Z]+[[:space:]]+0x[0-9]+"              "sys/fcntl.h"
+auto_or_type     "getfsstatflagsname"  "MNT_[A-Z]+[[:space:]]+[1-9][0-9]*"            "sys/mount.h"
+auto_switch_type "kldsymcmdname"       "KLDSYM_[A-Z]+[[:space:]]+[0-9]+"              "sys/linker.h"
+auto_switch_type "kldunloadfflagsname" "LINKER_UNLOAD_[A-Z]+[[:space:]]+[0-9]+"       "sys/linker.h"
+auto_switch_type "lio_listioname"      "LIO_(NO)?WAIT[[:space:]]+[0-9]+"              "aio.h"
+auto_switch_type "madvisebehavname"    "_?MADV_[A-Z]+[[:space:]]+[0-9]+"              "sys/mman.h"
+auto_switch_type "minheritname"        "INHERIT_[A-Z]+[[:space:]]+[0-9]+"             "sys/mman.h"
+auto_or_type     "mlockallname"        "MCL_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/mman.h"
+auto_or_type     "mmapflagsname"       "MAP_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"         "sys/mman.h"
+auto_or_type     "mmapprotname"        "PROT_[A-Z]+[[:space:]]+0x[0-9A-Fa-f]+"        "sys/mman.h"
+auto_or_type     "modename"            "S_[A-Z]+[[:space:]]+[0-6]{7}"                 "sys/stat.h"
+auto_or_type     "mountflagsname"      "MNT_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/mount.h"
+auto_switch_type "msyncflagsname"      "MS_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/mman.h"
+auto_or_type     "nfssvcname"          "NFSSVC_[A-Z]+[[:space:]]+0x[0-9]+"            "nfsserver/nfs.h"
+auto_switch_type "prioname"            "PRIO_[A-Z]+[[:space:]]+[0-9]"                 "sys/resource.h"
+auto_switch_type "ptraceopname"        "PT_[[:alnum:]_]+[[:space:]]+[0-9]+"           "sys/ptrace.h"
+auto_switch_type "quotactlname"        "Q_[A-Z]+[[:space:]]+0x[0-9]+"                 "ufs/ufs/quota.h"
+auto_or_type     "rebootoptname"       "RB_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/reboot.h"
+auto_or_type     "rforkname"           "RF[A-Z]+[[:space:]]+\([0-9]+<<[0-9]+\)"       "sys/unistd.h"
+auto_switch_type "rlimitname"          "RLIMIT_[A-Z]+[[:space:]]+[0-9]+"              "sys/resource.h"
+auto_switch_type "schedpolicyname"     "SCHED_[A-Z]+[[:space:]]+[0-9]+"               "sched.h"
+auto_switch_type "sendfileflagsname"   "SF_[A-Z]+[[:space:]]+[0-9]+"                  "sys/socket.h"
+auto_or_type     "shmatname"           "SHM_[A-Z]+[[:space:]]+[0-9]{6}+"              "sys/shm.h"
+auto_switch_type "shutdownhowname"     "SHUT_[A-Z]+[[:space:]]+[0-9]+"                "sys/socket.h"
+auto_switch_type "sigprocmaskhowname"  "SIG_[A-Z]+[[:space:]]+[0-9]+"                 "sys/signal.h"
+auto_if_type     "sockdomainname"      "PF_[[:alnum:]]+[[:space:]]+"                  "sys/socket.h"
+auto_if_type     "sockfamilyname"      "AF_[[:alnum:]]+[[:space:]]+"                  "sys/socket.h"
+auto_if_type     "sockipprotoname"     "IPPROTO_[[:alnum:]]+[[:space:]]+"             "netinet/in.h"
+auto_switch_type "sockoptname"         "SO_[A-Z]+[[:space:]]+0x[0-9]+"                "sys/socket.h"
+auto_switch_type "socktypename"        "SOCK_[A-Z]+[[:space:]]+[1-9]+[0-9]*"          "sys/socket.h"
+auto_or_type     "thrcreateflagsname"  "THR_[A-Z]+[[:space:]]+0x[0-9]+"               "sys/thr.h"
+auto_or_type     "wait4optname"        "W[A-Z]+[[:space:]]+[0-9]+"                    "sys/wait.h"
+auto_switch_type "whencename"          "SEEK_[A-Z]+[[:space:]]+[0-9]+"                "sys/unistd.h"
 
 cat <<_EOF_
 /*
@@ -354,7 +382,7 @@ cat <<_EOF_
  * grouped in fcntl.h, and this awk script grabs the first group.
  */
 void
-fcntlcmdname (int cmd, int arg, int decimal)
+fcntlcmdname(int cmd, int arg, int decimal)
 {
 	switch (cmd) {
 _EOF_
@@ -365,33 +393,33 @@ egrep "^#[[:space:]]*define[[:space:]]+F_[A-Z]+[[:space:]]+[0-9]+[[:space:]]*" \
 			break; \
 		++i; \
 		if (o <= $(i+1)) \
-			printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i; \
+			printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i; \
 		else \
 			exit; \
 		o = $(i+1) }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)cmd);
+		printf("<invalid=%d>", cmd);
 	}
-	(void)putchar(',');
+	putchar(',');
 	if (cmd == F_GETFD || cmd == F_SETFD) {
 		if (arg == FD_CLOEXEC)
-			(void)printf("FD_CLOEXEC");
+			printf("FD_CLOEXEC");
 		else if (arg == 0)
-			(void)printf("0");
+			printf("0");
 		else {
 			if (decimal)
-				(void)printf("<invalid>%ld", (long)arg);
+				printf("<invalid>%d", arg);
 			else
-				(void)printf("<invalid>%#lx", (long)arg);
+				printf("<invalid>%#x", (unsigned int)arg);
 		}
 	} else if (cmd == F_SETFL) {
 		flagsname(arg);
 	} else {
 		if (decimal)
-			(void)printf("%ld", (long)arg);
+			printf("%d", arg);
 		else
-			(void)printf("%#lx", (long)arg);
+			printf("%#x", (unsigned int)arg);
 	}
 }
 
@@ -403,7 +431,7 @@ cat <<_EOF_
  * make this capable of being a auto_switch_type() function.
  */
 void
-rtprioname (int func)
+rtprioname(int func)
 {
 	switch (func) {
 _EOF_
@@ -413,10 +441,10 @@ egrep "^#[[:space:]]*define[[:space:]]+RTP_[A-Z]+[[:space:]]+0x[0-9]+[[:space:]]
 		if ($i ~ /define/) \
 			break; \
 		++i; \
-		printf "\tcase %s:\n\t\t(void)printf(\"%s\");\n\t\tbreak;\n", $i, $i }'
+		printf "\tcase %s:\n\t\tprintf(\"%s\");\n\t\tbreak;\n", $i, $i }'
 cat <<_EOF_
 	default: /* Should not reach */
-		(void)printf("<invalid=%ld>", (long)func);
+		printf("<invalid=%d>", func);
 	}
 }
 
@@ -428,12 +456,12 @@ cat <<_EOF_
  * detect this as "invalid", which is incorrect here.
  */
 void
-sendrecvflagsname (int flags)
+sendrecvflagsname(int flags)
 {
-	int	or = 0;
+	int or = 0;
 
 	if (flags == 0) {
-		(void)printf("0");
+		printf("0");
 		return;
 	}
 

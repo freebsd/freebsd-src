@@ -53,7 +53,7 @@
 #include <sysexits.h>
 #include <unistd.h>
 
-#if linux
+#if defined(__linux__) || defined(__GLIBC__)
 #include <endian.h>
 #else
 #include <machine/endian.h>

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2001 Jake Burkholder.
+ * Copyright (c) 2011 Marius Strobl <marius@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -35,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/tstate.h>
 
 #include "assym.s"
+#include "opt_sched.h"
 
 	.register	%g2, #ignore
 	.register	%g3, #ignore
@@ -66,7 +68,7 @@ ENTRY(cpu_switch)
 	 nop
 	call	savefpctx
 	 add	PCB_REG, PCB_KFP, %o0
-	ba,a	%xcc, 2f
+	ba,a,pt	%xcc, 2f
 	 nop
 
 	/*
@@ -148,7 +150,7 @@ ENTRY(cpu_switch)
 	 * If they are the same we are done.
 	 */
 	cmp	%l2, %l1
-	be,a,pn	%xcc, 7f
+	be,a,pn	%xcc, 8f
 	 nop
 
 	/*
@@ -157,27 +159,42 @@ ENTRY(cpu_switch)
 	 */
 	SET(vmspace0, %i4, %i3)
 	cmp	%i5, %i3
-	be,a,pn	%xcc, 7f
+	be,a,pn	%xcc, 8f
 	 nop
 
 	/*
 	 * If there was no non-kernel pmap, don't try to deactivate it.
 	 */
 	brz,pn	%l2, 3f
-	 lduw	[PCPU(CPUMASK)], %l4
+	 lduw	[PCPU(CPUID)], %l3
 
 	/*
 	 * Mark the pmap of the last non-kernel vmspace to run as no longer
 	 * active on this CPU.
 	 */
-	lduw	[%l2 + PM_ACTIVE], %l3
-	andn	%l3, %l4, %l3
-	stw	%l3, [%l2 + PM_ACTIVE]
+	mov	_NCPUBITS, %l5
+	mov	%g0, %y
+	udiv	%l3, %l5, %l6
+	srl	%l6, 0, %l4
+	sllx	%l4, PTR_SHIFT, %l4
+	add	%l4, PM_ACTIVE, %l4
+	smul	%l6, %l5, %l5
+	sub	%l3, %l5, %l5
+	mov	1, %l6
+	sllx	%l6, %l5, %l5
+#ifdef SMP
+	add	%l2, %l4, %l4
+	membar	#LoadStore | #StoreStore
+	ATOMIC_CLEAR_LONG(%l4, %l6, %l7, %l5)
+#else
+	ldx	[%l2 + %l4], %l6
+	andn	%l6, %l5, %l6
+	stx	%l6, [%l2 + %l4]
+#endif
 
 	/*
 	 * Take away its context number.
 	 */
-	lduw	[PCPU(CPUID)], %l3
 	sllx	%l3, INT_SHIFT, %l3
 	add	%l2, PM_CONTEXT, %l4
 	mov	-1, %l5
@@ -185,14 +202,20 @@ ENTRY(cpu_switch)
 
 3:	cmp	%i2, %g0
 	be,pn	%xcc, 4f
-	 lduw	[PCPU(TLB_CTX_MAX)], %i4
-	stx	%i2, [%i0 + TD_LOCK]
+	 add	%i0, TD_LOCK, %l4
+#if defined(SCHED_ULE) && defined(SMP)
+	membar	#LoadStore | #StoreStore
+	ATOMIC_STORE_LONG(%l4, %l6, %l7, %i2)
+#else
+	stx	%i2, [%l4]
+#endif
 
 	/*
 	 * Find a new TLB context.  If we've run out we have to flush all
 	 * user mappings from the TLB and reset the context numbers.
 	 */
 4:	lduw	[PCPU(TLB_CTX)], %i3
+	lduw	[PCPU(TLB_CTX_MAX)], %i4
 	cmp	%i3, %i4
 	bne,a,pt %xcc, 5f
 	 nop
@@ -210,23 +233,42 @@ ENTRY(cpu_switch)
 	/*
 	 * Set the new context number in the pmap.
 	 */
-	lduw	[PCPU(CPUID)], %i4
-	sllx	%i4, INT_SHIFT, %i4
+	lduw	[PCPU(CPUID)], %l3
+	sllx	%l3, INT_SHIFT, %i4
 	add	%l1, PM_CONTEXT, %i5
 	stw	%i3, [%i4 + %i5]
 
 	/*
 	 * Mark the pmap as active on this CPU.
 	 */
-	lduw	[%l1 + PM_ACTIVE], %i4
-	lduw	[PCPU(CPUMASK)], %i5
-	or	%i4, %i5, %i4
-	stw	%i4, [%l1 + PM_ACTIVE]
+	mov	_NCPUBITS, %l5
+	mov	%g0, %y
+	udiv	%l3, %l5, %l6
+	srl	%l6, 0, %l4
+	sllx	%l4, PTR_SHIFT, %l4
+	add	%l4, PM_ACTIVE, %l4
+	smul	%l6, %l5, %l5
+	sub	%l3, %l5, %l5
+	mov	1, %l6
+	sllx	%l6, %l5, %l5
+#ifdef SMP
+	add	%l1, %l4, %l4
+	ATOMIC_SET_LONG(%l4, %l6, %l7, %l5)
+#else
+	ldx	[%l1 + %l4], %l6
+	or	%l6, %l5, %l6
+	stx	%l6, [%l1 + %l4]
+#endif
 
 	/*
 	 * Make note of the change in pmap.
 	 */
+#ifdef SMP
+	PCPU_ADDR(PMAP, %l4)
+	ATOMIC_STORE_LONG(%l4, %l5, %l6, %l1)
+#else
 	stx	%l1, [PCPU(PMAP)]
+#endif
 
 	/*
 	 * Fiddle the hardware bits.  Set the TSB registers and install the
@@ -246,19 +288,35 @@ ENTRY(cpu_switch)
 	stxa	%i3, [%i5] ASI_DMMU
 	flush	%i4
 
+6:
+#if defined(SCHED_ULE) && defined(SMP)
+	SET(blocked_lock, %l2, %l1)
+	add	%i1, TD_LOCK, %l2
+7:
+	ATOMIC_LOAD_LONG(%l2, %l3)
+	cmp	%l1, %l3
+	be,a,pn	%xcc, 7b
+	 nop
+#endif
+
 	/*
 	 * Done, return and load the new process's window from the stack.
 	 */
-
-6:	ret
-	 restore
-
-7:	cmp	%i2, %g0
-	be,a,pn	%xcc, 6b
-	 nop
-	stx	%i2, [%i0 + TD_LOCK]
 	ret
 	 restore
+
+8:	cmp	%i2, %g0
+	be,pn	%xcc, 6b
+	 add	%i0, TD_LOCK, %l4
+#if defined(SCHED_ULE) && defined(SMP)
+	membar	#LoadStore | #StoreStore
+	ATOMIC_STORE_LONG(%l4, %l6, %l7, %i2)
+	ba,pt	%xcc, 6b
+	 nop
+#else
+	ba,pt	%xcc, 6b
+	 stx	%i2, [%l4]
+#endif
 END(cpu_switch)
 
 ENTRY(savectx)

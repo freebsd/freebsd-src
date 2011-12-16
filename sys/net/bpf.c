@@ -170,7 +170,7 @@ SYSCTL_INT(_net_bpf, OID_AUTO, maxinsns, CTLFLAG_RW,
 static int bpf_zerocopy_enable = 0;
 SYSCTL_INT(_net_bpf, OID_AUTO, zerocopy_enable, CTLFLAG_RW,
     &bpf_zerocopy_enable, 0, "Enable new zero-copy BPF buffer sessions");
-SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
+static SYSCTL_NODE(_net_bpf, OID_AUTO, stats, CTLFLAG_MPSAFE | CTLFLAG_RW,
     bpf_stats_sysctl, "bpf statistics portal");
 
 static	d_open_t	bpfopen;
@@ -652,10 +652,10 @@ bpf_dtor(void *data)
 	if (d->bd_bif)
 		bpf_detachd(d);
 	mtx_unlock(&bpf_mtx);
-	selwakeuppri(&d->bd_sel, PRINET);
 #ifdef MAC
 	mac_bpfdesc_destroy(d);
 #endif /* MAC */
+	seldrain(&d->bd_sel);
 	knlist_destroy(&d->bd_sel.si_note);
 	callout_drain(&d->bd_callout);
 	bpf_freed(d);

@@ -19,14 +19,19 @@ namespace llvm {
 
 class User;
 class BasicBlock;
+class Function;
 class BranchInst;
 class Instruction;
+class DbgDeclareInst;
+class StoreInst;
+class LoadInst;
 class Value;
 class Pass;
 class PHINode;
 class AllocaInst;
 class ConstantExpr;
 class TargetData;
+class DIBuilder;
 
 template<typename T> class SmallVectorImpl;
   
@@ -38,8 +43,10 @@ template<typename T> class SmallVectorImpl;
 /// constant value, convert it into an unconditional branch to the constant
 /// destination.  This is a nontrivial operation because the successors of this
 /// basic block must have their PHI nodes updated.
-///
-bool ConstantFoldTerminator(BasicBlock *BB);
+/// Also calls RecursivelyDeleteTriviallyDeadInstructions() on any branch/switch
+/// conditions and indirectbr addresses this might make dead if
+/// DeleteDeadConditions is true.
+bool ConstantFoldTerminator(BasicBlock *BB, bool DeleteDeadConditions = false);
 
 //===----------------------------------------------------------------------===//
 //  Local dead code elimination.
@@ -69,10 +76,6 @@ bool RecursivelyDeleteDeadPHINode(PHINode *PN);
 ///
 /// This returns true if it changed the code, note that it can delete
 /// instructions in other blocks as well in this block.
-///
-/// WARNING: Do not use this function on unreachable blocks, as recursive
-/// simplification is not able to handle corner-case scenarios that can
-/// arise in them.
 bool SimplifyInstructionsInBlock(BasicBlock *BB, const TargetData *TD = 0);
     
 //===----------------------------------------------------------------------===//
@@ -156,6 +159,28 @@ unsigned getOrEnforceKnownAlignment(Value *V, unsigned PrefAlign,
 static inline unsigned getKnownAlignment(Value *V, const TargetData *TD = 0) {
   return getOrEnforceKnownAlignment(V, 0, TD);
 }
+
+///===---------------------------------------------------------------------===//
+///  Dbg Intrinsic utilities
+///
+
+/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// that has an associated llvm.dbg.decl intrinsic.
+bool ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                     StoreInst *SI, DIBuilder &Builder);
+
+/// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
+/// that has an associated llvm.dbg.decl intrinsic.
+bool ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
+                                     LoadInst *LI, DIBuilder &Builder);
+
+/// LowerDbgDeclare - Lowers llvm.dbg.declare intrinsics into appropriate set
+/// of llvm.dbg.value intrinsics.
+bool LowerDbgDeclare(Function &F);
+
+/// FindAllocaDbgDeclare - Finds the llvm.dbg.declare intrinsic corresponding to
+/// an alloca, if any.
+DbgDeclareInst *FindAllocaDbgDeclare(Value *V);
 
 } // End llvm namespace
 

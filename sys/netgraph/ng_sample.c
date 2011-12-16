@@ -58,7 +58,7 @@
 /* If you do complicated mallocs you may want to do this */
 /* and use it for your mallocs */
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node ");
+static MALLOC_DEFINE(M_NETGRAPH_XXX, "netgraph_xxx", "netgraph xxx node");
 #else
 #define M_NETGRAPH_XXX M_NETGRAPH
 #endif
@@ -154,10 +154,7 @@ ng_xxx_constructor(node_p node)
 	int i;
 
 	/* Initialize private descriptor */
-	privdata = malloc(sizeof(*privdata), M_NETGRAPH,
-		M_NOWAIT | M_ZERO);
-	if (privdata == NULL)
-		return (ENOMEM);
+	privdata = malloc(sizeof(*privdata), M_NETGRAPH, M_WAITOK | M_ZERO);
 	for (i = 0; i < XXX_NUM_DLCIS; i++) {
 		privdata->channel[i].dlci = -2;
 		privdata->channel[i].channel = i;

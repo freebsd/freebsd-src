@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Phases.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <cassert>
 
@@ -22,6 +23,5 @@ const char *phases::getPhaseName(ID Id) {
   case Link: return "linker";
   }
 
-  assert(0 && "Invalid phase id.");
-  return 0;
+  llvm_unreachable("Invalid phase id.");
 }

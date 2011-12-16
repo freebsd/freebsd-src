@@ -63,23 +63,17 @@ __FBSDID("$FreeBSD$");
 static device_probe_t uss820_atmelarm_probe;
 static device_attach_t uss820_atmelarm_attach;
 static device_detach_t uss820_atmelarm_detach;
-static device_suspend_t uss820_atmelarm_suspend;
-static device_resume_t uss820_atmelarm_resume;
-static device_shutdown_t uss820_atmelarm_shutdown;
 
 static device_method_t uss820dci_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, uss820_atmelarm_probe),
 	DEVMETHOD(device_attach, uss820_atmelarm_attach),
 	DEVMETHOD(device_detach, uss820_atmelarm_detach),
-	DEVMETHOD(device_suspend, uss820_atmelarm_suspend),
-	DEVMETHOD(device_resume, uss820_atmelarm_resume),
-	DEVMETHOD(device_shutdown, uss820_atmelarm_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t uss820dci_driver = {
@@ -94,47 +88,6 @@ DRIVER_MODULE(uss820, atmelarm, uss820dci_driver, uss820dci_devclass, 0, 0);
 MODULE_DEPEND(uss820, usb, 1, 1, 1);
 
 static const char *const uss820_desc = "USS820 USB Device Controller";
-
-static int
-uss820_atmelarm_suspend(device_t dev)
-{
-	struct uss820dci_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_suspend(dev);
-	if (err == 0) {
-		uss820dci_suspend(sc);
-	}
-	return (err);
-}
-
-static int
-uss820_atmelarm_resume(device_t dev)
-{
-	struct uss820dci_softc *sc = device_get_softc(dev);
-	int err;
-
-	uss820dci_resume(sc);
-
-	err = bus_generic_resume(dev);
-
-	return (err);
-}
-
-static int
-uss820_atmelarm_shutdown(device_t dev)
-{
-	struct uss820dci_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	uss820dci_uninit(sc);
-
-	return (0);
-}
 
 static int
 uss820_atmelarm_probe(device_t dev)
@@ -224,7 +177,7 @@ uss820_atmelarm_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (sc->sc_irq_res && sc->sc_intr_hdl) {
 		/*

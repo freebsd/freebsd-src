@@ -96,9 +96,11 @@ struct vop_vector default_vnodeops = {
 
 	.vop_access =		vop_stdaccess,
 	.vop_accessx =		vop_stdaccessx,
+	.vop_advise =		vop_stdadvise,
 	.vop_advlock =		vop_stdadvlock,
 	.vop_advlockasync =	vop_stdadvlockasync,
 	.vop_advlockpurge =	vop_stdadvlockpurge,
+	.vop_allocate =		vop_stdallocate,
 	.vop_bmap =		vop_stdbmap,
 	.vop_close =		VOP_NULL,
 	.vop_fsync =		VOP_NULL,
@@ -842,7 +844,7 @@ out:
 	free(dirbuf, M_TEMP);
 	if (!error) {
 		*buflen = i;
-		vhold(*dvp);
+		vref(*dvp);
 	}
 	if (covered) {
 		vput(*dvp);
@@ -852,6 +854,186 @@ out:
 		vn_close(mvp, FREAD, cred, td);
 	}
 	vn_lock(vp, locked | LK_RETRY);
+	return (error);
+}
+
+int
+vop_stdallocate(struct vop_allocate_args *ap)
+{
+#ifdef __notyet__
+	struct statfs sfs;
+#endif
+	struct iovec aiov;
+	struct vattr vattr, *vap;
+	struct uio auio;
+	off_t fsize, len, cur, offset;
+	uint8_t *buf;
+	struct thread *td;
+	struct vnode *vp;
+	size_t iosize;
+	int error;
+
+	buf = NULL;
+	error = 0;
+	td = curthread;
+	vap = &vattr;
+	vp = ap->a_vp;
+	len = *ap->a_len;
+	offset = *ap->a_offset;
+
+	error = VOP_GETATTR(vp, vap, td->td_ucred);
+	if (error != 0)
+		goto out;
+	fsize = vap->va_size;
+	iosize = vap->va_blocksize;
+	if (iosize == 0)
+		iosize = BLKDEV_IOSIZE;
+	if (iosize > MAXPHYS)
+		iosize = MAXPHYS;
+	buf = malloc(iosize, M_TEMP, M_WAITOK);
+
+#ifdef __notyet__
+	/*
+	 * Check if the filesystem sets f_maxfilesize; if not use
+	 * VOP_SETATTR to perform the check.
+	 */
+	error = VFS_STATFS(vp->v_mount, &sfs, td);
+	if (error != 0)
+		goto out;
+	if (sfs.f_maxfilesize) {
+		if (offset > sfs.f_maxfilesize || len > sfs.f_maxfilesize ||
+		    offset + len > sfs.f_maxfilesize) {
+			error = EFBIG;
+			goto out;
+		}
+	} else
+#endif
+	if (offset + len > vap->va_size) {
+		/*
+		 * Test offset + len against the filesystem's maxfilesize.
+		 */
+		VATTR_NULL(vap);
+		vap->va_size = offset + len;
+		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		if (error != 0)
+			goto out;
+		VATTR_NULL(vap);
+		vap->va_size = fsize;
+		error = VOP_SETATTR(vp, vap, td->td_ucred);
+		if (error != 0)
+			goto out;
+	}
+
+	for (;;) {
+		/*
+		 * Read and write back anything below the nominal file
+		 * size.  There's currently no way outside the filesystem
+		 * to know whether this area is sparse or not.
+		 */
+		cur = iosize;
+		if ((offset % iosize) != 0)
+			cur -= (offset % iosize);
+		if (cur > len)
+			cur = len;
+		if (offset < fsize) {
+			aiov.iov_base = buf;
+			aiov.iov_len = cur;
+			auio.uio_iov = &aiov;
+			auio.uio_iovcnt = 1;
+			auio.uio_offset = offset;
+			auio.uio_resid = cur;
+			auio.uio_segflg = UIO_SYSSPACE;
+			auio.uio_rw = UIO_READ;
+			auio.uio_td = td;
+			error = VOP_READ(vp, &auio, 0, td->td_ucred);
+			if (error != 0)
+				break;
+			if (auio.uio_resid > 0) {
+				bzero(buf + cur - auio.uio_resid,
+				    auio.uio_resid);
+			}
+		} else {
+			bzero(buf, cur);
+		}
+
+		aiov.iov_base = buf;
+		aiov.iov_len = cur;
+		auio.uio_iov = &aiov;
+		auio.uio_iovcnt = 1;
+		auio.uio_offset = offset;
+		auio.uio_resid = cur;
+		auio.uio_segflg = UIO_SYSSPACE;
+		auio.uio_rw = UIO_WRITE;
+		auio.uio_td = td;
+
+		error = VOP_WRITE(vp, &auio, 0, td->td_ucred);
+		if (error != 0)
+			break;
+
+		len -= cur;
+		offset += cur;
+		if (len == 0)
+			break;
+		if (should_yield())
+			break;
+	}
+
+ out:
+	*ap->a_len = len;
+	*ap->a_offset = offset;
+	free(buf, M_TEMP);
+	return (error);
+}
+
+int
+vop_stdadvise(struct vop_advise_args *ap)
+{
+	struct vnode *vp;
+	off_t start, end;
+	int error, vfslocked;
+
+	vp = ap->a_vp;
+	switch (ap->a_advice) {
+	case POSIX_FADV_WILLNEED:
+		/*
+		 * Do nothing for now.  Filesystems should provide a
+		 * custom method which starts an asynchronous read of
+		 * the requested region.
+		 */
+		error = 0;
+		break;
+	case POSIX_FADV_DONTNEED:
+		/*
+		 * Flush any open FS buffers and then remove pages
+		 * from the backing VM object.  Using vinvalbuf() here
+		 * is a bit heavy-handed as it flushes all buffers for
+		 * the given vnode, not just the buffers covering the
+		 * requested range.
+		 */
+		error = 0;
+		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		if (vp->v_iflag & VI_DOOMED) {
+			VOP_UNLOCK(vp, 0);
+			VFS_UNLOCK_GIANT(vfslocked);
+			break;
+		}
+		vinvalbuf(vp, V_CLEANONLY, 0, 0);
+		if (vp->v_object != NULL) {
+			start = trunc_page(ap->a_start);
+			end = round_page(ap->a_end);
+			VM_OBJECT_LOCK(vp->v_object);
+			vm_object_page_cache(vp->v_object, OFF_TO_IDX(start),
+			    OFF_TO_IDX(end));
+			VM_OBJECT_UNLOCK(vp->v_object);
+		}
+		VOP_UNLOCK(vp, 0);
+		VFS_UNLOCK_GIANT(vfslocked);
+		break;
+	default:
+		error = EINVAL;
+		break;
+	}
 	return (error);
 }
 
@@ -952,9 +1134,10 @@ vfs_stdvget (mp, ino, flags, vpp)
 }
 
 int
-vfs_stdfhtovp (mp, fhp, vpp)
+vfs_stdfhtovp (mp, fhp, flags, vpp)
 	struct mount *mp;
 	struct fid *fhp;
+	int flags;
 	struct vnode **vpp;
 {
 

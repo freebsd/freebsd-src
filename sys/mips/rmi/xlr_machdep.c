@@ -614,11 +614,15 @@ platform_processor_id(void)
 	return (xlr_hwtid_to_cpuid[xlr_cpu_id()]);
 }
 
-cpumask_t
-platform_cpu_mask(void)
+void
+platform_cpu_mask(cpuset_t *mask)
 {
+	int i, s;
 
-	return (~0U >> (32 - (xlr_ncores * xlr_threads_per_core)));
+	CPU_ZERO(mask);
+	s = xlr_ncores * xlr_threads_per_core;
+	for (i = 0; i < s; i++)
+		CPU_SET(i, mask);
 }
 
 struct cpu_group *

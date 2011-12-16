@@ -85,25 +85,24 @@ static const char sccsid[] = "@(#)w.c	8.4 (Berkeley) 4/16/94";
 
 #include "extern.h"
 
-struct timeval	boottime;
-struct utmpx   *utmp;
-struct winsize	ws;
-kvm_t	       *kd;
-time_t		now;		/* the current time of day */
-int		ttywidth;	/* width of tty */
-int		argwidth;	/* width of tty */
-int		header = 1;	/* true if -h flag: don't print heading */
-int		nflag;		/* true if -n flag: don't convert addrs */
-int		dflag;		/* true if -d flag: output debug info */
-int		sortidle;	/* sort by idle time */
+static struct utmpx *utmp;
+static struct winsize ws;
+static kvm_t   *kd;
+static time_t	now;		/* the current time of day */
+static int	ttywidth;	/* width of tty */
+static int	argwidth;	/* width of tty */
+static int	header = 1;	/* true if -h flag: don't print heading */
+static int	nflag;		/* true if -n flag: don't convert addrs */
+static int	dflag;		/* true if -d flag: output debug info */
+static int	sortidle;	/* sort by idle time */
 int		use_ampm;	/* use AM/PM time */
-int             use_comma;      /* use comma as floats separator */
-char	      **sel_users;	/* login array of particular users selected */
+static int	use_comma;      /* use comma as floats separator */
+static char   **sel_users;	/* login array of particular users selected */
 
 /*
  * One of these per active utmp entry.
  */
-struct	entry {
+static struct entry {
 	struct	entry *next;
 	struct	utmpx utmp;
 	dev_t	tdev;			/* dev_t of terminal */
@@ -497,7 +496,7 @@ ttystat(char *line)
 	char ttybuf[MAXPATHLEN];
 
 	(void)snprintf(ttybuf, sizeof(ttybuf), "%s%s", _PATH_DEV, line);
-	if (stat(ttybuf, &sb) == 0) {
+	if (stat(ttybuf, &sb) == 0 && S_ISCHR(sb.st_mode)) {
 		return (&sb);
 	} else
 		return (NULL);

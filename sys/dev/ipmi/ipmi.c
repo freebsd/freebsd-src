@@ -63,7 +63,8 @@ static void ipmi_dtor(void *arg);
 int ipmi_attached = 0;
 
 static int on = 1;
-SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0, "IPMI driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, ipmi, CTLFLAG_RD, 0,
+    "IPMI driver parameters");
 SYSCTL_INT(_hw_ipmi, OID_AUTO, on, CTLFLAG_RW,
 	&on, 0, "");
 
@@ -75,7 +76,7 @@ static struct cdevsw ipmi_cdevsw = {
 	.d_name =	"ipmi",
 };
 
-MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
+static MALLOC_DEFINE(M_IPMI, "ipmi", "ipmi");
 
 static int
 ipmi_open(struct cdev *cdev, int flags, int fmt, struct thread *td)
@@ -713,10 +714,10 @@ ipmi_startup(void *arg)
 		return;
 	}
 
-	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d, "
+	device_printf(dev, "IPMI device rev. %d, firmware rev. %d.%d%d, "
 	    "version %d.%d\n",
 	     req->ir_reply[1] & 0x0f,
-	     req->ir_reply[2] & 0x0f, req->ir_reply[4],
+	     req->ir_reply[2] & 0x7f, req->ir_reply[3] >> 4, req->ir_reply[3] & 0x0f,
 	     req->ir_reply[4] & 0x0f, req->ir_reply[4] >> 4);
 
 	ipmi_free_request(req);

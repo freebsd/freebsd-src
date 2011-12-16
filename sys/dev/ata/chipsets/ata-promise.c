@@ -94,7 +94,6 @@ static void ata_promise_next_hpkt(struct ata_pci_controller *ctlr);
 #define PR_SATA		0x40
 #define PR_SATA2	0x80
 
-
 /*
  * Promise chipset support functions
  */
@@ -250,6 +249,14 @@ ata_promise_chipinit(device_t dev)
 						    &ctlr->r_rid1, RF_ACTIVE)))
 	    goto failnfree;
 
+#ifdef __sparc64__
+	if (ctlr->chip->cfg2 == PR_SX4X &&
+	    !bus_space_map(rman_get_bustag(ctlr->r_res1),
+	    rman_get_bushandle(ctlr->r_res1), rman_get_size(ctlr->r_res1),
+	    BUS_SPACE_MAP_LINEAR, NULL))
+		goto failnfree;
+#endif
+
 	ctlr->r_type2 = SYS_RES_MEMORY;
 	ctlr->r_rid2 = PCIR_BAR(3);
 	if (!(ctlr->r_res2 = bus_alloc_resource_any(dev, ctlr->r_type2,
@@ -280,7 +287,7 @@ ata_promise_chipinit(device_t dev)
 
 	    /* setup host packet controls */
 	    hpkt = malloc(sizeof(struct ata_promise_sx4),
-			  M_TEMP, M_NOWAIT | M_ZERO);
+			  M_ATAPCI, M_NOWAIT | M_ZERO);
 	    mtx_init(&hpkt->mtx, "ATA promise HPKT lock", NULL, MTX_DEF);
 	    TAILQ_INIT(&hpkt->queue);
 	    hpkt->busy = 0;

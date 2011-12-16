@@ -45,6 +45,7 @@ struct ichwd_softc {
 	int			 active;
 	unsigned int		 timeout;
 
+	int			 smi_enabled;
 	int			 smi_rid;
 	struct resource		*smi_res;
 	bus_space_tag_t		 smi_bst;
@@ -98,6 +99,38 @@ struct ichwd_softc {
 #define DEVICEID_CPT31		0x1c5f
 #define DEVICEID_PATSBURG_LPC1	0x1d40
 #define DEVICEID_PATSBURG_LPC2	0x1d41
+#define DEVICEID_PPT0		0x1e40
+#define DEVICEID_PPT1		0x1e41
+#define DEVICEID_PPT2		0x1e42
+#define DEVICEID_PPT3		0x1e43
+#define DEVICEID_PPT4		0x1e44
+#define DEVICEID_PPT5		0x1e45
+#define DEVICEID_PPT6		0x1e46
+#define DEVICEID_PPT7		0x1e47
+#define DEVICEID_PPT8		0x1e48
+#define DEVICEID_PPT9		0x1e49
+#define DEVICEID_PPT10		0x1e4a
+#define DEVICEID_PPT11		0x1e4b
+#define DEVICEID_PPT12		0x1e4c
+#define DEVICEID_PPT13		0x1e4d
+#define DEVICEID_PPT14		0x1e4e
+#define DEVICEID_PPT15		0x1e4f
+#define DEVICEID_PPT16		0x1e50
+#define DEVICEID_PPT17		0x1e51
+#define DEVICEID_PPT18		0x1e52
+#define DEVICEID_PPT19		0x1e53
+#define DEVICEID_PPT20		0x1e54
+#define DEVICEID_PPT21		0x1e55
+#define DEVICEID_PPT22		0x1e56
+#define DEVICEID_PPT23		0x1e57
+#define DEVICEID_PPT24		0x1e58
+#define DEVICEID_PPT25		0x1e59
+#define DEVICEID_PPT26		0x1e5a
+#define DEVICEID_PPT27		0x1e5b
+#define DEVICEID_PPT28		0x1e5c
+#define DEVICEID_PPT29		0x1e5d
+#define DEVICEID_PPT30		0x1e5e
+#define DEVICEID_PPT31		0x1e5f
 #define DEVICEID_DH89XXCC_LPC	0x2310
 #define DEVICEID_82801AA	0x2410
 #define DEVICEID_82801AB	0x2420
@@ -181,15 +214,19 @@ struct ichwd_softc {
 #define TCO2_STS		0x06 /* TCO Status 2 */
 #define TCO1_CNT		0x08 /* TCO Control 1 */
 #define TCO2_CNT		0x08 /* TCO Control 2 */
+#define TCO_MESSAGE1		0x0c /* TCO Message 1 */
+#define TCO_MESSAGE2		0x0d /* TCO Message 2 */
 
 /* bit definitions for SMI_EN and SMI_STS */
 #define SMI_TCO_EN		0x2000
 #define SMI_TCO_STS		0x2000
+#define SMI_GBL_EN		0x0001
 
 /* timer value mask for TCO_RLD and TCO_TMR */
 #define TCO_TIMER_MASK		0x1f
 
 /* status bits for TCO1_STS */
+#define TCO_NEWCENTURY		0x80 /* set for RTC year roll over (99 to 00) */
 #define TCO_TIMEOUT		0x08 /* timed out */
 #define TCO_INT_STS		0x04 /* data out (DO NOT USE) */
 #define TCO_SMI_STS		0x02 /* data in (DO NOT USE) */
@@ -199,8 +236,10 @@ struct ichwd_softc {
 #define TCO_SECOND_TO_STS	0x02 /* ran down twice */
 
 /* control bits for TCO1_CNT */
-#define TCO_TMR_HALT		0x0800 /* clear to enable WDT */
-#define TCO_CNT_PRESERVE	0x0200 /* preserve these bits */
+#define TCO_TMR_HALT		0x0800		/* clear to enable WDT */
+#define TCO_NMI2SMI_EN		0x0200		/* convert NMIs to SMIs */
+#define TCO_CNT_PRESERVE	TCO_NMI2SMI_EN	/* preserve these bits */
+#define TCO_NMI_NOW		0x0100		/* trigger an NMI */
 
 /*
  * Masks for the TCO timer value field in TCO_RLD.

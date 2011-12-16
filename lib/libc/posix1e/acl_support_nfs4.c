@@ -70,6 +70,10 @@ struct flagnames_struct a_access_masks[] =
      { ACL_WRITE_ACL, "write_acl", 'C'},
      { ACL_WRITE_OWNER, "write_owner", 'o'},
      { ACL_SYNCHRONIZE, "synchronize", 's'},
+     { ACL_FULL_SET, "full_set", '\0'},
+     { ACL_MODIFY_SET, "modify_set", '\0'},
+     { ACL_READ_SET, "read_set", '\0'},
+     { ACL_WRITE_SET, "write_set", '\0'},
      { 0, 0, 0}};
 
 static const char *
@@ -117,7 +121,7 @@ format_flags_compact(char *str, size_t size, uint32_t var,
 {
 	size_t i;
 
-	for (i = 0; flags[i].name != NULL; i++) {
+	for (i = 0; flags[i].letter != '\0'; i++) {
 		assert(i < size);
 		if ((flags[i].flag & var) == 0)
 			str[i] = '-';

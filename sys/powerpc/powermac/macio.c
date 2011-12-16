@@ -65,6 +65,10 @@ struct macio_softc {
 	vm_offset_t  sc_base;
 	vm_offset_t  sc_size;
 	struct rman  sc_mem_rman;
+
+	/* FCR registers */
+	int          sc_memrid;
+	struct resource	*sc_memr;
 };
 
 static MALLOC_DEFINE(M_MACIO, "macio", "macio device information");
@@ -296,6 +300,10 @@ macio_attach(device_t dev)
 	sc->sc_base = reg[2];
 	sc->sc_size = MACIO_REG_SIZE;
 
+	sc->sc_memrid = PCIR_BAR(0);
+	sc->sc_memr = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+	    &sc->sc_memrid, RF_ACTIVE);
+
 	sc->sc_mem_rman.rm_type = RMAN_ARRAY;
 	sc->sc_mem_rman.rm_descr = "MacIO Device Memory";
 	error = rman_init(&sc->sc_mem_rman);
@@ -347,6 +355,29 @@ macio_attach(device_t dev)
 			continue;
 		}
 		device_set_ivars(cdev, dinfo);
+
+		/* Set FCRs to enable some devices */
+		if (sc->sc_memr == NULL)
+			continue;
+
+		if (strcmp(ofw_bus_get_name(cdev), "bmac") == 0 ||
+		    strcmp(ofw_bus_get_compat(cdev), "bmac+") == 0) {
+			uint32_t fcr;
+
+			fcr = bus_read_4(sc->sc_memr, HEATHROW_FCR);
+
+			fcr |= FCR_ENET_ENABLE & ~FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			fcr |= FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			fcr &= ~FCR_ENET_RESET;
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+			DELAY(50000);
+			
+			bus_write_4(sc->sc_memr, HEATHROW_FCR, fcr);
+		}
 	}
 
 	return (bus_generic_attach(dev));

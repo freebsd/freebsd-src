@@ -19,6 +19,8 @@
 #ifndef CONSTANTFOLDING_H
 #define CONSTANTFOLDING_H
 
+#include "llvm/ADT/ArrayRef.h"
+
 namespace llvm {
   class Value;
   class Constant;
@@ -28,7 +30,7 @@ namespace llvm {
   Constant *ConstantFoldCastInstruction(
     unsigned opcode,     ///< The opcode of the cast
     Constant *V,         ///< The source constant
-    const Type *DestTy   ///< The destination type
+    Type *DestTy   ///< The destination type
   );
   Constant *ConstantFoldSelectInstruction(Constant *Cond,
                                           Constant *V1, Constant *V2);
@@ -38,19 +40,17 @@ namespace llvm {
   Constant *ConstantFoldShuffleVectorInstruction(Constant *V1, Constant *V2,
                                                  Constant *Mask);
   Constant *ConstantFoldExtractValueInstruction(Constant *Agg,
-                                                const unsigned *Idxs,
-                                                unsigned NumIdx);
+                                                ArrayRef<unsigned> Idxs);
   Constant *ConstantFoldInsertValueInstruction(Constant *Agg, Constant *Val,
-                                               const unsigned *Idxs,
-                                               unsigned NumIdx);
+                                               ArrayRef<unsigned> Idxs);
   Constant *ConstantFoldBinaryInstruction(unsigned Opcode, Constant *V1,
                                           Constant *V2);
   Constant *ConstantFoldCompareInstruction(unsigned short predicate, 
                                            Constant *C1, Constant *C2);
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
-                                      Constant* const *Idxs, unsigned NumIdx);
+                                      ArrayRef<Constant *> Idxs);
   Constant *ConstantFoldGetElementPtr(Constant *C, bool inBounds,
-                                      Value* const *Idxs, unsigned NumIdx);
+                                      ArrayRef<Value *> Idxs);
 } // End llvm namespace
 
 #endif

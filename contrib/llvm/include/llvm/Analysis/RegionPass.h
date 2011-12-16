@@ -54,7 +54,7 @@ public:
   /// @brief Get a pass to print the LLVM IR in the region.
   ///
   /// @param O      The ouput stream to print the Region.
-  /// @param Banner The banner to seperate different printed passes.
+  /// @param Banner The banner to separate different printed passes.
   ///
   /// @return The pass to print the LLVM IR in the region.
   Pass *createPrinterPass(raw_ostream &O, const std::string &Banner) const;
@@ -88,7 +88,7 @@ class RGPassManager : public FunctionPass, public PMDataManager {
 
 public:
   static char ID;
-  explicit RGPassManager(int Depth);
+  explicit RGPassManager();
 
   /// @brief Execute all of the passes scheduled for execution.
   ///
@@ -109,7 +109,7 @@ public:
   /// @brief Print passes managed by this manager.
   void dumpPassStructure(unsigned Offset);
 
-  /// @brief Print passes contained by this manager.
+  /// @brief Get passes contained by this manager.
   Pass *getContainedPass(unsigned N) {
     assert(N < PassVector.size() && "Pass number out of range!");
     Pass *FP = static_cast<Pass *>(PassVector[N]);

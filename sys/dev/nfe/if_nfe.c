@@ -165,16 +165,12 @@ static device_method_t nfe_methods[] = {
 	DEVMETHOD(device_resume,	nfe_resume),
 	DEVMETHOD(device_shutdown,	nfe_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	nfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	nfe_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	nfe_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t nfe_driver = {
@@ -363,7 +359,7 @@ nfe_attach(device_t dev)
 		return (ENXIO);
 	}
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		uint16_t v, width;
 
 		v = pci_read_config(dev, reg + 0x08, 2);
@@ -596,7 +592,7 @@ nfe_attach(device_t dev)
 			    IFCAP_VLAN_HWTSO;
 	}
 
-	if (pci_find_extcap(dev, PCIY_PMG, &reg) == 0)
+	if (pci_find_cap(dev, PCIY_PMG, &reg) == 0)
 		ifp->if_capabilities |= IFCAP_WOL_MAGIC;
 	ifp->if_capenable = ifp->if_capabilities;
 
@@ -1889,7 +1885,7 @@ nfe_int_task(void *arg, int pending)
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		NFE_UNLOCK(sc);
-		nfe_enable_intr(sc);
+		nfe_disable_intr(sc);
 		return;
 	}
 
@@ -2952,10 +2948,10 @@ nfe_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NFE_LOCK(sc);
 	mii = device_get_softc(sc->nfe_miibus);
 	mii_pollstat(mii);
-	NFE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NFE_UNLOCK(sc);
 }
 
 
@@ -3295,14 +3291,10 @@ nfe_set_linkspeed(struct nfe_softc *sc)
 			break;
 		}
 	}
-	phyno = 0;
-	if (mii->mii_instance) {
-		miisc = LIST_FIRST(&mii->mii_phys);
-		phyno = miisc->mii_phy;
-		LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
-			mii_phy_reset(miisc);
-	} else
-		return;
+	miisc = LIST_FIRST(&mii->mii_phys);
+	phyno = miisc->mii_phy;
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	nfe_miibus_writereg(sc->nfe_dev, phyno, MII_100T2CR, 0);
 	nfe_miibus_writereg(sc->nfe_dev, phyno,
 	    MII_ANAR, ANAR_TX_FD | ANAR_TX | ANAR_10_FD | ANAR_10 | ANAR_CSMA);
@@ -3354,7 +3346,7 @@ nfe_set_wol(struct nfe_softc *sc)
 
 	NFE_LOCK_ASSERT(sc);
 
-	if (pci_find_extcap(sc->nfe_dev, PCIY_PMG, &pmc) != 0)
+	if (pci_find_cap(sc->nfe_dev, PCIY_PMG, &pmc) != 0)
 		return;
 	ifp = sc->nfe_ifp;
 	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)

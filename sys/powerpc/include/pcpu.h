@@ -136,6 +136,21 @@ struct pmap;
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
 
+#ifdef AIM /* Book-E not yet adapted */
+static __inline __pure2 struct thread *
+__curthread(void)
+{
+	struct thread *td;
+#ifdef __powerpc64__
+	__asm __volatile("mr %0,13" : "=r"(td));
+#else
+	__asm __volatile("mr %0,2" : "=r"(td));
+#endif
+	return (td);
+}
+#define curthread (__curthread())
+#endif
+
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)
 
 /*

@@ -48,7 +48,9 @@ SUBDIR_ORDERED=	${_csu} \
 	libsbuf \
 	libtacplus \
 	libutil \
-	${_libypclnt}
+	${_libypclnt} \
+	${_libcxxrt} \
+	${_libcplusplus}
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -70,7 +72,6 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libefi} \
 	libexpat \
 	libfetch \
-	libftpio \
 	libgeom \
 	${_libgpib} \
 	${_libgssapi} \
@@ -89,9 +90,9 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	libopie \
 	libpam \
 	libpcap \
-	${_libpkg} \
 	${_libpmc} \
 	${_libproc} \
+	libprocstat \
 	librt \
 	${_librtld_db} \
 	${_libsdp} \
@@ -192,12 +193,6 @@ _libefi=	libefi
 _libsmb=	libsmb
 .endif
 
-.if ${MACHINE_CPUARCH} == "amd64"
-.if ${MK_NCP} != "no"
-_libncp=	libncp
-.endif
-.endif
-
 .if ${MACHINE_CPUARCH} == "powerpc"
 _libsmb=	libsmb
 .endif
@@ -210,12 +205,13 @@ _libsmb=	libsmb
 _libmp=		libmp
 .endif
 
-.if ${MK_PMC} != "no"
-_libpmc=	libpmc
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
 .endif
 
-.if ${MK_PKGTOOLS} != "no"
-_libpkg=	libpkg
+.if ${MK_PMC} != "no"
+_libpmc=	libpmc
 .endif
 
 .if ${MK_SENDMAIL} != "no"

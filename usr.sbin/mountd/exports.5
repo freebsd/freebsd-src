@@ -28,7 +28,7 @@
 .\"     @(#)exports.5	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2009
+.Dd July 12, 2011
 .Dt EXPORTS 5
 .Os
 .Sh NAME
@@ -72,6 +72,13 @@ that can be mounted on by the corresponding client(s).
 There are three forms of this specification.
 The first is to list all mount points as absolute
 directory paths separated by whitespace.
+This list of directory paths should be considered an
+.Dq administrative control , 
+since it is only enforced by the
+.Xr mountd 8
+daemon and not the kernel.
+As such, it only applies to NFSv2 and NFSv3 mounts and only
+with respect to the client's use of the mount protocol.
 The second is to specify the pathname of the root of the file system
 followed by the
 .Fl alldirs
@@ -81,8 +88,21 @@ including regular files if the
 .Fl r
 option is used on
 .Xr mountd 8 .
+Because NFSv4 does not use the mount protocol,
+the
+.Dq administrative controls 
+are not applied.
+Thus, all the above export line(s) should be considered to have the
+.Fl alldirs
+flag, even if the line is specified without it.
 The third form has the string ``V4:'' followed by a single absolute path
 name, to specify the NFSv4 tree root.
+This line does not export any file system, but simply marks where the root
+of the server's directory tree is for NFSv4 clients.
+The exported file systems for NFSv4 are specified via the other lines
+in the
+.Xr exports 5
+file in the same way as for NFSv2 and NFSv3.
 The pathnames must not have any symbolic links in them and should not have
 any
 .Dq Pa \&.

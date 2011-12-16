@@ -158,7 +158,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	else
 		class = NULL;
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -260,7 +260,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -325,16 +325,34 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 }
 
 /*
- * pause() is like tsleep() except that the intention is to not be
- * explicitly woken up by another thread.  Instead, the current thread
- * simply wishes to sleep until the timeout expires.  It is
- * implemented using a dummy wait channel.
+ * pause() delays the calling thread by the given number of system ticks.
+ * During cold bootup, pause() uses the DELAY() function instead of
+ * the tsleep() function to do the waiting. The "timo" argument must be
+ * greater than or equal to zero. A "timo" value of zero is equivalent
+ * to a "timo" value of one.
  */
 int
 pause(const char *wmesg, int timo)
 {
+	KASSERT(timo >= 0, ("pause: timo must be >= 0"));
 
-	KASSERT(timo != 0, ("pause: timeout required"));
+	/* silently convert invalid timeouts */
+	if (timo < 1)
+		timo = 1;
+
+	if (cold) {
+		/*
+		 * We delay one HZ at a time to avoid overflowing the
+		 * system specific DELAY() function(s):
+		 */
+		while (timo >= hz) {
+			DELAY(1000000);
+			timo -= hz;
+		}
+		if (timo > 0)
+			DELAY(timo * tick);
+		return (0);
+	}
 	return (tsleep(&pause_wchan, 0, wmesg, timo));
 }
 
@@ -400,9 +418,7 @@ mi_switch(int flags, struct thread *newtd)
 	if (!TD_ON_LOCK(td) && !TD_IS_RUNNING(td))
 		mtx_assert(&Giant, MA_NOTOWNED);
 #endif
-	KASSERT(td->td_critnest == 1 || (td->td_critnest == 2 &&
-	    (td->td_owepreempt) && (flags & SW_INVOL) != 0 &&
-	    newtd == NULL) || panicstr,
+	KASSERT(td->td_critnest == 1 || panicstr,
 	    ("mi_switch: switch in a critical section"));
 	KASSERT((flags & (SW_INVOL | SW_VOL)) != 0,
 	    ("mi_switch: switch must be voluntary or involuntary"));
@@ -413,6 +429,8 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	if (kdb_active)
 		kdb_switch();
+	if (SCHEDULER_STOPPED())
+		return;
 	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
 		td->td_swvoltick = ticks;
@@ -551,7 +569,7 @@ maybe_yield(void)
 {
 
 	if (should_yield())
-		kern_yield(curthread->td_user_pri);
+		kern_yield(PRI_USER);
 }
 
 void
@@ -562,6 +580,8 @@ kern_yield(int prio)
 	td = curthread;
 	DROP_GIANT();
 	thread_lock(td);
+	if (prio == PRI_USER)
+		prio = td->td_user_pri;
 	if (prio >= 0)
 		sched_prio(td, prio);
 	mi_switch(SW_VOL | SWT_RELINQUISH, NULL);
@@ -573,7 +593,7 @@ kern_yield(int prio)
  * General purpose yield system call.
  */
 int
-yield(struct thread *td, struct yield_args *uap)
+sys_yield(struct thread *td, struct yield_args *uap)
 {
 
 	thread_lock(td);

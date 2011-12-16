@@ -123,6 +123,7 @@ gdtoa
 	the returned string.  If not null, *rve is set to point
 	to the end of the return value.  If d is +-Infinity or NaN,
 	then *decpt is set to 9999.
+	be = exponent: value = (integer represented by bits) * (2 to the power of be).
 
 	mode:
 		0 ==> shortest string that yields d when read in
@@ -157,8 +158,9 @@ gdtoa
 	int rdir, s2, s5, spec_case, try_quick;
 	Long L;
 	Bigint *b, *b1, *delta, *mlo, *mhi, *mhi1, *S;
-	double d, d2, ds, eps;
+	double d2, ds;
 	char *s, *s0;
+	U d, eps;
 
 #ifndef MULTIPLE_THREADS
 	if (dtoa_result) {
@@ -197,21 +199,21 @@ gdtoa
 		return nrv_alloc("0", rve, 1);
 		}
 
-	dval(d) = b2d(b, &i);
+	dval(&d) = b2d(b, &i);
 	i = be + bbits - 1;
-	word0(d) &= Frac_mask1;
-	word0(d) |= Exp_11;
+	word0(&d) &= Frac_mask1;
+	word0(&d) |= Exp_11;
 #ifdef IBM
-	if ( (j = 11 - hi0bits(word0(d) & Frac_mask)) !=0)
-		dval(d) /= 1 << j;
+	if ( (j = 11 - hi0bits(word0(&d) & Frac_mask)) !=0)
+		dval(&d) /= 1 << j;
 #endif
 
 	/* log(x)	~=~ log(1.5) + (x-1.5)/1.5
 	 * log10(x)	 =  log(x) / log(10)
 	 *		~=~ log(1.5)/log(10) + (x-1.5)/(1.5*log(10))
-	 * log10(d) = (i-Bias)*log(2)/log(10) + log10(d2)
+	 * log10(&d) = (i-Bias)*log(2)/log(10) + log10(d2)
 	 *
-	 * This suggests computing an approximation k to log10(d) by
+	 * This suggests computing an approximation k to log10(&d) by
 	 *
 	 * k = (i - Bias)*0.301029995663981
 	 *	+ ( (d2-1.5)*0.289529654602168 + 0.176091259055681 );
@@ -231,7 +233,7 @@ gdtoa
 	i <<= 2;
 	i += j;
 #endif
-	ds = (dval(d)-1.5)*0.289529654602168 + 0.1760912590558 + i*0.301029995663981;
+	ds = (dval(&d)-1.5)*0.289529654602168 + 0.1760912590558 + i*0.301029995663981;
 
 	/* correct assumption about exponent range */
 	if ((j = i) < 0)
@@ -246,13 +248,13 @@ gdtoa
 #ifdef IBM
 	j = be + bbits - 1;
 	if ( (j1 = j & 3) !=0)
-		dval(d) *= 1 << j1;
-	word0(d) += j << Exp_shift - 2 & Exp_mask;
+		dval(&d) *= 1 << j1;
+	word0(&d) += j << Exp_shift - 2 & Exp_mask;
 #else
-	word0(d) += (be + bbits - 1) << Exp_shift;
+	word0(&d) += (be + bbits - 1) << Exp_shift;
 #endif
 	if (k >= 0 && k <= Ten_pmax) {
-		if (dval(d) < tens[k])
+		if (dval(&d) < tens[k])
 			k--;
 		k_check = 0;
 		}
@@ -282,11 +284,14 @@ gdtoa
 		mode -= 4;
 		try_quick = 0;
 		}
+	else if (i >= -4 - Emin || i < Emin)
+		try_quick = 0;
 	leftright = 1;
+	ilim = ilim1 = -1;	/* Values for cases 0 and 1; done here to */
+				/* silence erroneous "gcc -Wall" warning. */
 	switch(mode) {
 		case 0:
 		case 1:
-			ilim = ilim1 = -1;
 			i = (int)(nbits * .30103) + 3;
 			ndigits = 0;
 			break;
@@ -328,10 +333,10 @@ gdtoa
 		/* Try to get by with floating-point arithmetic. */
 
 		i = 0;
-		d2 = dval(d);
+		d2 = dval(&d);
 #ifdef IBM
-		if ( (j = 11 - hi0bits(word0(d) & Frac_mask)) !=0)
-			dval(d) /= 1 << j;
+		if ( (j = 11 - hi0bits(word0(&d) & Frac_mask)) !=0)
+			dval(&d) /= 1 << j;
 #endif
 		k0 = k;
 		ilim0 = ilim;
@@ -342,7 +347,7 @@ gdtoa
 			if (j & Bletch) {
 				/* prevent overflows */
 				j &= Bletch - 1;
-				dval(d) /= bigtens[n_bigtens-1];
+				dval(&d) /= bigtens[n_bigtens-1];
 				ieps++;
 				}
 			for(; j; j >>= 1, i++)
@@ -354,30 +359,30 @@ gdtoa
 		else  {
 			ds = 1.;
 			if ( (j1 = -k) !=0) {
-				dval(d) *= tens[j1 & 0xf];
+				dval(&d) *= tens[j1 & 0xf];
 				for(j = j1 >> 4; j; j >>= 1, i++)
 					if (j & 1) {
 						ieps++;
-						dval(d) *= bigtens[i];
+						dval(&d) *= bigtens[i];
 						}
 				}
 			}
-		if (k_check && dval(d) < 1. && ilim > 0) {
+		if (k_check && dval(&d) < 1. && ilim > 0) {
 			if (ilim1 <= 0)
 				goto fast_failed;
 			ilim = ilim1;
 			k--;
-			dval(d) *= 10.;
+			dval(&d) *= 10.;
 			ieps++;
 			}
-		dval(eps) = ieps*dval(d) + 7.;
-		word0(eps) -= (P-1)*Exp_msk1;
+		dval(&eps) = ieps*dval(&d) + 7.;
+		word0(&eps) -= (P-1)*Exp_msk1;
 		if (ilim == 0) {
 			S = mhi = 0;
-			dval(d) -= 5.;
-			if (dval(d) > dval(eps))
+			dval(&d) -= 5.;
+			if (dval(&d) > dval(&eps))
 				goto one_digit;
-			if (dval(d) < -dval(eps))
+			if (dval(&d) < -dval(&eps))
 				goto no_digits;
 			goto fast_failed;
 			}
@@ -386,38 +391,38 @@ gdtoa
 			/* Use Steele & White method of only
 			 * generating digits needed.
 			 */
-			dval(eps) = ds*0.5/tens[ilim-1] - dval(eps);
+			dval(&eps) = ds*0.5/tens[ilim-1] - dval(&eps);
 			for(i = 0;;) {
-				L = (Long)(dval(d)/ds);
-				dval(d) -= L*ds;
+				L = (Long)(dval(&d)/ds);
+				dval(&d) -= L*ds;
 				*s++ = '0' + (int)L;
-				if (dval(d) < dval(eps)) {
-					if (dval(d))
+				if (dval(&d) < dval(&eps)) {
+					if (dval(&d))
 						inex = STRTOG_Inexlo;
 					goto ret1;
 					}
-				if (ds - dval(d) < dval(eps))
+				if (ds - dval(&d) < dval(&eps))
 					goto bump_up;
 				if (++i >= ilim)
 					break;
-				dval(eps) *= 10.;
-				dval(d) *= 10.;
+				dval(&eps) *= 10.;
+				dval(&d) *= 10.;
 				}
 			}
 		else {
 #endif
 			/* Generate ilim digits, then fix them up. */
-			dval(eps) *= tens[ilim-1];
-			for(i = 1;; i++, dval(d) *= 10.) {
-				if ( (L = (Long)(dval(d)/ds)) !=0)
-					dval(d) -= L*ds;
+			dval(&eps) *= tens[ilim-1];
+			for(i = 1;; i++, dval(&d) *= 10.) {
+				if ( (L = (Long)(dval(&d)/ds)) !=0)
+					dval(&d) -= L*ds;
 				*s++ = '0' + (int)L;
 				if (i == ilim) {
 					ds *= 0.5;
-					if (dval(d) > ds + dval(eps))
+					if (dval(&d) > ds + dval(&eps))
 						goto bump_up;
-					else if (dval(d) < ds - dval(eps)) {
-						if (dval(d))
+					else if (dval(&d) < ds - dval(&eps)) {
+						if (dval(&d))
 							inex = STRTOG_Inexlo;
 						goto clear_trailing0;
 						}
@@ -429,7 +434,7 @@ gdtoa
 #endif
  fast_failed:
 		s = s0;
-		dval(d) = d2;
+		dval(&d) = d2;
 		k = k0;
 		ilim = ilim0;
 		}
@@ -441,22 +446,22 @@ gdtoa
 		ds = tens[k];
 		if (ndigits < 0 && ilim <= 0) {
 			S = mhi = 0;
-			if (ilim < 0 || dval(d) <= 5*ds)
+			if (ilim < 0 || dval(&d) <= 5*ds)
 				goto no_digits;
 			goto one_digit;
 			}
-		for(i = 1;; i++, dval(d) *= 10.) {
-			L = dval(d) / ds;
-			dval(d) -= L*ds;
+		for(i = 1;; i++, dval(&d) *= 10.) {
+			L = dval(&d) / ds;
+			dval(&d) -= L*ds;
 #ifdef Check_FLT_ROUNDS
 			/* If FLT_ROUNDS == 2, L will usually be high by 1 */
-			if (dval(d) < 0) {
+			if (dval(&d) < 0) {
 				L--;
-				dval(d) += ds;
+				dval(&d) += ds;
 				}
 #endif
 			*s++ = '0' + (int)L;
-			if (dval(d) == 0.)
+			if (dval(&d) == 0.)
 				break;
 			if (i == ilim) {
 				if (rdir) {
@@ -465,8 +470,13 @@ gdtoa
 					inex = STRTOG_Inexlo;
 					goto ret1;
 					}
-				dval(d) += dval(d);
-				if (dval(d) > ds || dval(d) == ds && L & 1) {
+				dval(&d) += dval(&d);
+#ifdef ROUND_BIASED
+				if (dval(&d) >= ds)
+#else
+				if (dval(&d) > ds || (dval(&d) == ds && L & 1))
+#endif
+					{
  bump_up:
 					inex = STRTOG_Inexhi;
 					while(*--s == '9')
@@ -493,13 +503,15 @@ gdtoa
 	m5 = b5;
 	mhi = mlo = 0;
 	if (leftright) {
-		if (mode < 2) {
-			i = nbits - bbits;
-			if (be - i++ < fpi->emin)
-				/* denormal */
-				i = be - fpi->emin + 1;
+		i = nbits - bbits;
+		if (be - i++ < fpi->emin && mode != 3 && mode != 5) {
+			/* denormal */
+			i = be - fpi->emin + 1;
+			if (mode >= 2 && ilim > 0 && ilim < i)
+				goto small_ilim;
 			}
-		else {
+		else if (mode >= 2) {
+ small_ilim:
 			j = ilim - 1;
 			if (m5 >= j)
 				m5 -= j;
@@ -560,28 +572,11 @@ gdtoa
 	 * and for all and pass them and a shift to quorem, so it
 	 * can do shifts and ors to compute the numerator for q.
 	 */
-#ifdef Pack_32
-	if ( (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0x1f) !=0)
-		i = 32 - i;
-#else
-	if ( (i = ((s5 ? 32 - hi0bits(S->x[S->wds-1]) : 1) + s2) & 0xf) !=0)
-		i = 16 - i;
-#endif
-	if (i > 4) {
-		i -= 4;
-		b2 += i;
-		m2 += i;
-		s2 += i;
-		}
-	else if (i < 4) {
-		i += 28;
-		b2 += i;
-		m2 += i;
-		s2 += i;
-		}
-	if (b2 > 0)
+	i = ((s5 ? hi0bits(S->x[S->wds-1]) : ULbits - 1) - s2 - 4) & kmask;
+	m2 += i;
+	if ((b2 += i) > 0)
 		b = lshift(b, b2);
-	if (s2 > 0)
+	if ((s2 += i) > 0)
 		S = lshift(S, s2);
 	if (k_check) {
 		if (cmp(b,S) < 0) {
@@ -646,11 +641,11 @@ gdtoa
 				goto ret;
 				}
 #endif
-			if (j < 0 || j == 0 && !mode
+			if (j < 0 || (j == 0 && !mode
 #ifndef ROUND_BIASED
 							&& !(bits[0] & 1)
 #endif
-					) {
+					)) {
 				if (rdir && (b->wds > 1 || b->x[0])) {
 					if (rdir == 2) {
 						inex = STRTOG_Inexlo;
@@ -673,7 +668,11 @@ gdtoa
 				if (j1 > 0) {
 					b = lshift(b, 1);
 					j1 = cmp(b, S);
-					if ((j1 > 0 || j1 == 0 && dig & 1)
+#ifdef ROUND_BIASED
+					if (j1 >= 0 /*)*/
+#else
+					if ((j1 > 0 || (j1 == 0 && dig & 1))
+#endif
 					&& dig++ == '9')
 						goto round_9_up;
 					inex = STRTOG_Inexhi;
@@ -718,13 +717,18 @@ gdtoa
 	/* Round off last digit */
 
 	if (rdir) {
-		if (rdir == 2 || b->wds <= 1 && !b->x[0])
+		if (rdir == 2 || (b->wds <= 1 && !b->x[0]))
 			goto chopzeros;
 		goto roundoff;
 		}
 	b = lshift(b, 1);
 	j = cmp(b, S);
-	if (j > 0 || j == 0 && dig & 1) {
+#ifdef ROUND_BIASED
+	if (j >= 0)
+#else
+	if (j > 0 || (j == 0 && dig & 1))
+#endif
+		{
  roundoff:
 		inex = STRTOG_Inexhi;
 		while(*--s == '9')

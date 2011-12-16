@@ -98,7 +98,7 @@ void	(*atm_harp_event_p)(struct ifnet *, uint32_t, void *);
 
 SYSCTL_NODE(_hw, OID_AUTO, atm, CTLFLAG_RW, 0, "ATM hardware");
 
-MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
+static MALLOC_DEFINE(M_IFATM, "ifatm", "atm interface internals");
 
 #ifndef ETHERTYPE_IPV6
 #define	ETHERTYPE_IPV6	0x86dd
@@ -332,6 +332,7 @@ atm_input(struct ifnet *ifp, struct atm_pseudohdr *ah, struct mbuf *m,
 			return;
 		}
 	}
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

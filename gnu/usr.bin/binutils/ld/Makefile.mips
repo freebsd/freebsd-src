@@ -28,7 +28,7 @@ CLEANFILES+=	e${abi}.c
 # nb: elf32 handles both elf32 and elf64 targets
 e${abi}.c:	${.CURDIR}/${abi}.sh emultempl/elf32.em \
     scripttempl/elf.sc genscripts.sh stringify.sed
-	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSERACHPATH} \
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
 	    ${TOOLS_PREFIX}/usr \
 	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
 	    ${abi} ""  no ${abi} ${TARGET_TUPLE} \

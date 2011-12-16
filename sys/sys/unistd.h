@@ -49,7 +49,7 @@
  * the POSIX standard; however, if the relevant sysconf() function
  * returns -1, the functions may be stubbed out.
  */
-#define	_POSIX_ADVISORY_INFO		-1
+#define	_POSIX_ADVISORY_INFO		200112L
 #define	_POSIX_ASYNCHRONOUS_IO		0
 #define	_POSIX_CHOWN_RESTRICTED		1
 #define	_POSIX_CLOCK_SELECTION		-1
@@ -180,8 +180,17 @@
 #define	RFLINUXTHPN	(1<<16)	/* do linux clone exit parent notification */
 #define	RFSTOPPED	(1<<17)	/* leave child in a stopped state */
 #define	RFHIGHPID	(1<<18)	/* use a pid higher than 10 (idleproc) */
+#define	RFTSIGZMB	(1<<19)	/* select signal for exit parent notification */
+#define	RFTSIGSHIFT	20	/* selected signal number is in bits 20-27  */
+#define	RFTSIGMASK	0xFF
+#define	RFTSIGNUM(flags)	(((flags) >> RFTSIGSHIFT) & RFTSIGMASK)
+#define	RFTSIGFLAGS(signum)	((signum) << RFTSIGSHIFT)
+#define	RFPROCDESC	(1<<28)	/* return a process descriptor */
 #define	RFPPWAIT	(1<<31)	/* parent sleeps until child exits (vfork) */
-#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT)
+#define	RFFLAGS		(RFFDG | RFPROC | RFMEM | RFNOWAIT | RFCFDG | \
+    RFTHREAD | RFSIGSHARE | RFLINUXTHPN | RFSTOPPED | RFHIGHPID | RFTSIGZMB | \
+    RFPROCDESC | RFPPWAIT)
+#define	RFKERNELONLY	(RFSTOPPED | RFHIGHPID | RFPPWAIT | RFPROCDESC)
 
 #endif /* __BSD_VISIBLE */
 

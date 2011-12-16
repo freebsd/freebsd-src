@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: ds_43.h,v 1.7 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: ds_43.h,v 1.7 2007-06-19 23:47:17 tbox Exp $ */
 
 #ifndef GENERIC_DS_43_H
 #define GENERIC_DS_43_H 1

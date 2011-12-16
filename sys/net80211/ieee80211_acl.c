@@ -77,7 +77,7 @@ struct acl {
 struct aclstate {
 	acl_lock_t		as_lock;
 	int			as_policy;
-	int			as_nacls;
+	uint32_t		as_nacls;
 	TAILQ_HEAD(, acl)	as_list;	/* list of all ACL's */
 	LIST_HEAD(, acl)	as_hash[ACL_HASHSIZE];
 	struct ieee80211vap	*as_vap;
@@ -87,7 +87,7 @@ struct aclstate {
 #define	ACL_HASH(addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % ACL_HASHSIZE)
 
-MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
+static MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
 
 static	int acl_free_all(struct ieee80211vap *);
 
@@ -152,7 +152,8 @@ _acl_free(struct aclstate *as, struct acl *acl)
 }
 
 static int
-acl_check(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
+acl_check(struct ieee80211vap *vap, const struct ieee80211_frame *wh,
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct aclstate *as = vap->iv_as;
 
@@ -289,7 +290,8 @@ acl_getioctl(struct ieee80211vap *vap, struct ieee80211req *ireq)
 	struct aclstate *as = vap->iv_as;
 	struct acl *acl;
 	struct ieee80211req_maclist *ap;
-	int error, space, i;
+	int error;
+	uint32_t i, space;
 
 	switch (ireq->i_val) {
 	case IEEE80211_MACCMD_POLICY:

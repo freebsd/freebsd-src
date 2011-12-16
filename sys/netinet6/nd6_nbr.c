@@ -112,10 +112,14 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	int lladdrlen = 0;
 	int anycast = 0, proxy = 0, tentative = 0;
 	int tlladdr;
+	int rflag;
 	union nd_opts ndopts;
-	struct sockaddr_dl *proxydl = NULL;
+	struct sockaddr_dl proxydl;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
 
+	rflag = (V_ip6_forwarding) ? ND_NA_FLAG_ROUTER : 0;
+	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV && V_ip6_norbit_raif)
+		rflag = 0;
 #ifndef PULLDOWN_TEST
 	IP6_EXTHDR_CHECK(m, off, icmp6len,);
 	nd_ns = (struct nd_neighbor_solicit *)((caddr_t)ip6 + off);
@@ -248,18 +252,25 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 #endif
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);
-		if (rt)
+		if (rt != NULL) {
+			/*
+			 * Make a copy while we can be sure that rt_gateway
+			 * is still stable before unlocking to avoid lock
+			 * order problems.  proxydl will only be used if
+			 * proxy will be set in the next block.
+			 */
+			if (need_proxy)
+				proxydl = *SDL(rt->rt_gateway);
 			RTFREE_LOCKED(rt);
+		}
 		if (need_proxy) {
 			/*
 			 * proxy NDP for single entry
 			 */
 			ifa = (struct ifaddr *)in6ifa_ifpforlinklocal(ifp,
 				IN6_IFF_NOTREADY|IN6_IFF_ANYCAST);
-			if (ifa) {
+			if (ifa)
 				proxy = 1;
-				proxydl = SDL(rt->rt_gateway);
-			}
 		}
 	}
 	if (ifa == NULL) {
@@ -332,8 +343,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 			goto bad;
 		nd6_na_output(ifp, &in6_all, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-		    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
-		    tlladdr, (struct sockaddr *)proxydl);
+		    rflag, tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
 		goto freeit;
 	}
 
@@ -342,8 +352,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 
 	nd6_na_output(ifp, &saddr6, &taddr6,
 	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
-	    (V_ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
-	    tlladdr, (struct sockaddr *)proxydl);
+	    rflag | ND_NA_FLAG_SOLICITED, tlladdr,
+	    proxy ? (struct sockaddr *)&proxydl : NULL);
  freeit:
 	if (ifa != NULL)
 		ifa_free(ifa);
@@ -855,7 +865,8 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 			dr = defrouter_lookup(in6, ln->lle_tbl->llt_ifp);
 			if (dr)
 				defrtrlist_del(dr);
-			else if (!V_ip6_forwarding) {
+			else if (ND_IFINFO(ln->lle_tbl->llt_ifp)->flags &
+			    ND6_IFF_ACCEPT_RTADV) {
 				/*
 				 * Even if the neighbor is not in the default
 				 * router list, the neighbor may be used
@@ -1125,6 +1136,7 @@ nd6_ifptomac(struct ifnet *ifp)
 #ifdef IFT_CARP
 	case IFT_CARP:
 #endif
+	case IFT_INFINIBAND:
 	case IFT_BRIDGE:
 	case IFT_ISO88025:
 		return IF_LLADDR(ifp);
@@ -1155,11 +1167,11 @@ nd6_dad_find(struct ifaddr *ifa)
 {
 	struct dadq *dp;
 
-	for (dp = V_dadq.tqh_first; dp; dp = dp->dad_list.tqe_next) {
+	TAILQ_FOREACH(dp, &V_dadq, dad_list)
 		if (dp->dad_ifa == ifa)
-			return dp;
-	}
-	return NULL;
+			return (dp);
+
+	return (NULL);
 }
 
 static void
@@ -1442,6 +1454,7 @@ nd6_dad_duplicated(struct ifaddr *ifa)
 #ifdef IFT_IEEE80211
 		case IFT_IEEE80211:
 #endif
+		case IFT_INFINIBAND:
 			in6 = ia->ia_addr.sin6_addr;
 			if (in6_get_hw_ifid(ifp, &in6) == 0 &&
 			    IN6_ARE_ADDR_EQUAL(&ia->ia_addr.sin6_addr, &in6)) {

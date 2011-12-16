@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2009
+.Dd July 31, 2011
 .Dt VFS_GETOPT 9
 .Os
 .Sh NAME
@@ -51,7 +51,7 @@
 .Fn vfs_getops "struct vfsoptlist *opts" "const char *name" "int *error"
 .Ft int
 .Fo vfs_flagopt
-.Fa "struct vfsoptlist *opts" "const char *name" "u_int *flags" "u_int flag"
+.Fa "struct vfsoptlist *opts" "const char *name" "uint64_t *flags" "uint64_t flag"
 .Fc
 .Ft int
 .Fo vfs_scanopt

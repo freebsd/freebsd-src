@@ -52,7 +52,8 @@ DEFINE_TEST(test_version)
 	/* Version message should start with name of program, then space. */
 	assert(s > 6);
 	failure("Version must start with 'bsdtar': ``%s''", p);
-	assertEqualMem(q, "bsdtar ", 7);
+	if (!assertEqualMem(q, "bsdtar ", 7))
+		return;
 	q += 7; s -= 7;
 	/* Version number is a series of digits and periods. */
 	while (s > 0 && (*q == '.' || (*q >= '0' && *q <= '9'))) {

@@ -15,7 +15,9 @@
 #define XCOREREGISTERINFO_H
 
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "XCoreGenRegisterInfo.h.inc"
+
+#define GET_REGINFO_HEADER
+#include "XCoreGenRegisterInfo.inc"
 
 namespace llvm {
 
@@ -48,6 +50,8 @@ public:
   
   bool requiresRegisterScavenging(const MachineFunction &MF) const;
 
+  bool useFPForScavengingIndex(const MachineFunction &MF) const;
+
   void eliminateCallFramePseudoInstr(MachineFunction &MF,
                                      MachineBasicBlock &MBB,
                                      MachineBasicBlock::iterator I) const;
@@ -56,7 +60,6 @@ public:
                            int SPAdj, RegScavenger *RS = NULL) const;
 
   // Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
 
   //! Return the array of argument passing registers
@@ -70,9 +73,6 @@ public:
   
   //! Return whether to emit frame moves
   static bool needsFrameMoves(const MachineFunction &MF);
-
-  //! Get DWARF debugging register number
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
 };
 
 } // end namespace llvm

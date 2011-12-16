@@ -9,13 +9,12 @@ CFLAGS+=-I${LLVM_SRCS}/include -I${CLANG_SRCS}/include \
 	-D__STDC_LIMIT_MACROS -D__STDC_CONSTANT_MACROS #-DNDEBUG
 
 # Correct for gcc miscompilation when compiling on PPC with -O2
-.if ${MACHINE_ARCH} == "powerpc"
+.if ${MACHINE_CPUARCH} == "powerpc"
 CFLAGS+= -O1
 .endif
 
 TARGET_ARCH?=	${MACHINE_ARCH}
-# XXX: 8.0, to keep __FreeBSD_cc_version happy
-CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH}-undermydesk-freebsd9.0\"
+CFLAGS+=-DLLVM_HOSTTRIPLE=\"${TARGET_ARCH:C/amd64/x86_64/}-unknown-freebsd10.0\"
 
 .ifndef LLVM_REQUIRES_EH
 CXXFLAGS+=-fno-exceptions
@@ -34,11 +33,13 @@ CFLAGS+=-DCLANG_PREFIX=\"${TOOLS_PREFIX}\"
 
 .PATH:	${LLVM_SRCS}/${SRCDIR}
 
-TBLGEN=tblgen ${CFLAGS:M-I*}
+TBLGEN?=tblgen
+CLANG_TBLGEN?=clang-tblgen
+TBLINC+=-I ${LLVM_SRCS}/include -I ${LLVM_SRCS}/lib/Target
 
 Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
-	${TBLGEN} -gen-intrinsic \
-	    ${LLVM_SRCS}/include/llvm/Intrinsics.td > ${.TARGET}
+	${TBLGEN} -I ${LLVM_SRCS}/lib/VMCore ${TBLINC} -gen-intrinsic \
+	    -o ${.TARGET} ${LLVM_SRCS}/include/llvm/Intrinsics.td
 .for arch in \
 	ARM/ARM Mips/Mips PowerPC/PPC X86/X86
 . for hdr in \
@@ -51,74 +52,98 @@ Intrinsics.inc.h: ${LLVM_SRCS}/include/llvm/Intrinsics.td
 	DisassemblerTables/-gen-disassembler \
 	EDInfo/-gen-enhanced-disassembly-info \
 	FastISel/-gen-fast-isel \
-	InstrInfo/-gen-instr-desc \
-	InstrNames/-gen-instr-enums \
+	InstrInfo/-gen-instr-info \
 	MCCodeEmitter/-gen-emitter,-mc-emitter \
-	RegisterInfo.h/-gen-register-desc-header \
-	RegisterInfo/-gen-register-desc \
-	RegisterNames/-gen-register-enums \
-	Subtarget/-gen-subtarget
+	MCPseudoLowering/-gen-pseudo-lowering \
+	RegisterInfo/-gen-register-info \
+	SubtargetInfo/-gen-subtarget
 ${arch:T}Gen${hdr:H:C/$/.inc.h/}: ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
-	${TBLGEN} ${hdr:T:C/,/ /g} \
-	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td > ${.TARGET}
+	${TBLGEN} -I ${LLVM_SRCS}/lib/Target/${arch:H} ${TBLINC} \
+	    ${hdr:T:C/,/ /g} -o ${.TARGET} \
+	    ${LLVM_SRCS}/lib/Target/${arch:H}/${arch:T}.td
 . endfor
 .endfor
 
-ARMGenDecoderTables.inc.h: ${LLVM_SRCS}/lib/Target/ARM/ARM.td
-	${TBLGEN} -gen-arm-decoder ${.ALLSRC} > ${.TARGET}
-
 Attrs.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-classes ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-attr-classes -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 AttrImpl.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-impl ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-attr-impl -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
+
+AttrLateParsed.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-attr-late-parsed-list -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 AttrList.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-list ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-attr-list -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 AttrPCHRead.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-pch-read ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Serialization \
+	    ${TBLINC} -gen-clang-attr-pch-read -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 AttrPCHWrite.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-pch-write ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Serialization \
+	    ${TBLINC} -gen-clang-attr-pch-write -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 AttrSpellings.inc.h: ${CLANG_SRCS}/include/clang/Basic/Attr.td
-	${TBLGEN} -gen-clang-attr-spelling-list ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Lex ${TBLINC} \
+	    -gen-clang-attr-spelling-list -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include ${.ALLSRC}
 
 DeclNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/DeclNodes.td
-	${TBLGEN} -gen-clang-decl-nodes ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-decl-nodes -o ${.TARGET} ${.ALLSRC}
 
 StmtNodes.inc.h: ${CLANG_SRCS}/include/clang/Basic/StmtNodes.td
-	${TBLGEN} -gen-clang-stmt-nodes ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/AST ${TBLINC} \
+	    -gen-clang-stmt-nodes -o ${.TARGET} ${.ALLSRC}
 
 arm_neon.inc.h: ${CLANG_SRCS}/include/clang/Basic/arm_neon.td
-	${TBLGEN} -gen-arm-neon-sema ${.ALLSRC} > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-arm-neon-sema -o ${.TARGET} ${.ALLSRC}
 
 DiagnosticGroups.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
-	${TBLGEN} -gen-clang-diag-groups -I${CLANG_SRCS}/include/clang/Basic \
-	    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-diag-groups -o ${.TARGET} ${.ALLSRC}
+
+DiagnosticIndexName.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-diags-index-name -o ${.TARGET} ${.ALLSRC}
+
 .for hdr in AST Analysis Common Driver Frontend Lex Parse Sema
 Diagnostic${hdr}Kinds.inc.h: ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td
-	${TBLGEN} -gen-clang-diags-defs -clang-component=${hdr} \
-	    -I${CLANG_SRCS}/include/clang/Basic \
-	    ${CLANG_SRCS}/include/clang/Basic/Diagnostic.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Basic ${TBLINC} \
+	    -gen-clang-diags-defs -clang-component=${hdr} \
+	    -o ${.TARGET} ${.ALLSRC}
 .endfor
+
 Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/Options.td
-	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/Options.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver ${TBLINC} \
+	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 CC1Options.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1Options.td
-	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/CC1Options.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver ${TBLINC} \
+	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 CC1AsOptions.inc.h: ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td
-	${TBLGEN} -gen-opt-parser-defs -I${CLANG_SRCS}/include/clang/Driver \
-	    ${CLANG_SRCS}/include/clang/Driver/CC1AsOptions.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/include/clang/Driver ${TBLINC} \
+	    -gen-opt-parser-defs -o ${.TARGET} ${.ALLSRC}
 
 Checkers.inc.h: ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td \
 	    ${CLANG_SRCS}/include/clang/StaticAnalyzer/Checkers/CheckerBase.td
-	${TBLGEN} -gen-clang-sa-checkers -I${CLANG_SRCS}/include \
-	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td > ${.TARGET}
+	${CLANG_TBLGEN} -I ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers \
+	    ${TBLINC} -gen-clang-sa-checkers -o ${.TARGET} \
+	    -I ${CLANG_SRCS}/include \
+	    ${CLANG_SRCS}/lib/StaticAnalyzer/Checkers/Checkers.td
 
 SRCS+=		${TGHDRS:C/$/.inc.h/}
 DPADD+=		${TGHDRS:C/$/.inc.h/}

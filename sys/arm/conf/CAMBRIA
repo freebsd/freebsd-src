@@ -51,8 +51,8 @@ options 	SCHED_4BSD		#4BSD scheduler
 options 	INET			#InterNETworking
 options 	FFS			#Berkeley Fast Filesystem
 options 	SOFTUPDATES		#Enable FFS soft updates support
-options 	NFSCLIENT		#Network Filesystem Client
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	NFSCL			#New Network Filesystem Client
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	BOOTP
 options 	BOOTP_NFSROOT
 options 	BOOTP_NFSV3
@@ -95,8 +95,8 @@ device		gpioled
 device		cambria_gpio	# GPIO pins on J11
 
 device		ata
-device		atadisk		# ATA disk drives
 device		avila_ata	# Gateworks CF/IDE support
+options 	ATA_CAM
 
 device		npe		# Network Processing Engine
 device		npe_fw
@@ -123,13 +123,14 @@ device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_xauth
 
-device		ath		# Atheros pci/cardbus NIC's
+device		ath		# Atheros NIC's
+device		ath_pci		# Atheros pci/cardbus glue
 options 	ATH_DEBUG
 options 	ATH_DIAGAPI
 #options 	ATH_TX99_DIAG
 device		ath_rate_sample	# SampleRate tx rate control for ath
 
-options 	AH_DEBUG
+#options 	AH_DEBUG
 #options 	AH_ASSERT
 options 	AH_PRIVATE_DIAG
 #device		ath_ar5210
@@ -143,7 +144,7 @@ device		ath_rf5112
 device		ath_rf5413
 #
 #device		ath_ar5416
-#options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
+options 	AH_SUPPORT_AR5416	# NB: for 11n descriptor format
 #device		ath_ar9160
 #device		ath_ar9280
 
@@ -153,8 +154,9 @@ options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
 #options 	USB_DEBUG
 device		ehci
 device		umass
-device		scbus		# SCSI bus (required for SCSI)
+device		scbus		# SCSI bus (required for ATA/SCSI)
 device		da		# Direct Access (disks)
+device		pass		# Passthrough device (direct ATA/SCSI access)
 
 #device		ural
 #device		zyd

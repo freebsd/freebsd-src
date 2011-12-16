@@ -23,6 +23,7 @@
 #include "llvm/Support/CallSite.h"
 #include "llvm/Transforms/IPO.h"
 #include "llvm/Transforms/IPO/InlinerPass.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/ADT/SmallPtrSet.h"
 
 using namespace llvm;
@@ -32,10 +33,10 @@ namespace {
   // AlwaysInliner only inlines functions that are mark as "always inline".
   class AlwaysInliner : public Inliner {
     // Functions that are never inlined
-    SmallPtrSet<const Function*, 16> NeverInline; 
+    SmallPtrSet<const Function*, 16> NeverInline;
     InlineCostAnalyzer CA;
   public:
-    // Use extremely low threshold. 
+    // Use extremely low threshold.
     AlwaysInliner() : Inliner(ID, -2000000000) {
       initializeAlwaysInlinerPass(*PassRegistry::getPassRegistry());
     }
@@ -52,8 +53,8 @@ namespace {
     void growCachedCostInfo(Function* Caller, Function* Callee) {
       CA.growCachedCostInfo(Caller, Callee);
     }
-    virtual bool doFinalization(CallGraph &CG) { 
-      return removeDeadFunctions(CG, &NeverInline); 
+    virtual bool doFinalization(CallGraph &CG) {
+      return removeDeadFunctions(CG, &NeverInline);
     }
     virtual bool doInitialization(CallGraph &CG);
     void releaseMemory() {
@@ -71,11 +72,13 @@ INITIALIZE_PASS_END(AlwaysInliner, "always-inline",
 
 Pass *llvm::createAlwaysInlinerPass() { return new AlwaysInliner(); }
 
-// doInitialization - Initializes the vector of functions that have not 
+// doInitialization - Initializes the vector of functions that have not
 // been annotated with the "always inline" attribute.
 bool AlwaysInliner::doInitialization(CallGraph &CG) {
+  CA.setTargetData(getAnalysisIfAvailable<TargetData>());
+
   Module &M = CG.getModule();
-  
+
   for (Module::iterator I = M.begin(), E = M.end();
        I != E; ++I)
     if (!I->isDeclaration() && !I->hasFnAttr(Attribute::AlwaysInline))

@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/libkern.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/openfirm.h>
@@ -73,7 +74,7 @@ static device_method_t ofw_pcib_methods[] = {
 	/* ofw_bus interface */
 	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_gen_get_node),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;

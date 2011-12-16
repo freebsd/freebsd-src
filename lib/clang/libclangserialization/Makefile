@@ -10,7 +10,10 @@ SRCS=	ASTCommon.cpp \
 	ASTWriter.cpp \
 	ASTWriterDecl.cpp \
 	ASTWriterStmt.cpp \
-	GeneratePCH.cpp
+	ChainedIncludesSource.cpp \
+	GeneratePCH.cpp \
+	Module.cpp \
+	ModuleManager.cpp
 
 TGHDRS=	AttrList \
 	AttrPCHRead \

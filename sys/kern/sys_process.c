@@ -515,7 +515,7 @@ struct ptrace_args {
 #define	COPYOUT(k, u, s)	copyout(k, u, s)
 #endif
 int
-ptrace(struct thread *td, struct ptrace_args *uap)
+sys_ptrace(struct thread *td, struct ptrace_args *uap)
 {
 	/*
 	 * XXX this obfuscation is to reduce stack usage, but the register
@@ -829,10 +829,22 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 
 	case PT_ATTACH:
 		/* security check done above */
+		/*
+		 * It would be nice if the tracing relationship was separate
+		 * from the parent relationship but that would require
+		 * another set of links in the proc struct or for "wait"
+		 * to scan the entire proc table.  To make life easier,
+		 * we just re-parent the process we're trying to trace.
+		 * The old parent is remembered so we can put things back
+		 * on a "detach".
+		 */
 		p->p_flag |= P_TRACED;
 		p->p_oppid = p->p_pptr->p_pid;
-		if (p->p_pptr != td->td_proc)
+		if (p->p_pptr != td->td_proc) {
+			/* Remember that a child is being debugged(traced). */
+			p->p_pptr->p_dbg_child++;
 			proc_reparent(p, td->td_proc);
+		}
 		data = SIGSTOP;
 		goto sendsig;	/* in PT_CONTINUE below */
 
@@ -919,11 +931,12 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 					PROC_UNLOCK(pp);
 				PROC_LOCK(p);
 				proc_reparent(p, pp);
+				p->p_pptr->p_dbg_child--;
 				if (pp == initproc)
 					p->p_sigparent = SIGCHLD;
 			}
-			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 			p->p_oppid = 0;
+			p->p_flag &= ~(P_TRACED | P_WAITED | P_FOLLOWFORK);
 
 			/* should we send SIGCHLD? */
 			/* childproc_continued(p); */
@@ -959,7 +972,7 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			PROC_SUNLOCK(p);
 		} else {
 			if (data)
-				psignal(p, data);
+				kern_psignal(p, data);
 		}
 		break;
 

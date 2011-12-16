@@ -18,14 +18,26 @@
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/SmallVector.h"
 #include <string>
-#include <vector>
 #include <cassert>
 
 namespace clang {
-class Diagnostic;
+class DiagnosticsEngine;
 class SourceManager;
 class Preprocessor;
 class DiagnosticBuilder;
+
+/// ConflictMarkerKind - Kinds of conflict marker which the lexer might be
+/// recovering from.
+enum ConflictMarkerKind {
+  /// Not within a conflict marker.
+  CMK_None,
+  /// A normal or diff3 conflict marker, initiated by at least 7 <s,
+  /// separated by at least 7 =s or |s, and terminated by at least 7 >s.
+  CMK_Normal,
+  /// A Perforce-style conflict marker, initiated by 4 >s, separated by 4 =s,
+  /// and terminated by 4 <s.
+  CMK_Perforce
+};
 
 /// Lexer - This provides a simple interface that turns a text buffer into a
 /// stream of tokens.  This provides no support for file reading or buffering,
@@ -38,8 +50,7 @@ class Lexer : public PreprocessorLexer {
   const char *BufferEnd;         // End of the buffer.
   SourceLocation FileLoc;        // Location for start of file.
   LangOptions Features;          // Features enabled by this language (cache).
-  bool Is_PragmaLexer : 1;       // True if lexer for _Pragma handling.
-  bool IsInConflictMarker : 1;   // True if in a VCS conflict marker '<<<<<<<'
+  bool Is_PragmaLexer;           // True if lexer for _Pragma handling.
   
   //===--------------------------------------------------------------------===//
   // Context-specific lexing flags set by the preprocessor.
@@ -66,6 +77,9 @@ class Lexer : public PreprocessorLexer {
   // IsAtStartOfLine - True if the next lexed token should get the "start of
   // line" flag set on it.
   bool IsAtStartOfLine;
+
+  // CurrentConflictMarkerState - The kind of conflict marker we are handling.
+  ConflictMarkerKind CurrentConflictMarkerState;
 
   Lexer(const Lexer&);          // DO NOT IMPLEMENT
   void operator=(const Lexer&); // DO NOT IMPLEMENT
@@ -96,8 +110,8 @@ public:
   /// _Pragma expansion.  This has a variety of magic semantics that this method
   /// sets up.  It returns a new'd Lexer that must be delete'd when done.
   static Lexer *Create_PragmaLexer(SourceLocation SpellingLoc,
-                                   SourceLocation InstantiationLocStart,
-                                   SourceLocation InstantiationLocEnd,
+                                   SourceLocation ExpansionLocStart,
+                                   SourceLocation ExpansionLocEnd,
                                    unsigned TokLen, Preprocessor &PP);
 
 
@@ -209,7 +223,7 @@ public:
 
   /// Stringify - Convert the specified string into a C string by escaping '\'
   /// and " characters.  This does not add surrounding ""'s to the string.
-  static void Stringify(llvm::SmallVectorImpl<char> &Str);
+  static void Stringify(SmallVectorImpl<char> &Str);
 
   
   /// getSpelling - This method is used to get the spelling of a token into a
@@ -236,6 +250,20 @@ public:
                                  const SourceManager &SourceMgr,
                                  const LangOptions &Features, 
                                  bool *Invalid = 0);
+
+  /// getSpelling - This method is used to get the spelling of the
+  /// token at the given source location.  If, as is usually true, it
+  /// is not necessary to copy any data, then the returned string may
+  /// not point into the provided buffer.
+  ///
+  /// This method lexes at the expansion depth of the given
+  /// location and does not jump to the expansion or spelling
+  /// location.
+  static StringRef getSpelling(SourceLocation loc,
+                                     SmallVectorImpl<char> &buffer,
+                                     const SourceManager &SourceMgr,
+                                     const LangOptions &Features,
+                                     bool *invalid = 0);
   
   /// MeasureTokenLength - Relex the token at the specified location and return
   /// its length in bytes in the input file.  If the token needs cleaning (e.g.
@@ -280,7 +308,19 @@ public:
   static SourceLocation getLocForEndOfToken(SourceLocation Loc, unsigned Offset,
                                             const SourceManager &SM,
                                             const LangOptions &Features);
-    
+
+  /// \brief Returns true if the given MacroID location points at the first
+  /// token of the macro expansion.
+  static bool isAtStartOfMacroExpansion(SourceLocation loc,
+                                            const SourceManager &SM,
+                                            const LangOptions &LangOpts);
+
+  /// \brief Returns true if the given MacroID location points at the last
+  /// token of the macro expansion.
+  static bool isAtEndOfMacroExpansion(SourceLocation loc,
+                                          const SourceManager &SM,
+                                          const LangOptions &LangOpts);
+
   /// \brief Compute the preamble of the given file.
   ///
   /// The preamble of a file contains the initial comments, include directives,
@@ -297,7 +337,8 @@ public:
   /// of the file begins along with a boolean value indicating whether 
   /// the preamble ends at the beginning of a new line.
   static std::pair<unsigned, bool>
-  ComputePreamble(const llvm::MemoryBuffer *Buffer, unsigned MaxLines = 0);
+  ComputePreamble(const llvm::MemoryBuffer *Buffer, const LangOptions &Features,
+                  unsigned MaxLines = 0);
                                         
   //===--------------------------------------------------------------------===//
   // Internal implementation interfaces.
@@ -431,6 +472,18 @@ public:
   /// them), skip over them and return the first non-escaped-newline found,
   /// otherwise return P.
   static const char *SkipEscapedNewLines(const char *P);
+
+  /// \brief Checks that the given token is the first token that occurs after
+  /// the given location (this excludes comments and whitespace). Returns the
+  /// location immediately after the specified token. If the token is not found
+  /// or the location is inside a macro, the returned source location will be
+  /// invalid.
+  static SourceLocation findLocationAfterToken(SourceLocation loc,
+                                         tok::TokenKind TKind,
+                                         const SourceManager &SM,
+                                         const LangOptions &LangOpts,
+                                         bool SkipTrailingWhitespaceAndNewLine);
+
 private:
 
   /// getCharAndSizeSlowNoWarn - Same as getCharAndSizeSlow, but never emits a
@@ -446,9 +499,13 @@ private:
   // Helper functions to lex the remainder of a token of the specific type.
   void LexIdentifier         (Token &Result, const char *CurPtr);
   void LexNumericConstant    (Token &Result, const char *CurPtr);
-  void LexStringLiteral      (Token &Result, const char *CurPtr,bool Wide);
+  void LexStringLiteral      (Token &Result, const char *CurPtr,
+                              tok::TokenKind Kind);
+  void LexRawStringLiteral   (Token &Result, const char *CurPtr,
+                              tok::TokenKind Kind);
   void LexAngledStringLiteral(Token &Result, const char *CurPtr);
-  void LexCharConstant       (Token &Result, const char *CurPtr);
+  void LexCharConstant       (Token &Result, const char *CurPtr,
+                              tok::TokenKind Kind);
   bool LexEndOfFile          (Token &Result, const char *CurPtr);
 
   bool SkipWhitespace        (Token &Result, const char *CurPtr);
@@ -458,6 +515,9 @@ private:
   
   bool IsStartOfConflictMarker(const char *CurPtr);
   bool HandleEndOfConflictMarker(const char *CurPtr);
+
+  bool isCodeCompletionPoint(const char *CurPtr) const;
+  void cutOffLexing() { BufferPtr = BufferEnd; }
 };
 
 

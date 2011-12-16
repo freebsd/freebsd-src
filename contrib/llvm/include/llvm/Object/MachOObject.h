@@ -19,6 +19,7 @@
 namespace llvm {
 
 class MemoryBuffer;
+class raw_ostream;
 
 namespace object {
 
@@ -149,6 +150,9 @@ public:
   void ReadDysymtabLoadCommand(
     const LoadCommandInfo &LCI,
     InMemoryStruct<macho::DysymtabLoadCommand> &Res) const;
+  void ReadLinkeditDataLoadCommand(
+    const LoadCommandInfo &LCI,
+    InMemoryStruct<macho::LinkeditDataLoadCommand> &Res) const;
   void ReadIndirectSymbolTableEntry(
     const macho::DysymtabLoadCommand &DLC,
     unsigned Index,
@@ -170,9 +174,29 @@ public:
   void ReadSymbol64TableEntry(
     uint64_t SymbolTableOffset, unsigned Index,
     InMemoryStruct<macho::Symbol64TableEntry> &Res) const;
+  void ReadULEB128s(uint64_t Index, SmallVectorImpl<uint64_t> &Out) const;
+
+  /// @}
+  
+  /// @name Object Dump Facilities
+  /// @{
+  /// dump - Support for debugging, callable in GDB: V->dump()
+  //
+  void dump() const;
+  void dumpHeader() const;
+  
+  /// print - Implement operator<< on Value.
+  ///
+  void print(raw_ostream &O) const;
+  void printHeader(raw_ostream &O) const;
 
   /// @}
 };
+  
+inline raw_ostream &operator<<(raw_ostream &OS, const MachOObject &V) {
+  V.print(OS);
+  return OS;
+}
 
 } // end namespace object
 } // end namespace llvm

@@ -7,19 +7,16 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "MBlaze.h"
-#include "MBlazeSubtarget.h"
-#include "MBlazeRegisterInfo.h"
-#include "MBlazeISelLowering.h"
+#include "MCTargetDesc/MBlazeBaseInfo.h"
 #include "llvm/MC/MCParser/MCAsmLexer.h"
 #include "llvm/MC/MCParser/MCAsmParser.h"
 #include "llvm/MC/MCParser/MCParsedAsmOperand.h"
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCExpr.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetAsmParser.h"
+#include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallVector.h"
@@ -30,9 +27,8 @@ using namespace llvm;
 namespace {
 struct MBlazeOperand;
 
-class MBlazeAsmParser : public TargetAsmParser {
+class MBlazeAsmParser : public MCTargetAsmParser {
   MCAsmParser &Parser;
-  TargetMachine &TM;
 
   MCAsmParser &getParser() const { return Parser; }
   MCAsmLexer &getLexer() const { return Parser.getLexer(); }
@@ -64,8 +60,8 @@ class MBlazeAsmParser : public TargetAsmParser {
 
 
 public:
-  MBlazeAsmParser(const Target &T, MCAsmParser &_Parser, TargetMachine &_TM)
-    : TargetAsmParser(T), Parser(_Parser), TM(_TM) {}
+  MBlazeAsmParser(MCSubtargetInfo &_STI, MCAsmParser &_Parser)
+    : MCTargetAsmParser(), Parser(_Parser) {}
 
   virtual bool ParseInstruction(StringRef Name, SMLoc NameLoc,
                                 SmallVectorImpl<MCParsedAsmOperand*> &Operands);
@@ -220,7 +216,7 @@ public:
     return StringRef(Tok.Data, Tok.Length);
   }
 
-  virtual void dump(raw_ostream &OS) const;
+  virtual void print(raw_ostream &OS) const;
 
   static MBlazeOperand *CreateToken(StringRef Str, SMLoc S) {
     MBlazeOperand *Op = new MBlazeOperand(Token);
@@ -280,26 +276,26 @@ public:
 
 } // end anonymous namespace.
 
-void MBlazeOperand::dump(raw_ostream &OS) const {
+void MBlazeOperand::print(raw_ostream &OS) const {
   switch (Kind) {
   case Immediate:
     getImm()->print(OS);
     break;
   case Register:
     OS << "<register R";
-    OS << MBlazeRegisterInfo::getRegisterNumbering(getReg()) << ">";
+    OS << getMBlazeRegisterNumbering(getReg()) << ">";
     break;
   case Token:
     OS << "'" << getToken() << "'";
     break;
   case Memory: {
     OS << "<memory R";
-    OS << MBlazeRegisterInfo::getRegisterNumbering(getMemBase());
+    OS << getMBlazeRegisterNumbering(getMemBase());
     OS << ", ";
 
     unsigned RegOff = getMemOffReg();
     if (RegOff)
-      OS << "R" << MBlazeRegisterInfo::getRegisterNumbering(RegOff);
+      OS << "R" << getMBlazeRegisterNumbering(RegOff);
     else
       OS << getMemOff();
     OS << ">";
@@ -327,6 +323,7 @@ MatchAndEmitInstruction(SMLoc IDLoc,
   unsigned ErrorInfo;
 
   switch (MatchInstructionImpl(Operands, Inst, ErrorInfo)) {
+  default: break;
   case Match_Success:
     Out.EmitInstruction(Inst);
     return false;
@@ -522,7 +519,7 @@ ParseInstruction(StringRef Name, SMLoc NameLoc,
   return false;
 }
 
-/// ParseDirective parses the arm specific directives
+/// ParseDirective parses the MBlaze specific directives
 bool MBlazeAsmParser::ParseDirective(AsmToken DirectiveID) {
   StringRef IDVal = DirectiveID.getIdentifier();
   if (IDVal == ".word")
@@ -559,7 +556,7 @@ extern "C" void LLVMInitializeMBlazeAsmLexer();
 
 /// Force static initialization.
 extern "C" void LLVMInitializeMBlazeAsmParser() {
-  RegisterAsmParser<MBlazeAsmParser> X(TheMBlazeTarget);
+  RegisterMCAsmParser<MBlazeAsmParser> X(TheMBlazeTarget);
   LLVMInitializeMBlazeAsmLexer();
 }
 

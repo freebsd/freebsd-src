@@ -35,7 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <stand.h>
 #include <string.h>
 #include <machine/bootinfo.h>
-#include <machine/psl.h>
+#include <sys/param.h>
 #include <sys/reboot.h>
 
 #include "bootstrap.h"
@@ -76,6 +76,21 @@ extern char end[];
 
 static void *heap_top;
 static void *heap_bottom;
+
+static uint64_t
+pc98_loadaddr(u_int type, void *data, uint64_t addr)
+{
+	struct stat st;
+
+	if (type == LOAD_ELF)
+		return (roundup(addr, PAGE_SIZE));
+
+	/* We cannot use 15M-16M area on pc98. */
+	if (type == LOAD_RAW && addr < 0x1000000 && stat(data, &st) == 0 &&
+	    (st.st_size == -1 || addr + st.st_size > 0xf00000))
+		addr = 0x1000000;
+	return (addr);
+}
 
 int
 main(void)
@@ -160,6 +175,7 @@ main(void)
     archsw.arch_readin = i386_readin;
     archsw.arch_isainb = isa_inb;
     archsw.arch_isaoutb = isa_outb;
+    archsw.arch_loadaddr = pc98_loadaddr;
 
     /*
      * March through the device switch probing for things.

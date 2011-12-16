@@ -38,6 +38,7 @@ sysinc="sysinc.switch.$$"
 sysarg="sysarg.switch.$$"
 sysprotoend="sysprotoend.$$"
 systracetmp="systrace.$$"
+systraceret="systraceret.$$"
 
 if [ -r capabilities.conf ]; then
 	capenabled=`cat capabilities.conf | grep -v "^#" | grep -v "^$"`
@@ -46,9 +47,9 @@ else
 	capenabled=""
 fi
 
-trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp" 0
+trap "rm $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret" 0
 
-touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp
+touch $sysaue $sysdcl $syscompat $syscompatdcl $syscompat4 $syscompat4dcl $syscompat6 $syscompat6dcl $syscompat7 $syscompat7dcl $sysent $sysinc $sysarg $sysprotoend $systracetmp $systraceret
 
 case $# in
     0)	echo "usage: $0 input-file <config-file>" 1>&2
@@ -96,6 +97,7 @@ s/\$//g
 		sysmk = \"$sysmk\"
 		systrace = \"$systrace\"
 		systracetmp = \"$systracetmp\"
+		systraceret = \"$systraceret\"
 		compat = \"$compat\"
 		compat4 = \"$compat4\"
 		compat6 = \"$compat6\"
@@ -152,6 +154,7 @@ s/\$//g
 		printf "#include <sys/signal.h>\n" > sysarg
 		printf "#include <sys/acl.h>\n" > sysarg
 		printf "#include <sys/cpuset.h>\n" > sysarg
+		printf "#include <sys/_ffcounter.h>\n" > sysarg
 		printf "#include <sys/_semaphore.h>\n" > sysarg
 		printf "#include <sys/ucontext.h>\n\n" > sysarg
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg
@@ -179,8 +182,11 @@ s/\$//g
 		printf "\tint64_t *iarg  = (int64_t *) uarg;\n" > systrace
 		printf "\tswitch (sysnum) {\n" > systrace
 
-		printf "static void\nsystrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)\n{\n\tconst char *p = NULL;\n" > systracetmp
+		printf "static void\nsystrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)\n{\n\tconst char *p = NULL;\n" > systracetmp
 		printf "\tswitch (sysnum) {\n" > systracetmp
+
+		printf "static void\nsystrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)\n{\n\tconst char *p = NULL;\n" > systraceret
+		printf "\tswitch (sysnum) {\n" > systraceret
 
 		next
 	}
@@ -200,6 +206,9 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
+		print > systraceret
 		savesyscall = syscall
 		next
 	}
@@ -212,6 +221,9 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
+		print > systraceret
 		syscall = savesyscall
 		next
 	}
@@ -224,6 +236,9 @@ s/\$//g
 		print > syscompat6
 		print > syscompat7
 		print > sysnames
+		print > systrace
+		print > systracetmp
+		print > systraceret
 		next
 	}
 	syscall != $1 {
@@ -297,7 +312,8 @@ s/\$//g
 			parserr($end, ")")
 		end--
 
-		f++	#function return type
+		syscallret=$f
+		f++
 
 		funcname=$f
 
@@ -381,6 +397,7 @@ s/\$//g
 		parseline()
 		printf("\t/* %s */\n\tcase %d: {\n", funcname, syscall) > systrace
 		printf("\t/* %s */\n\tcase %d:\n", funcname, syscall) > systracetmp
+		printf("\t/* %s */\n\tcase %d:\n", funcname, syscall) > systraceret
 		if (argc > 0) {
 			printf("\t\tswitch(ndx) {\n") > systracetmp
 			printf("\t\tstruct %s *p = params;\n", argalias) > systrace
@@ -400,6 +417,10 @@ s/\$//g
 					     argname[i], argtype[i]) > systrace
 			}
 			printf("\t\tdefault:\n\t\t\tbreak;\n\t\t};\n") > systracetmp
+
+			printf("\t\tif (ndx == 0 || ndx == 1)\n") > systraceret
+			printf("\t\t\tp = \"%s\";\n", syscallret) > systraceret
+			printf("\t\tbreak;\n") > systraceret
 		}
 		printf("\t\t*n_args = %d;\n\t\tbreak;\n\t}\n", argc) > systrace
 		printf("\t\tbreak;\n") > systracetmp
@@ -418,8 +439,16 @@ s/\$//g
 			printf("struct %s {\n\tregister_t dummy;\n};\n",
 			    argalias) > sysarg
 		if (!flag("NOPROTO") && !flag("NODEF")) {
-			printf("%s\t%s(struct thread *, struct %s *)",
-			    rettype, funcname, argalias) > sysdcl
+			if (funcname == "nosys" || funcname == "lkmnosys" ||
+			    funcname == "sysarch" || funcname ~ /^freebsd/ || 
+			    funcname ~ /^linux/ || funcname ~ /^svr4/ || 
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {				
+				printf("%s\t%s(struct thread *, struct %s *)",
+				    rettype, funcname, argalias) > sysdcl
+			} else {
+				printf("%s\tsys_%s(struct thread *, struct %s *)",
+				    rettype, funcname, argalias) > sysdcl
+			} 
 			printf(";\n") > sysdcl
 			printf("#define\t%sAUE_%s\t%s\n", syscallprefix,
 			    funcalias, auditev) > sysaue
@@ -430,8 +459,16 @@ s/\$//g
 			printf("%s },", "lkmressys, AUE_NULL, NULL, 0, 0, 0, SY_THR_ABSENT") > sysent
 			column = column + length("lkmressys") + length("AUE_NULL") + 3
 		} else {
-			printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
-			column = column + length(funcname) + length(auditev) + length(flags) + 3
+			if (funcname == "nosys" || funcname == "sysarch" || 
+			    funcname == "lkmnosys" || funcname ~ /^freebsd/ ||
+			    funcname ~ /^linux/ || funcname ~ /^svr4/ ||
+			    funcname ~ /^ibcs2/ || funcname ~ /^xenix/) {
+				printf("%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
+				column = column + length(funcname) + length(auditev) + length(flags) + 3 
+			} else {
+				printf("sys_%s, %s, NULL, 0, 0, %s, %s },", funcname, auditev, flags, thr_flag) > sysent
+				column = column + length(funcname) + length(auditev) + length(flags) + 3 + 4
+			} 
 		} 
 		align_sysent_comment(column)
 		printf("/* %d = %s */\n", syscall, funcalias) > sysent
@@ -601,6 +638,7 @@ s/\$//g
 		    > syshdr
 		printf "\tdefault:\n\t\t*n_args = 0;\n\t\tbreak;\n\t};\n}\n" > systrace
 		printf "\tdefault:\n\t\tbreak;\n\t};\n\tif (p != NULL)\n\t\tstrlcpy(desc, p, descsz);\n}\n" > systracetmp
+		printf "\tdefault:\n\t\tbreak;\n\t};\n\tif (p != NULL)\n\t\tstrlcpy(desc, p, descsz);\n}\n" > systraceret
 	} '
 
 cat $sysinc $sysent >> $syssw
@@ -611,4 +649,5 @@ cat $sysarg $sysdcl \
 	$syscompat7 $syscompat7dcl \
 	$sysaue $sysprotoend > $sysproto
 cat $systracetmp >> $systrace
+cat $systraceret >> $systrace
 

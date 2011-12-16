@@ -57,6 +57,7 @@ void	cpu_halt(void);
 void	cpu_reset(void);
 void	fork_trampoline(void);
 void	swi_vm(void *v);
+void	zeus_init(u_int cpu_impl);
 
 static __inline u_int64_t
 get_cyclecount(void)

@@ -32,7 +32,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_capabilities.h"
+#include "opt_capsicum.h"
 #include "opt_kstack_pages.h"
 
 #include <sys/param.h>
@@ -111,24 +111,30 @@ sysarch(td, uap)
 
 	AUDIT_ARG_CMD(uap->op);
 
-#ifdef CAPABILITIES
+#ifdef CAPABILITY_MODE
 	/*
-	 * Whitelist of operations which are safe enough for capability mode.
+	 * When adding new operations, add a new case statement here to
+	 * explicitly indicate whether or not the operation is safe to
+	 * perform in capability mode.
 	 */
 	if (IN_CAPABILITY_MODE(td)) {
 		switch (uap->op) {
-			case I386_GET_LDT:
-			case I386_SET_LDT:
-			case I386_GET_IOPERM:
-			case I386_GET_FSBASE:
-			case I386_SET_FSBASE:
-			case I386_GET_GSBASE:
-			case I386_SET_GSBASE:
-				break;
+		case I386_GET_LDT:
+		case I386_SET_LDT:
+		case I386_GET_IOPERM:
+		case I386_GET_FSBASE:
+		case I386_SET_FSBASE:
+		case I386_GET_GSBASE:
+		case I386_SET_GSBASE:
+			break;
 
-			case I386_SET_IOPERM:
-			default:
-				return (ECAPMODE);
+		case I386_SET_IOPERM:
+		default:
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+#endif
+			return (ECAPMODE);
 		}
 	}
 #endif

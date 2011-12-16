@@ -107,7 +107,7 @@ namespace llvm {
     virtual const char *getTargetNodeName(unsigned Opcode) const;
 
     /// getSetCCResultType - Return the ValueType for ISD::SETCC
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    virtual EVT getSetCCResultType(EVT VT) const;
 
     virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
@@ -141,19 +141,16 @@ namespace llvm {
       getRegForInlineAsmConstraint(const std::string &Constraint,
                                    EVT VT) const;
 
-    void LowerAsmOperandForConstraint(SDValue Op, char ConstraintLetter,
+    void LowerAsmOperandForConstraint(SDValue Op, std::string &Constraint,
                                       std::vector<SDValue> &Ops,
                                       SelectionDAG &DAG) const;
 
     /// isLegalAddressImmediate - Return true if the integer value can be used
     /// as the offset of the target addressing mode.
-    virtual bool isLegalAddressImmediate(int64_t V, const Type *Ty) const;
+    virtual bool isLegalAddressImmediate(int64_t V, Type *Ty) const;
     virtual bool isLegalAddressImmediate(GlobalValue *) const;
 
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
-
-    /// getFunctionAlignment - Return the Log2 alignment of this function.
-    virtual unsigned getFunctionAlignment(const Function *F) const;
 
     virtual SDValue
       LowerFormalArguments(SDValue Chain,
@@ -182,15 +179,7 @@ namespace llvm {
     virtual bool isLegalICmpImmediate(int64_t Imm) const;
 
     virtual bool isLegalAddressingMode(const AddrMode &AM,
-                                       const Type *Ty) const;
-
-    /// After allocating this many registers, the allocator should feel
-    /// register pressure. The value is a somewhat random guess, based on the
-    /// number of non callee saved registers in the C calling convention.
-    virtual unsigned getRegPressureLimit( const TargetRegisterClass *RC,
-                                          MachineFunction &MF) const{
-      return 50;
-    }
+                                       Type *Ty) const;
   };
 }
 

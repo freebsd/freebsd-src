@@ -1,0 +1,31 @@
+.TH IBROUTERS 8 "May 30, 2007" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibrouters \- show InfiniBand router nodes in topology
+
+.SH SYNOPSIS
+.B ibrouters
+[\-h] [<topology-file> | \-C ca_name \-P ca_port \-t(imeout) timeout_ms]
+
+.SH DESCRIPTION
+.PP
+ibrouters is a script which either walks the IB subnet topology or uses an
+already saved topology file and extracts the Rt nodes.
+
+.SH OPTIONS
+.PP
+\-h      show the usage message
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+.SH SEE ALSO
+.BR ibnetdiscover(8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

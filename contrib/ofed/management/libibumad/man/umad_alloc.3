@@ -1,0 +1,33 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_ALLOC 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_alloc \- allocate memory for umad buffers
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "void * umad_alloc(int " "num" ", size_t " "size");
+.fi
+.SH "DESCRIPTION"
+.B umad_alloc()
+allocates memory for an array of
+.I num\fR
+umad buffers of
+.I size
+bytes\fR.
+Note that
+.I size\fR
+should include the
+.B umad_size()
+plus the length (MAD_BLOCK_SIZE for normal MADs or the length returned from
+.B umad_recv()
+for RMPP MADs).
+.SH "RETURN VALUE"
+.B umad_alloc()
+returns NULL if out of memory.
+.SH "SEE ALSO"
+.BR umad_free (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

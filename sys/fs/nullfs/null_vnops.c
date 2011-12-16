@@ -729,7 +729,7 @@ null_print(struct vop_print_args *ap)
 {
 	struct vnode *vp = ap->a_vp;
 
-	printf("\tvp=%p, lowervp=%p\n", vp, NULLVPTOLOWERVP(vp));
+	printf("\tvp=%p, lowervp=%p\n", vp, VTONULL(vp)->null_lowervp);
 	return (0);
 }
 
@@ -784,6 +784,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	vhold(lvp);
 	VOP_UNLOCK(vp, 0); /* vp is held by vn_vptocnp_locked that called us */
 	ldvp = lvp;
+	vref(lvp);
 	error = vn_vptocnp(&ldvp, cred, ap->a_buf, ap->a_buflen);
 	vdrop(lvp);
 	if (error != 0) {
@@ -797,19 +798,17 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 	 */
 	error = vn_lock(ldvp, LK_EXCLUSIVE);
 	if (error != 0) {
+		vrele(ldvp);
 		vn_lock(vp, locked | LK_RETRY);
-		vdrop(ldvp);
 		return (ENOENT);
 	}
 	vref(ldvp);
-	vdrop(ldvp);
 	error = null_nodeget(vp->v_mount, ldvp, dvp);
 	if (error == 0) {
 #ifdef DIAGNOSTIC
 		NULLVPTOLOWERVP(*dvp);
 #endif
-		vhold(*dvp);
-		vput(*dvp);
+		VOP_UNLOCK(*dvp, 0); /* keep reference on *dvp */
 	} else
 		vput(ldvp);
 

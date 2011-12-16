@@ -111,7 +111,7 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	pathname[102] = '3';
 	pathname[103] = '\0';
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString(pathname, archive_entry_pathname(ae));
+	assertEqualString("hardlink", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
 	assert(archive_entry_hardlink(ae) == NULL);
 	assertEqualInt(6, archive_entry_size(ae));
@@ -123,9 +123,9 @@ DEFINE_TEST(test_read_format_isojoliet_long)
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */
 	assertEqualInt(0, archive_read_next_header(a, &ae));
-	assertEqualString("hardlink", archive_entry_pathname(ae));
+	assertEqualString(pathname, archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualString(pathname, archive_entry_hardlink(ae));
+	assertEqualString("hardlink", archive_entry_hardlink(ae));
 	assert(!archive_entry_size_is_set(ae));
 
 	/* End of archive. */

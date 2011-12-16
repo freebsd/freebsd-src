@@ -40,6 +40,7 @@ IPv6 Main Site: ftp.freebsd.org|\
 IPv6 Ireland: ftp3.ie.freebsd.org|\
 IPv6 Israel: ftp.il.freebsd.org|\
 IPv6 Japan: ftp2.jp.freebsd.org|\
+IPv6 Sweden: ftp4.se.freebsd.org|\
 IPv6 USA: ftp4.us.freebsd.org|\
 IPv6 Turkey: ftp2.tr.freebsd.org"
 
@@ -212,6 +213,7 @@ SWEDEN_FTP_SERVERS="\
 Sweden: ftp.se.freebsd.org|\
 Sweden #2: ftp2.se.freebsd.org|\
 Sweden #3: ftp3.se.freebsd.org|\
+Sweden #4: ftp4.se.freebsd.org|\
 Sweden #5: ftp5.se.freebsd.org"
 
 SWITZERLAND_FTP_SERVERS="\
@@ -292,8 +294,7 @@ get_ftp_mirror()
     MIRROR=`cat "${CONFDIR}/mirrors.conf"`
   fi
 
-  VAL="${MIRROR}"
-  export VAL
+  export VAL="${MIRROR}"
 };
 
 
@@ -303,9 +304,7 @@ get_ftpHost()
   ftpPath="$VAL"
 
   ftpHost=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\2|'`
-  VAL="${ftpHost}"
-
-  export VAL
+  export VAL="${ftpHost}"
 };
 
 get_ftpDir()
@@ -314,9 +313,7 @@ get_ftpDir()
   ftpPath="$VAL"
 
   ftpDir=`echo "${ftpPath}" | sed -E 's|^(ftp://)([^/]*)(.*)|\3|'`
-  VAL="${ftpDir}"
-
-  export VAL
+  export VAL="${ftpDir}"
 };
 
 get_ftp_mirrors()

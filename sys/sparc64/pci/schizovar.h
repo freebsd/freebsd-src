@@ -31,8 +31,20 @@
 #ifndef _SPARC64_PCI_SCHIZOVAR_H_
 #define	_SPARC64_PCI_SCHIZOVAR_H_
 
+struct schizo_softc;
+
+struct schizo_iommu_state {
+	struct iommu_state	sis_is;
+	struct schizo_softc	*sis_sc;
+};
+
 struct schizo_softc {
+	struct bus_dma_methods          sc_dma_methods;
+
 	device_t			sc_dev;
+
+	struct mtx			sc_sync_mtx;
+	uint64_t			sc_sync_val;
 
 	struct mtx			*sc_mtx;
 
@@ -45,29 +57,30 @@ struct schizo_softc {
 
 	u_int				sc_flags;
 #define	SCHIZO_FLAGS_BSWAR		(1 << 0)
-#define	SCHIZO_FLAGS_CDMA		(1 << 1)
+#define	SCHIZO_FLAGS_XMODE		(1 << 1)
 
 	bus_addr_t			sc_cdma_clr;
 	uint32_t			sc_cdma_state;
-#define	SCHIZO_CDMA_STATE_DONE		(1 << 0)
+#define	SCHIZO_CDMA_STATE_IDLE		(1 << 0)
 #define	SCHIZO_CDMA_STATE_PENDING	(1 << 1)
+#define	SCHIZO_CDMA_STATE_RECEIVED	(1 << 2)
 
 	u_int				sc_half;
 	uint32_t			sc_ign;
 	uint32_t			sc_ver;
+	uint32_t			sc_mrev;
 
 	struct resource			*sc_mem_res[TOM_NREG];
 	struct resource			*sc_irq_res[STX_NINTR];
 	void				*sc_ihand[STX_NINTR];
 
-	struct iommu_state		sc_is;
+	struct schizo_iommu_state	sc_is;
 
 	struct rman			sc_pci_mem_rman;
 	struct rman			sc_pci_io_rman;
 	bus_space_handle_t		sc_pci_bh[STX_NRANGE];
 	bus_space_tag_t			sc_pci_cfgt;
 	bus_space_tag_t			sc_pci_iot;
-	bus_space_tag_t			sc_pci_memt;
 	bus_dma_tag_t			sc_pci_dmat;
 
 	uint32_t			sc_stats_dma_ce;

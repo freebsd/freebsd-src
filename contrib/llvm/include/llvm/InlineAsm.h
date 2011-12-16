@@ -25,15 +25,16 @@ class PointerType;
 class FunctionType;
 class Module;
 struct InlineAsmKeyType;
-template<class ValType, class TypeClass, class ConstantClass, bool HasLargeKey>
+template<class ValType, class ValRefType, class TypeClass, class ConstantClass,
+         bool HasLargeKey>
 class ConstantUniqueMap;
 template<class ConstantClass, class TypeClass, class ValType>
 struct ConstantCreator;
 
 class InlineAsm : public Value {
   friend struct ConstantCreator<InlineAsm, PointerType, InlineAsmKeyType>;
-  friend class ConstantUniqueMap<InlineAsmKeyType, PointerType, InlineAsm,
-                                 false>;
+  friend class ConstantUniqueMap<InlineAsmKeyType, const InlineAsmKeyType&,
+                                 PointerType, InlineAsm, false>;
 
   InlineAsm(const InlineAsm &);             // do not implement
   void operator=(const InlineAsm&);         // do not implement
@@ -42,7 +43,7 @@ class InlineAsm : public Value {
   bool HasSideEffects;
   bool IsAlignStack;
   
-  InlineAsm(const PointerType *Ty, const std::string &AsmString,
+  InlineAsm(PointerType *Ty, const std::string &AsmString,
             const std::string &Constraints, bool hasSideEffects,
             bool isAlignStack);
   virtual ~InlineAsm();
@@ -54,7 +55,7 @@ public:
 
   /// InlineAsm::get - Return the specified uniqued inline asm string.
   ///
-  static InlineAsm *get(const FunctionType *Ty, StringRef AsmString,
+  static InlineAsm *get(FunctionType *Ty, StringRef AsmString,
                         StringRef Constraints, bool hasSideEffects,
                         bool isAlignStack = false);
   
@@ -63,13 +64,13 @@ public:
   
   /// getType - InlineAsm's are always pointers.
   ///
-  const PointerType *getType() const {
-    return reinterpret_cast<const PointerType*>(Value::getType());
+  PointerType *getType() const {
+    return reinterpret_cast<PointerType*>(Value::getType());
   }
   
   /// getFunctionType - InlineAsm's are always pointers to functions.
   ///
-  const FunctionType *getFunctionType() const;
+  FunctionType *getFunctionType() const;
   
   const std::string &getAsmString() const { return AsmString; }
   const std::string &getConstraintString() const { return Constraints; }
@@ -78,7 +79,7 @@ public:
   /// the specified constraint string is legal for the type.  This returns true
   /// if legal, false if not.
   ///
-  static bool Verify(const FunctionType *Ty, StringRef Constraints);
+  static bool Verify(FunctionType *Ty, StringRef Constraints);
 
   // Constraint String Parsing 
   enum ConstraintPrefix {
@@ -187,30 +188,38 @@ public:
   // in the backend.
   
   enum {
+    // Fixed operands on an INLINEASM SDNode.
     Op_InputChain = 0,
     Op_AsmString = 1,
     Op_MDNode = 2,
     Op_ExtraInfo = 3,    // HasSideEffects, IsAlignStack
     Op_FirstOperand = 4,
 
+    // Fixed operands on an INLINEASM MachineInstr.
     MIOp_AsmString = 0,
     MIOp_ExtraInfo = 1,    // HasSideEffects, IsAlignStack
     MIOp_FirstOperand = 2,
 
+    // Interpretation of the MIOp_ExtraInfo bit field.
     Extra_HasSideEffects = 1,
     Extra_IsAlignStack = 2,
-    
-    Kind_RegUse = 1,
-    Kind_RegDef = 2,
-    Kind_Imm = 3,
-    Kind_Mem = 4,
-    Kind_RegDefEarlyClobber = 6,
-    
+
+    // Inline asm operands map to multiple SDNode / MachineInstr operands.
+    // The first operand is an immediate describing the asm operand, the low
+    // bits is the kind:
+    Kind_RegUse = 1,             // Input register, "r".
+    Kind_RegDef = 2,             // Output register, "=r".
+    Kind_RegDefEarlyClobber = 3, // Early-clobber output register, "=&r".
+    Kind_Clobber = 4,            // Clobbered register, "~r".
+    Kind_Imm = 5,                // Immediate.
+    Kind_Mem = 6,                // Memory operand, "m".
+
     Flag_MatchingOperand = 0x80000000
   };
   
   static unsigned getFlagWord(unsigned Kind, unsigned NumOps) {
     assert(((NumOps << 3) & ~0xffff) == 0 && "Too many inline asm operands!");
+    assert(Kind >= Kind_RegUse && Kind <= Kind_Mem && "Invalid Kind");
     return Kind | (NumOps << 3);
   }
   
@@ -219,7 +228,22 @@ public:
   /// to a previous output operand.
   static unsigned getFlagWordForMatchingOp(unsigned InputFlag,
                                            unsigned MatchedOperandNo) {
+    assert(MatchedOperandNo <= 0x7fff && "Too big matched operand");
+    assert((InputFlag & ~0xffff) == 0 && "High bits already contain data");
     return InputFlag | Flag_MatchingOperand | (MatchedOperandNo << 16);
+  }
+
+  /// getFlagWordForRegClass - Augment an existing flag word returned by
+  /// getFlagWord with the required register class for the following register
+  /// operands.
+  /// A tied use operand cannot have a register class, use the register class
+  /// from the def operand instead.
+  static unsigned getFlagWordForRegClass(unsigned InputFlag, unsigned RC) {
+    // Store RC + 1, reserve the value 0 to mean 'no register class'.
+    ++RC;
+    assert(RC <= 0x7fff && "Too large register class ID");
+    assert((InputFlag & ~0xffff) == 0 && "High bits already contain data");
+    return InputFlag | (RC << 16);
   }
 
   static unsigned getKind(unsigned Flags) {
@@ -232,7 +256,10 @@ public:
   static bool isRegDefEarlyClobberKind(unsigned Flag) {
     return getKind(Flag) == Kind_RegDefEarlyClobber;
   }
-  
+  static bool isClobberKind(unsigned Flag) {
+    return getKind(Flag) == Kind_Clobber;
+  }
+
   /// getNumOperandRegisters - Extract the number of registers field from the
   /// inline asm operand flag.
   static unsigned getNumOperandRegisters(unsigned Flag) {
@@ -248,6 +275,19 @@ public:
     return true;
   }
 
+  /// hasRegClassConstraint - Returns true if the flag contains a register
+  /// class constraint.  Sets RC to the register class ID.
+  static bool hasRegClassConstraint(unsigned Flag, unsigned &RC) {
+    if (Flag & Flag_MatchingOperand)
+      return false;
+    unsigned High = Flag >> 16;
+    // getFlagWordForRegClass() uses 0 to mean no register class, and otherwise
+    // stores RC + 1.
+    if (!High)
+      return false;
+    RC = High - 1;
+    return true;
+  }
 
 };
 

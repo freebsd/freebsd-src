@@ -218,6 +218,39 @@
 #endif
 #endif
 
+/*
+ * Keywords added in C1X.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignas(e)		alignas(e)
+#define	_Alignof(e)		alignof(e)
+#define	_Noreturn		[[noreturn]]
+#define	_Static_assert(e, s)	static_assert(e, s)
+#define	_Thread_local		thread_local
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
+/* Do nothing.  They are language keywords. */
+#else
+/* Not supported.  Implement them manually. */
+#ifdef __GNUC__
+#define	_Alignas(e)		__attribute__((__aligned__(e)))
+#define	_Alignof(e)		__alignof__(e)
+#define	_Noreturn		__attribute__((__noreturn__))
+#define	_Thread_local		__thread
+#else
+#define	_Alignas(e)
+#define	_Alignof(e)		__offsetof(struct { char __a; e __b; }, __b)
+#define	_Noreturn
+#define	_Thread_local
+#endif
+#ifdef __COUNTER__
+#define	_Static_assert(e, s)	__Static_assert(e, __COUNTER__)
+#define	__Static_assert(e, c)	___Static_assert(e, c)
+#define	___Static_assert(e, c)	typedef char __assert ## c[(e) ? 1 : -1]
+#else
+#define	_Static_assert(e, s)
+#endif
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
@@ -251,6 +284,17 @@
 
 #if (defined(__INTEL_COMPILER) || (defined(__GNUC__) && __GNUC__ >= 2)) && !defined(__STRICT_ANSI__) || __STDC_VERSION__ >= 199901
 #define	__LONG_LONG_SUPPORTED
+#endif
+
+/* C++11 exposes a load of C99 stuff */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	__LONG_LONG_SUPPORTED
+#ifndef	__STDC_LIMIT_MACROS
+#define	__STDC_LIMIT_MACROS
+#endif
+#ifndef	__STDC_CONSTANT_MACROS
+#define	__STDC_CONSTANT_MACROS
+#endif
 #endif
 
 /*
@@ -349,7 +393,8 @@
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
-#if __FreeBSD_cc_version >= 300001 && defined(__GNUC__) && !defined(__INTEL_COMPILER)
+#if defined(__FreeBSD_cc_version) && __FreeBSD_cc_version >= 300001 && \
+    defined(__GNUC__) && !defined(__INTEL_COMPILER)
 #define	__printf0like(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf0__, fmtarg, firstvararg)))
 #else

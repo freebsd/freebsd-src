@@ -310,7 +310,7 @@ module_file(module_t mod)
  * Syscalls.
  */
 int
-modnext(struct thread *td, struct modnext_args *uap)
+sys_modnext(struct thread *td, struct modnext_args *uap)
 {
 	module_t mod;
 	int error = 0;
@@ -341,7 +341,7 @@ done2:
 }
 
 int
-modfnext(struct thread *td, struct modfnext_args *uap)
+sys_modfnext(struct thread *td, struct modfnext_args *uap)
 {
 	module_t mod;
 	int error;
@@ -371,7 +371,7 @@ struct module_stat_v1 {
 };
 
 int
-modstat(struct thread *td, struct modstat_args *uap)
+sys_modstat(struct thread *td, struct modstat_args *uap)
 {
 	module_t mod;
 	modspecific_t data;
@@ -424,7 +424,7 @@ modstat(struct thread *td, struct modstat_args *uap)
 }
 
 int
-modfind(struct thread *td, struct modfind_args *uap)
+sys_modfind(struct thread *td, struct modfind_args *uap)
 {
 	int error = 0;
 	char name[MAXMODNAME];

@@ -5,8 +5,8 @@
 # Compare files created by /usr/src/etc/Makefile (or the directory
 # the user specifies) with the currently installed copies.
 
-# Copyright 1998-2010 Douglas Barton
-# DougB@FreeBSD.org
+# Copyright 1998-2011 Douglas Barton
+# dougb@FreeBSD.org
 
 # $FreeBSD$
 
@@ -15,7 +15,7 @@ PATH=/bin:/usr/bin:/usr/sbin
 display_usage () {
   VERSION_NUMBER=`grep "[$]FreeBSD:" $0 | cut -d ' ' -f 4`
   echo "mergemaster version ${VERSION_NUMBER}"
-  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]]'
+  echo 'Usage: mergemaster [-scrvhpCP] [-a|[-iFU]] [--run-updates=always|never]'
   echo '    [-m /path] [-t /path] [-d] [-u N] [-w N] [-A arch] [-D /path]'
   echo "Options:"
   echo "  -s  Strict comparison (diff every pair of files)"
@@ -30,6 +30,8 @@ display_usage () {
   echo '  -C  Compare local rc.conf variables to the defaults'
   echo '  -P  Preserve files that are overwritten'
   echo "  -U  Attempt to auto upgrade files that have not been user modified"
+  echo '      ***DANGEROUS***'
+  echo '  --run-updates=  Specify always or never to run newalises, pwd_mkdb, etc.'
   echo ''
   echo "  -m /path/directory  Specify location of source to do the make in"
   echo "  -t /path/directory  Specify temp root directory"
@@ -260,6 +262,20 @@ fi
 if [ -r "$HOME/.mergemasterrc" ]; then
   . "$HOME/.mergemasterrc"
 fi
+
+for var in "$@" ; do
+  case "$var" in
+  --run-updates*)
+    RUN_UPDATES=`echo ${var#--run-updates=} | tr [:upper:] [:lower:]`
+    ;;
+  *)
+    newopts="$newopts $var"
+    ;;
+  esac
+done
+
+set -- $newopts
+unset var newopts
 
 # Check the command line options
 #
@@ -635,7 +651,7 @@ case "${RERUN}" in
     # Only set up files that are crucial to {build|install}world
     { mkdir -p ${TEMPROOT}/etc &&
       cp -p ${SOURCEDIR}/etc/master.passwd ${TEMPROOT}/etc &&
-      cp -p ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
+      install -p -o root -g wheel -m 0644 ${SOURCEDIR}/etc/group ${TEMPROOT}/etc;} ||
     { echo '';
       echo '  *** FATAL ERROR: Cannot copy files to the temproot environment';
       echo '';
@@ -1223,34 +1239,43 @@ case "${AUTO_UPGRADED_FILES}" in
 esac
 
 run_it_now () {
-  case "${AUTO_RUN}" in
-  '')
-    unset YES_OR_NO
-    echo ''
-    echo -n '    Would you like to run it now? y or n [n] '
-    read YES_OR_NO
+  [ -n "$AUTO_RUN" ] && return
 
-    case "${YES_OR_NO}" in
+  local answer
+
+  echo ''
+  while : ; do
+    if [ "$RUN_UPDATES" = always ]; then
+      answer=y
+    elif [ "$RUN_UPDATES" = never ]; then
+      answer=n
+    else
+      echo -n '    Would you like to run it now? y or n [n] '
+      read answer
+    fi
+
+    case "$answer" in
     y)
       echo "    Running ${1}"
       echo ''
       eval "${1}"
+      return
       ;;
     ''|n)
-      echo ''
-      echo "       *** Cancelled"
-      echo ''
+      if [ ! "$RUN_UPDATES" = never ]; then
+        echo ''
+        echo "       *** Cancelled"
+        echo ''
+      fi
       echo "    Make sure to run ${1} yourself"
+      return
       ;;
     *)
       echo ''
-      echo "       *** Sorry, I do not understand your answer (${YES_OR_NO})"
+      echo "       *** Sorry, I do not understand your answer (${answer})"
       echo ''
-      echo "    Make sure to run ${1} yourself"
     esac
-    ;;
-  *) ;;
-  esac
+  done
 }
 
 case "${NEED_NEWALIASES}" in
@@ -1308,6 +1333,19 @@ case "${NEED_PWD_MKDB}" in
   fi
   ;;
 esac
+
+if [ -e "${DESTDIR}/etc/localtime" ]; then	# Ignore if TZ == UTC
+  echo ''
+  [ -n "${DESTDIR}" ] && tzs_args="-C ${DESTDIR}"
+  if [ -f "${DESTDIR}/var/db/zoneinfo" ]; then
+    echo "*** Reinstalling `cat ${DESTDIR}/var/db/zoneinfo` as ${DESTDIR}/etc/localtime"
+    tzsetup $tzs_args -r
+  else
+    echo "*** There is no ${DESTDIR}/var/db/zoneinfo file to update ${DESTDIR}/etc/localtime."
+    echo '    You should run tzsetup'
+    run_it_now "tzsetup $tzs_args"
+  fi
+fi
 
 echo ''
 

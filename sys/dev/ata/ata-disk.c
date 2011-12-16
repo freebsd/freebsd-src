@@ -172,8 +172,6 @@ ad_detach(device_t dev)
 {
     struct ad_softc *adp = device_get_ivars(dev);
     struct ata_device *atadev = device_get_softc(dev);
-    device_t *children;
-    int nchildren, i;
 
     /* check that we have a valid disk to detach */
     if (!device_get_ivars(dev))
@@ -183,12 +181,7 @@ ad_detach(device_t dev)
     callout_drain(&atadev->spindown_timer);
 
     /* detach & delete all children */
-    if (!device_get_children(dev, &children, &nchildren)) {
-	for (i = 0; i < nchildren; i++)
-	    if (children[i])
-		device_delete_child(dev, children[i]);
-	free(children, M_TEMP);
-    }
+    device_delete_children(dev);
 
     /* destroy disk from the system so we don't get any further requests */
     disk_destroy(adp->disk);

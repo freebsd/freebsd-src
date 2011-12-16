@@ -13,6 +13,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/APFloat.h"
+#include "llvm/ADT/APSInt.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -726,7 +727,7 @@ APFloat::bitwiseIsEqual(const APFloat &rhs) const {
 }
 
 APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value)
-{
+  : exponent2(0), sign2(0) {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
   sign = 0;
@@ -736,14 +737,15 @@ APFloat::APFloat(const fltSemantics &ourSemantics, integerPart value)
   normalize(rmNearestTiesToEven, lfExactlyZero);
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics) {
+APFloat::APFloat(const fltSemantics &ourSemantics) : exponent2(0), sign2(0) {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
   category = fcZero;
   sign = false;
 }
 
-APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag) {
+APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag)
+  : exponent2(0), sign2(0) {
   assertArithmeticOK(ourSemantics);
   // Allocates storage if necessary but does not initialize it.
   initialize(&ourSemantics);
@@ -751,7 +753,7 @@ APFloat::APFloat(const fltSemantics &ourSemantics, uninitializedTag tag) {
 
 APFloat::APFloat(const fltSemantics &ourSemantics,
                  fltCategory ourCategory, bool negative)
-{
+  : exponent2(0), sign2(0) {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
   category = ourCategory;
@@ -763,14 +765,13 @@ APFloat::APFloat(const fltSemantics &ourSemantics,
 }
 
 APFloat::APFloat(const fltSemantics &ourSemantics, StringRef text)
-{
+  : exponent2(0), sign2(0) {
   assertArithmeticOK(ourSemantics);
   initialize(&ourSemantics);
   convertFromString(text, rmNearestTiesToEven);
 }
 
-APFloat::APFloat(const APFloat &rhs)
-{
+APFloat::APFloat(const APFloat &rhs) : exponent2(0), sign2(0) {
   initialize(rhs.semantics);
   assign(rhs);
 }
@@ -831,6 +832,7 @@ APFloat::incrementSignificand()
 
   /* Our callers should never cause us to overflow.  */
   assert(carry == 0);
+  (void)carry;
 }
 
 /* Add the significand of the RHS.  Returns the carry flag.  */
@@ -925,6 +927,7 @@ APFloat::multiplySignificand(const APFloat &rhs, const APFloat *addend)
     APFloat extendedAddend(*addend);
     status = extendedAddend.convert(extendedSemantics, rmTowardZero, &ignored);
     assert(status == opOK);
+    (void)status;
     lost_fraction = addOrSubtractSignificand(extendedAddend, false);
 
     /* Restore our state.  */
@@ -1189,7 +1192,7 @@ APFloat::normalize(roundingMode rounding_mode,
 
   if (omsb) {
     /* OMSB is numbered from 1.  We want to place it in the integer
-       bit numbered PRECISON if possible, with a compensating change in
+       bit numbered PRECISION if possible, with a compensating change in
        the exponent.  */
     exponentChange = omsb - semantics->precision;
 
@@ -1388,6 +1391,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
     /* The code above is intended to ensure that no borrow is
        necessary.  */
     assert(!carry);
+    (void)carry;
   } else {
     if (bits > 0) {
       APFloat temp_rhs(rhs);
@@ -1401,6 +1405,7 @@ APFloat::addOrSubtractSignificand(const APFloat &rhs, bool subtract)
 
     /* We have a guard bit; generating a carry cannot happen.  */
     assert(!carry);
+    (void)carry;
   }
 
   return lost_fraction;
@@ -2084,6 +2089,23 @@ APFloat::convertToInteger(integerPart *parts, unsigned int width,
   return fs;
 }
 
+/* Same as convertToInteger(integerPart*, ...), except the result is returned in
+   an APSInt, whose initial bit-width and signed-ness are used to determine the
+   precision of the conversion.
+ */
+APFloat::opStatus
+APFloat::convertToInteger(APSInt &result,
+                          roundingMode rounding_mode, bool *isExact) const
+{
+  unsigned bitWidth = result.getBitWidth();
+  SmallVector<uint64_t, 4> parts(result.getNumWords());
+  opStatus status = convertToInteger(
+    parts.data(), bitWidth, result.isSigned(), rounding_mode, isExact);
+  // Keeps the original signed-ness.
+  result = APInt(bitWidth, parts);
+  return status;
+}
+
 /* Convert an unsigned integer SRC to a floating point number,
    rounding according to ROUNDING_MODE.  The sign of the floating
    point number is not modified.  */
@@ -2103,7 +2125,7 @@ APFloat::convertFromUnsignedParts(const integerPart *src,
   dstCount = partCount();
   precision = semantics->precision;
 
-  /* We want the most significant PRECISON bits of SRC.  There may not
+  /* We want the most significant PRECISION bits of SRC.  There may not
      be that many; extract what we can.  */
   if (precision <= omsb) {
     exponent = omsb - 1;
@@ -2174,7 +2196,7 @@ APFloat::convertFromZeroExtendedInteger(const integerPart *parts,
                                         roundingMode rounding_mode)
 {
   unsigned int partCount = partCountForBits(width);
-  APInt api = APInt(width, partCount, parts);
+  APInt api = APInt(width, makeArrayRef(parts, partCount));
 
   sign = false;
   if (isSigned && APInt::tcExtractBit(parts, width - 1)) {
@@ -2728,7 +2750,7 @@ APFloat::convertF80LongDoubleAPFloatToAPInt() const
   words[0] = mysignificand;
   words[1] =  ((uint64_t)(sign & 1) << 15) |
               (myexponent & 0x7fffLL);
-  return APInt(80, 2, words);
+  return APInt(80, words);
 }
 
 APInt
@@ -2773,7 +2795,7 @@ APFloat::convertPPCDoubleDoubleAPFloatToAPInt() const
   words[1] =  ((uint64_t)(sign2 & 1) << 63) |
               ((myexponent2 & 0x7ff) <<  52) |
               (mysignificand2 & 0xfffffffffffffLL);
-  return APInt(128, 2, words);
+  return APInt(128, words);
 }
 
 APInt
@@ -2809,7 +2831,7 @@ APFloat::convertQuadrupleAPFloatToAPInt() const
              ((myexponent & 0x7fff) << 48) |
              (mysignificand2 & 0xffffffffffffLL);
 
-  return APInt(128, 2, words);
+  return APInt(128, words);
 }
 
 APInt
@@ -3221,8 +3243,9 @@ APFloat APFloat::getLargest(const fltSemantics &Sem, bool Negative) {
     significand[i] = ~((integerPart) 0);
 
   // ...and then clear the top bits for internal consistency.
-  significand[N-1] &=
-    (((integerPart) 1) << ((Sem.precision % integerPartWidth) - 1)) - 1;
+  if (Sem.precision % integerPartWidth != 0)
+    significand[N-1] &=
+      (((integerPart) 1) << (Sem.precision % integerPartWidth)) - 1;
 
   return Val;
 }
@@ -3252,23 +3275,20 @@ APFloat APFloat::getSmallestNormalized(const fltSemantics &Sem, bool Negative) {
   Val.exponent = Sem.minExponent;
   Val.zeroSignificand();
   Val.significandParts()[partCountForBits(Sem.precision)-1] |=
-    (((integerPart) 1) << ((Sem.precision % integerPartWidth) - 1));
+    (((integerPart) 1) << ((Sem.precision - 1) % integerPartWidth));
 
   return Val;
 }
 
-APFloat::APFloat(const APInt& api, bool isIEEE)
-{
+APFloat::APFloat(const APInt& api, bool isIEEE) : exponent2(0), sign2(0) {
   initFromAPInt(api, isIEEE);
 }
 
-APFloat::APFloat(float f)
-{
+APFloat::APFloat(float f) : exponent2(0), sign2(0) {
   initFromAPInt(APInt::floatToBits(f));
 }
 
-APFloat::APFloat(double d)
-{
+APFloat::APFloat(double d) : exponent2(0), sign2(0) {
   initFromAPInt(APInt::doubleToBits(d));
 }
 
@@ -3398,8 +3418,8 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
   // Decompose the number into an APInt and an exponent.
   int exp = exponent - ((int) semantics->precision - 1);
   APInt significand(semantics->precision,
-                    partCountForBits(semantics->precision),
-                    significandParts());
+                    makeArrayRef(significandParts(),
+                                 partCountForBits(semantics->precision)));
 
   // Set FormatPrecision if zero.  We want to do this before we
   // truncate trailing zeros, as those are part of the precision.
@@ -3436,7 +3456,7 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
     //                 <= semantics->precision + e * 137 / 59
     //   (log_2(5) ~ 2.321928 < 2.322034 ~ 137/59)
 
-    unsigned precision = semantics->precision + 137 * texp / 59;
+    unsigned precision = semantics->precision + (137 * texp + 136) / 59;
 
     // Multiply significand by 5^e.
     //   N * 5^0101 == N * 5^(1*1) * 5^(0*2) * 5^(1*4) * 5^(0*8)
@@ -3564,4 +3584,38 @@ void APFloat::toString(SmallVectorImpl<char> &Str,
 
   for (; I != NDigits; ++I)
     Str.push_back(buffer[NDigits-I-1]);
+}
+
+bool APFloat::getExactInverse(APFloat *inv) const {
+  // We can only guarantee the existence of an exact inverse for IEEE floats.
+  if (semantics != &IEEEhalf && semantics != &IEEEsingle &&
+      semantics != &IEEEdouble && semantics != &IEEEquad)
+    return false;
+
+  // Special floats and denormals have no exact inverse.
+  if (category != fcNormal)
+    return false;
+
+  // Check that the number is a power of two by making sure that only the
+  // integer bit is set in the significand.
+  if (significandLSB() != semantics->precision - 1)
+    return false;
+
+  // Get the inverse.
+  APFloat reciprocal(*semantics, 1ULL);
+  if (reciprocal.divide(*this, rmNearestTiesToEven) != opOK)
+    return false;
+
+  // Avoid multiplication with a denormal, it is not safe on all platforms and
+  // may be slower than a normal division.
+  if (reciprocal.significandMSB() + 1 < reciprocal.semantics->precision)
+    return false;
+
+  assert(reciprocal.category == fcNormal &&
+         reciprocal.significandLSB() == reciprocal.semantics->precision - 1);
+
+  if (inv)
+    *inv = reciprocal;
+
+  return true;
 }

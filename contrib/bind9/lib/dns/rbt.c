@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007-2009  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007-2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: rbt.c,v 1.142.50.3 2009/10/20 05:06:04 marka Exp $ */
+/* $Id: rbt.c,v 1.146.278.2 2011-03-12 04:59:17 tbox Exp $ */
 
 /*! \file */
 
@@ -537,7 +537,10 @@ dns_rbt_addnode(dns_rbt_t *rbt, dns_name_t *name, dns_rbtnode_t **nodep) {
 				 * current node.
 				 */
 				new_current->is_root = current->is_root;
-				new_current->nsec3 = current->nsec3;
+				if (current->nsec == DNS_RBT_NSEC_HAS_NSEC)
+					new_current->nsec = DNS_RBT_NSEC_NORMAL;
+				else
+					new_current->nsec = current->nsec;
 				PARENT(new_current)  = PARENT(current);
 				LEFT(new_current)    = LEFT(current);
 				RIGHT(new_current)   = RIGHT(current);
@@ -715,6 +718,7 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
 		 */
 		compared = dns_namereln_none;
 		last_compared = NULL;
+		order = 0;
 	}
 
 	dns_fixedname_init(&fixedcallbackname);
@@ -1081,6 +1085,7 @@ dns_rbt_findnode(dns_rbt_t *rbt, dns_name_t *name, dns_name_t *foundname,
 								&current_name,
 								&order,
 								&common_labels);
+					POST(compared);
 
 					last_compared = current;
 
@@ -1451,7 +1456,7 @@ create_node(isc_mem_t *mctx, dns_name_t *name, dns_rbtnode_t **nodep) {
 	DIRTY(node) = 0;
 	dns_rbtnode_refinit(node, 0);
 	node->find_callback = 0;
-	node->nsec3 = 0;
+	node->nsec = DNS_RBT_NSEC_NORMAL;
 
 	MAKE_BLACK(node);
 
@@ -1523,7 +1528,7 @@ rehash(dns_rbt_t *rbt) {
 
 	oldsize = rbt->hashsize;
 	oldtable = rbt->hashtable;
-	rbt->hashsize *= 2 + 1;
+	rbt->hashsize = rbt->hashsize * 2 + 1;
 	rbt->hashtable = isc_mem_get(rbt->mctx,
 				     rbt->hashsize * sizeof(dns_rbtnode_t *));
 	if (rbt->hashtable == NULL) {
@@ -1680,6 +1685,7 @@ dns_rbt_addonlevel(dns_rbtnode_t *node, dns_rbtnode_t *current, int order,
 	}
 
 	child = root;
+	POST(child);
 
 	dns_name_init(&add_name, add_offsets);
 	NODENAME(node, &add_name);

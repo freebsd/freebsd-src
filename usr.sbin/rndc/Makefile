@@ -9,13 +9,11 @@ SRCDIR=		${BIND_DIR}/bin/rndc
 
 PROG=		rndc
 
-.PATH: ${SRCDIR}/unix
-SRCS+=		os.c
-
 .PATH: ${SRCDIR}
 SRCS+=		rndc.c util.c
 
-CFLAGS+=	-I${SRCDIR}/unix/include -I${SRCDIR}/include -I${LIB_BIND_DIR}
+CFLAGS+=	-I${SRCDIR}/include -I${LIB_BIND_DIR}
+CFLAGS+=	-I${BIND_DIR}/lib/isc/${ISC_ATOMIC_ARCH}/include
 
 WARNS?=		3
 

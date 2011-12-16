@@ -22,6 +22,7 @@
 #include "AntiDepBreaker.h"
 #include "AggressiveAntiDepBreaker.h"
 #include "CriticalAntiDepBreaker.h"
+#include "RegisterClassInfo.h"
 #include "ScheduleDAGInstrs.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/CodeGen/LatencyPriorityQueue.h"
@@ -37,7 +38,7 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetRegisterInfo.h"
-#include "llvm/Target/TargetSubtarget.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ErrorHandling.h"
@@ -52,7 +53,7 @@ STATISTIC(NumStalls, "Number of pipeline stalls");
 STATISTIC(NumFixedAnti, "Number of fixed anti-dependencies");
 
 // Post-RA scheduling is enabled with
-// TargetSubtarget.enablePostRAScheduler(). This flag can be used to
+// TargetSubtargetInfo.enablePostRAScheduler(). This flag can be used to
 // override the target.
 static cl::opt<bool>
 EnablePostRAScheduler("post-RA-scheduler",
@@ -80,6 +81,7 @@ namespace {
   class PostRAScheduler : public MachineFunctionPass {
     AliasAnalysis *AA;
     const TargetInstrInfo *TII;
+    RegisterClassInfo RegClassInfo;
     CodeGenOpt::Level OptLevel;
 
   public:
@@ -135,7 +137,8 @@ namespace {
   public:
     SchedulePostRATDList(
       MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
-      AliasAnalysis *AA, TargetSubtarget::AntiDepBreakMode AntiDepMode,
+      AliasAnalysis *AA, const RegisterClassInfo&,
+      TargetSubtargetInfo::AntiDepBreakMode AntiDepMode,
       SmallVectorImpl<TargetRegisterClass*> &CriticalPathRCs);
 
     ~SchedulePostRATDList();
@@ -179,7 +182,8 @@ namespace {
 
 SchedulePostRATDList::SchedulePostRATDList(
   MachineFunction &MF, MachineLoopInfo &MLI, MachineDominatorTree &MDT,
-  AliasAnalysis *AA, TargetSubtarget::AntiDepBreakMode AntiDepMode,
+  AliasAnalysis *AA, const RegisterClassInfo &RCI,
+  TargetSubtargetInfo::AntiDepBreakMode AntiDepMode,
   SmallVectorImpl<TargetRegisterClass*> &CriticalPathRCs)
   : ScheduleDAGInstrs(MF, MLI, MDT), Topo(SUnits), AA(AA),
     KillIndices(TRI->getNumRegs())
@@ -189,10 +193,10 @@ SchedulePostRATDList::SchedulePostRATDList(
   HazardRec =
     TM.getInstrInfo()->CreateTargetPostRAHazardRecognizer(InstrItins, this);
   AntiDepBreak =
-    ((AntiDepMode == TargetSubtarget::ANTIDEP_ALL) ?
-     (AntiDepBreaker *)new AggressiveAntiDepBreaker(MF, CriticalPathRCs) :
-     ((AntiDepMode == TargetSubtarget::ANTIDEP_CRITICAL) ?
-      (AntiDepBreaker *)new CriticalAntiDepBreaker(MF) : NULL));
+    ((AntiDepMode == TargetSubtargetInfo::ANTIDEP_ALL) ?
+     (AntiDepBreaker *)new AggressiveAntiDepBreaker(MF, RCI, CriticalPathRCs) :
+     ((AntiDepMode == TargetSubtargetInfo::ANTIDEP_CRITICAL) ?
+      (AntiDepBreaker *)new CriticalAntiDepBreaker(MF, RCI) : NULL));
 }
 
 SchedulePostRATDList::~SchedulePostRATDList() {
@@ -205,9 +209,10 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
   MachineLoopInfo &MLI = getAnalysis<MachineLoopInfo>();
   MachineDominatorTree &MDT = getAnalysis<MachineDominatorTree>();
   AliasAnalysis *AA = &getAnalysis<AliasAnalysis>();
+  RegClassInfo.runOnMachineFunction(Fn);
 
   // Check for explicit enable/disable of post-ra scheduling.
-  TargetSubtarget::AntiDepBreakMode AntiDepMode = TargetSubtarget::ANTIDEP_NONE;
+  TargetSubtargetInfo::AntiDepBreakMode AntiDepMode = TargetSubtargetInfo::ANTIDEP_NONE;
   SmallVector<TargetRegisterClass*, 4> CriticalPathRCs;
   if (EnablePostRAScheduler.getPosition() > 0) {
     if (!EnablePostRAScheduler)
@@ -215,22 +220,23 @@ bool PostRAScheduler::runOnMachineFunction(MachineFunction &Fn) {
   } else {
     // Check that post-RA scheduling is enabled for this target.
     // This may upgrade the AntiDepMode.
-    const TargetSubtarget &ST = Fn.getTarget().getSubtarget<TargetSubtarget>();
+    const TargetSubtargetInfo &ST = Fn.getTarget().getSubtarget<TargetSubtargetInfo>();
     if (!ST.enablePostRAScheduler(OptLevel, AntiDepMode, CriticalPathRCs))
       return false;
   }
 
   // Check for antidep breaking override...
   if (EnableAntiDepBreaking.getPosition() > 0) {
-    AntiDepMode = (EnableAntiDepBreaking == "all") ?
-      TargetSubtarget::ANTIDEP_ALL :
-        (EnableAntiDepBreaking == "critical")
-           ? TargetSubtarget::ANTIDEP_CRITICAL : TargetSubtarget::ANTIDEP_NONE;
+    AntiDepMode = (EnableAntiDepBreaking == "all")
+      ? TargetSubtargetInfo::ANTIDEP_ALL
+      : ((EnableAntiDepBreaking == "critical")
+         ? TargetSubtargetInfo::ANTIDEP_CRITICAL
+         : TargetSubtargetInfo::ANTIDEP_NONE);
   }
 
   DEBUG(dbgs() << "PostRAScheduler\n");
 
-  SchedulePostRATDList Scheduler(Fn, MLI, MDT, AA, AntiDepMode,
+  SchedulePostRATDList Scheduler(Fn, MLI, MDT, AA, RegClassInfo, AntiDepMode,
                                  CriticalPathRCs);
 
   // Loop over all of the basic blocks
@@ -304,7 +310,7 @@ void SchedulePostRATDList::Schedule() {
   if (AntiDepBreak != NULL) {
     unsigned Broken =
       AntiDepBreak->BreakAntiDependencies(SUnits, Begin, InsertPos,
-                                          InsertPosIndex);
+                                          InsertPosIndex, DbgValues);
 
     if (Broken != 0) {
       // We made changes. Update the dependency graph.
@@ -540,10 +546,16 @@ void SchedulePostRATDList::ReleaseSucc(SUnit *SU, SDep *SuccEdge) {
 #endif
   --SuccSU->NumPredsLeft;
 
-  // Compute how many cycles it will be before this actually becomes
-  // available.  This is the max of the start time of all predecessors plus
-  // their latencies.
-  SuccSU->setDepthToAtLeast(SU->getDepth() + SuccEdge->getLatency());
+  // Standard scheduler algorithms will recompute the depth of the successor
+  // here as such:
+  //   SuccSU->setDepthToAtLeast(SU->getDepth() + SuccEdge->getLatency());
+  //
+  // However, we lazily compute node depth instead. Note that
+  // ScheduleNodeTopDown has already updated the depth of this node which causes
+  // all descendents to be marked dirty. Setting the successor depth explicitly
+  // here would cause depth to be recomputed for all its ancestors. If the
+  // successor is not yet ready (because of a transitively redundant edge) then
+  // this causes depth computation to be quadratic in the size of the DAG.
 
   // If all the node's predecessors are scheduled, this node is ready
   // to be scheduled. Ignore the special ExitSU node.
@@ -655,6 +667,12 @@ void SchedulePostRATDList::ListScheduleTopDown() {
       ScheduleNodeTopDown(FoundSUnit, CurCycle);
       HazardRec->EmitInstruction(FoundSUnit);
       CycleHasInsts = true;
+      if (HazardRec->atIssueLimit()) {
+        DEBUG(dbgs() << "*** Max instructions per cycle " << CurCycle << '\n');
+        HazardRec->AdvanceCycle();
+        ++CurCycle;
+        CycleHasInsts = false;
+      }
     } else {
       if (CycleHasInsts) {
         DEBUG(dbgs() << "*** Finished cycle " << CurCycle << '\n');

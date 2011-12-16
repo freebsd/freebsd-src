@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2000 - 2006 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2000 - 2006 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -377,6 +377,11 @@ int
 main(int argc, char **argv)
 {
 	int fd, mode, channel, array;
+
+	if (feature_present("ata_cam")) {
+		errx(1, "\nATA_CAM option is enabled in kernel.\n"
+		    "Please use camcontrol instead.");
+	}
 
 	if (argc < 2)
 		usage();

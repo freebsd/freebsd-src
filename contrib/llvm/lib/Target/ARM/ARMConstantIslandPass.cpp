@@ -15,10 +15,10 @@
 
 #define DEBUG_TYPE "arm-cp-islands"
 #include "ARM.h"
-#include "ARMAddressingModes.h"
 #include "ARMMachineFunctionInfo.h"
 #include "ARMInstrInfo.h"
 #include "Thumb2InstrInfo.h"
+#include "MCTargetDesc/ARMAddressingModes.h"
 #include "llvm/CodeGen/MachineConstantPool.h"
 #include "llvm/CodeGen/MachineFunctionPass.h"
 #include "llvm/CodeGen/MachineJumpTableInfo.h"
@@ -739,7 +739,11 @@ MachineBasicBlock *ARMConstantIslands::SplitBlockBeforeInstr(MachineInstr *MI) {
   // There doesn't seem to be meaningful DebugInfo available; this doesn't
   // correspond to anything in the source.
   unsigned Opc = isThumb ? (isThumb2 ? ARM::t2B : ARM::tB) : ARM::B;
-  BuildMI(OrigBB, DebugLoc(), TII->get(Opc)).addMBB(NewBB);
+  if (!isThumb)
+    BuildMI(OrigBB, DebugLoc(), TII->get(Opc)).addMBB(NewBB);
+  else
+    BuildMI(OrigBB, DebugLoc(), TII->get(Opc)).addMBB(NewBB)
+            .addImm(ARMCC::AL).addReg(0);
   ++NumSplit;
 
   // Update the CFG.  All succs of OrigBB are now succs of NewBB.
@@ -1151,7 +1155,11 @@ void ARMConstantIslands::CreateNewWater(unsigned CPUserIndex,
     // targets will be exchanged, and the altered branch may be out of
     // range, so the machinery has to know about it.
     int UncondBr = isThumb ? ((isThumb2) ? ARM::t2B : ARM::tB) : ARM::B;
-    BuildMI(UserMBB, DebugLoc(), TII->get(UncondBr)).addMBB(NewMBB);
+    if (!isThumb)
+      BuildMI(UserMBB, DebugLoc(), TII->get(UncondBr)).addMBB(NewMBB);
+    else
+      BuildMI(UserMBB, DebugLoc(), TII->get(UncondBr)).addMBB(NewMBB)
+              .addImm(ARMCC::AL).addReg(0);
     unsigned MaxDisp = getUnconditionalBrDisp(UncondBr);
     ImmBranches.push_back(ImmBranch(&UserMBB->back(),
                           MaxDisp, false, UncondBr));
@@ -1512,7 +1520,11 @@ ARMConstantIslands::FixUpConditionalBr(MachineFunction &MF, ImmBranch &Br) {
     .addMBB(NextBB).addImm(CC).addReg(CCReg);
   Br.MI = &MBB->back();
   BBSizes[MBB->getNumber()] += TII->GetInstSizeInBytes(&MBB->back());
-  BuildMI(MBB, DebugLoc(), TII->get(Br.UncondBr)).addMBB(DestBB);
+  if (isThumb)
+    BuildMI(MBB, DebugLoc(), TII->get(Br.UncondBr)).addMBB(DestBB)
+            .addImm(ARMCC::AL).addReg(0);
+  else
+    BuildMI(MBB, DebugLoc(), TII->get(Br.UncondBr)).addMBB(DestBB);
   BBSizes[MBB->getNumber()] += TII->GetInstSizeInBytes(&MBB->back());
   unsigned MaxDisp = getUnconditionalBrDisp(Br.UncondBr);
   ImmBranches.push_back(ImmBranch(&MBB->back(), MaxDisp, false, Br.UncondBr));
@@ -1538,7 +1550,10 @@ bool ARMConstantIslands::UndoLRSpillRestore() {
     if (MI->getOpcode() == ARM::tPOP_RET &&
         MI->getOperand(2).getReg() == ARM::PC &&
         MI->getNumExplicitOperands() == 3) {
-      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET));
+      // Create the new insn and copy the predicate from the old.
+      BuildMI(MI->getParent(), MI->getDebugLoc(), TII->get(ARM::tBX_RET))
+        .addOperand(MI->getOperand(0))
+        .addOperand(MI->getOperand(1));
       MI->eraseFromParent();
       MadeChange = true;
     }
@@ -1650,24 +1665,27 @@ bool ARMConstantIslands::OptimizeThumb2Branches(MachineFunction &MF) {
     unsigned BrOffset = GetOffsetOf(Br.MI) + 4 - 2;
     unsigned DestOffset = BBOffsets[DestBB->getNumber()];
     if (BrOffset < DestOffset && (DestOffset - BrOffset) <= 126) {
-      MachineBasicBlock::iterator CmpMI = Br.MI; --CmpMI;
-      if (CmpMI->getOpcode() == ARM::tCMPi8) {
-        unsigned Reg = CmpMI->getOperand(0).getReg();
-        Pred = llvm::getInstrPredicate(CmpMI, PredReg);
-        if (Pred == ARMCC::AL &&
-            CmpMI->getOperand(1).getImm() == 0 &&
-            isARMLowRegister(Reg)) {
-          MachineBasicBlock *MBB = Br.MI->getParent();
-          MachineInstr *NewBR =
-            BuildMI(*MBB, CmpMI, Br.MI->getDebugLoc(), TII->get(NewOpc))
-            .addReg(Reg).addMBB(DestBB, Br.MI->getOperand(0).getTargetFlags());
-          CmpMI->eraseFromParent();
-          Br.MI->eraseFromParent();
-          Br.MI = NewBR;
-          BBSizes[MBB->getNumber()] -= 2;
-          AdjustBBOffsetsAfter(MBB, -2);
-          ++NumCBZ;
-          MadeChange = true;
+      MachineBasicBlock::iterator CmpMI = Br.MI;
+      if (CmpMI != Br.MI->getParent()->begin()) {
+        --CmpMI;
+        if (CmpMI->getOpcode() == ARM::tCMPi8) {
+          unsigned Reg = CmpMI->getOperand(0).getReg();
+          Pred = llvm::getInstrPredicate(CmpMI, PredReg);
+          if (Pred == ARMCC::AL &&
+              CmpMI->getOperand(1).getImm() == 0 &&
+              isARMLowRegister(Reg)) {
+            MachineBasicBlock *MBB = Br.MI->getParent();
+            MachineInstr *NewBR =
+              BuildMI(*MBB, CmpMI, Br.MI->getDebugLoc(), TII->get(NewOpc))
+              .addReg(Reg).addMBB(DestBB,Br.MI->getOperand(0).getTargetFlags());
+            CmpMI->eraseFromParent();
+            Br.MI->eraseFromParent();
+            Br.MI = NewBR;
+            BBSizes[MBB->getNumber()] -= 2;
+            AdjustBBOffsetsAfter(MBB, -2);
+            ++NumCBZ;
+            MadeChange = true;
+          }
         }
       }
     }
@@ -1689,9 +1707,9 @@ bool ARMConstantIslands::OptimizeThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());
@@ -1812,9 +1830,9 @@ bool ARMConstantIslands::ReorderThumb2JumpTables(MachineFunction &MF) {
   const std::vector<MachineJumpTableEntry> &JT = MJTI->getJumpTables();
   for (unsigned i = 0, e = T2JumpTables.size(); i != e; ++i) {
     MachineInstr *MI = T2JumpTables[i];
-    const TargetInstrDesc &TID = MI->getDesc();
-    unsigned NumOps = TID.getNumOperands();
-    unsigned JTOpIdx = NumOps - (TID.isPredicable() ? 3 : 2);
+    const MCInstrDesc &MCID = MI->getDesc();
+    unsigned NumOps = MCID.getNumOperands();
+    unsigned JTOpIdx = NumOps - (MCID.isPredicable() ? 3 : 2);
     MachineOperand JTOP = MI->getOperand(JTOpIdx);
     unsigned JTI = JTOP.getIndex();
     assert(JTI < JT.size());
@@ -1885,7 +1903,8 @@ AdjustJTTargetBlockForward(MachineBasicBlock *BB, MachineBasicBlock *JTBB)
   // There doesn't seem to be meaningful DebugInfo available; this doesn't
   // correspond directly to anything in the source.
   assert (isThumb2 && "Adjusting for TB[BH] but not in Thumb2?");
-  BuildMI(NewBB, DebugLoc(), TII->get(ARM::t2B)).addMBB(BB);
+  BuildMI(NewBB, DebugLoc(), TII->get(ARM::t2B)).addMBB(BB)
+          .addImm(ARMCC::AL).addReg(0);
 
   // Update internal data structures to account for the newly inserted MBB.
   MF.RenumberBlocks(NewBB);

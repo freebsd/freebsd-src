@@ -7,7 +7,7 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file defines 
+// This file implements cocoa naming convention analysis. 
 //
 //===----------------------------------------------------------------------===//
 
@@ -16,11 +16,9 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclObjC.h"
 #include "llvm/ADT/StringExtras.h"
-
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 using namespace ento;
-
-using llvm::StringRef;
 
 // The "fundamental rule" for naming conventions of methods:
 //  (url broken into two lines)
@@ -35,91 +33,39 @@ using llvm::StringRef;
 //  not release it."
 //
 
-static bool isWordEnd(char ch, char prev, char next) {
-  return ch == '\0'
-      || (islower(prev) && isupper(ch)) // xxxC
-      || (isupper(prev) && isupper(ch) && islower(next)) // XXCreate
-      || !isalpha(ch);
-}
-
-static const char* parseWord(const char* s) {
-  char ch = *s, prev = '\0';
-  assert(ch != '\0');
-  char next = *(s+1);
-  while (!isWordEnd(ch, prev, next)) {
-    prev = ch;
-    ch = next;
-    next = *((++s)+1);
-  }
-  return s;
-}
-
-cocoa::NamingConvention cocoa::deriveNamingConvention(Selector S,
-                                                      bool ignorePrefix) {
-  IdentifierInfo *II = S.getIdentifierInfoForSlot(0);
-
-  if (!II)
+cocoa::NamingConvention cocoa::deriveNamingConvention(Selector S, 
+                                                    const ObjCMethodDecl *MD) {
+  switch (MD && MD->hasAttr<ObjCMethodFamilyAttr>()? MD->getMethodFamily() 
+                                                   : S.getMethodFamily()) {
+  case OMF_None:
+  case OMF_autorelease:
+  case OMF_dealloc:
+  case OMF_finalize:
+  case OMF_release:
+  case OMF_retain:
+  case OMF_retainCount:
+  case OMF_self:
+  case OMF_performSelector:
     return NoConvention;
 
-  const char *s = II->getNameStart();
+  case OMF_init:
+    return InitRule;
 
-  const char *orig = s;
-  // A method/function name may contain a prefix.  We don't know it is there,
-  // however, until we encounter the first '_'.
-  while (*s != '\0') {
-    // Skip '_', numbers, ':', etc.
-    if (*s == '_' || !isalpha(*s)) {      
-      ++s;
-      continue;
-    }
-    break;
+  case OMF_alloc:
+  case OMF_copy:
+  case OMF_mutableCopy:
+  case OMF_new:
+    return CreateRule;
   }
-
-  if (!ignorePrefix && s != orig)
-    return NoConvention;
-
-  // Parse the first word, and look for specific keywords.
-  const char *wordEnd = parseWord(s);
-  assert(wordEnd > s);
-  unsigned len = wordEnd - s;
-
-  switch (len) {
-    default:
-      return NoConvention;
-    case 3:
-      // Methods starting with 'new' follow the create rule.
-      return (memcmp(s, "new", 3) == 0) ? CreateRule : NoConvention;
-    case 4:
-      // Methods starting with 'copy' follow the create rule.
-      if (memcmp(s, "copy", 4) == 0)
-        return CreateRule;
-      // Methods starting with 'init' follow the init rule.
-      if (memcmp(s, "init", 4) == 0)
-        return InitRule;
-      return NoConvention;
-    case 5:
-      return (memcmp(s, "alloc", 5) == 0) ? CreateRule : NoConvention;
-    case 7:
-      // Methods starting with 'mutableCopy' follow the create rule.
-      if (memcmp(s, "mutable", 7) == 0) {
-        // Look at the next word to see if it is "Copy".
-        s = wordEnd;
-        if (*s != '\0') {
-          wordEnd = parseWord(s);
-          len = wordEnd - s;
-          if (len == 4 && memcmp(s, "Copy", 4) == 0)
-            return CreateRule;
-        }
-      }
-      return NoConvention;
-  }
+  llvm_unreachable("unexpected naming convention");
+  return NoConvention;
 }
 
-bool cocoa::isRefType(QualType RetTy, llvm::StringRef Prefix,
-                      llvm::StringRef Name) {
+bool cocoa::isRefType(QualType RetTy, StringRef Prefix,
+                      StringRef Name) {
   // Recursively walk the typedef stack, allowing typedefs of reference types.
   while (const TypedefType *TD = dyn_cast<TypedefType>(RetTy.getTypePtr())) {
-    llvm::StringRef TDName = TD->getDecl()->getIdentifier()->getName();
+    StringRef TDName = TD->getDecl()->getIdentifier()->getName();
     if (TDName.startswith(Prefix) && TDName.endswith("Ref"))
       return true;
     
@@ -138,12 +84,12 @@ bool cocoa::isRefType(QualType RetTy, llvm::StringRef Prefix,
   return Name.startswith(Prefix);
 }
 
-bool cocoa::isCFObjectRef(QualType T) {
-  return isRefType(T, "CF") || // Core Foundation.
-         isRefType(T, "CG") || // Core Graphics.
-         isRefType(T, "DADisk") || // Disk Arbitration API.
-         isRefType(T, "DADissenter") ||
-         isRefType(T, "DASessionRef");
+bool coreFoundation::isCFObjectRef(QualType T) {
+  return cocoa::isRefType(T, "CF") || // Core Foundation.
+         cocoa::isRefType(T, "CG") || // Core Graphics.
+         cocoa::isRefType(T, "DADisk") || // Disk Arbitration API.
+         cocoa::isRefType(T, "DADissenter") ||
+         cocoa::isRefType(T, "DASessionRef");
 }
 
 
@@ -175,6 +121,59 @@ bool cocoa::isCocoaObjectRef(QualType Ty) {
   for ( ; ID ; ID = ID->getSuperClass())
     if (ID->getIdentifier()->getName() == "NSObject")
       return true;
+  
+  return false;
+}
+
+bool coreFoundation::followsCreateRule(const FunctionDecl *fn) {
+  // For now, *just* base this on the function name, not on anything else.
+
+  const IdentifierInfo *ident = fn->getIdentifier();
+  if (!ident) return false;
+  StringRef functionName = ident->getName();
+  
+  StringRef::iterator it = functionName.begin();
+  StringRef::iterator start = it;
+  StringRef::iterator endI = functionName.end();
+    
+  while (true) {
+    // Scan for the start of 'create' or 'copy'.
+    for ( ; it != endI ; ++it) {
+      // Search for the first character.  It can either be 'C' or 'c'.
+      char ch = *it;
+      if (ch == 'C' || ch == 'c') {
+        // Make sure this isn't something like 'recreate' or 'Scopy'.
+        if (ch == 'c' && it != start && isalpha(*(it - 1)))
+          continue;
+
+        ++it;
+        break;
+      }
+    }
+
+    // Did we hit the end of the string?  If so, we didn't find a match.
+    if (it == endI)
+      return false;
+    
+    // Scan for *lowercase* 'reate' or 'opy', followed by no lowercase
+    // character.
+    StringRef suffix = functionName.substr(it - start);
+    if (suffix.startswith("reate")) {
+      it += 5;
+    }
+    else if (suffix.startswith("opy")) {
+      it += 3;
+    } else {
+      // Keep scanning.
+      continue;
+    }
+    
+    if (it == endI || !islower(*it))
+      return true;
+  
+    // If we matched a lowercase character, it isn't the end of the
+    // word.  Keep scanning.
+  }
   
   return false;
 }

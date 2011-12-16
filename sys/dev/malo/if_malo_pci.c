@@ -79,7 +79,7 @@ struct malo_pci_softc {
  * Tunable variables.
  */
 SYSCTL_DECL(_hw_malo);
-SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_malo, OID_AUTO, pci, CTLFLAG_RD, 0,
     "Marvell 88W8335 driver PCI parameters");
 
 static int msi_disable = 0;				/* MSI disabled  */
@@ -175,7 +175,7 @@ malo_pci_attach(device_t dev)
 	 */
 	sc->malo_invalid = 1;
 
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		msic = pci_msi_count(dev);
 		if (bootverbose)
 			device_printf(dev, "MSI count : %d\n", msic);

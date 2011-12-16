@@ -553,7 +553,7 @@ mxge_firmware_probe(mxge_softc_t *sc)
 	 * Verify the max read request size was set to 4KB
 	 * before trying the test with 4KB.
 	 */
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		pectl = pci_read_config(dev, reg + 0x8, 2);
 		if ((pectl & (5 << 12)) != (5 << 12)) {
 			device_printf(dev, "Max Read Req. size != 4k (0x%x\n",
@@ -2834,7 +2834,7 @@ mxge_media_init(mxge_softc_t *sc)
 			return;
 		}
 	}
-	if (*ptr == 'C') {
+	if (*ptr == 'C' || *(ptr +1) == 'C') {
 		/* -C is CX4 */
 		sc->connector = MXGE_CX4;
 		mxge_media_set(sc, IFM_10G_CX4);
@@ -3054,6 +3054,14 @@ mxge_intr(void *arg)
 static void
 mxge_init(void *arg)
 {
+	mxge_softc_t *sc = arg;
+	struct ifnet *ifp = sc->ifp;
+
+
+	mtx_lock(&sc->driver_mtx);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		(void) mxge_open(sc);
+	mtx_unlock(&sc->driver_mtx);
 }
 
 
@@ -3731,7 +3739,7 @@ mxge_setup_cfg_space(mxge_softc_t *sc)
 	uint16_t cmd, lnk, pectl;
 
 	/* find the PCIe link width and set max read request to 4KB*/
-	if (pci_find_extcap(dev, PCIY_EXPRESS, &reg) == 0) {
+	if (pci_find_cap(dev, PCIY_EXPRESS, &reg) == 0) {
 		lnk = pci_read_config(dev, reg + 0x12, 2);
 		sc->link_width = (lnk >> 4) & 0x3f;
 
@@ -3760,7 +3768,7 @@ mxge_read_reboot(mxge_softc_t *sc)
 	uint32_t vs;
 
 	/* find the vendor specific offset */
-	if (pci_find_extcap(dev, PCIY_VENDOR, &vs) != 0) {
+	if (pci_find_cap(dev, PCIY_VENDOR, &vs) != 0) {
 		device_printf(sc->dev,
 			      "could not find vendor specific offset\n");
 		return (uint32_t)-1;

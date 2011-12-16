@@ -170,7 +170,7 @@ MODULE_DEPEND(uark, ucom, 1, 1, 1);
 MODULE_DEPEND(uark, usb, 1, 1, 1);
 MODULE_VERSION(uark, 1);
 
-static const struct usb_device_id uark_devs[] = {
+static const STRUCT_USB_HOST_ID uark_devs[] = {
 	{USB_VPI(USB_VENDOR_ARKMICRO, USB_PRODUCT_ARKMICRO_ARK3116, 0)},
 };
 

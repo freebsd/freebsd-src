@@ -65,14 +65,12 @@
 #include <sys/cdefs.h>
 #include <sys/stat.h>
 #include <sys/dirent.h>
+
+/* this header intentionally exports NULL from <string.h> */
 #include <string.h>
 
 #define CHK(fmt, args...)	printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args)
 #define PCHK(fmt, args...)	{printf("%s(%d): " fmt "\n", __func__, __LINE__ , ##args); getchar();}
-
-#ifndef NULL
-#define	NULL	0
-#endif
 
 /* Avoid unwanted userlandish components */
 #define _KERNEL

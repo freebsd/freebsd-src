@@ -3,8 +3,7 @@
 LIB=	llvmpowerpccodegen
 
 SRCDIR=	lib/Target/PowerPC
-SRCS=	PPCAsmBackend.cpp \
-	PPCAsmPrinter.cpp \
+SRCS=	PPCAsmPrinter.cpp \
 	PPCBranchSelector.cpp \
 	PPCCodeEmitter.cpp \
 	PPCFrameLowering.cpp \
@@ -13,10 +12,7 @@ SRCS=	PPCAsmBackend.cpp \
 	PPCISelLowering.cpp \
 	PPCInstrInfo.cpp \
 	PPCJITInfo.cpp \
-	PPCMCAsmInfo.cpp \
-	PPCMCCodeEmitter.cpp \
 	PPCMCInstLower.cpp \
-	PPCPredicates.cpp \
 	PPCRegisterInfo.cpp \
 	PPCSelectionDAGInfo.cpp \
 	PPCSubtarget.cpp \
@@ -27,11 +23,8 @@ TGHDRS=	Intrinsics \
 	PPCGenCodeEmitter \
 	PPCGenDAGISel \
 	PPCGenInstrInfo \
-	PPCGenInstrNames \
 	PPCGenMCCodeEmitter \
 	PPCGenRegisterInfo \
-	PPCGenRegisterInfo.h \
-	PPCGenRegisterNames \
-	PPCGenSubtarget
+	PPCGenSubtargetInfo
 
 .include "../clang.lib.mk"

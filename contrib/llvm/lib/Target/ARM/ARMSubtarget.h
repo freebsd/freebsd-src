@@ -7,50 +7,49 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// This file declares the ARM specific subclass of TargetSubtarget.
+// This file declares the ARM specific subclass of TargetSubtargetInfo.
 //
 //===----------------------------------------------------------------------===//
 
 #ifndef ARMSUBTARGET_H
 #define ARMSUBTARGET_H
 
-#include "llvm/Target/TargetInstrItineraries.h"
-#include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetSubtarget.h"
+#include "MCTargetDesc/ARMMCTargetDesc.h"
+#include "llvm/Target/TargetSubtargetInfo.h"
+#include "llvm/MC/MCInstrItineraries.h"
 #include "llvm/ADT/Triple.h"
 #include <string>
 
+#define GET_SUBTARGETINFO_HEADER
+#include "ARMGenSubtargetInfo.inc"
+
 namespace llvm {
 class GlobalValue;
+class StringRef;
 
-class ARMSubtarget : public TargetSubtarget {
+class ARMSubtarget : public ARMGenSubtargetInfo {
 protected:
-  enum ARMArchEnum {
-    V4, V4T, V5T, V5TE, V6, V6M, V6T2, V7A, V7M
-  };
-
   enum ARMProcFamilyEnum {
     Others, CortexA8, CortexA9
   };
 
-  enum ARMFPEnum {
-    None, VFPv2, VFPv3, NEON
-  };
-
-  enum ThumbTypeEnum {
-    Thumb1,
-    Thumb2
-  };
-
-  /// ARMArchVersion - ARM architecture version: V4, V4T (base), V5T, V5TE,
-  /// V6, V6T2, V7A, V7M.
-  ARMArchEnum ARMArchVersion;
-
   /// ARMProcFamily - ARM processor family: Cortex-A8, Cortex-A9, and others.
   ARMProcFamilyEnum ARMProcFamily;
 
-  /// ARMFPUType - Floating Point Unit type.
-  ARMFPEnum ARMFPUType;
+  /// HasV4TOps, HasV5TOps, HasV5TEOps, HasV6Ops, HasV6T2Ops, HasV7Ops -
+  /// Specify whether target support specific ARM ISA variants.
+  bool HasV4TOps;
+  bool HasV5TOps;
+  bool HasV5TEOps;
+  bool HasV6Ops;
+  bool HasV6T2Ops;
+  bool HasV7Ops;
+
+  /// HasVFPv2, HasVFPv3, HasNEON - Specify what floating point ISAs are
+  /// supported.
+  bool HasVFPv2;
+  bool HasVFPv3;
+  bool HasNEON;
 
   /// UseNEONForSinglePrecisionFP - if the NEONFP attribute has been
   /// specified. Use the method useNEONForSinglePrecisionFP() to
@@ -61,14 +60,25 @@ protected:
   /// whether the FP VML[AS] instructions are slow (if so, don't use them).
   bool SlowFPVMLx;
 
+  /// HasVMLxForwarding - If true, NEON has special multiplier accumulator
+  /// forwarding to allow mul + mla being issued back to back.
+  bool HasVMLxForwarding;
+
   /// SlowFPBrcc - True if floating point compare + branch is slow.
   bool SlowFPBrcc;
 
-  /// IsThumb - True if we are in thumb mode, false if in ARM mode.
-  bool IsThumb;
+  /// InThumbMode - True if compiling for Thumb, false for ARM.
+  bool InThumbMode;
 
-  /// ThumbMode - Indicates supported Thumb version.
-  ThumbTypeEnum ThumbMode;
+  /// InNaClMode - True if targeting Native Client
+  bool InNaClMode;
+
+  /// HasThumb2 - True if Thumb2 instructions are supported.
+  bool HasThumb2;
+
+  /// IsMClass - True if the subtarget belongs to the 'M' profile of CPUs - 
+  /// v6m, v7m for example.
+  bool IsMClass;
 
   /// NoARM - True if subtarget does not support ARM mode execution.
   bool NoARM;
@@ -82,6 +92,11 @@ protected:
   /// UseMovt - True if MOVT / MOVW pairs are used for materialization of 32-bit
   /// imms (including global addresses).
   bool UseMovt;
+
+  /// SupportsTailCall - True if the OS supports tail call. The dynamic linker
+  /// must be able to synthesize call stubs for interworking between ARM and
+  /// Thumb.
+  bool SupportsTailCall;
 
   /// HasFP16 - True if subtarget supports half-precision FP (We support VFP+HF
   /// only so far)
@@ -106,6 +121,11 @@ protected:
   /// over 16-bit ones.
   bool Pref32BitThumb;
 
+  /// AvoidCPSRPartialUpdate - If true, codegen would avoid using instructions
+  /// that partially update CPSR and add false dependency on the previous
+  /// CPSR setting instruction.
+  bool AvoidCPSRPartialUpdate;
+
   /// HasMPExtension - True if the subtarget supports Multiprocessing
   /// extension (ARMv7 only).
   bool HasMPExtension;
@@ -118,6 +138,10 @@ protected:
   /// accesses for some types.  For details, see
   /// ARMTargetLowering::allowsUnalignedMemoryAccesses().
   bool AllowsUnalignedMem;
+
+  /// Thumb2DSP - If true, the subtarget supports the v7 DSP (saturating arith
+  /// and such) instructions in Thumb2 code.
+  bool Thumb2DSP;
 
   /// stackAlignment - The minimum alignment known to hold of the stack frame on
   /// entry to the function and which must be maintained by every function.
@@ -145,7 +169,8 @@ protected:
   /// This constructor initializes the data members to match that
   /// of the specified triple.
   ///
-  ARMSubtarget(const std::string &TT, const std::string &FS, bool isThumb);
+  ARMSubtarget(const std::string &TT, const std::string &CPU,
+               const std::string &FS);
 
   /// getMaxInlineSizeThreshold - Returns the maximum memset / memcpy size
   /// that still makes it profitable to inline the call.
@@ -156,54 +181,65 @@ protected:
   }
   /// ParseSubtargetFeatures - Parses features string setting specified
   /// subtarget options.  Definition of function is auto generated by tblgen.
-  std::string ParseSubtargetFeatures(const std::string &FS,
-                                     const std::string &CPU);
+  void ParseSubtargetFeatures(StringRef CPU, StringRef FS);
 
   void computeIssueWidth();
 
-  bool hasV4TOps()  const { return ARMArchVersion >= V4T;  }
-  bool hasV5TOps()  const { return ARMArchVersion >= V5T;  }
-  bool hasV5TEOps() const { return ARMArchVersion >= V5TE; }
-  bool hasV6Ops()   const { return ARMArchVersion >= V6;   }
-  bool hasV6T2Ops() const { return ARMArchVersion >= V6T2; }
-  bool hasV7Ops()   const { return ARMArchVersion >= V7A;  }
+  bool hasV4TOps()  const { return HasV4TOps;  }
+  bool hasV5TOps()  const { return HasV5TOps;  }
+  bool hasV5TEOps() const { return HasV5TEOps; }
+  bool hasV6Ops()   const { return HasV6Ops;   }
+  bool hasV6T2Ops() const { return HasV6T2Ops; }
+  bool hasV7Ops()   const { return HasV7Ops;  }
 
   bool isCortexA8() const { return ARMProcFamily == CortexA8; }
   bool isCortexA9() const { return ARMProcFamily == CortexA9; }
 
   bool hasARMOps() const { return !NoARM; }
 
-  bool hasVFP2() const { return ARMFPUType >= VFPv2; }
-  bool hasVFP3() const { return ARMFPUType >= VFPv3; }
-  bool hasNEON() const { return ARMFPUType >= NEON;  }
+  bool hasVFP2() const { return HasVFPv2; }
+  bool hasVFP3() const { return HasVFPv3; }
+  bool hasNEON() const { return HasNEON;  }
   bool useNEONForSinglePrecisionFP() const {
     return hasNEON() && UseNEONForSinglePrecisionFP; }
+
   bool hasDivide() const { return HasHardwareDivide; }
   bool hasT2ExtractPack() const { return HasT2ExtractPack; }
   bool hasDataBarrier() const { return HasDataBarrier; }
   bool useFPVMLx() const { return !SlowFPVMLx; }
+  bool hasVMLxForwarding() const { return HasVMLxForwarding; }
   bool isFPBrccSlow() const { return SlowFPBrcc; }
   bool isFPOnlySP() const { return FPOnlySP; }
   bool prefers32BitThumb() const { return Pref32BitThumb; }
+  bool avoidCPSRPartialUpdate() const { return AvoidCPSRPartialUpdate; }
   bool hasMPExtension() const { return HasMPExtension; }
+  bool hasThumb2DSP() const { return Thumb2DSP; }
 
   bool hasFP16() const { return HasFP16; }
   bool hasD16() const { return HasD16; }
 
-  bool isTargetDarwin() const { return TargetTriple.getOS() == Triple::Darwin; }
+  const Triple &getTargetTriple() const { return TargetTriple; }
+
+  bool isTargetDarwin() const { return TargetTriple.isOSDarwin(); }
+  bool isTargetNaCl() const {
+    return TargetTriple.getOS() == Triple::NativeClient;
+  }
   bool isTargetELF() const { return !isTargetDarwin(); }
 
   bool isAPCS_ABI() const { return TargetABI == ARM_ABI_APCS; }
   bool isAAPCS_ABI() const { return TargetABI == ARM_ABI_AAPCS; }
 
-  bool isThumb() const { return IsThumb; }
-  bool isThumb1Only() const { return IsThumb && (ThumbMode == Thumb1); }
-  bool isThumb2() const { return IsThumb && (ThumbMode == Thumb2); }
-  bool hasThumb2() const { return ThumbMode >= Thumb2; }
+  bool isThumb() const { return InThumbMode; }
+  bool isThumb1Only() const { return InThumbMode && !HasThumb2; }
+  bool isThumb2() const { return InThumbMode && HasThumb2; }
+  bool hasThumb2() const { return HasThumb2; }
+  bool isMClass() const { return IsMClass; }
+  bool isARClass() const { return !IsMClass; }
 
   bool isR9Reserved() const { return IsR9Reserved; }
 
   bool useMovt() const { return UseMovt && hasV6T2Ops(); }
+  bool supportsTailCall() const { return SupportsTailCall; }
 
   bool allowsUnalignedMem() const { return AllowsUnalignedMem; }
 
@@ -213,7 +249,7 @@ protected:
 
   /// enablePostRAScheduler - True at 'More' optimization.
   bool enablePostRAScheduler(CodeGenOpt::Level OptLevel,
-                             TargetSubtarget::AntiDepBreakMode& Mode,
+                             TargetSubtargetInfo::AntiDepBreakMode& Mode,
                              RegClassVector& CriticalPathRCs) const;
 
   /// getInstrItins - Return the instruction itineraies based on subtarget

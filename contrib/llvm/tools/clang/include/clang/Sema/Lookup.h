@@ -268,7 +268,19 @@ public:
 
   /// \brief Tests whether the given declaration is acceptable.
   bool isAcceptableDecl(NamedDecl *D) const {
-    return D->isInIdentifierNamespace(IDNS);
+    if (!D->isInIdentifierNamespace(IDNS))
+      return false;
+    
+    // So long as this declaration is not module-private or was parsed as
+    // part of this translation unit (i.e., in the module), we're allowed to
+    // find it.
+    if (!D->isModulePrivate() || !D->isFromASTFile())
+      return true;
+
+    // FIXME: We should be allowed to refer to a module-private name from 
+    // within the same module, e.g., during template instantiation.
+    // This requires us know which module a particular declaration came from.
+    return false;
   }
 
   /// \brief Returns the identifier namespace mask for this lookup.
@@ -439,6 +451,7 @@ public:
     Decls.clear();
     if (Paths) deletePaths(Paths);
     Paths = NULL;
+    NamingClass = 0;
   }
 
   /// \brief Clears out any current state and re-initializes for a
@@ -455,7 +468,7 @@ public:
     configure();
   }
 
-  void print(llvm::raw_ostream &);
+  void print(raw_ostream &);
 
   /// Suppress the diagnostics that would normally fire because of this
   /// lookup.  This happens during (e.g.) redeclaration lookups.
@@ -623,9 +636,11 @@ private:
     /// \param Hiding a declaration that hides the declaration \p ND,
     /// or NULL if no such declaration exists.
     ///
+    /// \param Ctx the original context from which the lookup started.
+    ///
     /// \param InBaseClass whether this declaration was found in base
     /// class of the context we searched.
-    virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, 
+    virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, DeclContext *Ctx,
                            bool InBaseClass) = 0;
   };
 

@@ -51,7 +51,6 @@ __FBSDID("$FreeBSD$");
 #include "archive.h"
 
 struct write_fd_data {
-	off_t		offset;
 	int		fd;
 };
 
@@ -122,12 +121,16 @@ file_write(struct archive *a, void *client_data, const void *buff, size_t length
 	ssize_t	bytesWritten;
 
 	mine = (struct write_fd_data *)client_data;
-	bytesWritten = write(mine->fd, buff, length);
-	if (bytesWritten <= 0) {
-		archive_set_error(a, errno, "Write error");
-		return (-1);
+	for (;;) {
+		bytesWritten = write(mine->fd, buff, length);
+		if (bytesWritten <= 0) {
+			if (errno == EINTR)
+				continue;
+			archive_set_error(a, errno, "Write error");
+			return (-1);
+		}
+		return (bytesWritten);
 	}
-	return (bytesWritten);
 }
 
 static int

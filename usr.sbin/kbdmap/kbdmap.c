@@ -226,10 +226,10 @@ get_font(void)
 				}
 			}
 		}
+		fclose(fp);
 	} else
 		fprintf(stderr, "Could not open %s for reading\n", sysconfig);
 
-	fclose(fp);
 	return fnt;
 }
 
@@ -289,7 +289,7 @@ do_kbdcontrol(struct keymap *km)
 	if (!x11)
 		system(kbd_cmd);
 
-	fprintf(stderr, "keymap=%s\n", km->keym);
+	fprintf(stderr, "keymap=\"%s\"\n", km->keym);
 	free(kbd_cmd);
 }
 

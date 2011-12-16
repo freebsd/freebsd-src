@@ -231,7 +231,7 @@ static int sysctl_kern_malloc_stats(SYSCTL_HANDLER_ARGS);
 static time_t t_malloc_fail;
 
 #if defined(MALLOC_MAKE_FAILURES) || (MALLOC_DEBUG_MAXZONES > 1)
-SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_debug, OID_AUTO, malloc, CTLFLAG_RD, 0,
     "Kernel malloc debugging options");
 #endif
 
@@ -265,8 +265,8 @@ sysctl_kmem_map_free(SYSCTL_HANDLER_ARGS)
 	u_long size;
 
 	vm_map_lock_read(kmem_map);
-	size = kmem_map->root != NULL ?
-	    kmem_map->root->max_free : kmem_map->size;
+	size = kmem_map->root != NULL ? kmem_map->root->max_free :
+	    kmem_map->max_offset - kmem_map->min_offset;
 	vm_map_unlock_read(kmem_map);
 	return (sysctl_handle_long(oidp, &size, 0, req));
 }
@@ -408,6 +408,43 @@ malloc_type_freed(struct malloc_type *mtp, unsigned long size)
 }
 
 /*
+ *	contigmalloc:
+ *
+ *	Allocate a block of physically contiguous memory.
+ *
+ *	If M_NOWAIT is set, this routine will not block and return NULL if
+ *	the allocation fails.
+ */
+void *
+contigmalloc(unsigned long size, struct malloc_type *type, int flags,
+    vm_paddr_t low, vm_paddr_t high, unsigned long alignment,
+    unsigned long boundary)
+{
+	void *ret;
+
+	ret = (void *)kmem_alloc_contig(kernel_map, size, flags, low, high,
+	    alignment, boundary, VM_MEMATTR_DEFAULT);
+	if (ret != NULL)
+		malloc_type_allocated(type, round_page(size));
+	return (ret);
+}
+
+/*
+ *	contigfree:
+ *
+ *	Free a block of memory allocated by contigmalloc.
+ *
+ *	This routine may not block.
+ */
+void
+contigfree(void *addr, unsigned long size, struct malloc_type *type)
+{
+
+	kmem_free(kernel_map, (vm_offset_t)addr, size);
+	malloc_type_freed(type, round_page(size));
+}
+
+/*
  *	malloc:
  *
  *	Allocate a block of memory.
@@ -458,7 +495,7 @@ malloc(unsigned long size, struct malloc_type *mtp, int flags)
 		   ("malloc(M_WAITOK) in interrupt context"));
 
 #ifdef DEBUG_MEMGUARD
-	if (memguard_cmp(mtp, size)) {
+	if (memguard_cmp_mtp(mtp, size)) {
 		va = memguard_alloc(size, flags);
 		if (va != NULL)
 			return (va);
@@ -661,12 +698,9 @@ kmeminit(void *dummy)
 
 	/*
 	 * Try to auto-tune the kernel memory size, so that it is
-	 * more applicable for a wider range of machine sizes.
-	 * On an X86, a VM_KMEM_SIZE_SCALE value of 4 is good, while
-	 * a VM_KMEM_SIZE of 12MB is a fair compromise.  The
+	 * more applicable for a wider range of machine sizes.  The
 	 * VM_KMEM_SIZE_MAX is dependent on the maximum KVA space
-	 * available, and on an X86 with a total KVA space of 256MB,
-	 * try to keep VM_KMEM_SIZE_MAX at 80MB or below.
+	 * available.
 	 *
 	 * Note that the kmem_map is also used by the zone allocator,
 	 * so make sure that there is enough space.
@@ -703,16 +737,11 @@ kmeminit(void *dummy)
 	/*
 	 * Limit kmem virtual size to twice the physical memory.
 	 * This allows for kmem map sparseness, but limits the size
-	 * to something sane. Be careful to not overflow the 32bit
-	 * ints while doing the check.
+	 * to something sane.  Be careful to not overflow the 32bit
+	 * ints while doing the check or the adjustment.
 	 */
-	if (((vm_kmem_size / 2) / PAGE_SIZE) > cnt.v_page_count)
-		vm_kmem_size = 2 * cnt.v_page_count * PAGE_SIZE;
-
-	/*
-	 * Tune settings based on the kmem map's size at this time.
-	 */
-	init_param3(vm_kmem_size / PAGE_SIZE);
+	if (vm_kmem_size / 2 / PAGE_SIZE > mem_size)
+		vm_kmem_size = 2 * mem_size * PAGE_SIZE;
 
 #ifdef DEBUG_MEMGUARD
 	tmp = memguard_fudge(vm_kmem_size, vm_kmem_size_max);

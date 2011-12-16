@@ -91,7 +91,6 @@ __FBSDID("$FreeBSD$");
 #include <arm/at91/at91var.h>
 #include <arm/at91/at91rm92reg.h>
 #include <arm/at91/at91sam9g20reg.h>
-#include <arm/at91/at91board.h>
 
 #define KERNEL_PT_SYS		0	/* Page table for mapping proc0 zero page */
 #define KERNEL_PT_KERN		1

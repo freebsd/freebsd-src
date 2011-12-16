@@ -54,7 +54,6 @@
 \ Exported global variables;
 \
 \ string conf_files		configuration files to be loaded
-\ string password		password
 \ cell modules_options		pointer to first module information
 \ value verbose?		indicates if user wants a verbose loading
 \ value any_conf_read?		indicates if a conf file was succesfully read
@@ -164,7 +163,6 @@ structure: file_metadata
 
 string conf_files
 string nextboot_conf_file
-string password
 create module_options sizeof module.next allot 0 module_options !
 create last_module_option sizeof module.next allot 0 last_module_option !
 0 value verbose?
@@ -610,8 +608,6 @@ only forth also support-functions also file-processing definitions also
 
 : execute? s" exec" assignment_type?  ;
 
-: password? s" password" assignment_type?  ;
-
 : module_load? load_module_suffix suffix_type? ;
 
 : module_loadname?  module_loadname_suffix suffix_type?  ;
@@ -752,10 +748,6 @@ only forth also support-functions also file-processing definitions also
   ['] evaluate catch if EEXEC throw then
 ;
 
-: set_password
-  value_buffer strget unquote password string=
-;
-
 : process_assignment
   name_buffer .len @ 0= if exit then
   loader_conf_files?	if set_conf_files exit then
@@ -763,7 +755,6 @@ only forth also support-functions also file-processing definitions also
   nextboot_conf?	if set_nextboot_conf exit then
   verbose_flag?		if set_verbose exit then
   execute?		if execute_command exit then
-  password?		if set_password exit then
   module_load?		if set_module_flag exit then
   module_loadname?	if set_module_loadname exit then
   module_type?		if set_module_type exit then
@@ -1530,30 +1521,6 @@ also builtins
     standard_kernel_search
   then
   ?dup 0= if ['] load_modules catch then
-;
-
-\ read and store only as many bytes as we need, drop the extra
-: read-password { size | buf len -- }
-  size allocate if ENOMEM throw then
-  to buf
-  0 to len
-  begin
-    key
-    dup backspace = if
-      drop
-      len if
-        backspace emit bl emit backspace emit
-        len 1 - to len
-      else
-        bell emit
-      then
-    else
-      dup <cr> = if cr drop buf len exit then
-      [char] * emit
-      len size < if buf len chars + c!  else drop then
-      len 1+ to len
-    then
-  again
 ;
 
 \ Go back to straight forth vocabulary

@@ -100,9 +100,9 @@ u_int	cpu_vendor_id = 0;	/* CPU vendor ID */
 u_int	cpu_clflush_line_size = 32;
 
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_rng, CTLFLAG_RD,
-	&via_feature_rng, 0, "VIA C3/C7 RNG feature available in CPU");
+	&via_feature_rng, 0, "VIA RNG feature available in CPU");
 SYSCTL_UINT(_hw, OID_AUTO, via_feature_xcrypt, CTLFLAG_RD,
-	&via_feature_xcrypt, 0, "VIA C3/C7 xcrypt feature available in CPU");
+	&via_feature_xcrypt, 0, "VIA xcrypt feature available in CPU");
 
 #ifdef CPU_ENABLE_SSE
 u_int	cpu_fxsr;		/* SSE enabled */
@@ -420,6 +420,38 @@ init_6x86(void)
 }
 #endif /* I486_CPU */
 
+#ifdef I586_CPU
+/*
+ * IDT WinChip C6/2/2A/2B/3
+ *
+ * http://www.centtech.com/winchip_bios_writers_guide_v4_0.pdf
+ */
+static void
+init_winchip(void)
+{
+	u_int regs[4];
+	uint64_t fcr;
+
+	fcr = rdmsr(0x0107);
+
+	/*
+	 * Set ECX8, DSMC, DTLOCK/EDCTLB, EMMX, and ERETSTK and clear DPDC.
+	 */
+	fcr |= (1 << 1) | (1 << 7) | (1 << 8) | (1 << 9) | (1 << 16);
+	fcr &= ~(1ULL << 11);
+
+	/*
+	 * Additioanlly, set EBRPRED, E2MMX and EAMD3D for WinChip 2 and 3.
+	 */
+	if (CPUID_TO_MODEL(cpu_id) >= 8)
+		fcr |= (1 << 12) | (1 << 19) | (1 << 20);
+
+	wrmsr(0x0107, fcr);
+	do_cpuid(1, regs);
+	cpu_feature = regs[3];
+}
+#endif
+
 #ifdef I686_CPU
 /*
  * Cyrix 6x86MX (code-named M2)
@@ -538,70 +570,71 @@ init_mendocino(void)
 }
 
 /*
- * Initialize special VIA C3/C7 features
+ * Initialize special VIA features
  */
 static void
 init_via(void)
 {
 	u_int regs[4], val;
-	u_int64_t msreg;
+	uint64_t fcr;
 
+	/*
+	 * Explicitly enable CX8 and PGE on C3.
+	 *
+	 * http://www.via.com.tw/download/mainboards/6/13/VIA_C3_EBGA%20datasheet110.pdf
+	 */
+	if (CPUID_TO_MODEL(cpu_id) <= 9)
+		fcr = (1 << 1) | (1 << 7);
+	else
+		fcr = 0;
+
+	/*
+	 * Check extended CPUID for PadLock features.
+	 *
+	 * http://www.via.com.tw/en/downloads/whitepapers/initiatives/padlock/programming_guide.pdf
+	 */
 	do_cpuid(0xc0000000, regs);
-	val = regs[0];
-	if (val >= 0xc0000001) {
+	if (regs[0] >= 0xc0000001) {
 		do_cpuid(0xc0000001, regs);
 		val = regs[3];
 	} else
 		val = 0;
 
-	/* Enable RNG if present and disabled */
-	if (val & VIA_CPUID_HAS_RNG) {
-		if (!(val & VIA_CPUID_DO_RNG)) {
-			msreg = rdmsr(0x110B);
-			msreg |= 0x40;
-			wrmsr(0x110B, msreg);
-		}
+	/* Enable RNG if present. */
+	if ((val & VIA_CPUID_HAS_RNG) != 0) {
 		via_feature_rng = VIA_HAS_RNG;
+		wrmsr(0x110B, rdmsr(0x110B) | VIA_CPUID_DO_RNG);
 	}
-	/* Enable AES engine if present and disabled */
-	if (val & VIA_CPUID_HAS_ACE) {
-		if (!(val & VIA_CPUID_DO_ACE)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28);
-			wrmsr(0x1107, msreg);
-		}
+
+	/* Enable PadLock if present. */
+	if ((val & VIA_CPUID_HAS_ACE) != 0)
 		via_feature_xcrypt |= VIA_HAS_AES;
-	}
-	/* Enable ACE2 engine if present and disabled */
-	if (val & VIA_CPUID_HAS_ACE2) {
-		if (!(val & VIA_CPUID_DO_ACE2)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_ACE2) != 0)
 		via_feature_xcrypt |= VIA_HAS_AESCTR;
-	}
-	/* Enable SHA engine if present and disabled */
-	if (val & VIA_CPUID_HAS_PHE) {
-		if (!(val & VIA_CPUID_DO_PHE)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28/**/);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_PHE) != 0)
 		via_feature_xcrypt |= VIA_HAS_SHA;
-	}
-	/* Enable MM engine if present and disabled */
-	if (val & VIA_CPUID_HAS_PMM) {
-		if (!(val & VIA_CPUID_DO_PMM)) {
-			msreg = rdmsr(0x1107);
-			msreg |= (0x01 << 28/**/);
-			wrmsr(0x1107, msreg);
-		}
+	if ((val & VIA_CPUID_HAS_PMM) != 0)
 		via_feature_xcrypt |= VIA_HAS_MM;
-	}
+	if (via_feature_xcrypt != 0)
+		fcr |= 1 << 28;
+
+	wrmsr(0x1107, rdmsr(0x1107) | fcr);
 }
 
 #endif /* I686_CPU */
+
+#if defined(I586_CPU) || defined(I686_CPU)
+static void
+init_transmeta(void)
+{
+	u_int regs[0];
+
+	/* Expose all hidden features. */
+	wrmsr(0x80860004, rdmsr(0x80860004) | ~0UL);
+	do_cpuid(1, regs);
+	cpu_feature = regs[3];
+}
+#endif
 
 /*
  * Initialize CR4 (Control register 4) to enable SSE instructions.
@@ -644,12 +677,25 @@ initializecpu(void)
 		init_6x86();
 		break;
 #endif /* I486_CPU */
+#ifdef I586_CPU
+	case CPU_586:
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_CENTAUR:
+			init_winchip();
+			break;
+		case CPU_VENDOR_TRANSMETA:
+			init_transmeta();
+			break;
+		}
+		break;
+#endif
 #ifdef I686_CPU
 	case CPU_M2:
 		init_6x86MX();
 		break;
 	case CPU_686:
-		if (cpu_vendor_id == CPU_VENDOR_INTEL) {
+		switch (cpu_vendor_id) {
+		case CPU_VENDOR_INTEL:
 			switch (cpu_id & 0xff0) {
 			case 0x610:
 				init_ppro();
@@ -658,8 +704,9 @@ initializecpu(void)
 				init_mendocino();
 				break;
 			}
-		} else if (cpu_vendor_id == CPU_VENDOR_AMD) {
-#if defined(I686_CPU) && defined(CPU_ATHLON_SSE_HACK)
+			break;
+#ifdef CPU_ATHLON_SSE_HACK
+		case CPU_VENDOR_AMD:
 			/*
 			 * Sometimes the BIOS doesn't enable SSE instructions.
 			 * According to AMD document 20734, the mobile
@@ -676,21 +723,14 @@ initializecpu(void)
 				do_cpuid(1, regs);
 				cpu_feature = regs[3];
 			}
+			break;
 #endif
-		} else if (cpu_vendor_id == CPU_VENDOR_CENTAUR) {
-			switch (cpu_id & 0xff0) {
-			case 0x690:
-				if ((cpu_id & 0xf) < 3)
-					break;
-				/* fall through. */
-			case 0x6a0:
-			case 0x6d0:
-			case 0x6f0:
-				init_via();
-				break;
-			default:
-				break;
-			}
+		case CPU_VENDOR_CENTAUR:
+			init_via();
+			break;
+		case CPU_VENDOR_TRANSMETA:
+			init_transmeta();
+			break;
 		}
 #ifdef PAE
 		if ((amd_feature & AMDID_NX) != 0) {

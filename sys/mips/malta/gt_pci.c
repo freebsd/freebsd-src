@@ -326,15 +326,15 @@ gt_pci_attach(device_t dev)
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu1, 0,
 	    OCW3_SEL | OCW3_RR);
 
 	/* reset, program device, 4 bytes */
@@ -348,15 +348,15 @@ gt_pci_attach(device_t dev)
 	    ICW4_8086);
 
 	/* mask all interrupts */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
 	    sc->sc_imask & 0xff);
 
 	/* enable special mask mode */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    OCW3_SEL | OCW3_ESMM | OCW3_SMM);
 
 	/* read IRR by default */
-	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 1,
+	bus_space_write_1(sc->sc_st, sc->sc_ioh_icu2, 0,
 	    OCW3_SEL | OCW3_RR);
 
 	/*
@@ -724,7 +724,6 @@ static device_method_t gt_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	gt_read_ivar),
 	DEVMETHOD(bus_write_ivar,	gt_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	gt_pci_alloc_resource),
@@ -740,7 +739,7 @@ static device_method_t gt_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	gt_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	gt_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t gt_pci_driver = {

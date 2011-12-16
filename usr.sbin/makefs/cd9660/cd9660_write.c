@@ -1,4 +1,4 @@
-/*	$NetBSD: cd9660_write.c,v 1.13 2010/10/22 00:49:15 christos Exp $	*/
+/*	$NetBSD: cd9660_write.c,v 1.14 2011/01/04 09:48:21 wiz Exp $	*/
 
 /*
  * Copyright (c) 2005 Daniel Watt, Walter Deignan, Ryan Gabrys, Alan
@@ -294,10 +294,12 @@ cd9660_write_file(FILE *fd, cd9660node *writenode)
 			INODE_WARNX(("%s: writing inode %d blocks at %" PRIu32,
 			    __func__, (int)inode->st.st_ino, inode->ino));
 			inode->flags |= FI_WRITTEN;
-			cd9660_compute_full_filename(writenode,
-			    temp_file_name, 0);
+			if (writenode->node->contents == NULL)
+				cd9660_compute_full_filename(writenode,
+				    temp_file_name, 0);
 			ret = cd9660_copy_file(fd, writenode->fileDataSector,
-			    temp_file_name);
+			    (writenode->node->contents != NULL) ?
+			    writenode->node->contents : temp_file_name);
 			if (ret == 0)
 				goto out;
 		}
@@ -458,6 +460,7 @@ cd9660_copy_file(FILE *fd, off_t start_sector, const char *filename)
 		if (ferror(rf)) {
 			warn("%s: fread", __func__);
 			free(buf);
+			(void)fclose(rf);
 			return 0;
 		}
 
@@ -465,6 +468,7 @@ cd9660_copy_file(FILE *fd, off_t start_sector, const char *filename)
 		if (ferror(fd)) {
 			warn("%s: fwrite", __func__);
 			free(buf);
+			(void)fclose(rf);
 			return 0;
 		}
 		sector++;

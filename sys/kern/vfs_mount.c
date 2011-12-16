@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vfs_allow_nonmpsafe.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -51,6 +53,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/filedesc.h>
 #include <sys/reboot.h>
+#include <sys/sbuf.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysproto.h>
 #include <sys/sx.h>
@@ -78,7 +81,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -175,6 +178,25 @@ vfs_deleteopt(struct vfsoptlist *opts, const char *name)
 	}
 }
 
+static int
+vfs_isopt_ro(const char *opt)
+{
+
+	if (strcmp(opt, "ro") == 0 || strcmp(opt, "rdonly") == 0 ||
+	    strcmp(opt, "norw") == 0)
+		return (1);
+	return (0);
+}
+
+static int
+vfs_isopt_rw(const char *opt)
+{
+
+	if (strcmp(opt, "rw") == 0 || strcmp(opt, "noro") == 0)
+		return (1);
+	return (0);
+}
+
 /*
  * Check if options are equal (with or without the "no" prefix).
  */
@@ -203,6 +225,10 @@ vfs_equalopts(const char *opt1, const char *opt2)
 		if (strncmp(opt2, "no", 2) == 0 && strcmp(opt1, opt2 + 2) == 0)
 			return (1);
 	}
+	/* "ro" / "rdonly" / "norw" / "rw" / "noro" */
+	if ((vfs_isopt_ro(opt1) || vfs_isopt_rw(opt1)) &&
+	    (vfs_isopt_ro(opt2) || vfs_isopt_rw(opt2)))
+		return (1);
 	return (0);
 }
 
@@ -313,57 +339,35 @@ bad:
  * Merge the old mount options with the new ones passed
  * in the MNT_UPDATE case.
  *
- * XXX This function will keep a "nofoo" option in the
- *     new options if there is no matching "foo" option
- *     to be cancelled in the old options.  This is a bug
- *     if the option's canonical name is "foo".  E.g., "noro"
- *     shouldn't end up in the mount point's active options,
- *     but it can.
+ * XXX: This function will keep a "nofoo" option in the new
+ * options.  E.g, if the option's canonical name is "foo",
+ * "nofoo" ends up in the mount point's active options.
  */
 static void
-vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *opts)
+vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *oldopts)
 {
-	struct vfsopt *opt, *opt2, *new;
+	struct vfsopt *opt, *new;
 
-	TAILQ_FOREACH(opt, opts, link) {
-		/*
-		 * Check that this option hasn't been redefined
-		 * nor cancelled with a "no" mount option.
-		 */
-		opt2 = TAILQ_FIRST(toopts);
-		while (opt2 != NULL) {
-			if (strcmp(opt2->name, opt->name) == 0)
-				goto next;
-			if (strncmp(opt2->name, "no", 2) == 0 &&
-			    strcmp(opt2->name + 2, opt->name) == 0) {
-				vfs_freeopt(toopts, opt2);
-				goto next;
-			}
-			opt2 = TAILQ_NEXT(opt2, link);
-		}
-		/* We want this option, duplicate it. */
+	TAILQ_FOREACH(opt, oldopts, link) {
 		new = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
-		new->name = malloc(strlen(opt->name) + 1, M_MOUNT, M_WAITOK);
-		strcpy(new->name, opt->name);
+		new->name = strdup(opt->name, M_MOUNT);
 		if (opt->len != 0) {
 			new->value = malloc(opt->len, M_MOUNT, M_WAITOK);
 			bcopy(opt->value, new->value, opt->len);
-		} else {
+		} else
 			new->value = NULL;
-		}
 		new->len = opt->len;
 		new->seen = opt->seen;
-		TAILQ_INSERT_TAIL(toopts, new, link);
-next:
-		continue;
+		TAILQ_INSERT_HEAD(toopts, new, link);
 	}
+	vfs_sanitizeopts(toopts);
 }
 
 /*
  * Mount a filesystem.
  */
 int
-nmount(td, uap)
+sys_nmount(td, uap)
 	struct thread *td;
 	struct nmount_args /* {
 		struct iovec *iovp;
@@ -519,13 +523,12 @@ int
 vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 {
 	struct vfsoptlist *optlist;
-	struct vfsopt *opt, *noro_opt, *tmp_opt;
+	struct vfsopt *opt, *tmp_opt;
 	char *fstype, *fspath, *errmsg;
 	int error, fstypelen, fspathlen, errmsg_len, errmsg_pos;
-	int has_rw, has_noro;
 
 	errmsg = fspath = NULL;
-	errmsg_len = has_noro = has_rw = fspathlen = 0;
+	errmsg_len = fspathlen = 0;
 	errmsg_pos = -1;
 
 	error = vfs_buildopts(fsoptions, &optlist);
@@ -618,14 +621,10 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			free(opt->name, M_MOUNT);
 			opt->name = strdup("nonosymfollow", M_MOUNT);
 		}
-		else if (strcmp(opt->name, "noro") == 0) {
+		else if (strcmp(opt->name, "noro") == 0)
 			fsflags &= ~MNT_RDONLY;
-			has_noro = 1;
-		}
-		else if (strcmp(opt->name, "rw") == 0) {
+		else if (strcmp(opt->name, "rw") == 0)
 			fsflags &= ~MNT_RDONLY;
-			has_rw = 1;
-		}
 		else if (strcmp(opt->name, "ro") == 0)
 			fsflags |= MNT_RDONLY;
 		else if (strcmp(opt->name, "rdonly") == 0) {
@@ -639,22 +638,6 @@ vfs_donmount(struct thread *td, int fsflags, struct uio *fsoptions)
 			fsflags |= MNT_SYNCHRONOUS;
 		else if (strcmp(opt->name, "union") == 0)
 			fsflags |= MNT_UNION;
-	}
-
-	/*
-	 * If "rw" was specified as a mount option, and we
-	 * are trying to update a mount-point from "ro" to "rw",
-	 * we need a mount option "noro", since in vfs_mergeopts(),
-	 * "noro" will cancel "ro", but "rw" will not do anything.
-	 */
-	if (has_rw && !has_noro) {
-		noro_opt = malloc(sizeof(struct vfsopt), M_MOUNT, M_WAITOK);
-		noro_opt->name = strdup("noro", M_MOUNT);
-		noro_opt->value = NULL;
-		noro_opt->len = 0;
-		noro_opt->pos = -1;
-		noro_opt->seen = 1;
-		TAILQ_INSERT_TAIL(optlist, noro_opt, link);
 	}
 
 	/*
@@ -701,7 +684,7 @@ struct mount_args {
 #endif
 /* ARGSUSED */
 int
-mount(td, uap)
+sys_mount(td, uap)
 	struct thread *td;
 	struct mount_args /* {
 		char *type;
@@ -817,6 +800,14 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp);
+#ifndef VFS_ALLOW_NONMPSAFE
+	if (error == 0 && VFS_NEEDSGIANT(mp)) {
+		(void)VFS_UNMOUNT(mp, fsflags);
+		error = ENXIO;
+		printf("%s: Mounting non-MPSAFE fs (%s) is disabled\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+	}
+#endif
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -826,6 +817,11 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
+#ifdef VFS_ALLOW_NONMPSAFE
+	if (VFS_NEEDSGIANT(mp))
+		printf("%s: Mounting non-MPSAFE fs (%s) is deprecated\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+#endif
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
@@ -1116,7 +1112,7 @@ struct unmount_args {
 #endif
 /* ARGSUSED */
 int
-unmount(td, uap)
+sys_unmount(td, uap)
 	struct thread *td;
 	register struct unmount_args /* {
 		char *path;
@@ -1246,18 +1242,6 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = 0;
 	if (mp->mnt_lockref) {
-		if ((flags & MNT_FORCE) == 0) {
-			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
-			    MNTK_UNMOUNTF);
-			if (mp->mnt_kern_flag & MNTK_MWAIT) {
-				mp->mnt_kern_flag &= ~MNTK_MWAIT;
-				wakeup(mp);
-			}
-			MNT_IUNLOCK(mp);
-			if (coveredvp)
-				VOP_UNLOCK(coveredvp, 0);
-			return (EBUSY);
-		}
 		mp->mnt_kern_flag |= MNTK_DRAINING;
 		error = msleep(&mp->mnt_lockref, MNT_MTX(mp), PVFS,
 		    "mount drain", 0);
@@ -1515,7 +1499,8 @@ vfs_getopts(struct vfsoptlist *opts, const char *name, int *error)
 }
 
 int
-vfs_flagopt(struct vfsoptlist *opts, const char *name, u_int *w, u_int val)
+vfs_flagopt(struct vfsoptlist *opts, const char *name, uint64_t *w,
+	uint64_t val)
 {
 	struct vfsopt *opt;
 
@@ -1664,7 +1649,7 @@ __mnt_vnode_next(struct vnode **mvp, struct mount *mp)
 	KASSERT((*mvp)->v_mount == mp, ("marker vnode mount list mismatch"));
 	if (should_yield()) {
 		MNT_IUNLOCK(mp);
-		kern_yield(-1);
+		kern_yield(PRI_UNCHANGED);
 		MNT_ILOCK(mp);
 	}
 	vp = TAILQ_NEXT(*mvp, v_nmntvnodes);

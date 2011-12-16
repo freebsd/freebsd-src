@@ -35,9 +35,17 @@
 
 #include <sys/queue.h>
 #include <sys/_task.h>
+#include <sys/_callout.h>
 
 struct taskqueue;
 struct thread;
+
+struct timeout_task {
+	struct taskqueue *q;
+	struct task t;
+	struct callout c;
+	int    f;
+};
 
 /*
  * A notification callback function which is called from
@@ -54,9 +62,15 @@ struct taskqueue *taskqueue_create(const char *name, int mflags,
 int	taskqueue_start_threads(struct taskqueue **tqp, int count, int pri,
 				const char *name, ...) __printflike(4, 5);
 int	taskqueue_enqueue(struct taskqueue *queue, struct task *task);
+int	taskqueue_enqueue_timeout(struct taskqueue *queue,
+	    struct timeout_task *timeout_task, int ticks);
 int	taskqueue_cancel(struct taskqueue *queue, struct task *task,
 	    u_int *pendp);
+int	taskqueue_cancel_timeout(struct taskqueue *queue,
+	    struct timeout_task *timeout_task, u_int *pendp);
 void	taskqueue_drain(struct taskqueue *queue, struct task *task);
+void	taskqueue_drain_timeout(struct taskqueue *queue,
+	    struct timeout_task *timeout_task);
 void	taskqueue_free(struct taskqueue *queue);
 void	taskqueue_run(struct taskqueue *queue);
 void	taskqueue_block(struct taskqueue *queue);
@@ -78,6 +92,12 @@ void	taskqueue_thread_enqueue(void *context);
 	(task)->ta_func = (func);			\
 	(task)->ta_context = (context);			\
 } while (0)
+
+void _timeout_task_init(struct taskqueue *queue,
+	    struct timeout_task *timeout_task, int priority, task_fn_t func,
+	    void *context);
+#define	TIMEOUT_TASK_INIT(queue, timeout_task, priority, func, context) \
+	_timeout_task_init(queue, timeout_task, priority, func, context);
 
 /*
  * Declare a reference to a taskqueue.

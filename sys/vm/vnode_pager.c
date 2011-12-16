@@ -387,7 +387,7 @@ vnode_pager_setsize(vp, nsize)
 		 */
 		if (nobjsize < object->size)
 			vm_object_page_remove(object, nobjsize, object->size,
-			    FALSE);
+			    0);
 		/*
 		 * this gets rid of garbage at the end of a page that is now
 		 * only partially backed by the vnode.
@@ -413,7 +413,7 @@ vnode_pager_setsize(vp, nsize)
 			 * have been zeroed.  Some of these valid bits may
 			 * have already been set.
 			 */
-			vm_page_set_valid(m, base, size);
+			vm_page_set_valid_range(m, base, size);
 
 			/*
 			 * Round "base" to the next block boundary so that the
@@ -486,15 +486,16 @@ vnode_pager_input_smlfs(object, m)
 	vm_object_t object;
 	vm_page_t m;
 {
-	int bits, i;
 	struct vnode *vp;
 	struct bufobj *bo;
 	struct buf *bp;
 	struct sf_buf *sf;
 	daddr_t fileaddr;
 	vm_offset_t bsize;
-	int error = 0;
+	vm_page_bits_t bits;
+	int error, i;
 
+	error = 0;
 	vp = object->handle;
 	if (vp->v_iflag & VI_DOOMED)
 		return VM_PAGER_BAD;
@@ -963,7 +964,7 @@ vnode_pager_generic_getpages(vp, m, bytecount, reqpage)
 			 * we just try to clear the piece that we couldn't
 			 * read.
 			 */
-			vm_page_set_valid(mt, 0,
+			vm_page_set_valid_range(mt, 0,
 			    object->un_pager.vnp.vnp_size - tfoff);
 			KASSERT((mt->dirty & vm_page_bits(0,
 			    object->un_pager.vnp.vnp_size - tfoff)) == 0,
@@ -1089,7 +1090,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	count = bytecount / PAGE_SIZE;
 
 	for (i = 0; i < count; i++)
-		rtvals[i] = VM_PAGER_AGAIN;
+		rtvals[i] = VM_PAGER_ERROR;
 
 	if ((int64_t)ma[0]->pindex < 0) {
 		printf("vnode_pager_putpages: attempt to write meta-data!!! -- 0x%lx(%lx)\n",
@@ -1132,7 +1133,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 				m = ma[ncount - 1];
 				KASSERT(m->busy > 0,
 		("vnode_pager_generic_putpages: page %p is not busy", m));
-				KASSERT((m->flags & PG_WRITEABLE) == 0,
+				KASSERT((m->aflags & PGA_WRITEABLE) == 0,
 		("vnode_pager_generic_putpages: page %p is not read-only", m));
 				vm_page_clear_dirty(m, pgoff, PAGE_SIZE -
 				    pgoff);
@@ -1150,7 +1151,7 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 	VM_OBJECT_UNLOCK(object);
 
 	/*
-	 * pageouts are already clustered, use IO_ASYNC t o force a bawrite()
+	 * pageouts are already clustered, use IO_ASYNC to force a bawrite()
 	 * rather then a bdwrite() to prevent paging I/O from saturating 
 	 * the buffer cache.  Dummy-up the sequential heuristic to cause
 	 * large ranges to cluster.  If neither IO_SYNC or IO_ASYNC is set,
@@ -1190,4 +1191,27 @@ vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *ma, int bytecount,
 		rtvals[i] = VM_PAGER_OK;
 	}
 	return rtvals[0];
+}
+
+void
+vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
+{
+	vm_object_t obj;
+	int i, pos;
+
+	if (written == 0)
+		return;
+	obj = ma[0]->object;
+	VM_OBJECT_LOCK(obj);
+	for (i = 0, pos = 0; pos < written; i++, pos += PAGE_SIZE) {
+		if (pos < trunc_page(written)) {
+			rtvals[i] = VM_PAGER_OK;
+			vm_page_undirty(ma[i]);
+		} else {
+			/* Partially written page. */
+			rtvals[i] = VM_PAGER_AGAIN;
+			vm_page_clear_dirty(ma[i], 0, written & PAGE_MASK);
+		}
+	}
+	VM_OBJECT_UNLOCK(obj);
 }

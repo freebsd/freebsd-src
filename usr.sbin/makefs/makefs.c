@@ -38,6 +38,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/types.h>
+#include <sys/stat.h>
 #include <assert.h>
 #include <ctype.h>
 #include <errno.h>
@@ -80,11 +82,13 @@ int		main(int, char *[]);
 int
 main(int argc, char *argv[])
 {
+	struct stat	 sb;
 	struct timeval	 start;
 	fstype_t	*fstype;
 	fsinfo_t	 fsoptions;
 	fsnode		*root;
 	int	 	 ch, len;
+	char		*subtree;
 	char		*specfile;
 
 	setprogname(argv[0]);
@@ -244,26 +248,47 @@ main(int argc, char *argv[])
 	if (fsoptions.onlyspec != 0 && specfile == NULL)
 		errx(1, "-x requires -F mtree-specfile.");
 
-				/* walk the tree */
-	TIMER_START(start);
-	root = walk_dir(argv[1], NULL);
-	TIMER_RESULTS(start, "walk_dir");
+	/* Accept '-' as meaning "read from standard input". */
+	if (strcmp(argv[1], "-") == 0)
+		sb.st_mode = S_IFREG;
+	else {
+		if (stat(argv[1], &sb) == -1)
+			err(1, "Can't stat `%s'", argv[1]);
+	}
+
+	switch (sb.st_mode & S_IFMT) {
+	case S_IFDIR:		/* walk the tree */
+		subtree = argv[1];
+		TIMER_START(start);
+		root = walk_dir(subtree, NULL);
+		TIMER_RESULTS(start, "walk_dir");
+		break;
+	case S_IFREG:		/* read the manifest file */
+		subtree = ".";
+		TIMER_START(start);
+		root = read_mtree(argv[1], NULL);
+		TIMER_RESULTS(start, "manifest");
+		break;
+	default:
+		errx(1, "%s: not a file or directory", argv[1]);
+		/* NOTREACHED */
+	}
 
 	if (specfile) {		/* apply a specfile */
 		TIMER_START(start);
-		apply_specfile(specfile, argv[1], root, fsoptions.onlyspec);
+		apply_specfile(specfile, subtree, root, fsoptions.onlyspec);
 		TIMER_RESULTS(start, "apply_specfile");
 	}
 
 	if (debug & DEBUG_DUMP_FSNODES) {
-		printf("\nparent: %s\n", argv[1]);
+		printf("\nparent: %s\n", subtree);
 		dump_fsnodes(".", root);
 		putchar('\n');
 	}
 
 				/* build the file system */
 	TIMER_START(start);
-	fstype->make_fs(argv[0], argv[1], root, &fsoptions);
+	fstype->make_fs(argv[0], subtree, root, &fsoptions);
 	TIMER_RESULTS(start, "make_fs");
 
 	free_fsnodes(root);
@@ -311,7 +336,7 @@ usage(void)
 "usage: %s [-t fs-type] [-o fs-options] [-d debug-mask] [-B endian]\n"
 "\t[-S sector-size] [-M minimum-size] [-m maximum-size] [-s image-size]\n"
 "\t[-b free-blocks] [-f free-files] [-F mtree-specfile] [-x]\n"
-"\t[-N userdb-dir] image-file directory\n",
+"\t[-N userdb-dir] image-file directory | manifest\n",
 	    prog);
 	exit(1);
 }

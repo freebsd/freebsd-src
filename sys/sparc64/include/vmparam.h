@@ -15,10 +15,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *      This product includes software developed by the University of
- *      California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -74,7 +70,7 @@
  * The number of PHYSSEG entries must be one greater than the number
  * of phys_avail entries because the phys_avail entry that spans the
  * largest physical address that is accessible by ISA DMA is split
- * into two PHYSSEG entries. 
+ * into two PHYSSEG entries.
  */
 #define	VM_PHYSSEG_MAX		64
 
@@ -140,13 +136,13 @@
  * 43 bits of user address space is considered to be "enough", so we ignore it.
  *
  * Upper region:	0xffffffffffffffff
- * 			0xfffff80000000000
- * 
+ *			0xfffff80000000000
+ *
  * Hole:		0xfffff7ffffffffff
- * 			0x0000080000000000
+ *			0x0000080000000000
  *
  * Lower region:	0x000007ffffffffff
- * 			0x0000000000000000
+ *			0x0000000000000000
  *
  * In general we ignore the upper region, and use the lower region as mappable
  * space.
@@ -222,7 +218,7 @@
  * is the total KVA space allocated for kmem_map.
  */
 #ifndef VM_KMEM_SIZE_SCALE
-#define	VM_KMEM_SIZE_SCALE	(3)
+#define	VM_KMEM_SIZE_SCALE	(tsb_kernel_ldd_phys == 0 ? 3 : 1)
 #endif
 
 /*
@@ -242,6 +238,14 @@
 
 #define	UMA_MD_SMALL_ALLOC
 
+extern u_int tsb_kernel_ldd_phys;
 extern vm_offset_t vm_max_kernel_address;
+
+/*
+ * Older sparc64 machines have a virtually indexed L1 data cache of 16KB.
+ * Consequently, mapping the same physical page multiple times may have
+ * caching disabled.
+ */
+#define	ZERO_REGION_SIZE	PAGE_SIZE
 
 #endif /* !_MACHINE_VMPARAM_H_ */

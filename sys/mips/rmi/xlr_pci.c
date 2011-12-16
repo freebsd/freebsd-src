@@ -126,7 +126,7 @@ xlr_pci_init_resources(void)
 		panic("pci_init_resources irq_rman");
 
 	port_rman.rm_start = 0;
-	port_rman.rm_end = ~0u;
+	port_rman.rm_end = ~0ul;
 	port_rman.rm_type = RMAN_ARRAY;
 	port_rman.rm_descr = "I/O ports";
 	if (rman_init(&port_rman)
@@ -134,7 +134,7 @@ xlr_pci_init_resources(void)
 		panic("pci_init_resources port_rman");
 
 	mem_rman.rm_start = 0;
-	mem_rman.rm_end = ~0u;
+	mem_rman.rm_end = ~0ul;
 	mem_rman.rm_type = RMAN_ARRAY;
 	mem_rman.rm_descr = "I/O memory";
 	if (rman_init(&mem_rman)
@@ -627,7 +627,6 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(device_attach, xlr_pcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar, xlr_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar, xlr_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource, xlr_pci_alloc_resource),
@@ -648,7 +647,7 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(pcib_release_msi, xlr_release_msi),
 	DEVMETHOD(pcib_map_msi, xlr_map_msi),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xlr_pcib_driver = {

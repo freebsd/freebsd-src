@@ -75,7 +75,8 @@ struct swdevt {
 extern int swap_pager_full;
 extern int swap_pager_avail;
 
-struct swdevt;
+struct xswdev;
+int swap_dev_info(int name, struct xswdev *xs, char *devname, size_t len);
 void swap_pager_copy(vm_object_t, vm_object_t, vm_pindex_t, int);
 void swap_pager_freespace(vm_object_t, vm_pindex_t, vm_size_t);
 void swap_pager_swap_init(void);

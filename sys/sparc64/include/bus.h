@@ -14,13 +14,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the NetBSD
- *	Foundation, Inc. and its contributors.
- * 4. Neither the name of The NetBSD Foundation nor the names of its
- *    contributors may be used to endorse or promote products derived
- *    from this software without specific prior written permission.
  *
  * THIS SOFTWARE IS PROVIDED BY THE NETBSD FOUNDATION, INC. AND CONTRIBUTORS
  * ``AS IS'' AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED
@@ -65,7 +58,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * 	from: NetBSD: bus.h,v 1.28 2001/07/19 15:32:19 thorpej Exp
+ * 	from: NetBSD: bus.h,v 1.58 2008/04/28 20:23:36 martin Exp
  *	and
  *	from: FreeBSD: src/sys/alpha/include/bus.h,v 1.9 2001/01/09
  *
@@ -129,31 +122,14 @@ static int bus_space_subregion(bus_space_tag_t, bus_space_handle_t,
 /*
  * Map a region of device bus space into CPU virtual address space.
  */
-
-static __inline int bus_space_map(bus_space_tag_t t, bus_addr_t addr,
-    bus_size_t size, int flags, bus_space_handle_t *bshp);
-
-static __inline int
-bus_space_map(bus_space_tag_t t __unused, bus_addr_t addr,
-    bus_size_t size __unused, int flags __unused, bus_space_handle_t *bshp)
-{
-
-	*bshp = addr;
-	return (0);
-}
+int bus_space_map(bus_space_tag_t tag, bus_addr_t address, bus_size_t size,
+    int flags, bus_space_handle_t *handlep);
 
 /*
  * Unmap a region of device bus space.
  */
-static __inline void bus_space_unmap(bus_space_tag_t t, bus_space_handle_t bsh,
+void bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
     bus_size_t size);
-
-static __inline void
-bus_space_unmap(bus_space_tag_t t __unused, bus_space_handle_t bsh __unused,
-    bus_size_t size __unused)
-{
-
-}
 
 /* This macro finds the first "upstream" implementation of method `f' */
 #define	_BS_CALL(t,f)							\

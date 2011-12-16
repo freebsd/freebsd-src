@@ -1,4 +1,4 @@
-.\" Copyright (C) 2008 Internet Systems Consortium, Inc. ("ISC")
+.\" Copyright (C) 2008-2010 Internet Systems Consortium, Inc. ("ISC")
 .\" 
 .\" Permission to use, copy, modify, and/or distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -12,18 +12,18 @@
 .\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
 .\" PERFORMANCE OF THIS SOFTWARE.
 .\"
-.\" $Id: dnssec-dsfromkey.8,v 1.5.14.1 2010-05-19 02:06:11 tbox Exp $
+.\" $Id: dnssec-dsfromkey.8,v 1.13 2010-12-24 01:14:20 tbox Exp $
 .\"
 .hy 0
 .ad l
 .\"     Title: dnssec\-dsfromkey
 .\"    Author: 
 .\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
-.\"      Date: November 29, 2008
+.\"      Date: August 26, 2009
 .\"    Manual: BIND9
 .\"    Source: BIND9
 .\"
-.TH "DNSSEC\-DSFROMKEY" "8" "November 29, 2008" "BIND9" "BIND9"
+.TH "DNSSEC\-DSFROMKEY" "8" "August 26, 2009" "BIND9" "BIND9"
 .\" disable hyphenation
 .nh
 .\" disable justification (adjust text to left margin only)
@@ -32,9 +32,9 @@
 dnssec\-dsfromkey \- DNSSEC DS RR generation tool
 .SH "SYNOPSIS"
 .HP 17
-\fBdnssec\-dsfromkey\fR [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] {keyfile}
+\fBdnssec\-dsfromkey\fR [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] {keyfile}
 .HP 17
-\fBdnssec\-dsfromkey\fR {\-s} [\fB\-v\ \fR\fB\fIlevel\fR\fR] [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-d\ \fR\fB\fIdir\fR\fR] {dnsname}
+\fBdnssec\-dsfromkey\fR {\-s} [\fB\-1\fR] [\fB\-2\fR] [\fB\-a\ \fR\fB\fIalg\fR\fR] [\fB\-K\ \fR\fB\fIdirectory\fR\fR] [\fB\-l\ \fR\fB\fIdomain\fR\fR] [\fB\-s\fR] [\fB\-c\ \fR\fB\fIclass\fR\fR] [\fB\-f\ \fR\fB\fIfile\fR\fR] [\fB\-A\fR] [\fB\-v\ \fR\fB\fIlevel\fR\fR] {dnsname}
 .SH "DESCRIPTION"
 .PP
 \fBdnssec\-dsfromkey\fR
@@ -55,31 +55,49 @@ Use SHA\-256 as the digest algorithm.
 .RS 4
 Select the digest algorithm. The value of
 \fBalgorithm\fR
-must be one of SHA\-1 (SHA1) or SHA\-256 (SHA256). These values are case insensitive.
+must be one of SHA\-1 (SHA1), SHA\-256 (SHA256) or GOST. These values are case insensitive.
+.RE
+.PP
+\-K \fIdirectory\fR
+.RS 4
+Look for key files (or, in keyset mode,
+\fIkeyset\-\fR
+files) in
+\fBdirectory\fR.
+.RE
+.PP
+\-f \fIfile\fR
+.RS 4
+Zone file mode: in place of the keyfile name, the argument is the DNS domain name of a zone master file, which can be read from
+\fBfile\fR. If the zone name is the same as
+\fBfile\fR, then it may be omitted.
+.RE
+.PP
+\-A
+.RS 4
+Include ZSK's when generating DS records. Without this option, only keys which have the KSK flag set will be converted to DS records and printed. Useful only in zone file mode.
+.RE
+.PP
+\-l \fIdomain\fR
+.RS 4
+Generate a DLV set instead of a DS set. The specified
+\fBdomain\fR
+is appended to the name for each record in the set. The DNSSEC Lookaside Validation (DLV) RR is described in RFC 4431.
+.RE
+.PP
+\-s
+.RS 4
+Keyset mode: in place of the keyfile name, the argument is the DNS domain name of a keyset file.
+.RE
+.PP
+\-c \fIclass\fR
+.RS 4
+Specifies the DNS class (default is IN). Useful only in keyset or zone file mode.
 .RE
 .PP
 \-v \fIlevel\fR
 .RS 4
 Sets the debugging level.
-.RE
-.PP
-\-s
-.RS 4
-Keyset mode: in place of the keyfile name, the argument is the DNS domain name of a keyset file. Following options make sense only in this mode.
-.RE
-.PP
-\-c \fIclass\fR
-.RS 4
-Specifies the DNS class (default is IN), useful only in the keyset mode.
-.RE
-.PP
-\-d \fIdirectory\fR
-.RS 4
-Look for
-\fIkeyset\fR
-files in
-\fBdirectory\fR
-as the directory, ignored when not in the keyset mode.
 .RE
 .SH "EXAMPLE"
 .PP
@@ -115,10 +133,11 @@ A keyfile error can give a "file not found" even if the file exists.
 \fBdnssec\-signzone\fR(8),
 BIND 9 Administrator Reference Manual,
 RFC 3658,
+RFC 4431.
 RFC 4509.
 .SH "AUTHOR"
 .PP
 Internet Systems Consortium
 .SH "COPYRIGHT"
-Copyright \(co 2008 Internet Systems Consortium, Inc. ("ISC")
+Copyright \(co 2008\-2010 Internet Systems Consortium, Inc. ("ISC")
 .br

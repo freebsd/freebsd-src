@@ -40,10 +40,10 @@ options 	FFS			#Berkeley Fast Filesystem
 #options 	MD_ROOT			#MD is a potential root device
 #options 	MD_ROOT_SIZE=4096	# 4MB ram disk
 options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
-options 	NFSCLIENT		#Network Filesystem Client
-#options 	NFSSERVER		#Network Filesystem Server
+options 	NFSCL			#New Network Filesystem Client
+#options 	NFSD			#New Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
-#options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+#options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 #options 	BOOTP_NFSROOT
 #options 	BOOTP
 
@@ -126,7 +126,7 @@ device		udav		# Davicom DM9601E USB
 device		rum		# Ralink Technology RT2501USB wireless NICs
 device		uath		# Atheros AR5523 wireless NICs
 device		ural		# Ralink Technology RT2500USB wireless NICs
-device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
+device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)

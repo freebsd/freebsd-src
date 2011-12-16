@@ -22,11 +22,13 @@ dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
 dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
+dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
 dev/fdt/fdt_powerpc.c		optional	fdt
 dev/hwpmc/hwpmc_powerpc.c	optional	hwpmc
+dev/iicbus/ad7417.c		optional	ad7417 powermac
 dev/iicbus/ds1775.c		optional	ds1775 powermac
 dev/iicbus/max6690.c		optional	max6690 powermac
 dev/kbd/kbd.c			optional	sc
@@ -86,7 +88,6 @@ powerpc/aim/moea64_if.m		optional	aim
 powerpc/aim/moea64_native.c	optional	aim
 powerpc/aim/mp_cpudep.c		optional	aim smp
 powerpc/aim/nexus.c		optional	aim
-powerpc/aim/ofwmagic.S		optional	aim
 powerpc/aim/slb.c		optional	aim powerpc64
 powerpc/aim/swtch32.S		optional	aim powerpc
 powerpc/aim/swtch64.S		optional	aim powerpc64
@@ -136,6 +137,10 @@ powerpc/ofw/ofw_pcibus.c	optional	pci aim
 powerpc/ofw/ofw_pcib_pci.c	optional	pci aim
 powerpc/ofw/ofw_real.c		optional	aim
 powerpc/ofw/ofw_syscons.c	optional	sc aim
+powerpc/ofw/ofwcall32.S		optional	aim powerpc
+powerpc/ofw/ofwcall64.S		optional	aim powerpc64
+powerpc/ofw/ofwmagic.S		optional	aim
+powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
@@ -150,6 +155,7 @@ powerpc/powermac/macgpio.c	optional	powermac pci
 powerpc/powermac/macio.c	optional	powermac pci
 powerpc/powermac/openpic_macio.c optional	powermac pci
 powerpc/powermac/platform_powermac.c optional	powermac
+powerpc/powermac/powermac_thermal.c optional	powermac
 powerpc/powermac/pswitch.c	optional	powermac pswitch
 powerpc/powermac/pmu.c		optional	powermac pmu 
 powerpc/powermac/smu.c		optional	powermac smu 
@@ -157,6 +163,7 @@ powerpc/powermac/smusat.c	optional	powermac smu
 powerpc/powermac/uninorth.c	optional	powermac
 powerpc/powermac/uninorthpci.c	optional	powermac pci
 powerpc/powermac/vcoregpio.c	optional	powermac 
+powerpc/powermac/windtunnel.c	optional	powermac windtunnel
 powerpc/powerpc/altivec.c	optional	aim
 powerpc/powerpc/atomic.S	standard
 powerpc/powerpc/autoconf.c	standard
@@ -176,7 +183,7 @@ powerpc/powerpc/exec_machdep.c	standard
 powerpc/powerpc/fpu.c		optional	aim
 powerpc/powerpc/fuswintr.c	standard
 powerpc/powerpc/gdb_machdep.c	optional	gdb
-powerpc/powerpc/in_cksum.c	optional	inet
+powerpc/powerpc/in_cksum.c	optional	inet | inet6
 powerpc/powerpc/intr_machdep.c	standard
 powerpc/powerpc/iommu_if.m	standard
 powerpc/powerpc/mem.c		optional	mem
@@ -197,11 +204,13 @@ powerpc/powerpc/syncicache.c	standard
 powerpc/powerpc/sys_machdep.c	standard
 powerpc/powerpc/uio_machdep.c	standard
 powerpc/ps3/ehci_ps3.c		optional	ps3 ehci
+powerpc/ps3/ohci_ps3.c		optional	ps3 ohci
 powerpc/ps3/if_glc.c		optional	ps3 glc
 powerpc/ps3/mmu_ps3.c		optional	ps3
 powerpc/ps3/platform_ps3.c	optional	ps3
-powerpc/ps3/ps3ata.c		optional	ps3 ps3ata
 powerpc/ps3/ps3bus.c		optional	ps3
+powerpc/ps3/ps3cdrom.c		optional	ps3 scbus
+powerpc/ps3/ps3disk.c		optional	ps3
 powerpc/ps3/ps3pic.c		optional	ps3
 powerpc/ps3/ps3_syscons.c	optional	ps3 sc
 powerpc/ps3/ps3-hvcall.S	optional	ps3 sc

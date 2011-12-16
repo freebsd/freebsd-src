@@ -23,7 +23,6 @@
 
 namespace llvm {
   class FoldingSetNodeID;
-  class raw_ostream;
 }
 
 namespace clang {
@@ -235,8 +234,13 @@ public:
   bool isNull() const { return Kind == Null; }
 
   /// \brief Whether this template argument is dependent on a template
-  /// parameter.
+  /// parameter such that its result can change from one instantiation to
+  /// another.
   bool isDependent() const;
+
+  /// \brief Whether this template argument is dependent on a template
+  /// parameter.
+  bool isInstantiationDependent() const;
 
   /// \brief Whether this template argument contains an unexpanded
   /// parameter pack.
@@ -349,7 +353,7 @@ public:
   TemplateArgument getPackExpansionPattern() const;
 
   /// \brief Print this template argument to the given output stream.
-  void print(const PrintingPolicy &Policy, llvm::raw_ostream &Out) const;
+  void print(const PrintingPolicy &Policy, raw_ostream &Out) const;
              
   /// \brief Used to insert TemplateArguments into FoldingSets.
   void Profile(llvm::FoldingSetNodeID &ID, const ASTContext &Context) const;
@@ -362,7 +366,10 @@ private:
     Expr *Expression;
     TypeSourceInfo *Declarator;
     struct {
-      unsigned QualifierRange[2];
+      // FIXME: We'd like to just use the qualifier in the TemplateName,
+      // but template arguments get canonicalized too quickly.
+      NestedNameSpecifier *Qualifier;
+      void *QualifierLocData;
       unsigned TemplateNameLoc;
       unsigned EllipsisLoc;
     } Template;
@@ -375,12 +382,12 @@ public:
   
   TemplateArgumentLocInfo(Expr *E) : Expression(E) {}
   
-  TemplateArgumentLocInfo(SourceRange QualifierRange, 
+  TemplateArgumentLocInfo(NestedNameSpecifierLoc QualifierLoc,
                           SourceLocation TemplateNameLoc,
                           SourceLocation EllipsisLoc)
   {
-    Template.QualifierRange[0] = QualifierRange.getBegin().getRawEncoding();
-    Template.QualifierRange[1] = QualifierRange.getEnd().getRawEncoding();
+    Template.Qualifier = QualifierLoc.getNestedNameSpecifier();
+    Template.QualifierLocData = QualifierLoc.getOpaqueData();
     Template.TemplateNameLoc = TemplateNameLoc.getRawEncoding();
     Template.EllipsisLoc = EllipsisLoc.getRawEncoding();
   }
@@ -393,10 +400,9 @@ public:
     return Expression;
   }
 
-  SourceRange getTemplateQualifierRange() const {
-    return SourceRange(
-                SourceLocation::getFromRawEncoding(Template.QualifierRange[0]),
-                SourceLocation::getFromRawEncoding(Template.QualifierRange[1]));
+  NestedNameSpecifierLoc getTemplateQualifierLoc() const {
+    return NestedNameSpecifierLoc(Template.Qualifier, 
+                                  Template.QualifierLocData);
   }
   
   SourceLocation getTemplateNameLoc() const {
@@ -433,11 +439,10 @@ public:
   }
 
   TemplateArgumentLoc(const TemplateArgument &Argument, 
-                      SourceRange QualifierRange,
+                      NestedNameSpecifierLoc QualifierLoc,
                       SourceLocation TemplateNameLoc,
                       SourceLocation EllipsisLoc = SourceLocation())
-    : Argument(Argument), 
-      LocInfo(QualifierRange, TemplateNameLoc, EllipsisLoc) {
+    : Argument(Argument), LocInfo(QualifierLoc, TemplateNameLoc, EllipsisLoc) {
     assert(Argument.getKind() == TemplateArgument::Template ||
            Argument.getKind() == TemplateArgument::TemplateExpansion);
   }
@@ -477,10 +482,10 @@ public:
     return LocInfo.getAsExpr();
   }
   
-  SourceRange getTemplateQualifierRange() const {
+  NestedNameSpecifierLoc getTemplateQualifierLoc() const {
     assert(Argument.getKind() == TemplateArgument::Template ||
            Argument.getKind() == TemplateArgument::TemplateExpansion);
-    return LocInfo.getTemplateQualifierRange();
+    return LocInfo.getTemplateQualifierLoc();
   }
   
   SourceLocation getTemplateNameLoc() const {
@@ -509,9 +514,13 @@ public:
 /// A convenient class for passing around template argument
 /// information.  Designed to be passed by reference.
 class TemplateArgumentListInfo {
-  llvm::SmallVector<TemplateArgumentLoc, 8> Arguments;
+  SmallVector<TemplateArgumentLoc, 8> Arguments;
   SourceLocation LAngleLoc;
   SourceLocation RAngleLoc;
+
+  // This can leak if used in an AST node, use ASTTemplateArgumentListInfo
+  // instead.
+  void* operator new(size_t bytes, ASTContext& C);
 
 public:
   TemplateArgumentListInfo() {}
@@ -539,6 +548,48 @@ public:
   void addArgument(const TemplateArgumentLoc &Loc) {
     Arguments.push_back(Loc);
   }
+};
+
+/// \brief Represents an explicit template argument list in C++, e.g.,
+/// the "<int>" in "sort<int>".
+/// This is safe to be used inside an AST node, in contrast with
+/// TemplateArgumentListInfo.
+struct ASTTemplateArgumentListInfo {
+  /// \brief The source location of the left angle bracket ('<');
+  SourceLocation LAngleLoc;
+  
+  /// \brief The source location of the right angle bracket ('>');
+  SourceLocation RAngleLoc;
+  
+  /// \brief The number of template arguments in TemplateArgs.
+  /// The actual template arguments (if any) are stored after the
+  /// ExplicitTemplateArgumentList structure.
+  unsigned NumTemplateArgs;
+  
+  /// \brief Retrieve the template arguments
+  TemplateArgumentLoc *getTemplateArgs() {
+    return reinterpret_cast<TemplateArgumentLoc *> (this + 1);
+  }
+  
+  /// \brief Retrieve the template arguments
+  const TemplateArgumentLoc *getTemplateArgs() const {
+    return reinterpret_cast<const TemplateArgumentLoc *> (this + 1);
+  }
+
+  const TemplateArgumentLoc &operator[](unsigned I) const {
+    return getTemplateArgs()[I];
+  }
+
+  static const ASTTemplateArgumentListInfo *Create(ASTContext &C,
+                                          const TemplateArgumentListInfo &List);
+
+  void initializeFrom(const TemplateArgumentListInfo &List);
+  void initializeFrom(const TemplateArgumentListInfo &List,
+                      bool &Dependent, bool &InstantiationDependent,
+                      bool &ContainsUnexpandedParameterPack);
+  void copyInto(TemplateArgumentListInfo &List) const;
+  static std::size_t sizeFor(unsigned NumTemplateArgs);
+  static std::size_t sizeFor(const TemplateArgumentListInfo &List);
 };
 
 const DiagnosticBuilder &operator<<(const DiagnosticBuilder &DB,

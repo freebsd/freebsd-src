@@ -1,7 +1,15 @@
+**************************************************************************
+**************************************************************************
+**                                                                      **
+** The FreeBSD Project has chosen to redistribute and modify Less under **
+** the 'Less License' (as described in the 'LICENSE' file).             **
+**                                                                      **
+**************************************************************************
+**************************************************************************
 
-                            Less, version 436
+                            Less, version 444
 
-    This is the distribution of less, version 436, released 07 Jul 2009.
+    This is the distribution of less, version 444, released 09 Jun 2011.
     This program is part of the GNU project (http://www.gnu.org).
 
     This program is free software.  You may redistribute it and/or
@@ -92,6 +100,10 @@ complaints, etc., you may mail to the author at markn@greenwoodsoftware.com.
 
 Note to hackers: comments noting possible improvements are enclosed
 in double curly brackets {{ like this }}.
+
+(Note that the above note was originally written at a time when 
+"hackers" most commonly meant "enthusiastic and dedicated computer 
+programmers", not "persons who attempt to circumvent computer security".)
 
 
 

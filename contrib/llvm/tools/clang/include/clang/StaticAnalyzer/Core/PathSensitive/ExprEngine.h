@@ -19,8 +19,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SubEngine.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CoreEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/ExprObjC.h"
@@ -34,7 +33,8 @@ class ObjCForCollectionStmt;
 namespace ento {
 
 class AnalysisManager;
-class Checker;
+class CallOrObjCMessage;
+class ObjCMessage;
 
 class ExprEngine : public SubEngine {
   AnalysisManager &AMgr;
@@ -49,7 +49,7 @@ class ExprEngine : public SubEngine {
   StmtNodeBuilder* Builder;
 
   /// StateMgr - Object that manages the data for all created states.
-  GRStateManager StateMgr;
+  ProgramStateManager StateMgr;
 
   /// SymMgr - Object that manages the symbol information.
   SymbolManager& SymMgr;
@@ -58,64 +58,32 @@ class ExprEngine : public SubEngine {
   SValBuilder &svalBuilder;
 
   /// EntryNode - The immediate predecessor node.
-  ExplodedNode* EntryNode;
+  ExplodedNode *EntryNode;
 
   /// CleanedState - The state for EntryNode "cleaned" of all dead
   ///  variables and symbols (as determined by a liveness analysis).
-  const GRState* CleanedState;
+  const ProgramState *CleanedState;
 
   /// currentStmt - The current block-level statement.
-  const Stmt* currentStmt;
+  const Stmt *currentStmt;
 
-  // Obj-C Class Identifiers.
+  /// Obj-C Class Identifiers.
   IdentifierInfo* NSExceptionII;
 
-  // Obj-C Selectors.
+  /// Obj-C Selectors.
   Selector* NSExceptionInstanceRaiseSelectors;
   Selector RaiseSel;
-
-  enum CallbackKind {
-    PreVisitStmtCallback,
-    PostVisitStmtCallback,
-    processAssumeCallback,
-    EvalRegionChangesCallback
-  };
-
-  typedef uint32_t CallbackTag;
-
-  /// GetCallbackTag - Create a tag for a certain kind of callback. The 'Sub'
-  ///  argument can be used to differentiate callbacks that depend on another
-  ///  value from a small set of possibilities, such as statement classes.
-  static inline CallbackTag GetCallbackTag(CallbackKind K, uint32_t Sub = 0) {
-    assert(Sub == ((Sub << 8) >> 8) && "Tag sub-kind must fit into 24 bits");
-    return K | (Sub << 8);
-  }
-
-  typedef llvm::DenseMap<void *, unsigned> CheckerMap;
-  typedef std::vector<std::pair<void *, Checker*> > CheckersOrdered;
-  typedef llvm::DenseMap<CallbackTag, CheckersOrdered *> CheckersOrderedCache;
   
-  /// A registration map from checker tag to the index into the
-  ///  ordered checkers vector.
-  CheckerMap CheckerM;
-
-  /// An ordered vector of checkers that are called when evaluating
-  ///  various expressions and statements.
-  CheckersOrdered Checkers;
-
-  /// A map used for caching the checkers that respond to the callback for
-  ///  a particular callback tag.
-  CheckersOrderedCache COCache;
+  /// Whether or not GC is enabled in this analysis.
+  bool ObjCGCEnabled;
 
   /// The BugReporter associated with this engine.  It is important that
   ///  this object be placed at the very end of member variables so that its
   ///  destructor is called before the rest of the ExprEngine is destroyed.
   GRBugReporter BR;
-  
-  llvm::OwningPtr<TransferFuncs> TF;
 
 public:
-  ExprEngine(AnalysisManager &mgr, TransferFuncs *tf);
+  ExprEngine(AnalysisManager &mgr, bool gcEnabled);
 
   ~ExprEngine();
 
@@ -127,13 +95,13 @@ public:
   /// of the function are added into the Dst set, which represent the exit
   /// state of the function call.
   void ExecuteWorkListWithInitialState(const LocationContext *L, unsigned Steps,
-                                       const GRState *InitState, 
+                                       const ProgramState *InitState, 
                                        ExplodedNodeSet &Dst) {
     Engine.ExecuteWorkListWithInitialState(L, Steps, InitState, Dst);
   }
 
   /// getContext - Return the ASTContext associated with this analysis.
-  ASTContext& getContext() const { return AMgr.getASTContext(); }
+  ASTContext &getContext() const { return AMgr.getASTContext(); }
 
   virtual AnalysisManager &getAnalysisManager() { return AMgr; }
 
@@ -143,14 +111,11 @@ public:
 
   SValBuilder &getSValBuilder() { return svalBuilder; }
 
-  TransferFuncs& getTF() { return *TF; }
-
   BugReporter& getBugReporter() { return BR; }
 
   StmtNodeBuilder &getBuilder() { assert(Builder); return *Builder; }
 
-  // FIXME: Remove once TransferFuncs is no longer referenced.
-  void setTransferFunction(TransferFuncs* tf);
+  bool isObjCGCEnabled() { return ObjCGCEnabled; }
 
   /// ViewGraph - Visualize the ExplodedGraph created by executing the
   ///  simulation.
@@ -160,25 +125,10 @@ public:
 
   /// getInitialState - Return the initial state used for the root vertex
   ///  in the ExplodedGraph.
-  const GRState* getInitialState(const LocationContext *InitLoc);
+  const ProgramState *getInitialState(const LocationContext *InitLoc);
 
   ExplodedGraph& getGraph() { return G; }
   const ExplodedGraph& getGraph() const { return G; }
-
-  template <typename CHECKER>
-  void registerCheck(CHECKER *check) {
-    unsigned entry = Checkers.size();
-    void *tag = CHECKER::getTag();
-    Checkers.push_back(std::make_pair(tag, check));
-    CheckerM[tag] = entry;
-  }
-  
-  Checker *lookupChecker(void *tag) const;
-
-  template <typename CHECKER>
-  CHECKER *getChecker() const {
-     return static_cast<CHECKER*>(lookupChecker(CHECKER::getTag()));
-  }
 
   /// processCFGElement - Called by CoreEngine. Used to generate new successor
   ///  nodes by processing the 'effects' of a CFG element.
@@ -203,7 +153,7 @@ public:
   
   /// ProcessBranch - Called by CoreEngine.  Used to generate successor
   ///  nodes by processing the 'effects' of a branch condition.
-  void processBranch(const Stmt* Condition, const Stmt* Term, 
+  void processBranch(const Stmt *Condition, const Stmt *Term, 
                      BranchNodeBuilder& builder);
 
   /// processIndirectGoto - Called by CoreEngine.  Used to generate successor
@@ -229,19 +179,25 @@ public:
 
   /// evalAssume - Callback function invoked by the ConstraintManager when
   ///  making assumptions about state values.
-  const GRState *processAssume(const GRState *state, SVal cond,bool assumption);
+  const ProgramState *processAssume(const ProgramState *state, SVal cond,bool assumption);
 
-  /// wantsRegionChangeUpdate - Called by GRStateManager to determine if a
+  /// wantsRegionChangeUpdate - Called by ProgramStateManager to determine if a
   ///  region change should trigger a processRegionChanges update.
-  bool wantsRegionChangeUpdate(const GRState* state);
+  bool wantsRegionChangeUpdate(const ProgramState *state);
 
-  /// processRegionChanges - Called by GRStateManager whenever a change is made
+  /// processRegionChanges - Called by ProgramStateManager whenever a change is made
   ///  to the store. Used to update checkers that track region values.
-  const GRState* processRegionChanges(const GRState *state,
-                                      const MemRegion * const *Begin,
-                                      const MemRegion * const *End);
+  const ProgramState *
+  processRegionChanges(const ProgramState *state,
+                       const StoreManager::InvalidatedSymbols *invalidated,
+                       ArrayRef<const MemRegion *> ExplicitRegions,
+                       ArrayRef<const MemRegion *> Regions);
 
-  virtual GRStateManager& getStateManager() { return StateMgr; }
+  /// printState - Called by ProgramStateManager to print checker-specific data.
+  void printState(raw_ostream &Out, const ProgramState *State,
+                  const char *NL, const char *Sep);
+
+  virtual ProgramStateManager& getStateManager() { return StateMgr; }
 
   StoreManager& getStoreManager() { return StateMgr.getStoreManager(); }
 
@@ -262,160 +218,115 @@ public:
   const SymbolManager& getSymbolManager() const { return SymMgr; }
 
   // Functions for external checking of whether we have unfinished work
-  bool wasBlockAborted() const { return Engine.wasBlockAborted(); }
+  bool wasBlocksExhausted() const { return Engine.wasBlocksExhausted(); }
   bool hasEmptyWorkList() const { return !Engine.getWorkList()->hasWork(); }
-  bool hasWorkRemaining() const {
-    return wasBlockAborted() || Engine.getWorkList()->hasWork();
-  }
+  bool hasWorkRemaining() const { return Engine.hasWorkRemaining(); }
 
   const CoreEngine &getCoreEngine() const { return Engine; }
 
-protected:
-  const GRState* GetState(ExplodedNode* N) {
-    return N == EntryNode ? CleanedState : N->getState();
-  }
-
 public:
-  ExplodedNode* MakeNode(ExplodedNodeSet& Dst, const Stmt* S, 
-                         ExplodedNode* Pred, const GRState* St,
+  ExplodedNode *MakeNode(ExplodedNodeSet &Dst, const Stmt *S, 
+                         ExplodedNode *Pred, const ProgramState *St,
                          ProgramPoint::Kind K = ProgramPoint::PostStmtKind,
-                         const void *tag = 0);
-
-  /// CheckerVisit - Dispatcher for performing checker-specific logic
-  ///  at specific statements.
-  void CheckerVisit(const Stmt *S, ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
-                    CallbackKind Kind);
-
-  void CheckerVisitObjCMessage(const ObjCMessage &msg, ExplodedNodeSet &Dst,
-                               ExplodedNodeSet &Src, bool isPrevisit);
-
-  bool CheckerEvalCall(const CallExpr *CE, 
-                       ExplodedNodeSet &Dst, 
-                       ExplodedNode *Pred);
-
-  void CheckerEvalNilReceiver(const ObjCMessage &msg,
-                              ExplodedNodeSet &Dst,
-                              const GRState *state,
-                              ExplodedNode *Pred);
-  
-  void CheckerVisitBind(const Stmt *StoreE, ExplodedNodeSet &Dst,
-                        ExplodedNodeSet &Src,  SVal location, SVal val,
-                        bool isPrevisit);
+                         const ProgramPointTag *tag = 0);
 
   /// Visit - Transfer function logic for all statements.  Dispatches to
   ///  other functions that handle specific kinds of statements.
-  void Visit(const Stmt* S, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void Visit(const Stmt *S, ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// VisitArraySubscriptExpr - Transfer function for array accesses.
-  void VisitLvalArraySubscriptExpr(const ArraySubscriptExpr* Ex,
-                                   ExplodedNode* Pred,
-                                   ExplodedNodeSet& Dst);
+  void VisitLvalArraySubscriptExpr(const ArraySubscriptExpr *Ex,
+                                   ExplodedNode *Pred,
+                                   ExplodedNodeSet &Dst);
 
   /// VisitAsmStmt - Transfer function logic for inline asm.
-  void VisitAsmStmt(const AsmStmt* A, ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitAsmStmt(const AsmStmt *A, ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
-  void VisitAsmStmtHelperOutputs(const AsmStmt* A,
+  void VisitAsmStmtHelperOutputs(const AsmStmt *A,
                                  AsmStmt::const_outputs_iterator I,
                                  AsmStmt::const_outputs_iterator E,
-                                 ExplodedNode* Pred, ExplodedNodeSet& Dst);
+                                 ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
-  void VisitAsmStmtHelperInputs(const AsmStmt* A,
+  void VisitAsmStmtHelperInputs(const AsmStmt *A,
                                 AsmStmt::const_inputs_iterator I,
                                 AsmStmt::const_inputs_iterator E,
-                                ExplodedNode* Pred, ExplodedNodeSet& Dst);
+                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
   
   /// VisitBlockExpr - Transfer function logic for BlockExprs.
   void VisitBlockExpr(const BlockExpr *BE, ExplodedNode *Pred, 
                       ExplodedNodeSet &Dst);
 
   /// VisitBinaryOperator - Transfer function logic for binary operators.
-  void VisitBinaryOperator(const BinaryOperator* B, ExplodedNode* Pred, 
-                           ExplodedNodeSet& Dst);
+  void VisitBinaryOperator(const BinaryOperator* B, ExplodedNode *Pred, 
+                           ExplodedNodeSet &Dst);
 
 
   /// VisitCall - Transfer function for function calls.
-  void VisitCall(const CallExpr* CE, ExplodedNode* Pred,
-                 CallExpr::const_arg_iterator AI, 
-                 CallExpr::const_arg_iterator AE,
-                 ExplodedNodeSet& Dst);
+  void VisitCallExpr(const CallExpr *CE, ExplodedNode *Pred,
+                     ExplodedNodeSet &Dst);
 
   /// VisitCast - Transfer function logic for all casts (implicit and explicit).
   void VisitCast(const CastExpr *CastE, const Expr *Ex, ExplodedNode *Pred,
                 ExplodedNodeSet &Dst);
 
   /// VisitCompoundLiteralExpr - Transfer function logic for compound literals.
-  void VisitCompoundLiteralExpr(const CompoundLiteralExpr* CL, 
-                                ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitCompoundLiteralExpr(const CompoundLiteralExpr *CL, 
+                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// Transfer function logic for DeclRefExprs and BlockDeclRefExprs.
-  void VisitCommonDeclRefExpr(const Expr* DR, const NamedDecl *D,
-                              ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitCommonDeclRefExpr(const Expr *DR, const NamedDecl *D,
+                              ExplodedNode *Pred, ExplodedNodeSet &Dst);
   
   /// VisitDeclStmt - Transfer function logic for DeclStmts.
-  void VisitDeclStmt(const DeclStmt* DS, ExplodedNode* Pred, 
-                     ExplodedNodeSet& Dst);
+  void VisitDeclStmt(const DeclStmt *DS, ExplodedNode *Pred, 
+                     ExplodedNodeSet &Dst);
 
   /// VisitGuardedExpr - Transfer function logic for ?, __builtin_choose
-  void VisitGuardedExpr(const Expr* Ex, const Expr* L, const Expr* R, 
-                        ExplodedNode* Pred, ExplodedNodeSet& Dst);
-
-  /// VisitCondInit - Transfer function for handling the initialization
-  ///  of a condition variable in an IfStmt, SwitchStmt, etc.
-  void VisitCondInit(const VarDecl *VD, const Stmt *S, ExplodedNode *Pred,
-                     ExplodedNodeSet& Dst);
+  void VisitGuardedExpr(const Expr *Ex, const Expr *L, const Expr *R, 
+                        ExplodedNode *Pred, ExplodedNodeSet &Dst);
   
-  void VisitInitListExpr(const InitListExpr* E, ExplodedNode* Pred,
-                         ExplodedNodeSet& Dst);
+  void VisitInitListExpr(const InitListExpr *E, ExplodedNode *Pred,
+                         ExplodedNodeSet &Dst);
 
   /// VisitLogicalExpr - Transfer function logic for '&&', '||'
-  void VisitLogicalExpr(const BinaryOperator* B, ExplodedNode* Pred,
-                        ExplodedNodeSet& Dst);
+  void VisitLogicalExpr(const BinaryOperator* B, ExplodedNode *Pred,
+                        ExplodedNodeSet &Dst);
 
   /// VisitMemberExpr - Transfer function for member expressions.
-  void VisitMemberExpr(const MemberExpr* M, ExplodedNode* Pred, 
-                           ExplodedNodeSet& Dst);
+  void VisitMemberExpr(const MemberExpr *M, ExplodedNode *Pred, 
+                           ExplodedNodeSet &Dst);
 
   /// Transfer function logic for ObjCAtSynchronizedStmts.
   void VisitObjCAtSynchronizedStmt(const ObjCAtSynchronizedStmt *S,
                                    ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
-  void VisitObjCPropertyRefExpr(const ObjCPropertyRefExpr *E,
-                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
-
   /// Transfer function logic for computing the lvalue of an Objective-C ivar.
-  void VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr* DR, ExplodedNode* Pred,
-                                ExplodedNodeSet& Dst);
+  void VisitLvalObjCIvarRefExpr(const ObjCIvarRefExpr *DR, ExplodedNode *Pred,
+                                ExplodedNodeSet &Dst);
 
   /// VisitObjCForCollectionStmt - Transfer function logic for
   ///  ObjCForCollectionStmt.
-  void VisitObjCForCollectionStmt(const ObjCForCollectionStmt* S, 
-                                  ExplodedNode* Pred, ExplodedNodeSet& Dst);
+  void VisitObjCForCollectionStmt(const ObjCForCollectionStmt *S, 
+                                  ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
-  void VisitObjCForCollectionStmtAux(const ObjCForCollectionStmt* S, 
-                                     ExplodedNode* Pred,
-                                     ExplodedNodeSet& Dst, SVal ElementV);
-
-  /// VisitObjCMessageExpr - Transfer function for ObjC message expressions.
-  void VisitObjCMessageExpr(const ObjCMessageExpr* ME, ExplodedNode* Pred, 
-                            ExplodedNodeSet& Dst);
-  void VisitObjCMessage(const ObjCMessage &msg, ExplodedNodeSet &Src,
-                        ExplodedNodeSet& Dst);
+  void VisitObjCMessage(const ObjCMessage &msg, ExplodedNode *Pred,
+                        ExplodedNodeSet &Dst);
 
   /// VisitReturnStmt - Transfer function logic for return statements.
-  void VisitReturnStmt(const ReturnStmt* R, ExplodedNode* Pred, 
-                       ExplodedNodeSet& Dst);
+  void VisitReturnStmt(const ReturnStmt *R, ExplodedNode *Pred, 
+                       ExplodedNodeSet &Dst);
   
   /// VisitOffsetOfExpr - Transfer function for offsetof.
-  void VisitOffsetOfExpr(const OffsetOfExpr* Ex, ExplodedNode* Pred,
-                         ExplodedNodeSet& Dst);
+  void VisitOffsetOfExpr(const OffsetOfExpr *Ex, ExplodedNode *Pred,
+                         ExplodedNodeSet &Dst);
 
-  /// VisitSizeOfAlignOfExpr - Transfer function for sizeof.
-  void VisitSizeOfAlignOfExpr(const SizeOfAlignOfExpr* Ex, ExplodedNode* Pred,
-                              ExplodedNodeSet& Dst);
+  /// VisitUnaryExprOrTypeTraitExpr - Transfer function for sizeof.
+  void VisitUnaryExprOrTypeTraitExpr(const UnaryExprOrTypeTraitExpr *Ex,
+                              ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
   /// VisitUnaryOperator - Transfer function logic for unary operators.
-  void VisitUnaryOperator(const UnaryOperator* B, ExplodedNode* Pred, 
-                          ExplodedNodeSet& Dst);
+  void VisitUnaryOperator(const UnaryOperator* B, ExplodedNode *Pred, 
+                          ExplodedNodeSet &Dst);
 
   void VisitCXXThisExpr(const CXXThisExpr *TE, ExplodedNode *Pred, 
                         ExplodedNodeSet & Dst);
@@ -432,12 +343,6 @@ public:
                           const MemRegion *Dest, const Stmt *S,
                           ExplodedNode *Pred, ExplodedNodeSet &Dst);
 
-  void VisitCXXMemberCallExpr(const CXXMemberCallExpr *MCE, ExplodedNode *Pred,
-                              ExplodedNodeSet &Dst);
-
-  void VisitCXXOperatorCallExpr(const CXXOperatorCallExpr *C,
-                                ExplodedNode *Pred, ExplodedNodeSet &Dst);
-
   void VisitCXXNewExpr(const CXXNewExpr *CNE, ExplodedNode *Pred,
                        ExplodedNodeSet &Dst);
 
@@ -448,7 +353,8 @@ public:
                     ExplodedNodeSet &Dst);
 
   /// Create a C++ temporary object for an rvalue.
-  void CreateCXXTemporaryObject(const Expr *Ex, ExplodedNode *Pred, 
+  void CreateCXXTemporaryObject(const MaterializeTemporaryExpr *ME,
+                                ExplodedNode *Pred, 
                                 ExplodedNodeSet &Dst);
 
   /// Synthesize CXXThisRegion.
@@ -463,18 +369,19 @@ public:
                      const FunctionProtoType *FnType, 
                      ExplodedNode *Pred, ExplodedNodeSet &Dst,
                      bool FstArgAsLValue = false);
-
-  /// Evaluate method call itself. Used for CXXMethodCallExpr and
-  /// CXXOperatorCallExpr.
-  void evalMethodCall(const CallExpr *MCE, const CXXMethodDecl *MD,
-                      const Expr *ThisExpr, ExplodedNode *Pred,
-                      ExplodedNodeSet &Src, ExplodedNodeSet &Dst);
+  
+  /// Evaluate callee expression (for a function call).
+  void evalCallee(const CallExpr *callExpr, const ExplodedNodeSet &src,
+                  ExplodedNodeSet &dest);
 
   /// evalEagerlyAssume - Given the nodes in 'Src', eagerly assume symbolic
   ///  expressions of the form 'x != 0' and generate new nodes (stored in Dst)
   ///  with those assumptions.
-  void evalEagerlyAssume(ExplodedNodeSet& Dst, ExplodedNodeSet& Src, 
+  void evalEagerlyAssume(ExplodedNodeSet &Dst, ExplodedNodeSet &Src, 
                          const Expr *Ex);
+  
+  std::pair<const ProgramPointTag *, const ProgramPointTag*>
+    getEagerlyAssumeTags();
 
   SVal evalMinus(SVal X) {
     return X.isValid() ? svalBuilder.evalMinus(cast<NonLoc>(X)) : X;
@@ -486,36 +393,36 @@ public:
 
 public:
 
-  SVal evalBinOp(const GRState *state, BinaryOperator::Opcode op,
+  SVal evalBinOp(const ProgramState *state, BinaryOperator::Opcode op,
                  NonLoc L, NonLoc R, QualType T) {
     return svalBuilder.evalBinOpNN(state, op, L, R, T);
   }
 
-  SVal evalBinOp(const GRState *state, BinaryOperator::Opcode op,
+  SVal evalBinOp(const ProgramState *state, BinaryOperator::Opcode op,
                  NonLoc L, SVal R, QualType T) {
     return R.isValid() ? svalBuilder.evalBinOpNN(state,op,L, cast<NonLoc>(R), T) : R;
   }
 
-  SVal evalBinOp(const GRState *ST, BinaryOperator::Opcode Op,
+  SVal evalBinOp(const ProgramState *ST, BinaryOperator::Opcode Op,
                  SVal LHS, SVal RHS, QualType T) {
     return svalBuilder.evalBinOp(ST, Op, LHS, RHS, T);
   }
   
 protected:
-  void evalObjCMessage(ExplodedNodeSet& Dst, const ObjCMessage &msg, 
-                       ExplodedNode* Pred, const GRState *state) {
-    assert (Builder && "StmtNodeBuilder must be defined.");
-    getTF().evalObjCMessage(Dst, *this, *Builder, msg, Pred, state);
-  }
+  void evalObjCMessage(ExplodedNodeSet &Dst, const ObjCMessage &msg, 
+                       ExplodedNode *Pred, const ProgramState *state);
 
-  const GRState* MarkBranch(const GRState* St, const Stmt* Terminator,
+  const ProgramState *invalidateArguments(const ProgramState *State,
+                                          const CallOrObjCMessage &Call,
+                                          const LocationContext *LC);
+
+  const ProgramState *MarkBranch(const ProgramState *St, const Stmt *Terminator,
                             bool branchTaken);
 
   /// evalBind - Handle the semantics of binding a value to a specific location.
   ///  This method is used by evalStore, VisitDeclStmt, and others.
-  void evalBind(ExplodedNodeSet& Dst, const Stmt* StoreE, ExplodedNode* Pred,
-                const GRState* St, SVal location, SVal Val,
-                bool atDeclInit = false);
+  void evalBind(ExplodedNodeSet &Dst, const Stmt *StoreE, ExplodedNode *Pred,
+                SVal location, SVal Val, bool atDeclInit = false);
 
 public:
   // FIXME: 'tag' should be removed, and a LocationContext should be used
@@ -524,27 +431,34 @@ public:
   // be the same as Pred->state, and when 'location' may not be the
   // same as state->getLValue(Ex).
   /// Simulate a read of the result of Ex.
-  void evalLoad(ExplodedNodeSet& Dst, const Expr* Ex, ExplodedNode* Pred,
-                const GRState* St, SVal location, const void *tag = 0,
+  void evalLoad(ExplodedNodeSet &Dst, const Expr *Ex, ExplodedNode *Pred,
+                const ProgramState *St, SVal location, const ProgramPointTag *tag = 0,
                 QualType LoadTy = QualType());
 
   // FIXME: 'tag' should be removed, and a LocationContext should be used
   // instead.
-  void evalStore(ExplodedNodeSet& Dst, const Expr* AssignE, const Expr* StoreE,
-                 ExplodedNode* Pred, const GRState* St, SVal TargetLV, SVal Val,
-                 const void *tag = 0);
+  void evalStore(ExplodedNodeSet &Dst, const Expr *AssignE, const Expr *StoreE,
+                 ExplodedNode *Pred, const ProgramState *St, SVal TargetLV, SVal Val,
+                 const ProgramPointTag *tag = 0);
 private:
-  void evalLoadCommon(ExplodedNodeSet& Dst, const Expr* Ex, ExplodedNode* Pred,
-                      const GRState* St, SVal location, const void *tag,
+  void evalLoadCommon(ExplodedNodeSet &Dst, const Expr *Ex, ExplodedNode *Pred,
+                      const ProgramState *St, SVal location, const ProgramPointTag *tag,
                       QualType LoadTy);
 
   // FIXME: 'tag' should be removed, and a LocationContext should be used
   // instead.
-  void evalLocation(ExplodedNodeSet &Dst, const Stmt *S, ExplodedNode* Pred,
-                    const GRState* St, SVal location,
-                    const void *tag, bool isLoad);
+  void evalLocation(ExplodedNodeSet &Dst, const Stmt *S, ExplodedNode *Pred,
+                    const ProgramState *St, SVal location,
+                    const ProgramPointTag *tag, bool isLoad);
 
   bool InlineCall(ExplodedNodeSet &Dst, const CallExpr *CE, ExplodedNode *Pred);
+  
+  
+public:
+  /// Returns true if calling the specific function or method would possibly
+  /// cause global variables to be invalidated.
+  bool doesInvalidateGlobals(const CallOrObjCMessage &callOrMessage) const;
+  
 };
 
 } // end ento namespace

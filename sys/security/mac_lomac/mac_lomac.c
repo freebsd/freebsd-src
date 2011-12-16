@@ -93,7 +93,7 @@ struct mac_lomac_proc {
 
 SYSCTL_DECL(_security_mac);
 
-SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security_mac, OID_AUTO, lomac, CTLFLAG_RW, 0,
     "TrustedBSD mac_lomac policy controls");
 
 static int	lomac_label_size = sizeof(struct mac_lomac);
@@ -137,7 +137,7 @@ static int	lomac_slot;
     mac_label_get((l), lomac_slot))
 #define	PSLOT_SET(l, val) mac_label_set((l), lomac_slot, (uintptr_t)(val))
 
-MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
+static MALLOC_DEFINE(M_LOMAC, "mac_lomac_label", "MAC/LOMAC labels");
 
 static struct mac_lomac *
 lomac_alloc(int flag)

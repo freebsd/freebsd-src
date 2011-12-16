@@ -1,6 +1,6 @@
 /*
  * ------+---------+---------+---------+---------+---------+---------+---------*
- * Copyright (c) 2001  - Garance Alistair Drosehn <gad@FreeBSD.org>.
+ * Copyright (c) 2001,2011  - Garance Alistair Drosehn <gad@FreeBSD.org>.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,7 @@ struct cjobinfo {
 	char	*cji_fname;		/* filename of the control file */
 	char	*cji_jobname;		/* job-name (for banner) */
 	char	*cji_mailto;		/* userid to send email to (or null) */
-	char	*cji_username;		/* "literal" user-name (for banner) or
+	char	*cji_headruser;		/* "literal" user-name (for banner) or
 					 * NULL if no banner-page is wanted */
 	struct cjprivate *cji_priv;
 };

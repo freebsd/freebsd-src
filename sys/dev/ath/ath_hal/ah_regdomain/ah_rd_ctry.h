@@ -1,6 +1,6 @@
 /*
  * Copyright (c) 2002-2009 Sam Leffler, Errno Consulting
- * Copyright (c) 2005-2006 Atheros Communications, Inc.
+ * Copyright (c) 2005-2011 Atheros Communications, Inc.
  * All rights reserved.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -34,7 +34,7 @@ static COUNTRY_CODE_TO_ENUM_RD allCountries[] = {
 	{ CTRY_ALGERIA,     NULL1_WORLD },
 	{ CTRY_ARGENTINA,   APL3_WORLD },
 	{ CTRY_ARMENIA,     ETSI4_WORLD },
-	{ CTRY_AUSTRALIA,   FCC2_WORLD },
+	{ CTRY_AUSTRALIA,   FCC3_WORLD },
 	{ CTRY_AUSTRIA,     ETSI1_WORLD },
 	{ CTRY_AZERBAIJAN,  ETSI4_WORLD },
 	{ CTRY_BAHRAIN,     APL6_WORLD },

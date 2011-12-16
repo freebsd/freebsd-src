@@ -28,7 +28,7 @@
 .\"	@(#)mount_nfs.8	8.3 (Berkeley) 3/29/95
 .\" $FreeBSD$
 .\"
-.Dd July 28, 2009
+.Dd May 3, 2011
 .Dt MOUNT_NFS 8
 .Os
 .Sh NAME
@@ -62,6 +62,12 @@ This command is normally executed by
 It implements the mount protocol as described in RFC 1094, Appendix A and
 .%T "NFS: Network File System Version 3 Protocol Specification" ,
 Appendix I.
+.Pp
+If the file system type is specified as ``oldnfs'', which implies this
+command is run as ``mount_oldnfs'', then it forces use of the old NFS
+client, which does not support the
+.Cm nfsv4
+option.
 .Pp
 By default,
 .Nm
@@ -163,10 +169,8 @@ Note that NFS version 2 has a file size limit of 2 gigabytes.
 Use the NFS Version 3 protocol.
 .It Cm nfsv4
 Use the NFS Version 4 protocol.
-This option will force the mount to use the experimental nfs subsystem and
+This option will force the mount to use
 TCP transport.
-To use the experimental nfs subsystem for nfsv2 and nfsv3 mounts, you
-must specify the ``newnfs'' file system type instead of ``nfs''.
 .It Cm noconn
 For UDP mount points, do not do a
 .Xr connect 2 .
@@ -176,6 +180,17 @@ NFS port number 2049 or replies to requests using a different IP address
 Setting the
 .Va vfs.nfs.nfs_ip_paranoia
 sysctl to 0 will make this option the default.
+.It Cm nocto
+Normally, NFS clients maintain the close-to-open cache coherency.
+This works by flushing at close time and checking at open time.
+Checking at open time is implemented by getting attributes from
+the server and purging the data cache if they do not match
+attributes cached by the client.
+.Pp
+This option disables checking at open time.
+It may improve performance for read-only mounts,
+but should only be used if the data on the server changes rarely.
+Be sure to understand the consequences before enabling this option.
 .It Cm noinet4 , noinet6
 Disables
 .Dv AF_INET
@@ -303,6 +318,10 @@ tune the timeout
 interval.)
 .It Cm udp
 Use UDP transport.
+.It Cm wcommitsize Ns = Ns Aq Ar value
+Set the maximum pending write commit size to the specified value.
+This determines the maximum amount of pending write data that the NFS
+client is willing to cache for each file.
 .It Cm wsize Ns = Ns Aq Ar value
 Set the write data size to the specified value.
 Ditto the comments w.r.t.\& the

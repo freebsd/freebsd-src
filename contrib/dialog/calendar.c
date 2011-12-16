@@ -1,9 +1,9 @@
 /*
- * $Id: calendar.c,v 1.59 2010/01/18 09:50:44 tom Exp $
+ * $Id: calendar.c,v 1.62 2011/06/29 09:47:06 tom Exp $
  *
  *  calendar.c -- implements the calendar box
  *
- *  Copyright 2001-2009,2010	Thomas E. Dickey
+ *  Copyright 2001-2010,2011	Thomas E. Dickey
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU Lesser General Public License, version 2.1
@@ -388,6 +388,7 @@ dialog_calendar(const char *title,
 {
     /* *INDENT-OFF* */
     static DLG_KEYS_BINDING binding[] = {
+	HELPKEY_BINDINGS,
 	ENTERKEY_BINDINGS,
 	DLG_KEYS_DATA( DLGK_ENTER,	' ' ),
 	DLG_KEYS_DATA( DLGK_FIELD_NEXT, TAB ),
@@ -571,7 +572,7 @@ dialog_calendar(const char *title,
 		state = sYEAR;
 		break;
 	    case DLGK_ENTER:
-		result = dlg_ok_buttoncode(button);
+		result = dlg_enter_buttoncode(button);
 		break;
 	    case DLGK_FIELD_PREV:
 		state = dlg_prev_ok_buttonindex(state, sMONTH);
@@ -661,10 +662,10 @@ dialog_calendar(const char *title,
 		src.tm_mday, src.tm_mon + 1, src.tm_year + 1900)
 #ifdef HAVE_STRFTIME
     if (dialog_vars.date_format != 0) {
-       size_t used = strftime(buffer,
-			      sizeof(buffer) - 1,
-			      dialog_vars.date_format,
-			      &current);
+	size_t used = strftime(buffer,
+			       sizeof(buffer) - 1,
+			       dialog_vars.date_format,
+			       &current);
 	if (used == 0 || *buffer == '\0')
 	    DefaultFormat(buffer, current);
     } else

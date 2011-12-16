@@ -1027,7 +1027,7 @@ static const struct SYM_FWA_SCR SYM_FWA_SCR = {
 	 *  It shall be a tagged command.
 	 *  Read SIMPLE+TAG.
 	 *  The C code will deal with errors.
-	 *  Agressive optimization, is'nt it? :)
+	 *  Aggressive optimization, isn't it? :)
 	 */
 	SCR_MOVE_ABS (2) ^ SCR_MSG_IN,
 		HADDR_1 (msgin),
@@ -1051,7 +1051,7 @@ static const struct SYM_FWA_SCR SYM_FWA_SCR = {
 		RADDR_1 (dsa),
 	/*
 	 *  The SIDL still contains the TAG value.
-	 *  Agressive optimization, isn't it? :):)
+	 *  Aggressive optimization, isn't it? :):)
 	 */
 	SCR_REG_SFBR (sidl, SCR_SHL, 0),
 		0,
@@ -1352,7 +1352,7 @@ static const struct SYM_FWB_SCR SYM_FWB_SCR = {
 	 *  some target to reset or some disconnected 
 	 *  job to abort. Since error recovery is a serious 
 	 *  busyness, we will really reset the SCSI BUS, if 
-	 *  case of a SCSI interrupt occuring in this path.
+	 *  case of a SCSI interrupt occurring in this path.
 	 */
 
 	/*
@@ -1461,7 +1461,7 @@ static const struct SYM_FWB_SCR SYM_FWB_SCR = {
 		PADDR_B (msg_weird_seen),
 	/*
 	 *  We donnot handle extended messages from SCRIPTS.
-	 *  Read the amount of data correponding to the 
+	 *  Read the amount of data corresponding to the 
 	 *  message length and call the C code.
 	 */
 	SCR_COPY (1),

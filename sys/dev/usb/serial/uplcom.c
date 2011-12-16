@@ -118,7 +118,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int uplcom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, uplcom, CTLFLAG_RW, 0, "USB uplcom");
 SYSCTL_INT(_hw_usb_uplcom, OID_AUTO, debug, CTLFLAG_RW,
     &uplcom_debug, 0, "Debug level");
 #endif
@@ -247,7 +247,7 @@ static struct ucom_callback uplcom_callback = {
 #define	UPLCOM_DEV(v,p)				\
   { USB_VENDOR(USB_VENDOR_##v), USB_PRODUCT(USB_PRODUCT_##v##_##p) }
 
-static const struct usb_device_id uplcom_devs[] = {
+static const STRUCT_USB_HOST_ID uplcom_devs[] = {
 	UPLCOM_DEV(ACERP, S81),			/* BenQ S81 phone */
 	UPLCOM_DEV(ADLINK, ND6530),		/* ADLINK ND-6530 USB-Serial */
 	UPLCOM_DEV(ALCATEL, OT535),		/* Alcatel One Touch 535/735 */
@@ -659,7 +659,7 @@ uplcom_cfg_param(struct ucom_softc *ucom, struct termios *t)
 
 	DPRINTF("sc = %p\n", sc);
 
-	bzero(&ls, sizeof(ls));
+	memset(&ls, 0, sizeof(ls));
 
 	USETDW(ls.dwDTERate, t->c_ospeed);
 

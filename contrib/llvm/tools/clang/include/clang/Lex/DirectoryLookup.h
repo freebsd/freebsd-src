@@ -14,11 +14,9 @@
 #ifndef LLVM_CLANG_LEX_DIRECTORYLOOKUP_H
 #define LLVM_CLANG_LEX_DIRECTORYLOOKUP_H
 
+#include "clang/Basic/LLVM.h"
 #include "clang/Basic/SourceManager.h"
 
-namespace llvm {
-  class StringRef;
-}
 namespace clang {
 class HeaderMap;
 class DirectoryEntry;
@@ -58,21 +56,27 @@ private:
   /// LookupType - This indicates whether this DirectoryLookup object is a
   /// normal directory, a framework, or a headermap.
   unsigned LookupType : 2;
+  
+  /// \brief Whether this is a header map used when building a framework.
+  unsigned IsIndexHeaderMap : 1;
+  
 public:
   /// DirectoryLookup ctor - Note that this ctor *does not take ownership* of
   /// 'dir'.
   DirectoryLookup(const DirectoryEntry *dir, SrcMgr::CharacteristicKind DT,
                   bool isUser, bool isFramework)
-    : DirCharacteristic(DT), UserSupplied(isUser),
-     LookupType(isFramework ? LT_Framework : LT_NormalDir) {
+    : DirCharacteristic(DT), UserSupplied(isUser), 
+      LookupType(isFramework ? LT_Framework : LT_NormalDir),
+      IsIndexHeaderMap(false) {
     u.Dir = dir;
   }
 
   /// DirectoryLookup ctor - Note that this ctor *does not take ownership* of
   /// 'map'.
   DirectoryLookup(const HeaderMap *map, SrcMgr::CharacteristicKind DT,
-                  bool isUser)
-    : DirCharacteristic(DT), UserSupplied(isUser), LookupType(LT_HeaderMap) {
+                  bool isUser, bool isIndexHeaderMap)
+    : DirCharacteristic(DT), UserSupplied(isUser), LookupType(LT_HeaderMap),
+      IsIndexHeaderMap(isIndexHeaderMap) {
     u.Map = map;
   }
 
@@ -118,14 +122,43 @@ public:
   ///
   bool isUserSupplied() const { return UserSupplied; }
 
-
+  /// \brief Whether this header map is building a framework or not.
+  bool isIndexHeaderMap() const { 
+    return isHeaderMap() && IsIndexHeaderMap; 
+  }
+  
   /// LookupFile - Lookup the specified file in this search path, returning it
   /// if it exists or returning null if not.
-  const FileEntry *LookupFile(llvm::StringRef Filename, HeaderSearch &HS) const;
+  ///
+  /// \param Filename The file to look up relative to the search paths.
+  ///
+  /// \param HS The header search instance to search with.
+  ///
+  /// \param SearchPath If not NULL, will be set to the search path relative
+  /// to which the file was found.
+  ///
+  /// \param RelativePath If not NULL, will be set to the path relative to
+  /// SearchPath at which the file was found. This only differs from the
+  /// Filename for framework includes.
+  ///
+  /// \param BuildingModule The name of the module we're currently building.
+  ///
+  /// \param SuggestedModule If non-null, and the file found is semantically
+  /// part of a known module, this will be set to the name of the module that
+  /// could be imported instead of preprocessing/parsing the file found.
+  const FileEntry *LookupFile(StringRef Filename, HeaderSearch &HS,
+                              SmallVectorImpl<char> *SearchPath,
+                              SmallVectorImpl<char> *RelativePath,
+                              StringRef BuildingModule,
+                              StringRef *SuggestedModule) const;
 
 private:
-  const FileEntry *DoFrameworkLookup(llvm::StringRef Filename,
-                                     HeaderSearch &HS) const;
+  const FileEntry *DoFrameworkLookup(
+      StringRef Filename, HeaderSearch &HS,
+      SmallVectorImpl<char> *SearchPath,
+      SmallVectorImpl<char> *RelativePath,
+      StringRef BuildingModule,
+      StringRef *SuggestedModule) const;
 
 };
 

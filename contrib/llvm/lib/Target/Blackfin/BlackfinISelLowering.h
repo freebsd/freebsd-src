@@ -33,7 +33,7 @@ namespace llvm {
   public:
     BlackfinTargetLowering(TargetMachine &TM);
     virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i16; }
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    virtual EVT getSetCCResultType(EVT VT) const;
     virtual SDValue LowerOperation(SDValue Op, SelectionDAG &DAG) const;
     virtual void ReplaceNodeResults(SDNode *N,
                                     SmallVectorImpl<SDValue> &Results,
@@ -48,12 +48,8 @@ namespace llvm {
 
     std::pair<unsigned, const TargetRegisterClass*>
     getRegForInlineAsmConstraint(const std::string &Constraint, EVT VT) const;
-    std::vector<unsigned>
-    getRegClassForInlineAsmConstraint(const std::string &Constraint,
-                                      EVT VT) const;
     virtual bool isOffsetFoldingLegal(const GlobalAddressSDNode *GA) const;
     const char *getTargetNodeName(unsigned Opcode) const;
-    unsigned getFunctionAlignment(const Function *F) const;
 
   private:
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;

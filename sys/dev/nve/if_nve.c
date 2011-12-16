@@ -184,15 +184,11 @@ static device_method_t nve_methods[] = {
 	DEVMETHOD(device_detach, nve_detach),
 	DEVMETHOD(device_shutdown, nve_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, nve_miibus_readreg),
 	DEVMETHOD(miibus_writereg, nve_miibus_writereg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t nve_driver = {
@@ -1177,19 +1173,15 @@ nve_ifmedia_upd_locked(struct ifnet *ifp)
 {
 	struct nve_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
+	struct mii_softc *miisc;
 
 	DEBUGOUT(NVE_DEBUG_MII, "nve: nve_ifmedia_upd\n");
 
 	NVE_LOCK_ASSERT(sc);
 	mii = device_get_softc(sc->miibus);
 
-	if (mii->mii_instance) {
-		struct mii_softc *miisc;
-		for (miisc = LIST_FIRST(&mii->mii_phys); miisc != NULL;
-		    miisc = LIST_NEXT(miisc, mii_list)) {
-			mii_phy_reset(miisc);
-		}
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	mii_mediachg(mii);
 }
 
@@ -1206,10 +1198,10 @@ nve_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	NVE_LOCK(sc);
 	mii = device_get_softc(sc->miibus);
 	mii_pollstat(mii);
-	NVE_UNLOCK(sc);
 
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	NVE_UNLOCK(sc);
 
 	return;
 }

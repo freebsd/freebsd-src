@@ -43,6 +43,7 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::Long:       ID = PREDEF_TYPE_LONG_ID;       break;
   case BuiltinType::LongLong:   ID = PREDEF_TYPE_LONGLONG_ID;   break;
   case BuiltinType::Int128:     ID = PREDEF_TYPE_INT128_ID;     break;
+  case BuiltinType::Half:       ID = PREDEF_TYPE_HALF_ID;       break;
   case BuiltinType::Float:      ID = PREDEF_TYPE_FLOAT_ID;      break;
   case BuiltinType::Double:     ID = PREDEF_TYPE_DOUBLE_ID;     break;
   case BuiltinType::LongDouble: ID = PREDEF_TYPE_LONGDOUBLE_ID; break;
@@ -50,7 +51,9 @@ serialization::TypeIdxFromBuiltin(const BuiltinType *BT) {
   case BuiltinType::Char16:     ID = PREDEF_TYPE_CHAR16_ID;     break;
   case BuiltinType::Char32:     ID = PREDEF_TYPE_CHAR32_ID;     break;
   case BuiltinType::Overload:   ID = PREDEF_TYPE_OVERLOAD_ID;   break;
+  case BuiltinType::BoundMember:ID = PREDEF_TYPE_BOUND_MEMBER;  break;
   case BuiltinType::Dependent:  ID = PREDEF_TYPE_DEPENDENT_ID;  break;
+  case BuiltinType::UnknownAny: ID = PREDEF_TYPE_UNKNOWN_ANY;   break;
   case BuiltinType::ObjCId:     ID = PREDEF_TYPE_OBJC_ID;       break;
   case BuiltinType::ObjCClass:  ID = PREDEF_TYPE_OBJC_CLASS;    break;
   case BuiltinType::ObjCSel:    ID = PREDEF_TYPE_OBJC_SEL;      break;

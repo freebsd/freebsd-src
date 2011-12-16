@@ -101,8 +101,8 @@ ftree_start(void)
 	/*
 	 * optional user flags that effect file traversal
 	 * -H command line symlink follow only (half follow)
-	 * -L follow sylinks (logical)
-	 * -P do not follow sylinks (physical). This is the default.
+	 * -L follow symlinks (logical)
+	 * -P do not follow symlinks (physical). This is the default.
 	 * -X do not cross over mount points
 	 * -t preserve access times on files read.
 	 * -n select only the first member of a file tree when a match is found

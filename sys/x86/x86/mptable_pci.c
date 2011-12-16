@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bus.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
+#include <sys/rman.h>
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
@@ -68,6 +69,9 @@ static int
 mptable_hostb_attach(device_t dev)
 {
 
+#ifdef NEW_PCIB
+	mptable_pci_host_res_init(dev);
+#endif
 	device_add_child(dev, "pci", pcib_get_bus(dev));
 	return (bus_generic_attach(dev));
 }
@@ -103,6 +107,80 @@ mptable_hostb_map_msi(device_t pcib, device_t dev, int irq, uint64_t *addr,
 	return (PCIB_MAP_MSI(device_get_parent(bus), dev, irq, addr, data));
 }
 
+#ifdef NEW_PCIB
+static int
+mptable_is_isa_range(u_long start, u_long end)
+{
+
+	if (end >= 0x10000)
+		return (0);
+	if ((start & 0xfc00) != (end & 0xfc00))
+		return (0);
+	start &= ~0xfc00;
+	end &= ~0xfc00;
+	return (start >= 0x100 && end <= 0x3ff);
+}
+
+static int
+mptable_is_vga_range(u_long start, u_long end)
+{
+	if (end >= 0x10000)
+		return (0);
+	if ((start & 0xfc00) != (end & 0xfc00))
+		return (0);
+	start &= ~0xfc00;
+	end &= ~0xfc00;
+	return (pci_is_vga_ioport_range(start, end));
+}
+
+static struct resource *
+mptable_hostb_alloc_resource(device_t dev, device_t child, int type, int *rid,
+    u_long start, u_long end, u_long count, u_int flags)
+{
+	struct mptable_hostb_softc *sc;
+
+	sc = device_get_softc(dev);
+	if (type == SYS_RES_IOPORT && start + count - 1 == end) {
+		if (mptable_is_isa_range(start, end)) {
+			switch (sc->sc_decodes_isa_io) {
+			case -1:
+				return (NULL);
+			case 1:
+				return (bus_generic_alloc_resource(dev, child,
+				    type, rid, start, end, count, flags));
+			default:
+				break;
+			}
+		}
+		if (mptable_is_vga_range(start, end)) {
+			switch (sc->sc_decodes_vga_io) {
+			case -1:
+				return (NULL);
+			case 1:
+				return (bus_generic_alloc_resource(dev, child,
+				    type, rid, start, end, count, flags));
+			default:
+				break;
+			}
+		}
+	}
+	start = hostb_alloc_start(type, start, end, count);
+	return (pcib_host_res_alloc(&sc->sc_host_res, child, type, rid, start,
+	    end, count, flags));
+}
+
+static int
+mptable_hostb_adjust_resource(device_t dev, device_t child, int type,
+    struct resource *r, u_long start, u_long end)
+{
+	struct mptable_hostb_softc *sc;
+
+	sc = device_get_softc(dev);
+	return (pcib_host_res_adjust(&sc->sc_host_res, child, type, r, start,
+	    end));
+}
+#endif
+
 static device_method_t mptable_hostb_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		mptable_hostb_probe),
@@ -112,10 +190,15 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
+#ifdef NEW_PCIB
+	DEVMETHOD(bus_alloc_resource,	mptable_hostb_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	mptable_hostb_adjust_resource),
+#else
 	DEVMETHOD(bus_alloc_resource,	legacy_pcib_alloc_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
+#endif
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
@@ -133,12 +216,13 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		mptable_hostb_map_msi),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t hostb_devclass;
 
-DEFINE_CLASS_0(pcib, mptable_hostb_driver, mptable_hostb_methods, 1);
+DEFINE_CLASS_0(pcib, mptable_hostb_driver, mptable_hostb_methods,
+    sizeof(struct mptable_hostb_softc));
 DRIVER_MODULE(mptable_pcib, legacy, mptable_hostb_driver, hostb_devclass, 0, 0);
 
 /* PCI to PCI bridge driver. */

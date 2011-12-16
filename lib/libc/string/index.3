@@ -30,7 +30,7 @@
 .\"     @(#)index.3	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd March 20, 2011
 .Dt INDEX 3
 .Os
 .Sh NAME
@@ -45,6 +45,17 @@
 .Ft "char *"
 .Fn rindex "const char *s" "int c"
 .Sh DESCRIPTION
+.Bf -symbolic
+The
+.Fn index
+and
+.Fn rindex
+functions have been deprecated in favor of
+.Xr strchr 3
+and
+.Xr strrchr 3 .
+.Ef
+.Pp
 The
 .Fn index
 function
@@ -100,3 +111,5 @@ before they were moved to
 for
 .St -p1003.1-2001
 compliance.
+The functions are not specified by
+.St -p1003.1-2008 .

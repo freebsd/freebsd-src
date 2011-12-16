@@ -165,13 +165,13 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		}
 	} else if ((freq % 20) == 0 && freq >= 5120) {
 		channelSel = ath_hal_reverseBits(((freq - 4800) / 20 << 2), 8);
-		if (AR_SREV_SOWL_10_OR_LATER(ah))
+		if (AR_SREV_HOWL(ah) || AR_SREV_SOWL_10_OR_LATER(ah))
 			aModeRefSel = ath_hal_reverseBits(3, 2);
 		else
 			aModeRefSel = ath_hal_reverseBits(1, 2);
 	} else if ((freq % 10) == 0) {
 		channelSel = ath_hal_reverseBits(((freq - 4800) / 10 << 1), 8);
-		if (AR_SREV_SOWL_10_OR_LATER(ah))
+		if (AR_SREV_HOWL(ah) || AR_SREV_SOWL_10_OR_LATER(ah))
 			aModeRefSel = ath_hal_reverseBits(2, 2);
 		else
 			aModeRefSel = ath_hal_reverseBits(1, 2);
@@ -185,7 +185,7 @@ ar2133SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	}
 
 	/* Workaround for hw bug - AR5416 specific */
-	if (AR_SREV_OWL(ah))
+	if (AR_SREV_OWL(ah) && ah->ah_config.ah_ar5416_biasadj)
 		ar2133ForceBias(ah, freq);
 
 	reg32 = (channelSel << 8) | (aModeRefSel << 2) | (bModeSynth << 1) |
@@ -251,11 +251,19 @@ ar2133SetRfRegs(struct ath_hal *ah, const struct ieee80211_channel *chan,
 	
 	/* Only the 5 or 2 GHz OB/DB need to be set for a mode */
 	if (IEEE80211_IS_CHAN_2GHZ(chan)) {
+		HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: 2ghz: OB_2:%d, DB_2:%d\n",
+		    __func__,
+		    ath_hal_eepromGet(ah, AR_EEP_OB_2, AH_NULL),
+		    ath_hal_eepromGet(ah, AR_EEP_DB_2, AH_NULL));
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_OB_2, AH_NULL), 3, 197, 0);
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_DB_2, AH_NULL), 3, 194, 0);
 	} else {
+		HALDEBUG(ah, HAL_DEBUG_EEPROM, "%s: 5ghz: OB_5:%d, DB_5:%d\n",
+		    __func__,
+		    ath_hal_eepromGet(ah, AR_EEP_OB_5, AH_NULL),
+		    ath_hal_eepromGet(ah, AR_EEP_DB_5, AH_NULL));
 		ar5416ModifyRfBuffer(priv->Bank6Data,
 		    ath_hal_eepromGet(ah, AR_EEP_OB_5, AH_NULL), 3, 203, 0);
 		ar5416ModifyRfBuffer(priv->Bank6Data,
@@ -386,11 +394,28 @@ ar2133GetChannelMaxMinPower(struct ath_hal *ah,
 #endif
 }
 
+/*
+ * The ordering of nfarray is thus:
+ *
+ * nfarray[0]:	Chain 0 ctl
+ * nfarray[1]:	Chain 1 ctl
+ * nfarray[2]:	Chain 2 ctl
+ * nfarray[3]:	Chain 0 ext
+ * nfarray[4]:	Chain 1 ext
+ * nfarray[5]:	Chain 2 ext
+ */
 static void 
 ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
 	struct ath_hal_5416 *ahp = AH5416(ah);
 	int16_t nf;
+
+	/*
+	 * Blank nf array - some chips may only
+	 * have one or two RX chainmasks enabled.
+	 */
+	nfarray[0] = nfarray[1] = nfarray[2] = 0;
+	nfarray[3] = nfarray[4] = nfarray[5] = 0;
 
 	switch (ahp->ah_rx_chainmask) {
         case 0x7:
@@ -399,7 +424,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 2] is %d\n", nf);
-		nfarray[4] = nf;
+		nfarray[2] = nf;
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH2_EXT_CCA), AR_PHY_CH2_EXT_MINCCA_PWR);
 		if (nf & 0x100)
@@ -415,7 +440,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ctl] [chain 1] is %d\n", nf);
-		nfarray[2] = nf;
+		nfarray[1] = nf;
 
 
 		nf = MS(OS_REG_READ(ah, AR_PHY_CH1_EXT_CCA), AR_PHY_CH1_EXT_MINCCA_PWR);
@@ -423,7 +448,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 1] is %d\n", nf);
-		nfarray[3] = nf;
+		nfarray[4] = nf;
 		/* fall thru... */
         case 0x1:
 		nf = MS(OS_REG_READ(ah, AR_PHY_CCA), AR_PHY_MINCCA_PWR);
@@ -438,7 +463,7 @@ ar2133GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 			nf = 0 - ((nf ^ 0x1ff) + 1);
 		HALDEBUG(ah, HAL_DEBUG_NFCAL,
 		    "NF calibrated [ext] [chain 0] is %d\n", nf);
-		nfarray[1] = nf;
+		nfarray[3] = nf;
 
 		break;
 	}
@@ -524,3 +549,11 @@ ar2133RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar2133Probe(struct ath_hal *ah)
+{
+	return (AR_SREV_OWL(ah) || AR_SREV_HOWL(ah) || AR_SREV_SOWL(ah));
+}
+
+AH_RF(RF2133, ar2133Probe, ar2133RfAttach);

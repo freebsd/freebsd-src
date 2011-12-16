@@ -146,12 +146,12 @@ eeprom_v14_modal_print(uint16_t *buf, int m)
 	MODAL_EEP_HEADER *mh = &eep->ee_base.modalHeader[m];
 	int i;
 
-	printf("| antCtrlCommon: 0x%.4x |\n", mh->antCtrlCommon);
+	printf("| antCtrlCommon: 0x%.8x |\n", mh->antCtrlCommon);
 	printf("| switchSettling: 0x%.2x |\n", mh->switchSettling);
 	printf("| adcDesiredSize: %d |\n| pgaDesiredSize: %.2f dBm |\n",
 	    mh->adcDesiredSize, (float) mh->pgaDesiredSize / 2.0);
 
-	printf("| antCtrlChain:        0:0x%.4x 1:0x%.4x 2:0x%.4x |\n",
+	printf("| antCtrlChain:        0:0x%.8x 1:0x%.8x 2:0x%.8x |\n",
 	    mh->antCtrlChain[0], mh->antCtrlChain[1], mh->antCtrlChain[2]);
 	printf("| antennaGainCh:       0:0x%.2x   1:0x%.2x   2:0x%.2x   |\n",
 	    mh->antennaGainCh[0], mh->antennaGainCh[1], mh->antennaGainCh[2]);
@@ -288,9 +288,9 @@ eeprom_v14_calfreqpiers_print(uint16_t *buf)
 		for (n = 0; n < AR5416_MAX_CHAINS; n++) {
 			printf("  Chain %d:\n", n);
 			if (eep->ee_base.baseEepHeader.openLoopPwrCntl)
-				eeprom_v14_print_caldata_perfreq_op_loop((void *) (&eep->ee_base.calPierData2G[n][i]));
+				eeprom_v14_print_caldata_perfreq_op_loop((void *) (&eep->ee_base.calPierData5G[n][i]));
 			else
-				eeprom_v14_print_caldata_perfreq(&eep->ee_base.calPierData2G[n][i]);
+				eeprom_v14_print_caldata_perfreq(&eep->ee_base.calPierData5G[n][i]);
 		}
 	}
 }

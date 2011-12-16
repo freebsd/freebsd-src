@@ -104,8 +104,7 @@ in_getaddr(const char *s, int which)
 	struct netent *np;
 
 	sin->sin_len = sizeof(*sin);
-	if (which != MASK)
-		sin->sin_family = AF_INET;
+	sin->sin_family = AF_INET;
 
 	if (which == ADDR) {
 		char *p = NULL;
@@ -200,5 +199,10 @@ static struct afswtch af_inet = {
 static __constructor void
 inet_ctor(void)
 {
+
+#ifndef RESCUE
+	if (!feature_present("inet"))
+		return;
+#endif
 	af_register(&af_inet);
 }

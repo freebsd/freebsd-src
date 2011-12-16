@@ -16,6 +16,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <float.h>
+
 #include "math.h"
 #include "math_private.h"
 
@@ -40,7 +42,7 @@ P2 = -2.7667332906e-3;		/* -0xb55215.0p-32 */
 static volatile float twom100 = 7.8886090522e-31;      /* 2**-100=0x0d800000 */
 
 float
-__ieee754_expf(float x)	/* default IEEE double exp */
+__ieee754_expf(float x)
 {
 	float y,hi=0.0,lo=0.0,c,t,twopk;
 	int32_t k=0,xsb;
@@ -70,7 +72,7 @@ __ieee754_expf(float x)	/* default IEEE double exp */
 		hi = x - t*ln2HI[0];	/* t*ln2HI is exact here */
 		lo = t*ln2LO[0];
 	    }
-	    x  = hi - lo;
+	    STRICT_ASSIGN(float, x, hi - lo);
 	}
 	else if(hx < 0x39000000)  {	/* when |x|<2**-14 */
 	    if(huge+x>one) return one+x;/* trigger inexact */

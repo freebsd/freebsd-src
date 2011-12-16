@@ -26,10 +26,11 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 13, 2007
+.Dd August 25, 2011
 .Dt SELRECORD 9
 .Os
 .Sh NAME
+.Nm seldrain ,
 .Nm selrecord ,
 .Nm selwakeup
 .Nd "record and wakeup select requests"
@@ -37,14 +38,17 @@
 .In sys/param.h
 .In sys/selinfo.h
 .Ft void
+.Fn seldrain "struct selinfo *sip"
+.Ft void
 .Fn selrecord "struct thread *td" "struct selinfo *sip"
 .Ft void
 .Fn selwakeup "struct selinfo *sip"
 .Sh DESCRIPTION
+.Fn seldrain ,
 .Fn selrecord
 and
 .Fn selwakeup
-are the two central functions used by
+are the three central functions used by
 .Xr select 2 ,
 .Xr poll 2
 and the objects that are being selected on.
@@ -86,6 +90,15 @@ and
 .Xr poll 2
 when they wake up.
 .Pp
+.Fn seldrain
+will flush the waiters queue on a specified object before its
+destruction.
+The object handling code must ensure that
+.Fa *sip
+cannot be used once
+.Fn seldrain
+has been called.
+.Pp
 The contents of
 .Fa *sip
 must be zeroed, such as by softc initialization, before any call to
@@ -98,6 +111,10 @@ acquires and releases
 .Va sellock
 and may acquire and release
 .Va sched_lock .
+.Fn seldrain
+could usually be just a wrapper for
+.Fn selwakeup ,
+but consumers should not generally rely on this feature.
 .Sh SEE ALSO
 .Xr poll 2 ,
 .Xr select 2

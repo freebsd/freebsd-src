@@ -1,0 +1,45 @@
+libmthca (1.0.5-1) unstable; urgency=low
+
+  * New upstream release.
+    - Fix issues on non-mem-free HCAs.
+    - Fix problems with completion entry cleanup.
+  * Replace deprecated ${Source-Version} with ${binary:Version}
+  * Add debian/watch file.
+  * Update libtool during build to avoid setting RPATH in binaries on amd64.
+
+ -- Roland Dreier <rolandd@cisco.com>  Tue, 27 May 2008 14:19:55 -0700
+
+libmthca (1.0.4-1) unstable; urgency=low
+
+  * New upstream release.
+  * Rebuild against libibverbs 1.1.
+
+ -- Roland Dreier <rolandd@cisco.com>  Mon, 30 Apr 2007 17:11:51 -0700
+
+libmthca (1.0.3-1) unstable; urgency=low
+
+  * New upstream release.
+    - Fix various integer overflows.
+    - Fix potential AB-BA deadlock when destroying QPs.
+    - Add more forward compat against future libibverbs releases.
+  * Build against libibverbs 1.0.4, with fixed sparc mb() definition.
+    (Closes: #365559)
+  * Improve package description.
+
+ -- Roland Dreier <rolandd@cisco.com>  Thu,  9 Nov 2006 11:07:58 -0800
+
+libmthca (1.0.2-1) unstable; urgency=low
+
+  * New upstream release:
+    - Work around MemFree firmware bug in receive completions with error.
+    - Fix posting receive lists with exactly a multiple of 256 entries.
+    - Add forward compatibility for future libibverbs releases.
+  * Update to Standards-Version: 3.7.2.
+
+ -- Roland Dreier <rolandd@cisco.com>  Tue, 13 Jun 2006 11:33:32 -0700
+
+libmthca (1.0.1-1) unstable; urgency=low
+	
+  * Initial Release.  (Closes: #325753)
+
+ -- Roland Dreier <rolandd@cisco.com>  Wed, 15 Feb 2006 11:22:18 -0700

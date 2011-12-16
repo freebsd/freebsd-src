@@ -36,6 +36,7 @@
 #ifndef _NFSCLIENT_NFSNODE_H_
 #define _NFSCLIENT_NFSNODE_H_
 
+#include <sys/_task.h>
 #if !defined(_NFSCLIENT_NFS_H_) && !defined(_KERNEL)
 #include <nfs/nfs.h>
 #endif
@@ -45,6 +46,7 @@
  * can be removed by nfs_inactive()
  */
 struct sillyrename {
+	struct	task s_task;
 	struct	ucred *s_cred;
 	struct	vnode *s_dvp;
 	int	(*s_removeit)(struct sillyrename *sp);

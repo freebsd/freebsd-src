@@ -21,12 +21,16 @@
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MemoryObject.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
-#include "X86GenRegisterNames.inc"
+#define GET_REGINFO_ENUM
+#include "X86GenRegisterInfo.inc"
+#define GET_INSTRINFO_ENUM
+#include "X86GenInstrInfo.inc"
 #include "X86GenEDInfo.inc"
 
 using namespace llvm;
@@ -63,8 +67,8 @@ extern Target TheX86_32Target, TheX86_64Target;
 static bool translateInstruction(MCInst &target,
                                 InternalInstruction &source);
 
-X86GenericDisassembler::X86GenericDisassembler(DisassemblerMode mode) :
-    MCDisassembler(),
+X86GenericDisassembler::X86GenericDisassembler(const MCSubtargetInfo &STI, DisassemblerMode mode) :
+    MCDisassembler(STI),
     fMode(mode) {
 }
 
@@ -105,28 +109,34 @@ static void logger(void* arg, const char* log) {
 // Public interface for the disassembler
 //
 
-bool X86GenericDisassembler::getInstruction(MCInst &instr,
-                                            uint64_t &size,
-                                            const MemoryObject &region,
-                                            uint64_t address,
-                                            raw_ostream &vStream) const {
+MCDisassembler::DecodeStatus
+X86GenericDisassembler::getInstruction(MCInst &instr,
+                                       uint64_t &size,
+                                       const MemoryObject &region,
+                                       uint64_t address,
+                                       raw_ostream &vStream,
+                                       raw_ostream &cStream) const {
   InternalInstruction internalInstr;
+
+  dlog_t loggerFn = logger;
+  if (&vStream == &nulls())
+    loggerFn = 0; // Disable logging completely if it's going to nulls().
   
   int ret = decodeInstruction(&internalInstr,
                               regionReader,
                               (void*)&region,
-                              logger,
+                              loggerFn,
                               (void*)&vStream,
                               address,
                               fMode);
 
   if (ret) {
     size = internalInstr.readerCursor - address;
-    return false;
+    return Fail;
   }
   else {
     size = internalInstr.length;
-    return !translateInstruction(instr, internalInstr);
+    return (!translateInstruction(instr, internalInstr)) ? Success : Fail;
   }
 }
 
@@ -182,8 +192,46 @@ static void translateImmediate(MCInst &mcInst, uint64_t immediate,
       break;
     }
   }
+  // By default sign-extend all X86 immediates based on their encoding.
+  else if (type == TYPE_IMM8 || type == TYPE_IMM16 || type == TYPE_IMM32 ||
+           type == TYPE_IMM64) {
+    uint32_t Opcode = mcInst.getOpcode();
+    switch (operand.encoding) {
+    default:
+      break;
+    case ENCODING_IB:
+      // Special case those X86 instructions that use the imm8 as a set of
+      // bits, bit count, etc. and are not sign-extend.
+      if (Opcode != X86::BLENDPSrri && Opcode != X86::BLENDPDrri &&
+	  Opcode != X86::PBLENDWrri && Opcode != X86::MPSADBWrri &&
+	  Opcode != X86::DPPSrri && Opcode != X86::DPPDrri &&
+	  Opcode != X86::INSERTPSrr && Opcode != X86::VBLENDPSYrri &&
+	  Opcode != X86::VBLENDPSYrmi && Opcode != X86::VBLENDPDYrri &&
+	  Opcode != X86::VBLENDPDYrmi && Opcode != X86::VPBLENDWrri &&
+	  Opcode != X86::VMPSADBWrri && Opcode != X86::VDPPSYrri &&
+	  Opcode != X86::VDPPSYrmi && Opcode != X86::VDPPDrri &&
+	  Opcode != X86::VINSERTPSrr)
+	type = TYPE_MOFFS8;
+      break;
+    case ENCODING_IW:
+      type = TYPE_MOFFS16;
+      break;
+    case ENCODING_ID:
+      type = TYPE_MOFFS32;
+      break;
+    case ENCODING_IO:
+      type = TYPE_MOFFS64;
+      break;
+    }
+  }
 
   switch (type) {
+  case TYPE_XMM128:
+    mcInst.addOperand(MCOperand::CreateReg(X86::XMM0 + (immediate >> 4)));
+    return;
+  case TYPE_XMM256:
+    mcInst.addOperand(MCOperand::CreateReg(X86::YMM0 + (immediate >> 4)));
+    return;
   case TYPE_MOFFS8:
   case TYPE_REL8:
     if(immediate & 0x80)
@@ -409,6 +457,7 @@ static bool translateRM(MCInst &mcInst, const OperandSpecifier &operand,
   case TYPE_XMM32:
   case TYPE_XMM64:
   case TYPE_XMM128:
+  case TYPE_XMM256:
   case TYPE_DEBUGREG:
   case TYPE_CONTROLREG:
     return translateRMRegister(mcInst, insn);
@@ -418,6 +467,7 @@ static bool translateRM(MCInst &mcInst, const OperandSpecifier &operand,
   case TYPE_M32:
   case TYPE_M64:
   case TYPE_M128:
+  case TYPE_M256:
   case TYPE_M512:
   case TYPE_Mv:
   case TYPE_M32FP:
@@ -500,6 +550,9 @@ static bool translateOperand(MCInst &mcInst, const OperandSpecifier &operand,
   case ENCODING_Rv:
     translateRegister(mcInst, insn.opcodeRegister);
     return false;
+  case ENCODING_VVVV:
+    translateRegister(mcInst, insn.vvvv);
+    return false;
   case ENCODING_DUP:
     return translateOperand(mcInst,
                             insn.spec->operands[operand.type - TYPE_DUP0],
@@ -537,12 +590,12 @@ static bool translateInstruction(MCInst &mcInst,
   return false;
 }
 
-static MCDisassembler *createX86_32Disassembler(const Target &T) {
-  return new X86Disassembler::X86_32Disassembler;
+static MCDisassembler *createX86_32Disassembler(const Target &T, const MCSubtargetInfo &STI) {
+  return new X86Disassembler::X86_32Disassembler(STI);
 }
 
-static MCDisassembler *createX86_64Disassembler(const Target &T) {
-  return new X86Disassembler::X86_64Disassembler;
+static MCDisassembler *createX86_64Disassembler(const Target &T, const MCSubtargetInfo &STI) {
+  return new X86Disassembler::X86_64Disassembler(STI);
 }
 
 extern "C" void LLVMInitializeX86Disassembler() { 

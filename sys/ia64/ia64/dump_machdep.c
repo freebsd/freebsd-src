@@ -27,14 +27,20 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_watchdog.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 #include <sys/conf.h>
 #include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/kerneldump.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 #include <vm/vm.h>
 #include <vm/pmap.h>
+#include <machine/bootinfo.h>
 #include <machine/efi.h>
 #include <machine/elf.h>
 #include <machine/md_var.h>
@@ -125,6 +131,9 @@ cb_dumpdata(struct efi_md *mdp, int seqnr, void *arg)
 			printf("%c\b", "|/-\\"[twiddle++ & 3]);
 			counter &= (1<<24) - 1;
 		}
+#ifdef SW_WATCHDOG
+		wdog_kern_pat(WD_LASTVAL);
+#endif
 		error = dump_write(di, (void*)pa, 0, dumplo, sz);
 		if (error)
 			break;
@@ -183,7 +192,8 @@ foreach_chunk(callback_t cb, void *arg)
 	seqnr = 0;
 	mdp = efi_md_first();
 	while (mdp != NULL) {
-		if (mdp->md_type == EFI_MD_TYPE_FREE) {
+		if (mdp->md_type == EFI_MD_TYPE_FREE ||
+		    mdp->md_type == EFI_MD_TYPE_DATA) {
 			error = (*cb)(mdp, seqnr++, arg);
 			if (error)
 				return (-error);
@@ -217,6 +227,7 @@ dumpsys(struct dumperinfo *di)
 	ehdr.e_ident[EI_OSABI] = ELFOSABI_STANDALONE;	/* XXX big picture? */
 	ehdr.e_type = ET_CORE;
 	ehdr.e_machine = EM_IA_64;
+	ehdr.e_entry = ia64_tpa((uintptr_t)bootinfo);
 	ehdr.e_phoff = sizeof(ehdr);
 	ehdr.e_flags = EF_IA_64_ABSOLUTE;		/* XXX misuse? */
 	ehdr.e_ehsize = sizeof(ehdr);

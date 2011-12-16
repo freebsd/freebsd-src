@@ -25,12 +25,15 @@
 #include "llvm/Target/TargetMachine.h"
 #include "llvm/Target/TargetOptions.h"
 #include "llvm/ADT/BitVector.h"
+
+#define GET_REGINFO_TARGET_DESC
+#include "SystemZGenRegisterInfo.inc"
+
 using namespace llvm;
 
 SystemZRegisterInfo::SystemZRegisterInfo(SystemZTargetMachine &tm,
                                          const SystemZInstrInfo &tii)
-  : SystemZGenRegisterInfo(SystemZ::ADJCALLSTACKUP, SystemZ::ADJCALLSTACKDOWN),
-    TM(tm), TII(tii) {
+  : SystemZGenRegisterInfo(0), TM(tm), TII(tii) {
 }
 
 const unsigned*
@@ -51,11 +54,35 @@ BitVector SystemZRegisterInfo::getReservedRegs(const MachineFunction &MF) const 
   BitVector Reserved(getNumRegs());
   const TargetFrameLowering *TFI = MF.getTarget().getFrameLowering();
 
-  if (TFI->hasFP(MF))
+  if (TFI->hasFP(MF)) {
+    // R11D is the frame pointer. Reserve all aliases.
     Reserved.set(SystemZ::R11D);
+    Reserved.set(SystemZ::R11W);
+    Reserved.set(SystemZ::R10P);
+    Reserved.set(SystemZ::R10Q);
+  }
+
   Reserved.set(SystemZ::R14D);
   Reserved.set(SystemZ::R15D);
+  Reserved.set(SystemZ::R14W);
+  Reserved.set(SystemZ::R15W);
+  Reserved.set(SystemZ::R14P);
+  Reserved.set(SystemZ::R14Q);
   return Reserved;
+}
+
+const TargetRegisterClass*
+SystemZRegisterInfo::getMatchingSuperRegClass(const TargetRegisterClass *A,
+                                              const TargetRegisterClass *B,
+                                              unsigned Idx) const {
+  switch(Idx) {
+  // Exact sub-classes don't exist for the other sub-register indexes.
+  default: return 0;
+  case SystemZ::subreg_32bit:
+    if (B == SystemZ::ADDR32RegisterClass)
+      return A->getSize() == 8 ? SystemZ::ADDR64RegisterClass : 0;
+    return A;
+  }
 }
 
 void SystemZRegisterInfo::
@@ -99,11 +126,6 @@ SystemZRegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator II,
   MI.getOperand(i+1).ChangeToImmediate(Offset);
 }
 
-unsigned SystemZRegisterInfo::getRARegister() const {
-  assert(0 && "What is the return address register");
-  return 0;
-}
-
 unsigned
 SystemZRegisterInfo::getFrameRegister(const MachineFunction &MF) const {
   assert(0 && "What is the frame register");
@@ -119,10 +141,3 @@ unsigned SystemZRegisterInfo::getEHHandlerRegister() const {
   assert(0 && "What is the exception handler register");
   return 0;
 }
-
-int SystemZRegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const {
-  assert(0 && "What is the dwarf register number");
-  return -1;
-}
-
-#include "SystemZGenRegisterInfo.inc"

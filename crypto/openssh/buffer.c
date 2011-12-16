@@ -1,4 +1,5 @@
 /* $OpenBSD: buffer.c,v 1.32 2010/02/09 03:56:28 djm Exp $ */
+/* $FreeBSD$ */
 /*
  * Author: Tatu Ylonen <ylo@cs.hut.fi>
  * Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
@@ -25,7 +26,7 @@
 #include "log.h"
 
 #define	BUFFER_MAX_CHUNK	0x100000
-#define	BUFFER_MAX_LEN		0xa00000
+#define	BUFFER_MAX_LEN		0x4000000	/* 64MB */
 #define	BUFFER_ALLOCSZ		0x008000
 
 /* Initializes the buffer structure. */
@@ -163,6 +164,13 @@ u_int
 buffer_len(const Buffer *buffer)
 {
 	return buffer->end - buffer->offset;
+}
+
+/* Returns the maximum number of bytes of data that may be in the buffer. */
+u_int
+buffer_get_max_len(void)
+{
+	return (BUFFER_MAX_LEN);
 }
 
 /* Gets data from the beginning of the buffer. */

@@ -17,6 +17,8 @@
 
 #include "llvm/Instructions.h"
 #include "llvm/BasicBlock.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ConstantFolder.h"
 
@@ -78,13 +80,27 @@ public:
   void SetInsertPoint(Instruction *I) {
     BB = I->getParent();
     InsertPt = I;
+    SetCurrentDebugLocation(I->getDebugLoc());
   }
-  
+
   /// SetInsertPoint - This specifies that created instructions should be
   /// inserted at the specified point.
   void SetInsertPoint(BasicBlock *TheBB, BasicBlock::iterator IP) {
     BB = TheBB;
     InsertPt = IP;
+  }
+
+  /// SetInsertPoint(Use) - Find the nearest point that dominates this use, and
+  /// specify that created instructions should be inserted at this point.
+  void SetInsertPoint(Use &U) {
+    Instruction *UseInst = cast<Instruction>(U.getUser());
+    if (PHINode *Phi = dyn_cast<PHINode>(UseInst)) {
+      BasicBlock *PredBB = Phi->getIncomingBlock(U);
+      assert(U != PredBB->getTerminator() && "critical edge not split");
+      SetInsertPoint(PredBB, PredBB->getTerminator());
+      return;
+    }
+    SetInsertPoint(UseInst);
   }
 
   /// SetCurrentDebugLocation - Set location information used by debugging
@@ -95,7 +111,7 @@ public:
 
   /// getCurrentDebugLocation - Get location information used by debugging
   /// information.
-  const DebugLoc &getCurrentDebugLocation() const { return CurDbgLocation; }
+  DebugLoc getCurrentDebugLocation() const { return CurDbgLocation; }
 
   /// SetInstDebugLocation - If this builder has a current debug location, set
   /// it on the specified instruction.
@@ -103,6 +119,10 @@ public:
     if (!CurDbgLocation.isUnknown())
       I->setDebugLoc(CurDbgLocation);
   }
+
+  /// getCurrentFunctionReturnType - Get the return type of the current function
+  /// that we're emitting into.
+  Type *getCurrentFunctionReturnType() const;
 
   /// InsertPoint - A saved insertion point.
   class InsertPoint {
@@ -152,9 +172,10 @@ public:
 
   /// CreateGlobalString - Make a new global variable with an initializer that
   /// has array of i8 type filled in with the nul terminated string value
-  /// specified.  If Name is specified, it is the name of the global variable
-  /// created.
-  Value *CreateGlobalString(const char *Str = "", const Twine &Name = "");
+  /// specified.  The new global variable will be marked mergable with any
+  /// others of the same contents.  If Name is specified, it is the name of the
+  /// global variable created.
+  Value *CreateGlobalString(StringRef Str, const Twine &Name = "");
 
   /// getInt1 - Get a constant value representing either true or false.
   ConstantInt *getInt1(bool V) {
@@ -191,58 +212,63 @@ public:
     return ConstantInt::get(getInt64Ty(), C);
   }
 
+  /// getInt - Get a constant integer value.
+  ConstantInt *getInt(const APInt &AI) {
+    return ConstantInt::get(Context, AI);
+  }
+
   //===--------------------------------------------------------------------===//
   // Type creation methods
   //===--------------------------------------------------------------------===//
 
   /// getInt1Ty - Fetch the type representing a single bit
-  const IntegerType *getInt1Ty() {
+  IntegerType *getInt1Ty() {
     return Type::getInt1Ty(Context);
   }
 
   /// getInt8Ty - Fetch the type representing an 8-bit integer.
-  const IntegerType *getInt8Ty() {
+  IntegerType *getInt8Ty() {
     return Type::getInt8Ty(Context);
   }
 
   /// getInt16Ty - Fetch the type representing a 16-bit integer.
-  const IntegerType *getInt16Ty() {
+  IntegerType *getInt16Ty() {
     return Type::getInt16Ty(Context);
   }
 
   /// getInt32Ty - Fetch the type resepresenting a 32-bit integer.
-  const IntegerType *getInt32Ty() {
+  IntegerType *getInt32Ty() {
     return Type::getInt32Ty(Context);
   }
 
   /// getInt64Ty - Fetch the type representing a 64-bit integer.
-  const IntegerType *getInt64Ty() {
+  IntegerType *getInt64Ty() {
     return Type::getInt64Ty(Context);
   }
 
   /// getFloatTy - Fetch the type representing a 32-bit floating point value.
-  const Type *getFloatTy() {
+  Type *getFloatTy() {
     return Type::getFloatTy(Context);
   }
 
   /// getDoubleTy - Fetch the type representing a 64-bit floating point value.
-  const Type *getDoubleTy() {
+  Type *getDoubleTy() {
     return Type::getDoubleTy(Context);
   }
 
   /// getVoidTy - Fetch the type representing void.
-  const Type *getVoidTy() {
+  Type *getVoidTy() {
     return Type::getVoidTy(Context);
   }
 
-  const PointerType *getInt8PtrTy(unsigned AddrSpace = 0) {
+  PointerType *getInt8PtrTy(unsigned AddrSpace = 0) {
     return Type::getInt8PtrTy(Context, AddrSpace);
   }
 
-  /// getCurrentFunctionReturnType - Get the return type of the current function
-  /// that we're emitting into.
-  const Type *getCurrentFunctionReturnType() const;
-  
+  //===--------------------------------------------------------------------===//
+  // Intrinsic creation methods
+  //===--------------------------------------------------------------------===//
+
   /// CreateMemSet - Create and insert a memset to the specified pointer and the
   /// specified value.  If the pointer isn't an i8*, it will be converted.  If a
   /// TBAA tag is specified, it will be added to the instruction.
@@ -250,7 +276,7 @@ public:
                          bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemSet(Ptr, Val, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemSet(Value *Ptr, Value *Val, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0);
 
@@ -261,7 +287,7 @@ public:
                          bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemCpy(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemCpy(Value *Dst, Value *Src, Value *Size, unsigned Align,
                          bool isVolatile = false, MDNode *TBAATag = 0);
 
@@ -272,9 +298,18 @@ public:
                           bool isVolatile = false, MDNode *TBAATag = 0) {
     return CreateMemMove(Dst, Src, getInt64(Size), Align, isVolatile, TBAATag);
   }
-  
+
   CallInst *CreateMemMove(Value *Dst, Value *Src, Value *Size, unsigned Align,
-                          bool isVolatile = false, MDNode *TBAATag = 0);  
+                          bool isVolatile = false, MDNode *TBAATag = 0);
+
+  /// CreateLifetimeStart - Create a lifetime.start intrinsic.  If the pointer
+  /// isn't i8* it will be converted.
+  CallInst *CreateLifetimeStart(Value *Ptr, ConstantInt *Size = 0);
+
+  /// CreateLifetimeEnd - Create a lifetime.end intrinsic.  If the pointer isn't
+  /// i8* it will be converted.
+  CallInst *CreateLifetimeEnd(Value *Ptr, ConstantInt *Size = 0);
+
 private:
   Value *getCastedInt8PtrValue(Value *Ptr);
 };
@@ -301,7 +336,7 @@ public:
     : IRBuilderBase(C), Inserter(I), Folder(F) {
   }
 
-  explicit IRBuilder(LLVMContext &C) : IRBuilderBase(C), Folder(C) {
+  explicit IRBuilder(LLVMContext &C) : IRBuilderBase(C), Folder() {
   }
 
   explicit IRBuilder(BasicBlock *TheBB, const T &F)
@@ -310,22 +345,29 @@ public:
   }
 
   explicit IRBuilder(BasicBlock *TheBB)
-    : IRBuilderBase(TheBB->getContext()), Folder(Context) {
+    : IRBuilderBase(TheBB->getContext()), Folder() {
     SetInsertPoint(TheBB);
   }
 
   explicit IRBuilder(Instruction *IP)
-    : IRBuilderBase(IP->getContext()), Folder(Context) {
+    : IRBuilderBase(IP->getContext()), Folder() {
     SetInsertPoint(IP);
+    SetCurrentDebugLocation(IP->getDebugLoc());
   }
-  
+
+  explicit IRBuilder(Use &U)
+    : IRBuilderBase(U->getContext()), Folder() {
+    SetInsertPoint(U);
+    SetCurrentDebugLocation(cast<Instruction>(U.getUser())->getDebugLoc());
+  }
+
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP, const T& F)
     : IRBuilderBase(TheBB->getContext()), Folder(F) {
     SetInsertPoint(TheBB, IP);
   }
 
   IRBuilder(BasicBlock *TheBB, BasicBlock::iterator IP)
-    : IRBuilderBase(TheBB->getContext()), Folder(Context) {
+    : IRBuilderBase(TheBB->getContext()), Folder() {
     SetInsertPoint(TheBB, IP);
   }
 
@@ -407,38 +449,34 @@ public:
 
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, const Twine &Name = "") {
-    Value *Args[] = { 0 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
+                                     ArrayRef<Value *>()),
+                  Name);
   }
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
                            BasicBlock *UnwindDest, Value *Arg1,
                            const Twine &Name = "") {
-    Value *Args[] = { Arg1 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args+1), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Arg1),
+                  Name);
   }
   InvokeInst *CreateInvoke3(Value *Callee, BasicBlock *NormalDest,
                             BasicBlock *UnwindDest, Value *Arg1,
                             Value *Arg2, Value *Arg3,
                             const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3 };
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args,
-                                     Args+3), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args),
+                  Name);
   }
   /// CreateInvoke - Create an invoke instruction.
-  template<typename RandomAccessIterator>
   InvokeInst *CreateInvoke(Value *Callee, BasicBlock *NormalDest,
-                           BasicBlock *UnwindDest,
-                           RandomAccessIterator ArgBegin,
-                           RandomAccessIterator ArgEnd,
+                           BasicBlock *UnwindDest, ArrayRef<Value *> Args,
                            const Twine &Name = "") {
-    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest,
-                                     ArgBegin, ArgEnd), Name);
+    return Insert(InvokeInst::Create(Callee, NormalDest, UnwindDest, Args),
+                  Name);
   }
 
-  UnwindInst *CreateUnwind() {
-    return Insert(new UnwindInst(Context));
+  ResumeInst *CreateResume(Value *Exn) {
+    return Insert(ResumeInst::Create(Exn));
   }
 
   UnreachableInst *CreateUnreachable() {
@@ -706,7 +744,7 @@ public:
   // Instruction creation methods: Memory Instructions
   //===--------------------------------------------------------------------===//
 
-  AllocaInst *CreateAlloca(const Type *Ty, Value *ArraySize = 0,
+  AllocaInst *CreateAlloca(Type *Ty, Value *ArraySize = 0,
                            const Twine &Name = "") {
     return Insert(new AllocaInst(Ty, ArraySize), Name);
   }
@@ -724,71 +762,74 @@ public:
   StoreInst *CreateStore(Value *Val, Value *Ptr, bool isVolatile = false) {
     return Insert(new StoreInst(Val, Ptr, isVolatile));
   }
-  template<typename RandomAccessIterator>
-  Value *CreateGEP(Value *Ptr,
-                   RandomAccessIterator IdxBegin,
-                   RandomAccessIterator IdxEnd,
+  FenceInst *CreateFence(AtomicOrdering Ordering,
+                         SynchronizationScope SynchScope = CrossThread) {
+    return Insert(new FenceInst(Context, Ordering, SynchScope));
+  }
+  AtomicCmpXchgInst *CreateAtomicCmpXchg(Value *Ptr, Value *Cmp, Value *New,
+                                         AtomicOrdering Ordering,
+                               SynchronizationScope SynchScope = CrossThread) {
+    return Insert(new AtomicCmpXchgInst(Ptr, Cmp, New, Ordering, SynchScope));
+  }
+  AtomicRMWInst *CreateAtomicRMW(AtomicRMWInst::BinOp Op, Value *Ptr, Value *Val,
+                                 AtomicOrdering Ordering,
+                               SynchronizationScope SynchScope = CrossThread) {
+    return Insert(new AtomicRMWInst(Op, Ptr, Val, Ordering, SynchScope));
+  }
+  Value *CreateGEP(Value *Ptr, ArrayRef<Value *> IdxList,
                    const Twine &Name = "") {
     if (Constant *PC = dyn_cast<Constant>(Ptr)) {
       // Every index must be constant.
-      RandomAccessIterator i;
-      for (i = IdxBegin; i < IdxEnd; ++i)
-        if (!isa<Constant>(*i))
+      size_t i, e;
+      for (i = 0, e = IdxList.size(); i != e; ++i)
+        if (!isa<Constant>(IdxList[i]))
           break;
-      if (i == IdxEnd)
-        return Insert(Folder.CreateGetElementPtr(PC, &IdxBegin[0],
-                                                 IdxEnd - IdxBegin),
-                      Name);
+      if (i == e)
+        return Insert(Folder.CreateGetElementPtr(PC, IdxList), Name);
     }
-    return Insert(GetElementPtrInst::Create(Ptr, IdxBegin, IdxEnd), Name);
+    return Insert(GetElementPtrInst::Create(Ptr, IdxList), Name);
   }
-  template<typename RandomAccessIterator>
-  Value *CreateInBoundsGEP(Value *Ptr, RandomAccessIterator IdxBegin,
-                           RandomAccessIterator IdxEnd,
+  Value *CreateInBoundsGEP(Value *Ptr, ArrayRef<Value *> IdxList,
                            const Twine &Name = "") {
     if (Constant *PC = dyn_cast<Constant>(Ptr)) {
       // Every index must be constant.
-      RandomAccessIterator i;
-      for (i = IdxBegin; i < IdxEnd; ++i)
-        if (!isa<Constant>(*i))
+      size_t i, e;
+      for (i = 0, e = IdxList.size(); i != e; ++i)
+        if (!isa<Constant>(IdxList[i]))
           break;
-      if (i == IdxEnd)
-        return Insert(Folder.CreateInBoundsGetElementPtr(PC,
-                                                         &IdxBegin[0],
-                                                         IdxEnd - IdxBegin),
-                      Name);
+      if (i == e)
+        return Insert(Folder.CreateInBoundsGetElementPtr(PC, IdxList), Name);
     }
-    return Insert(GetElementPtrInst::CreateInBounds(Ptr, IdxBegin, IdxEnd),
-                  Name);
+    return Insert(GetElementPtrInst::CreateInBounds(Ptr, IdxList), Name);
   }
   Value *CreateGEP(Value *Ptr, Value *Idx, const Twine &Name = "") {
     if (Constant *PC = dyn_cast<Constant>(Ptr))
       if (Constant *IC = dyn_cast<Constant>(Idx))
-        return Insert(Folder.CreateGetElementPtr(PC, &IC, 1), Name);
+        return Insert(Folder.CreateGetElementPtr(PC, IC), Name);
     return Insert(GetElementPtrInst::Create(Ptr, Idx), Name);
   }
   Value *CreateInBoundsGEP(Value *Ptr, Value *Idx, const Twine &Name = "") {
     if (Constant *PC = dyn_cast<Constant>(Ptr))
       if (Constant *IC = dyn_cast<Constant>(Idx))
-        return Insert(Folder.CreateInBoundsGetElementPtr(PC, &IC, 1), Name);
+        return Insert(Folder.CreateInBoundsGetElementPtr(PC, IC), Name);
     return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idx), Name);
   }
   Value *CreateConstGEP1_32(Value *Ptr, unsigned Idx0, const Twine &Name = "") {
     Value *Idx = ConstantInt::get(Type::getInt32Ty(Context), Idx0);
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(PC, &Idx, 1), Name);
+      return Insert(Folder.CreateGetElementPtr(PC, Idx), Name);
 
-    return Insert(GetElementPtrInst::Create(Ptr, &Idx, &Idx+1), Name);
+    return Insert(GetElementPtrInst::Create(Ptr, Idx), Name);
   }
   Value *CreateConstInBoundsGEP1_32(Value *Ptr, unsigned Idx0,
                                     const Twine &Name = "") {
     Value *Idx = ConstantInt::get(Type::getInt32Ty(Context), Idx0);
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(PC, &Idx, 1), Name);
+      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idx), Name);
 
-    return Insert(GetElementPtrInst::CreateInBounds(Ptr, &Idx, &Idx+1), Name);
+    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idx), Name);
   }
   Value *CreateConstGEP2_32(Value *Ptr, unsigned Idx0, unsigned Idx1,
                     const Twine &Name = "") {
@@ -798,9 +839,9 @@ public:
     };
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(PC, Idxs, 2), Name);
+      return Insert(Folder.CreateGetElementPtr(PC, Idxs), Name);
 
-    return Insert(GetElementPtrInst::Create(Ptr, Idxs, Idxs+2), Name);
+    return Insert(GetElementPtrInst::Create(Ptr, Idxs), Name);
   }
   Value *CreateConstInBoundsGEP2_32(Value *Ptr, unsigned Idx0, unsigned Idx1,
                                     const Twine &Name = "") {
@@ -810,26 +851,26 @@ public:
     };
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idxs, 2), Name);
+      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idxs), Name);
 
-    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idxs, Idxs+2), Name);
+    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idxs), Name);
   }
   Value *CreateConstGEP1_64(Value *Ptr, uint64_t Idx0, const Twine &Name = "") {
     Value *Idx = ConstantInt::get(Type::getInt64Ty(Context), Idx0);
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(PC, &Idx, 1), Name);
+      return Insert(Folder.CreateGetElementPtr(PC, Idx), Name);
 
-    return Insert(GetElementPtrInst::Create(Ptr, &Idx, &Idx+1), Name);
+    return Insert(GetElementPtrInst::Create(Ptr, Idx), Name);
   }
   Value *CreateConstInBoundsGEP1_64(Value *Ptr, uint64_t Idx0,
                                     const Twine &Name = "") {
     Value *Idx = ConstantInt::get(Type::getInt64Ty(Context), Idx0);
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(PC, &Idx, 1), Name);
+      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idx), Name);
 
-    return Insert(GetElementPtrInst::CreateInBounds(Ptr, &Idx, &Idx+1), Name);
+    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idx), Name);
   }
   Value *CreateConstGEP2_64(Value *Ptr, uint64_t Idx0, uint64_t Idx1,
                     const Twine &Name = "") {
@@ -839,9 +880,9 @@ public:
     };
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateGetElementPtr(PC, Idxs, 2), Name);
+      return Insert(Folder.CreateGetElementPtr(PC, Idxs), Name);
 
-    return Insert(GetElementPtrInst::Create(Ptr, Idxs, Idxs+2), Name);
+    return Insert(GetElementPtrInst::Create(Ptr, Idxs), Name);
   }
   Value *CreateConstInBoundsGEP2_64(Value *Ptr, uint64_t Idx0, uint64_t Idx1,
                                     const Twine &Name = "") {
@@ -851,9 +892,9 @@ public:
     };
 
     if (Constant *PC = dyn_cast<Constant>(Ptr))
-      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idxs, 2), Name);
+      return Insert(Folder.CreateInBoundsGetElementPtr(PC, Idxs), Name);
 
-    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idxs, Idxs+2), Name);
+    return Insert(GetElementPtrInst::CreateInBounds(Ptr, Idxs), Name);
   }
   Value *CreateStructGEP(Value *Ptr, unsigned Idx, const Twine &Name = "") {
     return CreateConstInBoundsGEP2_32(Ptr, 0, Idx, Name);
@@ -861,58 +902,58 @@ public:
 
   /// CreateGlobalStringPtr - Same as CreateGlobalString, but return a pointer
   /// with "i8*" type instead of a pointer to array of i8.
-  Value *CreateGlobalStringPtr(const char *Str = "", const Twine &Name = "") {
+  Value *CreateGlobalStringPtr(StringRef Str, const Twine &Name = "") {
     Value *gv = CreateGlobalString(Str, Name);
     Value *zero = ConstantInt::get(Type::getInt32Ty(Context), 0);
     Value *Args[] = { zero, zero };
-    return CreateInBoundsGEP(gv, Args, Args+2, Name);
+    return CreateInBoundsGEP(gv, Args, Name);
   }
 
   //===--------------------------------------------------------------------===//
   // Instruction creation methods: Cast/Conversion Operators
   //===--------------------------------------------------------------------===//
 
-  Value *CreateTrunc(Value *V, const Type *DestTy, const Twine &Name = "") {
+  Value *CreateTrunc(Value *V, Type *DestTy, const Twine &Name = "") {
     return CreateCast(Instruction::Trunc, V, DestTy, Name);
   }
-  Value *CreateZExt(Value *V, const Type *DestTy, const Twine &Name = "") {
+  Value *CreateZExt(Value *V, Type *DestTy, const Twine &Name = "") {
     return CreateCast(Instruction::ZExt, V, DestTy, Name);
   }
-  Value *CreateSExt(Value *V, const Type *DestTy, const Twine &Name = "") {
+  Value *CreateSExt(Value *V, Type *DestTy, const Twine &Name = "") {
     return CreateCast(Instruction::SExt, V, DestTy, Name);
   }
-  Value *CreateFPToUI(Value *V, const Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToUI(Value *V, Type *DestTy, const Twine &Name = ""){
     return CreateCast(Instruction::FPToUI, V, DestTy, Name);
   }
-  Value *CreateFPToSI(Value *V, const Type *DestTy, const Twine &Name = ""){
+  Value *CreateFPToSI(Value *V, Type *DestTy, const Twine &Name = ""){
     return CreateCast(Instruction::FPToSI, V, DestTy, Name);
   }
-  Value *CreateUIToFP(Value *V, const Type *DestTy, const Twine &Name = ""){
+  Value *CreateUIToFP(Value *V, Type *DestTy, const Twine &Name = ""){
     return CreateCast(Instruction::UIToFP, V, DestTy, Name);
   }
-  Value *CreateSIToFP(Value *V, const Type *DestTy, const Twine &Name = ""){
+  Value *CreateSIToFP(Value *V, Type *DestTy, const Twine &Name = ""){
     return CreateCast(Instruction::SIToFP, V, DestTy, Name);
   }
-  Value *CreateFPTrunc(Value *V, const Type *DestTy,
+  Value *CreateFPTrunc(Value *V, Type *DestTy,
                        const Twine &Name = "") {
     return CreateCast(Instruction::FPTrunc, V, DestTy, Name);
   }
-  Value *CreateFPExt(Value *V, const Type *DestTy, const Twine &Name = "") {
+  Value *CreateFPExt(Value *V, Type *DestTy, const Twine &Name = "") {
     return CreateCast(Instruction::FPExt, V, DestTy, Name);
   }
-  Value *CreatePtrToInt(Value *V, const Type *DestTy,
+  Value *CreatePtrToInt(Value *V, Type *DestTy,
                         const Twine &Name = "") {
     return CreateCast(Instruction::PtrToInt, V, DestTy, Name);
   }
-  Value *CreateIntToPtr(Value *V, const Type *DestTy,
+  Value *CreateIntToPtr(Value *V, Type *DestTy,
                         const Twine &Name = "") {
     return CreateCast(Instruction::IntToPtr, V, DestTy, Name);
   }
-  Value *CreateBitCast(Value *V, const Type *DestTy,
+  Value *CreateBitCast(Value *V, Type *DestTy,
                        const Twine &Name = "") {
     return CreateCast(Instruction::BitCast, V, DestTy, Name);
   }
-  Value *CreateZExtOrBitCast(Value *V, const Type *DestTy,
+  Value *CreateZExtOrBitCast(Value *V, Type *DestTy,
                              const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -920,7 +961,7 @@ public:
       return Insert(Folder.CreateZExtOrBitCast(VC, DestTy), Name);
     return Insert(CastInst::CreateZExtOrBitCast(V, DestTy), Name);
   }
-  Value *CreateSExtOrBitCast(Value *V, const Type *DestTy,
+  Value *CreateSExtOrBitCast(Value *V, Type *DestTy,
                              const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -928,7 +969,7 @@ public:
       return Insert(Folder.CreateSExtOrBitCast(VC, DestTy), Name);
     return Insert(CastInst::CreateSExtOrBitCast(V, DestTy), Name);
   }
-  Value *CreateTruncOrBitCast(Value *V, const Type *DestTy,
+  Value *CreateTruncOrBitCast(Value *V, Type *DestTy,
                               const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -936,7 +977,7 @@ public:
       return Insert(Folder.CreateTruncOrBitCast(VC, DestTy), Name);
     return Insert(CastInst::CreateTruncOrBitCast(V, DestTy), Name);
   }
-  Value *CreateCast(Instruction::CastOps Op, Value *V, const Type *DestTy,
+  Value *CreateCast(Instruction::CastOps Op, Value *V, Type *DestTy,
                     const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -944,7 +985,7 @@ public:
       return Insert(Folder.CreateCast(Op, VC, DestTy), Name);
     return Insert(CastInst::Create(Op, V, DestTy), Name);
   }
-  Value *CreatePointerCast(Value *V, const Type *DestTy,
+  Value *CreatePointerCast(Value *V, Type *DestTy,
                            const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -952,7 +993,7 @@ public:
       return Insert(Folder.CreatePointerCast(VC, DestTy), Name);
     return Insert(CastInst::CreatePointerCast(V, DestTy), Name);
   }
-  Value *CreateIntCast(Value *V, const Type *DestTy, bool isSigned,
+  Value *CreateIntCast(Value *V, Type *DestTy, bool isSigned,
                        const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
@@ -963,9 +1004,9 @@ public:
 private:
   // Provided to resolve 'CreateIntCast(Ptr, Ptr, "...")', giving a compile time
   // error, instead of converting the string to bool for the isSigned parameter.
-  Value *CreateIntCast(Value *, const Type *, const char *); // DO NOT IMPLEMENT
+  Value *CreateIntCast(Value *, Type *, const char *); // DO NOT IMPLEMENT
 public:
-  Value *CreateFPCast(Value *V, const Type *DestTy, const Twine &Name = "") {
+  Value *CreateFPCast(Value *V, Type *DestTy, const Twine &Name = "") {
     if (V->getType() == DestTy)
       return V;
     if (Constant *VC = dyn_cast<Constant>(V))
@@ -1070,8 +1111,9 @@ public:
   // Instruction creation methods: Other Instructions
   //===--------------------------------------------------------------------===//
 
-  PHINode *CreatePHI(const Type *Ty, const Twine &Name = "") {
-    return Insert(PHINode::Create(Ty), Name);
+  PHINode *CreatePHI(Type *Ty, unsigned NumReservedValues,
+                     const Twine &Name = "") {
+    return Insert(PHINode::Create(Ty, NumReservedValues), Name);
   }
 
   CallInst *CreateCall(Value *Callee, const Twine &Name = "") {
@@ -1083,28 +1125,27 @@ public:
   CallInst *CreateCall2(Value *Callee, Value *Arg1, Value *Arg2,
                         const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2 };
-    return Insert(CallInst::Create(Callee, Args, Args+2), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall3(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3 };
-    return Insert(CallInst::Create(Callee, Args, Args+3), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall4(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         Value *Arg4, const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3, Arg4 };
-    return Insert(CallInst::Create(Callee, Args, Args+4), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
   CallInst *CreateCall5(Value *Callee, Value *Arg1, Value *Arg2, Value *Arg3,
                         Value *Arg4, Value *Arg5, const Twine &Name = "") {
     Value *Args[] = { Arg1, Arg2, Arg3, Arg4, Arg5 };
-    return Insert(CallInst::Create(Callee, Args, Args+5), Name);
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
 
-  template<typename RandomAccessIterator>
-  CallInst *CreateCall(Value *Callee, RandomAccessIterator ArgBegin,
-                       RandomAccessIterator ArgEnd, const Twine &Name = "") {
-    return Insert(CallInst::Create(Callee, ArgBegin, ArgEnd), Name);
+  CallInst *CreateCall(Value *Callee, ArrayRef<Value *> Args,
+                       const Twine &Name = "") {
+    return Insert(CallInst::Create(Callee, Args), Name);
   }
 
   Value *CreateSelect(Value *C, Value *True, Value *False,
@@ -1116,7 +1157,7 @@ public:
     return Insert(SelectInst::Create(C, True, False), Name);
   }
 
-  VAArgInst *CreateVAArg(Value *List, const Type *Ty, const Twine &Name = "") {
+  VAArgInst *CreateVAArg(Value *List, Type *Ty, const Twine &Name = "") {
     return Insert(new VAArgInst(List, Ty), Name);
   }
 
@@ -1146,43 +1187,26 @@ public:
     return Insert(new ShuffleVectorInst(V1, V2, Mask), Name);
   }
 
-  Value *CreateExtractValue(Value *Agg, unsigned Idx,
-                            const Twine &Name = "") {
-    if (Constant *AggC = dyn_cast<Constant>(Agg))
-      return Insert(Folder.CreateExtractValue(AggC, &Idx, 1), Name);
-    return Insert(ExtractValueInst::Create(Agg, Idx), Name);
-  }
-
-  template<typename RandomAccessIterator>
   Value *CreateExtractValue(Value *Agg,
-                            RandomAccessIterator IdxBegin,
-                            RandomAccessIterator IdxEnd,
+                            ArrayRef<unsigned> Idxs,
                             const Twine &Name = "") {
     if (Constant *AggC = dyn_cast<Constant>(Agg))
-      return Insert(Folder.CreateExtractValue(AggC, IdxBegin, IdxEnd-IdxBegin),
-                    Name);
-    return Insert(ExtractValueInst::Create(Agg, IdxBegin, IdxEnd), Name);
+      return Insert(Folder.CreateExtractValue(AggC, Idxs), Name);
+    return Insert(ExtractValueInst::Create(Agg, Idxs), Name);
   }
 
-  Value *CreateInsertValue(Value *Agg, Value *Val, unsigned Idx,
-                           const Twine &Name = "") {
-    if (Constant *AggC = dyn_cast<Constant>(Agg))
-      if (Constant *ValC = dyn_cast<Constant>(Val))
-        return Insert(Folder.CreateInsertValue(AggC, ValC, &Idx, 1), Name);
-    return Insert(InsertValueInst::Create(Agg, Val, Idx), Name);
-  }
-
-  template<typename RandomAccessIterator>
   Value *CreateInsertValue(Value *Agg, Value *Val,
-                           RandomAccessIterator IdxBegin,
-                           RandomAccessIterator IdxEnd,
+                           ArrayRef<unsigned> Idxs,
                            const Twine &Name = "") {
     if (Constant *AggC = dyn_cast<Constant>(Agg))
       if (Constant *ValC = dyn_cast<Constant>(Val))
-        return Insert(Folder.CreateInsertValue(AggC, ValC, IdxBegin,
-                                               IdxEnd - IdxBegin),
-                      Name);
-    return Insert(InsertValueInst::Create(Agg, Val, IdxBegin, IdxEnd), Name);
+        return Insert(Folder.CreateInsertValue(AggC, ValC, Idxs), Name);
+    return Insert(InsertValueInst::Create(Agg, Val, Idxs), Name);
+  }
+
+  LandingPadInst *CreateLandingPad(Type *Ty, Value *PersFn, unsigned NumClauses,
+                                   const Twine &Name = "") {
+    return Insert(LandingPadInst::Create(Ty, PersFn, NumClauses, Name));
   }
 
   //===--------------------------------------------------------------------===//
@@ -1209,7 +1233,7 @@ public:
   Value *CreatePtrDiff(Value *LHS, Value *RHS, const Twine &Name = "") {
     assert(LHS->getType() == RHS->getType() &&
            "Pointer subtraction operand types must match!");
-    const PointerType *ArgType = cast<PointerType>(LHS->getType());
+    PointerType *ArgType = cast<PointerType>(LHS->getType());
     Value *LHS_int = CreatePtrToInt(LHS, Type::getInt64Ty(Context));
     Value *RHS_int = CreatePtrToInt(RHS, Type::getInt64Ty(Context));
     Value *Difference = CreateSub(LHS_int, RHS_int);

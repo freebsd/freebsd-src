@@ -46,7 +46,7 @@
  * and 64-bit widths regardless of whether there are corresponding exact-width
  * types. 
  *
- * To accomodate targets that are missing types that are exactly 8, 16, 32, or
+ * To accommodate targets that are missing types that are exactly 8, 16, 32, or
  * 64 bits wide, this implementation takes an approach of cascading
  * redefintions, redefining __int_leastN_t to successively smaller exact-width
  * types. It is therefore important that the types are defined in order of
@@ -58,7 +58,7 @@
  *
  * In violation of the standard, some targets do not implement a type that is
  * wide enough to represent all of the required widths (8-, 16-, 32-, 64-bit).  
- * To accomodate these targets, a required minimum-width type is only
+ * To accommodate these targets, a required minimum-width type is only
  * defined if there exists an exact-width type of equal or greater width.
  */
 
@@ -609,11 +609,15 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 # define UINT_FAST8_MAX  __UINT_LEAST8_MAX
 #endif /* __INT_LEAST8_MIN */
 
+/* Some utility macros */
+#define  __INTN_MIN(n)  __stdint_join3( INT, n, _MIN)
+#define  __INTN_MAX(n)  __stdint_join3( INT, n, _MAX)
+#define __UINTN_MAX(n)  __stdint_join3(UINT, n, _MAX)
+#define  __INTN_C(n, v) __stdint_join3( INT, n, _C(v))
+#define __UINTN_C(n, v) __stdint_join3(UINT, n, _C(v))
+
 /* C99 7.18.2.4 Limits of integer types capable of holding object pointers. */
 /* C99 7.18.3 Limits of other integer types. */
-#define  __INTN_MIN(n) __stdint_join3( INT, n, _MIN)
-#define  __INTN_MAX(n) __stdint_join3( INT, n, _MAX)
-#define __UINTN_MAX(n) __stdint_join3(UINT, n, _MAX)
 
 #define  INTPTR_MIN  __INTN_MIN(__INTPTR_WIDTH__)
 #define  INTPTR_MAX  __INTN_MAX(__INTPTR_WIDTH__)
@@ -630,23 +634,26 @@ typedef __UINTMAX_TYPE__ uintmax_t;
 /* C99 7.18.3 Limits of other integer types. */
 #define SIG_ATOMIC_MIN __INTN_MIN(__SIG_ATOMIC_WIDTH__)
 #define SIG_ATOMIC_MAX __INTN_MAX(__SIG_ATOMIC_WIDTH__)
-#define WINT_MIN       __INTN_MIN(__WINT_WIDTH__)
-#define WINT_MAX       __INTN_MAX(__WINT_WIDTH__)
+#ifdef __WINT_UNSIGNED__
+# define WINT_MIN       __UINTN_C(__WINT_WIDTH__, 0)
+# define WINT_MAX       __UINTN_MAX(__WINT_WIDTH__)
+#else
+# define WINT_MIN       __INTN_MIN(__WINT_WIDTH__)
+# define WINT_MAX       __INTN_MAX(__WINT_WIDTH__)
+#endif
 
-/* FIXME: if we ever support a target with unsigned wchar_t, this should be
- * 0 .. Max.
- */
 #ifndef WCHAR_MAX
-#define WCHAR_MAX __INTN_MAX(__WCHAR_WIDTH__)
+# define WCHAR_MAX __WCHAR_MAX__
 #endif
 #ifndef WCHAR_MIN
-#define WCHAR_MIN __INTN_MIN(__WCHAR_WIDTH__)
+# if __WCHAR_MAX__ == __INTN_MAX(__WCHAR_WIDTH__)
+#  define WCHAR_MIN __INTN_MIN(__WCHAR_WIDTH__)
+# else
+#  define WCHAR_MIN __UINTN_C(__WCHAR_WIDTH__, 0)
+# endif
 #endif
 
 /* 7.18.4.2 Macros for greatest-width integer constants. */
-#define  __INTN_C(n, v) __stdint_join3( INT, n, _C(v))
-#define __UINTN_C(n, v) __stdint_join3(UINT, n, _C(v))
-
 #define INTMAX_C(v)   __INTN_C(__INTMAX_WIDTH__, v)
 #define UINTMAX_C(v) __UINTN_C(__INTMAX_WIDTH__, v)
 

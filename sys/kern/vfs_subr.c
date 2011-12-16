@@ -42,6 +42,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_watchdog.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -72,6 +73,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/vmmeter.h>
 #include <sys/vnode.h>
+#ifdef SW_WATCHDOG
+#include <sys/watchdog.h>
+#endif
 
 #include <machine/stdarg.h>
 
@@ -92,8 +96,6 @@ __FBSDID("$FreeBSD$");
 
 #define	WI_MPSAFEQ	0
 #define	WI_GIANTQ	1
-
-static MALLOC_DEFINE(M_NETADDR, "subr_export_host", "Export host address structure");
 
 static void	delmntque(struct vnode *vp);
 static int	flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo,
@@ -346,6 +348,38 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
  * unmounting. Eventually, mountlist_mtx is not released on failure.
+ *
+ * vfs_busy() is a custom lock, it can block the caller.
+ * vfs_busy() only sleeps if the unmount is active on the mount point.
+ * For a mountpoint mp, vfs_busy-enforced lock is before lock of any
+ * vnode belonging to mp.
+ *
+ * Lookup uses vfs_busy() to traverse mount points.
+ * root fs			var fs
+ * / vnode lock		A	/ vnode lock (/var)		D
+ * /var vnode lock	B	/log vnode lock(/var/log)	E
+ * vfs_busy lock	C	vfs_busy lock			F
+ *
+ * Within each file system, the lock order is C->A->B and F->D->E.
+ *
+ * When traversing across mounts, the system follows that lock order:
+ *
+ *        C->A->B
+ *              |
+ *              +->F->D->E
+ *
+ * The lookup() process for namei("/var") illustrates the process:
+ *  VOP_LOOKUP() obtains B while A is held
+ *  vfs_busy() obtains a shared lock on F while A and B are held
+ *  vput() releases lock on B
+ *  vput() releases lock on A
+ *  VFS_ROOT() obtains lock on D while shared lock on F is held
+ *  vfs_unbusy() releases shared lock on F
+ *  vn_lock() obtains lock on deadfs vnode vp_crossmp instead of A.
+ *    Attempt to lock A (instead of vp_crossmp) while D is held would
+ *    violate the global order, causing deadlocks.
+ *
+ * dounmount() locks B while F is drained.
  */
 int
 vfs_busy(struct mount *mp, int flags)
@@ -379,9 +413,10 @@ vfs_busy(struct mount *mp, int flags)
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_unlock(&mountlist_mtx);
 		mp->mnt_kern_flag |= MNTK_MWAIT;
-		msleep(mp, MNT_MTX(mp), PVFS, "vfs_busy", 0);
+		msleep(mp, MNT_MTX(mp), PVFS | PDROP, "vfs_busy", 0);
 		if (flags & MBF_MNTLSTLOCK)
 			mtx_lock(&mountlist_mtx);
+		MNT_ILOCK(mp);
 	}
 	if (flags & MBF_MNTLSTLOCK)
 		mtx_unlock(&mountlist_mtx);
@@ -715,7 +750,7 @@ next_iter:
 			continue;
 		MNT_IUNLOCK(mp);
 yield:
-		kern_yield(-1);
+		kern_yield(PRI_UNCHANGED);
 relock_mnt:
 		MNT_ILOCK(mp);
 	}
@@ -828,7 +863,7 @@ vnlru_proc(void)
 			vnlru_nowhere++;
 			tsleep(vnlruproc, PPAUSE, "vlrup", hz * 3);
 		} else
-			kern_yield(-1);
+			kern_yield(PRI_UNCHANGED);
 	}
 }
 
@@ -1019,7 +1054,7 @@ alloc:
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_incr_usecount(vp);
-	vp->v_data = 0;
+	vp->v_data = NULL;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1156,7 +1191,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	do {
 		error = flushbuflist(&bo->bo_clean,
 		    flags, bo, slpflag, slptimeo);
-		if (error == 0)
+		if (error == 0 && !(flags & V_CLEANONLY))
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
@@ -1185,16 +1220,17 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
+	if (bo->bo_object != NULL &&
+	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
-		vm_object_page_remove(bo->bo_object, 0, 0,
-			(flags & V_SAVE) ? TRUE : FALSE);
+		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
+		    OBJPR_CLEANONLY : 0);
 		VM_OBJECT_UNLOCK(bo->bo_object);
 	}
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0 &&
 	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	BO_UNLOCK(bo);
@@ -1220,7 +1256,7 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
  *
  */
 static int
-flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
     int slptimeo)
 {
 	struct buf *bp, *nbp;
@@ -1840,6 +1876,10 @@ sched_sync(void)
 				LIST_INSERT_HEAD(next, bo, bo_synclist);
 				continue;
 			}
+#ifdef SW_WATCHDOG
+			if (first_printf == 0)
+				wdog_kern_pat(WD_LASTVAL);
+#endif
 		}
 		if (!LIST_EMPTY(gslp)) {
 			mtx_unlock(&sync_mtx);
@@ -2834,6 +2874,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_ASYNC);
 	MNT_FLAG(MNT_SUIDDIR);
 	MNT_FLAG(MNT_SOFTDEP);
+	MNT_FLAG(MNT_SUJ);
 	MNT_FLAG(MNT_NOSYMFOLLOW);
 	MNT_FLAG(MNT_GJOURNAL);
 	MNT_FLAG(MNT_MULTILABEL);
@@ -2859,7 +2900,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_FORCE);
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
-	MNT_FLAG(MNT_SOFTDEP);
 #undef MNT_FLAG
 	if (flags != 0) {
 		if (buf[0] != '\0')
@@ -2887,7 +2927,6 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_KERN_FLAG(MNTK_REFEXPIRE);
 	MNT_KERN_FLAG(MNTK_EXTENDED_SHARED);
 	MNT_KERN_FLAG(MNTK_SHARED_WRITES);
-	MNT_KERN_FLAG(MNTK_SUJ);
 	MNT_KERN_FLAG(MNTK_UNMOUNT);
 	MNT_KERN_FLAG(MNTK_MWAIT);
 	MNT_KERN_FLAG(MNTK_SUSPEND);
@@ -3016,7 +3055,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct xvfsconf xvfsp;
 
-	printf("WARNING: userland calling deprecated sysctl, "
+	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
 
 #if 1 || defined(COMPAT_PRELITE2)
@@ -3306,6 +3345,7 @@ vbusy(struct vnode *vp)
 static void
 destroy_vpollinfo(struct vpollinfo *vi)
 {
+	seldrain(&vi->vpi_selinfo);
 	knlist_destroy(&vi->vpi_selinfo.si_note);
 	mtx_destroy(&vi->vpi_lock);
 	uma_zfree(vnodepoll_zone, vi);
@@ -3583,9 +3623,6 @@ vn_isdisk(struct vnode *vp, int *errp)
  * and optional call-by-reference privused argument allowing vaccess()
  * to indicate to the caller whether privilege was used to satisfy the
  * request (obsoleted).  Returns 0 on success, or an errno on failure.
- *
- * The ifdef'd CAPABILITIES version is here for reference, but is not
- * actually used.
  */
 int
 vaccess(enum vtype type, mode_t file_mode, uid_t file_uid, gid_t file_gid,

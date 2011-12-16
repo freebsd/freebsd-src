@@ -99,7 +99,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	kld/firmware/fwconsumer/Makefile \
 	kld/firmware/fwconsumer/fw_consumer.c \
 	kld/firmware/fwimage/Makefile \
-	kld/firmware/fwimage/firmware.img \
+	kld/firmware/fwimage/firmware.img.uu \
 	kld/khelp/Makefile \
 	kld/khelp/README \
 	kld/khelp/h_example.c \
@@ -175,6 +175,7 @@ XFILES=	BSD_daemon/FreeBSD.pfa \
 	ses/setobjstat/setobjstat.0 \
 	ses/srcs/chpmon.c \
 	ses/srcs/eltsub.c \
+	ses/srcs/eltsub.h \
 	ses/srcs/getencstat.c \
 	ses/srcs/getnobj.c \
 	ses/srcs/getobjmap.c \

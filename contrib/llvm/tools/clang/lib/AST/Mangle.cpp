@@ -37,9 +37,9 @@ using namespace clang;
 namespace {
 
 static void mangleFunctionBlock(MangleContext &Context,
-                                llvm::StringRef Outer,
+                                StringRef Outer,
                                 const BlockDecl *BD,
-                                llvm::raw_ostream &Out) {
+                                raw_ostream &Out) {
   Out << "__" << Outer << "_block_invoke_" << Context.getBlockId(BD, true);
 }
 
@@ -48,6 +48,11 @@ static void checkMangleDC(const DeclContext *DC, const BlockDecl *BD) {
   const DeclContext *ExpectedDC = BD->getDeclContext();
   while (isa<BlockDecl>(ExpectedDC) || isa<EnumDecl>(ExpectedDC))
     ExpectedDC = ExpectedDC->getParent();
+  // In-class initializers for non-static data members are lexically defined
+  // within the class, but are mangled as if they were specified as constructor
+  // member initializers.
+  if (isa<CXXRecordDecl>(ExpectedDC) && DC != ExpectedDC)
+    DC = DC->getParent();
   assert(DC == ExpectedDC && "Given decl context did not match expected!");
 #endif
 }
@@ -55,13 +60,13 @@ static void checkMangleDC(const DeclContext *DC, const BlockDecl *BD) {
 }
 
 void MangleContext::mangleGlobalBlock(const BlockDecl *BD,
-                                      llvm::raw_ostream &Out) {
+                                      raw_ostream &Out) {
   Out << "__block_global_" << getBlockId(BD, false);
 }
 
 void MangleContext::mangleCtorBlock(const CXXConstructorDecl *CD,
                                     CXXCtorType CT, const BlockDecl *BD,
-                                    llvm::raw_ostream &ResStream) {
+                                    raw_ostream &ResStream) {
   checkMangleDC(CD, BD);
   llvm::SmallString<64> Buffer;
   llvm::raw_svector_ostream Out(Buffer);
@@ -72,7 +77,7 @@ void MangleContext::mangleCtorBlock(const CXXConstructorDecl *CD,
 
 void MangleContext::mangleDtorBlock(const CXXDestructorDecl *DD,
                                     CXXDtorType DT, const BlockDecl *BD,
-                                    llvm::raw_ostream &ResStream) {
+                                    raw_ostream &ResStream) {
   checkMangleDC(DD, BD);
   llvm::SmallString<64> Buffer;
   llvm::raw_svector_ostream Out(Buffer);
@@ -82,7 +87,7 @@ void MangleContext::mangleDtorBlock(const CXXDestructorDecl *DD,
 }
 
 void MangleContext::mangleBlock(const DeclContext *DC, const BlockDecl *BD,
-                                llvm::raw_ostream &Out) {
+                                raw_ostream &Out) {
   assert(!isa<CXXConstructorDecl>(DC) && !isa<CXXDestructorDecl>(DC));
   checkMangleDC(DC, BD);
 
@@ -108,7 +113,7 @@ void MangleContext::mangleBlock(const DeclContext *DC, const BlockDecl *BD,
 }
 
 void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
-                                         llvm::raw_ostream &Out) {
+                                         raw_ostream &Out) {
   llvm::SmallString<64> Name;
   llvm::raw_svector_ostream OS(Name);
   
@@ -124,7 +129,7 @@ void MangleContext::mangleObjCMethodName(const ObjCMethodDecl *MD,
 }
 
 void MangleContext::mangleBlock(const BlockDecl *BD,
-                                llvm::raw_ostream &Out) {
+                                raw_ostream &Out) {
   const DeclContext *DC = BD->getDeclContext();
   while (isa<BlockDecl>(DC) || isa<EnumDecl>(DC))
     DC = DC->getParent();

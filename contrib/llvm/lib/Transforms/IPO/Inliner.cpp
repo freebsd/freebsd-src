@@ -29,7 +29,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/Statistic.h"
-#include <set>
 using namespace llvm;
 
 STATISTIC(NumInlined, "Number of functions inlined");
@@ -63,7 +62,7 @@ void Inliner::getAnalysisUsage(AnalysisUsage &Info) const {
 }
 
 
-typedef DenseMap<const ArrayType*, std::vector<AllocaInst*> >
+typedef DenseMap<ArrayType*, std::vector<AllocaInst*> >
 InlinedArrayAllocasTy;
 
 /// InlineCallIfPossible - If it is possible to inline the specified call site,
@@ -140,7 +139,7 @@ static bool InlineCallIfPossible(CallSite CS, InlineFunctionInfo &IFI,
     // Don't bother trying to merge array allocations (they will usually be
     // canonicalized to be an allocation *of* an array), or allocations whose
     // type is not itself an array (because we're afraid of pessimizing SRoA).
-    const ArrayType *ATy = dyn_cast<ArrayType>(AI->getAllocatedType());
+    ArrayType *ATy = dyn_cast<ArrayType>(AI->getAllocatedType());
     if (ATy == 0 || AI->isArrayAllocation())
       continue;
     

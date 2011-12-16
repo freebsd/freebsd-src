@@ -42,18 +42,18 @@ static const char rcsid[] =
  */
 
 DMenu MenuDiskDevices = {
-    DMENU_CHECKLIST_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
     "Select Drive(s)",
-    "Please select the drive, or drives, on which you wish to perform\n"
-    "this operation.  If you are attempting to install a boot partition\n"
+    "Please select the drive on which you wish to perform this\n"
+    "operation.  If you are attempting to install a boot partition\n"
     "on a drive other than the first one or have multiple operating\n"
     "systems on your machine, you will have the option to install a boot\n"
     "manager later.  To select a drive, use the arrow keys to move to it\n"
-    "and press [SPACE] or [ENTER].  To de-select it, press it again.\n\n"
+    "and press [SPACE] or [ENTER].\n\n"
     "Use [TAB] to get to the buttons and leave this menu.",
     "Press F1 for important information regarding disk geometry!",
     "drives",
-    { { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
+    { { NULL, NULL, NULL } },
 };
 
 DMenu MenuMain = {
@@ -62,12 +62,12 @@ DMenu MenuMain = {
     "This is a utility for partitioning and/or labelling your disks.",
     "DISKUTIL",
     "main",
-    { 
+    {
 #ifdef WITH_SLICES
-      { "1 Partition",		"Managing disk partitions",	NULL, diskPartitionEditor, NULL, NULL, 0, 0, 0, 0 },
+      { "1 Partition",		"Managing disk partitions",	diskPartitionEditor },
 #endif
-      { "2 Label",		"Label allocated disk partitions",	NULL, diskLabelEditor, NULL, NULL, 0, 0, 0, 0 },
-      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 }
+      { "2 Label",		"Label allocated disk partitions",	diskLabelEditor },
+      { NULL, NULL, NULL }
     },
 };
 
@@ -75,22 +75,20 @@ DMenu MenuMain = {
 #ifdef PC98
 /* IPL type menu */
 DMenu MenuIPLType = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
     "If you want a FreeBSD Boot Manager, select \"BootMgr\".  If you would\n"
     "prefer your Boot Manager to remain untouched then select \"None\".\n\n",
     "Press F1 to read about drive setup",
     "drives",
-    { { "BootMgr",	"Install the FreeBSD Boot Manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, 0, 0, 0, 0 },
-      { "None",		"Leave the IPL untouched",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
-      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } },
+    { { "BootMgr",	"Install the FreeBSD Boot Manager", NULL },
+      { "None",		"Leave the IPL untouched", NULL },
+      { NULL, NULL, NULL } },
 };
 #else
 /* MBR type menu */
 DMenu MenuMBRType = {
-    DMENU_NORMAL_TYPE | DMENU_SELECTION_RETURNS,
+    DMENU_RADIO_TYPE | DMENU_SELECTION_RETURNS,
     "overwrite me",		/* will be disk specific label */
     "FreeBSD comes with a boot manager that allows you to easily\n"
     "select between FreeBSD and any other operating systems on your machine\n"
@@ -99,18 +97,13 @@ DMenu MenuMBRType = {
     "to do so (limitations in the PC BIOS usually prevent this otherwise).\n"
     "If you have other operating systems installed and would like a choice when\n"
     "booting, choose \"BootMgr\". If you would prefer to keep your existing\n"
-    "boot manager, select \"None\".\n\n",
+    "boot manager, select \"None\".\n",
     "",
     "drives",
-    { { "Standard",	"Install a standard MBR (non-interactive boot manager)",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 1 },
-      { "BootMgr",	"Install the FreeBSD boot manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 0 },
-      { "None",		"Do not install a boot manager",
-	dmenuRadioCheck, dmenuSetValue, NULL, &BootMgr, '(', '*', ')', 2 },
-      { NULL, NULL, NULL, NULL, NULL, NULL, 0, 0, 0, 0 } }
+    { { "Standard",	"Install a standard MBR (non-interactive boot manager)", NULL },
+      { "BootMgr",	"Install the FreeBSD boot manager", NULL },
+      { "None",		"Do not install a boot manager", NULL },
+      { NULL, NULL, NULL } }
 };
 #endif /* PC98 */
 #endif /* __i386__ */
-
-

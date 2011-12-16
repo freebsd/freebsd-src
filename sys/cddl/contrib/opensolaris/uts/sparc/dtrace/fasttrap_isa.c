@@ -1474,7 +1474,7 @@ err:
 	 * If the copy in failed, the process will be in a irrecoverable
 	 * state, and we have no choice but to kill it.
 	 */
-	psignal(ttoproc(curthread), SIGILL);
+	kern_psignal(ttoproc(curthread), SIGILL);
 	return (0);
 }
 
@@ -1593,5 +1593,5 @@ err:
 	 * If we couldn't record this register's value, the process is in an
 	 * irrecoverable state and we have no choice but to euthanize it.
 	 */
-	psignal(ttoproc(curthread), SIGILL);
+	kern_psignal(ttoproc(curthread), SIGILL);
 }

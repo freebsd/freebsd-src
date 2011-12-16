@@ -4,13 +4,12 @@ LIB=	llvmarmdisassembler
 
 SRCDIR=	lib/Target/ARM/Disassembler
 INCDIR=	lib/Target/ARM
-SRCS=	ARMDisassemblerCore.cpp
+SRCS=	ARMDisassembler.cpp
 
-TGHDRS=	ARMGenDecoderTables \
+TGHDRS=	ARMGenDisassemblerTables \
 	ARMGenEDInfo \
 	ARMGenInstrInfo \
-	ARMGenInstrNames \
-	ARMGenRegisterInfo.h \
-	ARMGenRegisterNames
+	ARMGenRegisterInfo \
+	ARMGenSubtargetInfo
 
 .include "../clang.lib.mk"

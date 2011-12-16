@@ -63,6 +63,7 @@ __FBSDID("$FreeBSD$");
 #include "mystring.h"
 #include "show.h"
 #include "cd.h"
+#include "builtins.h"
 
 static int cdlogical(char *);
 static int cdphysical(char *);
@@ -84,12 +85,17 @@ cdcmd(int argc, char **argv)
 	const char *path;
 	char *p;
 	struct stat statb;
-	int ch, phys, print = 0;
+	int ch, phys, print = 0, getcwderr = 0;
+	int rc;
+	int errno1 = ENOENT;
 
 	optreset = 1; optind = 1; opterr = 0; /* initialize getopt */
 	phys = Pflag;
-	while ((ch = getopt(argc, argv, "LP")) != -1) {
+	while ((ch = getopt(argc, argv, "eLP")) != -1) {
 		switch (ch) {
+		case 'e':
+			getcwderr = 1;
+			break;
 		case 'L':
 			phys = 0;
 			break;
@@ -118,7 +124,10 @@ cdcmd(int argc, char **argv)
 		else
 			dest = ".";
 	}
-	if (*dest == '/' || (path = bltinlookup("CDPATH", 1)) == NULL)
+	if (dest[0] == '/' ||
+	    (dest[0] == '.' && (dest[1] == '/' || dest[1] == '\0')) ||
+	    (dest[0] == '.' && dest[1] == '.' && (dest[2] == '/' || dest[2] == '\0')) ||
+	    (path = bltinlookup("CDPATH", 1)) == NULL)
 		path = nullstr;
 	while ((p = padvance(&path, dest)) != NULL) {
 		if (stat(p, &statb) >= 0 && S_ISDIR(statb.st_mode)) {
@@ -131,11 +140,14 @@ cdcmd(int argc, char **argv)
 				else
 					print = strcmp(p, dest);
 			}
-			if (docd(p, print, phys) >= 0)
-				return 0;
+			rc = docd(p, print, phys);
+			if (rc >= 0)
+				return getcwderr ? rc : 0;
+			if (errno != ENOENT)
+				errno1 = errno;
 		}
 	}
-	error("can't cd to %s", dest);
+	error("%s: %s", dest, strerror(errno1));
 	/*NOTREACHED*/
 	return 0;
 }
@@ -148,17 +160,18 @@ cdcmd(int argc, char **argv)
 static int
 docd(char *dest, int print, int phys)
 {
+	int rc;
 
 	TRACE(("docd(\"%s\", %d, %d) called\n", dest, print, phys));
 
 	/* If logical cd fails, fall back to physical. */
-	if ((phys || cdlogical(dest) < 0) && cdphysical(dest) < 0)
+	if ((phys || (rc = cdlogical(dest)) < 0) && (rc = cdphysical(dest)) < 0)
 		return (-1);
 
 	if (print && iflag && curdir)
 		out1fmt("%s\n", curdir);
 
-	return 0;
+	return (rc);
 }
 
 static int
@@ -216,6 +229,7 @@ static int
 cdphysical(char *dest)
 {
 	char *p;
+	int rc = 0;
 
 	INTOFF;
 	if (chdir(dest) < 0) {
@@ -223,11 +237,13 @@ cdphysical(char *dest)
 		return (-1);
 	}
 	p = findcwd(NULL);
-	if (p == NULL)
+	if (p == NULL) {
 		warning("warning: failed to get name of current directory");
+		rc = 1;
+	}
 	updatepwd(p);
 	INTON;
-	return (0);
+	return (rc);
 }
 
 /*

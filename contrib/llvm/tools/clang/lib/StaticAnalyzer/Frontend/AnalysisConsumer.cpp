@@ -17,8 +17,6 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/DeclObjC.h"
 #include "clang/AST/ParentMap.h"
-#include "clang/Analysis/Analyses/LiveVariables.h"
-#include "clang/Analysis/Analyses/UninitializedValues.h"
 #include "clang/Analysis/CFG.h"
 #include "clang/StaticAnalyzer/Frontend/CheckerRegistration.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
@@ -27,14 +25,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/AnalysisManager.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/ExprEngine.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/TransferFuncs.h"
-#include "clang/StaticAnalyzer/Core/PathDiagnosticClients.h"
-
-// FIXME: Restructure checker registration.
-#include "../Checkers/ClangSACheckers.h"
-#include "../Checkers/ExperimentalChecks.h"
-#include "../Checkers/InternalChecks.h"
-#include "../Checkers/BasicObjCFoundationChecks.h"
+#include "clang/StaticAnalyzer/Core/PathDiagnosticConsumers.h"
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Basic/SourceManager.h"
@@ -51,15 +42,15 @@ using namespace ento;
 static ExplodedNode::Auditor* CreateUbiViz();
 
 //===----------------------------------------------------------------------===//
-// Special PathDiagnosticClients.
+// Special PathDiagnosticConsumers.
 //===----------------------------------------------------------------------===//
 
-static PathDiagnosticClient*
-createPlistHTMLDiagnosticClient(const std::string& prefix,
+static PathDiagnosticConsumer*
+createPlistHTMLDiagnosticConsumer(const std::string& prefix,
                                 const Preprocessor &PP) {
-  PathDiagnosticClient *PD =
-    createHTMLDiagnosticClient(llvm::sys::path::parent_path(prefix), PP);
-  return createPlistDiagnosticClient(prefix, PP, PD);
+  PathDiagnosticConsumer *PD =
+    createHTMLDiagnosticConsumer(llvm::sys::path::parent_path(prefix), PP);
+  return createPlistDiagnosticConsumer(prefix, PP, PD);
 }
 
 //===----------------------------------------------------------------------===//
@@ -70,27 +61,14 @@ namespace {
 
 class AnalysisConsumer : public ASTConsumer {
 public:
-  typedef void (*CodeAction)(AnalysisConsumer &C, AnalysisManager &M, Decl *D);
-  typedef void (*TUAction)(AnalysisConsumer &C, AnalysisManager &M,
-                           TranslationUnitDecl &TU);
-
-private:
-  typedef std::vector<CodeAction> Actions;
-  typedef std::vector<TUAction> TUActions;
-
-  Actions FunctionActions;
-  Actions ObjCMethodActions;
-  Actions ObjCImplementationActions;
-  Actions CXXMethodActions;
-
-public:
-  ASTContext* Ctx;
+  ASTContext *Ctx;
   const Preprocessor &PP;
   const std::string OutDir;
   AnalyzerOptions Opts;
+  ArrayRef<std::string> Plugins;
 
   // PD is owned by AnalysisManager.
-  PathDiagnosticClient *PD;
+  PathDiagnosticConsumer *PD;
 
   StoreManagerCreator CreateStoreMgr;
   ConstraintManagerCreator CreateConstraintMgr;
@@ -100,14 +78,14 @@ public:
 
   AnalysisConsumer(const Preprocessor& pp,
                    const std::string& outdir,
-                   const AnalyzerOptions& opts)
-    : Ctx(0), PP(pp), OutDir(outdir),
-      Opts(opts), PD(0) {
+                   const AnalyzerOptions& opts,
+                   ArrayRef<std::string> plugins)
+    : Ctx(0), PP(pp), OutDir(outdir), Opts(opts), Plugins(plugins), PD(0) {
     DigestAnalyzerOptions();
   }
 
   void DigestAnalyzerOptions() {
-    // Create the PathDiagnosticClient.
+    // Create the PathDiagnosticConsumer.
     if (!OutDir.empty()) {
       switch (Opts.AnalysisDiagOpt) {
       default:
@@ -118,13 +96,13 @@ public:
     } else if (Opts.AnalysisDiagOpt == PD_TEXT) {
       // Create the text client even without a specified output file since
       // it just uses diagnostic notes.
-      PD = createTextPathDiagnosticClient("", PP);
+      PD = createTextPathDiagnosticConsumer("", PP);
     }
 
     // Create the analyzer component creators.
     switch (Opts.AnalysisStoreOpt) {
     default:
-      assert(0 && "Unknown store manager.");
+      llvm_unreachable("Unknown store manager.");
 #define ANALYSIS_STORE(NAME, CMDFLAG, DESC, CREATEFN)           \
       case NAME##Model: CreateStoreMgr = CREATEFN; break;
 #include "clang/Frontend/Analyses.def"
@@ -132,7 +110,7 @@ public:
 
     switch (Opts.AnalysisConstraintsOpt) {
     default:
-      assert(0 && "Unknown store manager.");
+      llvm_unreachable("Unknown store manager.");
 #define ANALYSIS_CONSTRAINTS(NAME, CMDFLAG, DESC, CREATEFN)     \
       case NAME##Model: CreateConstraintMgr = CREATEFN; break;
 #include "clang/Frontend/Analyses.def"
@@ -150,7 +128,7 @@ public:
 
       if (isa<FunctionDecl>(D) || isa<ObjCMethodDecl>(D)) {
         const NamedDecl *ND = cast<NamedDecl>(D);
-        llvm::errs() << ' ' << ND << '\n';
+        llvm::errs() << ' ' << *ND << '\n';
       }
       else if (isa<BlockDecl>(D)) {
         llvm::errs() << ' ' << "block(line:" << Loc.getLine() << ",col:"
@@ -163,20 +141,10 @@ public:
     }
   }
 
-  void addCodeAction(CodeAction action) {
-    FunctionActions.push_back(action);
-    ObjCMethodActions.push_back(action);
-    CXXMethodActions.push_back(action);
-  }
-
-  void addObjCImplementationAction(CodeAction action) {
-    ObjCImplementationActions.push_back(action);
-  }
-
   virtual void Initialize(ASTContext &Context) {
     Ctx = &Context;
-    checkerMgr.reset(registerCheckers(Opts, PP.getLangOptions(),
-                                      PP.getDiagnostics()));
+    checkerMgr.reset(createCheckerManager(Opts, PP.getLangOptions(), Plugins,
+                                          PP.getDiagnostics()));
     Mgr.reset(new AnalysisManager(*Ctx, PP.getDiagnostics(),
                                   PP.getLangOptions(), PD,
                                   CreateStoreMgr, CreateConstraintMgr,
@@ -184,7 +152,7 @@ public:
                                   /* Indexer */ 0, 
                                   Opts.MaxNodes, Opts.MaxLoop,
                                   Opts.VisualizeEGDot, Opts.VisualizeEGUbi,
-                                  Opts.PurgeDead, Opts.EagerlyAssume,
+                                  Opts.AnalysisPurgeOpt, Opts.EagerlyAssume,
                                   Opts.TrimGraph, Opts.InlineCall,
                                   Opts.UnoptimizedCFG, Opts.CFGAddImplicitDtors,
                                   Opts.CFGAddInitializers,
@@ -193,8 +161,9 @@ public:
 
   virtual void HandleTranslationUnit(ASTContext &C);
   void HandleDeclContext(ASTContext &C, DeclContext *dc);
+  void HandleDeclContextDecl(ASTContext &C, Decl *D);
 
-  void HandleCode(Decl *D, Actions& actions);
+  void HandleCode(Decl *D);
 };
 } // end anonymous namespace
 
@@ -203,57 +172,67 @@ public:
 //===----------------------------------------------------------------------===//
 
 void AnalysisConsumer::HandleDeclContext(ASTContext &C, DeclContext *dc) {
-  BugReporter BR(*Mgr);
   for (DeclContext::decl_iterator I = dc->decls_begin(), E = dc->decls_end();
        I != E; ++I) {
-    Decl *D = *I;
-    checkerMgr->runCheckersOnASTDecl(D, *Mgr, BR);
+    HandleDeclContextDecl(C, *I);
+  }
+}
 
-    switch (D->getKind()) {
-      case Decl::Namespace: {
-        HandleDeclContext(C, cast<NamespaceDecl>(D));
-        break;
-      }
-      case Decl::CXXConstructor:
-      case Decl::CXXDestructor:
-      case Decl::CXXConversion:
-      case Decl::CXXMethod:
-      case Decl::Function: {
-        FunctionDecl* FD = cast<FunctionDecl>(D);
-        // We skip function template definitions, as their semantics is
-        // only determined when they are instantiated.
-        if (FD->isThisDeclarationADefinition() &&
-            !FD->isDependentContext()) {
-          if (!Opts.AnalyzeSpecificFunction.empty() &&
-              FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
-            break;
-          DisplayFunction(FD);
-          HandleCode(FD, FunctionActions);
-        }
-        break;
-      }
-        
-      case Decl::ObjCImplementation: {
-        ObjCImplementationDecl* ID = cast<ObjCImplementationDecl>(*I);
-        HandleCode(ID, ObjCImplementationActions);
-        
-        for (ObjCImplementationDecl::method_iterator MI = ID->meth_begin(), 
-             ME = ID->meth_end(); MI != ME; ++MI) {
-          if ((*MI)->isThisDeclarationADefinition()) {
-            if (!Opts.AnalyzeSpecificFunction.empty() &&
-                Opts.AnalyzeSpecificFunction != (*MI)->getSelector().getAsString())
-              break;
-            DisplayFunction(*MI);
-            HandleCode(*MI, ObjCMethodActions);
-          }
-        }
-        break;
-      }
-        
-      default:
-        break;
+void AnalysisConsumer::HandleDeclContextDecl(ASTContext &C, Decl *D) {
+  { // Handle callbacks for arbitrary decls.
+    BugReporter BR(*Mgr);
+    checkerMgr->runCheckersOnASTDecl(D, *Mgr, BR);
+  }
+
+  switch (D->getKind()) {
+    case Decl::Namespace: {
+      HandleDeclContext(C, cast<NamespaceDecl>(D));
+      break;
     }
-  }  
+    case Decl::CXXConstructor:
+    case Decl::CXXDestructor:
+    case Decl::CXXConversion:
+    case Decl::CXXMethod:
+    case Decl::Function: {
+      FunctionDecl *FD = cast<FunctionDecl>(D);
+      // We skip function template definitions, as their semantics is
+      // only determined when they are instantiated.
+      if (FD->isThisDeclarationADefinition() &&
+          !FD->isDependentContext()) {
+        if (!Opts.AnalyzeSpecificFunction.empty() &&
+            FD->getDeclName().getAsString() != Opts.AnalyzeSpecificFunction)
+          break;
+        DisplayFunction(FD);
+        HandleCode(FD);
+      }
+      break;
+    }
+     
+    case Decl::ObjCCategoryImpl:
+    case Decl::ObjCImplementation: {
+      ObjCImplDecl *ID = cast<ObjCImplDecl>(D);
+      HandleCode(ID);
+      
+      for (ObjCContainerDecl::method_iterator MI = ID->meth_begin(), 
+           ME = ID->meth_end(); MI != ME; ++MI) {
+        BugReporter BR(*Mgr);
+        checkerMgr->runCheckersOnASTDecl(*MI, *Mgr, BR);
+
+        if ((*MI)->isThisDeclarationADefinition()) {
+          if (!Opts.AnalyzeSpecificFunction.empty() &&
+              Opts.AnalyzeSpecificFunction != 
+                (*MI)->getSelector().getAsString())
+            continue;
+          DisplayFunction(*MI);
+          HandleCode(*MI);
+        }
+      }
+      break;
+    }
+      
+    default:
+      break;
+  }
 }
 
 void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
@@ -262,14 +241,17 @@ void AnalysisConsumer::HandleTranslationUnit(ASTContext &C) {
   checkerMgr->runCheckersOnASTDecl(TU, *Mgr, BR);
   HandleDeclContext(C, TU);
 
-  // Explicitly destroy the PathDiagnosticClient.  This will flush its output.
+  // After all decls handled, run checkers on the entire TranslationUnit.
+  checkerMgr->runCheckersOnEndOfTranslationUnit(TU, *Mgr, BR);
+
+  // Explicitly destroy the PathDiagnosticConsumer.  This will flush its output.
   // FIXME: This should be replaced with something that doesn't rely on
-  // side-effects in PathDiagnosticClient's destructor. This is required when
+  // side-effects in PathDiagnosticConsumer's destructor. This is required when
   // used with option -disable-free.
   Mgr.reset(NULL);
 }
 
-static void FindBlocks(DeclContext *D, llvm::SmallVectorImpl<Decl*> &WL) {
+static void FindBlocks(DeclContext *D, SmallVectorImpl<Decl*> &WL) {
   if (BlockDecl *BD = dyn_cast<BlockDecl>(D))
     WL.push_back(BD);
 
@@ -279,17 +261,20 @@ static void FindBlocks(DeclContext *D, llvm::SmallVectorImpl<Decl*> &WL) {
       FindBlocks(DC, WL);
 }
 
-void AnalysisConsumer::HandleCode(Decl *D, Actions& actions) {
+static void RunPathSensitiveChecks(AnalysisConsumer &C, AnalysisManager &mgr,
+                                   Decl *D);
 
-  // Don't run the actions if an error has occured with parsing the file.
-  Diagnostic &Diags = PP.getDiagnostics();
+void AnalysisConsumer::HandleCode(Decl *D) {
+
+  // Don't run the actions if an error has occurred with parsing the file.
+  DiagnosticsEngine &Diags = PP.getDiagnostics();
   if (Diags.hasErrorOccurred() || Diags.hasFatalErrorOccurred())
     return;
 
   // Don't run the actions on declarations in header files unless
   // otherwise specified.
   SourceManager &SM = Ctx->getSourceManager();
-  SourceLocation SL = SM.getInstantiationLoc(D->getLocation());
+  SourceLocation SL = SM.getExpansionLoc(D->getLocation());
   if (!Opts.AnalyzeAll && !SM.isFromMainFile(SL))
     return;
 
@@ -297,60 +282,33 @@ void AnalysisConsumer::HandleCode(Decl *D, Actions& actions) {
   Mgr->ClearContexts();
 
   // Dispatch on the actions.
-  llvm::SmallVector<Decl*, 10> WL;
+  SmallVector<Decl*, 10> WL;
   WL.push_back(D);
 
   if (D->hasBody() && Opts.AnalyzeNestedBlocks)
     FindBlocks(cast<DeclContext>(D), WL);
 
   BugReporter BR(*Mgr);
-  for (llvm::SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
+  for (SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
        WI != WE; ++WI)
-    if ((*WI)->hasBody())
+    if ((*WI)->hasBody()) {
       checkerMgr->runCheckersOnASTBody(*WI, *Mgr, BR);
-
-  for (Actions::iterator I = actions.begin(), E = actions.end(); I != E; ++I)
-    for (llvm::SmallVectorImpl<Decl*>::iterator WI=WL.begin(), WE=WL.end();
-         WI != WE; ++WI)
-      (*I)(*this, *Mgr, *WI);
+      if (checkerMgr->hasPathSensitiveCheckers())
+        RunPathSensitiveChecks(*this, *Mgr, *WI);
+    }
 }
 
 //===----------------------------------------------------------------------===//
-// Analyses
+// Path-sensitive checking.
 //===----------------------------------------------------------------------===//
 
-static void ActionWarnUninitVals(AnalysisConsumer &C, AnalysisManager& mgr,
-                                 Decl *D) {
-  if (CFG* c = mgr.getCFG(D)) {
-    CheckUninitializedValues(*c, mgr.getASTContext(), mgr.getDiagnostic());
-  }
-}
-
-
-static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
-                               Decl *D,
-                               TransferFuncs* tf) {
-
-  llvm::OwningPtr<TransferFuncs> TF(tf);
-
-  // Construct the analysis engine.  We first query for the LiveVariables
-  // information to see if the CFG is valid.
+static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager &mgr,
+                             Decl *D, bool ObjCGCEnabled) {
+  // Construct the analysis engine.  First check if the CFG is valid.
   // FIXME: Inter-procedural analysis will need to handle invalid CFGs.
-  if (!mgr.getLiveVariables(D))
+  if (!mgr.getCFG(D))
     return;
-  ExprEngine Eng(mgr, TF.take());
-
-  RegisterNSErrorChecks(Eng.getBugReporter(), Eng, *D);
-
-  if (C.Opts.EnableExperimentalChecks)
-    RegisterExperimentalChecks(Eng);
-
-  if (C.Opts.BufferOverflows)
-    RegisterArrayBoundCheckerV2(Eng);
-
-  // Enable AnalyzerStatsChecker if it was given as an argument
-  if (C.Opts.AnalyzerStats)
-    RegisterAnalyzerStatsChecker(Eng);
+  ExprEngine Eng(mgr, ObjCGCEnabled);
 
   // Set the graph auditor.
   llvm::OwningPtr<ExplodedNode::Auditor> Auditor;
@@ -374,35 +332,25 @@ static void ActionExprEngine(AnalysisConsumer &C, AnalysisManager& mgr,
   Eng.getBugReporter().FlushReports();
 }
 
-static void ActionObjCMemCheckerAux(AnalysisConsumer &C, AnalysisManager& mgr,
-                                  Decl *D, bool GCEnabled) {
+static void RunPathSensitiveChecks(AnalysisConsumer &C, AnalysisManager &mgr,
+                                   Decl *D) {
 
-  TransferFuncs* TF = MakeCFRefCountTF(mgr.getASTContext(),
-                                         GCEnabled,
-                                         mgr.getLangOptions());
-
-  ActionExprEngine(C, mgr, D, TF);
-}
-
-static void ActionObjCMemChecker(AnalysisConsumer &C, AnalysisManager& mgr,
-                               Decl *D) {
-
- switch (mgr.getLangOptions().getGCMode()) {
- default:
-   assert (false && "Invalid GC mode.");
- case LangOptions::NonGC:
-   ActionObjCMemCheckerAux(C, mgr, D, false);
-   break;
-
- case LangOptions::GCOnly:
-   ActionObjCMemCheckerAux(C, mgr, D, true);
-   break;
-
- case LangOptions::HybridGC:
-   ActionObjCMemCheckerAux(C, mgr, D, false);
-   ActionObjCMemCheckerAux(C, mgr, D, true);
-   break;
- }
+  switch (mgr.getLangOptions().getGC()) {
+  default:
+    llvm_unreachable("Invalid GC mode.");
+  case LangOptions::NonGC:
+    ActionExprEngine(C, mgr, D, false);
+    break;
+  
+  case LangOptions::GCOnly:
+    ActionExprEngine(C, mgr, D, true);
+    break;
+  
+  case LangOptions::HybridGC:
+    ActionExprEngine(C, mgr, D, false);
+    ActionExprEngine(C, mgr, D, true);
+    break;
+  }
 }
 
 //===----------------------------------------------------------------------===//
@@ -410,24 +358,13 @@ static void ActionObjCMemChecker(AnalysisConsumer &C, AnalysisManager& mgr,
 //===----------------------------------------------------------------------===//
 
 ASTConsumer* ento::CreateAnalysisConsumer(const Preprocessor& pp,
-                                           const std::string& OutDir,
-                                           const AnalyzerOptions& Opts) {
-  llvm::OwningPtr<AnalysisConsumer> C(new AnalysisConsumer(pp, OutDir, Opts));
-
-  for (unsigned i = 0; i < Opts.AnalysisList.size(); ++i)
-    switch (Opts.AnalysisList[i]) {
-#define ANALYSIS(NAME, CMD, DESC, SCOPE)\
-    case NAME:\
-      C->add ## SCOPE ## Action(&Action ## NAME);\
-      break;
-#include "clang/Frontend/Analyses.def"
-    default: break;
-    }
-
-  // Last, disable the effects of '-Werror' when using the AnalysisConsumer.
+                                          const std::string& outDir,
+                                          const AnalyzerOptions& opts,
+                                          ArrayRef<std::string> plugins) {
+  // Disable the effects of '-Werror' when using the AnalysisConsumer.
   pp.getDiagnostics().setWarningsAsErrors(false);
 
-  return C.take();
+  return new AnalysisConsumer(pp, outDir, opts, plugins);
 }
 
 //===----------------------------------------------------------------------===//
@@ -437,7 +374,7 @@ ASTConsumer* ento::CreateAnalysisConsumer(const Preprocessor& pp,
 namespace {
 
 class UbigraphViz : public ExplodedNode::Auditor {
-  llvm::OwningPtr<llvm::raw_ostream> Out;
+  llvm::OwningPtr<raw_ostream> Out;
   llvm::sys::Path Dir, Filename;
   unsigned Cntr;
 
@@ -445,12 +382,12 @@ class UbigraphViz : public ExplodedNode::Auditor {
   VMap M;
 
 public:
-  UbigraphViz(llvm::raw_ostream* out, llvm::sys::Path& dir,
+  UbigraphViz(raw_ostream *out, llvm::sys::Path& dir,
               llvm::sys::Path& filename);
 
   ~UbigraphViz();
 
-  virtual void AddEdge(ExplodedNode* Src, ExplodedNode* Dst);
+  virtual void AddEdge(ExplodedNode *Src, ExplodedNode *Dst);
 };
 
 } // end anonymous namespace
@@ -480,7 +417,7 @@ static ExplodedNode::Auditor* CreateUbiViz() {
   return new UbigraphViz(Stream.take(), Dir, Filename);
 }
 
-void UbigraphViz::AddEdge(ExplodedNode* Src, ExplodedNode* Dst) {
+void UbigraphViz::AddEdge(ExplodedNode *Src, ExplodedNode *Dst) {
 
   assert (Src != Dst && "Self-edges are not allowed.");
 
@@ -514,7 +451,7 @@ void UbigraphViz::AddEdge(ExplodedNode* Src, ExplodedNode* Dst) {
        << ", ('arrow','true'), ('oriented', 'true'))\n";
 }
 
-UbigraphViz::UbigraphViz(llvm::raw_ostream* out, llvm::sys::Path& dir,
+UbigraphViz::UbigraphViz(raw_ostream *out, llvm::sys::Path& dir,
                          llvm::sys::Path& filename)
   : Out(out), Dir(dir), Filename(filename), Cntr(0) {
 

@@ -193,9 +193,7 @@ cisco_constructor(node_p node)
 {
 	sc_p sc;
 
-	sc = malloc(sizeof(*sc), M_NETGRAPH, M_NOWAIT | M_ZERO);
-	if (sc == NULL)
-		return (ENOMEM);
+	sc = malloc(sizeof(*sc), M_NETGRAPH, M_WAITOK | M_ZERO);
 
 	ng_callout_init(&sc->handle);
 	NG_NODE_SET_PRIVATE(node, sc);
@@ -361,12 +359,13 @@ cisco_rcvdata(hook_p hook, item_p item)
 
 	/* OK so it came from a protocol, heading out. Prepend general data
 	   packet header. For now, IP,IPX only  */
-	m = NGI_M(item); /* still associated with item */
+	NGI_GET_M(item, m);
 	M_PREPEND(m, CISCO_HEADER_LEN, M_DONTWAIT);
 	if (!m) {
 		error = ENOBUFS;
 		goto out;
 	}
+	NGI_M(item) = m;
 	h = mtod(m, struct cisco_header *);
 	h->address = CISCO_UNICAST;
 	h->control = 0;

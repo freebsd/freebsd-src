@@ -35,13 +35,10 @@ void	linux_osd_jail_register(void);
 void	linux_osd_jail_deregister(void);
 
 void	linux_get_osname(struct thread *td, char *dst);
-int	linux_set_osname(struct thread *td, char *osname);
 
 void	linux_get_osrelease(struct thread *td, char *dst);
-int	linux_set_osrelease(struct thread *td, char *osrelease);
 
 int	linux_get_oss_version(struct thread *td);
-int	linux_set_oss_version(struct thread *td, int oss_version);
 
 int	linux_kernver(struct thread *td);
 

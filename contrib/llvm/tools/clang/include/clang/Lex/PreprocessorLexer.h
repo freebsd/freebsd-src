@@ -17,7 +17,6 @@
 #include "clang/Lex/MultipleIncludeOpt.h"
 #include "clang/Lex/Token.h"
 #include "llvm/ADT/SmallVector.h"
-#include <string>
 
 namespace clang {
 
@@ -31,12 +30,15 @@ protected:
   /// The SourceManager FileID corresponding to the file being lexed.
   const FileID FID;
 
+  /// \brief Number of SLocEntries before lexing the file.
+  unsigned InitialNumSLocEntries;
+
   //===--------------------------------------------------------------------===//
   // Context-specific lexing flags set by the preprocessor.
   //===--------------------------------------------------------------------===//
 
   /// ParsingPreprocessorDirective - This is true when parsing #XXX.  This turns
-  /// '\n' into a tok::eom token.
+  /// '\n' into a tok::eod token.
   bool ParsingPreprocessorDirective;
 
   /// ParsingFilename - True after #include: this turns <xx> into a
@@ -62,18 +64,16 @@ protected:
 
   /// ConditionalStack - Information about the set of #if/#ifdef/#ifndef blocks
   /// we are currently in.
-  llvm::SmallVector<PPConditionalInfo, 4> ConditionalStack;
+  SmallVector<PPConditionalInfo, 4> ConditionalStack;
 
   PreprocessorLexer(const PreprocessorLexer&);          // DO NOT IMPLEMENT
   void operator=(const PreprocessorLexer&); // DO NOT IMPLEMENT
   friend class Preprocessor;
 
-  PreprocessorLexer(Preprocessor *pp, FileID fid)
-    : PP(pp), FID(fid), ParsingPreprocessorDirective(false),
-      ParsingFilename(false), LexingRawMode(false) {}
+  PreprocessorLexer(Preprocessor *pp, FileID fid);
 
   PreprocessorLexer()
-    : PP(0),
+    : PP(0), InitialNumSLocEntries(0),
       ParsingPreprocessorDirective(false),
       ParsingFilename(false),
       LexingRawMode(false) {}
@@ -131,7 +131,7 @@ public:
 
   /// LexIncludeFilename - After the preprocessor has parsed a #include, lex and
   /// (potentially) macro expand the filename.  If the sequence parsed is not
-  /// lexically legal, emit a diagnostic and return a result EOM token.
+  /// lexically legal, emit a diagnostic and return a result EOD token.
   void LexIncludeFilename(Token &Result);
 
   /// setParsingPreprocessorDirective - Inform the lexer whether or not
@@ -152,13 +152,18 @@ public:
     return FID;
   }
 
+  /// \brief Number of SLocEntries before lexing the file.
+  unsigned getInitialNumSLocEntries() const {
+    return InitialNumSLocEntries;
+  }
+
   /// getFileEntry - Return the FileEntry corresponding to this FileID.  Like
   /// getFileID(), this only works for lexers with attached preprocessors.
   const FileEntry *getFileEntry() const;
 
   /// \brief Iterator that traverses the current stack of preprocessor
   /// conditional directives (#if/#ifdef/#ifndef).
-  typedef llvm::SmallVectorImpl<PPConditionalInfo>::const_iterator 
+  typedef SmallVectorImpl<PPConditionalInfo>::const_iterator 
     conditional_iterator;
 
   conditional_iterator conditional_begin() const { 

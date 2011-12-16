@@ -24,6 +24,7 @@ SRCS=	APValue.cpp \
 	ExprCXX.cpp \
 	ExprClassification.cpp \
 	ExprConstant.cpp \
+	ExternalASTSource.cpp \
 	InheritViz.cpp \
 	ItaniumCXXABI.cpp \
 	ItaniumMangle.cpp \
@@ -34,6 +35,7 @@ SRCS=	APValue.cpp \
 	ParentMap.cpp \
 	RecordLayout.cpp \
 	RecordLayoutBuilder.cpp \
+	SelectorLocationsKind.cpp \
 	Stmt.cpp \
 	StmtDumper.cpp \
 	StmtIterator.cpp \
@@ -44,7 +46,9 @@ SRCS=	APValue.cpp \
 	TemplateName.cpp \
 	Type.cpp \
 	TypeLoc.cpp \
-	TypePrinter.cpp
+	TypePrinter.cpp \
+	VTTBuilder.cpp \
+	VTableBuilder.cpp
 
 TGHDRS=	AttrImpl \
 	AttrList \

@@ -12,25 +12,27 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Basic/Version.h"
+#include "clang/Basic/LLVM.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/Config/config.h"
 #include <cstring>
 #include <cstdlib>
 
-using namespace std;
-
 namespace clang {
   
 std::string getClangRepositoryPath() {
-#ifdef SVN_REPOSITORY
-  llvm::StringRef URL(SVN_REPOSITORY);
+#if defined(CLANG_REPOSITORY_STRING)
+  return CLANG_REPOSITORY_STRING;
 #else
-  llvm::StringRef URL("");
+#ifdef SVN_REPOSITORY
+  StringRef URL(SVN_REPOSITORY);
+#else
+  StringRef URL("");
 #endif
 
   // If the SVN_REPOSITORY is empty, try to use the SVN keyword. This helps us
   // pick up a tag in an SVN export, for example.
-  static llvm::StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/trunk/lib/Basic/Version.cpp $");
+  static StringRef SVNRepository("$URL: http://llvm.org/svn/llvm-project/cfe/tags/RELEASE_30/final/lib/Basic/Version.cpp $");
   if (URL.empty()) {
     URL = SVNRepository.slice(SVNRepository.find(':'),
                               SVNRepository.find("/lib/Basic"));
@@ -41,10 +43,11 @@ std::string getClangRepositoryPath() {
 
   // Trim path prefix off, assuming path came from standard cfe path.
   size_t Start = URL.find("cfe/");
-  if (Start != llvm::StringRef::npos)
+  if (Start != StringRef::npos)
     URL = URL.substr(Start + 4);
 
   return URL;
+#endif
 }
 
 std::string getClangRevision() {
@@ -86,6 +89,19 @@ std::string getClangFullVersion() {
   OS << " (based on LLVM " << PACKAGE_VERSION << ")";
 #endif
 
+  return OS.str();
+}
+
+std::string getClangFullCPPVersion() {
+  // The version string we report in __VERSION__ is just a compacted version of
+  // the one we report on the command line.
+  std::string buf;
+  llvm::raw_string_ostream OS(buf);
+#ifdef CLANG_VENDOR
+  OS << CLANG_VENDOR;
+#endif
+  OS << "Clang " CLANG_VERSION_STRING " ("
+     << getClangFullRepositoryVersion() << ')';
   return OS.str();
 }
 

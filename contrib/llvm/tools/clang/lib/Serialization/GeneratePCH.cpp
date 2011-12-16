@@ -27,31 +27,29 @@
 using namespace clang;
 
 PCHGenerator::PCHGenerator(const Preprocessor &PP,
-                           const std::string &OutputFile,
-                           bool Chaining,
-                           const char *isysroot,
-                           llvm::raw_ostream *OS)
-  : PP(PP), OutputFile(OutputFile), isysroot(isysroot), Out(OS), SemaPtr(0),
-    StatCalls(0), Stream(Buffer), Writer(Stream), Chaining(Chaining) {
+                           StringRef OutputFile,
+                           bool IsModule,
+                           StringRef isysroot,
+                           raw_ostream *OS)
+  : PP(PP), OutputFile(OutputFile), IsModule(IsModule), 
+    isysroot(isysroot.str()), Out(OS), 
+    SemaPtr(0), StatCalls(0), Stream(Buffer), Writer(Stream) {
   // Install a stat() listener to keep track of all of the stat()
   // calls.
   StatCalls = new MemorizeStatCalls();
-  // If we have a chain, we want new stat calls only, so install the memorizer
-  // *after* the already installed ASTReader's stat cache.
-  PP.getFileManager().addStatCache(StatCalls,
-    /*AtBeginning=*/!Chaining);
+  PP.getFileManager().addStatCache(StatCalls, /*AtBeginning=*/false);
+}
+
+PCHGenerator::~PCHGenerator() {
 }
 
 void PCHGenerator::HandleTranslationUnit(ASTContext &Ctx) {
   if (PP.getDiagnostics().hasErrorOccurred())
     return;
-
-  // Set up the serialization listener.
-  Writer.SetSerializationListener(GetASTSerializationListener());
   
   // Emit the PCH file
   assert(SemaPtr && "No Sema?");
-  Writer.WriteAST(*SemaPtr, StatCalls, OutputFile, isysroot);
+  Writer.WriteAST(*SemaPtr, StatCalls, OutputFile, IsModule, isysroot);
 
   // Write the generated bitstream to "Out".
   Out->write((char *)&Buffer.front(), Buffer.size());
@@ -64,13 +62,7 @@ void PCHGenerator::HandleTranslationUnit(ASTContext &Ctx) {
 }
 
 ASTMutationListener *PCHGenerator::GetASTMutationListener() {
-  if (Chaining)
-    return &Writer;
-  return 0;
-}
-
-ASTSerializationListener *PCHGenerator::GetASTSerializationListener() {
-  return 0;
+  return &Writer;
 }
 
 ASTDeserializationListener *PCHGenerator::GetASTDeserializationListener() {

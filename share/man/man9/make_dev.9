@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 24, 2010
+.Dd May 3, 2011
 .Dt MAKE_DEV 9
 .Os
 .Sh NAME
@@ -33,6 +33,7 @@
 .Nm make_dev_credf ,
 .Nm make_dev_p ,
 .Nm make_dev_alias ,
+.Nm make_dev_alias_p ,
 .Nm destroy_dev ,
 .Nm destroy_dev_sched ,
 .Nm destroy_dev_sched_cb ,
@@ -54,6 +55,8 @@ and DEVFS registration for devices
 .Fn make_dev_p "int flags" "struct cdev **cdev" "struct cdevsw *devsw" "struct ucred *cr" "uid_t uid" "gid_t gid" "int mode" "const char *fmt" ...
 .Ft struct cdev *
 .Fn make_dev_alias "struct cdev *pdev" "const char *fmt" ...
+.Ft int
+.Fn make_dev_alias_p "int flags" "struct cdev **cdev" "struct cdev *pdev" "const char *fmt" ...
 .Ft void
 .Fn destroy_dev "struct cdev *dev"
 .Ft void
@@ -81,15 +84,15 @@ The device will be owned by
 .Va uid ,
 with the group ownership as
 .Va gid .
-The name is the expansion of 
-.Va fmt 
+The name is the expansion of
+.Va fmt
 and following arguments as
 .Xr printf 9
 would print it.
 The name determines its path under
 .Pa /dev
-or other 
-.Xr devfs 5 
+or other
+.Xr devfs 5
 mount point and may contain slash
 .Ql /
 characters to denote subdirectories.
@@ -148,6 +151,15 @@ created device will be never destroyed
 .It MAKEDEV_CHECKNAME
 return an error if the device name is invalid or already exists
 .El
+.Pp
+Only
+.Dv MAKEDEV_NOWAIT ,
+.Dv MAKEDEV_WAITOK
+and
+.Dv MAKEDEV_CHECKNAME
+values are accepted for the
+.Fn make_dev_alias_p
+function.
 .Pp
 The
 .Dv MAKEDEV_WAITOK
@@ -213,6 +225,13 @@ It is an error to call
 .Fn make_dev_alias
 prior to calling
 .Fn make_dev .
+.Pp
+.Fn make_dev_alias_p
+function is similar to
+.Fn make_dev_alias
+but it takes a pointer to the resulting
+.Ft *cdev
+as an argument and may return an error.
 .Pp
 The
 .Fa cdev
@@ -288,7 +307,8 @@ The
 .Fn d_close
 driver method cannot call
 .Fn destroy_dev
-directly. Doing so causes deadlock when
+directly.
+Doing so causes deadlock when
 .Fn destroy_dev
 waits for all threads to leave the driver methods.
 Also, because
@@ -302,7 +322,8 @@ The device driver may call the
 .Fn destroy_dev_drain
 function to wait until all devices that have supplied
 .Fa csw
-as cdevsw, are destroyed. This is useful when driver knows that
+as cdevsw, are destroyed.
+This is useful when driver knows that
 .Fn destroy_dev_sched
 is called for all instantiated devices, but need to postpone module
 unload until
@@ -321,6 +342,8 @@ pointer, otherwise it will return
 .Sh ERRORS
 The
 .Fn make_dev_p
+and
+.Fn make_dev_alias_p
 call will fail and the device will be not registered if:
 .Bl -tag -width Er
 .It Bq Er ENOMEM
@@ -349,9 +372,9 @@ flag was specified and the provided device name already exists.
 .Pp
 .Sh SEE ALSO
 .Xr devctl 4 ,
+.Xr devfs 5 ,
 .Xr destroy_dev_drain 9 ,
-.Xr dev_clone 9 ,
-.Xr devfs 5
+.Xr dev_clone 9
 .Sh HISTORY
 The
 .Fn make_dev

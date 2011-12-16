@@ -138,7 +138,7 @@ del_redir_spool_cfg(struct cfg_nat *n, struct redir_chain *head)
 	}
 }
 
-static int
+static void
 add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 {
 	struct cfg_redir *r, *ser_r;
@@ -199,7 +199,6 @@ add_redir_spool_cfg(char *buf, struct cfg_nat *ptr)
 		/* And finally hook this redir entry. */
 		LIST_INSERT_HEAD(&ptr->redir_chain, r, _next);
 	}
-	return (1);
 }
 
 static int
@@ -208,7 +207,8 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 	struct mbuf *mcl;
 	struct ip *ip;
 	/* XXX - libalias duct tape */
-	int ldt, retval;
+	int ldt, retval, found;
+	struct ip_fw_chain *chain;
 	char *c;
 
 	ldt = 0;
@@ -257,23 +257,65 @@ ipfw_nat(struct ip_fw_args *args, struct cfg_nat *t, struct mbuf *m)
 		ldt = 1;
 
 	c = mtod(mcl, char *);
-	if (args->oif == NULL)
-		retval = LibAliasIn(t->lib, c,
-			mcl->m_len + M_TRAILINGSPACE(mcl));
-	else
-		retval = LibAliasOut(t->lib, c,
-			mcl->m_len + M_TRAILINGSPACE(mcl));
-	if (retval == PKT_ALIAS_RESPOND) {
-		m->m_flags |= M_SKIP_FIREWALL;
-		retval = PKT_ALIAS_OK;
+
+	/* Check if this is 'global' instance */
+	if (t == NULL) {
+		if (args->oif == NULL) {
+			/* Wrong direction, skip processing */
+			args->m = mcl;
+			return (IP_FW_NAT);
+		}
+
+		found = 0;
+		chain = &V_layer3_chain;
+		IPFW_RLOCK(chain);
+		/* Check every nat entry... */
+		LIST_FOREACH(t, &chain->nat, _next) {
+			if ((t->mode & PKT_ALIAS_SKIP_GLOBAL) != 0)
+				continue;
+			retval = LibAliasOutTry(t->lib, c,
+			    mcl->m_len + M_TRAILINGSPACE(mcl), 0);
+			if (retval == PKT_ALIAS_OK) {
+				/* Nat instance recognises state */
+				found = 1;
+				break;
+			}
+		}
+		IPFW_RUNLOCK(chain);
+		if (found != 1) {
+			/* No instance found, return ignore */
+			args->m = mcl;
+			return (IP_FW_NAT);
+		}
+	} else {
+		if (args->oif == NULL)
+			retval = LibAliasIn(t->lib, c,
+				mcl->m_len + M_TRAILINGSPACE(mcl));
+		else
+			retval = LibAliasOut(t->lib, c,
+				mcl->m_len + M_TRAILINGSPACE(mcl));
 	}
-	if (retval != PKT_ALIAS_OK &&
-	    retval != PKT_ALIAS_FOUND_HEADER_FRAGMENT) {
+
+	/*
+	 * We drop packet when:
+	 * 1. libalias returns PKT_ALIAS_ERROR;
+	 * 2. For incoming packets:
+	 *	a) for unresolved fragments;
+	 *	b) libalias returns PKT_ALIAS_IGNORED and
+	 *		PKT_ALIAS_DENY_INCOMING flag is set.
+	 */
+	if (retval == PKT_ALIAS_ERROR ||
+	    (args->oif == NULL && (retval == PKT_ALIAS_UNRESOLVED_FRAGMENT ||
+	    (retval == PKT_ALIAS_IGNORED &&
+	    (t->mode & PKT_ALIAS_DENY_INCOMING) != 0)))) {
 		/* XXX - should i add some logging? */
 		m_free(mcl);
 		args->m = NULL;
 		return (IP_FW_DENY);
 	}
+
+	if (retval == PKT_ALIAS_RESPOND)
+		m->m_flags |= M_SKIP_FIREWALL;
 	mcl->m_pkthdr.len = mcl->m_len = ntohs(ip->ip_len);
 
 	/*
@@ -344,59 +386,57 @@ lookup_nat(struct nat_list *l, int nat_id)
 static int
 ipfw_nat_cfg(struct sockopt *sopt)
 {
-	struct cfg_nat *ptr, *ser_n;
+	struct cfg_nat *cfg, *ptr;
 	char *buf;
 	struct ip_fw_chain *chain = &V_layer3_chain;
+	size_t len;
+	int gencnt, error = 0;
 
-	buf = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
-	sooptcopyin(sopt, buf, NAT_BUF_LEN, sizeof(struct cfg_nat));
-	ser_n = (struct cfg_nat *)buf;
+	len = sopt->sopt_valsize;
+	buf = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
+	if ((error = sooptcopyin(sopt, buf, len, sizeof(struct cfg_nat))) != 0)
+		goto out;
 
-	/* check valid parameter ser_n->id > 0 ? */
+	cfg = (struct cfg_nat *)buf;
+	if (cfg->id < 0) {
+		error = EINVAL;
+		goto out;
+	}
+
 	/*
 	 * Find/create nat rule.
 	 */
 	IPFW_WLOCK(chain);
-	ptr = lookup_nat(&chain->nat, ser_n->id);
+	gencnt = chain->gencnt;
+	ptr = lookup_nat(&chain->nat, cfg->id);
 	if (ptr == NULL) {
+		IPFW_WUNLOCK(chain);
 		/* New rule: allocate and init new instance. */
-		ptr = malloc(sizeof(struct cfg_nat),
-		    M_IPFW, M_NOWAIT | M_ZERO);
-		if (ptr == NULL) {
-			IPFW_WUNLOCK(chain);
-			free(buf, M_IPFW);
-			return (ENOSPC);
-		}
+		ptr = malloc(sizeof(struct cfg_nat), M_IPFW, M_WAITOK | M_ZERO);
 		ptr->lib = LibAliasInit(NULL);
-		if (ptr->lib == NULL) {
-			IPFW_WUNLOCK(chain);
-			free(ptr, M_IPFW);
-			free(buf, M_IPFW);
-			return (EINVAL);
-		}
 		LIST_INIT(&ptr->redir_chain);
 	} else {
-		/* Entry already present: temporarly unhook it. */
+		/* Entry already present: temporarily unhook it. */
 		LIST_REMOVE(ptr, _next);
-		flush_nat_ptrs(chain, ser_n->id);
+		flush_nat_ptrs(chain, cfg->id);
+		IPFW_WUNLOCK(chain);
 	}
-	IPFW_WUNLOCK(chain);
 
 	/*
 	 * Basic nat configuration.
 	 */
-	ptr->id = ser_n->id;
+	ptr->id = cfg->id;
 	/*
 	 * XXX - what if this rule doesn't nat any ip and just
 	 * redirect?
 	 * do we set aliasaddress to 0.0.0.0?
 	 */
-	ptr->ip = ser_n->ip;
-	ptr->redir_cnt = ser_n->redir_cnt;
-	ptr->mode = ser_n->mode;
-	LibAliasSetMode(ptr->lib, ser_n->mode, ser_n->mode);
+	ptr->ip = cfg->ip;
+	ptr->redir_cnt = cfg->redir_cnt;
+	ptr->mode = cfg->mode;
+	LibAliasSetMode(ptr->lib, cfg->mode, cfg->mode);
 	LibAliasSetAddress(ptr->lib, ptr->ip);
-	memcpy(ptr->if_name, ser_n->if_name, IF_NAMESIZE);
+	memcpy(ptr->if_name, cfg->if_name, IF_NAMESIZE);
 
 	/*
 	 * Redir and LSNAT configuration.
@@ -405,11 +445,19 @@ ipfw_nat_cfg(struct sockopt *sopt)
 	del_redir_spool_cfg(ptr, &ptr->redir_chain);
 	/* Add new entries. */
 	add_redir_spool_cfg(&buf[(sizeof(struct cfg_nat))], ptr);
-	free(buf, M_IPFW);
+
 	IPFW_WLOCK(chain);
+	/* Extra check to avoid race with another ipfw_nat_cfg() */
+	if (gencnt != chain->gencnt &&
+	    ((cfg = lookup_nat(&chain->nat, ptr->id)) != NULL))
+		LIST_REMOVE(cfg, _next);
 	LIST_INSERT_HEAD(&chain->nat, ptr, _next);
+	chain->gencnt++;
 	IPFW_WUNLOCK(chain);
-	return (0);
+
+out:
+	free(buf, M_TEMP);
+	return (error);
 }
 
 static int
@@ -439,52 +487,61 @@ ipfw_nat_del(struct sockopt *sopt)
 static int
 ipfw_nat_get_cfg(struct sockopt *sopt)
 {
-	uint8_t *data;
+	struct ip_fw_chain *chain = &V_layer3_chain;
 	struct cfg_nat *n;
 	struct cfg_redir *r;
 	struct cfg_spool *s;
-	int nat_cnt, off;
-	struct ip_fw_chain *chain;
-	int err = ENOSPC;
+	char *data;
+	int gencnt, nat_cnt, len, error;
 
-	chain = &V_layer3_chain;
 	nat_cnt = 0;
-	off = sizeof(nat_cnt);
+	len = sizeof(nat_cnt);
 
-	data = malloc(NAT_BUF_LEN, M_IPFW, M_WAITOK | M_ZERO);
 	IPFW_RLOCK(chain);
-	/* Serialize all the data. */
+retry:
+	gencnt = chain->gencnt;
+	/* Estimate memory amount */
 	LIST_FOREACH(n, &chain->nat, _next) {
 		nat_cnt++;
-		if (off + SOF_NAT >= NAT_BUF_LEN)
-			goto nospace;
-		bcopy(n, &data[off], SOF_NAT);
-		off += SOF_NAT;
+		len += sizeof(struct cfg_nat);
 		LIST_FOREACH(r, &n->redir_chain, _next) {
-			if (off + SOF_REDIR >= NAT_BUF_LEN)
-				goto nospace;
-			bcopy(r, &data[off], SOF_REDIR);
-			off += SOF_REDIR;
+			len += sizeof(struct cfg_redir);
+			LIST_FOREACH(s, &r->spool_chain, _next)
+				len += sizeof(struct cfg_spool);
+		}
+	}
+	IPFW_RUNLOCK(chain);
+
+	data = malloc(len, M_TEMP, M_WAITOK | M_ZERO);
+	bcopy(&nat_cnt, data, sizeof(nat_cnt));
+
+	nat_cnt = 0;
+	len = sizeof(nat_cnt);
+
+	IPFW_RLOCK(chain);
+	if (gencnt != chain->gencnt) {
+		free(data, M_TEMP);
+		goto retry;
+	}
+	/* Serialize all the data. */
+	LIST_FOREACH(n, &chain->nat, _next) {
+		bcopy(n, &data[len], sizeof(struct cfg_nat));
+		len += sizeof(struct cfg_nat);
+		LIST_FOREACH(r, &n->redir_chain, _next) {
+			bcopy(r, &data[len], sizeof(struct cfg_redir));
+			len += sizeof(struct cfg_redir);
 			LIST_FOREACH(s, &r->spool_chain, _next) {
-				if (off + SOF_SPOOL >= NAT_BUF_LEN)
-					goto nospace;
-				bcopy(s, &data[off], SOF_SPOOL);
-				off += SOF_SPOOL;
+				bcopy(s, &data[len], sizeof(struct cfg_spool));
+				len += sizeof(struct cfg_spool);
 			}
 		}
 	}
-	err = 0; /* all good */
-nospace:
 	IPFW_RUNLOCK(chain);
-	if (err == 0) {
-		bcopy(&nat_cnt, data, sizeof(nat_cnt));
-		sooptcopyout(sopt, data, NAT_BUF_LEN);
-	} else {
-		printf("serialized data buffer not big enough:"
-		    "please increase NAT_BUF_LEN\n");
-	}
-	free(data, M_IPFW);
-	return (err);
+
+	error = sooptcopyout(sopt, data, len);
+	free(data, M_TEMP);
+
+	return (error);
 }
 
 static int

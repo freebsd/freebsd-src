@@ -14,8 +14,8 @@
 
 #define DEBUG_TYPE "ppc-codegen"
 #include "PPC.h"
-#include "PPCPredicates.h"
 #include "PPCTargetMachine.h"
+#include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/CodeGen/MachineInstrBuilder.h"
 #include "llvm/CodeGen/MachineFunction.h"
 #include "llvm/CodeGen/MachineFunctionAnalysis.h"
@@ -240,11 +240,11 @@ SDNode *PPCDAGToDAGISel::getGlobalBaseReg() {
 
     if (PPCLowering.getPointerTy() == MVT::i32) {
       GlobalBaseReg = RegInfo->createVirtualRegister(PPC::GPRCRegisterClass);
-      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR), PPC::LR);
+      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR), GlobalBaseReg);
     } else {
       GlobalBaseReg = RegInfo->createVirtualRegister(PPC::G8RCRegisterClass);
-      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8), PPC::LR8);
+      BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MovePCtoLR8));
       BuildMI(FirstMBB, MBBI, dl, TII.get(PPC::MFLR8), GlobalBaseReg);
     }
   }
@@ -610,6 +610,9 @@ SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
   DebugLoc dl = N->getDebugLoc();
   unsigned Imm;
   ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(2))->get();
+  EVT PtrVT = CurDAG->getTargetLoweringInfo().getPointerTy();
+  bool isPPC64 = (PtrVT == MVT::i64);
+
   if (isInt32Immediate(N->getOperand(1), Imm)) {
     // We can codegen setcc op, imm very efficiently compared to a brcond.
     // Check for those cases here.
@@ -624,6 +627,7 @@ SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
         return CurDAG->SelectNodeTo(N, PPC::RLWINM, MVT::i32, Ops, 4);
       }
       case ISD::SETNE: {
+        if (isPPC64) break;
         SDValue AD =
           SDValue(CurDAG->getMachineNode(PPC::ADDIC, dl, MVT::i32, MVT::Glue,
                                          Op, getI32Imm(~0U)), 0);
@@ -647,6 +651,7 @@ SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
       switch (CC) {
       default: break;
       case ISD::SETEQ:
+        if (isPPC64) break;
         Op = SDValue(CurDAG->getMachineNode(PPC::ADDIC, dl, MVT::i32, MVT::Glue,
                                             Op, getI32Imm(1)), 0);
         return CurDAG->SelectNodeTo(N, PPC::ADDZE, MVT::i32,
@@ -655,6 +660,7 @@ SDNode *PPCDAGToDAGISel::SelectSETCC(SDNode *N) {
                                                              getI32Imm(0)), 0),
                                       Op.getValue(1));
       case ISD::SETNE: {
+        if (isPPC64) break;
         Op = SDValue(CurDAG->getMachineNode(PPC::NOR, dl, MVT::i32, Op, Op), 0);
         SDNode *AD = CurDAG->getMachineNode(PPC::ADDIC, dl, MVT::i32, MVT::Glue,
                                             Op, getI32Imm(~0U));
@@ -996,22 +1002,25 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
   }
   case ISD::SELECT_CC: {
     ISD::CondCode CC = cast<CondCodeSDNode>(N->getOperand(4))->get();
+    EVT PtrVT = CurDAG->getTargetLoweringInfo().getPointerTy();
+    bool isPPC64 = (PtrVT == MVT::i64);
 
     // Handle the setcc cases here.  select_cc lhs, 0, 1, 0, cc
-    if (ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N->getOperand(1)))
-      if (ConstantSDNode *N2C = dyn_cast<ConstantSDNode>(N->getOperand(2)))
-        if (ConstantSDNode *N3C = dyn_cast<ConstantSDNode>(N->getOperand(3)))
-          if (N1C->isNullValue() && N3C->isNullValue() &&
-              N2C->getZExtValue() == 1ULL && CC == ISD::SETNE &&
-              // FIXME: Implement this optzn for PPC64.
-              N->getValueType(0) == MVT::i32) {
-            SDNode *Tmp =
-              CurDAG->getMachineNode(PPC::ADDIC, dl, MVT::i32, MVT::Glue,
-                                     N->getOperand(0), getI32Imm(~0U));
-            return CurDAG->SelectNodeTo(N, PPC::SUBFE, MVT::i32,
-                                        SDValue(Tmp, 0), N->getOperand(0),
-                                        SDValue(Tmp, 1));
-          }
+    if (!isPPC64)
+      if (ConstantSDNode *N1C = dyn_cast<ConstantSDNode>(N->getOperand(1)))
+        if (ConstantSDNode *N2C = dyn_cast<ConstantSDNode>(N->getOperand(2)))
+          if (ConstantSDNode *N3C = dyn_cast<ConstantSDNode>(N->getOperand(3)))
+            if (N1C->isNullValue() && N3C->isNullValue() &&
+                N2C->getZExtValue() == 1ULL && CC == ISD::SETNE &&
+                // FIXME: Implement this optzn for PPC64.
+                N->getValueType(0) == MVT::i32) {
+              SDNode *Tmp =
+                CurDAG->getMachineNode(PPC::ADDIC, dl, MVT::i32, MVT::Glue,
+                                       N->getOperand(0), getI32Imm(~0U));
+              return CurDAG->SelectNodeTo(N, PPC::SUBFE, MVT::i32,
+                                          SDValue(Tmp, 0), N->getOperand(0),
+                                          SDValue(Tmp, 1));
+            }
 
     SDValue CCReg = SelectCC(N->getOperand(0), N->getOperand(1), CC, dl);
     unsigned BROpc = getPredicateForSetCC(CC);
@@ -1057,9 +1066,10 @@ SDNode *PPCDAGToDAGISel::Select(SDNode *N) {
     SDValue Chain = N->getOperand(0);
     SDValue Target = N->getOperand(1);
     unsigned Opc = Target.getValueType() == MVT::i32 ? PPC::MTCTR : PPC::MTCTR8;
+    unsigned Reg = Target.getValueType() == MVT::i32 ? PPC::BCTR : PPC::BCTR8;
     Chain = SDValue(CurDAG->getMachineNode(Opc, dl, MVT::Other, Target,
                                            Chain), 0);
-    return CurDAG->SelectNodeTo(N, PPC::BCTR, MVT::Other, Chain);
+    return CurDAG->SelectNodeTo(N, Reg, MVT::Other, Chain);
   }
   }
 

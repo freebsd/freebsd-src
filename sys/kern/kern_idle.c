@@ -60,7 +60,7 @@ idle_setup(void *dummy)
 
 	p = NULL; /* start with no idle process */
 #ifdef SMP
-	SLIST_FOREACH(pc, &cpuhead, pc_allcpu) {
+	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu) {
 #endif
 #ifdef SMP
 		error = kproc_kthread_add(sched_idletd, NULL, &p, &td,

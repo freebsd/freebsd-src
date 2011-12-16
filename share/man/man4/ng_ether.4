@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 4, 2006
+.Dd June 23, 2011
 .Dt NG_ETHER 4
 .Os
 .Sh NAME
@@ -183,7 +183,6 @@ Detach from underlying Ethernet interface and shut down node.
 Upon receipt of the
 .Dv NGM_SHUTDOWN
 control message, all hooks are disconnected, promiscuous mode is disabled,
-and the source address override flag is re-enabled,
 but the node is not removed.
 Node can be shut down only using
 .Dv NGM_ETHER_DETACH

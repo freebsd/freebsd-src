@@ -14,6 +14,7 @@ SUBDIR+=mountver
 SUBDIR+=multipath
 SUBDIR+=nop
 SUBDIR+=part
+SUBDIR+=raid
 SUBDIR+=raid3
 SUBDIR+=sched
 SUBDIR+=shsec

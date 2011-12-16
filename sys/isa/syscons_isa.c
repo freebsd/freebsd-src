@@ -69,17 +69,6 @@ __FBSDID("$FreeBSD$");
 static devclass_t	sc_devclass;
 
 static sc_softc_t	main_softc;
-#ifdef SC_NO_SUSPEND_VTYSWITCH
-static int sc_no_suspend_vtswitch = 1;
-#else
-static int sc_no_suspend_vtswitch = 0;
-#endif
-static int sc_cur_scr;
-
-TUNABLE_INT("hw.syscons.sc_no_suspend_vtswitch", &sc_no_suspend_vtswitch);
-SYSCTL_DECL(_hw_syscons);
-SYSCTL_INT(_hw_syscons, OID_AUTO, sc_no_suspend_vtswitch, CTLFLAG_RW,
-    &sc_no_suspend_vtswitch, 0, "Disable VT switch before suspend.");
 
 static void
 scidentify(driver_t *driver, device_t parent)
@@ -106,53 +95,6 @@ scattach(device_t dev)
 
 	return (sc_attach_unit(device_get_unit(dev), device_get_flags(dev) |
 	    SC_AUTODETECT_KBD));
-}
-
-static int
-scsuspend(device_t dev)
-{
-	int		retry = 10;
-	sc_softc_t	*sc;
-
-	sc = &main_softc;
-
-	if (sc->cur_scp == NULL)
-		return (0);
-
-	if (sc->suspend_in_progress == 0) {
-		sc_cur_scr = sc->cur_scp->index;
-		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
-			do {
-				sc_switch_scr(sc, 0);
-				if (!sc->switch_in_progress)
-					break;
-				pause("scsuspend", hz);
-			} while (retry--);
-	}
-	sc->suspend_in_progress++;
-
-	return (0);
-}
-
-static int
-scresume(device_t dev)
-{
-	sc_softc_t	*sc;
-
-	sc = &main_softc;
-
-	if (sc->cur_scp == NULL)
-		return (0);
-
-	sc->suspend_in_progress--;
-	if (sc->suspend_in_progress == 0) {
-		if (!sc_no_suspend_vtswitch && sc_cur_scr != 0)
-			sc_switch_scr(sc, sc_cur_scr);
-		else
-			mark_all(sc->cur_scp);
-	}
-
-	return (0);
 }
 
 int
@@ -300,8 +242,6 @@ static device_method_t sc_methods[] = {
 	DEVMETHOD(device_identify,	scidentify),
 	DEVMETHOD(device_probe,         scprobe),
 	DEVMETHOD(device_attach,        scattach),
-	DEVMETHOD(device_suspend,       scsuspend),
-	DEVMETHOD(device_resume,        scresume),
 	{ 0, 0 }
 };
 
@@ -312,70 +252,3 @@ static driver_t sc_driver = {
 };
 
 DRIVER_MODULE(sc, isa, sc_driver, sc_devclass, 0, 0);
-
-static devclass_t	scpm_devclass;
-
-static void
-scpm_identify(driver_t *driver, device_t parent)
-{
-
-	device_add_child(parent, "scpm", 0);
-}
-
-static int
-scpm_probe(device_t dev)
-{
-
-	device_set_desc(dev, SC_DRIVER_NAME " suspend/resume");
-	device_quiet(dev);
-
-	return (BUS_PROBE_DEFAULT);
-}
-
-static int
-scpm_attach(device_t dev)
-{
-
-	bus_generic_probe(dev);
-	bus_generic_attach(dev);
-
-	return (0);
-}
-
-static int
-scpm_suspend(device_t dev)
-{
-	int error;
-
-	error = bus_generic_suspend(dev);
-	if (error != 0)
-		return (error);
-
-	return (scsuspend(dev));
-}
-
-static int
-scpm_resume(device_t dev)
-{
-
-	scresume(dev);
-
-	return (bus_generic_resume(dev));
-}
-
-static device_method_t scpm_methods[] = {
-	DEVMETHOD(device_identify,	scpm_identify),
-	DEVMETHOD(device_probe,		scpm_probe),
-	DEVMETHOD(device_attach,	scpm_attach),
-	DEVMETHOD(device_suspend,	scpm_suspend),
-	DEVMETHOD(device_resume,	scpm_resume),
-	{ 0, 0 }
-};
-
-static driver_t scpm_driver = {
-	"scpm",
-	scpm_methods,
-	0
-};
-
-DRIVER_MODULE(scpm, vgapm, scpm_driver, scpm_devclass, 0, 0);

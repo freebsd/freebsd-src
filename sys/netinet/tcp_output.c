@@ -84,30 +84,21 @@ __FBSDID("$FreeBSD$");
 
 #include <security/mac/mac_framework.h>
 
-#ifdef notyet
-extern struct mbuf *m_copypack();
-#endif
-
 VNET_DEFINE(int, path_mtu_discovery) = 1;
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, path_mtu_discovery, CTLFLAG_RW,
 	&VNET_NAME(path_mtu_discovery), 1,
 	"Enable Path MTU Discovery");
-
-VNET_DEFINE(int, ss_fltsz) = 1;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, slowstart_flightsize, CTLFLAG_RW,
-	&VNET_NAME(ss_fltsz), 1,
-	"Slow start flight size");
-
-VNET_DEFINE(int, ss_fltsz_local) = 4;
-SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, local_slowstart_flightsize,
-	CTLFLAG_RW, &VNET_NAME(ss_fltsz_local), 1,
-	"Slow start flight size for local networks");
 
 VNET_DEFINE(int, tcp_do_tso) = 1;
 #define	V_tcp_do_tso		VNET(tcp_do_tso)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, tso, CTLFLAG_RW,
 	&VNET_NAME(tcp_do_tso), 0,
 	"Enable TCP Segmentation Offload");
+
+VNET_DEFINE(int, tcp_sendspace) = 1024*32;
+#define	V_tcp_sendspace	VNET(tcp_sendspace)
+SYSCTL_VNET_INT(_net_inet_tcp, TCPCTL_SENDSPACE, sendspace, CTLFLAG_RW,
+	&VNET_NAME(tcp_sendspace), 0, "Initial send socket buffer size");
 
 VNET_DEFINE(int, tcp_do_autosndbuf) = 1;
 #define	V_tcp_do_autosndbuf	VNET(tcp_do_autosndbuf)
@@ -121,7 +112,7 @@ SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_inc, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_inc), 0,
 	"Incrementor step size of automatic send buffer");
 
-VNET_DEFINE(int, tcp_autosndbuf_max) = 256*1024;
+VNET_DEFINE(int, tcp_autosndbuf_max) = 2*1024*1024;
 #define	V_tcp_autosndbuf_max	VNET(tcp_autosndbuf_max)
 SYSCTL_VNET_INT(_net_inet_tcp, OID_AUTO, sendbuf_max, CTLFLAG_RW,
 	&VNET_NAME(tcp_autosndbuf_max), 0,
@@ -173,7 +164,7 @@ tcp_output(struct tcpcb *tp)
 {
 	struct socket *so = tp->t_inpcb->inp_socket;
 	long len, recwin, sendwin;
-	int off, flags, error;
+	int off, flags, error = 0;	/* Keep compiler happy */
 	struct mbuf *m;
 	struct ip *ip = NULL;
 	struct ipovly *ipov = NULL;
@@ -561,14 +552,28 @@ after_sack_rexmit:
 		 * taking into account that we are limited by
 		 * TCP_MAXWIN << tp->rcv_scale.
 		 */
-		long adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale) -
-			(tp->rcv_adv - tp->rcv_nxt);
+		long adv;
+		int oldwin;
 
+		adv = min(recwin, (long)TCP_MAXWIN << tp->rcv_scale);
+		if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt)) {
+			oldwin = (tp->rcv_adv - tp->rcv_nxt);
+			adv -= oldwin;
+		} else
+			oldwin = 0;
+
+		/* 
+		 * If the new window size ends up being the same as the old
+		 * size when it is scaled, then don't force a window update.
+		 */
+		if (oldwin >> tp->rcv_scale == (adv + oldwin) >> tp->rcv_scale)
+			goto dontupdate;
 		if (adv >= (long) (2 * tp->t_maxseg))
 			goto send;
 		if (2 * adv >= (long) so->so_rcv.sb_hiwat)
 			goto send;
 	}
+dontupdate:
 
 	/*
 	 * Send if we owe the peer an ACK, RST, SYN, or urgent data.  ACKNOW
@@ -651,7 +656,7 @@ send:
 		hdrlen = sizeof (struct ip6_hdr) + sizeof (struct tcphdr);
 	else
 #endif
-	hdrlen = sizeof (struct tcpiphdr);
+		hdrlen = sizeof (struct tcpiphdr);
 
 	/*
 	 * Compute options for segment.
@@ -806,19 +811,6 @@ send:
 			TCPSTAT_INC(tcps_sndpack);
 			TCPSTAT_ADD(tcps_sndbyte, len);
 		}
-#ifdef notyet
-		if ((m = m_copypack(so->so_snd.sb_mb, off,
-		    (int)len, max_linkhdr + hdrlen)) == 0) {
-			SOCKBUF_UNLOCK(&so->so_snd);
-			error = ENOBUFS;
-			goto out;
-		}
-		/*
-		 * m_copypack left space for our hdr; use it.
-		 */
-		m->m_len += hdrlen;
-		m->m_data -= hdrlen;
-#else
 		MGETHDR(m, M_DONTWAIT, MT_DATA);
 		if (m == NULL) {
 			SOCKBUF_UNLOCK(&so->so_snd);
@@ -858,7 +850,7 @@ send:
 				goto out;
 			}
 		}
-#endif
+
 		/*
 		 * If we're sending everything we've got, set PUSH.
 		 * (This will keep happy those implementations which only
@@ -1000,7 +992,8 @@ send:
 	if (recwin < (long)(so->so_rcv.sb_hiwat / 4) &&
 	    recwin < (long)tp->t_maxseg)
 		recwin = 0;
-	if (recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
+	if (SEQ_GT(tp->rcv_adv, tp->rcv_nxt) &&
+	    recwin < (long)(tp->rcv_adv - tp->rcv_nxt))
 		recwin = (long)(tp->rcv_adv - tp->rcv_nxt);
 	if (recwin > (long)TCP_MAXWIN << tp->rcv_scale)
 		recwin = (long)TCP_MAXWIN << tp->rcv_scale;
@@ -1087,8 +1080,15 @@ send:
 		m->m_pkthdr.tso_segsz = tp->t_maxopd - optlen;
 	}
 
+#ifdef IPSEC
+	KASSERT(len + hdrlen + ipoptlen - ipsec_optlen == m_length(m, NULL),
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u - %u != %u",
+	    __func__, len, hdrlen, ipoptlen, ipsec_optlen, m_length(m, NULL)));
+#else
 	KASSERT(len + hdrlen + ipoptlen == m_length(m, NULL),
-	    ("%s: mbuf chain shorter than expected", __func__));
+	    ("%s: mbuf chain shorter than expected: %ld + %u + %u != %u",
+	    __func__, len, hdrlen, ipoptlen, m_length(m, NULL)));
+#endif
 
 	/*
 	 * In transmit state, time the transmission and arrange for
@@ -1181,7 +1181,7 @@ timer:
 #endif
 		ipov->ih_len = save;
 	}
-#endif
+#endif /* TCPDEBUG */
 
 	/*
 	 * Fill in IP length and desired time to live and
@@ -1208,8 +1208,12 @@ timer:
 			    tp->t_inpcb->in6p_outputopts, NULL,
 			    ((so->so_options & SO_DONTROUTE) ?
 			    IP_ROUTETOIF : 0), NULL, NULL, tp->t_inpcb);
-	} else
+	}
 #endif /* INET6 */
+#if defined(INET) && defined(INET6)
+	else
+#endif
+#ifdef INET
     {
 	ip->ip_len = m->m_pkthdr.len;
 #ifdef INET6
@@ -1231,6 +1235,7 @@ timer:
 	    ((so->so_options & SO_DONTROUTE) ? IP_ROUTETOIF : 0), 0,
 	    tp->t_inpcb);
     }
+#endif /* INET */
 	if (error) {
 
 		/*
@@ -1311,7 +1316,7 @@ out:
 	 * then remember the size of the advertised window.
 	 * Any pending ACK has now been sent.
 	 */
-	if (recwin > 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
+	if (recwin >= 0 && SEQ_GT(tp->rcv_nxt + recwin, tp->rcv_adv))
 		tp->rcv_adv = tp->rcv_nxt + recwin;
 	tp->last_ack_sent = tp->rcv_nxt;
 	tp->t_flags &= ~(TF_ACKNOW | TF_DELACK);
@@ -1338,6 +1343,7 @@ tcp_setpersist(struct tcpcb *tp)
 	int t = ((tp->t_srtt >> 2) + tp->t_rttvar) >> 1;
 	int tt;
 
+	tp->t_flags &= ~TF_PREVVALID;
 	if (tcp_timer_active(tp, TT_REXMT))
 		panic("tcp_setpersist: retransmit pending");
 	/*

@@ -187,13 +187,12 @@ static device_method_t acpi_cpu_methods[] = {
     DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
     DEVMETHOD(bus_alloc_resource, bus_generic_rl_alloc_resource),
     DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
-    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
     DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_cpu_driver = {
@@ -516,7 +515,7 @@ acpi_cpu_read_ivar(device_t dev, device_t child, int index, uintptr_t *result)
 #if defined(__amd64__) || defined(__i386__)
     case CPU_IVAR_NOMINAL_MHZ:
 	if (tsc_is_invariant) {
-	    *result = (uintptr_t)(tsc_freq / 1000000);
+	    *result = (uintptr_t)(atomic_load_acq_64(&tsc_freq) / 1000000);
 	    break;
 	}
 	/* FALLTHROUGH */
@@ -856,6 +855,8 @@ acpi_cpu_cx_list(struct acpi_cpu_softc *sc)
 	sbuf_printf(&sb, "C%d/%d ", i + 1, sc->cpu_cx_states[i].trans_lat);
 	if (sc->cpu_cx_states[i].type < ACPI_STATE_C3)
 	    sc->cpu_non_c3 = i;
+	else
+	    cpu_can_deep_sleep = 1;
     }
     sbuf_trim(&sb);
     sbuf_finish(&sb);
@@ -925,11 +926,9 @@ acpi_cpu_idle()
 
     /* Find the lowest state that has small enough latency. */
     cx_next_idx = 0;
-#ifndef __ia64__
     if (cpu_disable_deep_sleep)
 	i = min(sc->cpu_cx_lowest, sc->cpu_non_c3);
     else
-#endif
 	i = sc->cpu_cx_lowest;
     for (; i >= 0; i--) {
 	if (sc->cpu_cx_states[i].trans_lat * 3 <= sc->cpu_prev_sleep) {

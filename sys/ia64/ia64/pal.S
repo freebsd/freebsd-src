@@ -38,100 +38,42 @@ ia64_pal_entry:	.quad 0
  *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
  */
 ENTRY(ia64_call_pal_static, 4)
-	
-	.regstk	4,5,0,0
+
+	.regstk	4,4,0,0
 palret	=	loc0
 entry	=	loc1
 rpsave	=	loc2
 pfssave =	loc3
-psrsave	=	loc4
 
-	alloc	pfssave=ar.pfs,4,5,0,0
+	alloc	pfssave=ar.pfs,4,4,0,0
 	;; 
 	mov	rpsave=rp
-
 	movl	entry=@gprel(ia64_pal_entry)
+
 1:	mov	palret=ip		// for return address
 	;;
 	add	entry=entry,gp
-	mov	psrsave=psr
+	add	palret=2f-1b,palret	// calculate return address
 	mov	r28=in0			// procedure number
-	;;
-	ld8	entry=[entry]		// read entry point
 	mov	r29=in1			// copy arguments
 	mov	r30=in2
 	mov	r31=in3
 	;;
-	mov	b6=entry
-	add	palret=2f-1b,palret	// calculate return address
-	;;
+	ld8	entry=[entry]		// read entry point
 	mov	b0=palret
-	rsm	psr.i			// disable interrupts
+	;;
+	mov	b6=entry
 	;;
 	br.cond.sptk b6			// call into firmware
-2:	mov	psr.l=psrsave
+	;;
+2:
 	mov	rp=rpsave
 	mov	ar.pfs=pfssave
 	;;
-	srlz.d
 	br.ret.sptk rp
-
+	;;
 END(ia64_call_pal_static)
-	
-#ifdef _KERNEL
-	
-/*
- * struct ia64_pal_result ia64_call_pal_static_physical(u_int64_t proc,
- *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
- */
-ENTRY(ia64_call_pal_static_physical, 4)
-	
-	.regstk	4,5,0,0
-palret	=	loc0
-entry	=	loc1
-rpsave	=	loc2
-pfssave =	loc3
-psrsave	=	loc4
 
-	alloc	pfssave=ar.pfs,4,5,0,0
-	;; 
-	mov	rpsave=rp
-
-	movl	entry=@gprel(ia64_pal_entry)
-1:	mov	palret=ip		// for return address
-	;;
-	add	entry=entry,gp
-	mov	r28=in0			// procedure number
-	;;
-	ld8	entry=[entry]		// read entry point
-	mov	r29=in1			// copy arguments
-	mov	r30=in2
-	mov	r31=in3
-	;;
-	dep	entry=0,entry,61,3	// physical address
-	dep	palret=0,palret,61,3	// physical address
-	br.call.sptk.many rp=ia64_physical_mode
-	mov	psrsave=ret0
-	;;
-	mov	b6=entry
-	add	palret=2f-1b,palret	// calculate return address
-	;;
-	mov	b0=palret
-	br.cond.sptk b6			// call into firmware
-	;;
-2:	mov	r14=psrsave
-	;;
-	br.call.sptk.many rp=ia64_change_mode
-	;; 
-	mov	rp=rpsave
-	mov	ar.pfs=pfssave
-	;;
-	br.ret.sptk rp
-
-END(ia64_call_pal_static_physical)
-	
-#endif
-	
 /*
  * struct ia64_pal_result ia64_call_pal_stacked(u_int64_t proc,
  *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
@@ -172,52 +114,3 @@ psrsave	=	loc3
 	br.ret.sptk rp
 
 END(ia64_call_pal_stacked)
-	
-#ifdef _KERNEL
-	
-/*
- * struct ia64_pal_result ia64_call_pal_stacked_physical(u_int64_t proc,
- *	u_int64_t arg1, u_int64_t arg2, u_int64_t arg3)
- */
-ENTRY(ia64_call_pal_stacked_physical, 4)
-	
-	.regstk	4,4,4,0
-entry	=	loc0
-rpsave	=	loc1
-pfssave =	loc2
-psrsave	=	loc3
-
-	alloc	pfssave=ar.pfs,4,4,4,0
-	;; 
-	mov	rpsave=rp
-	movl	entry=@gprel(ia64_pal_entry)
-	;;
-	add	entry=entry,gp
-	mov	r28=in0			// procedure number
-	mov	out0=in0
-	;;
-	ld8	entry=[entry]		// read entry point
-	mov	out1=in1		// copy arguments
-	mov	out2=in2
-	mov	out3=in3
-	;;
-	dep	entry=0,entry,61,3	// physical address
-	br.call.sptk.many rp=ia64_physical_mode
-	mov	psrsave=ret0
-	;;
-	mov	b6=entry
-	;;
-	br.call.sptk.many rp=b6		// call into firmware
-	;;
-	mov	r14=psrsave
-	;;
-	br.call.sptk.many rp=ia64_change_mode
-	;; 
-	mov	rp=rpsave
-	mov	ar.pfs=pfssave
-	;;
-	br.ret.sptk rp
-
-END(ia64_call_pal_stacked_physical)
-
-#endif

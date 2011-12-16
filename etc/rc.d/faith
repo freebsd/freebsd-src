@@ -21,7 +21,7 @@ faith_up()
 	*)
 		echo "Configuring IPv6-to-IPv4 TCP relay capturing interface:" \
 		    " faith0."
-		${SYSCTL_W} net.inet6.ip6.keepfaith=1
+		${SYSCTL} net.inet6.ip6.keepfaith=1
 		ifconfig faith0 create >/dev/null 2>&1
 		ifconfig faith0 up
 		for prefix in ${ipv6_faith_prefix}; do
@@ -48,7 +48,7 @@ faith_down()
 {
 	echo "Removing IPv6-to-IPv4 TCP relay capturing interface: faith0."
 	ifconfig faith0 destroy
-	${SYSCTL_W} net.inet6.ip6.keepfaith=0
+	${SYSCTL} net.inet6.ip6.keepfaith=0
 
 	case ${ipv6_faith_prefix} in
 	[Nn][Oo] | '')

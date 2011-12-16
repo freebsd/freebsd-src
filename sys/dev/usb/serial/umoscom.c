@@ -50,7 +50,7 @@
 #ifdef USB_DEBUG
 static int umoscom_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umoscom, CTLFLAG_RW, 0, "USB umoscom");
 SYSCTL_INT(_hw_usb_umoscom, OID_AUTO, debug, CTLFLAG_RW,
     &umoscom_debug, 0, "Debug level");
 #endif
@@ -280,7 +280,7 @@ MODULE_DEPEND(umoscom, ucom, 1, 1, 1);
 MODULE_DEPEND(umoscom, usb, 1, 1, 1);
 MODULE_VERSION(umoscom, 1);
 
-static const struct usb_device_id umoscom_devs[] = {
+static const STRUCT_USB_HOST_ID umoscom_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7703, 0)}
 };
 

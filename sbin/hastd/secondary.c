@@ -65,9 +65,8 @@ __FBSDID("$FreeBSD$");
 #include "synch.h"
 
 struct hio {
-	uint64_t 	 hio_seq;
-	int	 	 hio_error;
-	struct nv	*hio_nv;
+	uint64_t	 hio_seq;
+	int		 hio_error;
 	void		*hio_data;
 	uint8_t		 hio_cmd;
 	uint64_t	 hio_offset;
@@ -128,6 +127,17 @@ static void *send_thread(void *arg);
 } while (0)
 
 static void
+hio_clear(struct hio *hio)
+{
+
+	hio->hio_seq = 0;
+	hio->hio_error = 0;
+	hio->hio_cmd = HIO_UNDEF;
+	hio->hio_offset = 0;
+	hio->hio_length = 0;
+}
+
+static void
 init_environment(void)
 {
 	struct hio *hio;
@@ -156,13 +166,13 @@ init_environment(void)
 			    "Unable to allocate memory (%zu bytes) for hio request.",
 			    sizeof(*hio));
 		}
-		hio->hio_error = 0;
 		hio->hio_data = malloc(MAXPHYS);
 		if (hio->hio_data == NULL) {
 			pjdlog_exitx(EX_TEMPFAIL,
 			    "Unable to allocate memory (%zu bytes) for gctl_data.",
 			    (size_t)MAXPHYS);
 		}
+		hio_clear(hio);
 		TAILQ_INSERT_HEAD(&hio_free_list, hio, hio_next);
 	}
 }
@@ -183,6 +193,12 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	unsigned char *map;
 	size_t mapsize;
 
+#ifdef notyet
+	/* Setup direction. */
+	if (proto_send(res->hr_remoteout, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
+
 	map = NULL;
 	mapsize = 0;
 	nvout = nv_alloc();
@@ -201,7 +217,6 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    "Unable to allocate memory (%zu bytes) for activemap.",
 		    mapsize);
 	}
-	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	/*
 	 * When we work as primary and secondary is missing we will increase
 	 * localcnt in our metadata. When secondary is connected and synced
@@ -258,15 +273,31 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		} else {
 			memset(map, 0xff, mapsize);
 		}
+		nv_add_int8(nvout, 1, "virgin");
 		nv_add_uint8(nvout, HAST_SYNCSRC_PRIMARY, "syncsrc");
+	} else if (res->hr_resuid != resuid) {
+		char errmsg[256];
+
+		free(map);
+		(void)snprintf(errmsg, sizeof(errmsg),
+		    "Resource unique ID mismatch (primary=%ju, secondary=%ju).",
+		    (uintmax_t)resuid, (uintmax_t)res->hr_resuid);
+		pjdlog_error("%s", errmsg);
+		nv_add_string(nvout, errmsg, "errmsg");
+		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
+			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+			    res->hr_remoteaddr);
+		}
+		nv_free(nvout);
+		exit(EX_CONFIG);
 	} else if (
-	    /* Is primary is out-of-date? */
+	    /* Is primary out-of-date? */
 	    (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
-	    /* Node are more or less in sync? */
+	    /* Are the nodes more or less in sync? */
 	    (res->hr_secondary_localcnt == res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt == res->hr_primary_localcnt) ||
-	    /* Is secondary is out-of-date? */
+	    /* Is secondary out-of-date? */
 	    (res->hr_secondary_localcnt == res->hr_primary_remotecnt &&
 	     res->hr_secondary_remotecnt < res->hr_primary_localcnt)) {
 		/*
@@ -295,11 +326,17 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		/*
 		 * Not good, we have split-brain condition.
 		 */
+		free(map);
 		pjdlog_error("Split-brain detected, exiting.");
 		nv_add_string(nvout, "Split-brain condition!", "errmsg");
-		free(map);
-		map = NULL;
-		mapsize = 0;
+		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
+			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+			    res->hr_remoteaddr);
+		}
+		nv_free(nvout);
+		/* Exit on split-brain. */
+		event_send(res, EVENT_SPLITBRAIN);
+		exit(EX_CONFIG);
 	} else /* if (res->hr_secondary_localcnt < res->hr_primary_remotecnt ||
 	    res->hr_primary_localcnt < res->hr_secondary_remotecnt) */ {
 		/*
@@ -325,6 +362,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_localcnt,
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
+	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
 	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
 		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
@@ -332,12 +370,11 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 	if (map != NULL)
 		free(map);
 	nv_free(nvout);
-	if (res->hr_secondary_localcnt > res->hr_primary_remotecnt &&
-	     res->hr_primary_localcnt > res->hr_secondary_remotecnt) {
-		/* Exit on split-brain. */
-		event_send(res, EVENT_SPLITBRAIN);
-		exit(EX_CONFIG);
-	}
+#ifdef notyet
+	/* Setup direction. */
+	if (proto_recv(res->hr_remotein, NULL, 0) == -1)
+		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
+#endif
 }
 
 void
@@ -351,7 +388,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between parent and child.
 	 */
-	if (proto_client("socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
@@ -359,20 +396,10 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between child and parent.
 	 */
-	if (proto_client("socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
-	}
-	/*
-	 * Create communication channel for sending connection requests from
-	 * parent to child.
-	 */
-	if (proto_client("socketpair://", &res->hr_conn) < 0) {
-		/* TODO: There's no need for this to be fatal error. */
-		KEEP_ERRNO((void)pidfile_remove(pfh));
-		pjdlog_exit(EX_OSERR,
-		    "Unable to create connection sockets between parent and child");
 	}
 
 	pid = fork();
@@ -391,7 +418,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 		proto_recv(res->hr_event, NULL, 0);
 		/* Declare that we are sender. */
 		proto_send(res->hr_ctrl, NULL, 0);
-		proto_send(res->hr_conn, NULL, 0);
 		res->hr_workerpid = pid;
 		return;
 	}
@@ -404,7 +430,6 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	proto_send(res->hr_event, NULL, 0);
 	/* Declare that we are receiver. */
 	proto_recv(res->hr_ctrl, NULL, 0);
-	proto_recv(res->hr_conn, NULL, 0);
 	descriptors_cleanup(res);
 
 	descriptors_assert(res, mode);
@@ -412,13 +437,13 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	pjdlog_init(mode);
 	pjdlog_debug_set(debuglevel);
 	pjdlog_prefix_set("[%s] (%s) ", res->hr_name, role2str(res->hr_role));
-	setproctitle("%s (secondary)", res->hr_name);
+	setproctitle("%s (%s)", res->hr_name, role2str(res->hr_role));
 
 	PJDLOG_VERIFY(sigemptyset(&mask) == 0);
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(res->hr_remotein, 0) < 0)
+	if (proto_timeout(res->hr_remotein, 2 * HAST_KEEPALIVE) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
@@ -426,7 +451,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	init_local(res);
 	init_environment();
 
-	if (drop_privs() != 0)
+	if (drop_privs(res) != 0)
 		exit(EX_CONFIG);
 	pjdlog_info("Privileges successfully dropped.");
 
@@ -494,29 +519,38 @@ reqlog(int loglevel, int debuglevel, int error, struct hio *hio, const char *fmt
 }
 
 static int
-requnpack(struct hast_resource *res, struct hio *hio)
+requnpack(struct hast_resource *res, struct hio *hio, struct nv *nv)
 {
 
-	hio->hio_cmd = nv_get_uint8(hio->hio_nv, "cmd");
+	hio->hio_cmd = nv_get_uint8(nv, "cmd");
 	if (hio->hio_cmd == 0) {
 		pjdlog_error("Header contains no 'cmd' field.");
 		hio->hio_error = EINVAL;
 		goto end;
 	}
+	if (hio->hio_cmd != HIO_KEEPALIVE) {
+		hio->hio_seq = nv_get_uint64(nv, "seq");
+		if (hio->hio_seq == 0) {
+			pjdlog_error("Header contains no 'seq' field.");
+			hio->hio_error = EINVAL;
+			goto end;
+		}
+	}
 	switch (hio->hio_cmd) {
+	case HIO_FLUSH:
 	case HIO_KEEPALIVE:
 		break;
 	case HIO_READ:
 	case HIO_WRITE:
 	case HIO_DELETE:
-		hio->hio_offset = nv_get_uint64(hio->hio_nv, "offset");
-		if (nv_error(hio->hio_nv) != 0) {
+		hio->hio_offset = nv_get_uint64(nv, "offset");
+		if (nv_error(nv) != 0) {
 			pjdlog_error("Header is missing 'offset' field.");
 			hio->hio_error = EINVAL;
 			goto end;
 		}
-		hio->hio_length = nv_get_uint64(hio->hio_nv, "length");
-		if (nv_error(hio->hio_nv) != 0) {
+		hio->hio_length = nv_get_uint64(nv, "length");
+		if (nv_error(nv) != 0) {
 			pjdlog_error("Header is missing 'length' field.");
 			hio->hio_error = EINVAL;
 			goto end;
@@ -585,38 +619,61 @@ recv_thread(void *arg)
 {
 	struct hast_resource *res = arg;
 	struct hio *hio;
+	struct nv *nv;
 
 	for (;;) {
 		pjdlog_debug(2, "recv: Taking free request.");
 		QUEUE_TAKE(free, hio);
 		pjdlog_debug(2, "recv: (%p) Got request.", hio);
-		if (hast_proto_recv_hdr(res->hr_remotein, &hio->hio_nv) < 0) {
+		if (hast_proto_recv_hdr(res->hr_remotein, &nv) < 0) {
 			secondary_exit(EX_TEMPFAIL,
 			    "Unable to receive request header");
 		}
-		if (requnpack(res, hio) != 0) {
+		if (requnpack(res, hio, nv) != 0) {
+			nv_free(nv);
 			pjdlog_debug(2,
 			    "recv: (%p) Moving request to the send queue.",
 			    hio);
 			QUEUE_INSERT(send, hio);
 			continue;
 		}
+		switch (hio->hio_cmd) {
+		case HIO_READ:
+			res->hr_stat_read++;
+			break;
+		case HIO_WRITE:
+			res->hr_stat_write++;
+			break;
+		case HIO_DELETE:
+			res->hr_stat_delete++;
+			break;
+		case HIO_FLUSH:
+			res->hr_stat_flush++;
+			break;
+		case HIO_KEEPALIVE:
+			break;
+		default:
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
+		}
 		reqlog(LOG_DEBUG, 2, -1, hio,
 		    "recv: (%p) Got request header: ", hio);
 		if (hio->hio_cmd == HIO_KEEPALIVE) {
+			nv_free(nv);
 			pjdlog_debug(2,
 			    "recv: (%p) Moving request to the free queue.",
 			    hio);
-			nv_free(hio->hio_nv);
+			hio_clear(hio);
 			QUEUE_INSERT(free, hio);
 			continue;
 		} else if (hio->hio_cmd == HIO_WRITE) {
-			if (hast_proto_recv_data(res, res->hr_remotein,
-			    hio->hio_nv, hio->hio_data, MAXPHYS) < 0) {
+			if (hast_proto_recv_data(res, res->hr_remotein, nv,
+			    hio->hio_data, MAXPHYS) < 0) {
 				secondary_exit(EX_TEMPFAIL,
 				    "Unable to receive request data");
 			}
 		}
+		nv_free(nv);
 		pjdlog_debug(2, "recv: (%p) Moving request to the disk queue.",
 		    hio);
 		QUEUE_INSERT(disk, hio);
@@ -635,7 +692,7 @@ disk_thread(void *arg)
 	struct hast_resource *res = arg;
 	struct hio *hio;
 	ssize_t ret;
-	bool clear_activemap;
+	bool clear_activemap, logerror;
 
 	clear_activemap = true;
 
@@ -670,8 +727,10 @@ disk_thread(void *arg)
 			free(map);
 			clear_activemap = false;
 			pjdlog_debug(1, "Local activemap cleared.");
+			break;
 		}
 		reqlog(LOG_DEBUG, 2, -1, hio, "disk: (%p) Got request: ", hio);
+		logerror = true;
 		/* Handle the actual request. */
 		switch (hio->hio_cmd) {
 		case HIO_READ:
@@ -706,14 +765,26 @@ disk_thread(void *arg)
 				hio->hio_error = 0;
 			break;
 		case HIO_FLUSH:
+			if (!res->hr_localflush) {
+				ret = -1;
+				hio->hio_error = EOPNOTSUPP;
+				logerror = false;
+				break;
+			}
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0)
+			if (ret < 0) {
+				if (errno == EOPNOTSUPP)
+					res->hr_localflush = false;
 				hio->hio_error = errno;
-			else
+			} else {
 				hio->hio_error = 0;
+			}
 			break;
+		default:
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
 		}
-		if (hio->hio_error != 0) {
+		if (logerror && hio->hio_error != 0) {
 			reqlog(LOG_ERR, 0, hio->hio_error, hio,
 			    "Request failed: ");
 		}
@@ -743,7 +814,7 @@ send_thread(void *arg)
 		reqlog(LOG_DEBUG, 2, -1, hio, "send: (%p) Got request: ", hio);
 		nvout = nv_alloc();
 		/* Copy sequence number. */
-		nv_add_uint64(nvout, nv_get_uint64(hio->hio_nv, "seq"), "seq");
+		nv_add_uint64(nvout, hio->hio_seq, "seq");
 		switch (hio->hio_cmd) {
 		case HIO_READ:
 			if (hio->hio_error == 0) {
@@ -762,8 +833,8 @@ send_thread(void *arg)
 			length = 0;
 			break;
 		default:
-			abort();
-			break;
+			PJDLOG_ABORT("Unexpected command (cmd=%hhu).",
+			    hio->hio_cmd);
 		}
 		if (hio->hio_error != 0)
 			nv_add_int16(nvout, hio->hio_error, "error");
@@ -774,8 +845,7 @@ send_thread(void *arg)
 		nv_free(nvout);
 		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
 		    hio);
-		nv_free(hio->hio_nv);
-		hio->hio_error = 0;
+		hio_clear(hio);
 		QUEUE_INSERT(free, hio);
 	}
 	/* NOTREACHED */

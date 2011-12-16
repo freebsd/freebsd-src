@@ -5,7 +5,7 @@ MK_SSP=		no
 
 PROG?=		ld-elf.so.1
 SRCS=		rtld_start.S \
-		reloc.c rtld.c rtld_lock.c map_object.c \
+		reloc.c rtld.c rtld_lock.c rtld_printf.c map_object.c \
 		malloc.c xmalloc.c debug.c libmap.c
 MAN=		rtld.1
 CSTD?=		gnu99
@@ -17,6 +17,7 @@ RTLD_ARCH=	${MACHINE_CPUARCH}
 .endif
 CFLAGS+=	-I${.CURDIR}/${RTLD_ARCH} -I${.CURDIR}
 .if ${MACHINE_ARCH} == "powerpc64"
+CFLAGS+=	-mcall-aixdesc
 LDFLAGS+=	-nostdlib -e _rtld_start
 .else
 LDFLAGS+=	-nostdlib -e .rtld_start

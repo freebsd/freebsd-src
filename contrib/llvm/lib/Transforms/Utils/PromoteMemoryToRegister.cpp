@@ -38,6 +38,8 @@
 #include "llvm/Analysis/DIBuilder.h"
 #include "llvm/Analysis/Dominators.h"
 #include "llvm/Analysis/InstructionSimplify.h"
+#include "llvm/Analysis/ValueTracking.h"
+#include "llvm/Transforms/Utils/Local.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallVector.h"
@@ -45,7 +47,6 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/Support/CFG.h"
 #include <algorithm>
-#include <map>
 #include <queue>
 using namespace llvm;
 
@@ -85,12 +86,32 @@ bool llvm::isAllocaPromotable(const AllocaInst *AI) {
        UI != UE; ++UI) {   // Loop over all of the uses of the alloca
     const User *U = *UI;
     if (const LoadInst *LI = dyn_cast<LoadInst>(U)) {
+      // Note that atomic loads can be transformed; atomic semantics do
+      // not have any meaning for a local alloca.
       if (LI->isVolatile())
         return false;
     } else if (const StoreInst *SI = dyn_cast<StoreInst>(U)) {
       if (SI->getOperand(0) == AI)
         return false;   // Don't allow a store OF the AI, only INTO the AI.
+      // Note that atomic stores can be transformed; atomic semantics do
+      // not have any meaning for a local alloca.
       if (SI->isVolatile())
+        return false;
+    } else if (const IntrinsicInst *II = dyn_cast<IntrinsicInst>(U)) {
+      if (II->getIntrinsicID() != Intrinsic::lifetime_start &&
+          II->getIntrinsicID() != Intrinsic::lifetime_end)
+        return false;
+    } else if (const BitCastInst *BCI = dyn_cast<BitCastInst>(U)) {
+      if (BCI->getType() != Type::getInt8PtrTy(U->getContext()))
+        return false;
+      if (!onlyUsedByLifetimeMarkers(BCI))
+        return false;
+    } else if (const GetElementPtrInst *GEPI = dyn_cast<GetElementPtrInst>(U)) {
+      if (GEPI->getType() != Type::getInt8PtrTy(U->getContext()))
+        return false;
+      if (!GEPI->hasAllZeroIndices())
+        return false;
+      if (!onlyUsedByLifetimeMarkers(GEPI))
         return false;
     } else {
       return false;
@@ -98,18 +119,6 @@ bool llvm::isAllocaPromotable(const AllocaInst *AI) {
   }
 
   return true;
-}
-
-/// FindAllocaDbgDeclare - Finds the llvm.dbg.declare intrinsic describing the
-/// alloca 'V', if any.
-static DbgDeclareInst *FindAllocaDbgDeclare(Value *V) {
-  if (MDNode *DebugNode = MDNode::getIfExists(V->getContext(), &V, 1))
-    for (Value::use_iterator UI = DebugNode->use_begin(),
-         E = DebugNode->use_end(); UI != E; ++UI)
-      if (DbgDeclareInst *DDI = dyn_cast<DbgDeclareInst>(*UI))
-        return DDI;
-
-  return 0;
 }
 
 namespace {
@@ -273,8 +282,6 @@ namespace {
                                   LargeBlockInfo &LBI);
     void PromoteSingleBlockAlloca(AllocaInst *AI, AllocaInfo &Info,
                                   LargeBlockInfo &LBI);
-    void ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI, StoreInst *SI);
-
     
     void RenamePass(BasicBlock *BB, BasicBlock *Pred,
                     RenamePassData::ValVector &IncVals,
@@ -349,6 +356,31 @@ namespace {
   };
 }  // end of anonymous namespace
 
+static void removeLifetimeIntrinsicUsers(AllocaInst *AI) {
+  // Knowing that this alloca is promotable, we know that it's safe to kill all
+  // instructions except for load and store.
+
+  for (Value::use_iterator UI = AI->use_begin(), UE = AI->use_end();
+       UI != UE;) {
+    Instruction *I = cast<Instruction>(*UI);
+    ++UI;
+    if (isa<LoadInst>(I) || isa<StoreInst>(I))
+      continue;
+
+    if (!I->getType()->isVoidTy()) {
+      // The only users of this bitcast/GEP instruction are lifetime intrinsics.
+      // Follow the use/def chain to erase them now instead of leaving it for
+      // dead code elimination later.
+      for (Value::use_iterator UI = I->use_begin(), UE = I->use_end();
+           UI != UE;) {
+        Instruction *Inst = cast<Instruction>(*UI);
+        ++UI;
+        Inst->eraseFromParent();
+      }
+    }
+    I->eraseFromParent();
+  }
+}
 
 void PromoteMem2Reg::run() {
   Function &F = *DT.getRoot()->getParent();
@@ -366,6 +398,8 @@ void PromoteMem2Reg::run() {
            "Cannot promote non-promotable alloca!");
     assert(AI->getParent()->getParent() == &F &&
            "All allocas should be in the same function, which is same as DF!");
+
+    removeLifetimeIntrinsicUsers(AI);
 
     if (AI->use_empty()) {
       // If there are no uses of the alloca, just delete it now.
@@ -391,7 +425,9 @@ void PromoteMem2Reg::run() {
       if (Info.UsingBlocks.empty()) {
         // Record debuginfo for the store and remove the declaration's debuginfo.
         if (DbgDeclareInst *DDI = Info.DbgDeclare) {
-          ConvertDebugDeclareToDebugValue(DDI, Info.OnlyStore);
+          if (!DIB)
+            DIB = new DIBuilder(*DDI->getParent()->getParent()->getParent());
+          ConvertDebugDeclareToDebugValue(DDI, Info.OnlyStore, *DIB);
           DDI->eraseFromParent();
         }
         // Remove the (now dead) store and alloca.
@@ -423,8 +459,11 @@ void PromoteMem2Reg::run() {
         while (!AI->use_empty()) {
           StoreInst *SI = cast<StoreInst>(AI->use_back());
           // Record debuginfo for the store before removing it.
-          if (DbgDeclareInst *DDI = Info.DbgDeclare)
-            ConvertDebugDeclareToDebugValue(DDI, SI);
+          if (DbgDeclareInst *DDI = Info.DbgDeclare) {
+            if (!DIB)
+              DIB = new DIBuilder(*SI->getParent()->getParent()->getParent());
+            ConvertDebugDeclareToDebugValue(DDI, SI, *DIB);
+          }
           SI->eraseFromParent();
           LBI.deleteValue(SI);
         }
@@ -944,28 +983,6 @@ void PromoteMem2Reg::PromoteSingleBlockAlloca(AllocaInst *AI, AllocaInfo &Info,
   }
 }
 
-// Inserts a llvm.dbg.value instrinsic before the stores to an alloca'd value
-// that has an associated llvm.dbg.decl intrinsic.
-void PromoteMem2Reg::ConvertDebugDeclareToDebugValue(DbgDeclareInst *DDI,
-                                                     StoreInst *SI) {
-  DIVariable DIVar(DDI->getVariable());
-  if (!DIVar.Verify())
-    return;
-
-  if (!DIB)
-    DIB = new DIBuilder(*SI->getParent()->getParent()->getParent());
-  Instruction *DbgVal = DIB->insertDbgValueIntrinsic(SI->getOperand(0), 0,
-                                                     DIVar, SI);
-  
-  // Propagate any debug metadata from the store onto the dbg.value.
-  DebugLoc SIDL = SI->getDebugLoc();
-  if (!SIDL.isUnknown())
-    DbgVal->setDebugLoc(SIDL);
-  // Otherwise propagate debug metadata from dbg.declare.
-  else
-    DbgVal->setDebugLoc(DDI->getDebugLoc());
-}
-
 // QueuePhiNode - queues a phi-node to be added to a basic-block for a specific
 // Alloca returns true if there wasn't already a phi-node for that variable
 //
@@ -979,12 +996,11 @@ bool PromoteMem2Reg::QueuePhiNode(BasicBlock *BB, unsigned AllocaNo,
 
   // Create a PhiNode using the dereferenced type... and add the phi-node to the
   // BasicBlock.
-  PN = PHINode::Create(Allocas[AllocaNo]->getAllocatedType(),
+  PN = PHINode::Create(Allocas[AllocaNo]->getAllocatedType(), getNumPreds(BB),
                        Allocas[AllocaNo]->getName() + "." + Twine(Version++), 
                        BB->begin());
   ++NumPHIInsert;
   PhiToAllocaMap[PN] = AllocaNo;
-  PN->reserveOperandSpace(getNumPreds(BB));
 
   if (AST && PN->getType()->isPointerTy())
     AST->copyValue(PointerAllocaValues[AllocaNo], PN);
@@ -1076,8 +1092,11 @@ NextIteration:
       // what value were we writing?
       IncomingVals[ai->second] = SI->getOperand(0);
       // Record debuginfo for the store before removing it.
-      if (DbgDeclareInst *DDI = AllocaDbgDeclares[ai->second])
-        ConvertDebugDeclareToDebugValue(DDI, SI);
+      if (DbgDeclareInst *DDI = AllocaDbgDeclares[ai->second]) {
+        if (!DIB)
+          DIB = new DIBuilder(*SI->getParent()->getParent()->getParent());
+        ConvertDebugDeclareToDebugValue(DDI, SI, *DIB);
+      }
       BB->getInstList().erase(SI);
     }
   }

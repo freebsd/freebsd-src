@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009, 2011  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001, 2003  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: sha1.c,v 1.18 2007/06/19 23:47:17 tbox Exp $ */
+/* $Id: sha1.c,v 1.20.408.2 2011-03-12 04:59:18 tbox Exp $ */
 
 /*	$NetBSD: sha1.c,v 1.5 2000/01/22 22:19:14 mycroft Exp $	*/
 /*	$OpenBSD: sha1.c,v 1.9 1997/07/23 21:12:32 kstailey Exp $	*/
@@ -38,10 +38,46 @@
 #include "config.h"
 
 #include <isc/assertions.h>
+#include <isc/platform.h>
 #include <isc/sha1.h>
 #include <isc/string.h>
 #include <isc/types.h>
 #include <isc/util.h>
+
+#ifdef ISC_PLATFORM_OPENSSLHASH
+
+void
+isc_sha1_init(isc_sha1_t *context)
+{
+	INSIST(context != NULL);
+
+	EVP_DigestInit(context, EVP_sha1());
+}
+
+void
+isc_sha1_invalidate(isc_sha1_t *context) {
+	EVP_MD_CTX_cleanup(context);
+}
+
+void
+isc_sha1_update(isc_sha1_t *context, const unsigned char *data,
+		unsigned int len)
+{
+	INSIST(context != 0);
+	INSIST(data != 0);
+
+	EVP_DigestUpdate(context, (const void *) data, (size_t) len);
+}
+
+void
+isc_sha1_final(isc_sha1_t *context, unsigned char *digest) {
+	INSIST(digest != 0);
+	INSIST(context != 0);
+
+	EVP_DigestFinal(context, digest, NULL);
+}
+
+#else
 
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
@@ -220,6 +256,8 @@ transform(isc_uint32_t state[5], const unsigned char buffer[64]) {
 
 	/* Wipe variables */
 	a = b = c = d = e = 0;
+	/* Avoid compiler warnings */
+	POST(a); POST(b); POST(c); POST(d); POST(e);
 }
 
 
@@ -313,3 +351,4 @@ isc_sha1_final(isc_sha1_t *context, unsigned char *digest) {
 
 	memset(context, 0, sizeof(isc_sha1_t));
 }
+#endif

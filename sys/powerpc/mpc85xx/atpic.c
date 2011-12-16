@@ -28,11 +28,11 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/bus.h>
+#include <sys/cpuset.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
-#include <sys/bus.h>
 #include <sys/rman.h>
-#include <sys/bus.h>
 
 #include <machine/bus.h>
 #include <machine/intr_machdep.h>

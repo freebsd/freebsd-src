@@ -88,15 +88,12 @@ static device_method_t tsec_methods[] = {
 	DEVMETHOD(device_suspend,	tsec_suspend),
 	DEVMETHOD(device_resume,	tsec_resume),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	tsec_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	tsec_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	tsec_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t tsec_fdt_driver = {

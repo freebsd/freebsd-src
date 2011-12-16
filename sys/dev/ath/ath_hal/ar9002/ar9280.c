@@ -76,6 +76,7 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 	uint32_t freq, ndiv, channelSel = 0, channelFrac = 0, reg32 = 0;
 	CHAN_CENTERS centers;
 	uint32_t refDivA = 24;
+	uint8_t frac_n_5g;
 
 	OS_MARK(ah, AH_MARK_SETCHANNEL, chan->ic_freq);
 
@@ -84,6 +85,9 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 
 	reg32 = OS_REG_READ(ah, AR_PHY_SYNTH_CONTROL);
 	reg32 &= 0xc0000000;
+
+	if (ath_hal_eepromGet(ah, AR_EEP_FRAC_N_5G, &frac_n_5g) != HAL_OK)
+		frac_n_5g = 0;
 
 	if (freq < 4800) {     /* 2 GHz, fractional mode */
 		uint32_t txctl;
@@ -106,11 +110,16 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 		bMode = 0;
 		fracMode = 0;
 
-		if ((freq % 20) == 0) {
-			aModeRefSel = 3;
-		} else if ((freq % 10) == 0) {
-			aModeRefSel = 2;
-		} else {
+		switch (frac_n_5g) {
+		case 0:
+			if ((freq % 20) == 0) {
+				aModeRefSel = 3;
+			} else if ((freq % 10) == 0) {
+				aModeRefSel = 2;
+			}
+			if (aModeRefSel) break;
+		case 1:
+		default:
 			aModeRefSel = 0;
 			/* Enable 2G (fractional) mode for channels which are 5MHz spaced */
 			fracMode = 1;
@@ -121,6 +130,7 @@ ar9280SetChannel(struct ath_hal *ah, const struct ieee80211_channel *chan)
 			OS_A_REG_RMW_FIELD(ah, AR_AN_SYNTH9,
 			    AR_AN_SYNTH9_REFDIVA, refDivA);
 		}
+
 		if (!fracMode) {
 			ndiv = (freq * (refDivA >> aModeRefSel))/60;
 			channelSel =  ndiv & 0x1ff;         
@@ -265,6 +275,16 @@ ar9280GetChannelMaxMinPower(struct ath_hal *ah,
 #endif
 }
 
+/*
+ * The ordering of nfarray is thus:
+ *
+ * nfarray[0]: Chain 0 ctl
+ * nfarray[1]: Chain 1 ctl
+ * nfarray[2]: Chain 2 ctl
+ * nfarray[3]: Chain 0 ext
+ * nfarray[4]: Chain 1 ext
+ * nfarray[5]: Chain 2 ext
+ */
 static void
 ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 {
@@ -297,6 +317,11 @@ ar9280GetNoiseFloor(struct ath_hal *ah, int16_t nfarray[])
 	HALDEBUG(ah, HAL_DEBUG_NFCAL,
 	    "NF calibrated [ext] [chain 1] is %d\n", nf);
 	nfarray[4] = nf;
+
+        /* Chain 2 - invalid */
+        nfarray[2] = 0;
+        nfarray[5] = 0;
+
 }
 
 /*
@@ -359,3 +384,11 @@ ar9280RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar9280RfProbe(struct ath_hal *ah)
+{
+	return (AR_SREV_MERLIN(ah));
+}
+
+AH_RF(RF9280, ar9280RfProbe, ar9280RfAttach);

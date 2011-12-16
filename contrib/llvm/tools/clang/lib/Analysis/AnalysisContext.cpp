@@ -24,10 +24,47 @@
 #include "clang/Analysis/CFG.h"
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/Support/BumpVector.h"
+#include "clang/Analysis/Support/SaveAndRestore.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/Support/ErrorHandling.h"
 
 using namespace clang;
+
+typedef llvm::DenseMap<const void *, ManagedAnalysis *> ManagedAnalysisMap;
+
+AnalysisContext::AnalysisContext(const Decl *d,
+                                 idx::TranslationUnit *tu,
+                                 const CFG::BuildOptions &buildOptions)
+  : D(d), TU(tu),
+    cfgBuildOptions(buildOptions),
+    forcedBlkExprs(0),
+    builtCFG(false),
+    builtCompleteCFG(false),
+    ReferencedBlockVars(0),
+    ManagedAnalyses(0)
+{  
+  cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+}
+
+AnalysisContext::AnalysisContext(const Decl *d,
+                                 idx::TranslationUnit *tu)
+: D(d), TU(tu),
+  forcedBlkExprs(0),
+  builtCFG(false),
+  builtCompleteCFG(false),
+  ReferencedBlockVars(0),
+  ManagedAnalyses(0)
+{  
+  cfgBuildOptions.forcedBlkExprs = &forcedBlkExprs;
+}
+
+AnalysisContextManager::AnalysisContextManager(bool useUnoptimizedCFG,
+                                               bool addImplicitDtors,
+                                               bool addInitializers) {
+  cfgBuildOptions.PruneTriviallyFalseEdges = !useUnoptimizedCFG;
+  cfgBuildOptions.AddImplicitDtors = addImplicitDtors;
+  cfgBuildOptions.AddInitializers = addInitializers;
+}
 
 void AnalysisContextManager::clear() {
   for (ContextMap::iterator I = Contexts.begin(), E = Contexts.end(); I!=E; ++I)
@@ -35,7 +72,7 @@ void AnalysisContextManager::clear() {
   Contexts.clear();
 }
 
-Stmt *AnalysisContext::getBody() {
+Stmt *AnalysisContext::getBody() const {
   if (const FunctionDecl *FD = dyn_cast<FunctionDecl>(D))
     return FD->getBody();
   else if (const ObjCMethodDecl *MD = dyn_cast<ObjCMethodDecl>(D))
@@ -56,57 +93,72 @@ const ImplicitParamDecl *AnalysisContext::getSelfDecl() const {
   return NULL;
 }
 
+void AnalysisContext::registerForcedBlockExpression(const Stmt *stmt) {
+  if (!forcedBlkExprs)
+    forcedBlkExprs = new CFG::BuildOptions::ForcedBlkExprs();
+  // Default construct an entry for 'stmt'.
+  if (const Expr *e = dyn_cast<Expr>(stmt))
+    stmt = e->IgnoreParens();
+  (void) (*forcedBlkExprs)[stmt];
+}
+
+const CFGBlock *
+AnalysisContext::getBlockForRegisteredExpression(const Stmt *stmt) {
+  assert(forcedBlkExprs);
+  if (const Expr *e = dyn_cast<Expr>(stmt))
+    stmt = e->IgnoreParens();
+  CFG::BuildOptions::ForcedBlkExprs::const_iterator itr = 
+    forcedBlkExprs->find(stmt);
+  assert(itr != forcedBlkExprs->end());
+  return itr->second;
+}
+
 CFG *AnalysisContext::getCFG() {
-  if (UseUnoptimizedCFG)
+  if (!cfgBuildOptions.PruneTriviallyFalseEdges)
     return getUnoptimizedCFG();
 
   if (!builtCFG) {
-    CFG::BuildOptions B;
-    B.AddEHEdges = AddEHEdges;
-    B.AddImplicitDtors = AddImplicitDtors;
-    B.AddInitializers = AddInitializers;
-    cfg = CFG::buildCFG(D, getBody(), &D->getASTContext(), B);
+    cfg.reset(CFG::buildCFG(D, getBody(),
+                            &D->getASTContext(), cfgBuildOptions));
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCFG = true;
   }
-  return cfg;
+  return cfg.get();
 }
 
 CFG *AnalysisContext::getUnoptimizedCFG() {
   if (!builtCompleteCFG) {
-    CFG::BuildOptions B;
-    B.PruneTriviallyFalseEdges = false;
-    B.AddEHEdges = AddEHEdges;
-    B.AddImplicitDtors = AddImplicitDtors;
-    B.AddInitializers = AddInitializers;
-    completeCFG = CFG::buildCFG(D, getBody(), &D->getASTContext(), B);
+    SaveAndRestore<bool> NotPrune(cfgBuildOptions.PruneTriviallyFalseEdges,
+                                  false);
+    completeCFG.reset(CFG::buildCFG(D, getBody(), &D->getASTContext(),
+                                    cfgBuildOptions));
     // Even when the cfg is not successfully built, we don't
     // want to try building it again.
     builtCompleteCFG = true;
   }
-  return completeCFG;
+  return completeCFG.get();
 }
 
 CFGStmtMap *AnalysisContext::getCFGStmtMap() {
   if (cfgStmtMap)
-    return cfgStmtMap;
+    return cfgStmtMap.get();
   
   if (CFG *c = getCFG()) {
-    cfgStmtMap = CFGStmtMap::Build(c, &getParentMap());
-    return cfgStmtMap;
+    cfgStmtMap.reset(CFGStmtMap::Build(c, &getParentMap()));
+    return cfgStmtMap.get();
   }
     
   return 0;
 }
 
-CFGReachabilityAnalysis *AnalysisContext::getCFGReachablityAnalysis() {
+CFGReverseBlockReachabilityAnalysis *AnalysisContext::getCFGReachablityAnalysis() {
   if (CFA)
-    return CFA;
+    return CFA.get();
   
   if (CFG *c = getCFG()) {
-    CFA = new CFGReachabilityAnalysis(*c);
-    return CFA;
+    CFA.reset(new CFGReverseBlockReachabilityAnalysis(*c));
+    return CFA.get();
   }
   
   return 0;
@@ -118,51 +170,21 @@ void AnalysisContext::dumpCFG() {
 
 ParentMap &AnalysisContext::getParentMap() {
   if (!PM)
-    PM = new ParentMap(getBody());
+    PM.reset(new ParentMap(getBody()));
   return *PM;
 }
 
 PseudoConstantAnalysis *AnalysisContext::getPseudoConstantAnalysis() {
   if (!PCA)
-    PCA = new PseudoConstantAnalysis(getBody());
-  return PCA;
-}
-
-LiveVariables *AnalysisContext::getLiveVariables() {
-  if (!liveness) {
-    CFG *c = getCFG();
-    if (!c)
-      return 0;
-
-    liveness = new LiveVariables(*this);
-    liveness->runOnCFG(*c);
-    liveness->runOnAllBlocks(*c, 0, true);
-  }
-
-  return liveness;
-}
-
-LiveVariables *AnalysisContext::getRelaxedLiveVariables() {
-  if (!relaxedLiveness) {
-    CFG *c = getCFG();
-    if (!c)
-      return 0;
-
-    relaxedLiveness = new LiveVariables(*this, false);
-    relaxedLiveness->runOnCFG(*c);
-    relaxedLiveness->runOnAllBlocks(*c, 0, true);
-  }
-
-  return relaxedLiveness;
+    PCA.reset(new PseudoConstantAnalysis(getBody()));
+  return PCA.get();
 }
 
 AnalysisContext *AnalysisContextManager::getContext(const Decl *D,
                                                     idx::TranslationUnit *TU) {
   AnalysisContext *&AC = Contexts[D];
   if (!AC)
-    AC = new AnalysisContext(D, TU, UseUnoptimizedCFG, false,
-        AddImplicitDtors, AddInitializers);
-
+    AC = new AnalysisContext(D, TU, cfgBuildOptions);
   return AC;
 }
 
@@ -174,7 +196,7 @@ void LocationContext::ProfileCommon(llvm::FoldingSetNodeID &ID,
                                     ContextKind ck,
                                     AnalysisContext *ctx,
                                     const LocationContext *parent,
-                                    const void* data) {
+                                    const void *data) {
   ID.AddInteger(ck);
   ID.AddPointer(ctx);
   ID.AddPointer(parent);
@@ -365,20 +387,29 @@ AnalysisContext::getReferencedBlockVars(const BlockDecl *BD) {
   return std::make_pair(V->begin(), V->end());
 }
 
+ManagedAnalysis *&AnalysisContext::getAnalysisImpl(const void *tag) {
+  if (!ManagedAnalyses)
+    ManagedAnalyses = new ManagedAnalysisMap();
+  ManagedAnalysisMap *M = (ManagedAnalysisMap*) ManagedAnalyses;
+  return (*M)[tag];
+}
+
 //===----------------------------------------------------------------------===//
 // Cleanup.
 //===----------------------------------------------------------------------===//
 
+ManagedAnalysis::~ManagedAnalysis() {}
+
 AnalysisContext::~AnalysisContext() {
-  delete cfg;
-  delete completeCFG;
-  delete cfgStmtMap;
-  delete liveness;
-  delete relaxedLiveness;
-  delete PM;
-  delete PCA;
-  delete CFA;
+  delete forcedBlkExprs;
   delete ReferencedBlockVars;
+  // Release the managed analyses.
+  if (ManagedAnalyses) {
+    ManagedAnalysisMap *M = (ManagedAnalysisMap*) ManagedAnalyses;
+    for (ManagedAnalysisMap::iterator I = M->begin(), E = M->end(); I!=E; ++I)
+      delete I->second;  
+    delete M;
+  }
 }
 
 AnalysisContextManager::~AnalysisContextManager() {

@@ -608,14 +608,15 @@ namespace sys {
       ///
       /// This API is not intended for general use, clients should use
       /// MemoryBuffer::getFile instead.
-      static const char *MapInFilePages(int FD, uint64_t FileSize);
+      static const char *MapInFilePages(int FD, size_t FileSize,
+                                        off_t Offset);
 
       /// UnMapFilePages - Free pages mapped into the current process by
       /// MapInFilePages.
       ///
       /// This API is not intended for general use, clients should use
       /// MemoryBuffer::getFile instead.
-      static void UnMapFilePages(const char *Base, uint64_t FileSize);
+      static void UnMapFilePages(const char *Base, size_t FileSize);
 
     /// @}
     /// @name Data
@@ -732,6 +733,7 @@ namespace sys {
     Mach_O_DynamicLinker_FileType,     ///< The Mach-O dynamic linker
     Mach_O_Bundle_FileType,            ///< Mach-O Bundle file
     Mach_O_DynamicallyLinkedSharedLibStub_FileType, ///< Mach-O Shared lib stub
+    Mach_O_DSYMCompanion_FileType,     ///< Mach-O dSYM companion file
     COFF_FileType                      ///< COFF object file or lib
   };
 

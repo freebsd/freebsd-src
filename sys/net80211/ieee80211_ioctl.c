@@ -143,7 +143,7 @@ static __noinline int
 ieee80211_ioctl_getchaninfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211com *ic = vap->iv_ic;
-	int space;
+	uint32_t space;
 
 	space = __offsetof(struct ieee80211req_chaninfo,
 			ic_chans[ic->ic_nchans]);
@@ -207,7 +207,7 @@ ieee80211_ioctl_getstastats(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	struct ieee80211_node *ni;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	const int off = __offsetof(struct ieee80211req_sta_stats, is_stats);
+	const size_t off = __offsetof(struct ieee80211req_sta_stats, is_stats);
 	int error;
 
 	if (ireq->i_len < off)
@@ -323,7 +323,7 @@ ieee80211_ioctl_getscanresults(struct ieee80211vap *vap,
 	if (req.space > ireq->i_len)
 		req.space = ireq->i_len;
 	if (req.space > 0) {
-		size_t space;
+		uint32_t space;
 		void *p;
 
 		space = req.space;
@@ -458,7 +458,7 @@ get_sta_info(void *arg, struct ieee80211_node *ni)
 
 static __noinline int
 getstainfo_common(struct ieee80211vap *vap, struct ieee80211req *ireq,
-	struct ieee80211_node *ni, int off)
+	struct ieee80211_node *ni, size_t off)
 {
 	struct ieee80211com *ic = vap->iv_ic;
 	struct stainforeq req;
@@ -503,7 +503,7 @@ static __noinline int
 ieee80211_ioctl_getstainfo(struct ieee80211vap *vap, struct ieee80211req *ireq)
 {
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
-	const int off = __offsetof(struct ieee80211req_sta_req, info);
+	const size_t off = __offsetof(struct ieee80211req_sta_req, info);
 	struct ieee80211_node *ni;
 	int error;
 
@@ -971,6 +971,21 @@ ieee80211_ioctl_get80211(struct ieee80211vap *vap, u_long cmd,
 		break;
 	case IEEE80211_IOC_PUREG:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_PUREG) != 0;
+		break;
+	case IEEE80211_IOC_QUIET:
+		ireq->i_val = vap->iv_quiet;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		ireq->i_val = vap->iv_quiet_count;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		ireq->i_val = vap->iv_quiet_period;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		ireq->i_val = vap->iv_quiet_duration;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		ireq->i_val = vap->iv_quiet_offset;
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		ireq->i_val = (vap->iv_flags & IEEE80211_F_BGSCAN) != 0;
@@ -2938,6 +2953,24 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		/* NB: reset only if we're operating on an 11g channel */
 		if (isvap11g(vap))
 			error = ENETRESET;
+		break;
+	case IEEE80211_IOC_QUIET:
+		vap->iv_quiet= ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_COUNT:
+		vap->iv_quiet_count=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_PERIOD:
+		vap->iv_quiet_period=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_OFFSET:
+		vap->iv_quiet_offset=ireq->i_val;
+		break;
+	case IEEE80211_IOC_QUIET_DUR:
+		if(ireq->i_val < vap->iv_bss->ni_intval)
+			vap->iv_quiet_duration = ireq->i_val;
+		else
+			error = EINVAL;
 		break;
 	case IEEE80211_IOC_BGSCAN:
 		if (ireq->i_val) {

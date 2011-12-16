@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_write_private.h"
 
-#ifndef HAVE_BZLIB_H
+#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR)
 int
 archive_write_set_compression_bzip2(struct archive *a)
 {
@@ -405,4 +405,4 @@ drive_compressor(struct archive_write *a, struct private_data *state, int finish
 	}
 }
 
-#endif /* HAVE_BZLIB_H */
+#endif /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */

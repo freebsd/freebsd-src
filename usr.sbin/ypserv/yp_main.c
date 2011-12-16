@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -216,7 +217,7 @@ reaper(int sig)
 static void
 usage(void)
 {
-	fprintf(stderr, "usage: ypserv [-h] [-d] [-n] [-p path] [-P port]\n");
+	fprintf(stderr, "usage: ypserv [-h addr] [-d] [-n] [-p path] [-P port]\n");
 	exit(1);
 }
 
@@ -524,6 +525,9 @@ main(int argc, char *argv[])
 		_rpcfd = RPC_ANYFD;
 		unregister();
 	}
+
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		_msgout("madvise(): %s", strerror(errno));
 
 	/*
 	 * Create RPC service for each transport.

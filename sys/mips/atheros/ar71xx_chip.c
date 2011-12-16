@@ -27,11 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <sys/param.h>
-#include <machine/cpuregs.h>
-
-#include <mips/sentry5/s5reg.h>
-
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -42,24 +37,25 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
+#include <machine/cpuregs.h>
 #include <machine/hwfunc.h>
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar71xxreg.h>
-
 #include <mips/atheros/ar71xx_chip.h>
-
 #include <mips/atheros/ar71xx_cpudef.h>
+
+#include <mips/sentry5/s5reg.h>
 
 /* XXX these should replace the current definitions in ar71xxreg.h */
 /* XXX perhaps an ar71xx_chip.h header file? */
@@ -137,66 +133,70 @@ ar71xx_chip_device_stopped(uint32_t mask)
 	uint32_t reg;
 
 	reg = ATH_READ_REG(AR71XX_RST_RESET);
-        return ((reg & mask) == mask);
+	return ((reg & mask) == mask);
 }
 
 /* Speed is either 10, 100 or 1000 */
 static void
-ar71xx_chip_set_pll_ge0(int speed)
+ar71xx_chip_set_pll_ge(int unit, int speed)
 {
 	uint32_t pll;
 
-	switch(speed) {
-		case 10:
-			pll = PLL_ETH_INT_CLK_10;
-			break;
-		case 100:
-			pll = PLL_ETH_INT_CLK_100;
-			break;
-		case 1000:
-			pll = PLL_ETH_INT_CLK_1000;
-			break;
-		default:
-			printf("ar71xx_chip_set_pll_ge0: invalid speed %d\n", speed);
-			return;
+	switch (speed) {
+	case 10:
+		pll = PLL_ETH_INT_CLK_10;
+		break;
+	case 100:
+		pll = PLL_ETH_INT_CLK_100;
+		break;
+	case 1000:
+		pll = PLL_ETH_INT_CLK_1000;
+		break;
+	default:
+		printf("%s%d: invalid speed %d\n",
+		    __func__, unit, speed);
+		return;
 	}
-
-	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT0_CLK, pll, AR71XX_PLL_ETH0_SHIFT);
-}
-
-static void
-ar71xx_chip_set_pll_ge1(int speed)
-{
-	uint32_t pll;
-
-	switch(speed) {
-		case 10:
-			pll = PLL_ETH_INT_CLK_10;
-			break;
-		case 100:
-			pll = PLL_ETH_INT_CLK_100;
-			break;
-		case 1000:
-			pll = PLL_ETH_INT_CLK_1000;
-			break;
-		default:
-			printf("ar71xx_chip_set_pll_ge1: invalid speed %d\n", speed);
-			return;
+	switch (unit) {
+	case 0:
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
+		    AR71XX_PLL_ETH_INT0_CLK, pll,
+		    AR71XX_PLL_ETH0_SHIFT);
+		break;
+	case 1:
+		ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG,
+		    AR71XX_PLL_ETH_INT1_CLK, pll,
+		    AR71XX_PLL_ETH1_SHIFT);
+		break;
+	default:
+		printf("%s: invalid PLL set for arge unit: %d\n",
+		    __func__, unit);
+		return;
 	}
-
-	ar71xx_write_pll(AR71XX_PLL_SEC_CONFIG, AR71XX_PLL_ETH_INT1_CLK, pll, AR71XX_PLL_ETH1_SHIFT);
 }
 
 static void
-ar71xx_chip_ddr_flush_ge0(void)
+ar71xx_chip_ddr_flush_ge(int unit)
 {
-	ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE0);
+
+	switch (unit) {
+	case 0:
+		ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE0);
+		break;
+	case 1:
+		ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE1);
+		break;
+	default:
+		printf("%s: invalid DDR flush for arge unit: %d\n",
+		    __func__, unit);
+		return;
+	}
 }
 
 static void
-ar71xx_chip_ddr_flush_ge1(void)
+ar71xx_chip_ddr_flush_ip2(void)
 {
-	ar71xx_ddr_flush(AR71XX_WB_FLUSH_GE1);
+	ar71xx_ddr_flush(AR71XX_WB_FLUSH_PCI);
 }
 
 static uint32_t
@@ -208,18 +208,24 @@ ar71xx_chip_get_eth_pll(unsigned int mac, int speed)
 static void
 ar71xx_chip_init_usb_peripheral(void)
 {
-	ar71xx_device_stop(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+
+	ar71xx_device_stop(RST_RESET_USB_OHCI_DLL |
+	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
-	ar71xx_device_start(RST_RESET_USB_OHCI_DLL | RST_RESET_USB_HOST | RST_RESET_USB_PHY);
+	ar71xx_device_start(RST_RESET_USB_OHCI_DLL |
+	    RST_RESET_USB_HOST | RST_RESET_USB_PHY);
 	DELAY(1000);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_CONFIG,
-	    USB_CTRL_CONFIG_OHCI_DES_SWAP | USB_CTRL_CONFIG_OHCI_BUF_SWAP |
-	    USB_CTRL_CONFIG_EHCI_DES_SWAP | USB_CTRL_CONFIG_EHCI_BUF_SWAP);
+	    USB_CTRL_CONFIG_OHCI_DES_SWAP |
+	    USB_CTRL_CONFIG_OHCI_BUF_SWAP |
+	    USB_CTRL_CONFIG_EHCI_DES_SWAP |
+	    USB_CTRL_CONFIG_EHCI_BUF_SWAP);
 
 	ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) | (3 << USB_CTRL_FLADJ_A5_SHIFT));
+	    (32 << USB_CTRL_FLADJ_HOST_SHIFT) |
+	    (3 << USB_CTRL_FLADJ_A5_SHIFT));
 
 	DELAY(1000);
 }
@@ -230,11 +236,9 @@ struct ar71xx_cpu_def ar71xx_chip_def = {
 	&ar71xx_chip_device_stop,
 	&ar71xx_chip_device_start,
 	&ar71xx_chip_device_stopped,
-	&ar71xx_chip_set_pll_ge0,
-	&ar71xx_chip_set_pll_ge1,
-	&ar71xx_chip_ddr_flush_ge0,
-	&ar71xx_chip_ddr_flush_ge1,
+	&ar71xx_chip_set_pll_ge,
+	&ar71xx_chip_ddr_flush_ge,
 	&ar71xx_chip_get_eth_pll,
-	NULL,
+	&ar71xx_chip_ddr_flush_ip2,
 	&ar71xx_chip_init_usb_peripheral,
 };

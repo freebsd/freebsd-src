@@ -84,7 +84,8 @@
 #include <netgraph/ng_bridge.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge", "netgraph bridge node");
+static MALLOC_DEFINE(M_NETGRAPH_BRIDGE, "netgraph_bridge",
+    "netgraph bridge node");
 #else
 #define M_NETGRAPH_BRIDGE M_NETGRAPH
 #endif
@@ -309,18 +310,12 @@ ng_bridge_constructor(node_p node)
 	priv_p priv;
 
 	/* Allocate and initialize private info */
-	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	ng_callout_init(&priv->timer);
 
 	/* Allocate and initialize hash table, etc. */
 	priv->tab = malloc(MIN_BUCKETS * sizeof(*priv->tab),
-	    M_NETGRAPH_BRIDGE, M_NOWAIT | M_ZERO);
-	if (priv->tab == NULL) {
-		free(priv, M_NETGRAPH_BRIDGE);
-		return (ENOMEM);
-	}
+	    M_NETGRAPH_BRIDGE, M_WAITOK | M_ZERO);
 	priv->numBuckets = MIN_BUCKETS;
 	priv->hashMask = MIN_BUCKETS - 1;
 	priv->conf.debugLevel = 1;

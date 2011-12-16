@@ -6,6 +6,20 @@ NANO_PACKAGE_DIR=`pwd`/Pkg
 NANO_RAM_TMPVARSIZE=20480
 NANO_PMAKE="make -j 8"
 NANO_LABEL="rescue"
+NANO_RAM_TMPVARSIZE=40960
+#NANO_MEDIASIZE="8027712"
+#NANO_MEDIASIZE="2097152"
+NANO_MEDIASIZE="3932160"
+NANO_SECTS="63"
+NANO_HEADS="16"
+NANO_IMAGES="2"
+NANO_INIT_IMG2="0"
+NANO_BOOT0CFG="-o packet,update,nosetdrv -s 1 -m 3"
+NANO_DRIVE=da0
+#NANO_MODULES=
+NANO_BOOTLOADER="boot/boot0"
+NANO_BOOT2CFG=""
+NANO_MD_BACKING=swap
 
 # Options to put in make.conf during buildworld only
 CONF_BUILD='
@@ -17,7 +31,7 @@ CONF_INSTALL='
 CONF_WORLD='                                                                    
 #TARGET_ARCH=i386
 CFLAGS=-O -pipe                                                                
-#MODULES_OVERRIDE=
+ALL_MODULES=YES
 '
 
 #customize_cmd cust_comconsole
@@ -53,8 +67,8 @@ cust_etc_cfg () (
 	echo "keymap=\"german.iso\"" >> etc/rc.conf
 	echo "#ifconfig_fxp0=\"AUTO\"" >> etc/rc.conf
 	echo "#sshd_enable=\"YES\"" >> etc/rc.conf
-	echo "/dev/iso9660/${NANO_LABEL} / cd9660 ro,noatime 0 0" > etc/fstab
-	echo "tmpfs /tmp tmpfs rw,size=268435456,mode=1777 0 0" >> etc/fstab
+	echo "/dev/ufs/${NANO_LABEL}s1a / ufs ro,noatime 0 0" > etc/fstab
+	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
 	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
 #	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
 	/usr/sbin/pwd_mkdb -d etc etc/master.passwd
@@ -78,6 +92,10 @@ last_orders () (
 	pprint 2 "last orders"
 	(
 	cd ${NANO_WORLDDIR}
+	echo "/dev/iso9660/${NANO_LABEL} / cd9660 ro,noatime 0 0" > etc/fstab
+	echo "tmpfs /boot/zfs tmpfs rw,size=1048576,mode=777 0 0" >> etc/fstab
+	echo "ports:/usr/ports /usr/ports nfs rw,noauto,noatime,bg,soft,intr,nfsv3 0 0" >> etc/fstab
+#	echo "/dev/ad1s1a /scratch ufs rw,noauto,noatime 0 0" >> etc/fstab
 	rm -f conf/default/etc/remount
 	touch conf/default/etc/.keepme
 	touch conf/default/var/.keepme
@@ -88,10 +106,10 @@ last_orders () (
 	)
 )
 
-create_i386_diskimage () {
-	#currently not used
-}
+#create_i386_diskimage () {
+#	#currently not used
+#}
 
-create_amd64_diskimage () {
-	create_i386_diskimage
-}
+#create_amd64_diskimage () {
+#	create_i386_diskimage
+#}

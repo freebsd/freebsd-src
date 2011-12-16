@@ -16,6 +16,7 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Type.h"
 #include "clang/Frontend/CodeGenOptions.h"
+#include "CGObjCRuntime.h"
 
 using namespace clang;
 using namespace CodeGen;
@@ -25,10 +26,10 @@ class RTTIBuilder {
   CodeGenModule &CGM;  // Per-module state.
   llvm::LLVMContext &VMContext;
   
-  const llvm::Type *Int8PtrTy;
+  llvm::Type *Int8PtrTy;
   
   /// Fields - The fields of the RTTI descriptor currently being built.
-  llvm::SmallVector<llvm::Constant *, 16> Fields;
+  SmallVector<llvm::Constant *, 16> Fields;
 
   /// GetAddrOfTypeName - Returns the mangled type name of the given type.
   llvm::GlobalVariable *
@@ -119,7 +120,7 @@ RTTIBuilder::GetAddrOfTypeName(QualType Ty,
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().mangleCXXRTTIName(Ty, Out);
   Out.flush();
-  llvm::StringRef Name = OutName.str();
+  StringRef Name = OutName.str();
 
   // We know that the mangled name of the type starts at index 4 of the
   // mangled name of the typename, so we can just index into it in order to
@@ -140,7 +141,7 @@ llvm::Constant *RTTIBuilder::GetAddrOfExternalRTTIDescriptor(QualType Ty) {
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().mangleCXXRTTI(Ty, Out);
   Out.flush();
-  llvm::StringRef Name = OutName.str();
+  StringRef Name = OutName.str();
 
   // Look for an existing global.
   llvm::GlobalVariable *GV = CGM.getModule().getNamedGlobal(Name);
@@ -184,6 +185,7 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
     case BuiltinType::ULong:
     case BuiltinType::LongLong:
     case BuiltinType::ULongLong:
+    case BuiltinType::Half:
     case BuiltinType::Float:
     case BuiltinType::Double:
     case BuiltinType::LongDouble:
@@ -195,12 +197,14 @@ static bool TypeInfoIsInStandardLibrary(const BuiltinType *Ty) {
       
     case BuiltinType::Overload:
     case BuiltinType::Dependent:
-      assert(false && "Should not see this type here!");
+    case BuiltinType::BoundMember:
+    case BuiltinType::UnknownAny:
+      llvm_unreachable("asking for RRTI for a placeholder type!");
       
     case BuiltinType::ObjCId:
     case BuiltinType::ObjCClass:
     case BuiltinType::ObjCSel:
-      assert(false && "FIXME: Objective-C types are unsupported!");
+      llvm_unreachable("FIXME: Objective-C types are unsupported!");
   }
   
   // Silent gcc.
@@ -264,7 +268,7 @@ static bool ShouldUseExternalRTTIDescriptor(CodeGenModule &CGM, QualType Ty) {
 
 /// IsIncompleteClassType - Returns whether the given record type is incomplete.
 static bool IsIncompleteClassType(const RecordType *RecordTy) {
-  return !RecordTy->getDecl()->isDefinition();
+  return !RecordTy->getDecl()->isCompleteDefinition();
 }  
 
 /// ContainsIncompleteClassType - Returns whether the given type contains an
@@ -390,17 +394,18 @@ void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
 #define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
-    assert(false && "Non-canonical and dependent types shouldn't get here");
+    llvm_unreachable("Non-canonical and dependent types shouldn't get here");
 
   case Type::LValueReference:
   case Type::RValueReference:
-    assert(false && "References shouldn't get here");
+    llvm_unreachable("References shouldn't get here");
 
   case Type::Builtin:
   // GCC treats vector and complex types as fundamental types.
   case Type::Vector:
   case Type::ExtVector:
   case Type::Complex:
+  case Type::Atomic:
   // FIXME: GCC treats block pointers as fundamental types?!
   case Type::BlockPointer:
     // abi::__fundamental_type_info.
@@ -476,12 +481,12 @@ void RTTIBuilder::BuildVTablePointer(const Type *Ty) {
   llvm::Constant *VTable = 
     CGM.getModule().getOrInsertGlobal(VTableName, Int8PtrTy);
     
-  const llvm::Type *PtrDiffTy = 
+  llvm::Type *PtrDiffTy = 
     CGM.getTypes().ConvertType(CGM.getContext().getPointerDiffType());
 
   // The vtable address point is 2.
   llvm::Constant *Two = llvm::ConstantInt::get(PtrDiffTy, 2);
-  VTable = llvm::ConstantExpr::getInBoundsGetElementPtr(VTable, &Two, 1);
+  VTable = llvm::ConstantExpr::getInBoundsGetElementPtr(VTable, Two);
   VTable = llvm::ConstantExpr::getBitCast(VTable, Int8PtrTy);
 
   Fields.push_back(VTable);
@@ -530,7 +535,7 @@ maybeUpdateRTTILinkage(CodeGenModule &CGM, llvm::GlobalVariable *GV,
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().mangleCXXRTTIName(Ty, Out);
   Out.flush();
-  llvm::StringRef Name = OutName.str();
+  StringRef Name = OutName.str();
 
   llvm::GlobalVariable *TypeNameGV = CGM.getModule().getNamedGlobal(Name);
 
@@ -550,7 +555,7 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   llvm::raw_svector_ostream Out(OutName);
   CGM.getCXXABI().getMangleContext().mangleCXXRTTI(Ty, Out);
   Out.flush();
-  llvm::StringRef Name = OutName.str();
+  StringRef Name = OutName.str();
 
   llvm::GlobalVariable *OldGV = CGM.getModule().getNamedGlobal(Name);
   if (OldGV && !OldGV->isDeclaration()) {
@@ -577,7 +582,7 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   // And the name.
   llvm::GlobalVariable *TypeName = GetAddrOfTypeName(Ty, Linkage);
 
-  const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
+  llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
   Fields.push_back(llvm::ConstantExpr::getBitCast(TypeName, Int8PtrTy));
 
   switch (Ty->getTypeClass()) {
@@ -587,7 +592,7 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
 #define NON_CANONICAL_TYPE(Class, Base) case Type::Class:
 #define DEPENDENT_TYPE(Class, Base) case Type::Class:
 #include "clang/AST/TypeNodes.def"
-    assert(false && "Non-canonical and dependent types shouldn't get here");
+    llvm_unreachable("Non-canonical and dependent types shouldn't get here");
 
   // GCC treats vector types as fundamental types.
   case Type::Builtin:
@@ -601,7 +606,7 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
 
   case Type::LValueReference:
   case Type::RValueReference:
-    assert(false && "References shouldn't get here");
+    llvm_unreachable("References shouldn't get here");
 
   case Type::ConstantArray:
   case Type::IncompleteArray:
@@ -653,11 +658,13 @@ llvm::Constant *RTTIBuilder::BuildTypeInfo(QualType Ty, bool Force) {
   case Type::MemberPointer:
     BuildPointerToMemberTypeInfo(cast<MemberPointerType>(Ty));
     break;
+
+  case Type::Atomic:
+    // No fields, at least for the moment.
+    break;
   }
 
-  llvm::Constant *Init = 
-    llvm::ConstantStruct::get(VMContext, &Fields[0], Fields.size(), 
-                              /*Packed=*/false);
+  llvm::Constant *Init = llvm::ConstantStruct::getAnon(Fields);
 
   llvm::GlobalVariable *GV = 
     new llvm::GlobalVariable(CGM.getModule(), Init->getType(), 
@@ -821,7 +828,7 @@ static unsigned ComputeVMIClassTypeInfoFlags(const CXXRecordDecl *RD) {
 /// classes with bases that do not satisfy the abi::__si_class_type_info 
 /// constraints, according ti the Itanium C++ ABI, 2.9.5p5c.
 void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
-  const llvm::Type *UnsignedIntLTy = 
+  llvm::Type *UnsignedIntLTy = 
     CGM.getTypes().ConvertType(CGM.getContext().UnsignedIntTy);
   
   // Itanium C++ ABI 2.9.5p6c:
@@ -839,7 +846,7 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
   if (!RD->getNumBases())
     return;
   
-  const llvm::Type *LongLTy = 
+  llvm::Type *LongLTy = 
     CGM.getTypes().ConvertType(CGM.getContext().LongTy);
 
   // Now add the base class descriptions.
@@ -875,14 +882,16 @@ void RTTIBuilder::BuildVMIClassTypeInfo(const CXXRecordDecl *RD) {
     // For a non-virtual base, this is the offset in the object of the base
     // subobject. For a virtual base, this is the offset in the virtual table of
     // the virtual base offset for the virtual base referenced (negative).
+    CharUnits Offset;
     if (Base->isVirtual())
-      OffsetFlags = CGM.getVTables().getVirtualBaseOffsetOffset(RD, BaseDecl);
+      Offset = 
+        CGM.getVTableContext().getVirtualBaseOffsetOffset(RD, BaseDecl);
     else {
       const ASTRecordLayout &Layout = CGM.getContext().getASTRecordLayout(RD);
-      OffsetFlags = Layout.getBaseClassOffsetInBits(BaseDecl) / 8;
+      Offset = Layout.getBaseClassOffset(BaseDecl);
     };
     
-    OffsetFlags <<= 8;
+    OffsetFlags = Offset.getQuantity() << 8;
     
     // The low-order byte of __offset_flags contains flags, as given by the 
     // masks from the enumeration __offset_flags_masks.
@@ -913,7 +922,7 @@ void RTTIBuilder::BuildPointerTypeInfo(QualType PointeeTy) {
   if (ContainsIncompleteClassType(UnqualifiedPointeeTy))
     Flags |= PTI_Incomplete;
 
-  const llvm::Type *UnsignedIntLTy = 
+  llvm::Type *UnsignedIntLTy = 
     CGM.getTypes().ConvertType(CGM.getContext().UnsignedIntTy);
   Fields.push_back(llvm::ConstantInt::get(UnsignedIntLTy, Flags));
   
@@ -950,7 +959,7 @@ void RTTIBuilder::BuildPointerToMemberTypeInfo(const MemberPointerType *Ty) {
   if (IsIncompleteClassType(ClassType))
     Flags |= PTI_ContainingClassIncomplete;
   
-  const llvm::Type *UnsignedIntLTy = 
+  llvm::Type *UnsignedIntLTy = 
     CGM.getTypes().ConvertType(CGM.getContext().UnsignedIntTy);
   Fields.push_back(llvm::ConstantInt::get(UnsignedIntLTy, Flags));
   
@@ -974,8 +983,12 @@ llvm::Constant *CodeGenModule::GetAddrOfRTTIDescriptor(QualType Ty,
   // FIXME: should we even be calling this method if RTTI is disabled
   // and it's not for EH?
   if (!ForEH && !getContext().getLangOptions().RTTI) {
-    const llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
+    llvm::Type *Int8PtrTy = llvm::Type::getInt8PtrTy(VMContext);
     return llvm::Constant::getNullValue(Int8PtrTy);
+  }
+  
+  if (ForEH && Ty->isObjCObjectPointerType() && !Features.NeXTRuntime) {
+    return ObjCRuntime->GetEHType(Ty);
   }
 
   return RTTIBuilder(*this).BuildTypeInfo(Ty);

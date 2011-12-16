@@ -11,8 +11,8 @@
 //
 //===----------------------------------------------------------------------===//
 
-#ifndef ALPHA_FRAMEINFO_H
-#define ALPHA_FRAMEINFO_H
+#ifndef BLACKFIN_FRAMEINFO_H
+#define BLACKFIN_FRAMEINFO_H
 
 #include "Blackfin.h"
 #include "BlackfinSubtarget.h"
@@ -36,6 +36,7 @@ public:
   void emitEpilogue(MachineFunction &MF, MachineBasicBlock &MBB) const;
 
   bool hasFP(const MachineFunction &MF) const;
+  bool hasReservedCallFrame(const MachineFunction &MF) const;
 
   void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                             RegScavenger *RS) const;

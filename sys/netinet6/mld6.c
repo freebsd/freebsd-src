@@ -193,7 +193,7 @@ static int	sysctl_mld_ifinfo(SYSCTL_HANDLER_ARGS);
  *    to a vnet in ifp->if_vnet.
  */
 static struct mtx		 mld_mtx;
-MALLOC_DEFINE(M_MLD, "mld", "mld state");
+static MALLOC_DEFINE(M_MLD, "mld", "mld state");
 
 #define	MLD_EMBEDSCOPE(pin6, zoneid)					\
 	if (IN6_IS_SCOPE_LINKLOCAL(pin6) ||				\
@@ -231,8 +231,9 @@ SYSCTL_VNET_PROC(_net_inet6_mld, OID_AUTO, gsrdelay,
 /*
  * Non-virtualized sysctls.
  */
-SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo, CTLFLAG_RD | CTLFLAG_MPSAFE,
-    sysctl_mld_ifinfo, "Per-interface MLDv2 state");
+static SYSCTL_NODE(_net_inet6_mld, OID_AUTO, ifinfo,
+    CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_mld_ifinfo,
+    "Per-interface MLDv2 state");
 
 static int	mld_v1enable = 1;
 SYSCTL_INT(_net_inet6_mld, OID_AUTO, v1enable, CTLFLAG_RW,
@@ -680,7 +681,6 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
-	IF_ADDR_LOCK(ifp);
 
 	/*
 	 * Switch to MLDv1 host compatibility mode.
@@ -693,6 +693,7 @@ mld_v1_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 	if (timer == 0)
 		timer = 1;
 
+	IF_ADDR_LOCK(ifp);
 	if (is_general_query) {
 		/*
 		 * For each reporting group joined on this
@@ -888,7 +889,6 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 	IN6_MULTI_LOCK();
 	MLD_LOCK();
-	IF_ADDR_LOCK(ifp);
 
 	mli = MLD_IFINFO(ifp);
 	KASSERT(mli != NULL, ("%s: no mld_ifinfo for ifp %p", __func__, ifp));
@@ -936,14 +936,18 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 		 * Queries for groups we are not a member of on this
 		 * link are simply ignored.
 		 */
+		IF_ADDR_LOCK(ifp);
 		inm = in6m_lookup_locked(ifp, &mld->mld_addr);
-		if (inm == NULL)
+		if (inm == NULL) {
+			IF_ADDR_UNLOCK(ifp);
 			goto out_locked;
+		}
 		if (nsrc > 0) {
 			if (!ratecheck(&inm->in6m_lastgsrtv,
 			    &V_mld_gsrdelay)) {
 				CTR1(KTR_MLD, "%s: GS query throttled.",
 				    __func__);
+				IF_ADDR_UNLOCK(ifp);
 				goto out_locked;
 			}
 		}
@@ -961,10 +965,10 @@ mld_v2_input_query(struct ifnet *ifp, const struct ip6_hdr *ip6,
 
 		/* XXX Clear embedded scope ID as userland won't expect it. */
 		in6_clearscope(&mld->mld_addr);
+		IF_ADDR_UNLOCK(ifp);
 	}
 
 out_locked:
-	IF_ADDR_UNLOCK(ifp);
 	MLD_UNLOCK();
 	IN6_MULTI_UNLOCK();
 
@@ -3086,7 +3090,6 @@ mld_dispatch_packet(struct mbuf *m)
 		m0 = mld_v2_encap_report(ifp, m);
 		if (m0 == NULL) {
 			CTR2(KTR_MLD, "%s: dropped %p", __func__, m);
-			m_freem(m);
 			IP6STAT_INC(ip6s_odropped);
 			goto out;
 		}

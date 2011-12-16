@@ -157,20 +157,23 @@ struct pargs {
  * either lock is sufficient for read access, but both locks must be held
  * for write access.
  */
-struct kaudit_record;
-struct td_sched;
-struct nlminfo;
+struct cpuset;
 struct kaioinfo;
+struct kaudit_record;
+struct kdtrace_proc;
+struct kdtrace_thread;
+struct mqueue_notifier;
+struct nlminfo;
 struct p_sched;
 struct proc;
+struct procdesc;
+struct racct;
+struct sbuf;
 struct sleepqueue;
+struct td_sched;
 struct thread;
 struct trapframe;
 struct turnstile;
-struct mqueue_notifier;
-struct kdtrace_proc;
-struct kdtrace_thread;
-struct cpuset;
 
 /*
  * XXX: Does this belong in resource.h or resourcevar.h instead?
@@ -184,13 +187,13 @@ struct cpuset;
  * Locking for td_rux: (t) for all fields.
  */
 struct rusage_ext {
-	u_int64_t	rux_runtime;    /* (cj) Real time. */
-	u_int64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
-	u_int64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
-	u_int64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
-	u_int64_t	rux_uu;         /* (c) Previous user time in usec. */
-	u_int64_t	rux_su;         /* (c) Previous sys time in usec. */
-	u_int64_t	rux_tu;         /* (c) Previous total time in usec. */
+	uint64_t	rux_runtime;    /* (cj) Real time. */
+	uint64_t	rux_uticks;     /* (cj) Statclock hits in user mode. */
+	uint64_t	rux_sticks;     /* (cj) Statclock hits in sys mode. */
+	uint64_t	rux_iticks;     /* (cj) Statclock hits in intr mode. */
+	uint64_t	rux_uu;         /* (c) Previous user time in usec. */
+	uint64_t	rux_su;         /* (c) Previous sys time in usec. */
+	uint64_t	rux_tu;         /* (c) Previous total time in usec. */
 };
 
 /*
@@ -392,7 +395,7 @@ do {									\
 #define	TDP_COWINPROGRESS 0x00000010 /* Snapshot copy-on-write in progress. */
 #define	TDP_ALTSTACK	0x00000020 /* Have alternate signal stack. */
 #define	TDP_DEADLKTREAT	0x00000040 /* Lock aquisition - deadlock treatment. */
-#define	TDP_UNUSED80	0x00000080 /* available. */
+#define	TDP_NOFAULTING	0x00000080 /* Do not handle page faults. */
 #define	TDP_NOSLEEPING	0x00000100 /* Thread is not allowed to sleep on a sq. */
 #define	TDP_OWEUPC	0x00000200 /* Call addupc() at next AST. */
 #define	TDP_ITHREAD	0x00000400 /* Thread is an interrupt thread. */
@@ -487,7 +490,7 @@ struct proc {
 		PRS_NEW = 0,		/* In creation */
 		PRS_NORMAL,		/* threads can be run. */
 		PRS_ZOMBIE
-	} p_state;			/* (j/c) S* process status. */
+	} p_state;			/* (j/c) Process status. */
 	pid_t		p_pid;		/* (b) Process identifier. */
 	LIST_ENTRY(proc) p_hash;	/* (d) Hash chain. */
 	LIST_ENTRY(proc) p_pglist;	/* (g + e) List of processes in pgrp. */
@@ -502,6 +505,8 @@ struct proc {
 /* The following fields are all zeroed upon creation in fork. */
 #define	p_startzero	p_oppid
 	pid_t		p_oppid;	/* (c + e) Save ppid in ptrace. XXX */
+	int		p_dbg_child;	/* (c + e) # of debugged children in
+							ptrace. */
 	struct vmspace	*p_vmspace;	/* (b) Address space. */
 	u_int		p_swtick;	/* (c) Tick when swapped in or out. */
 	struct itimerval p_realtimer;	/* (c) Alarm timer. */
@@ -528,9 +533,10 @@ struct proc {
 	struct thread	*p_singlethread;/* (c + j) If single threading this is it */
 	int		p_suspcount;	/* (j) Num threads in suspended mode. */
 	struct thread	*p_xthread;	/* (c) Trap thread */
-	int		p_boundary_count;/* (c) Num threads at user boundary */
+	int		p_boundary_count;/* (j) Num threads at user boundary */
 	int		p_pendingcnt;	/* how many signals are pending */
 	struct itimers	*p_itimers;	/* (c) POSIX interval timers. */
+	struct procdesc	*p_procdesc;	/* (e) Process descriptor, if any. */
 /* End area that is zeroed on creation. */
 #define	p_endzero	p_magic
 
@@ -566,6 +572,8 @@ struct proc {
 	struct cv	p_pwait;	/* (*) wait cv for exit/exec. */
 	struct cv	p_dbgwait;	/* (*) wait cv for debugger attach
 					   after fork. */
+	uint64_t	p_prev_runtime;	/* (c) Resource usage accounting. */
+	struct racct	*p_racct;	/* (b) Resource accounting. */
 };
 
 #define	p_session	p_pgrp->pg_session
@@ -661,7 +669,6 @@ MALLOC_DECLARE(M_PARGS);
 MALLOC_DECLARE(M_PGRP);
 MALLOC_DECLARE(M_SESSION);
 MALLOC_DECLARE(M_SUBPROC);
-MALLOC_DECLARE(M_ZOMBIE);
 #endif
 
 #define	FOREACH_PROC_IN_SYSTEM(p)					\
@@ -749,6 +756,7 @@ MALLOC_DECLARE(M_ZOMBIE);
 } while (0)
 #define	_PRELE(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	PROC_ASSERT_HELD(p);						\
 	(--(p)->p_lock);						\
 	if (((p)->p_flag & P_WEXIT) && (p)->p_lock == 0)		\
 		wakeup(&(p)->p_lock);					\
@@ -818,7 +826,7 @@ int	enterpgrp(struct proc *p, pid_t pgid, struct pgrp *pgrp,
 int	enterthispgrp(struct proc *p, struct pgrp *pgrp);
 void	faultin(struct proc *p);
 void	fixjobc(struct proc *p, struct pgrp *pgrp, int entering);
-int	fork1(struct thread *, int, int, struct proc **);
+int	fork1(struct thread *, int, int, struct proc **, int *, int);
 void	fork_exit(void (*)(void *, struct trapframe *), void *,
 	    struct trapframe *);
 void	fork_return(struct thread *, struct trapframe *);
@@ -837,9 +845,15 @@ int	p_canwait(struct thread *td, struct proc *p);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
+int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb,
+	    size_t nchr);
+int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb,
+	    size_t nchr);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
+void	proc_reap(struct thread *td, struct proc *p, int *status, int options,
+	    struct rusage *rusage);
 void	proc_reparent(struct proc *child, struct proc *newparent);
 struct	pstats *pstats_alloc(void);
 void	pstats_fork(struct pstats *src, struct pstats *dst);
@@ -865,9 +879,6 @@ void	cpu_switch(struct thread *, struct thread *, struct mtx *);
 void	cpu_throw(struct thread *, struct thread *) __dead2;
 void	unsleep(struct thread *);
 void	userret(struct thread *, struct trapframe *);
-struct syscall_args;
-int	syscallenter(struct thread *, struct syscall_args *);
-void	syscallret(struct thread *, int, struct syscall_args *);
 
 void	cpu_exit(struct thread *);
 void	exit1(struct thread *, int) __dead2;
@@ -908,6 +919,25 @@ int	thread_unsuspend_one(struct thread *td);
 void	thread_unthread(struct thread *td);
 void	thread_wait(struct proc *p);
 struct thread	*thread_find(struct proc *p, lwpid_t tid);
+
+static __inline int
+curthread_pflags_set(int flags)
+{
+	struct thread *td;
+	int save;
+
+	td = curthread;
+	save = ~flags | (td->td_pflags & flags);
+	td->td_pflags |= flags;
+	return (save);
+}
+
+static __inline void
+curthread_pflags_restore(int save)
+{
+
+	curthread->td_pflags &= save;
+}
 
 #endif	/* _KERNEL */
 

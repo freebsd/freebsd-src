@@ -13,7 +13,7 @@ SRCS+=	lzf.c
 SRCS+=	metadata.c
 SRCS+=	nv.c
 SRCS+=	parse.y pjdlog.c
-SRCS+=	proto.c proto_common.c proto_tcp4.c proto_uds.c
+SRCS+=	proto.c proto_common.c proto_uds.c
 SRCS+=	token.l
 SRCS+=	subr.c
 SRCS+=	y.tab.h
@@ -21,6 +21,7 @@ MAN=	hastctl.8
 
 NO_WFORMAT=
 CFLAGS+=-I${.CURDIR}/../hastd
+CFLAGS+=-DHAVE_CAPSICUM
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6

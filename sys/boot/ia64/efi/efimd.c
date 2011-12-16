@@ -45,26 +45,153 @@ static EFI_GUID fpswa_guid = EFI_INTEL_FPSWA;
 
 static EFI_GUID hcdp_guid = HCDP_TABLE_GUID;
 
+static EFI_MEMORY_DESCRIPTOR *memmap;
+static UINTN memmapsz;
 static UINTN mapkey;
+static UINTN descsz;
+static UINT32 descver;
 
-uint64_t
-ldr_alloc(vm_offset_t va)
+#define	IA64_EFI_CHUNK_SIZE	(32 * 1048576)
+static vm_paddr_t ia64_efi_chunk;
+
+#define	IA64_EFI_PGTBLSZ_MAX	1048576
+static vm_paddr_t ia64_efi_pgtbl;
+static vm_size_t ia64_efi_pgtblsz;
+
+/* Don't allocate memory below the boundary */
+#define	IA64_EFI_ALLOC_BOUNDARY	1048576
+
+static int
+ia64_efi_memmap_update(void)
 {
+	EFI_STATUS status;
 
+	if (memmap != NULL) {
+		free(memmap);
+		memmap = NULL;
+	}
+
+	memmapsz = 0;
+	BS->GetMemoryMap(&memmapsz, NULL, &mapkey, &descsz, &descver);
+	if (memmapsz == 0)
+		return (FALSE);
+	memmap = malloc(memmapsz);
+	if (memmap == NULL)
+		return (FALSE);
+
+	status = BS->GetMemoryMap(&memmapsz, memmap, &mapkey, &descsz,
+	    &descver);
+	if (EFI_ERROR(status)) {
+		free(memmap);
+		memmap = NULL;
+		return (FALSE);
+	}
+
+	return (TRUE);
+}
+
+/*
+ * Returns 0 on failure. Successful allocations return an address
+ * larger or equal to IA64_EFI_ALLOC_BOUNDARY.
+ */
+static vm_paddr_t
+ia64_efi_alloc(vm_size_t sz)
+{
+	EFI_PHYSICAL_ADDRESS pa;
+	EFI_MEMORY_DESCRIPTOR *mm;
+	uint8_t *mmiter, *mmiterend;
+	vm_size_t memsz;
+	UINTN npgs;
+	EFI_STATUS status;
+
+	/* We can't allocate less than a page */
+	if (sz < EFI_PAGE_SIZE)
+		return (0);
+
+	/* The size must be a power of 2. */
+	if (sz & (sz - 1))
+		return (0);
+
+	if (!ia64_efi_memmap_update())
+		return (0);
+
+	mmiter = (void *)memmap;
+	mmiterend = mmiter + memmapsz;
+	for (; mmiter < mmiterend; mmiter += descsz) {
+		mm = (void *)mmiter;
+		if (mm->Type != EfiConventionalMemory)
+			continue;
+		memsz = mm->NumberOfPages * EFI_PAGE_SIZE;
+		if (mm->PhysicalStart + memsz <= IA64_EFI_ALLOC_BOUNDARY)
+			continue;
+		/*
+		 * XXX We really should make sure the memory is local to the
+		 * BSP.
+		 */
+		pa = (mm->PhysicalStart < IA64_EFI_ALLOC_BOUNDARY) ?
+		    IA64_EFI_ALLOC_BOUNDARY : mm->PhysicalStart;
+		pa  = (pa + sz - 1) & ~(sz - 1);
+		if (pa + sz > mm->PhysicalStart + memsz)
+			continue;
+
+		npgs = EFI_SIZE_TO_PAGES(sz);
+		status = BS->AllocatePages(AllocateAddress, EfiLoaderData,
+		    npgs, &pa);
+		if (!EFI_ERROR(status))
+			return (pa);
+	}
+
+	printf("%s: unable to allocate %lx bytes\n", __func__, sz);
 	return (0);
 }
 
+vm_paddr_t
+ia64_platform_alloc(vm_offset_t va, vm_size_t sz)
+{
+	vm_paddr_t pa;
+
+	if (va == 0) {
+		/* Page table itself. */
+		if (sz > IA64_EFI_PGTBLSZ_MAX)
+			return (~0UL);
+		if (ia64_efi_pgtbl == 0)
+			ia64_efi_pgtbl = ia64_efi_alloc(IA64_EFI_PGTBLSZ_MAX);
+		if (ia64_efi_pgtbl != 0)
+			ia64_efi_pgtblsz = sz;
+		return (ia64_efi_pgtbl);
+	} else if (va < IA64_PBVM_BASE) {
+		/* Should not happen. */
+		return (~0UL);
+	}
+
+	/* Loader virtual memory page. */
+	va -= IA64_PBVM_BASE;
+
+	/* Allocate a big chunk that can be wired with a single PTE. */
+	if (ia64_efi_chunk == 0)
+		ia64_efi_chunk = ia64_efi_alloc(IA64_EFI_CHUNK_SIZE);
+	if (va < IA64_EFI_CHUNK_SIZE)
+		return (ia64_efi_chunk + va);
+
+	/* Allocate a page at a time when we go beyond the chunk. */
+	pa = ia64_efi_alloc(sz);
+	return ((pa == 0) ? ~0UL : pa);
+}
+
+void
+ia64_platform_free(vm_offset_t va, vm_paddr_t pa, vm_size_t sz)
+{
+
+	BS->FreePages(pa, sz >> EFI_PAGE_SHIFT);
+}
+
 int
-ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
+ia64_platform_bootinfo(struct bootinfo *bi, struct bootinfo **res)
 {
 	VOID *fpswa;
-	EFI_MEMORY_DESCRIPTOR *mm;
-	EFI_PHYSICAL_ADDRESS addr;
 	EFI_HANDLE handle;
 	EFI_STATUS status;
-	size_t bisz;
-	UINTN mmsz, pages, sz;
-	UINT32 mmver;
+	UINTN sz;
 
 	bi->bi_systab = (uint64_t)ST;
 	bi->bi_hcdp = (uint64_t)efi_get_table(&hcdp_guid);
@@ -75,55 +202,22 @@ ldr_bootinfo(struct bootinfo *bi, uint64_t *bi_addr)
 		status = BS->HandleProtocol(handle, &fpswa_guid, &fpswa);
 	bi->bi_fpswa = (status == 0) ? (uint64_t)fpswa : 0;
 
-	bisz = (sizeof(struct bootinfo) + 0x0f) & ~0x0f;
-
-	/*
-	 * Allocate enough pages to hold the bootinfo block and the memory
-	 * map EFI will return to us. The memory map has an unknown size,
-	 * so we have to determine that first. Note that the AllocatePages
-	 * call can itself modify the memory map, so we have to take that
-	 * into account as well. The changes to the memory map are caused
-	 * by splitting a range of free memory into two (AFAICT), so that
-	 * one is marked as being loader data.
-	 */
-	sz = 0;
-	BS->GetMemoryMap(&sz, NULL, &mapkey, &mmsz, &mmver);
-	sz += mmsz;
-	sz = (sz + 15) & ~15;
-	pages = EFI_SIZE_TO_PAGES(sz + bisz);
-	status = BS->AllocatePages(AllocateAnyPages, EfiLoaderData, pages,
-	    &addr);
-	if (EFI_ERROR(status)) {
-		printf("%s: AllocatePages() returned 0x%lx\n", __func__,
-		    (long)status);
+	if (!ia64_efi_memmap_update())
 		return (ENOMEM);
-	}
 
-	/*
-	 * Read the memory map and stash it after bootinfo. Align the
-	 * memory map on a 16-byte boundary (the bootinfo block is page
-	 * aligned).
-	 */
-	*bi_addr = addr;
-	mm = (void *)(addr + bisz);
-	sz = (EFI_PAGE_SIZE * pages) - bisz;
-	status = BS->GetMemoryMap(&sz, mm, &mapkey, &mmsz, &mmver);
-	if (EFI_ERROR(status)) {
-		printf("%s: GetMemoryMap() returned 0x%lx\n", __func__,
-		    (long)status);
-		return (EINVAL);
-	}
-	bi->bi_memmap = (uint64_t)mm;
-	bi->bi_memmap_size = sz;
-	bi->bi_memdesc_size = mmsz;
-	bi->bi_memdesc_version = mmver;
+	bi->bi_memmap = (uint64_t)memmap;
+	bi->bi_memmap_size = memmapsz;
+	bi->bi_memdesc_size = descsz;
+	bi->bi_memdesc_version = descver;
 
-	bcopy(bi, (void *)(*bi_addr), sizeof(*bi));
+	if (IS_LEGACY_KERNEL())
+		*res = malloc(sizeof(**res));
+
 	return (0);
 }
 
 int
-ldr_enter(const char *kernel)
+ia64_platform_enter(const char *kernel)
 {
 	EFI_STATUS status;
 
@@ -133,6 +227,38 @@ ldr_enter(const char *kernel)
 		    (long)status);
 		return (EINVAL);
 	}
+
+	return (0);
+}
+
+COMMAND_SET(pbvm, "pbvm", "show PBVM details", command_pbvm);
+
+static int
+command_pbvm(int argc, char *argv[])
+{
+	uint64_t limit, pg, start;
+	u_int idx;
+
+	printf("Page table @ %p, size %x\n", ia64_pgtbl, ia64_pgtblsz);
+
+	if (ia64_pgtbl == NULL)
+		return (0);
+
+	limit = ~0;
+	start = ~0;
+	idx = 0;
+	while (ia64_pgtbl[idx] != 0) {
+		pg = ia64_pgtbl[idx];
+		if (pg != limit) {	
+			if (start != ~0)
+				printf("%#lx-%#lx\n", start, limit);
+			start = pg;
+		}
+		limit = pg + IA64_PBVM_PAGE_SIZE;
+		idx++;
+	}
+	if (start != ~0)
+		printf("%#lx-%#lx\n", start, limit);
 
 	return (0);
 }

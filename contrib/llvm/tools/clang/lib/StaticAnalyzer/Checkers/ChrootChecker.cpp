@@ -12,12 +12,12 @@
 //===----------------------------------------------------------------------===//
 
 #include "ClangSACheckers.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugType.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRStateTrait.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramStateTrait.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SymbolManager.h"
 #include "llvm/ADT/ImmutableMap.h"
 using namespace clang;
@@ -38,7 +38,7 @@ bool isRootChanged(intptr_t k) { return k == ROOT_CHANGED; }
 //         ROOT_CHANGED<--chdir(..)--      JAIL_ENTERED<--chdir(..)--
 //                                  |                               |
 //                      bug<--foo()--          JAIL_ENTERED<--foo()--
-class ChrootChecker : public CheckerV2<eval::Call, check::PreStmt<CallExpr> > {
+class ChrootChecker : public Checker<eval::Call, check::PreStmt<CallExpr> > {
   mutable IdentifierInfo *II_chroot, *II_chdir;
   // This bug refers to possibly break out of a chroot() jail.
   mutable llvm::OwningPtr<BuiltinBug> BT_BreakJail;
@@ -62,7 +62,7 @@ private:
 } // end anonymous namespace
 
 bool ChrootChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
   const FunctionDecl *FD = L.getAsFunctionDecl();
@@ -88,8 +88,8 @@ bool ChrootChecker::evalCall(const CallExpr *CE, CheckerContext &C) const {
 }
 
 void ChrootChecker::Chroot(CheckerContext &C, const CallExpr *CE) const {
-  const GRState *state = C.getState();
-  GRStateManager &Mgr = state->getStateManager();
+  const ProgramState *state = C.getState();
+  ProgramStateManager &Mgr = state->getStateManager();
   
   // Once encouter a chroot(), set the enum value ROOT_CHANGED directly in 
   // the GDM.
@@ -98,11 +98,11 @@ void ChrootChecker::Chroot(CheckerContext &C, const CallExpr *CE) const {
 }
 
 void ChrootChecker::Chdir(CheckerContext &C, const CallExpr *CE) const {
-  const GRState *state = C.getState();
-  GRStateManager &Mgr = state->getStateManager();
+  const ProgramState *state = C.getState();
+  ProgramStateManager &Mgr = state->getStateManager();
 
   // If there are no jail state in the GDM, just return.
-  const void* k = state->FindGDM(ChrootChecker::getTag());
+  const void *k = state->FindGDM(ChrootChecker::getTag());
   if (!k)
     return;
 
@@ -125,7 +125,7 @@ void ChrootChecker::Chdir(CheckerContext &C, const CallExpr *CE) const {
 
 // Check the jail state before any function call except chroot and chdir().
 void ChrootChecker::checkPreStmt(const CallExpr *CE, CheckerContext &C) const {
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
   const FunctionDecl *FD = L.getAsFunctionDecl();
@@ -143,7 +143,7 @@ void ChrootChecker::checkPreStmt(const CallExpr *CE, CheckerContext &C) const {
     return;
   
   // If jail state is ROOT_CHANGED, generate BugReport.
-  void* const* k = state->FindGDM(ChrootChecker::getTag());
+  void *const* k = state->FindGDM(ChrootChecker::getTag());
   if (k)
     if (isRootChanged((intptr_t) *k))
       if (ExplodedNode *N = C.generateNode()) {

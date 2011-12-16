@@ -538,8 +538,7 @@ ng_sscfu_constructor(node_p node)
 {
 	struct priv *priv;
 
-	if ((priv = malloc(sizeof(*priv), M_NG_SSCFU, M_NOWAIT|M_ZERO)) == NULL)
-		return (ENOMEM);
+	priv = malloc(sizeof(*priv), M_NG_SSCFU, M_WAITOK | M_ZERO);
 
 	if ((priv->sscf = sscfu_create(node, &sscfu_funcs)) == NULL) {
 		free(priv, M_NG_SSCFU);

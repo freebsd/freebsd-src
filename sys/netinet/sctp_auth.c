@@ -598,7 +598,11 @@ sctp_auth_key_acquire(struct sctp_tcb *stcb, uint16_t key_id)
 }
 
 void
-sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id)
+sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id, int so_locked
+#if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
+    SCTP_UNUSED
+#endif
+)
 {
 	sctp_sharedkey_t *skey;
 
@@ -616,7 +620,7 @@ sctp_auth_key_release(struct sctp_tcb *stcb, uint16_t key_id)
 		if ((skey->refcount <= 1) && (skey->deactivated)) {
 			/* notify ULP that key is no longer used */
 			sctp_ulp_notify(SCTP_NOTIFY_AUTH_FREE_KEY, stcb,
-			    key_id, 0, SCTP_SO_LOCKED);
+			    key_id, 0, so_locked);
 			SCTPDBG(SCTP_DEBUG_AUTH2,
 			    "%s: stcb %p key %u no longer used, %d\n",
 			    __FUNCTION__, stcb, key_id, skey->refcount);
@@ -1862,7 +1866,7 @@ sctp_notify_authentication(struct sctp_tcb *stcb, uint32_t indication,
 		/* If the socket is gone we are out of here */
 		return;
 	}
-	if (sctp_is_feature_off(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTHEVNT))
+	if (sctp_stcb_is_feature_off(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_AUTHEVNT))
 		/* event not enabled */
 		return;
 
@@ -1948,9 +1952,6 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				case SCTP_ASCONF:
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf = 1;
-					break;
-				case SCTP_AUTHENTICATION:
-					peer_supports_auth = 1;
 					break;
 				default:
 					/* one we don't care about */

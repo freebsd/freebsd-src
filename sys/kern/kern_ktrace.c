@@ -95,6 +95,7 @@ struct ktr_request {
 	void	*ktr_buffer;
 	union {
 		struct	ktr_proc_ctor ktr_proc_ctor;
+		struct	ktr_cap_fail ktr_cap_fail;
 		struct	ktr_syscall ktr_syscall;
 		struct	ktr_sysret ktr_sysret;
 		struct	ktr_genio ktr_genio;
@@ -117,6 +118,7 @@ static int data_lengths[] = {
 	0,					/* KTR_SYSCTL */
 	sizeof(struct ktr_proc_ctor),		/* KTR_PROCCTOR */
 	0,					/* KTR_PROCDTOR */
+	sizeof(struct ktr_cap_fail),		/* KTR_CAPFAIL */
 };
 
 static STAILQ_HEAD(, ktr_request) ktr_free;
@@ -476,7 +478,7 @@ ktrsysret(code, error, retval)
 	ktp = &req->ktr_data.ktr_sysret;
 	ktp->ktr_code = code;
 	ktp->ktr_error = error;
-	ktp->ktr_retval = retval;		/* what about val2 ? */
+	ktp->ktr_retval = ((error == 0) ? retval: 0);		/* what about val2 ? */
 	ktr_submitrequest(curthread, req);
 }
 
@@ -768,6 +770,27 @@ ktrstruct(name, data, datalen)
 	req->ktr_header.ktr_len = buflen;
 	ktr_submitrequest(curthread, req);
 }
+
+void
+ktrcapfail(type, needed, held)
+	enum ktr_cap_fail_type type;
+	cap_rights_t needed;
+	cap_rights_t held;
+{
+	struct thread *td = curthread;
+	struct ktr_request *req;
+	struct ktr_cap_fail *kcf;
+
+	req = ktr_getrequest(KTR_CAPFAIL);
+	if (req == NULL)
+		return;
+	kcf = &req->ktr_data.ktr_cap_fail;
+	kcf->cap_type = type;
+	kcf->cap_needed = needed;
+	kcf->cap_held = held;
+	ktr_enqueuerequest(td, req);
+	ktrace_exit(td);
+}
 #endif /* KTRACE */
 
 /* Interface and common routines */
@@ -782,7 +805,7 @@ struct ktrace_args {
 #endif
 /* ARGSUSED */
 int
-ktrace(td, uap)
+sys_ktrace(td, uap)
 	struct thread *td;
 	register struct ktrace_args *uap;
 {
@@ -882,7 +905,8 @@ ktrace(td, uap)
 		nfound = 0;
 		LIST_FOREACH(p, &pg->pg_members, p_pglist) {
 			PROC_LOCK(p);
-			if (p_cansee(td, p) != 0) {
+			if (p->p_state == PRS_NEW ||
+			    p_cansee(td, p) != 0) {
 				PROC_UNLOCK(p); 
 				continue;
 			}
@@ -935,7 +959,7 @@ done:
 
 /* ARGSUSED */
 int
-utrace(td, uap)
+sys_utrace(td, uap)
 	struct thread *td;
 	register struct utrace_args *uap;
 {

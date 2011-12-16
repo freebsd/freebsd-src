@@ -3,8 +3,8 @@
 .\" All rights reserved.
 .\"
 .\" This documentation was written at the Centre for Advanced Internet
-.\" Architectures, Swinburne University, Melbourne, Australia by David Hayes
-.\" under sponsorship from the FreeBSD Foundation.
+.\" Architectures, Swinburne University of Technology, Melbourne, Australia by
+.\" David Hayes under sponsorship from the FreeBSD Foundation.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2011
+.Dd September 15, 2011
 .Dt CC_CHD 4
 .Os
 .Sh NAME
@@ -58,6 +58,7 @@ do not cause cwnd to be reduced.
 .It
 CHD uses a shadow window to help regain lost transmission opportunities when
 competing with loss-based TCP flows.
+.El
 .Sh MIB Variables
 The algorithm exposes the following tunable variables in the
 .Va net.inet.tcp.cc.chd
@@ -85,16 +86,16 @@ is used.
 Default is 1.
 .El
 .Sh SEE ALSO
-.Xr cc 4 ,
 .Xr cc_cubic 4 ,
 .Xr cc_hd 4 ,
 .Xr cc_htcp 4 ,
 .Xr cc_newreno 4 ,
 .Xr cc_vegas 4 ,
 .Xr h_ertt 4 ,
+.Xr mod_cc 4 ,
 .Xr tcp 4 ,
-.Xr cc 9 ,
-.Xr khelp 9
+.Xr khelp 9 ,
+.Xr mod_cc 9
 .Rs
 .%A "D. A. Hayes"
 .%A "G. Armitage"
@@ -114,8 +115,8 @@ congestion control module first appeared in
 .Fx 9.0 .
 .Pp
 The module was first released in 2010 by David Hayes whilst working on the
-NewTCP research project at Swinburne University's Centre for Advanced Internet
-Architectures, Melbourne, Australia.
+NewTCP research project at Swinburne University of Technology's Centre for
+Advanced Internet Architectures, Melbourne, Australia.
 More details are available at:
 .Pp
 http://caia.swin.edu.au/urp/newtcp/

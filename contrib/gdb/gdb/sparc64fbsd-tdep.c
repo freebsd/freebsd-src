@@ -64,6 +64,31 @@ sparc64fbsd_supply_fpregset (const struct regset *regset,
 {
   sparc64_supply_fpregset (regcache, regnum, fpregs);
 }
+
+void
+supply_gregset (const void *gregs)
+{
+  sparc64_supply_gregset (&sparc64fbsd_gregset, current_regcache, -1, gregs);
+}
+
+void
+supply_fpregset (const void *fpregs)
+{
+  sparc64_supply_fpregset (current_regcache, -1, fpregs);
+}
+
+void
+fill_gregset (void *gregs, int regnum)
+{
+  sparc64_collect_gregset (&sparc64fbsd_gregset, current_regcache, regnum,
+			   gregs);
+}
+
+void
+fill_fpregset (void *fpregs, int regnum)
+{
+  sparc64_collect_fpregset (current_regcache, regnum, fpregs);
+}
 
 
 /* Signal trampolines.  */

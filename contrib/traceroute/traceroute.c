@@ -509,7 +509,10 @@ main(int argc, char **argv)
 			sockerrno = errno;
 	}
 
-	setuid(getuid());
+	if (setuid(getuid()) != 0) {
+		perror("setuid()");
+		exit(1);
+	}
 
 #ifdef IPCTL_DEFTTL
 	{
@@ -1615,7 +1618,7 @@ gethostinfo(register char *hostname)
 	register char **p;
 	register u_int32_t addr, *ap;
 
-	if (strlen(hostname) > 64) {
+	if (strlen(hostname) >= MAXHOSTNAMELEN) {
 		Fprintf(stderr, "%s: hostname \"%.32s...\" is too long\n",
 		    prog, hostname);
 		exit(1);

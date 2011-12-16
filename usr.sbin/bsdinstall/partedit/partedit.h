@@ -58,7 +58,7 @@ int part_wizard(void);
 
 /* gpart operations */
 void gpart_delete(struct gprovider *pp);
-void gpart_destroy(struct ggeom *lg_geom, int force);
+void gpart_destroy(struct ggeom *lg_geom);
 void gpart_edit(struct gprovider *pp);
 void gpart_create(struct gprovider *pp, char *default_type, char *default_size,
     char *default_mountpoint, char **output, int interactive);
@@ -68,7 +68,7 @@ void gpart_revert_all(struct gmesh *mesh);
 void gpart_commit(struct gmesh *mesh);
 int gpart_partition(const char *lg_name, const char *scheme);
 void set_default_part_metadata(const char *name, const char *scheme,
-    const char *type, const char *mountpoint, int newfs);
+    const char *type, const char *mountpoint, const char *newfs);
 
 /* machine-dependent bootability checks */
 const char *default_scheme(void);

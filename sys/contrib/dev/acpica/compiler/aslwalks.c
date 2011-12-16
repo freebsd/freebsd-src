@@ -302,10 +302,17 @@ AnMethodAnalysisWalkBegin (
             return (AE_ERROR);
         }
 
-        /* Child indicates a return value */
-
+        /*
+         * A child indicates a possible return value. A simple Return or
+         * Return() is marked with NODE_IS_NULL_RETURN by the parser so
+         * that it is not counted as a "real" return-with-value, although
+         * the AML code that is actually emitted is Return(0). The AML
+         * definition of Return has a required parameter, so we are
+         * forced to convert a null return to Return(0).
+         */
         if ((Op->Asl.Child) &&
-            (Op->Asl.Child->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG))
+            (Op->Asl.Child->Asl.ParseOpcode != PARSEOP_DEFAULT_ARG) &&
+            (!(Op->Asl.Child->Asl.CompileFlags & NODE_IS_NULL_RETURN)))
         {
             MethodInfo->NumReturnWithValue++;
         }
@@ -510,13 +517,22 @@ AnMethodAnalysisWalkEnd (
 
         /*
          * Check predefined method names for correct return behavior
-         * and correct number of arguments
+         * and correct number of arguments. Also, some special checks
+         * For GPE and _REG methods.
          */
-        ApCheckForPredefinedMethod (Op, MethodInfo);
+        if (ApCheckForPredefinedMethod (Op, MethodInfo))
+        {
+            /* Special check for two names like _L01 and _E01 in same scope */
 
-        /* Special check for two names like _L01 and _E01 in same scope */
+            ApCheckForGpeNameConflict (Op);
 
-        ApCheckForGpeNameConflict (Op);
+            /*
+             * Special check for _REG: Must have an operation region definition
+             * within the same scope!
+             */
+            ApCheckRegMethod (Op);
+        }
+
         ACPI_FREE (MethodInfo);
         break;
 
@@ -1016,6 +1032,7 @@ AnOtherSemanticAnalysisWalkBegin (
     ACPI_PARSE_OBJECT       *ArgNode;
     ACPI_PARSE_OBJECT       *PrevArgNode = NULL;
     const ACPI_OPCODE_INFO  *OpInfo;
+    ACPI_NAMESPACE_NODE     *Node;
 
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Asl.AmlOpcode);
@@ -1137,6 +1154,78 @@ AnOtherSemanticAnalysisWalkBegin (
             (ArgNode->Asl.Value.Integer == 0)))
         {
             AslError (ASL_ERROR, ASL_MSG_NON_ZERO, ArgNode, NULL);
+        }
+        break;
+
+    case PARSEOP_CONNECTION:
+        /*
+         * Ensure that the referenced operation region has the correct SPACE_ID.
+         * From the grammar/parser, we know the parent is a FIELD definition.
+         */
+        ArgNode = Op->Asl.Parent;       /* Field definition */
+        ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
+        Node = ArgNode->Asl.Node;       /* OpRegion namespace node */
+
+        ArgNode = Node->Op;             /* OpRegion definition */
+        ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
+        ArgNode = ArgNode->Asl.Next;    /* Next peer is the SPACE_ID (what we want) */
+
+        /*
+         * The Connection() operator is only valid for the following operation
+         * region SpaceIds: GeneralPurposeIo and GenericSerialBus.
+         */
+        if ((ArgNode->Asl.Value.Integer != ACPI_ADR_SPACE_GPIO) &&
+            (ArgNode->Asl.Value.Integer != ACPI_ADR_SPACE_GSBUS))
+        {
+            AslError (ASL_ERROR, ASL_MSG_CONNECTION_INVALID, Op, NULL);
+        }
+        break;
+
+    case PARSEOP_FIELD:
+        /*
+         * Ensure that fields for GeneralPurposeIo and GenericSerialBus
+         * contain at least one Connection() operator
+         */
+        ArgNode = Op->Asl.Child;        /* 1st child is the OpRegion Name */
+        Node = ArgNode->Asl.Node;       /* OpRegion namespace node */
+        if (!Node)
+        {
+            break;
+        }
+
+        ArgNode = Node->Op;             /* OpRegion definition */
+        ArgNode = ArgNode->Asl.Child;   /* First child is the OpRegion Name */
+        ArgNode = ArgNode->Asl.Next;    /* Next peer is the SPACE_ID (what we want) */
+
+        /* We are only interested in GeneralPurposeIo and GenericSerialBus */
+
+        if ((ArgNode->Asl.Value.Integer != ACPI_ADR_SPACE_GPIO) &&
+            (ArgNode->Asl.Value.Integer != ACPI_ADR_SPACE_GSBUS))
+        {
+            break;
+        }
+
+        ArgNode = Op->Asl.Child;        /* 1st child is the OpRegion Name */
+        ArgNode = ArgNode->Asl.Next;    /* AccessType */
+        ArgNode = ArgNode->Asl.Next;    /* LockRule */
+        ArgNode = ArgNode->Asl.Next;    /* UpdateRule */
+        ArgNode = ArgNode->Asl.Next;    /* Start of FieldUnitList */
+
+        /* Walk the FieldUnitList */
+
+        while (ArgNode)
+        {
+            if (ArgNode->Asl.ParseOpcode == PARSEOP_CONNECTION)
+            {
+                break;
+            }
+            else if (ArgNode->Asl.ParseOpcode == PARSEOP_NAMESEG)
+            {
+                AslError (ASL_ERROR, ASL_MSG_CONNECTION_MISSING, ArgNode, NULL);
+                break;
+            }
+
+            ArgNode = ArgNode->Asl.Next;
         }
         break;
 

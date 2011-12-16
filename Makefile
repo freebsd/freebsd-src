@@ -19,7 +19,7 @@
 # kernel              - buildkernel + installkernel.
 # kernel-toolchain    - Builds the subset of world necessary to build a kernel
 # doxygen             - Build API documentation of the kernel, needs doxygen.
-# update              - Convenient way to update your source tree (cvs).
+# update              - Convenient way to update your source tree(s).
 # check-old           - List obsolete directories/files/libraries.
 # check-old-dirs      - List obsolete directories.
 # check-old-files     - List obsolete files.
@@ -65,7 +65,7 @@
 #  6.  `mergemaster -p'
 #  7.  `make installworld'
 #  8.  `make delete-old'
-#  9.  `mergemaster'                         (you may wish to use -U or -ai).
+#  9.  `mergemaster'		(you may wish to use -i, along with -U or -F).
 # 10.  `reboot'
 # 11.  `make delete-old-libs' (in case no 3rd party program uses them anymore)
 #
@@ -131,7 +131,7 @@ _MAKE=	PATH=${PATH} ${BINMAKE} -f Makefile.inc1 TARGET=${_TARGET} TARGET_ARCH=${
 
 # Guess machine architecture from machine type, and vice versa.
 .if !defined(TARGET_ARCH) && defined(TARGET)
-_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/sun4v/sparc64/:S/mips/mipsel/}
+_TARGET_ARCH=	${TARGET:S/pc98/i386/:S/mips/mipsel/}
 .elif !defined(TARGET) && defined(TARGET_ARCH) && \
     ${TARGET_ARCH} != ${MACHINE_ARCH}
 _TARGET=		${TARGET_ARCH:C/mips.*e[lb]/mips/:C/armeb/arm/}
@@ -182,10 +182,12 @@ buildworld: upgrade_checks
 #
 # In the following, the first 'rm' in a series will usually remove all
 # files and directories.  If it does not, then there are probably some
-# files with chflags set, so this unsets them and tries the 'rm' a
+# files with file flags set, so this unsets them and tries the 'rm' a
 # second time.  There are situations where this target will be cleaning
 # some directories via more than one method, but that duplication is
-# needed to correctly handle all the possible situations.
+# needed to correctly handle all the possible situations.  Removing all
+# files without file flags set in the first 'rm' instance saves time,
+# because 'chflags' will need to operate on fewer files afterwards.
 #
 BW_CANONICALOBJDIR:=${MAKEOBJDIRPREFIX}${.CURDIR}
 cleanworld:
@@ -214,7 +216,7 @@ ${TGTS}:
 .MAIN:	all
 
 STARTTIME!= LC_ALL=C date
-CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0
+CHECK_TIME!= find ${.CURDIR}/sys/sys/param.h -mtime -0s
 .if !empty(CHECK_TIME)
 .error check your date/time: ${STARTTIME}
 .endif
@@ -323,12 +325,11 @@ toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox) || make(targets)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
 TARGET_ARCHES_arm?=	arm armeb
-TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb
+TARGET_ARCHES_mips?=	mipsel mipseb mips64el mips64eb mipsn32eb
 TARGET_ARCHES_powerpc?=	powerpc powerpc64
 TARGET_ARCHES_pc98?=	i386
-TARGET_ARCHES_sun4v?=	sparc64
 .for target in ${TARGETS}
 TARGET_ARCHES_${target}?= ${target}
 .endfor

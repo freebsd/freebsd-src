@@ -207,13 +207,14 @@ env_discard(struct env_var *ev)
 }
 
 int
-env_noset(struct env_var *ev, int flags, const void *value)
+env_noset(struct env_var *ev __unused, int flags __unused,
+    const void *value __unused)
 {
     return(EPERM);
 }
 
 int
-env_nounset(struct env_var *ev)
+env_nounset(struct env_var *ev __unused)
 {
     return(EPERM);
 }

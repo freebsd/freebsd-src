@@ -76,6 +76,10 @@
             tr1
             ..
         ..
+        v1
+            ext
+            ..
+        ..
     ..
     cam
         ata
@@ -84,7 +88,7 @@
         ..
     ..
     clang
-        2.9
+        3.0
         ..
     ..
     crypto
@@ -95,6 +99,8 @@
         an
         ..
         bktr
+        ..
+        ciss
         ..
         firewire
         ..
@@ -135,6 +141,10 @@
         vkbd
         ..
         wi
+        ..
+    ..
+    edit
+        readline
         ..
     ..
     fs
@@ -190,6 +200,8 @@
         ..
         nop
         ..
+        raid
+        ..
         raid3
         ..
         shsec
@@ -206,6 +218,16 @@
     gpib
     ..
     gssapi
+    ..
+    infiniband
+        complib 
+        ..
+        iba
+        ..
+        opensm
+        ..
+        vendor
+        ..
     ..
     isofs
         cd9660
@@ -267,13 +289,13 @@
     ..
     nfsserver
     ..
-    objc
-    ..
     openssl
     ..
     pcap
     ..
     protocols
+    ..
+    rdma
     ..
     readline
     ..

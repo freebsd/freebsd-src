@@ -2,6 +2,11 @@
  * Copyright (C) 1996 by Andrey A. Chernov, Moscow, Russia.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -28,17 +33,20 @@
 __FBSDID("$FreeBSD$");
 
 #include <string.h>
+#include <xlocale.h>
 #include "collate.h"
 
 /*
  * Compare two characters using collate
  */
 
-int __collate_range_cmp(int c1, int c2)
+int __collate_range_cmp(struct xlocale_collate *table, int c1, int c2)
 {
 	static char s1[2], s2[2];
 
 	s1[0] = c1;
 	s2[0] = c2;
-	return (strcoll(s1, s2));
+	struct _xlocale l = {{0}};
+	l.components[XLC_COLLATE] = (struct xlocale_component *)table;
+	return (strcoll_l(s1, s2, &l));
 }

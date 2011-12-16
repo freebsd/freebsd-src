@@ -1,0 +1,83 @@
+.TH IBSYSSTAT 8 "August 11, 2006" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibsysstat \- system status on an InfiniBand address
+
+.SH SYNOPSIS
+.B ibsysstat
+[\-d(ebug)] [\-e(rr_show)] [\-v(erbose)] [\-G(uid)] [\-C ca_name] [\-P ca_port] [\-s smlid] [\-t(imeout) timeout_ms] [\-V(ersion)] [\-o oui] [\-S(erver)] [\-h(elp)] <dest lid | guid> [<op>]
+
+.SH DESCRIPTION
+.PP
+ibsysstat uses vendor mads to validate connectivity between IB nodes
+and obtain other information about the IB node. ibsysstat is run as
+client/server. Default is to run as client.
+
+.SH OPTIONS
+
+.PP
+.TP
+Current supported operations:
+ ping \- verify connectivity to server (default)
+ host \- obtain host information from server
+ cpu  \- obtain cpu information from server
+.TP
+\fB\-o\fR, \fB\-\-oui\fR
+use specified OUI number to multiplex vendor mads
+.TP
+\fB\-S\fR, \fB\-\-Server\fR
+start in server mode (do not return)
+
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

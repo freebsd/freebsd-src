@@ -59,6 +59,7 @@ __FBSDID("$FreeBSD$");
 #include "error.h"
 #include "eval.h"
 #include "memalloc.h"
+#include "builtins.h"
 
 #define MAXHISTLOOPS	4	/* max recursions through fc */
 #define DEFEDITOR	"ed"	/* default editor *should* be $EDITOR */

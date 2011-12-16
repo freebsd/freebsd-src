@@ -29,6 +29,10 @@ def I : JoinedOrSeparate<"-I">, MetaVarName<"<directory>">,
   HelpText<"Add directory to include search path">;
 def n : Flag<"-n">,
   HelpText<"Don't automatically start assembly file with a text section">;
+def L : Flag<"-L">,
+  HelpText<"Save temporary labels in the symbol table. "
+           "Note this may change .s semantics, it should almost never be used "
+           "on compiler generated code!">;
 
 //===----------------------------------------------------------------------===//
 // Frontend Options
@@ -73,3 +77,6 @@ def relax_all : Flag<"-relax-all">,
 
 def no_exec_stack : Flag<"--noexecstack">,
     HelpText<"Mark the file as not needing an executable stack">;
+
+def fatal_warnings : Flag<"--fatal-warnings">,
+    HelpText<"Consider warnings as errors">;

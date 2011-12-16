@@ -18,7 +18,10 @@
 # Sources common to both syscall interfaces:
 SRCS+=	stack_protector.c stack_protector_compat.c __error.c
 .if !defined(WITHOUT_SYSCALL_COMPAT)
-SRCS+=	fcntl.c ftruncate.c lseek.c mmap.c pread.c pwrite.c truncate.c
+SYSCALL_COMPAT_SRCS=	fcntl.c ftruncate.c lseek.c mmap.c pread.c \
+	pwrite.c truncate.c
+SRCS+=	${SYSCALL_COMPAT_SRCS}
+NOASM+=	${SYSCALL_COMPAT_SRCS:S/.c/.o/}
 PSEUDO+= _fcntl.o
 .endif
 SRCS+= sigwait.c
@@ -74,10 +77,10 @@ ${SPSEUDO}:
 MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	aio_cancel.2 aio_error.2 aio_read.2 aio_return.2 \
 	aio_suspend.2 aio_waitcomplete.2 aio_write.2 \
-	bind.2 brk.2 cap_enter.2 chdir.2 chflags.2 \
+	bind.2 brk.2 cap_enter.2 cap_new.2 chdir.2 chflags.2 \
 	chmod.2 chown.2 chroot.2 clock_gettime.2 close.2 closefrom.2 \
 	connect.2 cpuset.2 cpuset_getaffinity.2 dup.2 execve.2 _exit.2 \
-	extattr_get_file.2 fcntl.2 fhopen.2 flock.2 fork.2 fsync.2 \
+	extattr_get_file.2 fcntl.2 ffclock.2 fhopen.2 flock.2 fork.2 fsync.2 \
 	getdirentries.2 getdtablesize.2 \
 	getfh.2 getfsstat.2 getgid.2 getgroups.2 getitimer.2 getlogin.2 \
 	getloginclass.2 getpeername.2 getpgrp.2 getpid.2 getpriority.2 \
@@ -93,7 +96,8 @@ MAN+=	abort2.2 accept.2 access.2 acct.2 adjtime.2 \
 	mq_setattr.2 \
 	msgctl.2 msgget.2 msgrcv.2 msgsnd.2 \
 	msync.2 munmap.2 nanosleep.2 nfssvc.2 ntp_adjtime.2 open.2 \
-	pathconf.2 pipe.2 poll.2 posix_openpt.2 profil.2 \
+	pathconf.2 pdfork.2 pipe.2 poll.2 posix_fadvise.2 posix_fallocate.2 \
+	posix_openpt.2 profil.2 \
 	pselect.2 ptrace.2 quotactl.2 \
 	read.2 readlink.2 reboot.2 recv.2 rename.2 revoke.2 rfork.2 rmdir.2 \
 	rtprio.2
@@ -116,6 +120,7 @@ MAN+=	sctp_generic_recvmsg.2 sctp_generic_sendmsg.2 sctp_peeloff.2 \
 MLINKS+=access.2 eaccess.2 access.2 faccessat.2
 MLINKS+=brk.2 sbrk.2
 MLINKS+=cap_enter.2 cap_getmode.2
+MLINKS+=cap_new.2 cap_getrights.2
 MLINKS+=chdir.2 fchdir.2
 MLINKS+=chflags.2 fchflags.2 chflags.2 lchflags.2
 MLINKS+=chmod.2 fchmod.2 chmod.2 fchmodat.2 chmod.2 lchmod.2
@@ -137,6 +142,8 @@ MLINKS+=extattr_get_file.2 extattr.2 \
 	extattr_get_file.2 extattr_set_fd.2 \
 	extattr_get_file.2 extattr_set_file.2 \
 	extattr_get_file.2 extattr_set_link.2
+MLINKS+=ffclock.2 ffclock_getcounter.2 ffclock.2 ffclock_getestimate.2 \
+	ffclock.2 ffclock_setestimate.2
 MLINKS+=fhopen.2 fhstat.2 fhopen.2 fhstatfs.2
 MLINKS+=getdirentries.2 getdents.2
 MLINKS+=getfh.2 lgetfh.2
@@ -174,6 +181,9 @@ MLINKS+=ntp_adjtime.2 ntp_gettime.2
 MLINKS+=open.2 openat.2
 MLINKS+=pathconf.2 fpathconf.2
 MLINKS+=pathconf.2 lpathconf.2
+MLINKS+=pdfork.2 pdgetpid.2\
+	pdfork.2 pdkill.2 \
+	pdfork.2 pdwait4.2
 MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2

@@ -46,10 +46,10 @@ options 	SOFTUPDATES		#Enable FFS soft updates support
 #options 	MD_ROOT_SIZE=4096	# 3MB ram disk
 #options 	ROOTDEVNAME=\"ufs:md0\"
 #options 	ROOTDEVNAME=\"ufs:/dev/mmcsd0s1a\"
-options 	NFSCLIENT		#Network Filesystem Client
-#options 	NFSSERVER		#Network Filesystem Server
+options 	NFSCL			#New Network Filesystem Client
+#options 	NFSD			#New Network Filesystem Server
 #options 	NFSLOCKD		#Network Lock Manager
-options 	NFS_ROOT		#NFS usable as /, requires NFSCLIENT
+options 	NFS_ROOT		#NFS usable as /, requires NFSCL
 options 	BOOTP_NFSROOT
 options 	BOOTP
 

@@ -14,22 +14,25 @@
 #ifndef LLVM_CLANG_BASIC_TARGETINFO_H
 #define LLVM_CLANG_BASIC_TARGETINFO_H
 
-// FIXME: Daniel isn't smart enough to use a prototype for this.
+#include "clang/Basic/LLVM.h"
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/StringSwitch.h"
 #include "llvm/ADT/Triple.h"
 #include "llvm/Support/DataTypes.h"
+#include "clang/Basic/AddressSpaces.h"
+#include "clang/Basic/VersionTuple.h"
 #include <cassert>
 #include <vector>
 #include <string>
 
 namespace llvm {
 struct fltSemantics;
-class StringRef;
 }
 
 namespace clang {
-class Diagnostic;
+class DiagnosticsEngine;
 class LangOptions;
 class MacroBuilder;
 class SourceLocation;
@@ -56,7 +59,7 @@ enum TargetCXXABI {
 
 /// TargetInfo - This class exposes information about the current target.
 ///
-class TargetInfo {
+class TargetInfo : public llvm::RefCountedBase<TargetInfo> {
   llvm::Triple Triple;
 protected:
   // Target values set by the ctor of the actual target implementation.  Default
@@ -66,18 +69,25 @@ protected:
   unsigned char PointerWidth, PointerAlign;
   unsigned char BoolWidth, BoolAlign;
   unsigned char IntWidth, IntAlign;
+  unsigned char HalfWidth, HalfAlign;
   unsigned char FloatWidth, FloatAlign;
   unsigned char DoubleWidth, DoubleAlign;
   unsigned char LongDoubleWidth, LongDoubleAlign;
   unsigned char LargeArrayMinWidth, LargeArrayAlign;
   unsigned char LongWidth, LongAlign;
   unsigned char LongLongWidth, LongLongAlign;
+  unsigned char MaxAtomicPromoteWidth, MaxAtomicInlineWidth;
   const char *DescriptionString;
   const char *UserLabelPrefix;
   const char *MCountName;
-  const llvm::fltSemantics *FloatFormat, *DoubleFormat, *LongDoubleFormat;
+  const llvm::fltSemantics *HalfFormat, *FloatFormat, *DoubleFormat,
+    *LongDoubleFormat;
   unsigned char RegParmMax, SSERegParmMax;
   TargetCXXABI CXXABI;
+  const LangAS::Map *AddrSpaceMap;
+
+  mutable StringRef PlatformName;
+  mutable VersionTuple PlatformMinVersion;
 
   unsigned HasAlignMac68kSupport : 1;
   unsigned RealTypeUsesObjCFPRet : 3;
@@ -91,7 +101,8 @@ public:
   /// \param Opts - The options to use to initialize the target. The target may
   /// modify the options to canonicalize the target feature information to match
   /// what the backend expects.
-  static TargetInfo* CreateTargetInfo(Diagnostic &Diags, TargetOptions &Opts);
+  static TargetInfo* CreateTargetInfo(DiagnosticsEngine &Diags,
+                                      TargetOptions &Opts);
 
   virtual ~TargetInfo();
 
@@ -124,6 +135,16 @@ protected:
   /// ensure that the individual bit-field will not straddle an alignment
   /// boundary.
   unsigned UseBitFieldTypeAlignment : 1;
+
+  /// Control whether zero length bitfields (e.g., int : 0;) force alignment of
+  /// the next bitfield.  If the alignment of the zero length bitfield is 
+  /// greater than the member that follows it, `bar', `bar' will be aligned as
+  /// the type of the zero-length bitfield.
+  unsigned UseZeroLengthBitfieldAlignment : 1;
+
+  /// If non-zero, specifies a fixed alignment value for bitfields that follow
+  /// zero length bitfield, regardless of the zero length bitfield type.
+  unsigned ZeroLengthBitfieldBoundary;
 
 public:
   IntType getSizeType() const { return SizeType; }
@@ -205,6 +226,11 @@ public:
   unsigned getChar32Width() const { return getTypeWidth(Char32Type); }
   unsigned getChar32Align() const { return getTypeAlign(Char32Type); }
 
+  /// getHalfWidth/Align/Format - Return the size/align/format of 'half'.
+  unsigned getHalfWidth() const { return HalfWidth; }
+  unsigned getHalfAlign() const { return HalfAlign; }
+  const llvm::fltSemantics &getHalfFormat() const { return *HalfFormat; }
+
   /// getFloatWidth/Align/Format - Return the size/align/format of 'float'.
   unsigned getFloatWidth() const { return FloatWidth; }
   unsigned getFloatAlign() const { return FloatAlign; }
@@ -228,10 +254,26 @@ public:
   unsigned getLargeArrayMinWidth() const { return LargeArrayMinWidth; }
   unsigned getLargeArrayAlign() const { return LargeArrayAlign; }
 
+  /// getMaxAtomicPromoteWidth - Return the maximum width lock-free atomic
+  /// operation which will ever be supported for the given target
+  unsigned getMaxAtomicPromoteWidth() const { return MaxAtomicPromoteWidth; }
+  /// getMaxAtomicInlineWidth - Return the maximum width lock-free atomic
+  /// operation which can be inlined given the supported features of the
+  /// given target.
+  unsigned getMaxAtomicInlineWidth() const { return MaxAtomicInlineWidth; }
+
   /// getIntMaxTWidth - Return the size of intmax_t and uintmax_t for this
   /// target, in bits.
   unsigned getIntMaxTWidth() const {
     return getTypeWidth(IntMaxType);
+  }
+
+  /// getRegisterWidth - Return the "preferred" register width on this target.
+  uint64_t getRegisterWidth() const {
+    // Currently we assume the register width on the target matches the pointer
+    // width, we can introduce a new variable for this if/when some target wants
+    // it.
+    return LongWidth; 
   }
 
   /// getUserLabelPrefix - This returns the default value of the
@@ -247,8 +289,22 @@ public:
     return MCountName;
   }
 
+  /// useBitFieldTypeAlignment() - Check whether the alignment of bit-field 
+  /// types is respected when laying out structures.
   bool useBitFieldTypeAlignment() const {
     return UseBitFieldTypeAlignment;
+  }
+
+  /// useZeroLengthBitfieldAlignment() - Check whether zero length bitfields 
+  /// should force alignment of the next member.
+  bool useZeroLengthBitfieldAlignment() const {
+    return UseZeroLengthBitfieldAlignment;
+  }
+
+  /// getZeroLengthBitfieldBoundary() - Get the fixed alignment value in bits
+  /// for a member that follows a zero length bitfield.
+  unsigned getZeroLengthBitfieldBoundary() const {
+    return ZeroLengthBitfieldBoundary;
   }
 
   /// hasAlignMac68kSupport - Check whether this target support '#pragma options
@@ -289,14 +345,19 @@ public:
   /// __builtin_va_list, which is target-specific.
   virtual const char *getVAListDeclaration() const = 0;
 
+  /// isValidClobber - Returns whether the passed in string is
+  /// a valid clobber in an inline asm statement. This is used by
+  /// Sema.
+  bool isValidClobber(StringRef Name) const;
+
   /// isValidGCCRegisterName - Returns whether the passed in string
   /// is a valid register name according to GCC. This is used by Sema for
   /// inline asm statements.
-  bool isValidGCCRegisterName(llvm::StringRef Name) const;
+  bool isValidGCCRegisterName(StringRef Name) const;
 
   // getNormalizedGCCRegisterName - Returns the "normalized" GCC register name.
   // For example, on x86 it will return "ax" when "eax" is passed in.
-  llvm::StringRef getNormalizedGCCRegisterName(llvm::StringRef Name) const;
+  StringRef getNormalizedGCCRegisterName(StringRef Name) const;
 
   struct ConstraintInfo {
     enum {
@@ -312,7 +373,7 @@ public:
     std::string ConstraintStr;  // constraint: "=rm"
     std::string Name;           // Operand name: [foo] with no []'s.
   public:
-    ConstraintInfo(llvm::StringRef ConstraintStr, llvm::StringRef Name)
+    ConstraintInfo(StringRef ConstraintStr, StringRef Name)
       : Flags(0), TiedOperand(-1), ConstraintStr(ConstraintStr.str()),
       Name(Name.str()) {}
 
@@ -362,11 +423,14 @@ public:
                            ConstraintInfo *OutputConstraints,
                            unsigned NumOutputs, unsigned &Index) const;
 
-  virtual std::string convertConstraint(const char Constraint) const {
+  // Constraint parm will be left pointing at the last character of
+  // the constraint.  In practice, it won't be changed unless the
+  // constraint is longer than one character.
+  virtual std::string convertConstraint(const char *&Constraint) const {
     // 'p' defaults to 'r', but can be overridden by targets.
-    if (Constraint == 'p')
+    if (*Constraint == 'p')
       return std::string("r");
-    return std::string(1, Constraint);
+    return std::string(1, *Constraint);
   }
 
   // Returns a string of target-specific clobbers, in LLVM format.
@@ -385,6 +449,11 @@ public:
   struct GCCRegAlias {
     const char * const Aliases[5];
     const char * const Register;
+  };
+
+  struct AddlRegName {
+    const char * const Names[5];
+    const unsigned RegNum;
   };
 
   virtual bool useGlobalsForAutomaticVariables() const { return false; }
@@ -417,7 +486,7 @@ public:
   /// and give good diagnostics in cases when the assembler or code generator
   /// would otherwise reject the section specifier.
   ///
-  virtual std::string isValidSectionSpecifier(llvm::StringRef SR) const {
+  virtual std::string isValidSectionSpecifier(StringRef SR) const {
     return "";
   }
 
@@ -426,11 +495,9 @@ public:
   /// language options which change the target configuration.
   virtual void setForcedLangOptions(LangOptions &Opts);
 
-  /// getDefaultFeatures - Get the default set of target features for
-  /// the \args CPU; this should include all legal feature strings on
-  /// the target.
-  virtual void getDefaultFeatures(const std::string &CPU,
-                                  llvm::StringMap<bool> &Features) const {
+  /// getDefaultFeatures - Get the default set of target features for the CPU;
+  /// this should include all legal feature strings on the target.
+  virtual void getDefaultFeatures(llvm::StringMap<bool> &Features) const {
   }
 
   /// getABI - Get the ABI in use.
@@ -446,10 +513,8 @@ public:
   /// setCPU - Target the specific CPU.
   ///
   /// \return - False on error (invalid CPU name).
-  //
-  // FIXME: Remove this.
   virtual bool setCPU(const std::string &Name) {
-    return true;
+    return false;
   }
 
   /// setABI - Use the specific ABI.
@@ -502,6 +567,7 @@ public:
 
   // getRegParmMax - Returns maximal number of args passed in registers.
   unsigned getRegParmMax() const {
+    assert(RegParmMax < 7 && "RegParmMax value is larger than AST can handle");
     return RegParmMax;
   }
 
@@ -530,6 +596,19 @@ public:
   virtual const char *getStaticInitSectionSpecifier() const {
     return 0;
   }
+
+  const LangAS::Map &getAddressSpaceMap() const {
+    return *AddrSpaceMap;
+  }
+
+  /// \brief Retrieve the name of the platform as it is used in the
+  /// availability attribute.
+  StringRef getPlatformName() const { return PlatformName; }
+
+  /// \brief Retrieve the minimum desired version of the platform, to
+  /// which the program should be compiled.
+  VersionTuple getPlatformMinVersion() const { return PlatformMinVersion; }
+
 protected:
   virtual uint64_t getPointerWidthV(unsigned AddrSpace) const {
     return PointerWidth;
@@ -544,6 +623,11 @@ protected:
                               unsigned &NumNames) const = 0;
   virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
                                 unsigned &NumAliases) const = 0;
+  virtual void getGCCAddlRegNames(const AddlRegName *&Addl,
+				  unsigned &NumAddl) const {
+    Addl = 0;
+    NumAddl = 0;
+  }
   virtual bool validateAsmConstraint(const char *&Name,
                                      TargetInfo::ConstraintInfo &info) const= 0;
 };

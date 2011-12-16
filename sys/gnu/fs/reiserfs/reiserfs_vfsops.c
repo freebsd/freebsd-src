@@ -335,7 +335,8 @@ reiserfs_statfs(struct mount *mp, struct statfs *sbp)
  *   those rights via. exflagsp and credanonp
  */
 static int
-reiserfs_fhtovp(struct mount *mp, struct fid *fhp, struct vnode **vpp)
+reiserfs_fhtovp(struct mount *mp, struct fid *fhp, int flags,
+    struct vnode **vpp)
 {
 	int error;
 	struct rfid *rfhp;

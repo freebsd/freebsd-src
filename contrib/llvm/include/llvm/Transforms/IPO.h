@@ -50,13 +50,6 @@ ModulePass *createStripDebugDeclarePass();
 ModulePass *createStripDeadDebugInfoPass();
 
 //===----------------------------------------------------------------------===//
-/// createLowerSetJmpPass - This function lowers the setjmp/longjmp intrinsics
-/// to invoke/unwind instructions.  This should really be part of the C/C++
-/// front-end, but it's so much easier to write transformations in LLVM proper.
-///
-ModulePass *createLowerSetJmpPass();
-
-//===----------------------------------------------------------------------===//
 /// createConstantMergePass - This function returns a new pass that merges
 /// duplicate global constants together into a single constant that is shared.
 /// This is useful because some passes (ie TraceValues) insert a lot of string
@@ -74,13 +67,6 @@ ModulePass *createGlobalOptimizerPass();
 
 
 //===----------------------------------------------------------------------===//
-/// createDeadTypeEliminationPass - Return a new pass that eliminates symbol
-/// table entries for types that are never used.
-///
-ModulePass *createDeadTypeEliminationPass();
-
-
-//===----------------------------------------------------------------------===//
 /// createGlobalDCEPass - This transform is designed to eliminate unreachable
 /// internal globals (functions or global variables)
 ///
@@ -88,7 +74,7 @@ ModulePass *createGlobalDCEPass();
 
 
 //===----------------------------------------------------------------------===//
-/// createGVExtractionPass - If deleteFn is true, this pass deletes as
+/// createGVExtractionPass - If deleteFn is true, this pass deletes
 /// the specified global values. Otherwise, it deletes as much of the module as
 /// possible, except for the global values specified.
 ///
@@ -152,7 +138,6 @@ ModulePass *createDeadArgHackingPass();
 /// equal to maxElements (maxElements == 0 means always promote).
 ///
 Pass *createArgumentPromotionPass(unsigned maxElements = 3);
-Pass *createStructRetPromotionPass();
 
 //===----------------------------------------------------------------------===//
 /// createIPConstantPropagationPass - This pass propagates constants from call

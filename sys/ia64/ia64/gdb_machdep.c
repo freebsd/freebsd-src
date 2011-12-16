@@ -177,7 +177,7 @@ gdb_cpu_query(void)
 	 * kernel stack address. See also ptrace_machdep().
 	 */
 	bspstore = kdb_frame->tf_special.bspstore;
-	kstack = (bspstore >= IA64_RR_BASE(5)) ? (uint64_t*)bspstore :
+	kstack = (bspstore >= VM_MAXUSER_ADDRESS) ? (uint64_t*)bspstore :
 	    (uint64_t*)(kdb_thread->td_kstack + (bspstore & 0x1ffUL));
 	gdb_tx_begin('\0');
 	gdb_tx_mem((void*)(kstack + slot), 8);

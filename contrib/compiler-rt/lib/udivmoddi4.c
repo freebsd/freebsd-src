@@ -2,8 +2,8 @@
  *
  *                     The LLVM Compiler Infrastructure
  *
- * This file is distributed under the University of Illinois Open Source
- * License. See LICENSE.TXT for details.
+ * This file is dual licensed under the MIT and the University of Illinois Open
+ * Source Licenses. See LICENSE.TXT for details.
  *
  * ===----------------------------------------------------------------------===
  *
@@ -11,6 +11,7 @@
  *
  * ===----------------------------------------------------------------------===
  */
+#include "abi.h"
 
 #include "int_lib.h"
 
@@ -20,7 +21,9 @@
 
 /* Translated from Figure 3-40 of The PowerPC Compiler Writer's Guide */
 
-du_int
+ARM_EABI_FNALIAS(uldivmod, udivmoddi4);
+
+COMPILER_RT_ABI du_int
 __udivmoddi4(du_int a, du_int b, du_int* rem)
 {
     const unsigned n_uword_bits = sizeof(su_int) * CHAR_BIT;

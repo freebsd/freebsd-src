@@ -33,12 +33,16 @@ __FBSDID("$FreeBSD$");
 #include "opt_compat.h"
 
 #include <sys/param.h>
+#include <sys/capability.h>
 #include <sys/cdio.h>
 #include <sys/fcntl.h>
 #include <sys/filio.h>
 #include <sys/file.h>
 #include <sys/ioccom.h>
+#include <sys/malloc.h>
 #include <sys/mdioctl.h>
+#include <sys/memrange.h>
+#include <sys/pciio.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
 #include <sys/syscallsubr.h>
@@ -55,6 +59,10 @@ __FBSDID("$FreeBSD$");
 CTASSERT((sizeof(struct md_ioctl32)+4) == 436);
 CTASSERT(sizeof(struct ioc_read_toc_entry32) == 8);
 CTASSERT(sizeof(struct ioc_toc_header32) == 4);
+CTASSERT(sizeof(struct mem_range_op32) == 12);
+CTASSERT(sizeof(struct pci_conf_io32) == 36);
+CTASSERT(sizeof(struct pci_match_conf32) == 44);
+CTASSERT(sizeof(struct pci_conf32) == 44);
 
 
 static int
@@ -64,13 +72,10 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 	struct md_ioctl mdv;
 	struct md_ioctl32 md32;
 	u_long com = 0;
-	int error;
+	int i, error;
 
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
 	if (uap->com & IOC_IN) {
 		if ((error = copyin(uap->data, &md32, sizeof(md32)))) {
-			fdrop(fp, td);
 			return (error);
 		}
 		CP(md32, mdv, md_version);
@@ -119,9 +124,16 @@ freebsd32_ioctl_md(struct thread *td, struct freebsd32_ioctl_args *uap,
 		CP(mdv, md32, md_base);
 		CP(mdv, md32, md_fwheads);
 		CP(mdv, md32, md_fwsectors);
+		if (com == MDIOCLIST) {
+			/*
+			 * Use MDNPAD, and not MDNPAD32.  Padding is
+			 * allocated and used by compat32 ABI.
+			 */
+			for (i = 0; i < MDNPAD; i++)
+				CP(mdv, md32, md_pad[i]);
+		}
 		error = copyout(&md32, uap->data, sizeof(md32));
 	}
-	fdrop(fp, td);
 	return error;
 }
 
@@ -134,9 +146,6 @@ freebsd32_ioctl_ioc_toc_header(struct thread *td,
 	struct ioc_toc_header32 toch32;
 	int error;
 
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
-
 	if ((error = copyin(uap->data, &toch32, sizeof(toch32))))
 		return (error);
 	CP(toch32, toch, len);
@@ -144,7 +153,6 @@ freebsd32_ioctl_ioc_toc_header(struct thread *td,
 	CP(toch32, toch, ending_track);
 	error = fo_ioctl(fp, CDIOREADTOCHEADER, (caddr_t)&toch,
 	    td->td_ucred, td);
-	fdrop(fp, td);
 	return (error);
 }
 
@@ -156,9 +164,6 @@ freebsd32_ioctl_ioc_read_toc(struct thread *td,
 	struct ioc_read_toc_entry toce;
 	struct ioc_read_toc_entry32 toce32;
 	int error;
-
-	if (uap->data == NULL)
-		panic("%s: where is my ioctl data??", __func__);
 
 	if ((error = copyin(uap->data, &toce32, sizeof(toce32))))
 		return (error);
@@ -175,7 +180,6 @@ freebsd32_ioctl_ioc_read_toc(struct thread *td,
 		PTROUT_CP(toce, toce32, data);
 		error = copyout(&toce32, uap->data, sizeof(toce32));
 	}
-	fdrop(fp, td);
 	return error;
 }
 
@@ -192,7 +196,151 @@ freebsd32_ioctl_fiodgname(struct thread *td,
 	CP(fgn32, fgn, len);
 	PTRIN_CP(fgn32, fgn, buf);
 	error = fo_ioctl(fp, FIODGNAME, (caddr_t)&fgn, td->td_ucred, td);
-	fdrop(fp, td);
+	return (error);
+}
+
+static int
+freebsd32_ioctl_memrange(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct mem_range_op mro;
+	struct mem_range_op32 mro32;
+	int error;
+	u_long com;
+
+	if ((error = copyin(uap->data, &mro32, sizeof(mro32))) != 0)
+		return (error);
+
+	PTRIN_CP(mro32, mro, mo_desc);
+	CP(mro32, mro, mo_arg[0]);
+	CP(mro32, mro, mo_arg[1]);
+
+	com = 0;
+	switch (uap->com) {
+	case MEMRANGE_GET32:
+		com = MEMRANGE_GET;
+		break;
+
+	case MEMRANGE_SET32:
+		com = MEMRANGE_SET;
+		break;
+
+	default:
+		panic("%s: unknown MEMRANGE %#x", __func__, uap->com);
+	}
+
+	if ((error = fo_ioctl(fp, com, (caddr_t)&mro, td->td_ucred, td)) != 0)
+		return (error);
+
+	if ( (com & IOC_OUT) ) {
+		CP(mro, mro32, mo_arg[0]);
+		CP(mro, mro32, mo_arg[1]);
+
+		error = copyout(&mro32, uap->data, sizeof(mro32));
+	}
+
+	return (error);
+}
+
+static int
+freebsd32_ioctl_pciocgetconf(struct thread *td,
+    struct freebsd32_ioctl_args *uap, struct file *fp)
+{
+	struct pci_conf_io pci;
+	struct pci_conf_io32 pci32;
+	struct pci_match_conf32 pmc32;
+	struct pci_match_conf32 *pmc32p;
+	struct pci_match_conf pmc;
+	struct pci_match_conf *pmcp;
+	struct pci_conf32 pc32;
+	struct pci_conf32 *pc32p;
+	struct pci_conf pc;
+	struct pci_conf *pcp;
+	u_int32_t i;
+	u_int32_t npat_to_convert;
+	u_int32_t nmatch_to_convert;
+	vm_offset_t addr;
+	int error;
+
+	if ((error = copyin(uap->data, &pci32, sizeof(pci32))) != 0)
+		return (error);
+
+	CP(pci32, pci, num_patterns);
+	CP(pci32, pci, offset);
+	CP(pci32, pci, generation);
+
+	npat_to_convert = pci32.pat_buf_len / sizeof(struct pci_match_conf32);
+	pci.pat_buf_len = npat_to_convert * sizeof(struct pci_match_conf);
+	pci.patterns = NULL;
+	nmatch_to_convert = pci32.match_buf_len / sizeof(struct pci_conf32);
+	pci.match_buf_len = nmatch_to_convert * sizeof(struct pci_conf);
+	pci.matches = NULL;
+
+	if ((error = copyout_map(td, &addr, pci.pat_buf_len)) != 0)
+		goto cleanup;
+	pci.patterns = (struct pci_match_conf *)addr;
+	if ((error = copyout_map(td, &addr, pci.match_buf_len)) != 0)
+		goto cleanup;
+	pci.matches = (struct pci_conf *)addr;
+
+	npat_to_convert = min(npat_to_convert, pci.num_patterns);
+
+	for (i = 0, pmc32p = (struct pci_match_conf32 *)PTRIN(pci32.patterns),
+	     pmcp = pci.patterns;
+	     i < npat_to_convert; i++, pmc32p++, pmcp++) {
+		if ((error = copyin(pmc32p, &pmc32, sizeof(pmc32))) != 0)
+			goto cleanup;
+		CP(pmc32,pmc,pc_sel);
+		strlcpy(pmc.pd_name, pmc32.pd_name, sizeof(pmc.pd_name));
+		CP(pmc32,pmc,pd_unit);
+		CP(pmc32,pmc,pc_vendor);
+		CP(pmc32,pmc,pc_device);
+		CP(pmc32,pmc,pc_class);
+		CP(pmc32,pmc,flags);
+		if ((error = copyout(&pmc, pmcp, sizeof(pmc))) != 0)
+			goto cleanup;
+	}
+
+	if ((error = fo_ioctl(fp, PCIOCGETCONF, (caddr_t)&pci,
+			      td->td_ucred, td)) != 0)
+		goto cleanup;
+
+	nmatch_to_convert = min(nmatch_to_convert, pci.num_matches);
+
+	for (i = 0, pcp = pci.matches,
+	     pc32p = (struct pci_conf32 *)PTRIN(pci32.matches);
+	     i < nmatch_to_convert; i++, pcp++, pc32p++) {
+		if ((error = copyin(pcp, &pc, sizeof(pc))) != 0)
+			goto cleanup;
+		CP(pc,pc32,pc_sel);
+		CP(pc,pc32,pc_hdr);
+		CP(pc,pc32,pc_subvendor);
+		CP(pc,pc32,pc_subdevice);
+		CP(pc,pc32,pc_vendor);
+		CP(pc,pc32,pc_device);
+		CP(pc,pc32,pc_class);
+		CP(pc,pc32,pc_subclass);
+		CP(pc,pc32,pc_progif);
+		CP(pc,pc32,pc_revid);
+		strlcpy(pc32.pd_name, pc.pd_name, sizeof(pc32.pd_name));
+		CP(pc,pc32,pd_unit);
+		if ((error = copyout(&pc32, pc32p, sizeof(pc32))) != 0)
+			goto cleanup;
+	}
+
+	CP(pci, pci32, num_matches);
+	CP(pci, pci32, offset);
+	CP(pci, pci32, generation);
+	CP(pci, pci32, status);
+
+	error = copyout(&pci32, uap->data, sizeof(pci32));
+
+cleanup:
+	if (pci.patterns)
+		copyout_unmap(td, (vm_offset_t)pci.patterns, pci.pat_buf_len);
+	if (pci.matches)
+		copyout_unmap(td, (vm_offset_t)pci.matches, pci.match_buf_len);
+
 	return (error);
 }
 
@@ -207,7 +355,7 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	struct file *fp;
 	int error;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {
 		fdrop(fp, td);
@@ -219,22 +367,38 @@ freebsd32_ioctl(struct thread *td, struct freebsd32_ioctl_args *uap)
 	case MDIOCDETACH_32:	/* FALLTHROUGH */
 	case MDIOCQUERY_32:	/* FALLTHROUGH */
 	case MDIOCLIST_32:
-		return freebsd32_ioctl_md(td, uap, fp);
+		error = freebsd32_ioctl_md(td, uap, fp);
+		break;
 
 	case CDIOREADTOCENTRYS_32:
-		return freebsd32_ioctl_ioc_read_toc(td, uap, fp);
+		error = freebsd32_ioctl_ioc_read_toc(td, uap, fp);
+		break;
 
 	case CDIOREADTOCHEADER_32:
-		return freebsd32_ioctl_ioc_toc_header(td, uap, fp);
+		error = freebsd32_ioctl_ioc_toc_header(td, uap, fp);
+		break;
 
 	case FIODGNAME_32:
-		return freebsd32_ioctl_fiodgname(td, uap, fp);
+		error = freebsd32_ioctl_fiodgname(td, uap, fp);
+		break;
+
+	case MEMRANGE_GET32:	/* FALLTHROUGH */
+	case MEMRANGE_SET32:
+		error = freebsd32_ioctl_memrange(td, uap, fp);
+		break;
+
+	case PCIOCGETCONF_32:
+		error = freebsd32_ioctl_pciocgetconf(td, uap, fp);
+		break;
 
 	default:
 		fdrop(fp, td);
 		ap.fd = uap->fd;
 		ap.com = uap->com;
 		PTRIN_CP(*uap, ap, data);
-		return ioctl(td, &ap);
+		return sys_ioctl(td, &ap);
 	}
+
+	fdrop(fp, td);
+	return error;
 }

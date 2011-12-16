@@ -10,6 +10,7 @@ SRCS=	AliasAnalysis.cpp \
 	AliasSetTracker.cpp \
 	Analysis.cpp \
 	BasicAliasAnalysis.cpp \
+	BranchProbabilityInfo.cpp \
 	CFGPrinter.cpp \
 	CaptureTracking.cpp \
 	ConstantFolding.cpp \
@@ -27,7 +28,6 @@ SRCS=	AliasAnalysis.cpp \
 	LazyValueInfo.cpp \
 	LibCallAliasAnalysis.cpp \
 	Lint.cpp \
-	LiveValues.cpp \
 	Loads.cpp \
 	LoopDependenceAnalysis.cpp \
 	LoopInfo.cpp \

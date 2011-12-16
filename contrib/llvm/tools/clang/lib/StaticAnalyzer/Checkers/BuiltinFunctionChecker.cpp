@@ -11,8 +11,10 @@
 //
 //===----------------------------------------------------------------------===//
 
-#include "InternalChecks.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/Checker.h"
+#include "ClangSACheckers.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
+#include "clang/StaticAnalyzer/Core/CheckerManager.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/Basic/Builtins.h"
 
 using namespace clang;
@@ -20,20 +22,16 @@ using namespace ento;
 
 namespace {
 
-class BuiltinFunctionChecker : public Checker {
+class BuiltinFunctionChecker : public Checker<eval::Call> {
 public:
-  static void *getTag() { static int tag = 0; return &tag; }
-  virtual bool evalCallExpr(CheckerContext &C, const CallExpr *CE);
+  bool evalCall(const CallExpr *CE, CheckerContext &C) const;
 };
 
 }
 
-void ento::RegisterBuiltinFunctionChecker(ExprEngine &Eng) {
-  Eng.registerCheck(new BuiltinFunctionChecker());
-}
-
-bool BuiltinFunctionChecker::evalCallExpr(CheckerContext &C,const CallExpr *CE){
-  const GRState *state = C.getState();
+bool BuiltinFunctionChecker::evalCall(const CallExpr *CE,
+                                      CheckerContext &C) const{
+  const ProgramState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   SVal L = state->getSVal(Callee);
   const FunctionDecl *FD = L.getAsFunctionDecl();
@@ -59,7 +57,7 @@ bool BuiltinFunctionChecker::evalCallExpr(CheckerContext &C,const CallExpr *CE){
     // FIXME: Refactor into StoreManager itself?
     MemRegionManager& RM = C.getStoreManager().getRegionManager();
     const AllocaRegion* R =
-      RM.getAllocaRegion(CE, C.getNodeBuilder().getCurrentBlockCount(),
+      RM.getAllocaRegion(CE, C.getCurrentBlockCount(),
                          C.getPredecessor()->getLocationContext());
 
     // Set the extent of the region in bytes. This enables us to use the
@@ -80,4 +78,8 @@ bool BuiltinFunctionChecker::evalCallExpr(CheckerContext &C,const CallExpr *CE){
   }
 
   return false;
+}
+
+void ento::registerBuiltinFunctionChecker(CheckerManager &mgr) {
+  mgr.registerChecker<BuiltinFunctionChecker>();
 }

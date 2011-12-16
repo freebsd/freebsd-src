@@ -34,6 +34,10 @@ HAL_BOOL
 ar5416IsInterruptPending(struct ath_hal *ah)
 {
 	uint32_t isr;
+
+	if (AR_SREV_HOWL(ah))
+		return AH_TRUE;
+
 	/* 
 	 * Some platforms trigger our ISR before applying power to
 	 * the card, so make sure the INTPEND is really 1, not 0xffffffff.
@@ -55,28 +59,53 @@ ar5416IsInterruptPending(struct ath_hal *ah)
  * values.  The value returned is mapped to abstract the hw-specific bit
  * locations in the Interrupt Status Register.
  *
+ * (*masked) is cleared on initial call.
+ *
  * Returns: A hardware-abstracted bitmap of all non-masked-out
  *          interrupts pending, as well as an unmasked value
  */
 HAL_BOOL
 ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 {
-	uint32_t isr, isr0, isr1, sync_cause;
+	uint32_t isr, isr0, isr1, sync_cause = 0;
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+#ifdef	AH_INTERRUPT_DEBUGGING
+	/*
+	 * Blank the interrupt debugging area regardless.
+	 */
+	bzero(&ah->ah_intrstate, sizeof(ah->ah_intrstate));
+#endif
 
 	/*
 	 * Verify there's a mac interrupt and the RTC is on.
 	 */
-	if ((OS_REG_READ(ah, AR_INTR_ASYNC_CAUSE) & AR_INTR_MAC_IRQ) &&
-	    (OS_REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M) == AR_RTC_STATUS_ON)
-		isr = OS_REG_READ(ah, AR_ISR);
-	else
-		isr = 0;
-	sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
-	sync_cause &= AR_INTR_SYNC_DEFAULT;
-	if (isr == 0 && sync_cause == 0) {
+	if (AR_SREV_HOWL(ah)) {
 		*masked = 0;
-		return AH_FALSE;
+		isr = OS_REG_READ(ah, AR_ISR);
+	} else {
+		if ((OS_REG_READ(ah, AR_INTR_ASYNC_CAUSE) & AR_INTR_MAC_IRQ) &&
+		    (OS_REG_READ(ah, AR_RTC_STATUS) & AR_RTC_STATUS_M) == AR_RTC_STATUS_ON)
+			isr = OS_REG_READ(ah, AR_ISR);
+		else
+			isr = 0;
+		sync_cause = OS_REG_READ(ah, AR_INTR_SYNC_CAUSE);
+		sync_cause &= AR_INTR_SYNC_DEFAULT;
+		*masked = 0;
+
+		if (isr == 0 && sync_cause == 0)
+			return AH_FALSE;
 	}
+
+#ifdef	AH_INTERRUPT_DEBUGGING
+	ah->ah_intrstate[0] = isr;
+	ah->ah_intrstate[1] = OS_REG_READ(ah, AR_ISR_S0);
+	ah->ah_intrstate[2] = OS_REG_READ(ah, AR_ISR_S1);
+	ah->ah_intrstate[3] = OS_REG_READ(ah, AR_ISR_S2);
+	ah->ah_intrstate[4] = OS_REG_READ(ah, AR_ISR_S3);
+	ah->ah_intrstate[5] = OS_REG_READ(ah, AR_ISR_S4);
+	ah->ah_intrstate[6] = OS_REG_READ(ah, AR_ISR_S5);
+#endif
 
 	if (isr != 0) {
 		struct ath_hal_5212 *ahp = AH5212(ah);
@@ -99,43 +128,98 @@ ar5416GetPendingInterrupts(struct ath_hal *ah, HAL_INT *masked)
 				mask2 |= HAL_INT_CST;	
 			if (isr2 & AR_ISR_S2_TSFOOR)
 				mask2 |= HAL_INT_TSFOOR;
+
+			/*
+			 * Don't mask out AR_BCNMISC; instead mask
+			 * out what causes it.
+			 */
+			OS_REG_WRITE(ah, AR_ISR_S2, isr2);
+			isr &= ~AR_ISR_BCNMISC;
 		}
 
-		isr = OS_REG_READ(ah, AR_ISR_RAC);
 		if (isr == 0xffffffff) {
 			*masked = 0;
 			return AH_FALSE;
 		}
 
 		*masked = isr & HAL_INT_COMMON;
-		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
-			*masked |= HAL_INT_RX;
-		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR | AR_ISR_TXEOL)) {
-			*masked |= HAL_INT_TX;
-			isr0 = OS_REG_READ(ah, AR_ISR_S0_S);
-			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXOK);
-			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXDESC);
-			isr1 = OS_REG_READ(ah, AR_ISR_S1_S);
-			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
-			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
-		}
 
-		if (AR_SREV_MERLIN(ah) || AR_SREV_KITE(ah)) {
-			uint32_t isr5;
-			isr5 = OS_REG_READ(ah, AR_ISR_S5_S);
-			if (isr5 & AR_ISR_S5_TIM_TIMER)
-				*masked |= HAL_INT_TIM_TIMER;
-		}
-
-		/* Interrupt Mitigation on AR5416 */
-#ifdef AR5416_INT_MITIGATION
 		if (isr & (AR_ISR_RXMINTR | AR_ISR_RXINTM))
 			*masked |= HAL_INT_RX;
 		if (isr & (AR_ISR_TXMINTR | AR_ISR_TXINTM))
 			*masked |= HAL_INT_TX;
+
+		/*
+		 * When doing RX interrupt mitigation, the RXOK bit is set
+		 * in AR_ISR even if the relevant bit in AR_IMR is clear.
+		 * Since this interrupt may be due to another source, don't
+		 * just automatically set HAL_INT_RX if it's set, otherwise
+		 * we could prematurely service the RX queue.
+		 *
+		 * In some cases, the driver can even handle all the RX
+		 * frames just before the mitigation interrupt fires.
+		 * The subsequent RX processing trip will then end up
+		 * processing 0 frames.
+		 */
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+		if (isr & AR_ISR_RXERR)
+			*masked |= HAL_INT_RX;
+#else
+		if (isr & (AR_ISR_RXOK | AR_ISR_RXERR))
+			*masked |= HAL_INT_RX;
 #endif
+
+		if (isr & (AR_ISR_TXOK | AR_ISR_TXDESC | AR_ISR_TXERR |
+		    AR_ISR_TXEOL)) {
+			*masked |= HAL_INT_TX;
+
+			isr0 = OS_REG_READ(ah, AR_ISR_S0);
+			OS_REG_WRITE(ah, AR_ISR_S0, isr0);
+			isr1 = OS_REG_READ(ah, AR_ISR_S1);
+			OS_REG_WRITE(ah, AR_ISR_S1, isr1);
+
+			/*
+			 * Don't clear the primary ISR TX bits, clear
+			 * what causes them (S0/S1.)
+			 */
+			isr &= ~(AR_ISR_TXOK | AR_ISR_TXDESC |
+			    AR_ISR_TXERR | AR_ISR_TXEOL);
+
+			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXOK);
+			ahp->ah_intrTxqs |= MS(isr0, AR_ISR_S0_QCU_TXDESC);
+			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXERR);
+			ahp->ah_intrTxqs |= MS(isr1, AR_ISR_S1_QCU_TXEOL);
+		}
+
+		if ((isr & AR_ISR_GENTMR) || (! pCap->halAutoSleepSupport)) {
+			uint32_t isr5;
+			isr5 = OS_REG_READ(ah, AR_ISR_S5);
+			OS_REG_WRITE(ah, AR_ISR_S5, isr5);
+			isr &= ~AR_ISR_GENTMR;
+
+			if (! pCap->halAutoSleepSupport)
+				if (isr5 & AR_ISR_S5_TIM_TIMER)
+					*masked |= HAL_INT_TIM_TIMER;
+		}
 		*masked |= mask2;
 	}
+
+	/*
+	 * Since we're not using AR_ISR_RAC, clear the status bits
+	 * for handled interrupts here. For bits whose interrupt
+	 * source is a secondary register, those bits should've been
+	 * masked out - instead of those bits being written back,
+	 * their source (ie, the secondary status registers) should
+	 * be cleared. That way there are no race conditions with
+	 * new triggers coming in whilst they've been read/cleared.
+	 */
+	OS_REG_WRITE(ah, AR_ISR, isr);
+	/* Flush previous write */
+	OS_REG_READ(ah, AR_ISR);
+
+	if (AR_SREV_HOWL(ah))
+		return AH_TRUE;
+
 	if (sync_cause != 0) {
 		if (sync_cause & (AR_INTR_SYNC_HOST1_FATAL | AR_INTR_SYNC_HOST1_PERR)) {
 			*masked |= HAL_INT_FATAL;
@@ -184,16 +268,29 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		OS_REG_WRITE(ah, AR_IER, AR_IER_DISABLE);
 		(void) OS_REG_READ(ah, AR_IER);
 
-		OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
-		(void) OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE);
+		if (! AR_SREV_HOWL(ah)) {
+			OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, 0);
+			(void) OS_REG_READ(ah, AR_INTR_ASYNC_ENABLE);
 
-		OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
-		(void) OS_REG_READ(ah, AR_INTR_SYNC_ENABLE);
+			OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, 0);
+			(void) OS_REG_READ(ah, AR_INTR_SYNC_ENABLE);
+		}
 	}
 
 	mask = ints & HAL_INT_COMMON;
 	mask2 = 0;
 
+#ifdef	AH_AR5416_INTERRUPT_MITIGATION
+	/*
+	 * Overwrite default mask if Interrupt mitigation
+	 * is specified for AR5416
+	 */
+	if (ints & HAL_INT_RX)
+		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
+#else
+	if (ints & HAL_INT_RX)
+		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
+#endif
 	if (ints & HAL_INT_TX) {
 		if (ahp->ah_txOkInterruptMask)
 			mask |= AR_IMR_TXOK;
@@ -204,19 +301,6 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		if (ahp->ah_txEolInterruptMask)
 			mask |= AR_IMR_TXEOL;
 	}
-	if (ints & HAL_INT_RX)
-		mask |= AR_IMR_RXOK | AR_IMR_RXERR | AR_IMR_RXDESC;
-#ifdef AR5416_INT_MITIGATION
-	/*
-	 * Overwrite default mask if Interrupt mitigation
-	 * is specified for AR5416
-	 */
-	mask = ints & HAL_INT_COMMON;
-	if (ints & HAL_INT_TX)
-		mask |= AR_IMR_TXMINTR | AR_IMR_TXINTM;
-	if (ints & HAL_INT_RX)
-		mask |= AR_IMR_RXERR | AR_IMR_RXMINTR | AR_IMR_RXINTM;
-#endif
 	if (ints & (HAL_INT_BMISC)) {
 		mask |= AR_IMR_BCNMISC;
 		if (ints & HAL_INT_TIM)
@@ -227,12 +311,18 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 			mask2 |= AR_IMR_S2_DTIMSYNC;
 		if (ints & HAL_INT_CABEND)
 			mask2 |= (AR_IMR_S2_CABEND );
-		if (ints & HAL_INT_GTT)
-			mask2 |= AR_IMR_S2_GTT;			
 		if (ints & HAL_INT_CST)
 			mask2 |= AR_IMR_S2_CST;
 		if (ints & HAL_INT_TSFOOR)
 			mask2 |= AR_IMR_S2_TSFOOR;
+	}
+
+	if (ints & (HAL_INT_GTT | HAL_INT_CST)) {
+		mask |= AR_IMR_BCNMISC;
+		if (ints & HAL_INT_GTT)
+			mask2 |= AR_IMR_S2_GTT;
+		if (ints & HAL_INT_CST)
+			mask2 |= AR_IMR_S2_CST;
 	}
 
 	/* Write the new IMR and store off our SW copy. */
@@ -255,19 +345,21 @@ ar5416SetInterrupts(struct ath_hal *ah, HAL_INT ints)
 		HALDEBUG(ah, HAL_DEBUG_INTERRUPT, "%s: enable IER\n", __func__);
 		OS_REG_WRITE(ah, AR_IER, AR_IER_ENABLE);
 
-		mask = AR_INTR_MAC_IRQ;
-		if (ints & HAL_INT_GPIO)
-			mask |= SM(AH5416(ah)->ah_gpioMask,
-			    AR_INTR_ASYNC_MASK_GPIO);
-		OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, mask);
-		OS_REG_WRITE(ah, AR_INTR_ASYNC_MASK, mask);
+		if (! AR_SREV_HOWL(ah)) {
+			mask = AR_INTR_MAC_IRQ;
+			if (ints & HAL_INT_GPIO)
+				mask |= SM(AH5416(ah)->ah_gpioMask,
+				    AR_INTR_ASYNC_MASK_GPIO);
+			OS_REG_WRITE(ah, AR_INTR_ASYNC_ENABLE, mask);
+			OS_REG_WRITE(ah, AR_INTR_ASYNC_MASK, mask);
 
-		mask = AR_INTR_SYNC_DEFAULT;
-		if (ints & HAL_INT_GPIO)
-			mask |= SM(AH5416(ah)->ah_gpioMask,
-			    AR_INTR_SYNC_MASK_GPIO);
-		OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, mask);
-		OS_REG_WRITE(ah, AR_INTR_SYNC_MASK, mask);
+			mask = AR_INTR_SYNC_DEFAULT;
+			if (ints & HAL_INT_GPIO)
+				mask |= SM(AH5416(ah)->ah_gpioMask,
+				    AR_INTR_SYNC_MASK_GPIO);
+			OS_REG_WRITE(ah, AR_INTR_SYNC_ENABLE, mask);
+			OS_REG_WRITE(ah, AR_INTR_SYNC_MASK, mask);
+		}
 	}
 
 	return omask;

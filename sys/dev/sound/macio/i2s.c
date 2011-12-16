@@ -158,12 +158,24 @@ static int
 i2s_probe(device_t self)
 {
 	const char 		*name;
+	phandle_t		subchild;
+	char			subchildname[255];
 
 	name = ofw_bus_get_name(self);
 	if (!name)
 		return (ENXIO);
 
 	if (strcmp(name, "i2s") != 0)
+		return (ENXIO);
+
+	/*
+	 * Do not attach to "lightshow" I2S devices on Xserves. This controller
+	 * is used there to control the LEDs on the front panel, and this
+	 * driver can't handle it.
+	 */
+	subchild = OF_child(OF_child(ofw_bus_get_node(self)));
+	if (subchild != 0 && OF_getprop(subchild, "name", subchildname,
+	    sizeof(subchildname)) > 0 && strcmp(subchildname, "lightshow") == 0)
 		return (ENXIO);
 	
 	device_set_desc(self, "Apple I2S Audio Controller");

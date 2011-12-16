@@ -75,6 +75,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/mman.h>
 #include <sys/vnode.h>
+#include <sys/racct.h>
 #include <sys/resourcevar.h>
 #include <sys/file.h>
 #include <sys/sysctl.h>
@@ -313,6 +314,21 @@ vm_init2(void)
 	    vmspace_zinit, vmspace_zfini, UMA_ALIGN_PTR, UMA_ZONE_NOFREE);
 }
 
+static void
+vmspace_container_reset(struct proc *p)
+{
+
+#ifdef RACCT
+	PROC_LOCK(p);
+	racct_set(p, RACCT_DATA, 0);
+	racct_set(p, RACCT_STACK, 0);
+	racct_set(p, RACCT_RSS, 0);
+	racct_set(p, RACCT_MEMLOCK, 0);
+	racct_set(p, RACCT_VMEM, 0);
+	PROC_UNLOCK(p);
+#endif
+}
+
 static inline void
 vmspace_dofree(struct vmspace *vm)
 {
@@ -410,6 +426,7 @@ vmspace_exit(struct thread *td)
 		pmap_activate(td);
 		vmspace_dofree(vm);
 	}
+	vmspace_container_reset(p);
 }
 
 /* Acquire reference to vmspace owned by another process. */
@@ -447,9 +464,9 @@ _vm_map_lock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_xlock(&map->lock, 0, file, line);
+		sx_xlock_(&map->lock, file, line);
 	map->timestamp++;
 }
 
@@ -472,9 +489,9 @@ _vm_map_unlock(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
-		_sx_xunlock(&map->lock, file, line);
+		sx_xunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
 }
@@ -484,9 +501,9 @@ _vm_map_lock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_lock_flags(&map->system_mtx, 0, file, line);
+		mtx_lock_flags_(&map->system_mtx, 0, file, line);
 	else
-		(void)_sx_slock(&map->lock, 0, file, line);
+		sx_slock_(&map->lock, file, line);
 }
 
 void
@@ -494,9 +511,9 @@ _vm_map_unlock_read(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else {
-		_sx_sunlock(&map->lock, file, line);
+		sx_sunlock_(&map->lock, file, line);
 		vm_map_process_deferred();
 	}
 }
@@ -507,8 +524,8 @@ _vm_map_trylock(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_xlock(&map->lock, file, line);
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
+	    !sx_try_xlock_(&map->lock, file, line);
 	if (error == 0)
 		map->timestamp++;
 	return (error == 0);
@@ -520,8 +537,8 @@ _vm_map_trylock_read(vm_map_t map, const char *file, int line)
 	int error;
 
 	error = map->system_map ?
-	    !_mtx_trylock(&map->system_mtx, 0, file, line) :
-	    !_sx_try_slock(&map->lock, file, line);
+	    !mtx_trylock_flags_(&map->system_mtx, 0, file, line) :
+	    !sx_try_slock_(&map->lock, file, line);
 	return (error == 0);
 }
 
@@ -541,21 +558,19 @@ _vm_map_lock_upgrade(vm_map_t map, const char *file, int line)
 	unsigned int last_timestamp;
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else {
-		if (!_sx_try_upgrade(&map->lock, file, line)) {
+		if (!sx_try_upgrade_(&map->lock, file, line)) {
 			last_timestamp = map->timestamp;
-			_sx_sunlock(&map->lock, file, line);
+			sx_sunlock_(&map->lock, file, line);
 			vm_map_process_deferred();
 			/*
 			 * If the map's timestamp does not change while the
 			 * map is unlocked, then the upgrade succeeds.
 			 */
-			(void)_sx_xlock(&map->lock, 0, file, line);
+			sx_xlock_(&map->lock, file, line);
 			if (last_timestamp != map->timestamp) {
-				_sx_xunlock(&map->lock, file, line);
+				sx_xunlock_(&map->lock, file, line);
 				return (1);
 			}
 		}
@@ -569,11 +584,9 @@ _vm_map_lock_downgrade(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map) {
-#ifdef INVARIANTS
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-#endif
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	} else
-		_sx_downgrade(&map->lock, file, line);
+		sx_downgrade_(&map->lock, file, line);
 }
 
 /*
@@ -598,30 +611,15 @@ _vm_map_assert_locked(vm_map_t map, const char *file, int line)
 {
 
 	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
+		mtx_assert_(&map->system_mtx, MA_OWNED, file, line);
 	else
-		_sx_assert(&map->lock, SA_XLOCKED, file, line);
+		sx_assert_(&map->lock, SA_XLOCKED, file, line);
 }
-
-#if 0
-static void
-_vm_map_assert_locked_read(vm_map_t map, const char *file, int line)
-{
-
-	if (map->system_map)
-		_mtx_assert(&map->system_mtx, MA_OWNED, file, line);
-	else
-		_sx_assert(&map->lock, SA_SLOCKED, file, line);
-}
-#endif
 
 #define	VM_MAP_ASSERT_LOCKED(map) \
     _vm_map_assert_locked(map, LOCK_FILE, LOCK_LINE)
-#define	VM_MAP_ASSERT_LOCKED_READ(map) \
-    _vm_map_assert_locked_read(map, LOCK_FILE, LOCK_LINE)
 #else
 #define	VM_MAP_ASSERT_LOCKED(map)
-#define	VM_MAP_ASSERT_LOCKED_READ(map)
 #endif
 
 /*
@@ -644,9 +642,9 @@ _vm_map_unlock_and_wait(vm_map_t map, int timo, const char *file, int line)
 
 	mtx_lock(&map_sleep_mtx);
 	if (map->system_map)
-		_mtx_unlock_flags(&map->system_mtx, 0, file, line);
+		mtx_unlock_flags_(&map->system_mtx, 0, file, line);
 	else
-		_sx_xunlock(&map->lock, file, line);
+		sx_xunlock_(&map->lock, file, line);
 	return (msleep(&map->root, &map_sleep_mtx, PDROP | PVM, "vmmaps",
 	    timo));
 }
@@ -2324,7 +2322,11 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 	unsigned int last_timestamp;
 	int rv;
 	boolean_t fictitious, need_wakeup, result, user_wire;
+	vm_prot_t prot;
 
+	prot = 0;
+	if (flags & VM_MAP_WIRE_WRITE)
+		prot |= VM_PROT_WRITE;
 	user_wire = (flags & VM_MAP_WIRE_USER) ? TRUE : FALSE;
 	vm_map_lock(map);
 	VM_MAP_RANGE_CHECK(map, start, end);
@@ -2392,20 +2394,17 @@ vm_map_wire(vm_map_t map, vm_offset_t start, vm_offset_t end,
 		 * above.)
 		 */
 		entry->eflags |= MAP_ENTRY_IN_TRANSITION;
-		/*
-		 *
-		 */
-		if (entry->wired_count == 0) {
-			if ((entry->protection & (VM_PROT_READ|VM_PROT_EXECUTE))
-			    == 0) {
-				entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
-				if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
-					end = entry->end;
-					rv = KERN_INVALID_ADDRESS;
-					goto done;
-				}
-				goto next_entry;
+		if ((entry->protection & (VM_PROT_READ | VM_PROT_EXECUTE)) == 0
+		    || (entry->protection & prot) != prot) {
+			entry->eflags |= MAP_ENTRY_WIRE_SKIPPED;
+			if ((flags & VM_MAP_WIRE_HOLESOK) == 0) {
+				end = entry->end;
+				rv = KERN_INVALID_ADDRESS;
+				goto done;
 			}
+			goto next_entry;
+		}
+		if (entry->wired_count == 0) {
 			entry->wired_count++;
 			saved_start = entry->start;
 			saved_end = entry->end;
@@ -2692,7 +2691,15 @@ vm_map_entry_delete(vm_map_t map, vm_map_entry_t entry)
 		    ((object->flags & (OBJ_NOSPLIT|OBJ_ONEMAPPING)) == OBJ_ONEMAPPING ||
 		    object == kernel_object || object == kmem_object)) {
 			vm_object_collapse(object);
-			vm_object_page_remove(object, offidxstart, offidxend, FALSE);
+
+			/*
+			 * The option OBJPR_NOTMAPPED can be passed here
+			 * because vm_map_delete() already performed
+			 * pmap_remove() on the only mapping to this range
+			 * of pages. 
+			 */
+			vm_object_page_remove(object, offidxstart, offidxend,
+			    OBJPR_NOTMAPPED);
 			if (object->type == OBJT_SWAP)
 				swap_pager_freespace(object, offidxstart, count);
 			if (offidxend >= object->size &&
@@ -3278,6 +3285,12 @@ vm_map_growstack(struct proc *p, vm_offset_t addr)
 	rlim_t stacklim, vmemlim;
 	int is_procstack, rv;
 	struct ucred *cred;
+#ifdef notyet
+	uint64_t limit;
+#endif
+#ifdef RACCT
+	int error;
+#endif
 
 Retry:
 	PROC_LOCK(p);
@@ -3376,6 +3389,16 @@ Retry:
 		vm_map_unlock_read(map);
 		return (KERN_NO_SPACE);
 	}
+#ifdef RACCT
+	PROC_LOCK(p);
+	if (is_procstack &&
+	    racct_set(p, RACCT_STACK, ctob(vm->vm_ssize) + grow_amount)) {
+		PROC_UNLOCK(p);
+		vm_map_unlock_read(map);
+		return (KERN_NO_SPACE);
+	}
+	PROC_UNLOCK(p);
+#endif
 
 	/* Round up the grow amount modulo SGROWSIZ */
 	grow_amount = roundup (grow_amount, sgrowsiz);
@@ -3385,12 +3408,30 @@ Retry:
 		grow_amount = trunc_page((vm_size_t)stacklim) -
 		    ctob(vm->vm_ssize);
 	}
+#ifdef notyet
+	PROC_LOCK(p);
+	limit = racct_get_available(p, RACCT_STACK);
+	PROC_UNLOCK(p);
+	if (is_procstack && (ctob(vm->vm_ssize) + grow_amount > limit))
+		grow_amount = limit - ctob(vm->vm_ssize);
+#endif
 
 	/* If we would blow our VMEM resource limit, no go */
 	if (map->size + grow_amount > vmemlim) {
 		vm_map_unlock_read(map);
-		return (KERN_NO_SPACE);
+		rv = KERN_NO_SPACE;
+		goto out;
 	}
+#ifdef RACCT
+	PROC_LOCK(p);
+	if (racct_set(p, RACCT_VMEM, map->size + grow_amount)) {
+		PROC_UNLOCK(p);
+		vm_map_unlock_read(map);
+		rv = KERN_NO_SPACE;
+		goto out;
+	}
+	PROC_UNLOCK(p);
+#endif
 
 	if (vm_map_lock_upgrade(map))
 		goto Retry;
@@ -3488,6 +3529,18 @@ Retry:
 		    ? VM_MAP_WIRE_SYSTEM|VM_MAP_WIRE_NOHOLES
 		    : VM_MAP_WIRE_USER|VM_MAP_WIRE_NOHOLES);
 	}
+
+out:
+#ifdef RACCT
+	if (rv != KERN_SUCCESS) {
+		PROC_LOCK(p);
+		error = racct_set(p, RACCT_VMEM, map->size);
+		KASSERT(error == 0, ("decreasing RACCT_VMEM failed"));
+	    	error = racct_set(p, RACCT_STACK, ctob(vm->vm_ssize));
+		KASSERT(error == 0, ("decreasing RACCT_STACK failed"));
+		PROC_UNLOCK(p);
+	}
+#endif
 
 	return (rv);
 }

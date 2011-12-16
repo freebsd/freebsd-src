@@ -39,7 +39,7 @@
  */
 
 #define	NFS_MAXIOVEC	34
-#define	NFS_TICKINTVL	10		/* Desired time for a tick (msec) */
+#define	NFS_TICKINTVL	500		/* Desired time for a tick (msec) */
 #define	NFS_HZ		(hz / nfscl_ticks) /* Ticks/sec */
 #define	NFS_TIMEO	(1 * NFS_HZ)	/* Default timeout = 1 second */
 #define	NFS_MINTIMEO	(1 * NFS_HZ)	/* Min timeout to use */
@@ -56,6 +56,7 @@
 #define	NFSV4_UPCALLRETRY 4		/* Number of retries before failure */
 #define	NFS_MAXWINDOW	1024		/* Max number of outstanding requests */
 #define	NFS_RETRANS	10		/* Num of retrans for soft mounts */
+#define	NFS_RETRANS_TCP	2		/* Num of retrans for TCP soft mounts */
 #define	NFS_MAXGRPS	16		/* Max. size of groups list */
 #define	NFS_TRYLATERDEL	15		/* Maximum delay timeout (sec) */
 #ifndef NFS_REMOVETIMEO
@@ -70,8 +71,9 @@
 #define	NFS_WSIZE	8192		/* Def. write data size <= 8192 */
 #define	NFS_RSIZE	8192		/* Def. read data size <= 8192 */
 #define	NFS_READDIRSIZE	8192		/* Def. readdir size */
-#define	NFS_DEFRAHEAD	0		/* Def. read ahead # blocks */
-#define	NFS_MAXRAHEAD	32		/* Max. read ahead # blocks */
+#define	NFS_DEFRAHEAD	1		/* Def. read ahead # blocks */
+#define	NFS_MAXRAHEAD	16		/* Max. read ahead # blocks */
+#define	NFS_MAXASYNCDAEMON 	64	/* Max. number async_daemons runnable */
 #define	NFS_MAXUIDHASH	64		/* Max. # of hashed uid entries/mp */
 #ifndef	NFSRV_LEASE
 #define	NFSRV_LEASE		120	/* Lease time in seconds for V4 */

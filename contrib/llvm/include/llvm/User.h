@@ -47,7 +47,7 @@ protected:
   unsigned NumOperands;
 
   void *operator new(size_t s, unsigned Us);
-  User(const Type *ty, unsigned vty, Use *OpList, unsigned NumOps)
+  User(Type *ty, unsigned vty, Use *OpList, unsigned NumOps)
     : Value(ty, vty), OperandList(OpList), NumOperands(NumOps) {}
   Use *allocHungoffUses(unsigned) const;
   void dropHungoffUses() {
@@ -95,11 +95,11 @@ public:
     OperandList[i] = Val;
   }
   const Use &getOperandUse(unsigned i) const {
-    assert(i < NumOperands && "getOperand() out of range!");
+    assert(i < NumOperands && "getOperandUse() out of range!");
     return OperandList[i];
   }
   Use &getOperandUse(unsigned i) {
-    assert(i < NumOperands && "getOperand() out of range!");
+    assert(i < NumOperands && "getOperandUse() out of range!");
     return OperandList[i];
   }
   

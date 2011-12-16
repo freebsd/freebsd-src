@@ -694,6 +694,6 @@ svr4_sys_fpathconf(td, uap)
 		*retval = 0;
 		return 0;
 	default:
-		return fpathconf(td, (struct fpathconf_args *)uap);
+		return sys_fpathconf(td, (struct fpathconf_args *)uap);
 	}
 }

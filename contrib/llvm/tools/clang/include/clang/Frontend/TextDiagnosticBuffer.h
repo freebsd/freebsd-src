@@ -22,7 +22,7 @@ namespace clang {
 class Preprocessor;
 class SourceManager;
 
-class TextDiagnosticBuffer : public DiagnosticClient {
+class TextDiagnosticBuffer : public DiagnosticConsumer {
 public:
   typedef std::vector<std::pair<SourceLocation, std::string> > DiagList;
   typedef DiagList::iterator iterator;
@@ -39,12 +39,14 @@ public:
   const_iterator note_begin() const { return Notes.begin(); }
   const_iterator note_end() const   { return Notes.end(); }
 
-  virtual void HandleDiagnostic(Diagnostic::Level DiagLevel,
-                                const DiagnosticInfo &Info);
+  virtual void HandleDiagnostic(DiagnosticsEngine::Level DiagLevel,
+                                const Diagnostic &Info);
 
   /// FlushDiagnostics - Flush the buffered diagnostics to an given
   /// diagnostic engine.
-  void FlushDiagnostics(Diagnostic &Diags) const;
+  void FlushDiagnostics(DiagnosticsEngine &Diags) const;
+  
+  virtual DiagnosticConsumer *clone(DiagnosticsEngine &Diags) const;
 };
 
 } // end namspace clang

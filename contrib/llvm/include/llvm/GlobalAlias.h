@@ -23,7 +23,6 @@
 namespace llvm {
 
 class Module;
-class Constant;
 template<typename ValueSubClass, typename ItemParentClass>
   class SymbolTableListTraits;
 
@@ -41,16 +40,11 @@ public:
   }
   /// GlobalAlias ctor - If a parent module is specified, the alias is
   /// automatically inserted into the end of the specified module's alias list.
-  GlobalAlias(const Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
+  GlobalAlias(Type *Ty, LinkageTypes Linkage, const Twine &Name = "",
               Constant* Aliasee = 0, Module *Parent = 0);
 
   /// Provide fast operand accessors
-  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Value);
-
-  /// isDeclaration - Is this global variable lacking an initializer?  If so, 
-  /// the global variable is defined in some other translation unit, and is thus
-  /// only a declaration here.
-  virtual bool isDeclaration() const;
+  DECLARE_TRANSPARENT_OPERAND_ACCESSORS(Constant);
 
   /// removeFromParent - This method unlinks 'this' from the containing module,
   /// but does not delete it.
@@ -63,23 +57,23 @@ public:
   virtual void eraseFromParent();
 
   /// set/getAliasee - These methods retrive and set alias target.
-  void setAliasee(Constant* GV);
-  const Constant* getAliasee() const {
-    return cast_or_null<Constant>(getOperand(0));
+  void setAliasee(Constant *GV);
+  const Constant *getAliasee() const {
+    return getOperand(0);
   }
-  Constant* getAliasee() {
-    return cast_or_null<Constant>(getOperand(0));
+  Constant *getAliasee() {
+    return getOperand(0);
   }
   /// getAliasedGlobal() - Aliasee can be either global or bitcast of
   /// global. This method retrives the global for both aliasee flavours.
-  const GlobalValue* getAliasedGlobal() const;
+  const GlobalValue *getAliasedGlobal() const;
 
   /// resolveAliasedGlobal() - This method tries to ultimately resolve the alias
   /// by going through the aliasing chain and trying to find the very last
   /// global. Returns NULL if a cycle was found. If stopOnWeak is false, then
   /// the whole chain aliasing chain is traversed, otherwise - only strong
   /// aliases.
-  const GlobalValue* resolveAliasedGlobal(bool stopOnWeak = true) const;
+  const GlobalValue *resolveAliasedGlobal(bool stopOnWeak = true) const;
 
   // Methods for support type inquiry through isa, cast, and dyn_cast:
   static inline bool classof(const GlobalAlias *) { return true; }
@@ -93,7 +87,7 @@ struct OperandTraits<GlobalAlias> :
   public FixedNumOperandTraits<GlobalAlias, 1> {
 };
 
-DEFINE_TRANSPARENT_OPERAND_ACCESSORS(GlobalAlias, Value)
+DEFINE_TRANSPARENT_OPERAND_ACCESSORS(GlobalAlias, Constant)
 
 } // End llvm namespace
 

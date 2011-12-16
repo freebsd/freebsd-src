@@ -63,7 +63,7 @@
 
 #include <security/mac/mac_framework.h>
 
-MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
+static MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 
 struct fw_hwaddr firewire_broadcastaddr = {
 	0xffffffff,
@@ -627,6 +627,7 @@ firewire_input(struct ifnet *ifp, struct mbuf *m, uint16_t src)
 		return;
 	}
 
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

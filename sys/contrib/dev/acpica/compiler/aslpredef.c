@@ -100,30 +100,49 @@ static const ACPI_PREDEFINED_INFO      ResourceNames[] = {
     {{"_ATT",     0,      0}},
     {{"_BAS",     0,      0}},
     {{"_BM_",     0,      0}},
+    {{"_DBT",     0,      0}},  /* Acpi 5.0 */
     {{"_DEC",     0,      0}},
+    {{"_DPL",     0,      0}},  /* Acpi 5.0 */
+    {{"_DRS",     0,      0}},  /* Acpi 5.0 */
+    {{"_END",     0,      0}},  /* Acpi 5.0 */
+    {{"_FLC",     0,      0}},  /* Acpi 5.0 */
     {{"_GRA",     0,      0}},
     {{"_HE_",     0,      0}},
     {{"_INT",     0,      0}},
+    {{"_IOR",     0,      0}},  /* Acpi 5.0 */
     {{"_LEN",     0,      0}},
+    {{"_LIN",     0,      0}},  /* Acpi 5.0 */
     {{"_LL_",     0,      0}},
     {{"_MAF",     0,      0}},
     {{"_MAX",     0,      0}},
     {{"_MEM",     0,      0}},
     {{"_MIF",     0,      0}},
     {{"_MIN",     0,      0}},
+    {{"_MOD",     0,      0}},  /* Acpi 5.0 */
     {{"_MTP",     0,      0}},
+    {{"_PAR",     0,      0}},  /* Acpi 5.0 */
+    {{"_PHA",     0,      0}},  /* Acpi 5.0 */
+    {{"_PIN",     0,      0}},  /* Acpi 5.0 */
+    {{"_PPI",     0,      0}},  /* Acpi 5.0 */
+    {{"_POL",     0,      0}},  /* Acpi 5.0 */
     {{"_RBO",     0,      0}},
     {{"_RBW",     0,      0}},
     {{"_RNG",     0,      0}},
     {{"_RT_",     0,      0}},  /* Acpi 3.0 */
     {{"_RW_",     0,      0}},
+    {{"_RXL",     0,      0}},  /* Acpi 5.0 */
     {{"_SHR",     0,      0}},
     {{"_SIZ",     0,      0}},
+    {{"_SLV",     0,      0}},  /* Acpi 5.0 */
+    {{"_SPE",     0,      0}},  /* Acpi 5.0 */
+    {{"_STB",     0,      0}},  /* Acpi 5.0 */
     {{"_TRA",     0,      0}},
     {{"_TRS",     0,      0}},
     {{"_TSF",     0,      0}},  /* Acpi 3.0 */
     {{"_TTP",     0,      0}},
+    {{"_TXL",     0,      0}},  /* Acpi 5.0 */
     {{"_TYP",     0,      0}},
+    {{"_VEN",     0,      0}},  /* Acpi 5.0 */
     {{{0,0,0,0},  0,      0}}   /* Table terminator */
 };
 
@@ -150,7 +169,7 @@ static const ACPI_PREDEFINED_INFO      ScopeNames[] = {
  *
  ******************************************************************************/
 
-void
+BOOLEAN
 ApCheckForPredefinedMethod (
     ACPI_PARSE_OBJECT       *Op,
     ASL_METHOD_INFO         *MethodInfo)
@@ -171,7 +190,7 @@ ApCheckForPredefinedMethod (
     case ACPI_COMPILER_RESERVED_NAME:   /* A _Txx that was not emitted by compiler */
 
         /* Just return, nothing to do */
-        break;
+        return (FALSE);
 
 
     case ACPI_EVENT_RESERVED_NAME:      /* _Lxx/_Exx/_Wxx/_Qxx methods */
@@ -238,6 +257,8 @@ ApCheckForPredefinedMethod (
         }
         break;
     }
+
+    return (TRUE);
 }
 
 
@@ -656,6 +677,7 @@ ApCheckObjectType (
         break;
 
     case PARSEOP_PACKAGE:
+    case PARSEOP_VAR_PACKAGE:
         ReturnBtype = ACPI_RTYPE_PACKAGE;
         break;
 
@@ -815,4 +837,3 @@ ApGetExpectedTypes (
         ThisRtype <<= 1;    /* Next Rtype */
     }
 }
-

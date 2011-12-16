@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/proc.h>
+#include <sys/capability.h>
 #include <sys/file.h>
 #include <sys/filedesc.h>
 #include <sys/fcntl.h>
@@ -102,7 +103,7 @@ svr4_sys_ioctl(td, uap)
 	retval = td->td_retval;
 	cmd = uap->com;
 
-	if ((error = fget(td, uap->fd, &fp)) != 0)
+	if ((error = fget(td, uap->fd, CAP_IOCTL, &fp)) != 0)
 		return (error);
 
 	if ((fp->f_flag & (FREAD | FWRITE)) == 0) {

@@ -53,9 +53,9 @@ enum NodeState {
 };
 
 struct Node {
-  llvm::StringRef Name;
+  StringRef Name;
   NodeState State;
-  Node(llvm::StringRef name) : Name(name), State(NS_Attrs) {}
+  Node(StringRef name) : Name(name), State(NS_Attrs) {}
 
   bool isDoneWithAttrs() const { return State != NS_Attrs; }
 };
@@ -159,7 +159,7 @@ template <class Impl> struct XMLTypeVisitor {
 #undef DISPATCH  
 };
 
-static llvm::StringRef getTypeKindName(Type *T) {
+static StringRef getTypeKindName(Type *T) {
   switch (T->getTypeClass()) {
 #define TYPE(DERIVED, BASE) case Type::DERIVED: return #DERIVED "Type";
 #define ABSTRACT_TYPE(DERIVED, BASE)
@@ -172,11 +172,11 @@ static llvm::StringRef getTypeKindName(Type *T) {
 
 struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
                    public XMLTypeVisitor<XMLDumper> {
-  llvm::raw_ostream &out;
+  raw_ostream &out;
   ASTContext &Context;
-  llvm::SmallVector<Node, 16> Stack;
+  SmallVector<Node, 16> Stack;
   unsigned Indent;
-  explicit XMLDumper(llvm::raw_ostream &OS, ASTContext &context)
+  explicit XMLDumper(raw_ostream &OS, ASTContext &context)
     : out(OS), Context(context), Indent(0) {}
 
   void indent() {
@@ -185,7 +185,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   /// Push a new node on the stack.
-  void push(llvm::StringRef name) {
+  void push(StringRef name) {
     if (!Stack.empty()) {
       assert(Stack.back().isDoneWithAttrs());
       if (Stack.back().State == NS_LazyChildren) {
@@ -200,7 +200,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   /// Set the given attribute to the given value.
-  void set(llvm::StringRef attr, llvm::StringRef value) {
+  void set(StringRef attr, StringRef value) {
     assert(!Stack.empty() && !Stack.back().isDoneWithAttrs());
     out << ' ' << attr << '=' << '"' << value << '"'; // TODO: quotation
   }
@@ -226,7 +226,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   //---- General utilities -------------------------------------------//
 
-  void setPointer(llvm::StringRef prop, const void *p) {
+  void setPointer(StringRef prop, const void *p) {
     llvm::SmallString<10> buffer;
     llvm::raw_svector_ostream os(buffer);
     os << p;
@@ -238,11 +238,11 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     setPointer("ptr", p);
   }
 
-  void setInteger(llvm::StringRef prop, const llvm::APSInt &v) {
+  void setInteger(StringRef prop, const llvm::APSInt &v) {
     set(prop, v.toString(10));
   }
 
-  void setInteger(llvm::StringRef prop, unsigned n) {
+  void setInteger(StringRef prop, unsigned n) {
     llvm::SmallString<10> buffer;
     llvm::raw_svector_ostream os(buffer);
     os << n;
@@ -250,7 +250,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     set(prop, buffer);
   }
 
-  void setFlag(llvm::StringRef prop, bool flag) {
+  void setFlag(StringRef prop, bool flag) {
     if (flag) set(prop, "true");
   }
 
@@ -268,7 +268,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   class TemporaryContainer {
     XMLDumper &Dumper;
   public:
-    TemporaryContainer(XMLDumper &dumper, llvm::StringRef name)
+    TemporaryContainer(XMLDumper &dumper, StringRef name)
       : Dumper(dumper) {
       Dumper.push(name);
       Dumper.completeAttrs();
@@ -303,7 +303,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     completeAttrs();
     pop();
   }
-  void visitDeclRef(llvm::StringRef Name, Decl *D) {
+  void visitDeclRef(StringRef Name, Decl *D) {
     TemporaryContainer C(*this, Name);
     if (D) visitDeclRef(D);
   }
@@ -423,7 +423,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // LinkageSpecDecl
   void visitLinkageSpecDeclAttrs(LinkageSpecDecl *D) {
-    llvm::StringRef lang = "";
+    StringRef lang = "";
     switch (D->getLanguage()) {
     case LinkageSpecDecl::lang_c: lang = "C"; break;
     case LinkageSpecDecl::lang_cxx: lang = "C++"; break;
@@ -482,18 +482,20 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     setFlag("trivial", D->isTrivial());
     setFlag("returnzero", D->hasImplicitReturnZero());
     setFlag("prototype", D->hasWrittenPrototype());
-    setFlag("deleted", D->isDeleted());
+    setFlag("deleted", D->isDeletedAsWritten());
     if (D->getStorageClass() != SC_None)
       set("storage",
           VarDecl::getStorageClassSpecifierString(D->getStorageClass()));
     setFlag("inline", D->isInlineSpecified());
+    if (const AsmLabelAttr *ALA = D->getAttr<AsmLabelAttr>())
+      set("asmlabel", ALA->getLabel());
     // TODO: instantiation, etc.
   }
   void visitFunctionDeclChildren(FunctionDecl *D) {
     for (FunctionDecl::param_iterator
            I = D->param_begin(), E = D->param_end(); I != E; ++I)
       dispatch(*I);
-    if (D->isThisDeclarationADefinition())
+    if (D->doesThisDeclarationHaveABody())
       dispatch(D->getBody());
   }
 
@@ -543,9 +545,17 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // TypedefDecl
   void visitTypedefDeclAttrs(TypedefDecl *D) {
-    visitRedeclarableAttrs(D);
+    visitRedeclarableAttrs<TypedefNameDecl>(D);
   }
   void visitTypedefDeclChildren(TypedefDecl *D) {
+    dispatch(D->getTypeSourceInfo()->getTypeLoc());
+  }
+
+  // TypeAliasDecl
+  void visitTypeAliasDeclAttrs(TypeAliasDecl *D) {
+    visitRedeclarableAttrs<TypedefNameDecl>(D);
+  }
+  void visitTypeAliasDeclChildren(TypeAliasDecl *D) {
     dispatch(D->getTypeSourceInfo()->getTypeLoc());
   }
 
@@ -611,7 +621,8 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   // TemplateDecl
   void visitTemplateDeclChildren(TemplateDecl *D) {
     visitTemplateParameters(D->getTemplateParameters());
-    dispatch(D->getTemplatedDecl());
+    if (D->getTemplatedDecl())
+      dispatch(D->getTemplatedDecl());
   }
 
   // FunctionTemplateDecl
@@ -731,8 +742,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
 
   // ObjCClassDecl
   void visitObjCClassDeclChildren(ObjCClassDecl *D) {
-    for (ObjCClassDecl::iterator I = D->begin(), E = D->end(); I != E; ++I)
-      visitDeclRef(I->getInterface());
+    visitDeclRef(D->getForwardInterfaceDecl());
   }
 
   // ObjCInterfaceDecl
@@ -837,6 +847,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     setFlag("variadic", D->isVariadic());
     setFlag("synthesized", D->isSynthesized());
     setFlag("defined", D->isDefined());
+    setFlag("related_result_type", D->hasRelatedResultType());
   }
   void visitObjCMethodDeclChildren(ObjCMethodDecl *D) {
     dispatch(D->getResultType());
@@ -848,7 +859,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   }
 
   // ObjCIvarDecl
-  void setAccessControl(llvm::StringRef prop, ObjCIvarDecl::AccessControl AC) {
+  void setAccessControl(StringRef prop, ObjCIvarDecl::AccessControl AC) {
     switch (AC) {
     case ObjCIvarDecl::None: return set(prop, "none");
     case ObjCIvarDecl::Private: return set(prop, "private");
@@ -911,6 +922,8 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
     case CC_X86StdCall: return set("cc", "x86_stdcall");
     case CC_X86ThisCall: return set("cc", "x86_thiscall");
     case CC_X86Pascal: return set("cc", "x86_pascal");
+    case CC_AAPCS: return set("cc", "aapcs");
+    case CC_AAPCS_VFP: return set("cc", "aapcs_vfp");
     }
   }
 
@@ -955,7 +968,7 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
   void visitFunctionTypeAttrs(FunctionType *T) {
     setFlag("noreturn", T->getNoReturnAttr());
     setCallingConv(T->getCallConv());
-    if (T->getRegParmType()) setInteger("regparm", T->getRegParmType());
+    if (T->getHasRegParm()) setInteger("regparm", T->getRegParmType());
   }
   void visitFunctionTypeChildren(FunctionType *T) {
     dispatch(T->getResultType());
@@ -975,15 +988,16 @@ struct XMLDumper : public XMLDeclVisitor<XMLDumper>,
       dispatch(*I);
     pop();
 
-    if (T->hasExceptionSpec()) {
+    if (T->hasDynamicExceptionSpec()) {
       push("exception_specifiers");
-      setFlag("any", T->hasAnyExceptionSpec());
+      setFlag("any", T->getExceptionSpecType() == EST_MSAny);
       completeAttrs();
       for (FunctionProtoType::exception_iterator
              I = T->exception_begin(), E = T->exception_end(); I != E; ++I)
         dispatch(*I);
       pop();
     }
+    // FIXME: noexcept specifier
   }
 
   void visitTemplateSpecializationTypeChildren(TemplateSpecializationType *T) {
@@ -1016,13 +1030,13 @@ void Decl::dumpXML() const {
   dumpXML(llvm::errs());
 }
 
-void Decl::dumpXML(llvm::raw_ostream &out) const {
+void Decl::dumpXML(raw_ostream &out) const {
   XMLDumper(out, getASTContext()).dispatch(const_cast<Decl*>(this));
 }
 
 #else /* ifndef NDEBUG */
 
 void Decl::dumpXML() const {}
-void Decl::dumpXML(llvm::raw_ostream &out) const {}
+void Decl::dumpXML(raw_ostream &out) const {}
 
 #endif

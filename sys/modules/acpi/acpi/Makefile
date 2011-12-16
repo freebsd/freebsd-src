@@ -35,11 +35,11 @@ KMOD=	acpi
 SRCS+=	dbcmds.c dbdisply.c dbexec.c dbfileio.c dbhistry.c dbinput.c dbmethod.c
 SRCS+=	dbnames.c dbstats.c dbutils.c dbxface.c
 SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmobject.c dmresrc.c dmresrcl.c
-SRCS+=	dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsinit.c dsmethod.c dsmthdat.c
 SRCS+=	dsobject.c dsopcode.c dsutils.c dswexec.c dswload.c dswload2.c
 SRCS+=	dswscope.c dswstate.c
-SRCS+=	evevent.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c evmisc.c
+SRCS+=	evevent.c evglock.c evgpe.c evgpeblk.c evgpeinit.c evgpeutil.c evmisc.c
 SRCS+=	evregion.c evrgnini.c evsci.c evxface.c evxfevnt.c evxfgpe.c evxfregn.c
 SRCS+=	exconfig.c exconvrt.c excreate.c exdebug.c exdump.c exfield.c
 SRCS+=	exfldio.c exmisc.c exmutex.c exnames.c exoparg1.c exoparg2.c
@@ -53,11 +53,12 @@ SRCS+=	nsutils.c nswalk.c nsxfeval.c nsxfname.c nsxfobj.c
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c pstree.c psutils.c
 SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
-SRCS+=	rsmemory.c rsmisc.c rsutils.c rsxface.c
+SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
 SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c utdelete.c uteval.c
 SRCS+=	utglobal.c utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c
 SRCS+=	utobject.c utosi.c utresrc.c utstate.c utxface.c utxferror.c
+#SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers
 SRCS+=	acpi.c acpi_button.c acpi_isab.c acpi_package.c acpi_pci.c acpi_pcib.c

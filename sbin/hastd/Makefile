@@ -12,7 +12,7 @@ SRCS+=	metadata.c
 SRCS+=	nv.c
 SRCS+=	secondary.c
 SRCS+=	parse.y pjdlog.c primary.c
-SRCS+=	proto.c proto_common.c proto_socketpair.c proto_tcp4.c proto_uds.c
+SRCS+=	proto.c proto_common.c proto_socketpair.c proto_tcp.c proto_uds.c
 SRCS+=	rangelock.c
 SRCS+=	subr.c
 SRCS+=	token.l
@@ -21,6 +21,8 @@ MAN=	hastd.8 hast.conf.5
 
 NO_WFORMAT=
 CFLAGS+=-I${.CURDIR}
+CFLAGS+=-DHAVE_CAPSICUM
+CFLAGS+=-DPROTO_TCP_DEFAULT_PORT=8457
 CFLAGS+=-DINET
 .if ${MK_INET6_SUPPORT} != "no"
 CFLAGS+=-DINET6

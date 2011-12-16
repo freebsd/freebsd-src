@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/sysctl.h>
 #include <sys/proc.h>
+#include <sys/unistd.h>
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
@@ -57,7 +58,10 @@ MALLOC_DEFINE(M_GEOM, "GEOM", "Geom data structures");
 
 struct sx topology_lock;
 
-static struct proc *g_up_proc;
+static struct proc *g_proc;
+static struct thread *g_up_td;
+static struct thread *g_down_td;
+static struct thread *g_event_td;
 
 int g_debugflags;
 int g_collectstats = 1;
@@ -82,70 +86,42 @@ int g_shutdown;
  */
 
 static void
-g_up_procbody(void)
+g_up_procbody(void *arg)
 {
-	struct proc *p = g_up_proc;
-	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	thread_lock(tp);
-	sched_prio(tp, PRIBIO);
-	thread_unlock(tp);
+	thread_lock(g_up_td);
+	sched_prio(g_up_td, PRIBIO);
+	thread_unlock(g_up_td);
 	for(;;) {
-		g_io_schedule_up(tp);
+		g_io_schedule_up(g_up_td);
 	}
 }
 
-static struct kproc_desc g_up_kp = {
-	"g_up",
-	g_up_procbody,
-	&g_up_proc,
-};
-
-static struct proc *g_down_proc;
-
 static void
-g_down_procbody(void)
+g_down_procbody(void *arg)
 {
-	struct proc *p = g_down_proc;
-	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	thread_lock(tp);
-	sched_prio(tp, PRIBIO);
-	thread_unlock(tp);
+	thread_lock(g_down_td);
+	sched_prio(g_down_td, PRIBIO);
+	thread_unlock(g_down_td);
 	for(;;) {
-		g_io_schedule_down(tp);
+		g_io_schedule_down(g_down_td);
 	}
 }
 
-static struct kproc_desc g_down_kp = {
-	"g_down",
-	g_down_procbody,
-	&g_down_proc,
-};
-
-static struct proc *g_event_proc;
-
 static void
-g_event_procbody(void)
+g_event_procbody(void *arg)
 {
-	struct proc *p = g_event_proc;
-	struct thread *tp = FIRST_THREAD_IN_PROC(p);
 
 	mtx_assert(&Giant, MA_NOTOWNED);
-	thread_lock(tp);
-	sched_prio(tp, PRIBIO);
-	thread_unlock(tp);
+	thread_lock(g_event_td);
+	sched_prio(g_event_td, PRIBIO);
+	thread_unlock(g_event_td);
 	g_run_events();
 	/* NOTREACHED */
 }
-
-static struct kproc_desc g_event_kp = {
-	"g_event",
-	g_event_procbody,
-	&g_event_proc,
-};
 
 static void
 geom_shutdown(void *foo __unused)
@@ -164,9 +140,12 @@ g_init(void)
 	g_event_init();
 	g_ctl_init();
 	mtx_lock(&Giant);
-	kproc_start(&g_event_kp);
-	kproc_start(&g_up_kp);
-	kproc_start(&g_down_kp);
+	kproc_kthread_add(g_event_procbody, NULL, &g_proc, &g_event_td,
+	    RFHIGHPID, 0, "geom", "g_event");
+	kproc_kthread_add(g_up_procbody, NULL, &g_proc, &g_up_td,
+	    RFHIGHPID, 0, "geom", "g_up");
+	kproc_kthread_add(g_down_procbody, NULL, &g_proc, &g_down_td,
+	    RFHIGHPID, 0, "geom", "g_down");
 	mtx_unlock(&Giant);
 	EVENTHANDLER_REGISTER(shutdown_pre_sync, geom_shutdown, NULL,
 		SHUTDOWN_PRI_FIRST);

@@ -401,17 +401,9 @@ ed_pccard_kick_phy(struct ed_softc *sc)
 	struct mii_softc *miisc;
 	struct mii_data *mii;
 
-	/*
-	 * Many of the PHYs that wind up on PC Cards are weird in
-	 * this way.  Generally, we don't need to worry so much about
-	 * the Isolation protocol since there's only one PHY in
-	 * these designs, so this workaround is reasonable.
-	 */
 	mii = device_get_softc(sc->miibus);
-	LIST_FOREACH(miisc, &mii->mii_phys, mii_list) {
-		miisc->mii_flags |= MIIF_FORCEANEG;
-		mii_phy_reset(miisc);
-	}
+	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
+		PHY_RESET(miisc);
 	return (mii_mediachg(mii));
 }
 
@@ -582,13 +574,13 @@ ed_pccard_attach(device_t dev)
 		ed_pccard_dl100xx_mii_reset(sc);
 		(void)mii_attach(dev, &sc->miibus, sc->ifp, ed_ifmedia_upd,
 		    ed_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, 0);
+		    MII_OFFSET_ANY, MIIF_FORCEANEG);
 	} else if (sc->chip_type == ED_CHIP_TYPE_AX88190 ||
 	    sc->chip_type == ED_CHIP_TYPE_AX88790 ||
 	    sc->chip_type == ED_CHIP_TYPE_TC5299J) {
 		error = mii_attach(dev, &sc->miibus, sc->ifp, ed_ifmedia_upd,
 		    ed_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, 0);
+		    MII_OFFSET_ANY, MIIF_FORCEANEG);
 		if (error != 0) {
 			device_printf(dev, "attaching PHYs failed\n");
 			goto bad;

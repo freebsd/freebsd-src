@@ -46,7 +46,7 @@
 #include "clang/Analysis/CFGStmtMap.h"
 #include "clang/Analysis/Analyses/PseudoConstantAnalysis.h"
 #include "clang/Analysis/Analyses/CFGReachabilityAnalysis.h"
-#include "clang/StaticAnalyzer/Core/CheckerV2.h"
+#include "clang/StaticAnalyzer/Core/Checker.h"
 #include "clang/StaticAnalyzer/Core/CheckerManager.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/CheckerContext.h"
 #include "clang/StaticAnalyzer/Core/BugReporter/BugReporter.h"
@@ -59,14 +59,13 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/BitVector.h"
 #include "llvm/Support/ErrorHandling.h"
-#include <deque>
 
 using namespace clang;
 using namespace ento;
 
 namespace {
 class IdempotentOperationChecker
-  : public CheckerV2<check::PreStmt<BinaryOperator>,
+  : public Checker<check::PreStmt<BinaryOperator>,
                      check::PostStmt<BinaryOperator>,
                      check::EndAnalysis> {
 public:
@@ -97,10 +96,9 @@ private:
 
   // Hash table and related data structures
   struct BinaryOperatorData {
-    BinaryOperatorData() : assumption(Possible), analysisContext(0) {}
+    BinaryOperatorData() : assumption(Possible) {}
 
     Assumption assumption;
-    AnalysisContext *analysisContext;
     ExplodedNodeSet explodedNodes; // Set of ExplodedNodes that refer to a
                                    // BinaryOperator
   };
@@ -119,7 +117,6 @@ void IdempotentOperationChecker::checkPreStmt(const BinaryOperator *B,
   BinaryOperatorData &Data = hash[B];
   Assumption &A = Data.assumption;
   AnalysisContext *AC = C.getCurrentAnalysisContext();
-  Data.analysisContext = AC;
 
   // If we already have visited this node on a path that does not contain an
   // idempotent operation, return immediately.
@@ -144,7 +141,7 @@ void IdempotentOperationChecker::checkPreStmt(const BinaryOperator *B,
         || containsNonLocalVarDecl(RHS);
   }
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   SVal LHSVal = state->getSVal(LHS);
   SVal RHSVal = state->getSVal(RHS);
@@ -336,10 +333,9 @@ void IdempotentOperationChecker::checkPostStmt(const BinaryOperator *B,
     = cast<StmtPoint>(C.getPredecessor()->getLocation()).getStmt();
   
   // Ignore implicit calls to setters.
-  if (isa<ObjCPropertyRefExpr>(predStmt))
+  if (!isa<BinaryOperator>(predStmt))
     return;
-  
-  assert(isa<BinaryOperator>(predStmt));
+
   Data.explodedNodes.Add(C.getPredecessor());
 }
 
@@ -353,8 +349,13 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
     // Unpack the hash contents
     const BinaryOperatorData &Data = i->second;
     const Assumption &A = Data.assumption;
-    AnalysisContext *AC = Data.analysisContext;
     const ExplodedNodeSet &ES = Data.explodedNodes;
+
+    // If there are no nodes accosted with the expression, nothing to report.
+    // FIXME: This is possible because the checker does part of processing in
+    // checkPreStmt and part in checkPostStmt.
+    if (ES.begin() == ES.end())
+      continue;
 
     const BinaryOperator *B = i->first;
 
@@ -365,6 +366,8 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
     // warning
     if (Eng.hasWorkRemaining()) {
       // If we can trace back
+      AnalysisContext *AC = (*ES.begin())->getLocationContext()
+                                         ->getAnalysisContext();
       if (!pathWasCompletelyAnalyzed(AC,
                                      AC->getCFGStmtMap()->getBlock(B),
                                      Eng.getCoreEngine()))
@@ -409,18 +412,18 @@ void IdempotentOperationChecker::checkEndAnalysis(ExplodedGraph &G,
 
     // Add a report for each ExplodedNode
     for (ExplodedNodeSet::iterator I = ES.begin(), E = ES.end(); I != E; ++I) {
-      EnhancedBugReport *report = new EnhancedBugReport(*BT, os.str(), *I);
+      BugReport *report = new BugReport(*BT, os.str(), *I);
 
       // Add source ranges and visitor hooks
       if (LHSRelevant) {
         const Expr *LHS = i->first->getLHS();
         report->addRange(LHS->getSourceRange());
-        report->addVisitorCreator(bugreporter::registerVarDeclsLastStore, LHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, LHS);
       }
       if (RHSRelevant) {
         const Expr *RHS = i->first->getRHS();
         report->addRange(i->first->getRHS()->getSourceRange());
-        report->addVisitorCreator(bugreporter::registerVarDeclsLastStore, RHS);
+        FindLastStoreBRVisitor::registerStatementVarDecls(*report, RHS);
       }
 
       BR.EmitReport(report);
@@ -532,12 +535,12 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
                                                       const CFGBlock *CB,
                                                       const CoreEngine &CE) {
 
-  CFGReachabilityAnalysis *CRA = AC->getCFGReachablityAnalysis();
+  CFGReverseBlockReachabilityAnalysis *CRA = AC->getCFGReachablityAnalysis();
   
   // Test for reachability from any aborted blocks to this block
-  typedef CoreEngine::BlocksAborted::const_iterator AbortedIterator;
-  for (AbortedIterator I = CE.blocks_aborted_begin(),
-      E = CE.blocks_aborted_end(); I != E; ++I) {
+  typedef CoreEngine::BlocksExhausted::const_iterator ExhaustedIterator;
+  for (ExhaustedIterator I = CE.blocks_exhausted_begin(),
+      E = CE.blocks_exhausted_end(); I != E; ++I) {
     const BlockEdge &BE =  I->first;
 
     // The destination block on the BlockEdge is the first block that was not
@@ -551,16 +554,25 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
     if (destBlock == CB || CRA->isReachable(destBlock, CB))
       return false;
   }
+
+  // Test for reachability from blocks we just gave up on.
+  typedef CoreEngine::BlocksAborted::const_iterator AbortedIterator;
+  for (AbortedIterator I = CE.blocks_aborted_begin(),
+       E = CE.blocks_aborted_end(); I != E; ++I) {
+    const CFGBlock *destBlock = I->first;
+    if (destBlock == CB || CRA->isReachable(destBlock, CB))
+      return false;
+  }
   
   // For the items still on the worklist, see if they are in blocks that
   // can eventually reach 'CB'.
   class VisitWL : public WorkList::Visitor {
     const CFGStmtMap *CBM;
     const CFGBlock *TargetBlock;
-    CFGReachabilityAnalysis &CRA;
+    CFGReverseBlockReachabilityAnalysis &CRA;
   public:
     VisitWL(const CFGStmtMap *cbm, const CFGBlock *targetBlock,
-            CFGReachabilityAnalysis &cra)
+            CFGReverseBlockReachabilityAnalysis &cra)
       : CBM(cbm), TargetBlock(targetBlock), CRA(cra) {}
     virtual bool visit(const WorkListUnit &U) {
       ProgramPoint P = U.getNode()->getLocation();
@@ -580,7 +592,7 @@ IdempotentOperationChecker::pathWasCompletelyAnalyzed(AnalysisContext *AC,
       if (!B)
         return true;
       
-      return CRA.isReachable(B, TargetBlock);
+      return B == TargetBlock || CRA.isReachable(B, TargetBlock);
     }
   };
   VisitWL visitWL(AC->getCFGStmtMap(), CB, *CRA);
@@ -641,9 +653,10 @@ bool IdempotentOperationChecker::CanVary(const Expr *Ex,
     return false;
 
   // Cases requiring custom logic
-  case Stmt::SizeOfAlignOfExprClass: {
-    const SizeOfAlignOfExpr *SE = cast<const SizeOfAlignOfExpr>(Ex);
-    if (!SE->isSizeOf())
+  case Stmt::UnaryExprOrTypeTraitExprClass: {
+    const UnaryExprOrTypeTraitExpr *SE = 
+                       cast<const UnaryExprOrTypeTraitExpr>(Ex);
+    if (SE->getKind() != UETT_SizeOf)
       return false;
     return SE->getTypeOfArgument()->isVariableArrayType();
   }

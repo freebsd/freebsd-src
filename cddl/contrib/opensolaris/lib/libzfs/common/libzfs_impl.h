@@ -21,6 +21,9 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 #ifndef	_LIBFS_IMPL_H
@@ -114,7 +117,7 @@ struct zpool_handle {
 	diskaddr_t zpool_start_block;
 };
 
-typedef  enum {
+typedef enum {
 	PROTO_NFS = 0,
 	PROTO_SMB = 1,
 	PROTO_END = 2
@@ -146,6 +149,7 @@ int zpool_standard_error_fmt(libzfs_handle_t *, int, const char *, ...);
 
 int get_dependents(libzfs_handle_t *, boolean_t, const char *, char ***,
     size_t *);
+zfs_handle_t *make_dataset_handle_zc(libzfs_handle_t *, zfs_cmd_t *);
 
 
 int zprop_parse_value(libzfs_handle_t *, nvpair_t *, int, zfs_type_t,
@@ -158,7 +162,11 @@ int zprop_expand_list(libzfs_handle_t *hdl, zprop_list_t **plp,
  * on each change node regardless of whether or not it is currently
  * mounted.
  */
-#define	CL_GATHER_MOUNT_ALWAYS	1
+#define	CL_GATHER_MOUNT_ALWAYS	0x01
+/*
+ * Use this changelist_gather() flag to prevent unmounting of file systems.
+ */
+#define	CL_GATHER_DONT_UNMOUNT	0x02
 
 typedef struct prop_changelist prop_changelist_t;
 

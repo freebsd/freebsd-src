@@ -41,7 +41,8 @@
 #include <algorithm>
 using namespace llvm;
 
-STATISTIC(NumSpills  , "Number of register spills");
+STATISTIC(NumSpillSlots, "Number of spill slots allocated");
+STATISTIC(NumIdCopies,   "Number of identity moves eliminated after rewriting");
 
 //===----------------------------------------------------------------------===//
 //  VirtRegMap implementation
@@ -110,6 +111,7 @@ unsigned VirtRegMap::createSpillSlot(const TargetRegisterClass *RC) {
   unsigned Idx = SS-LowSpillSlot;
   while (Idx >= SpillSlotToUsesMap.size())
     SpillSlotToUsesMap.resize(SpillSlotToUsesMap.size()*2);
+  ++NumSpillSlots;
   return SS;
 }
 
@@ -129,7 +131,6 @@ int VirtRegMap::assignVirt2StackSlot(unsigned virtReg) {
   assert(Virt2StackSlotMap[virtReg] == NO_STACK_SLOT &&
          "attempt to assign stack slot to already spilled register");
   const TargetRegisterClass* RC = MF->getRegInfo().getRegClass(virtReg);
-  ++NumSpills;
   return Virt2StackSlotMap[virtReg] = createSpillSlot(RC);
 }
 
@@ -259,7 +260,9 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
   DEBUG(dbgs() << "********** REWRITE VIRTUAL REGISTERS **********\n"
                << "********** Function: "
                << MF->getFunction()->getName() << '\n');
-
+  DEBUG(dump());
+  SmallVector<unsigned, 8> SuperDeads;
+  SmallVector<unsigned, 8> SuperDefs;
   SmallVector<unsigned, 8> SuperKills;
 
   for (MachineFunction::iterator MBBI = MF->begin(), MBBE = MF->end();
@@ -282,13 +285,24 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
         // Preserve semantics of sub-register operands.
         if (MO.getSubReg()) {
           // A virtual register kill refers to the whole register, so we may
-          // have to add <imp-use,kill> operands for the super-register.
-          if (MO.isUse() && MO.isKill() && !MO.isUndef())
+          // have to add <imp-use,kill> operands for the super-register.  A
+          // partial redef always kills and redefines the super-register.
+          if (MO.readsReg() && (MO.isDef() || MO.isKill()))
             SuperKills.push_back(PhysReg);
 
-          // We don't have to deal with sub-register defs because
-          // LiveIntervalAnalysis already added the necessary <imp-def>
-          // operands.
+          if (MO.isDef()) {
+            // The <def,undef> flag only makes sense for sub-register defs, and
+            // we are substituting a full physreg.  An <imp-use,kill> operand
+            // from the SuperKills list will represent the partial read of the
+            // super-register.
+            MO.setIsUndef(false);
+
+            // Also add implicit defs for the super-register.
+            if (MO.isDead())
+              SuperDeads.push_back(PhysReg);
+            else
+              SuperDefs.push_back(PhysReg);
+          }
 
           // PhysReg operands cannot have subregister indexes.
           PhysReg = TRI->getSubReg(PhysReg, MO.getSubReg());
@@ -305,16 +319,29 @@ void VirtRegMap::rewrite(SlotIndexes *Indexes) {
       while (!SuperKills.empty())
         MI->addRegisterKilled(SuperKills.pop_back_val(), TRI, true);
 
+      while (!SuperDeads.empty())
+        MI->addRegisterDead(SuperDeads.pop_back_val(), TRI, true);
+
+      while (!SuperDefs.empty())
+        MI->addRegisterDefined(SuperDefs.pop_back_val(), TRI);
+
       DEBUG(dbgs() << "> " << *MI);
 
       // Finally, remove any identity copies.
       if (MI->isIdentityCopy()) {
-        DEBUG(dbgs() << "Deleting identity copy.\n");
-        RemoveMachineInstrFromMaps(MI);
-        if (Indexes)
-          Indexes->removeMachineInstrFromMaps(MI);
-        // It's safe to erase MI because MII has already been incremented.
-        MI->eraseFromParent();
+        ++NumIdCopies;
+        if (MI->getNumOperands() == 2) {
+          DEBUG(dbgs() << "Deleting identity copy.\n");
+          RemoveMachineInstrFromMaps(MI);
+          if (Indexes)
+            Indexes->removeMachineInstrFromMaps(MI);
+          // It's safe to erase MI because MII has already been incremented.
+          MI->eraseFromParent();
+        } else {
+          // Transform identity copy to a KILL to deal with subregisters.
+          MI->setDesc(TII->get(TargetOpcode::KILL));
+          DEBUG(dbgs() << "Identity copy: " << *MI);
+        }
       }
     }
   }

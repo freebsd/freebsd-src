@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004-2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004-2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 1999-2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: lib.h,v 1.14 2007/06/19 23:47:18 tbox Exp $ */
+/* $Id: lib.h,v 1.16 2009-09-02 23:48:03 tbox Exp $ */
 
 #ifndef ISC_LIB_H
 #define ISC_LIB_H 1
@@ -34,6 +34,15 @@ isc_lib_initmsgcat(void);
 /*!<
  * \brief Initialize the ISC library's message catalog, isc_msgcat, if it
  * has not already been initialized.
+ */
+
+void
+isc_lib_register(void);
+/*!<
+ * \brief Register the ISC library implementations for some base services
+ * such as memory or event management and handling socket or timer events.
+ * An external application that wants to use the ISC library must call this
+ * function very early in main().
  */
 
 ISC_LANG_ENDDECLS

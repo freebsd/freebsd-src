@@ -487,7 +487,7 @@ vect_pattern_recog_1 (
     }
   else
     {
-      enum tree_code vec_mode;
+      enum machine_mode vec_mode;
       enum insn_code icode;
       optab optab;
 
@@ -499,8 +499,9 @@ vect_pattern_recog_1 (
           || (icode = optab->handlers[(int) vec_mode].insn_code) ==
               CODE_FOR_nothing
           || (type_out
-              && (insn_data[icode].operand[0].mode !=
-                  TYPE_MODE (get_vectype_for_scalar_type (type_out)))))
+              && (!get_vectype_for_scalar_type (type_out)
+                  || (insn_data[icode].operand[0].mode !=
+                      TYPE_MODE (get_vectype_for_scalar_type (type_out))))))
 	return;
     }
 

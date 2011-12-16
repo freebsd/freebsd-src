@@ -346,7 +346,7 @@ failure_finish(void *extra)
 	if (dump_on_failure) {
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
-		*(char *)(NULL) = 0;
+		abort();
 		exit(1);
 	}
 }
@@ -484,6 +484,22 @@ wcsdump(const char *e, const wchar_t *w)
 	}
 	logprintf("\"\n");
 }
+
+#ifndef HAVE_WCSCMP
+static int
+wcscmp(const wchar_t *s1, const wchar_t *s2)
+{
+
+	while (*s1 == *s2++) {
+		if (*s1++ == L'\0')
+			return 0;
+	}
+	if (*s1 > *--s2)
+		return 1;
+	else
+		return -1;
+}
+#endif
 
 /* Verify that two wide strings are equal, dump them if not. */
 int

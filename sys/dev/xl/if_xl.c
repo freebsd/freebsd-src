@@ -127,6 +127,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/rman.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #include <dev/pci/pcireg.h>
@@ -160,7 +161,7 @@ MODULE_DEPEND(xl, miibus, 1, 1, 1);
 /*
  * Various supported device vendors/types and their names.
  */
-static const struct xl_type xl_devs[] = {
+static const struct xl_type const xl_devs[] = {
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT,
 		"3Com 3c900-TPO Etherlink XL" },
 	{ TC_VENDORID, TC_DEVICEID_BOOMERANG_10BT_COMBO,
@@ -225,8 +226,8 @@ static int xl_attach(device_t);
 static int xl_detach(device_t);
 
 static int xl_newbuf(struct xl_softc *, struct xl_chain_onefrag *);
-static void xl_stats_update(void *);
-static void xl_stats_update_locked(struct xl_softc *);
+static void xl_tick(void *);
+static void xl_stats_update(struct xl_softc *);
 static int xl_encap(struct xl_softc *, struct xl_chain *, struct mbuf **);
 static int xl_rxeof(struct xl_softc *);
 static void xl_rxeof_task(void *, int);
@@ -258,15 +259,12 @@ static void xl_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 
 static int xl_eeprom_wait(struct xl_softc *);
 static int xl_read_eeprom(struct xl_softc *, caddr_t, int, int, int);
-static void xl_mii_sync(struct xl_softc *);
-static void xl_mii_send(struct xl_softc *, u_int32_t, int);
-static int xl_mii_readreg(struct xl_softc *, struct xl_mii_frame *);
-static int xl_mii_writereg(struct xl_softc *, struct xl_mii_frame *);
 
+static void xl_rxfilter(struct xl_softc *);
+static void xl_rxfilter_90x(struct xl_softc *);
+static void xl_rxfilter_90xB(struct xl_softc *);
 static void xl_setcfg(struct xl_softc *);
 static void xl_setmode(struct xl_softc *, int);
-static void xl_setmulti(struct xl_softc *);
-static void xl_setmulti_hash(struct xl_softc *);
 static void xl_reset(struct xl_softc *);
 static int xl_list_rx_init(struct xl_softc *);
 static int xl_list_tx_init(struct xl_softc *);
@@ -285,6 +283,24 @@ static int xl_miibus_writereg(device_t, int, int, int);
 static void xl_miibus_statchg(device_t);
 static void xl_miibus_mediainit(device_t);
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t xl_mii_bitbang_read(device_t);
+static void xl_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops xl_mii_bitbang_ops = {
+	xl_mii_bitbang_read,
+	xl_mii_bitbang_write,
+	{
+		XL_MII_DATA,		/* MII_BIT_MDO */
+		XL_MII_DATA,		/* MII_BIT_MDI */
+		XL_MII_CLK,		/* MII_BIT_MDC */
+		XL_MII_DIR,		/* MII_BIT_DIR_HOST_PHY */
+		0,			/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 static device_method_t xl_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		xl_probe),
@@ -294,17 +310,13 @@ static device_method_t xl_methods[] = {
 	DEVMETHOD(device_suspend,	xl_suspend),
 	DEVMETHOD(device_resume,	xl_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	xl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	xl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	xl_miibus_statchg),
 	DEVMETHOD(miibus_mediainit,	xl_miibus_mediainit),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t xl_driver = {
@@ -333,7 +345,7 @@ xl_dma_map_addr(void *arg, bus_dma_segment_t *segs, int nseg, int error)
  * only a finite amount of time to avoid getting caught in an
  * infinite loop. Normally this delay routine would be a macro,
  * but it isn't called during normal operation so we can afford
- * to make it a function.
+ * to make it a function.  Suppress warning when card gone.
  */
 static void
 xl_wait(struct xl_softc *sc)
@@ -345,7 +357,7 @@ xl_wait(struct xl_softc *sc)
 			break;
 	}
 
-	if (i == XL_TIMEOUT)
+	if (i == XL_TIMEOUT && bus_child_present(sc->xl_dev))
 		device_printf(sc->xl_dev, "command never completed!\n");
 }
 
@@ -358,194 +370,66 @@ xl_wait(struct xl_softc *sc)
  * some chips/CPUs/processor speeds/bus speeds/etc but not
  * with others.
  */
-#define MII_SET(x)					\
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) | (x))
-
-#define MII_CLR(x)					\
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,			\
-		CSR_READ_2(sc, XL_W4_PHY_MGMT) & ~(x))
 
 /*
- * Sync the PHYs by setting data bit and strobing the clock 32 times.
+ * Read the MII serial port for the MII bit-bang module.
+ */
+static uint32_t
+xl_mii_bitbang_read(device_t dev)
+{
+	struct xl_softc		*sc;
+	uint32_t		val;
+
+	sc = device_get_softc(dev);
+
+	/* We're already in window 4. */
+	val = CSR_READ_2(sc, XL_W4_PHY_MGMT);
+	CSR_BARRIER(sc, XL_W4_PHY_MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
+
+	return (val);
+}
+
+/*
+ * Write the MII serial port for the MII bit-bang module.
  */
 static void
-xl_mii_sync(struct xl_softc *sc)
+xl_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	register int		i;
+	struct xl_softc		*sc;
 
-	XL_SEL_WIN(4);
-	MII_SET(XL_MII_DIR|XL_MII_DATA);
+	sc = device_get_softc(dev);
 
-	for (i = 0; i < 32; i++) {
-		MII_SET(XL_MII_CLK);
-		MII_SET(XL_MII_DATA);
-		MII_SET(XL_MII_DATA);
-		MII_CLR(XL_MII_CLK);
-		MII_SET(XL_MII_DATA);
-		MII_SET(XL_MII_DATA);
-	}
-}
-
-/*
- * Clock a series of bits through the MII.
- */
-static void
-xl_mii_send(struct xl_softc *sc, u_int32_t bits, int cnt)
-{
-	int			i;
-
-	XL_SEL_WIN(4);
-	MII_CLR(XL_MII_CLK);
-
-	for (i = (0x1 << (cnt - 1)); i; i >>= 1) {
-		if (bits & i) {
-			MII_SET(XL_MII_DATA);
-		} else {
-			MII_CLR(XL_MII_DATA);
-		}
-		MII_CLR(XL_MII_CLK);
-		MII_SET(XL_MII_CLK);
-	}
-}
-
-/*
- * Read an PHY register through the MII.
- */
-static int
-xl_mii_readreg(struct xl_softc *sc, struct xl_mii_frame *frame)
-{
-	int			i, ack;
-
-	/* Set up frame for RX. */
-	frame->mii_stdelim = XL_MII_STARTDELIM;
-	frame->mii_opcode = XL_MII_READOP;
-	frame->mii_turnaround = 0;
-	frame->mii_data = 0;
-
-	/* Select register window 4. */
-	XL_SEL_WIN(4);
-
-	CSR_WRITE_2(sc, XL_W4_PHY_MGMT, 0);
-	/* Turn on data xmit. */
-	MII_SET(XL_MII_DIR);
-
-	xl_mii_sync(sc);
-
-	/* Send command/address info. */
-	xl_mii_send(sc, frame->mii_stdelim, 2);
-	xl_mii_send(sc, frame->mii_opcode, 2);
-	xl_mii_send(sc, frame->mii_phyaddr, 5);
-	xl_mii_send(sc, frame->mii_regaddr, 5);
-
-	/* Idle bit */
-	MII_CLR((XL_MII_CLK|XL_MII_DATA));
-	MII_SET(XL_MII_CLK);
-
-	/* Turn off xmit. */
-	MII_CLR(XL_MII_DIR);
-
-	/* Check for ack */
-	MII_CLR(XL_MII_CLK);
-	ack = CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA;
-	MII_SET(XL_MII_CLK);
-
-	/*
-	 * Now try reading data bits. If the ack failed, we still
-	 * need to clock through 16 cycles to keep the PHY(s) in sync.
-	 */
-	if (ack) {
-		for (i = 0; i < 16; i++) {
-			MII_CLR(XL_MII_CLK);
-			MII_SET(XL_MII_CLK);
-		}
-		goto fail;
-	}
-
-	for (i = 0x8000; i; i >>= 1) {
-		MII_CLR(XL_MII_CLK);
-		if (!ack) {
-			if (CSR_READ_2(sc, XL_W4_PHY_MGMT) & XL_MII_DATA)
-				frame->mii_data |= i;
-		}
-		MII_SET(XL_MII_CLK);
-	}
-
-fail:
-	MII_CLR(XL_MII_CLK);
-	MII_SET(XL_MII_CLK);
-
-	return (ack ? 1 : 0);
-}
-
-/*
- * Write to a PHY register through the MII.
- */
-static int
-xl_mii_writereg(struct xl_softc *sc, struct xl_mii_frame *frame)
-{
-
-	/* Set up frame for TX. */
-	frame->mii_stdelim = XL_MII_STARTDELIM;
-	frame->mii_opcode = XL_MII_WRITEOP;
-	frame->mii_turnaround = XL_MII_TURNAROUND;
-
-	/* Select the window 4. */
-	XL_SEL_WIN(4);
-
-	/* Turn on data output. */
-	MII_SET(XL_MII_DIR);
-
-	xl_mii_sync(sc);
-
-	xl_mii_send(sc, frame->mii_stdelim, 2);
-	xl_mii_send(sc, frame->mii_opcode, 2);
-	xl_mii_send(sc, frame->mii_phyaddr, 5);
-	xl_mii_send(sc, frame->mii_regaddr, 5);
-	xl_mii_send(sc, frame->mii_turnaround, 2);
-	xl_mii_send(sc, frame->mii_data, 16);
-
-	/* Idle bit. */
-	MII_SET(XL_MII_CLK);
-	MII_CLR(XL_MII_CLK);
-
-	/* Turn off xmit. */
-	MII_CLR(XL_MII_DIR);
-
-	return (0);
+	/* We're already in window 4. */
+	CSR_WRITE_2(sc, XL_W4_PHY_MGMT,	val);
+	CSR_BARRIER(sc, XL_W4_PHY_MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 static int
 xl_miibus_readreg(device_t dev, int phy, int reg)
 {
 	struct xl_softc		*sc;
-	struct xl_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
+	/* Select the window 4. */
+	XL_SEL_WIN(4);
 
-	xl_mii_readreg(sc, &frame);
-
-	return (frame.mii_data);
+	return (mii_bitbang_readreg(dev, &xl_mii_bitbang_ops, phy, reg));
 }
 
 static int
 xl_miibus_writereg(device_t dev, int phy, int reg, int data)
 {
 	struct xl_softc		*sc;
-	struct xl_mii_frame	frame;
 
 	sc = device_get_softc(dev);
 
-	bzero((char *)&frame, sizeof(frame));
-	frame.mii_phyaddr = phy;
-	frame.mii_regaddr = reg;
-	frame.mii_data = data;
+	/* Select the window 4. */
+	XL_SEL_WIN(4);
 
-	xl_mii_writereg(sc, &frame);
+	mii_bitbang_writereg(dev, &xl_mii_bitbang_ops, phy, reg, data);
 
 	return (0);
 }
@@ -701,101 +585,133 @@ xl_read_eeprom(struct xl_softc *sc, caddr_t dest, int off, int cnt, int swap)
 	return (err ? 1 : 0);
 }
 
+static void
+xl_rxfilter(struct xl_softc *sc)
+{
+
+	if (sc->xl_type == XL_TYPE_905B)
+		xl_rxfilter_90xB(sc);
+	else
+		xl_rxfilter_90x(sc);
+}
+
 /*
  * NICs older than the 3c905B have only one multicast option, which
  * is to enable reception of all multicast frames.
  */
 static void
-xl_setmulti(struct xl_softc *sc)
+xl_rxfilter_90x(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
+	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
 	u_int8_t		rxfilt;
-	int			mcnt = 0;
 
 	XL_LOCK_ASSERT(sc);
 
+	ifp = sc->xl_ifp;
+
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
+	rxfilt &= ~(XL_RXFILTER_ALLFRAMES | XL_RXFILTER_ALLMULTI |
+	    XL_RXFILTER_BROADCAST | XL_RXFILTER_INDIVIDUAL);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-		return;
+	/* Set the individual bit to receive frames for this host only. */
+	rxfilt |= XL_RXFILTER_INDIVIDUAL;
+	/* Set capture broadcast bit to capture broadcast frames. */
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxfilt |= XL_RXFILTER_BROADCAST;
+
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (ifp->if_flags & IFF_PROMISC)
+			rxfilt |= XL_RXFILTER_ALLFRAMES;
+		if (ifp->if_flags & IFF_ALLMULTI)
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+	} else {
+		if_maddr_rlock(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+			break;
+		}
+		if_maddr_runlock(ifp);
 	}
 
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link)
-		mcnt++;
-	if_maddr_runlock(ifp);
-
-	if (mcnt)
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-	else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
-
-	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
+	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
+	XL_SEL_WIN(7);
 }
 
 /*
  * 3c905B adapters have a hash filter that we can program.
  */
 static void
-xl_setmulti_hash(struct xl_softc *sc)
+xl_rxfilter_90xB(struct xl_softc *sc)
 {
-	struct ifnet		*ifp = sc->xl_ifp;
-	int			h = 0, i;
+	struct ifnet		*ifp;
 	struct ifmultiaddr	*ifma;
+	int			i, mcnt;
+	u_int16_t		h;
 	u_int8_t		rxfilt;
-	int			mcnt = 0;
 
 	XL_LOCK_ASSERT(sc);
 
+	ifp = sc->xl_ifp;
+
 	XL_SEL_WIN(5);
 	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
+	rxfilt &= ~(XL_RXFILTER_ALLFRAMES | XL_RXFILTER_ALLMULTI |
+	    XL_RXFILTER_BROADCAST | XL_RXFILTER_INDIVIDUAL |
+	    XL_RXFILTER_MULTIHASH);
 
-	if (ifp->if_flags & IFF_ALLMULTI) {
-		rxfilt |= XL_RXFILTER_ALLMULTI;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-		return;
-	} else
-		rxfilt &= ~XL_RXFILTER_ALLMULTI;
+	/* Set the individual bit to receive frames for this host only. */
+	rxfilt |= XL_RXFILTER_INDIVIDUAL;
+	/* Set capture broadcast bit to capture broadcast frames. */
+	if (ifp->if_flags & IFF_BROADCAST)
+		rxfilt |= XL_RXFILTER_BROADCAST;
 
-	/* first, zot all the existing hash bits */
-	for (i = 0; i < XL_HASHFILT_SIZE; i++)
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH|i);
+	/* If we want promiscuous mode, set the allframes bit. */
+	if (ifp->if_flags & (IFF_PROMISC | IFF_ALLMULTI)) {
+		if (ifp->if_flags & IFF_PROMISC)
+			rxfilt |= XL_RXFILTER_ALLFRAMES;
+		if (ifp->if_flags & IFF_ALLMULTI)
+			rxfilt |= XL_RXFILTER_ALLMULTI;
+	} else {
+		/* First, zot all the existing hash bits. */
+		for (i = 0; i < XL_HASHFILT_SIZE; i++)
+			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_HASH | i);
 
-	/* now program new ones */
-	if_maddr_rlock(ifp);
-	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-		if (ifma->ifma_addr->sa_family != AF_LINK)
-			continue;
-		/*
-		 * Note: the 3c905B currently only supports a 64-bit hash
-		 * table, which means we really only need 6 bits, but the
-		 * manual indicates that future chip revisions will have a
-		 * 256-bit hash table, hence the routine is set up to
-		 * calculate 8 bits of position info in case we need it some
-		 * day.
-		 * Note II, The Sequel: _CURRENT_ versions of the 3c905B have
-		 * a 256 bit hash table. This means we have to use all 8 bits
-		 * regardless. On older cards, the upper 2 bits will be
-		 * ignored. Grrrr....
-		 */
-		h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
-		    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
-		CSR_WRITE_2(sc, XL_COMMAND,
-		    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
-		mcnt++;
+		/* Now program new ones. */
+		mcnt = 0;
+		if_maddr_rlock(ifp);
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
+			if (ifma->ifma_addr->sa_family != AF_LINK)
+				continue;
+			/*
+			 * Note: the 3c905B currently only supports a 64-bit
+			 * hash table, which means we really only need 6 bits,
+			 * but the manual indicates that future chip revisions
+			 * will have a 256-bit hash table, hence the routine
+			 * is set up to calculate 8 bits of position info in
+			 * case we need it some day.
+			 * Note II, The Sequel: _CURRENT_ versions of the
+			 * 3c905B have a 256 bit hash table. This means we have
+			 * to use all 8 bits regardless.  On older cards, the
+			 * upper 2 bits will be ignored. Grrrr....
+			 */
+			h = ether_crc32_be(LLADDR((struct sockaddr_dl *)
+			    ifma->ifma_addr), ETHER_ADDR_LEN) & 0xFF;
+			CSR_WRITE_2(sc, XL_COMMAND,
+			    h | XL_CMD_RX_SET_HASH | XL_HASH_SET);
+			mcnt++;
+		}
+		if_maddr_runlock(ifp);
+		if (mcnt > 0)
+			rxfilt |= XL_RXFILTER_MULTIHASH;
 	}
-	if_maddr_runlock(ifp);
-
-	if (mcnt)
-		rxfilt |= XL_RXFILTER_MULTIHASH;
-	else
-		rxfilt &= ~XL_RXFILTER_MULTIHASH;
 
 	CSR_WRITE_2(sc, XL_COMMAND, rxfilt | XL_CMD_RX_SET_FILT);
+	XL_SEL_WIN(7);
 }
 
 static void
@@ -1297,7 +1213,7 @@ xl_attach(device_t dev)
 		goto fail;
 	}
 
-	callout_init_mtx(&sc->xl_stat_callout, &sc->xl_mtx, 0);
+	callout_init_mtx(&sc->xl_tick_callout, &sc->xl_mtx, 0);
 	TASK_INIT(&sc->xl_task, 0, xl_rxeof_task, sc);
 
 	/*
@@ -1407,7 +1323,7 @@ xl_attach(device_t dev)
 
 	/* Check availability of WOL. */
 	if ((sc->xl_caps & XL_CAPS_PWRMGMT) != 0 &&
-	    pci_find_extcap(dev, PCIY_PMG, &pmcap) == 0) {
+	    pci_find_cap(dev, PCIY_PMG, &pmcap) == 0) {
 		sc->xl_pmcap = pmcap;
 		sc->xl_flags |= XL_FLAG_WOL;
 		sinfo2 = 0;
@@ -1662,7 +1578,7 @@ xl_detach(device_t dev)
 		xl_stop(sc);
 		XL_UNLOCK(sc);
 		taskqueue_drain(taskqueue_swi, &sc->xl_task);
-		callout_drain(&sc->xl_stat_callout);
+		callout_drain(&sc->xl_tick_callout);
 		ether_ifdetach(ifp);
 	}
 	if (sc->xl_miibus)
@@ -1871,8 +1787,8 @@ xl_newbuf(struct xl_softc *sc, struct xl_chain_onefrag *c)
 	sc->xl_tmpmap = map;
 	c->xl_mbuf = m_new;
 	c->xl_ptr->xl_frag.xl_len = htole32(m_new->m_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = 0;
 	c->xl_ptr->xl_frag.xl_addr = htole32(segs->ds_addr);
+	c->xl_ptr->xl_status = 0;
 	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREREAD);
 	return (0);
 }
@@ -1911,7 +1827,7 @@ xl_rxeof(struct xl_softc *sc)
 	struct mbuf		*m;
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_chain_onefrag	*cur_rx;
-	int			total_len = 0;
+	int			total_len;
 	int			rx_npkts = 0;
 	u_int32_t		rxstat;
 
@@ -1930,6 +1846,7 @@ again:
 		cur_rx = sc->xl_cdata.xl_rx_head;
 		sc->xl_cdata.xl_rx_head = cur_rx->xl_next;
 		total_len = rxstat & XL_RXSTAT_LENMASK;
+		rx_npkts++;
 
 		/*
 		 * Since we have told the chip to allow large frames,
@@ -2014,7 +1931,6 @@ again:
 		XL_UNLOCK(sc);
 		(*ifp->if_input)(ifp, m);
 		XL_LOCK(sc);
-		rx_npkts++;
 
 		/*
 		 * If we are running from the taskqueue, the interface
@@ -2174,7 +2090,7 @@ xl_txeoc(struct xl_softc *sc)
 			txstat & XL_TXSTATUS_JABBER ||
 			txstat & XL_TXSTATUS_RECLAIM) {
 			device_printf(sc->xl_dev,
-			    "transmission error: %x\n", txstat);
+			    "transmission error: 0x%02x\n", txstat);
 			CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_RESET);
 			xl_wait(sc);
 			if (sc->xl_type == XL_TYPE_905B) {
@@ -2187,11 +2103,14 @@ xl_txeoc(struct xl_softc *sc)
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    c->xl_phys);
 					CSR_WRITE_1(sc, XL_DOWN_POLL, 64);
+					sc->xl_wdog_timer = 5;
 				}
 			} else {
-				if (sc->xl_cdata.xl_tx_head != NULL)
+				if (sc->xl_cdata.xl_tx_head != NULL) {
 					CSR_WRITE_4(sc, XL_DOWNLIST_PTR,
 					    sc->xl_cdata.xl_tx_head->xl_phys);
+					sc->xl_wdog_timer = 5;
+				}
 			}
 			/*
 			 * Remember to set this for the
@@ -2240,17 +2159,17 @@ xl_intr(void *arg)
 	}
 #endif
 
-	while ((status = CSR_READ_2(sc, XL_STATUS)) & XL_INTRS &&
-	    status != 0xFFFF) {
+	for (;;) {
+		status = CSR_READ_2(sc, XL_STATUS);
+		if ((status & XL_INTRS) == 0 || status == 0xFFFF)
+			break;
 		CSR_WRITE_2(sc, XL_COMMAND,
 		    XL_CMD_INTR_ACK|(status & XL_INTRS));
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 
 		if (status & XL_STAT_UP_COMPLETE) {
-			int	curpkts;
-
-			curpkts = ifp->if_ipackets;
-			xl_rxeof(sc);
-			if (curpkts == ifp->if_ipackets) {
+			if (xl_rxeof(sc) == 0) {
 				while (xl_rx_resync(sc))
 					xl_rxeof(sc);
 			}
@@ -2271,16 +2190,15 @@ xl_intr(void *arg)
 		if (status & XL_STAT_ADFAIL) {
 			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 			xl_init_locked(sc);
+			break;
 		}
 
-		if (status & XL_STAT_STATSOFLOW) {
-			sc->xl_stats_no_timeout = 1;
-			xl_stats_update_locked(sc);
-			sc->xl_stats_no_timeout = 0;
-		}
+		if (status & XL_STAT_STATSOFLOW)
+			xl_stats_update(sc);
 	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd)) {
+	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
+	    ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		if (sc->xl_type == XL_TYPE_905B)
 			xl_start_90xB_locked(ifp);
 		else
@@ -2344,48 +2262,45 @@ xl_poll_locked(struct ifnet *ifp, enum poll_cmd cmd, int count)
 				xl_init_locked(sc);
 			}
 
-			if (status & XL_STAT_STATSOFLOW) {
-				sc->xl_stats_no_timeout = 1;
-				xl_stats_update_locked(sc);
-				sc->xl_stats_no_timeout = 0;
-			}
+			if (status & XL_STAT_STATSOFLOW)
+				xl_stats_update(sc);
 		}
 	}
 	return (rx_npkts);
 }
 #endif /* DEVICE_POLLING */
 
-/*
- * XXX: This is an entry point for callout which needs to take the lock.
- */
 static void
-xl_stats_update(void *xsc)
+xl_tick(void *xsc)
 {
 	struct xl_softc *sc = xsc;
+	struct mii_data *mii;
 
 	XL_LOCK_ASSERT(sc);
 
+	if (sc->xl_miibus != NULL) {
+		mii = device_get_softc(sc->xl_miibus);
+		mii_tick(mii);
+	}
+
+	xl_stats_update(sc);
 	if (xl_watchdog(sc) == EJUSTRETURN)
 		return;
 
-	xl_stats_update_locked(sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 static void
-xl_stats_update_locked(struct xl_softc *sc)
+xl_stats_update(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	struct xl_stats		xl_stats;
 	u_int8_t		*p;
 	int			i;
-	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
 
 	bzero((char *)&xl_stats, sizeof(struct xl_stats));
-
-	if (sc->xl_miibus != NULL)
-		mii = device_get_softc(sc->xl_miibus);
 
 	p = (u_int8_t *)&xl_stats;
 
@@ -2408,14 +2323,7 @@ xl_stats_update_locked(struct xl_softc *sc)
 	 */
 	XL_SEL_WIN(4);
 	CSR_READ_1(sc, XL_W4_BADSSD);
-
-	if ((mii != NULL) && (!sc->xl_stats_no_timeout))
-		mii_tick(mii);
-
 	XL_SEL_WIN(7);
-
-	if (!sc->xl_stats_no_timeout)
-		callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
 }
 
 /*
@@ -2474,6 +2382,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		*m_head = NULL;
 		return (EIO);
 	}
+	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 
 	total_len = 0;
 	for (i = 0; i < nseg; i++) {
@@ -2485,10 +2394,7 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 		    htole32(sc->xl_cdata.xl_tx_segs[i].ds_len);
 		total_len += sc->xl_cdata.xl_tx_segs[i].ds_len;
 	}
-	c->xl_ptr->xl_frag[nseg - 1].xl_len =
-	    htole32(sc->xl_cdata.xl_tx_segs[nseg - 1].ds_len | XL_LAST_FRAG);
-	c->xl_ptr->xl_status = htole32(total_len);
-	c->xl_ptr->xl_next = 0;
+	c->xl_ptr->xl_frag[nseg - 1].xl_len |= htole32(XL_LAST_FRAG);
 
 	if (sc->xl_type == XL_TYPE_905B) {
 		status = XL_TXSTAT_RND_DEFEAT;
@@ -2503,11 +2409,12 @@ xl_encap(struct xl_softc *sc, struct xl_chain *c, struct mbuf **m_head)
 				status |= XL_TXSTAT_UDPCKSUM;
 		}
 #endif
-		c->xl_ptr->xl_status = htole32(status);
-	}
+	} else
+		status = total_len;
+	c->xl_ptr->xl_status = htole32(status);
+	c->xl_ptr->xl_next = 0;
 
 	c->xl_mbuf = *m_head;
-	bus_dmamap_sync(sc->xl_mtag, c->xl_map, BUS_DMASYNC_PREWRITE);
 	return (0);
 }
 
@@ -2537,9 +2444,9 @@ static void
 xl_start_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
-	u_int32_t		status;
+	struct xl_chain		*prev_tx;
 	int			error;
 
 	XL_LOCK_ASSERT(sc);
@@ -2569,11 +2476,13 @@ xl_start_locked(struct ifnet *ifp)
 			break;
 
 		/* Pick a descriptor off the free list. */
+		prev_tx = cur_tx;
 		cur_tx = sc->xl_cdata.xl_tx_free;
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2611,10 +2520,7 @@ xl_start_locked(struct ifnet *ifp)
 	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
-	    XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
 
 	/*
 	 * Queue the packets. If the TX channel is clear, update
@@ -2627,14 +2533,15 @@ xl_start_locked(struct ifnet *ifp)
 		sc->xl_cdata.xl_tx_tail->xl_next = start_tx;
 		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_next =
 		    htole32(start_tx->xl_phys);
-		status = sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status;
-		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status =
-		    htole32(le32toh(status) & ~XL_TXSTAT_DL_INTR);
+		sc->xl_cdata.xl_tx_tail->xl_ptr->xl_status &=
+		    htole32(~XL_TXSTAT_DL_INTR);
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	} else {
 		sc->xl_cdata.xl_tx_head = start_tx;
 		sc->xl_cdata.xl_tx_tail = cur_tx;
 	}
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 	if (!CSR_READ_4(sc, XL_DOWNLIST_PTR))
 		CSR_WRITE_4(sc, XL_DOWNLIST_PTR, start_tx->xl_phys);
 
@@ -2669,8 +2576,9 @@ static void
 xl_start_90xB_locked(struct ifnet *ifp)
 {
 	struct xl_softc		*sc = ifp->if_softc;
-	struct mbuf		*m_head = NULL;
+	struct mbuf		*m_head;
 	struct xl_chain		*prev = NULL, *cur_tx = NULL, *start_tx;
+	struct xl_chain		*prev_tx;
 	int			error, idx;
 
 	XL_LOCK_ASSERT(sc);
@@ -2693,11 +2601,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 		if (m_head == NULL)
 			break;
 
+		prev_tx = cur_tx;
 		cur_tx = &sc->xl_cdata.xl_tx_chain[idx];
 
 		/* Pack the data into the descriptor. */
 		error = xl_encap(sc, cur_tx, &m_head);
 		if (error) {
+			cur_tx = prev_tx;
 			if (m_head == NULL)
 				break;
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -2733,14 +2643,13 @@ xl_start_90xB_locked(struct ifnet *ifp)
 	 * get an interrupt once for the whole chain rather than
 	 * once for each packet.
 	 */
-	cur_tx->xl_ptr->xl_status = htole32(le32toh(cur_tx->xl_ptr->xl_status) |
-	    XL_TXSTAT_DL_INTR);
-	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
-	    BUS_DMASYNC_PREWRITE);
+	cur_tx->xl_ptr->xl_status |= htole32(XL_TXSTAT_DL_INTR);
 
 	/* Start transmission */
 	sc->xl_cdata.xl_tx_prod = idx;
 	start_tx->xl_prev->xl_ptr->xl_next = htole32(start_tx->xl_phys);
+	bus_dmamap_sync(sc->xl_ldata.xl_tx_tag, sc->xl_ldata.xl_tx_dmamap,
+	    BUS_DMASYNC_PREWRITE);
 
 	/*
 	 * Set a timeout in case the chip goes out to lunch.
@@ -2763,7 +2672,6 @@ xl_init_locked(struct xl_softc *sc)
 {
 	struct ifnet		*ifp = sc->xl_ifp;
 	int			error, i;
-	u_int16_t		rxfilt = 0;
 	struct mii_data		*mii = NULL;
 
 	XL_LOCK_ASSERT(sc);
@@ -2862,39 +2770,7 @@ xl_init_locked(struct xl_softc *sc)
 	}
 
 	/* Set RX filter bits. */
-	XL_SEL_WIN(5);
-	rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
-
-	/* Set the individual bit to receive frames for this host only. */
-	rxfilt |= XL_RXFILTER_INDIVIDUAL;
-
-	/* If we want promiscuous mode, set the allframes bit. */
-	if (ifp->if_flags & IFF_PROMISC) {
-		rxfilt |= XL_RXFILTER_ALLFRAMES;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	} else {
-		rxfilt &= ~XL_RXFILTER_ALLFRAMES;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	}
-
-	/*
-	 * Set capture broadcast bit to capture broadcast frames.
-	 */
-	if (ifp->if_flags & IFF_BROADCAST) {
-		rxfilt |= XL_RXFILTER_BROADCAST;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	} else {
-		rxfilt &= ~XL_RXFILTER_BROADCAST;
-		CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_FILT|rxfilt);
-	}
-
-	/*
-	 * Program the multicast filter, if necessary.
-	 */
-	if (sc->xl_type == XL_TYPE_905B)
-		xl_setmulti_hash(sc);
-	else
-		xl_setmulti(sc);
+	xl_rxfilter(sc);
 
 	/*
 	 * Load the address of the RX list. We have to
@@ -2952,9 +2828,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Clear out the stats counters. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_DISABLE);
-	sc->xl_stats_no_timeout = 1;
-	xl_stats_update_locked(sc);
-	sc->xl_stats_no_timeout = 0;
+	xl_stats_update(sc);
 	XL_SEL_WIN(4);
 	CSR_WRITE_2(sc, XL_W4_NET_DIAG, XL_NETDIAG_UPPER_BYTES_ENABLE);
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_STATS_ENABLE);
@@ -2976,7 +2850,7 @@ xl_init_locked(struct xl_softc *sc)
 
 	/* Set the RX early threshold */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_RX_SET_THRESH|(XL_PACKET_SIZE >>2));
-	CSR_WRITE_2(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
+	CSR_WRITE_4(sc, XL_DMACTL, XL_DMACTL_UP_RX_EARLY);
 
 	/* Enable receiver and transmitter. */
 	CSR_WRITE_2(sc, XL_COMMAND, XL_CMD_TX_ENABLE);
@@ -2995,7 +2869,7 @@ xl_init_locked(struct xl_softc *sc)
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
 	sc->xl_wdog_timer = 0;
-	callout_reset(&sc->xl_stat_callout, hz, xl_stats_update, sc);
+	callout_reset(&sc->xl_tick_callout, hz, xl_tick, sc);
 }
 
 /*
@@ -3123,30 +2997,16 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	struct ifreq		*ifr = (struct ifreq *) data;
 	int			error = 0, mask;
 	struct mii_data		*mii = NULL;
-	u_int8_t		rxfilt;
 
 	switch (command) {
 	case SIOCSIFFLAGS:
 		XL_LOCK(sc);
-
-		XL_SEL_WIN(5);
-		rxfilt = CSR_READ_1(sc, XL_W5_RX_FILTER);
 		if (ifp->if_flags & IFF_UP) {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    ifp->if_flags & IFF_PROMISC &&
-			    !(sc->xl_if_flags & IFF_PROMISC)) {
-				rxfilt |= XL_RXFILTER_ALLFRAMES;
-				CSR_WRITE_2(sc, XL_COMMAND,
-				    XL_CMD_RX_SET_FILT|rxfilt);
-				XL_SEL_WIN(7);
-			} else if (ifp->if_drv_flags & IFF_DRV_RUNNING &&
-			    !(ifp->if_flags & IFF_PROMISC) &&
-			    sc->xl_if_flags & IFF_PROMISC) {
-				rxfilt &= ~XL_RXFILTER_ALLFRAMES;
-				CSR_WRITE_2(sc, XL_COMMAND,
-				    XL_CMD_RX_SET_FILT|rxfilt);
-				XL_SEL_WIN(7);
-			} else
+			    (ifp->if_flags ^ sc->xl_if_flags) &
+			    (IFF_PROMISC | IFF_ALLMULTI))
+				xl_rxfilter(sc);
+			else
 				xl_init_locked(sc);
 		} else {
 			if (ifp->if_drv_flags & IFF_DRV_RUNNING)
@@ -3154,18 +3014,14 @@ xl_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 		}
 		sc->xl_if_flags = ifp->if_flags;
 		XL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		/* XXX Downcall from if_addmulti() possibly with locks held. */
 		XL_LOCK(sc);
-		if (sc->xl_type == XL_TYPE_905B)
-			xl_setmulti_hash(sc);
-		else
-			xl_setmulti(sc);
+		if (ifp->if_drv_flags & IFF_DRV_RUNNING)
+			xl_rxfilter(sc);
 		XL_UNLOCK(sc);
-		error = 0;
 		break;
 	case SIOCGIFMEDIA:
 	case SIOCSIFMEDIA:
@@ -3322,7 +3178,7 @@ xl_stop(struct xl_softc *sc)
 		bus_space_write_4(sc->xl_ftag, sc->xl_fhandle, 4, 0x8000);
 
 	/* Stop the stats updater. */
-	callout_stop(&sc->xl_stat_callout);
+	callout_stop(&sc->xl_tick_callout);
 
 	/*
 	 * Free data in the RX lists.

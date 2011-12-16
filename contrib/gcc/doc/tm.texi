@@ -700,11 +700,11 @@ and possibly @code{unix}; passing @code{_mips} defines @code{__mips},
 defines only @code{_ABI64}.
 
 You can also test for the C dialect being compiled.  The variable
-@code{c_language} is set to one of @code{clk_c}, @code{clk_cplusplus}
-or @code{clk_objective_c}.  Note that if we are preprocessing
-assembler, this variable will be @code{clk_c} but the function-like
-macro @code{preprocessing_asm_p()} will return true, so you might want
-to check for that first.  If you need to check for strict ANSI, the
+@code{c_language} is set to one of @code{clk_c} or
+@code{clk_cplusplus}.  Note that if we are preprocessing assembler,
+this variable will be @code{clk_c} but the function-like macro
+@code{preprocessing_asm_p()} will return true, so you might want to
+check for that first.  If you need to check for strict ANSI, the
 variable @code{flag_iso} can be used.  The function-like macro
 @code{preprocessing_trad_p()} can be used to check for traditional
 preprocessing.
@@ -781,9 +781,8 @@ Don't use this macro to turn on various extra optimizations for
 
 @defmac C_COMMON_OVERRIDE_OPTIONS
 This is similar to @code{OVERRIDE_OPTIONS} but is only used in the C
-language frontends (C, Objective-C, C++, Objective-C++) and so can be
-used to alter option flag variables which only exist in those
-frontends.
+language frontends (C, C++) and so can be used to alter option flag
+variables which only exist in those frontends.
 @end defmac
 
 @defmac OPTIMIZATION_OPTIONS (@var{level}, @var{size})
@@ -5029,16 +5028,6 @@ number of existing systems lacks support for these functions in the runtime so
 they needs this macro to be redefined to 0.
 @end defmac
 
-@defmac NEXT_OBJC_RUNTIME
-Define this macro to generate code for Objective-C message sending using
-the calling convention of the NeXT system.  This calling convention
-involves passing the object, the selector and the method arguments all
-at once to the method-lookup library function.
-
-The default calling convention passes just the object and the selector
-to the lookup function, which returns a pointer to the method.
-@end defmac
-
 @node Addressing Modes
 @section Addressing Modes
 @cindex addressing modes
@@ -7327,47 +7316,6 @@ an undefined weak symbol.
 
 Define this macro if the target only supports weak aliases; define
 @code{ASM_OUTPUT_DEF} instead if possible.
-@end defmac
-
-@defmac OBJC_GEN_METHOD_LABEL (@var{buf}, @var{is_inst}, @var{class_name}, @var{cat_name}, @var{sel_name})
-Define this macro to override the default assembler names used for
-Objective-C methods.
-
-The default name is a unique method number followed by the name of the
-class (e.g.@: @samp{_1_Foo}).  For methods in categories, the name of
-the category is also included in the assembler name (e.g.@:
-@samp{_1_Foo_Bar}).
-
-These names are safe on most systems, but make debugging difficult since
-the method's selector is not present in the name.  Therefore, particular
-systems define other ways of computing names.
-
-@var{buf} is an expression of type @code{char *} which gives you a
-buffer in which to store the name; its length is as long as
-@var{class_name}, @var{cat_name} and @var{sel_name} put together, plus
-50 characters extra.
-
-The argument @var{is_inst} specifies whether the method is an instance
-method or a class method; @var{class_name} is the name of the class;
-@var{cat_name} is the name of the category (or @code{NULL} if the method is not
-in a category); and @var{sel_name} is the name of the selector.
-
-On systems where the assembler can handle quoted names, you can use this
-macro to provide more human-readable names.
-@end defmac
-
-@defmac ASM_DECLARE_CLASS_REFERENCE (@var{stream}, @var{name})
-A C statement (sans semicolon) to output to the stdio stream
-@var{stream} commands to declare that the label @var{name} is an
-Objective-C class reference.  This is only needed for targets whose
-linkers have special support for NeXT-style runtimes.
-@end defmac
-
-@defmac ASM_DECLARE_UNRESOLVED_REFERENCE (@var{stream}, @var{name})
-A C statement (sans semicolon) to output to the stdio stream
-@var{stream} commands to declare that the label @var{name} is an
-unresolved Objective-C class reference.  This is only needed for targets
-whose linkers have special support for NeXT-style runtimes.
 @end defmac
 
 @node Initialization
@@ -9968,9 +9916,4 @@ the front end.
 This macro determines whether to use the JCR section to register Java
 classes. By default, TARGET_USE_JCR_SECTION is defined to 1 if both
 SUPPORTS_WEAK and TARGET_HAVE_NAMED_SECTIONS are true, else 0.
-@end defmac
-
-@defmac OBJC_JBLEN
-This macro determines the size of the objective C jump buffer for the
-NeXT runtime. By default, OBJC_JBLEN is defined to an innocuous value.
 @end defmac

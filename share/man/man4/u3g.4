@@ -18,7 +18,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 7, 2008
+.Dd November 20, 2011
 .Dt U3G 4
 .Os
 .Sh NAME
@@ -29,6 +29,8 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
 .Cd "device u3g"
 .Ed
 .Pp
@@ -93,7 +95,6 @@ and
 .Sh SEE ALSO
 .Xr tty 4 ,
 .Xr ucom 4 ,
-.XR u3g 4 ,
 .Xr usb 4 ,
 .Xr usb_quirk 4 ,
 .Xr usbconfig 5

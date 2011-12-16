@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2004, 2005, 2007  Internet Systems Consortium, Inc. ("ISC")
+ * Copyright (C) 2004, 2005, 2007, 2009  Internet Systems Consortium, Inc. ("ISC")
  * Copyright (C) 2000, 2001  Internet Software Consortium.
  *
  * Permission to use, copy, modify, and/or distribute this software for any
@@ -15,7 +15,7 @@
  * PERFORMANCE OF THIS SOFTWARE.
  */
 
-/* $Id: forward.c,v 1.12 2007/06/19 23:47:16 tbox Exp $ */
+/* $Id: forward.c,v 1.14 2009-09-02 23:48:02 tbox Exp $ */
 
 /*! \file */
 
@@ -133,11 +133,27 @@ dns_fwdtable_add(dns_fwdtable_t *fwdtable, dns_name_t *name,
 }
 
 isc_result_t
+dns_fwdtable_delete(dns_fwdtable_t *fwdtable, dns_name_t *name) {
+	isc_result_t result;
+
+	REQUIRE(VALID_FWDTABLE(fwdtable));
+
+	RWLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
+	result = dns_rbt_deletename(fwdtable->table, name, ISC_FALSE);
+	RWUNLOCK(&fwdtable->rwlock, isc_rwlocktype_write);
+
+	if (result == DNS_R_PARTIALMATCH)
+		result = ISC_R_NOTFOUND;
+
+	return (result);
+}
+
+isc_result_t
 dns_fwdtable_find(dns_fwdtable_t *fwdtable, dns_name_t *name,
 		  dns_forwarders_t **forwardersp)
 {
 	return (dns_fwdtable_find2(fwdtable, name, NULL, forwardersp));
-} 
+}
 
 isc_result_t
 dns_fwdtable_find2(dns_fwdtable_t *fwdtable, dns_name_t *name,

@@ -386,13 +386,12 @@ struct aac_softc
 	struct proc		*aifthread;
 	int			aifflags;
 #define AAC_AIFFLAGS_RUNNING	(1 << 0)
-#define AAC_AIFFLAGS_AIF	(1 << 1)
+#define AAC_AIFFLAGS_UNUSED0	(1 << 1)
 #define	AAC_AIFFLAGS_EXIT	(1 << 2)
 #define AAC_AIFFLAGS_EXITED	(1 << 3)
-#define AAC_AIFFLAGS_PRINTF	(1 << 4)
+#define AAC_AIFFLAGS_UNUSED1	(1 << 4)
 #define	AAC_AIFFLAGS_ALLOCFIBS	(1 << 5)
-#define AAC_AIFFLAGS_PENDING	(AAC_AIFFLAGS_AIF | AAC_AIFFLAGS_PRINTF | \
-				 AAC_AIFFLAGS_ALLOCFIBS)
+#define AAC_AIFFLAGS_PENDING	AAC_AIFFLAGS_ALLOCFIBS
 	u_int32_t		flags;
 #define AAC_FLAGS_PERC2QC	(1 << 0)
 #define	AAC_FLAGS_ENABLE_CAM	(1 << 1)	/* No SCSI passthrough */

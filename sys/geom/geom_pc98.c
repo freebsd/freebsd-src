@@ -43,6 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/bio.h>
 #include <sys/lock.h>
 #include <sys/mutex.h>
+#include <sys/sbuf.h>
 
 #include <sys/diskpc98.h>
 #include <geom/geom.h>

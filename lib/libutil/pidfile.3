@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2008
+.Dd October 16, 2011
 .Dt PIDFILE 3
 .Os
 .Sh NAME
@@ -59,11 +59,14 @@ The
 function opens (or creates) a file specified by the
 .Fa path
 argument and locks it.
-If a file can not be locked, a PID of an already running daemon is returned in
-the
+If
 .Fa pidptr
-argument (if it is not
-.Dv NULL ) .
+argument is not
+.Dv NULL
+and file can not be locked, the function will use it to store a PID of an
+already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
 The function does not write process' PID into the file here, so it can be
 used before
 .Fn fork Ns ing
@@ -162,16 +165,18 @@ function will fail if:
 .It Bq Er EEXIST
 Some process already holds the lock on the given pidfile, meaning that a
 daemon is already running.
+If
+.Fa pidptr
+argument is not
+.Dv NULL
+the function will use it to store a PID of an already running daemon or
+.Li -1
+in case daemon did not write its PID yet.
 .It Bq Er ENAMETOOLONG
 Specified pidfile's name is too long.
 .It Bq Er EINVAL
 Some process already holds the lock on the given pidfile, but PID read
 from there is invalid.
-.It Bq Er EAGAIN
-Some process already holds the lock on the given pidfile, but the file
-is truncated.
-Most likely, the existing daemon is writing new PID into
-the file.
 .El
 .Pp
 The
