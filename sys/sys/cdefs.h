@@ -361,7 +361,7 @@
 #else
 #ifndef __cplusplus
 #define	__offsetof(type, field) \
-	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->member))
+	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
 #else
 #define __offsetof(type, field)					\
   (__offsetof__ (reinterpret_cast <__size_t>			\
