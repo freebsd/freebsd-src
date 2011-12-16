@@ -84,8 +84,11 @@ in_status(int s __unused, const struct ifaddrs *ifa)
 	if (ifa->ifa_flags & IFF_BROADCAST) {
 		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
 		if (sin != NULL && sin->sin_addr.s_addr != 0)
-			printf("broadcast %s", inet_ntoa(sin->sin_addr));
+			printf("broadcast %s ", inet_ntoa(sin->sin_addr));
 	}
+
+	print_vhid(ifa, " ");
+
 	putchar('\n');
 }
 
