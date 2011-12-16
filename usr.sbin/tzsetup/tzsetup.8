@@ -23,7 +23,8 @@
 .\" SUCH DAMAGE.
 .\"
 .\" $FreeBSD$
-.Dd September 05, 2009
+.\"
+.Dd October 21, 2009
 .Dt TZSETUP 8
 .Os
 .Sh NAME
@@ -31,8 +32,9 @@
 .Nd set local timezone
 .Sh SYNOPSIS
 .Nm
-.Op Fl ns
-.Op Ar default
+.Op Fl nrs
+.Op Fl C Ar chroot_directory
+.Op Ar zoneinfo_file | zoneinfo_name
 .Sh DESCRIPTION
 The
 .Nm
@@ -49,17 +51,27 @@ the hardware clock does not keep
 .Pp
 The following option is available:
 .Bl -tag -offset indent -width Fl
+.It Fl C Ar chroot_directory
+Open all files and directories relative to
+.Ar chroot_directory .
 .It Fl n
 Do not create or copy files.
+.It Fl r
+Reinstall the zoneinfo file installed last time.
+The name is obtained from
+.Pa /var/db/zoneinfo .
 .It Fl s
 Skip the initial question about adjusting the clock if not set to
 .Tn UTC .
 .El
 .Pp
-It is possible to short-circuit the menu system by specifying a
-.Ar default
-on the command line; this is intended mainly for pre-configured
-installation scripts.
+It is possible to short-circuit the menu system by specifying the
+location of a
+.Ar zoneinfo_file
+or the name of the
+.Ar zoneinfo_name
+on the command line; this is intended mainly for pre-configured installation
+scripts or people who know which zoneinfo they want to install.
 .Sh TIMEZONE DATABASE
 The contents of the timezone database are indexed by
 .Pa /usr/share/zoneinfo/zone.tab .
@@ -91,12 +103,12 @@ The source code to the database
 contains many additional comments and documentation references for the
 historically minded.
 .Sh FILES
-.Bl -tag -width /usr/share/zoneinfo/zone.tab -compact
+.Bl -tag -width ".Pa /usr/share/zoneinfo/zone.tab" -compact
 .It Pa /etc/localtime
 current time zone file
 .It Pa /etc/wall_cmos_clock
 see
-.Xr adjkerntz 8 .
+.Xr adjkerntz 8
 .It Pa /usr/share/misc/iso3166
 mapping of
 .Tn ISO
@@ -105,7 +117,27 @@ mapping of
 directory for zoneinfo files
 .It Pa /usr/share/zoneinfo/zone.tab
 mapping of timezone file to country and location
+.It Pa /var/db/zoneinfo
+saved name of the timezone file installed last
 .El
+.Sh EXAMPLES
+Normal usage, to select the right zoneinfo file via the dialog-based
+user interface:
+.Dl tzsetup
+.Pp
+Install the file
+.Pa /usr/share/zoneinfo/Australia/Sydney :
+.Dl "tzsetup /usr/share/zoneinfo/Australia/Sydney"
+.Pp
+Install the zoneinfo file for Australia/Sydney, assumed to be located
+in
+.Pa /usr/share/zoneinfo :
+.Dl "tzsetup Australia/Sydney"
+.Pp
+After a reinstall of the zoneinfo files, you can reinstall the
+latest installed zoneinfo file (as specified in
+.Pa /var/db/zoneinfo ) :
+.Dl "tzsetup -r"
 .Sh SEE ALSO
 .Xr date 1 ,
 .Xr adjtime 2 ,
