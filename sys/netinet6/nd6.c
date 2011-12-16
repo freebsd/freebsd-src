@@ -2173,9 +2173,6 @@ nd6_need_cache(struct ifnet *ifp)
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
-#ifdef IFT_CARP
-	case IFT_CARP:
-#endif
 	case IFT_INFINIBAND:
 	case IFT_GIF:		/* XXX need more cases? */
 	case IFT_PPP:

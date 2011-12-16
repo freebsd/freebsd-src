@@ -56,10 +56,12 @@ __FBSDID("$FreeBSD$");
 #include <net/route.h>
 #include <net/vnet.h>
 
+#include <netinet/if_ether.h>
 #include <netinet/in.h>
 #include <netinet/in_var.h>
 #include <netinet/in_pcb.h>
 #include <netinet/ip_var.h>
+#include <netinet/ip_carp.h>
 #include <netinet/igmp_var.h>
 #include <netinet/udp.h>
 #include <netinet/udp_var.h>
@@ -69,17 +71,15 @@ static void in_len2mask(struct in_addr *, int);
 static int in_lifaddr_ioctl(struct socket *, u_long, caddr_t,
 	struct ifnet *, struct thread *);
 
-static int	in_addprefix(struct in_ifaddr *, int);
-static int	in_scrubprefix(struct in_ifaddr *, u_int);
 static void	in_socktrim(struct sockaddr_in *);
-static int	in_ifinit(struct ifnet *,
-	    struct in_ifaddr *, struct sockaddr_in *, int, int);
+static int	in_ifinit(struct ifnet *, struct in_ifaddr *,
+		    struct sockaddr_in *, int, int, int);
 static void	in_purgemaddrs(struct ifnet *);
 
-static VNET_DEFINE(int, sameprefixcarponly);
-#define	V_sameprefixcarponly		VNET(sameprefixcarponly)
-SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, same_prefix_carp_only, CTLFLAG_RW,
-	&VNET_NAME(sameprefixcarponly), 0,
+static VNET_DEFINE(int, nosameprefix);
+#define	V_nosameprefix			VNET(nosameprefix)
+SYSCTL_VNET_INT(_net_inet_ip, OID_AUTO, no_same_prefix, CTLFLAG_RW,
+	&VNET_NAME(nosameprefix), 0,
 	"Refuse to create same prefixes on different interfaces");
 
 VNET_DECLARE(struct inpcbinfo, ripcbinfo);
@@ -517,7 +517,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 
 	case SIOCSIFADDR:
 		error = in_ifinit(ifp, ia,
-		    (struct sockaddr_in *) &ifr->ifr_addr, 1, 0);
+		    (struct sockaddr_in *) &ifr->ifr_addr, 1, 0, 0);
 		if (error != 0 && iaIsNew)
 			break;
 		if (error == 0) {
@@ -570,7 +570,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if (hostIsNew || maskIsNew)
 			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0,
-			    maskIsNew);
+			    maskIsNew, ifra->ifra_vhid);
 		if (error != 0 && iaIsNew)
 			break;
 
@@ -608,6 +608,9 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	default:
 		panic("in_control: unsupported ioctl");
 	}
+
+	if (ia->ia_ifa.ifa_carp)
+		(*carp_detach_p)(&ia->ia_ifa);
 
 	IF_ADDR_LOCK(ifp);
 	/* Re-check that ia is still part of the list. */
@@ -843,7 +846,7 @@ in_ifscrub(struct ifnet *ifp, struct in_ifaddr *ia, u_int flags)
  */
 static int
 in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
-    int scrub, int masksupplied)
+    int scrub, int masksupplied, int vhid)
 {
 	register u_long i = ntohl(sin->sin_addr.s_addr);
 	int flags = RTF_UP, error = 0;
@@ -858,6 +861,15 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	LIST_INSERT_HEAD(INADDR_HASH(ia->ia_addr.sin_addr.s_addr),
 	    ia, ia_hash);
 	IN_IFADDR_WUNLOCK();
+
+	if (vhid > 0) {
+		if (carp_attach_p != NULL)
+			error = (*carp_attach_p)(&ia->ia_ifa, vhid);
+		else
+			error = EPROTONOSUPPORT;
+	}
+	if (error)
+		return (error);
 
 	/*
 	 * Give the interface a chance to initialize
@@ -885,11 +897,6 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	ia->ia_subnet = i & ia->ia_subnetmask;
 	in_socktrim(&ia->ia_sockmask);
 	/*
-	 * XXX: carp(4) does not have interface route
-	 */
-	if (ifp->if_type == IFT_CARP)
-		return (0);
-	/*
 	 * Add route for the network.
 	 */
 	ia->ia_ifa.ifa_metric = ifp->if_metric;
@@ -907,7 +914,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 			return (0);
 		flags |= RTF_HOST;
 	}
-	if ((error = in_addprefix(ia, flags)) != 0)
+	if (!vhid && (error = in_addprefix(ia, flags)) != 0)
 		return (error);
 
 	if (ia->ia_addr.sin_addr.s_addr == INADDR_ANY)
@@ -920,7 +927,7 @@ in_ifinit(struct ifnet *ifp, struct in_ifaddr *ia, struct sockaddr_in *sin,
 	/*
 	 * add a loopback route to self
 	 */
-	if (V_useloopback && !(ifp->if_flags & IFF_LOOPBACK)) {
+	if (V_useloopback && !vhid && !(ifp->if_flags & IFF_LOOPBACK)) {
 		struct route ia_ro;
 
 		bzero(&ia_ro, sizeof(ia_ro));
@@ -992,7 +999,7 @@ static void in_addralias_rtmsg(int cmd, struct in_addr *prefix,
 /*
  * Check if we have a route for the given prefix already or add one accordingly.
  */
-static int
+int
 in_addprefix(struct in_ifaddr *target, int flags)
 {
 	struct in_ifaddr *ia;
@@ -1038,9 +1045,7 @@ in_addprefix(struct in_ifaddr *target, int flags)
 			} else
 				break;
 #endif
-			if (V_sameprefixcarponly &&
-			    target->ia_ifp->if_type != IFT_CARP &&
-			    ia->ia_ifp->if_type != IFT_CARP) {
+			if (V_nosameprefix) {
 				IN_IFADDR_RUNLOCK();
 				return (EEXIST);
 			} else {
@@ -1061,14 +1066,12 @@ in_addprefix(struct in_ifaddr *target, int flags)
 	return (error);
 }
 
-extern void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
-
 /*
  * If there is no other address in the system that can serve a route to the
  * same prefix, remove the route.  Hand over the route to the new address
  * otherwise.
  */
-static int
+int
 in_scrubprefix(struct in_ifaddr *target, u_int flags)
 {
 	struct in_ifaddr *ia;
@@ -1156,13 +1159,8 @@ in_scrubprefix(struct in_ifaddr *target, u_int flags)
 		 * If we got a matching prefix address, move IFA_ROUTE and
 		 * the route itself to it.  Make sure that routing daemons
 		 * get a heads-up.
-		 *
-		 * XXX: a special case for carp(4) interface - this should
-		 *      be more generally specified as an interface that
-		 *      doesn't support such action.
 		 */
-		if ((ia->ia_flags & IFA_ROUTE) == 0
-		    && (ia->ia_ifp->if_type != IFT_CARP)) {
+		if ((ia->ia_flags & IFA_ROUTE) == 0) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			error = rtinit(&(target->ia_ifa), (int)RTM_DELETE,
@@ -1309,9 +1307,6 @@ in_purgemaddrs(struct ifnet *ifp)
 
 	IN_MULTI_UNLOCK();
 }
-
-#include <net/if_dl.h>
-#include <netinet/if_ether.h>
 
 struct in_llentry {
 	struct llentry		base;

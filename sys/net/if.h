@@ -85,7 +85,7 @@ struct if_data {
 	u_char	ifi_addrlen;		/* media address length */
 	u_char	ifi_hdrlen;		/* media header length */
 	u_char	ifi_link_state;		/* current link state */
-	u_char	ifi_spare_char1;	/* spare byte */
+	u_char	ifi_vhid;		/* carp vhid */
 	u_char	ifi_spare_char2;	/* spare byte */
 	u_char	ifi_datalen;		/* length of this data struct */
 	u_long	ifi_mtu;		/* maximum transmission unit */
@@ -267,6 +267,8 @@ struct ifa_msghdr {
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
 	int	ifam_metric;	/* value of ifa_metric */
+	struct	if_data ifam_data;/* statistics and other data about if or
+				 * address */
 };
 
 /*
@@ -357,6 +359,7 @@ struct ifaliasreq {
 	struct	sockaddr ifra_addr;
 	struct	sockaddr ifra_broadaddr;
 	struct	sockaddr ifra_mask;
+	int	ifra_vhid;
 };
 
 struct ifmediareq {

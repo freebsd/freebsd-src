@@ -139,8 +139,6 @@ static const struct netisr_handler arp_nh = {
 };
 
 #ifdef AF_INET
-void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
-
 /*
  * called by in_ifscrub to remove entry from the table when
  * the interface goes away
@@ -516,7 +514,7 @@ in_arpinput(struct mbuf *m)
 	int op, flags;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-	int carp_match = 0;
+	int carped;
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -561,24 +559,14 @@ in_arpinput(struct mbuf *m)
 	 * For a bridge, we want to check the address irrespective
 	 * of the receive interface. (This will change slightly
 	 * when we have clusters of interfaces).
-	 * If the interface does not match, but the recieving interface
-	 * is part of carp, we call carp_iamatch to see if this is a
-	 * request for the virtual host ip.
-	 * XXX: This is really ugly!
 	 */
 	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
-			ifa_ref(&ia->ia_ifa);
-			IN_IFADDR_RUNLOCK();
-			goto match;
-		}
-		if (ifp->if_carp != NULL &&
-		    (*carp_iamatch_p)(ifp, ia, &isaddr, &enaddr) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
-			carp_match = 1;
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr &&
+		    (ia->ia_ifa.ifa_carp == NULL ||
+		    (*carp_iamatch_p)(&ia->ia_ifa, &enaddr))) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			goto match;
@@ -643,6 +631,7 @@ in_arpinput(struct mbuf *m)
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)IF_LLADDR(ifp);
+	carped = (ia->ia_ifa.ifa_carp != NULL);
 	myaddr = ia->ia_addr.sin_addr;
 	ifa_free(&ia->ia_ifa);
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
@@ -659,9 +648,9 @@ match:
 	 * case we suppress the warning to avoid false positive complaints of
 	 * potential misconfiguration.
 	 */
-	if (!bridged && isaddr.s_addr == myaddr.s_addr && myaddr.s_addr != 0) {
-		log(LOG_ERR,
-		   "arp: %*D is using my IP address %s on %s!\n",
+	if (!bridged && !carped && isaddr.s_addr == myaddr.s_addr &&
+	    myaddr.s_addr != 0) {
+		log(LOG_ERR, "arp: %*D is using my IP address %s on %s!\n",
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 		   inet_ntoa(isaddr), ifp->if_xname);
 		itaddr = myaddr;
@@ -682,7 +671,7 @@ match:
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp && !carp_match) {
+		if (!bridged && la->lle_tbl->llt_ifp != ifp) {
 			if (log_arp_wrong_iface)
 				log(LOG_WARNING, "arp: %s is on %s "
 				    "but got reply from %*D on %s\n",
@@ -878,6 +867,9 @@ void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
 	struct llentry *lle;
+
+	if (ifa->ifa_carp != NULL)
+		return;
 
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY) {
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,

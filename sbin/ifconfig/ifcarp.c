@@ -35,10 +35,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-#include <net/ethernet.h>
 #include <net/if.h>
+#include <net/if_var.h>
+#include <netinet/in.h>
+#include <netinet/in_var.h>
 #include <netinet/ip_carp.h>
-#include <net/route.h>
 
 #include <ctype.h>
 #include <stdio.h>
@@ -52,127 +53,153 @@
 
 static const char *carp_states[] = { CARP_STATES };
 
-void carp_status(int s);
-void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
-void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
-void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
-void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
+static void carp_status(int s);
+static void setcarp_vhid(const char *, int, int, const struct afswtch *rafp);
+static void setcarp_callback(int, void *);
+static void setcarp_advbase(const char *,int, int, const struct afswtch *rafp);
+static void setcarp_advskew(const char *, int, int, const struct afswtch *rafp);
+static void setcarp_passwd(const char *, int, int, const struct afswtch *rafp);
 
-void
+static int carpr_vhid = -1;
+static int carpr_advskew = -1;
+static int carpr_advbase = -1;
+static int carpr_state = -1;
+static unsigned char const *carpr_key;
+
+static void
 carp_status(int s)
 {
-	const char *state;
-	struct carpreq carpr;
+	struct carpreq carpr[CARP_MAXVHID];
+	int i;
 
-	memset((char *)&carpr, 0, sizeof(struct carpreq));
+	bzero(carpr, sizeof(struct carpreq) * CARP_MAXVHID);
+	carpr[0].carpr_count = CARP_MAXVHID;
 	ifr.ifr_data = (caddr_t)&carpr;
 
 	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
 		return;
 
-	if (carpr.carpr_vhid > 0) {
-		if (carpr.carpr_state > CARP_MAXSTATE)
-			state = "<UNKNOWN>";
+	for (i = 0; i < carpr[0].carpr_count; i++) {
+		printf("\tcarp: %s vhid %d advbase %d advskew %d",
+		    carp_states[carpr[i].carpr_state], carpr[i].carpr_vhid,
+		    carpr[i].carpr_advbase, carpr[i].carpr_advskew);
+		if (printkeys && carpr[i].carpr_key[0] != '\0')
+			printf(" key \"%s\"\n", carpr[i].carpr_key);
 		else
-			state = carp_states[carpr.carpr_state];
-
-		printf("\tcarp: %s vhid %d advbase %d advskew %d\n",
-		    state, carpr.carpr_vhid, carpr.carpr_advbase,
-		    carpr.carpr_advskew);
+			printf("\n");
 	}
-
-	return;
-
 }
 
-void
-setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
-{
-	struct carpreq carpr;
-
-	memset((char *)&carpr, 0, sizeof(struct carpreq));
-	ifr.ifr_data = (caddr_t)&carpr;
-
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCGVH");
-
-	memset(carpr.carpr_key, 0, sizeof(carpr.carpr_key));
-	/* XXX Should hash the password into the key here, perhaps? */
-	strlcpy(carpr.carpr_key, val, CARP_KEY_LEN);
-
-	if (ioctl(s, SIOCSVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCSVH");
-
-	return;
-}
-
-void
+static void
 setcarp_vhid(const char *val, int d, int s, const struct afswtch *afp)
 {
-	int vhid;
+
+	carpr_vhid = atoi(val);
+
+	if (carpr_vhid <= 0 || carpr_vhid > CARP_MAXVHID)
+		errx(1, "vhid must be greater than 0 and less than %u",
+		    CARP_MAXVHID);
+
+	switch (afp->af_af) {
+#ifdef INET
+	case AF_INET:
+	    {
+		struct in_aliasreq *ifra;
+
+		ifra = (struct in_aliasreq *)afp->af_addreq;
+		ifra->ifra_vhid = carpr_vhid;
+		break;
+	    }
+#endif
+#ifdef INET6
+	case AF_INET6:
+	    {
+		struct in6_aliasreq *ifra;
+
+		ifra = (struct in6_aliasreq *)afp->af_addreq;
+		ifra->ifra_vhid = carpr_vhid;
+		break;
+	    }
+#endif
+	default:
+		errx(1, "%s doesn't support carp(4)", afp->af_name);
+	}
+
+	callback_register(setcarp_callback, NULL);
+}
+
+static void
+setcarp_callback(int s, void *arg __unused)
+{
 	struct carpreq carpr;
 
-	vhid = atoi(val);
-
-	if (vhid <= 0)
-		errx(1, "vhid must be greater than 0");
-
-	memset((char *)&carpr, 0, sizeof(struct carpreq));
+	bzero(&carpr, sizeof(struct carpreq));
+	carpr.carpr_vhid = carpr_vhid;
+	carpr.carpr_count = 1;
 	ifr.ifr_data = (caddr_t)&carpr;
 
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
+	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1 && errno != ENOENT)
 		err(1, "SIOCGVH");
 
-	carpr.carpr_vhid = vhid;
+	if (carpr_key != NULL)
+		/* XXX Should hash the password into the key here? */
+		strlcpy(carpr.carpr_key, carpr_key, CARP_KEY_LEN);
+	if (carpr_advskew > -1)
+		carpr.carpr_advskew = carpr_advskew;
+	if (carpr_advbase > -1)
+		carpr.carpr_advbase = carpr_advbase;
+	if (carpr_state > -1)
+		carpr.carpr_state = carpr_state;
 
 	if (ioctl(s, SIOCSVH, (caddr_t)&ifr) == -1)
 		err(1, "SIOCSVH");
-
-	return;
 }
 
-void
+static void
+setcarp_passwd(const char *val, int d, int s, const struct afswtch *afp)
+{
+
+	if (carpr_vhid == -1)
+		errx(1, "passwd requires vhid");
+
+	carpr_key = val;
+}
+
+static void
 setcarp_advskew(const char *val, int d, int s, const struct afswtch *afp)
 {
-	int advskew;
-	struct carpreq carpr;
 
-	advskew = atoi(val);
+	if (carpr_vhid == -1)
+		errx(1, "advskew requires vhid");
 
-	memset((char *)&carpr, 0, sizeof(struct carpreq));
-	ifr.ifr_data = (caddr_t)&carpr;
-
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCGVH");
-
-	carpr.carpr_advskew = advskew;
-
-	if (ioctl(s, SIOCSVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCSVH");
-
-	return;
+	carpr_advskew = atoi(val);
 }
 
-void
+static void
 setcarp_advbase(const char *val, int d, int s, const struct afswtch *afp)
 {
-	int advbase;
-	struct carpreq carpr;
 
-	advbase = atoi(val);
+	if (carpr_vhid == -1)
+		errx(1, "advbase requires vhid");
 
-	memset((char *)&carpr, 0, sizeof(struct carpreq));
-	ifr.ifr_data = (caddr_t)&carpr;
+	carpr_advbase = atoi(val);
+}
 
-	if (ioctl(s, SIOCGVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCGVH");
+static void
+setcarp_state(const char *val, int d, int s, const struct afswtch *afp)
+{
+	int i;
 
-	carpr.carpr_advbase = advbase;
+	if (carpr_vhid == -1)
+		errx(1, "state requires vhid");
 
-	if (ioctl(s, SIOCSVH, (caddr_t)&ifr) == -1)
-		err(1, "SIOCSVH");
+	for (i = 0; i <= CARP_MAXSTATE; i++)
+		if (strcasecmp(carp_states[i], val) == 0) {
+			carpr_state = i;
+			return;
+		}
 
-	return;
+	errx(1, "unknown state");
 }
 
 static struct cmd carp_cmds[] = {
@@ -180,6 +207,7 @@ static struct cmd carp_cmds[] = {
 	DEF_CMD_ARG("advskew",	setcarp_advskew),
 	DEF_CMD_ARG("pass",	setcarp_passwd),
 	DEF_CMD_ARG("vhid",	setcarp_vhid),
+	DEF_CMD_ARG("state",	setcarp_state),
 };
 static struct afswtch af_carp = {
 	.af_name	= "af_carp",
