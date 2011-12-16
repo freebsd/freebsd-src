@@ -37,16 +37,23 @@
 enum fw_retval {
 	FW_SUCCESS		= 0,	/* completed sucessfully */
 	FW_EPERM		= 1,	/* operation not permitted */
+	FW_ENOENT		= 2,	/* no such file or directory */
 	FW_EIO			= 5,	/* input/output error; hw bad */
-	FW_ENOEXEC		= 8,	/* Exec format error; inv microcode */
+	FW_ENOEXEC		= 8,	/* exec format error; inv microcode */
 	FW_EAGAIN		= 11,	/* try again */
 	FW_ENOMEM		= 12,	/* out of memory */
 	FW_EFAULT		= 14,	/* bad address; fw bad */
 	FW_EBUSY		= 16,	/* resource busy */
-	FW_EEXIST		= 17,	/* File exists */
+	FW_EEXIST		= 17,	/* file exists */
 	FW_EINVAL		= 22,	/* invalid argument */
+	FW_ENOSPC		= 28,	/* no space left on device */
 	FW_ENOSYS		= 38,	/* functionality not implemented */
 	FW_EPROTO		= 71,	/* protocol error */
+	FW_EADDRINUSE		= 98,	/* address already in use */
+	FW_EADDRNOTAVAIL	= 99,	/* cannot assigned requested address */
+	FW_ENETDOWN		= 100,	/* network is down */
+	FW_ENETUNREACH		= 101,	/* network is unreachable */
+	FW_ENOBUFS		= 105,	/* no buffer space available */
 	FW_ETIMEDOUT		= 110,	/* timeout */
 	FW_EINPROGRESS		= 115,	/* fw internal */
 	FW_SCSI_ABORT_REQUESTED	= 128,	/* */
@@ -62,6 +69,8 @@ enum fw_retval {
 	FW_ERR_RDEV_IMPL_LOGO	= 138,	/* */
 	FW_SCSI_UNDER_FLOW_ERR  = 139,	/* */
 	FW_SCSI_OVER_FLOW_ERR   = 140,	/* */
+	FW_SCSI_DDP_ERR		= 141,	/* DDP error*/
+	FW_SCSI_TASK_ERR	= 142,	/* No SCSI tasks available */
 };
 
 /******************************************************************************
@@ -89,7 +98,7 @@ enum fw_wr_opcodes {
 	FW_RI_INV_LSTAG_WR	= 0x1a,
 	FW_RI_WR		= 0x0d,
 	FW_ISCSI_NODE_WR	= 0x4a,
-	FW_LASTC2E_WR		= 0x4b
+	FW_LASTC2E_WR		= 0x50
 };
 
 /*
@@ -512,8 +521,14 @@ struct fw_eth_tx_pkt_wr {
 	__be64 r3;
 };
 
+#define S_FW_ETH_TX_PKT_WR_IMMDLEN	0
+#define M_FW_ETH_TX_PKT_WR_IMMDLEN	0x1ff
+#define V_FW_ETH_TX_PKT_WR_IMMDLEN(x)	((x) << S_FW_ETH_TX_PKT_WR_IMMDLEN)
+#define G_FW_ETH_TX_PKT_WR_IMMDLEN(x)	\
+    (((x) >> S_FW_ETH_TX_PKT_WR_IMMDLEN) & M_FW_ETH_TX_PKT_WR_IMMDLEN)
+
 struct fw_eth_tx_pkts_wr {
-	__be32 op_immdlen;
+	__be32 op_pkd;
 	__be32 equiq_to_len16;
 	__be32 r3;
 	__be16 plen;
@@ -537,7 +552,7 @@ enum fw_flowc_mnem {
 	FW_FLOWC_MNEM_RCVNXT,
 	FW_FLOWC_MNEM_SNDBUF,
 	FW_FLOWC_MNEM_MSS,
-	FW_FLOWC_MEM_TXDATAPLEN_MAX,
+	FW_FLOWC_MNEM_TXDATAPLEN_MAX,
 };
 
 struct fw_flowc_mnemval {
@@ -1469,21 +1484,128 @@ struct fw_ri_wr {
 #define G_FW_RI_WR_P2PTYPE(x)	\
     (((x) >> S_FW_RI_WR_P2PTYPE) & M_FW_RI_WR_P2PTYPE)
 
-#ifdef FOISCSI
+/******************************************************************************
+ *   S C S I   W O R K   R E Q U E S T s
+ **********************************************/
+
+
+/******************************************************************************
+ *   F O i S C S I   W O R K   R E Q U E S T s
+ **********************************************/
+
+#define	ISCSI_NAME_MAX_LEN	224
+#define	ISCSI_ALIAS_MAX_LEN	224
+
+enum session_type {
+	ISCSI_SESSION_DISCOVERY = 0,
+	ISCSI_SESSION_NORMAL,
+};
+
+enum digest_val {
+	DIGEST_NONE = 0,
+	DIGEST_CRC32,
+	DIGEST_BOTH,
+};
+
+enum fw_iscsi_subops {
+	NODE_ONLINE = 1,
+	SESS_ONLINE,
+	CONN_ONLINE,
+	NODE_OFFLINE,
+	SESS_OFFLINE,
+	CONN_OFFLINE,
+	NODE_STATS,
+	SESS_STATS,
+	CONN_STATS,
+	UPDATE_IOHANDLE,
+};
+
+struct fw_iscsi_node_attr {
+	__u8		name_len;
+	__u8		node_name[ISCSI_NAME_MAX_LEN];
+	__u8		alias_len;
+	__u8		node_alias[ISCSI_ALIAS_MAX_LEN];
+};
+
+struct fw_iscsi_sess_attr {
+	__u8		sess_type;
+	__u8		seq_inorder;
+	__u8		pdu_inorder;
+	__u8		immd_data_en;
+	__u8		init_r2t_en;
+	__u8		erl;
+	__be16		max_conn;
+	__be16		max_r2t;
+	__be16		time2wait;
+	__be16		time2retain;
+	__be32		max_burst;
+	__be32		first_burst;
+};
+
+struct fw_iscsi_conn_attr {
+	__u8		hdr_digest;
+	__u8		data_digest;
+	__be32		max_rcv_dsl;
+	__be16		dst_port;
+	__be32		dst_addr;
+	__be16		src_port;
+	__be32		src_addr;
+	__be32		ping_tmo;
+};
+
+struct fw_iscsi_node_stats {
+	__be16		sess_count;
+	__be16		chap_fail_count;
+	__be16		login_count;
+	__be16		r1;
+};
+
+struct fw_iscsi_sess_stats {
+	__be32		rxbytes;
+	__be32		txbytes;
+	__be32		scmd_count;
+	__be32		read_cmds;
+	__be32		write_cmds;
+	__be32		read_bytes;
+	__be32		write_bytes;
+	__be32		scsi_err_count;
+	__be32		scsi_rst_count;
+	__be32		iscsi_tmf_count;
+	__be32		conn_count;
+};
+
+struct fw_iscsi_conn_stats {
+	__be32		txbytes;
+	__be32		rxbytes;
+	__be32		dataout;
+	__be32		datain;
+};
+
 struct fw_iscsi_node_wr {
 	__u8   opcode;
 	__u8   subop;
-	__u8   node_attr_to_compl;
-	__u8   len16;
-	__u8   status;
-	__u8   r2;
 	__be16 immd_len;
+	__be32 flowid_len16;
 	__be64 cookie;
+	__u8   node_attr_to_compl;
+	__u8   status;
+	__be16 r1;
 	__be32 node_id;
 	__be32 ctrl_handle;
 	__be32 io_handle;
-	__be32 r3;
 };
+
+#define S_FW_ISCSI_NODE_WR_FLOWID	8
+#define M_FW_ISCSI_NODE_WR_FLOWID	0xfffff
+#define V_FW_ISCSI_NODE_WR_FLOWID(x)	((x) << S_FW_ISCSI_NODE_WR_FLOWID)
+#define G_FW_ISCSI_NODE_WR_FLOWID(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_FLOWID) & M_FW_ISCSI_NODE_WR_FLOWID)
+
+#define S_FW_ISCSI_NODE_WR_LEN16	0
+#define M_FW_ISCSI_NODE_WR_LEN16	0xff
+#define V_FW_ISCSI_NODE_WR_LEN16(x)	((x) << S_FW_ISCSI_NODE_WR_LEN16)
+#define G_FW_ISCSI_NODE_WR_LEN16(x)	\
+    (((x) >> S_FW_ISCSI_NODE_WR_LEN16) & M_FW_ISCSI_NODE_WR_LEN16)
 
 #define S_FW_ISCSI_NODE_WR_NODE_ATTR	7
 #define M_FW_ISCSI_NODE_WR_NODE_ATTR	0x1
@@ -1527,7 +1649,109 @@ struct fw_iscsi_node_wr {
     (((x) >> S_FW_ISCSI_NODE_WR_COMPL) & M_FW_ISCSI_NODE_WR_COMPL)
 #define F_FW_ISCSI_NODE_WR_COMPL	V_FW_ISCSI_NODE_WR_COMPL(1U)
 
-#endif
+#define FW_ISCSI_NODE_INVALID_ID	0xffffffff
+
+struct fw_scsi_iscsi_data {
+	__u8   r0;
+	__u8   fbit_to_tattr;
+	__be16 r2;
+	__be32 r3;
+	__u8   lun[8];
+	__be32 r4;
+	__be32 dlen;
+	__be32 r5;
+	__be32 r6;
+	__u8   cdb[16];
+};
+
+#define S_FW_SCSI_ISCSI_DATA_FBIT	7
+#define M_FW_SCSI_ISCSI_DATA_FBIT	0x1
+#define V_FW_SCSI_ISCSI_DATA_FBIT(x)	((x) << S_FW_SCSI_ISCSI_DATA_FBIT)
+#define G_FW_SCSI_ISCSI_DATA_FBIT(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_DATA_FBIT) & M_FW_SCSI_ISCSI_DATA_FBIT)
+#define F_FW_SCSI_ISCSI_DATA_FBIT	V_FW_SCSI_ISCSI_DATA_FBIT(1U)
+
+#define S_FW_SCSI_ISCSI_DATA_RBIT	6
+#define M_FW_SCSI_ISCSI_DATA_RBIT	0x1
+#define V_FW_SCSI_ISCSI_DATA_RBIT(x)	((x) << S_FW_SCSI_ISCSI_DATA_RBIT)
+#define G_FW_SCSI_ISCSI_DATA_RBIT(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_DATA_RBIT) & M_FW_SCSI_ISCSI_DATA_RBIT)
+#define F_FW_SCSI_ISCSI_DATA_RBIT	V_FW_SCSI_ISCSI_DATA_RBIT(1U)
+
+#define S_FW_SCSI_ISCSI_DATA_WBIT	5
+#define M_FW_SCSI_ISCSI_DATA_WBIT	0x1
+#define V_FW_SCSI_ISCSI_DATA_WBIT(x)	((x) << S_FW_SCSI_ISCSI_DATA_WBIT)
+#define G_FW_SCSI_ISCSI_DATA_WBIT(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_DATA_WBIT) & M_FW_SCSI_ISCSI_DATA_WBIT)
+#define F_FW_SCSI_ISCSI_DATA_WBIT	V_FW_SCSI_ISCSI_DATA_WBIT(1U)
+
+#define S_FW_SCSI_ISCSI_DATA_TATTR	0
+#define M_FW_SCSI_ISCSI_DATA_TATTR	0x7
+#define V_FW_SCSI_ISCSI_DATA_TATTR(x)	((x) << S_FW_SCSI_ISCSI_DATA_TATTR)
+#define G_FW_SCSI_ISCSI_DATA_TATTR(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_DATA_TATTR) & M_FW_SCSI_ISCSI_DATA_TATTR)
+
+#define FW_SCSI_ISCSI_DATA_TATTR_UNTAGGED	0
+#define FW_SCSI_ISCSI_DATA_TATTR_SIMPLE		1
+#define	FW_SCSI_ISCSI_DATA_TATTR_ORDERED	2
+#define FW_SCSI_ISCSI_DATA_TATTR_HEADOQ		3
+#define FW_SCSI_ISCSI_DATA_TATTR_ACA		4
+
+#define FW_SCSI_ISCSI_TMF_OP			0x02
+#define FW_SCSI_ISCSI_ABORT_FUNC		0x01
+#define FW_SCSI_ISCSI_LUN_RESET_FUNC		0x05
+#define FW_SCSI_ISCSI_RESERVED_TAG		0xffffffff
+
+struct fw_scsi_iscsi_rsp {
+	__u8   r0;
+	__u8   sbit_to_uflow;
+	__u8   response;
+	__u8   status;
+	__be32 r4;
+	__u8   r5[32];
+	__be32 bidir_res_cnt;
+	__be32 res_cnt;
+	__u8   sense_data[128];
+};
+
+#define S_FW_SCSI_ISCSI_RSP_SBIT	7
+#define M_FW_SCSI_ISCSI_RSP_SBIT	0x1
+#define V_FW_SCSI_ISCSI_RSP_SBIT(x)	((x) << S_FW_SCSI_ISCSI_RSP_SBIT)
+#define G_FW_SCSI_ISCSI_RSP_SBIT(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_RSP_SBIT) & M_FW_SCSI_ISCSI_RSP_SBIT)
+#define F_FW_SCSI_ISCSI_RSP_SBIT	V_FW_SCSI_ISCSI_RSP_SBIT(1U)
+
+#define S_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW		4
+#define M_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW		0x1
+#define V_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW(x)	\
+    ((x) << S_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW)
+#define G_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW) & \
+     M_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW)
+#define F_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW	V_FW_SCSI_ISCSI_RSP_BIDIR_OFLOW(1U)
+
+#define S_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW		3
+#define M_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW		0x1
+#define V_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW(x)	\
+    ((x) << S_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW)
+#define G_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW) & \
+     M_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW)
+#define F_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW	V_FW_SCSI_ISCSI_RSP_BIDIR_UFLOW(1U)
+
+#define S_FW_SCSI_ISCSI_RSP_OFLOW	2
+#define M_FW_SCSI_ISCSI_RSP_OFLOW	0x1
+#define V_FW_SCSI_ISCSI_RSP_OFLOW(x)	((x) << S_FW_SCSI_ISCSI_RSP_OFLOW)
+#define G_FW_SCSI_ISCSI_RSP_OFLOW(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_RSP_OFLOW) & M_FW_SCSI_ISCSI_RSP_OFLOW)
+#define F_FW_SCSI_ISCSI_RSP_OFLOW	V_FW_SCSI_ISCSI_RSP_OFLOW(1U)
+
+#define S_FW_SCSI_ISCSI_RSP_UFLOW	1
+#define M_FW_SCSI_ISCSI_RSP_UFLOW	0x1
+#define V_FW_SCSI_ISCSI_RSP_UFLOW(x)	((x) << S_FW_SCSI_ISCSI_RSP_UFLOW)
+#define G_FW_SCSI_ISCSI_RSP_UFLOW(x)	\
+    (((x) >> S_FW_SCSI_ISCSI_RSP_UFLOW) & M_FW_SCSI_ISCSI_RSP_UFLOW)
+#define F_FW_SCSI_ISCSI_RSP_UFLOW	V_FW_SCSI_ISCSI_RSP_UFLOW(1U)
 
 /******************************************************************************
  *  C O M M A N D s
@@ -1542,6 +1766,16 @@ struct fw_iscsi_node_wr {
  * reply before declaring the firmware as dead/unreachable ...
  */
 #define FW_CMD_MAX_TIMEOUT	10000
+
+/*
+ * If a host driver does a HELLO and discovers that there's already a MASTER
+ * selected, we may have to wait for that MASTER to finish issuing RESET,
+ * configuration and INITIALIZE commands.  Also, there's a possibility that
+ * our own HELLO may get lost if it happens right as the MASTER is issuign a
+ * RESET command, so we need to be willing to make a few retries of our HELLO.
+ */
+#define FW_CMD_HELLO_TIMEOUT	(3 * FW_CMD_MAX_TIMEOUT)
+#define FW_CMD_HELLO_RETRIES	3
 
 enum fw_cmd_opcodes {
 	FW_LDST_CMD                    = 0x01,
@@ -1575,10 +1809,11 @@ enum fw_cmd_opcodes {
 	FW_SCHED_CMD                   = 0x24,
 	FW_DEVLOG_CMD                  = 0x25,
 	FW_NETIF_CMD                   = 0x26,
+	FW_WATCHDOG_CMD                = 0x27,
+	FW_CLIP_CMD                    = 0x28,
 	FW_LASTC2E_CMD                 = 0x40,
 	FW_ERROR_CMD                   = 0x80,
 	FW_DEBUG_CMD                   = 0x81,
-
 };
 
 enum fw_cmd_cap {
@@ -1696,7 +1931,7 @@ struct fw_ldst_cmd {
 		} addrval;
 		struct fw_ldst_idctxt {
 			__be32 physid;
-			__be32 msg_pkd;
+			__be32 msg_ctxtflush;
 			__be32 ctxt_data7;
 			__be32 ctxt_data6;
 			__be32 ctxt_data5;
@@ -1768,6 +2003,13 @@ struct fw_ldst_cmd {
 #define G_FW_LDST_CMD_MSG(x)	\
     (((x) >> S_FW_LDST_CMD_MSG) & M_FW_LDST_CMD_MSG)
 #define F_FW_LDST_CMD_MSG	V_FW_LDST_CMD_MSG(1U)
+
+#define S_FW_LDST_CMD_CTXTFLUSH		30
+#define M_FW_LDST_CMD_CTXTFLUSH		0x1
+#define V_FW_LDST_CMD_CTXTFLUSH(x)	((x) << S_FW_LDST_CMD_CTXTFLUSH)
+#define G_FW_LDST_CMD_CTXTFLUSH(x)	\
+    (((x) >> S_FW_LDST_CMD_CTXTFLUSH) & M_FW_LDST_CMD_CTXTFLUSH)
+#define F_FW_LDST_CMD_CTXTFLUSH	V_FW_LDST_CMD_CTXTFLUSH(1U)
 
 #define S_FW_LDST_CMD_PADDR	8
 #define M_FW_LDST_CMD_PADDR	0x1f
@@ -1852,13 +2094,27 @@ struct fw_reset_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
 	__be32 val;
-	__be32 r3;
+	__be32 halt_pkd;
+};
+
+#define S_FW_RESET_CMD_HALT	31
+#define M_FW_RESET_CMD_HALT	0x1
+#define V_FW_RESET_CMD_HALT(x)	((x) << S_FW_RESET_CMD_HALT)
+#define G_FW_RESET_CMD_HALT(x)	\
+    (((x) >> S_FW_RESET_CMD_HALT) & M_FW_RESET_CMD_HALT)
+#define F_FW_RESET_CMD_HALT	V_FW_RESET_CMD_HALT(1U)
+
+enum {
+	FW_HELLO_CMD_STAGE_OS		= 0,
+	FW_HELLO_CMD_STAGE_PREOS0	= 1,
+	FW_HELLO_CMD_STAGE_PREOS1	= 2,
+	FW_HELLO_CMD_STAGE_POSTOS	= 3,
 };
 
 struct fw_hello_cmd {
 	__be32 op_to_write;
 	__be32 retval_len16;
-	__be32 err_to_mbasyncnot;
+	__be32 err_to_clearinit;
 	__be32 fwrev;
 };
 
@@ -1908,6 +2164,19 @@ struct fw_hello_cmd {
 #define V_FW_HELLO_CMD_MBASYNCNOT(x)	((x) << S_FW_HELLO_CMD_MBASYNCNOT)
 #define G_FW_HELLO_CMD_MBASYNCNOT(x)	\
     (((x) >> S_FW_HELLO_CMD_MBASYNCNOT) & M_FW_HELLO_CMD_MBASYNCNOT)
+
+#define S_FW_HELLO_CMD_STAGE	17
+#define M_FW_HELLO_CMD_STAGE	0x7
+#define V_FW_HELLO_CMD_STAGE(x)	((x) << S_FW_HELLO_CMD_STAGE)
+#define G_FW_HELLO_CMD_STAGE(x)	\
+    (((x) >> S_FW_HELLO_CMD_STAGE) & M_FW_HELLO_CMD_STAGE)
+
+#define S_FW_HELLO_CMD_CLEARINIT	16
+#define M_FW_HELLO_CMD_CLEARINIT	0x1
+#define V_FW_HELLO_CMD_CLEARINIT(x)	((x) << S_FW_HELLO_CMD_CLEARINIT)
+#define G_FW_HELLO_CMD_CLEARINIT(x)	\
+    (((x) >> S_FW_HELLO_CMD_CLEARINIT) & M_FW_HELLO_CMD_CLEARINIT)
+#define F_FW_HELLO_CMD_CLEARINIT	V_FW_HELLO_CMD_CLEARINIT(1U)
 
 struct fw_bye_cmd {
 	__be32 op_to_write;
@@ -1989,6 +2258,8 @@ enum fw_caps_config_nic {
 	FW_CAPS_CONFIG_NIC		= 0x00000001,
 	FW_CAPS_CONFIG_NIC_VM		= 0x00000002,
 	FW_CAPS_CONFIG_NIC_IDS		= 0x00000004,
+	FW_CAPS_CONFIG_NIC_UM		= 0x00000008,
+	FW_CAPS_CONFIG_NIC_UM_ISGL	= 0x00000010,
 };
 
 enum fw_caps_config_toe {
@@ -2015,9 +2286,16 @@ enum fw_caps_config_fcoe {
 	FW_CAPS_CONFIG_FCOE_CTRL_OFLD   = 0x00000004,
 };
 
+enum fw_memtype_cf {
+	FW_MEMTYPE_CF_EDC0		= 0x0,
+	FW_MEMTYPE_CF_EDC1		= 0x1,
+	FW_MEMTYPE_CF_EXTMEM		= 0x2,
+	FW_MEMTYPE_CF_FLASH		= 0x4,
+};
+
 struct fw_caps_config_cmd {
 	__be32 op_to_write;
-	__be32 retval_len16;
+	__be32 cfvalid_to_len16;
 	__be32 r2;
 	__be32 hwmbitmap;
 	__be16 nbmcaps;
@@ -2030,9 +2308,33 @@ struct fw_caps_config_cmd {
 	__be16 r4;
 	__be16 iscsicaps;
 	__be16 fcoecaps;
-	__be32 r5;
-	__be64 r6;
+	__be32 cfcsum;
+	__be32 finiver;
+	__be32 finicsum;
 };
+
+#define S_FW_CAPS_CONFIG_CMD_CFVALID	27
+#define M_FW_CAPS_CONFIG_CMD_CFVALID	0x1
+#define V_FW_CAPS_CONFIG_CMD_CFVALID(x)	((x) << S_FW_CAPS_CONFIG_CMD_CFVALID)
+#define G_FW_CAPS_CONFIG_CMD_CFVALID(x)	\
+    (((x) >> S_FW_CAPS_CONFIG_CMD_CFVALID) & M_FW_CAPS_CONFIG_CMD_CFVALID)
+#define F_FW_CAPS_CONFIG_CMD_CFVALID	V_FW_CAPS_CONFIG_CMD_CFVALID(1U)
+
+#define S_FW_CAPS_CONFIG_CMD_MEMTYPE_CF		24
+#define M_FW_CAPS_CONFIG_CMD_MEMTYPE_CF		0x7
+#define V_FW_CAPS_CONFIG_CMD_MEMTYPE_CF(x)	\
+    ((x) << S_FW_CAPS_CONFIG_CMD_MEMTYPE_CF)
+#define G_FW_CAPS_CONFIG_CMD_MEMTYPE_CF(x)	\
+    (((x) >> S_FW_CAPS_CONFIG_CMD_MEMTYPE_CF) & \
+     M_FW_CAPS_CONFIG_CMD_MEMTYPE_CF)
+
+#define S_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF	16
+#define M_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF	0xff
+#define V_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(x)	\
+    ((x) << S_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF)
+#define G_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF(x)	\
+    (((x) >> S_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF) & \
+     M_FW_CAPS_CONFIG_CMD_MEMADDR64K_CF)
 
 /*
  * params command mnemonics
@@ -2056,15 +2358,17 @@ enum fw_params_param_dev {
 						 * Lookup Engine
 						 */
 	FW_PARAMS_PARAM_DEV_FLOWC_BUFFIFO_SZ = 0x03,
-	FW_PARAMS_PARAM_DEV_INTVER_NIC	= 0x04,
-	FW_PARAMS_PARAM_DEV_INTVER_VNIC = 0x05,
-	FW_PARAMS_PARAM_DEV_INTVER_OFLD = 0x06,
-	FW_PARAMS_PARAM_DEV_INTVER_RI	= 0x07,
-	FW_PARAMS_PARAM_DEV_INTVER_ISCSIPDU = 0x08,
-	FW_PARAMS_PARAM_DEV_INTVER_ISCSI = 0x09,
-	FW_PARAMS_PARAM_DEV_INTVER_FCOE = 0x0A,
+	FW_PARAMS_PARAM_DEV_INTFVER_NIC	= 0x04,
+	FW_PARAMS_PARAM_DEV_INTFVER_VNIC = 0x05,
+	FW_PARAMS_PARAM_DEV_INTFVER_OFLD = 0x06,
+	FW_PARAMS_PARAM_DEV_INTFVER_RI	= 0x07,
+	FW_PARAMS_PARAM_DEV_INTFVER_ISCSIPDU = 0x08,
+	FW_PARAMS_PARAM_DEV_INTFVER_ISCSI = 0x09,
+	FW_PARAMS_PARAM_DEV_INTFVER_FCOE = 0x0A,
 	FW_PARAMS_PARAM_DEV_FWREV = 0x0B,
 	FW_PARAMS_PARAM_DEV_TPREV = 0x0C,
+	FW_PARAMS_PARAM_DEV_CF = 0x0D,
+	FW_PARAMS_PARAM_DEV_BYPASS = 0x0E,
 };
 
 /*
@@ -2117,6 +2421,23 @@ enum fw_params_param_dmaq {
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_MNGT = 0x10,
 	FW_PARAMS_PARAM_DMAQ_EQ_CMPLIQID_CTRL = 0x11,
 	FW_PARAMS_PARAM_DMAQ_EQ_SCHEDCLASS_ETH = 0x12,
+};
+
+/*
+ * dev bypass parameters; actions and modes
+ */
+enum fw_params_param_dev_bypass {
+
+	/* actions
+	 */
+	FW_PARAMS_PARAM_DEV_BYPASS_PFAIL = 0x00,
+	FW_PARAMS_PARAM_DEV_BYPASS_CURRENT = 0x01,
+
+	/* modes
+	 */
+	FW_PARAMS_PARAM_DEV_BYPASS_NORMAL = 0x00,
+	FW_PARAMS_PARAM_DEV_BYPASS_DROP	= 0x1,
+	FW_PARAMS_PARAM_DEV_BYPASS_BYPASS = 0x2,
 };
 
 #define S_FW_PARAMS_MNEM	24
@@ -2271,6 +2592,7 @@ struct fw_pfvf_cmd {
 #define V_FW_PFVF_CMD_NETHCTRL(x)	((x) << S_FW_PFVF_CMD_NETHCTRL)
 #define G_FW_PFVF_CMD_NETHCTRL(x)	\
     (((x) >> S_FW_PFVF_CMD_NETHCTRL) & M_FW_PFVF_CMD_NETHCTRL)
+
 /*
  *	ingress queue type; the first 1K ingress queues can have associated 0,
  *	1 or 2 free lists and an interrupt, all other ingress queues lack these
@@ -3518,6 +3840,7 @@ struct fw_eq_ofld_cmd {
 #define V_FW_EQ_OFLD_CMD_EQSIZE(x)	((x) << S_FW_EQ_OFLD_CMD_EQSIZE)
 #define G_FW_EQ_OFLD_CMD_EQSIZE(x)	\
     (((x) >> S_FW_EQ_OFLD_CMD_EQSIZE) & M_FW_EQ_OFLD_CMD_EQSIZE)
+
 /* Macros for VIID parsing:
    VIID - [10:8] PFN, [7] VI Valid, [6:0] VI number */
 #define S_FW_VIID_PFN		8
@@ -4081,8 +4404,10 @@ enum fw_port_action {
 	FW_PORT_ACTION_L2_WOL_MODE_EN	= 0x0012,
 	FW_PORT_ACTION_LPBK_TO_NORMAL	= 0x0020,
 	FW_PORT_ACTION_L1_SS_LPBK_ASIC	= 0x0021,
+	FW_PORT_ACTION_MAC_LPBK		= 0x0022,
 	FW_PORT_ACTION_L1_WS_LPBK_ASIC	= 0x0023,
 	FW_PORT_ACTION_L1_EXT_LPBK      = 0x0026,
+	FW_PORT_ACTION_PCS_LPBK		= 0x0028,
 	FW_PORT_ACTION_PHY_RESET	= 0x0040,
 	FW_PORT_ACTION_PMA_RESET	= 0x0041,
 	FW_PORT_ACTION_PCS_RESET	= 0x0042,
@@ -4164,7 +4489,8 @@ struct fw_port_cmd {
 			struct fw_port_dcb_pgrate {
 				__u8   type;
 				__u8   apply_pkd;
-				__u8   r10_lo[6];
+				__u8   r10_lo[5];
+				__u8   num_tcs_supported;
 				__u8   pgrate[8];
 			} pgrate;
 			struct fw_port_dcb_priorate {
@@ -4181,11 +4507,12 @@ struct fw_port_cmd {
 			} pfc;
 			struct fw_port_app_priority {
 				__u8   type;
-				__u8   r10_lo[3];
-				__u8   prio;
-				__u8   sel;
+				__u8   r10[2];
+				__u8   idx;
+				__u8   user_prio_map;
+				__u8   sel_field;
 				__be16 protocolid;
-				__u8   r12[8];
+				__be64 r12;
 			} app_priority;
 		} dcb;
 	} u;
@@ -4337,20 +4664,6 @@ struct fw_port_cmd {
     (((x) >> S_FW_PORT_CMD_APPLY) & M_FW_PORT_CMD_APPLY)
 #define F_FW_PORT_CMD_APPLY	V_FW_PORT_CMD_APPLY(1U)
 
-#define S_FW_PORT_CMD_APPLY	7
-#define M_FW_PORT_CMD_APPLY	0x1
-#define V_FW_PORT_CMD_APPLY(x)	((x) << S_FW_PORT_CMD_APPLY)
-#define G_FW_PORT_CMD_APPLY(x)	\
-    (((x) >> S_FW_PORT_CMD_APPLY) & M_FW_PORT_CMD_APPLY)
-#define F_FW_PORT_CMD_APPLY	V_FW_PORT_CMD_APPLY(1U)
-
-#define S_FW_PORT_CMD_APPLY	7
-#define M_FW_PORT_CMD_APPLY	0x1
-#define V_FW_PORT_CMD_APPLY(x)	((x) << S_FW_PORT_CMD_APPLY)
-#define G_FW_PORT_CMD_APPLY(x)	\
-    (((x) >> S_FW_PORT_CMD_APPLY) & M_FW_PORT_CMD_APPLY)
-#define F_FW_PORT_CMD_APPLY	V_FW_PORT_CMD_APPLY(1U)
-
 /*
  *	These are configured into the VPD and hence tools that generate
  *	VPD may use this enumeration.
@@ -4383,6 +4696,7 @@ enum fw_port_module_type {
 	FW_PORT_MOD_TYPE_TWINAX_PASSIVE	= 0x4,
 	FW_PORT_MOD_TYPE_TWINAX_ACTIVE	= 0x5,
 	FW_PORT_MOD_TYPE_LRM		= 0x6,
+	FW_PORT_MOD_TYPE_ERROR		= M_FW_PORT_CMD_MODTYPE - 3,
 	FW_PORT_MOD_TYPE_UNKNOWN	= M_FW_PORT_CMD_MODTYPE - 2,
 	FW_PORT_MOD_TYPE_NOTSUPPORTED	= M_FW_PORT_CMD_MODTYPE - 1,
 	FW_PORT_MOD_TYPE_NONE		= M_FW_PORT_CMD_MODTYPE
@@ -5189,15 +5503,12 @@ struct fw_rss_vi_config_cmd {
 #define F_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN	\
     V_FW_RSS_VI_CONFIG_CMD_IP4TWOTUPEN(1U)
 
-#define S_FW_RSS_VI_CONFIG_CMD_UDPEN		0
-#define M_FW_RSS_VI_CONFIG_CMD_UDPEN		0x1
-#define V_FW_RSS_VI_CONFIG_CMD_UDPEN(x)		\
-    ((x) << S_FW_RSS_VI_CONFIG_CMD_UDPEN)
-#define G_FW_RSS_VI_CONFIG_CMD_UDPEN(x)		\
-    (((x) >> S_FW_RSS_VI_CONFIG_CMD_UDPEN) & \
-     M_FW_RSS_VI_CONFIG_CMD_UDPEN)
-#define F_FW_RSS_VI_CONFIG_CMD_UDPEN		\
-    V_FW_RSS_VI_CONFIG_CMD_UDPEN(1U)
+#define S_FW_RSS_VI_CONFIG_CMD_UDPEN	0
+#define M_FW_RSS_VI_CONFIG_CMD_UDPEN	0x1
+#define V_FW_RSS_VI_CONFIG_CMD_UDPEN(x)	((x) << S_FW_RSS_VI_CONFIG_CMD_UDPEN)
+#define G_FW_RSS_VI_CONFIG_CMD_UDPEN(x)	\
+    (((x) >> S_FW_RSS_VI_CONFIG_CMD_UDPEN) & M_FW_RSS_VI_CONFIG_CMD_UDPEN)
+#define F_FW_RSS_VI_CONFIG_CMD_UDPEN	V_FW_RSS_VI_CONFIG_CMD_UDPEN(1U)
 
 enum fw_sched_sc {
 	FW_SCHED_SC_CONFIG		= 0,
@@ -5352,102 +5663,96 @@ struct fw_devlog_cmd {
      M_FW_DEVLOG_CMD_MEMADDR16_DEVLOG)
 
 struct fw_netif_cmd {
-	__be32 op_portid;
-	__be32 retval_to_len16;
-	__be32 add_to_ipv4gw;
-	__be32 vlanid_mtuval;
+	__be32 op_to_ipv4gw;
+	__be32 retval_len16;
+	__be32 netifi_ifadridx;
+	__be32 portid_to_mtuval;
 	__be32 gwaddr;
 	__be32 addr;
 	__be32 nmask;
 	__be32 bcaddr;
 };
 
-#define S_FW_NETIF_CMD_PORTID		0
-#define M_FW_NETIF_CMD_PORTID		0xf
-#define V_FW_NETIF_CMD_PORTID(x)	((x) << S_FW_NETIF_CMD_PORTID)
-#define G_FW_NETIF_CMD_PORTID(x)	\
-    (((x) >> S_FW_NETIF_CMD_PORTID) & M_FW_NETIF_CMD_PORTID)
-
-#define S_FW_NETIF_CMD_RETVAL		24
-#define M_FW_NETIF_CMD_RETVAL		0xff
-#define V_FW_NETIF_CMD_RETVAL(x)	((x) << S_FW_NETIF_CMD_RETVAL)
-#define G_FW_NETIF_CMD_RETVAL(x)	\
-    (((x) >> S_FW_NETIF_CMD_RETVAL) & M_FW_NETIF_CMD_RETVAL)
-
-#define S_FW_NETIF_CMD_IFIDX	16
-#define M_FW_NETIF_CMD_IFIDX	0xff
-#define V_FW_NETIF_CMD_IFIDX(x)	((x) << S_FW_NETIF_CMD_IFIDX)
-#define G_FW_NETIF_CMD_IFIDX(x)	\
-    (((x) >> S_FW_NETIF_CMD_IFIDX) & M_FW_NETIF_CMD_IFIDX)
-
-#define S_FW_NETIF_CMD_LEN16	0
-#define M_FW_NETIF_CMD_LEN16	0xff
-#define V_FW_NETIF_CMD_LEN16(x)	((x) << S_FW_NETIF_CMD_LEN16)
-#define G_FW_NETIF_CMD_LEN16(x)	\
-    (((x) >> S_FW_NETIF_CMD_LEN16) & M_FW_NETIF_CMD_LEN16)
-
-#define S_FW_NETIF_CMD_ADD	31
+#define S_FW_NETIF_CMD_ADD	20
 #define M_FW_NETIF_CMD_ADD	0x1
 #define V_FW_NETIF_CMD_ADD(x)	((x) << S_FW_NETIF_CMD_ADD)
 #define G_FW_NETIF_CMD_ADD(x)	\
     (((x) >> S_FW_NETIF_CMD_ADD) & M_FW_NETIF_CMD_ADD)
 #define F_FW_NETIF_CMD_ADD	V_FW_NETIF_CMD_ADD(1U)
 
-#define S_FW_NETIF_CMD_LINK	30
+#define S_FW_NETIF_CMD_LINK	19
 #define M_FW_NETIF_CMD_LINK	0x1
 #define V_FW_NETIF_CMD_LINK(x)	((x) << S_FW_NETIF_CMD_LINK)
 #define G_FW_NETIF_CMD_LINK(x)	\
     (((x) >> S_FW_NETIF_CMD_LINK) & M_FW_NETIF_CMD_LINK)
 #define F_FW_NETIF_CMD_LINK	V_FW_NETIF_CMD_LINK(1U)
 
-#define S_FW_NETIF_CMD_VLAN	29
+#define S_FW_NETIF_CMD_VLAN	18
 #define M_FW_NETIF_CMD_VLAN	0x1
 #define V_FW_NETIF_CMD_VLAN(x)	((x) << S_FW_NETIF_CMD_VLAN)
 #define G_FW_NETIF_CMD_VLAN(x)	\
     (((x) >> S_FW_NETIF_CMD_VLAN) & M_FW_NETIF_CMD_VLAN)
 #define F_FW_NETIF_CMD_VLAN	V_FW_NETIF_CMD_VLAN(1U)
 
-#define S_FW_NETIF_CMD_MTU	28
+#define S_FW_NETIF_CMD_MTU	17
 #define M_FW_NETIF_CMD_MTU	0x1
 #define V_FW_NETIF_CMD_MTU(x)	((x) << S_FW_NETIF_CMD_MTU)
 #define G_FW_NETIF_CMD_MTU(x)	\
     (((x) >> S_FW_NETIF_CMD_MTU) & M_FW_NETIF_CMD_MTU)
 #define F_FW_NETIF_CMD_MTU	V_FW_NETIF_CMD_MTU(1U)
 
-#define S_FW_NETIF_CMD_DHCP	27
+#define S_FW_NETIF_CMD_DHCP	16
 #define M_FW_NETIF_CMD_DHCP	0x1
 #define V_FW_NETIF_CMD_DHCP(x)	((x) << S_FW_NETIF_CMD_DHCP)
 #define G_FW_NETIF_CMD_DHCP(x)	\
     (((x) >> S_FW_NETIF_CMD_DHCP) & M_FW_NETIF_CMD_DHCP)
 #define F_FW_NETIF_CMD_DHCP	V_FW_NETIF_CMD_DHCP(1U)
 
-#define S_FW_NETIF_CMD_IPV4BCADDR	3
+#define S_FW_NETIF_CMD_IPV4BCADDR	15
 #define M_FW_NETIF_CMD_IPV4BCADDR	0x1
 #define V_FW_NETIF_CMD_IPV4BCADDR(x)	((x) << S_FW_NETIF_CMD_IPV4BCADDR)
 #define G_FW_NETIF_CMD_IPV4BCADDR(x)	\
     (((x) >> S_FW_NETIF_CMD_IPV4BCADDR) & M_FW_NETIF_CMD_IPV4BCADDR)
 #define F_FW_NETIF_CMD_IPV4BCADDR	V_FW_NETIF_CMD_IPV4BCADDR(1U)
 
-#define S_FW_NETIF_CMD_IPV4NMASK	2
+#define S_FW_NETIF_CMD_IPV4NMASK	14
 #define M_FW_NETIF_CMD_IPV4NMASK	0x1
 #define V_FW_NETIF_CMD_IPV4NMASK(x)	((x) << S_FW_NETIF_CMD_IPV4NMASK)
 #define G_FW_NETIF_CMD_IPV4NMASK(x)	\
     (((x) >> S_FW_NETIF_CMD_IPV4NMASK) & M_FW_NETIF_CMD_IPV4NMASK)
 #define F_FW_NETIF_CMD_IPV4NMASK	V_FW_NETIF_CMD_IPV4NMASK(1U)
 
-#define S_FW_NETIF_CMD_IPV4ADDR		1
+#define S_FW_NETIF_CMD_IPV4ADDR		13
 #define M_FW_NETIF_CMD_IPV4ADDR		0x1
 #define V_FW_NETIF_CMD_IPV4ADDR(x)	((x) << S_FW_NETIF_CMD_IPV4ADDR)
 #define G_FW_NETIF_CMD_IPV4ADDR(x)	\
     (((x) >> S_FW_NETIF_CMD_IPV4ADDR) & M_FW_NETIF_CMD_IPV4ADDR)
 #define F_FW_NETIF_CMD_IPV4ADDR	V_FW_NETIF_CMD_IPV4ADDR(1U)
 
-#define S_FW_NETIF_CMD_IPV4GW		0
+#define S_FW_NETIF_CMD_IPV4GW		12
 #define M_FW_NETIF_CMD_IPV4GW		0x1
 #define V_FW_NETIF_CMD_IPV4GW(x)	((x) << S_FW_NETIF_CMD_IPV4GW)
 #define G_FW_NETIF_CMD_IPV4GW(x)	\
     (((x) >> S_FW_NETIF_CMD_IPV4GW) & M_FW_NETIF_CMD_IPV4GW)
 #define F_FW_NETIF_CMD_IPV4GW	V_FW_NETIF_CMD_IPV4GW(1U)
+
+#define S_FW_NETIF_CMD_NETIFI		8
+#define M_FW_NETIF_CMD_NETIFI		0xffffff
+#define V_FW_NETIF_CMD_NETIFI(x)	((x) << S_FW_NETIF_CMD_NETIFI)
+#define G_FW_NETIF_CMD_NETIFI(x)	\
+    (((x) >> S_FW_NETIF_CMD_NETIFI) & M_FW_NETIF_CMD_NETIFI)
+
+#define S_FW_NETIF_CMD_IFADRIDX		0
+#define M_FW_NETIF_CMD_IFADRIDX		0xff
+#define V_FW_NETIF_CMD_IFADRIDX(x)	((x) << S_FW_NETIF_CMD_IFADRIDX)
+#define G_FW_NETIF_CMD_IFADRIDX(x)	\
+    (((x) >> S_FW_NETIF_CMD_IFADRIDX) & M_FW_NETIF_CMD_IFADRIDX)
+
+#define S_FW_NETIF_CMD_PORTID		28
+#define M_FW_NETIF_CMD_PORTID		0xf
+#define V_FW_NETIF_CMD_PORTID(x)	((x) << S_FW_NETIF_CMD_PORTID)
+#define G_FW_NETIF_CMD_PORTID(x)	\
+    (((x) >> S_FW_NETIF_CMD_PORTID) & M_FW_NETIF_CMD_PORTID)
 
 #define S_FW_NETIF_CMD_VLANID		16
 #define M_FW_NETIF_CMD_VLANID		0xfff
@@ -5460,6 +5765,42 @@ struct fw_netif_cmd {
 #define V_FW_NETIF_CMD_MTUVAL(x)	((x) << S_FW_NETIF_CMD_MTUVAL)
 #define G_FW_NETIF_CMD_MTUVAL(x)	\
     (((x) >> S_FW_NETIF_CMD_MTUVAL) & M_FW_NETIF_CMD_MTUVAL)
+
+enum fw_watchdog_actions {
+	FW_WATCHDOG_ACTION_FLR = 0x1,
+	FW_WATCHDOG_ACTION_BYPASS = 0x2,
+};
+
+#define FW_WATCHDOG_MAX_TIMEOUT_SECS	60
+
+struct fw_watchdog_cmd {
+	__be32 op_to_write;
+	__be32 retval_len16;
+	__be32 timeout;
+	__be32 actions;
+};
+
+struct fw_clip_cmd {
+	__be32 op_to_write;
+	__be32 alloc_to_len16;
+	__be64 ip_hi;
+	__be64 ip_lo;
+	__be32 r4[2];
+};
+
+#define S_FW_CLIP_CMD_ALLOC	31
+#define M_FW_CLIP_CMD_ALLOC	0x1
+#define V_FW_CLIP_CMD_ALLOC(x)	((x) << S_FW_CLIP_CMD_ALLOC)
+#define G_FW_CLIP_CMD_ALLOC(x)	\
+    (((x) >> S_FW_CLIP_CMD_ALLOC) & M_FW_CLIP_CMD_ALLOC)
+#define F_FW_CLIP_CMD_ALLOC	V_FW_CLIP_CMD_ALLOC(1U)
+
+#define S_FW_CLIP_CMD_FREE	30
+#define M_FW_CLIP_CMD_FREE	0x1
+#define V_FW_CLIP_CMD_FREE(x)	((x) << S_FW_CLIP_CMD_FREE)
+#define G_FW_CLIP_CMD_FREE(x)	\
+    (((x) >> S_FW_CLIP_CMD_FREE) & M_FW_CLIP_CMD_FREE)
+#define F_FW_CLIP_CMD_FREE	V_FW_CLIP_CMD_FREE(1U)
 
 enum fw_error_type {
 	FW_ERROR_TYPE_EXCEPTION		= 0x0,
@@ -5570,6 +5911,94 @@ struct fw_debug_cmd {
 #define G_FW_DEBUG_CMD_TYPE(x)	\
     (((x) >> S_FW_DEBUG_CMD_TYPE) & M_FW_DEBUG_CMD_TYPE)
 
+
+/******************************************************************************
+ *   P C I E   F W   R E G I S T E R
+ **************************************/
+
+/**
+ *	Register definitions for the PCIE_FW register which the firmware uses
+ *	to retain status across RESETs.  This register should be considered
+ *	as a READ-ONLY register for Host Software and only to be used to
+ *	track firmware initialization/error state, etc.
+ */
+#define S_PCIE_FW_ERR		31
+#define M_PCIE_FW_ERR		0x1
+#define V_PCIE_FW_ERR(x)	((x) << S_PCIE_FW_ERR)
+#define G_PCIE_FW_ERR(x)	(((x) >> S_PCIE_FW_ERR) & M_PCIE_FW_ERR)
+#define F_PCIE_FW_ERR		V_PCIE_FW_ERR(1U)
+
+#define S_PCIE_FW_INIT		30
+#define M_PCIE_FW_INIT		0x1
+#define V_PCIE_FW_INIT(x)	((x) << S_PCIE_FW_INIT)
+#define G_PCIE_FW_INIT(x)	(((x) >> S_PCIE_FW_INIT) & M_PCIE_FW_INIT)
+#define F_PCIE_FW_INIT		V_PCIE_FW_INIT(1U)
+
+#define S_PCIE_FW_HALT          29
+#define M_PCIE_FW_HALT          0x1
+#define V_PCIE_FW_HALT(x)       ((x) << S_PCIE_FW_HALT)
+#define G_PCIE_FW_HALT(x)       (((x) >> S_PCIE_FW_HALT) & M_PCIE_FW_HALT)
+#define F_PCIE_FW_HALT          V_PCIE_FW_HALT(1U)
+
+#define S_PCIE_FW_STAGE		21
+#define M_PCIE_FW_STAGE		0x7
+#define V_PCIE_FW_STAGE(x)	((x) << S_PCIE_FW_STAGE)
+#define G_PCIE_FW_STAGE(x)	(((x) >> S_PCIE_FW_STAGE) & M_PCIE_FW_STAGE)
+
+#define S_PCIE_FW_ASYNCNOT_VLD	20
+#define M_PCIE_FW_ASYNCNOT_VLD	0x1
+#define V_PCIE_FW_ASYNCNOT_VLD(x) \
+    ((x) << S_PCIE_FW_ASYNCNOT_VLD)
+#define G_PCIE_FW_ASYNCNOT_VLD(x) \
+    (((x) >> S_PCIE_FW_ASYNCNOT_VLD) & M_PCIE_FW_ASYNCNOT_VLD)
+#define F_PCIE_FW_ASYNCNOT_VLD	V_PCIE_FW_ASYNCNOT_VLD(1U)
+
+#define S_PCIE_FW_ASYNCNOTINT	19
+#define M_PCIE_FW_ASYNCNOTINT	0x1
+#define V_PCIE_FW_ASYNCNOTINT(x) \
+    ((x) << S_PCIE_FW_ASYNCNOTINT)
+#define G_PCIE_FW_ASYNCNOTINT(x) \
+    (((x) >> S_PCIE_FW_ASYNCNOTINT) & M_PCIE_FW_ASYNCNOTINT)
+#define F_PCIE_FW_ASYNCNOTINT	V_PCIE_FW_ASYNCNOTINT(1U)
+
+#define S_PCIE_FW_ASYNCNOT	16
+#define M_PCIE_FW_ASYNCNOT	0x7
+#define V_PCIE_FW_ASYNCNOT(x)	((x) << S_PCIE_FW_ASYNCNOT)
+#define G_PCIE_FW_ASYNCNOT(x)	\
+    (((x) >> S_PCIE_FW_ASYNCNOT) & M_PCIE_FW_ASYNCNOT)
+
+#define S_PCIE_FW_MASTER_VLD	15
+#define M_PCIE_FW_MASTER_VLD	0x1
+#define V_PCIE_FW_MASTER_VLD(x)	((x) << S_PCIE_FW_MASTER_VLD)
+#define G_PCIE_FW_MASTER_VLD(x)	\
+    (((x) >> S_PCIE_FW_MASTER_VLD) & M_PCIE_FW_MASTER_VLD)
+#define F_PCIE_FW_MASTER_VLD	V_PCIE_FW_MASTER_VLD(1U)
+
+#define S_PCIE_FW_MASTER	12
+#define M_PCIE_FW_MASTER	0x7
+#define V_PCIE_FW_MASTER(x)	((x) << S_PCIE_FW_MASTER)
+#define G_PCIE_FW_MASTER(x)	(((x) >> S_PCIE_FW_MASTER) & M_PCIE_FW_MASTER)
+
+#define S_PCIE_FW_RESET_VLD		11
+#define M_PCIE_FW_RESET_VLD		0x1
+#define V_PCIE_FW_RESET_VLD(x)	((x) << S_PCIE_FW_RESET_VLD)
+#define G_PCIE_FW_RESET_VLD(x)	\
+    (((x) >> S_PCIE_FW_RESET_VLD) & M_PCIE_FW_RESET_VLD)
+#define F_PCIE_FW_RESET_VLD	V_PCIE_FW_RESET_VLD(1U)
+
+#define S_PCIE_FW_RESET		8
+#define M_PCIE_FW_RESET		0x7
+#define V_PCIE_FW_RESET(x)	((x) << S_PCIE_FW_RESET)
+#define G_PCIE_FW_RESET(x)	\
+    (((x) >> S_PCIE_FW_RESET) & M_PCIE_FW_RESET)
+
+#define S_PCIE_FW_REGISTERED	0
+#define M_PCIE_FW_REGISTERED	0xff
+#define V_PCIE_FW_REGISTERED(x)	((x) << S_PCIE_FW_REGISTERED)
+#define G_PCIE_FW_REGISTERED(x)	\
+    (((x) >> S_PCIE_FW_REGISTERED) & M_PCIE_FW_REGISTERED)
+
+
 /******************************************************************************
  *   B I N A R Y   H E A D E R   F O R M A T
  **********************************************/
@@ -5579,7 +6008,7 @@ struct fw_debug_cmd {
  */
 struct fw_hdr {
 	__u8	ver;
-	__u8	reserved1;
+	__u8	chip;			/* terminator chip family */
 	__be16	len512;			/* bin length in units of 512-bytes */
 	__be32	fw_ver;			/* firmware version */
 	__be32	tp_microcode_ver;	/* tcp processor microcode version */
@@ -5591,7 +6020,16 @@ struct fw_hdr {
 	__u8	intfver_iscsi;
 	__u8	intfver_fcoe;
 	__u8	reserved2;
-	__be32	reserved3[27];
+	__u32	reserved3;
+	__u32	reserved4;
+	__u32	reserved5;
+	__be32	flags;
+	__be32	reserved6[23];
+};
+
+enum fw_hdr_chip {
+	FW_HDR_CHIP_T4,
+	FW_HDR_CHIP_T5
 };
 
 #define S_FW_HDR_FW_VER_MAJOR	24
@@ -5621,5 +6059,19 @@ struct fw_hdr {
     ((x) << S_FW_HDR_FW_VER_BUILD)
 #define G_FW_HDR_FW_VER_BUILD(x) \
     (((x) >> S_FW_HDR_FW_VER_BUILD) & M_FW_HDR_FW_VER_BUILD)
+
+enum fw_hdr_intfver {
+	FW_HDR_INTFVER_NIC	= 0x00,
+	FW_HDR_INTFVER_VNIC	= 0x00,
+	FW_HDR_INTFVER_OFLD	= 0x00,
+	FW_HDR_INTFVER_RI	= 0x00,
+	FW_HDR_INTFVER_ISCSIPDU	= 0x00,
+	FW_HDR_INTFVER_ISCSI	= 0x00,
+	FW_HDR_INTFVER_FCOE	= 0x00,
+};
+
+enum fw_hdr_flags {
+	FW_HDR_FLAGS_RESET_HALT	= 0x00000001,
+};
 
 #endif /* _T4FW_INTERFACE_H_ */

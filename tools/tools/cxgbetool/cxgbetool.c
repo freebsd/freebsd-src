@@ -396,12 +396,12 @@ do_show_info_header(uint32_t mode)
 			printf (" Port");
 			break;
 
-		case T4_FILTER_OVLAN:
-			printf ("     vld:oVLAN");
+		case T4_FILTER_VNIC:
+			printf ("      vld:VNIC");
 			break;
 
-		case T4_FILTER_IVLAN:
-			printf ("     vld:iVLAN");
+		case T4_FILTER_VLAN:
+			printf ("      vld:VLAN");
 			break;
 
 		case T4_FILTER_IP_TOS:
@@ -653,18 +653,18 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 			printf("  %1d/%1d", t->fs.val.iport, t->fs.mask.iport);
 			break;
 
-		case T4_FILTER_OVLAN:
+		case T4_FILTER_VNIC:
 			printf(" %1d:%1x:%02x/%1d:%1x:%02x",
-			    t->fs.val.ovlan_vld, (t->fs.val.ovlan >> 7) & 0x7,
-			    t->fs.val.ovlan & 0x7f, t->fs.mask.ovlan_vld,
-			    (t->fs.mask.ovlan >> 7) & 0x7,
-			    t->fs.mask.ovlan & 0x7f);
+			    t->fs.val.vnic_vld, (t->fs.val.vnic >> 7) & 0x7,
+			    t->fs.val.vnic & 0x7f, t->fs.mask.vnic_vld,
+			    (t->fs.mask.vnic >> 7) & 0x7,
+			    t->fs.mask.vnic & 0x7f);
 			break;
 
-		case T4_FILTER_IVLAN:
+		case T4_FILTER_VLAN:
 			printf(" %1d:%04x/%1d:%04x",
-			    t->fs.val.ivlan_vld, t->fs.val.ivlan,
-			    t->fs.mask.ivlan_vld, t->fs.mask.ivlan);
+			    t->fs.val.vlan_vld, t->fs.val.vlan,
+			    t->fs.mask.vlan_vld, t->fs.mask.vlan);
 			break;
 
 		case T4_FILTER_IP_TOS:
@@ -830,11 +830,11 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_IP_TOS)
 		printf("tos ");
 
-	if (mode & T4_FILTER_IVLAN)
-		printf("ivlan ");
+	if (mode & T4_FILTER_VLAN)
+		printf("vlan ");
 
-	if (mode & T4_FILTER_OVLAN)
-		printf("ovlan ");
+	if (mode & T4_FILTER_VNIC)
+		printf("vnic ");
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -868,11 +868,12 @@ set_filter_mode(int argc, const char *argv[])
 		if (!strcmp(argv[0], "tos"))
 			mode |= T4_FILTER_IP_TOS;
 
-		if (!strcmp(argv[0], "ivlan"))
-			mode |= T4_FILTER_IVLAN;
+		if (!strcmp(argv[0], "vlan"))
+			mode |= T4_FILTER_VLAN;
 
-		if (!strcmp(argv[0], "ovlan"))
-			mode |= T4_FILTER_OVLAN;
+		if (!strcmp(argv[0], "ovlan") ||
+		    !strcmp(argv[0], "vnic"))
+			mode |= T4_FILTER_VNIC;
 
 		if (!strcmp(argv[0], "iport"))
 			mode |= T4_FILTER_PORT;
@@ -936,15 +937,20 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			t.fs.val.iport = val;
 			t.fs.mask.iport = mask;
 		} else if (!parse_val_mask("ovlan", args, &val, &mask)) {
-			t.fs.val.ovlan = val;
-			t.fs.mask.ovlan = mask;
-			t.fs.val.ovlan_vld = 1;
-			t.fs.mask.ovlan_vld = 1;
-		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
-			t.fs.val.ivlan = val;
-			t.fs.mask.ivlan = mask;
-			t.fs.val.ivlan_vld = 1;
-			t.fs.mask.ivlan_vld = 1;
+			t.fs.val.vnic = val;
+			t.fs.mask.vnic = mask;
+			t.fs.val.vnic_vld = 1;
+			t.fs.mask.vnic_vld = 1;
+		} else if (!parse_val_mask("vnic", args, &val, &mask)) {
+			t.fs.val.vnic = val;
+			t.fs.mask.vnic = mask;
+			t.fs.val.vnic_vld = 1;
+			t.fs.mask.vnic_vld = 1;
+		} else if (!parse_val_mask("vlan", args, &val, &mask)) {
+			t.fs.val.vlan = val;
+			t.fs.mask.vlan = mask;
+			t.fs.val.vlan_vld = 1;
+			t.fs.mask.vlan_vld = 1;
 		} else if (!parse_val_mask("tos", args, &val, &mask)) {
 			t.fs.val.tos = val;
 			t.fs.mask.tos = mask;
