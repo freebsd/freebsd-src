@@ -48,13 +48,13 @@
 
 #include "y.tab.h"
 #define yylval __libipsecyylval	/* XXX */
-#define YY_NO_INPUT
 
 int yylex(void);
 %}
 
 %option noyywrap
 %option nounput
+%option noinput
 
 /* common section */
 nl		\n
