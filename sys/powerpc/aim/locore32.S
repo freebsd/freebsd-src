@@ -128,6 +128,17 @@ __start:
 	sync
 	isync
 
+	/* Zero bss, in case we were started by something unhelpful */
+	li	0,0
+	lis	8,_edata@ha
+	addi	8,8,_edata@l
+	lis	9,_end@ha
+	addi	9,9,_end@l
+2:	stw     0,0(8)
+	addi	8,8,4
+	cmplw	8,9
+	blt	2b
+	
 	/* Save the argument pointer and length */
 	mr	20,6
 	mr	21,7
