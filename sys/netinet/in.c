@@ -253,16 +253,10 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		    sizeof(struct sockaddr_in) ||
 		    ifra->ifra_broadaddr.sin_family != AF_INET))
 			return (EINVAL);
-#if 0
-		/*
-		 * ifconfig(8) historically doesn't set af_family for mask
-		 * for unknown reason.
-		 */
 		if (ifra->ifra_mask.sin_len != 0 &&
 		    (ifra->ifra_mask.sin_len != sizeof(struct sockaddr_in) ||
 		    ifra->ifra_mask.sin_family != AF_INET))
 			return (EINVAL);
-#endif
 		break;
 	case SIOCSIFADDR:
 	case SIOCSIFBRDADDR:
