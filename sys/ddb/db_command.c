@@ -140,6 +140,7 @@ static struct command db_cmds[] = {
 	{ "unscript",	db_unscript_cmd,	CS_OWN,	0 },
 	{ "capture",	db_capture_cmd,		CS_OWN,	0 },
 	{ "textdump",	db_textdump_cmd,	CS_OWN, 0 },
+	{ "findstack",	db_findstack_cmd,	0,	0 },
 };
 struct command_table db_cmd_table = LIST_HEAD_INITIALIZER(db_cmd_table);
 
