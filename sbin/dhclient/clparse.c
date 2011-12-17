@@ -895,7 +895,7 @@ parse_string_list(FILE *cfile, struct string_list **lp, int multiple)
 		tmp = new_string_list(valsize);
 		if (tmp == NULL)
 			error("no memory for string list entry.");
-		strlcpy(tmp->string, val, valsize);
+		memcpy(tmp->string, val, valsize);
 		tmp->next = NULL;
 
 		/* Store this medium at the end of the media list. */
