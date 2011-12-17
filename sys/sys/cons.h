@@ -121,6 +121,7 @@ void	cngrab(void);
 void	cnungrab(void);
 int	cncheckc(void);
 int	cngetc(void);
+void	cngets(char *, size_t, int);
 void	cnputc(int);
 void	cnputs(char *);
 int	cnunavailable(void);
