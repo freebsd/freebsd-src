@@ -143,7 +143,7 @@ main(int argc, char **argv)
 	 */
 	npieces = atoi(&ftsent->fts_name[ftsent->fts_namelen-3]);
 	piece = atoi(&ftsent->fts_name[ftsent->fts_namelen-7]);
-	err("%.*s %d/%d sent", ftsent->fts_namelen-8, ftsent->fts_name,
+	err("%.*s %d/%d sent", (int)(ftsent->fts_namelen-8), ftsent->fts_name,
 		piece, npieces);
 
 	if (chunk++ == num_to_send)
