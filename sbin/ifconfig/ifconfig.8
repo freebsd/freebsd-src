@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2011
+.Dd December 17, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -423,10 +423,10 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
-frame filtering in hardware, or TSO on VLAN,
+frame filtering in hardware, checksum offloading, or TSO on VLAN,
 respectively.
 Note that this must be issued on a physical interface associated with
 .Xr vlan 4 ,
