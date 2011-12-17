@@ -62,6 +62,7 @@ __FBSDID("$FreeBSD$");
 #include <fcntl.h>
 #include <dirent.h>
 #include <errno.h>
+#include <inttypes.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -1138,9 +1139,10 @@ sendagain:
 	copycnt++;
 
 	if (copycnt < 2)
-		(void) sprintf(buf, "%c%qd %s\n", type, stb.st_size, file);
+		(void) sprintf(buf, "%c%" PRId64 " %s\n", type, stb.st_size,
+		    file);
 	else
-		(void) sprintf(buf, "%c%qd %s_c%d\n", type, stb.st_size,
+		(void) sprintf(buf, "%c%" PRId64 " %s_c%d\n", type, stb.st_size,
 		    file, copycnt);
 	amt = strlen(buf);
 	for (i = 0;  ; i++) {
