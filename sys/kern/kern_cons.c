@@ -427,8 +427,10 @@ cnputc(int c)
 	if (console_pausing && c == '\n' && !kdb_active) {
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(*cp);
+		cngrab();
 		if (cngetc() == '.')
 			console_pausing = 0;
+		cnungrab();
 		cnputc('\r');
 		for (cp = console_pausestr; *cp != '\0'; cp++)
 			cnputc(' ');
