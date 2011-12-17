@@ -366,7 +366,7 @@ reloc_plt_object(Obj_Entry *obj, const Elf_Rela *rela)
 		
 
 	/*
-	 * The icache will be sync'd in init_pltgot, which is called
+	 * The icache will be sync'd in reloc_plt, which is called
 	 * after all the slots have been updated
 	 */
 
@@ -382,6 +382,7 @@ reloc_plt(Obj_Entry *obj)
 {
 	const Elf_Rela *relalim;
 	const Elf_Rela *rela;
+	int N = obj->pltrelasize / sizeof(Elf_Rela);
 
 	if (obj->pltrelasize != 0) {
 
@@ -395,6 +396,13 @@ reloc_plt(Obj_Entry *obj)
 			}
 		}
 	}
+
+	/*
+	 * Sync the icache for the byte range represented by the
+	 * trampoline routines and call slots.
+	 */
+	if (obj->pltgot != NULL)
+		__syncicache(obj->pltgot, JMPTAB_BASE(N)*4);
 
 	return (0);
 }
@@ -595,10 +603,9 @@ init_pltgot(Obj_Entry *obj)
 	pltresolve[4] |= _ppc_la(obj);
 
 	/*
-	 * Sync the icache for the byte range represented by the
-	 * trampoline routines and call slots.
+	 * The icache will be sync'd in reloc_plt, which is called
+	 * after all the slots have been updated
 	 */
-	__syncicache(obj->pltgot, JMPTAB_BASE(N)*4);
 }
 
 void
