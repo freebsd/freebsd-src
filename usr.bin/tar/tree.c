@@ -315,7 +315,7 @@ tree_next(struct tree *t)
 		const char *msg = "Unable to continue traversing"
 		    " directory hierarchy after a fatal error.";
 		write(2, msg, strlen(msg));
-		*(int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
+		*(volatile int *)0 = 1; /* Deliberate SEGV; NULL pointer dereference. */
 		exit(1); /* In case the SEGV didn't work. */
 	}
 
