@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -1949,7 +1949,7 @@ sctp_findassociation_addr_sa(struct sockaddr *to, struct sockaddr *from,
  * address will be used to lookup the TCB and see if one exits.
  */
 static struct sctp_tcb *
-sctp_findassociation_special_addr(struct mbuf *m, int iphlen, int offset,
+sctp_findassociation_special_addr(struct mbuf *m, int offset,
     struct sctphdr *sh, struct sctp_inpcb **inp_p, struct sctp_nets **netp,
     struct sockaddr *dest)
 {
@@ -2069,6 +2069,10 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 			SCTP_INP_RUNLOCK(stcb->sctp_ep);
 			continue;
 		}
+		if (stcb->sctp_ep->def_vrf_id != vrf_id) {
+			SCTP_INP_RUNLOCK(stcb->sctp_ep);
+			continue;
+		}
 		SCTP_TCB_LOCK(stcb);
 		SCTP_INP_RUNLOCK(stcb->sctp_ep);
 		if (stcb->asoc.my_vtag == vtag) {
@@ -2144,7 +2148,7 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
  * a IPv4 or IPv6 packet.
  */
 struct sctp_tcb *
-sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
+sctp_findassociation_addr(struct mbuf *m, int offset,
     struct sctphdr *sh, struct sctp_chunkhdr *ch,
     struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
@@ -2284,7 +2288,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
 				}
 				return (NULL);
 			}
-			retval = sctp_findassociation_special_addr(m, iphlen,
+			retval = sctp_findassociation_special_addr(m,
 			    offset, sh, &inp, netp, to);
 			if (inp_p != NULL) {
 				*inp_p = inp;
@@ -2300,7 +2304,7 @@ sctp_findassociation_addr(struct mbuf *m, int iphlen, int offset,
  * if the lookup address is 0.0.0.0 or ::0, use the vtag to do the lookup
  */
 struct sctp_tcb *
-sctp_findassociation_ep_asconf(struct mbuf *m, int iphlen, int offset,
+sctp_findassociation_ep_asconf(struct mbuf *m, int offset,
     struct sctphdr *sh, struct sctp_inpcb **inp_p, struct sctp_nets **netp, uint32_t vrf_id)
 {
 	struct sctp_tcb *stcb;
@@ -5734,7 +5738,7 @@ sctp_mcore_thread(void *arg)
 	/* Now lets start working */
 	SCTP_MCORE_LOCK(wkq);
 	/* Now grab lock and go */
-	while (1) {
+	for (;;) {
 		SCTP_MCORE_QLOCK(wkq);
 skip_sleep:
 		wkq->running = 1;
@@ -6101,7 +6105,7 @@ sctp_pcb_finish(void)
 
 int
 sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
-    int iphlen, int offset, int limit, struct sctphdr *sh,
+    int offset, int limit, struct sctphdr *sh,
     struct sockaddr *altsa)
 {
 	/*
@@ -6816,7 +6820,7 @@ sctp_set_primary_addr(struct sctp_tcb *stcb, struct sockaddr *sa,
 }
 
 int
-sctp_is_vtag_good(struct sctp_inpcb *inp, uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *now, int save_in_twait)
+sctp_is_vtag_good(uint32_t tag, uint16_t lport, uint16_t rport, struct timeval *now)
 {
 	/*
 	 * This function serves two purposes. It will see if a TAG can be
@@ -6896,7 +6900,7 @@ skip_vtag_check:
 }
 
 static void
-sctp_drain_mbufs(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
+sctp_drain_mbufs(struct sctp_tcb *stcb)
 {
 	/*
 	 * We must hunt this association for MBUF's past the cumack (i.e.
@@ -7041,7 +7045,7 @@ sctp_drain()
 			LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 				/* For each association */
 				SCTP_TCB_LOCK(stcb);
-				sctp_drain_mbufs(inp, stcb);
+				sctp_drain_mbufs(stcb);
 				SCTP_TCB_UNLOCK(stcb);
 			}
 			SCTP_INP_RUNLOCK(inp);

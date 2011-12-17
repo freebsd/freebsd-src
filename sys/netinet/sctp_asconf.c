@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -1261,8 +1261,7 @@ sctp_path_check_and_react(struct sctp_tcb *stcb, struct sctp_ifa *newifa)
  * flag: 1=success, 0=failure.
  */
 static void
-sctp_asconf_addr_mgmt_ack(struct sctp_tcb *stcb, struct sctp_ifa *addr,
-    uint16_t type, uint32_t flag)
+sctp_asconf_addr_mgmt_ack(struct sctp_tcb *stcb, struct sctp_ifa *addr, uint32_t flag)
 {
 	/*
 	 * do the necessary asoc list work- if we get a failure indication,
@@ -1712,7 +1711,7 @@ sctp_asconf_process_param_ack(struct sctp_tcb *stcb,
 	case SCTP_ADD_IP_ADDRESS:
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "process_param_ack: added IP address\n");
-		sctp_asconf_addr_mgmt_ack(stcb, aparam->ifa, param_type, flag);
+		sctp_asconf_addr_mgmt_ack(stcb, aparam->ifa, flag);
 		break;
 	case SCTP_DEL_IP_ADDRESS:
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
@@ -2102,7 +2101,7 @@ sctp_addr_mgmt_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 
 int
-sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val)
+sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val SCTP_UNUSED)
 {
 	struct sctp_asconf_iterator *asc;
 	struct sctp_ifa *ifa;
@@ -2150,7 +2149,7 @@ sctp_asconf_iterator_ep(struct sctp_inpcb *inp, void *ptr, uint32_t val)
 }
 
 static int
-sctp_asconf_iterator_ep_end(struct sctp_inpcb *inp, void *ptr, uint32_t val)
+sctp_asconf_iterator_ep_end(struct sctp_inpcb *inp, void *ptr, uint32_t val SCTP_UNUSED)
 {
 	struct sctp_ifa *ifa;
 	struct sctp_asconf_iterator *asc;
@@ -2182,7 +2181,7 @@ sctp_asconf_iterator_ep_end(struct sctp_inpcb *inp, void *ptr, uint32_t val)
 
 void
 sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-    void *ptr, uint32_t val)
+    void *ptr, uint32_t val SCTP_UNUSED)
 {
 	struct sctp_asconf_iterator *asc;
 	struct sctp_ifa *ifa;
@@ -2350,7 +2349,7 @@ sctp_asconf_iterator_stcb(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 }
 
 void
-sctp_asconf_iterator_end(void *ptr, uint32_t val)
+sctp_asconf_iterator_end(void *ptr, uint32_t val SCTP_UNUSED)
 {
 	struct sctp_asconf_iterator *asc;
 	struct sctp_ifa *ifa;
@@ -3009,8 +3008,7 @@ next_addr:
  * 1 if found, 0 if not
  */
 static uint32_t
-sctp_addr_in_initack(struct sctp_tcb *stcb, struct mbuf *m, uint32_t offset,
-    uint32_t length, struct sockaddr *sa)
+sctp_addr_in_initack(struct mbuf *m, uint32_t offset, uint32_t length, struct sockaddr *sa)
 {
 	struct sctp_paramhdr tmp_param, *ph;
 	uint16_t plen, ptype;
@@ -3155,8 +3153,7 @@ sctp_check_address_list_ep(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 			continue;
 		}
 		/* check to see if in the init-ack */
-		if (!sctp_addr_in_initack(stcb, m, offset, length,
-		    &laddr->ifa->address.sa)) {
+		if (!sctp_addr_in_initack(m, offset, length, &laddr->ifa->address.sa)) {
 			/* try to add it */
 			sctp_addr_mgmt_assoc(stcb->sctp_ep, stcb, laddr->ifa,
 			    SCTP_ADD_IP_ADDRESS, SCTP_ADDR_NOT_LOCKED);
@@ -3178,6 +3175,15 @@ sctp_check_address_list_all(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 	struct sctp_ifn *sctp_ifn;
 	struct sctp_ifa *sctp_ifa;
 	uint32_t vrf_id;
+
+#ifdef INET
+	struct sockaddr_in *sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+
+#endif
 
 	if (stcb) {
 		vrf_id = stcb->asoc.vrf_id;
@@ -3202,9 +3208,35 @@ sctp_check_address_list_all(struct sctp_tcb *stcb, struct mbuf *m, int offset,
 			if (sctp_cmpaddr(&sctp_ifa->address.sa, init_addr)) {
 				continue;
 			}
+			switch (sctp_ifa->address.sa.sa_family) {
+#ifdef INET
+			case AF_INET:
+				sin = (struct sockaddr_in *)&sctp_ifa->address.sin;
+				if ((ipv4_scope == 0) &&
+				    (IN4_ISPRIVATE_ADDRESS(&sin->sin_addr))) {
+					/* private address not in scope */
+					continue;
+				}
+				break;
+#endif
+#ifdef INET6
+			case AF_INET6:
+				sin6 = (struct sockaddr_in6 *)&sctp_ifa->address.sin6;
+				if ((local_scope == 0) &&
+				    (IN6_IS_ADDR_LINKLOCAL(&sin6->sin6_addr))) {
+					continue;
+				}
+				if ((site_scope == 0) &&
+				    (IN6_IS_ADDR_SITELOCAL(&sin6->sin6_addr))) {
+					continue;
+				}
+				break;
+#endif
+			default:
+				break;
+			}
 			/* check to see if in the init-ack */
-			if (!sctp_addr_in_initack(stcb, m, offset, length,
-			    &sctp_ifa->address.sa)) {
+			if (!sctp_addr_in_initack(m, offset, length, &sctp_ifa->address.sa)) {
 				/* try to add it */
 				sctp_addr_mgmt_assoc(stcb->sctp_ep, stcb,
 				    sctp_ifa, SCTP_ADD_IP_ADDRESS,
