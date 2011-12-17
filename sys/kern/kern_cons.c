@@ -344,6 +344,32 @@ SYSCTL_PROC(_kern, OID_AUTO, consmute, CTLTYPE_INT|CTLFLAG_RW,
 	0, sizeof(cn_mute), sysctl_kern_consmute, "I",
 	"State of the console muting");
 
+void
+cngrab()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG))
+			cn->cn_ops->cn_grab(cn);
+	}
+}
+
+void
+cnungrab()
+{
+	struct cn_device *cnd;
+	struct consdev *cn;
+
+	STAILQ_FOREACH(cnd, &cn_devlist, cnd_next) {
+		cn = cnd->cnd_cn;
+		if (!kdb_active || !(cn->cn_flags & CN_FLAG_NODEBUG))
+			cn->cn_ops->cn_ungrab(cn);
+	}
+}
+
 /*
  * Low level console routines.
  */

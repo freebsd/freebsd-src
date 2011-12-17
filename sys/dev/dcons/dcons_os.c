@@ -109,6 +109,8 @@ static cn_init_t	dcons_cninit;
 static cn_term_t	dcons_cnterm;
 static cn_getc_t	dcons_cngetc;
 static cn_putc_t	dcons_cnputc;
+static cn_grab_t	dcons_cngrab;
+static cn_ungrab_t	dcons_cnungrab;
 
 CONSOLE_DRIVER(dcons);
 
@@ -243,6 +245,16 @@ dcons_cninit(struct consdev *cp)
 
 static void
 dcons_cnterm(struct consdev *cp)
+{
+}
+
+static void
+dcons_cngrab(struct consdev *cp)
+{
+}
+
+static void
+dcons_cnungrab(struct consdev *cp)
 {
 }
 
