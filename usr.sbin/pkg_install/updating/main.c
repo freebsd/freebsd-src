@@ -141,7 +141,7 @@ main(int argc, char *argv[])
 					strcmp(pkgdbdir->d_name, "..") != 0) {
 
 					/* Create path to +CONTENTS file for each installed port */
-					n = strlcpy(tmp_file, pkgdbpath, strlen(pkgdbpath)+1);
+					n = strlcpy(tmp_file, pkgdbpath, sizeof(tmp_file));
 					n = strlcpy(tmp_file + n, "/", sizeof(tmp_file) - n);
 					n = strlcat(tmp_file + n, pkgdbdir->d_name,
 						sizeof(tmp_file) - n);
@@ -181,7 +181,7 @@ main(int argc, char *argv[])
 								(void)exit(EXIT_FAILURE);
 							if (pname[strlen(pname) - 1] == '\n')
 								pname[strlen(pname) - 1] = '\0';
-							strlcpy (curr->name, pname, strlen(pname)+1);
+							strlcpy (curr->name, pname, sizeof(curr->name));
 							curr->next = head;
 							head = curr;
 						}
