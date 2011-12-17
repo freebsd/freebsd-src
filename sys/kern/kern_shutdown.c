@@ -443,6 +443,8 @@ kern_reboot(int howto)
 
 	print_uptime();
 
+	cngrab();
+
 	/*
 	 * Ok, now do things that assume all filesystem activity has
 	 * been completed.
@@ -613,6 +615,7 @@ panic(const char *fmt, ...)
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;
+		cngrab();
 		printf("panic: %s\n", buf);
 	} else {
 		printf("panic: ");
