@@ -1206,7 +1206,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 static int
 sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	int flags, doingzomb, oid_number;
@@ -1221,11 +1221,11 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		oid_number &= ~KERN_PROC_INC_THREAD;
 	}
 	if (oid_number == KERN_PROC_PID) {
-		if (namelen != 1) 
+		if (namelen != 1)
 			return (EINVAL);
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
-			return (error);		
+			return (error);
 		error = pget((pid_t)name[0], PGET_CANSEE, &p);
 		if (error != 0)
 			return (error);
@@ -1247,7 +1247,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		break;
 	}
-	
+
 	if (!req->oldptr) {
 		/* overestimate by 5 procs */
 		error = SYSCTL_OUT(req, 0, sizeof (struct kinfo_proc) * 5);
@@ -1327,7 +1327,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				/* XXX proctree_lock */
 				SESS_LOCK(p->p_session);
 				if (p->p_session->s_ttyp == NULL ||
-				    tty_udev(p->p_session->s_ttyp) != 
+				    tty_udev(p->p_session->s_ttyp) !=
 				    (dev_t)name[0]) {
 					SESS_UNLOCK(p->p_session);
 					PROC_UNLOCK(p);
@@ -1701,14 +1701,14 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
 static int
 sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct pargs *newpa, *pa;
 	struct proc *p;
 	struct sbuf sb;
 	int flags, error = 0, error2;
 
-	if (namelen != 1) 
+	if (namelen != 1)
 		return (EINVAL);
 
 	flags = PGET_CANSEE;
@@ -1762,7 +1762,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	struct sbuf sb;
@@ -1794,7 +1794,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	size_t vsize, size;
@@ -1882,7 +1882,7 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	namelen = arg2;
-	if (namelen != 1) 
+	if (namelen != 1)
 		return (EINVAL);
 
 	name = (int *)arg1;
@@ -2379,7 +2379,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct plimit *limp;
 	struct proc *p;
@@ -2415,7 +2415,7 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	vm_offset_t ps_strings;
@@ -2467,10 +2467,10 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD | CTLFLAG_MPSAFE
 static SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD | CTLFLAG_MPSAFE, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD | CTLFLAG_MPSAFE, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD | CTLFLAG_MPSAFE,
