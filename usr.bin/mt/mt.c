@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 static const struct commands {
 	const char *c_name;
-	int c_code;
+	unsigned long c_code;
 	int c_ronly;
 	int c_flags;
 } com[] = {
