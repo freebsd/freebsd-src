@@ -129,7 +129,7 @@ parse_string(FILE *cfile)
 	s = malloc(valsize);
 	if (!s)
 		error("no memory for string %s.", val);
-	strlcpy(s, val, valsize);
+	memcpy(s, val, valsize);
 
 	if (!parse_semi(cfile))
 		return (NULL);
@@ -295,7 +295,7 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 			t = malloc(valsize);
 			if (!t)
 				error("no temp space for number.");
-			strlcpy(t, val, valsize);
+			memcpy(t, val, valsize);
 			c = cons(t, c);
 		}
 	} while (++count != *max);
