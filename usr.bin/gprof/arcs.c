@@ -378,7 +378,7 @@ cyclelink()
 	 */
     cyclenl = (nltype *) calloc( ncycle + 1 , sizeof( nltype ) );
     if ( cyclenl == 0 )
-	errx( 1 , "no room for %d bytes of cycle headers" ,
+	errx( 1 , "no room for %zu bytes of cycle headers" ,
 		   ( ncycle + 1 ) * sizeof( nltype ) );
 	/*
 	 *	now link cycles to true cycleheads,
@@ -481,7 +481,7 @@ cycleanalyze()
 	done = FALSE;
         cyclestack = (arctype **) calloc( size + 1 , sizeof( arctype *) );
 	if ( cyclestack == 0 )
-	    errx( 1, "no room for %d bytes of cycle stack" ,
+	    errx( 1, "no room for %zu bytes of cycle stack" ,
 			   ( size + 1 ) * sizeof( arctype * ) );
 #	ifdef DEBUG
 	    if ( debug & BREAKCYCLE ) {
@@ -599,7 +599,7 @@ addcycle( stkstart , stkend )
     clp = (cltype *)
 	calloc( 1 , sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
     if ( clp == 0 ) {
-	warnx( "no room for %d bytes of subcycle storage" ,
+	warnx( "no room for %zu bytes of subcycle storage" ,
 	    sizeof ( cltype ) + ( size - 1 ) * sizeof( arctype * ) );
 	return( FALSE );
     }

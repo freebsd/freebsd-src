@@ -134,7 +134,7 @@ getsymtab(FILE *nfile, const char *filename)
     askfor = nname + 1;
     nl = (nltype *) calloc( askfor , sizeof(nltype) );
     if (nl == 0)
-	errx( 1 , "no room for %d bytes of symbol table" ,
+	errx( 1 , "no room for %zu bytes of symbol table" ,
 		askfor * sizeof(nltype) );
 
     /* pass2 - read symbols */
