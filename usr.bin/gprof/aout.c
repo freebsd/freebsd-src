@@ -175,7 +175,7 @@ gettextspace(FILE *nfile)
 
     textspace = (u_char *) malloc( xbuf.a_text );
     if ( textspace == 0 ) {
-	warnx("no room for %lu bytes of text space: can't do -c" ,
+	warnx("no room for %u bytes of text space: can't do -c" ,
 		  xbuf.a_text );
 	return;
     }
