@@ -1461,7 +1461,7 @@ commands()
 				error("Command not available", NULL_PARG);
 				break;
 			}
-			start_mca(A_EXAMINE, "Examine: ", ml_examine, 0);
+			start_mca(A_EXAMINE, "Examine: ", (void*)ml_examine, 0);
 			c = getcc();
 			goto again;
 #else
@@ -1491,7 +1491,7 @@ commands()
 				error("WARNING: This file was viewed via LESSOPEN",
 					NULL_PARG);
 			}
-			start_mca(A_SHELL, "!", ml_shell, 0);
+			start_mca(A_SHELL, "!", (void*)ml_shell, 0);
 			/*
 			 * Expand the editor prototype string
 			 * and pass it to the system to execute.
@@ -1655,7 +1655,7 @@ commands()
 				error("Command not available", NULL_PARG);
 				break;
 			}
-			start_mca(A_SHELL, "!", ml_shell, 0);
+			start_mca(A_SHELL, "!", (void*)ml_shell, 0);
 			c = getcc();
 			goto again;
 #else
@@ -1706,7 +1706,7 @@ commands()
 			if (badmark(c))
 				break;
 			pipec = c;
-			start_mca(A_PIPE, "!", ml_shell, 0);
+			start_mca(A_PIPE, "!", (void*)ml_shell, 0);
 			c = getcc();
 			goto again;
 #else
