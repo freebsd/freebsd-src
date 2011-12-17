@@ -62,7 +62,7 @@ CWARNFLAGS	+=	-Wno-pointer-sign
 .  if ${CC:T:Mclang} == "clang"
 .   if ${WARNS} <= 3
 CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value\
-			-Wno-parentheses-equality
+			-Wno-parentheses-equality -Wno-unused-function
 .   endif
 .   if ${WARNS} <= 2
 CWARNFLAGS	+=	-Wno-switch-enum
