@@ -1,6 +1,9 @@
 /*-
  * Copyright (c) 1988 University of Utah.
  * Copyright (c) 1991 The Regents of the University of California.
+ * Copyright (c) 1999 Michael Smith
+ * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+ *
  * All rights reserved.
  *
  * This code is derived from software contributed to Berkeley by
