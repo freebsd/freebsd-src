@@ -69,7 +69,6 @@ static device_identify_t octusb_octeon_identify;
 static device_probe_t octusb_octeon_probe;
 static device_attach_t octusb_octeon_attach;
 static device_detach_t octusb_octeon_detach;
-static device_shutdown_t octusb_octeon_shutdown;
 
 struct octusb_octeon_softc {
 	struct octusb_softc sc_dci;	/* must be first */
