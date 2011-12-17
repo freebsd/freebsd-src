@@ -302,8 +302,8 @@ auth_makechallenge(struct config *config, char *challenge)
 	}
 	gettimeofday(&tv, NULL);
 	MD5_Init(&md5);
-	snprintf(buf, sizeof(buf), "%s:%lld:%ld:%ld:%d:%d",
-	    inet_ntoa(laddr.sin_addr), (long long)tv.tv_sec, tv.tv_usec,
+	snprintf(buf, sizeof(buf), "%s:%jd:%ld:%ld:%d:%d",
+	    inet_ntoa(laddr.sin_addr), (intmax_t)tv.tv_sec, tv.tv_usec,
 	    random(), pid, ppid);
 	MD5_Update(&md5, buf, strlen(buf));
 	MD5_Final(md5sum, &md5);
