@@ -69,6 +69,8 @@ static cn_init_t	mambo_cninit;
 static cn_term_t	mambo_cnterm;
 static cn_getc_t	mambo_cngetc;
 static cn_putc_t	mambo_cnputc;
+static cn_grab_t	mambo_cngrab;
+static cn_ungrab_t	mambo_cnungrab;
 
 CONSOLE_DRIVER(mambo);
 
@@ -143,6 +145,16 @@ mambo_cninit(struct consdev *cp)
 
 static void
 mambo_cnterm(struct consdev *cp)
+{
+}
+
+static void
+mambo_cngrab(struct consdev *cp)
+{
+}
+
+static void
+mambo_cnungrab(struct consdev *cp)
 {
 }
 
