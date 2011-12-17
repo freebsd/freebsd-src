@@ -81,7 +81,7 @@ static	char mybuf[50];
 			return("*");
 		}
 	}
-	sprintf(mybuf,"%hu",(short)ntohs(sat->sat_addr.s_net));
+	sprintf(mybuf,"%hu",ntohs(sat->sat_addr.s_net));
 	return mybuf;
 }
 
