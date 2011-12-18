@@ -313,9 +313,12 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 	}
 	r = 0;
 done:
-	if (cache) {
+	if (cache)
 		munmap(cache, bytes);
-	}
+
+	/* Synchronize icache for text seg in case we made any changes */
+	__syncicache(obj->mapbase, obj->textsize);
+
 	return (r);
 }
 
@@ -454,6 +457,22 @@ reloc_jmpslot(Elf_Addr *wherep, Elf_Addr target, const Obj_Entry *defobj,
 	__asm __volatile("dcbst 0,%0; sync" :: "r"(wherep) : "memory");
 
 	return (target);
+}
+
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
 }
 
 void

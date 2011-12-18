@@ -218,6 +218,36 @@
 #endif
 #endif
 
+#if !__GNUC_PREREQ__(2, 95)
+#define	__alignof(x)	__offsetof(struct { char __a; x __b; }, __b)
+#endif
+
+/*
+ * Keywords added in C1X.
+ */
+#if defined(__cplusplus) && __cplusplus >= 201103L
+#define	_Alignas(e)		alignas(e)
+#define	_Alignof(e)		alignof(e)
+#define	_Noreturn		[[noreturn]]
+#define	_Static_assert(e, s)	static_assert(e, s)
+#define	_Thread_local		thread_local
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
+/* Do nothing.  They are language keywords. */
+#else
+/* Not supported.  Implement them using our versions. */
+#define	_Alignas(x)		__aligned(x)
+#define	_Alignof(x)		__alignof(x)
+#define	_Noreturn		__dead2
+#define	_Thread_local		__thread
+#ifdef __COUNTER__
+#define	_Static_assert(x, y)	__Static_assert(x, __COUNTER__)
+#define	__Static_assert(x, y)	___Static_assert(x, y)
+#define	___Static_assert(x, y)	typedef char __assert_ ## y[(x) ? 1 : -1]
+#else
+#define	_Static_assert(x, y)	struct __hack
+#endif
+#endif
+
 #if __GNUC_PREREQ__(2, 96)
 #define	__malloc_like	__attribute__((__malloc__))
 #define	__pure		__attribute__((__pure__))
@@ -330,10 +360,11 @@
 #define __offsetof(type, field)	 __builtin_offsetof(type, field)
 #else
 #ifndef __cplusplus
-#define	__offsetof(type, field)	((size_t)(&((type *)0)->field))
+#define	__offsetof(type, field) \
+	((__size_t)(__uintptr_t)((const volatile void *)&((type *)0)->field))
 #else
 #define __offsetof(type, field)					\
-  (__offsetof__ (reinterpret_cast <size_t>			\
+  (__offsetof__ (reinterpret_cast <__size_t>			\
                  (&reinterpret_cast <const volatile char &>	\
                   (static_cast<type *> (0)->field))))
 #endif
@@ -462,15 +493,15 @@
 #endif
 
 #ifndef	__DECONST
-#define	__DECONST(type, var)	((type)(uintptr_t)(const void *)(var))
+#define	__DECONST(type, var)	((type)(__uintptr_t)(const void *)(var))
 #endif
 
 #ifndef	__DEVOLATILE
-#define	__DEVOLATILE(type, var)	((type)(uintptr_t)(volatile void *)(var))
+#define	__DEVOLATILE(type, var)	((type)(__uintptr_t)(volatile void *)(var))
 #endif
 
 #ifndef	__DEQUALIFY
-#define	__DEQUALIFY(type, var)	((type)(uintptr_t)(const volatile void *)(var))
+#define	__DEQUALIFY(type, var)	((type)(__uintptr_t)(const volatile void *)(var))
 #endif
 
 /*-

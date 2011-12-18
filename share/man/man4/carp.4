@@ -1,6 +1,7 @@
 .\"	$OpenBSD: carp.4,v 1.16 2004/12/07 23:41:35 jmc Exp $
 .\"
 .\" Copyright (c) 2003, Ryan McBride.  All rights reserved.
+.\" Copyright (c) 2011, Gleb Smirnoff <glebius@FreeBSD.org>
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -25,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 15, 2011
+.Dd December 16, 2011
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -34,33 +35,17 @@
 .Sh SYNOPSIS
 .Cd "device carp"
 .Sh DESCRIPTION
-The
-.Nm
-interface is a pseudo-device that implements and controls the
-CARP protocol.
-CARP allows multiple hosts on the same local network to share a set of IP addresses.
+The CARP allows multiple hosts on the same local network to share a set of
+IPv4 and/or IPv6 addresses.
 Its primary purpose is to ensure that these
-addresses are always available, but in some configurations
-.Nm
-can also provide load balancing functionality.
-.Pp
-A
-.Nm
-interface can be created at runtime using the
-.Nm ifconfig Li carp Ns Ar N Cm create
-command or by configuring
-it via
-.Va cloned_interfaces
-in the
-.Pa /etc/rc.conf
-file.
+addresses are always available.
 .Pp
 To use
 .Nm ,
-the administrator needs to configure at minimum a common virtual host ID (VHID)
-and virtual host IP address on each machine which is to take part in the virtual
-group.
-Additional parameters can also be set on a per-interface basis:
+the administrator needs to configure at minimum a common virtual host ID
+(vhid) and attach at least one IP address to this vhid on each machine which
+is to take part in the virtual group.
+Additional parameters can also be set on a per-vhid basis:
 .Cm advbase
 and
 .Cm advskew ,
@@ -93,9 +78,20 @@ or through the
 .Dv SIOCSVH
 .Xr ioctl 2 .
 .Pp
+CARP virtual hosts can be configured on multicast capable interfaces: Ethernet,
+layer 2 VLAN, FDDI and Token Ring.
+An arbitrary number of virtual host IDs can be configured on an interface.
+An arbitrary number of IPv4 or IPv6 addresses can be attached to a particular
+vhid.
+It is important that all hosts participating in a vhid have the same list
+of prefixes configured on the vhid, since all prefixes are included in the
+cryptographic checksum supplied in each advertisement.
+Multiple vhids running on one interface participate in master/backup
+elections independently.
+.Pp
 Additionally, there are a number of global parameters which can be set using
 .Xr sysctl 8 :
-.Bl -tag -width ".Va net.inet.carp.arpbalance"
+.Bl -tag -width ".Va net.inet.carp.preempt"
 .It Va net.inet.carp.allow
 Accept incoming
 .Nm
@@ -125,9 +121,6 @@ Values above 1 enable logging of bad
 .Nm
 packets.
 Default value is 1.
-.It Va net.inet.carp.arpbalance
-Balance local traffic using ARP (see below).
-Disabled by default.
 .It Va net.inet.carp.suppress_preempt
 A read only value showing the status of preemption suppression.
 Preemption can be suppressed if link on an interface is down
@@ -138,36 +131,36 @@ Value of 0 means that preemption is not suppressed, since no
 problems are detected.
 Every problem increments suppression counter.
 .El
-.Sh ARP level load balancing
-The
-.Nm
-has limited abilities for load balancing the incoming connections
-between hosts in Ethernet network.
-For load balancing operation, one needs several CARP interfaces that
-are configured to the same IP address, but to a different VHIDs.
-Once an ARP request is received, the CARP protocol will use a hashing
-function against the source IP address in the ARP request to determine
-which VHID should this request belong to.
-If the corresponding CARP interface is in master state, the ARP request
-will be replied, otherwise it will be ignored.
-See the
-.Sx EXAMPLES
-section for a practical example of load balancing.
-.Pp
-The ARP load balancing has some limitations.
-First, ARP balancing only works on the local network segment.
-It cannot balance traffic that crosses a router, because the
-router itself will always be balanced to the same virtual host.
-Second, ARP load balancing can lead to asymmetric routing
-of incoming and outgoing traffic, and thus combining it with
-.Xr pfsync 4
-is dangerous, because this creates a race condition between
-balanced routers and a host they are serving.
-Imagine an incoming packet creating state on the first router, being
-forwarded to its destination, and destination replying faster
-than the state information is packed and synced with the second router.
-If the reply would be load balanced to second router, it will be
-dropped due to no state.
+.\".Sh ARP level load balancing
+.\"The
+.\".Nm
+.\"has limited abilities for load balancing the incoming connections
+.\"between hosts in Ethernet network.
+.\"For load balancing operation, one needs several CARP interfaces that
+.\"are configured to the same IP address, but to a different vhids.
+.\"Once an ARP request is received, the CARP protocol will use a hashing
+.\"function against the source IP address in the ARP request to determine
+.\"which vhid should this request belong to.
+.\"If the corresponding CARP interface is in master state, the ARP request
+.\"will be replied, otherwise it will be ignored.
+.\"See the
+.\".Sx EXAMPLES
+.\"section for a practical example of load balancing.
+.\".Pp
+.\"The ARP load balancing has some limitations.
+.\"First, ARP balancing only works on the local network segment.
+.\"It cannot balance traffic that crosses a router, because the
+.\"router itself will always be balanced to the same virtual host.
+.\"Second, ARP load balancing can lead to asymmetric routing
+.\"of incoming and outgoing traffic, and thus combining it with
+.\".Xr pfsync 4
+.\"is dangerous, because this creates a race condition between
+.\"balanced routers and a host they are serving.
+.\"Imagine an incoming packet creating state on the first router, being
+.\"forwarded to its destination, and destination replying faster
+.\"than the state information is packed and synced with the second router.
+.\"If the reply would be load balanced to second router, it will be
+.\"dropped due to no state.
 .Sh STATE CHANGE NOTIFICATIONS
 Sometimes it is useful to get notified about
 .Nm
@@ -175,13 +168,10 @@ status change events.
 This can be accomplished by using
 .Xr devd 8
 hooks.
-Master/slave events are signalled as
-.Nm
-interface
-.Dv LINK_UP
-or
-.Dv LINK_DOWN
-event.
+Master/slave events are signalled under system
+.Dv CARP .
+Subsystem specifies vhid and name of interface, where event occured.
+Type of the message displays new state of vhid.
 Please see
 .Xr devd.conf 5
 and 
@@ -197,23 +187,19 @@ Enable it on both host A and B:
 .Pp
 .Dl sysctl net.inet.carp.preempt=1
 .Pp
-Assume that host A is the preferred master and 192.168.1.x/24 is
-configured on one physical interface and 192.168.2.y/24 on another.
+Assume that host A is the preferred master and we are running the
+192.168.1.0/24 prefix on em0 and 192.168.2.0/24 on em1.
 This is the setup for host A:
 .Bd -literal -offset indent
-ifconfig carp0 create
-ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.1/24
-ifconfig carp1 create
-ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.2.1/24
+ifconfig em0 vhid 1 pass mekmitasdigoat 192.168.1.1/24
+ifconfig em1 vhid 2 pass mekmitasdigoat 192.168.2.1/24
 .Ed
 .Pp
 The setup for host B is identical, but it has a higher
 .Cm advskew :
 .Bd -literal -offset indent
-ifconfig carp0 create
-ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
-ifconfig carp1 create
-ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
+ifconfig em0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.1/24
+ifconfig em1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.2.1/24
 .Ed
 .Pp
 Because of the preempt option, when one of the physical interfaces of
@@ -224,67 +210,60 @@ is adjusted to 240 on all its
 interfaces.
 This will cause host B to preempt on both interfaces instead of
 just the failed one.
-.Pp
-In order to set up an ARP balanced virtual host, it is necessary to configure
-one virtual host for each physical host which would respond to ARP requests
-and thus handle the traffic.
-In the following example, two virtual hosts are configured on two hosts to
-provide balancing and failover for the IP address 192.168.1.10.
-.Pp
-First the
-.Nm
-interfaces on host A are configured.
-The
-.Cm advskew
-of 100 on the second virtual host means that its advertisements will be sent
-out slightly less frequently.
-.Bd -literal -offset indent
-ifconfig carp0 create
-ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10/24
-ifconfig carp1 create
-ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.1.10/24
-.Ed
-.Pp
-The configuration for host B is identical, except the
-.Cm advskew
-is on virtual host 1 rather than virtual host 2.
-.Bd -literal -offset indent
-ifconfig carp0 create
-ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.10/24
-ifconfig carp1 create
-ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10/24
-.Ed
-.Pp
-Finally, the ARP balancing feature must be enabled on both hosts:
-.Pp
-.Dl sysctl net.inet.carp.arpbalance=1
-.Pp
-When the hosts receive an ARP request for 192.168.1.10, the source IP address
-of the request is used to compute which virtual host should answer the request.
-The host which is master of the selected virtual host will reply to the
-request, the other(s) will ignore it.
-.Pp
-This way, locally connected systems will receive different ARP replies and
-subsequent IP traffic will be balanced among the hosts.
-If one of the hosts fails, the other will take over the virtual MAC address,
-and begin answering ARP requests on its behalf.
+.\".Pp
+.\"In order to set up an ARP balanced virtual host, it is necessary to configure
+.\"one virtual host for each physical host which would respond to ARP requests
+.\"and thus handle the traffic.
+.\"In the following example, two virtual hosts are configured on two hosts to
+.\"provide balancing and failover for the IP address 192.168.1.10.
+.\".Pp
+.\"First the
+.\".Nm
+.\"interfaces on host A are configured.
+.\"The
+.\".Cm advskew
+.\"of 100 on the second virtual host means that its advertisements will be sent
+.\"out slightly less frequently.
+.\".Bd -literal -offset indent
+.\"ifconfig carp0 create
+.\"ifconfig carp0 vhid 1 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp1 create
+.\"ifconfig carp1 vhid 2 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+.\".Ed
+.\".Pp
+.\"The configuration for host B is identical, except the
+.\".Cm advskew
+.\"is on virtual host 1 rather than virtual host 2.
+.\".Bd -literal -offset indent
+.\"ifconfig carp0 create
+.\"ifconfig carp0 vhid 1 advskew 100 pass mekmitasdigoat 192.168.1.10/24
+.\"ifconfig carp1 create
+.\"ifconfig carp1 vhid 2 pass mekmitasdigoat 192.168.1.10/24
+.\".Ed
+.\".Pp
+.\"Finally, the ARP balancing feature must be enabled on both hosts:
+.\".Pp
+.\".Dl sysctl net.inet.carp.arpbalance=1
+.\".Pp
+.\"When the hosts receive an ARP request for 192.168.1.10, the source IP address
+.\"of the request is used to compute which virtual host should answer the request.
+.\"The host which is master of the selected virtual host will reply to the
+.\"request, the other(s) will ignore it.
+.\".Pp
+.\"This way, locally connected systems will receive different ARP replies and
+.\"subsequent IP traffic will be balanced among the hosts.
+.\"If one of the hosts fails, the other will take over the virtual MAC address,
+.\"and begin answering ARP requests on its behalf.
 .Pp
 Processing of
 .Nm
-status change events can be set up by using the following devd.conf rules:
+status change events can be set up by using the following devd.conf rule:
 .Bd -literal -offset indent
 notify 0 {
-	match "system"          "IFNET";
-	match "type"            "LINK_UP";
-	match "subsystem"       "carp*";
-	action "/root/carpcontrol.sh $type $subsystem";
-};
-
-notify 0 {
-	match "system"          "IFNET";
-	match "type"            "LINK_DOWN";
-	match "subsystem"       "carp*";
-	action "/root/carpcontrol.sh $type $subsystem";
+	match "system"          "CARP";
+	match "subsystem"       "[0-9]+@";
+	match "type"            "(MASTER|BACKUP)";
+	action "/root/carpcontrol.sh $subsystem $type";
 };
 .Ed
 .Sh SEE ALSO
@@ -303,3 +282,8 @@ The
 .Nm
 device was imported into
 .Fx 5.4 .
+In
+.Fx 10
+the
+.Nm
+was significantly rewritten, and is no longer a pseudo-interface.

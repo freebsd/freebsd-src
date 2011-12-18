@@ -1554,9 +1554,12 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	    cnt.v_free_count + cnt.v_cache_count >= npages)) {
 #if VM_NRESERVLEVEL > 0
 retry:
+		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
+		    low, high, alignment, boundary)) == NULL)
 #endif
-		m_ret = vm_phys_alloc_contig(npages, low, high, alignment,
-		    boundary);
+			m_ret = vm_phys_alloc_contig(npages, low, high,
+			    alignment, boundary);
 	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit, npages);
@@ -1581,8 +1584,8 @@ retry:
 		}
 	else {
 #if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages << PAGE_SHIFT, low, high,
-		    alignment, boundary))
+		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
+		    boundary))
 			goto retry;
 #endif
 	}

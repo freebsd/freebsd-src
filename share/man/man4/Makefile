@@ -116,6 +116,7 @@ MAN=	aac.4 \
 	epair.4 \
 	esp.4 \
 	et.4 \
+	eventtimers.4 \
 	exca.4 \
 	faith.4 \
 	fatm.4 \
@@ -499,6 +500,7 @@ MAN=	aac.4 \
 	vga.4 \
 	vge.4 \
 	viapm.4 \
+	${_viawd.4} \
 	vinum.4 \
 	vkbd.4 \
 	vlan.4 \
@@ -711,6 +713,7 @@ _speaker.4=	speaker.4
 _spkr.4=	spkr.4
 _tpm.4=		tpm.4
 _urtw.4=	urtw.4
+_viawd.4=	viawd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
 

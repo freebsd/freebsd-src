@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd November 12, 2011
+.Dd December 17, 2011
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -423,10 +423,10 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
-frame filtering in hardware, or TSO on VLAN,
+frame filtering in hardware, checksum offloading, or TSO on VLAN,
 respectively.
 Note that this must be issued on a physical interface associated with
 .Xr vlan 4 ,
@@ -2445,16 +2445,36 @@ The
 argument is useless and hence deprecated.
 .El
 .Pp
-The following parameters are specific to
+The following parameters are used to configure
 .Xr carp 4
-interfaces:
+protocol on an interface:
 .Bl -tag -width indent
+.It Cm vhid Ar n
+Set the virtual host ID.
+This is a required setting to initiate
+.Xr carp 4 .
+If the virtual host ID doesn't exist yet, it is created and attached to the
+interface, otherwise configuration of an existing vhid is adjusted.
+If the
+.Cm vhid
+keyword is supplied along with an
+.Dq inet6
+or
+.Dq inet
+address, then this address is configured to be run under control of the
+specified vhid.
+Whenever a last address that refers to a particular vhid is removed from an
+interface, the vhid is automatically removed from interface and destroyed.
+Any other configuration parameters for the
+.Xr carp 4
+protocol should be supplied along with the
+.Cm vhid
+keyword.
+Acceptable values for vhid are 1 to 255.
 .It Cm advbase Ar seconds
 Specifies the base of the advertisement interval in seconds.
 The acceptable values are 1 to 255.
 The default value is 1.
-.\" The default value is
-.\" .Dv CARP_DFLTINTV .
 .It Cm advskew Ar interval
 Specifies the skew to add to the base advertisement interval to
 make one host advertise slower than another host.
@@ -2464,10 +2484,8 @@ The default value is 0.
 .It Cm pass Ar phrase
 Set the authentication key to
 .Ar phrase .
-.It Cm vhid Ar n
-Set the virtual host ID.
-This is a required setting.
-Acceptable values are 1 to 255.
+.It Cm state Ar MASTER|BACKUP
+Forcibly change state of a given vhid.
 .El
 .Pp
 The
@@ -2530,8 +2548,9 @@ The
 .Fl k
 flag causes keying information for the interface, if available, to be
 printed.
-For example, the values of 802.11 WEP keys will be printed, if accessible to
-the current user.
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
 This information is not printed by default, as it may be considered
 sensitive.
 .Pp 
@@ -2592,6 +2611,11 @@ and using
 as a synonym for the canonical form of the option
 .Fl alias :
 .Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+.Pp
+Configure a single CARP redundant address on igb0, and then switch it
+to be master:
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface
 .Li xl0 ,

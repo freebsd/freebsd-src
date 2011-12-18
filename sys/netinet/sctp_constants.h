@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -391,6 +391,8 @@ __FBSDID("$FreeBSD$");
 #define SCTP_OUTPUT_FROM_COOKIE_ACK     14
 #define SCTP_OUTPUT_FROM_DRAIN          15
 #define SCTP_OUTPUT_FROM_CLOSING        16
+#define SCTP_OUTPUT_FROM_SOCKOPT        17
+
 /* SCTP chunk types are moved sctp.h for application (NAT, FW) use */
 
 /* align to 32-bit sizes */
@@ -1015,20 +1017,9 @@ __FBSDID("$FreeBSD$");
 
 
 #if defined(_KERNEL)
-
-#define SCTP_GETTIME_TIMESPEC(x) (getnanouptime(x))
-#define SCTP_GETTIME_TIMEVAL(x)	(getmicrouptime(x))
-#define SCTP_GETPTIME_TIMEVAL(x)	(microuptime(x))
+#define SCTP_GETTIME_TIMEVAL(x) (getmicrouptime(x))
+#define SCTP_GETPTIME_TIMEVAL(x) (microuptime(x))
 #endif
-/*#if defined(__FreeBSD__) || defined(__APPLE__)*/
-/*#define SCTP_GETTIME_TIMEVAL(x) { \*/
-/*	(x)->tv_sec = ticks / 1000; \*/
-/*	(x)->tv_usec = (ticks % 1000) * 1000; \*/
-/*}*/
-
-/*#else*/
-/*#define SCTP_GETTIME_TIMEVAL(x)	(microtime(x))*/
-/*#endif				 __FreeBSD__ */
 
 #if defined(_KERNEL) || defined(__Userspace__)
 #define sctp_sowwakeup(inp, so) \

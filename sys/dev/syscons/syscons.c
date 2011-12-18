@@ -185,6 +185,7 @@ static void scshutdown(void *, int);
 static void scsuspend(void *);
 static void scresume(void *);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
+static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -228,6 +229,8 @@ static cn_init_t	sc_cninit;
 static cn_term_t	sc_cnterm;
 static cn_getc_t	sc_cngetc;
 static cn_putc_t	sc_cnputc;
+static cn_grab_t	sc_cngrab;
+static cn_ungrab_t	sc_cnungrab;
 
 CONSOLE_DRIVER(sc);
 
@@ -1608,6 +1611,51 @@ sc_cnterm(struct consdev *cp)
 }
 
 static void
+sc_cngrab(struct consdev *cp)
+{
+    scr_stat *scp;
+
+    scp = sc_console->sc->cur_scp;
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (scp->grabbed++ > 0)
+	return;
+
+    /*
+     * Make sure the keyboard is accessible even when the kbd device
+     * driver is disabled.
+     */
+    kbdd_enable(scp->sc->kbd);
+
+    /* we shall always use the keyboard in the XLATE mode here */
+    scp->kbd_prev_mode = scp->kbd_mode;
+    scp->kbd_mode = K_XLATE;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+
+    kbdd_poll(scp->sc->kbd, TRUE);
+}
+
+static void
+sc_cnungrab(struct consdev *cp)
+{
+    scr_stat *scp;
+
+    scp = sc_console->sc->cur_scp;	/* XXX */
+    if (scp->sc->kbd == NULL)
+	return;
+
+    if (--scp->grabbed > 0)
+	return;
+
+    kbdd_poll(scp->sc->kbd, FALSE);
+
+    scp->kbd_mode = scp->kbd_prev_mode;
+    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
+    kbdd_disable(scp->sc->kbd);
+}
+
+static void
 sc_cnputc(struct consdev *cd, int c)
 {
     u_char buf[1];
@@ -1662,7 +1710,6 @@ sc_cngetc(struct consdev *cd)
     static int fkeycp;
     scr_stat *scp;
     const u_char *p;
-    int cur_mode;
     int s = spltty();	/* block sckbdevent and scrn_timer while we poll */
     int c;
 
@@ -1686,25 +1733,7 @@ sc_cngetc(struct consdev *cd)
 	return -1;
     }
 
-    /* 
-     * Make sure the keyboard is accessible even when the kbd device
-     * driver is disabled.
-     */
-    kbdd_enable(scp->sc->kbd);
-
-    /* we shall always use the keyboard in the XLATE mode here */
-    cur_mode = scp->kbd_mode;
-    scp->kbd_mode = K_XLATE;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-
-    kbdd_poll(scp->sc->kbd, TRUE);
     c = scgetc(scp->sc, SCGETC_CN | SCGETC_NONBLOCK);
-    kbdd_poll(scp->sc->kbd, FALSE);
-
-    scp->kbd_mode = cur_mode;
-    (void)kbdd_ioctl(scp->sc->kbd, KDSKBMODE, (caddr_t)&scp->kbd_mode);
-    kbdd_disable(scp->sc->kbd);
-    splx(s);
 
     switch (KEYFLAGS(c)) {
     case 0:	/* normal char */
@@ -2603,7 +2632,7 @@ exchange_scr(sc_softc_t *sc)
     mark_all(scp);
 }
 
-void
+static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
     int need_unlock = 0;

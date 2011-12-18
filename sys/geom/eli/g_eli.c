@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cons.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/module.h>
@@ -1086,7 +1087,7 @@ g_eli_taste(struct g_class *mp, struct g_provider *pp, int flags __unused)
 		/* Ask for the passphrase if defined. */
 		if (md.md_iterations >= 0) {
 			printf("Enter passphrase for %s: ", pp->name);
-			gets(passphrase, sizeof(passphrase),
+			cngets(passphrase, sizeof(passphrase),
 			    g_eli_visible_passphrase);
 		}
 

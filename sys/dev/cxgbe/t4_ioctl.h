@@ -47,6 +47,8 @@ enum {
 	T4_SET_FILTER,			/* program a filter */
 	T4_DEL_FILTER,			/* delete a filter */
 	T4_GET_SGE_CONTEXT,		/* get SGE context for a queue */
+	T4_LOAD_FW,			/* flash firmware */
+	T4_GET_MEM,			/* read memory */
 };
 
 struct t4_reg {
@@ -62,6 +64,11 @@ struct t4_regdump {
 	uint32_t *data;
 };
 
+struct t4_data {
+	uint32_t len;
+	uint8_t *data;
+};
+
 /*
  * A hardware filter is some valid combination of these.
  */
@@ -73,8 +80,8 @@ struct t4_regdump {
 #define T4_FILTER_IP_DPORT	0x20	/* Destination IP port */
 #define T4_FILTER_FCoE		0x40	/* Fibre Channel over Ethernet packet */
 #define T4_FILTER_PORT		0x80	/* Physical ingress port */
-#define T4_FILTER_OVLAN		0x100	/* Outer VLAN ID */
-#define T4_FILTER_IVLAN		0x200	/* Inner VLAN ID */
+#define T4_FILTER_VNIC		0x100	/* VNIC id or outer VLAN */
+#define T4_FILTER_VLAN		0x200	/* VLAN ID */
 #define T4_FILTER_IP_TOS	0x400	/* IPv4 TOS/IPv6 Traffic Class */
 #define T4_FILTER_IP_PROTO	0x800	/* IP protocol */
 #define T4_FILTER_ETH_TYPE	0x1000	/* Ethernet Type */
@@ -131,8 +138,8 @@ struct t4_filter_tuple {
 	 * is used to select the global mode and all filters are limited to the
 	 * set of fields allowed by the global mode.
 	 */
-	uint16_t ovlan;		/* outer VLAN */
-	uint16_t ivlan;		/* inner VLAN */
+	uint16_t vnic;		/* VNIC id or outer VLAN tag */
+	uint16_t vlan;		/* VLAN tag */
 	uint16_t ethtype;	/* Ethernet type */
 	uint8_t  tos;		/* TOS/Traffic Type */
 	uint8_t  proto;		/* protocol type */
@@ -141,8 +148,8 @@ struct t4_filter_tuple {
 	uint32_t matchtype:3;	/* MPS match type */
 	uint32_t frag:1;	/* fragmentation extension header */
 	uint32_t macidx:9;	/* exact match MAC index */
-	uint32_t ivlan_vld:1;	/* inner VLAN valid */
-	uint32_t ovlan_vld:1;	/* outer VLAN valid */
+	uint32_t vlan_vld:1;	/* VLAN valid */
+	uint32_t vnic_vld:1;	/* VNIC id/outer VLAN tag valid */
 };
 
 struct t4_filter_specification {
@@ -199,6 +206,12 @@ struct t4_sge_context {
 	uint32_t data[T4_SGE_CONTEXT_SIZE / 4];
 };
 
+struct t4_mem_range {
+	uint32_t addr;
+	uint32_t len;
+	uint32_t *data;
+};
+
 #define CHELSIO_T4_GETREG	_IOWR('f', T4_GETREG, struct t4_reg)
 #define CHELSIO_T4_SETREG	_IOW('f', T4_SETREG, struct t4_reg)
 #define CHELSIO_T4_REGDUMP	_IOWR('f', T4_REGDUMP, struct t4_regdump)
@@ -209,4 +222,6 @@ struct t4_sge_context {
 #define CHELSIO_T4_DEL_FILTER	_IOW('f', T4_DEL_FILTER, struct t4_filter)
 #define CHELSIO_T4_GET_SGE_CONTEXT _IOWR('f', T4_GET_SGE_CONTEXT, \
     struct t4_sge_context)
+#define CHELSIO_T4_LOAD_FW	_IOW('f', T4_LOAD_FW, struct t4_data)
+#define CHELSIO_T4_GET_MEM	_IOW('f', T4_GET_MEM, struct t4_mem_range)
 #endif

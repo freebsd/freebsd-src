@@ -130,17 +130,19 @@ void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
 #if defined(INET) || defined(INET6)
-struct ifnet *(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
+int	(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
 int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *sa, struct rtentry *rt);
+    struct sockaddr *sa);
+int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
+int	(*carp_attach_p)(struct ifaddr *, int);
+void	(*carp_detach_p)(struct ifaddr *);
 #endif
 #ifdef INET
-int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
-    u_int8_t **);
+int	(*carp_iamatch_p)(struct ifaddr *, uint8_t **);
 #endif
 #ifdef INET6
 struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
-caddr_t (*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+caddr_t	(*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
     const struct in6_addr *taddr);
 #endif
 
@@ -494,18 +496,11 @@ if_free_internal(struct ifnet *ifp)
 }
 
 /*
- * This version should only be called by intefaces that switch their type
- * after calling if_alloc().  if_free_type() will go away again now that we
- * have if_alloctype to cache the original allocation type.  For now, assert
- * that they match, since we require that in practice.
+ * Deregister an interface and free the associated storage.
  */
 void
-if_free_type(struct ifnet *ifp, u_char type)
+if_free(struct ifnet *ifp)
 {
-
-	KASSERT(ifp->if_alloctype == type,
-	    ("if_free_type: type (%d) != alloctype (%d)", type,
-	    ifp->if_alloctype));
 
 	ifp->if_flags |= IFF_DYING;			/* XXX: Locking */
 
@@ -519,18 +514,6 @@ if_free_type(struct ifnet *ifp, u_char type)
 	if (!refcount_release(&ifp->if_refcount))
 		return;
 	if_free_internal(ifp);
-}
-
-/*
- * This is the normal version of if_free(), used by device drivers to free a
- * detached network interface.  The contents of if_free_type() will move into
- * here when if_free_type() goes away.
- */
-void
-if_free(struct ifnet *ifp)
-{
-
-	if_free_type(ifp, ifp->if_alloctype);
 }
 
 /*
@@ -2525,6 +2508,16 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = if_getgroupmembers((struct ifgroupreq *)data);
 		CURVNET_RESTORE();
 		return (error);
+#if defined(INET) || defined(INET6)
+	case SIOCSVH:
+	case SIOCGVH:
+		if (carp_ioctl_p == NULL)
+			error = EPROTONOSUPPORT;
+		else
+			error = (*carp_ioctl_p)(ifr, cmd, td);
+		CURVNET_RESTORE();
+		return (error);
+#endif
 	}
 
 	ifp = ifunit_ref(ifr->ifr_name);

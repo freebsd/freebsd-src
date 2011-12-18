@@ -330,6 +330,55 @@ pgfind(pgid)
 }
 
 /*
+ * Locate process and do additional manipulations, depending on flags.
+ */
+int
+pget(pid_t pid, int flags, struct proc **pp)
+{
+	struct proc *p;
+	int error;
+
+	p = pfind(pid);
+	if (p == NULL)
+		return (ESRCH);
+	if ((flags & PGET_CANSEE) != 0) {
+		error = p_cansee(curthread, p);
+		if (error != 0)
+			goto errout;
+	}
+	if ((flags & PGET_CANDEBUG) != 0) {
+		error = p_candebug(curthread, p);
+		if (error != 0)
+			goto errout;
+	}
+	if ((flags & PGET_ISCURRENT) != 0 && curproc != p) {
+		error = EPERM;
+		goto errout;
+	}
+	if ((flags & PGET_NOTWEXIT) != 0 && (p->p_flag & P_WEXIT) != 0) {
+		error = ESRCH;
+		goto errout;
+	}
+	if ((flags & PGET_NOTINEXEC) != 0 && (p->p_flag & P_INEXEC) != 0) {
+		/*
+		 * XXXRW: Not clear ESRCH is the right error during proc
+		 * execve().
+		 */
+		error = ESRCH;
+		goto errout;
+	}
+	if ((flags & PGET_HOLD) != 0) {
+		_PHOLD(p);
+		PROC_UNLOCK(p);
+	}
+	*pp = p;
+	return (0);
+errout:
+	PROC_UNLOCK(p);
+	return (error);
+}
+
+/*
  * Create a new process group.
  * pgid must be equal to the pid of p.
  * Begin a new session if required.
@@ -1157,7 +1206,7 @@ sysctl_out_proc(struct proc *p, struct sysctl_req *req, int flags)
 static int
 sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	int flags, doingzomb, oid_number;
@@ -1172,18 +1221,14 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 		oid_number &= ~KERN_PROC_INC_THREAD;
 	}
 	if (oid_number == KERN_PROC_PID) {
-		if (namelen != 1) 
+		if (namelen != 1)
 			return (EINVAL);
 		error = sysctl_wire_old_buffer(req, 0);
 		if (error)
-			return (error);		
-		p = pfind((pid_t)name[0]);
-		if (!p)
-			return (ESRCH);
-		if ((error = p_cansee(curthread, p))) {
-			PROC_UNLOCK(p);
 			return (error);
-		}
+		error = pget((pid_t)name[0], PGET_CANSEE, &p);
+		if (error != 0)
+			return (error);
 		error = sysctl_out_proc(p, req, flags);
 		return (error);
 	}
@@ -1202,7 +1247,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 			return (EINVAL);
 		break;
 	}
-	
+
 	if (!req->oldptr) {
 		/* overestimate by 5 procs */
 		error = SYSCTL_OUT(req, 0, sizeof (struct kinfo_proc) * 5);
@@ -1282,7 +1327,7 @@ sysctl_kern_proc(SYSCTL_HANDLER_ARGS)
 				/* XXX proctree_lock */
 				SESS_LOCK(p->p_session);
 				if (p->p_session->s_ttyp == NULL ||
-				    tty_udev(p->p_session->s_ttyp) != 
+				    tty_udev(p->p_session->s_ttyp) !=
 				    (dev_t)name[0]) {
 					SESS_UNLOCK(p->p_session);
 					PROC_UNLOCK(p);
@@ -1656,29 +1701,22 @@ proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
 static int
 sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct pargs *newpa, *pa;
 	struct proc *p;
 	struct sbuf sb;
-	int error = 0, error2;
+	int flags, error = 0, error2;
 
-	if (namelen != 1) 
+	if (namelen != 1)
 		return (EINVAL);
 
-	p = pfind((pid_t)name[0]);
-	if (!p)
-		return (ESRCH);
-
-	if ((error = p_cansee(curthread, p)) != 0) {
-		PROC_UNLOCK(p);
+	flags = PGET_CANSEE;
+	if (req->newptr != NULL)
+		flags |= PGET_ISCURRENT;
+	error = pget((pid_t)name[0], flags, &p);
+	if (error)
 		return (error);
-	}
-
-	if (req->newptr && curproc != p) {
-		PROC_UNLOCK(p);
-		return (EPERM);
-	}
 
 	pa = p->p_args;
 	if (pa != NULL) {
@@ -1724,7 +1762,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	struct sbuf sb;
@@ -1733,23 +1771,14 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 
-	p = pfind((pid_t)name[0]);
-	if (p == NULL)
-		return (ESRCH);
-	if ((p->p_flag & P_WEXIT) != 0) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if ((error = p_candebug(curthread, p)) != 0) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
 		return (error);
-	}
 	if ((p->p_flag & P_SYSTEM) != 0) {
-		PROC_UNLOCK(p);
+		PRELE(p);
 		return (0);
 	}
-	_PHOLD(p);
-	PROC_UNLOCK(p);
+
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
 	error = proc_getenvv(curthread, p, &sb, req->oldlen);
 	error2 = sbuf_finish(&sb);
@@ -1765,7 +1794,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	size_t vsize, size;
@@ -1775,23 +1804,13 @@ sysctl_kern_proc_auxv(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 
-	p = pfind((pid_t)name[0]);
-	if (p == NULL)
-		return (ESRCH);
-	if (p->p_flag & P_WEXIT) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if ((error = p_cansee(curthread, p)) != 0) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
 		return (error);
-	}
 	if ((p->p_flag & P_SYSTEM) != 0) {
-		PROC_UNLOCK(p);
+		PRELE(p);
 		return (0);
 	}
-	_PHOLD(p);
-	PROC_UNLOCK(p);
 	error = get_proc_vector(curthread, p, &auxv, &vsize, PROC_AUX);
 	if (error == 0) {
 #ifdef COMPAT_FREEBSD32
@@ -1828,13 +1847,9 @@ sysctl_kern_proc_pathname(SYSCTL_HANDLER_ARGS)
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
 	} else {
-		p = pfind(*pidp);
-		if (p == NULL)
-			return (ESRCH);
-		if ((error = p_cansee(curthread, p)) != 0) {
-			PROC_UNLOCK(p);
+		error = pget(*pidp, PGET_CANSEE, &p);
+		if (error != 0)
 			return (error);
-		}
 	}
 
 	vp = p->p_textvp;
@@ -1867,16 +1882,13 @@ sysctl_kern_proc_sv_name(SYSCTL_HANDLER_ARGS)
 	int error;
 
 	namelen = arg2;
-	if (namelen != 1) 
+	if (namelen != 1)
 		return (EINVAL);
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	if ((error = p_cansee(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_CANSEE, &p);
+	if (error != 0)
 		return (error);
-	}
 	sv_name = p->p_sysent->sv_name;
 	PROC_UNLOCK(p);
 	return (sysctl_handle_string(oidp, sv_name, 0, req));
@@ -1903,18 +1915,9 @@ sysctl_kern_proc_ovmmap(SYSCTL_HANDLER_ARGS)
 	struct vmspace *vm;
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	if (p->p_flag & P_WEXIT) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if ((error = p_candebug(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
 		return (error);
-	}
-	_PHOLD(p);
-	PROC_UNLOCK(p);
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL) {
 		PRELE(p);
@@ -2081,18 +2084,9 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	vm_map_t map;
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	if (p->p_flag & P_WEXIT) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if ((error = p_candebug(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
+	if (error != 0)
 		return (error);
-	}
-	_PHOLD(p);
-	PROC_UNLOCK(p);
 	vm = vmspace_acquire_ref(p);
 	if (vm == NULL) {
 		PRELE(p);
@@ -2266,19 +2260,9 @@ sysctl_kern_proc_kstack(SYSCTL_HANDLER_ARGS)
 	struct proc *p;
 
 	name = (int *)arg1;
-	if ((p = pfind((pid_t)name[0])) == NULL)
-		return (ESRCH);
-	/* XXXRW: Not clear ESRCH is the right error during proc execve(). */
-	if (p->p_flag & P_WEXIT || p->p_flag & P_INEXEC) {
-		PROC_UNLOCK(p);
-		return (ESRCH);
-	}
-	if ((error = p_candebug(curthread, p))) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_NOTINEXEC | PGET_WANTREAD, &p);
+	if (error != 0)
 		return (error);
-	}
-	_PHOLD(p);
-	PROC_UNLOCK(p);
 
 	kkstp = malloc(sizeof(*kkstp), M_TEMP, M_WAITOK);
 	st = stack_create();
@@ -2373,13 +2357,9 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 	if (*pidp == -1) {	/* -1 means this process */
 		p = req->td->td_proc;
 	} else {
-		p = pfind(*pidp);
-		if (p == NULL)
-			return (ESRCH);
-		if ((error = p_cansee(curthread, p)) != 0) {
-			PROC_UNLOCK(p);
+		error = pget(*pidp, PGET_CANSEE, &p);
+		if (error != 0)
 			return (error);
-		}
 	}
 
 	cred = crhold(p->p_ucred);
@@ -2399,7 +2379,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct plimit *limp;
 	struct proc *p;
@@ -2408,15 +2388,9 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 
-	p = pfind((pid_t)name[0]);
-	if (p == NULL)
-		return (ESRCH);
-
-	if ((error = p_cansee(curthread, p)) != 0) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_CANSEE, &p);
+	if (error != 0)
 		return (error);
-	}
-
 	/*
 	 * Check the request size.  We alow sizes smaller rlimit array for
 	 * backward binary compatibility: the number of resource limits may
@@ -2441,7 +2415,7 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 static int
 sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 {
-	int *name = (int*) arg1;
+	int *name = (int *)arg1;
 	u_int namelen = arg2;
 	struct proc *p;
 	vm_offset_t ps_strings;
@@ -2453,13 +2427,9 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 
-	p = pfind((pid_t)name[0]);
-	if (p == NULL)
-		return (ESRCH);
-	if ((error = p_cansee(curthread, p)) != 0) {
-		PROC_UNLOCK(p);
+	error = pget((pid_t)name[0], PGET_CANDEBUG, &p);
+	if (error != 0)
 		return (error);
-	}
 #ifdef COMPAT_FREEBSD32
 	if ((req->flags & SCTL_MASK32) != 0) {
 		/*
@@ -2497,10 +2467,10 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_RGID, rgid, CTLFLAG_RD | CTLFLAG_MPSAFE
 static SYSCTL_NODE(_kern_proc, KERN_PROC_SESSION, sid, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD | CTLFLAG_MPSAFE, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_TTY, tty, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD | CTLFLAG_MPSAFE, 
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UID, uid, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc, "Process table");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_RUID, ruid, CTLFLAG_RD | CTLFLAG_MPSAFE,

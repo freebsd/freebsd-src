@@ -1254,7 +1254,13 @@ nfsvno_fsync(struct vnode *vp, u_int64_t off, int cnt, struct ucred *cred,
 {
 	int error = 0;
 
-	if (cnt > MAX_COMMIT_COUNT) {
+	/*
+	 * RFC 1813 3.3.21: if count is 0, a flush from offset to the end of
+	 * file is done.  At this time VOP_FSYNC does not accept offset and
+	 * byte count parameters so call VOP_FSYNC the whole file for now.
+	 * The same is true for NFSv4: RFC 3530 Sec. 14.2.3.
+	 */
+	if (cnt == 0 || cnt > MAX_COMMIT_COUNT) {
 		/*
 		 * Give up and do the whole thing
 		 */

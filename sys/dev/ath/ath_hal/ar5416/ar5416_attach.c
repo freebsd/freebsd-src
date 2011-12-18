@@ -339,7 +339,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 
 	/* Read Radio Chip Rev Extract */
-	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5416GetRadioRev(ah);
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
         case AR_RAD5122_SREV_MAJOR:	/* Fowl: 5G/2x2 */
         case AR_RAD2122_SREV_MAJOR:	/* Fowl: 2+5G/2x2 */

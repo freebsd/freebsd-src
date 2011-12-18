@@ -109,3 +109,5 @@ device		md
 device		bpf
 device		random
 device		if_bridge
+device		gpio
+device		gpioled

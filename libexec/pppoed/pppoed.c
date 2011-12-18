@@ -570,8 +570,8 @@ main(int argc, char *argv[])
     }
     exec = (char *)alloca(sizeof DEFAULT_EXEC_PREFIX + strlen(label));
     if (exec == NULL) {
-      fprintf(stderr, "%s: Cannot allocate %d bytes\n", prog,
-              (int)(sizeof DEFAULT_EXEC_PREFIX) + strlen(label));
+      fprintf(stderr, "%s: Cannot allocate %zu bytes\n", prog,
+              sizeof DEFAULT_EXEC_PREFIX + strlen(label));
       return EX_OSERR;
     }
     strcpy(exec, DEFAULT_EXEC_PREFIX);

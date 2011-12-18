@@ -775,8 +775,7 @@ no_kernend:
  * if we've enabled PSE above, we'll just switch the corresponding kernel
  * PDEs before we turn on paging.
  *
- * XXX: We waste some pages here in the PSE case!  DON'T BLINDLY REMOVE
- * THIS!  SMP needs the page table to be there to map the kernel P==V.
+ * XXX: We waste some pages here in the PSE case!
  */
 	xorl	%eax, %eax
 	movl	R(KERNend),%ecx

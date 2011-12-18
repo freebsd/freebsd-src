@@ -65,7 +65,7 @@ private:
  * eps is short for event_proc_single.  It is a single entry in an
  * event_proc.  Each keyword needs its own subclass from eps.
  */
-class eps
+struct eps
 {
 public:
 	eps() {}
@@ -126,7 +126,7 @@ private:
 	std::string _cmd;
 };
 
-class event_proc
+struct event_proc
 {
 public:
 	event_proc();

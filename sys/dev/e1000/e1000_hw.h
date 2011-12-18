@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -41,139 +41,138 @@
 
 struct e1000_hw;
 
-#define E1000_DEV_ID_82542                    0x1000
-#define E1000_DEV_ID_82543GC_FIBER            0x1001
-#define E1000_DEV_ID_82543GC_COPPER           0x1004
-#define E1000_DEV_ID_82544EI_COPPER           0x1008
-#define E1000_DEV_ID_82544EI_FIBER            0x1009
-#define E1000_DEV_ID_82544GC_COPPER           0x100C
-#define E1000_DEV_ID_82544GC_LOM              0x100D
-#define E1000_DEV_ID_82540EM                  0x100E
-#define E1000_DEV_ID_82540EM_LOM              0x1015
-#define E1000_DEV_ID_82540EP_LOM              0x1016
-#define E1000_DEV_ID_82540EP                  0x1017
-#define E1000_DEV_ID_82540EP_LP               0x101E
-#define E1000_DEV_ID_82545EM_COPPER           0x100F
-#define E1000_DEV_ID_82545EM_FIBER            0x1011
-#define E1000_DEV_ID_82545GM_COPPER           0x1026
-#define E1000_DEV_ID_82545GM_FIBER            0x1027
-#define E1000_DEV_ID_82545GM_SERDES           0x1028
-#define E1000_DEV_ID_82546EB_COPPER           0x1010
-#define E1000_DEV_ID_82546EB_FIBER            0x1012
-#define E1000_DEV_ID_82546EB_QUAD_COPPER      0x101D
-#define E1000_DEV_ID_82546GB_COPPER           0x1079
-#define E1000_DEV_ID_82546GB_FIBER            0x107A
-#define E1000_DEV_ID_82546GB_SERDES           0x107B
-#define E1000_DEV_ID_82546GB_PCIE             0x108A
-#define E1000_DEV_ID_82546GB_QUAD_COPPER      0x1099
-#define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3 0x10B5
-#define E1000_DEV_ID_82541EI                  0x1013
-#define E1000_DEV_ID_82541EI_MOBILE           0x1018
-#define E1000_DEV_ID_82541ER_LOM              0x1014
-#define E1000_DEV_ID_82541ER                  0x1078
-#define E1000_DEV_ID_82541GI                  0x1076
-#define E1000_DEV_ID_82541GI_LF               0x107C
-#define E1000_DEV_ID_82541GI_MOBILE           0x1077
-#define E1000_DEV_ID_82547EI                  0x1019
-#define E1000_DEV_ID_82547EI_MOBILE           0x101A
-#define E1000_DEV_ID_82547GI                  0x1075
-#define E1000_DEV_ID_82571EB_COPPER           0x105E
-#define E1000_DEV_ID_82571EB_FIBER            0x105F
-#define E1000_DEV_ID_82571EB_SERDES           0x1060
-#define E1000_DEV_ID_82571EB_SERDES_DUAL      0x10D9
-#define E1000_DEV_ID_82571EB_SERDES_QUAD      0x10DA
-#define E1000_DEV_ID_82571EB_QUAD_COPPER      0x10A4
-#define E1000_DEV_ID_82571PT_QUAD_COPPER      0x10D5
-#define E1000_DEV_ID_82571EB_QUAD_FIBER       0x10A5
-#define E1000_DEV_ID_82571EB_QUAD_COPPER_LP   0x10BC
-#define E1000_DEV_ID_82572EI_COPPER           0x107D
-#define E1000_DEV_ID_82572EI_FIBER            0x107E
-#define E1000_DEV_ID_82572EI_SERDES           0x107F
-#define E1000_DEV_ID_82572EI                  0x10B9
-#define E1000_DEV_ID_82573E                   0x108B
-#define E1000_DEV_ID_82573E_IAMT              0x108C
-#define E1000_DEV_ID_82573L                   0x109A
-#define E1000_DEV_ID_82574L                   0x10D3
-#define E1000_DEV_ID_82574LA                  0x10F6
-#define E1000_DEV_ID_82583V                   0x150C
-#define E1000_DEV_ID_80003ES2LAN_COPPER_DPT   0x1096
-#define E1000_DEV_ID_80003ES2LAN_SERDES_DPT   0x1098
-#define E1000_DEV_ID_80003ES2LAN_COPPER_SPT   0x10BA
-#define E1000_DEV_ID_80003ES2LAN_SERDES_SPT   0x10BB
-#define E1000_DEV_ID_ICH8_82567V_3            0x1501
-#define E1000_DEV_ID_ICH8_IGP_M_AMT           0x1049
-#define E1000_DEV_ID_ICH8_IGP_AMT             0x104A
-#define E1000_DEV_ID_ICH8_IGP_C               0x104B
-#define E1000_DEV_ID_ICH8_IFE                 0x104C
-#define E1000_DEV_ID_ICH8_IFE_GT              0x10C4
-#define E1000_DEV_ID_ICH8_IFE_G               0x10C5
-#define E1000_DEV_ID_ICH8_IGP_M               0x104D
-#define E1000_DEV_ID_ICH9_IGP_M               0x10BF
-#define E1000_DEV_ID_ICH9_IGP_M_AMT           0x10F5
-#define E1000_DEV_ID_ICH9_IGP_M_V             0x10CB
-#define E1000_DEV_ID_ICH9_IGP_AMT             0x10BD
-#define E1000_DEV_ID_ICH9_BM                  0x10E5
-#define E1000_DEV_ID_ICH9_IGP_C               0x294C
-#define E1000_DEV_ID_ICH9_IFE                 0x10C0
-#define E1000_DEV_ID_ICH9_IFE_GT              0x10C3
-#define E1000_DEV_ID_ICH9_IFE_G               0x10C2
-#define E1000_DEV_ID_ICH10_R_BM_LM            0x10CC
-#define E1000_DEV_ID_ICH10_R_BM_LF            0x10CD
-#define E1000_DEV_ID_ICH10_R_BM_V             0x10CE
-#define E1000_DEV_ID_ICH10_HANKSVILLE         0xF0FE
-#define E1000_DEV_ID_ICH10_D_BM_LM            0x10DE
-#define E1000_DEV_ID_ICH10_D_BM_LF            0x10DF
-#define E1000_DEV_ID_ICH10_D_BM_V             0x1525
+#define E1000_DEV_ID_82542			0x1000
+#define E1000_DEV_ID_82543GC_FIBER		0x1001
+#define E1000_DEV_ID_82543GC_COPPER		0x1004
+#define E1000_DEV_ID_82544EI_COPPER		0x1008
+#define E1000_DEV_ID_82544EI_FIBER		0x1009
+#define E1000_DEV_ID_82544GC_COPPER		0x100C
+#define E1000_DEV_ID_82544GC_LOM		0x100D
+#define E1000_DEV_ID_82540EM			0x100E
+#define E1000_DEV_ID_82540EM_LOM		0x1015
+#define E1000_DEV_ID_82540EP_LOM		0x1016
+#define E1000_DEV_ID_82540EP			0x1017
+#define E1000_DEV_ID_82540EP_LP			0x101E
+#define E1000_DEV_ID_82545EM_COPPER		0x100F
+#define E1000_DEV_ID_82545EM_FIBER		0x1011
+#define E1000_DEV_ID_82545GM_COPPER		0x1026
+#define E1000_DEV_ID_82545GM_FIBER		0x1027
+#define E1000_DEV_ID_82545GM_SERDES		0x1028
+#define E1000_DEV_ID_82546EB_COPPER		0x1010
+#define E1000_DEV_ID_82546EB_FIBER		0x1012
+#define E1000_DEV_ID_82546EB_QUAD_COPPER	0x101D
+#define E1000_DEV_ID_82546GB_COPPER		0x1079
+#define E1000_DEV_ID_82546GB_FIBER		0x107A
+#define E1000_DEV_ID_82546GB_SERDES		0x107B
+#define E1000_DEV_ID_82546GB_PCIE		0x108A
+#define E1000_DEV_ID_82546GB_QUAD_COPPER	0x1099
+#define E1000_DEV_ID_82546GB_QUAD_COPPER_KSP3	0x10B5
+#define E1000_DEV_ID_82541EI			0x1013
+#define E1000_DEV_ID_82541EI_MOBILE		0x1018
+#define E1000_DEV_ID_82541ER_LOM		0x1014
+#define E1000_DEV_ID_82541ER			0x1078
+#define E1000_DEV_ID_82541GI			0x1076
+#define E1000_DEV_ID_82541GI_LF			0x107C
+#define E1000_DEV_ID_82541GI_MOBILE		0x1077
+#define E1000_DEV_ID_82547EI			0x1019
+#define E1000_DEV_ID_82547EI_MOBILE		0x101A
+#define E1000_DEV_ID_82547GI			0x1075
+#define E1000_DEV_ID_82571EB_COPPER		0x105E
+#define E1000_DEV_ID_82571EB_FIBER		0x105F
+#define E1000_DEV_ID_82571EB_SERDES		0x1060
+#define E1000_DEV_ID_82571EB_SERDES_DUAL	0x10D9
+#define E1000_DEV_ID_82571EB_SERDES_QUAD	0x10DA
+#define E1000_DEV_ID_82571EB_QUAD_COPPER	0x10A4
+#define E1000_DEV_ID_82571PT_QUAD_COPPER	0x10D5
+#define E1000_DEV_ID_82571EB_QUAD_FIBER		0x10A5
+#define E1000_DEV_ID_82571EB_QUAD_COPPER_LP	0x10BC
+#define E1000_DEV_ID_82572EI_COPPER		0x107D
+#define E1000_DEV_ID_82572EI_FIBER		0x107E
+#define E1000_DEV_ID_82572EI_SERDES		0x107F
+#define E1000_DEV_ID_82572EI			0x10B9
+#define E1000_DEV_ID_82573E			0x108B
+#define E1000_DEV_ID_82573E_IAMT		0x108C
+#define E1000_DEV_ID_82573L			0x109A
+#define E1000_DEV_ID_82574L			0x10D3
+#define E1000_DEV_ID_82574LA			0x10F6
+#define E1000_DEV_ID_82583V			0x150C
+#define E1000_DEV_ID_80003ES2LAN_COPPER_DPT	0x1096
+#define E1000_DEV_ID_80003ES2LAN_SERDES_DPT	0x1098
+#define E1000_DEV_ID_80003ES2LAN_COPPER_SPT	0x10BA
+#define E1000_DEV_ID_80003ES2LAN_SERDES_SPT	0x10BB
+#define E1000_DEV_ID_ICH8_82567V_3		0x1501
+#define E1000_DEV_ID_ICH8_IGP_M_AMT		0x1049
+#define E1000_DEV_ID_ICH8_IGP_AMT		0x104A
+#define E1000_DEV_ID_ICH8_IGP_C			0x104B
+#define E1000_DEV_ID_ICH8_IFE			0x104C
+#define E1000_DEV_ID_ICH8_IFE_GT		0x10C4
+#define E1000_DEV_ID_ICH8_IFE_G			0x10C5
+#define E1000_DEV_ID_ICH8_IGP_M			0x104D
+#define E1000_DEV_ID_ICH9_IGP_M			0x10BF
+#define E1000_DEV_ID_ICH9_IGP_M_AMT		0x10F5
+#define E1000_DEV_ID_ICH9_IGP_M_V		0x10CB
+#define E1000_DEV_ID_ICH9_IGP_AMT		0x10BD
+#define E1000_DEV_ID_ICH9_BM			0x10E5
+#define E1000_DEV_ID_ICH9_IGP_C			0x294C
+#define E1000_DEV_ID_ICH9_IFE			0x10C0
+#define E1000_DEV_ID_ICH9_IFE_GT		0x10C3
+#define E1000_DEV_ID_ICH9_IFE_G			0x10C2
+#define E1000_DEV_ID_ICH10_R_BM_LM		0x10CC
+#define E1000_DEV_ID_ICH10_R_BM_LF		0x10CD
+#define E1000_DEV_ID_ICH10_R_BM_V		0x10CE
+#define E1000_DEV_ID_ICH10_D_BM_LM		0x10DE
+#define E1000_DEV_ID_ICH10_D_BM_LF		0x10DF
+#define E1000_DEV_ID_ICH10_D_BM_V		0x1525
 
-#define E1000_DEV_ID_PCH_M_HV_LM              0x10EA
-#define E1000_DEV_ID_PCH_M_HV_LC              0x10EB
-#define E1000_DEV_ID_PCH_D_HV_DM              0x10EF
-#define E1000_DEV_ID_PCH_D_HV_DC              0x10F0
-#define E1000_DEV_ID_PCH2_LV_LM               0x1502
-#define E1000_DEV_ID_PCH2_LV_V                0x1503
-#define E1000_DEV_ID_82576                    0x10C9
-#define E1000_DEV_ID_82576_FIBER              0x10E6
-#define E1000_DEV_ID_82576_SERDES             0x10E7
-#define E1000_DEV_ID_82576_QUAD_COPPER        0x10E8
-#define E1000_DEV_ID_82576_QUAD_COPPER_ET2    0x1526
-#define E1000_DEV_ID_82576_NS                 0x150A
-#define E1000_DEV_ID_82576_NS_SERDES          0x1518
-#define E1000_DEV_ID_82576_SERDES_QUAD        0x150D
-#define E1000_DEV_ID_82576_VF                 0x10CA
-#define E1000_DEV_ID_I350_VF                  0x1520
-#define E1000_DEV_ID_82575EB_COPPER           0x10A7
-#define E1000_DEV_ID_82575EB_FIBER_SERDES     0x10A9
-#define E1000_DEV_ID_82575GB_QUAD_COPPER      0x10D6
-#define E1000_DEV_ID_82575GB_QUAD_COPPER_PM   0x10E2
-#define E1000_DEV_ID_82580_COPPER             0x150E
-#define E1000_DEV_ID_82580_FIBER              0x150F
-#define E1000_DEV_ID_82580_SERDES             0x1510
-#define E1000_DEV_ID_82580_SGMII              0x1511
-#define E1000_DEV_ID_82580_COPPER_DUAL        0x1516
-#define E1000_DEV_ID_82580_QUAD_FIBER         0x1527
-#define E1000_DEV_ID_I350_COPPER              0x1521
-#define E1000_DEV_ID_I350_FIBER               0x1522
-#define E1000_DEV_ID_I350_SERDES              0x1523
-#define E1000_DEV_ID_I350_SGMII               0x1524
-#define E1000_DEV_ID_DH89XXCC_SGMII           0x0438
-#define E1000_DEV_ID_DH89XXCC_SERDES          0x043A
-#define E1000_DEV_ID_DH89XXCC_BACKPLANE       0x043C
-#define E1000_DEV_ID_DH89XXCC_SFP             0x0440
-#define E1000_REVISION_0 0
-#define E1000_REVISION_1 1
-#define E1000_REVISION_2 2
-#define E1000_REVISION_3 3
-#define E1000_REVISION_4 4
+#define E1000_DEV_ID_PCH_M_HV_LM		0x10EA
+#define E1000_DEV_ID_PCH_M_HV_LC		0x10EB
+#define E1000_DEV_ID_PCH_D_HV_DM		0x10EF
+#define E1000_DEV_ID_PCH_D_HV_DC		0x10F0
+#define E1000_DEV_ID_PCH2_LV_LM			0x1502
+#define E1000_DEV_ID_PCH2_LV_V			0x1503
+#define E1000_DEV_ID_82576			0x10C9
+#define E1000_DEV_ID_82576_FIBER		0x10E6
+#define E1000_DEV_ID_82576_SERDES		0x10E7
+#define E1000_DEV_ID_82576_QUAD_COPPER		0x10E8
+#define E1000_DEV_ID_82576_QUAD_COPPER_ET2	0x1526
+#define E1000_DEV_ID_82576_NS			0x150A
+#define E1000_DEV_ID_82576_NS_SERDES		0x1518
+#define E1000_DEV_ID_82576_SERDES_QUAD		0x150D
+#define E1000_DEV_ID_82576_VF			0x10CA
+#define E1000_DEV_ID_I350_VF			0x1520
+#define E1000_DEV_ID_82575EB_COPPER		0x10A7
+#define E1000_DEV_ID_82575EB_FIBER_SERDES	0x10A9
+#define E1000_DEV_ID_82575GB_QUAD_COPPER	0x10D6
+#define E1000_DEV_ID_82580_COPPER		0x150E
+#define E1000_DEV_ID_82580_FIBER		0x150F
+#define E1000_DEV_ID_82580_SERDES		0x1510
+#define E1000_DEV_ID_82580_SGMII		0x1511
+#define E1000_DEV_ID_82580_COPPER_DUAL		0x1516
+#define E1000_DEV_ID_82580_QUAD_FIBER		0x1527
+#define E1000_DEV_ID_I350_COPPER		0x1521
+#define E1000_DEV_ID_I350_FIBER			0x1522
+#define E1000_DEV_ID_I350_SERDES		0x1523
+#define E1000_DEV_ID_I350_SGMII			0x1524
+#define E1000_DEV_ID_I350_DA4			0x1546
+#define E1000_DEV_ID_DH89XXCC_SGMII		0x0438
+#define E1000_DEV_ID_DH89XXCC_SERDES		0x043A
+#define E1000_DEV_ID_DH89XXCC_BACKPLANE		0x043C
+#define E1000_DEV_ID_DH89XXCC_SFP		0x0440
+#define E1000_REVISION_0	0
+#define E1000_REVISION_1	1
+#define E1000_REVISION_2	2
+#define E1000_REVISION_3	3
+#define E1000_REVISION_4	4
 
-#define E1000_FUNC_0     0
-#define E1000_FUNC_1     1
-#define E1000_FUNC_2     2
-#define E1000_FUNC_3     3
+#define E1000_FUNC_0		0
+#define E1000_FUNC_1		1
+#define E1000_FUNC_2		2
+#define E1000_FUNC_3		3
 
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0   0
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1   3
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2   6
-#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3   9
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN0	0
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN1	3
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN2	6
+#define E1000_ALT_MAC_ADDRESS_OFFSET_LAN3	9
 
 enum e1000_mac_type {
 	e1000_undefined = 0,
@@ -342,9 +341,9 @@ enum e1000_serdes_link_state {
 struct e1000_rx_desc {
 	__le64 buffer_addr; /* Address of the descriptor's data buffer */
 	__le16 length;      /* Length of data DMAed into data buffer */
-	__le16 csum;        /* Packet checksum */
-	u8  status;         /* Descriptor status */
-	u8  errors;         /* Descriptor Errors */
+	__le16 csum; /* Packet checksum */
+	u8  status;  /* Descriptor status */
+	u8  errors;  /* Descriptor Errors */
 	__le16 special;
 };
 
@@ -356,9 +355,9 @@ union e1000_rx_desc_extended {
 	} read;
 	struct {
 		struct {
-			__le32 mrq;           /* Multiple Rx Queues */
+			__le32 mrq; /* Multiple Rx Queues */
 			union {
-				__le32 rss;         /* RSS Hash */
+				__le32 rss; /* RSS Hash */
 				struct {
 					__le16 ip_id;  /* IP id */
 					__le16 csum;   /* Packet Checksum */
@@ -368,7 +367,7 @@ union e1000_rx_desc_extended {
 		struct {
 			__le32 status_error;  /* ext status/error */
 			__le16 length;
-			__le16 vlan;          /* VLAN tag */
+			__le16 vlan; /* VLAN tag */
 		} upper;
 	} wb;  /* writeback */
 };
@@ -382,9 +381,9 @@ union e1000_rx_desc_packet_split {
 	} read;
 	struct {
 		struct {
-			__le32 mrq;           /* Multiple Rx Queues */
+			__le32 mrq;  /* Multiple Rx Queues */
 			union {
-				__le32 rss;           /* RSS Hash */
+				__le32 rss; /* RSS Hash */
 				struct {
 					__le16 ip_id;    /* IP id */
 					__le16 csum;     /* Packet Checksum */
@@ -393,8 +392,8 @@ union e1000_rx_desc_packet_split {
 		} lower;
 		struct {
 			__le32 status_error;  /* ext status/error */
-			__le16 length0;       /* length of buffer 0 */
-			__le16 vlan;          /* VLAN tag */
+			__le16 length0;  /* length of buffer 0 */
+			__le16 vlan;  /* VLAN tag */
 		} middle;
 		struct {
 			__le16 header_status;
@@ -410,16 +409,16 @@ struct e1000_tx_desc {
 	union {
 		__le32 data;
 		struct {
-			__le16 length;    /* Data buffer length */
-			u8 cso;           /* Checksum offset */
-			u8 cmd;           /* Descriptor control */
+			__le16 length;  /* Data buffer length */
+			u8 cso;  /* Checksum offset */
+			u8 cmd;  /* Descriptor control */
 		} flags;
 	} lower;
 	union {
 		__le32 data;
 		struct {
-			u8 status;        /* Descriptor status */
-			u8 css;           /* Checksum start */
+			u8 status; /* Descriptor status */
+			u8 css;  /* Checksum start */
 			__le16 special;
 		} fields;
 	} upper;
@@ -430,37 +429,37 @@ struct e1000_context_desc {
 	union {
 		__le32 ip_config;
 		struct {
-			u8 ipcss;         /* IP checksum start */
-			u8 ipcso;         /* IP checksum offset */
-			__le16 ipcse;     /* IP checksum end */
+			u8 ipcss;  /* IP checksum start */
+			u8 ipcso;  /* IP checksum offset */
+			__le16 ipcse;  /* IP checksum end */
 		} ip_fields;
 	} lower_setup;
 	union {
 		__le32 tcp_config;
 		struct {
-			u8 tucss;         /* TCP checksum start */
-			u8 tucso;         /* TCP checksum offset */
-			__le16 tucse;     /* TCP checksum end */
+			u8 tucss;  /* TCP checksum start */
+			u8 tucso;  /* TCP checksum offset */
+			__le16 tucse;  /* TCP checksum end */
 		} tcp_fields;
 	} upper_setup;
 	__le32 cmd_and_length;
 	union {
 		__le32 data;
 		struct {
-			u8 status;        /* Descriptor status */
-			u8 hdr_len;       /* Header length */
-			__le16 mss;       /* Maximum segment size */
+			u8 status;  /* Descriptor status */
+			u8 hdr_len;  /* Header length */
+			__le16 mss;  /* Maximum segment size */
 		} fields;
 	} tcp_seg_setup;
 };
 
 /* Offload data descriptor */
 struct e1000_data_desc {
-	__le64 buffer_addr;   /* Address of the descriptor's buffer address */
+	__le64 buffer_addr;  /* Address of the descriptor's buffer address */
 	union {
 		__le32 data;
 		struct {
-			__le16 length;    /* Data buffer length */
+			__le16 length;  /* Data buffer length */
 			u8 typ_len_ext;
 			u8 cmd;
 		} flags;
@@ -468,8 +467,8 @@ struct e1000_data_desc {
 	union {
 		__le32 data;
 		struct {
-			u8 status;        /* Descriptor status */
-			u8 popts;         /* Packet Options */
+			u8 status;  /* Descriptor status */
+			u8 popts;  /* Packet Options */
 			__le16 special;
 		} fields;
 	} upper;
@@ -553,6 +552,10 @@ struct e1000_hw_stats {
 	u64 scvpc;
 	u64 hrmpc;
 	u64 doosync;
+	u64 o2bgptc;
+	u64 o2bspc;
+	u64 b2ospc;
+	u64 b2ogprc;
 };
 
 struct e1000_vf_stats {
@@ -611,7 +614,7 @@ struct e1000_host_command_header {
 	u8 checksum;
 };
 
-#define E1000_HI_MAX_DATA_LENGTH     252
+#define E1000_HI_MAX_DATA_LENGTH	252
 struct e1000_host_command_info {
 	struct e1000_host_command_header command_header;
 	u8 command_data[E1000_HI_MAX_DATA_LENGTH];
@@ -626,7 +629,7 @@ struct e1000_host_mng_command_header {
 	u16 command_length;
 };
 
-#define E1000_HI_MAX_MNG_DATA_LENGTH 0x6F8
+#define E1000_HI_MAX_MNG_DATA_LENGTH	0x6F8
 struct e1000_host_mng_command_info {
 	struct e1000_host_mng_command_header command_header;
 	u8 command_data[E1000_HI_MAX_MNG_DATA_LENGTH];
@@ -668,11 +671,26 @@ struct e1000_mac_operations {
 	s32  (*validate_mdi_setting)(struct e1000_hw *);
 	s32  (*mng_host_if_write)(struct e1000_hw *, u8*, u16, u16, u8*);
 	s32  (*mng_write_cmd_header)(struct e1000_hw *hw,
-                      struct e1000_host_mng_command_header*);
+				     struct e1000_host_mng_command_header*);
 	s32  (*mng_enable_host_if)(struct e1000_hw *);
 	s32  (*wait_autoneg)(struct e1000_hw *);
 };
 
+/*
+ * When to use various PHY register access functions:
+ *
+ *                 Func   Caller
+ *   Function      Does   Does    When to use
+ *   ~~~~~~~~~~~~  ~~~~~  ~~~~~~  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ *   X_reg         L,P,A  n/a     for simple PHY reg accesses
+ *   X_reg_locked  P,A    L       for multiple accesses of different regs
+ *                                on different pages
+ *   X_reg_page    A      L,P     for multiple accesses of different regs
+ *                                on the same page
+ *
+ * Where X=[read|write], L=locking, P=sets page, A=register access
+ *
+ */
 struct e1000_phy_operations {
 	s32  (*init_params)(struct e1000_hw *);
 	s32  (*acquire)(struct e1000_hw *);
@@ -684,16 +702,21 @@ struct e1000_phy_operations {
 	s32  (*get_cfg_done)(struct e1000_hw *hw);
 	s32  (*get_cable_length)(struct e1000_hw *);
 	s32  (*get_info)(struct e1000_hw *);
+	s32  (*set_page)(struct e1000_hw *, u16);
 	s32  (*read_reg)(struct e1000_hw *, u32, u16 *);
 	s32  (*read_reg_locked)(struct e1000_hw *, u32, u16 *);
+	s32  (*read_reg_page)(struct e1000_hw *, u32, u16 *);
 	void (*release)(struct e1000_hw *);
 	s32  (*reset)(struct e1000_hw *);
 	s32  (*set_d0_lplu_state)(struct e1000_hw *, bool);
 	s32  (*set_d3_lplu_state)(struct e1000_hw *, bool);
 	s32  (*write_reg)(struct e1000_hw *, u32, u16);
 	s32  (*write_reg_locked)(struct e1000_hw *, u32, u16);
+	s32  (*write_reg_page)(struct e1000_hw *, u32, u16);
 	void (*power_up)(struct e1000_hw *);
 	void (*power_down)(struct e1000_hw *);
+	s32 (*read_i2c_byte)(struct e1000_hw *, u8, u8, u8 *);
+	s32 (*write_i2c_byte)(struct e1000_hw *, u8, u8, u8);
 };
 
 struct e1000_nvm_operations {
@@ -781,7 +804,6 @@ struct e1000_phy_info {
 	bool disable_polarity_correction;
 	bool is_mdix;
 	bool polarity_correction;
-	bool reset_disable;
 	bool speed_downgraded;
 	bool autoneg_wait_to_complete;
 };
@@ -811,14 +833,14 @@ struct e1000_bus_info {
 };
 
 struct e1000_fc_info {
-	u32 high_water;          /* Flow control high-water mark */
-	u32 low_water;           /* Flow control low-water mark */
-	u16 pause_time;          /* Flow control pause timer */
-	u16 refresh_time;        /* Flow control refresh timer */
-	bool send_xon;           /* Flow control send XON */
-	bool strict_ieee;        /* Strict IEEE mode */
-	enum e1000_fc_mode current_mode; /* FC mode in effect */
-	enum e1000_fc_mode requested_mode; /* FC mode requested by caller */
+	u32 high_water;  /* Flow control high-water mark */
+	u32 low_water;  /* Flow control low-water mark */
+	u16 pause_time;  /* Flow control pause timer */
+	u16 refresh_time;  /* Flow control refresh timer */
+	bool send_xon;  /* Flow control send XON */
+	bool strict_ieee;  /* Strict IEEE mode */
+	enum e1000_fc_mode current_mode;  /* FC mode in effect */
+	enum e1000_fc_mode requested_mode;  /* FC mode requested by caller */
 };
 
 struct e1000_mbx_operations {
@@ -889,13 +911,15 @@ struct e1000_dev_spec_ich8lan {
 	E1000_MUTEX nvm_mutex;
 	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
-	bool eee_disable;
+	int eee_disable;
 };
 
 struct e1000_dev_spec_82575 {
 	bool sgmii_active;
 	bool global_device_reset;
-	bool eee_disable;
+	int eee_disable;
+	bool module_plugged;
+	u32 mtu;
 };
 
 struct e1000_dev_spec_vf {

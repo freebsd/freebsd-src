@@ -230,6 +230,8 @@ typedef struct Struct_Obj_Entry {
     bool on_fini_list: 1;	/* Object is already on fini list. */
     bool dag_inited : 1;	/* Object has its DAG initialized. */
     bool filtees_loaded : 1;	/* Filtees loaded */
+    bool irelative : 1;		/* Object has R_MACHDEP_IRELATIVE relocs */
+    bool gnu_ifunc : 1;		/* Object has references to STT_GNU_IFUNC */
 
     struct link_map linkmap;	/* For GDB and dlinfo() */
     Objlist dldags;		/* Object belongs to these dlopened DAGs (%) */
@@ -246,7 +248,7 @@ typedef struct Struct_Obj_Entry {
 
 /* Flags to be passed into symlook_ family of functions. */
 #define SYMLOOK_IN_PLT	0x01	/* Lookup for PLT symbol */
-#define SYMLOOK_DLSYM	0x02	/* Return newes versioned symbol. Used by
+#define SYMLOOK_DLSYM	0x02	/* Return newest versioned symbol. Used by
 				   dlsym. */
 
 /* Flags for load_object(). */
@@ -317,6 +319,7 @@ void lockdflt_init(void);
 void obj_free(Obj_Entry *);
 Obj_Entry *obj_new(void);
 void _rtld_bind_start(void);
+void *rtld_resolve_ifunc(const Obj_Entry *obj, const Elf_Sym *def);
 void symlook_init(SymLook *, const char *);
 int symlook_obj(SymLook *, const Obj_Entry *);
 void *tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset);
@@ -334,6 +337,8 @@ int do_copy_relocations(Obj_Entry *);
 int reloc_non_plt(Obj_Entry *, Obj_Entry *, struct Struct_RtldLockState *);
 int reloc_plt(Obj_Entry *);
 int reloc_jmpslots(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_iresolve(Obj_Entry *, struct Struct_RtldLockState *);
+int reloc_gnu_ifunc(Obj_Entry *, struct Struct_RtldLockState *);
 void allocate_initial_tls(Obj_Entry *);
 
 #endif /* } */

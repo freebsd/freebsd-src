@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2011
+.Dd December 11, 2011
 .Dt MAKE.CONF 5
 .Os
 .Sh NAME
@@ -333,6 +333,12 @@ to update your
 .Pa src
 tree with
 .Dq Li "make update" .
+Note that since a subversion client is not included in the base system,
+you will need to set
+.Va SVN
+to the full path of a
+.Xr svn 1
+binary.
 .It Va WWWSUPFILE
 .Pq Vt str
 The www
@@ -494,7 +500,7 @@ rather than load the server's kernel.
 .Pq Vt bool
 Defining this and recompiling
 .Pa /usr/src/sys/boot/i386
-will add 
+will add
 .Xr dcons 4
 console driver to
 .Xr loader 8
@@ -634,7 +640,7 @@ The default value is 0640.
 .Pq Vt str
 Additional maps to rebuild when using
 .Pa /etc/mail/Makefile .
-The 
+The
 .Pa access ,
 .Pa bitdomain ,
 .Pa domaintable ,

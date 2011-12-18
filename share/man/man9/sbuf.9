@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 25, 2011
+.Dd December 9, 2011
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -117,7 +117,7 @@ defined in
 .Pp
 Any errors encountered during the allocation or composition of the
 string will be latched in the data structure,
-making a single error test at the end of the composition 
+making a single error test at the end of the composition
 sufficient to determine success or failure of the entire process.
 .Pp
 The
@@ -391,7 +391,8 @@ function returns the actual string;
 only works on a finished
 .Fa sbuf .
 The
-.Fn sbuf_len function returns the length of the string.
+.Fn sbuf_len
+function returns the length of the string.
 For an
 .Fa sbuf
 with an attached drain,
@@ -462,12 +463,8 @@ function returns a non-zero value if the buffer has an overflow or
 drain error, and zero otherwise.
 .Pp
 The
-.Fn sbuf_data
-and
 .Fn sbuf_len
-functions return
-.Dv NULL
-and \-1, respectively, if the buffer overflowed.
+function returns \-1 if the buffer overflowed.
 .Pp
 The
 .Fn sbuf_copyin
@@ -482,7 +479,7 @@ being finished,
 or returns the error code from the drain if one is attached.
 .Pp
 The
-.Fn sbuf_finish 3 
+.Fn sbuf_finish 3
 function (the userland version)
 will return zero for success and \-1 and set errno on error.
 .Sh EXAMPLES

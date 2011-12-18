@@ -1,7 +1,5 @@
 /*-
- * Copyright (c) 1999 Michael Smith
- * Copyright (c) 2005 Pawel Jakub Dawidek <pjd@FreeBSD.org>
- * All rights reserved.
+ * Copyright (c) 2009 Konstantin Belousov <kib@FreeBSD.org>
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -11,11 +9,14 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
- * THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+ * 4. Neither the name of the University nor the names of its contributors
+ *    may be used to endorse or promote products derived from this software
+ *    without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -23,55 +24,20 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ *	$FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _SYS__KSTACK_CACHE_H
+#define	_SYS__KSTACK_CACHE_H
 
-#include <sys/param.h>
-#include <sys/cons.h>
-#include <sys/libkern.h>
+struct kstack_cache_entry {
+	struct vm_object *ksobj;
+	struct kstack_cache_entry *next_ks_entry;
+};
 
-void
-gets(char *cp, size_t size, int visible)
-{
-	char *lp, *end;
-	int c;
+extern struct kstack_cache_entry *kstack_cache;
 
-	lp = cp;
-	end = cp + size - 1;
-	for (;;) {
-		c = cngetc() & 0177;
-		switch (c) {
-		case '\n':
-		case '\r':
-			printf("%c", c);
-			*lp = '\0';
-			return;
-		case '\b':
-		case '\177':
-			if (lp > cp) {
-				if (visible)
-					printf("%c \b", c);
-				lp--;
-			}
-			continue;
-		case '\0':
-			continue;
-		default:
-			if (lp < end) {
-				switch (visible) {
-				case GETS_NOECHO:
-					break;
-				case GETS_ECHOPASS:
-					printf("*");
-					break;
-				default:	
-					printf("%c", c);
-					break;
-				}
-				*lp++ = c;
-			}
-		}
-	}
-}
+#endif
+
+

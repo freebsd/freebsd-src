@@ -6,7 +6,7 @@ KRB5DIR=	${.CURDIR}/../../../crypto/heimdal
 
 CFLAGS+=	-DHAVE_CONFIG_H -I${.CURDIR}/../../include
 
-.if defined(WITH_OPENLDAP)
+.if defined(WITH_OPENLDAP) && !defined(COMPAT_32BIT)
 OPENLDAPBASE?=	/usr/local
 LDAPLDADD=	-lldap -llber
 LDAPDPADD=	${LDAPLDADD:C;^-l(.*)$;${OPENLDAPBASE}/lib/lib\1.a;}

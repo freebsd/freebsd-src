@@ -153,6 +153,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/smp.h>
 #include <machine/sr.h>
 #include <machine/mmuvar.h>
+#include <machine/trap_aim.h>
 
 #include "mmu_if.h"
 
@@ -759,6 +760,38 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 		phys_avail_count++;
 		physsz += regions[i].mr_size;
 	}
+
+	/* Check for overlap with the kernel and exception vectors */
+	for (j = 0; j < 2*phys_avail_count; j+=2) {
+		if (phys_avail[j] < EXC_LAST)
+			phys_avail[j] += EXC_LAST;
+
+		if (kernelstart >= phys_avail[j] &&
+		    kernelstart < phys_avail[j+1]) {
+			if (kernelend < phys_avail[j+1]) {
+				phys_avail[2*phys_avail_count] =
+				    (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+				phys_avail[2*phys_avail_count + 1] =
+				    phys_avail[j+1];
+				phys_avail_count++;
+			}
+
+			phys_avail[j+1] = kernelstart & ~PAGE_MASK;
+		}
+
+		if (kernelend >= phys_avail[j] &&
+		    kernelend < phys_avail[j+1]) {
+			if (kernelstart > phys_avail[j]) {
+				phys_avail[2*phys_avail_count] = phys_avail[j];
+				phys_avail[2*phys_avail_count + 1] =
+				    kernelstart & ~PAGE_MASK;
+				phys_avail_count++;
+			}
+
+			phys_avail[j] = (kernelend & ~PAGE_MASK) + PAGE_SIZE;
+		}
+	}
+
 	physmem = btoc(physsz);
 
 	/*
@@ -824,48 +857,48 @@ moea_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 	for (i = 0; i < 16; i++)
 		kernel_pmap->pm_sr[i] = EMPTY_SEGMENT + i;
 	CPU_FILL(&kernel_pmap->pm_active);
+	LIST_INIT(&kernel_pmap->pmap_pvo);
 
 	/*
 	 * Set up the Open Firmware mappings
 	 */
-	if ((chosen = OF_finddevice("/chosen")) == -1)
-		panic("moea_bootstrap: can't find /chosen");
-	OF_getprop(chosen, "mmu", &mmui, 4);
-	if ((mmu = OF_instance_to_package(mmui)) == -1)
-		panic("moea_bootstrap: can't get mmu package");
-	if ((sz = OF_getproplen(mmu, "translations")) == -1)
-		panic("moea_bootstrap: can't get ofw translation count");
-	translations = NULL;
-	for (i = 0; phys_avail[i] != 0; i += 2) {
-		if (phys_avail[i + 1] >= sz) {
-			translations = (struct ofw_map *)phys_avail[i];
-			break;
+	chosen = OF_finddevice("/chosen");
+	if (chosen != -1 && OF_getprop(chosen, "mmu", &mmui, 4) != -1 &&
+	    (mmu = OF_instance_to_package(mmui)) != -1 && 
+	    (sz = OF_getproplen(mmu, "translations")) != -1) {
+		translations = NULL;
+		for (i = 0; phys_avail[i] != 0; i += 2) {
+			if (phys_avail[i + 1] >= sz) {
+				translations = (struct ofw_map *)phys_avail[i];
+				break;
+			}
 		}
-	}
-	if (translations == NULL)
-		panic("moea_bootstrap: no space to copy translations");
-	bzero(translations, sz);
-	if (OF_getprop(mmu, "translations", translations, sz) == -1)
-		panic("moea_bootstrap: can't get ofw translations");
-	CTR0(KTR_PMAP, "moea_bootstrap: translations");
-	sz /= sizeof(*translations);
-	qsort(translations, sz, sizeof (*translations), om_cmp);
-	for (i = 0; i < sz; i++) {
-		CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
-		    translations[i].om_pa, translations[i].om_va,
-		    translations[i].om_len);
+		if (translations == NULL)
+			panic("moea_bootstrap: no space to copy translations");
+		bzero(translations, sz);
+		if (OF_getprop(mmu, "translations", translations, sz) == -1)
+			panic("moea_bootstrap: can't get ofw translations");
+		CTR0(KTR_PMAP, "moea_bootstrap: translations");
+		sz /= sizeof(*translations);
+		qsort(translations, sz, sizeof (*translations), om_cmp);
+		for (i = 0; i < sz; i++) {
+			CTR3(KTR_PMAP, "translation: pa=%#x va=%#x len=%#x",
+			    translations[i].om_pa, translations[i].om_va,
+			    translations[i].om_len);
 
-		/*
-		 * If the mapping is 1:1, let the RAM and device on-demand
-		 * BAT tables take care of the translation.
-		 */
-		if (translations[i].om_va == translations[i].om_pa)
-			continue;
+			/*
+			 * If the mapping is 1:1, let the RAM and device
+			 * on-demand BAT tables take care of the translation.
+			 */
+			if (translations[i].om_va == translations[i].om_pa)
+				continue;
 
-		/* Enter the pages */
-		for (off = 0; off < translations[i].om_len; off += PAGE_SIZE)
-			moea_kenter(mmup, translations[i].om_va + off, 
-				    translations[i].om_pa + off);
+			/* Enter the pages */
+			for (off = 0; off < translations[i].om_len;
+			    off += PAGE_SIZE)
+				moea_kenter(mmup, translations[i].om_va + off, 
+					    translations[i].om_pa + off);
+		}
 	}
 
 	/*
@@ -1582,6 +1615,7 @@ moea_pinit(mmu_t mmu, pmap_t pmap)
 
 	KASSERT((int)pmap < VM_MIN_KERNEL_ADDRESS, ("moea_pinit: virt pmap"));
 	PMAP_LOCK_INIT(pmap);
+	LIST_INIT(&pmap->pmap_pvo);
 
 	entropy = 0;
 	__asm __volatile("mftb %0" : "=r"(entropy));
@@ -1765,10 +1799,17 @@ moea_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea_pvo_find_va(pm, sva, &pteidx);
-		if (pvo != NULL) {
-			moea_pvo_remove(pvo, pteidx);
+	if ((eva - sva)/PAGE_SIZE < 10) {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			pvo = moea_pvo_find_va(pm, sva, &pteidx);
+			if (pvo != NULL)
+				moea_pvo_remove(pvo, pteidx);
+		}
+	} else {
+		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
+				continue;
+			moea_pvo_remove(pvo, -1);
 		}
 	}
 	PMAP_UNLOCK(pm);
@@ -1931,6 +1972,11 @@ moea_pvo_enter(pmap_t pm, uma_zone_t zone, struct pvo_head *pvo_head,
 	moea_pte_create(&pvo->pvo_pte.pte, sr, va, pa | pte_lo);
 
 	/*
+	 * Add to pmap list
+	 */
+	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
+
+	/*
 	 * Remember if the list was empty and therefore will be the first
 	 * item.
 	 */
@@ -1996,9 +2042,10 @@ moea_pvo_remove(struct pvo_entry *pvo, int pteidx)
 	}
 
 	/*
-	 * Remove this PVO from the PV list.
+	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
+	LIST_REMOVE(pvo, pvo_plink);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool

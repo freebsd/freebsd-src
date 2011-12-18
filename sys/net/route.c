@@ -1128,8 +1128,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		ifa = info->rti_ifa;
 		rt = uma_zalloc(V_rtzone, M_NOWAIT | M_ZERO);
 		if (rt == NULL) {
-			if (ifa != NULL)
-				ifa_free(ifa);
+			ifa_free(ifa);
 			senderr(ENOBUFS);
 		}
 		RT_LOCK_INIT(rt);
@@ -1142,8 +1141,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
 			RT_LOCK_DESTROY(rt);
-			if (ifa != NULL)
-				ifa_free(ifa);
+			ifa_free(ifa);
 			uma_zfree(V_rtzone, rt);
 			senderr(error);
 		}
@@ -1174,9 +1172,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		/* do not permit exactly the same dst/mask/gw pair */
 		if (rn_mpath_capable(rnh) &&
 			rt_mpath_conflict(rnh, rt, netmask)) {
-			if (rt->rt_ifa) {
-				ifa_free(rt->rt_ifa);
-			}
+			ifa_free(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);
@@ -1241,8 +1237,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		 * then un-make it (this should be a function)
 		 */
 		if (rn == NULL) {
-			if (rt->rt_ifa)
-				ifa_free(rt->rt_ifa);
+			ifa_free(rt->rt_ifa);
 			Free(rt_key(rt));
 			RT_LOCK_DESTROY(rt);
 			uma_zfree(V_rtzone, rt);

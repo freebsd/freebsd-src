@@ -314,14 +314,14 @@ fdsettype(struct fd_data *fd, struct fd_type *ft)
 /*
  * Bus space handling (access to low-level IO).
  */
-__inline static void
+static inline void
 fdregwr(struct fdc_data *fdc, int reg, uint8_t v)
 {
 
 	bus_space_write_1(fdc->iot, fdc->ioh[reg], fdc->ioff[reg], v);
 }
 
-__inline static uint8_t
+static inline uint8_t
 fdregrd(struct fdc_data *fdc, int reg)
 {
 

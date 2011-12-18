@@ -210,7 +210,7 @@ printhead(int mesg)
 int
 pdot(void)
 {
-	printf("%d\n", dot - &message[0] + 1);
+	printf("%td\n", dot - &message[0] + 1);
 	return (0);
 }
 
