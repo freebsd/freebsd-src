@@ -131,7 +131,7 @@ ypmap_update(char *netname, char *map, unsigned int op, unsigned int keylen,
 		return(rval);
 	}
 
-	snprintf(yplastbuf, sizeof(yplastbuf), "%ju", (intmax_t)time(NULL));
+	snprintf(yplastbuf, sizeof(yplastbuf), "%jd", (intmax_t)time(NULL));
 	key.data = yp_last;
 	key.size = strlen(yp_last);
 	data.data = (char *)&yplastbuf;
