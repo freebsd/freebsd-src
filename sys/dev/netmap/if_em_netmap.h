@@ -329,7 +329,7 @@ em_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 		if ((curr->status & E1000_RXD_STAT_DD) == 0)
 			break;
 		ring->slot[j].len = le16toh(curr->length);
-		bus_dmamap_sync(rxr->tag, rxr->rx_buffers[l].map,
+		bus_dmamap_sync(rxr->rxtag, rxr->rx_buffers[l].map,
 			BUS_DMASYNC_POSTREAD);
 		j = (j == lim) ? 0 : j + 1;
 		/* make sure next_to_refresh follows next_to_check */
