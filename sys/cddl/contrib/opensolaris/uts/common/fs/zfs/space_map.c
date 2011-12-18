@@ -29,6 +29,13 @@
 #include <sys/zio.h>
 #include <sys/space_map.h>
 
+SYSCTL_DECL(_vfs_zfs);
+static int space_map_last_hope;
+TUNABLE_INT("vfs.zfs.space_map_last_hope", &space_map_last_hope);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, space_map_last_hope, CTLFLAG_RDTUN,
+    &space_map_last_hope, 0,
+    "If kernel panic in space_map code on pool import, import the pool in readonly mode and backup all your data before trying this option.");
+
 /*
  * Space map routines.
  * NOTE: caller is responsible for all locking.
@@ -93,7 +100,7 @@ space_map_add(space_map_t *sm, uint64_t start, uint64_t size)
 	VERIFY(sm->sm_space + size <= sm->sm_size);
 	VERIFY(P2PHASE(start, 1ULL << sm->sm_shift) == 0);
 	VERIFY(P2PHASE(size, 1ULL << sm->sm_shift) == 0);
-
+again:
 	ssearch.ss_start = start;
 	ssearch.ss_end = end;
 	ss = avl_find(&sm->sm_root, &ssearch, &where);
@@ -103,6 +110,23 @@ space_map_add(space_map_t *sm, uint64_t start, uint64_t size)
 		    "(offset=%llu size=%llu)\n",
 		    (longlong_t)start, (longlong_t)size);
 		return;
+	}
+	if (ss != NULL && space_map_last_hope) {
+		uint64_t sstart, ssize;
+
+		if (ss->ss_start > start)
+			sstart = ss->ss_start;
+		else
+			sstart = start;
+		if (ss->ss_end > end)
+			ssize = end - sstart;
+		else
+			ssize = ss->ss_end - sstart;
+		ZFS_LOG(0,
+		    "Removing colliding space_map range (start=%ju end=%ju). Good luck!",
+		    (uintmax_t)sstart, (uintmax_t)(sstart + ssize));
+		space_map_remove(sm, sstart, ssize);
+		goto again;
 	}
 
 	/* Make sure we don't overlap with either of our neighbors */
