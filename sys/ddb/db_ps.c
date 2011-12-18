@@ -447,7 +447,7 @@ db_findstack_cmd(db_expr_t addr, boolean_t have_addr,
 		return;
 	}
 
-	for (p = LIST_FIRST(&allproc); p != NULL; p = LIST_NEXT(p, p_list)) {
+	FOREACH_PROC_IN_SYSTEM(p) {
 		FOREACH_THREAD_IN_PROC(p, td) {
 			if (td->td_kstack <= saddr && saddr < td->td_kstack +
 			    PAGE_SIZE * td->td_kstack_pages) {
