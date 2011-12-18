@@ -44,6 +44,9 @@ int lineno;
 #define	DP	do { } while (0)
 %}
 
+%option noinput
+%option nounput
+
 %%
 control			{ DP; return CONTROL; }
 pidfile			{ DP; return PIDFILE; }
