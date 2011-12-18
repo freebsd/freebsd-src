@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,30 +32,18 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_item.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_get_item.c 491 2011-11-12 00:12:32Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 
 #include <security/pam_appl.h>
 
 #include "openpam_impl.h"
-
-const char *_pam_item_name[PAM_NUM_ITEMS] = {
-	"(NO ITEM)",
-	"PAM_SERVICE",
-	"PAM_USER",
-	"PAM_TTY",
-	"PAM_RHOST",
-	"PAM_CONV",
-	"PAM_AUTHTOK",
-	"PAM_OLDAUTHTOK",
-	"PAM_RUSER",
-	"PAM_USER_PROMPT",
-	"PAM_REPOSITORY",
-	"PAM_AUTHTOK_PROMPT",
-	"PAM_OLDAUTHTOK_PROMPT"
-};
 
 /*
  * XSSO 4.2.1
@@ -83,9 +71,10 @@ pam_get_item(const pam_handle_t *pamh,
 	case PAM_RUSER:
 	case PAM_CONV:
 	case PAM_USER_PROMPT:
+	case PAM_REPOSITORY:
 	case PAM_AUTHTOK_PROMPT:
 	case PAM_OLDAUTHTOK_PROMPT:
-	case PAM_REPOSITORY:
+	case PAM_HOST:
 		*item = pamh->item[item_type];
 		RETURNC(PAM_SUCCESS);
 	default:
@@ -102,10 +91,12 @@ pam_get_item(const pam_handle_t *pamh,
 
 /**
  * The =pam_get_item function stores a pointer to the item specified by
- * the =item_type argument in the location specified by the =item
+ * the =item_type argument in the location pointed to by the =item
  * argument.
  * The item is retrieved from the PAM context specified by the =pamh
  * argument.
+ * If =pam_get_item fails, the =item argument is untouched.
+ *
  * The following item types are recognized:
  *
  *	=PAM_SERVICE:
@@ -135,6 +126,8 @@ pam_get_item(const pam_handle_t *pamh,
  *	=PAM_OLDAUTHTOK_PROMPT:
  *		The prompt to use when asking the applicant for an
  *		expired authentication token prior to changing it.
+ *	=PAM_HOST:
+ *		The name of the host the application runs on.
  *
  * See =pam_start for a description of =struct pam_conv.
  *
