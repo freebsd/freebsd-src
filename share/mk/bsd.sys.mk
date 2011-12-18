@@ -66,7 +66,7 @@ CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value\
 			-Wno-conversion
 .   endif
 .   if ${WARNS} <= 2
-CWARNFLAGS	+=	-Wno-switch-enum
+CWARNFLAGS	+=	-Wno-switch-enum -Wno-empty-body
 .   endif
 .   if ${WARNS} <= 1
 CWARNFLAGS	+=	-Wno-parentheses
