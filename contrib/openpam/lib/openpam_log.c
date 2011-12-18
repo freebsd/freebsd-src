@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_log.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_log.c 437 2011-09-13 12:00:13Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <ctype.h>
 #include <stdarg.h>
@@ -47,9 +51,9 @@
 #include "openpam_impl.h"
 
 #ifdef OPENPAM_DEBUG
-int _openpam_debug = 1;
+int openpam_debug = 1;
 #else
-int _openpam_debug = 0;
+int openpam_debug = 0;
 #endif
 
 #if !defined(openpam_log)
@@ -68,7 +72,7 @@ openpam_log(int level, const char *fmt, ...)
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
-		if (!_openpam_debug)
+		if (!openpam_debug)
 			return;
 		priority = LOG_DEBUG;
 		break;
@@ -99,7 +103,7 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
 
 	switch (level) {
 	case PAM_LOG_DEBUG:
-		if (!_openpam_debug)
+		if (!openpam_debug)
 			return;
 		priority = LOG_DEBUG;
 		break;
@@ -136,7 +140,7 @@ _openpam_log(int level, const char *func, const char *fmt, ...)
  *	=PAM_LOG_DEBUG:
  *		Debugging messages.
  *		These messages are normally not logged unless the global
- *		integer variable :_openpam_debug is set to a non-zero
+ *		integer variable :openpam_debug is set to a non-zero
  *		value, in which case they are logged with a =syslog
  *		priority of =LOG_DEBUG.
  *	=PAM_LOG_VERBOSE:
