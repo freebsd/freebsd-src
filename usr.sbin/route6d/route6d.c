@@ -1238,7 +1238,7 @@ riprecv()
 	if (iff_find(ifcp, 'N') != NULL)
 		return;
 
-	tracet(1, "Recv(%s): from %s.%d info(%d)\n",
+	tracet(1, "Recv(%s): from %s.%d info(%zd)\n",
 	    ifcp->ifc_name, inet6_n2p(&nh), ntohs(fsock.sin6_port), nn);
 
 	t = time(NULL);
