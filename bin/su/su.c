@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: su.c 408 2007-12-21 11:36:24Z des $
+ * $Id: su.c 458 2011-11-02 13:10:25Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 #include <sys/wait.h>
@@ -59,7 +63,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "Usage: su [login [args]]\n");
+	fprintf(stderr, "usage: su [login [args]]\n");
 	exit(1);
 }
 
@@ -74,9 +78,8 @@ main(int argc, char *argv[])
 	int o, pam_err, status;
 	pid_t pid;
 
-	while ((o = getopt(argc, argv, "h")) != -1)
+	while ((o = getopt(argc, argv, "")) != -1)
 		switch (o) {
-		case 'h':
 		default:
 			usage();
 		}
