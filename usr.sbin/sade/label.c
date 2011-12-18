@@ -933,7 +933,7 @@ diskLabel(Device *dev)
 		}
 		if (msg) {
 		    if (req) {
-			msgConfirm(msg);
+			msgConfirm("%s", msg);
 			clear_wins();
 			msg = NULL;
 		    }
