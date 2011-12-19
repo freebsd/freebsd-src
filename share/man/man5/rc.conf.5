@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 23, 2011
+.Dd December 13, 2011
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -1101,7 +1101,9 @@ ipv4_addrs_ed0="192.0.2.129/27 192.0.2.1-5/28"
 .Pp
 It is also possible to add IP alias entries using
 .Xr ifconfig 8
-syntax.
+syntax with the
+.Dq Li inet
+keyword.
 Assuming that the interface in question was
 .Li ed0 ,
 it might look
@@ -1114,7 +1116,9 @@ ifconfig_ed0_alias1="inet 127.0.0.254 netmask 0xffffffff"
 And so on.
 For each
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
-entry that is found,
+entry with the
+.Dq Li inet
+keyword that is found,
 its contents are passed to
 .Xr ifconfig 8 .
 Execution stops at the first unsuccessful access, so if
