@@ -91,7 +91,7 @@ SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
 
 static int usb_no_shutdown_wait = 0;
 TUNABLE_INT("hw.usb.no_shutdown_wait", &usb_no_shutdown_wait);
-SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RDTUN, &usb_no_shutdown_wait, 0,
+SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RW|CTLFLAG_TUN, &usb_no_shutdown_wait, 0,
     "No USB device waiting at system shutdown.");
 
 static devclass_t usb_devclass;
