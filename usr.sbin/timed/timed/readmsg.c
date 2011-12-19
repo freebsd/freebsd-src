@@ -181,8 +181,8 @@ again:
 			rwait.tv_usec = 1000000/CLK_TCK;
 
 		if (trace) {
-			fprintf(fd, "readmsg: wait %ld.%6ld at %s\n",
-				(long)rwait.tv_sec, rwait.tv_usec, date());
+			fprintf(fd, "readmsg: wait %jd.%6ld at %s\n",
+				(intmax_t)rwait.tv_sec, rwait.tv_usec, date());
 			/* Notice a full disk, as we flush trace info.
 			 * It is better to flush periodically than at
 			 * every line because the tracing consists of bursts
