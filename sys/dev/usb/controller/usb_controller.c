@@ -87,7 +87,12 @@ SYSCTL_INT(_hw_usb_ctrl, OID_AUTO, debug, CTLFLAG_RW, &usb_ctrl_debug, 0,
 static int usb_no_boot_wait = 0;
 TUNABLE_INT("hw.usb.no_boot_wait", &usb_no_boot_wait);
 SYSCTL_INT(_hw_usb, OID_AUTO, no_boot_wait, CTLFLAG_RDTUN, &usb_no_boot_wait, 0,
-    "No device enumerate waiting at boot.");
+    "No USB device enumerate waiting at boot.");
+
+static int usb_no_shutdown_wait = 0;
+TUNABLE_INT("hw.usb.no_shutdown_wait", &usb_no_shutdown_wait);
+SYSCTL_INT(_hw_usb, OID_AUTO, no_shutdown_wait, CTLFLAG_RDTUN, &usb_no_shutdown_wait, 0,
+    "No USB device waiting at system shutdown.");
 
 static devclass_t usb_devclass;
 
@@ -277,10 +282,19 @@ usb_shutdown(device_t dev)
 		return (0);
 	}
 
+	device_printf(bus->bdev, "Controller shutdown\n");
+
 	USB_BUS_LOCK(bus);
 	usb_proc_msignal(&bus->explore_proc,
 	    &bus->shutdown_msg[0], &bus->shutdown_msg[1]);
+	if (usb_no_shutdown_wait == 0) {
+		/* wait for shutdown callback to be executed */
+		usb_proc_mwait(&bus->explore_proc,
+		    &bus->shutdown_msg[0], &bus->shutdown_msg[1]);
+	}
 	USB_BUS_UNLOCK(bus);
+
+	device_printf(bus->bdev, "Controller shutdown complete\n");
 
 	return (0);
 }
