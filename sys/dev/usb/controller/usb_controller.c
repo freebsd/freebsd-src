@@ -390,6 +390,8 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 	if (udev == NULL || bus->bdev == NULL)
 		return;
 
+	USB_BUS_UNLOCK(bus);
+
 	bus_generic_shutdown(bus->bdev);
 
 	usbd_enum_lock(udev);
@@ -410,6 +412,8 @@ usb_bus_suspend(struct usb_proc_msg *pm)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SUSPEND);
 
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -429,6 +433,8 @@ usb_bus_resume(struct usb_proc_msg *pm)
 
 	if (udev == NULL || bus->bdev == NULL)
 		return;
+
+	USB_BUS_UNLOCK(bus);
 
 	usbd_enum_lock(udev);
 #if 0
@@ -457,6 +463,8 @@ usb_bus_resume(struct usb_proc_msg *pm)
 		device_printf(bus->bdev, "Could not configure root HUB\n");
 
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 /*------------------------------------------------------------------------*
@@ -476,6 +484,8 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 
 	if (udev == NULL || bus->bdev == NULL)
 		return;
+
+	USB_BUS_UNLOCK(bus);
 
 	bus_generic_shutdown(bus->bdev);
 
@@ -497,6 +507,8 @@ usb_bus_shutdown(struct usb_proc_msg *pm)
 		(bus->methods->set_hw_power_sleep) (bus, USB_HW_POWER_SHUTDOWN);
 
 	usbd_enum_unlock(udev);
+
+	USB_BUS_LOCK(bus);
 }
 
 static void
