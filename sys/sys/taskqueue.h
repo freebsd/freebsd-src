@@ -77,6 +77,12 @@ void	taskqueue_block(struct taskqueue *queue);
 void	taskqueue_unblock(struct taskqueue *queue);
 int	taskqueue_member(struct taskqueue *queue, struct thread *td);
 
+#define TASK_INITIALIZER(priority, func, context)	\
+	{ .ta_pending = 0,				\
+	  .ta_priority = (priority),			\
+	  .ta_func = (func),				\
+	  .ta_context = (context) }
+
 /*
  * Functions for dedicated thread taskqueues
  */
