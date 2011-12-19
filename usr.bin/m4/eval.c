@@ -268,13 +268,14 @@ expand_builtin(const char *argv[], int argc, int td)
 		break;
 	case INCLTYPE:
 		if (argc > 2)
-			if (!doincl(argv[2]))
+			if (!doincl(argv[2])) {
 				if (mimic_gnu) 
 					warn("%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
 				else
 					err(1, "%s at line %lu: include(%s)",
 					    CURRENT_NAME, CURRENT_LINE, argv[2]);
+			}
 		break;
 
 	case SINCTYPE:
