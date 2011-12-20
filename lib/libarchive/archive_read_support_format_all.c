@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2011 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,5 +39,13 @@ archive_read_support_format_all(struct archive *a)
 	archive_read_support_format_tar(a);
 	archive_read_support_format_xar(a);
 	archive_read_support_format_zip(a);
+
+	/* Note: We always return ARCHIVE_OK here, even if some of the
+	 * above return ARCHIVE_WARN.  The intent here is to enable
+	 * "as much as possible."  Clients who need specific
+	 * compression should enable those individually so they can
+	 * verify the level of support. */
+	/* Clear any warning messages set by the above functions. */
+	archive_clear_error(a);
 	return (ARCHIVE_OK);
 }
