@@ -44,6 +44,8 @@
 #include <wchar.h>
 #endif
 
+#include "archive.h"
+
 /*
  * Basic resizable/reusable string support a la Java's "StringBuffer."
  *
@@ -134,10 +136,11 @@ void	__archive_string_free(struct archive_string *);
 
 /* Like 'vsprintf', but resizes the underlying string as necessary. */
 void	__archive_string_vsprintf(struct archive_string *, const char *,
-	    va_list);
+	    va_list) __LA_PRINTF(2, 0);
 #define	archive_string_vsprintf	__archive_string_vsprintf
 
-void	__archive_string_sprintf(struct archive_string *, const char *, ...);
+void	__archive_string_sprintf(struct archive_string *, const char *, ...)
+	    __LA_PRINTF(2, 3);
 #define	archive_string_sprintf	__archive_string_sprintf
 
 /* Allocates a fresh buffer and converts as (assumed to be UTF-8) into it.

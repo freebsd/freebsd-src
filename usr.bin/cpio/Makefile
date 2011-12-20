@@ -3,7 +3,7 @@
 .include <bsd.own.mk>
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=2.8.4
+BSDCPIO_VERSION_STRING=2.8.5
 
 SRCS=	cpio.c cmdline.c
 
