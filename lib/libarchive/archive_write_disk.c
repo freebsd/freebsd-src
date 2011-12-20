@@ -1513,6 +1513,22 @@ check_symlinks(struct archive_write_disk *a)
 }
 
 #if defined(_WIN32) || defined(__CYGWIN__)
+static int
+guidword(const char *p, int n)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		if ((*p >= '0' && *p <= '9') ||
+		    (*p >= 'a' && *p <= 'f') ||
+		    (*p >= 'A' && *p <= 'F'))
+			p++;
+		else
+			return (-1);
+	}
+	return (0);
+}
+
 /*
  * 1. Convert a path separator from '\' to '/' .
  *    We shouldn't check multi-byte character directly because some
@@ -1521,26 +1537,92 @@ check_symlinks(struct archive_write_disk *a)
  * 2. Replace unusable characters in Windows with underscore('_').
  * See also : http://msdn.microsoft.com/en-us/library/aa365247.aspx
  */
-static void
+static int
 cleanup_pathname_win(struct archive_write_disk *a)
 {
 	wchar_t wc;
 	char *p;
 	size_t alen, l;
 
-	alen = 0;
-	l = 0;
-	for (p = a->name; *p != '\0'; p++) {
-		++alen;
-		if (*p == '\\')
-			l = 1;
+	p = a->name;
+	/* Skip leading "\\.\" or "\\?\" or "\\?\UNC\" or
+	 * "\\?\Volume{GUID}\"
+	 * (absolute path prefixes used by Windows API) */
+	if ((p[0] == '\\' || p[0] == '/') && (p[1] == '\\' || p[1] == '/' ) &&
+	    (p[2] == '.' || p[2] == '?') && (p[3] ==  '\\' || p[3] == '/'))
+	{
+		/* A path begin with "\\?\UNC\" */
+		if (p[2] == '?' &&
+		    (p[4] == 'U' || p[4] == 'u') &&
+		    (p[5] == 'N' || p[5] == 'n') &&
+		    (p[6] == 'C' || p[6] == 'c') &&
+		    (p[7] == '\\' || p[7] == '/'))
+			p += 8;
+		/* A path begin with "\\?\Volume{GUID}\" */
+		else if (p[2] == '?' &&
+		    (p[4] == 'V' || p[4] == 'v') &&
+		    (p[5] == 'O' || p[5] == 'o') &&
+		    (p[6] == 'L' || p[6] == 'l') &&
+		    (p[7] == 'U' || p[7] == 'u') &&
+		    (p[8] == 'M' || p[8] == 'm') &&
+		    (p[9] == 'E' || p[9] == 'e') &&
+		    p[10] == '{') {
+			if (guidword(p+11, 8) == 0 && p[19] == '-' &&
+			    guidword(p+20, 4) == 0 && p[24] == '-' &&
+			    guidword(p+25, 4) == 0 && p[29] == '-' &&
+			    guidword(p+30, 4) == 0 && p[34] == '-' &&
+			    guidword(p+35, 12) == 0 && p[47] == '}' &&
+			    (p[48] == '\\' || p[48] == '/'))
+				p += 49;
+			else
+				p += 4;
+		/* A path begin with "\\.\PhysicalDriveX" */
+		} else if (p[2] == '.' &&
+		    (p[4] == 'P' || p[4] == 'p') &&
+		    (p[5] == 'H' || p[5] == 'h') &&
+		    (p[6] == 'Y' || p[6] == 'y') &&
+		    (p[7] == 'S' || p[7] == 's') &&
+		    (p[8] == 'I' || p[8] == 'i') &&
+		    (p[9] == 'C' || p[9] == 'c') &&
+		    (p[9] == 'A' || p[9] == 'a') &&
+		    (p[9] == 'L' || p[9] == 'l') &&
+		    (p[9] == 'D' || p[9] == 'd') &&
+		    (p[9] == 'R' || p[9] == 'r') &&
+		    (p[9] == 'I' || p[9] == 'i') &&
+		    (p[9] == 'V' || p[9] == 'v') &&
+		    (p[9] == 'E' || p[9] == 'e') &&
+		    (p[10] >= '0' && p[10] <= '9') &&
+		    p[11] == '\0') {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Path is a physical drive name");
+			return (ARCHIVE_FAILED);
+		} else
+			p += 4;
+	}
+
+	/* Skip leading drive letter from archives created
+	 * on Windows. */
+	if (((p[0] >= 'a' && p[0] <= 'z') ||
+	     (p[0] >= 'A' && p[0] <= 'Z')) &&
+		 p[1] == ':') {
+		if (p[2] == '\0') {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "Path is a drive name");
+			return (ARCHIVE_FAILED);
+		}
+		if (p[2] == '\\' || p[2] == '/')
+			p += 3;
+	}
+
+	for (; *p != '\0'; p++) {
 		/* Rewrite the path name if its character is a unusable. */
 		if (*p == ':' || *p == '*' || *p == '?' || *p == '"' ||
 		    *p == '<' || *p == '>' || *p == '|')
 			*p = '_';
 	}
-	if (alen == 0 || l == 0)
-		return;
+	alen = p - a->name;
+	if (alen == 0 || strchr(a->name, '\\') == NULL)
+		return (ARCHIVE_OK);
 	/*
 	 * Convert path separator.
 	 */
@@ -1560,6 +1642,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 		p += l;
 		alen -= l;
 	}
+	return (ARCHIVE_OK);
 }
 #endif
 
@@ -1583,7 +1666,8 @@ cleanup_pathname(struct archive_write_disk *a)
 	}
 
 #if defined(_WIN32) || defined(__CYGWIN__)
-	cleanup_pathname_win(a);
+	if (cleanup_pathname_win(a) != ARCHIVE_OK)
+		return (ARCHIVE_FAILED);
 #endif
 	/* Skip leading '/'. */
 	if (*src == '/')
