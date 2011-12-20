@@ -87,9 +87,9 @@ where:
 is a bitmask, defining valid counter bits,
 .It Va kern.timecounter.tc. Ns Ar X Ns Va .counter
 is a present counter value,
-.It Va kern.eventtimer.tc. Ns Ar X Ns Va .frequency
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .frequency
 is a counter update frequency,
-.It Va kern.eventtimer.tc. Ns Ar X Ns Va .quality
+.It Va kern.timecounter.tc. Ns Ar X Ns Va .quality
 is an integral value, defining how good is this time counter,
 comparing to others.
 Negative value means that this time counter is broken and should not be used.
