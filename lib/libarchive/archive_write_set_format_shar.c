@@ -537,8 +537,7 @@ archive_write_shar_finish_entry(struct archive_write *a)
 		}
 
 		if ((p = archive_entry_fflags_text(shar->entry)) != NULL) {
-			archive_string_sprintf(&shar->work, "chflags %s ",
-			    p, archive_entry_pathname(shar->entry));
+			archive_string_sprintf(&shar->work, "chflags %s ", p);
 			shar_quote(&shar->work,
 			    archive_entry_pathname(shar->entry), 1);
 			archive_strcat(&shar->work, "\n");

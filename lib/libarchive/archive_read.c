@@ -715,7 +715,7 @@ archive_read_data_block(struct archive *_a,
 /*
  * Close the file and release most resources.
  *
- * Be careful: client might just call read_new and then read_finish.
+ * Be careful: client might just call read_new and then read_free.
  * Don't assume we actually read anything or performed any non-trivial
  * initialization.
  */

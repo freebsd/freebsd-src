@@ -1730,7 +1730,7 @@ create_dir(struct archive_write_disk *a, char *path)
 		if (unlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
 			    "Can't create directory '%s': "
-			    "Conflicting file cannot be removed");
+			    "Conflicting file cannot be removed", path);
 			return (ARCHIVE_FAILED);
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {

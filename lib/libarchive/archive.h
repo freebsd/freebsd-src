@@ -52,7 +52,7 @@
 /* These should match the types used in 'struct stat' */
 #if defined(_WIN32) && !defined(__CYGWIN__)
 #define	__LA_INT64_T	__int64
-# if defined(_SSIZE_T_DEFINED)
+# if defined(_SSIZE_T_DEFINED) || defined(_SSIZE_T_)
 #  define	__LA_SSIZE_T	ssize_t
 # elif defined(_WIN64)
 #  define	__LA_SSIZE_T	__int64
@@ -98,6 +98,13 @@
 # define __LA_DECL
 #endif
 
+#if defined(__GNUC__) && __GNUC__ >= 3
+#define	__LA_PRINTF(fmtarg, firstvararg) \
+	__attribute__((__format__ (__printf__, fmtarg, firstvararg)))
+#else
+#define	__LA_PRINTF(fmtarg, firstvararg)	/* nothing */
+#endif
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,13 +136,13 @@ extern "C" {
  *             (ARCHIVE_API_VERSION * 1000000 + ARCHIVE_API_FEATURE * 1000)
  * #endif
  */
-#define	ARCHIVE_VERSION_NUMBER 2008004
+#define	ARCHIVE_VERSION_NUMBER 2008005
 __LA_DECL int		archive_version_number(void);
 
 /*
  * Textual name/version of the library, useful for version displays.
  */
-#define	ARCHIVE_VERSION_STRING "libarchive 2.8.4"
+#define	ARCHIVE_VERSION_STRING "libarchive 2.8.5"
 __LA_DECL const char *	archive_version_string(void);
 
 #if ARCHIVE_VERSION_NUMBER < 3000000
@@ -717,7 +724,7 @@ __LA_DECL const char	*archive_format_name(struct archive *);
 __LA_DECL int		 archive_format(struct archive *);
 __LA_DECL void		 archive_clear_error(struct archive *);
 __LA_DECL void		 archive_set_error(struct archive *, int _err,
-			    const char *fmt, ...);
+			    const char *fmt, ...) __LA_PRINTF(3, 4);
 __LA_DECL void		 archive_copy_error(struct archive *dest,
 			    struct archive *src);
 __LA_DECL int		 archive_file_count(struct archive *);
