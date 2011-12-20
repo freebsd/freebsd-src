@@ -1,0 +1,32 @@
+Many people have graciously sent me configuration
+files and other useful tidbits for use with libarchive.
+
+I do not support or use any of these; but if you can use them, enjoy!
+
+======================================================================
+
+From: Andre Stechert <andre@splunk.com>
+
+libarchive_autodetect-st_lib_archive.m4
+
+M4 macros for use with autoconf to detect whether a suitable
+version of libarchive is installed on this system.
+
+
+======================================================================
+
+libarchive.spec
+
+An RPM ".spec" file for building libarchive on most systems.
+This apparently was originally developed by a group at pld-linux.org.
+Several people have sent me different versions of this file.
+
+======================================================================
+
+From: Robert Meier <rm1023@dcx.com>
+
+libarchive.1aix53.spec
+
+As above, for use on AIX5.3.
+
+======================================================================

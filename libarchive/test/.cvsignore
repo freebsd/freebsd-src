@@ -1,0 +1,10 @@
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+.depend
+.deps
+.dirstamp
+archive.h
+libarchive_test
+list.h
