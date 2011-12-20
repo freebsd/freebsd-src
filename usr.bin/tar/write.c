@@ -592,7 +592,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 	struct archive_entry *in_entry;
 	int e;
 
-	while (0 == archive_read_next_header(ina, &in_entry)) {
+	while (ARCHIVE_OK == (e = archive_read_next_header(ina, &in_entry))) {
 		if (!new_enough(bsdtar, archive_entry_pathname(in_entry),
 			archive_entry_stat(in_entry)))
 			continue;
@@ -630,8 +630,7 @@ append_archive(struct bsdtar *bsdtar, struct archive *a, struct archive *ina)
 			fprintf(stderr, "\n");
 	}
 
-	/* Note: If we got here, we saw no write errors, so return success. */
-	return (0);
+	return (e == ARCHIVE_EOF ? ARCHIVE_OK : e);
 }
 
 /* Helper function to copy data between archives. */
