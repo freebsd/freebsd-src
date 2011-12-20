@@ -302,6 +302,8 @@ struct file_info {
 		struct file_info	*first;
 		struct file_info	**last;
 	} rede_files;
+	/* To check a ininity loop. */
+	struct file_info	*loop_by;
 };
 
 struct heap_queue {
@@ -2699,8 +2701,14 @@ rede_add_entry(struct file_info *file)
 	struct file_info *re;
 
 	re = file->parent;
-	while (re != NULL && !re->re)
+	while (re != NULL && !re->re) {
+		/* Sanity check to prevent a infinity loop
+		 * cause by a currupted iso file. */
+		if (re->loop_by == file)
+			return (-1);
+		re->loop_by = file;
 		re = re->parent;
+	}
 	if (re == NULL)
 		return (-1);
 
