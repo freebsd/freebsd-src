@@ -62,12 +62,6 @@ __FBSDID("$FreeBSD$");
 #else
 #define	NPFSYNC		0
 #endif
-
-#ifdef DEV_CARP
-#define	NCARP		DEV_CARP
-#else
-#define	NCARP		0
-#endif
 #endif /* __FreeBSD__ */
 
 #include <sys/param.h>
@@ -127,11 +121,13 @@ __FBSDID("$FreeBSD$");
 #include <netinet6/nd6.h>
 #endif /* INET6 */
 
-#ifndef __FreeBSD__
+#ifdef __FreeBSD__
+#include <netinet/ip_carp.h>
+#else
 #include "carp.h"
-#endif
 #if NCARP > 0
 #include <netinet/ip_carp.h>
+#endif
 #endif
 
 #include <net/pfvar.h>
@@ -308,11 +304,15 @@ static VNET_DEFINE(struct pfsync_softc	*, pfsyncif) = NULL;
 
 static VNET_DEFINE(struct pfsyncstats, pfsyncstats);
 #define	V_pfsyncstats		VNET(pfsyncstats)
+static VNET_DEFINE(int, pfsync_carp_adj) = CARP_MAXSKEW;
+#define	V_pfsync_carp_adj	VNET(pfsync_carp_adj)
 
 SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
 SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
     &VNET_NAME(pfsyncstats), pfsyncstats,
     "PFSYNC statistics (struct pfsyncstats, net/if_pfsync.h)");
+SYSCTL_INT(_net_pfsync, OID_AUTO, carp_demotion_factor, CTLFLAG_RW,
+    &VNET_NAME(pfsync_carp_adj), 0, "pfsync's CARP demotion factor adjustment");
 #else
 struct pfsync_softc	*pfsyncif = NULL;
 struct pfsyncstats	 pfsyncstats;
@@ -505,10 +505,10 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	if_attach(ifp);
 #ifndef __FreeBSD__
 	if_alloc_sadl(ifp);
-#endif
 
 #if NCARP > 0
 	if_addgroup(ifp, "carp");
+#endif
 #endif
 
 #if NBPFILTER > 0
@@ -545,14 +545,11 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	timeout_del(&sc->sc_tmo);
 #ifdef __FreeBSD__
 	PF_UNLOCK();
-#endif
-#if NCARP > 0
-#ifdef notyet
-#ifdef __FreeBSD__
-	if (!sc->pfsync_sync_ok)
+	if (!sc->pfsync_sync_ok && carp_demote_adj_p)
+		(*carp_demote_adj_p)(-V_pfsync_carp_adj, "pfsync destroy");
 #else
+#if NCARP > 0
 	if (!pfsync_sync_ok)
-#endif
 		carp_group_demote_adj(&sc->sc_if, -1);
 #endif
 #endif
@@ -1636,19 +1633,16 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			sc->sc_ureq_sent = 0;
 			sc->sc_bulk_tries = 0;
 			timeout_del(&sc->sc_bulkfail_tmo);
-#if NCARP > 0
-#ifdef notyet
 #ifdef __FreeBSD__
-			if (!sc->pfsync_sync_ok)
-#else
-			if (!pfsync_sync_ok)
-#endif
-				carp_group_demote_adj(&sc->sc_if, -1);
-#endif
-#endif
-#ifdef __FreeBSD__
+			if (!sc->pfsync_sync_ok && carp_demote_adj_p)
+				(*carp_demote_adj_p)(-V_pfsync_carp_adj,
+				    "pfsync bulk done");
 			sc->pfsync_sync_ok = 1;
 #else
+#if NCARP > 0
+			if (!pfsync_sync_ok)
+				carp_group_demote_adj(&sc->sc_if, -1);
+#endif
 			pfsync_sync_ok = 1;
 #endif
 #ifdef __FreeBSD__
@@ -1988,19 +1982,16 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		if (sc->sc_sync_if) {
 			/* Request a full state table update. */
 			sc->sc_ureq_sent = time_uptime;
-#if NCARP > 0
-#ifdef notyet
 #ifdef __FreeBSD__
-			if (sc->pfsync_sync_ok)
-#else
-			if (pfsync_sync_ok)
-#endif
-				carp_group_demote_adj(&sc->sc_if, 1);
-#endif
-#endif
-#ifdef __FreeBSD__
+			if (sc->pfsync_sync_ok && carp_demote_adj_p)
+				(*carp_demote_adj_p)(V_pfsync_carp_adj,
+				    "pfsync bulk start");
 			sc->pfsync_sync_ok = 0;
 #else
+#if NCARP > 0
+			if (pfsync_sync_ok)
+				carp_group_demote_adj(&sc->sc_if, 1);
+#endif
 			pfsync_sync_ok = 0;
 #endif
 #ifdef __FreeBSD__
@@ -3159,19 +3150,16 @@ pfsync_bulk_fail(void *arg)
 		/* Pretend like the transfer was ok */
 		sc->sc_ureq_sent = 0;
 		sc->sc_bulk_tries = 0;
-#if NCARP > 0
-#ifdef notyet
 #ifdef __FreeBSD__
-		if (!sc->pfsync_sync_ok)
-#else
-		if (!pfsync_sync_ok)
-#endif
-			carp_group_demote_adj(&sc->sc_if, -1);
-#endif
-#endif
-#ifdef __FreeBSD__
+		if (!sc->pfsync_sync_ok && carp_demote_adj_p)
+			(*carp_demote_adj_p)(-V_pfsync_carp_adj,
+			    "pfsync bulk fail");
 		sc->pfsync_sync_ok = 1;
 #else
+#if NCARP > 0
+		if (!pfsync_sync_ok)
+			carp_group_demote_adj(&sc->sc_if, -1);
+#endif
 		pfsync_sync_ok = 1;
 #endif
 #ifdef __FreeBSD__
