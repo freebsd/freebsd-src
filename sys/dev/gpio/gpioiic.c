@@ -203,11 +203,13 @@ gpioiic_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct gpioiic_softc		*sc = device_get_softc(dev);
 
+	GPIOBUS_LOCK_BUS(sc->sc_busdev);
 	GPIOBUS_ACQUIRE_BUS(sc->sc_busdev, sc->sc_dev);
 
 	gpioiic_reset_bus(sc->sc_dev);
 
 	GPIOBUS_RELEASE_BUS(sc->sc_busdev, sc->sc_dev);
+	GPIOBUS_UNLOCK_BUS(sc->sc_busdev);
 
 	return (IIC_ENOADDR);
 }
