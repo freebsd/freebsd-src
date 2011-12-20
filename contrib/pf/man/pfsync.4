@@ -114,6 +114,23 @@ Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
+.Pp
+.Nm
+has the following
+.Xr sysctl 8
+tunables:
+.Bl -tag -width ".Va net.pfsync"
+.It Va net.pfsync.carp_demotion_factor
+Value added to
+.Va net.inet.carp.demotion
+while
+.Nm
+tries to perform its bulk update.
+See
+.Xr carp 4
+for more information.
+Default value is 240.
+.El
 .Sh EXAMPLES
 .Nm
 and

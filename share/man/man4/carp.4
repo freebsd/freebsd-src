@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 16, 2011
+.Dd December 20, 2011
 .Dt CARP 4
 .Os
 .Sh NAME
@@ -121,15 +121,38 @@ Values above 1 enable logging of bad
 .Nm
 packets.
 Default value is 1.
-.It Va net.inet.carp.suppress_preempt
-A read only value showing the status of preemption suppression.
-Preemption can be suppressed if link on an interface is down
-or when
+.It Va net.inet.carp.demotion
+This value shows current level of CARP demotion.
+The value is added to the actual advskew sent in announcements for
+all vhids.
+At normal system operation the demotion factor is zero.
+However, problematic conditions raise its level: when
+.Nm
+experiences problem with sending announcements, when an interface
+running a vhid goes down, or while the
 .Xr pfsync 4
 interface is not synchronized.
-Value of 0 means that preemption is not suppressed, since no
-problems are detected.
-Every problem increments suppression counter.
+The demotion value is writable, so that user may alter it
+depending on some external conditions, for example on status of some
+daemon utility.
+However, altering the value should be performed with care, do
+not conflict with subsystems that adjust demotion factor
+automatically:
+.Nm
+and
+.Xr pfsync 4 .
+.It Va net.inet.carp.ifdown_demotion_factor
+Value added to
+.Va net.inet.carp.demotion
+when interface running a vhid goes down.
+Default value is 240 (maximum advskew value).
+.It Va net.inet.carp.senderr_demotion_factor
+Value added to
+.Va net.inet.carp.demotion
+when
+.Nm
+experiences errors sending its announcements.
+Default value is 240 (maximum advskew value).
 .El
 .\".Sh ARP level load balancing
 .\"The
