@@ -539,9 +539,13 @@ pfsync_clone_destroy(struct ifnet *ifp)
 
 #ifdef __FreeBSD__
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, sc->sc_detachtag);
+	PF_LOCK();
 #endif
-	timeout_del(&sc->sc_bulk_tmo);	/* XXX: need PF_LOCK() before */
+	timeout_del(&sc->sc_bulk_tmo);
 	timeout_del(&sc->sc_tmo);
+#ifdef __FreeBSD__
+	PF_UNLOCK();
+#endif
 #if NCARP > 0
 #ifdef notyet
 #ifdef __FreeBSD__
@@ -3392,6 +3396,7 @@ vnet_pfsync_init(const void *unused)
 	if (error)
 		panic("%s: swi_add %d", __func__, error);
 
+	PF_LOCK();
 	pfsync_state_import_ptr = pfsync_state_import;
 	pfsync_up_ptr = pfsync_up;
 	pfsync_insert_state_ptr = pfsync_insert_state;
@@ -3400,6 +3405,7 @@ vnet_pfsync_init(const void *unused)
 	pfsync_clear_states_ptr = pfsync_clear_states;
 	pfsync_state_in_use_ptr = pfsync_state_in_use;
 	pfsync_defer_ptr = pfsync_defer;
+	PF_UNLOCK();
 
 	return (0);
 }
@@ -3410,6 +3416,7 @@ vnet_pfsync_uninit(const void *unused)
 
 	swi_remove(pfsync_swi.pfsync_swi_cookie);
 
+	PF_LOCK();
 	pfsync_state_import_ptr = NULL;
 	pfsync_up_ptr = NULL;
 	pfsync_insert_state_ptr = NULL;
@@ -3418,6 +3425,7 @@ vnet_pfsync_uninit(const void *unused)
 	pfsync_clear_states_ptr = NULL;
 	pfsync_state_in_use_ptr = NULL;
 	pfsync_defer_ptr = NULL;
+	PF_UNLOCK();
 
 	if_clone_detach(&pfsync_cloner);
 
