@@ -99,6 +99,7 @@ ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
+jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -233,6 +234,8 @@ clement -> lawrance
 
 clsung -> lwhsu
 clsung -> tabthorpe
+
+crees -> jgh
 
 delphij -> nemoliu
 delphij -> rafan
@@ -395,6 +398,7 @@ philip -> koitsu
 rafan -> chinsan
 
 rene -> crees
+rene -> jgh
 
 sahil -> culot
 sahil -> eadler
@@ -422,6 +426,7 @@ tabthorpe -> ashish
 tabthorpe -> avilla
 tabthorpe -> avl
 tabthorpe -> bapt
+tabthorpe -> crees
 tabthorpe -> dhn
 tabthorpe -> fluffy
 tabthorpe -> jacula
