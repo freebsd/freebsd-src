@@ -176,7 +176,7 @@ DEFINE_TEST(test_option_c)
 	assertEqualInt(dev, from_octal(e + 6, 6));
 	/* Ino must be different from first entry. */
 	assert(is_octal(e + 12, 6)); /* ino */
-	assert(dev != from_octal(e + 12, 6));
+	assert(ino != from_octal(e + 12, 6));
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* Group members bits and others bits do not work. */
 	assertEqualMem(e + 18, "040777", 6); /* Mode */
