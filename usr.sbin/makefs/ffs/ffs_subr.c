@@ -38,10 +38,8 @@ __FBSDID("$FreeBSD$");
 
 #include <ufs/ufs/dinode.h>
 #include <ufs/ffs/fs.h>
+#include "ffs/ffs_extern.h"
 #include "ffs/ufs_bswap.h"
-
-void    panic __P((const char *, ...))
-    __attribute__((__noreturn__,__format__(__printf__,1,2)));
 
 /*
  * Update the frsum fields to reflect addition or deletion 
