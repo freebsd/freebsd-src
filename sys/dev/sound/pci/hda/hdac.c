@@ -6491,15 +6491,23 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 	if (sc->pci_subvendor == APPLE_INTEL_MAC)
 		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 		    0x7e7, 0), cad);
-	/* Cast some spells for VIA VT1708S. */
 	id = hdac_codec_id(devinfo->codec);
-	if (id >= HDA_CODEC_VT1708S_0 && id <= HDA_CODEC_VT1708S_7) {
+	switch (id) {
+	case HDA_CODEC_VT1708S_0:
+	case HDA_CODEC_VT1708S_1:
+	case HDA_CODEC_VT1708S_2:
+	case HDA_CODEC_VT1708S_3:
+	case HDA_CODEC_VT1708S_4:
+	case HDA_CODEC_VT1708S_5:
+	case HDA_CODEC_VT1708S_6:
+	case HDA_CODEC_VT1708S_7:
 		/* Enable Mic Boost Volume controls. */
 		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 		    0xf98, 0x01), cad);
 		/* Don't bypass mixer. */
 		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 		    0xf88, 0xc0), cad);
+		break;
 	}
 
 	/* Commit controls. */
