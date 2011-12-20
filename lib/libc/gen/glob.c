@@ -168,7 +168,8 @@ static void	 qprintf(const char *, Char *);
 #endif
 
 int
-glob(const char *pattern, int flags, int (*errfunc)(const char *, int), glob_t *pglob)
+glob(const char * __restrict pattern, int flags,
+	 int (*errfunc)(const char *, int), glob_t * __restrict pglob)
 {
 	const char *patnext;
 	size_t limit;
