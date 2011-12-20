@@ -445,6 +445,7 @@ MAN=	aac.4 \
 	termios.4 \
 	textdump.4 \
 	ti.4 \
+	timecounters.4 \
 	tl.4 \
 	tnt4882.4 \
 	${_tpm.4} \
