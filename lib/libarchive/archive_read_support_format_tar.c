@@ -576,7 +576,7 @@ tar_read_header(struct archive_read *a, struct tar *tar,
 		h = __archive_read_ahead(a, 512, NULL);
 		if (h != NULL)
 			__archive_read_consume(a, 512);
-		archive_set_error(&a->archive, 0, NULL);
+		archive_clear_error(&a->archive);
 		if (a->archive.archive_format_name == NULL) {
 			a->archive.archive_format = ARCHIVE_FORMAT_TAR;
 			a->archive.archive_format_name = "tar";
