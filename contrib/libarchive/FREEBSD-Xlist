@@ -14,10 +14,12 @@ cpio/test/CMakeLists.txt
 doc
 examples
 libarchive/CMakeLists.txt
+libarchive/archive_entry_copy_bhfi.c
 libarchive/archive_windows.c
 libarchive/archive_windows.h
 libarchive/config_freebsd.h
 libarchive/filter_fork_windows.c
+libarchive/mtree.5
 libarchive/test/.cvsignore
 libarchive/test/CMakeLists.txt
 tar/CMakeLists.txt
