@@ -12,5 +12,6 @@ SRCS+=	device_if.h bus_if.h pci_if.h
 SRCS+=	opt_scsi.h opt_cam.h opt_aic7xxx.h
 
 CFLAGS+= -I${.CURDIR}/../../../../dev/aic7xxx -I..
+CWARNFLAGS+=	${NO_WCONSTANT_CONVERSION}
 
 .include <bsd.kmod.mk>
