@@ -223,6 +223,14 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	struct sockaddr_in oldaddr;
 	int error, hostIsNew, iaIsNew, maskIsNew;
 	int iaIsFirst;
+	u_long ocmd = cmd;
+
+	/*
+	 * Pre-10.x compat: OSIOCAIFADDR passes a shorter
+	 * struct in_aliasreq, without ifra_vhid.
+	 */
+	if (cmd == OSIOCAIFADDR)
+		cmd = SIOCAIFADDR;
 
 	ia = NULL;
 	iaIsFirst = 0;
@@ -253,10 +261,18 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		    sizeof(struct sockaddr_in) ||
 		    ifra->ifra_broadaddr.sin_family != AF_INET))
 			return (EINVAL);
+#if 0
+		/*
+		 * ifconfig(8) in pre-10.x doesn't set sin_family for the
+		 * mask. The code is disabled for the 10.x timeline, to
+		 * make SIOCAIFADDR compatible with 9.x ifconfig(8).
+		 * The code should be enabled in 11.x
+		 */
 		if (ifra->ifra_mask.sin_len != 0 &&
 		    (ifra->ifra_mask.sin_len != sizeof(struct sockaddr_in) ||
 		    ifra->ifra_mask.sin_family != AF_INET))
 			return (EINVAL);
+#endif
 		break;
 	case SIOCSIFADDR:
 	case SIOCSIFBRDADDR:
@@ -564,7 +580,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if (hostIsNew || maskIsNew)
 			error = in_ifinit(ifp, ia, &ifra->ifra_addr, 0,
-			    maskIsNew, ifra->ifra_vhid);
+			    maskIsNew, (ocmd == cmd ? ifra->ifra_vhid : 0));
 		if (error != 0 && iaIsNew)
 			break;
 

@@ -275,6 +275,13 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	struct sockaddr_in6 *sa6;
 	int carp_attached = 0;
 	int error;
+	u_long ocmd = cmd;
+
+	/*
+	 * Compat to make pre-10.x ifconfig(8) operable.
+	 */
+	if (cmd == OSIOCAIFADDR_IN6)
+		cmd = SIOCAIFADDR_IN6;
 
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -654,7 +661,7 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			break;
 		}
 
-		if (ifra->ifra_vhid > 0) {
+		if (cmd == ocmd && ifra->ifra_vhid > 0) {
 			if (carp_attach_p != NULL)
 				error = (*carp_attach_p)(&ia->ia_ifa,
 				    ifra->ifra_vhid);
