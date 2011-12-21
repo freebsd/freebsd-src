@@ -25,7 +25,7 @@
  */
 
 #include "archive_platform.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/archive_read_disk.c 189429 2009-03-06 04:35:31Z kientzle $");
+__FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_string.h"

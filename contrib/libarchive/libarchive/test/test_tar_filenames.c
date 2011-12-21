@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: src/lib/libarchive/test/test_tar_filenames.c,v 1.10 2008/09/01 05:38:33 kientzle Exp $");
+__FBSDID("$FreeBSD$");
 
 /*
  * Exercise various lengths of filenames in tar archives,
