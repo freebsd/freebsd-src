@@ -285,6 +285,8 @@ cpio_getopt(struct cpio *cpio)
  * A period can be used instead of the colon.
  *
  * Sets uid/gid return as appropriate, -1 indicates uid/gid not specified.
+ * TODO: If the spec uses uname/gname, then return those to the caller
+ * as well.  If the spec provides uid/gid, just return names as NULL.
  *
  * Returns NULL if no error, otherwise returns error string for display.
  *
