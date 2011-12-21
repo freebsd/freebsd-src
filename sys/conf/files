@@ -508,8 +508,10 @@ dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
 dev/aic7xxx/ahc_isa.c		optional ahc isa
-dev/aic7xxx/ahc_pci.c		optional ahc pci
-dev/aic7xxx/ahd_pci.c		optional ahd pci
+dev/aic7xxx/ahc_pci.c		optional ahc pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
+dev/aic7xxx/ahd_pci.c		optional ahd pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/aic7xxx/aic7770.c		optional ahc
 dev/aic7xxx/aic79xx.c		optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
