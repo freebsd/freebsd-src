@@ -71,10 +71,43 @@ finish:
 #endif
 }
 
+/*
+ * Verify that we skip junk between entries.  The compat_zip_2.zip file
+ * has several bytes of junk between 'file1' and 'file2'.  Such
+ * junk is routinely introduced by some Zip writers when they manipulate
+ * existing zip archives.
+ */
+static void
+test_compat_zip_2(void)
+{
+	char name[] = "test_compat_zip_2.zip";
+	struct archive_entry *ae;
+	struct archive *a;
+
+	assert((a = archive_read_new()) != NULL);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_zip(a));
+	extract_reference_file(name);
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_filename(a, name, 10240));
+
+	/* Read first entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file1", archive_entry_pathname(ae));
+
+	/* Read first entry. */
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
+	assertEqualString("file2", archive_entry_pathname(ae));
+
+	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
+	assertEqualInt(ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
+}
+
 
 DEFINE_TEST(test_compat_zip)
 {
 	test_compat_zip_1();
+	test_compat_zip_2();
 }
 
 
