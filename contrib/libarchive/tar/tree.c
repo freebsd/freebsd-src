@@ -401,7 +401,7 @@ tree_next(struct tree *t)
 	 * violation.  Just crash now. */
 	if (t->visit_type == TREE_ERROR_FATAL) {
 		fprintf(stderr, "Unable to continue traversing"
-		    " directory heirarchy after a fatal error.");
+		    " directory hierarchy after a fatal error.");
 		abort();
 	}
 
