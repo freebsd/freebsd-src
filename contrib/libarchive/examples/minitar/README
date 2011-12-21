@@ -1,0 +1,12 @@
+"minitar" is a minimal example of a program that uses libarchive to
+read/write various archive formats.  It's a more ambitious version of
+'untar.c' that includes compile-time options to enable/disable various
+features, including non-tar formats, archive creation, and automatic
+decompression support.
+
+I use this as a test bed to check for "link pollution," ensuring that
+a program using libarchive does not pull in unnecessary code.
+
+The "minitar" program is also a good starting point for anyone who
+wants to use libarchive for their own purposes, as it demonstrates
+basic usage of the library.
