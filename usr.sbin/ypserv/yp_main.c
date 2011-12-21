@@ -444,7 +444,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	}
 	/* XXX: ignore error intentionally */
 	rpcb_set(YPPROG, YPVERS, nconf, &svcaddr);
-	free (sname);
+	free(sname);
 	freeaddrinfo(res0);
 	return 0;
 }
