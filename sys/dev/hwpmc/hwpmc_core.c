@@ -1721,7 +1721,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (core_cputype == PMC_CPU_INTEL_COREI7 &&
 		    ev == PMC_EV_IAP_EVENT_BBH_01H)
 			return (EINVAL);
-		if ( a->pm_md.pm_iap.pm_iap_rsp & ~IA_OFFCORE_RSP_MASK)
+		if (a->pm_md.pm_iap.pm_iap_rsp & ~IA_OFFCORE_RSP_MASK)
 			return (EINVAL);
 		pm->pm_md.pm_iap.pm_iap_rsp =
 		    a->pm_md.pm_iap.pm_iap_rsp & IA_OFFCORE_RSP_MASK;
