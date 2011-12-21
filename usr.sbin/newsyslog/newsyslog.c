@@ -1946,9 +1946,10 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	int c;
 
+	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork != NULL && zwork->zw_conf != NULL &&
+	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {
