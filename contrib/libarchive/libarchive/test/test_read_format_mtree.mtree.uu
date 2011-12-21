@@ -1,0 +1,13 @@
+$FreeBSD: head/lib/libarchive/test/test_read_format_mtree.mtree.uu 201247 2009-12-30 05:59:21Z kientzle $
+
+begin 644 test_read_format_mtree.mtree
+M(VUT<F5E"F9I;&4@='EP93UF:6QE('5I9#TQ."!M;V1E/3`Q,C,@<VEZ93TS
+M"F1I<B!T>7!E/61I<@H@9FEL95PP-#!W:71H7#`T,'-P86-E('1Y<&4]9FEL
+M92!U:60],3@*("XN"F9I;&5<,#0P=VET:%PP-#!S<&%C92!T>7!E/69I;&4*
+M9&ER,B!T>7!E/61I<@H@9&ER,V$@='EP93UD:7(*("!I;F1I<C-A('1Y<&4]
+M9FEL90ID:7(R+V9U;&QI;F1I<C(@='EP93UF:6QE(&UO9&4],#<W-PH@("XN
+M"B!I;F1I<C(@='EP93UF:6QE"B!D:7(S8B!T>7!E/61I<@H@(&EN9&ER,V(@
+M='EP93UF:6QE"B`@+BX*("XN"FYO=&EN9&ER('1Y<&4]9FEL90ID:7(R+V9U
+3;&QI;F1I<C(@;6]D93TP-C0T"@``
+`
+end
