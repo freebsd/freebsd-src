@@ -32,6 +32,7 @@ SRCS= ${GENSRCS}
 SRCS+= aic79xx.c aic79xx_osm.c aic79xx_pci.c ahd_pci.c
 SRCS+= opt_scsi.h opt_aic79xx.h opt_cam.h opt_ddb.h
 SRCS+= device_if.h bus_if.h pci_if.h
+CWARNFLAGS+=	${NO_WCONSTANT_CONVERSION}
 
 CLEANFILES= ${GENSRCS}
 
