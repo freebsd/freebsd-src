@@ -74,7 +74,7 @@ struct cpio_header {
 	char	c_mtime[11];
 	char	c_namesize[6];
 	char	c_filesize[11];
-};
+} __packed;
 
 /*
  * Set output format to 'cpio' format.
