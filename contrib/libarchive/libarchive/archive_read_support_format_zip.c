@@ -128,6 +128,7 @@ static int	archive_read_format_zip_read_data(struct archive_read *,
 static int	archive_read_format_zip_read_data_skip(struct archive_read *a);
 static int	archive_read_format_zip_read_header(struct archive_read *,
 		    struct archive_entry *);
+static int	search_next_signature(struct archive_read *);
 static int	zip_read_data_deflate(struct archive_read *a, const void **buff,
 		    size_t *size, off_t *offset);
 static int	zip_read_data_none(struct archive_read *a, const void **buff,
@@ -317,10 +318,17 @@ archive_read_format_zip_read_header(struct archive_read *a,
 		signature = (const char *)h;
 	}
 
+	/* If we don't see a PK signature here, scan forward. */
 	if (signature[0] != 'P' || signature[1] != 'K') {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
-		    "Bad ZIP file");
-		return (ARCHIVE_FATAL);
+		r = search_next_signature(a);
+		if (r != ARCHIVE_OK) {
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+			    "Bad ZIP file");
+			return (ARCHIVE_FATAL);
+		}
+		if ((h = __archive_read_ahead(a, 4, NULL)) == NULL)
+			return (ARCHIVE_FATAL);
+		signature = (const char *)h;
 	}
 
 	/*
@@ -372,6 +380,42 @@ archive_read_format_zip_read_header(struct archive_read *a,
 	    "Damaged ZIP file or unsupported format variant (%d,%d)",
 	    signature[2], signature[3]);
 	return (ARCHIVE_FATAL);
+}
+
+static int
+search_next_signature(struct archive_read *a)
+{
+	const void *h;
+	const char *p, *q;
+	size_t skip;
+	ssize_t bytes;
+	int64_t skipped = 0;
+
+	for (;;) {
+		h = __archive_read_ahead(a, 4, &bytes);
+		if (h == NULL)
+			return (ARCHIVE_FATAL);
+		p = h;
+		q = p + bytes;
+
+		while (p + 4 <= q) {
+			if (p[0] == 'P' && p[1] == 'K') {
+				if ((p[2] == '\001' && p[3] == '\002')
+				    || (p[2] == '\003' && p[3] == '\004')
+				    || (p[2] == '\005' && p[3] == '\006')
+				    || (p[2] == '\007' && p[3] == '\010')
+				    || (p[2] == '0' && p[3] == '0')) {
+					skip = p - (const char *)h;
+					__archive_read_consume(a, skip);
+					return (ARCHIVE_OK);
+				}
+			}
+			++p;
+		}
+		skip = p - (const char *)h;
+		__archive_read_consume(a, skip);
+		skipped += skip;
+	}
 }
 
 static int
@@ -887,6 +931,9 @@ process_extra(const void* extra, struct zip* zip)
 				zip->uid = archive_le16dec(p + offset);
 			if (datasize >= 4)
 				zip->gid = archive_le16dec(p + offset + 2);
+			break;
+		case 0x7875:
+			/* Info-Zip Unix Extra Field (type 3) "ux". */
 			break;
 		default:
 			break;
