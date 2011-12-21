@@ -1,3 +1,133 @@
+2008-05-19  Release Manager
+
+	* GCC 4.2.4 released.
+
+2008-03-13  David Edelsohn  <edelsohn@gnu.org>
+
+	Backport from mainline:
+	2008-01-26  David Edelsohn  <edelsohn@gnu.org>
+
+        PR target/34794
+        * config/os/aix/os_defines.h: Define __COMPATMATH__.
+
+2008-02-14  Kaveh R. Ghazi  <ghazi@caip.rutgers.edu>
+
+	* testsuite/27_io/fpos/14320-1.cc: Check for "long long" and
+	remove XFAIL.
+
+2008-02-01  Release Manager
+
+	* GCC 4.2.3 released.
+
+2008-01-06  Ted Phelps  <phelps@gnusto.com>
+
+	PR c++/34152
+	* libsupc++/eh_personality.cc (PERSONALITY_FUNCTION): Check
+	_GLIBCXX_HAVE_GETIPINFO instead of HAVE_GETIPINFO.
+
+2008-01-05  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/34680
+
+	Revert:
+	2007-12-17  Jonathan Wakely  <jwakely.gcc@gmail.com>
+	* include/bits/locale_facets.tcc (has_facet, use_facet): Simplify
+	RTTI checks.
+
+	2007-12-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/30127
+        PR libstdc++/34449
+        * include/bits/locale_facets.tcc (use_facet): Check facet hierarchy.
+        (has_facet): Same.
+        * testsuite/22_locale/global_templates/user_facet_hierarchies.cc: New.
+        * testsuite/22_locale/global_templates/
+        standard_facet_hierarchies.cc: New.
+
+2007-12-17  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* include/bits/locale_facets.tcc (has_facet, use_facet): Simplify
+	RTTI checks.
+
+2007-12-17  Benjamin Kosnik  <bkoz@redhat.com>
+
+	* testsuite/22_locale/global_templates/
+	standard_facet_hierarchies.cc: Fix for generic locale model.
+
+2007-12-14  Benjamin Kosnik  <bkoz@redhat.com>
+
+        PR libstdc++/30127
+        PR libstdc++/34449
+        * include/bits/locale_facets.tcc (use_facet): Check facet hierarchy.
+        (has_facet): Same.
+        * testsuite/22_locale/global_templates/user_facet_hierarchies.cc: New.
+        * testsuite/22_locale/global_templates/
+        standard_facet_hierarchies.cc: New.
+
+2007-11-26  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/bits/locale_facets.tcc (num_put<>::_M_insert_int): When
+	ios_base::showpos and the type is signed and the value is zero,
+	prepend +.
+	* testsuite/22_locale/num_put/put/char/12.cc: New.
+	* testsuite/22_locale/num_put/put/wchar_t/12.cc: Likewise.
+
+2007-10-20  Paolo Carlini  <pcarlini@suse.de>
+
+	* include/tr1/random
+	(uniform_int<>::_M_call(_UniformRandomNumberGenerator&, result_type,
+	result_type, true_type)): Fix small thinko.
+
+2007-10-19  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33815
+	* include/tr1/random
+	(uniform_int<>::_M_call(_UniformRandomNumberGenerator&, result_type,
+	result_type, true_type)): Avoid the modulo (which uses the low-order
+	bits).
+
+2007-10-18  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33807
+	* include/bits/allocator.h (operator==(const allocator<_Tp>&,
+	const allocator<_Tp>&), operator!=(const allocator<_Tp>&,
+	const allocator<_Tp>&)): Add.
+	* testsuite/20_util/memory/allocator/33807.cc: New.
+	
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* docs/html/Makefile: Follow up to libstdc++/14991, remove target.
+
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* src/valarray-inst.cc, include/ext/atomicity.h,
+	include/ext/concurrence.h, include/bits/basic_string.h,
+	include/bits/fstream.tcc, include/ext/vstring.h: Fix comment typos.
+
+2007-10-14  Jonathan Wakely  <jwakely.gcc@gmail.com>
+
+	* include/tr1_impl/boost_shared_ptr.h: (__weak_ptr::lock()): Add
+	missing template argument.
+	* testsuite/tr1/2_general_utilities/memory/shared_ptr/
+	explicit_instantiation/2.cc: New.
+	* testsuite/tr1/2_general_utilities/memory/weak_ptr/
+	explicit_instantiation/2.cc: New.
+
+2007-10-11  Paolo Carlini  <pcarlini@suse.de>
+
+	PR libstdc++/33734
+	* include/ext/codecvt_specializations.h (encoding_state::good,
+	init, destroy): Use cast notation instead of reinterpret_cast.
+
+2007-10-07  Release Manager
+
+	* GCC 4.2.2 released.
+
+2007-10-06  Benjamin Kosnik  <bkoz@redhat.com>
+
+	PR libstdc++/33678	
+	* libsupc++/typeinfo (typeinfo): Revert ordering of virtual components.
+
 2007-08-28  Paolo Carlini  <pcarlini@suse.de>
 
 	PR libstdc++/33128
