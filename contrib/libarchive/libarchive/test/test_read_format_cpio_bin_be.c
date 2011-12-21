@@ -23,7 +23,7 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_format_cpio_bin_be.c 191592 2009-04-27 19:30:09Z kientzle $");
+__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_read_format_cpio_bin_be)
 {

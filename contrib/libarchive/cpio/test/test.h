@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/cpio/test/test.h,v 1.2 2008/06/21 02:17:18 kientzle Exp $
+ * $FreeBSD$
  */
 
 /* Every test program should #include "test.h" as the first thing. */
