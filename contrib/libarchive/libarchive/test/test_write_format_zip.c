@@ -31,7 +31,7 @@
 /* TODO: reader does not yet restore permissions. */
 
 #include "test.h"
-__FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_format_zip.c 201247 2009-12-30 05:59:21Z kientzle $");
+__FBSDID("$FreeBSD$");
 
 DEFINE_TEST(test_write_format_zip)
 {

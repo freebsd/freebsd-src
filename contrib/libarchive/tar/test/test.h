@@ -22,7 +22,7 @@
  * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  *
- * $FreeBSD: src/usr.bin/tar/test/test.h,v 1.4 2008/08/21 07:04:57 kientzle Exp $
+ * $FreeBSD$
  */
 
 /* Every test program should #include "test.h" as the first thing. */
