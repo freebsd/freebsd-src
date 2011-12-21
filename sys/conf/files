@@ -613,7 +613,7 @@ dev/ath/ath_hal/ah_eeprom_9287.c \
 	optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW} -I$S/dev/ath"
 # ar5210
 dev/ath/ath_hal/ar5210/ar5210_attach.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
