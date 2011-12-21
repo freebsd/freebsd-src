@@ -1,4 +1,4 @@
-$FreeBSD: head/lib/libarchive/test/test_read_format_mtree.mtree.uu 201247 2009-12-30 05:59:21Z kientzle $
+$FreeBSD$
 
 begin 644 test_read_format_mtree.mtree
 M(VUT<F5E"F9I;&4@='EP93UF:6QE('5I9#TQ."!M;V1E/3`Q,C,@<VEZ93TS
