@@ -45,17 +45,12 @@
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_bpf.h"
 #include "opt_pf.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
+#define	NBPFILTER	1
 
 #ifdef DEV_PFSYNC
 #define	NPFSYNC		DEV_PFSYNC
