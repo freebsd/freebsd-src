@@ -139,9 +139,11 @@ SRCS+=	amrr.c
 SRCS+=	dfs_null.c
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
-CWARNFLAGS+=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
 
 opt_ah.h:
 	echo '#define AH_SUPPORT_AR5416 1' > $@
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
