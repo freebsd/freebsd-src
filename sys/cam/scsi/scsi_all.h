@@ -932,6 +932,7 @@ struct ata_pass_16 {
 #define	WRITE_12		0xAA
 #define	WRITE_VERIFY_12		0xAE
 #define	READ_ELEMENT_STATUS	0xB8
+#define	READ_CD			0xBE
 
 /* Maintenance In Service Action Codes */
 #define	REPORT_IDENTIFYING_INFRMATION		0x05
