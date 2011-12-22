@@ -42,6 +42,11 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Revisions picked from OpenBSD after revision 1.110 import:
+ * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
+ */
+
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
@@ -536,6 +541,7 @@ pfsync_clone_destroy(struct ifnet *ifp)
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, sc->sc_detachtag);
 	PF_LOCK();
 #endif
+	timeout_del(&sc->sc_bulkfail_tmo);
 	timeout_del(&sc->sc_bulk_tmo);
 	timeout_del(&sc->sc_tmo);
 #ifdef __FreeBSD__
@@ -1604,14 +1610,16 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	switch (bus->status) {
 	case PFSYNC_BUS_START:
 #ifdef __FreeBSD__
-		callout_reset(&sc->sc_bulkfail_tmo, 5 * hz, pfsync_bulk_fail,
-		    V_pfsyncif);
-#else
-		timeout_add_sec(&sc->sc_bulkfail_tmo, 5); /* XXX magic */
-#endif
-#ifdef XXX
+		callout_reset(&sc->sc_bulkfail_tmo, 4 * hz +
 		    pf_pool_limits[PF_LIMIT_STATES].limit /
-		    (PFSYNC_BULKPACKETS * sc->sc_maxcount));
+		    ((sc->sc_sync_if->if_mtu - PFSYNC_MINPKT) /
+		    sizeof(struct pfsync_state)),
+		    pfsync_bulk_fail, V_pfsyncif);
+#else
+		timeout_add(&sc->sc_bulkfail_tmo, 4 * hz +
+		    pf_pool_limits[PF_LIMIT_STATES].limit /
+		    ((sc->sc_if.if_mtu - PFSYNC_MINPKT) /
+		    sizeof(struct pfsync_state)));
 #endif
 #ifdef __FreeBSD__
 		if (V_pf_status.debug >= PF_DEBUG_MISC)
