@@ -2655,7 +2655,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 		nlen += sizeof(struct pfsync_subheader);
 
 #ifdef __FreeBSD__
-	if (sc->sc_len + nlen > sc->sc_ifp->if_mtu) {
+	if (sc->sc_len + nlen > sc->sc_sync_if->if_mtu) {
 #else
 	if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 #endif
