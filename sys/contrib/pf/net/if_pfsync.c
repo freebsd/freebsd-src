@@ -46,6 +46,7 @@
  * Revisions picked from OpenBSD after revision 1.110 import:
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
+ * 1.122 - reduce number of updates for non-TCP sessions
  */
 
 #ifdef __FreeBSD__
@@ -2605,9 +2606,11 @@ pfsync_update_state(struct pf_state *st)
 	case PFSYNC_S_INS:
 		/* we're already handling it */
 
-		st->sync_updates++;
-		if (st->sync_updates >= sc->sc_maxupdates)
-			sync = 1;
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP) {
+			st->sync_updates++;
+			if (st->sync_updates >= sc->sc_maxupdates)
+				sync = 1;
+		}
 		break;
 
 	case PFSYNC_S_IACK:
