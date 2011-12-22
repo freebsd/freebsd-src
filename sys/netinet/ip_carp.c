@@ -1082,7 +1082,7 @@ carp_master_down(void *v)
 	CARP_LOCK_ASSERT(sc);
 
 	if (sc->sc_state == BACKUP) {
-		CARP_LOG("VHID %u@%s: BACKUP -> MASTER (preempting)\n",
+		CARP_LOG("VHID %u@%s: BACKUP -> MASTER (master down)\n",
 		    sc->sc_vhid,
 		    sc->sc_carpdev->if_xname);
 		carp_master_down_locked(sc);
