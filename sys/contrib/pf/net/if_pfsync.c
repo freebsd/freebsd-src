@@ -45,6 +45,7 @@
 /*
  * Revisions picked from OpenBSD after revision 1.110 import:
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
+ * 1.120, 1.175 - use monotonic time_uptime
  */
 
 #ifdef __FreeBSD__
@@ -664,7 +665,7 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	/* copy from state */
 	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_second - st->creation);
+	sp->creation = htonl(time_uptime - st->creation);
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_second)
 		sp->expire = htonl(0);
@@ -815,7 +816,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 	/* copy to state */
 	bcopy(&sp->rt_addr, &st->rt_addr, sizeof(st->rt_addr));
-	st->creation = time_second - ntohl(sp->creation);
+	st->creation = time_uptime - ntohl(sp->creation);
 	st->expire = time_second;
 	if (sp->expire) {
 		/* XXX No adaptive scaling. */
@@ -838,7 +839,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->anchor.ptr = NULL;
 	st->rt_kif = NULL;
 
-	st->pfsync_time = time_second;
+	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
 
 	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
@@ -1330,7 +1331,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_state_peer_ntoh(&sp->dst, &st->dst);
 		st->expire = ntohl(sp->expire) + time_second;
 		st->timeout = sp->timeout;
-		st->pfsync_time = time_second;
+		st->pfsync_time = time_uptime;
 	}
 #ifdef __FreeBSD__
 	PF_UNLOCK();
@@ -1440,7 +1441,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_state_peer_ntoh(&up->dst, &st->dst);
 		st->expire = ntohl(up->expire) + time_second;
 		st->timeout = up->timeout;
-		st->pfsync_time = time_second;
+		st->pfsync_time = time_uptime;
 	}
 #ifdef __FreeBSD__
 	PF_UNLOCK();
@@ -2621,7 +2622,7 @@ pfsync_update_state(struct pf_state *st)
 		    st->sync_state);
 	}
 
-	if (sync || (time_second - st->pfsync_time) < 2) {
+	if (sync || (time_uptime - st->pfsync_time) < 2) {
 		pfsync_upds++;
 #ifdef __FreeBSD__
 		pfsync_sendout();
