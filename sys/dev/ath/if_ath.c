@@ -1898,6 +1898,70 @@ ath_txrx_start(struct ath_softc *sc)
 	taskqueue_unblock(sc->sc_tq);
 }
 
+/*
+ * Grab the reset lock, and wait around until noone else
+ * is trying to do anything with it.
+ *
+ * This is totally horrible but we can't hold this lock for
+ * long enough to do TX/RX or we end up with net80211/ip stack
+ * LORs and eventual deadlock.
+ *
+ * "dowait" signals whether to spin, waiting for the reset
+ * lock count to reach 0. This should (for now) only be used
+ * during the reset path, as the rest of the code may not
+ * be locking-reentrant enough to behave correctly.
+ *
+ * Another, cleaner way should be found to serialise all of
+ * these operations.
+ */
+#define	MAX_RESET_ITERATIONS	10
+static int
+ath_reset_grablock(struct ath_softc *sc, int dowait)
+{
+	int w = 0;
+	int i = MAX_RESET_ITERATIONS;
+
+	ATH_PCU_LOCK_ASSERT(sc);
+	do {
+		if (sc->sc_inreset_cnt == 0) {
+			w = 1;
+			break;
+		}
+		if (dowait == 0) {
+			w = 0;
+			break;
+		}
+		ATH_PCU_UNLOCK(sc);
+		pause("ath_reset_grablock", 1);
+		i--;
+		ATH_PCU_LOCK(sc);
+	} while (i > 0);
+
+	/*
+	 * We always increment the refcounter, regardless
+	 * of whether we succeeded to get it in an exclusive
+	 * way.
+	 */
+	sc->sc_inreset_cnt++;
+
+	if (i <= 0)
+		device_printf(sc->sc_dev,
+		    "%s: didn't finish after %d iterations\n",
+		    __func__, MAX_RESET_ITERATIONS);
+
+	if (w == 0)
+		device_printf(sc->sc_dev,
+		    "%s: warning, recursive reset path!\n",
+		    __func__);
+
+	return w;
+}
+#undef MAX_RESET_ITERATIONS
+
+/*
+ * XXX TODO: write ath_reset_releaselock
+ */
+
 static void
 ath_stop(struct ifnet *ifp)
 {
@@ -1926,18 +1990,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
-	/* XXX ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
+	/* Ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
 	ATH_PCU_LOCK(sc);
-	/* XXX if we're already inside a reset, print out a big warning */
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: concurrent ath_reset()! Danger!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-	sc->sc_inreset_cnt++;
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ATH_PCU_UNLOCK(sc);
 
@@ -5250,10 +5311,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	/* Treat this as an interface reset */
 	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0)
-		device_printf(sc->sc_dev, "%s: danger! concurrent reset!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
-	sc->sc_inreset_cnt++;
+	}
 	if (chan != sc->sc_curchan) {
 		dointr = 1;
 		/* XXX only do this if inreset_cnt is 1? */
