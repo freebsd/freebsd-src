@@ -203,9 +203,9 @@
 #define	AR_MAC_LED_MODE_POWON	5	/* Power LED on (s/w control) */
 #define	AR_MAC_LED_MODE_NETON	6	/* Network LED on (s/w control) */
 #define	AR_MAC_LED_ASSOC	0x00000c00
-#define	AR_MAC_LED_ASSOC_NONE	0x00000000 /* STA is not associated or trying */
-#define	AR_MAC_LED_ASSOC_ACTIVE	0x00000400 /* STA is associated */
-#define	AR_MAC_LED_ASSOC_PEND	0x00000800 /* STA is trying to associate */
+#define	AR_MAC_LED_ASSOC_NONE	0x0	/* STA is not associated or trying */
+#define	AR_MAC_LED_ASSOC_ACTIVE	0x1	/* STA is associated */
+#define	AR_MAC_LED_ASSOC_PEND	0x2	/* STA is trying to associate */
 #define	AR_MAC_LED_ASSOC_S	10
 
 #define	AR_WA_UNTIE_RESET_EN	0x00008000	/* ena PCI reset to POR */
@@ -504,6 +504,8 @@
 #define	AR928X_GPIO_IN_VAL_S	10
 #define	AR9285_GPIO_IN_VAL	0x00FFF000
 #define	AR9285_GPIO_IN_VAL_S	12
+#define	AR9287_GPIO_IN_VAL	0x003FF800
+#define	AR9287_GPIO_IN_VAL_S	11
 
 #define	AR_GPIO_OE_OUT_DRV	0x3	/* 2 bit mask shifted by 2*bitpos */
 #define	AR_GPIO_OE_OUT_DRV_NO	0x0	/* tristate */
