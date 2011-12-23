@@ -1039,7 +1039,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	struct netmap_adapter *na;
 	struct ifnet *ifp;
 	struct netmap_kring *kring;
-	u_int i, check_all, want_tx, want_rx, revents = 0;
+	u_int core_lock, i, check_all, want_tx, want_rx, revents = 0;
 	void *adapter;
 
 	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
@@ -1116,8 +1116,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	 * LOCKED_CL	core lock is set, so we need to release it.
 	 */
 	enum {NO_CL, NEED_CL, LOCKED_CL };
-	int core_lock = (check_all || !na->separate_locks) ?
-			NEED_CL:NO_CL;
+	core_lock = (check_all || !na->separate_locks) ?  NEED_CL:NO_CL;
 	/*
 	 * We start with a lock free round which is good if we have
 	 * data available. If this fails, then lock and call the sync
@@ -1246,7 +1245,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 
 	buf = malloc(size, M_DEVBUF, M_NOWAIT | M_ZERO);
 	if (buf) {
-		ifp->if_pspare[0] = buf;
+		WNA(ifp) = buf;
 		na->tx_rings = (void *)((char *)buf + sizeof(*na));
 		na->rx_rings = na->tx_rings + n;
 		bcopy(na, buf, sizeof(*na));
@@ -1276,7 +1275,7 @@ netmap_detach(struct ifnet *ifp)
 		knlist_destroy(&na->rx_rings[i].si.si_note);
 	}
 	bzero(na, sizeof(*na));
-	ifp->if_pspare[0] = NULL;
+	WNA(ifp) = NULL;
 	free(na, M_DEVBUF);
 }
 
