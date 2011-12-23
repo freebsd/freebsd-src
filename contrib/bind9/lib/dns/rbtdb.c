@@ -278,6 +278,7 @@ typedef ISC_LIST(dns_rbtnode_t)         rbtnodelist_t;
 #define RDATASET_ATTR_RESIGN            0x0020
 #define RDATASET_ATTR_STATCOUNT         0x0040
 #define RDATASET_ATTR_OPTOUT		0x0080
+#define RDATASET_ATTR_NEGATIVE		0x0100
 
 typedef struct acache_cbarg {
 	dns_rdatasetadditional_t        type;
@@ -316,6 +317,8 @@ struct acachectl {
 	(((header)->attributes & RDATASET_ATTR_RESIGN) != 0)
 #define OPTOUT(header) \
 	(((header)->attributes & RDATASET_ATTR_OPTOUT) != 0)
+#define NEGATIVE(header) \
+	(((header)->attributes & RDATASET_ATTR_NEGATIVE) != 0)
 
 #define DEFAULT_NODE_LOCK_COUNT         7       /*%< Should be prime. */
 
@@ -4618,7 +4621,7 @@ cache_find(dns_db_t *db, dns_name_t *name, dns_dbversion_t *version,
 			      rdataset);
 		if (need_headerupdate(found, search.now))
 			update = found;
-		if (foundsig != NULL) {
+		if (!NEGATIVE(found) && foundsig != NULL) {
 			bind_rdataset(search.rbtdb, node, foundsig, search.now,
 				      sigrdataset);
 			if (need_headerupdate(foundsig, search.now))
@@ -5245,7 +5248,7 @@ cache_findrdataset(dns_db_t *db, dns_dbnode_t *node, dns_dbversion_t *version,
 	}
 	if (found != NULL) {
 		bind_rdataset(rbtdb, rbtnode, found, now, rdataset);
-		if (foundsig != NULL)
+		if (!NEGATIVE(found) && foundsig != NULL)
 			bind_rdataset(rbtdb, rbtnode, foundsig, now,
 				      sigrdataset);
 	}
