@@ -2416,7 +2416,8 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
 	dp->sectors = maxsector + 1;
 	if (lbppbe > 0) {
 		dp->stripesize = block_len << lbppbe;
-		dp->stripeoffset = dp->stripesize - block_len * lalba;
+		dp->stripeoffset = (dp->stripesize - block_len * lalba) %
+		    dp->stripesize;
 	} else if (softc->quirks & DA_Q_4K) {
 		dp->stripesize = 4096;
 		dp->stripeoffset = 0;
