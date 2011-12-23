@@ -513,6 +513,7 @@ int	 initgroups(const char *, gid_t);
 int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
+void	__FreeBSD_libc_enter_restricted_mode(void);
 long	 lpathconf(const char *, int);
 #ifndef _MKDTEMP_DECLARED
 char	*mkdtemp(char *);
