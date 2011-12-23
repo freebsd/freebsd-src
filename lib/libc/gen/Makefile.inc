@@ -20,6 +20,7 @@ SRCS+=  __getosreldate.c __xuname.c \
 	getpeereid.c getprogname.c getpwent.c getttyent.c \
 	getusershell.c getvfsbyname.c glob.c \
 	initgroups.c isatty.c isinf.c isnan.c jrand48.c lcong48.c \
+	libc_dlopen.c \
 	lockf.c lrand48.c mrand48.c nftw.c nice.c \
 	nlist.c nrand48.c opendir.c \
 	pause.c pmadvise.c popen.c posixshm.c pselect.c \
