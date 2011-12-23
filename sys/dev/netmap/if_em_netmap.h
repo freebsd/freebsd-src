@@ -76,7 +76,7 @@ em_netmap_lock_wrapper(void *_a, int what, u_int queueid)
 
 	ASSERT(queueid < adapter->num_queues);
 	switch (what) {
-		case NETMAP_CORE_LOCK:
+	case NETMAP_CORE_LOCK:
 		EM_CORE_LOCK(adapter);
 		break;
 	case NETMAP_CORE_UNLOCK:
