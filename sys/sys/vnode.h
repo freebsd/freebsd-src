@@ -705,6 +705,7 @@ int	vop_panic(struct vop_generic_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
+void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
@@ -717,6 +718,7 @@ void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
+void	vop_setextattr_post(void *a, int rc);
 void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);
