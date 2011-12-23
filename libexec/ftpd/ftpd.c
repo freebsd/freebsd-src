@@ -1543,6 +1543,7 @@ skip:
 			reply(550, "Can't change root.");
 			goto bad;
 		}
+		__FreeBSD_libc_enter_restricted_mode();
 	} else	/* real user w/o chroot */
 		homedir = pw->pw_dir;
 	/*
