@@ -4111,6 +4111,35 @@ rx_accept:
 			m->m_pkthdr.len = len;
 		}
 
+		/*
+		 * Validate rs->rs_antenna.
+		 *
+		 * Some users w/ AR9285 NICs have reported crashes
+		 * here because rs_antenna field is bogusly large.
+		 * Let's enforce the maximum antenna limit of 8
+		 * (and it shouldn't be hard coded, but that's a
+		 * separate problem) and if there's an issue, print
+		 * out an error and adjust rs_antenna to something
+		 * sensible.
+		 *
+		 * This code should be removed once the actual
+		 * root cause of the issue has been identified.
+		 * For example, it may be that the rs_antenna
+		 * field is only valid for the lsat frame of
+		 * an aggregate and it just happens that it is
+		 * "mostly" right. (This is a general statement -
+		 * the majority of the statistics are only valid
+		 * for the last frame in an aggregate.
+		 */
+		if (rs->rs_antenna > 7) {
+			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
+			    __func__, rs->rs_antenna);
+#ifdef	ATH_DEBUG
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+#endif /* ATH_DEBUG */
+			rs->rs_antenna = 0;	/* XXX better than nothing */
+		}
+
 		ifp->if_ipackets++;
 		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
