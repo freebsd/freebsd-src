@@ -89,7 +89,8 @@ typedef enum {
 	DA_Q_NONE		= 0x00,
 	DA_Q_NO_SYNC_CACHE	= 0x01,
 	DA_Q_NO_6_BYTE		= 0x02,
-	DA_Q_NO_PREVENT		= 0x04
+	DA_Q_NO_PREVENT		= 0x04,
+	DA_Q_4K			= 0x08
 } da_quirks;
 
 typedef enum {
@@ -112,6 +113,8 @@ struct disk_params {
 	u_int8_t  secs_per_track;
 	u_int32_t secsize;	/* Number of bytes/sector */
 	u_int64_t sectors;	/* total number sectors */
+	u_int     stripesize;
+	u_int     stripeoffset;
 };
 
 struct da_softc {
@@ -564,7 +567,223 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
-	}
+	},
+	/* ATA/SATA devices over SAS/USB/... */
+	{
+		/* Hitachi Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "Hitachi", "H??????????E3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG HD155UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HD155UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG HD204UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HD204UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST????DL*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST????DL", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST???DM*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST???DM*", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST????DM*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST????DM", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9500423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST950042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9500424AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST950042", "4AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9640423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST964042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9640424AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST964042", "4AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750420AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "0AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750422AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "2AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST???LT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST???LT*", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "??RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "??RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD??????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD??????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD???PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "?PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD?????PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD???PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "?PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD?????PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -585,7 +804,7 @@ static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
 static void		daprevent(struct cam_periph *periph, int action);
 static int		dagetcapacity(struct cam_periph *periph);
 static void		dasetgeom(struct cam_periph *periph, uint32_t block_len,
-				  uint64_t maxsector);
+				  uint64_t maxsector, u_int lbppbe, u_int lalba);
 static timeout_t	dasendorderedtag;
 static void		dashutdown(void *arg, int howto);
 
@@ -687,6 +906,8 @@ daopen(struct disk *dp)
 
 		softc->disk->d_sectorsize = softc->params.secsize;
 		softc->disk->d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
+		softc->disk->d_stripesize = softc->params.stripesize;
+		softc->disk->d_stripeoffset = softc->params.stripeoffset;
 		/* XXX: these are not actually "firmware" values, so they may be wrong */
 		softc->disk->d_fwsectors = softc->params.secs_per_track;
 		softc->disk->d_fwheads = softc->params.heads;
@@ -1741,7 +1962,7 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				announce_buf[0] = '\0';
 				cam_periph_invalidate(periph);
 			} else {
-				dasetgeom(periph, block_size, maxsector);
+				dasetgeom(periph, block_size, maxsector, 0, 0);
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
 				        "%juMB (%ju %u byte sectors: %dH %dS/T "
@@ -2066,7 +2287,7 @@ done:
 			    (uintmax_t) block_len);
 			error = EINVAL;
 		} else
-			dasetgeom(periph, block_len, maxsector);
+			dasetgeom(periph, block_len, maxsector, 0, 0);
 	}
 
 	xpt_release_ccb(ccb);
@@ -2077,7 +2298,8 @@ done:
 }
 
 static void
-dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
+dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
+    u_int lbppbe, u_int lalba)
 {
 	struct ccb_calc_geometry ccg;
 	struct da_softc *softc;
@@ -2088,6 +2310,16 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 	dp = &softc->params;
 	dp->secsize = block_len;
 	dp->sectors = maxsector + 1;
+	if (lbppbe > 0) {
+		dp->stripesize = block_len << lbppbe;
+		dp->stripeoffset = dp->stripesize - block_len * lalba;
+	} else if (softc->quirks & DA_Q_4K) {
+		dp->stripesize = 4096;
+		dp->stripeoffset = 0;
+	} else {
+		dp->stripesize = 0;
+		dp->stripeoffset = 0;
+	}
 	/*
 	 * Have the controller provide us with a geometry
 	 * for this disk.  The only time the geometry
