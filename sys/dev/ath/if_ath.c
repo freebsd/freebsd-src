@@ -3962,6 +3962,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		npkts++;
 
 		/* These aren't specifically errors */
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_stats.ast_rx_halfgi++;
 		if (rs->rs_flags & HAL_RX_2040)
@@ -3974,6 +3975,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			sc->sc_stats.ast_rx_decrypt_busy_err++;
 		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 			sc->sc_stats.ast_rx_hi_rx_chain++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
@@ -4191,8 +4193,10 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (ni != NULL) {
 			/*
