@@ -19,6 +19,10 @@ NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
 NO_WARRAY_BOUNDS=		-Wno-array-bounds
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
 NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
+# Several other warnings which might be useful in some cases, but not severe
+# enough to error out the whole kernel build.  Display them anyway, so there is
+# some incentive to fix them eventually.
+CWARNFLAGS+=	-Wno-error-tautological-compare
 .endif
 
 #
