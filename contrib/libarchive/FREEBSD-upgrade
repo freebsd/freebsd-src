@@ -17,7 +17,7 @@ at FreeBSD wiki:
 
 	http://wiki.freebsd.org/SubversionPrimer/VendorImports
 
-To make local changes to xz, simply patch and commit to the trunk
+To make local changes to libarchive, simply patch and commit to the trunk
 branch (aka HEAD).  Never make local changes on the vendor branch.
 
 mm@FreeBSD.org
