@@ -938,7 +938,7 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 	vm_object_t backing_object;
 	struct vnode *vp;
 	struct mount *mp;
-	int flags;
+	int flags, fsync_after;
 
 	if (object == NULL)
 		return;
@@ -971,11 +971,26 @@ vm_object_sync(vm_object_t object, vm_ooffset_t offset, vm_size_t size,
 		(void) vn_start_write(vp, &mp, V_WAIT);
 		vfslocked = VFS_LOCK_GIANT(vp->v_mount);
 		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-		flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
-		flags |= invalidate ? OBJPC_INVAL : 0;
+		if (syncio && !invalidate && offset == 0 &&
+		    OFF_TO_IDX(size) == object->size) {
+			/*
+			 * If syncing the whole mapping of the file,
+			 * it is faster to schedule all the writes in
+			 * async mode, also allowing the clustering,
+			 * and then wait for i/o to complete.
+			 */
+			flags = 0;
+			fsync_after = TRUE;
+		} else {
+			flags = (syncio || invalidate) ? OBJPC_SYNC : 0;
+			flags |= invalidate ? (OBJPC_SYNC | OBJPC_INVAL) : 0;
+			fsync_after = FALSE;
+		}
 		VM_OBJECT_LOCK(object);
 		vm_object_page_clean(object, offset, offset + size, flags);
 		VM_OBJECT_UNLOCK(object);
+		if (fsync_after)
+			(void) VOP_FSYNC(vp, MNT_WAIT, curthread);
 		VOP_UNLOCK(vp, 0);
 		VFS_UNLOCK_GIANT(vfslocked);
 		vn_finished_write(mp);
