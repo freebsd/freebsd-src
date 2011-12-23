@@ -472,7 +472,8 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			 * and flag handling as in the txsync code.
 			 *
 			 * NOTE curr and rxbuf are indexed by l.
-			 * Also, this driver needs to update the physical				 * address in the NIC ring, but other drivers
+			 * Also, this driver needs to update the physical
+			 * address in the NIC ring, but other drivers
 			 * may not have this requirement.
 			 */
 			struct netmap_slot *slot = &ring->slot[j];
