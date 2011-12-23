@@ -142,6 +142,9 @@ ftpd_popen(char *program, char *type)
 			}
 			(void)close(pdes[1]);
 		}
+		/* Drop privileges before proceeding */
+		if (getuid() != geteuid() && setuid(geteuid()) < 0)
+			_exit(1);
 		if (strcmp(gargv[0], _PATH_LS) == 0) {
 			/* Reset getopt for ls_main() */
 			optreset = optind = optopt = 1;

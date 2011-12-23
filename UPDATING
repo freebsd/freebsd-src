@@ -8,6 +8,22 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20111223:	p9	FreeBSD-SA-11:06.bind, FreeBSD-SA-11:07.chroot
+			FreeBSD-SA-11:08.telnetd, FreeBSD-SA-11:09.pam_ssh
+			FreeBSD-SA-11:10.pam
+	Fix a problem whereby a corrupt DNS record can cause named to crash.
+	[11:06]
+
+	Add an API for alerting internal libc routines to the presence of
+	"unsafe" paths post-chroot, and use it in ftpd. [11:07]
+
+	Fix a buffer overflow in telnetd. [11:08]
+
+	Make pam_ssh ignore unpassphrased keys unless the "nullok" option is
+	specified. [11:09]
+
+	Add sanity checking of service names in pam_start. [11:10]
+
 20111004:	p8	FreeBSD-SA-11:05.unix (revised)
 	Fix a bug in UNIX socket handling in the linux emulator which was
 	exposed by the security fix in FreeBSD-SA-11:05.unix.

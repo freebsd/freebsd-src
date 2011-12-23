@@ -494,6 +494,7 @@ int	 initgroups(const char *, gid_t);
 int	 iruserok(unsigned long, int, const char *, const char *);
 int	 iruserok_sa(const void *, int, int, const char *, const char *);
 int	 issetugid(void);
+void	__FreeBSD_libc_enter_restricted_mode(void);
 char	*mkdtemp(char *);
 #ifndef	_MKNOD_DECLARED
 int	 mknod(const char *, mode_t, dev_t);
