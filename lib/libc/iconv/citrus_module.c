@@ -109,6 +109,7 @@
 #include "citrus_namespace.h"
 #include "citrus_bcs.h"
 #include "citrus_module.h"
+#include "libc_private.h"
 
 static int		 _getdewey(int[], char *);
 static int		 _cmpndewey(int[], int, int[], int);
@@ -294,7 +295,7 @@ _citrus_load_module(_citrus_module_t *rhandle, const char *encname)
 	p = _findshlib(path, &maj, &min);
 	if (!p)
 		return (EINVAL);
-	handle = dlopen(p, RTLD_LAZY);
+	handle = libc_dlopen(p, RTLD_LAZY);
 	if (!handle) {
 		printf("%s", dlerror());
 		return (EINVAL);
