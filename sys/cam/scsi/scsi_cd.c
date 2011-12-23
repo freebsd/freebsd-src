@@ -1487,6 +1487,9 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 			if (softc->params.blksize == 2352) {
 				start_ccb->csio.cdb_io.cdb_bytes[0] = READ_CD;
 				start_ccb->csio.cdb_io.cdb_bytes[9] = 0xf8;
+				start_ccb->csio.cdb_io.cdb_bytes[10] = 0;
+				start_ccb->csio.cdb_io.cdb_bytes[11] = 0;
+				start_ccb->csio.cdb_len = 12;
 			}
 			start_ccb->ccb_h.ccb_state = CD_CCB_BUFFER_IO;
 
