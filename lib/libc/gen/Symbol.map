@@ -345,6 +345,10 @@ FBSD_1.2 {
 	getpagesizes;
 };
 
+FBSD_1.3 {
+	__FreeBSD_libc_enter_restricted_mode;
+};
+
 FBSDprivate_1.0 {
 	/* needed by thread libraries */
 	__thr_jtable;
