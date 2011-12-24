@@ -499,6 +499,7 @@ powerpc_init(vm_offset_t startkernel, vm_offset_t endkernel,
 	bcopy(generictrap, (void *)EXC_SC,   (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_FPA,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VEC,  (size_t)&trapsize);
+	bcopy(generictrap, (void *)EXC_PERF,  (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G4, (size_t)&trapsize);
 	bcopy(generictrap, (void *)EXC_VECAST_G5, (size_t)&trapsize);
 	#ifndef __powerpc64__
