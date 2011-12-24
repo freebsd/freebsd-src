@@ -81,19 +81,75 @@ extern int sysclock_active;
 #define	FFCLOCK_STA_WARMUP	2
 
 /*
- * Clock flags to select how the feed-forward counter is converted to absolute
- * time by ffclock_convert_abs().
- * FAST:    do not read the hardware counter, return feed-forward clock time
- *          at last tick. The time returned has the resolution of the kernel
- *          tick (1/hz [s]).
- * LERP:    linear interpolation of ffclock time to guarantee monotonic time.
- * LEAPSEC: include leap seconds.
- * UPTIME:  removes time of boot.
+ * Flags for use by sysclock_snap2bintime() and various ffclock_ functions to
+ * control how the timecounter hardware is read and how the hardware snapshot is
+ * converted into absolute time.
+ * {FB|FF}CLOCK_FAST:	Do not read the hardware counter, instead using the
+ *			value at last tick. The time returned has a resolution
+ *			of the kernel tick timer (1/hz [s]).
+ * FFCLOCK_LERP:	Linear interpolation of ffclock time to guarantee
+ *			monotonic time.
+ * FFCLOCK_LEAPSEC:	Include leap seconds.
+ * {FB|FF}CLOCK_UPTIME:	Time stamp should be relative to system boot, not epoch.
  */
-#define	FFCLOCK_FAST		1
-#define	FFCLOCK_LERP		2
-#define	FFCLOCK_LEAPSEC		4
-#define	FFCLOCK_UPTIME		8
+#define	FFCLOCK_FAST		0x00000001
+#define	FFCLOCK_LERP		0x00000002
+#define	FFCLOCK_LEAPSEC		0x00000004
+#define	FFCLOCK_UPTIME		0x00000008
+#define	FFCLOCK_MASK		0x0000ffff
+
+#define	FBCLOCK_FAST		0x00010000 /* Currently unused. */
+#define	FBCLOCK_UPTIME		0x00020000
+#define	FBCLOCK_MASK		0xffff0000
+
+/*
+ * Feedback clock specific info structure. The feedback clock's estimation of
+ * clock error is an absolute figure determined by the NTP algorithm. The status
+ * is determined by the userland daemon.
+ */
+struct fbclock_info {
+	struct bintime		error;
+	struct bintime		tick_time;
+	uint64_t		th_scale;
+	int			status;
+};
+
+/*
+ * Feed-forward clock specific info structure. The feed-forward clock's
+ * estimation of clock error is an upper bound, which although potentially
+ * looser than the feedback clock equivalent, is much more reliable. The status
+ * is determined by the userland daemon.
+ */
+struct ffclock_info {
+	struct bintime		error;
+	struct bintime		tick_time;
+	struct bintime		tick_time_lerp;
+	uint64_t		period;
+	uint64_t		period_lerp;
+	int			leapsec_adjustment;
+	int			status;
+};
+
+/*
+ * Snapshot of system clocks and related information. Holds time read from each
+ * clock based on a single read of the active hardware timecounter, as well as
+ * respective clock information such as error estimates and the ffcounter value
+ * at the time of the read.
+ */
+struct sysclock_snap {
+	struct fbclock_info	fb_info;
+	struct ffclock_info	ff_info;
+	ffcounter		ffcount;
+	unsigned int		delta;
+	int			sysclock_active;
+};
+
+/* Take a snapshot of the system clocks and related information. */
+void sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast);
+
+/* Convert a timestamp from the selected system clock into bintime. */
+int sysclock_snap2bintime(struct sysclock_snap *cs, struct bintime *bt,
+    int whichclock, uint32_t flags);
 
 /* Resets feed-forward clock from RTC */
 void ffclock_reset_clock(struct timespec *ts);
