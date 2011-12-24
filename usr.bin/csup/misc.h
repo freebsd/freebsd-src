@@ -28,9 +28,17 @@
 #ifndef _MISC_H_
 #define _MISC_H_
 
-#include <openssl/md5.h>
-
 #include <sys/types.h>
+
+#ifdef __FreeBSD__
+#include <md5.h>
+#define	MD5_DIGEST_LENGTH	16
+#define	MD5_Init		MD5Init
+#define	MD5_Final		MD5Final
+#define	MD5_Update		MD5Update
+#else
+#include <openssl/md5.h>
+#endif
 
 /* If we're not compiling in a C99 environment, define the C99 types. */
 #if !defined(__STDC_VERSION__) || __STDC_VERSION__ < 199901
