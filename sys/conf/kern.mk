@@ -69,7 +69,8 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For sparc64 we want medlow code model, and we tell gcc to use floating
+# For sparc64 we want the medany code model so modules may be located
+# anywhere in the 64-bit address space.  We also tell GCC to use floating
 # point emulation.  This avoids using floating point registers for integer
 # operations which it has a tendency to do.
 #
