@@ -573,6 +573,8 @@ octeon_process_app_desc_ver_6(void)
 	cvmx_sysinfo_get()->mac_addr_count = octeon_bootinfo->mac_addr_count;
 	cvmx_sysinfo_get()->compact_flash_common_base_addr = 
 		octeon_bootinfo->compact_flash_common_base_addr;
+	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
+		octeon_bootinfo->compact_flash_attribute_base_addr;
 }
 
 static void
