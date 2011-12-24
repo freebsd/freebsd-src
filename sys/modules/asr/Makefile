@@ -12,3 +12,6 @@ SRCS+=	opt_asr.h
 .endif
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.asr.c=	${NO_WARRAY_BOUNDS}
+CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}
