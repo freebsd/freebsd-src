@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 
 #define	VMM_MSR_F_EMULATE	0x01
 #define	VMM_MSR_F_READONLY	0x02
+#define VMM_MSR_F_INVALID	0x04
 
 struct vmm_msr {
 	int		num;
@@ -54,6 +55,7 @@ static struct vmm_msr vmm_msr[] = {
 	{ MSR_CSTAR,	0 },
 	{ MSR_STAR,	0 },
 	{ MSR_SF_MASK,	0 },
+	{ MSR_PAT,      VMM_MSR_F_EMULATE | VMM_MSR_F_INVALID },
 	{ MSR_APICBASE,	VMM_MSR_F_EMULATE },
 	{ MSR_BIOS_SIGN,VMM_MSR_F_EMULATE },
 	{ MSR_MCG_CAP,	VMM_MSR_F_EMULATE | VMM_MSR_F_READONLY },
@@ -67,6 +69,9 @@ CTASSERT(VMM_MSR_NUM >= vmm_msr_num);
 
 #define	emulated_msr(idx)	\
 	((vmm_msr[(idx)].flags & VMM_MSR_F_EMULATE) != 0)
+
+#define invalid_msr(idx)	\
+	((vmm_msr[(idx)].flags & VMM_MSR_F_INVALID) != 0)
 
 void
 vmm_msr_init(void)
@@ -107,6 +112,16 @@ guest_msrs_init(struct vm *vm, int cpu)
 					APICBASE_X2APIC;
 			if (cpu == 0)
 				guest_msrs[i] |= APICBASE_BSP;
+			break;
+		case MSR_PAT:
+			guest_msrs[i] = PAT_VALUE(0, PAT_WRITE_BACK)      |
+				PAT_VALUE(1, PAT_WRITE_THROUGH)   |
+				PAT_VALUE(2, PAT_UNCACHED)        |
+				PAT_VALUE(3, PAT_UNCACHEABLE)     |
+				PAT_VALUE(4, PAT_WRITE_BACK)      |
+				PAT_VALUE(5, PAT_WRITE_THROUGH)   |
+				PAT_VALUE(6, PAT_UNCACHED)        |
+				PAT_VALUE(7, PAT_UNCACHEABLE);
 			break;
 		default:
 			panic("guest_msrs_init: missing initialization for msr "
@@ -165,6 +180,9 @@ emulate_wrmsr(struct vm *vm, int cpu, u_int num, uint64_t val)
 	if (idx < 0)
 		goto done;
 
+	if (invalid_msr(idx))
+		goto done;
+
 	if (!readonly_msr(idx)) {
 		guest_msrs = vm_guest_msrs(vm, cpu);
 
@@ -204,6 +222,9 @@ emulate_rdmsr(struct vm *vm, int cpu, u_int num)
 
 	idx = msr_num_to_idx(num);
 	if (idx < 0)
+		goto done;
+
+	if (invalid_msr(idx))
 		goto done;
 
 	guest_msrs = vm_guest_msrs(vm, cpu);
@@ -261,5 +282,21 @@ restore_host_msrs(struct vm *vm, int cpu)
 			continue;
 		else
 			wrmsr(vmm_msr[i].num, vmm_msr[i].hostval);
+	}
+}
+
+/*
+ * Must be called by the CPU-specific code before any guests are
+ * created
+ */
+void
+guest_msr_valid(int msr)
+{
+	int i;
+
+	for (i = 0; i < vmm_msr_num; i++) {
+		if (vmm_msr[i].num == msr && invalid_msr(i)) {
+			vmm_msr[i].flags &= ~VMM_MSR_F_INVALID;
+		}
 	}
 }
