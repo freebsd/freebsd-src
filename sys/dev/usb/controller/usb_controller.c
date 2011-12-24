@@ -122,6 +122,7 @@ DRIVER_MODULE(usbus, xhci, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, at91_udp, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, musbotg, usb_driver, usb_devclass, 0, 0);
 DRIVER_MODULE(usbus, uss820, usb_driver, usb_devclass, 0, 0);
+DRIVER_MODULE(usbus, octusb, usb_driver, usb_devclass, 0, 0);
 
 /*------------------------------------------------------------------------*
  *	usb_probe
