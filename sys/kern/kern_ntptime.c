@@ -148,13 +148,13 @@ typedef int64_t l_fp;
 #define SHIFT_FLL	2		/* FLL loop gain (shift) */
 
 static int time_state = TIME_OK;	/* clock state */
-static int time_status = STA_UNSYNC;	/* clock status bits */
+int time_status = STA_UNSYNC;	/* clock status bits */
 static long time_tai;			/* TAI offset (s) */
 static long time_monitor;		/* last time offset scaled (ns) */
 static long time_constant;		/* poll interval (shift) (s) */
 static long time_precision = 1;		/* clock precision (ns) */
 static long time_maxerror = MAXPHASE / 1000; /* maximum error (us) */
-static long time_esterror = MAXPHASE / 1000; /* estimated error (us) */
+long time_esterror = MAXPHASE / 1000; /* estimated error (us) */
 static long time_reftime;		/* time at last adjustment (s) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
