@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/pmap.h>
 #include <machine/segments.h>
+#include <machine/specialreg.h>
 #include <machine/vmparam.h>
 
 #include <machine/vmm.h>
@@ -85,17 +86,22 @@ __FBSDID("$FreeBSD$");
 #define	PROCBASED_CTLS2_ONE_SETTING	PROCBASED2_ENABLE_EPT
 #define	PROCBASED_CTLS2_ZERO_SETTING	0
 
-#define	VM_EXIT_CTLS_ONE_SETTING					\
+#define VM_EXIT_CTLS_ONE_SETTING_NO_PAT					\
 	(VM_EXIT_HOST_LMA			|			\
 	VM_EXIT_SAVE_EFER			|			\
-	VM_EXIT_SAVE_PAT			|			\
-	VM_EXIT_LOAD_PAT			|			\
 	VM_EXIT_LOAD_EFER)
+
+#define	VM_EXIT_CTLS_ONE_SETTING					\
+	(VM_EXIT_CTLS_ONE_SETTING_NO_PAT       	|			\
+	VM_EXIT_SAVE_PAT			|			\
+	VM_EXIT_LOAD_PAT)
 #define	VM_EXIT_CTLS_ZERO_SETTING	VM_EXIT_SAVE_DEBUG_CONTROLS
 
+#define	VM_ENTRY_CTLS_ONE_SETTING_NO_PAT	VM_ENTRY_LOAD_EFER
+
 #define	VM_ENTRY_CTLS_ONE_SETTING					\
-	(VM_ENTRY_LOAD_PAT			|			\
-	VM_ENTRY_LOAD_EFER)
+	(VM_ENTRY_CTLS_ONE_SETTING_NO_PAT     	|			\
+	VM_ENTRY_LOAD_PAT)
 #define	VM_ENTRY_CTLS_ZERO_SETTING					\
 	(VM_ENTRY_LOAD_DEBUG_CONTROLS		|			\
 	VM_ENTRY_INTO_SMM			|			\
@@ -121,6 +127,8 @@ static uint64_t cr0_ones_mask, cr0_zeros_mask;
 static uint64_t cr4_ones_mask, cr4_zeros_mask;
 
 static volatile u_int nextvpid;
+
+static int vmx_no_patmsr;
 
 /*
  * Virtual NMI blocking conditions.
@@ -476,16 +484,39 @@ vmx_init(void)
 			       VM_EXIT_CTLS_ZERO_SETTING,
 			       &exit_ctls);
 	if (error) {
-		printf("vmx_init: processor does not support desired "
-		       "exit controls\n");
-		       return (error);
+		/* Try again without the PAT MSR bits */
+		error = vmx_set_ctlreg(MSR_VMX_EXIT_CTLS,
+				       MSR_VMX_TRUE_EXIT_CTLS,
+				       VM_EXIT_CTLS_ONE_SETTING_NO_PAT,
+				       VM_EXIT_CTLS_ZERO_SETTING,
+				       &exit_ctls);
+		if (error) {
+			printf("vmx_init: processor does not support desired "
+			       "exit controls\n");
+			return (error);
+		} else {
+			if (bootverbose)
+				printf("vmm: PAT MSR access not supported\n");
+			guest_msr_valid(MSR_PAT);
+			vmx_no_patmsr = 1;
+		}
 	}
 
 	/* Check support for VM-entry controls */
-	error = vmx_set_ctlreg(MSR_VMX_ENTRY_CTLS, MSR_VMX_TRUE_ENTRY_CTLS,
-			       VM_ENTRY_CTLS_ONE_SETTING,
-			       VM_ENTRY_CTLS_ZERO_SETTING,
-			       &entry_ctls);
+	if (!vmx_no_patmsr) {
+		error = vmx_set_ctlreg(MSR_VMX_ENTRY_CTLS,
+				       MSR_VMX_TRUE_ENTRY_CTLS,
+				       VM_ENTRY_CTLS_ONE_SETTING,
+				       VM_ENTRY_CTLS_ZERO_SETTING,
+				       &entry_ctls);
+	} else {
+		error = vmx_set_ctlreg(MSR_VMX_ENTRY_CTLS,
+				       MSR_VMX_TRUE_ENTRY_CTLS,
+				       VM_ENTRY_CTLS_ONE_SETTING_NO_PAT,
+				       VM_ENTRY_CTLS_ZERO_SETTING,
+				       &entry_ctls);
+	}
+
 	if (error) {
 		printf("vmx_init: processor does not support desired "
 		       "entry controls\n");
@@ -646,17 +677,22 @@ vmx_vminit(struct vm *vm)
 	 * MSR_EFER is saved and restored in the guest VMCS area on a
 	 * VM exit and entry respectively. It is also restored from the
 	 * host VMCS area on a VM exit.
-	 *
-	 * MSR_PAT is saved and restored in the guest VMCS are on a VM exit
-	 * and entry respectively. It is also restored from the host VMCS
-	 * area on a VM exit.
 	 */
 	if (guest_msr_rw(vmx, MSR_GSBASE) ||
 	    guest_msr_rw(vmx, MSR_FSBASE) ||
 	    guest_msr_rw(vmx, MSR_KGSBASE) ||
-	    guest_msr_rw(vmx, MSR_EFER) ||
-	    guest_msr_rw(vmx, MSR_PAT))
+	    guest_msr_rw(vmx, MSR_EFER))
 		panic("vmx_vminit: error setting guest msr access");
+
+	/*
+	 * MSR_PAT is saved and restored in the guest VMCS are on a VM exit
+	 * and entry respectively. It is also restored from the host VMCS
+	 * area on a VM exit. However, if running on a system with no
+	 * MSR_PAT save/restore support, leave access disabled so accesses
+	 * will be trapped.
+	 */
+	if (!vmx_no_patmsr && guest_msr_rw(vmx, MSR_PAT))
+		panic("vmx_vminit: error setting guest pat msr access");
 
 	for (i = 0; i < VM_MAXCPU; i++) {
 		vmx->vmcs[i].identifier = vmx_revision();

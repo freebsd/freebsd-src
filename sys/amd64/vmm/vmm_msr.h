@@ -36,6 +36,7 @@ void	vmm_msr_init(void);
 int	emulate_wrmsr(struct vm *vm, int vcpu, u_int msr, uint64_t val);
 int	emulate_rdmsr(struct vm *vm, int vcpu, u_int msr);
 void	guest_msrs_init(struct vm *vm, int cpu);
+void	guest_msr_valid(int msr);
 void	restore_host_msrs(struct vm *vm, int cpu);
 void	restore_guest_msrs(struct vm *vm, int cpu);
 
