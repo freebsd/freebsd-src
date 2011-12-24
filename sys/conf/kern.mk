@@ -23,7 +23,7 @@ NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 # Several other warnings which might be useful in some cases, but not severe
 # enough to error out the whole kernel build.  Display them anyway, so there is
 # some incentive to fix them eventually.
-CWARNEXTRA+=	-Wno-error-tautological-compare
+CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body
 .endif
 
 #
