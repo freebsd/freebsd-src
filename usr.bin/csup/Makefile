@@ -33,8 +33,8 @@ CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -DHAVE_FFLAGS -DNDEBUG
 WARNS?=	1
 
-DPADD=	${LIBCRYPTO} ${LIBZ} ${LIBPTHREAD}
-LDADD=	-lcrypto -lz -lpthread
+DPADD=	${LIBMD} ${LIBZ} ${LIBPTHREAD}
+LDADD=	-lmd -lz -lpthread
 
 SCRIPTS=	cpasswd.sh
 MAN=		csup.1 cpasswd.1
