@@ -1613,7 +1613,7 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	case PFSYNC_BUS_START:
 #ifdef __FreeBSD__
 		callout_reset(&sc->sc_bulkfail_tmo, 4 * hz +
-		    pf_pool_limits[PF_LIMIT_STATES].limit /
+		    V_pf_pool_limits[PF_LIMIT_STATES].limit /
 		    ((sc->sc_sync_if->if_mtu - PFSYNC_MINPKT) /
 		    sizeof(struct pfsync_state)),
 		    pfsync_bulk_fail, V_pfsyncif);
