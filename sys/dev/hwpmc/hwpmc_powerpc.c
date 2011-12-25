@@ -686,11 +686,6 @@ powerpc_intr(int cpu, struct trapframe *tf)
 		v       = pm->pm_sc.pm_reloadcount;
 		config  = mfspr(SPR_MMCR0);
 
-		KASSERT((config & ~AMD_PMC_ENABLE) ==
-		    (pm->pm_md.pm_amd.pm_amd_evsel & ~AMD_PMC_ENABLE),
-		    ("[powerpc,%d] config mismatch reg=0x%x pm=0x%x", __LINE__,
-			config, pm->pm_md.pm_amd.pm_amd_evsel));
-
 		mtspr(SPR_MMCR0, config | SPR_MMCR0_FC);
 		powerpc_pmcn_write(i, v);
 
