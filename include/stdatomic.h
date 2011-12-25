@@ -214,7 +214,7 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #if __has_builtin(__sync_swap)
 /* Clang provides a full-barrier atomic exchange - use it if available. */
 #define atomic_exchange_explicit(object, desired, order)		\
-	__sync_swap(&(object)->value, desired)
+	__sync_swap(&(object)->__val, desired)
 #else
 /*
  * __sync_lock_test_and_set() is only an acquire barrier in theory (although in
