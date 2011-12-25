@@ -42,7 +42,7 @@
 #endif
 
 #ifdef __GNUC_ATOMICS
-#define	_Atomic(T)				struct { volatile T __val; }
+#define	_Atomic(T)			struct { volatile T __val; }
 #endif
 
 /*
@@ -50,11 +50,11 @@
  */
 
 #if defined(__CLANG_ATOMICS)
-#define	ATOMIC_VAR_INIT(value)			(value)
-#define	atomic_init(obj, value)			__atomic_init(obj, value)
+#define	ATOMIC_VAR_INIT(value)		(value)
+#define	atomic_init(obj, value)		__atomic_init(obj, value)
 #elif defined(__GNUC_ATOMICS)
-#define	ATOMIC_VAR_INIT(value)			{ .__val = (value) }
-#define	atomic_init(obj, value)			(obj = ATOMIC_VAR_INIT(value))
+#define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
+#define	atomic_init(obj, value)		(obj = ATOMIC_VAR_INIT(value))
 #endif
 
 /*
@@ -64,29 +64,29 @@
  */
 
 #ifndef __ATOMIC_RELAXED
-#define __ATOMIC_RELAXED			0
+#define __ATOMIC_RELAXED		0
 #endif
 #ifndef __ATOMIC_CONSUME
-#define __ATOMIC_CONSUME			1
+#define __ATOMIC_CONSUME		1
 #endif
 #ifndef __ATOMIC_ACQUIRE
-#define __ATOMIC_ACQUIRE			2
+#define __ATOMIC_ACQUIRE		2
 #endif
 #ifndef __ATOMIC_RELEASE
-#define __ATOMIC_RELEASE			3
+#define __ATOMIC_RELEASE		3
 #endif
 #ifndef __ATOMIC_ACQ_REL
-#define __ATOMIC_ACQ_REL			4
+#define __ATOMIC_ACQ_REL		4
 #endif
 #ifndef __ATOMIC_SEQ_CST
-#define __ATOMIC_SEQ_CST			5
+#define __ATOMIC_SEQ_CST		5
 #endif
 
 /*
  * 7.17.3 Order and consistency.
  *
  * The memory_order_* constants that denote the barrier behaviour of the
- * atomic operations.  
+ * atomic operations.
  */
 
 enum memory_order {
@@ -278,9 +278,9 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
  * 7.17.8 Atomic flag type and operations.
  */
 
-typedef atomic_bool		atomic_flag;
+typedef atomic_bool			atomic_flag;
 
-#define	ATOMIC_FLAG_INIT	ATOMIC_VAR_INIT(0)
+#define	ATOMIC_FLAG_INIT		ATOMIC_VAR_INIT(0)
 
 #define	atomic_flag_clear_explicit(object, order)			\
 	atomic_store_explicit(object, 0, order)
