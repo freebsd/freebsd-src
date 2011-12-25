@@ -168,7 +168,6 @@ igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur; /* netmap ring index */
 	if (j != k) {	/* we have new packets to send */
 		u32 olinfo_status = 0;
-		int n = 0;
 
 		l = j - kring->nkr_hwofs; /* NIC ring index */
 		if (l < 0)
