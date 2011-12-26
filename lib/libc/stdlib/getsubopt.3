@@ -28,7 +28,7 @@
 .\"     @(#)getsubopt.3	8.1 (Berkeley) 6/9/93
 .\" $FreeBSD$
 .\"
-.Dd June 9, 1993
+.Dd December 25, 2011
 .Dt GETSUBOPT 3
 .Os
 .Sh NAME
@@ -131,9 +131,11 @@ while ((ch = getopt(argc, argv, "ab:")) != \-1) {
 				else
 					error("missing sub option");
 				break;
+			}
 		}
 		break;
 	}
+}
 .Ed
 .Sh SEE ALSO
 .Xr getopt 3 ,
