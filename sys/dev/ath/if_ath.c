@@ -491,6 +491,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 */
 	sc->sc_softled = (devid == AR5212_DEVID_IBM || devid == AR5211_DEVID);
 	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
@@ -1312,9 +1313,14 @@ ath_resume(struct ath_softc *sc)
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
 
+	/* Restore the LED configuration */
+	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
+			ath_hal_setledstate(ah, HAL_LED_RUN);
 			/*
 			 * Program the beacon registers using the last rx'd
 			 * beacon frame and enable sync on the next beacon
@@ -1328,7 +1334,6 @@ ath_resume(struct ath_softc *sc)
 		} else
 			ieee80211_resume_all(ic);
 	}
-	ath_led_config(sc);
 
 	/* XXX beacons ? */
 }
