@@ -609,11 +609,16 @@
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
+#elif defined(_C11_SOURCE)	/* Localism to specify strict C11 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		2011
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
-#define	__ISO_C_VISIBLE		1999
+#define	__ISO_C_VISIBLE		2011
 #endif
 #endif
 
