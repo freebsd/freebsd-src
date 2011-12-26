@@ -32,5 +32,6 @@
 #define	__IF_ATH_LED_H__
 
 extern	void ath_led_event(struct ath_softc *sc, int rix);
+extern	void ath_led_config(struct ath_softc *sc);
 
 #endif
