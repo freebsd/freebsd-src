@@ -223,7 +223,7 @@
 #endif
 
 /*
- * Keywords added in C1X.
+ * Keywords added in C11.
  */
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Alignas(e)		alignas(e)
@@ -231,7 +231,7 @@
 #define	_Noreturn		[[noreturn]]
 #define	_Static_assert(e, s)	static_assert(e, s)
 #define	_Thread_local		thread_local
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 /* Do nothing.  They are language keywords. */
 #else
 /* Not supported.  Implement them using our versions. */
