@@ -299,7 +299,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 
-	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, sc->sc_eepromdata, &status);
+	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
+	    sc->sc_eepromdata, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
@@ -469,7 +470,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/* Attach DFS module */
 	if (! ath_dfs_attach(sc)) {
-		device_printf(sc->sc_dev, "%s: unable to attach DFS\n", __func__);
+		device_printf(sc->sc_dev,
+		    "%s: unable to attach DFS\n", __func__);
 		error = EIO;
 		goto bad2;
 	}
@@ -521,7 +523,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
-		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+		| IEEE80211_C_DFS		/* Enable radar detection */
 #endif
 		;
 	/*
@@ -633,11 +635,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
-		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
-			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
-			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
-			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
+			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839
+			    				/* max A-MSDU length */
+			    | IEEE80211_HTCAP_SMPS_OFF;	/* SM power save off */
 			;
 
 		/*
@@ -658,8 +661,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    |  IEEE80211_HTCAP_SHORTGI40;
 
 		/*
-		 * rx/tx stream is not currently used anywhere; it needs to be taken
-		 * into account when negotiating which MCS rates it'll receive and
+		 * TX/RX streams need to be taken into account when
+		 * negotiating which MCS rates it'll receive and
 		 * what MCS rates are available for TX.
 		 */
 		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
@@ -671,7 +674,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
-		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+		device_printf(sc->sc_dev,
+		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
 #endif
 
@@ -683,7 +687,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	    ath_hal_getcapability(ah, HAL_CAP_SERIALISE_WAR,
 	     0, NULL) == HAL_OK) {
 		sc->sc_ah->ah_config.ah_serialise_reg_war = 1;
-		device_printf(sc->sc_dev, "Enabling register serialisation\n");
+		device_printf(sc->sc_dev,
+		    "Enabling register serialisation\n");
 	}
 
 	/*
