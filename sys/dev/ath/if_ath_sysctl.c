@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_diagcodes.h>
 
 #include <dev/ath/if_ath_debug.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
@@ -151,10 +152,7 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 	if (softled != sc->sc_softled) {
 		if (softled) {
 			/* NB: handle any sc_ledpin change */
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
 		sc->sc_softled = softled;
 	}
@@ -174,10 +172,7 @@ ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
 	if (ledpin != sc->sc_ledpin) {
 		sc->sc_ledpin = ledpin;
 		if (sc->sc_softled) {
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
 	}
 	return 0;
