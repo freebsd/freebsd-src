@@ -57,7 +57,13 @@
 
 #ifndef _ASSERT_H_
 #define _ASSERT_H_
+
+#if __ISO_C_VISIBLE >= 2011 && (!defined(__cplusplus) || __cplusplus < 201103L)
+#define	static_assert	_Static_assert
+#endif
+
 __BEGIN_DECLS
 void __assert(const char *, const char *, int, const char *) __dead2;
 __END_DECLS
+
 #endif /* !_ASSERT_H_ */
