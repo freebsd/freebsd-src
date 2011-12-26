@@ -617,7 +617,6 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	void *ret;
 	struct arm_small_page *sp;
 	TAILQ_HEAD(,arm_small_page) *head;
-	static vm_pindex_t color;
 	vm_page_t m;
 
 	*flags = UMA_SLAB_PRIV;
@@ -650,8 +649,7 @@ uma_small_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 		if (wait & M_ZERO)
 			pflags |= VM_ALLOC_ZERO;
 		for (;;) {
-			m = vm_page_alloc(NULL, color++, 
-			    pflags | VM_ALLOC_NOOBJ);
+			m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
 			if (m == NULL) {
 				if (wait & M_NOWAIT)
 					return (NULL);

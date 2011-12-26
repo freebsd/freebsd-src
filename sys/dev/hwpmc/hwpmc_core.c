@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/apicvar.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
+#include <machine/md_var.h>
 #include <machine/specialreg.h>
 
 #define	CORE_CPUID_REQUEST		0xA
@@ -1553,7 +1554,7 @@ static int
 iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
     const struct pmc_op_pmcallocate *a)
 {
-	int n;
+	int n, model;
 	enum pmc_event ev;
 	struct iap_event_descr *ie;
 	uint32_t c, caps, config, cpuflag, evsel, mask;
@@ -1573,6 +1574,16 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 	if (iap_architectural_event_is_unsupported(ev))
 		return (EOPNOTSUPP);
 
+	/*
+	 * A small number of events are not supported in all the
+	 * processors based on a given microarchitecture.
+	 */
+	if (ev == PMC_EV_IAP_EVENT_0FH_01H || ev == PMC_EV_IAP_EVENT_0FH_80H) { 
+		model = ((cpu_id & 0xF0000) >> 12) | ((cpu_id & 0xF0) >> 4);
+		if (core_cputype == PMC_CPU_INTEL_COREI7 && model != 0x2E)  
+			return (EINVAL); 	
+	}
+	
 	switch (core_cputype) {
 	case PMC_CPU_INTEL_COREI7:
 		if (iap_event_corei7_ok_on_counter(ev, ri) == 0)
@@ -1710,7 +1721,7 @@ iap_allocate_pmc(int cpu, int ri, struct pmc *pm,
 		if (core_cputype == PMC_CPU_INTEL_COREI7 &&
 		    ev == PMC_EV_IAP_EVENT_BBH_01H)
 			return (EINVAL);
-		if ( a->pm_md.pm_iap.pm_iap_rsp & ~IA_OFFCORE_RSP_MASK)
+		if (a->pm_md.pm_iap.pm_iap_rsp & ~IA_OFFCORE_RSP_MASK)
 			return (EINVAL);
 		pm->pm_md.pm_iap.pm_iap_rsp =
 		    a->pm_md.pm_iap.pm_iap_rsp & IA_OFFCORE_RSP_MASK;

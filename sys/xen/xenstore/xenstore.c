@@ -559,7 +559,7 @@ xs_read_store(void *tdata, unsigned len)
 			 * when msleep returns.
 			 */
 			error = msleep(xen_store, &xs.ring_lock, PCATCH|PDROP,
-			    "xbread", /*timout*/0);
+			    "xbread", /*timeout*/0);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 			continue;

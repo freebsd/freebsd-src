@@ -1454,7 +1454,7 @@ fxp_encap(struct fxp_softc *sc, struct mbuf **m_head)
 			return (ENOBUFS);
 		}
 		tcp = (struct tcphdr *)(mtod(m, char *) + poff);
-		m = m_pullup(m, poff + sizeof(struct tcphdr) + tcp->th_off);
+		m = m_pullup(m, poff + (tcp->th_off << 2));
 		if (m == NULL) {
 			*m_head = NULL;
 			return (ENOBUFS);

@@ -105,9 +105,11 @@ static MALLOC_DEFINE(M_MD, "md_disk", "Memory Disk");
 static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
-SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0,
+    "Enable md(4) debug messages");
 static int md_malloc_wait;
-SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
+    "Allow malloc to wait for memory allocations");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*

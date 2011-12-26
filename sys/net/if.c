@@ -129,18 +129,21 @@ void	(*ng_ether_link_state_p)(struct ifnet *ifp, int state);
 void	(*lagg_linkstate_p)(struct ifnet *ifp, int state);
 /* These are external hooks for CARP. */
 void	(*carp_linkstate_p)(struct ifnet *ifp);
+void	(*carp_demote_adj_p)(int, char *);
 #if defined(INET) || defined(INET6)
-struct ifnet *(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
+int	(*carp_forus_p)(struct ifnet *ifp, u_char *dhost);
 int	(*carp_output_p)(struct ifnet *ifp, struct mbuf *m,
-    struct sockaddr *sa, struct rtentry *rt);
+    struct sockaddr *sa);
+int	(*carp_ioctl_p)(struct ifreq *, u_long, struct thread *);   
+int	(*carp_attach_p)(struct ifaddr *, int);
+void	(*carp_detach_p)(struct ifaddr *);
 #endif
 #ifdef INET
-int (*carp_iamatch_p)(struct ifnet *, struct in_ifaddr *, struct in_addr *,
-    u_int8_t **);
+int	(*carp_iamatch_p)(struct ifaddr *, uint8_t **);
 #endif
 #ifdef INET6
 struct ifaddr *(*carp_iamatch6_p)(struct ifnet *ifp, struct in6_addr *taddr6);
-caddr_t (*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
+caddr_t	(*carp_macmatch6_p)(struct ifnet *ifp, struct mbuf *m,
     const struct in6_addr *taddr);
 #endif
 
@@ -2506,6 +2509,16 @@ ifioctl(struct socket *so, u_long cmd, caddr_t data, struct thread *td)
 		error = if_getgroupmembers((struct ifgroupreq *)data);
 		CURVNET_RESTORE();
 		return (error);
+#if defined(INET) || defined(INET6)
+	case SIOCSVH:
+	case SIOCGVH:
+		if (carp_ioctl_p == NULL)
+			error = EPROTONOSUPPORT;
+		else
+			error = (*carp_ioctl_p)(ifr, cmd, td);
+		CURVNET_RESTORE();
+		return (error);
+#endif
 	}
 
 	ifp = ifunit_ref(ifr->ifr_name);

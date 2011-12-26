@@ -1483,6 +1483,14 @@ cdstart(struct cam_periph *periph, union ccb *start_ccb)
 					/* dxfer_len */ bp->bio_bcount,
 					/* sense_len */ SSD_FULL_SIZE,
 					/* timeout */ 30000);
+			/* Use READ CD command for audio tracks. */
+			if (softc->params.blksize == 2352) {
+				start_ccb->csio.cdb_io.cdb_bytes[0] = READ_CD;
+				start_ccb->csio.cdb_io.cdb_bytes[9] = 0xf8;
+				start_ccb->csio.cdb_io.cdb_bytes[10] = 0;
+				start_ccb->csio.cdb_io.cdb_bytes[11] = 0;
+				start_ccb->csio.cdb_len = 12;
+			}
 			start_ccb->ccb_h.ccb_state = CD_CCB_BUFFER_IO;
 
 			
@@ -2879,6 +2887,13 @@ cdcheckmedia(struct cam_periph *periph)
 	}
 
 	softc->flags |= CD_FLAG_VALID_TOC;
+
+	/* If the first track is audio, correct sector size. */
+	if ((softc->toc.entries[0].control & 4) == 0) {
+		softc->disk->d_sectorsize = softc->params.blksize = 2352;
+		softc->disk->d_mediasize =
+		    (off_t)softc->params.blksize * softc->params.disksize;
+	}
 
 bailout:
 

@@ -1795,6 +1795,15 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		}
 		/*
+		 * Consult the ACL policy module if setup.
+		 */
+		if (vap->iv_acl != NULL && !vap->iv_acl->iac_check(vap, wh)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_ACL,
+			    wh, NULL, "%s", "disallowed by ACL");
+			vap->iv_stats.is_rx_acl++;
+			return;
+		}
+		/*
 		 * prreq frame format
 		 *	[tlv] ssid
 		 *	[tlv] supported rates
@@ -1873,8 +1882,7 @@ hostap_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 		/*
 		 * Consult the ACL policy module if setup.
 		 */
-		if (vap->iv_acl != NULL &&
-		    !vap->iv_acl->iac_check(vap, wh->i_addr2)) {
+		if (vap->iv_acl != NULL && !vap->iv_acl->iac_check(vap, wh)) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_ACL,
 			    wh, NULL, "%s", "disallowed by ACL");
 			vap->iv_stats.is_rx_acl++;

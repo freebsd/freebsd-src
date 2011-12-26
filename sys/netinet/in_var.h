@@ -77,6 +77,7 @@ struct	in_aliasreq {
 	struct	sockaddr_in ifra_broadaddr;
 #define ifra_dstaddr ifra_broadaddr
 	struct	sockaddr_in ifra_mask;
+	int	ifra_vhid;
 };
 /*
  * Given a pointer to an in_ifaddr (ifaddr),
@@ -442,6 +443,8 @@ int	in_leavegroup_locked(struct in_multi *,
 int	in_control(struct socket *, u_long, caddr_t, struct ifnet *,
 	    struct thread *);
 void	in_rtqdrain(void);
+int	in_addprefix(struct in_ifaddr *, int);
+int	in_scrubprefix(struct in_ifaddr *, u_int);
 void	ip_input(struct mbuf *);
 int	in_ifadown(struct ifaddr *ifa, int);
 void	in_ifscrub(struct ifnet *, struct in_ifaddr *, u_int);

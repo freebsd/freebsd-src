@@ -54,18 +54,6 @@ __FBSDID("$FreeBSD$");
 
 #define	DEFAULT_CAPS	(GPIO_PIN_INPUT | GPIO_PIN_OUTPUT)
 
-struct ar71xx_gpio_pin {
-	const char *name;
-	int pin;
-	int flags;
-};
-
-static struct ar71xx_gpio_pin ar71xx_gpio_pins[] = {
-	{ "RFled", 2, GPIO_PIN_OUTPUT},
-	{ "SW4", 8,  GPIO_PIN_INPUT},
-	{ NULL, 0, 0},
-};
-
 /*
  * Helpers
  */
@@ -101,17 +89,13 @@ static int ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin);
 static void
 ar71xx_gpio_function_enable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_LOCK(sc);
 	GPIO_SET_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
-	GPIO_UNLOCK(sc);
 }
 
 static void
 ar71xx_gpio_function_disable(struct ar71xx_gpio_softc *sc, uint32_t mask)
 {
-	GPIO_LOCK(sc);
 	GPIO_CLEAR_BITS(sc, AR71XX_GPIO_FUNCTION, mask);
-	GPIO_UNLOCK(sc);
 }
 
 static void
@@ -121,7 +105,6 @@ ar71xx_gpio_pin_configure(struct ar71xx_gpio_softc *sc, struct gpio_pin *pin,
 	uint32_t mask;
 
 	mask = 1 << pin->gp_pin;
-	GPIO_LOCK(sc);
 
 	/*
 	 * Manage input/output
@@ -137,8 +120,6 @@ ar71xx_gpio_pin_configure(struct ar71xx_gpio_softc *sc, struct gpio_pin *pin,
 			GPIO_CLEAR_BITS(sc, AR71XX_GPIO_OE, mask);
 		}
 	}
-
-	GPIO_UNLOCK(sc);
 }
 
 static int
@@ -265,12 +246,10 @@ ar71xx_gpio_pin_set(device_t dev, uint32_t pin, unsigned int value)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	if (value)
 		GPIO_WRITE(sc, AR71XX_GPIO_SET, (1 << pin));
 	else
 		GPIO_WRITE(sc, AR71XX_GPIO_CLEAR, (1 << pin));
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -289,9 +268,7 @@ ar71xx_gpio_pin_get(device_t dev, uint32_t pin, unsigned int *val)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	*val = (GPIO_READ(sc, AR71XX_GPIO_IN) & (1 << pin)) ? 1 : 0;
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -310,13 +287,11 @@ ar71xx_gpio_pin_toggle(device_t dev, uint32_t pin)
 	if (i >= sc->gpio_npins)
 		return (EINVAL);
 
-	GPIO_LOCK(sc);
 	res = (GPIO_READ(sc, AR71XX_GPIO_IN) & (1 << pin)) ? 1 : 0;
 	if (res)
 		GPIO_WRITE(sc, AR71XX_GPIO_CLEAR, (1 << pin));
 	else
 		GPIO_WRITE(sc, AR71XX_GPIO_SET, (1 << pin));
-	GPIO_UNLOCK(sc);
 
 	return (0);
 }
@@ -353,8 +328,9 @@ ar71xx_gpio_attach(device_t dev)
 {
 	struct ar71xx_gpio_softc *sc = device_get_softc(dev);
 	int error = 0;
-	struct ar71xx_gpio_pin *pinp;
-	int i;
+	int i, j, maxpin;
+	int mask;
+	int old = 0;
 
 	KASSERT((device_get_unit(dev) == 0),
 	    ("ar71xx_gpio: Only one gpio module supported"));
@@ -388,25 +364,49 @@ ar71xx_gpio_attach(device_t dev)
 	}
 
 	sc->dev = dev;
-	ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS1_EN);
-	ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS2_EN);
+
+	/* Enable function bits that are required */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "function_set", &mask) == 0) {
+		device_printf(dev, "function_set: 0x%x\n", mask);
+		ar71xx_gpio_function_enable(sc, mask);
+		old = 1;
+	}
+	/* Disable function bits that are required */
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "function_clear", &mask) == 0) {
+		device_printf(dev, "function_clear: 0x%x\n", mask);
+		ar71xx_gpio_function_disable(sc, mask);
+		old = 1;
+	}
+	/* Handle previous behaviour */
+	if (old == 0) {
+		ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS1_EN);
+		ar71xx_gpio_function_enable(sc, GPIO_FUNC_SPI_CS2_EN);
+	}
+
 	/* Configure all pins as input */
 	/* disable interrupts for all pins */
 	GPIO_WRITE(sc, AR71XX_GPIO_INT_MASK, 0);
-	pinp = ar71xx_gpio_pins;
-	i = 0;
-	while (pinp->name) {
-		strncpy(sc->gpio_pins[i].gp_name, pinp->name, GPIOMAXNAME);
-		sc->gpio_pins[i].gp_pin = pinp->pin;
+
+	/* Initialise all pins specified in the mask, up to the pin count */
+	(void) ar71xx_gpio_pin_max(dev, &maxpin);
+	if (resource_int_value(device_get_name(dev), device_get_unit(dev),
+	    "pinmask", &mask) != 0)
+		mask = 0;
+	device_printf(dev, "gpio pinmask=0x%x\n", mask);
+	for (i = 0, j = 0; j < maxpin; j++) {
+		if ((mask & (1 << j)) == 0)
+			continue;
+		snprintf(sc->gpio_pins[i].gp_name, GPIOMAXNAME,
+		    "pin %d", j);
+		sc->gpio_pins[i].gp_pin = j;
 		sc->gpio_pins[i].gp_caps = DEFAULT_CAPS;
 		sc->gpio_pins[i].gp_flags = 0;
-		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], pinp->flags);
-		pinp++;
+		ar71xx_gpio_pin_configure(sc, &sc->gpio_pins[i], DEFAULT_CAPS);
 		i++;
 	}
-
 	sc->gpio_npins = i;
-
 	device_add_child(dev, "gpioc", device_get_unit(dev));
 	device_add_child(dev, "gpiobus", device_get_unit(dev));
 	return (bus_generic_attach(dev));

@@ -1087,8 +1087,9 @@ static ISP_INLINE void
 destroy_lun_state(ispsoftc_t *isp, tstate_t *tptr)
 {
 	struct tslist *lhp;
-	KASSERT((tptr->hold == 0), ("tptr still held"));
-	ISP_GET_PC_ADDR(isp, xpt_path_path_id(tptr->owner), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
+	KASSERT((tptr->hold != 0), ("tptr is not held"));
+	KASSERT((tptr->hold == 1), ("tptr still held (%d)", tptr->hold));
+	ISP_GET_PC_ADDR(isp, cam_sim_bus(xpt_path_sim(tptr->owner)), lun_hash[LUN_HASH_FUNC(xpt_path_lun_id(tptr->owner))], lhp);
 	SLIST_REMOVE(lhp, tptr, tstate, next);
 	xpt_free_path(tptr->owner);
 	free(tptr, M_DEVBUF);
@@ -1316,12 +1317,13 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 		mtx_sleep(isp, &isp->isp_lock, PRIBIO, "want_isp_disable_lun", 0);
 	}
 	isp->isp_osinfo.tmbusy = 1;
+	status = CAM_REQ_INPROG;
 
 	/*
 	 * Find the state pointer.
 	 */
 	if ((tptr = get_lun_statep(isp, bus, lun)) == NULL) {
-		ccb->ccb_h.status = CAM_PATH_INVALID;
+		status = CAM_PATH_INVALID;
 		goto done;
 	}
 
@@ -1341,13 +1343,13 @@ isp_disable_lun(ispsoftc_t *isp, union ccb *ccb)
 	}
 
 	isp->isp_osinfo.rptr = &status;
-	status = CAM_REQ_INPROG;
 	if (isp_lun_cmd(isp, RQSTYPE_ENABLE_LUN, bus, lun, 0, 0)) {
 		status = CAM_RESRC_UNAVAIL;
 	} else {
 		mtx_sleep(ccb, &isp->isp_lock, PRIBIO, "isp_disable_lun", 0);
 	}
 done:
+	ccb->ccb_h.status = status;
 	if (status == CAM_REQ_CMP) {
 		xpt_print(ccb->ccb_h.path, "now disabled for target mode\n");
 	}
@@ -2949,23 +2951,25 @@ isp_target_mark_aborted(ispsoftc_t *isp, union ccb *ccb)
 {
 	tstate_t *tptr;
 	atio_private_data_t *atp;
+	union ccb *accb = ccb->cab.abort_ccb;
 
-	tptr = get_lun_statep(isp, XS_CHANNEL(ccb), XS_LUN(ccb));
+	tptr = get_lun_statep(isp, XS_CHANNEL(accb), XS_LUN(accb));
 	if (tptr == NULL) {
-		tptr = get_lun_statep(isp, XS_CHANNEL(ccb), CAM_LUN_WILDCARD);
+		tptr = get_lun_statep(isp, XS_CHANNEL(accb), CAM_LUN_WILDCARD);
 		if (tptr == NULL) {
 			ccb->ccb_h.status = CAM_REQ_INVALID;
 			return;
 		}
 	}
 
-	atp = isp_get_atpd(isp, tptr, ccb->atio.tag_id);
+	atp = isp_get_atpd(isp, tptr, accb->atio.tag_id);
 	if (atp == NULL) {
 		ccb->ccb_h.status = CAM_REQ_INVALID;
-		return;
+	} else {
+		atp->dead = 1;
+		ccb->ccb_h.status = CAM_REQ_CMP;
 	}
-	atp->dead = 1;
-	ccb->ccb_h.status = CAM_REQ_CMP;
+	rls_lun_statep(isp, tptr);
 }
 
 static void
@@ -4519,7 +4523,7 @@ isp_action(struct cam_sim *sim, union ccb *ccb)
 		switch (accb->ccb_h.func_code) {
 #ifdef	ISP_TARGET_MODE
 		case XPT_ACCEPT_TARGET_IO:
-			isp_target_mark_aborted(isp, accb);
+			isp_target_mark_aborted(isp, ccb);
 			break;
 #endif
 		case XPT_SCSI_IO:

@@ -455,9 +455,11 @@ device		tpm
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
 
 #
 # Temperature sensors:

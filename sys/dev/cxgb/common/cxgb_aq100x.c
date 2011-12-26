@@ -232,7 +232,7 @@ aq100x_power_down(struct cphy *phy, int off)
 	err = t3_mdio_change_bits(phy, MDIO_DEV_PMA_PMD, MII_BMCR, BMCR_PDOWN,
 	    off ? BMCR_PDOWN : 0);
 	if (err || off)
-		return (v);
+		return (err);
 
 	msleep(300);
 	do {

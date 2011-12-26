@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -83,11 +83,11 @@ sctp_wakeup_iterator(void)
 }
 
 static void
-sctp_iterator_thread(void *v)
+sctp_iterator_thread(void *v SCTP_UNUSED)
 {
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	/* In FreeBSD this thread never terminates. */
-	while (1) {
+	for (;;) {
 		msleep(&sctp_it_ctl.iterator_running,
 		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);

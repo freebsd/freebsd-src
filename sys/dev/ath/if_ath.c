@@ -128,9 +128,9 @@ __FBSDID("$FreeBSD$");
 CTASSERT(ATH_BCBUF <= 8);
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
@@ -885,16 +885,17 @@ assign_bslot(struct ath_softc *sc)
 }
 
 static struct ieee80211vap *
-ath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp;
 	struct ieee80211vap *vap;
 	uint8_t mac[IEEE80211_ADDR_LEN];
-	int ic_opmode, needbeacon, error;
+	int needbeacon, error;
+	enum ieee80211_opmode ic_opmode;
 
 	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
 	    M_80211_VAP, M_WAITOK | M_ZERO);
@@ -1897,6 +1898,70 @@ ath_txrx_start(struct ath_softc *sc)
 	taskqueue_unblock(sc->sc_tq);
 }
 
+/*
+ * Grab the reset lock, and wait around until noone else
+ * is trying to do anything with it.
+ *
+ * This is totally horrible but we can't hold this lock for
+ * long enough to do TX/RX or we end up with net80211/ip stack
+ * LORs and eventual deadlock.
+ *
+ * "dowait" signals whether to spin, waiting for the reset
+ * lock count to reach 0. This should (for now) only be used
+ * during the reset path, as the rest of the code may not
+ * be locking-reentrant enough to behave correctly.
+ *
+ * Another, cleaner way should be found to serialise all of
+ * these operations.
+ */
+#define	MAX_RESET_ITERATIONS	10
+static int
+ath_reset_grablock(struct ath_softc *sc, int dowait)
+{
+	int w = 0;
+	int i = MAX_RESET_ITERATIONS;
+
+	ATH_PCU_LOCK_ASSERT(sc);
+	do {
+		if (sc->sc_inreset_cnt == 0) {
+			w = 1;
+			break;
+		}
+		if (dowait == 0) {
+			w = 0;
+			break;
+		}
+		ATH_PCU_UNLOCK(sc);
+		pause("ath_reset_grablock", 1);
+		i--;
+		ATH_PCU_LOCK(sc);
+	} while (i > 0);
+
+	/*
+	 * We always increment the refcounter, regardless
+	 * of whether we succeeded to get it in an exclusive
+	 * way.
+	 */
+	sc->sc_inreset_cnt++;
+
+	if (i <= 0)
+		device_printf(sc->sc_dev,
+		    "%s: didn't finish after %d iterations\n",
+		    __func__, MAX_RESET_ITERATIONS);
+
+	if (w == 0)
+		device_printf(sc->sc_dev,
+		    "%s: warning, recursive reset path!\n",
+		    __func__);
+
+	return w;
+}
+#undef MAX_RESET_ITERATIONS
+
+/*
+ * XXX TODO: write ath_reset_releaselock
+ */
+
 static void
 ath_stop(struct ifnet *ifp)
 {
@@ -1925,18 +1990,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
-	/* XXX ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
+	/* Ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
 	ATH_PCU_LOCK(sc);
-	/* XXX if we're already inside a reset, print out a big warning */
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: concurrent ath_reset()! Danger!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-	sc->sc_inreset_cnt++;
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ATH_PCU_UNLOCK(sc);
 
@@ -3961,6 +4023,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		npkts++;
 
 		/* These aren't specifically errors */
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_stats.ast_rx_halfgi++;
 		if (rs->rs_flags & HAL_RX_2040)
@@ -3973,6 +4036,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			sc->sc_stats.ast_rx_decrypt_busy_err++;
 		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 			sc->sc_stats.ast_rx_hi_rx_chain++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
@@ -4110,6 +4174,35 @@ rx_accept:
 			m->m_pkthdr.len = len;
 		}
 
+		/*
+		 * Validate rs->rs_antenna.
+		 *
+		 * Some users w/ AR9285 NICs have reported crashes
+		 * here because rs_antenna field is bogusly large.
+		 * Let's enforce the maximum antenna limit of 8
+		 * (and it shouldn't be hard coded, but that's a
+		 * separate problem) and if there's an issue, print
+		 * out an error and adjust rs_antenna to something
+		 * sensible.
+		 *
+		 * This code should be removed once the actual
+		 * root cause of the issue has been identified.
+		 * For example, it may be that the rs_antenna
+		 * field is only valid for the lsat frame of
+		 * an aggregate and it just happens that it is
+		 * "mostly" right. (This is a general statement -
+		 * the majority of the statistics are only valid
+		 * for the last frame in an aggregate.
+		 */
+		if (rs->rs_antenna > 7) {
+			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
+			    __func__, rs->rs_antenna);
+#ifdef	ATH_DEBUG
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+#endif /* ATH_DEBUG */
+			rs->rs_antenna = 0;	/* XXX better than nothing */
+		}
+
 		ifp->if_ipackets++;
 		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
@@ -4161,8 +4254,10 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (ni != NULL) {
 			/*
@@ -5216,10 +5311,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	/* Treat this as an interface reset */
 	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0)
-		device_printf(sc->sc_dev, "%s: danger! concurrent reset!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
-	sc->sc_inreset_cnt++;
+	}
 	if (chan != sc->sc_curchan) {
 		dointr = 1;
 		/* XXX only do this if inreset_cnt is 1? */
@@ -6218,6 +6313,8 @@ ath_announce(struct ath_softc *sc)
 	if_printf(ifp, "AR%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
+	if_printf(ifp, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
+		ah->ah_analog2GhzRev, ah->ah_analog5GhzRev);
 	if (bootverbose) {
 		int i;
 		for (i = 0; i <= WME_AC_VO; i++) {

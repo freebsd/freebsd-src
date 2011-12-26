@@ -81,7 +81,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
@@ -265,6 +267,14 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 	/* Are we shrinking?  If so, trim the end. */
 	if (length < shmfd->shm_size) {
+		/*
+		 * Disallow any requests to shrink the size if this
+		 * object is mapped into the kernel.
+		 */
+		if (shmfd->shm_kmappings > 0) {
+			VM_OBJECT_UNLOCK(object);
+			return (EBUSY);
+		}
 		delta = ptoa(object->size - nobjsize);
 
 		/* Toss in memory pages. */
@@ -724,4 +734,106 @@ shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 out:
 	mtx_unlock(&shm_timestamp_lock);
 	return (error);
+}
+
+/*
+ * Helper routines to allow the backing object of a shared memory file
+ * descriptor to be mapped in the kernel.
+ */
+int
+shm_map(struct file *fp, size_t size, off_t offset, void **memp)
+{
+	struct shmfd *shmfd;
+	vm_offset_t kva, ofs;
+	vm_object_t obj;
+	int rv;
+
+	if (fp->f_type != DTYPE_SHM)
+		return (EINVAL);
+	shmfd = fp->f_data;
+	obj = shmfd->shm_object;
+	VM_OBJECT_LOCK(obj);
+	/*
+	 * XXXRW: This validation is probably insufficient, and subject to
+	 * sign errors.  It should be fixed.
+	 */
+	if (offset >= shmfd->shm_size ||
+	    offset + size > round_page(shmfd->shm_size)) {
+		VM_OBJECT_UNLOCK(obj);
+		return (EINVAL);
+	}
+
+	shmfd->shm_kmappings++;
+	vm_object_reference_locked(obj);
+	VM_OBJECT_UNLOCK(obj);
+
+	/* Map the object into the kernel_map and wire it. */
+	kva = vm_map_min(kernel_map);
+	ofs = offset & PAGE_MASK;
+	offset = trunc_page(offset);
+	size = round_page(size + ofs);
+	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
+	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VM_PROT_READ | VM_PROT_WRITE, 0);
+	if (rv == KERN_SUCCESS) {
+		rv = vm_map_wire(kernel_map, kva, kva + size,
+		    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+		if (rv == KERN_SUCCESS) {
+			*memp = (void *)(kva + ofs);
+			return (0);
+		}
+		vm_map_remove(kernel_map, kva, kva + size);
+	} else
+		vm_object_deallocate(obj);
+
+	/* On failure, drop our mapping reference. */
+	VM_OBJECT_LOCK(obj);
+	shmfd->shm_kmappings--;
+	VM_OBJECT_UNLOCK(obj);
+
+	return (vm_mmap_to_errno(rv));
+}
+
+/*
+ * We require the caller to unmap the entire entry.  This allows us to
+ * safely decrement shm_kmappings when a mapping is removed.
+ */
+int
+shm_unmap(struct file *fp, void *mem, size_t size)
+{
+	struct shmfd *shmfd;
+	vm_map_entry_t entry;
+	vm_offset_t kva, ofs;
+	vm_object_t obj;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	boolean_t wired;
+	vm_map_t map;
+	int rv;
+
+	if (fp->f_type != DTYPE_SHM)
+		return (EINVAL);
+	shmfd = fp->f_data;
+	kva = (vm_offset_t)mem;
+	ofs = kva & PAGE_MASK;
+	kva = trunc_page(kva);
+	size = round_page(size + ofs);
+	map = kernel_map;
+	rv = vm_map_lookup(&map, kva, VM_PROT_READ | VM_PROT_WRITE, &entry,
+	    &obj, &pindex, &prot, &wired);
+	if (rv != KERN_SUCCESS)
+		return (EINVAL);
+	if (entry->start != kva || entry->end != kva + size) {
+		vm_map_lookup_done(map, entry);
+		return (EINVAL);
+	}
+	vm_map_lookup_done(map, entry);
+	if (obj != shmfd->shm_object)
+		return (EINVAL);
+	vm_map_remove(map, kva, kva + size);
+	VM_OBJECT_LOCK(obj);
+	KASSERT(shmfd->shm_kmappings > 0, ("shm_unmap: object not mapped"));
+	shmfd->shm_kmappings--;
+	VM_OBJECT_UNLOCK(obj);
+	return (0);
 }

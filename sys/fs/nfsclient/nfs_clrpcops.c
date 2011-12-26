@@ -1250,8 +1250,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
 		nfhp = np->n_fhp;
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 	}
 	retrycnt = 0;
 	do {
@@ -1281,7 +1280,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error && retrycnt >= 4)
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }
@@ -1402,8 +1401,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		clidrev = nmp->nm_clp->nfsc_clientidrev;
 	newcred = cred;
 	if (NFSHASNFSV4(nmp)) {
-		if (p == NULL)
-			newcred = NFSNEWCRED(cred);
+		newcred = NFSNEWCRED(cred);
 		nfhp = np->n_fhp;
 	}
 	retrycnt = 0;
@@ -1453,7 +1451,7 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	    ((error == NFSERR_STALESTATEID ||
 	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
-	if (NFSHASNFSV4(nmp) && p == NULL)
+	if (NFSHASNFSV4(nmp))
 		NFSFREECRED(newcred);
 	return (error);
 }

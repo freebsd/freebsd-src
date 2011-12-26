@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/ip_carp.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -272,7 +273,15 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
 	struct sockaddr_in6 *sa6;
+	int carp_attached = 0;
 	int error;
+	u_long ocmd = cmd;
+
+	/*
+	 * Compat to make pre-10.x ifconfig(8) operable.
+	 */
+	if (cmd == OSIOCAIFADDR_IN6)
+		cmd = SIOCAIFADDR_IN6;
 
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -652,6 +661,18 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			break;
 		}
 
+		if (cmd == ocmd && ifra->ifra_vhid > 0) {
+			if (carp_attach_p != NULL)
+				error = (*carp_attach_p)(&ia->ia_ifa,
+				    ifra->ifra_vhid);
+			else
+				error = EPROTONOSUPPORT;
+			if (error)
+				goto out;
+			else
+				carp_attached = 1;
+		}
+
 		/*
 		 * then, make the prefix on-link on the interface.
 		 * XXX: we'd rather create the prefix before the address, but
@@ -695,9 +716,14 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			 * nd6_prelist_add will install the corresponding
 			 * interface route.
 			 */
-			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0)
+			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
+				if (carp_attached)
+					(*carp_detach_p)(&ia->ia_ifa);
 				goto out;
+			}
 			if (pr == NULL) {
+				if (carp_attached)
+					(*carp_detach_p)(&ia->ia_ifa);
 				log(LOG_ERR, "nd6_prelist_add succeeded but "
 				    "no prefix\n");
 				error = EINVAL;
@@ -1300,6 +1326,9 @@ in6_purgeaddr(struct ifaddr *ifa)
 	int plen, error;
 	struct rtentry *rt;
 	struct ifaddr *ifa0, *nifa;
+
+	if (ifa->ifa_carp)
+		(*carp_detach_p)(ifa);
 
 	/*
 	 * find another IPv6 address as the gateway for the

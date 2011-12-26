@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ktrace.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/filedesc.h>
 #include <sys/fnv_hash.h>
 #include <sys/kernel.h>
@@ -52,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/vnode.h>
 #ifdef KTRACE
 #include <sys/ktrace.h>

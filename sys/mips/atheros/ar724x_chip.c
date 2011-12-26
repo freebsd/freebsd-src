@@ -37,12 +37,12 @@ __FBSDID("$FreeBSD$");
 #include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/reboot.h>
- 
+
 #include <vm/vm.h>
 #include <vm/vm_page.h>
- 
+
 #include <net/ethernet.h>
- 
+
 #include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpuregs.h>
@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/md_var.h>
 #include <machine/trap.h>
 #include <machine/vmparam.h>
- 
+
 #include <mips/atheros/ar71xxreg.h>
 #include <mips/atheros/ar724xreg.h>
 
@@ -71,20 +71,20 @@ ar724x_chip_detect_sys_frequency(void)
 	uint32_t pll;
 	uint32_t freq;
 	uint32_t div;
-	 
+
 	pll = ATH_READ_REG(AR724X_PLL_REG_CPU_CONFIG);
-	
+
 	div = ((pll >> AR724X_PLL_DIV_SHIFT) & AR724X_PLL_DIV_MASK);
 	freq = div * AR724X_BASE_FREQ;
 
 	div = ((pll >> AR724X_PLL_REF_DIV_SHIFT) & AR724X_PLL_REF_DIV_MASK);
 	freq *= div;
-	
+
 	u_ar71xx_cpu_freq = freq;
-	
+
 	div = ((pll >> AR724X_DDR_DIV_SHIFT) & AR724X_DDR_DIV_MASK) + 1;
 	u_ar71xx_ddr_freq = freq / div;
-	
+
 	div = (((pll >> AR724X_AHB_DIV_SHIFT) & AR724X_AHB_DIV_MASK) + 1) * 2;
 	u_ar71xx_ahb_freq = u_ar71xx_cpu_freq / div;
 }
@@ -125,12 +125,13 @@ ar724x_chip_device_stopped(uint32_t mask)
 static void
 ar724x_chip_set_pll_ge(int unit, int speed)
 {
+
 	switch (unit) {
 	case 0:
-		/* TODO */
+		/* XXX TODO */
 		break;
 	case 1:
-		/* TODO */
+		/* XXX TODO */
 		break;
 	default:
 		printf("%s: invalid PLL set for arge unit: %d\n",
@@ -142,6 +143,7 @@ ar724x_chip_set_pll_ge(int unit, int speed)
 static void
 ar724x_chip_ddr_flush_ge(int unit)
 {
+
 	switch (unit) {
 	case 0:
 		ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_GE0);
@@ -159,14 +161,15 @@ ar724x_chip_ddr_flush_ge(int unit)
 static void
 ar724x_chip_ddr_flush_ip2(void)
 {
+
 	ar71xx_ddr_flush(AR724X_DDR_REG_FLUSH_PCIE);
 }
-
 
 static uint32_t
 ar724x_chip_get_eth_pll(unsigned int mac, int speed)
 {
-        return 0;
+
+	return 0;
 }
 
 static void
@@ -174,42 +177,39 @@ ar724x_chip_init_usb_peripheral(void)
 {
 
 	switch (ar71xx_soc) {
-		case AR71XX_SOC_AR7240:
+	case AR71XX_SOC_AR7240:
+		ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
+		    AR724X_RESET_USB_HOST);
+		DELAY(1000);
 
-			ar71xx_device_stop(AR724X_RESET_MODULE_USB_OHCI_DLL |
-			    AR724X_RESET_USB_HOST);
-			DELAY(1000);
+		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
+		    AR724X_RESET_USB_HOST);
+		DELAY(1000);
 
-			ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL |
-			    AR724X_RESET_USB_HOST);
-			DELAY(1000);
+		/*
+		 * WAR for HW bug. Here it adjusts the duration
+		 * between two SOFS.
+		 */
+		ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
+		    (3 << USB_CTRL_FLADJ_A0_SHIFT));
 
-			/*
-			 * WAR for HW bug. Here it adjusts the duration
-			 * between two SOFS.
-			 */
-			ATH_WRITE_REG(AR71XX_USB_CTRL_FLADJ,
-			    (3 << USB_CTRL_FLADJ_A0_SHIFT));
+		break;
 
-			break;
+	case AR71XX_SOC_AR7241:
+	case AR71XX_SOC_AR7242:
+		ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL);
+		DELAY(100);
 
-		case AR71XX_SOC_AR7241:
-		case AR71XX_SOC_AR7242:
+		ar71xx_device_start(AR724X_RESET_USB_HOST);
+		DELAY(100);
 
-			ar71xx_device_start(AR724X_RESET_MODULE_USB_OHCI_DLL);
-			DELAY(100);
+		ar71xx_device_start(AR724X_RESET_USB_PHY);
+		DELAY(100);
 
-			ar71xx_device_start(AR724X_RESET_USB_HOST);
-			DELAY(100);
+		break;
 
-			ar71xx_device_start(AR724X_RESET_USB_PHY);
-			DELAY(100);
-
-			break;
-
-		default:
-			/* fallthrough */
-			break;
+	default:
+		break;
 	}
 }
 

@@ -6,10 +6,26 @@
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-Wundef -Wno-pointer-sign -fformat-extensions \
-		-Wmissing-include-dirs -fdiagnostics-show-option
+		-Wmissing-include-dirs -fdiagnostics-show-option \
+		${CWARNEXTRA}
 #
 # The following flags are next up for working on:
 #	-Wextra
+
+# Disable a few warnings for clang, since there are several places in the
+# kernel where fixing them is more trouble than it is worth, or where there is
+# a false positive.
+.if ${CC:T:Mclang} == "clang"
+NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
+NO_WARRAY_BOUNDS=		-Wno-array-bounds
+NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
+NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
+# Several other warnings which might be useful in some cases, but not severe
+# enough to error out the whole kernel build.  Display them anyway, so there is
+# some incentive to fix them eventually.
+CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
+		-Wno-error-parentheses-equality
+.endif
 
 #
 # On i386, do not align the stack to 16-byte boundaries.  Otherwise GCC 2.95
@@ -54,7 +70,8 @@ INLINE_LIMIT?=	15000
 .endif
 
 #
-# For sparc64 we want medlow code model, and we tell gcc to use floating
+# For sparc64 we want the medany code model so modules may be located
+# anywhere in the 64-bit address space.  We also tell GCC to use floating
 # point emulation.  This avoids using floating point registers for integer
 # operations which it has a tendency to do.
 #

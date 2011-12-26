@@ -36,3 +36,6 @@ SRCS+= device_if.h bus_if.h pci_if.h
 CLEANFILES= ${GENSRCS}
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ahd_pci.c=	${NO_WCONSTANT_CONVERSION}
+CWARNFLAGS+=		${CWARNFLAGS.${.IMPSRC:T}}

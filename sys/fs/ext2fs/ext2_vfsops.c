@@ -349,7 +349,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
 	}
 	fs->e2fs_ipb = fs->e2fs_bsize / EXT2_INODE_SIZE(fs);
 	fs->e2fs_itpg = fs->e2fs_ipg /fs->e2fs_ipb;
-	fs->e2fs_descpb = fs->e2fs_bsize / sizeof (struct ext2_gd);
+	fs->e2fs_descpb = fs->e2fs_bsize / sizeof(struct ext2_gd);
 	/* s_resuid / s_resgid ? */
 	fs->e2fs_gcount = (es->e2fs_bcount - es->e2fs_first_dblock +
 	    EXT2_BLOCKS_PER_GROUP(fs) - 1) / EXT2_BLOCKS_PER_GROUP(fs);
@@ -405,7 +405,7 @@ compute_sb_data(struct vnode *devvp, struct ext2fs *es,
  * Things to do to update the mount:
  *	1) invalidate all cached meta-data.
  *	2) re-read superblock from disk.
- *	3) re-read summary information from disk.
+ *	3) invalidate all cluster summary information.
  *	4) invalidate all inactive vnodes.
  *	5) invalidate all cached file data.
  *	6) re-read inode data for all active vnodes.
@@ -419,7 +419,9 @@ ext2_reload(struct mount *mp, struct thread *td)
 	struct buf *bp;
 	struct ext2fs *es;
 	struct m_ext2fs *fs;
-	int error;
+	struct csum *sump;
+	int error, i;
+	int32_t *lp;
 
 	if ((mp->mnt_flag & MNT_RDONLY) == 0)
 		return (EINVAL);
@@ -455,6 +457,19 @@ ext2_reload(struct mount *mp, struct thread *td)
 		bp->b_flags |= B_INVAL;
 #endif
 	brelse(bp);
+
+	/*
+	 * Step 3: invalidate all cluster summary information.
+	 */
+	if (fs->e2fs_contigsumsize > 0) {
+		lp = fs->e2fs_maxcluster;
+		sump = fs->e2fs_clustersum;
+		for (i = 0; i < fs->e2fs_gcount; i++, sump++) {
+			*lp++ = fs->e2fs_contigsumsize;
+			sump->cs_init = 0;
+			bzero(sump->cs_sum, fs->e2fs_contigsumsize + 1);
+		}
+	}
 
 loop:
 	MNT_ILOCK(mp);
@@ -511,8 +526,11 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	struct cdev *dev = devvp->v_rdev;
 	struct g_consumer *cp;
 	struct bufobj *bo;
+	struct csum *sump;
 	int error;
 	int ronly;
+	int i, size;
+	int32_t *lp;
 
 	ronly = vfs_flagopt(mp->mnt_optnew, "ro", NULL, 0);
 	/* XXX: use VOP_ACESS to check FS perms */
@@ -565,8 +583,7 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 			goto out;
 		}
 	}
-	ump = malloc(sizeof *ump, M_EXT2MNT, M_WAITOK);
-	bzero((caddr_t)ump, sizeof *ump);
+	ump = malloc(sizeof(*ump), M_EXT2MNT, M_WAITOK | M_ZERO);
 
 	/*
 	 * I don't know whether this is the right strategy. Note that
@@ -581,6 +598,33 @@ ext2_mountfs(struct vnode *devvp, struct mount *mp)
 	bcopy(es, ump->um_e2fs->e2fs, (u_int)sizeof(struct ext2fs));
 	if ((error = compute_sb_data(devvp, ump->um_e2fs->e2fs, ump->um_e2fs)))
 		goto out;
+
+	/*
+	 * Calculate the maximum contiguous blocks and size of cluster summary
+	 * array.  In FFS this is done by newfs; however, the superblock 
+	 * in ext2fs doesn't have these variables, so we can calculate 
+	 * them here.
+	 */
+	ump->um_e2fs->e2fs_maxcontig = MAX(1, MAXPHYS / ump->um_e2fs->e2fs_bsize);
+	if (ump->um_e2fs->e2fs_maxcontig > 0)
+		ump->um_e2fs->e2fs_contigsumsize =
+		    MIN(ump->um_e2fs->e2fs_maxcontig, EXT2_MAXCONTIG);
+	else
+		ump->um_e2fs->e2fs_contigsumsize = 0;
+	if (ump->um_e2fs->e2fs_contigsumsize > 0) {
+		size = ump->um_e2fs->e2fs_gcount * sizeof(int32_t);
+		ump->um_e2fs->e2fs_maxcluster = malloc(size, M_EXT2MNT, M_WAITOK);
+		size = ump->um_e2fs->e2fs_gcount * sizeof(struct csum);
+		ump->um_e2fs->e2fs_clustersum = malloc(size, M_EXT2MNT, M_WAITOK);
+		lp = ump->um_e2fs->e2fs_maxcluster;
+		sump = ump->um_e2fs->e2fs_clustersum;
+		for (i = 0; i < ump->um_e2fs->e2fs_gcount; i++, sump++) {
+			*lp++ = ump->um_e2fs->e2fs_contigsumsize;
+			sump->cs_init = 0;
+			sump->cs_sum = malloc((ump->um_e2fs->e2fs_contigsumsize + 1) *
+			    sizeof(int32_t), M_EXT2MNT, M_WAITOK | M_ZERO);
+		}
+	}
 
 	brelse(bp);
 	bp = NULL;
@@ -656,7 +700,8 @@ ext2_unmount(struct mount *mp, int mntflags)
 {
 	struct ext2mount *ump;
 	struct m_ext2fs *fs;
-	int error, flags, ronly;
+	struct csum *sump;
+	int error, flags, i, ronly;
 
 	flags = 0;
 	if (mntflags & MNT_FORCE) {
@@ -681,6 +726,11 @@ ext2_unmount(struct mount *mp, int mntflags)
 	g_topology_unlock();
 	PICKUP_GIANT();
 	vrele(ump->um_devvp);
+	sump = fs->e2fs_clustersum;
+	for (i = 0; i < fs->e2fs_gcount; i++, sump++)
+		free(sump->cs_sum, M_EXT2MNT);
+	free(fs->e2fs_clustersum, M_EXT2MNT);
+	free(fs->e2fs_maxcluster, M_EXT2MNT);
 	free(fs->e2fs_gd, M_EXT2MNT);
 	free(fs->e2fs_contigdirs, M_EXT2MNT);
 	free(fs->e2fs, M_EXT2MNT);
@@ -927,7 +977,7 @@ ext2_vget(struct mount *mp, ino_t ino, int flags, struct vnode **vpp)
 	 */
 	if(S_ISDIR(ip->i_mode) || S_ISREG(ip->i_mode)) {
 		used_blocks = (ip->i_size+fs->e2fs_bsize-1) / fs->e2fs_bsize;
-		for(i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
+		for (i = used_blocks; i < EXT2_NDIR_BLOCKS; i++)
 			ip->i_db[i] = 0;
 	}
 /*

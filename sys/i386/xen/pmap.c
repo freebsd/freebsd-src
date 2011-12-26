@@ -184,9 +184,6 @@ __FBSDID("$FreeBSD$");
 #define PV_STAT(x)	do { } while (0)
 #endif
 
-#define	pa_index(pa)	((pa) >> PDRSHIFT)
-#define	pa_to_pvh(pa)	(&pv_table[pa_index(pa)])
-
 /*
  * Get PDEs and PTEs for user/kernel address space
  */
@@ -230,7 +227,6 @@ static int pat_works;			/* Is page attribute table sane? */
  * Data for the pv entry allocation mechanism
  */
 static int pv_entry_count = 0, pv_entry_max = 0, pv_entry_high_water = 0;
-static struct md_page *pv_table;
 static int shpgperproc = PMAP_SHPGPERPROC;
 
 struct pv_chunk *pv_chunkbase;		/* KVA block for pv_chunks */
@@ -278,9 +274,6 @@ SYSCTL_INT(_debug, OID_AUTO, PMAP1unchanged, CTLFLAG_RD,
 static struct mtx PMAP2mutex;
 
 static SYSCTL_NODE(_vm, OID_AUTO, pmap, CTLFLAG_RD, 0, "VM/pmap parameters");
-static int pg_ps_enabled;
-SYSCTL_INT(_vm_pmap, OID_AUTO, pg_ps_enabled, CTLFLAG_RDTUN, &pg_ps_enabled, 0,
-    "Are large page mappings enabled?");
 
 SYSCTL_INT(_vm_pmap, OID_AUTO, pv_entry_max, CTLFLAG_RD, &pv_entry_max, 0,
 	"Max number of PV entries");
@@ -636,24 +629,8 @@ pmap_ptelist_init(vm_offset_t *head, void *base, int npages)
 void
 pmap_init(void)
 {
-	vm_page_t mpte;
-	vm_size_t s;
-	int i, pv_npg;
 
 	/*
-	 * Initialize the vm page array entries for the kernel pmap's
-	 * page table pages.
-	 */ 
-	for (i = 0; i < nkpt; i++) {
-		mpte = PHYS_TO_VM_PAGE(xpmap_mtop(PTD[i + KPTDI] & PG_FRAME));
-		KASSERT(mpte >= vm_page_array &&
-		    mpte < &vm_page_array[vm_page_array_size],
-		    ("pmap_init: page table page is out of range"));
-		mpte->pindex = i + KPTDI;
-		mpte->phys_addr = xpmap_mtop(PTD[i + KPTDI] & PG_FRAME);
-	}
-
-        /*
 	 * Initialize the address space (zone) for the pv entries.  Set a
 	 * high water mark so that the system can recover from excessive
 	 * numbers of pv entries.
@@ -663,26 +640,6 @@ pmap_init(void)
 	TUNABLE_INT_FETCH("vm.pmap.pv_entries", &pv_entry_max);
 	pv_entry_max = roundup(pv_entry_max, _NPCPV);
 	pv_entry_high_water = 9 * (pv_entry_max / 10);
-
-	/*
-	 * Are large page mappings enabled?
-	 */
-	TUNABLE_INT_FETCH("vm.pmap.pg_ps_enabled", &pg_ps_enabled);
-
-	/*
-	 * Calculate the size of the pv head table for superpages.
-	 */
-	for (i = 0; phys_avail[i + 1]; i += 2);
-	pv_npg = round_4mpage(phys_avail[(i - 2) + 1]) / NBPDR;
-
-	/*
-	 * Allocate memory for the pv head table for superpages.
-	 */
-	s = (vm_size_t)(pv_npg * sizeof(struct md_page));
-	s = round_page(s);
-	pv_table = (struct md_page *)kmem_alloc(kernel_map, s);
-	for (i = 0; i < pv_npg; i++)
-		TAILQ_INIT(&pv_table[i].pv_list);
 
 	pv_maxchunks = MAX(pv_entry_max / _NPCPV, maxproc);
 	pv_chunkbase = (struct pv_chunk *)kmem_alloc_nofault(kernel_map,
@@ -3448,21 +3405,15 @@ pmap_page_wired_mappings(vm_page_t m)
 }
 
 /*
- * Returns TRUE if the given page is mapped individually or as part of
- * a 4mpage.  Otherwise, returns FALSE.
+ * Returns TRUE if the given page is mapped.  Otherwise, returns FALSE.
  */
 boolean_t
 pmap_page_is_mapped(vm_page_t m)
 {
-	boolean_t rv;
 
 	if ((m->oflags & VPO_UNMANAGED) != 0)
 		return (FALSE);
-	vm_page_lock_queues();
-	rv = !TAILQ_EMPTY(&m->md.pv_list) ||
-	    !TAILQ_EMPTY(&pa_to_pvh(VM_PAGE_TO_PHYS(m))->pv_list);
-	vm_page_unlock_queues();
-	return (rv);
+	return (!TAILQ_EMPTY(&m->md.pv_list));
 }
 
 /*

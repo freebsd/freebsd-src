@@ -5163,7 +5163,7 @@ zfs_getsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 /*ARGSUSED*/
-static int
+int
 zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
     caller_context_t *ct)
 {
