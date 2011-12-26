@@ -226,7 +226,11 @@ yes(const char *fmt, ...)
 	fflush(stderr);
 
 	l = read(2, buff, sizeof(buff) - 1);
-	if (l <= 0)
+	if (l < 0) {
+	  fprintf(stderr, "Keyboard read failed\n");
+	  exit(1);
+	}
+	if (l == 0)
 		return (0);
 	buff[l] = 0;
 

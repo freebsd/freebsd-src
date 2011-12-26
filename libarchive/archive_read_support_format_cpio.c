@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD: head/lib/libarchive/archive_read_support_format_cpio.c 20116
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+#ifdef _MSC_VER
+#define __packed
+#pragma pack(push, 1)
+#endif
 struct cpio_bin_header {
 	unsigned char	c_magic[2];
 	unsigned char	c_dev[2];
@@ -54,7 +58,7 @@ struct cpio_bin_header {
 	unsigned char	c_mtime[4];
 	unsigned char	c_namesize[2];
 	unsigned char	c_filesize[4];
-};
+} __packed;
 
 struct cpio_odc_header {
 	char	c_magic[6];
@@ -68,7 +72,7 @@ struct cpio_odc_header {
 	char	c_mtime[11];
 	char	c_namesize[6];
 	char	c_filesize[11];
-};
+} __packed;
 
 struct cpio_newc_header {
 	char	c_magic[6];
@@ -85,7 +89,12 @@ struct cpio_newc_header {
 	char	c_rdevminor[8];
 	char	c_namesize[8];
 	char	c_crc[8];
-};
+} __packed;
+
+#ifdef _MSC_VER
+#undef __packed
+#pragma pack(pop)
+#endif
 
 struct links_entry {
         struct links_entry      *next;
