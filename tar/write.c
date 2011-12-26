@@ -751,6 +751,9 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 			break;
 		}
 
+		if (bsdtar->option_no_subdirs)
+			descend = 0;
+
 		/*
 		 * Are we about to cross to a new filesystem?
 		 */
@@ -763,7 +766,6 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		} else if (descend == 0) {
 			/* We're not descending, so no need to check. */
 		} else if (bsdtar->option_dont_traverse_mounts) {
-			/* User has asked us not to cross mount points. */
 			descend = 0;
 		} else {
 			/* We're prepared to cross a mount point. */
@@ -790,8 +792,15 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		 * In -u mode, check that the file is newer than what's
 		 * already in the archive; in all modes, obey --newerXXX flags.
 		 */
-		if (!new_enough(bsdtar, name, st))
+		if (!new_enough(bsdtar, name, st)) {
+			if (!descend)
+				continue;
+			if (bsdtar->option_interactive &&
+			    !yes("add '%s'", name))
+				continue;
+			tree_descend(tree);
 			continue;
+		}
 
 		archive_entry_free(entry);
 		entry = archive_entry_new();
@@ -885,8 +894,7 @@ write_hierarchy(struct bsdtar *bsdtar, struct archive *a, const char *path)
 		    !yes("add '%s'", name))
 			continue;
 
-		/* Note: if user vetoes, we won't descend. */
-		if (descend && !bsdtar->option_no_subdirs)
+		if (descend)
 			tree_descend(tree);
 
 		/*
@@ -936,6 +944,7 @@ write_entry_backend(struct bsdtar *bsdtar, struct archive *a,
 		const char *pathname = archive_entry_sourcepath(entry);
 		fd = open(pathname, O_RDONLY | O_BINARY);
 		if (fd == -1) {
+			bsdtar->return_value = 1;
 			if (!bsdtar->verbose)
 				lafe_warnc(errno,
 				    "%s: could not open file", pathname);
@@ -982,15 +991,21 @@ report_write(struct bsdtar *bsdtar, struct archive *a,
     struct archive_entry *entry, int64_t progress)
 {
 	uint64_t comp, uncomp;
+	int compression;
+
 	if (bsdtar->verbose)
 		fprintf(stderr, "\n");
 	comp = archive_position_compressed(a);
 	uncomp = archive_position_uncompressed(a);
 	fprintf(stderr, "In: %d files, %s bytes;",
 	    archive_file_count(a), tar_i64toa(uncomp));
+	if (comp > uncomp)
+		compression = 0;
+	else
+		compression = (int)((uncomp - comp) * 100 / uncomp);
 	fprintf(stderr,
 	    " Out: %s bytes, compression %d%%\n",
-	    tar_i64toa(comp), (int)((uncomp - comp) * 100 / uncomp));
+	    tar_i64toa(comp), compression);
 	/* Can't have two calls to tar_i64toa() pending, so split the output. */
 	safe_fprintf(stderr, "Current: %s (%s",
 	    archive_entry_pathname(entry),
@@ -1030,6 +1045,12 @@ write_file_data(struct bsdtar *bsdtar, struct archive *a,
 		}
 		progress += bytes_written;
 		bytes_read = read(fd, bsdtar->buff, FILEDATABUFLEN);
+	}
+	if (bytes_read < 0) {
+		lafe_warnc(errno,
+			     "%s: Read error",
+			     archive_entry_pathname(entry));
+		bsdtar->return_value = 1;
 	}
 	return 0;
 }

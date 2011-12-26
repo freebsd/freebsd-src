@@ -68,7 +68,9 @@ struct cpio {
 	size_t		  pass_destpath_alloc;
 	char		 *pass_destpath;
 	int		  uid_override;
+	char		 *uname_override;
 	int		  gid_override;
+	char		 *gname_override;
 	int		  day_first; /* true if locale prefers day/mon */
 
 	/* If >= 0, then close this when done. */

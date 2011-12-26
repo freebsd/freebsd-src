@@ -268,31 +268,6 @@ data, including ACLs and extended attributes, as special
 entries in cpio archives.
 .Pp
 XXX Others? XXX
-.Sh BUGS
-The
-.Dq CRC
-format is mis-named, as it uses a simple checksum and
-not a cyclic redundancy check.
-.Pp
-The old binary format is limited to 16 bits for user id,
-group id, device, and inode numbers.
-It is limited to 4 gigabyte file sizes.
-.Pp
-The old ASCII format is limited to 18 bits for
-the user id, group id, device, and inode numbers.
-It is limited to 8 gigabyte file sizes.
-.Pp
-The new ASCII format is limited to 4 gigabyte file sizes.
-.Pp
-None of the cpio formats store user or group names,
-which are essential when moving files between systems with
-dissimilar user or group numbering.
-.Pp
-Especially when writing older cpio variants, it may be necessary
-to map actual device/inode values to synthesized values that
-fit the available fields.
-With very large filesystems, this may be necessary even for
-the newer formats.
 .Sh SEE ALSO
 .Xr cpio 1 ,
 .Xr tar 5
@@ -323,3 +298,28 @@ license.
 The character format was adopted as part of
 .St -p1003.1-88 .
 XXX when did "newc" appear?  Who invented it?  When did HP come out with their variant?  When did Sun introduce ACLs and extended attributes? XXX
+.Sh BUGS
+The
+.Dq CRC
+format is mis-named, as it uses a simple checksum and
+not a cyclic redundancy check.
+.Pp
+The old binary format is limited to 16 bits for user id,
+group id, device, and inode numbers.
+It is limited to 4 gigabyte file sizes.
+.Pp
+The old ASCII format is limited to 18 bits for
+the user id, group id, device, and inode numbers.
+It is limited to 8 gigabyte file sizes.
+.Pp
+The new ASCII format is limited to 4 gigabyte file sizes.
+.Pp
+None of the cpio formats store user or group names,
+which are essential when moving files between systems with
+dissimilar user or group numbering.
+.Pp
+Especially when writing older cpio variants, it may be necessary
+to map actual device/inode values to synthesized values that
+fit the available fields.
+With very large filesystems, this may be necessary even for
+the newer formats.

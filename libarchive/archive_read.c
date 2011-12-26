@@ -60,7 +60,7 @@ static int	choose_format(struct archive_read *);
 static int	cleanup_filters(struct archive_read *);
 static struct archive_vtable *archive_read_vtable(void);
 static int	_archive_read_close(struct archive *);
-static int	_archive_read_finish(struct archive *);
+static int	_archive_read_free(struct archive *);
 
 static struct archive_vtable *
 archive_read_vtable(void)
@@ -69,7 +69,7 @@ archive_read_vtable(void)
 	static int inited = 0;
 
 	if (!inited) {
-		av.archive_finish = _archive_read_finish;
+		av.archive_free = _archive_read_free;
 		av.archive_close = _archive_read_close;
 	}
 	return (&av);
@@ -779,7 +779,7 @@ cleanup_filters(struct archive_read *a)
  * Release memory and other resources.
  */
 static int
-_archive_read_finish(struct archive *_a)
+_archive_read_free(struct archive *_a)
 {
 	struct archive_read *a = (struct archive_read *)_a;
 	int i;
@@ -787,7 +787,7 @@ _archive_read_finish(struct archive *_a)
 	int r = ARCHIVE_OK;
 
 	__archive_check_magic(_a, ARCHIVE_READ_MAGIC, ARCHIVE_STATE_ANY,
-	    "archive_read_finish");
+	    "archive_read_free");
 	if (a->archive.state != ARCHIVE_STATE_CLOSED)
 		r = archive_read_close(&a->archive);
 
