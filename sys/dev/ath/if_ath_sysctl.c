@@ -179,6 +179,27 @@ ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
 }
 
 static int
+ath_sysctl_hardled(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int hardled = sc->sc_hardled;
+	int error;
+
+	error = sysctl_handle_int(oidp, &hardled, 0, req);
+	if (error || !req->newptr)
+		return error;
+	hardled = (hardled != 0);
+	if (hardled != sc->sc_hardled) {
+		if (hardled) {
+			/* NB: handle any sc_ledpin change */
+			ath_led_config(sc);
+		}
+		sc->sc_hardled = hardled;
+	}
+	return 0;
+}
+
+static int
 ath_sysctl_txantenna(SYSCTL_HANDLER_ARGS)
 {
 	struct ath_softc *sc = arg1;
@@ -491,6 +512,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ctstimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_softled, "I", "enable/disable software LED support");
@@ -503,6 +525,18 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hardled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hardled, "I", "enable/disable hardware LED support");
+	/* XXX Laziness - configure pins, then flip hardled off/on */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_net_pin", CTLFLAG_RW, &sc->sc_led_net_pin, 0,
+		"MAC Network LED pin, or -1 to disable");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_pwr_pin", CTLFLAG_RW, &sc->sc_led_pwr_pin, 0,
+		"MAC Power LED pin, or -1 to disable");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_txantenna, "I", "antenna switch");
