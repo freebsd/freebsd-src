@@ -490,11 +490,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	 * support with a sysctl.
 	 */
 	sc->sc_softled = (devid == AR5212_DEVID_IBM || devid == AR5211_DEVID);
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
-	}
+	ath_led_config(sc);
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
@@ -1332,11 +1328,7 @@ ath_resume(struct ath_softc *sc)
 		} else
 			ieee80211_resume_all(ic);
 	}
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
-	}
+	ath_led_config(sc);
 
 	/* XXX beacons ? */
 }

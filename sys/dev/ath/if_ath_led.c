@@ -110,6 +110,26 @@ __FBSDID("$FreeBSD$");
  * XXX TODO: move the LED sysctls here.
  */
 
+
+/*
+ * Configure the hardware for software and/or LED blinking.
+ *
+ * This requires the configuration to be set beforehand.
+ */
+void
+ath_led_config(struct ath_softc *sc)
+{
+	/* Software LED blinking - GPIO controlled LED */
+	if (sc->sc_softled) {
+		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
+		    HAL_GPIO_MUX_MAC_NETWORK_LED);
+		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
+		return;
+	}
+
+	/* Hardware LED blinking - MAC controlled LED */
+}
+
 static void
 ath_led_done(void *arg)
 {
