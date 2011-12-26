@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -204,7 +205,6 @@ static int	ath_setregdomain(struct ieee80211com *,
 static void	ath_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel []);
 static int	ath_getchannels(struct ath_softc *);
-static void	ath_led_event(struct ath_softc *, int);
 
 static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
@@ -5954,49 +5954,6 @@ ath_getchannels(struct ath_softc *sc)
 	    ic->ic_regdomain.regdomain, ic->ic_regdomain.country,
 	    ic->ic_regdomain.location, ic->ic_regdomain.ecm ? " ecm" : "");
 	return 0;
-}
-
-static void
-ath_led_done(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	sc->sc_blinking = 0;
-}
-
-/*
- * Turn the LED off: flip the pin and then set a timer so no
- * update will happen for the specified duration.
- */
-static void
-ath_led_off(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
-	callout_reset(&sc->sc_ledtimer, sc->sc_ledoff, ath_led_done, sc);
-}
-
-/*
- * Blink the LED according to the specified on/off times.
- */
-static void
-ath_led_blink(struct ath_softc *sc, int on, int off)
-{
-	DPRINTF(sc, ATH_DEBUG_LED, "%s: on %u off %u\n", __func__, on, off);
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, sc->sc_ledon);
-	sc->sc_blinking = 1;
-	sc->sc_ledoff = off;
-	callout_reset(&sc->sc_ledtimer, on, ath_led_off, sc);
-}
-
-static void
-ath_led_event(struct ath_softc *sc, int rix)
-{
-	sc->sc_ledevent = ticks;	/* time of last event */
-	if (sc->sc_blinking)		/* don't interrupt active blink */
-		return;
-	ath_led_blink(sc, sc->sc_hwmap[rix].ledon, sc->sc_hwmap[rix].ledoff);
 }
 
 static int
