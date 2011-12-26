@@ -479,11 +479,27 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* Start DFS processing tasklet */
 	TASK_INIT(&sc->sc_dfstask, 0, ath_dfs_tasklet, sc);
 
+	/* Configure LED state */
 	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
 	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+
+	/*
+	 * Don't setup hardware-based blinking.
+	 *
+	 * Although some NICs may have this configured in the
+	 * default reset register values, the user may wish
+	 * to alter which pins have which function.
+	 *
+	 * The reference driver attaches the MAC network LED to GPIO1 and
+	 * the MAC power LED to GPIO2.  However, the DWA-552 cardbus
+	 * NIC has these reversed.
+	 */
+	sc->sc_hardled = (1 == 0);
+	sc->sc_led_net_pin = -1;
+	sc->sc_led_pwr_pin = -1;
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.  Users can also manually enable/disable

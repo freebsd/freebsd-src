@@ -112,9 +112,12 @@ __FBSDID("$FreeBSD$");
 
 
 /*
- * Configure the hardware for software and/or LED blinking.
+ * Configure the hardware for software and LED blinking.
+ * The user may choose to configure part of each, depending upon the
+ * NIC being used.
  *
- * This requires the configuration to be set beforehand.
+ * This requires the configuration to be set before this function
+ * is called.
  */
 void
 ath_led_config(struct ath_softc *sc)
@@ -124,10 +127,23 @@ ath_led_config(struct ath_softc *sc)
 		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
 		    HAL_GPIO_MUX_MAC_NETWORK_LED);
 		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
-		return;
 	}
 
 	/* Hardware LED blinking - MAC controlled LED */
+	if (sc->sc_hardled) {
+		/*
+		 * Only enable each LED if required.
+		 *
+		 * Some NICs only have one LED connected; others may
+		 * have GPIO1/GPIO2 connected to other hardware.
+		 */
+		if (sc->sc_led_pwr_pin > 0)
+			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_led_pwr_pin,
+			    HAL_GPIO_MUX_MAC_POWER_LED);
+		if (sc->sc_led_net_pin > 0)
+			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_led_net_pin,
+			    HAL_GPIO_MUX_MAC_NETWORK_LED);
+	}
 }
 
 static void
