@@ -54,7 +54,9 @@
 #define	atomic_init(obj, value)		__atomic_init(obj, value)
 #elif defined(__GNUC_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
-#define	atomic_init(obj, value)		(obj = ATOMIC_VAR_INIT(value))
+#define	atomic_init(obj, value) do {					\
+	(obj)->__val = (value);						\
+} while (0)
 #endif
 
 /*
@@ -116,7 +118,7 @@ enum memory_order {
 #if defined(__CLANG_ATOMICS)
 #define	atomic_is_lock_free(obj)	__atomic_is_lock_free(obj)
 #elif defined(__GNUC_ATOMICS)
-#define	atomic_is_lock_free(obj)	(sizeof((obj->__val)) <= sizeof(void *))
+#define	atomic_is_lock_free(obj)	(sizeof((obj)->__val) <= sizeof(void *))
 #endif
 
 /*
@@ -200,12 +202,13 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure) ({					\
 	__typeof__((object)->__val) __v;				\
-	__v =								\
-	__sync_val_compare_and_swap((__typeof(&((object)->__val)))object,\
-		*expected, desired);					\
-	*expected = __v;						\
-	(*expected == __v);						\
-	})
+	_Bool __r;							\
+	__v = __sync_val_compare_and_swap(&(object)->__val,		\
+	    *(expected), desired);					\
+	__r = *(expected) == __v;					\
+	*(expected) = __v;						\
+	__r;								\
+})
 
 #define	atomic_compare_exchange_weak_explicit(object, expected,		\
     desired, success, failure)						\
@@ -223,7 +226,7 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
  */
 #define	atomic_exchange_explicit(object, desired, order) ({		\
 	__typeof__((object)->__val) __v;				\
-	__v = __sync_lock_test_and_set(object, desired);		\
+	__v = __sync_lock_test_and_set(&(object)->__val, desired);	\
 	__sync_synchronize();						\
 	__v;								\
 })
