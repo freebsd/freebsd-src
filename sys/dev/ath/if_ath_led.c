@@ -125,7 +125,7 @@ ath_led_config(struct ath_softc *sc)
 	/* Software LED blinking - GPIO controlled LED */
 	if (sc->sc_softled) {
 		ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
+		    HAL_GPIO_MUX_OUTPUT);
 		ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 
