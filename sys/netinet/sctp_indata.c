@@ -845,7 +845,7 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_tmit_chunk *chk, int *abort_flag)
 {
 	struct mbuf *oper;
-	uint32_t cum_ackp1, last_tsn, prev_tsn, post_tsn;
+	uint32_t cum_ackp1, prev_tsn, post_tsn;
 	struct sctp_tmit_chunk *at, *prev, *next;
 
 	prev = next = NULL;
@@ -1032,7 +1032,6 @@ sctp_queue_data_for_reasm(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 			return;
 		} else {
-			last_tsn = at->rec.data.TSN_seq;
 			prev = at;
 			if (TAILQ_NEXT(at, sctp_next) == NULL) {
 				/*
@@ -1698,12 +1697,10 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_MBUF_LOGGING_ENABLE) {
 			struct mbuf *mat;
 
-			mat = dmbuf;
-			while (mat) {
+			for (mat = dmbuf; mat; mat = SCTP_BUF_NEXT(mat)) {
 				if (SCTP_BUF_IS_EXTENDED(mat)) {
 					sctp_log_mb(mat, SCTP_MBUF_ICOPY);
 				}
-				mat = SCTP_BUF_NEXT(mat);
 			}
 		}
 #endif
@@ -1724,10 +1721,8 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			struct mbuf *lat;
 
 			l_len = 0;
-			lat = dmbuf;
-			while (lat) {
+			for (lat = dmbuf; lat; lat = SCTP_BUF_NEXT(lat)) {
 				l_len += SCTP_BUF_LEN(lat);
-				lat = SCTP_BUF_NEXT(lat);
 			}
 		}
 		if (l_len > the_len) {
@@ -1804,15 +1799,10 @@ failed_express_del:
 		if (tsn == (control->sinfo_tsn + 1)) {
 			/* Yep, we can add it on */
 			int end = 0;
-			uint32_t cumack;
 
 			if (chunk_flags & SCTP_DATA_LAST_FRAG) {
 				end = 1;
 			}
-			cumack = asoc->cumulative_tsn;
-			if ((cumack + 1) == tsn)
-				cumack = tsn;
-
 			if (sctp_append_to_readq(stcb->sctp_ep, stcb, control, dmbuf, end,
 			    tsn,
 			    &stcb->sctp_socket->so_rcv)) {
@@ -2634,7 +2624,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		if (length - *offset < chk_length) {
 			/* all done, mutulated chunk */
 			stop_proc = 1;
-			break;
+			continue;
 		}
 		if (ch->ch.chunk_type == SCTP_DATA) {
 			if ((size_t)chk_length < sizeof(struct sctp_data_chunk) + 1) {
@@ -2690,7 +2680,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				 * drop rep space left.
 				 */
 				stop_proc = 1;
-				break;
+				continue;
 			}
 		} else {
 			/* not a data chunk in the data region */
@@ -2698,7 +2688,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			case SCTP_INITIATION:
 			case SCTP_INITIATION_ACK:
 			case SCTP_SELECTIVE_ACK:
-			case SCTP_NR_SELECTIVE_ACK:	/* EY */
+			case SCTP_NR_SELECTIVE_ACK:
 			case SCTP_HEARTBEAT_REQUEST:
 			case SCTP_HEARTBEAT_ACK:
 			case SCTP_ABORT_ASSOCIATION:
@@ -2772,7 +2762,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 				}	/* else skip this bad chunk and
 					 * continue... */
 				break;
-			};	/* switch of chunk type */
+			}	/* switch of chunk type */
 		}
 		*offset += SCTP_SIZE32(chk_length);
 		if ((*offset >= length) || stop_proc) {
@@ -2785,10 +2775,9 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 		if (ch == NULL) {
 			*offset = length;
 			stop_proc = 1;
-			break;
-
+			continue;
 		}
-	}			/* while */
+	}
 	if (break_flag) {
 		/*
 		 * we need to report rwnd overrun drops.
@@ -3598,7 +3587,8 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 				 * this guy had a RTO calculation pending on
 				 * it, cancel it
 				 */
-				if (tp1->whoTo->rto_needed == 0) {
+				if ((tp1->whoTo != NULL) &&
+				    (tp1->whoTo->rto_needed == 0)) {
 					tp1->whoTo->rto_needed = 1;
 				}
 				tp1->do_rtt = 0;
