@@ -42,6 +42,10 @@ __FBSDID("$FreeBSD$");
 #include "archive_private.h"
 #include "archive_read_private.h"
 
+#ifdef _MSC_VER
+#define __packed
+#pragma pack(push, 1)
+#endif
 struct cpio_bin_header {
 	unsigned char	c_magic[2];
 	unsigned char	c_dev[2];
@@ -86,6 +90,11 @@ struct cpio_newc_header {
 	char	c_namesize[8];
 	char	c_crc[8];
 } __packed;
+
+#ifdef _MSC_VER
+#undef __packed
+#pragma pack(pop)
+#endif
 
 struct links_entry {
         struct links_entry      *next;

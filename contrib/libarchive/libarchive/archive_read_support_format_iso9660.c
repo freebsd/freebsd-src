@@ -302,8 +302,6 @@ struct file_info {
 		struct file_info	*first;
 		struct file_info	**last;
 	} rede_files;
-	/* To check a ininity loop. */
-	struct file_info	*loop_by;
 };
 
 struct heap_queue {
@@ -1802,26 +1800,82 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 			file->re = 0;
 			parent->subdirs--;
 		} else if (file->re) {
-			/* This file's parent is not rr_moved, clear invalid
-			 * "RE" mark. */
-			if (parent == NULL || parent->rr_moved == 0)
-				file->re = 0;
-			else if ((flags & 0x02) == 0) {
-				file->rr_moved_has_re_only = 0;
-				file->re = 0;
+			/*
+			 * Sanity check: file's parent is rr_moved.
+			 */
+			if (parent == NULL || parent->rr_moved == 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge RE");
+				return (NULL);
+			}
+			/*
+			 * Sanity check: file does not have "CL" extension.
+			 */
+			if (file->cl_offset) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge RE and CL");
+				return (NULL);
+			}
+			/*
+			 * Sanity check: The file type must be a directory.
+			 */
+			if ((flags & 0x02) == 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge RE");
+				return (NULL);
 			}
 		} else if (parent != NULL && parent->rr_moved)
 			file->rr_moved_has_re_only = 0;
 		else if (parent != NULL && (flags & 0x02) &&
 		    (parent->re || parent->re_descendant))
 			file->re_descendant = 1;
-		if (file->cl_offset != 0) {
+		if (file->cl_offset) {
+			struct file_info *r;
+
+			if (parent == NULL || parent->parent == NULL) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge CL");
+				return (NULL);
+			}
+			/*
+			 * Sanity check: The file type must be a regular file.
+			 */
+			if ((flags & 0x02) != 0) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge CL");
+				return (NULL);
+			}
 			parent->subdirs++;
 			/* Overwrite an offset and a number of this "CL" entry
 			 * to appear before other dirs. "+1" to those is to
 			 * make sure to appear after "RE" entry which this
 			 * "CL" entry should be connected with. */
 			file->offset = file->number = file->cl_offset + 1;
+
+			/*
+			 * Sanity check: cl_offset does not point at its
+			 * the parents or itself.
+			 */
+			for (r = parent; r; r = r->parent) {
+				if (r->offset == file->cl_offset) {
+					archive_set_error(&a->archive,
+					    ARCHIVE_ERRNO_MISC,
+					    "Invalid Rockridge CL");
+					return (NULL);
+				}
+			}
+			if (file->cl_offset == file->offset ||
+			    parent->rr_moved) {
+				archive_set_error(&a->archive,
+				    ARCHIVE_ERRNO_MISC,
+				    "Invalid Rockridge CL");
+				return (NULL);
+			}
 		}
 	}
 
@@ -1921,6 +1975,13 @@ parse_rockridge(struct archive_read *a, struct file_info *file,
 			if (p[0] == 'P' && p[1] == 'D') {
 				/*
 				 * PD extension is padding;
+				 * contents are always ignored.
+				 */
+				break;
+			}
+			if (p[0] == 'P' && p[1] == 'L') {
+				/*
+				 * PL extension won't appear;
 				 * contents are always ignored.
 				 */
 				break;
@@ -2700,15 +2761,12 @@ rede_add_entry(struct file_info *file)
 {
 	struct file_info *re;
 
+	/*
+	 * Find "RE" entry.
+	 */
 	re = file->parent;
-	while (re != NULL && !re->re) {
-		/* Sanity check to prevent a infinity loop
-		 * cause by a currupted iso file. */
-		if (re->loop_by == file)
-			return (-1);
-		re->loop_by = file;
+	while (re != NULL && !re->re)
 		re = re->parent;
-	}
 	if (re == NULL)
 		return (-1);
 
