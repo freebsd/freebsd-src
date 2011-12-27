@@ -62,6 +62,11 @@ struct cpio {
 	size_t		  ino_list_next;
 };
 
+#ifdef _MSC_VER
+#define __packed
+#pragma pack(push, 1)
+#endif
+
 struct cpio_header {
 	char	c_magic[6];
 	char	c_dev[6];
@@ -75,6 +80,11 @@ struct cpio_header {
 	char	c_namesize[6];
 	char	c_filesize[11];
 } __packed;
+
+#ifdef _MSC_VER
+#undef __packed
+#pragma pack(pop)
+#endif
 
 /*
  * Set output format to 'cpio' format.
