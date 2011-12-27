@@ -36,7 +36,7 @@ MLINKS=		ATOMIC_VAR_INIT.3 atomic_compare_exchange_strong.3 \
 		ATOMIC_VAR_INIT.3 atomic_fetch_xor.3 \
 		ATOMIC_VAR_INIT.3 atomic_fetch_xor_explicit.3 \
 		ATOMIC_VAR_INIT.3 atomic_init.3 \
-		ATOMIC_VAR_INIT.3 atomic_is_lock_free.3
+		ATOMIC_VAR_INIT.3 atomic_is_lock_free.3 \
 		ATOMIC_VAR_INIT.3 atomic_load.3 \
 		ATOMIC_VAR_INIT.3 atomic_load_explicit.3 \
 		ATOMIC_VAR_INIT.3 atomic_store.3 \
