@@ -58,12 +58,6 @@ __FBSDID("$FreeBSD$");
 #endif
 #include "un-namespace.h"
 
-/*
- * Local shells should NOT be added here.  They should be added in
- * /etc/shells.
- */
-
-static const char *const okshells[] = { _PATH_BSHELL, _PATH_CSHELL, NULL };
 static const char *const *curshell;
 static StringList	 *sl;
 
@@ -261,8 +255,13 @@ initshells()
 	    != NS_SUCCESS) {
 		if (sl)
 			sl_free(sl, 1);
-		sl = NULL;
-		return (okshells);
+		sl = sl_init();
+		/*
+		 * Local shells should NOT be added here.  They should be
+		 * added in /etc/shells.
+		 */
+		sl_add(sl, strdup(_PATH_BSHELL));
+		sl_add(sl, strdup(_PATH_CSHELL));
 	}
 	sl_add(sl, NULL);
 
