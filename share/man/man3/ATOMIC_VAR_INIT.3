@@ -281,6 +281,12 @@ This behaviour cannot be emulated for older compilers.
 To prevent unintended non-atomic access to these variables, this header
 file places the atomic variable in a structure when using an older
 compiler.
+.Pp
+When using GCC on architectures on which it lacks support for built-in
+atomic intrinsics, these macros may emit function calls to fallback
+routines.
+These fallback routines are only implemented for 32-bits and 64-bits
+datatypes, if supported by the CPU.
 .Sh SEE ALSO
 .Xr pthread 3 ,
 .Xr atomic 9
