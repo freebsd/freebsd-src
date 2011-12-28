@@ -1323,6 +1323,21 @@ retry:
 			VM_OBJECT_LOCK(new_object);
 			goto retry;
 		}
+#if VM_NRESERVLEVEL > 0
+		/*
+		 * If some of the reservation's allocated pages remain with
+		 * the original object, then transferring the reservation to
+		 * the new object is neither particularly beneficial nor
+		 * particularly harmful as compared to leaving the reservation
+		 * with the original object.  If, however, all of the
+		 * reservation's allocated pages are transferred to the new
+		 * object, then transferring the reservation is typically
+		 * beneficial.  Determining which of these two cases applies
+		 * would be more costly than unconditionally renaming the
+		 * reservation.
+		 */
+		vm_reserv_rename(m, new_object, orig_object, offidxstart);
+#endif
 		vm_page_lock(m);
 		vm_page_rename(m, new_object, idx);
 		vm_page_unlock(m);
