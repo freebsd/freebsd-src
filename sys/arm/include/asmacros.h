@@ -43,6 +43,7 @@
 #ifdef _KERNEL
 
 #ifdef LOCORE
+#include "opt_global.h"
 
 /*
  * ASM macros for pushing and pulling trapframes from the stack
@@ -155,9 +156,20 @@
 	.type	name, %object ; \
 name:
 
-#define	EMPTY
+#ifdef _ARM_ARCH_6
+#define	AST_LOCALS
+#define GET_CURTHREAD_PTR(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(PC_CURTHREAD)
+#else
+#define	AST_LOCALS							;\
+.Lcurthread:								;\
+	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
 
-		
+#define GET_CURTHREAD_PTR(tmp) \
+	ldr	tmp, .Lcurthread
+#endif
+
 #define	DO_AST								\
 	ldr	r0, [sp]		/* Get the SPSR from stack */	;\
 	mrs	r4, cpsr		/* save CPSR */			;\
@@ -167,7 +179,7 @@ name:
 	teq	r0, #(PSR_USR32_MODE)					;\
 	bne	2f			/* Nope, get out now */		;\
 	bic	r4, r4, #(I32_bit|F32_bit)				;\
-1:	ldr	r5, .Lcurthread						;\
+1:	GET_CURTHREAD_PTR(r5)						;\
 	ldr	r5, [r5]						;\
 	ldr	r1, [r5, #(TD_FLAGS)]					;\
 	and	r1, r1, #(TDF_ASTPENDING|TDF_NEEDRESCHED)		;\
@@ -180,11 +192,6 @@ name:
 	msr	cpsr_c, r0						;\
 	b	1b							;\
 2:
-
-
-#define	AST_LOCALS							;\
-.Lcurthread:								;\
-	.word	_C_LABEL(__pcpu) + PC_CURTHREAD
 
 #endif /* LOCORE */
 

@@ -92,41 +92,21 @@ __FBSDID("$FreeBSD$");
  */
 
 #define DOMAIN_CLIENT	0x01
-#define IRQdisable \
-	mrs	r14, cpsr ; \
-	orr	r14, r14, #(I32_bit) ; \
-	msr	cpsr_c, r14 ; \
 
-#define IRQenable \
-	mrs	r14, cpsr ; \
-	bic	r14, r14, #(I32_bit) ; \
-	msr	cpsr_c, r14 ; \
-
-/*
- * These are used for switching the translation table/DACR.
- * Since the vector page can be invalid for a short time, we must
- * disable both regular IRQs *and* FIQs.
- *
- * XXX: This is not necessary if the vector table is relocated.
- */
-#define IRQdisableALL \
-	mrs	r14, cpsr ; \
-	orr	r14, r14, #(I32_bit | F32_bit) ; \
-	msr	cpsr_c, r14
-
-#define IRQenableALL \
-	mrs	r14, cpsr ; \
-	bic	r14, r14, #(I32_bit | F32_bit) ; \
-	msr	cpsr_c, r14
-	
+#ifdef _ARM_ARCH_6
+#define GET_PCB(tmp) \
+	mrc p15, 0, tmp, c13, c0, 4; \
+	add	tmp, tmp, #(PC_CURPCB)
+#else
 .Lcurpcb:
 	.word	_C_LABEL(__pcpu) + PC_CURPCB
+
+#define GET_PCB(tmp) \
+	ldr	tmp, .Lcurpcb
+#endif
+
 .Lcpufuncs:	
 	.word	_C_LABEL(cpufuncs)
-.Lblock_userspace_access:
-	.word	_C_LABEL(block_userspace_access)
-.Lcpu_do_powersave:
-	.word	_C_LABEL(cpu_do_powersave)
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
 ENTRY(cpu_throw)
@@ -202,7 +182,7 @@ ENTRY(cpu_throw)
 #endif
 
 	/* We have a new curthread now so make a note it */
-	ldr	r6, .Lcurthread
+	GET_CURTHREAD_PTR(r6)
 	str	r5, [r6]
 
 	/* Set the new tp */
@@ -215,7 +195,7 @@ ENTRY(cpu_throw)
 	str	r6, [r4, #8] /* ARM_RAS_END */
 
 	/* Hook in a new pcb */
-	ldr	r6, .Lcurpcb
+	GET_PCB(r6)
 	str	r7, [r6]
 
 	ldmfd	sp!, {r4-r7, pc}
@@ -228,20 +208,13 @@ ENTRY(cpu_switch)
 	/* rem: r0 = old lwp */
 	/* rem: interrupts are disabled */
 
-#ifdef MULTIPROCESSOR
-	/* XXX use curcpu() */
-	ldr	r2, .Lcpu_info_store
-	str	r2, [r6, #(L_CPU)]
-#endif
-
 	/* Process is now on a processor. */
-
 	/* We have a new curthread now so make a note it */
-	ldr	r7, .Lcurthread
+	GET_CURTHREAD_PTR(r7)
 	str	r1, [r7]
 
 	/* Hook in a new pcb */
-	ldr	r7, .Lcurpcb
+	GET_PCB(r7)
 	ldr	r2, [r1, #TD_PCB]
 	str	r2, [r7]
 
@@ -414,7 +387,7 @@ ENTRY(cpu_switch)
 	/* Release the old thread */
 	str	r6, [r4, #TD_LOCK]
 	ldr	r6, .Lblocked_lock
-	ldr	r3, .Lcurthread
+	GET_CURTHREAD_PTR(r3)
 	ldr	r3, [r3]
 
 1:
@@ -450,15 +423,6 @@ ENTRY(cpu_switch)
 	ldr	r11, [r7, #(PCB_R11)]
 	ldr	r12, [r7, #(PCB_R12)]
 	ldr	r13, [r7, #(PCB_SP)]
-#endif
-
-	/* rem: r6 = lock */
-	/* rem: r7 = new pcb */
-
-#ifdef ARMFPE
-	add	r0, r7, #(USER_SIZE) & 0x00ff
-	add	r0, r0, #(USER_SIZE) & 0xff00 
-	bl	_C_LABEL(arm_fpe_core_changecontext)
 #endif
 
 	/* rem: r5 = new lwp's proc */

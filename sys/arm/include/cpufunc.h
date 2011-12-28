@@ -474,6 +474,11 @@ void	pj4bv7_setup			(char *string);
 void	pj4bv6_setup			(char *string);
 void	pj4b_config			(void);
 
+int	 get_core_id			(void);
+void	 set_pcpu			(void *);
+void	 set_tls			(void *);
+void	*get_tls			(void);
+
 void	armadaxp_idcache_wbinv_all	(void);
 
 void 	cortexa_setup			(char *);

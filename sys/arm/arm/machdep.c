@@ -717,6 +717,7 @@ void
 pcpu0_init(void)
 {
 
+	set_pcpu(pcpup);
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 }
