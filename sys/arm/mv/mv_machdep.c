@@ -133,6 +133,7 @@ vm_paddr_t phys_avail[10];
 vm_paddr_t dump_avail[4];
 vm_offset_t physical_pages;
 vm_offset_t pmap_bootstrap_lastaddr;
+vm_paddr_t pmap_pa;
 
 const struct pmap_devmap *pmap_devmap_bootstrap_table;
 struct pv_addr systempage;
@@ -141,6 +142,8 @@ struct pv_addr irqstack;
 struct pv_addr undstack;
 struct pv_addr abtstack;
 struct pv_addr kernelstack;
+
+void set_stackptrs(int cpu);
 
 static struct trapframe proc0_tf;
 
@@ -424,10 +427,10 @@ initarm(void *mdp, void *unused __unused)
 	dpcpu_init((void *)dpcpu.pv_va, 0);
 
 	/* Allocate stacks for all modes */
-	valloc_pages(irqstack, IRQ_STACK_SIZE);
-	valloc_pages(abtstack, ABT_STACK_SIZE);
-	valloc_pages(undstack, UND_STACK_SIZE);
-	valloc_pages(kernelstack, KSTACK_PAGES);
+	valloc_pages(irqstack, (IRQ_STACK_SIZE * MAXCPU));
+	valloc_pages(abtstack, (ABT_STACK_SIZE * MAXCPU));
+	valloc_pages(undstack, (UND_STACK_SIZE * MAXCPU));
+	valloc_pages(kernelstack, (KSTACK_PAGES * MAXCPU));
 
 	init_param1();
 
@@ -488,6 +491,7 @@ initarm(void *mdp, void *unused __unused)
 
 	cpu_domains((DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2)) |
 	    DOMAIN_CLIENT);
+	pmap_pa = kernel_l1pt.pv_pa;
 	setttb(kernel_l1pt.pv_pa);
 	cpu_tlb_flushID();
 	cpu_domains(DOMAIN_CLIENT << (PMAP_DOMAIN_KERNEL * 2));
@@ -536,12 +540,8 @@ initarm(void *mdp, void *unused __unused)
 	 * of the stack memory.
 	 */
 	cpu_control(CPU_CONTROL_MMU_ENABLE, CPU_CONTROL_MMU_ENABLE);
-	set_stackptr(PSR_IRQ32_MODE,
-	    irqstack.pv_va + IRQ_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_ABT32_MODE,
-	    abtstack.pv_va + ABT_STACK_SIZE * PAGE_SIZE);
-	set_stackptr(PSR_UND32_MODE,
-	    undstack.pv_va + UND_STACK_SIZE * PAGE_SIZE);
+
+	set_stackptrs(0);
 
 	/*
 	 * We must now clean the cache again....
@@ -592,6 +592,18 @@ initarm(void *mdp, void *unused __unused)
 	kdb_init();
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
+}
+
+void
+set_stackptrs(int cpu)
+{
+
+	set_stackptr(PSR_IRQ32_MODE,
+	    irqstack.pv_va + ((IRQ_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_ABT32_MODE,
+	    abtstack.pv_va + ((ABT_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
+	set_stackptr(PSR_UND32_MODE,
+	    undstack.pv_va + ((UND_STACK_SIZE * PAGE_SIZE) * (cpu + 1)));
 }
 
 #define MPP_PIN_MAX		68
@@ -736,9 +748,9 @@ static struct pmap_devmap fdt_devmap[FDT_DEVMAP_MAX] = {
 static int
 platform_sram_devmap(struct pmap_devmap *map)
 {
+#if !defined(SOC_MV_ARMADAXP)
 	phandle_t child, root;
 	u_long base, size;
-
 	/*
 	 * SRAM range.
 	 */
@@ -766,7 +778,9 @@ moveon:
 
 	return (0);
 out:
+#endif
 	return (ENOENT);
+
 }
 
 /*

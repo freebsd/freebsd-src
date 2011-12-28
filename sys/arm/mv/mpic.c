@@ -36,11 +36,15 @@ __FBSDID("$FreeBSD$");
 #include <sys/systm.h>
 #include <sys/bus.h>
 #include <sys/kernel.h>
+#include <sys/cpuset.h>
 #include <sys/ktr.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+
 #include <machine/bus.h>
 #include <machine/intr.h>
+#include <machine/cpufunc.h>
+#include <machine/smp.h>
 
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
@@ -56,22 +60,29 @@ __FBSDID("$FreeBSD$");
 #define MPIC_ISE		0x30
 #define MPIC_ICE		0x34
 
-#define MPIC_TASK_PRI		0xeb0
-#define MPIC_IIACK		0xeb4
-#define MPIC_ISM		0xeb8
-#define MPIC_ICM		0xebc
+
+#define MPIC_IN_DOORBELL	0x78
+#define MPIC_IN_DOORBELL_MASK	0x7c
+#define MPIC_CTP		0xb0
+#define MPIC_CTP		0xb0
+#define MPIC_IIACK		0xb4
+#define MPIC_ISM		0xb8
+#define MPIC_ICM		0xbc
 #define MPIC_ERR_MASK		0xec0
 
 struct mv_mpic_softc {
-	struct resource	*	mpic_res[1];
+	struct resource	*	mpic_res[2];
 	bus_space_tag_t		mpic_bst;
 	bus_space_handle_t	mpic_bsh;
+	bus_space_tag_t		cpu_bst;
+	bus_space_handle_t	cpu_bsh;
 	int			mpic_high_regs;
 	int			mpic_error_regs;
 };
 
 static struct resource_spec mv_mpic_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },
+	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },
 	{ -1, 0 }
 };
 
@@ -85,6 +96,11 @@ uint32_t	mv_mpic_get_cause(void);
 uint32_t	mv_mpic_get_cause_err(void);
 static void	arm_mask_irq_err(uintptr_t);
 static void	arm_unmask_irq_err(uintptr_t);
+
+#define MPIC_CPU_WRITE(softc, reg, val) \
+    bus_space_write_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg), (val))
+#define MPIC_CPU_READ(softc, reg) \
+    bus_space_read_4((softc)->cpu_bst, (softc)->cpu_bsh, (reg))
 
 static int
 mv_mpic_probe(device_t dev)
@@ -118,10 +134,12 @@ mv_mpic_attach(device_t dev)
 	sc->mpic_bst = rman_get_bustag(sc->mpic_res[0]);
 	sc->mpic_bsh = rman_get_bushandle(sc->mpic_res[0]);
 
+	sc->cpu_bst = rman_get_bustag(sc->mpic_res[1]);
+	sc->cpu_bsh = rman_get_bushandle(sc->mpic_res[1]);
+
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 	    MPIC_CTRL, 1);
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_TASK_PRI, 0);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
 
 	return (0);
 }
@@ -168,14 +186,12 @@ void
 arm_mask_irq(uintptr_t nb)
 {
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_TASK_PRI, 1);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 1);
 
 	if (nb < MAIN_IRQS) {
 		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 		    MPIC_ICE, nb);
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ISM, nb);
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ISM, nb);
 	} else
 		arm_mask_irq_err(nb);
 }
@@ -188,27 +204,26 @@ arm_mask_irq_err(uintptr_t nb)
 	uint8_t bit_off;
 
 	bit_off = nb - MAIN_IRQS;
-	mask = bus_space_read_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ERR_MASK);
+	mask = MPIC_CPU_READ(mv_mpic_sc, MPIC_ERR_MASK);
 	mask &= ~(1 << bit_off);
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ERR_MASK, mask);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
 }
 
 void
 arm_unmask_irq(uintptr_t nb)
 {
 
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_TASK_PRI, 0);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_CTP, 0);
 
 	if (nb < MAIN_IRQS) {
 		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 		    MPIC_ISE, nb);
-		bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-		    MPIC_ICM, nb);
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, nb);
 	} else
 		arm_unmask_irq_err(nb);
+
+	if (nb == 0)
+		MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DOORBELL_MASK, 0xffffffff);
 }
 
 void
@@ -219,23 +234,19 @@ arm_unmask_irq_err(uintptr_t nb)
 
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 	    MPIC_ISE, IRQ_ERR);
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ICM, IRQ_ERR);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ICM, IRQ_ERR);
 
 	bit_off = nb - MAIN_IRQS;
-	mask = bus_space_read_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ERR_MASK);
+	mask = MPIC_CPU_READ(mv_mpic_sc, MPIC_ERR_MASK);
 	mask |= (1 << bit_off);
-	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
-	    MPIC_ERR_MASK, mask);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_ERR_MASK, mask);
 }
 
 uint32_t
 mv_mpic_get_cause(void)
 {
 
-	return (bus_space_read_4(mv_mpic_sc->mpic_bst,
-	    mv_mpic_sc->mpic_bsh, MPIC_IIACK));
+	return (MPIC_CPU_READ(mv_mpic_sc, MPIC_IIACK));
 }
 
 uint32_t
@@ -254,13 +265,41 @@ mv_mpic_get_cause_err(void)
 	return (MAIN_IRQS + bit_off);
 }
 
+#if defined(SMP)
 void
-mpic_send_ipi(int cpus, u_int ipi)
+pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
-	uint32_t val;
+	uint32_t val, i;
 
-	val = cpus | ipi | 0xf00;
+	val = 0x01000000;
+	for (i = 0; i < MAXCPU; i++)
+		if (!CPU_ISSET(i, &cpus))
+			val |= (1 << (8 + i));
+	val |= ipi | 0xf00;
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 	    MPIC_SOFT_INT, val);
 
 }
+
+int
+pic_ipi_get(void)
+{
+	uint32_t val;
+
+	val = MPIC_CPU_READ(mv_mpic_sc, MPIC_IN_DOORBELL);
+	if (val)
+		return (ffs(val) - 1);
+
+	return (0x3ff);
+}
+
+void
+pic_ipi_clear(int ipi)
+{
+	uint32_t val;
+
+	val = ~(1 << ipi);
+	MPIC_CPU_WRITE(mv_mpic_sc, MPIC_IN_DOORBELL, val);
+}
+
+#endif
