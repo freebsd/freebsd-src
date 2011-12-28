@@ -150,6 +150,7 @@ MAN=	aac.4 \
 	hifn.4 \
 	hme.4 \
 	hpet.4 \
+	${_hpt27xx.4} \
 	${_hptiop.4} \
 	${_hptmv.4} \
 	${_hptrr.4} \
@@ -687,6 +688,7 @@ _atp.4=		atp.4
 _coretemp.4=	coretemp.4
 _cpuctl.4=	cpuctl.4
 _dpms.4=	dpms.4
+_hpt27xx.4=	hpt27xx.4
 _hptiop.4=	hptiop.4
 _hptmv.4=	hptmv.4
 _hptrr.4=	hptrr.4

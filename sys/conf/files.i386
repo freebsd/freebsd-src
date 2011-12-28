@@ -57,6 +57,10 @@ os+%DIKED-nve.h		optional	nve pci				\
 	no-implicit-rule no-obj before-depend				\
 	clean		"os+%DIKED-nve.h"
 #
+hpt27xx_lib.o			optional	hpt27xx			\
+	dependency	"$S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu"	\
+	compile-with	"uudecode < $S/dev/hpt27xx/i386-elf.hpt27xx_lib.o.uu" \
+	no-implicit-rule
 hptmvraid.o			optional	hptmv			\
 	dependency	"$S/dev/hptmv/i386-elf.raid.o.uu"		\
 	compile-with	"uudecode < $S/dev/hptmv/i386-elf.raid.o.uu"	\
@@ -174,6 +178,9 @@ dev/fe/if_fe_isa.c		optional fe isa
 dev/glxiic/glxiic.c		optional glxiic
 dev/glxsb/glxsb.c		optional glxsb
 dev/glxsb/glxsb_hash.c		optional glxsb
+dev/hpt27xx/os_bsd.c		optional hpt27xx
+dev/hpt27xx/osm_bsd.c		optional hpt27xx
+dev/hpt27xx/hpt27xx_config.c	optional hpt27xx
 dev/hptmv/entry.c		optional hptmv
 dev/hptmv/mv.c			optional hptmv
 dev/hptmv/gui_lib.c		optional hptmv
