@@ -571,10 +571,10 @@ struct cpu_functions pj4bv6_cpufuncs = {
 	armv6_idcache_wbinv_all,	/* idcache_wbinv_all	*/
 	pj4b_idcache_wbinv_range,	/* idcache_wbinv_all	*/
 
-	pj4b_l2cache_wbinv_all,		/* l2cache_wbinv_all	*/
-	pj4b_l2cache_wbinv_range,	/* l2cache_wbinv_range	*/
-	pj4b_l2cache_inv_range,		/* l2cache_inv_range	*/
-	pj4b_l2cache_wb_range,		/* l2cache_wb_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_all	*/
+	(void *)cpufunc_nullop,		/* l2cache_wbinv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_inv_range	*/
+	(void *)cpufunc_nullop,		/* l2cache_wb_range	*/
 
 	/* Other functions */
 
@@ -1298,7 +1298,7 @@ set_cpufuncs()
 		pmap_pte_init_generic();
 		goto out;
 	} else if (cputype == CPU_ID_ARM926EJS  || cputype == CPU_ID_ARM926ES ||
-	    cputype == CPU_ID_ARM1026EJS)
+	    cputype == CPU_ID_ARM1026EJS) {
 		cpufuncs = armv5_ec_cpufuncs;
 		get_cachetype_cp15();
 		pmap_pte_init_generic();
@@ -2241,34 +2241,33 @@ pj4bv6_setup(char *args)
 {
 	int cpuctrl;
 
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_SYST_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | CPU_CONTROL_BPRD_ENABLE  | CPU_CONTROL_V6_EXTPAGE
-	    | CPU_CONTROL_L2_ENABLE ;
-
+	cpuctrl = CPU_CONTROL_MMU_ENABLE;
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
-
+	cpuctrl |= CPU_CONTROL_DC_ENABLE;
+	cpuctrl |= (0xf << 3);
 #ifdef __ARMEB__
 	cpuctrl |= CPU_CONTROL_BEND_ENABLE;
 #endif
-
+	cpuctrl |= CPU_CONTROL_SYST_ENABLE;
+	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
+	cpuctrl |= CPU_CONTROL_IC_ENABLE;
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
+	cpuctrl |= (0x5 << 16);
+	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
+	/* XXX not yet */
+	/* cpuctrl |= CPU_CONTROL_L2_ENABLE; */
 
-	/* Clear out the cache */
+	/* Make sure caches are clean.  */
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
-
-	/* Now really make sure they are clean.  */
-	__asm __volatile ("mcr\tp15, 0, r0, c7, c7, 0" : : );
 
 	/* Set the control register */
 	ctrl = cpuctrl;
 	cpu_control(0xffffffff, cpuctrl);
 
-	/* And again. */
 	cpu_idcache_wbinv_all();
 	cpu_l2cache_wbinv_all();
 }
@@ -2279,20 +2278,21 @@ pj4bv7_setup(args)
 {
 	int cpuctrl;
 
-	cpuctrl = CPU_CONTROL_MMU_ENABLE | CPU_CONTROL_DC_ENABLE
-	    | (0xf << 3) | CPU_CONTROL_BPRD_ENABLE
-	    | CPU_CONTROL_IC_ENABLE | (0x5 << 16) | (1 < 22)
-	    | CPU_CONTROL_V6_EXTPAGE;
-
+	cpuctrl = CPU_CONTROL_MMU_ENABLE;
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
 #endif
+	cpuctrl |= CPU_CONTROL_DC_ENABLE;
+	cpuctrl |= (0xf << 3);
+	cpuctrl |= CPU_CONTROL_BPRD_ENABLE;
+	cpuctrl |= CPU_CONTROL_IC_ENABLE;
 	if (vector_page == ARM_VECTORS_HIGH)
 		cpuctrl |= CPU_CONTROL_VECRELOC;
+	cpuctrl |= (0x5 << 16) | (1 < 22);
+	cpuctrl |= CPU_CONTROL_V6_EXTPAGE;
 
 	/* Clear out the cache */
 	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 
 	/* Set the control register */
 	ctrl = cpuctrl;
@@ -2300,7 +2300,6 @@ pj4bv7_setup(args)
 
 	/* And again. */
 	cpu_idcache_wbinv_all();
-	cpu_l2cache_wbinv_all();
 }
 #endif /* CPU_MV_PJ4B */
 

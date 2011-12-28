@@ -476,13 +476,15 @@ void
 pmap_pte_init_mmu_v6(void)
 {
 
-	pte_l1_s_cache_mode = ARM_L1S_NRML_IWT_OWT;
-	pte_l2_l_cache_mode = ARM_L2L_NRML_IWT_OWT;
-	pte_l2_s_cache_mode = ARM_L2S_NRML_IWT_OWT;
+	if (PTE_PAGETABLE >= 3)
+		pmap_needs_pte_sync = 1;
+	pte_l1_s_cache_mode = l1_mem_types[PTE_CACHE];
+	pte_l2_l_cache_mode = l2l_mem_types[PTE_CACHE];
+	pte_l2_s_cache_mode = l2s_mem_types[PTE_CACHE];
 
-	pte_l1_s_cache_mode_pt = ARM_L1S_NRML_IWT_OWT;
-	pte_l2_l_cache_mode_pt = ARM_L2L_NRML_IWT_OWT;
-	pte_l2_s_cache_mode_pt = ARM_L2S_NRML_IWT_OWT;
+	pte_l1_s_cache_mode_pt = l1_mem_types[PTE_PAGETABLE];
+	pte_l2_l_cache_mode_pt = l2l_mem_types[PTE_PAGETABLE];
+	pte_l2_s_cache_mode_pt = l2s_mem_types[PTE_PAGETABLE];
 
 }
 
@@ -2065,11 +2067,16 @@ pmap_kenter_internal(vm_offset_t va, vm_offset_t pa, int flags)
 		if (opte == 0)
 			l2b->l2b_occupancy++;
 	}
-	*pte = L2_S_PROTO | pa;
-	pmap_set_prot(pte, VM_PROT_READ | VM_PROT_WRITE, flags & KENTER_USER);
 
-	if (flags & KENTER_CACHE)
-		*pte |= pte_l2_s_cache_mode;
+	if (flags & KENTER_CACHE) {
+		*pte = L2_S_PROTO | pa | pte_l2_s_cache_mode;
+		pmap_set_prot(pte, VM_PROT_READ | VM_PROT_WRITE,
+		    flags & KENTER_USER);
+	} else {
+		*pte = L2_S_PROTO | pa;
+		pmap_set_prot(pte, VM_PROT_READ|VM_PROT_WRITE|VM_PROT_EXECUTE,
+		    0);
+	}
 
 	PDEBUG(1, printf("pmap_kenter: pte = %08x, opte = %08x, npte = %08x\n",
 	    (uint32_t) pte, opte, *pte));
@@ -2615,6 +2622,9 @@ do_l2b_alloc:
 		 *   so no need to re-do referenced emulation here.
 		 */
 		npte |= L2_S_PROTO;
+#ifdef SMP
+		npte |= L2_SHARED;
+#endif
 
 		nflags |= PVF_REF;
 

@@ -176,12 +176,53 @@ extern u_int cputype;
 #define cpu_faultstatus()	cpufuncs.cf_faultstatus()
 #define cpu_faultaddress()	cpufuncs.cf_faultaddress()
 
+#ifndef SMP
+
 #define	cpu_tlb_flushID()	cpufuncs.cf_tlb_flushID()
 #define	cpu_tlb_flushID_SE(e)	cpufuncs.cf_tlb_flushID_SE(e)
 #define	cpu_tlb_flushI()	cpufuncs.cf_tlb_flushI()
 #define	cpu_tlb_flushI_SE(e)	cpufuncs.cf_tlb_flushI_SE(e)
 #define	cpu_tlb_flushD()	cpufuncs.cf_tlb_flushD()
 #define	cpu_tlb_flushD_SE(e)	cpufuncs.cf_tlb_flushD_SE(e)
+
+#else
+void tlb_broadcast(int);
+
+#define	cpu_tlb_flushID() do { \
+	cpufuncs.cf_tlb_flushID(); \
+	tlb_broadcast(7); \
+} while(0)
+
+#define	cpu_tlb_flushID_SE(e) do { \
+	cpufuncs.cf_tlb_flushID_SE(e); \
+	tlb_broadcast(7); \
+} while(0)
+
+
+#define	cpu_tlb_flushI() do { \
+	cpufuncs.cf_tlb_flushI(); \
+	tlb_broadcast(7); \
+} while(0)
+
+
+#define	cpu_tlb_flushI_SE(e) do { \
+	cpufuncs.cf_tlb_flushI_SE(e); \
+	tlb_broadcast(7); \
+} while(0)
+
+
+#define	cpu_tlb_flushD() do { \
+	cpufuncs.cf_tlb_flushD(); \
+	tlb_broadcast(7); \
+} while(0)
+
+
+#define	cpu_tlb_flushD_SE(e) do { \
+	cpufuncs.cf_tlb_flushD_SE(e); \
+	tlb_broadcast(7); \
+} while(0)
+
+#endif
 
 #define	cpu_icache_sync_all()	cpufuncs.cf_icache_sync_all()
 #define	cpu_icache_sync_range(a, s) cpufuncs.cf_icache_sync_range((a), (s))
@@ -441,11 +482,6 @@ void	pj4b_dcache_inv_range		(vm_offset_t, vm_size_t);
 void	pj4b_dcache_wb_range		(vm_offset_t, vm_size_t);
 
 void	pj4b_idcache_wbinv_range	(vm_offset_t, vm_size_t);
-
-void	pj4b_l2cache_wbinv_range	(vm_offset_t, vm_size_t);
-void	pj4b_l2cache_inv_range		(vm_offset_t, vm_size_t);
-void	pj4b_l2cache_wb_range		(vm_offset_t, vm_size_t);
-void	pj4b_l2cache_wbinv_all		(void);
 
 void	pj4b_drain_readbuf		(void);
 void	pj4b_flush_brnchtgt_all		(void);

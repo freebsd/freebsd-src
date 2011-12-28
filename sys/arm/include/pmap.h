@@ -55,8 +55,12 @@
 /*
  * Pte related macros
  */
+#ifdef SMP
+#define PTE_NOCACHE	2
+#else
 #define PTE_NOCACHE	1
-#define PTE_CACHE	6
+#endif
+#define PTE_CACHE	4
 #define PTE_PAGETABLE	4
 
 enum mem_type {
@@ -351,14 +355,21 @@ extern int pmap_needs_pte_sync;
 #define	L2_S_PROT_MASK		(L2_S_PROT_U|L2_S_PROT_R)
 #define	L2_S_WRITABLE(pte)	(!(pte & L2_APX))
 
+#ifndef SMP
 #define	L1_S_CACHE_MASK		(L1_S_TEX_MASK|L1_S_B|L1_S_C)
 #define	L2_L_CACHE_MASK		(L2_L_TEX_MASK|L2_B|L2_C)
 #define	L2_S_CACHE_MASK		(L2_S_TEX_MASK|L2_B|L2_C)
+#else
+#define	L1_S_CACHE_MASK		(L1_S_TEX_MASK|L1_S_B|L1_S_C|L1_SHARED)
+#define	L2_L_CACHE_MASK		(L2_L_TEX_MASK|L2_B|L2_C|L2_SHARED)
+#define	L2_S_CACHE_MASK		(L2_S_TEX_MASK|L2_B|L2_C|L2_SHARED)
+#endif  /* SMP */
 
 #define	L1_S_PROTO		(L1_TYPE_S)
 #define	L1_C_PROTO		(L1_TYPE_C)
 #define	L2_S_PROTO		(L2_TYPE_S)
 
+#ifndef SMP
 #define ARM_L1S_STRONG_ORD	(0)
 #define ARM_L1S_DEVICE_NOSHARE	(L1_S_TEX(2))
 #define ARM_L1S_DEVICE_SHARE	(L1_S_B)
@@ -382,7 +393,31 @@ extern int pmap_needs_pte_sync;
 #define ARM_L2S_NRML_IWT_OWT	(L2_C)
 #define ARM_L2S_NRML_IWB_OWB	(L2_C|L2_B)
 #define ARM_L2S_NRML_IWBA_OWBA	(L2_S_TEX(1)|L2_C|L2_B)
+#else
+#define ARM_L1S_STRONG_ORD	(0)
+#define ARM_L1S_DEVICE_NOSHARE	(L1_S_TEX(2))
+#define ARM_L1S_DEVICE_SHARE	(L1_S_B)
+#define ARM_L1S_NRML_NOCACHE	(L1_S_TEX(1)|L1_SHARED)
+#define ARM_L1S_NRML_IWT_OWT	(L1_S_C|L1_SHARED)
+#define ARM_L1S_NRML_IWB_OWB	(L1_S_C|L1_S_B|L1_SHARED)
+#define ARM_L1S_NRML_IWBA_OWBA	(L1_S_TEX(1)|L1_S_C|L1_S_B|L1_SHARED)
 
+#define ARM_L2L_STRONG_ORD	(0)
+#define ARM_L2L_DEVICE_NOSHARE	(L2_L_TEX(2))
+#define ARM_L2L_DEVICE_SHARE	(L2_B)
+#define ARM_L2L_NRML_NOCACHE	(L2_L_TEX(1)|L2_SHARED)
+#define ARM_L2L_NRML_IWT_OWT	(L2_C|L2_SHARED)
+#define ARM_L2L_NRML_IWB_OWB	(L2_C|L2_B|L2_SHARED)
+#define ARM_L2L_NRML_IWBA_OWBA	(L2_L_TEX(1)|L2_C|L2_B|L2_SHARED)
+
+#define ARM_L2S_STRONG_ORD	(0)
+#define ARM_L2S_DEVICE_NOSHARE	(L2_S_TEX(2))
+#define ARM_L2S_DEVICE_SHARE	(L2_B)
+#define ARM_L2S_NRML_NOCACHE	(L2_S_TEX(1)|L2_SHARED)
+#define ARM_L2S_NRML_IWT_OWT	(L2_C|L2_SHARED)
+#define ARM_L2S_NRML_IWB_OWB	(L2_C|L2_B|L2_SHARED)
+#define ARM_L2S_NRML_IWBA_OWBA	(L2_S_TEX(1)|L2_C|L2_B|L2_SHARED)
+#endif /* SMP */
 #endif /* ARM_NMMUS > 1 */
 
 #if (ARM_MMU_SA1 == 1) && (ARM_NMMUS == 1)

@@ -65,23 +65,18 @@ ENTRY(pj4b_icache_sync_range)
 	RET
 
 ENTRY(pj4b_dcache_inv_range)
-	sub	r1, r1, #1
-	add	r1, r0, r1
-	mcrr	p15, 0, r1, r0, c6	/* invalidate DC range */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-
-ENTRY(pj4b_dcache_wb_range)
-	sub	r1, r1, #1
-	add	r1, r0, r1
-	mcrr	p15, 0, r1, r0, c12	/* clean DC range */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-
-ENTRY(pj4b_dcache_wbinv_range)
-	sub	r1, r1, #1
-	add	r1, r0, r1
-	mcrr	p15, 0, r1, r0, c14	/* clean and invalidate DC range */
+	ldr	ip, .Lpj4b_cache_line_size
+	ldr	ip, [ip]
+	sub	r1, r1, #1		/* Don't overrun */
+	sub	r3, ip, #1
+	and	r2, r0, r3
+	add	r1, r1, r2
+	bic	r0, r0, r3
+1:
+	mcr	p15, 0, r0, c7, c6, 1
+	add	r0, r0, ip
+	subs	r1, r1, ip
+	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 
@@ -101,18 +96,6 @@ ENTRY(armv6_dcache_wbinv_all)
 ENTRY(pj4b_idcache_wbinv_range)
 	sub	r1, r1, #1
 	add	r1, r0, r1
-	mcrr	p15, 0, r1, r0, c5	/* invalidate IC range */
-	mcrr	p15, 0, r1, r0, c14	/* clean and invalidate DC range */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-
-ENTRY(pj4b_l2cache_wbinv_all)
-	mcr	p15, 1, r0, c7, c11, 0	/* L2C clean all */
-	mcr	p15, 1, r0, c7, c7, 0	/* L2C invalidate all */
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	RET
-
-ENTRY(pj4b_l2cache_wbinv_range)
 	ldr	ip, .Lpj4b_cache_line_size
 	ldr	ip, [ip]
 	sub	r1, r1, #1		/* Don't overrun */
@@ -121,14 +104,20 @@ ENTRY(pj4b_l2cache_wbinv_range)
 	add	r1, r1, r2
 	bic	r0, r0, r3
 1:
-	mcr	p15, 1, r0, c7, c15, 1	/* L2C clean and invalidate entry */
+#ifdef SMP
+	/* Request for ownership */
+	ldr	r2, [r0]
+	str	r2, [r0]
+#endif
+	mcr	p15, 0, r0, c7, c5, 1
+	mcr	p15, 0, r0, c7, c14, 1	/* L2C clean and invalidate entry */
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 
-ENTRY(pj4b_l2cache_wb_range)
+ENTRY(pj4b_dcache_wbinv_range)
 	ldr	ip, .Lpj4b_cache_line_size
 	ldr	ip, [ip]
 	sub	r1, r1, #1		/* Don't overrun */
@@ -137,14 +126,19 @@ ENTRY(pj4b_l2cache_wb_range)
 	add	r1, r1, r2
 	bic	r0, r0, r3
 1:
-	mcr	p15, 1, r0, c7, c11, 1	/* L2C clean single entry by MVA */
+#ifdef SMP
+	/* Request for ownership */
+	ldr	r2, [r0]
+	str	r2, [r0]
+#endif
+	mcr	p15, 0, r0, c7, c14, 1
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bpl	1b
 	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
 	RET
 
-ENTRY(pj4b_l2cache_inv_range)
+ENTRY(pj4b_dcache_wb_range)
 	ldr	ip, .Lpj4b_cache_line_size
 	ldr	ip, [ip]
 	sub	r1, r1, #1		/* Don't overrun */
@@ -153,7 +147,12 @@ ENTRY(pj4b_l2cache_inv_range)
 	add	r1, r1, r2
 	bic	r0, r0, r3
 1:
-	mcr	p15, 1, r0, c7, c7, 1	/* L2C invalidate single entry by MVA */
+#ifdef SMP
+	/* Request for ownership */
+	ldr	r2, [r0]
+	str	r2, [r0]
+#endif
+	mcr	p15, 0, r0, c7, c10, 1	/* L2C clean single entry by MVA */
 	add	r0, r0, ip
 	subs	r1, r1, ip
 	bpl	1b
@@ -208,5 +207,10 @@ ENTRY(pj4b_config)
 	orr	r0, r0, #(1 << 29)
 	orr	r0, r0, #(1 << 30)
 	mcr	p15, 1, r0, c15, c1, 2
-
+#if defined(SMP)
+	/* Set SMP mode in Auxiliary Control Register */
+	mrc	p15, 0, r0, c1, c0, 1
+	orr	r0, r0, #(1 << 5)
+	mcr	p15, 0, r0, c1, c0, 1
+#endif
 	RET
