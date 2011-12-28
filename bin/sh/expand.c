@@ -1292,6 +1292,10 @@ expmeta(char *enddir, char *name)
 			if (atend)
 				addfname(expdir);
 			else {
+				if (dp->d_type != DT_UNKNOWN &&
+				    dp->d_type != DT_DIR &&
+				    dp->d_type != DT_LNK)
+					continue;
 				if (enddir + namlen + 2 > expdir_end)
 					continue;
 				enddir[namlen] = '/';
