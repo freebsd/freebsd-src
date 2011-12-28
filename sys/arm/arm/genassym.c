@@ -105,9 +105,11 @@ ASSYM(TF_PC, offsetof(struct trapframe, tf_pc));
 ASSYM(P_PID, offsetof(struct proc, p_pid));
 ASSYM(P_FLAG, offsetof(struct proc, p_flag));
 
+#if !defined(SMP)
 ASSYM(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 ASSYM(ARM_RAS_START, ARM_RAS_START);
 ASSYM(ARM_RAS_END, ARM_RAS_END);
+#endif
 ASSYM(PAGE_SIZE, PAGE_SIZE);
 ASSYM(PDESIZE, PDESIZE);
 ASSYM(PMAP_DOMAIN_KERNEL, PMAP_DOMAIN_KERNEL);

@@ -146,7 +146,11 @@ cpu_fork(register struct thread *td1, register struct proc *p2,
 	/* Setup to release spin count in fork_exit(). */
 	td2->td_md.md_spinlock_count = 1;
 	td2->td_md.md_saved_cspr = 0;
+#if !defined(SMP)
 	td2->td_md.md_tp = *(register_t *)ARM_TP_ADDRESS;
+#else
+	td2->td_md.md_tp = (register_t) get_tls();
+#endif
 }
 				
 void
@@ -373,7 +377,11 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		td->td_md.md_tp = (register_t)tls_base;
 	else {
 		critical_enter();
+#if !defined(SMP)
 		*(register_t *)ARM_TP_ADDRESS = (register_t)tls_base;
+#else
+		set_tls((void *)tls_base);
+#endif
 		critical_exit();
 	}
 	return (0);

@@ -59,7 +59,7 @@
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-
+#ifndef SMP
 #define PUSHFRAME							   \
 	str	lr, [sp, #-4]!;		/* Push the return address */	   \
 	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
@@ -74,6 +74,17 @@
 	str	r1, [r0];						   \
 	mov	r1, #0xffffffff;					   \
 	str	r1, [r0, #4];
+#else
+#define PUSHFRAME							   \
+	str	lr, [sp, #-4]!;		/* Push the return address */	   \
+	sub	sp, sp, #(4*17);	/* Adjust the stack pointer */	   \
+	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
+	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
+	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
+	str	r0, [sp, #-4]!;
+#endif
 
 /*
  * PULLFRAME - macro to pull a trap frame from the stack in the current mode
@@ -98,7 +109,7 @@
  * NOTE: r13 and r14 are stored separately as a work around for the
  * SA110 rev 2 STM^ bug
  */
-
+#ifndef SMP
 #define PUSHFRAMEINSVC							   \
 	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
 	mov	r0, lr;			/* Save xxx32 r14 */		   \
@@ -133,6 +144,30 @@
 	strhi   r3, [r0, #16];          /* the RAS_START location.      */ \
 	mrs     r0, spsr_all;                                              \
 	str     r0, [sp, #-4]!
+#else
+#define PUSHFRAMEINSVC							   \
+	stmdb	sp, {r0-r3};		/* Save 4 registers */		   \
+	mov	r0, lr;			/* Save xxx32 r14 */		   \
+	mov	r1, sp;			/* Save xxx32 sp */		   \
+	mrs	r3, spsr;		/* Save xxx32 spsr */		   \
+	mrs     r2, cpsr;		/* Get the CPSR */		   \
+	bic     r2, r2, #(PSR_MODE);	/* Fix for SVC mode */		   \
+	orr     r2, r2, #(PSR_SVC32_MODE);				   \
+	msr     cpsr_c, r2;		/* Punch into SVC mode */	   \
+	mov	r2, sp;			/* Save	SVC sp */		   \
+	str	r0, [sp, #-4]!;		/* Push return address */	   \
+	str	lr, [sp, #-4]!;		/* Push SVC lr */		   \
+	str	r2, [sp, #-4]!;		/* Push SVC sp */		   \
+	msr     spsr_all, r3;		/* Restore correct spsr */	   \
+	ldmdb	r1, {r0-r3};		/* Restore 4 regs from xxx mode */ \
+	sub	sp, sp, #(4*15);	/* Adjust the stack pointer */	   \
+	stmia	sp, {r0-r12};		/* Push the user mode registers */ \
+	add	r0, sp, #(4*13);	/* Adjust the stack pointer */	   \
+	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
+        mov     r0, r0;                 /* NOP for previous instruction */ \
+	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
+	str	r0, [sp, #-4]!
+#endif
 
 /*
  * PULLFRAMEFROMSVCANDEXIT - macro to pull a trap frame from the stack

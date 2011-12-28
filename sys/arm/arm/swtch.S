@@ -85,12 +85,6 @@
 #include <machine/armreg.h>
 __FBSDID("$FreeBSD$");
 
-
-/*
- * New experimental definitions of IRQdisable and IRQenable
- * These keep FIQ's enabled since FIQ's are special.
- */
-
 #define DOMAIN_CLIENT	0x01
 
 #ifdef _ARM_ARCH_6
@@ -109,6 +103,7 @@ __FBSDID("$FreeBSD$");
 	.word	_C_LABEL(cpufuncs)
 .Lblocked_lock:
 	.word	_C_LABEL(blocked_lock)
+
 ENTRY(cpu_throw)
 	mov	r5, r1
 
@@ -187,13 +182,16 @@ ENTRY(cpu_throw)
 
 	/* Set the new tp */
 	ldr	r6, [r5, #(TD_MD + MD_TP)]
+#ifndef SMP
 	ldr	r4, =ARM_TP_ADDRESS
 	str	r6, [r4]
 	ldr	r6, [r5, #(TD_MD + MD_RAS_START)]
 	str	r6, [r4, #4] /* ARM_RAS_START */
 	ldr	r6, [r5, #(TD_MD + MD_RAS_END)]
 	str	r6, [r4, #8] /* ARM_RAS_END */
-
+#else
+	mcr p15, 0, r6, c13, c0, 3
+#endif
 	/* Hook in a new pcb */
 	GET_PCB(r6)
 	str	r7, [r6]
@@ -242,6 +240,7 @@ ENTRY(cpu_switch)
 	 * NOTE: We can now use r8-r13 until it is time to restore
 	 * them for the new process.
 	 */
+#ifndef SMP
 	/* Store the old tp */
 	ldr	r3, =ARM_TP_ADDRESS
 	ldr	r9, [r3]
@@ -258,7 +257,16 @@ ENTRY(cpu_switch)
 	str	r9, [r3, #4]
 	ldr	r9, [r1, #(TD_MD + MD_RAS_END)]
 	str	r9, [r3, #8]
+#else
+	/* Store the old tp */
+	mrc p15, 0, r9, c13, c0, 3
+	str	r9, [r0, #(TD_MD + MD_TP)]
 
+	/* Set the new tp */
+	ldr	r9, [r1, #(TD_MD + MD_TP)]
+	mcr p15, 0, r9, c13, c0, 3
+#endif
+	
 	/* Get the user structure for the new process in r9 */
 	ldr	r9, [r1, #(TD_PCB)]
 

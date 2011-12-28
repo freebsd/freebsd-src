@@ -59,7 +59,7 @@ void		_tcb_dtor(struct tcb *);
 static __inline void
 _tcb_set(struct tcb *tcb)
 {
-	*((struct tcb **)ARM_TP_ADDRESS) = tcb;
+	sysarch(ARM_SET_TP, tcb);
 }
 
 /*
@@ -68,7 +68,10 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	return (*((struct tcb **)ARM_TP_ADDRESS));
+	struct tcb *tcb;
+	sysarch(ARM_GET_TP, &tcb);
+
+	return (tcb);
 }
 
 extern struct pthread *_thr_initial;

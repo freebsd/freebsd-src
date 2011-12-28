@@ -50,9 +50,11 @@
  * if ARM_RAS_END moves in relation to ARM_RAS_START (look for occurrances
  * of ldr/str rm,[rn, #4]).
  */
+#if !defined(SMP)
 #define ARM_TP_ADDRESS		(ARM_VECTORS_HIGH + 0x1000)
 #define ARM_RAS_START		(ARM_TP_ADDRESS + 4)
 #define ARM_RAS_END		(ARM_TP_ADDRESS + 8)
+#endif
 
 #ifndef LOCORE
 

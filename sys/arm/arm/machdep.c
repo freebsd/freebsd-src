@@ -264,8 +264,10 @@ static void
 cpu_startup(void *dummy)
 {
 	struct pcb *pcb = thread0.td_pcb;
+#ifndef SMP
 #ifndef ARM_CACHE_LOCK_ENABLE
 	vm_page_t m;
+#endif
 #endif
 
 	cpu_setup("");
@@ -308,6 +310,7 @@ cpu_startup(void *dummy)
 	vector_page_setprot(VM_PROT_READ);
 	pmap_set_pcb_pagedir(pmap_kernel(), pcb);
 	pmap_postinit();
+#ifndef SMP
 #ifdef ARM_CACHE_LOCK_ENABLE
 	pmap_kenter_user(ARM_TP_ADDRESS, ARM_TP_ADDRESS);
 	arm_lock_cache_line(ARM_TP_ADDRESS);
@@ -317,6 +320,7 @@ cpu_startup(void *dummy)
 #endif
 	*(uint32_t *)ARM_RAS_START = 0;
 	*(uint32_t *)ARM_RAS_END = 0xffffffff;
+#endif
 }
 
 SYSINIT(cpu, SI_SUB_CPU, SI_ORDER_FIRST, cpu_startup, NULL);
