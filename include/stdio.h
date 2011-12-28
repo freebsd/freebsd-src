@@ -205,7 +205,7 @@ __END_DECLS
 
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
 #if __XSI_VISIBLE
-#define	P_tmpdir	"/var/tmp/"
+#define	P_tmpdir	"/tmp/"
 #endif
 #define	L_tmpnam	1024	/* XXX must be == PATH_MAX */
 #define	TMP_MAX		308915776
