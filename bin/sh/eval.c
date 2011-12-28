@@ -978,7 +978,6 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			memout.nextc = memout.buf;
 			memout.bufsize = 64;
 			mode |= REDIR_BACKQ;
-			cmdentry.special = 0;
 		}
 		savecmdname = commandname;
 		savetopfile = getcurrentfile();
@@ -999,7 +998,7 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 		 * If there is no command word, redirection errors should
 		 * not be fatal but assignment errors should.
 		 */
-		if (argc == 0 && !(flags & EV_BACKCMD))
+		if (argc == 0)
 			cmdentry.special = 1;
 		listsetvar(cmdenviron, cmdentry.special ? 0 : VNOSET);
 		if (argc > 0)
