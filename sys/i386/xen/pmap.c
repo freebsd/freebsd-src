@@ -1134,8 +1134,8 @@ retry:
 	if (pde != 0) {
 		if (pde & PG_PS) {
 			if ((pde & PG_RW) || (prot & VM_PROT_WRITE) == 0) {
-				if (vm_page_pa_tryrelock(pmap, (pde & PG_PS_FRAME) |
-				       (va & PDRMASK), &pa))
+				if (vm_page_pa_tryrelock(pmap, (pde &
+				    PG_PS_FRAME) | (va & PDRMASK), &pa))
 					goto retry;
 				m = PHYS_TO_VM_PAGE((pde & PG_PS_FRAME) |
 				    (va & PDRMASK));
@@ -1148,8 +1148,11 @@ retry:
 				PT_SET_MA(PADDR1, 0);
 			if ((pte & PG_V) &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
-				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME, &pa))
+				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME,
+				    &pa)) {
+					sched_unpin();
 					goto retry;
+				}
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
 			}
