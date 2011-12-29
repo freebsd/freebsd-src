@@ -93,6 +93,7 @@ struct ip_moptions {
 	u_short	imo_max_memberships;	/* max memberships this socket */
 	struct	in_multi **imo_membership;	/* group memberships */
 	struct	in_mfilter *imo_mfilters;	/* source filters */
+	STAILQ_ENTRY(ip_moptions) imo_link;
 };
 
 struct	ipstat {

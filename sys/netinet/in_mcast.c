@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/protosw.h>
 #include <sys/sysctl.h>
 #include <sys/ktr.h>
+#include <sys/taskqueue.h>
 #include <sys/tree.h>
 
 #include <net/if.h>
@@ -144,6 +145,8 @@ static void	inm_purge(struct in_multi *);
 static void	inm_reap(struct in_multi *);
 static struct ip_moptions *
 		inp_findmoptions(struct inpcb *);
+static void	inp_freemoptions_internal(struct ip_moptions *);
+static void	inp_gcmoptions(void *, int);
 static int	inp_get_source_filters(struct inpcb *, struct sockopt *);
 static int	inp_join_group(struct inpcb *, struct sockopt *);
 static int	inp_leave_group(struct inpcb *, struct sockopt *);
@@ -178,6 +181,10 @@ TUNABLE_INT("net.inet.ip.mcast.loop", &in_mcast_loop);
 static SYSCTL_NODE(_net_inet_ip_mcast, OID_AUTO, filters,
     CTLFLAG_RD | CTLFLAG_MPSAFE, sysctl_ip_mcast_filters,
     "Per-interface stack-wide source filters");
+
+static STAILQ_HEAD(, ip_moptions) imo_gc_list =
+    STAILQ_HEAD_INITIALIZER(imo_gc_list);
+static struct task imo_gc_task = TASK_INITIALIZER(0, inp_gcmoptions, NULL);
 
 /*
  * Inline function which wraps assertions for a valid ifp.
@@ -1518,17 +1525,29 @@ inp_findmoptions(struct inpcb *inp)
 }
 
 /*
- * Discard the IP multicast options (and source filters).
+ * Discard the IP multicast options (and source filters).  To minimize
+ * the amount of work done while holding locks such as the INP's
+ * pcbinfo lock (which is used in the receive path), the free
+ * operation is performed asynchronously in a separate task.
  *
  * SMPng: NOTE: assumes INP write lock is held.
  */
 void
 inp_freemoptions(struct ip_moptions *imo)
 {
-	struct in_mfilter	*imf;
-	size_t			 idx, nmships;
 
 	KASSERT(imo != NULL, ("%s: ip_moptions is NULL", __func__));
+	IN_MULTI_LOCK();
+	STAILQ_INSERT_TAIL(&imo_gc_list, imo, imo_link);
+	IN_MULTI_UNLOCK();
+	taskqueue_enqueue(taskqueue_thread, &imo_gc_task);
+}
+
+static void
+inp_freemoptions_internal(struct ip_moptions *imo)
+{
+	struct in_mfilter	*imf;
+	size_t			 idx, nmships;
 
 	nmships = imo->imo_num_memberships;
 	for (idx = 0; idx < nmships; ++idx) {
@@ -1544,6 +1563,22 @@ inp_freemoptions(struct ip_moptions *imo)
 		free(imo->imo_mfilters, M_INMFILTER);
 	free(imo->imo_membership, M_IPMOPTS);
 	free(imo, M_IPMOPTS);
+}
+
+static void
+inp_gcmoptions(void *context, int pending)
+{
+	struct ip_moptions *imo;
+
+	IN_MULTI_LOCK();
+	while (!STAILQ_EMPTY(&imo_gc_list)) {
+		imo = STAILQ_FIRST(&imo_gc_list);
+		STAILQ_REMOVE_HEAD(&imo_gc_list, imo_link);
+		IN_MULTI_UNLOCK();
+		inp_freemoptions_internal(imo);
+		IN_MULTI_LOCK();
+	}
+	IN_MULTI_UNLOCK();
 }
 
 /*
