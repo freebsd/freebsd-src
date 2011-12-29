@@ -1530,3 +1530,48 @@ linux_lchown(struct thread *td, struct linux_lchown_args *args)
 	LFREEPATH(path);
 	return (error);
 }
+
+static int
+convert_fadvice(int advice)
+{
+	switch (advice) {
+	case LINUX_POSIX_FADV_NORMAL:
+		return (POSIX_FADV_NORMAL);
+	case LINUX_POSIX_FADV_RANDOM:
+		return (POSIX_FADV_RANDOM);
+	case LINUX_POSIX_FADV_SEQUENTIAL:
+		return (POSIX_FADV_SEQUENTIAL);
+	case LINUX_POSIX_FADV_WILLNEED:
+		return (POSIX_FADV_WILLNEED);
+	case LINUX_POSIX_FADV_DONTNEED:
+		return (POSIX_FADV_DONTNEED);
+	case LINUX_POSIX_FADV_NOREUSE:
+		return (POSIX_FADV_NOREUSE);
+	default:
+		return (-1);
+	}
+}
+
+int
+linux_fadvise64(struct thread *td, struct linux_fadvise64_args *args)
+{
+	int advice;
+
+	advice = convert_fadvice(args->advice);
+	if (advice == -1)
+		return (EINVAL);
+	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
+	    advice));
+}
+
+int
+linux_fadvise64_64(struct thread *td, struct linux_fadvise64_64_args *args)
+{
+	int advice;
+
+	advice = convert_fadvice(args->advice);
+	if (advice == -1)
+		return (EINVAL);
+	return (kern_posix_fadvise(td, args->fd, args->offset, args->len,
+	    advice));
+}
