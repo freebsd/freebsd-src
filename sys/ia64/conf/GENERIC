@@ -26,6 +26,8 @@ ident		GENERIC
 makeoptions	DEBUG=-g	# Build kernel with debug information.
 
 options 	AUDIT		# Security event auditing
+options 	CAPABILITY_MODE		# Capsicum capability mode
+options 	CAPABILITIES		# Capsicum capabilities
 options 	CD9660		# ISO 9660 Filesystem
 options 	COMPAT_FREEBSD7	# Compatible with FreeBSD7
 options 	FFS		# Berkeley Fast Filesystem
