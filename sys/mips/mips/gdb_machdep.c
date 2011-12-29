@@ -116,7 +116,7 @@ gdb_cpu_getreg(int regnum, size_t *regsz)
 {
 
  	*regsz = gdb_cpu_regsz(regnum);
- 	if (kdb_thread  == PCPU_GET(curthread)) {
+ 	if (kdb_thread == curthread) {
 		register_t *zero_ptr = &kdb_frame->zero;
 		return zero_ptr + regnum;
 	}
@@ -154,7 +154,7 @@ gdb_cpu_setreg(int regnum, void *val)
 	switch (regnum) {
 	case GDB_REG_PC:
 		kdb_thrctx->pcb_context[10] = *(register_t *)val;
-		if (kdb_thread	== PCPU_GET(curthread))
+		if (kdb_thread == curthread)
 			kdb_frame->pc = *(register_t *)val;
 	}
 }
