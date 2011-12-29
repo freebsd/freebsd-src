@@ -610,7 +610,9 @@ in_arpinput(struct mbuf *m)
 	 */
 	IF_ADDR_LOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr->sa_family == AF_INET) {
+		if (ifa->ifa_addr->sa_family == AF_INET &&
+		    (ifa->ifa_carp == NULL ||
+		    (*carp_iamatch_p)(ifa, &enaddr))) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
 			IF_ADDR_UNLOCK(ifp);
