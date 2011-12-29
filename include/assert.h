@@ -58,7 +58,16 @@
 #ifndef _ASSERT_H_
 #define _ASSERT_H_
 
-#if __ISO_C_VISIBLE >= 2011 && (!defined(__cplusplus) || __cplusplus < 201103L)
+/*
+ * Static assertions.  In principle we could define static_assert for
+ * C++ older than C++11, but this breaks if _Static_assert is
+ * implemented as a macro.
+ *
+ * C++ template parameters may contain commas, even if not enclosed in
+ * parentheses, causing the _Static_assert macro to be invoked with more
+ * than two parameters.
+ */
+#if __ISO_C_VISIBLE >= 2011 && !defined(__cplusplus)
 #define	static_assert	_Static_assert
 #endif
 
