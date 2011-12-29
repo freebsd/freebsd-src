@@ -419,7 +419,8 @@
 247	AUE_NULL	UNIMPL	linux_io_getevents
 248	AUE_NULL	UNIMPL	linux_io_submit
 249	AUE_NULL	UNIMPL	linux_io_cancel
-250	AUE_NULL	STD	{ int linux_fadvise64(void); }
+250	AUE_NULL	STD	{ int linux_fadvise64(int fd, l_loff_t offset, \
+					l_size_t len, int advice); }
 251	AUE_NULL	UNIMPL
 252	AUE_EXIT	STD	{ int linux_exit_group(int error_code); }
 253	AUE_NULL	STD	{ int linux_lookup_dcookie(void); }
@@ -443,7 +444,9 @@
 270	AUE_NULL	STD	{ int linux_tgkill(int tgid, int pid, int sig); }
 271	AUE_UTIMES	STD	{ int linux_utimes(char *fname, \
 					struct l_timeval *tptr); }
-272	AUE_NULL	STD	{ int linux_fadvise64_64(void); }
+272	AUE_NULL	STD	{ int linux_fadvise64_64(int fd, \
+					l_loff_t offset, l_loff_t len, \
+					int advice); }
 273	AUE_NULL	UNIMPL
 274	AUE_NULL	STD	{ int linux_mbind(void); }
 275	AUE_NULL	STD	{ int linux_get_mempolicy(void); }
