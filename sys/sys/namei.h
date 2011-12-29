@@ -107,7 +107,7 @@ struct nameidata {
 /*
  * namei operational modifier flags, stored in ni_cnd.flags
  */
-#define	LOCKLEAF	0x0004	/* lock inode on return */
+#define	LOCKLEAF	0x0004	/* lock vnode on return */
 #define	LOCKPARENT	0x0008	/* want parent vnode returned locked */
 #define	WANTPARENT	0x0010	/* want parent vnode returned unlocked */
 #define	NOCACHE		0x0020	/* name must not be left in cache */
