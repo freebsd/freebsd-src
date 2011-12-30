@@ -21,15 +21,7 @@
 <article>
   <articleinfo>
     <title>&os;
-<![ %release.type.current [
     &release.current;
-]]>
-<![ %release.type.snapshot [
-    &release.prev;
-]]>
-<![ %release.type.release [
-    &release.current;
-]]>
     Errata</title>
 
     <corpauthor>
@@ -45,6 +37,12 @@
       <year>2003</year>
       <year>2004</year>
       <year>2005</year>
+      <year>2006</year>
+      <year>2007</year>
+      <year>2008</year>
+      <year>2009</year>
+      <year>2010</year>
+      <year>2011</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -58,18 +56,11 @@
 
   <abstract>
     <para>This document lists errata items for &os;
-<![ %release.type.current [
       &release.current;,
-]]>
-<![ %release.type.snapshot [
-      &release.prev;,
-]]>
-<![ %release.type.release [
-      &release.current;,
-]]>
       containing significant information discovered after the release
       or too late in the release cycle to be otherwise included in the
-      release documentation.
+      release documentation.  The latest version can be found at <ulink
+      url="http://www.FreeBSD.org/releases/9.0R/errata.html"></ulink>.
       This information includes security advisories, as well as news
       relating to the software or documentation that could affect its
       operation or usability.  An up-to-date version of this document
@@ -77,15 +68,7 @@
       &os;.</para>
 
     <para>This errata document for &os;
-<![ %release.type.current [
       &release.current;
-]]>
-<![ %release.type.snapshot [
-      &release.prev;
-]]>
-<![ %release.type.release [
-      &release.current;
-]]>
       will be maintained until the release of &os; &release.next;.</para>
   </abstract>
 
@@ -94,15 +77,7 @@
 
     <para>This errata document contains <quote>late-breaking news</quote>
       about &os;
-<![ %release.type.current [
       &release.current;.
-]]>
-<![ %release.type.snapshot [
-      &release.prev;.
-]]>
-<![ %release.type.release [
-      &release.current;.
-]]>
       Before installing this version, it is important to consult this
       document to learn about any post-release discoveries or problems
       that may already have been found and fixed.</para>
@@ -129,51 +104,18 @@
   <sect1 id="security">
     <title>Security Advisories</title>
 
-<![ %release.type.release [
     <para>No advisories.</para>
-]]>
-
-<![ %release.type.current [
-    <para>No advisories.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No advisories.</para>
-]]>
-
   </sect1>
 
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.current [
     <para>No open issues.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No open issues.</para>
-]]>
-
   </sect1>
 
   <sect1 id="late-news">
     <title>Late-Breaking News</title>
 
-<![ %release.type.current [
     <para>No news.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No news.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No news.</para>
-]]>
   </sect1>
-
 </article>
