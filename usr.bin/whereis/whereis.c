@@ -1,5 +1,5 @@
 /*
- * Copyright © 2002, Jörg Wunsch
+ * Copyright Â© 2002, JÃ¶rg Wunsch
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
