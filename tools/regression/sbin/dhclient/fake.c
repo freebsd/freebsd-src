@@ -32,7 +32,11 @@ warning(char *fmt, ...)
 	va_end(ap);
 	fprintf(stderr, "\n");
 
-	return ret;
+	/*
+	 * The original warning() would return "ret" here. We do this to
+	 * check warnings explicitely.
+	 */
+	longjmp(env, 1);
 }
 
 int
