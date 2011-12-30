@@ -52,8 +52,8 @@ struct chat {
   char *nargptr;			/* Our next for expect-send-expect */
 
   char buf[LINE_LEN*2];			/* Our input */
-  char *bufstart;			/* start of relevent data */
-  char *bufend;				/* end of relevent data */
+  char *bufstart;			/* start of relevant data */
+  char *bufend;				/* end of relevant data */
 
   int TimeoutSec;			/* Expect timeout value */
   int TimedOut;				/* We timed out */

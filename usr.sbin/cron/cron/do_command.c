@@ -147,7 +147,7 @@ child_process(e, u)
 #ifdef USE_SIGCHLD
 	/* our parent is watching for our death by catching SIGCHLD.  we
 	 * do not care to watch for our children's deaths this way -- we
-	 * use wait() explictly.  so we have to disable the signal (which
+	 * use wait() explicitly.  so we have to disable the signal (which
 	 * was inherited from the parent).
 	 */
 	(void) signal(SIGCHLD, SIG_DFL);

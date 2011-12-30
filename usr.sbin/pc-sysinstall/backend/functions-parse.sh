@@ -69,7 +69,7 @@ if_check_value_exists()
 {
   if [ -n "${1}" -a -n "${2}" ]
   then
-    # Get the first occurance of the setting from the config, strip out whitespace
+    # Get the first occurrence of the setting from the config, strip out whitespace
 
     VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
     if [ -z "${VAL}" ]
@@ -103,7 +103,7 @@ check_value()
 {
   if [ -n "${1}" -a -n "${2}" ]
   then
-    # Get the first occurance of the setting from the config, strip out whitespace
+    # Get the first occurrence of the setting from the config, strip out whitespace
     VAL=`grep "^${1}" ${CFGF} | head -n 1 | cut -d '=' -f 2 | tr -d ' '`
     VALID="1"
     for i in ${2}
@@ -122,7 +122,7 @@ check_value()
   fi
 };
 
-# Checks for the presense of the supplied arguements in the config file
+# Checks for the presence of the supplied arguments in the config file
 # 1  = values to confirm exist
 file_sanity_check()
 {
