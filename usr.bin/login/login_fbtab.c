@@ -25,7 +25,7 @@
 	SunOS 4.1.x fbtab(5) and SunOS 5.x logindevperm(4) manual
 	pages. The program first looks for /etc/fbtab. If that file
 	cannot be opened it attempts to process /etc/logindevperm.
-	We expect entries with the folowing format:
+	We expect entries with the following format:
 
 	    Comments start with a # and extend to the end of the line.
 

@@ -232,7 +232,7 @@ dump_line(void)
 			target = ((target - 1) & ~7) + 9, com_st++;
 		    else
 			target = 1;
-		if (cur_col > target) {	/* if comment cant fit on this line,
+		if (cur_col > target) {	/* if comment can't fit on this line,
 					 * put it on next line */
 		    putc('\n', output);
 		    cur_col = 1;

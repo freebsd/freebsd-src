@@ -139,7 +139,7 @@ typedef struct GNode {
 		UPTODATE,	/* Was already up-to-date */
 
 		/*
-		 * An error occured while it was being
+		 * An error occurred while it was being
 		 * made (used only in compat mode)
 		 */
 		ERROR,

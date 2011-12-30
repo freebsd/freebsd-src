@@ -550,7 +550,7 @@ newname:
 }
 
 /*
- * Count the occurances of c in str
+ * Count the occurrances of c in str
  */
 int
 charcount(char *str, int c)
