@@ -109,7 +109,7 @@ db_show_threads(db_expr_t addr, boolean_t hasaddr, db_expr_t cnt, char *mod)
  * Lookup a thread based on a db expression address.  We assume that the
  * address was parsed in hexadecimal.  We reparse the address in decimal
  * first and try to treat it as a thread ID to find an associated thread.
- * If that fails and check_pid is true, we terat the decimal value as a
+ * If that fails and check_pid is true, we treat the decimal value as a
  * PID.  If that matches a process, we return the first thread in that
  * process.  Otherwise, we treat the addr as a pointer to a thread.
  */
