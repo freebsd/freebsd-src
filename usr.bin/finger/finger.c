@@ -299,8 +299,8 @@ userlist(int argc, char **argv)
 		goto net;
 
 	/*
-	 * Mark any arguments beginning with '/' as invalid so that we 
-	 * don't accidently confuse them with expansions from finger.conf
+	 * Mark any arguments beginning with '/' as invalid so that we
+	 * don't accidentally confuse them with expansions from finger.conf
 	 */
 	for (p = argv, ip = used; *p; ++p, ++ip)
 	    if (**p == '/') {

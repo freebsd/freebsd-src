@@ -206,7 +206,7 @@ Buf_Destroy(Buffer *buf, Boolean freeData)
 
 /**
  * Replace the last byte in a buffer.  If the buffer was empty
- * intially, then a new byte will be added.
+ * initially, then a new byte will be added.
  */
 void
 Buf_ReplaceLastByte(Buffer *bp, Byte byte)

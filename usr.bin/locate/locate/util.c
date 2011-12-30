@@ -218,11 +218,11 @@ tolower_word(word)
 
 
 /*
- * Read integer from mmap pointer. 
- * Essential a simple  ``return *(int *)p'' but avoid sigbus 
+ * Read integer from mmap pointer.
+ * Essential a simple  ``return *(int *)p'' but avoid sigbus
  * for integer alignment (SunOS 4.x, 5.x).
  *
- * Convert network byte order to host byte order if neccessary. 
+ * Convert network byte order to host byte order if necessary.
  * So we can read on FreeBSD/i386 (little endian) a locate database
  * which was built on SunOS/sparc (big endian).
  */
@@ -254,7 +254,7 @@ getwm(p)
 /*
  * Read integer from stream.
  *
- * Convert network byte order to host byte order if neccessary. 
+ * Convert network byte order to host byte order if necessary.
  * So we can read on FreeBSD/i386 (little endian) a locate database
  * which was built on SunOS/sparc (big endian).
  */
