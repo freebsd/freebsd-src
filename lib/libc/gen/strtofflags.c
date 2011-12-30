@@ -82,7 +82,8 @@ fflagstostr(flags)
 	u_long flags;
 {
 	char *string;
-	char *sp, *dp;
+	const char *sp;
+	char *dp;
 	u_long setflags;
 	int i;
 
