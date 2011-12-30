@@ -216,7 +216,7 @@ swap_reserve_by_uid(vm_ooffset_t incr, struct uidinfo *uip)
 	}
 	if (!res && ppsratecheck(&lastfail, &curfail, 1)) {
 		printf("uid %d, pid %d: swap reservation for %jd bytes failed\n",
-		    curproc->p_pid, uip->ui_uid, incr);
+		    uip->ui_uid, curproc->p_pid, incr);
 	}
 
 	return (res);
