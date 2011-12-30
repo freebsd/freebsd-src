@@ -57,6 +57,7 @@ SUBDIR=	${_3dfx} \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
+	${_cfi} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
@@ -654,6 +655,10 @@ _zfs=		zfs
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+_cfi=		cfi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
 _aic=		aic
@@ -697,6 +702,7 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs
