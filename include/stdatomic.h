@@ -35,13 +35,13 @@
 
 #if __has_feature(cxx_atomic)
 #define	__CLANG_ATOMICS
-#elif defined(__GNUC__)
+#elif __GNUC_PREREQ__(4, 7)
 #define	__GNUC_ATOMICS
-#else
+#elif !defined(__GNUC__)
 #error "stdatomic.h does not support your compiler"
 #endif
 
-#ifdef __GNUC_ATOMICS
+#if !defined(__CLANG_ATOMICS)
 #define	_Atomic(T)			struct { volatile T __val; }
 #endif
 
@@ -52,7 +52,7 @@
 #if defined(__CLANG_ATOMICS)
 #define	ATOMIC_VAR_INIT(value)		(value)
 #define	atomic_init(obj, value)		__atomic_init(obj, value)
-#elif defined(__GNUC_ATOMICS)
+#else
 #define	ATOMIC_VAR_INIT(value)		{ .__val = (value) }
 #define	atomic_init(obj, value) do {					\
 	(obj)->__val = (value);						\
@@ -106,19 +106,28 @@ enum memory_order {
 
 #if defined(__CLANG_ATOMICS)
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
-#elif defined(__GNUC_ATOMICS)
-#define	atomic_thread_fence(order)	__sync_synchronize()
-#endif
 #define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory");
+#elif defined(__GNUC_ATOMICS)
+#define	atomic_thread_fence(order)	__atomic_thread_fence(order)
+#define	atomic_signal_fence(order)	__atomic_signal_fence(order)
+#else
+#define	atomic_thread_fence(order)	__sync_synchronize()
+#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory");
+#endif
 
 /*
  * 7.17.5 Lock-free property.
  */
 
 #if defined(__CLANG_ATOMICS)
-#define	atomic_is_lock_free(obj)	__atomic_is_lock_free(obj)
+#define	atomic_is_lock_free(obj) \
+	__atomic_is_lock_free(obj)
 #elif defined(__GNUC_ATOMICS)
-#define	atomic_is_lock_free(obj)	(sizeof((obj)->__val) <= sizeof(void *))
+#define	atomic_is_lock_free(obj) \
+	__atomic_is_lock_free(sizeof((obj)->__val))
+#else
+#define	atomic_is_lock_free(obj) \
+	(sizeof((obj)->__val) <= sizeof(void *))
 #endif
 
 /*
@@ -199,6 +208,31 @@ typedef _Atomic(__uintmax_t)		atomic_uintmax_t;
 #define	atomic_store_explicit(object, desired, order)			\
 	__atomic_store(object, desired, order)
 #elif defined(__GNUC_ATOMICS)
+#define	atomic_compare_exchange_strong_explicit(object, expected,	\
+    desired, success, failure)						\
+	__atomic_compare_exchange_n(&(object)->__val, expected,		\
+	    desired, 0, success, failure)
+#define	atomic_compare_exchange_weak_explicit(object, expected,		\
+    desired, success, failure)						\
+	__atomic_compare_exchange_n(&(object)->__val, expected,		\
+	    desired, 1, success, failure)
+#define	atomic_exchange_explicit(object, desired, order)		\
+	__atomic_exchange_n(&(object)->__val, desired, order)
+#define	atomic_fetch_add_explicit(object, operand, order)		\
+	__atomic_fetch_add(&(object)->__val, operand, order)
+#define	atomic_fetch_and_explicit(object, operand, order)		\
+	__atomic_fetch_and(&(object)->__val, operand, order)
+#define	atomic_fetch_or_explicit(object, operand, order)		\
+	__atomic_fetch_or(&(object)->__val, operand, order)
+#define	atomic_fetch_sub_explicit(object, operand, order)		\
+	__atomic_fetch_sub(&(object)->__val, operand, order)
+#define	atomic_fetch_xor_explicit(object, operand, order)		\
+	__atomic_fetch_xor(&(object)->__val, operand, order)
+#define	atomic_load_explicit(object, order)				\
+	__atomic_load_n(&(object)->__val, order)
+#define	atomic_store_explicit(object, desired, order)			\
+	__atomic_store_n(&(object)->__val, desired, order)
+#else
 #define	atomic_compare_exchange_strong_explicit(object, expected,	\
     desired, success, failure) ({					\
 	__typeof__((object)->__val) __v;				\
