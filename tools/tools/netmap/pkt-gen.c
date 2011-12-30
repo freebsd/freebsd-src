@@ -432,7 +432,7 @@ sender_body(void *data)
 
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
-	/* setup poll(2) machanism. */
+	/* setup poll(2) mechanism. */
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = targ->fd;
 	fds[0].events = (POLLOUT);
@@ -543,7 +543,7 @@ receiver_body(void *data)
 	if (setaffinity(targ->thread, targ->affinity))
 		goto quit;
 
-	/* setup poll(2) machanism. */
+	/* setup poll(2) mechanism. */
 	memset(fds, 0, sizeof(fds));
 	fds[0].fd = targ->fd;
 	fds[0].events = (POLLIN);
@@ -568,7 +568,7 @@ receiver_body(void *data)
 		   before quitting. */
 		if (poll(fds, 1, 1 * 1000) <= 0) {
 			gettimeofday(&targ->toc, NULL);
-			targ->toc.tv_sec -= 1; /* Substract timeout time. */
+			targ->toc.tv_sec -= 1; /* Subtract timeout time. */
 			break;
 		}
 
@@ -994,8 +994,8 @@ main(int arc, char **argv)
 			continue;
 
 		/*
-		 * Collect threads o1utput and extract information about
-		 * how log it took to send all the packets.
+		 * Collect threads output and extract information about
+		 * how long it took to send all the packets.
 		 */
 		count += targs[i].count;
 		if (!timerisset(&tic) || timercmp(&targs[i].tic, &tic, <))
