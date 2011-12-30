@@ -47,18 +47,14 @@ typedef long sig_atomic_t;
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
 
 /*
- * Only the kernel should need these old type definitions.
- */
-/*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
  * execution of the signal handler.  It is also made available
  * to the handler to allow it to restore state properly if
  * a non-standard exit is performed.
- */
-/*
- * The sequence of the fields/registers in struct sigcontext should match
- * those in mcontext_t.
+ *
+ * The sequence of the fields/registers after sc_mask in struct
+ * sigcontext must match those in mcontext_t and struct trapframe.
  */
 struct sigcontext {
 	struct __sigset sc_mask;	/* signal mask to restore */
@@ -93,8 +89,8 @@ struct sigcontext {
 	long	sc_ss;
 	long	sc_len;			/* sizeof(mcontext_t) */
 	/*
-	 * XXX - See <machine/ucontext.h> and <machine/fpu.h> for
-	 *       the following fields.
+	 * See <machine/ucontext.h> and <machine/fpu.h> for the following
+	 * fields.
 	 */
 	long	sc_fpformat;
 	long	sc_ownedfp;

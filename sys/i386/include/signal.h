@@ -46,15 +46,16 @@ typedef int sig_atomic_t;
 #include <machine/trap.h>	/* codes for SIGILL, SIGFPE */
 
 /*
- * Only the kernel should need these old type definitions.
- */
-#if defined(_KERNEL) && defined(COMPAT_43)
-/*
  * Information pushed on stack when a signal is delivered.
  * This is used by the kernel to restore state following
  * execution of the signal handler.  It is also made available
  * to the handler to allow it to restore state properly if
  * a non-standard exit is performed.
+ */
+
+#if defined(_KERNEL) && defined(COMPAT_43)
+/*
+ * Only the kernel should need these old type definitions.
  */
 struct osigcontext {
 	int	sc_onstack;		/* sigstack state to restore */
@@ -83,7 +84,7 @@ struct osigcontext {
 
 /*
  * The sequence of the fields/registers in struct sigcontext should match
- * those in mcontext_t.
+ * those in mcontext_t and struct trapframe.
  */
 struct sigcontext {
 	struct __sigset sc_mask;	/* signal mask to restore */
@@ -109,8 +110,8 @@ struct sigcontext {
 	int	sc_ss;
 	int	sc_len;			/* sizeof(mcontext_t) */
 	/*
-	 * XXX - See <machine/ucontext.h> and <machine/npx.h> for
-	 *       the following fields.
+	 * See <machine/ucontext.h> and <machine/npx.h> for
+	 * the following fields.
 	 */
 	int	sc_fpformat;
 	int	sc_ownedfp;
