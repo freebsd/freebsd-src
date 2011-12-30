@@ -49,7 +49,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 15, 2010
+.Dd December 30, 2011
 .Dt BPF 4
 .Os
 .Sh NAME
@@ -516,61 +516,48 @@ by default.
 .It Dv BIOCSTSTAMP
 .It Dv BIOCGTSTAMP
 .Pq Li u_int
-Set or get format and resolution of the time stamps returned by BPF.
+Set or get the format and resolution of time stamps returned by BPF.
+The per-BPF descriptor configuration provided by the
+.Dv BIOCSTSTAMP
+IOCTL complements the per-interface time stamp configuration detailed in the
+.Sx CONFIGURATION
+section.
+.Pp
 Set to
-.Dv BPF_T_MICROTIME ,
-.Dv BPF_T_MICROTIME_FAST ,
-.Dv BPF_T_MICROTIME_MONOTONIC ,
+.Dv BPF_T_MICROTIME
 or
-.Dv BPF_T_MICROTIME_MONOTONIC_FAST
+.Dv BPF_T_MICROTIME_MONOTONIC
 to get time stamps in 64-bit
 .Vt struct timeval
 format.
 Set to
-.Dv BPF_T_NANOTIME ,
-.Dv BPF_T_NANOTIME_FAST ,
-.Dv BPF_T_NANOTIME_MONOTONIC ,
+.Dv BPF_T_NANOTIME
 or
-.Dv BPF_T_NANOTIME_MONOTONIC_FAST
+.Dv BPF_T_NANOTIME_MONOTONIC
 to get time stamps in 64-bit
 .Vt struct timespec
 format.
 Set to
-.Dv BPF_T_BINTIME ,
-.Dv BPF_T_BINTIME_FAST ,
-.Dv BPF_T_NANOTIME_MONOTONIC ,
+.Dv BPF_T_BINTIME
 or
-.Dv BPF_T_BINTIME_MONOTONIC_FAST
+.Dv BPF_T_BINTIME_MONOTONIC
 to get time stamps in 64-bit
 .Vt struct bintime
 format.
 Set to
 .Dv BPF_T_NONE
-to ignore time stamp.
+to not set a time stamp.
+By default, time stamps are initilized to
+.Dv BPF_T_MICROTIME .
+.Pp
 All 64-bit time stamp formats are wrapped in
 .Vt struct bpf_ts .
 The
-.Dv BPF_T_MICROTIME_FAST ,
-.Dv BPF_T_NANOTIME_FAST ,
-.Dv BPF_T_BINTIME_FAST ,
-.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
-.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
-and
-.Dv BPF_T_BINTIME_MONOTONIC_FAST
-are analogs of corresponding formats without _FAST suffix but do not perform
-a full time counter query, so their accuracy is one timer tick.
-The
 .Dv BPF_T_MICROTIME_MONOTONIC ,
 .Dv BPF_T_NANOTIME_MONOTONIC ,
-.Dv BPF_T_BINTIME_MONOTONIC ,
-.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
-.Dv BPF_T_NANOTIME_MONOTONIC_FAST ,
 and
-.Dv BPF_T_BINTIME_MONOTONIC_FAST
+.Dv BPF_T_BINTIME_MONOTONIC
 store the time elapsed since kernel boot.
-This setting is initialized to
-.Dv BPF_T_MICROTIME
-by default.
 .It Dv BIOCFEEDBACK
 .Pq Li u_int
 Set packet feedback mode.
@@ -692,14 +679,14 @@ Currently,
 .Vt bpf_hdr
 is used when the time stamp is set to
 .Dv BPF_T_MICROTIME ,
-.Dv BPF_T_MICROTIME_FAST ,
 .Dv BPF_T_MICROTIME_MONOTONIC ,
-.Dv BPF_T_MICROTIME_MONOTONIC_FAST ,
 or
 .Dv BPF_T_NONE
-for backward compatibility reasons.  Otherwise,
+for backward compatibility reasons.
+Otherwise,
 .Vt bpf_xhdr
-is used.  However,
+is used.
+However,
 .Vt bpf_hdr
 may be deprecated in the near future.
 Suitable precautions
@@ -952,6 +939,48 @@ array initializers:
 .Fn BPF_STMT opcode operand
 and
 .Fn BPF_JUMP opcode operand true_offset false_offset .
+.Sh CONFIGURATION
+Per-interface BPF time stamp configuration is possible via the
+.Va net.bpf.tscfg
+.Xr sysctl 8
+tree which provides the following variables:
+.Bl -tag -width "    " -offset indent
+.It Va net.bpf.tscfg.default
+The default time stamp configuration setting used by all BPF attached interfaces
+which have not been explicitly changed.
+Valid values are "none", "fast", "normal" and "external".
+The default is "normal".
+.It Va net.bpf.tscfg.<interface>
+The time stamp configuration setting used by a specific BPF attached interface.
+There will be a separate entry in the
+.Va net.bpf.tscfg
+sysctl tree for each BPF attached interface.
+Valid values are "default", "none", "fast", "normal" and "external".
+The default is "default", which means the system wide default setting specified
+by the
+.Va net.bpf.tscfg.default
+sysctl is used.
+.El
+.Pp
+The meaning of each per-interface time stamp configuration option is as follows:
+.Bl -tag -width "    " -offset indent
+.It none	
+Do not generate a time stamp for all packets tapped from this interface.
+.It fast	
+Generate a time stamp for all packets tapped from this interface by doing a fast
+read of the system clock.
+Fast reads have a granularity equivalent to the underlying kernel tick rate.
+.It normal
+Generate a time stamp for all packets tapped from this interface by doing a full
+read of the system clock.
+Full reads are slower than fast reads, but provide full hardware time counter
+granularity for the time stamp.
+.It external
+Something external to BPF is capable of generating time stamps for all packets
+tapped from this interface and BPF should use these external time stamps.
+Currently unimplemented, but will become useful when drivers for NICs which
+support hardware packet time stamping add support for this feature.
+.El
 .Sh FILES
 .Bl -tag -compact -width /dev/bpf
 .It Pa /dev/bpf
