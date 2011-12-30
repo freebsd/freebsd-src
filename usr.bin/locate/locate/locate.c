@@ -188,7 +188,7 @@ main(argc, argv)
 
         /* no (valid) database as argument */
         if (dbv == NULL || *dbv == NULL) {
-                /* try to read database from enviroment */
+                /* try to read database from environment */
                 if ((path_fcodes = getenv("LOCATE_PATH")) == NULL ||
 		     *path_fcodes == '\0')
                         /* use default database */
