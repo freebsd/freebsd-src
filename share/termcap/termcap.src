@@ -4409,11 +4409,11 @@ yterm10|yterm 1.0 UCB ascii.kbd:\
 	:ku=^K:kd=^J:kl=^H:kr=^L:kh=^^:ma=^Hh\012j^Kk^Ll^^H:\
 	:k0=\E0:k1=\E1:k2=\E2:k3=\E3:k4=\E4:k5=\E5:k6=\E6:k7=\E7:k8=\E8:k9=\E9:\
 	:vs=^O\E[7i\E[m\E[?7h\E[?3g\r\EHY0      \EH        \EH        \EH        \EH        \EH        \EH        \EH        \EH        \EH\r:
-# YTERM varient version 1.1.  (gts 9-13-84)  Version 1.1 has :xn:.
+# YTERM variant version 1.1.  (gts 9-13-84)  Version 1.1 has :xn:.
 yterm11|yterm 1.1 UCB ascii.kbd:\
 	:xn:is=^O\E[7i\E[m\E[?7h\E[?3g\r\EHY1  for \EHYTERM 1.\EH1 with A\EHSCII.KBD\EH 9-13-84\EH        \EH        \EH        \EH        \EH\n:\
 	:tc=yterm10:
-# YTERM 1.0 varient no autowrap or tabs
+# YTERM 1.0 variant no autowrap or tabs
 # X does not remember autowrap or tabs when T is deleted and restarted.
 yterm10nat|yterm 1.0 UCB ascii.kbd no autowrap or tabs:\
 	:am@:pt@:vs=^O\E[7i\E[m\E[?7l\E[?3g\rY2\r:\
@@ -4475,7 +4475,7 @@ h19k|h19kermit|heathkit emulation provided by Kermit (no auto margin):\
 	:am@:ta@:pt@:xt:da:db:tc=h19-u:
 # Amiga termcap by Kent Polk, kent@swrinde.nde.swri.edu (30 May 90)
 # Added a few more entries, converted caret-type control sequence (^x) entries
-# to '\0xx' entries since a couple of people mentioned loosing '^x' sequences.
+# to '\0xx' entries since a couple of people mentioned losing '^x' sequences.
 #
 # :as, :ae			Support for alternate character sets.
 # :ve=\E[\040p:vi=\E[\060\040p	cursor visible/invisible.
