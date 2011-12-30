@@ -59,15 +59,15 @@ int	reached = 1;
 int	rchflg;
 
 /*
- * In conjunction with reached ontrols printing of "fallthrough on ..."
+ * In conjunction with reached controls printing of "fallthrough on ..."
  * warnings.
  * Reset by each statement and set by FALLTHROUGH, switch (switch1())
  * and case (label()).
  *
  * Control statements if, for, while and switch do not reset ftflg because
- * this must be done by the controled statement. At least for if this is
+ * this must be done by the controlled statement. At least for if this is
  * important because ** FALLTHROUGH ** after "if (expr) stmnt" is evaluated
- * befor the following token, wich causes reduction of above, is read.
+ * before the following token, which causes reduction of above, is read.
  * This means that ** FALLTHROUGH ** after "if ..." would always be ignored.
  */
 int	ftflg;
@@ -107,13 +107,13 @@ pos_t	prflpos;
 pos_t	scflpos;
 
 /*
- * Are both plibflg and llibflg set, prototypes are writen as function
+ * Are both plibflg and llibflg set, prototypes are written as function
  * definitions to the output file.
  */
 int	plibflg;
 
 /*
- * Nonzero means that no warnings about constands in conditional
+ * Nonzero means that no warnings about constants in conditional
  * context are printed.
  */
 int	ccflg;
@@ -323,7 +323,7 @@ funcdef(sym_t *fsym)
 
 	if (fsym->s_osdef && !fsym->s_type->t_proto) {
 		if (sflag && hflag && strcmp(fsym->s_name, "main") != 0)
-			/* function definition is not a prototyp */
+			/* function definition is not a prototype */
 			warning(286);
 	}
 
@@ -353,7 +353,7 @@ funcend(void)
 	}
 
 	/*
-	 * This warning is printed only if the return value was implizitly
+	 * This warning is printed only if the return value was implicitly
 	 * declared to be int. Otherwise the wrong return statement
 	 * has already printed a warning.
 	 */

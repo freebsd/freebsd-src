@@ -325,7 +325,7 @@ write_programs(const char *storage)
 
 /*
  * write out definition of internal function (e.g. _printmsg_1(...))
- *  which calls server's defintion of actual function (e.g. printmsg_1(...)).
+ *  which calls server's definition of actual function (e.g. printmsg_1(...)).
  *  Unpacks single user argument of printmsg_1 to call-by-value format
  *  expected by printmsg_1.
  */
