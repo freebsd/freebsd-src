@@ -304,7 +304,7 @@ contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/dev/acpica/utilities/utxferror.c	optional acpi
 #contrib/dev/acpica/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet \
@@ -316,11 +316,11 @@ contrib/ipfilter/netinet/ip_log.c optional ipfilter inet \
 contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_state.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-error -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-error -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet \
@@ -1522,17 +1522,25 @@ dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
 dev/nge/if_nge.c		optional nge
-dev/nxge/if_nxge.c		optional nxge
-dev/nxge/xgehal/xgehal-device.c	optional nxge
+dev/nxge/if_nxge.c		optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-device.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-mm.c	optional nxge
 dev/nxge/xgehal/xge-queue.c	optional nxge
-dev/nxge/xgehal/xgehal-driver.c	optional nxge
-dev/nxge/xgehal/xgehal-ring.c	optional nxge
-dev/nxge/xgehal/xgehal-channel.c	optional nxge
-dev/nxge/xgehal/xgehal-fifo.c	optional nxge
-dev/nxge/xgehal/xgehal-stats.c	optional nxge
+dev/nxge/xgehal/xgehal-driver.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-ring.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-channel.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-fifo.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-stats.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-config.c	optional nxge
-dev/nxge/xgehal/xgehal-mgmt.c	optional nxge
+dev/nxge/xgehal/xgehal-mgmt.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
@@ -3478,7 +3486,7 @@ gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \
