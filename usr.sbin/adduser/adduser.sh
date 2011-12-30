@@ -894,7 +894,7 @@ if [ "$procowner" != "0" ]; then
 	exit 1
 fi
 
-# Overide from our conf file
+# Override from our conf file
 # Quickly go through the commandline line to see if we should read
 # from our configuration file. The actual parsing of the commandline
 # arguments happens after we read in our configuration file (commandline
@@ -914,7 +914,7 @@ if [ -n "$readconfig" ]; then
 	fi
 fi 
 
-# Proccess command-line options
+# Process command-line options
 #
 for _switch ; do
 	case $_switch in

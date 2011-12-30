@@ -188,10 +188,10 @@ list_devs(int verbose, int bars, int caps)
 		/*
 		 * 255 entries should be more than enough for most people,
 		 * but if someone has more devices, and then changes things
-		 * around between ioctls, we'll do the cheezy thing and
+		 * around between ioctls, we'll do the cheesy thing and
 		 * just bail.  The alternative would be to go back to the
 		 * beginning of the list, and print things twice, which may
-		 * not be desireable.
+		 * not be desirable.
 		 */
 		if (pc.status == PCI_GETCONF_LIST_CHANGED) {
 			warnx("PCI device list changed, please try again");

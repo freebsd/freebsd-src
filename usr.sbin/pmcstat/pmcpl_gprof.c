@@ -326,7 +326,7 @@ pmcpl_gmon_initimage(struct pmcstat_image *pi)
 	else {
 		/*
 		 * Otherwise use a prefix from the original name and
-		 * upto 3 digits.
+		 * up to 3 digits.
 		 */
 		nlen = strlen(sn);
 		nlen = min(nlen, (int) (sizeof(name)-sizeof("~NNN.gmon")));

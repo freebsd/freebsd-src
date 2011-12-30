@@ -78,7 +78,7 @@ void
 rmjob(const char *printer)
 {
 	register int i, nitems;
-	int assasinated = 0;
+	int assassinated = 0;
 	struct dirent **files;
 	char *cp;
 	struct printer myprinter, *pp = &myprinter;
@@ -125,9 +125,9 @@ rmjob(const char *printer)
 		 */
 		if (lockchk(pp, pp->lock_file) && chk(current)) {
 			seteuid(euid);
-			assasinated = kill(cur_daemon, SIGINT) == 0;
+			assassinated = kill(cur_daemon, SIGINT) == 0;
 			seteuid(uid);
-			if (!assasinated)
+			if (!assassinated)
 				fatal(pp, "cannot kill printer daemon");
 		}
 		/*
@@ -140,7 +140,7 @@ rmjob(const char *printer)
 	/*
 	 * Restart the printer daemon if it was killed
 	 */
-	if (assasinated && !startdaemon(pp))
+	if (assassinated && !startdaemon(pp))
 		fatal(pp, "cannot restart printer daemon\n");
 	exit(0);
 }

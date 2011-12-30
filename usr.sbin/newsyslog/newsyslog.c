@@ -1597,7 +1597,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 }
 
 /*
- * Generate a log filename, when using clasic filenames.
+ * Generate a log filename, when using classic filenames.
  */
 static void
 gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
@@ -1612,7 +1612,7 @@ gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
 }
 
 /*
- * Delete a rotated logfiles, when using clasic filenames.
+ * Delete a rotated logfiles, when using classic filenames.
  */
 static void
 delete_clasiclog(const char *archive_dir, const char *namepart, int numlog_c)
