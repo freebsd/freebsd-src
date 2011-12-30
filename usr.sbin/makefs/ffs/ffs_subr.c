@@ -78,8 +78,8 @@ ffs_fragacct_swap(struct fs *fs, int fragmap, int32_t fraglist[], int cnt, int n
  * block operations
  *
  * check if a block is available
- *  returns true if all the correponding bits in the free map are 1
- *  returns false if any corresponding bit in the free map is 0 
+ *  returns true if all the corresponding bits in the free map are 1
+ *  returns false if any corresponding bit in the free map is 0
  */
 int
 ffs_isblock(fs, cp, h)

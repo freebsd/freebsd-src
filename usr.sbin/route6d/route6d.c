@@ -159,7 +159,7 @@ struct	rip6 *ripbuf;	/* packet buffer for sending */
  * One of the major drawbacks of the linear linked list is the difficulty
  * of representing the relationship between a couple of routes.  This may
  * be a significant problem when we have to support route aggregation with
- * supressing the specifices covered by the aggregate.
+ * suppressing the specifics covered by the aggregate.
  */
 
 struct	riprt {

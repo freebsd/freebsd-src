@@ -87,7 +87,7 @@ static const struct {
 	{ "General error", SNMP_ERR_GENERR },
 	{ "No access", SNMP_ERR_NO_ACCESS },
 	{ "Wrong type", SNMP_ERR_WRONG_TYPE },
-	{ "Wrong lenght", SNMP_ERR_WRONG_LENGTH },
+	{ "Wrong length", SNMP_ERR_WRONG_LENGTH },
 	{ "Wrong encoding", SNMP_ERR_WRONG_ENCODING },
 	{ "Wrong value", SNMP_ERR_WRONG_VALUE },
 	{ "No creation", SNMP_ERR_NO_CREATION },
@@ -227,12 +227,12 @@ snmp_import_all(struct snmp_toolinfo *snmptoolctx)
 }
 
 /*
- * Add a filename to the file list - the initail idea of keeping a list with all
+ * Add a filename to the file list - the initial idea of keeping a list with all
  * files to read OIDs from was that an application might want to have loaded in
  * memory the OIDs from a single file only and when done with them read the OIDs
  * from another file. This is not used yet but might be a good idea at some
  * point. Size argument is number of bytes in string including trailing '\0',
- * not string lenght.
+ * not string length.
  */
 int32_t
 add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
@@ -449,7 +449,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 	uint32_t val;
 	char dptr[3];
 
-	/* Filter 0x at the beggining */
+	/* Filter 0x at the beginning */
 	if ((alen = strlen(ascii)) > 2 && ascii[0] == '0' && ascii[1] == 'x')
 		i = 2;
 	else
@@ -468,7 +468,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 		}
 		binstr[count] = (uint8_t) val;
 		if (++count >= binlen) {
-			warnx("Key %s too long - truncating to %zu octest",
+			warnx("Key %s too long - truncating to %zu octets",
 			    ascii, binlen);
 			break;
 		}
@@ -1523,10 +1523,10 @@ snmp_object_seterror(struct snmp_toolinfo *snmptoolctx,
 }
 
 /*
- * Check a PDU received in responce to a SNMP_PDU_GET/SNMP_PDU_GETBULK request
+ * Check a PDU received in response to a SNMP_PDU_GET/SNMP_PDU_GETBULK request
  * but don't compare syntaxes - when sending a request PDU they must be null.
  * This is a (almost) complete copy of snmp_pdu_check() - with matching syntaxes
- * checks and some other checks skiped.
+ * checks and some other checks skipped.
  */
 int32_t
 snmp_parse_get_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
@@ -1605,7 +1605,7 @@ snmp_parse_getnext_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
 }
 
 /*
- * Should be called to check a responce to get/getnext/getbulk.
+ * Should be called to check a response to get/getnext/getbulk.
  */
 int32_t
 snmp_parse_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
@@ -1624,7 +1624,7 @@ snmp_parse_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
 	}
 
 	if (resp->error_status != SNMP_ERR_NOERROR) {
-		warnx("Error %d in responce", resp->error_status);
+		warnx("Error %d in response", resp->error_status);
 		return (-1);
 	}
 

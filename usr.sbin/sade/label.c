@@ -525,12 +525,12 @@ print_label_chunks(void)
     int ChunkPartStartRow;
     WINDOW *ChunkWin;
 
-    /********************************************************/
-    /*** These values are for controling screen resources ***/
-    /*** Each label line holds up to 2 labels, so beware! ***/
-    /*** strategy will be to try to always make sure the  ***/
-    /*** highlighted label is in the active display area. ***/
-    /********************************************************/
+    /*********************************************************/
+    /*** These values are for controlling screen resources ***/
+    /*** Each label line holds up to 2 labels, so beware!  ***/
+    /*** strategy will be to try to always make sure the   ***/
+    /*** highlighted label is in the active display area.  ***/
+    /*********************************************************/
     int  pslice_max, label_max;
     int  pslice_count, label_count, label_focus_found, pslice_focus_found;
 
@@ -538,7 +538,7 @@ print_label_chunks(void)
     mvaddstr(0, 25, "FreeBSD Disklabel Editor");
     attrset(A_NORMAL);
 
-    /*** Count the number of parition slices ***/
+    /*** Count the number of partition slices ***/
     pslice_count = 0;
     for (i = 0; label_chunk_info[i].c ; i++) {
         if (label_chunk_info[i].type == PART_SLICE)
@@ -1048,7 +1048,7 @@ diskLabel(Device *dev)
 #ifdef __alpha__
 		/*
 		 * SRM requires that the root partition is at the
-		 * begining of the disk and cannot boot otherwise. 
+		 * beginning of the disk and cannot boot otherwise.
 		 * Warn Alpha users if they are about to shoot themselves in
 		 * the foot in this way.
 		 *

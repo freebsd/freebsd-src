@@ -497,15 +497,15 @@ set_screensaver_timeout(char *arg)
  */
 
 static void
-set_cursor_type(char *appearence)
+set_cursor_type(char *appearance)
 {
 	int type;
 
-	if (!strcmp(appearence, "normal"))
+	if (!strcmp(appearance, "normal"))
 		type = 0;
-	else if (!strcmp(appearence, "blink"))
+	else if (!strcmp(appearance, "blink"))
 		type = 1;
-	else if (!strcmp(appearence, "destructive"))
+	else if (!strcmp(appearance, "destructive"))
 		type = 3;
 	else {
 		revert();
