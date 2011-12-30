@@ -34,7 +34,7 @@
 /* #undef LLVM_ETCDIR */
 
 /* Has gcc/MSVC atomic intrinsics */
-#define LLVM_HAS_ATOMICS 1
+#define LLVM_HAS_ATOMICS 0
 
 /* Host triple we were built on */
 /* #undef LLVM_HOSTTRIPLE */
