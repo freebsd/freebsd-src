@@ -175,7 +175,7 @@ procfs_doproccmdline(PFS_FILL_ARGS)
 	/*
 	 * If we are using the ps/cmdline caching, use that.  Otherwise
 	 * revert back to the old way which only implements full cmdline
-	 * for the currept process and just p->p_comm for all other
+	 * for the current process and just p->p_comm for all other
 	 * processes.
 	 * Note that if the argv is no longer available, we deliberately
 	 * don't fall back on p->p_comm or return an error: the authentic
