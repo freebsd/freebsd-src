@@ -796,7 +796,7 @@ check_write(const char *testname, write_fn fn, const char *path,
 		} else {
 			if (!((mode & O_ACCMODE) == O_WRONLY ||
 			    (mode & O_ACCMODE) == O_RDWR))
-				notok_mode(testname, "write suceeded", mode);
+				notok_mode(testname, "write succeeded", mode);
 			else
 				ok_mode(testname, "write succeeded", mode);
 		}
@@ -880,7 +880,7 @@ check_read(const char *testname, read_fn fn, const char *path,
 		} else {
 			if (!((mode & O_ACCMODE) == O_RDONLY ||
 			    (mode & O_ACCMODE) == O_RDWR))
-				notok_mode(testname, "read suceeded", mode);
+				notok_mode(testname, "read succeeded", mode);
 			else
 				ok_mode(testname, "read succeeded", mode);
 		}
