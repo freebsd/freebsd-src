@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -168,7 +168,7 @@ void list_deps(const char *pkgname, char **pkgs, char *listed,
 
 /*
  * Load +REQUIRED_BY file and return a list with names of
- * packages that require package reffered to by `pkgname'.
+ * packages that require package referred to by `pkgname'.
  *
  * Optionally check that packages listed there are actually
  * installed and filter out those that don't (filter == TRUE).

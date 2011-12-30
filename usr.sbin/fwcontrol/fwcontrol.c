@@ -1056,7 +1056,7 @@ main(int argc, char **argv)
 		show_topology_map(fd);
 
 	/*
-	 * Recieve data file from node "-R"
+	 * Receive data file from node "-R"
 	 */
 #define TAG	(1<<6)
 #define CHANNEL	63

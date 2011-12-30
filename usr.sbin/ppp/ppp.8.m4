@@ -1594,7 +1594,7 @@ is the IP number that your route to
 .Dq ui-gate
 would normally use.
 .Pp
-When routing your connection accross a public network such as the Internet,
+When routing your connection across a public network such as the Internet,
 it is preferable to encrypt the data.
 This can be done with the help of the MPPE protocol, although currently this
 means that you will not be able to also compress the traffic as MPPE is

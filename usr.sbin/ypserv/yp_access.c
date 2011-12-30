@@ -287,7 +287,7 @@ not privileged", map, inet_ntoa(rqhost->sin_addr), ntohs(rqhost->sin_port));
 	if (status_securenets == 0) {
 #endif
 	/*
-	 * One of the following two events occured:
+	 * One of the following two events occurred:
 	 *
 	 * (1) The /var/yp/securenets exists and the remote host does not
 	 *     match any of the networks specified in it.
