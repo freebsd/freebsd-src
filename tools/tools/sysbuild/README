@@ -22,7 +22,7 @@ If you know how nanobsd works, you will find a lot of similarity.
 HOWTO
 =====
 
-In all likelyhood, it is easier if we imagine you start with a blank
+In all likelihood, it is easier if we imagine you start with a blank
 computer.
 
 Grab a FreeBSD install ISO and boot it.

@@ -268,7 +268,7 @@ while (*(int *) $frame > 0xc0000000)
 end
 end
 document btr
-Show a backtrace from the ebp address specified.  This can be used to get a backtrace from any stack resident in memory.  It's the user's responsiblity to ensure that the address is meaningful.
+Show a backtrace from the ebp address specified.  This can be used to get a backtrace from any stack resident in memory.  It's the user's responsibility to ensure that the address is meaningful.
 end
 
 # btp <pid>
