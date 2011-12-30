@@ -755,6 +755,7 @@ MALLOC_DECLARE(M_SUBPROC);
 } while (0)
 #define	_PRELE(p) do {							\
 	PROC_LOCK_ASSERT((p), MA_OWNED);				\
+	PROC_ASSERT_HELD(p);						\
 	(--(p)->p_lock);						\
 	if (((p)->p_flag & P_WEXIT) && (p)->p_lock == 0)		\
 		wakeup(&(p)->p_lock);					\
