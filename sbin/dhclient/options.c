@@ -211,7 +211,7 @@ parse_option_buffer(struct packet *packet,
 void
 expand_domain_search(struct packet *packet)
 {
-	int offset, expanded_len;
+	int offset, expanded_len, next_domain_len;
 	struct option_data *option;
 	unsigned char *domain_search, *cursor;
 
@@ -224,9 +224,13 @@ expand_domain_search(struct packet *packet)
 	expanded_len = 0;
 	offset = 0;
 	while (offset < option->len) {
+		next_domain_len = find_search_domain_name_len(option, &offset);
+		if (next_domain_len < 0)
+			/* The Domain Search option value is invalid. */
+			return;
+
 		/* We add 1 for the space between domain names. */
-		expanded_len +=
-		    find_search_domain_name_len(option, &offset) + 1;
+		expanded_len += next_domain_len + 1;
 	}
 	if (expanded_len > 0)
 		/* Remove 1 for the superfluous trailing space. */
@@ -271,8 +275,9 @@ find_search_domain_name_len(struct option_data *option, int *offset)
 			/* This is a pointer to another list of labels. */
 			if (i + 1 >= option->len) {
 				/* The pointer is truncated. */
-				error("Truncated pointer in DHCP Domain "
+				warning("Truncated pointer in DHCP Domain "
 				    "Search option.");
+				return (-1);
 			}
 
 			pointer = ((label_len & ~(0xC0)) << 8) +
@@ -282,8 +287,9 @@ find_search_domain_name_len(struct option_data *option, int *offset)
 				 * The pointer must indicates a prior
 				 * occurance.
 				 */
-				error("Invalid forward pointer in DHCP Domain "
-				    "Search option compression.");
+				warning("Invalid forward pointer in DHCP "
+				    "Domain Search option compression.");
+				return (-1);
 			}
 
 			pointed_len = find_search_domain_name_len(option,
@@ -295,7 +301,9 @@ find_search_domain_name_len(struct option_data *option, int *offset)
 		}
 
 		if (i + label_len >= option->len) {
-			error("Truncated label in DHCP Domain Search option.");
+			warning("Truncated label in DHCP Domain Search "
+			    "option.");
+			return (-1);
 		}
 
 		/*
@@ -308,9 +316,9 @@ find_search_domain_name_len(struct option_data *option, int *offset)
 		i += label_len + 1;
 	}
 
-	error("Truncated DHCP Domain Search option.");
+	warning("Truncated DHCP Domain Search option.");
 
-	return (0);
+	return (-1);
 }
 
 void
