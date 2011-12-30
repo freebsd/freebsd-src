@@ -7,7 +7,7 @@ T=$(mktemp -d sh-test.XXXXXX)
 
 chmod 0 $T
 if [ `id -u` -ne 0 ]; then
-	# Root can always cd, irregardless of directory permissions.
+	# Root can always cd, regardless of directory permissions.
 	cd -L $T 2>/dev/null && exit 1
 	[ "$PWD" = "$P" ]
 	[ "$(pwd)" = "$P" ]
