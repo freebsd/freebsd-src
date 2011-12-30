@@ -8,7 +8,7 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
-# libbsm must be built before ibauditd.
+# libbsm must be built before libauditd.
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
