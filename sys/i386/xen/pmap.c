@@ -1122,7 +1122,7 @@ vm_page_t
 pmap_extract_and_hold(pmap_t pmap, vm_offset_t va, vm_prot_t prot)
 {
 	pd_entry_t pde;
-	pt_entry_t pte;
+	pt_entry_t pte, *ptep;
 	vm_page_t m;
 	vm_paddr_t pa;
 
@@ -1142,21 +1142,17 @@ retry:
 				vm_page_hold(m);
 			}
 		} else {
-			sched_pin();
-			pte = PT_GET(pmap_pte_quick(pmap, va));
-			if (*PMAP1)
-				PT_SET_MA(PADDR1, 0);
-			if ((pte & PG_V) &&
+			ptep = pmap_pte(pmap, va);
+			pte = PT_GET(ptep);
+			pmap_pte_release(ptep);
+			if (pte != 0 &&
 			    ((pte & PG_RW) || (prot & VM_PROT_WRITE) == 0)) {
 				if (vm_page_pa_tryrelock(pmap, pte & PG_FRAME,
-				    &pa)) {
-					sched_unpin();
+				    &pa))
 					goto retry;
-				}
 				m = PHYS_TO_VM_PAGE(pte & PG_FRAME);
 				vm_page_hold(m);
 			}
-			sched_unpin();
 		}
 	}
 	PA_UNLOCK_COND(pa);
@@ -2316,6 +2312,8 @@ pmap_remove(pmap_t pmap, vm_offset_t sva, vm_offset_t eva)
 		 * Calculate index for next page table.
 		 */
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
 		if (pmap->pm_stats.resident_count == 0)
 			break;
 
@@ -2471,6 +2469,8 @@ pmap_protect(pmap_t pmap, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		u_int pdirindex;
 
 		pdnxt = (sva + NBPDR) & ~PDRMASK;
+		if (pdnxt < sva)
+			pdnxt = eva;
 
 		pdirindex = sva >> PDRSHIFT;
 		ptpaddr = pmap->pm_pdir[pdirindex];
@@ -3172,6 +3172,8 @@ pmap_copy(pmap_t dst_pmap, pmap_t src_pmap, vm_offset_t dst_addr, vm_size_t len,
 		    ("pmap_copy: invalid to pmap_copy page tables"));
 
 		pdnxt = (addr + NBPDR) & ~PDRMASK;
+		if (pdnxt < addr)
+			pdnxt = end_addr;
 		ptepindex = addr >> PDRSHIFT;
 
 		srcptepaddr = PT_GET(&src_pmap->pm_pdir[ptepindex]);
