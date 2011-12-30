@@ -20,3 +20,7 @@ opt_drm.h:
 	echo $(DRM_LINUX_OPT) >> opt_drm.h
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.via_dma.c=		${NO_WUNUSED_VALUE}
+CWARNFLAGS.via_dmablit.c=	${NO_WUNUSED_VALUE}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}
