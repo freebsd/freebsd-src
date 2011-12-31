@@ -24,7 +24,7 @@
 Description := Target for building universal libraries for Darwin.
 
 Configs := Debug Release Profile
-UniversalArchs := i386 ppc x86_64
+UniversalArchs := i386 x86_64
 
 # Platform Options
 #
@@ -37,7 +37,7 @@ UniversalArchs := i386 ppc x86_64
 #   <Option Name>.<Arch Name> := ...
 #   <Option Name>.<Config Name>.<Arch Name> := ...
 
-CC := gcc
+CC := clang
 
 CFLAGS := -Wall -Werror
 CFLAGS.Debug := $(CFLAGS) -g
