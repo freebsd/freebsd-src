@@ -136,15 +136,10 @@ int
 ata_pci_detach(device_t dev)
 {
     struct ata_pci_controller *ctlr = device_get_softc(dev);
-    device_t *children;
-    int nchildren, i;
 
     /* detach & delete all children */
-    if (!device_get_children(dev, &children, &nchildren)) {
-	for (i = 0; i < nchildren; i++)
-	    device_delete_child(dev, children[i]);
-	free(children, M_TEMP);
-    }
+    device_delete_children(dev);
+
     if (ctlr->r_irq) {
 	bus_teardown_intr(dev, ctlr->r_irq, ctlr->handle);
 	bus_release_resource(dev, SYS_RES_IRQ, ctlr->r_irq_rid, ctlr->r_irq);

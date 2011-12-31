@@ -270,7 +270,7 @@ at91_udp_detach(device_t dev)
 		device_delete_child(dev, bdev);
 	}
 	/* during module unload there are lots of children leftover */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	/* disable Transceiver */
 	AT91_UDP_WRITE_4(&sc->sc_dci, AT91_UDP_TXVC, AT91_UDP_TXVC_DIS);
