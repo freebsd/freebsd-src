@@ -3214,9 +3214,9 @@ re_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	RL_LOCK(sc);
 	mii_pollstat(mii);
-	RL_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	RL_UNLOCK(sc);
 }
 
 static int
