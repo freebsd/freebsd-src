@@ -121,7 +121,7 @@ static int nfs_bigrequest[NFSV41_NPROCS] = {
  */
 APPLESTATIC void
 nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
-    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp)
+    u_int8_t *nfhp, int fhlen, u_int32_t **opcntpp, struct nfsclsession *sep)
 {
 	struct mbuf *mb;
 	u_int32_t *tl;
@@ -186,7 +186,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 		    nfsv4_opflag[nfsv4_opmap[procnum].op].needsseq > 0) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
-			nfscl_setsequence(nd, nmp, nfs_bigreply[procnum]);
+			if (sep == NULL)
+				nfsv4_setsequence(nd, &nmp->nm_clp->nfsc_sess,
+				    nfs_bigreply[procnum]);
+			else
+				nfsv4_setsequence(nd, sep,
+				    nfs_bigreply[procnum]);
 		}
 		if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh > 0) {
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);

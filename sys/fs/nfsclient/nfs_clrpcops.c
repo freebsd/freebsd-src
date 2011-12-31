@@ -341,7 +341,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 
 	dp = *dpp;
 	*dpp = NULL;
-	nfscl_reqstart(nd, NFSPROC_OPEN, nmp, nfhp, fhlen, NULL);
+	nfscl_reqstart(nd, NFSPROC_OPEN, nmp, nfhp, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 5 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
 	*tl++ = txdr_unsigned(mode & NFSV4OPEN_ACCESSBOTH);
@@ -687,7 +687,7 @@ nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_CLOSE, nmp, op->nfso_fh,
-	    op->nfso_fhlen, NULL);
+	    op->nfso_fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	*tl++ = txdr_unsigned(op->nfso_own->nfsow_seqid);
 	*tl++ = op->nfso_stateid.seqid;
@@ -726,7 +726,7 @@ nfsrpc_openconfirm(vnode_t vp, u_int8_t *nfhp, int fhlen,
 	nmp = VFSTONFS(vnode_mount(vp));
 	if (NFSHASNFSV4N(nmp))
 		return (0);		/* No confirmation for NFSv4.1. */
-	nfscl_reqstart(nd, NFSPROC_OPENCONFIRM, nmp, nfhp, fhlen, NULL);
+	nfscl_reqstart(nd, NFSPROC_OPENCONFIRM, nmp, nfhp, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED + NFSX_STATEID);
 	*tl++ = op->nfso_stateid.seqid;
 	*tl++ = op->nfso_stateid.other[0];
@@ -781,7 +781,7 @@ if (error) printf("exch=%d\n",error);
 if (error) printf("aft crs=%d\n",error);
 		return (error);
 	}
-	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);
 	*tl = txdr_unsigned(rev++);
@@ -850,7 +850,8 @@ if (error) printf("aft crs=%d\n",error);
 	    /*
 	     * and confirm it.
 	     */
-	    nfscl_reqstart(nd, NFSPROC_SETCLIENTIDCFRM, nmp, NULL, 0, NULL);
+	    nfscl_reqstart(nd, NFSPROC_SETCLIENTIDCFRM, nmp, NULL, 0, NULL,
+		NULL);
 	    NFSM_BUILD(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 	    *tl++ = clp->nfsc_clientid.lval[0];
 	    *tl++ = clp->nfsc_clientid.lval[1];
@@ -865,7 +866,7 @@ if (error) printf("aft crs=%d\n",error);
 	    nd->nd_mrep = NULL;
 	    if (nd->nd_repstat == 0) {
 		nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, nmp->nm_fh,
-		    nmp->nm_fhsize, NULL);
+		    nmp->nm_fhsize, NULL, NULL);
 		NFSZERO_ATTRBIT(&attrbits);
 		NFSSETBIT_ATTRBIT(&attrbits, NFSATTRBIT_LEASETIME);
 		(void) nfsrv_putattrbit(nd, &attrbits);
@@ -932,7 +933,7 @@ nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
 	int error, vers = NFS_VER2;
 	nfsattrbit_t attrbits;
 	
-	nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, fhp, fhlen, NULL);
+	nfscl_reqstart(nd, NFSPROC_GETATTR, nmp, fhp, fhlen, NULL, NULL);
 	if (nd->nd_flag & ND_NFSV4) {
 		vers = NFS_VER4;
 		NFSGETATTR_ATTRBIT(&attrbits);
@@ -3715,7 +3716,7 @@ nfsrpc_locku(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_LOCKU, nmp, lp->nfsl_open->nfso_fh,
-	    lp->nfsl_open->nfso_fhlen, NULL);
+	    lp->nfsl_open->nfso_fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID + 6 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(type);
 	*tl = txdr_unsigned(lp->nfsl_seqid);
@@ -3763,7 +3764,7 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	int error, size;
 	uint8_t own[NFSV4CL_LOCKNAMELEN + NFSX_V4FHMAX];
 
-	nfscl_reqstart(nd, NFSPROC_LOCK, nmp, nfhp, fhlen, NULL);
+	nfscl_reqstart(nd, NFSPROC_LOCK, nmp, nfhp, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 7 * NFSX_UNSIGNED);
 	if (type == F_RDLCK)
 		*tl++ = txdr_unsigned(NFSV4LOCKT_READ);
@@ -4025,7 +4026,7 @@ nfsrpc_renew(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	nmp = clp->nfsc_nmp;
 	if (nmp == NULL)
 		return (0);
-	nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_RENEW, nmp, NULL, 0, NULL, NULL);
 	if (!NFSHASNFSV4N(nmp)) {
 		/* NFSv4.1 just uses a Sequence Op and not a Renew. */
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
@@ -4056,10 +4057,12 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 
 	if (NFSHASNFSV4N(nmp)) {
 		/* For NFSv4.1, do a FreeStateID. */
-		nfscl_reqstart(nd, NFSPROC_FREESTATEID, nmp, NULL, 0, NULL);
+		nfscl_reqstart(nd, NFSPROC_FREESTATEID, nmp, NULL, 0, NULL,
+		    NULL);
 		nfsm_stateidtom(nd, &lp->nfsl_stateid, NFSSTATEID_PUTSTATEID);
 	} else {
-		nfscl_reqstart(nd, NFSPROC_RELEASELCKOWN, nmp, NULL, 0, NULL);
+		nfscl_reqstart(nd, NFSPROC_RELEASELCKOWN, nmp, NULL, 0, NULL,
+		    NULL);
 		NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 		*tl++ = nmp->nm_clp->nfsc_clientid.lval[0];
 		*tl = nmp->nm_clp->nfsc_clientid.lval[1];
@@ -4091,7 +4094,7 @@ nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
 	int error, cnt, len, setnil;
 	u_int32_t *opcntp;
 
-	nfscl_reqstart(nd, NFSPROC_PUTROOTFH, nmp, NULL, 0, &opcntp);
+	nfscl_reqstart(nd, NFSPROC_PUTROOTFH, nmp, NULL, 0, &opcntp, NULL);
 	cp = dirpath;
 	cnt = 0;
 	do {
@@ -4159,7 +4162,7 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	int error;
 
 	nfscl_reqstart(nd, NFSPROC_DELEGRETURN, nmp, dp->nfsdl_fh,
-	    dp->nfsdl_fhlen, NULL);
+	    dp->nfsdl_fhlen, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, NFSX_STATEID);
 	*tl++ = dp->nfsdl_stateid.seqid;
 	*tl++ = dp->nfsdl_stateid.other[0];
@@ -4264,7 +4267,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	int error;
 	static uint32_t rev = 0;
 
-	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);	/* Client owner */
 	*tl = txdr_unsigned(rev++);
@@ -4314,7 +4317,7 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclclient *clp,
 	struct nfsrv_descript *nd = &nfsd;
 	int error, irdcnt;
 
-	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = clp->nfsc_clientid.lval[0];
 	*tl++ = clp->nfsc_clientid.lval[1];
@@ -4408,7 +4411,7 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclclient *clp,
 	struct nfsrv_descript *nd = &nfsd;
 	int error;
 
-	nfscl_reqstart(nd, NFSPROC_DESTROYSESSION, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_DESTROYSESSION, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID);
 	bcopy(clp->nfsc_sessionid, tl, NFSX_V4SESSIONID);
 	nd->nd_flag |= ND_USEGSSNAME;
@@ -4422,7 +4425,7 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclclient *clp,
 }
 
 /*
- * Do the NFSv4.1 Destroy Session.
+ * Do the NFSv4.1 Destroy Client.
  */
 int
 nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
@@ -4433,7 +4436,7 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	struct nfsrv_descript *nd = &nfsd;
 	int error;
 
-	nfscl_reqstart(nd, NFSPROC_DESTROYCLIENT, nmp, NULL, 0, NULL);
+	nfscl_reqstart(nd, NFSPROC_DESTROYCLIENT, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = clp->nfsc_clientid.lval[0];
 	*tl = clp->nfsc_clientid.lval[1];

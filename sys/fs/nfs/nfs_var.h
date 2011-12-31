@@ -69,6 +69,7 @@ struct nfsclowner;
 struct nfsclopen;
 struct nfsclopenhead;
 struct nfsclclient;
+struct nfsclsession;
 struct nfscllockowner;
 struct nfscllock;
 struct nfscldeleg;
@@ -266,7 +267,7 @@ void nfsv4_freeslot(struct nfsclsession *, int);
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
 void nfscl_reqstart(struct nfsrv_descript *, int, struct nfsmount *,
-    u_int8_t *, int, u_int32_t **);
+    u_int8_t *, int, u_int32_t **, struct nfsclsession *);
 nfsuint64 *nfscl_getcookie(struct nfsnode *, off_t off, int);
 void nfscl_fillsattr(struct nfsrv_descript *, struct vattr *,
       vnode_t, int, u_int32_t);
