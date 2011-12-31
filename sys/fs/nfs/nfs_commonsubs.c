@@ -133,9 +133,9 @@ struct nfsv4_opflag nfsv4_opflag[NFSV41_NOPS] = {
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Dir Deleg */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device Info */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Get Device List */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Commit */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Get */
-	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Return */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Commit */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Get */
+	{ 0, 1, 0, 0, LK_EXCLUSIVE, 1 },		/* Layout Return */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Secinfo No name */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Sequence */
 	{ 0, 0, 0, 0, LK_EXCLUSIVE, 1 },		/* Set SSV */
@@ -166,7 +166,7 @@ static struct nfsuserlruhead nfsuserlruhead;
  */
 int nfs_bigreply[NFSV41_NPROCS] = { 0, 0, 0, 1, 0, 1, 1, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
 
 /* local functions */
 static int nfsrv_skipace(struct nfsrv_descript *nd, int *acesizep);

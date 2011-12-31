@@ -343,11 +343,15 @@
 #define	NFSPROC_DESTROYSESSION	43
 #define	NFSPROC_DESTROYCLIENT	44
 #define	NFSPROC_FREESTATEID	45
+#define	NFSPROC_LAYOUTGET	46
+#define	NFSPROC_GETDEVICEINFO	47
+#define	NFSPROC_LAYOUTCOMMIT	48
+#define	NFSPROC_LAYOUTRETURN	49
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		46
+#define	NFSV41_NPROCS		50
 
 #endif	/* NFS_V3NPROCS */
 
@@ -818,6 +822,7 @@ void newnfs_realign(struct mbuf **);
 #define	NFSSTA_TIMEO		0x10000000  /* Experiencing a timeout */
 #define	NFSSTA_LOCKTIMEO	0x20000000  /* Experiencing a lockd timeout */
 #define	NFSSTA_HASSETFSID	0x40000000  /* Has set the fsid */
+#define	NFSSTA_PNFS		0x80000000  /* pNFS is enabled */
 
 #define	NFSHASNFSV3(n)		((n)->nm_flag & NFSMNT_NFSV3)
 #define	NFSHASNFSV4(n)		((n)->nm_flag & NFSMNT_NFSV4)
@@ -838,6 +843,7 @@ void newnfs_realign(struct mbuf **);
 #define	NFSHASPRIVACY(n)	((n)->nm_flag & NFSMNT_PRIVACY)
 #define	NFSSETWRITEVERF(n)	((n)->nm_state |= NFSSTA_HASWRITEVERF)
 #define	NFSSETHASSETFSID(n)	((n)->nm_state |= NFSSTA_HASSETFSID)
+#define	NFSHASPNFS(n)		((n)->nm_state & NFSSTA_PNFS)
 
 /*
  * Gets the stats field out of the mount structure.

@@ -104,6 +104,10 @@ static struct {
 	{ NFSV4OP_DESTROYSESSION, 1, "DestroySession", 14, },
 	{ NFSV4OP_DESTROYCLIENTID, 1, "DestroyClient", 13, },
 	{ NFSV4OP_FREESTATEID, 1, "FreeStateID", 11, },
+	{ NFSV4OP_LAYOUTGET, 1, "LayoutGet", 9, },
+	{ NFSV4OP_GETDEVINFO, 1, "GetDeviceInfo", 13, },
+	{ NFSV4OP_LAYOUTCOMMIT, 1, "LayoutCommit", 12, },
+	{ NFSV4OP_LAYOUTRETURN, 1, "LayoutReturn", 12, },
 };
 
 
@@ -112,7 +116,8 @@ static struct {
  */
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0
 };
 
 /*
