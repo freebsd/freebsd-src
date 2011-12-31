@@ -774,7 +774,8 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
 	if (NFSHASNFSV4N(nmp)) {
-		error = nfsrpc_exchangeid(nmp, clp, cred, p);
+		error = nfsrpc_exchangeid(nmp, clp, NFSV4EXCH_USEPNFSMDS |
+		    NFSV4EXCH_USENONPNFS, cred, p);
 if (error) printf("exch=%d\n",error);
 		if (error == 0)
 			error = nfsrpc_createsession(nmp, clp, cred, p);
@@ -4258,7 +4259,7 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
  */
 int
 nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
-    struct ucred *cred, NFSPROC_T *p)
+    uint32_t exchflags, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl, v41flags;
 	struct nfsrv_descript nfsd;
@@ -4274,7 +4275,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
 	NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
-	*tl++ = txdr_unsigned(NFSV4EXCH_USENONPNFS);
+	*tl++ = txdr_unsigned(exchflags);
 	*tl++ = txdr_unsigned(NFSV4EXCH_SP4NONE);
 
 	/* Set the implementation id4 */
