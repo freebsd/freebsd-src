@@ -121,6 +121,13 @@ struct ps3fb_softc {
 
 	u_char		*sc_font;
 	int		sc_font_height;
+
+	uint64_t	sc_fbhandle;
+	uint64_t	sc_fbcontext;
+	uint64_t	sc_dma_control;
+	uint64_t	sc_driver_info;
+	uint64_t	sc_reports;
+	uint64_t	sc_reports_size;
 };
 
 static video_switch_t ps3fbvidsw = {
@@ -276,8 +283,10 @@ ps3fb_configure(int flags)
 void
 ps3fb_remap(void)
 {
+	struct ps3fb_softc *sc;
 	vm_offset_t va, fb_paddr;
-	uint64_t fbhandle, fbcontext;
+
+	sc = &ps3fb_softc;
 
 	lv1_gpu_close();
 	lv1_gpu_open(0);
@@ -290,12 +299,13 @@ ps3fb_remap(void)
 	    0,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
 	lv1_gpu_context_attribute(0, L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_SYNC,
 	    1,L1GPU_DISPLAY_SYNC_VSYNC,0,0);
-	lv1_gpu_memory_allocate(PS3FB_SIZE, 0, 0, 0, 0, &fbhandle, &fb_paddr);
-	lv1_gpu_context_allocate(fbhandle, 0, &fbcontext);
+	lv1_gpu_memory_allocate(PS3FB_SIZE, 0, 0, 0, 0, &sc->sc_fbhandle, &fb_paddr);
+	lv1_gpu_context_allocate(sc->sc_fbhandle, 0, &sc->sc_fbcontext, &sc->sc_dma_control,
+	    &sc->sc_driver_info, &sc->sc_reports, &sc->sc_reports_size);
 
-	lv1_gpu_context_attribute(fbcontext,
+	lv1_gpu_context_attribute(sc->sc_fbcontext,
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 0, 0, 0, 0);
-	lv1_gpu_context_attribute(fbcontext,
+	lv1_gpu_context_attribute(sc->sc_fbcontext,
 	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	for (va = 0; va < PS3FB_SIZE; va += PAGE_SIZE)
@@ -404,6 +414,11 @@ ps3fb_set_mode(video_adapter_t *adp, int mode)
 	/* XXX: no real mode setting at the moment */
 
 	ps3fb_blank_display(&sc->sc_va, V_DISPLAY_ON);
+
+	lv1_gpu_context_attribute(sc->sc_fbcontext,
+	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 0, 0, 0, 0);
+	lv1_gpu_context_attribute(sc->sc_fbcontext,
+	    L1GPU_CONTEXT_ATTRIBUTE_DISPLAY_FLIP, 1, 0, 0, 0);
 
 	return (0);
 }
