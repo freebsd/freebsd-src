@@ -9,10 +9,6 @@
  *
  */
 
-#include <stdint.h>
-#include <stdio.h>
-#include <stdlib.h>
-
 #include "int_lib.h"
 
 /*
@@ -202,7 +198,7 @@ _Unwind_Reason_Code __gcc_personality_v0(int version, _Unwind_Action actions,
         
     /* There is nothing to do if there is no LSDA for this frame. */
     const uint8_t* lsda = _Unwind_GetLanguageSpecificData(context);
-    if ( lsda == NULL )
+    if ( lsda == (uint8_t*) 0 )
         return _URC_CONTINUE_UNWIND;
 
     uintptr_t pc = _Unwind_GetIP(context)-1;
