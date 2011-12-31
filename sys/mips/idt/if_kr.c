@@ -945,9 +945,9 @@ kr_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->kr_miibus);
 	KR_LOCK(sc);
 	mii_pollstat(mii);
-	KR_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	KR_UNLOCK(sc);
 }
 
 struct kr_dmamap_arg {

@@ -1430,9 +1430,9 @@ lge_ifmedia_sts(ifp, ifmr)
 	LGE_LOCK(sc);
 	mii = device_get_softc(sc->lge_miibus);
 	mii_pollstat(mii);
-	LGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	LGE_UNLOCK(sc);
 
 	return;
 }
