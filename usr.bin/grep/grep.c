@@ -148,7 +148,7 @@ static inline const char	*init_color(const char *);
 bool	 first = true;	/* flag whether we are processing the first match */
 bool	 prev;		/* flag whether or not the previous line matched */
 int	 tail;		/* lines left to print */
-bool	 notfound;	/* file not found */
+bool	 file_err;	/* file reading error */
 
 /*
  * Prints usage information and returns 2.
@@ -728,5 +728,5 @@ main(int argc, char *argv[])
 
 	/* Find out the correct return value according to the
 	   results and the command line option. */
-	exit(c ? (notfound ? (qflag ? 0 : 2) : 0) : (notfound ? 2 : 1));
+	exit(c ? (file_err ? (qflag ? 0 : 2) : 0) : (file_err ? 2 : 1));
 }
