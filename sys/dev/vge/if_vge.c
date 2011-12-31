@@ -2173,9 +2173,9 @@ vge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	}
 	mii_pollstat(mii);
-	VGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	VGE_UNLOCK(sc);
 }
 
 static void
