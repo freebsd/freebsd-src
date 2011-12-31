@@ -2506,7 +2506,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4469,7 +4469,7 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4587,7 +4587,7 @@ try_long:
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4892,7 +4892,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4974,7 +4974,7 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5371,7 +5371,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5451,7 +5451,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		if (((retval = cam_send_ccb(device, ccb)) < 0)
 		 || (((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		  && (disresponse->function_result != SMP_FR_PHY_VACANT))) {
-			const char *warnstr = "error sending command";
+			const char warnstr[] = "error sending command";
 
 			if (retval < 0)
 				warn(warnstr);
