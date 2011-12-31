@@ -152,7 +152,7 @@ static void     ixgbe_dma_free(struct adapter *, struct ixgbe_dma_alloc *);
 static void	ixgbe_add_rx_process_limit(struct adapter *, const char *,
 		    const char *, int *, int);
 static int	ixgbe_tx_ctx_setup(struct tx_ring *, struct mbuf *);
-static boolean_t ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
+static bool	ixgbe_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
 static void	ixgbe_set_ivar(struct adapter *, u16, u8, s8);
 static void	ixgbe_configure_ivars(struct adapter *);
 static u8 *	ixgbe_mc_array_itr(struct ixgbe_hw *, u8 **, u32 *);
@@ -3043,7 +3043,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3126,7 +3126,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 
 #else	/* For 6.2 RELEASE */
 /* This makes it easy to keep the code common */
-static boolean_t
+static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	return (FALSE);
@@ -3140,7 +3140,7 @@ ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter * adapter = txr->adapter;
