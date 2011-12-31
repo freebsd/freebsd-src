@@ -215,10 +215,7 @@ static device_method_t atmegadci_methods[] = {
 	DEVMETHOD(device_detach, atmegadci_detach),
 	DEVMETHOD(device_shutdown, atmegadci_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t atmegadci_driver = {

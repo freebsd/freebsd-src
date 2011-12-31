@@ -73,7 +73,7 @@ static device_method_t schppm_methods[] = {
 	DEVMETHOD(device_probe,		schppm_probe),
 	DEVMETHOD(device_attach,	schppm_attach),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t schppm_devclass;

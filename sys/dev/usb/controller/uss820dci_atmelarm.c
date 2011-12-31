@@ -76,10 +76,7 @@ static device_method_t uss820dci_methods[] = {
 	DEVMETHOD(device_resume, uss820_atmelarm_resume),
 	DEVMETHOD(device_shutdown, uss820_atmelarm_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t uss820dci_driver = {

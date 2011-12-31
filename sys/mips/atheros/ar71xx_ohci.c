@@ -196,10 +196,7 @@ static device_method_t ohci_methods[] = {
 	DEVMETHOD(device_detach, ar71xx_ohci_detach),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ohci_driver = {

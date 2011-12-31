@@ -118,10 +118,6 @@ static device_method_t  pmu_methods[] = {
         DEVMETHOD(device_suspend,       bus_generic_suspend),
         DEVMETHOD(device_resume,        bus_generic_resume),
 
-	/* bus interface, for ADB root */
-        DEVMETHOD(bus_print_child,      bus_generic_print_child),
-        DEVMETHOD(bus_driver_added,     bus_generic_driver_added),
-
 	/* ADB bus interface */
 	DEVMETHOD(adb_hb_send_raw_packet,   pmu_adb_send),
 	DEVMETHOD(adb_hb_controller_poll,   pmu_poll),
@@ -131,7 +127,7 @@ static device_method_t  pmu_methods[] = {
 	DEVMETHOD(clock_gettime,	pmu_gettime),
 	DEVMETHOD(clock_settime,	pmu_settime),
 
-	{ 0, 0 },
+	DEVMETHOD_END
 };
 
 static driver_t pmu_driver = {

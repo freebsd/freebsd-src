@@ -296,11 +296,7 @@ static device_method_t skc_methods[] = {
 	DEVMETHOD(device_resume,	skc_resume),
 	DEVMETHOD(device_shutdown,	skc_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t skc_driver = {
@@ -318,16 +314,12 @@ static device_method_t sk_methods[] = {
 	DEVMETHOD(device_detach,	sk_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sk_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sk_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sk_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t sk_driver = {

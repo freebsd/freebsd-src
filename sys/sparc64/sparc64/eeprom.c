@@ -91,7 +91,7 @@ static device_method_t eeprom_methods[] = {
 	DEVMETHOD(clock_gettime,	mk48txx_gettime),
 	DEVMETHOD(clock_settime,	mk48txx_settime),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t eeprom_driver = {
