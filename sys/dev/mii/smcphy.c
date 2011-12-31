@@ -62,8 +62,7 @@ static device_method_t smcphy_methods[] = {
 	DEVMETHOD(device_attach,	smcphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t smcphy_devclass;
@@ -207,8 +206,7 @@ smcphy_auto(struct mii_softc *sc, int media)
 {
 	uint16_t	anar;
 
-	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) |
-	    ANAR_CSMA;
+	anar = BMSR_MEDIA_TO_ANAR(sc->mii_capabilities) | ANAR_CSMA;
 	if ((media & IFM_FLOW) != 0 || (sc->mii_flags & MIIF_FORCEPAUSE) != 0)
 		anar |= ANAR_FC;
 	PHY_WRITE(sc, MII_ANAR, anar);

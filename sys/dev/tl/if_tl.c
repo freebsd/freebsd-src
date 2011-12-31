@@ -348,16 +348,12 @@ static device_method_t tl_methods[] = {
 	DEVMETHOD(device_detach,	tl_detach),
 	DEVMETHOD(device_shutdown,	tl_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	tl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	tl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	tl_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tl_driver = {

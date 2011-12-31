@@ -82,7 +82,7 @@ static device_method_t brgphy_methods[] = {
 	DEVMETHOD(device_attach,	brgphy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t brgphy_devclass;

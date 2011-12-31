@@ -281,10 +281,7 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_resume, ehci_ebus_resume),
 	DEVMETHOD(device_shutdown, ehci_ebus_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {

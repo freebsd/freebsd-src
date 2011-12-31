@@ -627,7 +627,6 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(device_attach, xlr_pcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar, xlr_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar, xlr_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource, xlr_pci_alloc_resource),
@@ -648,7 +647,7 @@ static device_method_t xlr_pcib_methods[] = {
 	DEVMETHOD(pcib_release_msi, xlr_release_msi),
 	DEVMETHOD(pcib_map_msi, xlr_map_msi),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xlr_pcib_driver = {

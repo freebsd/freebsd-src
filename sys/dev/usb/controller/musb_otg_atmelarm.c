@@ -1,4 +1,3 @@
-/* $FreeBSD$ */
 /*-
  * Copyright (c) 2008 Hans Petter Selasky. All rights reserved.
  *
@@ -23,6 +22,9 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/stdint.h>
 #include <sys/stddef.h>
@@ -238,10 +240,7 @@ static device_method_t musbotg_methods[] = {
 	DEVMETHOD(device_detach, musbotg_detach),
 	DEVMETHOD(device_shutdown, musbotg_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t musbotg_driver = {

@@ -205,10 +205,7 @@ static device_method_t octusb_octeon_methods[] = {
 	DEVMETHOD(device_detach, octusb_octeon_detach),
 	DEVMETHOD(device_shutdown, octusb_octeon_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t octusb_octeon_driver = {

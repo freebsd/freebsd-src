@@ -187,13 +187,12 @@ static device_method_t acpi_cpu_methods[] = {
     DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
     DEVMETHOD(bus_alloc_resource, bus_generic_rl_alloc_resource),
     DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
-    DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
     DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
     DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
     DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
     DEVMETHOD(bus_teardown_intr, bus_generic_teardown_intr),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static driver_t acpi_cpu_driver = {
