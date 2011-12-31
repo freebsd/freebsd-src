@@ -155,16 +155,12 @@ static device_method_t arge_methods[] = {
 	DEVMETHOD(device_resume,	arge_resume),
 	DEVMETHOD(device_shutdown,	arge_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	arge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	arge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	arge_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t arge_driver = {

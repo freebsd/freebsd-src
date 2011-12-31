@@ -190,7 +190,6 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	legacy_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	legacy_pcib_write_ivar),
 #ifdef NEW_PCIB
@@ -217,7 +216,7 @@ static device_method_t mptable_hostb_methods[] = {
 	DEVMETHOD(pcib_release_msix,	pcib_release_msix),
 	DEVMETHOD(pcib_map_msi,		mptable_hostb_map_msi),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t hostb_devclass;

@@ -170,16 +170,12 @@ static device_method_t lge_methods[] = {
 	DEVMETHOD(device_detach,	lge_detach),
 	DEVMETHOD(device_shutdown,	lge_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	lge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	lge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	lge_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t lge_driver = {

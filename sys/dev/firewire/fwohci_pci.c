@@ -30,9 +30,10 @@
  * STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
  * ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
- * 
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #define BOUNCE_BUFFER_TEST	0
 
@@ -536,9 +537,8 @@ static device_method_t fwohci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_add_child,	fwohci_pci_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fwohci_driver = {
