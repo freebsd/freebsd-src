@@ -44,7 +44,6 @@
 
 #include <machine/bus.h>
 
-#include <dev/pci/pcivar.h>
 #include <sys/rman.h>
 
 /* NB: cputype is setup by set_cpufuncs */
