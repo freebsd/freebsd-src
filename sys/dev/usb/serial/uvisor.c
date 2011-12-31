@@ -311,8 +311,9 @@ uvisor_attach(device_t dev)
 	int error;
 
 	DPRINTF("sc=%p\n", sc);
-	bcopy(uvisor_config, uvisor_config_copy,
+	memcpy(uvisor_config_copy, uvisor_config,
 	    sizeof(uvisor_config_copy));
+
 	device_set_usb_desc(dev);
 
 	mtx_init(&sc->sc_mtx, "uvisor", NULL, MTX_DEF);

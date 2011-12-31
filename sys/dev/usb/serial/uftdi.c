@@ -560,7 +560,7 @@ static int
 uftdi_set_parm_soft(struct termios *t,
     struct uftdi_param_config *cfg, uint8_t type)
 {
-	bzero(cfg, sizeof(*cfg));
+	memset(cfg, 0, sizeof(*cfg));
 
 	switch (type) {
 	case UFTDI_TYPE_SIO:
