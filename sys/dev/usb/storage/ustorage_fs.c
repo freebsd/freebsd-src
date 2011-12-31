@@ -364,6 +364,9 @@ ustorage_fs_attach(device_t dev)
 	sc->sc_udev = uaa->device;
 	unit = device_get_unit(dev);
 
+	/* enable power saving mode */
+	usbd_set_power_mode(uaa->device, USB_POWER_MODE_SAVE);
+
 	if (unit == 0) {
 		if (ustorage_fs_ramdisk == NULL) {
 			/*
