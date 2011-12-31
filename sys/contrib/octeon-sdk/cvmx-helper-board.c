@@ -866,6 +866,9 @@ cvmx_helper_board_usb_clock_types_t __cvmx_helper_board_usb_get_clock_type(void)
     case CVMX_BOARD_TYPE_CUST_LANNER_MR320:
     case CVMX_BOARD_TYPE_CUST_LANNER_MR321X:
 #endif
+#if defined(OCTEON_BOARD_CAPK_0100ND)
+	case CVMX_BOARD_TYPE_CN3010_EVB_HS5:
+#endif
             return USB_CLOCK_TYPE_CRYSTAL_12;
     }
     return USB_CLOCK_TYPE_REF_48;
