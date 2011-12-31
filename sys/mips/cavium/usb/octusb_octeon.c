@@ -69,7 +69,6 @@ static device_identify_t octusb_octeon_identify;
 static device_probe_t octusb_octeon_probe;
 static device_attach_t octusb_octeon_attach;
 static device_detach_t octusb_octeon_detach;
-static device_shutdown_t octusb_octeon_shutdown;
 
 struct octusb_octeon_softc {
 	struct octusb_softc sc_dci;	/* must be first */
@@ -182,36 +181,23 @@ octusb_octeon_detach(device_t dev)
 	return (0);
 }
 
-static int
-octusb_octeon_shutdown(device_t dev)
-{
-	struct octusb_octeon_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	octusb_uninit(&sc->sc_dci);
-
-	return (0);
-}
-
 static device_method_t octusb_octeon_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_identify, octusb_octeon_identify),
 	DEVMETHOD(device_probe, octusb_octeon_probe),
 	DEVMETHOD(device_attach, octusb_octeon_attach),
 	DEVMETHOD(device_detach, octusb_octeon_detach),
-	DEVMETHOD(device_shutdown, octusb_octeon_shutdown),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t octusb_octeon_driver = {
-	"octusb",
-	octusb_octeon_methods,
-	sizeof(struct octusb_octeon_softc),
+	.name = "octusb",
+	.methods = octusb_octeon_methods,
+	.size = sizeof(struct octusb_octeon_softc),
 };
 
 static devclass_t octusb_octeon_devclass;
