@@ -654,7 +654,7 @@ cvmx_usb_status_t cvmx_usb_initialize(cvmx_usb_state_t *state,
             }
     }
 
-    memset(usb, 0, sizeof(usb));
+    memset(usb, 0, sizeof(*usb));
     usb->init_flags = flags;
 
     /* Initialize the USB state structure */
