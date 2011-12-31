@@ -377,7 +377,7 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	NFSCL_INCRSEQID(op->nfso_own->nfsow_seqid, nd);
@@ -697,7 +697,7 @@ nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	NFSCL_INCRSEQID(op->nfso_own->nfsow_seqid, nd);
@@ -835,7 +835,7 @@ if (error) printf("aft crs=%d\n",error);
 	*tl = txdr_unsigned(clp->nfsc_cbident);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-		NFS_PROG, NFS_VER4, NULL, 1, NULL);
+		NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	if (nd->nd_repstat == 0) {
@@ -859,7 +859,7 @@ if (error) printf("aft crs=%d\n",error);
 	    *tl = confirm.lval[1];
 	    nd->nd_flag |= ND_USEGSSNAME;
 	    error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p,
-		cred, NFS_PROG, NFS_VER4, NULL, 1, NULL);
+		cred, NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	    if (error)
 		return (error);
 	    mbuf_freem(nd->nd_mrep);
@@ -872,7 +872,7 @@ if (error) printf("aft crs=%d\n",error);
 		(void) nfsrv_putattrbit(nd, &attrbits);
 		nd->nd_flag |= ND_USEGSSNAME;
 		error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p,
-		    cred, NFS_PROG, NFS_VER4, NULL, 1, NULL);
+		    cred, NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 		if (error)
 		    return (error);
 		if (nd->nd_repstat == 0) {
@@ -945,7 +945,7 @@ nfsrpc_getattrnovp(struct nfsmount *nmp, u_int8_t *fhp, int fhlen, int syscred,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, vers, NULL, 1, xidp);
+	    NFS_PROG, vers, NULL, 1, xidp, NULL);
 	if (error)
 		return (error);
 	if (nd->nd_repstat == 0) {
@@ -3734,7 +3734,7 @@ nfsrpc_locku(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	NFSCL_INCRSEQID(lp->nfsl_seqid, nd);
 	if (error)
 		return (error);
@@ -3805,7 +3805,7 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	if (newone)
@@ -4035,7 +4035,7 @@ nfsrpc_renew(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-		NFS_PROG, NFS_VER4, NULL, 1, NULL);
+		NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
@@ -4072,7 +4072,7 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
@@ -4127,7 +4127,7 @@ nfsrpc_getdirpath(struct nfsmount *nmp, u_char *dirpath, struct ucred *cred,
 	*tl = txdr_unsigned(NFSV4OP_GETFH);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-		NFS_PROG, NFS_VER4, NULL, 1, NULL);
+		NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 printf("dirp ret=%d\n", nd->nd_repstat);
@@ -4171,7 +4171,7 @@ nfsrpc_delegreturn(struct nfscldeleg *dp, struct ucred *cred,
 	if (syscred)
 		nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	error = nd->nd_repstat;
@@ -4287,7 +4287,7 @@ nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
 	txdr_nfsv4time(&verstime, tl);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 printf("exch err=%d reps=%d\n",error,nd->nd_repstat);
 	if (error != 0)
 		return (error);
@@ -4362,7 +4362,7 @@ printf("clseq0=0x%x\n",clp->nfsc_sequenceid);
 	*tl = 0;				/* No additional gids */
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
@@ -4416,7 +4416,7 @@ nfsrpc_destroysession(struct nfsmount *nmp, struct nfsclclient *clp,
 	bcopy(clp->nfsc_sessionid, tl, NFSX_V4SESSIONID);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0)
 		return (error);
 	error = nd->nd_repstat;
@@ -4442,7 +4442,7 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	*tl = clp->nfsc_clientid.lval[1];
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
-	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error != 0)
 		return (error);
 	error = nd->nd_repstat;

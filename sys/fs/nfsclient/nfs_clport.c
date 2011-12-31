@@ -857,7 +857,7 @@ nfscl_request(struct nfsrv_descript *nd, struct vnode *vp, NFSPROC_T *p,
 	else
 		vers = NFS_VER2;
 	ret = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, vp, p, cred,
-		NFS_PROG, vers, NULL, 1, NULL);
+		NFS_PROG, vers, NULL, 1, NULL, NULL);
 	return (ret);
 }
 

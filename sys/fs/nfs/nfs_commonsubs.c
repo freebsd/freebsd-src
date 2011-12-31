@@ -3003,7 +3003,7 @@ nfsrv_getuser(int procnum, uid_t uid, gid_t gid, char *name, NFSPROC_T *p)
 		(void) nfsm_strtom(nd, name, len);
 	}
 	error = newnfs_request(nd, NULL, NULL, &nfsrv_nfsuserdsock, NULL, NULL,
-		cred, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS, NULL, 0, NULL);
+		cred, RPCPROG_NFSUSERD, RPCNFSUSERD_VERS, NULL, 0, NULL, NULL);
 	NFSFREECRED(cred);
 	if (!error) {
 		mbuf_freem(nd->nd_mrep);

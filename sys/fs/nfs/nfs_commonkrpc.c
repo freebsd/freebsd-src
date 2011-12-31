@@ -491,7 +491,7 @@ int
 newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
     struct nfsclient *clp, struct nfssockreq *nrp, vnode_t vp,
     struct thread *td, struct ucred *cred, u_int32_t prog, u_int32_t vers,
-    u_char *retsum, int toplevel, u_int64_t *xidp)
+    u_char *retsum, int toplevel, u_int64_t *xidp, struct nfsclsession *sep)
 {
 	u_int32_t retseq, retval, *tl;
 	time_t waituntil;
@@ -785,6 +785,9 @@ tryagain:
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
 	if (nd->nd_procnum != NFSPROC_NULL) {
+		/* If sep == NULL, set it to the default in nfsclclient. */
+		if (sep == NULL && nmp != NULL && nmp->nm_clp != NULL)
+			sep = &nmp->nm_clp->nfsc_sess;
 		/*
 		 * and now the actual NFS xdr.
 		 */
@@ -814,19 +817,19 @@ if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j)
 			if (nmp != NULL && i == NFSV4OP_SEQUENCE && j == 0) {
 				NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
 				    5 * NFSX_UNSIGNED);
-				NFSLOCKMNT(nmp);
+				mtx_lock(&sep->nfsess_mtx);
 				tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
 				retseq = fxdr_unsigned(uint32_t, *tl++);
 				slot = fxdr_unsigned(int, *tl++);
 				freeslot = slot;
-				if (retseq != nmp->nm_slotseq[slot])
+				if (retseq != sep->nfsess_slotseq[slot])
 					printf("retseq diff 0x%x\n", retseq);
 				retval = fxdr_unsigned(uint32_t, *++tl);
 #ifdef notyet
-				if ((retval + 1) < nmp->nm_foreslots)
-					nmp->nm_foreslots = (retval + 1);
-				else if ((retval + 1) > nmp->nm_foreslots)
-					nmp->nm_foreslots = (retval < 64) ?
+				if ((retval + 1) < sep->nfsess_foreslots)
+					sep->nfsess_foreslots = (retval + 1);
+				else if ((retval + 1) > sep->nfsess_foreslots)
+					sep->nfsess_foreslots = (retval < 64) ?
 					    (retval + 1) : 64;
 #else
 				/*
@@ -837,24 +840,24 @@ if (nmp != NULL && i == NFSV4OP_SEQUENCE && j != 0) printf("failed seq=%d\n", j)
 				 * In other words, is it N or N-1?
 				 * For now, play it safe and assume the
 				 * worst cases of the above, such that
-				 * nm_foreslots might be one less than the
+				 * nfsess_foreslots might be one less than the
 				 * server specified. This is safe, whereas
-				 * setting nm_foreslots one greater than
+				 * setting nfsess_foreslots one greater than
 				 * the server intended could cause grief.
 				 */
-				if (retval < nmp->nm_foreslots)
+				if (retval < sep->nfsess_foreslots)
 {
 printf("foreslots shrinking %d\n", retval);
-					nmp->nm_foreslots = retval;
+					sep->nfsess_foreslots = retval;
 }
-				else if (retval > nmp->nm_foreslots)
+				else if (retval > sep->nfsess_foreslots)
 {
 printf("foreslots growing %d\n", retval);
-					nmp->nm_foreslots = (retval < 64) ?
+					sep->nfsess_foreslots = (retval < 64) ?
 					    retval : 64;
 }
 #endif	/* notyet */
-				NFSUNLOCKMNT(nmp);
+				mtx_unlock(&sep->nfsess_mtx);
 
 				/* Grab the op and status for the next one. */
 				if (opcnt > 1) {
@@ -890,11 +893,11 @@ printf("foreslots growing %d\n", retval);
 					(void) nfs_catnap(PZERO, 0, "nfstry");
 				trylater_delay *= 2;
 				if (slot != -1) {
-					NFSLOCKMNT(nmp);
-					nmp->nm_slotseq[slot]++;
+					mtx_lock(&sep->nfsess_mtx);
+					sep->nfsess_slotseq[slot]++;
 					*nd->nd_slotseq = txdr_unsigned(
-					    nmp->nm_slotseq[slot]);
-					NFSUNLOCKMNT(nmp);
+					    sep->nfsess_slotseq[slot]);
+					mtx_unlock(&sep->nfsess_mtx);
 				}
 				m_freem(nd->nd_mrep);
 				nd->nd_mrep = NULL;
@@ -915,7 +918,7 @@ printf("foreslots growing %d\n", retval);
 		if ((nd->nd_flag & ND_NFSV4) != 0) {
 			/* Free the slot, as required. */
 			if (freeslot != -1)
-				nfscl_freeslot(nmp, freeslot);
+				nfsv4_freeslot(sep, freeslot);
 			/*
 			 * If this op is Putfh, throw its results away.
 			 */
