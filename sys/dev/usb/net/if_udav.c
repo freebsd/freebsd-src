@@ -751,9 +751,9 @@ udav_ifmedia_status(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	UDAV_LOCK(sc);
 	mii_pollstat(mii);
-	UDAV_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	UDAV_UNLOCK(sc);
 }
 
 static void
