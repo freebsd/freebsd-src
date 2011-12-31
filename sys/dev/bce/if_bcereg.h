@@ -576,7 +576,6 @@ default: DBPRINT(sc, BCE_INSANE_PHY,					\
 #define BCE_CHIP_NUM_5706		0x57060000
 #define BCE_CHIP_NUM_5708		0x57080000
 #define BCE_CHIP_NUM_5709		0x57090000
-#define BCE_CHIP_NUM_5716		0x57160000
 
 #define BCE_CHIP_REV(sc)		(((sc)->bce_chipid) & 0x0000f000)
 #define BCE_CHIP_REV_Ax			0x00000000
@@ -601,7 +600,6 @@ default: DBPRINT(sc, BCE_INSANE_PHY,					\
 #define BCE_CHIP_ID_5709_B1		0x57091010
 #define BCE_CHIP_ID_5709_B2		0x57091020
 #define BCE_CHIP_ID_5709_C0		0x57092000
-#define BCE_CHIP_ID_5716_C0		0x57162000
 
 #define BCE_CHIP_BOND_ID(sc)		(((sc)->bce_chipid) & 0xf)
 
