@@ -452,7 +452,7 @@ main(argc, argv)
 		}
 		if (!(readfds & (1 << s))) {
 			report(LOG_INFO, "exiting after %ld minutes of inactivity",
-				   actualtimeout.tv_sec / 60);
+				   (long)(actualtimeout.tv_sec / 60));
 			exit(0);
 		}
 		ra_len = sizeof(recv_addr);
