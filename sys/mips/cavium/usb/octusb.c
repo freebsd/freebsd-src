@@ -162,7 +162,7 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	    &sc->sc_port[td->qh->port_index].state,
 	    0,
 	    td->qh->dev_addr,
-	    td->qh->ep_num,
+	    td->qh->ep_num & UE_ADDR,
 	    octusb_convert_speed(td->qh->dev_speed),
 	    td->qh->max_packet_size,
 	    octusb_convert_ep_type(td->qh->ep_type),
