@@ -164,6 +164,7 @@ define PerPlatformConfigArch_template
 $(call Set,Tmp.Arch,$(1))
 $(call Set,Tmp.ObjPath,$(ProjObjRoot)/$(Tmp.Name)/$(Tmp.Config)/$(Tmp.Arch))
 $(call Set,Tmp.Functions,$(strip \
+  $(AlwaysRequiredModules) \
   $(call GetCNAVar,FUNCTIONS,$(Tmp.Key),$(Tmp.Config),$(Tmp.Arch))))
 $(call Set,Tmp.Optimized,$(strip \
   $(call GetCNAVar,OPTIMIZED,$(Tmp.Key),$(Tmp.Config),$(Tmp.Arch))))
@@ -226,7 +227,10 @@ $(Tmp.ObjPath)/%.o: $(Tmp.SrcPath)/%.S $(Tmp.Dependencies) $(Tmp.ObjPath)/.dir
 	$(Verb) $(Tmp.CC) $(Tmp.CFLAGS) -c -o $$@ $$<
 $(Tmp.ObjPath)/%.o: $(Tmp.SrcPath)/%.c $(Tmp.Dependencies) $(Tmp.ObjPath)/.dir
 	$(Summary) "  COMPILE:   $(Tmp.Name)/$(Tmp.Config)/$(Tmp.Arch): $$<"
-	$(Verb) $(Tmp.CC) $(Tmp.CFLAGS) -c -o $$@ $$<
+	$(Verb) $(Tmp.CC) $(Tmp.CFLAGS) -c $(COMMON_CFLAGS) -o $$@ $$<
+$(Tmp.ObjPath)/%.o: $(Tmp.SrcPath)/%.cc $(Tmp.Dependencies) $(Tmp.ObjPath)/.dir
+	$(Summary) "  COMPILE:   $(Tmp.Name)/$(Tmp.Config)/$(Tmp.Arch): $$<"
+	$(Verb) $(Tmp.CC) $(Tmp.CFLAGS) -c $(COMMON_CXXFLAGS) -o $$@ $$<
 .PRECIOUS: $(Tmp.ObjPath)/.dir
 
 endef
