@@ -70,9 +70,11 @@ typedef uint64_t __be64;
 #error "Must set BYTE_ORDER"
 #endif
 
+#ifndef __bool_true_false_are_defined
 typedef boolean_t bool;
 #define false FALSE
 #define true TRUE
+#endif
 
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
