@@ -224,7 +224,7 @@ static __inline void igb_rx_input(struct rx_ring *,
 
 static bool	igb_rxeof(struct igb_queue *, int, int *);
 static void	igb_rx_checksum(u32, struct mbuf *, u32);
-static int	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
+static bool	igb_tx_ctx_setup(struct tx_ring *, struct mbuf *);
 static bool	igb_tso_setup(struct tx_ring *, struct mbuf *, u32 *);
 static void	igb_set_promisc(struct adapter *);
 static void	igb_disable_promisc(struct adapter *);
@@ -334,7 +334,7 @@ TUNABLE_INT("hw.igb.max_interrupt_rate", &igb_max_interrupt_rate);
 ** into the header and thus use no cluster. Its
 ** a very workload dependent type feature.
 */
-static bool igb_header_split = FALSE;
+static int igb_header_split = FALSE;
 TUNABLE_INT("hw.igb.hdr_split", &igb_header_split);
 
 /*
@@ -3361,7 +3361,7 @@ igb_free_transmit_buffers(struct tx_ring *txr)
  *  Setup work for hardware segmentation offload (TSO)
  *
  **********************************************************************/
-static boolean_t
+static bool
 igb_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *hdrlen)
 {
 	struct adapter *adapter = txr->adapter;
