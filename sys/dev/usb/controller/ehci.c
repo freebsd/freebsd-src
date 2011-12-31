@@ -188,7 +188,7 @@ ehci_reset(ehci_softc_t *sc)
 
 	EOWRITE4(sc, EHCI_USBCMD, EHCI_CMD_HCRESET);
 	for (i = 0; i < 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 128);
 		hcr = EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_HCRESET;
 		if (!hcr) {
 			if (sc->sc_flags & (EHCI_SCFLG_SETMODE | EHCI_SCFLG_BIGEMMIO)) {
@@ -212,7 +212,7 @@ ehci_reset(ehci_softc_t *sc)
 			return (0);
 		}
 	}
-	device_printf(sc->sc_bus.bdev, "reset timeout\n");
+	device_printf(sc->sc_bus.bdev, "Reset timeout\n");
 	return (USB_ERR_IOERROR);
 }
 
@@ -224,7 +224,7 @@ ehci_hcreset(ehci_softc_t *sc)
 
 	EOWRITE4(sc, EHCI_USBCMD, 0);	/* Halt controller */
 	for (i = 0; i < 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
+		usb_pause_mtx(NULL, hz / 128);
 		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
 		if (hcr)
 			break;
@@ -237,7 +237,60 @@ ehci_hcreset(ehci_softc_t *sc)
                  */
 		device_printf(sc->sc_bus.bdev, "stop timeout\n");
 
-	return ehci_reset(sc);
+	return (ehci_reset(sc));
+}
+
+static int
+ehci_init_sub(struct ehci_softc *sc)
+{
+	struct usb_page_search buf_res;
+	uint32_t cparams;
+  	uint32_t hcr;
+	uint8_t i;
+
+	cparams = EREAD4(sc, EHCI_HCCPARAMS);
+
+	DPRINTF("cparams=0x%x\n", cparams);
+
+	if (EHCI_HCC_64BIT(cparams)) {
+		DPRINTF("HCC uses 64-bit structures\n");
+
+		/* MUST clear segment register if 64 bit capable */
+		EWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
+	}
+
+	usbd_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
+	EOWRITE4(sc, EHCI_PERIODICLISTBASE, buf_res.physaddr);
+
+	usbd_get_page(&sc->sc_hw.async_start_pc, 0, &buf_res);
+	EOWRITE4(sc, EHCI_ASYNCLISTADDR, buf_res.physaddr | EHCI_LINK_QH);
+
+	/* enable interrupts */
+	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
+
+	/* turn on controller */
+	EOWRITE4(sc, EHCI_USBCMD,
+	    EHCI_CMD_ITC_1 |		/* 1 microframes interrupt delay */
+	    (EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_FLS_M) |
+	    EHCI_CMD_ASE |
+	    EHCI_CMD_PSE |
+	    EHCI_CMD_RS);
+
+	/* Take over port ownership */
+	EOWRITE4(sc, EHCI_CONFIGFLAG, EHCI_CONF_CF);
+
+	for (i = 0; i < 100; i++) {
+		usb_pause_mtx(NULL, hz / 128);
+		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
+		if (!hcr) {
+			break;
+		}
+	}
+	if (hcr) {
+		device_printf(sc->sc_bus.bdev, "Run timeout\n");
+		return (USB_ERR_IOERROR);
+	}
+	return (USB_ERR_NORMAL_COMPLETION);
 }
 
 usb_error_t
@@ -246,8 +299,6 @@ ehci_init(ehci_softc_t *sc)
 	struct usb_page_search buf_res;
 	uint32_t version;
 	uint32_t sparams;
-	uint32_t cparams;
-	uint32_t hcr;
 	uint16_t i;
 	uint16_t x;
 	uint16_t y;
@@ -279,15 +330,6 @@ ehci_init(ehci_softc_t *sc)
 	DPRINTF("sparams=0x%x\n", sparams);
 
 	sc->sc_noport = EHCI_HCS_N_PORTS(sparams);
-	cparams = EREAD4(sc, EHCI_HCCPARAMS);
-	DPRINTF("cparams=0x%x\n", cparams);
-
-	if (EHCI_HCC_64BIT(cparams)) {
-		DPRINTF("HCC uses 64-bit structures\n");
-
-		/* MUST clear segment register if 64 bit capable */
-		EWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
-	}
 	sc->sc_bus.usbrev = USB_REV_2_0;
 
 	/* Reset the controller */
@@ -464,9 +506,6 @@ ehci_init(ehci_softc_t *sc)
 			    [i & (EHCI_VIRTUAL_FRAMELIST_COUNT - 1)]->itd_self;
 		}
 	}
-	/* setup sync list pointer */
-	EOWRITE4(sc, EHCI_PERIODICLISTBASE, buf_res.physaddr);
-
 	usbd_get_page(&sc->sc_hw.async_start_pc, 0, &buf_res);
 
 	if (1) {
@@ -511,35 +550,8 @@ ehci_init(ehci_softc_t *sc)
 	}
 #endif
 
-	/* setup async list pointer */
-	EOWRITE4(sc, EHCI_ASYNCLISTADDR, buf_res.physaddr | EHCI_LINK_QH);
-
-
-	/* enable interrupts */
-	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
-
-	/* turn on controller */
-	EOWRITE4(sc, EHCI_USBCMD,
-	    EHCI_CMD_ITC_1 |		/* 1 microframes interrupt delay */
-	    (EOREAD4(sc, EHCI_USBCMD) & EHCI_CMD_FLS_M) |
-	    EHCI_CMD_ASE |
-	    EHCI_CMD_PSE |
-	    EHCI_CMD_RS);
-
-	/* Take over port ownership */
-	EOWRITE4(sc, EHCI_CONFIGFLAG, EHCI_CONF_CF);
-
-	for (i = 0; i < 100; i++) {
-		usb_pause_mtx(NULL, hz / 1000);
-		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
-		if (!hcr) {
-			break;
-		}
-	}
-	if (hcr) {
-		device_printf(sc->sc_bus.bdev, "run timeout\n");
-		return (USB_ERR_IOERROR);
-	}
+	/* finial setup */
+ 	err = ehci_init_sub(sc);
 
 	if (!err) {
 		/* catch any lost interrupts */
@@ -573,135 +585,26 @@ ehci_detach(ehci_softc_t *sc)
 	usb_callout_drain(&sc->sc_tmo_poll);
 }
 
-void
+static void
 ehci_suspend(ehci_softc_t *sc)
-{
-	uint32_t cmd;
-	uint32_t hcr;
-	uint8_t i;
-
-	USB_BUS_LOCK(&sc->sc_bus);
-
-	for (i = 1; i <= sc->sc_noport; i++) {
-		cmd = EOREAD4(sc, EHCI_PORTSC(i));
-		if (((cmd & EHCI_PS_PO) == 0) &&
-		    ((cmd & EHCI_PS_PE) == EHCI_PS_PE)) {
-			EOWRITE4(sc, EHCI_PORTSC(i),
-			    cmd | EHCI_PS_SUSP);
-		}
-	}
-
-	sc->sc_cmd = EOREAD4(sc, EHCI_USBCMD);
-
-	cmd = sc->sc_cmd & ~(EHCI_CMD_ASE | EHCI_CMD_PSE);
-	EOWRITE4(sc, EHCI_USBCMD, cmd);
-
-	for (i = 0; i < 100; i++) {
-		hcr = EOREAD4(sc, EHCI_USBSTS) &
-		    (EHCI_STS_ASS | EHCI_STS_PSS);
-
-		if (hcr == 0) {
-			break;
-		}
-		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
-	}
-
-	if (hcr != 0) {
-		device_printf(sc->sc_bus.bdev, "reset timeout\n");
-	}
-	cmd &= ~EHCI_CMD_RS;
-	EOWRITE4(sc, EHCI_USBCMD, cmd);
-
-	for (i = 0; i < 100; i++) {
-		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
-		if (hcr == EHCI_STS_HCH) {
-			break;
-		}
-		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
-	}
-
-	if (hcr != EHCI_STS_HCH) {
-		device_printf(sc->sc_bus.bdev,
-		    "config timeout\n");
-	}
-	USB_BUS_UNLOCK(&sc->sc_bus);
-}
-
-void
-ehci_resume(ehci_softc_t *sc)
-{
-	struct usb_page_search buf_res;
-	uint32_t cmd;
-	uint32_t hcr;
-	uint8_t i;
-
-	USB_BUS_LOCK(&sc->sc_bus);
-
-	/* restore things in case the bios doesn't */
-	EOWRITE4(sc, EHCI_CTRLDSSEGMENT, 0);
-
-	usbd_get_page(&sc->sc_hw.pframes_pc, 0, &buf_res);
-	EOWRITE4(sc, EHCI_PERIODICLISTBASE, buf_res.physaddr);
-
-	usbd_get_page(&sc->sc_hw.async_start_pc, 0, &buf_res);
-	EOWRITE4(sc, EHCI_ASYNCLISTADDR, buf_res.physaddr | EHCI_LINK_QH);
-
-	EOWRITE4(sc, EHCI_USBINTR, sc->sc_eintrs);
-
-	hcr = 0;
-	for (i = 1; i <= sc->sc_noport; i++) {
-		cmd = EOREAD4(sc, EHCI_PORTSC(i));
-		if (((cmd & EHCI_PS_PO) == 0) &&
-		    ((cmd & EHCI_PS_SUSP) == EHCI_PS_SUSP)) {
-			EOWRITE4(sc, EHCI_PORTSC(i),
-			    cmd | EHCI_PS_FPR);
-			hcr = 1;
-		}
-	}
-
-	if (hcr) {
-		usb_pause_mtx(&sc->sc_bus.bus_mtx,
-		    USB_MS_TO_TICKS(USB_RESUME_WAIT));
-
-		for (i = 1; i <= sc->sc_noport; i++) {
-			cmd = EOREAD4(sc, EHCI_PORTSC(i));
-			if (((cmd & EHCI_PS_PO) == 0) &&
-			    ((cmd & EHCI_PS_SUSP) == EHCI_PS_SUSP)) {
-				EOWRITE4(sc, EHCI_PORTSC(i),
-				    cmd & ~EHCI_PS_FPR);
-			}
-		}
-	}
-	EOWRITE4(sc, EHCI_USBCMD, sc->sc_cmd);
-
-	for (i = 0; i < 100; i++) {
-		hcr = EOREAD4(sc, EHCI_USBSTS) & EHCI_STS_HCH;
-		if (hcr != EHCI_STS_HCH) {
-			break;
-		}
-		usb_pause_mtx(&sc->sc_bus.bus_mtx, hz / 1000);
-	}
-	if (hcr == EHCI_STS_HCH) {
-		device_printf(sc->sc_bus.bdev, "config timeout\n");
-	}
-
-	USB_BUS_UNLOCK(&sc->sc_bus);
-
-	usb_pause_mtx(NULL,
-	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
-
-	/* catch any lost interrupts */
-	ehci_do_poll(&sc->sc_bus);
-}
-
-void
-ehci_shutdown(ehci_softc_t *sc)
 {
 	DPRINTF("stopping the HC\n");
 
-	if (ehci_hcreset(sc)) {
-		DPRINTF("reset failed!\n");
-	}
+	/* reset HC */
+	ehci_hcreset(sc);
+}
+
+static void
+ehci_resume(ehci_softc_t *sc)
+{
+	/* reset HC */
+	ehci_hcreset(sc);
+
+	/* setup HC */
+	ehci_init_sub(sc);
+
+	/* catch any lost interrupts */
+	ehci_do_poll(&sc->sc_bus);
 }
 
 #ifdef USB_DEBUG
@@ -3908,8 +3811,24 @@ ehci_device_suspend(struct usb_device *udev)
 	}
 
 	USB_BUS_UNLOCK(udev->bus);
+}
 
-	return;
+static void
+ehci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct ehci_softc *sc = EHCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+	case USB_HW_POWER_SHUTDOWN:
+		ehci_suspend(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		ehci_resume(sc);
+		break;
+	default:
+		break;
+	}
 }
 
 static void
@@ -3955,6 +3874,7 @@ struct usb_bus_methods ehci_bus_methods =
 	.device_resume = ehci_device_resume,
 	.device_suspend = ehci_device_suspend,
 	.set_hw_power = ehci_set_hw_power,
+	.set_hw_power_sleep = ehci_set_hw_power_sleep,
 	.roothub_exec = ehci_roothub_exec,
 	.xfer_poll = ehci_do_poll,
 };

@@ -373,9 +373,10 @@ done_1:
 
 done_2:
 
-	/* reload the configuration */
-	UWRITE2(sc, UHCI_FRNUM, sc->sc_saved_frnum);
-	UWRITE1(sc, UHCI_SOF, sc->sc_saved_sof);
+	/* reset frame number */
+	UWRITE2(sc, UHCI_FRNUM, 0);
+	/* set default SOF value */
+	UWRITE1(sc, UHCI_SOF, 0x40);
 
 	USB_BUS_UNLOCK(&sc->sc_bus);
 
@@ -463,9 +464,6 @@ uhci_init(uhci_softc_t *sc)
 		uhci_dumpregs(sc);
 	}
 #endif
-	sc->sc_saved_sof = 0x40;	/* default value */
-	sc->sc_saved_frnum = 0;		/* default frame number */
-
 	/*
 	 * Setup QH's
 	 */
@@ -658,24 +656,16 @@ uhci_init(uhci_softc_t *sc)
 	return (0);
 }
 
-/* NOTE: suspend/resume is called from
- * interrupt context and cannot sleep!
- */
-
-void
+static void
 uhci_suspend(uhci_softc_t *sc)
 {
-	USB_BUS_LOCK(&sc->sc_bus);
-
 #ifdef USB_DEBUG
 	if (uhcidebug > 2) {
 		uhci_dumpregs(sc);
 	}
 #endif
-	/* save some state if BIOS doesn't */
 
-	sc->sc_saved_frnum = UREAD2(sc, UHCI_FRNUM);
-	sc->sc_saved_sof = UREAD1(sc, UHCI_SOF);
+	USB_BUS_LOCK(&sc->sc_bus);
 
 	/* stop the controller */
 
@@ -685,13 +675,10 @@ uhci_suspend(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_EGSM);
 
-	usb_pause_mtx(&sc->sc_bus.bus_mtx, 
-	    USB_MS_TO_TICKS(USB_RESUME_WAIT));
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 uhci_resume(uhci_softc_t *sc)
 {
 	USB_BUS_LOCK(&sc->sc_bus);
@@ -704,20 +691,16 @@ uhci_resume(uhci_softc_t *sc)
 
 	UHCICMD(sc, UHCI_CMD_FGR);
 
-	usb_pause_mtx(&sc->sc_bus.bus_mtx,
-	    USB_MS_TO_TICKS(USB_RESUME_DELAY));
-
 	/* and start traffic again */
 
 	uhci_start(sc);
 
-#ifdef USB_DEBUG
-	if (uhcidebug > 2) {
-		uhci_dumpregs(sc);
-	}
-#endif
-
 	USB_BUS_UNLOCK(&sc->sc_bus);
+
+#ifdef USB_DEBUG
+	if (uhcidebug > 2)
+		uhci_dumpregs(sc);
+#endif
 
 	/* catch lost interrupts */
 	uhci_do_poll(&sc->sc_bus);
@@ -3179,6 +3162,24 @@ uhci_device_suspend(struct usb_device *udev)
 }
 
 static void
+uhci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct uhci_softc *sc = UHCI_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+	case USB_HW_POWER_SHUTDOWN:
+		uhci_suspend(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		uhci_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
+static void
 uhci_set_hw_power(struct usb_bus *bus)
 {
 	struct uhci_softc *sc = UHCI_BUS2SC(bus);
@@ -3225,6 +3226,7 @@ struct usb_bus_methods uhci_bus_methods =
 	.device_resume = uhci_device_resume,
 	.device_suspend = uhci_device_suspend,
 	.set_hw_power = uhci_set_hw_power,
+	.set_hw_power_sleep = uhci_set_hw_power_sleep,
 	.roothub_exec = uhci_roothub_exec,
 	.xfer_poll = uhci_do_poll,
 };
