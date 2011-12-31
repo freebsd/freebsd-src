@@ -707,6 +707,13 @@ uhub_explore(struct usb_device *udev)
 		DPRINTF("Device is suspended!\n");
 		return (0);
 	}
+
+	/*
+	 * Make sure we don't race against user-space applications
+	 * like LibUSB:
+	 */
+	usbd_enum_lock(udev);
+
 	for (x = 0; x != hub->nports; x++) {
 		up = hub->ports + x;
 		portno = x + 1;
@@ -783,6 +790,8 @@ uhub_explore(struct usb_device *udev)
 		/* explore succeeded - reset restart counter */
 		up->restartcnt = 0;
 	}
+
+	usbd_enum_unlock(udev);
 
 	/* initial status checked */
 	sc->sc_flags |= UHUB_FLAG_DID_EXPLORE;
