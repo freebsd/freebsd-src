@@ -82,8 +82,8 @@ static const char rcsid[] =
 void
 DispPkt(RMPCONN *rconn, int direct)
 {
-	static const char BootFmt[] = "\t\tRetCode:%u SeqNo:%lx SessID:%x Vers:%u";
-	static const char ReadFmt[] = "\t\tRetCode:%u Offset:%lx SessID:%x\n";
+	static const char BootFmt[] = "\t\tRetCode:%u SeqNo:%x SessID:%x Vers:%u";
+	static const char ReadFmt[] = "\t\tRetCode:%u Offset:%x SessID:%x\n";
 
 	struct tm *tmp;
 	struct rmp_packet *rmp;
@@ -166,7 +166,7 @@ DispPkt(RMPCONN *rconn, int direct)
 			GETWORD(rmp->r_rrpl.rmp_offset, t);
 			(void) fprintf(DbgFp, ReadFmt, rmp->r_rrpl.rmp_retcode,
 			        t, ntohs(rmp->r_rrpl.rmp_session));
-			(void) fprintf(DbgFp, "\t\tNoOfBytesSent: %d\n",
+			(void) fprintf(DbgFp, "\t\tNoOfBytesSent: %zu\n",
 			        rconn->rmplen - RMPREADSIZE(0));
 			break;
 		case RMP_BOOT_DONE:		/* boot complete */
