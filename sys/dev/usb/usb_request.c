@@ -517,7 +517,7 @@ usbd_do_request_flags(struct usb_device *udev, struct mtx *mtx,
 				}
 			} else
 #endif
-				bcopy(desc, data, length);
+				memcpy(data, desc, length);
 		}
 		goto done;		/* success */
 	}
