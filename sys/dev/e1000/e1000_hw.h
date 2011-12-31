@@ -880,7 +880,7 @@ struct e1000_dev_spec_ich8lan {
 	E1000_MUTEX nvm_mutex;
 	E1000_MUTEX swflag_mutex;
 	bool nvm_k1_enabled;
-	bool eee_disable;
+	int eee_disable;
 };
 
 struct e1000_dev_spec_82575 {
