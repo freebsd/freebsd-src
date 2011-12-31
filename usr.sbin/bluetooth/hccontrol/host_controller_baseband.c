@@ -1633,7 +1633,7 @@ struct hci_command	host_controller_baseband_commands[] = {
 "defines the amount of time for the duration of the page scan. \n" \
 "The Page_Scan_Window can only be less than or equal to the Page_Scan_Interval.\n\n" \
 "\t<interval> - Range: 0x0012 -- 0x100, Time = N * 0.625 msec\n" \
-"\t<window>   - Range: 0x0012 -- 0x100, Time = N * 0.625 msen",
+"\t<window>   - Range: 0x0012 -- 0x100, Time = N * 0.625 msec",
 &hci_write_page_scan_activity
 },
 {
@@ -1655,7 +1655,7 @@ struct hci_command	host_controller_baseband_commands[] = {
 "parameter defines the amount of time for the duration of the inquiry scan.\n" \
 "The Inquiry_Scan_Window can only be less than or equal to the Inquiry_Scan_Interval.\n\n" \
 "\t<interval> - Range: 0x0012 -- 0x100, Time = N * 0.625 msec\n" \
-"\t<window>   - Range: 0x0012 -- 0x100, Time = N * 0.625 msen",
+"\t<window>   - Range: 0x0012 -- 0x100, Time = N * 0.625 msec",
 &hci_write_inquiry_scan_activity
 },
 {
