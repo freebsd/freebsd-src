@@ -4,7 +4,7 @@
 # $FreeBSD$
 #
 
-include		"UBNT_AR71XX_BASE"
+include		"AR71XX_BASE"
 ident		"ROUTERSTATION"
 hints		"ROUTERSTATION.hints"
 
