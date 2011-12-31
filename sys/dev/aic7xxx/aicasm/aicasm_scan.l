@@ -72,6 +72,8 @@ extern void mm_switch_to_buffer(YY_BUFFER_STATE);
 extern void mm_delete_buffer(YY_BUFFER_STATE);
 %}
 
+%option noinput
+
 PATH		([/]*[-A-Za-z0-9_.])+
 WORD		[A-Za-z_][-A-Za-z_0-9]*
 SPACE		[ \t]+
