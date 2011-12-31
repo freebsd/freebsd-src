@@ -721,7 +721,9 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			idlen += sizeof (u_int64_t) + 16; /* 16 random bytes */
 		MALLOC(newclp, struct nfsclclient *,
 		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
-		    M_WAITOK);
+		    M_WAITOK | M_ZERO);
+		mtx_init(&newclp->nfsc_mtx, "ClientID lock", NULL,
+		    MTX_DEF | MTX_DUPOK);
 	}
 	NFSLOCKCLSTATE();
 	/*
@@ -731,8 +733,10 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	 */
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
 		NFSUNLOCKCLSTATE();
-		if (newclp != NULL)
+		if (newclp != NULL) {
+			mtx_destroy(&newclp->nfsc_mtx);
 			free(newclp, M_NFSCLCLIENT);
+		}
 		return (EBADF);
 	}
 	clp = nmp->nm_clp;
@@ -742,7 +746,6 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			return (EACCES);
 		}
 		clp = newclp;
-		NFSBZERO((caddr_t)clp, sizeof(struct nfsclclient) + idlen - 1);
 		clp->nfsc_idlen = idlen;
 		LIST_INIT(&clp->nfsc_owner);
 		TAILQ_INIT(&clp->nfsc_deleg);
@@ -761,8 +764,10 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			nfscl_start_renewthread(clp);
 	} else {
 		NFSUNLOCKCLSTATE();
-		if (newclp != NULL)
-			FREE((caddr_t)newclp, M_NFSCLCLIENT);
+		if (newclp != NULL) {
+			mtx_destroy(&newclp->nfsc_mtx);
+			free(newclp, M_NFSCLCLIENT);
+		}
 	}
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock &&
