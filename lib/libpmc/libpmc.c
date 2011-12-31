@@ -289,7 +289,7 @@ static const char * pmc_class_names[] = {
 };
 
 struct pmc_cputype_map {
-	enum pmc_class	pm_cputype;
+	enum pmc_cputype pm_cputype;
 	const char	*pm_name;
 };
 
