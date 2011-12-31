@@ -686,7 +686,7 @@ zyd_intr_read_callback(struct usb_xfer *xfer, usb_error_t error)
 				memcpy(rqp->odata, cmd->data, rqp->olen);
 				DPRINTF(sc, ZYD_DEBUG_CMD,
 				    "command %p complete, data = %*D \n",
-				    rqp, rqp->olen, rqp->odata, ":");
+				    rqp, rqp->olen, (char *)rqp->odata, ":");
 				wakeup(rqp);	/* wakeup caller */
 				break;
 			}
