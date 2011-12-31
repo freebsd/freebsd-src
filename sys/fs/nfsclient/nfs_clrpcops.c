@@ -4295,7 +4295,7 @@ printf("exch err=%d reps=%d\n",error,nd->nd_repstat);
 		NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
 		clp->nfsc_clientid.lval[0] = *tl++;
 		clp->nfsc_clientid.lval[1] = *tl++;
-		nmp->nm_sequenceid = fxdr_unsigned(uint32_t, *tl++);
+		clp->nfsc_sequenceid = fxdr_unsigned(uint32_t, *tl++);
 		v41flags = fxdr_unsigned(uint32_t, *tl);
 printf("v41fl=0x%x\n", v41flags);
 	}
@@ -4321,8 +4321,8 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclclient *clp,
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = clp->nfsc_clientid.lval[0];
 	*tl++ = clp->nfsc_clientid.lval[1];
-	*tl++ = txdr_unsigned(nmp->nm_sequenceid);
-printf("nmpseq0=0x%x\n",nmp->nm_sequenceid);
+	*tl++ = txdr_unsigned(clp->nfsc_sequenceid);
+printf("clseq0=0x%x\n",clp->nfsc_sequenceid);
 	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
 		*tl = txdr_unsigned(NFSV4CRSESS_PERSIST |
 		    NFSV4CRSESS_CONNBACKCHAN);
@@ -4370,8 +4370,8 @@ printf("nmpseq0=0x%x\n",nmp->nm_sequenceid);
 		    2 * NFSX_UNSIGNED);
 		bcopy(tl, clp->nfsc_sessionid, NFSX_V4SESSIONID);
 		tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
-		nmp->nm_sequenceid = fxdr_unsigned(uint32_t, *tl++);
-printf("nmseq=0x%x\n",nmp->nm_sequenceid);
+		clp->nfsc_sequenceid = fxdr_unsigned(uint32_t, *tl++);
+printf("clseq=0x%x\n",clp->nfsc_sequenceid);
 printf("crfl=0x%x\n",fxdr_unsigned(uint32_t, *tl));
 		/* Don't care about replied flags for now. */
 
@@ -4379,8 +4379,8 @@ printf("crfl=0x%x\n",fxdr_unsigned(uint32_t, *tl));
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 printf("cr %d %d %d %d %d\n",fxdr_unsigned(uint32_t, *tl),fxdr_unsigned(uint32_t, *(tl+1)),fxdr_unsigned(uint32_t, *(tl+2)),fxdr_unsigned(uint32_t, *(tl+3)),fxdr_unsigned(uint32_t, *(tl+4)));
 		tl += 5;		/* Skip the other counts. */		
-		nmp->nm_foreslots = fxdr_unsigned(uint16_t, *tl++);
-printf("fore slots=%d\n", nmp->nm_foreslots);
+		clp->nfsc_foreslots = fxdr_unsigned(uint16_t, *tl++);
+printf("fore slots=%d\n", clp->nfsc_foreslots);
 		irdcnt = fxdr_unsigned(int, *tl);
 		if (irdcnt > 0) {
 printf("got an ird cnt=%d\n",irdcnt);
