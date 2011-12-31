@@ -260,6 +260,8 @@ void newnfs_sndunlock(int *);
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, struct mbuf *);
+void nfsv4_setsequence(struct nfsrv_descript *, struct nfsclsession *, int);
+void nfsv4_freeslot(struct nfsclsession *, int);
 
 /* nfs_clcomsubs.c */
 void nfsm_uiombuf(struct nfsrv_descript *, struct uio *, int);
@@ -498,8 +500,6 @@ void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
-void nfscl_setsequence(struct nfsrv_descript *, struct nfsmount *, int);
-void nfscl_freeslot(struct nfsmount *, int);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,

@@ -3541,3 +3541,80 @@ nfsv4_seqsess_cacherep(uint32_t slotid, struct nfsslot *slots, struct mbuf *rep)
 	slots[slotid].nfssl_inprog = 0;
 }
 
+/*
+ * Generate the xdr for an NFSv4.1 Sequence Operation.
+ */
+APPLESTATIC void
+nfsv4_setsequence(struct nfsrv_descript *nd, struct nfsclsession *sep,
+    int dont_replycache)
+{
+	uint32_t *tl, slotseq = 0;
+	int i, maxslot, slotpos;
+	uint64_t bitval;
+	uint8_t sessionid[NFSX_V4SESSIONID];
+
+	/* Find an unused slot. */
+	slotpos = -1;
+	maxslot = -1;
+	mtx_lock(&sep->nfsess_mtx);
+	do {
+		bitval = 1;
+		for (i = 0; i < sep->nfsess_foreslots; i++) {
+			if ((bitval & sep->nfsess_slots) == 0) {
+				slotpos = i;
+				sep->nfsess_slots |= bitval;
+				sep->nfsess_slotseq[i]++;
+				slotseq = sep->nfsess_slotseq[i];
+				break;
+			}
+			bitval <<= 1;
+		}
+		if (slotpos == -1)
+			(void)mtx_sleep(&sep->nfsess_slots, &sep->nfsess_mtx,
+			    PZERO, "nfsclseq", 0);
+	} while (slotpos == -1);
+	/* Now, find the highest slot in use. (nfsc_slots is 64bits) */
+	bitval = 1;
+	for (i = 0; i < 64; i++) {
+		if ((bitval & sep->nfsess_slots) != 0)
+			maxslot = i;
+		bitval <<= 1;
+	}
+	bcopy(sep->nfsess_sessionid, sessionid, NFSX_V4SESSIONID);
+	mtx_unlock(&sep->nfsess_mtx);
+	KASSERT(maxslot >= 0, ("nfscl_setsequence neg maxslot"));
+
+	/* Build the Sequence arguments. */
+	NFSM_BUILD(tl, uint32_t *, NFSX_V4SESSIONID + 4 * NFSX_UNSIGNED);
+	bcopy(sessionid, tl, NFSX_V4SESSIONID);
+	tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
+	nd->nd_slotseq = tl;
+	*tl++ = txdr_unsigned(slotseq);
+	*tl++ = txdr_unsigned(slotpos);
+	*tl++ = txdr_unsigned(maxslot);
+	if (dont_replycache == 0)
+		*tl = newnfs_true;
+	else
+		*tl = newnfs_false;
+	nd->nd_flag |= ND_HASSEQUENCE;
+}
+
+/*
+ * Free a session slot.
+ */
+APPLESTATIC void
+nfsv4_freeslot(struct nfsclsession *sep, int slot)
+{
+	uint64_t bitval;
+
+	bitval = 1;
+	if (slot > 0)
+		bitval <<= slot;
+	mtx_lock(&sep->nfsess_mtx);
+	if ((bitval & sep->nfsess_slots) == 0)
+		printf("freeing free slot!!\n");
+	sep->nfsess_slots &= ~bitval;
+	wakeup(&sep->nfsess_slots);
+	mtx_unlock(&sep->nfsess_mtx);
+}
+
