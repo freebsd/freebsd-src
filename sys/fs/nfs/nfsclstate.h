@@ -44,17 +44,27 @@ LIST_HEAD(nfscldeleghash, nfscldeleg);
 #define	NFSCLDELEGHASH(c, f, l)						\
 	(&((c)->nfsc_deleghash[ncl_hash((f), (l)) % NFSCLDELEGHASHSIZE]))
 
+/* Structure for NFSv4.1 session stuff. */
+struct nfsclsession {
+	struct mtx	nfsess_mtx;
+	struct nfsslot	nfsess_cbslots[NFSV4_CBSLOTS];
+	nfsquad_t	nfsess_clientid;
+	uint32_t	nfsess_slotseq[64];	/* Max for 64bit nm_slots */
+	uint64_t	nfsess_slots;
+	uint32_t	nfsess_sequenceid;
+	uint16_t	nfsess_foreslots;
+	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
+};
+
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;
 	struct nfsclownerhead	nfsc_owner;
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
 	struct nfsv4lock nfsc_lock;
-	struct	nfsslot nfsc_cbslots[NFSV4_CBSLOTS]; /* NFSv4.1 cb slot table */
-	uint8_t	nfsc_sessionid[NFSX_V4SESSIONID]; /* NFSv4.1 session id */
+	struct nfsclsession	nfsc_sess;
 	struct proc	*nfsc_renewthread;
 	struct nfsmount	*nfsc_nmp;
-	nfsquad_t	nfsc_clientid;
 	time_t		nfsc_expire;
 	u_int32_t	nfsc_clientidrev;
 	u_int32_t	nfsc_renew;
@@ -64,6 +74,15 @@ struct nfsclclient {
 	u_int16_t	nfsc_idlen;
 	u_int8_t	nfsc_id[1];	/* Malloc'd to correct length */
 };
+
+#define	nfsc_mtx	nfsc_sess.nfsess_mtx
+#define	nfsc_cbslots	nfsc_sess.nfsess_cbslots
+#define	nfsc_clientid	nfsc_sess.nfsess_clientid
+#define	nfsc_slotseq	nfsc_sess.nfsess_slotseq
+#define	nfsc_slots	nfsc_sess.nfsess_slots
+#define	nfsc_sequenceid	nfsc_sess.nfsess_sequenceid
+#define	nfsc_foreslots	nfsc_sess.nfsess_foreslots
+#define	nfsc_sessionid	nfsc_sess.nfsess_sessionid
 
 /*
  * Bits for nfsc_flags.
