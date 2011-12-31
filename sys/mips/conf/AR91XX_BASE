@@ -72,10 +72,6 @@ option		ATH_ENABLE_11N
 device		ath_ar5212
 device		ath_ar5416
 device		ath_ar9130
-# This is needed so at least one RF backend is present, or the current
-# HAL setup won't compile.  Remove this once the 11n chip RF backends
-# are converted over to be in the linker set.
-device		ath_rf5111
 
 options		AH_DEBUG
 option		AH_SUPPORT_AR5416
