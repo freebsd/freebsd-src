@@ -550,24 +550,27 @@ xhci_uninit(struct xhci_softc *sc)
 	sx_destroy(&sc->sc_cmd_sx);
 }
 
-void
-xhci_suspend(struct xhci_softc *sc)
+static void
+xhci_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
 {
-	/* XXX TODO */
-}
+	struct xhci_softc *sc = XHCI_BUS2SC(bus);
 
-void
-xhci_resume(struct xhci_softc *sc)
-{
-	/* XXX TODO */
-}
-
-void
-xhci_shutdown(struct xhci_softc *sc)
-{
-	DPRINTF("Stopping the XHCI\n");
-
-	xhci_halt_controller(sc);
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		DPRINTF("Stopping the XHCI\n");
+		xhci_halt_controller(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		DPRINTF("Stopping the XHCI\n");
+		xhci_halt_controller(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		DPRINTF("Starting the XHCI\n");
+		xhci_start_controller(sc);
+		break;
+	default:
+		break;
+	}
 }
 
 static usb_error_t
@@ -3928,4 +3931,5 @@ struct usb_bus_methods xhci_bus_methods = {
 	.set_address = xhci_set_address,
 	.clear_stall = xhci_ep_clear_stall,
 	.device_state_change = xhci_device_state_change,
+	.set_hw_power_sleep = xhci_set_hw_power_sleep,
 };
