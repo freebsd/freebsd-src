@@ -1,16 +1,11 @@
 /*-
  * Copyright (c) 1990, 1991, 1993
- *	The Regents of the University of California.
- * Copyright (c) 2011 The University of Melbourne.
- * All rights reserved.
+ *	The Regents of the University of California.  All rights reserved.
  *
  * This code is derived from the Stanford/CMU enet packet filter,
  * (net/enet.c) distributed as part of 4.3BSD, and code contributed
  * to Berkeley by Steven McCanne and Van Jacobson both of Lawrence
  * Berkeley Laboratory.
- *
- * Portions of this software were developed by Julien Ridoux at the University
- * of Melbourne under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -171,17 +166,25 @@ enum bpf_direction {
 #define	BPF_T_NONE		0x0003
 #define	BPF_T_FORMAT_MASK	0x0003
 #define	BPF_T_NORMAL		0x0000
-#define	BPF_T_MONOTONIC		0x0100
-#define	BPF_T_FLAG_MASK		0x0100
+#define	BPF_T_FAST		0x0100
+#define	BPF_T_MONOTONIC		0x0200
+#define	BPF_T_MONOTONIC_FAST	(BPF_T_FAST | BPF_T_MONOTONIC)
+#define	BPF_T_FLAG_MASK		0x0300
 #define	BPF_T_FORMAT(t)		((t) & BPF_T_FORMAT_MASK)
 #define	BPF_T_FLAG(t)		((t) & BPF_T_FLAG_MASK)
 #define	BPF_T_VALID(t)						\
     ((t) == BPF_T_NONE || (BPF_T_FORMAT(t) != BPF_T_NONE &&	\
     ((t) & ~(BPF_T_FORMAT_MASK | BPF_T_FLAG_MASK)) == 0))
 
+#define	BPF_T_MICROTIME_FAST		(BPF_T_MICROTIME | BPF_T_FAST)
+#define	BPF_T_NANOTIME_FAST		(BPF_T_NANOTIME | BPF_T_FAST)
+#define	BPF_T_BINTIME_FAST		(BPF_T_BINTIME | BPF_T_FAST)
 #define	BPF_T_MICROTIME_MONOTONIC	(BPF_T_MICROTIME | BPF_T_MONOTONIC)
 #define	BPF_T_NANOTIME_MONOTONIC	(BPF_T_NANOTIME | BPF_T_MONOTONIC)
 #define	BPF_T_BINTIME_MONOTONIC		(BPF_T_BINTIME | BPF_T_MONOTONIC)
+#define	BPF_T_MICROTIME_MONOTONIC_FAST	(BPF_T_MICROTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_NANOTIME_MONOTONIC_FAST	(BPF_T_NANOTIME | BPF_T_MONOTONIC_FAST)
+#define	BPF_T_BINTIME_MONOTONIC_FAST	(BPF_T_BINTIME | BPF_T_MONOTONIC_FAST)
 
 /*
  * Structure prepended to each packet.
@@ -1097,8 +1100,6 @@ struct bpf_if {
 	u_int bif_hdrlen;		/* length of link header */
 	struct ifnet *bif_ifp;		/* corresponding interface */
 	struct mtx	bif_mtx;	/* mutex for interface */
-	struct sysctl_oid *tscfgoid;	/* timestamp sysctl oid for interface */
-	int tstype;			/* timestamp setting for interface */
 };
 
 void	 bpf_bufheld(struct bpf_d *d);
