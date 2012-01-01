@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
  *
  *	equal(s1, s2)		Return true if strings are equal.
  *	scopy(from, to)		Copy a string.
- *	scopyn(from, to, n)	Like scopy, but checks for overflow.
  *	number(s)		Convert a string of digits to an integer.
  *	is_number(s)		Return true if s is a string of digits.
  */
@@ -64,24 +63,6 @@ char nullstr[1];		/* zero length string */
 /*
  * scopy - #defined in mystring.h
  */
-
-
-/*
- * scopyn - copy a string from "from" to "to", truncating the string
- *		if necessary.  "To" is always nul terminated, even if
- *		truncation is performed.  "Size" is the size of "to".
- */
-
-void
-scopyn(const char *from, char *to, int size)
-{
-
-	while (--size > 0) {
-		if ((*to++ = *from++) == '\0')
-			return;
-	}
-	*to = '\0';
-}
 
 
 /*
