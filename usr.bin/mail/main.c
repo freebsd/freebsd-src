@@ -206,7 +206,7 @@ Usage: %s [-dEiInv] [-s subject] [-c cc-addr] [-b bcc-addr] [-F] to-addr ...\n\
        %*s [-sendmail-option ...]\n\
        %s [-dEHiInNv] [-F] -f [name]\n\
        %s [-dEHiInNv] [-F] [-u user]\n\
-       %s [-d] -e [-f name]\n", __progname, strlen(__progname), "",
+       %s [-d] -e [-f name]\n", __progname, (int)strlen(__progname), "",
 				__progname, __progname, __progname);
 			exit(1);
 		}
