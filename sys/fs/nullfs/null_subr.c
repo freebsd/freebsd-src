@@ -289,22 +289,12 @@ null_checkvp(vp, fil, lno)
 #endif
 	if (a->null_lowervp == NULLVP) {
 		/* Should never happen */
-		int i; u_long *p;
-		printf("vp = %p, ZERO ptr\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic("null_checkvp");
+		panic("null_checkvp %p", vp);
 	}
 	VI_LOCK_FLAGS(a->null_lowervp, MTX_DUPOK);
-	if (a->null_lowervp->v_usecount < 1) {
-		int i; u_long *p;
-		printf("vp = %p, unref'ed lowervp\n", (void *)vp);
-		for (p = (u_long *) a, i = 0; i < 8; i++)
-			printf(" %lx", p[i]);
-		printf("\n");
-		panic ("null with unref'ed lowervp");
-	}
+	if (a->null_lowervp->v_usecount < 1)
+		panic ("null with unref'ed lowervp, vp %p lvp %p",
+		    vp, a->null_lowervp);
 	VI_UNLOCK(a->null_lowervp);
 #ifdef notyet
 	printf("null %x/%d -> %x/%d [%s, %d]\n",
