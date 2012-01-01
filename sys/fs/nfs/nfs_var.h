@@ -73,6 +73,8 @@ struct nfsclsession;
 struct nfscllockowner;
 struct nfscllock;
 struct nfscldeleg;
+struct nfsclflayout;
+struct nfsclflayouthead;
 struct nfsv4lock;
 struct nfsvattr;
 struct nfs_vattr;
@@ -440,6 +442,9 @@ int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
+int nfsrpc_layoutget(vnode_t, int, uint64_t, uint64_t, uint64_t,
+    nfsv4stateid_t *, struct nfsclflayouthead *, struct ucred *,
+    NFSPROC_T *, void *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,

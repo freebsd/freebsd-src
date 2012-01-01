@@ -4451,3 +4451,153 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
 	return (error);
 }
 
+/*
+ * Do the NFSv4.1 LayoutGet.
+ */
+int
+nfsrpc_layoutget(vnode_t vp, int iomode, uint64_t offset, uint64_t len,
+    uint64_t minlen, nfsv4stateid_t *stateidp, struct nfsclflayouthead *flhp,
+    struct ucred *cred, NFSPROC_T *p, void *stuff)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	struct nfsfh *fhp;
+	struct nfsclflayout *flp, *nflp;
+	struct nfsnode *np;
+	nfsv4stateid_t st;
+	int cnt, error, fhcnt, fhlen, i, j, retonclose;
+	uint8_t *cp;
+
+	np = VTONFS(vp);
+	NFSCL_REQSTART(nd, NFSPROC_LAYOUTGET, vp);
+	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
+	    NFSX_STATEID);
+	*tl++ = newnfs_false;		/* Don't signal availability. */
+	*tl++ = txdr_unsigned(NFSLAYOUT_NFSV4_1_FILES);
+	*tl++ = txdr_unsigned(iomode);
+	txdr_hyper(offset, tl);
+	tl += 2;
+	txdr_hyper(len, tl);
+	tl += 2;
+	txdr_hyper(minlen, tl);
+	tl += 2;
+	*tl++ = stateidp->seqid;
+	*tl++ = stateidp->other[0];
+	*tl++ = stateidp->other[1];
+	*tl++ = stateidp->other[2];
+	*tl = txdr_unsigned(100000);	/* take a large layout list */
+	nd->nd_flag |= ND_USEGSSNAME;
+	error = nfscl_request(nd, vp, p, cred, stuff);
+	if (error)
+		return (error);
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_STATEID);
+		if (*tl++ != 0)
+			retonclose = 1;
+		else
+			retonclose = 0;
+printf("layg rcl=%d\n", retonclose);
+		st.seqid = *tl++;
+		st.other[0] = *tl++;
+		st.other[1] = *tl++;
+		st.other[2] = *tl++;
+		cnt = fxdr_unsigned(int, *tl);
+printf("layg cnt=%d\n", cnt);
+		if (cnt <= 0 || cnt > 10000) {
+			/* Don't accept more than 10000 layouts in reply. */
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		}
+		for (i = 0; i < cnt; i++) {
+			/* Dissect all the way to the file handle cnt. */
+			NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_HYPER +
+			    6 * NFSX_UNSIGNED + NFSX_V4DEVICEID);
+			fhcnt = fxdr_unsigned(int, *(tl + 11 +
+			    NFSX_V4DEVICEID / NFSX_UNSIGNED));
+printf("fhcnt=%d\n", fhcnt);
+			if (fhcnt < 0 || fhcnt > 100) {
+				/* Don't accept more than 100 file handles. */
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			if (fhcnt > 1)
+				flp = malloc(sizeof(*flp) + (fhcnt - 1) *
+				    sizeof(struct nfsfh *),
+				    M_NFSFLAYOUT, M_WAITOK);
+			else
+				flp = malloc(sizeof(*flp),
+				    M_NFSFLAYOUT, M_WAITOK);
+			flp->nfsfl_fhcnt = 0;
+			fhlen = np->n_fhp->nfh_len;
+			if (fhlen > 1)
+				fhp = malloc(sizeof(*fhp) + fhlen - 1,
+				    M_NFSFH, M_WAITOK);
+			else
+				fhp = malloc(sizeof(*fhp), M_NFSFH,
+				    M_WAITOK);
+			fhp->nfh_len = fhlen;
+			NFSBCOPY(np->n_fhp->nfh_fh, fhp->nfh_fh, fhlen);
+			flp->nfsfl_fhp = fhp;
+			TAILQ_INSERT_HEAD(flhp, flp, nfsfl_list);
+			flp->nfsfl_retonclose = retonclose;
+			flp->nfsfl_stateid.seqid = st.seqid;
+			flp->nfsfl_stateid.other[0] = st.other[0];
+			flp->nfsfl_stateid.other[1] = st.other[1];
+			flp->nfsfl_stateid.other[2] = st.other[2];
+			flp->nfsfl_off = fxdr_hyper(tl); tl += 2;
+			flp->nfsfl_len = fxdr_hyper(tl); tl += 2;
+			flp->nfsfl_iomode = fxdr_unsigned(int, *tl++);
+printf("layg iom=%d\n", iomode);
+			if (fxdr_unsigned(int, *tl++) !=
+			    NFSLAYOUT_NFSV4_1_FILES) {
+				printf("NFSv4.1: got non-files layout\n");
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			NFSBCOPY(++tl, flp->nfsfl_dev, NFSX_V4DEVICEID);
+			tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+			flp->nfsfl_util = fxdr_unsigned(uint32_t, *tl++);
+			flp->nfsfl_stripe1 = fxdr_unsigned(uint32_t, *tl++);
+			flp->nfsfl_patoff = fxdr_hyper(tl); tl += 2;
+			if (fxdr_unsigned(int, *tl) != fhcnt) {
+				printf("EEK! bad fhcnt\n");
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			for (j = 0; j < fhcnt; j++) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+				fhlen = fxdr_unsigned(int, *tl);
+				if (fhlen <= 0 || fhlen > NFSX_V4FHMAX) {
+					error = NFSERR_BADXDR;
+					goto nfsmout;
+				}
+				if (fhlen > 1)
+					fhp = malloc(sizeof(*fhp) + fhlen - 1,
+					    M_NFSFH, M_WAITOK);
+				else
+					fhp = malloc(sizeof(*fhp), M_NFSFH,
+					    M_WAITOK);
+				flp->nfsfl_fh[j] = fhp;
+				flp->nfsfl_fhcnt++;
+				fhp->nfh_len = fhlen;
+				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(fhlen));
+				NFSBCOPY(cp, fhp->nfh_fh, fhlen);
+			}
+		}
+	}
+	if (nd->nd_repstat != 0 && error == 0)
+		error = nd->nd_repstat;
+nfsmout:
+	if (error != 0) {
+		TAILQ_FOREACH_SAFE(flp, flhp, nfsfl_list, nflp) {
+			for (i = 0; i < flp->nfsfl_fhcnt; i++)
+				free(flp->nfsfl_fh[i], M_NFSFH);
+			free(flp->nfsfl_fhp, M_NFSFH);
+			free(flp, M_NFSFLAYOUT);
+		}
+		TAILQ_INIT(flhp);
+	}
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+

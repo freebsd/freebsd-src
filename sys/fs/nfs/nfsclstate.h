@@ -40,6 +40,8 @@ LIST_HEAD(nfsclhead, nfsclclient);
 LIST_HEAD(nfsclownerhead, nfsclowner);
 TAILQ_HEAD(nfscldeleghead, nfscldeleg);
 LIST_HEAD(nfscldeleghash, nfscldeleg);
+TAILQ_HEAD(nfsclflayouthead, nfsclflayout);
+LIST_HEAD(nfsclflayouthash, nfsclflayout);
 #define	NFSCLDELEGHASHSIZE	256
 #define	NFSCLDELEGHASH(c, f, l)						\
 	(&((c)->nfsc_deleghash[ncl_hash((f), (l)) % NFSCLDELEGHASHSIZE]))
@@ -195,6 +197,27 @@ struct nfscllockownerfh {
 	struct nfscllockownerhead	nfslfh_lock;
 	int				nfslfh_len;
 	uint8_t				nfslfh_fh[NFSX_V4FHMAX];
+};
+
+/*
+ * MALLOC'd to the correct length to accommodate the file handle list.
+ */
+struct nfsclflayout {
+	TAILQ_ENTRY(nfsclflayout)	nfsfl_list;
+	LIST_ENTRY(nfsclflayout)	nfsfl_hash;
+	struct nfsclclient		*nfsfl_clp;
+	struct nfsfh			*nfsfl_fhp;	/* FH of vnode */
+	nfsv4stateid_t			nfsfl_stateid;
+	uint8_t				nfsfl_dev[NFSX_V4DEVICEID];
+	uint64_t			nfsfl_off;
+	uint64_t			nfsfl_len;
+	uint64_t			nfsfl_patoff;
+	uint32_t			nfsfl_iomode;
+	uint32_t			nfsfl_util;
+	uint32_t			nfsfl_stripe1;
+	uint16_t			nfsfl_retonclose;
+	uint16_t			nfsfl_fhcnt;
+	struct nfsfh			*nfsfl_fh[1];	/* FH list for DS */
 };
 
 /*
