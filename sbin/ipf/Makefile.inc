@@ -1,6 +1,8 @@
 #	$FreeBSD$
 
 WARNS?=		2
+NO_WFORMAT=
+NO_WARRAY_BOUNDS=
 
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter
 CFLAGS+=	-I${.CURDIR}/../../../contrib/ipfilter/tools
