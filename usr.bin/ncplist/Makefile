@@ -1,6 +1,7 @@
 # $FreeBSD$
 
 PROG=	ncplist
+NO_WCAST_ALIGN=
 
 WARNS?=	0
 
