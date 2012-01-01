@@ -278,8 +278,6 @@ struct atmegadci_softc {
 
 usb_error_t atmegadci_init(struct atmegadci_softc *sc);
 void	atmegadci_uninit(struct atmegadci_softc *sc);
-void	atmegadci_suspend(struct atmegadci_softc *sc);
-void	atmegadci_resume(struct atmegadci_softc *sc);
 void	atmegadci_interrupt(struct atmegadci_softc *sc);
 
 #endif					/* _ATMEGADCI_H_ */

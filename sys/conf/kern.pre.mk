@@ -34,7 +34,11 @@ _MINUS_O=	-O2
 .endif
 .endif
 .if ${MACHINE_CPUARCH} == "amd64"
+.if ${CC:T:Mclang} != "clang"
 COPTFLAGS?=-O2 -frename-registers -pipe
+.else
+COPTFLAGS?=-O2 -pipe
+.endif
 .else
 COPTFLAGS?=${_MINUS_O} -pipe
 .endif

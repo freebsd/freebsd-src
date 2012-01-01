@@ -161,7 +161,9 @@ typedef uint16_t		u16;
 typedef int32_t			s32;
 typedef uint32_t		u32;
 typedef unsigned long long int	u64;
+#ifndef __bool_true_false_are_defined
 typedef boolean_t		bool;
+#endif
 typedef bus_addr_t		dma_addr_t;
 typedef struct mtx		spinlock_t;
 typedef struct resource		*pci_irq_h;

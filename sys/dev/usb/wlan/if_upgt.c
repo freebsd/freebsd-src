@@ -138,9 +138,9 @@ static void	upgt_scan_start(struct ieee80211com *);
 static void	upgt_scan_end(struct ieee80211com *);
 static void	upgt_set_channel(struct ieee80211com *);
 static struct ieee80211vap *upgt_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	upgt_vap_delete(struct ieee80211vap *);
 static void	upgt_update_mcast(struct ifnet *);
 static uint8_t	upgt_rx_rate(struct upgt_softc *, const int);
@@ -1014,10 +1014,10 @@ upgt_set_chan(struct upgt_softc *sc, struct ieee80211_channel *c)
 }
 
 static struct ieee80211vap *
-upgt_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+upgt_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct upgt_vap *uvp;
 	struct ieee80211vap *vap;

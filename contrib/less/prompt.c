@@ -555,7 +555,7 @@ pr_expand(proto, maxwidth)
 	public char *
 eq_message()
 {
-	return (pr_expand(eqproto, 0));
+	return (pr_expand((char*)eqproto, 0));
 }
 
 /*
@@ -572,7 +572,7 @@ pr_string()
 
 	type = (!less_is_more) ? pr_type : pr_type ? 0 : 1;
 	prompt = pr_expand((ch_getflags() & CH_HELPFILE) ?
-				hproto : prproto[type],
+				(char*)hproto : prproto[type],
 			sc_width-so_s_width-so_e_width-2);
 	new_file = 0;
 	return (prompt);
@@ -584,5 +584,5 @@ pr_string()
 	public char *
 wait_message()
 {
-	return (pr_expand(wproto, sc_width-so_s_width-so_e_width-2));
+	return (pr_expand((char*)wproto, sc_width-so_s_width-so_e_width-2));
 }

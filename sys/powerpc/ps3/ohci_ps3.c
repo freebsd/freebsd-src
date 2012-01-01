@@ -150,14 +150,17 @@ static device_method_t ohci_ps3_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ohci_ps3_probe),
 	DEVMETHOD(device_attach, ohci_ps3_attach),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t ohci_ps3_driver = {
-	"ohci",
-	ohci_ps3_methods,
-	sizeof(ohci_softc_t),
+	.name = "ohci",
+	.methods = ohci_ps3_methods,
+	.size = sizeof(ohci_softc_t),
 };
 
 static devclass_t ohci_ps3_devclass;

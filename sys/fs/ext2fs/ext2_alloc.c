@@ -42,6 +42,7 @@
 #include <sys/vnode.h>
 #include <sys/stat.h>
 #include <sys/mount.h>
+#include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/buf.h>
 
@@ -52,6 +53,7 @@
 #include <fs/ext2fs/ext2_extern.h>
 
 static daddr_t	ext2_alloccg(struct inode *, int, daddr_t, int);
+static daddr_t	ext2_clusteralloc(struct inode *, int, daddr_t, int);
 static u_long	ext2_dirpref(struct inode *);
 static void	ext2_fserr(struct m_ext2fs *, uid_t, char *);
 static u_long	ext2_hashalloc(struct inode *, int, long, int,
@@ -59,9 +61,6 @@ static u_long	ext2_hashalloc(struct inode *, int, long, int,
 						int));
 static daddr_t	ext2_nodealloccg(struct inode *, int, daddr_t, int);
 static daddr_t  ext2_mapsearch(struct m_ext2fs *, char *, daddr_t);
-#ifdef FANCY_REALLOC
-static int	ext2_reallocblks(struct vop_reallocblks_args *);
-#endif
 
 /*
  * Allocate a block in the file system.
@@ -113,20 +112,20 @@ ext2_alloc(ip, lbn, bpref, size, cred, bnp)
 	if (bpref >= fs->e2fs->e2fs_bcount)
 		bpref = 0;
 	if (bpref == 0)
-                cg = ino_to_cg(fs, ip->i_number);
-        else
-                cg = dtog(fs, bpref);
-        bno = (daddr_t)ext2_hashalloc(ip, cg, bpref, fs->e2fs_bsize,
-                                                 ext2_alloccg);
-        if (bno > 0) {
+		cg = ino_to_cg(fs, ip->i_number);
+	else
+		cg = dtog(fs, bpref);
+	bno = (daddr_t)ext2_hashalloc(ip, cg, bpref, fs->e2fs_bsize,
+				      ext2_alloccg);
+	if (bno > 0) {
 		/* set next_alloc fields as done in block_getblk */
 		ip->i_next_alloc_block = lbn;
 		ip->i_next_alloc_goal = bno;
 
-                ip->i_blocks += btodb(fs->e2fs_bsize);
-                ip->i_flag |= IN_CHANGE | IN_UPDATE;
-                *bnp = bno;
-                return (0);
+		ip->i_blocks += btodb(fs->e2fs_bsize);
+		ip->i_flag |= IN_CHANGE | IN_UPDATE;
+		*bnp = bno;
+		return (0);
         }
 nospace:
 	EXT2_UNLOCK(ump);
@@ -150,7 +149,6 @@ nospace:
  * the previous block allocation will be used.
  */
 
-#ifdef FANCY_REALLOC
 static SYSCTL_NODE(_vfs, OID_AUTO, ext2fs, CTLFLAG_RW, 0, "EXT2FS filesystem");
 
 static int doasyncfree = 1;
@@ -159,7 +157,6 @@ SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doasyncfree, CTLFLAG_RW, &doasyncfree, 0,
 
 static int doreallocblks = 1;
 SYSCTL_INT(_vfs_ext2fs, OID_AUTO, doreallocblks, CTLFLAG_RW, &doreallocblks, 0, "");
-#endif
 
 int
 ext2_reallocblks(ap)
@@ -168,11 +165,6 @@ ext2_reallocblks(ap)
 		struct cluster_save *a_buflist;
 	} */ *ap;
 {
-#ifndef FANCY_REALLOC
-/* printf("ext2_reallocblks not implemented\n"); */
-return ENOSPC;
-#else
-
 	struct m_ext2fs *fs;
 	struct inode *ip;
 	struct vnode *vp;
@@ -184,14 +176,17 @@ return ENOSPC;
 	int32_t start_lbn, end_lbn, soff, newblk, blkno;
 	int i, len, start_lvl, end_lvl, pref, ssize;
 
+	if (doreallocblks == 0)
+		  return (ENOSPC);
+
 	vp = ap->a_vp;
 	ip = VTOI(vp);
 	fs = ip->i_e2fs;
 	ump = ip->i_ump;
-#ifdef UNKLAR
-	if (fs->fs_contigsumsize <= 0)
+
+	if (fs->e2fs_contigsumsize <= 0)
 		return (ENOSPC);
-#endif
+
 	buflist = ap->a_buflist;
 	len = buflist->bs_nchildren;
 	start_lbn = buflist->bs_children[0]->b_lblkno;
@@ -228,11 +223,6 @@ return ENOSPC;
 		soff = idp->in_off;
 	}
 	/*
-	 * Find the preferred location for the cluster.
-	 */
-	EXT2_LOCK(ump);
-	pref = ext2_blkpref(ip, start_lbn, soff, sbap, 0);
-	/*
 	 * If the block range spans two block maps, get the second map.
 	 */
 	if (end_lvl == 0 || (idp = &end_ap[end_lvl - 1])->in_off + 1 >= len) {
@@ -243,12 +233,15 @@ return ENOSPC;
 			panic("ext2_reallocblk: start == end");
 #endif
 		ssize = len - (idp->in_off + 1);
-		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp)){
-			EXT2_UNLOCK(ump);	
+		if (bread(vp, idp->in_lbn, (int)fs->e2fs_bsize, NOCRED, &ebp))
 			goto fail;
-		}
 		ebap = (int32_t *)ebp->b_data;
 	}
+	/*
+	 * Find the preferred location for the cluster.
+	 */
+	EXT2_LOCK(ump);
+	pref = ext2_blkpref(ip, start_lbn, soff, sbap, 0);
 	/*
 	 * Search the block map looking for an allocation of the desired size.
 	 */
@@ -264,15 +257,23 @@ return ENOSPC;
 	 * block pointers in the inode and indirect blocks associated
 	 * with the file.
 	 */
+#ifdef DEBUG
+	printf("realloc: ino %d, lbns %jd-%jd\n\told:", ip->i_number,
+	    (intmax_t)start_lbn, (intmax_t)end_lbn);
+#endif /* DEBUG */
 	blkno = newblk;
 	for (bap = &sbap[soff], i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
-		if (i == ssize)
+		if (i == ssize) {
 			bap = ebap;
 			soff = -i;
+		}
 #ifdef DIAGNOSTIC
 		if (buflist->bs_children[i]->b_blkno != fsbtodb(fs, *bap))
 			panic("ext2_reallocblks: alloc mismatch");
 #endif
+#ifdef DEBUG
+	printf(" %d,", *bap);
+#endif /* DEBUG */
 		*bap++ = blkno;
 	}
 	/*
@@ -308,11 +309,20 @@ return ENOSPC;
 	/*
 	 * Last, free the old blocks and assign the new blocks to the buffers.
 	 */
+#ifdef DEBUG
+	printf("\n\tnew:");
+#endif /* DEBUG */
 	for (blkno = newblk, i = 0; i < len; i++, blkno += fs->e2fs_fpb) {
 		ext2_blkfree(ip, dbtofsb(fs, buflist->bs_children[i]->b_blkno),
 		    fs->e2fs_bsize);
 		buflist->bs_children[i]->b_blkno = fsbtodb(fs, blkno);
+#ifdef DEBUG
+		printf(" %d,", blkno);
+#endif /* DEBUG */
 	}
+#ifdef DEBUG
+	printf("\n");
+#endif /* DEBUG */
 	return (0);
 
 fail:
@@ -321,8 +331,6 @@ fail:
 	if (sbap != &ip->i_db[0])
 		brelse(sbp);
 	return (ENOSPC);
-
-#endif /* FANCY_REALLOC */
 }
 
 /*
@@ -356,7 +364,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 * ext2_dirpref else obtain it using ino_to_cg. The preferred inode is
 	 * always the next inode.
 	 */
-	if((mode & IFMT) == IFDIR) {
+	if ((mode & IFMT) == IFDIR) {
 		cg = ext2_dirpref(pip);
 		if (fs->e2fs_contigdirs[cg] < 255)
 			fs->e2fs_contigdirs[cg]++;
@@ -549,13 +557,13 @@ ext2_blkpref(ip, lbn, indx, bap, blocknr)
 	/* if the next block is actually what we thought it is,
 	   then set the goal to what we thought it should be
 	*/
-	if(ip->i_next_alloc_block == lbn && ip->i_next_alloc_goal != 0)
+	if (ip->i_next_alloc_block == lbn && ip->i_next_alloc_goal != 0)
 		return ip->i_next_alloc_goal;
 
 	/* now check whether we were provided with an array that basically
 	   tells us previous blocks to which we want to stay closeby
 	*/
-	if(bap) 
+	if (bap) 
                 for (tmp = indx - 1; tmp >= 0; tmp--) 
 			if (bap[tmp]) 
 				return bap[tmp];
@@ -747,12 +755,123 @@ gotit:
 #endif
 	setbit(bbp, bno);
 	EXT2_LOCK(ump);
+	ext2_clusteracct(fs, bbp, cg, bno, -1);
 	fs->e2fs->e2fs_fbcount--;
 	fs->e2fs_gd[cg].ext2bgd_nbfree--;
 	fs->e2fs_fmod = 1;
 	EXT2_UNLOCK(ump);
 	bdwrite(bp);
 	return (cg * fs->e2fs->e2fs_fpg + fs->e2fs->e2fs_first_dblock + bno);
+}
+
+/*
+ * Determine whether a cluster can be allocated.
+ */
+static daddr_t
+ext2_clusteralloc(struct inode *ip, int cg, daddr_t bpref, int len)
+{
+	struct m_ext2fs *fs;
+	struct ext2mount *ump;
+	struct buf *bp;
+	char *bbp;
+	int bit, error, got, i, loc, run;
+	int32_t *lp;
+	daddr_t bno;
+
+	fs = ip->i_e2fs;
+	ump = ip->i_ump;
+
+	if (fs->e2fs_maxcluster[cg] < len)
+		return (0);
+
+	EXT2_UNLOCK(ump);
+	error = bread(ip->i_devvp,
+	    fsbtodb(fs, fs->e2fs_gd[cg].ext2bgd_b_bitmap),
+	    (int)fs->e2fs_bsize, NOCRED, &bp);
+	if (error)
+		goto fail_lock;
+
+	bbp = (char *)bp->b_data;
+	bp->b_xflags |= BX_BKGRDWRITE;
+
+	EXT2_LOCK(ump);
+	/*
+	 * Check to see if a cluster of the needed size (or bigger) is
+	 * available in this cylinder group.
+	 */
+	lp = &fs->e2fs_clustersum[cg].cs_sum[len];
+	for (i = len; i <= fs->e2fs_contigsumsize; i++)
+		if (*lp++ > 0)
+			break;
+	if (i > fs->e2fs_contigsumsize) {
+		/*
+		 * Update the cluster summary information to reflect
+		 * the true maximum-sized cluster so that future cluster
+		 * allocation requests can avoid reading the bitmap only
+		 * to find no cluster.
+		 */
+		lp = &fs->e2fs_clustersum[cg].cs_sum[len - 1];
+			for (i = len - 1; i > 0; i--)
+				if (*lp-- > 0)
+					break;
+		fs->e2fs_maxcluster[cg] = i;
+		goto fail;
+	}
+	EXT2_UNLOCK(ump);
+
+	/* Search the bitmap to find a big enough cluster like in FFS. */
+	if (dtog(fs, bpref) != cg)
+		bpref = 0;
+	if (bpref != 0)
+		bpref = dtogd(fs, bpref);
+	loc = bpref / NBBY;
+	bit = 1 << (bpref % NBBY);
+	for (run = 0, got = bpref; got < fs->e2fs->e2fs_fpg; got++) {
+		if ((bbp[loc] & bit) != 0)
+			run = 0;
+		else {
+			run++;
+			if (run == len)
+				break;
+		}
+		if ((got & (NBBY - 1)) != (NBBY - 1))
+			bit <<= 1;
+		else {
+			loc++;
+			bit = 1;
+		}
+	}
+
+	if (got >= fs->e2fs->e2fs_fpg)
+		goto fail_lock;
+
+	/* Allocate the cluster that we found. */
+	for (i = 1; i < len; i++)
+		if (!isclr(bbp, got - run + i))
+			panic("ext2_clusteralloc: map mismatch");
+
+	bno = got - run + 1;
+	if (bno >= fs->e2fs->e2fs_fpg)
+		panic("ext2_clusteralloc: allocated out of group");
+
+	EXT2_LOCK(ump);
+	for (i = 0; i < len; i += fs->e2fs_fpb) {
+		setbit(bbp, bno + i);
+		ext2_clusteracct(fs, bbp, cg, bno + i, -1);
+		fs->e2fs->e2fs_fbcount--;
+		fs->e2fs_gd[cg].ext2bgd_nbfree--;
+	}
+	fs->e2fs_fmod = 1;
+	EXT2_UNLOCK(ump);
+
+	bdwrite(bp);
+	return (cg * fs->e2fs->e2fs_fpg + fs->e2fs->e2fs_first_dblock + bno);
+
+fail_lock:
+	EXT2_LOCK(ump);
+fail:
+	brelse(bp);
+	return (0);
 }
 
 /*
@@ -877,6 +996,7 @@ ext2_blkfree(ip, bno, size)
         }
         clrbit(bbp, bno);
 	EXT2_LOCK(ump);
+	ext2_clusteracct(fs, bbp, cg, bno, 1);
         fs->e2fs->e2fs_fbcount++;
         fs->e2fs_gd[cg].ext2bgd_nbfree++;
         fs->e2fs_fmod = 1;

@@ -916,6 +916,8 @@ device		lagg
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
 #
+# RADIX_MPATH provides support for equal-cost multi-path routing.
+#
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
@@ -930,6 +932,7 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
+options 	RADIX_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf

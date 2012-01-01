@@ -82,14 +82,17 @@ typedef enum {
 	DA_FLAG_WENT_IDLE	= 0x040,
 	DA_FLAG_RETRY_UA	= 0x080,
 	DA_FLAG_OPEN		= 0x100,
-	DA_FLAG_SCTX_INIT	= 0x200
+	DA_FLAG_SCTX_INIT	= 0x200,
+	DA_FLAG_CAN_RC16	= 0x400,
+	DA_FLAG_CAN_LBPME	= 0x800
 } da_flags;
 
 typedef enum {
 	DA_Q_NONE		= 0x00,
 	DA_Q_NO_SYNC_CACHE	= 0x01,
 	DA_Q_NO_6_BYTE		= 0x02,
-	DA_Q_NO_PREVENT		= 0x04
+	DA_Q_NO_PREVENT		= 0x04,
+	DA_Q_4K			= 0x08
 } da_quirks;
 
 typedef enum {
@@ -112,6 +115,8 @@ struct disk_params {
 	u_int8_t  secs_per_track;
 	u_int32_t secsize;	/* Number of bytes/sector */
 	u_int64_t sectors;	/* total number sectors */
+	u_int     stripesize;
+	u_int     stripeoffset;
 };
 
 struct da_softc {
@@ -564,7 +569,223 @@ static struct da_quirk_entry da_quirk_table[] =
 		 */
 		{T_DIRECT, SIP_MEDIA_REMOVABLE, "Sony", "Sony DSC", "*"},
 		/*quirks*/ DA_Q_NO_SYNC_CACHE | DA_Q_NO_PREVENT
-	}
+	},
+	/* ATA/SATA devices over SAS/USB/... */
+	{
+		/* Hitachi Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "Hitachi", "H??????????E3*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG HD155UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HD155UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "SAMSUNG HD204UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "SAMSUNG", "HD204UI*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST????DL*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST????DL", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST???DM*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST???DM*", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST????DM*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST????DM", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9500423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST950042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9500424AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST950042", "4AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9640423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST964042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9640424AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST964042", "4AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750420AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "0AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750422AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "2AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST9750423AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST975042", "3AS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "ST???LT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* Seagate Momentus Thin Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ST???LT*", "*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "??RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "??RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD??????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "????RS*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD??????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Caviar Green Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "????RX*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD???PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "?PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD?????PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Black Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PKT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD???PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "?PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "ATA", "WDC WD?????PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
+	{
+		/* WDC Scorpio Blue Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "WDC WD??", "???PVT*", "*" },
+		/*quirks*/DA_Q_4K
+	},
 };
 
 static	disk_strategy_t	dastrategy;
@@ -585,7 +806,7 @@ static  int		daerror(union ccb *ccb, u_int32_t cam_flags,
 static void		daprevent(struct cam_periph *periph, int action);
 static int		dagetcapacity(struct cam_periph *periph);
 static void		dasetgeom(struct cam_periph *periph, uint32_t block_len,
-				  uint64_t maxsector);
+				  uint64_t maxsector, u_int lbppbe, u_int lalba);
 static timeout_t	dasendorderedtag;
 static void		dashutdown(void *arg, int howto);
 
@@ -687,6 +908,8 @@ daopen(struct disk *dp)
 
 		softc->disk->d_sectorsize = softc->params.secsize;
 		softc->disk->d_mediasize = softc->params.secsize * (off_t)softc->params.sectors;
+		softc->disk->d_stripesize = softc->params.stripesize;
+		softc->disk->d_stripeoffset = softc->params.stripeoffset;
 		/* XXX: these are not actually "firmware" values, so they may be wrong */
 		softc->disk->d_fwsectors = softc->params.secs_per_track;
 		softc->disk->d_fwheads = softc->params.heads;
@@ -1312,6 +1535,14 @@ daregister(struct cam_periph *periph, void *arg)
 	else if (softc->minimum_cmd_size > 12)
 		softc->minimum_cmd_size = 16;
 
+	/* Predict whether device may support READ CAPACITY(16). */
+	if (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC3 ||
+	    (SID_ANSI_REV(&cgd->inq_data) >= SCSI_REV_SPC &&
+	     (cgd->inq_data.spc3_flags & SPC3_SID_PROTECT))) {
+		softc->flags |= DA_FLAG_CAN_RC16;
+		softc->state = DA_STATE_PROBE2;
+	}
+
 	/*
 	 * Register this media as a disk.
 	 */
@@ -1701,10 +1932,14 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			struct disk_params *dp;
 			uint32_t block_size;
 			uint64_t maxsector;
+			u_int lbppbe;	/* LB per physical block exponent. */
+			u_int lalba;	/* Lowest aligned LBA. */
 
 			if (softc->state == DA_STATE_PROBE) {
 				block_size = scsi_4btoul(rdcap->length);
 				maxsector = scsi_4btoul(rdcap->addr);
+				lbppbe = 0;
+				lalba = 0;
 
 				/*
 				 * According to SBC-2, if the standard 10
@@ -1724,6 +1959,8 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			} else {
 				block_size = scsi_4btoul(rcaplong->length);
 				maxsector = scsi_8btou64(rcaplong->addr);
+				lbppbe = rcaplong->prot_lbppbe & SRC16_LBPPBE;
+				lalba = scsi_2btoul(rcaplong->lalba_lbp);
 			}
 
 			/*
@@ -1741,7 +1978,12 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 				announce_buf[0] = '\0';
 				cam_periph_invalidate(periph);
 			} else {
-				dasetgeom(periph, block_size, maxsector);
+				dasetgeom(periph, block_size, maxsector,
+				    lbppbe, lalba & SRC16_LALBA);
+				if (lalba & SRC16_LBPME)
+					softc->flags |= DA_FLAG_CAN_LBPME;
+				else
+					softc->flags &= ~DA_FLAG_CAN_LBPME;
 				dp = &softc->params;
 				snprintf(announce_buf, sizeof(announce_buf),
 				        "%juMB (%ju %u byte sectors: %dH %dS/T "
@@ -1807,6 +2049,24 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 					    &error_code, &sense_key, &asc,
 					    &ascq, /*show_errors*/ 1);
 				}
+				/*
+				 * If we tried READ CAPACITY(16) and failed,
+				 * fallback to READ CAPACITY(10).
+				 */
+				if ((softc->state == DA_STATE_PROBE2) &&
+				    (softc->flags & DA_FLAG_CAN_RC16) &&
+				    (((csio->ccb_h.status & CAM_STATUS_MASK) ==
+					CAM_REQ_INVALID) ||
+				     ((have_sense) &&
+				      (error_code == SSD_CURRENT_ERROR) &&
+				      (sense_key == SSD_KEY_ILLEGAL_REQUEST)))) {
+					softc->flags &= ~DA_FLAG_CAN_RC16;
+					softc->state = DA_STATE_PROBE;
+					free(rdcap, M_SCSIDA);
+					xpt_release_ccb(done_ccb);
+					xpt_schedule(periph, priority);
+					return;
+				} else
 				/*
 				 * Attach to anything that claims to be a
 				 * direct access or optical disk device,
@@ -1977,13 +2237,18 @@ dagetcapacity(struct cam_periph *periph)
 	struct scsi_read_capacity_data_long *rcaplong;
 	uint32_t block_len;
 	uint64_t maxsector;
-	int error;
+	int error, rc16failed;
 	u_int32_t sense_flags;
+	u_int lbppbe;	/* Logical blocks per physical block exponent. */
+	u_int lalba;	/* Lowest aligned LBA. */
 
 	softc = (struct da_softc *)periph->softc;
 	block_len = 0;
 	maxsector = 0;
+	lbppbe = 0;
+	lalba = 0;
 	error = 0;
+	rc16failed = 0;
 	sense_flags = SF_RETRY_UA;
 	if (softc->flags & DA_FLAG_PACK_REMOVABLE)
 		sense_flags |= SF_NO_PRINT;
@@ -1991,11 +2256,63 @@ dagetcapacity(struct cam_periph *periph)
 	/* Do a read capacity */
 	rcap = (struct scsi_read_capacity_data *)malloc(sizeof(*rcaplong),
 							M_SCSIDA,
-							M_NOWAIT);
+							M_NOWAIT | M_ZERO);
 	if (rcap == NULL)
 		return (ENOMEM);
-		
+	rcaplong = (struct scsi_read_capacity_data_long *)rcap;
+
 	ccb = cam_periph_getccb(periph, CAM_PRIORITY_NORMAL);
+
+	/* Try READ CAPACITY(16) first if we think it should work. */
+	if (softc->flags & DA_FLAG_CAN_RC16) {
+		scsi_read_capacity_16(&ccb->csio,
+			      /*retries*/ 4,
+			      /*cbfcnp*/ dadone,
+			      /*tag_action*/ MSG_SIMPLE_Q_TAG,
+			      /*lba*/ 0,
+			      /*reladr*/ 0,
+			      /*pmi*/ 0,
+			      rcaplong,
+			      /*sense_len*/ SSD_FULL_SIZE,
+			      /*timeout*/ 60000);
+		ccb->ccb_h.ccb_bp = NULL;
+
+		error = cam_periph_runccb(ccb, daerror,
+				  /*cam_flags*/CAM_RETRY_SELTO,
+				  sense_flags,
+				  softc->disk->d_devstat);
+
+		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
+			cam_release_devq(ccb->ccb_h.path,
+				 /*relsim_flags*/0,
+				 /*reduction*/0,
+				 /*timeout*/0,
+				 /*getcount_only*/0);
+
+		if (error == 0)
+			goto rc16ok;
+
+		/* If we got ILLEGAL REQUEST, do not prefer RC16 any more. */
+		if ((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+		     CAM_REQ_INVALID) {
+			softc->flags &= ~DA_FLAG_CAN_RC16;
+		} else if (((ccb->ccb_h.status & CAM_STATUS_MASK) ==
+		     CAM_SCSI_STATUS_ERROR) &&
+		    (ccb->csio.scsi_status == SCSI_STATUS_CHECK_COND) &&
+		    (ccb->ccb_h.status & CAM_AUTOSNS_VALID) &&
+		    ((ccb->ccb_h.flags & CAM_SENSE_PHYS) == 0) &&
+		    ((ccb->ccb_h.flags & CAM_SENSE_PTR) == 0)) {
+			int sense_key, error_code, asc, ascq;
+
+			scsi_extract_sense(&ccb->csio.sense_data,
+				   &error_code, &sense_key, &asc, &ascq);
+			if (sense_key == SSD_KEY_ILLEGAL_REQUEST)
+				softc->flags &= ~DA_FLAG_CAN_RC16;
+		}
+		rc16failed = 1;
+	}
+
+	/* Do READ CAPACITY(10). */
 	scsi_read_capacity(&ccb->csio,
 			   /*retries*/4,
 			   /*cbfncp*/dadone,
@@ -2021,13 +2338,12 @@ dagetcapacity(struct cam_periph *periph)
 		block_len = scsi_4btoul(rcap->length);
 		maxsector = scsi_4btoul(rcap->addr);
 
-		if (maxsector != 0xffffffff)
+		if (maxsector != 0xffffffff || rc16failed)
 			goto done;
 	} else
 		goto done;
 
-	rcaplong = (struct scsi_read_capacity_data_long *)rcap;
-
+	/* If READ CAPACITY(10) returned overflow, use READ CAPACITY(16) */
 	scsi_read_capacity_16(&ccb->csio,
 			      /*retries*/ 4,
 			      /*cbfcnp*/ dadone,
@@ -2053,8 +2369,11 @@ dagetcapacity(struct cam_periph *periph)
 				 /*getcount_only*/0);
 
 	if (error == 0) {
+rc16ok:
 		block_len = scsi_4btoul(rcaplong->length);
 		maxsector = scsi_8btou64(rcaplong->addr);
+		lbppbe = rcaplong->prot_lbppbe & SRC16_LBPPBE;
+		lalba = scsi_2btoul(rcaplong->lalba_lbp);
 	}
 
 done:
@@ -2065,8 +2384,14 @@ done:
 			    "unsupportable block size %ju\n",
 			    (uintmax_t) block_len);
 			error = EINVAL;
-		} else
-			dasetgeom(periph, block_len, maxsector);
+		} else {
+			dasetgeom(periph, block_len, maxsector,
+			    lbppbe, lalba & SRC16_LALBA);
+			if (lalba & SRC16_LBPME)
+				softc->flags |= DA_FLAG_CAN_LBPME;
+			else
+				softc->flags &= ~DA_FLAG_CAN_LBPME;
+		}
 	}
 
 	xpt_release_ccb(ccb);
@@ -2077,7 +2402,8 @@ done:
 }
 
 static void
-dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
+dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector,
+    u_int lbppbe, u_int lalba)
 {
 	struct ccb_calc_geometry ccg;
 	struct da_softc *softc;
@@ -2088,6 +2414,17 @@ dasetgeom(struct cam_periph *periph, uint32_t block_len, uint64_t maxsector)
 	dp = &softc->params;
 	dp->secsize = block_len;
 	dp->sectors = maxsector + 1;
+	if (lbppbe > 0) {
+		dp->stripesize = block_len << lbppbe;
+		dp->stripeoffset = (dp->stripesize - block_len * lalba) %
+		    dp->stripesize;
+	} else if (softc->quirks & DA_Q_4K) {
+		dp->stripesize = 4096;
+		dp->stripeoffset = 0;
+	} else {
+		dp->stripesize = 0;
+		dp->stripeoffset = 0;
+	}
 	/*
 	 * Have the controller provide us with a geometry
 	 * for this disk.  The only time the geometry

@@ -228,7 +228,7 @@ usage(void)
 	    "\n"
 	    "  Note: if -L labelenv is specified and labelenv is not set in\n"
 	    "  the environment, a default value is used.\n",
-	    progname, progname, strlen(progname), " ",
+	    progname, progname, (int)strlen(progname), " ",
 	    progname, progname);
 }
 

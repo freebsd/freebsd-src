@@ -27,7 +27,7 @@ For some reason, most of the bugs found involve conversions from floating-
 point to integer formats.
 
 The bugs are shown as actual TestFloat error lines, along with a brief
-explanation.  The error lines given are not necesarily exhaustive and were
+explanation.  The error lines given are not necessarily exhaustive and were
 not necessarily output in the order shown.
 
 This document does not pretend to be an authoritative bug listing for all

@@ -1186,6 +1186,7 @@ expmeta(char *enddir, char *name)
 	int atend;
 	int matchdot;
 	int esc;
+	int namlen;
 
 	metaflag = 0;
 	start = name;
@@ -1284,17 +1285,22 @@ expmeta(char *enddir, char *name)
 		if (dp->d_name[0] == '.' && ! matchdot)
 			continue;
 		if (patmatch(start, dp->d_name, 0)) {
-			if (enddir + dp->d_namlen + 1 > expdir_end)
+			namlen = dp->d_namlen;
+			if (enddir + namlen + 1 > expdir_end)
 				continue;
-			memcpy(enddir, dp->d_name, dp->d_namlen + 1);
+			memcpy(enddir, dp->d_name, namlen + 1);
 			if (atend)
 				addfname(expdir);
 			else {
-				if (enddir + dp->d_namlen + 2 > expdir_end)
+				if (dp->d_type != DT_UNKNOWN &&
+				    dp->d_type != DT_DIR &&
+				    dp->d_type != DT_LNK)
 					continue;
-				enddir[dp->d_namlen] = '/';
-				enddir[dp->d_namlen + 1] = '\0';
-				expmeta(enddir + dp->d_namlen + 1, endname);
+				if (enddir + namlen + 2 > expdir_end)
+					continue;
+				enddir[namlen] = '/';
+				enddir[namlen + 1] = '\0';
+				expmeta(enddir + namlen + 1, endname);
 			}
 		}
 	}

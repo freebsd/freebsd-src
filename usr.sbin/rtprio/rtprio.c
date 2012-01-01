@@ -53,20 +53,17 @@ int
 main(int argc, char *argv[])
 {
 	struct rtprio rtp;
-	char *p;
-	pid_t proc;
+	const char *progname;
+	pid_t proc = 0;
 
-	/* find basename */
-	if ((p = rindex(argv[0], '/')) == NULL)
-		p = argv[0];
-	else
-		++p;
-	proc = 0;
+	progname = getprogname();
 
-	if (!strcmp(p, "rtprio"))
+	if (strcmp(progname, "rtprio") == 0)
 		rtp.type = RTP_PRIO_REALTIME;
-	else if (!strcmp(p, "idprio"))
+	else if (strcmp(progname, "idprio") == 0)
 		rtp.type = RTP_PRIO_IDLE;
+	else
+		errx(1, "invalid progname");
 
 	switch (argc) {
 	case 2:
@@ -76,20 +73,19 @@ main(int argc, char *argv[])
 	case 1:
 		if (rtprio(RTP_LOOKUP, proc, &rtp) != 0)
 			err(1, "RTP_LOOKUP");
-		printf("%s: ", p);
 		switch (rtp.type) {
 		case RTP_PRIO_REALTIME:
 		case RTP_PRIO_FIFO:
-			printf("realtime priority %d\n", rtp.prio);
+			warnx("realtime priority %d", rtp.prio);
 			break;
 		case RTP_PRIO_NORMAL:
-			printf("normal priority\n");
+			warnx("normal priority");
 			break;
 		case RTP_PRIO_IDLE:
-			printf("idle priority %d\n", rtp.prio);
+			warnx("idle priority %d", rtp.prio);
 			break;
 		default:
-			printf("invalid priority type %d\n", rtp.type);
+			errx(1, "invalid priority type %d", rtp.type);
 			break;
 		}
 		exit(0);
@@ -110,18 +106,18 @@ main(int argc, char *argv[])
 			break;
 		}
 
-		if (argv[2][0] == '-')
-			proc = parseint(argv[2] + 1, "pid");
-		if (rtprio(RTP_SET, proc, &rtp) != 0)
-			err(1, "RTP_SET");
-
-		if (proc == 0) {
+		if (argv[2][0] == '-') {
+			proc = parseint(argv[2], "pid");
+			proc = abs(proc);
+			if (rtprio(RTP_SET, proc, &rtp) != 0)
+				err(1, "RTP_SET");
+		} else {
 			execvp(argv[2], &argv[2]);
-			err(1, "%s", argv[2]);
+			err(1, "execvp: %s", argv[2]);
 		}
 		exit(0);
 	}
-	exit(1);
+	/* NOTREACHED */
 }
 
 static int

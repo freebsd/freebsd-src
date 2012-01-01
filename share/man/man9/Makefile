@@ -102,6 +102,7 @@ MAN=	accept_filter.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
+	eventtimers.9 \
 	extattr.9 \
 	fail.9 \
 	fetch.9 \
@@ -234,6 +235,7 @@ MAN=	accept_filter.9 \
 	sema.9 \
 	sf_buf.9 \
 	sglist.9 \
+	shm_map.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -613,6 +615,16 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_prune_list.9 \
 	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
 	EVENTHANDLER.9 eventhandler_register.9
+MLINKS+=eventtimers.9 et_register.9 \
+	eventtimers.9 et_deregister.9 \
+	eventtimers.9 et_ban.9 \
+	eventtimers.9 et_find.9 \
+	eventtimers.9 et_free.9 \
+	eventtimers.9 et_init.9 \
+	eventtimers.9 ET_LOCK.9 \
+	eventtimers.9 ET_UNLOCK.9 \
+	eventtimers.9 et_start.9 \
+	eventtimers.9 et_stop.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fuword.9 \
@@ -1023,8 +1035,12 @@ MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_wunlock.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 RTFREE_LOCKED.9 \
 	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9
+	rtalloc.9 rtfree.9 \
+	rtalloc.9 rtalloc1_fib.9 \
+	rtalloc.9 rtalloc_ign_fib.9 \
+	rtalloc.9 rtalloc_fib.9
 MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
@@ -1107,6 +1123,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_reset.9 \
 	sglist.9 sglist_slice.9 \
 	sglist.9 sglist_split.9
+MLINKS+=shm_map.9 shm_unmap.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
@@ -1244,6 +1261,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
+	taskqueue.9 TASK_INITIALIZER.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \

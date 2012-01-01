@@ -278,7 +278,7 @@ xlp_bootargs_init(__register_t arg)
 	phandle_t chosen;
 	ihandle_t mask;
 
-	dtbp = (void *)arg;
+	dtbp = (void *)(intptr_t)arg;
 #if defined(FDT_DTB_STATIC)
 	/*
 	 * In case the device tree blob was not passed as argument try

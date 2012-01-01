@@ -116,6 +116,7 @@ char *
 parse_string(FILE *cfile)
 {
 	char *val, *s;
+	size_t valsize;
 	int token;
 
 	token = next_token(&val, cfile);
@@ -124,10 +125,11 @@ parse_string(FILE *cfile)
 		skip_to_semi(cfile);
 		return (NULL);
 	}
-	s = malloc(strlen(val) + 1);
+	valsize = strlen(val) + 1;
+	s = malloc(valsize);
 	if (!s)
 		error("no memory for string %s.", val);
-	strlcpy(s, val, strlen(val) + 1);
+	memcpy(s, val, valsize);
 
 	if (!parse_semi(cfile))
 		return (NULL);
@@ -242,6 +244,7 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 	unsigned char *bufp = buf, *s = NULL;
 	int token, count = 0;
 	char *val, *t;
+	size_t valsize;
 	pair c = NULL;
 
 	if (!bufp && *max) {
@@ -288,10 +291,11 @@ parse_numeric_aggregate(FILE *cfile, unsigned char *buf, int *max,
 			convert_num(s, val, base, size);
 			s += size / 8;
 		} else {
-			t = malloc(strlen(val) + 1);
+			valsize = strlen(val) + 1;
+			t = malloc(valsize);
 			if (!t)
 				error("no temp space for number.");
-			strlcpy(t, val, strlen(val) + 1);
+			memcpy(t, val, valsize);
 			c = cons(t, c);
 		}
 	} while (++count != *max);

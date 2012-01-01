@@ -2162,6 +2162,13 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
+	/*
+	 * This function is used independently in locking code to deal with
+	 * Giant, SCHEDULER_STOPPED() check can be removed here after Giant
+	 * is gone.
+	 */
+	if (SCHEDULER_STOPPED())
+		return;
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == -1 || panicstr != NULL)
 		return;
@@ -2188,6 +2195,13 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
+	/*
+	 * This function is used independently in locking code to deal with
+	 * Giant, SCHEDULER_STOPPED() check can be removed here after Giant
+	 * is gone.
+	 */
+	if (SCHEDULER_STOPPED())
+		return;
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == -1 || panicstr != NULL)
 		return;

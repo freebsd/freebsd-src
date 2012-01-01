@@ -309,6 +309,7 @@ ipfw_main(int oldac, char **oldav)
 		case 'p':
 			errx(EX_USAGE, "An absolute pathname must be used "
 			    "with -p option.");
+			/* NOTREACHED */
 
 		case 'q':
 			co.do_quiet = 1;

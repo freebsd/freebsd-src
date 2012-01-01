@@ -57,6 +57,7 @@ radix	0[rR][0-9]+:[0-9a-zA-Z]+
 "!="			{ return(NE); }
 "&&"			{ return(LAND); }
 "||"			{ return(LOR); }
+"**"			{ if (mimic_gnu) { return (EXPONENT); } }
 .			{ return yytext[0]; }
 %%
 

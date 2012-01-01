@@ -97,6 +97,8 @@ FBSD_1.3 {
 	atoi_l;
 	atol_l;
 	atoll_l;
+	at_quick_exit;
+	quick_exit;
 	strtod_l;
 	strtol_l;
 	strtoll_l;

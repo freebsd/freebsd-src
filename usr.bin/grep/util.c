@@ -130,7 +130,7 @@ grep_tree(char **argv)
 		case FTS_DNR:
 			/* FALLTHROUGH */
 		case FTS_ERR:
-			notfound = true;
+			file_err = true;
 			if(!sflag)
 				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			break;
@@ -195,10 +195,9 @@ procfile(const char *fn)
 		f = grep_open(fn);
 	}
 	if (f == NULL) {
+		file_err = true;
 		if (!sflag)
 			warn("%s", fn);
-		if (errno == ENOENT)
-			notfound = true;
 		return (0);
 	}
 

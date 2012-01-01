@@ -130,7 +130,7 @@ static int labelsoffset = LABELSECTOR;
 static int labeloffset = LABELOFFSET;
 static int bbsize = BBSIZE;
 
-enum	{
+static enum {
 	UNSPEC, EDIT, READ, RESTORE, WRITE, WRITEBOOT
 } op = UNSPEC;
 
@@ -400,7 +400,7 @@ writelabel(void)
 	for (i = 0; i < lab.d_npartitions; i++)
 		if (lab.d_partitions[i].p_size)
 			lab.d_partitions[i].p_offset += lba_offset;
-	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * secsize,
+	bsd_disklabel_le_enc(bootarea + labeloffset + labelsoffset * lab.d_secsize,
 	    lp);
 
 	fd = open(specname, O_RDWR);
@@ -434,7 +434,7 @@ writelabel(void)
 		gctl_ro_param(grq, "class", -1, "BSD");
 		gctl_ro_param(grq, "geom", -1, pname);
 		gctl_ro_param(grq, "label", 148+16*8,
-			bootarea + labeloffset + labelsoffset * secsize);
+			bootarea + labeloffset + labelsoffset * lab.d_secsize);
 		errstr = gctl_issue(grq);
 		if (errstr != NULL) {
 			warnx("%s", errstr);

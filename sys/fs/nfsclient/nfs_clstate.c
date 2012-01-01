@@ -143,6 +143,8 @@ static void nfscl_freeopenowner(struct nfsclowner *, int);
 static void nfscl_cleandeleg(struct nfscldeleg *);
 static int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
+static void nfscl_emptylockowner(struct nfscllockowner *,
+    struct nfscllockownerfhhead *);
 
 static short nfscberr_null[] = {
 	0,
@@ -1030,7 +1032,7 @@ nfscl_getbytelock(vnode_t vp, u_int64_t off, u_int64_t len,
 			NFSBCOPY(op->nfso_own->nfsow_owner, nlp->nfsl_openowner,
 			    NFSV4CL_LOCKNAMELEN);
 		nlp->nfsl_seqid = 0;
-		nlp->nfsl_defunct = 0;
+		nlp->nfsl_lockflags = flags;
 		nlp->nfsl_inprog = NULL;
 		nfscl_lockinit(&nlp->nfsl_rwlock);
 		LIST_INIT(&nlp->nfsl_lock);
@@ -1638,7 +1640,6 @@ static void
 nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 {
 	struct nfsclowner *owp, *nowp;
-	struct nfsclopen *op;
 	struct nfscllockowner *lp, *nlp;
 	struct nfscldeleg *dp;
 
@@ -1667,15 +1668,6 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
 				nfscl_freeopenowner(owp, 0);
 			else
 				owp->nfsow_defunct = 1;
-		} else {
-			/* look for lockowners on other opens */
-			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
-				LIST_FOREACH(lp, &op->nfso_lock, nfsl_list) {
-					if (!NFSBCMP(lp->nfsl_owner, own,
-					    NFSV4CL_LOCKNAMELEN))
-						lp->nfsl_defunct = 1;
-				}
-			}
 		}
 		owp = nowp;
 	}
@@ -1685,18 +1677,78 @@ nfscl_cleanup_common(struct nfsclclient *clp, u_int8_t *own)
  * Find open/lock owners for processes that have exited.
  */
 static void
-nfscl_cleanupkext(struct nfsclclient *clp)
+nfscl_cleanupkext(struct nfsclclient *clp, struct nfscllockownerfhhead *lhp)
 {
 	struct nfsclowner *owp, *nowp;
+	struct nfsclopen *op;
+	struct nfscllockowner *lp, *nlp;
 
 	NFSPROCLISTLOCK();
 	NFSLOCKCLSTATE();
 	LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
+		LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
+			LIST_FOREACH_SAFE(lp, &op->nfso_lock, nfsl_list, nlp) {
+				if (LIST_EMPTY(&lp->nfsl_lock))
+					nfscl_emptylockowner(lp, lhp);
+			}
+		}
 		if (nfscl_procdoesntexist(owp->nfsow_owner))
 			nfscl_cleanup_common(clp, owp->nfsow_owner);
 	}
 	NFSUNLOCKCLSTATE();
 	NFSPROCLISTUNLOCK();
+}
+
+/*
+ * Take the empty lock owner and move it to the local lhp list if the
+ * associated process no longer exists.
+ */
+static void
+nfscl_emptylockowner(struct nfscllockowner *lp,
+    struct nfscllockownerfhhead *lhp)
+{
+	struct nfscllockownerfh *lfhp, *mylfhp;
+	struct nfscllockowner *nlp;
+	int fnd_it;
+
+	/* If not a Posix lock owner, just return. */
+	if ((lp->nfsl_lockflags & F_POSIX) == 0)
+		return;
+
+	fnd_it = 0;
+	mylfhp = NULL;
+	/*
+	 * First, search to see if this lock owner is already in the list.
+	 * If it is, then the associated process no longer exists.
+	 */
+	SLIST_FOREACH(lfhp, lhp, nfslfh_list) {
+		if (lfhp->nfslfh_len == lp->nfsl_open->nfso_fhlen &&
+		    !NFSBCMP(lfhp->nfslfh_fh, lp->nfsl_open->nfso_fh,
+		    lfhp->nfslfh_len))
+			mylfhp = lfhp;
+		LIST_FOREACH(nlp, &lfhp->nfslfh_lock, nfsl_list)
+			if (!NFSBCMP(nlp->nfsl_owner, lp->nfsl_owner,
+			    NFSV4CL_LOCKNAMELEN))
+				fnd_it = 1;
+	}
+	/* If not found, check if process still exists. */
+	if (fnd_it == 0 && nfscl_procdoesntexist(lp->nfsl_owner) == 0)
+		return;
+
+	/* Move the lock owner over to the local list. */
+	if (mylfhp == NULL) {
+		mylfhp = malloc(sizeof(struct nfscllockownerfh), M_TEMP,
+		    M_NOWAIT);
+		if (mylfhp == NULL)
+			return;
+		mylfhp->nfslfh_len = lp->nfsl_open->nfso_fhlen;
+		NFSBCOPY(lp->nfsl_open->nfso_fh, mylfhp->nfslfh_fh,
+		    mylfhp->nfslfh_len);
+		LIST_INIT(&mylfhp->nfslfh_lock);
+		SLIST_INSERT_HEAD(lhp, mylfhp, nfslfh_list);
+	}
+	LIST_REMOVE(lp, nfsl_list);
+	LIST_INSERT_HEAD(&mylfhp->nfslfh_lock, lp, nfsl_list);
 }
 
 static int	fake_global;	/* Used to force visibility of MNTK_UNMOUNTF */
@@ -2331,9 +2383,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 {
 	struct nfsclowner *owp, *nowp;
 	struct nfsclopen *op;
-	struct nfscllockowner *lp, *nlp, *olp;
+	struct nfscllockowner *lp, *nlp;
 	struct nfscldeleghead dh;
-	struct nfscllockownerhead lh;
 	struct nfscldeleg *dp, *ndp;
 	struct ucred *cred;
 	u_int32_t clidrev;
@@ -2341,6 +2392,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 	uint32_t recover_done_time = 0;
 	struct timespec mytime;
 	static time_t prevsec = 0;
+	struct nfscllockownerfh *lfhp, *nlfhp;
+	struct nfscllockownerfhhead lfh;
 
 	cred = newnfs_getcred();
 	NFSLOCKCLSTATE();
@@ -2379,7 +2432,6 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			    (void) nfscl_hasexpired(clp, clidrev, p);
 		}
 
-		LIST_INIT(&lh);
 		TAILQ_INIT(&dh);
 		NFSLOCKCLSTATE();
 		if (cbpathdown)
@@ -2389,41 +2441,11 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 		/*
 		 * Now, handle defunct owners.
 		 */
-		owp = LIST_FIRST(&clp->nfsc_owner);
-		while (owp != NULL) {
-		    nowp = LIST_NEXT(owp, nfsow_list);
-		    if (LIST_EMPTY(&owp->nfsow_open)) {
-			if (owp->nfsow_defunct)
-			    nfscl_freeopenowner(owp, 0);
-		    } else {
-			LIST_FOREACH(op, &owp->nfsow_open, nfso_list) {
-			    lp = LIST_FIRST(&op->nfso_lock);
-			    while (lp != NULL) {
-				nlp = LIST_NEXT(lp, nfsl_list);
-				if (lp->nfsl_defunct &&
-				    LIST_EMPTY(&lp->nfsl_lock)) {
-				    LIST_FOREACH(olp, &lh, nfsl_list) {
-					if (!NFSBCMP(olp->nfsl_owner,
-					    lp->nfsl_owner,NFSV4CL_LOCKNAMELEN))
-					    break;
-				    }
-				    if (olp == NULL) {
-					LIST_REMOVE(lp, nfsl_list);
-					LIST_INSERT_HEAD(&lh, lp, nfsl_list);
-				    } else {
-					nfscl_freelockowner(lp, 0);
-				    }
-				}
-				lp = nlp;
-			    }
+		LIST_FOREACH_SAFE(owp, &clp->nfsc_owner, nfsow_list, nowp) {
+			if (LIST_EMPTY(&owp->nfsow_open)) {
+				if (owp->nfsow_defunct != 0)
+					nfscl_freeopenowner(owp, 0);
 			}
-		    }
-		    owp = nowp;
-		}
-
-		/* and release defunct lock owners */
-		LIST_FOREACH_SAFE(lp, &lh, nfsl_list, nlp) {
-		    nfscl_freelockowner(lp, 0);
 		}
 
 		/*
@@ -2528,6 +2550,7 @@ tryagain:
 			FREE((caddr_t)dp, M_NFSCLDELEG);
 		}
 
+		SLIST_INIT(&lfh);
 		/*
 		 * Call nfscl_cleanupkext() once per second to check for
 		 * open/lock owners where the process has exited.
@@ -2535,8 +2558,26 @@ tryagain:
 		NFSGETNANOTIME(&mytime);
 		if (prevsec != mytime.tv_sec) {
 			prevsec = mytime.tv_sec;
-			nfscl_cleanupkext(clp);
+			nfscl_cleanupkext(clp, &lfh);
 		}
+
+		/*
+		 * Do a ReleaseLockOwner for all lock owners where the
+		 * associated process no longer exists, as found by
+		 * nfscl_cleanupkext().
+		 */
+		newnfs_setroot(cred);
+		SLIST_FOREACH_SAFE(lfhp, &lfh, nfslfh_list, nlfhp) {
+			LIST_FOREACH_SAFE(lp, &lfhp->nfslfh_lock, nfsl_list,
+			    nlp) {
+				(void)nfsrpc_rellockown(clp->nfsc_nmp, lp,
+				    lfhp->nfslfh_fh, lfhp->nfslfh_len, cred,
+				    p);
+				nfscl_freelockowner(lp, 0);
+			}
+			free(lfhp, M_TEMP);
+		}
+		SLIST_INIT(&lfh);
 
 		NFSLOCKCLSTATE();
 		if ((clp->nfsc_flags & NFSCLFLAGS_RECOVER) == 0)
@@ -3539,8 +3580,8 @@ nfscl_relock(vnode_t vp, struct nfsclclient *clp, struct nfsmount *nmp,
 	off = lop->nfslo_first;
 	len = lop->nfslo_end - lop->nfslo_first;
 	error = nfscl_getbytelock(vp, off, len, lop->nfslo_type, cred, p,
-	    clp, 1, NULL, 0, lp->nfsl_owner, lp->nfsl_openowner, &nlp, &newone,
-	    &donelocally);
+	    clp, 1, NULL, lp->nfsl_lockflags, lp->nfsl_owner,
+	    lp->nfsl_openowner, &nlp, &newone, &donelocally);
 	if (error || donelocally)
 		return (error);
 	if (nmp->nm_clp != NULL)

@@ -1597,7 +1597,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 }
 
 /*
- * Generate a log filename, when using clasic filenames.
+ * Generate a log filename, when using classic filenames.
  */
 static void
 gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
@@ -1612,7 +1612,7 @@ gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
 }
 
 /*
- * Delete a rotated logfiles, when using clasic filenames.
+ * Delete a rotated logfiles, when using classic filenames.
  */
 static void
 delete_clasiclog(const char *archive_dir, const char *namepart, int numlog_c)
@@ -1946,9 +1946,10 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	int c;
 
+	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork != NULL && zwork->zw_conf != NULL &&
+	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {

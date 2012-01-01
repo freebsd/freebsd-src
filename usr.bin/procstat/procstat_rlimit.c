@@ -28,7 +28,6 @@
 
 #include <sys/param.h>
 #include <sys/time.h>
-#define _RLIMIT_IDENT
 #include <sys/resourcevar.h>
 #include <sys/sysctl.h>
 #include <sys/user.h>
@@ -36,6 +35,7 @@
 #include <err.h>
 #include <errno.h>
 #include <libprocstat.h>
+#include <libutil.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -43,7 +43,49 @@
 
 #include "procstat.h"
 
+static struct {
+	const char *name;
+	const char *suffix;
+} rlimit_param[13] = {
+	{"cputime",          "sec"},
+	{"filesize",         "B  "},
+	{"datasize",         "B  "},
+	{"stacksize",        "B  "},
+	{"coredumpsize",     "B  "},
+	{"memoryuse",        "B  "},
+	{"memorylocked",     "B  "},
+	{"maxprocesses",     "   "},
+	{"openfiles",        "   "},
+	{"sbsize",           "B  "},
+	{"vmemoryuse",       "B  "},
+	{"pseudo-terminals", "   "},
+	{"swapuse",          "B  "},
+};
+
+#if RLIM_NLIMITS > 13
+#error "Resource limits have grown. Add new entries to rlimit_param[]."
+#endif
+
 static struct rlimit rlimit[RLIM_NLIMITS];
+
+static
+const char *humanize_rlimit(int indx, rlim_t limit)
+{
+	static char buf[14];
+	int scale;
+
+	if (limit == RLIM_INFINITY)
+		return ("infinity     ");
+
+	scale = humanize_number(buf, sizeof(buf) - 1, (int64_t)limit,
+	    rlimit_param[indx].suffix, HN_AUTOSCALE | HN_GETSCALE, HN_DECIMAL);
+	(void)humanize_number(buf, sizeof(buf) - 1, (int64_t)limit,
+	    rlimit_param[indx].suffix, HN_AUTOSCALE, HN_DECIMAL);
+	/* Pad with one space if there is no suffix prefix. */
+	if (scale == 0)
+		sprintf(buf + strlen(buf), " ");
+	return (buf);
+}
 
 void
 procstat_rlimit(struct kinfo_proc *kipp)
@@ -51,9 +93,10 @@ procstat_rlimit(struct kinfo_proc *kipp)
 	int error, i, name[4];
 	size_t len;
 
-	if (!hflag)
-		printf("%5s %-16s %-10s %12s %12s\n", "PID", "COMM", "RLIMIT",
-		    "CURRENT", "MAX");
+	if (!hflag) {
+		printf("%5s %-16s %-16s %16s %16s\n",
+		    "PID", "COMM", "RLIMIT", "SOFT     ", "HARD     ");
+	}
 	name[0] = CTL_KERN;
 	name[1] = KERN_PROC;
 	name[2] = KERN_PROC_RLIMIT;
@@ -68,11 +111,9 @@ procstat_rlimit(struct kinfo_proc *kipp)
 		return;
 
 	for (i = 0; i < RLIM_NLIMITS; i++) {
-		printf("%5d %-16s %-10s %12jd %12jd\n", kipp->ki_pid,
-		    kipp->ki_comm, rlimit_ident[i],
-		    rlimit[i].rlim_cur == RLIM_INFINITY ?
-		    -1 : rlimit[i].rlim_cur,
-		    rlimit[i].rlim_max == RLIM_INFINITY ?
-		    -1 : rlimit[i].rlim_max);
+		printf("%5d %-16s %-16s ", kipp->ki_pid, kipp->ki_comm,
+		    rlimit_param[i].name);
+		printf("%16s ", humanize_rlimit(i, rlimit[i].rlim_cur));
+		printf("%16s\n", humanize_rlimit(i, rlimit[i].rlim_max));
         }
 }

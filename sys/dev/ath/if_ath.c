@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -128,9 +129,9 @@ __FBSDID("$FreeBSD$");
 CTASSERT(ATH_BCBUF <= 8);
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
@@ -204,7 +205,6 @@ static int	ath_setregdomain(struct ieee80211com *,
 static void	ath_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel []);
 static int	ath_getchannels(struct ath_softc *);
-static void	ath_led_event(struct ath_softc *, int);
 
 static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
@@ -299,7 +299,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 
-	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, sc->sc_eepromdata, &status);
+	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
+	    sc->sc_eepromdata, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
@@ -469,7 +470,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/* Attach DFS module */
 	if (! ath_dfs_attach(sc)) {
-		device_printf(sc->sc_dev, "%s: unable to attach DFS\n", __func__);
+		device_printf(sc->sc_dev,
+		    "%s: unable to attach DFS\n", __func__);
 		error = EIO;
 		goto bad2;
 	}
@@ -477,22 +479,35 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* Start DFS processing tasklet */
 	TASK_INIT(&sc->sc_dfstask, 0, ath_dfs_tasklet, sc);
 
+	/* Configure LED state */
 	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
 	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+
+	/*
+	 * Don't setup hardware-based blinking.
+	 *
+	 * Although some NICs may have this configured in the
+	 * default reset register values, the user may wish
+	 * to alter which pins have which function.
+	 *
+	 * The reference driver attaches the MAC network LED to GPIO1 and
+	 * the MAC power LED to GPIO2.  However, the DWA-552 cardbus
+	 * NIC has these reversed.
+	 */
+	sc->sc_hardled = (1 == 0);
+	sc->sc_led_net_pin = -1;
+	sc->sc_led_pwr_pin = -1;
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.  Users can also manually enable/disable
 	 * support with a sysctl.
 	 */
 	sc->sc_softled = (devid == AR5212_DEVID_IBM || devid == AR5211_DEVID);
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
-	}
+	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
@@ -521,7 +536,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
-		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+		| IEEE80211_C_DFS		/* Enable radar detection */
 #endif
 		;
 	/*
@@ -633,11 +648,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
-		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
-			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
-			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
-			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
+			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839
+			    				/* max A-MSDU length */
+			    | IEEE80211_HTCAP_SMPS_OFF;	/* SM power save off */
 			;
 
 		/*
@@ -658,8 +674,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    |  IEEE80211_HTCAP_SHORTGI40;
 
 		/*
-		 * rx/tx stream is not currently used anywhere; it needs to be taken
-		 * into account when negotiating which MCS rates it'll receive and
+		 * TX/RX streams need to be taken into account when
+		 * negotiating which MCS rates it'll receive and
 		 * what MCS rates are available for TX.
 		 */
 		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
@@ -671,7 +687,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
-		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+		device_printf(sc->sc_dev,
+		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
 #endif
 
@@ -683,7 +700,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	    ath_hal_getcapability(ah, HAL_CAP_SERIALISE_WAR,
 	     0, NULL) == HAL_OK) {
 		sc->sc_ah->ah_config.ah_serialise_reg_war = 1;
-		device_printf(sc->sc_dev, "Enabling register serialisation\n");
+		device_printf(sc->sc_dev,
+		    "Enabling register serialisation\n");
 	}
 
 	/*
@@ -885,16 +903,17 @@ assign_bslot(struct ath_softc *sc)
 }
 
 static struct ieee80211vap *
-ath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp;
 	struct ieee80211vap *vap;
 	uint8_t mac[IEEE80211_ADDR_LEN];
-	int ic_opmode, needbeacon, error;
+	int needbeacon, error;
+	enum ieee80211_opmode ic_opmode;
 
 	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
 	    M_80211_VAP, M_WAITOK | M_ZERO);
@@ -1310,9 +1329,14 @@ ath_resume(struct ath_softc *sc)
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
 
+	/* Restore the LED configuration */
+	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
+			ath_hal_setledstate(ah, HAL_LED_RUN);
 			/*
 			 * Program the beacon registers using the last rx'd
 			 * beacon frame and enable sync on the next beacon
@@ -1325,11 +1349,6 @@ ath_resume(struct ath_softc *sc)
 			sc->sc_syncbeacon = 1;
 		} else
 			ieee80211_resume_all(ic);
-	}
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 
 	/* XXX beacons ? */
@@ -1897,6 +1916,70 @@ ath_txrx_start(struct ath_softc *sc)
 	taskqueue_unblock(sc->sc_tq);
 }
 
+/*
+ * Grab the reset lock, and wait around until noone else
+ * is trying to do anything with it.
+ *
+ * This is totally horrible but we can't hold this lock for
+ * long enough to do TX/RX or we end up with net80211/ip stack
+ * LORs and eventual deadlock.
+ *
+ * "dowait" signals whether to spin, waiting for the reset
+ * lock count to reach 0. This should (for now) only be used
+ * during the reset path, as the rest of the code may not
+ * be locking-reentrant enough to behave correctly.
+ *
+ * Another, cleaner way should be found to serialise all of
+ * these operations.
+ */
+#define	MAX_RESET_ITERATIONS	10
+static int
+ath_reset_grablock(struct ath_softc *sc, int dowait)
+{
+	int w = 0;
+	int i = MAX_RESET_ITERATIONS;
+
+	ATH_PCU_LOCK_ASSERT(sc);
+	do {
+		if (sc->sc_inreset_cnt == 0) {
+			w = 1;
+			break;
+		}
+		if (dowait == 0) {
+			w = 0;
+			break;
+		}
+		ATH_PCU_UNLOCK(sc);
+		pause("ath_reset_grablock", 1);
+		i--;
+		ATH_PCU_LOCK(sc);
+	} while (i > 0);
+
+	/*
+	 * We always increment the refcounter, regardless
+	 * of whether we succeeded to get it in an exclusive
+	 * way.
+	 */
+	sc->sc_inreset_cnt++;
+
+	if (i <= 0)
+		device_printf(sc->sc_dev,
+		    "%s: didn't finish after %d iterations\n",
+		    __func__, MAX_RESET_ITERATIONS);
+
+	if (w == 0)
+		device_printf(sc->sc_dev,
+		    "%s: warning, recursive reset path!\n",
+		    __func__);
+
+	return w;
+}
+#undef MAX_RESET_ITERATIONS
+
+/*
+ * XXX TODO: write ath_reset_releaselock
+ */
+
 static void
 ath_stop(struct ifnet *ifp)
 {
@@ -1925,18 +2008,15 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
-	/* XXX ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
+	/* Ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
 
 	ATH_PCU_LOCK(sc);
-	/* XXX if we're already inside a reset, print out a big warning */
-	if (sc->sc_inreset_cnt > 0) {
-		device_printf(sc->sc_dev,
-		    "%s: concurrent ath_reset()! Danger!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-	sc->sc_inreset_cnt++;
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ATH_PCU_UNLOCK(sc);
 
@@ -3961,6 +4041,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		npkts++;
 
 		/* These aren't specifically errors */
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_stats.ast_rx_halfgi++;
 		if (rs->rs_flags & HAL_RX_2040)
@@ -3973,6 +4054,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			sc->sc_stats.ast_rx_decrypt_busy_err++;
 		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 			sc->sc_stats.ast_rx_hi_rx_chain++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
@@ -4110,6 +4192,35 @@ rx_accept:
 			m->m_pkthdr.len = len;
 		}
 
+		/*
+		 * Validate rs->rs_antenna.
+		 *
+		 * Some users w/ AR9285 NICs have reported crashes
+		 * here because rs_antenna field is bogusly large.
+		 * Let's enforce the maximum antenna limit of 8
+		 * (and it shouldn't be hard coded, but that's a
+		 * separate problem) and if there's an issue, print
+		 * out an error and adjust rs_antenna to something
+		 * sensible.
+		 *
+		 * This code should be removed once the actual
+		 * root cause of the issue has been identified.
+		 * For example, it may be that the rs_antenna
+		 * field is only valid for the lsat frame of
+		 * an aggregate and it just happens that it is
+		 * "mostly" right. (This is a general statement -
+		 * the majority of the statistics are only valid
+		 * for the last frame in an aggregate.
+		 */
+		if (rs->rs_antenna > 7) {
+			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
+			    __func__, rs->rs_antenna);
+#ifdef	ATH_DEBUG
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+#endif /* ATH_DEBUG */
+			rs->rs_antenna = 0;	/* XXX better than nothing */
+		}
+
 		ifp->if_ipackets++;
 		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
@@ -4161,8 +4272,10 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (ni != NULL) {
 			/*
@@ -5216,10 +5329,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 
 	/* Treat this as an interface reset */
 	ATH_PCU_LOCK(sc);
-	if (sc->sc_inreset_cnt > 0)
-		device_printf(sc->sc_dev, "%s: danger! concurrent reset!\n",
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
-	sc->sc_inreset_cnt++;
+	}
 	if (chan != sc->sc_curchan) {
 		dointr = 1;
 		/* XXX only do this if inreset_cnt is 1? */
@@ -5856,49 +5969,6 @@ ath_getchannels(struct ath_softc *sc)
 	return 0;
 }
 
-static void
-ath_led_done(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	sc->sc_blinking = 0;
-}
-
-/*
- * Turn the LED off: flip the pin and then set a timer so no
- * update will happen for the specified duration.
- */
-static void
-ath_led_off(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
-	callout_reset(&sc->sc_ledtimer, sc->sc_ledoff, ath_led_done, sc);
-}
-
-/*
- * Blink the LED according to the specified on/off times.
- */
-static void
-ath_led_blink(struct ath_softc *sc, int on, int off)
-{
-	DPRINTF(sc, ATH_DEBUG_LED, "%s: on %u off %u\n", __func__, on, off);
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, sc->sc_ledon);
-	sc->sc_blinking = 1;
-	sc->sc_ledoff = off;
-	callout_reset(&sc->sc_ledtimer, on, ath_led_off, sc);
-}
-
-static void
-ath_led_event(struct ath_softc *sc, int rix)
-{
-	sc->sc_ledevent = ticks;	/* time of last event */
-	if (sc->sc_blinking)		/* don't interrupt active blink */
-		return;
-	ath_led_blink(sc, sc->sc_hwmap[rix].ledon, sc->sc_hwmap[rix].ledoff);
-}
-
 static int
 ath_rate_setup(struct ath_softc *sc, u_int mode)
 {
@@ -6218,6 +6288,8 @@ ath_announce(struct ath_softc *sc)
 	if_printf(ifp, "AR%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
+	if_printf(ifp, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
+		ah->ah_analog2GhzRev, ah->ah_analog5GhzRev);
 	if (bootverbose) {
 		int i;
 		for (i = 0; i <= WME_AC_VO; i++) {

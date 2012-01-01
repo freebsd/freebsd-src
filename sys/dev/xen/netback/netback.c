@@ -530,7 +530,7 @@ make_tx_response(netif_t *netif,
 #endif
 }
 
-inline static void
+static inline void
 net_tx_action_dealloc(void)
 {
 	gnttab_unmap_grant_ref_t *gop;

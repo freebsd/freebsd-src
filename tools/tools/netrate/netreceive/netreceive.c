@@ -126,7 +126,7 @@ main(int argc, char *argv[])
 	while (1) {
 		if (poll(fds, nsock, -1) < 0) 
 			perror("poll");
-		for (i = 0; i > nsock; i++) {
+		for (i = 0; i < nsock; i++) {
 			if (fds[i].revents & POLLIN) {
 				if (recv(s[i], packet, 65536, 0) < 0)
 					perror("recv");

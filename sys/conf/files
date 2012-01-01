@@ -304,7 +304,7 @@ contrib/dev/acpica/utilities/utxface.c		optional acpi
 contrib/dev/acpica/utilities/utxferror.c	optional acpi
 #contrib/dev/acpica/utilities/utxfmutex.c	optional acpi
 contrib/ipfilter/netinet/fil.c	optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_auth.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_fil_freebsd.c optional ipfilter inet \
@@ -316,11 +316,11 @@ contrib/ipfilter/netinet/ip_log.c optional ipfilter inet \
 contrib/ipfilter/netinet/ip_nat.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_proxy.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_state.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_lookup.c optional ipfilter inet \
-	compile-with "${NORMAL_C} -Wno-error -I$S/contrib/ipfilter"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -Wno-error -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_pool.c optional ipfilter inet \
 	compile-with "${NORMAL_C} -I$S/contrib/ipfilter"
 contrib/ipfilter/netinet/ip_htable.c optional ipfilter inet \
@@ -508,8 +508,10 @@ dev/aic/aic.c			optional aic
 dev/aic/aic_pccard.c		optional aic pccard
 dev/aic7xxx/ahc_eisa.c		optional ahc eisa
 dev/aic7xxx/ahc_isa.c		optional ahc isa
-dev/aic7xxx/ahc_pci.c		optional ahc pci
-dev/aic7xxx/ahd_pci.c		optional ahd pci
+dev/aic7xxx/ahc_pci.c		optional ahc pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
+dev/aic7xxx/ahd_pci.c		optional ahd pci \
+	compile-with "${NORMAL_C} ${NO_WCONSTANT_CONVERSION}"
 dev/aic7xxx/aic7770.c		optional ahc
 dev/aic7xxx/aic79xx.c		optional ahd pci
 dev/aic7xxx/aic79xx_osm.c	optional ahd pci
@@ -529,7 +531,8 @@ dev/an/if_an.c			optional an
 dev/an/if_an_isa.c		optional an isa
 dev/an/if_an_pccard.c		optional an pccard
 dev/an/if_an_pci.c		optional an pci
-dev/asr/asr.c			optional asr pci
+dev/asr/asr.c			optional asr pci \
+	compile-with "${NORMAL_C} ${NO_WARRAY_BOUNDS}"
 #
 dev/ata/ata_if.m		optional ata | atacore
 dev/ata/ata-all.c		optional ata | atacore
@@ -585,6 +588,8 @@ dev/ath/if_ath_debug.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_keycache.c	optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
+dev/ath/if_ath_led.c		optional ath \
+	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx.c		optional ath \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/if_ath_tx_ht.c		optional ath \
@@ -610,7 +615,7 @@ dev/ath/ath_hal/ah_eeprom_9287.c \
 	optional ath_hal | ath_ar9287 \
 	compile-with "${NORMAL_C} -I$S/dev/ath"
 dev/ath/ath_hal/ah_regdomain.c	optional ath \
-	compile-with "${NORMAL_C} -I$S/dev/ath"
+	compile-with "${NORMAL_C} ${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW} -I$S/dev/ath"
 # ar5210
 dev/ath/ath_hal/ar5210/ar5210_attach.c		optional ath_hal | ath_ar5210 \
 	compile-with "${NORMAL_C} -I$S/dev/ath -I$S/dev/ath/ath_hal"
@@ -987,15 +992,18 @@ dev/drm/mga_irq.c		optional mgadrm
 dev/drm/mga_state.c		optional mgadrm \
 	compile-with "${NORMAL_C} -finline-limit=13500"
 dev/drm/mga_warp.c		optional mgadrm
-dev/drm/r128_cce.c		optional r128drm
+dev/drm/r128_cce.c		optional r128drm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/r128_drv.c		optional r128drm
 dev/drm/r128_irq.c		optional r128drm
 dev/drm/r128_state.c		optional r128drm \
-	compile-with "${NORMAL_C} -finline-limit=13500"
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} -finline-limit=13500"
 dev/drm/r300_cmdbuf.c		optional radeondrm
 dev/drm/r600_blit.c		optional radeondrm
-dev/drm/r600_cp.c		optional radeondrm
-dev/drm/radeon_cp.c		optional radeondrm
+dev/drm/r600_cp.c		optional radeondrm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
+dev/drm/radeon_cp.c		optional radeondrm \
+	compile-with "${NORMAL_C} ${NO_WUNUSED_VALUE} ${NO_WCONSTANT_CONVERSION}"
 dev/drm/radeon_cs.c		optional radeondrm
 dev/drm/radeon_drv.c		optional radeondrm
 dev/drm/radeon_irq.c		optional radeondrm
@@ -1514,17 +1522,25 @@ dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
 dev/nge/if_nge.c		optional nge
-dev/nxge/if_nxge.c		optional nxge
-dev/nxge/xgehal/xgehal-device.c	optional nxge
+dev/nxge/if_nxge.c		optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-device.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-mm.c	optional nxge
 dev/nxge/xgehal/xge-queue.c	optional nxge
-dev/nxge/xgehal/xgehal-driver.c	optional nxge
-dev/nxge/xgehal/xgehal-ring.c	optional nxge
-dev/nxge/xgehal/xgehal-channel.c	optional nxge
-dev/nxge/xgehal/xgehal-fifo.c	optional nxge
-dev/nxge/xgehal/xgehal-stats.c	optional nxge
+dev/nxge/xgehal/xgehal-driver.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-ring.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-channel.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-fifo.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
+dev/nxge/xgehal/xgehal-stats.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nxge/xgehal/xgehal-config.c	optional nxge
-dev/nxge/xgehal/xgehal-mgmt.c	optional nxge
+dev/nxge/xgehal/xgehal-mgmt.c	optional nxge \
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
 dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
@@ -2530,7 +2546,6 @@ libkern/bcd.c			standard
 libkern/bsearch.c		standard
 libkern/crc32.c			standard
 libkern/fnmatch.c		standard
-libkern/gets.c			standard
 libkern/iconv.c			optional libiconv
 libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv
@@ -3472,7 +3487,7 @@ gnu/fs/xfs/FreeBSD/xfs_sysctl.c	optional xfs \
 gnu/fs/xfs/FreeBSD/xfs_fs_subr.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/xfs_ioctl.c	optional xfs \
-	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
+	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/debug.c	optional xfs \
 	compile-with "${NORMAL_C} -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs"
 gnu/fs/xfs/FreeBSD/support/ktrace.c	optional xfs \

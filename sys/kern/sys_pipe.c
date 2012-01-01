@@ -569,12 +569,7 @@ pipe_create(pipe, backing)
 		/* If we're not backing this pipe, no need to do anything. */
 		error = 0;
 	}
-	if (error == 0) {
-		pipe->pipe_ino = alloc_unr(pipeino_unr);
-		if (pipe->pipe_ino == -1)
-			/* pipeclose will clear allocated kva */
-			error = ENOMEM;
-	}
+	pipe->pipe_ino = -1;
 	return (error);
 }
 
@@ -1354,7 +1349,8 @@ pipe_poll(fp, events, active_cred, td)
 		if (wpipe->pipe_present != PIPE_ACTIVE ||
 		    (wpipe->pipe_state & PIPE_EOF) ||
 		    (((wpipe->pipe_state & PIPE_DIRECTW) == 0) &&
-		     (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF))
+		     ((wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) >= PIPE_BUF ||
+			 wpipe->pipe_buffer.size == 0)))
 			revents |= events & (POLLOUT | POLLWRNORM);
 
 	if ((events & POLLINIGNEOF) == 0) {
@@ -1398,16 +1394,40 @@ pipe_stat(fp, ub, active_cred, td)
 	struct ucred *active_cred;
 	struct thread *td;
 {
-	struct pipe *pipe = fp->f_data;
+	struct pipe *pipe;
+	int new_unr;
 #ifdef MAC
 	int error;
-
-	PIPE_LOCK(pipe);
-	error = mac_pipe_check_stat(active_cred, pipe->pipe_pair);
-	PIPE_UNLOCK(pipe);
-	if (error)
-		return (error);
 #endif
+
+	pipe = fp->f_data;
+	PIPE_LOCK(pipe);
+#ifdef MAC
+	error = mac_pipe_check_stat(active_cred, pipe->pipe_pair);
+	if (error) {
+		PIPE_UNLOCK(pipe);
+		return (error);
+	}
+#endif
+	/*
+	 * Lazily allocate an inode number for the pipe.  Most pipe
+	 * users do not call fstat(2) on the pipe, which means that
+	 * postponing the inode allocation until it is must be
+	 * returned to userland is useful.  If alloc_unr failed,
+	 * assign st_ino zero instead of returning an error.
+	 * Special pipe_ino values:
+	 *  -1 - not yet initialized;
+	 *  0  - alloc_unr failed, return 0 as st_ino forever.
+	 */
+	if (pipe->pipe_ino == (ino_t)-1) {
+		new_unr = alloc_unr(pipeino_unr);
+		if (new_unr != -1)
+			pipe->pipe_ino = new_unr;
+		else
+			pipe->pipe_ino = 0;
+	}
+	PIPE_UNLOCK(pipe);
+
 	bzero(ub, sizeof(*ub));
 	ub->st_mode = S_IFIFO;
 	ub->st_blksize = PAGE_SIZE;
@@ -1641,7 +1661,8 @@ filt_pipewrite(struct knote *kn, long hint)
 		PIPE_UNLOCK(rpipe);
 		return (1);
 	}
-	kn->kn_data = wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt;
+	kn->kn_data = (wpipe->pipe_buffer.size > 0) ?
+	    (wpipe->pipe_buffer.size - wpipe->pipe_buffer.cnt) : PIPE_BUF;
 	if (wpipe->pipe_state & PIPE_DIRECTW)
 		kn->kn_data = 0;
 

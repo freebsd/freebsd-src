@@ -410,18 +410,25 @@ pw_make(const struct passwd *pw)
 }
 
 /*
- * Copy password file from one descriptor to another, replacing or adding
- * a single record on the way.
+ * Copy password file from one descriptor to another, replacing, deleting
+ * or adding a single record on the way.
  */
 int
 pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 {
 	char buf[8192], *end, *line, *p, *q, *r, t;
 	struct passwd *fpw;
+	const struct passwd *spw;
 	size_t len;
 	int eof, readlen;
 
-	if ((line = pw_make(pw)) == NULL)
+	spw = pw;
+	if (pw == NULL) {
+		line = NULL;
+		if (old_pw == NULL)
+			return (-1);
+		spw = old_pw;
+	} else if ((line = pw_make(pw)) == NULL)
 		return (-1);
 
 	eof = 0;
@@ -489,7 +496,7 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		 */
 
 		*q = t;
-		if (fpw == NULL || strcmp(fpw->pw_name, pw->pw_name) != 0) {
+		if (fpw == NULL || fpw->pw_uid != spw->pw_uid) {
 			/* nope */
 			if (fpw != NULL)
 				free(fpw);
@@ -506,11 +513,15 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		}
 		free(fpw);
 
-		/* it is, replace it */
-		len = strlen(line);
-		if (write(tfd, line, len) != (int)len)
-			goto err;
-
+		/* it is, replace or remove it */
+		if (line != NULL) {
+			len = strlen(line);
+			if (write(tfd, line, len) != (int)len)
+				goto err;
+		} else {
+			/* when removed, avoid the \n */
+			q++;
+		}
 		/* we're done, just copy the rest over */
 		for (;;) {
 			if (write(tfd, q, end - q) != end - q)
@@ -528,16 +539,22 @@ pw_copy(int ffd, int tfd, const struct passwd *pw, struct passwd *old_pw)
 		goto done;
 	}
 
-	/* if we got here, we have a new entry */
+	/* if we got here, we didn't find the old entry */
+	if (line == NULL) {
+		errno = ENOENT;
+		goto err;
+	}
 	len = strlen(line);
 	if ((size_t)write(tfd, line, len) != len ||
 	    write(tfd, "\n", 1) != 1)
 		goto err;
  done:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (0);
  err:
-	free(line);
+	if (line != NULL)
+		free(line);
 	return (-1);
 }
 
