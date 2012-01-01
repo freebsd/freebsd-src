@@ -102,7 +102,6 @@ u_long	 random(void);
 char	*index(const char *, int);
 char	*rindex(const char *, int);
 int	 scanc(u_int, const u_char *, const u_char *, int);
-int	 skpc(int, int, char *);
 void	 srandom(u_long);
 int	 strcasecmp(const char *, const char *);
 char	*strcat(char * __restrict, const char * __restrict);
