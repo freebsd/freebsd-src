@@ -73,7 +73,7 @@ server_init(server_p srv, char const *control)
 	assert(srv != NULL);
 	assert(control != NULL);
 
-	memset(srv, 0, sizeof(srv));
+	memset(srv, 0, sizeof(*srv));
 
 	/* Open control socket */
 	if (unlink(control) < 0 && errno != ENOENT) {
