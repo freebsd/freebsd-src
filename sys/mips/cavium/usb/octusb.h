@@ -29,14 +29,7 @@
 #define	_OCTUSB_H_
 
 #define	OCTUSB_MAX_DEVICES MIN(USB_MAX_DEVICES, 64)
-/*
- * The second port is on a different IRQ and so we disable it for now.
- */
-#if 1
-#define	OCTUSB_MAX_PORTS	1	/* hardcoded */
-#else
 #define	OCTUSB_MAX_PORTS	2	/* hardcoded */
-#endif
 #define	OCTUSB_MAX_FIXUP	4096	/* bytes */
 #define	OCTUSB_INTR_ENDPT	0x01
 
@@ -121,8 +114,8 @@ struct octusb_softc {
 
 	struct usb_device *sc_devices[OCTUSB_MAX_DEVICES];
 
-	struct resource *sc_irq_res;
-	void   *sc_intr_hdl;
+	struct resource *sc_irq_res[OCTUSB_MAX_PORTS];
+	void   *sc_intr_hdl[OCTUSB_MAX_PORTS];
 
 	struct octusb_port sc_port[OCTUSB_MAX_PORTS];
 	device_t sc_dev;
