@@ -11,6 +11,13 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 # The following flags are next up for working on:
 #	-Wextra
 
+# Disable a few warnings for clang, since there are several places in the
+# kernel where fixing them is more trouble than it is worth, or where there is
+# a false positive.
+.if ${CC:T:Mclang} == "clang"
+NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
+.endif
+
 #
 # On i386, do not align the stack to 16-byte boundaries.  Otherwise GCC 2.95
 # and above adds code to the entry and exit point of every function to align the
