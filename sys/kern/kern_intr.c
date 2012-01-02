@@ -693,9 +693,9 @@ intr_event_describe_handler(struct intr_event *ie, void *cookie,
 	 * description at that point.  If one is not found, find the
 	 * end of the name to use as the insertion point.
 	 */
-	start = index(ih->ih_name, ':');
+	start = strchr(ih->ih_name, ':');
 	if (start == NULL)
-		start = index(ih->ih_name, 0);
+		start = strchr(ih->ih_name, 0);
 
 	/*
 	 * See if there is enough remaining room in the string for the
@@ -1832,8 +1832,8 @@ DB_SHOW_COMMAND(intr, db_show_intr)
 	struct intr_event *ie;
 	int all, verbose;
 
-	verbose = index(modif, 'v') != NULL;
-	all = index(modif, 'a') != NULL;
+	verbose = strchr(modif, 'v') != NULL;
+	all = strchr(modif, 'a') != NULL;
 	TAILQ_FOREACH(ie, &event_list, ie_list) {
 		if (!all && TAILQ_EMPTY(&ie->ie_handlers))
 			continue;

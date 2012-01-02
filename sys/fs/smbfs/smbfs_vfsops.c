@@ -234,10 +234,10 @@ smbfs_mount(struct mount *mp)
 	bzero(pc, MNAMELEN);
 	*pc++ = '/';
 	*pc++ = '/';
-	pc=index(strncpy(pc, vcp->vc_username, pe - pc - 2), 0);
+	pc = strchr(strncpy(pc, vcp->vc_username, pe - pc - 2), 0);
 	if (pc < pe-1) {
 		*(pc++) = '@';
-		pc = index(strncpy(pc, vcp->vc_srvname, pe - pc - 2), 0);
+		pc = strchr(strncpy(pc, vcp->vc_srvname, pe - pc - 2), 0);
 		if (pc < pe - 1) {
 			*(pc++) = '/';
 			strncpy(pc, ssp->ss_name, pe - pc - 2);
