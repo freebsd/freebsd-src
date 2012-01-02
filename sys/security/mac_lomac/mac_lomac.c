@@ -762,10 +762,10 @@ lomac_parse(struct mac_lomac *ml, char *string)
 
 	/* Do we have a range? */
 	single = string;
-	range = index(string, '(');
+	range = strchr(string, '(');
 	if (range == single)
 		single = NULL;
-	auxsingle = index(string, '[');
+	auxsingle = strchr(string, '[');
 	if (auxsingle == single)
 		single = NULL;
 	if (range != NULL && auxsingle != NULL)
@@ -776,13 +776,13 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		*range = '\0';
 		range++;
 		rangelow = range;
-		rangehigh = index(rangelow, '-');
+		rangehigh = strchr(rangelow, '-');
 		if (rangehigh == NULL)
 			return (EINVAL);
 		rangehigh++;
 		if (*rangelow == '\0' || *rangehigh == '\0')
 			return (EINVAL);
-		rangeend = index(rangehigh, ')');
+		rangeend = strchr(rangehigh, ')');
 		if (rangeend == NULL)
 			return (EINVAL);
 		if (*(rangeend + 1) != '\0')
@@ -798,7 +798,7 @@ lomac_parse(struct mac_lomac *ml, char *string)
 		/* Nul terminate the end of the single string. */
 		*auxsingle = '\0';
 		auxsingle++;
-		auxsingleend = index(auxsingle, ']');
+		auxsingleend = strchr(auxsingle, ']');
 		if (auxsingleend == NULL)
 			return (EINVAL);
 		if (*(auxsingleend + 1) != '\0')
