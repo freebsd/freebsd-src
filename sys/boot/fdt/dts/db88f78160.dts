@@ -74,7 +74,7 @@
 			interrupt-controller;
 			#address-cells = <0>;
 			#interrupt-cells = <1>;
-			reg = <0x20a00 0x200>;
+			reg = <0x20a00 0x500 0x21000 0x800>;
 			compatible = "mrvl,mpic";
 		};
 
@@ -253,10 +253,11 @@
 			compatible = "mrvl,ge";
 			reg = <0x72000 0x2000>;
 			ranges = <0x0 0x72000 0x2000>;
-			local-mac-address = [ 00 01 01 07 84 60 ];
+			local-mac-address = [ 00 04 01 07 84 60 ];
 			interrupts = <67 68 122 >;
 			interrupt-parent = <&MPIC>;
 			phy-handle = <&phy0>;
+			has-neta;
 
 			mdio@0 {
 				#address-cells = <1>;
