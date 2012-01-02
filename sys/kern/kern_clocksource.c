@@ -295,7 +295,7 @@ getnextevent(struct bintime *event)
 	*event = state->nextevent;
 	c = curcpu;
 #ifdef SMP
-	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0) {
+	if ((timer->et_flags & ET_FLAGS_PERCPU) == 0 && smp_started) {
 		CPU_FOREACH(cpu) {
 			if (curcpu == cpu)
 				continue;
