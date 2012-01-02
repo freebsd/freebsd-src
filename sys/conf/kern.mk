@@ -6,7 +6,8 @@
 CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 		-Wmissing-prototypes -Wpointer-arith -Winline -Wcast-qual \
 		-Wundef -Wno-pointer-sign -fformat-extensions \
-		-Wmissing-include-dirs -fdiagnostics-show-option
+		-Wmissing-include-dirs -fdiagnostics-show-option \
+		${CWARNEXTRA}
 #
 # The following flags are next up for working on:
 #	-Wextra
@@ -19,6 +20,11 @@ NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
 NO_WARRAY_BOUNDS=		-Wno-array-bounds
 NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
 NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
+# Several other warnings which might be useful in some cases, but not severe
+# enough to error out the whole kernel build.  Display them anyway, so there is
+# some incentive to fix them eventually.
+CWARNEXTRA?=	-Wno-error-tautological-compare -Wno-error-empty-body \
+		-Wno-error-parentheses-equality
 .endif
 
 #
