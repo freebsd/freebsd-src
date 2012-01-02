@@ -2957,6 +2957,9 @@ xpt_polled_action(union ccb *start_ccb)
 
 	mtx_assert(sim->mtx, MA_OWNED);
 
+	/* Don't use ISR for this SIM while polling. */
+	sim->flags |= CAM_SIM_POLLED;
+
 	/*
 	 * Steal an opening so that no other queued requests
 	 * can get it before us while we simulate interrupts.
@@ -2996,6 +2999,9 @@ xpt_polled_action(union ccb *start_ccb)
 	} else {
 		start_ccb->ccb_h.status = CAM_RESRC_UNAVAIL;
 	}
+
+	/* We will use CAM ISR for this SIM again. */
+	sim->flags &= ~CAM_SIM_POLLED;
 }
 
 /*
@@ -4224,7 +4230,7 @@ xpt_done(union ccb *done_ccb)
 		TAILQ_INSERT_TAIL(&sim->sim_doneq, &done_ccb->ccb_h,
 		    sim_links.tqe);
 		done_ccb->ccb_h.pinfo.index = CAM_DONEQ_INDEX;
-		if ((sim->flags & CAM_SIM_ON_DONEQ) == 0) {
+		if ((sim->flags & (CAM_SIM_ON_DONEQ | CAM_SIM_POLLED)) == 0) {
 			mtx_lock(&cam_simq_lock);
 			first = TAILQ_EMPTY(&cam_simq);
 			TAILQ_INSERT_TAIL(&cam_simq, sim, links);
