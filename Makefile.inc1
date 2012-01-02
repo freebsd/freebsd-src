@@ -107,7 +107,7 @@ CLEANDIR=	cleandir
 .endif
 
 CVS?=		cvs
-CVSFLAGS?=	-A -P -d -I!
+CVSFLAGS?=	-r RELENG_9_0 -P -d -I!
 SVN?=		svn
 SVNFLAGS?=	-r HEAD
 SUP?=		/usr/bin/csup
