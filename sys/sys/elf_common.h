@@ -503,6 +503,7 @@ typedef struct {
 #define	STT_TLS		6	/* TLS object. */
 #define	STT_NUM		7
 #define	STT_LOOS	10	/* Reserved range for operating system */
+#define	STT_GNU_IFUNC	10
 #define	STT_HIOS	12	/*   specific semantics. */
 #define	STT_LOPROC	13	/* reserved range for processor */
 #define	STT_HIPROC	15	/*   specific semantics. */
@@ -612,6 +613,7 @@ typedef struct {
 #define	R_386_TLS_DTPMOD32	35	/* GOT entry containing TLS index */
 #define	R_386_TLS_DTPOFF32	36	/* GOT entry containing TLS offset */
 #define	R_386_TLS_TPOFF32	37	/* GOT entry of -ve static TLS offset */
+#define	R_386_IRELATIVE		42	/* PLT entry resolved indirectly at runtime */
 
 #define	R_ARM_NONE		0	/* No relocation. */
 #define	R_ARM_PC24		1
@@ -961,6 +963,7 @@ typedef struct {
 #define	R_X86_64_DTPOFF32	21	/* Offset in TLS block */
 #define	R_X86_64_GOTTPOFF	22	/* PC relative offset to IE GOT entry */
 #define	R_X86_64_TPOFF32	23	/* Offset in static TLS block */
+#define	R_X86_64_IRELATIVE	37
 
 
 #endif /* !_SYS_ELF_COMMON_H_ */
