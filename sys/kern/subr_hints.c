@@ -133,8 +133,7 @@ res_find(int *line, int *startln,
 			    r_name, &r_unit, r_resname, r_value);
 		if (hit && n != 4) {
 			printf("CONFIG: invalid hint '%s'\n", cp);
-			/* XXX: abuse bogus index() declaration */
-			p = index(cp, 'h');
+			p = strchr(cp, 'h');
 			*p = 'H';
 			hit = 0;
 		}
@@ -172,18 +171,18 @@ res_find(int *line, int *startln,
 	s = cp;
 	/* This is a bit of a hack, but at least is reentrant */
 	/* Note that it returns some !unterminated! strings. */
-	s = index(s, '.') + 1;		/* start of device */
+	s = strchr(s, '.') + 1;		/* start of device */
 	if (ret_name)
 		*ret_name = s;
-	s = index(s, '.') + 1;		/* start of unit */
+	s = strchr(s, '.') + 1;		/* start of unit */
 	if (ret_namelen && ret_name)
 		*ret_namelen = s - *ret_name - 1; /* device length */
 	if (ret_unit)
 		*ret_unit = r_unit;
-	s = index(s, '.') + 1;		/* start of resname */
+	s = strchr(s, '.') + 1;		/* start of resname */
 	if (ret_resname)
 		*ret_resname = s;
-	s = index(s, '=') + 1;		/* start of value */
+	s = strchr(s, '=') + 1;		/* start of value */
 	if (ret_resnamelen && ret_resname)
 		*ret_resnamelen = s - *ret_resname - 1; /* value len */
 	if (ret_value)
