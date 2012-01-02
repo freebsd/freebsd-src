@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sysent.h>
 #include <sys/systm.h>
+#include <sys/_kstack_cache.h>
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
@@ -427,5 +428,41 @@ DB_SHOW_COMMAND(proc, db_show_proc)
 		dumpthread(p, td, 1);
 		if (db_pager_quit)
 			break;
+	}
+}
+
+void
+db_findstack_cmd(db_expr_t addr, boolean_t have_addr,
+    db_expr_t dummy3 __unused, char *dummy4 __unused)
+{
+	struct proc *p;
+	struct thread *td;
+	struct kstack_cache_entry *ks_ce;
+	vm_offset_t saddr;
+
+	if (have_addr)
+		saddr = addr;
+	else {
+		db_printf("Usage: findstack <address>\n");
+		return;
+	}
+
+	for (p = LIST_FIRST(&allproc); p != NULL; p = LIST_NEXT(p, p_list)) {
+		FOREACH_THREAD_IN_PROC(p, td) {
+			if (td->td_kstack <= saddr && saddr < td->td_kstack +
+			    PAGE_SIZE * td->td_kstack_pages) {
+				db_printf("Thread %p\n", td);
+				return;
+			}
+		}
+	}
+
+	for (ks_ce = kstack_cache; ks_ce != NULL;
+	     ks_ce = ks_ce->next_ks_entry) {
+		if ((vm_offset_t)ks_ce <= saddr && saddr < (vm_offset_t)ks_ce +
+		    PAGE_SIZE * KSTACK_PAGES) {
+			db_printf("Cached stack %p\n", ks_ce);
+			return;
+		}
 	}
 }
