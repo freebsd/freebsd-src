@@ -348,7 +348,16 @@ cpu_est_clockrate(int cpu_id, uint64_t *rate)
 void
 cpu_idle(int busy)
 {
+	
+	if (!busy) {
+		critical_enter();
+		cpu_idleclock();
+	}
 	cpu_sleep(0);
+	if (!busy) {
+		cpu_activeclock();
+		critical_exit();
+	}
 }
 
 int
