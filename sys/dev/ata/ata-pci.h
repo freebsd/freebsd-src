@@ -549,6 +549,7 @@ int ata_pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 uint32_t ata_pci_read_config(device_t dev, device_t child, int reg, int width);
 void ata_pci_write_config(device_t dev, device_t child, int reg, 
     uint32_t val, int width);
+int ata_pci_print_child(device_t dev, device_t child);
 int ata_pci_child_location_str(device_t dev, device_t child, char *buf,
     size_t buflen);
 struct resource * ata_pci_alloc_resource(device_t dev, device_t child, int type, int *rid, u_long start, u_long end, u_long count, u_int flags);
@@ -601,6 +602,7 @@ static device_method_t __CONCAT(dname,_methods)[] = { \
     DEVMETHOD(bus_teardown_intr,        ata_pci_teardown_intr), \
     DEVMETHOD(pci_read_config,		ata_pci_read_config), \
     DEVMETHOD(pci_write_config,		ata_pci_write_config), \
+    DEVMETHOD(bus_print_child,		ata_pci_print_child), \
     DEVMETHOD(bus_child_location_str,	ata_pci_child_location_str), \
     { 0, 0 } \
 }; \
