@@ -278,7 +278,6 @@ LIB32CPUFLAGS=	-march=i686 -mmmx -msse -msse2
 .else
 LIB32CPUFLAGS=	-march=${TARGET_CPUTYPE}
 .endif
-LIB32CPUFLAGS+=	-mfancy-math-387
 LIB32WMAKEENV=	MACHINE=i386 MACHINE_ARCH=i386 \
 		MACHINE_CPU="i686 mmx sse sse2" \
 		LD="${LD} -m elf_i386_fbsd -Y P,${LIB32TMP}/usr/lib32" \
