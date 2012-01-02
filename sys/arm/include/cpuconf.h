@@ -88,12 +88,6 @@
 #define	ARM_ARCH_5	0
 #endif
 
-#if defined(CPU_ARM11) || defined(CPU_MV_PJ4B)
-#define ARM_ARCH_6	1
-#else
-#define ARM_ARCH_6	0
-#endif
-
 #if defined(CPU_CORTEXA)
 #define ARM_ARCH_7A	1
 #else
