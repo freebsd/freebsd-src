@@ -433,7 +433,7 @@ ieee80211_get_suphtrates(struct ieee80211com *ic,
 		ADDRATE(i);
 	if ((ic->ic_htcaps & IEEE80211_HTCAP_CHWIDTH40) &&
 	    (ic->ic_htcaps & IEEE80211_HTC_TXMCS32))
-		ADDRATE(i);
+		ADDRATE(32);
 	if (ic->ic_htcaps & IEEE80211_HTC_TXUNEQUAL) {
 		if (ic->ic_txstream >= 2) {
 			 for (i = 33; i <= 38; i++)
