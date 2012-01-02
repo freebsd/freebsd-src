@@ -49,6 +49,10 @@ ENTRY_NP(__modsi3)
 #endif
 	RET
 
+#ifdef __ARM_EABI__
+ENTRY_NP(__aeabi_uidiv)
+ENTRY_NP(__aeabi_uidivmod)
+#endif
 ENTRY_NP(__udivsi3)
 .L_udivide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
@@ -71,6 +75,10 @@ ENTRY_NP(__udivsi3)
 	mov	r1, #0
 	RET
 
+#ifdef __ARM_EABI__
+ENTRY_NP(__aeabi_idiv)
+ENTRY_NP(__aeabi_idivmod)
+#endif
 ENTRY_NP(__divsi3)
 .L_divide:				/* r0 = r0 / r1; r1 = r0 % r1 */
 	eor     r0, r1, r0 
