@@ -17,6 +17,8 @@ CWARNFLAGS?=	-Wall -Wredundant-decls -Wnested-externs -Wstrict-prototypes \
 .if ${CC:T:Mclang} == "clang"
 NO_WCONSTANT_CONVERSION=	-Wno-constant-conversion
 NO_WARRAY_BOUNDS=		-Wno-array-bounds
+NO_WSHIFT_COUNT_NEGATIVE=	-Wno-shift-count-negative
+NO_WSHIFT_COUNT_OVERFLOW=	-Wno-shift-count-overflow
 .endif
 
 #
