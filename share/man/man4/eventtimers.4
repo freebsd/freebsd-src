@@ -46,16 +46,22 @@ statistics, time keeping, profiling and many other things, based on
 .Xr callout 9
 mechanism.
 These purposes now grouped into three main callbacks:
-.Bl -tag
-.It hardclock()
+.Bl -tag -width ".Fn hardclock"
+.It Fn hardclock
 .Xr callout 9
-and timekeeping events entry. Called with frequency defined by hz variable,
+and timekeeping events entry.
+Called with frequency defined by
+.Va hz
+variable,
 usually 1000Hz.
-.It statclock()
-statistics and scheduler events entry. Called with frequency about 128Hz.
-.It profclock()
-profiler events entry. When enabled, called with frequency about 8KHz.
+.It Fn statclock
+statistics and scheduler events entry.
+Called with frequency about 128Hz.
+.It Fn profclock
+profiler events entry.
+When enabled, called with frequency about 8KHz.
 .El
+.Pp
 Different platforms provide different kinds of timer hardware.
 The goal of the event timers subsystem is to provide unified way to control
 that hardware, and to use it, supplying kernel with all required time-based
@@ -80,11 +86,13 @@ kern.eventtimer.et.HPET.flags: 7
 kern.eventtimer.et.HPET.frequency: 14318180
 kern.eventtimer.et.HPET.quality: 550
 .Ed
-, where:
-.Bl -tag
+.Pp
+where:
+.Bl -inset
 .It Va kern.eventtimer.et. Ns Ar X Ns Va .flags
+is a
 bitmask, defining event timer capabilities:
-.Bl -tag -compact
+.Bl -tag -offset indent -width indent -compact
 .It 1
 periodic mode supported,
 .It 2
@@ -97,8 +105,10 @@ timer may stop when CPU goes to sleep state,
 timer supports only power-of-2 divisors.
 .El
 .It Va kern.eventtimer.et. Ns Ar X Ns Va .frequency
+is a
 timer base frequency,
 .It Va kern.eventtimer.et. Ns Ar X Ns Va .quality
+is an
 integral value, defining how good is this timer, comparing to others.
 .El
 .Pp
@@ -107,7 +117,7 @@ Current choice can be read and affected via
 .Va kern.eventtimer.timer
 tunable/sysctl.
 Several other tunables/sysctls are affecting how exactly this timer is used:
-.Bl -tag
+.Bl -inset
 .It Va kern.eventtimer.periodic
 allows to choose periodic and one-shot operation mode.
 In periodic mode, periodic interrupts from timer hardware are taken as the
@@ -119,15 +129,22 @@ Default value depends of chosen timer capabilities, but one-shot mode is
 preferred, until other is forced by user or hardware.
 .It Va kern.eventtimer.singlemul
 in periodic mode specifies how much times higher timer frequency should be,
-to not strictly alias hardclock() and statclock() events. Default values are
+to not strictly alias
+.Fn hardclock
+and
+.Fn statclock
+events.
+Default values are
 1, 2 or 4, depending on configured HZ value.
 .It Va kern.eventtimer.idletick
 makes each CPU to receive every timer interrupt independently of whether they
-busy or not. By default this options is disabled. If chosen timer is per-CPU
+busy or not.
+By default this options is disabled.
+If chosen timer is per-CPU
 and runs in periodic mode, this option has no effect - all interrupts are
 always generating.
 .El
 .Sh SEE ALSO
-.Xr attimer 4 ,
 .Xr atrtc 4 ,
+.Xr attimer 4 ,
 .Xr hpet 4
