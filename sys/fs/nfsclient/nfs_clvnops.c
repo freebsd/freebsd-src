@@ -2941,6 +2941,8 @@ nfs_advlock(struct vop_advlock_args *ap)
 	u_quad_t size;
 	
 	if (NFS_ISV4(vp) && (ap->a_flags & (F_POSIX | F_FLOCK)) != 0) {
+		if (vp->v_type != VREG)
+			return (EINVAL);
 		if ((ap->a_flags & F_POSIX) != 0)
 			cred = p->p_ucred;
 		else
