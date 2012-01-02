@@ -1,4 +1,4 @@
-.\" Copyright (c) 2010 Alexander Motin <mav@FreeBSD.org>
+.\" Copyright (c) 2011 Alexander Motin <mav@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,34 +24,54 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 17, 2010
-.Dt ATRTC 4
+.Dd December 20, 2011
+.Dt APIC 4
 .Os
 .Sh NAME
-.Nm atrtc
-.Nd AT Real-Time Clock (RTC) driver
+.Nm apic
+.Nd Advanced Programmable Interrupt Controller (APIC) driver
 .Sh SYNOPSIS
-This driver is a mandatory part of i386/amd64 kernels.
+This driver is a mandatory part of amd64 kernel.
+To compile this driver into i386 or pc98 kernel,
+place the following line in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device apic"
+.Ed
 .Pp
 The following tunable is settable from the
 .Xr loader 8 :
 .Bl -ohang
-.It Va hint.atrtc. Ns Ar X Ns Va .clock
+.It Va hint.apic. Ns Ar X Ns Va .clock
 controls event timers functionality support. Setting to 0, disables it.
 Default value is 1.
+.It Va hint.apic. Ns Ar X Ns Va .disabled
+Set this to 1 to disable APIC support, falling back to the legacy PIC.
 .El
 .Sh DESCRIPTION
-This driver uses RTC hardware to supply kernel with time-of-day clock
-with 1 second resolution and one event timer.
-This hardware uses base frequency of 32768Hz for advancing time-of-day clock
-and generating periodic interrupts.
-Interrupts could be generated with fixed number of frequencies, from 2Hz to
-8192Hz, obtained by dividing base frequency by one of supported power-of-2
-divisors.
+There are two components in the Intel APIC system, the local APIC (LAPIC)
+and the I/O APIC.
+There is one local APIC in each CPU in the system.
+There is typically one I/O APIC for each peripheral bus in the system.
 .Pp
-Event timer provided by the driver is irrelevant to CPU power states.
+Local APICs manage all external interrupts for a specific processor.
+In addition, they are able to accept and generate inter-processor interrupts
+(IPIs).
+.Pp
+I/O APICs contain a redirection table, which is used to route the interrupts
+they receive from peripheral buses to one or more local APICs.
+.Pp
+Each local APIC includes one 32-bit programable timer.
+This driver uses them to supply kernel with one event timer named "LAPIC".
+Event timer provided by the driver supports both one-shot an periodic modes.
+Because of local APIC nature it is per-CPU.
+The timer frequency is not reported by the platform and so automatically
+measured by the driver on the first use.
+Depending on CPU model this timer may stop in C3 and deeper CPU sleep states.
+Driver automatically adjusts event timer priority and reports it to prevent
+entering dangerous sleep states when it is used.
 .Sh SEE ALSO
-.Xr apic 4 ,
+.Xr atrtc 4 ,
 .Xr attimer 4 ,
 .Xr eventtimers 4 ,
 .Xr hpet 4
