@@ -1352,14 +1352,12 @@ set_cpufuncs()
 		else
 			cpufuncs = pj4bv6_cpufuncs;
 
-		pj4b_config();
 		get_cachetype_cp15();
 		pmap_pte_init_mmu_v6();
 		goto out;
 	} else if (cputype == CPU_ID_ARM_88SV584X ||
 	    cputype == CPU_ID_MV88SV584X) {
 		cpufuncs = pj4bv6_cpufuncs;
-		pj4b_config();
 		get_cachetype_cp15();
 		pmap_pte_init_mmu_v6();
 		goto out;
@@ -2241,6 +2239,8 @@ pj4bv6_setup(char *args)
 {
 	int cpuctrl;
 
+	pj4b_config();
+
 	cpuctrl = CPU_CONTROL_MMU_ENABLE;
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
 	cpuctrl |= CPU_CONTROL_AFLT_ENABLE;
@@ -2277,6 +2277,8 @@ pj4bv7_setup(args)
 	char *args;
 {
 	int cpuctrl;
+
+	pj4b_config();
 
 	cpuctrl = CPU_CONTROL_MMU_ENABLE;
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS

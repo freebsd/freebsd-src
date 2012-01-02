@@ -130,9 +130,7 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 
-	pj4b_config();
-
-	pj4bv6_setup(NULL);
+	cpu_setup(NULL);
 
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
@@ -161,15 +159,11 @@ init_secondary(int cpu)
 
 	mtx_lock_spin(&ap_boot_mtx);
 
-	cpu_dcache_wbinv_all();
-	smp_cpus++;
-	cpu_dcache_wbinv_all();
+	atomic_store_rel_int(&smp_cpus, 1);
 
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
-		cpu_dcache_wbinv_all();
 		atomic_store_rel_int(&smp_started, 1);
-		cpu_dcache_wbinv_all();
 		smp_active = 1;
 	}
 
