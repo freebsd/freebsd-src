@@ -102,6 +102,7 @@ MAN=	accept_filter.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
+	eventtimers.9 \
 	extattr.9 \
 	fail.9 \
 	fetch.9 \
@@ -613,6 +614,16 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_prune_list.9 \
 	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
 	EVENTHANDLER.9 eventhandler_register.9
+MLINKS+=eventtimers.9 et_register.9 \
+	eventtimers.9 et_deregister.9 \
+	eventtimers.9 et_ban.9 \
+	eventtimers.9 et_find.9 \
+	eventtimers.9 et_free.9 \
+	eventtimers.9 et_init.9 \
+	eventtimers.9 ET_LOCK.9 \
+	eventtimers.9 ET_UNLOCK.9 \
+	eventtimers.9 et_start.9 \
+	eventtimers.9 et_stop.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fuword.9 \
