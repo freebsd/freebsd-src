@@ -791,8 +791,7 @@ void	in6_ifremloop(struct ifaddr *);
 void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
-struct inpcb;
-int in6_src_ioctl __P((u_long, caddr_t));
+int	in6_src_ioctl __P((u_long, caddr_t));
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */
