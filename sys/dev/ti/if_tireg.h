@@ -1015,6 +1015,8 @@ struct ti_softc {
 	struct callout		ti_watchdog;
 	int			ti_timer;
 	ti_flag_vals		ti_flags;
+	uint8_t			*ti_membuf;
+	uint8_t			*ti_membuf2;
 	struct cdev		 *dev;
 };
 
