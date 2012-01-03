@@ -998,6 +998,11 @@ ti_alloc_dmamaps(struct ti_softc *sc)
 				      &sc->ti_cdata.ti_rx_jumbo_maps[i]))
 			return (ENOBUFS);
 	}
+
+	/* Mini ring is not available on Tigon 1. */
+	if (sc->ti_hwrev == TI_HWREV_TIGON)
+		return (0);
+
 	for (i = 0; i < TI_MINI_RX_RING_CNT; i++) {
 		if (bus_dmamap_create(sc->ti_mbufrx_dmat, 0,
 				      &sc->ti_cdata.ti_rx_mini_maps[i]))
@@ -2234,7 +2239,6 @@ ti_attach(device_t dev)
 	u_char eaddr[6];
 
 	sc = device_get_softc(dev);
-	sc->ti_unit = device_get_unit(dev);
 	sc->ti_dev = dev;
 
 	mtx_init(&sc->ti_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
@@ -2256,7 +2260,7 @@ ti_attach(device_t dev)
 	 */
 	pci_enable_busmaster(dev);
 
-	rid = TI_PCI_LOMEM;
+	rid = PCIR_BAR(0);
 	sc->ti_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
 	    RF_ACTIVE|PCI_RF_DENSE);
 
@@ -2483,8 +2487,8 @@ ti_attach(device_t dev)
 	 */
 
 	/* Register the device */
-	sc->dev = make_dev(&ti_cdevsw, sc->ti_unit, UID_ROOT, GID_OPERATOR,
-			   0600, "ti%d", sc->ti_unit);
+	sc->dev = make_dev(&ti_cdevsw, device_get_unit(dev), UID_ROOT,
+	    GID_OPERATOR, 0600, "ti%d", device_get_unit(dev));
 	sc->dev->si_drv1 = sc;
 
 	/*
@@ -2571,7 +2575,7 @@ ti_detach(device_t dev)
 	if (sc->ti_irq)
 		bus_release_resource(dev, SYS_RES_IRQ, 0, sc->ti_irq);
 	if (sc->ti_res) {
-		bus_release_resource(dev, SYS_RES_MEMORY, TI_PCI_LOMEM,
+		bus_release_resource(dev, SYS_RES_MEMORY, PCIR_BAR(0),
 		    sc->ti_res);
 	}
 	if (ifp)
@@ -2656,15 +2660,17 @@ ti_rxeof(struct ti_softc *sc)
 	struct ifnet *ifp;
 	bus_dmamap_t map;
 	struct ti_cmd_desc cmd;
+	int jumbocnt, minicnt, stdcnt;
 
 	TI_LOCK_ASSERT(sc);
 
 	ifp = sc->ti_ifp;
 
+	jumbocnt = minicnt = stdcnt = 0;
 	while (sc->ti_rx_saved_considx != sc->ti_return_prodidx.ti_idx) {
 		struct ti_rx_desc *cur_rx;
-		struct mbuf *m = NULL;
 		uint32_t rxidx;
+		struct mbuf *m = NULL;
 		uint16_t vlan_tag = 0;
 		int have_tag = 0;
 
@@ -2679,7 +2685,7 @@ ti_rxeof(struct ti_softc *sc)
 		}
 
 		if (cur_rx->ti_flags & TI_BDFLAG_JUMBO_RING) {
-
+			jumbocnt++;
 			TI_INC(sc->ti_jumbo, TI_JUMBO_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_jumbo_chain[rxidx];
 			sc->ti_cdata.ti_rx_jumbo_chain[rxidx] = NULL;
@@ -2709,6 +2715,7 @@ ti_rxeof(struct ti_softc *sc)
 			m_adj(m, cur_rx->ti_len - m->m_pkthdr.len);
 #endif /* TI_PRIVATE_JUMBOS */
 		} else if (cur_rx->ti_flags & TI_BDFLAG_MINI_RING) {
+			minicnt++;
 			TI_INC(sc->ti_mini, TI_MINI_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_mini_chain[rxidx];
 			sc->ti_cdata.ti_rx_mini_chain[rxidx] = NULL;
@@ -2728,6 +2735,7 @@ ti_rxeof(struct ti_softc *sc)
 			}
 			m->m_len = cur_rx->ti_len;
 		} else {
+			stdcnt++;
 			TI_INC(sc->ti_std, TI_STD_RX_RING_CNT);
 			m = sc->ti_cdata.ti_rx_std_chain[rxidx];
 			sc->ti_cdata.ti_rx_std_chain[rxidx] = NULL;
@@ -2783,9 +2791,12 @@ ti_rxeof(struct ti_softc *sc)
 		CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX,
 		    sc->ti_rx_saved_considx);
 
-	TI_UPDATE_STDPROD(sc, sc->ti_std);
-	TI_UPDATE_MINIPROD(sc, sc->ti_mini);
-	TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
+	if (stdcnt > 0)
+		TI_UPDATE_STDPROD(sc, sc->ti_std);
+	if (minicnt > 0)
+		TI_UPDATE_MINIPROD(sc, sc->ti_mini);
+	if (jumbocnt > 0)
+		TI_UPDATE_JUMBOPROD(sc, sc->ti_jumbo);
 }
 
 static void
@@ -3100,6 +3111,9 @@ ti_init_locked(void *xsc)
 {
 	struct ti_softc *sc = xsc;
 
+	if (sc->ti_ifp->if_drv_flags & IFF_DRV_RUNNING)
+		return;
+
 	/* Cancel pending I/O and flush buffers. */
 	ti_stop(sc);
 
@@ -3123,7 +3137,7 @@ static void ti_init2(struct ti_softc *sc)
 	ifp = sc->ti_ifp;
 
 	/* Specify MTU and interface index. */
-	CSR_WRITE_4(sc, TI_GCR_IFINDEX, sc->ti_unit);
+	CSR_WRITE_4(sc, TI_GCR_IFINDEX, device_get_unit(sc->ti_dev));
 	CSR_WRITE_4(sc, TI_GCR_IFMTU, ifp->if_mtu +
 	    ETHER_HDR_LEN + ETHER_CRC_LEN + ETHER_VLAN_ENCAP_LEN);
 	TI_DO_CMD(TI_CMD_UPDATE_GENCOM, 0, 0);
@@ -3154,18 +3168,34 @@ static void ti_init2(struct ti_softc *sc)
 	}
 
 	/* Init RX ring. */
-	ti_init_rx_ring_std(sc);
+	if (ti_init_rx_ring_std(sc) != 0) {
+		/* XXX */
+		device_printf(sc->ti_dev, "no memory for std Rx buffers.\n");
+		return;
+	}
 
 	/* Init jumbo RX ring. */
-	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN))
-		ti_init_rx_ring_jumbo(sc);
+	if (ifp->if_mtu > (ETHERMTU + ETHER_HDR_LEN + ETHER_CRC_LEN)) {
+		if (ti_init_rx_ring_jumbo(sc) != 0) {
+			/* XXX */
+			device_printf(sc->ti_dev,
+			    "no memory for jumbo Rx buffers.\n");
+			return;
+		}
+	}
 
 	/*
 	 * If this is a Tigon 2, we can also configure the
 	 * mini ring.
 	 */
-	if (sc->ti_hwrev == TI_HWREV_TIGON_II)
-		ti_init_rx_ring_mini(sc);
+	if (sc->ti_hwrev == TI_HWREV_TIGON_II) {
+		if (ti_init_rx_ring_mini(sc) != 0) {
+			/* XXX */
+			device_printf(sc->ti_dev,
+			    "no memory for mini Rx buffers.\n");
+			return;
+		}
+	}
 
 	CSR_WRITE_4(sc, TI_GCR_RXRETURNCONS_IDX, 0);
 	sc->ti_rx_saved_considx = 0;
@@ -3374,11 +3404,14 @@ ti_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFMTU:
 		TI_LOCK(sc);
-		if (ifr->ifr_mtu > TI_JUMBO_MTU)
+		if (ifr->ifr_mtu < ETHERMIN || ifr->ifr_mtu > TI_JUMBO_MTU)
 			error = EINVAL;
 		else {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ti_init_locked(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				ti_init_locked(sc);
+			}
 		}
 		TI_UNLOCK(sc);
 		break;
@@ -3792,7 +3825,7 @@ ti_watchdog(void *arg)
 
 	ifp = sc->ti_ifp;
 	if_printf(ifp, "watchdog timeout -- resetting\n");
-	ti_stop(sc);
+	ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
 	ti_init_locked(sc);
 
 	ifp->if_oerrors++;
@@ -3820,11 +3853,11 @@ ti_stop(struct ti_softc *sc)
 	TI_DO_CMD(TI_CMD_HOST_STATE, TI_CMD_CODE_STACK_DOWN, 0);
 
 	/* Halt and reinitialize. */
-	if (ti_chipinit(sc) != 0)
-		return;
-	ti_mem_zero(sc, 0x2000, 0x100000 - 0x2000);
-	if (ti_chipinit(sc) != 0)
-		return;
+	if (ti_chipinit(sc) == 0) {
+		ti_mem_zero(sc, 0x2000, 0x100000 - 0x2000);
+		/* XXX ignore init errors. */
+		ti_chipinit(sc);
+	}
 
 	/* Free the RX lists. */
 	ti_free_rx_ring_std(sc);
