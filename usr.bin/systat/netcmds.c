@@ -131,7 +131,7 @@ changeitems(const char *args, int onoff)
 	struct in_addr in;
 
 	tmpstr = tmpstr1 = strdup(args);
-	cp = index(tmpstr1, '\n');
+	cp = strchr(tmpstr1, '\n');
 	if (cp)
 		*cp = '\0';
 	for (;;tmpstr1 = cp) {

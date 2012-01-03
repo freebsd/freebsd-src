@@ -122,9 +122,9 @@ ipfw_main(int oldac, char **oldav)
 				break;
 			if (copy) {
 				arg[j++] = arg[i];
-				copy = !index("," WHITESP, arg[i]);
+				copy = !strchr("," WHITESP, arg[i]);
 			} else {
-				copy = !index(WHITESP, arg[i]);
+				copy = !strchr(WHITESP, arg[i]);
 				if (copy)
 					arg[j++] = arg[i];
 			}
@@ -141,7 +141,7 @@ ipfw_main(int oldac, char **oldav)
 		 * processing, this is just the number of blanks plus 1.
 		 */
 		for (i = 0, ac = 1; i < l; i++)
-			if (index(WHITESP, arg[i]) != NULL)
+			if (strchr(WHITESP, arg[i]) != NULL)
 				ac++;
 
 		/*
@@ -162,7 +162,7 @@ ipfw_main(int oldac, char **oldav)
 		 */
 		av_p = (char *)&av[ac+1];
 		for (ac = 1, i = j = 0; i < l; i++) {
-			if (index(WHITESP, arg[i]) != NULL || i == l-1) {
+			if (strchr(WHITESP, arg[i]) != NULL || i == l-1) {
 				if (i == l-1)
 					i++;
 				bcopy(arg+j, av_p, i-j);
@@ -240,7 +240,7 @@ ipfw_main(int oldac, char **oldav)
 				"	ipfw sysctl -a\n");
 			return 0;
 		}
-		s = index(av[2], '=');
+		s = strchr(av[2], '=');
 		if (s == NULL) {
 			s = !strcmp(av[2], "-a") ? NULL : av[2];
 			sysctlbyname(s, NULL, NULL, NULL, 0);

@@ -1764,7 +1764,7 @@ more:
 			sep->se_rpc_lowvers = 0;
 		memcpy(&sep->se_ctrladdr4, bind_sa4,
 		       sizeof(sep->se_ctrladdr4));
-                if ((versp = rindex(sep->se_service, '/'))) {
+                if ((versp = strrchr(sep->se_service, '/'))) {
                         *versp++ = '\0';
                         switch (sscanf(versp, "%u-%u",
                                        &sep->se_rpc_lowvers,
@@ -1936,7 +1936,7 @@ more:
 	} else
 		sep->se_group = NULL;
 	sep->se_server = newstr(sskip(&cp));
-	if ((sep->se_server_name = rindex(sep->se_server, '/')))
+	if ((sep->se_server_name = strrchr(sep->se_server, '/')))
 		sep->se_server_name++;
 	if (strcmp(sep->se_server, "internal") == 0) {
 		struct biltin *bi;
