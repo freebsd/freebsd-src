@@ -2685,6 +2685,16 @@ cdioctl(struct disk *dp, u_long cmd, void *addr, int flag, struct thread *td)
 		error = cdsetspeed(periph, CDR_MAX_SPEED, *(u_int32_t *)addr);
 		cam_periph_unlock(periph);
 		break;
+	case CDRIOCGETBLOCKSIZE:
+		*(int *)addr = softc->params.blksize;
+		break;
+	case CDRIOCSETBLOCKSIZE:
+		if (*(int *)addr <= 0) {
+			error = EINVAL;
+			break;
+		}
+		softc->disk->d_sectorsize = softc->params.blksize = *(int *)addr;
+		break;
 	case DVDIOCSENDKEY:
 	case DVDIOCREPORTKEY: {
 		struct dvd_authinfo *authinfo;
