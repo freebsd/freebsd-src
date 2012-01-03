@@ -71,10 +71,10 @@ INCLUDES+= -I$S/dev/ath -I$S/dev/ath/ath_hal
 # ... and the same for the NgATM stuff
 INCLUDES+= -I$S/contrib/ngatm
 
-# .. and the same for twa
+# ... and the same for twa
 INCLUDES+= -I$S/dev/twa
 
-# ...  and XFS
+# ... and the same for XFS
 INCLUDES+= -I$S/gnu/fs/xfs/FreeBSD -I$S/gnu/fs/xfs/FreeBSD/support -I$S/gnu/fs/xfs
 
 # ... and the same for cxgb and cxgbe
