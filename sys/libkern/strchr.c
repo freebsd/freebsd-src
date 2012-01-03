@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1988, 1993
+ * Copyright (c) 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -33,27 +33,20 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <sys/libkern.h>
 
-/*
- * rindex() is also present as the strrchr() in the kernel; it does exactly the
- * same thing as it's userland equivalent.
- */
 char *
-rindex(p, ch)
-	const char *p;
-	int ch;
+strchr(const char *p, int ch)
 {
 	union {
 		const char *cp;
 		char *p;
 	} u;
-	char *save;
 
 	u.cp = p;
-	for (save = NULL;; ++u.p) {
+	for (;; ++u.p) {
 		if (*u.p == ch)
-			save = u.p;
+			return(u.p);
 		if (*u.p == '\0')
-			return(save);
+			return(NULL);
 	}
 	/* NOTREACHED */
 }
