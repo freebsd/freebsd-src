@@ -54,10 +54,10 @@ SRCS+= ntoh.c
 .if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "powerpc" || \
 	${MACHINE_CPUARCH} == "sparc64" || ${MACHINE_CPUARCH} == "amd64" || \
 	${MACHINE_CPUARCH} == "arm"
-SRCS+=	bcmp.c bcopy.c bzero.c ffs.c index.c memccpy.c memchr.c memcmp.c \
-        memcpy.c memmove.c memset.c qdivrem.c rindex.c strcat.c strchr.c \
-        strcmp.c strcpy.c strcspn.c strlen.c strncat.c strncmp.c strncpy.c \
-	strpbrk.c strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
+SRCS+=	bcmp.c bcopy.c bzero.c ffs.c memccpy.c memchr.c memcmp.c memcpy.c \
+	memmove.c memset.c qdivrem.c strcat.c strchr.c strcmp.c strcpy.c \
+	strcspn.c strlen.c strncat.c strncmp.c strncpy.c strpbrk.c \
+	strrchr.c strsep.c strspn.c strstr.c strtok.c swab.c
 .endif
 .if ${MACHINE_CPUARCH} == "arm"
 .PATH: ${.CURDIR}/../libc/arm/gen
@@ -65,10 +65,9 @@ SRCS+= divsi3.S
 .endif
 .if ${MACHINE_CPUARCH} == "ia64"
 .PATH: ${.CURDIR}/../libc/ia64/string
-SRCS+=	bcmp.c bcopy.S bzero.S ffs.S index.c memccpy.c memchr.c memcmp.c \
-	memcpy.S memmove.S memset.c rindex.c strcat.c strchr.c \
-	strcmp.c strcpy.c strcspn.c strlen.c \
-	strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
+SRCS+=	bcmp.c bcopy.S bzero.S ffs.S memccpy.c memchr.c memcmp.c memcpy.S \
+	memmove.S memset.c strcat.c strchr.c strcmp.c strcpy.c strcspn.c \
+	strlen.c strncat.c strncmp.c strncpy.c strpbrk.c strrchr.c strsep.c \
 	strspn.c strstr.c strtok.c swab.c
 
 .PATH: ${.CURDIR}/../libc/ia64/gen
