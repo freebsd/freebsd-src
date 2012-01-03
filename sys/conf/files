@@ -2551,7 +2551,6 @@ libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
-libkern/index.c			standard
 libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
@@ -2562,10 +2561,10 @@ libkern/memcmp.c		standard
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard
 libkern/random.c		standard
-libkern/rindex.c		standard
 libkern/scanc.c			standard
 libkern/strcasecmp.c		standard
 libkern/strcat.c		standard
+libkern/strchr.c		standard
 libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
@@ -2576,6 +2575,7 @@ libkern/strlen.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard
+libkern/strrchr.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
 libkern/strstr.c		standard
