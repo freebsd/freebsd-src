@@ -26,11 +26,13 @@
  * $FreeBSD$
  */
 
+#ifdef __cplusplus
+#error "<stdnoreturn.h> cannot be used in combination with C++11."
+#endif
+
 #ifndef noreturn
 
-#if !defined(__cplusplus) || __cplusplus < 201103L
 #include <sys/cdefs.h>
 #define	noreturn		_Noreturn
-#endif
 
 #endif /* !noreturn */
