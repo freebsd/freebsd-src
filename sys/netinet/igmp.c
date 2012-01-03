@@ -1642,7 +1642,7 @@ igmp_fasttimo_vnet(void)
 	struct ifqueue		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
 	struct igmp_ifinfo	*igi;
-	struct ifmultiaddr	*ifma, *tifma;
+	struct ifmultiaddr	*ifma;
 	struct in_multi		*inm;
 	int			 loop, uri_fasthz;
 
@@ -1709,8 +1709,7 @@ igmp_fasttimo_vnet(void)
 		}
 
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link,
-		    tifma) {
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET ||
 			    ifma->ifma_protospec == NULL)
 				continue;
@@ -3321,7 +3320,7 @@ igmp_v3_merge_state_changes(struct in_multi *inm, struct ifqueue *ifscq)
 static void
 igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
 {
-	struct ifmultiaddr	*ifma, *tifma;
+	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in_multi		*inm;
 	int			 retval, loop;
@@ -3335,7 +3334,7 @@ igmp_v3_dispatch_general_query(struct igmp_ifinfo *igi)
 	ifp = igi->igi_ifp;
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, tifma) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
 			continue;

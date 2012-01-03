@@ -1325,7 +1325,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	struct sockaddr_in6 mltaddr, mltmask;
 	int plen, error;
 	struct rtentry *rt;
-	struct ifaddr *ifa0, *nifa;
+	struct ifaddr *ifa0;
 
 	if (ifa->ifa_carp)
 		(*carp_detach_p)(ifa);
@@ -1336,7 +1336,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	 * address routes
 	 */
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifa0, &ifp->if_addrhead, ifa_link, nifa) {
+	TAILQ_FOREACH(ifa0, &ifp->if_addrhead, ifa_link) {
 		if ((ifa0->ifa_addr->sa_family != AF_INET6) ||
 		    memcmp(&satosin6(ifa0->ifa_addr)->sin6_addr,
 			   &ia->ia_addr.sin6_addr, 
