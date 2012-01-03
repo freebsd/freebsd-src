@@ -196,6 +196,8 @@ static device_method_t ohci_methods[] = {
 	DEVMETHOD(device_probe, ar71xx_ohci_probe),
 	DEVMETHOD(device_attach, ar71xx_ohci_attach),
 	DEVMETHOD(device_detach, ar71xx_ohci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
@@ -205,9 +207,9 @@ static device_method_t ohci_methods[] = {
 };
 
 static driver_t ohci_driver = {
-	"ohci",
-	ohci_methods,
-	sizeof(struct ar71xx_ohci_softc),
+	.name = "ohci",
+	.methods = ohci_methods,
+	.size = sizeof(struct ar71xx_ohci_softc),
 };
 
 static devclass_t ohci_devclass;
