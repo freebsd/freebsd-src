@@ -198,6 +198,9 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
+	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", vp));
+
 	/* Lookup the hash firstly */
 	*vpp = null_hashget(mp, lowervp);
 	if (*vpp != NULL) {
