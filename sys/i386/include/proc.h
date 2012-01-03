@@ -83,8 +83,6 @@ struct syscall_args {
 	register_t args[8];
 	int narg;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
-
 #endif	/* _KERNEL */
 
 #endif /* !_MACHINE_PROC_H_ */
