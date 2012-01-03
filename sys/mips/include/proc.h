@@ -80,7 +80,6 @@ struct syscall_args {
 	int narg;
 	struct trapframe *trapframe;
 };
-#define	HAVE_SYSCALL_ARGS_DEF 1
 #endif
 
 #ifdef __mips_n64
