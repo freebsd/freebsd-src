@@ -60,7 +60,6 @@
 static device_probe_t musbotg_probe;
 static device_attach_t musbotg_attach;
 static device_detach_t musbotg_detach;
-static device_shutdown_t musbotg_shutdown;
 
 struct musbotg_super_softc {
 	struct musbotg_softc sc_otg;	/* must be first */
@@ -216,27 +215,14 @@ musbotg_detach(device_t dev)
 	return (0);
 }
 
-static int
-musbotg_shutdown(device_t dev)
-{
-	struct musbotg_super_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	musbotg_uninit(&sc->sc_otg);
-
-	return (0);
-}
-
 static device_method_t musbotg_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, musbotg_probe),
 	DEVMETHOD(device_attach, musbotg_attach),
 	DEVMETHOD(device_detach, musbotg_detach),
-	DEVMETHOD(device_shutdown, musbotg_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	/* Bus interface */
 	DEVMETHOD(bus_print_child, bus_generic_print_child),
@@ -245,9 +231,9 @@ static device_method_t musbotg_methods[] = {
 };
 
 static driver_t musbotg_driver = {
-	"musbotg",
-	musbotg_methods,
-	sizeof(struct musbotg_super_softc),
+	.name = "musbotg",
+	.methods = musbotg_methods,
+	.size = sizeof(struct musbotg_super_softc),
 };
 
 static devclass_t musbotg_devclass;
