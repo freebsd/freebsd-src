@@ -71,12 +71,15 @@
 #define	BGE_STATS_BLOCK_END		0x00000AFF
 #define	BGE_STATUS_BLOCK		0x00000B00
 #define	BGE_STATUS_BLOCK_END		0x00000B4F
-#define	BGE_SOFTWARE_GENCOMM		0x00000B50
-#define	BGE_SOFTWARE_GENCOMM_SIG	0x00000B54
-#define	BGE_SOFTWARE_GENCOMM_NICCFG	0x00000B58
-#define	BGE_SOFTWARE_GENCOMM_FW		0x00000B78
-#define	BGE_SOFTWARE_GENNCOMM_FW_LEN	0x00000B7C
-#define	BGE_SOFTWARE_GENNCOMM_FW_DATA	0x00000B80
+#define	BGE_SRAM_FW_MB			0x00000B50
+#define	BGE_SRAM_DATA_SIG		0x00000B54
+#define	BGE_SRAM_DATA_CFG		0x00000B58
+#define	BGE_SRAM_FW_CMD_MB		0x00000B78
+#define	BGE_SRAM_FW_CMD_LEN_MB		0x00000B7C
+#define	BGE_SRAM_FW_CMD_DATA_MB		0x00000B80
+#define	BGE_SRAM_FW_DRV_STATE_MB	0x00000C04
+#define	BGE_SRAM_MAC_ADDR_HIGH_MB	0x00000C14
+#define	BGE_SRAM_MAC_ADDR_LOW_MB	0x00000C18
 #define	BGE_SOFTWARE_GENCOMM_END	0x00000FFF
 #define	BGE_UNMAPPED			0x00001000
 #define	BGE_UNMAPPED_END		0x00001FFF
@@ -87,8 +90,24 @@
 #define	BGE_SEND_RING_1_TO_4_END	0x00005FFF
 
 /* Firmware interface */
-#define	BGE_FW_DRV_ALIVE		0x00000001
-#define	BGE_FW_PAUSE			0x00000002
+#define	BGE_SRAM_DATA_SIG_MAGIC		0x4B657654	/* 'KevT' */
+
+#define	BGE_FW_CMD_DRV_ALIVE		0x00000001
+#define	BGE_FW_CMD_PAUSE		0x00000002
+#define	BGE_FW_CMD_IPV4_ADDR_CHANGE	0x00000003
+#define	BGE_FW_CMD_IPV6_ADDR_CHANGE	0x00000004
+#define	BGE_FW_CMD_LINK_UPDATE		0x0000000C
+#define	BGE_FW_CMD_DRV_ALIVE2		0x0000000D
+#define	BGE_FW_CMD_DRV_ALIVE3		0x0000000E
+
+#define	BGE_FW_HB_TIMEOUT_SEC		3
+
+#define	BGE_FW_DRV_STATE_START		0x00000001
+#define	BGE_FW_DRV_STATE_START_DONE	0x80000001
+#define	BGE_FW_DRV_STATE_UNLOAD		0x00000002
+#define	BGE_FW_DRV_STATE_UNLOAD_DONE	0x80000002
+#define	BGE_FW_DRV_STATE_WOL		0x00000003
+#define	BGE_FW_DRV_STATE_SUSPEND	0x00000004
 
 /* Mappings for internal memory configuration */
 #define	BGE_STD_RX_RINGS		0x00006000
@@ -1875,13 +1894,16 @@
 #define	BGE_MODE_CTL			0x6800
 #define	BGE_MISC_CFG			0x6804
 #define	BGE_MISC_LOCAL_CTL		0x6808
-#define	BGE_CPU_EVENT			0x6810
+#define	BGE_RX_CPU_EVENT		0x6810
+#define	BGE_TX_CPU_EVENT		0x6820
 #define	BGE_EE_ADDR			0x6838
 #define	BGE_EE_DATA			0x683C
 #define	BGE_EE_CTL			0x6840
 #define	BGE_MDI_CTL			0x6844
 #define	BGE_EE_DELAY			0x6848
 #define	BGE_FASTBOOT_PC			0x6894
+
+#define	BGE_RX_CPU_DRV_EVENT		0x00004000
 
 /*
  * NVRAM Control registers
@@ -2052,10 +2074,10 @@
  * This magic number is written to the firmware mailbox at 0xb50
  * before a software reset is issued.  After the internal firmware
  * has completed its initialization it will write the opposite of
- * this value, ~BGE_MAGIC_NUMBER, to the same location, allowing the
- * driver to synchronize with the firmware.
+ * this value, ~BGE_SRAM_FW_MB_MAGIC, to the same location,
+ * allowing the driver to synchronize with the firmware.
  */
-#define	BGE_MAGIC_NUMBER                0x4B657654
+#define	BGE_SRAM_FW_MB_MAGIC	0x4B657654
 
 typedef struct {
 	uint32_t		bge_addr_hi;
