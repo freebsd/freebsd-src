@@ -33,9 +33,10 @@
 
 typedef struct __mcontext {
 	/*
-	 * The definition of mcontext_t shall match the layout of
-	 * struct sigcontext after the sc_mask member.  So that we can
-	 * support sigcontext and ucontext_t at the same time.
+	 * The definition of mcontext_t must match the layout of
+	 * struct sigcontext after the sc_mask member.  This is so
+	 * that we can support sigcontext and ucontext_t at the same
+	 * time.
 	 */
 	__register_t	mc_onstack;	/* XXX - sigcontext compat. */
 	__register_t	mc_gs;		/* machine state (struct trapframe) */
