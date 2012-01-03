@@ -171,6 +171,8 @@ null_hashins(mp, xp)
 static void
 null_insmntque_dtr(struct vnode *vp, void *xp)
 {
+
+	vput(((struct null_node *)xp)->null_lowervp);
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	free(xp, M_NULLFSNODE);
@@ -226,6 +228,7 @@ null_nodeget(mp, lowervp, vpp)
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
+		vput(lowervp);
 		free(xp, M_NULLFSNODE);
 		return (error);
 	}
