@@ -1656,7 +1656,7 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 {
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
-	struct in6_multi		*inm;
+	struct in6_multi	*inm, *tinm;
 
 	CTR3(KTR_MLD, "%s: cancel v2 timers on ifp %p(%s)", __func__,
 	    mli->mli_ifp, mli->mli_ifp->if_xname);
@@ -1695,14 +1695,9 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 			 * If we are leaving the group and switching
 			 * version, we need to release the final
 			 * reference held for issuing the INCLUDE {}.
-			 *
-			 * SMPNG: Must drop and re-acquire IF_ADDR_LOCK
-			 * around in6m_release_locked(), as it is not
-			 * a recursive mutex.
 			 */
-			IF_ADDR_UNLOCK(ifp);
-			in6m_release_locked(inm);
-			IF_ADDR_LOCK(ifp);
+			SLIST_INSERT_HEAD(&mli->mli_relinmhead, inm,
+			    in6m_nrele);
 			/* FALLTHROUGH */
 		case MLD_G_QUERY_PENDING_MEMBER:
 		case MLD_SG_QUERY_PENDING_MEMBER:
@@ -1720,6 +1715,10 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 		}
 	}
 	IF_ADDR_UNLOCK(ifp);
+	SLIST_FOREACH_SAFE(inm, &mli->mli_relinmhead, in6m_nrele, tinm) {
+		SLIST_REMOVE_HEAD(&mli->mli_relinmhead, in6m_nrele);
+		in6m_release_locked(inm);
+	}
 }
 
 /*
