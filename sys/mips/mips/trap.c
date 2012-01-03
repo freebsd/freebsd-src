@@ -261,6 +261,133 @@ static int emulate_unaligned_access(struct trapframe *frame, int mode);
 
 extern void fswintrberr(void); /* XXX */
 
+int
+cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
+{
+	struct trapframe *locr0 = td->td_frame;
+	struct sysentvec *se;
+	int error, nsaved;
+
+	bzero(sa->args, sizeof(sa->args));
+
+	/* compute next PC after syscall instruction */
+	td->td_pcb->pcb_tpc = sa->trapframe->pc; /* Remember if restart */
+	if (DELAYBRANCH(sa->trapframe->cause))	 /* Check BD bit */
+		locr0->pc = MipsEmulateBranch(locr0, sa->trapframe->pc, 0, 0);
+	else
+		locr0->pc += sizeof(int);
+	sa->code = locr0->v0;
+
+	switch (sa->code) {
+#if defined(__mips_n32) || defined(__mips_n64)
+	case SYS___syscall:
+		/*
+		 * Quads fit in a single register in
+		 * new ABIs.
+		 *
+		 * XXX o64?
+		 */
+#endif
+	case SYS_syscall:
+		/*
+		 * Code is first argument, followed by
+		 * actual args.
+		 */
+		sa->code = locr0->a0;
+		sa->args[0] = locr0->a1;
+		sa->args[1] = locr0->a2;
+		sa->args[2] = locr0->a3;
+		nsaved = 3;
+#if defined(__mips_n32) || defined(__mips_n64)
+		sa->args[3] = locr0->t4;
+		sa->args[4] = locr0->t5;
+		sa->args[5] = locr0->t6;
+		sa->args[6] = locr0->t7;
+		nsaved += 4;
+#endif
+		break;
+
+#if defined(__mips_o32)
+	case SYS___syscall:
+		/*
+		 * Like syscall, but code is a quad, so as
+		 * to maintain quad alignment for the rest
+		 * of the arguments.
+		 */
+		if (_QUAD_LOWWORD == 0)
+			sa->code = locr0->a0;
+		else
+			sa->code = locr0->a1;
+		sa->args[0] = locr0->a2;
+		sa->args[1] = locr0->a3;
+		nsaved = 2;
+		break;
+#endif
+
+	default:
+		sa->args[0] = locr0->a0;
+		sa->args[1] = locr0->a1;
+		sa->args[2] = locr0->a2;
+		sa->args[3] = locr0->a3;
+		nsaved = 4;
+#if defined (__mips_n32) || defined(__mips_n64)
+		sa->args[4] = locr0->t4;
+		sa->args[5] = locr0->t5;
+		sa->args[6] = locr0->t6;
+		sa->args[7] = locr0->t7;
+		nsaved += 4;
+#endif
+		break;
+	}
+#ifdef TRAP_DEBUG
+	if (trap_debug)
+		printf("SYSCALL #%d pid:%u\n", code, p->p_pid);
+#endif
+
+	se = td->td_proc->p_sysent;
+	if (se->sv_mask)
+		sa->code &= se->sv_mask;
+
+	if (sa->code >= se->sv_size)
+		sa->callp = &se->sv_table[0];
+	else
+		sa->callp = &se->sv_table[sa->code];
+
+	sa->narg = sa->callp->sy_narg;
+
+	if (sa->narg > nsaved) {
+#if defined(__mips_n32) || defined(__mips_n64)
+		/*
+		 * XXX
+		 * Is this right for new ABIs?  I think the 4 there
+		 * should be 8, size there are 8 registers to skip,
+		 * not 4, but I'm not certain.
+		 */
+		printf("SYSCALL #%u pid:%u, nargs > nsaved.\n", sa->code,
+		    td->td_proc->p_pid);
+#endif
+		error = copyin((caddr_t)(intptr_t)(locr0->sp +
+		    4 * sizeof(register_t)), (caddr_t)&sa->args[nsaved],
+		   (u_int)(sa->narg - nsaved) * sizeof(register_t));
+		if (error != 0) {
+			locr0->v0 = error;
+			locr0->a3 = 1;
+		}
+	} else
+		error = 0;
+
+	if (error == 0) {
+		td->td_retval[0] = 0;
+		td->td_retval[1] = locr0->v1;
+	}
+
+	return (error);
+}
+
+#undef __FBSDID
+#define __FBSDID(x)
+#include "../../kern/subr_syscall.c"
+
 /*
  * Handle an exception.
  * Called from MipsKernGenException() or MipsUserGenException()
@@ -527,177 +654,19 @@ dofault:
 
 	case T_SYSCALL + T_USER:
 		{
-			struct trapframe *locr0 = td->td_frame;
-			struct sysent *callp;
-			unsigned int code;
-			int nargs, nsaved;
-			register_t args[8];
+			struct syscall_args sa;
+			int error;
 
-			bzero(args, sizeof args);
-
-			/*
-			 * note: PCPU_LAZY_INC() can only be used if we can
-			 * afford occassional inaccuracy in the count.
-			 */
-			PCPU_LAZY_INC(cnt.v_syscall);
-			if (td->td_ucred != p->p_ucred)
-				cred_update_thread(td);
-#ifdef KSE
-			if (p->p_flag & P_SA)
-				thread_user_enter(td);
-#endif
-			/* compute next PC after syscall instruction */
-			td->td_pcb->pcb_tpc = trapframe->pc;	/* Remember if restart */
-			if (DELAYBRANCH(trapframe->cause)) {	/* Check BD bit */
-				locr0->pc = MipsEmulateBranch(locr0, trapframe->pc, 0,
-				    0);
-			} else {
-				locr0->pc += sizeof(int);
-			}
-			code = locr0->v0;
-
-			switch (code) {
-#if defined(__mips_n32) || defined(__mips_n64)
-			case SYS___syscall:
-				/*
-				 * Quads fit in a single register in
-				 * new ABIs.
-				 *
-				 * XXX o64?
-				 */
-#endif
-			case SYS_syscall:
-				/*
-				 * Code is first argument, followed by
-				 * actual args.
-				 */
-				code = locr0->a0;
-				args[0] = locr0->a1;
-				args[1] = locr0->a2;
-				args[2] = locr0->a3;
-				nsaved = 3;
-#if defined(__mips_n32) || defined(__mips_n64)
-				args[3] = locr0->t4;
-				args[4] = locr0->t5;
-				args[5] = locr0->t6;
-				args[6] = locr0->t7;
-				nsaved += 4;
-#endif
-				break;
-
-#if defined(__mips_o32)
-			case SYS___syscall:
-				/*
-				 * Like syscall, but code is a quad, so as
-				 * to maintain quad alignment for the rest
-				 * of the arguments.
-				 */
-				if (_QUAD_LOWWORD == 0) {
-					code = locr0->a0;
-				} else {
-					code = locr0->a1;
-				}
-				args[0] = locr0->a2;
-				args[1] = locr0->a3;
-				nsaved = 2;
-				break;
-#endif
-
-			default:
-				args[0] = locr0->a0;
-				args[1] = locr0->a1;
-				args[2] = locr0->a2;
-				args[3] = locr0->a3;
-				nsaved = 4;
-#if defined (__mips_n32) || defined(__mips_n64)
-				args[4] = locr0->t4;
-				args[5] = locr0->t5;
-				args[6] = locr0->t6;
-				args[7] = locr0->t7;
-				nsaved += 4;
-#endif
-			}
-#ifdef TRAP_DEBUG
-			if (trap_debug) {
-				printf("SYSCALL #%d pid:%u\n", code, p->p_pid);
-			}
-#endif
-
-			if (p->p_sysent->sv_mask)
-				code &= p->p_sysent->sv_mask;
-
-			if (code >= p->p_sysent->sv_size)
-				callp = &p->p_sysent->sv_table[0];
-			else
-				callp = &p->p_sysent->sv_table[code];
-
-			nargs = callp->sy_narg;
-
-			if (nargs > nsaved) {
-#if defined(__mips_n32) || defined(__mips_n64)
-				/*
-				 * XXX
-				 * Is this right for new ABIs?  I think the 4 there
-				 * should be 8, size there are 8 registers to skip,
-				 * not 4, but I'm not certain.
-				 */
-				printf("SYSCALL #%u pid:%u, nargs > nsaved.\n", code, p->p_pid);
-#endif
-				i = copyin((caddr_t)(intptr_t)(locr0->sp +
-				    4 * sizeof(register_t)), (caddr_t)&args[nsaved],
-				    (u_int)(nargs - nsaved) * sizeof(register_t));
-				if (i) {
-					locr0->v0 = i;
-					locr0->a3 = 1;
-#ifdef KTRACE
-					if (KTRPOINT(td, KTR_SYSCALL))
-						ktrsyscall(code, nargs, args);
-#endif
-					goto done;
-				}
-			}
-#ifdef TRAP_DEBUG
-			if (trap_debug) {
-				for (i = 0; i < nargs; i++) {
-					printf("args[%d] = %#jx\n", i, (intmax_t)args[i]);
-				}
-			}
-#endif
-#ifdef SYSCALL_TRACING
-			printf("%s(", syscallnames[code]);
-			for (i = 0; i < nargs; i++) {
-				printf("%s%#jx", i == 0 ? "" : ", ", (intmax_t)args[i]);
-			}
-			printf(")\n");
-#endif
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSCALL))
-				ktrsyscall(code, nargs, args);
-#endif
-			td->td_retval[0] = 0;
-			td->td_retval[1] = locr0->v1;
+			sa.trapframe = trapframe;
+			error = syscallenter(td, &sa);
 
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))
 			if (trp == trapdebug)
-				trapdebug[TRAPSIZE - 1].code = code;
+				trapdebug[TRAPSIZE - 1].code = sa.code;
 			else
-				trp[-1].code = code;
+				trp[-1].code = sa.code;
 #endif
-			STOPEVENT(p, S_SCE, nargs);
-
-			PTRACESTOP_SC(p, td, S_PT_SCE);
-			i = (*callp->sy_call) (td, args);
-#if 0
-			/*
-			 * Reinitialize proc pointer `p' as it may be
-			 * different if this is a child returning from fork
-			 * syscall.
-			 */
-			td = curthread;
-			locr0 = td->td_frame;
-#endif
-			trapdebug_enter(locr0, -code);
-			cpu_set_syscall_retval(td, i);
+			trapdebug_enter(td->td_frame, -sa.code);
 
 			/*
 			 * The sync'ing of I & D caches for SYS_ptrace() is
@@ -705,38 +674,7 @@ dofault:
 			 * instead of being done here under a special check
 			 * for SYS_ptrace().
 			 */
-	done:
-			/*
-			 * Check for misbehavior.
-			 */
-			WITNESS_WARN(WARN_PANIC, NULL, "System call %s returning",
-			    (code >= 0 && code < SYS_MAXSYSCALL) ?
-			    syscallnames[code] : "???");
-			KASSERT(td->td_critnest == 0,
-			    ("System call %s returning in a critical section",
-			    (code >= 0 && code < SYS_MAXSYSCALL) ?
-			    syscallnames[code] : "???"));
-			KASSERT(td->td_locks == 0,
-			    ("System call %s returning with %d locks held",
-			    (code >= 0 && code < SYS_MAXSYSCALL) ?
-			    syscallnames[code] : "???",
-			    td->td_locks));
-			userret(td, trapframe);
-#ifdef KTRACE
-			if (KTRPOINT(td, KTR_SYSRET))
-				ktrsysret(code, i, td->td_retval[0]);
-#endif
-			/*
-			 * This works because errno is findable through the
-			 * register set.  If we ever support an emulation
-			 * where this is not the case, this code will need
-			 * to be revisited.
-			 */
-			STOPEVENT(p, S_SCX, code);
-
-			PTRACESTOP_SC(p, td, S_PT_SCX);
-
-			mtx_assert(&Giant, MA_NOTOWNED);
+			syscallret(td, error, &sa);
 			return (trapframe->pc);
 		}
 
