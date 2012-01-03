@@ -1,6 +1,11 @@
-/*
- * Copyright (c) 1988, 1993
+/*	$NetBSD: index.S,v 1.8 2005/04/22 06:59:00 simonb Exp $	*/
+
+/*-
+ * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
+ *
+ * This code is derived from software contributed to Berkeley by
+ * Ralph Campbell.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,7 +15,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
+ * 3. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
  *
@@ -27,36 +32,30 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)rindex.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
-#include <sys/cdefs.h>
+#include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#include <stddef.h>
+#if defined(LIBC_SCCS) && !defined(lint)
+	ASMSTR("from: @(#)index.s	8.1 (Berkeley) 6/4/93")
+	ASMSTR("$NetBSD: index.S,v 1.8 2005/04/22 06:59:00 simonb Exp $")
+#endif /* LIBC_SCCS and not lint */
 
-#ifdef STRRCHR
-#include <string.h>
-
-char *
-strrchr
-#else
-#include <strings.h>
-
-char *
-rindex
+#ifdef __ABICALLS__
+	.abicalls
 #endif
-(const char *p, int ch)
-{
-	char *save;
-	char c;
 
-	c = ch;
-	for (save = NULL;; ++p) {
-		if (*p == c)
-			save = (char *)p;
-		if (*p == '\0')
-			return (save);
-	}
-	/* NOTREACHED */
-}
+LEAF(strchr)
+1:
+	lbu		a2, 0(a0)		# get a byte
+	PTR_ADDU	a0, a0, 1
+	beq		a2, a1, fnd
+	bne		a2, zero, 1b
+notfnd:
+	move		v0, zero
+	j		ra
+fnd:
+	PTR_SUBU	v0, a0, 1
+	j		ra
+END(strchr)
+
+STRONG_ALIAS(index, strchr)
