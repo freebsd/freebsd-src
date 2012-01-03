@@ -256,7 +256,7 @@ intpr(int interval1, u_long ifnetaddr, void (*pfunc)(char *))
 			ifnetaddr = (u_long)TAILQ_NEXT(&ifnet, if_link);
 			if (interface != 0 && strcmp(name, interface) != 0)
 				continue;
-			cp = index(name, '\0');
+			cp = strchr(name, '\0');
 
 			if (pfunc) {
 				(*pfunc)(name);

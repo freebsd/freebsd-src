@@ -1710,7 +1710,7 @@ do_rotate(const struct conf_entry *ent)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(dirpart, ent->log, sizeof(dirpart));
-			if ((p = rindex(dirpart, '/')) == NULL)
+			if ((p = strrchr(dirpart, '/')) == NULL)
 				dirpart[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -1722,7 +1722,7 @@ do_rotate(const struct conf_entry *ent)
 			createdir(ent, dirpart);
 
 		/* get filename part of logfile */
-		if ((p = rindex(ent->log, '/')) == NULL)
+		if ((p = strrchr(ent->log, '/')) == NULL)
 			strlcpy(namepart, ent->log, sizeof(namepart));
 		else
 			strlcpy(namepart, p + 1, sizeof(namepart));
@@ -2255,7 +2255,7 @@ age_old_log(char *file)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(tmp, file, sizeof(tmp));
-			if ((p = rindex(tmp, '/')) == NULL)
+			if ((p = strrchr(tmp, '/')) == NULL)
 				tmp[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -2265,7 +2265,7 @@ age_old_log(char *file)
 		strlcat(tmp, "/", sizeof(tmp));
 
 		/* get filename part of logfile */
-		if ((p = rindex(file, '/')) == NULL)
+		if ((p = strrchr(file, '/')) == NULL)
 			strlcat(tmp, file, sizeof(tmp));
 		else
 			strlcat(tmp, p + 1, sizeof(tmp));
