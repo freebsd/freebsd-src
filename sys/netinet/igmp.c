@@ -2003,7 +2003,7 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 {
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
-	struct in_multi		*inm;
+	struct in_multi		*inm, *tinm;
 
 	CTR3(KTR_IGMPV3, "%s: cancel v3 timers on ifp %p(%s)", __func__,
 	    igi->igi_ifp, igi->igi_ifp->if_xname);
@@ -2049,14 +2049,8 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 			 * transition to REPORTING to ensure the host leave
 			 * message is sent upstream to the old querier --
 			 * transition to NOT would lose the leave and race.
-			 *
-			 * SMPNG: Must drop and re-acquire IF_ADDR_LOCK
-			 * around inm_release_locked(), as it is not
-			 * a recursive mutex.
 			 */
-			IF_ADDR_UNLOCK(ifp);
-			inm_release_locked(inm);
-			IF_ADDR_LOCK(ifp);
+			SLIST_INSERT_HEAD(&igi->igi_relinmhead, inm, inm_nrele);
 			/* FALLTHROUGH */
 		case IGMP_G_QUERY_PENDING_MEMBER:
 		case IGMP_SG_QUERY_PENDING_MEMBER:
@@ -2075,6 +2069,10 @@ igmp_v3_cancel_link_timers(struct igmp_ifinfo *igi)
 		_IF_DRAIN(&inm->inm_scq);
 	}
 	IF_ADDR_UNLOCK(ifp);
+	SLIST_FOREACH_SAFE(inm, &igi->igi_relinmhead, inm_nrele, tinm) {
+		SLIST_REMOVE_HEAD(&igi->igi_relinmhead, inm_nrele);
+		inm_release_locked(inm);
+	}
 }
 
 /*
