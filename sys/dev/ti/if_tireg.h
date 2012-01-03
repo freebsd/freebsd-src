@@ -967,7 +967,7 @@ struct ti_chain_data {
 struct ti_type {
 	uint16_t		ti_vid;
 	uint16_t		ti_did;
-	char			*ti_name;
+	const char		*ti_name;
 };
 
 #define TI_HWREV_TIGON		0x01
