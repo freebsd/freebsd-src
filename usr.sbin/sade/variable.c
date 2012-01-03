@@ -83,7 +83,7 @@ variable_set(char *var, int dirty)
     else if (!*var)
 	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
     SAFE_STRCPY(tmp, var);
-    if ((cp = index(tmp, '=')) == NULL)
+    if ((cp = strchr(tmp, '=')) == NULL)
 	msgFatal("Invalid variable format: %s", var);
     *(cp++) = '\0';
     make_variable(tmp, string_skipwhite(cp), dirty);
@@ -123,7 +123,7 @@ variable_unset(char *var)
     Variable *vp;
     char name[512], *cp;
 
-    if ((cp = index(var, '=')) != NULL)
+    if ((cp = strchr(var, '=')) != NULL)
 	sstrncpy(name, var, cp - var);
     else
 	SAFE_STRCPY(name, var);
@@ -189,14 +189,14 @@ variable_check2(char *data)
     if (data == NULL)
 	return -1;
     SAFE_STRCPY(tmp, data);
-    if ((cp = index(tmp, '=')) != NULL) {
+    if ((cp = strchr(tmp, '=')) != NULL) {
         *(cp++) = '\0';
 	if (*cp == '"') {	/* smash quotes if present */
 	    ++cp;
-	    if ((cp3 = index(cp, '"')) != NULL)
+	    if ((cp3 = strchr(cp, '"')) != NULL)
 		*cp3 = '\0';
 	}
-	else if ((cp3 = index(cp, ',')) != NULL)
+	else if ((cp3 = strchr(cp, ',')) != NULL)
 	    *cp3 = '\0';
         cp2 = variable_get(tmp);
         if (cp2 != NULL) {
@@ -305,7 +305,7 @@ pvariable_set(char *var)
 	msgDebug("Warning:  Zero length name & value passed to variable_set()\n");
     /* Add a trivial namespace to whatever name the caller chooses. */
     SAFE_STRCPY(tmp, "SYSINSTALL_PVAR");
-    if (index(var, '=') == NULL)
+    if (strchr(var, '=') == NULL)
 	msgFatal("Invalid variable format: %s", var);
     strlcat(tmp, var, 1024); 
     p = strchr(tmp, '=');

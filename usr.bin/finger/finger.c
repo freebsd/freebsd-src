@@ -287,7 +287,7 @@ userlist(int argc, char **argv)
 
 	/* Pull out all network requests. */
 	for (ap = p = argv, np = nargv; *p; ++p)
-		if (index(*p, '@'))
+		if (strchr(*p, '@'))
 			*np++ = *p;
 		else
 			*ap++ = *p;
