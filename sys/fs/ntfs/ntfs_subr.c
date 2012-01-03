@@ -1636,7 +1636,7 @@ ntfs_readntvattr_plain(
 					for(; remains; remains--)
 						uiomove("", 1, uio);
 				} else 
-					bzero(data, tocopy);
+					memset(data, 0, tocopy);
 				data = data + tocopy;
 			}
 			cnt++;
@@ -1783,7 +1783,7 @@ ntfs_readattr(
 						uiomove("", 1, uio);
 				}
 				else
-					bzero(data, tocopy);
+					memset(data, 0, tocopy);
 			} else {
 				error = ntfs_uncompunit(ntmp, uup, cup);
 				if (error)
