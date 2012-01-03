@@ -13,10 +13,18 @@ CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
 		netsmb nfs nfsclient nfsserver nlm opencrypto \
 		pci rpc security sys ufs vm xdr xen ${CSCOPE_ARCHDIR}
+.if !defined(CSCOPE_ARCHDIR)
 .if defined(ALL_ARCH)
-CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips pc98 powerpc sparc64 x86
+CSCOPE_ARCHDIR = amd64 arm i386 ia64 mips pc98 powerpc sparc64 x86
 .else
-CSCOPE_ARCHDIR ?= ${MACHINE}
+CSCOPE_ARCHDIR = ${MACHINE} 
+.if ${MACHINE} != ${MACHINE_CPUARCH}
+CSCOPE_ARCHDIR += ${MACHINE_CPUARCH}
+.endif
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+CSCOPE_ARCHDIR += x86
+.endif
+.endif
 .endif
 
 # Loadable kernel modules
