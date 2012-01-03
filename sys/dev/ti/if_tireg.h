@@ -887,23 +887,6 @@ struct ti_event_desc {
 #define TI_CLRBIT(sc, reg, x)	\
 	CSR_WRITE_4((sc), (reg), (CSR_READ_4((sc), (reg)) & ~(x)))
 
-/*
- * Memory management stuff. Note: the SSLOTS, MSLOTS and JSLOTS
- * values are tuneable. They control the actual amount of buffers
- * allocated for the standard, mini and jumbo receive rings.
- */
-
-#define TI_SSLOTS	256
-#define TI_MSLOTS	256
-#define TI_JSLOTS	256
-
-#define TI_JRAWLEN (TI_JUMBO_FRAMELEN + ETHER_ALIGN)
-#define TI_JLEN (TI_JRAWLEN + (sizeof(uint64_t) - \
-	(TI_JRAWLEN % sizeof(uint64_t))))
-#define TI_JPAGESZ PAGE_SIZE
-#define TI_RESID (TI_JPAGESZ - (TI_JLEN * TI_JSLOTS) % TI_JPAGESZ)
-#define TI_JMEM ((TI_JLEN * TI_JSLOTS) + TI_RESID)
-
 struct ti_txdesc {
 	struct mbuf	*tx_m;
 	bus_dmamap_t	tx_dmamap;
@@ -920,7 +903,7 @@ STAILQ_HEAD(ti_txdq, ti_txdesc);
  */
 struct ti_ring_data {
 	struct ti_rx_desc	ti_rx_std_ring[TI_STD_RX_RING_CNT];
-#ifdef TI_PRIVATE_JUMBOS
+#ifndef TI_SF_BUF_JUMBO
 	struct ti_rx_desc	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
 #else
 	struct ti_rx_desc_ext	ti_rx_jumbo_ring[TI_JUMBO_RX_RING_CNT];
@@ -955,13 +938,13 @@ struct ti_chain_data {
 	struct ti_txdq		ti_txbusyq;
 	struct mbuf		*ti_rx_std_chain[TI_STD_RX_RING_CNT];
 	bus_dmamap_t		ti_rx_std_maps[TI_STD_RX_RING_CNT];
+	bus_dmamap_t		ti_rx_std_sparemap;
 	struct mbuf		*ti_rx_jumbo_chain[TI_JUMBO_RX_RING_CNT];
 	bus_dmamap_t		ti_rx_jumbo_maps[TI_JUMBO_RX_RING_CNT];
+	bus_dmamap_t		ti_rx_jumbo_sparemap;
 	struct mbuf		*ti_rx_mini_chain[TI_MINI_RX_RING_CNT];
 	bus_dmamap_t		ti_rx_mini_maps[TI_MINI_RX_RING_CNT];
-	/* Stick the jumbo mem management stuff here too. */
-	caddr_t			ti_jslots[TI_JSLOTS];
-	void			*ti_jumbo_buf;
+	bus_dmamap_t		ti_rx_mini_sparemap;
 };
 
 struct ti_type {
@@ -978,11 +961,6 @@ struct ti_type {
 struct ti_mc_entry {
 	struct ether_addr		mc_addr;
 	SLIST_ENTRY(ti_mc_entry)	mc_entries;
-};
-
-struct ti_jpool_entry {
-	int                             slot;
-	SLIST_ENTRY(ti_jpool_entry)	jpool_entries;
 };
 
 typedef enum {
@@ -1006,7 +984,6 @@ struct ti_softc {
 	int			ti_hdrsplit;	/* enable header splitting */
 	bus_dma_tag_t		ti_parent_dmat;
 	bus_dma_tag_t		ti_jumbo_dmat;
-	bus_dmamap_t		ti_jumbo_dmamap;
 	bus_dma_tag_t		ti_mbuftx_dmat;
 	bus_dma_tag_t		ti_mbufrx_dmat;
 	bus_dma_tag_t		ti_rdata_dmat;
@@ -1026,8 +1003,6 @@ struct ti_softc {
 	int			ti_mini;	/* current mini ring head */
 	int			ti_jumbo;	/* current jumo ring head */
 	SLIST_HEAD(__ti_mchead, ti_mc_entry)	ti_mc_listhead;
-	SLIST_HEAD(__ti_jfreehead, ti_jpool_entry)	ti_jfree_listhead;
-	SLIST_HEAD(__ti_jinusehead, ti_jpool_entry)	ti_jinuse_listhead;
 	uint32_t		ti_stat_ticks;
 	uint32_t		ti_rx_coal_ticks;
 	uint32_t		ti_tx_coal_ticks;
