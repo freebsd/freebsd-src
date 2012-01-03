@@ -1767,6 +1767,8 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (IN6_ARE_ADDR_EQUAL(&candidate, &match))
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
 		IF_ADDR_UNLOCK(ifp);
 		if (!ifa)
 			return EADDRNOTAVAIL;
@@ -1779,16 +1781,20 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
 			error = sa6_recoverscope(
 			    (struct sockaddr_in6 *)&iflr->addr);
-			if (error != 0)
+			if (error != 0) {
+				ifa_free(ifa);
 				return (error);
+			}
 
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
 				error = sa6_recoverscope(
 				    (struct sockaddr_in6 *)&iflr->dstaddr);
-				if (error != 0)
+				if (error != 0) {
+					ifa_free(ifa);
 					return (error);
+				}
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
@@ -1796,6 +1802,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL);
 
 			iflr->flags = ia->ia6_flags;	/* XXX */
+			ifa_free(ifa);
 
 			return 0;
 		} else {
@@ -1819,6 +1826,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    ia->ia_prefixmask.sin6_len);
 
 			ifra.ifra_flags = ia->ia6_flags;
+			ifa_free(ifa);
 			return in6_control(so, SIOCDIFADDR_IN6, (caddr_t)&ifra,
 			    ifp, td);
 		}
