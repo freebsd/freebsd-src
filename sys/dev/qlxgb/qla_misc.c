@@ -407,7 +407,7 @@ qla_crb_init(qla_host_t *ha)
 	addr_val_t *addr_val_map, *avmap;
 
 	qla_rd_flash32(ha, 0, &sig);
-	QL_DPRINT2((ha->pci_dev, "%s: val[0] = 0x%08x\n", __func__, val));
+	QL_DPRINT2((ha->pci_dev, "%s: val[0] = 0x%08x\n", __func__, sig));
 
 	qla_rd_flash32(ha, 4, &val);
 	QL_DPRINT2((ha->pci_dev, "%s: val[4] = 0x%08x\n", __func__, val));
