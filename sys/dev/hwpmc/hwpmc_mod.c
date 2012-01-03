@@ -2891,7 +2891,7 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			error = pmclog_configure_log(md, po, cl.pm_logfd);
 		} else if (po->po_flags & PMC_PO_OWNS_LOGFILE) {
 			pmclog_process_closelog(po);
-			error = pmclog_flush(po);
+			error = pmclog_close(po);
 			if (error == 0) {
 				LIST_FOREACH(pm, &po->po_pmcs, pm_next)
 				    if (pm->pm_flags & PMC_F_NEEDS_LOGFILE &&
@@ -2906,7 +2906,6 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 			break;
 	}
 	break;
-
 
 	/*
 	 * Flush a log file.
@@ -2924,6 +2923,25 @@ pmc_syscall_handler(struct thread *td, void *syscall_args)
 		}
 
 		error = pmclog_flush(po);
+	}
+	break;
+
+	/*
+	 * Close a log file.
+	 */
+
+	case PMC_OP_CLOSELOG:
+	{
+		struct pmc_owner *po;
+
+		sx_assert(&pmc_sx, SX_XLOCKED);
+
+		if ((po = pmc_find_owner_descriptor(td->td_proc)) == NULL) {
+			error = EINVAL;
+			break;
+		}
+
+		error = pmclog_close(po);
 	}
 	break;
 

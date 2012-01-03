@@ -1702,7 +1702,7 @@ pmcstat_close_log(void)
 	 * so keep the status to EXITING.
 	 */
 	if (args.pa_logfd != -1) {
-		if (pmc_flush_logfile() < 0)
+		if (pmc_close_logfile() < 0)
 			err(EX_OSERR, "ERROR: logging failed");
 	}
 
