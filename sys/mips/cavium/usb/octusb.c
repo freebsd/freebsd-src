@@ -169,7 +169,7 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	    (td->qh->ep_num & UE_DIR_IN) ? CVMX_USB_DIRECTION_IN :
 	    CVMX_USB_DIRECTION_OUT,
 	    td->qh->ep_interval,
-	    td->qh->ep_mult,
+	    (td->qh->dev_speed == USB_SPEED_HIGH) ? td->qh->ep_mult : 0,
 	    td->qh->hs_hub_addr,
 	    td->qh->hs_hub_port);
 
