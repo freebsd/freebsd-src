@@ -144,7 +144,7 @@ typedef enum {
  * Various supported device vendors/types and their names.
  */
 
-static struct ti_type ti_devs[] = {
+static const struct ti_type const ti_devs[] = {
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC,
 		"Alteon AceNIC 1000baseSX Gigabit Ethernet" },
 	{ ALT_VENDORID,	ALT_DEVICEID_ACENIC_COPPER,
@@ -1083,7 +1083,8 @@ ti_alloc_jumbo_mem(struct ti_softc *sc)
 
 	if (bus_dmamem_alloc(sc->ti_jumbo_dmat,
 			     (void**)&sc->ti_cdata.ti_jumbo_buf,
-			     BUS_DMA_NOWAIT, &sc->ti_jumbo_dmamap) != 0) {
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+			     &sc->ti_jumbo_dmamap) != 0) {
 		device_printf(sc->ti_dev, "Failed to allocate jumbo memory\n");
 		return (ENOBUFS);
 	}
@@ -2194,7 +2195,7 @@ ti_rdata_cb(void *arg, bus_dma_segment_t *segs, int nseg, int error)
 static int
 ti_probe(device_t dev)
 {
-	struct ti_type *t;
+	const struct ti_type *t;
 
 	t = ti_devs;
 
@@ -2330,7 +2331,8 @@ ti_attach(device_t dev)
 	}
 
 	if (bus_dmamem_alloc(sc->ti_rdata_dmat, (void**)&sc->ti_rdata,
-			     BUS_DMA_NOWAIT, &sc->ti_rdata_dmamap) != 0) {
+			     BUS_DMA_NOWAIT | BUS_DMA_COHERENT,
+			     &sc->ti_rdata_dmamap) != 0) {
 		device_printf(dev, "Failed to allocate rdata memory\n");
 		error = ENOMEM;
 		goto fail;
@@ -2428,7 +2430,6 @@ ti_attach(device_t dev)
 	ifp->if_start = ti_start;
 	ifp->if_init = ti_init;
 	ifp->if_baudrate = 1000000000;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TI_TX_RING_CNT - 1;
 
 	/* Set up ifmedia support. */
