@@ -790,7 +790,8 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 				continue;
 			if (match.s_addr == 0)
 				break;
-			candidate.s_addr = ((struct sockaddr_in *)&ifa->ifa_addr)->sin_addr.s_addr;
+			sin = (struct sockaddr_in *)&ifa->ifa_addr;
+			candidate.s_addr = sin->sin_addr.s_addr;
 			candidate.s_addr &= mask.s_addr;
 			if (candidate.s_addr == match.s_addr)
 				break;
