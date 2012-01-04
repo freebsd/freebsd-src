@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 #include "cpucontrol.h"
 #include "amd.h"
 #include "intel.h"
+#include "via.h"
 
 int	verbosity_level = 0;
 
@@ -91,6 +92,7 @@ struct ucode_handler {
 } handlers[] = {
 	{ intel_probe, intel_update },
 	{ amd_probe, amd_update },
+	{ via_probe, via_update },
 };
 #define NHANDLERS (sizeof(handlers) / sizeof(*handlers))
 
