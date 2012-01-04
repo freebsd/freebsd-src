@@ -495,6 +495,6 @@ ufserr(const char *name)
 void
 usage(void)
 {
-	(void)fprintf(stderr, "usage: dumpfs [-fm] filesys | device\n");
+	(void)fprintf(stderr, "usage: dumpfs [-flm] filesys | device\n");
 	exit(1);
 }
