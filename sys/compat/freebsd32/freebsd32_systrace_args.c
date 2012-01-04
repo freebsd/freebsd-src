@@ -3027,10 +3027,10 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 530: {
 		struct freebsd32_posix_fallocate_args *p = params;
 		iarg[0] = p->fd; /* int */
-		uarg[1] = p->offsetlo; /* uint32_t */
-		uarg[2] = p->offsethi; /* uint32_t */
-		uarg[3] = p->lenlo; /* uint32_t */
-		uarg[4] = p->lenhi; /* uint32_t */
+		uarg[1] = p->offset1; /* uint32_t */
+		uarg[2] = p->offset2; /* uint32_t */
+		uarg[3] = p->len1; /* uint32_t */
+		uarg[4] = p->len2; /* uint32_t */
 		*n_args = 5;
 		break;
 	}
