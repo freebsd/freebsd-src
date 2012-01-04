@@ -3497,6 +3497,122 @@ newnfs_sndunlock(int *flagp)
 	NFSUNLOCKSOCK();
 }
 
+APPLESTATIC int
+nfsv4_getipaddr(struct nfsrv_descript *nd, struct sockaddr_storage *sa,
+    int *isudp)
+{
+	struct sockaddr_in *sad;
+	struct sockaddr_in6 *sad6;
+	struct in_addr saddr;
+	uint32_t portnum, *tl;
+	int af = 0, i, j, k;
+	char addr[64], protocol[5], *cp;
+	int cantparse = 0, error = 0;
+	uint16_t portv;
+
+	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	i = fxdr_unsigned(int, *tl);
+	if (i >= 3 && i <= 4) {
+		error = nfsrv_mtostr(nd, protocol, i);
+		if (error)
+			goto nfsmout;
+		if (strcmp(protocol, "tcp") == 0) {
+			af = AF_INET;
+			*isudp = 0;
+		} else if (strcmp(protocol, "udp") == 0) {
+			af = AF_INET;
+			*isudp = 1;
+		} else if (strcmp(protocol, "tcp6") == 0) {
+			af = AF_INET6;
+			*isudp = 0;
+		} else if (strcmp(protocol, "udp6") == 0) {
+			af = AF_INET6;
+			*isudp = 1;
+		} else
+			cantparse = 1;
+	} else {
+		cantparse = 1;
+		if (i > 0) {
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+		}
+	}
+	NFSM_DISSECT(tl, u_int32_t *, NFSX_UNSIGNED);
+	i = fxdr_unsigned(int, *tl);
+	if (i < 0) {
+		error = NFSERR_BADXDR;
+		goto nfsmout;
+	} else if (cantparse == 0 && i >= 11 && i < 64) {
+		/*
+		 * The shortest address is 11chars and the longest is < 64.
+		 */
+		error = nfsrv_mtostr(nd, addr, i);
+		if (error)
+			goto nfsmout;
+
+		/* Find the port# at the end and extract that. */
+		i = strlen(addr);
+		k = 0;
+		cp = &addr[i - 1];
+		/* Count back two '.'s from end to get port# field. */
+		for (j = 0; j < i; j++) {
+			if (*cp == '.') {
+				k++;
+				if (k == 2)
+					break;
+			}
+			cp--;
+		}
+		if (k == 2) {
+			/*
+			 * The NFSv4 port# is appended as .N.N, where N is
+			 * a decimal # in the range 0-255, just like an inet4
+			 * address. Cheat and use inet_aton(), which will
+			 * return a Class A address and then shift the high
+			 * order 8bits over to convert it to the port#.
+			 */
+			*cp++ = '\0';
+			if (inet_aton(cp, &saddr) == 1) {
+				portnum = ntohl(saddr.s_addr);
+				portv = (uint16_t)((portnum >> 16) |
+				    (portnum & 0xff));
+			} else
+				cantparse = 1;
+		} else
+			cantparse = 1;
+		if (cantparse == 0) {
+			if (af == AF_INET) {
+				sad = (struct sockaddr_in *)sa;
+				if (inet_pton(af, addr, &sad->sin_addr) == 1) {
+					sad->sin_len = sizeof(*sad);
+					sad->sin_family = AF_INET;
+					sad->sin_port = htons(portv);
+					return (0);
+				}
+			} else {
+				sad6 = (struct sockaddr_in6 *)sa;
+				if (inet_pton(af, addr, &sad6->sin6_addr)
+				    == 1) {
+					sad6->sin6_len = sizeof(*sad6);
+					sad6->sin6_family = AF_INET6;
+					sad6->sin6_port = htons(portv);
+					return (0);
+				}
+			}
+		}
+	} else {
+		if (i > 0) {
+			error = nfsm_advance(nd, NFSM_RNDUP(i), -1);
+			if (error)
+				goto nfsmout;
+		}
+	}
+	error = EPERM;
+nfsmout:
+	return (error);
+}
+
 /*
  * Handle an NFSv4.1 Sequence request for the session.
  */

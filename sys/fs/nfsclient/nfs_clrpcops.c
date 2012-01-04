@@ -4593,3 +4593,144 @@ nfsmout:
 	return (error);
 }
 
+/*
+ * Do the NFSv4.1 Get Device Info.
+ */
+int
+nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
+    uint32_t *notifybitsp, struct nfsclfldevinfo **ndip, struct ucred *cred,
+    NFSPROC_T *p)
+{
+	uint32_t cnt, *tl;
+	struct nfsrv_descript nfsd;
+	struct sockaddr_storage ss, *sa;
+	struct nfsrv_descript *nd = &nfsd;
+	struct nfsclfldevinfo *ndi;
+	int addrcnt, bitcnt, error, i, isudp, j, pos, safilled, stripecnt;
+	uint8_t stripeindex;
+
+	*ndip = NULL;
+	ndi = NULL;
+	nfscl_reqstart(nd, NFSPROC_GETDEVICEINFO, nmp, NULL, 0, NULL, NULL);
+	NFSM_BUILD(tl, uint32_t *, NFSX_V4DEVICEID + 3 * NFSX_UNSIGNED);
+	NFSBCOPY(deviceid, tl, NFSX_V4DEVICEID);
+	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
+	*tl++ = txdr_unsigned(layouttype);
+	*tl++ = txdr_unsigned(100000);
+	if (*notifybitsp != 0) {
+		*tl = txdr_unsigned(1);		/* One word of bits. */
+		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+		*tl = txdr_unsigned(*notifybitsp);
+	} else
+		*tl = txdr_unsigned(0);
+	nd->nd_flag |= ND_USEGSSNAME;
+	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		if (layouttype != fxdr_unsigned(int, *tl++))
+			printf("EEK! devinfo layout type not same!\n");
+		stripecnt = fxdr_unsigned(int, *++tl);
+		if (stripecnt < 1 || stripecnt > 4096) {
+			printf("NFS devinfo stripecnt %d: out of range\n",
+			    stripecnt);
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		}
+		NFSM_DISSECT(tl, uint32_t *, (stripecnt + 1) * NFSX_UNSIGNED);
+		addrcnt = fxdr_unsigned(int, *(tl + stripecnt));
+		if (addrcnt < 0 || addrcnt > 128) {
+			printf("NFS devinfo addrcnt %d: out of range\n",
+			    addrcnt);
+			error = NFSERR_BADXDR;
+			goto nfsmout;
+		}
+
+		/*
+		 * Now we know how many stripe indices and addresses, so
+		 * we can allocate the structure the correct size.
+		 */
+		ndi = malloc(sizeof(*ndi) + addrcnt *
+		    sizeof(struct sockaddr_storage) + stripecnt - 1,
+		    M_NFSDEVINFO, M_WAITOK);
+		NFSBCOPY(deviceid, ndi->nfsdi_deviceid, NFSX_V4DEVICEID);
+		ndi->nfsdi_stripecnt = stripecnt;
+		ndi->nfsdi_addrcnt = addrcnt;
+		/* Fill in the stripe indices. */
+		for (i = 0; i < stripecnt; i++) {
+			stripeindex = fxdr_unsigned(uint8_t, *tl++);
+			if (stripeindex >= addrcnt) {
+				printf("NFS devinfo stripeindex %d: too big\n",
+				    (int)stripeindex);
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			nfsfldi_setstripeindex(ndi, i, stripeindex);
+		}
+
+		/* Now, dissect the server address(es). */
+		for (i = 0; i < addrcnt; i++) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			cnt = fxdr_unsigned(uint32_t, *tl);
+			if (cnt == 0) {
+				printf("NFS devinfo 0 len addrlist\n");
+				error = NFSERR_BADXDR;
+				goto nfsmout;
+			}
+			sa = nfsfldi_addr(ndi, i);
+			pos = arc4random() % cnt;	/* Choose one. */
+			safilled = 0;
+			for (j = 0; j < cnt; j++) {
+				error = nfsv4_getipaddr(nd, &ss, &isudp);
+				if (error != 0 && error != EPERM) {
+					error = NFSERR_BADXDR;
+					goto nfsmout;
+				}
+				if (error == 0 && isudp == 0) {
+					/*
+					 * The algorithm is:
+					 * - use "pos" entry if it is of the
+					 *   same af_family or none of them
+					 *   is of the same af_family
+					 * else
+					 * - use the first one of the same
+					 *   af_family.
+					 */
+					if ((safilled == 0 && ss.ss_family ==
+					     nmp->nm_nam->sa_family) ||
+					    (j == pos &&
+					     (safilled == 0 || ss.ss_family ==
+					      nmp->nm_nam->sa_family)) ||
+					    (safilled == 1 && ss.ss_family ==
+					     nmp->nm_nam->sa_family)) {
+						NFSBCOPY(&ss, sa, sizeof(ss));
+						if (ss.ss_family ==
+						    nmp->nm_nam->sa_family)
+							safilled = 2;
+						else
+							safilled = 1;
+					}
+				}
+			}
+		}
+
+		/* And the notify bits. */
+		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+		bitcnt = fxdr_unsigned(int, *tl);
+		if (bitcnt > 0) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+			*notifybitsp = fxdr_unsigned(uint32_t, *tl);
+		}
+		*ndip = ndi;
+	}
+	if (nd->nd_repstat != 0)
+		error = nd->nd_repstat;
+nfsmout:
+	if (error != 0 && ndi != NULL)
+		free(ndi, M_NFSDEVINFO);
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+

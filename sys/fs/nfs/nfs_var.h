@@ -74,6 +74,7 @@ struct nfscllockowner;
 struct nfscllock;
 struct nfscldeleg;
 struct nfscllayout;
+struct nfsclfldevinfo;
 struct nfsv4lock;
 struct nfsvattr;
 struct nfs_vattr;
@@ -259,6 +260,8 @@ int nfsrv_mtostr(struct nfsrv_descript *, char *, int);
 int nfsrv_checkutf8(u_int8_t *, int);
 int newnfs_sndlock(int *);
 void newnfs_sndunlock(int *);
+int nfsv4_getipaddr(struct nfsrv_descript *, struct sockaddr_storage *,
+    int *);
 int nfsv4_seqsession(uint32_t, uint32_t, uint32_t, struct nfsslot *,
     struct mbuf **, uint16_t);
 void nfsv4_seqsess_cacherep(uint32_t, struct nfsslot *, struct mbuf *);
@@ -443,6 +446,8 @@ int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutget(vnode_t, int, uint64_t, uint64_t, uint64_t,
     struct nfscllayout *, struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
+    struct nfsclfldevinfo **, struct ucred *, NFSPROC_T *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
