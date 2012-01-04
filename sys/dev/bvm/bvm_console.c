@@ -77,6 +77,8 @@ static cn_init_t	bvm_cninit;
 static cn_term_t	bvm_cnterm;
 static cn_getc_t	bvm_cngetc;
 static cn_putc_t	bvm_cnputc;
+static cn_grab_t 	bvm_cngrab;
+static cn_ungrab_t 	bvm_cnungrab;
 
 CONSOLE_DRIVER(bvm);
 
@@ -223,6 +225,16 @@ bvm_cnputc(struct consdev *cp, int c)
 {
 
 	bvm_wcons(c);
+}
+
+static void
+bvm_cngrab(struct consdev *cp)
+{
+}
+
+static void
+bvm_cnungrab(struct consdev *cp)
+{
 }
 
 SYSINIT(cndev, SI_SUB_CONFIGURE, SI_ORDER_MIDDLE, cn_drvinit, NULL);
