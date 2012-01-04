@@ -841,8 +841,12 @@ rescan:
 		if (p->valid == 0)
 			continue;
 		if (vm_page_sleep_if_busy(p, TRUE, "vpcwai")) {
-			if (object->generation != curgeneration)
-				goto rescan;
+			if (object->generation != curgeneration) {
+				if ((flags & OBJPC_SYNC) != 0)
+					goto rescan;
+				else
+					clearobjflags = 0;
+			}
 			np = vm_page_find_least(object, pi);
 			continue;
 		}
@@ -851,8 +855,12 @@ rescan:
 
 		n = vm_object_page_collect_flush(object, p, pagerflags,
 		    flags, &clearobjflags);
-		if (object->generation != curgeneration)
-			goto rescan;
+		if (object->generation != curgeneration) {
+			if ((flags & OBJPC_SYNC) != 0)
+				goto rescan;
+			else
+				clearobjflags = 0;
+		}
 
 		/*
 		 * If the VOP_PUTPAGES() did a truncated write, so
