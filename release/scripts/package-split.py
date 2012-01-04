@@ -23,87 +23,32 @@ if 'PKG_VERBOSE' in os.environ:
 else:
     verbose = 0
 
-if 'PKG_DVD' in os.environ:
-    doing_dvd = 1
-else:
-    doing_dvd = 0
-
-# List of packages for disc1.
-def disc1_packages():
-    pkgs = ['misc/freebsd-doc-bn', 
-	    'misc/freebsd-doc-da',
-	    'misc/freebsd-doc-de',
-	    'misc/freebsd-doc-el',
-	    'misc/freebsd-doc-en',
-	    'misc/freebsd-doc-es',
-	    'misc/freebsd-doc-fr',
-	    'misc/freebsd-doc-hu',
-	    'misc/freebsd-doc-it',
-	    'misc/freebsd-doc-ja',
-	    'misc/freebsd-doc-mn',
-	    'misc/freebsd-doc-nl',
-	    'misc/freebsd-doc-pl',
-	    'misc/freebsd-doc-pt',
-	    'misc/freebsd-doc-ru',
-	    'misc/freebsd-doc-sr',
-	    'misc/freebsd-doc-tr',
-	    'misc/freebsd-doc-zh_cn',
-	    'misc/freebsd-doc-zh_tw']
-
-    if doing_dvd:
-	pkgs.extend(['archivers/unzip',
-	    'astro/xearth',
-	    'devel/gmake',
-	    'devel/imake',
-	    'editors/emacs',
-	    'editors/vim-lite',
+# List of packages for dvd1.
+def dvd1_packages():
+    pkgs = ['archivers/unzip',
 	    'emulators/linux_base-f10',
-	    'emulators/mtools',
-	    'graphics/png',
-	    'graphics/xv',
-	    'irc/xchat',
-	    'lang/perl5.8',
-	    'mail/alpine',
-	    'mail/exim',
-	    'mail/fetchmail',
-	    'mail/mutt',
-	    'mail/popd',
-	    'mail/postfix',
-	    'mail/xfmail',
-	    'net/cvsup-without-gui',
+	    'lang/perl5.12',
+	    'misc/freebsd-doc-all',
+	    'net/mpd5',
 	    'net/rsync',
-	    'net/samba3',
-	    'news/slrn',
-	    'news/tin',
-	    'ports-mgmt/p5-FreeBSD-Portindex',
 	    'ports-mgmt/portaudit',
 	    'ports-mgmt/portmaster',
-	    'ports-mgmt/portupgrade',
-	    'print/a2ps-letter',
-	    'print/apsfilter',
-	    'print/ghostscript7-nox11',
-	    'print/psutils-letter',
-	    'print/gv',
 	    'shells/bash',
-	    'shells/pdksh',
 	    'shells/zsh',
 	    'security/sudo',
 	    'sysutils/screen',
+	    'www/firefox',
 	    'www/links',
-	    'www/lynx',
+	    'x11-drivers/xf86-video-vmware',
 	    'x11/gnome2',
 	    'x11/kde4',
-	    'x11/rxvt',
-	    'x11/xorg',
-	    'x11-wm/afterstep',
-	    'x11-wm/fvwm2',
-	    'x11-wm/windowmaker'])
+	    'x11/xorg'];
     return pkgs
 
 # The list of desired packages
 def desired_packages():
-    disc1 = disc1_packages()
-    return [disc1]
+    dvd1 = dvd1_packages()
+    return [dvd1]
 
 # Suck the entire INDEX file into a two different dictionaries.  The first
 # dictionary maps port names (origins) to package names.  The second
