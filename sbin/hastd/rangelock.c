@@ -32,12 +32,18 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/queue.h>
 
-#include <assert.h>
 #include <stdbool.h>
 #include <stdlib.h>
 #include <unistd.h>
 
+#include <pjdlog.h>
+
 #include "rangelock.h"
+
+#ifndef	PJDLOG_ASSERT
+#include <assert.h>
+#define	PJDLOG_ASSERT(...)	assert(__VA_ARGS__)
+#endif
 
 #define	RANGELOCKS_MAGIC	0x94310c
 struct rangelocks {
@@ -56,7 +62,7 @@ rangelock_init(struct rangelocks **rlsp)
 {
 	struct rangelocks *rls;
 
-	assert(rlsp != NULL);
+	PJDLOG_ASSERT(rlsp != NULL);
 
 	rls = malloc(sizeof(*rls));
 	if (rls == NULL)
@@ -75,7 +81,7 @@ rangelock_free(struct rangelocks *rls)
 {
 	struct rlock *rl;
 
-	assert(rls->rls_magic == RANGELOCKS_MAGIC);
+	PJDLOG_ASSERT(rls->rls_magic == RANGELOCKS_MAGIC);
 
 	rls->rls_magic = 0;
 
@@ -91,7 +97,7 @@ rangelock_add(struct rangelocks *rls, off_t offset, off_t length)
 {
 	struct rlock *rl;
 
-	assert(rls->rls_magic == RANGELOCKS_MAGIC);
+	PJDLOG_ASSERT(rls->rls_magic == RANGELOCKS_MAGIC);
 
 	rl = malloc(sizeof(*rl));
 	if (rl == NULL)
@@ -107,13 +113,13 @@ rangelock_del(struct rangelocks *rls, off_t offset, off_t length)
 {
 	struct rlock *rl;
 
-	assert(rls->rls_magic == RANGELOCKS_MAGIC);
+	PJDLOG_ASSERT(rls->rls_magic == RANGELOCKS_MAGIC);
 
 	TAILQ_FOREACH(rl, &rls->rls_locks, rl_next) {
 		if (rl->rl_start == offset && rl->rl_end == offset + length)
 			break;
 	}
-	assert(rl != NULL);
+	PJDLOG_ASSERT(rl != NULL);
 	TAILQ_REMOVE(&rls->rls_locks, rl, rl_next);
 	free(rl);
 }
@@ -123,7 +129,7 @@ rangelock_islocked(struct rangelocks *rls, off_t offset, off_t length)
 {
 	struct rlock *rl;
 
-	assert(rls->rls_magic == RANGELOCKS_MAGIC);
+	PJDLOG_ASSERT(rls->rls_magic == RANGELOCKS_MAGIC);
 
 	TAILQ_FOREACH(rl, &rls->rls_locks, rl_next) {
 		if (rl->rl_start >= offset && rl->rl_start < offset + length)
