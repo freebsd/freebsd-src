@@ -632,8 +632,6 @@ pfs_read(struct vop_read_args *va)
 	    (offset = uio->uio_offset) != uio->uio_offset ||
 	    (resid = uio->uio_resid) != uio->uio_resid ||
 	    (buflen = offset + resid + 1) < offset || buflen > INT_MAX) {
-		if (proc != NULL)
-			PRELE(proc);
 		error = EINVAL;
 		goto ret;
 	}
