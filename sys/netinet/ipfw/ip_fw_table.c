@@ -39,17 +39,12 @@ __FBSDID("$FreeBSD$");
  * from userland, because operations are typically fast.
  */
 
-#if !defined(KLD_MODULE)
 #include "opt_ipfw.h"
-#include "opt_ipdivert.h"
-#include "opt_ipdn.h"
 #include "opt_inet.h"
 #ifndef INET
 #error IPFIREWALL requires INET.
 #endif /* INET */
-#endif
 #include "opt_inet6.h"
-#include "opt_ipsec.h"
 
 #include <sys/param.h>
 #include <sys/systm.h>
