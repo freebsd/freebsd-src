@@ -134,7 +134,7 @@ SUBDIR=	${_3dfx} \
 	${_io} \
 	ipdivert \
 	${_ipfilter} \
-	ipfw \
+	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
 	ip_mroute_mod \
@@ -364,6 +364,10 @@ _random=	random
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw=		ipfw
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
