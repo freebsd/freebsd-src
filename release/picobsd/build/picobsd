@@ -161,19 +161,19 @@ set_defaults() {	# no arguments
 # and also to build a specific target
 create_includes_and_libraries2() { # opt_dir opt_target
     local no
-    log "create_includes_and_libraries2() for ${SRC}"
+    log "create_includes_and_libraries2() for ${SRC} $1"
     if [ ${OSVERSION} -ge 600000 ] ; then
 	no="-DNO_CLEAN -DNO_PROFILE -DNO_GAMES -DNO_LIBC_R" # WITHOUT_CDDL=1"
     else
 	no="-DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R"
     fi
-    MAKEOBJDIRPREFIX=${l_objtree}
-    export MAKEOBJDIRPREFIX
     ( cd ${SRC};
     # make -DNOCLEAN -DNOPROFILE -DNOGAMES -DNOLIBC_R -DPICOBSD buildworld
     if [ -d "$1" ] ; then
 	cd $1 ; ${BINMAKE} ${o_par} $2	# specific target, e.g. ld-elf.so
     else
+	MAKEOBJDIRPREFIX=${l_objtree}
+	export MAKEOBJDIRPREFIX
 	# export WITH_RESCUE=yes	# build crunchide
 	# ${BINMAKE} ${o_par} _+_= $no toolchain _includes _libraries
 	(
@@ -551,7 +551,7 @@ do_links() {	# rootdir varname
 # find_progs is a helper function to locate the named programs
 # or libraries in ${o_objdir} or ${_SHLIBDIRPREFIX},
 # and return the full pathnames.
-# Called as "find_progs [-L libpath] [-P binpath] prog1 prog2 ... "
+# Called as "find_progs [[-L libpath] [-P binpath]] prog1 prog2 ... "
 # On return it sets ${u_progs} to the list of programs, and ${u_libs}
 # to the list of shared libraries used.
 # 
@@ -574,24 +574,32 @@ do_links() {	# rootdir varname
 #  }
 
 find_progs() {	# programs
-	local i
-	local oo=${o_objdir:-${_SHLIBDIRPREFIX}} # default objdir
-	local lp=$oo/lib			# default lib.prefix
-	local o=""				# additional objdir
+	local pass i old_libs="" tmp o=""
 	if [ x"$1" = "x-L" -a -d "$2" ] ; then # set lib search path
-		o=$2; shift; shift
-		lp="$lp:$o/lib:$o/usr/lib:$o/usr/local/lib"
-		o="-P $o"
+		o="-P $2"; shift; shift
 	fi
-	u_libs=""
-	u_progs="`find_progs_helper $*`"
-	log "looking for libs for <$u_progs> in $lp"
+	# Result returned in global variables
+	u_libs="" ; u_progs="`find_progs_helper $*`"
 	[ -z "${u_progs}" ] && return 1	# not found, error
-	i="`( LD_LIBRARY_PATH=$lp ldd ${u_progs} ) | \
-		grep -v '^/' | awk '{print $1}' | sort | uniq`"
-	u_libs="`find_progs_helper $o $i`"
-	log "--- done find_progs ---"
-	return 0
+	# use objdump to find libraries. Iterate to fetch recursive
+	# dependencies.
+	tmp="${u_progs}" ; pass=1
+	while [ $pass -lt 10 ] ; do
+		pass=$(($pass + 1))
+		i="`objdump -x ${tmp} | \
+			awk '$1 == "NEEDED" { print $2 }' | sort | uniq`"
+		if [ "$old_libs" = "$i" ] ; then
+			log "libraries for: $my_progs ($u_progs) are ($i) $u_libs"
+			log "--- done find_progs ---"
+			return 0
+		else
+			# logverbose "old--- $old_libs --- new +++ $i +++"
+		fi
+		u_libs="`find_progs_helper $o $i`"
+		old_libs="$i"
+		tmp="$tmp $u_libs"
+	done
+	log "WARNING: Too many passes, giving up"
 }
 
 find_progs_helper() {	# programs
