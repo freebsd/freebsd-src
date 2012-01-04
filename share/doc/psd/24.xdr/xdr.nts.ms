@@ -721,7 +721,7 @@ it must not exceed
 .I maxlength .
 Next
 .I sp
-is dereferenced; if the the value is
+is dereferenced; if the value is
 .I NULL ,
 then a string of the appropriate length is allocated and
 .I *sp
