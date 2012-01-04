@@ -828,7 +828,7 @@ MPConfigTableHeader( u_int32_t pap )
     int		ofd;
     u_char	dumpbuf[ 4096 ];
 
-    ofd = open( "/tmp/mpdump", O_CREAT | O_RDWR );
+    ofd = open( "/tmp/mpdump", O_CREAT | O_RDWR, 0666 );
     seekEntry( paddr );
     readEntry( dumpbuf, 1024 );
     write( ofd, dumpbuf, 1024 );
