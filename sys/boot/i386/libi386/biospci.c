@@ -218,7 +218,8 @@ biospci_enumerate(void)
     v86int();
 
     /* Check for OK response */
-    if ((v86.efl & 1) || ((v86.eax & 0xff00) != 0) || (v86.edx != 0x20494350))
+    if (V86_CY(v86.efl) || ((v86.eax & 0xff00) != 0) ||
+	(v86.edx != 0x20494350))
 	return;
 
     biospci_version = v86.ebx & 0xffff;
@@ -295,7 +296,7 @@ biospci_find_devclass(uint32_t class, int index, uint32_t *locator)
 	v86int();
 
 	 /* error */
-	if ((v86.efl & 1) || (v86.eax & 0xff00))
+	if (V86_CY(v86.efl) || (v86.eax & 0xff00))
 		return (-1);
 
 	*locator = v86.ebx;
@@ -317,7 +318,7 @@ biospci_write_config(uint32_t locator, int offset, int width, uint32_t val)
 	v86int();
 
 	 /* error */
-	if ((v86.efl & 1) || (v86.eax & 0xff00))
+	if (V86_CY(v86.efl) || (v86.eax & 0xff00))
 		return (-1);
 
 	return(0);
@@ -334,7 +335,7 @@ biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val)
 	v86int();
 
 	 /* error */
-	if ((v86.efl & 1) || (v86.eax & 0xff00))
+	if (V86_CY(v86.efl) || (v86.eax & 0xff00))
 		return (-1);
 
 	*val = v86.ecx;
