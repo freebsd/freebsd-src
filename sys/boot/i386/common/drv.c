@@ -19,8 +19,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 
-#include <machine/psl.h>
-
 #include <btxv86.h>
 
 #include "rbx.h"
@@ -29,9 +27,6 @@ __FBSDID("$FreeBSD$");
 #ifdef USE_XREAD
 #include "xreadorg.h"
 #endif
-
-#define	V86_CY(x)	((x) & PSL_C)
-#define	V86_ZR(x)	((x) & PSL_Z)
 
 #ifdef GPT
 uint64_t
