@@ -2244,9 +2244,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 		IF_ADDR_UNLOCK(ifp);
 		return (besta);
 	}
-	IF_ADDR_UNLOCK(ifp);
 
-	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2264,10 +2262,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 
 		if (ifa != NULL)
 			ifa_ref(ifa);
-		IN6_IFADDR_RUNLOCK();
+		IF_ADDR_UNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
-	IN6_IFADDR_RUNLOCK();
+	IF_ADDR_UNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
