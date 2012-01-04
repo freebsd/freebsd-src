@@ -121,7 +121,8 @@ static int	mld_v1_input_query(struct ifnet *, const struct ip6_hdr *,
 		    /*const*/ struct mld_hdr *);
 static int	mld_v1_input_report(struct ifnet *, const struct ip6_hdr *,
 		    /*const*/ struct mld_hdr *);
-static void	mld_v1_process_group_timer(struct in6_multi *, const int);
+static void	mld_v1_process_group_timer(struct mld_ifinfo *,
+		    struct in6_multi *);
 static void	mld_v1_process_querier_timers(struct mld_ifinfo *);
 static int	mld_v1_transmit_report(struct in6_multi *, const int);
 static void	mld_v1_update_group(struct in6_multi *, const int);
@@ -1336,8 +1337,8 @@ mld_fasttimo_vnet(void)
 	struct ifqueue		 qrq;	/* Query response packets */
 	struct ifnet		*ifp;
 	struct mld_ifinfo	*mli;
-	struct ifmultiaddr	*ifma, *tifma;
-	struct in6_multi	*inm;
+	struct ifmultiaddr	*ifma;
+	struct in6_multi	*inm, *tinm;
 	int			 uri_fasthz;
 
 	uri_fasthz = 0;
@@ -1401,24 +1402,14 @@ mld_fasttimo_vnet(void)
 		}
 
 		IF_ADDR_LOCK(ifp);
-		TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link,
-		    tifma) {
+		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family != AF_INET6 ||
 			    ifma->ifma_protospec == NULL)
 				continue;
 			inm = (struct in6_multi *)ifma->ifma_protospec;
 			switch (mli->mli_version) {
 			case MLD_VERSION_1:
-				/*
-				 * XXX Drop IF_ADDR lock temporarily to
-				 * avoid recursion caused by a potential
-				 * call by in6ifa_ifpforlinklocal().
-				 * rwlock candidate?
-				 */
-				IF_ADDR_UNLOCK(ifp);
-				mld_v1_process_group_timer(inm,
-				    mli->mli_version);
-				IF_ADDR_LOCK(ifp);
+				mld_v1_process_group_timer(mli, inm);
 				break;
 			case MLD_VERSION_2:
 				mld_v2_process_group_timers(mli, &qrq,
@@ -1428,9 +1419,25 @@ mld_fasttimo_vnet(void)
 		}
 		IF_ADDR_UNLOCK(ifp);
 
-		if (mli->mli_version == MLD_VERSION_2) {
-			struct in6_multi		*tinm;
-
+		switch (mli->mli_version) {
+		case MLD_VERSION_1:
+			/*
+			 * Transmit reports for this lifecycle.  This
+			 * is done while not holding IF_ADDR_LOCK
+			 * since this can call
+			 * in6ifa_ifpforlinklocal() which locks
+			 * IF_ADDR_LOCK internally as well as
+			 * ip6_output() to transmit a packet.
+			 */
+			SLIST_FOREACH_SAFE(inm, &mli->mli_relinmhead,
+			    in6m_nrele, tinm) {
+				SLIST_REMOVE_HEAD(&mli->mli_relinmhead,
+				    in6m_nrele);
+				(void)mld_v1_transmit_report(inm,
+				    MLD_LISTENER_REPORT);
+			}
+			break;
+		case MLD_VERSION_2:
 			mld_dispatch_queue(&qrq, 0);
 			mld_dispatch_queue(&scq, 0);
 
@@ -1444,6 +1451,7 @@ mld_fasttimo_vnet(void)
 				    in6m_nrele);
 				in6m_release_locked(inm);
 			}
+			break;
 		}
 	}
 
@@ -1457,7 +1465,7 @@ out_locked:
  * Will update the global pending timer flags.
  */
 static void
-mld_v1_process_group_timer(struct in6_multi *inm, const int version)
+mld_v1_process_group_timer(struct mld_ifinfo *mli, struct in6_multi *inm)
 {
 	int report_timer_expired;
 
@@ -1484,8 +1492,8 @@ mld_v1_process_group_timer(struct in6_multi *inm, const int version)
 	case MLD_REPORTING_MEMBER:
 		if (report_timer_expired) {
 			inm->in6m_state = MLD_IDLE_MEMBER;
-			(void)mld_v1_transmit_report(inm,
-			     MLD_LISTENER_REPORT);
+			SLIST_INSERT_HEAD(&mli->mli_relinmhead, inm,
+			    in6m_nrele);
 		}
 		break;
 	case MLD_G_QUERY_PENDING_MEMBER:
