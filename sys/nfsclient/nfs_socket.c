@@ -1351,6 +1351,12 @@ wait_for_pinned_req:
 				rep->r_xid = *xidp = txdr_unsigned(nfs_xid_gen());
 				goto tryagain;
 			}
+			/*
+			 * Make sure NFSERR_RETERR isn't bogusly set by a
+			 * server such as amd. (No actual NFS error has bit 31
+			 * set.)
+			 */
+			error &= ~NFSERR_RETERR;
 
 			/*
 			 * If the File Handle was stale, invalidate the
