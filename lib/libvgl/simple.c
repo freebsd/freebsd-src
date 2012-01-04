@@ -242,8 +242,8 @@ VGLLine(VGLBitmap *object, int x1, int y1, int x2, int y2, u_long color)
   if (x1 > x2) {      /* start from the smaller coordinate */
     x = x2;
     y = y2;
-    x1 = x1;
-    y1 = y1;
+/*  x1 = x1;
+    y1 = y1; */
   } else {
     x = x1;
     y = y1;
