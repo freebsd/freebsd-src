@@ -2351,8 +2351,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	int icmp6len = ntohs(ip6->ip6_plen);
 	char *lladdr = NULL;
 	int lladdrlen = 0;
-	u_char *redirhdr = NULL;
-	int redirhdrlen = 0;
 	struct rtentry *rt = NULL;
 	int is_router;
 	int is_onlink;
@@ -2486,11 +2484,6 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	if (ndopts.nd_opts_tgt_lladdr) {
 		lladdr = (char *)(ndopts.nd_opts_tgt_lladdr + 1);
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
-	}
-
-	if (ndopts.nd_opts_rh) {
-		redirhdrlen = ndopts.nd_opts_rh->nd_opt_rh_len;
-		redirhdr = (u_char *)(ndopts.nd_opts_rh + 1); /* xxx */
 	}
 
 	if (lladdr && ((ifp->if_addrlen + 2 + 7) & ~7) != lladdrlen) {
