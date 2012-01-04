@@ -435,6 +435,22 @@ reloc_plt(Obj_Entry *obj)
 	return 0;
 }
 
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
 /* Relocate the jump slots in an object. */
 int
 reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
