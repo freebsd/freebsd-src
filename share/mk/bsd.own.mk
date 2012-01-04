@@ -325,6 +325,7 @@ WITH_IDEA=
     GPIB \
     GROFF \
     HTML \
+    INET \
     INET6 \
     INFO \
     INSTALLLIB \
@@ -500,6 +501,7 @@ MK_GDB:=	no
 .for var in \
     BZIP2 \
     GNU \
+    INET \
     INET6 \
     IPX \
     KERBEROS \
