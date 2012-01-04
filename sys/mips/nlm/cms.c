@@ -82,7 +82,7 @@ static struct msgring_thread msgring_threads[XLP_MAX_CORES * XLP_MAX_THREADS];
 static struct proc *msgring_proc;	/* all threads are under a proc */
 
 /*
- * The device drivers can register a handler for the the messages sent
+ * The device drivers can register a handler for the messages sent
  * from a station (corresponding to the device).
  */
 struct tx_stn_handler {
