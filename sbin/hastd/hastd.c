@@ -386,6 +386,12 @@ resource_needs_restart(const struct hast_resource *res0,
 			return (true);
 		if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 			return (true);
+		/*
+		 * When metaflush has changed we don't really need restart,
+		 * but it is just easier this way.
+		 */
+		if (res0->hr_metaflush != res1->hr_metaflush)
+			return (true);
 	}
 	return (false);
 }
@@ -416,6 +422,8 @@ resource_needs_reload(const struct hast_resource *res0,
 		return (true);
 	if (strcmp(res0->hr_exec, res1->hr_exec) != 0)
 		return (true);
+	if (res0->hr_metaflush != res1->hr_metaflush)
+		return (true);
 	return (false);
 }
 
@@ -436,6 +444,7 @@ resource_reload(const struct hast_resource *res)
 	nv_add_int32(nvout, (int32_t)res->hr_compression, "compression");
 	nv_add_int32(nvout, (int32_t)res->hr_timeout, "timeout");
 	nv_add_string(nvout, res->hr_exec, "exec");
+	nv_add_int32(nvout, (int32_t)res->hr_metaflush, "metaflush");
 	if (nv_error(nvout) != 0) {
 		nv_free(nvout);
 		pjdlog_error("Unable to allocate header for reload message.");
@@ -467,10 +476,14 @@ hastd_reload(void)
 	struct hastd_config *newcfg;
 	struct hast_resource *nres, *cres, *tres;
 	struct hastd_listen *nlst, *clst;
+	struct pidfh *newpfh;
 	unsigned int nlisten;
 	uint8_t role;
+	pid_t otherpid;
 
 	pjdlog_info("Reloading configuration...");
+
+	newpfh = NULL;
 
 	newcfg = yy_config_parse(cfgpath, false);
 	if (newcfg == NULL)
@@ -515,6 +528,31 @@ hastd_reload(void)
 		pjdlog_error("No addresses to listen on.");
 		goto failed;
 	}
+	/*
+	 * Check if pidfile's path has changed.
+	 */
+	if (strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
+		newpfh = pidfile_open(newcfg->hc_pidfile, 0600, &otherpid);
+		if (newpfh == NULL) {
+			if (errno == EEXIST) {
+				pjdlog_errno(LOG_WARNING,
+				    "Another hastd is already running, pidfile: %s, pid: %jd.",
+				    newcfg->hc_pidfile, (intmax_t)otherpid);
+			} else {
+				pjdlog_errno(LOG_WARNING,
+				    "Unable to open or create pidfile %s",
+				    newcfg->hc_pidfile);
+			}
+		} else if (pidfile_write(newpfh) < 0) {
+			/* Write PID to a file. */
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to write PID to file %s",
+			    newcfg->hc_pidfile);
+		} else {
+			pjdlog_debug(1, "PID stored in %s.",
+			    newcfg->hc_pidfile);
+		}
+	}
 
 	/* No failures from now on. */
 
@@ -530,6 +568,13 @@ hastd_reload(void)
 		strlcpy(cfg->hc_controladdr, newcfg->hc_controladdr,
 		    sizeof(cfg->hc_controladdr));
 	}
+	/*
+	 * Switch to new pidfile.
+	 */
+	(void)pidfile_remove(pfh);
+	pfh = newpfh;
+	(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
+	    sizeof(cfg->hc_pidfile));
 	/*
 	 * Switch to new listen addresses. Close all that were removed.
 	 */
@@ -591,12 +636,13 @@ hastd_reload(void)
 	 * recreating it.
 	 *
 	 * We do just reload (send SIGHUP to worker process) if we act as
-	 * PRIMARY, but only if remote address, replication mode, timeout or
-	 * execution path has changed. For those, there is no need to restart
-	 * worker process.
+	 * PRIMARY, but only if remote address, source address, replication
+	 * mode, timeout, execution path or metaflush has changed.
+	 * For those, there is no need to restart worker process.
 	 * If PRIMARY receives SIGHUP, it will reconnect if remote address or
-	 * replication mode has changed or simply set new timeout if only
-	 * timeout has changed.
+	 * source address has changed or it will set new timeout if only timeout
+	 * has changed or it will update metaflush if only metaflush has
+	 * changed.
 	 */
 	TAILQ_FOREACH_SAFE(nres, &newcfg->hc_resources, hr_next, tres) {
 		TAILQ_FOREACH(cres, &cfg->hc_resources, hr_next) {
@@ -627,6 +673,7 @@ hastd_reload(void)
 			cres->hr_timeout = nres->hr_timeout;
 			strlcpy(cres->hr_exec, nres->hr_exec,
 			    sizeof(cres->hr_exec));
+			cres->hr_metaflush = nres->hr_metaflush;
 			if (cres->hr_workerpid != 0)
 				resource_reload(cres);
 		}
@@ -655,6 +702,8 @@ failed:
 		}
 		yy_config_free(newcfg);
 	}
+	if (newpfh != NULL)
+		(void)pidfile_remove(newpfh);
 	pjdlog_warning("Configuration not reloaded.");
 }
 
@@ -1112,7 +1161,7 @@ main(int argc, char *argv[])
 
 	foreground = false;
 	debuglevel = 0;
-	pidfile = HASTD_PIDFILE;
+	pidfile = NULL;
 
 	for (;;) {
 		int ch;
@@ -1146,19 +1195,42 @@ main(int argc, char *argv[])
 
 	g_gate_load();
 
-	pfh = pidfile_open(pidfile, 0600, &otherpid);
-	if (pfh == NULL) {
-		if (errno == EEXIST) {
-			pjdlog_exitx(EX_TEMPFAIL,
-			    "Another hastd is already running, pid: %jd.",
-			    (intmax_t)otherpid);
+	/*
+	 * When path to the configuration file is relative, obtain full path,
+	 * so we can always find the file, even after daemonizing and changing
+	 * working directory to /.
+	 */
+	if (cfgpath[0] != '/') {
+		const char *newcfgpath;
+
+		newcfgpath = realpath(cfgpath, NULL);
+		if (newcfgpath == NULL) {
+			pjdlog_exit(EX_CONFIG,
+			    "Unable to obtain full path of %s", cfgpath);
 		}
-		/* If we cannot create pidfile from other reasons, only warn. */
-		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile");
+		cfgpath = newcfgpath;
 	}
 
 	cfg = yy_config_parse(cfgpath, true);
 	PJDLOG_ASSERT(cfg != NULL);
+
+	if (pidfile != NULL) {
+		if (strlcpy(cfg->hc_pidfile, pidfile,
+		    sizeof(cfg->hc_pidfile)) >= sizeof(cfg->hc_pidfile)) {
+			pjdlog_exitx(EX_CONFIG, "Pidfile path is too long.");
+		}
+	}
+	pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
+	if (pfh == NULL) {
+		if (errno == EEXIST) {
+			pjdlog_exitx(EX_TEMPFAIL,
+			    "Another hastd is already running, pidfile: %s, pid: %jd.",
+			    cfg->hc_pidfile, (intmax_t)otherpid);
+		}
+		/* If we cannot create pidfile for other reasons, only warn. */
+		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile %s",
+		    cfg->hc_pidfile);
+	}
 
 	/*
 	 * Restore default actions for interesting signals in case parent
@@ -1207,7 +1279,10 @@ main(int argc, char *argv[])
 		/* Write PID to a file. */
 		if (pidfile_write(pfh) < 0) {
 			pjdlog_errno(LOG_WARNING,
-			    "Unable to write PID to a file");
+			    "Unable to write PID to a file %s",
+			    cfg->hc_pidfile);
+		} else {
+			pjdlog_debug(1, "PID stored in %s.", cfg->hc_pidfile);
 		}
 	}
 
