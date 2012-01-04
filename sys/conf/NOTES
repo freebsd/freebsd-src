@@ -2733,7 +2733,7 @@ options 	UBSEC_RNDTEST	# enable rndtest support
 # Embedded system options:
 #
 # An embedded system might want to run something other than init.
-options 	INIT_PATH=/sbin/init:/rescue/init
+options 	INIT_PATH=/sbin/init:/stand/sysinstall
 
 # Debug options
 options 	BUS_DEBUG	# enable newbus debugging
