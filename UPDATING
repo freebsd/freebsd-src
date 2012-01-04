@@ -8,6 +8,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running
 portupgrade.
 
+20120104:	p10	FreeBSD-EN-12:01.freebsd-update
+	Extend the character set accepted by freebsd-update(8) in file
+	names in order to allow upgrades to FreeBSD 9.0-RELEASE.
+
 20111223:	p9	FreeBSD-SA-11:06.bind, FreeBSD-SA-11:07.chroot
 			FreeBSD-SA-11:08.telnetd, FreeBSD-SA-11:09.pam_ssh
 			FreeBSD-SA-11:10.pam
