@@ -59,6 +59,26 @@ static vm_paddr_t srat_physaddr;
 
 static void	srat_walk_table(acpi_subtable_handler *handler, void *arg);
 
+/*
+ * Returns true if a memory range overlaps with at least one range in
+ * phys_avail[].
+ */
+static int
+overlaps_phys_avail(vm_paddr_t start, vm_paddr_t end)
+{
+	int i;
+
+	for (i = 0; phys_avail[i] != 0 && phys_avail[i + 1] != 0; i += 2) {
+		if (phys_avail[i + 1] < start)
+			continue;
+		if (phys_avail[i] < end)
+			return (1);
+		break;
+	}
+	return (0);
+	
+}
+
 static void
 srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 {
@@ -111,6 +131,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
+		if (!overlaps_phys_avail(mem->BaseAddress,
+		    mem->BaseAddress + mem->Length)) {
+			printf("SRAT: Ignoring memory at addr %jx\n",
+			    (uintmax_t)mem->BaseAddress);
+			break;
+		}
 		if (num_mem == VM_PHYSSEG_MAX) {
 			printf("SRAT: Too many memory regions\n");
 			*(int *)arg = ENXIO;
