@@ -35,8 +35,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_kdtrace.h"
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/eventhandler.h>
-#include <sys/param.h>
 #include <sys/jail.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -53,7 +53,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/sx.h>
 #include <sys/sysent.h>
 #include <sys/sysproto.h>
-#include <sys/systm.h>
 #include <sys/umtx.h>
 
 #ifdef RCTL

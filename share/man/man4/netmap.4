@@ -155,7 +155,6 @@ Some macros support the access to objects in the shared memory
 region. In particular:
 .Bd -literal
 struct netmap_if *nifp;
-...
 struct netmap_ring *txring = NETMAP_TXRING(nifp, i);
 struct netmap_ring *rxring = NETMAP_RXRING(nifp, i);
 int i = txring->slot[txring->cur].buf_idx;

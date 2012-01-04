@@ -95,6 +95,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_systm.h>
 #include <netinet/ip.h>
 #include <netinet/in_pcb.h>
+#include <netinet/ip_carp.h>
 
 #include <netinet/ip6.h>
 #include <netinet6/ip6_var.h>
@@ -272,7 +273,15 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	struct	in6_ifaddr *ia = NULL;
 	struct	in6_aliasreq *ifra = (struct in6_aliasreq *)data;
 	struct sockaddr_in6 *sa6;
+	int carp_attached = 0;
 	int error;
+	u_long ocmd = cmd;
+
+	/*
+	 * Compat to make pre-10.x ifconfig(8) operable.
+	 */
+	if (cmd == OSIOCAIFADDR_IN6)
+		cmd = SIOCAIFADDR_IN6;
 
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
@@ -652,6 +661,18 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			break;
 		}
 
+		if (cmd == ocmd && ifra->ifra_vhid > 0) {
+			if (carp_attach_p != NULL)
+				error = (*carp_attach_p)(&ia->ia_ifa,
+				    ifra->ifra_vhid);
+			else
+				error = EPROTONOSUPPORT;
+			if (error)
+				goto out;
+			else
+				carp_attached = 1;
+		}
+
 		/*
 		 * then, make the prefix on-link on the interface.
 		 * XXX: we'd rather create the prefix before the address, but
@@ -695,9 +716,14 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 			 * nd6_prelist_add will install the corresponding
 			 * interface route.
 			 */
-			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0)
+			if ((error = nd6_prelist_add(&pr0, NULL, &pr)) != 0) {
+				if (carp_attached)
+					(*carp_detach_p)(&ia->ia_ifa);
 				goto out;
+			}
 			if (pr == NULL) {
+				if (carp_attached)
+					(*carp_detach_p)(&ia->ia_ifa);
 				log(LOG_ERR, "nd6_prelist_add succeeded but "
 				    "no prefix\n");
 				error = EINVAL;
@@ -1299,7 +1325,10 @@ in6_purgeaddr(struct ifaddr *ifa)
 	struct sockaddr_in6 mltaddr, mltmask;
 	int plen, error;
 	struct rtentry *rt;
-	struct ifaddr *ifa0, *nifa;
+	struct ifaddr *ifa0;
+
+	if (ifa->ifa_carp)
+		(*carp_detach_p)(ifa);
 
 	/*
 	 * find another IPv6 address as the gateway for the
@@ -1307,7 +1336,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	 * address routes
 	 */
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifa0, &ifp->if_addrhead, ifa_link, nifa) {
+	TAILQ_FOREACH(ifa0, &ifp->if_addrhead, ifa_link) {
 		if ((ifa0->ifa_addr->sa_family != AF_INET6) ||
 		    memcmp(&satosin6(ifa0->ifa_addr)->sin6_addr,
 			   &ia->ia_addr.sin6_addr, 
@@ -1340,7 +1369,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/*
 	 * leave from multicast groups we have joined for the interface
 	 */
-	while ((imm = ia->ia6_memberships.lh_first) != NULL) {
+	while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
 		LIST_REMOVE(imm, i6mm_chain);
 		in6_leavegroup(imm);
 	}
@@ -1738,6 +1767,8 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (IN6_ARE_ADDR_EQUAL(&candidate, &match))
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
 		IF_ADDR_UNLOCK(ifp);
 		if (!ifa)
 			return EADDRNOTAVAIL;
@@ -1750,16 +1781,20 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
 			error = sa6_recoverscope(
 			    (struct sockaddr_in6 *)&iflr->addr);
-			if (error != 0)
+			if (error != 0) {
+				ifa_free(ifa);
 				return (error);
+			}
 
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
 				error = sa6_recoverscope(
 				    (struct sockaddr_in6 *)&iflr->dstaddr);
-				if (error != 0)
+				if (error != 0) {
+					ifa_free(ifa);
 					return (error);
+				}
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
@@ -1767,6 +1802,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL);
 
 			iflr->flags = ia->ia6_flags;	/* XXX */
+			ifa_free(ifa);
 
 			return 0;
 		} else {
@@ -1790,6 +1826,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    ia->ia_prefixmask.sin6_len);
 
 			ifra.ifra_flags = ia->ia6_flags;
+			ifa_free(ifa);
 			return in6_control(so, SIOCDIFADDR_IN6, (caddr_t)&ifra,
 			    ifp, td);
 		}
@@ -2324,8 +2361,7 @@ in6_setmaxmtu(void)
 	struct ifnet *ifp;
 
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	    ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		/* this function can be called during ifnet initialization */
 		if (!ifp->if_afdata[AF_INET6])
 			continue;

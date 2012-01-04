@@ -44,6 +44,8 @@ struct tty;
 typedef	void	cn_probe_t(struct consdev *);
 typedef	void	cn_init_t(struct consdev *);
 typedef	void	cn_term_t(struct consdev *);
+typedef	void	cn_grab_t(struct consdev *);
+typedef	void	cn_ungrab_t(struct consdev *);
 typedef	int	cn_getc_t(struct consdev *);
 typedef	void	cn_putc_t(struct consdev *, int);
 
@@ -58,6 +60,10 @@ struct consdev_ops {
 				/* kernel getchar interface */
 	cn_putc_t	*cn_putc;
 				/* kernel putchar interface */
+	cn_grab_t	*cn_grab;
+				/* grab console for exclusive kernel use */
+	cn_ungrab_t	*cn_ungrab;
+				/* ungrab console */
 };
 
 struct consdev {
@@ -80,6 +86,11 @@ struct consdev {
 #define	CN_FLAG_NODEBUG	0x00000001	/* Not supported with debugger. */
 #define	CN_FLAG_NOAVAIL	0x00000002	/* Temporarily not available. */
 
+/* Visibility of characters in cngets() */
+#define	GETS_NOECHO	0	/* Disable echoing of characters. */
+#define	GETS_ECHO	1	/* Enable echoing of characters. */
+#define	GETS_ECHOPASS	2	/* Print a * for every character. */
+
 #ifdef _KERNEL
 
 extern	struct msgbuf consmsgbuf; /* Message buffer for constty. */
@@ -99,6 +110,8 @@ extern	struct tty *constty;	/* Temporary virtual console. */
 		.cn_term = name##_cnterm,				\
 		.cn_getc = name##_cngetc,				\
 		.cn_putc = name##_cnputc,				\
+		.cn_grab = name##_cngrab,				\
+		.cn_ungrab = name##_cnungrab,				\
 	};								\
 	CONSOLE_DEVICE(name##_consdev, name##_consdev_ops, NULL)
 
@@ -109,8 +122,11 @@ int	cnadd(struct consdev *);
 void	cnavailable(struct consdev *, int);
 void	cnremove(struct consdev *);
 void	cnselect(struct consdev *);
+void	cngrab(void);
+void	cnungrab(void);
 int	cncheckc(void);
 int	cngetc(void);
+void	cngets(char *, size_t, int);
 void	cnputc(int);
 void	cnputs(char *);
 int	cnunavailable(void);

@@ -192,9 +192,10 @@ top:
 				fputs("?\n", stderr);
 				errmsg = "warning: file modified";
 				if (!isatty(0)) {
-					fprintf(stderr, garrulous ?
-					    "script, line %d: %s\n" :
-					    "", lineno, errmsg);
+					if (garrulous)
+						fprintf(stderr,
+						    "script, line %d: %s\n",
+						    lineno, errmsg);
 					quit(2);
 				}
 				clearerr(stdin);
@@ -225,27 +226,26 @@ top:
 			fputs("?\n", stderr);		/* give warning */
 			errmsg = "warning: file modified";
 			if (!isatty(0)) {
-				fprintf(stderr, garrulous ?
-				    "script, line %d: %s\n" :
-				    "", lineno, errmsg);
+				if (garrulous)
+					fprintf(stderr, "script, line %d: %s\n",
+					    lineno, errmsg);
 				quit(2);
 			}
 			break;
 		case FATAL:
-			if (!isatty(0))
-				fprintf(stderr, garrulous ?
-				    "script, line %d: %s\n" : "",
-				    lineno, errmsg);
-			else
-				fprintf(stderr, garrulous ? "%s\n" : "",
-				    errmsg);
+			if (!isatty(0)) {
+				if (garrulous)
+					fprintf(stderr, "script, line %d: %s\n",
+					    lineno, errmsg);
+			} else if (garrulous)
+				fprintf(stderr, "%s\n", errmsg);
 			quit(3);
 		default:
 			fputs("?\n", stderr);
 			if (!isatty(0)) {
-				fprintf(stderr, garrulous ?
-				    "script, line %d: %s\n" : "",
-				    lineno, errmsg);
+				if (garrulous)
+					fprintf(stderr, "script, line %d: %s\n",
+					    lineno, errmsg);
 				quit(2);
 			}
 			break;

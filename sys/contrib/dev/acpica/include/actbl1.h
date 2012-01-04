@@ -252,16 +252,17 @@ typedef struct acpi_einj_entry
 
 enum AcpiEinjActions
 {
-    ACPI_EINJ_BEGIN_OPERATION       = 0,
-    ACPI_EINJ_GET_TRIGGER_TABLE     = 1,
-    ACPI_EINJ_SET_ERROR_TYPE        = 2,
-    ACPI_EINJ_GET_ERROR_TYPE        = 3,
-    ACPI_EINJ_END_OPERATION         = 4,
-    ACPI_EINJ_EXECUTE_OPERATION     = 5,
-    ACPI_EINJ_CHECK_BUSY_STATUS     = 6,
-    ACPI_EINJ_GET_COMMAND_STATUS    = 7,
-    ACPI_EINJ_ACTION_RESERVED       = 8,     /* 8 and greater are reserved */
-    ACPI_EINJ_TRIGGER_ERROR         = 0xFF   /* Except for this value */
+    ACPI_EINJ_BEGIN_OPERATION               = 0,
+    ACPI_EINJ_GET_TRIGGER_TABLE             = 1,
+    ACPI_EINJ_SET_ERROR_TYPE                = 2,
+    ACPI_EINJ_GET_ERROR_TYPE                = 3,
+    ACPI_EINJ_END_OPERATION                 = 4,
+    ACPI_EINJ_EXECUTE_OPERATION             = 5,
+    ACPI_EINJ_CHECK_BUSY_STATUS             = 6,
+    ACPI_EINJ_GET_COMMAND_STATUS            = 7,
+    ACPI_EINJ_SET_ERROR_TYPE_WITH_ADDRESS   = 8,
+    ACPI_EINJ_ACTION_RESERVED               = 9,     /* 9 and greater are reserved */
+    ACPI_EINJ_TRIGGER_ERROR                 = 0xFF   /* Except for this value */
 };
 
 /* Values for Instruction field above */
@@ -273,8 +274,32 @@ enum AcpiEinjInstructions
     ACPI_EINJ_WRITE_REGISTER        = 2,
     ACPI_EINJ_WRITE_REGISTER_VALUE  = 3,
     ACPI_EINJ_NOOP                  = 4,
-    ACPI_EINJ_INSTRUCTION_RESERVED  = 5     /* 5 and greater are reserved */
+    ACPI_EINJ_FLUSH_CACHELINE       = 5,
+    ACPI_EINJ_INSTRUCTION_RESERVED  = 6     /* 6 and greater are reserved */
 };
+
+typedef struct acpi_einj_error_type_with_addr
+{
+    UINT32                  ErrorType;
+    UINT32                  VendorStructOffset;
+    UINT32                  Flags;
+    UINT32                  ApicId;
+    UINT64                  Address;
+    UINT64                  Range;
+    UINT32                  PcieId;
+
+} ACPI_EINJ_ERROR_TYPE_WITH_ADDR;
+
+typedef struct acpi_einj_vendor
+{
+    UINT32                  Length;
+    UINT32                  PcieId;
+    UINT16                  VendorId;
+    UINT16                  DeviceId;
+    UINT8                   RevisionId;
+    UINT8                   Reserved[3];
+
+} ACPI_EINJ_VENDOR;
 
 
 /* EINJ Trigger Error Action Table */
@@ -313,6 +338,7 @@ enum AcpiEinjCommandStatus
 #define ACPI_EINJ_PLATFORM_CORRECTABLE      (1<<9)
 #define ACPI_EINJ_PLATFORM_UNCORRECTABLE    (1<<10)
 #define ACPI_EINJ_PLATFORM_FATAL            (1<<11)
+#define ACPI_EINJ_VENDOR_DEFINED            (1<<31)
 
 
 /*******************************************************************************
@@ -731,7 +757,9 @@ enum AcpiMadtType
     ACPI_MADT_TYPE_INTERRUPT_SOURCE     = 8,
     ACPI_MADT_TYPE_LOCAL_X2APIC         = 9,
     ACPI_MADT_TYPE_LOCAL_X2APIC_NMI     = 10,
-    ACPI_MADT_TYPE_RESERVED             = 11    /* 11 and greater are reserved */
+    ACPI_MADT_TYPE_GENERIC_INTERRUPT    = 11,
+    ACPI_MADT_TYPE_GENERIC_DISTRIBUTOR  = 12,
+    ACPI_MADT_TYPE_RESERVED             = 13    /* 13 and greater are reserved */
 };
 
 
@@ -886,11 +914,42 @@ typedef struct acpi_madt_local_x2apic_nmi
 } ACPI_MADT_LOCAL_X2APIC_NMI;
 
 
+/* 11: Generic Interrupt (ACPI 5.0) */
+
+typedef struct acpi_madt_generic_interrupt
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* Reserved - must be zero */
+    UINT32                  GicId;
+    UINT32                  Uid;
+    UINT32                  Flags;
+    UINT32                  ParkingVersion;
+    UINT32                  PerformanceInterrupt;
+    UINT64                  ParkedAddress;
+    UINT64                  BaseAddress;
+
+} ACPI_MADT_GENERIC_INTERRUPT;
+
+
+/* 12: Generic Distributor (ACPI 5.0) */
+
+typedef struct acpi_madt_generic_distributor
+{
+    ACPI_SUBTABLE_HEADER    Header;
+    UINT16                  Reserved;           /* Reserved - must be zero */
+    UINT32                  GicId;
+    UINT64                  BaseAddress;
+    UINT32                  GlobalIrqBase;
+    UINT32                  Reserved2;          /* Reserved - must be zero */
+
+} ACPI_MADT_GENERIC_DISTRIBUTOR;
+
+
 /*
  * Common flags fields for MADT subtables
  */
 
-/* MADT Local APIC flags (LapicFlags) */
+/* MADT Local APIC flags (LapicFlags) and GIC flags */
 
 #define ACPI_MADT_ENABLED           (1)         /* 00: Processor is usable if set */
 

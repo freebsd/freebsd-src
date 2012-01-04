@@ -151,6 +151,7 @@ static const STRUCT_USB_HOST_ID axe_devs[] = {
 	AXE_DEV(ASIX, AX88772, AXE_FLAG_772),
 	AXE_DEV(ASIX, AX88772A, AXE_FLAG_772A),
 	AXE_DEV(ASIX, AX88772B, AXE_FLAG_772B),
+	AXE_DEV(ASIX, AX88772B_1, AXE_FLAG_772B),
 	AXE_DEV(ATEN, UC210T, 0),
 	AXE_DEV(BELKIN, F5D5055, AXE_FLAG_178),
 	AXE_DEV(BILLIONTON, USB2AR, 0),
@@ -251,15 +252,12 @@ static device_method_t axe_methods[] = {
 	DEVMETHOD(device_attach, axe_attach),
 	DEVMETHOD(device_detach, axe_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, axe_miibus_readreg),
 	DEVMETHOD(miibus_writereg, axe_miibus_writereg),
 	DEVMETHOD(miibus_statchg, axe_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t axe_driver = {

@@ -79,6 +79,7 @@ int rootshell;
 struct jmploc main_handler;
 int localeisutf8, initial_localeisutf8;
 
+static void cmdloop(int);
 static void read_profile(char *);
 static char *find_dot_file(char *);
 
@@ -184,7 +185,7 @@ state4:	/* XXX ??? - why isn't this before the "if" statement */
  * loop; it turns on prompting if the shell is interactive.
  */
 
-void
+static void
 cmdloop(int top)
 {
 	union node *n;

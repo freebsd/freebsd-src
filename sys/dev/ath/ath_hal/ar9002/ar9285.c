@@ -77,3 +77,11 @@ ar9285RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar9285RfProbe(struct ath_hal *ah)
+{
+	return (AR_SREV_KITE(ah));
+}
+
+AH_RF(RF9285, ar9285RfProbe, ar9285RfAttach);

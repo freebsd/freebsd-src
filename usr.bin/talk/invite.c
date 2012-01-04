@@ -87,7 +87,7 @@ invite_remote(void)
 	announce_invite();
 	/*
 	 * Shut off the automatic messages for a while,
-	 * so we can use the interupt timer to resend the invitation
+	 * so we can use the interrupt timer to resend the invitation
 	 */
 	end_msgs();
 	setitimer(ITIMER_REAL, &itimer, (struct itimerval *)0);
@@ -117,7 +117,7 @@ invite_remote(void)
 }
 
 /*
- * Routine called on interupt to re-invite the callee
+ * Routine called on interrupt to re-invite the callee
  */
 /* ARGSUSED */
 void

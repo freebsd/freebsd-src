@@ -42,8 +42,6 @@ __FBSDID("$FreeBSD$");
 #include <ctype.h>
 #include "xlocale_private.h"
 
-typedef unsigned char u_char;
-
 int
 strcasecmp_l(const char *s1, const char *s2, locale_t locale)
 {

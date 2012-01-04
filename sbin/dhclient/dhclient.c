@@ -2401,6 +2401,7 @@ check_option(struct client_lease *l, int option)
 		}
 		return (1);
 	case DHO_DOMAIN_NAME:
+	case DHO_DOMAIN_SEARCH:
 		if (!res_hnok(sbuf)) {
 			if (!check_search(sbuf)) {
 				warning("Bogus domain search list %d: %s (%s)",

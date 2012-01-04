@@ -146,7 +146,7 @@ static device_method_t esp_pci_methods[] = {
 	DEVMETHOD(device_suspend,	esp_pci_suspend),
 	DEVMETHOD(device_resume,	esp_pci_resume),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t esp_pci_driver = {

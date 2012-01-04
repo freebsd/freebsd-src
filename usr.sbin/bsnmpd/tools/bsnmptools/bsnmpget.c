@@ -248,9 +248,9 @@ snmptool_parse_options(struct snmp_toolinfo *snmptoolctx, int argc, char **argv)
 
 /*
  * Read user input OID - one of following formats:
- * 1) 1.2.1.1.2.1.0 - that is if option numeric was giveni;
+ * 1) 1.2.1.1.2.1.0 - that is if option numeric was given;
  * 2) string - in such case append .0 to the asn_oid subs;
- * 3) string.1 - no additional proccessing required in such case.
+ * 3) string.1 - no additional processing required in such case.
  */
 static char *
 snmptools_parse_stroid(struct snmp_toolinfo *snmptoolctx,
@@ -458,7 +458,7 @@ static int
 snmptool_walk(struct snmp_toolinfo *snmptoolctx)
 {
 	struct snmp_pdu req, resp;
-	struct asn_oid root;	/* Keep the inital oid. */
+	struct asn_oid root;	/* Keep the initial oid. */
 	int32_t outputs, rc;
 
 	snmp_pdu_create(&req, SNMP_PDU_GETNEXT);
@@ -1105,13 +1105,13 @@ snmptool_set(struct snmp_toolinfo *snmptoolctx)
  */
 /*
  * According to command line options prepare SNMP Get | GetNext | GetBulk PDU.
- * Wait for a responce and print it.
+ * Wait for a response and print it.
  */
 /*
  * Do a 'snmp walk' - according to command line options request for values
  * lexicographically subsequent and subrooted at a common node. Send a GetNext
- * PDU requesting the value for each next variable and print the responce. Stop
- * when a Responce PDU is received that contains the value of a variable not
+ * PDU requesting the value for each next variable and print the response. Stop
+ * when a Response PDU is received that contains the value of a variable not
  * subrooted at the variable the walk started.
  */
 int

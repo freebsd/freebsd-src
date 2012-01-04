@@ -91,6 +91,11 @@ AcpiRsDumpByteList (
     UINT8                   *Data);
 
 static void
+AcpiRsDumpWordList (
+    UINT16                   Length,
+    UINT16                   *Data);
+
+static void
 AcpiRsDumpDwordList (
     UINT8                   Length,
     UINT32                  *Data);
@@ -289,6 +294,87 @@ ACPI_RSDUMP_INFO        AcpiRsDumpGenericReg[6] =
     {ACPI_RSD_UINT64,   ACPI_RSD_OFFSET (GenericReg.Address),               "Address",                  NULL}
 };
 
+ACPI_RSDUMP_INFO        AcpiRsDumpGpio[16] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpGpio),               "GPIO",                     NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Gpio.RevisionId),                  "RevisionId",               NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Gpio.ConnectionType),              "ConnectionType",           AcpiGbl_CtDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Gpio.ProducerConsumer),            "ProducerConsumer",         AcpiGbl_ConsumeDecode},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (Gpio.PinConfig),                   "PinConfig",                AcpiGbl_PpcDecode},
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Gpio.Sharable),                    "Sharable",                 AcpiGbl_ShrDecode},
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Gpio.IoRestriction),               "IoRestriction",            AcpiGbl_IorDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (Gpio.Triggering),                  "Triggering",               AcpiGbl_HeDecode},
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (Gpio.Polarity),                    "Polarity",                 AcpiGbl_LlDecode},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (Gpio.DriveStrength),               "DriveStrength",            NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (Gpio.DebounceTimeout),             "DebounceTimeout",          NULL},
+    {ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (Gpio.ResourceSource),              "ResourceSource",           NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (Gpio.PinTableLength),              "PinTableLength",           NULL},
+    {ACPI_RSD_WORDLIST, ACPI_RSD_OFFSET (Gpio.PinTable),                    "PinTable",                 NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (Gpio.VendorLength),                "VendorLength",             NULL},
+    {ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (Gpio.VendorData),                 "VendorData",               NULL},
+};
+
+ACPI_RSDUMP_INFO        AcpiRsDumpFixedDma[4] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpFixedDma),           "FixedDma",                 NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (FixedDma.RequestLines),            "RequestLines",             NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (FixedDma.Channels),                "Channels",                 NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (FixedDma.Width),                   "TransferWidth",            AcpiGbl_DtsDecode},
+};
+
+#define ACPI_RS_DUMP_COMMON_SERIAL_BUS \
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (CommonSerialBus.RevisionId),       "RevisionId",               NULL}, \
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (CommonSerialBus.Type),             "Type",                     AcpiGbl_SbtDecode}, \
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (CommonSerialBus.ProducerConsumer), "ProducerConsumer",         AcpiGbl_ConsumeDecode}, \
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (CommonSerialBus.SlaveMode),        "SlaveMode",                AcpiGbl_SmDecode}, \
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (CommonSerialBus.TypeRevisionId),   "TypeRevisionId",           NULL}, \
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (CommonSerialBus.TypeDataLength),   "TypeDataLength",           NULL}, \
+    {ACPI_RSD_SOURCE,   ACPI_RSD_OFFSET (CommonSerialBus.ResourceSource),   "ResourceSource",           NULL}, \
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (CommonSerialBus.VendorLength),     "VendorLength",             NULL}, \
+    {ACPI_RSD_SHORTLISTX,ACPI_RSD_OFFSET (CommonSerialBus.VendorData),      "VendorData",               NULL},
+
+ACPI_RSDUMP_INFO        AcpiRsDumpCommonSerialBus[10] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpCommonSerialBus),    "Common Serial Bus",        NULL},
+    ACPI_RS_DUMP_COMMON_SERIAL_BUS
+};
+
+ACPI_RSDUMP_INFO        AcpiRsDumpI2cSerialBus[13] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpI2cSerialBus),       "I2C Serial Bus",           NULL},
+    ACPI_RS_DUMP_COMMON_SERIAL_BUS
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (I2cSerialBus.AccessMode),          "AccessMode",               AcpiGbl_AmDecode},
+    {ACPI_RSD_UINT32,   ACPI_RSD_OFFSET (I2cSerialBus.ConnectionSpeed),     "ConnectionSpeed",          NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (I2cSerialBus.SlaveAddress),        "SlaveAddress",             NULL},
+};
+
+ACPI_RSDUMP_INFO        AcpiRsDumpSpiSerialBus[17] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpSpiSerialBus),       "Spi Serial Bus",           NULL},
+    ACPI_RS_DUMP_COMMON_SERIAL_BUS
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (SpiSerialBus.WireMode),            "WireMode",                 AcpiGbl_WmDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (SpiSerialBus.DevicePolarity),      "DevicePolarity",           AcpiGbl_DpDecode},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (SpiSerialBus.DataBitLength),       "DataBitLength",            NULL},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (SpiSerialBus.ClockPhase),          "ClockPhase",               AcpiGbl_CphDecode},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (SpiSerialBus.ClockPolarity),       "ClockPolarity",            AcpiGbl_CpoDecode},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (SpiSerialBus.DeviceSelection),     "DeviceSelection",          NULL},
+    {ACPI_RSD_UINT32,   ACPI_RSD_OFFSET (SpiSerialBus.ConnectionSpeed),     "ConnectionSpeed",          NULL},
+};
+
+ACPI_RSDUMP_INFO        AcpiRsDumpUartSerialBus[19] =
+{
+    {ACPI_RSD_TITLE,    ACPI_RSD_TABLE_SIZE (AcpiRsDumpUartSerialBus),       "Uart Serial Bus",         NULL},
+    ACPI_RS_DUMP_COMMON_SERIAL_BUS
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (UartSerialBus.FlowControl),         "FlowControl",             AcpiGbl_FcDecode},
+    {ACPI_RSD_2BITFLAG, ACPI_RSD_OFFSET (UartSerialBus.StopBits),            "StopBits",                AcpiGbl_SbDecode},
+    {ACPI_RSD_3BITFLAG, ACPI_RSD_OFFSET (UartSerialBus.DataBits),            "DataBits",                AcpiGbl_BpbDecode},
+    {ACPI_RSD_1BITFLAG, ACPI_RSD_OFFSET (UartSerialBus.Endian),              "Endian",                  AcpiGbl_EdDecode},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (UartSerialBus.Parity),              "Parity",                  AcpiGbl_PtDecode},
+    {ACPI_RSD_UINT8,    ACPI_RSD_OFFSET (UartSerialBus.LinesEnabled),        "LinesEnabled",            NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (UartSerialBus.RxFifoSize),          "RxFifoSize",              NULL},
+    {ACPI_RSD_UINT16,   ACPI_RSD_OFFSET (UartSerialBus.TxFifoSize),          "TxFifoSize",              NULL},
+    {ACPI_RSD_UINT32,   ACPI_RSD_OFFSET (UartSerialBus.DefaultBaudRate),     "ConnectionSpeed",         NULL},
+};
 
 /*
  * Tables used for common address descriptor flag fields
@@ -391,7 +477,15 @@ AcpiRsDumpDescriptor (
         /* Data items, 8/16/32/64 bit */
 
         case ACPI_RSD_UINT8:
-            AcpiRsOutInteger8 (Name, ACPI_GET8 (Target));
+            if (Table->Pointer)
+            {
+                AcpiRsOutString (Name, ACPI_CAST_PTR (char,
+                    Table->Pointer [*Target]));
+            }
+            else
+            {
+                AcpiRsOutInteger8 (Name, ACPI_GET8 (Target));
+            }
             break;
 
         case ACPI_RSD_UINT16:
@@ -418,6 +512,11 @@ AcpiRsDumpDescriptor (
                 Table->Pointer [*Target & 0x03]));
             break;
 
+        case ACPI_RSD_3BITFLAG:
+            AcpiRsOutString (Name, ACPI_CAST_PTR (char,
+                Table->Pointer [*Target & 0x07]));
+            break;
+
         case ACPI_RSD_SHORTLIST:
             /*
              * Short byte list (single line output) for DMA and IRQ resources
@@ -427,6 +526,19 @@ AcpiRsDumpDescriptor (
             {
                 AcpiRsOutTitle (Name);
                 AcpiRsDumpShortByteList (*PreviousTarget, Target);
+            }
+            break;
+
+        case ACPI_RSD_SHORTLISTX:
+            /*
+             * Short byte list (single line output) for GPIO vendor data
+             * Note: The list length is obtained from the previous table entry
+             */
+            if (PreviousTarget)
+            {
+                AcpiRsOutTitle (Name);
+                AcpiRsDumpShortByteList (*PreviousTarget,
+                    *(ACPI_CAST_INDIRECT_PTR (UINT8, Target)));
             }
             break;
 
@@ -450,6 +562,18 @@ AcpiRsDumpDescriptor (
             {
                 AcpiRsDumpDwordList (*PreviousTarget,
                     ACPI_CAST_PTR (UINT32, Target));
+            }
+            break;
+
+        case ACPI_RSD_WORDLIST:
+            /*
+             * Word list for GPIO Pin Table
+             * Note: The list length is obtained from the previous table entry
+             */
+            if (PreviousTarget)
+            {
+                AcpiRsDumpWordList (*PreviousTarget,
+                    *(ACPI_CAST_INDIRECT_PTR (UINT16, Target)));
             }
             break;
 
@@ -613,13 +737,20 @@ AcpiRsDumpResourceList (
 
         /* Dump the resource descriptor */
 
-        AcpiRsDumpDescriptor (&ResourceList->Data,
-            AcpiGbl_DumpResourceDispatch[Type]);
+        if (Type == ACPI_RESOURCE_TYPE_SERIAL_BUS)
+        {
+            AcpiRsDumpDescriptor (&ResourceList->Data,
+                AcpiGbl_DumpSerialBusDispatch[ResourceList->Data.CommonSerialBus.Type]);
+        }
+        else
+        {
+            AcpiRsDumpDescriptor (&ResourceList->Data,
+                AcpiGbl_DumpResourceDispatch[Type]);
+        }
 
         /* Point to the next resource structure */
 
-        ResourceList = ACPI_ADD_PTR (ACPI_RESOURCE, ResourceList,
-                            ResourceList->Length);
+        ResourceList = ACPI_NEXT_RESOURCE (ResourceList);
 
         /* Exit when END_TAG descriptor is reached */
 
@@ -793,6 +924,21 @@ AcpiRsDumpDwordList (
     {
         AcpiOsPrintf ("%25s%2.2X : %8.8X\n",
             "Dword", i, Data[i]);
+    }
+}
+
+static void
+AcpiRsDumpWordList (
+    UINT16                  Length,
+    UINT16                  *Data)
+{
+    UINT16                  i;
+
+
+    for (i = 0; i < Length; i++)
+    {
+        AcpiOsPrintf ("%25s%2.2X : %4.4X\n",
+            "Word", i, Data[i]);
     }
 }
 

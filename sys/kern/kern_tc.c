@@ -28,9 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#ifdef FFCLOCK
 #include <sys/timeffc.h>
-#endif
 #include <sys/timepps.h>
 #include <sys/timetc.h>
 #include <sys/timex.h>
@@ -178,7 +176,7 @@ tc_delta(struct timehands *th)
  */
 
 #ifdef FFCLOCK
-static void
+void
 fbclock_binuptime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -192,51 +190,51 @@ fbclock_binuptime(struct bintime *bt)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_nanouptime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	binuptime(&bt);
+	fbclock_binuptime(&bt);
 	bintime2timespec(&bt, tsp);
 }
 
-static void
+void
 fbclock_microuptime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	binuptime(&bt);
+	fbclock_binuptime(&bt);
 	bintime2timeval(&bt, tvp);
 }
 
-static void
+void
 fbclock_bintime(struct bintime *bt)
 {
 
-	binuptime(bt);
+	fbclock_binuptime(bt);
 	bintime_add(bt, &boottimebin);
 }
 
-static void
+void
 fbclock_nanotime(struct timespec *tsp)
 {
 	struct bintime bt;
 
-	bintime(&bt);
+	fbclock_bintime(&bt);
 	bintime2timespec(&bt, tsp);
 }
 
-static void
+void
 fbclock_microtime(struct timeval *tvp)
 {
 	struct bintime bt;
 
-	bintime(&bt);
+	fbclock_bintime(&bt);
 	bintime2timeval(&bt, tvp);
 }
 
-static void
+void
 fbclock_getbinuptime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -249,7 +247,7 @@ fbclock_getbinuptime(struct bintime *bt)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getnanouptime(struct timespec *tsp)
 {
 	struct timehands *th;
@@ -262,7 +260,7 @@ fbclock_getnanouptime(struct timespec *tsp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getmicrouptime(struct timeval *tvp)
 {
 	struct timehands *th;
@@ -275,7 +273,7 @@ fbclock_getmicrouptime(struct timeval *tvp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getbintime(struct bintime *bt)
 {
 	struct timehands *th;
@@ -289,7 +287,7 @@ fbclock_getbintime(struct bintime *bt)
 	bintime_add(bt, &boottimebin);
 }
 
-static void
+void
 fbclock_getnanotime(struct timespec *tsp)
 {
 	struct timehands *th;
@@ -302,7 +300,7 @@ fbclock_getnanotime(struct timespec *tsp)
 	} while (gen == 0 || gen != th->th_generation);
 }
 
-static void
+void
 fbclock_getmicrotime(struct timeval *tvp)
 {
 	struct timehands *th;
@@ -461,46 +459,12 @@ getmicrotime(struct timeval *tvp)
  * necessary.
  */
 
-int sysclock_active = SYSCLOCK_FBCK;
-
 /* Feed-forward clock estimates kept updated by the synchronization daemon. */
 struct ffclock_estimate ffclock_estimate;
 struct bintime ffclock_boottime;	/* Feed-forward boot time estimate. */
 uint32_t ffclock_status;		/* Feed-forward clock status. */
 int8_t ffclock_updated;			/* New estimates are available. */
 struct mtx ffclock_mtx;			/* Mutex on ffclock_estimate. */
-
-struct sysclock_ops {
-	int active;
-	void (*binuptime) (struct bintime *bt);
-	void (*nanouptime) (struct timespec *tsp);
-	void (*microuptime) (struct timeval *tvp);
-	void (*bintime) (struct bintime *bt);
-	void (*nanotime) (struct timespec *tsp);
-	void (*microtime) (struct timeval *tvp);
-	void (*getbinuptime) (struct bintime *bt);
-	void (*getnanouptime) (struct timespec *tsp);
-	void (*getmicrouptime) (struct timeval *tvp);
-	void (*getbintime) (struct bintime *bt);
-	void (*getnanotime) (struct timespec *tsp);
-	void (*getmicrotime) (struct timeval *tvp);
-};
-
-static struct sysclock_ops sysclock = {
-	.active = SYSCLOCK_FBCK,
-	.binuptime = fbclock_binuptime,
-	.nanouptime = fbclock_nanouptime,
-	.microuptime = fbclock_microuptime,
-	.bintime = fbclock_bintime,
-	.nanotime = fbclock_nanotime,
-	.microtime = fbclock_microtime,
-	.getbinuptime = fbclock_getbinuptime,
-	.getnanouptime = fbclock_getnanouptime,
-	.getmicrouptime = fbclock_getmicrouptime,
-	.getbintime = fbclock_getbintime,
-	.getnanotime = fbclock_getnanotime,
-	.getmicrotime = fbclock_getmicrotime
-};
 
 struct fftimehands {
 	struct ffclock_estimate	cest;
@@ -794,46 +758,6 @@ ffclock_change_tc(struct timehands *th)
 	fftimehands = ffth;
 }
 
-static void
-change_sysclock(int new_sysclock)
-{
-
-	sysclock.active = new_sysclock;
-
-	switch (sysclock.active) {
-	case SYSCLOCK_FBCK:
-		sysclock.binuptime = fbclock_binuptime;
-		sysclock.nanouptime = fbclock_nanouptime;
-		sysclock.microuptime = fbclock_microuptime;
-		sysclock.bintime = fbclock_bintime;
-		sysclock.nanotime = fbclock_nanotime;
-		sysclock.microtime = fbclock_microtime;
-		sysclock.getbinuptime = fbclock_getbinuptime;
-		sysclock.getnanouptime = fbclock_getnanouptime;
-		sysclock.getmicrouptime = fbclock_getmicrouptime;
-		sysclock.getbintime = fbclock_getbintime;
-		sysclock.getnanotime = fbclock_getnanotime;
-		sysclock.getmicrotime = fbclock_getmicrotime;
-		break;
-	case SYSCLOCK_FFWD:
-		sysclock.binuptime = ffclock_binuptime;
-		sysclock.nanouptime = ffclock_nanouptime;
-		sysclock.microuptime = ffclock_microuptime;
-		sysclock.bintime = ffclock_bintime;
-		sysclock.nanotime = ffclock_nanotime;
-		sysclock.microtime = ffclock_microtime;
-		sysclock.getbinuptime = ffclock_getbinuptime;
-		sysclock.getnanouptime = ffclock_getnanouptime;
-		sysclock.getmicrouptime = ffclock_getmicrouptime;
-		sysclock.getbintime = ffclock_getbintime;
-		sysclock.getnanotime = ffclock_getnanotime;
-		sysclock.getmicrotime = ffclock_getmicrotime;
-		break;
-	default:
-		break;
-	}
-}
-
 /*
  * Retrieve feed-forward counter and time of last kernel tick.
  */
@@ -949,86 +873,226 @@ void
 binuptime(struct bintime *bt)
 {
 
-	sysclock.binuptime(bt);
+	binuptime_fromclock(bt, sysclock_active);
 }
 
 void
 nanouptime(struct timespec *tsp)
 {
 
-	sysclock.nanouptime(tsp);
+	nanouptime_fromclock(tsp, sysclock_active);
 }
 
 void
 microuptime(struct timeval *tvp)
 {
 
-	sysclock.microuptime(tvp);
+	microuptime_fromclock(tvp, sysclock_active);
 }
 
 void
 bintime(struct bintime *bt)
 {
 
-	sysclock.bintime(bt);
+	bintime_fromclock(bt, sysclock_active);
 }
 
 void
 nanotime(struct timespec *tsp)
 {
 
-	sysclock.nanotime(tsp);
+	nanotime_fromclock(tsp, sysclock_active);
 }
 
 void
 microtime(struct timeval *tvp)
 {
 
-	sysclock.microtime(tvp);
+	microtime_fromclock(tvp, sysclock_active);
 }
 
 void
 getbinuptime(struct bintime *bt)
 {
 
-	sysclock.getbinuptime(bt);
+	getbinuptime_fromclock(bt, sysclock_active);
 }
 
 void
 getnanouptime(struct timespec *tsp)
 {
 
-	sysclock.getnanouptime(tsp);
+	getnanouptime_fromclock(tsp, sysclock_active);
 }
 
 void
 getmicrouptime(struct timeval *tvp)
 {
 
-	sysclock.getmicrouptime(tvp);
+	getmicrouptime_fromclock(tvp, sysclock_active);
 }
 
 void
 getbintime(struct bintime *bt)
 {
 
-	sysclock.getbintime(bt);
+	getbintime_fromclock(bt, sysclock_active);
 }
 
 void
 getnanotime(struct timespec *tsp)
 {
 
-	sysclock.getnanotime(tsp);
+	getnanotime_fromclock(tsp, sysclock_active);
 }
 
 void
 getmicrotime(struct timeval *tvp)
 {
 
-	sysclock.getmicrouptime(tvp);
+	getmicrouptime_fromclock(tvp, sysclock_active);
 }
+
 #endif /* FFCLOCK */
+
+/*
+ * System clock currently providing time to the system. Modifiable via sysctl
+ * when the FFCLOCK option is defined.
+ */
+int sysclock_active = SYSCLOCK_FBCK;
+
+/* Internal NTP status and error estimates. */
+extern int time_status;
+extern long time_esterror;
+
+/*
+ * Take a snapshot of sysclock data which can be used to compare system clocks
+ * and generate timestamps after the fact.
+ */
+void
+sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
+{
+	struct fbclock_info *fbi;
+	struct timehands *th;
+	struct bintime bt;
+	unsigned int delta, gen;
+#ifdef FFCLOCK
+	ffcounter ffcount;
+	struct fftimehands *ffth;
+	struct ffclock_info *ffi;
+	struct ffclock_estimate cest;
+
+	ffi = &clock_snap->ff_info;
+#endif
+
+	fbi = &clock_snap->fb_info;
+	delta = 0;
+
+	do {
+		th = timehands;
+		gen = th->th_generation;
+		fbi->th_scale = th->th_scale;
+		fbi->tick_time = th->th_offset;
+#ifdef FFCLOCK
+		ffth = fftimehands;
+		ffi->tick_time = ffth->tick_time_lerp;
+		ffi->tick_time_lerp = ffth->tick_time_lerp;
+		ffi->period = ffth->cest.period;
+		ffi->period_lerp = ffth->period_lerp;
+		clock_snap->ffcount = ffth->tick_ffcount;
+		cest = ffth->cest;
+#endif
+		if (!fast)
+			delta = tc_delta(th);
+	} while (gen == 0 || gen != th->th_generation);
+
+	clock_snap->delta = delta;
+	clock_snap->sysclock_active = sysclock_active;
+
+	/* Record feedback clock status and error. */
+	clock_snap->fb_info.status = time_status;
+	/* XXX: Very crude estimate of feedback clock error. */
+	bt.sec = time_esterror / 1000000;
+	bt.frac = ((time_esterror - bt.sec) * 1000000) *
+	    (uint64_t)18446744073709ULL;
+	clock_snap->fb_info.error = bt;
+
+#ifdef FFCLOCK
+	if (!fast)
+		clock_snap->ffcount += delta;
+
+	/* Record feed-forward clock leap second adjustment. */
+	ffi->leapsec_adjustment = cest.leapsec_total;
+	if (clock_snap->ffcount > cest.leapsec_next)
+		ffi->leapsec_adjustment -= cest.leapsec;
+
+	/* Record feed-forward clock status and error. */
+	clock_snap->ff_info.status = cest.status;
+	ffcount = clock_snap->ffcount - cest.update_ffcount;
+	ffclock_convert_delta(ffcount, cest.period, &bt);
+	/* 18446744073709 = int(2^64/1e12), err_bound_rate in [ps/s]. */
+	bintime_mul(&bt, cest.errb_rate * (uint64_t)18446744073709ULL);
+	/* 18446744073 = int(2^64 / 1e9), since err_abs in [ns]. */
+	bintime_addx(&bt, cest.errb_abs * (uint64_t)18446744073ULL);
+	clock_snap->ff_info.error = bt;
+#endif
+}
+
+/*
+ * Convert a sysclock snapshot into a struct bintime based on the specified
+ * clock source and flags.
+ */
+int
+sysclock_snap2bintime(struct sysclock_snap *cs, struct bintime *bt,
+    int whichclock, uint32_t flags)
+{
+#ifdef FFCLOCK
+	struct bintime bt2;
+	uint64_t period;
+#endif
+
+	switch (whichclock) {
+	case SYSCLOCK_FBCK:
+		*bt = cs->fb_info.tick_time;
+
+		/* If snapshot was created with !fast, delta will be >0. */
+		if (cs->delta > 0)
+			bintime_addx(bt, cs->fb_info.th_scale * cs->delta);
+
+		if ((flags & FBCLOCK_UPTIME) == 0)
+			bintime_add(bt, &boottimebin);
+		break;
+#ifdef FFCLOCK
+	case SYSCLOCK_FFWD:
+		if (flags & FFCLOCK_LERP) {
+			*bt = cs->ff_info.tick_time_lerp;
+			period = cs->ff_info.period_lerp;
+		} else {
+			*bt = cs->ff_info.tick_time;
+			period = cs->ff_info.period;
+		}
+
+		/* If snapshot was created with !fast, delta will be >0. */
+		if (cs->delta > 0) {
+			ffclock_convert_delta(cs->delta, period, &bt2);
+			bintime_add(bt, &bt2);
+		}
+
+		/* Leap second adjustment. */
+		if (flags & FFCLOCK_LEAPSEC)
+			bt->sec -= cs->ff_info.leapsec_adjustment;
+
+		/* Boot time adjustment, for uptime/monotonic clocks. */
+		if (flags & FFCLOCK_UPTIME)
+			bintime_sub(bt, &ffclock_boottime);
+#endif
+	default:
+		return (EINVAL);
+		break;
+	}
+
+	return (0);
+}
 
 /*
  * Initialize a new timecounter and possibly use it.
@@ -1267,11 +1331,6 @@ tc_windup(void)
 	scale += (th->th_adjustment / 1024) * 2199;
 	scale /= th->th_counter->tc_frequency;
 	th->th_scale = scale * 2;
-
-#ifdef FFCLOCK
-	if (sysclock_active != sysclock.active)
-		change_sysclock(sysclock_active);
-#endif
 
 	/*
 	 * Now that the struct timehands is again consistent, set the new
@@ -1641,7 +1700,6 @@ inittimecounter(void *dummy)
 
 #ifdef FFCLOCK
 	ffclock_init();
-	change_sysclock(sysclock_active);
 #endif
 	/* warm up new timecounter (again) and get rolling. */
 	(void)timecounter->tc_get_timecount(timecounter);

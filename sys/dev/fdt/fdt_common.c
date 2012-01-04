@@ -74,13 +74,13 @@ fdt_immr_addr(vm_offset_t immr_va)
 	/*
 	 * Try to access the SOC node directly i.e. through /aliases/.
 	 */
-	if ((node = OF_finddevice("soc")) != 0)
+	if ((node = OF_finddevice("soc")) != -1)
 		if (fdt_is_compatible_strict(node, "simple-bus"))
 			goto moveon;
 	/*
 	 * Find the node the long way.
 	 */
-	if ((node = OF_finddevice("/")) == 0)
+	if ((node = OF_finddevice("/")) == -1)
 		return (ENXIO);
 
 	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
@@ -576,7 +576,7 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 
 	max_size = sizeof(reg);
 	memory = OF_finddevice("/memory");
-	if (memory <= 0) {
+	if (memory == -1) {
 		rv = ENXIO;
 		goto out;
 	}

@@ -157,8 +157,7 @@ nullfs_mount(struct mount *mp)
 	 * Make sure the node alias worked
 	 */
 	if (error) {
-		vrele(lowerrootvp);
-		free(xmp, M_NULLFSMNT);	/* XXX */
+		free(xmp, M_NULLFSMNT);
 		return (error);
 	}
 

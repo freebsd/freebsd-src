@@ -26,5 +26,11 @@ makeoptions	KERNLOADADDR=0x80100000
 
 include		"std.XLP"
 
+nooption 	DDB
+nooption 	KDB
+nooption 	GDB
+nooption 	BREAK_TO_DEBUGGER
+nooption 	ALT_BREAK_TO_DEBUGGER
+
 makeoptions	TRAMPLOADADDR=0xffffffff85000000
 makeoptions	TRAMP_ARCH_FLAGS="-mabi=64 -march=mips64"

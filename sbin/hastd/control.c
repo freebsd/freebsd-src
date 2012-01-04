@@ -312,7 +312,6 @@ control_handle(struct hastd_config *cfg)
 	cmd = nv_get_uint8(nvin, "cmd");
 	if (cmd == 0) {
 		pjdlog_error("Control header is missing 'cmd' field.");
-		error = EHAST_INVALID;
 		goto close;
 	}
 
@@ -320,7 +319,6 @@ control_handle(struct hastd_config *cfg)
 	nvout = nv_alloc();
 	if (nvout == NULL) {
 		pjdlog_error("Unable to allocate header for control response.");
-		error = EHAST_NOMEMORY;
 		goto close;
 	}
 

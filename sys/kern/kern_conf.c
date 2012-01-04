@@ -55,6 +55,7 @@ struct mtx devmtx;
 static void destroy_devl(struct cdev *dev);
 static int destroy_dev_sched_cbl(struct cdev *dev,
     void (*cb)(void *), void *arg);
+static void destroy_dev_tq(void *ctx, int pending);
 static int make_dev_credv(int flags, struct cdev **dres, struct cdevsw *devsw,
     int unit, struct ucred *cr, uid_t uid, gid_t gid, int mode, const char *fmt,
     va_list ap);
@@ -1298,7 +1299,7 @@ clone_cleanup(struct clonedevs **cdp)
 
 static TAILQ_HEAD(, cdev_priv) dev_ddtr =
 	TAILQ_HEAD_INITIALIZER(dev_ddtr);
-static struct task dev_dtr_task;
+static struct task dev_dtr_task = TASK_INITIALIZER(0, destroy_dev_tq, NULL);
 
 static void
 destroy_dev_tq(void *ctx, int pending)
@@ -1385,15 +1386,6 @@ drain_dev_clone_events(void)
 	sx_xlock(&clone_drain_lock);
 	sx_xunlock(&clone_drain_lock);
 }
-
-static void
-devdtr_init(void *dummy __unused)
-{
-
-	TASK_INIT(&dev_dtr_task, 0, destroy_dev_tq, NULL);
-}
-
-SYSINIT(devdtr, SI_SUB_DEVFS, SI_ORDER_SECOND, devdtr_init, NULL);
 
 #include "opt_ddb.h"
 #ifdef DDB

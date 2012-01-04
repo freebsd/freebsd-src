@@ -173,6 +173,9 @@ AcpiRsMoveData (
          * since there are no alignment or endian issues
          */
         case ACPI_RSC_MOVE8:
+        case ACPI_RSC_MOVE_GPIO_RES:
+        case ACPI_RSC_MOVE_SERIAL_VEN:
+        case ACPI_RSC_MOVE_SERIAL_RES:
             ACPI_MEMCPY (Destination, Source, ItemCount);
             return;
 
@@ -182,6 +185,7 @@ AcpiRsMoveData (
          * misaligned memory transfers
          */
         case ACPI_RSC_MOVE16:
+        case ACPI_RSC_MOVE_GPIO_PIN:
             ACPI_MOVE_16_TO_16 (&ACPI_CAST_PTR (UINT16, Destination)[i],
                                 &ACPI_CAST_PTR (UINT16, Source)[i]);
             break;
@@ -631,6 +635,61 @@ AcpiRsGetPrsMethodData (
     /* Execute the method, no parameters */
 
     Status = AcpiUtEvaluateObject (Node, METHOD_NAME__PRS,
+                ACPI_BTYPE_BUFFER, &ObjDesc);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    /*
+     * Make the call to create a resource linked list from the
+     * byte stream buffer that comes back from the _CRS method
+     * execution.
+     */
+    Status = AcpiRsCreateResourceList (ObjDesc, RetBuffer);
+
+    /* On exit, we must delete the object returned by evaluateObject */
+
+    AcpiUtRemoveReference (ObjDesc);
+    return_ACPI_STATUS (Status);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiRsGetAeiMethodData
+ *
+ * PARAMETERS:  Node            - Device node
+ *              RetBuffer       - Pointer to a buffer structure for the
+ *                                results
+ *
+ * RETURN:      Status
+ *
+ * DESCRIPTION: This function is called to get the _AEI value of an object
+ *              contained in an object specified by the handle passed in
+ *
+ *              If the function fails an appropriate status will be returned
+ *              and the contents of the callers buffer is undefined.
+ *
+ ******************************************************************************/
+
+ACPI_STATUS
+AcpiRsGetAeiMethodData (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_BUFFER             *RetBuffer)
+{
+    ACPI_OPERAND_OBJECT     *ObjDesc;
+    ACPI_STATUS             Status;
+
+
+    ACPI_FUNCTION_TRACE (RsGetAeiMethodData);
+
+
+    /* Parameters guaranteed valid by caller */
+
+    /* Execute the method, no parameters */
+
+    Status = AcpiUtEvaluateObject (Node, METHOD_NAME__AEI,
                 ACPI_BTYPE_BUFFER, &ObjDesc);
     if (ACPI_FAILURE (Status))
     {

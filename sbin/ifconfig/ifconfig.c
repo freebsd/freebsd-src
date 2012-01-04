@@ -1078,6 +1078,21 @@ printb(const char *s, unsigned v, const char *bits)
 }
 
 void
+print_vhid(const struct ifaddrs *ifa, const char *s)
+{
+	struct if_data *ifd;
+
+	if (ifa->ifa_data == NULL)
+		return;
+
+	ifd = ifa->ifa_data;
+	if (ifd->ifi_vhid == 0)
+		return;
+	
+	printf("vhid %d ", ifd->ifi_vhid);
+}
+
+void
 ifmaybeload(const char *name)
 {
 #define MOD_PREFIX_LEN		3	/* "if_" */

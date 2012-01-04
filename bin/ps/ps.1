@@ -29,7 +29,7 @@
 .\"     @(#)ps.1	8.3 (Berkeley) 4/18/94
 .\" $FreeBSD$
 .\"
-.Dd October 30, 2011
+.Dd November 22, 2011
 .Dt PS 1
 .Os
 .Sh NAME
@@ -97,12 +97,6 @@ options).
 The default output format includes, for each process, the process' ID,
 controlling terminal, state, CPU time (including both user and system time)
 and associated command.
-.Pp
-The process file system (see
-.Xr procfs 5 )
-should be mounted when
-.Nm
-is executed, otherwise not all information will be available.
 .Pp
 The options are as follows:
 .Bl -tag -width indent
@@ -686,9 +680,6 @@ attempts to automatically determine the terminal width.
 .Bl -tag -width ".Pa /boot/kernel/kernel" -compact
 .It Pa /boot/kernel/kernel
 default system namelist
-.It Pa /proc
-the mount point of
-.Xr procfs 5
 .El
 .Sh SEE ALSO
 .Xr kill 1 ,

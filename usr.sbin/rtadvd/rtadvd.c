@@ -845,7 +845,7 @@ rtadvd_input(struct sockinfo *s)
 		 */
 		if (!IN6_IS_ADDR_LINKLOCAL(&rcvfrom.sin6_addr)) {
 			syslog(LOG_NOTICE,
-			    "RA witn non-linklocal source address "
+			    "RA with non-linklocal source address "
 			    "received from %s on %s",
 			    inet_ntop(AF_INET6, &rcvfrom.sin6_addr,
 			    ntopbuf, sizeof(ntopbuf)),
@@ -1788,7 +1788,7 @@ ra_output(struct ifinfo *ifi)
 		ifi->ifi_burstcount--;
 		if (ifi->ifi_burstcount == 0) {
 			if (ifi->ifi_rainfo == ifi->ifi_rainfo_trans) {
-				/* Inital burst finished. */
+				/* Initial burst finished. */
 				if (ifi->ifi_rainfo_trans != NULL)
 					ifi->ifi_rainfo_trans = NULL;
 			}

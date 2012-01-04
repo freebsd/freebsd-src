@@ -20,6 +20,8 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc.  All rights reserved.
+ * Copyright (c) 2011 by Delphix. All rights reserved.
  */
 
 /*
@@ -1365,7 +1367,7 @@ arc_buf_alloc(spa_t *spa, int size, void *tag, arc_buf_contents_t type)
 	ASSERT(BUF_EMPTY(hdr));
 	hdr->b_size = size;
 	hdr->b_type = type;
-	hdr->b_spa = spa_guid(spa);
+	hdr->b_spa = spa_load_guid(spa);
 	hdr->b_state = arc_anon;
 	hdr->b_arc_access = 0;
 	buf = kmem_cache_alloc(buf_cache, KM_PUSHPAGE);
@@ -2146,7 +2148,7 @@ arc_flush(spa_t *spa)
 	uint64_t guid = 0;
 
 	if (spa)
-		guid = spa_guid(spa);
+		guid = spa_load_guid(spa);
 
 	while (arc_mru->arcs_lsize[ARC_BUFC_DATA]) {
 		(void) arc_evict(arc_mru, guid, -1, FALSE, ARC_BUFC_DATA);
@@ -2936,7 +2938,7 @@ arc_read_nolock(zio_t *pio, spa_t *spa, const blkptr_t *bp,
 	arc_buf_t *buf;
 	kmutex_t *hash_lock;
 	zio_t *rzio;
-	uint64_t guid = spa_guid(spa);
+	uint64_t guid = spa_load_guid(spa);
 
 top:
 	hdr = buf_hash_find(guid, BP_IDENTITY(bp), BP_PHYSICAL_BIRTH(bp),
@@ -3103,6 +3105,9 @@ top:
 		ARCSTAT_CONDSTAT(!(hdr->b_flags & ARC_PREFETCH),
 		    demand, prefetch, hdr->b_type != ARC_BUFC_METADATA,
 		    data, metadata, misses);
+#ifdef _KERNEL
+		curthread->td_ru.ru_inblock++;
+#endif
 
 		if (vd != NULL && l2arc_ndev != 0 && !(l2arc_norw && devw)) {
 			/*
@@ -4593,7 +4598,7 @@ l2arc_write_buffers(spa_t *spa, l2arc_dev_t *dev, uint64_t target_sz)
 	boolean_t have_lock, full;
 	l2arc_write_callback_t *cb;
 	zio_t *pio, *wzio;
-	uint64_t guid = spa_guid(spa);
+	uint64_t guid = spa_load_guid(spa);
 	int try;
 
 	ASSERT(dev->l2ad_vdev != NULL);

@@ -1050,4 +1050,3 @@ AcpiDmVendorLargeDescriptor (
 }
 
 #endif
-

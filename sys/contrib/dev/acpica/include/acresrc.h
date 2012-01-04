@@ -75,28 +75,42 @@ typedef const struct acpi_rsconvert_info
 
 /* Resource conversion opcodes */
 
-#define ACPI_RSC_INITGET                0
-#define ACPI_RSC_INITSET                1
-#define ACPI_RSC_FLAGINIT               2
-#define ACPI_RSC_1BITFLAG               3
-#define ACPI_RSC_2BITFLAG               4
-#define ACPI_RSC_COUNT                  5
-#define ACPI_RSC_COUNT16                6
-#define ACPI_RSC_LENGTH                 7
-#define ACPI_RSC_MOVE8                  8
-#define ACPI_RSC_MOVE16                 9
-#define ACPI_RSC_MOVE32                 10
-#define ACPI_RSC_MOVE64                 11
-#define ACPI_RSC_SET8                   12
-#define ACPI_RSC_DATA8                  13
-#define ACPI_RSC_ADDRESS                14
-#define ACPI_RSC_SOURCE                 15
-#define ACPI_RSC_SOURCEX                16
-#define ACPI_RSC_BITMASK                17
-#define ACPI_RSC_BITMASK16              18
-#define ACPI_RSC_EXIT_NE                19
-#define ACPI_RSC_EXIT_LE                20
-#define ACPI_RSC_EXIT_EQ                21
+typedef enum
+{
+    ACPI_RSC_INITGET        = 0,
+    ACPI_RSC_INITSET,
+    ACPI_RSC_FLAGINIT,
+    ACPI_RSC_1BITFLAG,
+    ACPI_RSC_2BITFLAG,
+    ACPI_RSC_3BITFLAG,
+    ACPI_RSC_ADDRESS,
+    ACPI_RSC_BITMASK,
+    ACPI_RSC_BITMASK16,
+    ACPI_RSC_COUNT,
+    ACPI_RSC_COUNT16,
+    ACPI_RSC_COUNT_GPIO_PIN,
+    ACPI_RSC_COUNT_GPIO_RES,
+    ACPI_RSC_COUNT_GPIO_VEN,
+    ACPI_RSC_COUNT_SERIAL_RES,
+    ACPI_RSC_COUNT_SERIAL_VEN,
+    ACPI_RSC_DATA8,
+    ACPI_RSC_EXIT_EQ,
+    ACPI_RSC_EXIT_LE,
+    ACPI_RSC_EXIT_NE,
+    ACPI_RSC_LENGTH,
+    ACPI_RSC_MOVE_GPIO_PIN,
+    ACPI_RSC_MOVE_GPIO_RES,
+    ACPI_RSC_MOVE_SERIAL_RES,
+    ACPI_RSC_MOVE_SERIAL_VEN,
+    ACPI_RSC_MOVE8,
+    ACPI_RSC_MOVE16,
+    ACPI_RSC_MOVE32,
+    ACPI_RSC_MOVE64,
+    ACPI_RSC_SET8,
+    ACPI_RSC_SOURCE,
+    ACPI_RSC_SOURCEX
+
+} ACPI_RSCONVERT_OPCODES;
 
 /* Resource Conversion sub-opcodes */
 
@@ -109,6 +123,9 @@ typedef const struct acpi_rsconvert_info
 #define AML_OFFSET(f)                   (UINT8) ACPI_OFFSET (AML_RESOURCE,f)
 
 
+/*
+ * Individual entry for the resource dump tables
+ */
 typedef const struct acpi_rsdump_info
 {
     UINT8                   Opcode;
@@ -120,20 +137,27 @@ typedef const struct acpi_rsdump_info
 
 /* Values for the Opcode field above */
 
-#define ACPI_RSD_TITLE                  0
-#define ACPI_RSD_LITERAL                1
-#define ACPI_RSD_STRING                 2
-#define ACPI_RSD_UINT8                  3
-#define ACPI_RSD_UINT16                 4
-#define ACPI_RSD_UINT32                 5
-#define ACPI_RSD_UINT64                 6
-#define ACPI_RSD_1BITFLAG               7
-#define ACPI_RSD_2BITFLAG               8
-#define ACPI_RSD_SHORTLIST              9
-#define ACPI_RSD_LONGLIST               10
-#define ACPI_RSD_DWORDLIST              11
-#define ACPI_RSD_ADDRESS                12
-#define ACPI_RSD_SOURCE                 13
+typedef enum
+{
+    ACPI_RSD_TITLE          = 0,
+    ACPI_RSD_1BITFLAG,
+    ACPI_RSD_2BITFLAG,
+    ACPI_RSD_3BITFLAG,
+    ACPI_RSD_ADDRESS,
+    ACPI_RSD_DWORDLIST,
+    ACPI_RSD_LITERAL,
+    ACPI_RSD_LONGLIST,
+    ACPI_RSD_SHORTLIST,
+    ACPI_RSD_SHORTLISTX,
+    ACPI_RSD_SOURCE,
+    ACPI_RSD_STRING,
+    ACPI_RSD_UINT8,
+    ACPI_RSD_UINT16,
+    ACPI_RSD_UINT32,
+    ACPI_RSD_UINT64,
+    ACPI_RSD_WORDLIST
+
+} ACPI_RSDUMP_OPCODES;
 
 /* restore default alignment */
 
@@ -143,13 +167,16 @@ typedef const struct acpi_rsdump_info
 /* Resource tables indexed by internal resource type */
 
 extern const UINT8              AcpiGbl_AmlResourceSizes[];
+extern const UINT8              AcpiGbl_AmlResourceSerialBusSizes[];
 extern ACPI_RSCONVERT_INFO      *AcpiGbl_SetResourceDispatch[];
 
 /* Resource tables indexed by raw AML resource descriptor type */
 
 extern const UINT8              AcpiGbl_ResourceStructSizes[];
+extern const UINT8              AcpiGbl_ResourceStructSerialBusSizes[];
 extern ACPI_RSCONVERT_INFO      *AcpiGbl_GetResourceDispatch[];
 
+extern ACPI_RSCONVERT_INFO      *AcpiGbl_ConvertResourceSerialBusDispatch[];
 
 typedef struct acpi_vendor_walk_info
 {
@@ -208,6 +235,10 @@ AcpiRsSetSrsMethodData (
     ACPI_NAMESPACE_NODE     *Node,
     ACPI_BUFFER             *RetBuffer);
 
+ACPI_STATUS
+AcpiRsGetAeiMethodData (
+    ACPI_NAMESPACE_NODE     *Node,
+    ACPI_BUFFER             *RetBuffer);
 
 /*
  * rscalc
@@ -348,6 +379,11 @@ extern ACPI_RSCONVERT_INFO      AcpiRsConvertAddress16[];
 extern ACPI_RSCONVERT_INFO      AcpiRsConvertExtIrq[];
 extern ACPI_RSCONVERT_INFO      AcpiRsConvertAddress64[];
 extern ACPI_RSCONVERT_INFO      AcpiRsConvertExtAddress64[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertGpio[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertFixedDma[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertI2cSerialBus[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertSpiSerialBus[];
+extern ACPI_RSCONVERT_INFO      AcpiRsConvertUartSerialBus[];
 
 /* These resources require separate get/set tables */
 
@@ -366,6 +402,7 @@ extern ACPI_RSCONVERT_INFO      AcpiRsSetVendor[];
  * rsinfo
  */
 extern ACPI_RSDUMP_INFO         *AcpiGbl_DumpResourceDispatch[];
+extern ACPI_RSDUMP_INFO         *AcpiGbl_DumpSerialBusDispatch[];
 
 /*
  * rsdump
@@ -387,6 +424,12 @@ extern ACPI_RSDUMP_INFO         AcpiRsDumpAddress64[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpExtAddress64[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpExtIrq[];
 extern ACPI_RSDUMP_INFO         AcpiRsDumpGenericReg[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpGpio[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpFixedDma[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpCommonSerialBus[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpI2cSerialBus[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpSpiSerialBus[];
+extern ACPI_RSDUMP_INFO         AcpiRsDumpUartSerialBus[];
 #endif
 
 #endif  /* __ACRESRC_H__ */

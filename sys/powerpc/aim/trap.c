@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -49,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <security/audit/audit.h>
 
@@ -159,6 +164,16 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
+#ifdef HWPMC_HOOKS
+	if (type == EXC_PERF && (pmc_intr != NULL)) {
+#ifdef notyet
+	    (*pmc_intr)(PCPU_GET(cpuid), frame);
+	    if (!user)
+		return;
+#endif
+	}
+	else
+#endif
 	if (user) {
 		td->td_pticks = 0;
 		td->td_frame = frame;

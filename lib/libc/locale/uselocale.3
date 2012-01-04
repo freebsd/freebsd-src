@@ -36,17 +36,18 @@
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
-.In xlocale.h 
+.In xlocale.h
 .Ft locale_t
 .Fn uselocale "locale_t locale"
 .Sh DESCRIPTION
-Specifies the locale for this thread to use.  Specifying
+Specifies the locale for this thread to use.
+Specifying
 .Fa LC_GLOBAL_LOCALE
-disables the per-thread locale, while NULL returns the current locale without
-setting a new one.
+disables the per-thread locale,
+while NULL returns the current locale without setting a new one.
 .Sh RETURN VALUES
-Returns the previous locale, or LC_GLOBAL_LOCALE if this thread has no locale
-associated with it.
+Returns the previous locale,
+or LC_GLOBAL_LOCALE if this thread has no locale associated with it.
 .Sh SEE ALSO
 .Xr duplocale 3 ,
 .Xr freelocale 3 ,
@@ -55,5 +56,5 @@ associated with it.
 .Xr querylocale 3 ,
 .Xr xlocale 3
 .Sh STANDARDS
-This function, conforms to
+This function conforms to
 .St -p1003.1-2008

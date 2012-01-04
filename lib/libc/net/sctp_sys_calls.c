@@ -245,7 +245,8 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 	struct sockaddr *sa;
 	struct sockaddr_in *sin;
 	struct sockaddr_in6 *sin6;
-	int i, sz, argsz;
+	int i;
+	size_t argsz;
 	uint16_t sport = 0;
 
 	/* validate the flags */
@@ -269,7 +270,6 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 	/* First pre-screen the addresses */
 	sa = addrs;
 	for (i = 0; i < addrcnt; i++) {
-		sz = sa->sa_len;
 		if (sa->sa_family == AF_INET) {
 			if (sa->sa_len != sizeof(struct sockaddr_in))
 				goto out_error;
@@ -307,7 +307,7 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 			goto out_error;
 		}
 
-		sa = (struct sockaddr *)((caddr_t)sa + sz);
+		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 	}
 	sa = addrs;
 	/*
@@ -319,7 +319,6 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		sin->sin_port = sport;
 	}
 	for (i = 0; i < addrcnt; i++) {
-		sz = sa->sa_len;
 		if (sa->sa_family == AF_INET) {
 			if (sa->sa_len != sizeof(struct sockaddr_in))
 				goto out_error;
@@ -335,13 +334,13 @@ sctp_bindx(int sd, struct sockaddr *addrs, int addrcnt, int flags)
 		}
 		memset(gaddrs, 0, argsz);
 		gaddrs->sget_assoc_id = 0;
-		memcpy(gaddrs->addr, sa, sz);
+		memcpy(gaddrs->addr, sa, sa->sa_len);
 		if (setsockopt(sd, IPPROTO_SCTP, flags, gaddrs,
 		    (socklen_t) argsz) != 0) {
 			free(gaddrs);
 			return (-1);
 		}
-		sa = (struct sockaddr *)((caddr_t)sa + sz);
+		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 	}
 	free(gaddrs);
 	return (0);
@@ -430,10 +429,9 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 {
 	struct sctp_getaddresses *addrs;
 	struct sockaddr *sa;
-	struct sockaddr *re;
 	sctp_assoc_t asoc;
 	caddr_t lim;
-	socklen_t siz;
+	socklen_t opt_len;
 	int cnt;
 
 	if (raddrs == NULL) {
@@ -441,30 +439,28 @@ sctp_getpaddrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		return (-1);
 	}
 	asoc = id;
-	siz = sizeof(sctp_assoc_t);
+	opt_len = (socklen_t) sizeof(sctp_assoc_t);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_REMOTE_ADDR_SIZE,
-	    &asoc, &siz) != 0) {
+	    &asoc, &opt_len) != 0) {
 		return (-1);
 	}
 	/* size required is returned in 'asoc' */
-	siz = (size_t)asoc;
-	siz += sizeof(struct sctp_getaddresses);
-	addrs = calloc(1, siz);
+	opt_len = (socklen_t) ((size_t)asoc + sizeof(struct sctp_getaddresses));
+	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		return (-1);
 	}
 	addrs->sget_assoc_id = id;
 	/* Now lets get the array of addresses */
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_PEER_ADDRESSES,
-	    addrs, &siz) != 0) {
+	    addrs, &opt_len) != 0) {
 		free(addrs);
 		return (-1);
 	}
-	re = (struct sockaddr *)&addrs->addr[0];
-	*raddrs = re;
+	*raddrs = (struct sockaddr *)&addrs->addr[0];
 	cnt = 0;
 	sa = (struct sockaddr *)&addrs->addr[0];
-	lim = (caddr_t)addrs + siz;
+	lim = (caddr_t)addrs + opt_len;
 	while (((caddr_t)sa < lim) && (sa->sa_len > 0)) {
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 		cnt++;
@@ -487,11 +483,10 @@ int
 sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 {
 	struct sctp_getaddresses *addrs;
-	struct sockaddr *re;
 	caddr_t lim;
 	struct sockaddr *sa;
-	int size_of_addresses;
-	socklen_t siz;
+	size_t size_of_addresses;
+	socklen_t opt_len;
 	int cnt;
 
 	if (raddrs == NULL) {
@@ -499,9 +494,9 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		return (-1);
 	}
 	size_of_addresses = 0;
-	siz = sizeof(int);
+	opt_len = (socklen_t) sizeof(int);
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_LOCAL_ADDR_SIZE,
-	    &size_of_addresses, &siz) != 0) {
+	    &size_of_addresses, &opt_len) != 0) {
 		errno = ENOMEM;
 		return (-1);
 	}
@@ -509,9 +504,10 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 		errno = ENOTCONN;
 		return (-1);
 	}
-	siz = size_of_addresses + sizeof(struct sockaddr_storage);
-	siz += sizeof(struct sctp_getaddresses);
-	addrs = calloc(1, siz);
+	opt_len = (socklen_t) (size_of_addresses +
+	    sizeof(struct sockaddr_storage) +
+	    sizeof(struct sctp_getaddresses));
+	addrs = calloc(1, (size_t)opt_len);
 	if (addrs == NULL) {
 		errno = ENOMEM;
 		return (-1);
@@ -519,16 +515,15 @@ sctp_getladdrs(int sd, sctp_assoc_t id, struct sockaddr **raddrs)
 	addrs->sget_assoc_id = id;
 	/* Now lets get the array of addresses */
 	if (getsockopt(sd, IPPROTO_SCTP, SCTP_GET_LOCAL_ADDRESSES, addrs,
-	    &siz) != 0) {
+	    &opt_len) != 0) {
 		free(addrs);
 		errno = ENOMEM;
 		return (-1);
 	}
-	re = (struct sockaddr *)&addrs->addr[0];
-	*raddrs = re;
+	*raddrs = (struct sockaddr *)&addrs->addr[0];
 	cnt = 0;
 	sa = (struct sockaddr *)&addrs->addr[0];
-	lim = (caddr_t)addrs + siz;
+	lim = (caddr_t)addrs + opt_len;
 	while (((caddr_t)sa < lim) && (sa->sa_len > 0)) {
 		sa = (struct sockaddr *)((caddr_t)sa + sa->sa_len);
 		cnt++;
@@ -563,6 +558,7 @@ sctp_sendmsg(int s,
 #ifdef SYS_sctp_generic_sendmsg
 	struct sctp_sndrcvinfo sinfo;
 
+	memset(&sinfo, 0, sizeof(struct sctp_sndrcvinfo));
 	sinfo.sinfo_ppid = ppid;
 	sinfo.sinfo_flags = flags;
 	sinfo.sinfo_stream = stream_no;
@@ -734,7 +730,8 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	ssize_t ret;
 	int i, cnt, *aa, saved_errno;
 	char *buf;
-	int add_len, len, no_end_cx = 0;
+	int no_end_cx = 0;
+	size_t len, add_len;
 	struct sockaddr *at;
 
 	if (addrs == NULL) {
@@ -784,7 +781,7 @@ sctp_sendx(int sd, const void *msg, size_t msg_len,
 	aa = (int *)buf;
 	*aa = cnt;
 	aa++;
-	memcpy((caddr_t)aa, addrs, (len - sizeof(int)));
+	memcpy((caddr_t)aa, addrs, (size_t)(len - sizeof(int)));
 	ret = setsockopt(sd, IPPROTO_SCTP, SCTP_CONNECT_X_DELAYED, (void *)buf,
 	    (socklen_t) len);
 
@@ -861,7 +858,6 @@ sctp_recvmsg(int s,
 #else
 	struct sctp_sndrcvinfo *s_info;
 	ssize_t sz;
-	int sinfo_found = 0;
 	struct msghdr msg;
 	struct iovec iov;
 	char controlVector[SCTP_CONTROL_VEC_SIZE_RCV];
@@ -890,7 +886,6 @@ sctp_recvmsg(int s,
 		return (sz);
 	}
 	s_info = NULL;
-	len = sz;
 	if (sinfo) {
 		sinfo->sinfo_assoc_id = 0;
 	}
@@ -911,7 +906,6 @@ sctp_recvmsg(int s,
 					/* Copy it to the user */
 					if (sinfo)
 						*sinfo = *s_info;
-					sinfo_found = 1;
 					break;
 				} else if (cmsg->cmsg_type == SCTP_EXTRCV) {
 					/*
@@ -924,7 +918,6 @@ sctp_recvmsg(int s,
 					if (sinfo) {
 						memcpy(sinfo, s_info, sizeof(struct sctp_extrcvinfo));
 					}
-					sinfo_found = 1;
 					break;
 
 				}
@@ -1057,7 +1050,7 @@ sctp_sendv(int sd,
 	cmsgbuf = malloc(CMSG_SPACE(sizeof(struct sctp_sndinfo)) +
 	    CMSG_SPACE(sizeof(struct sctp_prinfo)) +
 	    CMSG_SPACE(sizeof(struct sctp_authinfo)) +
-	    addrcnt * CMSG_SPACE(sizeof(struct in6_addr)));
+	    (size_t)addrcnt * CMSG_SPACE(sizeof(struct in6_addr)));
 	if (cmsgbuf == NULL) {
 		errno = ENOBUFS;
 		return (-1);

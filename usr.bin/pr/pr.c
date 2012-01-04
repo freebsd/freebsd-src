@@ -822,7 +822,7 @@ mulfile(int argc, char *argv[])
 	 * do not know how many columns yet. The number of operands provide an
 	 * upper bound on the number of columns. We use the number of files
 	 * we can open successfully to set the number of columns. The operation
-	 * of the merge operation (-m) in relation to unsuccesful file opens
+	 * of the merge operation (-m) in relation to unsuccessful file opens
 	 * is unspecified by posix.
 	 */
 	j = 0;
@@ -841,7 +841,7 @@ mulfile(int argc, char *argv[])
 		return(1);
 
 	/*
-	 * calculate page boundries based on open file count
+	 * calculate page boundaries based on open file count
 	 */
 	clcnt = j;
 	if (nmwd) {
@@ -987,7 +987,7 @@ mulfile(int argc, char *argv[])
  *	inf:	file
  *	buf:	buffer
  *	lim:	buffer length
- *	cps:	column positon 1st char in buffer (large line support)
+ *	cps:	column position 1st char in buffer (large line support)
  *	trnc:	throw away data more than lim up to \n
  *	mor:	set if more data in line (not truncated)
  */

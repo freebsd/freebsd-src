@@ -418,7 +418,7 @@ uts(struct kse_mailbox *km)
 
 	simplelock_lock(&data->runq->lock);
 	/*
-	 * Process any signals we've recieved (but only if we have
+	 * Process any signals we've received (but only if we have
 	 * somewhere to deliver them to).
 	 */
 	if ((data->runq->head != NULL) && SIGNOTEMPTY(km->km_sigscaught)) {

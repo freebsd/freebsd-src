@@ -40,6 +40,8 @@ struct get_hook
 	int got;
 };
 
+int fwdownload(struct cam_device *device, int argc, char **argv,
+	       char *combinedopt, int verbose, int retry_count, int timeout);
 void mode_sense(struct cam_device *device, int mode_page, int page_control,
 		int dbd, int retry_count, int timeout, u_int8_t *data,
 		int datalen);
@@ -49,8 +51,11 @@ void mode_edit(struct cam_device *device, int page, int page_control, int dbd,
 	       int edit, int binary, int retry_count, int timeout);
 void mode_list(struct cam_device *device, int page_control, int dbd,
 	       int retry_count, int timeout);
+int scsidoinquiry(struct cam_device *device, int argc, char **argv,
+		  char *combinedopt, int retry_count, int timeout);
 char *cget(void *hook, char *name);
 int iget(void *hook, char *name);
 void arg_put(void *hook, int letter, void *arg, int count, char *name);
+int get_confirmation(void);
 void usage(int verbose);
 #endif /* _CAMCONTROL_H */

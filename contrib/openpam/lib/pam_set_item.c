@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_set_item.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_set_item.c 496 2011-11-21 16:20:45Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 
@@ -66,6 +70,10 @@ pam_set_item(pam_handle_t *pamh,
 	osize = nsize = 0;
 	switch (item_type) {
 	case PAM_SERVICE:
+		/* set once only, by pam_start() */
+		if (*slot != NULL)
+			RETURNC(PAM_SYSTEM_ERR);
+		/* fall through */
 	case PAM_USER:
 	case PAM_AUTHTOK:
 	case PAM_OLDAUTHTOK:
@@ -75,6 +83,7 @@ pam_set_item(pam_handle_t *pamh,
 	case PAM_USER_PROMPT:
 	case PAM_AUTHTOK_PROMPT:
 	case PAM_OLDAUTHTOK_PROMPT:
+	case PAM_HOST:
 		if (*slot != NULL)
 			osize = strlen(*slot) + 1;
 		if (item != NULL)

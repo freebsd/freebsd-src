@@ -54,7 +54,7 @@ newsyntax(int argc, char ***argvp)
 	char *p, **argv;
 
 	argv = *argvp;
-	if ((p = rindex(argv[0], 'h')) != NULL &&
+	if ((p = strrchr(argv[0], 'h')) != NULL &&
 	    strcmp(p, "hd") == 0) {
 		/* "Canonical" format, implies -C. */
 		add("\"%08.8_Ax\n\"");

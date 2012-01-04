@@ -82,7 +82,6 @@ static device_method_t miibus_methods[] = {
 	/* bus interface */
 	DEVMETHOD(bus_print_child,	miibus_print_child),
 	DEVMETHOD(bus_read_ivar,	miibus_read_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_child_pnpinfo_str, miibus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, miibus_child_location_str),
 	DEVMETHOD(bus_hinted_child,	miibus_hinted_child),
@@ -94,7 +93,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(miibus_linkchg,	miibus_linkchg),
 	DEVMETHOD(miibus_mediainit,	miibus_mediainit),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 devclass_t miibus_devclass;
@@ -500,7 +499,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 	free(children, M_TEMP);
 
 	if (first != 0) {
-		rv = device_probe(*miibus);
+		rv = device_set_driver(*miibus, &miibus_driver);
 		if (rv != 0)
 			goto fail;
 		bus_enumerate_hinted_children(*miibus);
@@ -512,7 +511,7 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 			rv = ENXIO;
 			goto fail;
 		}
-		rv = device_attach(*miibus);
+		rv = bus_generic_attach(dev);
 		if (rv != 0)
 			goto fail;
 
@@ -627,7 +626,7 @@ mii_down(struct mii_data *mii)
 static unsigned char
 mii_bitreverse(unsigned char x)
 {
-	unsigned const char const nibbletab[16] = {
+	static unsigned const char const nibbletab[16] = {
 		0, 8, 4, 12, 2, 10, 6, 14, 1, 9, 5, 13, 3, 11, 7, 15
 	};
 

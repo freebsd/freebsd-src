@@ -360,15 +360,17 @@ static char *srcrule_str[] = {
 void
 ip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct ip6stat ip6stat;
+	struct ip6stat ip6stat, zerostat;
 	int first, i;
 	size_t len;
 
 	len = sizeof ip6stat;
 	if (live) {
 		memset(&ip6stat, 0, len);
-		if (sysctlbyname("net.inet6.ip6.stats", &ip6stat, &len, NULL,
-		    0) < 0) {
+		if (zflag)
+			memset(&zerostat, 0, len);
+		if (sysctlbyname("net.inet6.ip6.stats", &ip6stat, &len,
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
 				warn("sysctl: net.inet6.ip6.stats");
 			return;
@@ -840,15 +842,17 @@ static	const char *icmp6names[] = {
 void
 icmp6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct icmp6stat icmp6stat;
+	struct icmp6stat icmp6stat, zerostat;
 	int i, first;
 	size_t len;
 
 	len = sizeof icmp6stat;
 	if (live) {
 		memset(&icmp6stat, 0, len);
+		if (zflag)
+			memset(&zerostat, 0, len);
 		if (sysctlbyname("net.inet6.icmp6.stats", &icmp6stat, &len,
-		    NULL, 0) < 0) {
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
 				warn("sysctl: net.inet6.icmp6.stats");
 			return;
@@ -1033,14 +1037,16 @@ pim6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 void
 rip6_stats(u_long off, const char *name, int af1 __unused, int proto __unused)
 {
-	struct rip6stat rip6stat;
+	struct rip6stat rip6stat, zerostat;
 	u_quad_t delivered;
 	size_t len;
 
 	len = sizeof(rip6stat);
 	if (live) {
+		if (zflag)
+			memset(&zerostat, 0, len);
 		if (sysctlbyname("net.inet6.ip6.rip6stats", &rip6stat, &len,
-		    NULL, 0) < 0) {
+		    zflag ? &zerostat : NULL, zflag ? len : 0) < 0) {
 			if (errno != ENOENT)
 				warn("sysctl: net.inet6.ip6.rip6stats");
 			return;
@@ -1094,7 +1100,7 @@ inet6print(struct in6_addr *in6, int port, const char *proto, int numeric)
 
 	sprintf(line, "%.*s.", Wflag ? 39 :
 		(Aflag && !numeric) ? 12 : 16, inet6name(in6));
-	cp = index(line, '\0');
+	cp = strchr(line, '\0');
 	if (!numeric && port)
 		GETSERVBYPORT6(port, proto, sp);
 	if (sp || port == 0)
@@ -1123,7 +1129,7 @@ inet6name(struct in6_addr *in6p)
 	if (first && !numeric_addr) {
 		first = 0;
 		if (gethostname(domain, MAXHOSTNAMELEN) == 0 &&
-		    (cp = index(domain, '.')))
+		    (cp = strchr(domain, '.')))
 			(void) strcpy(domain, cp + 1);
 		else
 			domain[0] = 0;
@@ -1132,7 +1138,7 @@ inet6name(struct in6_addr *in6p)
 	if (!numeric_addr && !IN6_IS_ADDR_UNSPECIFIED(in6p)) {
 		hp = gethostbyaddr((char *)in6p, sizeof(*in6p), AF_INET6);
 		if (hp) {
-			if ((cp = index(hp->h_name, '.')) &&
+			if ((cp = strchr(hp->h_name, '.')) &&
 			    !strcmp(cp + 1, domain))
 				*cp = 0;
 			cp = hp->h_name;

@@ -278,8 +278,6 @@ struct nd_prefix {
 	int	ndpr_refcnt;	/* reference couter from addresses */
 };
 
-#define ndpr_next		ndpr_entry.le_next
-
 #define ndpr_raf		ndpr_flags
 #define ndpr_raf_onlink		ndpr_flags.onlink
 #define ndpr_raf_auto		ndpr_flags.autonomous
@@ -313,7 +311,6 @@ struct inet6_ndpr_msghdr {
 
 struct nd_pfxrouter {
 	LIST_ENTRY(nd_pfxrouter) pfr_entry;
-#define pfr_next pfr_entry.le_next
 	struct nd_defrouter *router;
 };
 

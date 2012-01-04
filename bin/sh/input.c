@@ -106,6 +106,7 @@ EditLine *el;			/* cookie for editline package */
 
 static void pushfile(void);
 static int preadfd(void);
+static void popstring(void);
 
 #ifdef mkinit
 INCLUDE "input.h"
@@ -372,7 +373,7 @@ pushstring(char *s, int len, void *ap)
 	INTON;
 }
 
-void
+static void
 popstring(void)
 {
 	struct strpush *sp = parsefile->strpush;

@@ -378,6 +378,10 @@ AcpiDmDumpDescending (
         AcpiOsPrintf ("%X", (UINT32) Op->Common.Value.Integer);
         break;
 
+    case AML_QWORD_OP:
+        AcpiOsPrintf ("%8.8X%8.8X", ACPI_FORMAT_UINT64 (Op->Common.Value.Integer));
+        break;
+
     case AML_INT_NAMEPATH_OP:
         if (Op->Common.Value.String)
         {

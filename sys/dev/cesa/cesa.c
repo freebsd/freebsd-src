@@ -93,16 +93,12 @@ static device_method_t cesa_methods[] = {
 	DEVMETHOD(device_attach,	cesa_attach),
 	DEVMETHOD(device_detach,	cesa_detach),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* Crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	cesa_newsession),
 	DEVMETHOD(cryptodev_freesession,cesa_freesession),
 	DEVMETHOD(cryptodev_process,	cesa_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t cesa_driver = {

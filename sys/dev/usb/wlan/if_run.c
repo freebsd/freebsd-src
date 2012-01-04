@@ -315,9 +315,9 @@ static usb_callback_t	run_bulk_tx_callback5;
 static void	run_bulk_tx_callbackN(struct usb_xfer *xfer,
 		    usb_error_t error, unsigned int index);
 static struct ieee80211vap *run_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode, int flags,
-		    const uint8_t bssid[IEEE80211_ADDR_LEN], const uint8_t
-		    mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	run_vap_delete(struct ieee80211vap *);
 static void	run_cmdq_cb(void *, int);
 static void	run_setup_tx_list(struct run_softc *,
@@ -748,8 +748,8 @@ run_detach(device_t self)
 }
 
 static struct ieee80211vap *
-run_vap_create(struct ieee80211com *ic,
-    const char name[IFNAMSIZ], int unit, int opmode, int flags,
+run_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
     const uint8_t bssid[IEEE80211_ADDR_LEN],
     const uint8_t mac[IEEE80211_ADDR_LEN])
 {
@@ -2720,7 +2720,6 @@ run_bulk_tx_callbackN(struct usb_xfer *xfer, usb_error_t error, unsigned int ind
 	struct run_endpoint_queue *pq = &sc->sc_epq[index];
 	struct mbuf *m;
 	usb_frlength_t size;
-	unsigned int len;
 	int actlen;
 	int sumlen;
 
@@ -2750,7 +2749,8 @@ tr_setup:
 		STAILQ_REMOVE_HEAD(&pq->tx_qh, next);
 
 		m = data->m;
-		if (m->m_pkthdr.len > RUN_MAX_TXSZ) {
+		if ((m->m_pkthdr.len +
+		    sizeof(data->desc) + 3 + 8) > RUN_MAX_TXSZ) {
 			DPRINTF("data overflow, %u bytes\n",
 			    m->m_pkthdr.len);
 
@@ -2765,6 +2765,14 @@ tr_setup:
 		size = sizeof(data->desc);
 		usbd_copy_in(pc, 0, &data->desc, size);
 		usbd_m_copy_in(pc, size, m, 0, m->m_pkthdr.len);
+		size += m->m_pkthdr.len;
+		/*
+		 * Align end on a 4-byte boundary, pad 8 bytes (CRC +
+		 * 4-byte padding), and be sure to zero those trailing
+		 * bytes:
+		 */
+		usbd_frame_zero(pc, size, ((-size) & 3) + 8);
+		size += ((-size) & 3) + 8;
 
 		vap = data->ni->ni_vap;
 		if (ieee80211_radiotap_active_vap(vap)) {
@@ -2783,13 +2791,10 @@ tr_setup:
 			ieee80211_radiotap_tx(vap, m);
 		}
 
-		/* align end on a 4-bytes boundary */
-		len = (size + IEEE80211_CRC_LEN + m->m_pkthdr.len + 3) & ~3;
+		DPRINTFN(11, "sending frame len=%u/%u  @ index %d\n",
+		    m->m_pkthdr.len, size, index);
 
-		DPRINTFN(11, "sending frame len=%u xferlen=%u @ index %d\n",
-			m->m_pkthdr.len, len, index);
-
-		usbd_xfer_set_frame_len(xfer, 0, len);
+		usbd_xfer_set_frame_len(xfer, 0, size);
 		usbd_xfer_set_priv(xfer, data);
 
 		usbd_transfer_submit(xfer);

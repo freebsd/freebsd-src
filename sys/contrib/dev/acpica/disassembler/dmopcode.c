@@ -303,6 +303,7 @@ AcpiDmDisassembleOneOp (
     UINT32                  Length;
     ACPI_PARSE_OBJECT       *Child;
     ACPI_STATUS             Status;
+    UINT8                   *Aml;
 
 
     if (!Op)
@@ -426,16 +427,19 @@ AcpiDmDisassembleOneOp (
          * types of buffers, we have to closely look at the data in the
          * buffer to determine the type.
          */
-        Status = AcpiDmIsResourceTemplate (Op);
-        if (ACPI_SUCCESS (Status))
+        if (!AcpiGbl_NoResourceDisassembly)
         {
-            Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
-            AcpiOsPrintf ("ResourceTemplate");
-            break;
-        }
-        else if (Status == AE_AML_NO_RESOURCE_END_TAG)
-        {
-            AcpiOsPrintf ("/**** Is ResourceTemplate, but EndTag not at buffer end ****/ ");
+            Status = AcpiDmIsResourceTemplate (Op);
+            if (ACPI_SUCCESS (Status))
+            {
+                Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
+                AcpiOsPrintf ("ResourceTemplate");
+                break;
+            }
+            else if (Status == AE_AML_NO_RESOURCE_END_TAG)
+            {
+                AcpiOsPrintf ("/**** Is ResourceTemplate, but EndTag not at buffer end ****/ ");
+            }
         }
 
         if (AcpiDmIsUnicodeBuffer (Op))
@@ -495,7 +499,7 @@ AcpiDmDisassembleOneOp (
 
         if (Info->BitOffset % 8 == 0)
         {
-            AcpiOsPrintf ("        Offset (0x%.2X)", ACPI_DIV_8 (Info->BitOffset));
+            AcpiOsPrintf ("Offset (0x%.2X)", ACPI_DIV_8 (Info->BitOffset));
         }
         else
         {
@@ -507,15 +511,58 @@ AcpiDmDisassembleOneOp (
 
 
     case AML_INT_ACCESSFIELD_OP:
+    case AML_INT_EXTACCESSFIELD_OP:
 
-        AcpiOsPrintf ("        AccessAs (%s, ",
-            AcpiGbl_AccessTypes [(UINT32) (Op->Common.Value.Integer >> 8) & 0x7]);
+        AcpiOsPrintf ("AccessAs (%s, ",
+            AcpiGbl_AccessTypes [(UINT32) (Op->Common.Value.Integer & 0x7)]);
 
-        AcpiDmDecodeAttribute ((UINT8) Op->Common.Value.Integer);
+        AcpiDmDecodeAttribute ((UINT8) (Op->Common.Value.Integer >> 8));
+
+        if (Op->Common.AmlOpcode == AML_INT_EXTACCESSFIELD_OP)
+        {
+            AcpiOsPrintf (" (0x%2.2X)", (unsigned) ((Op->Common.Value.Integer >> 16) & 0xFF));
+        }
+
         AcpiOsPrintf (")");
         AcpiDmCommaIfFieldMember (Op);
         break;
 
+
+    case AML_INT_CONNECTION_OP:
+
+        /*
+         * Two types of Connection() - one with a buffer object, the
+         * other with a namestring that points to a buffer object.
+         */
+        AcpiOsPrintf ("Connection (");
+        Child = Op->Common.Value.Arg;
+
+        if (Child->Common.AmlOpcode == AML_INT_BYTELIST_OP)
+        {
+            AcpiOsPrintf ("\n");
+
+            Aml = Child->Named.Data;
+            Length = (UINT32) Child->Common.Value.Integer;
+
+            Info->Level += 1;
+            Op->Common.DisasmOpcode = ACPI_DASM_RESOURCE;
+            AcpiDmResourceTemplate (Info, Op->Common.Parent, Aml, Length);
+
+            Info->Level -= 1;
+            AcpiDmIndent (Info->Level);
+        }
+        else
+        {
+            AcpiDmNamestring (Child->Common.Value.Name);
+        }
+
+        AcpiOsPrintf (")");
+        AcpiDmCommaIfFieldMember (Op);
+        AcpiOsPrintf ("\n");
+
+        Op->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE; /* for now, ignore in AcpiDmAscendingOp */
+        Child->Common.DisasmFlags |= ACPI_PARSEOP_IGNORE;
+        break;
 
     case AML_INT_BYTELIST_OP:
 

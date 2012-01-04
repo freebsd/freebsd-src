@@ -690,6 +690,7 @@ ISAPNP			opt_isa.h
 
 # various 'device presence' options.
 DEV_BPF			opt_bpf.h
+DEV_NETMAP		opt_global.h
 DEV_MCA			opt_mca.h
 DEV_CARP		opt_carp.h
 DEV_SPLASH		opt_splash.h
@@ -898,4 +899,5 @@ RCTL		opt_global.h
 # that "lies" about the amount of RAM it has. Until a cleaner method is
 # defined, this option will suffice in overriding what Redboot says.
 AR71XX_REALMEM    opt_global.h
-
+AR71XX_ENV_UBOOT	opt_global.h
+AR71XX_ENV_REDBOOT	opt_global.h

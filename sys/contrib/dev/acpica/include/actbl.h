@@ -298,6 +298,7 @@ typedef struct acpi_table_fadt
     ACPI_GENERIC_ADDRESS    XPmTimerBlock;      /* 64-bit Extended Power Mgt Timer Ctrl Reg Blk address */
     ACPI_GENERIC_ADDRESS    XGpe0Block;         /* 64-bit Extended General Purpose Event 0 Reg Blk address */
     ACPI_GENERIC_ADDRESS    XGpe1Block;         /* 64-bit Extended General Purpose Event 1 Reg Blk address */
+    ACPI_GENERIC_ADDRESS    SleepRegister;      /* 64-bit address of the Sleep register */
 
 } ACPI_TABLE_FADT;
 
@@ -309,6 +310,7 @@ typedef struct acpi_table_fadt
 #define ACPI_FADT_NO_VGA            (1<<2)      /* 02: [V4] It is not safe to probe for VGA hardware */
 #define ACPI_FADT_NO_MSI            (1<<3)      /* 03: [V4] Message Signaled Interrupts (MSI) must not be enabled */
 #define ACPI_FADT_NO_ASPM           (1<<4)      /* 04: [V4] PCIe ASPM control must not be enabled */
+#define ACPI_FADT_NO_CMOS_RTC       (1<<5)      /* 05: [V5] No CMOS real-time clock present */
 
 /* Masks for FADT flags */
 
@@ -332,6 +334,9 @@ typedef struct acpi_table_fadt
 #define ACPI_FADT_REMOTE_POWER_ON   (1<<17)     /* 17: [V4] System is compatible with remote power on (ACPI 3.0) */
 #define ACPI_FADT_APIC_CLUSTER      (1<<18)     /* 18: [V4] All local APICs must use cluster model (ACPI 3.0) */
 #define ACPI_FADT_APIC_PHYSICAL     (1<<19)     /* 19: [V4] All local xAPICs must use physical dest mode (ACPI 3.0) */
+#define ACPI_FADT_HW_REDUCED        (1<<20)     /* 20: [V5] ACPI hardware is not implemented (ACPI 5.0) */
+#define ACPI_FADT_PREFER_S0_IDLE    (1<<21)     /* 21: [V5] Use advanced idle capabilities (ACPI 5.0) */
+#define ACPI_FADT_USE_SLEEP_REG     (1<<22)     /* 22: [V5] Use the sleep register for sleep (ACPI 5.0) */
 
 
 /* Values for PreferredProfile (Prefered Power Management Profiles) */
@@ -344,7 +349,9 @@ enum AcpiPreferedPmProfiles
     PM_WORKSTATION          = 3,
     PM_ENTERPRISE_SERVER    = 4,
     PM_SOHO_SERVER          = 5,
-    PM_APPLIANCE_PC         = 6
+    PM_APPLIANCE_PC         = 6,
+    PM_PERFORMANCE_SERVER   = 7,
+    PM_SLATE                = 8
 };
 
 
@@ -392,6 +399,7 @@ typedef struct acpi_table_desc
  */
 #include <contrib/dev/acpica/include/actbl1.h>
 #include <contrib/dev/acpica/include/actbl2.h>
+#include <contrib/dev/acpica/include/actbl3.h>
 
 /* Macros used to generate offsets to specific table fields */
 
@@ -405,12 +413,15 @@ typedef struct acpi_table_desc
  * FADT is the bottom line as to what the version really is.
  *
  * For reference, the values below are as follows:
- *     FADT V1  size: 0x74
- *     FADT V2  size: 0x84
- *     FADT V3+ size: 0xF4
+ *     FADT V1  size: 0x074
+ *     FADT V2  size: 0x084
+ *     FADT V3  size: 0x0F4
+ *     FADT V4  size: 0x0F4
+ *     FADT V5  size: 0x100
  */
 #define ACPI_FADT_V1_SIZE       (UINT32) (ACPI_FADT_OFFSET (Flags) + 4)
 #define ACPI_FADT_V2_SIZE       (UINT32) (ACPI_FADT_OFFSET (Reserved4[0]) + 3)
-#define ACPI_FADT_V3_SIZE       (UINT32) (sizeof (ACPI_TABLE_FADT))
+#define ACPI_FADT_V3_SIZE       (UINT32) (ACPI_FADT_OFFSET (SleepRegister))
+#define ACPI_FADT_V5_SIZE       (UINT32) (sizeof (ACPI_TABLE_FADT))
 
 #endif /* __ACTBL_H__ */

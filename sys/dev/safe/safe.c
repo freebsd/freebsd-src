@@ -99,16 +99,12 @@ static device_method_t safe_methods[] = {
 	DEVMETHOD(device_resume,	safe_resume),
 	DEVMETHOD(device_shutdown,	safe_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	safe_newsession),
 	DEVMETHOD(cryptodev_freesession,safe_freesession),
 	DEVMETHOD(cryptodev_process,	safe_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t safe_driver = {
 	"safe",

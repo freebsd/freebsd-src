@@ -85,9 +85,6 @@ SYSCTL_VNET_INT(_net_inet_esp, OID_AUTO,
 SYSCTL_VNET_STRUCT(_net_inet_esp, IPSECCTL_STATS,
 	stats,		CTLFLAG_RD,	&VNET_NAME(espstat),	espstat, "");
 
-static VNET_DEFINE(int, esp_max_ivlen);	/* max iv length over all algorithms */
-#define	V_esp_max_ivlen	VNET(esp_max_ivlen)
-
 static int esp_input_cb(struct cryptop *op);
 static int esp_output_cb(struct cryptop *crp);
 
@@ -147,7 +144,7 @@ esp_hdrsiz(struct secasvar *sav)
 		 * + sizeof (next header field)
 		 * + max icv supported.
 		 */
-		size = sizeof (struct newesp) + V_esp_max_ivlen + 9 + 16;
+		size = sizeof (struct newesp) + EALG_MAX_BLOCK_LEN + 9 + 16;
 	}
 	return size;
 }
@@ -196,10 +193,6 @@ esp_init(struct secasvar *sav, struct xformsw *xsp)
 	 */
 	sav->ivlen = (txform == &enc_xform_null ? 0 : txform->blocksize);
 	sav->iv = (caddr_t) malloc(sav->ivlen, M_XDATA, M_WAITOK);
-	if (sav->iv == NULL) {
-		DPRINTF(("%s: no memory for IV\n", __func__));
-		return EINVAL;
-	}
 	key_randomfill(sav->iv, sav->ivlen);	/*XXX*/
 
 	/*
@@ -496,10 +489,8 @@ esp_input_cb(struct cryptop *crp)
 		if (sav->tdb_cryptoid != 0)
 			sav->tdb_cryptoid = crp->crp_sid;
 
-		if (crp->crp_etype == EAGAIN) {
-			error = crypto_dispatch(crp);
-			return error;
-		}
+		if (crp->crp_etype == EAGAIN)
+			return (crypto_dispatch(crp));
 
 		V_espstat.esps_noxform++;
 		DPRINTF(("%s: crypto error %d\n", __func__, crp->crp_etype));
@@ -678,7 +669,7 @@ esp_output(
 {
 	struct enc_xform *espx;
 	struct auth_hash *esph;
-	int hlen, rlen, plen, padding, blks, alen, i, roff;
+	int hlen, rlen, padding, blks, alen, i, roff;
 	struct mbuf *mo = (struct mbuf *) NULL;
 	struct tdb_crypto *tc;
 	struct secasvar *sav;
@@ -710,7 +701,6 @@ esp_output(
 
 	/* XXX clamp padding length a la KAME??? */
 	padding = ((blks - ((rlen + 2) % blks)) % blks) + 2;
-	plen = rlen + padding;		/* Padded payload length. */
 
 	if (esph)
 		switch (esph->type) {
@@ -921,7 +911,7 @@ esp_output_cb(struct cryptop *crp)
 	struct ipsecrequest *isr;
 	struct secasvar *sav;
 	struct mbuf *m;
-	int err, error;
+	int error;
 
 	tc = (struct tdb_crypto *) crp->crp_opaque;
 	IPSEC_ASSERT(tc != NULL, ("null opaque data area!"));
@@ -948,8 +938,7 @@ esp_output_cb(struct cryptop *crp)
 
 		if (crp->crp_etype == EAGAIN) {
 			IPSECREQUEST_UNLOCK(isr);
-			error = crypto_dispatch(crp);
-			return error;
+			return (crypto_dispatch(crp));
 		}
 
 		V_espstat.esps_noxform++;
@@ -1004,10 +993,10 @@ esp_output_cb(struct cryptop *crp)
 #endif
 
 	/* NB: m is reclaimed by ipsec_process_done. */
-	err = ipsec_process_done(m, isr);
+	error = ipsec_process_done(m, isr);
 	KEY_FREESAV(&sav);
 	IPSECREQUEST_UNLOCK(isr);
-	return err;
+	return error;
 bad:
 	if (sav)
 		KEY_FREESAV(&sav);
@@ -1028,20 +1017,7 @@ static struct xformsw esp_xformsw = {
 static void
 esp_attach(void)
 {
-#define	MAXIV(xform)					\
-	if (xform.blocksize > V_esp_max_ivlen)		\
-		V_esp_max_ivlen = xform.blocksize	\
-
-	MAXIV(enc_xform_des);		/* SADB_EALG_DESCBC */
-	MAXIV(enc_xform_3des);		/* SADB_EALG_3DESCBC */
-	MAXIV(enc_xform_rijndael128);	/* SADB_X_EALG_AES */
-	MAXIV(enc_xform_blf);		/* SADB_X_EALG_BLOWFISHCBC */
-	MAXIV(enc_xform_cast5);		/* SADB_X_EALG_CAST128CBC */
-	MAXIV(enc_xform_skipjack);	/* SADB_X_EALG_SKIPJACK */
-	MAXIV(enc_xform_null);		/* SADB_EALG_NULL */
-	MAXIV(enc_xform_camellia);	/* SADB_X_EALG_CAMELLIACBC */
 
 	xform_register(&esp_xformsw);
-#undef MAXIV
 }
 SYSINIT(esp_xform_init, SI_SUB_PROTO_DOMAIN, SI_ORDER_MIDDLE, esp_attach, NULL);

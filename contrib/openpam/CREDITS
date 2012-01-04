@@ -6,10 +6,11 @@ Network Associates, Inc.  under DARPA/SPAWAR contract N66001-01-C-8035
 
 Principal design and development by:
 
-	 Dag-Erling Smørgrav <des@freebsd.org>
+	 Dag-Erling SmÃ¸rgrav <des@des.no>
 
-The following persons (in no particular order) have contributed, directly
-or indirectly, with patches, criticism, suggestions, or ideas:
+The following persons (in alphabetical order) have contributed,
+directly or indirectly, with patches, criticism, suggestions, or
+ideas:
 
 	Andrew Morgan <morgan@transmeta.com>
 	Brian Fundakowski Feldman <green@freebsd.org>
@@ -20,18 +21,21 @@ or indirectly, with patches, criticism, suggestions, or ideas:
 	Emmanuel Dreyfus <manu@netbsd.org>
 	Eric Melville <eric@freebsd.org>
 	Gary Winiger <Gary.Winiger@sun.com>
+	Hubert Feyrer <hubert@feyrer.de>
 	Joe Marcus Clarke <marcus@freebsd.org>
 	Juli Mallett <jmallett@freebsd.org>
-	Hubert Feyrer <hubert@feyrer.de>
+	JÃ¶rg Sonnenberger <joerg@britannica.bec.de>
 	Mark Murray <markm@freebsd.org>
 	Mike Petullo <mike@flyn.org>
 	Mikhail Teterin <mi@aldan.algebra.com>
-	Mikko Työläjärvi <mbsd@pacbell.net>
+	Mikko TyÃ¶lÃ¤jÃ¤rvi <mbsd@pacbell.net>
+	Nick Hibma <nick@van-laarhoven.org>
 	Robert Watson <rwatson@freebsd.org>
 	Ruslan Ermilov <ru@freebsd.org>
+	Sebastian Krahmer <sebastian.krahmer@gmail.com>
 	Solar Designer <solar@openwall.com>
 	Takanori Saneto <sanewo@ba2.so-net.ne.jp>
 	Wojciech A. Koszek <wkoszek@freebsd.org>
 	Yar Tikhiy <yar@freebsd.org>
 
-$Id: CREDITS 400 2007-10-24 15:04:23Z des $
+$Id: CREDITS 498 2011-11-21 16:27:04Z des $

@@ -123,17 +123,13 @@ static device_method_t ubsec_methods[] = {
 	DEVMETHOD(device_resume,	ubsec_resume),
 	DEVMETHOD(device_shutdown,	ubsec_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	ubsec_newsession),
 	DEVMETHOD(cryptodev_freesession,ubsec_freesession),
 	DEVMETHOD(cryptodev_process,	ubsec_process),
 	DEVMETHOD(cryptodev_kprocess,	ubsec_kprocess),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t ubsec_driver = {
 	"ubsec",

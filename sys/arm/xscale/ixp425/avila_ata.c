@@ -263,7 +263,7 @@ ata_avila_detach(device_t dev)
 	/* XXX quiesce gpio? */
 
 	/* detach & delete all children */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	bus_teardown_intr(dev, sc->sc_irq, sc->sc_ih);
 	bus_release_resource(dev, SYS_RES_IRQ, sc->sc_rid, sc->sc_irq);

@@ -143,6 +143,7 @@
  */
 #define	RL_TXCFG_CLRABRT	0x00000001	/* retransmit aborted pkt */
 #define	RL_TXCFG_MAXDMA		0x00000700	/* max DMA burst size */
+#define	RL_TXCFG_QUEUE_EMPTY	0x00000800	/* 8168E-VL or higher */
 #define	RL_TXCFG_CRCAPPEND	0x00010000	/* CRC append (0 = yes) */
 #define	RL_TXCFG_LOOPBKTST	0x00060000	/* loopback test */
 #define	RL_TXCFG_IFG2		0x00080000	/* 8169 only */
@@ -897,22 +898,25 @@ struct rl_softc {
 	int			rl_int_rx_act;
 	int			rl_int_rx_mod;
 	uint32_t		rl_flags;
-#define	RL_FLAG_MSI		0x0001
-#define	RL_FLAG_AUTOPAD		0x0002
-#define	RL_FLAG_PHYWAKE_PM	0x0004
-#define	RL_FLAG_PHYWAKE		0x0008
-#define	RL_FLAG_JUMBOV2		0x0010
-#define	RL_FLAG_PAR		0x0020
-#define	RL_FLAG_DESCV2		0x0040
-#define	RL_FLAG_MACSTAT		0x0080
-#define	RL_FLAG_FASTETHER	0x0100
-#define	RL_FLAG_CMDSTOP		0x0200
-#define	RL_FLAG_MACRESET	0x0400
-#define	RL_FLAG_MSIX		0x0800
-#define	RL_FLAG_WOLRXENB	0x1000
-#define	RL_FLAG_MACSLEEP	0x2000
-#define	RL_FLAG_PCIE		0x4000
-#define	RL_FLAG_LINK		0x8000
+#define	RL_FLAG_MSI		0x00000001
+#define	RL_FLAG_AUTOPAD		0x00000002
+#define	RL_FLAG_PHYWAKE_PM	0x00000004
+#define	RL_FLAG_PHYWAKE		0x00000008
+#define	RL_FLAG_JUMBOV2		0x00000010
+#define	RL_FLAG_PAR		0x00000020
+#define	RL_FLAG_DESCV2		0x00000040
+#define	RL_FLAG_MACSTAT		0x00000080
+#define	RL_FLAG_FASTETHER	0x00000100
+#define	RL_FLAG_CMDSTOP		0x00000200
+#define	RL_FLAG_MACRESET	0x00000400
+#define	RL_FLAG_MSIX		0x00000800
+#define	RL_FLAG_WOLRXENB	0x00001000
+#define	RL_FLAG_MACSLEEP	0x00002000
+#define	RL_FLAG_WAIT_TXPOLL	0x00004000
+#define	RL_FLAG_CMDSTOP_WAIT_TXQ	0x00008000
+#define	RL_FLAG_WOL_MANLINK	0x00010000
+#define	RL_FLAG_PCIE		0x40000000
+#define	RL_FLAG_LINK		0x80000000
 };
 
 #define	RL_LOCK(_sc)		mtx_lock(&(_sc)->rl_mtx)

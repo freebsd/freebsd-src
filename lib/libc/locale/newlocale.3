@@ -31,40 +31,44 @@
 .Os
 .Sh NAME
 .Nm newlocale
-.Nd Creates a new locale 
+.Nd Creates a new locale
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In xlocale
-.Ft 
+.Ft
 .Fn newlocale "int mask" "const char * locale" "locale_t base"
 .Sh DESCRIPTION
-Creates a new locale, inheriting some properties from an existing locale.  The
-.Fa mask 
+Creates a new locale, inheriting some properties from an existing locale.
+The
+.Fa mask
 defines the components that the new locale will have set to the locale with the
-name specified in the 
+name specified in the
 .Fa locale
-parameter.  Any other components will be inherited from
+parameter.
+Any other components will be inherited from
 .Fa base .
 .Pt
 The
 .Fa mask
 is either
 .Fa LC_ALL_MASK,
-indicating all possible locale components, or the logical OR of some
-combination of the following:
+indicating all possible locale components,
+or the logical OR of some combination of the following:
 .Bl -tag -width "LC_MESSAGES_MASK" -offset indent
 .It LC_COLLATE_MASK
-The locale for string collation routines.  This controls alphabetic ordering in
+The locale for string collation routines.
+This controls alphabetic ordering in
 .Xr strcoll 3
- and 
+ and
 .Xr strxfrm 3 .
 .It LC_CTYPE_MASK
 The locale for the
 .Xr ctype 3
 and
 .Xr multibyte 3
-functions.  This controls recognition of upper and lower case, alpha- betic or
+functions.
+This controls recognition of upper and lower case, alphabetic or
 non-alphabetic characters, and so on.
 .It LC_MESSAGES_MASK
 Set a locale for message catalogs, see
@@ -76,8 +80,8 @@ the
 .Xr localeconv 3
 function.
 .It LC_NUMERIC_MASK
-Set a locale for formatting numbers.  This controls the for-
-matting of decimal points in input and output of floating
+Set a locale for formatting numbers.
+This controls the formatting of decimal points in input and output of floating
 point numbers in functions such as
 .Xr printf 3
 and
@@ -95,7 +99,8 @@ This function uses the same rules for loading locale components as
 .Sh RETURN VALUES
 Returns a new, valid,
 .Fa locale_t
-or NULL if an error occurs.  You must free the returned locale with
+or NULL if an error occurs.
+You must free the returned locale with
 .Xr freelocale 3 .
 .Sh SEE ALSO
 .Xr duplocale 3 ,

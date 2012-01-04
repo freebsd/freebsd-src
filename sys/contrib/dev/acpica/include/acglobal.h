@@ -128,6 +128,12 @@ UINT8       ACPI_INIT_GLOBAL (AcpiGbl_CopyDsdtLocally, FALSE);
  */
 UINT8       ACPI_INIT_GLOBAL (AcpiGbl_TruncateIoAddresses, FALSE);
 
+/*
+ * Disable runtime checking and repair of values returned by control methods.
+ * Use only if the repair is causing a problem on a particular machine.
+ */
+UINT8       ACPI_INIT_GLOBAL (AcpiGbl_DisableAutoRepair, FALSE);
+
 
 /* AcpiGbl_FADT is a local copy of the FADT, converted to a common format. */
 
@@ -137,7 +143,19 @@ UINT32                      AcpiGbl_TraceFlags;
 ACPI_NAME                   AcpiGbl_TraceMethodName;
 BOOLEAN                     AcpiGbl_SystemAwakeAndRunning;
 
+/*
+ * ACPI 5.0 introduces the concept of a "reduced hardware platform", meaning
+ * that the ACPI hardware is no longer required. A flag in the FADT indicates
+ * a reduced HW machine, and that flag is duplicated here for convenience.
+ */
+BOOLEAN                     AcpiGbl_ReducedHardware;
+
+
 #endif
+
+/* Do not disassemble buffers to resource descriptors */
+
+ACPI_EXTERN UINT8       ACPI_INIT_GLOBAL (AcpiGbl_NoResourceDisassembly, FALSE);
 
 /*****************************************************************************
  *
@@ -177,7 +195,7 @@ ACPI_EXTERN UINT8                       AcpiGbl_IntegerNybbleWidth;
 
 /*****************************************************************************
  *
- * Mutual exlusion within ACPICA subsystem
+ * Mutual exclusion within ACPICA subsystem
  *
  ****************************************************************************/
 

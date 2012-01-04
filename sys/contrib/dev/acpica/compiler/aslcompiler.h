@@ -289,7 +289,7 @@ AslCoreSubsystemError (
 
 int
 AslCompilererror(
-    char                    *s);
+    const char              *s);
 
 void
 AslCommonError (
@@ -829,21 +829,23 @@ RsAllocateResourceNode (
     UINT32                  Size);
 
 void
-RsCreateBitField (
+RsCreateResourceField (
     ACPI_PARSE_OBJECT       *Op,
     char                    *Name,
     UINT32                  ByteOffset,
-    UINT32                  BitOffset);
-
-void
-RsCreateByteField (
-    ACPI_PARSE_OBJECT       *Op,
-    char                    *Name,
-    UINT32                  ByteOffset);
+    UINT32                  BitOffset,
+    UINT32                  BitLength);
 
 void
 RsSetFlagBits (
     UINT8                   *Flags,
+    ACPI_PARSE_OBJECT       *Op,
+    UINT8                   Position,
+    UINT8                   DefaultBit);
+
+void
+RsSetFlagBits16 (
+    UINT16                  *Flags,
     ACPI_PARSE_OBJECT       *Op,
     UINT8                   Position,
     UINT8                   DefaultBit);
@@ -931,6 +933,11 @@ RsDoDmaDescriptor (
     UINT32                  CurrentByteOffset);
 
 ASL_RESOURCE_NODE *
+RsDoFixedDmaDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
 RsDoFixedIoDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
@@ -969,6 +976,30 @@ RsDoGeneralRegisterDescriptor (
     ACPI_PARSE_OBJECT       *Op,
     UINT32                  CurrentByteOffset);
 
+ASL_RESOURCE_NODE *
+RsDoGpioIntDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoGpioIoDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoI2cSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoSpiSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
+
+ASL_RESOURCE_NODE *
+RsDoUartSerialBusDescriptor (
+    ACPI_PARSE_OBJECT       *Op,
+    UINT32                  CurrentByteOffset);
 
 /*
  * aslrestype2d - DWord address descriptors

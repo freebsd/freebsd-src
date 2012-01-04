@@ -397,7 +397,7 @@ ether_output(struct ifnet *ifp, struct mbuf *m,
 
 #if defined(INET) || defined(INET6)
 	if (ifp->if_carp &&
-	    (error = (*carp_output_p)(ifp, m, dst, NULL)))
+	    (error = (*carp_output_p)(ifp, m, dst)))
 		goto bad;
 #endif
 

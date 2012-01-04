@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+#if VM_NDOMAIN > 1
 struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
@@ -237,9 +238,9 @@ check_phys_avail(void)
 
 /*
  * Renumber the memory domains to be compact and zero-based if not
- * already.
+ * already.  Returns an error if there are too many domains.
  */
-static void
+static int
 renumber_domains(void)
 {
 	int domains[VM_PHYSSEG_MAX];
@@ -261,6 +262,11 @@ renumber_domains(void)
 		for (j = ndomain; j > slot; j--)
 			domains[j] = domains[j - 1];
 		domains[slot] = mem_info[i].domain;
+		ndomain++;
+		if (ndomain > VM_NDOMAIN) {
+			printf("SRAT: Too many memory domains\n");
+			return (EFBIG);
+		}
 	}
 
 	/* Renumber each domain to its index in the sorted 'domains' list. */
@@ -280,6 +286,7 @@ renumber_domains(void)
 			if (cpus[j].enabled && cpus[j].domain == domains[i])
 				cpus[j].domain = i;
 	}
+	return (0);
 }
 
 /*
@@ -306,12 +313,11 @@ parse_srat(void *dummy)
 	srat_walk_table(srat_parse_entry, &error);
 	acpi_unmap_table(srat);
 	srat = NULL;
-	if (error || check_domains() != 0 || check_phys_avail() != 0) {
+	if (error || check_domains() != 0 || check_phys_avail() != 0 ||
+	    renumber_domains() != 0) {
 		srat_physaddr = 0;
 		return;
 	}
-
-	renumber_domains();
 
 	/* Point vm_phys at our memory affinity table. */
 	mem_affinity = mem_info;
@@ -354,3 +360,4 @@ srat_set_cpus(void *dummy)
 	}
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
+#endif /* VM_NDOMAIN > 1 */

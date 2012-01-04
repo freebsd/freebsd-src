@@ -130,7 +130,6 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	psycho_read_ivar),
 	DEVMETHOD(bus_setup_intr,	psycho_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -139,7 +138,6 @@ static device_method_t psycho_methods[] = {
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 	DEVMETHOD(bus_adjust_resource,	psycho_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
-	DEVMETHOD(bus_describe_intr,	bus_generic_describe_intr),
 	DEVMETHOD(bus_get_dma_tag,	psycho_get_dma_tag),
 
 	/* pcib interface */
@@ -154,7 +152,7 @@ static device_method_t psycho_methods[] = {
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	psycho_setup_device),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t psycho_devclass;

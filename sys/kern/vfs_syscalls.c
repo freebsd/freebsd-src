@@ -880,7 +880,8 @@ chroot_refuse_vdir_fds(fdp)
 static int chroot_allow_open_directories = 1;
 
 SYSCTL_INT(_kern, OID_AUTO, chroot_allow_open_directories, CTLFLAG_RW,
-     &chroot_allow_open_directories, 0, "");
+     &chroot_allow_open_directories, 0,
+     "Allow a process to chroot(2) if it has a directory open");
 
 /*
  * Change notion of root (``/'') directory.
@@ -2049,6 +2050,7 @@ sys_lseek(td, uap)
 	if (error != 0)
 		goto drop;
 	fp->f_offset = offset;
+	VFS_KNOTE_UNLOCKED(vp, 0);
 	*(off_t *)(td->td_retval) = fp->f_offset;
 drop:
 	fdrop(fp, td);
@@ -4344,7 +4346,20 @@ getvnode(struct filedesc *fdp, int fd, cap_rights_t rights,
 		fp = fp_fromcap;
 	}
 #endif /* CAPABILITIES */
-	if (fp->f_vnode == NULL) {
+
+	/*
+	 * The file could be not of the vnode type, or it may be not
+	 * yet fully initialized, in which case the f_vnode pointer
+	 * may be set, but f_ops is still badfileops.  E.g.,
+	 * devfs_open() transiently create such situation to
+	 * facilitate csw d_fdopen().
+	 *
+	 * Dupfdopen() handling in kern_openat() installs the
+	 * half-baked file into the process descriptor table, allowing
+	 * other thread to dereference it. Guard against the race by
+	 * checking f_ops.
+	 */
+	if (fp->f_vnode == NULL || fp->f_ops == &badfileops) {
 		fdrop(fp, curthread);
 		return (EINVAL);
 	}

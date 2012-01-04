@@ -1597,7 +1597,7 @@ delete_oldest_timelog(const struct conf_entry *ent, const char *archive_dir)
 }
 
 /*
- * Generate a log filename, when using clasic filenames.
+ * Generate a log filename, when using classic filenames.
  */
 static void
 gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
@@ -1612,7 +1612,7 @@ gen_clasiclog_fname(char *fname, size_t fname_sz, const char *archive_dir,
 }
 
 /*
- * Delete a rotated logfiles, when using clasic filenames.
+ * Delete a rotated logfiles, when using classic filenames.
  */
 static void
 delete_clasiclog(const char *archive_dir, const char *namepart, int numlog_c)
@@ -1710,7 +1710,7 @@ do_rotate(const struct conf_entry *ent)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(dirpart, ent->log, sizeof(dirpart));
-			if ((p = rindex(dirpart, '/')) == NULL)
+			if ((p = strrchr(dirpart, '/')) == NULL)
 				dirpart[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -1722,7 +1722,7 @@ do_rotate(const struct conf_entry *ent)
 			createdir(ent, dirpart);
 
 		/* get filename part of logfile */
-		if ((p = rindex(ent->log, '/')) == NULL)
+		if ((p = strrchr(ent->log, '/')) == NULL)
 			strlcpy(namepart, ent->log, sizeof(namepart));
 		else
 			strlcpy(namepart, p + 1, sizeof(namepart));
@@ -1946,9 +1946,10 @@ do_zipwork(struct zipwork_entry *zwork)
 	char zresult[MAXPATHLEN];
 	int c;
 
+	assert(zwork != NULL);
 	pgm_path = NULL;
 	strlcpy(zresult, zwork->zw_fname, sizeof(zresult));
-	if (zwork != NULL && zwork->zw_conf != NULL &&
+	if (zwork->zw_conf != NULL &&
 	    zwork->zw_conf->compress > COMPRESS_NONE)
 		for (c = 1; c < COMPRESS_TYPES; c++) {
 			if (zwork->zw_conf->compress == c) {
@@ -2254,7 +2255,7 @@ age_old_log(char *file)
 		} else {	/* relative */
 			/* get directory part of logfile */
 			strlcpy(tmp, file, sizeof(tmp));
-			if ((p = rindex(tmp, '/')) == NULL)
+			if ((p = strrchr(tmp, '/')) == NULL)
 				tmp[0] = '\0';
 			else
 				*(p + 1) = '\0';
@@ -2264,7 +2265,7 @@ age_old_log(char *file)
 		strlcat(tmp, "/", sizeof(tmp));
 
 		/* get filename part of logfile */
-		if ((p = rindex(file, '/')) == NULL)
+		if ((p = strrchr(file, '/')) == NULL)
 			strlcat(tmp, file, sizeof(tmp));
 		else
 			strlcat(tmp, p + 1, sizeof(tmp));

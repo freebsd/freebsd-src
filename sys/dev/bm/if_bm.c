@@ -135,15 +135,12 @@ static device_method_t bm_methods[] = {
 	DEVMETHOD(device_detach,	bm_detach),
 	DEVMETHOD(device_shutdown,	bm_shutdown),
 
-	/* bus interface, for miibus */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bm_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bm_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bm_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t bm_macio_driver = {

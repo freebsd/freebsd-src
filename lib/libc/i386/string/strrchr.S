@@ -64,4 +64,6 @@ L2:
 	ret
 END(strrchr)
 
+STRONG_ALIAS(rindex, strrchr)
+
 	.section .note.GNU-stack,"",%progbits

@@ -1106,7 +1106,7 @@ process_obj(dtrace_hdl_t *dtp, const char *obj, int *eprobesp)
 	static const char dt_prefix[] = "__dtrace";
 	static const char dt_enabled[] = "enabled";
 	static const char dt_symprefix[] = "$dtrace";
-	static const char dt_symfmt[] = "%s%d.%s";
+	static const char dt_symfmt[] = "%s%ld.%s";
 	int fd, i, ndx, eprobe, mod = 0;
 	Elf *elf = NULL;
 	GElf_Ehdr ehdr;

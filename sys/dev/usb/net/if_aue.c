@@ -254,15 +254,12 @@ static device_method_t aue_methods[] = {
 	DEVMETHOD(device_attach, aue_attach),
 	DEVMETHOD(device_detach, aue_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, aue_miibus_readreg),
 	DEVMETHOD(miibus_writereg, aue_miibus_writereg),
 	DEVMETHOD(miibus_statchg, aue_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t aue_driver = {

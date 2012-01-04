@@ -211,6 +211,11 @@ std::string ToolChain::ComputeEffectiveClangTriple(const ArgList &Args,
   return ComputeLLVMTriple(Args, InputType);
 }
 
+void ToolChain::AddClangSystemIncludeArgs(const ArgList &DriverArgs,
+                                          ArgStringList &CC1Args) const {
+  // Each toolchain should provide the appropriate include flags.
+}
+
 ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   if (Arg *A = Args.getLastArg(options::OPT_stdlib_EQ)) {
     StringRef Value = A->getValue(Args);
@@ -225,24 +230,18 @@ ToolChain::CXXStdlibType ToolChain::GetCXXStdlibType(const ArgList &Args) const{
   return ToolChain::CST_Libstdcxx;
 }
 
-void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &Args,
-                                             ArgStringList &CmdArgs,
-                                             bool ObjCXXAutoRefCount) const {
-  CXXStdlibType Type = GetCXXStdlibType(Args);
-
-  // Header search paths are handled by the mass of goop in InitHeaderSearch.
-
-  switch (Type) {
-  case ToolChain::CST_Libcxx:
-    if (ObjCXXAutoRefCount)
-      CmdArgs.push_back("-fobjc-arc-cxxlib=libc++");
-    break;
-
-  case ToolChain::CST_Libstdcxx:
-    if (ObjCXXAutoRefCount)
-      CmdArgs.push_back("-fobjc-arc-cxxlib=libstdc++");
-    break;
-  }
+void ToolChain::AddClangCXXStdlibIncludeArgs(const ArgList &DriverArgs,
+                                             ArgStringList &CC1Args) const {
+  // Header search paths should be handled by each of the subclasses.
+  // Historically, they have not been, and instead have been handled inside of
+  // the CC1-layer frontend. As the logic is hoisted out, this generic function
+  // will slowly stop being called.
+  //
+  // While it is being called, replicate a bit of a hack to propagate the
+  // '-stdlib=' flag down to CC1 so that it can in turn customize the C++
+  // header search paths with it. Once all systems are overriding this
+  // function, the CC1 flag and this line can be removed.
+  DriverArgs.AddAllArgs(CC1Args, options::OPT_stdlib_EQ);
 }
 
 void ToolChain::AddCXXStdlibLibArgs(const ArgList &Args,
