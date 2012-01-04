@@ -784,6 +784,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)	{
 			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
@@ -794,6 +795,9 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (candidate.s_addr == match.s_addr)
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_UNLOCK(ifp);
 		if (ifa == NULL)
 			return (EADDRNOTAVAIL);
 		ia = (struct in_ifaddr *)ifa;
@@ -812,6 +816,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 				in_mask2len(&ia->ia_sockmask.sin_addr);
 
 			iflr->flags = 0;	/*XXX*/
+			ifa_free(ifa);
 
 			return (0);
 		} else {
@@ -830,6 +835,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 			bcopy(&ia->ia_sockmask, &ifra.ifra_dstaddr,
 				ia->ia_sockmask.sin_len);
+			ifa_free(ifa);
 
 			return (in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
 			    ifp, td));
