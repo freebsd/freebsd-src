@@ -243,6 +243,7 @@ AcpiDsGetFieldNames (
 {
     ACPI_STATUS             Status;
     UINT64                  Position;
+    ACPI_PARSE_OBJECT       *Child;
 
 
     ACPI_FUNCTION_TRACE_PTR (DsGetFieldNames, Info);
@@ -257,10 +258,11 @@ AcpiDsGetFieldNames (
     while (Arg)
     {
         /*
-         * Three types of field elements are handled:
-         * 1) Offset - specifies a bit offset
-         * 2) AccessAs - changes the access mode
-         * 3) Name - Enters a new named field into the namespace
+         * Four types of field elements are handled:
+         * 1) Name - Enters a new named field into the namespace
+         * 2) Offset - specifies a bit offset
+         * 3) AccessAs - changes the access mode/attributes
+         * 4) Connection - Associate a resource template with the field
          */
         switch (Arg->Common.AmlOpcode)
         {
@@ -279,24 +281,67 @@ AcpiDsGetFieldNames (
             Info->FieldBitPosition = (UINT32) Position;
             break;
 
-
         case AML_INT_ACCESSFIELD_OP:
-
+        case AML_INT_EXTACCESSFIELD_OP:
             /*
-             * Get a new AccessType and AccessAttribute -- to be used for all
-             * field units that follow, until field end or another AccessAs
-             * keyword.
+             * Get new AccessType, AccessAttribute, and AccessLength fields
+             * -- to be used for all field units that follow, until the
+             * end-of-field or another AccessAs keyword is encountered.
+             * NOTE. These three bytes are encoded in the integer value
+             * of the parseop for convenience.
              *
              * In FieldFlags, preserve the flag bits other than the
-             * ACCESS_TYPE bits
+             * ACCESS_TYPE bits.
              */
+
+            /* AccessType (ByteAcc, WordAcc, etc.) */
+
             Info->FieldFlags = (UINT8)
                 ((Info->FieldFlags & ~(AML_FIELD_ACCESS_TYPE_MASK)) |
-                ((UINT8) ((UINT32) Arg->Common.Value.Integer >> 8)));
+                ((UINT8) ((UINT32) (Arg->Common.Value.Integer & 0x07))));
 
-            Info->Attribute = (UINT8) (Arg->Common.Value.Integer);
+            /* AccessAttribute (AttribQuick, AttribByte, etc.) */
+
+            Info->Attribute = (UINT8) ((Arg->Common.Value.Integer >> 8) & 0xFF);
+
+            /* AccessLength (for serial/buffer protocols) */
+
+            Info->AccessLength = (UINT8) ((Arg->Common.Value.Integer >> 16) & 0xFF);
             break;
 
+        case AML_INT_CONNECTION_OP:
+            /*
+             * Clear any previous connection. New connection is used for all
+             * fields that follow, similar to AccessAs
+             */
+            Info->ResourceBuffer = NULL;
+            Info->ConnectionNode = NULL;
+
+            /*
+             * A Connection() is either an actual resource descriptor (buffer)
+             * or a named reference to a resource template
+             */
+            Child = Arg->Common.Value.Arg;
+            if (Child->Common.AmlOpcode == AML_INT_BYTELIST_OP)
+            {
+                Info->ResourceBuffer = Child->Named.Data;
+                Info->ResourceLength = (UINT16) Child->Named.Value.Integer;
+            }
+            else
+            {
+                /* Lookup the Connection() namepath, it should already exist */
+
+                Status = AcpiNsLookup (WalkState->ScopeInfo,
+                            Child->Common.Value.Name, ACPI_TYPE_ANY,
+                            ACPI_IMODE_EXECUTE, ACPI_NS_DONT_OPEN_SCOPE,
+                            WalkState, &Info->ConnectionNode);
+                if (ACPI_FAILURE (Status))
+                {
+                    ACPI_ERROR_NAMESPACE (Child->Common.Value.Name, Status);
+                    return_ACPI_STATUS (Status);
+                }
+            }
+            break;
 
         case AML_INT_NAMEDFIELD_OP:
 
@@ -347,7 +392,6 @@ AcpiDsGetFieldNames (
 
             Info->FieldBitPosition += Info->FieldBitLength;
             break;
-
 
         default:
 
@@ -406,6 +450,8 @@ AcpiDsCreateField (
         }
     }
 
+    ACPI_MEMSET (&Info, 0, sizeof (ACPI_CREATE_FIELD_INFO));
+
     /* Second arg is the field flags */
 
     Arg = Arg->Common.Next;
@@ -418,7 +464,6 @@ AcpiDsCreateField (
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
-
     return_ACPI_STATUS (Status);
 }
 
@@ -514,8 +559,8 @@ AcpiDsInitFieldObjects (
     while (Arg)
     {
         /*
-         * Ignore OFFSET and ACCESSAS terms here; we are only interested in the
-         * field names in order to enter them into the namespace.
+         * Ignore OFFSET/ACCESSAS/CONNECTION terms here; we are only interested
+         * in the field names in order to enter them into the namespace.
          */
         if (Arg->Common.AmlOpcode == AML_INT_NAMEDFIELD_OP)
         {
@@ -697,7 +742,6 @@ AcpiDsCreateIndexField (
     Info.RegionNode = RegionNode;
 
     Status = AcpiDsGetFieldNames (&Info, WalkState, Arg->Common.Next);
-
     return_ACPI_STATUS (Status);
 }
 

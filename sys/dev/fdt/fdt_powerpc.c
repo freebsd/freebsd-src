@@ -62,7 +62,7 @@ fdt_fixup_busfreq(phandle_t root)
 	 * This fixup uses /cpus/ bus-frequency prop value to set simple-bus
 	 * bus-frequency property.
 	 */
-	if ((cpus = OF_finddevice("/cpus")) == 0)
+	if ((cpus = OF_finddevice("/cpus")) == -1)
 		return;
 
 	if ((child = OF_child(cpus)) == 0)

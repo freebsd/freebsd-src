@@ -1554,9 +1554,12 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	    cnt.v_free_count + cnt.v_cache_count >= npages)) {
 #if VM_NRESERVLEVEL > 0
 retry:
+		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
+		    low, high, alignment, boundary)) == NULL)
 #endif
-		m_ret = vm_phys_alloc_contig(npages, low, high, alignment,
-		    boundary);
+			m_ret = vm_phys_alloc_contig(npages, low, high,
+			    alignment, boundary);
 	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit, npages);
@@ -1581,8 +1584,8 @@ retry:
 		}
 	else {
 #if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages << PAGE_SHIFT, low, high,
-		    alignment, boundary))
+		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
+		    boundary))
 			goto retry;
 #endif
 	}
@@ -2538,7 +2541,7 @@ vm_page_bits(int base, int size)
 }
 
 /*
- *	vm_page_set_valid:
+ *	vm_page_set_valid_range:
  *
  *	Sets portions of a page valid.  The arguments are expected
  *	to be DEV_BSIZE aligned but if they aren't the bitmap is inclusive
@@ -2548,7 +2551,7 @@ vm_page_bits(int base, int size)
  *	(base + size) must be less then or equal to PAGE_SIZE.
  */
 void
-vm_page_set_valid(vm_page_t m, int base, int size)
+vm_page_set_valid_range(vm_page_t m, int base, int size)
 {
 	int endoff, frag;
 
@@ -2581,7 +2584,7 @@ vm_page_set_valid(vm_page_t m, int base, int size)
 	 * is already dirty. 
 	 */
 	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
-	    ("vm_page_set_valid: page %p is dirty", m)); 
+	    ("vm_page_set_valid_range: page %p is dirty", m));
 
 	/*
 	 * Set valid bits inclusive of any overlap.
@@ -2842,6 +2845,36 @@ vm_page_test_dirty(vm_page_t m)
 	if (m->dirty != VM_PAGE_BITS_ALL && pmap_is_modified(m))
 		vm_page_dirty(m);
 }
+
+void
+vm_page_lock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	mtx_lock_flags_(vm_page_lockptr(m), 0, file, line);
+}
+
+void
+vm_page_unlock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	mtx_unlock_flags_(vm_page_lockptr(m), 0, file, line);
+}
+
+int
+vm_page_trylock_KBI(vm_page_t m, const char *file, int line)
+{
+
+	return (mtx_trylock_flags_(vm_page_lockptr(m), 0, file, line));
+}
+
+#if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
+void
+vm_page_lock_assert_KBI(vm_page_t m, int a, const char *file, int line)
+{
+
+	mtx_assert_(vm_page_lockptr(m), a, file, line);
+}
+#endif
 
 int so_zerocp_fullpage = 0;
 

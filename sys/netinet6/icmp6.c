@@ -1780,7 +1780,7 @@ ni6_addrs(struct icmp6_nodeinfo *ni6, struct mbuf *m, struct ifnet **ifpp,
 	}
 
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp; ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		addrsofif = 0;
 		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
@@ -1851,7 +1851,7 @@ static int
 ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
     struct ifnet *ifp0, int resid)
 {
-	struct ifnet *ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
+	struct ifnet *ifp;
 	struct in6_ifaddr *ifa6;
 	struct ifaddr *ifa;
 	struct ifnet *ifp_dep = NULL;
@@ -1864,6 +1864,7 @@ ni6_store_addrs(struct icmp6_nodeinfo *ni6, struct icmp6_nodeinfo *nni6,
 		return (0);	/* needless to copy */
 
 	IFNET_RLOCK_NOSLEEP();
+	ifp = ifp0 ? ifp0 : TAILQ_FIRST(&V_ifnet);
   again:
 
 	for (; ifp; ifp = TAILQ_NEXT(ifp, if_list)) {

@@ -135,7 +135,8 @@ const char                      *AcpiGbl_IrqDecode[] =
  *
  * RETURN:      None
  *
- * DESCRIPTION: Decode the AccessAs attribute byte.  (Mostly SMBus stuff)
+ * DESCRIPTION: Decode the AccessAs attribute byte. (Mostly SMBus and
+ *              GenericSerialBus stuff.)
  *
  ******************************************************************************/
 
@@ -146,44 +147,61 @@ AcpiDmDecodeAttribute (
 
     switch (Attribute)
     {
-    case AML_FIELD_ATTRIB_SMB_QUICK:
+    case AML_FIELD_ATTRIB_QUICK:
 
-        AcpiOsPrintf ("SMBQuick");
+        AcpiOsPrintf ("AttribQuick");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_SEND_RCV:
+    case AML_FIELD_ATTRIB_SEND_RCV:
 
-        AcpiOsPrintf ("SMBSendReceive");
+        AcpiOsPrintf ("AttribSendReceive");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_BYTE:
+    case AML_FIELD_ATTRIB_BYTE:
 
-        AcpiOsPrintf ("SMBByte");
+        AcpiOsPrintf ("AttribByte");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_WORD:
+    case AML_FIELD_ATTRIB_WORD:
 
-        AcpiOsPrintf ("SMBWord");
+        AcpiOsPrintf ("AttribWord");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_WORD_CALL:
+    case AML_FIELD_ATTRIB_BLOCK:
 
-        AcpiOsPrintf ("SMBProcessCall");
+        AcpiOsPrintf ("AttribBlock");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_BLOCK:
+    case AML_FIELD_ATTRIB_MULTIBYTE:
 
-        AcpiOsPrintf ("SMBBlock");
+        AcpiOsPrintf ("AttribBytes");
         break;
 
-    case AML_FIELD_ATTRIB_SMB_BLOCK_CALL:
+    case AML_FIELD_ATTRIB_WORD_CALL:
 
-        AcpiOsPrintf ("SMBBlockProcessCall");
+        AcpiOsPrintf ("AttribProcessCall");
+        break;
+
+    case AML_FIELD_ATTRIB_BLOCK_CALL:
+
+        AcpiOsPrintf ("AttribBlockProcessCall");
+        break;
+
+    case AML_FIELD_ATTRIB_RAW_BYTES:
+
+        AcpiOsPrintf ("AttribRawBytes");
+        break;
+
+    case AML_FIELD_ATTRIB_RAW_PROCESS:
+
+        AcpiOsPrintf ("AttribRawProcessBytes");
         break;
 
     default:
 
-        AcpiOsPrintf ("0x%.2X", Attribute);
+        /* A ByteConst is allowed by the grammar */
+
+        AcpiOsPrintf ("0x%2.2X", Attribute);
         break;
     }
 }

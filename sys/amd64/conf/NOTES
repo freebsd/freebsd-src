@@ -294,6 +294,7 @@ options 	DRM_DEBUG	# Include debug printfs (slow)
 #	Requires the mwl firmware module
 # nfe:	nVidia nForce MCP on-board Ethernet Networking (BSD open source)
 # nve:	nVidia nForce MCP on-board Ethernet Networking
+# sfxge: Solarflare SFC9000 family 10Gb Ethernet adapters
 # wpi:	Intel 3945ABG Wireless LAN controller
 #	Requires the wpi firmware module
 
@@ -307,6 +308,7 @@ device		iwn
 device		mwl
 device		nfe
 device		nve
+device		sfxge
 device		wpi
 
 # IEEE 802.11 adapter firmware modules
@@ -386,6 +388,10 @@ device		aac
 device		aacp	# SCSI Passthrough interface (optional, CAM required)
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -453,9 +459,11 @@ device		tpm
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
 
 #
 # Temperature sensors:

@@ -745,7 +745,7 @@ machtime_stream(int s, struct servtab *sep __unused)
 #define MAX_SERV_LEN	(256+2)		/* 2 bytes for \r\n */
 #define strwrite(fd, buf)	(void) write(fd, buf, sizeof(buf)-1)
 
-static int		/* # of characters upto \r,\n or \0 */
+static int		/* # of characters up to \r,\n or \0 */
 getline(int fd, char *buf, int len)
 {
 	int count = 0, n;

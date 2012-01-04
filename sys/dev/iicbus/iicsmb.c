@@ -22,10 +22,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
- *
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 /*
  * I2C to SMB bridge
@@ -106,10 +106,6 @@ static device_method_t iicsmb_methods[] = {
 	DEVMETHOD(device_attach,	iicsmb_attach),
 	DEVMETHOD(device_detach,	iicsmb_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-
 	/* iicbus interface */
 	DEVMETHOD(iicbus_intr,		iicsmb_intr),
 
@@ -125,8 +121,8 @@ static device_method_t iicsmb_methods[] = {
 	DEVMETHOD(smbus_pcall,		iicsmb_pcall),
 	DEVMETHOD(smbus_bwrite,		iicsmb_bwrite),
 	DEVMETHOD(smbus_bread,		iicsmb_bread),
-	
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t iicsmb_driver = {

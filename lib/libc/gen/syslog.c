@@ -265,7 +265,7 @@ vsyslog(int pri, const char *fmt, va_list ap)
 	 *  1) syslogd was restarted
 	 *  2) /var/run/log is out of socket buffer space, which
 	 *     in most cases means local DoS.
-	 * We attempt to reconnect to /var/run/log to take care of
+	 * We attempt to reconnect to /var/run/log[priv] to take care of
 	 * case #1 and keep send()ing data to cover case #2
 	 * to give syslogd a chance to empty its socket buffer.
 	 *
@@ -281,13 +281,13 @@ vsyslog(int pri, const char *fmt, va_list ap)
 			connectlog();
 		}
 		do {
+			if (status == CONNPRIV)
+				break;
 			_usleep(1);
 			if (send(LogFile, tbuf, cnt, 0) >= 0) {
 				THREAD_UNLOCK();
 				return;
 			}
-			if (status == CONNPRIV)
-				break;
 		} while (errno == ENOBUFS);
 	} else {
 		THREAD_UNLOCK();

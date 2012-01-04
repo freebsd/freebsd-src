@@ -25,13 +25,7 @@ LINKS=	${BINDIR}/grep ${BINDIR}/egrep \
 	${BINDIR}/grep ${BINDIR}/fgrep \
 	${BINDIR}/grep ${BINDIR}/zgrep \
 	${BINDIR}/grep ${BINDIR}/zegrep \
-	${BINDIR}/grep ${BINDIR}/zfgrep \
-	${BINDIR}/grep ${BINDIR}/xzgrep \
-	${BINDIR}/grep ${BINDIR}/xzegrep \
-	${BINDIR}/grep ${BINDIR}/xzfgrep \
-	${BINDIR}/grep ${BINDIR}/lzgrep \
-	${BINDIR}/grep ${BINDIR}/lzegrep \
-	${BINDIR}/grep ${BINDIR}/lzfgrep
+	${BINDIR}/grep ${BINDIR}/zfgrep
 
 MLINKS= grep.1 egrep.1 \
 	grep.1 fgrep.1 \
@@ -45,6 +39,13 @@ MLINKS= grep.1 egrep.1 \
 	grep.1 lzegrep.1 \
 	grep.1 lzfgrep.1
 .endif
+
+LINKS+=	${BINDIR}/${PROG} ${BINDIR}/xzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/xzfgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzgrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzegrep \
+	${BINDIR}/${PROG} ${BINDIR}/lzfgrep
 
 LDADD=	-lz -llzma
 DPADD=	${LIBZ} ${LIBLZMA}

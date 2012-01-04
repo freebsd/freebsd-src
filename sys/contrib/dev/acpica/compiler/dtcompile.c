@@ -310,6 +310,17 @@ DtCompileDataTable (
         Status = DtCompileRsdp (FieldList);
         return (Status);
     }
+    else if (ACPI_COMPARE_NAME (Signature, ACPI_SIG_S3PT))
+    {
+        Status = DtCompileS3pt (FieldList);
+        if (ACPI_FAILURE (Status))
+        {
+            return (Status);
+        }
+
+        DtSetTableLength ();
+        return (Status);
+    }
 
     /*
      * All other tables must use the common ACPI table header. Insert the
@@ -329,7 +340,7 @@ DtCompileDataTable (
     /* Validate the signature via the ACPI table list */
 
     TableData = AcpiDmGetTableData (Signature);
-    if (!TableData)
+    if (!TableData || Gbl_CompileGeneric)
     {
         DtCompileGeneric ((void **) FieldList);
         goto Out;
@@ -411,6 +422,7 @@ DtCompileTable (
     UINT8                   FieldType;
     UINT8                   *Buffer;
     UINT8                   *FlagBuffer = NULL;
+    UINT32                  CurrentFlagByteOffset = 0;
     ACPI_STATUS             Status;
 
 
@@ -442,6 +454,11 @@ DtCompileTable (
      */
     for (; Info->Name; Info++)
     {
+        if (Info->Opcode == ACPI_DMT_EXTRA_TEXT)
+        {
+            continue;
+        }
+
         if (!LocalField)
         {
             sprintf (MsgBuffer, "Found NULL field - Field name \"%s\" needed",
@@ -472,6 +489,7 @@ DtCompileTable (
             *Field = LocalField;
 
             FlagBuffer = Buffer;
+            CurrentFlagByteOffset = Info->Offset;
             break;
 
         case DT_FIELD_TYPE_FLAG:
@@ -480,6 +498,14 @@ DtCompileTable (
 
             if (FlagBuffer)
             {
+                /*
+                 * We must increment the FlagBuffer when we have crossed
+                 * into the next flags byte within the flags field
+                 * of type DT_FIELD_TYPE_FLAGS_INTEGER.
+                 */
+                FlagBuffer += (Info->Offset - CurrentFlagByteOffset);
+                CurrentFlagByteOffset = Info->Offset;
+
                 DtCompileFlag (FlagBuffer, LocalField, Info);
             }
             else

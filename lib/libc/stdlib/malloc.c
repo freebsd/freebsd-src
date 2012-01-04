@@ -219,7 +219,11 @@ __FBSDID("$FreeBSD$");
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		2
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
-#  define TLS_MODEL		__attribute__((tls_model("initial-exec")))
+#  ifdef __clang__
+#    define TLS_MODEL		/* clang does not support tls_model yet */
+#  else
+#    define TLS_MODEL		__attribute__((tls_model("initial-exec")))
+#  endif
 #endif
 #ifdef __ia64__
 #  define LG_QUANTUM		4
@@ -240,7 +244,11 @@ __FBSDID("$FreeBSD$");
 #  define LG_QUANTUM		4
 #  define LG_SIZEOF_PTR		3
 #  define CPU_SPINWAIT		__asm__ volatile("pause")
-#  define TLS_MODEL		__attribute__((tls_model("initial-exec")))
+#  ifdef __clang__
+#    define TLS_MODEL		/* clang does not support tls_model yet */
+#  else
+#    define TLS_MODEL		__attribute__((tls_model("initial-exec")))
+#  endif
 #endif
 #ifdef __arm__
 #  define LG_QUANTUM		3

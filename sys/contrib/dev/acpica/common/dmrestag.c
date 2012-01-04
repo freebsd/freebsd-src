@@ -63,7 +63,7 @@ AcpiDmUpdateResourceName (
 static char *
 AcpiDmSearchTagList (
     UINT32                  BitIndex,
-    ACPI_RESOURCE_TAG       *TagList);
+    const ACPI_RESOURCE_TAG *TagList);
 
 static char *
 AcpiDmGetResourceTag (
@@ -108,7 +108,7 @@ AcpiDmAddResourcesToNamespace (
  *
  ******************************************************************************/
 
-static ACPI_RESOURCE_TAG        AcpiDmIrqTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIrqTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_INTERRUPT},
     {( 3 * 8) + 0,  ACPI_RESTAG_INTERRUPTTYPE},
@@ -117,7 +117,7 @@ static ACPI_RESOURCE_TAG        AcpiDmIrqTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmDmaTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmDmaTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_DMA},
     {( 2 * 8) + 0,  ACPI_RESTAG_XFERTYPE},
@@ -126,7 +126,7 @@ static ACPI_RESOURCE_TAG        AcpiDmDmaTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmIoTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIoTags[] =
 {
     {( 1 * 8) + 0,  ACPI_RESTAG_DECODE},
     {( 2 * 8),      ACPI_RESTAG_MINADDR},
@@ -136,14 +136,22 @@ static ACPI_RESOURCE_TAG        AcpiDmIoTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmFixedIoTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedIoTags[] =
 {
     {( 1 * 8),      ACPI_RESTAG_BASEADDRESS},
     {( 3 * 8),      ACPI_RESTAG_LENGTH},
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmMemory24Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedDmaTags[] =
+{
+    {( 1 * 8),      ACPI_RESTAG_DMA},
+    {( 3 * 8),      ACPI_RESTAG_DMATYPE},
+    {( 5 * 8),      ACPI_RESTAG_XFERTYPE},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmMemory24Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_MINADDR},
@@ -153,7 +161,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemory24Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmRegisterTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmRegisterTags[] =
 {
     {( 3 * 8),      ACPI_RESTAG_ADDRESSSPACE},
     {( 4 * 8),      ACPI_RESTAG_REGISTERBITWIDTH},
@@ -163,7 +171,7 @@ static ACPI_RESOURCE_TAG        AcpiDmRegisterTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmMemory32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmMemory32Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_MINADDR},
@@ -173,7 +181,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemory32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmFixedMemory32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmFixedMemory32Tags[] =
 {
     {( 3 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 4 * 8),      ACPI_RESTAG_BASEADDRESS},
@@ -181,7 +189,7 @@ static ACPI_RESOURCE_TAG        AcpiDmFixedMemory32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmInterruptTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmInterruptTags[] =
 {
     {( 3 * 8) + 1,  ACPI_RESTAG_INTERRUPTTYPE},
     {( 3 * 8) + 2,  ACPI_RESTAG_INTERRUPTLEVEL},
@@ -190,7 +198,7 @@ static ACPI_RESOURCE_TAG        AcpiDmInterruptTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress16Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress16Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -203,7 +211,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress16Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress32Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress32Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -216,7 +224,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress32Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmAddress64Tags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmAddress64Tags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -229,7 +237,7 @@ static ACPI_RESOURCE_TAG        AcpiDmAddress64Tags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmExtendedAddressTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmExtendedAddressTags[] =
 {
     {( 4 * 8) + 1,  ACPI_RESTAG_DECODE},
     {( 4 * 8) + 2,  ACPI_RESTAG_MINTYPE},
@@ -243,9 +251,71 @@ static ACPI_RESOURCE_TAG        AcpiDmExtendedAddressTags[] =
     {0,             NULL}
 };
 
-/* Special-case tables for the type-specific flags */
+/* Subtype tables for GPIO descriptors */
 
-static ACPI_RESOURCE_TAG        AcpiDmMemoryFlagTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmGpioIntTags[] =
+{
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {( 7 * 8) + 1,  ACPI_RESTAG_POLARITY},
+    {( 7 * 8) + 3,  ACPI_RESTAG_INTERRUPTSHARE},
+    {( 9 * 8),      ACPI_RESTAG_PINCONFIG},
+    {(10 * 8),      ACPI_RESTAG_DRIVESTRENGTH},
+    {(12 * 8),      ACPI_RESTAG_DEBOUNCETIME},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmGpioIoTags[] =
+{
+    {( 7 * 8) + 0,  ACPI_RESTAG_IORESTRICTION},
+    {( 7 * 8) + 3,  ACPI_RESTAG_INTERRUPTSHARE},
+    {( 9 * 8),      ACPI_RESTAG_PINCONFIG},
+    {(10 * 8),      ACPI_RESTAG_DRIVESTRENGTH},
+    {(12 * 8),      ACPI_RESTAG_DEBOUNCETIME},
+    {0,             NULL}
+};
+
+/* Subtype tables for SerialBus descriptors */
+
+static const ACPI_RESOURCE_TAG      AcpiDmI2cSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_ADDRESS},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmSpiSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE},
+    {( 7 * 8) + 0,  ACPI_RESTAG_MODE},
+    {( 7 * 8) + 1,  ACPI_RESTAG_DEVICEPOLARITY},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_LENGTH},
+    {(17 * 8),      ACPI_RESTAG_PHASE},
+    {(18 * 8),      ACPI_RESTAG_POLARITY},
+    {(19 * 8),      ACPI_RESTAG_ADDRESS},
+    {0,             NULL}
+};
+
+static const ACPI_RESOURCE_TAG      AcpiDmUartSerialBusTags[] =
+{
+    {( 6 * 8) + 0,  ACPI_RESTAG_SLAVEMODE}, /* Note: not part of original macro */
+    {( 7 * 8) + 0,  ACPI_RESTAG_FLOWCONTROL},
+    {( 7 * 8) + 2,  ACPI_RESTAG_STOPBITS},
+    {( 7 * 8) + 4,  ACPI_RESTAG_LENGTH},
+    {( 7 * 8) + 7,  ACPI_RESTAG_ENDIANNESS},
+    {(12 * 8),      ACPI_RESTAG_SPEED},
+    {(16 * 8),      ACPI_RESTAG_LENGTH_RX},
+    {(18 * 8),      ACPI_RESTAG_LENGTH_TX},
+    {(20 * 8),      ACPI_RESTAG_PARITY},
+    {(21 * 8),      ACPI_RESTAG_LINE},
+    {0,             NULL}
+};
+
+/* Subtype tables for Address descriptor type-specific flags */
+
+static const ACPI_RESOURCE_TAG      AcpiDmMemoryFlagTags[] =
 {
     {( 5 * 8) + 0,  ACPI_RESTAG_READWRITETYPE},
     {( 5 * 8) + 1,  ACPI_RESTAG_MEMTYPE},
@@ -254,7 +324,7 @@ static ACPI_RESOURCE_TAG        AcpiDmMemoryFlagTags[] =
     {0,             NULL}
 };
 
-static ACPI_RESOURCE_TAG        AcpiDmIoFlagTags[] =
+static const ACPI_RESOURCE_TAG      AcpiDmIoFlagTags[] =
 {
     {( 5 * 8) + 0,  ACPI_RESTAG_RANGETYPE},
     {( 5 * 8) + 4,  ACPI_RESTAG_TYPE},
@@ -263,9 +333,15 @@ static ACPI_RESOURCE_TAG        AcpiDmIoFlagTags[] =
 };
 
 
-/* Dispatch table used to obtain the correct tag table for a descriptor */
-
-static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
+/*
+ * Dispatch table used to obtain the correct tag table for a descriptor.
+ *
+ * A NULL in this table means one of three things:
+ * 1) The descriptor ID is reserved and invalid
+ * 2) The descriptor has no tags associated with it
+ * 3) The descriptor has subtypes and a separate table will be used.
+ */
+static const ACPI_RESOURCE_TAG      *AcpiGbl_ResourceTags[] =
 {
     /* Small descriptors */
 
@@ -279,7 +355,7 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
     NULL,                           /* 0x07, ACPI_RESOURCE_NAME_END_DEPENDENT */
     AcpiDmIoTags,                   /* 0x08, ACPI_RESOURCE_NAME_IO_PORT */
     AcpiDmFixedIoTags,              /* 0x09, ACPI_RESOURCE_NAME_FIXED_IO_PORT */
-    NULL,                           /* 0x0A, Reserved */
+    AcpiDmFixedDmaTags,             /* 0x0A, ACPI_RESOURCE_NAME_FIXED_DMA */
     NULL,                           /* 0x0B, Reserved */
     NULL,                           /* 0x0C, Reserved */
     NULL,                           /* 0x0D, Reserved */
@@ -299,9 +375,29 @@ static ACPI_RESOURCE_TAG        *AcpiGbl_ResourceTags [] =
     AcpiDmAddress16Tags,            /* 0x08, ACPI_RESOURCE_NAME_WORD_ADDRESS_SPACE */
     AcpiDmInterruptTags,            /* 0x09, ACPI_RESOURCE_NAME_EXTENDED_XRUPT */
     AcpiDmAddress64Tags,            /* 0x0A, ACPI_RESOURCE_NAME_QWORD_ADDRESS_SPACE */
-    AcpiDmExtendedAddressTags       /* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS_SPACE */
+    AcpiDmExtendedAddressTags,      /* 0x0B, ACPI_RESOURCE_NAME_EXTENDED_ADDRESS_SPACE */
+    NULL,                           /* 0x0C, ACPI_RESOURCE_NAME_GPIO - Use Subtype table below */
+    NULL,                           /* 0x0D, Reserved */
+    NULL                            /* 0x0E, ACPI_RESOURCE_NAME_SERIAL_BUS - Use Subtype table below */
 };
 
+/* GPIO Subtypes */
+
+static const ACPI_RESOURCE_TAG      *AcpiGbl_GpioResourceTags[] =
+{
+    AcpiDmGpioIntTags,              /* 0x00 Interrupt Connection */
+    AcpiDmGpioIoTags                /* 0x01 I/O Connection */
+};
+
+/* Serial Bus Subtypes */
+
+static const ACPI_RESOURCE_TAG      *AcpiGbl_SerialResourceTags[] =
+{
+    NULL,                           /* 0x00 Reserved */
+    AcpiDmI2cSerialBusTags,         /* 0x01 I2C SerialBus */
+    AcpiDmSpiSerialBusTags,         /* 0x02 SPI SerialBus */
+    AcpiDmUartSerialBusTags         /* 0x03 UART SerialBus */
+};
 
 /*
  * Globals used to generate unique resource descriptor names. We use names that
@@ -666,6 +762,9 @@ AcpiDmUpdateResourceName (
  *
  * DESCRIPTION: Convert a BitIndex into a symbolic resource tag.
  *
+ * Note: ResourceIndex should be previously validated and guaranteed to ve
+ *       valid.
+ *
  ******************************************************************************/
 
 static char *
@@ -674,23 +773,16 @@ AcpiDmGetResourceTag (
     AML_RESOURCE            *Resource,
     UINT8                   ResourceIndex)
 {
-    ACPI_RESOURCE_TAG       *TagList;
+    const ACPI_RESOURCE_TAG *TagList;
     char                    *Tag = NULL;
 
 
     /* Get the tag list for this resource descriptor type */
 
     TagList = AcpiGbl_ResourceTags[ResourceIndex];
-    if (!TagList)
-    {
-        /* There are no tags for this resource type */
-
-        return (NULL);
-    }
 
     /*
-     * Handle the type-specific flags field for the address descriptors.
-     * Kindof brute force, but just blindly search for an index match.
+     * Handle descriptors that have multiple subtypes
      */
     switch (Resource->DescriptorType)
     {
@@ -699,6 +791,10 @@ AcpiDmGetResourceTag (
     case ACPI_RESOURCE_NAME_ADDRESS64:
     case ACPI_RESOURCE_NAME_EXTENDED_ADDRESS64:
 
+        /*
+         * Subtype differentiation is the flags.
+         * Kindof brute force, but just blindly search for an index match
+         */
         if (Resource->Address.ResourceType == ACPI_ADDRESS_TYPE_MEMORY_RANGE)
         {
             Tag = AcpiDmSearchTagList (BitIndex, AcpiDmMemoryFlagTags);
@@ -716,13 +812,42 @@ AcpiDmGetResourceTag (
         }
         break;
 
+    case ACPI_RESOURCE_NAME_GPIO:
+
+        /* GPIO connection has 2 subtypes: Interrupt and I/O */
+
+        if (Resource->Gpio.ConnectionType > AML_RESOURCE_MAX_GPIOTYPE)
+        {
+            return (NULL);
+        }
+
+        TagList = AcpiGbl_GpioResourceTags[Resource->Gpio.ConnectionType];
+        break;
+
+    case ACPI_RESOURCE_NAME_SERIAL_BUS:
+
+        /* SerialBus has 3 subtypes: I2C, SPI, and UART */
+
+        if ((Resource->CommonSerialBus.Type == 0) ||
+            (Resource->CommonSerialBus.Type > AML_RESOURCE_MAX_SERIALBUSTYPE))
+        {
+            return (NULL);
+        }
+
+        TagList = AcpiGbl_SerialResourceTags[Resource->CommonSerialBus.Type];
+        break;
+
     default:
         break;
     }
 
-    /* Search the tag list for this descriptor type */
+    /* Search for a match against the BitIndex */
 
-    Tag = AcpiDmSearchTagList (BitIndex, TagList);
+    if (TagList)
+    {
+        Tag = AcpiDmSearchTagList (BitIndex, TagList);
+    }
+
     return (Tag);
 }
 
@@ -744,7 +869,7 @@ AcpiDmGetResourceTag (
 static char *
 AcpiDmSearchTagList (
     UINT32                  BitIndex,
-    ACPI_RESOURCE_TAG       *TagList)
+    const ACPI_RESOURCE_TAG *TagList)
 {
 
     /*

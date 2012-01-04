@@ -102,8 +102,9 @@ int debugger_on_panic = 0;
 #else
 int debugger_on_panic = 1;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
-	&debugger_on_panic, 0, "Run debugger on kernel panic");
+SYSCTL_INT(_debug, OID_AUTO, debugger_on_panic,
+    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    &debugger_on_panic, 0, "Run debugger on kernel panic");
 TUNABLE_INT("debug.debugger_on_panic", &debugger_on_panic);
 
 #ifdef KDB_TRACE
@@ -111,8 +112,9 @@ static int trace_on_panic = 1;
 #else
 static int trace_on_panic = 0;
 #endif
-SYSCTL_INT(_debug, OID_AUTO, trace_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
-	&trace_on_panic, 0, "Print stack trace on kernel panic");
+SYSCTL_INT(_debug, OID_AUTO, trace_on_panic,
+    CTLFLAG_RW | CTLFLAG_SECURE | CTLFLAG_TUN,
+    &trace_on_panic, 0, "Print stack trace on kernel panic");
 TUNABLE_INT("debug.trace_on_panic", &trace_on_panic);
 #endif /* KDB */
 
@@ -120,6 +122,11 @@ static int sync_on_panic = 0;
 SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
+
+static int stop_scheduler_on_panic = 0;
+SYSCTL_INT(_kern, OID_AUTO, stop_scheduler_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
+    &stop_scheduler_on_panic, 0, "stop scheduler upon entering panic");
+TUNABLE_INT("kern.stop_scheduler_on_panic", &stop_scheduler_on_panic);
 
 static SYSCTL_NODE(_kern, OID_AUTO, shutdown, CTLFLAG_RW, 0,
     "Shutdown environment");
@@ -138,6 +145,7 @@ SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
  */
 const char *panicstr;
 
+int stop_scheduler;			/* system stopped CPUs for panic */
 int dumping;				/* system is dumping */
 int rebooting;				/* system is rebooting */
 static struct dumperinfo dumper;	/* our selected dumper */
@@ -294,10 +302,12 @@ kern_reboot(int howto)
 	 * systems don't shutdown properly (i.e., ACPI power off) if we
 	 * run on another processor.
 	 */
-	thread_lock(curthread);
-	sched_bind(curthread, 0);
-	thread_unlock(curthread);
-	KASSERT(PCPU_GET(cpuid) == 0, ("%s: not running on cpu 0", __func__));
+	if (!SCHEDULER_STOPPED()) {
+		thread_lock(curthread);
+		sched_bind(curthread, 0);
+		thread_unlock(curthread);
+		KASSERT(PCPU_GET(cpuid) == 0, ("boot: not running on cpu 0"));
+	}
 #endif
 	/* We're in the process of rebooting. */
 	rebooting = 1;
@@ -433,6 +443,8 @@ kern_reboot(int howto)
 
 	print_uptime();
 
+	cngrab();
+
 	/*
 	 * Ok, now do things that assume all filesystem activity has
 	 * been completed.
@@ -547,13 +559,18 @@ panic(const char *fmt, ...)
 {
 #ifdef SMP
 	static volatile u_int panic_cpu = NOCPU;
+	cpuset_t other_cpus;
 #endif
 	struct thread *td = curthread;
 	int bootopt, newpanic;
 	va_list ap;
 	static char buf[256];
 
-	critical_enter();
+	if (stop_scheduler_on_panic)
+		spinlock_enter();
+	else
+		critical_enter();
+
 #ifdef SMP
 	/*
 	 * We don't want multiple CPU's to panic at the same time, so we
@@ -566,6 +583,22 @@ panic(const char *fmt, ...)
 		    PCPU_GET(cpuid)) == 0)
 			while (panic_cpu != NOCPU)
 				; /* nothing */
+
+	if (stop_scheduler_on_panic) {
+		if (panicstr == NULL && !kdb_active) {
+			other_cpus = all_cpus;
+			CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+			stop_cpus_hard(other_cpus);
+		}
+
+		/*
+		 * We set stop_scheduler here and not in the block above,
+		 * because we want to ensure that if panic has been called and
+		 * stop_scheduler_on_panic is true, then stop_scheduler will
+		 * always be set.  Even if panic has been entered from kdb.
+		 */
+		stop_scheduler = 1;
+	}
 #endif
 
 	bootopt = RB_AUTOBOOT;
@@ -582,6 +615,7 @@ panic(const char *fmt, ...)
 	if (newpanic) {
 		(void)vsnprintf(buf, sizeof(buf), fmt, ap);
 		panicstr = buf;
+		cngrab();
 		printf("panic: %s\n", buf);
 	} else {
 		printf("panic: ");
@@ -604,7 +638,8 @@ panic(const char *fmt, ...)
 	/* thread_unlock(td); */
 	if (!sync_on_panic)
 		bootopt |= RB_NOSYNC;
-	critical_exit();
+	if (!stop_scheduler_on_panic)
+		critical_exit();
 	kern_reboot(bootopt);
 }
 
@@ -621,7 +656,7 @@ panic(const char *fmt, ...)
 static int poweroff_delay = POWEROFF_DELAY;
 
 SYSCTL_INT(_kern_shutdown, OID_AUTO, poweroff_delay, CTLFLAG_RW,
-	&poweroff_delay, 0, "");
+    &poweroff_delay, 0, "Delay before poweroff to write disk caches (msec)");
 
 static void
 poweroff_wait(void *junk, int howto)
@@ -641,7 +676,7 @@ poweroff_wait(void *junk, int howto)
  */
 static int kproc_shutdown_wait = 60;
 SYSCTL_INT(_kern_shutdown, OID_AUTO, kproc_shutdown_wait, CTLFLAG_RW,
-    &kproc_shutdown_wait, 0, "");
+    &kproc_shutdown_wait, 0, "Max wait time (sec) to stop for each process");
 
 void
 kproc_shutdown(void *arg, int howto)

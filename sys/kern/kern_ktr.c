@@ -341,9 +341,9 @@ DB_SHOW_COMMAND(ktr, db_ktr_all)
 	tstate.cur = (ktr_idx - 1) & (KTR_ENTRIES - 1);
 	tstate.first = -1;
 	db_ktr_verbose = 0;
-	db_ktr_verbose |= (index(modif, 'v') != NULL) ? 2 : 0;
-	db_ktr_verbose |= (index(modif, 'V') != NULL) ? 1 : 0; /* just timestap please */
-	if (index(modif, 'a') != NULL) {
+	db_ktr_verbose |= (strchr(modif, 'v') != NULL) ? 2 : 0;
+	db_ktr_verbose |= (strchr(modif, 'V') != NULL) ? 1 : 0; /* just timestap please */
+	if (strchr(modif, 'a') != NULL) {
 		db_disable_pager();
 		while (cncheckc() != -1)
 			if (db_mach_vtrace() == 0)

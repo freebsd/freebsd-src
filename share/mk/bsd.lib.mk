@@ -33,15 +33,10 @@ CFLAGS+= -DNDEBUG
 NO_WERROR=
 .endif
 
-# Enable CTF conversion on request.
-.if defined(WITH_CTF)
-.undef NO_CTF
-.endif
-
 .if defined(DEBUG_FLAGS)
 CFLAGS+= ${DEBUG_FLAGS}
 
-.if !defined(NO_CTF) && (${DEBUG_FLAGS:M-g} != "")
+.if ${MK_CTF} != "no" && ${DEBUG_FLAGS:M-g} != ""
 CTFFLAGS+= -g
 .endif
 .endif
@@ -69,18 +64,15 @@ PO_FLAG=-pg
 
 .c.o:
 	${CC} ${STATIC_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
+	${CTFCONVERT_CMD}
 
 .c.po:
 	${CC} ${PO_FLAG} ${STATIC_CFLAGS} ${PO_CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .c.So:
 	${CC} ${PICFLAG} -DPIC ${SHARED_CFLAGS} ${CFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .cc.o:
 	${CXX} ${STATIC_CXXFLAGS} ${CXXFLAGS} -c ${.IMPSRC} -o ${.TARGET}
@@ -93,47 +85,33 @@ PO_FLAG=-pg
 
 .f.po:
 	${FC} -pg ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .f.So:
 	${FC} ${PICFLAG} -DPIC ${FFLAGS} -o ${.TARGET} -c ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .s.po .s.So:
 	${AS} ${AFLAGS} -o ${.TARGET} ${.IMPSRC}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .asm.po:
 	${CC} -x assembler-with-cpp -DPROF ${PO_CFLAGS} ${ACFLAGS} \
 		-c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .asm.So:
 	${CC} -x assembler-with-cpp ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} \
 	    -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .S.po:
 	${CC} -DPROF ${PO_CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 .S.So:
 	${CC} ${PICFLAG} -DPIC ${CFLAGS} ${ACFLAGS} -c ${.IMPSRC} -o ${.TARGET}
-	@[ -z "${CTFCONVERT}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFCONVERT} ${CTFFLAGS} ${.TARGET} && \
-		${CTFCONVERT} ${CTFFLAGS} ${.TARGET})
+	${CTFCONVERT_CMD}
 
 all: objwarn
 
@@ -189,6 +167,11 @@ SOBJS+=		${OBJS:.o=.So}
 .if defined(SHLIB_NAME)
 _LIBS+=		${SHLIB_NAME}
 
+SOLINKOPTS=	-shared -Wl,-x
+.if !defined(ALLOW_SHARED_TEXTREL)
+SOLINKOPTS+=	-Wl,--fatal-warnings -Wl,--warn-shared-textrel
+.endif
+
 .if target(beforelinking)
 ${SHLIB_NAME}: ${SOBJS} beforelinking
 .else
@@ -200,17 +183,17 @@ ${SHLIB_NAME}: ${SOBJS}
 	@ln -fs ${.TARGET} ${SHLIB_LINK}
 .endif
 .if !defined(NM)
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `lorder ${SOBJS} | tsort -q` ${LDADD}
 .else
-	@${CC} ${LDFLAGS} ${SSP_CFLAGS} -shared -Wl,-x \
+	@${CC} ${LDFLAGS} ${SSP_CFLAGS} ${SOLINKOPTS} \
 	    -o ${.TARGET} -Wl,-soname,${SONAME} \
 	    `NM='${NM}' lorder ${SOBJS} | tsort -q` ${LDADD}
 .endif
-	@[ -z "${CTFMERGE}" -o -n "${NO_CTF}" ] || \
-		(${ECHO} ${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS} && \
-		${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS})
+.if ${MK_CTF} != "no"
+	${CTFMERGE} ${CTFFLAGS} -o ${.TARGET} ${SOBJS}
+.endif
 .endif
 
 .if defined(INSTALL_PIC_ARCHIVE) && defined(LIB) && !empty(LIB) && ${MK_TOOLCHAIN} != "no"

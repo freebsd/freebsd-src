@@ -265,7 +265,7 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default. 
  */
-static bool ixgbe_header_split = FALSE;
+static int ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
@@ -312,6 +312,18 @@ static int atr_sample_rate = 20;
 */
 static int fdir_pballoc = 1;
 #endif
+
+#ifdef DEV_NETMAP
+/*
+ * The #ifdef DEV_NETMAP / #endif blocks in this file are meant to
+ * be a reference on how to implement netmap support in a driver.
+ * Additional comments are in ixgbe_netmap.h .
+ *
+ * <dev/netma/ixgbe_netmap.h> contains functions for netmap support
+ * that extend the standard driver.
+ */
+#include <dev/netmap/ixgbe_netmap.h>
+#endif /* DEV_NETMAP */
 
 /*********************************************************************
  *  Device identification routine
@@ -578,6 +590,9 @@ ixgbe_attach(device_t dev)
 
 	ixgbe_add_hw_stats(adapter);
 
+#ifdef DEV_NETMAP
+	ixgbe_netmap_attach(adapter);
+#endif /* DEV_NETMAP */
 	INIT_DEBUGOUT("ixgbe_attach: end");
 	return (0);
 err_late:
@@ -652,6 +667,9 @@ ixgbe_detach(device_t dev)
 
 	ether_ifdetach(adapter->ifp);
 	callout_drain(&adapter->timer);
+#ifdef DEV_NETMAP
+	netmap_detach(adapter->ifp);
+#endif /* DEV_NETMAP */
 	ixgbe_free_pci_resources(adapter);
 	bus_generic_detach(dev);
 	if_free(adapter->ifp);
@@ -2813,9 +2831,20 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 	struct adapter *adapter = txr->adapter;
 	struct ixgbe_tx_buf *txbuf;
 	int i;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	/* Clear the old ring contents */
 	IXGBE_TX_LOCK(txr);
+#ifdef DEV_NETMAP
+	/*
+	 * (under lock): if in netmap mode, do some consistency
+	 * checks and set slot to entry 0 of the netmap ring.
+	 */
+	slot = netmap_reset(na, NR_TX, txr->me, 0);
+#endif /* DEV_NETMAP */
 	bzero((void *)txr->tx_base,
 	      (sizeof(union ixgbe_adv_tx_desc)) * adapter->num_tx_desc);
 	/* Reset indices */
@@ -2832,6 +2861,26 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 			m_freem(txbuf->m_head);
 			txbuf->m_head = NULL;
 		}
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, set the map for the packet buffer.
+		 * NOTE: Some drivers (not this one) also need to set
+		 * the physical buffer address in the NIC ring.
+		 * Slots in the netmap ring (indexed by "si") are
+		 * kring->nkr_hwofs positions "ahead" wrt the
+		 * corresponding slot in the NIC ring. In some drivers
+		 * (not here) nkr_hwofs can be negative. When computing
+		 * si = i + kring->nkr_hwofs make sure to handle wraparounds.
+		 */
+		if (slot) {
+			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+
+			if (si >= na->num_tx_desc)
+				si -= na->num_tx_desc;
+			netmap_load_map(txr->txtag, txbuf->map,
+			    NMB(slot + si), na->buff_size);
+		}
+#endif /* DEV_NETMAP */
 		/* Clear the EOP index */
 		txbuf->eop_index = -1;
         }
@@ -3017,7 +3066,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
  *
  **********************************************************************/
 
-static boolean_t
+static bool
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3135,7 +3184,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3299,7 +3348,7 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
@@ -3309,6 +3358,29 @@ ixgbe_txeof(struct tx_ring *txr)
 	struct ixgbe_legacy_tx_desc *tx_desc, *eop_desc;
 
 	mtx_assert(&txr->tx_mtx, MA_OWNED);
+
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		struct netmap_adapter *na = NA(ifp);
+
+		/*
+		 * In netmap mode, all the work is done in the context
+		 * of the client thread. Interrupt handlers only wake up
+		 * clients, which may be sleeping on individual rings
+		 * or on a global resource for all rings.
+		 * When the driver has separate locks, we need to
+		 * release and re-acquire txlock to avoid deadlocks.
+		 * XXX see if we can find a better way.
+		 */
+		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+		IXGBE_TX_UNLOCK(txr);
+		IXGBE_CORE_LOCK(adapter);
+		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		IXGBE_CORE_UNLOCK(adapter);
+		IXGBE_TX_LOCK(txr);
+		return FALSE;
+	}
+#endif /* DEV_NETMAP */
 
 	if (txr->tx_avail == adapter->num_tx_desc) {
 		txr->queue_status = IXGBE_QUEUE_IDLE;
@@ -3698,6 +3770,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 	bus_dma_segment_t	pseg[1], hseg[1];
 	struct lro_ctrl		*lro = &rxr->lro;
 	int			rsize, nsegs, error = 0;
+#ifdef DEV_NETMAP
+	struct netmap_adapter *na = NA(rxr->adapter->ifp);
+	struct netmap_slot *slot;
+#endif /* DEV_NETMAP */
 
 	adapter = rxr->adapter;
 	ifp = adapter->ifp;
@@ -3705,6 +3781,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 
 	/* Clear the ring contents */
 	IXGBE_RX_LOCK(rxr);
+#ifdef DEV_NETMAP
+	/* same as in ixgbe_setup_transmit_ring() */
+	slot = netmap_reset(na, NR_RX, rxr->me, 0);
+#endif /* DEV_NETMAP */
 	rsize = roundup2(adapter->num_rx_desc *
 	    sizeof(union ixgbe_adv_rx_desc), DBA_ALIGN);
 	bzero((void *)rxr->rx_base, rsize);
@@ -3721,6 +3801,29 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		struct mbuf	*mh, *mp;
 
 		rxbuf = &rxr->rx_buffers[j];
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, fill the map and set the buffer
+		 * address in the NIC ring, considering the offset
+		 * between the netmap and NIC rings (see comment in
+		 * ixgbe_setup_transmit_ring() ). No need to allocate
+		 * an mbuf, so end the block with a continue;
+		 */
+		if (slot) {
+			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			void *addr;
+
+			if (sj >= na->num_rx_desc)
+				sj -= na->num_rx_desc;
+			addr = NMB(slot + sj);
+			netmap_load_map(rxr->ptag,
+			    rxbuf->pmap, addr, na->buff_size);
+			/* Update descriptor */
+			rxr->rx_base[j].read.pkt_addr =
+			    htole64(vtophys(addr));
+			continue;
+		}
+#endif /* DEV_NETMAP */
 		/*
 		** Don't allocate mbufs if not
 		** doing header split, its wasteful
@@ -3913,6 +4016,35 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, we must preserve the buffers made
+		 * available to userspace before the if_init()
+		 * (this is true by default on the TX side, because
+		 * init makes all buffers available to userspace).
+		 *
+		 * netmap_reset() and the device specific routines
+		 * (e.g. ixgbe_setup_receive_rings()) map these
+		 * buffers at the end of the NIC ring, so here we
+		 * must set the RDT (tail) register to make sure
+		 * they are not overwritten.
+		 *
+		 * In this driver the NIC ring starts at RDH = 0,
+		 * RDT points to the first 'busy' slot, so RDT = 0
+		 * means the whole ring is available, and
+		 * RDT = (num_rx_desc - X) means X slots are available.
+		 * Computations are done modulo the ring size.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - kring->nr_hwavail;
+
+			if (t >= na->num_rx_desc)
+				t -= adapter->num_rx_desc;
+			IXGBE_WRITE_REG(hw, IXGBE_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
 	}
 
@@ -4148,6 +4280,22 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 
 	IXGBE_RX_LOCK(rxr);
 
+#ifdef DEV_NETMAP
+	if (ifp->if_capenable & IFCAP_NETMAP) {
+		/*
+		 * Same as the txeof routine, only wakeup clients
+		 * and make sure there are no deadlocks.
+		 */
+		struct netmap_adapter *na = NA(ifp);
+
+		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
+		IXGBE_RX_UNLOCK(rxr);
+		IXGBE_CORE_LOCK(adapter);
+		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		IXGBE_CORE_UNLOCK(adapter);
+		return (FALSE);
+	}
+#endif /* DEV_NETMAP */
 	for (i = rxr->next_to_check; count != 0;) {
 		struct mbuf	*sendmp, *mh, *mp;
 		u32		rsc, ptype;

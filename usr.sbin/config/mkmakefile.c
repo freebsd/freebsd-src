@@ -206,12 +206,12 @@ makehints(void)
 			err(1, "%s", hint->hint_name);
 		while (fgets(line, BUFSIZ, ifp) != 0) {
 			/* zap trailing CR and/or LF */
-			while ((s = rindex(line, '\n')) != NULL)
+			while ((s = strrchr(line, '\n')) != NULL)
 				*s = '\0';
-			while ((s = rindex(line, '\r')) != NULL)
+			while ((s = strrchr(line, '\r')) != NULL)
 				*s = '\0';
 			/* remove # comments */
-			s = index(line, '#');
+			s = strchr(line, '#');
 			if (s)
 				*s = '\0';
 			/* remove any whitespace and " characters */
@@ -268,12 +268,12 @@ makeenv(void)
 	if (ifp) {
 		while (fgets(line, BUFSIZ, ifp) != 0) {
 			/* zap trailing CR and/or LF */
-			while ((s = rindex(line, '\n')) != NULL)
+			while ((s = strrchr(line, '\n')) != NULL)
 				*s = '\0';
-			while ((s = rindex(line, '\r')) != NULL)
+			while ((s = strrchr(line, '\r')) != NULL)
 				*s = '\0';
 			/* remove # comments */
-			s = index(line, '#');
+			s = strchr(line, '#');
 			if (s)
 				*s = '\0';
 			/* remove any whitespace and " characters */
@@ -689,7 +689,7 @@ tail(char *fn)
 {
 	char *cp;
 
-	cp = rindex(fn, '/');
+	cp = strrchr(fn, '/');
 	if (cp == 0)
 		return (fn);
 	return (cp+1);
@@ -774,7 +774,7 @@ do_rules(FILE *f)
 			fprintf(f, "\t%s\n", compilewith);
 
 		if (!(ftp->f_flags & NO_OBJ))
-			fprintf(f, "\t@${NORMAL_CTFCONVERT}\n\n");
+			fprintf(f, "\t${NORMAL_CTFCONVERT}\n\n");
 		else
 			fprintf(f, "\n");
 	}

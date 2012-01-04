@@ -400,11 +400,7 @@ static device_method_t bxe_methods[] = {
 	DEVMETHOD(device_detach,	bxe_detach),
 	DEVMETHOD(device_shutdown,	bxe_shutdown),
 
-	/* Bus interface (bus_if.h) */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 

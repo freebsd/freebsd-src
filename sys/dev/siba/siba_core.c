@@ -215,7 +215,7 @@ int
 siba_core_detach(struct siba_softc *siba)
 {
 	/* detach & delete all children */
-	device_delete_all_children(siba->siba_dev);
+	device_delete_children(siba->siba_dev);
 	return (0);
 }
 

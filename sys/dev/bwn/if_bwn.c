@@ -193,8 +193,8 @@ static void	bwn_scan_start(struct ieee80211com *);
 static void	bwn_scan_end(struct ieee80211com *);
 static void	bwn_set_channel(struct ieee80211com *);
 static struct ieee80211vap *bwn_vap_create(struct ieee80211com *,
-		    const char [IFNAMSIZ], int, int,
-		    int, const uint8_t [IEEE80211_ADDR_LEN],
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
 		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwn_vap_delete(struct ieee80211vap *);
 static void	bwn_stop(struct bwn_softc *, int);
@@ -2927,10 +2927,10 @@ fail:
 }
 
 static struct ieee80211vap *
-bwn_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+bwn_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct bwn_softc *sc = ifp->if_softc;
@@ -14226,7 +14226,7 @@ static device_method_t bwn_methods[] = {
 	DEVMETHOD(device_detach,	bwn_detach),
 	DEVMETHOD(device_suspend,	bwn_suspend),
 	DEVMETHOD(device_resume,	bwn_resume),
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t bwn_driver = {
 	"bwn",

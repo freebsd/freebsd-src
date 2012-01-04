@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
  *    and starts them. Sets up
  *    monitoring for the child.
  *  - Signals child to start.
- *					- Recieves signal, attempts exec().
+ *					- Receives signal, attempts exec().
  *
  * After this point normal processing can happen.
  */

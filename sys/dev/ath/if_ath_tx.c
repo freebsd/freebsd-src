@@ -2405,6 +2405,12 @@ ath_tx_tid_drain(struct ath_softc *sc, struct ath_node *an, struct ath_tid *tid,
 			     tid->hwq_depth, tid->incomp, tid->baw_head,
 			     tid->baw_tail, tap == NULL ? -1 : tap->txa_start,
 			     ni->ni_txseqs[tid->tid]);
+
+			/* XXX Dump the frame, see what it is? */
+			ieee80211_dump_pkt(ni->ni_ic,
+			    mtod(bf->bf_m, const uint8_t *),
+			    bf->bf_m->m_len, 0, -1);
+
 			t = 1;
 		}
 
@@ -2940,7 +2946,6 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	TAILQ_INIT(&bf_q);
 	TAILQ_INIT(&bf_cq);
-	sc->sc_stats.ast_tx_aggrfail++;
 
 	/*
 	 * Update rate control - all frames have failed.
@@ -2955,12 +2960,14 @@ ath_tx_comp_aggr_error(struct ath_softc *sc, struct ath_buf *bf_first,
 
 	ATH_TXQ_LOCK(sc->sc_ac2q[tid->ac]);
 	tap = ath_tx_get_tx_tid(an, tid->tid);
+	sc->sc_stats.ast_tx_aggr_failall++;
 
 	/* Retry all subframes */
 	bf = bf_first;
 	while (bf) {
 		bf_next = bf->bf_next;
 		bf->bf_next = NULL;	/* Remove it from the aggr list */
+		sc->sc_stats.ast_tx_aggr_fail++;
 		if (ath_tx_retry_subframe(sc, bf, &bf_q)) {
 			drops++;
 			bf->bf_next = NULL;
@@ -3196,6 +3203,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 		    ATH_BA_ISSET(ba, ba_index));
 
 		if (tx_ok && ATH_BA_ISSET(ba, ba_index)) {
+			sc->sc_stats.ast_tx_aggr_ok++;
 			ath_tx_update_baw(sc, an, atid, bf);
 			bf->bf_state.bfs_dobaw = 0;
 			if (! bf->bf_state.bfs_addedbaw)
@@ -3205,6 +3213,7 @@ ath_tx_aggr_comp_aggr(struct ath_softc *sc, struct ath_buf *bf_first, int fail)
 			bf->bf_next = NULL;
 			TAILQ_INSERT_TAIL(&bf_cq, bf, bf_list);
 		} else {
+			sc->sc_stats.ast_tx_aggr_fail++;
 			if (ath_tx_retry_subframe(sc, bf, &bf_q)) {
 				drops++;
 				bf->bf_next = NULL;

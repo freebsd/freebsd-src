@@ -25,13 +25,12 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_EFSYS_H
 #define	_SYS_EFSYS_H
-
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
 
 #ifdef	__cplusplus
 extern "C" {

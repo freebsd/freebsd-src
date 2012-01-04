@@ -106,7 +106,6 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
-    DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_read_ivar,		acpi_pcib_read_ivar),
     DEVMETHOD(bus_write_ivar,		acpi_pcib_write_ivar),
     DEVMETHOD(bus_alloc_resource,	acpi_pcib_acpi_alloc_resource),
@@ -133,7 +132,7 @@ static device_method_t acpi_pcib_acpi_methods[] = {
     DEVMETHOD(pcib_map_msi,		acpi_pcib_map_msi),
     DEVMETHOD(pcib_power_for_sleep,	acpi_pcib_power_for_sleep),
 
-    {0, 0}
+    DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;
@@ -512,8 +511,17 @@ acpi_pcib_acpi_alloc_resource(device_t dev, device_t child, int type, int *rid,
     sc = device_get_softc(dev);
     res = pcib_host_res_alloc(&sc->ap_host_res, child, type, rid, start, end,
 	count, flags);
+
+    /*
+     * XXX: If this is a request for a specific range, assume it is
+     * correct and pass it up to the parent.  What we probably want to
+     * do long-term is explicitly trust any firmware-configured
+     * resources during the initial bus scan on boot and then disable
+     * this after that.
+     */
     if (res == NULL && start + count - 1 == end)
-	res = acpi_alloc_sysres(child, type, rid, start, end, count, flags);
+	res = bus_generic_alloc_resource(dev, child, type, rid, start, end,
+	    count, flags);
     return (res);
 #else
     return (bus_generic_alloc_resource(dev, child, type, rid, start, end,

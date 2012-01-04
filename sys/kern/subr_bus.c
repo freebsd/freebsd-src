@@ -1129,7 +1129,7 @@ devclass_driver_deleted(devclass_t busclass, devclass_t dc, driver_t *driver)
 			    dev->parent->devclass == busclass) {
 				if ((error = device_detach(dev)) != 0)
 					return (error);
-				device_set_driver(dev, NULL);
+				(void)device_set_driver(dev, NULL);
 				BUS_PROBE_NOMATCH(dev->parent, dev);
 				devnomatch(dev);
 				dev->flags |= DF_DONENOMATCH;
@@ -1862,7 +1862,7 @@ device_delete_child(device_t dev, device_t child)
 	PDEBUG(("%s from %s", DEVICENAME(child), DEVICENAME(dev)));
 
 	/* remove children first */
-	while ( (grandchild = TAILQ_FIRST(&child->children)) ) {
+	while ((grandchild = TAILQ_FIRST(&child->children)) != NULL) {
 		error = device_delete_child(child, grandchild);
 		if (error)
 			return (error);
@@ -1894,7 +1894,7 @@ device_delete_child(device_t dev, device_t child)
  * @retval non-zero	a device would not detach
  */
 int
-device_delete_all_children(device_t dev)
+device_delete_children(device_t dev)
 {
 	device_t child;
 	int error;
@@ -1903,7 +1903,7 @@ device_delete_all_children(device_t dev)
 
 	error = 0;
 
-	while ( (child = TAILQ_FIRST(&dev->children)) ) {
+	while ((child = TAILQ_FIRST(&dev->children)) != NULL) {
 		error = device_delete_child(dev, child);
 		if (error) {
 			PDEBUG(("Failed deleting %s", DEVICENAME(child)));
@@ -2007,19 +2007,23 @@ device_probe_child(device_t dev, device_t child)
 		for (dl = first_matching_driver(dc, child);
 		     dl;
 		     dl = next_matching_driver(dc, child, dl)) {
-
 			/* If this driver's pass is too high, then ignore it. */
 			if (dl->pass > bus_current_pass)
 				continue;
 
 			PDEBUG(("Trying %s", DRIVERNAME(dl->driver)));
-			device_set_driver(child, dl->driver);
+			result = device_set_driver(child, dl->driver);
+			if (result == ENOMEM)
+				return (result);
+			else if (result != 0)
+				continue;
 			if (!hasclass) {
-				if (device_set_devclass(child, dl->driver->name)) {
-					printf("driver bug: Unable to set devclass (devname: %s)\n",
-					    (child ? device_get_name(child) :
-						"no device"));
-					device_set_driver(child, NULL);
+				if (device_set_devclass(child,
+				    dl->driver->name) != 0) {
+					printf("driver bug: Unable to set "
+					    "devclass (devname: %s)\n",
+					    device_get_name(child));
+					(void)device_set_driver(child, NULL);
 					continue;
 				}
 			}
@@ -2033,7 +2037,7 @@ device_probe_child(device_t dev, device_t child)
 			/* Reset flags and devclass before the next probe. */
 			child->devflags = 0;
 			if (!hasclass)
-				device_set_devclass(child, NULL);
+				(void)device_set_devclass(child, NULL);
 
 			/*
 			 * If the driver returns SUCCESS, there can be
@@ -2050,7 +2054,7 @@ device_probe_child(device_t dev, device_t child)
 			 * certainly doesn't match.
 			 */
 			if (result > 0) {
-				device_set_driver(child, NULL);
+				(void)device_set_driver(child, NULL);
 				continue;
 			}
 
@@ -2113,7 +2117,9 @@ device_probe_child(device_t dev, device_t child)
 			if (result != 0)
 				return (result);
 		}
-		device_set_driver(child, best->driver);
+		result = device_set_driver(child, best->driver);
+		if (result != 0)
+			return (result);
 		resource_int_value(best->driver->name, child->unit,
 		    "flags", &child->devflags);
 
@@ -2722,8 +2728,8 @@ device_attach(device_t dev)
 		    dev->driver->name, dev->unit, error);
 		/* Unset the class; set in device_probe_child */
 		if ((dev->flags & DF_FIXEDCLASS) == 0)
-			device_set_devclass(dev, NULL);
-		device_set_driver(dev, NULL);
+			(void)device_set_devclass(dev, NULL);
+		(void)device_set_driver(dev, NULL);
 		device_sysctl_fini(dev);
 		dev->state = DS_NOTPRESENT;
 		return (error);
@@ -2776,7 +2782,7 @@ device_detach(device_t dev)
 		devclass_delete_device(dev->devclass, dev);
 
 	dev->state = DS_NOTPRESENT;
-	device_set_driver(dev, NULL);
+	(void)device_set_driver(dev, NULL);
 	device_set_desc(dev, NULL);
 	device_sysctl_fini(dev);
 
@@ -4612,7 +4618,6 @@ print_driver(driver_t *driver, int indent)
 
 	print_driver_short(driver, indent);
 }
-
 
 static void
 print_driver_list(driver_list_t drivers, int indent)

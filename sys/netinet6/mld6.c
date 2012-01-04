@@ -1656,7 +1656,7 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 {
 	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
-	struct in6_multi		*inm;
+	struct in6_multi	*inm, *tinm;
 
 	CTR3(KTR_MLD, "%s: cancel v2 timers on ifp %p(%s)", __func__,
 	    mli->mli_ifp, mli->mli_ifp->if_xname);
@@ -1695,14 +1695,9 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 			 * If we are leaving the group and switching
 			 * version, we need to release the final
 			 * reference held for issuing the INCLUDE {}.
-			 *
-			 * SMPNG: Must drop and re-acquire IF_ADDR_LOCK
-			 * around in6m_release_locked(), as it is not
-			 * a recursive mutex.
 			 */
-			IF_ADDR_UNLOCK(ifp);
-			in6m_release_locked(inm);
-			IF_ADDR_LOCK(ifp);
+			SLIST_INSERT_HEAD(&mli->mli_relinmhead, inm,
+			    in6m_nrele);
 			/* FALLTHROUGH */
 		case MLD_G_QUERY_PENDING_MEMBER:
 		case MLD_SG_QUERY_PENDING_MEMBER:
@@ -1720,6 +1715,10 @@ mld_v2_cancel_link_timers(struct mld_ifinfo *mli)
 		}
 	}
 	IF_ADDR_UNLOCK(ifp);
+	SLIST_FOREACH_SAFE(inm, &mli->mli_relinmhead, in6m_nrele, tinm) {
+		SLIST_REMOVE_HEAD(&mli->mli_relinmhead, in6m_nrele);
+		in6m_release_locked(inm);
+	}
 }
 
 /*
@@ -2976,7 +2975,7 @@ mld_v2_merge_state_changes(struct in6_multi *inm, struct ifqueue *ifscq)
 static void
 mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 {
-	struct ifmultiaddr	*ifma, *tifma;
+	struct ifmultiaddr	*ifma;
 	struct ifnet		*ifp;
 	struct in6_multi	*inm;
 	int			 retval;
@@ -2990,7 +2989,7 @@ mld_v2_dispatch_general_query(struct mld_ifinfo *mli)
 	ifp = mli->mli_ifp;
 
 	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifma, &ifp->if_multiaddrs, ifma_link, tifma) {
+	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
 			continue;
@@ -3090,7 +3089,6 @@ mld_dispatch_packet(struct mbuf *m)
 		m0 = mld_v2_encap_report(ifp, m);
 		if (m0 == NULL) {
 			CTR2(KTR_MLD, "%s: dropped %p", __func__, m);
-			m_freem(m);
 			IP6STAT_INC(ip6s_odropped);
 			goto out;
 		}

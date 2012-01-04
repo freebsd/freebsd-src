@@ -67,7 +67,7 @@ struct cache_read_response {
 };
 
 enum transformation_type {
-	TT_USER = 0,	// tranform only the entries of the caller
+	TT_USER = 0,	// transform only the entries of the caller
 	TT_ALL = 1	// transform all entries
 };
 

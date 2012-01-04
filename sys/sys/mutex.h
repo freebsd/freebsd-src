@@ -370,7 +370,8 @@ do {									\
 									\
 	if (mtx_owned(&Giant)) {					\
 		WITNESS_SAVE(&Giant.lock_object, Giant);		\
-		for (_giantcnt = 0; mtx_owned(&Giant); _giantcnt++)	\
+		for (_giantcnt = 0; mtx_owned(&Giant) &&		\
+		    !SCHEDULER_STOPPED(); _giantcnt++)			\
 			mtx_unlock(&Giant);				\
 	}
 

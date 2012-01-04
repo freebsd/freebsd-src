@@ -642,6 +642,10 @@ AcpiExIntegerToString (
     char                    *Dest,
     UINT64                  Value);
 
+BOOLEAN
+AcpiIsValidSpaceId (
+    UINT8                   SpaceId);
+
 
 /*
  * exregion - default OpRegion handlers

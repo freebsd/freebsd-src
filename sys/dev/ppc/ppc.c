@@ -1857,7 +1857,7 @@ ppc_detach(device_t dev)
 	}
 
 	/* detach & delete all children */
-	device_delete_all_children(dev);
+	device_delete_children(dev);
 
 	if (ppc->res_irq != 0) {
 		bus_teardown_intr(dev, ppc->res_irq, ppc->intr_cookie);

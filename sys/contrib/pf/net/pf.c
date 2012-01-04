@@ -3770,8 +3770,8 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 		 * replies through it.
 		 */
 #ifdef __FreeBSD__
-		if (pfsync_defer_ptr != NULL)
-			pfsync_defer_ptr(*sm, m);
+		if (pfsync_defer_ptr != NULL &&
+			pfsync_defer_ptr(*sm, m))
 #else
 		if (pfsync_defer(*sm, m))
 #endif

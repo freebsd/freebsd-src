@@ -169,7 +169,10 @@ main(int argc, char *argv[])
             o_flag = 1;
             break;
         case 's':
-            s_arg = argtoi(optarg, 1, 5, 's');
+	    if (strcasecmp(optarg, "pxe") == 0)
+		s_arg = 6;
+	    else
+		s_arg = argtoi(optarg, 1, 6, 's');
             break;
         case 't':
             t_arg = argtoi(optarg, 1, 0xffff, 't');
@@ -330,10 +333,12 @@ read_mbr(const char *disk, u_int8_t **mbr, int check_version)
 	    err(1, "%s", disk);
 	if (n != mbr_size)
 	    errx(1, "%s: short read", disk);
+	close(fd);
 	return (mbr_size);
     }
     *mbr = malloc(sizeof(buf));
     memcpy(*mbr, buf, sizeof(buf));
+    close(fd);
 
     return sizeof(buf);
 }
@@ -470,8 +475,10 @@ display_mbr(u_int8_t *mbr)
     printf("default_selection=F%d (", mbr[OFF_OPT] + 1);
     if (mbr[OFF_OPT] < 4)
 	printf("Slice %d", mbr[OFF_OPT] + 1);
-    else
+    else if (mbr[OFF_OPT] == 4)
 	printf("Drive 1");
+    else
+	printf("PXE");
     printf(")\n");
 }
 

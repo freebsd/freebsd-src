@@ -761,6 +761,7 @@ OpnDoPackage (
 
     if ((PackageLengthOp->Asl.ParseOpcode == PARSEOP_INTEGER)      ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_QWORDCONST)   ||
+        (PackageLengthOp->Asl.ParseOpcode == PARSEOP_ZERO)         ||
         (PackageLengthOp->Asl.ParseOpcode == PARSEOP_DEFAULT_ARG))
     {
         if (!PackageLength)
@@ -778,8 +779,11 @@ OpnDoPackage (
      * If the PackageLength is a constant <= 255, we can change the
      * AML opcode from VarPackage to a simple (ACPI 1.0) Package opcode.
      */
-    if ((Op->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER) &&
-        (Op->Asl.Child->Asl.Value.Integer <= 255))
+    if (((Op->Asl.Child->Asl.ParseOpcode == PARSEOP_INTEGER) &&
+            (Op->Asl.Child->Asl.Value.Integer <= 255))  ||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ONE) ||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ONES)||
+        (Op->Asl.Child->Asl.ParseOpcode == PARSEOP_ZERO))
     {
         Op->Asl.AmlOpcode = AML_PACKAGE_OP;
         Op->Asl.ParseOpcode = PARSEOP_PACKAGE;

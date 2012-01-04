@@ -797,7 +797,7 @@ an_attach(struct an_softc *sc, int flags)
 	ADD(IFM_AUTO, IFM_IEEE80211_ADHOC);
 	for (i = 0; i < nrate; i++) {
 		r = sc->an_caps.an_rates[i];
-		mword = ieee80211_rate2media(NULL, r, IEEE80211_T_DS);
+		mword = ieee80211_rate2media(NULL, r, IEEE80211_MODE_AUTO);
 		if (mword == 0)
 			continue;
 		printf("%s%d%sMbps", (i != 0 ? " " : ""),
@@ -3299,7 +3299,7 @@ an_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
 		imr->ifm_active |= IFM_IEEE80211_ADHOC;
 	imr->ifm_active |= ieee80211_rate2media(NULL,
-		status.an_current_tx_rate, IEEE80211_T_DS);
+		status.an_current_tx_rate, IEEE80211_MODE_AUTO);
 	imr->ifm_status = IFM_AVALID;
 	if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		imr->ifm_status |= IFM_ACTIVE;

@@ -66,7 +66,7 @@ struct usb_bus_methods {
 	void    (*device_suspend) (struct usb_device *);
 	void    (*device_resume) (struct usb_device *);
 	void    (*set_hw_power) (struct usb_bus *);
-
+	void    (*set_hw_power_sleep) (struct usb_bus *, uint32_t);
 	/*
 	 * The following flag is set if one or more control transfers are
 	 * active:
@@ -92,6 +92,18 @@ struct usb_bus_methods {
 	 * are present on the given USB bus:
 	 */
 #define	USB_HW_POWER_NON_ROOT_HUB 0x10
+	/*
+	 * The following flag is set if we are suspending
+	 */
+#define	USB_HW_POWER_SUSPEND 0x20
+	/*
+	 * The following flag is set if we are resuming
+	 */
+#define	USB_HW_POWER_RESUME 0x40
+	/*
+	 * The following flag is set if we are shutting down
+	 */
+#define	USB_HW_POWER_SHUTDOWN 0x60
 
 	/* USB Device mode only - Mandatory */
 

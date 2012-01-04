@@ -531,36 +531,56 @@ static ACPI_PARSE_OBJECT *
 AcpiPsGetNextField (
     ACPI_PARSE_STATE        *ParserState)
 {
-    UINT32                  AmlOffset = (UINT32)
-                                ACPI_PTR_DIFF (ParserState->Aml,
-                                               ParserState->AmlStart);
+    UINT32                  AmlOffset;
     ACPI_PARSE_OBJECT       *Field;
+    ACPI_PARSE_OBJECT       *Arg = NULL;
     UINT16                  Opcode;
     UINT32                  Name;
+    UINT8                   AccessType;
+    UINT8                   AccessAttribute;
+    UINT8                   AccessLength;
+    UINT32                  PkgLength;
+    UINT8                   *PkgEnd;
+    UINT32                  BufferLength;
 
 
     ACPI_FUNCTION_TRACE (PsGetNextField);
 
 
+    AmlOffset = (UINT32) ACPI_PTR_DIFF (
+        ParserState->Aml, ParserState->AmlStart);
+
     /* Determine field type */
 
     switch (ACPI_GET8 (ParserState->Aml))
     {
-    default:
-
-        Opcode = AML_INT_NAMEDFIELD_OP;
-        break;
-
-    case 0x00:
+    case AML_FIELD_OFFSET_OP:
 
         Opcode = AML_INT_RESERVEDFIELD_OP;
         ParserState->Aml++;
         break;
 
-    case 0x01:
+    case AML_FIELD_ACCESS_OP:
 
         Opcode = AML_INT_ACCESSFIELD_OP;
         ParserState->Aml++;
+        break;
+
+    case AML_FIELD_CONNECTION_OP:
+
+        Opcode = AML_INT_CONNECTION_OP;
+        ParserState->Aml++;
+        break;
+
+    case AML_FIELD_EXT_ACCESS_OP:
+
+        Opcode = AML_INT_EXTACCESSFIELD_OP;
+        ParserState->Aml++;
+        break;
+
+    default:
+
+        Opcode = AML_INT_NAMEDFIELD_OP;
         break;
     }
 
@@ -601,16 +621,115 @@ AcpiPsGetNextField (
 
 
     case AML_INT_ACCESSFIELD_OP:
+    case AML_INT_EXTACCESSFIELD_OP:
 
         /*
          * Get AccessType and AccessAttrib and merge into the field Op
-         * AccessType is first operand, AccessAttribute is second
+         * AccessType is first operand, AccessAttribute is second. stuff
+         * these bytes into the node integer value for convenience.
          */
-        Field->Common.Value.Integer = (((UINT32) ACPI_GET8 (ParserState->Aml) << 8));
+
+        /* Get the two bytes (Type/Attribute) */
+
+        AccessType = ACPI_GET8 (ParserState->Aml);
         ParserState->Aml++;
-        Field->Common.Value.Integer |= ACPI_GET8 (ParserState->Aml);
+        AccessAttribute = ACPI_GET8 (ParserState->Aml);
         ParserState->Aml++;
+
+        Field->Common.Value.Integer = (UINT8) AccessType;
+        Field->Common.Value.Integer |= (UINT16) (AccessAttribute << 8);
+
+        /* This opcode has a third byte, AccessLength */
+
+        if (Opcode == AML_INT_EXTACCESSFIELD_OP)
+        {
+            AccessLength = ACPI_GET8 (ParserState->Aml);
+            ParserState->Aml++;
+
+            Field->Common.Value.Integer |= (UINT32) (AccessLength << 16);
+        }
         break;
+
+
+    case AML_INT_CONNECTION_OP:
+
+        /*
+         * Argument for Connection operator can be either a Buffer
+         * (resource descriptor), or a NameString.
+         */
+        if (ACPI_GET8 (ParserState->Aml) == AML_BUFFER_OP)
+        {
+            ParserState->Aml++;
+
+            PkgEnd = ParserState->Aml;
+            PkgLength = AcpiPsGetNextPackageLength (ParserState);
+            PkgEnd += PkgLength;
+
+            if (ParserState->Aml < PkgEnd)
+            {
+                /* Non-empty list */
+
+                Arg = AcpiPsAllocOp (AML_INT_BYTELIST_OP);
+                if (!Arg)
+                {
+                    return_PTR (NULL);
+                }
+
+                /* Get the actual buffer length argument */
+
+                Opcode = ACPI_GET8 (ParserState->Aml);
+                ParserState->Aml++;
+
+                switch (Opcode)
+                {
+                case AML_BYTE_OP:       /* AML_BYTEDATA_ARG */
+                    BufferLength = ACPI_GET8 (ParserState->Aml);
+                    ParserState->Aml += 1;
+                    break;
+
+                case AML_WORD_OP:       /* AML_WORDDATA_ARG */
+                    BufferLength = ACPI_GET16 (ParserState->Aml);
+                    ParserState->Aml += 2;
+                    break;
+
+                case AML_DWORD_OP:      /* AML_DWORDATA_ARG */
+                    BufferLength = ACPI_GET32 (ParserState->Aml);
+                    ParserState->Aml += 4;
+                    break;
+
+                default:
+                    BufferLength = 0;
+                    break;
+                }
+
+                /* Fill in bytelist data */
+
+                Arg->Named.Value.Size = BufferLength;
+                Arg->Named.Data = ParserState->Aml;
+            }
+
+            /* Skip to End of byte data */
+
+            ParserState->Aml = PkgEnd;
+        }
+        else
+        {
+            Arg = AcpiPsAllocOp (AML_INT_NAMEPATH_OP);
+            if (!Arg)
+            {
+                return_PTR (NULL);
+            }
+
+            /* Get the Namestring argument */
+
+            Arg->Common.Value.Name = AcpiPsGetNextNamestring (ParserState);
+        }
+
+        /* Link the buffer/namestring to parent (CONNECTION_OP) */
+
+        AcpiPsAppendArg (Field, Arg);
+        break;
+
 
     default:
 

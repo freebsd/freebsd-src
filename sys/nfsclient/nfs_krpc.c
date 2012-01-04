@@ -191,6 +191,7 @@ nfs_connect(struct nfsmount *nmp)
 	struct netconfig *nconf;
 	rpcvers_t vers;
 	int one = 1, retries;
+	struct timeval timo;
 
 	/*
 	 * We need to establish the socket using the credentials of
@@ -258,11 +259,36 @@ nfs_connect(struct nfsmount *nmp)
 		CLNT_CONTROL(client, CLSET_INTERRUPTIBLE, &one);
 	if (nmp->nm_flag & NFSMNT_RESVPORT)
 		CLNT_CONTROL(client, CLSET_PRIVPORT, &one);
-	if (nmp->nm_flag & NFSMNT_SOFT)
-		retries = nmp->nm_retry;
-	else
+	if ((nmp->nm_flag & NFSMNT_SOFT) != 0) {
+		if (nmp->nm_sotype == SOCK_DGRAM)
+			/*
+			 * For UDP, the large timeout for a reconnect will
+			 * be set to "nm_retry * nm_timeo / 2", so we only
+			 * want to do 2 reconnect timeout retries.
+			 */
+			retries = 2;
+		else
+			retries = nmp->nm_retry;
+	} else
 		retries = INT_MAX;
 	CLNT_CONTROL(client, CLSET_RETRIES, &retries);
+
+	/*
+	 * For UDP, there are 2 timeouts:
+	 * - CLSET_RETRY_TIMEOUT sets the initial timeout for the timer
+	 *   that does a retransmit of an RPC request using the same socket
+	 *   and xid. This is what you normally want to do, since NFS
+	 *   servers depend on "same xid" for their Duplicate Request Cache.
+	 * - timeout specified in CLNT_CALL_MBUF(), which specifies when
+	 *   retransmits on the same socket should fail and a fresh socket
+	 *   created. Each of these timeouts counts as one CLSET_RETRIES,
+	 *   as set above.
+	 * Set the initial retransmit timeout for UDP. This timeout doesn't
+	 * exist for TCP and the following call just fails, which is ok.
+	 */
+	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
+	timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * 1000000 / NFS_HZ;
+	CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, &timo);
 
 	mtx_lock(&nmp->nm_mtx);
 	if (nmp->nm_client) {
@@ -411,7 +437,7 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 	struct mbuf *md;
 	time_t waituntil;
 	caddr_t dpos;
-	int error = 0;
+	int error = 0, timeo;
 	struct timeval now;
 	AUTH *auth = NULL;
 	enum nfs_rto_timer_t timer;
@@ -486,8 +512,32 @@ nfs_request(struct vnode *vp, struct mbuf *mreq, int procnum,
 
 	nfsstats.rpcrequests++;
 tryagain:
-	timo.tv_sec = nmp->nm_timeo / NFS_HZ;
-	timo.tv_usec = (nmp->nm_timeo * 1000000) / NFS_HZ;
+	/*
+	 * This timeout specifies when a new socket should be created,
+	 * along with new xid values. For UDP, this should be done
+	 * infrequently, since retransmits of RPC requests should normally
+	 * use the same xid.
+	 */
+	if (nmp->nm_sotype == SOCK_DGRAM) {
+		if ((nmp->nm_flag & NFSMNT_SOFT) != 0) {
+			/*
+			 * CLSET_RETRIES is set to 2, so this should be half
+			 * of the total timeout required.
+			 */
+			timeo = nmp->nm_retry * nmp->nm_timeo / 2;
+			if (timeo < 1)
+				timeo = 1;
+			timo.tv_sec = timeo / NFS_HZ;
+			timo.tv_usec = (timeo % NFS_HZ) * 1000000 / NFS_HZ;
+		} else {
+			/* For UDP hard mounts, use a large value. */
+			timo.tv_sec = NFS_MAXTIMEO / NFS_HZ;
+			timo.tv_usec = 0;
+		}
+	} else {
+		timo.tv_sec = nmp->nm_timeo / NFS_HZ;
+		timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * 1000000 / NFS_HZ;
+	}
 	mrep = NULL;
 	stat = CLNT_CALL_MBUF(nmp->nm_client, &ext,
 	    (nmp->nm_flag & NFSMNT_NFSV3) ? procnum : nfsv2_procid[procnum],

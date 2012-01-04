@@ -41,35 +41,35 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-static struct {
-	char *name;
-	u_long flag;
-	int invert;
-} mapping[] = {
-	/* shorter names per flag first, all prefixed by "no" */
-	{ "nosappnd",		SF_APPEND,	0 },
-	{ "nosappend",		SF_APPEND,	0 },
-	{ "noarch",		SF_ARCHIVED,	0 },
-	{ "noarchived",		SF_ARCHIVED,	0 },
-	{ "noschg",		SF_IMMUTABLE,	0 },
-	{ "noschange",		SF_IMMUTABLE,	0 },
-	{ "nosimmutable",	SF_IMMUTABLE,	0 },
-	{ "nosunlnk",		SF_NOUNLINK,	0 },
-	{ "nosunlink",		SF_NOUNLINK,	0 },
-#ifdef SF_SNAPSHOT
-	{ "nosnapshot",		SF_SNAPSHOT,	0 },
-#endif
-	{ "nouappnd",		UF_APPEND,	0 },
-	{ "nouappend",		UF_APPEND,	0 },
-	{ "nouchg",		UF_IMMUTABLE,	0 },
-	{ "nouchange",		UF_IMMUTABLE,	0 },
-	{ "nouimmutable",	UF_IMMUTABLE,	0 },
-	{ "nodump",		UF_NODUMP,	1 },
-	{ "noopaque",		UF_OPAQUE,	0 },
-	{ "nouunlnk",		UF_NOUNLINK,	0 },
-	{ "nouunlink",		UF_NOUNLINK,	0 }
-};
 #define longestflaglen	12
+static struct {
+	char name[longestflaglen + 1];
+	char invert;
+	u_long flag;
+} const mapping[] = {
+	/* shorter names per flag first, all prefixed by "no" */
+	{ "nosappnd",		0, SF_APPEND	},
+	{ "nosappend",		0, SF_APPEND	},
+	{ "noarch",		0, SF_ARCHIVED	},
+	{ "noarchived",		0, SF_ARCHIVED	},
+	{ "noschg",		0, SF_IMMUTABLE	},
+	{ "noschange",		0, SF_IMMUTABLE	},
+	{ "nosimmutable",	0, SF_IMMUTABLE	},
+	{ "nosunlnk",		0, SF_NOUNLINK	},
+	{ "nosunlink",		0, SF_NOUNLINK	},
+#ifdef SF_SNAPSHOT
+	{ "nosnapshot",		0, SF_SNAPSHOT	},
+#endif
+	{ "nouappnd",		0, UF_APPEND	},
+	{ "nouappend",		0, UF_APPEND	},
+	{ "nouchg",		0, UF_IMMUTABLE	},
+	{ "nouchange",		0, UF_IMMUTABLE	},
+	{ "nouimmutable",	0, UF_IMMUTABLE	},
+	{ "nodump",		1, UF_NODUMP	},
+	{ "noopaque",		0, UF_OPAQUE	},
+	{ "nouunlnk",		0, UF_NOUNLINK	},
+	{ "nouunlink",		0, UF_NOUNLINK	}
+};
 #define nmappings	(sizeof(mapping) / sizeof(mapping[0]))
 
 /*
@@ -82,7 +82,8 @@ fflagstostr(flags)
 	u_long flags;
 {
 	char *string;
-	char *sp, *dp;
+	const char *sp;
+	char *dp;
 	u_long setflags;
 	int i;
 

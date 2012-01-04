@@ -121,9 +121,9 @@ AcpiDmDmaDescriptor (
 
     AcpiDmIndent (Level);
     AcpiOsPrintf ("DMA (%s, %s, %s, ",
-            AcpiGbl_TypDecode [(Resource->Dma.Flags >> 5) & 3],
-            AcpiGbl_BmDecode  [(Resource->Dma.Flags >> 2) & 1],
-            AcpiGbl_SizDecode [(Resource->Dma.Flags >> 0) & 3]);
+        AcpiGbl_TypDecode [(Resource->Dma.Flags >> 5) & 3],
+        AcpiGbl_BmDecode  [(Resource->Dma.Flags >> 2) & 1],
+        AcpiGbl_SizDecode [(Resource->Dma.Flags >> 0) & 3]);
 
     /* Insert a descriptor name */
 
@@ -132,6 +132,49 @@ AcpiDmDmaDescriptor (
 
     AcpiDmIndent (Level + 1);
     AcpiDmBitList (Resource->Dma.DmaChannelMask);
+}
+
+
+/*******************************************************************************
+ *
+ * FUNCTION:    AcpiDmFixedDmaDescriptor
+ *
+ * PARAMETERS:  Resource            - Pointer to the resource descriptor
+ *              Length              - Length of the descriptor in bytes
+ *              Level               - Current source code indentation level
+ *
+ * RETURN:      None
+ *
+ * DESCRIPTION: Decode a FixedDMA descriptor
+ *
+ ******************************************************************************/
+
+void
+AcpiDmFixedDmaDescriptor (
+    AML_RESOURCE            *Resource,
+    UINT32                  Length,
+    UINT32                  Level)
+{
+
+    AcpiDmIndent (Level);
+    AcpiOsPrintf ("FixedDMA (0x%4.4X, 0x%4.4X, ",
+        Resource->FixedDma.RequestLines,
+        Resource->FixedDma.Channels);
+
+    if (Resource->FixedDma.Width <= 5)
+    {
+        AcpiOsPrintf ("%s, ",
+            AcpiGbl_DtsDecode [Resource->FixedDma.Width]);
+    }
+    else
+    {
+        AcpiOsPrintf ("%X /* INVALID DMA WIDTH */, ", Resource->FixedDma.Width);
+    }
+
+    /* Insert a descriptor name */
+
+    AcpiDmDescriptorName ();
+    AcpiOsPrintf (")\n");
 }
 
 

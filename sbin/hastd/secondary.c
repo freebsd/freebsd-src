@@ -199,8 +199,6 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection direction");
 #endif
 
-	map = NULL;
-	mapsize = 0;
 	nvout = nv_alloc();
 	nv_add_int64(nvout, (int64_t)res->hr_datasize, "datasize");
 	nv_add_int32(nvout, (int32_t)res->hr_extentsize, "extentsize");

@@ -320,6 +320,7 @@ typedef struct acpi_object_thermal_zone
     UINT32                          BaseByteOffset;     /* Byte offset within containing object */\
     UINT32                          Value;              /* Value to store into the Bank or Index register */\
     UINT8                           StartFieldBitOffset;/* Bit offset within first field datum (0-63) */\
+    UINT8                           AccessLength;       /* For serial regions/fields */
 
 
 typedef struct acpi_object_field_common                 /* COMMON FIELD (for BUFFER, REGION, BANK, and INDEX fields) */
@@ -335,7 +336,9 @@ typedef struct acpi_object_region_field
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_COMMON_FIELD_INFO
+    UINT16                          ResourceLength;
     union acpi_operand_object       *RegionObj;         /* Containing OpRegion object */
+    UINT8                           *ResourceBuffer;    /* ResourceTemplate for serial regions/fields */
 
 } ACPI_OBJECT_REGION_FIELD;
 
@@ -463,6 +466,7 @@ typedef struct acpi_object_extra
 {
     ACPI_OBJECT_COMMON_HEADER
     ACPI_NAMESPACE_NODE             *Method_REG;        /* _REG method for this region (if any) */
+    ACPI_NAMESPACE_NODE             *ScopeNode;
     void                            *RegionContext;     /* Region-specific data */
     UINT8                           *AmlStart;
     UINT32                          AmlLength;

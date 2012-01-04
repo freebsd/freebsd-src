@@ -666,10 +666,10 @@ bsd_set_radius_acl_expire(void *priv, const u8 *mac)
 	struct hostapd_data *hapd = drv->hapd;
 
 	/*
-	 * The expiry of the MAC address from RADIUS ACL cache doesn't mean 
-	 * that we should kick off the client.  Our current approach doesn't 
+	 * The expiry of the MAC address from RADIUS ACL cache doesn't mean
+	 * that we should kick off the client.  Our current approach doesn't
 	 * require adding/removing entries from an allow/deny list; so this
-	 * function is likely unecessary
+	 * function is likely unnecessary
 	 */
 	wpa_printf(MSG_DEBUG, "[%s] STA " MACSTR " radius acl cache "
 		"expired; nothing to do...", hapd->conf->iface, 

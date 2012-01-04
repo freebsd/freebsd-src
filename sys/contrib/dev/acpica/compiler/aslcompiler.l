@@ -1,8 +1,7 @@
-
 %{
 /******************************************************************************
  *
- * Module Name: aslcompiler.l - Flex input file
+ * Module Name: aslcompiler.l - Flex/lex input file
  *
  *****************************************************************************/
 
@@ -60,6 +59,9 @@ YYSTYPE AslCompilerlval;
 
 #define _COMPONENT          ACPI_COMPILER
         ACPI_MODULE_NAME    ("aslscan")
+
+/* Local prototypes */
+
 char
 comment (void);
 char
@@ -74,7 +76,7 @@ copy (void);
 /*! [Begin] no source code translation */
 
 %}
-
+    /* Definitions */
 
 LeadNameChar                [A-Za-z_]
 DigitChar                   [0-9]
@@ -94,6 +96,7 @@ NonEmptyNamePath            {NameSeg}{NamePathTail}*
 NamePathTail                [.]{NameSeg}
 
 %%
+    /* Rules */
 
 [ ]                         { count (0); }
 [\n]                        { count (0); } /* Handle files with both LF and CR/LF */
@@ -105,6 +108,7 @@ NamePathTail                [.]{NameSeg}
 "//"                        { if (!comment2 ()) yyterminate (); }
 
 "\""                        { if (literal ()) return (PARSEOP_STRING_LITERAL); else yyterminate (); }
+";"                         { count (0); return(';'); }
 
 
 0[xX]{HexDigitChar}+ |
@@ -116,15 +120,28 @@ NamePathTail                [.]{NameSeg}
 "#line"						{ count (1); return (PARSEOP_LINE_CSTYLE); }
 "External"                  { count (1); return (PARSEOP_EXTERNAL); }
 
+ /****************************************************************************
+  *
+  * Main ASL operators
+  *
+  ****************************************************************************/
 
-"Ones"                      { count (1); return (PARSEOP_ONES); }
-"One"                       { count (1); return (PARSEOP_ONE); }
-"Zero"                      { count (1); return (PARSEOP_ZERO); }
-"Revision"                  { count (1); return (PARSEOP_REVISION); }
-
-"Offset"                    { count (1); return (PARSEOP_OFFSET); }
 "AccessAs"                  { count (1); return (PARSEOP_ACCESSAS); }
+"Acquire"                   { count (3); return (PARSEOP_ACQUIRE); }
+"Add"                       { count (3); return (PARSEOP_ADD); }
+"Alias"                     { count (2); return (PARSEOP_ALIAS); }
+"And"                       { count (3); return (PARSEOP_AND); }
 "BankField"                 { count (2); return (PARSEOP_BANKFIELD); }
+"Break"                     { count (3); return (PARSEOP_BREAK); }
+"BreakPoint"                { count (3); return (PARSEOP_BREAKPOINT); }
+"Buffer"                    { count (1); return (PARSEOP_BUFFER); }
+"Case"                      { count (3); return (PARSEOP_CASE); }
+"Concatenate"               { count (3); return (PARSEOP_CONCATENATE); }
+"ConcatenateResTemplate"    { count (3); return (PARSEOP_CONCATENATERESTEMPLATE); }
+"CondRefOf"                 { count (3); return (PARSEOP_CONDREFOF); }
+"Connection"                { count (2); return (PARSEOP_CONNECTION); }
+"Continue"                  { count (3); return (PARSEOP_CONTINUE); }
+"CopyObject"                { count (3); return (PARSEOP_COPYOBJECT); }
 "CreateBitField"            { count (2); return (PARSEOP_CREATEBITFIELD); }
 "CreateByteField"           { count (2); return (PARSEOP_CREATEBYTEFIELD); }
 "CreateDWordField"          { count (2); return (PARSEOP_CREATEDWORDFIELD); }
@@ -132,57 +149,27 @@ NamePathTail                [.]{NameSeg}
 "CreateQWordField"          { count (2); return (PARSEOP_CREATEQWORDFIELD); }
 "CreateWordField"           { count (2); return (PARSEOP_CREATEWORDFIELD); }
 "DataTableRegion"           { count (2); return (PARSEOP_DATATABLEREGION); }
+"Debug"                     { count (1); return (PARSEOP_DEBUG); }
+"Decrement"                 { count (3); return (PARSEOP_DECREMENT); }
+"Default"                   { count (3); return (PARSEOP_DEFAULT); }
+"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITIONBLOCK); }
+"DeRefOf"                   { count (3); return (PARSEOP_DEREFOF); }
 "Device"                    { count (2); return (PARSEOP_DEVICE); }
-"Event"                     { count (2); return (PARSEOP_EVENT); }
-"Field"                     { count (2); return (PARSEOP_FIELD); }
-"Function"                  { count (2); return (PARSEOP_FUNCTION); }
-"IndexField"                { count (2); return (PARSEOP_INDEXFIELD); }
-"Method"                    { count (2); return (PARSEOP_METHOD); }
-"Mutex"                     { count (2); return (PARSEOP_MUTEX); }
-"OperationRegion"           { count (2); return (PARSEOP_OPERATIONREGION); }
-"PowerResource"             { count (2); return (PARSEOP_POWERRESOURCE); }
-"Processor"                 { count (2); return (PARSEOP_PROCESSOR); }
-"ThermalZone"               { count (2); return (PARSEOP_THERMALZONE); }
-"Alias"                     { count (2); return (PARSEOP_ALIAS); }
-"Name"                      { count (2); return (PARSEOP_NAME); }
-"Scope"                     { count (2); return (PARSEOP_SCOPE); }
-"Break"                     { count (3); return (PARSEOP_BREAK); }
-"BreakPoint"                { count (3); return (PARSEOP_BREAKPOINT); }
-"Continue"                  { count (3); return (PARSEOP_CONTINUE); }
-"Fatal"                     { count (3); return (PARSEOP_FATAL); }
-"If"                        { count (3); return (PARSEOP_IF); }
+"Divide"                    { count (3); return (PARSEOP_DIVIDE); }
+"Eisaid"                    { count (1); return (PARSEOP_EISAID); }
 "Else"                      { count (3); return (PARSEOP_ELSE); }
 "ElseIf"                    { count (3); return (PARSEOP_ELSEIF); }
-"Load"                      { count (3); return (PARSEOP_LOAD); }
-"Noop"                      { count (3); return (PARSEOP_NOOP); }
-"Notify"                    { count (3); return (PARSEOP_NOTIFY); }
-"Release"                   { count (3); return (PARSEOP_RELEASE); }
-"Reset"                     { count (3); return (PARSEOP_RESET); }
-"Return"                    { count (3); return (PARSEOP_RETURN); }
-"Signal"                    { count (3); return (PARSEOP_SIGNAL); }
-"Sleep"                     { count (3); return (PARSEOP_SLEEP); }
-"Stall"                     { count (3); return (PARSEOP_STALL); }
-"Switch"                    { count (3); return (PARSEOP_SWITCH); }
-"Case"                      { count (3); return (PARSEOP_CASE); }
-"Default"                   { count (3); return (PARSEOP_DEFAULT); }
-"Unload"                    { count (3); return (PARSEOP_UNLOAD); }
-"While"                     { count (3); return (PARSEOP_WHILE); }
-
-"Acquire"                   { count (3); return (PARSEOP_ACQUIRE); }
-"Add"                       { count (3); return (PARSEOP_ADD); }
-"And"                       { count (3); return (PARSEOP_AND); }
-"Concatenate"               { count (3); return (PARSEOP_CONCATENATE); }
-"ConcatenateResTemplate"    { count (3); return (PARSEOP_CONCATENATERESTEMPLATE); }
-"CondRefOf"                 { count (3); return (PARSEOP_CONDREFOF); }
-"CopyObject"                { count (3); return (PARSEOP_COPYOBJECT); }
-"Decrement"                 { count (3); return (PARSEOP_DECREMENT); }
-"DeRefOf"                   { count (3); return (PARSEOP_DEREFOF); }
-"Divide"                    { count (3); return (PARSEOP_DIVIDE); }
+"Event"                     { count (2); return (PARSEOP_EVENT); }
+"Fatal"                     { count (3); return (PARSEOP_FATAL); }
+"Field"                     { count (2); return (PARSEOP_FIELD); }
 "FindSetLeftBit"            { count (3); return (PARSEOP_FINDSETLEFTBIT); }
 "FindSetRightBit"           { count (3); return (PARSEOP_FINDSETRIGHTBIT); }
-"FromBCD"                   { count (3); return (PARSEOP_FROMBCD); }
+"FromBcd"                   { count (3); return (PARSEOP_FROMBCD); }
+"Function"                  { count (2); return (PARSEOP_FUNCTION); }
+"If"                        { count (3); return (PARSEOP_IF); }
 "Increment"                 { count (3); return (PARSEOP_INCREMENT); }
 "Index"                     { count (3); return (PARSEOP_INDEX); }
+"IndexField"                { count (2); return (PARSEOP_INDEXFIELD); }
 "LAnd"                      { count (3); return (PARSEOP_LAND); }
 "LEqual"                    { count (3); return (PARSEOP_LEQUAL); }
 "LGreater"                  { count (3); return (PARSEOP_LGREATER); }
@@ -191,32 +178,62 @@ NamePathTail                [.]{NameSeg}
 "LLessEqual"                { count (3); return (PARSEOP_LLESSEQUAL); }
 "LNot"                      { count (3); return (PARSEOP_LNOT); }
 "LNotEqual"                 { count (3); return (PARSEOP_LNOTEQUAL); }
+"Load"                      { count (3); return (PARSEOP_LOAD); }
 "LoadTable"                 { count (3); return (PARSEOP_LOADTABLE); }
 "LOr"                       { count (3); return (PARSEOP_LOR); }
 "Match"                     { count (3); return (PARSEOP_MATCH); }
+"Method"                    { count (2); return (PARSEOP_METHOD); }
 "Mid"                       { count (3); return (PARSEOP_MID); }
 "Mod"                       { count (3); return (PARSEOP_MOD); }
 "Multiply"                  { count (3); return (PARSEOP_MULTIPLY); }
+"Mutex"                     { count (2); return (PARSEOP_MUTEX); }
+"Name"                      { count (2); return (PARSEOP_NAME); }
 "NAnd"                      { count (3); return (PARSEOP_NAND); }
+"Noop"                      { count (3); return (PARSEOP_NOOP); }
 "NOr"                       { count (3); return (PARSEOP_NOR); }
 "Not"                       { count (3); return (PARSEOP_NOT); }
+"Notify"                    { count (3); return (PARSEOP_NOTIFY); }
 "ObjectType"                { count (3); return (PARSEOP_OBJECTTYPE); }
+"Offset"                    { count (1); return (PARSEOP_OFFSET); }
+"One"                       { count (1); return (PARSEOP_ONE); }
+"Ones"                      { count (1); return (PARSEOP_ONES); }
+"OperationRegion"           { count (2); return (PARSEOP_OPERATIONREGION); }
 "Or"                        { count (3); return (PARSEOP_OR); }
+"Package"                   { count (1); return (PARSEOP_PACKAGE); }
+"PowerResource"             { count (2); return (PARSEOP_POWERRESOURCE); }
+"Processor"                 { count (2); return (PARSEOP_PROCESSOR); }
 "RefOf"                     { count (3); return (PARSEOP_REFOF); }
+"Release"                   { count (3); return (PARSEOP_RELEASE); }
+"Reset"                     { count (3); return (PARSEOP_RESET); }
+"Return"                    { count (3); return (PARSEOP_RETURN); }
+"Revision"                  { count (1); return (PARSEOP_REVISION); }
+"Scope"                     { count (2); return (PARSEOP_SCOPE); }
 "ShiftLeft"                 { count (3); return (PARSEOP_SHIFTLEFT); }
 "ShiftRight"                { count (3); return (PARSEOP_SHIFTRIGHT); }
+"Signal"                    { count (3); return (PARSEOP_SIGNAL); }
 "SizeOf"                    { count (3); return (PARSEOP_SIZEOF); }
+"Sleep"                     { count (3); return (PARSEOP_SLEEP); }
+"Stall"                     { count (3); return (PARSEOP_STALL); }
 "Store"                     { count (3); return (PARSEOP_STORE); }
 "Subtract"                  { count (3); return (PARSEOP_SUBTRACT); }
+"Switch"                    { count (3); return (PARSEOP_SWITCH); }
+"ThermalZone"               { count (2); return (PARSEOP_THERMALZONE); }
 "Timer"                     { count (3); return (PARSEOP_TIMER); }
-"ToBCD"                     { count (3); return (PARSEOP_TOBCD); }
+"ToBcd"                     { count (3); return (PARSEOP_TOBCD); }
 "ToBuffer"                  { count (3); return (PARSEOP_TOBUFFER); }
 "ToDecimalString"           { count (3); return (PARSEOP_TODECIMALSTRING); }
 "ToHexString"               { count (3); return (PARSEOP_TOHEXSTRING); }
 "ToInteger"                 { count (3); return (PARSEOP_TOINTEGER); }
 "ToString"                  { count (3); return (PARSEOP_TOSTRING); }
+"ToUuid"                    { count (1); return (PARSEOP_TOUUID); }
+"Unicode"                   { count (1); return (PARSEOP_UNICODE); }
+"Unload"                    { count (3); return (PARSEOP_UNLOAD); }
 "Wait"                      { count (3); return (PARSEOP_WAIT); }
+"While"                     { count (3); return (PARSEOP_WHILE); }
 "XOr"                       { count (3); return (PARSEOP_XOR); }
+"Zero"                      { count (1); return (PARSEOP_ZERO); }
+
+    /* Control method arguments and locals */
 
 "Arg0"                      { count (1); return (PARSEOP_ARG0); }
 "Arg1"                      { count (1); return (PARSEOP_ARG1); }
@@ -225,7 +242,6 @@ NamePathTail                [.]{NameSeg}
 "Arg4"                      { count (1); return (PARSEOP_ARG4); }
 "Arg5"                      { count (1); return (PARSEOP_ARG5); }
 "Arg6"                      { count (1); return (PARSEOP_ARG6); }
-
 "Local0"                    { count (1); return (PARSEOP_LOCAL0); }
 "Local1"                    { count (1); return (PARSEOP_LOCAL1); }
 "Local2"                    { count (1); return (PARSEOP_LOCAL2); }
@@ -235,16 +251,16 @@ NamePathTail                [.]{NameSeg}
 "Local6"                    { count (1); return (PARSEOP_LOCAL6); }
 "Local7"                    { count (1); return (PARSEOP_LOCAL7); }
 
-"Debug"                     { count (1); return (PARSEOP_DEBUG); }
 
-"DefinitionBlock"           { count (1); return (PARSEOP_DEFINITIONBLOCK); }
-"Buffer"                    { count (1); return (PARSEOP_BUFFER); }
-"Package"                   { count (1); return (PARSEOP_PACKAGE); }
+ /****************************************************************************
+  *
+  * Resource Descriptor macros
+  *
+  ****************************************************************************/
 
-"EISAID"                    { count (1); return (PARSEOP_EISAID); }
 "ResourceTemplate"          { count (1); return (PARSEOP_RESOURCETEMPLATE); }
-"ToUUID"                    { count (1); return (PARSEOP_TOUUID); }
-"Unicode"                   { count (1); return (PARSEOP_UNICODE); }
+"RawDataBuffer"             { count (1); return (PARSEOP_DATABUFFER); }
+
 "DMA"                       { count (1); return (PARSEOP_DMA); }
 "DWordIO"                   { count (1); return (PARSEOP_DWORDIO); }
 "DWordMemory"               { count (1); return (PARSEOP_DWORDMEMORY); }
@@ -253,25 +269,187 @@ NamePathTail                [.]{NameSeg}
 "ExtendedIO"                { count (1); return (PARSEOP_EXTENDEDIO); }
 "ExtendedMemory"            { count (1); return (PARSEOP_EXTENDEDMEMORY); }
 "ExtendedSpace"             { count (1); return (PARSEOP_EXTENDEDSPACE); }
+"FixedDma"                  { count (1); return (PARSEOP_FIXEDDMA); }
 "FixedIO"                   { count (1); return (PARSEOP_FIXEDIO); }
+"GpioInt"                   { count (1); return (PARSEOP_GPIO_INT); }
+"GpioIo"                    { count (1); return (PARSEOP_GPIO_IO); }
+"I2cSerialBus"              { count (1); return (PARSEOP_I2C_SERIALBUS); }
 "Interrupt"                 { count (1); return (PARSEOP_INTERRUPT); }
 "IO"                        { count (1); return (PARSEOP_IO); }
-"IRQNoFlags"                { count (1); return (PARSEOP_IRQNOFLAGS); }
 "IRQ"                       { count (1); return (PARSEOP_IRQ); }
+"IRQNoFlags"                { count (1); return (PARSEOP_IRQNOFLAGS); }
 "Memory24"                  { count (1); return (PARSEOP_MEMORY24); }
-"Memory32Fixed"             { count (1); return (PARSEOP_MEMORY32FIXED); }
 "Memory32"                  { count (1); return (PARSEOP_MEMORY32); }
+"Memory32Fixed"             { count (1); return (PARSEOP_MEMORY32FIXED); }
 "QWordIO"                   { count (1); return (PARSEOP_QWORDIO); }
 "QWordMemory"               { count (1); return (PARSEOP_QWORDMEMORY); }
 "QWordSpace"                { count (1); return (PARSEOP_QWORDSPACE); }
 "Register"                  { count (1); return (PARSEOP_REGISTER); }
+"SpiSerialBus"              { count (1); return (PARSEOP_SPI_SERIALBUS); }
 "StartDependentFn"          { count (1); return (PARSEOP_STARTDEPENDENTFN); }
 "StartDependentFnNoPri"     { count (1); return (PARSEOP_STARTDEPENDENTFN_NOPRI); }
+"UartSerialBus"             { count (1); return (PARSEOP_UART_SERIALBUS); }
 "VendorLong"                { count (1); return (PARSEOP_VENDORLONG); }
 "VendorShort"               { count (1); return (PARSEOP_VENDORSHORT); }
 "WordBusNumber"             { count (1); return (PARSEOP_WORDBUSNUMBER); }
 "WordIO"                    { count (1); return (PARSEOP_WORDIO); }
 "WordSpace"                 { count (1); return (PARSEOP_WORDSPACE); }
+
+
+ /****************************************************************************
+  *
+  * Keywords used as arguments to ASL operators and macros
+  *
+  ****************************************************************************/
+
+    /*  AccessAttribKeyword: Serial Bus Attributes (ACPI 5.0) */
+
+"AttribQuick"               { count (0); return (PARSEOP_ACCESSATTRIB_QUICK); }
+"AttribSendReceive"         { count (0); return (PARSEOP_ACCESSATTRIB_SND_RCV); }
+"AttribByte"                { count (0); return (PARSEOP_ACCESSATTRIB_BYTE); }
+"AttribWord"                { count (0); return (PARSEOP_ACCESSATTRIB_WORD); }
+"AttribBlock"               { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK); }
+"AttribProcessCall"         { count (0); return (PARSEOP_ACCESSATTRIB_WORD_CALL); }
+"AttribBlockProcessCall"    { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK_CALL); }
+
+    /* AccessAttribKeyword: Legacy synonyms for above (pre-ACPI 5.0) */
+
+"SMBQuick"                  { count (0); return (PARSEOP_ACCESSATTRIB_QUICK); }
+"SMBSendReceive"            { count (0); return (PARSEOP_ACCESSATTRIB_SND_RCV); }
+"SMBByte"                   { count (0); return (PARSEOP_ACCESSATTRIB_BYTE); }
+"SMBWord"                   { count (0); return (PARSEOP_ACCESSATTRIB_WORD); }
+"SMBBlock"                  { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK); }
+"SMBProcessCall"            { count (0); return (PARSEOP_ACCESSATTRIB_WORD_CALL); }
+"SMBBlockProcessCall"       { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK_CALL); }
+
+    /* AccessTypeKeyword: Field Access Types */
+
+"AnyAcc"                    { count (0); return (PARSEOP_ACCESSTYPE_ANY); }
+"ByteAcc"                   { count (0); return (PARSEOP_ACCESSTYPE_BYTE); }
+"WordAcc"                   { count (0); return (PARSEOP_ACCESSTYPE_WORD); }
+"DWordAcc"                  { count (0); return (PARSEOP_ACCESSTYPE_DWORD); }
+"QWordAcc"                  { count (0); return (PARSEOP_ACCESSTYPE_QWORD); }
+"BufferAcc"                 { count (0); return (PARSEOP_ACCESSTYPE_BUF); }
+
+    /* AddressingModeKeyword: Mode - Resource Descriptors (ACPI 5.0) */
+
+"AddressingMode7Bit"        { count (0); return (PARSEOP_ADDRESSINGMODE_7BIT); }
+"AddressingMode10Bit"       { count (0); return (PARSEOP_ADDRESSINGMODE_10BIT); }
+
+    /* AddressKeyword: ACPI memory range types */
+
+"AddressRangeMemory"        { count (0); return (PARSEOP_ADDRESSTYPE_MEMORY); }
+"AddressRangeReserved"      { count (0); return (PARSEOP_ADDRESSTYPE_RESERVED); }
+"AddressRangeNVS"           { count (0); return (PARSEOP_ADDRESSTYPE_NVS); }
+"AddressRangeACPI"          { count (0); return (PARSEOP_ADDRESSTYPE_ACPI); }
+
+    /* BusMasterKeyword: DMA Bus Mastering */
+
+"BusMaster"                 { count (0); return (PARSEOP_BUSMASTERTYPE_MASTER); }
+"NotBusMaster"              { count (0); return (PARSEOP_BUSMASTERTYPE_NOTMASTER); }
+
+    /* ByteLengthKeyword: Bits per Byte - Resource Descriptors (ACPI 5.0) */
+
+"DataBitsFive"              { count (0); return (PARSEOP_BITSPERBYTE_FIVE); }
+"DataBitsSix"               { count (0); return (PARSEOP_BITSPERBYTE_SIX); }
+"DataBitsSeven"             { count (0); return (PARSEOP_BITSPERBYTE_SEVEN); }
+"DataBitsEight"             { count (0); return (PARSEOP_BITSPERBYTE_EIGHT); }
+"DataBitsNine"              { count (0); return (PARSEOP_BITSPERBYTE_NINE); }
+
+    /* ClockPhaseKeyword: Resource Descriptors (ACPI 5.0) */
+
+"ClockPhaseFirst"           { count (0); return (PARSEOP_CLOCKPHASE_FIRST); }
+"ClockPhaseSecond"          { count (0); return (PARSEOP_CLOCKPHASE_SECOND); }
+
+    /* ClockPolarityKeyword: Resource Descriptors (ACPI 5.0) */
+
+"ClockPolarityLow"          { count (0); return (PARSEOP_CLOCKPOLARITY_LOW); }
+"ClockPolarityHigh"         { count (0); return (PARSEOP_CLOCKPOLARITY_HIGH); }
+
+    /* DecodeKeyword: Type of Memory Decoding - Resource Descriptors */
+
+"PosDecode"                 { count (0); return (PARSEOP_DECODETYPE_POS); }
+"SubDecode"                 { count (0); return (PARSEOP_DECODETYPE_SUB); }
+
+    /* DmaTypeKeyword: DMA Types - DMA Resource Descriptor */
+
+"Compatibility"             { count (0); return (PARSEOP_DMATYPE_COMPATIBILITY); }
+"TypeA"                     { count (0); return (PARSEOP_DMATYPE_A); }
+"TypeB"                     { count (0); return (PARSEOP_DMATYPE_B); }
+"TypeF"                     { count (0); return (PARSEOP_DMATYPE_F); }
+
+    /* EndianKeyword: Endian type - Resource Descriptor (ACPI 5.0) */
+
+"LittleEndian"              { count (0); return (PARSEOP_ENDIAN_LITTLE); }
+"BigEndian"                 { count (0); return (PARSEOP_ENDIAN_BIG); }
+
+    /* ExtendedAttribKeyword: Bus attributes, AccessAs operator (ACPI 5.0) */
+
+"AttribBytes"               { count (0); return (PARSEOP_ACCESSATTRIB_MULTIBYTE); }
+"AttribRawBytes"            { count (0); return (PARSEOP_ACCESSATTRIB_RAW_BYTES); }
+"AttribRawProcessBytes"     { count (0); return (PARSEOP_ACCESSATTRIB_RAW_PROCESS); }
+
+    /* FlowControlKeyword: Resource Descriptors (ACPI 5.0) */
+
+"FlowControlHardware"       { count (0); return (PARSEOP_FLOWCONTROL_HW); }
+"FlowControlNone"           { count (0); return (PARSEOP_FLOWCONTROL_NONE); }
+"FlowControlXon"            { count (0); return (PARSEOP_FLOWCONTROL_SW); }
+
+    /* InterruptLevelKeyword: Interrupt Active Types */
+
+"ActiveBoth"                { count (0); return (PARSEOP_INTLEVEL_ACTIVEBOTH); }
+"ActiveHigh"                { count (0); return (PARSEOP_INTLEVEL_ACTIVEHIGH); }
+"ActiveLow"                 { count (0); return (PARSEOP_INTLEVEL_ACTIVELOW); }
+
+    /* InterruptTypeKeyword: Interrupt Types */
+
+"Edge"                      { count (0); return (PARSEOP_INTTYPE_EDGE); }
+"Level"                     { count (0); return (PARSEOP_INTTYPE_LEVEL); }
+
+    /* IoDecodeKeyword: Type of Memory Decoding - Resource Descriptors */
+
+"Decode10"                  { count (0); return (PARSEOP_IODECODETYPE_10); }
+"Decode16"                  { count (0); return (PARSEOP_IODECODETYPE_16); }
+
+    /* IoRestrictionKeyword: I/O Restriction - GPIO Resource Descriptors (ACPI 5.0) */
+
+"IoRestrictionNone"         { count (0); return (PARSEOP_IORESTRICT_NONE); }
+"IoRestrictionInputOnly"    { count (0); return (PARSEOP_IORESTRICT_IN); }
+"IoRestrictionOutputOnly"   { count (0); return (PARSEOP_IORESTRICT_OUT); }
+"IoRestrictionNoneAndPreserve"   { count (0); return (PARSEOP_IORESTRICT_PRESERVE); }
+
+    /* LockRuleKeyword: Global Lock use for Field Operator */
+
+"Lock"                      { count (0); return (PARSEOP_LOCKRULE_LOCK); }
+"NoLock"                    { count (0); return (PARSEOP_LOCKRULE_NOLOCK); }
+
+    /* MatchOpKeyword: Types for Match Operator */
+
+"MTR"                       { count (0); return (PARSEOP_MATCHTYPE_MTR); }
+"MEQ"                       { count (0); return (PARSEOP_MATCHTYPE_MEQ); }
+"MLE"                       { count (0); return (PARSEOP_MATCHTYPE_MLE); }
+"MLT"                       { count (0); return (PARSEOP_MATCHTYPE_MLT); }
+"MGE"                       { count (0); return (PARSEOP_MATCHTYPE_MGE); }
+"MGT"                       { count (0); return (PARSEOP_MATCHTYPE_MGT); }
+
+    /* MaxKeyword: Max Range Type - Resource Descriptors */
+
+"MaxFixed"                  { count (0); return (PARSEOP_MAXTYPE_FIXED); }
+"MaxNotFixed"               { count (0); return (PARSEOP_MAXTYPE_NOTFIXED); }
+
+    /* MemTypeKeyword: Memory Types - Resource Descriptors */
+
+"Cacheable"                 { count (0); return (PARSEOP_MEMTYPE_CACHEABLE); }
+"WriteCombining"            { count (0); return (PARSEOP_MEMTYPE_WRITECOMBINING); }
+"Prefetchable"              { count (0); return (PARSEOP_MEMTYPE_PREFETCHABLE); }
+"NonCacheable"              { count (0); return (PARSEOP_MEMTYPE_NONCACHEABLE); }
+
+    /* MinKeyword: Min Range Type - Resource Descriptors */
+
+"MinFixed"                  { count (0); return (PARSEOP_MINTYPE_FIXED); }
+"MinNotFixed"               { count (0); return (PARSEOP_MINTYPE_NOTFIXED); }
+
+    /* ObjectTypeKeyword: ACPI Object Types */
 
 "UnknownObj"                { count (0); return (PARSEOP_OBJECTTYPE_UNK); }
 "IntObj"                    { count (0); return (PARSEOP_OBJECTTYPE_INT); }
@@ -290,22 +468,38 @@ NamePathTail                [.]{NameSeg}
 "BuffFieldObj"              { count (0); return (PARSEOP_OBJECTTYPE_BFF); }
 "DDBHandleObj"              { count (0); return (PARSEOP_OBJECTTYPE_DDB); }
 
-"AnyAcc"                    { count (0); return (PARSEOP_ACCESSTYPE_ANY); }
-"ByteAcc"                   { count (0); return (PARSEOP_ACCESSTYPE_BYTE); }
-"WordAcc"                   { count (0); return (PARSEOP_ACCESSTYPE_WORD); }
-"DWordAcc"                  { count (0); return (PARSEOP_ACCESSTYPE_DWORD); }
-"QWordAcc"                  { count (0); return (PARSEOP_ACCESSTYPE_QWORD); }
-"BufferAcc"                 { count (0); return (PARSEOP_ACCESSTYPE_BUF); }
+    /* ParityKeyword: Resource Descriptors (ACPI 5.0) */
 
-"Lock"                      { count (0); return (PARSEOP_LOCKRULE_LOCK); }
-"NoLock"                    { count (0); return (PARSEOP_LOCKRULE_NOLOCK); }
+"ParityTypeSpace"           { count (0); return (PARSEOP_PARITYTYPE_SPACE); }
+"ParityTypeMark"            { count (0); return (PARSEOP_PARITYTYPE_MARK); }
+"ParityTypeOdd"             { count (0); return (PARSEOP_PARITYTYPE_ODD); }
+"ParityTypeEven"            { count (0); return (PARSEOP_PARITYTYPE_EVEN); }
+"ParityTypeNone"            { count (0); return (PARSEOP_PARITYTYPE_NONE); }
 
-"Preserve"                  { count (0); return (PARSEOP_UPDATERULE_PRESERVE); }
-"WriteAsOnes"               { count (0); return (PARSEOP_UPDATERULE_ONES); }
-"WriteAsZeros"              { count (0); return (PARSEOP_UPDATERULE_ZEROS); }
+    /* PinConfigKeyword: Pin Configuration - GPIO Resource Descriptors (ACPI 5.0) */
 
-"Serialized"                { count (0); return (PARSEOP_SERIALIZERULE_SERIAL); }
-"NotSerialized"             { count (0); return (PARSEOP_SERIALIZERULE_NOTSERIAL); }
+"PullDefault"               { count (0); return (PARSEOP_PIN_PULLDEFAULT); }
+"PullUp"                    { count (0); return (PARSEOP_PIN_PULLUP); }
+"PullDown"                  { count (0); return (PARSEOP_PIN_PULLDOWN); }
+"PullNone"                  { count (0); return (PARSEOP_PIN_NOPULL); }
+
+    /* PolarityKeyword: Resource Descriptors (ACPI 5.0) */
+
+"PolarityLow"               { count (0); return (PARSEOP_DEVICEPOLARITY_LOW); }
+"PolarityHigh"              { count (0); return (PARSEOP_DEVICEPOLARITY_HIGH); }
+
+    /* RangeTypeKeyword: I/O Range Types - Resource Descriptors */
+
+"ISAOnlyRanges"             { count (0); return (PARSEOP_RANGETYPE_ISAONLY); }
+"NonISAOnlyRanges"          { count (0); return (PARSEOP_RANGETYPE_NONISAONLY); }
+"EntireRange"               { count (0); return (PARSEOP_RANGETYPE_ENTIRE); }
+
+    /* ReadWriteKeyword: Memory Access Types - Resource Descriptors */
+
+"ReadWrite"                 { count (0); return (PARSEOP_READWRITETYPE_BOTH); }
+"ReadOnly"                  { count (0); return (PARSEOP_READWRITETYPE_READONLY); }
+
+    /* RegionSpaceKeyword: Operation Region Address Space Types */
 
 "SystemIO"                  { count (0); return (PARSEOP_REGIONSPACE_IO); }
 "SystemMemory"              { count (0); return (PARSEOP_REGIONSPACE_MEM); }
@@ -315,93 +509,88 @@ NamePathTail                [.]{NameSeg}
 "SystemCMOS"                { count (0); return (PARSEOP_REGIONSPACE_CMOS); }
 "PciBarTarget"              { count (0); return (PARSEOP_REGIONSPACE_PCIBAR); }
 "IPMI"                      { count (0); return (PARSEOP_REGIONSPACE_IPMI); }
+"GeneralPurposeIo"          { count (0); return (PARSEOP_REGIONSPACE_GPIO); }       /* ACPI 5.0 */
+"GenericSerialBus"          { count (0); return (PARSEOP_REGIONSPACE_GSBUS); }      /* ACPI 5.0 */
+"FFixedHW"                  { count (0); return (PARSEOP_REGIONSPACE_FFIXEDHW); }
 
-"FFixedHW"                  { count (0); return (PARSEOP_ADDRESSSPACE_FFIXEDHW); }
+    /* ResourceTypeKeyword: Resource Usage - Resource Descriptors */
 
-"SMBQuick"                  { count (0); return (PARSEOP_ACCESSATTRIB_QUICK); }
-"SMBSendReceive"            { count (0); return (PARSEOP_ACCESSATTRIB_SND_RCV); }
-"SMBByte"                   { count (0); return (PARSEOP_ACCESSATTRIB_BYTE); }
-"SMBWord"                   { count (0); return (PARSEOP_ACCESSATTRIB_WORD); }
-"SMBBlock"                  { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK); }
-"SMBProcessCall"            { count (0); return (PARSEOP_ACCESSATTRIB_WORD_CALL); }
-"SMBBlockProcessCall"       { count (0); return (PARSEOP_ACCESSATTRIB_BLOCK_CALL); }
+"ResourceConsumer"          { count (0); return (PARSEOP_RESOURCETYPE_CONSUMER); }
+"ResourceProducer"          { count (0); return (PARSEOP_RESOURCETYPE_PRODUCER); }
 
-"MTR"                       { count (0); return (PARSEOP_MATCHTYPE_MTR); }
-"MEQ"                       { count (0); return (PARSEOP_MATCHTYPE_MEQ); }
-"MLE"                       { count (0); return (PARSEOP_MATCHTYPE_MLE); }
-"MLT"                       { count (0); return (PARSEOP_MATCHTYPE_MLT); }
-"MGE"                       { count (0); return (PARSEOP_MATCHTYPE_MGE); }
-"MGT"                       { count (0); return (PARSEOP_MATCHTYPE_MGT); }
+    /* SerializeRuleKeyword: Control Method Serialization */
 
-"Compatibility"             { count (0); return (PARSEOP_DMATYPE_COMPATIBILITY); }
-"TypeA"                     { count (0); return (PARSEOP_DMATYPE_A); }
-"TypeB"                     { count (0); return (PARSEOP_DMATYPE_B); }
-"TypeF"                     { count (0); return (PARSEOP_DMATYPE_F); }
+"Serialized"                { count (0); return (PARSEOP_SERIALIZERULE_SERIAL); }
+"NotSerialized"             { count (0); return (PARSEOP_SERIALIZERULE_NOTSERIAL); }
 
-"BusMaster"                 { count (0); return (PARSEOP_BUSMASTERTYPE_MASTER); }
-"NotBusMaster"              { count (0); return (PARSEOP_BUSMASTERTYPE_NOTMASTER); }
+    /* ShareTypeKeyword: Interrupt Sharing - Resource Descriptors */
+
+"Shared"                    { count (0); return (PARSEOP_SHARETYPE_SHARED); }
+"Exclusive"                 { count (0); return (PARSEOP_SHARETYPE_EXCLUSIVE); }
+"SharedAndWake"             { count (0); return (PARSEOP_SHARETYPE_SHAREDWAKE); }       /* ACPI 5.0 */
+"ExclusiveAndWake"          { count (0); return (PARSEOP_SHARETYPE_EXCLUSIVEWAKE); }    /* ACPI 5.0 */
+
+    /* SlaveModeKeyword: Resource Descriptors (ACPI 5.0) */
+
+"ControllerInitiated"       { count (0); return (PARSEOP_SLAVEMODE_CONTROLLERINIT); }
+"DeviceInitiated"           { count (0); return (PARSEOP_SLAVEMODE_DEVICEINIT); }
+
+    /* StopBitsKeyword: Resource Descriptors (ACPI 5.0) */
+
+"StopBitsOne"               { count (0); return (PARSEOP_STOPBITS_ONE); }
+"StopBitsOnePlusHalf"       { count (0); return (PARSEOP_STOPBITS_ONEPLUSHALF); }
+"StopBitsTwo"               { count (0); return (PARSEOP_STOPBITS_TWO); }
+"StopBitsZero"              { count (0); return (PARSEOP_STOPBITS_ZERO); }
+
+    /* TransferWidthKeyword: DMA Widths - Fixed DMA Resource Descriptor (ACPI 5.0) */
+
+"Width8bit"                 { count (0); return (PARSEOP_XFERSIZE_8); }
+"Width16bit"                { count (0); return (PARSEOP_XFERSIZE_16); }
+"Width32bit"                { count (0); return (PARSEOP_XFERSIZE_32); }
+"Width64bit"                { count (0); return (PARSEOP_XFERSIZE_64); }
+"Width128bit"               { count (0); return (PARSEOP_XFERSIZE_128); }
+"Width256bit"               { count (0); return (PARSEOP_XFERSIZE_256); }
+
+    /* TranslationKeyword: Translation Density Types - Resource Descriptors */
+
+"SparseTranslation"         { count (0); return (PARSEOP_TRANSLATIONTYPE_SPARSE); }
+"DenseTranslation"          { count (0); return (PARSEOP_TRANSLATIONTYPE_DENSE); }
+
+    /* TypeKeyword: Translation Types - Resource Descriptors */
+
+"TypeTranslation"           { count (0); return (PARSEOP_TYPE_TRANSLATION); }
+"TypeStatic"                { count (0); return (PARSEOP_TYPE_STATIC); }
+
+    /* UpdateRuleKeyword: Field Update Rules */
+
+"Preserve"                  { count (0); return (PARSEOP_UPDATERULE_PRESERVE); }
+"WriteAsOnes"               { count (0); return (PARSEOP_UPDATERULE_ONES); }
+"WriteAsZeros"              { count (0); return (PARSEOP_UPDATERULE_ZEROS); }
+
+    /* WireModeKeyword: SPI Wire Mode - Resource Descriptors (ACPI 5.0) */
+
+"FourWireMode"              { count (0); return (PARSEOP_WIREMODE_FOUR); }
+"ThreeWireMode"             { count (0); return (PARSEOP_WIREMODE_THREE); }
+
+    /* XferTypeKeyword: DMA Transfer Types */
 
 "Transfer8"                 { count (0); return (PARSEOP_XFERTYPE_8); }
 "Transfer8_16"              { count (0); return (PARSEOP_XFERTYPE_8_16); }
 "Transfer16"                { count (0); return (PARSEOP_XFERTYPE_16); }
 
-"ResourceConsumer"          { count (0); return (PARSEOP_RESOURCETYPE_CONSUMER); }
-"ResourceProducer"          { count (0); return (PARSEOP_RESOURCETYPE_PRODUCER); }
-
-"MinFixed"                  { count (0); return (PARSEOP_MINTYPE_FIXED); }
-"MinNotFixed"               { count (0); return (PARSEOP_MINTYPE_NOTFIXED); }
-
-"MaxFixed"                  { count (0); return (PARSEOP_MAXTYPE_FIXED); }
-"MaxNotFixed"               { count (0); return (PARSEOP_MAXTYPE_NOTFIXED); }
-
-"PosDecode"                 { count (0); return (PARSEOP_DECODETYPE_POS); }
-"SubDecode"                 { count (0); return (PARSEOP_DECODETYPE_SUB); }
-
-"ISAOnlyRanges"             { count (0); return (PARSEOP_RANGETYPE_ISAONLY); }
-"NonISAOnlyRanges"          { count (0); return (PARSEOP_RANGETYPE_NONISAONLY); }
-"EntireRange"               { count (0); return (PARSEOP_RANGETYPE_ENTIRE); }
-
-"Cacheable"                 { count (0); return (PARSEOP_MEMTYPE_CACHEABLE); }
-"WriteCombining"            { count (0); return (PARSEOP_MEMTYPE_WRITECOMBINING); }
-"Prefetchable"              { count (0); return (PARSEOP_MEMTYPE_PREFETCHABLE); }
-"NonCacheable"              { count (0); return (PARSEOP_MEMTYPE_NONCACHEABLE); }
-
-"ReadWrite"                 { count (0); return (PARSEOP_READWRITETYPE_BOTH); }
-"ReadOnly"                  { count (0); return (PARSEOP_READWRITETYPE_READONLY); }
-
-"Edge"                      { count (0); return (PARSEOP_INTTYPE_EDGE); }
-"Level"                     { count (0); return (PARSEOP_INTTYPE_LEVEL); }
-
-"ActiveHigh"                { count (0); return (PARSEOP_INTLEVEL_ACTIVEHIGH); }
-"ActiveLow"                 { count (0); return (PARSEOP_INTLEVEL_ACTIVELOW); }
-
-"Shared"                    { count (0); return (PARSEOP_SHARETYPE_SHARED); }
-"Exclusive"                 { count (0); return (PARSEOP_SHARETYPE_EXCLUSIVE); }
-
-"Decode10"                  { count (0); return (PARSEOP_IODECODETYPE_10); }
-"Decode16"                  { count (0); return (PARSEOP_IODECODETYPE_16); }
-
-"TypeTranslation"           { count (0); return (PARSEOP_TYPE_TRANSLATION); }
-"TypeStatic"                { count (0); return (PARSEOP_TYPE_STATIC); }
-
-"SparseTranslation"         { count (0); return (PARSEOP_TRANSLATIONTYPE_SPARSE); }
-"DenseTranslation"          { count (0); return (PARSEOP_TRANSLATIONTYPE_DENSE); }
-
-"AddressRangeMemory"        { count (0); return (PARSEOP_ADDRESSTYPE_MEMORY); }
-"AddressRangeReserved"      { count (0); return (PARSEOP_ADDRESSTYPE_RESERVED); }
-"AddressRangeNVS"           { count (0); return (PARSEOP_ADDRESSTYPE_NVS); }
-"AddressRangeACPI"          { count (0); return (PARSEOP_ADDRESSTYPE_ACPI); }
+    /* Predefined compiler names */
 
 "__DATE__"                  { count (0); return (PARSEOP___DATE__); }
 "__FILE__"                  { count (0); return (PARSEOP___FILE__); }
 "__LINE__"                  { count (0); return (PARSEOP___LINE__); }
+"__PATH__"                  { count (0); return (PARSEOP___PATH__); }
+
 
 "{"                         { count (0); return('{'); }
 "}"                         { count (0); return('}'); }
 ","                         { count (0); return(','); }
 "("                         { count (0); return('('); }
 ")"                         { count (0); return(')'); }
-
 
 {NameSeg}                   { char *s;
                                 count (0);
@@ -478,7 +667,6 @@ AslPopInputFileStack (
     void)
 {
     ASL_FILE_NODE           *Fnode;
-    FILE                    *InputFile = NULL;
 
 
     Fnode = InputStack;
@@ -497,7 +685,6 @@ AslPopInputFileStack (
     /* Update the top-of-stack */
 
     InputStack = Fnode->Next;
-    InputFile = Fnode->File;
 
     /* Reset global line counter and filename */
 

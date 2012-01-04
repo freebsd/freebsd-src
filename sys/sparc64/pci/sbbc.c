@@ -279,7 +279,6 @@ static device_method_t sbbc_pci_methods[] = {
 	DEVMETHOD(device_probe,		sbbc_pci_probe),
 	DEVMETHOD(device_attach,	sbbc_pci_attach),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	sbbc_bus_alloc_resource),
 	DEVMETHOD(bus_activate_resource,sbbc_bus_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,sbbc_bus_deactivate_resource),
@@ -294,7 +293,7 @@ static device_method_t sbbc_pci_methods[] = {
 	DEVMETHOD(clock_gettime,	sbbc_tod_gettime),
 	DEVMETHOD(clock_settime,	sbbc_tod_settime),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t sbbc_devclass;
@@ -605,7 +604,7 @@ static device_method_t sbbc_uart_sbbc_methods[] = {
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(uart, sbbc_uart_driver, sbbc_uart_sbbc_methods,
@@ -806,7 +805,7 @@ static kobj_method_t sbbc_uart_methods[] = {
 	KOBJMETHOD(uart_setsig,		sbbc_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	sbbc_uart_bus_transmit),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 struct uart_class uart_sbbc_class = {

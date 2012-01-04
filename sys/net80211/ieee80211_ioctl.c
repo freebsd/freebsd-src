@@ -2737,7 +2737,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 	case IEEE80211_IOC_PROTMODE:
 		if (ireq->i_val > IEEE80211_PROT_RTSCTS)
 			return EINVAL;
-		ic->ic_protmode = ireq->i_val;
+		ic->ic_protmode = (enum ieee80211_protmode)ireq->i_val;
 		/* NB: if not operating in 11g this can wait */
 		if (ic->ic_bsschan != IEEE80211_CHAN_ANYC &&
 		    IEEE80211_IS_CHAN_ANYG(ic->ic_bsschan))
@@ -2756,7 +2756,7 @@ ieee80211_ioctl_set80211(struct ieee80211vap *vap, u_long cmd, struct ieee80211r
 		if (!(IEEE80211_ROAMING_DEVICE <= ireq->i_val &&
 		    ireq->i_val <= IEEE80211_ROAMING_MANUAL))
 			return EINVAL;
-		vap->iv_roaming = ireq->i_val;
+		vap->iv_roaming = (enum ieee80211_roamingmode)ireq->i_val;
 		/* XXXX reset? */
 		break;
 	case IEEE80211_IOC_PRIVACY:

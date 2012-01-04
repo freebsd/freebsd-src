@@ -83,15 +83,15 @@ struct editentry {
 		char	*svalue;
 	} value;
 };
-STAILQ_HEAD(, editentry) editlist;	/* List of page entries. */
-int editlist_changed = 0;		/* Whether any entries were changed. */
+static STAILQ_HEAD(, editentry) editlist; /* List of page entries. */
+static int editlist_changed = 0;	/* Whether any entries were changed. */
 
 struct pagename {
 	SLIST_ENTRY(pagename) link;
 	int pagenum;
 	char *name;
 };
-SLIST_HEAD(, pagename) namelist;	/* Page number to name mappings. */
+static SLIST_HEAD(, pagename) namelist;	/* Page number to name mappings. */
 
 static char format[MAX_FORMAT_SPEC];	/* Buffer for scsi cdb format def. */
 

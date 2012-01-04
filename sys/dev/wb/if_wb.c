@@ -212,15 +212,12 @@ static device_method_t wb_methods[] = {
 	DEVMETHOD(device_detach,	wb_detach),
 	DEVMETHOD(device_shutdown,	wb_shutdown),
 
-	/* bus interface, for miibus */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	wb_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	wb_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	wb_miibus_statchg),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t wb_driver = {

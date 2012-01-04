@@ -207,7 +207,7 @@ TUNABLE_INT("hw.ixv.flow_control", &ixv_flow_control);
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default.
  */
-static bool ixv_header_split = FALSE;
+static int ixv_header_split = FALSE;
 TUNABLE_INT("hw.ixv.hdr_split", &ixv_header_split);
 
 /*
@@ -2374,7 +2374,7 @@ ixv_free_transmit_buffers(struct tx_ring *txr)
  *
  **********************************************************************/
 
-static boolean_t
+static bool
 ixv_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter *adapter = txr->adapter;
@@ -2497,7 +2497,7 @@ ixv_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixv_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	struct adapter *adapter = txr->adapter;
@@ -2586,7 +2586,7 @@ ixv_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixv_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;

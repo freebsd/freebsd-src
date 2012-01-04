@@ -30,10 +30,10 @@ __FBSDID("$FreeBSD$");
 #include "common.h"
 #include "t4_regs.h"
 #include "t4_regs_values.h"
-#include "t4fw_interface.h"
+#include "firmware/t4fw_interface.h"
 
 #undef msleep
-#define msleep(x) DELAY((x) * 1000)
+#define msleep(x) pause("t4hw", (x) * hz / 1000)
 
 /**
  *	t4_wait_op_done_val - wait until an operation is completed
@@ -187,7 +187,7 @@ int t4_wr_mbox_meat(struct adapter *adap, int mbox, const void *cmd, int size,
 	 * off to larger delays to a maximum retry delay.
 	 */
 	static const int delay[] = {
-		1, 1, 3, 5, 10, 10, 20, 50, 100, 200
+		1, 1, 3, 5, 10, 10, 20, 50, 100
 	};
 
 	u32 v;
@@ -625,17 +625,6 @@ enum {
 	SF_RD_DATA_FAST = 0xb,        /* read flash */
 	SF_RD_ID        = 0x9f,       /* read ID */
 	SF_ERASE_SECTOR = 0xd8,       /* erase sector */
-
-	FW_START_SEC = 8,             /* first flash sector for FW */
-	FW_END_SEC = 15,              /* last flash sector for FW */
-	FW_IMG_START = FW_START_SEC * SF_SEC_SIZE,
-	FW_MAX_SIZE = (FW_END_SEC - FW_START_SEC + 1) * SF_SEC_SIZE,
-        
-	FLASH_CFG_MAX_SIZE    = 0x10000 , /* max size of the flash config file */
-	FLASH_CFG_OFFSET      = 0x1f0000,
-	FLASH_CFG_START_SEC   = FLASH_CFG_OFFSET / SF_SEC_SIZE,
-	FPGA_FLASH_CFG_OFFSET = 0xf0000 , /* if FPGA mode, then cfg file is at 1MB - 64KB */
-	FPGA_FLASH_CFG_START_SEC  = FPGA_FLASH_CFG_OFFSET / SF_SEC_SIZE,
 };
 
 /**
@@ -763,12 +752,15 @@ int t4_read_flash(struct adapter *adapter, unsigned int addr,
  *	@addr: the start address to write
  *	@n: length of data to write in bytes
  *	@data: the data to write
+ *	@byte_oriented: whether to store data as bytes or as words
  *
  *	Writes up to a page of data (256 bytes) to the serial flash starting
  *	at the given address.  All the data must be written to the same page.
+ *	If @byte_oriented is set the write data is stored as byte stream 
+ *	(i.e. matches what on disk), otherwise in big-endian.
  */
 static int t4_write_flash(struct adapter *adapter, unsigned int addr,
-			  unsigned int n, const u8 *data)
+			  unsigned int n, const u8 *data, int byte_oriented)
 {
 	int ret;
 	u32 buf[SF_PAGE_SIZE / 4];
@@ -788,6 +780,9 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 		for (val = 0, i = 0; i < c; ++i)
 			val = (val << 8) + *data++;
 
+		if (!byte_oriented)
+			val = htonl(val);
+
 		ret = sf1_write(adapter, c, c != left, 1, val);
 		if (ret)
 			goto unlock;
@@ -799,7 +794,8 @@ static int t4_write_flash(struct adapter *adapter, unsigned int addr,
 	t4_write_reg(adapter, A_SF_OP, 0);    /* unlock SF */
 
 	/* Read the page to verify the write succeeded */
-	ret = t4_read_flash(adapter, addr & ~0xff, ARRAY_SIZE(buf), buf, 1);
+	ret = t4_read_flash(adapter, addr & ~0xff, ARRAY_SIZE(buf), buf,
+			    byte_oriented);
 	if (ret)
 		return ret;
 
@@ -825,7 +821,7 @@ unlock:
 int t4_get_fw_version(struct adapter *adapter, u32 *vers)
 {
 	return t4_read_flash(adapter,
-			     FW_IMG_START + offsetof(struct fw_hdr, fw_ver), 1,
+			     FLASH_FW_START + offsetof(struct fw_hdr, fw_ver), 1,
 			     vers, 0);
 }
 
@@ -838,7 +834,7 @@ int t4_get_fw_version(struct adapter *adapter, u32 *vers)
  */
 int t4_get_tp_version(struct adapter *adapter, u32 *vers)
 {
-	return t4_read_flash(adapter, FW_IMG_START + offsetof(struct fw_hdr,
+	return t4_read_flash(adapter, FLASH_FW_START + offsetof(struct fw_hdr,
 							      tp_microcode_ver),
 			     1, vers, 0);
 }
@@ -854,24 +850,17 @@ int t4_get_tp_version(struct adapter *adapter, u32 *vers)
  */
 int t4_check_fw_version(struct adapter *adapter)
 {
-	u32 api_vers[2];
 	int ret, major, minor, micro;
 
 	ret = t4_get_fw_version(adapter, &adapter->params.fw_vers);
 	if (!ret)
 		ret = t4_get_tp_version(adapter, &adapter->params.tp_vers);
-	if (!ret)
-		ret = t4_read_flash(adapter,
-			FW_IMG_START + offsetof(struct fw_hdr, intfver_nic),
-			2, api_vers, 1);
 	if (ret)
 		return ret;
 
 	major = G_FW_HDR_FW_VER_MAJOR(adapter->params.fw_vers);
 	minor = G_FW_HDR_FW_VER_MINOR(adapter->params.fw_vers);
 	micro = G_FW_HDR_FW_VER_MICRO(adapter->params.fw_vers);
-	memcpy(adapter->params.api_vers, api_vers,
-	       sizeof(adapter->params.api_vers));
 
 	if (major != FW_VERSION_MAJOR) {            /* major mismatch - fail */
 		CH_ERR(adapter, "card FW has major version %u, driver wants "
@@ -914,6 +903,21 @@ static int t4_flash_erase_sectors(struct adapter *adapter, int start, int end)
 }
 
 /**
+ *	t4_flash_cfg_addr - return the address of the flash configuration file
+ *	@adapter: the adapter
+ *
+ *	Return the address within the flash where the Firmware Configuration
+ *	File is stored.
+ */
+unsigned int t4_flash_cfg_addr(struct adapter *adapter)
+{
+	if (adapter->params.sf_size == 0x100000)
+		return FLASH_FPGA_CFG_START;
+	else
+		return FLASH_CFG_START;
+}
+
+/**
  *	t4_load_cfg - download config file
  *	@adap: the adapter
  *	@cfg_data: the cfg text file to write
@@ -928,17 +932,8 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 	unsigned int flash_cfg_start_sec;
 	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
 
-	if (adap->params.sf_size == 0x100000) {
-		addr = FPGA_FLASH_CFG_OFFSET;
-		flash_cfg_start_sec = FPGA_FLASH_CFG_START_SEC;
-	} else {
-		addr = FLASH_CFG_OFFSET;
-		flash_cfg_start_sec = FLASH_CFG_START_SEC;
-	}
-	if (!size) {
-		CH_ERR(adap, "cfg file has no data\n");
-		return -EINVAL;
-	}
+	addr = t4_flash_cfg_addr(adap);
+	flash_cfg_start_sec = addr / SF_SEC_SIZE;
 
 	if (size > FLASH_CFG_MAX_SIZE) {
 		CH_ERR(adap, "cfg file too large, max is %u bytes\n",
@@ -950,7 +945,11 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 			 sf_sec_size);
 	ret = t4_flash_erase_sectors(adap, flash_cfg_start_sec,
 				     flash_cfg_start_sec + i - 1);
-	if (ret)
+	/*
+	 * If size == 0 then we're simply erasing the FLASH sectors associated
+	 * with the on-adapter Firmware Configuration File.
+	 */
+	if (ret || size == 0)
 		goto out;
 
         /* this will write to the flash up to SF_PAGE_SIZE at a time */
@@ -959,7 +958,7 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
 			n = size - i;
 		else 
 			n = SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, n, cfg_data);
+		ret = t4_write_flash(adap, addr, n, cfg_data, 1);
 		if (ret)
 			goto out;
 		
@@ -969,7 +968,8 @@ int t4_load_cfg(struct adapter *adap, const u8 *cfg_data, unsigned int size)
                 
 out:
 	if (ret)
-		CH_ERR(adap, "config file download failed %d\n", ret);
+		CH_ERR(adap, "config file %s failed %d\n",
+		       (size == 0 ? "clear" : "download"), ret);
 	return ret;
 }
 
@@ -1004,9 +1004,9 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 		CH_ERR(adap, "FW image size differs from size in FW header\n");
 		return -EINVAL;
 	}
-	if (size > FW_MAX_SIZE) {
+	if (size > FLASH_FW_MAX_SIZE) {
 		CH_ERR(adap, "FW image too large, max is %u bytes\n",
-		       FW_MAX_SIZE);
+		       FLASH_FW_MAX_SIZE);
 		return -EFBIG;
 	}
 
@@ -1020,7 +1020,8 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	}
 
 	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
-	ret = t4_flash_erase_sectors(adap, FW_START_SEC, FW_START_SEC + i - 1);
+	ret = t4_flash_erase_sectors(adap, FLASH_FW_START_SEC,
+	    FLASH_FW_START_SEC + i - 1);
 	if (ret)
 		goto out;
 
@@ -1031,25 +1032,107 @@ int t4_load_fw(struct adapter *adap, const u8 *fw_data, unsigned int size)
 	 */
 	memcpy(first_page, fw_data, SF_PAGE_SIZE);
 	((struct fw_hdr *)first_page)->fw_ver = htonl(0xffffffff);
-	ret = t4_write_flash(adap, FW_IMG_START, SF_PAGE_SIZE, first_page);
+	ret = t4_write_flash(adap, FLASH_FW_START, SF_PAGE_SIZE, first_page, 1);
 	if (ret)
 		goto out;
 
-	addr = FW_IMG_START;
+	addr = FLASH_FW_START;
 	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
 		addr += SF_PAGE_SIZE;
 		fw_data += SF_PAGE_SIZE;
-		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, fw_data);
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, fw_data, 1);
 		if (ret)
 			goto out;
 	}
 
 	ret = t4_write_flash(adap,
-			     FW_IMG_START + offsetof(struct fw_hdr, fw_ver),
-			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver);
+			     FLASH_FW_START + offsetof(struct fw_hdr, fw_ver),
+			     sizeof(hdr->fw_ver), (const u8 *)&hdr->fw_ver, 1);
 out:
 	if (ret)
 		CH_ERR(adap, "firmware download failed, error %d\n", ret);
+	return ret;
+}
+
+/* BIOS boot header */
+typedef struct boot_header_s {
+	u8	signature[2];	/* signature */
+	u8	length;		/* image length (include header) */
+	u8	offset[4];	/* initialization vector */
+	u8	reserved[19];	/* reserved */
+	u8	exheader[2];	/* offset to expansion header */
+} boot_header_t;
+
+enum {
+	BOOT_FLASH_BOOT_ADDR = 0x0,/* start address of boot image in flash */
+	BOOT_SIGNATURE = 0xaa55,   /* signature of BIOS boot ROM */
+	BOOT_SIZE_INC = 512,       /* image size measured in 512B chunks */
+	BOOT_MIN_SIZE = sizeof(boot_header_t), /* at least basic header */
+	BOOT_MAX_SIZE = 1024*BOOT_SIZE_INC /* 1 byte * length increment  */
+};
+
+/*
+ *	t4_load_boot - download boot flash
+ *	@adapter: the adapter
+ *	@boot_data: the boot image to write
+ *	@size: image size
+ *
+ *	Write the supplied boot image to the card's serial flash.
+ *	The boot image has the following sections: a 28-byte header and the
+ *	boot image.
+ */
+int t4_load_boot(struct adapter *adap, const u8 *boot_data, 
+		 unsigned int boot_addr, unsigned int size)
+{
+	int ret, addr;
+	unsigned int i;
+	unsigned int boot_sector = boot_addr * 1024;
+	unsigned int sf_sec_size = adap->params.sf_size / adap->params.sf_nsec;
+
+	/*
+	 * Perform some primitive sanity testing to avoid accidentally
+	 * writing garbage over the boot sectors.  We ought to check for
+	 * more but it's not worth it for now ...
+	 */
+	if (size < BOOT_MIN_SIZE || size > BOOT_MAX_SIZE) {
+		CH_ERR(adap, "boot image too small/large\n");
+		return -EFBIG;
+	}
+
+	/*
+	 * Make sure the boot image does not encroach on the firmware region
+	 */
+	if ((boot_sector + size) >> 16 > FLASH_FW_START_SEC) {
+		CH_ERR(adap, "boot image encroaching on firmware region\n");
+		return -EFBIG;
+	}
+
+	i = DIV_ROUND_UP(size, sf_sec_size);        /* # of sectors spanned */
+	ret = t4_flash_erase_sectors(adap, boot_sector >> 16, 
+				     (boot_sector >> 16) + i - 1);
+	if (ret)
+		goto out;
+
+	/*
+	 * Skip over the first SF_PAGE_SIZE worth of data and write it after
+	 * we finish copying the rest of the boot image. This will ensure
+	 * that the BIOS boot header will only be written if the boot image
+	 * was written in full.
+	 */
+	addr = boot_sector;
+	for (size -= SF_PAGE_SIZE; size; size -= SF_PAGE_SIZE) {
+		addr += SF_PAGE_SIZE; 
+		boot_data += SF_PAGE_SIZE;
+		ret = t4_write_flash(adap, addr, SF_PAGE_SIZE, boot_data, 0);
+		if (ret)
+			goto out;
+	}
+
+	ret = t4_write_flash(adap, boot_sector, SF_PAGE_SIZE, boot_data, 0);
+
+out:
+	if (ret)
+		CH_ERR(adap, "boot image download failed, error %d\n", ret);
 	return ret;
 }
 
@@ -1668,7 +1751,10 @@ static void sge_intr_handler(struct adapter *adapter)
 	err = t4_read_reg(adapter, A_SGE_ERROR_STATS);
 	if (err & F_ERROR_QID_VALID) {
 		CH_ERR(adapter, "SGE error for queue %u\n", G_ERROR_QID(err));
-		t4_write_reg(adapter, A_SGE_ERROR_STATS, F_ERROR_QID_VALID);
+		if (err & F_UNCAPTURED_ERROR)
+			CH_ERR(adapter, "SGE UNCAPTURED_ERROR set (clearing)\n");
+		t4_write_reg(adapter, A_SGE_ERROR_STATS, F_ERROR_QID_VALID |
+			     F_UNCAPTURED_ERROR);
 	}
 
 	if (v != 0)
@@ -2261,6 +2347,7 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 	 */
 	while (n > 0) {
 		int nq = min(n, 32);
+		int nq_packed = 0;
 		__be32 *qp = &cmd.iq0_to_iq2;
 
 		/*
@@ -2282,25 +2369,28 @@ int t4_config_rss_range(struct adapter *adapter, int mbox, unsigned int viid,
 		 * Ingress Queue ID array and insert them into the command.
 		 */
 		while (nq > 0) {
-			unsigned int v;
 			/*
 			 * Grab up to the next 3 Ingress Queue IDs (wrapping
 			 * around the Ingress Queue ID array if necessary) and
 			 * insert them into the firmware RSS command at the
 			 * current 3-tuple position within the commad.
 			 */
-			v = V_FW_RSS_IND_TBL_CMD_IQ0(*rsp);
-			if (++rsp >= rsp_end)
-				rsp = rspq;
-			v |= V_FW_RSS_IND_TBL_CMD_IQ1(*rsp);
-			if (++rsp >= rsp_end)
-				rsp = rspq;
-			v |= V_FW_RSS_IND_TBL_CMD_IQ2(*rsp);
-			if (++rsp >= rsp_end)
-				rsp = rspq;
+			u16 qbuf[3];
+			u16 *qbp = qbuf;
+			int nqbuf = min(3, nq);
 
-			*qp++ = htonl(v);
-			nq -= 3;
+			nq -= nqbuf;
+			qbuf[0] = qbuf[1] = qbuf[2] = 0;
+			while (nqbuf && nq_packed < 32) {
+				nqbuf--;
+				nq_packed++;
+				*qbp++ = *rsp++;
+				if (rsp >= rsp_end)
+					rsp = rspq;
+			}
+			*qp++ = cpu_to_be32(V_FW_RSS_IND_TBL_CMD_IQ0(qbuf[0]) |
+					    V_FW_RSS_IND_TBL_CMD_IQ1(qbuf[1]) |
+					    V_FW_RSS_IND_TBL_CMD_IQ2(qbuf[2]));
 		}
 
 		/*
@@ -2694,8 +2784,6 @@ void t4_tp_get_cpl_stats(struct adapter *adap, struct tp_cpl_stats *st)
 {
 	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->req,
 			 8, A_TP_MIB_CPL_IN_REQ_0);
-	t4_read_indirect(adap, A_TP_MIB_INDEX, A_TP_MIB_DATA, st->tx_err,
-			 4, A_TP_MIB_CPL_OUT_ERR_0);
 }
 
 /**
@@ -3298,6 +3386,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	t4_read_reg64(adap, PORT_REG(idx, A_MPS_PORT_STAT_##name##_L))
 #define GET_STAT_COM(name) t4_read_reg64(adap, A_MPS_STAT_##name##_L)
 
+	p->tx_pause            = GET_STAT(TX_PORT_PAUSE);
 	p->tx_octets           = GET_STAT(TX_PORT_BYTES);
 	p->tx_frames           = GET_STAT(TX_PORT_FRAMES);
 	p->tx_bcast_frames     = GET_STAT(TX_PORT_BCAST);
@@ -3312,7 +3401,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_frames_1024_1518 = GET_STAT(TX_PORT_1024B_1518B);
 	p->tx_frames_1519_max  = GET_STAT(TX_PORT_1519B_MAX);
 	p->tx_drop             = GET_STAT(TX_PORT_DROP);
-	p->tx_pause            = GET_STAT(TX_PORT_PAUSE);
 	p->tx_ppp0             = GET_STAT(TX_PORT_PPP0);
 	p->tx_ppp1             = GET_STAT(TX_PORT_PPP1);
 	p->tx_ppp2             = GET_STAT(TX_PORT_PPP2);
@@ -3322,6 +3410,7 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->tx_ppp6             = GET_STAT(TX_PORT_PPP6);
 	p->tx_ppp7             = GET_STAT(TX_PORT_PPP7);
 
+	p->rx_pause            = GET_STAT(RX_PORT_PAUSE);
 	p->rx_octets           = GET_STAT(RX_PORT_BYTES);
 	p->rx_frames           = GET_STAT(RX_PORT_FRAMES);
 	p->rx_bcast_frames     = GET_STAT(RX_PORT_BCAST);
@@ -3340,7 +3429,6 @@ void t4_get_port_stats(struct adapter *adap, int idx, struct port_stats *p)
 	p->rx_frames_512_1023  = GET_STAT(RX_PORT_512B_1023B);
 	p->rx_frames_1024_1518 = GET_STAT(RX_PORT_1024B_1518B);
 	p->rx_frames_1519_max  = GET_STAT(RX_PORT_1519B_MAX);
-	p->rx_pause            = GET_STAT(RX_PORT_PAUSE);
 	p->rx_ppp0             = GET_STAT(RX_PORT_PPP0);
 	p->rx_ppp1             = GET_STAT(RX_PORT_PPP1);
 	p->rx_ppp2             = GET_STAT(RX_PORT_PPP2);
@@ -3683,28 +3771,114 @@ int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 {
 	int ret;
 	struct fw_hello_cmd c;
+	u32 v;
+	unsigned int master_mbox;
+	int retries = FW_CMD_HELLO_RETRIES;
 
+retry:
 	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, HELLO, WRITE);
-	c.err_to_mbasyncnot = htonl(
+	c.err_to_clearinit = htonl(
 		V_FW_HELLO_CMD_MASTERDIS(master == MASTER_CANT) |
 		V_FW_HELLO_CMD_MASTERFORCE(master == MASTER_MUST) |
 		V_FW_HELLO_CMD_MBMASTER(master == MASTER_MUST ? mbox :
 			M_FW_HELLO_CMD_MBMASTER) |
-		V_FW_HELLO_CMD_MBASYNCNOT(evt_mbox));
+		V_FW_HELLO_CMD_MBASYNCNOT(evt_mbox) |
+		V_FW_HELLO_CMD_STAGE(FW_HELLO_CMD_STAGE_OS) |
+		F_FW_HELLO_CMD_CLEARINIT);
 
+	/*
+	 * Issue the HELLO command to the firmware.  If it's not successful
+	 * but indicates that we got a "busy" or "timeout" condition, retry
+	 * the HELLO until we exhaust our retry limit.
+	 */
 	ret = t4_wr_mbox(adap, mbox, &c, sizeof(c), &c);
-	if (ret == 0 && state) {
-		u32 v = ntohl(c.err_to_mbasyncnot);
-		if (v & F_FW_HELLO_CMD_INIT)
-			*state = DEV_STATE_INIT;
-		else if (v & F_FW_HELLO_CMD_ERR)
+	if (ret != FW_SUCCESS) {
+		if ((ret == -EBUSY || ret == -ETIMEDOUT) && retries-- > 0)
+			goto retry;
+		return ret;
+	}
+
+	v = ntohl(c.err_to_clearinit);
+	master_mbox = G_FW_HELLO_CMD_MBMASTER(v);
+	if (state) {
+		if (v & F_FW_HELLO_CMD_ERR)
 			*state = DEV_STATE_ERR;
+		else if (v & F_FW_HELLO_CMD_INIT)
+			*state = DEV_STATE_INIT;
 		else
 			*state = DEV_STATE_UNINIT;
-		return G_FW_HELLO_CMD_MBMASTER(v);
 	}
-	return ret;
+
+	/*
+	 * If we're not the Master PF then we need to wait around for the
+	 * Master PF Driver to finish setting up the adapter.
+	 *
+	 * Note that we also do this wait if we're a non-Master-capable PF and
+	 * there is no current Master PF; a Master PF may show up momentarily
+	 * and we wouldn't want to fail pointlessly.  (This can happen when an
+	 * OS loads lots of different drivers rapidly at the same time).  In
+	 * this case, the Master PF returned by the firmware will be
+	 * M_PCIE_FW_MASTER so the test below will work ...
+	 */
+	if ((v & (F_FW_HELLO_CMD_ERR|F_FW_HELLO_CMD_INIT)) == 0 &&
+	    master_mbox != mbox) {
+		int waiting = FW_CMD_HELLO_TIMEOUT;
+
+		/*
+		 * Wait for the firmware to either indicate an error or
+		 * initialized state.  If we see either of these we bail out
+		 * and report the issue to the caller.  If we exhaust the
+		 * "hello timeout" and we haven't exhausted our retries, try
+		 * again.  Otherwise bail with a timeout error.
+		 */
+		for (;;) {
+			u32 pcie_fw;
+
+			msleep(50);
+			waiting -= 50;
+
+			/*
+			 * If neither Error nor Initialialized are indicated
+			 * by the firmware keep waiting till we exhaust our
+			 * timeout ... and then retry if we haven't exhausted
+			 * our retries ...
+			 */
+			pcie_fw = t4_read_reg(adap, A_PCIE_FW);
+			if (!(pcie_fw & (F_PCIE_FW_ERR|F_PCIE_FW_INIT))) {
+				if (waiting <= 0) {
+					if (retries-- > 0)
+						goto retry;
+
+					return -ETIMEDOUT;
+				}
+				continue;
+			}
+
+			/*
+			 * We either have an Error or Initialized condition
+			 * report errors preferentially.
+			 */
+			if (state) {
+				if (pcie_fw & F_PCIE_FW_ERR)
+					*state = DEV_STATE_ERR;
+				else if (pcie_fw & F_PCIE_FW_INIT)
+					*state = DEV_STATE_INIT;
+			}
+
+			/*
+			 * If we arrived before a Master PF was selected and
+			 * there's not a valid Master PF, grab its identity
+			 * for our caller.
+			 */
+			if (master_mbox == M_PCIE_FW_MASTER &&
+			    (pcie_fw & F_PCIE_FW_MASTER_VLD))
+				master_mbox = G_PCIE_FW_MASTER(pcie_fw);
+			break;
+		}
+	}
+
+	return master_mbox;
 }
 
 /**
@@ -3724,23 +3898,6 @@ int t4_fw_bye(struct adapter *adap, unsigned int mbox)
 }
 
 /**
- *	t4_init_cmd - ask FW to initialize the device
- *	@adap: the adapter
- *	@mbox: mailbox to use for the FW command
- *
- *	Issues a command to FW to partially initialize the device.  This
- *	performs initialization that generally doesn't depend on user input.
- */
-int t4_early_init(struct adapter *adap, unsigned int mbox)
-{
-	struct fw_initialize_cmd c;
-
-	memset(&c, 0, sizeof(c));
-	INIT_CMD(c, INITIALIZE, WRITE);
-	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
-}
-
-/**
  *	t4_fw_reset - issue a reset to FW
  *	@adap: the adapter
  *	@mbox: mailbox to use for the FW command
@@ -3755,6 +3912,23 @@ int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset)
 	memset(&c, 0, sizeof(c));
 	INIT_CMD(c, RESET, WRITE);
 	c.val = htonl(reset);
+	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
+}
+
+/**
+ *	t4_fw_initialize - ask FW to initialize the device
+ *	@adap: the adapter
+ *	@mbox: mailbox to use for the FW command
+ *
+ *	Issues a command to FW to partially initialize the device.  This
+ *	performs initialization that generally doesn't depend on user input.
+ */
+int t4_fw_initialize(struct adapter *adap, unsigned int mbox)
+{
+	struct fw_initialize_cmd c;
+
+	memset(&c, 0, sizeof(c));
+	INIT_CMD(c, INITIALIZE, WRITE);
 	return t4_wr_mbox(adap, mbox, &c, sizeof(c), NULL);
 }
 
@@ -4495,6 +4669,21 @@ static int __devinit get_flash_params(struct adapter *adapter)
 	return 0;
 }
 
+static void __devinit set_pcie_completion_timeout(struct adapter *adapter,
+						  u8 range)
+{
+	u16 val;
+	u32 pcie_cap;
+
+	pcie_cap = t4_os_find_pci_capability(adapter, PCI_CAP_ID_EXP);
+	if (pcie_cap) {
+		t4_os_pci_read_cfg2(adapter, pcie_cap + PCI_EXP_DEVCTL2, &val);
+		val &= 0xfff0;
+		val |= range ;
+		t4_os_pci_write_cfg2(adapter, pcie_cap + PCI_EXP_DEVCTL2, val);
+	}
+}
+
 /**
  *	t4_prep_adapter - prepare SW and HW for operation
  *	@adapter: the adapter
@@ -4541,6 +4730,8 @@ int __devinit t4_prep_adapter(struct adapter *adapter)
 	adapter->params.portvec = 1;
 	adapter->params.vpd.cclk = 50000;
 
+	/* Set pci completion timeout value to 4 seconds. */
+	set_pcie_completion_timeout(adapter, 0xd);
 	return 0;
 }
 

@@ -390,3 +390,11 @@ ar9287RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar9287RfProbe(struct ath_hal *ah)
+{
+	return (AR_SREV_KIWI(ah));
+}
+
+AH_RF(RF9287, ar9287RfProbe, ar9287RfAttach);

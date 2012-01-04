@@ -137,7 +137,7 @@ networkdelta()
 	}
 
 	if (trace)
-		fprintf(fd, "median of %d values starting at %ld is ",
+		fprintf(fd, "median of %td values starting at %ld is ",
 		        xp-&x[0], med);
 	return median(med, &eps, &x[0], xp, 1);
 }

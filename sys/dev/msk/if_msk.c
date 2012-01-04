@@ -334,11 +334,7 @@ static device_method_t mskc_methods[] = {
 	DEVMETHOD(device_resume,	mskc_resume),
 	DEVMETHOD(device_shutdown,	mskc_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t mskc_driver = {
@@ -356,16 +352,12 @@ static device_method_t msk_methods[] = {
 	DEVMETHOD(device_detach,	msk_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	msk_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	msk_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	msk_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t msk_driver = {
@@ -656,8 +648,8 @@ msk_rx_fill(struct msk_if_softc *sc_if, int jumbo)
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
 	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 		/* Wait until controller executes OP_TCPSTART command. */
-		for (i = 10; i > 0; i--) {
-			DELAY(10);
+		for (i = 100; i > 0; i--) {
+			DELAY(100);
 			idx = CSR_READ_2(sc_if->msk_softc,
 			    Y2_PREF_Q_ADDR(sc_if->msk_rxq,
 			    PREF_UNIT_GET_IDX_REG));

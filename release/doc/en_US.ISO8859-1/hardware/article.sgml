@@ -593,6 +593,10 @@
 	</listitem>
 
 	<listitem>
+	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
+	</listitem>
+
+	<listitem>
 	  <para>&sun.fire; V250</para>
 	</listitem>
 
@@ -603,7 +607,8 @@
 
 	<listitem>
 	  <para>&sun.fire; V480 (501-6780 and 501-6790 centerplanes only, for
-	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
+	    which support first appeared in 7.3-RELEASE and 8.1-RELEASE,
+	    other centerplanes might work beginning with 8.3-RELEASE and 9.0-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -626,10 +631,6 @@
       <itemizedlist>
 	<listitem>
 	  <para>&sun.fire; V125</para>
-	</listitem>
-
-	<listitem>
-	  <para>&sun.fire; V245 (support first appeared in 7.3-RELEASE and 8.1-RELEASE)</para>
 	</listitem>
 
 	<listitem>
@@ -749,8 +750,6 @@
       &hwlist.ahd;
 
       &hwlist.aic;
-
-      &hwlist.amd;
 
       &hwlist.amr;
 

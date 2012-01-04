@@ -184,15 +184,11 @@ static device_method_t nve_methods[] = {
 	DEVMETHOD(device_detach, nve_detach),
 	DEVMETHOD(device_shutdown, nve_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, nve_miibus_readreg),
 	DEVMETHOD(miibus_writereg, nve_miibus_writereg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t nve_driver = {

@@ -130,7 +130,9 @@ grep_tree(char **argv)
 		case FTS_DNR:
 			/* FALLTHROUGH */
 		case FTS_ERR:
-			errx(2, "%s: %s", p->fts_path, strerror(p->fts_errno));
+			file_err = true;
+			if(!sflag)
+				warnx("%s: %s", p->fts_path, strerror(p->fts_errno));
 			break;
 		case FTS_D:
 			/* FALLTHROUGH */
@@ -193,10 +195,9 @@ procfile(const char *fn)
 		f = grep_open(fn);
 	}
 	if (f == NULL) {
+		file_err = true;
 		if (!sflag)
 			warn("%s", fn);
-		if (errno == ENOENT)
-			notfound = true;
 		return (0);
 	}
 
@@ -246,9 +247,9 @@ procfile(const char *fn)
 		printf("%u\n", c);
 	}
 	if (lflag && !qflag && c != 0)
-		printf("%s\n", fn);
+		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (Lflag && !qflag && c == 0)
-		printf("%s\n", fn);
+		printf("%s%c", fn, nullflag ? 0 : '\n');
 	if (c && !cflag && !lflag && !Lflag &&
 	    binbehave == BINFILE_BIN && f->binary && !qflag)
 		printf(getstr(8), fn);
@@ -440,13 +441,13 @@ printline(struct str *line, int sep, regmatch_t *matches, int m)
 	int i, n = 0;
 
 	if (!hflag) {
-		if (nullflag == 0)
+		if (!nullflag) {
 			fputs(line->file, stdout);
-		else {
+			++n;
+		} else {
 			printf("%s", line->file);
 			putchar(0);
 		}
-		++n;
 	}
 	if (nflag) {
 		if (n > 0)

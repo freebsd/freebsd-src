@@ -23,6 +23,8 @@
  * SUCH DAMAGE.
  *
  * Ackowledgement to Fen Systems Ltd.
+ *
+ * $FreeBSD$
  */
 
 #ifndef	_SYS_EFX_TYPES_H

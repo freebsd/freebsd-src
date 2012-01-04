@@ -126,7 +126,6 @@ AnCheckId (
 {
     UINT32                  i;
     ACPI_SIZE               Length;
-    UINT32                  AlphaPrefixLength;
 
 
     /* Only care about string versions of _HID/_CID (integers are legal) */
@@ -174,12 +173,18 @@ AnCheckId (
         {
             AslError (ASL_ERROR, ASL_MSG_ALPHANUMERIC_STRING,
                 Op, Op->Asl.Value.String);
-            break;
+            return;
         }
     }
 
-    /* _HID String must be of the form "XXX####" or "ACPI####" */
-
+    /*
+     * _HID String must be one of these forms:
+     *
+     * "AAA####"    A is an uppercase letter and # is a hex digit
+     * "ACPI####"   # is a hex digit
+     * "NNNN####"   N is an uppercase letter or decimal digit (0-9)
+     *              # is a hex digit (ACPI 5.0)
+     */
     if ((Length < 7) || (Length > 8))
     {
         AslError (ASL_ERROR, ASL_MSG_HID_LENGTH,
@@ -187,22 +192,48 @@ AnCheckId (
         return;
     }
 
-    /* _HID Length is valid, now check for uppercase (first 3 or 4 chars) */
+    /* _HID Length is valid (7 or 8), now check the prefix (first 3 or 4 chars) */
 
-    AlphaPrefixLength = 3;
-    if (Length >= 8)
+    if (Length == 7)
     {
-        AlphaPrefixLength = 4;
+        /* AAA####: Ensure the alphabetic prefix is all uppercase */
+
+        for (i = 0; i < 3; i++)
+        {
+            if (!isupper ((int) Op->Asl.Value.String[i]))
+            {
+                AslError (ASL_ERROR, ASL_MSG_UPPER_CASE,
+                    Op, &Op->Asl.Value.String[i]);
+                return;
+            }
+        }
+    }
+    else /* Length == 8 */
+    {
+        /*
+         * ACPI#### or NNNN####:
+         * Ensure the prefix contains only uppercase alpha or decimal digits
+         */
+        for (i = 0; i < 4; i++)
+        {
+            if (!isupper ((int) Op->Asl.Value.String[i]) &&
+                !isdigit ((int) Op->Asl.Value.String[i]))
+            {
+                AslError (ASL_ERROR, ASL_MSG_HID_PREFIX,
+                    Op, &Op->Asl.Value.String[i]);
+                return;
+            }
+        }
     }
 
-    /* Ensure the alphabetic prefix is all uppercase */
+    /* Remaining characters (suffix) must be hex digits */
 
-    for (i = 0; (i < AlphaPrefixLength) && Op->Asl.Value.String[i]; i++)
+    for (; i < Length; i++)
     {
-        if (!isupper ((int) Op->Asl.Value.String[i]))
+        if (!isxdigit ((int) Op->Asl.Value.String[i]))
         {
-            AslError (ASL_ERROR, ASL_MSG_UPPER_CASE,
-                Op, &Op->Asl.Value.String[i]);
+         AslError (ASL_ERROR, ASL_MSG_HID_SUFFIX,
+            Op, &Op->Asl.Value.String[i]);
             break;
         }
     }

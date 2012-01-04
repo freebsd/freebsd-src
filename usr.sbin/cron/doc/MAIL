@@ -186,7 +186,7 @@ five fields.  Examples:
 
 (run command if day-of-month AND day-of-week are true)
 
-Get the picture?  This would be compatable with existing versions of
+Get the picture?  This would be compatible with existing versions of
 cron (which wouldn't currently be using any special characters, so
 that old crontabs would be handled correctly).
 
