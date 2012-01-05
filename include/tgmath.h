@@ -53,9 +53,6 @@
  * Note that these macros cannot be implemented with C's ?: operator,
  * because the return type of the whole expression would incorrectly be long
  * double complex regardless of the argument types.
- *
- * The _Complex_I distinction should not be needed, but due to a bug in
- * GCC 4.2, _Complex_I is not of type float _Complex.
  */
 
 #ifndef __generic
@@ -66,9 +63,8 @@
 	__generic(x, long double _Complex, fnl,				\
 	    __generic(x, double _Complex, fn,				\
 	        __generic(x, float _Complex, fnf,			\
-	            __generic(x, __typeof(_Complex_I), fnf,		\
-	                __generic(x, long double, fnl,			\
-	                    __generic(x, float, fnf, fn))))))
+	            __generic(x, long double, fnl,			\
+	                __generic(x, float, fnf, fn)))))
 #define	__tg_impl_simple(x, y, z, fnl, fn, fnf, ...)			\
 	__tg_generic_simple(x,						\
 	    __tg_generic_simple(y,					\
@@ -87,9 +83,8 @@
 	__generic(x, long double _Complex, cfnl,			\
 	    __generic(x, double _Complex, cfn,				\
 	        __generic(x, float _Complex, cfnf,			\
-	            __generic(x, __typeof(_Complex_I), cfnf,		\
-	                __generic(x, long double, fnl,			\
-	                    __generic(x, float, fnf, fn))))))
+	            __generic(x, long double, fnl,			\
+	                __generic(x, float, fnf, fn)))))
 #define	__tg_impl_full(x, y, cfnl, cfn, cfnf, fnl, fn, fnf, ...)	\
 	__tg_generic_full(x,						\
 	    __tg_generic_full(y, cfnl, cfnl, cfnl, cfnl, cfnl, cfnl),	\
