@@ -52,4 +52,4 @@ strrchr(const char *p, int ch)
 	/* NOTREACHED */
 }
 
-__strong_reference(strrchr, rindex);
+__weak_reference(strrchr, rindex);
