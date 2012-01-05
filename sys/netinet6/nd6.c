@@ -692,7 +692,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
@@ -734,7 +734,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		if (public_ifa6 != NULL)
 			ifa_ref(&public_ifa6->ia_ifa);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
@@ -1366,7 +1366,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 */
 			int duplicated_linklocal = 0;
 
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
@@ -1377,7 +1377,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					break;
 				}
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 
 			if (duplicated_linklocal) {
 				ND.flags |= ND6_IFF_IFDISABLED;
@@ -1395,14 +1395,14 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			/* Mark all IPv6 address as tentative. */
 
 			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				ia->ia6_flags |= IN6_IFF_TENTATIVE;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		if (ND.flags & ND6_IFF_AUTO_LINKLOCAL) {
@@ -1422,7 +1422,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 */
 				int haslinklocal = 0;
 			
-				IF_ADDR_LOCK(ifp);
+				IF_ADDR_RLOCK(ifp);
 				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 					if (ifa->ifa_addr->sa_family != AF_INET6)
 						continue;
@@ -1432,7 +1432,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 						break;
 					}
 				}
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				if (!haslinklocal)
 					in6_ifattach(ifp, NULL);
 			}

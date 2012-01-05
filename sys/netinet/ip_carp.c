@@ -549,14 +549,14 @@ carp_input_c(struct mbuf *m, struct carp_header *ch, sa_family_t af)
 	struct timeval sc_tv, ch_tv;
 
 	/* verify that the VHID is valid on the receiving interface */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	IFNET_FOREACH_IFA(ifp, ifa)
 		if (ifa->ifa_addr->sa_family == af &&
 		    ifa->ifa_carp->sc_vhid == ch->carp_vhid) {
 			ifa_ref(ifa);
 			break;
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	if (ifa == NULL) {
 		CARPSTATS_INC(carps_badvhid);
@@ -1003,16 +1003,16 @@ carp_iamatch6(struct ifnet *ifp, struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	IFNET_FOREACH_IFA(ifp, ifa)
 		if (ifa->ifa_addr->sa_family == AF_INET6 &&
 		    ifa->ifa_carp->sc_state == MASTER &&
 		    IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa))) {
 			ifa_ref(ifa);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return (ifa);
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return (NULL);
 }
@@ -1022,14 +1022,14 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 {
 	struct ifaddr *ifa;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	IFNET_FOREACH_IFA(ifp, ifa)
 		if (ifa->ifa_addr->sa_family == AF_INET6 &&
 		    IN6_ARE_ADDR_EQUAL(taddr, IFA_IN6(ifa))) {
 			struct carp_softc *sc = ifa->ifa_carp;
 			struct m_tag *mtag;
 
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 
 			mtag = m_tag_get(PACKET_TAG_CARP,
 			    sizeof(struct ifnet *), M_NOWAIT);
@@ -1043,7 +1043,7 @@ carp_macmatch6(struct ifnet *ifp, struct mbuf *m, const struct in6_addr *taddr)
 
 			return (LLADDR(&sc->sc_addr));
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return (NULL);
 }
@@ -1512,10 +1512,10 @@ carp_alloc_if(struct ifnet *ifp)
 	cif->cif_ifp = ifp;
 	TAILQ_INIT(&cif->cif_vrs);
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	ifp->if_carp = cif;
 	if_ref(ifp);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 	return (cif);
 
@@ -1534,10 +1534,10 @@ carp_free_if(struct carp_if *cif)
 	KASSERT(TAILQ_EMPTY(&cif->cif_vrs), ("%s: softc list not empty",
 	    __func__));
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	ifp->if_carp = NULL;
 	if_rele(ifp);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 
 	CIF_LOCK_DESTROY(cif);
 
