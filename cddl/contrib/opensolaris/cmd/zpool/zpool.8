@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2011
+.Dd November 28, 2011
 .Dt ZPOOL 8
 .Os
 .Sh NAME
@@ -132,6 +132,9 @@
 .Cm online
 .Op Fl e
 .Ar pool device ...
+.Nm
+.Cm reguid
+.Ar pool
 .Nm
 .Cm remove
 .Ar pool device ...
@@ -1344,6 +1347,14 @@ or
 then all devices must be expanded before the new space will become
 available to the pool.
 .El
+.It Xo
+.Nm
+.Cm reguid
+.Ar pool
+.Xc
+.Pp
+Generates a new unique identifier for the pool.  You must ensure that all
+devices in this pool are online and healthy before performing this action.
 .It Xo
 .Nm
 .Cm remove
