@@ -722,6 +722,7 @@ struct vr_softc {
 	uint8_t			vr_revid;	/* Rhine chip revision */
 	int			vr_flags;	/* See VR_F_* below */
 #define	VR_F_RESTART		0x0001		/* Restart unit on next tick */
+#define	VR_F_TXPAUSE		0x0010
 #define	VR_F_SUSPENDED		0x2000
 #define	VR_F_DETACHED		0x4000
 #define	VR_F_LINK		0x8000
