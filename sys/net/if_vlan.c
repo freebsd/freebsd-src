@@ -1602,7 +1602,7 @@ vlan_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 		 * interface to be delegated to a jail without allowing the
 		 * jail to change what underlying interface/VID it is
 		 * associated with.  We are not entirely convinced that this
-		 * is the right way to accomplish that goal policy goal.
+		 * is the right way to accomplish that policy goal.
 		 */
 		if (ifp->if_vnet != ifp->if_home_vnet) {
 			error = EPERM;
