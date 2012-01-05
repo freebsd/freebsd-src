@@ -57,6 +57,7 @@ static device_method_t isab_methods[] = {
     DEVMETHOD(device_resume,		bus_generic_resume),
 
     /* Bus interface */
+    DEVMETHOD(bus_add_child,		bus_generic_add_child),
     DEVMETHOD(bus_print_child,		bus_generic_print_child),
     DEVMETHOD(bus_alloc_resource,	bus_generic_alloc_resource),
     DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
