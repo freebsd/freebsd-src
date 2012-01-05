@@ -40,12 +40,12 @@ nooptions	IEEE80211_SUPPORT_TDMA
 #options		GEOM_PART_MBR
 #options		MSDOSFS
 
-# uzip - to boot natively from flash
-device		geom_uzip
-options		GEOM_UZIP
+# uncompress - to boot read-only lzma natively from flash
+device		geom_uncompress
+options		GEOM_UNCOMPRESS
 
 # Used for the static uboot partition map
 device		geom_map
 
 # Boot off of the rootfs, as defined in the geom_map setup.
-options		ROOTDEVNAME=\"ufs:map/rootfs.uzip\"
+options		ROOTDEVNAME=\"ufs:map/rootfs.uncompress\"
