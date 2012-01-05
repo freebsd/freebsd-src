@@ -4480,8 +4480,7 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 #endif
 			if (status & E1000_RXD_STAT_VP) {
 				sendmp->m_pkthdr.ether_vtag =
-				    (le16toh(cur->special) &
-				    E1000_RXD_SPC_VLAN_MASK);
+				    le16toh(cur->special);
 				sendmp->m_flags |= M_VLANTAG;
 			}
 #ifndef __NO_STRICT_ALIGNMENT
