@@ -56,4 +56,4 @@ LEAF(strrchr)
 	j		ra
 END(strrchr)
 
-STRONG_ALIAS(rindex, strrchr)
+WEAK_ALIAS(rindex, strrchr)
