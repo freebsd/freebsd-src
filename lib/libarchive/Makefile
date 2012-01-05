@@ -1,6 +1,8 @@
 # $FreeBSD$
 .include <bsd.own.mk>
 
+LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+
 LIB=	archive
 DPADD=	${LIBZ}
 LDADD=	-lz
@@ -20,7 +22,7 @@ LDADD+= -lbsdxml
 # It has no real relation to the libarchive version number.
 SHLIB_MAJOR= 5
 
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
 CFLAGS+=	-I${.OBJDIR}
 
 .if ${MK_OPENSSL} != "no"
@@ -32,7 +34,7 @@ DPADD+=	${LIBMD}
 LDADD+=	-lmd
 .endif
 
-WARNS?=	6
+.PATH: ${LIBARCHIVEDIR}/libarchive
 
 # Headers to be installed in /usr/include
 INCS=	archive.h archive_entry.h
@@ -275,8 +277,11 @@ MLINKS+=	archive_write_disk.3 archive_write_disk_set_standard_lookup.3
 MLINKS+=	archive_write_disk.3 archive_write_disk_set_user_lookup.3
 MLINKS+=	libarchive.3 archive.3
 
-.PHONY: check test
+.PHONY: check test clean-test
 check test:
-	cd ${.CURDIR}/test && make test
+	cd ${.CURDIR}/test && make obj && make test
+
+clean-test:
+	cd ${.CURDIR}/test && make clean
 
 .include <bsd.lib.mk>
