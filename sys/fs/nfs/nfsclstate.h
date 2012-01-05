@@ -48,7 +48,6 @@ struct nfsclclient {
 	struct nfsclownerhead	nfsc_owner;
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
-	struct nfscllockownerhead nfsc_defunctlockowner;
 	struct nfsv4lock nfsc_lock;
 	struct proc	*nfsc_renewthread;
 	struct nfsmount	*nfsc_nmp;
