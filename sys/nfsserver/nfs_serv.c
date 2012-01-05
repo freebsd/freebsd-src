@@ -107,14 +107,15 @@ FEATURE(nfsserver, "NFS server");
 
 #define MAX_COMMIT_COUNT	(1024 * 1024)
 
-#define NUM_HEURISTIC		1017
+#define	MAX_REORDERED_RPC	16
+#define NUM_HEURISTIC		1031
 #define NHUSE_INIT		64
 #define NHUSE_INC		16
 #define NHUSE_MAX		2048
 
 static struct nfsheur {
 	struct vnode *nh_vp;	/* vp to match (unreferenced pointer) */
-	off_t nh_nextr;		/* next offset for sequential detection */
+	off_t nh_nextoff;	/* next offset for sequential detection */
 	int nh_use;		/* use count for selection */
 	int nh_seqcount;	/* heuristic */
 } nfsheur[NUM_HEURISTIC];
@@ -184,6 +185,63 @@ nfsrv_lockedpair_nd(int vfs1, struct nameidata *nd)
 	vfs2 = NDHASGIANT(nd);
 
 	return nfsrv_lockedpair(vfs1, vfs2);
+}
+
+/*
+ * Heuristic to detect sequential operation.
+ */
+static struct nfsheur *
+nfsrv_sequential_heuristic(struct uio *uio, struct vnode *vp)
+{
+	struct nfsheur *nh;
+	int hi, try;
+
+	/* Locate best candidate. */
+	try = 32;
+	hi = ((int)(vm_offset_t)vp / sizeof(struct vnode)) % NUM_HEURISTIC;
+	nh = &nfsheur[hi];
+	while (try--) {
+		if (nfsheur[hi].nh_vp == vp) {
+			nh = &nfsheur[hi];
+			break;
+		}
+		if (nfsheur[hi].nh_use > 0)
+			--nfsheur[hi].nh_use;
+		hi = (hi + 1) % NUM_HEURISTIC;
+		if (nfsheur[hi].nh_use < nh->nh_use)
+			nh = &nfsheur[hi];
+	}
+
+	/* Initialize hint if this is a new file. */
+	if (nh->nh_vp != vp) {
+		nh->nh_vp = vp;
+		nh->nh_nextoff = uio->uio_offset;
+		nh->nh_use = NHUSE_INIT;
+		if (uio->uio_offset == 0)
+			nh->nh_seqcount = 4;
+		else
+			nh->nh_seqcount = 1;
+	}
+
+	/* Calculate heuristic. */
+	if ((uio->uio_offset == 0 && nh->nh_seqcount > 0) ||
+	    uio->uio_offset == nh->nh_nextoff) {
+		/* See comments in vfs_vnops.c:sequential_heuristic(). */
+		nh->nh_seqcount += howmany(uio->uio_resid, 16384);
+		if (nh->nh_seqcount > IO_SEQMAX)
+			nh->nh_seqcount = IO_SEQMAX;
+	} else if (qabs(uio->uio_offset - nh->nh_nextoff) <= MAX_REORDERED_RPC *
+	    imax(vp->v_mount->mnt_stat.f_iosize, uio->uio_resid)) {
+		/* Probably a reordered RPC, leave seqcount alone. */
+	} else if (nh->nh_seqcount > 1) {
+		nh->nh_seqcount /= 2;
+	} else {
+		nh->nh_seqcount = 0;
+	}
+	nh->nh_use += NHUSE_INC;
+	if (nh->nh_use > NHUSE_MAX)
+		nh->nh_use = NHUSE_MAX;
+	return (nh);
 }
 
 /*
@@ -843,68 +901,12 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	/*
 	 * Calculate byte count to read
 	 */
-
 	if (off >= vap->va_size)
 		cnt = 0;
 	else if ((off + reqlen) > vap->va_size)
 		cnt = vap->va_size - off;
 	else
 		cnt = reqlen;
-
-	/*
-	 * Calculate seqcount for heuristic
-	 */
-
-	{
-		int hi;
-		int try = 32;
-
-		/*
-		 * Locate best candidate
-		 */
-
-		hi = ((int)(vm_offset_t)vp / sizeof(struct vnode)) % NUM_HEURISTIC;
-		nh = &nfsheur[hi];
-
-		while (try--) {
-			if (nfsheur[hi].nh_vp == vp) {
-				nh = &nfsheur[hi];
-				break;
-			}
-			if (nfsheur[hi].nh_use > 0)
-				--nfsheur[hi].nh_use;
-			hi = (hi + 1) % NUM_HEURISTIC;
-			if (nfsheur[hi].nh_use < nh->nh_use)
-				nh = &nfsheur[hi];
-		}
-
-		if (nh->nh_vp != vp) {
-			nh->nh_vp = vp;
-			nh->nh_nextr = off;
-			nh->nh_use = NHUSE_INIT;
-			if (off == 0)
-				nh->nh_seqcount = 4;
-			else
-				nh->nh_seqcount = 1;
-		}
-
-		/*
-		 * Calculate heuristic
-		 */
-
-		if ((off == 0 && nh->nh_seqcount > 0) || off == nh->nh_nextr) {
-			if (++nh->nh_seqcount > IO_SEQMAX)
-				nh->nh_seqcount = IO_SEQMAX;
-		} else if (nh->nh_seqcount > 1) {
-			nh->nh_seqcount = 1;
-		} else {
-			nh->nh_seqcount = 0;
-		}
-		nh->nh_use += NHUSE_INC;
-		if (nh->nh_use > NHUSE_MAX)
-			nh->nh_use = NHUSE_MAX;
-		ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
-        }
 
 	nfsm_reply(NFSX_POSTOPORFATTR(v3) + 3 * NFSX_UNSIGNED+nfsm_rndup(cnt));
 	if (v3) {
@@ -963,9 +965,11 @@ nfsrv_read(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 		uiop->uio_resid = len;
 		uiop->uio_rw = UIO_READ;
 		uiop->uio_segflg = UIO_SYSSPACE;
+		nh = nfsrv_sequential_heuristic(uiop, vp);
+		ioflag |= nh->nh_seqcount << IO_SEQSHIFT;
 		error = VOP_READ(vp, uiop, IO_NODELOCKED | ioflag, cred);
-		off = uiop->uio_offset;
-		nh->nh_nextr = off;
+		if (error == 0)
+			nh->nh_nextoff = uiop->uio_offset;
 		free((caddr_t)iv2, M_TEMP);
 		if (error || (getret = VOP_GETATTR(vp, vap, cred))) {
 			if (!error)
@@ -1030,6 +1034,7 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	int v3 = (nfsd->nd_flag & ND_NFSV3);
 	struct mbuf *mb, *mreq;
 	struct vnode *vp = NULL;
+	struct nfsheur *nh;
 	nfsfh_t nfh;
 	fhandle_t *fhp;
 	struct uio io, *uiop = &io;
@@ -1170,7 +1175,11 @@ nfsrv_write(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	    uiop->uio_segflg = UIO_SYSSPACE;
 	    uiop->uio_td = NULL;
 	    uiop->uio_offset = off;
+	    nh = nfsrv_sequential_heuristic(uiop, vp);
+	    ioflags |= nh->nh_seqcount << IO_SEQSHIFT;
 	    error = VOP_WRITE(vp, uiop, ioflags, cred);
+	    if (error == 0)
+		    nh->nh_nextoff = uiop->uio_offset;
 	    /* Unlocked write. */
 	    nfsrvstats.srvvop_writes++;
 	    free((caddr_t)iv, M_TEMP);
