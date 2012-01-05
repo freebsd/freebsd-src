@@ -264,9 +264,9 @@ archive_read_format_cpio_read_header(struct archive_read *a,
 
 	/* Compare name to "TRAILER!!!" to test for end-of-archive. */
 	if (namelength == 11 && strcmp((const char *)h, "TRAILER!!!") == 0) {
-	    /* TODO: Store file location of start of block. */
-	    archive_set_error(&a->archive, 0, NULL);
-	    return (ARCHIVE_EOF);
+		/* TODO: Store file location of start of block. */
+		archive_clear_error(&a->archive);
+		return (ARCHIVE_EOF);
 	}
 
 	/* Detect and record hardlinks to previously-extracted entries. */

@@ -152,7 +152,7 @@ __archive_strncat(struct archive_string *as, const void *_p, size_t n)
 	/* Like strlen(p), except won't examine positions beyond p[n]. */
 	s = 0;
 	pp = p;
-	while (*pp && s < n) {
+	while (s < n && *pp) {
 		pp++;
 		s++;
 	}
