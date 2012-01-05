@@ -2190,8 +2190,10 @@ dump_block_stats(spa_t *spa)
 	 */
 	(void) bpobj_iterate_nofree(&spa->spa_deferred_bpobj,
 	    count_block_cb, &zcb, NULL);
-	(void) bpobj_iterate_nofree(&spa->spa_dsl_pool->dp_free_bpobj,
-	    count_block_cb, &zcb, NULL);
+	if (spa_version(spa) >= SPA_VERSION_DEADLISTS) {
+		(void) bpobj_iterate_nofree(&spa->spa_dsl_pool->dp_free_bpobj,
+		    count_block_cb, &zcb, NULL);
+	}
 
 	if (dump_opt['c'] > 1)
 		flags |= TRAVERSE_PREFETCH_DATA;

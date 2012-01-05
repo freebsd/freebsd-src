@@ -1217,10 +1217,11 @@ print_status_config(zpool_handle_t *zhp, const char *name, nvlist_t *nv,
 	}
 
 	if (nvlist_lookup_uint64(nv, ZPOOL_CONFIG_NOT_PRESENT,
-	    &notpresent) == 0) {
+	    &notpresent) == 0 ||
+	    vs->vs_state <= VDEV_STATE_CANT_OPEN) {
 		char *path;
-		verify(nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0);
-		(void) printf("  was %s", path);
+		if (nvlist_lookup_string(nv, ZPOOL_CONFIG_PATH, &path) == 0)
+			(void) printf("  was %s", path);
 	} else if (vs->vs_aux != 0) {
 		(void) printf("  ");
 
@@ -3466,7 +3467,7 @@ print_scan_status(pool_scan_stat_t *ps)
 	double fraction_done;
 	char processed_buf[7], examined_buf[7], total_buf[7], rate_buf[7];
 
-	(void) printf(gettext(" scan: "));
+	(void) printf(gettext("  scan: "));
 
 	/* If there's never been a scan, there's not much to say. */
 	if (ps == NULL || ps->pss_func == POOL_SCAN_NONE ||
@@ -3546,7 +3547,7 @@ print_scan_status(pool_scan_stat_t *ps)
 	/*
 	 * do not print estimated time if hours_left is more than 30 days
 	 */
-	(void) printf(gettext("    %s scanned out of %s at %s/s"),
+	(void) printf(gettext("        %s scanned out of %s at %s/s"),
 	    examined_buf, total_buf, rate_buf);
 	if (hours_left < (30 * 24)) {
 		(void) printf(gettext(", %lluh%um to go\n"),
@@ -3557,10 +3558,10 @@ print_scan_status(pool_scan_stat_t *ps)
 	}
 
 	if (ps->pss_func == POOL_SCAN_RESILVER) {
-		(void) printf(gettext("    %s resilvered, %.2f%% done\n"),
+		(void) printf(gettext("        %s resilvered, %.2f%% done\n"),
 		    processed_buf, 100 * fraction_done);
 	} else if (ps->pss_func == POOL_SCAN_SCRUB) {
-		(void) printf(gettext("    %s repaired, %.2f%% done\n"),
+		(void) printf(gettext("        %s repaired, %.2f%% done\n"),
 		    processed_buf, 100 * fraction_done);
 	}
 }
