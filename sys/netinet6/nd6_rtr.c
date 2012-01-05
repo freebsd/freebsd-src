@@ -84,6 +84,9 @@ static int in6_init_prefix_ltimes(struct nd_prefix *);
 static void in6_init_address_ltimes __P((struct nd_prefix *,
 	struct in6_addrlifetime *));
 
+static int nd6_prefix_onlink(struct nd_prefix *);
+static int nd6_prefix_offlink(struct nd_prefix *);
+
 static int rt6_deleteroute(struct radix_node *, void *);
 
 VNET_DECLARE(int, nd6_recalc_reachtm_interval);
@@ -465,7 +468,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 		ifa_free(ifa);
 }
 
-void
+static void
 defrouter_addreq(struct nd_defrouter *new)
 {
 	struct sockaddr_in6 def, mask, gate;
@@ -1537,7 +1540,7 @@ pfxlist_onlink_check()
 	}
 }
 
-int
+static int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
 	struct ifaddr *ifa;
@@ -1662,7 +1665,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 	return (error);
 }
 
-int
+static int
 nd6_prefix_offlink(struct nd_prefix *pr)
 {
 	int error = 0;
