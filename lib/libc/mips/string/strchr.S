@@ -58,4 +58,4 @@ fnd:
 	j		ra
 END(strchr)
 
-STRONG_ALIAS(index, strchr)
+WEAK_ALIAS(index, strchr)
