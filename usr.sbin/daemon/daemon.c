@@ -79,9 +79,6 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	if (user != NULL)
-		restrict_process(user);
-
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
@@ -96,6 +93,9 @@ main(int argc, char *argv[])
 			err(2, "pidfile ``%s''", pidfile);
 		}
 	}
+
+   if (user != NULL)
+             restrict_process(user);
 
 	if (daemon(nochdir, noclose) == -1)
 		err(1, NULL);
