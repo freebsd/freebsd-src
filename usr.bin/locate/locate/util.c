@@ -219,15 +219,15 @@ tolower_word(word)
 
 /*
  * Read integer from mmap pointer.
- * Essential a simple  ``return *(int *)p'' but avoid sigbus
+ * Essentially a simple ``return *(int *)p'' but avoids sigbus
  * for integer alignment (SunOS 4.x, 5.x).
  *
  * Convert network byte order to host byte order if necessary.
- * So we can read on FreeBSD/i386 (little endian) a locate database
+ * So we can read a locate database on FreeBSD/i386 (little endian)
  * which was built on SunOS/sparc (big endian).
  */
 
-int 
+int
 getwm(p)
 	caddr_t p;
 {

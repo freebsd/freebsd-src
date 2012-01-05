@@ -123,7 +123,7 @@ find_plist_option(Package *pkg, const char *name)
 
 /*
  * Delete plist item 'type' in the list (if 'name' is non-null, match it
- * too.)  If 'all' is set, delete all items, not just the first occurrance.
+ * too.)  If 'all' is set, delete all items, not just the first occurrence.
  */
 void
 delete_plist(Package *pkg, Boolean all, plist_t type, const char *name)
