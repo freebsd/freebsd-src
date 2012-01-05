@@ -43,8 +43,6 @@ _Static_assert(__generic(_Complex_I, float _Complex, 1, 0),
 #define	complex		_Complex
 #define	I		_Complex_I
 
-#include <sys/cdefs.h>
-
 __BEGIN_DECLS
 
 double		cabs(double complex);
