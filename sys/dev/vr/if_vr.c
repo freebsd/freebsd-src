@@ -305,20 +305,20 @@ vr_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	sc->vr_link = 0;
+	sc->vr_flags &= ~VR_F_LINK;
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
 	    (IFM_ACTIVE | IFM_AVALID)) {
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
 		case IFM_10_T:
 		case IFM_100_TX:
-			sc->vr_link = 1;
+			sc->vr_flags |= VR_F_LINK;
 			break;
 		default:
 			break;
 		}
 	}
 
-	if (sc->vr_link != 0) {
+	if ((sc->vr_flags & VR_F_LINK) != 0) {
 		cr0 = CSR_READ_1(sc, VR_CR0);
 		cr1 = CSR_READ_1(sc, VR_CR1);
 		mfdx = (cr1 & VR_CR1_FULLDUPLEX) != 0;
@@ -821,7 +821,7 @@ vr_detach(device_t dev)
 	/* These should only be active if attach succeeded. */
 	if (device_is_attached(dev)) {
 		VR_LOCK(sc);
-		sc->vr_detach = 1;
+		sc->vr_flags |= VR_F_DETACHED;
 		vr_stop(sc);
 		VR_UNLOCK(sc);
 		callout_drain(&sc->vr_stat_callout);
@@ -1542,7 +1542,7 @@ vr_tick(void *xsc)
 
 	mii = device_get_softc(sc->vr_miibus);
 	mii_tick(mii);
-	if (sc->vr_link == 0)
+	if ((sc->vr_flags & VR_F_LINK) == 0)
 		vr_miibus_statchg(sc->vr_dev);
 	vr_watchdog(sc);
 	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
@@ -1652,7 +1652,7 @@ vr_intr(void *arg)
 
 	VR_LOCK(sc);
 
-	if (sc->vr_suspended != 0)
+	if ((sc->vr_flags & VR_F_SUSPENDED) != 0)
 		goto done_locked;
 
 	status = CSR_READ_2(sc, VR_ISR);
@@ -1933,7 +1933,7 @@ vr_start_locked(struct ifnet *ifp)
 	VR_LOCK_ASSERT(sc);
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
-	    IFF_DRV_RUNNING || sc->vr_link == 0)
+	    IFF_DRV_RUNNING || (sc->vr_flags & VR_F_LINK) == 0)
 		return;
 
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd) &&
@@ -2103,11 +2103,11 @@ vr_init_locked(struct vr_softc *sc)
 	if (sc->vr_revid > REV_ID_VT6102_A)
 		CSR_WRITE_2(sc, VR_MII_IMR, 0);
 
-	sc->vr_link = 0;
-	mii_mediachg(mii);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	sc->vr_flags &= ~VR_F_LINK;
+	mii_mediachg(mii);
 
 	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
 }
@@ -2177,7 +2177,7 @@ vr_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 				    (IFF_PROMISC | IFF_ALLMULTI))
 					vr_set_filter(sc);
 			} else {
-				if (sc->vr_detach == 0)
+				if ((sc->vr_flags & VR_F_DETACHED) == 0)
 					vr_init_locked(sc);
 			}
 		} else {
@@ -2265,7 +2265,7 @@ vr_watchdog(struct vr_softc *sc)
 	if (sc->vr_cdata.vr_tx_cnt == 0)
 		return;
 
-	if (sc->vr_link == 0) {
+	if ((sc->vr_flags & VR_F_LINK) == 0) {
 		if (bootverbose)
 			if_printf(sc->vr_ifp, "watchdog timeout "
 			   "(missed link)\n");
@@ -2443,7 +2443,7 @@ vr_suspend(device_t dev)
 	VR_LOCK(sc);
 	vr_stop(sc);
 	vr_setwol(sc);
-	sc->vr_suspended = 1;
+	sc->vr_flags |= VR_F_SUSPENDED;
 	VR_UNLOCK(sc);
 
 	return (0);
@@ -2464,7 +2464,7 @@ vr_resume(device_t dev)
 	if (ifp->if_flags & IFF_UP)
 		vr_init_locked(sc);
 
-	sc->vr_suspended = 0;
+	sc->vr_flags &= ~VR_F_SUSPENDED;
 	VR_UNLOCK(sc);
 
 	return (0);
