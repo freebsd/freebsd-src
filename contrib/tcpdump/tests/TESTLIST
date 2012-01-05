@@ -1,0 +1,51 @@
+# BGP test
+bgp_vpn_attrset bgp_vpn_attrset.pcap bgp_vpn_attrset.out -t -v 
+
+# EAP tests
+eapon1 eapon1.pcap eapon1.out -t 
+
+# ESP tests
+esp0 02-sunrise-sunset-esp.pcap esp0.out -t 
+esp1 02-sunrise-sunset-esp.pcap esp1.out -t -E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758" 
+esp2 08-sunrise-sunset-esp2.pcap esp2.out -t -E "0x12345678@192.1.2.45 3des-cbc-hmac96:0x43434545464649494a4a4c4c4f4f51515252545457575840,0xabcdabcd@192.0.1.1 3des-cbc-hmac96:0x434545464649494a4a4c4c4f4f5151525254545757584043"
+esp3 02-sunrise-sunset-esp.pcap esp1.out -t -E "3des-cbc-hmac96:0x4043434545464649494a4a4c4c4f4f515152525454575758"
+esp4 08-sunrise-sunset-esp2.pcap esp2.out -t -E "file esp-secrets.txt"
+esp5 08-sunrise-sunset-aes.pcap esp5.out -t -E "file esp-secrets.txt"
+espudp1 espudp1.pcap espudp1.out -t -E "file esp-secrets.txt"
+
+# ISAKMP tests
+isakmp1 isakmp-delete-segfault.pcap isakmp1.out -t 
+isakmp2 isakmp-pointer-loop.pcap    isakmp2.out -t
+isakmp3 isakmp-identification-segfault.pcap isakmp3.out -t -v
+isakmp4 isakmp4500.pcap             isakmp4.out -t -E "file esp-secrets.txt"
+
+# LMP tests (what is it?)
+# fails right now.
+#lmp     lmp.pcap                    lmp.out -t -v -v
+
+# MPLS tests
+mpls-ldp-hello	mpls-ldp-hello.pcap	mpls-ldp-hello.out -t -v
+
+# OSPF tests
+ospf-gmpls	ospf-gmpls.pcap		ospf-gmpls.out	-t -v
+
+# IKEv2 tests
+ikev2four	ikev2four.pcap		ikev2four.out	-t -v
+ikev2fourv	ikev2four.pcap		ikev2fourv.out	-t -v -v -v 
+ikev2fourv4	ikev2four.pcap		ikev2fourv4.out	-t -v -v -v -v
+ikev2pI2	ikev2pI2.pcap		ikev2pI2.out	-t -E "file ikev2pI2-secrets.txt" -v -v -v -v
+
+# IETF ROLL RPL packets
+dio01           dio.pcap                dio.out         -t -v
+
+# IPNET encapsulated site
+e1000g		e1000g.pcap		e1000g.out	-t
+
+# IETF FORCES WG packets and printer
+forces01        forces1.pcap            forces1.out     -t
+forces02        forces2.pcap            forces2.out     -t
+forces02v       forces2.pcap            forces2v.out    -t -v
+forces02vv      forces2.pcap            forces2vv.out   -t -v -v
+forces01vvv     forces1.pcap            forces1vvv.out  -t -v -v -v 
+forces01vvvv    forces1.pcap            forces1vvvv.out -t -v -v -v -v
+
