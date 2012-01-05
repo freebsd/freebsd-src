@@ -233,13 +233,12 @@ struct nfsclflayout {
 
 /*
  * Stores the NFSv4.1 Device Info. Malloc'd to the correct length to
- * store the list of indices and list of network addresses.
+ * store the list of network addresses and list of indices.
  * nfsdi_data[] is allocated the following way:
  * - nfsdi_addrcnt * struct sockaddr_storage
  * - stripe indices, each stored as one byte, since there can be many
  *   of them. (This implies a limit of 256 on nfsdi_addrcnt, since the
- *   indices select which address. It is defined as uint64_t to ensure proper
- *   alignment.)
+ *   indices select which address.)
  */
 struct nfsclfldevinfo {
 	TAILQ_ENTRY(nfsclfldevinfo)	nfsdi_list;
@@ -247,21 +246,21 @@ struct nfsclfldevinfo {
 	uint8_t				nfsdi_deviceid[NFSX_V4DEVICEID];
 	struct nfsclclient		*nfsdi_clp;
 	uint16_t			nfsdi_stripecnt;
-	uint64_t			nfsdi_addrcnt;
-	uint8_t				nfsdi_data[1];
+	uint16_t			nfsdi_addrcnt;
+	struct sockaddr_storage		nfsdi_data[1];
 };
 
 /* These inline functions return values from nfsdi_data[]. */
 /*
  * Return a pointer to the address at "pos".
  */
-static __inline void *
+static __inline struct sockaddr_storage *
 nfsfldi_addr(struct nfsclfldevinfo *ndi, int pos)
 {
 
-	if (pos > ndi->nfsdi_addrcnt)
+	if (pos >= ndi->nfsdi_addrcnt)
 		return (NULL);
-	return (&ndi->nfsdi_data[pos * sizeof(struct sockaddr_storage)]);
+	return (&ndi->nfsdi_data[pos]);
 }
 
 /*
@@ -270,11 +269,13 @@ nfsfldi_addr(struct nfsclfldevinfo *ndi, int pos)
 static __inline int
 nfsfldi_stripeindex(struct nfsclfldevinfo *ndi, int pos)
 {
+	uint8_t *valp;
 
-	if (pos > ndi->nfsdi_stripecnt)
+	if (pos >= ndi->nfsdi_stripecnt)
 		return (-1);
-	return ((int)ndi->nfsdi_data[pos + ndi->nfsdi_addrcnt *
-	    sizeof(struct sockaddr_storage)]);
+	valp = (uint8_t *)&ndi->nfsdi_data[ndi->nfsdi_addrcnt];
+	valp += pos;
+	return ((int)*valp);
 }
 
 /*
@@ -283,25 +284,13 @@ nfsfldi_stripeindex(struct nfsclfldevinfo *ndi, int pos)
 static __inline void
 nfsfldi_setstripeindex(struct nfsclfldevinfo *ndi, int pos, uint8_t val)
 {
+	uint8_t *valp;
 
-	if (pos > ndi->nfsdi_stripecnt)
+	if (pos >= ndi->nfsdi_stripecnt)
 		return;
-	ndi->nfsdi_data[pos + ndi->nfsdi_addrcnt *
-	    sizeof(struct sockaddr_storage)] = val;
-}
-
-/*
- * Return a pointer to the address referred to by stripe index "pos".
- */
-static __inline void *
-nfsfldi_stripeaddr(struct nfsclfldevinfo *ndi, int pos)
-{
-	int i;
-
-	i = nfsfldi_stripeindex(ndi, pos);
-	if (i < 0)
-		return (NULL);
-	return (nfsfldi_addr(ndi, i));
+	valp = (uint8_t *)&ndi->nfsdi_data[ndi->nfsdi_addrcnt];
+	valp += pos;
+	*valp = val;
 }
 
 /*

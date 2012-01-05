@@ -4652,8 +4652,9 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		 * Now we know how many stripe indices and addresses, so
 		 * we can allocate the structure the correct size.
 		 */
-		ndi = malloc(sizeof(*ndi) + addrcnt *
-		    sizeof(struct sockaddr_storage) + stripecnt - 1,
+		i = stripecnt / sizeof(struct sockaddr_storage) + 1;
+		ndi = malloc(sizeof(*ndi) + (addrcnt + i - 1) *
+		    sizeof(struct sockaddr_storage),
 		    M_NFSDEVINFO, M_WAITOK);
 		NFSBCOPY(deviceid, ndi->nfsdi_deviceid, NFSX_V4DEVICEID);
 		ndi->nfsdi_stripecnt = stripecnt;
