@@ -249,9 +249,15 @@ typedef void if_init_f_t(void *);
 #define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_mtx,		\
 				    "if_addr_mtx", NULL, MTX_DEF)
 #define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_mtx)
-#define	IF_ADDR_LOCK(if)	mtx_lock(&(if)->if_addr_mtx)
-#define	IF_ADDR_UNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
+#define	IF_ADDR_WLOCK(if)	mtx_lock(&(if)->if_addr_mtx)
+#define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
+#define	IF_ADDR_RLOCK(if)	mtx_lock(&(if)->if_addr_mtx)
+#define	IF_ADDR_RUNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
 #define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
+#define	IF_ADDR_WLOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
+/* XXX: Compat. */
+#define	IF_ADDR_LOCK(if)	IF_ADDR_WLOCK(if)
+#define	IF_ADDR_UNLOCK(if)	IF_ADDR_WUNLOCK(if)
 
 /*
  * Function variations on locking macros intended to be used by loadable
