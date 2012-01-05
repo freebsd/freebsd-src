@@ -1,5 +1,0 @@
-# $FreeBSD$
-cat /dev/null
-hash
-hash -r
-hash

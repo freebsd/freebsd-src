@@ -1,5 +1,0 @@
-{
-	global:
-		openib_driver_init;
-	local: *;
-};

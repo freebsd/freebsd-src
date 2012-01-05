@@ -1,4 +1,0 @@
-#! /bin/csh
-# $FreeBSD$
-
-echo succeeded

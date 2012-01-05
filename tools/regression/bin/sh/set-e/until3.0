@@ -1,9 +1,0 @@
-# $FreeBSD$
-set -e
-f() {
-	until false; do
-		false
-		break
-	done
-}
-f || true

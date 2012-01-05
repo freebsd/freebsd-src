@@ -1,3 +1,0 @@
-provider tester {
-	probe entry();
-};

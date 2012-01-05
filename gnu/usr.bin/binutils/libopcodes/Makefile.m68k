@@ -1,6 +1,0 @@
-#
-# $FreeBSD$
-#
-
-SRCS+=		m68k-dis.c m68k-opc.c
-CFLAGS+=	-DARCH_m68k

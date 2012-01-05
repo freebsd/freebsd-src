@@ -1,3 +1,0 @@
-# $FreeBSD$
-
-SSP_CFLAGS=
