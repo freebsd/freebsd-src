@@ -259,7 +259,7 @@ Usage: %s [-dEiInv] [-s subject] [-c cc-addr] [-b bcc-addr] [-F] to-addr ...\n\
 		if (ef == NULL)
 			ef = "%";
 		if (setfile(ef) <= 0)
-			/* Either an error has occurted, or no mail */
+			/* Either an error has occurred, or no mail */
 			exit(1);
 		else
 			exit(0);
