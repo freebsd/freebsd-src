@@ -448,6 +448,11 @@ int nfsrpc_layoutget(vnode_t, int, uint64_t, uint64_t, uint64_t,
     struct nfscllayout *, struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
     struct nfsclfldevinfo **, struct ucred *, NFSPROC_T *);
+int nfsrpc_layoutcommit(vnode_t, off_t, uint64_t, int, nfsv4stateid_t *, int,
+    off_t, int, struct timespec, int, int, uint8_t *, int *, uint64_t *,
+    struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_layoutreturn(vnode_t, int, int, int, int, off_t, uint64_t,
+    nfsv4stateid_t *, int, uint32_t *, struct ucred *, NFSPROC_T *, void *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,

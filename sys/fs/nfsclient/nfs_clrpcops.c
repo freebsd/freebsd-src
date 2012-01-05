@@ -4735,3 +4735,143 @@ nfsmout:
 	return (error);
 }
 
+/*
+ * Do the NFSv4.1 LayoutCommit.
+ */
+int
+nfsrpc_layoutcommit(vnode_t vp, off_t offset, uint64_t len, int reclaim,
+    nfsv4stateid_t *stateidp, int newoff, off_t newoffset, int newtime,
+    struct timespec newtimespec, int layouttype, int layoutupdatecnt,
+    uint8_t *layp, int *sizechangedp, uint64_t *newsizep, struct ucred *cred,
+    NFSPROC_T *p, void *stuff)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	int error, outcnt, i;
+	uint8_t *cp;
+
+	NFSCL_REQSTART(nd, NFSPROC_LAYOUTCOMMIT, vp);
+	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED + 2 * NFSX_HYPER +
+	    NFSX_STATEID);
+	txdr_hyper(offset, tl);
+	tl += 2;
+	txdr_hyper(len, tl);
+	tl += 2;
+	if (reclaim != 0)
+		*tl++ = newnfs_true;
+	else
+		*tl++ = newnfs_false;
+	*tl++ = stateidp->seqid;
+	*tl++ = stateidp->other[0];
+	*tl++ = stateidp->other[1];
+	*tl++ = stateidp->other[2];
+	if (newoff != 0) {
+		*tl = newnfs_true;
+		NFSM_BUILD(tl, uint32_t *, NFSX_HYPER);
+		txdr_hyper(newoffset, tl);
+	} else
+		*tl = newnfs_false;
+	if (newtime != 0) {
+		NFSM_BUILD(tl, uint32_t *, NFSX_V4SETTIME + 2 * NFSX_UNSIGNED);
+		*tl++ = newnfs_true;
+		txdr_nfsv4time(&newtimespec, tl);
+		tl += NFSX_V4TIME / NFSX_UNSIGNED;
+	} else {
+		NFSM_BUILD(tl, uint32_t *, 3 * NFSX_UNSIGNED);
+		*tl++ = newnfs_false;
+	}
+	*tl++ = txdr_unsigned(layouttype);
+	*tl = txdr_unsigned(layoutupdatecnt);
+	if (layoutupdatecnt > 0) {
+		KASSERT(layouttype != NFSLAYOUT_NFSV4_1_FILES,
+		    ("Must be nil for Files Layout"));
+		outcnt = NFSM_RNDUP(layoutupdatecnt);
+		NFSM_BUILD(cp, uint8_t *, outcnt);
+		NFSBCOPY(layp, cp, layoutupdatecnt);
+		cp += layoutupdatecnt;
+		for (i = 0; i < (outcnt - layoutupdatecnt); i++)
+			*cp++ = 0x0;
+	}
+	nd->nd_flag |= ND_USEGSSNAME;
+	error = nfscl_request(nd, vp, p, cred, stuff);
+	if (error)
+		return (error);
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+		if (*tl != 0) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_HYPER);
+			*sizechangedp = 1;
+			*newsizep = fxdr_hyper(tl);
+		} else
+			*sizechangedp = 0;
+	} else
+		error = nd->nd_repstat;
+nfsmout:
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+/*
+ * Do the NFSv4.1 LayoutReturn.
+ */
+int
+nfsrpc_layoutreturn(vnode_t vp, int reclaim, int layouttype, int iomode,
+    int layoutreturn, off_t offset, uint64_t len, nfsv4stateid_t *stateidp,
+    int layoutcnt, uint32_t *layp,
+    struct ucred *cred, NFSPROC_T *p, void *stuff)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd, *nd = &nfsd;
+	int error, outcnt, i;
+	uint8_t *cp;
+
+	NFSCL_REQSTART(nd, NFSPROC_LAYOUTRETURN, vp);
+	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
+	if (reclaim != 0)
+		*tl++ = newnfs_true;
+	else
+		*tl++ = newnfs_false;
+	*tl++ = txdr_unsigned(layouttype);
+	*tl++ = txdr_unsigned(iomode);
+	*tl = txdr_unsigned(layoutreturn);
+	if (layoutreturn == NFSLAYOUTRETURN_FILE) {
+		NFSM_BUILD(tl, uint32_t *, 2 * NFSX_HYPER + NFSX_STATEID +
+		    NFSX_UNSIGNED);
+		txdr_hyper(offset, tl);
+		tl += 2;
+		txdr_hyper(len, tl);
+		tl += 2;
+		*tl++ = stateidp->seqid;
+		*tl++ = stateidp->other[0];
+		*tl++ = stateidp->other[1];
+		*tl++ = stateidp->other[2];
+		*tl = txdr_unsigned(layoutcnt);
+		if (layoutcnt > 0) {
+			outcnt = NFSM_RNDUP(layoutcnt);
+			NFSM_BUILD(cp, uint8_t *, outcnt);
+			NFSBCOPY(layp, cp, layoutcnt);
+			cp += layoutcnt;
+			for (i = 0; i < (outcnt - layoutcnt); i++)
+				*cp++ = 0x0;
+		}
+	}
+	nd->nd_flag |= ND_USEGSSNAME;
+	error = nfscl_request(nd, vp, p, cred, stuff);
+	if (error)
+		return (error);
+	if (nd->nd_repstat == 0) {
+		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+		if (*tl != 0) {
+			NFSM_DISSECT(tl, uint32_t *, NFSX_STATEID);
+			stateidp->seqid = *tl++;
+			stateidp->other[0] = *tl++;
+			stateidp->other[1] = *tl++;
+			stateidp->other[2] = *tl;
+		}
+	} else
+		error = nd->nd_repstat;
+nfsmout:
+	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
