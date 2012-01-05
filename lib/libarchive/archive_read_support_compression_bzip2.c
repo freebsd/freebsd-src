@@ -350,4 +350,4 @@ bzip2_filter_close(struct archive_read_filter *self)
 	return (ret);
 }
 
-#endif /* HAVE_BZLIB_H */
+#endif /* HAVE_BZLIB_H && BZ_CONFIG_ERROR */
