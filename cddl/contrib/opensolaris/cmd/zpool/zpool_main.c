@@ -21,6 +21,7 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  */
 
 #include <solaris.h>
@@ -221,7 +222,7 @@ get_usage(zpool_help_t idx) {
 	case HELP_OFFLINE:
 		return (gettext("\toffline [-t] <pool> <device> ...\n"));
 	case HELP_ONLINE:
-		return (gettext("\tonline <pool> <device> ...\n"));
+		return (gettext("\tonline [-e] <pool> <device> ...\n"));
 	case HELP_REPLACE:
 		return (gettext("\treplace [-f] <pool> <device> "
 		    "[new-device]\n"));
@@ -233,8 +234,7 @@ get_usage(zpool_help_t idx) {
 		return (gettext("\tstatus [-vx] [-T d|u] [pool] ... [interval "
 		    "[count]]\n"));
 	case HELP_UPGRADE:
-		return (gettext("\tupgrade\n"
-		    "\tupgrade -v\n"
+		return (gettext("\tupgrade [-v]\n"
 		    "\tupgrade [-V version] <-a | pool ...>\n"));
 	case HELP_GET:
 		return (gettext("\tget <\"all\" | property[,...]> "
@@ -2080,16 +2080,46 @@ print_vdev_stats(zpool_handle_t *zhp, const char *name, nvlist_t *oldnv,
 		return;
 
 	for (c = 0; c < children; c++) {
-		uint64_t ishole = B_FALSE;
+		uint64_t ishole = B_FALSE, islog = B_FALSE;
 
-		if (nvlist_lookup_uint64(newchild[c],
-		    ZPOOL_CONFIG_IS_HOLE, &ishole) == 0 && ishole)
+		(void) nvlist_lookup_uint64(newchild[c], ZPOOL_CONFIG_IS_HOLE,
+		    &ishole);
+
+		(void) nvlist_lookup_uint64(newchild[c], ZPOOL_CONFIG_IS_LOG,
+		    &islog);
+
+		if (ishole || islog)
 			continue;
 
 		vname = zpool_vdev_name(g_zfs, zhp, newchild[c], B_FALSE);
 		print_vdev_stats(zhp, vname, oldnv ? oldchild[c] : NULL,
 		    newchild[c], cb, depth + 2);
 		free(vname);
+	}
+
+	/*
+	 * Log device section
+	 */
+
+	if (num_logs(newnv) > 0) {
+		(void) printf("%-*s      -      -      -      -      -      "
+		    "-\n", cb->cb_namewidth, "logs");
+
+		for (c = 0; c < children; c++) {
+			uint64_t islog = B_FALSE;
+			(void) nvlist_lookup_uint64(newchild[c],
+			    ZPOOL_CONFIG_IS_LOG, &islog);
+
+			if (islog) {
+				vname = zpool_vdev_name(g_zfs, zhp, newchild[c],
+				    B_FALSE);
+				print_vdev_stats(zhp, vname, oldnv ?
+				    oldchild[c] : NULL, newchild[c],
+				    cb, depth + 2);
+				free(vname);
+			}
+		}
+
 	}
 
 	/*
@@ -3439,10 +3469,16 @@ print_dedup_stats(nvlist_t *config)
 	 * table continue processing the stats.
 	 */
 	if (nvlist_lookup_uint64_array(config, ZPOOL_CONFIG_DDT_OBJ_STATS,
-	    (uint64_t **)&ddo, &c) != 0 || ddo->ddo_count == 0)
+	    (uint64_t **)&ddo, &c) != 0)
 		return;
 
 	(void) printf("\n");
+	(void) printf(gettext(" dedup: "));
+	if (ddo->ddo_count == 0) {
+		(void) printf(gettext("no DDT entries\n"));
+		return;
+	}
+
 	(void) printf("DDT entries %llu, size %llu on disk, %llu in core\n",
 	    (u_longlong_t)ddo->ddo_count,
 	    (u_longlong_t)ddo->ddo_dspace,
