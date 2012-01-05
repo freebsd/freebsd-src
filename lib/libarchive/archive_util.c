@@ -155,6 +155,7 @@ archive_clear_error(struct archive *a)
 {
 	archive_string_empty(&a->error_string);
 	a->error = NULL;
+	a->archive_error_number = 0;
 }
 
 void

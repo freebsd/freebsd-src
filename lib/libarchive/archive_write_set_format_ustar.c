@@ -168,7 +168,7 @@ archive_write_set_format_ustar(struct archive *_a)
 
 	/* Basic internal sanity test. */
 	if (sizeof(template_header) != 512) {
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Internal: template_header wrong size: %d should be 512", sizeof(template_header));
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC, "Internal: template_header wrong size: %d should be 512", (int)sizeof(template_header));
 		return (ARCHIVE_FATAL);
 	}
 
