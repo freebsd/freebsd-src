@@ -61,7 +61,7 @@ In addition, they are able to accept and generate inter-processor interrupts
 I/O APICs contain a redirection table, which is used to route the interrupts
 they receive from peripheral buses to one or more local APICs.
 .Pp
-Each local APIC includes one 32-bit programable timer.
+Each local APIC includes one 32-bit programmable timer.
 This driver uses them to supply kernel with one event timer named "LAPIC".
 Event timer provided by the driver supports both one-shot an periodic modes.
 Because of local APIC nature it is per-CPU.

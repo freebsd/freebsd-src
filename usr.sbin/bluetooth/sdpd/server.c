@@ -334,7 +334,7 @@ server_accept_client(server_p srv, int32_t fd)
 		 * The minimum L2CAP MTU is 43 bytes. That means we need
 		 * 65536 / 43 = ~1524 chunks to transfer maximum packet
 		 * size with minimum MTU. The "rsp_cs" field in fd_idx_t
-		 * is 11 bit wide that gives us up to 2048 chunks.
+		 * is 11 bits wide, which gives us up to 2048 chunks.
 		 */
 
 		if (omtu < NG_L2CAP_MTU_MINIMUM) {

@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1990, 1993
+ * Copyright (c) 1988, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -27,35 +27,27 @@
  * SUCH DAMAGE.
  */
 
-#if defined(LIBC_SCCS) && !defined(lint)
-static char sccsid[] = "@(#)index.c	8.1 (Berkeley) 6/4/93";
-#endif /* LIBC_SCCS and not lint */
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <stddef.h>
-
-#ifdef STRCHR
-#include <string.h>
+#include <sys/param.h>
+#include <sys/libkern.h>
 
 char *
-strchr
-#else
-#include <strings.h>
-
-char *
-index
-#endif
-(const char *p, int ch)
+strrchr(const char *p, int ch)
 {
-	char c;
+	union {
+		const char *cp;
+		char *p;
+	} u;
+	char *save;
 
-	c = ch;
-	for (;; ++p) {
-		if (*p == c)
-			return ((char *)p);
-		if (*p == '\0')
-			return (NULL);
+	u.cp = p;
+	for (save = NULL;; ++u.p) {
+		if (*u.p == ch)
+			save = u.p;
+		if (*u.p == '\0')
+			return(save);
 	}
 	/* NOTREACHED */
 }

@@ -363,7 +363,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		ifa_ref(&ia->ia_ifa);
 	IN_IFADDR_RUNLOCK();
 	if (ia == NULL) {
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			iap = ifatoia(ifa);
 			if (iap->ia_addr.sin_family == AF_INET) {
@@ -377,7 +377,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		}
 		if (ia != NULL)
 			ifa_ref(&ia->ia_ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 	if (ia == NULL)
 		iaIsFirst = 1;
@@ -441,9 +441,9 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 			ia->ia_ifp = ifp;
 
 			ifa_ref(ifa);			/* if_addrhead */
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_WLOCK(ifp);
 			TAILQ_INSERT_TAIL(&ifp->if_addrhead, ifa, ifa_link);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_WUNLOCK(ifp);
 			ifa_ref(ifa);			/* in_ifaddrhead */
 			IN_IFADDR_WLOCK();
 			TAILQ_INSERT_TAIL(&V_in_ifaddrhead, ia, ia_link);
@@ -622,7 +622,7 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 	if (ia->ia_ifa.ifa_carp)
 		(*carp_detach_p)(&ia->ia_ifa);
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	/* Re-check that ia is still part of the list. */
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa == &ia->ia_ifa)
@@ -634,12 +634,12 @@ in_control(struct socket *so, u_long cmd, caddr_t data, struct ifnet *ifp,
 		 * try it again for the next loop as there is no other exit
 		 * path between here and out.
 		 */
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		error = EADDRNOTAVAIL;
 		goto out;
 	}
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);				/* if_addrhead */
 
 	IN_IFADDR_WLOCK();
@@ -735,7 +735,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		if (iflr->flags & IFLR_PREFIX)
 			return (EINVAL);
 
-		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR_IN6). */
+		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR). */
 		bzero(&ifra, sizeof(ifra));
 		bcopy(iflr->iflr_name, ifra.ifra_name,
 			sizeof(ifra.ifra_name));
@@ -784,16 +784,21 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)	{
-			if (ifa->ifa_addr->sa_family != AF_INET6)
+			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (match.s_addr == 0)
 				break;
-			candidate.s_addr = ((struct sockaddr_in *)&ifa->ifa_addr)->sin_addr.s_addr;
+			sin = (struct sockaddr_in *)&ifa->ifa_addr;
+			candidate.s_addr = sin->sin_addr.s_addr;
 			candidate.s_addr &= mask.s_addr;
 			if (candidate.s_addr == match.s_addr)
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_RUNLOCK(ifp);
 		if (ifa == NULL)
 			return (EADDRNOTAVAIL);
 		ia = (struct in_ifaddr *)ifa;
@@ -812,12 +817,13 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 				in_mask2len(&ia->ia_sockmask.sin_addr);
 
 			iflr->flags = 0;	/*XXX*/
+			ifa_free(ifa);
 
 			return (0);
 		} else {
 			struct in_aliasreq ifra;
 
-			/* fill in_aliasreq and do ioctl(SIOCDIFADDR_IN6) */
+			/* fill in_aliasreq and do ioctl(SIOCDIFADDR) */
 			bzero(&ifra, sizeof(ifra));
 			bcopy(iflr->iflr_name, ifra.ifra_name,
 				sizeof(ifra.ifra_name));
@@ -830,6 +836,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 			bcopy(&ia->ia_sockmask, &ifra.ifra_dstaddr,
 				ia->ia_sockmask.sin_len);
+			ifa_free(ifa);
 
 			return (in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
 			    ifp, td));
@@ -1295,7 +1302,7 @@ in_purgemaddrs(struct ifnet *ifp)
 	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
 	 * by code further down.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET ||
 		    ifma->ifma_protospec == NULL)
@@ -1307,7 +1314,7 @@ in_purgemaddrs(struct ifnet *ifp)
 		inm = (struct in_multi *)ifma->ifma_protospec;
 		LIST_INSERT_HEAD(&purgeinms, inm, inm_link);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	LIST_FOREACH_SAFE(inm, &purgeinms, inm_link, tinm) {
 		LIST_REMOVE(inm, inm_link);

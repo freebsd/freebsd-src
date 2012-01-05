@@ -716,9 +716,9 @@ in6m_lookup(struct ifnet *ifp, const struct in6_addr *mcaddr)
 	struct in6_multi *inm;
 
 	IN6_MULTI_LOCK();
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	inm = in6m_lookup_locked(ifp, mcaddr);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	IN6_MULTI_UNLOCK();
 
 	return (inm);
@@ -791,8 +791,7 @@ void	in6_ifremloop(struct ifaddr *);
 void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
-struct inpcb;
-int in6_src_ioctl __P((u_long, caddr_t));
+int	in6_src_ioctl __P((u_long, caddr_t));
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */

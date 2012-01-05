@@ -106,13 +106,13 @@ enum memory_order {
 
 #if defined(__CLANG_ATOMICS)
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
-#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory");
+#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory")
 #elif defined(__GNUC_ATOMICS)
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
 #define	atomic_signal_fence(order)	__atomic_signal_fence(order)
 #else
 #define	atomic_thread_fence(order)	__sync_synchronize()
-#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory");
+#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory")
 #endif
 
 /*

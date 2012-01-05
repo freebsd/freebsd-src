@@ -978,9 +978,9 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		ia->ia_ifa.ifa_netmask = (struct sockaddr *)&ia->ia_prefixmask;
 		ia->ia_ifp = ifp;
 		ifa_ref(&ia->ia_ifa);			/* if_addrhead */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_WLOCK(ifp);
 		TAILQ_INSERT_TAIL(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 
 		ifa_ref(&ia->ia_ifa);			/* in6_ifaddrhead */
 		IN6_IFADDR_WLOCK();
@@ -1325,7 +1325,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	struct sockaddr_in6 mltaddr, mltmask;
 	int plen, error;
 	struct rtentry *rt;
-	struct ifaddr *ifa0, *nifa;
+	struct ifaddr *ifa0;
 
 	if (ifa->ifa_carp)
 		(*carp_detach_p)(ifa);
@@ -1335,8 +1335,8 @@ in6_purgeaddr(struct ifaddr *ifa)
 	 * link-local and node-local all-nodes multicast
 	 * address routes
 	 */
-	IF_ADDR_LOCK(ifp);
-	TAILQ_FOREACH_SAFE(ifa0, &ifp->if_addrhead, ifa_link, nifa) {
+	IF_ADDR_RLOCK(ifp);
+	TAILQ_FOREACH(ifa0, &ifp->if_addrhead, ifa_link) {
 		if ((ifa0->ifa_addr->sa_family != AF_INET6) ||
 		    memcmp(&satosin6(ifa0->ifa_addr)->sin6_addr,
 			   &ia->ia_addr.sin6_addr, 
@@ -1347,7 +1347,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	}
 	if (ifa0 != NULL)
 		ifa_ref(ifa0);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	/*
 	 * Remove the loopback route to the interface address.
@@ -1517,9 +1517,9 @@ in6_unlink_ifa(struct in6_ifaddr *ia, struct ifnet *ifp)
 {
 	int	s = splnet();
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_WLOCK(ifp);
 	TAILQ_REMOVE(&ifp->if_addrhead, &ia->ia_ifa, ifa_link);
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_WUNLOCK(ifp);
 	ifa_free(&ia->ia_ifa);			/* if_addrhead */
 
 	/*
@@ -1746,7 +1746,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != AF_INET6)
 				continue;
@@ -1767,7 +1767,9 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (IN6_ARE_ADDR_EQUAL(&candidate, &match))
 				break;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_RUNLOCK(ifp);
 		if (!ifa)
 			return EADDRNOTAVAIL;
 		ia = ifa2ia6(ifa);
@@ -1779,16 +1781,20 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			bcopy(&ia->ia_addr, &iflr->addr, ia->ia_addr.sin6_len);
 			error = sa6_recoverscope(
 			    (struct sockaddr_in6 *)&iflr->addr);
-			if (error != 0)
+			if (error != 0) {
+				ifa_free(ifa);
 				return (error);
+			}
 
 			if ((ifp->if_flags & IFF_POINTOPOINT) != 0) {
 				bcopy(&ia->ia_dstaddr, &iflr->dstaddr,
 				    ia->ia_dstaddr.sin6_len);
 				error = sa6_recoverscope(
 				    (struct sockaddr_in6 *)&iflr->dstaddr);
-				if (error != 0)
+				if (error != 0) {
+					ifa_free(ifa);
 					return (error);
+				}
 			} else
 				bzero(&iflr->dstaddr, sizeof(iflr->dstaddr));
 
@@ -1796,6 +1802,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL);
 
 			iflr->flags = ia->ia6_flags;	/* XXX */
+			ifa_free(ifa);
 
 			return 0;
 		} else {
@@ -1819,6 +1826,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			    ia->ia_prefixmask.sin6_len);
 
 			ifra.ifra_flags = ia->ia6_flags;
+			ifa_free(ifa);
 			return in6_control(so, SIOCDIFADDR_IN6, (caddr_t)&ifra,
 			    ifp, td);
 		}
@@ -1845,13 +1853,13 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	 * if this is its first address,
 	 * and to validate the address if necessary.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
 		ifacount++;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	ia->ia_addr = *sin6;
 
@@ -1922,7 +1930,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 {
 	struct ifaddr *ifa;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1934,7 +1942,7 @@ in6ifa_ifpforlinklocal(struct ifnet *ifp, int ignoreflags)
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -1949,7 +1957,7 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 {
 	struct ifaddr *ifa;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -1958,7 +1966,7 @@ in6ifa_ifpwithaddr(struct ifnet *ifp, struct in6_addr *addr)
 			break;
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return ((struct in6_ifaddr *)ifa);
 }
@@ -2199,7 +2207,7 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	 * If two or more, return one which matches the dst longest.
 	 * If none, return one of global addresses assigned other ifs.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2233,12 +2241,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 	}
 	if (besta) {
 		ifa_ref(&besta->ia_ifa);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return (besta);
 	}
-	IF_ADDR_UNLOCK(ifp);
 
-	IN6_IFADDR_RLOCK();
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2256,10 +2262,10 @@ in6_ifawithifp(struct ifnet *ifp, struct in6_addr *dst)
 
 		if (ifa != NULL)
 			ifa_ref(ifa);
-		IN6_IFADDR_RUNLOCK();
+		IF_ADDR_RUNLOCK(ifp);
 		return (struct in6_ifaddr *)ifa;
 	}
-	IN6_IFADDR_RUNLOCK();
+	IF_ADDR_RUNLOCK(ifp);
 
 	/* use the last-resort values, that are, deprecated addresses */
 	if (dep[0])
@@ -2279,7 +2285,7 @@ in6_if_up(struct ifnet *ifp)
 	struct ifaddr *ifa;
 	struct in6_ifaddr *ia;
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_INET6)
 			continue;
@@ -2295,7 +2301,7 @@ in6_if_up(struct ifnet *ifp)
 			    arc4random() % (MAX_RTR_SOLICITATION_DELAY * hz));
 		}
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	/*
 	 * special cases, like 6to4, are handled in in6_ifattach

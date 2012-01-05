@@ -1,11 +1,6 @@
-/*	$NetBSD: index.S,v 1.8 2005/04/22 06:59:00 simonb Exp $	*/
-
 /*-
- * Copyright (c) 1991, 1993
- *	The Regents of the University of California.  All rights reserved.
- *
- * This code is derived from software contributed to Berkeley by
- * Ralph Campbell.
+ * Copyright (c) 2010-2012 Aleksandr Rybalko
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -15,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -32,28 +24,50 @@
  * SUCH DAMAGE.
  */
 
-#include <machine/asm.h>
-__FBSDID("$FreeBSD$");
+#ifndef __FREEBSD_XZ_CONFIG_H__
+#define __FREEBSD_XZ_CONFIG_H__
 
-#if defined(LIBC_SCCS) && !defined(lint)
-	ASMSTR("from: @(#)index.s	8.1 (Berkeley) 6/4/93")
-	ASMSTR("$NetBSD: index.S,v 1.8 2005/04/22 06:59:00 simonb Exp $")
-#endif /* LIBC_SCCS and not lint */
+#include <sys/param.h>
+#include <sys/endian.h>
+#include <sys/types.h>
+#include <sys/systm.h>
 
-#ifdef __ABICALLS__
-	.abicalls
+#include <contrib/xz-embedded/linux/include/linux/xz.h>
+#include "xz_malloc.h"
+
+#define	XZ_DEC_SINGLE	1
+#define	XZ_PREBOOT	1
+
+#undef	XZ_EXTERN
+#define	XZ_EXTERN	extern
+
+#undef	STATIC
+#define	STATIC
+
+#undef	INIT
+#define	INIT
+
+#undef	bool
+#undef	true
+#undef	false
+#define	bool	int
+#define	true	1
+#define	false	0
+
+#define	kmalloc(size, flags)	xz_malloc(size)
+#define	kfree(ptr)		xz_free(ptr)
+#define	vmalloc(size)		xz_malloc(size)
+#define	vfree(ptr)		xz_free(ptr)
+
+#define	memeq(a, b, size)	(memcmp((a), (b), (size)) == 0)
+#define	memzero(buf, size)	bzero((buf), (size))
+
+#ifndef min
+#	define min(x, y)	MIN((x), (y))
 #endif
 
-LEAF(index)
-1:
-	lbu		a2, 0(a0)		# get a byte
-	PTR_ADDU	a0, a0, 1
-	beq		a2, a1, fnd
-	bne		a2, zero, 1b
-notfnd:
-	move		v0, zero
-	j		ra
-fnd:
-	PTR_SUBU	v0, a0, 1
-	j		ra
-END(index)
+#define	min_t(type, x, y)	min((x), (y))
+
+#define	get_le32(ptr)	le32toh(*(const uint32_t *)(ptr))
+
+#endif /* __FREEBSD_XZ_CONFIG_H__ */

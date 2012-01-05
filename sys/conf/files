@@ -50,7 +50,7 @@ aic79xx_reg_print.c	optional ahd pci				   \
 aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional snd_emu10k1 | snd_emu10kx	   \
+emu10k1-alsa%diked.h		optional snd_emu10kx	   \
 	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
 	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
 	no-obj no-implicit-rule before-depend				   \
@@ -1732,9 +1732,7 @@ dev/sound/pci/csa.c		optional snd_csa pci \
 	warning "kernel contains GPL contaminated csaimg.h header"
 dev/sound/pci/csapcm.c		optional snd_csa pci
 dev/sound/pci/ds1.c		optional snd_ds1 pci
-dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci \
-	dependency "emu10k1-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10k1 headers"
+dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci
 dev/sound/pci/emu10kx.c		optional snd_emu10kx pci \
 	dependency "emu10k1-alsa%diked.h" \
 	dependency "p16v-alsa%diked.h" \
@@ -2268,6 +2266,22 @@ geom/raid3/g_raid3.c		optional geom_raid3
 geom/raid3/g_raid3_ctl.c	optional geom_raid3
 geom/shsec/g_shsec.c		optional geom_shsec
 geom/stripe/g_stripe.c		optional geom_stripe
+geom/uncompress/g_uncompress.c	optional geom_uncompress
+contrib/xz-embedded/freebsd/xz_malloc.c	\
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_crc32.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_bcj.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_lzma2.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
+contrib/xz-embedded/linux/lib/xz/xz_dec_stream.c \
+	optional xz_embedded | geom_uncompress \
+	compile-with "${NORMAL_C} -I$S/contrib/xz-embedded/freebsd/ -I$S/contrib/xz-embedded/linux/lib/xz/ -I$S/contrib/xz-embedded/linux/include/linux/"
 geom/uzip/g_uzip.c		optional geom_uzip
 geom/virstor/binstream.c	optional geom_virstor
 geom/virstor/g_virstor.c	optional geom_virstor
@@ -2551,21 +2565,20 @@ libkern/iconv_converter_if.m	optional libiconv
 libkern/iconv_ucs.c		optional libiconv
 libkern/iconv_xlat.c		optional libiconv
 libkern/iconv_xlat16.c		optional libiconv
-libkern/index.c			standard
 libkern/inet_aton.c		standard
 libkern/inet_ntoa.c		standard
 libkern/inet_ntop.c		standard
 libkern/inet_pton.c		standard
 libkern/mcount.c		optional profiling-routine
+libkern/memcchr.c		standard
 libkern/memcmp.c		standard
 libkern/qsort.c			standard
 libkern/qsort_r.c		standard
 libkern/random.c		standard
-libkern/rindex.c		standard
 libkern/scanc.c			standard
-libkern/skpc.c			standard
 libkern/strcasecmp.c		standard
 libkern/strcat.c		standard
+libkern/strchr.c		standard
 libkern/strcmp.c		standard
 libkern/strcpy.c		standard
 libkern/strcspn.c		standard
@@ -2576,6 +2589,7 @@ libkern/strlen.c		standard
 libkern/strncmp.c		standard
 libkern/strncpy.c		standard
 libkern/strnlen.c		standard
+libkern/strrchr.c		standard
 libkern/strsep.c		standard
 libkern/strspn.c		standard
 libkern/strstr.c		standard
@@ -2638,7 +2652,7 @@ net/slcompress.c		optional netgraph_vjc | sppp | \
 net/vnet.c			optional vimage
 net/zlib.c			optional crypto | geom_uzip | ipsec | \
 					 mxge | netgraph_deflate | \
-					 ddb_ctf | gzio
+					 ddb_ctf | gzio | geom_uncompress
 net80211/ieee80211.c		optional wlan
 net80211/ieee80211_acl.c	optional wlan wlan_acl
 net80211/ieee80211_action.c	optional wlan
