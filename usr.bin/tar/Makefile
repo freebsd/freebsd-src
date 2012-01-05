@@ -2,7 +2,7 @@
 .include <bsd.own.mk>
 
 PROG=	bsdtar
-BSDTAR_VERSION_STRING=2.8.4
+BSDTAR_VERSION_STRING=2.8.5
 SRCS=	bsdtar.c	\
 	cmdline.c	\
 	getdate.c	\
