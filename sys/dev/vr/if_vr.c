@@ -309,7 +309,7 @@ vr_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	sc->vr_flags &= ~VR_F_LINK;
+	sc->vr_flags &= ~(VR_F_LINK | VR_F_TXPAUSE);
 	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
 	    (IFM_ACTIVE | IFM_AVALID)) {
 		switch (IFM_SUBTYPE(mii->mii_media_active)) {
@@ -346,7 +346,6 @@ vr_miibus_statchg(device_t dev)
 			CSR_WRITE_1(sc, VR_CR1, cr1);
 		}
 		fc = 0;
-#ifdef notyet
 		/* Configure flow-control. */
 		if (sc->vr_revid >= REV_ID_VT6105_A0) {
 			fc = CSR_READ_1(sc, VR_FLOWCR1);
@@ -355,8 +354,10 @@ vr_miibus_statchg(device_t dev)
 			    IFM_ETH_RXPAUSE) != 0)
 				fc |= VR_FLOWCR1_RXPAUSE;
 			if ((IFM_OPTIONS(mii->mii_media_active) &
-			    IFM_ETH_TXPAUSE) != 0)
+			    IFM_ETH_TXPAUSE) != 0) {
 				fc |= VR_FLOWCR1_TXPAUSE;
+				sc->vr_flags |= VR_F_TXPAUSE;
+			}
 			CSR_WRITE_1(sc, VR_FLOWCR1, fc);
 		} else if (sc->vr_revid >= REV_ID_VT6102_A) {
 			/* No Tx puase capability available for Rhine II. */
@@ -367,7 +368,6 @@ vr_miibus_statchg(device_t dev)
 				fc |= VR_MISCCR0_RXPAUSE;
 			CSR_WRITE_1(sc, VR_MISC_CR0, fc);
 		}
-#endif
 		vr_rx_start(sc);
 		vr_tx_start(sc);
 	} else {
@@ -770,7 +770,8 @@ vr_attach(device_t dev)
 	else
 		phy = CSR_READ_1(sc, VR_PHYADDR) & VR_PHYADDR_MASK;
 	error = mii_attach(dev, &sc->vr_miibus, ifp, vr_ifmedia_upd,
-	    vr_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, 0);
+	    vr_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY,
+	    sc->vr_revid >= REV_ID_VT6102_A ? MIIF_DOPAUSE : 0);
 	if (error != 0) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -1398,6 +1399,17 @@ vr_rxeof(struct vr_softc *sc)
 	}
 
 	if (prog > 0) {
+		/*
+		 * Let controller know how many number of RX buffers
+		 * are posted but avoid expensive register access if
+		 * TX pause capability was not negotiated with link
+		 * partner.
+		 */
+		if ((sc->vr_flags & VR_F_TXPAUSE) != 0) {
+			if (prog >= VR_RX_RING_CNT)
+				prog = VR_RX_RING_CNT - 1;
+			CSR_WRITE_1(sc, VR_FLOWCR0, prog);
+		}
 		sc->vr_cdata.vr_rx_cons = cons;
 		bus_dmamap_sync(sc->vr_cdata.vr_rx_ring_tag,
 		    sc->vr_cdata.vr_rx_ring_map,
@@ -2067,14 +2079,32 @@ vr_init_locked(struct vr_softc *sc)
 
 	/* Set flow-control parameters for Rhine III. */
 	if (sc->vr_revid >= REV_ID_VT6105_A0) {
- 		/* Rx buffer count available for incoming packet. */
-		CSR_WRITE_1(sc, VR_FLOWCR0, VR_RX_RING_CNT);
 		/*
-		 * Tx pause low threshold : 16 free receive buffers
-		 * Tx pause XON high threshold : 48 free receive buffers
+		 * Configure Rx buffer count available for incoming
+		 * packet.
+		 * Even though data sheet says almost nothing about
+		 * this register, this register should be updated
+		 * whenever driver adds new RX buffers to controller.
+		 * Otherwise, XON frame is not sent to link partner
+		 * even if controller has enough RX buffers and you
+		 * would be isolated from network.
+		 * The controller is not smart enough to know number
+		 * of available RX buffers so driver have to let
+		 * controller know how many RX buffers are posted.
+		 * In other words, this register works like a residue
+		 * counter for RX buffers and should be initialized
+		 * to the number of total RX buffers  - 1 before
+		 * enabling RX MAC.  Note, this register is 8bits so
+		 * it effectively limits the maximum number of RX
+		 * buffer to be configured by controller is 255.
+		 */
+		CSR_WRITE_1(sc, VR_FLOWCR0, VR_RX_RING_CNT - 1);
+		/*
+		 * Tx pause low threshold : 8 free receive buffers
+		 * Tx pause XON high threshold : 24 free receive buffers
 		 */
 		CSR_WRITE_1(sc, VR_FLOWCR1,
-		    VR_FLOWCR1_TXLO16 | VR_FLOWCR1_TXHI48 | VR_FLOWCR1_XONXOFF);
+		    VR_FLOWCR1_TXLO8 | VR_FLOWCR1_TXHI24 | VR_FLOWCR1_XONXOFF);
 		/* Set Tx pause timer. */
 		CSR_WRITE_2(sc, VR_PAUSETIMER, 0xffff);
 	}
@@ -2102,7 +2132,7 @@ vr_init_locked(struct vr_softc *sc)
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 
-	sc->vr_flags &= ~VR_F_LINK;
+	sc->vr_flags &= ~(VR_F_LINK | VR_F_TXPAUSE);
 	mii_mediachg(mii);
 
 	callout_reset(&sc->vr_stat_callout, hz, vr_tick, sc);
@@ -2124,6 +2154,7 @@ vr_ifmedia_upd(struct ifnet *ifp)
 	mii = device_get_softc(sc->vr_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		mii_phy_reset(miisc);
+	sc->vr_flags &= ~(VR_F_LINK | VR_F_TXPAUSE);
 	error = mii_mediachg(mii);
 	VR_UNLOCK(sc);
 
