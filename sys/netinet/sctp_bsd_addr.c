@@ -216,7 +216,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
-		IF_ADDR_LOCK(ifn);
+		IF_ADDR_RLOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
@@ -273,7 +273,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
-		IF_ADDR_UNLOCK(ifn);
+		IF_ADDR_RUNLOCK(ifn);
 	}
 	IFNET_RUNLOCK();
 }

@@ -745,7 +745,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ifp = ia->ia_ifp;
 		ifa_free(&ia->ia_ifa);
 		ia = NULL;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
@@ -759,10 +759,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -804,7 +804,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 */
 		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -817,10 +817,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -868,7 +868,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ifp = ia->ia_ifp;
 			ifa_free(&ia->ia_ifa);
 			ia = NULL;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
@@ -883,10 +883,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			}
 			if (ia != NULL) {
 				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				goto done;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */
