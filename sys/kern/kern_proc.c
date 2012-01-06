@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/lock.h>
 #include <sys/loginclass.h>
 #include <sys/malloc.h>
+#include <sys/mman.h>
 #include <sys/mount.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
@@ -75,6 +76,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/pmap.h>
 #include <vm/vm_map.h>
 #include <vm/vm_object.h>
+#include <vm/vm_page.h>
 #include <vm/uma.h>
 
 #ifdef COMPAT_FREEBSD32
@@ -1710,7 +1712,8 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 	    entry = entry->next) {
 		vm_object_t obj, tobj, lobj;
 		vm_offset_t addr;
-		int vfslocked;
+		vm_paddr_t locked_pa;
+		int vfslocked, mincoreinfo;
 
 		if (entry->eflags & MAP_ENTRY_IS_SUB_MAP)
 			continue;
@@ -1728,8 +1731,14 @@ sysctl_kern_proc_vmmap(SYSCTL_HANDLER_ARGS)
 		kve->kve_resident = 0;
 		addr = entry->start;
 		while (addr < entry->end) {
-			if (pmap_extract(map->pmap, addr))
+			locked_pa = 0;
+			mincoreinfo = pmap_mincore(map->pmap, addr, &locked_pa);
+			if (locked_pa != 0)
+				vm_page_unlock(PHYS_TO_VM_PAGE(locked_pa));
+			if (mincoreinfo & MINCORE_INCORE)
 				kve->kve_resident++;
+			if (mincoreinfo & MINCORE_SUPER)
+				kve->kve_flags |= KVME_FLAG_SUPER;
 			addr += PAGE_SIZE;
 		}
 
