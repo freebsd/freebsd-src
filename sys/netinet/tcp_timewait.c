@@ -242,7 +242,7 @@ tcp_twstart(struct tcpcb *tp)
 	/*
 	 * Recover last window size sent.
 	 */
-	if (SEQ_GE(tp->rcv_adv, tp->rcv_nxt))
+	if (SEQ_GEQ(tp->rcv_adv, tp->rcv_nxt))
 		tw->last_win = (tp->rcv_adv - tp->rcv_nxt) >> tp->rcv_scale;
 	else
 		tw->last_win = 0;
