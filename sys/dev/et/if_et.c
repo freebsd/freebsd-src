@@ -88,6 +88,8 @@ static int	et_probe(device_t);
 static int	et_attach(device_t);
 static int	et_detach(device_t);
 static int	et_shutdown(device_t);
+static int	et_suspend(device_t);
+static int	et_resume(device_t);
 
 static int	et_miibus_readreg(device_t, int, int);
 static int	et_miibus_writereg(device_t, int, int, int);
@@ -170,6 +172,8 @@ static device_method_t et_methods[] = {
 	DEVMETHOD(device_attach,	et_attach),
 	DEVMETHOD(device_detach,	et_detach),
 	DEVMETHOD(device_shutdown,	et_shutdown),
+	DEVMETHOD(device_suspend,	et_suspend),
+	DEVMETHOD(device_resume,	et_resume),
 
 	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
@@ -226,7 +230,7 @@ et_probe(device_t dev)
 	for (d = et_devices; d->desc != NULL; ++d) {
 		if (vid == d->vid && did == d->did) {
 			device_set_desc(dev, d->desc);
-			return (0);
+			return (BUS_PROBE_DEFAULT);
 		}
 	}
 	return (ENXIO);
@@ -244,6 +248,7 @@ et_attach(device_t dev)
 	sc->dev = dev;
 	mtx_init(&sc->sc_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
+	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
 
 	ifp = sc->ifp = if_alloc(IFT_ETHER);
 	if (ifp == NULL) {
@@ -335,10 +340,10 @@ et_attach(device_t dev)
 	ifp->if_init = et_init;
 	ifp->if_ioctl = et_ioctl;
 	ifp->if_start = et_start;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_capabilities = IFCAP_TXCSUM | IFCAP_VLAN_MTU;
 	ifp->if_capenable = ifp->if_capabilities;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC);
+	ifp->if_snd.ifq_drv_maxlen = ET_TX_NDESC - 1;
+	IFQ_SET_MAXLEN(&ifp->if_snd, ET_TX_NDESC - 1);
 	IFQ_SET_READY(&ifp->if_snd);
 
 	et_chip_attach(sc);
@@ -351,7 +356,9 @@ et_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, eaddr);
-	callout_init_mtx(&sc->sc_tick, &sc->sc_mtx, 0);
+
+	/* Tell the upper layer(s) we support long frames. */
+	ifp->if_hdrlen = sizeof(struct ether_vlan_header);
 
 	error = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_NET | INTR_MPSAFE,
 	    NULL, et_intr, sc, &sc->sc_irq_handle);
@@ -375,31 +382,27 @@ et_detach(device_t dev)
 	struct et_softc *sc = device_get_softc(dev);
 
 	if (device_is_attached(dev)) {
-		struct ifnet *ifp = sc->ifp;
-
+		ether_ifdetach(sc->ifp);
 		ET_LOCK(sc);
 		et_stop(sc);
-		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_handle);
 		ET_UNLOCK(sc);
-
-		ether_ifdetach(ifp);
+		callout_drain(&sc->sc_tick);
 	}
 
 	if (sc->sc_miibus != NULL)
 		device_delete_child(dev, sc->sc_miibus);
 	bus_generic_detach(dev);
 
-	if (sc->sc_irq_res != NULL) {
-		bus_release_resource(dev, SYS_RES_IRQ, sc->sc_irq_rid,
-				     sc->sc_irq_res);
-	}
+	if (sc->sc_irq_handle != NULL)
+		bus_teardown_intr(dev, sc->sc_irq_res, sc->sc_irq_handle);
+	if (sc->sc_irq_res != NULL)
+		bus_release_resource(dev, SYS_RES_IRQ,
+		    rman_get_rid(sc->sc_irq_res), sc->sc_irq_res);
 	if ((sc->sc_flags & ET_FLAG_MSI) != 0)
 		pci_release_msi(dev);
-
-	if (sc->sc_mem_res != NULL) {
-		bus_release_resource(dev, SYS_RES_MEMORY, sc->sc_mem_rid,
-				     sc->sc_mem_res);
-	}
+	if (sc->sc_mem_res != NULL)
+		bus_release_resource(dev, SYS_RES_MEMORY,
+		    rman_get_rid(sc->sc_mem_res), sc->sc_mem_res);
 
 	if (sc->ifp != NULL)
 		if_free(sc->ifp);
@@ -1257,12 +1260,13 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 static void
 et_start_locked(struct ifnet *ifp)
 {
-	struct et_softc *sc = ifp->if_softc;
+	struct et_softc *sc;
+	struct mbuf *m_head = NULL;
 	struct et_txbuf_data *tbd;
-	int trans;
+	int enq;
 
+	sc = ifp->if_softc;
 	ET_LOCK_ASSERT(sc);
-	tbd = &sc->sc_tx_data;
 
 	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0)
 		return;
@@ -1270,30 +1274,32 @@ et_start_locked(struct ifnet *ifp)
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
 		return;
 
-	trans = 0;
-	for (;;) {
-		struct mbuf *m;
-
-		if ((tbd->tbd_used + ET_NSEG_SPARE) > ET_TX_NDESC) {
+	tbd = &sc->sc_tx_data;
+	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
+		if (tbd->tbd_used + ET_NSEG_SPARE >= ET_TX_NDESC) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
 
-		IFQ_DEQUEUE(&ifp->if_snd, m);
-		if (m == NULL)
+		IFQ_DRV_DEQUEUE(&ifp->if_snd, m_head);
+		if (m_head == NULL)
 			break;
 
-		if (et_encap(sc, &m)) {
-			ifp->if_oerrors++;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		if (et_encap(sc, &m_head)) {
+			if (m_head == NULL) {
+				ifp->if_oerrors++;
+				break;
+			}
+			IFQ_DRV_PREPEND(&ifp->if_snd, m_head);
+			if (tbd->tbd_used > 0)
+				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			break;
 		}
-		trans = 1;
-
-		BPF_MTAP(ifp, m);
+		enq++;
+		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (trans)
+	if (enq > 0)
 		sc->watchdog_timer = 5;
 }
 
@@ -2454,4 +2460,30 @@ et_setup_rxdesc(struct et_rxbuf_data *rbd, int buf_idx, bus_addr_t paddr)
 
 	bus_dmamap_sync(rx_ring->rr_dtag, rx_ring->rr_dmap,
 			BUS_DMASYNC_PREWRITE);
+}
+
+static int
+et_suspend(device_t dev)
+{
+	struct et_softc *sc;
+
+	sc = device_get_softc(dev);
+	ET_LOCK(sc);
+	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+		et_stop(sc);
+	ET_UNLOCK(sc);
+	return (0);
+}
+
+static int
+et_resume(device_t dev)
+{
+	struct et_softc *sc;
+
+	sc = device_get_softc(dev);
+	ET_LOCK(sc);
+	if ((sc->ifp->if_flags & IFF_UP) != 0)
+		et_init_locked(sc);
+	ET_UNLOCK(sc);
+	return (0);
 }
