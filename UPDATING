@@ -10,6 +10,10 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 20120106:
+	A new VOP_ADVISE() was added to support posix_fadvise(2).  All
+	filesystem modules must be recompiled.
+
+20120106:
 	The interface of the VOP_VPTOCNP(9) changed, now the returned
 	vnode shall be referenced, previously it was required to be
 	only held.  All in-tree filesystems are converted.
