@@ -936,6 +936,7 @@
 529	AUE_NULL	UNIMPL	rctl_remove_rule
 530	AUE_NULL	STD	{ int posix_fallocate(int fd, \
 				    off_t offset, off_t len); }
-531	AUE_NULL	UNIMPL	posix_fadvise
+531	AUE_NULL	STD	{ int posix_fadvise(int fd, off_t offset, \
+				    off_t len, int advice); }
 ; Please copy any additions and changes to the following compatability tables:
 ; sys/compat/freebsd32/syscalls.master
