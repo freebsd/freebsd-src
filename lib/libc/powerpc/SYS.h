@@ -44,10 +44,8 @@
 	.align 2;						\
 2:	b	PIC_PLT(CNAME(HIDENAME(cerror)));		\
 ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(x);					\
-	.set	CNAME(x),CNAME(__CONCAT(__sys_,x));		\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
+	WEAK_ALIAS(x,__CONCAT(__sys_,x));			\
+	WEAK_ALIAS(__CONCAT(_,x),__CONCAT(__sys_,x));		\
 	_SYSCALL(x);						\
 	bso	2b
 
@@ -55,8 +53,7 @@ ENTRY(__CONCAT(__sys_,x));					\
 	.text;							\
 	.align 2;						\
 ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
+	WEAK_ALIAS(__CONCAT(_,x),__CONCAT(__sys_,x));		\
 	_SYSCALL(x);						\
 	bnslr;							\
 	b	PIC_PLT(CNAME(HIDENAME(cerror)))
@@ -66,10 +63,8 @@ ENTRY(__CONCAT(__sys_,x));					\
 	.align 2;						\
 2:	b	PIC_PLT(CNAME(HIDENAME(cerror)));		\
 ENTRY(__CONCAT(__sys_,x));					\
-	.weak	CNAME(x);					\
-	.set	CNAME(x),CNAME(__CONCAT(__sys_,x));		\
-	.weak	CNAME(__CONCAT(_,x));				\
-	.set	CNAME(__CONCAT(_,x)),CNAME(__CONCAT(__sys_,x));	\
+	WEAK_ALIAS(x,__CONCAT(__sys_,x));			\
+	WEAK_ALIAS(__CONCAT(_,x), __CONCAT(__sys_,x));		\
 	_SYSCALL(x);						\
 	bnslr;							\
 	b	PIC_PLT(CNAME(HIDENAME(cerror)))
