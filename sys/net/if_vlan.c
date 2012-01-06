@@ -872,10 +872,12 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 {
 	struct ifvlan *ifv;
 	struct ifnet *p;
-	int error;
+	int error, len, mcast;
 
 	ifv = ifp->if_softc;
 	p = PARENT(ifv);
+	len = m->m_pkthdr.len;
+	mcast = (m->m_flags & (M_MCAST | M_BCAST)) ? 1 : 0;
 
 	BPF_MTAP(ifp, m);
 
@@ -885,7 +887,7 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 */
 	if (!UP_AND_RUNNING(p)) {
 		m_freem(m);
-		ifp->if_collisions++;
+		ifp->if_oerrors++;
 		return (0);
 	}
 
@@ -941,9 +943,11 @@ vlan_transmit(struct ifnet *ifp, struct mbuf *m)
 	 * Send it, precisely as ether_output() would have.
 	 */
 	error = (p->if_transmit)(p, m);
-	if (!error)
+	if (!error) {
 		ifp->if_opackets++;
-	else
+		ifp->if_omcasts += mcast;
+		ifp->if_obytes += len;
+	} else
 		ifp->if_oerrors++;
 	return (error);
 }
