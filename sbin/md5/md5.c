@@ -44,6 +44,8 @@ __FBSDID("$FreeBSD$");
 int qflag;
 int rflag;
 int sflag;
+unsigned char* checkAgainst;
+int	checksFailed;
 
 typedef void (DIGEST_Init)(void *);
 typedef void (DIGEST_Update)(void *, const unsigned char *, size_t);
@@ -138,8 +140,13 @@ main(int argc, char *argv[])
  		digest = 0;
 
 	failed = 0;
-	while ((ch = getopt(argc, argv, "pqrs:tx")) != -1)
+	checkAgainst = NULL;
+	checksFailed = 0;
+	while ((ch = getopt(argc, argv, "c:pqrs:tx")) != -1)
 		switch (ch) {
+		case 'c':
+			checkAgainst = optarg;
+			break;
 		case 'p':
 			MDFilter(&Algorithm[digest], 1);
 			break;
@@ -173,12 +180,19 @@ main(int argc, char *argv[])
 				failed++;
 			} else {
 				if (qflag)
-					printf("%s\n", p);
+					printf("%s", p);
 				else if (rflag)
-					printf("%s %s\n", p, *argv);
+					printf("%s %s", p, *argv);
 				else
-					printf("%s (%s) = %s\n",
+					printf("%s (%s) = %s",
 					    Algorithm[digest].name, *argv, p);
+				if (checkAgainst && strcmp(checkAgainst,p))
+				{
+					checksFailed++;
+					if (!qflag)
+						printf(" [ Failed ]");
+				}
+				printf("\n");
 			}
 		} while (*++argv);
 	} else if (!sflag && (optind == 1 || qflag || rflag))
@@ -186,6 +200,8 @@ main(int argc, char *argv[])
 
 	if (failed != 0)
 		return (1);
+	if (checksFailed != 0)
+		return (2);
 
 	return (0);
 }
@@ -198,12 +214,20 @@ MDString(Algorithm_t *alg, const char *string)
 	size_t len = strlen(string);
 	char buf[HEX_DIGEST_LENGTH];
 
+	alg->Data(string,len,buf);
 	if (qflag)
-		printf("%s\n", alg->Data(string, len, buf));
+		printf("%s", buf);
 	else if (rflag)
-		printf("%s \"%s\"\n", alg->Data(string, len, buf), string);
+		printf("%s \"%s\"", buf, string);
 	else
-		printf("%s (\"%s\") = %s\n", alg->name, string, alg->Data(string, len, buf));
+		printf("%s (\"%s\") = %s", alg->name, string, buf);
+	if (checkAgainst && strcmp(buf,checkAgainst))
+	{
+		checksFailed++;
+		if (!qflag)
+			printf(" [ failed ]");
+	}
+	printf("\n");
 }
 /*
  * Measures the time to digest TEST_BLOCK_COUNT TEST_BLOCK_LEN-byte blocks.
