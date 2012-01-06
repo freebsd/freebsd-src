@@ -110,8 +110,6 @@ static int	et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS);
 static int	et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS);
 
 static void	et_intr(void *);
-static void	et_enable_intrs(struct et_softc *, uint32_t);
-static void	et_disable_intrs(struct et_softc *);
 static void	et_rxeof(struct et_softc *);
 static void	et_txeof(struct et_softc *);
 
@@ -144,13 +142,12 @@ static int	et_start_rxdma(struct et_softc *);
 static int	et_start_txdma(struct et_softc *);
 static int	et_stop_rxdma(struct et_softc *);
 static int	et_stop_txdma(struct et_softc *);
-static int	et_enable_txrx(struct et_softc *, int);
 static void	et_reset(struct et_softc *);
 static int	et_bus_config(struct et_softc *);
 static void	et_get_eaddr(device_t, uint8_t[]);
 static void	et_setmulti(struct et_softc *);
 static void	et_tick(void *);
-static void	et_setmedia(struct et_softc *);
+static void	et_stats_update(struct et_softc *);
 
 static const struct et_dev {
 	uint16_t	vid;
@@ -302,6 +299,9 @@ et_attach(device_t dev)
 		goto fail;
 	}
 
+	if (pci_get_device(dev) == PCI_PRODUCT_LUCENT_ET1310_FAST)
+		sc->sc_flags |= ET_FLAG_FASTETHER;
+
 	error = et_bus_config(sc);
 	if (error)
 		goto fail;
@@ -312,8 +312,6 @@ et_attach(device_t dev)
 		    ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE);
 
 	et_reset(sc);
-
-	et_disable_intrs(sc);
 
 	error = et_dma_alloc(sc);
 	if (error)
@@ -495,7 +493,89 @@ et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 static void
 et_miibus_statchg(device_t dev)
 {
-	et_setmedia(device_get_softc(dev));
+	struct et_softc *sc;
+	struct mii_data *mii;
+	struct ifnet *ifp;
+	uint32_t cfg1, cfg2, ctrl;
+	int i;
+
+	sc = device_get_softc(dev);
+
+	mii = device_get_softc(sc->sc_miibus);
+	ifp = sc->ifp;
+	if (mii == NULL || ifp == NULL ||
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		return;
+
+	sc->sc_flags &= ~ET_FLAG_LINK;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+			sc->sc_flags |= ET_FLAG_LINK;
+			break;
+		case IFM_1000_T:
+			if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+				sc->sc_flags |= ET_FLAG_LINK;
+			break;
+		}
+	}
+
+	/* XXX Stop TX/RX MAC? */
+	if ((sc->sc_flags & ET_FLAG_LINK) == 0)
+		return;
+
+	/* Program MACs with resolved speed/duplex/flow-control. */
+	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
+	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
+	cfg1 = CSR_READ_4(sc, ET_MAC_CFG1);
+	cfg1 &= ~(ET_MAC_CFG1_TXFLOW | ET_MAC_CFG1_RXFLOW |
+	    ET_MAC_CFG1_LOOPBACK);
+	cfg2 = CSR_READ_4(sc, ET_MAC_CFG2);
+	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
+	    ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
+	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
+	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
+	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
+
+	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T)
+		cfg2 |= ET_MAC_CFG2_MODE_GMII;
+	else {
+		cfg2 |= ET_MAC_CFG2_MODE_MII;
+		ctrl |= ET_MAC_CTRL_MODE_MII;
+	}
+
+	if (IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) {
+		cfg2 |= ET_MAC_CFG2_FDX;
+#ifdef notyet
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE)
+			cfg1 |= ET_MAC_CFG1_TXFLOW;
+		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE)
+			cfg1 |= ET_MAC_CFG1_RXFLOW;
+#endif
+	} else
+		ctrl |= ET_MAC_CTRL_GHDX;
+
+	CSR_WRITE_4(sc, ET_MAC_CTRL, ctrl);
+	CSR_WRITE_4(sc, ET_MAC_CFG2, cfg2);
+	cfg1 |= ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN;
+	CSR_WRITE_4(sc, ET_MAC_CFG1, cfg1);
+
+#define NRETRY	50
+
+	for (i = 0; i < NRETRY; ++i) {
+		cfg1 = CSR_READ_4(sc, ET_MAC_CFG1);
+		if ((cfg1 & (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN)) ==
+		    (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN))
+			break;
+		DELAY(100);
+	}
+	if (i == NRETRY)
+		if_printf(ifp, "can't enable RX/TX\n");
+	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
+
+#undef NRETRY
 }
 
 static int
@@ -526,10 +606,17 @@ et_ifmedia_upd(struct ifnet *ifp)
 static void
 et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 {
-	struct et_softc *sc = ifp->if_softc;
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
+	struct et_softc *sc;
+	struct mii_data *mii;
 
+	sc = ifp->if_softc;
 	ET_LOCK(sc);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		ET_UNLOCK(sc);
+		return;
+	}
+
+	mii = device_get_softc(sc->sc_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -544,16 +631,19 @@ et_stop(struct et_softc *sc)
 	ET_LOCK_ASSERT(sc);
 
 	callout_stop(&sc->sc_tick);
+	/* Disable interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
+
+	CSR_WRITE_4(sc, ET_MAC_CFG1, CSR_READ_4(sc, ET_MAC_CFG1) & ~(
+	    ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN));
+	DELAY(100);
 
 	et_stop_rxdma(sc);
 	et_stop_txdma(sc);
-
-	et_disable_intrs(sc);
+	et_stats_update(sc);
 
 	et_free_tx_ring(sc);
 	et_free_rx_ring(sc);
-
-	et_reset(sc);
 
 	sc->sc_tx = 0;
 	sc->sc_tx_intr = 0;
@@ -674,18 +764,8 @@ et_reset(struct et_softc *sc)
 		    ET_MAC_CFG1_RST_TXFUNC | ET_MAC_CFG1_RST_RXFUNC |
 		    ET_MAC_CFG1_RST_TXMC | ET_MAC_CFG1_RST_RXMC);
 	CSR_WRITE_4(sc, ET_MAC_CFG1, 0);
-}
-
-static void
-et_disable_intrs(struct et_softc *sc)
-{
+	/* Disable interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
-}
-
-static void
-et_enable_intrs(struct et_softc *sc, uint32_t intrs)
-{
-	CSR_WRITE_4(sc, ET_INTR_MASK, ~intrs);
 }
 
 struct et_dmamap_arg {
@@ -1087,12 +1167,12 @@ et_intr(void *xsc)
 		return;
 	}
 
-	et_disable_intrs(sc);
+	/* Disable further interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
 	intrs = CSR_READ_4(sc, ET_INTR_STATUS);
-	intrs &= ET_INTRS;
-	if (intrs == 0)	/* Not interested */
-		goto back;
+	if ((intrs & ET_INTRS) == 0)
+		goto done;
 
 	if (intrs & ET_INTR_RXEOF)
 		et_rxeof(sc);
@@ -1100,8 +1180,12 @@ et_intr(void *xsc)
 		et_txeof(sc);
 	if (intrs & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
-back:
-	et_enable_intrs(sc, ET_INTRS);
+done:
+	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+		CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			et_start_locked(ifp);
+	}
 	ET_UNLOCK(sc);
 }
 
@@ -1118,6 +1202,7 @@ et_init_locked(struct et_softc *sc)
 		return;
 
 	et_stop(sc);
+	et_reset(sc);
 
 	et_init_tx_ring(sc);
 	error = et_init_rx_ring(sc);
@@ -1126,21 +1211,33 @@ et_init_locked(struct et_softc *sc)
 
 	error = et_chip_init(sc);
 	if (error)
-		goto back;
+		goto fail;
 
-	error = et_enable_txrx(sc, 1);
+	/*
+	 * Start TX/RX DMA engine
+	 */
+	error = et_start_rxdma(sc);
 	if (error)
-		goto back;
+		return;
 
-	et_enable_intrs(sc, ET_INTRS);
+	error = et_start_txdma(sc);
+	if (error)
+		return;
 
-	callout_reset(&sc->sc_tick, hz, et_tick, sc);
+	/* Enable interrupts. */
+	CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
 
 	CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
-back:
+
+	sc->sc_flags &= ~ET_FLAG_LINK;
+	et_ifmedia_upd_locked(ifp);
+
+	callout_reset(&sc->sc_tick, hz, et_tick, sc);
+
+fail:
 	if (error)
 		et_stop(sc);
 }
@@ -1244,19 +1341,32 @@ et_start_locked(struct ifnet *ifp)
 {
 	struct et_softc *sc;
 	struct mbuf *m_head = NULL;
+	struct et_txdesc_ring *tx_ring;
 	struct et_txbuf_data *tbd;
+	uint32_t tx_ready_pos;
 	int enq;
 
 	sc = ifp->if_softc;
 	ET_LOCK_ASSERT(sc);
 
-	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0)
+	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
+	    IFF_DRV_RUNNING ||
+	    (sc->sc_flags & (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED)) !=
+	    (ET_FLAG_LINK | ET_FLAG_TXRX_ENABLED))
 		return;
 
-	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) != IFF_DRV_RUNNING)
-		return;
-
+	/*
+	 * Driver does not request TX completion interrupt for every
+	 * queued frames to prevent generating excessive interrupts.
+	 * This means driver may wait for TX completion interrupt even
+	 * though some frames were sucessfully transmitted.  Reclaiming
+	 * transmitted frames will ensure driver see all available
+	 * descriptors.
+	 */
 	tbd = &sc->sc_tx_data;
+	if (tbd->tbd_used > (ET_TX_NDESC * 2) / 3)
+		et_txeof(sc);
+
 	for (enq = 0; !IFQ_DRV_IS_EMPTY(&ifp->if_snd); ) {
 		if (tbd->tbd_used + ET_NSEG_SPARE >= ET_TX_NDESC) {
 			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
@@ -1281,8 +1391,17 @@ et_start_locked(struct ifnet *ifp)
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
 
-	if (enq > 0)
+	if (enq > 0) {
+		tx_ring = &sc->sc_tx_ring;
+		bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
+		    BUS_DMASYNC_PREWRITE);
+		tx_ready_pos = tx_ring->tr_ready_index &
+		    ET_TX_READY_POS_INDEX_MASK;
+		if (tx_ring->tr_ready_wrap)
+			tx_ready_pos |= ET_TX_READY_POS_WRAP;
+		CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
 		sc->watchdog_timer = 5;
+	}
 }
 
 static void
@@ -1861,56 +1980,6 @@ et_start_txdma(struct et_softc *sc)
 	return (0);
 }
 
-static int
-et_enable_txrx(struct et_softc *sc, int media_upd)
-{
-	struct ifnet *ifp = sc->ifp;
-	uint32_t val;
-	int i, error;
-
-	val = CSR_READ_4(sc, ET_MAC_CFG1);
-	val |= ET_MAC_CFG1_TXEN | ET_MAC_CFG1_RXEN;
-	val &= ~(ET_MAC_CFG1_TXFLOW | ET_MAC_CFG1_RXFLOW |
-		 ET_MAC_CFG1_LOOPBACK);
-	CSR_WRITE_4(sc, ET_MAC_CFG1, val);
-
-	if (media_upd)
-		et_ifmedia_upd_locked(ifp);
-	else
-		et_setmedia(sc);
-
-#define NRETRY	50
-
-	for (i = 0; i < NRETRY; ++i) {
-		val = CSR_READ_4(sc, ET_MAC_CFG1);
-		if ((val & (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN)) ==
-		    (ET_MAC_CFG1_SYNC_TXEN | ET_MAC_CFG1_SYNC_RXEN))
-			break;
-
-		DELAY(100);
-	}
-	if (i == NRETRY) {
-		if_printf(ifp, "can't enable RX/TX\n");
-		return (0);
-	}
-	sc->sc_flags |= ET_FLAG_TXRX_ENABLED;
-
-#undef NRETRY
-
-	/*
-	 * Start TX/RX DMA engine
-	 */
-	error = et_start_rxdma(sc);
-	if (error)
-		return (error);
-
-	error = et_start_txdma(sc);
-	if (error)
-		return (error);
-
-	return (0);
-}
-
 static void
 et_rxeof(struct et_softc *sc)
 {
@@ -1986,7 +2055,6 @@ et_rxeof(struct et_softc *sc)
 		m = rbd->rbd_buf[buf_idx].rb_mbuf;
 		if ((rxst_info1 & ET_RXST_INFO1_OK) == 0){
 			/* Discard errored frame. */
-			ifp->if_ierrors++;
 			rbd->rbd_discard(rbd, buf_idx);
 		} else if (rbd->rbd_newbuf(rbd, buf_idx) != 0) {
 			/* No available mbufs, discard it. */
@@ -2000,7 +2068,6 @@ et_rxeof(struct et_softc *sc)
 			} else {
 				m->m_pkthdr.len = m->m_len = buflen;
 				m->m_pkthdr.rcvif = ifp;
-				ifp->if_ipackets++;
 				ET_UNLOCK(sc);
 				ifp->if_input(ifp, m);
 				ET_LOCK(sc);
@@ -2040,7 +2107,7 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	struct mbuf *m;
 	bus_dma_segment_t segs[ET_NSEG_MAX];
 	bus_dmamap_t map;
-	uint32_t csum_flags, last_td_ctrl2, tx_ready_pos;
+	uint32_t csum_flags, last_td_ctrl2;
 	int error, i, idx, first_idx, last_idx, nsegs;
 
 	tx_ring = &sc->sc_tx_ring;
@@ -2125,12 +2192,6 @@ et_encap(struct et_softc *sc, struct mbuf **m0)
 	tbd->tbd_used += nsegs;
 	MPASS(tbd->tbd_used <= ET_TX_NDESC);
 
-	bus_dmamap_sync(tx_ring->tr_dtag, tx_ring->tr_dmap,
-	    BUS_DMASYNC_PREWRITE);
-	tx_ready_pos = tx_ring->tr_ready_index & ET_TX_READY_POS_INDEX_MASK;
-	if (tx_ring->tr_ready_wrap)
-		tx_ready_pos |= ET_TX_READY_POS_WRAP;
-	CSR_WRITE_4(sc, ET_TX_READY_POS, tx_ready_pos);
 	return (0);
 }
 
@@ -2172,7 +2233,6 @@ et_txeof(struct et_softc *sc)
 			bus_dmamap_unload(sc->sc_tx_tag, tb->tb_dmap);
 			m_freem(tb->tb_mbuf);
 			tb->tb_mbuf = NULL;
-			ifp->if_opackets++;
 		}
 
 		if (++tbd->tbd_start_index == ET_TX_NDESC) {
@@ -2189,6 +2249,7 @@ et_txeof(struct et_softc *sc)
 	if (tbd->tbd_used + ET_NSEG_SPARE < ET_TX_NDESC)
 		ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 }
+
 static void
 et_tick(void *xsc)
 {
@@ -2201,13 +2262,7 @@ et_tick(void *xsc)
 	mii = device_get_softc(sc->sc_miibus);
 
 	mii_tick(mii);
-	if ((sc->sc_flags & ET_FLAG_TXRX_ENABLED) == 0 &&
-	    (mii->mii_media_status & IFM_ACTIVE) &&
-	    IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE) {
-		if_printf(ifp, "Link up, enable TX/RX\n");
-		if (et_enable_txrx(sc, 0) == 0)
-			et_start_locked(ifp);
-	}
+	et_stats_update(sc);
 	if (et_watchdog(sc) == EJUSTRETURN)
 		return;
 	callout_reset(&sc->sc_tick, hz, et_tick, sc);
@@ -2320,6 +2375,11 @@ et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
 	return (0);
 }
 
+#define	ET_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
+	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
+#define	ET_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
+	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+
 /*
  * Create sysctl tree
  */
@@ -2327,7 +2387,9 @@ static void
 et_add_sysctls(struct et_softc * sc)
 {
 	struct sysctl_ctx_list *ctx;
-	struct sysctl_oid_list *children;
+	struct sysctl_oid_list *children, *parent;
+	struct sysctl_oid *tree;
+	struct et_hw_stats *stats;
 
 	ctx = device_get_sysctl_ctx(sc->dev);
 	children = SYSCTL_CHILDREN(device_get_sysctl_tree(sc->dev));
@@ -2343,7 +2405,115 @@ et_add_sysctls(struct et_softc * sc)
 	    "TX IM, # segments per TX interrupt");
 	SYSCTL_ADD_UINT(ctx, children, OID_AUTO, "timer",
 	    CTLFLAG_RW, &sc->sc_timer, 0, "TX timer");
+
+	tree = SYSCTL_ADD_NODE(ctx, children, OID_AUTO, "stats", CTLFLAG_RD,
+	    NULL, "ET statistics");
+        parent = SYSCTL_CHILDREN(tree);
+
+	/* TX/RX statistics. */
+	stats = &sc->sc_stats;
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_64", &stats->pkts_64,
+	    "0 to 64 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_65_127", &stats->pkts_65,
+	    "65 to 127 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_128_255", &stats->pkts_128,
+	    "128 to 255 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_256_511", &stats->pkts_256,
+	    "256 to 511 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_512_1023", &stats->pkts_512,
+	    "512 to 1023 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_1024_1518", &stats->pkts_1024,
+	    "1024 to 1518 bytes frames");
+	ET_SYSCTL_STAT_ADD64(ctx, parent, "frames_1519_1522", &stats->pkts_1519,
+	    "1519 to 1522 bytes frames");
+
+	/* RX statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "rx", CTLFLAG_RD,
+	    NULL, "RX MAC statistics");
+	children = SYSCTL_CHILDREN(tree);
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
+	    &stats->rx_bytes, "Good bytes");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "frames",
+	    &stats->rx_frames, "Good frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "crc_errs",
+	    &stats->rx_crcerrs, "CRC errors");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "mcast_frames",
+	    &stats->rx_mcast, "Multicast frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bcast_frames",
+	    &stats->rx_bcast, "Broadcast frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "control",
+	    &stats->rx_control, "Control frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause",
+	    &stats->rx_pause, "Pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "unknown_control",
+	    &stats->rx_unknown_control, "Unknown control frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "align_errs",
+	    &stats->rx_alignerrs, "Alignment errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "len_errs",
+	    &stats->rx_lenerrs, "Frames with length mismatched");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "code_errs",
+	    &stats->rx_codeerrs, "Frames with code error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "cs_errs",
+	    &stats->rx_cserrs, "Frames with carrier sense error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "runts",
+	    &stats->rx_runts, "Too short frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "oversize",
+	    &stats->rx_oversize, "Oversized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "fragments",
+	    &stats->rx_fragments, "Fragmented frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "jabbers",
+	    &stats->rx_jabbers, "Frames with jabber error");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "drop",
+	    &stats->rx_drop, "Dropped frames");
+
+	/* TX statistics. */
+	tree = SYSCTL_ADD_NODE(ctx, parent, OID_AUTO, "tx", CTLFLAG_RD,
+	    NULL, "TX MAC statistics");
+	children = SYSCTL_CHILDREN(tree);
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bytes",
+	    &stats->tx_bytes, "Good bytes");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "frames",
+	    &stats->tx_frames, "Good frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "mcast_frames",
+	    &stats->tx_mcast, "Multicast frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "bcast_frames",
+	    &stats->tx_bcast, "Broadcast frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause",
+	    &stats->tx_pause, "Pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "deferred",
+	    &stats->tx_deferred, "Deferred frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "excess_deferred",
+	    &stats->tx_excess_deferred, "Excessively deferred frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "single_colls",
+	    &stats->tx_single_colls, "Single collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "multi_colls",
+	    &stats->tx_multi_colls, "Multiple collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "late_colls",
+	    &stats->tx_late_colls, "Late collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "excess_colls",
+	    &stats->tx_excess_colls, "Excess collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "total_colls",
+	    &stats->tx_total_colls, "Total collisions");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "pause_honored",
+	    &stats->tx_pause_honored, "Honored pause frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "drop",
+	    &stats->tx_drop, "Dropped frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "jabbers",
+	    &stats->tx_jabbers, "Frames with jabber errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "crc_errs",
+	    &stats->tx_crcerrs, "Frames with CRC errors");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "control",
+	    &stats->tx_control, "Control frames");
+	ET_SYSCTL_STAT_ADD64(ctx, children, "oversize",
+	    &stats->tx_oversize, "Oversized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "undersize",
+	    &stats->tx_undersize, "Undersized frames");
+	ET_SYSCTL_STAT_ADD32(ctx, children, "fragments",
+	    &stats->tx_fragments, "Fragmented frames");
 }
+
+#undef	ET_SYSCTL_STAT_ADD32
+#undef	ET_SYSCTL_STAT_ADD64
 
 static int
 et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
@@ -2396,35 +2566,70 @@ back:
 }
 
 static void
-et_setmedia(struct et_softc *sc)
+et_stats_update(struct et_softc *sc)
 {
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
-	uint32_t cfg2, ctrl;
+	struct ifnet *ifp;
+	struct et_hw_stats *stats;
 
-	cfg2 = CSR_READ_4(sc, ET_MAC_CFG2);
-	cfg2 &= ~(ET_MAC_CFG2_MODE_MII | ET_MAC_CFG2_MODE_GMII |
-		  ET_MAC_CFG2_FDX | ET_MAC_CFG2_BIGFRM);
-	cfg2 |= ET_MAC_CFG2_LENCHK | ET_MAC_CFG2_CRC | ET_MAC_CFG2_PADCRC |
-	    ((7 << ET_MAC_CFG2_PREAMBLE_LEN_SHIFT) &
-	    ET_MAC_CFG2_PREAMBLE_LEN_MASK);
+	stats = &sc->sc_stats;
+	stats->pkts_64 += CSR_READ_4(sc, ET_STAT_PKTS_64);
+	stats->pkts_65 += CSR_READ_4(sc, ET_STAT_PKTS_65_127);
+	stats->pkts_128 += CSR_READ_4(sc, ET_STAT_PKTS_128_255);
+	stats->pkts_256 += CSR_READ_4(sc, ET_STAT_PKTS_256_511);
+	stats->pkts_512 += CSR_READ_4(sc, ET_STAT_PKTS_512_1023);
+	stats->pkts_1024 += CSR_READ_4(sc, ET_STAT_PKTS_1024_1518);
+	stats->pkts_1519 += CSR_READ_4(sc, ET_STAT_PKTS_1519_1522);
 
-	ctrl = CSR_READ_4(sc, ET_MAC_CTRL);
-	ctrl &= ~(ET_MAC_CTRL_GHDX | ET_MAC_CTRL_MODE_MII);
+	stats->rx_bytes += CSR_READ_4(sc, ET_STAT_RX_BYTES);
+	stats->rx_frames += CSR_READ_4(sc, ET_STAT_RX_FRAMES);
+	stats->rx_crcerrs += CSR_READ_4(sc, ET_STAT_RX_CRC_ERR);
+	stats->rx_mcast += CSR_READ_4(sc, ET_STAT_RX_MCAST);
+	stats->rx_bcast += CSR_READ_4(sc, ET_STAT_RX_BCAST);
+	stats->rx_control += CSR_READ_4(sc, ET_STAT_RX_CTL);
+	stats->rx_pause += CSR_READ_4(sc, ET_STAT_RX_PAUSE);
+	stats->rx_unknown_control += CSR_READ_4(sc, ET_STAT_RX_UNKNOWN_CTL);
+	stats->rx_alignerrs += CSR_READ_4(sc, ET_STAT_RX_ALIGN_ERR);
+	stats->rx_lenerrs += CSR_READ_4(sc, ET_STAT_RX_LEN_ERR);
+	stats->rx_codeerrs += CSR_READ_4(sc, ET_STAT_RX_CODE_ERR);
+	stats->rx_cserrs += CSR_READ_4(sc, ET_STAT_RX_CS_ERR);
+	stats->rx_runts += CSR_READ_4(sc, ET_STAT_RX_RUNT);
+	stats->rx_oversize += CSR_READ_4(sc, ET_STAT_RX_OVERSIZE);
+	stats->rx_fragments += CSR_READ_4(sc, ET_STAT_RX_FRAG);
+	stats->rx_jabbers += CSR_READ_4(sc, ET_STAT_RX_JABBER);
+	stats->rx_drop += CSR_READ_4(sc, ET_STAT_RX_DROP);
 
-	if (IFM_SUBTYPE(mii->mii_media_active) == IFM_1000_T) {
-		cfg2 |= ET_MAC_CFG2_MODE_GMII;
-	} else {
-		cfg2 |= ET_MAC_CFG2_MODE_MII;
-		ctrl |= ET_MAC_CTRL_MODE_MII;
-	}
+	stats->tx_bytes += CSR_READ_4(sc, ET_STAT_TX_BYTES);
+	stats->tx_frames += CSR_READ_4(sc, ET_STAT_TX_FRAMES);
+	stats->tx_mcast += CSR_READ_4(sc, ET_STAT_TX_MCAST);
+	stats->tx_bcast += CSR_READ_4(sc, ET_STAT_TX_BCAST);
+	stats->tx_pause += CSR_READ_4(sc, ET_STAT_TX_PAUSE);
+	stats->tx_deferred += CSR_READ_4(sc, ET_STAT_TX_DEFER);
+	stats->tx_excess_deferred += CSR_READ_4(sc, ET_STAT_TX_EXCESS_DEFER);
+	stats->tx_single_colls += CSR_READ_4(sc, ET_STAT_TX_SINGLE_COL);
+	stats->tx_multi_colls += CSR_READ_4(sc, ET_STAT_TX_MULTI_COL);
+	stats->tx_late_colls += CSR_READ_4(sc, ET_STAT_TX_LATE_COL);
+	stats->tx_excess_colls += CSR_READ_4(sc, ET_STAT_TX_EXCESS_COL);
+	stats->tx_total_colls += CSR_READ_4(sc, ET_STAT_TX_TOTAL_COL);
+	stats->tx_pause_honored += CSR_READ_4(sc, ET_STAT_TX_PAUSE_HONOR);
+	stats->tx_drop += CSR_READ_4(sc, ET_STAT_TX_DROP);
+	stats->tx_jabbers += CSR_READ_4(sc, ET_STAT_TX_JABBER);
+	stats->tx_crcerrs += CSR_READ_4(sc, ET_STAT_TX_CRC_ERR);
+	stats->tx_control += CSR_READ_4(sc, ET_STAT_TX_CTL);
+	stats->tx_oversize += CSR_READ_4(sc, ET_STAT_TX_OVERSIZE);
+	stats->tx_undersize += CSR_READ_4(sc, ET_STAT_TX_UNDERSIZE);
+	stats->tx_fragments += CSR_READ_4(sc, ET_STAT_TX_FRAG);
 
-	if ((mii->mii_media_active & IFM_GMASK) == IFM_FDX)
-		cfg2 |= ET_MAC_CFG2_FDX;
-	else
-		ctrl |= ET_MAC_CTRL_GHDX;
-
-	CSR_WRITE_4(sc, ET_MAC_CTRL, ctrl);
-	CSR_WRITE_4(sc, ET_MAC_CFG2, cfg2);
+	/* Update ifnet counters. */
+	ifp = sc->ifp;
+	ifp->if_opackets = (u_long)stats->tx_frames;
+	ifp->if_collisions = stats->tx_total_colls;
+	ifp->if_oerrors = stats->tx_drop + stats->tx_jabbers +
+	    stats->tx_crcerrs + stats->tx_excess_deferred +
+	    stats->tx_late_colls;
+	ifp->if_ipackets = (u_long)stats->rx_frames;
+	ifp->if_ierrors = stats->rx_crcerrs + stats->rx_alignerrs +
+	    stats->rx_lenerrs + stats->rx_codeerrs + stats->rx_cserrs +
+	    stats->rx_runts + stats->rx_jabbers + stats->rx_drop;
 }
 
 static int
