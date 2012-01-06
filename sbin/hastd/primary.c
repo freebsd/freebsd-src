@@ -886,7 +886,7 @@ hastd_primary(struct hast_resource *res)
 	}
 
 	pid = fork();
-	if (pid < 0) {
+	if (pid == -1) {
 		/* TODO: There's no need for this to be fatal error. */
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_TEMPFAIL, "Unable to fork");
