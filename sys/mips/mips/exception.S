@@ -375,15 +375,15 @@ NNON_LEAF(MipsKernGenException, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	RESTORE_CPU			# v0 contains the return address.
@@ -469,6 +469,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 # Turn off fpu and enter kernel mode
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
 #if defined(CPU_CNMIPS)
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
@@ -631,15 +632,15 @@ NNON_LEAF(MipsKernIntr, KERN_EXC_FRAME_SIZE, ra)
 	REG_S	a3, CALLFRAME_RA + KERN_REG_SIZE(sp)		# for debugging
 
 	/*
-	 * Update interrupt mask in saved status register
+	 * Update interrupt and CPU mask in saved status register
 	 * Some of interrupts could be disabled by
 	 * intr filters if interrupts are enabled later
 	 * in trap handler
 	 */
 	mfc0	a0, MIPS_COP_0_STATUS
-	and	a0, a0, MIPS_SR_INT_MASK
+	and	a0, a0, (MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	RESTORE_REG(a1, SR, sp)
-	and	a1, a1, ~MIPS_SR_INT_MASK
+	and	a1, a1, ~(MIPS_SR_INT_MASK|MIPS_SR_COP_USABILITY)
 	or	a1, a1, a0
 	SAVE_REG(a1, SR, sp)
 	REG_L	v0, CALLFRAME_RA + KERN_REG_SIZE(sp)
@@ -727,6 +728,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
 	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
 #ifdef CPU_CNMIPS
+	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
 #elif defined(CPU_RMI)	|| defined(CPU_NLM)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT)
