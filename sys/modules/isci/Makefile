@@ -4,7 +4,7 @@
 
 ISCI_SRC_PATH = ${.CURDIR}/../..
 
-.PATH:  ${ISCI_SRC_PATH}/dev/isci
+.PATH:  ${ISCI_SRC_PATH}/dev/isci ${ISCI_SRC_PATH}/dev/isci/scil
 
 KMOD    = isci
 SRCS    = isci.c isci_oem_parameters.c \
@@ -84,10 +84,9 @@ SRCS += \
 		sati_verify.c sati_write.c  \
 		sati_write_buffer.c sati_write_long.c sati_write_and_verify.c
 
-SRCS += opt_scsi.h opt_cam.h
+SRCS += opt_scsi.h opt_cam.h opt_isci.h
 SRCS += device_if.h bus_if.h pci_if.h
 
 CC	= gcc
 
 .include <bsd.kmod.mk>
-

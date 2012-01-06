@@ -143,6 +143,7 @@ SUBDIR=	${_3dfx} \
 	${_ips} \
 	${_ipw} \
 	${_ipwfw} \
+	${_isci} \
 	iscsi \
 	isp \
 	ispfw \
@@ -516,6 +517,7 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
+_isci=		isci
 _iwi=		iwi
 _iwifw=		iwifw
 _iwn=		iwn
@@ -594,6 +596,7 @@ _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
 _ipwfw=		ipwfw
+_isci=		isci
 _iwi=		iwi
 _iwifw=		iwifw
 _iwn=		iwn
