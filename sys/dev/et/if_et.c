@@ -224,6 +224,7 @@ et_attach(device_t dev)
 	struct et_softc *sc;
 	struct ifnet *ifp;
 	uint8_t eaddr[ETHER_ADDR_LEN];
+	uint32_t pmcfg;
 	int cap, error, msic;
 
 	sc = device_get_softc(dev);
@@ -253,9 +254,9 @@ et_attach(device_t dev)
 	/*
 	 * Allocate IO memory
 	 */
-	sc->sc_mem_rid = ET_PCIR_BAR;
+	sc->sc_mem_rid = PCIR_BAR(0);
 	sc->sc_mem_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-						&sc->sc_mem_rid, RF_ACTIVE);
+	    &sc->sc_mem_rid, RF_ACTIVE);
 	if (sc->sc_mem_res == NULL) {
 		device_printf(dev, "can't allocate IO memory\n");
 		return (ENXIO);
@@ -308,8 +309,11 @@ et_attach(device_t dev)
 
 	et_get_eaddr(dev, eaddr);
 
-	CSR_WRITE_4(sc, ET_PM,
-		    ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE);
+	/* Take PHY out of COMA and enable clocks. */
+	pmcfg = ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE;
+	if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+		pmcfg |= EM_PM_GIGEPHY_ENB;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 
 	et_reset(sc);
 
@@ -332,7 +336,8 @@ et_attach(device_t dev)
 	et_chip_attach(sc);
 
 	error = mii_attach(dev, &sc->sc_miibus, ifp, et_ifmedia_upd,
-	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY, 0);
+	    et_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY, MII_OFFSET_ANY,
+	    MIIF_DOPAUSE);
 	if (error) {
 		device_printf(dev, "attaching PHYs failed\n");
 		goto fail;
@@ -548,12 +553,23 @@ et_miibus_statchg(device_t dev)
 
 	if (IFM_OPTIONS(mii->mii_media_active) & IFM_FDX) {
 		cfg2 |= ET_MAC_CFG2_FDX;
+		/*
+		 * Controller lacks automatic TX pause frame
+		 * generation so it should be handled by driver.
+		 * Even though driver can send pause frame with
+		 * arbitrary pause time, controller does not
+		 * provide a way that tells how many free RX
+		 * buffers are available in controller.  This
+		 * limitation makes it hard to generate XON frame
+		 * in time on driver side so don't enable TX flow
+		 * control.
+		 */
 #ifdef notyet
 		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_TXPAUSE)
 			cfg1 |= ET_MAC_CFG1_TXFLOW;
+#endif
 		if (IFM_OPTIONS(mii->mii_media_active) & IFM_ETH_RXPAUSE)
 			cfg1 |= ET_MAC_CFG1_RXFLOW;
-#endif
 	} else
 		ctrl |= ET_MAC_CTRL_GHDX;
 
@@ -722,12 +738,7 @@ et_bus_config(struct et_softc *sc)
 	/*
 	 * Set max read request size to 2048 bytes
 	 */
-	val = pci_read_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, 2);
-	val &= ~PCIM_EXP_CTL_MAX_READ_REQUEST;
-	val |= ET_PCIV_DEVICE_CTRL_RRSZ_2K;
-	pci_write_config(sc->dev,
-	    sc->sc_expcap + PCIR_EXPRESS_DEVICE_CTL, val, 2);
+	pci_set_max_read_req(sc->dev, 2048);
 
 	return (0);
 }
@@ -1158,34 +1169,40 @@ et_intr(void *xsc)
 {
 	struct et_softc *sc = xsc;
 	struct ifnet *ifp;
-	uint32_t intrs;
+	uint32_t status;
 
 	ET_LOCK(sc);
 	ifp = sc->ifp;
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		ET_UNLOCK(sc);
-		return;
-	}
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+		goto done;
+
+	status = CSR_READ_4(sc, ET_INTR_STATUS);
+	if ((status & ET_INTRS) == 0)
+		goto done;
 
 	/* Disable further interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
 
-	intrs = CSR_READ_4(sc, ET_INTR_STATUS);
-	if ((intrs & ET_INTRS) == 0)
-		goto done;
-
-	if (intrs & ET_INTR_RXEOF)
+	if (status & (ET_INTR_RXDMA_ERROR | ET_INTR_TXDMA_ERROR)) {
+		device_printf(sc->dev, "DMA error(0x%08x) -- resetting\n",
+		    status);
+		ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+		et_init_locked(sc);
+		ET_UNLOCK(sc);
+		return;
+	}
+	if (status & ET_INTR_RXDMA)
 		et_rxeof(sc);
-	if (intrs & (ET_INTR_TXEOF | ET_INTR_TIMER))
+	if (status & (ET_INTR_TXDMA | ET_INTR_TIMER))
 		et_txeof(sc);
-	if (intrs & ET_INTR_TIMER)
+	if (status & ET_INTR_TIMER)
 		CSR_WRITE_4(sc, ET_TIMER, sc->sc_timer);
-done:
 	if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
 		CSR_WRITE_4(sc, ET_INTR_MASK, ~ET_INTRS);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			et_start_locked(ifp);
 	}
+done:
 	ET_UNLOCK(sc);
 }
 
@@ -1291,11 +1308,11 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 			ET_LOCK(sc);
 			et_setmulti(sc);
 			ET_UNLOCK(sc);
-			error = 0;
 		}
 		break;
 
 	case SIOCSIFMTU:
+		ET_LOCK(sc);
 #if 0
 		if (sc->sc_flags & ET_FLAG_JUMBO)
 			max_framelen = ET_JUMBO_FRAMELEN;
@@ -1305,14 +1322,18 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 		if (ET_FRAMELEN(ifr->ifr_mtu) > max_framelen) {
 			error = EOPNOTSUPP;
+			ET_UNLOCK(sc);
 			break;
 		}
 
 		if (ifp->if_mtu != ifr->ifr_mtu) {
 			ifp->if_mtu = ifr->ifr_mtu;
-			ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
-			et_init(sc);
+			if (ifp->if_drv_flags & IFF_DRV_RUNNING) {
+				ifp->if_drv_flags &= ~IFF_DRV_RUNNING;
+				et_init_locked(sc);
+			}
 		}
+		ET_UNLOCK(sc);
 		break;
 
 	case SIOCSIFCAP:
@@ -1944,8 +1965,12 @@ et_init_txmac(struct et_softc *sc)
 	/* Disable TX MAC and FC(?) */
 	CSR_WRITE_4(sc, ET_TXMAC_CTRL, ET_TXMAC_CTRL_FC_DISABLE);
 
-	/* No flow control yet */
-	CSR_WRITE_4(sc, ET_TXMAC_FLOWCTRL, 0);
+	/*
+	 * Initialize pause time.
+	 * This register should be set before XON/XOFF frame is
+	 * sent by driver.
+	 */
+	CSR_WRITE_4(sc, ET_TXMAC_FLOWCTRL, 0 << ET_TXMAC_FLOWCTRL_CFPT_SHIFT);
 
 	/* Enable TX MAC but leave FC(?) diabled */
 	CSR_WRITE_4(sc, ET_TXMAC_CTRL,
@@ -2378,7 +2403,7 @@ et_newbuf_hdr(struct et_rxbuf_data *rbd, int buf_idx)
 #define	ET_SYSCTL_STAT_ADD32(c, h, n, p, d)	\
 	    SYSCTL_ADD_UINT(c, h, OID_AUTO, n, CTLFLAG_RD, p, 0, d)
 #define	ET_SYSCTL_STAT_ADD64(c, h, n, p, d)	\
-	    SYSCTL_ADD_UQUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
+	    SYSCTL_ADD_QUAD(c, h, OID_AUTO, n, CTLFLAG_RD, p, d)
 
 /*
  * Create sysctl tree
@@ -2636,11 +2661,18 @@ static int
 et_suspend(device_t dev)
 {
 	struct et_softc *sc;
+	uint32_t pmcfg;
 
 	sc = device_get_softc(dev);
 	ET_LOCK(sc);
 	if ((sc->ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
 		et_stop(sc);
+	/* Diable all clocks and put PHY into COMA. */
+	pmcfg = CSR_READ_4(sc, ET_PM);
+	pmcfg &= ~(EM_PM_GIGEPHY_ENB | ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE |
+	    ET_PM_RXCLK_GATE);
+	pmcfg |= ET_PM_PHY_SW_COMA;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 	ET_UNLOCK(sc);
 	return (0);
 }
@@ -2649,9 +2681,15 @@ static int
 et_resume(device_t dev)
 {
 	struct et_softc *sc;
+	uint32_t pmcfg;
 
 	sc = device_get_softc(dev);
 	ET_LOCK(sc);
+	/* Take PHY out of COMA and enable clocks. */
+	pmcfg = ET_PM_SYSCLK_GATE | ET_PM_TXCLK_GATE | ET_PM_RXCLK_GATE;
+	if ((sc->sc_flags & ET_FLAG_FASTETHER) == 0)
+		pmcfg |= EM_PM_GIGEPHY_ENB;
+	CSR_WRITE_4(sc, ET_PM, pmcfg);
 	if ((sc->ifp->if_flags & IFF_UP) != 0)
 		et_init_locked(sc);
 	ET_UNLOCK(sc);
