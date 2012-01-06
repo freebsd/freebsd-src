@@ -155,7 +155,7 @@ ar5416SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 HAL_BOOL
 ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 {
-	return HAL_OK;
+	return AH_TRUE;
 }
 
 /* Setup coverage class */
