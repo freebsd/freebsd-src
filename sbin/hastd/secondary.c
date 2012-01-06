@@ -401,7 +401,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	}
 
 	pid = fork();
-	if (pid < 0) {
+	if (pid == -1) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR, "Unable to fork");
 	}
