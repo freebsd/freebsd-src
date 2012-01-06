@@ -10,6 +10,11 @@ Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
 20120106:
+	The interface of the VOP_VPTOCNP(9) changed, now the returned
+	vnode shall be referenced, previously it was required to be
+	only held.  All in-tree filesystems are converted.
+
+20120106:
 	9.0-RELEASE.
 
 20111101:
