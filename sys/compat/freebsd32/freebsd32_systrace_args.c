@@ -3034,6 +3034,18 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 5;
 		break;
 	}
+	/* freebsd32_posix_fadvise */
+	case 531: {
+		struct freebsd32_posix_fadvise_args *p = params;
+		iarg[0] = p->fd; /* int */
+		uarg[1] = p->offset1; /* uint32_t */
+		uarg[2] = p->offset2; /* uint32_t */
+		uarg[3] = p->len1; /* uint32_t */
+		uarg[4] = p->len2; /* uint32_t */
+		iarg[5] = p->advice; /* int */
+		*n_args = 6;
+		break;
+	}
 	default:
 		*n_args = 0;
 		break;
@@ -8088,6 +8100,31 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 4:
 			p = "uint32_t";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* freebsd32_posix_fadvise */
+	case 531:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "uint32_t";
+			break;
+		case 2:
+			p = "uint32_t";
+			break;
+		case 3:
+			p = "uint32_t";
+			break;
+		case 4:
+			p = "uint32_t";
+			break;
+		case 5:
+			p = "int";
 			break;
 		default:
 			break;
