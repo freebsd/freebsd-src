@@ -649,7 +649,8 @@ nfsrpc_doclose(struct nfsmount *nmp, struct nfsclopen *op, NFSPROC_T *p)
 		 * puts on the wire has the file handle for this file appended
 		 * to it, so it can be done now.
 		 */
-		(void)nfsrpc_rellockown(nmp, lp, tcred, p);
+		(void)nfsrpc_rellockown(nmp, lp, lp->nfsl_open->nfso_fh,
+		    lp->nfsl_open->nfso_fhlen, tcred, p);
 	}
 
 	/*
@@ -4027,7 +4028,7 @@ nfsrpc_renew(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
  */
 APPLESTATIC int
 nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
-    struct ucred *cred, NFSPROC_T *p)
+    uint8_t *fh, int fhlen, struct ucred *cred, NFSPROC_T *p)
 {
 	struct nfsrv_descript nfsd, *nd = &nfsd;
 	u_int32_t *tl;
@@ -4039,10 +4040,8 @@ nfsrpc_rellockown(struct nfsmount *nmp, struct nfscllockowner *lp,
 	*tl++ = nmp->nm_clp->nfsc_clientid.lval[0];
 	*tl = nmp->nm_clp->nfsc_clientid.lval[1];
 	NFSBCOPY(lp->nfsl_owner, own, NFSV4CL_LOCKNAMELEN);
-	NFSBCOPY(lp->nfsl_open->nfso_fh, &own[NFSV4CL_LOCKNAMELEN],
-	    lp->nfsl_open->nfso_fhlen);
-	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN +
-	    lp->nfsl_open->nfso_fhlen);
+	NFSBCOPY(fh, &own[NFSV4CL_LOCKNAMELEN], fhlen);
+	(void)nfsm_strtom(nd, own, NFSV4CL_LOCKNAMELEN + fhlen);
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL);
