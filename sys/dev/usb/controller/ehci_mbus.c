@@ -78,9 +78,6 @@ __FBSDID("$FreeBSD$");
 
 static device_attach_t ehci_mbus_attach;
 static device_detach_t ehci_mbus_detach;
-static device_shutdown_t ehci_mbus_shutdown;
-static device_suspend_t ehci_mbus_suspend;
-static device_resume_t ehci_mbus_resume;
 
 static int err_intr(void *arg);
 
@@ -97,45 +94,6 @@ static void *ih_err;
 #define	MV_USB_HOST_UNDERFLOW  (1 << 1)
 #define	MV_USB_HOST_OVERFLOW   (1 << 2)
 #define	MV_USB_DEVICE_UNDERFLOW (1 << 3)
-
-static int
-ehci_mbus_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_mbus_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_mbus_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
 
 static int
 ehci_mbus_probe(device_t self)
@@ -361,20 +319,17 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ehci_mbus_probe),
 	DEVMETHOD(device_attach, ehci_mbus_attach),
 	DEVMETHOD(device_detach, ehci_mbus_detach),
-	DEVMETHOD(device_suspend, ehci_mbus_suspend),
-	DEVMETHOD(device_resume, ehci_mbus_resume),
-	DEVMETHOD(device_shutdown, ehci_mbus_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(ehci_softc_t),
+	.name = "ehci",
+	.methods = ehci_methods,
+	.size = sizeof(ehci_softc_t),
 };
 
 static devclass_t ehci_devclass;
