@@ -20,17 +20,7 @@
   <pubdate>$FreeBSD$</pubdate>
 
   <copyright>
-    <year>2000</year>
-    <year>2001</year>
-    <year>2002</year>
-    <year>2003</year>
-    <year>2004</year>
-    <year>2005</year>
-    <year>2006</year>
-    <year>2007</year>
-    <year>2008</year>
-    <year>2009</year>
-    <year>2010</year>
+    <year>2012</year>
     <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
   </copyright>
 
@@ -132,9 +122,97 @@
   <sect2 id="security">
     <title>Security Advisories</title>
 
-    <para></para>
+      <para>Problems described in the following security advisories have
+	been fixed.  For more information, consult the individual
+	advisories available from
+	<ulink url="http://security.FreeBSD.org/"></ulink>.</para>
 
-  </sect2>
+      <informaltable frame="none" pgwide="1">
+	<tgroup cols="3">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	  <thead>
+	    <row>
+	      <entry>Advisory</entry>
+	      <entry>Date</entry>
+	      <entry>Topic</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:01.mountd.asc"
+		  >SA-11:01.mountd</ulink></entry>
+	      <entry>20&nbsp;April&nbsp;2011</entry>
+	      <entry><para>Network ACL mishandling in &man.mountd.8;</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:02.bind.asc"
+		  >SA-11:02.bind</ulink></entry>
+	      <entry>28&nbsp;May&nbsp;2011</entry>
+	      <entry><para>BIND remote DoS with large RRSIG RRsets and negative
+		  caching</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:04.compress.asc"
+		  >SA-11:04.compress</ulink></entry>
+	      <entry>28&nbsp;September&nbsp;2011</entry>
+	      <entry><para>Errors handling corrupt compress file in
+		  &man.compress.1; and &man.gzip.1;</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:05.unix.asc"
+		  >SA-11:05.unix</ulink></entry>
+	      <entry>28&nbsp;September&nbsp;2011</entry>
+	      <entry><para>Buffer overflow in handling of UNIX socket
+		  addresses</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:06.bind.asc"
+		  >SA-11:06.bind</ulink></entry>
+	      <entry>23&nbsp;December&nbsp;2011</entry>
+	      <entry><para>Remote packet Denial of Service against &man.named.8;
+		  servers</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:07.chroot.asc"
+		  >SA-11:07.chroot</ulink></entry>
+	      <entry>23&nbsp;December&nbsp;2011</entry>
+	      <entry><para>Code execution via chrooted ftpd</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:08.telnetd.asc"
+		  >SA-11:08.telnetd</ulink></entry>
+	      <entry>23&nbsp;December&nbsp;2011</entry>
+	      <entry><para>telnetd code execution vulnerability</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:09.pam_ssh.asc"
+		  >SA-11:09.pam_ssh</ulink></entry>
+	      <entry>23&nbsp;December&nbsp;2011</entry>
+	      <entry><para>pam_ssh improperly grants access when user account has
+		  unencrypted SSH private keys</para></entry>
+	    </row>
+
+	    <row>
+	      <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-11:10.pam.asc"
+		  >SA-11:10.pam</ulink></entry>
+	      <entry>23&nbsp;December&nbsp;2011</entry>
+	      <entry><para><function>pam_start()</function> does not validate
+		  service names</para></entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+    </sect2>
 
   <sect2 id="kernel">
     <title>Kernel Changes</title>
@@ -544,16 +622,10 @@
     binary upgrades between RELEASE versions (and snapshots of the
     various security branches) are supported using the
     &man.freebsd-update.8; utility.  The binary upgrade procedure will
-    update unmodified userland utilities, as well as unmodified GENERIC or
-    SMP kernels distributed as a part of an official &os; release.
+    update unmodified userland utilities, as well as a unmodified GENERIC kernel
+    distributed as a part of an official &os; release.
     The &man.freebsd-update.8; utility requires that the host being
     upgraded have Internet connectivity.</para>
-
-  <para>An older form of binary upgrade is supported through the
-    <command>Upgrade</command> option from the main &man.sysinstall.8;
-    menu on CDROM distribution media.  This type of binary upgrade
-    may be useful on non-&arch.i386;, non-&arch.amd64; machines
-    or on systems with no Internet connectivity.</para>
 
   <para>Source-based upgrades (those based on recompiling the &os;
     base system from source code) from previous versions are
