@@ -233,6 +233,7 @@
 #define	MIPS3_CR_EXC_CODE	0x0000007C	/* five bits */
 #define	MIPS_CR_IP		0x0000FF00
 #define	MIPS_CR_EXC_CODE_SHIFT	2
+#define	MIPS_CR_COP_ERR_SHIFT	28
 
 /*
  * The bits in the status register.  All bits are active when set to 1.
