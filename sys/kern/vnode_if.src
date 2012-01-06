@@ -628,3 +628,12 @@ vop_allocate {
 	INOUT off_t *offset;
 	INOUT off_t *len;
 };
+
+%% advise	vp	U U U
+
+vop_advise {
+	IN struct vnode *vp;
+	IN off_t start;
+	IN off_t end;
+	IN int advice;
+};

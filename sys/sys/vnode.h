@@ -384,6 +384,7 @@ extern int		vttoif_tab[];
 #define	V_SAVE		0x0001	/* vinvalbuf: sync file first */
 #define	V_ALT		0x0002	/* vinvalbuf: invalidate only alternate bufs */
 #define	V_NORMAL	0x0004	/* vinvalbuf: invalidate only regular bufs */
+#define	V_CLEANONLY	0x0008	/* vinvalbuf: invalidate only clean bufs */
 #define	REVOKEALL	0x0001	/* vop_revoke: revoke all aliases */
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
@@ -685,6 +686,7 @@ int	vop_stdunlock(struct vop_unlock_args *);
 int	vop_nopoll(struct vop_poll_args *);
 int	vop_stdaccess(struct vop_access_args *ap);
 int	vop_stdaccessx(struct vop_accessx_args *ap);
+int	vop_stdadvise(struct vop_advise_args *ap);
 int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
 int	vop_stdadvlockpurge(struct vop_advlockpurge_args *ap);
