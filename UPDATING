@@ -15,6 +15,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 8.x IS SLOW ON IA64 OR SUN4V:
 	debugging tools present in HEAD were left in place because
 	sun4v support still needs work to become production ready.
 
+20120106:
+	A new VOP_ADVISE() was added to support posix_fadvise(2).  All
+	filesystem modules must be recompiled.
+
+20111116:
+	A new VOP_ALLOCATE() was added to support posix_fallocate(2).  All
+	filesystem modules must be recompiled.
+
 20111101:
 	The broken amd(4) driver has been replaced with esp(4) in the amd64,
 	i386 and pc98 GENERIC kernel configuration files.

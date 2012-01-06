@@ -218,6 +218,8 @@ void vm_object_destroy (vm_object_t);
 void vm_object_terminate (vm_object_t);
 void vm_object_set_writeable_dirty (vm_object_t);
 void vm_object_init (void);
+void vm_object_page_cache(vm_object_t object, vm_pindex_t start,
+    vm_pindex_t end);
 void vm_object_page_clean (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 void vm_object_page_remove (vm_object_t, vm_pindex_t, vm_pindex_t, boolean_t);
 boolean_t vm_object_populate(vm_object_t, vm_pindex_t, vm_pindex_t);
