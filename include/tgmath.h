@@ -59,6 +59,25 @@
 #error "<tgmath.h> not implemented for this compiler"
 #endif
 
+#if 0 /* XXX: Much shorter and faster to compile, but broken with GCC 4.2. */
+#define	__tg_generic(x, cfnl, cfn, cfnf, fnl, fn, fnf)			\
+	__generic(x, long double _Complex, cfnl,			\
+	    __generic(x, double _Complex, cfn,				\
+	        __generic(x, float _Complex, cfnf,			\
+	            __generic(x, long double, fnl,			\
+	                __generic(x, float, fnf, fn)))))
+#define	__tg_type(x)							\
+	__tg_generic(x, (long double _Complex)0, (double _Complex)0,	\
+	    (float _Complex)0, (long double)0, (double)0, (float)0)
+#define	__tg_impl_simple(x, y, z, fnl, fn, fnf, ...)			\
+	__tg_generic(							\
+	    __tg_type(x) + __tg_type(y) + __tg_type(z),			\
+	    fnl, fn, fnf, fnl, fn, fnf)(__VA_ARGS__)
+#define	__tg_impl_full(x, y, cfnl, cfn, cfnf, fnl, fn, fnf, ...)	\
+	__tg_generic(							\
+	    __tg_type(x) + __tg_type(y),				\
+	    cfnl, cfn, cfnf, fnl, fn, fnf)(__VA_ARGS__)
+#else
 #define	__tg_generic_simple(x, fnl, fn, fnf)				\
 	__generic(x, long double _Complex, fnl,				\
 	    __generic(x, double _Complex, fn,				\
@@ -94,6 +113,7 @@
 	    __tg_generic_full(y, cfnl, cfn , cfn , fnl , fn  , fn  ),	\
 	    __tg_generic_full(y, cfnl, cfn , cfnf, fnl , fn  , fnf ))	\
 	    (__VA_ARGS__)
+#endif
 
 /* Macros to save lots of repetition below */
 #define	__tg_simple(x, fn)						\
