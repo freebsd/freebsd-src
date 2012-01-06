@@ -378,6 +378,10 @@ FBSD_1.2 {
 	setloginclass;
 };
 
+FBSD_1.3 {
+	posix_fadvise;
+};
+
 FBSDprivate_1.0 {
 	___acl_aclcheck_fd;
 	__sys___acl_aclcheck_fd;
