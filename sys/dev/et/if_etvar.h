@@ -38,35 +38,8 @@
 #ifndef _IF_ETVAR_H
 #define _IF_ETVAR_H
 
-/* DragonFly compatibility */
-#define EVL_ENCAPLEN		ETHER_VLAN_ENCAP_LEN
-
-/*
- * Allocate the right type of mbuf for the desired total length.
- */
-static __inline struct mbuf *
-m_getl(int len, int how, int type, int flags, int *psize)
-{
-	struct mbuf *m;
-	int size;
-
-	if (len >= MINCLSIZE) {
-		m = m_getcl(how, type, flags);
-		size = MCLBYTES;
-	} else if (flags & M_PKTHDR) {
-		m = m_gethdr(how, type);
-		size = MHLEN;
-	} else {
-		m = m_get(how, type);
-		size = MLEN;
-	}
-	if (psize != NULL)
-		*psize = size;
-	return (m);
-}
-
-
-#define ET_ALIGN		0x1000
+#define ET_RING_ALIGN		4096
+#define ET_STATUS_ALIGN		8
 #define ET_NSEG_MAX		32	/* XXX no limit actually */
 #define ET_NSEG_SPARE		8
 
@@ -84,8 +57,8 @@ m_getl(int len, int how, int type, int flags, int *psize)
 #define ET_JUMBO_MTU		(ET_JUMBO_FRAMELEN - ETHER_HDR_LEN -	\
 				 EVL_ENCAPLEN - ETHER_CRC_LEN)
 
-#define ET_FRAMELEN(mtu)	(ETHER_HDR_LEN + EVL_ENCAPLEN + (mtu) +	\
-				 ETHER_CRC_LEN)
+#define ET_FRAMELEN(mtu)	(ETHER_HDR_LEN + ETHER_VLAN_ENCAP_LEN +	\
+				 (mtu) + ETHER_CRC_LEN)
 
 #define ET_JSLOTS		(ET_RX_NDESC + 128)
 #define ET_JLEN			(ET_JUMBO_FRAMELEN + ETHER_ALIGN)
@@ -137,8 +110,36 @@ struct et_rxstat {
 	uint32_t	rxst_info2;	/* ET_RXST_INFO2_ */
 };
 
-#define ET_RXST_INFO2_LEN_MASK	0x0000FFFF
-#define ET_RXST_INFO2_LEN_SHIFT	0
+#define ET_RXST_INFO1_HASH_PASS		0x00000001
+#define ET_RXST_INFO1_IPCSUM		0x00000002
+#define ET_RXST_INFO1_IPCSUM_OK		0x00000004
+#define ET_RXST_INFO1_TCPCSUM		0x00000008
+#define ET_RXST_INFO1_TCPCSUM_OK	0x00000010
+#define ET_RXST_INFO1_WOL		0x00000020
+#define ET_RXST_INFO1_RXMAC_ERR		0x00000040
+#define ET_RXST_INFO1_DROP		0x00000080
+#define ET_RXST_INFO1_FRAME_TRUNC	0x00000100
+#define ET_RXST_INFO1_JUMBO		0x00000200
+#define ET_RXST_INFO1_VLAN		0x00000400
+#define ET_RXST_INFO1_PREV_FRMAE_DROP	0x00010000
+#define ET_RXST_INFO1_SHORT		0x00020000
+#define ET_RXST_INFO1_BAD_CARRIER	0x00040000
+#define ET_RXST_INFO1_CODE_ERR		0x00080000
+#define ET_RXST_INFO1_CRC_ERR		0x00100000
+#define ET_RXST_INFO1_LEN_MISMATCH	0x00200000
+#define ET_RXST_INFO1_TOO_LONG		0x00400000
+#define ET_RXST_INFO1_OK		0x00800000
+#define ET_RXST_INFO1_MULTICAST		0x01000000
+#define ET_RXST_INFO1_BROADCAST		0x02000000
+#define ET_RXST_INFO1_DRIBBLE		0x04000000
+#define ET_RXST_INFO1_CTL_FRAME		0x08000000
+#define ET_RXST_INFO1_PAUSE_FRAME	0x10000000
+#define ET_RXST_INFO1_UNKWN_CTL_FRAME	0x20000000
+#define ET_RXST_INFO1_VLAN_TAG		0x40000000
+#define ET_RXST_INFO1_LONG_EVENT	0x80000000
+
+#define ET_RXST_INFO2_LEN_MASK		0x0000FFFF
+#define ET_RXST_INFO2_LEN_SHIFT		0
 #define ET_RXST_INFO2_BUFIDX_MASK	0x03FF0000
 #define ET_RXST_INFO2_BUFIDX_SHIFT	16
 #define ET_RXST_INFO2_RINGIDX_MASK	0x0C000000
@@ -153,11 +154,6 @@ struct et_rxstatus {
 #define ET_RXS_STATRING_INDEX_SHIFT	16
 #define ET_RXS_STATRING_WRAP	0x10000000
 
-struct et_dmamap_ctx {
-	int		nsegs;
-	bus_dma_segment_t *segs;
-};
-
 struct et_txbuf {
 	struct mbuf		*tb_mbuf;
 	bus_dmamap_t		tb_dmap;
@@ -166,7 +162,6 @@ struct et_txbuf {
 struct et_rxbuf {
 	struct mbuf		*rb_mbuf;
 	bus_dmamap_t		rb_dmap;
-	bus_addr_t		rb_paddr;
 };
 
 struct et_txstatus_data {
@@ -224,7 +219,6 @@ struct et_txbuf_data {
 
 struct et_softc;
 struct et_rxbuf_data;
-typedef int	(*et_newbuf_t)(struct et_rxbuf_data *, int, int);
 
 struct et_rxbuf_data {
 	struct et_rxbuf		rbd_buf[ET_RX_NDESC];
@@ -233,7 +227,8 @@ struct et_rxbuf_data {
 	struct et_rxdesc_ring	*rbd_ring;
 
 	int			rbd_bufsize;
-	et_newbuf_t		rbd_newbuf;
+	int			(*rbd_newbuf)(struct et_rxbuf_data *, int);
+	void			(*rbd_discard)(struct et_rxbuf_data *, int);
 };
 
 struct et_softc {
@@ -268,7 +263,11 @@ struct et_softc {
 	struct et_txstatus_data	sc_tx_status;
 
 	bus_dma_tag_t		sc_mbuf_dtag;
-	bus_dmamap_t		sc_mbuf_tmp_dmap;
+	bus_dma_tag_t		sc_rx_mini_tag;
+	bus_dmamap_t		sc_rx_mini_sparemap;
+	bus_dma_tag_t		sc_rx_tag;
+	bus_dmamap_t		sc_rx_sparemap;
+	bus_dma_tag_t		sc_tx_tag;
 	struct et_rxbuf_data	sc_rx_data[ET_RX_NRING];
 	struct et_txbuf_data	sc_tx_data;
 
