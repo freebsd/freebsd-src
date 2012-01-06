@@ -15,15 +15,7 @@
     <pubdate>$FreeBSD$</pubdate>
 
     <copyright>
-      <year>2000</year>
-      <year>2001</year>
-      <year>2002</year>
-      <year>2003</year>
-      <year>2004</year>
-      <year>2005</year>
-      <year>2006</year>
-      <year>2007</year>
-      <year>2008</year>
+      <year>2012</year>
       <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
     </copyright>
 
@@ -332,12 +324,6 @@
 	  </listitem>
 	</itemizedlist>
       </para>
-
-      <para>On platforms that support &man.sysinstall.8; (currently
-	&arch.amd64;, &arch.i386;, &arch.ia64;, &arch.pc98;, and &arch.sparc64;), these documents are generally available via the
-	Documentation menu during installation.  Once the system is
-	installed, you can revisit this menu by re-running the
-	&man.sysinstall.8; utility.</para>
 
       <note>
 	<para>It is extremely important to read the errata for any
