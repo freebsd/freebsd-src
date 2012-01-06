@@ -1686,6 +1686,15 @@ options 	MFI_DEBUG
 device		twe		# 3ware ATA RAID
 
 #
+# Intel C600 (Patsburg) integrated SAS controller
+#
+device		isci
+
+# Enables logging in isci driver.  Log level (default: 0, max: 3) controlled
+# by hw.isci.debug_level device hint.
+options		ISCI_LOGGING
+
+#
 # Serial ATA host controllers:
 #
 # ahci: Advanced Host Controller Interface (AHCI) compatible
