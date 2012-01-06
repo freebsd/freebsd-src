@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 14, 2008
+.Dd December 9, 2011
 .Dt ET 4
 .Os
 .Sh NAME
@@ -122,6 +122,11 @@ Note that the 1000baseT media type is only available
 if it is supported by the adapter.
 For more information on configuring this device, see
 .Xr ifconfig 8 .
+.Sh HARDWARE
+The
+.Nm
+driver supports Agere ET1310 10/100/Gigabit
+Ethernet adapters.
 .Sh TUNABLES
 .Bl -tag -width ".Va hw.et.rx_intr_npkts"
 .It Va hw.et.rx_intr_npkts
@@ -151,6 +156,7 @@ to achieve TX interrupt moderation.
 The default value is 1000000000 (nanoseconds).
 .El
 .Sh SEE ALSO
+.Xr altq 4 ,
 .Xr arp 4 ,
 .Xr miibus 4 ,
 .Xr netintro 4 ,
