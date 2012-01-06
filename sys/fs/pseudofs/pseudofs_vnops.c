@@ -410,8 +410,7 @@ pfs_vptocnp(struct vop_vptocnp_args *ap)
 	}
 
 	*buflen = i;
-	vhold(*dvp);
-	vput(*dvp);
+	VOP_UNLOCK(*dvp, 0);
 	vn_lock(vp, locked | LK_RETRY);
 	vfs_unbusy(mp);
 
