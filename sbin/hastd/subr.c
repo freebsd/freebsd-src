@@ -149,7 +149,7 @@ role2str(int role)
 }
 
 int
-drop_privs(struct hast_resource *res)
+drop_privs(const struct hast_resource *res)
 {
 	char jailhost[sizeof(res->hr_name) * 2];
 	struct jail jailst;
