@@ -1460,7 +1460,7 @@ sctp_timeout_handler(void *t)
 	type = tmr->type;
 	if (inp) {
 		SCTP_INP_INCR_REF(inp);
-		if ((inp->sctp_socket == 0) &&
+		if ((inp->sctp_socket == NULL) &&
 		    ((tmr->type != SCTP_TIMER_TYPE_INPKILL) &&
 		    (tmr->type != SCTP_TIMER_TYPE_INIT) &&
 		    (tmr->type != SCTP_TIMER_TYPE_SEND) &&
