@@ -4035,7 +4035,7 @@ vop_create_post(void *ap, int rc)
 void
 vop_deleteextattr_post(void *ap, int rc)
 {
-	struct vop_setattr_args *a = ap;
+	struct vop_deleteextattr_args *a = ap;
 
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
@@ -4125,7 +4125,7 @@ vop_setattr_post(void *ap, int rc)
 void
 vop_setextattr_post(void *ap, int rc)
 {
-	struct vop_setattr_args *a = ap;
+	struct vop_setextattr_args *a = ap;
 
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
