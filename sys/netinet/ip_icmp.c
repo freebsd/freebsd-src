@@ -89,7 +89,7 @@ static VNET_DEFINE(int, icmplim_output) = 1;
 #define	V_icmplim_output		VNET(icmplim_output)
 SYSCTL_VNET_INT(_net_inet_icmp, OID_AUTO, icmplim_output, CTLFLAG_RW,
 	&VNET_NAME(icmplim_output), 0,
-	"Enable rate limiting of ICMP responses");
+	"Enable logging of ICMP response rate limiting");
 
 #ifdef INET
 VNET_DEFINE(struct icmpstat, icmpstat);
