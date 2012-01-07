@@ -214,7 +214,6 @@ fwe_attach(device_t dev)
 #endif
 	ifp->if_start = fwe_start;
 	ifp->if_ioctl = fwe_ioctl;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = (IFF_BROADCAST|IFF_SIMPLEX|IFF_MULTICAST);
 	ifp->if_snd.ifq_maxlen = TX_MAX_QUEUE;
 
