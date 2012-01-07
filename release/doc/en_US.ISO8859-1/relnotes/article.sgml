@@ -339,7 +339,7 @@
       with the same semantics as (for example)
       &man.chmod.1;.</para>
 
-    <para>For compatiblity with other implementations, &man.cp.1; now
+    <para>For compatibility with other implementations, &man.cp.1; now
       supports a <option>-a</option> flag, which is equivalent to
       specifying the <option>-RrP</option> flags.</para>
 
