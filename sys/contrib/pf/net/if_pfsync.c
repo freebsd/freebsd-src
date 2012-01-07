@@ -3028,11 +3028,10 @@ pfsync_bulk_start(void)
 #else
 			sc->sc_bulk_next = TAILQ_FIRST(&state_list);
 #endif
-			sc->sc_bulk_last = sc->sc_bulk_next;
+		sc->sc_bulk_last = sc->sc_bulk_next;
 
-			pfsync_bulk_status(PFSYNC_BUS_START);
-			callout_reset(&sc->sc_bulk_tmo, 1,
-			    pfsync_bulk_update, sc);
+		pfsync_bulk_status(PFSYNC_BUS_START);
+		callout_reset(&sc->sc_bulk_tmo, 1, pfsync_bulk_update, sc);
 	}
 #ifdef __FreeBSD__
 	PF_UNLOCK();
