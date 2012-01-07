@@ -167,7 +167,7 @@ ipfw_main(int oldac, char **oldav)
 					i++;
 				bcopy(arg+j, av_p, i-j);
 				av[ac] = av_p;
-				av_p += i-j;	/* the lenght of the string */
+				av_p += i-j;	/* the length of the string */
 				*av_p++ = '\0';
 				ac++;
 				j = i + 1;
