@@ -834,7 +834,7 @@ ieee80211_classify(struct ieee80211_node *ni, struct mbuf *m)
 		uint32_t flow;
 		uint8_t tos;
 		/*
-		 * IPv6 frame, map the DSCP bits from the TOS field.
+		 * IPv6 frame, map the DSCP bits from the traffic class field.
 		 */
 		m_copydata(m, sizeof(struct ether_header) +
 		    offsetof(struct ip6_hdr, ip6_flow), sizeof(flow),
