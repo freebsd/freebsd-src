@@ -1280,7 +1280,7 @@ backup_file()
 #	Make a symbolic link 'link' to src from basedir. If the
 #	directory in which link is to be created does not exist
 #	a warning will be displayed and an error will be returned.
-#	Returns 0 on sucess, 1 otherwise.
+#	Returns 0 on success, 1 otherwise.
 #
 make_symlink()
 {
