@@ -42,20 +42,22 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+/*
+ * Revisions picked from OpenBSD after revision 1.110 import:
+ * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
+ * 1.120, 1.175 - use monotonic time_uptime
+ * 1.122 - reduce number of updates for non-TCP sessions
+ */
+
 #ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_bpf.h"
 #include "opt_pf.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
+#define	NBPFILTER	1
 
 #ifdef DEV_PFSYNC
 #define	NPFSYNC		DEV_PFSYNC
@@ -539,9 +541,14 @@ pfsync_clone_destroy(struct ifnet *ifp)
 
 #ifdef __FreeBSD__
 	EVENTHANDLER_DEREGISTER(ifnet_departure_event, sc->sc_detachtag);
+	PF_LOCK();
 #endif
-	timeout_del(&sc->sc_bulk_tmo);	/* XXX: need PF_LOCK() before */
+	timeout_del(&sc->sc_bulkfail_tmo);
+	timeout_del(&sc->sc_bulk_tmo);
 	timeout_del(&sc->sc_tmo);
+#ifdef __FreeBSD__
+	PF_UNLOCK();
+#endif
 #if NCARP > 0
 #ifdef notyet
 #ifdef __FreeBSD__
@@ -662,7 +669,7 @@ pfsync_state_export(struct pfsync_state *sp, struct pf_state *st)
 	/* copy from state */
 	strlcpy(sp->ifname, st->kif->pfik_name, sizeof(sp->ifname));
 	bcopy(&st->rt_addr, &sp->rt_addr, sizeof(sp->rt_addr));
-	sp->creation = htonl(time_second - st->creation);
+	sp->creation = htonl(time_uptime - st->creation);
 	sp->expire = pf_state_expires(st);
 	if (sp->expire <= time_second)
 		sp->expire = htonl(0);
@@ -813,7 +820,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 
 	/* copy to state */
 	bcopy(&sp->rt_addr, &st->rt_addr, sizeof(st->rt_addr));
-	st->creation = time_second - ntohl(sp->creation);
+	st->creation = time_uptime - ntohl(sp->creation);
 	st->expire = time_second;
 	if (sp->expire) {
 		/* XXX No adaptive scaling. */
@@ -836,7 +843,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	st->anchor.ptr = NULL;
 	st->rt_kif = NULL;
 
-	st->pfsync_time = time_second;
+	st->pfsync_time = time_uptime;
 	st->sync_state = PFSYNC_S_NONE;
 
 	/* XXX when we have nat_rule/anchors, use STATE_INC_COUNTERS */
@@ -1328,7 +1335,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_state_peer_ntoh(&sp->dst, &st->dst);
 		st->expire = ntohl(sp->expire) + time_second;
 		st->timeout = sp->timeout;
-		st->pfsync_time = time_second;
+		st->pfsync_time = time_uptime;
 	}
 #ifdef __FreeBSD__
 	PF_UNLOCK();
@@ -1438,7 +1445,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		pf_state_peer_ntoh(&up->dst, &st->dst);
 		st->expire = ntohl(up->expire) + time_second;
 		st->timeout = up->timeout;
-		st->pfsync_time = time_second;
+		st->pfsync_time = time_uptime;
 	}
 #ifdef __FreeBSD__
 	PF_UNLOCK();
@@ -1608,14 +1615,16 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	switch (bus->status) {
 	case PFSYNC_BUS_START:
 #ifdef __FreeBSD__
-		callout_reset(&sc->sc_bulkfail_tmo, 5 * hz, pfsync_bulk_fail,
-		    V_pfsyncif);
+		callout_reset(&sc->sc_bulkfail_tmo, 4 * hz +
+		    V_pf_pool_limits[PF_LIMIT_STATES].limit /
+		    ((sc->sc_sync_if->if_mtu - PFSYNC_MINPKT) /
+		    sizeof(struct pfsync_state)),
+		    pfsync_bulk_fail, V_pfsyncif);
 #else
-		timeout_add_sec(&sc->sc_bulkfail_tmo, 5); /* XXX magic */
-#endif
-#ifdef XXX
+		timeout_add(&sc->sc_bulkfail_tmo, 4 * hz +
 		    pf_pool_limits[PF_LIMIT_STATES].limit /
-		    (PFSYNC_BULKPACKETS * sc->sc_maxcount));
+		    ((sc->sc_if.if_mtu - PFSYNC_MINPKT) /
+		    sizeof(struct pfsync_state)));
 #endif
 #ifdef __FreeBSD__
 		if (V_pf_status.debug >= PF_DEBUG_MISC)
@@ -2606,9 +2615,11 @@ pfsync_update_state(struct pf_state *st)
 	case PFSYNC_S_INS:
 		/* we're already handling it */
 
-		st->sync_updates++;
-		if (st->sync_updates >= sc->sc_maxupdates)
-			sync = 1;
+		if (st->key[PF_SK_WIRE]->proto == IPPROTO_TCP) {
+			st->sync_updates++;
+			if (st->sync_updates >= sc->sc_maxupdates)
+				sync = 1;
+		}
 		break;
 
 	case PFSYNC_S_IACK:
@@ -2623,7 +2634,7 @@ pfsync_update_state(struct pf_state *st)
 		    st->sync_state);
 	}
 
-	if (sync || (time_second - st->pfsync_time) < 2) {
+	if (sync || (time_uptime - st->pfsync_time) < 2) {
 		pfsync_upds++;
 #ifdef __FreeBSD__
 		pfsync_sendout();
@@ -2665,7 +2676,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 		nlen += sizeof(struct pfsync_subheader);
 
 #ifdef __FreeBSD__
-	if (sc->sc_len + nlen > sc->sc_ifp->if_mtu) {
+	if (sc->sc_len + nlen > sc->sc_sync_if->if_mtu) {
 #else
 	if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 #endif
@@ -3290,16 +3301,17 @@ void
 pfsyncintr(void *arg)
 {
 	struct pfsync_softc *sc = arg;
-	struct mbuf *m;
+	struct mbuf *m, *n;
 
 	CURVNET_SET(sc->sc_ifp->if_vnet);
 	pfsync_ints++;
 
-	for (;;) {
-		IF_DEQUEUE(&sc->sc_ifp->if_snd, m);
-		if (m == 0)
-			break;
+	IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
 
+	for (; m != NULL; m = n) {
+
+		n = m->m_nextpkt;
+		m->m_nextpkt = NULL;
 		if (ip_output(m, NULL, NULL, IP_RAWOUTPUT, &sc->sc_imo, NULL)
 		    == 0)
 			V_pfsyncstats.pfsyncs_opackets++;
@@ -3391,6 +3403,7 @@ vnet_pfsync_init(const void *unused)
 	if (error)
 		panic("%s: swi_add %d", __func__, error);
 
+	PF_LOCK();
 	pfsync_state_import_ptr = pfsync_state_import;
 	pfsync_up_ptr = pfsync_up;
 	pfsync_insert_state_ptr = pfsync_insert_state;
@@ -3399,6 +3412,7 @@ vnet_pfsync_init(const void *unused)
 	pfsync_clear_states_ptr = pfsync_clear_states;
 	pfsync_state_in_use_ptr = pfsync_state_in_use;
 	pfsync_defer_ptr = pfsync_defer;
+	PF_UNLOCK();
 
 	return (0);
 }
@@ -3409,6 +3423,7 @@ vnet_pfsync_uninit(const void *unused)
 
 	swi_remove(pfsync_swi.pfsync_swi_cookie);
 
+	PF_LOCK();
 	pfsync_state_import_ptr = NULL;
 	pfsync_up_ptr = NULL;
 	pfsync_insert_state_ptr = NULL;
@@ -3417,6 +3432,7 @@ vnet_pfsync_uninit(const void *unused)
 	pfsync_clear_states_ptr = NULL;
 	pfsync_state_in_use_ptr = NULL;
 	pfsync_defer_ptr = NULL;
+	PF_UNLOCK();
 
 	if_clone_detach(&pfsync_cloner);
 
