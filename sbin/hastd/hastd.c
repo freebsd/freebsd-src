@@ -786,7 +786,7 @@ listen_accept(struct hastd_listen *lst)
 	pjdlog_debug(2, "%s: resource=%s", raddr, resname);
 	token = nv_get_uint8_array(nvin, &size, "token");
 	/*
-	 * NULL token means that this is first conection.
+	 * NULL token means that this is first connection.
 	 */
 	if (token != NULL && size != sizeof(res->hr_token)) {
 		pjdlog_error("Received token of invalid size from %s (expected %zu, got %zu).",
