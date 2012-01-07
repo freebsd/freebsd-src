@@ -184,7 +184,7 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-      <para revision="217152" arch="amd64,i386">&os; ELF image
+      <para revision="217152,217396" arch="amd64,i386,powerpc">&os; ELF image
 	activator now supports <literal>PT_GNU_STACK</literal> program
 	header.  This is disabled by default.  New &man.sysctl.8;
 	variables <varname>kern.elf32.nxstack</varname> and
@@ -218,14 +218,25 @@
 	    fixed.  It could prevent the RX checksum offloading from
 	    working.</para>
 
+	  <para revision="217511">A bug in &man.ral.4; and &man.run.4;
+	    drivers which could prevent <literal>hostap</literal> mode
+	    from working has been fixed.</para>
+
 	  <para revision="216828">A rdcphy(4) driver for RDC Semiconductor
 	    R6040 10/100 PHY has been added.</para>
+
+	  <para revision="217498">The &man.re.4; driver now supports
+	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers.</para>
 
 	  <para revision="217246">The &man.re.4; driver now supports
 	    TSO (TCP Segmentation Offload) on RealTek RTL8168/8111 C
 	    or later controllers.  Note that this is disabled by
 	    default on some old devices because broken frames can be
 	    sent under certain conditions.</para>
+
+	  <para revision="217381">The &man.re.4; driver now supports
+	    enabling TX and/or RX checksum offloading independently
+	    from each other.</para>
 
 	  <para revision="217296">A bug in the &man.re.4; driver has
 	    been fixed.  It could cause a panic when receiving a jumbo
@@ -276,8 +287,8 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  <varname>M_NOWAIT</varname> for memory allocation.  The
 	  default value is <literal>0</literal>.</para>
 
-	<para revision="216941">A bug in the &man.mmc.4; driver that could
-	  fail in device detection has been fixed.</para>
+	<para revision="216941,217509">A bug in the &man.mmc.4; driver
+	  that could fail in device detection has been fixed.</para>
     </sect3>
 
     <sect3 id="fs">
@@ -300,6 +311,17 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+      <para revision="217416">The &man.cpuset.1; utility now supports
+	a <option>-C</option> flag to create a new cpuset and assign
+	an existing process into that set, and an
+	<literal>all</literal> keyword in <option>-l
+	<replaceable>cpu-list</replaceable></option> option to specify
+	all CPUs in the system.</para>
+
+      <para revision="217505">A bug in the &man.fetch.1; utility which
+	could prevent <command>STAT</command> FTP command from working
+	properly has been fixed.</para>
+
       <para revision="217013">The &man.ifconfig.8; utility now
 	supports <literal>fdx</literal>, <literal>flow</literal>,
 	<literal>hdx</literal>, and <literal>loop</literal> keywords
@@ -315,7 +337,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
       <para revision="216695">The &man.rtld.1; runtime linker now supports
 	shared objects as filters in ELF shared libraries.  Both
-	standard and auxillary filtering have been supported.  The
+	standard and auxiliary filtering have been supported.  The
 	&man.rtld.1; linker's processing of a filter defers loading a
 	filtee until a filter symbol is referenced unless
 	<varname>LD_LOADFLTR</varname> environment variable is defined
@@ -335,11 +357,18 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	<literal>2</literal> instead of <literal>1</literal> if an
 	fatal error occurs as other built-in commands do.</para>
 
-      <para revision="217176">A bug in the &man.sh.1; program has been
+      <para revision="217176,217472">A bug in the &man.sh.1; program has been
 	fixed for POSIX conformance.  It could return an wrong exit
 	status when an <command>exit</command> command with no
 	parameter is specified in the <literal>EXIT trap</literal>
-	handler.</para>
+	handler, which is triggered when the shell terminates.
+	In trap actions for other signals, <command>exit</command>
+	command with no parameter returns an exit status corresponding
+	to the received signal.</para>
+
+      <para revision="217461">The &man.sh.1; program now supports a
+	<option>--</option> flag in <command>trap</command> command to
+	stop the option processing.</para>
 
       <para revision="217206"><literal>%builtin</literal> keyword
 	support in <varname>$PATH</varname> variable has been removed
@@ -356,6 +385,9 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
   <sect2 id="contrib">
     <title>Contributed Software</title>
+
+      <para revision="222544"><literal>ACPI CA</literal> has been
+	updated to version 20110527.</para>
 
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
