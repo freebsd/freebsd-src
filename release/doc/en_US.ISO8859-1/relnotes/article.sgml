@@ -214,6 +214,13 @@
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
+	  <para revision="217649">A bug in &man.alc.4; driver which
+	    could make AR8152-based network interfaces stop working
+	    has been fixed.</para>
+
+	  <para revision="217593">The &man.ixgbe.4; driver has been
+	    updated to version 2.3.8.</para>
+
 	  <para revision="216860">A bug in &man.msk.4; driver has been
 	    fixed.  It could prevent the RX checksum offloading from
 	    working.</para>
@@ -242,6 +249,12 @@
 	    been fixed.  It could cause a panic when receiving a jumbo
 	    frame on an RTL8169C, 8169D, or 8169E controller-based
 	    network interface.</para>
+
+	  <para revision="217548">A bug in the &man.sis.4; driver has
+	    been changed.  It could prevent a proper reinitialization
+	    on DP83815, DP83816, and SiS 900/7016 controllers when
+	    configuration of multicast packet handling and/or
+	    promiscus mode is changed.</para>
 
 	  <para revision="216650">A bug in &man.vlan.4; pseudo interface
 	    han been fixed.  It could have a random interface
@@ -330,6 +343,12 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	<literal>half-duplex</literal>,
 	and <literal>loopback</literal>, respectively.</para>
 
+      <para revision="217642">The &man.netstat.1; utility now does not
+	expose internal scope address representation used in the &os;
+	kernel, which is derived from KAME IPv6 stack, in the results
+	of <command>netstat -ani</command> and <command>netstat
+	  -nr</command>.</para>
+
       <para revision="216823">A &man.poweroff.8; utility has been added.
 	This is equivalent to:</para>
 
@@ -366,6 +385,13 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	command with no parameter returns an exit status corresponding
 	to the received signal.</para>
 
+      <para revision="217557">A bug in the &man.sh.1; program has been
+	fixed.  When a foreground job exits on a signal, a message is
+	printed to stdout about this. The buffer was not flushed after
+	this which could result in the message being written to the
+	wrong file if the next command was a builtin and had stdout
+	redirected.</para>
+
       <para revision="217461">The &man.sh.1; program now supports a
 	<option>--</option> flag in <command>trap</command> command to
 	stop the option processing.</para>
@@ -391,6 +417,9 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
+
+      <para revision="217698">&man.unifdef.1; utility has been updated
+	to version 2.5.6.</para>
   </sect2>
 
   <sect2 id="ports">
