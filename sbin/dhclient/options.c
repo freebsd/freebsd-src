@@ -284,8 +284,8 @@ find_search_domain_name_len(struct option_data *option, int *offset)
 			    option->data[i + 1];
 			if (pointer >= *offset) {
 				/*
-				 * The pointer must indicates a prior
-				 * occurance.
+				 * The pointer must indicate a prior
+				 * occurrence.
 				 */
 				warning("Invalid forward pointer in DHCP "
 				    "Domain Search option compression.");

@@ -788,7 +788,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	for (;;) {
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
-		 * occurence of remote errors by setting `remoteerr'.
+		 * occurrence of remote errors by setting `remoteerr'.
 		 */
 		remoteerr = 0;
 		for (ai = ai_nfs; ai != NULL; ai = ai->ai_next) {
