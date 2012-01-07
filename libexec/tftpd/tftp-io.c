@@ -72,13 +72,13 @@ struct errmsg {
 #define DROPPACKET(s)							\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return;							\
 	}
 #define DROPPACKETn(s,n)						\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return (n);						\
 	}
 
