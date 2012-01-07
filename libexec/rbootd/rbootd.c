@@ -231,7 +231,7 @@ main(int argc, char *argv[])
 
 		r = rset;
 
-		if (RmpConns == NULL) {		/* timeout isnt necessary */
+		if (RmpConns == NULL) {		/* timeout isn't necessary */
 			nsel = select(maxfds, &r, NULL, NULL, NULL);
 		} else {
 			timeout.tv_sec = RMP_TIMEOUT;

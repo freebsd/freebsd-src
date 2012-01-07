@@ -238,7 +238,7 @@ typedef struct Struct_Obj_Entry {
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
-    void *priv;			/* Platform-dependant */
+    void *priv;			/* Platform-dependent */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a
