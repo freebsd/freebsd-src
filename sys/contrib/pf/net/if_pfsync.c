@@ -47,6 +47,7 @@
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
+ * 1.170 - SIOCSIFMTU checks
  */
 
 #ifdef __FreeBSD__
@@ -492,13 +493,12 @@ pfsync_clone_create(struct if_clone *ifc, int unit)
 	ifp->if_type = IFT_PFSYNC;
 	ifp->if_snd.ifq_maxlen = ifqmaxlen;
 	ifp->if_hdrlen = sizeof(struct pfsync_header);
-	ifp->if_mtu = 1500; /* XXX */
+	ifp->if_mtu = ETHERMTU;
 #ifdef __FreeBSD__
 	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
 	callout_init_mtx(&sc->sc_bulk_tmo, &pf_task_mtx, 0);
 	callout_init(&sc->sc_bulkfail_tmo, CALLOUT_MPSAFE);
 #else
-	ifp->if_hardmtu = MCLBYTES; /* XXX */
 	timeout_set(&sc->sc_tmo, pfsync_timeout, sc);
 	timeout_set(&sc->sc_bulk_tmo, pfsync_bulk_update, sc);
 	timeout_set(&sc->sc_bulkfail_tmo, pfsync_bulk_fail, sc);
@@ -1614,7 +1614,7 @@ pfsync_in_bus(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 #ifdef __FreeBSD__
 		callout_reset(&sc->sc_bulkfail_tmo, 4 * hz +
 		    V_pf_pool_limits[PF_LIMIT_STATES].limit /
-		    ((sc->sc_sync_if->if_mtu - PFSYNC_MINPKT) /
+		    ((sc->sc_ifp->if_mtu - PFSYNC_MINPKT) /
 		    sizeof(struct pfsync_state)),
 		    pfsync_bulk_fail, V_pfsyncif);
 #else
@@ -1821,10 +1821,10 @@ pfsyncioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 #endif
 		break;
 	case SIOCSIFMTU:
-		if (ifr->ifr_mtu <= PFSYNC_MINPKT)
+		if (!sc->sc_sync_if ||
+		    ifr->ifr_mtu <= PFSYNC_MINPKT ||
+		    ifr->ifr_mtu > sc->sc_sync_if->if_mtu)
 			return (EINVAL);
-		if (ifr->ifr_mtu > MCLBYTES) /* XXX could be bigger */
-			ifr->ifr_mtu = MCLBYTES;
 		if (ifr->ifr_mtu < ifp->if_mtu) {
 			s = splnet();
 #ifdef __FreeBSD__
@@ -2667,7 +2667,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 		nlen += sizeof(struct pfsync_subheader);
 
 #ifdef __FreeBSD__
-	if (sc->sc_len + nlen > sc->sc_sync_if->if_mtu) {
+	if (sc->sc_len + nlen > sc->sc_ifp->if_mtu) {
 #else
 	if (sc->sc_len + nlen > sc->sc_if.if_mtu) {
 #endif
