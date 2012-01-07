@@ -83,7 +83,7 @@ static void digest_dynamic2(Obj_Entry *, const Elf_Dyn *, const Elf_Dyn *);
 static void digest_dynamic(Obj_Entry *, int);
 static Obj_Entry *digest_phdr(const Elf_Phdr *, int, caddr_t, const char *);
 static Obj_Entry *dlcheck(void *);
-static Obj_Entry *dlopen_object(const char *name, Obj_Entry *refobj,
+static Obj_Entry *dlopen_object(const char *name, int fd, Obj_Entry *refobj,
     int lo_flags, int mode);
 static Obj_Entry *do_load_object(int, const char *, char *, struct stat *, int);
 static int do_search_info(const Obj_Entry *obj, int, struct dl_serinfo *);
@@ -103,7 +103,7 @@ static void load_filtees(Obj_Entry *, int flags, RtldLockState *);
 static void unload_filtees(Obj_Entry *);
 static int load_needed_objects(Obj_Entry *, int);
 static int load_preload_objects(void);
-static Obj_Entry *load_object(const char *, const Obj_Entry *, int);
+static Obj_Entry *load_object(const char *, int fd, const Obj_Entry *, int);
 static void map_stacks_exec(RtldLockState *);
 static Obj_Entry *obj_from_addr(const void *);
 static void objlist_call_fini(Objlist *, Obj_Entry *, RtldLockState *);
@@ -120,6 +120,7 @@ static int resolve_objects_ifunc(Obj_Entry *first, bool bind_now,
     RtldLockState *lockstate);
 static int rtld_dirname(const char *, char *);
 static int rtld_dirname_abs(const char *, char *);
+static void *rtld_dlopen(const char *name, int fd, int mode);
 static void rtld_exit(void);
 static char *search_library_path(const char *, const char *);
 static const void **get_program_var_addr(const char *, RtldLockState *);
@@ -1544,7 +1545,7 @@ load_filtee1(Obj_Entry *obj, Needed_Entry *needed, int flags)
 {
 
     for (; needed != NULL; needed = needed->next) {
-	needed->obj = dlopen_object(obj->strtab + needed->name, obj,
+	needed->obj = dlopen_object(obj->strtab + needed->name, -1, obj,
 	  flags, ((ld_loadfltr || obj->z_loadfltr) ? RTLD_NOW : RTLD_LAZY) |
 	  RTLD_LOCAL);
     }
@@ -1568,7 +1569,7 @@ process_needed(Obj_Entry *obj, Needed_Entry *needed, int flags)
     Obj_Entry *obj1;
 
     for (; needed != NULL; needed = needed->next) {
-	obj1 = needed->obj = load_object(obj->strtab + needed->name, obj,
+	obj1 = needed->obj = load_object(obj->strtab + needed->name, -1, obj,
 	  flags & ~RTLD_LO_NOLOAD);
 	if (obj1 == NULL && !ld_tracing && (flags & RTLD_LO_FILTEES) == 0)
 	    return (-1);
@@ -1615,7 +1616,7 @@ load_preload_objects(void)
 
 	savech = p[len];
 	p[len] = '\0';
-	if (load_object(p, NULL, 0) == NULL)
+	if (load_object(p, -1, NULL, 0) == NULL)
 	    return -1;	/* XXX - cleanup */
 	p[len] = savech;
 	p += len;
@@ -1625,43 +1626,68 @@ load_preload_objects(void)
     return 0;
 }
 
+static const char *
+printable_path(const char *path)
+{
+
+	return (path == NULL ? "<unknown>" : path);
+}
+
 /*
- * Load a shared object into memory, if it is not already loaded.
+ * Load a shared object into memory, if it is not already loaded.  The
+ * object may be specified by name or by user-supplied file descriptor
+ * fd_u. In the later case, the fd_u descriptor is not closed, but its
+ * duplicate is.
  *
  * Returns a pointer to the Obj_Entry for the object.  Returns NULL
  * on failure.
  */
 static Obj_Entry *
-load_object(const char *name, const Obj_Entry *refobj, int flags)
+load_object(const char *name, int fd_u, const Obj_Entry *refobj, int flags)
 {
     Obj_Entry *obj;
-    int fd = -1;
+    int fd;
     struct stat sb;
     char *path;
 
-    for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
-	if (object_match_name(obj, name))
-	    return obj;
+    if (name != NULL) {
+	for (obj = obj_list->next;  obj != NULL;  obj = obj->next) {
+	    if (object_match_name(obj, name))
+		return (obj);
+	}
 
-    path = find_library(name, refobj);
-    if (path == NULL)
-	return NULL;
+	path = find_library(name, refobj);
+	if (path == NULL)
+	    return (NULL);
+    } else
+	path = NULL;
 
     /*
-     * If we didn't find a match by pathname, open the file and check
-     * again by device and inode.  This avoids false mismatches caused
-     * by multiple links or ".." in pathnames.
+     * If we didn't find a match by pathname, or the name is not
+     * supplied, open the file and check again by device and inode.
+     * This avoids false mismatches caused by multiple links or ".."
+     * in pathnames.
      *
      * To avoid a race, we open the file and use fstat() rather than
      * using stat().
      */
-    if ((fd = open(path, O_RDONLY)) == -1) {
-	_rtld_error("Cannot open \"%s\"", path);
-	free(path);
-	return NULL;
+    fd = -1;
+    if (fd_u == -1) {
+	if ((fd = open(path, O_RDONLY)) == -1) {
+	    _rtld_error("Cannot open \"%s\"", path);
+	    free(path);
+	    return (NULL);
+	}
+    } else {
+	fd = dup(fd_u);
+	if (fd == -1) {
+	    _rtld_error("Cannot dup fd");
+	    free(path);
+	    return (NULL);
+	}
     }
     if (fstat(fd, &sb) == -1) {
-	_rtld_error("Cannot fstat \"%s\"", path);
+	_rtld_error("Cannot fstat \"%s\"", printable_path(path));
 	close(fd);
 	free(path);
 	return NULL;
@@ -1669,7 +1695,7 @@ load_object(const char *name, const Obj_Entry *refobj, int flags)
     for (obj = obj_list->next;  obj != NULL;  obj = obj->next)
 	if (obj->ino == sb.st_ino && obj->dev == sb.st_dev)
 	    break;
-    if (obj != NULL) {
+    if (obj != NULL && name != NULL) {
 	object_add_name(obj, name);
 	free(path);
 	close(fd);
@@ -1703,20 +1729,25 @@ do_load_object(int fd, const char *name, char *path, struct stat *sbp,
      */
     if (dangerous_ld_env) {
 	if (fstatfs(fd, &fs) != 0) {
-	    _rtld_error("Cannot fstatfs \"%s\"", path);
-		return NULL;
+	    _rtld_error("Cannot fstatfs \"%s\"", printable_path(path));
+	    return NULL;
 	}
 	if (fs.f_flags & MNT_NOEXEC) {
 	    _rtld_error("Cannot execute objects on %s\n", fs.f_mntonname);
 	    return NULL;
 	}
     }
-    dbg("loading \"%s\"", path);
-    obj = map_object(fd, path, sbp);
+    dbg("loading \"%s\"", printable_path(path));
+    obj = map_object(fd, printable_path(path), sbp);
     if (obj == NULL)
         return NULL;
 
-    object_add_name(obj, name);
+    /*
+     * If DT_SONAME is present in the object, digest_dynamic2 already
+     * added it to the object names.
+     */
+    if (name != NULL)
+	object_add_name(obj, name);
     obj->path = path;
     digest_dynamic(obj, 0);
     if (obj->z_noopen && (flags & (RTLD_LO_DLOPEN | RTLD_LO_TRACE)) ==
@@ -2212,6 +2243,20 @@ dllockinit(void *context,
 void *
 dlopen(const char *name, int mode)
 {
+
+	return (rtld_dlopen(name, -1, mode));
+}
+
+void *
+fdlopen(int fd, int mode)
+{
+
+	return (rtld_dlopen(NULL, fd, mode));
+}
+
+static void *
+rtld_dlopen(const char *name, int fd, int mode)
+{
     RtldLockState lockstate;
     int lo_flags;
 
@@ -2232,7 +2277,7 @@ dlopen(const char *name, int mode)
     if (ld_tracing != NULL)
 	    lo_flags |= RTLD_LO_TRACE;
 
-    return (dlopen_object(name, obj_main, lo_flags,
+    return (dlopen_object(name, fd, obj_main, lo_flags,
       mode & (RTLD_MODEMASK | RTLD_GLOBAL)));
 }
 
@@ -2247,7 +2292,8 @@ dlopen_cleanup(Obj_Entry *obj)
 }
 
 static Obj_Entry *
-dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
+dlopen_object(const char *name, int fd, Obj_Entry *refobj, int lo_flags,
+    int mode)
 {
     Obj_Entry **old_obj_tail;
     Obj_Entry *obj;
@@ -2262,11 +2308,11 @@ dlopen_object(const char *name, Obj_Entry *refobj, int lo_flags, int mode)
 
     old_obj_tail = obj_tail;
     obj = NULL;
-    if (name == NULL) {
+    if (name == NULL && fd == -1) {
 	obj = obj_main;
 	obj->refcount++;
     } else {
-	obj = load_object(name, refobj, lo_flags);
+	obj = load_object(name, fd, refobj, lo_flags);
     }
 
     if (obj) {
