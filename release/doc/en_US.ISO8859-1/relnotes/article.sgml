@@ -184,6 +184,14 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+      <para revision="217152" arch="amd64,i386">&os; ELF image
+	activator now supports <literal>PT_GNU_STACK</literal> program
+	header.  This is disabled by default.  New &man.sysctl.8;
+	variables <varname>kern.elf32.nxstack</varname> and
+	<varname>kern.elf64.nxstack</varname> allow to enable
+	<literal>PT_GNU_STACK</literal> for the specified ABIs
+	(e.g. <literal>elf32</literal> for 32-bit ABI).</para>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -192,6 +200,10 @@
 
     <sect3 id="proc">
       <title>Hardware Support</title>
+
+	<para revision="217044" arch="powerpc">&os;/powerpc now
+	  supports Sony Playstation 3 using the OtherOS feature
+	  available on firmwares 3.15 and earlier.</para>
 
       <sect4 id="mm">
 	<title>Multimedia Support</title>
@@ -208,6 +220,17 @@
 
 	  <para revision="216828">A rdcphy(4) driver for RDC Semiconductor
 	    R6040 10/100 PHY has been added.</para>
+
+	  <para revision="217246">The &man.re.4; driver now supports
+	    TSO (TCP Segmentation Offload) on RealTek RTL8168/8111 C
+	    or later controllers.  Note that this is disabled by
+	    default on some old devices because broken frames can be
+	    sent under certain conditions.</para>
+
+	  <para revision="217296">A bug in the &man.re.4; driver has
+	    been fixed.  It could cause a panic when receiving a jumbo
+	    frame on an RTL8169C, 8169D, or 8169E controller-based
+	    network interface.</para>
 
 	  <para revision="216650">A bug in &man.vlan.4; pseudo interface
 	    han been fixed.  It could have a random interface
@@ -233,7 +256,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-      <para></para>
+	<para revision="217169">A bug in &os; TCP/IP network stack has
+	  been fixed.  The source address selection could not being
+	  performed when multicast options were present but without an
+	  interface being specified.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -274,6 +300,14 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+      <para revision="217013">The &man.ifconfig.8; utility now
+	supports <literal>fdx</literal>, <literal>flow</literal>,
+	<literal>hdx</literal>, and <literal>loop</literal> keywords
+	as aliases of <literal>full-duplex</literal>,
+	<literal>flowcontrol</literal>,
+	<literal>half-duplex</literal>,
+	and <literal>loopback</literal>, respectively.</para>
+
       <para revision="216823">A &man.poweroff.8; utility has been added.
 	This is equivalent to:</para>
 
@@ -288,6 +322,11 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	or a <literal>-z loadfltr</literal> option was specified when
 	the filter was created.</para>
 
+      <para revision="217133">A race condition in the &man.sed.1;
+	utility has been fixed.  When an <option>-i</option> option is
+	specified, it could cause a short time window with no file
+	with the original file name.</para>
+
       <para revision="216629">The &man.sh.1; program now supports
 	<command>kill</command> as a built-in command.  This allows
 	specifying <literal>%<replaceable>job</replaceable></literal>
@@ -295,6 +334,18 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	that this built-in command returns the exit status
 	<literal>2</literal> instead of <literal>1</literal> if an
 	fatal error occurs as other built-in commands do.</para>
+
+      <para revision="217176">A bug in the &man.sh.1; program has been
+	fixed for POSIX conformance.  It could return an wrong exit
+	status when an <command>exit</command> command with no
+	parameter is specified in the <literal>EXIT trap</literal>
+	handler.</para>
+
+      <para revision="217206"><literal>%builtin</literal> keyword
+	support in <varname>$PATH</varname> variable has been removed
+	in the &man.sh.1; program.  All built-in commands are always
+	found before looking up directories in
+	<varname>$PATH</varname>.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -306,7 +357,8 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
   <sect2 id="contrib">
     <title>Contributed Software</title>
 
-    <para></para>
+      <para revision="224014"><literal>dialog</literal> has been
+	updated to version 1.1-20110707.</para>
   </sect2>
 
   <sect2 id="ports">
@@ -363,8 +415,23 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect2>
       <title id="upgrade-pitfalls">User-visible incompatibilities</title>
 
-      <para>This section describes notable incompatibilities which
-	your should know before upgrading your system.</para>
+      <para>This section describes notable incompatibilities which you
+	might want to know before upgrading your system.</para>
+
+      <sect3>
+	<title>Update of <literal>dialog</literal></title>
+
+	<para>The <literal>dialog</literal> library is used in &os;
+	  new installer and &os; Ports Collection to display a dialog
+	  window and allow users to select various options.  Note that
+	  it is updated in &release.current; and there is several
+	  differences in the key operation which might confuse users
+	  who are familiar with releases prior to &release.current;.
+	  For example, pushing enter key in a check list window is no
+	  longer able to be used to check an item.  The new version
+	  consistently supports space bar for selecting an item and
+	  enter key for OK/Cancel selection.</para>
+      </sect3>
     </sect2>
 </sect1>
 </article>
