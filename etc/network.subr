@@ -139,7 +139,7 @@ ifconfig_up()
 			_cfg=0
 		fi
 
-		# backward compatiblity: $ipv6_ifconfig_IF
+		# backward compatibility: $ipv6_ifconfig_IF
 		ifconfig_args=`get_if_var $1 ipv6_ifconfig_IF`
 		if [ -n "${ifconfig_args}" ]; then
 			warn "\$ipv6_ifconfig_$1 is obsolete." \
