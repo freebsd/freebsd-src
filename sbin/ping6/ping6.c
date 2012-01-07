@@ -1166,7 +1166,7 @@ main(int argc, char *argv[])
 
 			/*
 			 * receive control messages only. Process the
-			 * exceptions (currently the only possiblity is
+			 * exceptions (currently the only possibility is
 			 * a path MTU notification.)
 			 */
 			if ((mtu = get_pathmtu(&m)) > 0) {

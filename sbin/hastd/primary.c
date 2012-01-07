@@ -933,7 +933,7 @@ hastd_primary(struct hast_resource *res)
 
 	/*
 	 * Create the guard thread first, so we can handle signals from the
-	 * very begining.
+	 * very beginning.
 	 */
 	error = pthread_create(&td, NULL, guard_thread, res);
 	PJDLOG_ASSERT(error == 0);

@@ -884,7 +884,7 @@ set80211wepkey(const char *val, int d, int s, const struct afswtch *rafp)
 }
 
 /*
- * This function is purely a NetBSD compatability interface.  The NetBSD
+ * This function is purely a NetBSD compatibility interface.  The NetBSD
  * interface is too inflexible, but it's there so we'll support it since
  * it's not all that hard.
  */
