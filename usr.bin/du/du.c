@@ -88,6 +88,7 @@ main(int argc, char *argv[])
 	FTS		*fts;
 	FTSENT		*p;
 	off_t		savednumber, curblocks;
+	off_t		threshold, threshold_sign;
 	int		ftsoptions;
 	int		listall;
 	int		depth;
@@ -104,12 +105,14 @@ main(int argc, char *argv[])
 	save = argv;
 	ftsoptions = 0;
 	savednumber = 0;
+	threshold = 0;
+	threshold_sign = 1;
 	cblocksize = DEV_BSIZE;
 	blocksize = 0;
 	depth = INT_MAX;
 	SLIST_INIT(&ignores);
 
-	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrx")) != -1)
+	while ((ch = getopt(argc, argv, "AB:HI:LPasd:chklmnrt:x")) != -1)
 		switch (ch) {
 		case 'A':
 			Aflag = 1;
@@ -176,6 +179,14 @@ main(int argc, char *argv[])
 			nodumpflag = 1;
 			break;
 		case 'r':		 /* Compatibility. */
+			break;
+		case 't' :
+			if (expand_number(optarg, &threshold) != 0 ||
+			    threshold == 0) {
+				warnx("invalid threshold: %s", optarg);
+				usage();
+			} else if (threshold < 0)
+				threshold_sign = -1;
 			break;
 		case 'x':
 			ftsoptions |= FTS_XDEV;
@@ -246,6 +257,10 @@ main(int argc, char *argv[])
 		blocksize /= DEV_BSIZE;
 	}
 
+	if (threshold != 0)
+		threshold = howmany(threshold / DEV_BSIZE * cblocksize,
+		    blocksize);
+
 	rval = 0;
 
 	if ((fts = fts_open(argv, ftsoptions, NULL)) == NULL)
@@ -267,7 +282,9 @@ main(int argc, char *argv[])
 			p->fts_parent->fts_bignum += p->fts_bignum +=
 			    curblocks;
 
-			if (p->fts_level <= depth) {
+			if (p->fts_level <= depth && threshold <=
+			    threshold_sign * howmany(p->fts_bignum *
+			    cblocksize, blocksize)) {
 				if (hflag) {
 					prthumanval(p->fts_bignum);
 					(void)printf("\t%s\n", p->fts_path);
@@ -486,9 +503,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
-		"[file ...]\n");
+		"usage: du [-Aclnx] [-H | -L | -P] [-h | -k | -m ] "
+		"[-a | -s | -d depth] [-B blocksize] [-I mask] "
+		"[-t threshold] [file ...]\n");
 	exit(EX_USAGE);
 }
 
