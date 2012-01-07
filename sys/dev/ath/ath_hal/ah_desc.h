@@ -31,7 +31,9 @@
  * they'll be initialised to 0 anyway.
  */
 
+#ifndef	AH_SUPPORT_AR5416
 #define	AH_SUPPORT_AR5416	1
+#endif
 
 /*
  * Transmit descriptor status.  This structure is filled
