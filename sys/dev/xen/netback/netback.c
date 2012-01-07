@@ -375,7 +375,6 @@ netif_create(int handle, struct xenbus_device *xdev, char *bridge)
 	ifp->if_output = ether_output;
 	ifp->if_start = netback_start;
 	ifp->if_ioctl = netback_ioctl;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = NET_TX_RING_SIZE - 1;
 	
 	DPRINTF("Created %s for domid=%d handle=%d\n", IFNAME(netif), netif->domid, netif->handle);

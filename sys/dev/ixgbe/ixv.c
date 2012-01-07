@@ -1829,7 +1829,6 @@ ixv_setup_interface(device_t dev, struct adapter *adapter)
 	if (ifp == NULL)
 		panic("%s: can not if_alloc()\n", device_get_nameunit(dev));
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixv_init;
 	ifp->if_softc = adapter;
