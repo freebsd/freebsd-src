@@ -149,12 +149,12 @@ _Noreturn void	 _Exit(int);
 #endif /* __ISO_C_VISIBLE >= 1999 */
 
 /*
- * If we're in a mode greater than C99, expose C1x functions.
+ * If we're in a mode greater than C99, expose C11 functions.
  */
 #if __ISO_C_VISIBLE >= 2011
+int	at_quick_exit(void (*)(void));
 _Noreturn void
 	quick_exit(int);
-int	at_quick_exit(void (*)(void));
 #endif /* __ISO_C_VISIBLE >= 2011 */
 /*
  * Extensions made by POSIX relative to C.  We don't know yet which edition
