@@ -194,6 +194,17 @@
 	about Capsicum, see <ulink
 	url="http://www.cl.cam.ac.uk/research/security/capsicum/"></ulink>.</para>
 
+      <para revision="219559,219561" arch="amd64,i386">The &os;
+	&man.dtrace.1; framework now supports
+	<literal>systrace</literal> for system calls of
+	<literal>linux32</literal> and <literal>freebsd32</literal> on
+	&os;/&arch.amd64;.  Two new
+	<filename>systrace_linux32</filename> and
+	<filename>systrace_freebsd32</filename> kernel modules provide
+	support for tracing compat system calls in addition to native
+	system call tracing provided by the
+	<filename>systrace</filename> module.</para>
+
       <para revision="217152,217396" arch="amd64,i386,powerpc">&os; ELF image
 	activator now supports <literal>PT_GNU_STACK</literal> program
 	header.  This is disabled by default.  New &man.sysctl.8;
@@ -521,8 +532,13 @@
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
-      <para></para>
-    </sect3>
+	<para revision="219541" arch="ia64">The &man.loader.8; loader
+	  now supports PBVM (Pre-Boot Virtual Memory).  This allows to
+	  link the kernel at a fixed virtual address without having to
+	  make any assumptions about the physical memory layout.  The
+	  PBVM also allows fine control of the address where the
+	  kernel and its modules to be loaded.</para>
+      </sect3>
 
     <sect3 id="proc">
       <title>Hardware Support</title>
@@ -550,6 +566,10 @@
 	  <para revision="217649">A bug in &man.alc.4; driver which
 	    could make AR8152-based network interfaces stop working
 	    has been fixed.</para>
+
+	  <para revision="219647">bxe(4) driver for Broadcom NetXtreme
+	    II 10GbE controller (BCM57710, BCM57711, BCM57711E) has
+	    been added.</para>
 
 	  <para revision="218794">A &man.cxgbe.4; driver for Chelsio
 	    T4 (Terminator 4) based 10Gb/1Gb adapters has been
@@ -813,8 +833,9 @@ nfsuserd_enable="YES"</programlisting>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
-      <para revision="219359">Complex exponential functions
-	&man.cexp.3; and &man.cexpf.3; have been added to
+      <para revision="219359,219571">Complex exponential functions
+	&man.cexp.3; and &man.cexpf.3;, and cube root function
+	&man.cbrtl.3; have been added to
 	<application>libm</application>.</para>
 
       <para revision="217416">The &man.cpuset.1; utility now supports
@@ -880,6 +901,15 @@ nfsuserd_enable="YES"</programlisting>
 	supports &man.xz.1; compression.  An <literal>X</literal> flag
 	in the optional field has been added to specify the
 	compression.</para>
+
+      <para revision="219563">The &man.pam.group.8; module now
+	supports <option>ruser</option> and <option>luser</option>
+	options.  The <option>ruser</option> make it accept or reject
+	based on the supplicant's group membership and this is the
+	default behavior.  The <option>luser</option> checks the
+	target user's group membership instead of the supplicant's
+	one.  If neither option was specified, &man.pam.group.8;
+	assumes <option>ruser</option> and issues a warning.</para>
 
       <para revision="216823">A &man.poweroff.8; utility has been added.
 	This is equivalent to:</para>
@@ -998,9 +1028,9 @@ nfsuserd_enable="YES"</programlisting>
 	<varname>CPP</varname> &man.make.1; variables,
 	respectively.</para>
 
-      <para revision="219411">The <application>timezone</application>
+      <para revision="219687">The <application>timezone</application>
 	database has been updated to the
-	<application>tzdata2011c</application> release.</para>
+	<application>tzdata2011d</application> release.</para>
 
       <para revision="217698">&man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
