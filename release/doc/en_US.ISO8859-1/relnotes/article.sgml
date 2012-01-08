@@ -218,6 +218,9 @@
 	    could make AR8152-based network interfaces stop working
 	    has been fixed.</para>
 
+	  <para revision="218530">The &man.igb.4; driver now supports
+	    Intel I350 PCIe Gigabit Ethernet controller.</para>
+
 	  <para revision="217593">The &man.ixgbe.4; driver has been
 	    updated to version 2.3.8.</para>
 
@@ -265,9 +268,12 @@
 	    disabled by default because broken frames can be sent
 	    under certain conditions.</para>
 
-	  <para revision="217381">The &man.re.4; driver now supports
-	    enabling TX and/or RX checksum offloading independently
-	    from each other.</para>
+	  <para revision="217381,218289">The &man.re.4; driver now
+	    supports enabling TX and/or RX checksum offloading
+	    independently from each other.  Note that TX IP checksum
+	    is disabled on some RTL8168C-based network interfaces
+	    because it can generate an wrong IP checksum when the
+	    packet contains IP options.</para>
 
 	  <para revision="217296">A bug in the &man.re.4; driver has
 	    been fixed.  It could cause a panic when receiving a jumbo
@@ -315,10 +321,38 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  been fixed.  The source address selection could not being
 	  performed when multicast options were present but without an
 	  interface being specified.</para>
+
+	<para revision="216109,216114,216115,218152,218153,218155">
+	  &os; TCP/IP network stack now supports &man.cc.9; pluggable
+	  congestion control framework.  This allows TCP congestion
+	  control algorithms to be implemented as dynamically loadable
+	  kernel modules.  The following kernel modules are available
+	  as of &release.current;: &man.cc.chd.4; for
+	  CAIA-Hamilton-Delay algorithm, &man.cc.cubic.4; for CUBIC
+	  algorithm, &man.cc.hd.4; for Hamilton-Delay algorithm,
+	  &man.cc.htcp.4; for H-TCP algorithm, &man.cc.newreno.4; for
+	  NewReno algorithm, and &man.cc.vegas.4; for Vegas algorithm.
+	  The default algorithm can be set by a new &man.sysctl.8;
+	  variable <varname>net.inet.tcp.cc.algorithm</varname>.  The
+	  value must be set to one of the names listed by the
+	  <varname>net.inet.tcp.cc.available</varname>, and
+	  <literal>newreno</literal> is set at boot time.  For more
+	  detail, see &man.cc.9; manual page.</para>
     </sect3>
 
     <sect3 id="disks">
       <title>Disks and Storage</title>
+
+	<para revision="218014">The &man.gpart.8; GEOM class now
+	  supports the following aliases for the MBR and EBR schemes:
+	  <literal>fat32</literal>, <literal>ebr</literal>,
+	  <literal>linux-data</literal>,
+	  <literal>linux-raid</literal>, and
+	  <literal>linux-swap</literal>.</para>
+
+	<para revision="218014">The &man.gpart.8; GEOM class now
+	  supports <literal>bios-boot</literal> GUID for the GPT
+	  scheme which is used in GRUB 2 loader.</para>
 
 	<para revision="216793">The &man.md.4; memory-backed pseudo disk
 	  device driver now supports a &man.sysctl.8; variable
@@ -338,6 +372,17 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="fs">
       <title>File Systems</title>
 
+	<para revision="207141">The &os; Fast File System now supports
+	  softupdates journaling.  It introduces a intent log into a
+	  softupdates-enabled file system which eliminates the need
+	  for background &man.fsck.8; even on unclean shutdown.  This
+	  can be enabled in a per-filesystem basis by using a
+	  <option>-j</option> flag in the &man.newfs.8; utility or a
+	  <option>-j enable</option> option in the &man.tunefs.8;
+	  utility.  Note that the &release.current; installer
+	  automatically enables the softupdates journaling for
+	  newly-created UFS file systems.</para>
+
 	<para revision="216796">The &os; Fast File System now supports
 	  <literal>TRIM</literal> command when freeing data blocks.  A
 	  new flag <option>-t</option> in the &man.newfs.8; and
@@ -347,8 +392,22 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  block.  The <literal>TRIM</literal> command is specified as
 	  Data Set Management Command in ATA8-ACS2 standard to carry
 	  the information related to deleted data blocks to device,
-	  especially for SSD (Solid-State Drive) for optimization.
-	  </para>
+	  especially for SSD (Solid-State Drive) for optimization.</para>
+
+	<para revision="218485">The following &man.sysctl.8; variables
+	  for showing availability of UFS-related feature on the
+	  system have been added:
+	  <varname>kern.features.ufs_acl</varname> for ACL (Access
+	  Control List) support in UFS,
+	  <varname>kern.features.ufs_gjournal</varname> for journaling
+	  support through &man.gjournal.8; for UFS,
+	  <varname>kern.features.ufs_quota</varname> for UFS disk
+	  quotas support, <varname>kern.features.ufs_quota64</varname>
+	  for 64-bit UFS disk quotas support,
+	  <varname>kern.features.softupdates</varname> for FFS
+	  soft-updates support, and
+	  <varname>kern.features.ffs_snapshot</varname> for FFS
+	  snapshot support.</para>
     </sect3>
   </sect2>
 
@@ -366,6 +425,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	could prevent <command>STAT</command> FTP command from working
 	properly has been fixed.</para>
 
+      <para revision="218049">The &man.hastd.8; utility now drops
+	<literal>root</literal> privileges of the worker processes to
+	<literal>hast</literal> user.</para>
+
       <para revision="217013">The &man.ifconfig.8; utility now
 	supports <literal>fdx</literal>, <literal>flow</literal>,
 	<literal>hdx</literal>, and <literal>loop</literal> keywords
@@ -380,10 +443,23 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	of <command>netstat -ani</command> and <command>netstat
 	  -nr</command>.</para>
 
+      <para revision="218127">The &man.newsyslog.8; utility now
+	supports &man.xz.1; compression.  An <literal>X</literal> flag
+	in the optional field has been added to specify the
+	compression.</para>
+
       <para revision="216823">A &man.poweroff.8; utility has been added.
 	This is equivalent to:</para>
 
       <screen>&prompt.root; shutdown -p now</screen>
+
+      <para revision="218397">The &man.ppp.8; utility now supports
+	<command>iface name <replaceable>name</replaceable></command>
+	and <command>iface description
+	<replaceable>description</replaceable></command> commands.
+	These have the same functionalities as <literal>name</literal>
+	and <literal>description</literal> subcommands in the
+	&man.ifconfig.8; utility.</para>
 
       <para revision="216695">The &man.rtld.1; runtime linker now supports
 	shared objects as filters in ELF shared libraries.  Both
@@ -421,7 +497,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	printed to <filename>stdout</filename> about this. The buffer
 	was not flushed after this which could result in the message
 	being written to the wrong file if the next command was a
-	builtin and had <filename>stdout</filename> redirected.</para>
+	built-in and had <filename>stdout</filename> redirected.</para>
 
       <para revision="217461">The &man.sh.1; program now supports a
 	<option>--</option> flag in <command>trap</command> command to
@@ -432,6 +508,13 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	in the &man.sh.1; program.  All built-in commands are always
 	found before looking up directories in
 	<varname>$PATH</varname>.</para>
+
+      <para revision="218466">Arithmetic expression handling code in
+	the &man.sh.1; program has been updated by importing code from
+	<application>dash</application>.  It now supports conditional
+	operator (<literal>?:</literal>) and a bug in evaluation of
+	&amp;&amp; and || around an arithmetic expression has been
+	fixed.</para>
 
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
@@ -446,8 +529,15 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
       <para revision="222544"><literal>ACPI CA</literal> has been
 	updated to version 20110527.</para>
 
+      <para revision="228189"><application>ISC BIND</application> has
+	been updated to version 9.8.1-P1.</para>
+
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
+
+      <para revision="218122">The <application>timezone</application>
+	database has been updated to the
+	<application>tzdata2011a</application> release.</para>
 
       <para revision="217698">&man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
