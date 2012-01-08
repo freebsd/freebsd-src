@@ -225,6 +225,10 @@
 	    fixed.  It could prevent the RX checksum offloading from
 	    working.</para>
 
+	  <para revision="217794">A bug in &man.nfe.4; driver which
+	    could prevent reinitialization after changing the MTU has
+	    been fixed.</para>
+
 	  <para revision="217511">A bug in &man.ral.4; and &man.run.4;
 	    drivers which could prevent <literal>hostap</literal> mode
 	    from working has been fixed.</para>
@@ -235,11 +239,31 @@
 	  <para revision="217498">The &man.re.4; driver now supports
 	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers.</para>
 
-	  <para revision="217246">The &man.re.4; driver now supports
-	    TSO (TCP Segmentation Offload) on RealTek RTL8168/8111 C
-	    or later controllers.  Note that this is disabled by
-	    default on some old devices because broken frames can be
-	    sent under certain conditions.</para>
+	  <para revision="217766">The &man.re.4; driver now supports
+	    TX interrupt moderation on RTL810xE PCIe Fast Ethernet
+	    controllers.</para>
+
+	  <para revision="217902">The &man.re.4; driver now supports
+	    another mechanism for RX interrupt moderation because of
+	    performance problem.  A &man.sysctl.8; variable
+	    <varname>dev.re.<replaceable>N</replaceable>.int_rx_mod</varname>
+	    has been added to control amount of time to delay RX
+	    interrupt processing in units of microsecond.  Setting it
+	    to <literal>0</literal> completely disables RX interrupt
+	    moderation.  A &man.loader.8; tunable
+	    <varname>hw.re.intr_filter</varname> controls whether the
+	    old mechanism utilizing MSI/MSI-X capability on the
+	    supported controllers is used or not.  When setting it to
+	    a non-zero value, the &man.re.4; driver uses the old
+	    mechanism.  The default value is <literal>0</literal> and
+	    this tunable has no effect on controllers without MSI/MSI-X
+	    capability.</para>
+
+	  <para revision="217246,217832">The &man.re.4; driver now
+	    supports TSO (TCP Segmentation Offload) on RealTek
+	    RTL8168/8111 C or later controllers.  Note that this is
+	    disabled by default because broken frames can be sent
+	    under certain conditions.</para>
 
 	  <para revision="217381">The &man.re.4; driver now supports
 	    enabling TX and/or RX checksum offloading independently
@@ -250,11 +274,18 @@
 	    frame on an RTL8169C, 8169D, or 8169E controller-based
 	    network interface.</para>
 
+	  <para revision="217911">The &man.re.4; driver now support
+	    RTL8105E PCIe Fast Ethernet controller.</para>
+
+	  <para revision="217910">The rlphy(4) driver now support
+	    Realtek RTL8201E 10/100 PHY found in RTL8105E
+	    controller.</para>
+
 	  <para revision="217548">A bug in the &man.sis.4; driver has
 	    been changed.  It could prevent a proper reinitialization
 	    on DP83815, DP83816, and SiS 900/7016 controllers when
 	    configuration of multicast packet handling and/or
-	    promiscus mode is changed.</para>
+	    promiscuous mode is changed.</para>
 
 	  <para revision="216650">A bug in &man.vlan.4; pseudo interface
 	    han been fixed.  It could have a random interface
@@ -387,10 +418,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
       <para revision="217557">A bug in the &man.sh.1; program has been
 	fixed.  When a foreground job exits on a signal, a message is
-	printed to stdout about this. The buffer was not flushed after
-	this which could result in the message being written to the
-	wrong file if the next command was a builtin and had stdout
-	redirected.</para>
+	printed to <filename>stdout</filename> about this. The buffer
+	was not flushed after this which could result in the message
+	being written to the wrong file if the next command was a
+	builtin and had <filename>stdout</filename> redirected.</para>
 
       <para revision="217461">The &man.sh.1; program now supports a
 	<option>--</option> flag in <command>trap</command> command to
