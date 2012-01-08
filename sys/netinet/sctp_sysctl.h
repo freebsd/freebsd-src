@@ -114,6 +114,7 @@ struct sctp_sysctl {
 	uint32_t sctp_vtag_time_wait;
 	uint32_t sctp_buffer_splitting;
 	uint32_t sctp_initial_cwnd;
+	uint32_t sctp_blackhole;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -518,6 +519,11 @@ struct sctp_sysctl {
 #define SCTPCTL_RTTVAR_DCCCECN_MIN	0
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
+
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing"
+#define SCTPCTL_BLACKHOLE_MIN		0
+#define SCTPCTL_BLACKHOLE_MAX		2
+#define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
