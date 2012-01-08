@@ -498,12 +498,14 @@ lookup(struct nameidata *ndp)
 	int dvfslocked;			/* VFS Giant state for parent */
 	int tvfslocked;
 	int lkflags_save;
+	int ni_dvp_unlocked;
 	
 	/*
 	 * Setup: break out flag bits into variables.
 	 */
 	dvfslocked = (ndp->ni_cnd.cn_flags & GIANTHELD) != 0;
 	vfslocked = 0;
+	ni_dvp_unlocked = 0;
 	ndp->ni_cnd.cn_flags &= ~GIANTHELD;
 	wantparent = cnp->cn_flags & (LOCKPARENT | WANTPARENT);
 	KASSERT(cnp->cn_nameiop == LOOKUP || wantparent,
@@ -847,8 +849,10 @@ unionlookup:
 		/*
 		 * Symlink code always expects an unlocked dvp.
 		 */
-		if (ndp->ni_dvp != ndp->ni_vp)
+		if (ndp->ni_dvp != ndp->ni_vp) {
 			VOP_UNLOCK(ndp->ni_dvp, 0);
+			ni_dvp_unlocked = 1;
+		}
 		goto success;
 	}
 
@@ -895,14 +899,17 @@ nextname:
 		VREF(ndp->ni_startdir);
 	}
 	if (!wantparent) {
+		ni_dvp_unlocked = 2;
 		if (ndp->ni_dvp != dp)
 			vput(ndp->ni_dvp);
 		else
 			vrele(ndp->ni_dvp);
 		VFS_UNLOCK_GIANT(dvfslocked);
 		dvfslocked = 0;
-	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp)
+	} else if ((cnp->cn_flags & LOCKPARENT) == 0 && ndp->ni_dvp != dp) {
 		VOP_UNLOCK(ndp->ni_dvp, 0);
+		ni_dvp_unlocked = 1;
+	}
 
 	if (cnp->cn_flags & AUDITVNODE1)
 		AUDIT_ARG_VNODE1(dp);
@@ -931,10 +938,12 @@ success:
 	return (0);
 
 bad2:
-	if (dp != ndp->ni_dvp)
-		vput(ndp->ni_dvp);
-	else
-		vrele(ndp->ni_dvp);
+	if (ni_dvp_unlocked != 2) {
+		if (dp != ndp->ni_dvp && !ni_dvp_unlocked)
+			vput(ndp->ni_dvp);
+		else
+			vrele(ndp->ni_dvp);
+	}
 bad:
 	if (!dpunlocked)
 		vput(dp);
