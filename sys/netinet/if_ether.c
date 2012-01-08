@@ -123,8 +123,6 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
 	"Number of packets to hold per ARP entry");
 
 static void	arp_init(void);
-void		arprequest(struct ifnet *,
-			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
