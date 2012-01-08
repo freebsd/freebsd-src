@@ -184,6 +184,16 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
+      <para revision="219129">&os; kernel now supports Capsicum
+	Capability Mode.  Capsicum is a set of features for sandboxing
+	support, using a capability model in which the capabilities
+	are file descriptors.  Two new kernel options
+	<literal>CAPABILITIES</literal> and
+	<literal>CAPABILITY_MODE</literal> have been added to
+	<filename>GENERIC</filename> kernel.  For more information
+	about Capsicum, see <ulink
+	url="http://www.cl.cam.ac.uk/research/security/capsicum/"></ulink>.</para>
+
       <para revision="217152,217396" arch="amd64,i386,powerpc">&os; ELF image
 	activator now supports <literal>PT_GNU_STACK</literal> program
 	header.  This is disabled by default.  New &man.sysctl.8;
@@ -673,6 +683,12 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  allows to select or query a congestion control algorithm
 	  that the TCP/IP network stack will use for connections on
 	  the socket.</para>
+
+	<para revision="219127">The &man.ng.one2many.4;
+	  &man.netgraph.4; node now supports
+	  <literal>XMIT_FAILOVER</literal> transmit algorithm.  This
+	  makes packets deliver out the first active
+	  <literal>many</literal> hook.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -689,6 +705,12 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  supports <literal>bios-boot</literal> GUID for the GPT
 	  scheme which is used in GRUB 2 loader.</para>
 
+	<para revision="219056">The &man.sysctl.8; variable
+	  <varname>kern.geom.confxml</varname> now contains
+	  information about disk identification in an
+	  <sgmltag>ident</sgmltag> tag and disk model string in a
+	  <sgmltag>descr</sgmltag> tag.</para>
+
 	<para revision="216793">The &man.md.4; memory-backed pseudo disk
 	  device driver now supports a &man.sysctl.8; variable
 	  <varname>vm.md_malloc_wait</varname> to specify whether a
@@ -702,7 +724,14 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
 	<para revision="216941,217509">A bug in the &man.mmc.4; driver
 	  that could fail in device detection has been fixed.</para>
-    </sect3>
+
+	<para revision="219089">ZFS subsystem has been updated to the
+	  SPA (Storage Pool Allocator, also known as zpool) version
+	  28.  It now supports data deduplication, triple parity RAIDZ
+	  (raidz3), snapshot holds, log device removal, zfs diff,
+	  zpool split, zpool import <option>-F</option>, and read-only
+	  zpool import.</para>
+      </sect3>
 
     <sect3 id="fs">
       <title>File Systems</title>
