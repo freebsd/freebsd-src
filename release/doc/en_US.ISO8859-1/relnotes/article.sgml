@@ -202,6 +202,13 @@
 	<literal>PT_GNU_STACK</literal> for the specified ABIs
 	(e.g. <literal>elf32</literal> for 32-bit ABI).</para>
 
+      <para revision="219304">Two new system calls
+	<function>setloginclass(2)</function> and
+	<function>getloginclass(2)</function> have been added.  This
+	makes it possible for the kernel to track login class the
+	process is assigned to, which is required for RCTL
+	framework.</para>
+
       <para revision="218485,219028,219029">The following &man.sysctl.8; variables
 	for showing availability of various kernel features:</para>
 
@@ -524,6 +531,13 @@
 	  supports Sony Playstation 3 using the OtherOS feature
 	  available on firmwares 3.15 and earlier.</para>
 
+	<para revision="219473">A new &man.loader.8; tunable
+	  <varname>machdep.disable_tsc</varname> has been added.
+	  Setting this to a non-zero value disables use of TSC (Time
+	  Stamp Counter) by turning off boot-time CPU frequency
+	  calibration, DELAY(9) with TSC, and using TSC as a CPU
+	  ticker.</para>
+
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
@@ -689,6 +703,12 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  <literal>XMIT_FAILOVER</literal> transmit algorithm.  This
 	  makes packets deliver out the first active
 	  <literal>many</literal> hook.</para>
+
+	<para revision="219183">The &man.ng.netflow.4;
+	  &man.netgraph.4; node now supports NetFlow version 9.  A new
+	  <literal>export9</literal> hook has been added for NetFlow
+	  v9 data.  Note that the data export can be done
+	  simultaneously in both version 5 and version 9.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -793,6 +813,10 @@ nfsuserd_enable="YES"</programlisting>
   <sect2 id="userland">
     <title>Userland Changes</title>
 
+      <para revision="219359">Complex exponential functions
+	&man.cexp.3; and &man.cexpf.3; have been added to
+	<application>libm</application>.</para>
+
       <para revision="217416">The &man.cpuset.1; utility now supports
 	a <option>-C</option> flag to create a new cpuset and assign
 	an existing process into that set, and an
@@ -804,9 +828,28 @@ nfsuserd_enable="YES"</programlisting>
 	could prevent <command>STAT</command> FTP command from working
 	properly has been fixed.</para>
 
+      <para revision="219415">The &man.gpart.8; utility now supports a
+	<option>-p</option> flag to <command>show</command>
+	subcommand.  This allows to show provider's names of
+	partitions instead of partition's indexes.</para>
+
       <para revision="218049">The &man.hastd.8; utility now drops
 	<literal>root</literal> privileges of the worker processes to
 	<literal>hast</literal> user.</para>
+
+      <para revision="219351">The &man.hastd.8; utility now supports
+	<literal>checksum</literal> keyword to specify checksum
+	algorithm in a <literal>resource</literal> section.  As of
+	&release.current;, <literal>none</literal>,
+	<literal>sha256</literal>, and <literal>crc32</literal> are
+	supported.</para>
+
+      <para revision="219354">The &man.hastd.8; utility now supports
+	<literal>compression</literal> keyword to specify compression
+	algorithm in a <literal>resource</literal> section.  As of
+	&release.current;, <literal>none</literal>,
+	<literal>hole</literal> and <literal>lzf</literal> are
+	supported.</para>
 
       <para revision="219019">An implementation of
 	<function>iconv()</function> API libraries and utilities which
@@ -850,6 +893,10 @@ nfsuserd_enable="YES"</programlisting>
 	These have the same functionalities as <literal>name</literal>
 	and <literal>description</literal> subcommands in the
 	&man.ifconfig.8; utility.</para>
+
+      <para revision="219307">The &man.ps.1; utility now supports an
+	<option>-o class</option> option to display login class
+	information of each process.</para>
 
       <para revision="216695">The &man.rtld.1; runtime linker now supports
 	shared objects as filters in ELF shared libraries.  Both
@@ -935,6 +982,11 @@ nfsuserd_enable="YES"</programlisting>
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
 
+      <para revision="219557"><application>gdtoa</application>, a set
+	of binary from/to decimal number conversion routines used in
+	&os; <application>libc</application> library has been updated
+	to a snapshot as of 4 March, 2011.</para>
+
       <para revision="208954">The <application>LLVM</application>
 	compiler infrastructure and the
 	<application>clang</application>, a C language family
@@ -946,9 +998,9 @@ nfsuserd_enable="YES"</programlisting>
 	<varname>CPP</varname> &man.make.1; variables,
 	respectively.</para>
 
-      <para revision="218122">The <application>timezone</application>
+      <para revision="219411">The <application>timezone</application>
 	database has been updated to the
-	<application>tzdata2011a</application> release.</para>
+	<application>tzdata2011c</application> release.</para>
 
       <para revision="217698">&man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
