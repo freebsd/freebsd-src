@@ -192,6 +192,315 @@
 	<literal>PT_GNU_STACK</literal> for the specified ABIs
 	(e.g. <literal>elf32</literal> for 32-bit ABI).</para>
 
+      <para revision="218485,219028,219029">The following &man.sysctl.8; variables
+	for showing availability of various kernel features:</para>
+
+      <informaltable frame="none" pgwide="1">
+	<tgroup cols="2">
+	  <colspec colwidth="1*">
+	  <colspec colwidth="3*">
+	  <thead>
+	    <row>
+	      <entry>&man.sysctl.8; variable name</entry>
+	      <entry>Description</entry>
+	    </row>
+	  </thead>
+
+	  <tbody>
+	    <row>
+	      <entry><varname>kern.features.ufs_acl</varname></entry>
+	      <entry>ACL (Access Control List) support in UFS</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ufs_gjournal</varname></entry>
+	      <entry>journaling support through &man.gjournal.8; for
+		UFS</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ufs_quota</varname></entry>
+	      <entry>UFS disk quotas support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ufs_quota64</varname></entry>
+	      <entry>64-bit UFS disk quotas support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.softupdates</varname></entry>
+	      <entry>FFS soft-updates support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ffs_snapshot</varname></entry>
+	      <entry>FFS snapshot support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.nfsclient</varname></entry>
+	      <entry>NFS client (old implementation)</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.nfscl</varname></entry>
+	      <entry>NFS client (new implementation)</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.nfsserver</varname></entry>
+	      <entry>NFS server (old implementation)</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.nfsd</varname></entry>
+	      <entry>NFS server (new implementation)</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.kdtrace_hooks</varname></entry>
+	      <entry>Kernel DTrace hooks which are required to load
+		DTrace kernel modules</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ktr</varname></entry>
+	      <entry>Kernel support for KTR kernel tracing facility</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.ktrace</varname></entry>
+	      <entry>Kernel support for system call tracing</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.hwpmc_hooks</varname></entry>
+	      <entry>Kernel support for HW PMC</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.sysv_msg</varname></entry>
+	      <entry>System V message queues support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.sysv_sem</varname></entry>
+	      <entry>System V semaphores support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.p1003_1b_mqueue</varname></entry>
+	      <entry>POSIX P1003.1B message queues support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.p1003_1b_semaphores</varname></entry>
+	      <entry>POSIX P1003.1B semaphores support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.kposix_priority_scheduling</varname></entry>
+	      <entry>POSIX P1003.1B real-time extensions</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.stack</varname></entry>
+	      <entry>Support for capturing kernel stack</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.sysv_shm</varname></entry>
+	      <entry>System V shared memory segments support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.pps_sync</varname></entry>
+	      <entry>Support usage of external PPS signal by kernel PLL</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.regression</varname></entry>
+	      <entry>Kernel support for interfaces necessary for
+		regression testing</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.invariant_support</varname></entry>
+	      <entry>Support for modules compiled with INVARIANTS option</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.zero_copy_sockets</varname></entry>
+	      <entry>Zero copy sockets support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.libmchain</varname></entry>
+	      <entry>mchain library</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.scbus</varname></entry>
+	      <entry>SCSI devices support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.mac</varname></entry>
+	      <entry>Mandatory Access Control Framework support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.audit</varname></entry>
+	      <entry>BSM audit support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_gate</varname></entry>
+	      <entry>GEOM Gate module</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_uzip</varname></entry>
+	      <entry>GEOM uzip read-only compressed disks support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_cache</varname></entry>
+	      <entry>GEOM cache module</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_mirror</varname></entry>
+	      <entry>GEOM mirroring support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_stripe</varname></entry>
+	      <entry>GEOM striping support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_concat</varname></entry>
+	      <entry>GEOM concatenation support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_raid3</varname></entry>
+	      <entry>GEOM RAID-3 functionality</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_fox</varname></entry>
+	      <entry>GEOM FOX redundant path mitigation support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_multipath</varname></entry>
+	      <entry>GEOM multipath support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.g_virstor</varname></entry>
+	      <entry>GEOM virtual storage support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_bde</varname></entry>
+	      <entry>GEOM-based Disk Encryption</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_eli</varname></entry>
+	      <entry>GEOM crypto module</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_journal</varname></entry>
+	      <entry>GEOM journaling support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_shsec</varname></entry>
+	      <entry>GEOM shared secret device support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_vol</varname></entry>
+	      <entry>GEOM support for volume names from UFS superblock</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_label</varname></entry>
+	      <entry>GEOM labeling support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_sunlabel</varname></entry>
+	      <entry>GEOM Sun/Solaris partitioning support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_bsd</varname></entry>
+	      <entry>GEOM BSD disklabels support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_pc98</varname></entry>
+	      <entry>GEOM NEC PC9800 partitioning support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_linux_lvm</varname></entry>
+	      <entry>GEOM Linux LVM partitioning support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_pc98</varname></entry>
+	      <entry>GEOM partitioning class for PC-9800 disk partitions</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_vtoc8</varname></entry>
+	      <entry>GEOM partitioning class for SMI VTOC8 disk labels</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_bsd</varname></entry>
+	      <entry>GEOM partitioning class for BSD disklabels</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_ebr</varname></entry>
+	      <entry>GEOM partitioning class for extended boot records support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_ebr_compat</varname></entry>
+	      <entry>GEOM EBR partitioning class:
+		backward-compatible partition names</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_gpt</varname></entry>
+	      <entry>GEOM partitioning class for GPT partitions
+		support</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_apm</varname></entry>
+	      <entry>GEOM partitioning class for Apple-style
+		partitions</entry>
+	    </row>
+
+	    <row>
+	      <entry><varname>kern.features.geom_part_mbr</varname></entry>
+	      <entry>GEOM partitioning class for MBR support</entry>
+	    </row>
+	  </tbody>
+	</tgroup>
+      </informaltable>
+
     <sect3 id="boot">
       <title>Boot Loader Changes</title>
 
@@ -420,20 +729,35 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  the information related to deleted data blocks to device,
 	  especially for SSD (Solid-State Drive) for optimization.</para>
 
-	<para revision="218485">The following &man.sysctl.8; variables
-	  for showing availability of UFS-related feature on the
-	  system have been added:
-	  <varname>kern.features.ufs_acl</varname> for ACL (Access
-	  Control List) support in UFS,
-	  <varname>kern.features.ufs_gjournal</varname> for journaling
-	  support through &man.gjournal.8; for UFS,
-	  <varname>kern.features.ufs_quota</varname> for UFS disk
-	  quotas support, <varname>kern.features.ufs_quota64</varname>
-	  for 64-bit UFS disk quotas support,
-	  <varname>kern.features.softupdates</varname> for FFS
-	  soft-updates support, and
-	  <varname>kern.features.ffs_snapshot</varname> for FFS
-	  snapshot support.</para>
+	<para revision="221124">The &os NFS subsystem has been
+	  updated.  The new implementation supports NFS version 4 in
+	  addition to 2 and 3.  The kernel options for the NFS server
+	  and client are changed from <literal>NFSSERVER</literal> and
+	  <literal>NFSCLIENT</literal> to <literal>NFSD</literal> and
+	  <literal>NFSCL</literal>.  &man.sysctl.8; variables which
+	  start with <varname>vfs.nfssrv.</varname> have been renamed
+	  with <varname>vfs.nfsd.</varname>.  The NFS server now
+	  supports <varname>vfs.nfsd.server_max_nfsvers</varname> and
+	  <varname>vfs.nfsd.server_min_nfsvers</varname>
+	  &man.sysctl.8; variables to specify the maximum and the
+	  minimum version number which the server accepts.  The
+	  default value is set to <literal>3</literal> and
+	  <literal>2</literal>, respectively.</para>
+
+	<para>To enable NFSv4, the following variables are needed on
+	  the server side in &man.rc.conf.5;:</para>
+
+	  <programlisting>nfsv_server_enable="YES"
+nfsv4_server_enable="YES"
+nfsuserd_enable="YES"</programlisting>
+
+	<para>and the following line is needed in
+	  <filename>/etc/exports</filename>:</para>
+
+	<programlisting>V4: /</programlisting>
+
+	<para>For more information about NFSv4 and its configuration,
+	  see &man.nfsv4.4; and &man.exports.5; manual pages.</para>
     </sect3>
   </sect2>
 
@@ -679,6 +1003,57 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  longer able to be used to check an item.  The new version
 	  consistently supports space bar for selecting an item and
 	  enter key for OK/Cancel selection.</para>
+      </sect3>
+
+      <sect3>
+	<title>Partition Metadata Integrity Check</title>
+
+	<para>&os; now checks the integrity of partition metadata when
+	  a partition table is found on a disk though GEOM
+	  <application>PART</application> subsystem.  This detection
+	  is automatically performed when a disk device is ready.
+	  GEOM <application>PART</application> class in the kernel
+	  verifies all generic partition parameters obtained from the
+	  disk metadata, and if some inconsistency is detected, the
+	  partition table will be rejected with the following
+	  diagnostic message:</para>
+
+	<screen>GEOM_PART: Integrity check failed</screen>
+
+	<para>This integrity check is enabled by default.  On a system
+	  prior to &release.current;, the inconsistencies were
+	  silently ignored.  Therefore, there is possibility that this
+	  prevents a system from booting after upgrading it to
+	  &release.current;.  More specifically, the kernel cannot
+	  mount the system partition at boot time in some
+	  cases.</para>
+
+	<para>If this happens, a &man.loader.8; tunable
+	  <varname>kern.geom.part.check_integrity</varname> can be
+	  used as a workaround.  Enter the following lines in the
+	  &man.loader.8; prompt at boot time:</para>
+
+	<screen><userinput>set kern.geom.part.check_integrity="0"</userinput>
+<userinput>boot</userinput></screen>
+
+	<para>These commands temporarily disable the integrity check.
+	  If it was the cause, the &os; kernel should detect the
+	  partitions after entering the commands as prior releases
+	  did.  This configuration can be added into
+	  <filename>/boot/loader.conf</filename> like the
+	  following:</para>
+
+	<programlisting>kern.geom.part.check_integrity="0"</programlisting>
+
+	<para>To check inconsistent metadata after booting on the
+	  system, use the &man.gpart.8; utility on the system.  A
+	  corrupted entry will be displayed like the following:</para>
+
+	<screen>&prompt.user; gpart show
+=>        63  1953525104  mirror/gm0  MBR  (931G) [CORRUPT]
+          63  1953525105           1  freebsd  [active]  (931G)</screen>
+
+	<para>For more information, see &man.gpart.8; manual page.</para>
       </sect3>
     </sect2>
 </sect1>
