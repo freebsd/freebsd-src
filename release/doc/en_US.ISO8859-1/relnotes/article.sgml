@@ -218,6 +218,14 @@
 	    could make AR8152-based network interfaces stop working
 	    has been fixed.</para>
 
+	  <para revision="218794">A &man.cxgbe.4; driver for Chelsio
+	    T4 (Terminator 4) based 10Gb/1Gb adapters has been
+	    added.</para>
+
+	  <para revision="218832" arch="i386">The &man.dc.4; driver
+	    now works correctly in the kernel with
+	    <option>PAE</option> option.</para>
+
 	  <para revision="218530">The &man.igb.4; driver now supports
 	    Intel I350 PCIe Gigabit Ethernet controller.</para>
 
@@ -239,8 +247,9 @@
 	  <para revision="216828">A rdcphy(4) driver for RDC Semiconductor
 	    R6040 10/100 PHY has been added.</para>
 
-	  <para revision="217498">The &man.re.4; driver now supports
-	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers.</para>
+	  <para revision="217498,218760">The &man.re.4; driver now supports
+	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers and
+	    RTL8401E PCIe Fast Ethernet controller.</para>
 
 	  <para revision="217766">The &man.re.4; driver now supports
 	    TX interrupt moderation on RTL810xE PCIe Fast Ethernet
@@ -317,6 +326,16 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
+	<para revision="218794">&os; &man.ipsec.4; support now uses a
+	  half of the hash size as the authenticator hash size in
+	  Hashed Message Authentication Mode (HMAC-SHA-256,
+	  HMAC-SHA-384, and HMAC-SHA-512) as described in RFC 4868.
+	  This was 96-bit fixed length in prior releases because the
+	  implementation was based on an old Internet draft
+	  draft-ietf-ipsec-ciph-sha-256-00.  Note that this means
+	  &release.current; and later are no longer interoperable with
+	  the older &os; releases.</para>
+
 	<para revision="217169">A bug in &os; TCP/IP network stack has
 	  been fixed.  The source address selection could not being
 	  performed when multicast options were present but without an
@@ -336,8 +355,15 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  variable <varname>net.inet.tcp.cc.algorithm</varname>.  The
 	  value must be set to one of the names listed by the
 	  <varname>net.inet.tcp.cc.available</varname>, and
-	  <literal>newreno</literal> is set at boot time.  For more
-	  detail, see &man.cc.9; manual page.</para>
+	  <literal>newreno</literal> is set at boot time.
+	  For more
+	  detail, see &man.cc.4; and &man.cc.9; manual pages.</para>
+
+	<para revision="218912">A new &man.tcp.4; socket option
+	  <literal>TCP_CONGESTION</literal> has been added.  This
+	  allows to select or query a congestion control algorithm
+	  that the TCP/IP network stack will use for connections on
+	  the socket.</para>
     </sect3>
 
     <sect3 id="disks">
@@ -372,7 +398,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="fs">
       <title>File Systems</title>
 
-	<para revision="207141">The &os; Fast File System now supports
+	<para revision="207141,218726">The &os; Fast File System now supports
 	  softupdates journaling.  It introduces a intent log into a
 	  softupdates-enabled file system which eliminates the need
 	  for background &man.fsck.8; even on unclean shutdown.  This
@@ -428,6 +454,17 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
       <para revision="218049">The &man.hastd.8; utility now drops
 	<literal>root</literal> privileges of the worker processes to
 	<literal>hast</literal> user.</para>
+
+      <para revision="219019">An implementation of
+	<function>iconv()</function> API libraries and utilities which
+	are standardized in Single UNIX Specification have been
+	imported.  These are based on NetBSD's Citrus implementation.
+	Note that these are not built nor installed by default.  To
+	build and install them, specify
+	<literal>WITH_ICONV=yes</literal> in
+	<filename>/etc/src.conf</filename> and rebuild the base system
+	as described in &os Handbook (<ulink
+	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"></ulink>).</para>
 
       <para revision="217013">The &man.ifconfig.8; utility now
 	supports <literal>fdx</literal>, <literal>flow</literal>,
@@ -516,6 +553,12 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	&amp;&amp; and || around an arithmetic expression has been
 	fixed.</para>
 
+      <para revision="218847">A &man.utxrm.8; utility has been added.
+	This allows one to remove an entry from the
+	<filename>utmpx</filename> database by hand. This is useful
+	when a login daemon crashes or fails to remove the entry
+	during shutdown.</para>
+
     <sect3 id="rc-scripts">
       <title><filename>/etc/rc.d</filename> Scripts</title>
 
@@ -532,8 +575,23 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
       <para revision="228189"><application>ISC BIND</application> has
 	been updated to version 9.8.1-P1.</para>
 
+      <para revision="218822"><application>GNU binutils</application>
+	has been updated to 2.17.50 (as of 3 July 2007), which is the
+	last available version under GPLv2.</para>
+
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
+
+      <para revision="208954">The <application>LLVM</application>
+	compiler infrastructure and the
+	<application>clang</application>, a C language family
+	front-end, version 3.0 have been imported.  Note that it is not
+	used for building the &os; base system.  In &os; build
+	infrastructure, the &man.clang.1;, &man.clang...1;, and
+	&man.clang-cpp.1; utilities can be used in
+	<varname>CC</varname>, <varname>CXX</varname>, and
+	<varname>CPP</varname> &man.make.1; variables,
+	respectively.</para>
 
       <para revision="218122">The <application>timezone</application>
 	database has been updated to the
@@ -541,7 +599,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
       <para revision="217698">&man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
-  </sect2>
+
+      <para>The <application>xz</application> program has been updated
+	from 5.0.0 to 5.0.1 release.</para>
+    </sect2>
 
   <sect2 id="ports">
     <title>Ports/Packages Collection Infrastructure</title>
@@ -551,6 +612,11 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
   <sect2 id="releng">
     <title>Release Engineering and Integration</title>
+
+      <para revision="218799">A new installer &man.bsdinstall.8; has
+	been added and integrated into installation ISO images.  The
+	&man.sysinstall.8; utility is also available for settings
+	after the installation.</para>
 
       <para>The supported version of
 	the <application>KDE</application> desktop environment
