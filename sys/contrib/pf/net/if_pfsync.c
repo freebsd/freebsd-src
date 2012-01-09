@@ -59,12 +59,6 @@
 __FBSDID("$FreeBSD$");
 
 #define	NBPFILTER	1
-
-#ifdef DEV_PFSYNC
-#define	NPFSYNC		DEV_PFSYNC
-#else
-#define	NPFSYNC		0
-#endif
 #endif /* __FreeBSD__ */
 
 #include <sys/param.h>
