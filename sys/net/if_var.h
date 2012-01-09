@@ -189,11 +189,11 @@ struct ifnet {
 	int	if_afdata_initialized;
 	struct	rwlock if_afdata_lock;
 	struct	task if_linktask;	/* task for link change events */
-	struct	mtx if_addr_mtx;	/* mutex to protect address lists */
+	struct	rwlock if_addr_lock;	/* lock to protect address lists */
 
 	LIST_ENTRY(ifnet) if_clones;	/* interfaces of a cloner */
 	TAILQ_HEAD(, ifg_list) if_groups; /* linked list of groups per if */
-					/* protected by if_addr_mtx */
+					/* protected by if_addr_lock */
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	char	*if_description;	/* interface description */
@@ -246,15 +246,14 @@ typedef void if_init_f_t(void *);
 /*
  * Locks for address lists on the network interface.
  */
-#define	IF_ADDR_LOCK_INIT(if)	mtx_init(&(if)->if_addr_mtx,		\
-				    "if_addr_mtx", NULL, MTX_DEF)
-#define	IF_ADDR_LOCK_DESTROY(if)	mtx_destroy(&(if)->if_addr_mtx)
-#define	IF_ADDR_WLOCK(if)	mtx_lock(&(if)->if_addr_mtx)
-#define	IF_ADDR_WUNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
-#define	IF_ADDR_RLOCK(if)	mtx_lock(&(if)->if_addr_mtx)
-#define	IF_ADDR_RUNLOCK(if)	mtx_unlock(&(if)->if_addr_mtx)
-#define	IF_ADDR_LOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
-#define	IF_ADDR_WLOCK_ASSERT(if)	mtx_assert(&(if)->if_addr_mtx, MA_OWNED)
+#define	IF_ADDR_LOCK_INIT(if)	rw_init(&(if)->if_addr_lock, "if_addr_lock")
+#define	IF_ADDR_LOCK_DESTROY(if)	rw_destroy(&(if)->if_addr_lock)
+#define	IF_ADDR_WLOCK(if)	rw_wlock(&(if)->if_addr_lock)
+#define	IF_ADDR_WUNLOCK(if)	rw_wunlock(&(if)->if_addr_lock)
+#define	IF_ADDR_RLOCK(if)	rw_rlock(&(if)->if_addr_lock)
+#define	IF_ADDR_RUNLOCK(if)	rw_runlock(&(if)->if_addr_lock)
+#define	IF_ADDR_LOCK_ASSERT(if)	rw_assert(&(if)->if_addr_lock, RA_LOCKED)
+#define	IF_ADDR_WLOCK_ASSERT(if) rw_assert(&(if)->if_addr_lock, RA_WLOCKED)
 /* XXX: Compat. */
 #define	IF_ADDR_LOCK(if)	IF_ADDR_WLOCK(if)
 #define	IF_ADDR_UNLOCK(if)	IF_ADDR_WUNLOCK(if)
