@@ -56,10 +56,10 @@ static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
 extern nfstype nfsv34_type[9];
 #endif	/* !APPLEKEXT */
 
-SYSCTL_DECL(_vfs_nfsd);
+SYSCTL_DECL(_vfs_newnfs);
 
 static int	disable_checkutf8 = 0;
-SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
+SYSCTL_INT(_vfs_newnfs, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
     &disable_checkutf8, 0,
     "Disable the NFSv4 check for a UTF8 compliant name");
 
