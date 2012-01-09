@@ -9,6 +9,10 @@ handbook.
 Items affecting the ports and packages system can be found in
 /usr/ports/UPDATING.  Please read that file before running portupgrade.
 
+20120109:
+	The acpi_wmi(4) status device /dev/wmistat has been renamed to
+	/dev/wmistat0.
+
 20120106:
 	A new VOP_ADVISE() was added to support posix_fadvise(2).  All
 	filesystem modules must be recompiled.
