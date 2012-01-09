@@ -44,11 +44,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_BPF
-#define		NBPFILTER	DEV_BPF
-#else
-#define		NBPFILTER	0
-#endif
+#define		NPFSYNC		1
 
 #ifdef DEV_PFLOG
 #define		NPFLOG		DEV_PFLOG
@@ -56,16 +52,10 @@ __FBSDID("$FreeBSD$");
 #define		NPFLOG		0
 #endif
 
-#ifdef DEV_PFSYNC
-#define		NPFSYNC		DEV_PFSYNC
-#else
-#define		NPFSYNC		0
-#endif
-
-#else
+#else /* !__FreeBSD__ */
 #include "pfsync.h"
 #include "pflog.h"
-#endif
+#endif /* __FreeBSD__ */
 
 #include <sys/param.h>
 #include <sys/systm.h>
