@@ -152,6 +152,7 @@ _Noreturn void	 _Exit(int);
  * If we're in a mode greater than C99, expose C11 functions.
  */
 #if __ISO_C_VISIBLE >= 2011
+void *	aligned_alloc(size_t, size_t);
 int	at_quick_exit(void (*)(void));
 _Noreturn void
 	quick_exit(int);
