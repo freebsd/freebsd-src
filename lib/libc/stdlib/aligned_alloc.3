@@ -27,26 +27,35 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2006
-.Dt POSIX_MEMALIGN 3
+.Dd January 7, 2011
+.Dt ALIGNED_ALLOC 3
 .Os
 .Sh NAME
+.Nm aligned_alloc ,
 .Nm posix_memalign
 .Nd aligned memory allocation
 .Sh LIBRARY
 .Lb libc
 .Sh SYNOPSIS
 .In stdlib.h
+.Ft void *
+.Fn aligned_alloc "size_t alignment" "size_t size"
 .Ft int
 .Fn posix_memalign "void **ptr" "size_t alignment" "size_t size"
 .Sh DESCRIPTION
 The
+.Fn aligned_alloc
+and
 .Fn posix_memalign
-function allocates
+functions allocate
 .Fa size
 bytes of memory such that the allocation's base address is an even multiple of
-.Fa alignment ,
-and returns the allocation in the value pointed to by
+.Fa alignment .
+The
+.Fn aligned_alloc
+function returns the allocation, while the
+.Fn posix_memalign
+function stores the allocation in the value pointed to by
 .Fa ptr .
 .Pp
 The requested
@@ -55,6 +64,8 @@ must be a power of 2 at least as large as
 .Fn sizeof "void *" .
 .Pp
 Memory that is allocated via
+.Fn aligned_alloc
+and
 .Fn posix_memalign
 can be used as an argument in subsequent calls to
 .Xr realloc 3 ,
@@ -63,12 +74,21 @@ and
 .Xr free 3 .
 .Sh RETURN VALUES
 The
+.Fn aligned_alloc
+function returns a pointer to the allocation if successful; otherwise a
+NULL pointer is returned and
+.Va errno
+is set to an error value.
+.Pp
+The
 .Fn posix_memalign
 function returns the value 0 if successful; otherwise it returns an error value.
 .Sh ERRORS
 The
+.Fn aligned_alloc
+and
 .Fn posix_memalign
-function will fail if:
+functions will fail if:
 .Bl -tag -width Er
 .It Bq Er EINVAL
 The
@@ -86,6 +106,11 @@ Memory allocation error.
 .Xr valloc 3
 .Sh STANDARDS
 The
+.Fn aligned_alloc
+function conforms to
+.St -isoC-2011 .
+.Pp
+The
 .Fn posix_memalign
 function conforms to
 .St -p1003.1-2001 .
@@ -94,3 +119,8 @@ The
 .Fn posix_memalign
 function first appeared in
 .Fx 7.0 .
+.Pp
+The
+.Fn aligned_alloc
+function first appeared in
+.Fx 10.0 .
