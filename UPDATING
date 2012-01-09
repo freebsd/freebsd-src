@@ -22,6 +22,13 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120109:
+	panic(9) now stops other CPUs in the SMP systems, disables interrupts
+	on the current CPU and prevents other threads from running.
+	This behavior can be reverted using the kern.stop_scheduler_on_panic
+	tunable/sysctl.
+	The new behavior can be incompatible with kern.sync_on_panic.
+
 20111215:
 	The carp(4) facility has been changed significantly. Configuration
 	of the CARP protocol via ifconfig(8) has changed, as well as format
