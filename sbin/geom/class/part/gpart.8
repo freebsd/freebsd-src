@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2011
+.Dd January 8, 2012
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 To add support for the disk partitioning GEOM class,
 place one or more of the following
-lines in your kernel configuration file:
+lines in the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
@@ -410,13 +410,13 @@ about its use.
 .El
 .\" ==== RESTORE ====
 .It Cm restore
-Restore the partition table from backup previously created by
+Restore the partition table from a backup previously created by the
 .Cm backup
-action and given from standard input.
-Only partition table may be restored.
-This action does not affect content of partitions.
-This mean that you should copy your data from backup after restoring
-partition table and write bootcode again if it is needed.
+action and read from standard input.
+Only the partition table is restored.
+This action does not affect the content of partitions.
+After restoring the partition table and writing bootcode if needed,
+user data must be restored from backup.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
