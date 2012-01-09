@@ -648,8 +648,8 @@ msk_rx_fill(struct msk_if_softc *sc_if, int jumbo)
 	if ((sc_if->msk_flags & MSK_FLAG_DESCV2) == 0 &&
 	    (sc_if->msk_ifp->if_capenable & IFCAP_RXCSUM) != 0) {
 		/* Wait until controller executes OP_TCPSTART command. */
-		for (i = 10; i > 0; i--) {
-			DELAY(10);
+		for (i = 100; i > 0; i--) {
+			DELAY(100);
 			idx = CSR_READ_2(sc_if->msk_softc,
 			    Y2_PREF_Q_ADDR(sc_if->msk_rxq,
 			    PREF_UNIT_GET_IDX_REG));
