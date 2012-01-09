@@ -86,7 +86,7 @@ static unsigned dsk_start;
 static char cmd[512];
 static char kname[1024];
 static uint32_t opts;
-static int dsk_meta;
+static uint8_t dsk_meta;
 static int bootslice;
 static int bootpart;
 static int disk_layout;
