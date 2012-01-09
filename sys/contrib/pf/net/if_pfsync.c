@@ -2163,8 +2163,7 @@ pfsync_sendout(void)
 	if (pktlen > MHLEN) {
 		/* Find the right pool to allocate from. */
 		/* XXX: This is ugly. */
-		m_cljget(m, M_DONTWAIT, pktlen <= MSIZE ? MSIZE :
-			pktlen <= MCLBYTES ? MCLBYTES :
+		m_cljget(m, M_DONTWAIT, pktlen <= MCLBYTES ? MCLBYTES :
 #if MJUMPAGESIZE != MCLBYTES
 			pktlen <= MJUMPAGESIZE ? MJUMPAGESIZE :
 #endif
