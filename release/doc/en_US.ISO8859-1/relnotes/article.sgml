@@ -695,7 +695,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  interface being specified.</para>
 
 	<para revision="216109,216114,216115,218152,218153,218155">
-	  &os; TCP/IP network stack now supports &man.cc.9; pluggable
+	  &os; TCP/IP network stack now supports &man.mod.cc.9; pluggable
 	  congestion control framework.  This allows TCP congestion
 	  control algorithms to be implemented as dynamically loadable
 	  kernel modules.  The following kernel modules are available
@@ -710,7 +710,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  <varname>net.inet.tcp.cc.available</varname>, and
 	  <literal>newreno</literal> is set at boot time.
 	  For more
-	  detail, see &man.cc.4; and &man.cc.9; manual pages.</para>
+	  detail, see &man.mod.cc.4; and &man.mod.cc.9; manual pages.</para>
 
 	<para revision="218912">A new &man.tcp.4; socket option
 	  <literal>TCP_CONGESTION</literal> has been added.  This
