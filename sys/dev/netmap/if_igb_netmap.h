@@ -181,7 +181,8 @@ igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			struct igb_tx_buffer *txbuf = &txr->tx_buffers[l];
 			union e1000_adv_tx_desc *curr =
 			    (union e1000_adv_tx_desc *)&txr->tx_base[l];
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
 					E1000_ADVTXD_DCMD_RS : 0;
@@ -195,7 +196,7 @@ igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 
 			slot->flags &= ~NS_REPORT;
 			// XXX do we need to set the address ?
-			curr->read.buffer_addr = htole64(vtophys(addr));
+			curr->read.buffer_addr = htole64(paddr);
 			curr->read.olinfo_status =
 			    htole32(olinfo_status |
 				(len<< E1000_ADVTXD_PAYLEN_SHIFT));
@@ -206,8 +207,7 @@ igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 				    E1000_ADVTXD_DCMD_EOP | flags);
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, reload map */
-				netmap_reload_map(txr->txtag, txbuf->map,
-					addr, na->buff_size);
+				netmap_reload_map(txr->txtag, txbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 
@@ -317,7 +317,8 @@ igb_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			struct netmap_slot *slot = ring->slot + j;
 			union e1000_adv_rx_desc *curr = &rxr->rx_base[l];
 			struct igb_rx_buf *rxbuf = rxr->rx_buffers + l;
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 
 			if (addr == netmap_buffer_base) { /* bad buf */
 				if (do_lock)
@@ -326,10 +327,9 @@ igb_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			}
 
 			curr->wb.upper.status_error = 0;
-			curr->read.pkt_addr = htole64(vtophys(addr));
+			curr->read.pkt_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
-				netmap_reload_map(rxr->ptag, rxbuf->pmap,
-					addr, na->buff_size);
+				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 
