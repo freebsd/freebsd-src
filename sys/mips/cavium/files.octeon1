@@ -21,6 +21,8 @@ mips/cavium/octeon_nmi.S			optional octeon_wdog
 
 mips/cavium/cryptocteon/cavium_crypto.c		optional cryptocteon
 mips/cavium/cryptocteon/cryptocteon.c		optional cryptocteon
+mips/mips/octeon_cop2_swtch.S			standard
+mips/mips/octeon_cop2.c				standard
 
 mips/cavium/octe/ethernet.c			optional octe
 mips/cavium/octe/ethernet-mv88e61xx.c		optional octe octeon_vendor_lanner
@@ -48,6 +50,8 @@ mips/cavium/usb/octusb.c			optional usb octusb
 mips/cavium/usb/octusb_octeon.c			optional usb octusb
 
 contrib/octeon-sdk/cvmx-usb.c			optional octusb
+
+mips/cavium/octeon_gpio.c			optional gpio
 
 # XXX Some files could be excluded in some configurations.  Making them
 #     optional but on in the default config would seem reasonable.

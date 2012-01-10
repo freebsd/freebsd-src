@@ -1434,7 +1434,8 @@ sched_priority(struct thread *td)
 	} else {
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
-			pri += SCHED_PRI_TICKS(td->td_sched);
+			pri += min(SCHED_PRI_TICKS(td->td_sched),
+			    SCHED_PRI_RANGE);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
@@ -2586,6 +2587,8 @@ sched_throw(struct thread *td)
 		/* Correct spinlock nesting and acquire the correct lock. */
 		TDQ_LOCK(tdq);
 		spinlock_exit();
+		PCPU_SET(switchtime, cpu_ticks());
+		PCPU_SET(switchticks, ticks);
 	} else {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
@@ -2594,8 +2597,6 @@ sched_throw(struct thread *td)
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
 	TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
 	cpu_throw(td, newtd);		/* doesn't return */
 }
 

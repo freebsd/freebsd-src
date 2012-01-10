@@ -73,34 +73,29 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 		AR_MAC_LED_ASSOC_NONE,
 		AR_MAC_LED_ASSOC_NONE,
 	};
-#if 0
-	uint32_t bits;
-#endif
 
 	if (AR_SREV_HOWL(ah))
 		return;
 
+	/*
+	 * Set the blink operating mode.
+	 */
 	OS_REG_RMW_FIELD(ah, AR_MAC_LED,
 	    AR_MAC_LED_ASSOC, ledbits[state & 0x7]);
 
+	/* XXX Blink slow mode? */
+	/* XXX Blink threshold? */
+	/* XXX Blink sleep hystersis? */
+
 	/*
-	 * For now, don't override the power/network LED
-	 * "on" bits.  The reference driver notes that some
-	 * devices connect the LED pins to other functionality
-	 * so we can't just leave this on by default.
+	 * Set the LED blink configuration to be proportional
+	 * to the current TX and RX filter bytes.  (Ie, RX'ed
+	 * frames that don't match the filter are ignored.)
+	 * This means that higher TX/RX throughput will result
+	 * in the blink rate increasing.
 	 */
-#if 0
-	bits = OS_REG_READ(ah, AR_MAC_LED);
-	bits = (bits &~ AR_MAC_LED_MODE)
-	     | SM(AR_MAC_LED_MODE_POWON, AR_MAC_LED_MODE)
-#if 1
-	     | SM(AR_MAC_LED_MODE_NETON, AR_MAC_LED_MODE)
-#endif
-	     ;
-	bits = (bits &~ AR_MAC_LED_ASSOC)
-	     | SM(ledbits[state & 0x7], AR_MAC_LED_ASSOC);
-	OS_REG_WRITE(ah, AR_MAC_LED, bits);
-#endif
+	OS_REG_RMW_FIELD(ah, AR_MAC_LED, AR_MAC_LED_MODE,
+	    AR_MAC_LED_MODE_PROP);
 }
 
 /*

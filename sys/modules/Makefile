@@ -57,6 +57,7 @@ SUBDIR=	${_3dfx} \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
+	${_cfi} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
@@ -108,6 +109,7 @@ SUBDIR=	${_3dfx} \
 	hatm \
 	hifn \
 	hme \
+	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
 	${_hptrr} \
@@ -507,6 +509,7 @@ _coretemp=	coretemp
 _ctau=		ctau
 _dpt=		dpt
 _ex=		ex
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -582,6 +585,7 @@ _et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -651,6 +655,10 @@ _zfs=		zfs
 .endif
 .endif
 
+.if ${MACHINE_CPUARCH} == "arm"
+_cfi=		cfi
+.endif
+
 .if ${MACHINE_CPUARCH} == "ia64"
 _aac=		aac
 _aic=		aic
@@ -694,6 +702,7 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs

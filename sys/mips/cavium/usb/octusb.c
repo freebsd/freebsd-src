@@ -162,14 +162,14 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	    &sc->sc_port[td->qh->port_index].state,
 	    0,
 	    td->qh->dev_addr,
-	    td->qh->ep_num,
+	    td->qh->ep_num & UE_ADDR,
 	    octusb_convert_speed(td->qh->dev_speed),
 	    td->qh->max_packet_size,
 	    octusb_convert_ep_type(td->qh->ep_type),
 	    (td->qh->ep_num & UE_DIR_IN) ? CVMX_USB_DIRECTION_IN :
 	    CVMX_USB_DIRECTION_OUT,
 	    td->qh->ep_interval,
-	    td->qh->ep_mult,
+	    (td->qh->dev_speed == USB_SPEED_HIGH) ? td->qh->ep_mult : 0,
 	    td->qh->hs_hub_addr,
 	    td->qh->hs_hub_port);
 

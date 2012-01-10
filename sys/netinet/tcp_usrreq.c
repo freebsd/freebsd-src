@@ -204,8 +204,10 @@ tcp_detach(struct socket *so, struct inpcb *inp)
 			tcp_discardcb(tp);
 			in_pcbdetach(inp);
 			in_pcbfree(inp);
-		} else
+		} else {
 			in_pcbdetach(inp);
+			INP_WUNLOCK(inp);
+		}
 	}
 }
 

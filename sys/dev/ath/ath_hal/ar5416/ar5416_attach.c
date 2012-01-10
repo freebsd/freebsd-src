@@ -865,7 +865,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->halFastCCSupport = AH_TRUE;
-	pCap->halNumGpioPins = 6;
+	pCap->halNumGpioPins = 14;
 	pCap->halWowSupport = AH_FALSE;
 	pCap->halWowMatchPatternExact = AH_FALSE;
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */

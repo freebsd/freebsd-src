@@ -532,8 +532,8 @@ ad_describe(device_t dev)
     u_int8_t *marker, vendor[64], product[64];
 
     /* try to separate the ATA model string into vendor and model parts */
-    if ((marker = index(atadev->param.model, ' ')) ||
-	(marker = index(atadev->param.model, '-'))) {
+    if ((marker = strchr(atadev->param.model, ' ')) ||
+	(marker = strchr(atadev->param.model, '-'))) {
 	int len = (marker - atadev->param.model);
 
 	strncpy(vendor, atadev->param.model, len);

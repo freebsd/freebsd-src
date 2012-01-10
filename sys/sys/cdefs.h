@@ -223,7 +223,7 @@
 #endif
 
 /*
- * Keywords added in C1X.
+ * Keywords added in C11.
  */
 #if defined(__cplusplus) && __cplusplus >= 201103L
 #define	_Alignas(e)		alignas(e)
@@ -231,7 +231,7 @@
 #define	_Noreturn		[[noreturn]]
 #define	_Static_assert(e, s)	static_assert(e, s)
 #define	_Thread_local		thread_local
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ > 201000L
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 /* Do nothing.  They are language keywords. */
 #else
 /* Not supported.  Implement them using our versions. */
@@ -246,6 +246,24 @@
 #else
 #define	_Static_assert(x, y)	struct __hack
 #endif
+#endif
+
+/*
+ * Emulation of C11 _Generic().  Unlike the previously defined C11
+ * keywords, it is not possible to implement this using exactly the same
+ * syntax.  Therefore implement something similar under the name
+ * __generic().  Unlike _Generic(), this macro can only distinguish
+ * between a single type, so it requires nested invocations to
+ * distinguish multiple cases.
+ */
+
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define	__generic(expr, t, yes, no)					\
+	_Generic(expr, t: yes, default: no)
+#elif __GNUC_PREREQ__(3, 1)
+#define	__generic(expr, t, yes, no)					\
+	__builtin_choose_expr(						\
+	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
 #endif
 
 #if __GNUC_PREREQ__(2, 96)
@@ -609,11 +627,16 @@
 #define	__XSI_VISIBLE		0
 #define	__BSD_VISIBLE		0
 #define	__ISO_C_VISIBLE		1999
+#elif defined(_C11_SOURCE)	/* Localism to specify strict C11 env. */
+#define	__POSIX_VISIBLE		0
+#define	__XSI_VISIBLE		0
+#define	__BSD_VISIBLE		0
+#define	__ISO_C_VISIBLE		2011
 #else				/* Default environment: show everything. */
 #define	__POSIX_VISIBLE		200809
 #define	__XSI_VISIBLE		700
 #define	__BSD_VISIBLE		1
-#define	__ISO_C_VISIBLE		1999
+#define	__ISO_C_VISIBLE		2011
 #endif
 #endif
 

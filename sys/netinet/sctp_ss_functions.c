@@ -286,7 +286,7 @@ static struct sctp_stream_out *
 sctp_ss_rrp_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net SCTP_UNUSED,
     struct sctp_association *asoc)
 {
-	return asoc->last_out_stream;
+	return (asoc->last_out_stream);
 }
 
 static void

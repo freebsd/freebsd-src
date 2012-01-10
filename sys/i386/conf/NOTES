@@ -706,6 +706,10 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		asr
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 

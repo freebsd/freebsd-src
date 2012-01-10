@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 1988, 1993
- *	The Regents of the University of California.  All rights reserved.
+ * Copyright (c) 2010-2012 Aleksandr Rybalko
+ * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -10,14 +10,11 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 4. Neither the name of the University nor the names of its contributors
- *    may be used to endorse or promote products derived from this software
- *    without specific prior written permission.
  *
- * THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,33 +24,26 @@
  * SUCH DAMAGE.
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#include <sys/malloc.h>
+#include <sys/kernel.h>
+#include "xz_malloc.h"
 
-#include <sys/param.h>
-#include <sys/libkern.h>
+/* Wraper for XZ decompressor memmory pool */
 
-/*
- * rindex() is also present as the strrchr() in the kernel; it does exactly the
- * same thing as it's userland equivalent.
- */
-char *
-rindex(p, ch)
-	const char *p;
-	int ch;
+static MALLOC_DEFINE(XZ_DEC, "XZ_DEC", "XZ decompressor data");
+
+void *
+xz_malloc(unsigned long size)
 {
-	union {
-		const char *cp;
-		char *p;
-	} u;
-	char *save;
+	void *addr;
 
-	u.cp = p;
-	for (save = NULL;; ++u.p) {
-		if (*u.p == ch)
-			save = u.p;
-		if (*u.p == '\0')
-			return(save);
-	}
-	/* NOTREACHED */
+	addr = malloc(size, XZ_DEC, M_NOWAIT);
+	return (addr);
+}
+
+void
+xz_free(void *addr)
+{
+
+	free(addr, XZ_DEC);
 }

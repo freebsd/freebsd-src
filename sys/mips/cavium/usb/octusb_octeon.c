@@ -94,6 +94,8 @@ octusb_octeon_attach(device_t dev)
 	struct octusb_octeon_softc *sc = device_get_softc(dev);
 	int err;
 	int rid;
+	int nports;
+	int i;
 
 	/* setup controller interface softc */
 
@@ -107,12 +109,29 @@ octusb_octeon_attach(device_t dev)
 	    USB_GET_DMA_TAG(dev), NULL)) {
 		return (ENOMEM);
 	}
-	rid = 0;
-	sc->sc_dci.sc_irq_res =
-	    bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
-			       CVMX_IRQ_USB, CVMX_IRQ_USB, 1, RF_ACTIVE);
-	if (!(sc->sc_dci.sc_irq_res)) {
-		goto error;
+	nports = cvmx_usb_get_num_ports();
+	if (nports > OCTUSB_MAX_PORTS)
+		panic("octusb: too many USB ports %d", nports);
+	for (i = 0; i < nports; i++) {
+		rid = 0;
+		sc->sc_dci.sc_irq_res[i] =
+		    bus_alloc_resource(dev, SYS_RES_IRQ, &rid,
+			       CVMX_IRQ_USB0 + i, CVMX_IRQ_USB0 + i, 1, RF_ACTIVE);
+		if (!(sc->sc_dci.sc_irq_res[i])) {
+			goto error;
+		}
+
+#if (__FreeBSD_version >= 700031)
+		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i], INTR_TYPE_BIO | INTR_MPSAFE,
+		    NULL, (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl[i]);
+#else
+		err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res[i], INTR_TYPE_BIO | INTR_MPSAFE,
+		    (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl[i]);
+#endif
+		if (err) {
+			sc->sc_dci.sc_intr_hdl[i] = NULL;
+			goto error;
+		}
 	}
 
 	sc->sc_dci.sc_bus.bdev = device_add_child(dev, "usbus", -1);
@@ -121,17 +140,7 @@ octusb_octeon_attach(device_t dev)
 	}
 	device_set_ivars(sc->sc_dci.sc_bus.bdev, &sc->sc_dci.sc_bus);
 
-#if (__FreeBSD_version >= 700031)
-	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    NULL, (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#else
-	err = bus_setup_intr(dev, sc->sc_dci.sc_irq_res, INTR_TYPE_BIO | INTR_MPSAFE,
-	    (driver_intr_t *)octusb_interrupt, sc, &sc->sc_dci.sc_intr_hdl);
-#endif
-	if (err) {
-		sc->sc_dci.sc_intr_hdl = NULL;
-		goto error;
-	}
+
 	err = octusb_init(&sc->sc_dci);
 	if (!err) {
 		err = device_probe_and_attach(sc->sc_dci.sc_bus.bdev);
@@ -152,6 +161,8 @@ octusb_octeon_detach(device_t dev)
 	struct octusb_octeon_softc *sc = device_get_softc(dev);
 	device_t bdev;
 	int err;
+	int nports;
+	int i;
 
 	if (sc->sc_dci.sc_bus.bdev) {
 		bdev = sc->sc_dci.sc_bus.bdev;
@@ -161,20 +172,26 @@ octusb_octeon_detach(device_t dev)
 	/* during module unload there are lots of children leftover */
 	device_delete_children(dev);
 
-	if (sc->sc_dci.sc_irq_res && sc->sc_dci.sc_intr_hdl) {
+	if (sc->sc_dci.sc_irq_res[0] && sc->sc_dci.sc_intr_hdl[0])
 		/*
-		 * only call octusb_octeon_uninit() after octusb_octeon_init()
-		 */
+	 	 * only call octusb_octeon_uninit() after octusb_octeon_init()
+	 	 */
 		octusb_uninit(&sc->sc_dci);
 
-		err = bus_teardown_intr(dev, sc->sc_dci.sc_irq_res,
-		    sc->sc_dci.sc_intr_hdl);
-		sc->sc_dci.sc_intr_hdl = NULL;
-	}
-	if (sc->sc_dci.sc_irq_res) {
-		bus_release_resource(dev, SYS_RES_IRQ, 0,
-		    sc->sc_dci.sc_irq_res);
-		sc->sc_dci.sc_irq_res = NULL;
+	nports = cvmx_usb_get_num_ports();
+	if (nports > OCTUSB_MAX_PORTS)
+		panic("octusb: too many USB ports %d", nports);
+	for (i = 0; i < nports; i++) {
+		if (sc->sc_dci.sc_irq_res[0] && sc->sc_dci.sc_intr_hdl[0]) {
+			err = bus_teardown_intr(dev, sc->sc_dci.sc_irq_res[i],
+			    sc->sc_dci.sc_intr_hdl[i]);
+			sc->sc_dci.sc_intr_hdl[i] = NULL;
+		}
+		if (sc->sc_dci.sc_irq_res) {
+			bus_release_resource(dev, SYS_RES_IRQ, 0,
+			    sc->sc_dci.sc_irq_res[i]);
+			sc->sc_dci.sc_irq_res[i] = NULL;
+		}
 	}
 	usb_bus_mem_free_all(&sc->sc_dci.sc_bus, NULL);
 

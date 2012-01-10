@@ -775,7 +775,7 @@ MALLOC_DECLARE(M_NEWNFSDEVINFO);
 /*
  * Set this macro to index() or strchr(), whichever is supported.
  */
-#define	STRCHR(s, c)	index((s), (c))
+#define	STRCHR(s, c)		strchr((s), (c))
 
 /*
  * Set the n_time in the client write rpc, as required.

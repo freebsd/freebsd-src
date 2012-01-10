@@ -529,7 +529,6 @@ nve_attach(device_t dev)
 	ifp->if_ioctl = nve_ioctl;
 	ifp->if_start = nve_ifstart;
 	ifp->if_init = nve_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = IF_Mbps(100);
 	IFQ_SET_MAXLEN(&ifp->if_snd, TX_RING_SIZE - 1);
 	ifp->if_snd.ifq_drv_maxlen = TX_RING_SIZE - 1;

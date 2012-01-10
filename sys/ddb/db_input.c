@@ -253,7 +253,7 @@ db_inputchar(c)
 		db_putnchars(BACKUP, db_lc - db_lbuf_start);
 		db_putnchars(BLANK, db_le - db_lbuf_start);
 		db_putnchars(BACKUP, db_le - db_lbuf_start);
-		db_le = index(db_lbuf_start, '\0');
+		db_le = strchr(db_lbuf_start, '\0');
 		if (db_le[-1] == '\r' || db_le[-1] == '\n')
 		    *--db_le = '\0';
 		db_lc = db_le;

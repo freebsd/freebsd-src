@@ -206,10 +206,10 @@ static int nwfs_mount(struct mount *mp)
 	pe = pc+sizeof(mp->mnt_stat.f_mntfromname);
 	bzero(pc, MNAMELEN);
 	*(pc++) = '/';
-	pc = index(strncpy(pc, conn->li.server, pe-pc-2),0);
+	pc = strchr(strncpy(pc, conn->li.server, pe - pc - 2), 0);
 	if (pc < pe-1) {
 		*(pc++) = ':';
-		pc=index(strncpy(pc, conn->li.user, pe-pc-2),0);
+		pc = strchr(strncpy(pc, conn->li.user, pe - pc - 2), 0);
 		if (pc < pe-1) {
 			*(pc++) = '/';
 			strncpy(pc, nmp->m.mounted_vol, pe-pc-2);

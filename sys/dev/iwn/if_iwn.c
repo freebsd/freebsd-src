@@ -2128,7 +2128,7 @@ iwn_newassoc(struct ieee80211_node *ni, int isnew)
 					plcp |= IWN_RFLAG_SGI;
 			} else if (ni->ni_htcap & IEEE80211_HTCAP_SHORTGI20)
 				plcp |= IWN_RFLAG_SGI;
-			if (i > 7)
+			if (RV(ni->ni_htrates.rs_rates[i]) > 7)
 				plcp |= IWN_RFLAG_ANT(txant1 | txant2);
 			else
 				plcp |= IWN_RFLAG_ANT(txant1);

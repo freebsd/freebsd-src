@@ -937,6 +937,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->transport_version = 0;
 		cpi->protocol = PROTO_SCSI;
 		cpi->protocol_version = SCSI_REV_SPC;
+		cpi->maxio = MAXPHYS;
 		cpi->ccb_h.status = CAM_REQ_CMP;
 		break;
 	}
