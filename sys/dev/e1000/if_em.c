@@ -3297,16 +3297,15 @@ em_setup_transmit_ring(struct tx_ring *txr)
 #ifdef DEV_NETMAP
 		if (slot) {
 			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (si >= na->num_tx_desc)
 				si -= na->num_tx_desc;
-			addr = NMB(slot + si);
-			txr->tx_base[i].buffer_addr =
-			    htole64(vtophys(addr));
+			addr = PNMB(slot + si, &paddr);
+			txr->tx_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(txr->txtag,
-			    txbuf->map, addr, na->buff_size);
+			netmap_load_map(txr->txtag, txbuf->map, addr);
 		}
 #endif /* DEV_NETMAP */
 
@@ -4104,9 +4103,6 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		sj += adapter->num_rx_desc;
 
 	for (int j = 0; j != adapter->num_rx_desc; j++, sj++) {
-		void *addr;
-		int sz;
-
 		rxbuf = &rxr->rx_buffers[j];
 		/* no mbuf and regular mode -> skip this entry */
 		if (rxbuf->m_head == NULL && !slot)
@@ -4115,12 +4111,20 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		if (sj >= adapter->num_rx_desc)
 			sj -= adapter->num_rx_desc;
 		/* see comment, set slot addr and map */
-		addr = slot ? NMB(slot + sj) : rxbuf->m_head->m_data;
-		sz = slot ? na->buff_size : adapter->rx_mbuf_sz;
-		// XXX load or reload ?
-		netmap_load_map(rxr->rxtag, rxbuf->map, addr, sz);
-		/* Update descriptor */
-		rxr->rx_base[j].buffer_addr = htole64(vtophys(addr));
+		if (slot) {
+			uint64_t paddr;
+			void *addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
+			/* Update descriptor */
+			rxr->rx_base[j].buffer_addr = htole64(paddr);
+		} else {
+			/* Get the memory mapping */
+			bus_dmamap_load_mbuf_sg(rxr->rxtag,
+			    rxbuf->map, rxbuf->m_head, seg,
+			    &nsegs, BUS_DMA_NOWAIT);
+			/* Update descriptor */
+			rxr->rx_base[j].buffer_addr = htole64(seg[0].ds_addr);
+		}
 		bus_dmamap_sync(rxr->rxtag, rxbuf->map, BUS_DMASYNC_PREREAD);
 	}
     }

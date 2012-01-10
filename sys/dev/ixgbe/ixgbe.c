@@ -2876,8 +2876,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 			if (si >= na->num_tx_desc)
 				si -= na->num_tx_desc;
-			netmap_load_map(txr->txtag, txbuf->map,
-			    NMB(slot + si), na->buff_size);
+			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP index */
@@ -3810,16 +3809,15 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 */
 		if (slot) {
 			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (sj >= na->num_rx_desc)
 				sj -= na->num_rx_desc;
-			addr = NMB(slot + sj);
-			netmap_load_map(rxr->ptag,
-			    rxbuf->pmap, addr, na->buff_size);
+			addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
-			rxr->rx_base[j].read.pkt_addr =
-			    htole64(vtophys(addr));
+			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
