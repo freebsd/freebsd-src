@@ -152,8 +152,10 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, free_buffers,
  * Buffer 0 is the 'junk' buffer.
  */
 static void
-netmap_new_bufs(struct netmap_buf_pool *p, struct netmap_slot *slot, u_int n)
+netmap_new_bufs(struct netmap_if *nifp __unused,
+		struct netmap_slot *slot, u_int n)
 {
+	struct netmap_buf_pool *p = &nm_buf_pool;
 	uint32_t bi = 0;		/* index in the bitmap */
 	uint32_t mask, j, i = 0;	/* slot counter */
 
@@ -182,8 +184,10 @@ netmap_new_bufs(struct netmap_buf_pool *p, struct netmap_slot *slot, u_int n)
 
 
 static void
-netmap_free_buf(struct netmap_buf_pool *p, uint32_t i)
+netmap_free_buf(struct netmap_if *nifp __unused, uint32_t i)
 {
+	struct netmap_buf_pool *p = &nm_buf_pool;
+
 	uint32_t pos, mask;
 	if (i >= p->total_buffers) {
 		D("invalid free index %d", i);
@@ -399,15 +403,13 @@ netmap_dtor(void *data)
 			ring = na->tx_rings[i].ring;
 			lim = na->tx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
-				netmap_free_buf(&nm_buf_pool,
-					ring->slot[j].buf_idx);
+				netmap_free_buf(nifp, ring->slot[j].buf_idx);
 
 			ND("rx queue %d", i);
 			ring = na->rx_rings[i].ring;
 			lim = na->rx_rings[i].nkr_num_slots;
 			for (j = 0; j < lim; j++)
-				netmap_free_buf(&nm_buf_pool,
-					ring->slot[j].buf_idx);
+				netmap_free_buf(nifp, ring->slot[j].buf_idx);
 		}
 		NMA_UNLOCK();
 		netmap_free_rings(na);
@@ -516,7 +518,7 @@ error:
 		 */
 		ring->avail = kring->nr_hwavail = numdesc - 1;
 		ring->cur = kring->nr_hwcur = 0;
-		netmap_new_bufs(&nm_buf_pool, ring->slot, numdesc);
+		netmap_new_bufs(nifp, ring->slot, numdesc);
 
 		ofs += sizeof(struct netmap_ring) +
 			numdesc * sizeof(struct netmap_slot);
@@ -535,7 +537,7 @@ error:
 			kring->nkr_num_slots = numdesc;
 		ring->cur = kring->nr_hwcur = 0;
 		ring->avail = kring->nr_hwavail = 0; /* empty */
-		netmap_new_bufs(&nm_buf_pool, ring->slot, numdesc);
+		netmap_new_bufs(nifp, ring->slot, numdesc);
 		ofs += sizeof(struct netmap_ring) +
 			numdesc * sizeof(struct netmap_slot);
 	}
@@ -580,8 +582,9 @@ netmap_mmap(__unused struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
 {
 	if (nprot & PROT_EXEC)
 		return (-1);	// XXX -1 or EINVAL ?
+
 	ND("request for offset 0x%x", (uint32_t)offset);
-	*paddr = vtophys(netmap_mem_d->nm_buffer) + offset;
+	*paddr = netmap_ofstophys(offset);
 
 	return (0);
 }
@@ -953,8 +956,7 @@ error:
 		nmr->nr_numrings = na->num_queues;
 		nmr->nr_numslots = na->num_tx_desc;
 		nmr->nr_memsize = netmap_mem_d->nm_totalsize;
-		nmr->nr_offset =
-			((char *) nifp - (char *) netmap_mem_d->nm_buffer);
+		nmr->nr_offset = netmap_if_offset(nifp);
 		break;
 
 	case NIOCUNREGIF:
