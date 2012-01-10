@@ -203,9 +203,7 @@ setnetgrent(const char *group)
 			if (parse_netgrp(group))
 				endnetgrent();
 			else {
-				grouphead.grname = (char *)
-					malloc(strlen(group) + 1);
-				strcpy(grouphead.grname, group);
+				grouphead.grname = strdup(group);
 			}
 			if (netf)
 				fclose(netf);
@@ -417,7 +415,7 @@ static int
 parse_netgrp(const char *group)
 {
 	char *spos, *epos;
-	int len, strpos;
+	int len, strpos, freepos;
 #ifdef DEBUG
 	int fields;
 #endif
@@ -454,9 +452,9 @@ parse_netgrp(const char *group)
 	while (pos != NULL && *pos != '\0') {
 		if (*pos == '(') {
 			grp = (struct netgrp *)malloc(sizeof (struct netgrp));
+			if (grp == NULL)
+				return(1);
 			bzero((char *)grp, sizeof (struct netgrp));
-			grp->ng_next = grouphead.gr;
-			grouphead.gr = grp;
 			pos++;
 			gpos = strsep(&pos, ")");
 #ifdef DEBUG
@@ -477,6 +475,13 @@ parse_netgrp(const char *group)
 					if (len > 0) {
 						grp->ng_str[strpos] =  (char *)
 							malloc(len + 1);
+						if (grp->ng_str[strpos] == NULL) {
+							for (freepos = 0; freepos < strpos; freepos++)
+								if (grp->ng_str[freepos] != NULL)
+									free(grp->ng_str[freepos]);
+							free(grp);
+							return(1);
+						}
 						bcopy(spos, grp->ng_str[strpos],
 							len + 1);
 					}
@@ -490,6 +495,8 @@ parse_netgrp(const char *group)
 					grp->ng_str[strpos] = NULL;
 				}
 			}
+			grp->ng_next = grouphead.gr;
+			grouphead.gr = grp;
 #ifdef DEBUG
 			/*
 			 * Note: on other platforms, malformed netgroup
@@ -526,7 +533,7 @@ parse_netgrp(const char *group)
 static struct linelist *
 read_for_group(const char *group)
 {
-	char *pos, *spos, *linep, *olinep;
+	char *pos, *spos, *linep;
 	int len, olen;
 	int cont;
 	struct linelist *lp;
@@ -534,6 +541,7 @@ read_for_group(const char *group)
 #ifdef YP
 	char *result;
 	int resultlen;
+	linep = NULL;
 
 	while (_netgr_yp_enabled || fgets(line, LINSIZ, netf) != NULL) {
 		if (_netgr_yp_enabled) {
@@ -554,6 +562,7 @@ read_for_group(const char *group)
 			free(result);
 		}
 #else
+	linep = NULL;
 	while (fgets(line, LINSIZ, netf) != NULL) {
 #endif
 		pos = (char *)&line;
@@ -576,8 +585,14 @@ read_for_group(const char *group)
 			pos++;
 		if (*pos != '\n' && *pos != '\0') {
 			lp = (struct linelist *)malloc(sizeof (*lp));
+			if (lp == NULL) 
+				return(NULL);
 			lp->l_parsed = 0;
 			lp->l_groupname = (char *)malloc(len + 1);
+			if (lp->l_groupname == NULL) {
+				free(lp);
+				return(NULL);
+			}
 			bcopy(spos, lp->l_groupname, len);
 			*(lp->l_groupname + len) = '\0';
 			len = strlen(pos);
@@ -595,15 +610,15 @@ read_for_group(const char *group)
 				} else
 					cont = 0;
 				if (len > 0) {
-					linep = (char *)malloc(olen + len + 1);
-					if (olen > 0) {
-						bcopy(olinep, linep, olen);
-						free(olinep);
+					linep = (char *)reallocf(linep, olen + len + 1);
+					if (linep == NULL) {
+						free(lp->l_groupname);
+						free(lp);
+						return(NULL);
 					}
 					bcopy(pos, linep + olen, len);
 					olen += len;
 					*(linep + olen) = '\0';
-					olinep = linep;
 				}
 				if (cont) {
 					if (fgets(line, LINSIZ, netf)) {
@@ -634,5 +649,5 @@ read_for_group(const char *group)
 	 */
 	rewind(netf);
 #endif
-	return ((struct linelist *)0);
+	return (NULL);
 }
