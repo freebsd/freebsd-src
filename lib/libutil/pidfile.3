@@ -79,6 +79,9 @@ argument is
 .Dv NULL ,
 .Pa /var/run/ Ns Ao Va progname Ac Ns Pa .pid
 file will be used.
+The
+.Fn pidfile_open
+function sets the FD_CLOEXEC close-on-exec flag on the open file descriptor.
 .Pp
 The
 .Fn pidfile_write
@@ -200,6 +203,7 @@ The
 function may also fail and set
 .Va errno
 for any errors specified for the
+.Xr fcntl 2 ,
 .Xr fstat 2 ,
 .Xr open 2 ,
 and
