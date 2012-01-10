@@ -152,8 +152,7 @@ str2node(int fd, const char *nodestr)
 		fweui2eui64(&data->dev[i].eui, &tmpeui);
 		if (memcmp(&eui, &tmpeui, sizeof(struct eui64)) == 0) {
 			node = data->dev[i].dst;
-			if (data != NULL)
-				free(data);
+			free(data);
 			goto gotnode;
 		}
 	}
