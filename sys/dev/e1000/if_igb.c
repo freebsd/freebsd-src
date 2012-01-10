@@ -3320,8 +3320,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 
 			if (si < 0)
 				si += na->num_tx_desc;
-			netmap_load_map(txr->txtag, txbuf->map,
-				NMB(slot + si), na->buff_size);
+			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* clear the watch index */
@@ -4062,15 +4061,15 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 		if (slot) {
 			/* slot sj is mapped to the i-th NIC-ring entry */
 			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (sj < 0)
 				sj += na->num_rx_desc;
-			addr = NMB(slot + sj);
-			netmap_load_map(rxr->ptag,
-			    rxbuf->pmap, addr, na->buff_size);
+			addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
-			rxr->rx_base[j].read.pkt_addr = htole64(vtophys(addr));
+			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
