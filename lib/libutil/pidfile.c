@@ -137,6 +137,20 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 		free(pfh);
 		return (NULL);
 	}
+
+	/*
+	 * Prevent the file descriptor from escaping to other
+	 * programs via exec(3).
+	 */
+	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
+		error = errno;
+		unlink(pfh->pf_path);
+		close(fd);
+		free(pfh);
+		errno = error;
+		return (NULL);
+	}
+
 	/*
 	 * Remember file information, so in pidfile_write() we are sure we write
 	 * to the proper descriptor.
