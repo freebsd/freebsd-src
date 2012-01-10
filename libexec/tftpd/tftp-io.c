@@ -323,7 +323,6 @@ send_ack(int fp, uint16_t block)
 {
 	struct tftphdr *tp;
 	int size;
-	char *bp;
 	char buf[MAXPKTSIZE];
 
 	if (debug&DEBUG_PACKETS)
@@ -332,7 +331,6 @@ send_ack(int fp, uint16_t block)
 	DROPPACKETn("send_ack", 0);
 
 	tp = (struct tftphdr *)buf;
-	bp = buf + 2;
 	size = sizeof(buf) - 2;
 	tp->th_opcode = htons((u_short)ACK);
 	tp->th_block = htons((u_short)block);
