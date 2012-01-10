@@ -536,7 +536,7 @@ export_instance_used(void)
 }
 
 static int
-add_export_instance(const char *name, struct di_export *e_conf,
+add_export_instance(const char *name, struct di_ctl_export *e_conf,
     struct socket *sock)
 {
 	struct di_export *s, *e;
@@ -1490,7 +1490,7 @@ config_feature(struct di_ctl_feature *f, struct di_oid *f_conf, struct di_oid *a
 
 /* Config export. */
 static int
-config_export(struct di_export *e, struct di_oid *arg)
+config_export(struct di_ctl_export *e, struct di_oid *arg)
 {
 	struct socket *sock;
 	int ret;
@@ -1854,13 +1854,13 @@ get_info(struct sockopt *sopt)
 
 	if (oid.subtype == DI_FEATURE) {
 		DID("show feature");
-		l += sizeof(struct di_feature);
+		l += sizeof(struct di_ctl_feature);
 	} else if (oid.subtype == DI_CLASSIFIER) {
 		DID("show classifier");
-		l += sizeof(struct di_classifier);
+		l += sizeof(struct di_ctl_classifier);
 	} else if (oid.subtype == DI_EXPORT) {
 		DID("show export");
-		l += sizeof(struct di_export);
+		l += sizeof(struct di_ctl_export);
 	} else {
 		DID("show flow table");
 	}
@@ -2079,7 +2079,7 @@ do_config(void *p, int l)
 				DID("delete feature");
 				DI_WLOCK();
 				err = remove_feature_instance(
-				    ((struct di_feature *)o)->name);
+				    ((struct di_ctl_feature *)o)->name);
 				DI_UNLOCK();
 			}
 			break;
@@ -2099,7 +2099,7 @@ do_config(void *p, int l)
 				DID("delete classifier");
 				DI_WLOCK();
 				err = remove_classifier_instance(
-				    ((struct di_classifier *)o)->name);
+				    ((struct di_ctl_classifier *)o)->name);
 				DI_UNLOCK();
 			}
 			break;
@@ -2107,12 +2107,13 @@ do_config(void *p, int l)
 		case DI_EXPORT:
 			if (action == DI_CMD_CONFIG) {
 				DID("configure export");
-				err = config_export((struct di_export *)o, arg);
+				err = config_export((struct di_ctl_export *)o,
+				    arg);
 			} else if (action == DI_CMD_DELETE) {
 				DID("delete export");
 				DI_WLOCK();
 				err = remove_export_instance(
-				    ((struct di_export *)o)->name);
+				    ((struct di_ctl_export *)o)->name);
 				DI_UNLOCK();
 			}
 			break;
