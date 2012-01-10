@@ -6,7 +6,7 @@ all:
 clean:
 	rm -f LINT
 .if ${TARGET} == "amd64" || ${TARGET} == "i386"
-	rm -f LINT-VIMAGE
+	rm -f LINT-VIMAGE LINT-NOINET LINT-NOINET6 LINT-NOIP
 .endif
 
 NOTES=	../../conf/NOTES NOTES
