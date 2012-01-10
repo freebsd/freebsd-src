@@ -459,6 +459,7 @@ device		tpm
 #
 device		ichwd
 device		amdsbwd
+device		viawd
 
 #
 # Temperature sensors:

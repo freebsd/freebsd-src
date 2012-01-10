@@ -306,6 +306,7 @@ SUBDIR=	${_3dfx} \
 	utopia \
 	${_vesa} \
 	vge \
+	${_viawd} \
 	vkbd \
 	${_vpo} \
 	vr \
@@ -503,6 +504,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
+_viawd=		viawd
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -602,6 +604,7 @@ _tmpfs=		tmpfs
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi

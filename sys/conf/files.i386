@@ -236,6 +236,7 @@ dev/tpm/tpm.c			optional tpm
 dev/tpm/tpm_acpi.c		optional tpm acpi
 dev/tpm/tpm_isa.c		optional tpm isa
 dev/uart/uart_cpu_i386.c	optional uart
+dev/viawd/viawd.c		optional viawd
 dev/acpica/acpi_if.m		standard
 dev/acpi_support/acpi_wmi_if.m	standard
 dev/wpi/if_wpi.c		optional wpi
