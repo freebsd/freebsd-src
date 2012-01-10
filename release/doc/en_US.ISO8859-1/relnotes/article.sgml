@@ -587,12 +587,16 @@
 	  supports Sony Playstation 3 using the OtherOS feature
 	  available on firmwares 3.15 and earlier.</para>
 
-	<para revision="219473">A new &man.loader.8; tunable
+	<para revision="219473,220577">A new &man.loader.8; tunable
 	  <varname>machdep.disable_tsc</varname> has been added.
 	  Setting this to a non-zero value disables use of TSC (Time
 	  Stamp Counter) by turning off boot-time CPU frequency
 	  calibration, DELAY(9) with TSC, and using TSC as a CPU
-	  ticker.</para>
+	  ticker.  Another new &man.loader.8; tunable
+	  <varname>machdep.disable_tsc_calibration</varname> allows to
+	  skip TSC frequency calibration only.  This is useful when
+	  one wants to use the nominal frequency of the chip in Intel
+	  processors, for example.</para>
 
 	<para revision="215649">The &os; &man.usb.4; subsystem now
 	  supports USB packet filter.  This allows to capture packets
@@ -798,6 +802,26 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="disks">
       <title>Disks and Storage</title>
 
+	<para revision="220412">The &man.ada.4; driver now supports
+	  write cache control.  A new &man.sysctl.8 variable
+	  <varname>kern.cam.ada.write_cache</varname> determines
+	  whether write cache of the &man.ada.4; devices is enabled or
+	  not.  Setting to <literal>1</literal> enables and
+	  <literal>0</literal> disables, and <literal>-1</literal>
+	  leaves it the device default.  &man.sysctl.8 variables
+	  <varname>kern.cam.ada.<replaceable>N</replaceable>.write_cache</varname>
+	  can override the configuration in a per-device basis (the
+	  default value is <literal>-1</literal>, which means to use
+	  the global setting).  Note that the value can be changed at
+	  runtime, but it takes effect only after a device
+	  reset.</para>
+
+	<para revision="220559">The &man.geom.map.4; GEOM class has
+	  been added.  This allows to generate multiple geom providers
+	  based on a hard-coded layout of a device with no explicit
+	  partition table such as embedded flash storage.  For more
+	  information, see &man.geom.map.4; manual page.</para>
+
 	<para revision="218014">The &man.gpart.8; GEOM class now
 	  supports the following aliases for the MBR and EBR schemes:
 	  <literal>fat32</literal>, <literal>ebr</literal>,
@@ -969,6 +993,16 @@ nfsuserd_enable="YES"</programlisting>
 	<literal>flowcontrol</literal>,
 	<literal>half-duplex</literal>,
 	and <literal>loopback</literal>, respectively.</para>
+
+      <para revision="220370">&man.readline.3; API set has been
+	imported into <application>libedit</application>.  This is
+	based on NetBSD's implementation and BSD licensed utilities
+	now use it instead of GNU
+	<application>libreadline</application>.</para>
+
+      <para revision="220496,220497"><application>libmd</application>
+	and <application>libcrypt</application> now support SHA-256
+	and SHA-512 algorithm.</para>
 
       <para revision="217642">The &man.netstat.1; utility now does not
 	expose internal scope address representation used in the &os;
