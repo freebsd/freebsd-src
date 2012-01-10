@@ -47,6 +47,8 @@
 #define	SNMP_DEFS_DIR		"/usr/share/snmp/defs/"
 #define	SNMP_DEFAULT_LOCAL	"/var/run/snmpd.sock"
 
+#define	SNMP_MAX_REPETITIONS	10
+
 enum snmp_access {
 	SNMP_ACCESS_NONE = 0,
 	SNMP_ACCESS_GET,
@@ -323,7 +325,7 @@ int32_t snmp_parse_resp(struct snmp_pdu *, struct snmp_pdu *);
 int32_t snmp_output_numval(struct snmp_toolinfo *, struct snmp_value *,
     struct snmp_oid2str *);
 void snmp_output_val(struct snmp_value *);
-int32_t snmp_output_resp(struct snmp_toolinfo *, struct snmp_pdu *);
+int32_t snmp_output_resp(struct snmp_toolinfo *, struct snmp_pdu *, struct asn_oid *);
 void snmp_output_err_resp(struct snmp_toolinfo *, struct snmp_pdu *);
 void snmp_output_engine(void);
 void snmp_output_keys(void);
