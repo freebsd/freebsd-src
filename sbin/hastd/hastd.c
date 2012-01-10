@@ -68,6 +68,8 @@ static struct hastd_config *cfg;
 bool sigexit_received = false;
 /* PID file handle. */
 struct pidfh *pfh;
+/* Do we run in foreground? */
+static bool foreground;
 
 /* How often check for hooks running for too long. */
 #define	REPORT_INTERVAL	5
@@ -531,7 +533,7 @@ hastd_reload(void)
 	/*
 	 * Check if pidfile's path has changed.
 	 */
-	if (strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
+	if (!foreground && strcmp(cfg->hc_pidfile, newcfg->hc_pidfile) != 0) {
 		newpfh = pidfile_open(newcfg->hc_pidfile, 0600, &otherpid);
 		if (newpfh == NULL) {
 			if (errno == EEXIST) {
@@ -1155,7 +1157,6 @@ main(int argc, char *argv[])
 	struct hastd_listen *lst;
 	const char *pidfile;
 	pid_t otherpid;
-	bool foreground;
 	int debuglevel;
 	sigset_t mask;
 
@@ -1220,16 +1221,23 @@ main(int argc, char *argv[])
 			pjdlog_exitx(EX_CONFIG, "Pidfile path is too long.");
 		}
 	}
-	pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
-	if (pfh == NULL) {
-		if (errno == EEXIST) {
-			pjdlog_exitx(EX_TEMPFAIL,
-			    "Another hastd is already running, pidfile: %s, pid: %jd.",
-			    cfg->hc_pidfile, (intmax_t)otherpid);
+
+	if (!foreground) {
+		pfh = pidfile_open(cfg->hc_pidfile, 0600, &otherpid);
+		if (pfh == NULL) {
+			if (errno == EEXIST) {
+				pjdlog_exitx(EX_TEMPFAIL,
+				    "Another hastd is already running, pidfile: %s, pid: %jd.",
+				    cfg->hc_pidfile, (intmax_t)otherpid);
+			}
+			/*
+			 * If we cannot create pidfile for other reasons,
+			 * only warn.
+			 */
+			pjdlog_errno(LOG_WARNING,
+			    "Unable to open or create pidfile %s",
+			    cfg->hc_pidfile);
 		}
-		/* If we cannot create pidfile for other reasons, only warn. */
-		pjdlog_errno(LOG_WARNING, "Unable to open or create pidfile %s",
-		    cfg->hc_pidfile);
 	}
 
 	/*
