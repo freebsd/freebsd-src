@@ -419,14 +419,14 @@ proto_timeout(const struct proto_conn *conn, int timeout)
 	PJDLOG_ASSERT(conn->pc_proto != NULL);
 
 	fd = proto_descriptor(conn);
-	if (fd < 0)
+	if (fd == -1)
 		return (-1);
 
 	tv.tv_sec = timeout;
 	tv.tv_usec = 0;
-	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) < 0)
+	if (setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv)) == -1)
 		return (-1);
-	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) < 0)
+	if (setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == -1)
 		return (-1);
 
 	return (0);
