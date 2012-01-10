@@ -573,10 +573,14 @@ hastd_reload(void)
 	/*
 	 * Switch to new pidfile.
 	 */
-	(void)pidfile_remove(pfh);
-	pfh = newpfh;
-	(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
-	    sizeof(cfg->hc_pidfile));
+	if (newpfh != NULL) {
+		pjdlog_info("Pidfile changed from %s to %s.", cfg->hc_pidfile,
+		    newcfg->hc_pidfile);
+		(void)pidfile_remove(pfh);
+		pfh = newpfh;
+		(void)strlcpy(cfg->hc_pidfile, newcfg->hc_pidfile,
+		    sizeof(cfg->hc_pidfile));
+	}
 	/*
 	 * Switch to new listen addresses. Close all that were removed.
 	 */
