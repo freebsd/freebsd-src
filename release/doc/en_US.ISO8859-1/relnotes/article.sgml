@@ -213,12 +213,52 @@
 	<literal>PT_GNU_STACK</literal> for the specified ABIs
 	(e.g. <literal>elf32</literal> for 32-bit ABI).</para>
 
+      <para revision="220137">A new resource accounting API has been
+	implemented.  It can keep per-process, per-jail,
+	per-loginclass, and per-loginclass resource accounting
+	information.  Note that this is not built nor installed by
+	default.  To build and install them, specify <literal>options
+	RACCT</literal> in the kernel configuration file and rebuild
+	the base system as described in &os Handbook (<ulink
+	  url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"></ulink>).</para>
+
+      <para revision="220163">A new resource limiting API has been
+	implemented.  It works in conjunction with
+	<literal>RACCT</literal> resource accounting implementation
+	and takes user-configurable actions based on the set of rules
+	it maintains and the current resource usage.  The &man.rctl.8;
+	utility has been added to manage the rules in userland.  Note
+	that this is not built nor installed by default.  To build and
+	install them, specify <literal>options RCTL</literal> in the
+	kernel configuration file and rebuild the base system as
+	described in &os Handbook (<ulink
+	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"></ulink>).</para>
+
+      <para revision="220031">The &man.sendmsg.2; and &man.recvmsg.2;
+	system calls in &os; Linux ABI compatibility have been
+	improved.</para>
+
+      <para revision="219999">The &man.open.2; and &man.fhopen.2;
+	system calls now support <literal>O_CLOEXEC</literal> flag,
+	which allows to set <literal>FD_CLOEXEC</literal> flag for the
+	newly created file descriptor.  This is standardized in IEEE
+	Std 1003.1-2008 (POSIX, Single UNIX Specification Version
+	4).</para>
+
       <para revision="219304">Two new system calls
 	<function>setloginclass(2)</function> and
 	<function>getloginclass(2)</function> have been added.  This
 	makes it possible for the kernel to track login class the
-	process is assigned to, which is required for RCTL
-	framework.</para>
+	process is assigned to, which is required for
+	<literal>RCTL</literal> resource limiting framework.</para>
+
+      <para revision="220238" arch="amd64">&os; now supports executing
+	&os; 1/&arch.i386; a.out binaries on &os;&arch.amd64;.  Note
+	that this is not built nor installed by default.  To build and
+	install them, specify <literal>options COMPAT_43</literal> in
+	the kernel configuration file and rebuild the base system as
+	described in &os; Handbook (<ulink
+	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"></ulink>).</para>
 
       <para revision="218485,219028,219029">The following &man.sysctl.8; variables
 	for showing availability of various kernel features:</para>
@@ -554,6 +594,12 @@
 	  calibration, DELAY(9) with TSC, and using TSC as a CPU
 	  ticker.</para>
 
+	<para revision="215649">The &os; &man.usb.4; subsystem now
+	  supports USB packet filter.  This allows to capture packets
+	  which go through each USB host controllers.  The
+	  implementation is almost based on &man.bpf.4; code.
+	  The userland program &man.usbdump.8; has been added.</para>
+
       <sect4 id="mm">
 	<title>Multimedia Support</title>
 
@@ -571,6 +617,9 @@
 	    II 10GbE controller (BCM57710, BCM57711, BCM57711E) has
 	    been added.</para>
 
+	  <para revision="220009">A &man.cxgb.4; driver has been
+	    updated to version 7.11.0.</para>
+
 	  <para revision="218794">A &man.cxgbe.4; driver for Chelsio
 	    T4 (Terminator 4) based 10Gb/1Gb adapters has been
 	    added.</para>
@@ -578,6 +627,12 @@
 	  <para revision="218832" arch="i386">The &man.dc.4; driver
 	    now works correctly in the kernel with
 	    <option>PAE</option> option.</para>
+
+	  <para revision="219753">The &man.em.4; driver has been
+	    updated to version 7.3.2.</para>
+
+	  <para revision="223350">The &man.igb.4; driver has bee
+	    updated to version 2.2.5.</para>
 
 	  <para revision="218530">The &man.igb.4; driver now supports
 	    Intel I350 PCIe Gigabit Ethernet controller.</para>
@@ -689,6 +744,15 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  &release.current; and later are no longer interoperable with
 	  the older &os; releases.</para>
 
+	<para revision="219820">For Infiniband support, OFED
+	  (OpenFabrics Enterprise Distribution) version 1.5.3 has been
+	  imported into the base system.  Note that this is not built
+	  nor installed by default.  To build and install them,
+	  specify <literal>WITH_OFED=yes</literal> in
+	  <filename>/etc/src.conf</filename> and rebuild the base
+	  system as described in &os Handbook (<ulink
+	  url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html"></ulink>).</para>
+
 	<para revision="217169">A bug in &os; TCP/IP network stack has
 	  been fixed.  The source address selection could not being
 	  performed when multicast options were present but without an
@@ -744,6 +808,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	<para revision="218014">The &man.gpart.8; GEOM class now
 	  supports <literal>bios-boot</literal> GUID for the GPT
 	  scheme which is used in GRUB 2 loader.</para>
+
+	<para revision="219974">&man.graid.8; GEOM class has been
+	  added.  This is a replacement of &man.ataraid.4; driver
+	  supporting various BIOS-based software RAID.</para>
 
 	<para revision="219056">The &man.sysctl.8; variable
 	  <varname>kern.geom.confxml</varname> now contains
@@ -845,6 +913,12 @@ nfsuserd_enable="YES"</programlisting>
 	<replaceable>cpu-list</replaceable></option> option to specify
 	all CPUs in the system.</para>
 
+      <para revision="219739">The &man.dhclient.8; utility now uses
+	&man.resolvconf.8; to manage the &man.resolv.conf.5; file by
+	default.  A <varname>resolvconf_enable</varname> variable in
+	<filename>/etc/dhclient-enter-hooks</filename> controls the
+	behavior.</para>
+
       <para revision="217505">A bug in the &man.fetch.1; utility which
 	could prevent <command>STAT</command> FTP command from working
 	properly has been fixed.</para>
@@ -871,6 +945,11 @@ nfsuserd_enable="YES"</programlisting>
 	&release.current;, <literal>none</literal>,
 	<literal>hole</literal> and <literal>lzf</literal> are
 	supported.</para>
+
+      <para revision="219818">The &man.hastd.8; utility now supports
+	<literal>source</literal> keyword to specify the local address
+	to bind to before connecting the remote &man.hastd.8
+	daemon.</para>
 
       <para revision="219019">An implementation of
 	<function>iconv()</function> API libraries and utilities which
@@ -924,9 +1003,11 @@ nfsuserd_enable="YES"</programlisting>
 	and <literal>description</literal> subcommands in the
 	&man.ifconfig.8; utility.</para>
 
-      <para revision="219307">The &man.ps.1; utility now supports an
-	<option>-o class</option> option to display login class
-	information of each process.</para>
+      <para revision="219307,219713">The &man.ps.1; utility now
+	supports an <option>-o class</option> option to display login
+	class information of each process, and <option>-o
+	usertime</option> and <option>-o systime</option> options for
+	accumulated system and user CPU time, respectively.</para>
 
       <para revision="216695">The &man.rtld.1; runtime linker now supports
 	shared objects as filters in ELF shared libraries.  Both
@@ -983,6 +1064,14 @@ nfsuserd_enable="YES"</programlisting>
 	&amp;&amp; and || around an arithmetic expression has been
 	fixed.</para>
 
+      <para revision="202188">The &man.utmp.5; user accounting
+	database has been replaced by &man.utmpx.3;. User accounting
+	utilities will now use <filename>utmpx</filename> database
+	files exclusively.  The &man.wtmpcvt.1; utility can be used to
+	convert <filename>wtmp</filename> files to the new format,
+	making it possible to read them using the updated
+	utilities.</para>
+
       <para revision="218847">A &man.utxrm.8; utility has been added.
 	This allows one to remove an entry from the
 	<filename>utmpx</filename> database by hand. This is useful
@@ -1012,6 +1101,11 @@ nfsuserd_enable="YES"</programlisting>
       <para revision="224014"><literal>dialog</literal> has been
 	updated to version 1.1-20110707.</para>
 
+      <para revision="220150"><application>GNU GCC</application> and
+	<application>libstdc++</application> have been updated to rev
+	127959 of <literal>gcc-4_2-branch</literal> (the last
+	GPLv2-licensed version).</para>
+
       <para revision="219557"><application>gdtoa</application>, a set
 	of binary from/to decimal number conversion routines used in
 	&os; <application>libc</application> library has been updated
@@ -1028,9 +1122,14 @@ nfsuserd_enable="YES"</programlisting>
 	<varname>CPP</varname> &man.make.1; variables,
 	respectively.</para>
 
-      <para revision="219687">The <application>timezone</application>
+      <para revision="219734">The
+	<application>openresolv</application> version 3.4.4 has been
+	imported.  The &man.resolvconf.8; utility now handles
+	&man.resolv.conf.5; file.</para>
+
+      <para revision="220286">The <application>timezone</application>
 	database has been updated to the
-	<application>tzdata2011d</application> release.</para>
+	<application>tzdata2011e</application> release.</para>
 
       <para revision="217698">&man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
@@ -1166,6 +1265,93 @@ nfsuserd_enable="YES"</programlisting>
 
 	<para>For more information, see &man.gpart.8; manual page.</para>
       </sect3>
+
+      <sect3>
+	<title>ATA/SATA subsystem now &man.cam.4;-based</title>
+
+	<para>In &release.current;, &os; ATA/SATA disk subsystem has
+	  been replaced with a new &man.cam.4;-based implementation.
+	  The &man.cam.4; stands for Common Access Method, which is an
+	  implementation of API set originally for SCSI-2 and
+	  standardized as "SCSI-2 Common Access Method Transport and
+	  SCSI Interface Module".  &os; has used &man.cam.4; subsystem
+	  to handle SCSI devices since 3.X.</para>
+
+	<para>Although the new &man.cam.4;-based ATA/SATA subsystem
+	  provides various functionality which the old &man.ata.4; did
+	  not have, it also has some incompatibility:</para>
+
+	<itemizedlist>
+	  <listitem>
+	    <para>An ATA/SATA disk is now recognized as a device node
+	      with a name
+	      <devicename>ada<replaceable>0</replaceable></devicename>
+	      instead of
+	      <devicename>ad<replaceable>0</replaceable></devicename>.
+	      Currently, a symbolic link <filename>/dev/ad0</filename>
+	      is automatically generated for
+	      <filename>/dev/ada0</filename> to keep backward
+	      compatibility.  This symbolic link generation can be
+	      controlled by a
+	      <varname>kern.cam.ada.legacy_aliases</varname> (enabled
+	      by default).  You might want to update
+	      <filename>/etc/fstab</filename> and/or consider to use
+	      volume label (see &man.glabel.8; for more detail) for
+	      specifying each file system to be mounted.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The &man.atacontrol.8; utility cannot be used for
+	      &man.cam.4;-based devices.  The &man.camcontrol.8
+	      utility is a replacement.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The &man.ataraid.4; software RAID is supported by
+	      &man.graid.8; GEOM class.  It generates a device node
+	      with a name
+	      <filename>/dev/raid/r<replaceable>0</replaceable></filename>
+	      if you had
+	      <filename>/dev/ar<replaceable>0</replaceable></filename>.
+	      Note that this is not enabled by default.  To enable it,
+	      enter the following line in the &man.loader.8; prompt:</para>
+
+	    <screen>set geom_raid_load="YES"
+boot</screen>
+
+	    <para>or add the following line to
+	      <filename>/boot/loader.conf</filename>:</para>
+
+	    <programlisting>geom_raid_load="YES"</programlisting>
+
+	    <para>and reboot the system.  A symbolic link like
+	      <filename>/dev/ar<replaceable>0</replaceable></filename>
+	      will be generated for
+	      <filename>/dev/raid/r<replaceable>0</replaceable></filename>.
+	      Therefore, if your system used
+	      <filename>/dev/ar0</filename> as the root partition,
+	      mounting local file systems will fail because it is
+	      renamed to <filename>/dev/raid/r0</filename>.  You need
+	      to update <filename>/etc/fstab</filename>
+	      manually in that case.</para>
+	  </listitem>
+
+	  <listitem>
+	    <para>The &man.burncd.8; utility does not work with
+	      &man.cam.4;-based devices.  Use the cdrecord(1) utility
+	      in <filename role="package">sysutils/cdrtools</filename>
+	      instead.</para>
+	  </listitem>
+	</itemizedlist>
+      </sect3>
     </sect2>
+
+<!--
+TODO:
+ ipv6
+ openresolv
+ USB
+-->
+
 </sect1>
 </article>
