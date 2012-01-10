@@ -169,10 +169,8 @@ int netmap_start(struct ifnet *, struct mbuf *);
 enum txrx { NR_RX = 0, NR_TX = 1 };
 struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
-void netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map,
-        void *buf, bus_size_t buflen);
-void netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map,
-        void *buf, bus_size_t buflen);
+void netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf);
+void netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf);
 int netmap_ring_reinit(struct netmap_kring *);
 
 /*
@@ -206,11 +204,11 @@ enum {                                  /* verbose flags */
 
 
 /*
- * return the address of a buffer.
+ * NMB return the virtual address of a buffer (buffer 0 on bad index)
+ * PNMB also fills the physical address
  * XXX this is a special version with hardwired 2k bufs
- * On error return netmap_buffer_base which is detected as a bad pointer.
  */
-static inline char *
+static inline void *
 NMB(struct netmap_slot *slot)
 {
 	uint32_t i = slot->buf_idx;
@@ -220,6 +218,20 @@ NMB(struct netmap_slot *slot)
 #else
 		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
 #endif
+}
+
+static inline void *
+PNMB(struct netmap_slot *slot, uint64_t *pp)
+{
+	uint32_t i = slot->buf_idx;
+	void *ret = (i >= netmap_total_buffers) ? netmap_buffer_base :
+#if NETMAP_BUF_SIZE == 2048
+		netmap_buffer_base + (i << 11);
+#else
+		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
+#endif
+	*pp = vtophys(ret);
+	return ret;
 }
 
 #endif /* _NET_NETMAP_KERN_H_ */

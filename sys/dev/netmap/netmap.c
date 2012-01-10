@@ -104,6 +104,13 @@ MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
 static void * netmap_malloc(size_t size, const char *msg);
 static void netmap_free(void *addr, const char *msg);
 
+#define netmap_if_malloc(len)   netmap_malloc(len, "nifp")
+#define netmap_if_free(v)	netmap_free((v), "nifp")
+
+#define netmap_ring_malloc(len) netmap_malloc(len, "ring")
+#define netmap_free_rings(na)		\
+	netmap_free((na)->tx_rings[0].ring, "shadow rings");
+
 /*
  * Allocator for a pool of packet buffers. For each buffer we have
  * one entry in the bitmap to signal the state. Allocation scans
@@ -123,7 +130,7 @@ struct netmap_buf_pool {
 struct netmap_buf_pool nm_buf_pool;
 /* XXX move these two vars back into netmap_buf_pool */
 u_int netmap_total_buffers;
-char *netmap_buffer_base;
+char *netmap_buffer_base;	/* address of an invalid buffer */
 
 /* user-controlled variables */
 int netmap_verbose;
@@ -233,6 +240,12 @@ struct netmap_priv_d {
 	uint16_t	np_txpoll;
 };
 
+/* Shorthand to compute a netmap interface offset. */
+#define netmap_if_offset(v)                                     \
+    ((char *) (v) - (char *) netmap_mem_d->nm_buffer)
+/* .. and get a physical address given a memory offset */
+#define netmap_ofstophys(o)                                     \
+    (vtophys(netmap_mem_d->nm_buffer) + (o))
 
 static struct cdev *netmap_dev; /* /dev/netmap character device. */
 static struct netmap_mem_d *netmap_mem_d; /* Our memory allocator. */
@@ -397,10 +410,10 @@ netmap_dtor(void *data)
 					ring->slot[j].buf_idx);
 		}
 		NMA_UNLOCK();
-		netmap_free(na->tx_rings[0].ring, "shadow rings");
+		netmap_free_rings(na);
 		wakeup(na);
 	}
-	netmap_free(nifp, "nifp");
+	netmap_if_free(nifp);
 
 	na->nm_lock(ifp->if_softc, NETMAP_CORE_UNLOCK, 0); 
 
@@ -432,7 +445,7 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 	 * to the tx and rx rings in the shared memory region.
 	 */
 	len = sizeof(struct netmap_if) + 2 * n * sizeof(ssize_t);
-	nifp = netmap_malloc(len, "nifp");
+	nifp = netmap_if_malloc(len);
 	if (nifp == NULL)
 		return (NULL);
 
@@ -455,13 +468,13 @@ netmap_if_new(const char *ifname, struct netmap_adapter *na)
 	len = n * (2 * sizeof(struct netmap_ring) +
 		  (na->num_tx_desc + na->num_rx_desc) *
 		   sizeof(struct netmap_slot) );
-	buff = netmap_malloc(len, "shadow rings");
+	buff = netmap_ring_malloc(len);
 	if (buff == NULL) {
 		D("failed to allocate %d bytes for %s shadow ring",
 			len, ifname);
 error:
 		(na->refcount)--;
-		netmap_free(nifp, "nifp, rings failed");
+		netmap_if_free(nifp);
 		return (NULL);
 	}
 	/* do we have the bufers ? we are in need of num_tx_desc buffers for
@@ -907,11 +920,12 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 				/*
 				 * do something similar to netmap_dtor().
 				 */
-				netmap_free(na->tx_rings[0].ring, "rings, reg.failed");
-				free(na->tx_rings, M_DEVBUF);
+				netmap_free_rings(na);
+				// XXX tx_rings is inline, must not be freed.
+				// free(na->tx_rings, M_DEVBUF); // XXX wrong ?
 				na->tx_rings = na->rx_rings = NULL;
 				na->refcount--;
-				netmap_free(nifp, "nifp, rings failed");
+				netmap_if_free(nifp);
 				nifp = NULL;
 			}
 		}
@@ -1388,22 +1402,18 @@ ns_dmamap_cb(__unused void *arg, __unused bus_dma_segment_t * segs,
  * XXX buflen is probably not needed, buffers have constant size.
  */
 void
-netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map,
-	void *buf, bus_size_t buflen)
+netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 {
-	bus_addr_t paddr;
 	bus_dmamap_unload(tag, map);
-	bus_dmamap_load(tag, map, buf, buflen, ns_dmamap_cb, &paddr,
-				BUS_DMA_NOWAIT);
+	bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE, ns_dmamap_cb,
+		NULL, BUS_DMA_NOWAIT);
 }
 
 void
-netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map,
-	void *buf, bus_size_t buflen)
+netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 {
-	bus_addr_t paddr;
-	bus_dmamap_load(tag, map, buf, buflen, ns_dmamap_cb, &paddr,
-				BUS_DMA_NOWAIT);
+	bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE, ns_dmamap_cb,
+		NULL, BUS_DMA_NOWAIT);
 }
 
 /*------ netmap memory allocator -------*/

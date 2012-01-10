@@ -2670,16 +2670,15 @@ lem_setup_transmit_structures(struct adapter *adapter)
 		if (slot) {
 			/* slot si is mapped to the i-th NIC-ring entry */
 			int si = i + na->tx_rings[0].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (si > na->num_tx_desc)
 				si -= na->num_tx_desc;
-			addr = NMB(slot + si);
-			adapter->tx_desc_base[si].buffer_addr =
-			    htole64(vtophys(addr));
+			addr = PNMB(slot + si, &paddr);
+			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(adapter->txtag,
-			    tx_buffer->map, addr, na->buff_size);
+			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}
 #endif /* DEV_NETMAP */
 		tx_buffer->next_eop = -1;
@@ -3247,16 +3246,15 @@ lem_setup_receive_structures(struct adapter *adapter)
 		if (slot) {
 			/* slot si is mapped to the i-th NIC-ring entry */
 			int si = i + na->rx_rings[0].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (si > na->num_rx_desc)
 				si -= na->num_rx_desc;
-			addr = NMB(slot + si);
-			netmap_load_map(adapter->rxtag,
-			    rx_buffer->map, addr, na->buff_size);
+			addr = PNMB(slot + si, &paddr);
+			netmap_load_map(adapter->rxtag, rx_buffer->map, addr);
 			/* Update descriptor */
-			adapter->rx_desc_base[i].buffer_addr =
-			    htole64(vtophys(addr));
+			adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
