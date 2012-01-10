@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 28, 2005
+.Dd January 09, 2012
 .Dt NG_KSOCKET 4
 .Os
 .Sh NAME
@@ -199,7 +199,7 @@ For
 the address is the pathname as a doubly quoted string.
 .Pp
 Examples:
-.Bl -tag -width XXXXXXXXXX
+.Bl -tag -width "PF_LOCAL"
 .It Dv PF_LOCAL
 local/"/tmp/foo.socket"
 .It Dv PF_INET
@@ -215,6 +215,12 @@ the normal
 form for that structure is used.
 In the future, more
 convenient encoding of the more common socket options may be supported.
+.Pp
+Setting socket options example:
+.Bl -tag -width "PF_LOCAL"
+.It Set FIB 2 for a socket (SOL_SOCKET, SO_SETFIB):
+.Dv "setopt \&{ level=0xffff name=0x1014 data=[ 2 ] \&}"
+.El
 .Sh SHUTDOWN
 This node shuts down upon receipt of a
 .Dv NGM_SHUTDOWN
