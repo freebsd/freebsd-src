@@ -309,6 +309,9 @@ static int	pfsync_multicast_setup(struct pfsync_softc *);
 static void	pfsync_multicast_cleanup(struct pfsync_softc *);
 static int	pfsync_init(void);
 static void	pfsync_uninit(void);
+static void	pfsync_sendout1(int);
+
+#define	schednetisr(NETISR_PFSYNC)	swi_sched(V_pfsync_swi_cookie, 0)
 
 SYSCTL_NODE(_net, OID_AUTO, pfsync, CTLFLAG_RW, 0, "PFSYNC");
 SYSCTL_VNET_STRUCT(_net_pfsync, OID_AUTO, stats, CTLFLAG_RW,
@@ -823,11 +826,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 		CLR(st->state_flags, PFSTATE_NOSYNC);
 		if (ISSET(st->state_flags, PFSTATE_ACK)) {
 			pfsync_q_ins(st, PFSYNC_S_IACK);
-#ifdef __FreeBSD__
-			pfsync_sendout();
-#else
 			schednetisr(NETISR_PFSYNC);
-#endif
 		}
 	}
 	CLR(st->state_flags, PFSTATE_ACK);
@@ -1283,11 +1282,7 @@ pfsync_in_upd(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
-#ifdef __FreeBSD__
-			pfsync_sendout();
-#else
 			schednetisr(NETISR_PFSYNC);
-#endif
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&sp->dst, &st->dst);
@@ -1393,11 +1388,7 @@ pfsync_in_upd_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			V_pfsyncstats.pfsyncs_stale++;
 
 			pfsync_update_state(st);
-#ifdef __FreeBSD__
-			pfsync_sendout();
-#else
 			schednetisr(NETISR_PFSYNC);
-#endif
 			continue;
 		}
 		pfsync_alloc_scrub_memory(&up->dst, &st->dst);
@@ -2098,12 +2089,20 @@ pfsync_drop(struct pfsync_softc *sc)
 	sc->sc_len = PFSYNC_MINPKT;
 }
 
+#ifdef __FreeBSD__
+void pfsync_sendout()
+{
+	pfsync_sendout1(1);
+}
+
+static void
+pfsync_sendout1(int schedswi)
+{
+	struct pfsync_softc *sc = V_pfsyncif;
+#else
 void
 pfsync_sendout(void)
 {
-#ifdef __FreeBSD__
-	struct pfsync_softc *sc = V_pfsyncif;
-#else
 	struct pfsync_softc *sc = pfsyncif;
 #endif
 #if NBPFILTER > 0
@@ -2124,7 +2123,6 @@ pfsync_sendout(void)
 #endif
 #ifdef __FreeBSD__
 	size_t pktlen;
-	int dummy_error;
 #endif
 	int offset;
 	int q, count = 0;
@@ -2329,8 +2327,14 @@ pfsync_sendout(void)
 	sc->sc_ifp->if_obytes += m->m_pkthdr.len;
 	sc->sc_len = PFSYNC_MINPKT;
 
-	IFQ_ENQUEUE(&sc->sc_ifp->if_snd, m, dummy_error);
-	swi_sched(V_pfsync_swi_cookie, 0);
+	if (!_IF_QFULL(&sc->sc_ifp->if_snd))
+		_IF_ENQUEUE(&sc->sc_ifp->if_snd, m);
+	else {
+		m_freem(m);
+                sc->sc_ifp->if_snd.ifq_drops++;
+	}
+	if (schedswi)
+		swi_sched(V_pfsync_swi_cookie, 0);
 #else
 	sc->sc_if.if_opackets++;
 	sc->sc_if.if_obytes += m->m_pkthdr.len;
@@ -2389,11 +2393,7 @@ pfsync_insert_state(struct pf_state *st)
 	pfsync_q_ins(st, PFSYNC_S_INS);
 
 	if (ISSET(st->state_flags, PFSTATE_ACK))
-#ifdef __FreeBSD__
-		pfsync_sendout();
-#else
 		schednetisr(NETISR_PFSYNC);
-#endif
 	else
 		st->sync_updates = 0;
 }
@@ -2592,11 +2592,7 @@ pfsync_update_state(struct pf_state *st)
 
 	if (sync || (time_uptime - st->pfsync_time) < 2) {
 		pfsync_upds++;
-#ifdef __FreeBSD__
-		pfsync_sendout();
-#else
 		schednetisr(NETISR_PFSYNC);
-#endif
 	}
 }
 
@@ -2647,11 +2643,7 @@ pfsync_request_update(u_int32_t creatorid, u_int64_t id)
 	TAILQ_INSERT_TAIL(&sc->sc_upd_req_list, item, ur_entry);
 	sc->sc_len += nlen;
 
-#ifdef __FreeBSD__
-	pfsync_sendout();
-#else
 	schednetisr(NETISR_PFSYNC);
-#endif
 }
 
 void
@@ -2680,11 +2672,7 @@ pfsync_update_state_req(struct pf_state *st)
 		pfsync_q_del(st);
 	case PFSYNC_S_NONE:
 		pfsync_q_ins(st, PFSYNC_S_UPD);
-#ifdef __FreeBSD__
-		pfsync_sendout();
-#else
 		schednetisr(NETISR_PFSYNC);
-#endif
 		return;
 
 	case PFSYNC_S_INS:
@@ -3255,7 +3243,11 @@ pfsyncintr(void *arg)
 	CURVNET_SET(sc->sc_ifp->if_vnet);
 	pfsync_ints++;
 
-	IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
+	PF_LOCK();
+	if (sc->sc_len > PFSYNC_MINPKT)
+		pfsync_sendout1(0);
+	_IF_DEQUEUE_ALL(&sc->sc_ifp->if_snd, m);
+	PF_UNLOCK();
 
 	for (; m != NULL; m = n) {
 
