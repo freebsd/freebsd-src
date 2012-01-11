@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -124,6 +124,10 @@
 /* Maximum sleep allowed via Sleep() operator */
 
 #define ACPI_MAX_SLEEP                  2000    /* 2000 millisec == two seconds */
+
+/* Address Range lists are per-SpaceId (Memory and I/O only) */
+
+#define ACPI_ADDRESS_RANGE_MAX          2
 
 
 /******************************************************************************
