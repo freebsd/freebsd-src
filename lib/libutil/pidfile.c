@@ -117,7 +117,7 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 	 * pidfile_write() can be called multiple times.
 	 */
 	fd = flopen(pfh->pf_path,
-	    O_WRONLY | O_CREAT | O_TRUNC | O_NONBLOCK, mode);
+	    O_WRONLY | O_CREAT | O_TRUNC | O_CLOEXEC | O_NONBLOCK, mode);
 	if (fd == -1) {
 		if (errno == EWOULDBLOCK && pidptr != NULL) {
 			count = 20;
@@ -135,19 +135,6 @@ pidfile_open(const char *path, mode_t mode, pid_t *pidptr)
 				errno = EEXIST;
 		}
 		free(pfh);
-		return (NULL);
-	}
-
-	/*
-	 * Prevent the file descriptor from escaping to other
-	 * programs via exec(3).
-	 */
-	if (fcntl(fd, F_SETFD, FD_CLOEXEC) == -1) {
-		error = errno;
-		unlink(pfh->pf_path);
-		close(fd);
-		free(pfh);
-		errno = error;
 		return (NULL);
 	}
 
