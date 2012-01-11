@@ -1079,9 +1079,9 @@ emurchan_trigger(kobj_t obj, void *data, int go)
 		emu_wrptr(sc, 0, ch->sizereg, sz);
 		if (ch->num == 0) {
 			if (sc->audigy) {
-				val = EMU_ADCCR_LCHANENABLE;
+				val = EMU_A_ADCCR_LCHANENABLE;
 				if (AFMT_CHANNEL(ch->fmt) > 1)
-					val |= EMU_ADCCR_RCHANENABLE;
+					val |= EMU_A_ADCCR_RCHANENABLE;
 				val |= audigy_recval(ch->spd);
 			} else {
 				val = EMU_ADCCR_LCHANENABLE;
