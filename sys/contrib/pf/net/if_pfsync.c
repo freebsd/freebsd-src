@@ -2068,7 +2068,7 @@ pfsync_drop(struct pfsync_softc *sc)
 #ifdef PFSYNC_DEBUG
 #ifdef __FreeBSD__
 			KASSERT(st->sync_state == q,
-				("%s: st->sync_state == q", 
+				("%s: st->sync_state == q",
 					__FUNCTION__));
 #else
 			KASSERT(st->sync_state == q);
@@ -2848,7 +2848,7 @@ pfsync_q_del(struct pf_state *st)
 	int q = st->sync_state;
 
 #ifdef __FreeBSD__
-	KASSERT(st->sync_state != PFSYNC_S_NONE, 
+	KASSERT(st->sync_state != PFSYNC_S_NONE,
 		("%s: st->sync_state != PFSYNC_S_NONE", __FUNCTION__));
 #else
 	KASSERT(st->sync_state != PFSYNC_S_NONE);
@@ -3348,14 +3348,14 @@ pfsync_multicast_cleanup(struct pfsync_softc *sc)
 #ifdef INET
 extern  struct domain inetdomain;
 static struct protosw in_pfsync_protosw = {
-	.pr_type =              SOCK_RAW,
-	.pr_domain =            &inetdomain,
-	.pr_protocol =          IPPROTO_PFSYNC,
-	.pr_flags =             PR_ATOMIC|PR_ADDR,
-	.pr_input =             pfsync_input,
-	.pr_output =            (pr_output_t *)rip_output,
-	.pr_ctloutput =         rip_ctloutput,
-	.pr_usrreqs =           &rip_usrreqs
+	.pr_type =		SOCK_RAW,
+	.pr_domain =		&inetdomain,
+	.pr_protocol =		IPPROTO_PFSYNC,
+	.pr_flags =		PR_ATOMIC|PR_ADDR,
+	.pr_input =		pfsync_input,
+	.pr_output =		(pr_output_t *)rip_output,
+	.pr_ctloutput =		rip_ctloutput,
+	.pr_usrreqs =		&rip_usrreqs
 };
 #endif
 
