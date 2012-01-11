@@ -154,6 +154,7 @@ OBJECTS = \
 	$(OBJDIR)/tbinstal.o \
 	$(OBJDIR)/tbutils.o \
 	$(OBJDIR)/tbxface.o \
+	$(OBJDIR)/utaddress.o \
 	$(OBJDIR)/utalloc.o \
 	$(OBJDIR)/utcache.o \
 	$(OBJDIR)/utcopy.o \
