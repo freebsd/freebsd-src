@@ -74,10 +74,14 @@ clean:	FORCE
 	@for toolname in ${PROGS}; do \
 		(cd $$toolname; \
 		pwd; \
-		make BITS=32 clean; \
-		make BITS=64 clean; \
-		rmdir obj32; \
-		rmdir obj64; \
+		if [ -d "obj32" ] ; then \
+			make BITS=32 clean; \
+			rmdir obj32; \
+		fi; \
+		if [ -d "obj64" ] ; then \
+			make BITS=64 clean; \
+			rmdir obj64; \
+		fi; \
 		); \
 	done;
 

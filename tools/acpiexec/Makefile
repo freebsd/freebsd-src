@@ -206,6 +206,7 @@ OBJECTS = \
 	tbutils.o \
 	tbxface.o \
 	tbxfroot.o \
+	utaddress.o \
 	utalloc.o \
 	utcache.o \
 	utcopy.o \

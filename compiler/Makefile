@@ -185,6 +185,7 @@ OBJECTS = \
 	tbinstal.o \
 	tbutils.o \
 	tbxface.o \
+	utaddress.o \
 	utalloc.o \
 	utcache.o \
 	utcopy.o \

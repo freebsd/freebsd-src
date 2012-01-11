@@ -112,6 +112,7 @@ OBJECTS = \
 	tbutils.o \
 	tbxface.o \
 	tbxfroot.o \
+	utaddress.o \
 	utalloc.o \
 	utcache.o \
 	utdebug.o \
