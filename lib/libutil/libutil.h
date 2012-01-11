@@ -101,7 +101,7 @@ int	extattr_namespace_to_string(int _attrnamespace, char **_string);
 int	extattr_string_to_namespace(const char *_string, int *_attrnamespace);
 int	flopen(const char *_path, int _flags, ...);
 int	forkpty(int *_amaster, char *_name,
-		     struct termios *_termp, struct winsize *_winp);
+	    struct termios *_termp, struct winsize *_winp);
 void	hexdump(const void *_ptr, int _length, const char *_hdr, int _flags);
 int	humanize_number(char *_buf, size_t _len, int64_t _number,
 	    const char *_suffix, int _scale, int _flags);
@@ -117,22 +117,25 @@ int	kld_isloaded(const char *_name);
 int	kld_load(const char *_name);
 int	login_tty(int _fd);
 int	openpty(int *_amaster, int *_aslave, char *_name,
-		     struct termios *_termp, struct winsize *_winp);
+	    struct termios *_termp, struct winsize *_winp);
 void	properties_free(properties _list);
 char	*property_find(properties _list, const char *_name);
-properties properties_read(int _fd);
+properties
+	properties_read(int fd);
 int	realhostname(char *_host, size_t _hsize, const struct in_addr *_ip);
 int	realhostname_sa(char *_host, size_t _hsize, struct sockaddr *_addr,
-			     int _addrlen);
+	    int _addrlen);
 int	_secure_path(const char *_path, uid_t _uid, gid_t _gid);
 void	trimdomain(char *_fullhost, int _hostsize);
-const char *uu_lockerr(int _uu_lockresult);
+const char *
+	uu_lockerr(int _uu_lockresult);
 int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
 int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
 
 #ifdef _STDIO_H_	/* avoid adding new includes */
-char   *fparseln(FILE *_fp, size_t *_len, size_t *_lineno, const char _delim[3], int _flags);
+char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
+	    const char _delim[3], int _flags);
 #endif
 
 #ifdef _PWD_H_
@@ -165,28 +168,32 @@ int	gr_tmp(int _mdf);
 #endif
 
 #ifdef _SYS_PARAM_H_
-int pidfile_close(struct pidfh *_pfh);
-int pidfile_fileno(const struct pidfh *_pfh);
-struct pidfh *pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
-int pidfile_remove(struct pidfh *_pfh);
-int pidfile_write(struct pidfh *_pfh);
+int	pidfile_close(struct pidfh *_pfh);
+int	pidfile_fileno(const struct pidfh *_pfh);
+struct pidfh *
+	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
+int	pidfile_remove(struct pidfh *_pfh);
+int	pidfile_write(struct pidfh *_pfh);
 #endif
 
 #ifdef _UFS_UFS_QUOTA_H_
 struct fstab;
 struct quotafile;
-int quota_check_path(const struct quotafile *_qf, const char *_path);
-void quota_close(struct quotafile *_qf);
-int quota_convert(struct quotafile *_qf, int _wordsize);
-const char *quota_fsname(const struct quotafile *_qf);
-int quota_maxid(struct quotafile *_qf);
-int quota_off(struct quotafile *_qf);
-int quota_on(struct quotafile *_qf);
-struct quotafile *quota_open(struct fstab *_fs, int _quotatype, int _openflags);
-const char *quota_qfname(const struct quotafile *_qf);
-int quota_read(struct quotafile *_qf, struct dqblk *_dqb, int _id);
-int quota_write_limits(struct quotafile *_qf, struct dqblk *_dqb, int _id);
-int quota_write_usage(struct quotafile *_qf, struct dqblk *_dqb, int _id);
+int	quota_check_path(const struct quotafile *_qf, const char *_path);
+void	quota_close(struct quotafile *_qf);
+int	quota_convert(struct quotafile *_qf, int _wordsize);
+const char *
+	quota_fsname(const struct quotafile *_qf);
+int	quota_maxid(struct quotafile *_qf);
+int	quota_off(struct quotafile *_qf);
+int	quota_on(struct quotafile *_qf);
+struct quotafile *
+	quota_open(struct fstab *_fs, int _quotatype, int _openflags);
+const char *
+	quota_qfname(const struct quotafile *_qf);
+int	quota_read(struct quotafile *_qf, struct dqblk *_dqb, int _id);
+int	quota_write_limits(struct quotafile *_qf, struct dqblk *_dqb, int _id);
+int	quota_write_usage(struct quotafile *_qf, struct dqblk *_dqb, int _id);
 #endif
 
 __END_DECLS
