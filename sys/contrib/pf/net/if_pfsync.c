@@ -1433,6 +1433,9 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	}
 	ura = (struct pfsync_upd_req *)(mp->m_data + offp);
 
+#ifdef __FreeBSD__
+	PF_LOCK();
+#endif
 	for (i = 0; i < count; i++) {
 		ur = &ura[i];
 
@@ -1450,11 +1453,12 @@ pfsync_in_ureq(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			if (ISSET(st->state_flags, PFSTATE_NOSYNC))
 				continue;
 
-			PF_LOCK();
 			pfsync_update_state_req(st);
-			PF_UNLOCK();
 		}
 	}
+#ifdef __FreeBSD__
+	PF_UNLOCK();
+#endif
 
 	return (len);
 }
@@ -2975,7 +2979,7 @@ pfsync_bulk_start(void)
 		printf("pfsync: received bulk update request\n");
 
 #ifdef __FreeBSD__
-	PF_LOCK();
+	PF_LOCK_ASSERT();
 	if (TAILQ_EMPTY(&V_state_list))
 #else
 	if (TAILQ_EMPTY(&state_list))
@@ -2994,9 +2998,6 @@ pfsync_bulk_start(void)
 		pfsync_bulk_status(PFSYNC_BUS_START);
 		callout_reset(&sc->sc_bulk_tmo, 1, pfsync_bulk_update, sc);
 	}
-#ifdef __FreeBSD__
-	PF_UNLOCK();
-#endif
 }
 
 void
