@@ -2486,6 +2486,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_COMPBAR;
 
+	/*
+	 * Enable radar PHY errors if requested by the
+	 * DFS module.
+	 */
+	if (sc->sc_dodfs)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
+
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
 	return rfilt;
