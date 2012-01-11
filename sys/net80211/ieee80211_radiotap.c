@@ -325,6 +325,10 @@ radiotap_offset(struct ieee80211_radiotap_header *rh, int item)
 		    .align	= sizeof(uint32_t),
 		    .width	= 2*sizeof(uint32_t),
 		},
+		[IEEE80211_RADIOTAP_MCS] = {
+		    .align	= sizeof(uint8_t),
+		    .width	= 3*sizeof(uint8_t),
+		},
 	};
 	uint32_t present = le32toh(rh->it_present);
 	int off, i;
