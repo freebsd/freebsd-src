@@ -105,6 +105,7 @@ SUBDIR=	${_3dfx} \
 	hatm \
 	hifn \
 	hme \
+	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
 	${_hptrr} \
@@ -482,6 +483,7 @@ _coretemp=	coretemp
 _ctau=		ctau
 _dpt=		dpt
 _ex=		ex
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -554,6 +556,7 @@ _et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
