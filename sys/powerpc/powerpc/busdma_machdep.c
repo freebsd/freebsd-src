@@ -51,6 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <machine/atomic.h>
 #include <machine/bus.h>
+#include <machine/cpufunc.h>
 #include <machine/md_var.h>
 
 #include "iommu_if.h"
@@ -979,6 +980,8 @@ _bus_dmamap_sync(bus_dma_tag_t dmat, bus_dmamap_t map, bus_dmasync_op_t op)
 			dmat->bounce_zone->total_bounced++;
 		}
 	}
+
+	powerpc_sync();
 }
 
 static void
