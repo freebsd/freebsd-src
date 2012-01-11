@@ -55,10 +55,10 @@ SRCS+=	osunixxf.c
 SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 
 # utilities
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c	\
-	utdelete.c utglobal.c utinit.c utlock.c utmath.c	\
-	utmisc.c utmutex.c utobject.c utosi.c utresrc.c		\
-	utstate.c utxface.c utxferror.c
+SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
+	utdecode.c utdelete.c utglobal.c utinit.c utlock.c	\
+	utmath.c utmisc.c utmutex.c utobject.c utosi.c		\
+	utresrc.c utstate.c utxface.c utxferror.c
 
 WARNS?=	2
 

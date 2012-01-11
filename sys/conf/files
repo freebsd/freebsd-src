@@ -267,6 +267,7 @@ contrib/dev/acpica/tables/tbinstal.c		optional acpi
 contrib/dev/acpica/tables/tbutils.c		optional acpi
 contrib/dev/acpica/tables/tbxface.c		optional acpi
 contrib/dev/acpica/tables/tbxfroot.c		optional acpi
+contrib/dev/acpica/utilities/utaddress.c	optional acpi
 contrib/dev/acpica/utilities/utalloc.c		optional acpi
 contrib/dev/acpica/utilities/utcache.c		optional acpi
 contrib/dev/acpica/utilities/utcopy.c		optional acpi
