@@ -681,9 +681,9 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	int pool_flags;
 	int error;
 
+#ifdef __FreeBSD__
 	PF_LOCK_ASSERT();
 
-#ifdef __FreeBSD__
 	if (sp->creatorid == 0 && V_pf_status.debug >= PF_DEBUG_MISC) {
 #else
 	if (sp->creatorid == 0 && pf_status.debug >= PF_DEBUG_MISC) {
