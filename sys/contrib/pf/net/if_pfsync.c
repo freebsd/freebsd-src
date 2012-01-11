@@ -47,6 +47,7 @@
  * 1.118, 1.124, 1.148, 1.149, 1.151, 1.171 - fixes to bulk updates
  * 1.120, 1.175 - use monotonic time_uptime
  * 1.122 - reduce number of updates for non-TCP sessions
+ * 1.128 - cleanups
  * 1.170 - SIOCSIFMTU checks
  */
 
@@ -342,7 +343,6 @@ int	pfsyncioctl(struct ifnet *, u_long, caddr_t);
 void	pfsyncstart(struct ifnet *);
 
 struct mbuf *pfsync_if_dequeue(struct ifnet *);
-struct mbuf *pfsync_get_mbuf(struct pfsync_softc *);
 
 void	pfsync_deferred(struct pf_state *, int);
 void	pfsync_undefer(struct pfsync_deferral *, int);
@@ -354,11 +354,8 @@ void	pfsync_update_state_req(struct pf_state *);
 void	pfsync_drop(struct pfsync_softc *);
 void	pfsync_sendout(void);
 void	pfsync_send_plus(void *, size_t);
-int	pfsync_tdb_sendout(struct pfsync_softc *);
-int	pfsync_sendout_mbuf(struct pfsync_softc *, struct mbuf *);
 void	pfsync_timeout(void *);
 void	pfsync_tdb_timeout(void *);
-void	pfsync_send_bus(struct pfsync_softc *, u_int8_t);
 
 void	pfsync_bulk_start(void);
 void	pfsync_bulk_status(u_int8_t);
