@@ -4971,6 +4971,30 @@ hdac_vendor_patch_parse(struct hdac_devinfo *devinfo)
 		if (w != NULL)
 			w->connsenable[0] = 0;
 		break;
+	case HDA_CODEC_VT1708S_0:
+	case HDA_CODEC_VT1708S_1:
+	case HDA_CODEC_VT1708S_2:
+	case HDA_CODEC_VT1708S_3:
+	case HDA_CODEC_VT1708S_4:
+	case HDA_CODEC_VT1708S_5:
+	case HDA_CODEC_VT1708S_6:
+	case HDA_CODEC_VT1708S_7:
+		/*
+		 * These codecs have hidden mic boost controls.
+		 */
+		w = hdac_widget_get(devinfo, 26);
+		if (w != NULL)
+			w->param.inamp_cap =
+			    (40 << HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE_SHIFT) |
+			    (3 << HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS_SHIFT) |
+			    (0 << HDA_PARAM_OUTPUT_AMP_CAP_OFFSET_SHIFT);
+		w = hdac_widget_get(devinfo, 30);
+		if (w != NULL)
+			w->param.inamp_cap =
+			    (40 << HDA_PARAM_OUTPUT_AMP_CAP_STEPSIZE_SHIFT) |
+			    (3 << HDA_PARAM_OUTPUT_AMP_CAP_NUMSTEPS_SHIFT) |
+			    (0 << HDA_PARAM_OUTPUT_AMP_CAP_OFFSET_SHIFT);
+		break;
 	}
 }
 
@@ -6458,7 +6482,7 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 	struct hdac_softc *sc = devinfo->codec->sc;
 	struct hdac_widget *w;
 	nid_t cad;
-	uint32_t gdata, gmask, gdir;
+	uint32_t id, gdata, gmask, gdir;
 	int commitgpio, numgpio;
 	int i;
 
@@ -6467,6 +6491,24 @@ hdac_audio_commit(struct hdac_devinfo *devinfo)
 	if (sc->pci_subvendor == APPLE_INTEL_MAC)
 		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
 		    0x7e7, 0), cad);
+	id = hdac_codec_id(devinfo->codec);
+	switch (id) {
+	case HDA_CODEC_VT1708S_0:
+	case HDA_CODEC_VT1708S_1:
+	case HDA_CODEC_VT1708S_2:
+	case HDA_CODEC_VT1708S_3:
+	case HDA_CODEC_VT1708S_4:
+	case HDA_CODEC_VT1708S_5:
+	case HDA_CODEC_VT1708S_6:
+	case HDA_CODEC_VT1708S_7:
+		/* Enable Mic Boost Volume controls. */
+		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
+		    0xf98, 0x01), cad);
+		/* Don't bypass mixer. */
+		hdac_command(sc, HDA_CMD_12BIT(cad, devinfo->nid,
+		    0xf88, 0xc0), cad);
+		break;
+	}
 
 	/* Commit controls. */
 	hdac_audio_ctl_commit(devinfo);
@@ -7768,16 +7810,16 @@ hdac_attach2(void *arg)
 			);
 			hdac_audio_parse(devinfo);
 			HDA_BOOTHVERBOSE(
-				device_printf(sc->dev, "Parsing Ctls...\n");
-			);
-		    	hdac_audio_ctl_parse(devinfo);
-			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Parsing vendor patch...\n");
 			);
 			hdac_vendor_patch_parse(devinfo);
 			devinfo->function.audio.quirks |= quirks_on;
 			devinfo->function.audio.quirks &= ~quirks_off;
 
+			HDA_BOOTHVERBOSE(
+				device_printf(sc->dev, "Parsing Ctls...\n");
+			);
+			hdac_audio_ctl_parse(devinfo);
 			HDA_BOOTHVERBOSE(
 				device_printf(sc->dev, "Disabling nonaudio...\n");
 			);
