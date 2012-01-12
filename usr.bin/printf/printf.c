@@ -66,21 +66,21 @@ static const char rcsid[] =
 #include "error.h"
 #endif
 
-#define PF(f, func) do { \
-	char *b = NULL; \
-	if (havewidth) \
-		if (haveprec) \
+#define PF(f, func) do {						\
+	char *b = NULL;							\
+	if (havewidth)							\
+		if (haveprec)						\
 			(void)asprintf(&b, f, fieldwidth, precision, func); \
-		else \
-			(void)asprintf(&b, f, fieldwidth, func); \
-	else if (haveprec) \
-		(void)asprintf(&b, f, precision, func); \
-	else \
-		(void)asprintf(&b, f, func); \
-	if (b) { \
-		(void)fputs(b, stdout); \
-		free(b); \
-	} \
+		else							\
+			(void)asprintf(&b, f, fieldwidth, func);	\
+	else if (haveprec)						\
+		(void)asprintf(&b, f, precision, func);			\
+	else								\
+		(void)asprintf(&b, f, func);				\
+	if (b) {							\
+		(void)fputs(b, stdout);					\
+		free(b);						\
+	}								\
 } while (0)
 
 static int	 asciicode(void);
@@ -357,10 +357,10 @@ mknum(char *str, char ch)
 static int
 escape(char *fmt, int percent, size_t *len)
 {
-	char *save, *store;
-	int value, c;
+	char *save, *store, c;
+	int value;
 
-	for (save = store = fmt; (c = *fmt); ++fmt, ++store) {
+	for (save = store = fmt; ((c = *fmt) != 0); ++fmt, ++store) {
 		if (c != '\\') {
 			*store = c;
 			continue;
@@ -414,7 +414,7 @@ escape(char *fmt, int percent, size_t *len)
 				*store++ = '%';
 				*store = '%';
 			} else
-				*store = value;
+				*store = (char)value;
 			break;
 		default:
 			*store = *fmt;
