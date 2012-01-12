@@ -146,7 +146,7 @@ static void compute_stats(struct ctl_lun_io_stats *cur_stats,
 static void
 usage(int error)
 {
-	fprintf(error ? stderr : stdout, ctlstat_usage);
+	fputs(ctlstat_usage, error ? stderr : stdout);
 }
 
 static int
