@@ -369,10 +369,25 @@ repeat:
 	}
 	/* check if there is no power on the port and print a warning */
 
-	if (!(sc->sc_st.port_status & UPS_PORT_POWER)) {
-		DPRINTF("WARNING: strange, connected port %d "
-		    "has no power\n", portno);
+	switch (udev->speed) {
+	case USB_SPEED_HIGH:
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		if (!(sc->sc_st.port_status & UPS_PORT_POWER)) {
+			DPRINTF("WARNING: strange, connected port %d "
+			    "has no power\n", portno);
+		}
+		break;
+	case USB_SPEED_SUPER:
+		if (!(sc->sc_st.port_status & UPS_PORT_POWER_SS)) {
+			DPRINTF("WARNING: strange, connected port %d "
+			    "has no power\n", portno);
+		}
+		break;
+	default:
+		break;
 	}
+
 	/* check if the device is in Host Mode */
 
 	if (!(sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)) {
@@ -611,6 +626,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
 		case UPS_PORT_LS_U0:
 		case UPS_PORT_LS_U1:
+		case UPS_PORT_LS_U2:
 		case UPS_PORT_LS_RESUME:
 			is_suspend = 0;
 			break;
@@ -632,8 +648,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		 */
 		if (is_suspend == 0)
 			usb_dev_resume_peer(child);
-		else if ((child->flags.usb_mode == USB_MODE_DEVICE) ||
-		    (usb_device_20_compatible(child) == 0))
+		else if (child->flags.usb_mode == USB_MODE_DEVICE)
 			usb_dev_suspend_peer(child);
 	}
 done:
@@ -2064,7 +2079,6 @@ usb_peer_should_wakeup(struct usb_device *udev)
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
 	    (udev->flags.usb_mode == USB_MODE_HOST) &&
-	    (usb_device_20_compatible(udev) != 0) &&
 	    (usb_peer_can_wakeup(udev) == 0)));
 }
 
@@ -2244,6 +2258,14 @@ usb_dev_resume_peer(struct usb_device *udev)
 			DPRINTFN(0, "Resuming port failed\n");
 			return;
 		}
+	} else {
+		/* resume current port (Valid in Host and Device Mode) */
+		err = usbd_req_set_port_link_state(udev->parent_hub,
+		    NULL, udev->port_no, UPS_PORT_LS_U0);
+		if (err) {
+			DPRINTFN(0, "Resuming port failed\n");
+			return;
+		}
 	}
 
 	/* resume settle time */
@@ -2285,8 +2307,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	usbd_sr_unlock(udev);
 
 	/* check if peer has wakeup capability */
-	if (usb_peer_can_wakeup(udev) &&
-	    usb_device_20_compatible(udev)) {
+	if (usb_peer_can_wakeup(udev)) {
 		/* clear remote wakeup */
 		err = usbd_req_clear_device_feature(udev,
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
@@ -2347,8 +2368,7 @@ repeat:
 		}
 	}
 
-	if (usb_peer_can_wakeup(udev) &&
-	    usb_device_20_compatible(udev)) {
+	if (usb_peer_can_wakeup(udev)) {
 		/*
 		 * This request needs to be done before we set
 		 * "udev->flags.self_suspended":
@@ -2380,8 +2400,7 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (err != 0) {
-		if (usb_peer_can_wakeup(udev) &&
-		    usb_device_20_compatible(udev)) {
+		if (usb_peer_can_wakeup(udev)) {
 			/* allow device to do remote wakeup */
 			err = usbd_req_clear_device_feature(udev,
 			    NULL, UF_DEVICE_REMOTE_WAKEUP);
@@ -2433,6 +2452,14 @@ repeat:
 		/* suspend current port */
 		err = usbd_req_set_port_feature(udev->parent_hub,
 		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		if (err) {
+			DPRINTFN(0, "Suspending port failed\n");
+			return;
+		}
+	} else {
+		/* suspend current port */
+		err = usbd_req_set_port_link_state(udev->parent_hub,
+		    NULL, udev->port_no, UPS_PORT_LS_U3);
 		if (err) {
 			DPRINTFN(0, "Suspending port failed\n");
 			return;

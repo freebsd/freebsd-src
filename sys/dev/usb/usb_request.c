@@ -2164,3 +2164,27 @@ usbd_req_clear_tt_buffer(struct usb_device *udev, struct mtx *mtx,
 	USETW(req.wLength, 0);
 	return (usbd_do_request(udev, mtx, &req, 0));
 }
+
+/*------------------------------------------------------------------------*
+ *	usbd_req_set_port_link_state
+ *
+ * USB 3.0 specific request
+ *
+ * Returns:
+ *    0: Success
+ * Else: Failure
+ *------------------------------------------------------------------------*/
+usb_error_t
+usbd_req_set_port_link_state(struct usb_device *udev, struct mtx *mtx,
+    uint8_t port, uint8_t link_state)
+{
+	struct usb_device_request req;
+
+	req.bmRequestType = UT_WRITE_CLASS_OTHER;
+	req.bRequest = UR_SET_FEATURE;
+	USETW(req.wValue, UHF_PORT_LINK_STATE);
+	req.wIndex[0] = port;
+	req.wIndex[1] = link_state;
+	USETW(req.wLength, 0);
+	return (usbd_do_request(udev, mtx, &req, 0));
+}
