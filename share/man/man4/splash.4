@@ -74,6 +74,14 @@ Bitmaps of other color depths will not be displayed.
 ZSoft PCX decoder.
 This decoder currently only supports version 5 8-bpp single-plane
 images.
+.It Pa splash_txt.ko
+TheDraw binary ASCII drawing file decoder.
+Displays a text-mode 80x25 ASCII drawing, such as that produced by
+the Binary save format in TheDraw.
+This format consists of a sequence
+of two byte pairs representing the 80x25 display, where the first byte
+is the ASCII character to draw and the second byte indicates the
+colors/attributes to use when drawing the character.
 .El
 .Pp
 The
@@ -223,6 +231,16 @@ If the VESA support is statically linked to the kernel, it is not
 necessary to load the VESA module.
 Just load the bitmap file and the splash decoder module as in the
 first example above.
+.Pp
+To load a binary ASCII drawing and display this while booting, include the
+following into your
+.Pa /boot/loader.conf
+:
+.Bd -literal -offset indent
+splash_txt_load="YES"
+bitmap_load="YES"
+bitmap_name="/boot/splash.bin"
+.Ed
 .\".Sh DIAGNOSTICS
 .Sh SEE ALSO
 .Xr vidcontrol 1 ,
@@ -255,6 +273,15 @@ module was written by
 .An Dag-Erling Sm\(/orgrav Aq des@FreeBSD.org
 based on the
 .Pa splash_bmp
+code.
+The
+.Pa splash_txt
+module was written by
+.An Antony Mawer Aq antony@mawer.org
+based on the
+.Pa splash_bmp
+code, with some additional inspiration from the
+.Pa daemon_saver
 code.
 .Sh CAVEATS
 Both the splash screen and the screen saver work with
