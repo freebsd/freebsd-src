@@ -33,6 +33,7 @@ SUBDIR=	alias \
 	compress \
 	cpuset \
 	csplit \
+	ctlstat \
 	cut \
 	dirname \
 	du \

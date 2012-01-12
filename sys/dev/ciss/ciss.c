@@ -1614,7 +1614,7 @@ ciss_inquiry_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     inq->opcode = INQUIRY;
     inq->byte2 = SI_EVPD;
     inq->page_code = CISS_VPD_LOGICAL_DRIVE_GEOMETRY;
-    inq->length = sizeof(ld->cl_geometry);
+    scsi_ulto2b(sizeof(ld->cl_geometry), inq->length);
 
     if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
 	ciss_printf(sc, "error getting geometry (%d)\n", error);
