@@ -4044,6 +4044,7 @@ em_setup_receive_ring(struct rx_ring *rxr)
 			    BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(rxr->rxtag, rxbuf->map);
 			m_freem(rxbuf->m_head);
+			rxbuf->m_head = NULL; /* mark as freed */
 		}
 	}
 
