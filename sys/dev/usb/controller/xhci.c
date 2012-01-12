@@ -2211,9 +2211,10 @@ xhci_configure_device(struct usb_device *udev)
 	struct usb_device *hubdev;
 	uint32_t temp;
 	uint32_t route;
+	uint32_t rh_port;
 	uint8_t is_hub;
 	uint8_t index;
-	uint8_t rh_port;
+	uint8_t depth;
 
 	index = udev->controller_slot_id;
 
@@ -2235,6 +2236,8 @@ xhci_configure_device(struct usb_device *udev)
 		if (hubdev->parent_hub == NULL)
 			break;
 
+		depth = hubdev->parent_hub->depth;
+
 		/*
 		 * NOTE: HS/FS/LS devices and the SS root HUB can have
 		 * more than 15 ports
@@ -2242,16 +2245,17 @@ xhci_configure_device(struct usb_device *udev)
 
 		rh_port = hubdev->port_no;
 
-		if (hubdev->parent_hub->parent_hub == NULL)
+		if (depth == 0)
 			break;
 
-		route *= 16;
-
 		if (rh_port > 15)
-			route |= 15;
-		else
-			route |= rh_port;
+			rh_port = 15;
+
+		if (depth < 6)
+			route |= rh_port << (4 * (depth - 1));
 	}
+
+	DPRINTF("Route=0x%08x\n", route);
 
 	temp = XHCI_SCTX_0_ROUTE_SET(route);
 
@@ -3063,6 +3067,7 @@ xhci_roothub_exec(struct usb_device *udev,
 		case UHF_C_PORT_CONFIG_ERROR:
 			XWRITE4(sc, oper, port, v | XHCI_PS_CEC);
 			break;
+		case UHF_C_PORT_SUSPEND:
 		case UHF_C_PORT_LINK_STATE:
 			XWRITE4(sc, oper, port, v | XHCI_PS_PLC);
 			break;
@@ -3190,7 +3195,7 @@ xhci_roothub_exec(struct usb_device *udev,
 		if (v & XHCI_PS_PR)
 			i |= UPS_RESET;
 		if (v & XHCI_PS_PP)
-			i |= UPS_PORT_POWER;
+			i |= UPS_PORT_POWER_SS;
 		USETW(sc->sc_hub_desc.ps.wPortStatus, i);
 
 		i = 0;
