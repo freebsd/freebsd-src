@@ -1116,7 +1116,7 @@ load_rc_config_var()
 #
 rc_usage()
 {
-	echo -n 1>&2 "Usage: $0 [fast|force|one]("
+	echo -n 1>&2 "Usage: $0 [fast|force|one|quiet]("
 
 	_sep=
 	for _elem; do
