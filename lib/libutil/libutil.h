@@ -69,8 +69,8 @@ typedef	__uid_t		uid_t;
 /* for properties.c */
 typedef struct _property {
 	struct _property *next;
-	char *name;
-	char *value;
+	char	*name;
+	char	*value;
 } *properties;
 
 #ifdef _SYS_PARAM_H_
@@ -121,7 +121,7 @@ int	openpty(int *_amaster, int *_aslave, char *_name,
 void	properties_free(properties _list);
 char	*property_find(properties _list, const char *_name);
 properties
-	properties_read(int fd);
+	properties_read(int _fd);
 int	realhostname(char *_host, size_t _hsize, const struct in_addr *_ip);
 int	realhostname_sa(char *_host, size_t _hsize, struct sockaddr *_addr,
 	    int _addrlen);
@@ -139,8 +139,10 @@ char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 #endif
 
 #ifdef _PWD_H_
-int	pw_copy(int _ffd, int _tfd, const struct passwd *_pw, struct passwd *_old_pw);
-struct passwd *pw_dup(const struct passwd *_pw);
+int	pw_copy(int _ffd, int _tfd, const struct passwd *_pw,
+	    struct passwd *_old_pw);
+struct passwd
+	*pw_dup(const struct passwd *_pw);
 int	pw_edit(int _notsetuid);
 int	pw_equal(const struct passwd *_pw1, const struct passwd *_pw2);
 void	pw_fini(void);
@@ -149,21 +151,26 @@ char	*pw_make(const struct passwd *_pw);
 char	*pw_make_v7(const struct passwd *_pw);
 int	pw_mkdb(const char *_user);
 int	pw_lock(void);
-struct passwd *pw_scan(const char *_line, int _flags);
-const char *pw_tempname(void);
+struct passwd
+	*pw_scan(const char *_line, int _flags);
+const char
+	*pw_tempname(void);
 int	pw_tmp(int _mfd);
 #endif
 
 #ifdef _GRP_H_
-int 	gr_copy(int __ffd, int _tfd, const struct group *_gr, struct group *_old_gr);
-struct group *gr_dup(const struct group *_gr);
+int 	gr_copy(int __ffd, int _tfd, const struct group *_gr,
+	    struct group *_old_gr);
+struct group
+	*gr_dup(const struct group *_gr);
 int	gr_equal(const struct group *_gr1, const struct group *_gr2);
 void	gr_fini(void);
 int	gr_init(const char *_dir, const char *_master);
 int	gr_lock(void);
 char	*gr_make(const struct group *_gr);
 int	gr_mkdb(void);
-struct group *gr_scan(const char *_line);
+struct group
+	*gr_scan(const char *_line);
 int	gr_tmp(int _mdf);
 #endif
 
