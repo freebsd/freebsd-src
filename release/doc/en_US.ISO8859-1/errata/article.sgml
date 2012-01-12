@@ -220,18 +220,11 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-<![ %release.type.current [
-    <para>No open issues.</para>
-]]>
-
-<![ %release.type.release [
-    <para>No open issues.</para>
-]]>
-
-<![ %release.type.snapshot [
-    <para>No open issues.</para>
-]]>
-
+    <para>In some releases prior to &release.current;, upgrading by
+      using &man.freebsd-update.8; can fail.  This issue has been
+      fixed by a change in Errata Notice EN-12:01.  For more
+      information, see <ulink
+      url="http://security.freebsd.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc"></ulink></para>
   </sect1>
 
   <sect1 id="late-news">
