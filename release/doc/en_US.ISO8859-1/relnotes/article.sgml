@@ -1848,8 +1848,8 @@ em0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 		  <varname>ifconfig_<replaceable>IF</replaceable>_alias<replaceable>0</replaceable></varname>.
 		  Note that address family keywords are always required:</para>
 
-		<programlisting>ifconfig_em0_alias0="inet 192.168.2.0 netmask 255.255.255.255"
-ifconfig_em0_alias1="inet6 2011:db8:1::1 prefixlen 64</programlisting>
+		<programlisting>ifconfig_em0_alias0="inet 192.168.2.10 netmask 255.255.255.255"
+ifconfig_em0_alias1="inet6 2001:db8:1::1 prefixlen 64</programlisting>
 
 		<para>Although
 		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable>_alias<replaceable>N</replaceable></varname>
