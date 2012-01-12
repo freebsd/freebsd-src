@@ -184,12 +184,12 @@
   <sect2 id="kernel">
     <title>Kernel Changes</title>
 
-      <para revision="219129">&os; kernel now supports Capsicum
+      <para revision="219129">The &os; kernel now supports Capsicum
 	Capability Mode.  Capsicum is a set of features for sandboxing
 	support, using a capability model in which the capabilities
 	are file descriptors.  Two new kernel options
 	<literal>CAPABILITIES</literal> and
-	<literal>CAPABILITY_MODE</literal> have been added to
+	<literal>CAPABILITY_MODE</literal> have been added to the
 	<filename>GENERIC</filename> kernel.  For more information
 	about Capsicum, see <ulink
 	url="http://www.cl.cam.ac.uk/research/security/capsicum/"></ulink>.</para>
@@ -201,20 +201,21 @@
 	&os;/&arch.amd64;.  Two new
 	<filename>systrace_linux32</filename> and
 	<filename>systrace_freebsd32</filename> kernel modules provide
-	support for tracing compat system calls in addition to native
+	support for tracing compat system calls in addition to the native
 	system call tracing provided by the
 	<filename>systrace</filename> module.</para>
 
-      <para revision="217152,217396" arch="amd64,i386,powerpc">&os; ELF image
-	activator now supports <literal>PT_GNU_STACK</literal> program
-	header.  This is disabled by default.  New &man.sysctl.8;
-	variables <varname>kern.elf32.nxstack</varname> and
-	<varname>kern.elf64.nxstack</varname> allow to enable
+      <para revision="217152,217396" arch="amd64,i386,powerpc">The
+	&os; ELF image activator now supports the
+	<literal>PT_GNU_STACK</literal> program header.  This is
+	disabled by default.  New &man.sysctl.8; variables
+	<varname>kern.elf32.nxstack</varname> and
+	<varname>kern.elf64.nxstack</varname> allow enabling
 	<literal>PT_GNU_STACK</literal> for the specified ABIs
 	(e.g. <literal>elf32</literal> for 32-bit ABI).</para>
 
       <para revision="216758,216615">The &man.hhook.9; (Helper Hook)
-	and &man.khelp.9; (Kernel Helpers) KPI have been implemented.
+	and &man.khelp.9; (Kernel Helpers) KPIs have been implemented.
 	These are a kind of superset of &man.pfil.9; framework for
 	more general use in the kernel.  The &man.hhook.9; KPI
 	provides a way for kernel subsystems to export hook points
@@ -228,8 +229,8 @@
 
       <para revision="224516" arch="amd64,i386,pc98">A &man.loader.8;
 	tunable <varname>hw.memtest.tests</varname> has been added.
-	This controls whether performing a memory testing at boot time
-	or not.  The default value is <literal>1</literal> (performs a
+	This controls whether to perform memory testing at boot time
+	or not.  The default value is <literal>1</literal> (perform a
 	memory test).</para>
 
       <para revision="220137">A new resource accounting API has been
@@ -238,12 +239,12 @@
 	this is not built nor installed by default.  To build and
 	install them, specify <literal>options RACCT</literal> in the
 	kernel configuration file and rebuild the base system as
-	described in <ulink
+	described in the <ulink
 	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">&os;
 	Handbook</ulink>.</para>
 
-      <para revision="220163">A new resource limiting API has been
-	implemented.  It works in conjunction with
+      <para revision="220163">A new resource-limiting API has been
+	implemented.  It works in conjunction with the
 	<literal>RACCT</literal> resource accounting implementation
 	and takes user-configurable actions based on the set of rules
 	it maintains and the current resource usage.  The &man.rctl.8;
@@ -251,31 +252,31 @@
 	that this is not built nor installed by default.  To build and
 	install them, specify <literal>options RCTL</literal> in the
 	kernel configuration file and rebuild the base system as
-	described in <ulink
+	described in the <ulink
 	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">&os;
 	Handbook</ulink>.</para>
 
       <para revision="220031">The &man.sendmsg.2; and &man.recvmsg.2;
-	system calls in &os; Linux ABI compatibility have been
+	system calls in the &os; Linux ABI compatibility have been
 	improved.</para>
 
       <para revision="219999">The &man.open.2; and &man.fhopen.2;
-	system calls now support <literal>O_CLOEXEC</literal> flag,
-	which allows to set <literal>FD_CLOEXEC</literal> flag for the
+	system calls now support the <literal>O_CLOEXEC</literal> flag,
+	which allows setting the <literal>FD_CLOEXEC</literal> flag for the
 	newly created file descriptor.  This is standardized in IEEE
 	Std 1003.1-2008 (POSIX, Single UNIX Specification Version
 	4).</para>
 
-      <para revision="220791">&man.posix.fallocate.2; system call has
+      <para revision="220791">The &man.posix.fallocate.2; system call has
 	been implemented.  This is a function in POSIX to ensure that
-	a part of storage for regular file data is allocated on the
+	a part of the storage for regular file data is allocated on the
 	file system storage media.</para>
 
       <para revision="219304">Two new system calls
 	<function>setloginclass(2)</function> and
 	<function>getloginclass(2)</function> have been added.  This
-	makes it possible for the kernel to track login class the
-	process is assigned to, which is required for
+	makes it possible for the kernel to track the login class a
+	process is assigned to, which is required for the
 	<literal>RCTL</literal> resource limiting framework.</para>
 
       <para revision="220238" arch="amd64">&os; now supports executing
@@ -283,12 +284,12 @@
 	that this is not built nor installed by default.  To build and
 	install them, specify <literal>options COMPAT_43</literal> in
 	the kernel configuration file and rebuild the base system as
-	described in <ulink
+	described in the <ulink
 	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">&os;
 	Handbook</ulink>.</para>
 
       <para revision="218485,219028,219029">The following
-	&man.sysctl.8; variables have been added to show availability
+	&man.sysctl.8; variables have been added to show the availability
 	of various kernel features:</para>
 
       <informaltable frame="none" pgwide="1">
@@ -402,7 +403,7 @@
 
 	    <row>
 	      <entry><varname>kern.features.stack</varname></entry>
-	      <entry>Support for capturing kernel stack</entry>
+	      <entry>Support for capturing the kernel stack</entry>
 	    </row>
 
 	    <row>
@@ -423,7 +424,7 @@
 
 	    <row>
 	      <entry><varname>kern.features.invariant_support</varname></entry>
-	      <entry>Support for modules compiled with INVARIANTS option</entry>
+	      <entry>Support for modules compiled with the INVARIANTS option</entry>
 	    </row>
 
 	    <row>
@@ -523,7 +524,7 @@
 
 	    <row>
 	      <entry><varname>kern.features.geom_vol</varname></entry>
-	      <entry>GEOM support for volume names from UFS superblock</entry>
+	      <entry>GEOM support for volume names from UFS superblocks</entry>
 	    </row>
 
 	    <row>
@@ -604,11 +605,11 @@
 	  updated.</para>
 
 	<para revision="219541" arch="ia64">The &man.loader.8; loader
-	  now supports PBVM (Pre-Boot Virtual Memory).  This allows to
-	  link the kernel at a fixed virtual address without having to
+	  now supports PBVM (Pre-Boot Virtual Memory).  This allows
+	  linking the kernel at a fixed virtual address without having to
 	  make any assumptions about the physical memory layout.  The
 	  PBVM also allows fine control of the address where the
-	  kernel and its modules to be loaded.</para>
+	  kernel and its modules are to be loaded.</para>
       </sect3>
 
     <sect3 id="proc">
@@ -625,7 +626,7 @@
 	  calibration, DELAY(9) with TSC, and using TSC as a CPU
 	  ticker.  Another new &man.loader.8; tunable
 	  <varname>machdep.disable_tsc_calibration</varname> allows to
-	  skip TSC frequency calibration only.  This is useful when
+	  skip the TSC frequency calibration only.  This is useful when
 	  one wants to use the nominal frequency of the chip in Intel
 	  processors, for example.</para>
 
@@ -634,22 +635,22 @@
 
 	<para revision="215649">The &os; &man.usb.4; subsystem now
 	  supports USB packet filter.  This allows to capture packets
-	  which go through each USB host controllers.  The
+	  which go through each USB host controller.  The
 	  implementation is almost based on &man.bpf.4; code.
 	  The userland program &man.usbdump.8; has been added.</para>
 
       <sect4 id="net-if">
 	<title>Network Interface Support</title>
 
-	  <para revision="217649">A bug in &man.alc.4; driver which
+	  <para revision="217649">A bug in the &man.alc.4; driver which
 	    could make AR8152-based network interfaces stop working
 	    has been fixed.</para>
 
 	  <para revision="219647">A bxe(4) driver for Broadcom
-	    NetXtreme II 10GbE controller (BCM57710, BCM57711,
+	    NetXtreme II 10GbE controllers (BCM57710, BCM57711,
 	    BCM57711E) has been added.</para>
 
-	  <para revision="220009">A &man.cxgb.4; driver has been
+	  <para revision="220009">The &man.cxgb.4; driver has been
 	    updated to version 7.11.0.</para>
 
 	  <para revision="218794">A &man.cxgbe.4; driver for Chelsio
@@ -657,34 +658,34 @@
 	    added.</para>
 
 	  <para revision="218832" arch="i386">The &man.dc.4; driver
-	    now works correctly in the kernel with
+	    now works correctly in kernels with the
 	    <option>PAE</option> option.</para>
 
 	  <para revision="219753">The &man.em.4; driver has been
 	    updated to version 7.3.2.</para>
 
-	  <para revision="223350">The &man.igb.4; driver has bee
+	  <para revision="223350">The &man.igb.4; driver has been
 	    updated to version 2.2.5.</para>
 
 	  <para revision="218530">The &man.igb.4; driver now supports
-	    Intel I350 PCIe Gigabit Ethernet controller.</para>
+	    Intel I350 PCIe Gigabit Ethernet controllers.</para>
 
 	  <para revision="217593">The &man.ixgbe.4; driver has been
 	    updated to version 2.3.8.</para>
 
 	  <para revision="220892">Firmware images in the &man.iwn.4;
-	    driver for 1000, 5000, 6000, and 6500 series have been
+	    driver for 1000, 5000, 6000, and 6500 series cards have been
 	    updated.</para>
 
-	  <para revision="216860">A bug in &man.msk.4; driver has been
-	    fixed.  It could prevent the RX checksum offloading from
+	  <para revision="216860">A bug in the &man.msk.4; driver has been
+	    fixed.  It could prevent RX checksum offloading from
 	    working.</para>
 
-	  <para revision="217794">A bug in &man.nfe.4; driver which
+	  <para revision="217794">A bug in the &man.nfe.4; driver which
 	    could prevent reinitialization after changing the MTU has
 	    been fixed.</para>
 
-	  <para revision="217511">A bug in &man.ral.4; and &man.run.4;
+	  <para revision="217511">A bug in the &man.ral.4; and &man.run.4;
 	    drivers which could prevent <literal>hostap</literal> mode
 	    from working has been fixed.</para>
 
@@ -693,7 +694,7 @@
 
 	  <para revision="217498,218760">The &man.re.4; driver now supports
 	    RTL8168E/8111E-VL PCIe Gigabit Ethernet controllers and
-	    RTL8401E PCIe Fast Ethernet controller.</para>
+	    RTL8401E PCIe Fast Ethernet controllers.</para>
 
 	  <para revision="217766">The &man.re.4; driver now supports
 	    TX interrupt moderation on RTL810xE PCIe Fast Ethernet
@@ -701,15 +702,15 @@
 
 	  <para revision="217902">The &man.re.4; driver now supports
 	    another mechanism for RX interrupt moderation because of
-	    performance problem.  A &man.sysctl.8; variable
+	    performance problems.  A &man.sysctl.8; variable
 	    <varname>dev.re.<replaceable>N</replaceable>.int_rx_mod</varname>
 	    has been added to control amount of time to delay RX
-	    interrupt processing in units of microsecond.  Setting it
+	    interrupt processing, in units of microsecond.  Setting it
 	    to <literal>0</literal> completely disables RX interrupt
 	    moderation.  A &man.loader.8; tunable
 	    <varname>hw.re.intr_filter</varname> controls whether the
-	    old mechanism utilizing MSI/MSI-X capability on the
-	    supported controllers is used or not.  When setting it to
+	    old mechanism utilizing MSI/MSI-X capability on
+	    supported controllers is used or not.  When set to
 	    a non-zero value, the &man.re.4; driver uses the old
 	    mechanism.  The default value is <literal>0</literal> and
 	    this tunable has no effect on controllers without MSI/MSI-X
@@ -725,7 +726,7 @@
 	    supports enabling TX and/or RX checksum offloading
 	    independently from each other.  Note that TX IP checksum
 	    is disabled on some RTL8168C-based network interfaces
-	    because it can generate an wrong IP checksum when the
+	    because it can generate an incorrect IP checksum when the
 	    packet contains IP options.</para>
 
 	  <para revision="217296">A bug in the &man.re.4; driver has
@@ -733,20 +734,20 @@
 	    frame on an RTL8169C, 8169D, or 8169E controller-based
 	    network interface.</para>
 
-	  <para revision="217911">The &man.re.4; driver now support
-	    RTL8105E PCIe Fast Ethernet controller.</para>
+	  <para revision="217911">The &man.re.4; driver now supports
+	    RTL8105E PCIe Fast Ethernet controllers.</para>
 
-	  <para revision="217910">The rlphy(4) driver now support
+	  <para revision="217910">The rlphy(4) driver now supports the
 	    Realtek RTL8201E 10/100 PHY found in RTL8105E
-	    controller.</para>
+	    controllers.</para>
 
 	  <para revision="217548">A bug in the &man.sis.4; driver has
-	    been changed.  It could prevent a proper reinitialization
-	    on DP83815, DP83816, and SiS 900/7016 controllers when
+	    been fixed.  It could prevent a proper reinitialization
+	    on DP83815, DP83816, and SiS 900/7016 controllers when the
 	    configuration of multicast packet handling and/or
 	    promiscuous mode is changed.</para>
 
-	  <para revision="216650">A bug in &man.vlan.4; pseudo interface
+	  <para revision="216650">A bug in the &man.vlan.4; pseudo interface
 	    han been fixed.  It could have a random interface
 	    identifier in an automatically configured IPv6 link-local
 	    address, instead of one generated with the parent
@@ -754,15 +755,15 @@
 	    described in RFC 4291.</para>
 
 	  <para revision="216829">A &man.vte.4; driver for RDC R6040 Fast
-	    Ethernet controller, which is commonly found on Vortex86
+	    Ethernet controllers, which are commonly found on the Vortex86
 	    System On a Chip, has been added.</para>
 
-	  <para revision="221167">A &man.vxge.4; driver for Neterion
+	  <para revision="221167">A &man.vxge.4; driver for the Neterion
 	    X3100 10GbE Server/Storage adapter has been added.</para>
 
-	  <para revision="216824">A bug in &man.wpi.4; driver has been
+	  <para revision="216824">A bug in the &man.wpi.4; driver has been
 	    fixed.  It could display the following error messages and
-	    result in the device unusable:</para>
+	    result in the device being unusable:</para>
 
 	  <screen>wpi0: could not map mbuf (error 12)
 wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
@@ -773,25 +774,26 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
     <sect3 id="net-proto">
       <title>Network Protocols</title>
 
-	<para revision="225044">The &man.ipfw.8; now supports IPv6 in
+	<para revision="225044">&man.ipfw.8; now supports IPv6 in
 	  the <command>fwd</command> action.</para>
 
-	<para revision="223666">The &man.ipfw.8; now supports
+	<para revision="223666">&man.ipfw.8; now supports the
 	  <command>call</command> and <command>return</command>
-	  action.  Upon the <command>call</command> action, The
+	  actions.  Upon the <command>call
+	  <replaceable>number</replaceable></command> action, the
 	  current rule number is saved in the internal stack and
 	  ruleset processing continues with the first rule numbered
-	  number or higher.  The <command>return</command> action
-	  takes rule number saved to internal stack by the last
-	  <command>call</command> action and returns ruleset
-	  processing to the first rule with number greater than number
-	  of corresponding call rule.</para>
+	  <replaceable>number</replaceable> or higher.  The
+	  <command>return</command> action takes the rule number saved
+	  to internal stack by the latest <command>call</command>
+	  action and returns ruleset processing to the first rule with
+	  number greater than that saved number.</para>
 
-	<para revision="218794">&os; &man.ipsec.4; support now uses a
+	<para revision="218794">&os;'s &man.ipsec.4; support now uses
 	  half of the hash size as the authenticator hash size in
 	  Hashed Message Authentication Mode (HMAC-SHA-256,
 	  HMAC-SHA-384, and HMAC-SHA-512) as described in RFC 4868.
-	  This was 96-bit fixed length in prior releases because the
+	  This was a fixed 96-bit length in prior releases because the
 	  implementation was based on an old Internet draft
 	  draft-ietf-ipsec-ciph-sha-256-00.  Note that this means
 	  &release.current; and later are no longer interoperable with
@@ -803,47 +805,47 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  nor installed by default.  To build and install them,
 	  specify <literal>WITH_OFED=yes</literal> in
 	  <filename>/etc/src.conf</filename> and rebuild the base
-	  system as described in <ulink
+	  system as described in the <ulink
 	  url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">&os;
 	  Handbook</ulink>.</para>
 
-	<para revision="226572">&os; TCP/IP network stack now supports
+	<para revision="226572">The &os; TCP/IP network stack now supports
 	  IPv4 prefixes with /31 as described in RFC 3021,
 	  <quote>Using 31-Bit Prefixes on IPv4 Point-to-Point
 	  Links</quote>.</para>
 
-	<para revision="217169">A bug in &os; TCP/IP network stack has
-	  been fixed.  The source address selection could not being
+	<para revision="217169">A bug in the &os; TCP/IP network stack has
+	  been fixed.  Source address selection could not be
 	  performed when multicast options were present but without an
 	  interface being specified.</para>
 
-	<para revision="225682">A bug in
+	<para revision="225682">A bug in the
 	  <literal>IPV6_PKTINFO</literal> option used in
-	  &man.sendmsg.2; has been fixed.  The caused
+	  &man.sendmsg.2; has been fixed.  The
 	  <literal>IPV6_USE_MIN_MTU</literal> state set by
 	  &man.setsockopt.2; was ignored.</para>
 
 	<para revision="216109,216114,216115,218152,218153,218155">
-	  &os; TCP/IP network stack now supports &man.mod.cc.9; pluggable
+	  The &os; TCP/IP network stack now supports the &man.mod.cc.9; pluggable
 	  congestion control framework.  This allows TCP congestion
 	  control algorithms to be implemented as dynamically loadable
 	  kernel modules.  The following kernel modules are available
-	  as of &release.current;: &man.cc.chd.4; for
-	  CAIA-Hamilton-Delay algorithm, &man.cc.cubic.4; for CUBIC
-	  algorithm, &man.cc.hd.4; for Hamilton-Delay algorithm,
-	  &man.cc.htcp.4; for H-TCP algorithm, &man.cc.newreno.4; for
-	  NewReno algorithm, and &man.cc.vegas.4; for Vegas algorithm.
+	  as of &release.current;: &man.cc.chd.4; for the
+	  CAIA-Hamilton-Delay algorithm, &man.cc.cubic.4; for the CUBIC
+	  algorithm, &man.cc.hd.4; for the Hamilton-Delay algorithm,
+	  &man.cc.htcp.4; for the H-TCP algorithm, &man.cc.newreno.4; for
+	  the NewReno algorithm, and &man.cc.vegas.4; for the Vegas algorithm.
 	  The default algorithm can be set by a new &man.sysctl.8;
 	  variable <varname>net.inet.tcp.cc.algorithm</varname>.  The
-	  value must be set to one of the names listed by the
+	  value must be set to one of the names listed by
 	  <varname>net.inet.tcp.cc.available</varname>, and
-	  <literal>newreno</literal> is set at boot time.
+	  <literal>newreno</literal> is the default set at boot time.
 	  For more
-	  detail, see &man.mod.cc.4; and &man.mod.cc.9; manual pages.</para>
+	  detail, see the &man.mod.cc.4; and &man.mod.cc.9; manual pages.</para>
 
 	<para revision="217806">An &man.h.ertt.4; (Enhanced Round Trip
 	  Time) &man.khelp.9; module has been added.  This module
-	  allows per-connection, low noise estimate of the
+	  allows per-connection, low noise estimates of the
 	  instantaneous RTT in the TCP/IP network stack with a robust
 	  implementation even in the face of delayed acknowledgments
 	  and/or TSO (TCP Segmentation Offload) being in use for a
@@ -851,7 +853,7 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 
 	<para revision="218912">A new &man.tcp.4; socket option
 	  <literal>TCP_CONGESTION</literal> has been added.  This
-	  allows to select or query a congestion control algorithm
+	  allows to select or query the congestion control algorithm
 	  that the TCP/IP network stack will use for connections on
 	  the socket.</para>
 
@@ -859,15 +861,15 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  node now supports IPv6.</para>
 
 	<para revision="219127">The &man.ng.one2many.4;
-	  &man.netgraph.4; node now supports
+	  &man.netgraph.4; node now supports the
 	  <literal>XMIT_FAILOVER</literal> transmit algorithm.  This
-	  makes packets deliver out the first active
+	  makes packets deliver out of the first active
 	  <literal>many</literal> hook.</para>
 
 	<para revision="219183">The &man.ng.netflow.4;
 	  &man.netgraph.4; node now supports NetFlow version 9.  A new
 	  <literal>export9</literal> hook has been added for NetFlow
-	  v9 data.  Note that the data export can be done
+	  v9 data.  Note that data export can be done
 	  simultaneously in both version 5 and version 9.</para>
     </sect3>
 
@@ -877,10 +879,10 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	<para revision="220412">The &man.ada.4; driver now supports
 	  write cache control.  A new &man.sysctl.8 variable
 	  <varname>kern.cam.ada.write_cache</varname> determines
-	  whether write cache of the &man.ada.4; devices is enabled or
+	  whether the write cache of &man.ada.4; devices is enabled or
 	  not.  Setting to <literal>1</literal> enables and
-	  <literal>0</literal> disables, and <literal>-1</literal>
-	  leaves it the device default.  &man.sysctl.8 variables
+	  <literal>0</literal> disables the write cache, and <literal>-1</literal>
+	  leaves the device default behavior.  &man.sysctl.8 variables
 	  <varname>kern.cam.ada.<replaceable>N</replaceable>.write_cache</varname>
 	  can override the configuration in a per-device basis (the
 	  default value is <literal>-1</literal>, which means to use
@@ -891,15 +893,15 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	<para revision="224905">The &man.arcmsr.4; driver has been
 	  updated to version 1.20.00.22.</para>
 
-	<para revision="226067">The &man.cam.4; subsystem now supports
-	  descriptor format sense data in SPC-3 (SCSI Primary Commands
+	<para revision="226067">The &man.cam.4; subsystem now supports the
+	  descriptor format sense data of the SPC-3 (SCSI Primary Commands
 	  3) specification.</para>
 
 	<para revision="220559">The &man.geom.map.4; GEOM class has
 	  been added.  This allows to generate multiple geom providers
 	  based on a hard-coded layout of a device with no explicit
 	  partition table such as embedded flash storage.  For more
-	  information, see &man.geom.map.4; manual page.</para>
+	  information, see the &man.geom.map.4; manual page.</para>
 
 	<para revision="218014">The &man.gpart.8; GEOM class now
 	  supports the following aliases for the MBR and EBR schemes:
@@ -912,35 +914,35 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  supports <literal>bios-boot</literal> GUID for the GPT
 	  scheme which is used in GRUB 2 loader.</para>
 
-	<para revision="219974">&man.graid.8; GEOM class has been
-	  added.  This is a replacement of &man.ataraid.4; driver
+	<para revision="219974">The &man.graid.8; GEOM class has been
+	  added.  This is a replacement of the &man.ataraid.4; driver
 	  supporting various BIOS-based software RAID.</para>
 
 	<para revision="219056">The &man.sysctl.8; variable
 	  <varname>kern.geom.confxml</varname> now contains
 	  information about disk identification in an
-	  <sgmltag>ident</sgmltag> tag and disk model string in a
+	  <sgmltag>ident</sgmltag> tag and disk model strings in a
 	  <sgmltag>descr</sgmltag> tag.</para>
 
 	<para revision="216793">The &man.md.4; memory-backed pseudo disk
 	  device driver now supports a &man.sysctl.8; variable
 	  <varname>vm.md_malloc_wait</varname> to specify whether a
-	  malloc-backed disk to using <varname>M_WAITOK</varname> or
+	  malloc-backed disk will use <varname>M_WAITOK</varname> or
 	  <varname>M_NOWAIT</varname> for &man.malloc.9; calls.  The
-	  <varname>M_WAITOK</varname> can prevent memory allocation
+	  <varname>M_WAITOK</varname> setting can prevent memory allocation
 	  failure under high load.  If it is set to
 	  <literal>0</literal>, a malloc-backed disk uses
 	  <varname>M_NOWAIT</varname> for memory allocation.  The
 	  default value is <literal>0</literal>.</para>
 
 	<para revision="216941,217509">A bug in the &man.mmc.4; driver
-	  that could fail in device detection has been fixed.</para>
+	  that could cause device detection to fail has been fixed.</para>
 
 	<para revision="223958">The &man.mxge.4; driver has been
 	  updated.</para>
 
 	<para revision="226115">A &man.tws.4; driver for 3ware 9750
-	  SATA+SAS 6Gb/s RAID controller has been added.</para>
+	  SATA+SAS 6Gb/s RAID controllers has been added.</para>
       </sect3>
 
     <sect3 id="fs">
@@ -950,27 +952,27 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  softupdates journaling.  It introduces a intent log into a
 	  softupdates-enabled file system which eliminates the need
 	  for background &man.fsck.8; even on unclean shutdown.  This
-	  can be enabled in a per-filesystem basis by using a
-	  <option>-j</option> flag in the &man.newfs.8; utility or a
-	  <option>-j enable</option> option in the &man.tunefs.8;
+	  can be enabled in a per-filesystem basis by using the
+	  <option>-j</option> flag of the &man.newfs.8; utility or the
+	  <option>-j enable</option> option of the &man.tunefs.8;
 	  utility.  Note that the &release.current; installer
-	  automatically enables the softupdates journaling for
+	  automatically enables softupdates journaling for
 	  newly-created UFS file systems.</para>
 
 	<para revision="216796">The &os; Fast File System now
-	  supports <literal>TRIM</literal> command when freeing data
+	  supports the <literal>TRIM</literal> command when freeing data
 	  blocks.  A new flag <option>-t</option> in the &man.newfs.8;
-	  and &man.tunefs.8; utilities sets the TRIM-enable flag in a
+	  and &man.tunefs.8; utilities sets the TRIM-enable flag for a
 	  file system.  The TRIM-enable flag makes the file system
 	  send a delete request to the underlying device for each
 	  freed block.  The <literal>TRIM</literal> command is
-	  specified as Data Set Management Command in ATA8-ACS2
+	  specified as a Data Set Management Command in the ATA8-ACS2
 	  standard to carry the information related to deleted data
-	  blocks to device, especially for SSD (Solid-State Drive) for
+	  blocks to a device, especially for a SSD (Solid-State Drive) for
 	  optimization.</para>
 
 	<para revision="221233">A new flag <option>-E</option> has
-	  been added to &man.newfs.8; and &man.fsck.ffs.8; utilities.
+	  been added to the &man.newfs.8; and &man.fsck.ffs.8; utilities.
 	  This clears unallocated blocks, notifying the underlying
 	  device that they are not used and that their contents may be
 	  discarded.  This is useful in &man.fsck.ffs.8; for file
@@ -980,18 +982,18 @@ wpi0: wpi_rx_intr: bus_dmamap_load failed, error 12</screen>
 	  filesystems which have been copied from one device to
 	  another.</para>
 
-	<para revision="221124">The &os NFS subsystem has been
+	<para revision="221124">The &os; NFS subsystem has been
 	  updated.  The new implementation supports NFS version 4 in
 	  addition to 2 and 3.  The kernel options for the NFS server
 	  and client are changed from <literal>NFSSERVER</literal> and
 	  <literal>NFSCLIENT</literal> to <literal>NFSD</literal> and
 	  <literal>NFSCL</literal>.  &man.sysctl.8; variables which
 	  start with <varname>vfs.nfssrv.</varname> have been renamed
-	  with <varname>vfs.nfsd.</varname>.  The NFS server now
+	  to <varname>vfs.nfsd.</varname>.  The NFS server now
 	  supports <varname>vfs.nfsd.server_max_nfsvers</varname> and
 	  <varname>vfs.nfsd.server_min_nfsvers</varname>
 	  &man.sysctl.8; variables to specify the maximum and the
-	  minimum version number which the server accepts.  The
+	  minimum NFS version number which the server accepts.  The
 	  default value is set to <literal>3</literal> and
 	  <literal>2</literal>, respectively.</para>
 
@@ -1008,24 +1010,24 @@ nfsuserd_enable="YES"</programlisting>
 	<programlisting>V4: /</programlisting>
 
 	<para>For more information about NFSv4 and its configuration,
-	  see &man.nfsv4.4; and &man.exports.5; manual pages.</para>
+	  see the &man.nfsv4.4; and &man.exports.5; manual pages.</para>
 
 	<para revision="221436">The &os; NFS subsystem now supports a
-	  <option>nocto</option> mount option.  This disables
+	  <option>nocto</option> mount option.  This disables the
 	  close-to-open cache coherency check at open time.  This
 	  option may improve performance for read-only mounts, but
-	  should only be used if the data on the server changes
+	  should only be used only if the data on the server changes
 	  rarely.  The &man.mount.nfs.8; utility now also supports
 	  this flag keyword.</para>
 
 	<para revision="225537">A &man.loader.8; tunable
 	  <varname>vfs.typenumhash</varname> has been added and set to
 	  <literal>1</literal> by default.  This enables to use a hash
-	  calculation on file system identification number internally
-	  used in the kernel.  This fixes <quote>Stale NFS file
+	  calculation on the file system identification number internally
+	  used in the kernel.  This fixes the <quote>Stale NFS file
 	  handle</quote> error on NFS clients when upgrading or
 	  rebuilding the kernel on the NFS server due to unexpected
-	  change of the values.</para>
+	  change of these identification number values.</para>
 
 	<para revision="219089">The &os; ZFS subsystem has been
 	  updated to the SPA (Storage Pool Allocator, also known as
@@ -1045,13 +1047,13 @@ nfsuserd_enable="YES"</programlisting>
 	<application>libm</application>.</para>
 
       <para revision="224152,224153,224154">The &man.bsdtar.1; and
-	&man.cpio.1; utility are now based on
+	&man.cpio.1; utilities are now based on
 	<application>libarchive</application> version 2.8.4.</para>
 
       <para revision="217416">The &man.cpuset.1; utility now supports
 	a <option>-C</option> flag to create a new cpuset and assign
 	an existing process into that set, and an
-	<literal>all</literal> keyword in <option>-l
+	<literal>all</literal> keyword in the <option>-l
 	<replaceable>cpu-list</replaceable></option> option to specify
 	all CPUs in the system.</para>
 
@@ -1062,46 +1064,46 @@ nfsuserd_enable="YES"</programlisting>
 	behavior.</para>
 
       <para revision="217505">A bug in the &man.fetch.1; utility which
-	could prevent <command>STAT</command> FTP command from working
+	could prevent the <command>STAT</command> FTP command from working
 	properly has been fixed.</para>
 
       <para revision="219415">The &man.gpart.8; utility now supports a
-	<option>-p</option> flag to <command>show</command>
-	subcommand.  This allows to show provider's names of
-	partitions instead of partition's indexes.</para>
+	<option>-p</option> flag to the <command>show</command>
+	subcommand.  This allows showing providers' names of
+	partitions instead of the partitions' indexes.</para>
 
       <para revision="218049">The &man.hastd.8; utility now drops
-	<literal>root</literal> privileges of the worker processes to
+	<literal>root</literal> privileges of the worker processes to the
 	<literal>hast</literal> user.</para>
 
-      <para revision="219351">The &man.hastd.8; utility now supports
-	<literal>checksum</literal> keyword to specify checksum
+      <para revision="219351">The &man.hastd.8; utility now supports a
+	<literal>checksum</literal> keyword to specify the checksum
 	algorithm in a <literal>resource</literal> section.  As of
 	&release.current;, <literal>none</literal>,
 	<literal>sha256</literal>, and <literal>crc32</literal> are
 	supported.</para>
 
-      <para revision="219354">The &man.hastd.8; utility now supports
-	<literal>compression</literal> keyword to specify compression
+      <para revision="219354">The &man.hastd.8; utility now supports a
+	<literal>compression</literal> keyword to specify the compression
 	algorithm in a <literal>resource</literal> section.  As of
 	&release.current;, <literal>none</literal>,
 	<literal>hole</literal> and <literal>lzf</literal> are
 	supported.</para>
 
-      <para revision="219818">The &man.hastd.8; utility now supports
+      <para revision="219818">The &man.hastd.8; utility now supports a
 	<literal>source</literal> keyword to specify the local address
 	to bind to before connecting the remote &man.hastd.8
 	daemon.</para>
 
       <para revision="219019">An implementation of
 	<function>iconv()</function> API libraries and utilities which
-	are standardized in Single UNIX Specification have been
+	are standardized in Single UNIX Specification has been
 	imported.  These are based on NetBSD's Citrus implementation.
 	Note that these are not built nor installed by default.  To
 	build and install them, specify
 	<literal>WITH_ICONV=yes</literal> in
 	<filename>/etc/src.conf</filename> and rebuild the base system
-	described in <ulink
+	as described in the <ulink
 	url="http://www.freebsd.org/doc/en_US.ISO8859-1/books/handbook/makeworld.html">&os;
 	Handbook</ulink>.</para>
 
@@ -1113,21 +1115,21 @@ nfsuserd_enable="YES"</programlisting>
 	<literal>half-duplex</literal>,
 	and <literal>loopback</literal>, respectively.</para>
 
-      <para revision="220370">&man.readline.3; API set has been
+      <para revision="220370">A &man.readline.3; API set has been
 	imported into <application>libedit</application>.  This is
 	based on NetBSD's implementation and BSD licensed utilities
 	now use it instead of GNU
 	<application>libreadline</application>.</para>
 
-      <para revision="224762">The &man.makefs.8; utility now supports
+      <para revision="224762">The &man.makefs.8; utility now supports the
 	ISO 9660 format.</para>
 
       <para revision="220496,220497"><application>libmd</application>
-	and <application>libcrypt</application> now support SHA-256
-	and SHA-512 algorithm.</para>
+	and <application>libcrypt</application> now support the SHA-256
+	and SHA-512 algorithms.</para>
 
       <para revision="217642">The &man.netstat.1; utility now does not
-	expose internal scope address representation used in the &os;
+	expose the internal scope address representation used in the &os;
 	kernel, which is derived from KAME IPv6 stack, in the results
 	of <command>netstat -ani</command> and <command>netstat
 	  -nr</command>.</para>
@@ -1155,27 +1157,27 @@ nfsuserd_enable="YES"</programlisting>
 	<command>iface name <replaceable>name</replaceable></command>
 	and <command>iface description
 	<replaceable>description</replaceable></command> commands.
-	These have the same functionalities as <literal>name</literal>
-	and <literal>description</literal> subcommands in the
+	These have the same functionalities as the <literal>name</literal>
+	and <literal>description</literal> subcommands of the
 	&man.ifconfig.8; utility.</para>
 
       <para revision="219307,219713">The &man.ps.1; utility now
-	supports an <option>-o class</option> option to display login
+	supports an <option>-o class</option> option to display the login
 	class information of each process, and <option>-o
 	usertime</option> and <option>-o systime</option> options for
 	accumulated system and user CPU time, respectively.</para>
 
-      <para revision="222732">The &man.rtadvd.8; daemon now supports
+      <para revision="222732">The &man.rtadvd.8; daemon now supports a
 	<literal>noifprefix</literal> keyword to disable gathering
 	on-link prefixes from interfaces when no
 	<literal>addr</literal> keyword is specified.  An entry in
-	<filename>rtadvd.conf</filename> with
+	<filename>/etc/rtadvd.conf</filename> with
 	<literal>noifprefix</literal> and no <literal>addr</literal>
 	generates an RA message with no prefix information
 	option.</para>
 
       <para revision="222732,224006">The &man.rtsold.8; and
-	&man.rtadvd.8; daemon now support RDNSS and DNSSL option
+	&man.rtadvd.8; daemons now support the RDNSS and DNSSL options
 	described in RFC 6106, <quote>IPv6 Router Advertisement
 	Options for DNS Configuration</quote>.  A &man.rtadvctl.8;
 	utility to control the &man.rtadvd.8; daemon has been
@@ -1185,14 +1187,14 @@ nfsuserd_enable="YES"</programlisting>
 	shared objects as filters in ELF shared libraries.  Both
 	standard and auxiliary filtering have been supported.  The
 	&man.rtld.1; linker's processing of a filter defers loading a
-	filtee until a filter symbol is referenced unless
+	filtee until a filter symbol is referenced unless the
 	<varname>LD_LOADFLTR</varname> environment variable is defined
 	or a <literal>-z loadfltr</literal> option was specified when
 	the filter was created.</para>
 
       <para revision="217133">A race condition in the &man.sed.1;
 	utility has been fixed.  When an <option>-i</option> option is
-	specified, it could cause a short time window with no file
+	specified, there could be a short time window with no file
 	with the original file name.</para>
 
       <para revision="216629">The &man.sh.1; program now supports
@@ -1200,22 +1202,22 @@ nfsuserd_enable="YES"</programlisting>
 	specifying <literal>%<replaceable>job</replaceable></literal>
 	which is equivalent to the corresponding process group.  Note
 	that this built-in command returns the exit status
-	<literal>2</literal> instead of <literal>1</literal> if an
+	<literal>2</literal> instead of <literal>1</literal> if a
 	fatal error occurs as other built-in commands do.</para>
 
       <para revision="217176,217472">A bug in the &man.sh.1; program has been
-	fixed for POSIX conformance.  It could return an wrong exit
+	fixed for POSIX conformance.  It could return an incorrect exit
 	status when an <command>exit</command> command with no
 	parameter is specified in the <literal>EXIT trap</literal>
 	handler, which is triggered when the shell terminates.
-	In trap actions for other signals, <command>exit</command>
+	In trap actions for other signals, an <command>exit</command>
 	command with no parameter returns an exit status corresponding
 	to the received signal.</para>
 
       <para revision="217557">A bug in the &man.sh.1; program has been
 	fixed.  When a foreground job exits on a signal, a message is
 	printed to <filename>stdout</filename> about this. The buffer
-	was not flushed after this which could result in the message
+	was not flushed after printing which could result in the message
 	being written to the wrong file if the next command was a
 	built-in and had <filename>stdout</filename> redirected.</para>
 
@@ -1223,15 +1225,15 @@ nfsuserd_enable="YES"</programlisting>
 	<option>--</option> flag in <command>trap</command> command to
 	stop the option processing.</para>
 
-      <para revision="217206"><literal>%builtin</literal> keyword
-	support in <varname>$PATH</varname> variable has been removed
-	in the &man.sh.1; program.  All built-in commands are always
+      <para revision="217206">The <literal>%builtin</literal> keyword
+	support in the <varname>$PATH</varname> variable has been removed
+	from the &man.sh.1; program.  All built-in commands are always
 	found before looking up directories in
 	<varname>$PATH</varname>.</para>
 
       <para revision="218466">Arithmetic expression handling code in
 	the &man.sh.1; program has been updated by importing code from
-	<application>dash</application>.  It now supports conditional
+	<application>dash</application>.  It now supports the conditional
 	operator (<literal>?:</literal>) and a bug in evaluation of
 	&amp;&amp; and || around an arithmetic expression has been
 	fixed.</para>
@@ -1254,7 +1256,7 @@ nfsuserd_enable="YES"</programlisting>
 	when a login daemon crashes or fails to remove the entry
 	during shutdown.</para>
 
-      <para revision="224171">The &man.zpool.8: utility now supports
+      <para revision="224171">The &man.zpool.8: utility now supports a
 	<command>zpool labelclear</command> command.  This allows to
 	wipe the label data from a drive that is not active in a
 	pool.</para>
@@ -1298,27 +1300,26 @@ nfsuserd_enable="YES"</programlisting>
 
       <para revision="219557"><application>gdtoa</application>, a set
 	of binary from/to decimal number conversion routines used in
-	&os; <application>libc</application> library has been updated
+	&os;'s <application>libc</application> library has been updated
 	to a snapshot as of 4 March, 2011.</para>
 
       <para revision="222906">The <application>LESS</application>
 	program has been updated to version v444.</para>
 
       <para revision="208954">The <application>LLVM</application>
-	compiler infrastructure and the
+	compiler infrastructure and
 	<application>clang</application>, a C language family
 	front-end, version 3.0 have been imported.  Note that it is not
-	used for building the &os; base system.  In &os; build
+	used for building the &os; base system by default.  In the &os; build
 	infrastructure, the &man.clang.1;, &man.clang...1;, and
 	&man.clang-cpp.1; utilities can be used in
 	<varname>CC</varname>, <varname>CXX</varname>, and
 	<varname>CPP</varname> &man.make.1; variables,
 	respectively.</para>
 
-      <para revision="219734">The
-	<application>openresolv</application> version 3.4.4 has been
-	imported.  The &man.resolvconf.8; utility now handles
-	&man.resolv.conf.5; file.</para>
+      <para revision="219734"><application>Openresolv</application>
+	version 3.4.4 has been imported.  The &man.resolvconf.8;
+	utility now manages the &man.resolv.conf.5; file.</para>
 
       <para revision="221484,224638">The
 	<application>OpenSSH</application> utility has been updated to
@@ -1329,14 +1330,14 @@ nfsuserd_enable="YES"</programlisting>
       <para revision="223637">The <application>pf</application> packet
 	filter has been updated to version 4.5.</para>
 
-      <para revision="223067">The <application>sendmail</application>
+      <para revision="223067"><application>sendmail</application>
 	has been updated to version 8.14.5.</para>
 
       <para revision="226750">The <application>timezone</application>
 	database has been updated to the
 	<application>tzdata2011m</application> release.</para>
 
-      <para revision="217698">&man.unifdef.1; utility has been updated
+      <para revision="217698">The &man.unifdef.1; utility has been updated
 	to version 2.5.6.</para>
 
       <para revision="223935">The <application>xz</application>
@@ -1349,7 +1350,7 @@ nfsuserd_enable="YES"</programlisting>
 
       <para revision="218799">A new installer &man.bsdinstall.8; has
 	been added and integrated into installation ISO images.  The
-	&man.sysinstall.8; utility is also available for settings
+	&man.sysinstall.8; utility is also available for configuration
 	after the installation.</para>
 
       <para>The supported version of
@@ -1363,7 +1364,7 @@ nfsuserd_enable="YES"</programlisting>
   <title>Upgrading from previous releases of &os;</title>
 
     <sect2>
-      <title>Upgrading using freebsd-update(8) or source-based
+      <title>Upgrading using freebsd-update(8) or a source-based
 	procedure</title>
 
   <para arch="amd64,i386">Beginning with &os; 6.2-RELEASE,
@@ -1396,7 +1397,7 @@ nfsuserd_enable="YES"</programlisting>
 
       <para>This section describes notable incompatibilities which you
 	might want to know before upgrading your system.
-	<emphasis>Please read this section and <ulink
+	<emphasis>Please read this section and the <ulink
 	url="http://www.FreeBSD.org/releases/9.0R/errata.html">Errata
 	    document</ulink> carefully before submitting a problem report
 	and/or posting a question to the FreeBSD mailing
@@ -1405,15 +1406,15 @@ nfsuserd_enable="YES"</programlisting>
       <sect3>
 	<title>Update of <literal>dialog</literal></title>
 
-	<para>The <literal>dialog</literal> library is used in &os;
-	  new installer and &os; Ports Collection to display a dialog
+	<para>The <literal>dialog</literal> library is used in &os;'s
+	  new installer and the &os; Ports Collection to display a dialog
 	  window and allow users to select various options.  Note that
-	  it is updated in &release.current; and there is several
-	  differences in the key operation which might confuse users
+	  it is updated in &release.current; and there are several
+	  differences in key operations which might confuse users
 	  who are familiar with releases prior to &release.current;.
-	  For example, pushing enter key in a check list window is no
-	  longer able to be used to check an item.  The new version
-	  consistently supports space bar for selecting an item and
+	  For example, pushing the enter key in a checklist window will
+	  no longer check an item.  The new version
+	  consistently uses space bar for selecting an item and the
 	  enter key for OK/Cancel selection.</para>
       </sect3>
 
@@ -1421,10 +1422,10 @@ nfsuserd_enable="YES"</programlisting>
 	<title>Partition Metadata Integrity Check</title>
 
 	<para>&os; now checks the integrity of partition metadata when
-	  a partition table is found on a disk though GEOM
+	  a partition table is found on a disk though the GEOM
 	  <application>PART</application> subsystem.  This detection
 	  is automatically performed when a disk device is ready.
-	  GEOM <application>PART</application> class in the kernel
+	  The GEOM <application>PART</application> class in the kernel
 	  verifies all generic partition parameters obtained from the
 	  disk metadata, and if some inconsistency is detected, the
 	  partition table will be rejected with the following
@@ -1434,7 +1435,7 @@ nfsuserd_enable="YES"</programlisting>
 
 	<para>This integrity check is enabled by default.  On a system
 	  prior to &release.current;, the inconsistencies were
-	  silently ignored.  Therefore, there is possibility that this
+	  silently ignored.  Therefore, there is a possibility that this
 	  prevents a system from booting after upgrading it to
 	  &release.current;.  More specifically, the kernel cannot
 	  mount the system partition at boot time in some
@@ -1449,11 +1450,10 @@ nfsuserd_enable="YES"</programlisting>
 <userinput>boot</userinput></screen>
 
 	<para>These commands temporarily disable the integrity check.
-	  If it was the cause, the &os; kernel should detect the
-	  partitions after entering the commands as the prior release
-	  did.  This configuration can be added into
-	  <filename>/boot/loader.conf</filename> like the
-	  following:</para>
+	  If it was the cause of the boot failure, the &os; kernel should detect the
+	  partitions as the prior release
+	  did, after entering the commands.  This configuration can be added into
+	  <filename>/boot/loader.conf</filename> as follows:</para>
 
 	<programlisting>kern.geom.part.check_integrity="0"</programlisting>
 
@@ -1465,23 +1465,23 @@ nfsuserd_enable="YES"</programlisting>
 =>        63  1953525104  mirror/gm0  MBR  (931G) [CORRUPT]
           63  1953525105           1  freebsd  [active]  (931G)</screen>
 
-	<para>For more information, see &man.gpart.8; manual page.</para>
+	<para>For more information, see the &man.gpart.8; manual page.</para>
       </sect3>
 
       <sect3>
 	<title>ATA/SATA subsystem now &man.cam.4;-based</title>
 
-	<para>In &release.current;, &os; ATA/SATA disk subsystem has
+	<para>In &release.current;, the &os; ATA/SATA disk subsystem has
 	  been replaced with a new &man.cam.4;-based implementation.
-	  The &man.cam.4; stands for Common Access Method, which is an
-	  implementation of API set originally for SCSI-2 and
+	  &man.cam.4; stands for Common Access Method, which is an
+	  implementation of an API set originally for SCSI-2 and
 	  standardized as "SCSI-2 Common Access Method Transport and
-	  SCSI Interface Module".  &os; has used &man.cam.4; subsystem
+	  SCSI Interface Module".  &os; has used the &man.cam.4; subsystem
 	  to handle SCSI devices since 3.X.</para>
 
 	<para>Although the new &man.cam.4;-based ATA/SATA subsystem
 	  provides various functionality which the old &man.ata.4; did
-	  not have, it also has some incompatibility:</para>
+	  not have, it also has some incompatibilities:</para>
 
 	<itemizedlist>
 	  <listitem>
@@ -1490,15 +1490,16 @@ nfsuserd_enable="YES"</programlisting>
 	      <devicename>ada<replaceable>0</replaceable></devicename>
 	      instead of
 	      <devicename>ad<replaceable>0</replaceable></devicename>.
-	      Currently, a symbolic link <filename>/dev/ad0</filename>
+	      Currently, a symbolic link
+	      <filename>/dev/ad<replaceable>0</replaceable></filename>
 	      is automatically generated for
-	      <filename>/dev/ada0</filename> to keep backward
-	      compatibility.  This symbolic link generation can be
-	      controlled by a
+	      <filename>/dev/ada<replaceable>0</replaceable></filename>
+	      to keep backward compatibility.  This symbolic link
+	      generation can be controlled by a
 	      <varname>kern.cam.ada.legacy_aliases</varname> (enabled
 	      by default).  You might want to update
-	      <filename>/etc/fstab</filename> and/or consider to use
-	      volume label (see &man.glabel.8; for more detail) for
+	      <filename>/etc/fstab</filename> and/or consider using
+	      volume labels (see &man.glabel.8; for more details) for
 	      specifying each file system to be mounted.</para>
 	  </listitem>
 
@@ -1509,11 +1510,11 @@ nfsuserd_enable="YES"</programlisting>
 	  </listitem>
 
 	  <listitem>
-	    <para>The &man.ataraid.4; software RAID is supported by
+	    <para>&man.ataraid.4; software RAID is now supported by the
 	      &man.graid.8; GEOM class.  It generates a device node
 	      with a name
 	      <filename>/dev/raid/r<replaceable>0</replaceable></filename>
-	      if you had
+	      if you previously had
 	      <filename>/dev/ar<replaceable>0</replaceable></filename>.
 	      Note that this is not enabled by default.  To enable it,
 	      enter the following line in the &man.loader.8; prompt:</para>
@@ -1531,10 +1532,11 @@ boot</screen>
 	      will NOT be generated for
 	      <filename>/dev/raid/r<replaceable>0</replaceable></filename>.
 	      Therefore, if your system used
-	      <filename>/dev/ar0</filename> as the root partition,
-	      mounting local file systems will fail because it is
-	      renamed to <filename>/dev/raid/r0</filename>.  You need
-	      to update <filename>/etc/fstab</filename>
+	      <filename>/dev/ar<replaceable>0</replaceable></filename>
+	      as the root partition, mounting local file systems will
+	      fail because it is renamed to
+	      <filename>/dev/raid/r<replaceable>0</replaceable></filename>.
+	      You need to update <filename>/etc/fstab</filename>
 	      manually in that case.</para>
 	  </listitem>
 
@@ -1600,10 +1602,10 @@ ifconfig_em0_alias1="inet6 2001:db8:1::1 prefixlen 64"</programlisting>
 	  </listitem>
 
 	  <listitem>
-	    <para>All of alias and static routing configurations
-	      through &man.rc.conf.5; variables will be deinstalled by
+	    <para>All alias and static routing configurations
+	      through &man.rc.conf.5; variables will be deactivated when
 	      invoking &man.rc.8; scripts or the &man.service.8; command
-	      with <literal>stop</literal> keyword.</para>
+	      with the <literal>stop</literal> keyword.</para>
 
 	    <screen>&prompt.root; service netif stop em0</screen>
 
@@ -1611,9 +1613,9 @@ ifconfig_em0_alias1="inet6 2001:db8:1::1 prefixlen 64"</programlisting>
 
 	    <screen>&prompt.root; service routing stop</screen>
 
-	    <para>deinstalls all of static route configurations.</para>
+	    <para>deactivates all static route configurations.</para>
 
-	    <para>The releases prior to &release.current; did not
+	    <para>Releases prior to &os; &release.current; did not
 	      support this functionality properly for non-IPv4
 	      protocols.</para>
 	  </listitem>
@@ -1621,7 +1623,7 @@ ifconfig_em0_alias1="inet6 2001:db8:1::1 prefixlen 64"</programlisting>
 	  <listitem>
 	    <para>IPv6 configuration handling has been changed in the
 	      following way.  Before in-depth explanations, here is a
-	      before-and-after example:</para>
+	      before-and-after example.  What was previously:</para>
 
 	    <programlisting>ifconfig_em0="192.168.2.1 netmask 255.255.255.0"
 ifconfig_em0_alias0="192.168.2.2 netmask 255.255.255.255"
@@ -1641,7 +1643,7 @@ ifconfig_em0_alias1="inet6 2001:db8:2::1 prefixlen 64"
 ifconfig_em1_ipv6="inet6 accept_rtadv"</programlisting>
 
 	    <para>More specific explanations of the changes are as
-	      follow:</para>
+	      follows:</para>
 
 	    <itemizedlist>
 	      <listitem>
@@ -1657,11 +1659,11 @@ ifconfig_em1_ipv6="inet6 accept_rtadv"</programlisting>
 		  <varname>ipv6_gateway_enable</varname> was set to
 		  <literal>NO</literal> (default), and a router node
 		  if not.  A host node always accepted ICMPv6 Router
-		  Advertise message, and a router did not.</para>
+		  Advertise messages, and a router did not.</para>
 
 		<para>In &release.current;, this model is still
-		  applied but in a per-interface basis, not a
-		  system-wide basis.  Specifically, an interface has
+		  applied but on a per-interface basis, not a
+		  system-wide basis.  Specifically, if an interface has
 		  an <literal>ACCEPT_RTADV</literal> flag, RA messages
 		  will be accepted on that interface for SLAAC
 		  (StateLess Address AutoConfiguration) regardless of
@@ -1673,21 +1675,21 @@ ifconfig_em1_ipv6="inet6 accept_rtadv"</programlisting>
 		  variable <varname>net.inet6.ip6.rfc6204w3</varname>
 		  have been added.  This controls whether default
 		  router list information via RA messages on an
-		  RA-accepting interface should be ignore or not.  In
-		  an IPv6 router model, it is not supposed accepting
-		  RA messages as information source of the default
-		  router list.  Because of that &os; &release.current;
+		  RA-accepting interface should be ignored or not.  In
+		  an IPv6 router model, it is not supposed to accept
+		  RA messages as an information source for the default
+		  router list.  Because of that, &os; &release.current;
 		  ignores the default router list part when IPv6
-		  packet forwarding is enabled even if the interface
+		  packet forwarding is enabled, even if the interface
 		  has an <literal>ACCEPT_RTADV</literal> flag.  However,
-		  this can make a difficult situation when the system
-		  has to work as a CPE (Customer Premises Equipment),
+		  this can make for a difficult situation when the system
+		  has to work as a CPE (Customer Premises Equipment)
 		  which needs RA messages from the upstream network
 		  for network configuration and acts as a router for
 		  the LAN simultaneously.  For more information about
-		  this kind of configurations, see RFC 6204.</para>
+		  this kind of configuration, see RFC 6204.</para>
 
-		<para>To support this kind of configurations, the
+		<para>To support this kind of configuration, the
 		  <varname>ipv6_cpe_wanif</varname> variable in
 		  &man.rc.conf.5; can be used.</para>
 
@@ -1698,13 +1700,13 @@ ipv6_cpe_wanif="em0"</programlisting>
 		  accepts RA messages and the default router
 		  information in them, and the other interfaces ignore
 		  the default router information part even when
-		  setting <literal>ACCEPT_RTADV</literal> flag to
+		  the <literal>ACCEPT_RTADV</literal> flag is set on
 		  them.</para>
 
-		<para>The <varname>ipv6_cpe_wanif</varname> internally
+		<para><varname>ipv6_cpe_wanif</varname> handling internally
 		  sets the <varname>net.inet6.ip6.rfc6204w3</varname>
 		  and the <varname>net.inet6.ip6.no_radr</varname>
-		  &man.sysctl.8; variable to <literal>1</literal>.
+		  &man.sysctl.8; variables to <literal>1</literal>.
 		  Note that both are set to <literal>0</literal> by
 		  default.  When the former is set to
 		  <literal>1</literal>, &os; accepts the default
@@ -1713,18 +1715,18 @@ ipv6_cpe_wanif="em0"</programlisting>
 		  set a <literal>NO_RADR</literal> flag on the other
 		  RA-accepting interfaces, if any, to prevent it from
 		  accepting unexpected default router information.
-		  The latter variable means the flag is automatically
-		  set to them.</para>
+		  The latter variable means the <literal>NO_RADR</literal> flag is automatically
+		  set on them.</para>
 
 		<para>If <literal>ipv6_enable="YES"</literal> is
-		  defined in &release.current;, it means
+		  defined in &os; &release.current;, it sets
 		  <literal>ipv6_activate_all_interfaces="YES"</literal>
-		  in <filename>/etc/rc.conf</filename> and
+		  in <filename>/etc/rc.conf</filename> and the
 		  <literal>inet6 accept_rtadv</literal>
-		  &man.ifconfig.8; option in all network interfaces.
+		  &man.ifconfig.8; option on all network interfaces.
 		  Note that this is only for backward compatibility.
 		  The <varname>ipv6_enable</varname> should not be
-		  used in &release.current;.</para>
+		  used in &os; &release.current;.</para>
 	      </listitem>
 
 	      <listitem>
@@ -1732,15 +1734,14 @@ ipv6_cpe_wanif="em0"</programlisting>
 		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable></varname>
 		  variable is renamed to
 		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>.
-		  This variable means whether IPv6 functionality
+		  This variable controls whether IPv6 functionality
 		  should be enabled on that interface or not.  If
-		  there is no
 		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>,
-		  no IPv6 functionality on the interface
+		  is not set, there is no IPv6 functionality on the interface
 		  <replaceable>IF</replaceable>.</para>
 
 		<para>Note that the
-		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>
+		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname> variable
 		  always needs the address family keyword
 		  <literal>inet6</literal>.  If you need an automatic
 		  link-local address only, the following line is enough:</para>
@@ -1752,19 +1753,19 @@ ipv6_cpe_wanif="em0"</programlisting>
 		  <literal>ipv6_enable="YES"</literal>, including ones
 		  with no
 		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6
-		  line</varname>, you might want to use
+		  line</varname>, you might want to use the
 		  <varname>ipv6_activate_all_interfaces</varname>
 		  variable as explained later.</para>
 
 		<para>If <literal>ipv6_ifconfig_<replaceable>IF</replaceable>="..."</literal> is
-		  defined in &release.current;, it means
+		  defined in &os; &release.current;, it means
 		  <literal>ifconfig_<replaceable>IF</replaceable>_ipv6="inet6 ..."</literal>.
 		  Note that this is only for backward compatibility.
 		  The <literal>inet6</literal> address family keyword
 		  is required for <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>,
 		  but was NOT required for
 		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable></varname>.  The
-		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable></varname> should not be
+		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable></varname> variables should not be
 		  used in &release.current;.</para>
 	      </listitem>
 
@@ -1803,7 +1804,7 @@ em0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 		  in an IPv4-only environment even when the interface
 		  has an IPv6 link-local address.  If you need
 		  full-blown IPv6 functionality on all interfaces, you
-		  might want to use
+		  might want to use the
 		  <varname>ipv6_activate_all_interfaces</varname>
 		  variable as explained later.</para>
 	      </listitem>
@@ -1812,13 +1813,13 @@ em0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 		<para>The &man.sysctl.8; variable
 		  <varname>net.inet6.ip6.accept_rtadv</varname> has
 		  been changed.  It was a system-wide configuration
-		  knob which means whether the system accepts ICMPv6
+		  knob which controlled whether the system accepts ICMPv6
 		  Router Advertisement messages or not.  In
-		  &release.current;, this knob is converted into a
+		  &os; &release.current;, this knob is converted into a
 		  per-interface <literal>inet6 accept_rtadv</literal>
 		  &man.ifconfig.8; option.  Although the
 		  &man.sysctl.8; variable is available still in
-		  &release.current;, it now means whether the
+		  &os; &release.current;, it now controls whether the
 		  per-interface option is set by default or not.  The
 		  default value is <literal>0</literal> (not accept
 		  the RA messages).</para>
@@ -1828,13 +1829,13 @@ em0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 		<para>The &man.sysctl.8; variable
 		  <varname>net.inet6.ip6.auto_linklocal</varname> has
 		  been changed.  It was a system-wide configuration
-		  knob which means whether an IPv6 link-local address
-		  is generated on an network interface when it becomes
-		  up.  In &release.current;, this knob is converted
+		  knob which controlled whether an IPv6 link-local address
+		  was generated on a network interface when it became
+		  up.  In &os; &release.current;, this knob is converted
 		  into a per-interface <literal>inet6
 		  auto_linklocal</literal> &man.ifconfig.8; option.
-		  Although the &man.sysctl.8; variable is available
-		  still in &release.current;, it now means whether the
+		  Although the &man.sysctl.8; variable is still available
+		  in &os; &release.current;, it now controls whether the
 		  per-interface option is set by default or not.  The
 		  default value is <literal>1</literal> (generate a
 		  link-local automatically).</para>
@@ -1843,7 +1844,7 @@ em0: flags=8843&lt;UP,BROADCAST,RUNNING,SIMPLEX,MULTICAST&gt; metric 0 mtu 1500
 	      <listitem>
 		<para>The functionality of
 		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable>_alias<replaceable>0</replaceable></varname>
-		  variable is integrated into
+		  is integrated into
 		  <varname>ifconfig_<replaceable>IF</replaceable>_alias<replaceable>0</replaceable></varname>.
 		  Note that address family keywords are always required:</para>
 
@@ -1852,7 +1853,7 @@ ifconfig_em0_alias1="inet6 2011:db8:1::1 prefixlen 64</programlisting>
 
 		<para>Although
 		  <varname>ipv6_ifconfig_<replaceable>IF</replaceable>_alias<replaceable>N</replaceable></varname>
-		  is still usable in &release.current;, it is only for
+		  is still usable in &os; &release.current;, it is only for
 		  backward compatibility.</para>
 	      </listitem>
 
@@ -1860,7 +1861,7 @@ ifconfig_em0_alias1="inet6 2011:db8:1::1 prefixlen 64</programlisting>
 		<para>A new
 		  <varname>ipv6_activate_all_interfaces</varname> variable
 		  has been added.  If this variable is set to
-		  <literal>YES</literal>, <literal>IFDISABLED</literal>
+		  <literal>YES</literal>, the <literal>IFDISABLED</literal>
 		  option will not be added even if
 		  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname> variables are not
 		  defined.  This can prevent <literal>IFDISABLED</literal>
@@ -1878,7 +1879,7 @@ ifconfig_em0_alias1="inet6 2011:db8:1::1 prefixlen 64</programlisting>
 	<title>Openresolv and <filename>/etc/resolv.conf</filename></title>
 
 	<para>The &man.resolvconf.8; utility has been added and it now
-	  handles updating &man.resolv.conf.5; file.  Direct
+	  handles updating the &man.resolv.conf.5; file.  Direct
 	  modifications to <filename>/etc/resolv.conf</filename> can
 	  be overwritten by network configuration utilities such as
 	  &man.dhclient.8; and &man.rtsold.8;.</para>
@@ -1889,7 +1890,7 @@ ifconfig_em0_alias1="inet6 2011:db8:1::1 prefixlen 64</programlisting>
 
 	<para>In earlier releases various utilities were available to
 	  manage disk partition information.  They are deprecated in
-	  favor of the &man.gpart.8; utility.  Specifically,
+	  favor of the &man.gpart.8; utility.  Specifically, the
 	  &man.fdisk.8;, &man.disklabel.8; &man.bsdlabel.8;, and
 	  &man.sunlabel.8; utilities are no longer supported actively
 	  though these are still available for backward
