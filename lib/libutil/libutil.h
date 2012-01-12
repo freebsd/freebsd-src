@@ -48,6 +48,11 @@ typedef	__gid_t		gid_t;
 #define	_GID_T_DECLARED
 #endif
 
+#ifndef _MODE_T_DECLARED
+typedef __mode_t	mode_t;
+#define _MODE_T_DECLARED
+#endif
+
 #ifndef _PID_T_DECLARED
 typedef	__pid_t		pid_t;
 #define	_PID_T_DECLARED
@@ -73,21 +78,12 @@ typedef struct _property {
 	char	*value;
 } *properties;
 
-#ifdef _SYS_PARAM_H_
-/* for pidfile.c */
-struct pidfh {
-	int	pf_fd;
-	char	pf_path[MAXPATHLEN + 1];
-	__dev_t	pf_dev;
-	ino_t	pf_ino;
-};
-#endif
-
 /* Avoid pulling in all the include files for no need */
 struct in_addr;
 struct kinfo_file;
 struct kinfo_proc;
 struct kinfo_vmentry;
+struct pidfh;
 struct sockaddr;
 struct termios;
 struct winsize;
@@ -174,14 +170,12 @@ struct group
 int	gr_tmp(int _mdf);
 #endif
 
-#ifdef _SYS_PARAM_H_
 int	pidfile_close(struct pidfh *_pfh);
 int	pidfile_fileno(const struct pidfh *_pfh);
 struct pidfh *
 	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
 int	pidfile_remove(struct pidfh *_pfh);
 int	pidfile_write(struct pidfh *_pfh);
-#endif
 
 #ifdef _UFS_UFS_QUOTA_H_
 struct fstab;
