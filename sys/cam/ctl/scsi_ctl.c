@@ -305,8 +305,10 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 
 		/* Don't attach if it doesn't support target mode */
 		if ((cpi->target_sprt & PIT_PROCESSOR) == 0) {
+#ifdef CTLFEDEBUG
 			printf("%s: SIM %s%d doesn't support target mode\n",
 			       __func__, cpi->dev_name, cpi->unit_number);
+#endif
 			break;
 		}
 
@@ -421,8 +423,10 @@ ctlfeasync(void *callback_arg, uint32_t code, struct cam_path *path, void *arg)
 		 * XXX KDM need to figure out whether we're the master or
 		 * slave.
 		 */
+#ifdef CTLFEDEBUG
 		printf("%s: calling ctl_frontend_register() for %s%d\n",
 		       __func__, cpi->dev_name, cpi->unit_number);
+#endif
 		retval = ctl_frontend_register(fe, /*master_SC*/ 1);
 		if (retval != 0) {
 			printf("%s: ctl_frontend_register() failed with "
