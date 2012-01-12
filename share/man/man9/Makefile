@@ -1218,6 +1218,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_entry_find.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
+	taskqueue.9 TASK_INITIALIZER.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 TASKQUEUE_DECLARE.9 \
 	taskqueue.9 TASKQUEUE_DEFINE.9 \

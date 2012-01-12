@@ -72,6 +72,7 @@ struct task {
 .Ft int
 .Fn taskqueue_member "struct taskqueue *queue" "struct thread *td"
 .Fn TASK_INIT "struct task *task" "int priority" "task_fn_t *func" "void *context"
+.Fn TASK_INITIALIZER "int priority" "task_fn_t func" "void *context"
 .Fn TASKQUEUE_DECLARE "name"
 .Fn TASKQUEUE_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
 .Fn TASKQUEUE_FAST_DEFINE "name" "taskqueue_enqueue_fn enqueue" "void *context" "init"
@@ -193,6 +194,9 @@ A convenience macro,
 is provided to initialise a
 .Va task
 structure.
+The
+.Fn TASK_INITIALIZER
+macro generates an initializer for a task structure.
 The values of
 .Va priority ,
 .Va func ,
