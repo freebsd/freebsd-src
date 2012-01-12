@@ -52,7 +52,7 @@
 
     <para>If you are upgrading from a previous release of &os;, please
       read <ulink
-      url="http://www.FreeBSD.org/releases/9.0R/relnotes-detailed.html#upgrade">upgrading
+      url="http://www.FreeBSD.org/releases/9.0R/relnotes-detailed.html#UPGRADE">upgrading
       section in the Release Notes</ulink> for notable
       incompatibilities carefully.</para>
 
