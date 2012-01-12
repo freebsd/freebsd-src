@@ -280,7 +280,7 @@
 	<literal>RCTL</literal> resource limiting framework.</para>
 
       <para revision="220238" arch="amd64">&os; now supports executing
-	&os; 1/&arch.i386; a.out binaries on &os;&arch.amd64;.  Note
+	&os; 1/&arch.i386; a.out binaries on &os;/&arch.amd64;.  Note
 	that this is not built nor installed by default.  To build and
 	install them, specify <literal>options COMPAT_43</literal> in
 	the kernel configuration file and rebuild the base system as
