@@ -2264,7 +2264,7 @@ xhci_configure_device(struct usb_device *udev)
 		temp |= XHCI_SCTX_0_CTX_NUM_SET(XHCI_MAX_ENDPOINTS - 1);
 		break;
 	default:
-		temp = XHCI_SCTX_0_CTX_NUM_SET(1);
+		temp |= XHCI_SCTX_0_CTX_NUM_SET(1);
 		break;
 	}
 
