@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: if_re_netmap.h 9802 2011-12-02 18:42:37Z luigi $
+ * $Id: if_re_netmap.h 10075 2011-12-25 22:55:48Z luigi $
  *
  * netmap support for if_re
  */
@@ -409,7 +409,7 @@ re_netmap_rx_init(struct rl_softc *sc)
 		addr = PNMB(slot + l, &paddr);
 
 		netmap_reload_map(sc->rl_ldata.rl_rx_mtag,
-			sc->rl_ldata.rl_rx_desc[i].rx_dmamap, addr);
+		    sc->rl_ldata.rl_rx_desc[i].rx_dmamap, addr);
 		bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 		    sc->rl_ldata.rl_rx_desc[i].rx_dmamap, BUS_DMASYNC_PREREAD);
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
