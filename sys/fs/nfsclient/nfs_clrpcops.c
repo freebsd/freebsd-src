@@ -85,6 +85,8 @@ static int nfsrpc_locku(struct nfsrv_descript *, struct nfsmount *,
     u_int32_t, struct ucred *, NFSPROC_T *, int);
 static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
     struct acl *, nfsv4stateid_t *, void *);
+static int nfsrpc_getlayout(struct nfsmount *, struct nfsfh *, int, uint32_t *,
+    nfsv4stateid_t *, struct ucred *, NFSPROC_T *);
 
 /*
  * nfs null call from vfs.
@@ -222,6 +224,8 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
 	u_int32_t mode, clidrev;
 	int ret, newone, error, expireret = 0, retrycnt;
+	int iomode;
+	nfsv4stateid_t stateid;
 
 	/*
 	 * For NFSv4, Open Ops are only done on Regular Files.
@@ -229,10 +233,13 @@ nfsrpc_open(vnode_t vp, int amode, struct ucred *cred, NFSPROC_T *p)
 	if (vnode_vtype(vp) != VREG)
 		return (0);
 	mode = 0;
+	iomode = NFSLAYOUTIOMODE_READ;
 	if (amode & FREAD)
 		mode |= NFSV4OPEN_ACCESSREAD;
-	if (amode & FWRITE)
+	if (amode & FWRITE) {
 		mode |= NFSV4OPEN_ACCESSWRITE;
+		iomode = NFSLAYOUTIOMODE_RW;
+	}
 	nfhp = np->n_fhp;
 
 	retrycnt = 0;
@@ -283,6 +290,16 @@ else printf(" fhl=0\n");
 				(void) nfscl_deleg(nmp->nm_mountp,
 				    op->nfso_own->nfsow_clp,
 				    nfhp->nfh_fh, nfhp->nfh_len, cred, p, &dp);
+			}
+
+			/* Try and get a Layout, if it is supported. */
+			if (error == 0 && NFSHASPNFS(nmp)) {
+				stateid.seqid = op->nfso_stateid.seqid;
+				stateid.other[0] = op->nfso_stateid.other[0];
+				stateid.other[1] = op->nfso_stateid.other[1];
+				stateid.other[2] = op->nfso_stateid.other[2];
+				(void)nfsrpc_getlayout(nmp, nfhp, iomode,
+				    NULL, &stateid, cred, p);
 			}
 		} else {
 			error = EIO;
@@ -4301,6 +4318,11 @@ printf("exch err=%d reps=%d\n",error,nd->nd_repstat);
 		clp->nfsc_sequenceid = fxdr_unsigned(uint32_t, *tl++);
 		v41flags = fxdr_unsigned(uint32_t, *tl);
 printf("v41fl=0x%x\n", v41flags);
+		if ((v41flags & NFSV4EXCH_USEPNFSMDS) != 0) {
+			NFSLOCKMNT(nmp);
+			nmp->nm_state |= NFSSTA_PNFS;
+			NFSUNLOCKMNT(nmp);
+		}
 	}
 	error = nd->nd_repstat;
 nfsmout:
@@ -4457,21 +4479,20 @@ nfsrpc_destroyclient(struct nfsmount *nmp, struct nfsclclient *clp,
  * Do the NFSv4.1 LayoutGet.
  */
 int
-nfsrpc_layoutget(vnode_t vp, int iomode, uint64_t offset, uint64_t len,
-    uint64_t minlen, struct nfscllayout *lp, struct ucred *cred,
+nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
+    uint64_t offset, uint64_t len, uint64_t minlen, nfsv4stateid_t *stateidp,
+    int *retonclosep, struct nfsclflayouthead *flhp, struct ucred *cred,
     NFSPROC_T *p, void *stuff)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd, *nd = &nfsd;
-	struct nfsfh *fhp;
-	struct nfsclflayout *flp, *nflp, *tflp;
-	struct nfsnode *np;
-	int cnt, error, fhcnt, fhlen, i, j;
+	struct nfsfh *nfhp;
+	struct nfsclflayout *flp, *prevflp, *tflp;
+	int cnt, error, fhcnt, nfhlen, i, j;
 	uint8_t *cp;
 
-	np = VTONFS(vp);
 	flp = NULL;
-	NFSCL_REQSTART(nd, NFSPROC_LAYOUTGET, vp);
+	nfscl_reqstart(nd, NFSPROC_LAYOUTGET, nmp, fhp, fhlen, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED + 3 * NFSX_HYPER +
 	    NFSX_STATEID);
 	*tl++ = newnfs_false;		/* Don't signal availability. */
@@ -4483,25 +4504,27 @@ nfsrpc_layoutget(vnode_t vp, int iomode, uint64_t offset, uint64_t len,
 	tl += 2;
 	txdr_hyper(minlen, tl);
 	tl += 2;
-	*tl++ = lp->nfsly_stateid.seqid;
-	*tl++ = lp->nfsly_stateid.other[0];
-	*tl++ = lp->nfsly_stateid.other[1];
-	*tl++ = lp->nfsly_stateid.other[2];
+	*tl++ = stateidp->seqid;
+	*tl++ = stateidp->other[0];
+	*tl++ = stateidp->other[1];
+	*tl++ = stateidp->other[2];
 	*tl = txdr_unsigned(100000);	/* take a large layout list */
 	nd->nd_flag |= ND_USEGSSNAME;
-	error = nfscl_request(nd, vp, p, cred, stuff);
+	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
 	if (error)
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_STATEID);
-		if (*tl++ != 0) {
-			lp->nfsly_retonclose = 1;
-printf("layg setting retonclose\n");
-		}
-		lp->nfsly_stateid.seqid = *tl++;
-		lp->nfsly_stateid.other[0] = *tl++;
-		lp->nfsly_stateid.other[1] = *tl++;
-		lp->nfsly_stateid.other[2] = *tl++;
+		if (*tl++ != 0)
+			*retonclosep = 1;
+		else
+			*retonclosep = 0;
+printf("retonclose=%d\n", *retonclosep);
+		stateidp->seqid = *tl++;
+		stateidp->other[0] = *tl++;
+		stateidp->other[1] = *tl++;
+		stateidp->other[2] = *tl++;
 		cnt = fxdr_unsigned(int, *tl);
 printf("layg cnt=%d\n", cnt);
 		if (cnt <= 0 || cnt > 10000) {
@@ -4551,35 +4574,31 @@ printf("layg iom=%d\n", iomode);
 			}
 			for (j = 0; j < fhcnt; j++) {
 				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-				fhlen = fxdr_unsigned(int, *tl);
-				if (fhlen <= 0 || fhlen > NFSX_V4FHMAX) {
+				nfhlen = fxdr_unsigned(int, *tl);
+				if (nfhlen <= 0 || nfhlen > NFSX_V4FHMAX) {
 					error = NFSERR_BADXDR;
 					goto nfsmout;
 				}
-				fhp = malloc(sizeof(*fhp) + fhlen - 1,
+				nfhp = malloc(sizeof(*nfhp) + nfhlen - 1,
 				    M_NFSFH, M_WAITOK);
-				flp->nfsfl_fh[j] = fhp;
+				flp->nfsfl_fh[j] = nfhp;
 				flp->nfsfl_fhcnt++;
-				fhp->nfh_len = fhlen;
+				nfhp->nfh_len = nfhlen;
 				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(fhlen));
-				NFSBCOPY(cp, fhp->nfh_fh, fhlen);
+				NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
 			}
-			if (LIST_EMPTY(&lp->nfsly_flay) ||
-			    LIST_FIRST(&lp->nfsly_flay)->nfsfl_off >=
-			    flp->nfsfl_off)
-				LIST_INSERT_HEAD(&lp->nfsly_flay, flp,
-				    nfsfl_list);
-			else {
-				nflp = LIST_FIRST(&lp->nfsly_flay);
-				tflp = LIST_NEXT(nflp, nfsfl_list);
-				while (tflp != NULL) {
-					if (tflp->nfsfl_off >= flp->nfsfl_off)
-						break;
-					nflp = tflp;
-					tflp = LIST_NEXT(tflp, nfsfl_list);
-				}
-				LIST_INSERT_AFTER(nflp, flp, nfsfl_list);
+			/* Maintain the list in increasing offset order. */
+			tflp = LIST_FIRST(flhp);
+			prevflp = NULL;
+			while (tflp != NULL &&
+			    tflp->nfsfl_off < flp->nfsfl_off) {
+				prevflp = tflp;
+				tflp = LIST_NEXT(tflp, nfsfl_list);
 			}
+			if (prevflp == NULL)
+				LIST_INSERT_HEAD(flhp, flp, nfsfl_list);
+			else
+				LIST_INSERT_AFTER(prevflp, flp, nfsfl_list);
 			flp = NULL;
 		}
 	}
@@ -4600,14 +4619,14 @@ nfsmout:
  */
 int
 nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
-    uint32_t *notifybitsp, struct nfsclfldevinfo **ndip, struct ucred *cred,
+    uint32_t *notifybitsp, struct nfscldevinfo **ndip, struct ucred *cred,
     NFSPROC_T *p)
 {
 	uint32_t cnt, *tl;
 	struct nfsrv_descript nfsd;
 	struct sockaddr_storage ss, *sa;
 	struct nfsrv_descript *nd = &nfsd;
-	struct nfsclfldevinfo *ndi;
+	struct nfscldevinfo *ndi;
 	int addrcnt, bitcnt, error, i, isudp, j, pos, safilled, stripecnt;
 	uint8_t stripeindex;
 
@@ -4659,6 +4678,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		    sizeof(struct sockaddr_storage),
 		    M_NFSDEVINFO, M_WAITOK);
 		NFSBCOPY(deviceid, ndi->nfsdi_deviceid, NFSX_V4DEVICEID);
+		ndi->nfsdi_refcnt = 0;
 		ndi->nfsdi_stripecnt = stripecnt;
 		ndi->nfsdi_addrcnt = addrcnt;
 		/* Fill in the stripe indices. */
@@ -4874,6 +4894,46 @@ nfsrpc_layoutreturn(vnode_t vp, int reclaim, int layouttype, int iomode,
 		error = nd->nd_repstat;
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+/*
+ * Called from nfsrpc_open() to acquire a layout and associated device
+ * info. A separate function mostly to avoid excessive indentation in
+ * nfsrpc_open().
+ */
+static int
+nfsrpc_getlayout(struct nfsmount *nmp, struct nfsfh *nfhp, int iomode,
+    uint32_t *notifybitsp, nfsv4stateid_t *stateidp, struct ucred *cred,
+    NFSPROC_T *p)
+{
+	struct nfscllayout *lyp;
+	struct nfsclflayout *flp;
+	struct nfscldevinfo *dip;
+	struct nfsclflayouthead flh;
+	int error = 0, retonclose;
+
+	lyp = nfscl_getlayout(nmp, nfhp->nfh_fh, nfhp->nfh_len);
+	if (lyp == NULL) {
+		LIST_INIT(&flh);
+		error = nfsrpc_layoutget(nmp, nfhp->nfh_fh, nfhp->nfh_len,
+		    iomode, (uint64_t)0, INT64_MAX, (uint64_t)(4 * NFS_MAXDATA),
+		    stateidp, &retonclose, &flh, cred, p, NULL);
+		if (error == 0)
+			LIST_FOREACH(flp, &flh, nfsfl_list) {
+				error = nfsrpc_getdeviceinfo(nmp,
+				    flp->nfsfl_dev, NFSLAYOUT_NFSV4_1_FILES,
+				    notifybitsp, &dip, cred, p);
+				if (error != 0)
+					break;
+				nfscl_adddevinfo(nmp, dip);
+			}
+		if (error == 0)
+			error = nfscl_layout(nmp, nfhp->nfh_fh, nfhp->nfh_len,
+			    stateidp, retonclose, &flh, &lyp, cred, p);
+	}
+	if (lyp != NULL)
+		nfscl_rellayout(lyp);
 	return (error);
 }
 

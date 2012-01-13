@@ -92,9 +92,11 @@ NFSCLSTATEMUTEX;
 int nfscl_inited = 0;
 struct nfsclhead nfsclhead;	/* Head of clientid list */
 int nfscl_deleghighwater = NFSCLDELEGHIGHWATER;
+int nfscl_layouthighwater = NFSCLLAYOUTHIGHWATER;
 #endif	/* !APPLEKEXT */
 
 static int nfscl_delegcnt = 0;
+static int nfscl_layoutcnt = 0;
 static int nfscl_getopen(struct nfsclownerhead *, u_int8_t *, int, u_int8_t *,
     u_int8_t *, u_int32_t, struct nfscllockowner **, struct nfsclopen **);
 static void nfscl_clrelease(struct nfsclclient *);
@@ -115,6 +117,9 @@ static struct nfsclclient *nfscl_getclnt(u_int32_t);
 static struct nfsclclient *nfscl_getclntsess(uint8_t *);
 static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
+static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
+    int);
+static struct nfscldevinfo *nfscl_finddevinfo(struct nfsclclient *, uint8_t *);
 static int nfscl_checkconflict(struct nfscllockownerhead *, struct nfscllock *,
     u_int8_t *, struct nfscllock **);
 static void nfscl_freealllocks(struct nfscllockownerhead *, int);
@@ -148,6 +153,8 @@ static int nfscl_trydelegreturn(struct nfscldeleg *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 static void nfscl_emptylockowner(struct nfscllockowner *,
     struct nfscllockownerfhhead *);
+static void nfscl_mergeflayouts(struct nfsclflayouthead *,
+    struct nfsclflayouthead *);
 
 static short nfscberr_null[] = {
 	0,
@@ -749,8 +756,14 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		clp->nfsc_idlen = idlen;
 		LIST_INIT(&clp->nfsc_owner);
 		TAILQ_INIT(&clp->nfsc_deleg);
+		TAILQ_INIT(&clp->nfsc_layout);
+		TAILQ_INIT(&clp->nfsc_devinfo);
 		for (i = 0; i < NFSCLDELEGHASHSIZE; i++)
 			LIST_INIT(&clp->nfsc_deleghash[i]);
+		for (i = 0; i < NFSCLLAYOUTHASHSIZE; i++)
+			LIST_INIT(&clp->nfsc_layouthash[i]);
+		for (i = 0; i < NFSCLDEVINFOHASHSIZE; i++)
+			LIST_INIT(&clp->nfsc_devinfohash[i]);
 		clp->nfsc_flags = NFSCLFLAGS_INITED;
 		clp->nfsc_clientidrev = 1;
 		clp->nfsc_cbident = nfscl_nextcbident();
@@ -4371,5 +4384,202 @@ nfscl_errmap(struct nfsrv_descript *nd)
 		if (*errp == (short)nd->nd_repstat)
 			return (txdr_unsigned(nd->nd_repstat));
 	return (txdr_unsigned(*defaulterrp));
+}
+
+/*
+ * Called to find/add a layout to a client.
+ */
+APPLESTATIC int
+nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
+    nfsv4stateid_t *stateidp, int retonclose,
+    struct nfsclflayouthead *fhlp, struct nfscllayout **lypp,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsclclient *clp;
+	struct nfscllayout *lyp, *tlyp;
+
+	*lypp = NULL;
+	tlyp = malloc(sizeof(*tlyp) + fhlen - 1, M_NFSLAYOUT, M_WAITOK);
+
+	NFSLOCKCLSTATE();
+	clp = nmp->nm_clp;
+	if (clp == NULL) {
+		NFSUNLOCKCLSTATE();
+		free(tlyp, M_NFSLAYOUT);
+		return (EPERM);
+	}
+	lyp = nfscl_findlayout(clp, fhp, fhlen);
+	if (lyp == NULL) {
+		lyp = tlyp;
+		tlyp = NULL;
+		lyp->nfsly_stateid.seqid = stateidp->seqid;
+		lyp->nfsly_stateid.other[0] = stateidp->other[0];
+		lyp->nfsly_stateid.other[1] = stateidp->other[1];
+		lyp->nfsly_stateid.other[2] = stateidp->other[2];
+		LIST_INIT(&lyp->nfsly_flay);
+		lyp->nfsly_clp = clp;
+		lyp->nfsly_retonclose = retonclose;
+		lyp->nfsly_refcnt = 1;	/* Return with a reference cnt. */
+		lyp->nfsly_fhlen = fhlen;
+		NFSBCOPY(fhp, lyp->nfsly_fh, fhlen);
+		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+		LIST_INSERT_HEAD(NFSCLLAYOUTHASH(clp, fhp, fhlen), lyp,
+		    nfsly_hash);
+#ifdef notyet
+		lyp->nfsly_timestamp = NFSD_MONOSEC + 120;
+#endif
+		nfscl_layoutcnt++;
+	} else {
+		lyp->nfsly_refcnt++;
+		TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
+		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+	}
+
+	/* Merge the new list of File Layouts into the list. */
+	nfscl_mergeflayouts(&lyp->nfsly_flay, fhlp);
+	NFSUNLOCKCLSTATE();
+	if (tlyp != NULL)
+		free(tlyp, M_NFSLAYOUT);
+	*lypp = lyp;
+	return (0);
+}
+
+/*
+ * Search for a layout by MDS file handle. If one is found, lock it it and
+ * return a pointer to it.
+ */
+struct nfscllayout *
+nfscl_getlayout(struct nfsmount *nmp, uint8_t *fhp, int fhlen)
+{
+	struct nfsclclient *clp;
+	struct nfscllayout *lyp;
+
+	NFSLOCKCLSTATE();
+	clp = nmp->nm_clp;
+	if (clp == NULL) {
+		NFSUNLOCKCLSTATE();
+		return (NULL);
+	}
+	lyp = nfscl_findlayout(clp, fhp, fhlen);
+	if (lyp != NULL) {
+		lyp->nfsly_refcnt++;
+		TAILQ_REMOVE(&clp->nfsc_layout, lyp, nfsly_list);
+		TAILQ_INSERT_HEAD(&clp->nfsc_layout, lyp, nfsly_list);
+	}
+	NFSUNLOCKCLSTATE();
+	return (lyp);
+}
+
+/*
+ * Dereference a layout.
+ */
+void
+nfscl_rellayout(struct nfscllayout *lyp)
+{
+
+	NFSLOCKCLSTATE();
+	lyp->nfsly_refcnt--;
+	if (lyp->nfsly_refcnt == 0)
+		wakeup(&lyp->nfsly_refcnt);
+	NFSUNLOCKCLSTATE();
+}
+
+/*
+ * Dereference a devinfo structure.
+ */
+void
+nfscl_reldevinfo(struct nfscldevinfo *dip)
+{
+
+	NFSLOCKCLSTATE();
+	dip->nfsdi_refcnt--;
+	if (dip->nfsdi_refcnt == 0)
+		wakeup(&dip->nfsdi_refcnt);
+	NFSUNLOCKCLSTATE();
+}
+
+/*
+ * Find a layout for this file handle. Return NULL upon failure.
+ */
+static struct nfscllayout *
+nfscl_findlayout(struct nfsclclient *clp, u_int8_t *fhp, int fhlen)
+{
+	struct nfscllayout *lyp;
+
+	LIST_FOREACH(lyp, NFSCLLAYOUTHASH(clp, fhp, fhlen), nfsly_hash)
+		if (lyp->nfsly_fhlen == fhlen &&
+		    !NFSBCMP(lyp->nfsly_fh, fhp, fhlen))
+			break;
+	return (lyp);
+}
+
+/*
+ * Find a devinfo for this deviceid. Return NULL upon failure.
+ */
+static struct nfscldevinfo *
+nfscl_finddevinfo(struct nfsclclient *clp, uint8_t *deviceid)
+{
+	struct nfscldevinfo *dip;
+
+	LIST_FOREACH(dip, NFSCLDEVINFOHASH(clp, deviceid), nfsdi_hash)
+		if (NFSBCMP(dip->nfsdi_deviceid, deviceid, NFSX_V4DEVICEID)
+		    == 0)
+			break;
+	return (dip);
+}
+
+/*
+ * Merge the new file layout list into the main one, maintaining it in
+ * increasing offset order.
+ */
+static void
+nfscl_mergeflayouts(struct nfsclflayouthead *fhlp,
+    struct nfsclflayouthead *newfhlp)
+{
+	struct nfsclflayout *flp, *nflp, *prevflp, *tflp;
+
+	flp = LIST_FIRST(fhlp);
+	prevflp = NULL;
+	LIST_FOREACH_SAFE(nflp, newfhlp, nfsfl_list, tflp) {
+		while (flp != NULL && flp->nfsfl_off < nflp->nfsfl_off) {
+			prevflp = flp;
+			flp = LIST_NEXT(flp, nfsfl_list);
+		}
+		if (prevflp == NULL)
+			LIST_INSERT_HEAD(fhlp, nflp, nfsfl_list);
+		else
+			LIST_INSERT_AFTER(prevflp, nflp, nfsfl_list);
+		prevflp = nflp;
+	}
+}
+
+/*
+ * Add this nfscldevinfo to the client, if it doesn't already exist.
+ * This function consumes the structure pointed at by dip.
+ */
+APPLESTATIC void
+nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip)
+{
+	struct nfsclclient *clp;
+	struct nfscldevinfo *tdip;
+
+	NFSLOCKCLSTATE();
+	clp = nmp->nm_clp;
+	if (clp == NULL) {
+		NFSUNLOCKCLSTATE();
+		free(dip, M_NFSDEVINFO);
+		return;
+	}
+	tdip = nfscl_finddevinfo(clp, dip->nfsdi_deviceid);
+	if (tdip != NULL) {
+		nfscl_reldevinfo(tdip);
+		NFSUNLOCKCLSTATE();
+		free(dip, M_NFSDEVINFO);
+		return;
+	}
+	TAILQ_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
+	LIST_INSERT_HEAD(NFSCLDEVINFOHASH(clp, dip->nfsdi_deviceid), dip,
+	    nfsdi_hash);
+	NFSUNLOCKCLSTATE();
 }
 

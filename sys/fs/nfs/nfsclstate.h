@@ -43,9 +43,18 @@ LIST_HEAD(nfscldeleghash, nfscldeleg);
 TAILQ_HEAD(nfscllayouthead, nfscllayout);
 LIST_HEAD(nfscllayouthash, nfscllayout);
 LIST_HEAD(nfsclflayouthead, nfsclflayout);
+TAILQ_HEAD(nfscldevinfohead, nfscldevinfo);
+LIST_HEAD(nfscldevinfohash, nfscldevinfo);
 #define	NFSCLDELEGHASHSIZE	256
-#define	NFSCLDELEGHASH(c, f, l)						\
+#define	NFSCLDELEGHASH(c, f, l)							\
 	(&((c)->nfsc_deleghash[ncl_hash((f), (l)) % NFSCLDELEGHASHSIZE]))
+#define	NFSCLLAYOUTHASHSIZE	256
+#define	NFSCLLAYOUTHASH(c, f, l)						\
+	(&((c)->nfsc_layouthash[ncl_hash((f), (l)) % NFSCLLAYOUTHASHSIZE]))
+#define	NFSCLDEVINFOHASHSIZE	16
+#define	NFSCLDEVINFOHASH(c, f)							\
+	(&((c)->nfsc_devinfohash[ncl_hash((f), NFSX_V4DEVICEID) %		\
+	     NFSCLDEVINFOHASHSIZE]))
 
 /* Structure for NFSv4.1 session stuff. */
 struct nfsclsession {
@@ -64,18 +73,22 @@ struct nfsclclient {
 	struct nfsclownerhead	nfsc_owner;
 	struct nfscldeleghead	nfsc_deleg;
 	struct nfscldeleghash	nfsc_deleghash[NFSCLDELEGHASHSIZE];
-	struct nfsv4lock nfsc_lock;
+	struct nfscllayouthead	nfsc_layout;
+	struct nfscllayouthash	nfsc_layouthash[NFSCLLAYOUTHASHSIZE];
+	struct nfscldevinfohead	nfsc_devinfo;
+	struct nfscldevinfohash	nfsc_devinfohash[NFSCLDEVINFOHASHSIZE];
+	struct nfsv4lock	nfsc_lock;
 	struct nfsclsession	nfsc_sess;
-	struct proc	*nfsc_renewthread;
-	struct nfsmount	*nfsc_nmp;
-	time_t		nfsc_expire;
-	u_int32_t	nfsc_clientidrev;
-	u_int32_t	nfsc_renew;
-	u_int32_t	nfsc_cbident;
-	u_int16_t	nfsc_flags;
-	u_int16_t	nfsc_backslots;	/* Number of back channel slots. */
-	u_int16_t	nfsc_idlen;
-	u_int8_t	nfsc_id[1];	/* Malloc'd to correct length */
+	struct proc		*nfsc_renewthread;
+	struct nfsmount		*nfsc_nmp;
+	time_t			nfsc_expire;
+	u_int32_t		nfsc_clientidrev;
+	u_int32_t		nfsc_renew;
+	u_int32_t		nfsc_cbident;
+	u_int16_t		nfsc_flags;
+	u_int16_t		nfsc_backslots;	/* # of back channel slots. */
+	u_int16_t		nfsc_idlen;
+	u_int8_t		nfsc_id[1];	/* Malloc'd to correct length */
 };
 
 #define	nfsc_mtx	nfsc_sess.nfsess_mtx
@@ -209,6 +222,7 @@ struct nfscllayout {
 	nfsv4stateid_t			nfsly_stateid;
 	struct nfsclflayouthead		nfsly_flay;
 	struct nfsclclient		*nfsly_clp;
+	uint32_t			nfsly_refcnt;
 	uint16_t			nfsly_retonclose;
 	uint16_t			nfsly_fhlen;
 	uint8_t				nfsly_fh[1];
@@ -240,11 +254,12 @@ struct nfsclflayout {
  *   of them. (This implies a limit of 256 on nfsdi_addrcnt, since the
  *   indices select which address.)
  */
-struct nfsclfldevinfo {
-	TAILQ_ENTRY(nfsclfldevinfo)	nfsdi_list;
-	LIST_ENTRY(nfsclfldevinfo)	nfsdi_hash;
+struct nfscldevinfo {
+	TAILQ_ENTRY(nfscldevinfo)	nfsdi_list;
+	LIST_ENTRY(nfscldevinfo)	nfsdi_hash;
 	uint8_t				nfsdi_deviceid[NFSX_V4DEVICEID];
 	struct nfsclclient		*nfsdi_clp;
+	uint32_t			nfsdi_refcnt;
 	uint16_t			nfsdi_stripecnt;
 	uint16_t			nfsdi_addrcnt;
 	struct sockaddr_storage		nfsdi_data[1];
@@ -255,7 +270,7 @@ struct nfsclfldevinfo {
  * Return a pointer to the address at "pos".
  */
 static __inline struct sockaddr_storage *
-nfsfldi_addr(struct nfsclfldevinfo *ndi, int pos)
+nfsfldi_addr(struct nfscldevinfo *ndi, int pos)
 {
 
 	if (pos >= ndi->nfsdi_addrcnt)
@@ -267,7 +282,7 @@ nfsfldi_addr(struct nfsclfldevinfo *ndi, int pos)
  * Return the Nth ("pos") stripe index.
  */
 static __inline int
-nfsfldi_stripeindex(struct nfsclfldevinfo *ndi, int pos)
+nfsfldi_stripeindex(struct nfscldevinfo *ndi, int pos)
 {
 	uint8_t *valp;
 
@@ -282,7 +297,7 @@ nfsfldi_stripeindex(struct nfsclfldevinfo *ndi, int pos)
  * Set the Nth ("pos") stripe index to "val".
  */
 static __inline void
-nfsfldi_setstripeindex(struct nfsclfldevinfo *ndi, int pos, uint8_t val)
+nfsfldi_setstripeindex(struct nfscldevinfo *ndi, int pos, uint8_t val)
 {
 	uint8_t *valp;
 

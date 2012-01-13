@@ -428,13 +428,13 @@ struct ext_nfsstats {
 #include <fs/nfs/rpcv2.h>
 #include <fs/nfs/nfsproto.h>
 #include <fs/nfs/nfs.h>
+#include <fs/nfs/nfsclstate.h>
 #include <fs/nfs/nfs_var.h>
 #include <fs/nfs/nfsm_subs.h>
 #include <fs/nfs/nfsrvcache.h>
 #include <fs/nfs/nfsrvstate.h>
 #include <fs/nfs/xdr_subs.h>
 #include <fs/nfs/nfscl.h>
-#include <fs/nfs/nfsclstate.h>
 #include <nfsclient/nfsargs.h>
 #include <fs/nfsclient/nfsmount.h>
 
@@ -732,6 +732,7 @@ MALLOC_DECLARE(M_NEWNFSV4NODE);
 MALLOC_DECLARE(M_NEWNFSDIRECTIO);
 MALLOC_DECLARE(M_NEWNFSMNT);
 MALLOC_DECLARE(M_NEWNFSDROLLBACK);
+MALLOC_DECLARE(M_NEWNFSLAYOUT);
 MALLOC_DECLARE(M_NEWNFSFLAYOUT);
 MALLOC_DECLARE(M_NEWNFSDEVINFO);
 #define	M_NFSRVCACHE	M_NEWNFSRVCACHE
@@ -753,6 +754,7 @@ MALLOC_DECLARE(M_NEWNFSDEVINFO);
 #define	M_NFSV4NODE	M_NEWNFSV4NODE
 #define	M_NFSDIRECTIO	M_NEWNFSDIRECTIO
 #define	M_NFSDROLLBACK	M_NEWNFSDROLLBACK
+#define	M_NFSLAYOUT	M_NEWNFSLAYOUT
 #define	M_NFSFLAYOUT	M_NEWNFSFLAYOUT
 #define	M_NFSDEVINFO	M_NEWNFSDEVINFO
 

@@ -74,7 +74,7 @@ struct nfscllockowner;
 struct nfscllock;
 struct nfscldeleg;
 struct nfscllayout;
-struct nfsclfldevinfo;
+struct nfscldevinfo;
 struct nfsv4lock;
 struct nfsvattr;
 struct nfs_vattr;
@@ -444,10 +444,11 @@ int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroyclient(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
-int nfsrpc_layoutget(vnode_t, int, uint64_t, uint64_t, uint64_t,
-    struct nfscllayout *, struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_layoutget(struct nfsmount *, uint8_t *, int, int, uint64_t, uint64_t,
+    uint64_t, nfsv4stateid_t *, int *, struct nfsclflayouthead *,
+    struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_getdeviceinfo(struct nfsmount *, uint8_t *, int, uint32_t *,
-    struct nfsclfldevinfo **, struct ucred *, NFSPROC_T *);
+    struct nfscldevinfo **, struct ucred *, NFSPROC_T *);
 int nfsrpc_layoutcommit(vnode_t, off_t, uint64_t, int, nfsv4stateid_t *, int,
     off_t, int, struct timespec, int, int, uint8_t *, int *, uint64_t *,
     struct ucred *, NFSPROC_T *, void *);
@@ -514,6 +515,13 @@ void nfscl_deleggetmodtime(vnode_t, struct timespec *);
 int nfscl_tryclose(struct nfsclopen *, struct ucred *,
     struct nfsmount *, NFSPROC_T *);
 void nfscl_cleanup(NFSPROC_T *);
+int nfscl_layout(struct nfsmount *, u_int8_t *, int, nfsv4stateid_t *, int,
+    struct nfsclflayouthead *, struct nfscllayout **, struct ucred *,
+    NFSPROC_T *);
+struct nfscllayout *nfscl_getlayout(struct nfsmount *, uint8_t *, int);
+void nfscl_rellayout(struct nfscllayout *);
+void nfscl_reldevinfo(struct nfscldevinfo *);
+void nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,
