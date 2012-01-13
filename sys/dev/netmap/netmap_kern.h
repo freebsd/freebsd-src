@@ -169,16 +169,8 @@ int netmap_start(struct ifnet *, struct mbuf *);
 enum txrx { NR_RX = 0, NR_TX = 1 };
 struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
-void netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf);
-void netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf);
 int netmap_ring_reinit(struct netmap_kring *);
 
-/*
- * XXX eventually, get rid of netmap_total_buffers and netmap_buffer_base
- * in favour of the structure
- */
-// struct netmap_buf_pool;
-// extern struct netmap_buf_pool nm_buf_pool;
 extern u_int netmap_total_buffers;
 extern char *netmap_buffer_base;
 extern int netmap_verbose;	// XXX debugging
@@ -201,6 +193,35 @@ enum {                                  /* verbose flags */
 #define	WNA(_ifp)	(_ifp)->if_pspare[0]
 #endif
 #define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
+
+
+/* Callback invoked by the dma machinery after a successfull dmamap_load */
+static void netmap_dmamap_cb(__unused void *arg,
+	__unused bus_dma_segment_t * segs, __unused int nseg, __unused int error)
+{
+}
+
+/* bus_dmamap_load wrapper: call aforementioned function if map != NULL.
+ * XXX can we do it without a callback ?
+ */
+static inline void
+netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
+{
+	if (map)
+		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
+			netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+}
+
+/* update the map when a buffer changes. */
+static inline void
+netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
+{
+	if (map) {
+		bus_dmamap_unload(tag, map);
+		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
+			netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+	}
+}
 
 
 /*
