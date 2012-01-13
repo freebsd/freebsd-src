@@ -227,7 +227,11 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return (-1);
 
 		addend &= 0x03ffffff;
-		addend <<= 2;
+		/*
+		 * Addendum for .rela R_MIPS_26 is not shifted right
+		 */
+		if (rela == NULL)
+			addend <<= 2;
 
 		addr += ((Elf_Addr)where & 0xf0000000) | addend;
 		addr >>= 2;
