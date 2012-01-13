@@ -627,14 +627,15 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		}
 	} else {
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
-		case UPS_PORT_LS_U0:
-		case UPS_PORT_LS_U1:
-		case UPS_PORT_LS_U2:
-		case UPS_PORT_LS_RESUME:
+		case UPS_PORT_LS_U3:
+			is_suspend = 1;
+			break;
+		case UPS_PORT_LS_SS_INA:
+			usbd_req_warm_reset_port(udev, NULL, portno);
 			is_suspend = 0;
 			break;
 		default:
-			is_suspend = 1;
+			is_suspend = 0;
 			break;
 		}
 	}
@@ -793,7 +794,8 @@ uhub_explore(struct usb_device *udev)
 				break;
 			}
 		}
-		if (sc->sc_st.port_change & (UPS_C_SUSPEND | UPS_C_PORT_LINK_STATE)) {
+		if (sc->sc_st.port_change & (UPS_C_SUSPEND |
+		    UPS_C_PORT_LINK_STATE)) {
 			err = uhub_suspend_resume_port(sc, portno);
 			if (err) {
 				/* most likely the HUB is gone */
