@@ -340,7 +340,6 @@ SUBDIR+=	usbhidctl
 SUBDIR+=	last
 SUBDIR+=	users
 SUBDIR+=	who
-SUBDIR+=	wtmpcvt
 .endif
 
 .include <bsd.arch.inc.mk>
