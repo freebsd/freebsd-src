@@ -325,9 +325,8 @@ typedef atomic_bool			atomic_flag;
 	atomic_compare_exchange_strong_explicit(object, 0, 1, order, order)
 
 #define	atomic_flag_clear(object)					\
-	atomic_flag_clear_explicit(object, 0, memory_order_seq_cst)
+	atomic_flag_clear_explicit(object, memory_order_seq_cst)
 #define	atomic_flag_test_and_set(object)				\
-	atomic_flag_test_and_set_explicit(object, 0, 1,			\
-	    memory_order_seq_cst, memory_order_seq_cst)
+	atomic_flag_test_and_set_explicit(object, memory_order_seq_cst)
 
 #endif /* !_STDATOMIC_H_ */
