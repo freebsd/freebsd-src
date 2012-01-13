@@ -720,7 +720,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 		if (iflr->flags & IFLR_PREFIX)
 			return (EINVAL);
 
-		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR_IN6). */
+		/* copy args to in_aliasreq, perform ioctl(SIOCAIFADDR). */
 		bzero(&ifra, sizeof(ifra));
 		bcopy(iflr->iflr_name, ifra.ifra_name,
 			sizeof(ifra.ifra_name));
@@ -769,8 +769,9 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 		}
 
+		IF_ADDR_LOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)	{
-			if (ifa->ifa_addr->sa_family != AF_INET6)
+			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
 			if (match.s_addr == 0)
 				break;
@@ -779,6 +780,9 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			if (candidate.s_addr == match.s_addr)
 				break;
 		}
+		if (ifa != NULL)
+			ifa_ref(ifa);
+		IF_ADDR_UNLOCK(ifp);
 		if (ifa == NULL)
 			return (EADDRNOTAVAIL);
 		ia = (struct in_ifaddr *)ifa;
@@ -797,12 +801,13 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 				in_mask2len(&ia->ia_sockmask.sin_addr);
 
 			iflr->flags = 0;	/*XXX*/
+			ifa_free(ifa);
 
 			return (0);
 		} else {
 			struct in_aliasreq ifra;
 
-			/* fill in_aliasreq and do ioctl(SIOCDIFADDR_IN6) */
+			/* fill in_aliasreq and do ioctl(SIOCDIFADDR) */
 			bzero(&ifra, sizeof(ifra));
 			bcopy(iflr->iflr_name, ifra.ifra_name,
 				sizeof(ifra.ifra_name));
@@ -815,6 +820,7 @@ in_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 			}
 			bcopy(&ia->ia_sockmask, &ifra.ifra_dstaddr,
 				ia->ia_sockmask.sin_len);
+			ifa_free(ifa);
 
 			return (in_control(so, SIOCDIFADDR, (caddr_t)&ifra,
 			    ifp, td));
