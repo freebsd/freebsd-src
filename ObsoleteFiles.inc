@@ -38,6 +38,9 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
 # 20111214: eventtimers(7) moved to eventtimers(4)
 OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
 # 20111125: amd(4) removed
