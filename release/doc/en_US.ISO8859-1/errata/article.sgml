@@ -225,6 +225,23 @@
       fixed by a change in Errata Notice EN-12:01.  For more
       information, see <ulink
       url="http://security.freebsd.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc"></ulink></para>
+
+    <para arch="amd64,i386">&os; &release.current; includes several
+      changes to improve resource management of PCI devices.  Some x86
+      machines may not boot or may have devices that no longer attach
+      when using ACPI as a result of these changes.  This can be
+      worked around by setting a &man.loader.8; tunable
+      <varname>debug.acpi.disabled</varname> to
+      <literal>hostres</literal>.  To do this, enter the following
+      lines at the loader prompt:</para>
+
+    <screen>set debug.acpi.disabled="hostres"
+boot</screen>
+
+    <para>Or, put the following line into
+      <filename>/boot/loader.conf</filename>:</para>
+
+    <programlisting>debug.acpi.disabled="hostres"</programlisting>
   </sect1>
 
   <sect1 id="late-news">
