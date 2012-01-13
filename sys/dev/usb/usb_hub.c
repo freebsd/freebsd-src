@@ -327,6 +327,7 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 	enum usb_dev_speed speed;
 	enum usb_hc_mode mode;
 	usb_error_t err;
+	uint16_t power_mask;
 	uint8_t timeout;
 
 	DPRINTF("reattaching port %d\n", portno);
@@ -373,19 +374,21 @@ repeat:
 	case USB_SPEED_HIGH:
 	case USB_SPEED_FULL:
 	case USB_SPEED_LOW:
-		if (!(sc->sc_st.port_status & UPS_PORT_POWER)) {
-			DPRINTF("WARNING: strange, connected port %d "
-			    "has no power\n", portno);
-		}
+		power_mask = UPS_PORT_POWER;
 		break;
 	case USB_SPEED_SUPER:
-		if (!(sc->sc_st.port_status & UPS_PORT_POWER_SS)) {
-			DPRINTF("WARNING: strange, connected port %d "
-			    "has no power\n", portno);
-		}
+		if (udev->parent_hub == NULL)
+			power_mask = UPS_PORT_POWER;
+		else
+			power_mask = UPS_PORT_POWER_SS;
 		break;
 	default:
+		power_mask = 0;
 		break;
+	}
+	if (!(sc->sc_st.port_status & power_mask)) {
+		DPRINTF("WARNING: strange, connected port %d "
+		    "has no power\n", portno);
 	}
 
 	/* check if the device is in Host Mode */
