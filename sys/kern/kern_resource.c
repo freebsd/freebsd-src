@@ -497,7 +497,7 @@ rtp_to_pri(struct rtprio *rtp, struct thread *td)
 	oldpri = td->td_user_pri;
 	sched_user_prio(td, newpri);
 	if (td->td_user_pri != oldpri && (td == curthread ||
-	    td->td_priority == oldpri || td->td_user_pri >= PRI_MAX_REALTIME))
+	    td->td_priority == oldpri || td->td_user_pri <= PRI_MAX_REALTIME))
 		sched_prio(td, td->td_user_pri);
 	if (TD_ON_UPILOCK(td) && oldpri != newpri) {
 		critical_enter();
