@@ -12,11 +12,19 @@ CSCOPEDIRS=	boot bsm cam cddl compat conf contrib crypto ddb dev fs gdb \
 		geom gnu isa kern libkern modules net net80211 netatalk \
 		netgraph netinet netinet6 netipsec netipx netnatm netncp \
 		netsmb nfs nfsclient nfsserver nlm opencrypto \
-		pci rpc security sys ufs vm xdr ${CSCOPE_ARCHDIR}
+		pci rpc security sys ufs vm xdr xen ${CSCOPE_ARCHDIR}
+.if !defined(CSCOPE_ARCHDIR)
 .if defined(ALL_ARCH)
-CSCOPE_ARCHDIR ?= amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+CSCOPE_ARCHDIR = amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v x86
 .else
-CSCOPE_ARCHDIR ?= ${MACHINE}
+CSCOPE_ARCHDIR = ${MACHINE} 
+.if ${MACHINE} != ${MACHINE_ARCH}
+CSCOPE_ARCHDIR += ${MACHINE_ARCH}
+.endif
+.if ${MACHINE_ARCH} == "i386" || ${MACHINE_ARCH} == "amd64"
+CSCOPE_ARCHDIR += x86
+.endif
+.endif
 .endif
 
 # Loadable kernel modules
@@ -34,7 +42,7 @@ cscope.out: ${.CURDIR}/cscope.files
 
 ${.CURDIR}/cscope.files: .PHONY
 	cd ${.CURDIR}; \
-		find ${CSCOPEDIRS} -name "*.[chSs]" -a -type f > ${.TARGET}
+		find ${CSCOPEDIRS} -name "*.[chSsly]" -a -type f > ${.TARGET}
 
 cscope-clean:
 	rm -f cscope.files cscope.out cscope.in.out cscope.po.out
