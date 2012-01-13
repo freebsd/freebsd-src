@@ -26,8 +26,8 @@ SRCS+=	aslanalyze.c aslbtypes.c aslcodegen.c aslcompile.c	\
 SRCS+=	dbfileio.c
 
 # disassembler
-SRCS+=	dmbuffer.c dmnames.c dmobject.c dmopcode.c dmresrc.c	\
-	dmresrcl.c dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
+SRCS+=	dmbuffer.c dmnames.c dmopcode.c dmresrc.c dmresrcl.c	\
+	dmresrcl2.c dmresrcs.c dmutils.c dmwalk.c
 
 # interpreter/dispatcher
 SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
@@ -37,8 +37,8 @@ SRCS+=	dsargs.c dscontrol.c dsfield.c dsobject.c dsopcode.c	\
 # interpreter/executer
 SRCS+=	exconvrt.c excreate.c exdump.c exmisc.c exmutex.c	\
 	exnames.c exoparg1.c exoparg2.c exoparg3.c exoparg6.c	\
-	exprep.c exregion.c exresnte.c exresolv.c exresop.c	\
-	exstore.c exstoren.c exstorob.c exsystem.c exutils.c
+	exprep.c exresnte.c exresolv.c exresop.c exstore.c	\
+	exstoren.c exstorob.c exsystem.c exutils.c
 
 # interpreter/parser
 SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
@@ -46,7 +46,7 @@ SRCS+=	psargs.c psloop.c psopcode.c psparse.c psscope.c	\
 
 # namespace
 SRCS+=	nsaccess.c nsalloc.c nsdump.c nsnames.c nsobject.c	\
-	nsparse.c nssearch.c nsutils.c nswalk.c nsxfobj.c
+	nsparse.c nssearch.c nsutils.c nswalk.c
 
 # os_specific/service_layers
 SRCS+=	osunixxf.c
@@ -57,8 +57,8 @@ SRCS+=	tbfadt.c tbinstal.c tbutils.c tbxface.c
 # utilities
 SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c	\
 	utdecode.c utdelete.c utglobal.c utinit.c utlock.c	\
-	utmath.c utmisc.c utmutex.c utobject.c utosi.c		\
-	utresrc.c utstate.c utxface.c utxferror.c
+	utmath.c utmisc.c utmutex.c utobject.c utresrc.c	\
+	utstate.c utxface.c utxferror.c
 
 WARNS?=	2
 
