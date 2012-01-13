@@ -569,6 +569,7 @@ vop_openextattr {
 
 
 %% deleteextattr	vp	E E E
+%! deleteextattr	post	vop_deleteextattr_post
 
 vop_deleteextattr {
 	IN struct vnode *vp;
@@ -580,6 +581,7 @@ vop_deleteextattr {
 
 
 %% setextattr	vp	E E E
+%! setextattr	post	vop_setextattr_post
 
 vop_setextattr {
 	IN struct vnode *vp;
