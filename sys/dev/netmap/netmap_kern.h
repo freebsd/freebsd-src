@@ -39,13 +39,13 @@ MALLOC_DECLARE(M_NETMAP);
 #endif
 
 #define ND(format, ...)
-#define D(format, ...)					\
-	do {						\
-		struct timeval __xxts;			\
+#define D(format, ...)						\
+	do {							\
+		struct timeval __xxts;				\
 		microtime(&__xxts);				\
-		printf("%03d.%06d %s [%d] " format "\n",\
-		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,		\
-		__FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+		printf("%03d.%06d %s [%d] " format "\n",	\
+		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,	\
+		__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
  
 struct netmap_adapter;
@@ -197,7 +197,7 @@ enum {                                  /* verbose flags */
 
 /* Callback invoked by the dma machinery after a successfull dmamap_load */
 static void netmap_dmamap_cb(__unused void *arg,
-	__unused bus_dma_segment_t * segs, __unused int nseg, __unused int error)
+    __unused bus_dma_segment_t * segs, __unused int nseg, __unused int error)
 {
 }
 
@@ -209,7 +209,7 @@ netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 {
 	if (map)
 		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
-			netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+		    netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
 }
 
 /* update the map when a buffer changes. */
@@ -219,7 +219,7 @@ netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 	if (map) {
 		bus_dmamap_unload(tag, map);
 		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
-			netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+		    netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
 	}
 }
 
@@ -227,7 +227,6 @@ netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 /*
  * NMB return the virtual address of a buffer (buffer 0 on bad index)
  * PNMB also fills the physical address
- * XXX this is a special version with hardwired 2k bufs
  */
 static inline void *
 NMB(struct netmap_slot *slot)
