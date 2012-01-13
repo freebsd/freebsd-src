@@ -1056,6 +1056,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	struct netmap_kring *kring;
 	u_int core_lock, i, check_all, want_tx, want_rx, revents = 0;
 	void *adapter;
+	enum {NO_CL, NEED_CL, LOCKED_CL }; /* see below */
 
 	if (devfs_get_cdevpriv((void **)&priv) != 0 || priv == NULL)
 		return POLLERR;
@@ -1130,8 +1131,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	 *		to remember to release the lock once done.
 	 * LOCKED_CL	core lock is set, so we need to release it.
 	 */
-	enum {NO_CL, NEED_CL, LOCKED_CL };
-	core_lock = (check_all || !na->separate_locks) ?  NEED_CL:NO_CL;
+	core_lock = (check_all || !na->separate_locks) ? NEED_CL : NO_CL;
 	/*
 	 * We start with a lock free round which is good if we have
 	 * data available. If this fails, then lock and call the sync
