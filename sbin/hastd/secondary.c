@@ -282,8 +282,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)resuid, (uintmax_t)res->hr_resuid);
 		pjdlog_error("%s", errmsg);
 		nv_add_string(nvout, errmsg, "errmsg");
-		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) == -1) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+		if (hast_proto_send(res, res->hr_remotein, nvout,
+		    NULL, 0) == -1) {
+			pjdlog_exit(EX_TEMPFAIL,
+			    "Unable to send response to %s",
 			    res->hr_remoteaddr);
 		}
 		nv_free(nvout);
@@ -327,8 +329,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		free(map);
 		pjdlog_error("Split-brain detected, exiting.");
 		nv_add_string(nvout, "Split-brain condition!", "errmsg");
-		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) == -1) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+		if (hast_proto_send(res, res->hr_remotein, nvout,
+		    NULL, 0) == -1) {
+			pjdlog_exit(EX_TEMPFAIL,
+			    "Unable to send response to %s",
 			    res->hr_remoteaddr);
 		}
 		nv_free(nvout);
@@ -475,7 +479,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 }
 
 static void
-reqlog(int loglevel, int debuglevel, int error, struct hio *hio, const char *fmt, ...)
+reqlog(int loglevel, int debuglevel, int error, struct hio *hio,
+    const char *fmt, ...)
 {
 	char msg[1024];
 	va_list ap;
@@ -838,7 +843,7 @@ send_thread(void *arg)
 			nv_add_int16(nvout, hio->hio_error, "error");
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
 		    length) == -1) {
-			secondary_exit(EX_TEMPFAIL, "Unable to send reply.");
+			secondary_exit(EX_TEMPFAIL, "Unable to send reply");
 		}
 		nv_free(nvout);
 		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",
