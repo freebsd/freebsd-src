@@ -426,7 +426,6 @@ netmap_dtor(void *data)
 }
 
 
-
 /*
  * Create and return a new ``netmap_if`` object, and possibly also
  * rings and packet buffors.
@@ -1393,30 +1392,6 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 	return kring->ring->slot;
 }
 
-static void
-ns_dmamap_cb(__unused void *arg, __unused bus_dma_segment_t * segs,
-	__unused int nseg, __unused int error)
-{
-}
-
-/* unload a bus_dmamap and create a new one. Used when the
- * buffer in the slot is changed.
- * XXX buflen is probably not needed, buffers have constant size.
- */
-void
-netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
-{
-	bus_dmamap_unload(tag, map);
-	bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE, ns_dmamap_cb,
-		NULL, BUS_DMA_NOWAIT);
-}
-
-void
-netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
-{
-	bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE, ns_dmamap_cb,
-		NULL, BUS_DMA_NOWAIT);
-}
 
 /*------ netmap memory allocator -------*/
 /*
@@ -1541,7 +1516,7 @@ netmap_memory_init(void)
 	int i, n, sz = NETMAP_MEMORY_SIZE;
 	int extra_sz = 0; // space for rings and two spare buffers
 
-	for (; !buf && sz >= 1<<20; sz >>=1) {
+	for (; sz >= 1<<20; sz >>=1) {
 		extra_sz = sz/200;
 		extra_sz = (extra_sz + 2*PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
 	        buf = contigmalloc(sz + extra_sz,
@@ -1552,6 +1527,8 @@ netmap_memory_init(void)
 			     PAGE_SIZE, /* alignment */
 			     0 /* boundary */
 			    );
+		if (buf)
+			break;
 	} 
 	if (buf == NULL)
 		return (ENOMEM);
