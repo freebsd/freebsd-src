@@ -28,6 +28,9 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	port installed with a script in /usr/local/etc/rc.d you can either
 	hand-edit the rcvar= line, or reinstall the port.
 
+	An easy way to handle the mass-update of /etc/rc.d:
+	rm /etc/rc.d/* && mergemaster -i
+
 20120109:
 	panic(9) now stops other CPUs in the SMP systems, disables interrupts
 	on the current CPU and prevents other threads from running.
