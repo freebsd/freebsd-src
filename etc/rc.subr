@@ -54,47 +54,6 @@ JID=`$PS -p $$ -o jid=`
 #	functions
 #	---------
 
-# set_rcvar [var] [defval] [desc]
-#
-#	Echo or define a rc.conf(5) variable name.  Global variable
-#	$rcvars is used.
-#
-#	If no argument is specified, echo "${name}_enable".
-#
-#	If only a var is specified, echo "${var}_enable".
-#
-#	If var and defval are specified, the ${var} is defined as
-#	rc.conf(5) variable and the default value is ${defvar}.  An
-#	optional argument $desc can also be specified to add a
-#	description for that.
-#
-set_rcvar()
-{
-	case $# in
-	0)
-		echo ${name}_enable
-		;;
-	1)
-		echo ${1}_enable
-		;;
-	*)
-		debug "rcvar_define: \$$1=$2 is added" \
-		    " as a rc.conf(5) variable."
-
-		local _var
-		_var=$1
-		rcvars="${rcvars# } $_var"
-		eval ${_var}_defval=\"$2\"
-		shift 2
-		# encode multiple lines of _desc
-		for l in "$@"; do
-			eval ${_var}_desc=\"\${${_var}_desc#^^}^^$l\"
-		done
-		eval ${_var}_desc=\"\${${_var}_desc#^^}\"
-		;;
-	esac
-}
-
 # set_rcvar_obsolete oldvar [newvar] [msg]
 #	Define obsolete variable.
 #	Global variable $rcvars_obsolete is used.
@@ -856,8 +815,8 @@ $command $rc_flags $command_args"
 				echo ""
 			fi
 			echo "#"
-			# Get unique vars in $rcvar $rcvars
-			for _v in $rcvar $rcvars; do
+			# Get unique vars in $rcvar
+			for _v in $rcvar; do
 				case $v in
 				$_v\ *|\ *$_v|*\ $_v\ *) ;;
 				*)	v="${v# } $_v" ;;
@@ -1003,7 +962,7 @@ run_rc_script()
 
 	unset	name command command_args command_interpreter \
 		extra_commands pidfile procname \
-		rcvar rcvars rcvars_obsolete required_dirs required_files \
+		rcvar rcvars_obsolete required_dirs required_files \
 		required_vars
 	eval unset ${_arg}_cmd ${_arg}_precmd ${_arg}_postcmd
 
@@ -1035,7 +994,7 @@ run_rc_script()
 #
 load_rc_config()
 {
-	local _name _var _defval _v _msg _new
+	local _name _rcvar_val _var _defval _v _msg _new
 	_name=$1
 	if [ -z "$_name" ]; then
 		err 3 'USAGE: load_rc_config name'
@@ -1060,7 +1019,7 @@ load_rc_config()
 	fi
 
 	# Set defaults if defined.
-	for _var in $rcvar $rcvars; do
+	for _var in $rcvar; do
 		eval _defval=\$${_var}_defval
 		if [ -n "$_defval" ]; then
 			eval : \${$_var:=\$${_var}_defval}
