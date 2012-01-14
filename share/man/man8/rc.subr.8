@@ -29,7 +29,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 18, 2007
+.Dd January 14, 2012
 .Dt RC.SUBR 8
 .Os
 .Sh NAME
@@ -72,8 +72,6 @@
 .Ic run_rc_command Ar argument
 .It
 .Ic run_rc_script Ar file Ar argument
-.It
-.Ic set_rcvar Op Ar base
 .It
 .Ic wait_for_pids Op Ar pid ...
 .It
@@ -832,32 +830,6 @@ signal is sent to the parent
 process, which is assumed to be
 .Xr rc 8 .
 Otherwise, the shell exits with a non-zero status.
-.It Ic set_rcvar Op Ar base
-Set the variable name required to start a service.
-In
-.Fx
-a daemon is usually controlled by an
-.Xr rc.conf 5
-variable consisting of a daemon's name postfixed by the string
-.Dq Li "_enable" .
-This is not the case in
-.Nx .
-When the following line is included in a script:
-.Pp
-.Dl "rcvar=`set_rcvar`"
-.Pp
-this function will use the value of the
-.Va $name
-variable, which should be defined by the calling script,
-to construct the appropriate
-.Xr rc.conf 5
-knob.
-If the
-.Ar base
-argument is set it will use
-.Ar base
-instead of
-.Va $name .
 .It Ic wait_for_pids Op Ar pid ...
 Wait until all of the provided
 .Ar pids
