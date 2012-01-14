@@ -3,7 +3,7 @@
 # generate-release.sh: check out source trees, and build release components with
 #  totally clean, fresh trees.
 #
-#  Usage: generate-release.sh svn-branch scratch-dir
+#  Usage: generate-release.sh [-r revision] svn-branch scratch-dir
 #
 # Environment variables:
 #  CVSUP_HOST: Host of a cvsup server to obtain the ports and documentation
@@ -21,10 +21,38 @@
 # $FreeBSD$
 #
 
+usage()
+{
+	echo "Usage: $0 [-r revision] svn-branch scratch-dir"
+	exit 1
+}
+
+args=`getopt r: $*`
+if [ $? -ne 0 ]; then
+	usage
+fi
+set -- $args
+REVISION=
+while true; do
+	case "$1" in
+	-r)
+		REVISION="-r $2"
+		shift; shift
+		;;
+	--)
+		shift; break
+		;;
+	esac
+done
+
+if [ $# -lt 2 ]; then
+	usage
+fi
+
 mkdir -p $2/usr/src
 set -e # Everything must succeed
 
-svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src
+svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src $REVISION
 if [ ! -z $CVSUP_HOST ]; then
 	cat > $2/docports-supfile << EOF
 	*default host=$CVSUP_HOST
