@@ -22,6 +22,12 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120114:
+	The set_rcvar() function has been removed from /etc/rc.subr.  All
+	base and ports rc.d scripts have been updated, so if you have a
+	port installed with a script in /usr/local/etc/rc.d you can either
+	hand-edit the rcvar= line, or reinstall the port.
+
 20120109:
 	panic(9) now stops other CPUs in the SMP systems, disables interrupts
 	on the current CPU and prevents other threads from running.
