@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="ipnat"
-rcvar=`set_rcvar`
+rcvar="ipnat_enable"
 load_rc_config $name
 start_cmd="ipnat_start"
 stop_cmd="${ipnat_program} -F -C"
