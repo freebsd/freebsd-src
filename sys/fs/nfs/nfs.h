@@ -101,6 +101,9 @@
 #ifndef	NFSCLDELEGHIGHWATER
 #define	NFSCLDELEGHIGHWATER	10000	/* limit for client delegations */
 #endif
+#ifndef	NFSCLLAYOUTHIGHWATER
+#define	NFSCLLAYOUTHIGHWATER	10000	/* limit for client pNFS layouts */
+#endif
 #ifndef NFSNOOPEN			/* Inactive open owner (sec) */
 #define	NFSNOOPEN		120
 #endif
