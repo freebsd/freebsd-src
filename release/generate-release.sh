@@ -49,8 +49,17 @@ if [ $# -lt 2 ]; then
 	usage
 fi
 
-mkdir -p $2/usr/src
 set -e # Everything must succeed
+
+case $MAKE_FLAGS in
+	*-j*)
+		;;
+	*)
+		MAKE_FLAGS="$MAKE_FLAGS -j "$(sysctl -n hw.ncpu)
+		;;
+esac
+
+mkdir -p $2/usr/src
 
 svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src $REVISION
 if [ ! -z $CVSUP_HOST ]; then
