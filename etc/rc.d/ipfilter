@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="ipfilter"
-rcvar=`set_rcvar`
+rcvar="ipfilter_enable"
 load_rc_config $name
 stop_precmd="test -f ${ipfilter_rules} -o -f ${ipv6_ipfilter_rules}"
 
