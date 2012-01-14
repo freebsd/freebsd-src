@@ -191,10 +191,11 @@ trapcmd(int argc, char **argv)
 			argv++;
 		}
 	}
-	while (*argv) {
+	for (; *argv; argv++) {
 		if ((signo = sigstring_to_signum(*argv)) == -1) {
 			warning("bad signal %s", *argv);
 			errors = 1;
+			continue;
 		}
 		INTOFF;
 		if (action)
@@ -205,7 +206,6 @@ trapcmd(int argc, char **argv)
 		if (signo != 0)
 			setsignal(signo);
 		INTON;
-		argv++;
 	}
 	return errors;
 }
