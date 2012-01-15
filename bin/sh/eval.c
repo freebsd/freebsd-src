@@ -89,7 +89,7 @@ int oexitstatus;		/* saved exit status */
 
 static void evalloop(union node *, int);
 static void evalfor(union node *, int);
-static union node *evalcase(union node *, int);
+static union node *evalcase(union node *);
 static void evalsubshell(union node *, int);
 static void evalredir(union node *, int);
 static void expredir(union node *);
@@ -256,7 +256,18 @@ evaltree(union node *n, int flags)
 			evalfor(n, flags & ~EV_EXIT);
 			break;
 		case NCASE:
-			next = evalcase(n, flags);
+			next = evalcase(n);
+			break;
+		case NCLIST:
+			next = n->nclist.body;
+			break;
+		case NCLISTFALLTHRU:
+			if (n->nclist.body) {
+				evaltree(n->nclist.body, flags & ~EV_EXIT);
+				if (evalskip)
+					goto out;
+			}
+			next = n->nclist.next;
 			break;
 		case NDEFUN:
 			defun(n->narg.text, n->narg.next);
@@ -366,9 +377,14 @@ evalfor(union node *n, int flags)
 }
 
 
+/*
+ * Evaluate a case statement, returning the selected tree.
+ *
+ * The exit status needs care to get right.
+ */
 
 static union node *
-evalcase(union node *n, int flags)
+evalcase(union node *n)
 {
 	union node *cp;
 	union node *patp;
@@ -384,13 +400,12 @@ evalcase(union node *n, int flags)
 			if (casematch(patp, arglist.list->text)) {
 				popstackmark(&smark);
 				while (cp->nclist.next &&
-				    cp->type == NCLISTFALLTHRU) {
-					evaltree(cp->nclist.body,
-					    flags & ~EV_EXIT);
-					if (evalskip != 0)
-						return (NULL);
+				    cp->type == NCLISTFALLTHRU &&
+				    cp->nclist.body == NULL)
 					cp = cp->nclist.next;
-				}
+				if (cp->nclist.next &&
+				    cp->type == NCLISTFALLTHRU)
+					return (cp);
 				if (cp->nclist.body == NULL)
 					exitstatus = 0;
 				return (cp->nclist.body);
