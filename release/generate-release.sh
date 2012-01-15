@@ -27,23 +27,18 @@ usage()
 	exit 1
 }
 
-args=`getopt r: $*`
-if [ $? -ne 0 ]; then
-	usage
-fi
-set -- $args
 REVISION=
-while true; do
-	case "$1" in
-	-r)
-		REVISION="-r $2"
-		shift; shift
+while getopts r: opt; do
+	case $opt in
+	r)
+		REVISION="-r $OPTARG"
 		;;
-	--)
-		shift; break
+	\?)
+		usage
 		;;
 	esac
 done
+shift $(($OPTIND - 1))
 
 if [ $# -lt 2 ]; then
 	usage
