@@ -859,10 +859,8 @@ int	p_canwait(struct thread *td, struct proc *p);
 struct	pargs *pargs_alloc(int len);
 void	pargs_drop(struct pargs *pa);
 void	pargs_hold(struct pargs *pa);
-int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb,
-	    size_t nchr);
-int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb,
-	    size_t nchr);
+int	proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb);
+int	proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb);
 void	procinit(void);
 void	proc_linkup0(struct proc *p, struct thread *td);
 void	proc_linkup(struct proc *p, struct thread *td);
