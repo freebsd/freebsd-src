@@ -658,30 +658,38 @@ kvm_argv(kvm_t *kd, const struct kinfo_proc *kp, int env, int nchr)
 			buflen = nchr;
 		}
 	}
-	if (buf != NULL) {
-		oid[0] = CTL_KERN;
-		oid[1] = KERN_PROC;
-		oid[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
-		oid[3] = kp->ki_pid;
-		bufsz = buflen;
-		i = sysctl(oid, 4, buf, &bufsz, 0, 0);
-		if (i == 0 && bufsz > 0) {
-			i = 0;
-			p = buf;
-			do {
-				bufp[i++] = p;
-				p += strlen(p) + 1;
-				if (i >= argc) {
-					argc += argc;
-					bufp = realloc(bufp,
-					    sizeof(char *) * argc);
-				}
-			} while (p < buf + bufsz);
-			bufp[i++] = 0;
-			return (bufp);
-		}
+	oid[0] = CTL_KERN;
+	oid[1] = KERN_PROC;
+	oid[2] = env ? KERN_PROC_ENV : KERN_PROC_ARGS;
+	oid[3] = kp->ki_pid;
+	bufsz = buflen;
+	if (sysctl(oid, 4, buf, &bufsz, 0, 0) == -1) {
+		/*
+		 * If the supplied buf is too short to hold the requested
+		 * value the sysctl returns with ENOMEM. The buf is filled
+		 * with the truncated value and the returned bufsz is equal
+		 * to the requested len.
+		 */
+		if (errno != ENOMEM || bufsz != (size_t)buflen)
+			return (0);
+		buf[bufsz - 1] = '\0';
+		errno = 0;
+	} else if (bufsz == 0) {
+		return (0);
 	}
-	return (NULL);
+	i = 0;
+	p = buf;
+	do {
+		bufp[i++] = p;
+		p += strlen(p) + 1;
+		if (i >= argc) {
+			argc += argc;
+			bufp = realloc(bufp,
+			    sizeof(char *) * argc);
+		}
+	} while (p < buf + bufsz);
+	bufp[i++] = 0;
+	return (bufp);
 }
 
 char **
