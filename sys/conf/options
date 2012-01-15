@@ -902,3 +902,4 @@ RCTL		opt_global.h
 AR71XX_REALMEM    opt_global.h
 AR71XX_ENV_UBOOT	opt_global.h
 AR71XX_ENV_REDBOOT	opt_global.h
+AR71XX_ATH_EEPROM	opt_global.h
