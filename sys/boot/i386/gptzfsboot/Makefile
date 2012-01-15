@@ -17,12 +17,7 @@ ORG1=	0x7c00
 ORG2=	0x0
 
 CFLAGS=	-DBOOTPROG=\"gptzfsboot\" \
-	-Os \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
-	-mrtd \
+	-O1 \
 	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-DGPT -DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \

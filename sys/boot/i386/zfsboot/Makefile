@@ -15,12 +15,7 @@ ORG1=	0x7c00
 ORG2=	0x2000
 
 CFLAGS=	-DBOOTPROG=\"zfsboot\" \
-	-Os -g \
-	-fno-guess-branch-probability \
-	-fomit-frame-pointer \
-	-fno-unit-at-a-time \
-	-mno-align-long-strings \
-	-mrtd \
+	-O1 \
 	-mno-mmx -mno-3dnow -mno-sse -mno-sse2 -mno-sse3 \
 	-DBOOT2 \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
@@ -81,17 +76,10 @@ zfsboot.bin: zfsboot.out
 zfsboot.out: ${BTXCRT} zfsboot.o sio.o drv.o cons.o util.o
 	${LD} ${LDFLAGS} -Ttext ${ORG2} -o ${.TARGET} ${.ALLSRC} ${LIBSTAND}
 
-zfsboot.o: zfsboot.s
-
 SRCS=	zfsboot.c
 
-zfsboot.s: zfsboot.c ${.CURDIR}/../../zfs/zfsimpl.c
-	${CC} ${CFLAGS} -S -o zfsboot.s.tmp ${.CURDIR}/zfsboot.c
-	sed -e '/align/d' -e '/nop/d' < zfsboot.s.tmp > zfsboot.s
-	rm -f zfsboot.s.tmp
-
 .if ${MACHINE_ARCH} == "amd64"
-beforedepend zfsboot.s: machine
+beforedepend zfsboot.o: machine
 CLEANFILES+=	machine
 machine:
 	ln -sf ${.CURDIR}/../../../i386/include machine
