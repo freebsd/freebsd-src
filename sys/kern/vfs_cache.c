@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -1277,4 +1278,77 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
 	CACHE_RUNLOCK();
 	buf[l] = '\0';
 	return (0);
+}
+
+/*
+ * This function updates path string to vnode's full global path
+ * and checks the size of the new path string against the pathlen argument.
+ *
+ * Requires a locked, referenced vnode and GIANT lock held.
+ * Vnode is re-locked on success or ENODEV, otherwise unlocked.
+ *
+ * If sysctl debug.disablefullpath is set, ENODEV is returned,
+ * vnode is left locked and path remain untouched.
+ *
+ * If vp is a directory, the call to vn_fullpath_global() always succeeds
+ * because it falls back to the ".." lookup if the namecache lookup fails
+ */
+int
+vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
+    u_int pathlen)
+{
+	struct nameidata nd;
+	struct vnode *vp1;
+	char *rpath, *fbuf;
+	int error, vfslocked;
+
+	VFS_ASSERT_GIANT(vp->v_mount);
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
+	/* Return ENODEV if sysctl debug.disablefullpath==1 */
+	if (disablefullpath)
+		return (ENODEV);
+
+	/* Construct global filesystem path from vp. */
+	VOP_UNLOCK(vp, 0);
+	error = vn_fullpath_global(td, vp, &rpath, &fbuf);
+
+	if (error != 0) {
+		vrele(vp);
+		return (error);
+	}
+
+	if (strlen(rpath) >= pathlen) {
+		vrele(vp);
+		error = ENAMETOOLONG;
+		goto out;
+	}
+
+	/*
+	 * Re-lookup the vnode by path to detect a possible rename.
+	 * As a side effect, the vnode is relocked.
+	 * If vnode was renamed, return ENOENT.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    UIO_SYSSPACE, path, td);
+	error = namei(&nd);
+	if (error != 0) {
+		vrele(vp);
+		goto out;
+	}
+	vfslocked = NDHASGIANT(&nd);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vp1 = nd.ni_vp;
+	vrele(vp);
+	if (vp1 == vp)
+		strcpy(path, rpath);
+	else {
+		vput(vp1);
+		error = ENOENT;
+	}
+	VFS_UNLOCK_GIANT(vfslocked);
+
+out:
+	free(fbuf, M_TEMP);
+	return (error);
 }
