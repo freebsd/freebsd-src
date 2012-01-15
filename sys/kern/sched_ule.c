@@ -62,6 +62,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/vmmeter.h>
 #include <sys/cpuset.h>
 #include <sys/sbuf.h>
+#ifdef KTRACE
+#include <sys/uio.h>
+#include <sys/ktrace.h>
+#endif
 
 #ifdef HWPMC_HOOKS
 #include <sys/pmckern.h>
@@ -76,7 +80,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 #include <machine/cpu.h>
 #include <machine/smp.h>
 
-#if defined(__powerpc__) && defined(E500)
+#if defined(__sparc64__)
 #error "This architecture is not currently compatible with ULE"
 #endif
 
@@ -84,7 +88,7 @@ dtrace_vtime_switch_func_t	dtrace_vtime_switch_func;
 
 #define	TS_NAME_LEN (MAXCOMLEN + sizeof(" td ") + sizeof(__XSTRING(UINT_MAX)))
 #define	TDQ_NAME_LEN	(sizeof("sched lock ") + sizeof(__XSTRING(MAXCPU)))
-#define	TDQ_LOADNAME_LEN	(sizeof("CPU ") + sizeof(__XSTRING(MAXCPU)) - 1 + sizeof(" load"))
+#define	TDQ_LOADNAME_LEN	(PCPU_NAME_LEN + sizeof(" load"))
 
 /*
  * Thread scheduler specific section.  All fields are protected
@@ -118,17 +122,11 @@ static struct td_sched td_sched0;
 
 /*
  * Priority ranges used for interactive and non-interactive timeshare
- * threads.  The timeshare priorities are split up into four ranges.
- * The first range handles interactive threads.  The last three ranges
- * (NHALF, x, and NHALF) handle non-interactive threads with the outer
- * ranges supporting nice values.
+ * threads.  Interactive threads use realtime priorities.
  */
-#define	PRI_TIMESHARE_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
-#define	PRI_INTERACT_RANGE	((PRI_TIMESHARE_RANGE - SCHED_PRI_NRESV) / 2)
-
-#define	PRI_MIN_INTERACT	PRI_MIN_TIMESHARE
-#define	PRI_MAX_INTERACT	(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE - 1)
-#define	PRI_MIN_BATCH		(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE)
+#define	PRI_MIN_INTERACT	PRI_MIN_REALTIME
+#define	PRI_MAX_INTERACT	PRI_MAX_REALTIME
+#define	PRI_MIN_BATCH		PRI_MIN_TIMESHARE
 #define	PRI_MAX_BATCH		PRI_MAX_TIMESHARE
 
 /*
@@ -211,7 +209,7 @@ static int preempt_thresh = 0;
 #endif
 static int static_boost = PRI_MIN_BATCH;
 static int sched_idlespins = 10000;
-static int sched_idlespinthresh = 16;
+static int sched_idlespinthresh = 4;
 
 /*
  * tdq - per processor runqs and statistics.  All fields are protected by the
@@ -223,7 +221,6 @@ struct tdq {
 	struct mtx	tdq_lock;		/* run queue lock. */
 	struct cpu_group *tdq_cg;		/* Pointer to cpu topology. */
 	volatile int	tdq_load;		/* Aggregate load. */
-	volatile int	tdq_cpu_idle;		/* cpu_idle() is active. */
 	int		tdq_sysload;		/* For loadavg, !ITHD load. */
 	int		tdq_transferable;	/* Transferable thread count. */
 	short		tdq_switchcnt;		/* Switches this tick. */
@@ -564,7 +561,7 @@ struct cpu_search {
 
 #define	CPUSET_FOREACH(cpu, mask)				\
 	for ((cpu) = 0; (cpu) <= mp_maxid; (cpu)++)		\
-		if (CPU_ISSET(cpu, &mask))
+		if ((mask) & 1 << (cpu))
 
 static __inline int cpu_search(struct cpu_group *cg, struct cpu_search *low,
     struct cpu_search *high, const int match);
@@ -839,7 +836,6 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 	int low_load;
 	int moved;
 	int move;
-	int cpu;
 	int diff;
 	int i;
 
@@ -861,14 +857,10 @@ sched_balance_pair(struct tdq *high, struct tdq *low)
 		for (i = 0; i < move; i++)
 			moved += tdq_move(high, low);
 		/*
-		 * In case the target isn't the current cpu IPI it to force a
-		 * reschedule with the new workload.
+		 * IPI the target cpu to force it to reschedule with the new
+		 * workload.
 		 */
-		cpu = TDQ_ID(low);
-		sched_pin();
-		if (cpu != PCPU_GET(cpuid))
-			ipi_cpu(cpu, IPI_PREEMPT);
-		sched_unpin();
+		ipi_cpu(TDQ_ID(low), IPI_PREEMPT);
 	}
 	tdq_unlock_pair(high, low);
 	return (moved);
@@ -987,7 +979,7 @@ tdq_notify(struct tdq *tdq, struct thread *td)
 		 * If the MD code has an idle wakeup routine try that before
 		 * falling back to IPI.
 		 */
-		if (!tdq->tdq_cpu_idle || cpu_idle_wakeup(cpu))
+		if (cpu_idle_wakeup(cpu))
 			return;
 	}
 	tdq->tdq_ipipending = 1;
@@ -1434,7 +1426,8 @@ sched_priority(struct thread *td)
 	} else {
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
-			pri += SCHED_PRI_TICKS(td->td_sched);
+			pri += min(SCHED_PRI_TICKS(td->td_sched),
+			    SCHED_PRI_RANGE);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
@@ -1695,24 +1688,39 @@ sched_prio(struct thread *td, u_char prio)
 void
 sched_user_prio(struct thread *td, u_char prio)
 {
+	u_char oldprio;
 
 	td->td_base_user_pri = prio;
-	if (td->td_lend_user_pri <= prio)
-		return;
+	if (td->td_flags & TDF_UBORROWING && td->td_user_pri <= prio)
+                return;
+	oldprio = td->td_user_pri;
 	td->td_user_pri = prio;
 }
 
 void
 sched_lend_user_prio(struct thread *td, u_char prio)
 {
+	u_char oldprio;
 
 	THREAD_LOCK_ASSERT(td, MA_OWNED);
-	td->td_lend_user_pri = prio;
-	td->td_user_pri = min(prio, td->td_base_user_pri);
-	if (td->td_priority > td->td_user_pri)
-		sched_prio(td, td->td_user_pri);
-	else if (td->td_priority != td->td_user_pri)
-		td->td_flags |= TDF_NEEDRESCHED;
+	td->td_flags |= TDF_UBORROWING;
+	oldprio = td->td_user_pri;
+	td->td_user_pri = prio;
+}
+
+void
+sched_unlend_user_prio(struct thread *td, u_char prio)
+{
+	u_char base_pri;
+
+	THREAD_LOCK_ASSERT(td, MA_OWNED);
+	base_pri = td->td_base_user_pri;
+	if (prio >= base_pri) {
+		td->td_flags &= ~TDF_UBORROWING;
+		sched_user_prio(td, base_pri);
+	} else {
+		sched_lend_user_prio(td, prio);
+	}
 }
 
 /*
@@ -1905,8 +1913,6 @@ sched_sleep(struct thread *td, int prio)
 	td->td_slptick = ticks;
 	if (TD_IS_SUSPENDED(td) || prio >= PSOCK)
 		td->td_flags |= TDF_CANSWAP;
-	if (PRI_BASE(td->td_pri_class) != PRI_TIMESHARE)
-		return;
 	if (static_boost == 1 && prio)
 		sched_prio(td, prio);
 	else if (static_boost && td->td_priority > static_boost)
@@ -2173,7 +2179,7 @@ sched_clock(struct thread *td)
  * is easier than trying to scale based on stathz.
  */
 void
-sched_tick(int cnt)
+sched_tick(void)
 {
 	struct td_sched *ts;
 
@@ -2185,7 +2191,7 @@ sched_tick(int cnt)
 	if (ts->ts_incrtick == ticks)
 		return;
 	/* Adjust ticks for pctcpu */
-	ts->ts_ticks += cnt << SCHED_TICK_SHIFT;
+	ts->ts_ticks += 1 << SCHED_TICK_SHIFT;
 	ts->ts_ltick = ticks;
 	ts->ts_incrtick = ticks;
 	/*
@@ -2556,14 +2562,8 @@ sched_idletd(void *dummy)
 			}
 		}
 		switchcnt = tdq->tdq_switchcnt + tdq->tdq_oldswitchcnt;
-		if (tdq->tdq_load == 0) {
-			tdq->tdq_cpu_idle = 1;
-			if (tdq->tdq_load == 0) {
-				cpu_idle(switchcnt > sched_idlespinthresh * 4);
-				tdq->tdq_switchcnt++;
-			}
-			tdq->tdq_cpu_idle = 0;
-		}
+		if (tdq->tdq_load == 0)
+			cpu_idle(switchcnt > 1);
 		if (tdq->tdq_load) {
 			thread_lock(td);
 			mi_switch(SW_VOL | SWT_IDLE, NULL);
@@ -2586,6 +2586,8 @@ sched_throw(struct thread *td)
 		/* Correct spinlock nesting and acquire the correct lock. */
 		TDQ_LOCK(tdq);
 		spinlock_exit();
+		PCPU_SET(switchtime, cpu_ticks());
+		PCPU_SET(switchticks, ticks);
 	} else {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
@@ -2594,8 +2596,6 @@ sched_throw(struct thread *td)
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
 	TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
 	cpu_throw(td, newtd);		/* doesn't return */
 }
 
@@ -2655,16 +2655,15 @@ static int
 sysctl_kern_sched_topology_spec_internal(struct sbuf *sb, struct cpu_group *cg,
     int indent)
 {
-	char cpusetbuf[CPUSETBUFSIZ];
 	int i, first;
 
 	sbuf_printf(sb, "%*s<group level=\"%d\" cache-level=\"%d\">\n", indent,
 	    "", 1 + indent / 2, cg->cg_level);
-	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"%s\">", indent, "",
-	    cg->cg_count, cpusetobj_strprint(cpusetbuf, &cg->cg_mask));
+	sbuf_printf(sb, "%*s <cpu count=\"%d\" mask=\"0x%x\">", indent, "",
+	    cg->cg_count, cg->cg_mask);
 	first = TRUE;
 	for (i = 0; i < MAXCPU; i++) {
-		if (CPU_ISSET(i, &cg->cg_mask)) {
+		if ((cg->cg_mask & (1 << i)) != 0) {
 			if (!first)
 				sbuf_printf(sb, ", ");
 			else
@@ -2723,7 +2722,6 @@ sysctl_kern_sched_topology_spec(SYSCTL_HANDLER_ARGS)
 	sbuf_delete(topo);
 	return (err);
 }
-
 #endif
 
 SYSCTL_NODE(_kern, OID_AUTO, sched, CTLFLAG_RW, 0, "Scheduler");
@@ -2760,7 +2758,6 @@ SYSCTL_INT(_kern_sched, OID_AUTO, steal_thresh, CTLFLAG_RW, &steal_thresh, 0,
 SYSCTL_PROC(_kern_sched, OID_AUTO, topology_spec, CTLTYPE_STRING |
     CTLFLAG_RD, NULL, 0, sysctl_kern_sched_topology_spec, "A", 
     "XML dump of detected CPU topology");
-
 #endif
 
 /* ps compat.  All cpu percentages from ULE are weighted. */
