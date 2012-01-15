@@ -19,6 +19,4 @@
 #ifndef	__AR9130_EEPROM_H__
 #define	__AR9130_EEPROM_H__
 
-extern	HAL_BOOL ar9130EepromRead(struct ath_hal *ah, u_int off, uint16_t *data);
-
 #endif
