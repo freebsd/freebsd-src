@@ -242,6 +242,27 @@ boot</screen>
       <filename>/boot/loader.conf</filename>:</para>
 
     <programlisting>debug.acpi.disabled="hostres"</programlisting>
+
+    <para>A &man.devctl.4; event upon arrival of a &man.ugen.4; device
+      has been changed.  The event now includes
+      <literal>ugen</literal> and <literal>cdev</literal> variables
+      instead of <literal>device-name</literal>.  This change can
+      prevent the following &man.devd.8; rule which worked in a
+      previous releases from working:</para>
+
+    <programlisting>attach 0 {
+	match "device-name" "ugen[0-9]+.[0-9]+";
+	action "/path/to/script /dev/$device-name";
+}</programlisting>
+
+    <para>This should be updated to the following:</para>
+
+    <programlisting>attach 0 {
+	match "subsystem" "DEVICE";
+	match "type" "ATTACH";
+	match "cdev" "ugen[0-9]+.[0-9]+";
+	action "/path/to/script /dev/$cdev";
+}</programlisting>
   </sect1>
 
   <sect1 id="late-news">
