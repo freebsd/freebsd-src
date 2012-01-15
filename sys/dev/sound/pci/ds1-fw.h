@@ -822,9 +822,9 @@ static u_int32_t	CntrlInst[] = {
 	1999/06/21
 	Buf441 slot is Enabled.
    --------------------------------------------
-   04/09Å@creat
+   04/09  @creat
    04/12  stop nise fix
-   06/21Å@WorkingOff timming
+   06/21  @WorkingOff timming
 */
 
 static u_int32_t	CntrlInst1E[] = {
