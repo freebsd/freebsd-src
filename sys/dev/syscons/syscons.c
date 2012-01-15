@@ -172,6 +172,7 @@ static scr_stat *sc_get_stat(struct tty *tp);
 static void scterm(int unit, int flags);
 static void scshutdown(void *arg, int howto);
 static u_int scgetc(sc_softc_t *sc, u_int flags);
+static void sc_puts(scr_stat *scp, u_char *buf, int len, int kernel);
 #define SCGETC_CN	1
 #define SCGETC_NONBLOCK	2
 static void sccnupdate(scr_stat *scp);
@@ -2553,7 +2554,7 @@ exchange_scr(sc_softc_t *sc)
     mark_all(scp);
 }
 
-void
+static void
 sc_puts(scr_stat *scp, u_char *buf, int len, int kernel)
 {
     int need_unlock = 0;
