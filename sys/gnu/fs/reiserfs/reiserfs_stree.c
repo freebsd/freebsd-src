@@ -2,7 +2,7 @@
  * Copyright 2000 Hans Reiser
  * See README for licensing and copyright details
  * 
- * Ported to FreeBSD by Jean-Sébastien Pédron <jspedron@club-internet.fr>
+ * Ported to FreeBSD by Jean-SÃ©bastien PÃ©dron <jspedron@club-internet.fr>
  * 
  * $FreeBSD$
  */
@@ -321,7 +321,7 @@ key_in_buffer(
 }
 
 #if 0
-/* XXX Il ne semble pas y avoir de compteur de référence dans struct buf */
+/* XXX Il ne semble pas y avoir de compteur de rÃ©fÃ©rence dans struct buf */
 inline void
 decrement_bcount(struct buf *p_s_bp)
 {
