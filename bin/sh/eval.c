@@ -378,7 +378,6 @@ evalcase(union node *n, int flags)
 	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
 	oexitstatus = exitstatus;
-	exitstatus = 0;
 	expandarg(n->ncase.expr, &arglist, EXP_TILDE);
 	for (cp = n->ncase.cases ; cp ; cp = cp->nclist.next) {
 		for (patp = cp->nclist.pattern ; patp ; patp = patp->narg.next) {
@@ -392,11 +391,14 @@ evalcase(union node *n, int flags)
 						return (NULL);
 					cp = cp->nclist.next;
 				}
+				if (cp->nclist.body == NULL)
+					exitstatus = 0;
 				return (cp->nclist.body);
 			}
 		}
 	}
 	popstackmark(&smark);
+	exitstatus = 0;
 	return (NULL);
 }
 
