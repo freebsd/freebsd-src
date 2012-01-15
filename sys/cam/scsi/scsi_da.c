@@ -1148,6 +1148,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*sense_len*/SSD_FULL_SIZE,
 				DA_DEFAULT_TIMEOUT * 1000);		
 		xpt_polled_action((union ccb *)&csio);
+		cam_periph_unlock(periph);
 
 		if ((csio.ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP) {
 			printf("Aborting dump due to I/O error.\n");
@@ -1159,7 +1160,6 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				       csio.ccb_h.status, csio.scsi_status);
 			return(EIO);
 		}
-		cam_periph_unlock(periph);
 		return(0);
 	}
 		
