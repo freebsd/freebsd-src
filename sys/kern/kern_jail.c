@@ -881,6 +881,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	fullpath_disabled = 0;
 	root = NULL;
 	error = vfs_getopt(opts, "path", (void **)&path, &len);
 	if (error == ENOENT)

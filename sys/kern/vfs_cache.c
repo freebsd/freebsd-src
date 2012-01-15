@@ -1291,7 +1291,7 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
  * vnode is left locked and path remain untouched.
  *
  * If vp is a directory, the call to vn_fullpath_global() always succeeds
- * because it falls back to the ".." lookup if the namecache lookup fails
+ * because it falls back to the ".." lookup if the namecache lookup fails.
  */
 int
 vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
