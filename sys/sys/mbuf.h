@@ -436,7 +436,7 @@ m_gettype(int size)
 		type = EXT_JUMBO16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster size", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (type);
@@ -463,7 +463,7 @@ m_getzone(int size)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (zone);
@@ -663,7 +663,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("unknown cluster type");
+		panic("%s: unknown cluster type", __func__);
 		break;
 	}
 
