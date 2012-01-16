@@ -58,8 +58,8 @@ substitute a result value.  If traps are not implemented, this routine
 should be simply `float_exception_flags |= flags;'.
 -------------------------------------------------------------------------------
 */
-fp_except float_exception_mask = 0;
-void float_raise( fp_except flags )
+int float_exception_mask = 0;
+void float_raise( int flags )
 {
 
     float_exception_flags |= flags;
