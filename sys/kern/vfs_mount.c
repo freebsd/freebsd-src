@@ -1085,11 +1085,14 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
-		    optlist);
-	} else {
+		error = vn_path_to_global_path(td, vp, fspath, MNAMELEN);
+		/* debug.disablefullpath == 1 results in ENODEV */
+		if (error == 0 || error == ENODEV) {
+			error = vfs_domount_first(td, vfsp, fspath, vp,
+			    fsflags, optlist);
+		}
+	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
-	}
 	mtx_unlock(&Giant);
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
@@ -1119,9 +1122,10 @@ sys_unmount(td, uap)
 		int flags;
 	} */ *uap;
 {
+	struct nameidata nd;
 	struct mount *mp;
 	char *pathbuf;
-	int error, id0, id1;
+	int error, id0, id1, vfslocked;
 
 	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1155,6 +1159,21 @@ sys_unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		AUDIT_ARG_UPATH1(td, pathbuf);
+		/*
+		 * Try to find global path for path argument.
+		 */
+		NDINIT(&nd, LOOKUP,
+		    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+		    UIO_SYSSPACE, pathbuf, td);
+		if (namei(&nd) == 0) {
+			vfslocked = NDHASGIANT(&nd);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			error = vn_path_to_global_path(td, nd.ni_vp, pathbuf,
+			    MNAMELEN);
+			if (error == 0 || error == ENODEV)
+				vput(nd.ni_vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)

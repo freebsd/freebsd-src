@@ -36,7 +36,7 @@ ATH_RATE?=	sample		# tx rate control algorithm
 
 KMOD=	if_ath
 SRCS=	if_ath.c if_ath_debug.c if_ath_keycache.c if_ath_sysctl.c
-SRCS+=	if_ath_tx.c if_ath_tx_ht.c
+SRCS+=	if_ath_tx.c if_ath_tx_ht.c if_ath_led.c
 # NB: v3 eeprom support used by both AR5211 and AR5212; just include it
 SRCS+=	ah_osdep.c ah.c ah_regdomain.c ah_eeprom_v3.c
 SRCS+=	device_if.h bus_if.h pci_if.h opt_inet.h opt_ath.h opt_ah.h opt_wlan.h
@@ -140,7 +140,12 @@ SRCS+=	dfs_null.c
 
 CFLAGS+=  -I. -I${.CURDIR}/../../dev/ath -I${.CURDIR}/../../dev/ath/ath_hal
 
+.if !defined(KERNBUILDDIR)
 opt_ah.h:
 	echo '#define AH_SUPPORT_AR5416 1' > $@
+.endif
 
 .include <bsd.kmod.mk>
+
+CWARNFLAGS.ah_regdomain.c=	${NO_WSHIFT_COUNT_NEGATIVE} ${NO_WSHIFT_COUNT_OVERFLOW}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

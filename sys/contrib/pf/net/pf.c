@@ -47,23 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
-
-#ifdef DEV_PFLOG
-#define	NPFLOG		DEV_PFLOG
-#else
-#define	NPFLOG		0
-#endif
-
-#ifdef DEV_PFSYNC
-#define	NPFSYNC		DEV_PFSYNC
-#else
-#define	NPFSYNC		0
-#endif
+#define	NPFSYNC		1
 
 #ifdef DEV_PFLOW
 #define	NPFLOW		DEV_PFLOW
@@ -3770,8 +3754,8 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 		 * replies through it.
 		 */
 #ifdef __FreeBSD__
-		if (pfsync_defer_ptr != NULL)
-			pfsync_defer_ptr(*sm, m);
+		if (pfsync_defer_ptr != NULL &&
+			pfsync_defer_ptr(*sm, m))
 #else
 		if (pfsync_defer(*sm, m))
 #endif

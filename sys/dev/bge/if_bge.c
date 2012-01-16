@@ -493,16 +493,12 @@ static device_method_t bge_methods[] = {
 	DEVMETHOD(device_suspend,	bge_suspend),
 	DEVMETHOD(device_resume,	bge_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bge_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bge_driver = {
@@ -2084,9 +2080,15 @@ bge_blockinit(struct bge_softc *sc)
 			val |= BGE_RDMAMODE_TSO6_ENABLE;
 	}
 
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5720)
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
 		val |= CSR_READ_4(sc, BGE_RDMA_MODE) &
 			BGE_RDMAMODE_H2BNC_VLAN_DET;
+		/*
+		 * Allow multiple outstanding read requests from
+		 * non-LSO read DMA engine.
+		 */
+		val &= ~BGE_RDMAMODE_MULT_DMA_RD_DIS;
+	}
 
 	if (sc->bge_asicrev == BGE_ASICREV_BCM5761 ||
 	    sc->bge_asicrev == BGE_ASICREV_BCM5784 ||
@@ -2116,11 +2118,19 @@ bge_blockinit(struct bge_softc *sc)
 		    BGE_RDMA_RSRVCTRL_FIFO_OFLW_FIX);
 	}
 
-	if (sc->bge_asicrev == BGE_ASICREV_BCM5719 ||
-	    sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+	if (sc->bge_asicrev == BGE_ASICREV_BCM5719) {
 		CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL,
 		    CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL) |
 		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_4K |
+		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_LSO_4K);
+	} else if (sc->bge_asicrev == BGE_ASICREV_BCM5720) {
+		/*
+		 * Allow 4KB burst length reads for non-LSO frames.
+		 * Enable 512B burst length reads for buffer descriptors.
+		 */
+		CSR_WRITE_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL,
+		    CSR_READ_4(sc, BGE_RDMA_LSO_CRPTEN_CTRL) |
+		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_512 |
 		    BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_LSO_4K);
 	}
 
@@ -2348,6 +2358,8 @@ bge_dma_free(struct bge_softc *sc)
 
 	if (sc->bge_cdata.bge_rx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_rx_mtag);
+	if (sc->bge_cdata.bge_mtag_jumbo)
+		bus_dma_tag_destroy(sc->bge_cdata.bge_mtag_jumbo);
 	if (sc->bge_cdata.bge_tx_mtag)
 		bus_dma_tag_destroy(sc->bge_cdata.bge_tx_mtag);
 

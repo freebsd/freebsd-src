@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -424,7 +424,15 @@ AcpiDsGetRegionArguments (
 
     /* Execute the argument AML */
 
-    Status = AcpiDsExecuteArguments (Node, Node->Parent,
+    Status = AcpiDsExecuteArguments (Node, ExtraDesc->Extra.ScopeNode,
                 ExtraDesc->Extra.AmlLength, ExtraDesc->Extra.AmlStart);
+    if (ACPI_FAILURE (Status))
+    {
+        return_ACPI_STATUS (Status);
+    }
+
+    Status = AcpiUtAddAddressRange (ObjDesc->Region.SpaceId,
+                 ObjDesc->Region.Address, ObjDesc->Region.Length,
+                 Node);
     return_ACPI_STATUS (Status);
 }

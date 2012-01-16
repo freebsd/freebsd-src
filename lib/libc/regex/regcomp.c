@@ -3,8 +3,18 @@
  * Copyright (c) 1992, 1993, 1994
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * This code is derived from software contributed to Berkeley by
  * Henry Spencer.
+ *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -730,6 +740,8 @@ p_b_term(struct parse *p, cset *cs)
 	char c;
 	wint_t start, finish;
 	wint_t i;
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)__get_locale()->components[XLC_COLLATE];
 
 	/* classify what we've got */
 	switch ((MORE()) ? PEEK() : '\0') {
@@ -778,14 +790,14 @@ p_b_term(struct parse *p, cset *cs)
 		if (start == finish)
 			CHadd(p, cs, start);
 		else {
-			if (__collate_load_error) {
+			if (table->__collate_load_error) {
 				(void)REQUIRE((uch)start <= (uch)finish, REG_ERANGE);
 				CHaddrange(p, cs, start, finish);
 			} else {
-				(void)REQUIRE(__collate_range_cmp(start, finish) <= 0, REG_ERANGE);
+				(void)REQUIRE(__collate_range_cmp(table, start, finish) <= 0, REG_ERANGE);
 				for (i = 0; i <= UCHAR_MAX; i++) {
-					if (   __collate_range_cmp(start, i) <= 0
-					    && __collate_range_cmp(i, finish) <= 0
+					if (   __collate_range_cmp(table, start, i) <= 0
+					    && __collate_range_cmp(table, i, finish) <= 0
 					   )
 						CHadd(p, cs, i);
 				}

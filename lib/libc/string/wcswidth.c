@@ -10,6 +10,11 @@
  * This code is derived from software contributed to Berkeley by
  * Paul Borman at Krystal Technologies.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -39,19 +44,26 @@
 __FBSDID("$FreeBSD$");
 
 #include <wchar.h>
+#include "xlocale_private.h"
 
 int
-wcswidth(const wchar_t *pwcs, size_t n)
+wcswidth_l(const wchar_t *pwcs, size_t n, locale_t locale)
 {
 	wchar_t wc;
 	int len, l;
+	FIX_LOCALE(locale);
 
 	len = 0;
 	while (n-- > 0 && (wc = *pwcs++) != L'\0') {
-		if ((l = wcwidth(wc)) < 0)
+		if ((l = wcwidth_l(wc, locale)) < 0)
 			return (-1);
 		len += l;
 	}
 	return (len);
 }
 
+int
+wcswidth(const wchar_t *pwcs, size_t n)
+{
+	return wcswidth_l(pwcs, n, __get_locale());
+}

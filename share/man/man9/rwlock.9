@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd April 1, 2008
+.Dd November 16, 2011
 .Dt RWLOCK 9
 .Os
 .Sh NAME
@@ -78,14 +78,14 @@
 .Ft int
 .Fn rw_sleep "void *chan" "struct rwlock *rw" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn rw_initialized "struct rwlock *rw"
+.Fn rw_initialized "const struct rwlock *rw"
 .Ft int
-.Fn rw_wowned "struct rwlock *rw"
+.Fn rw_wowned "const struct rwlock *rw"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
 .Ft void
-.Fn rw_assert "struct rwlock *rw" "int what"
+.Fn rw_assert "const struct rwlock *rw" "int what"
 .In sys/kernel.h
 .Fn RW_SYSINIT "name" "struct rwlock *rw" "const char *desc"
 .Sh DESCRIPTION
@@ -231,7 +231,7 @@ while waiting for an event.
 For more details on the parameters to this function,
 see
 .Xr sleep 9 .
-.It Fn rw_initialized "struct rwlock *rw"
+.It Fn rw_initialized "const struct rwlock *rw"
 This function returns non-zero if
 .Fa rw
 has been initialized, and zero otherwise.
@@ -241,11 +241,11 @@ This functions destroys a lock previously initialized with
 The
 .Fa rw
 lock must be unlocked.
-.It Fn rw_wowned "struct rwlock *rw"
+.It Fn rw_wowned "const struct rwlock *rw"
 This function returns a non-zero value if the current thread owns an
 exclusive lock on
 .Fa rw .
-.It Fn rw_assert "struct rwlock *rw" "int what"
+.It Fn rw_assert "const struct rwlock *rw" "int what"
 This function allows assertions specified in
 .Fa what
 to be made about

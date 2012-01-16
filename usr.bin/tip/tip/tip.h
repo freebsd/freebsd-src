@@ -99,7 +99,7 @@ typedef
 		char	*v_name;	/* whose name is it */
 		char	v_type;		/* for interpreting set's */
 		char	v_access;	/* protection of touchy ones */
-		char	*v_abrev;	/* possible abreviation */
+		char	*v_abrev;	/* possible abbreviation */
 		char	*v_value;	/* casted to a union later */
 	}
 	value_t;
@@ -162,7 +162,7 @@ typedef
 /*
  * Escape command table definitions --
  *   lookup in this table is performed when ``escapec'' is recognized
- *   at the begining of a line (as defined by the eolmarks variable).
+ *   at the beginning of a line (as defined by the eolmarks variable).
 */
 
 typedef

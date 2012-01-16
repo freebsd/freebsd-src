@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -334,7 +334,7 @@ AcpiExRegionRead (
 
     for (i = 0; i < Length; i++)
     {
-        Status = AcpiEvAddressSpaceDispatch (ObjDesc, ACPI_READ,
+        Status = AcpiEvAddressSpaceDispatch (ObjDesc, NULL, ACPI_READ,
                     RegionOffset, 8, &Value);
         if (ACPI_FAILURE (Status))
         {

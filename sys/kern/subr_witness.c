@@ -332,7 +332,7 @@ static void	depart(struct witness *w);
 static struct witness	*enroll(const char *description,
 			    struct lock_class *lock_class);
 static struct lock_instance	*find_instance(struct lock_list_entry *list,
-				    struct lock_object *lock);
+				    const struct lock_object *lock);
 static int	isitmychild(struct witness *parent, struct witness *child);
 static int	isitmydescendant(struct witness *parent, struct witness *child);
 static void	itismychild(struct witness *parent, struct witness *child);
@@ -520,7 +520,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in_multi_mtx", &lock_class_mtx_sleep },
 	{ "igmp_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * IPv6 multicast:
@@ -529,7 +529,7 @@ static struct witness_order_list_entry order_lists[] = {
 	{ "udpinp", &lock_class_rw },
 	{ "in6_multi_mtx", &lock_class_mtx_sleep },
 	{ "mld_mtx", &lock_class_mtx_sleep },
-	{ "if_addr_mtx", &lock_class_mtx_sleep },
+	{ "if_addr_lock", &lock_class_rw },
 	{ NULL, NULL },
 	/*
 	 * UNIX Domain Sockets
@@ -2063,7 +2063,7 @@ witness_lock_list_free(struct lock_list_entry *lle)
 }
 
 static struct lock_instance *
-find_instance(struct lock_list_entry *list, struct lock_object *lock)
+find_instance(struct lock_list_entry *list, const struct lock_object *lock)
 {
 	struct lock_list_entry *lle;
 	struct lock_instance *instance;
@@ -2162,6 +2162,13 @@ witness_save(struct lock_object *lock, const char **filep, int *linep)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
+	/*
+	 * This function is used independently in locking code to deal with
+	 * Giant, SCHEDULER_STOPPED() check can be removed here after Giant
+	 * is gone.
+	 */
+	if (SCHEDULER_STOPPED())
+		return;
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == -1 || panicstr != NULL)
 		return;
@@ -2188,6 +2195,13 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 	struct lock_instance *instance;
 	struct lock_class *class;
 
+	/*
+	 * This function is used independently in locking code to deal with
+	 * Giant, SCHEDULER_STOPPED() check can be removed here after Giant
+	 * is gone.
+	 */
+	if (SCHEDULER_STOPPED())
+		return;
 	KASSERT(witness_cold == 0, ("%s: witness_cold", __func__));
 	if (lock->lo_witness == NULL || witness_watch == -1 || panicstr != NULL)
 		return;
@@ -2210,7 +2224,8 @@ witness_restore(struct lock_object *lock, const char *file, int line)
 }
 
 void
-witness_assert(struct lock_object *lock, int flags, const char *file, int line)
+witness_assert(const struct lock_object *lock, int flags, const char *file,
+    int line)
 {
 #ifdef INVARIANT_SUPPORT
 	struct lock_instance *instance;

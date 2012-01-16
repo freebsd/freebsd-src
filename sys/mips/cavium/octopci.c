@@ -962,7 +962,6 @@ static device_method_t octopci_methods[] = {
 
 	/* Bus interface */
 	DEVMETHOD(bus_read_ivar,	octopci_read_ivar),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	octopci_alloc_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_release_resource),
 	DEVMETHOD(bus_activate_resource,octopci_activate_resource),
@@ -978,7 +977,7 @@ static device_method_t octopci_methods[] = {
 	DEVMETHOD(pcib_write_config,	octopci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	octopci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t octopci_driver = {

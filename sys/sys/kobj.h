@@ -201,6 +201,7 @@ kobj_t		kobj_create(kobj_class_t cls,
  * Initialise a pre-allocated object.
  */
 void		kobj_init(kobj_t obj, kobj_class_t cls);
+void		kobj_init_static(kobj_t obj, kobj_class_t cls);
 
 /*
  * Delete an object. If mtype is non-zero, free the memory.

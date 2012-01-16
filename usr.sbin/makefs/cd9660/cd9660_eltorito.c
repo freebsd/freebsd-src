@@ -589,7 +589,7 @@ cd9660_write_boot(FILE *fd)
 			    e->entry_type);
 		}
 		/*
-		 * It doesnt matter which one gets written
+		 * It doesn't matter which one gets written
 		 * since they are the same size
 		 */
 		fwrite(&(e->entry_data.VE), 1, 32, fd);

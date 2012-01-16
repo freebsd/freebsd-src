@@ -261,7 +261,7 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 	} else if (vp->v_type == VDIR) {
 		if (dd == dmp->dm_rootdir) {
 			*dvp = vp;
-			vhold(*dvp);
+			vref(*dvp);
 			goto finished;
 		}
 		i -= dd->de_dirent->d_namlen;
@@ -289,6 +289,8 @@ devfs_vptocnp(struct vop_vptocnp_args *ap)
 		mtx_unlock(&devfs_de_interlock);
 		vholdl(*dvp);
 		VI_UNLOCK(*dvp);
+		vref(*dvp);
+		vdrop(*dvp);
 	} else {
 		mtx_unlock(&devfs_de_interlock);
 		error = ENOENT;
@@ -600,10 +602,14 @@ devfs_close_f(struct file *fp, struct thread *td)
 	int error;
 	struct file *fpop;
 
-	fpop = td->td_fpop;
-	td->td_fpop = fp;
+	/*
+	 * NB: td may be NULL if this descriptor is closed due to
+	 * garbage collection from a closed UNIX domain socket.
+	 */
+	fpop = curthread->td_fpop;
+	curthread->td_fpop = fp;
 	error = vnops.fo_close(fp, td);
-	td->td_fpop = fpop;
+	curthread->td_fpop = fpop;
 
 	/*
 	 * The f_cdevpriv cannot be assigned non-NULL value while we

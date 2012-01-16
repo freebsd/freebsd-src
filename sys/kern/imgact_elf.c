@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2000 David O'Brien
- * Copyright (c) 1995-1996 Søren Schmidt
+ * Copyright (c) 1995-1996 SÃ¸ren Schmidt
  * Copyright (c) 1996 Peter Wemm
  * All rights reserved.
  *

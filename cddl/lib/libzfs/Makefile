@@ -20,8 +20,8 @@ SRCS+=	libzfs_changelist.c \
 	libzfs_config.c \
 	libzfs_dataset.c \
 	libzfs_diff.c \
-	libzfs_graph.c \
 	libzfs_import.c \
+	libzfs_iter.c \
 	libzfs_mount.c \
 	libzfs_pool.c \
 	libzfs_sendrecv.c \

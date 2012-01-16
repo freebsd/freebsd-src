@@ -27,5 +27,4 @@ DPADD=	${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBPTHREAD} ${LIBUMEM} \
 	${LIBUUTIL} ${LIBZFS} ${LIBZPOOL}
 LDADD=	-lgeom -lm -lnvpair -lpthread -lumem -luutil -lzfs -lzpool
 
-
 .include <bsd.prog.mk>

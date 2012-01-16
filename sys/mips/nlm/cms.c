@@ -75,8 +75,8 @@ __FBSDID("$FreeBSD$");
  * load
  */
 struct msgring_thread {
-	struct thread	*thread; /* msgring handler threads */
-	int	needed;		/* thread needs to wake up */
+	struct thread	*thread;	/* msgring handler threads */
+	int	needed;			/* thread needs to wake up */
 };
 static struct msgring_thread msgring_threads[XLP_MAX_CORES * XLP_MAX_THREADS];
 static struct proc *msgring_proc;	/* all threads are under a proc */
@@ -91,142 +91,80 @@ struct tx_stn_handler {
 };
 static struct tx_stn_handler msgmap[MSGRNG_NSTATIONS];
 static struct mtx	msgmap_lock;
-uint64_t xlp_cms_base;
 uint32_t xlp_msg_thread_mask;
-static int xlp_msg_threads_per_core = 3; /* Make tunable */
+static int xlp_msg_threads_per_core = 3;
 
 static void create_msgring_thread(int hwtid);
 static int msgring_process_fast_intr(void *arg);
-/*
- * Boot time init, called only once
+
+/* Debug counters */
+static int msgring_nintr[XLP_MAX_CORES * XLP_MAX_THREADS];
+static int msgring_wakeup_sleep[XLP_MAX_CORES * XLP_MAX_THREADS];
+static int msgring_wakeup_nosleep[XLP_MAX_CORES * XLP_MAX_THREADS];
+static int fmn_msgcount[XLP_MAX_CORES * XLP_MAX_THREADS][4];
+static int fmn_loops[XLP_MAX_CORES * XLP_MAX_THREADS];
+
+/* Whether polled driver implementation */
+static int polled = 1;
+
+/* We do only i/o device credit setup here. CPU credit setup is now
+ * moved to xlp_msgring_cpu_init() so that the credits get setup 
+ * only if the CPU exists. xlp_msgring_cpu_init() gets called from
+ * platform_init_ap; and this makes it easy for us to setup CMS
+ * credits for various types of XLP chips, with varying number of
+ * cpu's and cores.
  */
-void
-xlp_msgring_config(void)
+static void
+xlp_cms_credit_setup(int credit)
 {
-	unsigned int thrmask, mask;
-	int i;
-
-	/* TODO: Add other nodes */
-	xlp_cms_base = nlm_get_cms_regbase(0);
-
-	mtx_init(&msgmap_lock, "msgring", NULL, MTX_SPIN);
-	if (xlp_threads_per_core < xlp_msg_threads_per_core)
-		xlp_msg_threads_per_core = xlp_threads_per_core;
-	thrmask = ((1 << xlp_msg_threads_per_core) - 1);
-	/*thrmask <<= xlp_threads_per_core - xlp_msg_threads_per_core;*/
-	mask = 0;
-	for (i = 0; i < XLP_MAX_CORES; i++) {
-		mask <<= XLP_MAX_THREADS;
-		mask |= thrmask;
-	}
-	xlp_msg_thread_mask = xlp_hw_thread_mask & mask;
-	printf("Initializing CMS...@%jx, Message handler thread mask %#jx\n",
-	    (uintmax_t)xlp_cms_base, (uintmax_t)xlp_msg_thread_mask);
-}
-
-/*
- * Initialize the messaging subsystem.
- *
- * Message Stations are shared among all threads in a cpu core, this
- * has to be called once from every core which is online.
- */
-void
-xlp_msgring_iodi_config(void)
-{
-	void *cookie;
-
-	xlp_msgring_config();
-/*	nlm_cms_default_setup(0,0,0,0); */
-	nlm_cms_credit_setup(50);
-	create_msgring_thread(0);
-	cpu_establish_hardintr("msgring", msgring_process_fast_intr, NULL,
-	    NULL, IRQ_MSGRING, INTR_TYPE_NET, &cookie);
-}
-
-void
-nlm_cms_credit_setup(int credit)
-{
+	uint64_t cmspcibase, cmsbase, pcibase;
+	uint32_t devoffset;
+	int dev, fn, maxqid;
 	int src, qid, i;
 
-#if 0
-	/* there are a total of 18 src stations on XLP. */
-	printf("Setting up CMS credits!\n");
-	for (src=0; src<18; src++) {
-		for(qid=0; qid<1024; qid++) {
-			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
+	for (i = 0; i < XLP_MAX_NODES; i++) {
+		cmspcibase = nlm_get_cms_pcibase(i);
+		if (!nlm_dev_exists(XLP_IO_CMS_OFFSET(i)))
+		    continue;
+		cmsbase = nlm_get_cms_regbase(i);
+		maxqid = nlm_read_reg(cmspcibase, XLP_PCI_DEVINFO_REG0);
+		for (dev = 0; dev < 8; dev++) {
+			for (fn = 0; fn < 8; fn++) {
+				devoffset = XLP_HDR_OFFSET(i, 0, dev, fn);
+				if (nlm_dev_exists(devoffset) == 0)
+					continue;
+				pcibase = nlm_pcicfg_base(devoffset);
+				src = nlm_qidstart(pcibase);
+				if (src == 0)
+				    continue;
+#if 0 /* Debug */
+				printf("Setup CMS credits for queues ");
+				printf("[%d to %d] from src %d\n", 0,
+				    maxqid, src);
+#endif
+				for (qid = 0; qid < maxqid; qid++)
+					nlm_cms_setup_credits(cmsbase, qid,
+					    src, credit);
+			}
 		}
 	}
-#endif
-	printf("Setting up CMS credits!\n");
-	/* CPU Credits */
-	for (i = 1; i < 8; i++) {
-		src = (i << 4);
-		for (qid = 0; qid < 1024; qid++)
-			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-	}
-	/* PCIE Credits */
-	for(i = 0; i < 4; i++) {
-		src = (256 + (i * 2));
-		for(qid = 0; qid < 1024; qid++)
-			nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-	}
-	/* DTE Credits */
-	src = 264;
-	for (qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-	/* RSA Credits */
-	src = 272;
-	for (qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-
-	/* Crypto Credits */
-	src = 281;
-	for (qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-
-	/* CMP Credits */
-	src = 298;
-	for (qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-
-	/* POE Credits */
-	src = 384;
-	for(qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
-
-	/* NAE Credits */
-	src = 476;
-	for(qid = 0; qid < 1024; qid++)
-		nlm_cms_setup_credits(xlp_cms_base, qid, src, credit);
 }
 
 void
-xlp_msgring_cpu_init(uint32_t cpuid)
+xlp_msgring_cpu_init(int node, int cpu, int credit)
 {
-	int queue,i;
+	uint64_t cmspcibase = nlm_get_cms_pcibase(node);
+	uint64_t cmsbase = nlm_get_cms_regbase(node);
+	int qid, maxqid, src;
 
-	queue = CMS_CPU_PUSHQ(0, ((cpuid >> 2) & 0x7), (cpuid & 0x3), 0);
-	/* temp allocate 4 segments to each output queue */
-	nlm_cms_alloc_onchip_q(xlp_cms_base, queue, 4);
-	/* Enable high watermark and non empty interrupt */
-	nlm_cms_per_queue_level_intr(xlp_cms_base, queue,2,0);
-	for(i=0;i<8;i++) {
-		/* temp distribute the credits to all CPU stations */
-		nlm_cms_setup_credits(xlp_cms_base, queue, i * 16, 8);
+	maxqid = nlm_read_reg(cmspcibase, XLP_PCI_DEVINFO_REG0);
+
+	/* cpu credit setup is done only from thread-0 of each core */
+	if((cpu % 4) == 0) {
+		src = cpu << 2; /* each thread has 4 vc's */
+		for (qid = 0; qid < maxqid; qid++)
+		    nlm_cms_setup_credits(cmsbase, qid, src, credit);
 	}
-}
-
-void
-xlp_cpu_msgring_handler(int bucket, int size, int code, int stid,
-		    struct nlm_fmn_msg *msg, void *data)
-{
-	int i;
-
-	printf("vc:%d srcid:%d size:%d\n",bucket,stid,size);
-	for(i=0;i<size;i++) {
-		printf("msg->msg[%d]:0x%jx ", i, (uintmax_t)msg->msg[i]);
-	}
-	printf("\n");
 }
 
 /*
@@ -234,35 +172,100 @@ xlp_cpu_msgring_handler(int bucket, int size, int code, int stid,
  * Use max_msgs = 0 to drain out all messages.
  */
 int
-xlp_handle_msg_vc(int vc, int max_msgs)
+xlp_handle_msg_vc(u_int vcmask, int max_msgs)
 {
 	struct nlm_fmn_msg msg;
-	int i, srcid = 0, size = 0, code = 0;
+	int srcid = 0, size = 0, code = 0;
 	struct tx_stn_handler *he;
 	uint32_t mflags, status;
+	int n_msgs = 0, vc, m, hwtid;
+	u_int msgmask;
 
-	for (i = 0; i < max_msgs; i++) {
+
+	hwtid = nlm_cpuid();
+	for (;;) {
+		/* check if VC empty */
 		mflags = nlm_save_flags_cop2();
-		status = nlm_fmn_msgrcv(vc, &srcid, &size, &code, &msg);
+		status = nlm_read_c2_msgstatus1();
 		nlm_restore_flags(mflags);
-		if (status != 0) /* If there is no msg or error */
-			break;
-		if (srcid < 0 && srcid >= 1024) {
-			printf("[%s]: bad src id %d\n", __func__, srcid);
-			continue;
-		}
-		he = &msgmap[srcid];
-		if(he->action != NULL)
-			(he->action)(vc, size, code, srcid, &msg, he->arg);
-#if 0 /* debug */
-		else
-			printf("[%s]: No Handler for message from stn_id=%d,"
-			    " vc=%d, size=%d, msg0=%jx, dropping message\n",
-			    __func__, srcid, vc, size, (uintmax_t)msg.msg[0]);
+
+		msgmask = ((status >> 24) & 0xf) ^ 0xf;
+		msgmask &= vcmask;
+		if (msgmask == 0)
+			    break;
+		m = 0;
+		for (vc = 0; vc < 4; vc++) {
+			if ((msgmask & (1 << vc)) == 0)
+				continue;
+
+			mflags = nlm_save_flags_cop2();
+			status = nlm_fmn_msgrcv(vc, &srcid, &size, &code,
+		 	    &msg);
+			nlm_restore_flags(mflags);
+			if (status != 0) 	/*  no msg or error */
+				continue;
+			if (srcid < 0 && srcid >= 1024) {
+				printf("[%s]: bad src id %d\n", __func__,
+				    srcid);
+				continue;
+			}
+			he = &msgmap[srcid];
+			if(he->action != NULL)
+				(he->action)(vc, size, code, srcid, &msg, he->arg);
+#if 1 /* defined DEBUG */
+			else
+				printf("[%s]: No Handler for msg from stn %d,"
+				    " vc=%d, size=%d, msg0=%jx, droppinge\n",
+				    __func__, srcid, vc, size,
+				    (uintmax_t)msg.msg[0]);
 #endif
+			fmn_msgcount[hwtid][vc] += 1;
+			m++;	/* msgs handled in this iter */
+		}
+		if (m == 0)
+			break;	/* nothing done in this iter */
+		n_msgs += m;
+		if (max_msgs > 0 && n_msgs >= max_msgs)
+		    break;
 	}
 
-	return (i);
+	return (n_msgs);
+}
+
+static void
+xlp_discard_msg_vc(u_int vcmask)
+{
+	struct nlm_fmn_msg msg;
+	int srcid = 0, size = 0, code = 0, vc;
+	uint32_t mflags, status;
+
+	for (vc = 0; vc < 4; vc++) {
+		for (;;) {
+			mflags = nlm_save_flags_cop2();
+			status = nlm_fmn_msgrcv(vc, &srcid,
+			    &size, &code, &msg);
+			nlm_restore_flags(mflags);
+
+			/* break if there is no msg or error */
+			if (status != 0)
+			    break;
+		}
+	}
+}
+
+void
+xlp_cms_enable_intr(int node, int cpu, int type, int watermark)
+{
+	uint64_t cmsbase;
+	int i, qid;
+
+	cmsbase = nlm_get_cms_regbase(node);
+
+	for (i = 0; i < 4; i++) {
+		qid = (i + (cpu * 4)) & 0x7f;
+		nlm_cms_per_queue_level_intr(cmsbase, qid, type, watermark);
+		nlm_cms_per_queue_timer_intr(cmsbase, qid, 0x1, 0);
+	}
 }
 
 static int
@@ -274,6 +277,7 @@ msgring_process_fast_intr(void *arg)
 
 	cpu = nlm_cpuid();
 	mthd = &msgring_threads[cpu];
+	msgring_nintr[cpu]++;
 	td = mthd->thread;
 
 	/* clear pending interrupts */
@@ -283,24 +287,24 @@ msgring_process_fast_intr(void *arg)
 	mthd->needed = 1;
 	thread_lock(td);
 	if (TD_AWAITING_INTR(td)) {
+		msgring_wakeup_sleep[cpu]++;
 		TD_CLR_IWAIT(td);
 		sched_add(td, SRQ_INTR);
-	}
+	} else
+		msgring_wakeup_nosleep[cpu]++;
 
 	thread_unlock(td);
+
 	return (FILTER_HANDLED);
 }
-
-u_int fmn_msgcount[32][4];
-u_int fmn_loops[32];
 
 static void
 msgring_process(void * arg)
 {
 	volatile struct msgring_thread *mthd;
 	struct thread *td;
-	uint32_t mflags;
-	int hwtid, vc, handled, nmsgs;
+	uint32_t mflags, msgstatus1;
+	int hwtid, nmsgs;
 
 	hwtid = (intptr_t)arg;
 	mthd = &msgring_threads[hwtid];
@@ -314,39 +318,47 @@ msgring_process(void * arg)
 	thread_unlock(td);
 
 	if (hwtid != nlm_cpuid())
-		printf("Misscheduled hwtid %d != cpuid %d\n", hwtid, nlm_cpuid());
-	mflags = nlm_save_flags_cop2();
-	nlm_fmn_cpu_init(IRQ_MSGRING, 0, 0, 0, 0, 0);
-	nlm_restore_flags(mflags);
+		printf("Misscheduled hwtid %d != cpuid %d\n", hwtid,
+		    nlm_cpuid());
+
+	xlp_discard_msg_vc(0xf);
+	xlp_msgring_cpu_init(nlm_nodeid(), nlm_cpuid(), CMS_DEFAULT_CREDIT);
+	if (polled == 0) {
+		mflags = nlm_save_flags_cop2();
+		nlm_fmn_cpu_init(IRQ_MSGRING, 0, 0, 0, 0, 0);
+		nlm_restore_flags(mflags);
+		xlp_cms_enable_intr(nlm_nodeid(), nlm_cpuid(), 0x2, 0);
+		/* clear pending interrupts.
+		 *  they will get re-raised if still valid */
+		nlm_write_c0_eirr(1ULL << IRQ_MSGRING);
+	}
 
 	/* start processing messages */
-	for( ; ; ) {
-		/*atomic_store_rel_int(&mthd->needed, 0);*/
-
-	        /* enable cop2 access */
-		do {
-			handled = 0;
-			for (vc = 0; vc < 4; vc++) {
-				nmsgs = xlp_handle_msg_vc(vc, 1);
-				fmn_msgcount[hwtid][vc] += nmsgs;
-				handled += nmsgs;
-			}
-		} while (handled);
+	for (;;) {
+		atomic_store_rel_int(&mthd->needed, 0);
+		nmsgs = xlp_handle_msg_vc(0xf, 0);
 
 		/* sleep */
-#if 0
-		thread_lock(td);
-		if (mthd->needed) {
+		if (polled == 0) {
+			/* clear VC-pend bits */
+			mflags = nlm_save_flags_cop2();
+			msgstatus1 = nlm_read_c2_msgstatus1();
+			msgstatus1 |= (0xf << 16);
+			nlm_write_c2_msgstatus1(msgstatus1);
+			nlm_restore_flags(mflags);
+
+			thread_lock(td);
+			if (mthd->needed) {
+				thread_unlock(td);
+				continue;
+			}
+			sched_class(td, PRI_ITHD);
+			TD_SET_IWAIT(td);
+			mi_switch(SW_VOL, NULL);
 			thread_unlock(td);
-			continue;
-		}
-		sched_class(td, PRI_ITHD);
-		TD_SET_IWAIT(td);
-		mi_switch(SW_VOL, NULL);
-		thread_unlock(td);
-#else
-		pause("wmsg", 1);
-#endif
+		} else
+			pause("wmsg", 1);
+
 		fmn_loops[hwtid]++;
 	}
 }
@@ -370,7 +382,9 @@ create_msgring_thread(int hwtid)
 	sched_class(td, PRI_ITHD);
 	sched_add(td, SRQ_INTR);
 	thread_unlock(td);
-	CTR2(KTR_INTR, "%s: created %s", __func__, td->td_name);
+	if (bootverbose)
+		printf("Msgring handler create on cpu %d (%s)\n",
+		    hwtid, td->td_name);
 }
 
 int
@@ -381,7 +395,7 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 
 	printf("Register handler %d-%d %p(%p)\n", startb, endb, action, arg);
 	KASSERT(startb >= 0 && startb <= endb && endb < MSGRNG_NSTATIONS,
-	    ("Invalid value for for bucket range %d,%d", startb, endb));
+	    ("Invalid value for bucket range %d,%d", startb, endb));
 
 	mtx_lock_spin(&msgmap_lock);
 	for (i = startb; i <= endb; i++) {
@@ -392,6 +406,45 @@ register_msgring_handler(int startb, int endb, msgring_handler action,
 	}
 	mtx_unlock_spin(&msgmap_lock);
 	return (0);
+}
+
+/*
+ * Initialize the messaging subsystem.
+ *
+ * Message Stations are shared among all threads in a cpu core, this
+ * has to be called once from every core which is online.
+ */
+static void
+xlp_msgring_config(void *arg)
+{
+	void *cookie;
+	unsigned int thrmask, mask;
+	int i;
+
+	mtx_init(&msgmap_lock, "msgring", NULL, MTX_SPIN);
+	if (xlp_threads_per_core < xlp_msg_threads_per_core)
+		xlp_msg_threads_per_core = xlp_threads_per_core;
+	thrmask = ((1 << xlp_msg_threads_per_core) - 1);
+	/*thrmask <<= xlp_threads_per_core - xlp_msg_threads_per_core;*/
+	mask = 0;
+	for (i = 0; i < XLP_MAX_CORES; i++) {
+		mask <<= XLP_MAX_THREADS;
+		mask |= thrmask;
+	}
+	xlp_msg_thread_mask = xlp_hw_thread_mask & mask;
+#if 0
+	printf("CMS Message handler thread mask %#jx\n",
+	    (uintmax_t)xlp_msg_thread_mask);
+#endif
+
+	if (nlm_is_xlp3xx())
+	    polled = 0;		/* switch to interrupt driven driver */
+
+/*	nlm_cms_default_setup(0,0,0,0); */
+	xlp_cms_credit_setup(CMS_DEFAULT_CREDIT);
+	create_msgring_thread(0);
+	cpu_establish_hardintr("msgring", msgring_process_fast_intr, NULL,
+	    NULL, IRQ_MSGRING, INTR_TYPE_NET, &cookie);
 }
 
 /*
@@ -409,6 +462,8 @@ start_msgring_threads(void *arg)
 	}
 }
 
+SYSINIT(xlp_msgring_config, SI_SUB_DRIVERS, SI_ORDER_FIRST,
+    xlp_msgring_config, NULL);
 SYSINIT(start_msgring_threads, SI_SUB_SMP, SI_ORDER_MIDDLE,
     start_msgring_threads, NULL);
 

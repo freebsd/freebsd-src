@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 8, 2010
+.Dd November 22, 2011
 .Dt ACPI_WMI 4
 .Os
 .Sh NAME
@@ -49,16 +49,16 @@ The
 .Nm
 driver provides an interface for vendor specific WMI implementations 
 (e.g. HP and Acer laptops).
-It creates /dev/wmistat, which can be read to get
+It creates /dev/wmistat%d, which can be read to get
 information about GUIDs found in the system.
 .Sh FILES
-.Bl -tag -width /dev/wmistat -compact
-.It Pa /dev/wmistat
+.Bl -tag -width /dev/wmistat%d -compact
+.It Pa /dev/wmistat%d
 WMI status device.
 .El
 .Sh EXAMPLES
 .Bd -literal
-# cat /dev/wmistat
+# cat /dev/wmistat0
 GUID                                  INST EXPE METH STR EVENT OID
 {5FB7F034-2C63-45E9-BE91-3D44E2C707E4}   1 NO   WMAA NO  NO    AA
 {95F24279-4D7B-4334-9387-ACCDC67EF61C}   1 NO   NO   NO  0x80+ -

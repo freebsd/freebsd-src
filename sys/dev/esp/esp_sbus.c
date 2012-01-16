@@ -117,7 +117,7 @@ static device_method_t esp_dma_methods[] = {
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t esp_dma_driver = {
@@ -136,7 +136,7 @@ static device_method_t esp_sbus_methods[] = {
 	DEVMETHOD(device_suspend,	esp_suspend),
 	DEVMETHOD(device_resume,	esp_resume),
 
-	KOBJMETHOD_END	
+	DEVMETHOD_END
 };
 
 static driver_t esp_sbus_driver = {

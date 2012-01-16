@@ -8,7 +8,7 @@
 #
 # csu must be built before all shared libaries for ELF.
 # libc must be built before all other shared libraries.
-# libbsm must be built before ibauditd.
+# libbsm must be built before libauditd.
 # libcom_err must be built before libpam.
 # libcrypt must be built before libpam.
 # libkvm must be built before libdevstat.
@@ -48,7 +48,9 @@ SUBDIR_ORDERED=	${_csu} \
 	libsbuf \
 	libtacplus \
 	libutil \
-	${_libypclnt}
+	${_libypclnt} \
+	${_libcxxrt} \
+	${_libcplusplus}
 
 SUBDIR=	${SUBDIR_ORDERED} \
 	libalias \
@@ -99,6 +101,7 @@ SUBDIR=	${SUBDIR_ORDERED} \
 	${_libsmdb} \
 	${_libsmutil} \
 	libstand \
+	libstdthreads \
 	${_libtelnet} \
 	${_libthr} \
 	libthread_db \
@@ -201,6 +204,11 @@ _libsmb=	libsmb
 
 .if ${MK_OPENSSL} != "no"
 _libmp=		libmp
+.endif
+
+.if ${MK_LIBCPLUSPLUS} != "no"
+_libcxxrt=	libcxxrt
+_libcplusplus=	libc++
 .endif
 
 .if ${MK_PMC} != "no"

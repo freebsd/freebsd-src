@@ -799,6 +799,12 @@ device		sppp
 #  option.  DHCP requires bpf.
 device		bpf
 
+#  The `netmap' device implements memory-mapped access to network
+#  devices from userspace, enabling wire-speed packet capture and
+#  generation even at 10Gbit/s. Requires support in the device
+#  driver. Supported drivers are ixgbe, e1000, re.
+device		netmap
+
 #  The `disc' device implements a minimal network interface,
 #  which throws away all packets sent and never receives any.  It is
 #  included for testing and benchmarking purposes.
@@ -910,6 +916,8 @@ device		lagg
 # for sockets with the SO_DEBUG option set, which can then be examined
 # using the trpt(8) utility.
 #
+# RADIX_MPATH provides support for equal-cost multi-path routing.
+#
 options 	MROUTING		# Multicast routing
 options 	IPFIREWALL		#firewall
 options 	IPFIREWALL_VERBOSE	#enable logging to syslogd(8)
@@ -924,6 +932,7 @@ options 	IPFILTER_LOOKUP		#ipfilter pools
 options 	IPFILTER_DEFAULT_BLOCK	#block all packets by default
 options 	IPSTEALTH		#support for stealth forwarding
 options 	TCPDEBUG
+options 	RADIX_MPATH
 
 # The MBUF_STRESS_TEST option enables options which create
 # various random failures / extreme cases related to mbuf
@@ -965,11 +974,10 @@ options 	ZERO_COPY_SOCKETS
 # FILESYSTEM OPTIONS
 
 #
-# Only the root, /usr, and /tmp filesystems need be statically
-# compiled; everything else will be automatically loaded at mount
-# time.  (Exception: the UFS family--- FFS --- cannot
-# currently be demand-loaded.)  Some people still prefer to statically
-# compile other filesystems as well.
+# Only the root filesystem needs to be statically compiled or preloaded
+# as module; everything else will be automatically loaded at mount
+# time.  Some people still prefer to statically compile other
+# filesystems as well.
 #
 # NB: The PORTAL filesystem is known to be buggy, and WILL panic your
 # system if you attempt to do anything with it.  It is included here
@@ -1186,6 +1194,14 @@ options 	HZ=100
 
 options 	PPS_SYNC
 
+# Enable support for generic feed-forward clocks in the kernel.
+# The feed-forward clock support is an alternative to the feedback oriented
+# ntpd/system clock approach, and is to be used with a feed-forward
+# synchronization algorithm such as the RADclock:
+# More info here: http://www.synclab.org/radclock
+
+options 	FFCLOCK
+
 
 #####################################################################
 # SCSI DEVICES
@@ -1281,6 +1297,7 @@ device		targ		#SCSI Target Mode Code
 device		targbh		#SCSI Target Mode Blackhole Device
 device		pass		#CAM passthrough driver
 device		sg		#Linux SCSI passthrough
+device		ctl		#CAM Target Layer
 
 # CAM OPTIONS:
 # debugging options:
@@ -1458,8 +1475,6 @@ options 	TEKEN_UTF8		# UTF-8 output handling
 #      19160x/29160x, aic7770/aic78xx
 # ahd: Adaptec 29320/39320 Controllers.
 # aic: Adaptec 6260/6360, APA-1460 (PC Card), NEC PC9801-100 (C-BUS)
-# amd: Support for the AMD 53C974 SCSI host adapter chip as found on devices
-#      such as the Tekram DC-390(T).
 # bt:  Most Buslogic controllers: including BT-445, BT-54x, BT-64x, BT-74x,
 #      BT-75x, BT-946, BT-948, BT-956, BT-958, SDC3211B, SDC3211F, SDC3222F
 # esp: Emulex ESP, NCR 53C9x and QLogic FAS families based controllers
@@ -1499,7 +1514,6 @@ hint.aic.0.at="isa"
 device		ahb
 device		ahc
 device		ahd
-device		amd
 device		esp
 device		iscsi_initiator
 device		isp

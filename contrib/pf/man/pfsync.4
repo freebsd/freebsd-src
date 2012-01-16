@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 17 2009
+.Dd December 20 2011
 .Dt PFSYNC 4
 .Os
 .Sh NAME
@@ -114,6 +114,23 @@ Either run the pfsync protocol on a trusted network \- ideally a network
 dedicated to pfsync messages such as a crossover cable between two firewalls,
 or specify a peer address and protect the traffic with
 .Xr ipsec 4 .
+.Pp
+.Nm
+has the following
+.Xr sysctl 8
+tunables:
+.Bl -tag -width ".Va net.pfsync"
+.It Va net.pfsync.carp_demotion_factor
+Value added to
+.Va net.inet.carp.demotion
+while
+.Nm
+tries to perform its bulk update.
+See
+.Xr carp 4
+for more information.
+Default value is 240.
+.El
 .Sh EXAMPLES
 .Nm
 and
@@ -141,12 +158,11 @@ Interfaces configuration in
 .Pa /etc/rc.conf :
 .Bd -literal -offset indent
 network_interfaces="lo0 sis0 sis1 sis2"
-cloned_interfaces="carp0 carp1"
 ifconfig_sis0="10.0.0.254/24"
+ifconfig_sis0_alias0="inet 10.0.0.1/24 vhid 1 pass foo"
 ifconfig_sis1="192.168.0.254/24"
+ifconfig_sis1_alias0="inet 192.168.0.1/24 vhid 2 pass bar"
 ifconfig_sis2="192.168.254.254/24"
-ifconfig_carp0="vhid 1 pass foo 10.0.0.1/24"
-ifconfig_carp1="vhid 2 pass bar 192.168.0.1/24"
 pfsync_enable="YES"
 pfsync_syncdev="sis2"
 .Ed
@@ -169,13 +185,13 @@ therefore the
 .Ar advskew
 on the backup firewall's
 .Xr carp 4
-interfaces should be set to something higher than
+vhids should be set to something higher than
 the primary's.
 For example, if firewall B is the backup, its
 carp1 configuration would look like this:
 would look like this:
 .Bd -literal -offset indent
-ifconfig_carp1="vhid 2 pass bar advskew 100 192.168.0.1/24"
+ifconfig_sis1_alias0="inet 192.168.0.1/24 vhid 2 pass bar advskew 100"
 .Ed
 .Pp
 The following must also be added to
@@ -196,18 +212,18 @@ net.inet.carp.preempt=1
 .Xr protocols 5 ,
 .Xr rc.conf 5 ,
 .Xr ifconfig 8 ,
-.Xr ifstated 8 ,
 .Xr tcpdump 1
 .Sh HISTORY
 The
 .Nm
 device first appeared in
 .Ox 3.3 .
+It was first imported to
+.Fx 5.3 .
 .Pp
 The
 .Nm
-protocol and kernel implementation were significantly modified between
-.Ox 4.4
-and
-.Ox 4.5 .
-The two protocols are incompatible and will not interoperate.
+protocol and kernel implementation were significantly modified in
+.Fx 9.0 .
+The newer protocol is not compatible with older one and will not interoperate
+with it.

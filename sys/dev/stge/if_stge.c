@@ -214,7 +214,7 @@ static device_method_t stge_methods[] = {
 	DEVMETHOD(miibus_writereg,	stge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	stge_miibus_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t stge_driver = {
@@ -573,7 +573,6 @@ stge_attach(device_t dev)
 	ifp->if_ioctl = stge_ioctl;
 	ifp->if_start = stge_start;
 	ifp->if_init = stge_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_drv_maxlen = STGE_TX_RING_CNT - 1;
 	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
 	IFQ_SET_READY(&ifp->if_snd);

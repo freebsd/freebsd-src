@@ -11,7 +11,7 @@
 
 name="cleartmp"
 # Disguise rcvar for the start method to run irrespective of its setting.
-rcvar1=`set_rcvar clear_tmp`
+rcvar1="clear_tmp_enable"
 start_cmd="${name}_start"
 stop_cmd=":"
 

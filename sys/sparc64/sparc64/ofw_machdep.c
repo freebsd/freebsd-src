@@ -52,7 +52,7 @@ OF_getetheraddr(device_t dev, u_char *addr)
 	phandle_t node;
 	struct idprom idp;
 
-	if ((node = OF_finddevice("/options")) > 0 &&
+	if ((node = OF_finddevice("/options")) != -1 &&
 	    OF_getprop(node, "local-mac-address?", buf, sizeof(buf)) > 0) {
 		buf[sizeof(buf) - 1] = '\0';
 		if (strcmp(buf, "true") == 0 &&

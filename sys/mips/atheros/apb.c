@@ -455,7 +455,6 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_deactivate_resource,	apb_deactivate_resource),
 	DEVMETHOD(bus_get_resource_list,	apb_get_resource_list),
 	DEVMETHOD(bus_hinted_child,		apb_hinted_child),
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_release_resource,		apb_release_resource),
 	DEVMETHOD(bus_setup_intr,		apb_setup_intr),
 	DEVMETHOD(bus_teardown_intr,		apb_teardown_intr),
@@ -464,7 +463,7 @@ static device_method_t apb_methods[] = {
 	DEVMETHOD(bus_get_resource,		bus_generic_rl_get_resource),
 	DEVMETHOD(bus_set_resource,		bus_generic_rl_set_resource),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t apb_driver = {

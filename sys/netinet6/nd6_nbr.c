@@ -225,7 +225,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 	/* (1) and (3) check. */
 	if (ifp->if_carp)
 		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
-	if (ifa == NULL)
+	else
 		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
 
 	/* (2) check. */
@@ -688,7 +688,14 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 		lladdrlen = ndopts.nd_opts_tgt_lladdr->nd_opt_len << 3;
 	}
 
-	ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
+	/*
+	 * This effectively disables the DAD check on a non-master CARP
+	 * address.
+	 */
+	if (ifp->if_carp)
+		ifa = (*carp_iamatch6_p)(ifp, &taddr6);
+	else
+		ifa = (struct ifaddr *)in6ifa_ifpwithaddr(ifp, &taddr6);
 
 	/*
 	 * Target address matches one of my interface address.
@@ -1132,9 +1139,6 @@ nd6_ifptomac(struct ifnet *ifp)
 #endif
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
-#endif
-#ifdef IFT_CARP
-	case IFT_CARP:
 #endif
 	case IFT_INFINIBAND:
 	case IFT_BRIDGE:

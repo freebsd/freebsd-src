@@ -90,6 +90,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_diagcodes.h>
 
 #include <dev/ath/if_ath_debug.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
@@ -151,10 +152,7 @@ ath_sysctl_softled(SYSCTL_HANDLER_ARGS)
 	if (softled != sc->sc_softled) {
 		if (softled) {
 			/* NB: handle any sc_ledpin change */
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
 		sc->sc_softled = softled;
 	}
@@ -174,11 +172,29 @@ ath_sysctl_ledpin(SYSCTL_HANDLER_ARGS)
 	if (ledpin != sc->sc_ledpin) {
 		sc->sc_ledpin = ledpin;
 		if (sc->sc_softled) {
-			ath_hal_gpioCfgOutput(sc->sc_ah, sc->sc_ledpin,
-			    HAL_GPIO_MUX_MAC_NETWORK_LED);
-			ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin,
-				!sc->sc_ledon);
+			ath_led_config(sc);
 		}
+	}
+	return 0;
+}
+
+static int
+ath_sysctl_hardled(SYSCTL_HANDLER_ARGS)
+{
+	struct ath_softc *sc = arg1;
+	int hardled = sc->sc_hardled;
+	int error;
+
+	error = sysctl_handle_int(oidp, &hardled, 0, req);
+	if (error || !req->newptr)
+		return error;
+	hardled = (hardled != 0);
+	if (hardled != sc->sc_hardled) {
+		if (hardled) {
+			/* NB: handle any sc_ledpin change */
+			ath_led_config(sc);
+		}
+		sc->sc_hardled = hardled;
 	}
 	return 0;
 }
@@ -496,6 +512,7 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ctstimeout", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_ctstimeout, "I", "802.11 CTS timeout (us)");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"softled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_softled, "I", "enable/disable software LED support");
@@ -508,6 +525,18 @@ ath_sysctlattach(struct ath_softc *sc)
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"ledidle", CTLFLAG_RW, &sc->sc_ledidle, 0,
 		"idle time for inactivity LED (ticks)");
+
+	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"hardled", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
+		ath_sysctl_hardled, "I", "enable/disable hardware LED support");
+	/* XXX Laziness - configure pins, then flip hardled off/on */
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_net_pin", CTLFLAG_RW, &sc->sc_led_net_pin, 0,
+		"MAC Network LED pin, or -1 to disable");
+	SYSCTL_ADD_INT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
+		"led_pwr_pin", CTLFLAG_RW, &sc->sc_led_pwr_pin, 0,
+		"MAC Power LED pin, or -1 to disable");
+
 	SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
 		"txantenna", CTLTYPE_INT | CTLFLAG_RW, sc, 0,
 		ath_sysctl_txantenna, "I", "antenna switch");
@@ -842,9 +871,15 @@ ath_sysctl_stats_attach(struct ath_softc *sc)
 	    &sc->sc_stats.ast_tx_data_underrun, 0, "");
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_delim_underrun", CTLFLAG_RD,
 	    &sc->sc_stats.ast_tx_delim_underrun, 0, "");
-	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggrfail", CTLFLAG_RD,
-	    &sc->sc_stats.ast_tx_aggrfail, 0,
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_failall", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_failall, 0,
 	    "Number of aggregate TX failures (whole frame)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_ok", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_ok, 0,
+	    "Number of aggregate TX OK completions (subframe)");
+	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_tx_aggr_fail", CTLFLAG_RD,
+	    &sc->sc_stats.ast_tx_aggr_fail, 0,
+	    "Number of aggregate TX failures (subframe)");
 
 	SYSCTL_ADD_UINT(ctx, child, OID_AUTO, "ast_rx_intr", CTLFLAG_RD,
 	    &sc->sc_stats.ast_rx_intr, 0, "RX interrupts");

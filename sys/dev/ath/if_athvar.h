@@ -371,6 +371,7 @@ struct ath_softc {
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
 				sc_softled  : 1,/* enable LED gpio status */
+				sc_hardled  : 1,/* enable MAC LED status */
 				sc_splitmic : 1,/* split TKIP MIC keys */
 				sc_needmib  : 1,/* enable MIB stats intr */
 				sc_diversity: 1,/* enable rx diversity */
@@ -424,6 +425,7 @@ struct ath_softc {
 	u_int			sc_txantenna;	/* tx antenna (fixed or auto) */
 
 	HAL_INT			sc_imask;	/* interrupt mask copy */
+
 	/*
 	 * These are modified in the interrupt handler as well as
 	 * the task queues and other contexts. Thus these must be
@@ -434,10 +436,19 @@ struct ath_softc {
 	 */
 	uint32_t		sc_txq_active;	/* bitmap of active TXQs */
 	uint32_t		sc_kickpcu;	/* whether to kick the PCU */
+	uint32_t		sc_rxproc_cnt;	/* In RX processing */
+	uint32_t		sc_txproc_cnt;	/* In TX processing */
+	uint32_t		sc_txstart_cnt;	/* In TX output (raw/start) */
+	uint32_t		sc_inreset_cnt;	/* In active reset/chanchange */
+	uint32_t		sc_txrx_cnt;	/* refcount on stop/start'ing TX */
+	uint32_t		sc_intr_cnt;	/* refcount on interrupt handling */
 
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
+	/*
+	 * Software based LED blinking
+	 */
 	u_int			sc_ledpin;	/* GPIO pin for driving LED */
 	u_int			sc_ledon;	/* pin setting for LED on */
 	u_int			sc_ledidle;	/* idle polling interval */
@@ -445,6 +456,12 @@ struct ath_softc {
 	u_int8_t		sc_txrix;	/* current tx rate for LED */
 	u_int16_t		sc_ledoff;	/* off time for current blink */
 	struct callout		sc_ledtimer;	/* led off timer */
+
+	/*
+	 * Hardware based LED blinking
+	 */
+	int			sc_led_pwr_pin;	/* MAC power LED GPIO pin */
+	int			sc_led_net_pin;	/* MAC network LED GPIO pin */
 
 	u_int			sc_rfsilentpin;	/* GPIO pin for rfkill int */
 	u_int			sc_rfsilentpol;	/* pin setting for rfkill on */
@@ -553,6 +570,7 @@ struct ath_softc {
 #define	ATH_LOCK(_sc)		mtx_lock(&(_sc)->sc_mtx)
 #define	ATH_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_mtx)
 #define	ATH_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_OWNED)
+#define	ATH_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_mtx, MA_NOTOWNED)
 
 /*
  * The PCU lock is non-recursive and should be treated as a spinlock.
@@ -584,6 +602,8 @@ struct ath_softc {
 #define	ATH_PCU_UNLOCK(_sc)		mtx_unlock(&(_sc)->sc_pcu_mtx)
 #define	ATH_PCU_LOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
 		MA_OWNED)
+#define	ATH_PCU_UNLOCK_ASSERT(_sc)	mtx_assert(&(_sc)->sc_pcu_mtx,	\
+		MA_NOTOWNED)
 
 #define	ATH_TXQ_SETUP(sc, i)	((sc)->sc_txqsetup & (1<<i))
 

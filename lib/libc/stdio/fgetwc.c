@@ -2,6 +2,11 @@
  * Copyright (c) 2002-2004 Tim J. Robbins.
  * All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -36,31 +41,39 @@ __FBSDID("$FreeBSD$");
 #include "libc_private.h"
 #include "local.h"
 #include "mblocal.h"
+#include "xlocale_private.h"
 
 /*
  * MT-safe version.
  */
 wint_t
-fgetwc(FILE *fp)
+fgetwc_l(FILE *fp, locale_t locale)
 {
 	wint_t r;
+	FIX_LOCALE(locale);
 
 	FLOCKFILE(fp);
 	ORIENT(fp, 1);
-	r = __fgetwc(fp);
+	r = __fgetwc(fp, locale);
 	FUNLOCKFILE(fp);
 
 	return (r);
+}
+wint_t
+fgetwc(FILE *fp)
+{
+	return fgetwc_l(fp, __get_locale());
 }
 
 /*
  * Non-MT-safe version.
  */
 wint_t
-__fgetwc(FILE *fp)
+__fgetwc(FILE *fp, locale_t locale)
 {
 	wchar_t wc;
 	size_t nconv;
+	struct xlocale_ctype *l = XLOCALE_CTYPE(locale);
 
 	if (fp->_r <= 0 && __srefill(fp))
 		return (WEOF);
@@ -71,7 +84,7 @@ __fgetwc(FILE *fp)
 		return (wc);
 	}
 	do {
-		nconv = __mbrtowc(&wc, fp->_p, fp->_r, &fp->_mbstate);
+		nconv = l->__mbrtowc(&wc, fp->_p, fp->_r, &fp->_mbstate);
 		if (nconv == (size_t)-1)
 			break;
 		else if (nconv == (size_t)-2)

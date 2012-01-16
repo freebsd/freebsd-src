@@ -26,6 +26,8 @@ LIBBSDXML?=	${DESTDIR}${LIBDIR}/libbsdxml.a
 LIBBSM?=	${DESTDIR}${LIBDIR}/libbsm.a
 LIBBSNMP?=	${DESTDIR}${LIBDIR}/libbsnmp.a
 LIBBZ2?=	${DESTDIR}${LIBDIR}/libbz2.a
+LIBCXXRT?=	${DESTDIR}${LIBDIR}/libcxxrt.a
+LIBCPLUSPLUS?=	${DESTDIR}${LIBDIR}/libc++.a
 LIBC?=		${DESTDIR}${LIBDIR}/libc.a
 LIBC_PIC?=	${DESTDIR}${LIBDIR}/libc_pic.a
 LIBCALENDAR?=	${DESTDIR}${LIBDIR}/libcalendar.a
@@ -100,7 +102,6 @@ LIBNCURSESW?=	${DESTDIR}${LIBDIR}/libncursesw.a
 LIBNETGRAPH?=	${DESTDIR}${LIBDIR}/libnetgraph.a
 LIBNGATM?=	${DESTDIR}${LIBDIR}/libngatm.a
 LIBNVPAIR?=	${DESTDIR}${LIBDIR}/libnvpair.a
-LIBODIALOG?=	${DESTDIR}${LIBDIR}/libodialog.a
 LIBOPIE?=	${DESTDIR}${LIBDIR}/libopie.a
 
 # The static PAM library doesn't know its secondary dependencies,

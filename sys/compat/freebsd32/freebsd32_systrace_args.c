@@ -248,7 +248,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -1203,6 +1203,27 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		*n_args = 2;
 		break;
 	}
+	/* ffclock_getcounter */
+	case 241: {
+		struct ffclock_getcounter_args *p = params;
+		uarg[0] = (intptr_t) p->ffcount; /* ffcounter * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_setestimate */
+	case 242: {
+		struct ffclock_setestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
+	/* ffclock_getestimate */
+	case 243: {
+		struct ffclock_getestimate_args *p = params;
+		uarg[0] = (intptr_t) p->cest; /* struct ffclock_estimate * */
+		*n_args = 1;
+		break;
+	}
 	/* minherit */
 	case 250: {
 		struct minherit_args *p = params;
@@ -1868,7 +1889,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 376: {
 		struct eaccess_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* int */
+		iarg[1] = p->amode; /* int */
 		*n_args = 2;
 		break;
 	}
@@ -2702,7 +2723,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct faccessat_args *p = params;
 		iarg[0] = p->fd; /* int */
 		uarg[1] = (intptr_t) p->path; /* char * */
-		iarg[2] = p->mode; /* int */
+		iarg[2] = p->amode; /* int */
 		iarg[3] = p->flag; /* int */
 		*n_args = 4;
 		break;
@@ -4935,6 +4956,36 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			break;
 		case 1:
 			p = "struct timespec32 *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_getcounter */
+	case 241:
+		switch(ndx) {
+		case 0:
+			p = "ffcounter *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
+			break;
+		default:
+			break;
+		};
+		break;
+	/* ffclock_getestimate */
+	case 243:
+		switch(ndx) {
+		case 0:
+			p = "struct ffclock_estimate *";
 			break;
 		default:
 			break;
@@ -8821,6 +8872,21 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* freebsd32_nanosleep */
 	case 240:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getcounter */
+	case 241:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_setestimate */
+	case 242:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
+	/* ffclock_getestimate */
+	case 243:
 		if (ndx == 0 || ndx == 1)
 			p = "int";
 		break;

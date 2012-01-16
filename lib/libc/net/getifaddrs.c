@@ -76,7 +76,7 @@ __FBSDID("$FreeBSD$");
 #define	HAVE_IFM_DATA
 #endif
 
-#if	_BSDI_VERSION >= 199802
+#if	(_BSDI_VERSION >= 199802) || (__FreeBSD_version >= 1000003) 
 /* ifam_data is very specific to recent versions of bsdi */
 #define	HAVE_IFAM_DATA
 #endif

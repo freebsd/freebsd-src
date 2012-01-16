@@ -43,7 +43,8 @@
 #include <unistd.h>
 
 #include <contrib/dev/acpica/include/acpi.h>
-#include <contrib/dev/acpica/tools/acpiexec/aecommon.h>
+#include <contrib/dev/acpica/include/accommon.h>
+#include <contrib/dev/acpica/include/acdebug.h>
 
 /*
  * Dummy DSDT Table Header
@@ -370,6 +371,7 @@ load_dsdt(const char *dsdtfile)
 	}
 	if (fstat(fd, &sb) == -1) {
 		perror("fstat");
+		close(fd);
 		return (-1);
 	}
 	code = mmap(NULL, (size_t)sb.st_size, PROT_READ, MAP_PRIVATE, fd, (off_t)0);

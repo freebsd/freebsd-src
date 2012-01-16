@@ -103,9 +103,6 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(device_attach, ichsmb_pci_attach),
         DEVMETHOD(device_detach, ichsmb_detach),
 
-	/* Bus methods */
-        DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* SMBus methods */
         DEVMETHOD(smbus_callback, ichsmb_callback),
         DEVMETHOD(smbus_quick, ichsmb_quick),
@@ -118,7 +115,8 @@ static device_method_t ichsmb_pci_methods[] = {
         DEVMETHOD(smbus_pcall, ichsmb_pcall),
         DEVMETHOD(smbus_bwrite, ichsmb_bwrite),
         DEVMETHOD(smbus_bread, ichsmb_bread),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t ichsmb_pci_driver = {

@@ -154,6 +154,7 @@ s/\$//g
 		printf "#include <sys/signal.h>\n" > sysarg
 		printf "#include <sys/acl.h>\n" > sysarg
 		printf "#include <sys/cpuset.h>\n" > sysarg
+		printf "#include <sys/_ffcounter.h>\n" > sysarg
 		printf "#include <sys/_semaphore.h>\n" > sysarg
 		printf "#include <sys/ucontext.h>\n\n" > sysarg
 		printf "#include <bsm/audit_kevents.h>\n\n" > sysarg

@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -94,7 +94,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 
 void
 sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
-    struct sctp_tcb *stcb, struct sctp_nets *net_from,
+    struct sctp_tcb *stcb,
     uint16_t num_seg, uint16_t num_nr_seg, uint16_t num_dup,
     int *abort_now, uint8_t flags,
     uint32_t cum_ack, uint32_t rwnd, int ecne_seen);
@@ -110,8 +110,7 @@ struct sctp_tmit_chunk *
 void sctp_service_queues(struct sctp_tcb *, struct sctp_association *);
 
 void
-sctp_update_acked(struct sctp_tcb *, struct sctp_shutdown_chunk *,
-    struct sctp_nets *, int *);
+     sctp_update_acked(struct sctp_tcb *, struct sctp_shutdown_chunk *, int *);
 
 int
 sctp_process_data(struct mbuf **, int, int *, int, struct sctphdr *,
@@ -120,7 +119,7 @@ sctp_process_data(struct mbuf **, int, int *, int, struct sctphdr *,
 
 void sctp_slide_mapping_arrays(struct sctp_tcb *stcb);
 
-void sctp_sack_check(struct sctp_tcb *, int, int *);
+void sctp_sack_check(struct sctp_tcb *, int);
 
 #endif
 #endif

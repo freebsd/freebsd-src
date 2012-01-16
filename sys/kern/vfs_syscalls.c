@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+#include <ufs/ufs/quota.h>
+
 static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
@@ -212,7 +214,20 @@ sys_quotactl(td, uap)
 		return (error);
 	}
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
-	vfs_unbusy(mp);
+
+	/*
+	 * Since quota on operation typically needs to open quota
+	 * file, the Q_QUOTAON handler needs to unbusy the mount point
+	 * before calling into namei.  Otherwise, unmount might be
+	 * started between two vfs_busy() invocations (first is our,
+	 * second is from mount point cross-walk code in lookup()),
+	 * causing deadlock.
+	 *
+	 * Require that Q_QUOTAON handles the vfs_busy() reference on
+	 * its own, always returning with ubusied mount point.
+	 */
+	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON)
+		vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -880,7 +895,8 @@ chroot_refuse_vdir_fds(fdp)
 static int chroot_allow_open_directories = 1;
 
 SYSCTL_INT(_kern, OID_AUTO, chroot_allow_open_directories, CTLFLAG_RW,
-     &chroot_allow_open_directories, 0, "");
+     &chroot_allow_open_directories, 0,
+     "Allow a process to chroot(2) if it has a directory open");
 
 /*
  * Change notion of root (``/'') directory.
@@ -2049,6 +2065,7 @@ sys_lseek(td, uap)
 	if (error != 0)
 		goto drop;
 	fp->f_offset = offset;
+	VFS_KNOTE_UNLOCKED(vp, 0);
 	*(off_t *)(td->td_retval) = fp->f_offset;
 drop:
 	fdrop(fp, td);
@@ -2144,7 +2161,7 @@ vn_access(vp, user_flags, cred, td)
 #ifndef _SYS_SYSPROTO_H_
 struct access_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2152,18 +2169,18 @@ sys_access(td, uap)
 	struct thread *td;
 	register struct access_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_access(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_access(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 #ifndef _SYS_SYSPROTO_H_
 struct faccessat_args {
 	int	dirfd;
 	char	*path;
-	int	mode;
+	int	amode;
 	int	flag;
 }
 #endif
@@ -2174,19 +2191,19 @@ sys_faccessat(struct thread *td, struct faccessat_args *uap)
 	if (uap->flag & ~AT_EACCESS)
 		return (EINVAL);
 	return (kern_accessat(td, uap->fd, uap->path, UIO_USERSPACE, uap->flag,
-	    uap->mode));
+	    uap->amode));
 }
 
 int
-kern_access(struct thread *td, char *path, enum uio_seg pathseg, int mode)
+kern_access(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, mode));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, 0, amode));
 }
 
 int
 kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
-    int flags, int mode)
+    int flag, int amode)
 {
 	struct ucred *cred, *tmpcred;
 	struct vnode *vp;
@@ -2198,7 +2215,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	 * Create and modify a temporary credential instead of one that
 	 * is potentially shared.
 	 */
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		cred = td->td_ucred;
 		tmpcred = crdup(cred);
 		tmpcred->cr_uid = cred->cr_ruid;
@@ -2206,7 +2223,7 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 		td->td_ucred = tmpcred;
 	} else
 		cred = tmpcred = td->td_ucred;
-	AUDIT_ARG_VALUE(mode);
+	AUDIT_ARG_VALUE(amode);
 	NDINIT_ATRIGHTS(&nd, LOOKUP, FOLLOW | LOCKSHARED | LOCKLEAF | MPSAFE |
 	    AUDITVNODE1, pathseg, path, fd, CAP_FSTAT, td);
 	if ((error = namei(&nd)) != 0)
@@ -2214,12 +2231,12 @@ kern_accessat(struct thread *td, int fd, char *path, enum uio_seg pathseg,
 	vfslocked = NDHASGIANT(&nd);
 	vp = nd.ni_vp;
 
-	error = vn_access(vp, mode, tmpcred, td);
+	error = vn_access(vp, amode, tmpcred, td);
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vput(vp);
 	VFS_UNLOCK_GIANT(vfslocked);
 out1:
-	if (!(flags & AT_EACCESS)) {
+	if (!(flag & AT_EACCESS)) {
 		td->td_ucred = cred;
 		crfree(tmpcred);
 	}
@@ -2232,7 +2249,7 @@ out1:
 #ifndef _SYS_SYSPROTO_H_
 struct eaccess_args {
 	char	*path;
-	int	flags;
+	int	amode;
 };
 #endif
 int
@@ -2240,18 +2257,18 @@ sys_eaccess(td, uap)
 	struct thread *td;
 	register struct eaccess_args /* {
 		char *path;
-		int flags;
+		int amode;
 	} */ *uap;
 {
 
-	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->flags));
+	return (kern_eaccess(td, uap->path, UIO_USERSPACE, uap->amode));
 }
 
 int
-kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int flags)
+kern_eaccess(struct thread *td, char *path, enum uio_seg pathseg, int amode)
 {
 
-	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, flags));
+	return (kern_accessat(td, AT_FDCWD, path, pathseg, AT_EACCESS, amode));
 }
 
 #if defined(COMPAT_43)
@@ -4344,7 +4361,20 @@ getvnode(struct filedesc *fdp, int fd, cap_rights_t rights,
 		fp = fp_fromcap;
 	}
 #endif /* CAPABILITIES */
-	if (fp->f_vnode == NULL) {
+
+	/*
+	 * The file could be not of the vnode type, or it may be not
+	 * yet fully initialized, in which case the f_vnode pointer
+	 * may be set, but f_ops is still badfileops.  E.g.,
+	 * devfs_open() transiently create such situation to
+	 * facilitate csw d_fdopen().
+	 *
+	 * Dupfdopen() handling in kern_openat() installs the
+	 * half-baked file into the process descriptor table, allowing
+	 * other thread to dereference it. Guard against the race by
+	 * checking f_ops.
+	 */
+	if (fp->f_vnode == NULL || fp->f_ops == &badfileops) {
 		fdrop(fp, curthread);
 		return (EINVAL);
 	}

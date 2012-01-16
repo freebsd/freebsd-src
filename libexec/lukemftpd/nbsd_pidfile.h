@@ -10,7 +10,7 @@ pidfile(const char *basename)
 	pid_t otherpid, childpid;
 
 	if (basename != NULL) {
-		errx(EX_USAGE, "Need to impliment NetBSD semantics.");
+		errx(EX_USAGE, "Need to implement NetBSD semantics.");
 	}
 
 	pfh = pidfile_open(basename, 0644, &otherpid);

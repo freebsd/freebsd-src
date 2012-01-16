@@ -220,15 +220,12 @@ static device_method_t mos_methods[] = {
 	DEVMETHOD(device_attach, mos_attach),
 	DEVMETHOD(device_detach, mos_detach),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg, mos_miibus_readreg),
 	DEVMETHOD(miibus_writereg, mos_miibus_writereg),
 	DEVMETHOD(miibus_statchg, mos_miibus_statchg),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t mos_driver = {

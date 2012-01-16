@@ -605,6 +605,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
+int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
+	    char *path, u_int pathlen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
@@ -705,6 +707,7 @@ int	vop_panic(struct vop_generic_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
+void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
@@ -717,6 +720,7 @@ void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
+void	vop_setextattr_post(void *a, int rc);
 void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);

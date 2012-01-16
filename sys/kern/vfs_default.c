@@ -844,7 +844,7 @@ out:
 	free(dirbuf, M_TEMP);
 	if (!error) {
 		*buflen = i;
-		vhold(*dvp);
+		vref(*dvp);
 	}
 	if (covered) {
 		vput(*dvp);

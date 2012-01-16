@@ -36,6 +36,7 @@ MAN=		libradius.3 radius.conf.5
 MLINKS+=libradius.3 rad_acct_open.3 \
 	libradius.3 rad_add_server.3 \
 	libradius.3 rad_auth_open.3 \
+	libradius.3 rad_bind_to.3 \
 	libradius.3 rad_close.3 \
 	libradius.3 rad_config.3 \
 	libradius.3 rad_continue_send_request.3 \

@@ -417,9 +417,12 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 	if ((i = libusb_get_device_list(ctx, &devs)) < 0)
 		return (NULL);
 
+	pdev = NULL;
 	for (j = 0; j < i; j++) {
-		pdev = devs[j]->os_priv;
-		pdesc = libusb20_dev_get_device_desc(pdev);
+		struct libusb20_device *tdev;
+
+		tdev = devs[j]->os_priv;
+		pdesc = libusb20_dev_get_device_desc(tdev);
 		/*
 		 * NOTE: The USB library will automatically swap the
 		 * fields in the device descriptor to be of host
@@ -427,13 +430,10 @@ libusb_open_device_with_vid_pid(libusb_context *ctx, uint16_t vendor_id,
 		 */
 		if (pdesc->idVendor == vendor_id &&
 		    pdesc->idProduct == product_id) {
-			if (libusb_open(devs[j], &pdev) < 0)
-				pdev = NULL;
+			libusb_open(devs[j], &pdev);
 			break;
 		}
 	}
-	if (j == i)
-		pdev = NULL;
 
 	libusb_free_device_list(devs, 1);
 	DPRINTF(ctx, LIBUSB_DEBUG_FUNCTION, "libusb_open_device_width_vid_pid leave");

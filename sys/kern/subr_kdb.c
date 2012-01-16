@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -226,13 +227,7 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 void
 kdb_panic(const char *msg)
 {
-#ifdef SMP
-	cpuset_t other_cpus;
 
-	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-	stop_cpus_hard(other_cpus);
-#endif
 	printf("KDB: panic\n");
 	panic("%s", msg);
 }
@@ -594,6 +589,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	struct kdb_dbbe *be;
 	register_t intr;
 	int handled;
+#ifdef SMP
+	int did_stop_cpus;
+#endif
 
 	be = kdb_dbbe;
 	if (be == NULL || be->dbbe_trap == NULL)
@@ -606,9 +604,13 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-	stop_cpus_hard(other_cpus);
+	if (!SCHEDULER_STOPPED()) {
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		stop_cpus_hard(other_cpus);
+		did_stop_cpus = 1;
+	} else
+		did_stop_cpus = 0;
 #endif
 
 	kdb_active++;
@@ -621,6 +623,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
+	cngrab();
+
 	for (;;) {
 		handled = be->dbbe_trap(type, code);
 		if (be == kdb_dbbe)
@@ -631,10 +635,13 @@ kdb_trap(int type, int code, struct trapframe *tf)
 		printf("Switching to %s back-end\n", be->dbbe_name);
 	}
 
+	cnungrab();
+
 	kdb_active--;
 
 #ifdef SMP
-	restart_cpus(stopped_cpus);
+	if (did_stop_cpus)
+		restart_cpus(stopped_cpus);
 #endif
 
 	intr_restore(intr);

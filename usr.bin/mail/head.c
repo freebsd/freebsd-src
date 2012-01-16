@@ -47,7 +47,7 @@ __FBSDID("$FreeBSD$");
 /*
  * See if the passed line buffer is a mail header.
  * Return true if yes.  Note the extreme pains to
- * accomodate all funny formats.
+ * accommodate all funny formats.
  */
 int
 ishead(char linebuf[])

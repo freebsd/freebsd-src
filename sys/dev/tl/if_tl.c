@@ -348,16 +348,12 @@ static device_method_t tl_methods[] = {
 	DEVMETHOD(device_detach,	tl_detach),
 	DEVMETHOD(device_shutdown,	tl_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	tl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	tl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	tl_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t tl_driver = {
@@ -1179,7 +1175,6 @@ tl_attach(dev)
 	ifp->if_ioctl = tl_ioctl;
 	ifp->if_start = tl_start;
 	ifp->if_init = tl_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;

@@ -238,7 +238,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	case 33: {
 		struct linux_access_args *p = params;
 		uarg[0] = (intptr_t) p->path; /* char * */
-		iarg[1] = p->flags; /* l_int */
+		iarg[1] = p->amode; /* l_int */
 		*n_args = 2;
 		break;
 	}
@@ -1724,7 +1724,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fadvise64 */
 	case 250: {
-		*n_args = 0;
+		struct linux_fadvise64_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* l_loff_t */
+		iarg[2] = p->len; /* l_size_t */
+		iarg[3] = p->advice; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_exit_group */
@@ -1873,7 +1878,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fadvise64_64 */
 	case 272: {
-		*n_args = 0;
+		struct linux_fadvise64_64_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* l_loff_t */
+		iarg[2] = p->len; /* l_loff_t */
+		iarg[3] = p->advice; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_mbind */
@@ -2087,7 +2097,7 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		uarg[1] = (intptr_t) p->oldname; /* const char * */
 		iarg[2] = p->newdfd; /* l_int */
 		uarg[3] = (intptr_t) p->newname; /* const char * */
-		iarg[4] = p->flags; /* l_int */
+		iarg[4] = p->flag; /* l_int */
 		*n_args = 5;
 		break;
 	}
@@ -2124,8 +2134,9 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 		struct linux_faccessat_args *p = params;
 		iarg[0] = p->dfd; /* l_int */
 		uarg[1] = (intptr_t) p->filename; /* const char * */
-		iarg[2] = p->mode; /* l_int */
-		*n_args = 3;
+		iarg[2] = p->amode; /* l_int */
+		iarg[3] = p->flag; /* l_int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_pselect6 */
@@ -4775,6 +4786,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64 */
 	case 250:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "l_loff_t";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_exit_group */
 	case 252:
@@ -4984,6 +5011,22 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64_64 */
 	case 272:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "l_loff_t";
+			break;
+		case 2:
+			p = "l_loff_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mbind */
 	case 274:
@@ -5358,6 +5401,9 @@ systrace_entry_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 			p = "const char *";
 			break;
 		case 2:
+			p = "l_int";
+			break;
+		case 3:
 			p = "l_int";
 			break;
 		default:
@@ -6410,6 +6456,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64 */
 	case 250:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_exit_group */
 	case 252:
 		if (ndx == 0 || ndx == 1)
@@ -6494,6 +6543,9 @@ systrace_return_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64_64 */
 	case 272:
+		if (ndx == 0 || ndx == 1)
+			p = "int";
+		break;
 	/* linux_mbind */
 	case 274:
 	/* linux_get_mempolicy */

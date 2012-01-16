@@ -27,7 +27,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 24, 2009
+.Dd November 16, 2011
 .Dt STACK 9
 .Os
 .Sh NAME
@@ -46,21 +46,21 @@ In the kernel configuration file:
 .Ft int
 .Fn stack_put "struct stack *st" "vm_offset_t pc"
 .Ft void
-.Fn stack_copy "struct stack *src" "struct stack dst"
+.Fn stack_copy "const struct stack *src" "struct stack dst"
 .Ft void
 .Fn stack_zero "struct stack *st"
 .Ft void
-.Fn stack_print "struct stack *st"
+.Fn stack_print "const struct stack *st"
 .Ft void
-.Fn stack_print_ddb "struct stack *st"
+.Fn stack_print_ddb "const struct stack *st"
 .Ft void
-.Fn stack_print_short "struct stack *st"
+.Fn stack_print_short "const struct stack *st"
 .Ft void
-.Fn stack_print_short_ddb "struct stack *st"
+.Fn stack_print_short_ddb "const struct stack *st"
 .Ft void
-.Fn stack_sbuf_print "struct sbuf sb*" "struct stack *st"
+.Fn stack_sbuf_print "struct sbuf sb*" "const struct stack *st"
 .Ft void
-.Fn stack_sbuf_print_ddb "struct sbuf sb*" "struct stack *st"
+.Fn stack_sbuf_print_ddb "struct sbuf sb*" "const struct stack *st"
 .Ft void
 .Fn stack_save "struct stack *st"
 .Sh DESCRIPTION

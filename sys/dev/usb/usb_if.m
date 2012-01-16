@@ -54,3 +54,13 @@ METHOD int handle_request {
 	uint16_t offset; /* data offset */
 	uint8_t *pstate; /* set if transfer is complete, see USB_HR_XXX */
 };
+
+# Take controller from BIOS
+#
+# Return values:
+# 0: Success
+# Else: Failure
+#
+METHOD int take_controller {
+	device_t dev;
+};

@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/if_ath_misc.h>
 #include <dev/ath/if_ath_tx.h>
 #include <dev/ath/if_ath_sysctl.h>
+#include <dev/ath/if_ath_led.h>
 #include <dev/ath/if_ath_keycache.h>
 #include <dev/ath/if_athdfs.h>
 
@@ -128,9 +129,9 @@ __FBSDID("$FreeBSD$");
 CTASSERT(ATH_BCBUF <= 8);
 
 static struct ieee80211vap *ath_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	ath_vap_delete(struct ieee80211vap *);
 static void	ath_init(void *);
 static void	ath_stop_locked(struct ifnet *);
@@ -188,7 +189,7 @@ static void	ath_tx_proc_q0123(void *, int);
 static void	ath_tx_proc(void *, int);
 static int	ath_chan_set(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_draintxq(struct ath_softc *, ATH_RESET_TYPE reset_type);
-static void	ath_stoprecv(struct ath_softc *);
+static void	ath_stoprecv(struct ath_softc *, int);
 static int	ath_startrecv(struct ath_softc *);
 static void	ath_chan_change(struct ath_softc *, struct ieee80211_channel *);
 static void	ath_scan_start(struct ieee80211com *);
@@ -204,7 +205,6 @@ static int	ath_setregdomain(struct ieee80211com *,
 static void	ath_getradiocaps(struct ieee80211com *, int, int *,
 		    struct ieee80211_channel []);
 static int	ath_getchannels(struct ath_softc *);
-static void	ath_led_event(struct ath_softc *, int);
 
 static int	ath_rate_setup(struct ath_softc *, u_int mode);
 static void	ath_setcurmode(struct ath_softc *, enum ieee80211_phymode);
@@ -299,7 +299,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	if_initname(ifp, device_get_name(sc->sc_dev),
 		device_get_unit(sc->sc_dev));
 
-	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh, sc->sc_eepromdata, &status);
+	ah = ath_hal_attach(devid, sc, sc->sc_st, sc->sc_sh,
+	    sc->sc_eepromdata, &status);
 	if (ah == NULL) {
 		if_printf(ifp, "unable to attach hardware; HAL status %u\n",
 			status);
@@ -469,7 +470,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 
 	/* Attach DFS module */
 	if (! ath_dfs_attach(sc)) {
-		device_printf(sc->sc_dev, "%s: unable to attach DFS\n", __func__);
+		device_printf(sc->sc_dev,
+		    "%s: unable to attach DFS\n", __func__);
 		error = EIO;
 		goto bad2;
 	}
@@ -477,22 +479,35 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	/* Start DFS processing tasklet */
 	TASK_INIT(&sc->sc_dfstask, 0, ath_dfs_tasklet, sc);
 
+	/* Configure LED state */
 	sc->sc_blinking = 0;
 	sc->sc_ledstate = 1;
 	sc->sc_ledon = 0;			/* low true */
 	sc->sc_ledidle = (2700*hz)/1000;	/* 2.7sec */
 	callout_init(&sc->sc_ledtimer, CALLOUT_MPSAFE);
+
+	/*
+	 * Don't setup hardware-based blinking.
+	 *
+	 * Although some NICs may have this configured in the
+	 * default reset register values, the user may wish
+	 * to alter which pins have which function.
+	 *
+	 * The reference driver attaches the MAC network LED to GPIO1 and
+	 * the MAC power LED to GPIO2.  However, the DWA-552 cardbus
+	 * NIC has these reversed.
+	 */
+	sc->sc_hardled = (1 == 0);
+	sc->sc_led_net_pin = -1;
+	sc->sc_led_pwr_pin = -1;
 	/*
 	 * Auto-enable soft led processing for IBM cards and for
 	 * 5211 minipci cards.  Users can also manually enable/disable
 	 * support with a sysctl.
 	 */
 	sc->sc_softled = (devid == AR5212_DEVID_IBM || devid == AR5211_DEVID);
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
-	}
+	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
 
 	ifp->if_softc = sc;
 	ifp->if_flags = IFF_SIMPLEX | IFF_BROADCAST | IFF_MULTICAST;
@@ -521,7 +536,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		| IEEE80211_C_BGSCAN		/* capable of bg scanning */
 		| IEEE80211_C_TXFRAG		/* handle tx frags */
 #ifdef	ATH_ENABLE_DFS
-		| IEEE80211_C_DFS		/* Enable DFS radar detection */
+		| IEEE80211_C_DFS		/* Enable radar detection */
 #endif
 		;
 	/*
@@ -633,11 +648,12 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		int rxs, txs;
 
 		device_printf(sc->sc_dev, "[HT] enabling HT modes\n");
-		ic->ic_htcaps = IEEE80211_HTC_HT		/* HT operation */
-			    | IEEE80211_HTC_AMPDU		/* A-MPDU tx/rx */
-			    | IEEE80211_HTC_AMSDU		/* A-MSDU tx/rx */
-			    | IEEE80211_HTCAP_MAXAMSDU_3839	/* max A-MSDU length */
-			    | IEEE80211_HTCAP_SMPS_OFF;		/* SM power save off */
+		ic->ic_htcaps = IEEE80211_HTC_HT	/* HT operation */
+			    | IEEE80211_HTC_AMPDU	/* A-MPDU tx/rx */
+			    | IEEE80211_HTC_AMSDU	/* A-MSDU tx/rx */
+			    | IEEE80211_HTCAP_MAXAMSDU_3839
+			    				/* max A-MSDU length */
+			    | IEEE80211_HTCAP_SMPS_OFF;	/* SM power save off */
 			;
 
 		/*
@@ -658,8 +674,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 			    |  IEEE80211_HTCAP_SHORTGI40;
 
 		/*
-		 * rx/tx stream is not currently used anywhere; it needs to be taken
-		 * into account when negotiating which MCS rates it'll receive and
+		 * TX/RX streams need to be taken into account when
+		 * negotiating which MCS rates it'll receive and
 		 * what MCS rates are available for TX.
 		 */
 		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
@@ -671,7 +687,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_txstream = txs;
 		ic->ic_rxstream = rxs;
 
-		device_printf(sc->sc_dev, "[HT] %d RX streams; %d TX streams\n", rxs, txs);
+		device_printf(sc->sc_dev,
+		    "[HT] %d RX streams; %d TX streams\n", rxs, txs);
 	}
 #endif
 
@@ -683,7 +700,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	    ath_hal_getcapability(ah, HAL_CAP_SERIALISE_WAR,
 	     0, NULL) == HAL_OK) {
 		sc->sc_ah->ah_config.ah_serialise_reg_war = 1;
-		device_printf(sc->sc_dev, "Enabling register serialisation\n");
+		device_printf(sc->sc_dev,
+		    "Enabling register serialisation\n");
 	}
 
 	/*
@@ -885,16 +903,17 @@ assign_bslot(struct ath_softc *sc)
 }
 
 static struct ieee80211vap *
-ath_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+ath_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ath_softc *sc = ic->ic_ifp->if_softc;
 	struct ath_vap *avp;
 	struct ieee80211vap *vap;
 	uint8_t mac[IEEE80211_ADDR_LEN];
-	int ic_opmode, needbeacon, error;
+	int needbeacon, error;
+	enum ieee80211_opmode ic_opmode;
 
 	avp = (struct ath_vap *) malloc(sizeof(struct ath_vap),
 	    M_80211_VAP, M_WAITOK | M_ZERO);
@@ -1153,7 +1172,7 @@ ath_vap_delete(struct ieee80211vap *vap)
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
 		ath_draintxq(sc, ATH_RESET_DEFAULT);		/* stop hw xmit side */
 		/* XXX Do all frames from all vaps/nodes need draining here? */
-		ath_stoprecv(sc);		/* stop recv side */
+		ath_stoprecv(sc, 1);		/* stop recv side */
 	}
 
 	ieee80211_vap_detach(vap);
@@ -1310,9 +1329,14 @@ ath_resume(struct ath_softc *sc)
 	/* Let DFS at it in case it's a DFS channel */
 	ath_dfs_radar_enable(sc, ic->ic_curchan);
 
+	/* Restore the LED configuration */
+	ath_led_config(sc);
+	ath_hal_setledstate(ah, HAL_LED_INIT);
+
 	if (sc->sc_resume_up) {
 		if (ic->ic_opmode == IEEE80211_M_STA) {
 			ath_init(sc);
+			ath_hal_setledstate(ah, HAL_LED_RUN);
 			/*
 			 * Program the beacon registers using the last rx'd
 			 * beacon frame and enable sync on the next beacon
@@ -1325,11 +1349,6 @@ ath_resume(struct ath_softc *sc)
 			sc->sc_syncbeacon = 1;
 		} else
 			ieee80211_resume_all(ic);
-	}
-	if (sc->sc_softled) {
-		ath_hal_gpioCfgOutput(ah, sc->sc_ledpin,
-		    HAL_GPIO_MUX_MAC_NETWORK_LED);
-		ath_hal_gpioset(ah, sc->sc_ledpin, !sc->sc_ledon);
 	}
 
 	/* XXX beacons ? */
@@ -1359,16 +1378,36 @@ ath_intr(void *arg)
 	HAL_INT status = 0;
 	uint32_t txqs;
 
+	/*
+	 * If we're inside a reset path, just print a warning and
+	 * clear the ISR. The reset routine will finish it for us.
+	 */
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt) {
+		HAL_INT status;
+		ath_hal_getisr(ah, &status);	/* clear ISR */
+		ath_hal_intrset(ah, 0);		/* disable further intr's */
+		DPRINTF(sc, ATH_DEBUG_ANY,
+		    "%s: in reset, ignoring: status=0x%x\n",
+		    __func__, status);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+
 	if (sc->sc_invalid) {
 		/*
 		 * The hardware is not ready/present, don't touch anything.
 		 * Note this can happen early on if the IRQ is shared.
 		 */
 		DPRINTF(sc, ATH_DEBUG_ANY, "%s: invalid; ignored\n", __func__);
+		ATH_PCU_UNLOCK(sc);
 		return;
 	}
-	if (!ath_hal_intrpend(ah))		/* shared irq, not for us */
+	if (!ath_hal_intrpend(ah)) {		/* shared irq, not for us */
+		ATH_PCU_UNLOCK(sc);
 		return;
+	}
+
 	if ((ifp->if_flags & IFF_UP) == 0 ||
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
 		HAL_INT status;
@@ -1377,8 +1416,10 @@ ath_intr(void *arg)
 			__func__, ifp->if_flags);
 		ath_hal_getisr(ah, &status);	/* clear ISR */
 		ath_hal_intrset(ah, 0);		/* disable further intr's */
+		ATH_PCU_UNLOCK(sc);
 		return;
 	}
+
 	/*
 	 * Figure out the reason(s) for the interrupt.  Note
 	 * that the hal returns a pseudo-ISR that may include
@@ -1400,9 +1441,23 @@ ath_intr(void *arg)
 	status &= sc->sc_imask;			/* discard unasked for bits */
 
 	/* Short-circuit un-handled interrupts */
-	if (status == 0x0)
+	if (status == 0x0) {
+		ATH_PCU_UNLOCK(sc);
 		return;
+	}
 
+	/*
+	 * Take a note that we're inside the interrupt handler, so
+	 * the reset routines know to wait.
+	 */
+	sc->sc_intr_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
+	/*
+	 * Handle the interrupt. We won't run concurrent with the reset
+	 * or channel change routines as they'll wait for sc_intr_cnt
+	 * to be 0 before continuing.
+	 */
 	if (status & HAL_INT_FATAL) {
 		sc->sc_stats.ast_hardware++;
 		ath_hal_intrset(ah, 0);		/* disable intr's until reset */
@@ -1443,6 +1498,7 @@ ath_intr(void *arg)
 		if (status & HAL_INT_RXEOL) {
 			int imask;
 			CTR0(ATH_KTR_ERR, "ath_intr: RXEOL");
+			ATH_PCU_LOCK(sc);
 			/*
 			 * NB: the hardware should re-read the link when
 			 *     RXE bit is written, but it doesn't work at
@@ -1458,7 +1514,6 @@ ath_intr(void *arg)
 			 * by a call to ath_reset() somehow, the
 			 * interrupt mask will be correctly reprogrammed.
 			 */
-			ATH_LOCK(sc);
 			imask = sc->sc_imask;
 			imask &= ~(HAL_INT_RXEOL | HAL_INT_RXORN);
 			ath_hal_intrset(ah, imask);
@@ -1476,13 +1531,13 @@ ath_intr(void *arg)
 			if (! sc->sc_kickpcu)
 				sc->sc_rxlink = NULL;
 			sc->sc_kickpcu = 1;
-			ATH_UNLOCK(sc);
 			/*
 			 * Enqueue an RX proc, to handled whatever
 			 * is in the RX queue.
 			 * This will then kick the PCU.
 			 */
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_rxtask);
+			ATH_PCU_UNLOCK(sc);
 		}
 		if (status & HAL_INT_TXURN) {
 			sc->sc_stats.ast_txurn++;
@@ -1500,12 +1555,12 @@ ath_intr(void *arg)
 			 * and blank them. This is the only place we should be
 			 * doing this.
 			 */
-			ATH_LOCK(sc);
+			ATH_PCU_LOCK(sc);
 			txqs = 0xffffffff;
 			ath_hal_gettxintrtxqs(sc->sc_ah, &txqs);
 			sc->sc_txq_active |= txqs;
-			ATH_UNLOCK(sc);
 			taskqueue_enqueue(sc->sc_tq, &sc->sc_txtask);
+			ATH_PCU_UNLOCK(sc);
 		}
 		if (status & HAL_INT_BMISS) {
 			sc->sc_stats.ast_bmiss++;
@@ -1517,6 +1572,7 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_tx_cst++;
 		if (status & HAL_INT_MIB) {
 			sc->sc_stats.ast_mib++;
+			ATH_PCU_LOCK(sc);
 			/*
 			 * Disable interrupts until we service the MIB
 			 * interrupt; otherwise it will continue to fire.
@@ -1533,10 +1589,9 @@ ath_intr(void *arg)
 			 * RXEOL before the rxproc has had a chance
 			 * to run.
 			 */
-			ATH_LOCK(sc);
 			if (sc->sc_kickpcu == 0)
 				ath_hal_intrset(ah, sc->sc_imask);
-			ATH_UNLOCK(sc);
+			ATH_PCU_UNLOCK(sc);
 		}
 		if (status & HAL_INT_RXORN) {
 			/* NB: hal marks HAL_INT_FATAL when RXORN is fatal */
@@ -1544,6 +1599,9 @@ ath_intr(void *arg)
 			sc->sc_stats.ast_rxorn++;
 		}
 	}
+	ATH_PCU_LOCK(sc);
+	sc->sc_intr_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 static void
@@ -1810,13 +1868,117 @@ ath_stop_locked(struct ifnet *ifp)
 		}
 		ath_draintxq(sc, ATH_RESET_DEFAULT);
 		if (!sc->sc_invalid) {
-			ath_stoprecv(sc);
+			ath_stoprecv(sc, 1);
 			ath_hal_phydisable(ah);
 		} else
 			sc->sc_rxlink = NULL;
 		ath_beacon_free(sc);	/* XXX not needed */
 	}
 }
+
+#define	MAX_TXRX_ITERATIONS	1000
+static void
+ath_txrx_stop(struct ath_softc *sc)
+{
+	int i = MAX_TXRX_ITERATIONS;
+
+	ATH_UNLOCK_ASSERT(sc);
+	/* Stop any new TX/RX from occuring */
+	taskqueue_block(sc->sc_tq);
+
+	ATH_PCU_LOCK(sc);
+	/*
+	 * Sleep until all the pending operations have completed.
+	 *
+	 * The caller must ensure that reset has been incremented
+	 * or the pending operations may continue being queued.
+	 */
+	while (sc->sc_rxproc_cnt || sc->sc_txproc_cnt ||
+	    sc->sc_txstart_cnt || sc->sc_intr_cnt) {
+		if (i <= 0)
+			break;
+		msleep(sc, &sc->sc_pcu_mtx, 0, "ath_txrx_stop", 1);
+		i--;
+	}
+	ATH_PCU_UNLOCK(sc);
+
+	if (i <= 0)
+		device_printf(sc->sc_dev,
+		    "%s: didn't finish after %d iterations\n",
+		    __func__, MAX_TXRX_ITERATIONS);
+}
+#undef	MAX_TXRX_ITERATIONS
+
+static void
+ath_txrx_start(struct ath_softc *sc)
+{
+
+	taskqueue_unblock(sc->sc_tq);
+}
+
+/*
+ * Grab the reset lock, and wait around until noone else
+ * is trying to do anything with it.
+ *
+ * This is totally horrible but we can't hold this lock for
+ * long enough to do TX/RX or we end up with net80211/ip stack
+ * LORs and eventual deadlock.
+ *
+ * "dowait" signals whether to spin, waiting for the reset
+ * lock count to reach 0. This should (for now) only be used
+ * during the reset path, as the rest of the code may not
+ * be locking-reentrant enough to behave correctly.
+ *
+ * Another, cleaner way should be found to serialise all of
+ * these operations.
+ */
+#define	MAX_RESET_ITERATIONS	10
+static int
+ath_reset_grablock(struct ath_softc *sc, int dowait)
+{
+	int w = 0;
+	int i = MAX_RESET_ITERATIONS;
+
+	ATH_PCU_LOCK_ASSERT(sc);
+	do {
+		if (sc->sc_inreset_cnt == 0) {
+			w = 1;
+			break;
+		}
+		if (dowait == 0) {
+			w = 0;
+			break;
+		}
+		ATH_PCU_UNLOCK(sc);
+		pause("ath_reset_grablock", 1);
+		i--;
+		ATH_PCU_LOCK(sc);
+	} while (i > 0);
+
+	/*
+	 * We always increment the refcounter, regardless
+	 * of whether we succeeded to get it in an exclusive
+	 * way.
+	 */
+	sc->sc_inreset_cnt++;
+
+	if (i <= 0)
+		device_printf(sc->sc_dev,
+		    "%s: didn't finish after %d iterations\n",
+		    __func__, MAX_RESET_ITERATIONS);
+
+	if (w == 0)
+		device_printf(sc->sc_dev,
+		    "%s: warning, recursive reset path!\n",
+		    __func__);
+
+	return w;
+}
+#undef MAX_RESET_ITERATIONS
+
+/*
+ * XXX TODO: write ath_reset_releaselock
+ */
 
 static void
 ath_stop(struct ifnet *ifp)
@@ -1842,17 +2004,38 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	HAL_STATUS status;
+	int i;
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: called\n", __func__);
 
+	/* Ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
+	ATH_PCU_UNLOCK_ASSERT(sc);
+	ATH_UNLOCK_ASSERT(sc);
+
+	ATH_PCU_LOCK(sc);
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
+		    __func__);
+	}
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
-	ath_draintxq(sc, reset_type);	/* stop xmit side */
+	ATH_PCU_UNLOCK(sc);
+
 	/*
-	 * XXX Don't flush if ATH_RESET_NOLOSS;but we have to first
-	 * XXX need to ensure this doesn't race with an outstanding
-	 * XXX taskqueue call.
+	 * Should now wait for pending TX/RX to complete
+	 * and block future ones from occuring. This needs to be
+	 * done before the TX queue is drained.
 	 */
-	ath_stoprecv(sc);		/* stop recv side */
+	ath_txrx_stop(sc);
+	ath_draintxq(sc, reset_type);	/* stop xmit side */
+
+	/*
+	 * Regardless of whether we're doing a no-loss flush or
+	 * not, stop the PCU and handle what's in the RX queue.
+	 * That way frames aren't dropped which shouldn't be.
+	 */
+	ath_stoprecv(sc, (reset_type != ATH_RESET_NOLOSS));
+	ath_rx_proc(sc, 0);
+
 	ath_settkipmic(sc);		/* configure TKIP MIC handling */
 	/* NB: indicate channel change so we do a full reset */
 	if (!ath_hal_reset(ah, sc->sc_opmode, ic->ic_curchan, AH_TRUE, &status))
@@ -1879,8 +2062,59 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 #endif
 			ath_beacon_config(sc, NULL);
 	}
-	ath_hal_intrset(ah, sc->sc_imask);
 
+	/*
+	 * Release the reset lock and re-enable interrupts here.
+	 * If an interrupt was being processed in ath_intr(),
+	 * it would disable interrupts at this point. So we have
+	 * to atomically enable interrupts and decrement the
+	 * reset counter - this way ath_intr() doesn't end up
+	 * disabling interrupts without a corresponding enable
+	 * in the rest or channel change path.
+	 */
+	ATH_PCU_LOCK(sc);
+	sc->sc_inreset_cnt--;
+	/* XXX only do this if sc_inreset_cnt == 0? */
+	ath_hal_intrset(ah, sc->sc_imask);
+	ATH_PCU_UNLOCK(sc);
+
+	/*
+	 * TX and RX can be started here. If it were started with
+	 * sc_inreset_cnt > 0, the TX and RX path would abort.
+	 * Thus if this is a nested call through the reset or
+	 * channel change code, TX completion will occur but
+	 * RX completion and ath_start / ath_tx_start will not
+	 * run.
+	 */
+
+	/* Restart TX/RX as needed */
+	ath_txrx_start(sc);
+
+	/* XXX Restart TX completion and pending TX */
+	if (reset_type == ATH_RESET_NOLOSS) {
+		for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+			if (ATH_TXQ_SETUP(sc, i)) {
+				ATH_TXQ_LOCK(&sc->sc_txq[i]);
+				ath_txq_restart_dma(sc, &sc->sc_txq[i]);
+				ath_txq_sched(sc, &sc->sc_txq[i]);
+				ATH_TXQ_UNLOCK(&sc->sc_txq[i]);
+			}
+		}
+	}
+
+	/*
+	 * This may have been set during an ath_start() call which
+	 * set this once it detected a concurrent TX was going on.
+	 * So, clear it.
+	 */
+	/* XXX do this inside of IF_LOCK? */
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	/* Handle any frames in the TX queue */
+	/*
+	 * XXX should this be done by the caller, rather than
+	 * ath_reset() ?
+	 */
 	ath_start(ifp);			/* restart xmit */
 	return 0;
 }
@@ -2011,6 +2245,7 @@ ath_getbuf(struct ath_softc *sc)
 
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: stop queue\n", __func__);
 		sc->sc_stats.ast_tx_qstop++;
+		/* XXX do this inside of IF_LOCK? */
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 	}
 	ATH_TXBUF_UNLOCK(sc);
@@ -2028,6 +2263,20 @@ ath_start(struct ifnet *ifp)
 
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0 || sc->sc_invalid)
 		return;
+
+	/* XXX is it ok to hold the ATH_LOCK here? */
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
+		/* XXX do this inside of IF_LOCK? */
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+	sc->sc_txstart_cnt++;
+	ATH_PCU_UNLOCK(sc);
+
 	for (;;) {
 		/*
 		 * Grab a TX buffer and associated resources.
@@ -2111,6 +2360,10 @@ ath_start(struct ifnet *ifp)
 
 		sc->sc_wd_timer = 5;
 	}
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txstart_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 static int
@@ -2232,6 +2485,13 @@ ath_calcrxfilter(struct ath_softc *sc)
 	 */
 	if (IEEE80211_IS_CHAN_HT(ic->ic_curchan))
 		rfilt |= HAL_RX_FILTER_COMPBAR;
+
+	/*
+	 * Enable radar PHY errors if requested by the
+	 * DFS module.
+	 */
+	if (sc->sc_dodfs)
+		rfilt |= HAL_RX_FILTER_PHYRADAR;
 
 	DPRINTF(sc, ATH_DEBUG_MODE, "%s: RX filter 0x%x, %s if_flags 0x%x\n",
 	    __func__, rfilt, ieee80211_opmode_name[ic->ic_opmode], ifp->if_flags);
@@ -3688,6 +3948,14 @@ ath_rx_tasklet(void *arg, int npending)
 
 	CTR1(ATH_KTR_INTR, "ath_rx_proc: pending=%d", npending);
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: pending %u\n", __func__, npending);
+	ATH_PCU_LOCK(sc);
+	if (sc->sc_inreset_cnt > 0) {
+		device_printf(sc->sc_dev,
+		    "%s: sc_inreset_cnt > 0; skipping\n", __func__);
+		ATH_PCU_UNLOCK(sc);
+		return;
+	}
+	ATH_PCU_UNLOCK(sc);
 	ath_rx_proc(sc, 1);
 }
 
@@ -3710,6 +3978,14 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int16_t nf;
 	u_int64_t tsf;
 	int npkts = 0;
+
+	/* XXX we must not hold the ATH_LOCK here */
+	ATH_UNLOCK_ASSERT(sc);
+	ATH_PCU_UNLOCK_ASSERT(sc);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_rxproc_cnt++;
+	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RX_PROC, "%s: called\n", __func__);
 	ngood = 0;
@@ -3772,6 +4048,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		npkts++;
 
 		/* These aren't specifically errors */
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_flags & HAL_RX_GI)
 			sc->sc_stats.ast_rx_halfgi++;
 		if (rs->rs_flags & HAL_RX_2040)
@@ -3784,6 +4061,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 			sc->sc_stats.ast_rx_decrypt_busy_err++;
 		if (rs->rs_flags & HAL_RX_HI_RX_CHAIN)
 			sc->sc_stats.ast_rx_hi_rx_chain++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (rs->rs_status != 0) {
 			if (rs->rs_status & HAL_RXERR_CRC)
@@ -3921,6 +4199,35 @@ rx_accept:
 			m->m_pkthdr.len = len;
 		}
 
+		/*
+		 * Validate rs->rs_antenna.
+		 *
+		 * Some users w/ AR9285 NICs have reported crashes
+		 * here because rs_antenna field is bogusly large.
+		 * Let's enforce the maximum antenna limit of 8
+		 * (and it shouldn't be hard coded, but that's a
+		 * separate problem) and if there's an issue, print
+		 * out an error and adjust rs_antenna to something
+		 * sensible.
+		 *
+		 * This code should be removed once the actual
+		 * root cause of the issue has been identified.
+		 * For example, it may be that the rs_antenna
+		 * field is only valid for the lsat frame of
+		 * an aggregate and it just happens that it is
+		 * "mostly" right. (This is a general statement -
+		 * the majority of the statistics are only valid
+		 * for the last frame in an aggregate.
+		 */
+		if (rs->rs_antenna > 7) {
+			device_printf(sc->sc_dev, "%s: rs_antenna > 7 (%d)\n",
+			    __func__, rs->rs_antenna);
+#ifdef	ATH_DEBUG
+			ath_printrxbuf(sc, bf, 0, status == HAL_OK);
+#endif /* ATH_DEBUG */
+			rs->rs_antenna = 0;	/* XXX better than nothing */
+		}
+
 		ifp->if_ipackets++;
 		sc->sc_stats.ast_ant_rx[rs->rs_antenna]++;
 
@@ -3972,8 +4279,10 @@ rx_accept:
 				IEEE80211_KEYIX_NONE : rs->rs_keyix);
 		sc->sc_lastrs = rs;
 
+#ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_isaggr)
 			sc->sc_stats.ast_rx_agg++;
+#endif /* AH_SUPPORT_AR5416 */
 
 		if (ni != NULL) {
 			/*
@@ -4056,24 +4365,29 @@ rx_next:
 	 * need to be handled, kick the PCU if there's
 	 * been an RXEOL condition.
 	 */
+	ATH_PCU_LOCK(sc);
 	if (resched && sc->sc_kickpcu) {
 		CTR0(ATH_KTR_ERR, "ath_rx_proc: kickpcu");
 		device_printf(sc->sc_dev, "%s: kickpcu; handled %d packets\n",
 		    __func__, npkts);
 
 		/* XXX rxslink? */
+		/*
+		 * XXX can we hold the PCU lock here?
+		 * Are there any net80211 buffer calls involved?
+		 */
 		bf = TAILQ_FIRST(&sc->sc_rxbuf);
 		ath_hal_putrxbuf(ah, bf->bf_daddr);
 		ath_hal_rxena(ah);		/* enable recv descriptors */
 		ath_mode_init(sc);		/* set filters, etc. */
 		ath_hal_startpcurecv(ah);	/* re-enable PCU/DMA engine */
 
-		ATH_LOCK(sc);
 		ath_hal_intrset(ah, sc->sc_imask);
 		sc->sc_kickpcu = 0;
-		ATH_UNLOCK(sc);
 	}
+	ATH_PCU_UNLOCK(sc);
 
+	/* XXX check this inside of IF_LOCK? */
 	if (resched && (ifp->if_drv_flags & IFF_DRV_OACTIVE) == 0) {
 #ifdef IEEE80211_SUPPORT_SUPERG
 		ieee80211_ff_age_all(ic, 100);
@@ -4082,6 +4396,10 @@ rx_next:
 			ath_start(ifp);
 	}
 #undef PA2DESC
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_rxproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 }
 
 static void
@@ -4588,21 +4906,27 @@ ath_tx_proc_q0(void *arg, int npending)
 	struct ifnet *ifp = sc->sc_ifp;
 	uint32_t txqs;
 
-	ATH_LOCK(sc);
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt++;
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
+	ATH_PCU_UNLOCK(sc);
 
 	if (TXQACTIVE(txqs, 0) && ath_tx_processq(sc, &sc->sc_txq[0], 1))
 		/* XXX why is lastrx updated in tx code? */
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq, 1);
+	/* XXX check this inside of IF_LOCK? */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 
 	ath_start(ifp);
 }
@@ -4619,10 +4943,11 @@ ath_tx_proc_q0123(void *arg, int npending)
 	int nacked;
 	uint32_t txqs;
 
-	ATH_LOCK(sc);
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt++;
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
+	ATH_PCU_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
@@ -4641,11 +4966,16 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
+	/* XXX check this inside of IF_LOCK? */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 
 	ath_start(ifp);
 }
@@ -4661,10 +4991,11 @@ ath_tx_proc(void *arg, int npending)
 	int i, nacked;
 	uint32_t txqs;
 
-	ATH_LOCK(sc);
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt++;
 	txqs = sc->sc_txq_active;
 	sc->sc_txq_active &= ~txqs;
-	ATH_UNLOCK(sc);
+	ATH_PCU_UNLOCK(sc);
 
 	/*
 	 * Process each active queue.
@@ -4676,11 +5007,16 @@ ath_tx_proc(void *arg, int npending)
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
+	/* XXX check this inside of IF_LOCK? */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
 		ath_led_event(sc, sc->sc_txrix);
+
+	ATH_PCU_LOCK(sc);
+	sc->sc_txproc_cnt--;
+	ATH_PCU_UNLOCK(sc);
 
 	ath_start(ifp);
 }
@@ -4863,9 +5199,18 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 
 	(void) ath_stoptxdma(sc);
 
-	for (i = 0; i < HAL_NUM_TX_QUEUES; i++)
-		if (ATH_TXQ_SETUP(sc, i))
-			ath_tx_draintxq(sc, &sc->sc_txq[i]);
+	for (i = 0; i < HAL_NUM_TX_QUEUES; i++) {
+		/*
+		 * XXX TODO: should we just handle the completed TX frames
+		 * here, whether or not the reset is a full one or not?
+		 */
+		if (ATH_TXQ_SETUP(sc, i)) {
+			if (reset_type == ATH_RESET_NOLOSS)
+				ath_tx_processq(sc, &sc->sc_txq[i], 0);
+			else
+				ath_tx_draintxq(sc, &sc->sc_txq[i]);
+		}
+	}
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & ATH_DEBUG_RESET) {
 		struct ath_buf *bf = TAILQ_FIRST(&sc->sc_bbuf);
@@ -4879,6 +5224,7 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		}
 	}
 #endif /* ATH_DEBUG */
+	/* XXX check this inside of IF_LOCK? */
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
 	sc->sc_wd_timer = 0;
 }
@@ -4887,7 +5233,7 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
  * Disable the receive h/w in preparation for a reset.
  */
 static void
-ath_stoprecv(struct ath_softc *sc)
+ath_stoprecv(struct ath_softc *sc, int dodelay)
 {
 #define	PA2DESC(_sc, _pa) \
 	((struct ath_desc *)((caddr_t)(_sc)->sc_rxdma.dd_desc + \
@@ -4897,7 +5243,8 @@ ath_stoprecv(struct ath_softc *sc)
 	ath_hal_stoppcurecv(ah);	/* disable PCU */
 	ath_hal_setrxfilter(ah, 0);	/* clear recv filter */
 	ath_hal_stopdmarecv(ah);	/* disable DMA engine */
-	DELAY(3000);			/* 3ms is long enough for 1 frame */
+	if (dodelay)
+		DELAY(3000);		/* 3ms is long enough for 1 frame */
 #ifdef ATH_DEBUG
 	if (sc->sc_debug & (ATH_DEBUG_RESET | ATH_DEBUG_FATAL)) {
 		struct ath_buf *bf;
@@ -4984,6 +5331,22 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	struct ifnet *ifp = sc->sc_ifp;
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
+	int ret = 0;
+	int dointr = 0;
+
+	/* Treat this as an interface reset */
+	ATH_PCU_LOCK(sc);
+	if (ath_reset_grablock(sc, 1) == 0) {
+		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
+		    __func__);
+	}
+	if (chan != sc->sc_curchan) {
+		dointr = 1;
+		/* XXX only do this if inreset_cnt is 1? */
+		ath_hal_intrset(ah, 0);
+	}
+	ATH_PCU_UNLOCK(sc);
+	ath_txrx_stop(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz, flags 0x%x)\n",
 	    __func__, ieee80211_chan2ieee(ic, chan),
@@ -4996,15 +5359,27 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		 * hardware at the new frequency, and then re-enable
 		 * the relevant bits of the h/w.
 		 */
+#if 0
 		ath_hal_intrset(ah, 0);		/* disable interrupts */
+#endif
+		ath_stoprecv(sc, 1);		/* turn off frame recv */
+		/*
+		 * First, handle completed TX/RX frames.
+		 */
+		ath_rx_proc(sc, 0);
+		ath_draintxq(sc, ATH_RESET_NOLOSS);
+		/*
+		 * Next, flush the non-scheduled frames.
+		 */
 		ath_draintxq(sc, ATH_RESET_FULL);	/* clear pending tx frames */
-		ath_stoprecv(sc);		/* turn off frame recv */
+
 		if (!ath_hal_reset(ah, sc->sc_opmode, chan, AH_TRUE, &status)) {
 			if_printf(ifp, "%s: unable to reset "
 			    "channel %u (%u MHz, flags 0x%x), hal status %u\n",
 			    __func__, ieee80211_chan2ieee(ic, chan),
 			    chan->ic_freq, chan->ic_flags, status);
-			return EIO;
+			ret = EIO;
+			goto finish;
 		}
 		sc->sc_diversity = ath_hal_getdiversity(ah);
 
@@ -5017,7 +5392,8 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		if (ath_startrecv(sc) != 0) {
 			if_printf(ifp, "%s: unable to restart recv logic\n",
 			    __func__);
-			return EIO;
+			ret = EIO;
+			goto finish;
 		}
 
 		/*
@@ -5039,12 +5415,28 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 			ath_beacon_config(sc, NULL);
 		}
 
+#if 0
 		/*
 		 * Re-enable interrupts.
 		 */
 		ath_hal_intrset(ah, sc->sc_imask);
+#endif
 	}
-	return 0;
+
+finish:
+	ATH_PCU_LOCK(sc);
+	sc->sc_inreset_cnt--;
+	/* XXX only do this if sc_inreset_cnt == 0? */
+	if (dointr)
+		ath_hal_intrset(ah, sc->sc_imask);
+	ATH_PCU_UNLOCK(sc);
+
+	/* XXX do this inside of IF_LOCK? */
+	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	ath_txrx_start(sc);
+	/* XXX ath_start? */
+
+	return ret;
 }
 
 /*
@@ -5087,7 +5479,19 @@ ath_calibrate(void *arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 				"%s: rfgain change\n", __func__);
 			sc->sc_stats.ast_per_rfgain++;
+			/*
+			 * Drop lock - we can't hold it across the
+			 * ath_reset() call. Instead, we'll drop
+			 * out here, do a reset, then reschedule
+			 * the callout.
+			 */
+			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
+			sc->sc_resetcal = 0;
+			sc->sc_doresetcal = AH_TRUE;
+			ATH_UNLOCK(sc);
 			ath_reset(ifp, ATH_RESET_NOLOSS);
+			ATH_LOCK(sc);
+			return;
 		}
 		/*
 		 * If this long cal is after an idle period, then
@@ -5572,49 +5976,6 @@ ath_getchannels(struct ath_softc *sc)
 	return 0;
 }
 
-static void
-ath_led_done(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	sc->sc_blinking = 0;
-}
-
-/*
- * Turn the LED off: flip the pin and then set a timer so no
- * update will happen for the specified duration.
- */
-static void
-ath_led_off(void *arg)
-{
-	struct ath_softc *sc = arg;
-
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, !sc->sc_ledon);
-	callout_reset(&sc->sc_ledtimer, sc->sc_ledoff, ath_led_done, sc);
-}
-
-/*
- * Blink the LED according to the specified on/off times.
- */
-static void
-ath_led_blink(struct ath_softc *sc, int on, int off)
-{
-	DPRINTF(sc, ATH_DEBUG_LED, "%s: on %u off %u\n", __func__, on, off);
-	ath_hal_gpioset(sc->sc_ah, sc->sc_ledpin, sc->sc_ledon);
-	sc->sc_blinking = 1;
-	sc->sc_ledoff = off;
-	callout_reset(&sc->sc_ledtimer, on, ath_led_off, sc);
-}
-
-static void
-ath_led_event(struct ath_softc *sc, int rix)
-{
-	sc->sc_ledevent = ticks;	/* time of last event */
-	if (sc->sc_blinking)		/* don't interrupt active blink */
-		return;
-	ath_led_blink(sc, sc->sc_hwmap[rix].ledon, sc->sc_hwmap[rix].ledoff);
-}
-
 static int
 ath_rate_setup(struct ath_softc *sc, u_int mode)
 {
@@ -5742,6 +6103,7 @@ static void
 ath_watchdog(void *arg)
 {
 	struct ath_softc *sc = arg;
+	int do_reset = 0;
 
 	if (sc->sc_wd_timer != 0 && --sc->sc_wd_timer == 0) {
 		struct ifnet *ifp = sc->sc_ifp;
@@ -5753,10 +6115,20 @@ ath_watchdog(void *arg)
 			    hangs & 0xff ? "bb" : "mac", hangs);
 		} else
 			if_printf(ifp, "device timeout\n");
-		ath_reset(ifp, ATH_RESET_NOLOSS);
+		do_reset = 1;
 		ifp->if_oerrors++;
 		sc->sc_stats.ast_watchdog++;
 	}
+
+	/*
+	 * We can't hold the lock across the ath_reset() call.
+	 */
+	if (do_reset) {
+		ATH_UNLOCK(sc);
+		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
+		ATH_LOCK(sc);
+	}
+
 	callout_schedule(&sc->sc_wd_ch, hz);
 }
 
@@ -5923,6 +6295,8 @@ ath_announce(struct ath_softc *sc)
 	if_printf(ifp, "AR%s mac %d.%d RF%s phy %d.%d\n",
 		ath_hal_mac_name(ah), ah->ah_macVersion, ah->ah_macRev,
 		ath_hal_rf_name(ah), ah->ah_phyRev >> 4, ah->ah_phyRev & 0xf);
+	if_printf(ifp, "2GHz radio: 0x%.4x; 5GHz radio: 0x%.4x\n",
+		ah->ah_analog2GhzRev, ah->ah_analog5GhzRev);
 	if (bootverbose) {
 		int i;
 		for (i = 0; i <= WME_AC_VO; i++) {

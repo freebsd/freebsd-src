@@ -146,7 +146,7 @@ lzf_decompress (const void *const in_data,  unsigned int in_len,
 
 /*
  * Avoid assigning values to errno variable? for some embedding purposes
- * (linux kernel for example), this is neccessary. NOTE: this breaks
+ * (linux kernel for example), this is necessary. NOTE: this breaks
  * the documentation in lzf.h.
  */
 #ifndef AVOID_ERRNO
@@ -167,7 +167,7 @@ lzf_decompress (const void *const in_data,  unsigned int in_len,
  * and return EINVAL if the input stream has been corrupted. This
  * only shields against overflowing the input buffer and will not
  * detect most corrupted streams.
- * This check is not normally noticable on modern hardware
+ * This check is not normally noticeable on modern hardware
  * (<1% slowdown), but might slow down older cpus considerably.
  */
 #ifndef CHECK_INPUT

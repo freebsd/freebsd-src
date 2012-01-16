@@ -383,7 +383,6 @@ rt_attach(device_t dev)
 	ifp->if_init = rt_init;
 	ifp->if_ioctl = rt_ioctl;
 	ifp->if_start = rt_start;
-	ifp->if_mtu = ETHERMTU;
 #define	RT_TX_QLEN	256
 
 	IFQ_SET_MAXLEN(&ifp->if_snd, RT_TX_QLEN);
@@ -2588,17 +2587,14 @@ static device_method_t rt_dev_methods[] =
 	DEVMETHOD(device_suspend, rt_suspend),
 	DEVMETHOD(device_resume, rt_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 #ifdef IF_RT_PHY_SUPPORT
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	rt_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	rt_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	rt_miibus_statchg),
 #endif
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t rt_driver =
