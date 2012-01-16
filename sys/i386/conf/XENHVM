@@ -1,5 +1,5 @@
 #
-# XENHVM -- Xen HVM kernel configuration file for FreeBSD/amd64
+# XENHVM -- Xen HVM kernel configuration file for FreeBSD/i386
 #
 # $FreeBSD$
 #
