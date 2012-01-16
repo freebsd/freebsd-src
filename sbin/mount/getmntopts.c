@@ -124,16 +124,20 @@ rmslashes(char *rrpin, char *rrpout)
 		*rrpout = '\0';
 }
 
-void
+int
 checkpath(const char *path, char *resolved)
 {
 	struct stat sb;
 
 	if (realpath(path, resolved) != NULL && stat(resolved, &sb) == 0) {
-		if (!S_ISDIR(sb.st_mode))
-			errx(EX_USAGE, "%s: not a directory", resolved);
+		if (!S_ISDIR(sb.st_mode)) {
+			errno = ENOTDIR;
+			return (1);
+		}
 	} else
-		errx(EX_USAGE, "%s: %s", resolved, strerror(errno));
+		return (1);
+
+	return (0);
 }
 
 void

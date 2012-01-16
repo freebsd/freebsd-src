@@ -539,7 +539,10 @@ mountfs(const char *vfstype, const char *spec, const char *name, int flags,
 	static struct cpa mnt_argv;
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(name, mntpath);
+	if (checkpath(name, mntpath) != 0) {
+		warn("%s", mntpath);
+		return (1);
+	}
 	name = mntpath;
 
 	if (mntopts == NULL)

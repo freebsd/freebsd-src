@@ -140,7 +140,8 @@ main(int argc, char *argv[])
 	}
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(argv[optind+1], mountpt);
+	if (checkpath(argv[optind+1], mountpt) != 0)
+		err(EX_USAGE, "%s", mountpt);
 
 	/*
 	 * Construct the listening socket
