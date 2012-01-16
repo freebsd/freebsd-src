@@ -5,17 +5,17 @@
  * Move private identifiers with external linkage into implementation
  * namespace.  -- Klaus Klein <kleink@NetBSD.org>, May 5, 1999
  */
-#define float_exception_flags	_softfloat_float_exception_flags
-#define float_exception_mask	_softfloat_float_exception_mask
-#define float_rounding_mode	_softfloat_float_rounding_mode
-#define float_raise		_softfloat_float_raise
+#define float_exception_flags	__softfloat_float_exception_flags
+#define float_exception_mask	__softfloat_float_exception_mask
+#define float_rounding_mode	__softfloat_float_rounding_mode
+#define float_raise		__softfloat_float_raise
 /* The following batch are called by GCC through wrappers */
-#define float32_eq		_softfloat_float32_eq
-#define float32_le		_softfloat_float32_le
-#define float32_lt		_softfloat_float32_lt
-#define float64_eq		_softfloat_float64_eq
-#define float64_le		_softfloat_float64_le
-#define float64_lt		_softfloat_float64_lt
+#define float32_eq		__softfloat_float32_eq
+#define float32_le		__softfloat_float32_le
+#define float32_lt		__softfloat_float32_lt
+#define float64_eq		__softfloat_float64_eq
+#define float64_le		__softfloat_float64_le
+#define float64_lt		__softfloat_float64_lt
 
 /*
  * Macros to define functions with the GCC expected names
