@@ -104,10 +104,7 @@ enum memory_order {
  * 7.17.4 Fences.
  */
 
-#if defined(__CLANG_ATOMICS)
-#define	atomic_thread_fence(order)	__atomic_thread_fence(order)
-#define	atomic_signal_fence(order)	__asm volatile ("" : : : "memory")
-#elif defined(__GNUC_ATOMICS)
+#if defined(__CLANG_ATOMICS) || defined(__GNUC_ATOMICS)
 #define	atomic_thread_fence(order)	__atomic_thread_fence(order)
 #define	atomic_signal_fence(order)	__atomic_signal_fence(order)
 #else
