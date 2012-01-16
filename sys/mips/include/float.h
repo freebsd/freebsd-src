@@ -47,12 +47,11 @@ __END_DECLS
 #else
 #define	FLT_ROUNDS	-1
 #endif
-/*
- * XXXMIPS: MIPS32 has both float and double type, so set FLT_EVAL_METHOD
- *   to 0. Check it for 64-bits systems.
- */
+
+#if __ISO_C_VISIBLE >= 1999
 #define	FLT_EVAL_METHOD	0
 #define	DECIMAL_DIG	17
+#endif
 
 #define	FLT_MANT_DIG	24		/* p */
 #define	FLT_EPSILON	1.19209290E-07F /* b**(1-p) */
@@ -75,13 +74,13 @@ __END_DECLS
 #define	DBL_MAX_10_EXP	308
 
 #define	LDBL_MANT_DIG	DBL_MANT_DIG
-#define	LDBL_EPSILON	DBL_EPSILON
+#define	LDBL_EPSILON	(long double)DBL_EPSILON
 #define	LDBL_DIG	DBL_DIG
 #define	LDBL_MIN_EXP	DBL_MIN_EXP
-#define	LDBL_MIN	DBL_MIN
+#define	LDBL_MIN	(long double)DBL_MIN
 #define	LDBL_MIN_10_EXP DBL_MIN_10_EXP
 #define	LDBL_MAX_EXP	DBL_MAX_EXP
-#define	LDBL_MAX	DBL_MAX
+#define	LDBL_MAX	(long double)DBL_MAX
 #define	LDBL_MAX_10_EXP DBL_MAX_10_EXP
 
 #endif /* _MACHINE_FLOAT_H_ */
