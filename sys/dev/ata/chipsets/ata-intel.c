@@ -197,6 +197,7 @@ ata_intel_probe(device_t dev)
      { ATA_PBG_AH1,      0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_R1,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_R2,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
+     { ATA_PBG_R3,       0, INTEL_AHCI, 0, ATA_SA300, "Patsburg" },
      { ATA_PBG_S2,       0, INTEL_6CH2, 0, ATA_SA300, "Patsburg" },
      { ATA_PPT_S1,       0, INTEL_6CH,  0, ATA_SA300, "Panther Point" },
      { ATA_PPT_S2,       0, INTEL_6CH,  0, ATA_SA300, "Panther Point" },
