@@ -22,8 +22,7 @@ this distribution follows, see the GNU standards document
 ftp://ftp.gnu.org/pub/gnu/standards.*, especially the 'Makefile
 Conventions', 'Configuration', and 'User Interfaces' sections.
 
-Mail suggestions and bug reports to both <bug-gnu-utils@gnu.org> and
-<gperf-bugs@lists.sourceforge.net>.  When reporting bugs, please
-include in the subject line the package name and version (output of
-'gperf --version') for which you found a problem.
+Mail suggestions and bug reports to <bug-gnu-gperf@gnu.org>.  When
+reporting bugs, please include in the subject line the package name
+and version (output of 'gperf --version') for which you found a problem.
 
