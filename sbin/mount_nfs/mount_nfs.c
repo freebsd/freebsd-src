@@ -411,7 +411,8 @@ main(int argc, char *argv[])
 		exit(1);
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(name, mntpath);
+	if (checkpath(name, mntpath) != 0)
+		err(1, "%s", mntpath);
 
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
