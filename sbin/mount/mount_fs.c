@@ -118,7 +118,10 @@ mount_fs(const char *vfstype, int argc, char *argv[])
 	dev = argv[0];
 	dir = argv[1];
 
-	(void)checkpath(dir, mntpath);
+	if (checkpath(dir, mntpath) != 0) {
+		warn("%s", mntpath);
+		return (1);
+	}
 	(void)rmslashes(dev, dev);
 
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
