@@ -49,8 +49,8 @@ typedef	__gid_t		gid_t;
 #endif
 
 #ifndef _MODE_T_DECLARED
-typedef __mode_t	mode_t;
-#define _MODE_T_DECLARED
+typedef	__mode_t	mode_t;
+#define	_MODE_T_DECLARED
 #endif
 
 #ifndef _PID_T_DECLARED
@@ -68,8 +68,8 @@ typedef	__uid_t		uid_t;
 #define	_UID_T_DECLARED
 #endif
 
-#define PROPERTY_MAX_NAME	64
-#define PROPERTY_MAX_VALUE	512
+#define	PROPERTY_MAX_NAME	64
+#define	PROPERTY_MAX_VALUE	512
 
 /* for properties.c */
 typedef struct _property {
@@ -80,9 +80,6 @@ typedef struct _property {
 
 /* Avoid pulling in all the include files for no need */
 struct in_addr;
-struct kinfo_file;
-struct kinfo_proc;
-struct kinfo_vmentry;
 struct pidfh;
 struct sockaddr;
 struct termios;
@@ -114,6 +111,12 @@ int	kld_load(const char *_name);
 int	login_tty(int _fd);
 int	openpty(int *_amaster, int *_aslave, char *_name,
 	    struct termios *_termp, struct winsize *_winp);
+int	pidfile_close(struct pidfh *_pfh);
+int	pidfile_fileno(const struct pidfh *_pfh);
+struct pidfh *
+	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
+int	pidfile_remove(struct pidfh *_pfh);
+int	pidfile_write(struct pidfh *_pfh);
 void	properties_free(properties _list);
 char	*property_find(properties _list, const char *_name);
 properties
@@ -170,13 +173,6 @@ struct group
 int	gr_tmp(int _mdf);
 #endif
 
-int	pidfile_close(struct pidfh *_pfh);
-int	pidfile_fileno(const struct pidfh *_pfh);
-struct pidfh *
-	pidfile_open(const char *_path, mode_t _mode, pid_t *_pidptr);
-int	pidfile_remove(struct pidfh *_pfh);
-int	pidfile_write(struct pidfh *_pfh);
-
 #ifdef _UFS_UFS_QUOTA_H_
 struct fstab;
 struct quotafile;
@@ -199,22 +195,6 @@ int	quota_write_usage(struct quotafile *_qf, struct dqblk *_dqb, int _id);
 
 __END_DECLS
 
-#define UU_LOCK_INUSE (1)
-#define UU_LOCK_OK (0)
-#define UU_LOCK_OPEN_ERR (-1)
-#define UU_LOCK_READ_ERR (-2)
-#define UU_LOCK_CREAT_ERR (-3)
-#define UU_LOCK_WRITE_ERR (-4)
-#define UU_LOCK_LINK_ERR (-5)
-#define UU_LOCK_TRY_ERR (-6)
-#define UU_LOCK_OWNER_ERR (-7)
-
-/* return values from realhostname() */
-#define HOSTNAME_FOUND		(0)
-#define HOSTNAME_INCORRECTNAME	(1)
-#define HOSTNAME_INVALIDADDR	(2)
-#define HOSTNAME_INVALIDNAME	(3)
-
 /* fparseln(3) */
 #define	FPARSELN_UNESCESC	0x01
 #define	FPARSELN_UNESCCONT	0x02
@@ -222,26 +202,43 @@ __END_DECLS
 #define	FPARSELN_UNESCREST	0x08
 #define	FPARSELN_UNESCALL	0x0f
 
-/* pw_scan() */
-#define PWSCAN_MASTER		0x01
-#define PWSCAN_WARN		0x02
-
-/* humanize_number(3) */
-#define HN_DECIMAL		0x01
-#define HN_NOSPACE		0x02
-#define HN_B			0x04
-#define HN_DIVISOR_1000		0x08
-#define HN_IEC_PREFIXES		0x10
-
-/* maxscale = 0x07 */
-#define HN_GETSCALE		0x10
-#define HN_AUTOSCALE		0x20
-
-/* hexdump(3) */
+/* Flags for hexdump(3). */
 #define	HD_COLUMN_MASK		0xff
 #define	HD_DELIM_MASK		0xff00
 #define	HD_OMIT_COUNT		(1 << 16)
 #define	HD_OMIT_HEX		(1 << 17)
 #define	HD_OMIT_CHARS		(1 << 18)
+
+/* Flags for humanize_number(3) flags. */
+#define	HN_DECIMAL		0x01
+#define	HN_NOSPACE		0x02
+#define	HN_B			0x04
+#define	HN_DIVISOR_1000		0x08
+#define	HN_IEC_PREFIXES		0x10
+
+/* Flags for humanize_number(3) scale. */
+#define	HN_GETSCALE		0x10
+#define	HN_AUTOSCALE		0x20
+
+/* return values from realhostname(). */
+#define	HOSTNAME_FOUND		0
+#define	HOSTNAME_INCORRECTNAME	1
+#define	HOSTNAME_INVALIDADDR	2
+#define	HOSTNAME_INVALIDNAME	3
+
+/* Flags for pw_scan(). */
+#define	PWSCAN_MASTER		0x01
+#define	PWSCAN_WARN		0x02
+
+/* Return values from uu_lock(). */
+#define	UU_LOCK_INUSE		1
+#define	UU_LOCK_OK		0
+#define	UU_LOCK_OPEN_ERR	-1
+#define	UU_LOCK_READ_ERR	-2
+#define	UU_LOCK_CREAT_ERR	-3
+#define	UU_LOCK_WRITE_ERR	-4
+#define	UU_LOCK_LINK_ERR	-5
+#define	UU_LOCK_TRY_ERR		-6
+#define	UU_LOCK_OWNER_ERR	-7
 
 #endif /* !_LIBUTIL_H_ */
