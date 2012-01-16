@@ -128,6 +128,36 @@ mb_reserve(struct mbchain *mbp, int size)
 }
 
 int
+mb_put_padbyte(struct mbchain *mbp)
+{
+	caddr_t dst;
+	char x = 0;
+
+	dst = mtod(mbp-&gt;mb_cur, caddr_t) + mbp-&gt;mb_cur-&gt;m_len;
+
+	/* only add padding if address is odd */
+	if ((unsigned long)dst &amp; 1)
+		return mb_put_mem(mbp, (caddr_t)&amp;x, 1, MB_MSYSTEM);
+	else
+	return 0;
+}
+
+int
+mb_put_padbyte(struct mbchain *mbp)
+{
+	caddr_t dst;
+	char x = 0;
+
+	dst = mtod(mbp->mb_cur, caddr_t) + mbp->mb_cur->m_len;
+
+	/* only add padding if address is odd */
+	if ((unsigned long)dst & 1)
+		return mb_put_mem(mbp, (caddr_t)&x, 1, MB_MSYSTEM);
+	else
+	return 0;
+}
+
+int
 mb_put_uint8(struct mbchain *mbp, uint8_t x)
 {
 	return mb_put_mem(mbp, (caddr_t)&x, sizeof(x), MB_MSYSTEM);

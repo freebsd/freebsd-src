@@ -47,6 +47,7 @@
 #define	KICONV_FROM_UPPER	8	/* toupper source character, then convert */
 #define	KICONV_WCTYPE		16	/* towlower/towupper characters */
 
+#define	ENCODING_UNICODE	"UTF-16BE"
 #define	KICONV_WCTYPE_NAME	"_wctype"
 
 /*
@@ -85,7 +86,6 @@ struct iconv_add_out {
 
 __BEGIN_DECLS
 
-#define	ENCODING_UNICODE	"UTF-16BE"
 #define	KICONV_VENDOR_MICSFT	1	/* Microsoft Vendor Code for quirk */
 
 int   kiconv_add_xlat_table(const char *, const char *, const u_char *);
@@ -162,6 +162,7 @@ int iconv_convchr(void *handle, const char **inbuf,
 	size_t *inbytesleft, char **outbuf, size_t *outbytesleft);
 int iconv_convchr_case(void *handle, const char **inbuf,
 	size_t *inbytesleft, char **outbuf, size_t *outbytesleft, int casetype);
+int iconv_add(const char *converter, const char *to, const char *from);
 char* iconv_convstr(void *handle, char *dst, const char *src);
 void* iconv_convmem(void *handle, void *dst, const void *src, int size);
 int iconv_vfs_refcount(const char *fsname);
