@@ -44,7 +44,11 @@ extern int __flt_rounds(void);
 __END_DECLS
 
 #define FLT_RADIX	2		/* b */
-#define FLT_ROUNDS	-1
+#ifndef	_ARM_HARD_FLOAT
+#define	FLT_ROUNDS	__flt_rounds()
+#else
+#define	FLT_ROUNDS	(-1)
+#endif
 #define	FLT_EVAL_METHOD	(-1)		/* XXX */
 #define	DECIMAL_DIG	17		/* max precision in decimal digits */
 
