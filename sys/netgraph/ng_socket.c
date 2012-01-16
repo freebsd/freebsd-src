@@ -64,9 +64,6 @@
 #include <sys/socketvar.h>
 #include <sys/syscallsubr.h>
 #include <sys/sysctl.h>
-#ifdef NOTYET
-#include <sys/vnode.h>
-#endif
 
 #include <net/vnet.h>
 
@@ -124,9 +121,6 @@ static int	ng_attach_cntl(struct socket *so);
 static int	ng_attach_common(struct socket *so, int type);
 static void	ng_detach_common(struct ngpcb *pcbp, int type);
 static void	ng_socket_free_priv(struct ngsock *priv);
-#ifdef NOTYET
-static int	ng_internalize(struct mbuf *m, struct thread *p);
-#endif
 static int	ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp);
 static int	ng_bind(struct sockaddr *nam, struct ngpcb *pcbp);
 
@@ -209,19 +203,10 @@ ngc_send(struct socket *so, int flags, struct mbuf *m, struct sockaddr *addr,
 	int len, error = 0;
 	struct ng_apply_info apply;
 
-#ifdef	NOTYET
-	if (control && (error = ng_internalize(control, td))) {
-		if (pcbp->sockdata == NULL) {
-			error = ENOTCONN;
-			goto release;
-		}
-	}
-#else	/* NOTYET */
 	if (control) {
 		error = EINVAL;
 		goto release;
 	}
-#endif	/* NOTYET */
 
 	/* Require destination as there may be >= 1 hooks on this node. */
 	if (addr == NULL) {
@@ -660,69 +645,6 @@ ng_socket_free_priv(struct ngsock *priv)
 	} else
 		mtx_unlock(&priv->mtx);
 }
-
-#ifdef NOTYET
-/*
- * File descriptors can be passed into an AF_NETGRAPH socket.
- * Note, that file descriptors cannot be passed OUT.
- * Only character device descriptors are accepted.
- * Character devices are useful to connect a graph to a device,
- * which after all is the purpose of this whole system.
- */
-static int
-ng_internalize(struct mbuf *control, struct thread *td)
-{
-	const struct cmsghdr *cm = mtod(control, const struct cmsghdr *);
-	struct file *fp;
-	struct vnode *vn;
-	int oldfds;
-	int fd;
-
-	if (cm->cmsg_type != SCM_RIGHTS || cm->cmsg_level != SOL_SOCKET ||
-	    cm->cmsg_len != control->m_len) {
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-
-	/* Check there is only one FD. XXX what would more than one signify? */
-	oldfds = ((caddr_t)cm + cm->cmsg_len - (caddr_t)data) / sizeof (int);
-	if (oldfds != 1) {
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-
-	/* Check that the FD given is legit. and change it to a pointer to a
-	 * struct file. */
-	fd = CMSG_DATA(cm);
-	if ((error = fget(td, fd, 0, &fp)) != 0)
-		return (error);
-
-	/* Depending on what kind of resource it is, act differently. For
-	 * devices, we treat it as a file. For an AF_NETGRAPH socket,
-	 * shortcut straight to the node. */
-	switch (fp->f_type) {
-	case DTYPE_VNODE:
-		vn = fp->f_data;
-		if (vn && (vn->v_type == VCHR)) {
-			/* for a VCHR, actually reference the FILE */
-			fhold(fp);
-			/* XXX then what :) */
-			/* how to pass on to other modules? */
-		} else {
-			fdrop(fp, td);
-			TRAP_ERROR;
-			return (EINVAL);
-		}
-		break;
-	default:
-		fdrop(fp, td);
-		TRAP_ERROR;
-		return (EINVAL);
-	}
-	fdrop(fp, td);
-	return (0);
-}
-#endif	/* NOTYET */
 
 /*
  * Connect the data socket to a named control socket node.
