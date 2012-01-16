@@ -1,6 +1,6 @@
 /* 
-Copyright (C) 1990, 2000 Free Software Foundation
-    written by Doug Lea (dl@rocky.oswego.edu)
+Copyright (C) 1990, 2000, 2002 Free Software Foundation
+    written by Doug Lea <dl@rocky.oswego.edu>
 */
 
 #include <hash.h>
@@ -12,14 +12,14 @@ Copyright (C) 1990, 2000 Free Software Foundation
 */
 
 unsigned int
-hashpjw (const char *x, unsigned int len) // From Dragon book, p436
+hashpjw (const unsigned char *x, unsigned int len) // From Dragon book, p436
 {
   unsigned int h = 0;
   unsigned int g;
 
   for (; len > 0; len--)
     {
-      h = (h << 4) + (unsigned char) *x++;
+      h = (h << 4) + *x++;
       if ((g = h & 0xf0000000) != 0)
         h = (h ^ (g >> 24)) ^ g;
     }

@@ -1,5 +1,6 @@
-/* Fast lookup table abstraction implemented as an Iteration Number Array
-   Copyright (C) 1989-1998, 2002 Free Software Foundation, Inc.
+/* Inline Functions for keyword.{h,cc}.
+
+   Copyright (C) 1989-1998, 2000, 2002 Free Software Foundation, Inc.
    Written by Douglas C. Schmidt <schmidt@ics.uci.edu>
    and Bruno Haible <bruno@clisp.org>.
 
@@ -20,28 +21,22 @@
    If not, write to the Free Software Foundation, Inc.,
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.  */
 
-/* Specification. */
-#include "bool-array.h"
+/* ----------------------------- Keyword class ----------------------------- */
 
-#include <stdio.h>
-#include <string.h>
-#include "options.h"
-
-/* Frees this object.  */
-Bool_Array::~Bool_Array ()
+/* Constructor.  */
+INLINE
+Keyword::Keyword (const char *allchars, int allchars_length, const char *rest)
+  : _allchars (allchars), _allchars_length (allchars_length), _rest (rest)
 {
-  /* Print out debugging diagnostics. */
-  if (option[DEBUG])
-    fprintf (stderr, "\ndumping boolean array information\n"
-             "size = %d\niteration number = %d\nend of array dump\n",
-             _size, _iteration_number);
-  delete[] const_cast<unsigned int *>(_storage_array);
 }
 
-#ifndef __OPTIMIZE__
 
-#define INLINE /* not inline */
-#include "bool-array.icc"
-#undef INLINE
+/* --------------------------- KeywordExt class --------------------------- */
 
-#endif /* not defined __OPTIMIZE__ */
+/* Constructor.  */
+INLINE
+KeywordExt::KeywordExt (const char *allchars, int allchars_length, const char *rest)
+  : Keyword (allchars, allchars_length, rest),
+    _final_index (-1)
+{
+}

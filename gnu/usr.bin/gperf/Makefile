@@ -1,17 +1,18 @@
 # $FreeBSD$
 
-GPROFDIR=	${.CURDIR}/../../../contrib/gperf
+.include <bsd.own.mk>
+GPERFDIR=	${.CURDIR}/../../../contrib/gperf
 
-.PATH: ${GPROFDIR}/src ${GPROFDIR}/lib ${GPROFDIR}/doc
+.PATH: ${GPERFDIR}/src ${GPERFDIR}/lib ${GPERFDIR}/doc
 
 SUBDIR=	doc
 
 PROG_CXX=	gperf
-SRCS=	bool-array.cc gen-perf.cc hash-table.cc iterator.cc key-list.cc \
-	list-node.cc main.cc new.cc options.cc read-line.cc trace.cc \
-	vectors.cc version.cc
-SRCS+=  hash.cc
+SRCS=	bool-array.cc hash-table.cc input.cc keyword-list.cc keyword.cc \
+	main.cc options.cc output.cc positions.cc search.cc version.cc \
+	getline.cc hash.cc
+WARNS=	1
 
-CXXFLAGS+=	-I${GPROFDIR}/lib -I${.CURDIR}
+CXXFLAGS+=	-I${GPERFDIR}/lib -I${.CURDIR}
 
 .include <bsd.prog.mk>
