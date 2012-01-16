@@ -47,7 +47,7 @@ __END_DECLS
 
 #define FLT_RADIX	2		/* b */
 #if __ISO_C_VISIBLE >= 1999
-#define	FLT_EVAL_METHOD	1		/* operands promoted to double */
+#define	FLT_EVAL_METHOD	0
 #define	DECIMAL_DIG	17		/* max precision in decimal digits */
 #endif
 
