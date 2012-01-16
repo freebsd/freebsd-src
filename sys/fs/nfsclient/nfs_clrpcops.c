@@ -798,7 +798,8 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
 		    NFSV4EXCH_USEPNFSMDS | NFSV4EXCH_USENONPNFS, cred, p);
 if (error) printf("exch=%d\n",error);
 		if (error == 0)
-			error = nfsrpc_createsession(nmp, clp, cred, p);
+			error = nfsrpc_createsession(nmp, &clp->nfsc_sess, cred,
+			    p);
 if (error) printf("aft crs=%d\n",error);
 		return (error);
 	}
@@ -4335,7 +4336,7 @@ nfsmout:
  * Do the NFSv4.1 Create Session.
  */
 int
-nfsrpc_createsession(struct nfsmount *nmp, struct nfsclclient *clp,
+nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
     struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
@@ -4345,10 +4346,10 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclclient *clp,
 
 	nfscl_reqstart(nd, NFSPROC_CREATESESSION, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
-	*tl++ = clp->nfsc_clientid.lval[0];
-	*tl++ = clp->nfsc_clientid.lval[1];
-	*tl++ = txdr_unsigned(clp->nfsc_sequenceid);
-printf("clseq0=0x%x\n",clp->nfsc_sequenceid);
+	*tl++ = sep->nfsess_clientid.lval[0];
+	*tl++ = sep->nfsess_clientid.lval[1];
+	*tl++ = txdr_unsigned(sep->nfsess_sequenceid);
+printf("clseq0=0x%x\n",sep->nfsess_sequenceid);
 	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
 		*tl = txdr_unsigned(NFSV4CRSESS_PERSIST |
 		    NFSV4CRSESS_CONNBACKCHAN);
@@ -4394,10 +4395,10 @@ printf("clseq0=0x%x\n",clp->nfsc_sequenceid);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, NFSX_V4SESSIONID +
 		    2 * NFSX_UNSIGNED);
-		bcopy(tl, clp->nfsc_sessionid, NFSX_V4SESSIONID);
+		bcopy(tl, sep->nfsess_sessionid, NFSX_V4SESSIONID);
 		tl += NFSX_V4SESSIONID / NFSX_UNSIGNED;
-		clp->nfsc_sequenceid = fxdr_unsigned(uint32_t, *tl++);
-printf("clseq=0x%x\n",clp->nfsc_sequenceid);
+		sep->nfsess_sequenceid = fxdr_unsigned(uint32_t, *tl++);
+printf("clseq=0x%x\n",sep->nfsess_sequenceid);
 printf("crfl=0x%x\n",fxdr_unsigned(uint32_t, *tl));
 		/* Don't care about replied flags for now. */
 
@@ -4405,8 +4406,8 @@ printf("crfl=0x%x\n",fxdr_unsigned(uint32_t, *tl));
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 printf("cr %d %d %d %d %d\n",fxdr_unsigned(uint32_t, *tl),fxdr_unsigned(uint32_t, *(tl+1)),fxdr_unsigned(uint32_t, *(tl+2)),fxdr_unsigned(uint32_t, *(tl+3)),fxdr_unsigned(uint32_t, *(tl+4)));
 		tl += 5;		/* Skip the other counts. */		
-		clp->nfsc_foreslots = fxdr_unsigned(uint16_t, *tl++);
-printf("fore slots=%d\n", clp->nfsc_foreslots);
+		sep->nfsess_foreslots = fxdr_unsigned(uint16_t, *tl++);
+printf("fore slots=%d\n", sep->nfsess_foreslots);
 		irdcnt = fxdr_unsigned(int, *tl);
 		if (irdcnt > 0) {
 printf("got an ird cnt=%d\n",irdcnt);
@@ -4416,8 +4417,8 @@ printf("got an ird cnt=%d\n",irdcnt);
 		/* and the back channel slot count. */
 		NFSM_DISSECT(tl, uint32_t *, 7 * NFSX_UNSIGNED);
 		tl += 5;
-		clp->nfsc_backslots = fxdr_unsigned(uint16_t, *tl);
-printf("back slots=%d\n", clp->nfsc_backslots);
+		sep->nfsess_backslots = fxdr_unsigned(uint16_t, *tl);
+printf("back slots=%d\n", sep->nfsess_backslots);
 	}
 	error = nd->nd_repstat;
 nfsmout:

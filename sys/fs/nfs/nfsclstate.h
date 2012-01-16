@@ -65,6 +65,7 @@ struct nfsclsession {
 	uint64_t	nfsess_slots;
 	uint32_t	nfsess_sequenceid;
 	uint16_t	nfsess_foreslots;
+	uint16_t	nfsess_backslots;
 	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
 };
 
@@ -87,7 +88,6 @@ struct nfsclclient {
 	u_int32_t		nfsc_renew;
 	u_int32_t		nfsc_cbident;
 	u_int16_t		nfsc_flags;
-	u_int16_t		nfsc_backslots;	/* # of back channel slots. */
 	u_int16_t		nfsc_idlen;
 	u_int8_t		nfsc_id[1];	/* Malloc'd to correct length */
 };
@@ -99,6 +99,7 @@ struct nfsclclient {
 #define	nfsc_slots	nfsc_sess.nfsess_slots
 #define	nfsc_sequenceid	nfsc_sess.nfsess_sequenceid
 #define	nfsc_foreslots	nfsc_sess.nfsess_foreslots
+#define	nfsc_backslots	nfsc_sess.nfsess_backslots
 #define	nfsc_sessionid	nfsc_sess.nfsess_sessionid
 
 /*
