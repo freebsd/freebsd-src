@@ -448,9 +448,6 @@ m_getzone(int size)
 	uma_zone_t zone;
 	
 	switch (size) {
-	case MSIZE:
-		zone = zone_mbuf;
-		break;
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
