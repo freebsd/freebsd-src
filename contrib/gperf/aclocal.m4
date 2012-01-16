@@ -1,7 +1,5 @@
 AC_PREREQ(2.12)
 
-AC_DEFUN(CL_PROG_RANLIB, [AC_CHECK_PROG(RANLIB, ranlib, ranlib, true)])
-
 AC_DEFUN(CL_PROG_INSTALL,
 [dnl This is mostly copied from AC_PROG_INSTALL.
 # Find a good install program.  We prefer a C program (faster),
