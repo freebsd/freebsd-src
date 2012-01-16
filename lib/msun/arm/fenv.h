@@ -64,13 +64,25 @@ extern const fenv_t	__fe_dfl_env;
 #define _FPUSW_SHIFT	16
 #define	_ENABLE_MASK	(FE_ALL_EXCEPT << _FPUSW_SHIFT)
 
-#ifdef	ARM_HARD_FLOAT
+#ifndef	ARM_HARD_FLOAT
+/*
+ * The following macros map between the softfloat emulator's flags and
+ * the hardware's FPSR.  The hardware this file was written for doesn't
+ * have rounding control bits, so we stick those in the system ID byte.
+ */
+#define	__set_env(env, flags, mask, rnd) env = ((flags)			\
+						| (mask)<<_FPUSW_SHIFT	\
+						| (rnd) << 24)
+#define	__env_flags(env)		((env) & FE_ALL_EXCEPT)
+#define	__env_mask(env)			(((env) >> _FPUSW_SHIFT)	\
+						& FE_ALL_EXCEPT)
+#define	__env_round(env)		(((env) >> 24) & _ROUND_MASK)
+#include <fenv-softfloat.h>
+
+#else	/* ARM_HARD_FLOAT */
+
 #define	__rfs(__fpsr)	__asm __volatile("rfs %0" : "=r" (*(__fpsr)))
 #define	__wfs(__fpsr)	__asm __volatile("wfs %0" : : "r" (__fpsr))
-#else
-#define __rfs(__fpsr)
-#define __wfs(__fpsr)
-#endif
 
 __fenv_static inline int
 feclearexcept(int __excepts)
@@ -217,6 +229,8 @@ fegetexcept(void)
 }
 
 #endif /* __BSD_VISIBLE */
+
+#endif	/* ARM_HARD_FLOAT */
 
 __END_DECLS
 
