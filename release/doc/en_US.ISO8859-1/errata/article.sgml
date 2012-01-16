@@ -220,63 +220,75 @@
   <sect1 id="open-issues">
     <title>Open Issues</title>
 
-    <para>In some releases prior to &release.current;, upgrading by
-      using &man.freebsd-update.8; can fail.  This issue has been
-      fixed by a change in Errata Notice EN-12:01.  For more
-      information, see <ulink
-      url="http://security.freebsd.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc"></ulink></para>
+    <itemizedlist>
+      <listitem>
+	<para>In some releases prior to &release.current;, upgrading
+	  by using &man.freebsd-update.8; can fail.  This issue has
+	  been fixed by a change in Errata Notice EN-12:01.  For more
+	  information, see <ulink
+	    url="http://security.freebsd.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc"></ulink></para>
+      </listitem>
 
-    <para arch="amd64,i386">&os; &release.current; includes several
-      changes to improve resource management of PCI devices.  Some x86
-      machines may not boot or may have devices that no longer attach
-      when using ACPI as a result of these changes.  This can be
-      worked around by setting a &man.loader.8; tunable
-      <varname>debug.acpi.disabled</varname> to
-      <literal>hostres</literal>.  To do this, enter the following
-      lines at the loader prompt:</para>
+      <listitem>
+	<para arch="amd64,i386">&os; &release.current; includes
+	  several changes to improve resource management of PCI
+	  devices.  Some x86 machines may not boot or may have devices
+	  that no longer attach when using ACPI as a result of these
+	  changes.  This can be worked around by setting a
+	  &man.loader.8; tunable
+	  <varname>debug.acpi.disabled</varname> to
+	  <literal>hostres</literal>.  To do this, enter the following
+	  lines at the loader prompt:</para>
 
-    <screen>set debug.acpi.disabled="hostres"
+	<screen>set debug.acpi.disabled="hostres"
 boot</screen>
 
-    <para>Or, put the following line into
-      <filename>/boot/loader.conf</filename>:</para>
+	<para>Or, put the following line into
+	  <filename>/boot/loader.conf</filename>:</para>
 
-    <programlisting>debug.acpi.disabled="hostres"</programlisting>
+	<programlisting>debug.acpi.disabled="hostres"</programlisting>
+      </listitem>
 
-    <para>A &man.devctl.4; event upon arrival of a &man.ugen.4; device
-      has been changed.  The event now includes
-      <literal>ugen</literal> and <literal>cdev</literal> variables
-      instead of <literal>device-name</literal>.  This change can
-      prevent the following &man.devd.8; rule which worked in a
-      previous releases from working:</para>
+      <listitem>
+	<para>A &man.devctl.4; event upon arrival of a &man.ugen.4;
+	  device has been changed.  The event now includes
+	  <literal>ugen</literal> and <literal>cdev</literal>
+	  variables instead of <literal>device-name</literal>.  This
+	  change can prevent the following &man.devd.8; rule which
+	  worked in a previous releases from working:</para>
 
-    <programlisting>attach 0 {
+	<programlisting>attach 0 {
 	match "device-name" "ugen[0-9]+.[0-9]+";
 	action "/path/to/script /dev/$device-name";
 }</programlisting>
 
-    <para>This should be updated to the following:</para>
+	<para>This should be updated to the following:</para>
 
-    <programlisting>attach 0 {
+	<programlisting>attach 0 {
 	match "subsystem" "DEVICE";
 	match "type" "ATTACH";
 	match "cdev" "ugen[0-9]+.[0-9]+";
 	action "/path/to/script /dev/$cdev";
 }</programlisting>
+      </listitem>
 
-    <para>The &os; &release.current; Release Notes should have
-      mentioned that SSM (Source-Specific Multicast) MLDv2 now uses
-      <literal>ALLOW_NEW_SOURCES</literal> and
-      <literal>BLOCK_OLD_SOURCES</literal> record types to signal a
-      join or a leave by default.  This conforms RFC 4604,
-      <quote>Using Internet Group Management Protocol Version 3
-      (IGMPv3) and Multicast Listener Discovery Protocol Version 2
-      (MLDv2) for Source-Specific Multicast</quote>.  A new
-      &man.sysctl.8; variable
-      <varname>net.inet6.mld.use_allow</varname> which controls the
-      behavior has been added.  The default value is
-      <literal>1</literal> (use <literal>ALLOW_NEW_SOURCES</literal>
-      and <literal>BLOCK_OLD_SOURCES</literal>).</para>
+      <listitem>
+	<para>The &os; &release.current; Release Notes should have
+	  mentioned that SSM (Source-Specific Multicast) MLDv2 now
+	  uses <literal>ALLOW_NEW_SOURCES</literal> and
+	  <literal>BLOCK_OLD_SOURCES</literal> record types to signal
+	  a join or a leave by default.  This conforms RFC 4604,
+	  <quote>Using Internet Group Management Protocol Version 3
+	  (IGMPv3) and Multicast Listener Discovery Protocol Version 2
+	  (MLDv2) for Source-Specific Multicast</quote>.  A new
+	  &man.sysctl.8; variable
+	  <varname>net.inet6.mld.use_allow</varname> which controls
+	  the behavior has been added.  The default value is
+	  <literal>1</literal> (use
+	  <literal>ALLOW_NEW_SOURCES</literal> and
+	  <literal>BLOCK_OLD_SOURCES</literal>).</para>
+      </listitem>
+    </itemizedlist>
   </sect1>
 
   <sect1 id="late-news">
