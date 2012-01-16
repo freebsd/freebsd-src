@@ -135,8 +135,9 @@ struct ucom_super_softc {
 	struct usb_process sc_tq;
 	int sc_unit;
 	int sc_subunits;
-	struct sysctl_oid *sc_sysctl_ttyunit;
+	struct sysctl_oid *sc_sysctl_ttyname;
 	struct sysctl_oid *sc_sysctl_ttyports;
+	char sc_ttyname[16];
 };
 
 struct ucom_softc {
