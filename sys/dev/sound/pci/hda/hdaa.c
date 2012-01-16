@@ -1351,6 +1351,8 @@ hdaa_channel_stop(struct hdaa_chan *ch)
 	struct hdaa_widget *w;
 	int i;
 
+	if ((ch->flags & HDAA_CHN_RUNNING) == 0)
+		return;
 	ch->flags &= ~HDAA_CHN_RUNNING;
 	HDAC_STREAM_STOP(device_get_parent(devinfo->dev), devinfo->dev,
 	    ch->dir == PCMDIR_PLAY ? 1 : 0, ch->sid);
