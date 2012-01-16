@@ -792,9 +792,10 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
 
 	if (nfsboottime.tv_sec == 0)
 		NFSSETBOOTTIME(nfsboottime);
+	clp->nfsc_rev = rev++;
 	if (NFSHASNFSV4N(nmp)) {
-		error = nfsrpc_exchangeid(nmp, clp, NFSV4EXCH_USEPNFSMDS |
-		    NFSV4EXCH_USENONPNFS, cred, p);
+		error = nfsrpc_exchangeid(nmp, clp, &clp->nfsc_sess,
+		    NFSV4EXCH_USEPNFSMDS | NFSV4EXCH_USENONPNFS, cred, p);
 if (error) printf("exch=%d\n",error);
 		if (error == 0)
 			error = nfsrpc_createsession(nmp, clp, cred, p);
@@ -804,7 +805,7 @@ if (error) printf("aft crs=%d\n",error);
 	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);
-	*tl = txdr_unsigned(rev++);
+	*tl = txdr_unsigned(clp->nfsc_rev);
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
 	/*
@@ -4278,19 +4279,19 @@ nfsrpc_setaclrpc(vnode_t vp, struct ucred *cred, NFSPROC_T *p,
  */
 int
 nfsrpc_exchangeid(struct nfsmount *nmp, struct nfsclclient *clp,
-    uint32_t exchflags, struct ucred *cred, NFSPROC_T *p)
+    struct nfsclsession *sep, uint32_t exchflags, struct ucred *cred,
+    NFSPROC_T *p)
 {
 	uint32_t *tl, v41flags;
 	struct nfsrv_descript nfsd;
 	struct nfsrv_descript *nd = &nfsd;
 	struct timespec verstime;
 	int error;
-	static uint32_t rev = 0;
 
 	nfscl_reqstart(nd, NFSPROC_EXCHANGEID, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, uint32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);	/* Client owner */
-	*tl = txdr_unsigned(rev++);
+	*tl = txdr_unsigned(clp->nfsc_rev);
 	(void) nfsm_strtom(nd, clp->nfsc_id, clp->nfsc_idlen);
 
 	NFSM_BUILD(tl, u_int32_t *, 3 * NFSX_UNSIGNED);
@@ -4313,9 +4314,9 @@ printf("exch err=%d reps=%d\n",error,nd->nd_repstat);
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, u_int32_t *, 4 * NFSX_UNSIGNED);
-		clp->nfsc_clientid.lval[0] = *tl++;
-		clp->nfsc_clientid.lval[1] = *tl++;
-		clp->nfsc_sequenceid = fxdr_unsigned(uint32_t, *tl++);
+		sep->nfsess_clientid.lval[0] = *tl++;
+		sep->nfsess_clientid.lval[1] = *tl++;
+		sep->nfsess_sequenceid = fxdr_unsigned(uint32_t, *tl++);
 		v41flags = fxdr_unsigned(uint32_t, *tl);
 printf("v41fl=0x%x\n", v41flags);
 		if ((v41flags & NFSV4EXCH_USEPNFSMDS) != 0) {

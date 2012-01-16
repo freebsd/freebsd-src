@@ -83,6 +83,7 @@ struct nfsclclient {
 	struct nfsmount		*nfsc_nmp;
 	time_t			nfsc_expire;
 	u_int32_t		nfsc_clientidrev;
+	u_int32_t		nfsc_rev;
 	u_int32_t		nfsc_renew;
 	u_int32_t		nfsc_cbident;
 	u_int16_t		nfsc_flags;

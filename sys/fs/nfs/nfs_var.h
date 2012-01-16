@@ -437,7 +437,7 @@ int nfsrpc_delegreturn(struct nfscldeleg *, struct ucred *,
 int nfsrpc_getacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
 int nfsrpc_setacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
 int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
-    uint32_t, struct ucred *, NFSPROC_T *);
+    struct nfsclsession *, uint32_t, struct ucred *, NFSPROC_T *);
 int nfsrpc_createsession(struct nfsmount *, struct nfsclclient *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
