@@ -882,7 +882,7 @@ tmpfs_dir_whiteout_remove(struct vnode *dvp, struct componentname *cnp)
  * Returns zero on success or an appropriate error code on failure.
  */
 int
-tmpfs_reg_resize(struct vnode *vp, off_t newsize)
+tmpfs_reg_resize(struct vnode *vp, off_t newsize, boolean_t ignerr)
 {
 	struct tmpfs_mount *tmp;
 	struct tmpfs_node *node;
@@ -952,8 +952,12 @@ retry:
 				} else {
 					vm_page_free(m);
 					vm_page_unlock(m);
-					VM_OBJECT_UNLOCK(uobj);
-					return (EIO);
+					if (ignerr)
+						m = NULL;
+					else {
+						VM_OBJECT_UNLOCK(uobj);
+						return (EIO);
+					}
 				}
 			}
 			if (m != NULL) {
@@ -1351,7 +1355,7 @@ tmpfs_truncate(struct vnode *vp, off_t length)
 	if (length > VFS_TO_TMPFS(vp->v_mount)->tm_maxfilesize)
 		return (EFBIG);
 
-	error = tmpfs_reg_resize(vp, length);
+	error = tmpfs_reg_resize(vp, length, FALSE);
 	if (error == 0) {
 		node->tn_status |= TMPFS_NODE_CHANGED | TMPFS_NODE_MODIFIED;
 	}
