@@ -263,6 +263,20 @@ boot</screen>
 	match "cdev" "ugen[0-9]+.[0-9]+";
 	action "/path/to/script /dev/$cdev";
 }</programlisting>
+
+    <para>The &os; &release.current; Release Notes should have
+      mentioned that SSM (Source-Specific Multicast) MLDv2 now uses
+      <literal>ALLOW_NEW_SOURCES</literal> and
+      <literal>BLOCK_OLD_SOURCES</literal> record types to signal a
+      join or a leave by default.  This conforms RFC 4604,
+      <quote>Using Internet Group Management Protocol Version 3
+      (IGMPv3) and Multicast Listener Discovery Protocol Version 2
+      (MLDv2) for Source-Specific Multicast</quote>.  A new
+      &man.sysctl.8; variable
+      <varname>net.inet6.mld.use_allow</varname> which controls the
+      behavior has been added.  The default value is
+      <literal>1</literal> (use <literal>ALLOW_NEW_SOURCES</literal>
+      and <literal>BLOCK_OLD_SOURCES</literal>).</para>
   </sect1>
 
   <sect1 id="late-news">
