@@ -288,6 +288,34 @@ boot</screen>
 	  <literal>ALLOW_NEW_SOURCES</literal> and
 	  <literal>BLOCK_OLD_SOURCES</literal>).</para>
       </listitem>
+
+      <listitem>
+	<para>&release.current; fails to configure an interface
+	  specified in the &man.rc.conf.5; variable
+	  <varname>ipv6_prefix_<replaceable>IF</replaceable></varname>
+	  when the interface does not have a corresponding
+	  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>
+	  variable.  This problem will be fixed in the future
+	  releases.  To work around this problem on &release.current;,
+	  add an
+	  <varname>ifconfig_<replaceable>IF</replaceable>_ipv6</varname>
+	  line for each interface specified in
+	  <varname>ipv6_prefix_<replaceable>IF</replaceable></varname>
+	  as the following:</para>
+
+	<programlisting>ipv6_prefix_em0="2001:db8:1:0 2001:db8:2:0"
+ifconfig_em0_ipv6="inet6 auto_linklocal"</programlisting>
+      </listitem>
+
+      <listitem>
+	<para>In &release.current; the &os; USB subsystem supports USB
+	  3.0 by the &man.xhci.4; driver.  However, a bug that could
+	  prevent it from working with a USB 3.0 hub has been found
+	  and fixed after the release date.  This means
+	  &release.current; and prior do not work with a USB 3.0 hub.
+	  This problem has been fixed in HEAD and will be merged into
+	  the 9-STABLE branch.</para>
+      </listitem>
     </itemizedlist>
   </sect1>
 
