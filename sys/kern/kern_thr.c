@@ -449,8 +449,7 @@ sys_thr_suspend(struct thread *td, struct thr_suspend_args *uap)
 
 	tsp = NULL;
 	if (uap->timeout != NULL) {
-		error = copyin((const void *)uap->timeout, (void *)&ts,
-		    sizeof(struct timespec));
+		error = umtx_copyin_timeout(uap->timeout, &ts);
 		if (error != 0)
 			return (error);
 		tsp = &ts;
@@ -473,9 +472,6 @@ kern_thr_suspend(struct thread *td, struct timespec *tsp)
 	}
 
 	if (tsp != NULL) {
-		if (tsp->tv_sec < 0 || tsp->tv_nsec < 0 ||
-		    tsp->tv_nsec > 1000000000)
-			return (EINVAL);
 		if (tsp->tv_sec == 0 && tsp->tv_nsec == 0)
 			error = EWOULDBLOCK;
 		else {
