@@ -444,10 +444,8 @@ __attribute__((__regparm__(1)))
 void *___tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
-    Elf_Addr* dtv;
 
     __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
-    dtv = segbase[1];
 
     return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }
@@ -456,10 +454,8 @@ void *___tls_get_addr(tls_index *ti)
 void *__tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
-    Elf_Addr* dtv;
 
     __asm __volatile("movl %%gs:0, %0" : "=r" (segbase));
-    dtv = segbase[1];
 
     return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }
