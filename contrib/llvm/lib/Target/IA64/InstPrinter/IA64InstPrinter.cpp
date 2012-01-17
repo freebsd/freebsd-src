@@ -13,9 +13,10 @@ using namespace llvm;
 #include "IA64GenAsmWriter.inc"
 
 void
-IA64InstPrinter::printInst(const MCInst *MI, raw_ostream &O)
+IA64InstPrinter::printInst(const MCInst *MI, raw_ostream &O, StringRef Annot)
 {
   printInstruction(MI, O);
+  printAnnotation(O, Annot);
 }
 
 void

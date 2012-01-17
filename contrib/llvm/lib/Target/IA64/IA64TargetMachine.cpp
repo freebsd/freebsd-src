@@ -4,7 +4,7 @@
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/Passes.h"
 #include "llvm/MC/MCAsmInfo.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -13,9 +13,9 @@ LLVMInitializeIA64Target() {
   RegisterTargetMachine<IA64TargetMachine> X(TheIA64Target);
 }
 
-IA64TargetMachine::IA64TargetMachine(const Target &T, const std::string &TT,
-        const std::string &CPU, const std::string &FS) :
-    LLVMTargetMachine(T, TT, CPU, FS),
+IA64TargetMachine::IA64TargetMachine(const Target &T, StringRef TT,
+        StringRef CPU, StringRef FS, Reloc::Model RM, CodeModel::Model CM) :
+    LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
     Subtarget(TT, CPU, FS),
     DataLayout("e-i64:64:64-f80:128:128-f128:128:128-n8:16:32:64"),
     InstrInfo(*this),

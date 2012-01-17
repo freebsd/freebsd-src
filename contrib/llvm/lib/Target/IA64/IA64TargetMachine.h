@@ -22,8 +22,8 @@ namespace llvm {
     IA64FrameLowering    FrameLowering;
 
   public:
-    IA64TargetMachine(const Target &T, const std::string &TT,
-	const std::string &CPU, const std::string &FS);
+    IA64TargetMachine(const Target &T, StringRef TT, StringRef CPU,
+	StringRef FS, Reloc::Model RM, CodeModel::Model CM);
 
     virtual const TargetFrameLowering *getFrameLowering() const {
       return &FrameLowering;

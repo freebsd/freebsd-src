@@ -18,10 +18,8 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/Target/Mangler.h"
-#include "llvm/Target/TargetData.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 
 using namespace llvm;
@@ -112,20 +110,9 @@ IA64AsmPrinter::EmitInstruction(const MachineInstr *MI)
   OutStreamer.EmitInstruction(TmpInst);
 }
 
-static
-MCInstPrinter *createIA64MCInstPrinter(const Target &T, unsigned SyntaxVariant,
-	const MCAsmInfo &MAI)
-{
-  if (SyntaxVariant == 0)
-    return new IA64InstPrinter(MAI);
-  return 0;
-}
-
 // Force static initialization.
 extern "C" void
 LLVMInitializeIA64AsmPrinter()
 {
   RegisterAsmPrinter<IA64AsmPrinter> X(TheIA64Target);
-  TargetRegistry::RegisterMCInstPrinter(TheIA64Target,
-      createIA64MCInstPrinter);
 }

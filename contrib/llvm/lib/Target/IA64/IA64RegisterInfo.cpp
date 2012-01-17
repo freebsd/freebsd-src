@@ -19,7 +19,7 @@ using namespace llvm;
 // FIXME: Provide proper call frame setup / destroy opcodes.
 IA64RegisterInfo::IA64RegisterInfo(IA64TargetMachine &tm,
         const TargetInstrInfo &tii) :
-    IA64GenRegisterInfo(),
+    IA64GenRegisterInfo(IA64::B0),
     TM(tm),
     TII(tii)
 {
@@ -87,26 +87,8 @@ IA64RegisterInfo::eliminateFrameIndex(MachineBasicBlock::iterator MI, int SPAdj,
   llvm_unreachable(__func__);
 }
 
-int
-IA64RegisterInfo::getDwarfRegNum(unsigned RegNum, bool isEH) const
-{
-  return IA64GenRegisterInfo::getDwarfRegNumFull(RegNum, 0);
-}
-
-int
-IA64RegisterInfo::getLLVMRegNum(unsigned RegNum, bool isEH) const
-{
-  llvm_unreachable(__func__);
-}
-
 unsigned
 IA64RegisterInfo::getFrameRegister(const MachineFunction &MF) const
-{
-  llvm_unreachable(__func__);
-}
-
-unsigned
-IA64RegisterInfo::getRARegister() const
 {
   llvm_unreachable(__func__);
 }
