@@ -3576,7 +3576,7 @@ re_stop(struct rl_softc *sc)
 	for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
 		rxd = &sc->rl_ldata.rl_rx_desc[i];
 		if (rxd->rx_m != NULL) {
-			bus_dmamap_sync(sc->rl_ldata.rl_tx_mtag,
+			bus_dmamap_sync(sc->rl_ldata.rl_rx_mtag,
 			    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
 			bus_dmamap_unload(sc->rl_ldata.rl_rx_mtag,
 			    rxd->rx_dmamap);
