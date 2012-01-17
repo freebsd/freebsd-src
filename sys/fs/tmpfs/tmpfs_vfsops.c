@@ -150,8 +150,12 @@ tmpfs_mount(struct mount *mp)
 		return (EINVAL);
 
 	if (mp->mnt_flag & MNT_UPDATE) {
+		/*
+		 * Only support update mounts for NFS export.
+		 */
 		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
 			return (0);
+		return (EOPNOTSUPP);
 	}
 
 	vn_lock(mp->mnt_vnodecovered, LK_SHARED | LK_RETRY);
