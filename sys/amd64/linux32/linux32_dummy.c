@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1995 Søren Schmidt
+ * Copyright (c) 1994-1995 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -59,7 +59,6 @@ DUMMY(setfsuid);
 DUMMY(setfsgid);
 DUMMY(pivot_root);
 DUMMY(mincore);
-DUMMY(fadvise64);
 DUMMY(ptrace);
 DUMMY(lookup_dcookie);
 DUMMY(epoll_create);
@@ -72,7 +71,6 @@ DUMMY(timer_gettime);
 DUMMY(timer_getoverrun);
 DUMMY(timer_delete);
 DUMMY(fstatfs64);
-DUMMY(fadvise64_64);
 DUMMY(mbind);
 DUMMY(get_mempolicy);
 DUMMY(set_mempolicy);

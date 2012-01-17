@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXOFILES	20
 #define	BIGBUFSIZ	5 * BUFSIZ
 
-struct	openfile {		/* open file structure */
+static struct openfile {	/* open file structure */
 	FILE	*fp;		/* file pointer */
 	short	eof;		/* eof flag */
 	short	pad;		/* pad flag for missing columns */
@@ -64,10 +64,10 @@ struct	openfile {		/* open file structure */
 	const char *format;	/* printf(3) style string spec. */
 }	input[MAXOFILES];
 
-int	morefiles;		/* set by getargs(), changed by gatherline() */
-int	nofinalnl;		/* normally append \n to each output line */
-char	line[BIGBUFSIZ];
-char	*linep;
+static int	morefiles;	/* set by getargs(), changed by gatherline() */
+static int	nofinalnl;	/* normally append \n to each output line */
+static char	line[BIGBUFSIZ];
+static char	*linep;
 
 static char    *gatherline(struct openfile *);
 static void	getargs(char *[]);

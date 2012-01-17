@@ -46,7 +46,7 @@ BJ	BEN	204	Benin
 BM	BMU	060	Bermuda
 BT	BTN	064	Bhutan
 BO	BOL	068	Bolivia, Plurinational State of
-BQ	BES	535	Bonaire, Saint Eustatius and Saba
+BQ	BES	535	Bonaire, Sint Eustatius and Saba
 BA	BIH	070	Bosnia and Herzegovina
 BW	BWA	072	Botswana
 BV	BVT	074	Bouvet Island
@@ -224,11 +224,12 @@ SB	SLB	090	Solomon Islands
 SO	SOM	706	Somalia
 ZA	ZAF	710	South Africa
 GS	SGS	239	South Georgia and the South Sandwich Islands
+SS	SSD	728	South Sudan
 ES	ESP	724	Spain
 LK	LKA	144	Sri Lanka
 SH	SHN	654	Saint Helena, Ascension and Tristan da Cunha
 PM	SPM	666	Saint Pierre and Miquelon
-SD	SDN	736	Sudan
+SD	SDN	729	Sudan
 SR	SUR	740	Suriname
 SJ	SJM	744	Svalbard and Jan Mayen
 SZ	SWZ	748	Swaziland
@@ -547,3 +548,10 @@ ZW	ZWE	716	Zimbabwe
 #  BONAIRE, SAINT EUSTATIUS AND SABA (BQ), CURACAO (CW) and
 #  SINT MAARTEN (DUTCH PART) (SX) added as new entries.
 #  NETHERLANDS ANTILLES (AN) removed.
+#
+# Newsletter VI-9 2011-06-12
+#  Name changes for Fiji and Myanmar as well as other minor corrections
+#
+# Newsletter VI-10 2011-08-09
+#  Code elements for South Sudan.
+#

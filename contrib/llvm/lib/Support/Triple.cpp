@@ -8,15 +8,10 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/Triple.h"
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/STLExtras.h"
-#include "llvm/ADT/Twine.h"
-#include <cassert>
 #include <cstring>
 using namespace llvm;
-
-//
 
 const char *Triple::getArchTypeName(ArchType Kind) {
   switch (Kind) {
@@ -30,6 +25,8 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   case ia64:    return "ia64";
   case mips:    return "mips";
   case mipsel:  return "mipsel";
+  case mips64:  return "mips64";
+  case mips64el:return "mips64el";
   case msp430:  return "msp430";
   case ppc64:   return "powerpc64";
   case ppc:     return "powerpc";
@@ -44,6 +41,8 @@ const char *Triple::getArchTypeName(ArchType Kind) {
   case mblaze:  return "mblaze";
   case ptx32:   return "ptx32";
   case ptx64:   return "ptx64";
+  case le32:    return "le32";
+  case amdil:   return "amdil";
   }
 
   return "<invalid>";
@@ -80,6 +79,8 @@ const char *Triple::getArchTypePrefix(ArchType Kind) {
 
   case ptx32:   return "ptx";
   case ptx64:   return "ptx";
+  case le32:    return "le32";
+  case amdil:   return "amdil";
   }
 }
 
@@ -105,6 +106,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case DragonFly: return "dragonfly";
   case FreeBSD: return "freebsd";
   case IOS: return "ios";
+  case KFreeBSD: return "kfreebsd";
   case Linux: return "linux";
   case Lv2: return "lv2";
   case MacOSX: return "macosx";
@@ -117,6 +119,7 @@ const char *Triple::getOSTypeName(OSType Kind) {
   case Haiku: return "haiku";
   case Minix: return "minix";
   case RTEMS: return "rtems";
+  case NativeClient: return "nacl";
   }
 
   return "<invalid>";
@@ -149,10 +152,16 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     return mips;
   if (Name == "mipsel")
     return mipsel;
+  if (Name == "mips64")
+    return mips64;
+  if (Name == "mips64el")
+    return mips64el;
   if (Name == "msp430")
     return msp430;
   if (Name == "ppc64")
     return ppc64;
+  if (Name == "ppc32")
+    return ppc;
   if (Name == "ppc")
     return ppc;
   if (Name == "mblaze")
@@ -177,6 +186,10 @@ Triple::ArchType Triple::getArchTypeForLLVMName(StringRef Name) {
     return ptx32;
   if (Name == "ptx64")
     return ptx64;
+  if (Name == "le32")
+    return le32;
+  if (Name == "amdil")
+      return amdil;
 
   return UnknownArch;
 }
@@ -212,13 +225,16 @@ Triple::ArchType Triple::getArchTypeForDarwinArchName(StringRef Str) {
 
   // This is derived from the driver driver.
   if (Str == "arm" || Str == "armv4t" || Str == "armv5" || Str == "xscale" ||
-      Str == "armv6" || Str == "armv7")
+      Str == "armv6" || Str == "armv7" || Str == "armv7f" || Str == "armv7k" ||
+      Str == "armv7s")
     return Triple::arm;
 
   if (Str == "ptx32")
     return Triple::ptx32;
   if (Str == "ptx64")
     return Triple::ptx64;
+  if (Str == "amdil")
+      return Triple::amdil;
 
   return Triple::UnknownArch;
 }
@@ -254,6 +270,10 @@ const char *Triple::getArchNameForAssembler() {
     return "ptx32";
   if (Str == "ptx64")
     return "ptx64";
+  if (Str == "le32")
+    return "le32";
+  if (Str == "amdil")
+      return "amdil";
   return NULL;
 }
 
@@ -295,6 +315,10 @@ Triple::ArchType Triple::ParseArch(StringRef ArchName) {
   else if (ArchName == "mipsel" || ArchName == "mipsallegrexel" ||
            ArchName == "psp")
     return mipsel;
+  else if (ArchName == "mips64" || ArchName == "mips64eb")
+    return mips64;
+  else if (ArchName == "mips64el")
+    return mips64el;
   else if (ArchName == "sparc")
     return sparc;
   else if (ArchName == "sparcv9")
@@ -309,6 +333,10 @@ Triple::ArchType Triple::ParseArch(StringRef ArchName) {
     return ptx32;
   else if (ArchName == "ptx64")
     return ptx64;
+  else if (ArchName == "le32")
+    return le32;
+  else if (ArchName == "amdil")
+      return amdil;
   else
     return UnknownArch;
 }
@@ -337,6 +365,8 @@ Triple::OSType Triple::ParseOS(StringRef OSName) {
     return FreeBSD;
   else if (OSName.startswith("ios"))
     return IOS;
+  else if (OSName.startswith("kfreebsd"))
+    return KFreeBSD;
   else if (OSName.startswith("linux"))
     return Linux;
   else if (OSName.startswith("lv2"))
@@ -361,6 +391,8 @@ Triple::OSType Triple::ParseOS(StringRef OSName) {
     return Minix;
   else if (OSName.startswith("rtems"))
     return RTEMS;
+  else if (OSName.startswith("nacl"))
+    return NativeClient;
   else
     return UnknownOS;
 }

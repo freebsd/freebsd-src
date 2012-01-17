@@ -138,7 +138,7 @@ setup_filesystems()
       UFS)
         echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs ${PARTDEV}${EXT}"
+        rc_halt "newfs ${PARTXTRAOPTS} ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
         rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
@@ -154,7 +154,7 @@ setup_filesystems()
       UFS+S)
         echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs -U ${PARTDEV}${EXT}"
+        rc_halt "newfs ${PARTXTRAOPTS} -U ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
         rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}"
@@ -169,7 +169,7 @@ setup_filesystems()
       UFS+SUJ)
         echo_log "NEWFS: ${PARTDEV} - ${PARTFS}"
         sleep 2
-        rc_halt "newfs -U ${PARTDEV}${EXT}"
+        rc_halt "newfs ${PARTXTRAOPTS} -U ${PARTDEV}${EXT}"
         sleep 2
         rc_halt "sync"
         rc_halt "tunefs -j enable ${PARTDEV}${EXT}"
@@ -192,7 +192,7 @@ setup_filesystems()
         sleep 2
         rc_halt "gjournal label -f ${PARTDEV}${EXT}"
         sleep 2
-        rc_halt "newfs -O 2 -J ${PARTDEV}${EXT}.journal"
+        rc_halt "newfs ${PARTXTRAOPTS} -O 2 -J ${PARTDEV}${EXT}.journal"
         sleep 2
         rc_halt "sync"
         rc_halt "glabel label ${PARTLABEL} ${PARTDEV}${EXT}.journal"

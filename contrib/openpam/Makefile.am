@@ -1,4 +1,6 @@
-# $Id: Makefile.am 395 2007-06-03 20:26:18Z des $
+# $Id: Makefile.am 428 2010-03-09 17:32:17Z des $
+
+ACLOCAL_AMFLAGS = -I m4
 
 SUBDIRS = lib bin modules include
 

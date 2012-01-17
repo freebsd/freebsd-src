@@ -1354,7 +1354,6 @@ ixgb_setup_interface(device_t dev, struct adapter * adapter)
 	ifp->if_unit = device_get_unit(dev);
 	ifp->if_name = "ixgb";
 #endif
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgb_init;
 	ifp->if_softc = adapter;

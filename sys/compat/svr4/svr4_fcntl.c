@@ -368,7 +368,7 @@ fd_truncate(td, fd, flp)
 	ft.fd = fd;
 	ft.length = start;
 
-	error = ftruncate(td, &ft);
+	error = sys_ftruncate(td, &ft);
 
 	fdrop(fp, td);
 	return (error);
@@ -476,7 +476,7 @@ svr4_sys_llseek(td, uap)
 #endif
 	ap.whence = uap->whence;
 
-	return lseek(td, &ap);
+	return sys_lseek(td, &ap);
 }
 
 int
@@ -488,7 +488,7 @@ svr4_sys_access(td, uap)
 	int error;
 
 	CHECKALTEXIST(td, uap->path, &newpath);
-	error = kern_access(td, newpath, UIO_SYSSPACE, uap->flags);
+	error = kern_access(td, newpath, UIO_SYSSPACE, uap->amode);
 	free(newpath, M_TEMP);
 	return (error);
 }

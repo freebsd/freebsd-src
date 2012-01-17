@@ -289,6 +289,10 @@ struct usb_gen_quirk {
 #define	USB_GET_CM_OVER_DATA	_IOR ('U', 180, int)
 #define	USB_SET_CM_OVER_DATA	_IOW ('U', 181, int)
 
+/* GPIO control */
+#define	USB_GET_GPIO		_IOR ('U', 182, int)
+#define	USB_SET_GPIO		_IOW ('U', 183, int)
+
 /* USB file system interface */
 #define	USB_FS_START		_IOW ('U', 192, struct usb_fs_start)
 #define	USB_FS_STOP		_IOW ('U', 193, struct usb_fs_stop)

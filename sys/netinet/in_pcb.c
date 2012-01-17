@@ -162,7 +162,8 @@ sysctl_net_ipport_check(SYSCTL_HANDLER_ARGS)
 
 #undef RANGECHK
 
-SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0, "IP Ports");
+static SYSCTL_NODE(_net_inet_ip, IPPROTO_IP, portrange, CTLFLAG_RW, 0,
+    "IP Ports");
 
 SYSCTL_VNET_PROC(_net_inet_ip_portrange, OID_AUTO, lowfirst,
 	CTLTYPE_INT|CTLFLAG_RW, &VNET_NAME(ipport_lowfirstauto), 0,
@@ -575,8 +576,7 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				     ntohl(t->inp_faddr.s_addr) == INADDR_ANY) &&
 				    (ntohl(sin->sin_addr.s_addr) != INADDR_ANY ||
 				     ntohl(t->inp_laddr.s_addr) != INADDR_ANY ||
-				     (t->inp_socket->so_options &
-					 SO_REUSEPORT) == 0) &&
+				     (t->inp_flags2 & INP_REUSEPORT) == 0) &&
 				    (inp->inp_cred->cr_uid !=
 				     t->inp_cred->cr_uid))
 					return (EADDRINUSE);
@@ -590,19 +590,19 @@ in_pcbbind_setup(struct inpcb *inp, struct sockaddr *nam, in_addr_t *laddrp,
 				 * being in use (for now).  This is better
 				 * than a panic, but not desirable.
 				 */
-				tw = intotw(inp);
+				tw = intotw(t);
 				if (tw == NULL ||
 				    (reuseport & tw->tw_so_options) == 0)
 					return (EADDRINUSE);
-			} else if (t &&
-			    (reuseport & t->inp_socket->so_options) == 0) {
+			} else if (t && (reuseport == 0 ||
+			    (t->inp_flags2 & INP_REUSEPORT) == 0)) {
 #ifdef INET6
 				if (ntohl(sin->sin_addr.s_addr) !=
 				    INADDR_ANY ||
 				    ntohl(t->inp_laddr.s_addr) !=
 				    INADDR_ANY ||
-				    INP_SOCKAF(so) ==
-				    INP_SOCKAF(t->inp_socket))
+				    (inp->inp_vflag & INP_IPV6PROTO) == 0 ||
+				    (t->inp_vflag & INP_IPV6PROTO) == 0)
 #endif
 				return (EADDRINUSE);
 			}
@@ -745,7 +745,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		ifp = ia->ia_ifp;
 		ifa_free(&ia->ia_ifa);
 		ia = NULL;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 			sa = ifa->ifa_addr;
@@ -759,10 +759,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -804,7 +804,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		 */
 		ia = NULL;
 		ifp = sro.ro_rt->rt_ifp;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			sa = ifa->ifa_addr;
 			if (sa->sa_family != AF_INET)
@@ -817,10 +817,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 		}
 		if (ia != NULL) {
 			laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto done;
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 
 		/* 3. As a last resort return the 'default' jail address. */
 		error = prison_get_ip4(cred, laddr);
@@ -868,7 +868,7 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			ifp = ia->ia_ifp;
 			ifa_free(&ia->ia_ifa);
 			ia = NULL;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 
 				sa = ifa->ifa_addr;
@@ -883,10 +883,10 @@ in_pcbladdr(struct inpcb *inp, struct in_addr *faddr, struct in_addr *laddr,
 			}
 			if (ia != NULL) {
 				laddr->s_addr = ia->ia_addr.sin_addr.s_addr;
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				goto done;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		/* 3. As a last resort return the 'default' jail address. */

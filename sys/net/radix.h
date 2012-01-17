@@ -105,6 +105,8 @@ typedef int walktree_f_t(struct radix_node *, void *);
 
 struct radix_node_head {
 	struct	radix_node *rnh_treetop;
+	u_int	rnh_gen;		/* generation counter */
+	int	rnh_multipath;		/* multipath capable ? */
 	int	rnh_addrsize;		/* permit, but not require fixed keys */
 	int	rnh_pktsize;		/* permit, but not require fixed keys */
 	struct	radix_node *(*rnh_addaddr)	/* add based on sockaddr */
@@ -131,8 +133,6 @@ struct radix_node_head {
 	void	(*rnh_close)	/* do something when the last ref drops */
 		(struct radix_node *rn, struct radix_node_head *head);
 	struct	radix_node rnh_nodes[3];	/* empty tree for common case */
-	int	rnh_multipath;			/* multipath capable ? */
-	u_int	rnh_spare;			/* route caching */
 #ifdef _KERNEL
 	struct	rwlock rnh_lock;		/* locks entire radix tree */
 #endif

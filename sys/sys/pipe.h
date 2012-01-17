@@ -112,6 +112,7 @@ struct pipe {
 	u_int	pipe_state;		/* pipe status info */
 	int	pipe_busy;		/* busy flag, mostly to handle rundown sanely */
 	int	pipe_present;		/* still present? */
+	ino_t	pipe_ino;		/* fake inode for stat(2) */
 };
 
 /*

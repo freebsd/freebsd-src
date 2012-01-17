@@ -126,7 +126,7 @@ device		udav		# Davicom DM9601E USB
 device		rum		# Ralink Technology RT2501USB wireless NICs
 device		uath		# Atheros AR5523 wireless NICs
 device		ural		# Ralink Technology RT2500USB wireless NICs
-device		zyd		# ZyDAS zb1211/zb1211b wireless NICs
+device		zyd		# ZyDAS zd1211/zd1211b wireless NICs
 # SCSI peripherals
 device		scbus		# SCSI bus (required for SCSI)
 device		da		# Direct Access (disks)
@@ -138,3 +138,6 @@ device		wlan_wep	# 802.11 WEP support
 device		wlan_ccmp	# 802.11 CCMP support
 device		wlan_tkip	# 802.11 TKIP support
 device		wlan_amrr	# AMRR transmit rate control algorithm
+options		IEEE80211_SUPPORT_MESH
+
+options		AH_SUPPORT_AR5416

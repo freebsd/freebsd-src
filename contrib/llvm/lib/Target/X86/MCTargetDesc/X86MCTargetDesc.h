@@ -14,14 +14,38 @@
 #ifndef X86MCTARGETDESC_H
 #define X86MCTARGETDESC_H
 
+#include "llvm/Support/DataTypes.h"
 #include <string>
 
 namespace llvm {
+class MCAsmBackend;
+class MCCodeEmitter;
+class MCContext;
+class MCInstrInfo;
+class MCObjectWriter;
+class MCRegisterInfo;
 class MCSubtargetInfo;
 class Target;
 class StringRef;
+class raw_ostream;
 
 extern Target TheX86_32Target, TheX86_64Target;
+
+/// DWARFFlavour - Flavour of dwarf regnumbers
+///
+namespace DWARFFlavour {
+  enum {
+    X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
+  };
+} 
+  
+/// N86 namespace - Native X86 register numbers
+///
+namespace N86 {
+  enum {
+    EAX = 0, ECX = 1, EDX = 2, EBX = 3, ESP = 4, EBP = 5, ESI = 6, EDI = 7
+  };
+}
 
 namespace X86_MC {
   std::string ParseX86Triple(StringRef TT);
@@ -33,12 +57,31 @@ namespace X86_MC {
 
   void DetectFamilyModel(unsigned EAX, unsigned &Family, unsigned &Model);
 
-  /// createARMMCSubtargetInfo - Create a X86 MCSubtargetInfo instance.
+  unsigned getDwarfRegFlavour(StringRef TT, bool isEH);
+
+  unsigned getX86RegNum(unsigned RegNo);
+
+  void InitLLVM2SEHRegisterMapping(MCRegisterInfo *MRI);
+
+  /// createX86MCSubtargetInfo - Create a X86 MCSubtargetInfo instance.
   /// This is exposed so Asm parser, etc. do not need to go through
   /// TargetRegistry.
   MCSubtargetInfo *createX86MCSubtargetInfo(StringRef TT, StringRef CPU,
                                             StringRef FS);
 }
+
+MCCodeEmitter *createX86MCCodeEmitter(const MCInstrInfo &MCII,
+                                      const MCSubtargetInfo &STI,
+                                      MCContext &Ctx);
+
+MCAsmBackend *createX86_32AsmBackend(const Target &T, StringRef TT);
+MCAsmBackend *createX86_64AsmBackend(const Target &T, StringRef TT);
+
+/// createX86MachObjectWriter - Construct an X86 Mach-O object writer.
+MCObjectWriter *createX86MachObjectWriter(raw_ostream &OS,
+                                          bool Is64Bit,
+                                          uint32_t CPUType,
+                                          uint32_t CPUSubtype);
 
 } // End llvm namespace
 

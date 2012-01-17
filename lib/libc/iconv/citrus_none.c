@@ -190,7 +190,6 @@ _citrus_NONE_stdenc_wctomb(struct _citrus_stdenc * __restrict ce __unused,
     void * __restrict pspriv __unused, size_t * __restrict nresult,
     struct iconv_hooks *hooks __unused)
 {
-	int ret;
 
 	if ((wc & ~0xFFU) != 0) {
 		*nresult = (size_t)-1;
@@ -198,7 +197,7 @@ _citrus_NONE_stdenc_wctomb(struct _citrus_stdenc * __restrict ce __unused,
 	}
 	if (n == 0) {
 		*nresult = (size_t)-1;
-		ret = E2BIG;
+		return (E2BIG);
 	}
 
 	*nresult = 1;

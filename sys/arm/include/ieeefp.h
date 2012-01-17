@@ -8,6 +8,8 @@
 #ifndef _MACHINE_IEEEFP_H_
 #define _MACHINE_IEEEFP_H_
 
+/* Deprecated historical FPU control interface */
+
 /* FP exception codes */
 #define FP_EXCEPT_INV	0
 #define FP_EXCEPT_DZ	1

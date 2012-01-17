@@ -26,10 +26,11 @@ namespace llvm {
   class MCLabel;
   class MCDwarfFile;
   class MCDwarfLoc;
+  class MCObjectFileInfo;
+  class MCRegisterInfo;
   class MCLineSection;
   class StringRef;
   class Twine;
-  class TargetAsmInfo;
   class MCSectionMachO;
   class MCSectionELF;
 
@@ -46,7 +47,11 @@ namespace llvm {
     /// The MCAsmInfo for this target.
     const MCAsmInfo &MAI;
 
-    const TargetAsmInfo *TAI;
+    /// The MCRegisterInfo for this target.
+    const MCRegisterInfo &MRI;
+
+    /// The MCObjectFileInfo for this target.
+    const MCObjectFileInfo *MOFI;
 
     /// Allocator - Allocator object used for creating machine code objects.
     ///
@@ -110,12 +115,15 @@ namespace llvm {
     MCSymbol *CreateSymbol(StringRef Name);
 
   public:
-    explicit MCContext(const MCAsmInfo &MAI, const TargetAsmInfo *TAI);
+    explicit MCContext(const MCAsmInfo &MAI, const MCRegisterInfo &MRI,
+                       const MCObjectFileInfo *MOFI);
     ~MCContext();
 
     const MCAsmInfo &getAsmInfo() const { return MAI; }
 
-    const TargetAsmInfo &getTargetAsmInfo() const { return *TAI; }
+    const MCRegisterInfo &getRegisterInfo() const { return MRI; }
+
+    const MCObjectFileInfo *getObjectFileInfo() const { return MOFI; }
 
     void setAllowTemporaryLabels(bool Value) { AllowTemporaryLabels = Value; }
 

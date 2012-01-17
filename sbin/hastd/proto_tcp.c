@@ -151,7 +151,7 @@ tcp_addr(const char *addr, int defport, struct sockaddr_storage *sap)
 		/* Port not given, use the default. */
 		port = defport;
 	} else {
-		if (numfromstr(pp + 1, 1, 65535, &port) < 0)
+		if (numfromstr(pp + 1, 1, 65535, &port) == -1)
 			return (errno);
 	}
 	(void)snprintf(portstr, sizeof(portstr), "%jd", (intmax_t)port);
@@ -275,7 +275,7 @@ tcp_client(const char *srcaddr, const char *dstaddr, void **ctxp)
 		tcp_close(tctx);
 		return (ret);
 	}
-	if (bind(tctx->tc_fd, (struct sockaddr *)&sa, sa.ss_len) < 0) {
+	if (bind(tctx->tc_fd, (struct sockaddr *)&sa, sa.ss_len) == -1) {
 		ret = errno;
 		tcp_close(tctx);
 		return (ret);
@@ -298,8 +298,7 @@ tcp_connect(void *ctx, int timeout)
 
 	flags = fcntl(tctx->tc_fd, F_GETFL);
 	if (flags == -1) {
-		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
-		    "fcntl(F_GETFL) failed"));
+		pjdlog_common(LOG_DEBUG, 1, errno, "fcntl(F_GETFL) failed");
 		return (errno);
 	}
 	/*
@@ -308,8 +307,8 @@ tcp_connect(void *ctx, int timeout)
 	 */
 	flags |= O_NONBLOCK;
 	if (fcntl(tctx->tc_fd, F_SETFL, flags) == -1) {
-		KEEP_ERRNO(pjdlog_common(LOG_DEBUG, 1, errno,
-		    "fcntl(F_SETFL, O_NONBLOCK) failed"));
+		pjdlog_common(LOG_DEBUG, 1, errno,
+		    "fcntl(F_SETFL, O_NONBLOCK) failed");
 		return (errno);
 	}
 
@@ -424,12 +423,12 @@ tcp_server(const char *addr, void **ctxp)
 	PJDLOG_ASSERT(tctx->tc_sa.ss_family != AF_UNSPEC);
 
 	if (bind(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sa,
-	    tctx->tc_sa.ss_len) < 0) {
+	    tctx->tc_sa.ss_len) == -1) {
 		ret = errno;
 		tcp_close(tctx);
 		return (ret);
 	}
-	if (listen(tctx->tc_fd, 8) < 0) {
+	if (listen(tctx->tc_fd, 8) == -1) {
 		ret = errno;
 		tcp_close(tctx);
 		return (ret);
@@ -459,7 +458,7 @@ tcp_accept(void *ctx, void **newctxp)
 	fromlen = tctx->tc_sa.ss_len;
 	newtctx->tc_fd = accept(tctx->tc_fd, (struct sockaddr *)&tctx->tc_sa,
 	    &fromlen);
-	if (newtctx->tc_fd < 0) {
+	if (newtctx->tc_fd == -1) {
 		ret = errno;
 		free(newtctx);
 		return (ret);
@@ -531,7 +530,7 @@ tcp_address_match(const void *ctx, const char *addr)
 		return (false);
 
 	salen = sizeof(sa2);
-	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa2, &salen) < 0)
+	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa2, &salen) == -1)
 		return (false);
 
 	if (sa1.ss_family != sa2.ss_family || sa1.ss_len != sa2.ss_len)
@@ -574,7 +573,7 @@ tcp_local_address(const void *ctx, char *addr, size_t size)
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	salen = sizeof(sa);
-	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sa, &salen) < 0) {
+	if (getsockname(tctx->tc_fd, (struct sockaddr *)&sa, &salen) == -1) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}
@@ -592,7 +591,7 @@ tcp_remote_address(const void *ctx, char *addr, size_t size)
 	PJDLOG_ASSERT(tctx->tc_magic == TCP_CTX_MAGIC);
 
 	salen = sizeof(sa);
-	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa, &salen) < 0) {
+	if (getpeername(tctx->tc_fd, (struct sockaddr *)&sa, &salen) == -1) {
 		PJDLOG_VERIFY(strlcpy(addr, "N/A", size) < size);
 		return;
 	}

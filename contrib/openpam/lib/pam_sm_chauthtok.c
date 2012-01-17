@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_sm_chauthtok.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_sm_chauthtok.c 466 2011-11-02 23:33:43Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/param.h>
 
@@ -80,4 +84,8 @@ pam_sm_chauthtok(pam_handle_t *pamh,
 /**
  * The =pam_sm_chauthtok function is the service module's implementation
  * of the =pam_chauthtok API function.
+ *
+ * When the application calls =pam_chauthtok, the service function is
+ * called twice, first with the =PAM_PRELIM_CHECK flag set and then again
+ * with the =PAM_UPDATE_AUTHTOK flag set.
  */

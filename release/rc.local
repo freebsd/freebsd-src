@@ -8,13 +8,37 @@
 : ${DIALOG_ITEM_HELP=4}
 : ${DIALOG_ESC=255}
 
-TERM=xterm; export TERM # XXX: serial consoles
+kbdcontrol -d >/dev/null 2>&1
+if [ $? -eq 0 ]; then
+	# Syscons: use xterm
+	TERM=xterm
+else
+	# Serial or other console
+	echo
+	echo "Welcome to FreeBSD!"
+	echo
+	echo "Please choose the appropriate terminal type for your system."
+	echo "Common console types are:"
+	echo "   ansi     Standard ANSI terminal"
+	echo "   vt100    VT100 or compatible terminal"
+	echo "   xterm    xterm terminal emulator (or compatible)"
+	echo
+	echo -n "Console type [vt100]: "
+	read TERM
+	TERM=${TERM:-vt100}
+fi
+export TERM
 
 dialog --backtitle "FreeBSD Installer" --title "Welcome" --extra-button --extra-label "Shell" --ok-label "Install" --cancel-label "Live CD" --yesno "Welcome to FreeBSD! Would you like to begin an installation or use the live CD?" 0 0
 
 case $? in
 $DIALOG_OK)	# Install
-	BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
+	# If not netbooting, have the installer configure the network
+	dlv=`/sbin/sysctl -n vfs.nfs.diskless_valid 2> /dev/null`
+	if [ ${dlv:=0} -eq 0 -a ! -f /etc/diskless ]; then
+		BSDINSTALL_CONFIGCURRENT=yes; export BSDINSTALL_CONFIGCURRENT
+	fi
+
 	trap true SIGINT	# Ignore cntrl-C here
 	bsdinstall
 	if [ $? -eq 0 ]; then

@@ -45,7 +45,7 @@ __FBSDID("$FreeBSD$");
 #define N	2
 
 SYSCTL_DECL(_kern_geom_raid);
-SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1e, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_kern_geom_raid, OID_AUTO, raid1e, CTLFLAG_RW, 0,
     "RAID1E parameters");
 
 #define RAID1E_REBUILD_SLAB	(1 << 20) /* One transation in a rebuild */

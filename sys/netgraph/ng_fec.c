@@ -1332,7 +1332,7 @@ ng_fec_shutdown(node_p node)
 	}
 
 	ether_ifdetach(priv->ifp);
-	if_free_type(priv->ifp, IFT_ETHER);
+	if_free(priv->ifp);
 	ifmedia_removeall(&priv->ifmedia);
 	ng_fec_free_unit(priv->unit);
 	free(priv, M_NETGRAPH);

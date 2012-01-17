@@ -99,10 +99,10 @@ static int broadcast_channel = 0xc0 | 0x1f; /*  tag | channel(XXX) */
 static int tx_speed = 2;
 static int rx_queue_len = FWMAXQUEUE;
 
-MALLOC_DEFINE(M_FWIP, "if_fwip", "IP over FireWire interface");
+static MALLOC_DEFINE(M_FWIP, "if_fwip", "IP over FireWire interface");
 SYSCTL_INT(_debug, OID_AUTO, if_fwip_debug, CTLFLAG_RW, &fwipdebug, 0, "");
 SYSCTL_DECL(_hw_firewire);
-SYSCTL_NODE(_hw_firewire, OID_AUTO, fwip, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_hw_firewire, OID_AUTO, fwip, CTLFLAG_RD, 0,
 	"Firewire ip subsystem");
 SYSCTL_INT(_hw_firewire_fwip, OID_AUTO, rx_queue_len, CTLFLAG_RW, &rx_queue_len,
 	0, "Length of the receive queue");

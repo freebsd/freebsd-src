@@ -165,12 +165,27 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD155UI*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD204UI*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/* Seagate Barracuda Green Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DL*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST???DM*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DM*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -185,12 +200,27 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9640423AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9640424AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750420AS*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/* Seagate Momentus Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750422AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750423AS*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -327,7 +357,7 @@ static int ada_spindown_suspend = ADA_DEFAULT_SPINDOWN_SUSPEND;
 static int ada_read_ahead = ADA_DEFAULT_READ_AHEAD;
 static int ada_write_cache = ADA_DEFAULT_WRITE_CACHE;
 
-SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
+static SYSCTL_NODE(_kern_cam, OID_AUTO, ada, CTLFLAG_RD, 0,
             "CAM Direct Access Disk driver");
 SYSCTL_INT(_kern_cam_ada, OID_AUTO, legacy_aliases, CTLFLAG_RW,
            &ada_legacy_aliases, 0, "Create legacy-like device aliases");
@@ -378,7 +408,7 @@ static struct periph_driver adadriver =
 
 PERIPHDRIVER_DECLARE(ada, adadriver);
 
-MALLOC_DEFINE(M_ATADA, "ata_da", "ata_da buffers");
+static MALLOC_DEFINE(M_ATADA, "ata_da", "ata_da buffers");
 
 static int
 adaopen(struct disk *dp)
@@ -463,13 +493,6 @@ adaclose(struct disk *dp)
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			xpt_print(periph->path, "Synchronize cache failed\n");
-
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
 		xpt_release_ccb(ccb);
 	}
 

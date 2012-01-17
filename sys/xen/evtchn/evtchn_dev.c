@@ -318,15 +318,14 @@ evtchn_close(struct cdev *dev, int flag, int otyp, struct thread *td __unused)
 }
 
 static struct cdevsw evtchn_devsw = {
-	d_version:   D_VERSION,
-	d_open:      evtchn_open,
-	d_close:     evtchn_close,
-	d_read:      evtchn_read,
-	d_write:     evtchn_write,
-	d_ioctl:     evtchn_ioctl,
-	d_poll:      evtchn_poll,
-	d_name:      "evtchn",
-	d_flags:     0,
+	.d_version =	D_VERSION,
+	.d_open =	evtchn_open,
+	.d_close =	evtchn_close,
+	.d_read =	evtchn_read,
+	.d_write =	evtchn_write,
+	.d_ioctl =	evtchn_ioctl,
+	.d_poll =	evtchn_poll,
+	.d_name =	"evtchn",
 };
 
 

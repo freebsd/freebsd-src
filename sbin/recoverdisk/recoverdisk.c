@@ -24,7 +24,7 @@
 #include <time.h>
 #include <unistd.h>
 
-volatile sig_atomic_t aborting = 0;
+static volatile sig_atomic_t aborting = 0;
 static size_t bigsize = 1024 * 1024;
 static size_t medsize;
 static size_t minsize = 512;

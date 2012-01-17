@@ -292,7 +292,7 @@ static device_method_t xenbusb_back_methods[] = {
 	DEVMETHOD(device_detach,        bus_generic_detach), 
 	DEVMETHOD(device_shutdown,      bus_generic_shutdown), 
 	DEVMETHOD(device_suspend,       bus_generic_suspend), 
-	DEVMETHOD(device_resume,        bus_generic_resume), 
+	DEVMETHOD(device_resume,        xenbusb_resume), 
  
 	/* Bus Interface */ 
 	DEVMETHOD(bus_print_child,      xenbusb_print_child),

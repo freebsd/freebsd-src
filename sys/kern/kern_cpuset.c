@@ -848,7 +848,7 @@ struct cpuset_args {
 };
 #endif
 int
-cpuset(struct thread *td, struct cpuset_args *uap)
+sys_cpuset(struct thread *td, struct cpuset_args *uap)
 {
 	struct cpuset *root;
 	struct cpuset *set;
@@ -876,7 +876,7 @@ struct cpuset_setid_args {
 };
 #endif
 int
-cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
+sys_cpuset_setid(struct thread *td, struct cpuset_setid_args *uap)
 {
 	struct cpuset *set;
 	int error;
@@ -900,9 +900,10 @@ struct cpuset_getid_args {
 	cpuwhich_t	which;
 	id_t		id;
 	cpusetid_t	*setid;
+};
 #endif
 int
-cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
+sys_cpuset_getid(struct thread *td, struct cpuset_getid_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;
@@ -959,7 +960,7 @@ struct cpuset_getaffinity_args {
 };
 #endif
 int
-cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
+sys_cpuset_getaffinity(struct thread *td, struct cpuset_getaffinity_args *uap)
 {
 	struct thread *ttd;
 	struct cpuset *nset;
@@ -1049,7 +1050,7 @@ struct cpuset_setaffinity_args {
 };
 #endif
 int
-cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
+sys_cpuset_setaffinity(struct thread *td, struct cpuset_setaffinity_args *uap)
 {
 	struct cpuset *nset;
 	struct cpuset *set;

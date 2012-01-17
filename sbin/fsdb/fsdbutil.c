@@ -126,12 +126,10 @@ printstat(const char *cp, ino_t inum, union dinode *dp)
 	puts("regular file");
 	break;
     case IFBLK:
-	printf("block special (%d,%d)",
-	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
+	printf("block special (%#jx)", (uintmax_t)DIP(dp, di_rdev));
 	break;
     case IFCHR:
-	printf("character special (%d,%d)",
-	       major(DIP(dp, di_rdev)), minor(DIP(dp, di_rdev)));
+	printf("character special (%#jx)", DIP(dp, di_rdev));
 	break;
     case IFLNK:
 	fputs("symlink",stdout);

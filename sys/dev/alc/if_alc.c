@@ -349,9 +349,9 @@ alc_mediastatus(struct ifnet *ifp, struct ifmediareq *ifmr)
 	mii = device_get_softc(sc->alc_miibus);
 
 	mii_pollstat(mii);
-	ALC_UNLOCK(sc);
 	ifmr->ifm_status = mii->mii_media_status;
 	ifmr->ifm_active = mii->mii_media_active;
+	ALC_UNLOCK(sc);
 }
 
 static int

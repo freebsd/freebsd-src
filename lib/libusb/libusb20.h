@@ -293,6 +293,11 @@ void	libusb20_be_dequeue_device(struct libusb20_backend *pbe, struct libusb20_de
 void	libusb20_be_enqueue_device(struct libusb20_backend *pbe, struct libusb20_device *pdev);
 void	libusb20_be_free(struct libusb20_backend *pbe);
 
+/* USB debugging */
+
+const char *libusb20_strerror(int);
+const char *libusb20_error_name(int);
+
 #if 0
 {					/* style */
 #endif

@@ -509,7 +509,7 @@ run_localize()
 
 
     # Check if we need to set a timezone
-    echo $line | -q grep "^timeZone=" 2>/dev/null
+    echo $line | grep -q "^timeZone=" 2>/dev/null
     if [ $? -eq 0 ] ; then
       get_value_from_string "$line"
       set_timezone "$VAL"

@@ -37,6 +37,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_vfs_allow_nonmpsafe.h"
+
 #include <sys/param.h>
 #include <sys/conf.h>
 #include <sys/fcntl.h>
@@ -79,7 +81,7 @@ SYSCTL_INT(_vfs, OID_AUTO, usermount, CTLFLAG_RW, &usermount, 0,
     "Unprivileged users may mount and unmount file systems");
 
 MALLOC_DEFINE(M_MOUNT, "mount", "vfs mount structure");
-MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
+static MALLOC_DEFINE(M_VNODE_MARKER, "vnodemarker", "vnode marker");
 static uma_zone_t mount_zone;
 
 /* List of mounted filesystems. */
@@ -365,7 +367,7 @@ vfs_mergeopts(struct vfsoptlist *toopts, struct vfsoptlist *oldopts)
  * Mount a filesystem.
  */
 int
-nmount(td, uap)
+sys_nmount(td, uap)
 	struct thread *td;
 	struct nmount_args /* {
 		struct iovec *iovp;
@@ -682,7 +684,7 @@ struct mount_args {
 #endif
 /* ARGSUSED */
 int
-mount(td, uap)
+sys_mount(td, uap)
 	struct thread *td;
 	struct mount_args /* {
 		char *type;
@@ -798,6 +800,14 @@ vfs_domount_first(
 	 * get.  No freeing of cn_pnbuf.
 	 */
 	error = VFS_MOUNT(mp);
+#ifndef VFS_ALLOW_NONMPSAFE
+	if (error == 0 && VFS_NEEDSGIANT(mp)) {
+		(void)VFS_UNMOUNT(mp, fsflags);
+		error = ENXIO;
+		printf("%s: Mounting non-MPSAFE fs (%s) is disabled\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+	}
+#endif
 	if (error != 0) {
 		vfs_unbusy(mp);
 		vfs_mount_destroy(mp);
@@ -807,6 +817,11 @@ vfs_domount_first(
 		vrele(vp);
 		return (error);
 	}
+#ifdef VFS_ALLOW_NONMPSAFE
+	if (VFS_NEEDSGIANT(mp))
+		printf("%s: Mounting non-MPSAFE fs (%s) is deprecated\n",
+		    __func__, mp->mnt_vfc->vfc_name);
+#endif
 
 	if (mp->mnt_opt != NULL)
 		vfs_freeopts(mp->mnt_opt);
@@ -1070,11 +1085,14 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vfs_domount_first(td, vfsp, fspath, vp, fsflags,
-		    optlist);
-	} else {
+		error = vn_path_to_global_path(td, vp, fspath, MNAMELEN);
+		/* debug.disablefullpath == 1 results in ENODEV */
+		if (error == 0 || error == ENODEV) {
+			error = vfs_domount_first(td, vfsp, fspath, vp,
+			    fsflags, optlist);
+		}
+	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
-	}
 	mtx_unlock(&Giant);
 
 	ASSERT_VI_UNLOCKED(vp, __func__);
@@ -1097,16 +1115,17 @@ struct unmount_args {
 #endif
 /* ARGSUSED */
 int
-unmount(td, uap)
+sys_unmount(td, uap)
 	struct thread *td;
 	register struct unmount_args /* {
 		char *path;
 		int flags;
 	} */ *uap;
 {
+	struct nameidata nd;
 	struct mount *mp;
 	char *pathbuf;
-	int error, id0, id1;
+	int error, id0, id1, vfslocked;
 
 	AUDIT_ARG_VALUE(uap->flags);
 	if (jailed(td->td_ucred) || usermount == 0) {
@@ -1140,6 +1159,21 @@ unmount(td, uap)
 		mtx_unlock(&mountlist_mtx);
 	} else {
 		AUDIT_ARG_UPATH1(td, pathbuf);
+		/*
+		 * Try to find global path for path argument.
+		 */
+		NDINIT(&nd, LOOKUP,
+		    FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+		    UIO_SYSSPACE, pathbuf, td);
+		if (namei(&nd) == 0) {
+			vfslocked = NDHASGIANT(&nd);
+			NDFREE(&nd, NDF_ONLY_PNBUF);
+			error = vn_path_to_global_path(td, nd.ni_vp, pathbuf,
+			    MNAMELEN);
+			if (error == 0 || error == ENODEV)
+				vput(nd.ni_vp);
+			VFS_UNLOCK_GIANT(vfslocked);
+		}
 		mtx_lock(&mountlist_mtx);
 		TAILQ_FOREACH_REVERSE(mp, &mountlist, mntlist, mnt_list) {
 			if (strcmp(mp->mnt_stat.f_mntonname, pathbuf) == 0)
@@ -1227,18 +1261,6 @@ dounmount(mp, flags, td)
 		mp->mnt_kern_flag |= MNTK_UNMOUNTF;
 	error = 0;
 	if (mp->mnt_lockref) {
-		if ((flags & MNT_FORCE) == 0) {
-			mp->mnt_kern_flag &= ~(MNTK_UNMOUNT | MNTK_NOINSMNTQ |
-			    MNTK_UNMOUNTF);
-			if (mp->mnt_kern_flag & MNTK_MWAIT) {
-				mp->mnt_kern_flag &= ~MNTK_MWAIT;
-				wakeup(mp);
-			}
-			MNT_IUNLOCK(mp);
-			if (coveredvp)
-				VOP_UNLOCK(coveredvp, 0);
-			return (EBUSY);
-		}
 		mp->mnt_kern_flag |= MNTK_DRAINING;
 		error = msleep(&mp->mnt_lockref, MNT_MTX(mp), PVFS,
 		    "mount drain", 0);

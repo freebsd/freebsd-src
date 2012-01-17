@@ -18,9 +18,9 @@
 
 #define DEBUG_TYPE "asmprinter"
 #include "PPC.h"
-#include "PPCPredicates.h"
 #include "PPCTargetMachine.h"
 #include "PPCSubtarget.h"
+#include "MCTargetDesc/PPCPredicates.h"
 #include "llvm/Analysis/DebugInfo.h"
 #include "llvm/Constants.h"
 #include "llvm/DerivedTypes.h"
@@ -43,11 +43,11 @@
 #include "llvm/Target/TargetRegisterInfo.h"
 #include "llvm/Target/TargetInstrInfo.h"
 #include "llvm/Target/TargetOptions.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/ErrorHandling.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringSet.h"
@@ -679,18 +679,8 @@ static AsmPrinter *createPPCAsmPrinterPass(TargetMachine &tm,
   return new PPCLinuxAsmPrinter(tm, Streamer);
 }
 
-static MCInstPrinter *createPPCMCInstPrinter(const Target &T,
-                                             unsigned SyntaxVariant,
-                                             const MCAsmInfo &MAI) {
-  return new PPCInstPrinter(MAI, SyntaxVariant);
-}
-
-
 // Force static initialization.
 extern "C" void LLVMInitializePowerPCAsmPrinter() { 
   TargetRegistry::RegisterAsmPrinter(ThePPC32Target, createPPCAsmPrinterPass);
   TargetRegistry::RegisterAsmPrinter(ThePPC64Target, createPPCAsmPrinterPass);
-  
-  TargetRegistry::RegisterMCInstPrinter(ThePPC32Target, createPPCMCInstPrinter);
-  TargetRegistry::RegisterMCInstPrinter(ThePPC64Target, createPPCMCInstPrinter);
 }

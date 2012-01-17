@@ -28,8 +28,8 @@ Instruction *InstCombiner::FoldPHIArgBinOpIntoPHI(PHINode &PN) {
   Value *LHSVal = FirstInst->getOperand(0);
   Value *RHSVal = FirstInst->getOperand(1);
     
-  const Type *LHSType = LHSVal->getType();
-  const Type *RHSType = RHSVal->getType();
+  Type *LHSType = LHSVal->getType();
+  Type *RHSType = RHSVal->getType();
   
   bool isNUW = false, isNSW = false, isExact = false;
   if (OverflowingBinaryOperator *BO =
@@ -229,8 +229,7 @@ Instruction *InstCombiner::FoldPHIArgGEPIntoPHI(PHINode &PN) {
   
   Value *Base = FixedOperands[0];
   GetElementPtrInst *NewGEP = 
-    GetElementPtrInst::Create(Base, FixedOperands.begin()+1,
-                              FixedOperands.end());
+    GetElementPtrInst::Create(Base, makeArrayRef(FixedOperands).slice(1));
   if (AllInBounds) NewGEP->setIsInBounds();
   NewGEP->setDebugLoc(FirstInst->getDebugLoc());
   return NewGEP;
@@ -287,7 +286,12 @@ static bool isSafeAndProfitableToSinkLoad(LoadInst *L) {
 
 Instruction *InstCombiner::FoldPHIArgLoadIntoPHI(PHINode &PN) {
   LoadInst *FirstLI = cast<LoadInst>(PN.getIncomingValue(0));
-  
+
+  // FIXME: This is overconservative; this transform is allowed in some cases
+  // for atomic operations.
+  if (FirstLI->isAtomic())
+    return 0;
+
   // When processing loads, we need to propagate two bits of information to the
   // sunk load: whether it is volatile, and what its alignment is.  We currently
   // don't sink loads when some have their alignment specified and some don't.
@@ -397,7 +401,7 @@ Instruction *InstCombiner::FoldPHIArgOpIntoPHI(PHINode &PN) {
   // the same type or "+42") we can pull the operation through the PHI, reducing
   // code size and simplifying code.
   Constant *ConstantOp = 0;
-  const Type *CastSrcTy = 0;
+  Type *CastSrcTy = 0;
   bool isNUW = false, isNSW = false, isExact = false;
   
   if (isa<CastInst>(FirstInst)) {
@@ -572,7 +576,7 @@ struct LoweredPHIRecord {
   unsigned Shift;     // The amount shifted.
   unsigned Width;     // The width extracted.
   
-  LoweredPHIRecord(PHINode *pn, unsigned Sh, const Type *Ty)
+  LoweredPHIRecord(PHINode *pn, unsigned Sh, Type *Ty)
     : PN(pn), Shift(Sh), Width(Ty->getPrimitiveSizeInBits()) {}
   
   // Ctor form used by DenseMap.
@@ -701,7 +705,7 @@ Instruction *InstCombiner::SliceUpIllegalIntegerPHI(PHINode &FirstPhi) {
     unsigned PHIId = PHIUsers[UserI].PHIId;
     PHINode *PN = PHIsToSlice[PHIId];
     unsigned Offset = PHIUsers[UserI].Shift;
-    const Type *Ty = PHIUsers[UserI].Inst->getType();
+    Type *Ty = PHIUsers[UserI].Inst->getType();
     
     PHINode *EltPHI;
     

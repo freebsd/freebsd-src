@@ -12,11 +12,12 @@
 #include "clang/Driver/ArgList.h"
 #include "clang/Driver/Option.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <algorithm>
-#include <cassert>
 #include <map>
 using namespace clang::driver;
 using namespace clang::driver::options;
+using namespace clang;
 
 // Ordering on Info. The ordering is *almost* lexicographic, with two
 // exceptions. First, '\0' comes at the end of the alphabet instead of
@@ -116,7 +117,7 @@ OptTable::OptTable(const Info *_OptionInfos, unsigned _NumOptionInfos)
     if (!(getInfo(i) < getInfo(i + 1))) {
       getOption(i)->dump();
       getOption(i + 1)->dump();
-      assert(0 && "Options are not in order!");
+      llvm_unreachable("Options are not in order!");
     }
   }
 #endif
@@ -268,10 +269,10 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
   // Add metavar, if used.
   switch (Opts.getOptionKind(Id)) {
   case Option::GroupClass: case Option::InputClass: case Option::UnknownClass:
-    assert(0 && "Invalid option with help text.");
+    llvm_unreachable("Invalid option with help text.");
 
   case Option::MultiArgClass:
-    assert(0 && "Cannot print metavar for this kind of option.");
+    llvm_unreachable("Cannot print metavar for this kind of option.");
 
   case Option::FlagClass:
     break;
@@ -291,7 +292,7 @@ static std::string getOptionHelpName(const OptTable &Opts, OptSpecifier Id) {
   return Name;
 }
 
-static void PrintHelpOptionList(llvm::raw_ostream &OS, llvm::StringRef Title,
+static void PrintHelpOptionList(raw_ostream &OS, StringRef Title,
                                 std::vector<std::pair<std::string,
                                 const char*> > &OptionHelp) {
   OS << Title << ":\n";
@@ -342,7 +343,7 @@ static const char *getOptionHelpGroup(const OptTable &Opts, OptSpecifier Id) {
   return getOptionHelpGroup(Opts, GroupID);
 }
 
-void OptTable::PrintHelp(llvm::raw_ostream &OS, const char *Name,
+void OptTable::PrintHelp(raw_ostream &OS, const char *Name,
                          const char *Title, bool ShowHidden) const {
   OS << "OVERVIEW: " << Title << "\n";
   OS << '\n';

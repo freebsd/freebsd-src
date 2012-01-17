@@ -21,11 +21,11 @@
 #include "llvm/MC/MCSection.h"
 #include "llvm/MC/MCSymbol.h"
 #include "llvm/MC/MCValue.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ELF.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/raw_ostream.h"
-#include "llvm/Target/TargetAsmBackend.h"
 
 using namespace llvm;
 
@@ -53,8 +53,9 @@ void MCELFStreamer::EmitLabel(MCSymbol *Symbol) {
 void MCELFStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   switch (Flag) {
   case MCAF_SyntaxUnified: return; // no-op here.
-  case MCAF_Code16: return; // no-op here.
-  case MCAF_Code32: return; // no-op here.
+  case MCAF_Code16: return; // Change parsing mode; no-op here.
+  case MCAF_Code32: return; // Change parsing mode; no-op here.
+  case MCAF_Code64: return; // Change parsing mode; no-op here.
   case MCAF_SubsectionsViaSymbols:
     getAssembler().setSubsectionsViaSymbols(true);
     return;
@@ -219,14 +220,14 @@ void MCELFStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
   SD.setSize(MCConstantExpr::Create(Size, getContext()));
 }
 
-void MCELFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
+void MCELFStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                          unsigned ByteAlignment) {
   // FIXME: Should this be caught and done earlier?
   MCSymbolData &SD = getAssembler().getOrCreateSymbolData(*Symbol);
   MCELF::SetBinding(SD, ELF::STB_LOCAL);
   SD.setExternal(false);
   BindingExplicitlySet.insert(Symbol);
-  // FIXME: ByteAlignment is not needed here, but is required.
-  EmitCommonSymbol(Symbol, Size, 1);
+  EmitCommonSymbol(Symbol, Size, ByteAlignment);
 }
 
 void MCELFStreamer::EmitBytes(StringRef Data, unsigned AddrSpace) {
@@ -374,10 +375,10 @@ void MCELFStreamer::Finish() {
   this->MCObjectStreamer::Finish();
 }
 
-MCStreamer *llvm::createELFStreamer(MCContext &Context, TargetAsmBackend &TAB,
+MCStreamer *llvm::createELFStreamer(MCContext &Context, MCAsmBackend &MAB,
                                     raw_ostream &OS, MCCodeEmitter *CE,
                                     bool RelaxAll, bool NoExecStack) {
-  MCELFStreamer *S = new MCELFStreamer(Context, TAB, OS, CE);
+  MCELFStreamer *S = new MCELFStreamer(Context, MAB, OS, CE);
   if (RelaxAll)
     S->getAssembler().setRelaxAll(true);
   if (NoExecStack)

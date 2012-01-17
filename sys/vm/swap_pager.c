@@ -233,7 +233,7 @@ swap_reserve_by_cred(vm_ooffset_t incr, struct ucred *cred)
 	}
 	if (!res && ppsratecheck(&lastfail, &curfail, 1)) {
 		printf("uid %d, pid %d: swap reservation for %jd bytes failed\n",
-		    curproc->p_pid, uip->ui_uid, incr);
+		    uip->ui_uid, curproc->p_pid, incr);
 	}
 
 #ifdef RACCT
@@ -1593,7 +1593,7 @@ swp_pager_async_iodone(struct buf *bp)
 			 * status, then finish the I/O ( which decrements the 
 			 * busy count and possibly wakes waiter's up ).
 			 */
-			KASSERT((m->flags & PG_WRITEABLE) == 0,
+			KASSERT((m->aflags & PGA_WRITEABLE) == 0,
 			    ("swp_pager_async_iodone: page %p is not write"
 			    " protected", m));
 			vm_page_undirty(m);
@@ -2057,7 +2057,7 @@ struct swapon_args {
  */
 /* ARGSUSED */
 int
-swapon(struct thread *td, struct swapon_args *uap)
+sys_swapon(struct thread *td, struct swapon_args *uap)
 {
 	struct vattr attr;
 	struct vnode *vp;
@@ -2199,7 +2199,7 @@ struct swapoff_args {
  */
 /* ARGSUSED */
 int
-swapoff(struct thread *td, struct swapoff_args *uap)
+sys_swapoff(struct thread *td, struct swapoff_args *uap)
 {
 	struct vnode *vp;
 	struct nameidata nd;

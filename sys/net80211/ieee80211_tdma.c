@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_tdma.h"
 #include "opt_wlan.h"
 
+#ifdef	IEEE80211_SUPPORT_TDMA
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -285,6 +287,8 @@ static void
 tdma_beacon_miss(struct ieee80211vap *vap)
 {
 	struct ieee80211_tdma_state *ts = vap->iv_tdma;
+
+	IEEE80211_LOCK_ASSERT(vap->iv_ic);
 
 	KASSERT((vap->iv_ic->ic_flags & IEEE80211_F_SCAN) == 0, ("scanning"));
 	KASSERT(vap->iv_state == IEEE80211_S_RUN,
@@ -818,3 +822,5 @@ restart:
 	return ERESTART;
 }
 IEEE80211_IOCTL_SET(tdma, tdma_ioctl_set80211);
+
+#endif	/* IEEE80211_SUPPORT_TDMA */

@@ -213,6 +213,7 @@ systrace_probe(u_int32_t id, int sysnum, struct sysent *sysent, void *params,
 	/* Process the probe using the converted argments. */
 	dtrace_probe(id, uargs[0], uargs[1], uargs[2], uargs[3], uargs[4]);
 }
+
 #endif
 
 static void
@@ -220,8 +221,12 @@ systrace_getargdesc(void *arg, dtrace_id_t id, void *parg, dtrace_argdesc_t *des
 {
 	int sysnum = SYSTRACE_SYSNUM((uintptr_t)parg);
 
-	systrace_setargdesc(sysnum, desc->dtargd_ndx, desc->dtargd_native,
-	    sizeof(desc->dtargd_native));
+	if (SYSTRACE_ISENTRY((uintptr_t)parg))
+		systrace_entry_setargdesc(sysnum, desc->dtargd_ndx, 
+		    desc->dtargd_native, sizeof(desc->dtargd_native));
+	else
+		systrace_return_setargdesc(sysnum, desc->dtargd_ndx, 
+		    desc->dtargd_native, sizeof(desc->dtargd_native));
 
 	if (desc->dtargd_native[0] == '\0')
 		desc->dtargd_ndx = DTRACE_ARGNONE;

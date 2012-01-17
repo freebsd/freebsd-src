@@ -331,8 +331,7 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it.
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(pp, PG_REFERENCED);
+				vm_page_reference(pp);
 				vm_page_sleep(pp, "zfsmwb");
 				continue;
 			}
@@ -2699,7 +2698,7 @@ zfs_getattr(vnode_t *vp, vattr_t *vap, int flags, cred_t *cr,
 		links = zp->z_links + 1;
 	else
 		links = zp->z_links;
-	vap->va_nlink = MIN(links, UINT32_MAX);	/* nlink_t limit! */
+	vap->va_nlink = MIN(links, LINK_MAX);	/* nlink_t limit! */
 	vap->va_size = zp->z_size;
 #ifdef sun
 	vap->va_rdev = vp->v_rdev;
@@ -5164,7 +5163,7 @@ zfs_getsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
 }
 
 /*ARGSUSED*/
-static int
+int
 zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
     caller_context_t *ct)
 {

@@ -401,9 +401,10 @@ setcmd(int argc, char **argv)
 void
 getoptsreset(const char *value)
 {
-	if (number(value) == 1) {
+	while (*value == '0')
+		value++;
+	if (strcmp(value, "1") == 0)
 		shellparam.reset = 1;
-	}
 }
 
 /*

@@ -37,7 +37,15 @@
 
 #define IFC_CLONE_INITIALIZER(name, data, maxunit,			\
     attach, match, create, destroy)					\
-    { { 0 }, name, maxunit, NULL, 0, data, attach, match, create, destroy }
+    {									\
+	.ifc_name = name,						\
+	.ifc_maxunit = maxunit,						\
+	.ifc_data = data,						\
+	.ifc_attach = attach,						\
+	.ifc_match = match,						\
+	.ifc_create = create,						\
+	.ifc_destroy = destroy,						\
+    }
 
 /*
  * Structure describing a `cloning' interface.
@@ -52,10 +60,7 @@ struct if_clone {
 	LIST_ENTRY(if_clone) ifc_list;	/* (e) On list of cloners */
 	const char *ifc_name;		/* (c) Name of device, e.g. `gif' */
 	int ifc_maxunit;		/* (c) Maximum unit number */
-	unsigned char *ifc_units;	/* (i) Bitmap to handle units. */
-					/*     Considered private, access */
-					/*     via ifc_(alloc|free)_unit(). */
-	int ifc_bmlen;			/* (c) Bitmap length. */
+	struct unrhdr *ifc_unrhdr;	/* (c) alloc_unr(9) header */
 	void *ifc_data;			/* (*) Data for ifc_* functions. */
 
 	/* (c) Driver specific cloning functions.  Called with no locks held. */
@@ -65,12 +70,12 @@ struct if_clone {
 	int	(*ifc_destroy)(struct if_clone *, struct ifnet *);
 
 	long ifc_refcnt;		/* (i) Refrence count. */
-	struct mtx ifc_mtx;		/* Muted to protect members. */
+	struct mtx ifc_mtx;		/* Mutex to protect members. */
 	LIST_HEAD(, ifnet) ifc_iflist;	/* (i) List of cloned interfaces */
 };
 
 void	if_clone_init(void);
-void	if_clone_attach(struct if_clone *);
+int	if_clone_attach(struct if_clone *);
 void	if_clone_detach(struct if_clone *);
 void	vnet_if_clone_init(void);
 

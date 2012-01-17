@@ -213,6 +213,7 @@ struct ieee80211_scanparams {
 	uint8_t		*ath;
 	uint8_t		*tdma;
 	uint8_t		*csa;
+	uint8_t		*quiet;
 	uint8_t		*meshid;
 	uint8_t		*meshconf;
 	uint8_t		*spare[3];

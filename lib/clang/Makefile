@@ -37,6 +37,7 @@ SUBDIR=	libclanganalysis \
 	libllvmscalaropts \
 	libllvmselectiondag \
 	libllvmsupport \
+	libllvmtablegen \
 	libllvmtarget \
 	libllvmtransformutils \
 	\

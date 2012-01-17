@@ -298,11 +298,8 @@ static void
 vpo_action(struct cam_sim *sim, union ccb *ccb)
 {
 	struct vpo_data *vpo = (struct vpo_data *)sim->softc;
-#ifdef INVARIANTS
-	device_t ppbus = device_get_parent(vpo->vpo_dev);
 
-	ppb_assert_locked(ppbus);
-#endif
+	ppb_assert_locked(device_get_parent(vpo->vpo_dev));
 	switch (ccb->ccb_h.func_code) {
 	case XPT_SCSI_IO:
 	{

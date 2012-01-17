@@ -130,6 +130,10 @@ sysarch(td, uap)
 
 		case I386_SET_IOPERM:
 		default:
+#ifdef KTRACE
+			if (KTRPOINT(td, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_SYSCALL, 0, 0);
+#endif
 			return (ECAPMODE);
 		}
 	}
@@ -549,7 +553,7 @@ user_ldt_free(struct thread *td)
 		return;
 	}
 
-	if (td == PCPU_GET(curthread)) {
+	if (td == curthread) {
 #ifdef XEN
 		i386_reset_ldt(&default_proc_ldt);
 		PCPU_SET(currentldt, (int)&default_proc_ldt);

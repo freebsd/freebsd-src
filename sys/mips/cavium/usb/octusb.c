@@ -81,7 +81,7 @@ __FBSDID("$FreeBSD$");
 #ifdef USB_DEBUG
 static int octusbdebug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, octusb, CTLFLAG_RW, 0, "OCTUSB");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, octusb, CTLFLAG_RW, 0, "OCTUSB");
 SYSCTL_INT(_hw_usb_octusb, OID_AUTO, debug, CTLFLAG_RW,
     &octusbdebug, 0, "OCTUSB debug level");
 
@@ -162,14 +162,14 @@ octusb_host_alloc_endpoint(struct octusb_td *td)
 	    &sc->sc_port[td->qh->port_index].state,
 	    0,
 	    td->qh->dev_addr,
-	    td->qh->ep_num,
+	    td->qh->ep_num & UE_ADDR,
 	    octusb_convert_speed(td->qh->dev_speed),
 	    td->qh->max_packet_size,
 	    octusb_convert_ep_type(td->qh->ep_type),
 	    (td->qh->ep_num & UE_DIR_IN) ? CVMX_USB_DIRECTION_IN :
 	    CVMX_USB_DIRECTION_OUT,
 	    td->qh->ep_interval,
-	    td->qh->ep_mult,
+	    (td->qh->dev_speed == USB_SPEED_HIGH) ? td->qh->ep_mult : 0,
 	    td->qh->hs_hub_addr,
 	    td->qh->hs_hub_port);
 
@@ -913,16 +913,16 @@ octusb_uninit(struct octusb_softc *sc)
 
 }
 
-void
+static void
 octusb_suspend(struct octusb_softc *sc)
 {
-
+	/* TODO */
 }
 
-void
+static void
 octusb_resume(struct octusb_softc *sc)
 {
-
+	/* TODO */
 }
 
 /*------------------------------------------------------------------------*
@@ -1908,6 +1908,26 @@ octusb_set_hw_power(struct usb_bus *bus)
 	DPRINTF("Nothing to do.\n");
 }
 
+static void
+octusb_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct octusb_softc *sc = OCTUSB_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		octusb_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		octusb_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		octusb_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods octusb_bus_methods = {
 	.endpoint_init = octusb_ep_init,
 	.xfer_setup = octusb_xfer_setup,
@@ -1916,6 +1936,7 @@ struct usb_bus_methods octusb_bus_methods = {
 	.device_resume = octusb_device_resume,
 	.device_suspend = octusb_device_suspend,
 	.set_hw_power = octusb_set_hw_power,
+	.set_hw_power_sleep = octusb_set_hw_power_sleep,
 	.roothub_exec = octusb_roothub_exec,
 	.xfer_poll = octusb_do_poll,
 };

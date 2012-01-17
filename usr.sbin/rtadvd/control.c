@@ -41,6 +41,7 @@
 #include <errno.h>
 #include <netdb.h>
 #include <unistd.h>
+#include <poll.h>
 #include <signal.h>
 #include <string.h>
 #include <stdarg.h>
@@ -53,12 +54,16 @@
 #include "pathnames.h"
 #include "control.h"
 
+#define	CM_RECV_TIMEOUT	30
+
 int
-cmsg_recv(int fd, char *buf)
+cm_recv(int fd, char *buf)
 {
 	int n;
 	struct ctrl_msg_hdr	*cm;
 	char *msg;
+	struct pollfd pfds[1];
+	int i;
 
 	syslog(LOG_DEBUG, "<%s> enter, fd=%d", __func__, fd);
 
@@ -66,35 +71,52 @@ cmsg_recv(int fd, char *buf)
 	cm = (struct ctrl_msg_hdr *)buf;
 	msg = (char *)buf + sizeof(*cm);
 
+	pfds[0].fd = fd;
+	pfds[0].events = POLLIN;
+
 	for (;;) {
-		n = read(fd, cm, sizeof(*cm));
-		if (n < 0 && errno == EAGAIN) {
-			syslog(LOG_DEBUG,
-			    "<%s> waiting...", __func__);
+		i = poll(pfds, sizeof(pfds)/sizeof(pfds[0]),
+		    CM_RECV_TIMEOUT);
+
+		if (i == 0)
+			continue;
+
+		if (i < 0) {
+			syslog(LOG_ERR, "<%s> poll error: %s",
+			    __func__, strerror(errno));
 			continue;
 		}
-		break;
+
+		if (pfds[0].revents & POLLIN) {
+			n = read(fd, cm, sizeof(*cm));
+			if (n < 0 && errno == EAGAIN) {
+				syslog(LOG_DEBUG,
+				    "<%s> waiting...", __func__);
+				continue;
+			}
+			break;
+		}
 	}
 
 	if (n != sizeof(*cm)) {
 		syslog(LOG_WARNING,
 		    "<%s> received a too small message.", __func__);
-		goto cmsg_recv_err;
+		goto cm_recv_err;
 	}
 	if (cm->cm_len > CM_MSG_MAXLEN) {
 		syslog(LOG_WARNING,
 		    "<%s> received a too large message.", __func__);
-		goto cmsg_recv_err;
+		goto cm_recv_err;
 	}
 	if (cm->cm_version != CM_VERSION) {
 		syslog(LOG_WARNING,
 		    "<%s> version mismatch", __func__);
-		goto cmsg_recv_err;
+		goto cm_recv_err;
 	}
 	if (cm->cm_type >= CM_TYPE_MAX) {
 		syslog(LOG_WARNING,
 		    "<%s> invalid msg type.", __func__);
-		goto cmsg_recv_err;
+		goto cm_recv_err;
 	}
 
 	syslog(LOG_DEBUG,
@@ -109,31 +131,45 @@ cmsg_recv(int fd, char *buf)
 		    msglen);
 
 		for (;;) {
-			n = read(fd, msg, msglen);
-			if (n < 0 && errno == EAGAIN) {
-				syslog(LOG_DEBUG,
-				    "<%s> waiting...", __func__);
+			i = poll(pfds, sizeof(pfds)/sizeof(pfds[0]),
+			    CM_RECV_TIMEOUT);
+
+			if (i == 0)
 				continue;
+
+			if (i < 0) {
+				syslog(LOG_ERR, "<%s> poll error: %s",
+				    __func__, strerror(errno));
+				continue;
+			}
+
+			if (pfds[0].revents & POLLIN) {
+				n = read(fd, msg, msglen);
+				if (n < 0 && errno == EAGAIN) {
+					syslog(LOG_DEBUG,
+					    "<%s> waiting...", __func__);
+					continue;
+				}
 			}
 			break;
 		}
 		if (n != msglen) {
 			syslog(LOG_WARNING,
 			    "<%s> payload size mismatch.", __func__);
-			goto cmsg_recv_err;
+			goto cm_recv_err;
 		}
 		buf[CM_MSG_MAXLEN - 1] = '\0';
 	}
 
 	return (0);
 
-cmsg_recv_err:
+cm_recv_err:
 	close(fd);
 	return (-1);
 }
 
 int
-cmsg_send(int fd, char *buf)
+cm_send(int fd, char *buf)
 {
 	struct iovec iov[2];
 	int iovcnt;
@@ -304,7 +340,7 @@ csock_open_err:
 }
 
 struct ctrl_msg_pl *
-cmsg_bin2pl(char *str, struct ctrl_msg_pl *cp)
+cm_bin2pl(char *str, struct ctrl_msg_pl *cp)
 {
 	size_t len;
 	size_t *lenp;
@@ -364,7 +400,7 @@ cmsg_bin2pl(char *str, struct ctrl_msg_pl *cp)
 }
 
 size_t
-cmsg_pl2bin(char *str, struct ctrl_msg_pl *cp)
+cm_pl2bin(char *str, struct ctrl_msg_pl *cp)
 {
 	size_t len;
 	size_t *lenp;
@@ -427,7 +463,7 @@ cmsg_pl2bin(char *str, struct ctrl_msg_pl *cp)
 }
 
 size_t
-cmsg_str2bin(char *bin, void *str, size_t len)
+cm_str2bin(char *bin, void *str, size_t len)
 {
 	struct ctrl_msg_hdr *cm;
 
@@ -445,7 +481,7 @@ cmsg_str2bin(char *bin, void *str, size_t len)
 }
 
 void *
-cmsg_bin2str(char *bin, void *str, size_t len)
+cm_bin2str(char *bin, void *str, size_t len)
 {
 
 	syslog(LOG_DEBUG, "<%s> enter", __func__);

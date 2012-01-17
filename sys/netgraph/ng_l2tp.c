@@ -62,7 +62,7 @@
 #include <netgraph/ng_l2tp.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
+static MALLOC_DEFINE(M_NETGRAPH_L2TP, "netgraph_l2tp", "netgraph l2tp node");
 #else
 #define M_NETGRAPH_L2TP M_NETGRAPH
 #endif

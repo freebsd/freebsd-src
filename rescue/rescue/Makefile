@@ -123,9 +123,9 @@ CRUNCH_LIBS+= -lalias -lcam -lcurses -ldevstat -lipsec
 CRUNCH_LIBS+= -lipx
 .endif
 .if ${MK_ZFS} != "no"
-CRUNCH_LIBS+= -lavl -lnvpair -lpthread -lzfs -luutil -lumem
+CRUNCH_LIBS+= -lavl -lnvpair -lzfs -lpthread -luutil -lumem
 .endif
-CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lreadline -lsbuf -lufs -lz
+CRUNCH_LIBS+= -lgeom -lbsdxml -ljail -lkiconv -lmd -lsbuf -lufs -lz
 
 .if ${MACHINE_CPUARCH} == "i386"
 CRUNCH_PROGS_sbin+= bsdlabel sconfig fdisk
@@ -181,7 +181,7 @@ CRUNCH_BUILDOPTS_dhclient= -DRELEASE_CRUNCH -Dlint
 #
 CRUNCH_SRCDIRS+= usr.bin
 
-CRUNCH_PROGS_usr.bin= head mt sed tail tee
+CRUNCH_PROGS_usr.bin= head mt nc sed tail tee
 
 CRUNCH_PROGS_usr.bin+= gzip
 CRUNCH_ALIAS_gzip= gunzip gzcat zcat

@@ -724,6 +724,7 @@ extern bus_space_tag_t mips_bus_space_generic;
 #if defined(CPU_RMI) || defined (CPU_NLM)
 extern bus_space_tag_t rmi_bus_space;
 extern bus_space_tag_t rmi_pci_bus_space;
+extern bus_space_tag_t rmi_uart_bus_space;
 #endif
 
 #include <machine/bus_dma.h>

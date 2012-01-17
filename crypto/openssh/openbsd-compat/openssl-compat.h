@@ -1,4 +1,4 @@
-/* $Id: openssl-compat.h,v 1.18 2011/01/21 22:37:06 dtucker Exp $ */
+/* $Id: openssl-compat.h,v 1.19 2011/05/10 01:13:38 dtucker Exp $ */
 
 /*
  * Copyright (c) 2005 Darren Tucker <dtucker@zip.com.au>
@@ -106,10 +106,10 @@ RSA_METHOD *RSA_get_default_method(void);
 #  endif
 
 # ifdef USE_OPENSSL_ENGINE
-#  ifdef SSLeay_add_all_algorithms
-#   undef SSLeay_add_all_algorithms
+#  ifdef OpenSSL_add_all_algorithms
+#   undef OpenSSL_add_all_algorithms
 #  endif
-#  define SSLeay_add_all_algorithms()  ssh_SSLeay_add_all_algorithms()
+#  define OpenSSL_add_all_algorithms()  ssh_OpenSSL_add_all_algorithms()
 # endif
 
 # ifndef HAVE_BN_IS_PRIME_EX
@@ -129,6 +129,6 @@ int ssh_EVP_CipherInit(EVP_CIPHER_CTX *, const EVP_CIPHER *, unsigned char *,
     unsigned char *, int);
 int ssh_EVP_Cipher(EVP_CIPHER_CTX *, char *, char *, int);
 int ssh_EVP_CIPHER_CTX_cleanup(EVP_CIPHER_CTX *);
-void ssh_SSLeay_add_all_algorithms(void);
+void ssh_OpenSSL_add_all_algorithms(void);
 #endif	/* SSH_DONT_OVERLOAD_OPENSSL_FUNCS */
 

@@ -88,6 +88,15 @@ SYSCALL32_MODULE(syscallname,                           \
     .syscall_no = FREEBSD32_SYS_##syscallname			\
 }
 
+#define SYSCALL32_INIT_HELPER_COMPAT(syscallname) {		\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
+    },								\
+    .syscall_no = FREEBSD32_SYS_##syscallname			\
+}
+
 int    syscall32_register(int *offset, struct sysent *new_sysent,
 	    struct sysent *old_sysent);
 int    syscall32_deregister(int *offset, struct sysent *old_sysent);

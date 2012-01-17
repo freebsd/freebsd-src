@@ -182,6 +182,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = sizeof(struct bbb_cbw),
+		.flags = {.ext_buffer = 1,},
 		.callback = &bbb_command_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -191,7 +192,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_data_read_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -210,7 +211,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_OUT,
 		.bufsize = BULK_SIZE,
-		.flags = {.proxy_buffer = 1,},
+		.flags = {.ext_buffer = 1,.proxy_buffer = 1,},
 		.callback = &bbb_data_write_callback,
 		.timeout = 4 * USB_MS_HZ,	/* 4 seconds */
 	},
@@ -229,7 +230,7 @@ static const struct usb_config bbb_config[ST_MAX] = {
 		.endpoint = UE_ADDR_ANY,
 		.direction = UE_DIR_IN,
 		.bufsize = sizeof(struct bbb_csw),
-		.flags = {.short_xfer_ok = 1,},
+		.flags = {.ext_buffer = 1,.short_xfer_ok = 1,},
 		.callback = &bbb_status_callback,
 		.timeout = 1 * USB_MS_HZ,	/* 1 second  */
 	},
@@ -474,9 +475,9 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->data_timeout = (data_timeout + USB_MS_HZ);
 	sc->actlen = 0;
 	sc->cmd_len = cmd_len;
-	bzero(&sc->cbw.CBWCDB, sizeof(sc->cbw.CBWCDB));
-	bcopy(cmd_ptr, &sc->cbw.CBWCDB, cmd_len);
-	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, &sc->cbw.CBWCDB, ":");
+	memset(&sc->cbw.CBWCDB, 0, sizeof(sc->cbw.CBWCDB));
+	memcpy(&sc->cbw.CBWCDB, cmd_ptr, cmd_len);
+	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw.CBWCDB, ":");
 
 	mtx_lock(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);
@@ -602,6 +603,29 @@ usb_iface_is_cdrom(struct usb_device *udev, uint8_t iface_index)
 	return (is_cdrom);
 }
 
+static uint8_t
+usb_msc_get_max_lun(struct usb_device *udev, uint8_t iface_index)
+{
+	struct usb_device_request req;
+	usb_error_t err;
+	uint8_t buf = 0;
+
+
+	/* The Get Max Lun command is a class-specific request. */
+	req.bmRequestType = UT_READ_CLASS_INTERFACE;
+	req.bRequest = 0xFE;		/* GET_MAX_LUN */
+	USETW(req.wValue, 0);
+	req.wIndex[0] = iface_index;
+	req.wIndex[1] = 0;
+	USETW(req.wLength, 1);
+
+	err = usbd_do_request(udev, NULL, &req, &buf);
+	if (err)
+		buf = 0;
+
+	return (buf);
+}
+
 usb_error_t
 usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 {
@@ -620,6 +644,11 @@ usb_msc_auto_quirk(struct usb_device *udev, uint8_t iface_index)
 	 * value is set to function properly:
 	 */
 	usb_pause_mtx(NULL, hz);
+
+	if (usb_msc_get_max_lun(udev, iface_index) == 0) {
+		DPRINTF("Device has only got one LUN.\n");
+		usbd_add_dynamic_quirk(udev, UQ_MSC_NO_GETMAXLUN);
+	}
 
 	is_no_direct = 1;
 	for (timeout = 4; timeout; timeout--) {

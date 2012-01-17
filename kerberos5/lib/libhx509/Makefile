@@ -1,7 +1,10 @@
 # $FreeBSD$
 
 LIB=	hx509
+LDFLAGS=	-Wl,--no-undefined
 VERSION_MAP= ${KRB5DIR}/lib/hx509/version-script.map
+LDADD=	-lasn1 -lcom_err -lcrypto -lroken
+DPADD=	${LIBASN1} ${LIBCOM_ERR} ${LIBCRYPTO} ${LIBROKEN}
 
 INCS=	hx509-private.h \
 	hx509-protos.h \

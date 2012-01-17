@@ -6,13 +6,9 @@ LIB=	llvmarmdisassembler
 
 SRCDIR=	lib/Target/ARM/Disassembler
 INCDIR=	lib/Target/ARM
-SRCS=	ARMDisassemblerCore.cpp
+SRCS=	ARMDisassembler.cpp
 
-.if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	ARMDisassembler.cpp
-.endif
-
-TGHDRS=	ARMGenDecoderTables \
+TGHDRS=	ARMGenDisassemblerTables \
 	ARMGenEDInfo \
 	ARMGenInstrInfo \
 	ARMGenRegisterInfo \

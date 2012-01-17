@@ -148,6 +148,9 @@ typedef enum {
 	HAL_CAP_BSSIDMATCH	= 238,	/* hardware has disable bssid match */
 	HAL_CAP_STREAMS		= 239,	/* how many 802.11n spatial streams are available */
 	HAL_CAP_RXDESC_SELFLINK	= 242,	/* support a self-linked tail RX descriptor */
+	HAL_CAP_LONG_RXDESC_TSF	= 243,	/* hardware supports 32bit TSF in RX descriptor */
+	HAL_CAP_BB_READ_WAR	= 244,	/* baseband read WAR */
+	HAL_CAP_SERIALISE_WAR	= 245,	/* serialise register access on PCI */
 } HAL_CAPABILITY_TYPE;
 
 /* 
@@ -778,6 +781,8 @@ typedef struct
 	int ah_dma_beacon_response_time;/* in TU's */
 	int ah_sw_beacon_response_time;	/* in TU's */
 	int ah_additional_swba_backoff;	/* in TU's */
+	int ah_force_full_reset;	/* force full chip reset rather then warm reset */
+	int ah_serialise_reg_war;	/* force serialisation of register IO */
 } HAL_OPS_CONFIG;
 
 /*
@@ -807,6 +812,8 @@ struct ath_hal {
 	uint16_t	ah_analog2GhzRev;/* 2GHz radio revision */
 
 	uint16_t	*ah_eepromdata;	/* eeprom buffer, if needed */
+
+	uint32_t	ah_intrstate[8];	/* last int state */
 
 	HAL_OPS_CONFIG ah_config;
 	const HAL_RATE_TABLE *__ahdecl(*ah_getRateTable)(struct ath_hal *,
@@ -996,6 +1003,7 @@ struct ath_hal {
 	void	  __ahdecl(*ah_setStationBeaconTimers)(struct ath_hal*,
 				const HAL_BEACON_STATE *);
 	void	  __ahdecl(*ah_resetStationBeaconTimers)(struct ath_hal*);
+	uint64_t  __ahdecl(*ah_getNextTBTT)(struct ath_hal *);
 
 	/* 802.11n Functions */
 	HAL_BOOL  __ahdecl(*ah_chainTxDesc)(struct ath_hal *,
@@ -1010,12 +1018,19 @@ struct ath_hal {
 	void	  __ahdecl(*ah_set11nRateScenario)(struct ath_hal *,
 	    			struct ath_desc *, u_int, u_int,
 				HAL_11N_RATE_SERIES [], u_int, u_int);
+	void	  __ahdecl(*ah_set11nAggrFirst)(struct ath_hal *,
+				struct ath_desc *, u_int, u_int);
 	void	  __ahdecl(*ah_set11nAggrMiddle)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	void	  __ahdecl(*ah_set11nAggrLast)(struct ath_hal *,
+				struct ath_desc *);
 	void	  __ahdecl(*ah_clr11nAggr)(struct ath_hal *,
 	    			struct ath_desc *);
 	void	  __ahdecl(*ah_set11nBurstDuration)(struct ath_hal *,
 	    			struct ath_desc *, u_int);
+	uint32_t  __ahdecl(*ah_get_mib_cycle_counts_pct) (struct ath_hal *,
+				uint32_t *, uint32_t *, uint32_t *, uint32_t *);
+
 	uint32_t  __ahdecl(*ah_get11nExtBusy)(struct ath_hal *);
 	void      __ahdecl(*ah_set11nMac2040)(struct ath_hal *,
 				HAL_HT_MACMODE);
@@ -1138,4 +1153,26 @@ extern uint32_t __ahdecl ath_computedur_ht(uint32_t frameLen, uint16_t rate,
 extern uint16_t __ahdecl ath_hal_computetxtime(struct ath_hal *,
 		const HAL_RATE_TABLE *rates, uint32_t frameLen,
 		uint16_t rateix, HAL_BOOL shortPreamble);
+
+/*
+ * Adjust the TSF.
+ */
+extern void __ahdecl ath_hal_adjusttsf(struct ath_hal *ah, int32_t tsfdelta);
+
+/*
+ * Enable or disable CCA.
+ */
+void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
+
+/*
+ * Get CCA setting.
+ */
+int __ahdecl ath_hal_getcca(struct ath_hal *ah);
+
+/*
+ * Read EEPROM data from ah_eepromdata
+ */
+HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
+		u_int off, uint16_t *data);
+
 #endif /* _ATH_AH_H_ */

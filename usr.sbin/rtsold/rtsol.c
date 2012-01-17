@@ -73,6 +73,7 @@ static struct sockaddr_in6 from;
 static int rcvcmsglen;
 
 int rssock;
+static char rsid[IFNAMSIZ + 1 + sizeof(DNSINFO_ORIGIN_LABEL) + 1 + NI_MAXHOST];
 struct ifinfo_head_t ifinfo_head =
 	TAILQ_HEAD_INITIALIZER(ifinfo_head);
 
@@ -82,14 +83,18 @@ static const struct sockaddr_in6 sin6_allrouters = {
 	.sin6_addr =	IN6ADDR_LINKLOCAL_ALLROUTERS_INIT,
 };
 
-static void call_script(const int, const char *const *, void *);
+static void call_script(const int, const char *const *,
+    struct script_msg_head_t *);
 static size_t dname_labeldec(char *, size_t, const char *);
 static int safefile(const char *);
 static struct ra_opt *find_raopt(struct rainfo *, int, void *, size_t);
+static int ra_opt_rdnss_dispatch(struct ifinfo *, struct rainfo *,
+    struct script_msg_head_t *, struct script_msg_head_t *);
+static char *make_rsid(const char *, const char *, struct rainfo *);
 
 #define	_ARGS_OTHER	otherconf_script, ifi->ifname
-#define	_ARGS_RESADD	resolvconf_script, "-a", ifi->ifname
-#define	_ARGS_RESDEL	resolvconf_script, "-d", ifi->ifname
+#define	_ARGS_RESADD	resolvconf_script, "-a", rsid
+#define	_ARGS_RESDEL	resolvconf_script, "-d", rsid
 
 #define	CALL_SCRIPT(name, sm_head)					\
 	do {								\
@@ -306,7 +311,7 @@ rtsol_input(int s)
 		warnmsg(LOG_ERR, __func__,
 		    "invalid icmp type(%d) from %s on %s", icp->icmp6_type,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
-		    INET6_ADDRSTRLEN),
+			sizeof(ntopbuf)),
 		    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
@@ -315,7 +320,7 @@ rtsol_input(int s)
 		warnmsg(LOG_INFO, __func__,
 		    "invalid icmp code(%d) from %s on %s", icp->icmp6_code,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
-		    INET6_ADDRSTRLEN),
+			sizeof(ntopbuf)),
 		    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
@@ -325,7 +330,7 @@ rtsol_input(int s)
 		    "invalid RA with hop limit(%d) from %s on %s",
 		    *hlimp,
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
-		    INET6_ADDRSTRLEN),
+			sizeof(ntopbuf)),
 		    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
@@ -334,7 +339,7 @@ rtsol_input(int s)
 		warnmsg(LOG_INFO, __func__,
 		    "invalid RA with non link-local source from %s on %s",
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
-		    INET6_ADDRSTRLEN),
+			sizeof(ntopbuf)),
 		    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
@@ -345,14 +350,14 @@ rtsol_input(int s)
 		warnmsg(LOG_INFO, __func__,
 		    "received RA from %s on an unexpected IF(%s)",
 		    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf,
-		    INET6_ADDRSTRLEN),
+			sizeof(ntopbuf)),
 		    if_indextoname(pi->ipi6_ifindex, ifnamebuf));
 		return;
 	}
 
 	warnmsg(LOG_DEBUG, __func__,
 	    "received RA from %s on %s, state is %d",
-	    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf, INET6_ADDRSTRLEN),
+	    inet_ntop(AF_INET6, &from.sin6_addr, ntopbuf, sizeof(ntopbuf)),
 	    ifi->ifname, ifi->state);
 
 	nd_ra = (struct nd_router_advert *)icp;
@@ -378,6 +383,8 @@ rtsol_input(int s)
 		ELM_MALLOC(rai, exit(1));
 		rai->rai_ifinfo = ifi;
 		TAILQ_INIT(&rai->rai_ra_opt);
+		rai->rai_saddr.sin6_family = AF_INET6;
+		rai->rai_saddr.sin6_len = sizeof(rai->rai_saddr);
 		memcpy(&rai->rai_saddr.sin6_addr, &from.sin6_addr,
 		    sizeof(rai->rai_saddr.sin6_addr));
 		newent_rai = 1;
@@ -406,19 +413,19 @@ rtsol_input(int s)
 		    			"too short RDNSS option"
 					"in RA from %s was ignored.",
 					inet_ntop(AF_INET6, &from.sin6_addr,
-						  ntopbuf, INET6_ADDRSTRLEN));
+					    ntopbuf, sizeof(ntopbuf)));
 				break;
 			}
 
 			addr = (struct in6_addr *)(raoptp + sizeof(*rdnss));
 			while ((char *)addr < (char *)RA_OPT_NEXT_HDR(raoptp)) {
 				if (inet_ntop(AF_INET6, addr, ntopbuf,
-				    INET6_ADDRSTRLEN) == NULL) {
+					sizeof(ntopbuf)) == NULL) {
 					warnmsg(LOG_INFO, __func__,
 		    			    "an invalid address in RDNSS option"
 					    " in RA from %s was ignored.",
 					    inet_ntop(AF_INET6, &from.sin6_addr,
-					    ntopbuf, INET6_ADDRSTRLEN));
+						ntopbuf, sizeof(ntopbuf)));
 					addr++;
 					continue;
 				}
@@ -482,7 +489,7 @@ rtsol_input(int s)
 		    			"too short DNSSL option"
 					"in RA from %s was ignored.",
 					inet_ntop(AF_INET6, &from.sin6_addr,
-						  ntopbuf, INET6_ADDRSTRLEN));
+					    ntopbuf, sizeof(ntopbuf)));
 				break;
 			}
 
@@ -568,10 +575,11 @@ ra_opt_handler(struct ifinfo *ifi)
 	struct rainfo *rai;
 	struct script_msg *smp1, *smp2, *smp3;
 	struct timeval now;
-	TAILQ_HEAD(, script_msg) sm_rdnss_head =
-		TAILQ_HEAD_INITIALIZER(sm_rdnss_head);
-	TAILQ_HEAD(, script_msg) sm_dnssl_head =
-		TAILQ_HEAD_INITIALIZER(sm_dnssl_head);
+	struct script_msg_head_t sm_rdnss_head =
+	    TAILQ_HEAD_INITIALIZER(sm_rdnss_head);
+	struct script_msg_head_t sm_dnssl_head =
+	    TAILQ_HEAD_INITIALIZER(sm_dnssl_head);
+
 	int dcount, dlen;
 
 	dcount = 0;
@@ -658,17 +666,69 @@ free2:
 free1:
 			free(smp1);
 		}
+		/* Call the script for each information source. */
+		if (uflag)
+			ra_opt_rdnss_dispatch(ifi, rai, &sm_rdnss_head,
+			    &sm_dnssl_head);
 	}
-	/* Add \n for DNSSL list. */
-	if (!TAILQ_EMPTY(&sm_dnssl_head)) {
-		ELM_MALLOC(smp1, goto ra_opt_handler_freeit);
-		smp1->sm_msg = resstr_nl;
-		TAILQ_INSERT_TAIL(&sm_dnssl_head, smp1, sm_next);
-	}
-	TAILQ_CONCAT(&sm_rdnss_head, &sm_dnssl_head, sm_next);
+	/* Call the script for each interface. */
+	if (!uflag)
+		ra_opt_rdnss_dispatch(ifi, NULL, &sm_rdnss_head,
+		    &sm_dnssl_head);
+	return (0);
+}
 
-	if (!TAILQ_EMPTY(&sm_rdnss_head))
-		CALL_SCRIPT(RESADD, &sm_rdnss_head);
+char *
+make_rsid(const char *ifname, const char *origin, struct rainfo *rai)
+{
+	char hbuf[NI_MAXHOST];
+	
+	if (rai == NULL)
+		sprintf(rsid, "%s:%s", ifname, origin);
+	else {
+		if (!IN6_IS_ADDR_LINKLOCAL(&rai->rai_saddr.sin6_addr))
+			return (NULL);
+		if (getnameinfo((struct sockaddr *)&rai->rai_saddr,
+			rai->rai_saddr.sin6_len, hbuf, sizeof(hbuf), NULL, 0,
+			NI_NUMERICHOST) != 0)
+			return (NULL);
+		sprintf(rsid, "%s:%s:[%s]", ifname, origin, hbuf);
+	}
+	warnmsg(LOG_DEBUG, __func__, "rsid = [%s]", rsid);
+	return (rsid);
+}
+
+int
+ra_opt_rdnss_dispatch(struct ifinfo *ifi,
+    struct rainfo *rai,
+    struct script_msg_head_t *sm_rdnss_head,
+    struct script_msg_head_t *sm_dnssl_head)
+{
+	const char *r;
+	struct script_msg *smp1;
+	int error;
+
+	error = 0;
+	/* Add \n for DNSSL list. */
+	if (!TAILQ_EMPTY(sm_dnssl_head)) {
+		ELM_MALLOC(smp1, goto ra_opt_rdnss_freeit);
+		smp1->sm_msg = resstr_nl;
+		TAILQ_INSERT_TAIL(sm_dnssl_head, smp1, sm_next);
+	}
+	TAILQ_CONCAT(sm_rdnss_head, sm_dnssl_head, sm_next);
+
+	if (rai != NULL && uflag)
+		r = make_rsid(ifi->ifname, DNSINFO_ORIGIN_LABEL, rai);
+	else
+		r = make_rsid(ifi->ifname, DNSINFO_ORIGIN_LABEL, NULL);
+	if (r == NULL) {
+		warnmsg(LOG_ERR, __func__, "make_rsid() failed.  "
+		    "Script was not invoked.");
+		error = 1;
+		goto ra_opt_rdnss_freeit;
+	}
+	if (!TAILQ_EMPTY(sm_rdnss_head))
+		CALL_SCRIPT(RESADD, sm_rdnss_head);
 	else if (ifi->ifi_rdnss == IFI_DNSOPT_STATE_RECEIVED ||
 	    ifi->ifi_dnssl == IFI_DNSOPT_STATE_RECEIVED) {
 		CALL_SCRIPT(RESDEL, NULL);
@@ -676,21 +736,21 @@ free1:
 		ifi->ifi_dnssl = IFI_DNSOPT_STATE_NOINFO;
 	}
 
-ra_opt_handler_freeit:
+ra_opt_rdnss_freeit:
 	/* Clear script message queue. */
-	if (!TAILQ_EMPTY(&sm_rdnss_head)) {
-		while ((smp1 = TAILQ_FIRST(&sm_rdnss_head)) != NULL) {
-			TAILQ_REMOVE(&sm_rdnss_head, smp1, sm_next);
+	if (!TAILQ_EMPTY(sm_rdnss_head)) {
+		while ((smp1 = TAILQ_FIRST(sm_rdnss_head)) != NULL) {
+			TAILQ_REMOVE(sm_rdnss_head, smp1, sm_next);
 			free(smp1);
 		}
 	}
-	if (!TAILQ_EMPTY(&sm_dnssl_head)) {
-		while ((smp1 = TAILQ_FIRST(&sm_dnssl_head)) != NULL) {
-			TAILQ_REMOVE(&sm_dnssl_head, smp1, sm_next);
+	if (!TAILQ_EMPTY(sm_dnssl_head)) {
+		while ((smp1 = TAILQ_FIRST(sm_dnssl_head)) != NULL) {
+			TAILQ_REMOVE(sm_dnssl_head, smp1, sm_next);
 			free(smp1);
 		}
 	}
-	return (0);
+	return (error);
 }
 
 static struct ra_opt *
@@ -709,19 +769,18 @@ find_raopt(struct rainfo *rai, int type, void *msg, size_t len)
 }
 
 static void
-call_script(const int argc, const char *const argv[], void *head)
+call_script(const int argc, const char *const argv[],
+    struct script_msg_head_t *sm_head)
 {
 	const char *scriptpath;
 	int fd[2];
 	int error;
 	pid_t pid, wpid;
-	TAILQ_HEAD(, script_msg) *sm_head;
 
 	if ((scriptpath = argv[0]) == NULL)
 		return;
 
 	fd[0] = fd[1] = -1;
-	sm_head = head;
 	if (sm_head != NULL && !TAILQ_EMPTY(sm_head)) {
 		error = pipe(fd);
 		if (error) {

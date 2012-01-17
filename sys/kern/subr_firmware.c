@@ -198,10 +198,8 @@ firmware_register(const char *imagename, const void *data, size_t datasize,
 	frp->fw.data = data;
 	frp->fw.datasize = datasize;
 	frp->fw.version = version;
-	if (parent != NULL) {
+	if (parent != NULL)
 		frp->parent = PRIV_FW(parent);
-		frp->parent->refcnt++;
-	}
 	mtx_unlock(&firmware_mtx);
 	if (bootverbose)
 		printf("firmware: '%s' version %u: %zu bytes loaded at %p\n",
@@ -235,8 +233,6 @@ firmware_unregister(const char *imagename)
 	}  else {
 		linker_file_t x = fp->file;	/* save value */
 
-		if (fp->parent != NULL)	/* release parent reference */
-			fp->parent->refcnt--;
 		/*
 		 * Clear the whole entry with bzero to make sure we
 		 * do not forget anything. Then restore 'file' which is
@@ -341,6 +337,8 @@ firmware_get(const char *imagename)
 		return NULL;
 	}
 found:				/* common exit point on success */
+	if (fp->refcnt == 0 && fp->parent != NULL)
+		fp->parent->refcnt++;
 	fp->refcnt++;
 	mtx_unlock(&firmware_mtx);
 	return &fp->fw;
@@ -363,6 +361,8 @@ firmware_put(const struct firmware *p, int flags)
 	mtx_lock(&firmware_mtx);
 	fp->refcnt--;
 	if (fp->refcnt == 0) {
+		if (fp->parent != NULL)
+			fp->parent->refcnt--;
 		if (flags & FIRMWARE_UNLOAD)
 			fp->flags |= FW_UNLOAD;
 		if (fp->file)

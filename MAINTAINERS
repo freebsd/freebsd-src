@@ -123,8 +123,6 @@ usr.sbin/zic		edwin   Heads-up appreciated, since this code is
 				maintained by a third party source.
 lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
-sysinstall	randi	Please contact about any major changes so that
-			they can be co-ordinated.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
 
 Following are the entries from the Makefiles, and a few other sources.

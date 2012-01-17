@@ -61,7 +61,7 @@
 
 #include "mntopts.h"
 
-struct mntopt mopts[] = {
+static struct mntopt mopts[] = {
 	MOPT_STDOPTS,
 	MOPT_UPDATE,
 	MOPT_END

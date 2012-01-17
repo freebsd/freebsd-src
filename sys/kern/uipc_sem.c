@@ -618,7 +618,7 @@ struct ksem_init_args {
 };
 #endif
 int
-ksem_init(struct thread *td, struct ksem_init_args *uap)
+sys_ksem_init(struct thread *td, struct ksem_init_args *uap)
 {
 
 	return (ksem_create(td, NULL, uap->idp, S_IRWXU | S_IRWXG, uap->value,
@@ -635,7 +635,7 @@ struct ksem_open_args {
 };
 #endif
 int
-ksem_open(struct thread *td, struct ksem_open_args *uap)
+sys_ksem_open(struct thread *td, struct ksem_open_args *uap)
 {
 
 	DP((">>> ksem_open start, pid=%d\n", (int)td->td_proc->p_pid));
@@ -652,7 +652,7 @@ struct ksem_unlink_args {
 };
 #endif
 int
-ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
+sys_ksem_unlink(struct thread *td, struct ksem_unlink_args *uap)
 {
 	char *path;
 	Fnv32_t fnv;
@@ -680,7 +680,7 @@ struct ksem_close_args {
 };
 #endif
 int
-ksem_close(struct thread *td, struct ksem_close_args *uap)
+sys_ksem_close(struct thread *td, struct ksem_close_args *uap)
 {
 	struct ksem *ks;
 	struct file *fp;
@@ -706,7 +706,7 @@ struct ksem_post_args {
 };
 #endif
 int
-ksem_post(struct thread *td, struct ksem_post_args *uap)
+sys_ksem_post(struct thread *td, struct ksem_post_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
@@ -744,7 +744,7 @@ struct ksem_wait_args {
 };
 #endif
 int
-ksem_wait(struct thread *td, struct ksem_wait_args *uap)
+sys_ksem_wait(struct thread *td, struct ksem_wait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 0, NULL));
@@ -757,7 +757,7 @@ struct ksem_timedwait_args {
 };
 #endif
 int
-ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
+sys_ksem_timedwait(struct thread *td, struct ksem_timedwait_args *uap)
 {
 	struct timespec abstime;
 	struct timespec *ts;
@@ -785,7 +785,7 @@ struct ksem_trywait_args {
 };
 #endif
 int
-ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
+sys_ksem_trywait(struct thread *td, struct ksem_trywait_args *uap)
 {
 
 	return (kern_sem_wait(td, uap->id, 1, NULL));
@@ -862,7 +862,7 @@ struct ksem_getvalue_args {
 };
 #endif
 int
-ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
+sys_ksem_getvalue(struct thread *td, struct ksem_getvalue_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
@@ -896,7 +896,7 @@ struct ksem_destroy_args {
 };
 #endif
 int
-ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
+sys_ksem_destroy(struct thread *td, struct ksem_destroy_args *uap)
 {
 	struct file *fp;
 	struct ksem *ks;
@@ -994,14 +994,14 @@ freebsd32_ksem_timedwait(struct thread *td,
 static struct syscall_helper_data ksem32_syscalls[] = {
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_init),
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_open),
-	SYSCALL32_INIT_HELPER(ksem_unlink),
-	SYSCALL32_INIT_HELPER(ksem_close),
-	SYSCALL32_INIT_HELPER(ksem_post),
-	SYSCALL32_INIT_HELPER(ksem_wait),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_unlink),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_close),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_post),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_wait),
 	SYSCALL32_INIT_HELPER(freebsd32_ksem_timedwait),
-	SYSCALL32_INIT_HELPER(ksem_trywait),
-	SYSCALL32_INIT_HELPER(ksem_getvalue),
-	SYSCALL32_INIT_HELPER(ksem_destroy),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_trywait),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_getvalue),
+	SYSCALL32_INIT_HELPER_COMPAT(ksem_destroy),
 	SYSCALL_INIT_LAST
 };
 #endif

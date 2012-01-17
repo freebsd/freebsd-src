@@ -181,13 +181,16 @@ zio_checksum_label_verifier(zio_cksum_t *zcp, uint64_t offset)
 }
 
 static int
-zio_checksum_error(const blkptr_t *bp, void *data, uint64_t offset)
+zio_checksum_verify(const blkptr_t *bp, void *data)
 {
-	unsigned int checksum = BP_IS_GANG(bp) ? ZIO_CHECKSUM_GANG_HEADER : BP_GET_CHECKSUM(bp);
-	uint64_t size = BP_GET_PSIZE(bp);
+	uint64_t size;
+	unsigned int checksum;
 	zio_checksum_info_t *ci;
 	zio_cksum_t actual_cksum, expected_cksum, verifier;
 	int byteswap;
+
+	checksum = BP_GET_CHECKSUM(bp);
+	size = BP_GET_PSIZE(bp);
 
 	if (checksum >= ZIO_CHECKSUM_FUNCTIONS)
 		return (EINVAL);
@@ -206,7 +209,8 @@ zio_checksum_error(const blkptr_t *bp, void *data, uint64_t offset)
 		if (checksum == ZIO_CHECKSUM_GANG_HEADER)
 			zio_checksum_gang_verifier(&verifier, bp);
 		else if (checksum == ZIO_CHECKSUM_LABEL)
-			zio_checksum_label_verifier(&verifier, offset);
+			zio_checksum_label_verifier(&verifier,
+			    DVA_GET_OFFSET(BP_IDENTITY(bp)));
 		else
 			verifier = bp->blk_cksum;
 
@@ -224,7 +228,6 @@ zio_checksum_error(const blkptr_t *bp, void *data, uint64_t offset)
 			byteswap_uint64_array(&expected_cksum,
 			    sizeof (zio_cksum_t));
 	} else {
-		ASSERT(!BP_IS_GANG(bp));
 		expected_cksum = bp->blk_cksum;
 		ci->ci_func[0](data, size, &actual_cksum);
 	}
@@ -328,7 +331,7 @@ typedef struct raidz_map {
 	(mask) = (x) & 0x8080808080808080ULL; \
 	(mask) = ((mask) << 1) - ((mask) >> 7); \
 	(x) = (((x) << 1) & 0xfefefefefefefefeULL) ^ \
-	    ((mask) & 0x1d1d1d1d1d1d1d1d); \
+	    ((mask) & 0x1d1d1d1d1d1d1d1dULL); \
 }
 
 #define	VDEV_RAIDZ_64MUL_4(x, mask) \
@@ -1215,14 +1218,9 @@ static void
 vdev_raidz_map_free(raidz_map_t *rm)
 {
 	int c;
-	size_t size;
 
 	for (c = rm->rm_firstdatacol - 1; c >= 0; c--)
 		zfs_free(rm->rm_col[c].rc_data, rm->rm_col[c].rc_size);
-
-	size = 0;
-	for (c = rm->rm_firstdatacol; c < rm->rm_cols; c++)
-		size += rm->rm_col[c].rc_size;
 
 	zfs_free(rm, offsetof(raidz_map_t, rm_col[rm->rm_scols]));
 }
@@ -1245,10 +1243,10 @@ vdev_child(vdev_t *pvd, uint64_t devidx)
  * any ereports we generate can note it.
  */
 static int
-raidz_checksum_verify(const blkptr_t *bp, void *data)
+raidz_checksum_verify(const blkptr_t *bp, void *data, uint64_t size)
 {
 
-	return (zio_checksum_error(bp, data, 0));
+	return (zio_checksum_verify(bp, data));
 }
 
 /*
@@ -1298,7 +1296,7 @@ raidz_parity_verify(raidz_map_t *rm)
  */
 static int
 vdev_raidz_combrec(raidz_map_t *rm, const blkptr_t *bp, void *data,
-    off_t offset, int total_errors, int data_errors)
+    off_t offset, uint64_t bytes, int total_errors, int data_errors)
 {
 	raidz_col_t *rc;
 	void *orig[VDEV_RAIDZ_MAXPARITY];
@@ -1377,7 +1375,7 @@ vdev_raidz_combrec(raidz_map_t *rm, const blkptr_t *bp, void *data,
 			 * success.
 			 */
 			code = vdev_raidz_reconstruct(rm, tgts, n);
-			if (raidz_checksum_verify(bp, data) == 0) {
+			if (raidz_checksum_verify(bp, data, bytes) == 0) {
 				for (i = 0; i < n; i++) {
 					c = tgts[i];
 					rc = &rm->rm_col[c];
@@ -1548,7 +1546,7 @@ reconstruct:
 	 */
 	if (total_errors <= rm->rm_firstdatacol - parity_untried) {
 		if (data_errors == 0) {
-			if (raidz_checksum_verify(bp, data) == 0) {
+			if (raidz_checksum_verify(bp, data, bytes) == 0) {
 				/*
 				 * If we read parity information (unnecessarily
 				 * as it happens since no reconstruction was
@@ -1593,7 +1591,7 @@ reconstruct:
 
 			code = vdev_raidz_reconstruct(rm, tgts, n);
 
-			if (raidz_checksum_verify(bp, data) == 0) {
+			if (raidz_checksum_verify(bp, data, bytes) == 0) {
 				/*
 				 * If we read more parity disks than were used
 				 * for reconstruction, confirm that the other
@@ -1633,7 +1631,9 @@ reconstruct:
 
 	n = 0;
 	for (c = 0; c < rm->rm_cols; c++) {
-		if (rm->rm_col[c].rc_tried)
+		rc = &rm->rm_col[c];
+
+		if (rc->rc_tried)
 			continue;
 
 		cvd = vdev_child(vd, rc->rc_devidx);
@@ -1665,8 +1665,8 @@ reconstruct:
 	if (total_errors > rm->rm_firstdatacol) {
 		error = EIO;
 	} else if (total_errors < rm->rm_firstdatacol &&
-	    (code = vdev_raidz_combrec(rm, bp, data, offset, total_errors,
-	     data_errors)) != 0) {
+	    (code = vdev_raidz_combrec(rm, bp, data, offset, bytes,
+	     total_errors, data_errors)) != 0) {
 		/*
 		 * If we didn't use all the available parity for the
 		 * combinatorial reconstruction, verify that the remaining

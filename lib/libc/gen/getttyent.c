@@ -78,7 +78,7 @@ getttyent(void)
 		if (!fgets(p = line, lbsize, tf))
 			return (NULL);
 		/* extend buffer if line was too big, and retry */
-		while (!index(p, '\n') && !feof(tf)) {
+		while (!strchr(p, '\n') && !feof(tf)) {
 			i = strlen(p);
 			lbsize += MALLOCCHUNK;
 			if ((p = realloc(line, lbsize)) == NULL) {
@@ -148,7 +148,7 @@ getttyent(void)
 	tty.ty_comment = p;
 	if (*p == 0)
 		tty.ty_comment = 0;
-	if ( (p = index(p, '\n')) )
+	if ((p = strchr(p, '\n')))
 		*p = '\0';
 	return (&tty);
 }
@@ -196,7 +196,7 @@ static char *
 value(char *p)
 {
 
-	return ((p = index(p, '=')) ? ++p : NULL);
+	return ((p = strchr(p, '=')) ? ++p : NULL);
 }
 
 int

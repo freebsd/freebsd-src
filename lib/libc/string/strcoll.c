@@ -3,6 +3,11 @@
  *		at Electronni Visti IA, Kiev, Ukraine.
  *			All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -32,21 +37,26 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include "collate.h"
 
+#include <stdio.h>
+
 int
-strcoll(const char *s, const char *s2)
+strcoll_l(const char *s, const char *s2, locale_t locale)
 {
 	int len, len2, prim, prim2, sec, sec2, ret, ret2;
 	const char *t, *t2;
 	char *tt, *tt2;
+	FIX_LOCALE(locale);
+	struct xlocale_collate *table =
+		(struct xlocale_collate*)locale->components[XLC_COLLATE];
 
-	if (__collate_load_error)
+	if (table->__collate_load_error)
 		return strcmp(s, s2);
 
 	len = len2 = 1;
 	ret = ret2 = 0;
-	if (__collate_substitute_nontrivial) {
-		t = tt = __collate_substitute(s);
-		t2 = tt2 = __collate_substitute(s2);
+	if (table->__collate_substitute_nontrivial) {
+		t = tt = __collate_substitute(table, s);
+		t2 = tt2 = __collate_substitute(table, s2);
 	} else {
 		tt = tt2 = NULL;
 		t = s;
@@ -55,11 +65,11 @@ strcoll(const char *s, const char *s2)
 	while(*t && *t2) {
 		prim = prim2 = 0;
 		while(*t && !prim) {
-			__collate_lookup(t, &len, &prim, &sec);
+			__collate_lookup(table, t, &len, &prim, &sec);
 			t += len;
 		}
 		while(*t2 && !prim2) {
-			__collate_lookup(t2, &len2, &prim2, &sec2);
+			__collate_lookup(table, t2, &len2, &prim2, &sec2);
 			t2 += len2;
 		}
 		if(!prim || !prim2)
@@ -83,3 +93,10 @@ strcoll(const char *s, const char *s2)
 
 	return ret;
 }
+
+int
+strcoll(const char *s, const char *s2)
+{
+	return strcoll_l(s, s2, __get_locale());
+}
+

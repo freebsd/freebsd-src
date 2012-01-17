@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2009
+.Dd November 16, 2011
 .Dt LOCK 9
 .Os
 .Sh NAME
@@ -60,20 +60,20 @@
 .Ft void
 .Fn lockmgr_disown "struct lock *lkp"
 .Ft void
-.Fn lockmgr_printinfo "struct lock *lkp"
+.Fn lockmgr_printinfo "const struct lock *lkp"
 .Ft int
-.Fn lockmgr_recursed "struct lock *lkp"
+.Fn lockmgr_recursed "const struct lock *lkp"
 .Ft int
 .Fn lockmgr_rw "struct lock *lkp" "u_int flags" "struct rwlock *ilk"
 .Ft int
-.Fn lockmgr_waiters "struct lock *lkp"
+.Fn lockmgr_waiters "const struct lock *lkp"
 .Ft int
-.Fn lockstatus "struct lock *lkp"
+.Fn lockstatus "const struct lock *lkp"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
 .Ft void
-.Fn lockmgr_assert "struct lock *lkp" "int what"
+.Fn lockmgr_assert "const struct lock *lkp" "int what"
 .Sh DESCRIPTION
 The
 .Fn lockinit

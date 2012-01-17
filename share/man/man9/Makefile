@@ -43,7 +43,6 @@ MAN=	accept_filter.9 \
 	BUS_SETUP_INTR.9 \
 	bus_space.9 \
 	byteorder.9 \
-	cc.9 \
 	cd.9 \
 	condvar.9 \
 	config_intrhook.9 \
@@ -103,6 +102,7 @@ MAN=	accept_filter.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
+	eventtimers.9 \
 	extattr.9 \
 	fail.9 \
 	fetch.9 \
@@ -164,11 +164,13 @@ MAN=	accept_filter.9 \
 	mbuf_tags.9 \
 	MD5.9 \
 	mdchain.9 \
+	memcchr.9 \
 	memguard.9 \
 	microseq.9 \
 	microtime.9 \
 	microuptime.9 \
 	mi_switch.9 \
+	mod_cc.9 \
 	module.9 \
 	MODULE_DEPEND.9 \
 	MODULE_VERSION.9 \
@@ -234,6 +236,7 @@ MAN=	accept_filter.9 \
 	sema.9 \
 	sf_buf.9 \
 	sglist.9 \
+	shm_map.9 \
 	signal.9 \
 	sleep.9 \
 	sleepqueue.9 \
@@ -320,7 +323,7 @@ MAN=	accept_filter.9 \
 	vm_page_cache.9 \
 	vm_page_deactivate.9 \
 	vm_page_dontneed.9 \
-	vm_page_flag.9 \
+	vm_page_aflag.9 \
 	vm_page_free.9 \
 	vm_page_grab.9 \
 	vm_page_hold.9 \
@@ -613,6 +616,16 @@ MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 eventhandler_prune_list.9 \
 	EVENTHANDLER.9 EVENTHANDLER_REGISTER.9 \
 	EVENTHANDLER.9 eventhandler_register.9
+MLINKS+=eventtimers.9 et_register.9 \
+	eventtimers.9 et_deregister.9 \
+	eventtimers.9 et_ban.9 \
+	eventtimers.9 et_find.9 \
+	eventtimers.9 et_free.9 \
+	eventtimers.9 et_init.9 \
+	eventtimers.9 ET_LOCK.9 \
+	eventtimers.9 ET_UNLOCK.9 \
+	eventtimers.9 et_start.9 \
+	eventtimers.9 et_stop.9
 MLINKS+=fetch.9 fubyte.9 \
 	fetch.9 fuswintr.9 \
 	fetch.9 fuword.9 \
@@ -724,7 +737,8 @@ MLINKS+=kobj.9 DEFINE_CLASS.9 \
 	kobj.9 kobj_class_free.9 \
 	kobj.9 kobj_create.9 \
 	kobj.9 kobj_delete.9 \
-	kobj.9 kobj_init.9
+	kobj.9 kobj_init.9 \
+	kobj.9 kobj_init_static.9
 MLINKS+=kproc.9 kproc_create.9 \
 	kproc.9 kproc_exit.9 \
 	kproc.9 kproc_resume.9 \
@@ -972,7 +986,8 @@ MLINKS+=printf.9 log.9 \
 MLINKS+=priv.9 priv_check.9 \
 	priv.9 priv_check_cred.9
 MLINKS+=psignal.9 gsignal.9 \
-	psignal.9 pgsignal.9
+	psignal.9 pgsignal.9 \
+	psignal.9 tdsignal.9
 MLINKS+=random.9 arc4rand.9 \
 	random.9 arc4random.9 \
 	random.9 read_random.9 \
@@ -1021,8 +1036,12 @@ MLINKS+=rmlock.9 rm_destroy.9 \
 	rmlock.9 rm_wunlock.9
 MLINKS+=rtalloc.9 rtalloc1.9 \
 	rtalloc.9 rtalloc_ign.9 \
+	rtalloc.9 RTFREE_LOCKED.9 \
 	rtalloc.9 RTFREE.9 \
-	rtalloc.9 rtfree.9
+	rtalloc.9 rtfree.9 \
+	rtalloc.9 rtalloc1_fib.9 \
+	rtalloc.9 rtalloc_ign_fib.9 \
+	rtalloc.9 rtalloc_fib.9
 MLINKS+=runqueue.9 choosethread.9 \
 	runqueue.9 procrunnable.9 \
 	runqueue.9 remrunqueue.9 \
@@ -1105,6 +1124,7 @@ MLINKS+=sglist.9 sglist_alloc.9 \
 	sglist.9 sglist_reset.9 \
 	sglist.9 sglist_slice.9 \
 	sglist.9 sglist_split.9
+MLINKS+=shm_map.9 shm_unmap.9
 MLINKS+=signal.9 cursig.9 \
 	signal.9 execsigs.9 \
 	signal.9 issignal.9 \
@@ -1242,6 +1262,7 @@ MLINKS+=sysctl_ctx_init.9 sysctl_ctx_entry_add.9 \
 	sysctl_ctx_init.9 sysctl_ctx_free.9
 MLINKS+=SYSINIT.9 SYSUNINIT.9
 MLINKS+=taskqueue.9 TASK_INIT.9 \
+	taskqueue.9 TASK_INITIALIZER.9 \
 	taskqueue.9 taskqueue_cancel.9 \
 	taskqueue.9 taskqueue_create.9 \
 	taskqueue.9 taskqueue_create_fast.9 \
@@ -1372,8 +1393,9 @@ MLINKS+=vm_page_bits.9 vm_page_clear_dirty.9 \
 	vm_page_bits.9 vm_page_test_dirty.9 \
 	vm_page_bits.9 vm_page_undirty.9 \
 	vm_page_bits.9 vm_page_zero_invalid.9
-MLINKS+=vm_page_flag.9 vm_page_flag_clear.9 \
-	vm_page_flag.9 vm_page_flag_set.9
+MLINKS+=vm_page_aflag.9 vm_page_aflag_clear.9 \
+	vm_page_aflag.9 vm_page_aflag_set.9 \
+	vm_page_aflag.9 vm_page_reference.9
 MLINKS+=vm_page_free.9 vm_page_free_toq.9 \
 	vm_page_free.9 vm_page_free_zero.9 \
 	vm_page_free.9 vm_page_try_to_free.9

@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_inet6.h"
 #include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
@@ -168,6 +167,7 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 	struct socket *so;
 	int one = 1, retries, error = 0;
 	struct thread *td = curthread;
+	struct timeval timo;
 
 	/*
 	 * We need to establish the socket using the credentials of
@@ -264,9 +264,18 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 			CLNT_CONTROL(client, CLSET_INTERRUPTIBLE, &one);
 		if ((nmp->nm_flag & NFSMNT_RESVPORT))
 			CLNT_CONTROL(client, CLSET_PRIVPORT, &one);
-		if (NFSHASSOFT(nmp))
-			retries = nmp->nm_retry;
-		else
+		if (NFSHASSOFT(nmp)) {
+			if (nmp->nm_sotype == SOCK_DGRAM)
+				/*
+				 * For UDP, the large timeout for a reconnect
+				 * will be set to "nm_retry * nm_timeo / 2", so
+				 * we only want to do 2 reconnect timeout
+				 * retries.
+				 */
+				retries = 2;
+			else
+				retries = nmp->nm_retry;
+		} else
 			retries = INT_MAX;
 	} else {
 		/*
@@ -283,6 +292,27 @@ newnfs_connect(struct nfsmount *nmp, struct nfssockreq *nrp,
 		}
 	}
 	CLNT_CONTROL(client, CLSET_RETRIES, &retries);
+
+	if (nmp != NULL) {
+		/*
+		 * For UDP, there are 2 timeouts:
+		 * - CLSET_RETRY_TIMEOUT sets the initial timeout for the timer
+		 *   that does a retransmit of an RPC request using the same 
+		 *   socket and xid. This is what you normally want to do,
+		 *   since NFS servers depend on "same xid" for their
+		 *   Duplicate Request Cache.
+		 * - timeout specified in CLNT_CALL_MBUF(), which specifies when
+		 *   retransmits on the same socket should fail and a fresh
+		 *   socket created. Each of these timeouts counts as one
+		 *   CLSET_RETRIES as set above.
+		 * Set the initial retransmit timeout for UDP. This timeout
+		 * doesn't exist for TCP and the following call just fails,
+		 * which is ok.
+		 */
+		timo.tv_sec = nmp->nm_timeo / NFS_HZ;
+		timo.tv_usec = (nmp->nm_timeo % NFS_HZ) * 1000000 / NFS_HZ;
+		CLNT_CONTROL(client, CLSET_RETRY_TIMEOUT, &timo);
+	}
 
 	mtx_lock(&nrp->nr_mtx);
 	if (nrp->nr_client != NULL) {
@@ -442,7 +472,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 {
 	u_int32_t *tl;
 	time_t waituntil;
-	int i, j, set_uid = 0, set_sigset = 0;
+	int i, j, set_uid = 0, set_sigset = 0, timeo;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -628,6 +658,12 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	}
 	trycnt = 0;
 tryagain:
+	/*
+	 * This timeout specifies when a new socket should be created,
+	 * along with new xid values. For UDP, this should be done
+	 * infrequently, since retransmits of RPC requests should normally
+	 * use the same xid.
+	 */
 	if (nmp == NULL) {
 		timo.tv_usec = 0;
 		if (clp == NULL)
@@ -642,8 +678,22 @@ tryagain:
 			else
 				timo.tv_sec = NFS_TCPTIMEO;
 		} else {
-			timo.tv_sec = nmp->nm_timeo / NFS_HZ;
-			timo.tv_usec = (nmp->nm_timeo * 1000000) / NFS_HZ;
+			if (NFSHASSOFT(nmp)) {
+				/*
+				 * CLSET_RETRIES is set to 2, so this should be
+				 * half of the total timeout required.
+				 */
+				timeo = nmp->nm_retry * nmp->nm_timeo / 2;
+				if (timeo < 1)
+					timeo = 1;
+				timo.tv_sec = timeo / NFS_HZ;
+				timo.tv_usec = (timeo % NFS_HZ) * 1000000 /
+				    NFS_HZ;
+			} else {
+				/* For UDP hard mounts, use a large value. */
+				timo.tv_sec = NFS_MAXTIMEO / NFS_HZ;
+				timo.tv_usec = 0;
+			}
 		}
 
 		if (rep != NULL) {

@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <pthread.h>
 #include <signal.h>
@@ -82,8 +81,8 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 		nv_add_string(nvout, name, "resource%u", no);
 
 	if (res == NULL) {
-		assert(cfg != NULL);
-		assert(name != NULL);
+		PJDLOG_ASSERT(cfg != NULL);
+		PJDLOG_ASSERT(name != NULL);
 
 		TAILQ_FOREACH(res, &cfg->hc_resources, hr_next) {
 			if (strcmp(res->hr_name, name) == 0)
@@ -94,7 +93,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 
 	/* Send previous role back. */
 	nv_add_string(nvout, role2str(res->hr_role), "role%u", no);
@@ -116,7 +115,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 	 * doing that work.
 	 */
 	if (res->hr_workerpid != 0) {
-		if (kill(res->hr_workerpid, SIGTERM) < 0) {
+		if (kill(res->hr_workerpid, SIGTERM) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to kill worker process %u",
 			    (unsigned int)res->hr_workerpid);
@@ -168,7 +167,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 		    "Unable to prepare control header");
 		goto end;
 	}
-	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) == -1) {
 		error = errno;
 		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
@@ -177,7 +176,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	/*
 	 * Receive response.
 	 */
-	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) == -1) {
 		error = errno;
 		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
@@ -222,9 +221,9 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
     struct hast_resource *res, const char *name, unsigned int no)
 {
 
-	assert(cfg != NULL);
-	assert(nvout != NULL);
-	assert(name != NULL);
+	PJDLOG_ASSERT(cfg != NULL);
+	PJDLOG_ASSERT(nvout != NULL);
+	PJDLOG_ASSERT(name != NULL);
 
 	/* Name is always needed. */
 	nv_add_string(nvout, name, "resource%u", no);
@@ -239,7 +238,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 			return;
 		}
 	}
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 	nv_add_string(nvout, res->hr_provname, "provname%u", no);
 	nv_add_string(nvout, res->hr_localpath, "localpath%u", no);
 	nv_add_string(nvout, res->hr_remoteaddr, "remoteaddr%u", no);
@@ -267,7 +266,7 @@ control_status(struct hastd_config *cfg, struct nv *nvout,
 
 	switch (res->hr_role) {
 	case HAST_ROLE_PRIMARY:
-		assert(res->hr_workerpid != 0);
+		PJDLOG_ASSERT(res->hr_workerpid != 0);
 		/* FALLTHROUGH */
 	case HAST_ROLE_SECONDARY:
 		if (res->hr_workerpid != 0)
@@ -294,7 +293,7 @@ control_handle(struct hastd_config *cfg)
 	uint8_t cmd, role;
 	int error;
 
-	if (proto_accept(cfg->hc_controlconn, &conn) < 0) {
+	if (proto_accept(cfg->hc_controlconn, &conn) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to accept control connection");
 		return;
 	}
@@ -303,7 +302,7 @@ control_handle(struct hastd_config *cfg)
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
-	if (hast_proto_recv_hdr(conn, &nvin) < 0) {
+	if (hast_proto_recv_hdr(conn, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		nvin = NULL;
 		goto close;
@@ -313,7 +312,6 @@ control_handle(struct hastd_config *cfg)
 	cmd = nv_get_uint8(nvin, "cmd");
 	if (cmd == 0) {
 		pjdlog_error("Control header is missing 'cmd' field.");
-		error = EHAST_INVALID;
 		goto close;
 	}
 
@@ -321,7 +319,6 @@ control_handle(struct hastd_config *cfg)
 	nvout = nv_alloc();
 	if (nvout == NULL) {
 		pjdlog_error("Unable to allocate header for control response.");
-		error = EHAST_NOMEMORY;
 		goto close;
 	}
 
@@ -398,7 +395,7 @@ fail:
 	if (error != 0)
 		nv_add_int16(nvout, error, "error");
 
-	if (hast_proto_send(NULL, conn, nvout, NULL, 0) < 0)
+	if (hast_proto_send(NULL, conn, nvout, NULL, 0) == -1)
 		pjdlog_errno(LOG_ERR, "Unable to send control response");
 close:
 	if (nvin != NULL)
@@ -420,7 +417,7 @@ ctrl_thread(void *arg)
 	uint8_t cmd;
 
 	for (;;) {
-		if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) < 0) {
+		if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) == -1) {
 			if (sigexit_received)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
@@ -470,7 +467,7 @@ ctrl_thread(void *arg)
 			 * something related to us has changes, it sends reload
 			 * message to us.
 			 */
-			assert(res->hr_role == HAST_ROLE_PRIMARY);
+			PJDLOG_ASSERT(res->hr_role == HAST_ROLE_PRIMARY);
 			primary_config_reload(res, nvin);
 			nv_add_int16(nvout, 0, "error");
 			break;
@@ -484,7 +481,7 @@ ctrl_thread(void *arg)
 			nv_free(nvout);
 			continue;
 		}
-		if (hast_proto_send(NULL, res->hr_ctrl, nvout, NULL, 0) < 0) {
+		if (hast_proto_send(NULL, res->hr_ctrl, nvout, NULL, 0) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to send reply to control message");
 		}

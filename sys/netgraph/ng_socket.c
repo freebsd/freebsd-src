@@ -76,8 +76,8 @@
 #include <netgraph/ng_socket.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info ");
-MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info ");
+static MALLOC_DEFINE(M_NETGRAPH_PATH, "netgraph_path", "netgraph path info");
+static MALLOC_DEFINE(M_NETGRAPH_SOCK, "netgraph_sock", "netgraph socket info");
 #else
 #define M_NETGRAPH_PATH M_NETGRAPH
 #define M_NETGRAPH_SOCK M_NETGRAPH
@@ -1172,8 +1172,8 @@ ngs_mod_event(module_t mod, int event, void *data)
 VNET_DOMAIN_SET(ng);
 
 SYSCTL_INT(_net_graph, OID_AUTO, family, CTLFLAG_RD, 0, AF_NETGRAPH, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
+static SYSCTL_NODE(_net_graph, OID_AUTO, data, CTLFLAG_RW, 0, "DATA");
 SYSCTL_INT(_net_graph_data, OID_AUTO, proto, CTLFLAG_RD, 0, NG_DATA, "");
-SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
+static SYSCTL_NODE(_net_graph, OID_AUTO, control, CTLFLAG_RW, 0, "CONTROL");
 SYSCTL_INT(_net_graph_control, OID_AUTO, proto, CTLFLAG_RD, 0, NG_CONTROL, "");
 

@@ -99,16 +99,12 @@ static device_method_t safe_methods[] = {
 	DEVMETHOD(device_resume,	safe_resume),
 	DEVMETHOD(device_shutdown,	safe_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* crypto device methods */
 	DEVMETHOD(cryptodev_newsession,	safe_newsession),
 	DEVMETHOD(cryptodev_freesession,safe_freesession),
 	DEVMETHOD(cryptodev_process,	safe_process),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 static driver_t safe_driver = {
 	"safe",
@@ -147,7 +143,8 @@ static	void safe_totalreset(struct safe_softc *);
 
 static	int safe_free_entry(struct safe_softc *, struct safe_ringentry *);
 
-SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0, "SafeNet driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, safe, CTLFLAG_RD, 0,
+    "SafeNet driver parameters");
 
 #ifdef SAFE_DEBUG
 static	void safe_dump_dmastatus(struct safe_softc *, const char *);

@@ -36,13 +36,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/stddef.h>
 #include <machine/metadata.h>
-#include <machine/psl.h>
 #include <machine/pc/bios.h>
 #include "bootstrap.h"
 #include "libi386.h"
 #include "btxv86.h"
-
-#define	V86_CY(x)	((x) & PSL_C)
 
 struct smap_buf {
 	struct bios_smap	smap;

@@ -68,7 +68,7 @@ struct puc_port {
 devclass_t puc_devclass;
 const char puc_driver_name[] = "puc";
 
-MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
+static MALLOC_DEFINE(M_PUC, "PUC", "PUC driver");
 
 struct puc_bar *
 puc_get_bar(struct puc_softc *sc, int rid)

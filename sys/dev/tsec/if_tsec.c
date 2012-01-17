@@ -247,7 +247,6 @@ tsec_attach(struct tsec_softc *sc)
 
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->dev), device_get_unit(sc->dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_SIMPLEX | IFF_MULTICAST | IFF_BROADCAST;
 	ifp->if_init = tsec_init;
 	ifp->if_start = tsec_start;

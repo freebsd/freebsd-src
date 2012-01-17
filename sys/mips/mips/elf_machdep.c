@@ -80,7 +80,7 @@ struct sysentvec elf64_freebsd_sysvec = {
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_LP64,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
-	.sv_fetch_syscall_args = NULL, /* XXXKIB */
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
 };
@@ -136,7 +136,7 @@ struct sysentvec elf32_freebsd_sysvec = {
 	.sv_maxssiz	= NULL,
 	.sv_flags	= SV_ABI_FREEBSD | SV_ILP32,
 	.sv_set_syscall_retval = cpu_set_syscall_retval,
-	.sv_fetch_syscall_args = NULL, /* XXXKIB */
+	.sv_fetch_syscall_args = cpu_fetch_syscall_args,
 	.sv_syscallnames = syscallnames,
 	.sv_schedtail	= NULL,
 };
@@ -168,25 +168,41 @@ static int
 elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
     int type, int local, elf_lookup_fn lookup)
 {
-	Elf_Addr *where = (Elf_Addr *)NULL;
+	Elf32_Addr *where = (Elf32_Addr *)NULL;
 	Elf_Addr addr;
 	Elf_Addr addend = (Elf_Addr)0;
 	Elf_Word rtype = (Elf_Word)0, symidx;
-	const Elf_Rel *rel;
+	const Elf_Rel *rel = NULL;
+	const Elf_Rela *rela = NULL;
 
 	/*
 	 * Stash R_MIPS_HI16 info so we can use it when processing R_MIPS_LO16
 	 */
 	static Elf_Addr ahl;
-	static Elf_Addr *where_hi16;
+	static Elf32_Addr *where_hi16;
 
 	switch (type) {
 	case ELF_RELOC_REL:
 		rel = (const Elf_Rel *)data;
-		where = (Elf_Addr *) (relocbase + rel->r_offset);
-		addend = *where;
+		where = (Elf32_Addr *) (relocbase + rel->r_offset);
 		rtype = ELF_R_TYPE(rel->r_info);
 		symidx = ELF_R_SYM(rel->r_info);
+		switch (rtype) {
+		case R_MIPS_64:
+			addend = *(Elf64_Addr *)where;
+			break;
+		default:
+			addend = *where;
+			break;
+		}
+
+		break;
+	case ELF_RELOC_RELA:
+		rela = (const Elf_Rela *)data;
+		where = (Elf32_Addr *) (relocbase + rela->r_offset);
+		addend = rela->r_addend;
+		rtype = ELF_R_TYPE(rela->r_info);
+		symidx = ELF_R_SYM(rela->r_info);
 		break;
 	default:
 		panic("unknown reloc type %d\n", type);
@@ -202,7 +218,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return (-1);
 		addr += addend;
 		if (*where != addr)
-			*where = addr;
+			*where = (Elf32_Addr)addr;
 		break;
 
 	case R_MIPS_26:		/* ((A << 2) | (P & 0xf0000000) + S) >> 2 */
@@ -211,7 +227,11 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			return (-1);
 
 		addend &= 0x03ffffff;
-		addend <<= 2;
+		/*
+		 * Addendum for .rela R_MIPS_26 is not shifted right
+		 */
+		if (rela == NULL)
+			addend <<= 2;
 
 		addr += ((Elf_Addr)where & 0xf0000000) | addend;
 		addr >>= 2;
@@ -220,25 +240,73 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 		*where |= addr & 0x03ffffff;
 		break;
 
-	case R_MIPS_HI16:	/* ((AHL + S) - ((short)(AHL + S)) >> 16 */
-		ahl = addend << 16;
-		where_hi16 = where;
-		break;
-
-	case R_MIPS_LO16:	/* AHL + S */
-		ahl += (int16_t)addend;
+	case R_MIPS_64:		/* S + A */
 		addr = lookup(lf, symidx, 1);
 		if (addr == 0)
 			return (-1);
+		addr += addend;
+		if (*(Elf64_Addr*)where != addr)
+			*(Elf64_Addr*)where = addr;
+		break;
 
-		addend &= 0xffff0000;
-		addend |= (uint16_t)(ahl + addr);
-		*where = addend;
+	case R_MIPS_HI16:	/* ((AHL + S) - ((short)(AHL + S)) >> 16 */
+		if (rela != NULL) {
+			addr = lookup(lf, symidx, 1);
+			if (addr == 0)
+				return (-1);
+			addr += addend;
+			*where &= 0xffff0000;
+			*where |= ((((long long) addr + 0x8000LL) >> 16) & 0xffff);
+		}
+		else {
+			ahl = addend << 16;
+			where_hi16 = where;
+		}
+		break;
 
-		addend = *where_hi16;
-		addend &= 0xffff0000;
-		addend |= ((ahl + addr) - (int16_t)(ahl + addr)) >> 16;
-		*where_hi16 = addend;
+	case R_MIPS_LO16:	/* AHL + S */
+		if (rela != NULL) {
+			addr = lookup(lf, symidx, 1);
+			if (addr == 0)
+				return (-1);
+			addr += addend;
+			*where &= 0xffff0000;
+			*where |= addr & 0xffff;
+		}
+		else {
+			ahl += (int16_t)addend;
+			addr = lookup(lf, symidx, 1);
+			if (addr == 0)
+				return (-1);
+
+			addend &= 0xffff0000;
+			addend |= (uint16_t)(ahl + addr);
+			*where = addend;
+
+			addend = *where_hi16;
+			addend &= 0xffff0000;
+			addend |= ((ahl + addr) - (int16_t)(ahl + addr)) >> 16;
+			*where_hi16 = addend;
+		}
+
+		break;
+
+	case R_MIPS_HIGHER:	/* %higher(A+S) */
+		addr = lookup(lf, symidx, 1);
+		if (addr == 0)
+			return (-1);
+		addr += addend;
+		*where &= 0xffff0000;
+		*where |= (((long long)addr + 0x80008000LL) >> 32) & 0xffff;
+		break;
+
+	case R_MIPS_HIGHEST:	/* %highest(A+S) */
+		addr = lookup(lf, symidx, 1);
+		if (addr == 0)
+			return (-1);
+		addr += addend;
+		*where &= 0xffff0000;
+		*where |= (((long long)addr + 0x800080008000LL) >> 48) & 0xffff;
 		break;
 
 	default:
@@ -246,6 +314,7 @@ elf_reloc_internal(linker_file_t lf, Elf_Addr relocbase, const void *data,
 			rtype);
 		return (-1);
 	}
+
 	return(0);
 }
 

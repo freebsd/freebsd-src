@@ -118,6 +118,7 @@ static device_method_t dma_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	bus_generic_rl_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	bus_generic_adjust_resource),
 	DEVMETHOD(bus_release_resource, bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -133,7 +134,7 @@ static device_method_t dma_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,	ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,	ofw_bus_gen_get_type),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t dma_driver = {
@@ -232,9 +233,9 @@ dma_attach(device_t dev)
 	    BUS_SPACE_MAXADDR,		/* lowaddr */
 	    BUS_SPACE_MAXADDR,		/* highaddr */
 	    NULL, NULL,			/* filter, filterarg */
-	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsize */
-	    0,				/* nsegments */
-	    BUS_SPACE_MAXSIZE_32BIT,	/* maxsegsize */
+	    BUS_SPACE_MAXSIZE,		/* maxsize */
+	    BUS_SPACE_UNRESTRICTED,	/* nsegments */
+	    BUS_SPACE_MAXSIZE,		/* maxsegsize */
 	    0,				/* flags */
 	    NULL, NULL,			/* no locking */
 	    &lsc->sc_parent_dmat);

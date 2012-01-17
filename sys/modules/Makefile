@@ -22,7 +22,6 @@ SUBDIR=	${_3dfx} \
 	alc \
 	ale \
 	alq \
-	${_amd} \
 	${_amdsbwd} \
 	${_amdtemp} \
 	amr \
@@ -51,12 +50,14 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	${_carp} \
 	cas \
 	${_cbb} \
 	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
+	${_cfi} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
@@ -89,6 +90,7 @@ SUBDIR=	${_3dfx} \
 	en \
 	${_ep} \
 	${_epic} \
+	esp \
 	${_et} \
 	${_ex} \
 	${_exca} \
@@ -107,6 +109,7 @@ SUBDIR=	${_3dfx} \
 	hatm \
 	hifn \
 	hme \
+	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
 	${_hptrr} \
@@ -117,7 +120,6 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
-	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
@@ -136,7 +138,7 @@ SUBDIR=	${_3dfx} \
 	${_io} \
 	ipdivert \
 	${_ipfilter} \
-	ipfw \
+	${_ipfw} \
 	ipfw_nat \
 	${_ipmi} \
 	ip_mroute_mod \
@@ -254,6 +256,7 @@ SUBDIR=	${_3dfx} \
 	${_pst} \
 	pty  \
 	puc \
+	${_qlxgb} \
 	ral \
 	ralfw \
 	${_random} \
@@ -273,6 +276,7 @@ SUBDIR=	${_3dfx} \
 	sem \
 	send \
 	sf \
+	${_sfxge} \
 	sge \
 	siba_bwn \
 	siftr \
@@ -302,6 +306,7 @@ SUBDIR=	${_3dfx} \
 	trm \
 	${_twa} \
 	twe \
+	tws \
 	tx \
 	txp \
 	uart \
@@ -313,12 +318,15 @@ SUBDIR=	${_3dfx} \
 	usb \
 	utopia \
 	${_vesa} \
+	${_virtio} \
 	vge \
+	${_viawd} \
 	vkbd \
 	${_vpo} \
 	vr \
 	vte \
 	vx \
+	${_vxge} \
 	wb \
 	${_wi} \
 	wlan \
@@ -368,11 +376,15 @@ _if_gre=	if_gre
 
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
-_if_carp=	if_carp
+_carp=	carp
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
 _ipfilter=	ipfilter
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipfw=		ipfw
 .endif
 
 .if ${MK_NETGRAPH} != "no" || defined(ALL_MODULES)
@@ -395,7 +407,6 @@ _3dfx=		3dfx
 _3dfx_linux=	3dfx_linux
 _agp=		agp
 _aic=		aic
-_amd=		amd
 _an=		an
 _aout=		aout
 _apm=		apm
@@ -472,6 +483,7 @@ _sppp=		sppp
 _stg=		stg
 _streams=	streams
 _svr4=		svr4
+_vxge=  	vxge
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -497,6 +509,7 @@ _coretemp=	coretemp
 _ctau=		ctau
 _dpt=		dpt
 _ex=		ex
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -519,6 +532,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
+_viawd=		viawd
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -527,6 +541,7 @@ _padlock=	padlock
 _s3=		s3
 _twa=		twa
 _vesa=		vesa
+_virtio=	virtio
 _x86bios=	x86bios
 .elif ${MACHINE} == "pc98"
 _canbepm=	canbepm
@@ -570,6 +585,7 @@ _et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -613,10 +629,12 @@ _opensolaris=	opensolaris
 _padlock=	padlock
 .endif
 _pccard=	pccard
+_qlxgb=		qlxgb
 _rdma=		rdma	
 _s3=		s3
 _safe=		safe
 _scsi_low=	scsi_low
+_sfxge=		sfxge
 _smbfs=		smbfs
 _sound=		sound
 _speaker=	speaker
@@ -625,6 +643,9 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
+_virtio=	virtio
+_vxge=  	vxge
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi
@@ -632,6 +653,10 @@ _wpifw=		wpifw
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm"
+_cfi=		cfi
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"
@@ -677,6 +702,7 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs

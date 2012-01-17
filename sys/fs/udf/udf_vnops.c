@@ -107,8 +107,8 @@ struct vop_vector udf_fifoops = {
 	.vop_vptofh =		udf_vptofh,
 };
 
-MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
-MALLOC_DEFINE(M_UDFDS, "udf_ds", "UDF Dirstream structure");
+static MALLOC_DEFINE(M_UDFFID, "udf_fid", "UDF FileId structure");
+static MALLOC_DEFINE(M_UDFDS, "udf_ds", "UDF Dirstream structure");
 
 #define UDF_INVALID_BMAP	-1
 

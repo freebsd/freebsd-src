@@ -75,6 +75,7 @@ static int fflag = 0;
 int Fflag = 0;	/* force setting sysctl parameters */
 int aflag = 0;
 int dflag = 0;
+int uflag = 0;
 
 const char *otherconf_script;
 const char *resolvconf_script = "/sbin/resolvconf";
@@ -129,10 +130,10 @@ main(int argc, char **argv)
 
 #ifndef SMALL
 	/* rtsold */
-	opts = "adDfFm1O:P:R:";
+	opts = "adDfFm1O:p:R:u";
 #else
 	/* rtsol */
-	opts = "adDFO:P:R:";
+	opts = "adDFO:R:u";
 	fflag = 1;
 	once = 1;
 #endif
@@ -144,10 +145,10 @@ main(int argc, char **argv)
 			aflag = 1;
 			break;
 		case 'd':
-			dflag = 1;
+			dflag += 1;
 			break;
 		case 'D':
-			dflag = 2;
+			dflag += 2;
 			break;
 		case 'f':
 			fflag = 1;
@@ -164,11 +165,14 @@ main(int argc, char **argv)
 		case 'O':
 			otherconf_script = optarg;
 			break;
-		case 'P':
+		case 'p':
 			pidfilename = optarg;
 			break;
 		case 'R':
 			resolvconf_script = optarg;
+			break;
+		case 'u':
+			uflag = 1;
 			break;
 		default:
 			usage();
@@ -184,8 +188,13 @@ main(int argc, char **argv)
 	}
 
 	/* set log level */
-	if (dflag == 0)
+	if (dflag > 1)
+		log_upto = LOG_DEBUG;
+	else if (dflag > 0)
+		log_upto = LOG_INFO;
+	else
 		log_upto = LOG_NOTICE;
+
 	if (!fflag) {
 		char *ident;
 
@@ -216,6 +225,7 @@ main(int argc, char **argv)
 	srandom((u_long)time(NULL));
 #endif
 
+#if (__FreeBSD_version < 900000)
 	if (Fflag) {
 		setinet6sysctl(IPV6CTL_FORWARDING, 0);
 	} else {
@@ -223,6 +233,7 @@ main(int argc, char **argv)
 		if (getinet6sysctl(IPV6CTL_FORWARDING))
 			warnx("kernel is configured as a router, not a host");
 	}
+#endif
 
 #ifndef SMALL
 	/* initialization to dump internal status to a file */
@@ -400,6 +411,32 @@ ifconfig(char *ifname)
 		    "interface %s was already configured", ifname);
 		free(sdl);
 		return (-1);
+	}
+
+	if (Fflag) {
+		struct in6_ndireq nd;
+		int s;
+
+		if ((s = socket(AF_INET6, SOCK_DGRAM, 0)) < 0) {
+			warnmsg(LOG_ERR, __func__, "socket() failed.");
+			return (-1);
+		}
+		memset(&nd, 0, sizeof(nd));
+		strlcpy(nd.ifname, ifname, sizeof(nd.ifname));
+		if (ioctl(s, SIOCGIFINFO_IN6, (caddr_t)&nd) < 0) {
+			warnmsg(LOG_ERR, __func__,
+			    "cannot get accept_rtadv flag");
+			close(s);
+			return (-1);
+		}
+		nd.ndi.flags |= ND6_IFF_ACCEPT_RTADV;
+		if (ioctl(s, SIOCSIFINFO_IN6, (caddr_t)&nd) < 0) {
+			warnmsg(LOG_ERR, __func__,
+			    "cannot set accept_rtadv flag");
+			close(s);
+			return (-1);
+		}
+		close(s);
 	}
 
 	if ((ifi = malloc(sizeof(*ifi))) == NULL) {

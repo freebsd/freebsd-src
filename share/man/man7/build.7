@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd June 16, 2011
+.Dd September 29, 2011
 .Dt BUILD 7
 .Os
 .Sh NAME
@@ -238,7 +238,7 @@ This command takes a long time.
 Get updated sources as configured in
 .Xr make.conf 5 .
 .It Cm targets
-Print a list of supported 
+Print a list of supported
 .Va TARGET
 /
 .Va TARGET_ARCH
@@ -399,21 +399,31 @@ It defaults to
 .It Va KERNFAST
 If set, the build target
 .Cm buildkernel
-defaults to setting 
+defaults to setting
 .Va NO_KERNELCLEAN ,
 .Va NO_KERNELCONFIG ,
-.Va NO_KERNELDEPEND 
+.Va NO_KERNELDEPEND
 and
 .Va NO_KERNELOBJ .
 When set to a value other than
 .Cm 1
-then 
-.Va KERNCONF 
-is set to the value of 
+then
+.Va KERNCONF
+is set to the value of
 .Va KERNFAST .
 .It Va LOCAL_DIRS
 If set, this variable supplies a list of additional directories to
 build, relative to the root of the source tree.
+.It Va PORTS_MODULES
+A list of ports with kernel modules that should be built and installed
+as part of the
+.Cm buildkernel
+and
+.Cm installkernel
+process.
+.Bd -literal -offset indent
+make PORTS_MODULES=emulators/kqemu-kmod kernel
+.Ed
 .It Va SUBDIR_OVERRIDE
 Override the default list of sub-directories and only build the
 sub-directory named in this variable.
@@ -442,11 +452,11 @@ output.
 Set this to cross-build for a different architecture.
 If not set,
 .Va TARGET_ARCH
-defaults to the current machine architecture, unless 
+defaults to the current machine architecture, unless
 .Va TARGET
 is also set, in which case it defaults to the appropriate
 value for that platform.
-Typically, one only needs to set 
+Typically, one only needs to set
 .Va TARGET .
 .El
 .Pp

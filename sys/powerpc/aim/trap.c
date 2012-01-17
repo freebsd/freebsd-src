@@ -34,6 +34,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_hwpmc_hooks.h"
+
 #include <sys/param.h>
 #include <sys/kdb.h>
 #include <sys/proc.h>
@@ -49,6 +51,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/uio.h>
 #include <sys/signalvar.h>
 #include <sys/vmmeter.h>
+#ifdef HWPMC_HOOKS
+#include <sys/pmckern.h>
+#endif
 
 #include <security/audit/audit.h>
 
@@ -83,7 +88,9 @@ static int	handle_onfault(struct trapframe *frame);
 static void	syscall(struct trapframe *frame);
 
 #ifdef __powerpc64__
-static int	handle_slb_spill(pmap_t pm, vm_offset_t addr);
+       void	handle_kernel_slb_spill(int, register_t, register_t);
+static int	handle_user_slb_spill(pmap_t pm, vm_offset_t addr);
+extern int	n_slbs;
 #endif
 
 int	setfault(faultbuf);		/* defined in locore.S */
@@ -159,6 +166,16 @@ trap(struct trapframe *frame)
 	CTR3(KTR_TRAP, "trap: %s type=%s (%s)", td->td_name,
 	    trapname(type), user ? "user" : "kernel");
 
+#ifdef HWPMC_HOOKS
+	if (type == EXC_PERF && (pmc_intr != NULL)) {
+#ifdef notyet
+	    (*pmc_intr)(PCPU_GET(cpuid), frame);
+	    if (!user)
+		return;
+#endif
+	}
+	else
+#endif
 	if (user) {
 		td->td_pticks = 0;
 		td->td_frame = frame;
@@ -176,7 +193,7 @@ trap(struct trapframe *frame)
 #ifdef __powerpc64__
 		case EXC_ISE:
 		case EXC_DSE:
-			if (handle_slb_spill(&p->p_vmspace->vm_pmap,
+			if (handle_user_slb_spill(&p->p_vmspace->vm_pmap,
 			    (type == EXC_ISE) ? frame->srr0 :
 			    frame->cpu.aim.dar) != 0)
 				sig = SIGSEGV;
@@ -244,27 +261,20 @@ trap(struct trapframe *frame)
 		KASSERT(cold || td->td_ucred != NULL,
 		    ("kernel trap doesn't have ucred"));
 		switch (type) {
-		case EXC_DSI:
-			if (trap_pfault(frame, 0) == 0)
- 				return;
-			break;
 #ifdef __powerpc64__
 		case EXC_DSE:
 			if ((frame->cpu.aim.dar & SEGMENT_MASK) == USER_ADDR) {
 				__asm __volatile ("slbmte %0, %1" ::
-				     "r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
-				     "r"(USER_SLB_SLBE));
+					"r"(td->td_pcb->pcb_cpu.aim.usr_vsid),
+					"r"(USER_SLB_SLBE));
 				return;
 			}
-
-			/* FALLTHROUGH */
-		case EXC_ISE:
-			if (handle_slb_spill(kernel_pmap,
-			    (type == EXC_ISE) ? frame->srr0 :
-			    frame->cpu.aim.dar) != 0)
-				panic("Fault handling kernel SLB miss");
-			return;
+			break;
 #endif
+		case EXC_DSI:
+			if (trap_pfault(frame, 0) == 0)
+ 				return;
+			break;
 		case EXC_MCHK:
 			if (handle_onfault(frame))
  				return;
@@ -311,8 +321,7 @@ printtrap(u_int vector, struct trapframe *frame, int isfatal, int user)
 	printf("%s %s trap:\n", isfatal ? "fatal" : "handled",
 	    user ? "user" : "kernel");
 	printf("\n");
-	printf("   exception       = 0x%x (%s)\n", vector >> 8,
-	    trapname(vector));
+	printf("   exception       = 0x%x (%s)\n", vector, trapname(vector));
 	switch (vector) {
 	case EXC_DSE:
 	case EXC_DSI:
@@ -445,6 +454,8 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 	return (error);
 }
 
+#include "../../kern/subr_syscall.c"
+
 void
 syscall(struct trapframe *frame)
 {
@@ -469,20 +480,60 @@ syscall(struct trapframe *frame)
 }
 
 #ifdef __powerpc64__
+/* Handle kernel SLB faults -- runs in real mode, all seat belts off */
+void
+handle_kernel_slb_spill(int type, register_t dar, register_t srr0)
+{
+	struct slb *slbcache;
+	uint64_t slbe, slbv;
+	uint64_t esid, addr;
+	int i;
+
+	addr = (type == EXC_ISE) ? srr0 : dar;
+	slbcache = PCPU_GET(slb);
+	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
+	slbe = (esid << SLBE_ESID_SHIFT) | SLBE_VALID;
+	
+	/* See if the hardware flushed this somehow (can happen in LPARs) */
+	for (i = 0; i < n_slbs; i++)
+		if (slbcache[i].slbe == (slbe | (uint64_t)i))
+			return;
+
+	/* Not in the map, needs to actually be added */
+	slbv = kernel_va_to_slbv(addr);
+	if (slbcache[USER_SLB_SLOT].slbe == 0) {
+		for (i = 0; i < n_slbs; i++) {
+			if (i == USER_SLB_SLOT)
+				continue;
+			if (!(slbcache[i].slbe & SLBE_VALID))
+				goto fillkernslb;
+		}
+
+		if (i == n_slbs)
+			slbcache[USER_SLB_SLOT].slbe = 1;
+	}
+
+	/* Sacrifice a random SLB entry that is not the user entry */
+	i = mftb() % n_slbs;
+	if (i == USER_SLB_SLOT)
+		i = (i+1) % n_slbs;
+
+fillkernslb:
+	/* Write new entry */
+	slbcache[i].slbv = slbv;
+	slbcache[i].slbe = slbe | (uint64_t)i;
+
+	/* Trap handler will restore from cache on exit */
+}
+
 static int 
-handle_slb_spill(pmap_t pm, vm_offset_t addr)
+handle_user_slb_spill(pmap_t pm, vm_offset_t addr)
 {
 	struct slb *user_entry;
 	uint64_t esid;
 	int i;
 
 	esid = (uintptr_t)addr >> ADDR_SR_SHFT;
-
-	if (pm == kernel_pmap) {
-		slb_insert_kernel((esid << SLBE_ESID_SHIFT) | SLBE_VALID,
-		    kernel_va_to_slbv(addr));
-		return (0);
-	}
 
 	PMAP_LOCK(pm);
 	user_entry = user_va_to_slb_entry(pm, addr);

@@ -10,7 +10,7 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
@@ -22,7 +22,7 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- * 
+ *
  */
 
 #include <sys/cdefs.h>
@@ -79,7 +79,7 @@ static char *floattotime(double f);
  *				'300' ... '359' | '360' ... '365'
  * ModifierIndex	::=	'Second' | 'Third' | 'Fourth' | 'Fifth' |
  *				'First' | 'Last'
- * 
+ *
  * SpecialDay		::=	'Easter' | 'Paskha' | 'ChineseNewYear'
  *
  */
@@ -313,7 +313,7 @@ fail:
 allfine:
 	*p = pold;
 	return (1);
-	
+
 }
 
 static void
@@ -407,7 +407,7 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 	 *
 	 * Month:     1-12
 	 * Monthname: Jan .. Dec
-	 * Day:       1-31
+	 * Day:	      1-31
 	 * Weekday:   Mon .. Sun
 	 *
 	 */
@@ -754,10 +754,13 @@ parsedaymonth(char *date, int *yearp, int *monthp, int *dayp, int *flags,
 			continue;
 		}
 
-		printf("Unprocessed:\n");
-		debug_determinestyle(2, date, lflags, month, imonth,
-		    dayofmonth, idayofmonth, dayofweek, idayofweek,
-		    modifieroffset, modifierindex, specialday, syear, iyear);
+		if (debug) {
+		    printf("Unprocessed:\n");
+		    debug_determinestyle(2, date, lflags, month, imonth,
+			dayofmonth, idayofmonth, dayofweek, idayofweek,
+			modifieroffset, modifierindex, specialday, syear,
+			iyear);
+		}
 		retvalsign = -1;
 	}
 
@@ -1045,7 +1048,7 @@ dodebug(char *what)
 			printf("\n");
 
 		}
-	
+
 		return;
 	}
 

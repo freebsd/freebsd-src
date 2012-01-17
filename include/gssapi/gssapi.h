@@ -756,11 +756,11 @@ OM_uint32 gss_release_oid
 OM_uint32 gss_decapsulate_token
 	      (const gss_buffer_t,  /* mechanism independent token */
 	       gss_OID,		 /* desired mechanism */
-	       gss_buffer_t	 /* decapsulated mechanism dependant token */
+	       gss_buffer_t	 /* decapsulated mechanism dependent token */
 	      );
 
 OM_uint32 gss_encapsulate_token
-	      (const gss_buffer_t,  /* mechanism dependant token */
+	      (const gss_buffer_t,  /* mechanism dependent token */
 	       gss_OID,		 /* desired mechanism */
 	       gss_buffer_t	 /* encapsulated mechanism independent token */
 	      );

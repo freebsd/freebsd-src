@@ -206,7 +206,7 @@ out:
  * System call to return the pid of a process given its process descriptor.
  */
 int
-pdgetpid(struct thread *td, struct pdgetpid_args *uap)
+sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 {
 	pid_t pid;
 	int error;
@@ -387,7 +387,7 @@ procdesc_close(struct file *fp, struct thread *td)
 		p->p_sigparent = SIGCHLD;
 		proc_reparent(p, initproc);
 		if ((pd->pd_flags & PD_DAEMON) == 0)
-			psignal(p, SIGKILL);
+			kern_psignal(p, SIGKILL);
 		PROC_UNLOCK(p);
 		sx_xunlock(&proctree_lock);
 	}
@@ -515,7 +515,7 @@ procdesc_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 #else /* !PROCDESC */
 
 int
-pdgetpid(struct thread *td, struct pdgetpid_args *uap)
+sys_pdgetpid(struct thread *td, struct pdgetpid_args *uap)
 {
 
 	return (ENOSYS);

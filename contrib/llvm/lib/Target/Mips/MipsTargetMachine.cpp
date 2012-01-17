@@ -14,13 +14,15 @@
 #include "Mips.h"
 #include "MipsTargetMachine.h"
 #include "llvm/PassManager.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/TargetRegistry.h"
 using namespace llvm;
 
 extern "C" void LLVMInitializeMipsTarget() {
   // Register the target.
-  RegisterTargetMachine<MipsTargetMachine> X(TheMipsTarget);
+  RegisterTargetMachine<MipsebTargetMachine> X(TheMipsTarget);
   RegisterTargetMachine<MipselTargetMachine> Y(TheMipselTarget);
+  RegisterTargetMachine<Mips64ebTargetMachine> A(TheMips64Target);
+  RegisterTargetMachine<Mips64elTargetMachine> B(TheMips64elTarget);
 }
 
 // DataLayout --> Big-endian, 32-bit pointer/ABI/alignment
@@ -31,30 +33,47 @@ extern "C" void LLVMInitializeMipsTarget() {
 // an easier handling.
 // Using CodeModel::Large enables different CALL behavior.
 MipsTargetMachine::
-MipsTargetMachine(const Target &T, const std::string &TT,
-                  const std::string &CPU, const std::string &FS,
-                  bool isLittle=false):
-  LLVMTargetMachine(T, TT, CPU, FS),
+MipsTargetMachine(const Target &T, StringRef TT,
+                  StringRef CPU, StringRef FS,
+                  Reloc::Model RM, CodeModel::Model CM,
+                  bool isLittle):
+  LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
   Subtarget(TT, CPU, FS, isLittle),
-  DataLayout(isLittle ? 
-             std::string("e-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32") :
-             std::string("E-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32")),
+  DataLayout(isLittle ?
+             (Subtarget.isABI_N64() ?
+              "e-p:64:64:64-i8:8:32-i16:16:32-i64:64:64-f128:128:128-n32" :
+              "e-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32") :
+             (Subtarget.isABI_N64() ?
+              "E-p:64:64:64-i8:8:32-i16:16:32-i64:64:64-f128:128:128-n32" :
+              "E-p:32:32:32-i8:8:32-i16:16:32-i64:64:64-n32")),
   InstrInfo(*this),
   FrameLowering(Subtarget),
-  TLInfo(*this), TSInfo(*this) {
-  // Abicall enables PIC by default
-  if (getRelocationModel() == Reloc::Default) {
-    if (Subtarget.isABI_O32())
-      setRelocationModel(Reloc::PIC_);
-    else
-      setRelocationModel(Reloc::Static);
-  }
+  TLInfo(*this), TSInfo(*this), JITInfo() {
 }
 
+MipsebTargetMachine::
+MipsebTargetMachine(const Target &T, StringRef TT,
+                    StringRef CPU, StringRef FS,
+                    Reloc::Model RM, CodeModel::Model CM) :
+  MipsTargetMachine(T, TT, CPU, FS, RM, CM, false) {}
+
 MipselTargetMachine::
-MipselTargetMachine(const Target &T, const std::string &TT,
-                    const std::string &CPU, const std::string &FS) :
-  MipsTargetMachine(T, TT, CPU, FS, true) {}
+MipselTargetMachine(const Target &T, StringRef TT,
+                    StringRef CPU, StringRef FS,
+                    Reloc::Model RM, CodeModel::Model CM) :
+  MipsTargetMachine(T, TT, CPU, FS, RM, CM, true) {}
+
+Mips64ebTargetMachine::
+Mips64ebTargetMachine(const Target &T, StringRef TT,
+                      StringRef CPU, StringRef FS,
+                      Reloc::Model RM, CodeModel::Model CM) :
+  MipsTargetMachine(T, TT, CPU, FS, RM, CM, false) {}
+
+Mips64elTargetMachine::
+Mips64elTargetMachine(const Target &T, StringRef TT,
+                      StringRef CPU, StringRef FS,
+                      Reloc::Model RM, CodeModel::Model CM) :
+  MipsTargetMachine(T, TT, CPU, FS, RM, CM, true) {}
 
 // Install an instruction selector pass using
 // the ISelDag to gen Mips code.
@@ -77,7 +96,10 @@ addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel)
 
 bool MipsTargetMachine::
 addPreRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel) {
-  PM.add(createMipsEmitGPRestorePass(*this));
+  // Do not restore $gp if target is Mips64.
+  // In N32/64, $gp is a callee-saved register.
+  if (!Subtarget.hasMips64())
+    PM.add(createMipsEmitGPRestorePass(*this));
   return true;
 }
 
@@ -86,3 +108,12 @@ addPostRegAlloc(PassManagerBase &PM, CodeGenOpt::Level OptLevel) {
   PM.add(createMipsExpandPseudoPass(*this));
   return true;
 }
+
+bool MipsTargetMachine::addCodeEmitter(PassManagerBase &PM,
+                                          CodeGenOpt::Level OptLevel,
+                                          JITCodeEmitter &JCE) {
+  // Machine code emitter pass for Mips.
+  PM.add(createMipsJITCodeEmitterPass(*this, JCE));
+  return false;
+}
+

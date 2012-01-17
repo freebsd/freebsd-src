@@ -45,6 +45,7 @@ MIRROR=`dialog --backtitle "FreeBSD Installer" \
 	ftp://ftp3.ie.freebsd.org 	"IPv6 Ireland"\
 	ftp://ftp.il.freebsd.org 	"IPv6 Israel"\
 	ftp://ftp2.jp.freebsd.org 	"IPv6 Japan"\
+	ftp://ftp4.se.freebsd.org	"IPv6 Sweden"\
 	ftp://ftp4.us.freebsd.org 	"IPv6 USA"\
 	ftp://ftp2.tr.freebsd.org 	"IPv6 Turkey"\
 	ftp://ftp1.freebsd.org 	"Primary"\

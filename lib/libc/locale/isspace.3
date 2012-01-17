@@ -47,16 +47,16 @@
 .Sh DESCRIPTION
 The
 .Fn isspace
-function tests for the white-space characters.
+function tests for white-space characters.
 For any locale, this includes the following standard characters:
 .Pp
 .Bl -column \&`\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___ \&``\et''___
 .It "\&``\et''\t``\en''\t``\ev''\t``\ef''\t``\er''\t`` ''"
 .El
 .Pp
-In the "C" locale
+In the "C" locale,
 .Fn isspace
-successful test is limited to this characters only.
+returns non-zero for these characters only.
 The value of the argument must be representable as an
 .Vt "unsigned char"
 or the value of

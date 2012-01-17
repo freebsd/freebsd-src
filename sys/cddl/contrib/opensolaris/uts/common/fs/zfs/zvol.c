@@ -26,6 +26,7 @@
  */
 
 /* Portions Copyright 2010 Robert Milkowski */
+/* Portions Copyright 2011 Martin Matuska <mm@FreeBSD.org> */
 
 /*
  * ZFS volume emulation driver.
@@ -873,6 +874,14 @@ zvol_open(struct g_provider *pp, int flag, int count)
 {
 	zvol_state_t *zv;
 	int err = 0;
+
+	if (MUTEX_HELD(&spa_namespace_lock)) {
+		/*
+		 * If the spa_namespace_lock is being held, it means that ZFS
+		 * is trying to open ZVOL as its VDEV. This is not supported.
+		 */
+		return (EOPNOTSUPP);
+	}
 
 	mutex_enter(&spa_namespace_lock);
 

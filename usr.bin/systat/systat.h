@@ -33,10 +33,10 @@
 #include <curses.h>
 
 struct  cmdtab {
-        const char *c_name;		/* command name */
-        void    (*c_refresh)(void);	/* display refresh */
-        void    (*c_fetch)(void);	/* sets up data structures */
-        void    (*c_label)(void);	/* label display */
+	const char *c_name;		/* command name */
+	void	(*c_refresh)(void);	/* display refresh */
+	void	(*c_fetch)(void);	/* sets up data structures */
+	void	(*c_label)(void);	/* label display */
 	int	(*c_init)(void);	/* initialize namelist, etc. */
 	WINDOW	*(*c_open)(void);	/* open display */
 	void	(*c_close)(WINDOW *);	/* close display */

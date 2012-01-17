@@ -21,15 +21,18 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/FoldingSet.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/ADT/StringRef.h"
 #include <cassert>
 #include <utility>
+#include <string>
 
 namespace clang {
 
-class LocationContext;
 class AnalysisContext;
 class FunctionDecl;
-
+class LocationContext;
+class ProgramPointTag;
+  
 class ProgramPoint {
 public:
   enum Kind { BlockEdgeKind,
@@ -42,7 +45,6 @@ public:
               PreStoreKind,
               PostStoreKind,
               PostPurgeDeadSymbolsKind,
-              PostStmtCustomKind,
               PostConditionKind,
               PostLValueKind,
               PostInitializerKind,
@@ -58,25 +60,33 @@ private:
   // The LocationContext could be NULL to allow ProgramPoint to be used in
   // context insensitive analysis.
   const LocationContext *L;
-  const void *Tag;
+  const ProgramPointTag *Tag;
 
+  ProgramPoint();
+  
 protected:
-  ProgramPoint(const void* P, Kind k, const LocationContext *l,
-               const void *tag = 0)
+  ProgramPoint(const void *P, Kind k, const LocationContext *l,
+               const ProgramPointTag *tag = 0)
     : Data(P, static_cast<const void*>(NULL)), K(k), L(l), Tag(tag) {}
 
-  ProgramPoint(const void* P1, const void* P2, Kind k, const LocationContext *l,
-               const void *tag = 0)
+  ProgramPoint(const void *P1, const void *P2, Kind k, const LocationContext *l,
+               const ProgramPointTag *tag = 0)
     : Data(P1, P2), K(k), L(l), Tag(tag) {}
 
 protected:
-  const void* getData1() const { return Data.first; }
-  const void* getData2() const { return Data.second; }
+  const void *getData1() const { return Data.first; }
+  const void *getData2() const { return Data.second; }
 
 public:
+  /// Create a new ProgramPoint object that is the same as the original
+  /// except for using the specified tag value.
+  ProgramPoint withTag(const ProgramPointTag *tag) const {
+    return ProgramPoint(Data.first, Data.second, K, L, tag);
+  }
+
   Kind getKind() const { return K; }
 
-  const void *getTag() const { return Tag; }
+  const ProgramPointTag *getTag() const { return Tag; }
 
   const LocationContext *getLocationContext() const { return L; }
 
@@ -93,7 +103,7 @@ public:
     return K == RHS.K && Data == RHS.Data && L == RHS.L && Tag == RHS.Tag;
   }
 
-  bool operator!=(const ProgramPoint& RHS) const {
+  bool operator!=(const ProgramPoint &RHS) const {
     return K != RHS.K || Data != RHS.Data || L != RHS.L || Tag != RHS.Tag;
   }
 
@@ -104,27 +114,28 @@ public:
     ID.AddPointer(L);
     ID.AddPointer(Tag);
   }
+
+  static ProgramPoint getProgramPoint(const Stmt *S, ProgramPoint::Kind K,
+                                      const LocationContext *LC,
+                                      const ProgramPointTag *tag);
+
 };
 
 class BlockEntrance : public ProgramPoint {
 public:
-  BlockEntrance(const CFGBlock* B, const LocationContext *L,
-                const void *tag = 0)
-    : ProgramPoint(B, BlockEntranceKind, L, tag) {}
+  BlockEntrance(const CFGBlock *B, const LocationContext *L,
+                const ProgramPointTag *tag = 0)
+    : ProgramPoint(B, BlockEntranceKind, L, tag) {    
+    assert(B && "BlockEntrance requires non-null block");
+  }
 
-  const CFGBlock* getBlock() const {
+  const CFGBlock *getBlock() const {
     return reinterpret_cast<const CFGBlock*>(getData1());
   }
 
   const CFGElement getFirstElement() const {
-    const CFGBlock* B = getBlock();
+    const CFGBlock *B = getBlock();
     return B->empty() ? CFGElement() : B->front();
-  }
-  
-  /// Create a new BlockEntrance object that is the same as the original
-  /// except for using the specified tag value.
-  BlockEntrance withTag(const void *tag) {
-    return BlockEntrance(getBlock(), getLocationContext(), tag);
   }
   
   static bool classof(const ProgramPoint* Location) {
@@ -134,14 +145,14 @@ public:
 
 class BlockExit : public ProgramPoint {
 public:
-  BlockExit(const CFGBlock* B, const LocationContext *L)
+  BlockExit(const CFGBlock *B, const LocationContext *L)
     : ProgramPoint(B, BlockExitKind, L) {}
 
-  const CFGBlock* getBlock() const {
+  const CFGBlock *getBlock() const {
     return reinterpret_cast<const CFGBlock*>(getData1());
   }
 
-  const Stmt* getTerminator() const {
+  const Stmt *getTerminator() const {
     return getBlock()->getTerminator();
   }
 
@@ -153,7 +164,7 @@ public:
 class StmtPoint : public ProgramPoint {
 public:
   StmtPoint(const Stmt *S, const void *p2, Kind k, const LocationContext *L,
-            const void *tag)
+            const ProgramPointTag *tag)
     : ProgramPoint(S, p2, k, L, tag) {}
 
   const Stmt *getStmt() const { return (const Stmt*) getData1(); }
@@ -170,7 +181,7 @@ public:
 
 class PreStmt : public StmtPoint {
 public:
-  PreStmt(const Stmt *S, const LocationContext *L, const void *tag,
+  PreStmt(const Stmt *S, const LocationContext *L, const ProgramPointTag *tag,
           const Stmt *SubStmt = 0)
     : StmtPoint(S, SubStmt, PreStmtKind, L, tag) {}
 
@@ -183,16 +194,17 @@ public:
 
 class PostStmt : public StmtPoint {
 protected:
-  PostStmt(const Stmt* S, const void* data, Kind k, const LocationContext *L,
-           const void *tag =0)
+  PostStmt(const Stmt *S, const void *data, Kind k, const LocationContext *L,
+           const ProgramPointTag *tag =0)
     : StmtPoint(S, data, k, L, tag) {}
 
 public:
-  explicit PostStmt(const Stmt* S, Kind k, 
-                    const LocationContext *L, const void *tag = 0)
+  explicit PostStmt(const Stmt *S, Kind k, 
+                    const LocationContext *L, const ProgramPointTag *tag = 0)
     : StmtPoint(S, NULL, k, L, tag) {}
 
-  explicit PostStmt(const Stmt* S, const LocationContext *L,const void *tag = 0)
+  explicit PostStmt(const Stmt *S, const LocationContext *L,
+                    const ProgramPointTag *tag = 0)
     : StmtPoint(S, NULL, PostStmtKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -201,31 +213,11 @@ public:
   }
 };
 
-class PostStmtCustom : public PostStmt {
-public:
-  PostStmtCustom(const Stmt* S,
-                 const std::pair<const void*, const void*>* TaggedData,\
-                 const LocationContext *L)
-    : PostStmt(S, TaggedData, PostStmtCustomKind, L) {}
-
-  const std::pair<const void*, const void*>& getTaggedPair() const {
-    return
-      *reinterpret_cast<const std::pair<const void*, const void*>*>(getData2());
-  }
-
-  const void* getTag() const { return getTaggedPair().first; }
-
-  const void* getTaggedData() const { return getTaggedPair().second; }
-
-  static bool classof(const ProgramPoint* Location) {
-    return Location->getKind() == PostStmtCustomKind;
-  }
-};
-
 // PostCondition represents the post program point of a branch condition.
 class PostCondition : public PostStmt {
 public:
-  PostCondition(const Stmt* S, const LocationContext *L, const void *tag = 0)
+  PostCondition(const Stmt *S, const LocationContext *L,
+                const ProgramPointTag *tag = 0)
     : PostStmt(S, PostConditionKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -236,7 +228,7 @@ public:
 class LocationCheck : public StmtPoint {
 protected:
   LocationCheck(const Stmt *S, const LocationContext *L,
-                ProgramPoint::Kind K, const void *tag)
+                ProgramPoint::Kind K, const ProgramPointTag *tag)
     : StmtPoint(S, NULL, K, L, tag) {}
     
   static bool classof(const ProgramPoint *location) {
@@ -247,7 +239,8 @@ protected:
   
 class PreLoad : public LocationCheck {
 public:
-  PreLoad(const Stmt *S, const LocationContext *L, const void *tag = 0)
+  PreLoad(const Stmt *S, const LocationContext *L,
+          const ProgramPointTag *tag = 0)
     : LocationCheck(S, L, PreLoadKind, tag) {}
   
   static bool classof(const ProgramPoint *location) {
@@ -257,7 +250,8 @@ public:
 
 class PreStore : public LocationCheck {
 public:
-  PreStore(const Stmt *S, const LocationContext *L, const void *tag = 0)
+  PreStore(const Stmt *S, const LocationContext *L,
+           const ProgramPointTag *tag = 0)
   : LocationCheck(S, L, PreStoreKind, tag) {}
   
   static bool classof(const ProgramPoint *location) {
@@ -267,7 +261,8 @@ public:
 
 class PostLoad : public PostStmt {
 public:
-  PostLoad(const Stmt* S, const LocationContext *L, const void *tag = 0)
+  PostLoad(const Stmt *S, const LocationContext *L,
+           const ProgramPointTag *tag = 0)
     : PostStmt(S, PostLoadKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -277,7 +272,8 @@ public:
 
 class PostStore : public PostStmt {
 public:
-  PostStore(const Stmt* S, const LocationContext *L, const void *tag = 0)
+  PostStore(const Stmt *S, const LocationContext *L,
+            const ProgramPointTag *tag = 0)
     : PostStmt(S, PostStoreKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -287,7 +283,8 @@ public:
 
 class PostLValue : public PostStmt {
 public:
-  PostLValue(const Stmt* S, const LocationContext *L, const void *tag = 0)
+  PostLValue(const Stmt *S, const LocationContext *L,
+             const ProgramPointTag *tag = 0)
     : PostStmt(S, PostLValueKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -297,8 +294,8 @@ public:
 
 class PostPurgeDeadSymbols : public PostStmt {
 public:
-  PostPurgeDeadSymbols(const Stmt* S, const LocationContext *L,
-                       const void *tag = 0)
+  PostPurgeDeadSymbols(const Stmt *S, const LocationContext *L,
+                       const ProgramPointTag *tag = 0)
     : PostStmt(S, PostPurgeDeadSymbolsKind, L, tag) {}
 
   static bool classof(const ProgramPoint* Location) {
@@ -308,14 +305,17 @@ public:
 
 class BlockEdge : public ProgramPoint {
 public:
-  BlockEdge(const CFGBlock* B1, const CFGBlock* B2, const LocationContext *L)
-    : ProgramPoint(B1, B2, BlockEdgeKind, L) {}
+  BlockEdge(const CFGBlock *B1, const CFGBlock *B2, const LocationContext *L)
+    : ProgramPoint(B1, B2, BlockEdgeKind, L) {
+    assert(B1 && "BlockEdge: source block must be non-null");
+    assert(B2 && "BlockEdge: destination block must be non-null");    
+  }
 
-  const CFGBlock* getSrc() const {
+  const CFGBlock *getSrc() const {
     return static_cast<const CFGBlock*>(getData1());
   }
 
-  const CFGBlock* getDst() const {
+  const CFGBlock *getDst() const {
     return static_cast<const CFGBlock*>(getData2());
   }
 
@@ -365,6 +365,29 @@ public:
   }
 };
 
+/// ProgramPoints can be "tagged" as representing points specific to a given
+/// analysis entity.  Tags are abstract annotations, with an associated
+/// description and potentially other information.
+class ProgramPointTag {
+public:
+  ProgramPointTag(void *tagKind = 0) : TagKind(tagKind) {}
+  virtual ~ProgramPointTag();
+  virtual StringRef getTagDescription() const = 0;    
+
+protected:
+  /// Used to implement 'classof' in subclasses.
+  const void *getTagKind() { return TagKind; }
+  
+private:
+  const void *TagKind;
+};
+  
+class SimpleProgramPointTag : public ProgramPointTag {
+  std::string desc;
+public:
+  SimpleProgramPointTag(StringRef description);
+  StringRef getTagDescription() const;
+};
 
 } // end namespace clang
 
@@ -385,12 +408,12 @@ static inline clang::ProgramPoint getTombstoneKey() {
   return clang::BlockEntrance(reinterpret_cast<clang::CFGBlock*>(x), 0);
 }
 
-static unsigned getHashValue(const clang::ProgramPoint& Loc) {
+static unsigned getHashValue(const clang::ProgramPoint &Loc) {
   return Loc.getHashValue();
 }
 
-static bool isEqual(const clang::ProgramPoint& L,
-                    const clang::ProgramPoint& R) {
+static bool isEqual(const clang::ProgramPoint &L,
+                    const clang::ProgramPoint &R) {
   return L == R;
 }
 

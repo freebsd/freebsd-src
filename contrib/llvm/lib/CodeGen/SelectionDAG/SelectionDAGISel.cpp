@@ -177,6 +177,13 @@ TargetLowering::EmitInstrWithCustomInserter(MachineInstr *MI,
   return 0;
 }
 
+void TargetLowering::AdjustInstrPostInstrSelection(MachineInstr *MI,
+                                                   SDNode *Node) const {
+  assert(!MI->getDesc().hasPostISelHook() &&
+         "If a target marks an instruction with 'hasPostISelHook', "
+         "it must implement TargetLowering::AdjustInstrPostInstrSelection!");
+}
+
 //===----------------------------------------------------------------------===//
 // SelectionDAGISel code
 //===----------------------------------------------------------------------===//
@@ -463,6 +470,7 @@ void SelectionDAGISel::CodeGenAndEmitDAG() {
     GroupName = "Instruction Selection and Scheduling";
   std::string BlockName;
   int BlockNumber = -1;
+  (void)BlockNumber;
 #ifdef NDEBUG
   if (ViewDAGCombine1 || ViewLegalizeTypesDAGs || ViewLegalizeDAGs ||
       ViewDAGCombine2 || ViewDAGCombineLT || ViewISelDAGs || ViewSchedDAGs ||
@@ -677,21 +685,26 @@ void SelectionDAGISel::DoInstructionSelection() {
 /// PrepareEHLandingPad - Emit an EH_LABEL, set up live-in registers, and
 /// do other setup for EH landing-pad blocks.
 void SelectionDAGISel::PrepareEHLandingPad() {
+  MachineBasicBlock *MBB = FuncInfo->MBB;
+
   // Add a label to mark the beginning of the landing pad.  Deletion of the
   // landing pad can thus be detected via the MachineModuleInfo.
-  MCSymbol *Label = MF->getMMI().addLandingPad(FuncInfo->MBB);
+  MCSymbol *Label = MF->getMMI().addLandingPad(MBB);
 
+  // Assign the call site to the landing pad's begin label.
+  MF->getMMI().setCallSiteLandingPad(Label, SDB->LPadToCallSiteMap[MBB]);
+    
   const MCInstrDesc &II = TM.getInstrInfo()->get(TargetOpcode::EH_LABEL);
-  BuildMI(*FuncInfo->MBB, FuncInfo->InsertPt, SDB->getCurDebugLoc(), II)
+  BuildMI(*MBB, FuncInfo->InsertPt, SDB->getCurDebugLoc(), II)
     .addSym(Label);
 
   // Mark exception register as live in.
   unsigned Reg = TLI.getExceptionAddressRegister();
-  if (Reg) FuncInfo->MBB->addLiveIn(Reg);
+  if (Reg) MBB->addLiveIn(Reg);
 
   // Mark exception selector register as live in.
   Reg = TLI.getExceptionSelectorRegister();
-  if (Reg) FuncInfo->MBB->addLiveIn(Reg);
+  if (Reg) MBB->addLiveIn(Reg);
 
   // FIXME: Hack around an exception handling flaw (PR1508): the personality
   // function and list of typeids logically belong to the invoke (or, if you
@@ -704,7 +717,7 @@ void SelectionDAGISel::PrepareEHLandingPad() {
   // in exceptions not being caught because no typeids are associated with
   // the invoke.  This may not be the only way things can go wrong, but it
   // is the only way we try to work around for the moment.
-  const BasicBlock *LLVMBB = FuncInfo->MBB->getBasicBlock();
+  const BasicBlock *LLVMBB = MBB->getBasicBlock();
   const BranchInst *Br = dyn_cast<BranchInst>(LLVMBB->getTerminator());
 
   if (Br && Br->isUnconditional()) { // Critical edge?
@@ -718,8 +731,6 @@ void SelectionDAGISel::PrepareEHLandingPad() {
       CopyCatchInfo(Br->getSuccessor(0), LLVMBB, &MF->getMMI(), *FuncInfo);
   }
 }
-
-
 
 /// TryToFoldFastISelLoad - We're checking to see if we can fold the specified
 /// load into the specified FoldInst.  Note that we could have a sequence where
@@ -741,7 +752,7 @@ bool SelectionDAGISel::TryToFoldFastISelLoad(const LoadInst *LI,
   // isn't one of the folded instructions, then we can't succeed here.  Handle
   // this by scanning the single-use users of the load until we get to FoldInst.
   unsigned MaxUsers = 6;  // Don't scan down huge single-use chains of instrs.
-  
+
   const Instruction *TheUser = LI->use_back();
   while (TheUser != FoldInst &&   // Scan up until we find FoldInst.
          // Stay in the right block.
@@ -750,10 +761,15 @@ bool SelectionDAGISel::TryToFoldFastISelLoad(const LoadInst *LI,
     // If there are multiple or no uses of this instruction, then bail out.
     if (!TheUser->hasOneUse())
       return false;
-    
+
     TheUser = TheUser->use_back();
   }
-  
+
+  // If we didn't find the fold instruction, then we failed to collapse the
+  // sequence.
+  if (TheUser != FoldInst)
+    return false;
+
   // Don't try to fold volatile loads.  Target has to deal with alignment
   // constraints.
   if (LI->isVolatile()) return false;
@@ -802,6 +818,7 @@ static bool isFoldedOrDeadInstruction(const Instruction *I,
   return !I->mayWriteToMemory() && // Side-effecting instructions aren't folded.
          !isa<TerminatorInst>(I) && // Terminators aren't folded.
          !isa<DbgInfoIntrinsic>(I) &&  // Debug instructions aren't folded.
+         !isa<LandingPadInst>(I) &&    // Landingpad instructions aren't folded.
          !FuncInfo->isExportedInst(I); // Exported instrs must be computed.
 }
 

@@ -584,7 +584,7 @@ METHOD void remove {
 
 /**
  * @brief Traverse the reverse-map list off the given physical page and
- * remove all mappings. Clear the PG_WRITEABLE attribute from the page.
+ * remove all mappings. Clear the PGA_WRITEABLE attribute from the page.
  *
  * @param _pg		physical page
  */

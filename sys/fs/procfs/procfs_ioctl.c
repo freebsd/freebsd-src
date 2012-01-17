@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2001 Dag-Erling Coïdan Smørgrav
+ * Copyright (c) 2001 Dag-Erling CoÃ¯dan SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -188,10 +188,10 @@ procfs_ioctl(PFS_IOCTL_ARGS)
 			thread_unsuspend(p);
 			PROC_SUNLOCK(p);
 		} else if (sig)
-			psignal(p, sig);
+			kern_psignal(p, sig);
 #else
 		if (sig)
-			psignal(p, sig);
+			kern_psignal(p, sig);
 		p->p_step = 0;
 		wakeup(&p->p_step);
 #endif

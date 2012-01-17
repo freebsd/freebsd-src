@@ -260,13 +260,13 @@ action_plgeneric(int action, char *plstr, char *buf)
 			*q++ = '\0';
 			cp.cp_val = q;
 		}
-		cm->cm_len += cmsg_pl2bin(msg, &cp);
+		cm->cm_len += cm_pl2bin(msg, &cp);
 
 		mysyslog(LOG_DEBUG, "<%s> key=%s, val_len=%d, ifname=%s",
 		    __func__,cp.cp_key, cp.cp_val_len, cp.cp_ifname);
 	}
 
-	return (cmsg_handler_client(s->si_fd, CM_STATE_MSG_DISPATCH, buf));
+	return (cm_handler_client(s->si_fd, CM_STATE_MSG_DISPATCH, buf));
 }
 
 static int
@@ -285,7 +285,7 @@ action_propget(char *argv, struct ctrl_msg_pl *cp)
 	if (error || cm->cm_len <= sizeof(*cm))
 		return (1);
 
-	cmsg_bin2pl(msg, cp);
+	cm_bin2pl(msg, cp);
 	mysyslog(LOG_DEBUG, "<%s> type=%d, len=%d",
 	    __func__, cm->cm_type, cm->cm_len);
 	mysyslog(LOG_DEBUG, "<%s> key=%s, val_len=%d, ifname=%s",
@@ -571,9 +571,9 @@ action_show(int argc, char **argv)
 
 		printf("\n");
 
-		printf("\tMinAdvInterval/MaxAdvInterval: %s/%s\n",
-		    sec2str(rai->rai_mininterval, ssbuf),
-		    sec2str(rai->rai_maxinterval, ssbuf));
+		printf("\tMinAdvInterval/MaxAdvInterval: ");
+		printf("%s/", sec2str(rai->rai_mininterval, ssbuf));
+		printf("%s\n", sec2str(rai->rai_maxinterval, ssbuf));
 		if (rai->rai_linkmtu)
 			printf("\tAdvLinkMTU: %d", rai->rai_linkmtu);
 		else
@@ -593,11 +593,10 @@ action_show(int argc, char **argv)
 		printf("Preference: %s\n",
 		    rtpref_str[(rai->rai_rtpref >> 3) & 0xff]);
 
-		printf("\t"
-		    "ReachableTime: %s, "
-		    "RetransTimer: %s, "
+		printf("\tReachableTime: %s, ",
+		    sec2str(rai->rai_reachabletime, ssbuf));
+		printf("RetransTimer: %s, "
 		    "CurHopLimit: %d\n",
-		    sec2str(rai->rai_reachabletime, ssbuf),
 		    sec2str(rai->rai_retranstimer, ssbuf),
 		    rai->rai_hoplimit);
 		printf("\tAdvIfPrefixes: %s\n",

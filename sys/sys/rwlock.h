@@ -127,7 +127,7 @@ void	rw_init_flags(struct rwlock *rw, const char *name, int opts);
 void	rw_destroy(struct rwlock *rw);
 void	rw_sysinit(void *arg);
 void	rw_sysinit_flags(void *arg);
-int	rw_wowned(struct rwlock *rw);
+int	rw_wowned(const struct rwlock *rw);
 void	_rw_wlock(struct rwlock *rw, const char *file, int line);
 int	_rw_try_wlock(struct rwlock *rw, const char *file, int line);
 void	_rw_wunlock(struct rwlock *rw, const char *file, int line);
@@ -141,7 +141,7 @@ void	_rw_wunlock_hard(struct rwlock *rw, uintptr_t tid, const char *file,
 int	_rw_try_upgrade(struct rwlock *rw, const char *file, int line);
 void	_rw_downgrade(struct rwlock *rw, const char *file, int line);
 #if defined(INVARIANTS) || defined(INVARIANT_SUPPORT)
-void	_rw_assert(struct rwlock *rw, int what, const char *file, int line);
+void	_rw_assert(const struct rwlock *rw, int what, const char *file, int line);
 #endif
 
 /*

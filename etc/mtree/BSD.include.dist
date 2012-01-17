@@ -76,6 +76,10 @@
             tr1
             ..
         ..
+        v1
+            ext
+            ..
+        ..
     ..
     cam
         ata
@@ -95,6 +99,8 @@
         an
         ..
         bktr
+        ..
+        ciss
         ..
         firewire
         ..

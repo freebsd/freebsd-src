@@ -27,7 +27,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 
 #include "hast.h"
@@ -46,8 +45,8 @@ event_send(const struct hast_resource *res, int event)
 	struct nv *nvin, *nvout;
 	int error;
 
-	assert(res != NULL);
-	assert(event >= EVENT_MIN && event <= EVENT_MAX);
+	PJDLOG_ASSERT(res != NULL);
+	PJDLOG_ASSERT(event >= EVENT_MIN && event <= EVENT_MAX);
 
 	nvin = nvout = NULL;
 
@@ -62,11 +61,11 @@ event_send(const struct hast_resource *res, int event)
 		    "Unable to prepare event header");
 		goto done;
 	}
-	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send event header");
 		goto done;
 	}
-	if (hast_proto_recv_hdr(res->hr_event, &nvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_event, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive event header");
 		goto done;
 	}
@@ -89,11 +88,11 @@ event_recv(const struct hast_resource *res)
 	uint8_t event;
 	int error;
 
-	assert(res != NULL);
+	PJDLOG_ASSERT(res != NULL);
 
 	nvin = nvout = NULL;
 
-	if (hast_proto_recv_hdr(res->hr_event, &nvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_event, &nvin) == -1) {
 		/*
 		 * First error log as debug. This is because worker process
 		 * most likely exited.
@@ -146,7 +145,7 @@ event_recv(const struct hast_resource *res)
 		    "Unable to prepare event header");
 		goto fail;
 	}
-	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_event, nvout, NULL, 0) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to send event header");
 		goto fail;
 	}

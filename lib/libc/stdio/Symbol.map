@@ -117,6 +117,46 @@ FBSD_1.1 {
 	 vdprintf;
 };
 
+FBSD_1.3 {
+	asprintf_l;
+	fprintf_l;
+	fwprintf_l;
+	printf_l;
+	snprintf_l;
+	sprintf_l;
+	swprintf_l;
+	vasprintf_l;
+	vfprintf_l;
+	vfwprintf_l;
+	vprintf_l;
+	vsnprintf_l;
+	vsprintf_l;
+	vswprintf_l;
+	vwprintf_l;
+	wprintf_l;
+	fgetwc_l;
+	fputwc_l;
+	ungetwc_l;
+	vfwscanf_l;
+	vswscanf_l;
+	fscanf_l;
+	fwscanf_l;
+	scanf_l;
+	sscanf_l;
+	swscanf_l;
+	vfscanf_l;
+	vscanf_l;
+	vsscanf_l;
+	vwscanf_l;
+	wscanf_l;
+	fgetws_l;
+	fputws_l;
+	getwc_l;
+	getwchar_l;
+	putwc_l;
+	putwchar_l;
+};
+
 FBSDprivate_1.0 {
 	_flockfile;
 	_flockfile_debug_stub;

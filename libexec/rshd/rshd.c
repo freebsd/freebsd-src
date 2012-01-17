@@ -317,7 +317,7 @@ doit(struct sockaddr *fromp)
 	}
 
 	if ((pam_err = pam_set_item(pamh, PAM_RUSER, ruser)) != PAM_SUCCESS ||
-	    (pam_err = pam_set_item(pamh, PAM_RHOST, rhost) != PAM_SUCCESS)) {
+	    (pam_err = pam_set_item(pamh, PAM_RHOST, rhost)) != PAM_SUCCESS) {
 		syslog(LOG_ERR|LOG_AUTH, "pam_set_item(): %s",
 		    pam_strerror(pamh, pam_err));
 		rshd_errx(1, "Login incorrect.");

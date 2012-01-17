@@ -11,7 +11,7 @@ MLINKS=	at.1 batch.1 \
 	at.1 atq.1 \
 	at.1 atrm.1
 
-WARNS?=	1
+NO_WFORMAT=
 
 BINOWN=	root
 BINMODE= 4555

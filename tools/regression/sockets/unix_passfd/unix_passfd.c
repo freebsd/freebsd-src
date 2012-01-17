@@ -31,6 +31,7 @@
 #include <sys/stat.h>
 
 #include <err.h>
+#include <fcntl.h>
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>
@@ -62,6 +63,17 @@ closesocketpair(int *fdp)
 }
 
 static void
+devnull(const char *test, int *fdp)
+{
+	int fd;
+
+	fd = open("/dev/null", O_RDONLY);
+	if (fd < 0)
+		err(-1, "%s: open(/dev/null)", test);
+	*fdp = fd;
+}
+
+static void
 tempfile(const char *test, int *fdp)
 {
 	char path[PATH_MAX];
@@ -88,9 +100,9 @@ samefile(const char *test, struct stat *sb1, struct stat *sb2)
 {
 
 	if (sb1->st_dev != sb2->st_dev)
-		err(-1, "%s: samefile: different device", test);
+		errx(-1, "%s: samefile: different device", test);
 	if (sb1->st_ino != sb2->st_ino)
-		err(-1, "%s: samefile: different inode", test);
+		errx(-1, "%s: samefile: different inode", test);
 }
 
 static void
@@ -99,10 +111,8 @@ sendfd(const char *test, int sockfd, int sendfd)
 	struct iovec iovec;
 	char ch;
 
-	struct {
-		struct cmsghdr cmsghdr;
-		int fd;
-	} message;
+	char message[CMSG_SPACE(sizeof(int))];
+	struct cmsghdr *cmsghdr;
 	struct msghdr msghdr;
 	ssize_t len;
 
@@ -110,7 +120,7 @@ sendfd(const char *test, int sockfd, int sendfd)
 	bzero(&message, sizeof(message));
 	ch = 0;
 
-	msghdr.msg_control = &message;
+	msghdr.msg_control = message;
 	msghdr.msg_controllen = sizeof(message);
 
 	iovec.iov_base = &ch;
@@ -119,35 +129,33 @@ sendfd(const char *test, int sockfd, int sendfd)
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
 
-	message.cmsghdr.cmsg_len = sizeof(message);
-	message.cmsghdr.cmsg_level = SOL_SOCKET;
-	message.cmsghdr.cmsg_type = SCM_RIGHTS;
-	message.fd = sendfd;
+	cmsghdr = (struct cmsghdr *)message;
+	cmsghdr->cmsg_len = CMSG_LEN(sizeof(int));
+	cmsghdr->cmsg_level = SOL_SOCKET;
+	cmsghdr->cmsg_type = SCM_RIGHTS;
+	*(int *)CMSG_DATA(cmsghdr) = sendfd;
 
 	len = sendmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: sendmsg", test);
 	if (len != sizeof(ch))
-		errx(-1, "%s: sendmsg: %d bytes sent", test, len);
+		errx(-1, "%s: sendmsg: %zd bytes sent", test, len);
 }
 
 static void
 recvfd(const char *test, int sockfd, int *recvfd)
 {
-	struct {
-		struct cmsghdr cmsghdr;
-		int fd;
-	} message;
+	struct cmsghdr *cmsghdr;
+	char message[CMSG_SPACE(sizeof(int))];
 	struct msghdr msghdr;
 	struct iovec iovec;
 	ssize_t len;
 	char ch;
 
 	bzero(&msghdr, sizeof(msghdr));
-	bzero(&message, sizeof(message));
 	ch = 0;
 
-	msghdr.msg_control = &message;
+	msghdr.msg_control = message;
 	msghdr.msg_controllen = sizeof(message);
 
 	iovec.iov_base = &ch;
@@ -161,19 +169,22 @@ recvfd(const char *test, int sockfd, int *recvfd)
 	msghdr.msg_iov = &iovec;
 	msghdr.msg_iovlen = 1;
 
-	message.cmsghdr.cmsg_len = sizeof(message);
-	message.cmsghdr.cmsg_level = SOL_SOCKET;
-	message.cmsghdr.cmsg_type = SCM_RIGHTS;
-	message.fd = -1;
-
 	len = recvmsg(sockfd, &msghdr, 0);
 	if (len < 0)
 		err(-1, "%s: recvmsg", test);
 	if (len != sizeof(ch))
-		errx(-1, "%s: recvmsg: %d bytes received", test, len);
-	if (message.fd == -1)
+		errx(-1, "%s: recvmsg: %zd bytes received", test, len);
+	cmsghdr = CMSG_FIRSTHDR(&msghdr);
+	if (cmsghdr == NULL)
+		errx(-1, "%s: recvmsg: did not receive control message", test);
+	if (cmsghdr->cmsg_len != CMSG_LEN(sizeof(int)) ||
+	    cmsghdr->cmsg_level != SOL_SOCKET ||
+	    cmsghdr->cmsg_type != SCM_RIGHTS)
+		errx(-1, "%s: recvmsg: did not receive single-fd message",
+		    test);
+	*recvfd = *(int *)CMSG_DATA(cmsghdr);
+	if (*recvfd == -1)
 		errx(-1, "%s: recvmsg: received fd -1", test);
-	*recvfd = message.fd;
 }
 
 int
@@ -303,5 +314,22 @@ main(int argc, char *argv[])
 
 	printf("%s passed\n", test);
 
+	/*
+	 * Test for PR 151758: Send an character device over the UNIX
+	 * domain socket and then close both sockets to orphan the
+	 * device.
+	 */
+
+	test = "test7-devfsorphan";
+	printf("beginning %s\n", test);
+
+	domainsocketpair(test, fd);
+	devnull(test, &putfd_1);
+	sendfd(test, fd[0], putfd_1);
+	close(putfd_1);
+	closesocketpair(fd);
+
+	printf("%s passed\n", test);
+	
 	return (0);
 }

@@ -151,6 +151,10 @@ extern struct sysentvec null_sysvec;
 extern struct sysent sysent[];
 extern const char *syscallnames[];
 
+#if defined(__amd64__) || defined(__ia64__)
+extern int i386_read_exec;
+#endif
+
 #define	NO_SYSCALL (-1)
 
 struct module;
@@ -164,6 +168,14 @@ struct syscall_module_data {
 };
 
 #define	MAKE_SYSENT(syscallname)				\
+static struct sysent syscallname##_sysent = {			\
+	(sizeof(struct syscallname ## _args )			\
+	    / sizeof(register_t)),				\
+	(sy_call_t *)& sys_##syscallname,	       		\
+	SYS_AUE_##syscallname					\
+}
+
+#define	MAKE_SYSENT_COMPAT(syscallname)				\
 static struct sysent syscallname##_sysent = {			\
 	(sizeof(struct syscallname ## _args )			\
 	    / sizeof(register_t)),				\
@@ -204,6 +216,15 @@ struct syscall_helper_data {
 	int registered;
 };
 #define SYSCALL_INIT_HELPER(syscallname) {			\
+    .new_sysent = {						\
+	.sy_narg = (sizeof(struct syscallname ## _args )	\
+	    / sizeof(register_t)),				\
+	.sy_call = (sy_call_t *)& sys_ ## syscallname,		\
+	.sy_auevent = SYS_AUE_##syscallname			\
+    },								\
+    .syscall_no = SYS_##syscallname				\
+}
+#define SYSCALL_INIT_HELPER_COMPAT(syscallname) {		\
     .new_sysent = {						\
 	.sy_narg = (sizeof(struct syscallname ## _args )	\
 	    / sizeof(register_t)),				\

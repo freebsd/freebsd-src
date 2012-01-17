@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -117,7 +117,7 @@ void sctp_send_shutdown_ack(struct sctp_tcb *, struct sctp_nets *);
 void sctp_send_shutdown_complete(struct sctp_tcb *, struct sctp_nets *, int);
 
 void 
-sctp_send_shutdown_complete2(struct mbuf *, int, struct sctphdr *,
+sctp_send_shutdown_complete2(struct mbuf *, struct sctphdr *,
     uint32_t, uint16_t);
 
 void sctp_send_asconf(struct sctp_tcb *, struct sctp_nets *, int addr_locked);

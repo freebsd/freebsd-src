@@ -51,7 +51,7 @@ struct DenseMapInfo<T*> {
 template<> struct DenseMapInfo<char> {
   static inline char getEmptyKey() { return ~0; }
   static inline char getTombstoneKey() { return ~0 - 1; }
-  static unsigned getHashValue(const char& Val) { return Val * 37; }
+  static unsigned getHashValue(const char& Val) { return Val * 37U; }
   static bool isEqual(const char &LHS, const char &RHS) {
     return LHS == RHS;
   }
@@ -61,7 +61,7 @@ template<> struct DenseMapInfo<char> {
 template<> struct DenseMapInfo<unsigned> {
   static inline unsigned getEmptyKey() { return ~0; }
   static inline unsigned getTombstoneKey() { return ~0U - 1; }
-  static unsigned getHashValue(const unsigned& Val) { return Val * 37; }
+  static unsigned getHashValue(const unsigned& Val) { return Val * 37U; }
   static bool isEqual(const unsigned& LHS, const unsigned& RHS) {
     return LHS == RHS;
   }
@@ -96,7 +96,7 @@ template<> struct DenseMapInfo<unsigned long long> {
 template<> struct DenseMapInfo<int> {
   static inline int getEmptyKey() { return 0x7fffffff; }
   static inline int getTombstoneKey() { return -0x7fffffff - 1; }
-  static unsigned getHashValue(const int& Val) { return (unsigned)(Val * 37); }
+  static unsigned getHashValue(const int& Val) { return (unsigned)(Val * 37U); }
   static bool isEqual(const int& LHS, const int& RHS) {
     return LHS == RHS;
   }
@@ -109,7 +109,7 @@ template<> struct DenseMapInfo<long> {
   }
   static inline long getTombstoneKey() { return getEmptyKey() - 1L; }
   static unsigned getHashValue(const long& Val) {
-    return (unsigned)(Val * 37L);
+    return (unsigned)(Val * 37UL);
   }
   static bool isEqual(const long& LHS, const long& RHS) {
     return LHS == RHS;
@@ -121,7 +121,7 @@ template<> struct DenseMapInfo<long long> {
   static inline long long getEmptyKey() { return 0x7fffffffffffffffLL; }
   static inline long long getTombstoneKey() { return -0x7fffffffffffffffLL-1; }
   static unsigned getHashValue(const long long& Val) {
-    return (unsigned)(Val * 37LL);
+    return (unsigned)(Val * 37ULL);
   }
   static bool isEqual(const long long& LHS,
                       const long long& RHS) {
@@ -142,7 +142,7 @@ struct DenseMapInfo<std::pair<T, U> > {
   }
   static inline Pair getTombstoneKey() {
     return std::make_pair(FirstInfo::getTombstoneKey(),
-                            SecondInfo::getEmptyKey());
+                          SecondInfo::getTombstoneKey());
   }
   static unsigned getHashValue(const Pair& PairVal) {
     uint64_t key = (uint64_t)FirstInfo::getHashValue(PairVal.first) << 32
@@ -158,7 +158,7 @@ struct DenseMapInfo<std::pair<T, U> > {
     return (unsigned)key;
   }
   static bool isEqual(const Pair &LHS, const Pair &RHS) {
-    return FirstInfo::isEqual(LHS.first, RHS.first) && 
+    return FirstInfo::isEqual(LHS.first, RHS.first) &&
            SecondInfo::isEqual(LHS.second, RHS.second);
   }
 };

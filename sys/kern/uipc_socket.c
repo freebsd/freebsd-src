@@ -2828,7 +2828,6 @@ bad:
 	return (error);
 }
 
-/* XXX; prepare mbuf for (__FreeBSD__ < 3) routines. */
 int
 soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 {
@@ -2877,7 +2876,6 @@ soopt_getm(struct sockopt *sopt, struct mbuf **mp)
 	return (0);
 }
 
-/* XXX; copyin sopt data into mbuf chain for (__FreeBSD__ < 3) routines. */
 int
 soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 {
@@ -2906,7 +2904,6 @@ soopt_mcopyin(struct sockopt *sopt, struct mbuf *m)
 	return (0);
 }
 
-/* XXX; copyout mbuf chain data into soopt for (__FreeBSD__ < 3) routines. */
 int
 soopt_mcopyout(struct sockopt *sopt, struct mbuf *m)
 {

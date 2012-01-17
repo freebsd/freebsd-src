@@ -65,10 +65,10 @@ int	csock_open(struct sockinfo *, mode_t);
 int	csock_close(struct sockinfo *);
 int	csock_listen(struct sockinfo *);
 int	csock_accept(struct sockinfo *);
-int	cmsg_send(int, char *);
-int	cmsg_recv(int, char *);
+int	cm_send(int, char *);
+int	cm_recv(int, char *);
 
-size_t			cmsg_pl2bin(char *, struct ctrl_msg_pl *);
-struct ctrl_msg_pl	*cmsg_bin2pl(char *, struct ctrl_msg_pl *);
-size_t			cmsg_str2bin(char *, void *, size_t);
-void			*cmsg_bin2str(char *, void *, size_t);
+size_t			cm_pl2bin(char *, struct ctrl_msg_pl *);
+struct ctrl_msg_pl	*cm_bin2pl(char *, struct ctrl_msg_pl *);
+size_t			cm_str2bin(char *, void *, size_t);
+void			*cm_bin2str(char *, void *, size_t);

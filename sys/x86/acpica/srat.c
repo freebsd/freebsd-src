@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/acpica/acpivar.h>
 
+#if VM_NDOMAIN > 1
 struct cpu_info {
 	int enabled:1;
 	int has_memory:1;
@@ -58,6 +59,26 @@ static ACPI_TABLE_SRAT *srat;
 static vm_paddr_t srat_physaddr;
 
 static void	srat_walk_table(acpi_subtable_handler *handler, void *arg);
+
+/*
+ * Returns true if a memory range overlaps with at least one range in
+ * phys_avail[].
+ */
+static int
+overlaps_phys_avail(vm_paddr_t start, vm_paddr_t end)
+{
+	int i;
+
+	for (i = 0; phys_avail[i] != 0 && phys_avail[i + 1] != 0; i += 2) {
+		if (phys_avail[i + 1] < start)
+			continue;
+		if (phys_avail[i] < end)
+			return (1);
+		break;
+	}
+	return (0);
+	
+}
 
 static void
 srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
@@ -111,6 +132,12 @@ srat_parse_entry(ACPI_SUBTABLE_HEADER *entry, void *arg)
 			    "enabled" : "disabled");
 		if (!(mem->Flags & ACPI_SRAT_MEM_ENABLED))
 			break;
+		if (!overlaps_phys_avail(mem->BaseAddress,
+		    mem->BaseAddress + mem->Length)) {
+			printf("SRAT: Ignoring memory at addr %jx\n",
+			    (uintmax_t)mem->BaseAddress);
+			break;
+		}
 		if (num_mem == VM_PHYSSEG_MAX) {
 			printf("SRAT: Too many memory regions\n");
 			*(int *)arg = ENXIO;
@@ -211,9 +238,9 @@ check_phys_avail(void)
 
 /*
  * Renumber the memory domains to be compact and zero-based if not
- * already.
+ * already.  Returns an error if there are too many domains.
  */
-static void
+static int
 renumber_domains(void)
 {
 	int domains[VM_PHYSSEG_MAX];
@@ -235,6 +262,11 @@ renumber_domains(void)
 		for (j = ndomain; j > slot; j--)
 			domains[j] = domains[j - 1];
 		domains[slot] = mem_info[i].domain;
+		ndomain++;
+		if (ndomain > VM_NDOMAIN) {
+			printf("SRAT: Too many memory domains\n");
+			return (EFBIG);
+		}
 	}
 
 	/* Renumber each domain to its index in the sorted 'domains' list. */
@@ -254,6 +286,7 @@ renumber_domains(void)
 			if (cpus[j].enabled && cpus[j].domain == domains[i])
 				cpus[j].domain = i;
 	}
+	return (0);
 }
 
 /*
@@ -280,12 +313,11 @@ parse_srat(void *dummy)
 	srat_walk_table(srat_parse_entry, &error);
 	acpi_unmap_table(srat);
 	srat = NULL;
-	if (error || check_domains() != 0 || check_phys_avail() != 0) {
+	if (error || check_domains() != 0 || check_phys_avail() != 0 ||
+	    renumber_domains() != 0) {
 		srat_physaddr = 0;
 		return;
 	}
-
-	renumber_domains();
 
 	/* Point vm_phys at our memory affinity table. */
 	mem_affinity = mem_info;
@@ -328,3 +360,4 @@ srat_set_cpus(void *dummy)
 	}
 }
 SYSINIT(srat_set_cpus, SI_SUB_CPU, SI_ORDER_ANY, srat_set_cpus, NULL);
+#endif /* VM_NDOMAIN > 1 */

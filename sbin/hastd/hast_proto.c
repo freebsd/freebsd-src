@@ -33,7 +33,6 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/endian.h>
 
-#include <assert.h>
 #include <errno.h>
 #include <strings.h>
 
@@ -115,13 +114,13 @@ hast_proto_send(const struct hast_resource *res, struct proto_conn *conn,
 
 	hdr.version = HAST_PROTO_VERSION;
 	hdr.size = htole32((uint32_t)ebuf_size(eb));
-	if (ebuf_add_head(eb, &hdr, sizeof(hdr)) < 0)
+	if (ebuf_add_head(eb, &hdr, sizeof(hdr)) == -1)
 		goto end;
 
 	hptr = ebuf_data(eb, &hsize);
-	if (proto_send(conn, hptr, hsize) < 0)
+	if (proto_send(conn, hptr, hsize) == -1)
 		goto end;
-	if (data != NULL && proto_send(conn, dptr, size) < 0)
+	if (data != NULL && proto_send(conn, dptr, size) == -1)
 		goto end;
 
 	ret = 0;
@@ -142,7 +141,7 @@ hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 	eb = NULL;
 	nv = NULL;
 
-	if (proto_recv(conn, &hdr, sizeof(hdr)) < 0)
+	if (proto_recv(conn, &hdr, sizeof(hdr)) == -1)
 		goto fail;
 
 	if (hdr.version != HAST_PROTO_VERSION) {
@@ -155,11 +154,11 @@ hast_proto_recv_hdr(const struct proto_conn *conn, struct nv **nvp)
 	eb = ebuf_alloc(hdr.size);
 	if (eb == NULL)
 		goto fail;
-	if (ebuf_add_tail(eb, NULL, hdr.size) < 0)
+	if (ebuf_add_tail(eb, NULL, hdr.size) == -1)
 		goto fail;
 	hptr = ebuf_data(eb, NULL);
-	assert(hptr != NULL);
-	if (proto_recv(conn, hptr, hdr.size) < 0)
+	PJDLOG_ASSERT(hptr != NULL);
+	if (proto_recv(conn, hptr, hdr.size) == -1)
 		goto fail;
 	nv = nv_ntoh(eb);
 	if (nv == NULL)
@@ -183,8 +182,8 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	void *dptr;
 	int ret;
 
-	assert(data != NULL);
-	assert(size > 0);
+	PJDLOG_ASSERT(data != NULL);
+	PJDLOG_ASSERT(size > 0);
 
 	ret = -1;
 	freedata = false;
@@ -197,7 +196,7 @@ hast_proto_recv_data(const struct hast_resource *res, struct proto_conn *conn,
 	} else if (dsize == 0) {
 		(void)nv_set_error(nv, 0);
 	} else {
-		if (proto_recv(conn, data, dsize) < 0)
+		if (proto_recv(conn, data, dsize) == -1)
 			goto end;
 		for (ii = sizeof(pipeline) / sizeof(pipeline[0]); ii > 0;
 		    ii--) {

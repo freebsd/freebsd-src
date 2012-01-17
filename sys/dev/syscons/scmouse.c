@@ -811,7 +811,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 			if (p1)
 			    PROC_UNLOCK(p1);
 		} else {
-		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
+		    kern_psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
 		    PROC_UNLOCK(cur_scp->mouse_proc);
 		    break;
 		}
@@ -871,7 +871,7 @@ sc_mouse_ioctl(struct tty *tp, u_long cmd, caddr_t data, struct thread *td)
 			if (p1)
 			    PROC_UNLOCK(p1);
 		} else {
-		    psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
+		    kern_psignal(cur_scp->mouse_proc, cur_scp->mouse_signal);
 		    PROC_UNLOCK(cur_scp->mouse_proc);
 		    break;
 		}

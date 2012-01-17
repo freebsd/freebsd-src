@@ -35,6 +35,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/StringMap.h"
+#include "llvm/ADT/TinyPtrVector.h"
 #include "llvm/Support/ErrorHandling.h"
 #include <limits>
 #include <list>
@@ -86,7 +87,7 @@ namespace {
   /// A collection of using directives, as used by C++ unqualified
   /// lookup.
   class UnqualUsingDirectiveSet {
-    typedef llvm::SmallVector<UnqualUsingEntry, 8> ListTy;
+    typedef SmallVector<UnqualUsingEntry, 8> ListTy;
 
     ListTy list;
     llvm::SmallPtrSet<DeclContext*, 8> visited;
@@ -147,7 +148,7 @@ namespace {
     // by its using directives, transitively) as if they appeared in
     // the given effective context.
     void addUsingDirectives(DeclContext *DC, DeclContext *EffectiveDC) {
-      llvm::SmallVector<DeclContext*,4> queue;
+      SmallVector<DeclContext*,4> queue;
       while (true) {
         DeclContext::udir_iterator I, End;
         for (llvm::tie(I, End) = DC->getUsingDirectives(); I != End; ++I) {
@@ -460,7 +461,7 @@ void LookupResult::setAmbiguousBaseSubobjectTypes(CXXBasePaths &P) {
   setAmbiguous(AmbiguousBaseSubobjectTypes);
 }
 
-void LookupResult::print(llvm::raw_ostream &Out) {
+void LookupResult::print(raw_ostream &Out) {
   Out << Decls.size() << " result(s)";
   if (isAmbiguous()) Out << ", ambiguous";
   if (Paths) Out << ", base paths present";
@@ -549,6 +550,16 @@ void Sema::ForceDeclarationOfImplicitMembers(CXXRecordDecl *Class) {
   if (!Class->hasDeclaredCopyAssignment())
     DeclareImplicitCopyAssignment(Class);
 
+  if (getLangOptions().CPlusPlus0x) {
+    // If the move constructor has not yet been declared, do so now.
+    if (Class->needsImplicitMoveConstructor())
+      DeclareImplicitMoveConstructor(Class); // might not actually do it
+
+    // If the move assignment operator has not yet been declared, do so now.
+    if (Class->needsImplicitMoveAssignment())
+      DeclareImplicitMoveAssignment(Class); // might not actually do it
+  }
+
   // If the destructor has not yet been declared, do so now.
   if (!Class->hasDeclaredDestructor())
     DeclareImplicitDestructor(Class);
@@ -585,11 +596,14 @@ static void DeclareImplicitMemberFunctionsWithName(Sema &S,
     if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
       if (Record->getDefinition() &&
           CanDeclareSpecialMemberFunction(S.Context, Record)) {
+        CXXRecordDecl *Class = const_cast<CXXRecordDecl *>(Record);
         if (Record->needsImplicitDefaultConstructor())
-          S.DeclareImplicitDefaultConstructor(
-                                           const_cast<CXXRecordDecl *>(Record));
+          S.DeclareImplicitDefaultConstructor(Class);
         if (!Record->hasDeclaredCopyConstructor())
-          S.DeclareImplicitCopyConstructor(const_cast<CXXRecordDecl *>(Record));
+          S.DeclareImplicitCopyConstructor(Class);
+        if (S.getLangOptions().CPlusPlus0x &&
+            Record->needsImplicitMoveConstructor())
+          S.DeclareImplicitMoveConstructor(Class);
       }
     break;
 
@@ -604,10 +618,17 @@ static void DeclareImplicitMemberFunctionsWithName(Sema &S,
     if (Name.getCXXOverloadedOperator() != OO_Equal)
       break;
 
-    if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC))
-      if (Record->getDefinition() && !Record->hasDeclaredCopyAssignment() &&
-          CanDeclareSpecialMemberFunction(S.Context, Record))
-        S.DeclareImplicitCopyAssignment(const_cast<CXXRecordDecl *>(Record));
+    if (const CXXRecordDecl *Record = dyn_cast<CXXRecordDecl>(DC)) {
+      if (Record->getDefinition() &&
+          CanDeclareSpecialMemberFunction(S.Context, Record)) {
+        CXXRecordDecl *Class = const_cast<CXXRecordDecl *>(Record);
+        if (!Record->hasDeclaredCopyAssignment())
+          S.DeclareImplicitCopyAssignment(Class);
+        if (S.getLangOptions().CPlusPlus0x &&
+            Record->needsImplicitMoveAssignment())
+          S.DeclareImplicitMoveAssignment(Class);
+      }
+    }
     break;
 
   default:
@@ -648,7 +669,7 @@ static bool LookupDirect(Sema &S, LookupResult &R, const DeclContext *DC) {
   //   name lookup. Instead, any conversion function templates visible in the
   //   context of the use are considered. [...]
   const CXXRecordDecl *Record = cast<CXXRecordDecl>(DC);
-  if (!Record->isDefinition())
+  if (!Record->isCompleteDefinition())
     return Found;
 
   const UnresolvedSetImpl *Unresolved = Record->getConversionFunctions();
@@ -1187,7 +1208,7 @@ static bool LookupQualifiedNameInUsingDirectives(Sema &S, LookupResult &R,
 
   // We have not yet looked into these namespaces, much less added
   // their "using-children" to the queue.
-  llvm::SmallVector<NamespaceDecl*, 8> Queue;
+  SmallVector<NamespaceDecl*, 8> Queue;
 
   // We have already looked into the initial namespace; seed the queue
   // with its using-children.
@@ -1332,7 +1353,7 @@ bool Sema::LookupQualifiedName(LookupResult &R, DeclContext *LookupCtx,
   // Make sure that the declaration context is complete.
   assert((!isa<TagDecl>(LookupCtx) ||
           LookupCtx->isDependentContext() ||
-          cast<TagDecl>(LookupCtx)->isDefinition() ||
+          cast<TagDecl>(LookupCtx)->isCompleteDefinition() ||
           Context.getTypeDeclType(cast<TagDecl>(LookupCtx))->getAs<TagType>()
             ->isBeingDefined()) &&
          "Declaration context must already be complete!");
@@ -1802,7 +1823,7 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result,
 
   // Add direct and indirect base classes along with their associated
   // namespaces.
-  llvm::SmallVector<CXXRecordDecl *, 32> Bases;
+  SmallVector<CXXRecordDecl *, 32> Bases;
   Bases.push_back(Class);
   while (!Bases.empty()) {
     // Pop this class off the stack.
@@ -1852,7 +1873,7 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
   //   the types do not contribute to this set. The sets of namespaces
   //   and classes are determined in the following way:
 
-  llvm::SmallVector<const Type *, 16> Queue;
+  SmallVector<const Type *, 16> Queue;
   const Type *T = Ty->getCanonicalTypeInternal().getTypePtr();
 
   while (true) {
@@ -1979,6 +2000,12 @@ addAssociatedClassesAndNamespaces(AssociatedLookup &Result, QualType Ty) {
     case Type::ObjCObjectPointer:
       Result.Namespaces.insert(Result.S.Context.getTranslationUnitDecl());
       break;
+
+    // Atomic types are just wrappers; use the associations of the
+    // contained type.
+    case Type::Atomic:
+      T = cast<AtomicType>(T)->getValueType().getTypePtr();
+      continue;
     }
 
     if (Queue.empty()) break;
@@ -2210,12 +2237,14 @@ Sema::SpecialMemberOverloadResult *Sema::LookupSpecialMember(CXXRecordDecl *RD,
       Name = Context.DeclarationNames.getCXXConstructorName(CanTy);
       if (!RD->hasDeclaredCopyConstructor())
         DeclareImplicitCopyConstructor(RD);
-      // TODO: Move constructors
+      if (getLangOptions().CPlusPlus0x && RD->needsImplicitMoveConstructor())
+        DeclareImplicitMoveConstructor(RD);
     } else {
       Name = Context.DeclarationNames.getCXXOperatorName(OO_Equal);
       if (!RD->hasDeclaredCopyAssignment())
         DeclareImplicitCopyAssignment(RD);
-      // TODO: Move assignment
+      if (getLangOptions().CPlusPlus0x && RD->needsImplicitMoveAssignment())
+        DeclareImplicitMoveAssignment(RD);
     }
 
     QualType ArgType = CanTy;
@@ -2358,6 +2387,15 @@ CXXConstructorDecl *Sema::LookupCopyingConstructor(CXXRecordDecl *Class,
   return cast_or_null<CXXConstructorDecl>(Result->getMethod());
 }
 
+/// \brief Look up the moving constructor for the given class.
+CXXConstructorDecl *Sema::LookupMovingConstructor(CXXRecordDecl *Class) {
+  SpecialMemberOverloadResult *Result =
+    LookupSpecialMember(Class, CXXMoveConstructor, false,
+                        false, false, false, false);
+
+  return cast_or_null<CXXConstructorDecl>(Result->getMethod());
+}
+
 /// \brief Look up the constructors for the given class.
 DeclContext::lookup_result Sema::LookupConstructors(CXXRecordDecl *Class) {
   // If the implicit constructors have not yet been declared, do so now.
@@ -2366,6 +2404,8 @@ DeclContext::lookup_result Sema::LookupConstructors(CXXRecordDecl *Class) {
       DeclareImplicitDefaultConstructor(Class);
     if (!Class->hasDeclaredCopyConstructor())
       DeclareImplicitCopyConstructor(Class);
+    if (getLangOptions().CPlusPlus0x && Class->needsImplicitMoveConstructor())
+      DeclareImplicitMoveConstructor(Class);
   }
 
   CanQualType T = Context.getCanonicalType(Context.getTypeDeclType(Class));
@@ -2390,6 +2430,20 @@ CXXMethodDecl *Sema::LookupCopyingAssignment(CXXRecordDecl *Class,
 
   if (ConstParamMatch)
     *ConstParamMatch = Result->hasConstParamMatch();
+
+  return Result->getMethod();
+}
+
+/// \brief Look up the moving assignment operator for the given class.
+CXXMethodDecl *Sema::LookupMovingAssignment(CXXRecordDecl *Class,
+                                            bool RValueThis,
+                                            unsigned ThisQuals) {
+  assert(!(ThisQuals & ~(Qualifiers::Const | Qualifiers::Volatile)) &&
+         "non-const, non-volatile qualifiers for copy assignment this");
+  SpecialMemberOverloadResult *Result =
+    LookupSpecialMember(Class, CXXMoveAssignment, false, false, RValueThis,
+                        ThisQuals & Qualifiers::Const,
+                        ThisQuals & Qualifiers::Volatile);
 
   return Result->getMethod();
 }
@@ -2530,24 +2584,7 @@ public:
   /// \brief An entry in the shadow map, which is optimized to store a
   /// single declaration (the common case) but can also store a list
   /// of declarations.
-  class ShadowMapEntry {
-    typedef llvm::SmallVector<NamedDecl *, 4> DeclVector;
-
-    /// \brief Contains either the solitary NamedDecl * or a vector
-    /// of declarations.
-    llvm::PointerUnion<NamedDecl *, DeclVector*> DeclOrVector;
-
-  public:
-    ShadowMapEntry() : DeclOrVector() { }
-
-    void Add(NamedDecl *ND);
-    void Destroy();
-
-    // Iteration.
-    typedef NamedDecl * const *iterator;
-    iterator begin();
-    iterator end();
-  };
+  typedef llvm::TinyPtrVector<NamedDecl*> ShadowMapEntry;
 
 private:
   /// \brief A mapping from declaration names to the declarations that have
@@ -2581,7 +2618,9 @@ public:
   NamedDecl *checkHidden(NamedDecl *ND);
 
   /// \brief Add a declaration to the current shadow map.
-  void add(NamedDecl *ND) { ShadowMaps.back()[ND->getDeclName()].Add(ND); }
+  void add(NamedDecl *ND) {
+    ShadowMaps.back()[ND->getDeclName()].push_back(ND);
+  }
 };
 
 /// \brief RAII object that records when we've entered a shadow context.
@@ -2596,65 +2635,11 @@ public:
   }
 
   ~ShadowContextRAII() {
-    for (ShadowMap::iterator E = Visible.ShadowMaps.back().begin(),
-                          EEnd = Visible.ShadowMaps.back().end();
-         E != EEnd;
-         ++E)
-      E->second.Destroy();
-
     Visible.ShadowMaps.pop_back();
   }
 };
 
 } // end anonymous namespace
-
-void VisibleDeclsRecord::ShadowMapEntry::Add(NamedDecl *ND) {
-  if (DeclOrVector.isNull()) {
-    // 0 - > 1 elements: just set the single element information.
-    DeclOrVector = ND;
-    return;
-  }
-
-  if (NamedDecl *PrevND = DeclOrVector.dyn_cast<NamedDecl *>()) {
-    // 1 -> 2 elements: create the vector of results and push in the
-    // existing declaration.
-    DeclVector *Vec = new DeclVector;
-    Vec->push_back(PrevND);
-    DeclOrVector = Vec;
-  }
-
-  // Add the new element to the end of the vector.
-  DeclOrVector.get<DeclVector*>()->push_back(ND);
-}
-
-void VisibleDeclsRecord::ShadowMapEntry::Destroy() {
-  if (DeclVector *Vec = DeclOrVector.dyn_cast<DeclVector *>()) {
-    delete Vec;
-    DeclOrVector = ((NamedDecl *)0);
-  }
-}
-
-VisibleDeclsRecord::ShadowMapEntry::iterator
-VisibleDeclsRecord::ShadowMapEntry::begin() {
-  if (DeclOrVector.isNull())
-    return 0;
-
-  if (DeclOrVector.is<NamedDecl *>())
-    return DeclOrVector.getAddrOf<NamedDecl *>();
-
-  return DeclOrVector.get<DeclVector *>()->begin();
-}
-
-VisibleDeclsRecord::ShadowMapEntry::iterator
-VisibleDeclsRecord::ShadowMapEntry::end() {
-  if (DeclOrVector.isNull())
-    return 0;
-
-  if (DeclOrVector.is<NamedDecl *>())
-    return DeclOrVector.getAddrOf<NamedDecl *>() + 1;
-
-  return DeclOrVector.get<DeclVector *>()->end();
-}
 
 NamedDecl *VisibleDeclsRecord::checkHidden(NamedDecl *ND) {
   // Look through using declarations.
@@ -2722,7 +2707,7 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
          D != DEnd; ++D) {
       if (NamedDecl *ND = dyn_cast<NamedDecl>(*D)) {
         if (Result.isAcceptableDecl(ND)) {
-          Consumer.FoundDecl(ND, Visited.checkHidden(ND), InBaseClass);
+          Consumer.FoundDecl(ND, Visited.checkHidden(ND), Ctx, InBaseClass);
           Visited.add(ND);
         }
       } else if (ObjCForwardProtocolDecl *ForwardProto
@@ -2733,19 +2718,17 @@ static void LookupVisibleDecls(DeclContext *Ctx, LookupResult &Result,
              P != PEnd;
              ++P) {
           if (Result.isAcceptableDecl(*P)) {
-            Consumer.FoundDecl(*P, Visited.checkHidden(*P), InBaseClass);
+            Consumer.FoundDecl(*P, Visited.checkHidden(*P), Ctx, InBaseClass);
             Visited.add(*P);
           }
         }
       } else if (ObjCClassDecl *Class = dyn_cast<ObjCClassDecl>(*D)) {
-        for (ObjCClassDecl::iterator I = Class->begin(), IEnd = Class->end();
-             I != IEnd; ++I) {
-          ObjCInterfaceDecl *IFace = I->getInterface();
+          ObjCInterfaceDecl *IFace = Class->getForwardInterfaceDecl();
           if (Result.isAcceptableDecl(IFace)) {
-            Consumer.FoundDecl(IFace, Visited.checkHidden(IFace), InBaseClass);
+            Consumer.FoundDecl(IFace, Visited.checkHidden(IFace), Ctx,
+                               InBaseClass);
             Visited.add(IFace);
           }
-        }
       }
       
       // Visit transparent contexts and inline namespaces inside this context.
@@ -2885,7 +2868,7 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
          D != DEnd; ++D) {
       if (NamedDecl *ND = dyn_cast<NamedDecl>(*D))
         if (Result.isAcceptableDecl(ND)) {
-          Consumer.FoundDecl(ND, Visited.checkHidden(ND), false);
+          Consumer.FoundDecl(ND, Visited.checkHidden(ND), 0, false);
           Visited.add(ND);
         }
     }
@@ -2909,24 +2892,7 @@ static void LookupVisibleDecls(Scope *S, LookupResult &Result,
                                   Result.getNameLoc(), Sema::LookupMemberName);
           if (ObjCInterfaceDecl *IFace = Method->getClassInterface()) {
             LookupVisibleDecls(IFace, IvarResult, /*QualifiedNameLookup=*/false,
-                               /*InBaseClass=*/false, Consumer, Visited);
-
-            // Look for properties from which we can synthesize ivars, if
-            // permitted.
-            if (Result.getSema().getLangOptions().ObjCNonFragileABI2 &&
-                IFace->getImplementation() &&
-                Result.getLookupKind() == Sema::LookupOrdinaryName) {
-              for (ObjCInterfaceDecl::prop_iterator
-                        P = IFace->prop_begin(),
-                     PEnd = IFace->prop_end();
-                   P != PEnd; ++P) {
-                if (Result.getSema().canSynthesizeProvisionalIvar(*P) &&
-                    !IFace->lookupInstanceVariable((*P)->getIdentifier())) {
-                  Consumer.FoundDecl(*P, Visited.checkHidden(*P), false);
-                  Visited.add(*P);
-                }
-              }
-            }
+                               /*InBaseClass=*/false, Consumer, Visited);              
           }
         }
 
@@ -3056,7 +3022,7 @@ static const unsigned MaxTypoDistanceResultSets = 5;
 
 class TypoCorrectionConsumer : public VisibleDeclConsumer {
   /// \brief The name written that is a typo in the source.
-  llvm::StringRef Typo;
+  StringRef Typo;
 
   /// \brief The results found that have the smallest edit distance
   /// found (so far) with the typo name.
@@ -3084,11 +3050,12 @@ public:
       delete I->second;
   }
   
-  virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, bool InBaseClass);
-  void FoundName(llvm::StringRef Name);
-  void addKeywordResult(llvm::StringRef Keyword);
-  void addName(llvm::StringRef Name, NamedDecl *ND, unsigned Distance,
-               NestedNameSpecifier *NNS=NULL);
+  virtual void FoundDecl(NamedDecl *ND, NamedDecl *Hiding, DeclContext *Ctx,
+                         bool InBaseClass);
+  void FoundName(StringRef Name);
+  void addKeywordResult(StringRef Keyword);
+  void addName(StringRef Name, NamedDecl *ND, unsigned Distance,
+               NestedNameSpecifier *NNS=NULL, bool isKeyword=false);
   void addCorrection(TypoCorrection Correction);
 
   typedef TypoResultsMap::iterator result_iterator;
@@ -3099,7 +3066,7 @@ public:
   unsigned size() const { return BestResults.size(); }
   bool empty() const { return BestResults.empty(); }
 
-  TypoCorrection &operator[](llvm::StringRef Name) {
+  TypoCorrection &operator[](StringRef Name) {
     return (*BestResults.begin()->second)[Name];
   }
 
@@ -3115,7 +3082,7 @@ public:
 }
 
 void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding,
-                                       bool InBaseClass) {
+                                       DeclContext *Ctx, bool InBaseClass) {
   // Don't consider hidden names for typo correction.
   if (Hiding)
     return;
@@ -3130,7 +3097,7 @@ void TypoCorrectionConsumer::FoundDecl(NamedDecl *ND, NamedDecl *Hiding,
   FoundName(Name->getName());
 }
 
-void TypoCorrectionConsumer::FoundName(llvm::StringRef Name) {
+void TypoCorrectionConsumer::FoundName(StringRef Name) {
   // Use a simple length-based heuristic to determine the minimum possible
   // edit distance. If the minimum isn't good enough, bail out early.
   unsigned MinED = abs((int)Name.size() - (int)Typo.size());
@@ -3156,7 +3123,7 @@ void TypoCorrectionConsumer::FoundName(llvm::StringRef Name) {
   addName(Name, NULL, ED);
 }
 
-void TypoCorrectionConsumer::addKeywordResult(llvm::StringRef Keyword) {
+void TypoCorrectionConsumer::addKeywordResult(StringRef Keyword) {
   // Compute the edit distance between the typo and this keyword.
   // If this edit distance is not worse than the best edit
   // distance we've seen so far, add it to the list of results.
@@ -3167,19 +3134,21 @@ void TypoCorrectionConsumer::addKeywordResult(llvm::StringRef Keyword) {
     return;
   }
 
-  addName(Keyword, TypoCorrection::KeywordDecl(), ED);
+  addName(Keyword, NULL, ED, NULL, true);
 }
 
-void TypoCorrectionConsumer::addName(llvm::StringRef Name,
+void TypoCorrectionConsumer::addName(StringRef Name,
                                      NamedDecl *ND,
                                      unsigned Distance,
-                                     NestedNameSpecifier *NNS) {
-  addCorrection(TypoCorrection(&SemaRef.Context.Idents.get(Name),
-                               ND, NNS, Distance));
+                                     NestedNameSpecifier *NNS,
+                                     bool isKeyword) {
+  TypoCorrection TC(&SemaRef.Context.Idents.get(Name), ND, NNS, Distance);
+  if (isKeyword) TC.makeKeyword();
+  addCorrection(TC);
 }
 
 void TypoCorrectionConsumer::addCorrection(TypoCorrection Correction) {
-  llvm::StringRef Name = Correction.getCorrectionAsIdentifierInfo()->getName();
+  StringRef Name = Correction.getCorrectionAsIdentifierInfo()->getName();
   TypoResultsMap *& Map = BestResults[Correction.getEditDistance()];
   if (!Map)
     Map = new TypoResultsMap;
@@ -3213,8 +3182,8 @@ class SpecifierInfo {
       : DeclCtx(Ctx), NameSpecifier(NNS), EditDistance(ED) {}
 };
 
-typedef llvm::SmallVector<DeclContext*, 4> DeclContextList;
-typedef llvm::SmallVector<SpecifierInfo, 16> SpecifierInfoList;
+typedef SmallVector<DeclContext*, 4> DeclContextList;
+typedef SmallVector<SpecifierInfo, 16> SpecifierInfoList;
 
 class NamespaceSpecifierSet {
   ASTContext &Context;
@@ -3264,14 +3233,14 @@ DeclContextList NamespaceSpecifierSet::BuildContextChain(DeclContext *Start) {
 }
 
 void NamespaceSpecifierSet::SortNamespaces() {
-  llvm::SmallVector<unsigned, 4> sortedDistances;
+  SmallVector<unsigned, 4> sortedDistances;
   sortedDistances.append(Distances.begin(), Distances.end());
 
   if (sortedDistances.size() > 1)
     std::sort(sortedDistances.begin(), sortedDistances.end());
 
   Specifiers.clear();
-  for (llvm::SmallVector<unsigned, 4>::iterator DI = sortedDistances.begin(),
+  for (SmallVector<unsigned, 4>::iterator DI = sortedDistances.begin(),
                                              DIEnd = sortedDistances.end();
        DI != DIEnd; ++DI) {
     SpecifierInfoList &SpecList = DistanceMap[*DI];
@@ -3648,7 +3617,7 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
                               = Context.Idents.getExternalIdentifierLookup()) {
         llvm::OwningPtr<IdentifierIterator> Iter(External->getIdentifiers());
         do {
-          llvm::StringRef Name = Iter->Next();
+          StringRef Name = Iter->Next();
           if (Name.empty())
             break;
 
@@ -3692,7 +3661,7 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
   if (getLangOptions().CPlusPlus) {
     // Load any externally-known namespaces.
     if (ExternalSource && !LoadedExternalKnownNamespaces) {
-      llvm::SmallVector<NamespaceDecl *, 4> ExternalKnownNamespaces;
+      SmallVector<NamespaceDecl *, 4> ExternalKnownNamespaces;
       LoadedExternalKnownNamespaces = true;
       ExternalSource->ReadKnownNamespaces(ExternalKnownNamespaces);
       for (unsigned I = 0, N = ExternalKnownNamespaces.size(); I != N; ++I)
@@ -3730,6 +3699,7 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
       switch (TmpRes.getResultKind()) {
       case LookupResult::NotFound:
       case LookupResult::NotFoundInCurrentInstantiation:
+      case LookupResult::FoundUnresolvedValue:
         QualifiedResults.insert(Name);
         // We didn't find this name in our scope, or didn't like what we found;
         // ignore it.
@@ -3745,12 +3715,18 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
         // We don't deal with ambiguities.
         return TypoCorrection();
 
+      case LookupResult::FoundOverloaded: {
+        // Store all of the Decls for overloaded symbols
+        for (LookupResult::iterator TRD = TmpRes.begin(),
+                                 TRDEnd = TmpRes.end();
+             TRD != TRDEnd; ++TRD)
+          I->second.addCorrectionDecl(*TRD);
+        ++I;
+        break;
+      }
+
       case LookupResult::Found:
-      case LookupResult::FoundOverloaded:
-      case LookupResult::FoundUnresolvedValue:
         I->second.setCorrectionDecl(TmpRes.getAsSingle<NamedDecl>());
-        // FIXME: This sets the CorrectionDecl to NULL for overloaded functions.
-        // It would be nice to find the right one with overload resolution.
         ++I;
         break;
       }
@@ -3786,14 +3762,23 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
 
           switch (TmpRes.getResultKind()) {
           case LookupResult::Found:
-          case LookupResult::FoundOverloaded:
-          case LookupResult::FoundUnresolvedValue:
             Consumer.addName((*QRI)->getName(), TmpRes.getAsSingle<NamedDecl>(),
                              QualifiedED, NI->NameSpecifier);
             break;
+          case LookupResult::FoundOverloaded: {
+            TypoCorrection corr(&Context.Idents.get((*QRI)->getName()), NULL,
+                                NI->NameSpecifier, QualifiedED);
+            for (LookupResult::iterator TRD = TmpRes.begin(),
+                                     TRDEnd = TmpRes.end();
+                 TRD != TRDEnd; ++TRD)
+              corr.addCorrectionDecl(*TRD);
+            Consumer.addCorrection(corr);
+            break;
+          }
           case LookupResult::NotFound:
           case LookupResult::NotFoundInCurrentInstantiation:
           case LookupResult::Ambiguous:
+          case LookupResult::FoundUnresolvedValue:
             break;
           }
         }
@@ -3868,6 +3853,18 @@ TypoCorrection Sema::CorrectTypo(const DeclarationNameInfo &TypoName,
     (void)UnqualifiedTyposCorrected[Typo];
 
   return TypoCorrection();
+}
+
+void TypoCorrection::addCorrectionDecl(NamedDecl *CDecl) {
+  if (!CDecl) return;
+
+  if (isKeyword())
+    CorrectionDecls.clear();
+
+  CorrectionDecls.push_back(CDecl);
+
+  if (!CorrectionName)
+    CorrectionName = CDecl->getDeclName();
 }
 
 std::string TypoCorrection::getAsString(const LangOptions &LO) const {

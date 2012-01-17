@@ -360,7 +360,7 @@ err1:
 		fprintf(stderr, "error sending stop condtion\n");
 err2:
 	if (err_msg)
-		fprintf(stderr, err_msg);
+		fprintf(stderr, "%s", err_msg);
 
 	close(fd);
 	return (1);
@@ -453,7 +453,7 @@ err1:
 		fprintf(stderr, "error sending stop condtion\n");
 err2:
 	if (err_msg)
-		fprintf(stderr, err_msg);
+		fprintf(stderr, "%s", err_msg);
 
 	close(fd);
 	return (1);

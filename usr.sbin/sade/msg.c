@@ -184,13 +184,16 @@ msgConfirm(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (OnVTY) {
 	ioctl(0, VT_ACTIVATE, 1);
 	msgInfo(NULL);
     }
-    dialog_notify(errstr);
+    dialog_vars.help_line = "Press Enter or Space";
+    xdialog_msgbox("Message", errstr, -1, -1, 1);
+    dialog_vars.help_line = NULL;
+
     restorescr(w);
 }
 
@@ -205,11 +208,11 @@ msgNotify(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (isDebug())
 	msgDebug("Notify: %s\n", errstr);
-    dialog_msgbox(NULL, errstr, -1, -1, 0);
+    xdialog_msgbox(NULL, errstr, -1, -1, 0);
 }
 
 /* Put up a message in a popup yes/no box and return 0 for YES, 1 for NO */
@@ -225,8 +228,8 @@ msgYesNo(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (OnVTY) {
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
@@ -246,20 +249,24 @@ msgNoYes(const char *fmt, ...)
     char *errstr;
     int ret;
     WINDOW *w = savescr();
-    
+    DIALOG_VARS save_vars;
+
     errstr = (char *)alloca(FILENAME_MAX);
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (OnVTY) {
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
     if (variable_get(VAR_NONINTERACTIVE))
 	return 1;	/* If non-interactive, return NO all the time */
-    ret = dialog_noyes("User Confirmation Requested", errstr, -1, -1);
+    dlg_save_vars(&save_vars);
+    dialog_vars.defaultno = TRUE;
+    ret = dialog_yesno("User Confirmation Requested", errstr, -1, -1);
+    dlg_restore_vars(&save_vars);
     restorescr(w);
     return ret;
 }
@@ -278,8 +285,8 @@ msgGetInput(char *buf, const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (buf)
 	SAFE_STRCPY(input_buffer, buf);
     else
@@ -288,10 +295,10 @@ msgGetInput(char *buf, const char *fmt, ...)
 	ioctl(0, VT_ACTIVATE, 1);	/* Switch back */
 	msgInfo(NULL);
     }
-    rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer);
+    rval = dialog_inputbox("Value Required", errstr, -1, -1, input_buffer, 0);
     restorescr(w);
     if (!rval)
-	return input_buffer;
+	return dialog_vars.input_result;
     else
 	return NULL;
 }
@@ -325,12 +332,12 @@ msgWeHaveOutput(const char *fmt, ...)
     va_start(args, fmt);
     vsnprintf(errstr, FILENAME_MAX, fmt, args);
     va_end(args);
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     msgDebug("Notify: %s\n", errstr);
-    dialog_clear_norefresh();
+    dlg_clear();
     sleep(2);
-    dialog_msgbox(NULL, errstr, -1, -1, 0);
+    xdialog_msgbox(NULL, errstr, -1, -1, 0);
     restorescr(w);
 }
 

@@ -69,8 +69,7 @@ ENTRY(setjmp)
 	li	%r3,0			/* return (0) */
 	blr
 
-	.weak CNAME(longjmp)
-	.set CNAME(longjmp),CNAME(__longjmp)
+	WEAK_ALIAS(longjmp, __longjmp)
 ENTRY(__longjmp)
 	lmw	%r9,20(%r3)		/* restore regs */
 	mr	%r6,%r4			/* save val param */

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 15, 2007
+.Dd September 4, 2011
 .Dt MDMFS 8
 .Os
 .Sh NAME
@@ -36,7 +36,7 @@
 driver
 .Sh SYNOPSIS
 .Nm
-.Op Fl DLlMNPSUX
+.Op Fl DLlMNPStUX
 .Op Fl a Ar maxcontig
 .Op Fl b Ar block-size
 .Op Fl c Ar blocks-per-cylinder-group
@@ -224,6 +224,13 @@ and the optional
 .Xr malloc 9
 backed disks
 .Pq Dv MD_MALLOC .
+.It Fl t
+Turn on the TRIM enable flag for
+.Xr newfs 8 .
+The
+.Xr md 4
+device supports the BIO_DELETE command, enabling the TRIM on created
+filesystem allows return of freed memory to the system pool.
 .It Fl U
 Enable soft-updates on the file system.
 This is the default, and is accepted only

@@ -11,7 +11,6 @@
  * Heck, get him completely drunk and send me pictures! :-)
  */
 
-#include "sade.h"
 #include <signal.h>
 #include <termios.h>
 #include <sys/param.h>
@@ -24,6 +23,7 @@
 #include <sys/sysctl.h>
 #include <ufs/ufs/ufsmount.h>
 
+#include "sade.h"
 
 /* Where we stick our temporary expanded doc file */
 #define	DOC_TMP_DIR	"/tmp/.doc"
@@ -56,8 +56,8 @@ intr_restart(dialogMenuItem *self)
 }
 
 static dialogMenuItem intrmenu[] = {
-    { "Restart", "Restart the program", NULL, intr_restart, NULL, NULL, 0, 0, 0, 0 },
-    { "Continue", "Continue without restarting", NULL, intr_continue, NULL, NULL, 0, 0, 0, 0 },
+    { "Restart", "Restart the program", intr_restart },
+    { "Continue", "Continue without restarting", intr_continue },
 };
 
 
@@ -66,15 +66,15 @@ handle_intr(int sig)
 {
     WINDOW *save = savescr();
 
-    use_helpline(NULL);
-    use_helpfile(NULL);
+    dialog_vars.help_line = NULL;
+    dialog_vars.help_file = NULL;
     if (OnVTY) {
         ioctl(0, VT_ACTIVATE, 1);       /* Switch back */
         msgInfo(NULL);
     }
-    (void)dialog_menu("Installation interrupt",
+    (void)xdialog_menu("Installation interrupt",
 		     "Do you want to abort the installation?",
-		     -1, -1, 2, -2, intrmenu, NULL, NULL, NULL);
+		     -1, -1, 2, 2, intrmenu);
     restorescr(save);
 }
 
@@ -120,7 +120,7 @@ systemInitialize(int argc, char **argv)
     }
 
     /* XXX - libdialog has particularly bad return value checking */
-    init_dialog();
+    init_dialog(stdin, stdout);
 
     /* If we haven't crashed I guess dialog is running ! */
     DialogActive = TRUE;
@@ -146,8 +146,7 @@ systemExecute(char *command)
     struct termios foo;
     WINDOW *w = savescr();
 
-    dialog_clear();
-    dialog_update();
+    dlg_clear();
     end_dialog();
     DialogActive = FALSE;
     if (tcgetattr(0, &foo) != -1) {
@@ -173,8 +172,7 @@ systemSuspendDialog(void)
 {
 
     oldW  = savescr();
-    dialog_clear();
-    dialog_update();
+    dlg_clear();
     end_dialog();
     DialogActive = FALSE;
 }
@@ -195,19 +193,18 @@ systemDisplayHelp(char *file)
     char buf[FILENAME_MAX];
     int ret = 0;
     WINDOW *w = savescr();
-    
-		printf("zzz");
+
     fname = systemHelpFile(file, buf);
     if (!fname) {
 	snprintf(buf, FILENAME_MAX, "The %s file is not provided on this particular floppy image.", file);
-	use_helpfile(NULL);
-	use_helpline(NULL);
-	dialog_mesgbox("Sorry!", buf, -1, -1);
+	dialog_vars.help_line = NULL;
+	dialog_vars.help_file = NULL;
+	xdialog_msgbox("Sorry!", buf, -1, -1, 1);
 	ret = 1;
     }
     else {
-	use_helpfile(NULL);
-	use_helpline(NULL);
+	dialog_vars.help_line = NULL;
+	dialog_vars.help_file = NULL;
 	dialog_textbox(file, fname, LINES, COLS);
     }
     restorescr(w);

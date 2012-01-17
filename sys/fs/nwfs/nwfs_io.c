@@ -452,7 +452,7 @@ nwfs_getpages(ap)
 			    ("nwfs_getpages: page %p is dirty", m));
 		} else {
 			int nvalid = ((size + DEV_BSIZE - 1) - toff) & ~(DEV_BSIZE - 1);
-			vm_page_set_valid(m, 0, nvalid);
+			vm_page_set_valid_range(m, 0, nvalid);
 			KASSERT((m->dirty & vm_page_bits(0, nvalid)) == 0,
 			    ("nwfs_getpages: page %p is dirty", m));
 		}

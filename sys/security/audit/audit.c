@@ -81,7 +81,7 @@ MALLOC_DEFINE(M_AUDITPATH, "audit_path", "Audit path storage");
 MALLOC_DEFINE(M_AUDITTEXT, "audit_text", "Audit text storage");
 MALLOC_DEFINE(M_AUDITGIDSET, "audit_gidset", "Audit GID set storage");
 
-SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
+static SYSCTL_NODE(_security, OID_AUTO, audit, CTLFLAG_RW, 0,
     "TrustedBSD audit controls");
 
 /*

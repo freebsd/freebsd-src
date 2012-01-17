@@ -228,7 +228,7 @@ Value *PHITransAddr::PHITranslateSubExpr(Value *V, BasicBlock *CurBB,
       return GEP;
 
     // Simplify the GEP to handle 'gep x, 0' -> x etc.
-    if (Value *V = SimplifyGEPInst(&GEPOps[0], GEPOps.size(), TD, DT)) {
+    if (Value *V = SimplifyGEPInst(GEPOps, TD, DT)) {
       for (unsigned i = 0, e = GEPOps.size(); i != e; ++i)
         RemoveInstInputs(GEPOps[i], InstInputs);
 
@@ -407,9 +407,9 @@ InsertPHITranslatedSubExpr(Value *InVal, BasicBlock *CurBB,
     }
 
     GetElementPtrInst *Result =
-    GetElementPtrInst::Create(GEPOps[0], GEPOps.begin()+1, GEPOps.end(),
-                              InVal->getName()+".phi.trans.insert",
-                              PredBB->getTerminator());
+      GetElementPtrInst::Create(GEPOps[0], makeArrayRef(GEPOps).slice(1),
+                                InVal->getName()+".phi.trans.insert",
+                                PredBB->getTerminator());
     Result->setIsInBounds(GEP->isInBounds());
     NewInsts.push_back(Result);
     return Result;

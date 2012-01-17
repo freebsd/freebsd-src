@@ -158,16 +158,12 @@ static device_method_t sge_methods[] = {
 	DEVMETHOD(device_resume,	sge_resume),
 	DEVMETHOD(device_shutdown,	sge_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sge_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sge_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sge_miibus_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t sge_driver = {
@@ -1746,9 +1742,9 @@ sge_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 		return;
 	}
 	mii_pollstat(mii);
-	SGE_UNLOCK(sc);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
+	SGE_UNLOCK(sc);
 }
 
 static int

@@ -17,8 +17,10 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/GlobalVariable.h"
 #include "clang/Basic/ABI.h"
+#include "clang/AST/BaseSubobject.h"
 #include "clang/AST/CharUnits.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/AST/VTableBuilder.h"
 
 namespace clang {
   class CXXRecordDecl;
@@ -26,145 +28,18 @@ namespace clang {
 namespace CodeGen {
   class CodeGenModule;
 
-// BaseSubobject - Uniquely identifies a direct or indirect base class. 
-// Stores both the base class decl and the offset from the most derived class to
-// the base class.
-class BaseSubobject {
-  /// Base - The base class declaration.
-  const CXXRecordDecl *Base;
-  
-  /// BaseOffset - The offset from the most derived class to the base class.
-  CharUnits BaseOffset;
-  
-public:
-  BaseSubobject(const CXXRecordDecl *Base, CharUnits BaseOffset)
-    : Base(Base), BaseOffset(BaseOffset) { }
-  
-  /// getBase - Returns the base class declaration.
-  const CXXRecordDecl *getBase() const { return Base; }
-
-  /// getBaseOffset - Returns the base class offset.
-  CharUnits getBaseOffset() const { return BaseOffset; }
-
-  friend bool operator==(const BaseSubobject &LHS, const BaseSubobject &RHS) {
-    return LHS.Base == RHS.Base && LHS.BaseOffset == RHS.BaseOffset;
- }
-};
-
-} // end namespace CodeGen
-} // end namespace clang
-
-namespace llvm {
-
-template<> struct DenseMapInfo<clang::CodeGen::BaseSubobject> {
-  static clang::CodeGen::BaseSubobject getEmptyKey() {
-    return clang::CodeGen::BaseSubobject(
-      DenseMapInfo<const clang::CXXRecordDecl *>::getEmptyKey(),
-      clang::CharUnits::fromQuantity(DenseMapInfo<int64_t>::getEmptyKey()));
-  }
-
-  static clang::CodeGen::BaseSubobject getTombstoneKey() {
-    return clang::CodeGen::BaseSubobject(
-      DenseMapInfo<const clang::CXXRecordDecl *>::getTombstoneKey(),
-      clang::CharUnits::fromQuantity(DenseMapInfo<int64_t>::getTombstoneKey()));
-  }
-
-  static unsigned getHashValue(const clang::CodeGen::BaseSubobject &Base) {
-    return 
-      DenseMapInfo<const clang::CXXRecordDecl *>::getHashValue(Base.getBase()) ^
-      DenseMapInfo<int64_t>::getHashValue(Base.getBaseOffset().getQuantity());
-  }
-
-  static bool isEqual(const clang::CodeGen::BaseSubobject &LHS, 
-                      const clang::CodeGen::BaseSubobject &RHS) {
-    return LHS == RHS;
-  }
-};
-
-// It's OK to treat BaseSubobject as a POD type.
-template <> struct isPodLike<clang::CodeGen::BaseSubobject> {
-  static const bool value = true;
-};
-
-}
-
-namespace clang {
-namespace CodeGen {
-
 class CodeGenVTables {
   CodeGenModule &CGM;
 
-  /// MethodVTableIndices - Contains the index (relative to the vtable address
-  /// point) where the function pointer for a virtual function is stored.
-  typedef llvm::DenseMap<GlobalDecl, int64_t> MethodVTableIndicesTy;
-  MethodVTableIndicesTy MethodVTableIndices;
-
-  typedef std::pair<const CXXRecordDecl *,
-                    const CXXRecordDecl *> ClassPairTy;
-
-  /// VirtualBaseClassOffsetOffsets - Contains the vtable offset (relative to 
-  /// the address point) in chars where the offsets for virtual bases of a class
-  /// are stored.
-  typedef llvm::DenseMap<ClassPairTy, CharUnits> 
-    VirtualBaseClassOffsetOffsetsMapTy;
-  VirtualBaseClassOffsetOffsetsMapTy VirtualBaseClassOffsetOffsets;
+  VTableContext VTContext;
 
   /// VTables - All the vtables which have been defined.
   llvm::DenseMap<const CXXRecordDecl *, llvm::GlobalVariable *> VTables;
   
-  /// NumVirtualFunctionPointers - Contains the number of virtual function 
-  /// pointers in the vtable for a given record decl.
-  llvm::DenseMap<const CXXRecordDecl *, uint64_t> NumVirtualFunctionPointers;
-
-  typedef llvm::SmallVector<ThunkInfo, 1> ThunkInfoVectorTy;
-  typedef llvm::DenseMap<const CXXMethodDecl *, ThunkInfoVectorTy> ThunksMapTy;
-  
-  /// Thunks - Contains all thunks that a given method decl will need.
-  ThunksMapTy Thunks;
-
-  // The layout entry and a bool indicating whether we've actually emitted
-  // the vtable.
-  typedef llvm::PointerIntPair<uint64_t *, 1, bool> VTableLayoutData;
-  typedef llvm::DenseMap<const CXXRecordDecl *, VTableLayoutData>
-    VTableLayoutMapTy;
-  
-  /// VTableLayoutMap - Stores the vtable layout for all record decls.
-  /// The layout is stored as an array of 64-bit integers, where the first
-  /// integer is the number of vtable entries in the layout, and the subsequent
-  /// integers are the vtable components.
-  VTableLayoutMapTy VTableLayoutMap;
-
-  typedef std::pair<const CXXRecordDecl *, BaseSubobject> BaseSubobjectPairTy;
-  typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t> AddressPointsMapTy;
-  
-  /// Address points - Address points for all vtables.
-  AddressPointsMapTy AddressPoints;
-
   /// VTableAddressPointsMapTy - Address points for a single vtable.
   typedef llvm::DenseMap<BaseSubobject, uint64_t> VTableAddressPointsMapTy;
 
-  typedef llvm::SmallVector<std::pair<uint64_t, ThunkInfo>, 1> 
-    VTableThunksTy;
-  
-  typedef llvm::DenseMap<const CXXRecordDecl *, VTableThunksTy>
-    VTableThunksMapTy;
-  
-  /// VTableThunksMap - Contains thunks needed by vtables.
-  VTableThunksMapTy VTableThunksMap;
-  
-  uint64_t getNumVTableComponents(const CXXRecordDecl *RD) const {
-    assert(VTableLayoutMap.count(RD) && "No vtable layout for this class!");
-    
-    return VTableLayoutMap.lookup(RD).getPointer()[0];
-  }
-
-  const uint64_t *getVTableComponentsData(const CXXRecordDecl *RD) const {
-    assert(VTableLayoutMap.count(RD) && "No vtable layout for this class!");
-
-    uint64_t *Components = VTableLayoutMap.lookup(RD).getPointer();
-    return &Components[1];
-  }
-
+  typedef std::pair<const CXXRecordDecl *, BaseSubobject> BaseSubobjectPairTy;
   typedef llvm::DenseMap<BaseSubobjectPairTy, uint64_t> SubVTTIndiciesMapTy;
   
   /// SubVTTIndicies - Contains indices into the various sub-VTTs.
@@ -177,12 +52,6 @@ class CodeGenVTables {
   /// indices.
   SecondaryVirtualPointerIndicesMapTy SecondaryVirtualPointerIndices;
 
-  /// getNumVirtualFunctionPointers - Return the number of virtual function
-  /// pointers in the vtable for a given record decl.
-  uint64_t getNumVirtualFunctionPointers(const CXXRecordDecl *RD);
-  
-  void ComputeMethodVTableIndices(const CXXRecordDecl *RD);
-
   /// EmitThunk - Emit a single thunk.
   void EmitThunk(GlobalDecl GD, const ThunkInfo &Thunk, 
                  bool UseAvailableExternallyLinkage);
@@ -193,24 +62,20 @@ class CodeGenVTables {
   /// doesn't contain any incomplete types.
   void MaybeEmitThunkAvailableExternally(GlobalDecl GD, const ThunkInfo &Thunk);
 
-  /// ComputeVTableRelatedInformation - Compute and store all vtable related
-  /// information (vtable layout, vbase offset offsets, thunks etc) for the
-  /// given record decl.
-  void ComputeVTableRelatedInformation(const CXXRecordDecl *RD,
-                                       bool VTableRequired);
-
   /// CreateVTableInitializer - Create a vtable initializer for the given record
   /// decl.
   /// \param Components - The vtable components; this is really an array of
   /// VTableComponents.
   llvm::Constant *CreateVTableInitializer(const CXXRecordDecl *RD,
-                                          const uint64_t *Components, 
+                                          const VTableComponent *Components, 
                                           unsigned NumComponents,
-                                          const VTableThunksTy &VTableThunks);
+                                const VTableLayout::VTableThunkTy *VTableThunks,
+                                          unsigned NumVTableThunks);
 
 public:
-  CodeGenVTables(CodeGenModule &CGM)
-    : CGM(CGM) { }
+  CodeGenVTables(CodeGenModule &CGM);
+
+  VTableContext &getVTableContext() { return VTContext; }
 
   /// \brief True if the VTable of this record must be emitted in the
   /// translation unit.
@@ -229,19 +94,6 @@ public:
   /// virtual pointer for the given subobject is located.
   uint64_t getSecondaryVirtualPointerIndex(const CXXRecordDecl *RD,
                                            BaseSubobject Base);
-
-  /// getMethodVTableIndex - Return the index (relative to the vtable address
-  /// point) where the function pointer for the given virtual function is
-  /// stored.
-  uint64_t getMethodVTableIndex(GlobalDecl GD);
-
-  /// getVirtualBaseOffsetOffset - Return the offset in chars (relative to the
-  /// vtable address point) where the offset of the virtual base that contains 
-  /// the given base is stored, otherwise, if no virtual base contains the given
-  /// class, return 0.  Base must be a virtual base class or an unambigious
-  /// base.
-  CharUnits getVirtualBaseOffsetOffset(const CXXRecordDecl *RD,
-                                       const CXXRecordDecl *VBase);
 
   /// getAddressPoint - Get the address point of the given subobject in the
   /// class decl.

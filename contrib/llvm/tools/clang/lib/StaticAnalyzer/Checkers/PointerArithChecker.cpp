@@ -36,7 +36,7 @@ void PointerArithChecker::checkPreStmt(const BinaryOperator *B,
   if (B->getOpcode() != BO_Sub && B->getOpcode() != BO_Add)
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   SVal LV = state->getSVal(B->getLHS());
   SVal RV = state->getSVal(B->getRHS());
 
@@ -56,7 +56,7 @@ void PointerArithChecker::checkPreStmt(const BinaryOperator *B,
                             "Pointer arithmetic done on non-array variables "
                             "means reliance on memory layout, which is "
                             "dangerous."));
-      RangedBugReport *R = new RangedBugReport(*BT, BT->getDescription(), N);
+      BugReport *R = new BugReport(*BT, BT->getDescription(), N);
       R->addRange(B->getSourceRange());
       C.EmitReport(R);
     }

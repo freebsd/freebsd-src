@@ -538,6 +538,10 @@ class InjectedClassNameTypeLoc :
     public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
                                      InjectedClassNameTypeLoc,
                                      InjectedClassNameType> {
+public:
+  CXXRecordDecl *getDecl() const {
+    return getTypePtr()->getDecl();
+  }
 };
 
 /// \brief Wrapper for source info for unresolved typename using decls.
@@ -561,6 +565,12 @@ class TagTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
                                                     TagType> {
 public:
   TagDecl *getDecl() const { return getTypePtr()->getDecl(); }
+
+  /// \brief True if the tag was defined in this type specifier. 
+  bool isDefinition() const {
+    return getDecl()->isCompleteDefinition() &&
+         (getNameLoc().isInvalid() || getNameLoc() == getDecl()->getLocation());
+  }
 };
 
 /// \brief Wrapper for source info for record types.
@@ -1408,6 +1418,8 @@ public:
 class DecltypeTypeLoc : public InheritingConcreteTypeLoc<TypeSpecTypeLoc,
                                                          DecltypeTypeLoc,
                                                          DecltypeType> {
+public:
+  Expr *getUnderlyingExpr() const { return getTypePtr()->getUnderlyingExpr(); }
 };
 
 struct UnaryTransformTypeLocInfo {
@@ -1717,6 +1729,62 @@ public:
     return this->getTypePtr()->getPattern();
   }
 };
+
+struct AtomicTypeLocInfo {
+  SourceLocation KWLoc, LParenLoc, RParenLoc;
+};
+
+class AtomicTypeLoc : public ConcreteTypeLoc<UnqualTypeLoc, AtomicTypeLoc,
+                                             AtomicType, AtomicTypeLocInfo> {
+public:  
+  TypeLoc getValueLoc() const {
+    return this->getInnerTypeLoc();
+  }
+
+  SourceRange getLocalSourceRange() const {
+    return SourceRange(getKWLoc(), getRParenLoc());
+  }
+
+  SourceLocation getKWLoc() const {
+    return this->getLocalData()->KWLoc;
+  }
+  void setKWLoc(SourceLocation Loc) {
+    this->getLocalData()->KWLoc = Loc;
+  }
+
+  SourceLocation getLParenLoc() const {
+    return this->getLocalData()->LParenLoc;
+  }
+  void setLParenLoc(SourceLocation Loc) {
+    this->getLocalData()->LParenLoc = Loc;
+  }
+
+  SourceLocation getRParenLoc() const {
+    return this->getLocalData()->RParenLoc;
+  }
+  void setRParenLoc(SourceLocation Loc) {
+    this->getLocalData()->RParenLoc = Loc;
+  }
+
+  SourceRange getParensRange() const {
+    return SourceRange(getLParenLoc(), getRParenLoc());
+  }
+  void setParensRange(SourceRange Range) {
+    setLParenLoc(Range.getBegin());
+    setRParenLoc(Range.getEnd());
+  }
+
+  void initializeLocal(ASTContext &Context, SourceLocation Loc) {
+    setKWLoc(Loc);
+    setLParenLoc(Loc);
+    setRParenLoc(Loc);
+  }
+
+  QualType getInnerType() const {
+    return this->getTypePtr()->getValueType();
+  }
+};
+
 
 }
 

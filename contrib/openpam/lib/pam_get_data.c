@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_get_data.c 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_get_data.c 444 2011-10-22 01:03:23Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <string.h>
 
@@ -80,6 +84,7 @@ pam_get_data(const pam_handle_t *pamh,
  * context specified by the =pamh argument.
  * A pointer to the object is stored in the location pointed to by the
  * =data argument.
+ * If =pam_get_data fails, the =data argument is untouched.
  *
  * This function and its counterpart =pam_set_data are useful for managing
  * data that are meaningful only to a particular service module.

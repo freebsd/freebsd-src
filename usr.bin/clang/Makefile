@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-SUBDIR=	clang tblgen
+SUBDIR=	clang clang-tblgen tblgen
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=bugpoint \

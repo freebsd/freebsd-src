@@ -345,9 +345,7 @@ RetryFault:;
 				 * sleeping so that the page daemon is less
 				 * likely to reclaim it. 
 				 */
-				vm_page_lock_queues();
-				vm_page_flag_set(fs.m, PG_REFERENCED);
-				vm_page_unlock_queues();
+				vm_page_aflag_set(fs.m, PGA_REFERENCED);
 				vm_page_unlock(fs.m);
 				if (fs.object != fs.first_object) {
 					if (!VM_OBJECT_TRYLOCK(
@@ -1092,18 +1090,10 @@ vm_fault_quick_hold_pages(vm_map_t map, vm_offset_t addr, vm_size_t len,
 			 * performed through an unmanaged mapping or by a DMA
 			 * operation.
 			 *
-			 * The object lock is not held here.  Therefore, like
-			 * a pmap operation, the page queues lock may be
-			 * required in order to call vm_page_dirty().  See
-			 * vm_page_clear_dirty_mask().
+			 * The object lock is not held here.
+			 * See vm_page_clear_dirty_mask().
 			 */
-#if defined(__amd64__) || defined(__i386__) || defined(__ia64__)
 			vm_page_dirty(*mp);
-#else
-			vm_page_lock_queues();
-			vm_page_dirty(*mp);
-			vm_page_unlock_queues();
-#endif
 		}
 	}
 	if (pmap_failed) {

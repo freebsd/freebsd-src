@@ -384,6 +384,7 @@ extern int		vttoif_tab[];
 #define	V_SAVE		0x0001	/* vinvalbuf: sync file first */
 #define	V_ALT		0x0002	/* vinvalbuf: invalidate only alternate bufs */
 #define	V_NORMAL	0x0004	/* vinvalbuf: invalidate only regular bufs */
+#define	V_CLEANONLY	0x0008	/* vinvalbuf: invalidate only clean bufs */
 #define	REVOKEALL	0x0001	/* vop_revoke: revoke all aliases */
 #define	V_WAIT		0x0001	/* vn_start_write: sleep for suspend */
 #define	V_NOWAIT	0x0002	/* vn_start_write: don't sleep for suspend */
@@ -604,6 +605,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
+int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
+	    char *path, u_int pathlen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
@@ -685,6 +688,7 @@ int	vop_stdunlock(struct vop_unlock_args *);
 int	vop_nopoll(struct vop_poll_args *);
 int	vop_stdaccess(struct vop_access_args *ap);
 int	vop_stdaccessx(struct vop_accessx_args *ap);
+int	vop_stdadvise(struct vop_advise_args *ap);
 int	vop_stdadvlock(struct vop_advlock_args *ap);
 int	vop_stdadvlockasync(struct vop_advlockasync_args *ap);
 int	vop_stdadvlockpurge(struct vop_advlockpurge_args *ap);
@@ -703,6 +707,7 @@ int	vop_panic(struct vop_generic_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
+void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
@@ -715,6 +720,7 @@ void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
+void	vop_setextattr_post(void *a, int rc);
 void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);

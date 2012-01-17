@@ -52,6 +52,7 @@
  */
 
 #include "opt_capsicum.h"
+#include "opt_ktrace.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
@@ -68,6 +69,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/systm.h>
 #include <sys/ucred.h>
+#include <sys/uio.h>
+#include <sys/ktrace.h>
 
 #include <security/audit/audit.h>
 
@@ -82,7 +85,7 @@ FEATURE(security_capability_mode, "Capsicum Capability Mode");
  * System call to enter capability mode for the process.
  */
 int
-cap_enter(struct thread *td, struct cap_enter_args *uap)
+sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 {
 	struct ucred *newcred, *oldcred;
 	struct proc *p;
@@ -106,7 +109,7 @@ cap_enter(struct thread *td, struct cap_enter_args *uap)
  * System call to query whether the process is in capability mode.
  */
 int
-cap_getmode(struct thread *td, struct cap_getmode_args *uap)
+sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 	u_int i;
 
@@ -117,14 +120,14 @@ cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 #else /* !CAPABILITY_MODE */
 
 int
-cap_enter(struct thread *td, struct cap_enter_args *uap)
+sys_cap_enter(struct thread *td, struct cap_enter_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-cap_getmode(struct thread *td, struct cap_getmode_args *uap)
+sys_cap_getmode(struct thread *td, struct cap_getmode_args *uap)
 {
 
 	return (ENOSYS);
@@ -212,8 +215,13 @@ static int
 cap_check(struct capability *c, cap_rights_t rights)
 {
 
-	if ((c->cap_rights | rights) != c->cap_rights)
+	if ((c->cap_rights | rights) != c->cap_rights) {
+#ifdef KTRACE
+		if (KTRPOINT(curthread, KTR_CAPFAIL))
+			ktrcapfail(CAPFAIL_NOTCAPABLE, rights, c->cap_rights);
+#endif
 		return (ENOTCAPABLE);
+	}
 	return (0);
 }
 
@@ -239,7 +247,7 @@ cap_rights(struct file *fp_cap)
  * file object or an an existing capability.
  */
 int
-cap_new(struct thread *td, struct cap_new_args *uap)
+sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
 	int error, capfd;
 	int fd = uap->fd;
@@ -269,7 +277,7 @@ cap_new(struct thread *td, struct cap_new_args *uap)
  * System call to query the rights mask associated with a capability.
  */
 int
-cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
 {
 	struct capability *cp;
 	struct file *fp;
@@ -306,8 +314,14 @@ kern_capwrap(struct thread *td, struct file *fp, cap_rights_t rights,
 	 */
 	if (fp->f_type == DTYPE_CAPABILITY) {
 		cp_old = fp->f_data;
-		if ((cp_old->cap_rights | rights) != cp_old->cap_rights)
+		if ((cp_old->cap_rights | rights) != cp_old->cap_rights) {
+#ifdef KTRACE
+			if (KTRPOINT(curthread, KTR_CAPFAIL))
+				ktrcapfail(CAPFAIL_INCREASE,
+				    rights, cp_old->cap_rights);
+#endif
 			return (ENOTCAPABLE);
+		}
 	}
 
 	/*
@@ -513,14 +527,14 @@ capability_chown(struct file *fp, uid_t uid, gid_t gid,
  * into the kernel.
  */
 int
-cap_new(struct thread *td, struct cap_new_args *uap)
+sys_cap_new(struct thread *td, struct cap_new_args *uap)
 {
 
 	return (ENOSYS);
 }
 
 int
-cap_getrights(struct thread *td, struct cap_getrights_args *uap)
+sys_cap_getrights(struct thread *td, struct cap_getrights_args *uap)
 {
 
 	return (ENOSYS);

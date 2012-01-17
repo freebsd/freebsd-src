@@ -51,6 +51,7 @@
 #include "pathnames.h"
 #include "rtadvd.h"
 #include "if.h"
+#include "config.h"
 #include "control.h"
 #include "control_server.h"
 #include "timer.h"
@@ -68,28 +69,28 @@ int is_do_reload(void)		{ return (do_reload); }
 int is_do_shutdown(void)	{ return (do_shutdown); }
 char *reload_ifname(void)	{ return (do_reload_ifname); }
 
-#define	DEF_PL_HANDLER(key)	{ #key, cmsg_getprop_##key }
+#define	DEF_PL_HANDLER(key)	{ #key, cm_getprop_##key }
 
-static int cmsg_getprop_echo(struct ctrl_msg_pl *);
-static int cmsg_getprop_version(struct ctrl_msg_pl *);
-static int cmsg_getprop_ifilist(struct ctrl_msg_pl *);
-static int cmsg_getprop_ifi(struct ctrl_msg_pl *);
-static int cmsg_getprop_ifi_ra_timer(struct ctrl_msg_pl *);
-static int cmsg_getprop_rai(struct ctrl_msg_pl *);
-static int cmsg_getprop_pfx(struct ctrl_msg_pl *);
-static int cmsg_getprop_rdnss(struct ctrl_msg_pl *);
-static int cmsg_getprop_dnssl(struct ctrl_msg_pl *);
-static int cmsg_getprop_rti(struct ctrl_msg_pl *);
+static int cm_getprop_echo(struct ctrl_msg_pl *);
+static int cm_getprop_version(struct ctrl_msg_pl *);
+static int cm_getprop_ifilist(struct ctrl_msg_pl *);
+static int cm_getprop_ifi(struct ctrl_msg_pl *);
+static int cm_getprop_ifi_ra_timer(struct ctrl_msg_pl *);
+static int cm_getprop_rai(struct ctrl_msg_pl *);
+static int cm_getprop_pfx(struct ctrl_msg_pl *);
+static int cm_getprop_rdnss(struct ctrl_msg_pl *);
+static int cm_getprop_dnssl(struct ctrl_msg_pl *);
+static int cm_getprop_rti(struct ctrl_msg_pl *);
 
-static int cmsg_setprop_reload(struct ctrl_msg_pl *);
-static int cmsg_setprop_enable(struct ctrl_msg_pl *);
-static int cmsg_setprop_disable(struct ctrl_msg_pl *);
+static int cm_setprop_reload(struct ctrl_msg_pl *);
+static int cm_setprop_enable(struct ctrl_msg_pl *);
+static int cm_setprop_disable(struct ctrl_msg_pl *);
 
 static struct dispatch_table {
 	const char	*dt_comm;
 	int		(*dt_act)(struct ctrl_msg_pl *cp);
 } getprop_dtable[] = {
-	{ "",	cmsg_getprop_echo },
+	{ "",	cm_getprop_echo },
 	DEF_PL_HANDLER(echo),
 	DEF_PL_HANDLER(version),
 	DEF_PL_HANDLER(ifilist),
@@ -103,7 +104,7 @@ static struct dispatch_table {
 };
 
 static int
-cmsg_getprop_echo(struct ctrl_msg_pl *cp)
+cm_getprop_echo(struct ctrl_msg_pl *cp)
 {
 
 	syslog(LOG_DEBUG, "<%s> enter", __func__);
@@ -114,7 +115,7 @@ cmsg_getprop_echo(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_version(struct ctrl_msg_pl *cp)
+cm_getprop_version(struct ctrl_msg_pl *cp)
 {
 
 	syslog(LOG_DEBUG, "<%s> enter", __func__);
@@ -125,7 +126,7 @@ cmsg_getprop_version(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_ifilist(struct ctrl_msg_pl *cp)
+cm_getprop_ifilist(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	char *p;
@@ -159,7 +160,7 @@ cmsg_getprop_ifilist(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_ifi(struct ctrl_msg_pl *cp)
+cm_getprop_ifi(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	char *p;
@@ -180,7 +181,7 @@ cmsg_getprop_ifi(struct ctrl_msg_pl *cp)
 	p = malloc(sizeof(*ifi));
 	if (p == NULL)
 		exit(1);
-	len = cmsg_str2bin(p, ifi, sizeof(*ifi));
+	len = cm_str2bin(p, ifi, sizeof(*ifi));
 
 	syslog(LOG_DEBUG, "<%s> len = %zu", __func__, len);
 
@@ -194,7 +195,7 @@ cmsg_getprop_ifi(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_rai(struct ctrl_msg_pl *cp)
+cm_getprop_rai(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -221,7 +222,7 @@ cmsg_getprop_rai(struct ctrl_msg_pl *cp)
 	p = malloc(sizeof(*rai));
 	if (p == NULL)
 		exit(1);
-	len = cmsg_str2bin(p, rai, sizeof(*rai));
+	len = cm_str2bin(p, rai, sizeof(*rai));
 
 	syslog(LOG_DEBUG, "<%s> len = %zu", __func__, len);
 
@@ -235,7 +236,7 @@ cmsg_getprop_rai(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_ifi_ra_timer(struct ctrl_msg_pl *cp)
+cm_getprop_ifi_ra_timer(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -267,7 +268,7 @@ cmsg_getprop_ifi_ra_timer(struct ctrl_msg_pl *cp)
 	p = malloc(sizeof(*rtimer));
 	if (p == NULL)
 		exit(1);
-	len = cmsg_str2bin(p, rtimer, sizeof(*rtimer));
+	len = cm_str2bin(p, rtimer, sizeof(*rtimer));
 
 	syslog(LOG_DEBUG, "<%s> len = %zu", __func__, len);
 
@@ -281,7 +282,7 @@ cmsg_getprop_ifi_ra_timer(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_rti(struct ctrl_msg_pl *cp)
+cm_getprop_rti(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -330,7 +331,7 @@ cmsg_getprop_rti(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_pfx(struct ctrl_msg_pl *cp)
+cm_getprop_pfx(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -379,7 +380,7 @@ cmsg_getprop_pfx(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_rdnss(struct ctrl_msg_pl *cp)
+cm_getprop_rdnss(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -448,7 +449,7 @@ cmsg_getprop_rdnss(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_getprop_dnssl(struct ctrl_msg_pl *cp)
+cm_getprop_dnssl(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 	struct rainfo *rai;
@@ -516,7 +517,7 @@ cmsg_getprop_dnssl(struct ctrl_msg_pl *cp)
 }
 
 int
-cmsg_getprop(struct ctrl_msg_pl *cp)
+cm_getprop(struct ctrl_msg_pl *cp)
 {
 	size_t i;
 
@@ -535,7 +536,7 @@ cmsg_getprop(struct ctrl_msg_pl *cp)
 }
 
 int
-cmsg_setprop(struct ctrl_msg_pl *cp)
+cm_setprop(struct ctrl_msg_pl *cp)
 {
 	syslog(LOG_DEBUG, "<%s> enter", __func__);
 
@@ -543,13 +544,13 @@ cmsg_setprop(struct ctrl_msg_pl *cp)
 		return (1);
 
 	if (strncmp(cp->cp_key, "reload", sizeof("reload")) == 0)
-		cmsg_setprop_reload(cp);
+		cm_setprop_reload(cp);
 	else if (strncmp(cp->cp_key, "shutdown", sizeof("shutdown")) == 0)
 		set_do_shutdown(0);
 	else if (strncmp(cp->cp_key, "enable", sizeof("enable")) == 0)
-		cmsg_setprop_enable(cp);
+		cm_setprop_enable(cp);
 	else if (strncmp(cp->cp_key, "disable", sizeof("disable")) == 0)
-		cmsg_setprop_disable(cp);
+		cm_setprop_disable(cp);
 	else if (strncmp(cp->cp_key, "echo", 8) == 0)
 		; 		/* do nothing */
 	else
@@ -559,7 +560,7 @@ cmsg_setprop(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_setprop_reload(struct ctrl_msg_pl *cp)
+cm_setprop_reload(struct ctrl_msg_pl *cp)
 {
 
 	syslog(LOG_DEBUG, "<%s> enter", __func__);
@@ -571,7 +572,7 @@ cmsg_setprop_reload(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_setprop_enable(struct ctrl_msg_pl *cp)
+cm_setprop_enable(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 
@@ -595,7 +596,7 @@ cmsg_setprop_enable(struct ctrl_msg_pl *cp)
 }
 
 static int
-cmsg_setprop_disable(struct ctrl_msg_pl *cp)
+cm_setprop_disable(struct ctrl_msg_pl *cp)
 {
 	struct ifinfo *ifi;
 
@@ -611,13 +612,22 @@ cmsg_setprop_disable(struct ctrl_msg_pl *cp)
 		return (1);
 	}
 
-	ifi->ifi_persist = 0;
+	if (ifi->ifi_persist == 1) {
+		ifi->ifi_persist = 0;
+		rm_ifinfo(ifi);
+
+		/* MC leaving needed here */
+		sock_mc_leave(&sock, ifi->ifi_ifindex);
+
+		set_do_reload_ifname(ifi->ifi_ifname);
+		set_do_reload(0);
+	}
 
 	return (0);
 }
 
 int
-cmsg_handler_server(int fd)
+cm_handler_server(int fd)
 {
 	int state;
 	char *msg;
@@ -644,17 +654,17 @@ cmsg_handler_server(int fd)
 			break;
 		case CM_STATE_MSG_DISPATCH:
 			cm->cm_version = CM_VERSION;
-			error = cmsg_send(fd, buf);
+			error = cm_send(fd, buf);
 			if (error)
 				syslog(LOG_WARNING,
-				    "<%s> cmsg_send()", __func__);
+				    "<%s> cm_send()", __func__);
 			state = CM_STATE_EOM;
 			break;
 		case CM_STATE_ACK_WAIT:
-			error = cmsg_recv(fd, buf);
+			error = cm_recv(fd, buf);
 			if (error) {
 				syslog(LOG_ERR,
-				    "<%s> cmsg_recv()", __func__);
+				    "<%s> cm_recv()", __func__);
 				close(fd);
 				return (-1);
 			}
@@ -676,11 +686,11 @@ cmsg_handler_server(int fd)
 			state = CM_STATE_EOM;
 			break;
 		case CM_STATE_MSG_RECV:
-			error = cmsg_recv(fd, buf);
+			error = cm_recv(fd, buf);
 
 			if (error) {
 				syslog(LOG_ERR,
-				    "<%s> cmsg_recv()", __func__);
+				    "<%s> cm_recv()", __func__);
 				close(fd);
 				return (-1);
 			}
@@ -699,22 +709,22 @@ cmsg_handler_server(int fd)
 				cm->cm_len = sizeof(*cm);
 				break;
 			case CM_TYPE_REQ_GET_PROP:
-				cmsg_bin2pl(msg, &cp);
-				error = cmsg_getprop(&cp);
+				cm_bin2pl(msg, &cp);
+				error = cm_getprop(&cp);
 				if (error) {
 					cm->cm_type = CM_TYPE_ERR;
 					cm->cm_len = sizeof(*cm);
 				} else {
 					cm->cm_type = CM_TYPE_ACK;
 					cm->cm_len = sizeof(*cm);
-					cm->cm_len += cmsg_pl2bin(msg, &cp);
+					cm->cm_len += cm_pl2bin(msg, &cp);
 				}
 				if (cp.cp_val != NULL)
 					free(cp.cp_val);
 				break;
 			case CM_TYPE_REQ_SET_PROP:
-				cmsg_bin2pl(msg, &cp);
-				error = cmsg_setprop(&cp);
+				cm_bin2pl(msg, &cp);
+				error = cm_setprop(&cp);
 				if (error) {
 					cm->cm_type = CM_TYPE_ERR;
 					cm->cm_len = sizeof(*cm);

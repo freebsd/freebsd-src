@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -74,22 +74,6 @@ MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
 
 /* Global NON-VNET structure that controls the iterator */
 struct iterator_control sctp_it_ctl;
-static int __sctp_thread_based_iterator_started = 0;
-
-
-static void
-sctp_cleanup_itqueue(void)
-{
-	struct sctp_iterator *it, *nit;
-
-	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
-		if (it->function_atend != NULL) {
-			(*it->function_atend) (it->pointer, it->val);
-		}
-		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-		SCTP_FREE(it, SCTP_M_ITER);
-	}
-}
 
 
 void
@@ -99,20 +83,14 @@ sctp_wakeup_iterator(void)
 }
 
 static void
-sctp_iterator_thread(void *v)
+sctp_iterator_thread(void *v SCTP_UNUSED)
 {
 	SCTP_IPI_ITERATOR_WQ_LOCK();
-	while (1) {
+	/* In FreeBSD this thread never terminates. */
+	for (;;) {
 		msleep(&sctp_it_ctl.iterator_running,
 		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
-		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
-			SCTP_IPI_ITERATOR_WQ_DESTROY();
-			SCTP_ITERATOR_LOCK_DESTROY();
-			sctp_cleanup_itqueue();
-			__sctp_thread_based_iterator_started = 0;
-			kthread_exit();
-		}
 		sctp_iterator_worker();
 	}
 }
@@ -120,21 +98,21 @@ sctp_iterator_thread(void *v)
 void
 sctp_startup_iterator(void)
 {
-	if (__sctp_thread_based_iterator_started) {
+	static int called = 0;
+	int ret;
+
+	if (called) {
 		/* You only get one */
 		return;
 	}
 	/* init the iterator head */
-	__sctp_thread_based_iterator_started = 1;
+	called = 1;
 	sctp_it_ctl.iterator_running = 0;
 	sctp_it_ctl.iterator_flags = 0;
 	sctp_it_ctl.cur_it = NULL;
 	SCTP_ITERATOR_LOCK_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
-
-	int ret;
-
 	ret = kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
 	    &sctp_it_ctl.thread_proc,
@@ -238,7 +216,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 
 	IFNET_RLOCK();
 	TAILQ_FOREACH(ifn, &MODULE_GLOBAL(ifnet), if_list) {
-		IF_ADDR_LOCK(ifn);
+		IF_ADDR_RLOCK(ifn);
 		TAILQ_FOREACH(ifa, &ifn->if_addrlist, ifa_list) {
 			if (ifa->ifa_addr == NULL) {
 				continue;
@@ -295,7 +273,7 @@ sctp_init_ifns_for_vrf(int vrfid)
 				sctp_ifa->localifa_flags &= ~SCTP_ADDR_DEFER_USE;
 			}
 		}
-		IF_ADDR_UNLOCK(ifn);
+		IF_ADDR_RUNLOCK(ifn);
 	}
 	IFNET_RUNLOCK();
 }

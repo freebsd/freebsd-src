@@ -392,6 +392,8 @@ __END_DECLS
 
 #define	IN_LOOPBACKNET		127			/* official! */
 
+#define	IN_RFC3021_MASK		(u_int32_t)0xfffffffe
+
 /*
  * Options for use with [gs]etsockopt at the IP level.
  * First word of comment is data type; bool is stored in int.

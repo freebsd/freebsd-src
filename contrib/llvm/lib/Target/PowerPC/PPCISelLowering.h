@@ -246,7 +246,7 @@ namespace llvm {
     virtual MVT getShiftAmountTy(EVT LHSTy) const { return MVT::i32; }
 
     /// getSetCCResultType - Return the ISD::SETCC ValueType
-    virtual MVT::SimpleValueType getSetCCResultType(EVT VT) const;
+    virtual EVT getSetCCResultType(EVT VT) const;
 
     /// getPreIndexedAddressParts - returns true by value, base pointer and
     /// offset pointer and addressing mode by reference if the node's address
@@ -323,7 +323,7 @@ namespace llvm {
     /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
     /// function arguments in the caller parameter area.  This is the actual
     /// alignment, not its logarithm.
-    unsigned getByValTypeAlignment(const Type *Ty) const;
+    unsigned getByValTypeAlignment(Type *Ty) const;
 
     /// LowerAsmOperandForConstraint - Lower the specified operand into the Ops
     /// vector.  If it is invalid, don't add anything to Ops.
@@ -334,12 +334,12 @@ namespace llvm {
 
     /// isLegalAddressingMode - Return true if the addressing mode represented
     /// by AM is legal for this target, for a load/store of the specified type.
-    virtual bool isLegalAddressingMode(const AddrMode &AM, const Type *Ty)const;
+    virtual bool isLegalAddressingMode(const AddrMode &AM, Type *Ty)const;
 
     /// isLegalAddressImmediate - Return true if the integer value can be used
     /// as the offset of the target addressing mode for load / store of the
     /// given type.
-    virtual bool isLegalAddressImmediate(int64_t V, const Type *Ty) const;
+    virtual bool isLegalAddressImmediate(int64_t V, Type *Ty) const;
 
     /// isLegalAddressImmediate - Return true if the GlobalValue can be used as
     /// the offset of the target addressing mode.
@@ -390,7 +390,8 @@ namespace llvm {
     SDValue LowerGlobalAddress(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerJumpTable(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerSETCC(SDValue Op, SelectionDAG &DAG) const;
-    SDValue LowerTRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerINIT_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
+    SDValue LowerADJUST_TRAMPOLINE(SDValue Op, SelectionDAG &DAG) const;
     SDValue LowerVASTART(SDValue Op, SelectionDAG &DAG,
                          const PPCSubtarget &Subtarget) const;
     SDValue LowerVAARG(SDValue Op, SelectionDAG &DAG,
@@ -443,6 +444,12 @@ namespace llvm {
                 const SmallVectorImpl<ISD::InputArg> &Ins,
                 DebugLoc dl, SelectionDAG &DAG,
                 SmallVectorImpl<SDValue> &InVals) const;
+
+    virtual bool
+      CanLowerReturn(CallingConv::ID CallConv, MachineFunction &MF,
+                   bool isVarArg,
+                   const SmallVectorImpl<ISD::OutputArg> &Outs,
+                   LLVMContext &Context) const;
 
     virtual SDValue
       LowerReturn(SDValue Chain,

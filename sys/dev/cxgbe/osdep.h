@@ -70,9 +70,11 @@ typedef uint64_t __be64;
 #error "Must set BYTE_ORDER"
 #endif
 
+#ifndef __bool_true_false_are_defined
 typedef boolean_t bool;
 #define false FALSE
 #define true TRUE
+#endif
 
 #define mdelay(x) DELAY((x) * 1000)
 #define udelay(x) DELAY(x)
@@ -122,6 +124,7 @@ typedef boolean_t bool;
 #define PCI_EXP_LNKSTA		PCIR_EXPRESS_LINK_STA
 #define PCI_EXP_LNKSTA_CLS	PCIM_LINK_STA_SPEED
 #define PCI_EXP_LNKSTA_NLW	PCIM_LINK_STA_WIDTH
+#define PCI_EXP_DEVCTL2		0x28
 
 static inline int
 ilog2(long x)

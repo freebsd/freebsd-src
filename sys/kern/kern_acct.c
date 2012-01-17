@@ -193,7 +193,7 @@ SYSCTL_INT(_kern, OID_AUTO, acct_suspended, CTLFLAG_RD, &acct_suspended, 0,
  * implementation done by Mark Tinguely.
  */
 int
-acct(struct thread *td, struct acct_args *uap)
+sys_acct(struct thread *td, struct acct_args *uap)
 {
 	struct nameidata nd;
 	int error, flags, vfslocked;

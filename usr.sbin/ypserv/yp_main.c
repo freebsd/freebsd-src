@@ -41,6 +41,7 @@ __FBSDID("$FreeBSD$");
  */
 
 #include <sys/types.h>
+#include <sys/mman.h>
 #include <sys/queue.h>
 #include <sys/socket.h>
 #include <sys/wait.h>
@@ -255,6 +256,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	const struct __rpc_sockinfo *si)
 {
 	int error;
+	char *sname;
 
 	SVCXPRT *transp;
 	struct addrinfo hints, *res, *res0;
@@ -262,6 +264,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	struct bindaddrlistent *blep;
 	struct netbuf svcaddr;
 
+	sname = NULL;
 	SLIST_INIT(&sle_head);
 	memset(&hints, 0, sizeof(hints));
 	memset(&svcaddr, 0, sizeof(svcaddr));
@@ -341,7 +344,6 @@ create_service(const int sock, const struct netconfig *nconf,
 				if (strncmp("0", servname, 1) == 0) {
 					struct sockaddr *sap;
 					socklen_t slen;
-					char *sname;
 
 					sname = malloc(NI_MAXSERV);
 					if (sname == NULL) {
@@ -361,6 +363,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
+						free(sname);
 						return -1;
 					}
 					error = getnameinfo(sap, slen,
@@ -372,6 +375,7 @@ create_service(const int sock, const struct netconfig *nconf,
 						    strerror(errno));
 						freeaddrinfo(res0);
 						close(s);
+						free(sname);
 						return -1;
 					}
 					servname = sname;
@@ -440,7 +444,7 @@ create_service(const int sock, const struct netconfig *nconf,
 	}
 	/* XXX: ignore error intentionally */
 	rpcb_set(YPPROG, YPVERS, nconf, &svcaddr);
-
+	free(sname);
 	freeaddrinfo(res0);
 	return 0;
 }
@@ -524,6 +528,9 @@ main(int argc, char *argv[])
 		_rpcfd = RPC_ANYFD;
 		unregister();
 	}
+
+	if (madvise(NULL, 0, MADV_PROTECT) != 0)
+		_msgout("madvise(): %s", strerror(errno));
 
 	/*
 	 * Create RPC service for each transport.

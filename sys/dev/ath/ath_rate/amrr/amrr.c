@@ -122,19 +122,21 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, uint8_t *rix, uint8_t *try)
+    uint8_t rix0, struct ath_rc_series *rc)
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
 
-/*	rix[0] = amn->amn_tx_rate0; */
-	rix[1] = amn->amn_tx_rate1;
-	rix[2] = amn->amn_tx_rate2;
-	rix[3] = amn->amn_tx_rate3;
+	rc[0].flags = rc[1].flags = rc[2].flags = rc[3].flags = 0;
 
-	try[0] = amn->amn_tx_try0;
-	try[1] = amn->amn_tx_try1;
-	try[2] = amn->amn_tx_try2;
-	try[3] = amn->amn_tx_try3;
+	rc[0].rix = amn->amn_tx_rate0;
+	rc[1].rix = amn->amn_tx_rate1;
+	rc[2].rix = amn->amn_tx_rate2;
+	rc[3].rix = amn->amn_tx_rate3;
+
+	rc[0].tries = amn->amn_tx_try0;
+	rc[1].tries = amn->amn_tx_try1;
+	rc[2].tries = amn->amn_tx_try2;
+	rc[3].tries = amn->amn_tx_try3;
 }
 
 
@@ -153,10 +155,10 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_buf *bf)
+	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
+	int frame_size, int nframes, int nbad)
 {
 	struct amrr_node *amn = ATH_NODE_AMRR(an);
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 	int sr = ts->ts_shortretry;
 	int lr = ts->ts_longretry;
 	int retry_count = sr + lr;

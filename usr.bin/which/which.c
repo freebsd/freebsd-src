@@ -40,8 +40,8 @@ __FBSDID("$FreeBSD$");
 static void	 usage(void);
 static int	 print_matches(char *, char *);
 	
-int 	silent;
-int 	allpaths;
+static int 	 silent;
+static int 	 allpaths;
 
 int
 main(int argc, char **argv)

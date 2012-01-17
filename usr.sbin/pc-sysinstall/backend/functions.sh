@@ -98,10 +98,10 @@ strip_white_space()
 exit_err()
 {
   # Echo the message for the users benefit
-  echo "$1"
+  echo "EXITERROR: $1"
 
   # Save this error to the log file
-  echo "${1}" >>$LOGOUT
+  echo "EXITERROR: ${1}" >>$LOGOUT
 
   # Check if we need to unmount any file-systems after this failure
   unmount_all_filesystems_failure
@@ -446,11 +446,11 @@ install_fresh()
     # Now add any users
     setup_users
 
-    # Now run any commands specified
-    run_commands
-  
     # Do any last cleanup / setup before unmounting
     run_final_cleanup
+
+    # Now run any commands specified
+    run_commands
 
     # Unmount and finish up
     unmount_all_filesystems

@@ -121,7 +121,7 @@
 #include <security/mac/mac_framework.h>
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, IFT_STF, stf, CTLFLAG_RW, 0, "6to4 Interface");
+static SYSCTL_NODE(_net_link, IFT_STF, stf, CTLFLAG_RW, 0, "6to4 Interface");
 
 static int stf_route_cache = 1;
 SYSCTL_INT(_net_link_stf, OID_AUTO, route_cache, CTLFLAG_RW,

@@ -70,7 +70,7 @@ main(int argc, const char **argv)
 {
 	struct partition_metadata *md;
 	const char *prompt;
-	struct partedit_item *items;
+	struct partedit_item *items = NULL;
 	struct gmesh mesh;
 	int i, op, nitems, nscroll;
 	int error;
@@ -99,11 +99,20 @@ main(int argc, const char **argv)
 
 	/* Show the part editor either immediately, or to confirm wizard */
 	while (1) {
-		error = geom_gettree(&mesh);
-		items = read_geom_mesh(&mesh, &nitems);
-		get_mount_points(items, nitems);
 		dlg_clear();
 		dlg_put_backtitle();
+
+		error = geom_gettree(&mesh);
+		if (error == 0)
+			items = read_geom_mesh(&mesh, &nitems);
+		if (error || items == NULL) {
+			dialog_msgbox("Error", "No disks found. If you need to "
+			    "install a kernel driver, choose Shell at the "
+			    "installation menu.", 0, 0, TRUE);
+			break;
+		}
+			
+		get_mount_points(items, nitems);
 
 		if (i >= nitems)
 			i = nitems - 1;

@@ -32,7 +32,10 @@ __FBSDID("$FreeBSD$");
 #include <sys/param.h>
 #include <assert.h>
 #include <stdlib.h>
+#include <string.h>
+#include <dev/usb/usb_ioctl.h>
 #include "usbhid.h"
+#include "usbvar.h"
 
 int32_t
 hid_get_data(const void *p, const hid_item_t *h)
@@ -113,4 +116,28 @@ hid_set_data(void *p, const hid_item_t *h, int32_t data)
 	for (i = 0; i <= end; i++)
 		buf[offs + i] = (buf[offs + i] & (mask >> (i*8))) |
 		    ((data >> (i*8)) & 0xff);
+}
+
+int
+hid_get_report(int fd, enum hid_kind k, unsigned char *data, unsigned int size)
+{
+	struct usb_gen_descriptor ugd;
+
+	memset(&ugd, 0, sizeof(ugd));
+	ugd.ugd_data = hid_pass_ptr(data);
+	ugd.ugd_maxlen = size;
+	ugd.ugd_report_type = k + 1;
+	return (ioctl(fd, USB_GET_REPORT, &ugd));
+}
+
+int
+hid_set_report(int fd, enum hid_kind k, unsigned char *data, unsigned int size)
+{
+	struct usb_gen_descriptor ugd;
+
+	memset(&ugd, 0, sizeof(ugd));
+	ugd.ugd_data = hid_pass_ptr(data);
+	ugd.ugd_maxlen = size;
+	ugd.ugd_report_type = k + 1;
+	return (ioctl(fd, USB_SET_REPORT, &ugd));
 }

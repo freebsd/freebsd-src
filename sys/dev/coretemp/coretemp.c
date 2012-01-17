@@ -384,6 +384,7 @@ coretemp_get_val_sysctl(SYSCTL_HANDLER_ARGS)
 	}
 
 	if (msr & THERM_STATUS_LOG) {
+		coretemp_clear_thermal_msr(device_get_unit(dev));
 		sc->sc_throttle_log = 1;
 
 		/*
@@ -424,8 +425,10 @@ coretemp_throttle_log_sysctl(SYSCTL_HANDLER_ARGS)
 	msr = coretemp_get_thermal_msr(device_get_unit(dev));
 	sc = device_get_softc(dev);
 
-	if (msr & THERM_STATUS_LOG)
+	if (msr & THERM_STATUS_LOG) {
+		coretemp_clear_thermal_msr(device_get_unit(dev));
 		sc->sc_throttle_log = 1;
+	}
 
 	val = sc->sc_throttle_log;
 

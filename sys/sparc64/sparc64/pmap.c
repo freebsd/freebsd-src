@@ -100,19 +100,6 @@ __FBSDID("$FreeBSD$");
 #include <machine/tsb.h>
 #include <machine/ver.h>
 
-#define	PMAP_DEBUG
-
-#ifndef	PMAP_SHPGPERPROC
-#define	PMAP_SHPGPERPROC	200
-#endif
-
-/* XXX */
-#include "opt_sched.h"
-#ifndef SCHED_4BSD
-#error "sparc64 only works with SCHED_4BSD which uses a global scheduler lock."
-#endif
-extern struct mtx sched_lock;
-
 /*
  * Virtual address of message buffer
  */
@@ -671,11 +658,9 @@ pmap_bootstrap(u_int cpu_impl)
 
 	/*
 	 * Initialize the kernel pmap (which is statically allocated).
-	 * NOTE: PMAP_LOCK_INIT() is needed as part of the initialization
-	 * but sparc64 start up is not ready to initialize mutexes yet.
-	 * It is called in machdep.c.
 	 */
 	pm = kernel_pmap;
+	PMAP_LOCK_INIT(pm);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = TLB_CTX_KERNEL;
 	CPU_FILL(&pm->pm_active);
@@ -1240,11 +1225,9 @@ pmap_pinit(pmap_t pm)
 	if (pm->pm_tsb_obj == NULL)
 		pm->pm_tsb_obj = vm_object_allocate(OBJT_PHYS, TSB_PAGES);
 
-	mtx_lock_spin(&sched_lock);
 	for (i = 0; i < MAXCPU; i++)
 		pm->pm_context[i] = -1;
 	CPU_ZERO(&pm->pm_active);
-	mtx_unlock_spin(&sched_lock);
 
 	VM_OBJECT_LOCK(pm->pm_tsb_obj);
 	for (i = 0; i < TSB_PAGES; i++) {
@@ -1271,7 +1254,9 @@ pmap_release(pmap_t pm)
 {
 	vm_object_t obj;
 	vm_page_t m;
+#ifdef SMP
 	struct pcpu *pc;
+#endif
 
 	CTR2(KTR_PMAP, "pmap_release: ctx=%#x tsb=%p",
 	    pm->pm_context[curcpu], pm->pm_tsb);
@@ -1291,11 +1276,18 @@ pmap_release(pmap_t pm)
 	 * - A process that referenced this pmap ran on a CPU, but we switched
 	 *   to a kernel thread, leaving the pmap pointer unchanged.
 	 */
-	mtx_lock_spin(&sched_lock);
+#ifdef SMP
+	sched_pin();
 	STAILQ_FOREACH(pc, &cpuhead, pc_allcpu)
-		if (pc->pc_pmap == pm)
-			pc->pc_pmap = NULL;
-	mtx_unlock_spin(&sched_lock);
+		atomic_cmpset_rel_ptr((uintptr_t *)&pc->pc_pmap,
+		    (uintptr_t)pm, (uintptr_t)NULL);
+	sched_unpin();
+#else
+	critical_enter();
+	if (PCPU_GET(pmap) == pm)
+		PCPU_SET(pmap, NULL);
+	critical_exit();
+#endif
 
 	pmap_qremove((vm_offset_t)pm->pm_tsb, TSB_PAGES);
 	obj = pm->pm_tsb_obj;
@@ -1340,9 +1332,9 @@ pmap_remove_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 			if ((data & TD_W) != 0)
 				vm_page_dirty(m);
 			if ((data & TD_REF) != 0)
-				vm_page_flag_set(m, PG_REFERENCED);
+				vm_page_aflag_set(m, PGA_REFERENCED);
 			if (TAILQ_EMPTY(&m->md.tte_list))
-				vm_page_flag_clear(m, PG_WRITEABLE);
+				vm_page_aflag_clear(m, PGA_WRITEABLE);
 			pm->pm_stats.resident_count--;
 		}
 		pmap_cache_remove(m, va);
@@ -1403,7 +1395,7 @@ pmap_remove_all(vm_page_t m)
 		if ((tp->tte_data & TD_WIRED) != 0)
 			pm->pm_stats.wired_count--;
 		if ((tp->tte_data & TD_REF) != 0)
-			vm_page_flag_set(m, PG_REFERENCED);
+			vm_page_aflag_set(m, PGA_REFERENCED);
 		if ((tp->tte_data & TD_W) != 0)
 			vm_page_dirty(m);
 		tp->tte_data &= ~TD_V;
@@ -1414,7 +1406,7 @@ pmap_remove_all(vm_page_t m)
 		TTE_ZERO(tp);
 		PMAP_UNLOCK(pm);
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -1425,6 +1417,7 @@ pmap_protect_tte(struct pmap *pm, struct pmap *pm2, struct tte *tp,
 	u_long data;
 	vm_page_t m;
 
+	PMAP_LOCK_ASSERT(pm, MA_OWNED);
 	data = atomic_clear_long(&tp->tte_data, TD_SW | TD_W);
 	if ((data & (TD_PV | TD_W)) == (TD_PV | TD_W)) {
 		m = PHYS_TO_VM_PAGE(TD_PA(data));
@@ -1453,7 +1446,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 	if (prot & VM_PROT_WRITE)
 		return;
 
-	vm_page_lock_queues();
 	PMAP_LOCK(pm);
 	if (eva - sva > PMAP_TSB_THRESH) {
 		tsb_foreach(pm, NULL, sva, eva, pmap_protect_tte);
@@ -1465,7 +1457,6 @@ pmap_protect(pmap_t pm, vm_offset_t sva, vm_offset_t eva, vm_prot_t prot)
 		tlb_range_demap(pm, sva, eva - 1);
 	}
 	PMAP_UNLOCK(pm);
-	vm_page_unlock_queues();
 }
 
 /*
@@ -1560,7 +1551,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 			if (wired)
 				tp->tte_data |= TD_W;
 			if ((m->oflags & VPO_UNMANAGED) == 0)
-				vm_page_flag_set(m, PG_WRITEABLE);
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 		} else if ((data & TD_W) != 0)
 			vm_page_dirty(m);
 
@@ -1601,7 +1592,7 @@ pmap_enter_locked(pmap_t pm, vm_offset_t va, vm_page_t m, vm_prot_t prot,
 		if ((prot & VM_PROT_WRITE) != 0) {
 			data |= TD_SW;
 			if ((m->oflags & VPO_UNMANAGED) == 0)
-				vm_page_flag_set(m, PG_WRITEABLE);
+				vm_page_aflag_set(m, PGA_WRITEABLE);
 		}
 		if (prot & VM_PROT_EXECUTE) {
 			data |= TD_EXEC;
@@ -2066,13 +2057,13 @@ pmap_is_modified(vm_page_t m)
 	rv = FALSE;
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be
-	 * concurrently set while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be
+	 * concurrently set while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no TTEs can have TD_W set.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return (rv);
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2143,11 +2134,11 @@ pmap_clear_modify(vm_page_t m)
 	    ("pmap_clear_modify: page %p is busy", m));
 
 	/*
-	 * If the page is not PG_WRITEABLE, then no TTEs can have TD_W set.
+	 * If the page is not PGA_WRITEABLE, then no TTEs can have TD_W set.
 	 * If the object containing the page is locked and the page is not
-	 * VPO_BUSY, then PG_WRITEABLE cannot be concurrently set.
+	 * VPO_BUSY, then PGA_WRITEABLE cannot be concurrently set.
 	 */
-	if ((m->flags & PG_WRITEABLE) == 0)
+	if ((m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2189,13 +2180,13 @@ pmap_remove_write(vm_page_t m)
 	    ("pmap_remove_write: page %p is not managed", m));
 
 	/*
-	 * If the page is not VPO_BUSY, then PG_WRITEABLE cannot be set by
-	 * another thread while the object is locked.  Thus, if PG_WRITEABLE
+	 * If the page is not VPO_BUSY, then PGA_WRITEABLE cannot be set by
+	 * another thread while the object is locked.  Thus, if PGA_WRITEABLE
 	 * is clear, no page table entries need updating.
 	 */
 	VM_OBJECT_LOCK_ASSERT(m->object, MA_OWNED);
 	if ((m->oflags & VPO_BUSY) == 0 &&
-	    (m->flags & PG_WRITEABLE) == 0)
+	    (m->aflags & PGA_WRITEABLE) == 0)
 		return;
 	vm_page_lock_queues();
 	TAILQ_FOREACH(tp, &m->md.tte_list, tte_link) {
@@ -2207,7 +2198,7 @@ pmap_remove_write(vm_page_t m)
 			tlb_page_demap(TTE_GET_PMAP(tp), TTE_GET_VA(tp));
 		}
 	}
-	vm_page_flag_clear(m, PG_WRITEABLE);
+	vm_page_aflag_clear(m, PGA_WRITEABLE);
 	vm_page_unlock_queues();
 }
 
@@ -2241,11 +2232,14 @@ pmap_activate(struct thread *td)
 	}
 	PCPU_SET(tlb_ctx, context + 1);
 
-	mtx_lock_spin(&sched_lock);
 	pm->pm_context[curcpu] = context;
+#ifdef SMP
+	CPU_SET_ATOMIC(PCPU_GET(cpuid), &pm->pm_active);
+	atomic_store_ptr((uintptr_t *)PCPU_PTR(pmap), (uintptr_t)pm);
+#else
 	CPU_SET(PCPU_GET(cpuid), &pm->pm_active);
 	PCPU_SET(pmap, pm);
-	mtx_unlock_spin(&sched_lock);
+#endif
 
 	stxa(AA_DMMU_TSB, ASI_DMMU, pm->pm_tsb);
 	stxa(AA_IMMU_TSB, ASI_IMMU, pm->pm_tsb);

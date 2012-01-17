@@ -74,7 +74,7 @@ static	d_mmap_t	ksyms_mmap;
 
 static struct cdevsw ksyms_cdevsw = {
     .d_version	=	D_VERSION,
-    .d_flags	=	D_PSEUDO | D_TRACKCLOSE,
+    .d_flags	=	D_TRACKCLOSE,
     .d_open	=	ksyms_open,
     .d_close	=	ksyms_close,
     .d_read	=	ksyms_read,

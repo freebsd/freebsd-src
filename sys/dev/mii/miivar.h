@@ -246,10 +246,6 @@ MIIBUS_ACCESSOR(flags,		FLAGS,		u_int)
 extern devclass_t	miibus_devclass;
 extern driver_t		miibus_driver;
 
-int	miibus_probe(device_t);
-int	miibus_attach(device_t);
-int	miibus_detach(device_t);
-
 int	mii_attach(device_t, device_t *, struct ifnet *, ifm_change_cb_t,
 	    ifm_stat_cb_t, int, int, int, int);
 void	mii_down(struct mii_data *);

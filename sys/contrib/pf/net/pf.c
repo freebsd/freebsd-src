@@ -47,23 +47,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
-
-#ifdef DEV_PFLOG
-#define	NPFLOG		DEV_PFLOG
-#else
-#define	NPFLOG		0
-#endif
-
-#ifdef DEV_PFSYNC
-#define	NPFSYNC		DEV_PFSYNC
-#else
-#define	NPFSYNC		0
-#endif
+#define	NPFSYNC		1
 
 #ifdef DEV_PFLOW
 #define	NPFLOW		DEV_PFLOW
@@ -1342,42 +1326,42 @@ pf_purge_thread(void *v)
 		tsleep(pf_purge_thread, PWAIT, "pftm", 1 * hz);
 
 #ifdef __FreeBSD__
-	sx_slock(&V_pf_consistency_lock);
-	PF_LOCK();
-	locked = 0;
-
-	if (V_pf_end_threads) {
-		PF_UNLOCK();
-		sx_sunlock(&V_pf_consistency_lock);
-		sx_xlock(&V_pf_consistency_lock);
+		sx_slock(&V_pf_consistency_lock);
 		PF_LOCK();
+		locked = 0;
 
-		pf_purge_expired_states(V_pf_status.states, 1);
-		pf_purge_expired_fragments();
-		pf_purge_expired_src_nodes(1);
-		V_pf_end_threads++;
+		if (V_pf_end_threads) {
+			PF_UNLOCK();
+			sx_sunlock(&V_pf_consistency_lock);
+			sx_xlock(&V_pf_consistency_lock);
+			PF_LOCK();
 
-		sx_xunlock(&V_pf_consistency_lock);
-		PF_UNLOCK();
-		wakeup(pf_purge_thread);
-		kproc_exit(0);
-	}
+			pf_purge_expired_states(V_pf_status.states, 1);
+			pf_purge_expired_fragments();
+			pf_purge_expired_src_nodes(1);
+			V_pf_end_threads++;
+
+			sx_xunlock(&V_pf_consistency_lock);
+			PF_UNLOCK();
+			wakeup(pf_purge_thread);
+			kproc_exit(0);
+		}
 #endif
 		s = splsoftnet();
 
 		/* process a fraction of the state table every second */
 #ifdef __FreeBSD__
-	if (!pf_purge_expired_states(1 + (V_pf_status.states /
-	    V_pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
-		PF_UNLOCK();
-		sx_sunlock(&V_pf_consistency_lock);
-		sx_xlock(&V_pf_consistency_lock);
-		PF_LOCK();
-		locked = 1;
+		if (!pf_purge_expired_states(1 + (V_pf_status.states /
+		    V_pf_default_rule.timeout[PFTM_INTERVAL]), 0)) {
+			PF_UNLOCK();
+			sx_sunlock(&V_pf_consistency_lock);
+			sx_xlock(&V_pf_consistency_lock);
+			PF_LOCK();
+			locked = 1;
 
-		pf_purge_expired_states(1 + (V_pf_status.states /
-		    V_pf_default_rule.timeout[PFTM_INTERVAL]), 1);
-	}
+			pf_purge_expired_states(1 + (V_pf_status.states /
+			    V_pf_default_rule.timeout[PFTM_INTERVAL]), 1);
+		}
 #else
 		pf_purge_expired_states(1 + (pf_status.states
 		    / pf_default_rule.timeout[PFTM_INTERVAL]));
@@ -1626,8 +1610,8 @@ pf_free_state(struct pf_state *cur)
 
 #if NPFSYNC > 0
 #ifdef __FreeBSD__
-	if (pfsync_state_in_use_ptr != NULL)
-		pfsync_state_in_use_ptr(cur);
+	if (pfsync_state_in_use_ptr != NULL &&
+		pfsync_state_in_use_ptr(cur))
 #else
 	if (pfsync_state_in_use(cur))
 #endif
@@ -3770,8 +3754,8 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 		 * replies through it.
 		 */
 #ifdef __FreeBSD__
-		if (pfsync_defer_ptr != NULL)
-			pfsync_defer_ptr(*sm, m);
+		if (pfsync_defer_ptr != NULL &&
+			pfsync_defer_ptr(*sm, m))
 #else
 		if (pfsync_defer(*sm, m))
 #endif
@@ -7176,11 +7160,15 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	}
 
 #ifdef __FreeBSD__
-	if (pd.pf_mtag->flags & PF_TAG_GENERATED)
+	if (pd.pf_mtag->flags & PF_TAG_GENERATED) {
+		PF_UNLOCK();
 #else
 	if (m->m_pkthdr.pf.flags & PF_TAG_GENERATED)
 #endif
 		return (PF_PASS);
+#ifdef __FreeBSD__
+	}
+#endif
 
 	/* We do IP header normalization and packet reassembly here */
 	if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {

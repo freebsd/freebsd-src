@@ -23,15 +23,15 @@
 #include "llvm/MC/MCStreamer.h"
 #include "llvm/MC/MCSubtargetInfo.h"
 #include "llvm/MC/MCSymbol.h"
-#include "llvm/Target/TargetAsmParser.h"
+#include "llvm/MC/MCTargetAsmParser.h"
 #include "llvm/Target/TargetMachine.h"
-#include "llvm/Target/TargetRegistry.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/Twine.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/SourceMgr.h"
+#include "llvm/Support/TargetRegistry.h"
 #include "llvm/Support/raw_ostream.h"
 using namespace llvm;
 
@@ -49,7 +49,7 @@ namespace {
 static void SrcMgrDiagHandler(const SMDiagnostic &Diag, void *diagInfo) {
   SrcMgrDiagInfo *DiagInfo = static_cast<SrcMgrDiagInfo *>(diagInfo);
   assert(DiagInfo && "Diagnostic context not passed down?");
-  
+
   // If the inline asm had metadata associated with it, pull out a location
   // cookie corresponding to which line the error occurred on.
   unsigned LocCookie = 0;
@@ -57,13 +57,13 @@ static void SrcMgrDiagHandler(const SMDiagnostic &Diag, void *diagInfo) {
     unsigned ErrorLine = Diag.getLineNo()-1;
     if (ErrorLine >= LocInfo->getNumOperands())
       ErrorLine = 0;
-    
+
     if (LocInfo->getNumOperands() != 0)
       if (const ConstantInt *CI =
           dyn_cast<ConstantInt>(LocInfo->getOperand(ErrorLine)))
         LocCookie = CI->getZExtValue();
   }
-  
+
   DiagInfo->DiagHandler(Diag, DiagInfo->DiagContext, LocCookie);
 }
 
@@ -109,7 +109,7 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, const MDNode *LocMDNode) const {
   // Tell SrcMgr about this buffer, it takes ownership of the buffer.
   SrcMgr.AddNewSourceBuffer(Buffer, SMLoc());
 
-  OwningPtr<MCAsmParser> Parser(createMCAsmParser(TM.getTarget(), SrcMgr,
+  OwningPtr<MCAsmParser> Parser(createMCAsmParser(SrcMgr,
                                                   OutContext, OutStreamer,
                                                   *MAI));
 
@@ -121,7 +121,8 @@ void AsmPrinter::EmitInlineAsm(StringRef Str, const MDNode *LocMDNode) const {
     STI(TM.getTarget().createMCSubtargetInfo(TM.getTargetTriple(),
                                              TM.getTargetCPU(),
                                              TM.getTargetFeatureString()));
-  OwningPtr<TargetAsmParser> TAP(TM.getTarget().createAsmParser(*STI, *Parser));
+  OwningPtr<MCTargetAsmParser>
+    TAP(TM.getTarget().createMCAsmParser(*STI, *Parser));
   if (!TAP)
     report_fatal_error("Inline asm not supported by this streamer because"
                        " we don't have an asm parser for this target\n");

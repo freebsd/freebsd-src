@@ -39,8 +39,7 @@
 #include <string.h>
 #include <unistd.h>
 
-struct
-{
+static struct {
     const char	*name;
     int		val;
     int		kind;
@@ -67,8 +66,7 @@ static void	clearfunc(int memfd, int argc, char *argv[]);
 static void	helpfunc(int memfd, int argc, char *argv[]);
 static void	help(const char *what);
 
-struct 
-{
+static struct {
     const char	*cmd;
     const char	*desc;
     void	(*func)(int memfd, int argc, char *argv[]);

@@ -30,6 +30,10 @@
 #include <net80211/_ieee80211.h>
 #include "opt_ah.h"			/* needed for AH_SUPPORT_AR5416 */
 
+#ifndef	AH_SUPPORT_AR5416
+#define	AH_SUPPORT_AR5416	1
+#endif
+
 #ifndef NBBY
 #define	NBBY	8			/* number of bits/byte */
 #endif
@@ -208,7 +212,10 @@ typedef struct {
 			halBssidMatchSupport		: 1,
 			hal4kbSplitTransSupport		: 1,
 			halHasRxSelfLinkedTail		: 1,
-			halSupportsFastClock5GHz	: 1;	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halSupportsFastClock5GHz	: 1,	/* Hardware supports 5ghz fast clock; check eeprom/channel before using */
+			halHasLongRxDescTsf		: 1,
+			halHasBBReadWar			: 1,
+			halSerialiseRegWar		: 1;
 	uint32_t	halWirelessModes;
 	uint16_t	halTotalQueues;
 	uint16_t	halKeyCacheSize;
@@ -471,6 +478,8 @@ isBigEndian(void)
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) | (_f))
 #define	OS_REG_CLR_BIT(_a, _r, _f) \
 	OS_REG_WRITE(_a, _r, OS_REG_READ(_a, _r) &~ (_f))
+#define OS_REG_IS_BIT_SET(_a, _r, _f) \
+	    ((OS_REG_READ(_a, _r) & (_f)) != 0)
 
 /* Analog register writes may require a delay between each one (eg Merlin?) */
 #define	OS_A_REG_RMW_FIELD(_a, _r, _f, _v) \
@@ -502,26 +511,15 @@ extern	void ath_hal_free(void *);
 extern	int ath_hal_debug;	/* Global debug flags */
 
 /*
- * This is used for global debugging, when ahp doesn't yet have the
- * related debugging state. For example, during probe/attach.
- */
-#define	HALDEBUG_G(_ah, __m, ...) \
-	do {							\
-		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
-		    ath_hal_debug & (__m)) {			\
-			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
-		}						\
-	} while (0);
-
-/*
- * This is used for local debugging, when ahp isn't NULL and
- * thus may have debug flags set.
+ * The typecast is purely because some callers will pass in
+ * AH_NULL directly rather than using a NULL ath_hal pointer.
  */
 #define	HALDEBUG(_ah, __m, ...) \
 	do {							\
 		if ((__m) == HAL_DEBUG_UNMASKABLE ||		\
 		    ath_hal_debug & (__m) ||			\
-		    (_ah)->ah_config.ah_debug & (__m)) {	\
+		    ((_ah) != NULL &&				\
+		      ((struct ath_hal *) (_ah))->ah_config.ah_debug & (__m))) {	\
 			DO_HALDEBUG((_ah), (__m), __VA_ARGS__);	\
 		}						\
 	} while(0);
@@ -530,7 +528,6 @@ extern	void DO_HALDEBUG(struct ath_hal *ah, u_int mask, const char* fmt, ...)
 	__printflike(3,4);
 #else
 #define HALDEBUG(_ah, __m, ...)
-#define HALDEBUG_G(_ah, __m, ...)
 #endif /* AH_DEBUG */
 
 /*

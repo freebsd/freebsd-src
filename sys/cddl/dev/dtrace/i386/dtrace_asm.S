@@ -125,11 +125,11 @@ invop_leave:
 	movl	8(%esp), %eax		/* load calling EIP */
 	incl	%eax			/* increment over LOCK prefix */
 	movl	%eax, -8(%ebx)		/* store calling EIP */
-	movl	%ebx, -4(%esp)		/* temporarily store new %esp */
+	subl	$8, %ebx		/* adjust for three pushes, one pop */
+	movl	%ebx, 8(%esp)		/* temporarily store new %esp */
 	popl	%ebx			/* pop off temp */
 	popl	%eax			/* pop off temp */
-	movl	-12(%esp), %esp		/* set stack pointer */
-	subl	$8, %esp		/* adjust for three pushes, one pop */
+	movl	(%esp), %esp		/* set stack pointer */
 	iret				/* return from interrupt */
 invop_nop:
 	/*

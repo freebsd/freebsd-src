@@ -169,7 +169,7 @@ isEepromValid(struct ath_hal *ah)
 			if (regDomainPairs[i].regDmnEnum == rd)
 				return AH_TRUE;
 	}
-	HALDEBUG_G(ah, HAL_DEBUG_REGDOMAIN,
+	HALDEBUG(ah, HAL_DEBUG_REGDOMAIN,
 	    "%s: invalid regulatory domain/country code 0x%x\n", __func__, rd);
 	return AH_FALSE;
 }
@@ -613,7 +613,7 @@ ath_hal_mapgsm(int sku, int freq)
 		return 1544 + freq;
 	if (sku == SKU_SR9)
 		return 3344 - freq;
-	HALDEBUG_G(AH_NULL, HAL_DEBUG_ANY,
+	HALDEBUG(AH_NULL, HAL_DEBUG_ANY,
 	    "%s: cannot map freq %u unknown gsm sku %u\n",
 	    __func__, freq, sku);
 	return freq;

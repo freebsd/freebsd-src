@@ -148,13 +148,13 @@ typedef int64_t l_fp;
 #define SHIFT_FLL	2		/* FLL loop gain (shift) */
 
 static int time_state = TIME_OK;	/* clock state */
-static int time_status = STA_UNSYNC;	/* clock status bits */
+int time_status = STA_UNSYNC;	/* clock status bits */
 static long time_tai;			/* TAI offset (s) */
 static long time_monitor;		/* last time offset scaled (ns) */
 static long time_constant;		/* poll interval (shift) (s) */
 static long time_precision = 1;		/* clock precision (ns) */
 static long time_maxerror = MAXPHASE / 1000; /* maximum error (us) */
-static long time_esterror = MAXPHASE / 1000; /* estimated error (us) */
+long time_esterror = MAXPHASE / 1000; /* estimated error (us) */
 static long time_reftime;		/* time at last adjustment (s) */
 static l_fp time_offset;		/* time offset (ns) */
 static l_fp time_freq;			/* frequency offset (ns/s) */
@@ -274,7 +274,7 @@ struct ntp_gettime_args {
 #endif
 /* ARGSUSED */
 int
-ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
+sys_ntp_gettime(struct thread *td, struct ntp_gettime_args *uap)
 {	
 	struct ntptimeval ntv;
 
@@ -301,13 +301,17 @@ SYSCTL_PROC(_kern_ntp_pll, OID_AUTO, gettime, CTLTYPE_OPAQUE|CTLFLAG_RD,
 	0, sizeof(struct ntptimeval) , ntp_sysctl, "S,ntptimeval", "");
 
 #ifdef PPS_SYNC
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW, &pps_shiftmax, 0, "");
-SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW, &pps_shift, 0, "");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shiftmax, CTLFLAG_RW,
+    &pps_shiftmax, 0, "Max interval duration (sec) (shift)");
+SYSCTL_INT(_kern_ntp_pll, OID_AUTO, pps_shift, CTLFLAG_RW,
+    &pps_shift, 0, "Interval duration (sec) (shift)");
 SYSCTL_LONG(_kern_ntp_pll, OID_AUTO, time_monitor, CTLFLAG_RD,
-    &time_monitor, 0, "");
+    &time_monitor, 0, "Last time offset scaled (ns)");
 
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD, &pps_freq, sizeof(pps_freq), "I", "");
-SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD, &time_freq, sizeof(time_freq), "I", "");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, pps_freq, CTLFLAG_RD,
+    &pps_freq, sizeof(pps_freq), "I", "Scaled frequency offset (ns/sec)");
+SYSCTL_OPAQUE(_kern_ntp_pll, OID_AUTO, time_freq, CTLFLAG_RD,
+    &time_freq, sizeof(time_freq), "I", "Frequency offset (ns/sec)");
 #endif
 
 /*
@@ -324,7 +328,7 @@ struct ntp_adjtime_args {
 #endif
 
 int
-ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
+sys_ntp_adjtime(struct thread *td, struct ntp_adjtime_args *uap)
 {
 	struct timex ntv;	/* temporary structure */
 	long freq;		/* frequency ns/s) */
@@ -932,7 +936,7 @@ struct adjtime_args {
 #endif
 /* ARGSUSED */
 int
-adjtime(struct thread *td, struct adjtime_args *uap)
+sys_adjtime(struct thread *td, struct adjtime_args *uap)
 {
 	struct timeval delta, olddelta, *deltap;
 	int error;

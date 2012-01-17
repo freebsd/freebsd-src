@@ -23,6 +23,7 @@
 #include "clang/Basic/TargetInfo.h"
 #include "clang/Lex/LexDiagnostic.h"
 #include "llvm/ADT/APSInt.h"
+#include "llvm/Support/ErrorHandling.h"
 using namespace clang;
 
 namespace {
@@ -83,20 +84,21 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   Result.setBegin(PeekTok.getLocation());
 
   // Get the next token, don't expand it.
-  PP.LexUnexpandedToken(PeekTok);
+  PP.LexUnexpandedNonComment(PeekTok);
 
   // Two options, it can either be a pp-identifier or a (.
   SourceLocation LParenLoc;
   if (PeekTok.is(tok::l_paren)) {
     // Found a paren, remember we saw it and skip it.
     LParenLoc = PeekTok.getLocation();
-    PP.LexUnexpandedToken(PeekTok);
+    PP.LexUnexpandedNonComment(PeekTok);
   }
 
   if (PeekTok.is(tok::code_completion)) {
     if (PP.getCodeCompletionHandler())
       PP.getCodeCompletionHandler()->CodeCompleteMacroName(false);
-    PP.LexUnexpandedToken(PeekTok);
+    PP.setCodeCompletionReached();
+    PP.LexUnexpandedNonComment(PeekTok);
   }
   
   // If we don't have a pp-identifier now, this is an error.
@@ -115,18 +117,26 @@ static bool EvaluateDefined(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.markMacroAsUsed(Macro);
   }
 
-  // Consume identifier.
-  Result.setEnd(PeekTok.getLocation());
-  PP.LexUnexpandedToken(PeekTok);
+  // Invoke the 'defined' callback.
+  if (PPCallbacks *Callbacks = PP.getPPCallbacks())
+    Callbacks->Defined(PeekTok);
 
   // If we are in parens, ensure we have a trailing ).
   if (LParenLoc.isValid()) {
+    // Consume identifier.
+    Result.setEnd(PeekTok.getLocation());
+    PP.LexUnexpandedNonComment(PeekTok);
+
     if (PeekTok.isNot(tok::r_paren)) {
       PP.Diag(PeekTok.getLocation(), diag::err_pp_missing_rparen) << "defined";
       PP.Diag(LParenLoc, diag::note_matching) << "(";
       return true;
     }
     // Consume the ).
+    Result.setEnd(PeekTok.getLocation());
+    PP.LexNonComment(PeekTok);
+  } else {
+    // Consume identifier.
     Result.setEnd(PeekTok.getLocation());
     PP.LexNonComment(PeekTok);
   }
@@ -152,7 +162,8 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   if (PeekTok.is(tok::code_completion)) {
     if (PP.getCodeCompletionHandler())
       PP.getCodeCompletionHandler()->CodeCompletePreprocessorExpression();
-    PP.LexUnexpandedToken(PeekTok);
+    PP.setCodeCompletionReached();
+    PP.LexNonComment(PeekTok);
   }
       
   // If this token's spelling is a pp-identifier, check to see if it is
@@ -188,7 +199,7 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
   case tok::numeric_constant: {
     llvm::SmallString<64> IntegerBuffer;
     bool NumberInvalid = false;
-    llvm::StringRef Spelling = PP.getSpelling(PeekTok, IntegerBuffer, 
+    StringRef Spelling = PP.getSpelling(PeekTok, IntegerBuffer, 
                                               &NumberInvalid);
     if (NumberInvalid)
       return true; // a diagnostic was already reported
@@ -205,9 +216,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     assert(Literal.isIntegerLiteral() && "Unknown ppnumber");
 
     // long long is a C99 feature.
-    if (!PP.getLangOptions().C99 && !PP.getLangOptions().CPlusPlus0x
-        && Literal.isLongLong)
-      PP.Diag(PeekTok, diag::ext_longlong);
+    if (!PP.getLangOptions().C99 && Literal.isLongLong)
+      PP.Diag(PeekTok, PP.getLangOptions().CPlusPlus0x ?
+              diag::warn_cxx98_compat_longlong : diag::ext_longlong);
 
     // Parse the integer literal into Result.
     if (Literal.GetIntegerValue(Result.Val)) {
@@ -236,15 +247,18 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     PP.LexNonComment(PeekTok);
     return false;
   }
-  case tok::char_constant: {   // 'x'
+  case tok::char_constant:          // 'x'
+  case tok::wide_char_constant: {   // L'x'
+  case tok::utf16_char_constant:    // u'x'
+  case tok::utf32_char_constant:    // U'x'
     llvm::SmallString<32> CharBuffer;
     bool CharInvalid = false;
-    llvm::StringRef ThisTok = PP.getSpelling(PeekTok, CharBuffer, &CharInvalid);
+    StringRef ThisTok = PP.getSpelling(PeekTok, CharBuffer, &CharInvalid);
     if (CharInvalid)
       return true;
 
     CharLiteralParser Literal(ThisTok.begin(), ThisTok.end(),
-                              PeekTok.getLocation(), PP);
+                              PeekTok.getLocation(), PP, PeekTok.getKind());
     if (Literal.hadError())
       return true;  // A diagnostic was already emitted.
 
@@ -255,6 +269,10 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
       NumBits = TI.getIntWidth();
     else if (Literal.isWide())
       NumBits = TI.getWCharWidth();
+    else if (Literal.isUTF16())
+      NumBits = TI.getChar16Width();
+    else if (Literal.isUTF32())
+      NumBits = TI.getChar32Width();
     else
       NumBits = TI.getCharWidth();
 
@@ -262,8 +280,9 @@ static bool EvaluateValue(PPValue &Result, Token &PeekTok, DefinedTracker &DT,
     llvm::APSInt Val(NumBits);
     // Set the value.
     Val = Literal.getValue();
-    // Set the signedness.
-    Val.setIsUnsigned(!PP.getLangOptions().CharIsSigned);
+    // Set the signedness. UTF-16 and UTF-32 are always unsigned
+    if (!Literal.isUTF16() && !Literal.isUTF32())
+      Val.setIsUnsigned(!PP.getLangOptions().CharIsSigned);
 
     if (Result.Val.getBitWidth() > Val.getBitWidth()) {
       Result.Val = Val.extend(Result.Val.getBitWidth());
@@ -521,7 +540,7 @@ static bool EvaluateDirectiveSubExpr(PPValue &LHS, unsigned MinPrec,
 
     bool Overflow = false;
     switch (Operator) {
-    default: assert(0 && "Unknown operator token!");
+    default: llvm_unreachable("Unknown operator token!");
     case tok::percent:
       if (RHS.Val != 0)
         Res = LHS.Val % RHS.Val;
@@ -704,7 +723,7 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
   
   // Peek ahead one token.
   Token Tok;
-  Lex(Tok);
+  LexNonComment(Tok);
   
   // C99 6.10.1p3 - All expressions are evaluated as intmax_t or uintmax_t.
   unsigned BitWidth = getTargetInfo().getIntMaxTWidth();
@@ -759,4 +778,3 @@ EvaluateDirectiveExpression(IdentifierInfo *&IfNDefMacro) {
   DisableMacroExpansion = DisableMacroExpansionAtStartOfDirective;
   return ResVal.Val != 0;
 }
-

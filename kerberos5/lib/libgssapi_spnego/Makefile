@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 LIB=	gssapi_spnego
-LDFLAGS= -Wl,-Bsymbolic
-LDADD=	-lgssapi -lasn1
-DPADD=	${LIBGSSAPI} ${LIBASN1}
+LDFLAGS= -Wl,-Bsymbolic -Wl,--no-undefined
+LDADD=	-lgssapi -lasn1 -lroken
+DPADD=	${LIBGSSAPI} ${LIBASN1} ${LIBROKEN}
 
 SRCS=	accept_sec_context.c \
 	compat.c \

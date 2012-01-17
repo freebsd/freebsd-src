@@ -12,8 +12,6 @@ SRCS+=	lzmainfo.c
 SRCS+=	tuklib_progname.c \
 	tuklib_exit.c
 
-WARNS?=	3
-
 CFLAGS+=	-DHAVE_CONFIG_H \
 		-I${LZMALIBDIR} \
 		-I${XZDIR}/common

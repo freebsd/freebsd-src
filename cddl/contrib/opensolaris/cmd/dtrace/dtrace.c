@@ -671,9 +671,12 @@ link_prog(dtrace_cmd_t *dcp)
 		p[0] = '\0'; /* strip .d suffix */
 		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
 		    "%s.o", basename(dcp->dc_arg));
+	} else if (g_cmdc > 1) {
+		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
+		    "d.out.%td", dcp - g_cmdv);
 	} else {
 		(void) snprintf(dcp->dc_ofile, sizeof (dcp->dc_ofile),
-		    g_cmdc > 1 ?  "%s.%d" : "%s", "d.out", (int)(dcp - g_cmdv));
+		    "d.out");
 	}
 
 	if (dtrace_program_link(g_dtp, dcp->dc_prog, DTRACE_D_PROBES,

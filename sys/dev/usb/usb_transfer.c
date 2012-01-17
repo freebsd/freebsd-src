@@ -858,7 +858,7 @@ usbd_transfer_setup(struct usb_device *udev,
 	if (parm.err) {
 		goto done;
 	}
-	bzero(&parm, sizeof(parm));
+	memset(&parm, 0, sizeof(parm));
 
 	parm.udev = udev;
 	parm.speed = usbd_get_speed(udev);
@@ -982,7 +982,7 @@ usbd_transfer_setup(struct usb_device *udev,
 				 * memory:
 				 */
 				xfer = &dummy;
-				bzero(&dummy, sizeof(dummy));
+				memset(&dummy, 0, sizeof(dummy));
 				refcount++;
 			}
 
@@ -2150,7 +2150,7 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	struct usb_xfer_root *info = xfer->xroot;
 
 	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
-	if (!mtx_owned(info->xfer_mtx)) {
+	if (!mtx_owned(info->xfer_mtx) && !SCHEDULER_STOPPED()) {
 		/*
 	       	 * Cases that end up here:
 		 *
@@ -2417,8 +2417,9 @@ usbd_transfer_start_cb(void *arg)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
-	/* start the transfer */
-	(ep->methods->start) (xfer);
+	/* start USB transfer, if no error */
+	if (xfer->error == 0)
+		(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -2597,8 +2598,9 @@ usbd_pipe_start(struct usb_xfer_queue *pq)
 #if USB_HAVE_PF
 	usbpf_xfertap(xfer, USBPF_XFERTAP_SUBMIT);
 #endif
-	/* start USB transfer */
-	(ep->methods->start) (xfer);
+	/* start USB transfer, if no error */
+	if (xfer->error == 0)
+		(ep->methods->start) (xfer);
 
 	xfer->flags_int.can_cancel_immed = 1;
 
@@ -3117,14 +3119,14 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 
 		/* make sure that the BUS mutex is not locked */
 		drop_bus = 0;
-		while (mtx_owned(&xroot->udev->bus->bus_mtx)) {
+		while (mtx_owned(&xroot->udev->bus->bus_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(&xroot->udev->bus->bus_mtx);
 			drop_bus++;
 		}
 
 		/* make sure that the transfer mutex is not locked */
 		drop_xfer = 0;
-		while (mtx_owned(xroot->xfer_mtx)) {
+		while (mtx_owned(xroot->xfer_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(xroot->xfer_mtx);
 			drop_xfer++;
 		}

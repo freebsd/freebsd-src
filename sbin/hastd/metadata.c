@@ -30,7 +30,6 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include <assert.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <string.h>
@@ -62,14 +61,14 @@ metadata_read(struct hast_resource *res, bool openrw)
 	 * Is this first metadata_read() call for this resource?
 	 */
 	if (res->hr_localfd == -1) {
-		if (provinfo(res, openrw) < 0) {
+		if (provinfo(res, openrw) == -1) {
 			rerrno = errno;
 			goto fail;
 		}
 		opened_here = true;
 		pjdlog_debug(1, "Obtained info about %s.", res->hr_localpath);
 		if (openrw) {
-			if (flock(res->hr_localfd, LOCK_EX | LOCK_NB) < 0) {
+			if (flock(res->hr_localfd, LOCK_EX | LOCK_NB) == -1) {
 				rerrno = errno;
 				if (errno == EOPNOTSUPP) {
 					pjdlog_warning("Unable to lock %s (operation not supported), but continuing.",
@@ -92,7 +91,7 @@ metadata_read(struct hast_resource *res, bool openrw)
 		    "Unable to allocate memory to read metadata");
 		goto fail;
 	}
-	if (ebuf_add_tail(eb, NULL, METADATA_SIZE) < 0) {
+	if (ebuf_add_tail(eb, NULL, METADATA_SIZE) == -1) {
 		rerrno = errno;
 		pjdlog_errno(LOG_ERR,
 		    "Unable to allocate memory to read metadata");
@@ -100,9 +99,9 @@ metadata_read(struct hast_resource *res, bool openrw)
 		goto fail;
 	}
 	buf = ebuf_data(eb, NULL);
-	assert(buf != NULL);
+	PJDLOG_ASSERT(buf != NULL);
 	done = pread(res->hr_localfd, buf, METADATA_SIZE, 0);
-	if (done < 0 || done != METADATA_SIZE) {
+	if (done == -1 || done != METADATA_SIZE) {
 		rerrno = errno;
 		pjdlog_errno(LOG_ERR, "Unable to read metadata");
 		ebuf_free(eb);
@@ -197,7 +196,7 @@ metadata_write(struct hast_resource *res)
 		nv_add_uint64(nv, res->hr_primary_localcnt, "localcnt");
 		nv_add_uint64(nv, res->hr_primary_remotecnt, "remotecnt");
 	} else /* if (res->hr_role == HAST_ROLE_SECONDARY) */ {
-		assert(res->hr_role == HAST_ROLE_SECONDARY);
+		PJDLOG_ASSERT(res->hr_role == HAST_ROLE_SECONDARY);
 		nv_add_uint64(nv, res->hr_secondary_localcnt, "localcnt");
 		nv_add_uint64(nv, res->hr_secondary_remotecnt, "remotecnt");
 	}
@@ -208,13 +207,13 @@ metadata_write(struct hast_resource *res)
 	}
 	res->hr_previous_role = res->hr_role;
 	eb = nv_hton(nv);
-	assert(eb != NULL);
+	PJDLOG_ASSERT(eb != NULL);
 	ptr = ebuf_data(eb, &size);
-	assert(ptr != NULL);
-	assert(size < METADATA_SIZE);
+	PJDLOG_ASSERT(ptr != NULL);
+	PJDLOG_ASSERT(size < METADATA_SIZE);
 	bcopy(ptr, buf, size);
 	done = pwrite(res->hr_localfd, buf, METADATA_SIZE, 0);
-	if (done < 0 || done != METADATA_SIZE) {
+	if (done == -1 || done != METADATA_SIZE) {
 		pjdlog_errno(LOG_ERR, "Unable to write metadata");
 		goto end;
 	}

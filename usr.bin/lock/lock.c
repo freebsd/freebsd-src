@@ -72,17 +72,17 @@ __FBSDID("$FreeBSD$");
 
 #define	TIMEOUT	15
 
-void quit(int);
-void bye(int);
-void hi(int);
+static void quit(int);
+static void bye(int);
+static void hi(int);
 static void usage(void);
 
-struct timeval	timeout;
-struct timeval	zerotime;
-struct termios	tty, ntty;
-long	nexttime;			/* keep the timeout time */
-int            no_timeout;                     /* lock terminal forever */
-int	vtyunlock;			/* Unlock flag and code. */
+static struct timeval	timeout;
+static struct timeval	zerotime;
+static struct termios	tty, ntty;
+static long		nexttime;		/* keep the timeout time */
+static int		no_timeout;		/* lock terminal forever */
+static int		vtyunlock;		/* Unlock flag and code. */
 
 /*ARGSUSED*/
 int
@@ -252,7 +252,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 hi(int signo __unused)
 {
 	struct timeval timval;
@@ -269,7 +269,7 @@ hi(int signo __unused)
 	}
 }
 
-void
+static void
 quit(int signo __unused)
 {
 	(void)putchar('\n');
@@ -279,7 +279,7 @@ quit(int signo __unused)
 	exit(0);
 }
 
-void
+static void
 bye(int signo __unused)
 {
 	if (!no_timeout) {

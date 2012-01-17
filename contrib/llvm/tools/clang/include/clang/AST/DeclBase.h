@@ -243,18 +243,22 @@ private:
   /// evaluated context or not, e.g. functions used in uninstantiated templates
   /// are regarded as "referenced" but not "used".
   unsigned Referenced : 1;
-
+  
 protected:
   /// Access - Used by C++ decls for the access specifier.
   // NOTE: VC++ treats enums as signed, avoid using the AccessSpecifier enum
   unsigned Access : 2;
   friend class CXXClassMemberWrapper;
 
-  /// PCHLevel - the "level" of AST file from which this declaration was built.
-  unsigned PCHLevel : 2;
-
+  /// \brief Whether this declaration was loaded from an AST file.
+  unsigned FromASTFile : 1;
+  
   /// ChangedAfterLoad - if this declaration has changed since being loaded
   unsigned ChangedAfterLoad : 1;
+
+  /// \brief Whether this declaration is private to the module in which it was
+  /// defined.
+  unsigned ModulePrivate : 1;
 
   /// IdentifierNamespace - This specifies what IDNS_* namespace this lives in.
   unsigned IdentifierNamespace : 12;
@@ -269,7 +273,9 @@ protected:
   /// This field is only valid for NamedDecls subclasses.
   mutable unsigned CachedLinkage : 2;
   
-  
+  friend class ASTDeclWriter;
+  friend class ASTDeclReader;
+
 private:
   void CheckAccessDeclContext() const;
 
@@ -279,7 +285,8 @@ protected:
     : NextDeclInContext(0), DeclCtx(DC),
       Loc(L), DeclKind(DK), InvalidDecl(0),
       HasAttrs(false), Implicit(false), Used(false), Referenced(false),
-      Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
+      Access(AS_none), FromASTFile(0), ChangedAfterLoad(false),
+      ModulePrivate(0),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
       HasCachedLinkage(0) 
   {
@@ -289,7 +296,8 @@ protected:
   Decl(Kind DK, EmptyShell Empty)
     : NextDeclInContext(0), DeclKind(DK), InvalidDecl(0),
       HasAttrs(false), Implicit(false), Used(false), Referenced(false),
-      Access(AS_none), PCHLevel(0), ChangedAfterLoad(false),
+      Access(AS_none), FromASTFile(0), ChangedAfterLoad(false),
+      ModulePrivate(0),
       IdentifierNamespace(getIdentifierNamespaceForKind(DK)),
       HasCachedLinkage(0)
   {
@@ -493,25 +501,10 @@ public:
   /// declaration cannot be weak-imported because it has a definition.
   bool canBeWeakImported(bool &IsDefinition) const;
 
-  /// \brief Retrieve the level of precompiled header from which this
-  /// declaration was generated.
-  ///
-  /// The PCH level of a declaration describes where the declaration originated
-  /// from. A PCH level of 0 indicates that the declaration was parsed from
-  /// source. A PCH level of 1 indicates that the declaration was loaded from
-  /// a top-level AST file. A PCH level 2 indicates that the declaration was
-  /// loaded from a PCH file the AST file depends on, and so on.
-  unsigned getPCHLevel() const { return PCHLevel; }
-
-  /// \brief The maximum PCH level that any declaration may have.
-  static const unsigned MaxPCHLevel = 3;
-
-  /// \brief Set the PCH level of this declaration.
-  void setPCHLevel(unsigned Level) { 
-    assert(Level <= MaxPCHLevel && "PCH level exceeds the maximum");
-    PCHLevel = Level;
-  }
-
+  /// \brief Determine whether this declaration came from an AST file (such as
+  /// a precompiled header or module) rather than having been parsed.
+  bool isFromASTFile() const { return FromASTFile; }
+  
   /// \brief Query whether this declaration was changed in a significant way
   /// since being loaded from an AST file.
   ///
@@ -574,7 +567,17 @@ public:
   /// scoped decl is defined outside the current function or method.  This is
   /// roughly global variables and functions, but also handles enums (which
   /// could be defined inside or outside a function etc).
-  bool isDefinedOutsideFunctionOrMethod() const;
+  bool isDefinedOutsideFunctionOrMethod() const {
+    return getParentFunctionOrMethod() == 0;
+  }
+
+  /// \brief If this decl is defined inside a function/method/block it returns
+  /// the corresponding DeclContext, otherwise it returns null.
+  const DeclContext *getParentFunctionOrMethod() const;
+  DeclContext *getParentFunctionOrMethod() {
+    return const_cast<DeclContext*>(
+                    const_cast<const Decl*>(this)->getParentFunctionOrMethod());
+  }
 
   /// \brief Retrieves the "canonical" declaration of the given declaration.
   virtual Decl *getCanonicalDecl() { return this; }
@@ -671,6 +674,9 @@ public:
   /// \brief Whether this declaration is a parameter pack.
   bool isParameterPack() const;
   
+  /// \brief returns true if this declaration is a template
+  bool isTemplateDecl() const;
+
   /// \brief Whether this declaration is a function or function template.
   bool isFunctionOrFunctionTemplate() const;
 
@@ -734,15 +740,16 @@ public:
   static DeclContext *castToDeclContext(const Decl *);
   static Decl *castFromDeclContext(const DeclContext *);
 
-  void print(llvm::raw_ostream &Out, unsigned Indentation = 0) const;
-  void print(llvm::raw_ostream &Out, const PrintingPolicy &Policy,
-             unsigned Indentation = 0) const;
+  void print(raw_ostream &Out, unsigned Indentation = 0,
+             bool PrintInstantiation = false) const;
+  void print(raw_ostream &Out, const PrintingPolicy &Policy,
+             unsigned Indentation = 0, bool PrintInstantiation = false) const;
   static void printGroup(Decl** Begin, unsigned NumDecls,
-                         llvm::raw_ostream &Out, const PrintingPolicy &Policy,
+                         raw_ostream &Out, const PrintingPolicy &Policy,
                          unsigned Indentation = 0);
   void dump() const;
   void dumpXML() const;
-  void dumpXML(llvm::raw_ostream &OS) const;
+  void dumpXML(raw_ostream &OS) const;
 
 private:
   const Attr *getAttrsImpl() const;
@@ -763,7 +770,7 @@ public:
                        SourceManager &sm, const char *Msg)
   : TheDecl(theDecl), Loc(L), SM(sm), Message(Msg) {}
 
-  virtual void print(llvm::raw_ostream &OS) const;
+  virtual void print(raw_ostream &OS) const;
 };
 
 class DeclContextLookupResult
@@ -839,7 +846,7 @@ protected:
   ///
   /// \returns the first/last pair of declarations.
   static std::pair<Decl *, Decl *>
-  BuildDeclChain(const llvm::SmallVectorImpl<Decl*> &Decls);
+  BuildDeclChain(const SmallVectorImpl<Decl*> &Decls, bool FieldsAlreadyLoaded);
 
    DeclContext(Decl::Kind K)
      : DeclKind(K), ExternalLexicalStorage(false),
@@ -890,6 +897,18 @@ public:
 
   bool isClosure() const {
     return DeclKind == Decl::Block;
+  }
+
+  bool isObjCContainer() const {
+    switch (DeclKind) {
+        case Decl::ObjCCategory:
+        case Decl::ObjCCategoryImpl:
+        case Decl::ObjCImplementation:
+        case Decl::ObjCInterface:
+        case Decl::ObjCProtocol:
+            return true;
+    }
+    return false;
   }
 
   bool isFunctionOrMethod() const {
@@ -1243,6 +1262,15 @@ public:
   lookup_result lookup(DeclarationName Name);
   lookup_const_result lookup(DeclarationName Name) const;
 
+  /// \brief A simplistic name lookup mechanism that performs name lookup
+  /// into this declaration context without consulting the external source.
+  ///
+  /// This function should almost never be used, because it subverts the 
+  /// usual relationship between a DeclContext and the external source.
+  /// See the ASTImporter for the (few, but important) use cases.
+  void localUncachedLookup(DeclarationName Name, 
+                           llvm::SmallVectorImpl<NamedDecl *> &Results);
+  
   /// @brief Makes a declaration visible within this context.
   ///
   /// This routine makes the declaration D visible to name lookup
@@ -1262,14 +1290,6 @@ public:
   /// the lookup tables because it can be easily recovered by walking
   /// the declaration chains.
   void makeDeclVisibleInContext(NamedDecl *D, bool Recoverable = true);
-
-  /// \brief Deserialize all the visible declarations from external storage.
-  ///
-  /// Name lookup deserializes visible declarations lazily, thus a DeclContext
-  /// may not have a complete name lookup table. This function deserializes
-  /// the rest of visible declarations from the external storage and completes
-  /// the name lookup table.
-  void MaterializeVisibleDeclsFromExternalStorage();
 
   /// udir_iterator - Iterates through the using-directives stored
   /// within this context.
@@ -1317,6 +1337,12 @@ public:
     ExternalVisibleStorage = ES;
   }
 
+  /// \brief Determine whether the given declaration is stored in the list of
+  /// declarations lexically within this context.
+  bool isDeclInLexicalTraversal(const Decl *D) const {
+    return D && (D->NextDeclInContext || D == FirstDecl || D == LastDecl);
+  }
+  
   static bool classof(const Decl *D);
   static bool classof(const DeclContext *D) { return true; }
 #define DECL(NAME, BASE)

@@ -116,7 +116,7 @@ union dinode {
 	} while (0)
 static ufs2_daddr_t 	inoblk;			/* inode block address */
 static char		inobuf[MAXBSIZE];	/* inode block */
-ino_t			maxino;			/* last valid inode */
+static ino_t		maxino;			/* last valid inode */
 static int		unlabeled;     /* unlabeled partition, e.g. vinum volume etc. */
 
 /*

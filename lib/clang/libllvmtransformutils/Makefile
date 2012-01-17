@@ -27,6 +27,7 @@ SRCS=	AddrModeMatcher.cpp \
 	PromoteMemoryToRegister.cpp \
 	SSAUpdater.cpp \
 	SimplifyCFG.cpp \
+	SimplifyIndVar.cpp \
 	UnifyFunctionExitNodes.cpp \
 	ValueMapper.cpp
 

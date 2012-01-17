@@ -174,14 +174,14 @@ typedef struct {
 
 /* global variables */
 
-int	debug = 0;
-int	nodaemon = FALSE;
-int	background = FALSE;
-int	paused = FALSE;
-int	identify = ID_NONE;
-int	extioctl = FALSE;
-const char *pidfile = "/var/run/moused.pid";
-struct pidfh *pfh;
+static int	debug = 0;
+static int	nodaemon = FALSE;
+static int	background = FALSE;
+static int	paused = FALSE;
+static int	identify = ID_NONE;
+static int	extioctl = FALSE;
+static const char *pidfile = "/var/run/moused.pid";
+static struct pidfh *pfh;
 
 #define SCROLL_NOTSCROLLING	0
 #define SCROLL_PREPARE		1
@@ -1025,7 +1025,7 @@ moused(void)
 {
     struct mouse_info mouse;
     mousestatus_t action0;		/* original mouse action */
-    mousestatus_t action;		/* interrim buffer */
+    mousestatus_t action;		/* interim buffer */
     mousestatus_t action2;		/* mapped action */
     struct timeval timeout;
     fd_set fds;
@@ -2278,7 +2278,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->button |= ((pBuf[0] & MOUSE_PS2_TAP)) ? 0 : MOUSE_BUTTON4DOWN;
 	    break;
 	case MOUSE_MODEL_NETSCROLL:
-	    /* three addtional bytes encode buttons and wheel events */
+	    /* three additional bytes encode buttons and wheel events */
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON1DOWN)

@@ -74,6 +74,8 @@ static cn_init_t	ofw_cninit;
 static cn_term_t	ofw_cnterm;
 static cn_getc_t	ofw_cngetc;
 static cn_putc_t	ofw_cnputc;
+static cn_grab_t	ofw_cngrab;
+static cn_ungrab_t	ofw_cnungrab;
 
 CONSOLE_DRIVER(ofw);
 
@@ -189,6 +191,16 @@ ofw_cninit(struct consdev *cp)
 
 static void
 ofw_cnterm(struct consdev *cp)
+{
+}
+
+static void
+ofw_cngrab(struct consdev *cp)
+{
+}
+
+static void
+ofw_cnungrab(struct consdev *cp)
 {
 }
 

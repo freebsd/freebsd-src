@@ -507,7 +507,6 @@ static device_method_t mca_methods[] = {
 	DEVMETHOD(bus_probe_nomatch,	mca_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	mca_read_ivar),
 	DEVMETHOD(bus_write_ivar,	bus_generic_write_ivar),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),     
 
@@ -520,7 +519,7 @@ static device_method_t mca_methods[] = {
 	DEVMETHOD(bus_activate_resource,bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t mca_driver = {       

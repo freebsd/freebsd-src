@@ -118,7 +118,7 @@ at91_rtc_attach(device_t dev)
 		goto out;
 	}
 	clock_register(dev, 1000000);
-out:;
+out:
 	if (err)
 		at91_rtc_deactivate(dev);
 	return (err);

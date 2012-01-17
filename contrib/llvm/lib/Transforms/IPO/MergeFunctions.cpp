@@ -76,7 +76,7 @@ STATISTIC(NumDoubleWeak, "Number of new functions created");
 /// functions that will compare equal, without looking at the instructions
 /// inside the function.
 static unsigned profileFunction(const Function *F) {
-  const FunctionType *FTy = F->getFunctionType();
+  FunctionType *FTy = F->getFunctionType();
 
   FoldingSetNodeID ID;
   ID.AddInteger(F->size());
@@ -185,7 +185,7 @@ private:
   }
 
   /// Compare two Types, treating all pointer types as equal.
-  bool isEquivalentType(const Type *Ty1, const Type *Ty2) const;
+  bool isEquivalentType(Type *Ty1, Type *Ty2) const;
 
   // The two functions undergoing comparison.
   const Function *F1, *F2;
@@ -200,8 +200,8 @@ private:
 
 // Any two pointers in the same address space are equivalent, intptr_t and
 // pointers are equivalent. Otherwise, standard type equivalence rules apply.
-bool FunctionComparator::isEquivalentType(const Type *Ty1,
-                                          const Type *Ty2) const {
+bool FunctionComparator::isEquivalentType(Type *Ty1,
+                                          Type *Ty2) const {
   if (Ty1 == Ty2)
     return true;
   if (Ty1->getTypeID() != Ty2->getTypeID()) {
@@ -233,14 +233,14 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
     return true;
 
   case Type::PointerTyID: {
-    const PointerType *PTy1 = cast<PointerType>(Ty1);
-    const PointerType *PTy2 = cast<PointerType>(Ty2);
+    PointerType *PTy1 = cast<PointerType>(Ty1);
+    PointerType *PTy2 = cast<PointerType>(Ty2);
     return PTy1->getAddressSpace() == PTy2->getAddressSpace();
   }
 
   case Type::StructTyID: {
-    const StructType *STy1 = cast<StructType>(Ty1);
-    const StructType *STy2 = cast<StructType>(Ty2);
+    StructType *STy1 = cast<StructType>(Ty1);
+    StructType *STy2 = cast<StructType>(Ty2);
     if (STy1->getNumElements() != STy2->getNumElements())
       return false;
 
@@ -255,8 +255,8 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
   }
 
   case Type::FunctionTyID: {
-    const FunctionType *FTy1 = cast<FunctionType>(Ty1);
-    const FunctionType *FTy2 = cast<FunctionType>(Ty2);
+    FunctionType *FTy1 = cast<FunctionType>(Ty1);
+    FunctionType *FTy2 = cast<FunctionType>(Ty2);
     if (FTy1->getNumParams() != FTy2->getNumParams() ||
         FTy1->isVarArg() != FTy2->isVarArg())
       return false;
@@ -272,8 +272,8 @@ bool FunctionComparator::isEquivalentType(const Type *Ty1,
   }
 
   case Type::ArrayTyID: {
-    const ArrayType *ATy1 = cast<ArrayType>(Ty1);
-    const ArrayType *ATy2 = cast<ArrayType>(Ty2);
+    ArrayType *ATy1 = cast<ArrayType>(Ty1);
+    ArrayType *ATy2 = cast<ArrayType>(Ty2);
     return ATy1->getNumElements() == ATy2->getNumElements() &&
            isEquivalentType(ATy1->getElementType(), ATy2->getElementType());
   }
@@ -305,10 +305,14 @@ bool FunctionComparator::isEquivalentOperation(const Instruction *I1,
   // Check special state that is a part of some instructions.
   if (const LoadInst *LI = dyn_cast<LoadInst>(I1))
     return LI->isVolatile() == cast<LoadInst>(I2)->isVolatile() &&
-           LI->getAlignment() == cast<LoadInst>(I2)->getAlignment();
+           LI->getAlignment() == cast<LoadInst>(I2)->getAlignment() &&
+           LI->getOrdering() == cast<LoadInst>(I2)->getOrdering() &&
+           LI->getSynchScope() == cast<LoadInst>(I2)->getSynchScope();
   if (const StoreInst *SI = dyn_cast<StoreInst>(I1))
     return SI->isVolatile() == cast<StoreInst>(I2)->isVolatile() &&
-           SI->getAlignment() == cast<StoreInst>(I2)->getAlignment();
+           SI->getAlignment() == cast<StoreInst>(I2)->getAlignment() &&
+           SI->getOrdering() == cast<StoreInst>(I2)->getOrdering() &&
+           SI->getSynchScope() == cast<StoreInst>(I2)->getSynchScope();
   if (const CmpInst *CI = dyn_cast<CmpInst>(I1))
     return CI->getPredicate() == cast<CmpInst>(I2)->getPredicate();
   if (const CallInst *CI = dyn_cast<CallInst>(I1))
@@ -317,22 +321,22 @@ bool FunctionComparator::isEquivalentOperation(const Instruction *I1,
   if (const InvokeInst *CI = dyn_cast<InvokeInst>(I1))
     return CI->getCallingConv() == cast<InvokeInst>(I2)->getCallingConv() &&
            CI->getAttributes() == cast<InvokeInst>(I2)->getAttributes();
-  if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(I1)) {
-    if (IVI->getNumIndices() != cast<InsertValueInst>(I2)->getNumIndices())
-      return false;
-    for (unsigned i = 0, e = IVI->getNumIndices(); i != e; ++i)
-      if (IVI->idx_begin()[i] != cast<InsertValueInst>(I2)->idx_begin()[i])
-        return false;
-    return true;
-  }
-  if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I1)) {
-    if (EVI->getNumIndices() != cast<ExtractValueInst>(I2)->getNumIndices())
-      return false;
-    for (unsigned i = 0, e = EVI->getNumIndices(); i != e; ++i)
-      if (EVI->idx_begin()[i] != cast<ExtractValueInst>(I2)->idx_begin()[i])
-        return false;
-    return true;
-  }
+  if (const InsertValueInst *IVI = dyn_cast<InsertValueInst>(I1))
+    return IVI->getIndices() == cast<InsertValueInst>(I2)->getIndices();
+  if (const ExtractValueInst *EVI = dyn_cast<ExtractValueInst>(I1))
+    return EVI->getIndices() == cast<ExtractValueInst>(I2)->getIndices();
+  if (const FenceInst *FI = dyn_cast<FenceInst>(I1))
+    return FI->getOrdering() == cast<FenceInst>(I2)->getOrdering() &&
+           FI->getSynchScope() == cast<FenceInst>(I2)->getSynchScope();
+  if (const AtomicCmpXchgInst *CXI = dyn_cast<AtomicCmpXchgInst>(I1))
+    return CXI->isVolatile() == cast<AtomicCmpXchgInst>(I2)->isVolatile() &&
+           CXI->getOrdering() == cast<AtomicCmpXchgInst>(I2)->getOrdering() &&
+           CXI->getSynchScope() == cast<AtomicCmpXchgInst>(I2)->getSynchScope();
+  if (const AtomicRMWInst *RMWI = dyn_cast<AtomicRMWInst>(I1))
+    return RMWI->getOperation() == cast<AtomicRMWInst>(I2)->getOperation() &&
+           RMWI->isVolatile() == cast<AtomicRMWInst>(I2)->isVolatile() &&
+           RMWI->getOrdering() == cast<AtomicRMWInst>(I2)->getOrdering() &&
+           RMWI->getSynchScope() == cast<AtomicRMWInst>(I2)->getSynchScope();
 
   return true;
 }
@@ -346,9 +350,9 @@ bool FunctionComparator::isEquivalentGEP(const GEPOperator *GEP1,
     SmallVector<Value *, 8> Indices1(GEP1->idx_begin(), GEP1->idx_end());
     SmallVector<Value *, 8> Indices2(GEP2->idx_begin(), GEP2->idx_end());
     uint64_t Offset1 = TD->getIndexedOffset(GEP1->getPointerOperandType(),
-                                            Indices1.data(), Indices1.size());
+                                            Indices1);
     uint64_t Offset2 = TD->getIndexedOffset(GEP2->getPointerOperandType(),
-                                            Indices2.data(), Indices2.size());
+                                            Indices2);
     return Offset1 == Offset2;
   }
 
@@ -725,7 +729,7 @@ void MergeFunctions::writeThunk(Function *F, Function *G) {
 
   SmallVector<Value *, 16> Args;
   unsigned i = 0;
-  const FunctionType *FFTy = F->getFunctionType();
+  FunctionType *FFTy = F->getFunctionType();
   for (Function::arg_iterator AI = NewG->arg_begin(), AE = NewG->arg_end();
        AI != AE; ++AI) {
     Args.push_back(Builder.CreateBitCast(AI, FFTy->getParamType(i)));
