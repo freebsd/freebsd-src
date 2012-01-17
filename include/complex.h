@@ -36,6 +36,9 @@
 #define	_Complex	__complex__
 #endif
 #define	_Complex_I	((float _Complex)1.0i)
+#endif
+
+#ifdef __generic
 _Static_assert(__generic(_Complex_I, float _Complex, 1, 0),
     "_Complex_I must be of type float _Complex");
 #endif
