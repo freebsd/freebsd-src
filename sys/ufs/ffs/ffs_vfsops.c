@@ -144,7 +144,7 @@ ffs_mount(struct mount *mp)
 	struct fs *fs;
 	pid_t fsckpid = 0;
 	int error, flags;
-	u_int mntorflags;
+	uint64_t mntorflags;
 	accmode_t accmode;
 	struct nameidata ndp;
 	char *fspec;
@@ -571,7 +571,7 @@ ffs_mount(struct mount *mp)
  */
 
 static int
-ffs_cmount(struct mntarg *ma, void *data, int flags)
+ffs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct ufs_args args;
 	struct export_args exp;
