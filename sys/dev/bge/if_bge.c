@@ -2745,6 +2745,9 @@ bge_can_use_msi(struct bge_softc *sc)
 {
 	int can_use_msi = 0;
 
+	if (sc->bge_msi_disable != 0)
+		return (0);
+
 	/* Disable MSI for polling(4). */
 #ifdef DEVICE_POLLING
 	return (0);
@@ -5626,6 +5629,12 @@ bge_add_sysctls(struct bge_softc *sc)
 	    CTLFLAG_RW, &sc->bge_forced_collapse, 0,
 	    "Number of fragmented TX buffers of a frame allowed before "
 	    "forced collapsing");
+
+	sc->bge_msi_disable = 0;
+	snprintf(tn, sizeof(tn), "dev.bge.%d.msi_disable", unit);
+	TUNABLE_INT_FETCH(tn, &sc->bge_msi_disable);
+	SYSCTL_ADD_INT(ctx, children, OID_AUTO, "msi_disable",
+	    CTLFLAG_RD, &sc->bge_msi_disable, 0, "Disable MSI");
 
 	/*
 	 * It seems all Broadcom controllers have a bug that can generate UDP
