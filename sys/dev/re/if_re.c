@@ -3558,7 +3558,6 @@ re_stop(struct rl_softc *sc)
 	}
 
 	/* Free the TX list buffers. */
-
 	for (i = 0; i < sc->rl_ldata.rl_tx_desc_cnt; i++) {
 		txd = &sc->rl_ldata.rl_tx_desc[i];
 		if (txd->tx_m != NULL) {
@@ -3572,7 +3571,6 @@ re_stop(struct rl_softc *sc)
 	}
 
 	/* Free the RX list buffers. */
-
 	for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
 		rxd = &sc->rl_ldata.rl_rx_desc[i];
 		if (rxd->rx_m != NULL) {
@@ -3582,6 +3580,20 @@ re_stop(struct rl_softc *sc)
 			    rxd->rx_dmamap);
 			m_freem(rxd->rx_m);
 			rxd->rx_m = NULL;
+		}
+	}
+
+	if ((sc->rl_flags & RL_FLAG_JUMBOV2) != 0) {
+		for (i = 0; i < sc->rl_ldata.rl_rx_desc_cnt; i++) {
+			rxd = &sc->rl_ldata.rl_jrx_desc[i];
+			if (rxd->rx_m != NULL) {
+				bus_dmamap_sync(sc->rl_ldata.rl_jrx_mtag,
+				    rxd->rx_dmamap, BUS_DMASYNC_POSTREAD);
+				bus_dmamap_unload(sc->rl_ldata.rl_jrx_mtag,
+				    rxd->rx_dmamap);
+				m_freem(rxd->rx_m);
+				rxd->rx_m = NULL;
+			}
 		}
 	}
 }
