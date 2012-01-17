@@ -487,10 +487,8 @@ allocate_initial_tls(Obj_Entry *objs)
 void *__tls_get_addr(tls_index *ti)
 {
     Elf_Addr** segbase;
-    Elf_Addr* dtv;
 
     __asm __volatile("movq %%fs:0, %0" : "=r" (segbase));
-    dtv = segbase[1];
 
     return tls_get_addr_common(&segbase[1], ti->ti_module, ti->ti_offset);
 }
