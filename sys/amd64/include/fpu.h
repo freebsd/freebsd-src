@@ -78,6 +78,28 @@ struct  savefpu {
 	uint8_t sv_pad[96];
 } __aligned(16);
 
+struct xstate_hdr {
+	uint64_t xstate_bv;
+	uint8_t xstate_rsrv0[16];
+	uint8_t	xstate_rsrv[40];
+};
+
+struct savefpu_xstate {
+	struct xstate_hdr sx_hd;
+	struct ymmacc	sx_ymm[16];
+};
+
+struct savefpu_ymm {
+	struct	envxmm	sv_env;
+	struct {
+		struct fpacc87	fp_acc;
+		int8_t		fp_pad[6];      /* padding */
+	} sv_fp[8];
+	struct xmmacc	sv_xmm[16];
+	uint8_t sv_pad[96];
+	struct savefpu_xstate sv_xstate;
+} __aligned(64);
+
 #ifdef _KERNEL
 struct fpu_kern_ctx {
 	struct savefpu hwstate;
