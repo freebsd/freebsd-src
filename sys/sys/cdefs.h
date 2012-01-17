@@ -260,7 +260,7 @@
 #if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 #define	__generic(expr, t, yes, no)					\
 	_Generic(expr, t: yes, default: no)
-#elif __GNUC_PREREQ__(3, 1)
+#elif __GNUC_PREREQ__(3, 1) && !defined(__cplusplus)
 #define	__generic(expr, t, yes, no)					\
 	__builtin_choose_expr(						\
 	    __builtin_types_compatible_p(__typeof(expr), t), yes, no)
