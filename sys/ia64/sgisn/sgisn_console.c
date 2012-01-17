@@ -59,10 +59,12 @@ static int sncon_is_console = 0;
  */
 
 static int  sncon_cngetc(struct consdev *);
+static void sncon_cngrab(struct consdev *);
 static void sncon_cninit(struct consdev *);
 static void sncon_cnprobe(struct consdev *);
 static void sncon_cnputc(struct consdev *, int);
 static void sncon_cnterm(struct consdev *);
+static void sncon_cnungrab(struct consdev *);
 
 CONSOLE_DRIVER(sncon);
 
@@ -77,6 +79,11 @@ sncon_cngetc(struct consdev *cp)
 
 	r = ia64_sal_entry(SAL_SGISN_GETC, 0, 0, 0, 0, 0, 0, 0);
 	return ((!r.sal_status) ? r.sal_result[0] : -1);
+}
+
+static void
+sncon_cngrab(struct consdev *cp)
+{
 }
 
 static void
@@ -114,6 +121,11 @@ sncon_cnterm(struct consdev *cp)
 {
 
 	sncon_is_console = 0;
+}
+
+static void
+sncon_cnungrab(struct consdev *cp)
+{
 }
 
 /*
