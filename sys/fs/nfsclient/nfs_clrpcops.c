@@ -87,6 +87,8 @@ static int nfsrpc_setaclrpc(vnode_t, struct ucred *, NFSPROC_T *,
     struct acl *, nfsv4stateid_t *, void *);
 static int nfsrpc_getlayout(struct nfsmount *, struct nfsfh *, int, uint32_t *,
     nfsv4stateid_t *, struct ucred *, NFSPROC_T *);
+static int nfsrpc_fillsa(struct nfsmount *, struct nfsclds *,
+    struct sockaddr_storage *, NFSPROC_T *);
 
 /*
  * nfs null call from vfs.
@@ -4626,8 +4628,9 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 {
 	uint32_t cnt, *tl;
 	struct nfsrv_descript nfsd;
-	struct sockaddr_storage ss, *sa;
 	struct nfsrv_descript *nd = &nfsd;
+	struct sockaddr_storage ss;
+	struct nfsclds *sa;
 	struct nfscldevinfo *ndi;
 	int addrcnt, bitcnt, error, i, isudp, j, pos, safilled, stripecnt;
 	uint8_t stripeindex;
@@ -4664,7 +4667,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		}
 		NFSM_DISSECT(tl, uint32_t *, (stripecnt + 1) * NFSX_UNSIGNED);
 		addrcnt = fxdr_unsigned(int, *(tl + stripecnt));
-		if (addrcnt < 0 || addrcnt > 128) {
+		if (addrcnt < 1 || addrcnt > 128) {
 			printf("NFS devinfo addrcnt %d: out of range\n",
 			    addrcnt);
 			error = NFSERR_BADXDR;
@@ -4675,10 +4678,9 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		 * Now we know how many stripe indices and addresses, so
 		 * we can allocate the structure the correct size.
 		 */
-		i = stripecnt / sizeof(struct sockaddr_storage) + 1;
+		i = stripecnt / sizeof(struct nfsclds) + 1;
 		ndi = malloc(sizeof(*ndi) + (addrcnt + i - 1) *
-		    sizeof(struct sockaddr_storage),
-		    M_NFSDEVINFO, M_WAITOK);
+		    sizeof(struct nfsclds), M_NFSDEVINFO, M_WAITOK | M_ZERO);
 		NFSBCOPY(deviceid, ndi->nfsdi_deviceid, NFSX_V4DEVICEID);
 		ndi->nfsdi_refcnt = 0;
 		ndi->nfsdi_stripecnt = stripecnt;
@@ -4696,6 +4698,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 		}
 
 		/* Now, dissect the server address(es). */
+		safilled = 0;
 		for (i = 0; i < addrcnt; i++) {
 			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
 			cnt = fxdr_unsigned(uint32_t, *tl);
@@ -4730,31 +4733,48 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 					      nmp->nm_nam->sa_family)) ||
 					    (safilled == 1 && ss.ss_family ==
 					     nmp->nm_nam->sa_family)) {
-						NFSBCOPY(&ss, sa, sizeof(ss));
-						if (ss.ss_family ==
-						    nmp->nm_nam->sa_family)
-							safilled = 2;
-						else
-							safilled = 1;
+						error = nfsrpc_fillsa(nmp, sa,
+						    &ss, p);
+						if (error == 0) {
+							if (ss.ss_family ==
+							 nmp->nm_nam->sa_family)
+								safilled = 2;
+							else
+								safilled = 1;
+						}
 					}
 				}
 			}
+			if (safilled == 0)
+				break;
 		}
 
 		/* And the notify bits. */
 		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-		bitcnt = fxdr_unsigned(int, *tl);
-		if (bitcnt > 0) {
-			NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-			*notifybitsp = fxdr_unsigned(uint32_t, *tl);
-		}
-		*ndip = ndi;
+		if (safilled != 0) {
+			bitcnt = fxdr_unsigned(int, *tl);
+			if (bitcnt > 0) {
+				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+				*notifybitsp = fxdr_unsigned(uint32_t, *tl);
+			}
+			*ndip = ndi;
+		} else
+			error = EPERM;
 	}
 	if (nd->nd_repstat != 0)
 		error = nd->nd_repstat;
 nfsmout:
-	if (error != 0 && ndi != NULL)
+	if (error != 0 && ndi != NULL) {
+		for (i = 0; i < ndi->nfsdi_addrcnt; i++) {
+			sa = nfsfldi_addr(ndi, i);
+			if (sa->nfsclds_sock.nr_nam != NULL) {
+				/* Both are set or both are NULL. */
+				NFSFREECRED(sa->nfsclds_sock.nr_cred);
+				free(sa->nfsclds_sock.nr_nam, M_SONAME);
+			}
+		}
 		free(ndi, M_NFSDEVINFO);
+	}
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
@@ -4936,6 +4956,75 @@ nfsrpc_getlayout(struct nfsmount *nmp, struct nfsfh *nfhp, int iomode,
 	}
 	if (lyp != NULL)
 		nfscl_rellayout(lyp);
+	return (error);
+}
+
+/*
+ * Fill in nfsclds, doing the TCP connect plus exchangeid and create session.
+ * The nfsclds structure pointed to by dsp is all zero'd out.
+ */
+static int
+nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
+    struct sockaddr_storage *ssp, NFSPROC_T *p)
+{
+	struct sockaddr_in *sad, *ssd;
+	struct sockaddr_in6 *sad6, *ssd6;
+	struct nfsclclient *clp;
+	int error;
+
+	KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+	    ("nfsrpc_fillsa: NULL nr_cred"));
+	NFSLOCKCLSTATE();
+	clp = nmp->nm_clp;
+	NFSUNLOCKCLSTATE();
+	if (clp == NULL)
+		return (EPERM);
+	if (ssp->ss_family == AF_INET) {
+		ssd = (struct sockaddr_in *)ssp;
+		sad = malloc(sizeof(*sad), M_SONAME, M_WAITOK | M_ZERO);
+		sad->sin_len = sizeof(*sad);
+		sad->sin_family = AF_INET;
+		sad->sin_port = ssd->sin_port;
+		sad->sin_addr.s_addr = ssd->sin_addr.s_addr;
+		dsp->nfsclds_sock.nr_nam = (struct sockaddr *)sad;
+	} else if (ssp->ss_family == AF_INET6) {
+		ssd6 = (struct sockaddr_in6 *)ssp;
+		sad6 = malloc(sizeof(*sad6), M_SONAME, M_WAITOK | M_ZERO);
+		sad6->sin6_len = sizeof(*sad6);
+		sad6->sin6_family = AF_INET6;
+		sad6->sin6_port = ssd6->sin6_port;
+		NFSBCOPY(&ssd6->sin6_addr, &sad6->sin6_addr,
+		    sizeof(struct in6_addr));
+		dsp->nfsclds_sock.nr_nam = (struct sockaddr *)sad6;
+	} else
+		return (EPERM);
+	dsp->nfsclds_sock.nr_sotype = SOCK_STREAM;
+	mtx_init(&dsp->nfsclds_sock.nr_mtx, "nfssock", NULL, MTX_DEF);
+	dsp->nfsclds_sock.nr_prog = NFS_PROG;
+	dsp->nfsclds_sock.nr_vers = NFS_VER4;
+
+	/*
+	 * Use the credentials that were used for the mount, which are
+	 * in nmp->nm_sockreq.nr_cred for newnfs_connect() etc.
+	 * Ref. counting the credentials with crhold() is probably not
+	 * necessary, since nm_sockreq.nr_cred won't be crfree()'d until
+	 * unmount, but I did it anyhow.
+	 */
+	dsp->nfsclds_sock.nr_cred = crhold(nmp->nm_sockreq.nr_cred);
+	error = newnfs_connect(nmp, &dsp->nfsclds_sock, NULL, p, 0);
+
+	/* Now, do the exchangeid and create session. */
+	if (error == 0)
+		error = nfsrpc_exchangeid(nmp, clp, &dsp->nfsclds_sess,
+		    NFSV4EXCH_USEPNFSDS, dsp->nfsclds_sock.nr_cred, p);
+	if (error == 0)
+		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
+		    dsp->nfsclds_sock.nr_cred, p);
+	if (error != 0) {
+		NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
+		NFSBZERO(dsp, sizeof(*dsp));
+	}
 	return (error);
 }
 

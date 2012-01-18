@@ -69,6 +69,14 @@ struct nfsclsession {
 	uint8_t		nfsess_sessionid[NFSX_V4SESSIONID];
 };
 
+/*
+ * This structure holds the information used to access a Data Server (DS).
+ */
+struct nfsclds {
+	struct nfssockreq	nfsclds_sock;
+	struct nfsclsession	nfsclds_sess;
+};
+
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;
 	struct nfsclownerhead	nfsc_owner;
@@ -249,9 +257,9 @@ struct nfsclflayout {
 
 /*
  * Stores the NFSv4.1 Device Info. Malloc'd to the correct length to
- * store the list of network addresses and list of indices.
+ * store the list of network connections and list of indices.
  * nfsdi_data[] is allocated the following way:
- * - nfsdi_addrcnt * struct sockaddr_storage
+ * - nfsdi_addrcnt * struct nfsclds
  * - stripe indices, each stored as one byte, since there can be many
  *   of them. (This implies a limit of 256 on nfsdi_addrcnt, since the
  *   indices select which address.)
@@ -264,14 +272,14 @@ struct nfscldevinfo {
 	uint32_t			nfsdi_refcnt;
 	uint16_t			nfsdi_stripecnt;
 	uint16_t			nfsdi_addrcnt;
-	struct sockaddr_storage		nfsdi_data[1];
+	struct nfsclds			nfsdi_data[1];
 };
 
 /* These inline functions return values from nfsdi_data[]. */
 /*
  * Return a pointer to the address at "pos".
  */
-static __inline struct sockaddr_storage *
+static __inline struct nfsclds *
 nfsfldi_addr(struct nfscldevinfo *ndi, int pos)
 {
 
