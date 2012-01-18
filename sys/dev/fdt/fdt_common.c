@@ -63,13 +63,57 @@ vm_offset_t fdt_immr_va;
 vm_offset_t fdt_immr_size;
 
 int
-fdt_immr_addr(vm_offset_t immr_va)
+fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 {
 	pcell_t ranges[6], *rangesptr;
-	phandle_t node;
-	u_long base, size;
 	pcell_t addr_cells, size_cells, par_addr_cells;
 	int len, tuple_size, tuples;
+
+	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
+		return (ENXIO);
+	/*
+	 * Process 'ranges' property.
+	 */
+	par_addr_cells = fdt_parent_addr_cells(node);
+	if (par_addr_cells > 2)
+		return (ERANGE);
+
+	len = OF_getproplen(node, "ranges");
+	if (len > sizeof(ranges))
+		return (ENOMEM);
+
+	if (!(range_id < len))
+		return (ERANGE);
+
+	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
+		return (EINVAL);
+
+	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
+	    size_cells);
+	tuples = len / tuple_size;
+
+	if (fdt_ranges_verify(ranges, tuples, par_addr_cells,
+	    addr_cells, size_cells)) {
+		return (ERANGE);
+	}
+	*base = 0;
+	*size = 0;
+	rangesptr = &ranges[range_id];
+
+	*base = fdt_data_get((void *)rangesptr, addr_cells);
+	rangesptr += addr_cells;
+	*base += fdt_data_get((void *)rangesptr, par_addr_cells);
+	rangesptr += par_addr_cells;
+	*size = fdt_data_get((void *)rangesptr, size_cells);
+	return (0);
+}
+
+int
+fdt_immr_addr(vm_offset_t immr_va)
+{
+	phandle_t node;
+	u_long base, size;
+	int r;
 
 	/*
 	 * Try to access the SOC node directly i.e. through /aliases/.
@@ -87,45 +131,13 @@ fdt_immr_addr(vm_offset_t immr_va)
 		return (ENXIO);
 
 moveon:
-	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
-		return (ENXIO);
-	/*
-	 * Process 'ranges' property.
-	 */
-	par_addr_cells = fdt_parent_addr_cells(node);
-	if (par_addr_cells > 2)
-		return (ERANGE);
-
-	len = OF_getproplen(node, "ranges");
-	if (len > sizeof(ranges))
-		return (ENOMEM);
-
-	if (OF_getprop(node, "ranges", ranges, sizeof(ranges)) <= 0)
-		return (EINVAL);
-
-	tuple_size = sizeof(pcell_t) * (addr_cells + par_addr_cells +
-	    size_cells);
-	tuples = len / tuple_size;
-
-	if (fdt_ranges_verify(ranges, tuples, par_addr_cells,
-	    addr_cells, size_cells)) {
-		return (ERANGE);
+	if ((r = fdt_get_range(node, 0, &base, &size)) == 0) {
+		fdt_immr_pa = base;
+		fdt_immr_va = immr_va;
+		fdt_immr_size = size;
 	}
-	base = 0;
-	size = 0;
-	rangesptr = &ranges[0];
 
-	base = fdt_data_get((void *)rangesptr, addr_cells);
-	rangesptr += addr_cells;
-	base += fdt_data_get((void *)rangesptr, par_addr_cells);
-	rangesptr += par_addr_cells;
-	size = fdt_data_get((void *)rangesptr, size_cells);
-
-	fdt_immr_pa = base;
-	fdt_immr_va = immr_va;
-	fdt_immr_size = size;
-
-	return (0);
+	return (r);
 }
 
 /*

@@ -90,6 +90,7 @@ int fdt_data_verify(void *, int);
 phandle_t fdt_find_compatible(phandle_t, const char *, int);
 int fdt_get_mem_regions(struct mem_region *, int *, uint32_t *);
 int fdt_get_phyaddr(phandle_t node, int *);
+int fdt_get_range(phandle_t, int, u_long *, u_long *);
 int fdt_immr_addr(vm_offset_t);
 int fdt_regsize(phandle_t, u_long *, u_long *);
 int fdt_intr_decode(phandle_t, pcell_t *, int *, int *, int *);
