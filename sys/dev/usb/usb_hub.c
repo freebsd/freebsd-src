@@ -327,6 +327,7 @@ uhub_reattach_port(struct uhub_softc *sc, uint8_t portno)
 	enum usb_dev_speed speed;
 	enum usb_hc_mode mode;
 	usb_error_t err;
+	uint16_t power_mask;
 	uint8_t timeout;
 
 	DPRINTF("reattaching port %d\n", portno);
@@ -369,10 +370,27 @@ repeat:
 	}
 	/* check if there is no power on the port and print a warning */
 
-	if (!(sc->sc_st.port_status & UPS_PORT_POWER)) {
+	switch (udev->speed) {
+	case USB_SPEED_HIGH:
+	case USB_SPEED_FULL:
+	case USB_SPEED_LOW:
+		power_mask = UPS_PORT_POWER;
+		break;
+	case USB_SPEED_SUPER:
+		if (udev->parent_hub == NULL)
+			power_mask = UPS_PORT_POWER;
+		else
+			power_mask = UPS_PORT_POWER_SS;
+		break;
+	default:
+		power_mask = 0;
+		break;
+	}
+	if (!(sc->sc_st.port_status & power_mask)) {
 		DPRINTF("WARNING: strange, connected port %d "
 		    "has no power\n", portno);
 	}
+
 	/* check if the device is in Host Mode */
 
 	if (!(sc->sc_st.port_status & UPS_PORT_MODE_DEVICE)) {
@@ -609,13 +627,15 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		}
 	} else {
 		switch (UPS_PORT_LINK_STATE_GET(sc->sc_st.port_status)) {
-		case UPS_PORT_LS_U0:
-		case UPS_PORT_LS_U1:
-		case UPS_PORT_LS_RESUME:
+		case UPS_PORT_LS_U3:
+			is_suspend = 1;
+			break;
+		case UPS_PORT_LS_SS_INA:
+			usbd_req_warm_reset_port(udev, NULL, portno);
 			is_suspend = 0;
 			break;
 		default:
-			is_suspend = 1;
+			is_suspend = 0;
 			break;
 		}
 	}
@@ -632,8 +652,7 @@ uhub_suspend_resume_port(struct uhub_softc *sc, uint8_t portno)
 		 */
 		if (is_suspend == 0)
 			usb_dev_resume_peer(child);
-		else if ((child->flags.usb_mode == USB_MODE_DEVICE) ||
-		    (usb_device_20_compatible(child) == 0))
+		else if (child->flags.usb_mode == USB_MODE_DEVICE)
 			usb_dev_suspend_peer(child);
 	}
 done:
@@ -775,7 +794,8 @@ uhub_explore(struct usb_device *udev)
 				break;
 			}
 		}
-		if (sc->sc_st.port_change & (UPS_C_SUSPEND | UPS_C_PORT_LINK_STATE)) {
+		if (sc->sc_st.port_change & (UPS_C_SUSPEND |
+		    UPS_C_PORT_LINK_STATE)) {
 			err = uhub_suspend_resume_port(sc, portno);
 			if (err) {
 				/* most likely the HUB is gone */
@@ -2064,7 +2084,6 @@ usb_peer_should_wakeup(struct usb_device *udev)
 	    (udev->pwr_save.write_refs != 0) ||
 	    ((udev->pwr_save.read_refs != 0) &&
 	    (udev->flags.usb_mode == USB_MODE_HOST) &&
-	    (usb_device_20_compatible(udev) != 0) &&
 	    (usb_peer_can_wakeup(udev) == 0)));
 }
 
@@ -2244,6 +2263,14 @@ usb_dev_resume_peer(struct usb_device *udev)
 			DPRINTFN(0, "Resuming port failed\n");
 			return;
 		}
+	} else {
+		/* resume current port (Valid in Host and Device Mode) */
+		err = usbd_req_set_port_link_state(udev->parent_hub,
+		    NULL, udev->port_no, UPS_PORT_LS_U0);
+		if (err) {
+			DPRINTFN(0, "Resuming port failed\n");
+			return;
+		}
 	}
 
 	/* resume settle time */
@@ -2285,8 +2312,7 @@ usb_dev_resume_peer(struct usb_device *udev)
 	usbd_sr_unlock(udev);
 
 	/* check if peer has wakeup capability */
-	if (usb_peer_can_wakeup(udev) &&
-	    usb_device_20_compatible(udev)) {
+	if (usb_peer_can_wakeup(udev)) {
 		/* clear remote wakeup */
 		err = usbd_req_clear_device_feature(udev,
 		    NULL, UF_DEVICE_REMOTE_WAKEUP);
@@ -2347,8 +2373,7 @@ repeat:
 		}
 	}
 
-	if (usb_peer_can_wakeup(udev) &&
-	    usb_device_20_compatible(udev)) {
+	if (usb_peer_can_wakeup(udev)) {
 		/*
 		 * This request needs to be done before we set
 		 * "udev->flags.self_suspended":
@@ -2380,8 +2405,7 @@ repeat:
 	USB_BUS_UNLOCK(udev->bus);
 
 	if (err != 0) {
-		if (usb_peer_can_wakeup(udev) &&
-		    usb_device_20_compatible(udev)) {
+		if (usb_peer_can_wakeup(udev)) {
 			/* allow device to do remote wakeup */
 			err = usbd_req_clear_device_feature(udev,
 			    NULL, UF_DEVICE_REMOTE_WAKEUP);
@@ -2433,6 +2457,14 @@ repeat:
 		/* suspend current port */
 		err = usbd_req_set_port_feature(udev->parent_hub,
 		    NULL, udev->port_no, UHF_PORT_SUSPEND);
+		if (err) {
+			DPRINTFN(0, "Suspending port failed\n");
+			return;
+		}
+	} else {
+		/* suspend current port */
+		err = usbd_req_set_port_link_state(udev->parent_hub,
+		    NULL, udev->port_no, UPS_PORT_LS_U3);
 		if (err) {
 			DPRINTFN(0, "Suspending port failed\n");
 			return;
