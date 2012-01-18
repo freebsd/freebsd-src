@@ -564,6 +564,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
