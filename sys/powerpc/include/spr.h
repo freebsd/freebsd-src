@@ -348,8 +348,8 @@
 #define	  SPR_MMCR0_PMC1CE	  0x00008000 /* PMC1 condition enable */
 #define	  SPR_MMCR0_PMCNCE	  0x00004000 /* PMCn condition enable */
 #define	  SPR_MMCR0_TRIGGER	  0x00002000 /* Trigger */
-#define	  SPR_MMCR0_PMC1SEL(x)	  ((x) << 6) /* PMC1 selector */
-#define	  SPR_MMCR0_PMC2SEL(x)	  ((x) << 0) /* PMC2 selector */
+#define	  SPR_MMCR0_PMC1SEL(x)	  (((x) & 0x3f) << 6) /* PMC1 selector */
+#define	  SPR_MMCR0_PMC2SEL(x)	  (((x) & 0x3f) << 0) /* PMC2 selector */
 #define	  SPR_970MMCR0_PMC1SEL(x) ((x) << 8) /* PMC1 selector (970) */
 #define	  SPR_970MMCR0_PMC2SEL(x) ((x) << 1) /* PMC2 selector (970) */
 #define	SPR_SGR			0x3b9	/* 4.. Storage Guarded Register */
@@ -359,10 +359,10 @@
 #define	SPR_SLER		0x3bb	/* 4.. Storage Little Endian Register */
 #define	SPR_SIA			0x3bb	/* .6. Sampled Instruction Address */
 #define	SPR_MMCR1		0x3bc	/* .6. Monitor Mode Control Register 2 */
-#define	  SPR_MMCR1_PMC3SEL(x)	  ((x) << 27) /* PMC 3 selector */
-#define	  SPR_MMCR1_PMC4SEL(x)	  ((x) << 22) /* PMC 4 selector */
-#define	  SPR_MMCR1_PMC5SEL(x)	  ((x) << 17) /* PMC 5 selector */
-#define	  SPR_MMCR1_PMC6SEL(x)	  ((x) << 11) /* PMC 6 selector */
+#define	  SPR_MMCR1_PMC3SEL(x)	  (((x) & 0x1f) << 27) /* PMC 3 selector */
+#define	  SPR_MMCR1_PMC4SEL(x)	  (((x) & 0x1f) << 22) /* PMC 4 selector */
+#define	  SPR_MMCR1_PMC5SEL(x)	  (((x) & 0x1f) << 17) /* PMC 5 selector */
+#define	  SPR_MMCR1_PMC6SEL(x)	  (((x) & 0x3f) << 11) /* PMC 6 selector */
 
 #define	SPR_SU0R		0x3bc	/* 4.. Storage User-defined 0 Register */
 #define	SPR_PMC3		0x3bd	/* .6. Performance Counter Register 3 */
