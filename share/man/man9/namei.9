@@ -196,10 +196,6 @@ With this flag,
 will follow the symbolic link if the last part
 of the path supplied is a symbolic link (i.e., it will return a vnode
 for whatever the link points at, instead for the link itself).
-.It Dv NOOBJ
-Do not call
-.Fn vfs_object_create
-for the returned vnode, even though it meets required criteria for VM support.
 .It Dv NOFOLLOW
 Do not follow symbolic links (pseudo).
 This flag is not looked for by the actual code, which looks for
