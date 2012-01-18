@@ -93,9 +93,12 @@ struct hdaa_widget {
 	int bindseqmask;
 	int ossdev;
 	uint32_t ossmask;
+	int unsol;
 	nid_t conns[HDA_MAX_CONNS];
 	u_char connsenable[HDA_MAX_CONNS];
 	char name[HDA_MAX_NAMELEN];
+	uint8_t	*eld;
+	int	eld_len;
 	struct hdaa_devinfo *devinfo;
 	struct {
 		uint32_t widget_cap;
@@ -140,7 +143,6 @@ struct hdaa_audio_as {
 	nid_t dacs[2][16];
 	int num_chans;
 	int chans[2];
-	int unsol;
 	int location;	/* Pins location, if all have the same */
 	int mixed;	/* Mixed/multiplexed recording, not multichannel. */
 };
@@ -197,7 +199,7 @@ struct hdaa_chan {
 	struct pcmchan_caps caps;
 	struct hdaa_devinfo *devinfo;
 	struct hdaa_pcm_devinfo *pdevinfo;
-	uint32_t spd, fmt, fmtlist[16], pcmrates[16];
+	uint32_t spd, fmt, fmtlist[32], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
 	uint32_t ptr, prevptr, blkcnt, blksz;
 	uint32_t *dmapos;

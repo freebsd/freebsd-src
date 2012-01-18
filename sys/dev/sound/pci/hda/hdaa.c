@@ -116,6 +116,12 @@ const char *HDA_LOCS[64] = {
 const char *HDA_GPIO_ACTIONS[8] = {
     "keep", "set", "clear", "disable", "input", "0x05", "0x06", "0x07"};
 
+const char *HDA_HDMI_CODING_TYPES[18] = {
+    "undefined", "LPCM", "AC-3", "MPEG1", "MP3", "MPEG2", "AAC-LC", "DTS",
+    "ATRAC", "DSD", "E-AC-3", "DTS-HD", "MLP", "DST", "WMAPro", "HE-AAC",
+    "HE-AACv2", "MPEG-Surround"
+};
+
 /* Default */
 static uint32_t hdaa_fmt[] = {
 	SND_FORMAT(AFMT_S16_LE, 2, 0),
@@ -246,43 +252,38 @@ hdaa_audio_ctl_amp_get(struct hdaa_devinfo *devinfo, nid_t nid, int dir,
  * Jack detection (Speaker/HP redirection) event handler.
  */
 static void
-hdaa_hp_switch_handler(struct hdaa_devinfo *devinfo, int asid)
+hdaa_hp_switch_handler(struct hdaa_widget *w)
 {
+	struct hdaa_devinfo *devinfo = w->devinfo;
 	struct hdaa_audio_as *as;
-	struct hdaa_widget *w;
+	struct hdaa_widget *w1;
 	struct hdaa_audio_ctl *ctl;
 	uint32_t val, res;
 	int j;
 
-	as = &devinfo->as[asid];
-	if (as->hpredir < 0)
-		return;
-
-	w = hdaa_widget_get(devinfo, as->pins[15]);
-	if (w == NULL || w->enable == 0 || w->type !=
+	if (w->enable == 0 || w->type !=
 	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 		return;
 
-	res = hda_command(devinfo->dev,
-	    HDA_CMD_GET_PIN_SENSE(0, as->pins[15]));
-
+	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
 	HDA_BOOTVERBOSE(
 		device_printf(devinfo->dev,
-		    "Pin sense: nid=%d sence=0x%08x",
-		    as->pins[15], res);
+		    "Pin sense: nid=%d sence=0x%08x", w->nid, res);
 	);
-
 	res = (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) != 0;
 	if (devinfo->quirks & HDAA_QUIRK_SENSEINV)
 		res ^= 1;
-
 	HDA_BOOTVERBOSE(
-		printf(" %sconnected\n", res == 0 ? "dis" : "");
+		printf(" (%sconnected)\n", res == 0 ? "dis" : "");
 	);
+
+	as = &devinfo->as[w->bindas];
+	if (as->hpredir < 0 || as->pins[15] != w->nid)
+		return;
 
 	/* (Un)Mute headphone pin. */
 	ctl = hdaa_audio_ctl_amp_get(devinfo,
-	    as->pins[15], HDAA_CTL_IN, -1, 1);
+	    w->nid, HDAA_CTL_IN, -1, 1);
 	if (ctl != NULL && ctl->mute) {
 		/* If pin has muter - use it. */
 		val = (res != 0) ? 0 : 1;
@@ -294,21 +295,17 @@ hdaa_hp_switch_handler(struct hdaa_devinfo *devinfo, int asid)
 		}
 	} else {
 		/* If there is no muter - disable pin output. */
-		w = hdaa_widget_get(devinfo, as->pins[15]);
-		if (w != NULL && w->type ==
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
-			if (res != 0)
-				val = w->wclass.pin.ctrl |
-				    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
-			else
-				val = w->wclass.pin.ctrl &
-				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
-			if (val != w->wclass.pin.ctrl) {
-				w->wclass.pin.ctrl = val;
-				hda_command(devinfo->dev,
-				    HDA_CMD_SET_PIN_WIDGET_CTRL(0,
-				    w->nid, w->wclass.pin.ctrl));
-			}
+		if (res != 0)
+			val = w->wclass.pin.ctrl |
+			    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
+		else
+			val = w->wclass.pin.ctrl &
+			    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
+		if (val != w->wclass.pin.ctrl) {
+			w->wclass.pin.ctrl = val;
+			hda_command(devinfo->dev,
+			    HDA_CMD_SET_PIN_WIDGET_CTRL(0,
+			    w->nid, w->wclass.pin.ctrl));
 		}
 	}
 	/* (Un)Mute other pins. */
@@ -329,20 +326,20 @@ hdaa_hp_switch_handler(struct hdaa_devinfo *devinfo, int asid)
 			continue;
 		}
 		/* If there is no muter - disable pin output. */
-		w = hdaa_widget_get(devinfo, as->pins[j]);
-		if (w != NULL && w->type ==
+		w1 = hdaa_widget_get(devinfo, as->pins[j]);
+		if (w1 != NULL && w1->type ==
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
 			if (res != 0)
-				val = w->wclass.pin.ctrl &
+				val = w1->wclass.pin.ctrl &
 				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
 			else
-				val = w->wclass.pin.ctrl |
+				val = w1->wclass.pin.ctrl |
 				    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
-			if (val != w->wclass.pin.ctrl) {
-				w->wclass.pin.ctrl = val;
+			if (val != w1->wclass.pin.ctrl) {
+				w1->wclass.pin.ctrl = val;
 				hda_command(devinfo->dev,
 				    HDA_CMD_SET_PIN_WIDGET_CTRL(0,
-				    w->nid, w->wclass.pin.ctrl));
+				    w1->nid, w1->wclass.pin.ctrl));
 			}
 		}
 	}
@@ -355,6 +352,7 @@ static void
 hdaa_jack_poll_callback(void *arg)
 {
 	struct hdaa_devinfo *devinfo = arg;
+	struct hdaa_widget *w;
 	int i;
 
 	hdaa_lock(devinfo);
@@ -365,7 +363,11 @@ hdaa_jack_poll_callback(void *arg)
 	for (i = 0; i < devinfo->ascnt; i++) {
 		if (devinfo->as[i].hpredir < 0)
 			continue;
-		hdaa_hp_switch_handler(devinfo, i);
+		w = hdaa_widget_get(devinfo, devinfo->as[i].pins[15]);
+		if (w == NULL || w->enable == 0 || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		hdaa_hp_switch_handler(w);
 	}
 	callout_reset(&devinfo->poll_jack, devinfo->poll_ival,
 	    hdaa_jack_poll_callback, devinfo);
@@ -397,15 +399,17 @@ hdaa_hp_switch_init(struct hdaa_devinfo *devinfo)
 			    as[i].pins[15]);
 			continue;
 		}
-		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap)) {
-			as[i].unsol = HDAC_UNSOL_ALLOC(
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap) &&
+		    w->unsol < 0) {
+			w->unsol = HDAC_UNSOL_ALLOC(
 			    device_get_parent(devinfo->dev), devinfo->dev,
 			    w->nid);
 			hda_command(devinfo->dev,
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE |
-			    as[i].unsol));
-		} else
+			    w->unsol));
+		}
+		if (w->unsol < 0)
 			poll = 1;
 		HDA_BOOTVERBOSE(
 			device_printf(devinfo->dev,
@@ -414,7 +418,7 @@ hdaa_hp_switch_init(struct hdaa_devinfo *devinfo)
 			    i, w->nid,
 			    (poll != 0) ? "polling" : "unsolicited responses");
 		);
-		hdaa_hp_switch_handler(devinfo, i);
+		hdaa_hp_switch_handler(w);
 	}
 	if (poll) {
 		callout_reset(&devinfo->poll_jack, 1,
@@ -430,18 +434,208 @@ hdaa_hp_switch_deinit(struct hdaa_devinfo *devinfo)
         int i;
 
 	for (i = 0; i < devinfo->ascnt; i++) {
-		if (as[i].unsol < 0)
-			continue;
 		w = hdaa_widget_get(devinfo, as[i].pins[15]);
 		if (w == NULL || w->enable == 0 || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) ||
+		    HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			continue;
+		if (w->unsol < 0)
 			continue;
 		hda_command(devinfo->dev,
 		    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid, 0));
 		HDAC_UNSOL_FREE(
 		    device_get_parent(devinfo->dev), devinfo->dev,
-		    as[i].unsol);
-		as[i].unsol = -1;
+		    w->unsol);
+		w->unsol = -1;
+	}
+}
+
+static void
+hdaa_eld_dump(struct hdaa_widget *w)
+{
+	struct hdaa_devinfo *devinfo = w->devinfo;
+	device_t dev = devinfo->dev;
+	uint8_t *sad;
+	int len, mnl, i, sadc, fmt;
+
+	if (w->eld == NULL || w->eld_len < 4)
+		return;
+	device_printf(dev,
+	    "ELD nid=%d: ELD_Ver=%u Baseline_ELD_Len=%u\n",
+	    w->nid, w->eld[0] >> 3, w->eld[2]);
+	if ((w->eld[0] >> 3) != 0x02)
+		return;
+	len = min(w->eld_len, (u_int)w->eld[2] * 4);
+	mnl = w->eld[4] & 0x1f;
+	device_printf(dev,
+	    "ELD nid=%d: CEA_EDID_Ver=%u MNL=%u\n",
+	    w->nid, w->eld[4] >> 5, mnl);
+	sadc = w->eld[5] >> 4;
+	device_printf(dev,
+	    "ELD nid=%d: SAD_Count=%u Conn_Type=%u S_AI=%u HDCP=%u\n",
+	    w->nid, sadc, (w->eld[5] >> 2) & 0x3,
+	    (w->eld[5] >> 1) & 0x1, w->eld[5] & 0x1);
+	device_printf(dev,
+	    "ELD nid=%d: Aud_Synch_Delay=%ums\n",
+	    w->nid, w->eld[6] * 2);
+	device_printf(dev,
+	    "ELD nid=%d: Channels=0x%b\n",
+	    w->nid, w->eld[7],
+	    "\020\07RLRC\06FLRC\05RC\04RLR\03FC\02LFE\01FLR");
+	device_printf(dev,
+	    "ELD nid=%d: Port_ID=0x%02x%02x%02x%02x%02x%02x%02x%02x\n",
+	    w->nid, w->eld[8], w->eld[9], w->eld[10], w->eld[11],
+	    w->eld[12], w->eld[13], w->eld[14], w->eld[15]);
+	device_printf(dev,
+	    "ELD nid=%d: Manufacturer_Name=0x%02x%02x\n",
+	    w->nid, w->eld[16], w->eld[17]);
+	device_printf(dev,
+	    "ELD nid=%d: Product_Code=0x%02x%02x\n",
+	    w->nid, w->eld[18], w->eld[19]);
+	device_printf(dev,
+	    "ELD nid=%d: Monitor_Name_String='%.*s'\n",
+	    w->nid, mnl, &w->eld[20]);
+	for (i = 0; i < sadc; i++) {
+		sad = &w->eld[20 + mnl + i * 3];
+		fmt = (sad[0] >> 3) & 0x0f;
+		if (fmt == HDA_HDMI_CODING_TYPE_REF_CTX) {
+			fmt = (sad[2] >> 3) & 0x1f;
+			if (fmt < 1 || fmt > 3)
+				fmt = 0;
+			else
+				fmt += 14;
+		}
+		device_printf(dev,
+		    "ELD nid=%d: %s %dch freqs=0x%b",
+		    w->nid, HDA_HDMI_CODING_TYPES[fmt], (sad[0] & 0x07) + 1,
+		    sad[1], "\020\007192\006176\00596\00488\00348\00244\00132");
+		switch (fmt) {
+		case HDA_HDMI_CODING_TYPE_LPCM:
+			printf(" sizes=0x%b",
+			    sad[2] & 0x07, "\020\00324\00220\00116");
+			break;
+		case HDA_HDMI_CODING_TYPE_AC3:
+		case HDA_HDMI_CODING_TYPE_MPEG1:
+		case HDA_HDMI_CODING_TYPE_MP3:
+		case HDA_HDMI_CODING_TYPE_MPEG2:
+		case HDA_HDMI_CODING_TYPE_AACLC:
+		case HDA_HDMI_CODING_TYPE_DTS:
+		case HDA_HDMI_CODING_TYPE_ATRAC:
+			printf(" max_bitrate=%d", sad[2] * 8000);
+			break;
+		case HDA_HDMI_CODING_TYPE_WMAPRO:
+			printf(" profile=%d", sad[2] & 0x07);
+			break;
+		}
+		printf("\n");
+	}
+}
+
+static void
+hdaa_eld_handler(struct hdaa_widget *w)
+{
+	struct hdaa_devinfo *devinfo = w->devinfo;
+	uint32_t res;
+	int i;
+
+	if (w->enable == 0 || w->type !=
+	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+		return;
+
+	if (w->eld != NULL) {
+		w->eld_len = 0;
+		free(w->eld, M_HDAA);
+		w->eld = NULL;
+	}
+
+	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
+	HDA_BOOTVERBOSE(
+		device_printf(devinfo->dev,
+		    "Pin sense: nid=%d sence=0x%08x "
+		    "(%sconnected, ELD %svalid)\n",
+		    w->nid, res,
+		    (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) ? "" : "dis",
+		    (res & HDA_CMD_GET_PIN_SENSE_ELD_VALID) ? "" : "in");
+	);
+	if ((res & HDA_CMD_GET_PIN_SENSE_ELD_VALID) == 0)
+		return;
+
+	res = hda_command(devinfo->dev,
+	    HDA_CMD_GET_HDMI_DIP_SIZE(0, w->nid, 0x08));
+	if (res == HDA_INVALID)
+		return;
+	w->eld_len = res & 0xff;
+	if (w->eld_len != 0)
+		w->eld = malloc(w->eld_len, M_HDAA, M_ZERO | M_NOWAIT);
+	if (w->eld == NULL) {
+		w->eld_len = 0;
+		return;
+	}
+
+	for (i = 0; i < w->eld_len; i++) {
+		res = hda_command(devinfo->dev,
+		    HDA_CMD_GET_HDMI_ELDD(0, w->nid, i));
+		if (res & 0x80000000)
+			w->eld[i] = res & 0xff;
+	}
+	HDA_BOOTVERBOSE(
+		hdaa_eld_dump(w);
+	);
+}
+
+
+static void
+hdaa_eld_init(struct hdaa_devinfo *devinfo)
+{
+        struct hdaa_widget *w;
+        int i;
+
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
+		    !HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			continue;
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap) &&
+		    w->unsol < 0) {
+			w->unsol = HDAC_UNSOL_ALLOC(
+			    device_get_parent(devinfo->dev), devinfo->dev,
+			    w->nid);
+			hda_command(devinfo->dev,
+			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
+			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE |
+			    w->unsol));
+		}
+		hdaa_eld_handler(w);
+	}
+}
+
+static void
+hdaa_eld_deinit(struct hdaa_devinfo *devinfo)
+{
+	struct hdaa_widget *w;
+	int i;
+
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
+		    !HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			continue;
+		if (w->unsol < 0)
+			continue;
+		hda_command(devinfo->dev,
+		    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid, 0));
+		HDAC_UNSOL_FREE(
+		    device_get_parent(devinfo->dev), devinfo->dev,
+		    w->unsol);
+		w->unsol = -1;
 	}
 }
 
@@ -938,6 +1132,7 @@ hdaa_widget_parse(struct hdaa_widget *w)
 		    hdaa_sysctl_config, "A", "Original pin configuration");
 		hdaa_lock(w->devinfo);
 	}
+	w->unsol = -1;
 }
 
 static void
@@ -1197,27 +1392,42 @@ static void
 hdaa_audio_setup(struct hdaa_chan *ch)
 {
 	struct hdaa_audio_as *as = &ch->devinfo->as[ch->as];
-	struct hdaa_widget *w;
-	int i, chn, totalchn, c;
+	struct hdaa_widget *w, *wp;
+	int i, j, k, chn, cchn, totalchn, totalextchn, c;
 	uint16_t fmt, dfmt;
-	uint16_t chmap[2][5] = {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x0231 }, /* 5.1 */
-				{ 0x0010, 0x0001, 0x2001, 0x2031, 0x2431 }};/* 7.1 */
-	int map = -1;
+	/* Mapping channel pairs to codec pins/converters. */
+	const static uint16_t convmap[2][5] =
+	    {{ 0x0010, 0x0001, 0x0201, 0x0231, 0x0231 }, /* 5.1 */
+	     { 0x0010, 0x0001, 0x2001, 0x2031, 0x2431 }};/* 7.1 */
+	/* Mapping formats to HDMI channel allocations. */
+	const static uint8_t hdmica[2][8] =
+	    {{ 0x02, 0x00, 0x04, 0x08, 0x0a, 0x0e, 0x12, 0x12 }, /* x.0 */
+	     { 0x01, 0x03, 0x01, 0x03, 0x09, 0x0b, 0x0f, 0x13 }}; /* x.1 */
+	/* Mapping formats to HDMI channels order. */
+	const static uint32_t hdmich[2][8] =
+	    {{ 0xFFFF0F00, 0xFFFFFF10, 0xFFF2FF10, 0xFF32FF10,
+	       0xFF324F10, 0xF5324F10, 0x54326F10, 0x54326F10 }, /* x.0 */
+	     { 0xFFFFF000, 0xFFFF0100, 0xFFFFF210, 0xFFFF2310,
+	       0xFF32F410, 0xFF324510, 0xF6324510, 0x76325410 }}; /* x.1 */
+	int convmapid = -1;
+	nid_t nid;
+	uint8_t csum;
 
 	totalchn = AFMT_CHANNEL(ch->fmt);
+	totalextchn = AFMT_EXTCHANNEL(ch->fmt);
 	HDA_BOOTHVERBOSE(
 		device_printf(ch->pdevinfo->dev,
-		    "PCMDIR_%s: Stream setup fmt=%08x speed=%d\n",
+		    "PCMDIR_%s: Stream setup fmt=%08x (%d.%d) speed=%d\n",
 		    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
-		    ch->fmt, ch->spd);
+		    ch->fmt, totalchn - totalextchn, totalextchn, ch->spd);
 	);
 	fmt = hdaa_stream_format(ch);
 
-	/* Set channel mapping for known speaker setups. */
+	/* Set channels to I/O converters mapping for known speaker setups. */
 	if ((as->pinset == 0x0007 || as->pinset == 0x0013)) /* Standard 5.1 */
-		map = 0;
+		convmapid = 0;
 	else if (as->pinset == 0x0017) /* Standard 7.1 */
-		map = 1;
+		convmapid = 1;
 
 	dfmt = HDA_CMD_SET_DIGITAL_CONV_FMT1_DIGEN;
 	if (ch->fmt & AFMT_AC3)
@@ -1234,22 +1444,16 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 		if (as->fakeredir && i == (as->pincnt - 1)) {
 			c = (ch->sid << 4);
 		} else {
-			if (map >= 0) /* Map known speaker setups. */
-				chn = (((chmap[map][totalchn / 2] >> i * 4) &
-				    0xf) - 1) * 2;
+			/* Map channels to I/O converters, if set. */
+			if (convmapid >= 0)
+				chn = (((convmap[convmapid][totalchn / 2]
+				    >> i * 4) & 0xf) - 1) * 2;
 			if (chn < 0 || chn >= totalchn) {
 				c = 0;
 			} else {
 				c = (ch->sid << 4) | chn;
 			}
 		}
-		HDA_BOOTHVERBOSE(
-			device_printf(ch->pdevinfo->dev,
-			    "PCMDIR_%s: Stream setup nid=%d: "
-			    "fmt=0x%04x, dfmt=0x%04x, chan=0x%04x\n",
-			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
-			    ch->io[i], fmt, dfmt, c);
-		);
 		hda_command(ch->devinfo->dev,
 		    HDA_CMD_SET_CONV_FMT(0, ch->io[i], fmt));
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap)) {
@@ -1258,15 +1462,93 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 		}
 		hda_command(ch->devinfo->dev,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(0, ch->io[i], c));
-#if 0
-		hda_command(ch->devinfo->dev,
-		    HDA_CMD_SET_CONV_CHAN_COUNT(0, ch->io[i], 1));
-		hda_command(ch->devinfo->dev,
-		    HDA_CMD_SET_HDMI_CHAN_SLOT(0, ch->io[i], 0x00));
-		hda_command(ch->devinfo->dev,
-		    HDA_CMD_SET_HDMI_CHAN_SLOT(0, ch->io[i], 0x11));
-#endif
-		chn += HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap) + 1;
+		cchn = HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap);
+		if (cchn > 1 && chn < totalchn) {
+			cchn = min(cchn, totalchn - chn - 1);
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_CONV_CHAN_COUNT(0, ch->io[i], cchn));
+		}
+		HDA_BOOTHVERBOSE(
+			device_printf(ch->pdevinfo->dev,
+			    "PCMDIR_%s: Stream setup nid=%d: "
+			    "fmt=0x%04x, dfmt=0x%04x, chan=0x%04x, "
+			    "chan_count=0x%02x\n",
+			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
+			    ch->io[i], fmt, dfmt, c, cchn);
+		);
+		for (j = 0; j < 16; j++) {
+			if (as->dacs[ch->asindex][j] != ch->io[i])
+				continue;
+			nid = as->pins[j];
+			wp = hdaa_widget_get(ch->devinfo, nid);
+			if (wp == NULL)
+				continue;
+			if (!HDA_PARAM_PIN_CAP_DP(wp->wclass.pin.cap) &&
+			    !HDA_PARAM_PIN_CAP_HDMI(wp->wclass.pin.cap))
+				continue;
+
+			/* Set channel mapping. */
+			for (k = 0; k < 8; k++) {
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_CHAN_SLOT(0, nid,
+				    (((hdmich[totalextchn == 0 ? 0 : 1][totalchn - 1]
+				     >> (k * 4)) & 0xf) << 4) | k));
+			}
+
+			/* Stop audio infoframe transmission. */
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_XMIT(0, nid, 0x00));
+
+			/* Clear audio infoframe buffer. */
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
+			for (k = 0; k < 32; k++)
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x00));
+
+			/* Write HDMI/DisplayPort audio infoframe. */
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
+			if (w->eld != NULL && w->eld_len >= 6 &&
+			    ((w->eld[5] >> 2) & 0x3) == 1) { /* DisplayPort */
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x84));
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x1b));
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x44));
+			} else {	/* HDMI */
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x84));
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x01));
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x0a));
+				csum = 0;
+				csum -= 0x84 + 0x01 + 0x0a + (totalchn - 1) +
+				    hdmica[totalextchn == 0 ? 0 : 1][totalchn - 1];
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, csum));
+			}
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, totalchn - 1));
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x00));
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_DATA(0, nid, 0x00));
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_DATA(0, nid,
+			    hdmica[totalextchn == 0 ? 0 : 1][totalchn - 1]));
+
+			/* Start audio infoframe transmission. */
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_HDMI_DIP_XMIT(0, nid, 0xc0));
+		}
+		chn += cchn + 1;
 	}
 }
 
@@ -2169,7 +2451,6 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 		as[i].hpredir = -1;
 		as[i].digital = 0;
 		as[i].num_chans = 1;
-		as[i].unsol = -1;
 		as[i].location = -1;
 	}
 
@@ -4277,21 +4558,51 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 2, 0);
 			}
-			if (channels == 4 || /* Any 4-channel */
-			    pinset == 0x0007 || /* 5.1 */
-			    pinset == 0x0013 || /* 5.1 */
-			    pinset == 0x0017) {  /* 7.1 */
+			if (channels >= 3 && !onlystereo) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 3, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 3, 0);
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 3, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 3, 1);
+			}
+			if (channels >= 4) {
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 4, 0);
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 4, 0);
+				if (!onlystereo) {
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 4, 1);
+					if (ch->bit32)
+						ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 4, 1);
+				}
 			}
-			if (channels == 6 || /* Any 6-channel */
-			    pinset == 0x0017) {  /* 7.1 */
+			if (channels >= 5 && !onlystereo) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 5, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 5, 0);
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 5, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 5, 1);
+			}
+			if (channels >= 6) {
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 6, 1);
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 6, 1);
+				if (!onlystereo) {
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 6, 0);
+					if (ch->bit32)
+						ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 6, 0);
+				}
 			}
-			if (channels == 8) { /* Any 8-channel */
+			if (channels >= 7 && !onlystereo) {
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 7, 0);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 7, 0);
+				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 7, 1);
+				if (ch->bit32)
+					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 7, 1);
+			}
+			if (channels >= 8) {
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 8, 1);
 				if (ch->bit32)
 					ch->fmtlist[i++] = SND_FORMAT(AFMT_S32_LE, 8, 1);
@@ -4584,8 +4895,18 @@ hdaa_dump_pin(struct hdaa_widget *w)
 		printf(" IN");
 	if (w->wclass.pin.ctrl & HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE)
 		printf(" OUT");
-	if (w->wclass.pin.ctrl & HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK)
-		printf(" VREFs");
+	if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap)) {
+		if ((w->wclass.pin.ctrl &
+		    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK) == 0x03)
+			printf(" HBR");
+		else if ((w->wclass.pin.ctrl &
+		    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK) != 0)
+			printf(" EPTs");
+	} else {
+		if ((w->wclass.pin.ctrl &
+		    HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK) != 0)
+			printf(" VREFs");
+	}
 	printf("\n");
 }
 
@@ -4956,9 +5277,12 @@ hdaa_pindump(device_t dev)
 				res = hda_command(dev, HDA_CMD_GET_PIN_SENSE(0,
 				    w->nid));
 			}
-			printf(" Sense: 0x%08x (%sconnected)", res,
+			printf(" Sense: 0x%08x (%sconnected%s)", res,
 			    (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) ?
-			     "" : "dis");
+			     "" : "dis",
+			    (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap) &&
+			     (res & HDA_CMD_GET_PIN_SENSE_ELD_VALID)) ?
+			      ", ELD valid" : "");
 			if (delay > 0)
 				printf(" delay %dus", delay * 10);
 		}
@@ -5064,6 +5388,10 @@ hdaa_configure(device_t dev)
 	);
 	hdaa_patch_direct(devinfo);
 	HDA_BOOTHVERBOSE(
+		device_printf(dev, "ELD init...\n");
+	);
+	hdaa_eld_init(devinfo);
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "HP switch init...\n");
 	);
 	hdaa_hp_switch_init(devinfo);
@@ -5134,6 +5462,10 @@ hdaa_unconfigure(device_t dev)
 		device_printf(dev, "HP switch deinit...\n");
 	);
 	hdaa_hp_switch_deinit(devinfo);
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "ELD deinit...\n");
+	);
+	hdaa_eld_deinit(devinfo);
 	free(devinfo->ctl, M_HDAA);
 	devinfo->ctl = NULL;
 	devinfo->ctlcnt = 0;
@@ -5160,6 +5492,11 @@ hdaa_unconfigure(device_t dev)
 		for (j = 0; j < w->nconns; j++)
 			w->connsenable[j] = 1;
 		w->wclass.pin.config = w->wclass.pin.newconf;
+		if (w->eld != NULL) {
+			w->eld_len = 0;
+			free(w->eld, M_HDAA);
+			w->eld = NULL;
+		}
 	}
 }
 
@@ -5656,12 +5993,29 @@ static void
 hdaa_unsol_intr(device_t dev, uint32_t resp)
 {
 	struct hdaa_devinfo *devinfo = device_get_softc(dev);
-	int i, tag;
+	struct hdaa_widget *w;
+	int i, tag, flags;
 
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Unsolicited response %08x\n", resp);
+	);
 	tag = resp >> 26;
-	for (i = 0; i < devinfo->ascnt; i++) {
-		if (devinfo->as[i].unsol == tag)
-			hdaa_hp_switch_handler(devinfo, i);
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL || w->enable == 0 || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		if (w->unsol != tag)
+			continue;
+		if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) ||
+		    HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			flags = resp & 0x03;
+		else
+			flags = 0x01;
+		if (flags & 0x01)
+			hdaa_hp_switch_handler(w);
+		if (flags & 0x02)
+			hdaa_eld_handler(w);
 	}
 }
 
