@@ -110,14 +110,14 @@ static int ctl_backend_ramdisk_config_read(union ctl_io *io);
 
 static struct ctl_backend_driver ctl_be_ramdisk_driver = 
 {
-	name: "ramdisk",
-	flags: CTL_BE_FLAG_HAS_CONFIG,
-	init: ctl_backend_ramdisk_init,
-	data_submit: ctl_backend_ramdisk_submit,
-	data_move_done: ctl_backend_ramdisk_move_done,
-	config_read: ctl_backend_ramdisk_config_read,
-	config_write: ctl_backend_ramdisk_config_write,
-	ioctl: ctl_backend_ramdisk_ioctl
+	.name = "ramdisk",
+	.flags = CTL_BE_FLAG_HAS_CONFIG,
+	.init = ctl_backend_ramdisk_init,
+	.data_submit = ctl_backend_ramdisk_submit,
+	.data_move_done = ctl_backend_ramdisk_move_done,
+	.config_read = ctl_backend_ramdisk_config_read,
+	.config_write = ctl_backend_ramdisk_config_write,
+	.ioctl = ctl_backend_ramdisk_ioctl
 };
 
 MALLOC_DEFINE(M_RAMDISK, "ramdisk", "Memory used for CTL RAMdisk");
