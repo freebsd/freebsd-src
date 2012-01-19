@@ -32,7 +32,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 6, 2001
+.Dd January 19, 2012
 .Dt VCOUNT 9
 .Os
 .Sh NAME
@@ -47,7 +47,7 @@
 .Ft int
 .Fn vcount "struct vnode *vp"
 .Ft int
-.Fn count_dev "dev_t dev"
+.Fn count_dev "struct cdev *dev"
 .Sh DESCRIPTION
 .Fn vcount
 is used to get the number of references to a particular device.
@@ -56,7 +56,7 @@ It allows for the fact that multiple vnodes may reference the same device.
 does the same thing as
 .Fn vcount ,
 but takes a
-.Vt dev_t
+.Vt "struct cdev"
 rather than a
 .Vt "struct vnode"
 pointer as an argument.
