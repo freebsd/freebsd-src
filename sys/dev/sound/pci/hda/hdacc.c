@@ -266,43 +266,21 @@ static const struct {
 	{ HDA_CODEC_SII1390, 0,		"Silicon Image SiI1390" },
 	{ HDA_CODEC_SII1392, 0,		"Silicon Image SiI1392" },
 	/* Unknown CODECs */
-	{ HDA_CODEC_ALCXXXX, 0,		"Realtek (Unknown)" },
-	{ HDA_CODEC_ADXXXX, 0,		"Analog Devices (Unknown)" },
-	{ HDA_CODEC_CSXXXX, 0,		"Cirrus Logic (Unknown)" },
-	{ HDA_CODEC_CMIXXXX, 0,		"CMedia (Unknown)" },
-	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel (Unknown)" },
-	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image (Unknown)" },
-	{ HDA_CODEC_AGEREXXXX, 0,	"Lucent/Agere Systems (Unknown)" },
-	{ HDA_CODEC_CXXXXX, 0,		"Conexant (Unknown)" },
-	{ HDA_CODEC_VTXXXX, 0,		"VIA (Unknown)" },
-	{ HDA_CODEC_ATIXXXX, 0,		"ATI (Unknown)" },
-	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA (Unknown)" },
-	{ HDA_CODEC_INTELXXXX, 0,	"Intel (Unknown)" },
-	{ HDA_CODEC_IDTXXXX, 0,		"IDT (Unknown)" },
+	{ HDA_CODEC_ALCXXXX, 0,		"Realtek" },
+	{ HDA_CODEC_ADXXXX, 0,		"Analog Devices" },
+	{ HDA_CODEC_CSXXXX, 0,		"Cirrus Logic" },
+	{ HDA_CODEC_CMIXXXX, 0,		"CMedia" },
+	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel" },
+	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image" },
+	{ HDA_CODEC_AGEREXXXX, 0,	"Lucent/Agere Systems" },
+	{ HDA_CODEC_CXXXXX, 0,		"Conexant" },
+	{ HDA_CODEC_VTXXXX, 0,		"VIA" },
+	{ HDA_CODEC_ATIXXXX, 0,		"ATI" },
+	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA" },
+	{ HDA_CODEC_INTELXXXX, 0,	"Intel" },
+	{ HDA_CODEC_IDTXXXX, 0,		"IDT" },
 };
 #define HDACC_CODECS_LEN	(sizeof(hdacc_codecs) / sizeof(hdacc_codecs[0]))
-
-
-/****************************************************************************
- * Function prototypes
- ****************************************************************************/
-
-static char *
-hdacc_codec_name(uint32_t id, uint16_t revid)
-{
-	int i;
-
-	for (i = 0; i < HDACC_CODECS_LEN; i++) {
-		if (!HDA_DEV_MATCH(hdacc_codecs[i].id, id))
-			continue;
-		if (hdacc_codecs[i].revid != 0 &&
-		    hdacc_codecs[i].revid != revid)
-			continue;
-		return (hdacc_codecs[i].name);
-	}
-
-	return ((id == 0x00000000) ? "NULL CODEC" : "Unknown CODEC");
-}
 
 static int
 hdacc_suspend(device_t dev)
@@ -337,10 +315,28 @@ hdacc_probe(device_t dev)
 {
 	uint32_t id, revid;
 	char buf[128];
+	int i;
 
 	id = ((uint32_t)hda_get_vendor_id(dev) << 16) + hda_get_device_id(dev);
 	revid = ((uint32_t)hda_get_revision_id(dev) << 8) + hda_get_stepping_id(dev);
-	snprintf(buf, sizeof(buf), "%s HDA CODEC", hdacc_codec_name(id, revid));
+
+	for (i = 0; i < HDACC_CODECS_LEN; i++) {
+		if (!HDA_DEV_MATCH(hdacc_codecs[i].id, id))
+			continue;
+		if (hdacc_codecs[i].revid != 0 &&
+		    hdacc_codecs[i].revid != revid)
+			continue;
+		break;
+	}
+	if (i < HDACC_CODECS_LEN) {
+		if ((hdacc_codecs[i].id & 0xffff) != 0xffff)
+			strlcpy(buf, hdacc_codecs[i].name, sizeof(buf));
+		else
+			snprintf(buf, sizeof(buf), "%s (0x%04x)",
+			    hdacc_codecs[i].name, hda_get_device_id(dev));
+	} else
+		snprintf(buf, sizeof(buf), "Generic (0x%04x)", id);
+	strlcat(buf, " HDA CODEC", sizeof(buf));
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_DEFAULT);
 }
