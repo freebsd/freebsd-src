@@ -2745,7 +2745,7 @@ bge_can_use_msi(struct bge_softc *sc)
 {
 	int can_use_msi = 0;
 
-	if (sc->bge_msi != 0)
+	if (sc->bge_msi == 0)
 		return (0);
 
 	/* Disable MSI for polling(4). */
