@@ -503,13 +503,13 @@ hdacc_codec_command(device_t dev, device_t child, uint32_t verb)
 
 static int
 hdacc_stream_alloc(device_t dev, device_t child, int dir, int format,
-    uint32_t **dmapos)
+    int stripe, uint32_t **dmapos)
 {
 	struct hdacc_softc *codec = device_get_softc(dev);
 	int stream;
 
 	stream = HDAC_STREAM_ALLOC(device_get_parent(dev), dev,
-	    dir, format, dmapos);
+	    dir, format, stripe, dmapos);
 	if (stream > 0)
 		codec->streams[dir][stream] = child;
 	return (stream);

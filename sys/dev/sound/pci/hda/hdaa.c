@@ -1096,6 +1096,11 @@ hdaa_widget_parse(struct hdaa_widget *w)
 			w->param.supp_pcm_size_rate =
 			    w->devinfo->supp_pcm_size_rate;
 		}
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap)) {
+			w->wclass.conv.stripecap = hda_command(dev,
+			    HDA_CMD_GET_STRIPE_CONTROL(0, w->nid)) >> 20;
+		} else
+			w->wclass.conv.stripecap = 1;
 	} else {
 		w->param.supp_stream_formats = 0;
 		w->param.supp_pcm_size_rate = 0;
@@ -1388,6 +1393,18 @@ hdaa_stream_format(struct hdaa_chan *ch)
 	return (fmt);
 }
 
+static int
+hdaa_allowed_stripes(uint16_t fmt)
+{
+	static const int bits[8] = { 8, 16, 20, 24, 32, 32, 32, 32 };
+	int size;
+
+	size = bits[(fmt >> 4) & 0x03];
+	size *= (fmt & 0x0f) + 1;
+	size *= ((fmt >> 11) & 0x07) + 1;
+	return (0xffffffffU >> (32 - fls(size / 8)));
+}
+
 static void
 hdaa_audio_setup(struct hdaa_chan *ch)
 {
@@ -1462,6 +1479,10 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 		}
 		hda_command(ch->devinfo->dev,
 		    HDA_CMD_SET_CONV_STREAM_CHAN(0, ch->io[i], c));
+		if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap)) {
+			hda_command(ch->devinfo->dev,
+			    HDA_CMD_SET_STRIPE_CONTROL(0, w->nid, ch->stripectl));
+		}
 		cchn = HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap);
 		if (cchn > 1 && chn < totalchn) {
 			cchn = min(cchn, totalchn - chn - 1);
@@ -1472,9 +1493,9 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 			device_printf(ch->pdevinfo->dev,
 			    "PCMDIR_%s: Stream setup nid=%d: "
 			    "fmt=0x%04x, dfmt=0x%04x, chan=0x%04x, "
-			    "chan_count=0x%02x\n",
+			    "chan_count=0x%02x, stripe=%d\n",
 			    (ch->dir == PCMDIR_PLAY) ? "PLAY" : "REC",
-			    ch->io[i], fmt, dfmt, c, cchn);
+			    ch->io[i], fmt, dfmt, c, cchn, ch->stripectl);
 		);
 		for (j = 0; j < 16; j++) {
 			if (as->dacs[ch->asindex][j] != ch->io[i])
@@ -1658,11 +1679,12 @@ static int
 hdaa_channel_start(struct hdaa_chan *ch)
 {
 	struct hdaa_devinfo *devinfo = ch->devinfo;
+	uint32_t fmt;
 
-	ch->ptr = 0;
-	ch->prevptr = 0;
+	fmt = hdaa_stream_format(ch);
+	ch->stripectl = fls(ch->stripecap & hdaa_allowed_stripes(fmt)) - 1;
 	ch->sid = HDAC_STREAM_ALLOC(device_get_parent(devinfo->dev), devinfo->dev,
-	    ch->dir == PCMDIR_PLAY ? 1 : 0, hdaa_stream_format(ch), &ch->dmapos);
+	    ch->dir == PCMDIR_PLAY ? 1 : 0, fmt, ch->stripectl, &ch->dmapos);
 	if (ch->sid <= 0)
 		return (EBUSY);
 	hdaa_audio_setup(ch);
@@ -4464,6 +4486,7 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 	ch->bit32 = 0;
 	ch->pcmrates[0] = 48000;
 	ch->pcmrates[1] = 0;
+	ch->stripecap = 0xff;
 
 	ret = 0;
 	channels = 0;
@@ -4506,6 +4529,7 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 			pcmcap &= w->param.supp_pcm_size_rate;
 		}
 		ch->io[ret++] = as[ch->as].dacs[ch->asindex][i];
+		ch->stripecap &= w->wclass.conv.stripecap;
 		/* Do not count redirection pin/dac channels. */
 		if (i == 15 && as[ch->as].hpredir >= 0)
 			continue;
@@ -5001,7 +5025,8 @@ hdaa_dump_nodes(struct hdaa_devinfo *devinfo)
 			if (HDA_PARAM_AUDIO_WIDGET_CAP_PROC_WIDGET(w->param.widget_cap))
 			    printf(" PROC");
 			if (HDA_PARAM_AUDIO_WIDGET_CAP_STRIPE(w->param.widget_cap))
-			    printf(" STRIPE");
+			    printf(" STRIPE(x%d)",
+				1 << (fls(w->wclass.conv.stripecap) - 1));
 			j = HDA_PARAM_AUDIO_WIDGET_CAP_CC(w->param.widget_cap);
 			if (j == 1)
 			    printf(" STEREO");
