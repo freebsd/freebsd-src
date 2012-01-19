@@ -1339,10 +1339,10 @@ sysctl_hdac_pindump(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-hdac_data_rate(uint16_t fmt)
+hdac_mdata_rate(uint16_t fmt)
 {
-	static const int bits[8] = { 8, 16, 20, 24, 32, 32, 32, 32 };
-	int rate;
+	static const int mbits[8] = { 8, 16, 32, 32, 32, 32, 32, 32 };
+	int rate, bits;
 
 	if (fmt & (1 << 14))
 		rate = 44100;
@@ -1350,8 +1350,24 @@ hdac_data_rate(uint16_t fmt)
 		rate = 48000;
 	rate *= ((fmt >> 11) & 0x07) + 1;
 	rate /= ((fmt >> 8) & 0x07) + 1;
-	rate *= ((bits[(fmt >> 4) & 0x03]) * ((fmt & 0x0f) + 1) + 7) / 8;
-	return (rate);
+	bits = mbits[(fmt >> 4) & 0x03];
+	bits *= (fmt & 0x0f) + 1;
+	return (rate * bits);
+}
+
+static int
+hdac_bdata_rate(uint16_t fmt, int output)
+{
+	static const int bbits[8] = { 8, 16, 20, 24, 32, 32, 32, 32 };
+	int rate, bits;
+
+	rate = 48000;
+	rate *= ((fmt >> 11) & 0x07) + 1;
+	bits = bbits[(fmt >> 4) & 0x03];
+	bits *= (fmt & 0x0f) + 1;
+	if (!output)
+		bits = ((bits + 7) & ~0x07) + 10;
+	return (rate * bits);
 }
 
 static void
@@ -1369,7 +1385,7 @@ hdac_poll_reinit(struct hdac_softc *sc)
 		if (s->running == 0)
 			continue;
 		pollticks = ((uint64_t)hz * s->blksz) /
-		    hdac_data_rate(s->format);
+		    (hdac_mdata_rate(s->format) / 8);
 		pollticks >>= 1;
 		if (pollticks > hz)
 			pollticks = hz;
@@ -1790,11 +1806,12 @@ hdac_find_stream(struct hdac_softc *sc, int dir, int stream)
 }
 
 static int
-hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
+hdac_stream_alloc(device_t dev, device_t child, int dir, int format, int stripe,
     uint32_t **dmapos)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
-	int stream, ss;
+	nid_t cad = (uintptr_t)device_get_ivars(child);
+	int stream, ss, bw, maxbw, prevbw;
 
 	/* Look for empty stream. */
 	ss = hdac_find_stream(sc, dir, 0);
@@ -1802,6 +1819,28 @@ hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
 	/* Return if found nothing. */
 	if (ss < 0)
 		return (0);
+
+	/* Check bus bandwidth. */
+	bw = hdac_bdata_rate(format, dir);
+	if (dir == 1) {
+		bw *= 1 << (sc->num_sdo - stripe);
+		prevbw = sc->sdo_bw_used;
+		maxbw = 48000 * 960 * (1 << sc->num_sdo);
+	} else {
+		prevbw = sc->codecs[cad].sdi_bw_used;
+		maxbw = 48000 * 464;
+	}
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "%dKbps of %dKbps bandwidth used%s\n",
+		    (bw + prevbw) / 1000, maxbw / 1000,
+		    bw + prevbw > maxbw ? " -- OVERFLOW!" : "");
+	);
+	if (bw + prevbw > maxbw)
+		return (0);
+	if (dir == 1)
+		sc->sdo_bw_used += bw;
+	else
+		sc->codecs[cad].sdi_bw_used += bw;
 
 	/* Allocate stream number */
 	if (ss >= sc->num_iss + sc->num_oss)
@@ -1814,7 +1853,9 @@ hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
 	sc->streams[ss].dev = child;
 	sc->streams[ss].dir = dir;
 	sc->streams[ss].stream = stream;
+	sc->streams[ss].bw = bw;
 	sc->streams[ss].format = format;
+	sc->streams[ss].stripe = stripe;
 	if (dmapos != NULL) {
 		if (sc->pos_dma.dma_vaddr != NULL)
 			*dmapos = (uint32_t *)(sc->pos_dma.dma_vaddr + ss * 8);
@@ -1828,11 +1869,16 @@ static void
 hdac_stream_free(device_t dev, device_t child, int dir, int stream)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
+	nid_t cad = (uintptr_t)device_get_ivars(child);
 	int ss;
 
 	ss = hdac_find_stream(sc, dir, stream);
 	KASSERT(ss >= 0,
 	    ("Free for not allocated stream (%d/%d)\n", dir, stream));
+	if (dir == 1)
+		sc->sdo_bw_used -= sc->streams[ss].bw;
+	else
+		sc->codecs[cad].sdi_bw_used -= sc->streams[ss].bw;
 	sc->streams[ss].stream = 0;
 	sc->streams[ss].dev = NULL;
 }
@@ -1875,6 +1921,8 @@ hdac_stream_start(device_t dev, device_t child,
 		ctl &= ~HDAC_SDCTL2_DIR;
 	ctl &= ~HDAC_SDCTL2_STRM_MASK;
 	ctl |= stream << HDAC_SDCTL2_STRM_SHIFT;
+	ctl &= ~HDAC_SDCTL2_STRIPE_MASK;
+	ctl |= sc->streams[ss].stripe << HDAC_SDCTL2_STRIPE_SHIFT;
 	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL2, ctl);
 
 	HDAC_WRITE_2(&sc->mem, off + HDAC_SDFMT, sc->streams[ss].format);
