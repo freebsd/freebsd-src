@@ -124,9 +124,9 @@ static const struct {
 	{ HDA_NVIDIA_MCP89_2, "NVIDIA MCP89",	0, 0 },
 	{ HDA_NVIDIA_MCP89_3, "NVIDIA MCP89",	0, 0 },
 	{ HDA_NVIDIA_MCP89_4, "NVIDIA MCP89",	0, 0 },
-	{ HDA_NVIDIA_0BE2,   "NVIDIA 0x0be2",	0, HDAC_QUIRK_MSI },
-	{ HDA_NVIDIA_0BE3,   "NVIDIA 0x0be3",	0, HDAC_QUIRK_MSI },
-	{ HDA_NVIDIA_0BE4,   "NVIDIA 0x0be4",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_0BE2,   "NVIDIA (0x0be2)",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_0BE3,   "NVIDIA (0x0be3)",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_0BE4,   "NVIDIA (0x0be4)",	0, HDAC_QUIRK_MSI },
 	{ HDA_NVIDIA_GT100,  "NVIDIA GT100",	0, HDAC_QUIRK_MSI },
 	{ HDA_NVIDIA_GT104,  "NVIDIA GT104",	0, HDAC_QUIRK_MSI },
 	{ HDA_NVIDIA_GT106,  "NVIDIA GT106",	0, HDAC_QUIRK_MSI },
@@ -154,12 +154,12 @@ static const struct {
 	{ HDA_SIS_966,       "SiS 966",		0, 0 },
 	{ HDA_ULI_M5461,     "ULI M5461",	0, 0 },
 	/* Unknown */
-	{ HDA_INTEL_ALL,  "Intel (Unknown)",	0, 0 },
-	{ HDA_NVIDIA_ALL, "NVIDIA (Unknown)",	0, 0 },
-	{ HDA_ATI_ALL,    "ATI (Unknown)",	0, 0 },
-	{ HDA_VIA_ALL,    "VIA (Unknown)",	0, 0 },
-	{ HDA_SIS_ALL,    "SiS (Unknown)",	0, 0 },
-	{ HDA_ULI_ALL,    "ULI (Unknown)",	0, 0 },
+	{ HDA_INTEL_ALL,  "Intel",		0, 0 },
+	{ HDA_NVIDIA_ALL, "NVIDIA",		0, 0 },
+	{ HDA_ATI_ALL,    "ATI",		0, 0 },
+	{ HDA_VIA_ALL,    "VIA",		0, 0 },
+	{ HDA_SIS_ALL,    "SiS",		0, 0 },
+	{ HDA_ULI_ALL,    "ULI",		0, 0 },
 };
 #define HDAC_DEVICES_LEN (sizeof(hdac_devices) / sizeof(hdac_devices[0]))
 
@@ -1017,26 +1017,27 @@ hdac_probe(device_t dev)
 	result = ENXIO;
 	for (i = 0; i < HDAC_DEVICES_LEN; i++) {
 		if (hdac_devices[i].model == model) {
-		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
-		    	result = BUS_PROBE_DEFAULT;
+			strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
+			result = BUS_PROBE_DEFAULT;
 			break;
 		}
 		if (HDA_DEV_MATCH(hdac_devices[i].model, model) &&
 		    class == PCIC_MULTIMEDIA &&
 		    subclass == PCIS_MULTIMEDIA_HDA) {
-		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
-		    	result = BUS_PROBE_GENERIC;
+			snprintf(desc, sizeof(desc),
+			    "%s (0x%04x)",
+			    hdac_devices[i].desc, pci_get_device(dev));
+			result = BUS_PROBE_GENERIC;
 			break;
 		}
 	}
 	if (result == ENXIO && class == PCIC_MULTIMEDIA &&
 	    subclass == PCIS_MULTIMEDIA_HDA) {
-		strlcpy(desc, "Generic", sizeof(desc));
-	    	result = BUS_PROBE_GENERIC;
+		snprintf(desc, sizeof(desc), "Generic (0x%08x)", model);
+		result = BUS_PROBE_GENERIC;
 	}
 	if (result != ENXIO) {
-		strlcat(desc, " HDA Controller",
-		    sizeof(desc));
+		strlcat(desc, " HDA Controller", sizeof(desc));
 		device_set_desc_copy(dev, desc);
 	}
 
