@@ -3808,7 +3808,7 @@ re_setwol(struct rl_softc *sc)
 	/* Config register write done. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	if ((ifp->if_capenable & IFCAP_WOL) != 0 &&
+	if ((ifp->if_capenable & IFCAP_WOL) == 0 &&
 	    (sc->rl_flags & RL_FLAG_PHYWAKE_PM) != 0)
 		CSR_WRITE_1(sc, RL_PMCH, CSR_READ_1(sc, RL_PMCH) & ~0x80);
 	/*
