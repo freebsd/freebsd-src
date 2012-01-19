@@ -116,6 +116,9 @@ struct hdaa_widget {
 			uint32_t cap;
 			uint32_t ctrl;
 		} pin;
+		struct {
+			uint8_t	stripecap;
+		} conv;
 	} wclass;
 };
 
@@ -201,7 +204,7 @@ struct hdaa_chan {
 	struct hdaa_pcm_devinfo *pdevinfo;
 	uint32_t spd, fmt, fmtlist[32], pcmrates[16];
 	uint32_t supp_stream_formats, supp_pcm_size_rate;
-	uint32_t ptr, prevptr, blkcnt, blksz;
+	uint32_t blkcnt, blksz;
 	uint32_t *dmapos;
 	uint32_t flags;
 	int dir;
@@ -212,6 +215,8 @@ struct hdaa_chan {
 	int as;		/* Number of association. */
 	int asindex;	/* Index within association. */
 	nid_t io[16];
+	uint8_t	stripecap;	/* AND of stripecap of all ios. */
+	uint8_t	stripectl;	/* stripe to use to all ios. */
 };
 
 #define hdaa_codec_id(devinfo)						\
