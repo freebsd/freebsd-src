@@ -45,7 +45,7 @@ __END_DECLS
 #ifdef CPU_HAVEFPU
 #define	FLT_ROUNDS	__flt_rounds() /* FP addition rounds to nearest */
 #else
-#define	FLT_ROUNDS	-1
+#define	FLT_ROUNDS	(-1)
 #endif
 
 #if __ISO_C_VISIBLE >= 1999
@@ -74,13 +74,13 @@ __END_DECLS
 #define	DBL_MAX_10_EXP	308
 
 #define	LDBL_MANT_DIG	DBL_MANT_DIG
-#define	LDBL_EPSILON	(long double)DBL_EPSILON
+#define	LDBL_EPSILON	((long double)DBL_EPSILON)
 #define	LDBL_DIG	DBL_DIG
 #define	LDBL_MIN_EXP	DBL_MIN_EXP
-#define	LDBL_MIN	(long double)DBL_MIN
+#define	LDBL_MIN	((long double)DBL_MIN)
 #define	LDBL_MIN_10_EXP DBL_MIN_10_EXP
 #define	LDBL_MAX_EXP	DBL_MAX_EXP
-#define	LDBL_MAX	(long double)DBL_MAX
+#define	LDBL_MAX	((long double)DBL_MAX)
 #define	LDBL_MAX_10_EXP DBL_MAX_10_EXP
 
 #endif /* _MACHINE_FLOAT_H_ */
