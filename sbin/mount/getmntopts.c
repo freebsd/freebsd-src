@@ -46,7 +46,6 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <sysexits.h>
 
 #include "mntopts.h"
 
@@ -129,14 +128,12 @@ checkpath(const char *path, char *resolved)
 {
 	struct stat sb;
 
-	if (realpath(path, resolved) != NULL && stat(resolved, &sb) == 0) {
-		if (!S_ISDIR(sb.st_mode)) {
-			errno = ENOTDIR;
-			return (1);
-		}
-	} else
+	if (realpath(path, resolved) == NULL || stat(resolved, &sb) != 0)
 		return (1);
-
+	if (!S_ISDIR(sb.st_mode)) {
+		errno = ENOTDIR;
+		return (1);
+	}
 	return (0);
 }
 
