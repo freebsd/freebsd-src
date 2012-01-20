@@ -1678,6 +1678,7 @@ retry:
 	if (gctx->interfaces == NULL || gctx->interfaces->ifp == NULL) {
 		if (count < 1000) {
 			pause("bootpc", hz / 10);
+			count++;
 			goto retry;
 		}
 #ifdef BOOTP_WIRED_TO
