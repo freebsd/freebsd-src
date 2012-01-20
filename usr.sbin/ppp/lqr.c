@@ -417,7 +417,7 @@ lqr_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
               int pri __unused, u_short *proto)
 {
   struct physical *p = link2physical(l);
-  int len, layer, extra_async_bytes;
+  int len, layer;
 
   if (!p) {
     /* Oops - can't happen :-] */
@@ -445,7 +445,6 @@ lqr_LayerPush(struct bundle *b __unused, struct link *l, struct mbuf *bp,
    * acf layers (to avoid alignment issues), so deal with this too.
    */
 
-  extra_async_bytes = 0;
   p->hdlc.lqm.ifOutUniPackets++;
   p->hdlc.lqm.ifOutOctets += len + 1;		/* plus 1 flag octet! */
   for (layer = 0; layer < l->nlayers; layer++)
