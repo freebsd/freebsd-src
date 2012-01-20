@@ -51,7 +51,6 @@ int lineno;
 control			{ DP; return CONTROL; }
 pidfile			{ DP; return PIDFILE; }
 listen			{ DP; return LISTEN; }
-port			{ DP; return PORT; }
 replication		{ DP; return REPLICATION; }
 checksum		{ DP; return CHECKSUM; }
 compression		{ DP; return COMPRESSION; }
