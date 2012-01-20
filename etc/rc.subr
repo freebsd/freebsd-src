@@ -641,7 +641,7 @@ run_rc_command()
 		fi
 	fi
 
-	eval $_pidcmd			# determine the pid if necessary
+	[ -z "$autoboot" ] && eval $_pidcmd	# determine the pid if necessary
 
 	for _elem in $_keywords; do
 		if [ "$_elem" != "$rc_arg" ]; then
