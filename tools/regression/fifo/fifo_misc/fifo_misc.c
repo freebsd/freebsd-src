@@ -115,7 +115,7 @@ test_lseek(void)
 		exit(-1);
 	}
 
-	if (lseek(reader_fd, SEEK_CUR, 1) >= 0) {
+	if (lseek(reader_fd, 1, SEEK_CUR) >= 0) {
 		warnx("%s: lseek succeeded instead of returning ESPIPE",
 		    __func__);
 		cleanfifo("testfifo", reader_fd, writer_fd);
