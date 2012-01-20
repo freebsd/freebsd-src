@@ -1516,7 +1516,6 @@ cd9660_generate_path_table(void)
 	cd9660node *last = dirNode;
 	int pathTableSize = 0;	/* computed as we go */
 	int counter = 1;	/* root gets a count of 0 */
-	int parentRecNum = 0;	/* root's parent is '0' */
 
 	TAILQ_HEAD(cd9660_pt_head, ptq_entry) pt_head;
 	TAILQ_INIT(&pt_head);
@@ -1545,10 +1544,6 @@ cd9660_generate_path_table(void)
 			dirNode->ptprev = last;
 		}
 		last = dirNode;
-
-		parentRecNum = 1;
-		if (dirNode->parent != 0)
-			parentRecNum = dirNode->parent->ptnumber;
 
 		/* Push children onto queue */
 		TAILQ_FOREACH(cn, &dirNode->cn_children, cn_next_child) {
