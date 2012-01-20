@@ -703,7 +703,7 @@ CNAME(asttrapexit):
 /*
  * Deliberate entry to dbtrap
  */
-ASENTRY(breakpoint)
+ASENTRY_NOPROF(breakpoint)
 	mtsprg1	%r1
 	mfmsr	%r3
 	mtsrr1	%r3
