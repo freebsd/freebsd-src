@@ -1049,7 +1049,7 @@ static cd9660node *
 cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 {
 	int i = 0;
-	int numbts, dot, semi, digit, digits, temp, powers, multiplier, count;
+	int numbts, digit, digits, temp, powers, count;
 	char *naming;
 	int maxlength;
         char *tmp;
@@ -1071,7 +1071,6 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		powers = 1;
 		count = 0;
 		digits = 1;
-		multiplier = 1;
 		while (((int)(i / powers) ) >= 10) {
 			digits++;
 			powers = powers * 10;
@@ -1086,15 +1085,7 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		}
 		*/
 
-		dot = -1;
-		semi = -1;
 		while (count < maxlength) {
-			if (*naming == '.')
-				dot = count;
-			else if (*naming == ';') {
-				semi = count;
-				break;
-			}
 			naming++;
 			count++;
 		}
