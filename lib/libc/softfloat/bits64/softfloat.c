@@ -1126,6 +1126,7 @@ float32 int32_to_float32( int32 a )
 
 }
 
+#ifndef SOFTFLOAT_FOR_GCC /* __floatunsisf is in libgcc */
 float32 uint32_to_float32( uint32 a )
 {
     if ( a == 0 ) return 0;
@@ -1133,6 +1134,7 @@ float32 uint32_to_float32( uint32 a )
 	return normalizeRoundAndPackFloat32( 0, 0x9D, a >> 1 );
     return normalizeRoundAndPackFloat32( 0, 0x9C, a );
 }
+#endif
 
 
 /*
@@ -1158,6 +1160,7 @@ float64 int32_to_float64( int32 a )
 
 }
 
+#ifndef SOFTFLOAT_FOR_GCC /* __floatunsidf is in libgcc */
 float64 uint32_to_float64( uint32 a )
 {
     int8 shiftCount;
@@ -1168,6 +1171,7 @@ float64 uint32_to_float64( uint32 a )
     return packFloat64( 0, 0x432 - shiftCount, zSig<<shiftCount );
 
 }
+#endif
 
 #ifdef FLOATX80
 
