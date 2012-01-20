@@ -3317,8 +3317,9 @@ nfsrpc_readdirplus(vnode_t vp, struct uio *uiop, nfsuint64 *cookiep,
 				    ndp->ni_vp = newvp;
 				    NFSCNHASH(cnp, HASHINIT);
 				    if (cnp->cn_namelen <= NCHNAMLEN) {
-					np->n_ctime = np->n_vattr.na_ctime;
-					cache_enter(ndp->ni_dvp,ndp->ni_vp,cnp);
+					cache_enter_time(ndp->ni_dvp,
+					    ndp->ni_vp, cnp,
+					    &nfsva.na_ctime);
 				    }
 				    if (unlocknewvp)
 					vput(newvp);
