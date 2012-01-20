@@ -115,7 +115,7 @@ kernel_text:
  * segment!
  */
 	.text
-ASENTRY(__start)
+ASENTRY_NOPROF(__start)
 	li	8,0
 	li	9,0x100
 	mtctr	9
@@ -202,7 +202,7 @@ tocbase:
  * or the (currently used) C code optimized, so it doesn't use any non-volatile
  * registers.
  */
-ASENTRY(setfault)
+ASENTRY_NOPROF(setfault)
 	mflr	0
 	mfcr	12
 	mfsprg	4,0
