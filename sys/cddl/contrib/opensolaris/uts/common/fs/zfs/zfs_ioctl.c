@@ -81,6 +81,12 @@
 
 CTASSERT(sizeof(zfs_cmd_t) < IOCPARM_MAX);
 
+static int snapshot_list_prefetch;
+SYSCTL_DECL(_vfs_zfs);
+TUNABLE_INT("vfs.zfs.snapshot_list_prefetch", &snapshot_list_prefetch);
+SYSCTL_INT(_vfs_zfs, OID_AUTO, snapshot_list_prefetch, CTLFLAG_RW,
+    &snapshot_list_prefetch, 0, "Prefetch data when listing snapshots");
+
 static struct cdev *zfsdev;
 
 extern void zfs_init(void);
@@ -2044,7 +2050,7 @@ zfs_ioc_snapshot_list_next(zfs_cmd_t *zc)
 	int error;
 
 top:
-	if (zc->zc_cookie == 0)
+	if (snapshot_list_prefetch && zc->zc_cookie == 0)
 		(void) dmu_objset_find(zc->zc_name, dmu_objset_prefetch,
 		    NULL, DS_FIND_SNAPSHOTS);
 
