@@ -623,10 +623,6 @@ static void
 cd9660_finalize_PVD(void)
 {
 	time_t tim;
-	unsigned char *temp;
-
-	/* Copy the root directory record */
-	temp = (unsigned char *) &diskStructure.primaryDescriptor;
 
 	/* root should be a fixed size of 34 bytes since it has no name */
 	memcpy(diskStructure.primaryDescriptor.root_directory_record,
