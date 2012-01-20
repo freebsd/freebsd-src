@@ -103,11 +103,14 @@ ASM_CFLAGS= -x assembler-with-cpp -DLOCORE ${CFLAGS}
 
 .if defined(PROFLEVEL) && ${PROFLEVEL} >= 1
 CFLAGS+=	-DGPROF -falign-functions=16
+PROF=	-pg
 .if ${PROFLEVEL} >= 2
 CFLAGS+=	-DGPROF4 -DGUPROF
-PROF=	-pg -mprofiler-epilogue
+.if ${MACHINE_CPUARCH} == "i386" || ${MACHINE_CPUARCH} == "amd64"
+PROF+=	-mprofiler-epilogue
 .else
-PROF=	-pg
+.error "GUPROF not supported on ${MACHINE_CPUARCH}."
+.endif
 .endif
 .endif
 DEFINED_PROF=	${PROF}
