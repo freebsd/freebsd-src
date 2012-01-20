@@ -82,7 +82,7 @@ via_update(const char *dev, const char *path)
 	unsigned int i;
 	size_t payload_size;
 	via_fw_header_t *fw_header;
-	uint32_t signature, flags;
+	uint32_t signature;
 	int32_t revision;
 	void *fw_data;
 	size_t data_size, total_size;
@@ -121,7 +121,6 @@ via_update(const char *dev, const char *path)
 	/*
 	 * MSR_IA32_PLATFORM_ID contains flag in BCD in bits 52-50.
 	 */
-	flags = 1 << ((msrargs.data >> 50) & 7);
 	msrargs.msr = MSR_BIOS_SIGN;
 	error = ioctl(devfd, CPUCTL_RDMSR, &msrargs);
 	if (error < 0) {
