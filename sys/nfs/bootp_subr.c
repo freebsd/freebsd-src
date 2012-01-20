@@ -1604,6 +1604,7 @@ bootpc_init(void)
 #endif
 	struct nfsv3_diskless *nd;
 	struct thread *td;
+	int count = 0;
 
 	nd = &nfsv3_diskless;
 	td = curthread;
@@ -1651,6 +1652,7 @@ bootpc_init(void)
 		allocifctx(gctx);
 #endif
 
+retry:
 	IFNET_RLOCK();
 	for (ifp = TAILQ_FIRST(&V_ifnet), ifctx = gctx->interfaces;
 	     ifp != NULL && ifctx != NULL;
@@ -1674,6 +1676,10 @@ bootpc_init(void)
 	CURVNET_RESTORE();
 
 	if (gctx->interfaces == NULL || gctx->interfaces->ifp == NULL) {
+		if (count < 1000) {
+			pause("bootpc", hz / 10);
+			goto retry;
+		}
 #ifdef BOOTP_WIRED_TO
 		panic("bootpc_init: Could not find interface specified "
 		      "by BOOTP_WIRED_TO: "
