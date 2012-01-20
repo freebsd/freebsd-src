@@ -25,11 +25,11 @@ dhclient_pre_check()
 		local msg
 		msg="'$ifn' is not a DHCP-enabled interface"
 		if [ -z "${rc_quiet}" ]; then
-			err 1 "$msg"
+			echo "$msg"
 		else
 			debug "$msg"
-			exit 1
 		fi
+			exit 1
 	fi
 }
 
