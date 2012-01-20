@@ -1,7 +1,7 @@
 /* $FreeBSD$ */
 
 OUTPUT_FORMAT("elf64-powerpc", "elf64-powerpc", "elf64-powerpc")
-OUTPUT_ARCH(powerpc)
+OUTPUT_ARCH(powerpc:common64)
 ENTRY(__start)
 SEARCH_DIR(/usr/lib);
 PROVIDE (__stack = 0);
@@ -56,15 +56,19 @@ SECTIONS
   .sdata2    : { *(.sdata2)  }
   .sbss2     : { *(.sbss2)   }
   /* Adjust the address for the data segment to the next page up. */
-  . = ((. + 0x1000) & ~(0x1000 - 1));
+  . = ALIGN(4096);
   .data    :
   {
     *(.data)
     *(.gnu.linkonce.d*)
     CONSTRUCTORS
   }
-  .data1   : { *(.data1) }
-  .got1           : { *(.got1) }
+  .data1     : { *(.data1) }
+  .toc1      : ALIGN(8) { *(.toc1) }
+  .opd       : ALIGN(8) { KEEP (*(.opd)) }
+  .branch_lt : ALIGN(8) { *(.branch_lt) }
+  .got       : ALIGN(8) { *(.got .toc) }
+
   .dynamic        : { *(.dynamic) }
   /* Put .ctors and .dtors next to the .got2 section, so that the pointers
      get relocated with -mrelocatable. Also put in the .fixup pointers.
@@ -81,10 +85,6 @@ SECTIONS
   .fixup          : { *(.fixup) }
                 PROVIDE (_FIXUP_END_ = .);
                 PROVIDE (_GOT2_END_ = .);
-                PROVIDE (_GOT_START_ = .);
-  .got            : { *(.got) }
-  .got.plt        : { *(.got.plt) }
-                PROVIDE (_GOT_END_ = .);
   /* We want the small data sections together, so single-instruction offsets
      can access them all, and initialized data all before uninitialized, so
      we can shorten the on-disk segment size.  */
