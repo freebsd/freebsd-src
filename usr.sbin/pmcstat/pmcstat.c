@@ -551,7 +551,7 @@ main(int argc, char **argv)
 	cpuset_t cpumask;
 	double interval;
 	int hcpu, option, npmc, ncpu;
-	int c, check_driver_stats, current_cpu, current_sampling_count;
+	int c, check_driver_stats, current_sampling_count;
 	int do_callchain, do_descendants, do_logproccsw, do_logprocexit;
 	int do_print, do_read;
 	size_t dummy;
@@ -571,7 +571,6 @@ main(int argc, char **argv)
 	char buffer[PATH_MAX];
 
 	check_driver_stats      = 0;
-	current_cpu 		= 0;
 	current_sampling_count  = DEFAULT_SAMPLE_COUNT;
 	do_callchain		= 1;
 	do_descendants          = 0;
