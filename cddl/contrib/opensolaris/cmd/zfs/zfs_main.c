@@ -24,6 +24,7 @@
  * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
  * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  * Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
