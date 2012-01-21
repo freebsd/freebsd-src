@@ -47,6 +47,7 @@
 #define I386_SET_FSBASE	8
 #define I386_GET_GSBASE	9
 #define I386_SET_GSBASE	10
+#define	I386_GET_XFPUSTATE 11
 
 /* These four only exist when running an i386 binary on amd64 */
 #define	_AMD64_GET_FSBASE	128
@@ -69,6 +70,11 @@ struct i386_ioperm_args {
 struct i386_vm86_args {
 	int	sub_op;			/* sub-operation to perform */
 	char	*sub_args;		/* args */
+};
+
+struct i386_get_xfpustate {
+	void *addr;
+	int len;
 };
 
 #ifndef _KERNEL

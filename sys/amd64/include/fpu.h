@@ -101,14 +101,13 @@ struct savefpu_ymm {
 } __aligned(64);
 
 #ifdef _KERNEL
-struct fpu_kern_ctx {
-	struct savefpu hwstate;
-	struct savefpu *prev;
-	uint32_t flags;
-};
-#define	FPU_KERN_CTX_FPUINITDONE 0x01
+
+struct fpu_kern_ctx;
 
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNFPU) == 0)
+
+#define	XSAVE_AREA_ALIGN	64
+
 #endif
 
 /*
@@ -141,9 +140,15 @@ void	fpuexit(struct thread *td);
 int	fpuformat(void);
 int	fpugetregs(struct thread *td);
 void	fpuinit(void);
-void	fpusetregs(struct thread *td, struct savefpu *addr);
+void	fpusave(void *addr);
+int	fpusetregs(struct thread *td, struct savefpu *addr,
+	    char *xfpustate, size_t xfpustate_size);
+int	fpusetxstate(struct thread *td, char *xfpustate,
+	    size_t xfpustate_size);
 int	fputrap(void);
 void	fpuuserinited(struct thread *td);
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
@@ -151,9 +156,10 @@ int	fpu_kern_thread(u_int flags);
 int	is_fpu_kern_thread(u_int flags);
 
 /*
- * Flags for fpu_kern_enter() and fpu_kern_thread().
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
  */
 #define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
 
 #endif
 
