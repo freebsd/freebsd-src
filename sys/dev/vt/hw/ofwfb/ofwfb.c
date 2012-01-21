@@ -61,7 +61,9 @@ static const struct vt_driver vt_ofwfb_driver = {
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
-VT_CONSDEV_DECLARE(vt_ofwfb_driver, 1600, 1200, &ofwfb_conssoftc);
+VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1600), PIXEL_HEIGHT(1200),
+    &ofwfb_conssoftc);
+/* XXX: hardcoded max size */
 
 static const uint32_t colormap[] = {
 	0x00000000,	/* Black */
