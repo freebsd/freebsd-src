@@ -521,6 +521,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
+	char *g_path;
 #if defined(INET) || defined(INET6)
 	struct prison *tppr;
 	void *op;
@@ -575,6 +576,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	ip6 = NULL;
 #endif
+	g_path = NULL;
 
 	error = vfs_copyopt(opts, "jid", &jid, sizeof(jid));
 	if (error == ENOENT)
@@ -907,13 +909,17 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		vfslocked = NDHASGIANT(&nd);
 		root = nd.ni_vp;
 		NDFREE(&nd, NDF_ONLY_PNBUF);
-		error = vn_path_to_global_path(td, root, path, MAXPATHLEN);
-		if (error == ENODEV) {
+		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+		strlcpy(g_path, path, MAXPATHLEN);
+		error = vn_path_to_global_path(td, root, g_path, MAXPATHLEN);
+		if (error == 0)
+			path = g_path;
+		else if (error == ENODEV) {
 			/* proceed if sysctl debug.disablefullpath == 1 */
 			fullpath_disabled = 1;
 			if (len < 2 || (len == 2 && path[0] == '/'))
 				path = NULL;
-		} else if (error != 0) {
+		} else {
 			/* exit on other errors */
 			VFS_UNLOCK_GIANT(vfslocked);
 			goto done_free;
@@ -1819,6 +1825,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	free(ip6, M_PRISON);
 #endif
+	if (g_path != NULL)
+		free(g_path, M_TEMP);
 	vfs_freeopts(opts);
 	return (error);
 }
