@@ -99,7 +99,8 @@ char *nmi_stack;
 void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct pcb **susppcbs;
+void **suspfpusave;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -1422,6 +1423,7 @@ cpususpend_handler(void)
 	cr3 = rcr3();
 
 	if (savectx(susppcbs[cpu])) {
+		ctx_fpusave(suspfpusave[cpu]);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 	} else {
