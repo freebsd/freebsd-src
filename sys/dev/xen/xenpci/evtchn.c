@@ -52,7 +52,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/xen/xenpci/xenpcivar.h>
 
 #if defined(__i386__)
-#define	__ffs(word)	ffs(word)
+#define	__ffs(word)	(ffs(word) - 1)
 #elif defined(__amd64__)
 static inline unsigned long __ffs(unsigned long word)
 {

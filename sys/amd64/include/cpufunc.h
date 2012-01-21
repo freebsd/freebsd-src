@@ -669,6 +669,41 @@ intr_restore(register_t rflags)
 	write_rflags(rflags);
 }
 
+static __inline void
+xsetbv(uint32_t reg, uint64_t val)
+{
+	uint32_t low, hi;
+
+	low = val;
+	hi = val >> 32;
+	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
+	    "c" (reg), "a" (low), "d" (hi));
+}
+
+static __inline void
+xsave(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	/* xsave (%rdi) */
+	__asm __volatile(".byte	0x0f,0xae,0x27" : :
+	    "a" (low), "d" (hi), "D" (addr) : "memory");
+}
+
+static __inline void
+xrstor(char *addr, uint64_t mask)
+{
+	uint32_t low, hi;
+
+	low = mask;
+	hi = mask >> 32;
+	/* xrstor (%rdi) */
+	__asm __volatile(".byte	0x0f,0xae,0x2f" : :
+	    "a" (low), "d" (hi), "D" (addr));
+}
+
 #else /* !(__GNUCLIKE_ASM && __CC_SUPPORTS___INLINE) */
 
 int	breakpoint(void);
@@ -733,6 +768,9 @@ u_int	rgs(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, uint64_t newval);
+void	xsetbv(uint32_t reg, uint64_t val);
+void	xsave(char *addr, uint64_t mask);
+void	xrstor(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
 

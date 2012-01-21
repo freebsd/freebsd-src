@@ -24,7 +24,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * Driver for GPIB cards based on NEC µPD7210 and compatibles.
+ * Driver for GPIB cards based on NEC ÂµPD7210 and compatibles.
  *
  * This driver just hooks up to the hardware and leaves all the interesting
  * stuff to upd7210.c.
@@ -116,14 +116,14 @@ pcii_probe(device_t dev)
 	/*
 	 * The PCIIA decodes a fixed pattern of 0x2e1 for the lower 10
 	 * address bits A0 ... A9.  Bits A10 through A12 are used by
-	 * the µPD7210 register select lines.  This makes the
+	 * the ÂµPD7210 register select lines.  This makes the
 	 * individual 7210 register being 0x400 bytes apart in the ISA
 	 * bus address space.  Address bits A13 and A14 are compared
 	 * to a DIP switch setting on the card, allowing for up to 4
 	 * different cards being installed (at base addresses 0x2e1,
 	 * 0x22e1, 0x42e1, and 0x62e1, respectively).  A15 has been
 	 * used to select an optional on-board time-of-day clock chip
-	 * (MM58167A) on the original PCIIA rather than the µPD7210
+	 * (MM58167A) on the original PCIIA rather than the ÂµPD7210
 	 * (which is not implemented on later boards).  The
 	 * documentation states the respective addresses for that chip
 	 * should be handled as reserved addresses, which we don't do
@@ -174,7 +174,7 @@ pcii_probe(device_t dev)
 	}
 	error = ENXIO;
 	/*
-	 * Perform some basic tests on the µPD7210 registers.  At
+	 * Perform some basic tests on the ÂµPD7210 registers.  At
 	 * least *some* register must read different from 0x00 or
 	 * 0xff.
 	 */

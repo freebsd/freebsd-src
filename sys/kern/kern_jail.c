@@ -521,6 +521,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
+	char *g_path;
 #if defined(INET) || defined(INET6)
 	struct prison *tppr;
 	void *op;
@@ -531,6 +532,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	int gotchildmax, gotenforce, gothid, gotslevel;
 	int fi, jid, jsys, len, level;
 	int childmax, slevel, vfslocked;
+	int fullpath_disabled;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
 #endif
@@ -574,6 +576,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	ip6 = NULL;
 #endif
+	g_path = NULL;
 
 	error = vfs_copyopt(opts, "jid", &jid, sizeof(jid));
 	if (error == ENOENT)
@@ -880,6 +883,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	fullpath_disabled = 0;
 	root = NULL;
 	error = vfs_getopt(opts, "path", (void **)&path, &len);
 	if (error == ENOENT)
@@ -897,30 +901,44 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = EINVAL;
 			goto done_free;
 		}
-		if (len < 2 || (len == 2 && path[0] == '/'))
-			path = NULL;
-		else {
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE,
+		    path, td);
+		error = namei(&nd);
+		if (error)
+			goto done_free;
+		vfslocked = NDHASGIANT(&nd);
+		root = nd.ni_vp;
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+		strlcpy(g_path, path, MAXPATHLEN);
+		error = vn_path_to_global_path(td, root, g_path, MAXPATHLEN);
+		if (error == 0)
+			path = g_path;
+		else if (error == ENODEV) {
+			/* proceed if sysctl debug.disablefullpath == 1 */
+			fullpath_disabled = 1;
+			if (len < 2 || (len == 2 && path[0] == '/'))
+				path = NULL;
+		} else {
+			/* exit on other errors */
+			VFS_UNLOCK_GIANT(vfslocked);
+			goto done_free;
+		}
+		if (root->v_type != VDIR) {
+			error = ENOTDIR;
+			vput(root);
+			VFS_UNLOCK_GIANT(vfslocked);
+			goto done_free;
+		}
+		VOP_UNLOCK(root, 0);
+		VFS_UNLOCK_GIANT(vfslocked);
+		if (fullpath_disabled) {
 			/* Leave room for a real-root full pathname. */
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
 			    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
 				error = ENAMETOOLONG;
 				goto done_free;
 			}
-			NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW, UIO_SYSSPACE,
-			    path, td);
-			error = namei(&nd);
-			if (error)
-				goto done_free;
-			vfslocked = NDHASGIANT(&nd);
-			root = nd.ni_vp;
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			if (root->v_type != VDIR) {
-				error = ENOTDIR;
-				vrele(root);
-				VFS_UNLOCK_GIANT(vfslocked);
-				goto done_free;
-			}
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 	}
 
@@ -1583,7 +1601,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 	if (path != NULL) {
 		/* Try to keep a real-rooted full pathname. */
-		if (path[0] == '/' && strcmp(mypr->pr_path, "/"))
+		if (fullpath_disabled && path[0] == '/' &&
+		    strcmp(mypr->pr_path, "/"))
 			snprintf(pr->pr_path, sizeof(pr->pr_path), "%s%s",
 			    mypr->pr_path, path);
 		else
@@ -1806,6 +1825,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	free(ip6, M_PRISON);
 #endif
+	if (g_path != NULL)
+		free(g_path, M_TEMP);
 	vfs_freeopts(opts);
 	return (error);
 }

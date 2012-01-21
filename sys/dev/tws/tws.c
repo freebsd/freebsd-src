@@ -685,7 +685,7 @@ tws_init_reqs(struct tws_softc *sc, u_int32_t dma_mem_size)
     {
         if (bus_dmamap_create(sc->data_tag, 0, &sc->reqs[i].dma_map)) {
             /* log a ENOMEM failure msg here */
-	    mtx_unlock(&sc->q_lock);
+            mtx_unlock(&sc->q_lock);
             return(FAILURE);
         } 
         sc->reqs[i].cmd_pkt =  &cmd_buf[i];

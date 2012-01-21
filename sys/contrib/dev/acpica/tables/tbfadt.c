@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -77,14 +77,15 @@ AcpiTbSetupFadtRegisters (
 typedef struct acpi_fadt_info
 {
     char                    *Name;
-    UINT8                   Address64;
-    UINT8                   Address32;
-    UINT8                   Length;
+    UINT16                  Address64;
+    UINT16                  Address32;
+    UINT16                  Length;
     UINT8                   DefaultLength;
     UINT8                   Type;
 
 } ACPI_FADT_INFO;
 
+#define ACPI_FADT_OPTIONAL          0
 #define ACPI_FADT_REQUIRED          1
 #define ACPI_FADT_SEPARATE_LENGTH   2
 
@@ -102,7 +103,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (Pm1bEventBlock),
         ACPI_FADT_OFFSET (Pm1EventLength),
         ACPI_PM1_REGISTER_WIDTH * 2,        /* Enable + Status register */
-        0},
+        ACPI_FADT_OPTIONAL},
 
     {"Pm1aControlBlock",
         ACPI_FADT_OFFSET (XPm1aControlBlock),
@@ -116,7 +117,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
         ACPI_FADT_OFFSET (Pm1bControlBlock),
         ACPI_FADT_OFFSET (Pm1ControlLength),
         ACPI_PM1_REGISTER_WIDTH,
-        0},
+        ACPI_FADT_OPTIONAL},
 
     {"Pm2ControlBlock",
         ACPI_FADT_OFFSET (XPm2ControlBlock),
@@ -156,7 +157,7 @@ static ACPI_FADT_INFO     FadtInfoTable[] =
 typedef struct acpi_fadt_pm_info
 {
     ACPI_GENERIC_ADDRESS    *Target;
-    UINT8                   Source;
+    UINT16                  Source;
     UINT8                   RegisterNum;
 
 } ACPI_FADT_PM_INFO;

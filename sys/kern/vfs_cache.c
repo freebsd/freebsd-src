@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
+#include <sys/fcntl.h>
 #include <sys/mount.h>
 #include <sys/namei.h>
 #include <sys/proc.h>
@@ -96,6 +97,8 @@ struct	namecache {
 	TAILQ_ENTRY(namecache) nc_dst;	/* destination vnode list */
 	struct	vnode *nc_dvp;		/* vnode of parent of name */
 	struct	vnode *nc_vp;		/* vnode the name refers to */
+	struct	timespec nc_time;	/* timespec provided by fs */
+	int	nc_ticks;		/* ticks value when entry was added */
 	u_char	nc_flag;		/* flag bits */
 	u_char	nc_nlen;		/* length of name */
 	char	nc_name[0];		/* segment name + nul */
@@ -393,10 +396,12 @@ cache_zap(ncp)
  */
 
 int
-cache_lookup(dvp, vpp, cnp)
+cache_lookup_times(dvp, vpp, cnp, tsp, ticksp)
 	struct vnode *dvp;
 	struct vnode **vpp;
 	struct componentname *cnp;
+	struct timespec *tsp;
+	int *ticksp;
 {
 	struct namecache *ncp;
 	uint32_t hash;
@@ -421,6 +426,10 @@ retry_wlocked:
 			dothits++;
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, ".",
 			    *vpp, 0, 0);
+			if (tsp != NULL)
+				timespecclear(tsp);
+			if (ticksp != NULL)
+				*ticksp = ticks;
 			goto success;
 		}
 		if (cnp->cn_namelen == 2 && cnp->cn_nameptr[1] == '.') {
@@ -439,19 +448,22 @@ retry_wlocked:
 				CACHE_WUNLOCK();
 				return (0);
 			}
-			if (dvp->v_cache_dd->nc_flag & NCF_ISDOTDOT)
-				*vpp = dvp->v_cache_dd->nc_vp;
+			ncp = dvp->v_cache_dd;
+			if (ncp->nc_flag & NCF_ISDOTDOT)
+				*vpp = ncp->nc_vp;
 			else
-				*vpp = dvp->v_cache_dd->nc_dvp;
+				*vpp = ncp->nc_dvp;
 			/* Return failure if negative entry was found. */
-			if (*vpp == NULL) {
-				ncp = dvp->v_cache_dd;
+			if (*vpp == NULL)
 				goto negative_success;
-			}
 			CTR3(KTR_VFS, "cache_lookup(%p, %s) found %p via ..",
 			    dvp, cnp->cn_nameptr, *vpp);
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, "..",
 			    *vpp, 0, 0);
+			if (tsp != NULL)
+				*tsp = ncp->nc_time;
+			if (ticksp != NULL)
+				*ticksp = ncp->nc_ticks;
 			goto success;
 		}
 	}
@@ -498,6 +510,10 @@ retry_wlocked:
 		    dvp, cnp->cn_nameptr, *vpp, ncp);
 		SDT_PROBE(vfs, namecache, lookup, hit, dvp, ncp->nc_name,
 		    *vpp, 0, 0);
+		if (tsp != NULL)
+			*tsp = ncp->nc_time;
+		if (ticksp != NULL)
+			*ticksp = ncp->nc_ticks;
 		goto success;
 	}
 
@@ -529,6 +545,10 @@ negative_success:
 		cnp->cn_flags |= ISWHITEOUT;
 	SDT_PROBE(vfs, namecache, lookup, hit_negative, dvp, ncp->nc_name,
 	    0, 0, 0);
+	if (tsp != NULL)
+		*tsp = ncp->nc_time;
+	if (ticksp != NULL)
+		*ticksp = ncp->nc_ticks;
 	CACHE_WUNLOCK();
 	return (ENOENT);
 
@@ -615,10 +635,11 @@ unlock:
  * Add an entry to the cache.
  */
 void
-cache_enter(dvp, vp, cnp)
+cache_enter_time(dvp, vp, cnp, tsp)
 	struct vnode *dvp;
 	struct vnode *vp;
 	struct componentname *cnp;
+	struct timespec *tsp;
 {
 	struct namecache *ncp, *n2;
 	struct nchashhead *ncpp;
@@ -691,6 +712,11 @@ cache_enter(dvp, vp, cnp)
 	ncp->nc_vp = vp;
 	ncp->nc_dvp = dvp;
 	ncp->nc_flag = flag;
+	if (tsp != NULL)
+		ncp->nc_time = *tsp;
+	else
+		timespecclear(&ncp->nc_time);
+	ncp->nc_ticks = ticks;
 	len = ncp->nc_nlen = cnp->cn_namelen;
 	hash = fnv_32_buf(cnp->cn_nameptr, len, FNV1_32_INIT);
 	strlcpy(ncp->nc_name, cnp->cn_nameptr, len + 1);
@@ -707,6 +733,8 @@ cache_enter(dvp, vp, cnp)
 		if (n2->nc_dvp == dvp &&
 		    n2->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(n2->nc_name, cnp->cn_nameptr, n2->nc_nlen)) {
+			n2->nc_time = ncp->nc_time;
+			n2->nc_ticks = ncp->nc_ticks;
 			CACHE_WUNLOCK();
 			cache_free(ncp);
 			return;
@@ -1277,4 +1305,100 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
 	CACHE_RUNLOCK();
 	buf[l] = '\0';
 	return (0);
+}
+
+/* ABI compat shims for old kernel modules. */
+#undef cache_enter
+#undef cache_lookup
+
+void	cache_enter(struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp);
+int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp);
+
+void
+cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
+{
+
+	cache_enter_time(dvp, vp, cnp, NULL);
+}
+
+int
+cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
+{
+
+	return (cache_lookup_times(dvp, vpp, cnp, NULL, NULL));
+}
+
+/*
+ * This function updates path string to vnode's full global path
+ * and checks the size of the new path string against the pathlen argument.
+ *
+ * Requires a locked, referenced vnode and GIANT lock held.
+ * Vnode is re-locked on success or ENODEV, otherwise unlocked.
+ *
+ * If sysctl debug.disablefullpath is set, ENODEV is returned,
+ * vnode is left locked and path remain untouched.
+ *
+ * If vp is a directory, the call to vn_fullpath_global() always succeeds
+ * because it falls back to the ".." lookup if the namecache lookup fails.
+ */
+int
+vn_path_to_global_path(struct thread *td, struct vnode *vp, char *path,
+    u_int pathlen)
+{
+	struct nameidata nd;
+	struct vnode *vp1;
+	char *rpath, *fbuf;
+	int error, vfslocked;
+
+	VFS_ASSERT_GIANT(vp->v_mount);
+	ASSERT_VOP_ELOCKED(vp, __func__);
+
+	/* Return ENODEV if sysctl debug.disablefullpath==1 */
+	if (disablefullpath)
+		return (ENODEV);
+
+	/* Construct global filesystem path from vp. */
+	VOP_UNLOCK(vp, 0);
+	error = vn_fullpath_global(td, vp, &rpath, &fbuf);
+
+	if (error != 0) {
+		vrele(vp);
+		return (error);
+	}
+
+	if (strlen(rpath) >= pathlen) {
+		vrele(vp);
+		error = ENAMETOOLONG;
+		goto out;
+	}
+
+	/*
+	 * Re-lookup the vnode by path to detect a possible rename.
+	 * As a side effect, the vnode is relocked.
+	 * If vnode was renamed, return ENOENT.
+	 */
+	NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE | AUDITVNODE1,
+	    UIO_SYSSPACE, path, td);
+	error = namei(&nd);
+	if (error != 0) {
+		vrele(vp);
+		goto out;
+	}
+	vfslocked = NDHASGIANT(&nd);
+	NDFREE(&nd, NDF_ONLY_PNBUF);
+	vp1 = nd.ni_vp;
+	vrele(vp);
+	if (vp1 == vp)
+		strcpy(path, rpath);
+	else {
+		vput(vp1);
+		error = ENOENT;
+	}
+	VFS_UNLOCK_GIANT(vfslocked);
+
+out:
+	free(fbuf, M_TEMP);
+	return (error);
 }

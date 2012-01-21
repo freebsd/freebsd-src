@@ -1631,20 +1631,19 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 
 static int
 get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
-    enum proc_vector_type type, size_t nchr)
+    enum proc_vector_type type)
 {
-	size_t done, len, vsize;
+	size_t done, len, nchr, vsize;
 	int error, i;
 	char **proc_vector, *sptr;
 	char pss_string[GET_PS_STRINGS_CHUNK_SZ];
 
 	PROC_ASSERT_HELD(p);
 
-	 /*
-	  * We are not going to read more than 2 * (PATH_MAX + ARG_MAX) bytes.
-	  */
-	if (nchr > 2 * (PATH_MAX + ARG_MAX))
-		nchr = 2 * (PATH_MAX + ARG_MAX);
+	/*
+	 * We are not going to read more than 2 * (PATH_MAX + ARG_MAX) bytes.
+	 */
+	nchr = 2 * (PATH_MAX + ARG_MAX);
 
 	error = get_proc_vector(td, p, &proc_vector, &vsize, type);
 	if (error != 0)
@@ -1679,17 +1678,17 @@ done:
 }
 
 int
-proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
 
-	return (get_ps_strings(curthread, p, sb, PROC_ARG, nchr));
+	return (get_ps_strings(curthread, p, sb, PROC_ARG));
 }
 
 int
-proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
 
-	return (get_ps_strings(curthread, p, sb, PROC_ENV, nchr));
+	return (get_ps_strings(curthread, p, sb, PROC_ENV));
 }
 
 /*
@@ -1728,7 +1727,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
-		error = proc_getargv(curthread, p, &sb, req->oldlen);
+		error = proc_getargv(curthread, p, &sb);
 		error2 = sbuf_finish(&sb);
 		PRELE(p);
 		sbuf_delete(&sb);
@@ -1780,7 +1779,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
-	error = proc_getenvv(curthread, p, &sb, req->oldlen);
+	error = proc_getenvv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
 	sbuf_delete(&sb);
