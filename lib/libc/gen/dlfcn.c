@@ -147,6 +147,15 @@ dl_iterate_phdr(int (*callback)(struct dl_phdr_info *, size_t, void *),
 	return 0;
 }
 
+#pragma weak fdlopen
+void *
+fdlopen(int fd, int mode)
+{
+
+	_rtld_error(sorry);
+	return NULL;
+}
+
 #pragma weak _rtld_atfork_pre
 void
 _rtld_atfork_pre(int *locks)
