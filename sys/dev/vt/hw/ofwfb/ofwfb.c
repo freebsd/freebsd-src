@@ -37,6 +37,9 @@ __FBSDID("$FreeBSD: user/ed/newcons/sys/dev/vt/hw/ofwfb/ofwfb.c 219888 2011-03-2
 #include <vm/pmap.h>
 
 #include <machine/bus.h>
+#ifdef __sparc64__
+#include <machine/bus_private.h>
+#endif
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -48,6 +51,10 @@ struct ofwfb_softc {
 	intptr_t	sc_addr;
 	int		sc_depth;
 	int		sc_stride;
+
+#ifdef __sparc64__
+	bus_space_tag_t	sc_memt;
+#endif
 };
 
 static vd_init_t	ofwfb_init;
@@ -61,7 +68,7 @@ static const struct vt_driver vt_ofwfb_driver = {
 };
 
 static struct ofwfb_softc ofwfb_conssoftc;
-VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1600), PIXEL_HEIGHT(1200),
+VT_CONSDEV_DECLARE(vt_ofwfb_driver, PIXEL_WIDTH(1920), PIXEL_HEIGHT(1200),
     &ofwfb_conssoftc);
 /* XXX: hardcoded max size */
 
@@ -99,7 +106,7 @@ ofwfb_blank(struct vt_device *vd, term_color_t color)
 	case 32:
 		c = colormap[color];
 		for (ofs = 0; ofs < sc->sc_stride*vd->vd_height; ofs++)
-			memcpy((void *)(sc->sc_addr + 4*ofs), &c, 4);
+			*(uint32_t *)(sc->sc_addr + 4*ofs) = c;
 		break;
 	default:
 		/* panic? */
@@ -135,8 +142,8 @@ ofwfb_bitblt(struct vt_device *vd, const uint8_t *src,
 				    b & 0x80 ? fg : bg;
 				break;
 			case 32:
-				memcpy((void *)(sc->sc_addr + line + c*4),
-				    b & 0x80 ? &fgc : &bgc, 4);
+				*(uint32_t *)(sc->sc_addr + line + 4*c) = 
+				    (b & 0x80) ? fgc : bgc;
 				break;
 			default:
 				/* panic? */
@@ -152,30 +159,25 @@ ofwfb_initialize(struct vt_device *vd)
 	struct ofwfb_softc *sc = vd->vd_softc;
 	char name[64];
 	ihandle_t ih;
-	cell_t depth = 8;
-	int i, retval;
+	int i;
+	cell_t retval;
 
 	/* Open display device, thereby initializing it */
 	memset(name, 0, sizeof(name));
 	OF_package_to_path(sc->sc_node, name, sizeof(name));
 	ih = OF_open(name);
 
-	OF_getprop(sc->sc_node, "depth", &depth, sizeof(depth));
-	sc->sc_depth = depth;
-
 	if (sc->sc_depth == 8) {
 		/*
-                 * Install the ISO6429 colormap - older OFW systems
-                 * don't do this by default
-                 */
-                for (i = 0; i < 16; i++) {
-                        OF_call_method("color!", ih, 4, 1,
-                                       (colormap[i] >> 16) & 0xff,
-                                       (colormap[i] >> 8) & 0xff,
-                                       (colormap[i] >> 0) & 0xff,
-                                       i,
-                                       &retval);
-                }
+		 * Install the color map
+		 */
+		for (i = 0; i < 16; i++) {
+			OF_call_method("color!", ih, 4, 1,
+			    (cell_t)((colormap[i] >> 16) & 0xff),
+			    (cell_t)((colormap[i] >> 8) & 0xff),
+			    (cell_t)((colormap[i] >> 0) & 0xff),
+			    (cell_t)i, &retval);
+		}
         }
 
 	/* Clear the screen. */
@@ -190,8 +192,13 @@ ofwfb_init(struct vt_device *vd)
 	phandle_t chosen;
 	ihandle_t stdout;
 	phandle_t node;
-	cell_t depth, height, width;
+	uint32_t depth, height, width;
 	uint32_t fb_phys;
+#ifdef __sparc64__
+	static struct bus_space_tag ofwfb_memt[1];
+	bus_addr_t phys;
+	int space;
+#endif
 
 	chosen = OF_finddevice("/chosen");
 	OF_getprop(chosen, "stdout", &stdout, sizeof(stdout));
@@ -225,13 +232,21 @@ ofwfb_init(struct vt_device *vd)
 	 * Grab the physical address of the framebuffer, and then map it
 	 * into our memory space. If the MMU is not yet up, it will be
 	 * remapped for us when relocation turns on.
-	 *
-	 * XXX We assume #address-cells is 1 at this point.
 	 */
+
+	 /* XXX We assume #address-cells is 1 at this point. */
 	OF_getprop(node, "address", &fb_phys, sizeof(fb_phys));
 
+#if defined(__powerpc__)
 	bus_space_map(&bs_be_tag, fb_phys, height * sc->sc_stride,
 	    BUS_SPACE_MAP_PREFETCHABLE, &sc->sc_addr);
+#elif defined(__sparc64__)
+	OF_decode_addr(node, 0, &space, &phys);
+	sc->sc_memt = &ofwfb_memt[0];
+	sc->sc_addr = sparc64_fake_bustag(space, fb_phys, sc->sc_memt);
+#else
+	#error Unsupported platform!
+#endif
 
 	ofwfb_initialize(vd);
 
