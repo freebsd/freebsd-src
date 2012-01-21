@@ -812,6 +812,7 @@ resource_start:	STR
 		    sizeof(curres->hr_name)) >=
 		    sizeof(curres->hr_name)) {
 			pjdlog_error("Resource name is too long.");
+			free(curres);
 			free($1);
 			return (1);
 		}
