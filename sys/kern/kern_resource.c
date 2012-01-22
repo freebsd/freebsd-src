@@ -649,13 +649,17 @@ lim_cb(void *arg)
 }
 
 int
-kern_setrlimit(td, which, limp)
-	struct thread *td;
-	u_int which;
-	struct rlimit *limp;
+kern_setrlimit(struct thread *td, u_int which, struct rlimit *limp)
+{
+
+	return (kern_proc_setrlimit(td, td->td_proc, which, limp));
+}
+
+int
+kern_proc_setrlimit(struct thread *td, struct proc *p, u_int which,
+    struct rlimit *limp)
 {
 	struct plimit *newlim, *oldlim;
-	struct proc *p;
 	register struct rlimit *alimp;
 	struct rlimit oldssiz;
 	int error;
@@ -672,7 +676,6 @@ kern_setrlimit(td, which, limp)
 		limp->rlim_max = RLIM_INFINITY;
 
 	oldssiz.rlim_cur = 0;
-	p = td->td_proc;
 	newlim = lim_alloc();
 	PROC_LOCK(p);
 	oldlim = p->p_limit;

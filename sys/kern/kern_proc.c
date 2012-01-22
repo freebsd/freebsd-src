@@ -2372,7 +2372,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * This sysctl allows a process to retrieve the resource limits for
+ * This sysctl allows a process to retrieve or/and set the resource limit for
  * another process.
  */
 static int
@@ -2380,30 +2380,53 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
-	struct plimit *limp;
+	struct rlimit rlim;
 	struct proc *p;
-	int error = 0;
+	u_int which;
+	int flags, error;
 
-	if (namelen != 1)
+	if (namelen != 2)
 		return (EINVAL);
 
-	error = pget((pid_t)name[0], PGET_CANSEE, &p);
+	which = (u_int)name[1];
+	if (which >= RLIM_NLIMITS)
+		return (EINVAL);
+
+	if (req->newptr != NULL && req->newlen != sizeof(rlim))
+		return (EINVAL);
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (req->newptr != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget((pid_t)name[0], flags, &p);
 	if (error != 0)
 		return (error);
+
 	/*
-	 * Check the request size.  We alow sizes smaller rlimit array for
-	 * backward binary compatibility: the number of resource limits may
-	 * grow.
+	 * Retrieve limit.
 	 */
-	if (sizeof(limp->pl_rlimit) < req->oldlen) {
+	if (req->oldptr != NULL) {
+		PROC_LOCK(p);
+		lim_rlimit(p, which, &rlim);
 		PROC_UNLOCK(p);
-		return (EINVAL);
+	}
+	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));
+	if (error != 0)
+		goto errout;
+
+	/*
+	 * Set limit.
+	 */
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &rlim, sizeof(rlim));
+		if (error == 0)
+			error = kern_proc_setrlimit(curthread, p, which, &rlim);
 	}
 
-	limp = lim_hold(p->p_limit);
-	PROC_UNLOCK(p);
-	error = SYSCTL_OUT(req, limp->pl_rlimit, req->oldlen);
-	lim_free(limp);
+errout:
+	PRELE(p);
 	return (error);
 }
 
@@ -2544,8 +2567,9 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RD |
-	CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit, "Process resource limits");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RW |
+	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit,
+	"Process resource limits");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings,
 	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
