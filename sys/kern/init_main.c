@@ -467,7 +467,8 @@ proc0_init(void *dummy __unused)
 	td->td_priority = PVM;
 	td->td_base_pri = PVM;
 	td->td_oncpu = 0;
-	td->td_flags = TDF_INMEM|TDP_KTHREAD;
+	td->td_flags = TDF_INMEM;
+	td->td_pflags = TDP_KTHREAD;
 	td->td_cpuset = cpuset_thread0();
 	prison0.pr_cpuset = cpuset_ref(td->td_cpuset);
 	p->p_peers = 0;
