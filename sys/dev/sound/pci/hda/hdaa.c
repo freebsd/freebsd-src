@@ -175,6 +175,8 @@ static const struct {
 };
 #define HDA_RATE_TAB_LEN (sizeof(hda_rate_tab) / sizeof(hda_rate_tab[0]))
 
+const static char *ossnames[] = SOUND_DEVICE_NAMES;
+
 /****************************************************************************
  * Function prototypes
  ****************************************************************************/
@@ -193,7 +195,6 @@ static void	hdaa_dump_pin_config(struct hdaa_widget *w, uint32_t conf);
 static char *
 hdaa_audio_ctl_ossmixer_mask2allname(uint32_t mask, char *buf, size_t len)
 {
-	static char *ossname[] = SOUND_DEVICE_NAMES;
 	int i, first = 1;
 
 	bzero(buf, len);
@@ -201,7 +202,7 @@ hdaa_audio_ctl_ossmixer_mask2allname(uint32_t mask, char *buf, size_t len)
 		if (mask & (1 << i)) {
 			if (first == 0)
 				strlcat(buf, ", ", len);
-			strlcat(buf, ossname[i], len);
+			strlcat(buf, ossnames[i], len);
 			first = 0;
 		}
 	}
@@ -1774,11 +1775,11 @@ hdaa_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	struct hdaa_pcm_devinfo *pdevinfo = mix_getdevinfo(m);
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdaa_widget *w, *cw;
-	struct hdaa_audio_ctl *ctl;
 	uint32_t mask, recmask;
-	int i, j, softpcmvol;
+	int i, j;
 
 	hdaa_lock(devinfo);
+	pdevinfo->mixer = m;
 
 	/* Make sure that in case of soft volume it won't stay muted. */
 	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
@@ -1786,11 +1787,10 @@ hdaa_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		pdevinfo->right[i] = 100;
 	}
 
-	mask = 0;
-	recmask = 0;
-
-	/* Declate EAPD as ogain control. */
+	/* Declare volume controls assigned to this association. */
+	mask = pdevinfo->ossmask;
 	if (pdevinfo->playas >= 0) {
+		/* Declate EAPD as ogain control. */
 		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 			w = hdaa_widget_get(devinfo, i);
 			if (w == NULL || w->enable == 0)
@@ -1802,23 +1802,36 @@ hdaa_audio_ctl_ossmixer_init(struct snd_mixer *m)
 			mask |= SOUND_MASK_OGAIN;
 			break;
 		}
-	}
 
-	/* Declare volume controls assigned to this association. */
-	i = 0;
-	ctl = NULL;
-	while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL) {
-		if (ctl->enable == 0)
-			continue;
-		if ((pdevinfo->playas >= 0 &&
-		    ctl->widget->bindas == pdevinfo->playas) ||
-		    (pdevinfo->recas >= 0 &&
-		    ctl->widget->bindas == pdevinfo->recas) ||
-		    (ctl->widget->bindas == -2 && pdevinfo->index == 0))
-			mask |= ctl->ossmask;
+		/* Declare soft PCM volume if needed. */
+		if ((mask & SOUND_MASK_PCM) == 0 ||
+		    (devinfo->quirks & HDAA_QUIRK_SOFTPCMVOL) ||
+		    pdevinfo->minamp[SOUND_MIXER_PCM] ==
+		     pdevinfo->maxamp[SOUND_MIXER_PCM]) {
+			mask |= SOUND_MASK_PCM;
+			pcm_setflags(pdevinfo->dev, pcm_getflags(pdevinfo->dev) | SD_F_SOFTPCMVOL);
+			HDA_BOOTHVERBOSE(
+				device_printf(pdevinfo->dev,
+				    "Forcing Soft PCM volume\n");
+			);
+		}
+
+		/* Declare master volume if needed. */
+		if ((mask & SOUND_MASK_VOLUME) == 0) {
+			mask |= SOUND_MASK_VOLUME;
+			mix_setparentchild(m, SOUND_MIXER_VOLUME,
+			    SOUND_MASK_PCM);
+			mix_setrealdev(m, SOUND_MIXER_VOLUME,
+			    SOUND_MIXER_NONE);
+			HDA_BOOTHVERBOSE(
+				device_printf(pdevinfo->dev,
+				    "Forcing master volume with PCM\n");
+			);
+		}
 	}
 
 	/* Declare record sources available to this association. */
+	recmask = 0;
 	if (pdevinfo->recas >= 0) {
 		for (i = 0; i < 16; i++) {
 			if (devinfo->as[pdevinfo->recas].dacs[0][i] < 0)
@@ -1841,57 +1854,9 @@ hdaa_audio_ctl_ossmixer_init(struct snd_mixer *m)
 		}
 	}
 
-	/* Declare soft PCM volume if needed. */
-	if (pdevinfo->playas >= 0) {
-		ctl = NULL;
-		if ((mask & SOUND_MASK_PCM) == 0 ||
-		    (devinfo->quirks & HDAA_QUIRK_SOFTPCMVOL)) {
-			softpcmvol = 1;
-			mask |= SOUND_MASK_PCM;
-		} else {
-			softpcmvol = 0;
-			i = 0;
-			while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL) {
-				if (ctl->enable == 0)
-					continue;
-				if (ctl->widget->bindas != pdevinfo->playas &&
-				    (ctl->widget->bindas != -2 || pdevinfo->index != 0))
-					continue;
-				if (!(ctl->ossmask & SOUND_MASK_PCM))
-					continue;
-				if (ctl->step > 0)
-					break;
-			}
-		}
-
-		if (softpcmvol == 1 || ctl == NULL) {
-			pcm_setflags(pdevinfo->dev, pcm_getflags(pdevinfo->dev) | SD_F_SOFTPCMVOL);
-			HDA_BOOTVERBOSE(
-				device_printf(pdevinfo->dev,
-				    "%s Soft PCM volume\n",
-				    (softpcmvol == 1) ? "Forcing" : "Enabling");
-			);
-		}
-	}
-
-	/* Declare master volume if needed. */
-	if (pdevinfo->playas >= 0) {
-		if ((mask & (SOUND_MASK_VOLUME | SOUND_MASK_PCM)) ==
-		    SOUND_MASK_PCM) {
-			mask |= SOUND_MASK_VOLUME;
-			mix_setparentchild(m, SOUND_MIXER_VOLUME,
-			    SOUND_MASK_PCM);
-			mix_setrealdev(m, SOUND_MIXER_VOLUME,
-			    SOUND_MIXER_NONE);
-			HDA_BOOTVERBOSE(
-				device_printf(pdevinfo->dev,
-				    "Forcing master volume with PCM\n");
-			);
-		}
-	}
-
 	recmask &= (1 << SOUND_MIXER_NRDEVICES) - 1;
 	mask &= (1 << SOUND_MIXER_NRDEVICES) - 1;
+	pdevinfo->ossmask = mask;
 
 	mix_setrecdevs(m, recmask);
 	mix_setdevs(m, mask);
@@ -1901,6 +1866,261 @@ hdaa_audio_ctl_ossmixer_init(struct snd_mixer *m)
 	return (0);
 }
 
+/*
+ * Update amplification per pdevinfo per ossdev, calculate summary coefficient
+ * and write it to codec, update *left and *right to reflect remaining error.
+ */
+static void
+hdaa_audio_ctl_dev_set(struct hdaa_audio_ctl *ctl, int ossdev,
+    int mute, int *left, int *right)
+{
+	int i, zleft, zright, sleft, sright, smute, lval, rval;
+
+	ctl->devleft[ossdev] = *left;
+	ctl->devright[ossdev] = *right;
+	ctl->devmute[ossdev] = mute;
+	smute = sleft = sright = zleft = zright = 0;
+	for (i = 0; i < SOUND_MIXER_NRDEVICES; i++) {
+		sleft += ctl->devleft[i];
+		sright += ctl->devright[i];
+		smute |= ctl->devmute[i];
+		if (i == ossdev)
+			continue;
+		zleft += ctl->devleft[i];
+		zright += ctl->devright[i];
+	}
+	lval = QDB2VAL(ctl, sleft);
+	rval = QDB2VAL(ctl, sright);
+	hdaa_audio_ctl_amp_set(ctl, smute, lval, rval);
+	*left -= VAL2QDB(ctl, lval) - VAL2QDB(ctl, QDB2VAL(ctl, zleft));
+	*right -= VAL2QDB(ctl, rval) - VAL2QDB(ctl, QDB2VAL(ctl, zright));
+}
+
+/*
+ * Trace signal from source, setting volumes on the way.
+ */
+static void
+hdaa_audio_ctl_source_volume(struct hdaa_pcm_devinfo *pdevinfo,
+    int ossdev, nid_t nid, int index, int mute, int left, int right, int depth)
+{
+	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	struct hdaa_widget *w, *wc;
+	struct hdaa_audio_ctl *ctl;
+	int i, j, conns = 0;
+
+	if (depth > HDA_PARSE_MAXDEPTH)
+		return;
+
+	w = hdaa_widget_get(devinfo, nid);
+	if (w == NULL || w->enable == 0)
+		return;
+
+	/* Count number of active inputs. */
+	if (depth > 0) {
+		for (j = 0; j < w->nconns; j++) {
+			if (!w->connsenable[j])
+				continue;
+			conns++;
+		}
+	}
+
+	/* If this is not a first step - use input mixer.
+	   Pins have common input ctl so care must be taken. */
+	if (depth > 0 && (conns == 1 ||
+	    w->type != HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)) {
+		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid, HDAA_CTL_IN,
+		    index, 1);
+		if (ctl)
+			hdaa_audio_ctl_dev_set(ctl, ossdev, mute, &left, &right);
+	}
+
+	/* If widget has own ossdev - not traverse it.
+	   It will be traversed on it's own. */
+	if (w->ossdev >= 0 && depth > 0)
+		return;
+
+	/* We must not traverse pin */
+	if ((w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT ||
+	    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) &&
+	    depth > 0)
+		return;
+
+	/*
+	 * If signals mixed, we can't assign controls farther.
+	 * Ignore this on depth zero. Caller must knows why.
+	 */
+	if (conns > 1 &&
+	    (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_MIXER ||
+	     w->selconn != index))
+		return;
+
+	ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid, HDAA_CTL_OUT, -1, 1);
+	if (ctl)
+		hdaa_audio_ctl_dev_set(ctl, ossdev, mute, &left, &right);
+
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		wc = hdaa_widget_get(devinfo, i);
+		if (wc == NULL || wc->enable == 0)
+			continue;
+		for (j = 0; j < wc->nconns; j++) {
+			if (wc->connsenable[j] && wc->conns[j] == nid) {
+				hdaa_audio_ctl_source_volume(pdevinfo, ossdev,
+				    wc->nid, j, mute, left, right, depth + 1);
+			}
+		}
+	}
+	return;
+}
+
+/*
+ * Trace signal from destination, setting volumes on the way.
+ */
+static void
+hdaa_audio_ctl_dest_volume(struct hdaa_pcm_devinfo *pdevinfo,
+    int ossdev, nid_t nid, int index, int mute, int left, int right, int depth)
+{
+	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	struct hdaa_audio_as *as = devinfo->as;
+	struct hdaa_widget *w, *wc;
+	struct hdaa_audio_ctl *ctl;
+	int i, j, consumers, cleft, cright;
+
+	if (depth > HDA_PARSE_MAXDEPTH)
+		return;
+
+	w = hdaa_widget_get(devinfo, nid);
+	if (w == NULL || w->enable == 0)
+		return;
+
+	if (depth > 0) {
+		/* If this node produce output for several consumers,
+		   we can't touch it. */
+		consumers = 0;
+		for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+			wc = hdaa_widget_get(devinfo, i);
+			if (wc == NULL || wc->enable == 0)
+				continue;
+			for (j = 0; j < wc->nconns; j++) {
+				if (wc->connsenable[j] && wc->conns[j] == nid)
+					consumers++;
+			}
+		}
+		/* The only exception is if real HP redirection is configured
+		   and this is a duplication point.
+		   XXX: Actually exception is not completely correct.
+		   XXX: Duplication point check is not perfect. */
+		if ((consumers == 2 && (w->bindas < 0 ||
+		    as[w->bindas].hpredir < 0 || as[w->bindas].fakeredir ||
+		    (w->bindseqmask & (1 << 15)) == 0)) ||
+		    consumers > 2)
+			return;
+
+		/* Else use it's output mixer. */
+		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid,
+		    HDAA_CTL_OUT, -1, 1);
+		if (ctl)
+			hdaa_audio_ctl_dev_set(ctl, ossdev, mute, &left, &right);
+	}
+
+	/* We must not traverse pin */
+	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+	    depth > 0)
+		return;
+
+	for (i = 0; i < w->nconns; i++) {
+		if (w->connsenable[i] == 0)
+			continue;
+		if (index >= 0 && i != index)
+			continue;
+		cleft = left;
+		cright = right;
+		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid,
+		    HDAA_CTL_IN, i, 1);
+		if (ctl)
+			hdaa_audio_ctl_dev_set(ctl, ossdev, mute, &cleft, &cright);
+		hdaa_audio_ctl_dest_volume(pdevinfo, ossdev, w->conns[i], -1,
+		    mute, cleft, cright, depth + 1);
+	}
+}
+
+/*
+ * Set volumes for the specified pdevinfo and ossdev.
+ */
+static void
+hdaa_audio_ctl_dev_volume(struct hdaa_pcm_devinfo *pdevinfo, unsigned dev)
+{
+	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	struct hdaa_widget *w, *cw;
+	uint32_t mute;
+	int lvol, rvol;
+	int i, j;
+
+	mute = 0;
+	if (pdevinfo->left[dev] == 0) {
+		mute |= HDAA_AMP_MUTE_LEFT;
+		lvol = -4000;
+	} else
+		lvol = ((pdevinfo->maxamp[dev] - pdevinfo->minamp[dev]) *
+		    pdevinfo->left[dev] + 50) / 100 + pdevinfo->minamp[dev];
+	if (pdevinfo->right[dev] == 0) {
+		mute |= HDAA_AMP_MUTE_RIGHT;
+		rvol = -4000;
+	} else
+		rvol = ((pdevinfo->maxamp[dev] - pdevinfo->minamp[dev]) *
+		    pdevinfo->right[dev] + 50) / 100 + pdevinfo->minamp[dev];
+	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
+		w = hdaa_widget_get(devinfo, i);
+		if (w == NULL || w->enable == 0)
+			continue;
+		if (w->bindas < 0 && pdevinfo->index != 0)
+			continue;
+		if (w->bindas != pdevinfo->playas &&
+		    w->bindas != pdevinfo->recas)
+			continue;
+		if (dev == SOUND_MIXER_RECLEV &&
+		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
+			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
+			    w->nid, -1, mute, lvol, rvol, 0);
+			continue;
+		}
+		if (dev == SOUND_MIXER_VOLUME &&
+		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
+		    devinfo->as[w->bindas].dir == HDAA_CTL_OUT) {
+			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
+			    w->nid, -1, mute, lvol, rvol, 0);
+			continue;
+		}
+		if (dev == SOUND_MIXER_IGAIN &&
+		    w->pflags & HDAA_ADC_MONITOR) {
+			for (j = 0; j < w->nconns; j++) {
+				if (!w->connsenable[j])
+				    continue;
+				cw = hdaa_widget_get(devinfo, w->conns[j]);
+				if (cw == NULL || cw->enable == 0)
+				    continue;
+				if (cw->bindas == -1)
+				    continue;
+				if (cw->bindas >= 0 &&
+				    devinfo->as[cw->bindas].dir != HDAA_CTL_IN)
+					continue;
+				hdaa_audio_ctl_dest_volume(pdevinfo, dev,
+				    w->nid, j, mute, lvol, rvol, 0);
+			}
+			continue;
+		}
+		if (w->ossdev != dev)
+			continue;
+		hdaa_audio_ctl_source_volume(pdevinfo, dev,
+		    w->nid, -1, mute, lvol, rvol, 0);
+		if (dev == SOUND_MIXER_IMIX && (w->pflags & HDAA_IMIX_AS_DST))
+			hdaa_audio_ctl_dest_volume(pdevinfo, dev,
+			    w->nid, -1, mute, lvol, rvol, 0);
+	}
+}
+
+/*
+ * OSS Mixer set method.
+ */
 static int
 hdaa_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 					unsigned left, unsigned right)
@@ -1908,12 +2128,10 @@ hdaa_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 	struct hdaa_pcm_devinfo *pdevinfo = mix_getdevinfo(m);
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdaa_widget *w;
-	struct hdaa_audio_ctl *ctl;
-	uint32_t mute;
-	int lvol, rvol;
-	int i, j;
+	int i;
 
 	hdaa_lock(devinfo);
+
 	/* Save new values. */
 	pdevinfo->left[dev] = left;
 	pdevinfo->right[dev] = right;
@@ -1954,39 +2172,57 @@ hdaa_audio_ctl_ossmixer_set(struct snd_mixer *m, unsigned dev,
 	}
 
 	/* Recalculate all controls related to this OSS device. */
-	i = 0;
-	while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL) {
-		if (ctl->enable == 0 ||
-		    !(ctl->ossmask & (1 << dev)))
-			continue;
-		if (!((pdevinfo->playas >= 0 &&
-		    ctl->widget->bindas == pdevinfo->playas) ||
-		    (pdevinfo->recas >= 0 &&
-		    ctl->widget->bindas == pdevinfo->recas) ||
-		    ctl->widget->bindas == -2))
-			continue;
+	hdaa_audio_ctl_dev_volume(pdevinfo, dev);
 
-		lvol = 100;
-		rvol = 100;
-		for (j = 0; j < SOUND_MIXER_NRDEVICES; j++) {
-			if (ctl->ossmask & (1 << j)) {
-				lvol = lvol * pdevinfo->left[j] / 100;
-				rvol = rvol * pdevinfo->right[j] / 100;
-			}
-		}
-		mute = (lvol == 0) ? HDAA_AMP_MUTE_LEFT : 0;
-		mute |= (rvol == 0) ? HDAA_AMP_MUTE_RIGHT : 0;
-		lvol = (lvol * ctl->step + 50) / 100;
-		rvol = (rvol * ctl->step + 50) / 100;
-		hdaa_audio_ctl_amp_set(ctl, mute, lvol, rvol);
-	}
 	hdaa_unlock(devinfo);
-
 	return (left | (right << 8));
 }
 
 /*
- * Commutate specified record source.
+ * Set mixer settings to our own default values:
+ * +20dB for mics, -10dB for analog vol, mute for igain, 0dB for others.
+ */
+static void
+hdaa_audio_ctl_set_defaults(struct hdaa_pcm_devinfo *pdevinfo)
+{
+	int amp, vol, dev;
+
+	for (dev = 0; dev < SOUND_MIXER_NRDEVICES; dev++) {
+		if ((pdevinfo->ossmask & (1 << dev)) == 0)
+			continue;
+
+		/* If the value was overriden, leave it as is. */
+		if (resource_int_value(device_get_name(pdevinfo->dev),
+		    device_get_unit(pdevinfo->dev), ossnames[dev], &vol) == 0)
+			continue;
+
+		vol = -1;
+		if (dev == SOUND_MIXER_OGAIN)
+			vol = 100;
+		else if (dev == SOUND_MIXER_IGAIN)
+			vol = 0;
+		else if (dev == SOUND_MIXER_MIC ||
+		    dev == SOUND_MIXER_MONITOR)
+			amp = 20 * 4;	/* +20dB */
+		else if (dev == SOUND_MIXER_VOLUME && !pdevinfo->digital)
+			amp = -10 * 4;	/* -10dB */
+		else
+			amp = 0;
+		if (vol < 0 &&
+		    (pdevinfo->maxamp[dev] - pdevinfo->minamp[dev]) <= 0) {
+			vol = 100;
+		} else if (vol < 0) {
+			vol = ((amp - pdevinfo->minamp[dev]) * 100 +
+			    (pdevinfo->maxamp[dev] - pdevinfo->minamp[dev]) / 2) /
+			    (pdevinfo->maxamp[dev] - pdevinfo->minamp[dev]);
+			vol = imin(imax(vol, 1), 100);
+		}
+		mix_set(pdevinfo->mixer, dev, vol, vol);
+	}
+}
+
+/*
+ * Recursively commutate specified record source.
  */
 static uint32_t
 hdaa_audio_ctl_recsel_comm(struct hdaa_pcm_devinfo *pdevinfo, uint32_t src, nid_t nid, int depth)
@@ -2069,6 +2305,7 @@ hdaa_audio_ctl_ossmixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdaa_widget *w;
 	struct hdaa_audio_as *as;
+	struct hdaa_audio_ctl *ctl;
 	struct hdaa_chan *ch;
 	int i, j;
 	uint32_t ret = 0xffffffff;
@@ -2097,9 +2334,47 @@ hdaa_audio_ctl_ossmixer_setrecsrc(struct snd_mixer *m, uint32_t src)
 			    ch->io[i], 0);
 		}
 	}
+	if (ret == 0xffffffff)
+		ret = 0;
 
+	/*
+	 * Some controls could be shared. Reset volumes for controls
+	 * related to previously chosen devices, as they may no longer
+	 * affect the signal.
+	 */
+	i = 0;
+	while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL) {
+		if (ctl->enable == 0 ||
+		    !(ctl->ossmask & pdevinfo->recsrc))
+			continue;
+		if (!((pdevinfo->playas >= 0 &&
+		    ctl->widget->bindas == pdevinfo->playas) ||
+		    (pdevinfo->recas >= 0 &&
+		    ctl->widget->bindas == pdevinfo->recas) ||
+		    (pdevinfo->index == 0 &&
+		    ctl->widget->bindas == -2)))
+			continue;
+		for (j = 0; j < SOUND_MIXER_NRDEVICES; j++) {
+			if (pdevinfo->recsrc & (1 << j)) {
+				ctl->devleft[j] = 0;
+				ctl->devright[j] = 0;
+				ctl->devmute[j] = 0;
+			}
+		}
+	}
+
+	/*
+	 * Some controls could be shared. Set volumes for controls
+	 * related to devices selected both previously and now.
+	 */
+	for (j = 0; j < SOUND_MIXER_NRDEVICES; j++) {
+		if ((ret | pdevinfo->recsrc) & (1 << j))
+			hdaa_audio_ctl_dev_volume(pdevinfo, j);
+	}
+
+	pdevinfo->recsrc = ret;
 	hdaa_unlock(devinfo);
-	return ((ret == 0xffffffff)? 0 : ret);
+	return (ret);
 }
 
 static kobj_method_t hdaa_audio_ctl_ossmixer_methods[] = {
@@ -3782,31 +4057,31 @@ hdaa_audio_disable_crossas(struct hdaa_devinfo *devinfo)
 
 }
 
-#define HDA_CTL_GIVE(ctl)	((ctl)->step?1:0)
-
 /*
- * Find controls to control amplification for source.
+ * Find controls to control amplification for source and calculate possible
+ * amplification range.
  */
 static int
 hdaa_audio_ctl_source_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
-    int ossdev, int ctlable, int depth, int need)
+    int ossdev, int ctlable, int depth, int *minamp, int *maxamp)
 {
 	struct hdaa_widget *w, *wc;
 	struct hdaa_audio_ctl *ctl;
-	int i, j, conns = 0, rneed;
+	int i, j, conns = 0, tminamp, tmaxamp, cminamp, cmaxamp, found = 0;
 
 	if (depth > HDA_PARSE_MAXDEPTH)
-		return (need);
+		return (found);
 
 	w = hdaa_widget_get(devinfo, nid);
 	if (w == NULL || w->enable == 0)
-		return (need);
+		return (found);
 
 	/* Count number of active inputs. */
 	if (depth > 0) {
 		for (j = 0; j < w->nconns; j++) {
-			if (w->connsenable[j])
-				conns++;
+			if (!w->connsenable[j])
+				continue;
+			conns++;
 		}
 	}
 
@@ -3817,81 +4092,96 @@ hdaa_audio_ctl_source_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
 		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid, HDAA_CTL_IN,
 		    index, 1);
 		if (ctl) {
-			if (HDA_CTL_GIVE(ctl) & need)
-				ctl->ossmask |= (1 << ossdev);
-			else
-				ctl->possmask |= (1 << ossdev);
-			need &= ~HDA_CTL_GIVE(ctl);
+			ctl->ossmask |= (1 << ossdev);
+			found++;
+			if (*minamp == *maxamp) {
+				*minamp += MINQDB(ctl);
+				*maxamp += MAXQDB(ctl);
+			}
 		}
 	}
 
 	/* If widget has own ossdev - not traverse it.
 	   It will be traversed on it's own. */
 	if (w->ossdev >= 0 && depth > 0)
-		return (need);
+		return (found);
 
 	/* We must not traverse pin */
 	if ((w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT ||
 	    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) &&
 	    depth > 0)
-		return (need);
+		return (found);
 
 	/* record that this widget exports such signal, */
 	w->ossmask |= (1 << ossdev);
 
-	/* If signals mixed, we can't assign controls farther.
+	/*
+	 * If signals mixed, we can't assign controls farther.
 	 * Ignore this on depth zero. Caller must knows why.
-	 * Ignore this for static selectors if this input selected.
 	 */
-	if (conns > 1)
+	if (conns > 1 &&
+	    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_MIXER)
 		ctlable = 0;
 
 	if (ctlable) {
 		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid, HDAA_CTL_OUT, -1, 1);
 		if (ctl) {
-			if (HDA_CTL_GIVE(ctl) & need)
-				ctl->ossmask |= (1 << ossdev);
-			else
-				ctl->possmask |= (1 << ossdev);
-			need &= ~HDA_CTL_GIVE(ctl);
+			ctl->ossmask |= (1 << ossdev);
+			found++;
+			if (*minamp == *maxamp) {
+				*minamp += MINQDB(ctl);
+				*maxamp += MAXQDB(ctl);
+			}
 		}
 	}
 
-	rneed = 0;
+	cminamp = cmaxamp = 0;
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		wc = hdaa_widget_get(devinfo, i);
 		if (wc == NULL || wc->enable == 0)
 			continue;
 		for (j = 0; j < wc->nconns; j++) {
 			if (wc->connsenable[j] && wc->conns[j] == nid) {
-				rneed |= hdaa_audio_ctl_source_amp(devinfo,
-				    wc->nid, j, ossdev, ctlable, depth + 1, need);
+				tminamp = tmaxamp = 0;
+				found += hdaa_audio_ctl_source_amp(devinfo,
+				    wc->nid, j, ossdev, ctlable, depth + 1,
+				    &tminamp, &tmaxamp);
+				if (cminamp == 0 && cmaxamp == 0) {
+					cminamp = tminamp;
+					cmaxamp = tmaxamp;
+				} else if (tminamp != tmaxamp) {
+					cminamp = imax(cminamp, tminamp);
+					cmaxamp = imin(cmaxamp, tmaxamp);
+				}
 			}
 		}
 	}
-	rneed &= need;
-
-	return (rneed);
+	if (*minamp == *maxamp && cminamp < cmaxamp) {
+		*minamp += cminamp;
+		*maxamp += cmaxamp;
+	}
+	return (found);
 }
 
 /*
- * Find controls to control amplification for destination.
+ * Find controls to control amplification for destination and calculate
+ * possible amplification range.
  */
-static void
+static int
 hdaa_audio_ctl_dest_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
-    int ossdev, int depth, int need)
+    int ossdev, int depth, int *minamp, int *maxamp)
 {
 	struct hdaa_audio_as *as = devinfo->as;
 	struct hdaa_widget *w, *wc;
 	struct hdaa_audio_ctl *ctl;
-	int i, j, consumers;
+	int i, j, consumers, tminamp, tmaxamp, cminamp, cmaxamp, found = 0;
 
 	if (depth > HDA_PARSE_MAXDEPTH)
-		return;
+		return (found);
 
 	w = hdaa_widget_get(devinfo, nid);
 	if (w == NULL || w->enable == 0)
-		return;
+		return (found);
 
 	if (depth > 0) {
 		/* If this node produce output for several consumers,
@@ -3914,43 +4204,58 @@ hdaa_audio_ctl_dest_amp(struct hdaa_devinfo *devinfo, nid_t nid, int index,
 		    as[w->bindas].hpredir < 0 || as[w->bindas].fakeredir ||
 		    (w->bindseqmask & (1 << 15)) == 0)) ||
 		    consumers > 2)
-			return;
+			return (found);
 
 		/* Else use it's output mixer. */
 		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid,
 		    HDAA_CTL_OUT, -1, 1);
 		if (ctl) {
-			if (HDA_CTL_GIVE(ctl) & need)
-				ctl->ossmask |= (1 << ossdev);
-			else
-				ctl->possmask |= (1 << ossdev);
-			need &= ~HDA_CTL_GIVE(ctl);
+			ctl->ossmask |= (1 << ossdev);
+			found++;
+			if (*minamp == *maxamp) {
+				*minamp += MINQDB(ctl);
+				*maxamp += MAXQDB(ctl);
+			}
 		}
 	}
 
 	/* We must not traverse pin */
 	if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
 	    depth > 0)
-		return;
+		return (found);
 
+	cminamp = cmaxamp = 0;
 	for (i = 0; i < w->nconns; i++) {
-		int tneed = need;
 		if (w->connsenable[i] == 0)
 			continue;
 		if (index >= 0 && i != index)
 			continue;
+		tminamp = tmaxamp = 0;
 		ctl = hdaa_audio_ctl_amp_get(devinfo, w->nid,
 		    HDAA_CTL_IN, i, 1);
 		if (ctl) {
-			if (HDA_CTL_GIVE(ctl) & tneed)
-				ctl->ossmask |= (1 << ossdev);
-			else
-				ctl->possmask |= (1 << ossdev);
-			tneed &= ~HDA_CTL_GIVE(ctl);
+			ctl->ossmask |= (1 << ossdev);
+			found++;
+			if (*minamp == *maxamp) {
+				tminamp += MINQDB(ctl);
+				tmaxamp += MAXQDB(ctl);
+			}
 		}
-		hdaa_audio_ctl_dest_amp(devinfo, w->conns[i], -1, ossdev,
-		    depth + 1, tneed);
+		found += hdaa_audio_ctl_dest_amp(devinfo, w->conns[i], -1, ossdev,
+		    depth + 1, &tminamp, &tmaxamp);
+		if (cminamp == 0 && cmaxamp == 0) {
+			cminamp = tminamp;
+			cmaxamp = tmaxamp;
+		} else if (tminamp != tmaxamp) {
+			cminamp = imax(cminamp, tminamp);
+			cmaxamp = imin(cmaxamp, tmaxamp);
+		}
 	}
+	if (*minamp == *maxamp && cminamp < cmaxamp) {
+		*minamp += cminamp;
+		*maxamp += cmaxamp;
+	}
+	return (found);
 }
 
 /*
@@ -4158,43 +4463,82 @@ retry:
 	hdaa_audio_trace_as_extra(devinfo);
 }
 
+/*
+ * Store in pdevinfo new data about whether and how we can control signal
+ * for OSS device to/from specified widget.
+ */
+static void
+hdaa_adjust_amp(struct hdaa_widget *w, int ossdev,
+    int found, int minamp, int maxamp)
+{
+	struct hdaa_devinfo *devinfo = w->devinfo;
+	struct hdaa_pcm_devinfo *pdevinfo;
+
+	if (w->bindas >= 0)
+		pdevinfo = devinfo->as[w->bindas].pdevinfo;
+	else
+		pdevinfo = &devinfo->devs[0];
+	if (found)
+		pdevinfo->ossmask |= (1 << ossdev);
+	if (minamp == 0 && maxamp == 0)
+		return;
+	if (pdevinfo->minamp[ossdev] == 0 && pdevinfo->maxamp[ossdev] == 0) {
+		pdevinfo->minamp[ossdev] = minamp;
+		pdevinfo->maxamp[ossdev] = maxamp;
+	} else {
+		pdevinfo->minamp[ossdev] = imax(pdevinfo->minamp[ossdev], minamp);
+		pdevinfo->maxamp[ossdev] = imin(pdevinfo->maxamp[ossdev], maxamp);
+	}
+}
+
+/*
+ * Trace signals from/to all possible sources/destionstions to find possible
+ * recording sources, OSS device control ranges and to assign controls.
+ */
 static void
 hdaa_audio_assign_mixers(struct hdaa_devinfo *devinfo)
 {
 	struct hdaa_audio_as *as = devinfo->as;
-	struct hdaa_audio_ctl *ctl;
 	struct hdaa_widget *w, *cw;
-	int i, j;
+	int i, j, minamp, maxamp, found;
 
 	/* Assign mixers to the tree. */
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdaa_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
+		minamp = maxamp = 0;
 		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_OUTPUT ||
 		    w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_BEEP_WIDGET ||
 		    (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
 		    as[w->bindas].dir == HDAA_CTL_IN)) {
 			if (w->ossdev < 0)
 				continue;
-			hdaa_audio_ctl_source_amp(devinfo, w->nid, -1,
-			    w->ossdev, 1, 0, 1);
+			found = hdaa_audio_ctl_source_amp(devinfo, w->nid, -1,
+			    w->ossdev, 1, 0, &minamp, &maxamp);
+			hdaa_adjust_amp(w, w->ossdev, found, minamp, maxamp);
 		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_INPUT) {
-			hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
-			    SOUND_MIXER_RECLEV, 0, 1);
+			found = hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
+			    SOUND_MIXER_RECLEV, 0, &minamp, &maxamp);
+			hdaa_adjust_amp(w, SOUND_MIXER_RECLEV, found, minamp, maxamp);
 		} else if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX &&
 		    as[w->bindas].dir == HDAA_CTL_OUT) {
-			hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
-			    SOUND_MIXER_VOLUME, 0, 1);
+			found = hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
+			    SOUND_MIXER_VOLUME, 0, &minamp, &maxamp);
+			hdaa_adjust_amp(w, SOUND_MIXER_VOLUME, found, minamp, maxamp);
 		}
 		if (w->ossdev == SOUND_MIXER_IMIX) {
-			if (hdaa_audio_ctl_source_amp(devinfo, w->nid, -1,
-			    w->ossdev, 1, 0, 1)) {
+			minamp = maxamp = 0;
+			found = hdaa_audio_ctl_source_amp(devinfo, w->nid, -1,
+			    w->ossdev, 1, 0, &minamp, &maxamp);
+			if (minamp == maxamp) {
 				/* If we are unable to control input monitor
 				   as source - try to control it as destination. */
-				hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
-				    w->ossdev, 0, 1);
+				found += hdaa_audio_ctl_dest_amp(devinfo, w->nid, -1,
+				    w->ossdev, 0, &minamp, &maxamp);
+				w->pflags |= HDAA_IMIX_AS_DST;
 			}
+			hdaa_adjust_amp(w, w->ossdev, found, minamp, maxamp);
 		}
 		if (w->pflags & HDAA_ADC_MONITOR) {
 			for (j = 0; j < w->nconns; j++) {
@@ -4208,16 +4552,14 @@ hdaa_audio_assign_mixers(struct hdaa_devinfo *devinfo)
 				if (cw->bindas >= 0 &&
 				    as[cw->bindas].dir != HDAA_CTL_IN)
 					continue;
-				hdaa_audio_ctl_dest_amp(devinfo,
-				    w->nid, j, SOUND_MIXER_IGAIN, 0, 1);
+				minamp = maxamp = 0;
+				found = hdaa_audio_ctl_dest_amp(devinfo,
+				    w->nid, j, SOUND_MIXER_IGAIN, 0,
+				    &minamp, &maxamp);
+				hdaa_adjust_amp(w, SOUND_MIXER_IGAIN,
+				    found, minamp, maxamp);
 			}
 		}
-	}
-	/* Treat unrequired as possible. */
-	i = 0;
-	while ((ctl = hdaa_audio_ctl_each(devinfo, &i)) != NULL) {
-		if (ctl->ossmask == 0)
-			ctl->ossmask = ctl->possmask;
 	}
 }
 
@@ -4671,7 +5013,7 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 }
 
 static void
-hdaa_create_pcms(struct hdaa_devinfo *devinfo)
+hdaa_prepare_pcms(struct hdaa_devinfo *devinfo)
 {
 	struct hdaa_audio_as *as = devinfo->as;
 	int i, j, k, apdev = 0, ardev = 0, dpdev = 0, drdev = 0;
@@ -4726,6 +5068,7 @@ hdaa_create_pcms(struct hdaa_devinfo *devinfo)
 					continue;
 				devinfo->devs[j].playas = i;
 			}
+			as[i].pdevinfo = &devinfo->devs[j];
 			for (k = 0; k < as[i].num_chans; k++) {
 				devinfo->chans[as[i].chans[k]].pdevinfo =
 				    &devinfo->devs[j];
@@ -4734,6 +5077,13 @@ hdaa_create_pcms(struct hdaa_devinfo *devinfo)
 			break;
 		}
 	}
+}
+
+static void
+hdaa_create_pcms(struct hdaa_devinfo *devinfo)
+{
+	int i;
+
 	for (i = 0; i < devinfo->num_devs; i++) {
 		struct hdaa_pcm_devinfo *pdevinfo = &devinfo->devs[i];
 
@@ -4782,9 +5132,15 @@ hdaa_dump_ctls(struct hdaa_pcm_devinfo *pdevinfo, const char *banner, uint32_t f
 				} else {
 					device_printf(pdevinfo->dev, "Unknown Ctl");
 				}
-				printf(" (OSS: %s)\n",
+				printf(" (OSS: %s)",
 				    hdaa_audio_ctl_ossmixer_mask2allname(1 << j,
 				    buf, sizeof(buf)));
+				if (pdevinfo->ossmask & (1 << j)) {
+					printf(": %+d/%+ddB\n",
+					    pdevinfo->minamp[j] / 4,
+					    pdevinfo->maxamp[j] / 4);
+				} else
+					printf("\n");
 				device_printf(pdevinfo->dev, "   |\n");
 				printed = 1;
 			}
@@ -4797,8 +5153,8 @@ hdaa_dump_ctls(struct hdaa_pcm_devinfo *pdevinfo, const char *banner, uint32_t f
 				printf("):    ");
 			if (ctl->step > 0) {
 				printf("%+d/%+ddB (%d steps)%s\n",
-				    (0 - ctl->offset) * (ctl->size + 1) / 4,
-				    (ctl->step - ctl->offset) * (ctl->size + 1) / 4,
+				    MINQDB(ctl) / 4,
+				    MAXQDB(ctl) / 4,
 				    ctl->step + 1,
 				    ctl->mute?" + mute":"");
 			} else
@@ -4985,7 +5341,6 @@ hdaa_dump_amp(device_t dev, uint32_t cap, char *banner)
 static void
 hdaa_dump_nodes(struct hdaa_devinfo *devinfo)
 {
-	static char *ossname[] = SOUND_DEVICE_NAMES;
 	struct hdaa_widget *w, *cw;
 	char buf[64];
 	int i, j;
@@ -5042,7 +5397,7 @@ hdaa_dump_nodes(struct hdaa_devinfo *devinfo)
 			device_printf(devinfo->dev, "            OSS: %s",
 			    hdaa_audio_ctl_ossmixer_mask2allname(w->ossmask, buf, sizeof(buf)));
 			if (w->ossdev >= 0)
-			    printf(" (%s)", ossname[w->ossdev]);
+			    printf(" (%s)", ossnames[w->ossdev]);
 			printf("\n");
 		}
 		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_AUDIO_OUTPUT ||
@@ -5200,14 +5555,13 @@ hdaa_dump_mix(struct hdaa_pcm_devinfo *pdevinfo)
 	int i;
 	int printed = 0;
 
-	if (pdevinfo->index != 0)
-		return;
-
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdaa_widget_get(devinfo, i);
 		if (w == NULL || w->enable == 0)
 			continue;
 		if (w->ossdev != SOUND_MIXER_IMIX)
+			continue;
+		if (w->bindas != pdevinfo->recas)
 			continue;
 		if (printed == 0) {
 			printed = 1;
@@ -5397,6 +5751,10 @@ hdaa_configure(device_t dev)
 	);
 	hdaa_audio_assign_names(devinfo);
 	HDA_BOOTHVERBOSE(
+		device_printf(dev, "Preparing PCM devices...\n");
+	);
+	hdaa_prepare_pcms(devinfo);
+	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Assigning mixers to the tree...\n");
 	);
 	hdaa_audio_assign_mixers(devinfo);
@@ -5516,7 +5874,8 @@ hdaa_unconfigure(device_t dev)
 		w->ossmask = 0;
 		for (j = 0; j < w->nconns; j++)
 			w->connsenable[j] = 1;
-		w->wclass.pin.config = w->wclass.pin.newconf;
+		if (w->type == HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			w->wclass.pin.config = w->wclass.pin.newconf;
 		if (w->eld != NULL) {
 			w->eld_len = 0;
 			free(w->eld, M_HDAA);
@@ -6216,6 +6575,8 @@ hdaa_pcm_attach(device_t dev)
 	);
 	if (mixer_init(dev, &hdaa_audio_ctl_ossmixer_class, pdevinfo) != 0)
 		device_printf(dev, "Can't register mixer\n");
+	else
+		hdaa_audio_ctl_set_defaults(pdevinfo);
 
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
