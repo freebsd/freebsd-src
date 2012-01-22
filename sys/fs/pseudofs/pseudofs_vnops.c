@@ -891,7 +891,11 @@ pfs_readlink(struct vop_readlink_args *va)
 		PFS_RETURN (error);
 	}
 
-	sbuf_finish(&sb);
+	if (sbuf_finish(&sb) != 0) {
+		sbuf_delete(&sb);
+		PFS_RETURN (ENAMETOOLONG);
+	}
+
 	error = uiomove_frombuf(sbuf_data(&sb), sbuf_len(&sb), uio);
 	sbuf_delete(&sb);
 	PFS_RETURN (error);
