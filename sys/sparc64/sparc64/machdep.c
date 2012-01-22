@@ -436,21 +436,14 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	delay_func = delay_boot;
 
 	/*
-	 * Initialize the console before printing anything.
-	 * NB: the low-level console drivers require a working DELAY() at
-	 * this point.
-	 */
-	cninit();
-
-	/*
 	 * Panic if there is no metadata.  Most likely the kernel was booted
 	 * directly, instead of through loader(8).
 	 */
 	if (mdp == NULL || kmdp == NULL || end == 0 ||
 	    kernel_tlb_slots == 0 || kernel_tlbs == NULL) {
-		printf("sparc64_init: missing loader metadata.\n"
+		OF_printf("sparc64_init: missing loader metadata.\n"
 		    "This probably means you are not using loader(8).\n");
-		panic("sparc64_init");
+		OF_exit();
 	}
 
 	/*
@@ -478,11 +471,15 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * to the t16s.
 	 */
 	if (OF_getprop(pc->pc_node, "#dtlb-entries", &dtlb_slots,
-	    sizeof(dtlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of dTLB slots");
+	    sizeof(dtlb_slots)) == -1) {
+		OF_printf("sparc64_init: cannot determine number of dTLB slots");
+		OF_exit();
+	}
 	if (OF_getprop(pc->pc_node, "#itlb-entries", &itlb_slots,
-	    sizeof(itlb_slots)) == -1)
-		panic("sparc64_init: cannot determine number of iTLB slots");
+	    sizeof(itlb_slots)) == -1) {
+		OF_printf("sparc64_init: cannot determine number of iTLB slots");
+		OF_exit();
+	}
 
 	/*
 	 * Initialize and enable the caches.  Note that his may include
@@ -588,6 +585,12 @@ sparc64_init(caddr_t mdp, u_long o1, u_long o2, u_long o3, ofw_vec_t *vec)
 	 * Initialize mutexes.
 	 */
 	mutex_init();
+
+	/*
+	 * Initialize console now that we have a reasonable set of system
+	 * services.
+	 */
+	cninit();
 
 	/*
 	 * Finish the interrupt initialization now that mutexes work and
