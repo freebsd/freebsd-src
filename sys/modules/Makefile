@@ -136,7 +136,7 @@ SUBDIR=	${_3dfx} \
 	${_igb} \
 	${_iir} \
 	${_io} \
-	ipdivert \
+	${_ipdivert} \
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
@@ -370,13 +370,13 @@ _random=	random
 .endif
 .endif
 
-.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
-_if_gre=	if_gre
-.endif
-
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=	carp
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
@@ -384,6 +384,7 @@ _ipfilter=	ipfilter
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
