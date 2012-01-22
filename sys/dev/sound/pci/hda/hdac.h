@@ -521,6 +521,18 @@
  ****************************************************************************/
 
 #define HDA_DMA_ALIGNMENT	128
+
+#define HDA_BDL_MIN		2
+#define HDA_BDL_MAX		256
+#define HDA_BDL_DEFAULT		HDA_BDL_MIN
+
+#define HDA_BLK_MIN		HDA_DMA_ALIGNMENT
+#define HDA_BLK_ALIGN		(~(HDA_BLK_MIN - 1))
+
+#define HDA_BUFSZ_MIN		(HDA_BDL_MIN * HDA_BLK_MIN)
+#define HDA_BUFSZ_MAX		262144
+#define HDA_BUFSZ_DEFAULT	65536
+
 #define HDA_GPIO_MAX		8
 
 #define HDA_DEV_MATCH(fl, v)	((fl) == (v) || \
