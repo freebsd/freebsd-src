@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_inet6.h"
 #include "opt_sctp.h"
 #ifndef INET
-#error "IPDIVERT requires INET."
+#error "IPDIVERT requires INET"
 #endif
 
 #include <sys/param.h>
