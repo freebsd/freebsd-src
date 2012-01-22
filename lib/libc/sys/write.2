@@ -28,7 +28,7 @@
 .\"     @(#)write.2	8.5 (Berkeley) 4/2/94
 .\" $FreeBSD$
 .\"
-.Dd July 7, 2005
+.Dd January 22, 2012
 .Dt WRITE 2
 .Os
 .Sh NAME
@@ -41,12 +41,12 @@
 .Lb libc
 .Sh SYNOPSIS
 .In sys/types.h
-.In sys/uio.h
 .In unistd.h
 .Ft ssize_t
 .Fn write "int d" "const void *buf" "size_t nbytes"
 .Ft ssize_t
 .Fn pwrite "int d" "const void *buf" "size_t nbytes" "off_t offset"
+.In sys/uio.h
 .Ft ssize_t
 .Fn writev "int d" "const struct iovec *iov" "int iovcnt"
 .Ft ssize_t
