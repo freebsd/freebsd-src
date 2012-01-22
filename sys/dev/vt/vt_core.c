@@ -599,6 +599,9 @@ vtterm_cnprobe(struct terminal *tm, struct consdev *cp)
 		return;
 	}
 
+	/* Initialize any early-boot keyboard drivers */
+	kbd_configure(KB_CONF_PROBE_ONLY);
+
 	vd->vd_unit = atomic_fetchadd_int(&vt_unit, 1);
 	sprintf(cp->cn_name, "ttyv%r", VT_UNIT(vw));
 
