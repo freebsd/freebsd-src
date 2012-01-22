@@ -43,6 +43,8 @@ __FBSDID("$FreeBSD$");
  */
 
 #ifndef APPLEKEXT
+#include "opt_inet6.h"
+
 #include <fs/nfs/nfsport.h>
 
 /*
