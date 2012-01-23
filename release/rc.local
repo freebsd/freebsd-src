@@ -13,7 +13,7 @@ if [ $? -eq 0 ]; then
 	# Syscons: use xterm, start interesting things on other VTYs
 	TERM=xterm
 
-	if [ "$EXTERNAL_VTY_STARTED" -ne 1 ]; then
+	if [ -z "$EXTERNAL_VTY_STARTED" ]; then
 		vidcontrol -s 2 # Switch to a VTY with no kernel messages
 		# Init will clean these processes up if/when the system
 		# goes multiuser
