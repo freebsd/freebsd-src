@@ -233,6 +233,24 @@ nc_get_name(struct namecache *ncp)
 	return (ncp_ts->nc_name);
 }
 
+static void
+cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
+{
+
+	if ((ncp->nc_flag & NCF_TS) == 0) {
+		if (tsp != NULL)
+			bzero(tsp, sizeof(*tsp));
+		if (ticksp != NULL)
+			*ticksp = 0;
+		return;
+	}
+
+	if (tsp != NULL)
+		*tsp = ((struct namecache_ts *)ncp)->nc_time;
+	if (ticksp != NULL)
+		*ticksp = ((struct namecache_ts *)ncp)->nc_ticks;
+}
+
 static int	doingcache = 1;		/* 1 => enable the cache */
 SYSCTL_INT(_debug, OID_AUTO, vfscache, CTLFLAG_RW, &doingcache, 0,
     "VFS namecache enabled");
@@ -506,17 +524,7 @@ retry_wlocked:
 			    dvp, cnp->cn_nameptr, *vpp);
 			SDT_PROBE(vfs, namecache, lookup, hit, dvp, "..",
 			    *vpp, 0, 0);
-			if (tsp != NULL) {
-				KASSERT((ncp->nc_flag & NCF_TS) != 0,
-				    ("No NCF_TS"));
-				*tsp = ((struct namecache_ts *)ncp)->nc_time;
-			}
-			if (ticksp != NULL) {
-				KASSERT((ncp->nc_flag & NCF_TS) != 0,
-				    ("No NCF_TS"));
-				*ticksp = ((struct namecache_ts *)ncp)->
-				    nc_ticks;
-			}
+			cache_out_ts(ncp, tsp, ticksp);
 			goto success;
 		}
 	}
@@ -563,14 +571,7 @@ retry_wlocked:
 		    dvp, cnp->cn_nameptr, *vpp, ncp);
 		SDT_PROBE(vfs, namecache, lookup, hit, dvp, nc_get_name(ncp),
 		    *vpp, 0, 0);
-		if (tsp != NULL) {
-			KASSERT((ncp->nc_flag & NCF_TS) != 0, ("No NCF_TS"));
-			*tsp = ((struct namecache_ts *)ncp)->nc_time;
-		}
-		if (ticksp != NULL) {
-			KASSERT((ncp->nc_flag & NCF_TS) != 0, ("No NCF_TS"));
-			*ticksp = ((struct namecache_ts *)ncp)->nc_ticks;
-		}
+		cache_out_ts(ncp, tsp, ticksp);
 		goto success;
 	}
 
@@ -602,14 +603,7 @@ negative_success:
 		cnp->cn_flags |= ISWHITEOUT;
 	SDT_PROBE(vfs, namecache, lookup, hit_negative, dvp, nc_get_name(ncp),
 	    0, 0, 0);
-	if (tsp != NULL) {
-		KASSERT((ncp->nc_flag & NCF_TS) != 0, ("No NCF_TS"));
-		*tsp = ((struct namecache_ts *)ncp)->nc_time;
-	}
-	if (ticksp != NULL) {
-		KASSERT((ncp->nc_flag & NCF_TS) != 0, ("No NCF_TS"));
-		*ticksp = ((struct namecache_ts *)ncp)->nc_ticks;
-	}
+	cache_out_ts(ncp, tsp, ticksp);
 	CACHE_WUNLOCK();
 	return (ENOENT);
 
@@ -797,8 +791,8 @@ cache_enter_time(dvp, vp, cnp, tsp)
 		    n2->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(nc_get_name(n2), cnp->cn_nameptr, n2->nc_nlen)) {
 			if (tsp != NULL) {
-				KASSERT((n2->nc_flag & NCF_TS) != 0,
-				    ("no NCF_TS"));
+				if ((n2->nc_flag & NCF_TS) == 0)
+					continue;
 				n3 = (struct namecache_ts *)n2;
 				n3->nc_time =
 				    ((struct namecache_ts *)ncp)->nc_time;
