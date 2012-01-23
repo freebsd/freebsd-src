@@ -124,6 +124,7 @@ usr.sbin/zic		edwin   Heads-up appreciated, since this code is
 lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 				is maintained by a third party source.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
+isci(4)		jimharris	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
