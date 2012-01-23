@@ -162,6 +162,19 @@ static struct mtx	ngsocketlist_mtx;
 #define TRAP_ERROR
 #endif
 
+/* Per-node private data */
+struct ngsock {
+	struct ng_node	*node;		/* the associated netgraph node */
+	struct ngpcb	*datasock;	/* optional data socket */
+	struct ngpcb	*ctlsock;	/* optional control socket */
+	int	flags;
+	int	refs;
+	struct mtx	mtx;		/* mtx to wait on */
+	int		error;		/* place to store error */
+};
+
+#define	NGS_FLAG_NOLINGER	1	/* close with last hook */
+
 /***************************************************************
 	Control sockets
 ***************************************************************/
@@ -535,9 +548,7 @@ ng_attach_cntl(struct socket *so)
 	pcbp->sockdata = priv;
 	priv->refs++;
 	priv->node = node;
-
-	/* Store a hint for netstat(1). */
-	priv->node_id = priv->node->nd_ID;
+	pcbp->node_id = node->nd_ID;	/* hint for netstat(1) */
 
 	/* Link the node and the private data. */
 	NG_NODE_SET_PRIVATE(priv->node, priv);
@@ -608,6 +619,7 @@ ng_detach_common(struct ngpcb *pcbp, int which)
 			panic("%s", __func__);
 		}
 		pcbp->sockdata = NULL;
+		pcbp->node_id = 0;
 
 		ng_socket_free_priv(priv);
 	}
@@ -698,6 +710,7 @@ ng_connect_data(struct sockaddr *nam, struct ngpcb *pcbp)
 	mtx_lock(&priv->mtx);
 	priv->datasock = pcbp;
 	pcbp->sockdata = priv;
+	pcbp->node_id = priv->node->nd_ID;	/* hint for netstat(1) */
 	priv->refs++;
 	mtx_unlock(&priv->mtx);
 	NG_FREE_ITEM(item);	/* drop the reference to the node */
