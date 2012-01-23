@@ -630,14 +630,14 @@ pfs_read(struct vop_read_args *va)
 	if (uio->uio_offset < 0 || uio->uio_resid < 0 ||
 	    (offset = uio->uio_offset) != uio->uio_offset ||
 	    (resid = uio->uio_resid) != uio->uio_resid ||
-	    (buflen = offset + resid + 1) < offset || buflen > INT_MAX) {
+	    (buflen = offset + resid) < offset || buflen >= INT_MAX) {
 		error = EINVAL;
 		goto ret;
 	}
-	if (buflen > MAXPHYS + 1)
-		buflen = MAXPHYS + 1;
+	if (buflen > MAXPHYS)
+		buflen = MAXPHYS;
 
-	sb = sbuf_new(sb, NULL, buflen, 0);
+	sb = sbuf_new(sb, NULL, buflen + 1, 0);
 	if (sb == NULL) {
 		error = EIO;
 		goto ret;
@@ -650,8 +650,14 @@ pfs_read(struct vop_read_args *va)
 		goto ret;
 	}
 
-	sbuf_finish(sb);
-	error = uiomove_frombuf(sbuf_data(sb), sbuf_len(sb), uio);
+	/*
+	 * XXX: If the buffer overflowed, sbuf_len() will not return
+	 * the data length. Then just use the full length because an
+	 * overflowed sbuf must be full.
+	 */
+	if (sbuf_finish(sb) == 0)
+		buflen = sbuf_len(sb);
+	error = uiomove_frombuf(sbuf_data(sb), buflen, uio);
 	sbuf_delete(sb);
 ret:
 	vn_lock(vn, locked | LK_RETRY);
