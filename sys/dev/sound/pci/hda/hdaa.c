@@ -4897,12 +4897,12 @@ hdaa_pcmchannel_setup(struct hdaa_chan *ch)
 				ch->bit16 = 1;
 			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_8BIT(pcmcap))
 				ch->bit16 = 0;
-			if (HDA_PARAM_SUPP_PCM_SIZE_RATE_32BIT(pcmcap))
-				ch->bit32 = 4;
-			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_24BIT(pcmcap))
+			if (HDA_PARAM_SUPP_PCM_SIZE_RATE_24BIT(pcmcap))
 				ch->bit32 = 3;
 			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_20BIT(pcmcap))
 				ch->bit32 = 2;
+			else if (HDA_PARAM_SUPP_PCM_SIZE_RATE_32BIT(pcmcap))
+				ch->bit32 = 4;
 			if (!(devinfo->quirks & HDAA_QUIRK_FORCESTEREO)) {
 				ch->fmtlist[i++] = SND_FORMAT(AFMT_S16_LE, 1, 0);
 				if (ch->bit32)
@@ -6444,6 +6444,36 @@ hdaa_chan_formula(struct hdaa_devinfo *devinfo, int asid,
 }
 
 static int
+hdaa_sysctl_32bit(SYSCTL_HANDLER_ARGS)
+{
+	struct hdaa_audio_as *as = (struct hdaa_audio_as *)oidp->oid_arg1;
+	struct hdaa_pcm_devinfo *pdevinfo = as->pdevinfo;
+	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
+	struct hdaa_chan *ch;
+	int error, val, i;
+	uint32_t pcmcap;
+
+	ch = &devinfo->chans[as->chans[0]];
+	val = (ch->bit32 == 4) ? 32 : ((ch->bit32 == 3) ? 24 :
+	    ((ch->bit32 == 2) ? 20 : 0));
+	error = sysctl_handle_int(oidp, &val, 0, req);
+	if (error != 0 || req->newptr == NULL)
+		return (error);
+	pcmcap = ch->supp_pcm_size_rate;
+	if (val == 32 && HDA_PARAM_SUPP_PCM_SIZE_RATE_32BIT(pcmcap))
+		ch->bit32 = 4;
+	else if (val == 24 && HDA_PARAM_SUPP_PCM_SIZE_RATE_24BIT(pcmcap))
+		ch->bit32 = 3;
+	else if (val == 20 && HDA_PARAM_SUPP_PCM_SIZE_RATE_20BIT(pcmcap))
+		ch->bit32 = 2;
+	else
+		return (EINVAL);
+	for (i = 1; i < as->num_chans; i++)
+		devinfo->chans[as->chans[i]].bit32 = ch->bit32;
+	return (0);
+}
+
+static int
 hdaa_pcm_probe(device_t dev)
 {
 	struct hdaa_pcm_devinfo *pdevinfo =
@@ -6500,6 +6530,7 @@ hdaa_pcm_attach(device_t dev)
 	    (struct hdaa_pcm_devinfo *)device_get_ivars(dev);
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	struct hdaa_audio_as *as;
+	struct snddev_info *d;
 	char status[SND_STATUSLEN];
 	int i;
 
@@ -6576,17 +6607,28 @@ hdaa_pcm_attach(device_t dev)
 
 	pdevinfo->registered++;
 
+	d = device_get_softc(dev);
 	if (pdevinfo->playas >= 0) {
 		as = &devinfo->as[pdevinfo->playas];
 		for (i = 0; i < as->num_chans; i++)
 			pcm_addchan(dev, PCMDIR_PLAY, &hdaa_channel_class,
 			    &devinfo->chans[as->chans[i]]);
+		SYSCTL_ADD_PROC(&d->play_sysctl_ctx,
+		    SYSCTL_CHILDREN(d->play_sysctl_tree), OID_AUTO,
+		    "32bit", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    as, sizeof(as), hdaa_sysctl_32bit, "I",
+		    "Resolution of 32bit samples (20/24/32bit)");
 	}
 	if (pdevinfo->recas >= 0) {
 		as = &devinfo->as[pdevinfo->recas];
 		for (i = 0; i < as->num_chans; i++)
 			pcm_addchan(dev, PCMDIR_REC, &hdaa_channel_class,
 			    &devinfo->chans[as->chans[i]]);
+		SYSCTL_ADD_PROC(&d->rec_sysctl_ctx,
+		    SYSCTL_CHILDREN(d->rec_sysctl_tree), OID_AUTO,
+		    "32bit", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+		    as, sizeof(as), hdaa_sysctl_32bit, "I",
+		    "Resolution of 32bit samples (20/24/32bit)");
 	}
 
 	snprintf(status, SND_STATUSLEN, "on %s %s",
