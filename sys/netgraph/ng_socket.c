@@ -51,6 +51,7 @@
 
 #include <sys/param.h>
 #include <sys/domain.h>
+#include <sys/hash.h>
 #include <sys/kernel.h>
 #include <sys/linker.h>
 #include <sys/lock.h>
@@ -112,6 +113,7 @@ static ng_rcvmsg_t	ngs_rcvmsg;
 static ng_shutdown_t	ngs_shutdown;
 static ng_newhook_t	ngs_newhook;
 static ng_connect_t	ngs_connect;
+static ng_findhook_t	ngs_findhook;
 static ng_rcvdata_t	ngs_rcvdata;
 static ng_disconnect_t	ngs_disconnect;
 
@@ -137,6 +139,7 @@ static struct ng_type typestruct = {
 	.shutdown =	ngs_shutdown,
 	.newhook =	ngs_newhook,
 	.connect =	ngs_connect,
+	.findhook =	ngs_findhook,
 	.rcvdata =	ngs_rcvdata,
 	.disconnect =	ngs_disconnect,
 };
@@ -162,11 +165,19 @@ static struct mtx	ngsocketlist_mtx;
 #define TRAP_ERROR
 #endif
 
+struct hookpriv {
+	LIST_ENTRY(hookpriv)	next;
+	hook_p			hook;
+};
+LIST_HEAD(ngshash, hookpriv);
+
 /* Per-node private data */
 struct ngsock {
 	struct ng_node	*node;		/* the associated netgraph node */
 	struct ngpcb	*datasock;	/* optional data socket */
 	struct ngpcb	*ctlsock;	/* optional control socket */
+	struct ngshash	*hash;		/* hash for hook names */
+	u_long		hmask;		/* hash mask */
 	int	flags;
 	int	refs;
 	struct mtx	mtx;		/* mtx to wait on */
@@ -537,8 +548,14 @@ ng_attach_cntl(struct socket *so)
 		return (error);
 	}
 
-	/* Allocate node private info */
+	/*
+	 * Allocate node private info and hash. We start
+	 * with 16 hash entries, however we may grow later
+	 * in ngs_newhook(). We can't predict how much hooks
+	 * does this node plan to have.
+	 */
 	priv = malloc(sizeof(*priv), M_NETGRAPH_SOCK, M_WAITOK | M_ZERO);
+	priv->hash = hashinit(16, M_NETGRAPH_SOCK, &priv->hmask);
 
 	/* Initialize mutex. */
 	mtx_init(&priv->mtx, "ng_socket", NULL, MTX_DEF);
@@ -643,6 +660,7 @@ ng_socket_free_priv(struct ngsock *priv)
 
 	if (priv->refs == 0) {
 		mtx_destroy(&priv->mtx);
+		hashdestroy(priv->hash, M_NETGRAPH_SOCK, priv->hmask);
 		free(priv, M_NETGRAPH_SOCK);
 		return;
 	}
@@ -752,6 +770,35 @@ ngs_constructor(node_p nodep)
 	return (EINVAL);
 }
 
+static void
+ngs_rehash(node_p node)
+{
+	struct ngsock *priv = NG_NODE_PRIVATE(node);
+	struct ngshash *new;
+	struct hookpriv *hp;
+	hook_p hook;
+	uint32_t h;
+	u_long hmask;
+
+	new = hashinit_flags((priv->hmask + 1) * 2, M_NETGRAPH_SOCK, &hmask,
+	    HASH_NOWAIT);
+	if (new == NULL)
+		return;
+
+	LIST_FOREACH(hook, &node->nd_hooks, hk_hooks) {
+		hp = NG_HOOK_PRIVATE(hook);
+#ifdef INVARIANTS
+		LIST_REMOVE(hp, next);
+#endif
+		h = hash32_str(NG_HOOK_NAME(hook), HASHINIT) & hmask;
+		LIST_INSERT_HEAD(&new[h], hp, next);
+	}
+
+	hashdestroy(priv->hash, M_NETGRAPH_SOCK, priv->hmask);
+	priv->hash = new;
+	priv->hmask = hmask;
+}
+
 /*
  * We allow any hook to be connected to the node.
  * There is no per-hook private information though.
@@ -759,7 +806,20 @@ ngs_constructor(node_p nodep)
 static int
 ngs_newhook(node_p node, hook_p hook, const char *name)
 {
-	NG_HOOK_SET_PRIVATE(hook, NG_NODE_PRIVATE(node));
+	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp;
+	uint32_t h;
+
+	hp = malloc(sizeof(*hp), M_NETGRAPH_SOCK, M_NOWAIT);
+	if (hp == NULL)
+		return (ENOMEM);
+	if (node->nd_numhooks * 2 > priv->hmask)
+		ngs_rehash(node);
+	hp->hook = hook;
+	h = hash32_str(name, HASHINIT) & priv->hmask;
+	LIST_INSERT_HEAD(&priv->hash[h], hp, next);
+	NG_HOOK_SET_PRIVATE(hook, hp);
+
 	return (0);
 }
 
@@ -779,6 +839,41 @@ ngs_connect(hook_p hook)
 			priv->datasock->ng_socket->so_state &= ~SS_ISCONNECTED;
 	}
 	return (0);
+}
+
+/* Look up hook by name */
+static hook_p
+ngs_findhook(node_p node, const char *name)
+{
+	struct ngsock *priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp;
+	uint32_t h;
+
+	/*
+	 * Microoptimisations for a ng_socket with no
+	 * hooks, or with a single hook, which is a
+	 * common case.
+	 */
+	if (node->nd_numhooks == 0)
+		return (NULL);
+	if (node->nd_numhooks == 1) {
+		hook_p hook;
+
+		hook = LIST_FIRST(&node->nd_hooks);
+
+		if (strcmp(NG_HOOK_NAME(hook), name) == 0)
+			return (hook);
+		else
+			return (NULL);
+	}
+
+	h = hash32_str(name, HASHINIT) & priv->hmask;
+
+	LIST_FOREACH(hp, &priv->hash[h], next)
+		if (strcmp(NG_HOOK_NAME(hp->hook), name) == 0)
+			return (hp->hook);
+
+	return (NULL);
 }
 
 /*
@@ -948,6 +1043,10 @@ ngs_disconnect(hook_p hook)
 {
 	node_p node = NG_HOOK_NODE(hook);
 	struct ngsock *const priv = NG_NODE_PRIVATE(node);
+	struct hookpriv *hp = NG_HOOK_PRIVATE(hook);
+
+	LIST_REMOVE(hp, next);
+	free(hp, M_NETGRAPH_SOCK);
 
 	if ((priv->datasock) && (priv->datasock->ng_socket)) {
 		if (NG_NODE_NUMHOOKS(node) == 1)
