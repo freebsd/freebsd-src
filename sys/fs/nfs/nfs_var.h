@@ -522,6 +522,9 @@ struct nfscllayout *nfscl_getlayout(struct nfsmount *, uint8_t *, int);
 void nfscl_rellayout(struct nfscllayout *);
 void nfscl_reldevinfo(struct nfscldevinfo *);
 void nfscl_adddevinfo(struct nfsmount *, struct nfscldevinfo *);
+void nfscl_freelayout(struct nfscllayout *);
+void nfscl_freeflayout(struct nfsclflayout *);
+void nfscl_freedevinfo(struct nfscldevinfo *);
 
 /* nfs_clport.c */
 int nfscl_nget(mount_t, vnode_t, struct nfsfh *,

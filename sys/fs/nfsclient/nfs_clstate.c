@@ -4583,3 +4583,51 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip)
 	NFSUNLOCKCLSTATE();
 }
 
+/*
+ * Free up a layout structure and associated file layout structure(s).
+ */
+APPLESTATIC void
+nfscl_freelayout(struct nfscllayout *layp)
+{
+	struct nfsclflayout *flp, *nflp;
+
+	LIST_FOREACH_SAFE(flp, &layp->nfsly_flay, nfsfl_list, nflp) {
+		LIST_REMOVE(flp, nfsfl_list);
+		nfscl_freeflayout(flp);
+	}
+	free(layp, M_NFSLAYOUT);
+}
+
+/*
+ * Free up a file layout structure.
+ */
+APPLESTATIC void
+nfscl_freeflayout(struct nfsclflayout *flp)
+{
+	int i;
+
+	for (i = 0; i < flp->nfsfl_fhcnt; i++)
+		free(flp->nfsfl_fh[i], M_NFSFH);
+	free(flp, M_NFSFLAYOUT);
+}
+
+/*
+ * Free up a file layout devinfo structure.
+ */
+APPLESTATIC void
+nfscl_freedevinfo(struct nfscldevinfo *dip)
+{
+	int i;
+	struct nfsclds *dsp;
+
+	for (i = 0; i < dip->nfsdi_addrcnt; i++) {
+		dsp = nfsfldi_addr(dip, i);
+		if (dsp->nfsclds_sock.nr_nam != NULL) {
+			/* Both are set or both are NULL. */
+			NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+			free(dsp->nfsclds_sock.nr_nam, M_SONAME);
+		}
+	}
+	free(dip, M_NFSDEVINFO);
+}
+

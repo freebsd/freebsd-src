@@ -4610,11 +4610,8 @@ printf("layg iom=%d\n", iomode);
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
 nfsmout:
-	if (error != 0 && flp != NULL) {
-		for (i = 0; i < flp->nfsfl_fhcnt; i++)
-			free(flp->nfsfl_fh[i], M_NFSFH);
-		free(flp, M_NFSFLAYOUT);
-	}
+	if (error != 0 && flp != NULL)
+		nfscl_freeflayout(flp);
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
@@ -4765,17 +4762,8 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	if (nd->nd_repstat != 0)
 		error = nd->nd_repstat;
 nfsmout:
-	if (error != 0 && ndi != NULL) {
-		for (i = 0; i < ndi->nfsdi_addrcnt; i++) {
-			sa = nfsfldi_addr(ndi, i);
-			if (sa->nfsclds_sock.nr_nam != NULL) {
-				/* Both are set or both are NULL. */
-				NFSFREECRED(sa->nfsclds_sock.nr_cred);
-				free(sa->nfsclds_sock.nr_nam, M_SONAME);
-			}
-		}
-		free(ndi, M_NFSDEVINFO);
-	}
+	if (error != 0 && ndi != NULL)
+		nfscl_freedevinfo(ndi);
 	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
