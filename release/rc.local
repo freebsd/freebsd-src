@@ -10,8 +10,19 @@
 
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then
-	# Syscons: use xterm
+	# Syscons: use xterm, start interesting things on other VTYs
 	TERM=xterm
+
+	if [ "$EXTERNAL_VTY_STARTED" -ne 1 ]; then
+		vidcontrol -s 2 # Switch to a VTY with no kernel messages
+		# Init will clean these processes up if/when the system
+		# goes multiuser
+		touch /tmp/bsdinstall_log
+		tail -f /tmp/bsdinstall_log > /dev/ttyv2 &
+		/usr/libexec/getty autologin ttyv3
+		EXTERNAL_VTY_STARTED=1
+		trap "vidcontrol -s 1" EXIT
+	fi
 else
 	# Serial or other console
 	echo
