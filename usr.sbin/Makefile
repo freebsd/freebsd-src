@@ -16,6 +16,7 @@ SUBDIR=	adduser \
 	clear_locks \
 	crashinfo \
 	cron \
+	ctladm \
 	daemon \
 	dconschat \
 	devinfo \
@@ -289,8 +290,6 @@ SUBDIR+=	makemap
 SUBDIR+=	praliases
 SUBDIR+=	sendmail
 .endif
-
-SUBDIR+=	sysinstall
 
 .if ${MK_TOOLCHAIN} != "no"
 SUBDIR+=	config

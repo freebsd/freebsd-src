@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 #define	EPAIRNAME	"epair"
 
 SYSCTL_DECL(_net_link);
-SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
+static SYSCTL_NODE(_net_link, OID_AUTO, epair, CTLFLAG_RW, 0, "epair sysctl");
 
 #ifdef EPAIR_DEBUG
 static int epair_debug = 0;

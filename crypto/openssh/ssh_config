@@ -46,4 +46,4 @@
 #   PermitLocalCommand no
 #   VisualHostKey no
 #   ProxyCommand ssh -q -W %h:%p gateway.example.com
-#   VersionAddendum FreeBSD-20110503
+#   VersionAddendum FreeBSD-20111001

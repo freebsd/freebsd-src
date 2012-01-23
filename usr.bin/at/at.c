@@ -90,20 +90,18 @@ enum { ATQ, ATRM, AT, BATCH, CAT };	/* what program we want to run */
 
 /* File scope variables */
 
-const char *no_export[] =
-{
+static const char *no_export[] = {
     "TERM", "TERMCAP", "DISPLAY", "_"
-} ;
+};
 static int send_mail = 0;
+static char *atinput = NULL;	/* where to get input from */
+static char atqueue = 0;	/* which queue to examine for jobs (atq) */
 
 /* External variables */
 
 extern char **environ;
 int fcreated;
 char atfile[] = ATJOB_DIR "12345678901234";
-
-char *atinput = (char*)0;	/* where to get input from */
-char atqueue = 0;		/* which queue to examine for jobs (atq) */
 char atverify = 0;		/* verify time instead of queuing job */
 char *namep;
 

@@ -294,7 +294,7 @@ g_run_events()
 		} else {
 			g_topology_unlock();
 			msleep(&g_wait_event, &g_eventlock, PRIBIO | PDROP,
-			    "-", 0);
+			    "-", TAILQ_EMPTY(&g_doorstep) ? 0 : hz / 10);
 		}
 	}
 	/* NOTREACHED */

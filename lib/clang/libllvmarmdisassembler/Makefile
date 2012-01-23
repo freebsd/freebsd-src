@@ -4,9 +4,9 @@ LIB=	llvmarmdisassembler
 
 SRCDIR=	lib/Target/ARM/Disassembler
 INCDIR=	lib/Target/ARM
-SRCS=	ARMDisassemblerCore.cpp
+SRCS=	ARMDisassembler.cpp
 
-TGHDRS=	ARMGenDecoderTables \
+TGHDRS=	ARMGenDisassemblerTables \
 	ARMGenEDInfo \
 	ARMGenInstrInfo \
 	ARMGenRegisterInfo \

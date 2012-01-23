@@ -38,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd September 15, 2011
+.Dd November 14, 2011
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -290,14 +290,6 @@ That of 2 results in any
 packets to closed ports being logged.
 Any value unlisted above disables the logging
 (default is 0, i.e., the logging is disabled).
-.It Va slowstart_flightsize
-The number of packets allowed to be in-flight during the
-.Tn TCP
-slow-start phase on a non-local network.
-.It Va local_slowstart_flightsize
-The number of packets allowed to be in-flight during the
-.Tn TCP
-slow-start phase to local machines in the same subnet.
 .It Va msl
 The Maximum Segment Lifetime, in milliseconds, for a packet.
 .It Va keepinit
@@ -411,15 +403,6 @@ maximum segment size.
 This helps throughput in general, but
 particularly affects short transfers and high-bandwidth large
 propagation-delay connections.
-.Pp
-When this feature is enabled, the
-.Va slowstart_flightsize
-and
-.Va local_slowstart_flightsize
-settings are not observed for new
-connection slow starts, but they are still used for slow starts
-that occur when the connection has been idle and starts sending
-again.
 .It Va sack.enable
 Enable support for RFC 2018, TCP Selective Acknowledgment option,
 which allows the receiver to inform the sender about all successfully

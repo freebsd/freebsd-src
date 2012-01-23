@@ -33,12 +33,12 @@ public:
 
 void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
                                       CheckerContext &C) const {
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   // Check if the callee has a 'nonnull' attribute.
   SVal X = state->getSVal(CE->getCallee());
 
-  const FunctionDecl* FD = X.getAsFunctionDecl();
+  const FunctionDecl *FD = X.getAsFunctionDecl();
   if (!FD)
     return;
 
@@ -85,7 +85,7 @@ void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
     }
 
     ConstraintManager &CM = C.getConstraintManager();
-    const GRState *stateNotNull, *stateNull;
+    const ProgramState *stateNotNull, *stateNull;
     llvm::tie(stateNotNull, stateNull) = CM.assumeDual(state, *DV);
 
     if (stateNull && !stateNotNull) {
@@ -100,16 +100,15 @@ void AttrNonNullChecker::checkPreStmt(const CallExpr *CE,
           BT.reset(new BugType("Argument with 'nonnull' attribute passed null",
                                "API"));
 
-        EnhancedBugReport *R =
-          new EnhancedBugReport(*BT,
-                                "Null pointer passed as an argument to a "
-                                "'nonnull' parameter", errorNode);
+        BugReport *R =
+          new BugReport(*BT, "Null pointer passed as an argument to a "
+                             "'nonnull' parameter", errorNode);
 
         // Highlight the range of the argument that was null.
         const Expr *arg = *I;
         R->addRange(arg->getSourceRange());
-        R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue, arg);
-
+        R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(errorNode,
+                                                                   arg));
         // Emit the bug report.
         C.EmitReport(R);
       }

@@ -109,8 +109,10 @@ ifconfig_up()
 		# backward compatibility: $ipv6_enable
 		case $ipv6_enable in
 		[Yy][Ee][Ss]|[Tt][Rr][Uu][Ee]|[Oo][Nn]|1)
-			_ipv6_opts="${_ipv6_opts} accept_rtadv"
-			;;
+			if ! checkyesno ipv6_gateway_enable; then
+				_ipv6_opts="${_ipv6_opts} accept_rtadv"
+			fi
+		;;
 		esac
 
 		case $ipv6_cpe_wanif in
@@ -139,7 +141,15 @@ ifconfig_up()
 			_cfg=0
 		fi
 
-		# backward compatiblity: $ipv6_ifconfig_IF
+		# $ipv6_prefix_IF will be handled in
+		# ipv6_prefix_hostid_addr_common().
+		ifconfig_args=`get_if_var $1 ipv6_prefix_IF`
+		if [ -n "${ifconfig_args}" ]; then
+			ifconfig $1 inet6 -ifdisabled
+			_cfg=0
+		fi
+
+		# backward compatibility: $ipv6_ifconfig_IF
 		ifconfig_args=`get_if_var $1 ipv6_ifconfig_IF`
 		if [ -n "${ifconfig_args}" ]; then
 			warn "\$ipv6_ifconfig_$1 is obsolete." \
@@ -444,6 +454,12 @@ ipv6if()
 			return 0
 		fi
 
+		# True if $ipv6_prefix_IF is defined.
+		_tmpargs=`get_if_var $_if ipv6_prefix_IF`
+		if [ -n "${_tmpargs}" ]; then
+			return 0
+		fi
+
 		# backward compatibility: True if $ipv6_ifconfig_IF is defined.
 		_tmpargs=`get_if_var $_if ipv6_ifconfig_IF`
 		if [ -n "${_tmpargs}" ]; then
@@ -532,7 +548,7 @@ ipv4_up()
 
 	# Add 127.0.0.1/8 to lo0 unless otherwise specified.
 	if [ "${_if}" = "lo0" ]; then
-		ifconfig_args=`ifconfig_getargs ${_if}`
+		ifconfig_args=`get_if_var ${_if} ifconfig_IF`
 		if [ -z "${ifconfig_args}" ]; then
 			ifconfig ${_if} inet 127.0.0.1/8 alias
 		fi
@@ -556,12 +572,8 @@ ipv6_up()
 	fi
 
 	ifalias_up ${_if} inet6 && _ret=0
-	ipv6_prefix_hostid_addr_up ${_if} && _ret=0
+	ipv6_prefix_hostid_addr_common ${_if} alias && _ret=0
 	ipv6_accept_rtadv_up ${_if} && _ret=0
-
-	# wait for DAD
-	sleep `${SYSCTL_N} net.inet6.ip6.dad_count`
-	sleep 1
 
 	return $_ret
 }
@@ -612,6 +624,7 @@ ipv6_down()
 	fi
 
 	ipv6_accept_rtadv_down ${_if} && _ret=0
+	ipv6_prefix_hostid_addr_common ${_if} -alias && _ret=0
 	ifalias_down ${_if} inet6 && _ret=0
 
 	inetList="`ifconfig ${_if} | grep 'inet6 ' | tr "\n" "$_ifs"`"
@@ -715,8 +728,15 @@ ifalias_ipv4_up()
 		inet\ *)
 			ifconfig $1 ${ifconfig_args} alias && _ret=0
 			;;
+		inet6\ *)
+			;;
 		"")
 			break
+			;;
+		*)
+			warn "\$ifconfig_$1_alias${alias} needs " \
+			    "\"inet\" keyword for an IPv4 address."
+			ifconfig $1 ${ifconfig_args} alias && _ret=0
 			;;
 		esac
 		alias=$((${alias} + 1))
@@ -859,12 +879,14 @@ ifalias_ipv6_down()
 	return $_ret
 }
 
-# ipv6_prefix_hostid_addr_up if
-#	add IPv6 prefix + hostid addr to the interface $if
-ipv6_prefix_hostid_addr_up()
+# ipv6_prefix_hostid_addr_common if action
+#	Add or remove IPv6 prefix + hostid addr on the interface $if
+#
+ipv6_prefix_hostid_addr_common()
 {
-	local _if prefix laddr hostid j address
+	local _if _action prefix laddr hostid j address
 	_if=$1
+	_action=$2
 	prefix=`get_if_var ${_if} ipv6_prefix_IF`
 
 	if [ -n "${prefix}" ]; then
@@ -874,13 +896,13 @@ ipv6_prefix_hostid_addr_up()
 
 		for j in ${prefix}; do
 			address=$j\:${hostid}
-			ifconfig ${_if} inet6 ${address} prefixlen 64 alias
+			ifconfig ${_if} inet6 ${address} prefixlen 64 ${_action}
 
 			# if I am a router, add subnet router
 			# anycast address (RFC 2373).
 			if checkyesno ipv6_gateway_enable; then
 				ifconfig ${_if} inet6 $j:: prefixlen 64 \
-					alias anycast
+					${_action} anycast
 			fi
 		done
 	fi

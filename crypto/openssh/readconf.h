@@ -1,4 +1,4 @@
-/* $OpenBSD: readconf.h,v 1.88 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: readconf.h,v 1.90 2011/05/24 07:15:47 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -28,7 +28,8 @@ typedef struct {
 }       Forward;
 /* Data structure for representing option data. */
 
-#define MAX_SEND_ENV	256
+#define MAX_SEND_ENV		256
+#define SSH_MAX_HOSTS_FILES	256
 
 typedef struct {
 	int     forward_agent;	/* Forward authentication agent. */
@@ -84,10 +85,10 @@ typedef struct {
 	char   *user;		/* User to log in as. */
 	int     escape_char;	/* Escape character; -2 = none */
 
-	char   *system_hostfile;/* Path for /etc/ssh/ssh_known_hosts. */
-	char   *user_hostfile;	/* Path for $HOME/.ssh/known_hosts. */
-	char   *system_hostfile2;
-	char   *user_hostfile2;
+	u_int	num_system_hostfiles;	/* Paths for /etc/ssh/ssh_known_hosts */
+	char   *system_hostfiles[SSH_MAX_HOSTS_FILES];
+	u_int	num_user_hostfiles;	/* Path for $HOME/.ssh/known_hosts */
+	char   *user_hostfiles[SSH_MAX_HOSTS_FILES];
 	char   *preferred_authentications;
 	char   *bind_address;	/* local socket address for connection to sshd */
 	char   *pkcs11_provider; /* PKCS#11 provider */
@@ -132,6 +133,7 @@ typedef struct {
 	int	visual_host_key;
 
 	int	use_roaming;
+	int	request_tty;
 
 	int	hpn_disabled;	/* Switch to disable HPN buffer management. */
 	int	hpn_buffer_size;	/* User definable size for HPN buffer
@@ -151,6 +153,11 @@ typedef struct {
 #define SSHCTL_MASTER_AUTO	2
 #define SSHCTL_MASTER_ASK	3
 #define SSHCTL_MASTER_AUTO_ASK	4
+
+#define REQUEST_TTY_AUTO	0
+#define REQUEST_TTY_NO		1
+#define REQUEST_TTY_YES		2
+#define REQUEST_TTY_FORCE	3
 
 void     initialize_options(Options *);
 void     fill_default_options(Options *);

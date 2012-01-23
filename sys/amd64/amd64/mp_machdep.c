@@ -99,7 +99,8 @@ char *nmi_stack;
 void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct pcb **susppcbs;
+void **suspfpusave;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -1049,7 +1050,7 @@ start_ap(int apic_id)
 u_int xhits_gbl[MAXCPU];
 u_int xhits_pg[MAXCPU];
 u_int xhits_rng[MAXCPU];
-SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
+static SYSCTL_NODE(_debug, OID_AUTO, xhits, CTLFLAG_RW, 0, "");
 SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, global, CTLFLAG_RW, &xhits_gbl,
     sizeof(xhits_gbl), "IU", "");
 SYSCTL_OPAQUE(_debug_xhits, OID_AUTO, page, CTLFLAG_RW, &xhits_pg,
@@ -1422,6 +1423,7 @@ cpususpend_handler(void)
 	cr3 = rcr3();
 
 	if (savectx(susppcbs[cpu])) {
+		ctx_fpusave(suspfpusave[cpu]);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 	} else {

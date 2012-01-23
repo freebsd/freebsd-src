@@ -1709,12 +1709,19 @@ ed_shmem_write_mbufs(struct ed_softc *sc, struct mbuf *m, bus_size_t dst)
 			break;
 		}
 	}
-	for (len = 0; m != 0; m = m->m_next) {
-		if (sc->isa16bit)
-			bus_space_write_region_2(sc->mem_bst,
-			    sc->mem_bsh, dst,
-			    mtod(m, uint16_t *), (m->m_len + 1)/ 2);
-		else
+	for (len = 0; m != NULL; m = m->m_next) {
+		if (m->m_len == 0)
+			continue;
+		if (sc->isa16bit) {
+			if (m->m_len > 1)
+				bus_space_write_region_2(sc->mem_bst,
+				    sc->mem_bsh, dst,
+				    mtod(m, uint16_t *), m->m_len / 2);
+			if ((m->m_len & 1) != 0)
+				bus_space_write_1(sc->mem_bst, sc->mem_bsh,
+				    dst + m->m_len - 1,
+				    *(mtod(m, uint8_t *) + m->m_len - 1));
+		} else
 			bus_space_write_region_1(sc->mem_bst,
 			    sc->mem_bsh, dst,
 			    mtod(m, uint8_t *), m->m_len);

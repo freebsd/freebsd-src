@@ -212,16 +212,12 @@ static device_method_t sf_methods[] = {
 	DEVMETHOD(device_suspend,	sf_suspend),
 	DEVMETHOD(device_resume,	sf_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	sf_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	sf_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	sf_miibus_statchg),
 
-	{ NULL, NULL }
+	DEVMETHOD_END
 };
 
 static driver_t sf_driver = {

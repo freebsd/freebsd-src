@@ -103,14 +103,14 @@ static int	vpd_modevent	(module_t, int, void *);
 
 static int	vpd_cksum	(struct vpd *);
 
-SYSCTL_NODE(_hw, OID_AUTO, vpd, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd, OID_AUTO, machine, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd_machine, OID_AUTO, type, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd_machine, OID_AUTO, model, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd, OID_AUTO, build_id, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd, OID_AUTO, serial, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd_serial, OID_AUTO, box, CTLFLAG_RD, NULL, NULL);
-SYSCTL_NODE(_hw_vpd_serial, OID_AUTO, planar, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw, OID_AUTO, vpd, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd, OID_AUTO, machine, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd_machine, OID_AUTO, type, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd_machine, OID_AUTO, model, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd, OID_AUTO, build_id, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd, OID_AUTO, serial, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd_serial, OID_AUTO, box, CTLFLAG_RD, NULL, NULL);
+static SYSCTL_NODE(_hw_vpd_serial, OID_AUTO, planar, CTLFLAG_RD, NULL, NULL);
 
 static void
 vpd_identify (driver_t *driver, device_t parent)

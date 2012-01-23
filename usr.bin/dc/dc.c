@@ -39,9 +39,9 @@ static void		 usage(void);
 
 extern char		*__progname;
 
-struct source		 src;
+static struct source	 src;
 
-struct option long_options[] =
+static const struct option long_options[] =
 {
 	{"expression",		required_argument,	NULL,	'e'},
 	{"file",		required_argument,	NULL,	'f'},

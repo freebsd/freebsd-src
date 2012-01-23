@@ -1,4 +1,5 @@
 # $FreeBSD$
+mips/nlm/hal/nlm_hal.c				standard
 mips/nlm/hal/fmn.c				standard
 mips/nlm/xlp_machdep.c				standard
 mips/nlm/intr_machdep.c				standard

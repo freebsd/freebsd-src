@@ -94,7 +94,7 @@ static void mvs_process_request_sense(device_t dev, union ccb *ccb);
 static void mvsaction(struct cam_sim *sim, union ccb *ccb);
 static void mvspoll(struct cam_sim *sim);
 
-MALLOC_DEFINE(M_MVS, "MVS driver", "MVS driver data buffers");
+static MALLOC_DEFINE(M_MVS, "MVS driver", "MVS driver data buffers");
 
 #define recovery_type		spriv_field0
 #define RECOVERY_NONE		0

@@ -1,7 +1,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 20, 2011
+.Dd November 10, 2011
 .Dt IPFW 8
 .Os
 .Sh NAME
@@ -769,7 +769,7 @@ To enable
 .Cm fwd
 a custom kernel needs to be compiled with the option
 .Cd "options IPFIREWALL_FORWARD" .
-.It Cm nat Ar nat_nr
+.It Cm nat Ar nat_nr | tablearg
 Pass packet to a
 nat instance
 (for network address translation, address redirect, etc.):

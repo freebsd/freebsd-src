@@ -93,7 +93,7 @@ static int poll_hz = DCONS_POLL_HZ;
 
 static struct dcons_softc sc[DCONS_NPORT];
 
-SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
+static SYSCTL_NODE(_kern, OID_AUTO, dcons, CTLFLAG_RD, 0, "Dumb Console");
 SYSCTL_INT(_kern_dcons, OID_AUTO, poll_hz, CTLFLAG_RW, &poll_hz, 0,
 				"dcons polling rate");
 
@@ -109,6 +109,8 @@ static cn_init_t	dcons_cninit;
 static cn_term_t	dcons_cnterm;
 static cn_getc_t	dcons_cngetc;
 static cn_putc_t	dcons_cnputc;
+static cn_grab_t	dcons_cngrab;
+static cn_ungrab_t	dcons_cnungrab;
 
 CONSOLE_DRIVER(dcons);
 
@@ -243,6 +245,16 @@ dcons_cninit(struct consdev *cp)
 
 static void
 dcons_cnterm(struct consdev *cp)
+{
+}
+
+static void
+dcons_cngrab(struct consdev *cp)
+{
+}
+
+static void
+dcons_cnungrab(struct consdev *cp)
 {
 }
 

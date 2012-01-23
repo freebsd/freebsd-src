@@ -105,7 +105,8 @@
 #include <dev/ciss/cissio.h>
 #include <dev/ciss/cissvar.h>
 
-MALLOC_DEFINE(CISS_MALLOC_CLASS, "ciss_data", "ciss internal data buffers");
+static MALLOC_DEFINE(CISS_MALLOC_CLASS, "ciss_data",
+    "ciss internal data buffers");
 
 /* pci interface */
 static int	ciss_lookup(device_t dev);
@@ -328,6 +329,7 @@ static struct
     { 0x103C, 0x3249, CISS_BOARD_SA5,	"HP Smart Array P812" },
     { 0x103C, 0x324A, CISS_BOARD_SA5,	"HP Smart Array P712m" },
     { 0x103C, 0x324B, CISS_BOARD_SA5,	"HP Smart Array" },
+    { 0x103C, 0x3351, CISS_BOARD_SA5,	"HP Smart Array P420" },
     { 0, 0, 0, NULL }
 };
 
@@ -1613,7 +1615,7 @@ ciss_inquiry_logical(struct ciss_softc *sc, struct ciss_ldrive *ld)
     inq->opcode = INQUIRY;
     inq->byte2 = SI_EVPD;
     inq->page_code = CISS_VPD_LOGICAL_DRIVE_GEOMETRY;
-    inq->length = sizeof(ld->cl_geometry);
+    scsi_ulto2b(sizeof(ld->cl_geometry), inq->length);
 
     if ((error = ciss_synch_request(cr, 60 * 1000)) != 0) {
 	ciss_printf(sc, "error getting geometry (%d)\n", error);
@@ -3249,13 +3251,17 @@ ciss_cam_complete(struct ciss_request *cr)
 	      ce->sense_length, ce->residual_count);
 	bzero(&csio->sense_data, SSD_FULL_SIZE);
 	bcopy(&ce->sense_info[0], &csio->sense_data, ce->sense_length);
-	csio->sense_len = ce->sense_length;
+	if (csio->sense_len > ce->sense_length)
+		csio->sense_resid = csio->sense_len - ce->sense_length;
+	else
+		csio->sense_resid = 0;
 	csio->resid = ce->residual_count;
 	csio->ccb_h.status |= CAM_SCSI_STATUS_ERROR | CAM_AUTOSNS_VALID;
 #ifdef CISS_DEBUG
 	{
 	    struct scsi_sense_data	*sns = (struct scsi_sense_data *)&ce->sense_info[0];
-	    debug(0, "sense key %x", sns->flags & SSD_KEY);
+	    debug(0, "sense key %x", scsi_get_sense_key(sns, csio->sense_len -
+		  csio->sense_resid, /*show_errors*/ 1));
 	}
 #endif
 	break;

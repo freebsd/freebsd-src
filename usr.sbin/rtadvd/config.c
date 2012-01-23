@@ -216,7 +216,7 @@ rm_ifinfo(struct ifinfo *ifi)
 		    "<%s> ifname=%s marked as UNCONFIGURED.",
 		    __func__, ifi->ifi_ifname);
 
-		/* XXX: No MC leaving here becasue index is disappeared */
+		/* XXX: No MC leaving here because index is disappeared */
 
 		/* Inactivate timer */
 		rtadvd_remove_timer(ifi->ifi_ra_timer);

@@ -156,6 +156,7 @@ padlock_detach(device_t dev)
 	}
 	while ((ses = TAILQ_FIRST(&sc->sc_sessions)) != NULL) {
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
+		fpu_kern_free_ctx(ses->ses_fpu_ctx);
 		free(ses, M_PADLOCK);
 	}
 	rw_destroy(&sc->sc_sessions_lock);
@@ -222,6 +223,13 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 			rw_wunlock(&sc->sc_sessions_lock);
 			return (ENOMEM);
 		}
+		ses->ses_fpu_ctx = fpu_kern_alloc_ctx(FPU_KERN_NORMAL |
+		    FPU_KERN_NOWAIT);
+		if (ses->ses_fpu_ctx == NULL) {
+			free(ses, M_PADLOCK);
+			rw_wunlock(&sc->sc_sessions_lock);
+			return (ENOMEM);
+		}
 		ses->ses_id = sc->sc_sid++;
 	} else {
 		TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
@@ -239,7 +247,7 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 	if (macini != NULL) {
 		td = curthread;
 		if (!is_fpu_kern_thread(0)) {
-			error = fpu_kern_enter(td, &ses->ses_fpu_ctx,
+			error = fpu_kern_enter(td, ses->ses_fpu_ctx,
 			    FPU_KERN_NORMAL);
 			saved_ctx = 1;
 		} else {
@@ -249,7 +257,7 @@ padlock_newsession(device_t dev, uint32_t *sidp, struct cryptoini *cri)
 		if (error == 0) {
 			error = padlock_hash_setup(ses, macini);
 			if (saved_ctx)
-				fpu_kern_leave(td, &ses->ses_fpu_ctx);
+				fpu_kern_leave(td, ses->ses_fpu_ctx);
 		}
 		if (error != 0) {
 			padlock_freesession_one(sc, ses, 0);
@@ -265,15 +273,18 @@ static void
 padlock_freesession_one(struct padlock_softc *sc, struct padlock_session *ses,
     int locked)
 {
+	struct fpu_kern_ctx *ctx;
 	uint32_t sid = ses->ses_id;
 
 	if (!locked)
 		rw_wlock(&sc->sc_sessions_lock);
 	TAILQ_REMOVE(&sc->sc_sessions, ses, ses_next);
 	padlock_hash_free(ses);
+	ctx = ses->ses_fpu_ctx;
 	bzero(ses, sizeof(*ses));
 	ses->ses_used = 0;
 	ses->ses_id = sid;
+	ses->ses_fpu_ctx = ctx;
 	TAILQ_INSERT_HEAD(&sc->sc_sessions, ses, ses_next);
 	if (!locked)
 		rw_wunlock(&sc->sc_sessions_lock);

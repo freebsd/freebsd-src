@@ -42,6 +42,26 @@ bool Qualifiers::isStrictSupersetOf(Qualifiers Other) const {
      (hasObjCLifetime() && !Other.hasObjCLifetime()));
 }
 
+const IdentifierInfo* QualType::getBaseTypeIdentifier() const {
+  const Type* ty = getTypePtr();
+  NamedDecl *ND = NULL;
+  if (ty->isPointerType() || ty->isReferenceType())
+    return ty->getPointeeType().getBaseTypeIdentifier();
+  else if (ty->isRecordType())
+    ND = ty->getAs<RecordType>()->getDecl();
+  else if (ty->isEnumeralType())
+    ND = ty->getAs<EnumType>()->getDecl();
+  else if (ty->getTypeClass() == Type::Typedef)
+    ND = ty->getAs<TypedefType>()->getDecl();
+  else if (ty->isArrayType())
+    return ty->castAsArrayTypeUnsafe()->
+        getElementType().getBaseTypeIdentifier();
+
+  if (ND)
+    return ND->getIdentifier();
+  return NULL;
+}
+
 bool QualType::isConstant(QualType T, ASTContext &Ctx) {
   if (T.isConstQualified())
     return true;
@@ -635,6 +655,18 @@ bool Type::isWideCharType() const {
   return false;
 }
 
+bool Type::isChar16Type() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
+    return BT->getKind() == BuiltinType::Char16;
+  return false;
+}
+
+bool Type::isChar32Type() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
+    return BT->getKind() == BuiltinType::Char32;
+  return false;
+}
+
 /// \brief Determine whether this type is any of the built-in character
 /// types.
 bool Type::isAnyCharacterType() const {
@@ -734,9 +766,16 @@ bool Type::hasUnsignedIntegerRepresentation() const {
     return isUnsignedIntegerType();
 }
 
+bool Type::isHalfType() const {
+  if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
+    return BT->getKind() == BuiltinType::Half;
+  // FIXME: Should we allow complex __fp16? Probably not.
+  return false;
+}
+
 bool Type::isFloatingType() const {
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(CanonicalType))
-    return BT->getKind() >= BuiltinType::Float &&
+    return BT->getKind() >= BuiltinType::Half &&
            BT->getKind() <= BuiltinType::LongDouble;
   if (const ComplexType *CT = dyn_cast<ComplexType>(CanonicalType))
     return CT->getElementType()->isFloatingType();
@@ -801,14 +840,16 @@ Type::ScalarTypeKind Type::getScalarTypeKind() const {
   const Type *T = CanonicalType.getTypePtr();
   if (const BuiltinType *BT = dyn_cast<BuiltinType>(T)) {
     if (BT->getKind() == BuiltinType::Bool) return STK_Bool;
-    if (BT->getKind() == BuiltinType::NullPtr) return STK_Pointer;
+    if (BT->getKind() == BuiltinType::NullPtr) return STK_CPointer;
     if (BT->isInteger()) return STK_Integral;
     if (BT->isFloatingPoint()) return STK_Floating;
     llvm_unreachable("unknown scalar builtin type");
-  } else if (isa<PointerType>(T) ||
-             isa<BlockPointerType>(T) ||
-             isa<ObjCObjectPointerType>(T)) {
-    return STK_Pointer;
+  } else if (isa<PointerType>(T)) {
+    return STK_CPointer;
+  } else if (isa<BlockPointerType>(T)) {
+    return STK_BlockPointer;
+  } else if (isa<ObjCObjectPointerType>(T)) {
+    return STK_ObjCObjectPointer;
   } else if (isa<MemberPointerType>(T)) {
     return STK_MemberPointer;
   } else if (isa<EnumType>(T)) {
@@ -821,7 +862,6 @@ Type::ScalarTypeKind Type::getScalarTypeKind() const {
   }
 
   llvm_unreachable("unknown scalar type");
-  return STK_Pointer;
 }
 
 /// \brief Determines whether the type is a C++ aggregate type or C
@@ -872,7 +912,7 @@ bool Type::isIncompleteType() const {
   case Record:
     // A tagged type (struct/union/enum/class) is incomplete if the decl is a
     // forward declaration, but not a full definition (C99 6.2.5p22).
-    return !cast<TagType>(CanonicalType)->getDecl()->isDefinition();
+    return !cast<TagType>(CanonicalType)->getDecl()->isCompleteDefinition();
   case ConstantArray:
     // An array is incomplete if its element type is incomplete
     // (C++ [dcl.array]p1).
@@ -1073,7 +1113,7 @@ bool Type::isLiteralType() const {
   // C++0x [basic.types]p10:
   //   A type is a literal type if it is:
   //   [...]
-  //   -- an array of literal type
+  //   -- an array of literal type.
   // Extension: variable arrays cannot be literal types, since they're
   // runtime-sized.
   if (isVariableArrayType())
@@ -1093,33 +1133,31 @@ bool Type::isLiteralType() const {
   // C++0x [basic.types]p10:
   //   A type is a literal type if it is:
   //    -- a scalar type; or
-  // As an extension, Clang treats vector types as Scalar types.
-  if (BaseTy->isScalarType() || BaseTy->isVectorType()) return true;
+  // As an extension, Clang treats vector types as literal types.
+  if (BaseTy->isScalarType() || BaseTy->isVectorType())
+    return true;
   //    -- a reference type; or
-  if (BaseTy->isReferenceType()) return true;
+  if (BaseTy->isReferenceType())
+    return true;
   //    -- a class type that has all of the following properties:
   if (const RecordType *RT = BaseTy->getAs<RecordType>()) {
+    //    -- a trivial destructor,
+    //    -- every constructor call and full-expression in the
+    //       brace-or-equal-initializers for non-static data members (if any)
+    //       is a constant expression,
+    //    -- it is an aggregate type or has at least one constexpr
+    //       constructor or constructor template that is not a copy or move
+    //       constructor, and
+    //    -- all non-static data members and base classes of literal types
+    //
+    // We resolve DR1361 by ignoring the second bullet.
     if (const CXXRecordDecl *ClassDecl =
-        dyn_cast<CXXRecordDecl>(RT->getDecl())) {
-      //    -- a trivial destructor,
-      if (!ClassDecl->hasTrivialDestructor()) return false;
-      //    -- every constructor call and full-expression in the
-      //       brace-or-equal-initializers for non-static data members (if any)
-      //       is a constant expression,
-      // FIXME: C++0x: Clang doesn't yet support non-static data member
-      // declarations with initializers, or constexprs.
-      //    -- it is an aggregate type or has at least one constexpr
-      //       constructor or constructor template that is not a copy or move
-      //       constructor, and
-      if (!ClassDecl->isAggregate() &&
-          !ClassDecl->hasConstExprNonCopyMoveConstructor())
-        return false;
-      //    -- all non-static data members and base classes of literal types
-      if (ClassDecl->hasNonLiteralTypeFieldsOrBases()) return false;
-    }
+        dyn_cast<CXXRecordDecl>(RT->getDecl()))
+      return ClassDecl->isLiteral();
 
     return true;
   }
+
   return false;
 }
 
@@ -1158,7 +1196,7 @@ bool Type::isStandardLayoutType() const {
 }
 
 // This is effectively the intersection of isTrivialType and
-// isStandardLayoutType. We implement it dircetly to avoid redundant
+// isStandardLayoutType. We implement it directly to avoid redundant
 // conversions from a type to a CXXRecordDecl.
 bool QualType::isCXX11PODType(ASTContext &Context) const {
   const Type *ty = getTypePtr();
@@ -1426,10 +1464,10 @@ const char *Type::getTypeClassName() const {
   return 0;
 }
 
-const char *BuiltinType::getName(const LangOptions &LO) const {
+const char *BuiltinType::getName(const PrintingPolicy &Policy) const {
   switch (getKind()) {
   case Void:              return "void";
-  case Bool:              return LO.Bool ? "bool" : "_Bool";
+  case Bool:              return Policy.Bool ? "bool" : "_Bool";
   case Char_S:            return "char";
   case Char_U:            return "char";
   case SChar:             return "signed char";
@@ -1444,6 +1482,7 @@ const char *BuiltinType::getName(const LangOptions &LO) const {
   case ULong:             return "unsigned long";
   case ULongLong:         return "unsigned long long";
   case UInt128:           return "__uint128_t";
+  case Half:              return "half";
   case Float:             return "float";
   case Double:            return "double";
   case LongDouble:        return "long double";
@@ -1481,7 +1520,7 @@ QualType QualType::getNonLValueExprType(ASTContext &Context) const {
   return *this;
 }
 
-llvm::StringRef FunctionType::getNameForCallConv(CallingConv CC) {
+StringRef FunctionType::getNameForCallConv(CallingConv CC) {
   switch (CC) {
   case CC_Default: 
     llvm_unreachable("no name for default cc");
@@ -1716,7 +1755,7 @@ static TagDecl *getInterestingTagDecl(TagDecl *decl) {
   for (TagDecl::redecl_iterator I = decl->redecls_begin(),
                                 E = decl->redecls_end();
        I != E; ++I) {
-    if (I->isDefinition() || I->isBeingDefined())
+    if (I->isCompleteDefinition() || I->isBeingDefined())
       return *I;
   }
   // If there's no definition (not even in progress), return what we have.
@@ -2082,6 +2121,8 @@ static CachedProperties computeCachedProperties(const Type *T) {
     return Cache::get(cast<ObjCObjectType>(T)->getBaseType());
   case Type::ObjCObjectPointer:
     return Cache::get(cast<ObjCObjectPointerType>(T)->getPointeeType());
+  case Type::Atomic:
+    return Cache::get(cast<AtomicType>(T)->getValueType());
   }
 
   llvm_unreachable("unhandled type class");
@@ -2227,13 +2268,13 @@ QualType::DestructionKind QualType::isDestructedTypeImpl(QualType type) {
   /// with non-trivial destructors.
   const CXXRecordDecl *record =
     type->getBaseElementTypeUnsafe()->getAsCXXRecordDecl();
-  if (record && !record->hasTrivialDestructor())
+  if (record && record->hasDefinition() && !record->hasTrivialDestructor())
     return DK_cxx_destructor;
 
   return DK_none;
 }
 
-bool QualType::hasTrivialCopyAssignment(ASTContext &Context) const {
+bool QualType::hasTrivialAssignment(ASTContext &Context, bool Copying) const {
   switch (getObjCLifetime()) {
   case Qualifiers::OCL_None:
     break;
@@ -2249,7 +2290,8 @@ bool QualType::hasTrivialCopyAssignment(ASTContext &Context) const {
   
   if (const CXXRecordDecl *Record 
             = getTypePtr()->getBaseElementTypeUnsafe()->getAsCXXRecordDecl())
-    return Record->hasTrivialCopyAssignment();
+    return Copying ? Record->hasTrivialCopyAssignment() :
+                     Record->hasTrivialMoveAssignment();
   
   return true;
 }

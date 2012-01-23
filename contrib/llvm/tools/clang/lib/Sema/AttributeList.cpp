@@ -98,7 +98,7 @@ AttributePool::createIntegerAttribute(ASTContext &C, IdentifierInfo *Name,
 }
 
 AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
-  llvm::StringRef AttrName = Name->getName();
+  StringRef AttrName = Name->getName();
 
   // Normalize the attribute name, __foo__ becomes foo.
   if (AttrName.startswith("__") && AttrName.endswith("__"))
@@ -159,10 +159,11 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("address_space", AT_address_space)
     .Case("opencl_image_access", AT_opencl_image_access)
     .Case("always_inline", AT_always_inline)
-    .Case("returns_twice", IgnoredAttribute)
+    .Case("returns_twice", AT_returns_twice)
     .Case("vec_type_hint", IgnoredAttribute)
     .Case("objc_exception", AT_objc_exception)
     .Case("objc_method_family", AT_objc_method_family)
+    .Case("objc_returns_inner_pointer", AT_objc_returns_inner_pointer)
     .Case("ext_vector_type", AT_ext_vector_type)
     .Case("neon_vector_type", AT_neon_vector_type)
     .Case("neon_polyvector_type", AT_neon_polyvector_type)
@@ -170,15 +171,18 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("analyzer_noreturn", AT_analyzer_noreturn)
     .Case("warn_unused_result", AT_warn_unused_result)
     .Case("carries_dependency", AT_carries_dependency)
+    .Case("ns_bridged", AT_ns_bridged)
     .Case("ns_consumed", AT_ns_consumed)
     .Case("ns_consumes_self", AT_ns_consumes_self)
     .Case("ns_returns_autoreleased", AT_ns_returns_autoreleased)
     .Case("ns_returns_not_retained", AT_ns_returns_not_retained)
     .Case("ns_returns_retained", AT_ns_returns_retained)
+    .Case("cf_audited_transfer", AT_cf_audited_transfer)
     .Case("cf_consumed", AT_cf_consumed)
     .Case("cf_returns_not_retained", AT_cf_returns_not_retained)
     .Case("cf_returns_retained", AT_cf_returns_retained)
     .Case("cf_returns_autoreleased", AT_cf_returns_autoreleased)
+    .Case("cf_unknown_transfer", AT_cf_unknown_transfer)
     .Case("ns_consumes_self", AT_ns_consumes_self)
     .Case("ns_consumed", AT_ns_consumed)
     .Case("objc_ownership", AT_objc_ownership)
@@ -209,5 +213,23 @@ AttributeList::Kind AttributeList::getKind(const IdentifierInfo *Name) {
     .Case("uuid", AT_uuid)
     .Case("pcs", AT_pcs)
     .Case("ms_struct", AT_MsStruct)
+    .Case("guarded_var", AT_guarded_var)
+    .Case("pt_guarded_var", AT_pt_guarded_var)
+    .Case("scoped_lockable", AT_scoped_lockable)
+    .Case("lockable", AT_lockable)
+    .Case("no_thread_safety_analysis", AT_no_thread_safety_analysis)
+    .Case("guarded_by", AT_guarded_by)
+    .Case("pt_guarded_by", AT_pt_guarded_by)
+    .Case("acquired_after", AT_acquired_after)
+    .Case("acquired_before", AT_acquired_before)
+    .Case("exclusive_lock_function", AT_exclusive_lock_function)
+    .Case("exclusive_locks_required", AT_exclusive_locks_required)
+    .Case("exclusive_trylock_function", AT_exclusive_trylock_function)
+    .Case("lock_returned", AT_lock_returned)
+    .Case("locks_excluded", AT_locks_excluded)
+    .Case("shared_lock_function", AT_shared_lock_function)
+    .Case("shared_locks_required", AT_shared_locks_required)
+    .Case("shared_trylock_function", AT_shared_trylock_function)
+    .Case("unlock_function", AT_unlock_function)
     .Default(UnknownAttribute);
 }

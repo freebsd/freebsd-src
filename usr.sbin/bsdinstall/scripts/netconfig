@@ -49,6 +49,13 @@ for IF in `ifconfig -l`; do
 	DIALOG_TAGS="$DIALOG_TAGS $IF \"$DESC\""
 done
 
+if [ -z "$INTERFACES" ]; then
+	dialog --backtitle 'FreeBSD Installer' \
+	    --title 'Network Configuration Error' \
+	    --msgbox 'No network interfaces present to configure.' 0 0
+	exit 1
+fi
+
 exec 3>&1
 INTERFACE=`echo $DIALOG_TAGS | xargs dialog --backtitle 'FreeBSD Installer' --title 'Network Configuration' --menu 'Please select a network interface to configure:' 0 0 0 2>&1 1>&3`
 if [ $? -eq $DIALOG_CANCEL ]; then exit 1; fi

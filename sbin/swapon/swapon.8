@@ -35,8 +35,14 @@
 .Nm swapon , swapoff , swapctl
 .Nd "specify devices for paging and swapping"
 .Sh SYNOPSIS
-.Nm swapon Fl aq | Ar
-.Nm swapoff Fl aq | Ar
+.Nm swapon
+.Oo Fl F Ar fstab
+.Oc
+.Fl aq | Ar
+.Nm swapoff
+.Oo Fl F Ar fstab
+.Oc
+.Fl aq | Ar
 .Nm swapctl
 .Op Fl AghklmsU
 .Oo
@@ -98,6 +104,18 @@ utility
 must move swapped pages out of the device being removed which could
 lead to high system loads for a period of time, depending on how
 much data has been swapped out to that device.
+.Pp
+Other options supported by both
+.Nm swapon
+and
+.Nm swapoff
+are as follows:
+.Bl -tag -width indent
+.It Fl F Ar fstab
+Specify the
+.Pa fstab
+file to use.
+.El
 .Pp
 The
 .Nm swapctl

@@ -370,7 +370,7 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
 
 	td = curthread;
 	if (!is_fpu_kern_thread(0)) {
-		error = fpu_kern_enter(td, &ses->ses_fpu_ctx, FPU_KERN_NORMAL);
+		error = fpu_kern_enter(td, ses->ses_fpu_ctx, FPU_KERN_NORMAL);
 		saved_ctx = 1;
 	} else {
 		error = 0;
@@ -383,7 +383,7 @@ padlock_hash_process(struct padlock_session *ses, struct cryptodesc *maccrd,
 
 	error = padlock_authcompute(ses, maccrd, crp->crp_buf, crp->crp_flags);
 	if (saved_ctx)
-		fpu_kern_leave(td, &ses->ses_fpu_ctx);
+		fpu_kern_leave(td, ses->ses_fpu_ctx);
 	return (error);
 }
 

@@ -348,6 +348,38 @@ SYSINIT(vfs, SI_SUB_VFS, SI_ORDER_FIRST, vntblinit, NULL);
 /*
  * Mark a mount point as busy. Used to synchronize access and to delay
  * unmounting. Eventually, mountlist_mtx is not released on failure.
+ *
+ * vfs_busy() is a custom lock, it can block the caller.
+ * vfs_busy() only sleeps if the unmount is active on the mount point.
+ * For a mountpoint mp, vfs_busy-enforced lock is before lock of any
+ * vnode belonging to mp.
+ *
+ * Lookup uses vfs_busy() to traverse mount points.
+ * root fs			var fs
+ * / vnode lock		A	/ vnode lock (/var)		D
+ * /var vnode lock	B	/log vnode lock(/var/log)	E
+ * vfs_busy lock	C	vfs_busy lock			F
+ *
+ * Within each file system, the lock order is C->A->B and F->D->E.
+ *
+ * When traversing across mounts, the system follows that lock order:
+ *
+ *        C->A->B
+ *              |
+ *              +->F->D->E
+ *
+ * The lookup() process for namei("/var") illustrates the process:
+ *  VOP_LOOKUP() obtains B while A is held
+ *  vfs_busy() obtains a shared lock on F while A and B are held
+ *  vput() releases lock on B
+ *  vput() releases lock on A
+ *  VFS_ROOT() obtains lock on D while shared lock on F is held
+ *  vfs_unbusy() releases shared lock on F
+ *  vn_lock() obtains lock on deadfs vnode vp_crossmp instead of A.
+ *    Attempt to lock A (instead of vp_crossmp) while D is held would
+ *    violate the global order, causing deadlocks.
+ *
+ * dounmount() locks B while F is drained.
  */
 int
 vfs_busy(struct mount *mp, int flags)
@@ -1022,7 +1054,7 @@ alloc:
 	vp->v_tag = tag;
 	vp->v_op = vops;
 	v_incr_usecount(vp);
-	vp->v_data = 0;
+	vp->v_data = NULL;
 #ifdef MAC
 	mac_vnode_init(vp);
 	if (mp != NULL && (mp->mnt_flag & MNT_MULTILABEL) == 0)
@@ -1159,7 +1191,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	do {
 		error = flushbuflist(&bo->bo_clean,
 		    flags, bo, slpflag, slptimeo);
-		if (error == 0)
+		if (error == 0 && !(flags & V_CLEANONLY))
 			error = flushbuflist(&bo->bo_dirty,
 			    flags, bo, slpflag, slptimeo);
 		if (error != 0 && error != EAGAIN) {
@@ -1188,7 +1220,8 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 	/*
 	 * Destroy the copy in the VM cache, too.
 	 */
-	if (bo->bo_object != NULL && (flags & (V_ALT | V_NORMAL)) == 0) {
+	if (bo->bo_object != NULL &&
+	    (flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0) {
 		VM_OBJECT_LOCK(bo->bo_object);
 		vm_object_page_remove(bo->bo_object, 0, 0, (flags & V_SAVE) ?
 		    OBJPR_CLEANONLY : 0);
@@ -1197,7 +1230,7 @@ bufobj_invalbuf(struct bufobj *bo, int flags, int slpflag, int slptimeo)
 
 #ifdef INVARIANTS
 	BO_LOCK(bo);
-	if ((flags & (V_ALT | V_NORMAL)) == 0 &&
+	if ((flags & (V_ALT | V_NORMAL | V_CLEANONLY)) == 0 &&
 	    (bo->bo_dirty.bv_cnt > 0 || bo->bo_clean.bv_cnt > 0))
 		panic("vinvalbuf: flush failed");
 	BO_UNLOCK(bo);
@@ -1223,7 +1256,7 @@ vinvalbuf(struct vnode *vp, int flags, int slpflag, int slptimeo)
  *
  */
 static int
-flushbuflist( struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
+flushbuflist(struct bufv *bufv, int flags, struct bufobj *bo, int slpflag,
     int slptimeo)
 {
 	struct buf *bp, *nbp;
@@ -2803,6 +2836,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
+	uint64_t mflags;
 	u_int flags;
 
 	if (!have_addr) {
@@ -2824,13 +2858,13 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_stat.f_mntonname, mp->mnt_stat.f_fstypename);
 
 	buf[0] = '\0';
-	flags = mp->mnt_flag;
+	mflags = mp->mnt_flag;
 #define	MNT_FLAG(flag)	do {						\
-	if (flags & (flag)) {						\
+	if (mflags & (flag)) {						\
 		if (buf[0] != '\0')					\
 			strlcat(buf, ", ", sizeof(buf));		\
 		strlcat(buf, (#flag) + 4, sizeof(buf));			\
-		flags &= ~(flag);					\
+		mflags &= ~(flag);					\
 	}								\
 } while (0)
 	MNT_FLAG(MNT_RDONLY);
@@ -2868,11 +2902,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
 #undef MNT_FLAG
-	if (flags != 0) {
+	if (mflags != 0) {
 		if (buf[0] != '\0')
 			strlcat(buf, ", ", sizeof(buf));
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "0x%08x", flags);
+		    "0x%016jx", mflags);
 	}
 	db_printf("    mnt_flag = %s\n", buf);
 
@@ -3022,7 +3056,7 @@ vfs_sysctl(SYSCTL_HANDLER_ARGS)
 	struct vfsconf *vfsp;
 	struct xvfsconf xvfsp;
 
-	printf("WARNING: userland calling deprecated sysctl, "
+	log(LOG_WARNING, "userland calling deprecated sysctl, "
 	    "please rebuild world\n");
 
 #if 1 || defined(COMPAT_PRELITE2)
@@ -4000,6 +4034,15 @@ vop_create_post(void *ap, int rc)
 }
 
 void
+vop_deleteextattr_post(void *ap, int rc)
+{
+	struct vop_deleteextattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
 vop_link_post(void *ap, int rc)
 {
 	struct vop_link_args *a = ap;
@@ -4075,6 +4118,15 @@ void
 vop_setattr_post(void *ap, int rc)
 {
 	struct vop_setattr_args *a = ap;
+
+	if (!rc)
+		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);
+}
+
+void
+vop_setextattr_post(void *ap, int rc)
+{
+	struct vop_setextattr_args *a = ap;
 
 	if (!rc)
 		VFS_KNOTE_LOCKED(a->a_vp, NOTE_ATTRIB);

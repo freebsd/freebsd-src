@@ -130,19 +130,21 @@ ath_rate_findrate(struct ath_softc *sc, struct ath_node *an,
  */
 void
 ath_rate_getxtxrates(struct ath_softc *sc, struct ath_node *an,
-    uint8_t rix0, uint8_t *rix, uint8_t *try)
+    uint8_t rix0, struct ath_rc_series *rc)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
 
-/*	rix[0] = on->on_tx_rate0; */
-	rix[1] = on->on_tx_rate1;
-	rix[2] = on->on_tx_rate2;
-	rix[3] = on->on_tx_rate3;
+	rc[0].flags = rc[1].flags = rc[2].flags = rc[3].flags = 0;
 
-	try[0] = on->on_tx_try0;
-	try[1] = 2;
-	try[2] = 2;
-	try[3] = 2;
+	rc[0].rix = on->on_tx_rate0;
+	rc[1].rix = on->on_tx_rate1;
+	rc[2].rix = on->on_tx_rate2;
+	rc[3].rix = on->on_tx_rate3;
+
+	rc[0].tries = on->on_tx_try0;
+	rc[1].tries = 2;
+	rc[2].tries = 2;
+	rc[3].tries = 2;
 }
 
 void
@@ -160,10 +162,10 @@ ath_rate_setupxtxdesc(struct ath_softc *sc, struct ath_node *an,
 
 void
 ath_rate_tx_complete(struct ath_softc *sc, struct ath_node *an,
-	const struct ath_buf *bf)
+	const struct ath_rc_series *rc, const struct ath_tx_status *ts,
+	int frame_size, int nframes, int nbad)
 {
 	struct onoe_node *on = ATH_NODE_ONOE(an);
-	const struct ath_tx_status *ts = &bf->bf_status.ds_txstat;
 
 	if (ts->ts_status == 0)
 		on->on_tx_ok++;

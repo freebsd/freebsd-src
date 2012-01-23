@@ -337,65 +337,90 @@ class AggValueSlot {
 
   // Qualifiers
   Qualifiers Quals;
+
+  /// DestructedFlag - This is set to true if some external code is
+  /// responsible for setting up a destructor for the slot.  Otherwise
+  /// the code which constructs it should push the appropriate cleanup.
+  bool DestructedFlag : 1;
+
+  /// ObjCGCFlag - This is set to true if writing to the memory in the
+  /// slot might require calling an appropriate Objective-C GC
+  /// barrier.  The exact interaction here is unnecessarily mysterious.
+  bool ObjCGCFlag : 1;
   
-  // Associated flags.
-  bool LifetimeFlag : 1;
-  bool RequiresGCollection : 1;
-  
-  /// IsZeroed - This is set to true if the destination is known to be zero
-  /// before the assignment into it.  This means that zero fields don't need to
-  /// be set.
-  bool IsZeroed : 1;
+  /// ZeroedFlag - This is set to true if the memory in the slot is
+  /// known to be zero before the assignment into it.  This means that
+  /// zero fields don't need to be set.
+  bool ZeroedFlag : 1;
+
+  /// AliasedFlag - This is set to true if the slot might be aliased
+  /// and it's not undefined behavior to access it through such an
+  /// alias.  Note that it's always undefined behavior to access a C++
+  /// object that's under construction through an alias derived from
+  /// outside the construction process.
+  ///
+  /// This flag controls whether calls that produce the aggregate
+  /// value may be evaluated directly into the slot, or whether they
+  /// must be evaluated into an unaliased temporary and then memcpy'ed
+  /// over.  Since it's invalid in general to memcpy a non-POD C++
+  /// object, it's important that this flag never be set when
+  /// evaluating an expression which constructs such an object.
+  bool AliasedFlag : 1;
 
 public:
+  enum IsAliased_t { IsNotAliased, IsAliased };
+  enum IsDestructed_t { IsNotDestructed, IsDestructed };
+  enum IsZeroed_t { IsNotZeroed, IsZeroed };
+  enum NeedsGCBarriers_t { DoesNotNeedGCBarriers, NeedsGCBarriers };
+
   /// ignored - Returns an aggregate value slot indicating that the
   /// aggregate value is being ignored.
   static AggValueSlot ignored() {
     AggValueSlot AV;
     AV.Addr = 0;
     AV.Quals = Qualifiers();
-    AV.LifetimeFlag = AV.RequiresGCollection = AV.IsZeroed =0;
+    AV.DestructedFlag = AV.ObjCGCFlag = AV.ZeroedFlag = AV.AliasedFlag = false;
     return AV;
   }
 
   /// forAddr - Make a slot for an aggregate value.
   ///
-  /// \param Volatile - true if the slot should be volatile-initialized
+  /// \param quals - The qualifiers that dictate how the slot should
+  /// be initialied. Only 'volatile' and the Objective-C lifetime
+  /// qualifiers matter.
   ///
-  /// \param Qualifiers - The qualifiers that dictate how the slot
-  /// should be initialied. Only 'volatile' and the Objective-C
-  /// lifetime qualifiers matter.
-  ///
-  /// \param LifetimeExternallyManaged - true if the slot's lifetime
-  ///   is being externally managed; false if a destructor should be
-  ///   registered for any temporaries evaluated into the slot
-  /// \param RequiresGCollection - true if the slot is located
+  /// \param isDestructed - true if something else is responsible
+  ///   for calling destructors on this object
+  /// \param needsGC - true if the slot is potentially located
   ///   somewhere that ObjC GC calls should be emitted for
-  static AggValueSlot forAddr(llvm::Value *Addr, Qualifiers Quals,
-                              bool LifetimeExternallyManaged,
-                              bool RequiresGCollection = false,
-                              bool IsZeroed = false) {
+  static AggValueSlot forAddr(llvm::Value *addr, Qualifiers quals,
+                              IsDestructed_t isDestructed,
+                              NeedsGCBarriers_t needsGC,
+                              IsAliased_t isAliased,
+                              IsZeroed_t isZeroed = IsNotZeroed) {
     AggValueSlot AV;
-    AV.Addr = Addr;
-    AV.Quals = Quals;
-    AV.LifetimeFlag = LifetimeExternallyManaged;
-    AV.RequiresGCollection = RequiresGCollection;
-    AV.IsZeroed = IsZeroed;
+    AV.Addr = addr;
+    AV.Quals = quals;
+    AV.DestructedFlag = isDestructed;
+    AV.ObjCGCFlag = needsGC;
+    AV.ZeroedFlag = isZeroed;
+    AV.AliasedFlag = isAliased;
     return AV;
   }
 
-  static AggValueSlot forLValue(LValue LV, bool LifetimeExternallyManaged,
-                                bool RequiresGCollection = false,
-                                bool IsZeroed = false) {
+  static AggValueSlot forLValue(LValue LV, IsDestructed_t isDestructed,
+                                NeedsGCBarriers_t needsGC,
+                                IsAliased_t isAliased,
+                                IsZeroed_t isZeroed = IsNotZeroed) {
     return forAddr(LV.getAddress(), LV.getQuals(),
-                   LifetimeExternallyManaged, RequiresGCollection, IsZeroed);
+                   isDestructed, needsGC, isAliased, isZeroed);
   }
 
-  bool isLifetimeExternallyManaged() const {
-    return LifetimeFlag;
+  IsDestructed_t isExternallyDestructed() const {
+    return IsDestructed_t(DestructedFlag);
   }
-  void setLifetimeExternallyManaged(bool Managed = true) {
-    LifetimeFlag = Managed;
+  void setExternallyDestructed(bool destructed = true) {
+    DestructedFlag = destructed;
   }
 
   Qualifiers getQualifiers() const { return Quals; }
@@ -408,8 +433,8 @@ public:
     return Quals.getObjCLifetime();
   }
 
-  bool requiresGCollection() const {
-    return RequiresGCollection;
+  NeedsGCBarriers_t requiresGCollection() const {
+    return NeedsGCBarriers_t(ObjCGCFlag);
   }
   
   llvm::Value *getAddr() const {
@@ -420,13 +445,17 @@ public:
     return Addr == 0;
   }
 
+  IsAliased_t isPotentiallyAliased() const {
+    return IsAliased_t(AliasedFlag);
+  }
+
   RValue asRValue() const {
     return RValue::getAggregate(getAddr(), isVolatile());
   }
   
-  void setZeroed(bool V = true) { IsZeroed = V; }
-  bool isZeroed() const {
-    return IsZeroed;
+  void setZeroed(bool V = true) { ZeroedFlag = V; }
+  IsZeroed_t isZeroed() const {
+    return IsZeroed_t(ZeroedFlag);
   }
 };
 

@@ -3,6 +3,11 @@
  * Copyright (c) 1991, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ * Portions of this software were developed by David Chisnall
+ * under sponsorship from the FreeBSD Foundation.
+ *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -48,25 +53,24 @@ __FBSDID("$FreeBSD$");
  * lconv structure are computed only when the monetary or numeric 
  * locale has been changed.
  */
-int __mlocale_changed = 1;
-int __nlocale_changed = 1;
 
 /*
  * Return the current locale conversion.
  */
 struct lconv *
-localeconv()
+localeconv_l(locale_t loc)
 {
-    static struct lconv ret;
+	FIX_LOCALE(loc);
+    struct lconv *ret = &loc->lconv;
 
-    if (__mlocale_changed) {
+    if (loc->monetary_locale_changed) {
 	/* LC_MONETARY part */
         struct lc_monetary_T * mptr; 
 
-#define M_ASSIGN_STR(NAME) (ret.NAME = (char*)mptr->NAME)
-#define M_ASSIGN_CHAR(NAME) (ret.NAME = mptr->NAME[0])
+#define M_ASSIGN_STR(NAME) (ret->NAME = (char*)mptr->NAME)
+#define M_ASSIGN_CHAR(NAME) (ret->NAME = mptr->NAME[0])
 
-	mptr = __get_current_monetary_locale();
+	mptr = __get_current_monetary_locale(loc);
 	M_ASSIGN_STR(int_curr_symbol);
 	M_ASSIGN_STR(currency_symbol);
 	M_ASSIGN_STR(mon_decimal_point);
@@ -88,21 +92,26 @@ localeconv()
 	M_ASSIGN_CHAR(int_n_sep_by_space);
 	M_ASSIGN_CHAR(int_p_sign_posn);
 	M_ASSIGN_CHAR(int_n_sign_posn);
-	__mlocale_changed = 0;
+	loc->monetary_locale_changed = 0;
     }
 
-    if (__nlocale_changed) {
+    if (loc->numeric_locale_changed) {
 	/* LC_NUMERIC part */
         struct lc_numeric_T * nptr; 
 
-#define N_ASSIGN_STR(NAME) (ret.NAME = (char*)nptr->NAME)
+#define N_ASSIGN_STR(NAME) (ret->NAME = (char*)nptr->NAME)
 
-	nptr = __get_current_numeric_locale();
+	nptr = __get_current_numeric_locale(loc);
 	N_ASSIGN_STR(decimal_point);
 	N_ASSIGN_STR(thousands_sep);
 	N_ASSIGN_STR(grouping);
-	__nlocale_changed = 0;
+	loc->numeric_locale_changed = 0;
     }
 
-    return (&ret);
+    return ret;
+}
+struct lconv *
+localeconv(void)
+{
+	return localeconv_l(__get_locale());
 }

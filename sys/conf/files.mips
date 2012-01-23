@@ -78,6 +78,7 @@ libkern/ffsl.c			standard
 libkern/fls.c			standard
 libkern/flsl.c			standard
 libkern/lshrdi3.c		standard
+libkern/memchr.c		optional	fdt
 libkern/memmove.c		standard
 libkern/moddi3.c		optional	isa_mips32
 libkern/qdivrem.c		optional	isa_mips32
@@ -108,3 +109,13 @@ dev/hwpmc/hwpmc_mips24k.c	optional hwpmc
 
 dev/rt/if_rt.c			optional 	rt
 dev/nvram2env/nvram2env.c	optional	nvram2env
+
+dev/ofw/openfirm.c		optional	fdt
+dev/ofw/openfirmio.c		optional	fdt
+dev/ofw/ofw_bus_if.m		optional	fdt
+dev/ofw/ofw_if.m		optional	fdt
+dev/ofw/ofw_bus_subr.c		optional	fdt
+dev/ofw/ofw_fdt.c		optional	fdt
+
+dev/fdt/fdt_mips.c		optional	fdt
+

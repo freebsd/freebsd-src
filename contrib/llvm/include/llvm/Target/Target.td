@@ -297,6 +297,10 @@ class Instruction {
   // from the opcode.
   int Size = 0;
 
+  // DecoderNamespace - The "namespace" in which this instruction exists, on
+  // targets like ARM which multiple ISA namespaces exist.
+  string DecoderNamespace = "";
+
   // Code size, for instruction selection.
   // FIXME: What does this actually mean?
   int CodeSize = 0;
@@ -324,6 +328,7 @@ class Instruction {
   bit isPredicable = 0;     // Is this instruction predicable?
   bit hasDelaySlot = 0;     // Does this instruction have an delay slot?
   bit usesCustomInserter = 0; // Pseudo instr needing special help.
+  bit hasPostISelHook = 0;  // To be *adjusted* after isel by target hook.
   bit hasCtrlDep   = 0;     // Does this instruction r/w ctrl-flow chains?
   bit isNotDuplicable = 0;  // Is it unsafe to duplicate this instruction?
   bit isAsCheapAsAMove = 0; // As cheap (or cheaper) than a move instruction.
@@ -581,7 +586,7 @@ class InstrInfo {
 // Standard Pseudo Instructions.
 // This list must match TargetOpcodes.h and CodeGenTarget.cpp.
 // Only these instructions are allowed in the TargetOpcode namespace.
-let isCodeGenOnly = 1, Namespace = "TargetOpcode" in {
+let isCodeGenOnly = 1, isPseudo = 1, Namespace = "TargetOpcode" in {
 def PHI : Instruction {
   let OutOperandList = (outs);
   let InOperandList = (ins variable_ops);

@@ -73,7 +73,7 @@ mtree_readspec(FILE *fi)
 			continue;
 
 		/* Find end of line. */
-		if ((p = index(buf, '\n')) == NULL)
+		if ((p = strchr(buf, '\n')) == NULL)
 			errx(1, "line %d too long", lineno);
 
 		/* See if next line is continuation line. */
@@ -118,7 +118,7 @@ mtree_readspec(FILE *fi)
 				continue;
 			}
 
-		if (index(p, '/'))
+		if (strchr(p, '/'))
 			errx(1, "line %d: slash character in file name",
 			lineno);
 

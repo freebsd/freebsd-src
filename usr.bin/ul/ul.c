@@ -66,8 +66,8 @@ static const char rcsid[] =
 #define	UNDERL	010	/* Ul */
 #define	BOLD	020	/* Bold */
 
-int	must_use_uc, must_overstrike;
-const char
+static int	must_use_uc, must_overstrike;
+static const char
 	*CURS_UP, *CURS_RIGHT, *CURS_LEFT,
 	*ENTER_STANDOUT, *EXIT_STANDOUT, *ENTER_UNDERLINE, *EXIT_UNDERLINE,
 	*ENTER_DIM, *ENTER_BOLD, *ENTER_REVERSE, *UNDER_CHAR, *EXIT_ATTRIBUTES;
@@ -78,25 +78,25 @@ struct	CHAR	{
 	int	c_width;	/* width or -1 if multi-column char. filler */
 } ;
 
-struct	CHAR	obuf[MAXBUF];
-int	col, maxcol;
-int	mode;
-int	halfpos;
-int	upln;
-int	iflag;
+static struct	CHAR	obuf[MAXBUF];
+static int	col, maxcol;
+static int	mode;
+static int	halfpos;
+static int	upln;
+static int	iflag;
 
 static void usage(void);
-void setnewmode(int);
-void initcap(void);
-void reverse(void);
-int outchar(int);
-void fwd(void);
-void initbuf(void);
-void iattr(void);
-void overstrike(void);
-void flushln(void);
-void filter(FILE *);
-void outc(wint_t, int);
+static void setnewmode(int);
+static void initcap(void);
+static void reverse(void);
+static int outchar(int);
+static void fwd(void);
+static void initbuf(void);
+static void iattr(void);
+static void overstrike(void);
+static void flushln(void);
+static void filter(FILE *);
+static void outc(wint_t, int);
 
 #define	PRINT(s)	if (s == NULL) /* void */; else tputs(s, 1, outchar)
 
@@ -165,7 +165,7 @@ usage(void)
 	exit(1);
 }
 
-void
+static void
 filter(FILE *f)
 {
 	wint_t c;
@@ -299,7 +299,7 @@ filter(FILE *f)
 		flushln();
 }
 
-void
+static void
 flushln(void)
 {
 	int lastmode;
@@ -341,7 +341,7 @@ flushln(void)
  * For terminals that can overstrike, overstrike underlines and bolds.
  * We don't do anything with halfline ups and downs, or Greek.
  */
-void
+static void
 overstrike(void)
 {
 	int i;
@@ -381,7 +381,7 @@ overstrike(void)
 	}
 }
 
-void
+static void
 iattr(void)
 {
 	int i;
@@ -405,7 +405,7 @@ iattr(void)
 	putwchar('\n');
 }
 
-void
+static void
 initbuf(void)
 {
 
@@ -415,7 +415,7 @@ initbuf(void)
 	mode &= ALTSET;
 }
 
-void
+static void
 fwd(void)
 {
 	int oldcol, oldmax;
@@ -427,7 +427,7 @@ fwd(void)
 	maxcol = oldmax;
 }
 
-void
+static void
 reverse(void)
 {
 	upln++;
@@ -437,7 +437,7 @@ reverse(void)
 	upln++;
 }
 
-void
+static void
 initcap(void)
 {
 	static char tcapbuf[512];
@@ -490,7 +490,7 @@ initcap(void)
 	must_use_uc = (UNDER_CHAR && !ENTER_UNDERLINE);
 }
 
-int
+static int
 outchar(int c)
 {
 	return (putwchar(c) != WEOF ? c : EOF);
@@ -498,7 +498,7 @@ outchar(int c)
 
 static int curmode = 0;
 
-void
+static void
 outc(wint_t c, int width)
 {
 	int i;
@@ -512,7 +512,7 @@ outc(wint_t c, int width)
 	}
 }
 
-void
+static void
 setnewmode(int newmode)
 {
 	if (!iflag) {

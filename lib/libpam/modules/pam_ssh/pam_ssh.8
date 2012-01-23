@@ -1,6 +1,6 @@
 .\" Copyright (c) 2001 Mark R V Murray
-.\" All rights reserved.
 .\" Copyright (c) 2001-2003 Networks Associates Technology, Inc.
+.\" Copyright (c) 2004-2011 Dag-Erling Smørgrav
 .\" All rights reserved.
 .\"
 .\" This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2001
+.Dd October 7, 2011
 .Dt PAM_SSH 8
 .Os
 .Sh NAME
@@ -135,6 +135,8 @@ SSH1 RSA key
 SSH2 RSA key
 .It Pa $HOME/.ssh/id_dsa
 SSH2 DSA key
+.It Pa $HOME/.ssh/id_ecdsa
+SSH2 ECDSA key
 .El
 .Sh SEE ALSO
 .Xr ssh-agent 1 ,

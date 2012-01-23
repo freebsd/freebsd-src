@@ -150,8 +150,8 @@
 #define	PTRDIFF_MAX	INT64_MAX
 
 /* Limits of sig_atomic_t. */
-#define	SIG_ATOMIC_MIN	INT32_MIN
-#define	SIG_ATOMIC_MAX	INT32_MAX
+#define	SIG_ATOMIC_MIN	LONG_MIN
+#define	SIG_ATOMIC_MAX	LONG_MAX
 
 /* Limit of size_t. */
 #define	SIZE_MAX	UINT64_MAX

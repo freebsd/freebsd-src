@@ -13,8 +13,8 @@
 
 #include "CodeGenInstruction.h"
 #include "CodeGenTarget.h"
-#include "Error.h"
-#include "Record.h"
+#include "llvm/TableGen/Error.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/STLExtras.h"
@@ -267,8 +267,9 @@ static void ParseConstraints(const std::string &CStr, CGIOperandList &Ops) {
 
 void CGIOperandList::ProcessDisableEncoding(std::string DisableEncoding) {
   while (1) {
-    std::string OpName;
-    tie(OpName, DisableEncoding) = getToken(DisableEncoding, " ,\t");
+    std::pair<StringRef, StringRef> P = getToken(DisableEncoding, " ,\t");
+    std::string OpName = P.first;
+    DisableEncoding = P.second;
     if (OpName.empty()) break;
 
     // Figure out which operand this is.
@@ -308,6 +309,7 @@ CodeGenInstruction::CodeGenInstruction(Record *R) : TheDef(R), Operands(R) {
   isReMaterializable = R->getValueAsBit("isReMaterializable");
   hasDelaySlot = R->getValueAsBit("hasDelaySlot");
   usesCustomInserter = R->getValueAsBit("usesCustomInserter");
+  hasPostISelHook = R->getValueAsBit("hasPostISelHook");
   hasCtrlDep   = R->getValueAsBit("hasCtrlDep");
   isNotDuplicable = R->getValueAsBit("isNotDuplicable");
   hasSideEffects = R->getValueAsBit("hasSideEffects");
@@ -423,6 +425,13 @@ bool CodeGenInstAlias::tryAliasOpMatch(DagInit *Result, unsigned AliasOpNo,
 
   // Handle explicit registers.
   if (ADI && ADI->getDef()->isSubClassOf("Register")) {
+    if (InstOpRec->isSubClassOf("OptionalDefOperand")) {
+      DagInit *DI = InstOpRec->getValueAsDag("MIOperandInfo");
+      // The operand info should only have a single (register) entry. We
+      // want the register class of it.
+      InstOpRec = dynamic_cast<DefInit*>(DI->getArg(0))->getDef();
+    }
+
     if (InstOpRec->isSubClassOf("RegisterOperand"))
       InstOpRec = InstOpRec->getValueAsDef("RegClass");
 
@@ -431,8 +440,8 @@ bool CodeGenInstAlias::tryAliasOpMatch(DagInit *Result, unsigned AliasOpNo,
 
     if (!T.getRegisterClass(InstOpRec)
         .contains(T.getRegBank().getReg(ADI->getDef())))
-      throw TGError(Loc, "fixed register " +ADI->getDef()->getName()
-                    + " is not a member of the " + InstOpRec->getName() +
+      throw TGError(Loc, "fixed register " + ADI->getDef()->getName() +
+                    " is not a member of the " + InstOpRec->getName() +
                     " register class!");
 
     if (!Result->getArgName(AliasOpNo).empty())

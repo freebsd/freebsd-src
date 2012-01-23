@@ -289,6 +289,13 @@ rip_input(struct mbuf *m, int off)
 	last = NULL;
 
 	ifp = m->m_pkthdr.rcvif;
+	/*
+	 * Add back the IP header length which was
+	 * removed by ip_input().  Raw sockets do
+	 * not modify the packet except for some
+	 * byte order swaps.
+	 */
+	ip->ip_len += off;
 
 	hash = INP_PCBHASH_RAW(proto, ip->ip_src.s_addr,
 	    ip->ip_dst.s_addr, V_ripcbinfo.ipi_hashmask);
@@ -537,6 +544,8 @@ rip_output(struct mbuf *m, struct socket *so, u_long dst)
  *
  * When adding new socket options here, make sure to add access control
  * checks here as necessary.
+ *
+ * XXX-BZ inp locking?
  */
 int
 rip_ctloutput(struct socket *so, struct sockopt *sopt)

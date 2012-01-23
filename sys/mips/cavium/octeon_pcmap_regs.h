@@ -297,4 +297,9 @@ extern int octeon_is_simulation(void);
  */
 #define  OCTEON_CHAR_LED_BASE_ADDR	(0x1d020000 | (0x1ffffffffull << 31))
 
+/*
+ * Default FLASH device (physical) base address
+ */
+#define  OCTEON_FLASH_BASE_ADDR		(0x1d040000ull)
+
 #endif /* !OCTEON_PCMAP_REGS_H__ */

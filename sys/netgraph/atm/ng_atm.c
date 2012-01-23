@@ -75,7 +75,8 @@ extern void	(*ng_atm_event_p)(struct ifnet *, uint32_t, void *);
 /*
  * Sysctl stuff.
  */
-SYSCTL_NODE(_net_graph, OID_AUTO, atm, CTLFLAG_RW, 0, "atm related stuff");
+static SYSCTL_NODE(_net_graph, OID_AUTO, atm, CTLFLAG_RW, 0,
+    "atm related stuff");
 
 #ifdef NGATM_DEBUG
 static int allow_shutdown;

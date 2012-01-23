@@ -67,7 +67,6 @@ uint64_t nlm_cms_spill_total_messages = 1 * 1024;
 * For all 4 nodes, there are 18*4 = 72 FMN stations
 */
 uint32_t nlm_cms_total_stations = 18 * 4 /*xlp_num_nodes*/;
-uint32_t cms_onchip_seg_availability[CMS_ON_CHIP_PER_QUEUE_SPACE];
 
 /**
  * Takes inputs as node, queue_size and maximum number of queues.
@@ -146,114 +145,6 @@ void nlm_cms_setup_credits(uint64_t base, int destid, int srcid, int credit)
 
 }
 
-int nlm_cms_config_onchip_queue (uint64_t base, uint64_t spill_base,
-					int qid, int spill_en)
-{
-
-	/* Configure 32 as onchip queue depth */
-	nlm_cms_alloc_onchip_q(base, qid, 1);
-
-	/* Spill configuration */
-	if (spill_en) {
-		/* Configure 4*4KB = 16K as spill size */
-		nlm_cms_alloc_spill_q(base, qid, spill_base, 4);
-	}
-
-#if 0
-	/* configure credits for src cpu0, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU0_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu1, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU1_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu2, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU2_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu3, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU3_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu4, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU4_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu5, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU5_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu6, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU6_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cpu7, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CPU7_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src pcie0, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_PCIE0_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src pcie1, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_PCIE1_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src pcie2, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_PCIE2_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src pcie3, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_PCIE3_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src dte, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_DTE_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src rsa_ecc, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_RSA_ECC_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src crypto, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CRYPTO_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src cmp, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_CMP_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src poe, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_POE_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-
-	/* configure credits for src nae, on this queue */
-	nlm_cms_setup_credits(base, qid, CMS_NAE_SRC_STID,
-		CMS_DEFAULT_CREDIT(nlm_cms_total_stations,
-			nlm_cms_spill_total_messages));
-#endif
-
-	return 0;
-}
-
 /*
  * base		- CMS module base address for this node.
  * qid		- is the output queue id otherwise called as vc id
@@ -268,7 +159,7 @@ int nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base,
 	uint64_t queue_config;
 	uint32_t spill_start;
 
-	if(nsegs > CMS_MAX_SPILL_SEGMENTS_PER_QUEUE) {
+	if (nsegs > CMS_MAX_SPILL_SEGMENTS_PER_QUEUE) {
 		return 1;
 	}
 
@@ -284,152 +175,6 @@ int nlm_cms_alloc_spill_q(uint64_t base, int qid, uint64_t spill_base,
 	nlm_write_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)),queue_config);
 
 	return 0;
-}
-
-/*
- * base		- CMS module base address for this node.
- * qid		- is the output queue id otherwise called as vc id
- * nsegs	- No of segments where a "1" indicates 32 credits. On chip
- *                credits must be a multiple of 32.
- */
-int nlm_cms_alloc_onchip_q(uint64_t base, int qid, int nsegs)
-{
-	static uint32_t curr_end = 0;
-	uint64_t queue_config;
-	int onchipbase, start, last;
-	uint8_t i;
-
-        if( ((curr_end + nsegs) > CMS_MAX_ONCHIP_SEGMENTS) ||
-		(nsegs > CMS_ON_CHIP_PER_QUEUE_SPACE) ) {
-		/* Invalid configuration */
-                return 1;
-        }
-        if(((curr_end % 32) + nsegs - 1) <= 31) {
-                onchipbase = (curr_end / 32);
-                start  = (curr_end % 32);
-                curr_end += nsegs;
-        } else {
-                onchipbase = (curr_end / 32) + 1;
-                start  = 0;
-                curr_end = ((onchipbase * 32) + nsegs);
-        }
-        last   = start + nsegs - 1;
-
-	for(i = start;i <= last;i++) {
-		if(cms_onchip_seg_availability[onchipbase] & (1 << i)) {
-			/* Conflict!!! segment is already allocated */
-			return 1;
-		}
-	}
-	/* Update the availability bitmap as consumed */
-	for(i = start; i <= last; i++) {
-		cms_onchip_seg_availability[onchipbase] |= (1 << i);
-	}
-
-	queue_config = nlm_read_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)));
-
-	/* On chip configuration */
-	queue_config = (((uint64_t)CMS_QUEUE_ENA << 63) |
-			((onchipbase & 0x1f) << 10) |
-			((last & 0x1f) << 5) |
-			(start & 0x1f));
-
-	nlm_write_cms_reg(base,(CMS_OUTPUTQ_CONFIG(qid)),queue_config);
-
-	return 0;
-}
-
-void nlm_cms_default_setup(int node, uint64_t spill_base, int spill_en,
-				int popq_en)
-{
-	int j, k, vc;
-	int queue;
-	uint64_t base;
-
-	base = nlm_get_cms_regbase(node);
-	for(j=0; j<1024; j++) {
-		printf("Qid:0x%04d Val:0x%016jx\n",j, 
-		    (uintmax_t)nlm_cms_get_onchip_queue (base, j));
-	}
-	/* Enable all cpu push queues */
-	for (j=0; j<XLP_MAX_CORES; j++)
-		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
-		/* TODO : remove this once SMP works */
-		if( (j == 0) && (k == 0) )
-			continue;
-		queue = CMS_CPU_PUSHQ(node, j, k, vc);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable pcie 0 push queue */
-	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable pcie 1 push queue */
-	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable pcie 2 push queue */
-	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable pcie 3 push queue */
-	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable DTE push queue */
-	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable RSA/ECC push queue */
-	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable crypto push queue */
-	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable CMP push queue */
-	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable POE push queue */
-	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable NAE push queue */
-	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_config_onchip_queue(base, spill_base, queue, spill_en);
-	}
-
-	/* Enable all pop queues */
-	if (popq_en) {
-		for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
-			queue = CMS_POPQ(node, j);
-			nlm_cms_config_onchip_queue(base, spill_base, queue,
-							spill_en);
-		}
-	}
 }
 
 uint64_t nlm_cms_get_onchip_queue (uint64_t base, int qid)
@@ -453,92 +198,12 @@ void nlm_cms_per_queue_level_intr(uint64_t base, int qid, int sub_type,
 
 	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 
+	val &= ~((0x7ULL << 56) | (0x3ULL << 54));
+
 	val |= (((uint64_t)sub_type<<54) |
 		((uint64_t)intr_val<<56));
 
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
-}
-
-void nlm_cms_level_intr(int node, int sub_type, int intr_val)
-{
-	int j, k, vc;
-	int queue;
-	uint64_t base;
-
-	base = nlm_get_cms_regbase(node);
-	/* setup level intr config on all cpu push queues */
-	for (j=0; j<XLP_MAX_CORES; j++)
-		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
-		queue = CMS_CPU_PUSHQ(node, j, k, vc);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all pcie 0 push queue */
-	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all pcie 1 push queue */
-	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all pcie 2 push queue */
-	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all pcie 3 push queue */
-	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all DTE push queue */
-	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all RSA/ECC push queue */
-	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all crypto push queue */
-	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all CMP push queue */
-	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all POE push queue */
-	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all NAE push queue */
-	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup level intr config on all pop queues */
-	for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
-		queue = CMS_POPQ(node, j);
-		nlm_cms_per_queue_level_intr(base, queue, sub_type, intr_val);
-	}
 }
 
 void nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type,
@@ -548,92 +213,12 @@ void nlm_cms_per_queue_timer_intr(uint64_t base, int qid, int sub_type,
 
 	val = nlm_read_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid));
 
+	val &= ~((0x7ULL << 51) | (0x3ULL << 49));
+
 	val |= (((uint64_t)sub_type<<49) |
 		((uint64_t)intr_val<<51));
 
 	nlm_write_cms_reg(base, CMS_OUTPUTQ_CONFIG(qid), val);
-}
-
-void nlm_cms_timer_intr(int node, int en, int sub_type, int intr_val)
-{
-	int j, k, vc;
-	int queue;
-	uint64_t base;
-
-	base = nlm_get_cms_regbase(node);
-	/* setup timer intr config on all cpu push queues */
-	for (j=0; j<XLP_MAX_CORES; j++)
-		for (k=0; k<XLP_MAX_THREADS; k++)
-			for (vc=0; vc<CMS_MAX_VCPU_VC; vc++) {
-		queue = CMS_CPU_PUSHQ(node, j, k, vc);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all pcie 0 push queue */
-	for (j=CMS_PCIE0_QID(0); j<CMS_PCIE0_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all pcie 1 push queue */
-	for (j=CMS_PCIE1_QID(0); j<CMS_PCIE1_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all pcie 2 push queue */
-	for (j=CMS_PCIE2_QID(0); j<CMS_PCIE2_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all pcie 3 push queue */
-	for (j=CMS_PCIE3_QID(0); j<CMS_PCIE3_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all DTE push queue */
-	for (j=CMS_DTE_QID(0); j<CMS_DTE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all RSA/ECC push queue */
-	for (j=CMS_RSA_ECC_QID(0); j<CMS_RSA_ECC_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all crypto push queue */
-	for (j=CMS_CRYPTO_QID(0); j<CMS_CRYPTO_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all CMP push queue */
-	for (j=CMS_CMP_QID(0); j<CMS_CMP_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all POE push queue */
-	for (j=CMS_POE_QID(0); j<CMS_POE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all NAE push queue */
-	for (j=CMS_NAE_QID(0); j<CMS_NAE_MAXQID; j++) {
-		queue = CMS_IO_PUSHQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
-
-	/* setup timer intr config on all pop queues */
-	for (j=CMS_POPQ_QID(0); j<CMS_POPQ_MAXQID; j++) {
-		queue = CMS_POPQ(node, j);
-		nlm_cms_per_queue_timer_intr(base, queue, sub_type, intr_val);
-	}
 }
 
 /* returns 1 if interrupt has been generated for this output queue */

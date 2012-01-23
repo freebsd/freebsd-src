@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, cardbus, CTLFLAG_RD, 0, "CardBus parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cardbus, CTLFLAG_RD, 0, "CardBus parameters");
 
 int    cardbus_debug = 0;
 TUNABLE_INT("hw.cardbus.debug", &cardbus_debug);

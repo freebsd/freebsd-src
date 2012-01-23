@@ -68,7 +68,7 @@ __FBSDID("$FreeBSD$");
  *****************************************************************************/
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, pcic, CTLFLAG_RD, 0, "PCIC parameters");
 
 static int isa_intr_mask = EXCA_INT_MASK_ALLOWED;
 TUNABLE_INT("hw.cbb.intr_mask", &isa_intr_mask);
@@ -211,7 +211,6 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(device_resume,		cbb_resume),
 
 	/* bus methods */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		cbb_read_ivar),
 	DEVMETHOD(bus_write_ivar,		cbb_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		cbb_alloc_resource),
@@ -232,7 +231,7 @@ static device_method_t cbb_methods[] = {
 	DEVMETHOD(power_enable_socket,		cbb_power_enable_socket),
 	DEVMETHOD(power_disable_socket,		cbb_power_disable_socket),
 
-	{0,0}
+	DEVMETHOD_END
 };
 
 static driver_t cbb_isa_driver = {

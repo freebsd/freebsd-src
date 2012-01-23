@@ -97,7 +97,7 @@ static struct radix_node *rn_match(void *v_arg, struct radix_node_head *head);
  * node as high in the tree as we can go.
  *
  * The present version of the code makes use of normal routes in short-
- * circuiting an explict mask and compare operation when testing whether
+ * circuiting an explicit mask and compare operation when testing whether
  * a key satisfies a normal route, and also in remembering the unique leaf
  * that governs a subtree.
  */
@@ -247,7 +247,7 @@ rn_match(void *v_arg,
 	 *
 	 * In this case, we have a complete match of the key.  Unless
 	 * the node is one of the roots, we are finished.
-	 * If it is the zeros root, then take what we have, prefering
+	 * If it is the zeros root, then take what we have, preferring
 	 * any real data.
 	 * If it is the ones root, then pretend the target key was followed
 	 * by a byte of zeros.

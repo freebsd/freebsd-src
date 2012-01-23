@@ -353,7 +353,7 @@ static int
 cbcp_AdjustResponse(struct cbcp *cbcp, struct cbcp_data *data)
 {
   /*
-   * We've received a REQ (data).  Adjust our reponse (cbcp->fsm.*)
+   * We've received a REQ (data).  Adjust our response (cbcp->fsm.*)
    * so that we (hopefully) agree with the peer
    */
   struct cbcp_addr *addr;

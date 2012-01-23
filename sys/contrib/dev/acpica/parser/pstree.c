@@ -5,7 +5,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -85,7 +85,12 @@ AcpiPsGetArg (
 
     ACPI_FUNCTION_ENTRY ();
 
-
+/*
+    if (Op->Common.AmlOpcode == AML_INT_CONNECTION_OP)
+    {
+        return (Op->Common.Value.Arg);
+    }
+*/
     /* Get the info structure for this opcode */
 
     OpInfo = AcpiPsGetOpcodeInfo (Op->Common.AmlOpcode);

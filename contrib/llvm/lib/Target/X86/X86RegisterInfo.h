@@ -24,22 +24,6 @@ namespace llvm {
   class TargetInstrInfo;
   class X86TargetMachine;
 
-/// N86 namespace - Native X86 register numbers
-///
-namespace N86 {
-  enum {
-    EAX = 0, ECX = 1, EDX = 2, EBX = 3, ESP = 4, EBP = 5, ESI = 6, EDI = 7
-  };
-}
-
-/// DWARFFlavour - Flavour of dwarf regnumbers
-///
-namespace DWARFFlavour {
-  enum {
-    X86_64 = 0, X86_32_DarwinEH = 1, X86_32_Generic = 2
-  };
-} 
-  
 class X86RegisterInfo : public X86GenRegisterInfo {
 public:
   X86TargetMachine &TM;
@@ -73,11 +57,6 @@ public:
   /// register identifier.
   static unsigned getX86RegNum(unsigned RegNo);
 
-  /// getDwarfRegNum - allows modification of X86GenRegisterInfo::getDwarfRegNum
-  /// (created by TableGen) for target dependencies.
-  int getDwarfRegNum(unsigned RegNum, bool isEH) const;
-  int getLLVMRegNum(unsigned RegNum, bool isEH) const;
-
   // FIXME: This should be tablegen'd like getDwarfRegNum is
   int getSEHRegNum(unsigned i) const;
 
@@ -94,6 +73,9 @@ public:
   virtual const TargetRegisterClass *
   getMatchingSuperRegClass(const TargetRegisterClass *A,
                            const TargetRegisterClass *B, unsigned Idx) const;
+
+  virtual const TargetRegisterClass *
+  getSubClassWithSubReg(const TargetRegisterClass *RC, unsigned Idx) const;
 
   const TargetRegisterClass*
   getLargestLegalSuperClass(const TargetRegisterClass *RC) const;
@@ -136,7 +118,6 @@ public:
                            int SPAdj, RegScavenger *RS = NULL) const;
 
   // Debug information queries.
-  unsigned getRARegister() const;
   unsigned getFrameRegister(const MachineFunction &MF) const;
   unsigned getStackRegister() const { return StackPtr; }
   // FIXME: Move to FrameInfok

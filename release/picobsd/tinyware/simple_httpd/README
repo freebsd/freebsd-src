@@ -21,14 +21,14 @@ of html,gif,cgi whatever.  Your traditional www server.
 
 The "fetch" mode supports file transfer over httpd.  This 
 is best thought of as mate for fetch(1).  This feature can be
-usefull to transfer a file from one host to another.
+useful to transfer a file from one host to another.
 
 Simple_httpd has the ability to run CGI scripts.  All CGI
 scripts must be located in ${DOCUMENT_ROOT}/cgi-bin.  The
-server currently only sets 3 enviroment variables before calling
+server currently only sets 3 environment variables before calling
 the script.
 
-CGI Enviroment variables are below:
+CGI Environment variables are below:
 
 SERVER_SOFTWARE = FreeBSD/PicoBSD
 REMOTE_HOST = client.canada_lower_taxes.com
@@ -61,7 +61,7 @@ daemonize without fear of output on stdout.
 
 -D
 Do not daemonize.  The server will not run in the background.  It will
-stay attached to the tty.  This is usefull for debugging.  In this
+stay attached to the tty.  This is useful for debugging.  In this
 mode no log file is created.  Logging info is to stdout.
 
 This option is automatically selected if fetch option is selected.
@@ -139,7 +139,7 @@ receiver# fetch http://sender.com:53/Industrial_Secrets.tgz
 To Do
 =====
 
-Simple authentication would be very usefull[understatment].
+Simple authentication would be very useful [understatment].
 /etc/passwd or PAM would be nice.
 
 I think a netmask option would be good. Most internet appliances

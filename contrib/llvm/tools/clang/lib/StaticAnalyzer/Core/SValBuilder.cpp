@@ -15,7 +15,7 @@
 #include "clang/StaticAnalyzer/Core/PathSensitive/MemRegion.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SVals.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/SValBuilder.h"
-#include "clang/StaticAnalyzer/Core/PathSensitive/GRState.h"
+#include "clang/StaticAnalyzer/Core/PathSensitive/ProgramState.h"
 #include "clang/StaticAnalyzer/Core/PathSensitive/BasicValueFactory.h"
 
 using namespace clang;
@@ -70,7 +70,7 @@ SVal SValBuilder::convertToArrayIndex(SVal val) {
 }
 
 DefinedOrUnknownSVal 
-SValBuilder::getRegionValueSymbolVal(const TypedRegion* region) {
+SValBuilder::getRegionValueSymbolVal(const TypedValueRegion* region) {
   QualType T = region->getValueType();
 
   if (!SymbolManager::canSymbolicate(T))
@@ -133,7 +133,7 @@ DefinedSVal SValBuilder::getMetadataSymbolVal(const void *symbolTag,
 
 DefinedOrUnknownSVal
 SValBuilder::getDerivedRegionValueSymbolVal(SymbolRef parentSymbol,
-                                             const TypedRegion *region) {
+                                             const TypedValueRegion *region) {
   QualType T = region->getValueType();
 
   if (!SymbolManager::canSymbolicate(T))
@@ -147,7 +147,7 @@ SValBuilder::getDerivedRegionValueSymbolVal(SymbolRef parentSymbol,
   return nonloc::SymbolVal(sym);
 }
 
-DefinedSVal SValBuilder::getFunctionPointer(const FunctionDecl* func) {
+DefinedSVal SValBuilder::getFunctionPointer(const FunctionDecl *func) {
   return loc::MemRegionVal(MemMgr.getFunctionTextRegion(func));
 }
 
@@ -162,7 +162,7 @@ DefinedSVal SValBuilder::getBlockPointer(const BlockDecl *block,
 
 //===----------------------------------------------------------------------===//
 
-SVal SValBuilder::evalBinOp(const GRState *state, BinaryOperator::Opcode op,
+SVal SValBuilder::evalBinOp(const ProgramState *state, BinaryOperator::Opcode op,
                             SVal lhs, SVal rhs, QualType type) {
 
   if (lhs.isUndef() || rhs.isUndef())
@@ -190,7 +190,7 @@ SVal SValBuilder::evalBinOp(const GRState *state, BinaryOperator::Opcode op,
   return evalBinOpNN(state, op, cast<NonLoc>(lhs), cast<NonLoc>(rhs), type);
 }
 
-DefinedOrUnknownSVal SValBuilder::evalEQ(const GRState *state,
+DefinedOrUnknownSVal SValBuilder::evalEQ(const ProgramState *state,
                                          DefinedOrUnknownSVal lhs,
                                          DefinedOrUnknownSVal rhs) {
   return cast<DefinedOrUnknownSVal>(evalBinOp(state, BO_EQ, lhs, rhs,
@@ -213,8 +213,13 @@ SVal SValBuilder::evalCast(SVal val, QualType castTy, QualType originalTy) {
     return UnknownVal();
   
   // Check for casts from integers to integers.
-  if (castTy->isIntegerType() && originalTy->isIntegerType())
-    return evalCastFromNonLoc(cast<NonLoc>(val), castTy);
+  if (castTy->isIntegerType() && originalTy->isIntegerType()) {
+    if (isa<Loc>(val))
+      // This can be a cast to ObjC property of type int.
+      return evalCastFromLoc(cast<Loc>(val), castTy);
+    else
+      return evalCastFromNonLoc(cast<NonLoc>(val), castTy);
+  }
 
   // Check for casts from pointers to integers.
   if (castTy->isIntegerType() && Loc::isLocType(originalTy))

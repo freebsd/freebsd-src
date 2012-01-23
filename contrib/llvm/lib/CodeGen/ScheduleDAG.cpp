@@ -26,7 +26,7 @@
 using namespace llvm;
 
 #ifndef NDEBUG
-cl::opt<bool> StressSchedOpt(
+static cl::opt<bool> StressSchedOpt(
   "stress-sched", cl::Hidden, cl::init(false),
   cl::desc("Stress test instruction scheduling"));
 #endif
@@ -140,6 +140,7 @@ void SUnit::removePred(const SDep &D) {
           break;
         }
       assert(FoundSucc && "Mismatching preds / succs lists!");
+      (void)FoundSucc;
       Preds.erase(I);
       // Update the bookkeeping.
       if (P.getKind() == SDep::Data) {

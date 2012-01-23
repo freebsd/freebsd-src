@@ -98,8 +98,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/unwind.h>
 #include <machine/vmparam.h>
 
-SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
-SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_hw, OID_AUTO, freq, CTLFLAG_RD, 0, "");
+static SYSCTL_NODE(_machdep, OID_AUTO, cpu, CTLFLAG_RD, 0, "");
 
 static u_int bus_freq;
 SYSCTL_UINT(_hw_freq, OID_AUTO, bus, CTLFLAG_RD, &bus_freq, 0,

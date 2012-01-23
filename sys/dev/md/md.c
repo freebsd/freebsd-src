@@ -105,9 +105,11 @@ static MALLOC_DEFINE(M_MD, "md_disk", "Memory Disk");
 static MALLOC_DEFINE(M_MDSECT, "md_sectors", "Memory Disk Sectors");
 
 static int md_debug;
-SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0, "");
+SYSCTL_INT(_debug, OID_AUTO, mddebug, CTLFLAG_RW, &md_debug, 0,
+    "Enable md(4) debug messages");
 static int md_malloc_wait;
-SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0, "");
+SYSCTL_INT(_vm, OID_AUTO, md_malloc_wait, CTLFLAG_RW, &md_malloc_wait, 0,
+    "Allow malloc to wait for memory allocations");
 
 #if defined(MD_ROOT) && defined(MD_ROOT_SIZE)
 /*
@@ -1370,6 +1372,11 @@ g_md_dumpconf(struct sbuf *sb, const char *indent, struct g_geom *gp,
 			    indent, (uintmax_t) mp->fwsectors);
 			sbuf_printf(sb, "%s<length>%ju</length>\n",
 			    indent, (uintmax_t) mp->mediasize);
+			sbuf_printf(sb, "%s<compression>%s</compression>\n", indent,
+			    (mp->flags & MD_COMPRESS) == 0 ? "off": "on");
+			sbuf_printf(sb, "%s<access>%s</access>\n", indent,
+			    (mp->flags & MD_READONLY) == 0 ? "read-write":
+			    "read-only");
 			sbuf_printf(sb, "%s<type>%s</type>\n", indent,
 			    type);
 			if (mp->type == MD_VNODE && mp->vnode != NULL)

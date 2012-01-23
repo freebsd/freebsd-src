@@ -137,16 +137,12 @@ static device_method_t bfe_methods[] = {
 	DEVMETHOD(device_suspend,	bfe_suspend),
 	DEVMETHOD(device_resume,	bfe_resume),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	bfe_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	bfe_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	bfe_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bfe_driver = {
@@ -493,7 +489,6 @@ bfe_attach(device_t dev)
 	ifp->if_ioctl = bfe_ioctl;
 	ifp->if_start = bfe_start;
 	ifp->if_init = bfe_init;
-	ifp->if_mtu = ETHERMTU;
 	IFQ_SET_MAXLEN(&ifp->if_snd, BFE_TX_QLEN);
 	ifp->if_snd.ifq_drv_maxlen = BFE_TX_QLEN;
 	IFQ_SET_READY(&ifp->if_snd);

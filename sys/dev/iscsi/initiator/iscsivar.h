@@ -64,7 +64,6 @@ typedef uint32_t digest_t(const void *, int len, uint32_t ocrc);
 
 MALLOC_DECLARE(M_ISCSI);
 MALLOC_DECLARE(M_ISCSIBUF);
-MALLOC_DECLARE(M_PDU);
 
 #define ISOK2DIG(dig, pp)	((dig != NULL) && ((pp->ipdu.bhs.opcode & 0x1f) != ISCSI_LOGIN_CMD))
 

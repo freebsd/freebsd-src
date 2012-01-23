@@ -38,6 +38,39 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
+# 20111214: eventtimers(7) moved to eventtimers(4)
+OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
+# 20111125: amd(4) removed
+OLD_FILES+=usr/share/man/man4/amd.4.gz
+# 20111125: libodialog removed
+OLD_FILES+=usr/lib/libodialog.a
+OLD_FILES+=usr/lib/libodialog.so
+OLD_LIBS+=usr/lib/libodialog.so.7
+OLD_FILES+=usr/lib/libodialog_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libodialog.a
+OLD_FILES+=usr/lib32/libodialog.so
+OLD_LIBS+=usr/lib32/libodialog.so.7
+OLD_FILES+=usr/lib32/libodialog_p.a
+.endif
+# 20110930: sysinstall removed
+OLD_FILES+=usr/sbin/sysinstall
+OLD_FILES+=usr/share/man/man8/sysinstall.8.gz
+OLD_FILES+=usr/lib/libftpio.a
+OLD_FILES+=usr/lib/libftpio.so
+OLD_LIBS+=usr/lib/libftpio.so.8
+OLD_FILES+=usr/lib/libftpio_p.a
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_FILES+=usr/lib32/libftpio.a
+OLD_FILES+=usr/lib32/libftpio.so
+OLD_LIBS+=usr/lib32/libftpio.so.8
+OLD_FILES+=usr/lib32/libftpio_p.a
+.endif
+OLD_FILES+=usr/include/ftpio.h
+OLD_FILES+=usr/share/man/man3/ftpio.3.gz
 # 20110915: rename congestion control manpages
 OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz
@@ -54,7 +87,7 @@ OLD_LIBS+=usr/lib/libdwarf.so.2
 OLD_LIBS+=usr/lib/libopie.so.6
 OLD_LIBS+=usr/lib/librtld_db.so.1
 OLD_LIBS+=usr/lib/libtacplus.so.4
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libcam.so.5
 OLD_LIBS+=usr/lib32/libpcap.so.7
 OLD_LIBS+=usr/lib32/libufs.so.5
@@ -64,11 +97,22 @@ OLD_LIBS+=usr/lib32/libopie.so.6
 OLD_LIBS+=usr/lib32/librtld_db.so.1
 OLD_LIBS+=usr/lib32/libtacplus.so.4
 .endif
+# 20110817: no more acd.4, ad.4, afd.4 and ast.4
+OLD_FILES+=usr/share/man/man4/acd.4.gz
+OLD_FILES+=usr/share/man/man4/ad.4.gz
+OLD_FILES+=usr/share/man/man4/afd.4.gz
+OLD_FILES+=usr/share/man/man4/ast.4.gz
 # 20110718: no longer useful in the age of rc.d
 OLD_FILES+=usr/sbin/named.reconfig
 OLD_FILES+=usr/sbin/named.reload
+OLD_FILES+=usr/share/man/man8/named.reconfig.8.gz
+OLD_FILES+=usr/share/man/man8/named.reload.8.gz
 # 20110716: bind 9.8.0 import
 OLD_LIBS+=usr/lib/liblwres.so.50
+OLD_FILES+=usr/share/doc/bind9/KNOWN-DEFECTS
+OLD_FILES+=usr/share/doc/bind9/NSEC3-NOTES
+OLD_FILES+=usr/share/doc/bind9/README.idnkit
+OLD_FILES+=usr/share/doc/bind9/README.pkcs11
 # 20110709: vm_map_clean.9 -> vm_map_sync.9
 OLD_FILES+=usr/share/man/man9/vm_map_clean.9.gz
 # 20110709: Catch up with removal of these functions.
@@ -92,7 +136,7 @@ OLD_FILES+=usr/lib/libpkg.a
 OLD_FILES+=usr/lib/libpkg.so
 OLD_LIBS+=usr/lib/libpkg.so.0
 OLD_FILES+=usr/lib/libpkg_p.a
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libpkg.a
 OLD_FILES+=usr/lib32/libpkg.so
 OLD_LIBS+=usr/lib32/libpkg.so.0
@@ -100,7 +144,7 @@ OLD_FILES+=usr/lib32/libpkg_p.a
 .endif
 # 20110517: libsbuf version bump
 OLD_LIBS+=lib/libsbuf.so.5
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libsbuf.so.5
 .endif
 # 20110502: new clang import which bumps version from 2.9 to 3.0
@@ -131,7 +175,7 @@ OLD_FILES+=usr/lib/libobjc_p.a
 OLD_FILES+=usr/libexec/cc1obj
 OLD_LIBS+=usr/lib/libobjc.so.4
 OLD_DIRS+=usr/include/objc
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_FILES+=usr/lib32/libobjc.a
 OLD_FILES+=usr/lib32/libobjc.so
 OLD_FILES+=usr/lib32/libobjc_p.a
@@ -258,7 +302,7 @@ OLD_FILES+=usr/include/machine/intr.h
 .endif
 # 20100514: library version bump for versioned symbols for liblzma
 OLD_LIBS+=usr/lib/liblzma.so.0
-.if ${TARGET_ARCH} == "amd64"
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/liblzma.so.0
 .endif
 # 20100511: move GCC-specific headers to /usr/include/gcc
@@ -2580,7 +2624,7 @@ OLD_FILES+=usr/lib/libpam_ssh.a
 OLD_FILES+=usr/lib/libpam_ssh_p.a
 OLD_FILES+=usr/bin/help
 OLD_FILES+=usr/bin/sccs
-.if ${TARGET_ARCH} != "amd64" && ${TARGET_ARCH} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET_ARCH} != "powerpc"
+.if ${TARGET_ARCH} != "amd64" && ${TARGET} != "arm" && ${TARGET_ARCH} != "i386" && ${TARGET} != "powerpc"
 OLD_FILES+=usr/bin/gdbserver
 .endif
 OLD_FILES+=usr/bin/ssh-keysign

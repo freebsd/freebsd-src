@@ -21,9 +21,7 @@
 #include "ah.h"
 #include "ah_internal.h"
 #include "ah_devid.h"
-#ifdef AH_DEBUG
 #include "ah_desc.h"                    /* NB: for HAL_PHYERR* */
-#endif
 
 #include "ar5416/ar5416.h"
 #include "ar5416/ar5416reg.h"
@@ -75,21 +73,29 @@ ar5416SetLedState(struct ath_hal *ah, HAL_LED_STATE state)
 		AR_MAC_LED_ASSOC_NONE,
 		AR_MAC_LED_ASSOC_NONE,
 	};
-	uint32_t bits;
 
 	if (AR_SREV_HOWL(ah))
 		return;
 
-	bits = OS_REG_READ(ah, AR_MAC_LED);
-	bits = (bits &~ AR_MAC_LED_MODE)
-	     | SM(AR_MAC_LED_MODE_POWON, AR_MAC_LED_MODE)
-#if 1
-	     | SM(AR_MAC_LED_MODE_NETON, AR_MAC_LED_MODE)
-#endif
-	     ;
-	bits = (bits &~ AR_MAC_LED_ASSOC)
-	     | SM(ledbits[state & 0x7], AR_MAC_LED_ASSOC);
-	OS_REG_WRITE(ah, AR_MAC_LED, bits);
+	/*
+	 * Set the blink operating mode.
+	 */
+	OS_REG_RMW_FIELD(ah, AR_MAC_LED,
+	    AR_MAC_LED_ASSOC, ledbits[state & 0x7]);
+
+	/* XXX Blink slow mode? */
+	/* XXX Blink threshold? */
+	/* XXX Blink sleep hystersis? */
+
+	/*
+	 * Set the LED blink configuration to be proportional
+	 * to the current TX and RX filter bytes.  (Ie, RX'ed
+	 * frames that don't match the filter are ignored.)
+	 * This means that higher TX/RX throughput will result
+	 * in the blink rate increasing.
+	 */
+	OS_REG_RMW_FIELD(ah, AR_MAC_LED, AR_MAC_LED_MODE,
+	    AR_MAC_LED_MODE_PROP);
 }
 
 /*
@@ -145,6 +151,14 @@ ar5416ResetTsf(struct ath_hal *ah)
 	OS_REG_WRITE(ah, AR_RESET_TSF, AR_RESET_TSF_ONCE);	
 }
 
+uint32_t
+ar5416GetCurRssi(struct ath_hal *ah)
+{
+	if (AR_SREV_OWL(ah))
+		return (OS_REG_READ(ah, AR_PHY_CURRENT_RSSI) & 0xff);
+	return (OS_REG_READ(ah, AR9130_PHY_CURRENT_RSSI) & 0xff);
+}
+
 HAL_BOOL
 ar5416SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 {
@@ -155,7 +169,7 @@ ar5416SetAntennaSwitch(struct ath_hal *ah, HAL_ANT_SETTING settings)
 HAL_BOOL
 ar5416SetDecompMask(struct ath_hal *ah, uint16_t keyidx, int en)
 {
-	return HAL_OK;
+	return AH_TRUE;
 }
 
 /* Setup coverage class */
@@ -163,6 +177,57 @@ void
 ar5416SetCoverageClass(struct ath_hal *ah, uint8_t coverageclass, int now)
 {
 	AH_PRIVATE(ah)->ah_coverageClass = coverageclass;
+}
+
+/*
+ * Return the busy for rx_frame, rx_clear, and tx_frame
+ */
+uint32_t
+ar5416GetMibCycleCountsPct(struct ath_hal *ah, uint32_t *rxc_pcnt,
+    uint32_t *extc_pcnt, uint32_t *rxf_pcnt, uint32_t *txf_pcnt)
+{
+	struct ath_hal_5416 *ahp = AH5416(ah);
+	u_int32_t good = 1;
+
+	/* XXX freeze/unfreeze mib counters */
+	uint32_t rc = OS_REG_READ(ah, AR_RCCNT);
+	uint32_t ec = OS_REG_READ(ah, AR_EXTRCCNT);
+	uint32_t rf = OS_REG_READ(ah, AR_RFCNT);
+	uint32_t tf = OS_REG_READ(ah, AR_TFCNT);
+	uint32_t cc = OS_REG_READ(ah, AR_CCCNT); /* read cycles last */
+
+	if (ahp->ah_cycleCount == 0 || ahp->ah_cycleCount > cc) {
+		/*
+		 * Cycle counter wrap (or initial call); it's not possible
+		 * to accurately calculate a value because the registers
+		 * right shift rather than wrap--so punt and return 0.
+		 */
+		HALDEBUG(ah, HAL_DEBUG_ANY,
+			    "%s: cycle counter wrap. ExtBusy = 0\n", __func__);
+			good = 0;
+	} else {
+		uint32_t cc_d = cc - ahp->ah_cycleCount;
+		uint32_t rc_d = rc - ahp->ah_ctlBusy;
+		uint32_t ec_d = ec - ahp->ah_extBusy;
+		uint32_t rf_d = rf - ahp->ah_rxBusy;
+		uint32_t tf_d = tf - ahp->ah_txBusy;
+
+		if (cc_d != 0) {
+			*rxc_pcnt = rc_d * 100 / cc_d;
+			*rxf_pcnt = rf_d * 100 / cc_d;
+			*txf_pcnt = tf_d * 100 / cc_d;
+			*extc_pcnt = ec_d * 100 / cc_d;
+		} else {
+			good = 0;
+		}
+	}
+	ahp->ah_cycleCount = cc;
+	ahp->ah_rxBusy = rf;
+	ahp->ah_ctlBusy = rc;
+	ahp->ah_txBusy = tf;
+	ahp->ah_extBusy = ec;
+
+	return good;
 }
 
 /*
@@ -278,7 +343,7 @@ ar5416Get11nRxClear(struct ath_hal *ah)
         rxclear |= HAL_RX_CLEAR_CTL_LOW;
     }
     /* extension channel */
-    if (val & AR_DIAG_RXCLEAR_CTL_LOW) {
+    if (val & AR_DIAG_RXCLEAR_EXT_LOW) {
         rxclear |= HAL_RX_CLEAR_EXT_LOW;
     }
     return rxclear;
@@ -757,14 +822,200 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
  * Returns AH_TRUE if the phy error was actually a phy error,
  * AH_FALSE if the phy error wasn't a phy error.
  */
+
+/* Flags for pulse_bw_info */
+#define	PRI_CH_RADAR_FOUND		0x01
+#define	EXT_CH_RADAR_FOUND		0x02
+#define	EXT_CH_RADAR_EARLY_FOUND	0x04
+
 HAL_BOOL
 ar5416ProcessRadarEvent(struct ath_hal *ah, struct ath_rx_status *rxs,
     uint64_t fulltsf, const char *buf, HAL_DFS_EVENT *event)
 {
+	HAL_BOOL doDfsExtCh;
+	HAL_BOOL doDfsEnhanced;
+	HAL_BOOL doDfsCombinedRssi;
+
+	uint8_t rssi = 0, ext_rssi = 0;
+	uint8_t pulse_bw_info = 0, pulse_length_ext = 0, pulse_length_pri = 0;
+	uint32_t dur = 0;
+	int pri_found = 1, ext_found = 0;
+	int early_ext = 0;
+	int is_dc = 0;
+	uint16_t datalen;		/* length from the RX status field */
+
+	/* Check whether the given phy error is a radar event */
+	if ((rxs->rs_phyerr != HAL_PHYERR_RADAR) &&
+	    (rxs->rs_phyerr != HAL_PHYERR_FALSE_RADAR_EXT)) {
+		return AH_FALSE;
+	}
+
+	/* Grab copies of the capabilities; just to make the code clearer */
+	doDfsExtCh = AH_PRIVATE(ah)->ah_caps.halExtChanDfsSupport;
+	doDfsEnhanced = AH_PRIVATE(ah)->ah_caps.halEnhancedDfsSupport;
+	doDfsCombinedRssi = AH_PRIVATE(ah)->ah_caps.halUseCombinedRadarRssi;
+
+	datalen = rxs->rs_datalen;
+
+	/* If hardware supports it, use combined RSSI, else use chain 0 RSSI */
+	if (doDfsCombinedRssi)
+		rssi = (uint8_t) rxs->rs_rssi;
+	else		
+		rssi = (uint8_t) rxs->rs_rssi_ctl[0];
+
+	/* Set this; but only use it if doDfsExtCh is set */
+	ext_rssi = (uint8_t) rxs->rs_rssi_ext[0];
+
+	/* Cap it at 0 if the RSSI is a negative number */
+	if (rssi & 0x80)
+		rssi = 0;
+
+	if (ext_rssi & 0x80)
+		ext_rssi = 0;
+
 	/*
-	 * For now, this isn't implemented.
+	 * Fetch the relevant data from the frame
 	 */
-	return AH_FALSE;
+	if (doDfsExtCh) {
+		if (datalen < 3)
+			return AH_FALSE;
+
+		/* Last three bytes of the frame are of interest */
+		pulse_length_pri = *(buf + datalen - 3);
+		pulse_length_ext = *(buf + datalen - 2);
+		pulse_bw_info = *(buf + datalen - 1);
+		HALDEBUG(ah, HAL_DEBUG_DFS, "%s: rssi=%d, ext_rssi=%d, pulse_length_pri=%d,"
+		    " pulse_length_ext=%d, pulse_bw_info=%x\n",
+		    __func__, rssi, ext_rssi, pulse_length_pri, pulse_length_ext,
+		    pulse_bw_info);
+	} else {
+		/* The pulse width is byte 0 of the data */
+		if (datalen >= 1)
+			dur = ((uint8_t) buf[0]) & 0xff;
+		else
+			dur = 0;
+
+		if (dur == 0 && rssi == 0) {
+			HALDEBUG(ah, HAL_DEBUG_DFS, "%s: dur and rssi are 0\n", __func__);
+			return AH_FALSE;
+		}
+
+		HALDEBUG(ah, HAL_DEBUG_DFS, "%s: rssi=%d, dur=%d\n", __func__, rssi, dur);
+
+		/* Single-channel only */
+		pri_found = 1;
+		ext_found = 0;
+	}
+
+	/*
+	 * If doing extended channel data, pulse_bw_info must
+	 * have one of the flags set.
+	 */
+	if (doDfsExtCh && pulse_bw_info == 0x0)
+		return AH_FALSE;
+		
+	/*
+	 * If the extended channel data is available, calculate
+	 * which to pay attention to.
+	 */
+	if (doDfsExtCh) {
+		/* If pulse is on DC, take the larger duration of the two */
+		if ((pulse_bw_info & EXT_CH_RADAR_FOUND) &&
+		    (pulse_bw_info & PRI_CH_RADAR_FOUND)) {
+			is_dc = 1;
+			if (pulse_length_ext > pulse_length_pri) {
+				dur = pulse_length_ext;
+				pri_found = 0;
+				ext_found = 1;
+			} else {
+				dur = pulse_length_pri;
+				pri_found = 1;
+				ext_found = 0;
+			}
+		} else if (pulse_bw_info & EXT_CH_RADAR_EARLY_FOUND) {
+			dur = pulse_length_ext;
+			pri_found = 0;
+			ext_found = 1;
+			early_ext = 1;
+		} else if (pulse_bw_info & PRI_CH_RADAR_FOUND) {
+			dur = pulse_length_pri;
+			pri_found = 1;
+			ext_found = 0;
+		} else if (pulse_bw_info & EXT_CH_RADAR_FOUND) {
+			dur = pulse_length_ext;
+			pri_found = 0;
+			ext_found = 1;
+		}
+		
+	}
+
+	/*
+	 * For enhanced DFS (Merlin and later), pulse_bw_info has
+	 * implications for selecting the correct RSSI value.
+	 */
+	if (doDfsEnhanced) {
+		switch (pulse_bw_info & 0x03) {
+		case 0:
+			/* No radar? */
+			rssi = 0;
+			break;
+		case PRI_CH_RADAR_FOUND:
+			/* Radar in primary channel */
+			/* Cannot use ctrl channel RSSI if ext channel is stronger */
+			if (ext_rssi >= (rssi + 3)) {
+				rssi = 0;
+			};
+			break;
+		case EXT_CH_RADAR_FOUND:
+			/* Radar in extended channel */
+			/* Cannot use ext channel RSSI if ctrl channel is stronger */
+			if (rssi >= (ext_rssi + 12)) {
+				rssi = 0;
+			} else {
+				rssi = ext_rssi;
+			}
+			break;
+		case (PRI_CH_RADAR_FOUND | EXT_CH_RADAR_FOUND):
+			/* When both are present, use stronger one */
+			if (rssi < ext_rssi)
+				rssi = ext_rssi;
+			break;
+		}
+	}
+
+	/*
+	 * If not doing enhanced DFS, choose the ext channel if
+	 * it is stronger than the main channel
+	 */
+	if (doDfsExtCh && !doDfsEnhanced) {
+		if ((ext_rssi > rssi) && (ext_rssi < 128))
+			rssi = ext_rssi;
+	}
+
+	/*
+	 * XXX what happens if the above code decides the RSSI
+	 * XXX wasn't valid, an sets it to 0?
+	 */
+
+	/*
+	 * Fill out dfs_event structure.
+	 */
+	event->re_full_ts = fulltsf;
+	event->re_ts = rxs->rs_tstamp;
+	event->re_rssi = rssi;
+	event->re_dur = dur;
+
+	event->re_flags = 0;
+	if (pri_found)
+		event->re_flags |= HAL_DFS_EVENT_PRICH;
+	if (ext_found)
+		event->re_flags |= HAL_DFS_EVENT_EXTCH;
+	if (early_ext)
+		event->re_flags |= HAL_DFS_EVENT_EXTEARLY;
+	if (is_dc)
+		event->re_flags |= HAL_DFS_EVENT_ISDC;
+
+	return AH_TRUE;
 }
 
 /*

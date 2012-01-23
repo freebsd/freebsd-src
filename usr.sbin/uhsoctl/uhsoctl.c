@@ -340,7 +340,7 @@ logger(int pri, const char *fmt, ...)
 	va_start(ap, fmt);
 	vasprintf(&buf, fmt, ap);
 	if (syslog_open)
-		syslog(pri, buf);
+		syslog(pri, "%s", buf);
 	else {
 		switch (pri) {
 		case LOG_INFO:
@@ -455,7 +455,7 @@ set_nameservers(struct ctx *ctx, const char *respath, int ns, ...)
 		free(ctx->ns);
 	}
 
-	fd = open(respath, O_RDWR | O_CREAT | O_NOFOLLOW);
+	fd = open(respath, O_RDWR | O_CREAT | O_NOFOLLOW, 0666);
 	if (fd < 0)
 		return (-1);
 
@@ -1174,7 +1174,7 @@ do_connect(struct ctx *ctx, const char *tty)
 			buf = ra.val[0].ptr;
 			if (strstr(buf[0], "+CME ERROR:") != NULL) {
 				buf[0] += 12;
-				errx(1, buf[0]);
+				errx(1, "%s", buf[0]);
 			}
 			freeresp(&ra);
 		} else

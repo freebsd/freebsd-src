@@ -15,8 +15,12 @@
 #include "llvm/MC/MCFixupKindInfo.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
+#include "llvm/MC/MCObjectFileInfo.h"
+#include "llvm/MC/MCRegisterInfo.h"
+#include "llvm/MC/MCSectionCOFF.h"
 #include "llvm/MC/MCSectionMachO.h"
 #include "llvm/MC/MCSymbol.h"
+#include "llvm/MC/MCAsmBackend.h"
 #include "llvm/ADT/OwningPtr.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringExtras.h"
@@ -25,9 +29,6 @@
 #include "llvm/Support/MathExtras.h"
 #include "llvm/Support/Format.h"
 #include "llvm/Support/FormattedStream.h"
-#include "llvm/Target/TargetAsmBackend.h"
-#include "llvm/Target/TargetAsmInfo.h"
-#include "llvm/Target/TargetLoweringObjectFile.h"
 #include <cctype>
 using namespace llvm;
 
@@ -40,7 +41,7 @@ protected:
 private:
   OwningPtr<MCInstPrinter> InstPrinter;
   OwningPtr<MCCodeEmitter> Emitter;
-  OwningPtr<TargetAsmBackend> AsmBackend;
+  OwningPtr<MCAsmBackend> AsmBackend;
 
   SmallString<128> CommentToEmit;
   raw_svector_ostream CommentStream;
@@ -63,7 +64,7 @@ public:
   MCAsmStreamer(MCContext &Context, formatted_raw_ostream &os,
                 bool isVerboseAsm, bool useLoc, bool useCFI,
                 MCInstPrinter *printer, MCCodeEmitter *emitter,
-                TargetAsmBackend *asmbackend,
+                MCAsmBackend *asmbackend,
                 bool showInst)
     : MCStreamer(Context), OS(os), MAI(Context.getAsmInfo()),
       InstPrinter(printer), Emitter(emitter), AsmBackend(asmbackend),
@@ -157,7 +158,9 @@ public:
   ///
   /// @param Symbol - The common symbol to emit.
   /// @param Size - The size of the common symbol.
-  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size);
+  /// @param Size - The alignment of the common symbol in bytes.
+  virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                     unsigned ByteAlignment);
 
   virtual void EmitZerofill(const MCSection *Section, MCSymbol *Symbol = 0,
                             unsigned Size = 0, unsigned ByteAlignment = 0);
@@ -334,8 +337,9 @@ void MCAsmStreamer::EmitAssemblerFlag(MCAssemblerFlag Flag) {
   default: assert(0 && "Invalid flag!");
   case MCAF_SyntaxUnified:         OS << "\t.syntax unified"; break;
   case MCAF_SubsectionsViaSymbols: OS << ".subsections_via_symbols"; break;
-  case MCAF_Code16:                OS << "\t.code\t16"; break;
-  case MCAF_Code32:                OS << "\t.code\t32"; break;
+  case MCAF_Code16:                OS << '\t'<< MAI.getCode16Directive(); break;
+  case MCAF_Code32:                OS << '\t'<< MAI.getCode32Directive(); break;
+  case MCAF_Code64:                OS << '\t'<< MAI.getCode64Directive(); break;
   }
   EmitEOL();
 }
@@ -482,9 +486,16 @@ void MCAsmStreamer::EmitCommonSymbol(MCSymbol *Symbol, uint64_t Size,
 ///
 /// @param Symbol - The common symbol to emit.
 /// @param Size - The size of the common symbol.
-void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) {
-  assert(MAI.hasLCOMMDirective() && "Doesn't have .lcomm, can't emit it!");
+void MCAsmStreamer::EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                          unsigned ByteAlign) {
+  assert(MAI.getLCOMMDirectiveType() != LCOMM::None &&
+         "Doesn't have .lcomm, can't emit it!");
   OS << "\t.lcomm\t" << *Symbol << ',' << Size;
+  if (ByteAlign > 1) {
+    assert(MAI.getLCOMMDirectiveType() == LCOMM::ByteAlignment &&
+           "Alignment not supported on .lcomm!");
+    OS << ',' << ByteAlign;
+  }
   EmitEOL();
 }
 
@@ -827,8 +838,8 @@ void MCAsmStreamer::EmitCFIEndProc() {
 
 void MCAsmStreamer::EmitRegisterName(int64_t Register) {
   if (InstPrinter && !MAI.useDwarfRegNumForCFI()) {
-    const TargetAsmInfo &TAI = getContext().getTargetAsmInfo();
-    unsigned LLVMRegister = TAI.getLLVMRegNum(Register, true);
+    const MCRegisterInfo &MRI = getContext().getRegisterInfo();
+    unsigned LLVMRegister = MRI.getLLVMRegNum(Register, true);
     InstPrinter->printRegName(OS, LLVMRegister);
   } else {
     OS << Register;
@@ -994,6 +1005,19 @@ void MCAsmStreamer::EmitWin64EHHandler(const MCSymbol *Sym, bool Unwind,
   EmitEOL();
 }
 
+static const MCSection *getWin64EHTableSection(StringRef suffix,
+                                               MCContext &context) {
+  // FIXME: This doesn't belong in MCObjectFileInfo. However,
+  /// this duplicate code in MCWin64EH.cpp.
+  if (suffix == "")
+    return context.getObjectFileInfo()->getXDataSection();
+  return context.getCOFFSection((".xdata"+suffix).str(),
+                                COFF::IMAGE_SCN_CNT_INITIALIZED_DATA |
+                                COFF::IMAGE_SCN_MEM_READ |
+                                COFF::IMAGE_SCN_MEM_WRITE,
+                                SectionKind::getDataRel());
+}
+
 void MCAsmStreamer::EmitWin64EHHandlerData() {
   MCStreamer::EmitWin64EHHandlerData();
 
@@ -1003,8 +1027,7 @@ void MCAsmStreamer::EmitWin64EHHandlerData() {
   // data block is visible.
   MCWin64EHUnwindInfo *CurFrame = getCurrentW64UnwindInfo();
   StringRef suffix=MCWin64EHUnwindEmitter::GetSectionSuffix(CurFrame->Function);
-  const MCSection *xdataSect =
-    getContext().getTargetAsmInfo().getWin64EHTableSection(suffix);
+  const MCSection *xdataSect = getWin64EHTableSection(suffix, getContext());
   if (xdataSect)
     SwitchSectionNoChange(xdataSect);
 
@@ -1221,7 +1244,7 @@ void MCAsmStreamer::EmitInstruction(const MCInst &Inst) {
 
   // If we have an AsmPrinter, use that to print, otherwise print the MCInst.
   if (InstPrinter)
-    InstPrinter->printInst(&Inst, OS);
+    InstPrinter->printInst(&Inst, OS, "");
   else
     Inst.print(OS, &MAI);
   EmitEOL();
@@ -1249,8 +1272,8 @@ MCStreamer *llvm::createAsmStreamer(MCContext &Context,
                                     formatted_raw_ostream &OS,
                                     bool isVerboseAsm, bool useLoc,
                                     bool useCFI, MCInstPrinter *IP,
-                                    MCCodeEmitter *CE, TargetAsmBackend *TAB,
+                                    MCCodeEmitter *CE, MCAsmBackend *MAB,
                                     bool ShowInst) {
   return new MCAsmStreamer(Context, OS, isVerboseAsm, useLoc, useCFI,
-                           IP, CE, TAB, ShowInst);
+                           IP, CE, MAB, ShowInst);
 }

@@ -64,7 +64,8 @@ __FBSDID("$FreeBSD$");
 			OPT_SET(RBX_VERBOSE) | \
 			OPT_SET(RBX_GDB))
 
-#define PATH_CONFIG	"/boot.config"
+#define PATH_DOTCONFIG	"/boot.config"
+#define PATH_CONFIG	"/boot/config"
 //#define PATH_KERNEL	"/boot/kernel/kernel"
 #define PATH_KERNEL	"/boot/kernel/kernel.gz.tramp"
 
@@ -160,7 +161,8 @@ main(void)
 	autoboot = 1;
 
 	/* Process configuration file */
-	if ((ino = lookup(PATH_CONFIG)))
+	if ((ino = lookup(PATH_CONFIG)) ||
+	    (ino = lookup(PATH_DOTCONFIG)))
 		fsread(ino, cmd, sizeof(cmd));
 
 	if (*cmd) {

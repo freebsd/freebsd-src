@@ -81,12 +81,18 @@ enum attributeBits {
                                         "but not the operands")                \
   ENUM_ENTRY(IC_XS,                 2,  "may say something about the opcode "  \
                                         "but not the operands")                \
+  ENUM_ENTRY(IC_XD_OPSIZE,          3,  "requires an OPSIZE prefix, so "       \
+                                        "operands change width")               \
+  ENUM_ENTRY(IC_XS_OPSIZE,          3,  "requires an OPSIZE prefix, so "       \
+                                        "operands change width")               \
   ENUM_ENTRY(IC_64BIT_REXW,         4,  "requires a REX.W prefix, so operands "\
                                         "change width; overrides IC_OPSIZE")   \
   ENUM_ENTRY(IC_64BIT_OPSIZE,       3,  "Just as meaningful as IC_OPSIZE")     \
   ENUM_ENTRY(IC_64BIT_XD,           5,  "XD instructions are SSE; REX.W is "   \
                                         "secondary")                           \
   ENUM_ENTRY(IC_64BIT_XS,           5,  "Just as meaningful as IC_64BIT_XD")   \
+  ENUM_ENTRY(IC_64BIT_XD_OPSIZE,    3,  "Just as meaningful as IC_XD_OPSIZE")  \
+  ENUM_ENTRY(IC_64BIT_XS_OPSIZE,    3,  "Just as meaningful as IC_XS_OPSIZE")  \
   ENUM_ENTRY(IC_64BIT_REXW_XS,      6,  "OPSIZE could mean a different "       \
                                         "opcode")                              \
   ENUM_ENTRY(IC_64BIT_REXW_XD,      6,  "Just as meaningful as "               \
@@ -104,7 +110,7 @@ enum attributeBits {
   ENUM_ENTRY(IC_VEX_W_OPSIZE,       4,  "requires VEX, W, and OpSize")         \
   ENUM_ENTRY(IC_VEX_L,              3,  "requires VEX and the L prefix")       \
   ENUM_ENTRY(IC_VEX_L_XS,           4,  "requires VEX and the L and XS prefix")\
-  ENUM_ENTRY(IC_VEX_L_XD,           4,  "requires VEX and the L and XS prefix")\
+  ENUM_ENTRY(IC_VEX_L_XD,           4,  "requires VEX and the L and XD prefix")\
   ENUM_ENTRY(IC_VEX_L_OPSIZE,       4,  "requires VEX, L, and OpSize")
 
 

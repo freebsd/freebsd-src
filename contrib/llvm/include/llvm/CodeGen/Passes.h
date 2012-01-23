@@ -24,7 +24,7 @@ namespace llvm {
   class MachineFunctionPass;
   class PassInfo;
   class TargetLowering;
-  class RegisterCoalescer;
+  class TargetRegisterClass;
   class raw_ostream;
 
   /// createUnreachableBlockEliminationPass - The LLVM code generator does not
@@ -81,6 +81,9 @@ namespace llvm {
   /// register allocators.
   extern char &TwoAddressInstructionPassID;
 
+  /// RegisteCoalescer pass - This pass merges live ranges to eliminate copies.
+  extern char &RegisterCoalescerPassID;
+
   /// SpillPlacement analysis. Suggest optimal placement of spill code between
   /// basic blocks.
   ///
@@ -125,21 +128,15 @@ namespace llvm {
   ///
   FunctionPass *createDefaultPBQPRegisterAllocator();
 
-  /// RegisterCoalescer Pass - Coalesce all copies possible.  Can run
-  /// independently of the register allocator.
-  ///
-  RegisterCoalescer *createRegisterCoalescer();
-
   /// PrologEpilogCodeInserter Pass - This pass inserts prolog and epilog code,
   /// and eliminates abstract frame references.
   ///
   FunctionPass *createPrologEpilogCodeInserter();
 
-  /// LowerSubregs Pass - This pass lowers subregs to register-register copies
-  /// which yields suboptimal, but correct code if the register allocator
-  /// cannot coalesce all subreg operations during allocation.
+  /// ExpandPostRAPseudos Pass - This pass expands pseudo instructions after
+  /// register allocation.
   ///
-  FunctionPass *createLowerSubregsPass();
+  FunctionPass *createExpandPostRAPseudosPass();
 
   /// createPostRAScheduler - This pass performs post register allocation
   /// scheduling.
@@ -228,6 +225,14 @@ namespace llvm {
   /// createExpandISelPseudosPass - This pass expands pseudo-instructions.
   ///
   FunctionPass *createExpandISelPseudosPass();
+
+  /// createExecutionDependencyFixPass - This pass fixes execution time
+  /// problems with dependent instructions, such as switching execution
+  /// domains to match.
+  ///
+  /// The pass will examine instructions using and defining registers in RC.
+  ///
+  FunctionPass *createExecutionDependencyFixPass(const TargetRegisterClass *RC);
 
 } // End llvm namespace
 

@@ -1,0 +1,132 @@
+# Firmware configuration file.
+#
+# Global limits (some are hardware limits, others are due to the firmware).
+# Also note that the firmware reserves some of these resources for its own use
+# so it's not always possible for the drivers to grab everything listed here.
+# nvi = 128		virtual interfaces
+# niqflint = 1023	ingress queues with freelists and/or interrupts
+# nethctrl = 64K	Ethernet or ctrl egress queues
+# neq = 64K		egress queues of all kinds, including freelists
+# nexactf = 336		MPS TCAM entries, can oversubscribe.
+#
+
+[global]
+	rss_glb_config_mode = basicvirtual
+	rss_glb_config_options = tnlmapen, hashtoeplitz, tnlalllkp
+
+	sge_timer_value = 1, 5, 10, 50, 100, 200	# usecs
+
+	# TP_SHIFT_CNT
+	reg[0x7dc0] = 0x64f8849
+
+	filterMode = fragmentation, mpshittype, protocol, vlan, port, fcoe
+
+	# TP rx and tx payload memory (% of the total EDRAM + DDR3).
+	tp_pmrx = 40
+	tp_pmtx = 60
+	tp_pmrx_pagesize = 64K
+	tp_pmtx_pagesize = 64K
+
+# PFs 0-3.  These get 8 MSI/8 MSI-X vectors each.  VFs are supported by
+# these 4 PFs only.  Not used here at all.
+[function "0"]
+	nvf = 16
+	nvi = 1
+[function "0/*"]
+	nvi = 1
+
+[function "1"]
+	nvf = 16
+	nvi = 1
+[function "1/*"]
+	nvi = 1
+
+[function "2"]
+	nvf = 16
+	nvi = 1
+[function "2/*"]
+	nvi = 1
+
+[function "3"]
+	nvf = 16
+	nvi = 1
+[function "3/*"]
+	nvi = 1
+
+# PF4 is the resource-rich PF that the bus/nexus driver attaches to.
+# It gets 32 MSI/128 MSI-X vectors.
+[function "4"]
+	wx_caps = all
+	r_caps = all
+	nvi = 48
+	niqflint = 256
+	nethctrl = 128
+	neq = 256
+	nexactf = 300
+	cmask = all
+	pmask = all
+
+	# driver will mask off features it won't use
+	protocol = ofld
+
+	tp_l2t = 100
+
+	# TCAM has 8K cells; each region must start at a multiple of 128 cell.
+	# Each entry in these categories takes 4 cells each.  nhash will use the
+	# TCAM iff there is room left (that is, the rest don't add up to 2048).
+	nroute = 32
+	nclip = 0	# needed only for IPv6 offload
+	nfilter = 1504
+	nserver = 512
+	nhash = 16384
+
+# PF5 is the SCSI Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "5"]
+	nvi = 1
+
+# PF6 is the FCoE Controller PF. It gets 32 MSI/40 MSI-X vectors.
+# Not used right now.
+[function "6"]
+	nvi = 1
+
+# MPS has 192K buffer space for ingress packets from the wire as well as
+# loopback path of the L2 switch.
+[port "0"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "1"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "2"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[port "3"]
+	dcb = none
+	bg_mem = 25
+	lpbk_mem = 25
+	hwm = 30
+	lwm = 15
+	dwm = 30
+
+[fini]
+	version = 0x1
+	checksum = 0xb31cdfac
+#
+# $FreeBSD$
+#

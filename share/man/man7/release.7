@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2011
+.Dd January 14, 2012
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -149,6 +149,11 @@ when invoked by the script.
 .It Ev SVNROOT
 The location of the FreeBSD SVN source repository. Defaults to
 .Pa svn://svn.freebsd.org/base .
+.It Ev RELSTRING
+Optional base name for generated media images (e.g. FreeBSD-9.0-RC2-amd64).
+Defaults to the output of 
+.Ic `uname -s`-`uname -r`-`uname -p`
+within the chroot.
 .El
 .Sh MAKEFILE TARGETS
 The release makefile
@@ -311,9 +316,7 @@ The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot"
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
-cd /usr/src
-make buildworld
-cd release
+cd /usr/src/release
 export CVSUP_HOST=cvsupN.freebsd.org
 sh generate-release.sh head /local3/release
 .Ed

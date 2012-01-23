@@ -21,8 +21,8 @@ CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/fs/zfs
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/uts/common/sys
 CFLAGS+= -I${.CURDIR}/../../../sys/cddl/contrib/opensolaris/common/zfs
 
-DPADD=	${LIBBSDXML} ${LIBGEOM} ${LIBM} ${LIBNVPAIR} ${LIBSBUF} ${LIBUMEM} \
+DPADD=	${LIBGEOM} ${LIBNVPAIR} ${LIBUMEM} \
 	${LIBUTIL} ${LIBUUTIL} ${LIBZFS}
-LDADD=	-lbsdxml -lgeom -lm -lnvpair -lsbuf -lumem -lutil -luutil -lzfs
+LDADD=	-lgeom -lnvpair -lumem -lutil -luutil -lzfs
 
 .include <bsd.prog.mk>

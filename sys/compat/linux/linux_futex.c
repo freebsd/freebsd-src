@@ -65,8 +65,8 @@ __KERNEL_RCSID(1, "$NetBSD: linux_futex.c,v 1.7 2006/07/24 19:01:49 manu Exp $")
 #include <compat/linux/linux_futex.h>
 #include <compat/linux/linux_util.h>
 
-MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
-MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futexes wp");
+static MALLOC_DEFINE(M_FUTEX, "futex", "Linux futexes");
+static MALLOC_DEFINE(M_FUTEX_WP, "futex wp", "Linux futexes wp");
 
 struct futex;
 

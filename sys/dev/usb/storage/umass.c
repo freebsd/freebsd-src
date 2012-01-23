@@ -173,7 +173,7 @@ __FBSDID("$FreeBSD$");
 #define	UDMASS_ALL	0xffff0000	/* all of the above */
 static int umass_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, umass, CTLFLAG_RW, 0, "USB umass");
 SYSCTL_INT(_hw_usb_umass, OID_AUTO, debug, CTLFLAG_RW,
     &umass_debug, 0, "umass debug level");
 
@@ -891,7 +891,7 @@ umass_attach(device_t dev)
 	int32_t err;
 
 	/*
-	 * NOTE: the softc struct is bzero-ed in device_set_driver.
+	 * NOTE: the softc struct is cleared in device_set_driver.
 	 * We can safely call umass_detach without specifically
 	 * initializing the struct.
 	 */
@@ -1305,11 +1305,13 @@ umass_t_bbb_command_callback(struct usb_xfer *xfer, usb_error_t error)
 			}
 			sc->cbw.bCDBLength = sc->sc_transfer.cmd_len;
 
-			bcopy(sc->sc_transfer.cmd_data, sc->cbw.CBWCDB,
+			memcpy(sc->cbw.CBWCDB, sc->sc_transfer.cmd_data,
 			    sc->sc_transfer.cmd_len);
 
-			bzero(sc->sc_transfer.cmd_data + sc->sc_transfer.cmd_len,
-			    sizeof(sc->cbw.CBWCDB) - sc->sc_transfer.cmd_len);
+			memset(sc->sc_transfer.cmd_data +
+			    sc->sc_transfer.cmd_len, 0,
+			    sizeof(sc->cbw.CBWCDB) -
+			    sc->sc_transfer.cmd_len);
 
 			DIF(UDMASS_BBB, umass_bbb_dump_cbw(sc, &sc->cbw));
 
@@ -1480,9 +1482,9 @@ umass_t_bbb_status_callback(struct usb_xfer *xfer, usb_error_t error)
 
 		/* Zero missing parts of the CSW: */
 
-		if (actlen < sizeof(sc->csw)) {
-			bzero(&sc->csw, sizeof(sc->csw));
-		}
+		if (actlen < sizeof(sc->csw))
+			memset(&sc->csw, 0, sizeof(sc->csw));
+
 		pc = usbd_xfer_get_frame(xfer, 0);
 		usbd_copy_out(pc, 0, &sc->csw, actlen);
 
@@ -2344,14 +2346,14 @@ umass_cam_action(struct cam_sim *sim, union ccb *ccb)
 					 */
 					if ((sc->sc_quirks & (NO_INQUIRY_EVPD | NO_INQUIRY)) &&
 					    (sc->sc_transfer.cmd_data[1] & SI_EVPD)) {
-						struct scsi_sense_data *sense;
 
-						sense = &ccb->csio.sense_data;
-						bzero(sense, sizeof(*sense));
-						sense->error_code = SSD_CURRENT_ERROR;
-						sense->flags = SSD_KEY_ILLEGAL_REQUEST;
-						sense->add_sense_code = 0x24;
-						sense->extra_len = 10;
+						scsi_set_sense_data(&ccb->csio.sense_data,
+							/*sense_format*/ SSD_TYPE_NONE,
+							/*current_error*/ 1,
+							/*sense_key*/ SSD_KEY_ILLEGAL_REQUEST,
+							/*asc*/ 0x24,
+							/*ascq*/ 0x00,
+							/*extra args*/ SSD_ELEM_NONE);
 						ccb->csio.scsi_status = SCSI_STATUS_CHECK_COND;
 						ccb->ccb_h.status = CAM_SCSI_STATUS_ERROR |
 						    CAM_AUTOSNS_VALID;
@@ -2631,20 +2633,23 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
     uint8_t status)
 {
 	uint8_t *cmd;
-	uint8_t key;
 
 	switch (status) {
 	case STATUS_CMD_OK:
 	case STATUS_CMD_UNKNOWN:
-	case STATUS_CMD_FAILED:
+	case STATUS_CMD_FAILED: {
+		int key, sense_len;
+
+		ccb->csio.sense_resid = residue;
+		sense_len = ccb->csio.sense_len - ccb->csio.sense_resid;
+		key = scsi_get_sense_key(&ccb->csio.sense_data, sense_len,
+					 /*show_errors*/ 1);
 
 		if (ccb->csio.ccb_h.flags & CAM_CDB_POINTER) {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_ptr);
 		} else {
 			cmd = (uint8_t *)(ccb->csio.cdb_io.cdb_bytes);
 		}
-
-		key = (ccb->csio.sense_data.flags & SSD_KEY);
 
 		/*
 		 * Getting sense data always succeeds (apart from wire
@@ -2704,7 +2709,7 @@ umass_cam_sense_cb(struct umass_softc *sc, union ccb *ccb, uint32_t residue,
 		}
 		xpt_done(ccb);
 		break;
-
+	}
 	default:
 		DPRINTF(sc, UDMASS_SCSI, "Autosense failed, "
 		    "status %d\n", status);
@@ -2752,7 +2757,7 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		if (sc->sc_quirks & NO_TEST_UNIT_READY) {
 			DPRINTF(sc, UDMASS_SCSI, "Converted TEST_UNIT_READY "
 			    "to START_UNIT\n");
-			bzero(sc->sc_transfer.cmd_data, cmd_len);
+			memset(sc->sc_transfer.cmd_data, 0, cmd_len);
 			sc->sc_transfer.cmd_data[0] = START_STOP_UNIT;
 			sc->sc_transfer.cmd_data[4] = SSS_START;
 			return (1);
@@ -2765,14 +2770,14 @@ umass_scsi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * information.
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
 			return (1);
 		}
 		break;
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);
 }
 
@@ -2807,10 +2812,11 @@ umass_rbc_transform(struct umass_softc *sc, uint8_t *cmd_ptr, uint8_t cmd_len)
 	case REQUEST_SENSE:
 	case PREVENT_ALLOW:
 
-		bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+		memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 
 		if ((sc->sc_quirks & RBC_PAD_TO_12) && (cmd_len < 12)) {
-			bzero(sc->sc_transfer.cmd_data + cmd_len, 12 - cmd_len);
+			memset(sc->sc_transfer.cmd_data + cmd_len,
+			    0, 12 - cmd_len);
 			cmd_len = 12;
 		}
 		sc->sc_transfer.cmd_len = cmd_len;
@@ -2838,7 +2844,7 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	sc->sc_transfer.cmd_len = UFI_COMMAND_LENGTH;
 
 	/* Zero the command data */
-	bzero(sc->sc_transfer.cmd_data, UFI_COMMAND_LENGTH);
+	memset(sc->sc_transfer.cmd_data, 0, UFI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2895,7 +2901,7 @@ umass_ufi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		return (0);		/* failure */
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);			/* success */
 }
 
@@ -2916,7 +2922,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 	sc->sc_transfer.cmd_len = ATAPI_COMMAND_LENGTH;
 
 	/* Zero the command data */
-	bzero(sc->sc_transfer.cmd_data, ATAPI_COMMAND_LENGTH);
+	memset(sc->sc_transfer.cmd_data, 0, ATAPI_COMMAND_LENGTH);
 
 	switch (cmd_ptr[0]) {
 		/*
@@ -2930,7 +2936,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		 * information.
 		 */
 		if (sc->sc_quirks & FORCE_SHORT_INQUIRY) {
-			bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+			memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 
 			sc->sc_transfer.cmd_data[4] = SHORT_INQUIRY_LENGTH;
 			return (1);
@@ -2991,7 +2997,7 @@ umass_atapi_transform(struct umass_softc *sc, uint8_t *cmd_ptr,
 		break;
 	}
 
-	bcopy(cmd_ptr, sc->sc_transfer.cmd_data, cmd_len);
+	memcpy(sc->sc_transfer.cmd_data, cmd_ptr, cmd_len);
 	return (1);			/* success */
 }
 

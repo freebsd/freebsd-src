@@ -34,16 +34,14 @@
 #
 # $FreeBSD$
 
-NO_PROFILE=
-NO_INSTALLLIB=
-.include <bsd.own.mk>
+.include <bsd.init.mk>
 
 LIB=	pam_unix
 SRCS=	pam_unix.c
 MAN=	pam_unix.8
 
-DPADD= ${LIBUTIL} ${LIBCRYPT}
-LDADD= -lutil -lcrypt
+DPADD+= ${LIBUTIL} ${LIBCRYPT}
+LDADD+= -lutil -lcrypt
 
 .if ${MK_NIS} != "no"
 CFLAGS+= -DYP

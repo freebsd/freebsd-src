@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 #include <netsmb/smb_subr.h>
 #include <netsmb/smb_tran.h>
 
-MALLOC_DEFINE(M_SMBRQ, "SMBRQ", "SMB request");
+static MALLOC_DEFINE(M_SMBRQ, "SMBRQ", "SMB request");
 
 MODULE_DEPEND(netsmb, libmchain, 1, 1, 1);
 

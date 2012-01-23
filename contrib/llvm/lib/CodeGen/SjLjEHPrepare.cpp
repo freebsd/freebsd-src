@@ -21,15 +21,22 @@
 #include "llvm/LLVMContext.h"
 #include "llvm/Module.h"
 #include "llvm/Pass.h"
-#include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/Statistic.h"
 #include "llvm/CodeGen/Passes.h"
-#include "llvm/Support/Debug.h"
+#include "llvm/Target/TargetData.h"
 #include "llvm/Target/TargetLowering.h"
 #include "llvm/Transforms/Utils/BasicBlockUtils.h"
 #include "llvm/Transforms/Utils/Local.h"
+#include "llvm/Support/CommandLine.h"
+#include "llvm/Support/Debug.h"
+#include "llvm/Support/IRBuilder.h"
+#include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/Statistic.h"
 #include <set>
 using namespace llvm;
+
+static cl::opt<bool> DisableOldSjLjEH("disable-old-sjlj-eh", cl::Hidden,
+    cl::desc("Disable the old SjLj EH preparation pass"));
 
 STATISTIC(NumInvokes, "Number of invokes replaced");
 STATISTIC(NumUnwinds, "Number of unwinds replaced");
@@ -37,10 +44,8 @@ STATISTIC(NumSpilled, "Number of registers live across unwind edges");
 
 namespace {
   class SjLjEHPass : public FunctionPass {
-
     const TargetLowering *TLI;
-
-    const Type *FunctionContextTy;
+    Type *FunctionContextTy;
     Constant *RegisterFn;
     Constant *UnregisterFn;
     Constant *BuiltinSetjmpFn;
@@ -53,8 +58,9 @@ namespace {
     Constant *ExceptionFn;
     Constant *CallSiteFn;
     Constant *DispatchSetupFn;
-
+    Constant *FuncCtxFn;
     Value *CallSite;
+    DenseMap<InvokeInst*, BasicBlock*> LPadSuccMap;
   public:
     static char ID; // Pass identification, replacement for typeid
     explicit SjLjEHPass(const TargetLowering *tli = NULL)
@@ -62,16 +68,22 @@ namespace {
     bool doInitialization(Module &M);
     bool runOnFunction(Function &F);
 
-    virtual void getAnalysisUsage(AnalysisUsage &AU) const { }
+    virtual void getAnalysisUsage(AnalysisUsage &AU) const {}
     const char *getPassName() const {
       return "SJLJ Exception Handling preparation";
     }
 
   private:
+    bool setupEntryBlockAndCallSites(Function &F);
+    Value *setupFunctionContext(Function &F, ArrayRef<LandingPadInst*> LPads);
+    void lowerIncomingArguments(Function &F);
+    void lowerAcrossUnwindEdges(Function &F, ArrayRef<InvokeInst*> Invokes);
+
     void insertCallSiteStore(Instruction *I, int Number, Value *CallSite);
     void markInvokeCallSite(InvokeInst *II, int InvokeNo, Value *CallSite,
                             SwitchInst *CatchSwitch);
     void splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes);
+    void splitLandingPad(InvokeInst *II);
     bool insertSjLjEHSupport(Function &F);
   };
 } // end anonymous namespace
@@ -116,6 +128,7 @@ bool SjLjEHPass::doInitialization(Module &M) {
   CallSiteFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_callsite);
   DispatchSetupFn
     = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_dispatch_setup);
+  FuncCtxFn = Intrinsic::getDeclaration(&M, Intrinsic::eh_sjlj_functioncontext);
   PersonalityFn = 0;
 
   return true;
@@ -131,6 +144,42 @@ void SjLjEHPass::insertCallSiteStore(Instruction *I, int Number,
   new StoreInst(CallSiteNoC, CallSite, true, I);  // volatile
 }
 
+/// splitLandingPad - Split a landing pad. This takes considerable care because
+/// of PHIs and other nasties. The problem is that the jump table needs to jump
+/// to the landing pad block. However, the landing pad block can be jumped to
+/// only by an invoke instruction. So we clone the landingpad instruction into
+/// its own basic block, have the invoke jump to there. The landingpad
+/// instruction's basic block's successor is now the target for the jump table.
+///
+/// But because of PHI nodes, we need to create another basic block for the jump
+/// table to jump to. This is definitely a hack, because the values for the PHI
+/// nodes may not be defined on the edge from the jump table. But that's okay,
+/// because the jump table is simply a construct to mimic what is happening in
+/// the CFG. So the values are mysteriously there, even though there is no value
+/// for the PHI from the jump table's edge (hence calling this a hack).
+void SjLjEHPass::splitLandingPad(InvokeInst *II) {
+  SmallVector<BasicBlock*, 2> NewBBs;
+  SplitLandingPadPredecessors(II->getUnwindDest(), II->getParent(),
+                              ".1", ".2", this, NewBBs);
+
+  // Create an empty block so that the jump table has something to jump to
+  // which doesn't have any PHI nodes.
+  BasicBlock *LPad = NewBBs[0];
+  BasicBlock *Succ = *succ_begin(LPad);
+  BasicBlock *JumpTo = BasicBlock::Create(II->getContext(), "jt.land",
+                                          LPad->getParent(), Succ);
+  LPad->getTerminator()->eraseFromParent();
+  BranchInst::Create(JumpTo, LPad);
+  BranchInst::Create(Succ, JumpTo);
+  LPadSuccMap[II] = JumpTo;
+
+  for (BasicBlock::iterator I = Succ->begin(); isa<PHINode>(I); ++I) {
+    PHINode *PN = cast<PHINode>(I);
+    Value *Val = PN->removeIncomingValue(LPad, false);
+    PN->addIncoming(Val, JumpTo);
+  }
+}
+
 /// markInvokeCallSite - Insert code to mark the call_site for this invoke
 void SjLjEHPass::markInvokeCallSite(InvokeInst *II, int InvokeNo,
                                     Value *CallSite,
@@ -140,11 +189,15 @@ void SjLjEHPass::markInvokeCallSite(InvokeInst *II, int InvokeNo,
   // The runtime comes back to the dispatcher with the call_site - 1 in
   // the context. Odd, but there it is.
   ConstantInt *SwitchValC = ConstantInt::get(Type::getInt32Ty(II->getContext()),
-                                            InvokeNo - 1);
+                                             InvokeNo - 1);
 
   // If the unwind edge has phi nodes, split the edge.
   if (isa<PHINode>(II->getUnwindDest()->begin())) {
-    SplitCriticalEdge(II, 1, this);
+    // FIXME: New EH - This if-condition will be always true in the new scheme.
+    if (II->getUnwindDest()->isLandingPad())
+      splitLandingPad(II);
+    else
+      SplitCriticalEdge(II, 1, this);
 
     // If there are any phi nodes left, they must have a single predecessor.
     while (PHINode *PN = dyn_cast<PHINode>(II->getUnwindDest()->begin())) {
@@ -161,7 +214,12 @@ void SjLjEHPass::markInvokeCallSite(InvokeInst *II, int InvokeNo,
   CallInst::Create(CallSiteFn, CallSiteNoC, "", II);
 
   // Add a switch case to our unwind block.
-  CatchSwitch->addCase(SwitchValC, II->getUnwindDest());
+  if (BasicBlock *SuccBB = LPadSuccMap[II]) {
+    CatchSwitch->addCase(SwitchValC, SuccBB);
+  } else {
+    CatchSwitch->addCase(SwitchValC, II->getUnwindDest());
+  }
+
   // We still want this to look like an invoke so we emit the LSDA properly,
   // so we don't transform the invoke into a call here.
 }
@@ -187,10 +245,16 @@ splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
   for (unsigned i = 0, e = Invokes.size(); i != e; ++i) {
     InvokeInst *II = Invokes[i];
     SplitCriticalEdge(II, 0, this);
-    SplitCriticalEdge(II, 1, this);
+
+    // FIXME: New EH - This if-condition will be always true in the new scheme.
+    if (II->getUnwindDest()->isLandingPad())
+      splitLandingPad(II);
+    else
+      SplitCriticalEdge(II, 1, this);
+
     assert(!isa<PHINode>(II->getNormalDest()) &&
            !isa<PHINode>(II->getUnwindDest()) &&
-           "critical edge splitting left single entry phi nodes?");
+           "Critical edge splitting left single entry phi nodes?");
   }
 
   Function *F = Invokes.back()->getParent()->getParent();
@@ -204,7 +268,7 @@ splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
     ++AfterAllocaInsertPt;
   for (Function::arg_iterator AI = F->arg_begin(), E = F->arg_end();
        AI != E; ++AI) {
-    const Type *Ty = AI->getType();
+    Type *Ty = AI->getType();
     // Aggregate types can't be cast, but are legal argument types, so we have
     // to handle them differently. We use an extract/insert pair as a
     // lightweight method to achieve the same goal.
@@ -283,9 +347,8 @@ splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
       bool NeedsSpill = false;
       for (unsigned i = 0, e = Invokes.size(); i != e; ++i) {
         BasicBlock *UnwindBlock = Invokes[i]->getUnwindDest();
-        if (UnwindBlock != BB && LiveBBs.count(UnwindBlock)) {
+        if (UnwindBlock != BB && LiveBBs.count(UnwindBlock))
           NeedsSpill = true;
-        }
       }
 
       // If we decided we need a spill, do it.
@@ -297,6 +360,44 @@ splitLiveRangesAcrossInvokes(SmallVector<InvokeInst*,16> &Invokes) {
         DemoteRegToStack(*Inst, true);
       }
     }
+}
+
+/// CreateLandingPadLoad - Load the exception handling values and insert them
+/// into a structure.
+static Instruction *CreateLandingPadLoad(Function &F, Value *ExnAddr,
+                                         Value *SelAddr,
+                                         BasicBlock::iterator InsertPt) {
+  Value *Exn = new LoadInst(ExnAddr, "exn", false,
+                            InsertPt);
+  Type *Ty = Type::getInt8PtrTy(F.getContext());
+  Exn = CastInst::Create(Instruction::IntToPtr, Exn, Ty, "", InsertPt);
+  Value *Sel = new LoadInst(SelAddr, "sel", false, InsertPt);
+
+  Ty = StructType::get(Exn->getType(), Sel->getType(), NULL);
+  InsertValueInst *LPadVal = InsertValueInst::Create(llvm::UndefValue::get(Ty),
+                                                     Exn, 0,
+                                                     "lpad.val", InsertPt);
+  return InsertValueInst::Create(LPadVal, Sel, 1, "lpad.val", InsertPt);
+}
+
+/// ReplaceLandingPadVal - Replace the landingpad instruction's value with a
+/// load from the stored values (via CreateLandingPadLoad). This looks through
+/// PHI nodes, and removes them if they are dead.
+static void ReplaceLandingPadVal(Function &F, Instruction *Inst, Value *ExnAddr,
+                                 Value *SelAddr) {
+  if (Inst->use_empty()) return;
+
+  while (!Inst->use_empty()) {
+    Instruction *I = cast<Instruction>(Inst->use_back());
+
+    if (PHINode *PN = dyn_cast<PHINode>(I)) {
+      ReplaceLandingPadVal(F, PN, ExnAddr, SelAddr);
+      if (PN->use_empty()) PN->eraseFromParent();
+      continue;
+    }
+
+    I->replaceUsesOfWith(Inst, CreateLandingPadLoad(F, ExnAddr, SelAddr, I));
+  }
 }
 
 bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
@@ -337,10 +438,23 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   SmallVector<CallInst*,16> EH_Exceptions;
   SmallVector<Instruction*,16> JmpbufUpdatePoints;
 
-  // Note: Skip the entry block since there's nothing there that interests
-  // us. eh.selector and eh.exception shouldn't ever be there, and we
-  // want to disregard any allocas that are there.
-  for (Function::iterator BB = F.begin(), E = F.end(); ++BB != E;) {
+  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+    // Note: Skip the entry block since there's nothing there that interests
+    // us. eh.selector and eh.exception shouldn't ever be there, and we
+    // want to disregard any allocas that are there.
+    // 
+    // FIXME: This is awkward. The new EH scheme won't need to skip the entry
+    //        block.
+    if (BB == F.begin()) {
+      if (InvokeInst *II = dyn_cast<InvokeInst>(F.begin()->getTerminator())) {
+        // FIXME: This will be always non-NULL in the new EH.
+        if (LandingPadInst *LPI = II->getUnwindDest()->getLandingPadInst())
+          if (!PersonalityFn) PersonalityFn = LPI->getPersonalityFn();
+      }
+
+      continue;
+    }
+
     for (BasicBlock::iterator I = BB->begin(), E = BB->end(); I != E; ++I) {
       if (CallInst *CI = dyn_cast<CallInst>(I)) {
         if (CI->getCalledFunction() == SelectorFn) {
@@ -353,6 +467,10 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
         }
       } else if (AllocaInst *AI = dyn_cast<AllocaInst>(I)) {
         JmpbufUpdatePoints.push_back(AI);
+      } else if (InvokeInst *II = dyn_cast<InvokeInst>(I)) {
+        // FIXME: This will be always non-NULL in the new EH.
+        if (LandingPadInst *LPI = II->getUnwindDest()->getLandingPadInst())
+          if (!PersonalityFn) PersonalityFn = LPI->getPersonalityFn();
       }
     }
   }
@@ -371,6 +489,16 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   // invoke's.
   splitLiveRangesAcrossInvokes(Invokes);
 
+
+  SmallVector<LandingPadInst*, 16> LandingPads;
+  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB) {
+    if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator()))
+      // FIXME: This will be always non-NULL in the new EH.
+      if (LandingPadInst *LPI = II->getUnwindDest()->getLandingPadInst())
+        LandingPads.push_back(LPI);
+  }
+
+
   BasicBlock *EntryBB = F.begin();
   // Create an alloca for the incoming jump buffer ptr and the new jump buffer
   // that needs to be restored on all exits from the function.  This is an
@@ -381,27 +509,25 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
                    "fcn_context", F.begin()->begin());
 
   Value *Idxs[2];
-  const Type *Int32Ty = Type::getInt32Ty(F.getContext());
+  Type *Int32Ty = Type::getInt32Ty(F.getContext());
   Value *Zero = ConstantInt::get(Int32Ty, 0);
   // We need to also keep around a reference to the call_site field
   Idxs[0] = Zero;
   Idxs[1] = ConstantInt::get(Int32Ty, 1);
-  CallSite = GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
-                                       "call_site",
+  CallSite = GetElementPtrInst::Create(FunctionContext, Idxs, "call_site",
                                        EntryBB->getTerminator());
 
   // The exception selector comes back in context->data[1]
   Idxs[1] = ConstantInt::get(Int32Ty, 2);
-  Value *FCData = GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
-                                            "fc_data",
+  Value *FCData = GetElementPtrInst::Create(FunctionContext, Idxs, "fc_data",
                                             EntryBB->getTerminator());
   Idxs[1] = ConstantInt::get(Int32Ty, 1);
-  Value *SelectorAddr = GetElementPtrInst::Create(FCData, Idxs, Idxs+2,
+  Value *SelectorAddr = GetElementPtrInst::Create(FCData, Idxs,
                                                   "exc_selector_gep",
                                                   EntryBB->getTerminator());
   // The exception value comes back in context->data[0]
   Idxs[1] = Zero;
-  Value *ExceptionAddr = GetElementPtrInst::Create(FCData, Idxs, Idxs+2,
+  Value *ExceptionAddr = GetElementPtrInst::Create(FCData, Idxs,
                                                    "exception_gep",
                                                    EntryBB->getTerminator());
 
@@ -423,12 +549,15 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
     // instruction hasn't already been removed.
     if (!I->getParent()) continue;
     Value *Val = new LoadInst(ExceptionAddr, "exception", true, I);
-    const Type *Ty = Type::getInt8PtrTy(F.getContext());
+    Type *Ty = Type::getInt8PtrTy(F.getContext());
     Val = CastInst::Create(Instruction::IntToPtr, Val, Ty, "", I);
 
     I->replaceAllUsesWith(Val);
     I->eraseFromParent();
   }
+
+  for (unsigned i = 0, e = LandingPads.size(); i != e; ++i)
+    ReplaceLandingPadVal(F, LandingPads[i], ExceptionAddr, SelectorAddr);
 
   // The entry block changes to have the eh.sjlj.setjmp, with a conditional
   // branch to a dispatch block for non-zero returns. If we return normally,
@@ -466,8 +595,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   Idxs[0] = Zero;
   Idxs[1] = ConstantInt::get(Int32Ty, 4);
   Value *LSDAFieldPtr =
-    GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
-                              "lsda_gep",
+    GetElementPtrInst::Create(FunctionContext, Idxs, "lsda_gep",
                               EntryBB->getTerminator());
   Value *LSDA = CallInst::Create(LSDAAddrFn, "lsda_addr",
                                  EntryBB->getTerminator());
@@ -475,8 +603,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
 
   Idxs[1] = ConstantInt::get(Int32Ty, 3);
   Value *PersonalityFieldPtr =
-    GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
-                              "lsda_gep",
+    GetElementPtrInst::Create(FunctionContext, Idxs, "lsda_gep",
                               EntryBB->getTerminator());
   new StoreInst(PersonalityFn, PersonalityFieldPtr, true,
                 EntryBB->getTerminator());
@@ -484,12 +611,11 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   // Save the frame pointer.
   Idxs[1] = ConstantInt::get(Int32Ty, 5);
   Value *JBufPtr
-    = GetElementPtrInst::Create(FunctionContext, Idxs, Idxs+2,
-                                "jbuf_gep",
+    = GetElementPtrInst::Create(FunctionContext, Idxs, "jbuf_gep",
                                 EntryBB->getTerminator());
   Idxs[1] = ConstantInt::get(Int32Ty, 0);
   Value *FramePtr =
-    GetElementPtrInst::Create(JBufPtr, Idxs, Idxs+2, "jbuf_fp_gep",
+    GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_fp_gep",
                               EntryBB->getTerminator());
 
   Value *Val = CallInst::Create(FrameAddrFn,
@@ -501,7 +627,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   // Save the stack pointer.
   Idxs[1] = ConstantInt::get(Int32Ty, 2);
   Value *StackPtr =
-    GetElementPtrInst::Create(JBufPtr, Idxs, Idxs+2, "jbuf_sp_gep",
+    GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_sp_gep",
                               EntryBB->getTerminator());
 
   Val = CallInst::Create(StackAddrFn, "sp", EntryBB->getTerminator());
@@ -513,7 +639,7 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
                      Type::getInt8PtrTy(F.getContext()), "",
                      EntryBB->getTerminator());
   Value *DispatchVal = CallInst::Create(BuiltinSetjmpFn, SetjmpArg,
-                                        "dispatch",
+                                        "",
                                         EntryBB->getTerminator());
 
   // Add a call to dispatch_setup after the setjmp call. This is expanded to any
@@ -554,6 +680,8 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
         if (Callee != SelectorFn && Callee != ExceptionFn
             && !CI->doesNotThrow())
           insertCallSiteStore(CI, -1, CallSite);
+      } else if (ResumeInst *RI = dyn_cast<ResumeInst>(I)) {
+        insertCallSiteStore(RI, -1, CallSite);
       }
   }
 
@@ -582,7 +710,317 @@ bool SjLjEHPass::insertSjLjEHSupport(Function &F) {
   return true;
 }
 
+/// setupFunctionContext - Allocate the function context on the stack and fill
+/// it with all of the data that we know at this point.
+Value *SjLjEHPass::
+setupFunctionContext(Function &F, ArrayRef<LandingPadInst*> LPads) {
+  BasicBlock *EntryBB = F.begin();
+
+  // Create an alloca for the incoming jump buffer ptr and the new jump buffer
+  // that needs to be restored on all exits from the function. This is an alloca
+  // because the value needs to be added to the global context list.
+  unsigned Align =
+    TLI->getTargetData()->getPrefTypeAlignment(FunctionContextTy);
+  AllocaInst *FuncCtx =
+    new AllocaInst(FunctionContextTy, 0, Align, "fn_context", EntryBB->begin());
+
+  // Fill in the function context structure.
+  Value *Idxs[2];
+  Type *Int32Ty = Type::getInt32Ty(F.getContext());
+  Value *Zero = ConstantInt::get(Int32Ty, 0);
+  Value *One = ConstantInt::get(Int32Ty, 1);
+
+  // Keep around a reference to the call_site field.
+  Idxs[0] = Zero;
+  Idxs[1] = One;
+  CallSite = GetElementPtrInst::Create(FuncCtx, Idxs, "call_site",
+                                       EntryBB->getTerminator());
+
+  // Reference the __data field.
+  Idxs[1] = ConstantInt::get(Int32Ty, 2);
+  Value *FCData = GetElementPtrInst::Create(FuncCtx, Idxs, "__data",
+                                            EntryBB->getTerminator());
+
+  // The exception value comes back in context->__data[0].
+  Idxs[1] = Zero;
+  Value *ExceptionAddr = GetElementPtrInst::Create(FCData, Idxs,
+                                                   "exception_gep",
+                                                   EntryBB->getTerminator());
+
+  // The exception selector comes back in context->__data[1].
+  Idxs[1] = One;
+  Value *SelectorAddr = GetElementPtrInst::Create(FCData, Idxs,
+                                                  "exn_selector_gep",
+                                                  EntryBB->getTerminator());
+
+  for (unsigned I = 0, E = LPads.size(); I != E; ++I) {
+    LandingPadInst *LPI = LPads[I];
+    IRBuilder<> Builder(LPI->getParent()->getFirstInsertionPt());
+
+    Value *ExnVal = Builder.CreateLoad(ExceptionAddr, true, "exn_val");
+    ExnVal = Builder.CreateIntToPtr(ExnVal, Type::getInt8PtrTy(F.getContext()));
+    Value *SelVal = Builder.CreateLoad(SelectorAddr, true, "exn_selector_val");
+
+    Type *LPadType = LPI->getType();
+    Value *LPadVal = UndefValue::get(LPadType);
+    LPadVal = Builder.CreateInsertValue(LPadVal, ExnVal, 0, "lpad.val");
+    LPadVal = Builder.CreateInsertValue(LPadVal, SelVal, 1, "lpad.val");
+
+    LPI->replaceAllUsesWith(LPadVal);
+  }
+
+  // Personality function
+  Idxs[1] = ConstantInt::get(Int32Ty, 3);
+  if (!PersonalityFn)
+    PersonalityFn = LPads[0]->getPersonalityFn();
+  Value *PersonalityFieldPtr =
+    GetElementPtrInst::Create(FuncCtx, Idxs, "pers_fn_gep",
+                              EntryBB->getTerminator());
+  new StoreInst(PersonalityFn, PersonalityFieldPtr, true,
+                EntryBB->getTerminator());
+
+  // LSDA address
+  Idxs[1] = ConstantInt::get(Int32Ty, 4);
+  Value *LSDAFieldPtr = GetElementPtrInst::Create(FuncCtx, Idxs, "lsda_gep",
+                                                  EntryBB->getTerminator());
+  Value *LSDA = CallInst::Create(LSDAAddrFn, "lsda_addr",
+                                 EntryBB->getTerminator());
+  new StoreInst(LSDA, LSDAFieldPtr, true, EntryBB->getTerminator());
+
+  return FuncCtx;
+}
+
+/// lowerIncomingArguments - To avoid having to handle incoming arguments
+/// specially, we lower each arg to a copy instruction in the entry block. This
+/// ensures that the argument value itself cannot be live out of the entry
+/// block.
+void SjLjEHPass::lowerIncomingArguments(Function &F) {
+  BasicBlock::iterator AfterAllocaInsPt = F.begin()->begin();
+  while (isa<AllocaInst>(AfterAllocaInsPt) &&
+         isa<ConstantInt>(cast<AllocaInst>(AfterAllocaInsPt)->getArraySize()))
+    ++AfterAllocaInsPt;
+
+  for (Function::arg_iterator
+         AI = F.arg_begin(), AE = F.arg_end(); AI != AE; ++AI) {
+    Type *Ty = AI->getType();
+
+    // Aggregate types can't be cast, but are legal argument types, so we have
+    // to handle them differently. We use an extract/insert pair as a
+    // lightweight method to achieve the same goal.
+    if (isa<StructType>(Ty) || isa<ArrayType>(Ty) || isa<VectorType>(Ty)) {
+      Instruction *EI = ExtractValueInst::Create(AI, 0, "", AfterAllocaInsPt);
+      Instruction *NI = InsertValueInst::Create(AI, EI, 0);
+      NI->insertAfter(EI);
+      AI->replaceAllUsesWith(NI);
+
+      // Set the operand of the instructions back to the AllocaInst.
+      EI->setOperand(0, AI);
+      NI->setOperand(0, AI);
+    } else {
+      // This is always a no-op cast because we're casting AI to AI->getType()
+      // so src and destination types are identical. BitCast is the only
+      // possibility.
+      CastInst *NC =
+        new BitCastInst(AI, AI->getType(), AI->getName() + ".tmp",
+                        AfterAllocaInsPt);
+      AI->replaceAllUsesWith(NC);
+
+      // Set the operand of the cast instruction back to the AllocaInst.
+      // Normally it's forbidden to replace a CastInst's operand because it
+      // could cause the opcode to reflect an illegal conversion. However, we're
+      // replacing it here with the same value it was constructed with.  We do
+      // this because the above replaceAllUsesWith() clobbered the operand, but
+      // we want this one to remain.
+      NC->setOperand(0, AI);
+    }
+  }
+}
+
+/// lowerAcrossUnwindEdges - Find all variables which are alive across an unwind
+/// edge and spill them.
+void SjLjEHPass::lowerAcrossUnwindEdges(Function &F,
+                                        ArrayRef<InvokeInst*> Invokes) {
+  // Finally, scan the code looking for instructions with bad live ranges.
+  for (Function::iterator
+         BB = F.begin(), BBE = F.end(); BB != BBE; ++BB) {
+    for (BasicBlock::iterator
+           II = BB->begin(), IIE = BB->end(); II != IIE; ++II) {
+      // Ignore obvious cases we don't have to handle. In particular, most
+      // instructions either have no uses or only have a single use inside the
+      // current block. Ignore them quickly.
+      Instruction *Inst = II;
+      if (Inst->use_empty()) continue;
+      if (Inst->hasOneUse() &&
+          cast<Instruction>(Inst->use_back())->getParent() == BB &&
+          !isa<PHINode>(Inst->use_back())) continue;
+
+      // If this is an alloca in the entry block, it's not a real register
+      // value.
+      if (AllocaInst *AI = dyn_cast<AllocaInst>(Inst))
+        if (isa<ConstantInt>(AI->getArraySize()) && BB == F.begin())
+          continue;
+
+      // Avoid iterator invalidation by copying users to a temporary vector.
+      SmallVector<Instruction*, 16> Users;
+      for (Value::use_iterator
+             UI = Inst->use_begin(), E = Inst->use_end(); UI != E; ++UI) {
+        Instruction *User = cast<Instruction>(*UI);
+        if (User->getParent() != BB || isa<PHINode>(User))
+          Users.push_back(User);
+      }
+
+      // Find all of the blocks that this value is live in.
+      std::set<BasicBlock*> LiveBBs;
+      LiveBBs.insert(Inst->getParent());
+      while (!Users.empty()) {
+        Instruction *U = Users.back();
+        Users.pop_back();
+
+        if (!isa<PHINode>(U)) {
+          MarkBlocksLiveIn(U->getParent(), LiveBBs);
+        } else {
+          // Uses for a PHI node occur in their predecessor block.
+          PHINode *PN = cast<PHINode>(U);
+          for (unsigned i = 0, e = PN->getNumIncomingValues(); i != e; ++i)
+            if (PN->getIncomingValue(i) == Inst)
+              MarkBlocksLiveIn(PN->getIncomingBlock(i), LiveBBs);
+        }
+      }
+
+      // Now that we know all of the blocks that this thing is live in, see if
+      // it includes any of the unwind locations.
+      bool NeedsSpill = false;
+      for (unsigned i = 0, e = Invokes.size(); i != e; ++i) {
+        BasicBlock *UnwindBlock = Invokes[i]->getUnwindDest();
+        if (UnwindBlock != BB && LiveBBs.count(UnwindBlock)) {
+          NeedsSpill = true;
+        }
+      }
+
+      // If we decided we need a spill, do it.
+      // FIXME: Spilling this way is overkill, as it forces all uses of
+      // the value to be reloaded from the stack slot, even those that aren't
+      // in the unwind blocks. We should be more selective.
+      if (NeedsSpill) {
+        ++NumSpilled;
+        DemoteRegToStack(*Inst, true);
+      }
+    }
+  }
+}
+
+/// setupEntryBlockAndCallSites - Setup the entry block by creating and filling
+/// the function context and marking the call sites with the appropriate
+/// values. These values are used by the DWARF EH emitter.
+bool SjLjEHPass::setupEntryBlockAndCallSites(Function &F) {
+  SmallVector<ReturnInst*,     16> Returns;
+  SmallVector<InvokeInst*,     16> Invokes;
+  SmallVector<LandingPadInst*, 16> LPads;
+
+  // Look through the terminators of the basic blocks to find invokes.
+  for (Function::iterator BB = F.begin(), E = F.end(); BB != E; ++BB)
+    if (InvokeInst *II = dyn_cast<InvokeInst>(BB->getTerminator())) {
+      Invokes.push_back(II);
+      LPads.push_back(II->getUnwindDest()->getLandingPadInst());
+    } else if (ReturnInst *RI = dyn_cast<ReturnInst>(BB->getTerminator())) {
+      Returns.push_back(RI);
+    }
+
+  if (Invokes.empty()) return false;
+
+  lowerIncomingArguments(F);
+  lowerAcrossUnwindEdges(F, Invokes);
+
+  Value *FuncCtx = setupFunctionContext(F, LPads);
+  BasicBlock *EntryBB = F.begin();
+  Type *Int32Ty = Type::getInt32Ty(F.getContext());
+
+  Value *Idxs[2] = {
+    ConstantInt::get(Int32Ty, 0), 0
+  };
+
+  // Get a reference to the jump buffer.
+  Idxs[1] = ConstantInt::get(Int32Ty, 5);
+  Value *JBufPtr = GetElementPtrInst::Create(FuncCtx, Idxs, "jbuf_gep",
+                                             EntryBB->getTerminator());
+
+  // Save the frame pointer.
+  Idxs[1] = ConstantInt::get(Int32Ty, 0);
+  Value *FramePtr = GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_fp_gep",
+                                              EntryBB->getTerminator());
+
+  Value *Val = CallInst::Create(FrameAddrFn,
+                                ConstantInt::get(Int32Ty, 0),
+                                "fp",
+                                EntryBB->getTerminator());
+  new StoreInst(Val, FramePtr, true, EntryBB->getTerminator());
+
+  // Save the stack pointer.
+  Idxs[1] = ConstantInt::get(Int32Ty, 2);
+  Value *StackPtr = GetElementPtrInst::Create(JBufPtr, Idxs, "jbuf_sp_gep",
+                                              EntryBB->getTerminator());
+
+  Val = CallInst::Create(StackAddrFn, "sp", EntryBB->getTerminator());
+  new StoreInst(Val, StackPtr, true, EntryBB->getTerminator());
+
+  // Call the setjmp instrinsic. It fills in the rest of the jmpbuf.
+  Value *SetjmpArg = CastInst::Create(Instruction::BitCast, JBufPtr,
+                                      Type::getInt8PtrTy(F.getContext()), "",
+                                      EntryBB->getTerminator());
+  CallInst::Create(BuiltinSetjmpFn, SetjmpArg, "", EntryBB->getTerminator());
+
+  // Store a pointer to the function context so that the back-end will know
+  // where to look for it.
+  Value *FuncCtxArg = CastInst::Create(Instruction::BitCast, FuncCtx,
+                                       Type::getInt8PtrTy(F.getContext()), "",
+                                       EntryBB->getTerminator());
+  CallInst::Create(FuncCtxFn, FuncCtxArg, "", EntryBB->getTerminator());
+
+  // At this point, we are all set up, update the invoke instructions to mark
+  // their call_site values.
+  for (unsigned I = 0, E = Invokes.size(); I != E; ++I) {
+    insertCallSiteStore(Invokes[I], I + 1, CallSite);
+
+    ConstantInt *CallSiteNum =
+      ConstantInt::get(Type::getInt32Ty(F.getContext()), I + 1);
+
+    // Record the call site value for the back end so it stays associated with
+    // the invoke.
+    CallInst::Create(CallSiteFn, CallSiteNum, "", Invokes[I]);
+  }
+
+  // Mark call instructions that aren't nounwind as no-action (call_site ==
+  // -1). Skip the entry block, as prior to then, no function context has been
+  // created for this function and any unexpected exceptions thrown will go
+  // directly to the caller's context, which is what we want anyway, so no need
+  // to do anything here.
+  for (Function::iterator BB = F.begin(), E = F.end(); ++BB != E;)
+    for (BasicBlock::iterator I = BB->begin(), end = BB->end(); I != end; ++I)
+      if (CallInst *CI = dyn_cast<CallInst>(I)) {
+        if (!CI->doesNotThrow())
+          insertCallSiteStore(CI, -1, CallSite);
+      } else if (ResumeInst *RI = dyn_cast<ResumeInst>(I)) {
+        insertCallSiteStore(RI, -1, CallSite);
+      }
+
+  // Register the function context and make sure it's known to not throw
+  CallInst *Register = CallInst::Create(RegisterFn, FuncCtx, "",
+                                        EntryBB->getTerminator());
+  Register->setDoesNotThrow();
+
+  // Finally, for any returns from this function, if this function contains an
+  // invoke, add a call to unregister the function context.
+  for (unsigned I = 0, E = Returns.size(); I != E; ++I)
+    CallInst::Create(UnregisterFn, FuncCtx, "", Returns[I]);
+
+  return true;
+}
+
 bool SjLjEHPass::runOnFunction(Function &F) {
-  bool Res = insertSjLjEHSupport(F);
+  bool Res = false;
+  if (!DisableOldSjLjEH)
+    Res = insertSjLjEHSupport(F);
+  else
+    Res = setupEntryBlockAndCallSites(F);
   return Res;
 }

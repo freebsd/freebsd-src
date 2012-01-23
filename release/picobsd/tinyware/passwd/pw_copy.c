@@ -193,7 +193,7 @@ err:		pw_error(NULL, 1, 1);
  * by default, warning for IDs greater than USHRT_MAX.
  *
  * If pw_big_ids_warning is anything other than -1 on entry to pw_scan()
- * it will be set based on the existance of PW_SCAN_BIG_IDS in the
+ * it will be set based on the existence of PW_SCAN_BIG_IDS in the
  * environment.
  */
 int     pw_big_ids_warning = -1;

@@ -88,7 +88,7 @@ public:
   /// getTypeStoreSize - Return the TargetData store size for the given type,
   /// if known, or a conservative value otherwise.
   ///
-  uint64_t getTypeStoreSize(const Type *Ty);
+  uint64_t getTypeStoreSize(Type *Ty);
 
   //===--------------------------------------------------------------------===//
   /// Alias Queries...
@@ -136,6 +136,8 @@ public:
   Location getLocation(const LoadInst *LI);
   Location getLocation(const StoreInst *SI);
   Location getLocation(const VAArgInst *VI);
+  Location getLocation(const AtomicCmpXchgInst *CXI);
+  Location getLocation(const AtomicRMWInst *RMWI);
   static Location getLocationForSource(const MemTransferInst *MTI);
   static Location getLocationForDest(const MemIntrinsic *MI);
 
@@ -341,6 +343,11 @@ public:
     case Instruction::VAArg:  return getModRefInfo((const VAArgInst*)I, Loc);
     case Instruction::Load:   return getModRefInfo((const LoadInst*)I,  Loc);
     case Instruction::Store:  return getModRefInfo((const StoreInst*)I, Loc);
+    case Instruction::Fence:  return getModRefInfo((const FenceInst*)I, Loc);
+    case Instruction::AtomicCmpXchg:
+      return getModRefInfo((const AtomicCmpXchgInst*)I, Loc);
+    case Instruction::AtomicRMW:
+      return getModRefInfo((const AtomicRMWInst*)I, Loc);
     case Instruction::Call:   return getModRefInfo((const CallInst*)I,  Loc);
     case Instruction::Invoke: return getModRefInfo((const InvokeInst*)I,Loc);
     default:                  return NoModRef;
@@ -404,6 +411,39 @@ public:
   /// getModRefInfo (for stores) - A convenience wrapper.
   ModRefResult getModRefInfo(const StoreInst *S, const Value *P, uint64_t Size){
     return getModRefInfo(S, Location(P, Size));
+  }
+
+  /// getModRefInfo (for fences) - Return whether information about whether
+  /// a particular store modifies or reads the specified memory location.
+  ModRefResult getModRefInfo(const FenceInst *S, const Location &Loc) {
+    // Conservatively correct.  (We could possibly be a bit smarter if
+    // Loc is a alloca that doesn't escape.)
+    return ModRef;
+  }
+
+  /// getModRefInfo (for fences) - A convenience wrapper.
+  ModRefResult getModRefInfo(const FenceInst *S, const Value *P, uint64_t Size){
+    return getModRefInfo(S, Location(P, Size));
+  }
+
+  /// getModRefInfo (for cmpxchges) - Return whether information about whether
+  /// a particular cmpxchg modifies or reads the specified memory location.
+  ModRefResult getModRefInfo(const AtomicCmpXchgInst *CX, const Location &Loc);
+
+  /// getModRefInfo (for cmpxchges) - A convenience wrapper.
+  ModRefResult getModRefInfo(const AtomicCmpXchgInst *CX,
+                             const Value *P, unsigned Size) {
+    return getModRefInfo(CX, Location(P, Size));
+  }
+
+  /// getModRefInfo (for atomicrmws) - Return whether information about whether
+  /// a particular atomicrmw modifies or reads the specified memory location.
+  ModRefResult getModRefInfo(const AtomicRMWInst *RMW, const Location &Loc);
+
+  /// getModRefInfo (for atomicrmws) - A convenience wrapper.
+  ModRefResult getModRefInfo(const AtomicRMWInst *RMW,
+                             const Value *P, unsigned Size) {
+    return getModRefInfo(RMW, Location(P, Size));
   }
 
   /// getModRefInfo (for va_args) - Return whether information about whether

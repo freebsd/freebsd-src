@@ -259,6 +259,9 @@ static const char *sbbc_serengeti_set_console_input(char *new);
 /*
  * SBBC PCI interface
  */
+static bus_activate_resource_t sbbc_bus_activate_resource;
+static bus_adjust_resource_t sbbc_bus_adjust_resource;
+static bus_deactivate_resource_t sbbc_bus_deactivate_resource;
 static bus_alloc_resource_t sbbc_bus_alloc_resource;
 static bus_release_resource_t sbbc_bus_release_resource;
 static bus_get_resource_list_t sbbc_bus_get_resource_list;
@@ -276,18 +279,21 @@ static device_method_t sbbc_pci_methods[] = {
 	DEVMETHOD(device_probe,		sbbc_pci_probe),
 	DEVMETHOD(device_attach,	sbbc_pci_attach),
 
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_alloc_resource,	sbbc_bus_alloc_resource),
+	DEVMETHOD(bus_activate_resource,sbbc_bus_activate_resource),
+	DEVMETHOD(bus_deactivate_resource,sbbc_bus_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	sbbc_bus_adjust_resource),
 	DEVMETHOD(bus_release_resource,	sbbc_bus_release_resource),
 	DEVMETHOD(bus_setup_intr,	sbbc_bus_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	sbbc_bus_teardown_intr),
+	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
 	DEVMETHOD(bus_get_resource_list, sbbc_bus_get_resource_list),
 
 	/* clock interface */
 	DEVMETHOD(clock_gettime,	sbbc_tod_gettime),
 	DEVMETHOD(clock_settime,	sbbc_tod_settime),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t sbbc_devclass;
@@ -333,11 +339,8 @@ sbbc_pci_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	rid = SBBC_PCI_BAR;
-	/*
-	 * Note that we don't activate the resource so it's not mapped twice
-	 * but only once by the firmware.
-	 */
-	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid, 0);
+	sc->sc_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY, &rid,
+	    RF_ACTIVE);
 	if (sc->sc_res == NULL) {
 		device_printf(dev, "failed to allocate resources\n");
 		return (ENXIO);
@@ -402,14 +405,42 @@ sbbc_bus_alloc_resource(device_t dev, device_t child __unused, int type,
 	sc = device_get_softc(dev);
 	switch (type) {
 	case SYS_RES_IRQ:
-		return (BUS_ALLOC_RESOURCE(device_get_parent(dev), dev, type,
-		    rid, start, end, count, flags));
+		return (bus_generic_alloc_resource(dev, dev, type, rid, start,
+		    end, count, flags));
 	case SYS_RES_MEMORY:
 		return (sc->sc_res);
 	default:
 		return (NULL);
-		/* NOTREACHED */
 	}
+}
+
+static int
+sbbc_bus_activate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	if (type == SYS_RES_MEMORY)
+		return (0);
+	return (bus_generic_activate_resource(bus, child, type, rid, res));
+}
+
+static int
+sbbc_bus_deactivate_resource(device_t bus, device_t child, int type, int rid,
+    struct resource *res)
+{
+
+	if (type == SYS_RES_MEMORY)
+		return (0);
+	return (bus_generic_deactivate_resource(bus, child, type, rid, res));
+}
+
+static int
+sbbc_bus_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *res __unused, u_long start __unused,
+    u_long end __unused)
+{
+
+	return (ENXIO);
 }
 
 static int
@@ -418,8 +449,8 @@ sbbc_bus_release_resource(device_t dev, device_t child __unused, int type,
 {
 
 	if (type == SYS_RES_IRQ)
-		return (BUS_RELEASE_RESOURCE(device_get_parent(dev), dev,
-		    type, rid, res));
+		return (bus_generic_release_resource(dev, dev, type, rid,
+		    res));
 	return (0);
 }
 
@@ -427,7 +458,7 @@ static struct resource_list *
 sbbc_bus_get_resource_list(device_t dev, device_t child __unused)
 {
 
-	return (BUS_GET_RESOURCE_LIST(device_get_parent(dev), dev));
+	return (bus_generic_get_resource_list(dev, dev));
 }
 
 static int
@@ -436,8 +467,8 @@ sbbc_bus_setup_intr(device_t dev, device_t child __unused,
     driver_intr_t *intr, void *arg, void **cookiep)
 {
 
-	return (BUS_SETUP_INTR(device_get_parent(dev), dev, res, flags, filt,
-	    intr, arg, cookiep));
+	return (bus_generic_setup_intr(dev, dev, res, flags, filt, intr, arg,
+	    cookiep));
 }
 
 static int
@@ -445,7 +476,7 @@ sbbc_bus_teardown_intr(device_t dev, device_t child __unused,
     struct resource *res, void *cookie)
 {
 
-	return (BUS_TEARDOWN_INTR(device_get_parent(dev), dev, res, cookie));
+	return (bus_generic_teardown_intr(dev, dev, res, cookie));
 }
 
 /*
@@ -573,7 +604,7 @@ static device_method_t sbbc_uart_sbbc_methods[] = {
 	DEVMETHOD(device_attach,	uart_bus_attach),
 	DEVMETHOD(device_detach,	uart_bus_detach),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(uart, sbbc_uart_driver, sbbc_uart_sbbc_methods,
@@ -774,7 +805,7 @@ static kobj_method_t sbbc_uart_methods[] = {
 	KOBJMETHOD(uart_setsig,		sbbc_uart_bus_setsig),
 	KOBJMETHOD(uart_transmit,	sbbc_uart_bus_transmit),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 struct uart_class uart_sbbc_class = {

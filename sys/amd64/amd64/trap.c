@@ -125,7 +125,7 @@ void dblfault_handler(struct trapframe *frame);
 static int trap_pfault(struct trapframe *, int);
 static void trap_fatal(struct trapframe *, vm_offset_t);
 
-#define MAX_TRAP_MSG		30
+#define MAX_TRAP_MSG		33
 static char *trap_msg[] = {
 	"",					/*  0 unused */
 	"privileged instruction fault",		/*  1 T_PRIVINFLT */
@@ -158,6 +158,9 @@ static char *trap_msg[] = {
 	"machine check trap",			/* 28 T_MCHK */
 	"SIMD floating-point exception",	/* 29 T_XMMFLT */
 	"reserved (unknown) fault",		/* 30 T_RESERVED */
+	"",					/* 31 unused (reserved) */
+	"DTrace pid return trap",		/* 32 T_DTRACE_RET */
+	"DTrace fasttrap probe trap",		/* 33 T_DTRACE_PROBE */
 };
 
 #ifdef KDB
@@ -245,28 +248,26 @@ trap(struct trapframe *frame)
 	 * handled the trap and modified the trap frame so that this
 	 * function can return normally.
 	 */
-	if (dtrace_trap_func != NULL)
-		if ((*dtrace_trap_func)(frame, type))
-			goto out;
 	if (type == T_DTRACE_PROBE || type == T_DTRACE_RET ||
 	    type == T_BPTFLT) {
 		struct reg regs;
-		
+
 		fill_frame_regs(frame, &regs);
 		if (type == T_DTRACE_PROBE &&
 		    dtrace_fasttrap_probe_ptr != NULL &&
 		    dtrace_fasttrap_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_BPTFLT &&
+			goto out;
+		else if (type == T_BPTFLT &&
 		    dtrace_pid_probe_ptr != NULL &&
 		    dtrace_pid_probe_ptr(&regs) == 0)
-				goto out;
-		if (type == T_DTRACE_RET &&
+			goto out;
+		else if (type == T_DTRACE_RET &&
 		    dtrace_return_probe_ptr != NULL &&
 		    dtrace_return_probe_ptr(&regs) == 0)
 			goto out;
-
 	}
+	if (dtrace_trap_func != NULL && (*dtrace_trap_func)(frame, type))
+		goto out;
 #endif
 
 	if ((frame->tf_rflags & PSL_I) == 0) {
@@ -674,6 +675,19 @@ trap_pfault(frame, usermode)
 			goto nogo;
 
 		map = &vm->vm_map;
+
+		/*
+		 * When accessing a usermode address, kernel must be
+		 * ready to accept the page fault, and provide a
+		 * handling routine.  Since accessing the address
+		 * without the handler is a bug, do not try to handle
+		 * it normally, and panic immediately.
+		 */
+		if (!usermode && (td->td_intr_nesting_level != 0 ||
+		    PCPU_GET(curpcb)->pcb_onfault == NULL)) {
+			trap_fatal(frame, eva);
+			return (-1);
+		}
 	}
 
 	/*
@@ -886,9 +900,9 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 #include "../../kern/subr_syscall.c"
 
 /*
- *	syscall -	system call request C handler
- *
- *	A system call is essentially treated as a trap.
+ * System call handler for native binaries.  The trap frame is already
+ * set up by the assembler trampoline and a pointer to it is saved in
+ * td_frame.
  */
 void
 amd64_syscall(struct thread *td, int traced)
@@ -920,7 +934,7 @@ amd64_syscall(struct thread *td, int traced)
 	KASSERT(PCB_USER_FPU(td->td_pcb),
 	    ("System call %s returing with kernel FPU ctx leaked",
 	     syscallname(td->td_proc, sa.code)));
-	KASSERT(td->td_pcb->pcb_save == &td->td_pcb->pcb_user_save,
+	KASSERT(td->td_pcb->pcb_save == get_pcb_user_save_td(td),
 	    ("System call %s returning with mangled pcb_save",
 	     syscallname(td->td_proc, sa.code)));
 

@@ -15,14 +15,14 @@
 #ifndef CLANG_CODEGEN_CXXABI_H
 #define CLANG_CODEGEN_CXXABI_H
 
+#include "clang/Basic/LLVM.h"
+
 #include "CodeGenFunction.h"
 
 namespace llvm {
   class Constant;
   class Type;
   class Value;
-
-  template <class T> class SmallVectorImpl;
 }
 
 namespace clang {
@@ -151,7 +151,7 @@ public:
   virtual void BuildConstructorSignature(const CXXConstructorDecl *Ctor,
                                          CXXCtorType T,
                                          CanQualType &ResTy,
-                               llvm::SmallVectorImpl<CanQualType> &ArgTys) = 0;
+                               SmallVectorImpl<CanQualType> &ArgTys) = 0;
 
   /// Build the signature of the given destructor variant by adding
   /// any required parameters.  For convenience, ResTy has been
@@ -160,7 +160,7 @@ public:
   virtual void BuildDestructorSignature(const CXXDestructorDecl *Dtor,
                                         CXXDtorType T,
                                         CanQualType &ResTy,
-                               llvm::SmallVectorImpl<CanQualType> &ArgTys) = 0;
+                               SmallVectorImpl<CanQualType> &ArgTys) = 0;
 
   /// Build the ABI-specific portion of the parameter list for a
   /// function.  This generally involves a 'this' parameter and

@@ -1,4 +1,4 @@
-/* $OpenBSD: packet.h,v 1.55 2010/11/13 23:27:50 djm Exp $ */
+/* $OpenBSD: packet.h,v 1.56 2011/05/06 21:14:05 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -96,7 +96,6 @@ int      packet_have_data_to_write(void);
 int      packet_not_very_much_data_to_write(void);
 
 int	 packet_connection_is_on_socket(void);
-int	 packet_connection_is_ipv4(void);
 int	 packet_remaining(void);
 void	 packet_send_ignore(int);
 void	 packet_add_padding(u_char);

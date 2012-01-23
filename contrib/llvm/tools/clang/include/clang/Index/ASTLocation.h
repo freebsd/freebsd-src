@@ -17,10 +17,6 @@
 #include "clang/AST/TypeLoc.h"
 #include "llvm/ADT/PointerIntPair.h"
 
-namespace llvm {
-  class raw_ostream;
-}
-
 namespace clang {
   class Decl;
   class Stmt;
@@ -150,7 +146,7 @@ public:
 
   SourceRange getSourceRange() const;
 
-  void print(llvm::raw_ostream &OS) const;
+  void print(raw_ostream &OS) const;
 };
 
 /// \brief Like ASTLocation but also contains the TranslationUnit that the

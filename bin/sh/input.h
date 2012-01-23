@@ -53,7 +53,6 @@ int preadbuffer(void);
 int preadateof(void);
 void pungetc(void);
 void pushstring(char *, int, void *);
-void popstring(void);
 void setinputfile(const char *, int);
 void setinputfd(int, int);
 void setinputstring(char *, int);

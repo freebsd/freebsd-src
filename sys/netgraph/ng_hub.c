@@ -37,7 +37,7 @@
 #include <netgraph/netgraph.h>
 
 #ifdef NG_SEPARATE_MALLOC
-MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
+static MALLOC_DEFINE(M_NETGRAPH_HUB, "netgraph_hub", "netgraph hub node");
 #else
 #define M_NETGRAPH_HUB M_NETGRAPH
 #endif

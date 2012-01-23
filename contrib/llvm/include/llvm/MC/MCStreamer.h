@@ -14,13 +14,15 @@
 #ifndef LLVM_MC_MCSTREAMER_H
 #define LLVM_MC_MCSTREAMER_H
 
-#include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/DataTypes.h"
 #include "llvm/MC/MCDirectives.h"
 #include "llvm/MC/MCDwarf.h"
 #include "llvm/MC/MCWin64EH.h"
+#include "llvm/ADT/ArrayRef.h"
+#include "llvm/ADT/SmallVector.h"
 
 namespace llvm {
+  class MCAsmBackend;
   class MCAsmInfo;
   class MCCodeEmitter;
   class MCContext;
@@ -30,7 +32,6 @@ namespace llvm {
   class MCSection;
   class MCSymbol;
   class StringRef;
-  class TargetAsmBackend;
   class TargetLoweringObjectFile;
   class Twine;
   class raw_ostream;
@@ -63,14 +64,29 @@ namespace llvm {
     void setCurrentW64UnwindInfo(MCWin64EHUnwindInfo *Frame);
     void EnsureValidW64UnwindInfo();
 
-    const MCSymbol* LastNonPrivate;
+    MCSymbol* LastSymbol;
 
     /// SectionStack - This is stack of current and previous section
     /// values saved by PushSection.
     SmallVector<std::pair<const MCSection *,
                 const MCSection *>, 4> SectionStack;
 
+    unsigned UniqueCodeBeginSuffix;
+    unsigned UniqueDataBeginSuffix;
+
   protected:
+    /// Indicator of whether the previous data-or-code indicator was for
+    /// code or not.  Used to determine when we need to emit a new indicator.
+    enum DataType {
+      Data,
+      Code,
+      JumpTable8,
+      JumpTable16,
+      JumpTable32
+    };
+    DataType RegionIndicator;
+
+
     MCStreamer(MCContext &Ctx);
 
     const MCExpr *BuildSymbolDiff(MCContext &Context, const MCSymbol *A,
@@ -94,6 +110,10 @@ namespace llvm {
 
     const MCDwarfFrameInfo &getFrameInfo(unsigned i) {
       return FrameInfos[i];
+    }
+
+    ArrayRef<MCDwarfFrameInfo> getFrameInfos() {
+      return FrameInfos;
     }
 
     unsigned getNumW64UnwindInfos() {
@@ -219,6 +239,41 @@ namespace llvm {
     /// used in an assignment.
     virtual void EmitLabel(MCSymbol *Symbol);
 
+    /// EmitDataRegion - Emit a label that marks the beginning of a data
+    /// region.
+    /// On ELF targets, this corresponds to an assembler statement such as:
+    ///   $d.1:
+    virtual void EmitDataRegion();
+
+    /// EmitJumpTable8Region - Emit a label that marks the beginning of a
+    /// jump table composed of 8-bit offsets.
+    /// On ELF targets, this corresponds to an assembler statement such as:
+    ///   $d.1:
+    virtual void EmitJumpTable8Region();
+
+    /// EmitJumpTable16Region - Emit a label that marks the beginning of a
+    /// jump table composed of 16-bit offsets.
+    /// On ELF targets, this corresponds to an assembler statement such as:
+    ///   $d.1:
+    virtual void EmitJumpTable16Region();
+
+    /// EmitJumpTable32Region - Emit a label that marks the beginning of a
+    /// jump table composed of 32-bit offsets.
+    /// On ELF targets, this corresponds to an assembler statement such as:
+    ///   $d.1:
+    virtual void EmitJumpTable32Region();
+
+    /// EmitCodeRegion - Emit a label that marks the beginning of a code
+    /// region.
+    /// On ELF targets, this corresponds to an assembler statement such as:
+    ///   $a.1:
+    virtual void EmitCodeRegion();
+
+    /// ForceCodeRegion - Forcibly sets the current region mode to code.  Used
+    /// at function entry points.
+    void ForceCodeRegion() { RegionIndicator = Code; }
+
+
     virtual void EmitEHSymAttributes(const MCSymbol *Symbol,
                                      MCSymbol *EHSymbol);
 
@@ -299,7 +354,9 @@ namespace llvm {
     ///
     /// @param Symbol - The common symbol to emit.
     /// @param Size - The size of the common symbol.
-    virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size) = 0;
+    /// @param ByteAlignment - The alignment of the common symbol in bytes.
+    virtual void EmitLocalCommonSymbol(MCSymbol *Symbol, uint64_t Size,
+                                       unsigned ByteAlignment) = 0;
 
     /// EmitZerofill - Emit the zerofill section and an optional symbol.
     ///
@@ -470,6 +527,7 @@ namespace llvm {
     void EmitDwarfSetLineAddr(int64_t LineDelta, const MCSymbol *Label,
                               int PointerSize);
 
+    virtual void EmitCompactUnwindEncoding(uint32_t CompactUnwindEncoding);
     virtual void EmitCFISections(bool EH, bool Debug);
     virtual void EmitCFIStartProc();
     virtual void EmitCFIEndProc();
@@ -557,14 +615,14 @@ namespace llvm {
                                 bool useCFI,
                                 MCInstPrinter *InstPrint = 0,
                                 MCCodeEmitter *CE = 0,
-                                TargetAsmBackend *TAB = 0,
+                                MCAsmBackend *TAB = 0,
                                 bool ShowInst = false);
 
   /// createMachOStreamer - Create a machine code streamer which will generate
   /// Mach-O format object files.
   ///
   /// Takes ownership of \arg TAB and \arg CE.
-  MCStreamer *createMachOStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
+  MCStreamer *createMachOStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                   raw_ostream &OS, MCCodeEmitter *CE,
                                   bool RelaxAll = false);
 
@@ -573,13 +631,13 @@ namespace llvm {
   ///
   /// Takes ownership of \arg TAB and \arg CE.
   MCStreamer *createWinCOFFStreamer(MCContext &Ctx,
-                                    TargetAsmBackend &TAB,
+                                    MCAsmBackend &TAB,
                                     MCCodeEmitter &CE, raw_ostream &OS,
                                     bool RelaxAll = false);
 
   /// createELFStreamer - Create a machine code streamer which will generate
   /// ELF format object files.
-  MCStreamer *createELFStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
+  MCStreamer *createELFStreamer(MCContext &Ctx, MCAsmBackend &TAB,
 				raw_ostream &OS, MCCodeEmitter *CE,
 				bool RelaxAll, bool NoExecStack);
 
@@ -593,7 +651,7 @@ namespace llvm {
   /// "pure" MC object files, for use with MC-JIT and testing tools.
   ///
   /// Takes ownership of \arg TAB and \arg CE.
-  MCStreamer *createPureStreamer(MCContext &Ctx, TargetAsmBackend &TAB,
+  MCStreamer *createPureStreamer(MCContext &Ctx, MCAsmBackend &TAB,
                                  raw_ostream &OS, MCCodeEmitter *CE);
 
 } // end namespace llvm

@@ -3499,7 +3499,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 	 * entire page.
 	 */
 	if (eoff > off)
-		vm_page_set_valid(m, off & PAGE_MASK, eoff - off);
+		vm_page_set_valid_range(m, off & PAGE_MASK, eoff - off);
 }
 
 /*
@@ -3662,7 +3662,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 		m = bp->b_pages[i];
 		if (n > size)
 			n = size;
-		vm_page_set_valid(m, base & PAGE_MASK, n);
+		vm_page_set_valid_range(m, base & PAGE_MASK, n);
 		base += n;
 		size -= n;
 		n = PAGE_SIZE;
@@ -3760,10 +3760,9 @@ tryagain:
 		 * could interfere with paging I/O, no matter which
 		 * process we are.
 		 */
-		p = vm_page_alloc(NULL, pg >> PAGE_SHIFT, VM_ALLOC_NOOBJ |
-		    VM_ALLOC_SYSTEM | VM_ALLOC_WIRED |
-		    VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
-		if (!p) {
+		p = vm_page_alloc(NULL, 0, VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ |
+		    VM_ALLOC_WIRED | VM_ALLOC_COUNT((to - pg) >> PAGE_SHIFT));
+		if (p == NULL) {
 			VM_WAIT;
 			goto tryagain;
 		}

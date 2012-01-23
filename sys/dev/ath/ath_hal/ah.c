@@ -114,11 +114,15 @@ ath_hal_mac_name(struct ath_hal *ah)
 	case AR_XSREV_VERSION_SOWL:
 		return "9160";
 	case AR_XSREV_VERSION_MERLIN:
-		return "9280";
+		if (AH_PRIVATE(ah)->ah_ispcie)
+			return "9280";
+		return "9220";
 	case AR_XSREV_VERSION_KITE:
 		return "9285";
 	case AR_XSREV_VERSION_KIWI:
-		return "9287";
+		if (AH_PRIVATE(ah)->ah_ispcie)
+			return "9287";
+		return "9227";
 	}
 	return "????";
 }
@@ -659,6 +663,10 @@ ath_hal_getcapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		return pCap->halHasRxSelfLinkedTail ? HAL_OK : HAL_ENOTSUPP;
 	case HAL_CAP_LONG_RXDESC_TSF:		/* 32 bit TSF in RX descriptor? */
 		return pCap->halHasLongRxDescTsf ? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_BB_READ_WAR:		/* Baseband read WAR */
+		return pCap->halHasBBReadWar? HAL_OK : HAL_ENOTSUPP;
+	case HAL_CAP_SERIALISE_WAR:		/* PCI register serialisation */
+		return pCap->halSerialiseRegWar ? HAL_OK : HAL_ENOTSUPP;
 	default:
 		return HAL_EINVAL;
 	}
@@ -1257,4 +1265,28 @@ ath_hal_getcca(struct ath_hal *ah)
 	if (ath_hal_getcapability(ah, HAL_CAP_DIAG, 0, &diag) != HAL_OK)
 		return 1;
 	return ((diag & 0x500000) == 0);
+}
+
+/*
+ * This routine is only needed when supporting EEPROM-in-RAM setups
+ * (eg embedded SoCs and on-board PCI/PCIe devices.)
+ */
+/* NB: This is in 16 bit words; not bytes */
+/* XXX This doesn't belong here!  */
+#define ATH_DATA_EEPROM_SIZE    2048
+
+HAL_BOOL
+ath_hal_EepromDataRead(struct ath_hal *ah, u_int off, uint16_t *data)
+{
+	if (ah->ah_eepromdata == AH_NULL) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: no eeprom data!\n", __func__);
+		return AH_FALSE;
+	}
+	if (off > ATH_DATA_EEPROM_SIZE) {
+		HALDEBUG(ah, HAL_DEBUG_ANY, "%s: offset %x > %x\n",
+		    __func__, off, ATH_DATA_EEPROM_SIZE);
+		return AH_FALSE;
+	}
+	(*data) = ah->ah_eepromdata[off];
+	return AH_TRUE;
 }

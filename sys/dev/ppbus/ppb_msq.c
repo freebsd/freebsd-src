@@ -117,13 +117,10 @@ mode2xfer(device_t bus, struct ppb_device *ppbdev, int opcode)
 int
 ppb_MS_init(device_t bus, device_t dev, struct ppb_microseq *loop, int opcode)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = device_get_softc(bus);
-#endif
 	struct ppb_device *ppbdev = (struct ppb_device *)device_get_ivars(dev);
 	struct ppb_xfer *xfer = mode2xfer(bus, ppbdev, opcode);
 
-	mtx_assert(ppb->ppc_lock, MA_OWNED);
+	ppb_assert_locked(bus);
 	xfer->loop = loop;
 
 	return (0);
@@ -244,6 +241,7 @@ ppb_MS_init_msq(struct ppb_microseq *msq, int nbparam, ...)
 		}
 	}
 
+	va_end(p_list);
 	return (0);
 }
 

@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 14, 2011
+.Dd November 28, 2011
 .Dt PROCSTAT 1
 .Os
 .Sh NAME
@@ -37,7 +37,7 @@
 .Op Fl n
 .Op Fl C
 .Op Fl w Ar interval
-.Op Fl b | c | f | i | j | k | s | t | v
+.Op Fl b | c | e | f | i | j | k | l | s | t | v | x
 .Op Fl a | Ar pid ...
 .Sh DESCRIPTION
 The
@@ -56,6 +56,8 @@ for printing:
 Display binary information for the process.
 .It Fl c 
 Display command line arguments for the process.
+.It Fl e
+Display environment variables for the process.
 .It Fl f
 Display file descriptor information for the process.
 .It Fl i
@@ -67,12 +69,16 @@ Display the stacks of kernel threads in the process, excluding stacks of
 threads currently running on a CPU and threads with stacks swapped to disk.
 If the flag is repeated, function offsets as well as function names are
 printed.
+.It Fl l
+Display resource limits for the process.
 .It Fl s
 Display security credential information for the process.
 .It Fl t
 Display thread information for the process.
 .It Fl v
 Display virtual memory mappings for the process.
+.It Fl x
+Display ELF auxiliary vector for the process.
 .El
 .Pp
 All options generate output in the format of a table, the first field of
@@ -421,6 +427,8 @@ The following mapping flags may be displayed:
 copy-on-write
 .It N
 needs copy
+.It S
+one or more superpage mappings are used
 .El
 .Sh EXIT STATUS
 .Ex -std

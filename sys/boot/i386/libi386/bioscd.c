@@ -42,12 +42,12 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <machine/bootinfo.h>
-#include <machine/psl.h>
 
 #include <stdarg.h>
 
 #include <bootstrap.h>
 #include <btxv86.h>
+#include <edd.h>
 #include "libi386.h"
 
 #define BIOSCD_SECSIZE		2048
@@ -117,7 +117,6 @@ bc_bios2unit(int biosdev)
 	int i;
     
 	DEBUG("looking for bios device 0x%x", biosdev);
-	printf("looking for bios device 0x%x, nbcinfo=%d\n", biosdev, nbcinfo);
 	for (i = 0; i < nbcinfo; i++) {
 		DEBUG("bc unit %d is BIOS device 0x%x", i, bcinfo[i].bc_unit);
 		if (bcinfo[i].bc_unit == biosdev)
@@ -149,7 +148,6 @@ bc_init(void)
 int
 bc_add(int biosdev)
 {
-	printf("bc_add(%d)\n", biosdev);
 
 	if (nbcinfo >= MAXBCDEV)
 		return (-1);
@@ -161,10 +159,8 @@ bc_add(int biosdev)
 	v86.ds = VTOPSEG(&bcinfo[nbcinfo].bc_sp);
 	v86.esi = VTOPOFF(&bcinfo[nbcinfo].bc_sp);
 	v86int();
-	if ((v86.eax & 0xff00) != 0) {
-                printf("CD probe failed, eax=0x%08x\n", v86.eax);
+	if ((v86.eax & 0xff00) != 0)
 		return (-1);
-        }
 
 	printf("BIOS CD is cd%d\n", nbcinfo);
 	nbcinfo++;
@@ -325,9 +321,9 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 				v86int();
 			}
 
-			packet.len = 0x10;
+			packet.len = sizeof(struct edd_packet);
 			packet.count = x;
-			packet.offset = VTOPOFF(xp);
+			packet.off = VTOPOFF(xp);
 			packet.seg = VTOPSEG(xp);
 			packet.lba = dblk;
 			v86.ctl = V86_FLAGS;
@@ -337,7 +333,7 @@ bc_read(int unit, daddr_t dblk, int blks, caddr_t dest)
 			v86.ds = VTOPSEG(&packet);
 			v86.esi = VTOPOFF(&packet);
 			v86int();
-			result = (v86.efl & PSL_C);
+			result = V86_CY(v86.efl);
 			if (result == 0)
 				break;
 		}

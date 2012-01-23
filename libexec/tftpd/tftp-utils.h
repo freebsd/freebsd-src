@@ -36,11 +36,11 @@ __FBSDID("$FreeBSD$");
 #define	MAXPKTSIZE	(MAXSEGSIZE + 4) /* Maximum size of the packet */
 
 /* For the blksize option */
-#define BLKSIZE_MIN	8		/* Minumum size of the data segment */
+#define BLKSIZE_MIN	8		/* Minimum size of the data segment */
 #define BLKSIZE_MAX	MAXSEGSIZE	/* Maximum size of the data segment */
 
 /* For the timeout option */
-#define TIMEOUT_MIN	0		/* Minumum timeout value */
+#define TIMEOUT_MIN	0		/* Minimum timeout value */
 #define TIMEOUT_MAX	255		/* Maximum timeout value */
 #define MIN_TIMEOUTS	3
 

@@ -532,6 +532,9 @@ lock_profile_obtain_lock_success(struct lock_object *lo, int contested,
 	struct lock_profile_object *l;
 	int spin;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	/* don't reset the timer when/if recursing */
 	if (!lock_prof_enable || (lo->lo_flags & LO_NOPROFILE))
 		return;
@@ -596,6 +599,8 @@ lock_profile_release_lock(struct lock_object *lo)
 	struct lpohead *head;
 	int spin;
 
+	if (SCHEDULER_STOPPED())
+		return;
 	if (lo->lo_flags & LO_NOPROFILE)
 		return;
 	spin = (LOCK_CLASS(lo)->lc_flags & LC_SPINLOCK) ? 1 : 0;
@@ -645,8 +650,9 @@ out:
 	critical_exit();
 }
 
-SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
-SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL, "lock profiling");
+static SYSCTL_NODE(_debug, OID_AUTO, lock, CTLFLAG_RD, NULL, "lock debugging");
+static SYSCTL_NODE(_debug_lock, OID_AUTO, prof, CTLFLAG_RD, NULL,
+    "lock profiling");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipspin, CTLFLAG_RW,
     &lock_prof_skipspin, 0, "Skip profiling on spinlocks.");
 SYSCTL_INT(_debug_lock_prof, OID_AUTO, skipcount, CTLFLAG_RW,

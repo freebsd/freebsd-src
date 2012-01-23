@@ -63,7 +63,7 @@ static device_method_t ip1000phy_methods[] = {
 	DEVMETHOD(device_attach,	ip1000phy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t ip1000phy_devclass;
@@ -324,7 +324,8 @@ ip1000phy_mii_phy_auto(struct mii_softc *sc, int media)
 	PHY_WRITE(sc, IP1000PHY_MII_ANAR, reg | IP1000PHY_ANAR_CSMA);
 
 	reg = IP1000PHY_1000CR_1000T | IP1000PHY_1000CR_1000T_FDX;
-	reg |= IP1000PHY_1000CR_MASTER;
+	if (sc->mii_mpd_model != MII_MODEL_xxICPLUS_IP1001)
+		reg |= IP1000PHY_1000CR_MASTER;
 	PHY_WRITE(sc, IP1000PHY_MII_1000CR, reg);
 	PHY_WRITE(sc, IP1000PHY_MII_BMCR, (IP1000PHY_BMCR_FDX |
 	    IP1000PHY_BMCR_AUTOEN | IP1000PHY_BMCR_STARTNEG));

@@ -64,7 +64,7 @@ struct command {
 	char *name;
 	char *action;
 };
-struct command *commands;
+static struct command *commands;
 
 #define SIZE 4000
 

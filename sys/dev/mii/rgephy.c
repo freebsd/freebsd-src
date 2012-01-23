@@ -68,7 +68,7 @@ static device_method_t rgephy_methods[] = {
 	DEVMETHOD(device_attach,	rgephy_attach),
 	DEVMETHOD(device_detach,	mii_phy_detach),
 	DEVMETHOD(device_shutdown,	bus_generic_shutdown),
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static devclass_t rgephy_devclass;

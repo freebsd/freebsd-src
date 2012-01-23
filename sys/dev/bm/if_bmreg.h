@@ -129,14 +129,6 @@
 #define BM_MII_DATAIN	0x0008		/* MDIO data in */
 
 /*
- * MII constants
- */
-#define BM_MII_STARTDELIM	0x01
-#define BM_MII_READOP		0x02
-#define BM_MII_WRITEOP		0x01
-#define BM_MII_TURNAROUND	0x02
-
-/*
  * Various flags
  */
 
@@ -174,3 +166,5 @@
 #define	CSR_READ_1(sc, reg)		\
 	bus_read_1(sc->sc_memr, reg)
 
+#define CSR_BARRIER(sc, reg, length, flags)				\
+	bus_barrier(sc->sc_memr, reg, length, flags)

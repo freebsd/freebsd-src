@@ -16,7 +16,8 @@
 #include "llvm/PassManager.h"
 #include "llvm/CodeGen/RegAllocRegistry.h"
 #include "llvm/CodeGen/SchedulerRegistry.h"
-#include "llvm/Target/TargetRegistry.h"
+#include "llvm/Support/DynamicLibrary.h"
+#include "llvm/Support/TargetRegistry.h"
 
 using namespace llvm;
 
@@ -31,9 +32,10 @@ SPUFrameLowering::getCalleeSaveSpillSlots(unsigned &NumEntries) const {
   return &LR[0];
 }
 
-SPUTargetMachine::SPUTargetMachine(const Target &T, const std::string &TT,
-                                   const std::string &CPU,const std::string &FS)
-  : LLVMTargetMachine(T, TT, CPU, FS),
+SPUTargetMachine::SPUTargetMachine(const Target &T, StringRef TT,
+                                   StringRef CPU, StringRef FS,
+                                   Reloc::Model RM, CodeModel::Model CM)
+  : LLVMTargetMachine(T, TT, CPU, FS, RM, CM),
     Subtarget(TT, CPU, FS),
     DataLayout(Subtarget.getTargetDataString()),
     InstrInfo(*this),
@@ -41,9 +43,6 @@ SPUTargetMachine::SPUTargetMachine(const Target &T, const std::string &TT,
     TLInfo(*this),
     TSInfo(*this),
     InstrItins(Subtarget.getInstrItineraryData()) {
-  // For the time being, use static relocations, since there's really no
-  // support for PIC yet.
-  setRelocationModel(Reloc::Static);
 }
 
 //===----------------------------------------------------------------------===//
@@ -59,8 +58,16 @@ bool SPUTargetMachine::addInstSelector(PassManagerBase &PM,
 
 // passes to run just before printing the assembly
 bool SPUTargetMachine::
-addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel) 
-{
+addPreEmitPass(PassManagerBase &PM, CodeGenOpt::Level OptLevel) {
+  // load the TCE instruction scheduler, if available via
+  // loaded plugins
+  typedef llvm::FunctionPass* (*BuilderFunc)(const char*);
+  BuilderFunc schedulerCreator =
+    (BuilderFunc)(intptr_t)sys::DynamicLibrary::SearchForAddressOfSymbol(
+          "createTCESchedulerPass");
+  if (schedulerCreator != NULL)
+      PM.add(schedulerCreator("cellspu"));
+
   //align instructions with nops/lnops for dual issue
   PM.add(createSPUNopFillerPass(*this));
   return true;

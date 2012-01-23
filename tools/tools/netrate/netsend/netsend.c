@@ -29,6 +29,7 @@
 #include <sys/endian.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <net/if.h>		/* if_nametoindex() */
 #include <sys/time.h>
 
 #include <netinet/in.h>
@@ -40,13 +41,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include <netdb.h>
+
 /* program arguments */
 struct _a {
 	int s;
+	int ipv6;
 	struct timespec interval;
 	int port, port_max;
 	long duration;
 	struct sockaddr_in sin;
+	struct sockaddr_in6 sin6;
 	int packet_len;
 	void *packet;
 };
@@ -179,9 +184,16 @@ timing_loop(struct _a *a)
 	ic = gettimeofday_cycles;
 	cur_port = a->port;
 	if (a->port == a->port_max) {
-		if (connect(a->s, (struct sockaddr *)&a->sin, sizeof(a->sin))) {
-			perror("connect");
-			return (-1);
+		if (a->ipv6) {
+			if (connect(a->s, (struct sockaddr *)&a->sin6, sizeof(a->sin6))) {
+				perror("connect (ipv6)");
+				return (-1);
+			}
+		} else {
+			if (connect(a->s, (struct sockaddr *)&a->sin, sizeof(a->sin))) {
+				perror("connect (ipv4)");
+				return (-1);
+			}
 		}
 	}
 	while (1) {
@@ -215,8 +227,13 @@ timing_loop(struct _a *a)
 			a->sin.sin_port = htons(cur_port++);
 			if (cur_port > a->port_max)
 				cur_port = a->port;
+			if (a->ipv6) {
+			ret = sendto(a->s, a->packet, a->packet_len, 0,
+			    (struct sockaddr *)&a->sin6, sizeof(a->sin6));
+			} else {
 			ret = sendto(a->s, a->packet, a->packet_len, 0,
 				(struct sockaddr *)&a->sin, sizeof(a->sin));
+			}
 		}
 		if (ret < 0)
 			send_errors++;
@@ -254,25 +271,48 @@ main(int argc, char *argv[])
 	long rate, payloadsize, port;
 	char *dummy;
 	struct _a a;	/* arguments */
+	struct addrinfo hints, *res, *ressave;
 
 	bzero(&a, sizeof(a));
 
 	if (argc != 6)
 		usage();
 
-	a.sin.sin_len = sizeof(a.sin);
-	a.sin.sin_family = AF_INET;
-	if (inet_aton(argv[1], &a.sin.sin_addr) == 0) {
-		perror(argv[1]);
+	memset(&hints, 0, sizeof(hints));
+	hints.ai_family = AF_UNSPEC;
+
+	if (getaddrinfo(argv[1], NULL, &hints, &res) != 0) {
+		fprintf(stderr, "Couldn't resolv %s\n", argv[1]);
 		return (-1);
 	}
+	ressave = res;
+	while (res) {
+		if (res->ai_family == AF_INET) {
+			memcpy(&a.sin, res->ai_addr, res->ai_addrlen);
+			a.ipv6 = 0;
+			break;
+		} else if (res->ai_family == AF_INET6) {
+			memcpy(&a.sin6, res->ai_addr, res->ai_addrlen);
+			a.ipv6 = 1;
+			break;
+		} 
+		res = res->ai_next;
+	}
+	if (!res) {
+		fprintf(stderr, "Couldn't resolv %s\n", argv[1]);
+		exit(1);
+	}
+	freeaddrinfo(ressave);
 
 	port = strtoul(argv[2], &dummy, 10);
 	if (port < 1 || port > 65535)
 		usage();
 	if (*dummy != '\0' && *dummy != '-')
 		usage();
-	a.sin.sin_port = htons(port);
+	if (a.ipv6)
+		a.sin6.sin6_port = htons(port);
+	else
+		a.sin.sin_port = htons(port);
 	a.port = a.port_max = port;
 	if (*dummy == '-') {	/* set high port */
 		port = strtoul(dummy + 1, &dummy, 10);
@@ -328,7 +368,10 @@ main(int argc, char *argv[])
 	    "seconds\n", payloadsize, (intmax_t)a.interval.tv_sec,
 	    a.interval.tv_nsec, a.duration);
 
-	a.s = socket(PF_INET, SOCK_DGRAM, 0);
+	if (a.ipv6)
+		a.s = socket(PF_INET6, SOCK_DGRAM, 0);
+	else
+		a.s = socket(PF_INET, SOCK_DGRAM, 0);
 	if (a.s == -1) {
 		perror("socket");
 		return (-1);

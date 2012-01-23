@@ -653,8 +653,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sdp = &td->td_pcb->pcb_gsd;
 	sf.sf_uc.uc_mcontext.mc_gsbase = sdp->sd_hibase << 24 |
 	    sdp->sd_lobase;
-	bzero(sf.sf_uc.uc_mcontext.mc_spare1,
-	    sizeof(sf.sf_uc.uc_mcontext.mc_spare1));
+	sf.sf_uc.uc_mcontext.mc_flags = 0;
 	bzero(sf.sf_uc.uc_mcontext.mc_spare2,
 	    sizeof(sf.sf_uc.uc_mcontext.mc_spare2));
 	bzero(sf.sf_uc.__spare__, sizeof(sf.sf_uc.__spare__));
@@ -1222,7 +1221,7 @@ void
 cpu_halt(void)
 {
 	for (;;)
-		__asm__ ("hlt");
+		halt();
 }
 
 #endif
@@ -1245,6 +1244,8 @@ cpu_idle_acpi(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
+
+	/* See comments in cpu_idle_hlt(). */
 	disable_intr();
 	if (sched_runnable())
 		enable_intr();
@@ -1263,9 +1264,22 @@ cpu_idle_hlt(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_SLEEPING;
+
 	/*
-	 * We must absolutely guarentee that hlt is the next instruction
-	 * after sti or we introduce a timing window.
+	 * Since we may be in a critical section from cpu_idle(), if
+	 * an interrupt fires during that critical section we may have
+	 * a pending preemption.  If the CPU halts, then that thread
+	 * may not execute until a later interrupt awakens the CPU.
+	 * To handle this race, check for a runnable thread after
+	 * disabling interrupts and immediately return if one is
+	 * found.  Also, we must absolutely guarentee that hlt is
+	 * the next instruction after sti.  This ensures that any
+	 * interrupt that fires after the call to disable_intr() will
+	 * immediately awaken the CPU from hlt.  Finally, please note
+	 * that on x86 this works fine because of interrupts enabled only
+	 * after the instruction following sti takes place, while IF is set
+	 * to 1 immediately, allowing hlt instruction to acknowledge the
+	 * interrupt.
 	 */
 	disable_intr();
 	if (sched_runnable())
@@ -1292,11 +1306,19 @@ cpu_idle_mwait(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_MWAIT;
-	if (!sched_runnable()) {
-		cpu_monitor(state, 0, 0);
-		if (*state == STATE_MWAIT)
-			cpu_mwait(0, MWAIT_C1);
+
+	/* See comments in cpu_idle_hlt(). */
+	disable_intr();
+	if (sched_runnable()) {
+		enable_intr();
+		*state = STATE_RUNNING;
+		return;
 	}
+	cpu_monitor(state, 0, 0);
+	if (*state == STATE_MWAIT)
+		__asm __volatile("sti; mwait" : : "a" (MWAIT_C1), "c" (0));
+	else
+		enable_intr();
 	*state = STATE_RUNNING;
 }
 
@@ -1308,6 +1330,12 @@ cpu_idle_spin(int busy)
 
 	state = (int *)PCPU_PTR(monitorbuf);
 	*state = STATE_RUNNING;
+
+	/*
+	 * The sched_runnable() call is racy but as long as there is
+	 * a loop missing it one time will have just a little impact if any 
+	 * (and it is much better than missing the check at all).
+	 */
 	for (i = 0; i < 1000; i++) {
 		if (sched_runnable())
 			return;
@@ -2340,10 +2368,13 @@ physmap_done:
 		Maxmem = atop(physmap[physmap_idx + 1]);
 
 	/*
-	 * By default keep the memtest enabled.  Use a general name so that
+	 * By default enable the memory test on real hardware, and disable
+	 * it if we appear to be running in a VM.  This avoids touching all
+	 * pages unnecessarily, which doesn't matter on real hardware but is
+	 * bad for shared VM hosts.  Use a general name so that
 	 * one could eventually do more with the code than just disable it.
 	 */
-	memtest = 1;
+	memtest = (vm_guest > VM_GUEST_NO) ? 0 : 1;
 	TUNABLE_ULONG_FETCH("hw.memtest.tests", &memtest);
 
 	if (atop(physmap[physmap_idx + 1]) != Maxmem &&
@@ -3270,7 +3301,8 @@ int
 fill_fpregs(struct thread *td, struct fpreg *fpregs)
 {
 
-	KASSERT(td == curthread || TD_IS_SUSPENDED(td),
+	KASSERT(td == curthread || TD_IS_SUSPENDED(td) ||
+	    P_SHOULDSTOP(td->td_proc),
 	    ("not suspended thread %p", td));
 #ifdef DEV_NPX
 	npxgetregs(td);
@@ -3349,7 +3381,7 @@ get_mcontext(struct thread *td, mcontext_t *mcp, int flags)
 	mcp->mc_fsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
 	sdp = &td->td_pcb->pcb_gsd;
 	mcp->mc_gsbase = sdp->sd_hibase << 24 | sdp->sd_lobase;
-	bzero(mcp->mc_spare1, sizeof(mcp->mc_spare1));
+	mcp->mc_flags = 0;
 	bzero(mcp->mc_spare2, sizeof(mcp->mc_spare2));
 	return (0);
 }

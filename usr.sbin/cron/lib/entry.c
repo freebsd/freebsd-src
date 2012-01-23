@@ -254,7 +254,7 @@ load_entry(file, error_func, pw, envp)
 		}
 	}
 
-	/* make sundays equivilent */
+	/* make sundays equivalent */
 	if (bit_test(e->dow, 0) || bit_test(e->dow, 7)) {
 		bit_set(e->dow, 0);
 		bit_set(e->dow, 7);
