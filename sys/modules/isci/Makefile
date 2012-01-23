@@ -1,4 +1,4 @@
-# isci Loadable Kernel Module
+# isci driver Makefile
 #
 # $FreeBSD$
 
