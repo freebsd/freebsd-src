@@ -28,6 +28,8 @@
 
 kbdcontrol -d >/dev/null 2>&1
 if [ $? -eq 0 ]; then
+	dialog --backtitle "FreeBSD Installer" --title "Keymap Selection" \
+	    --yesno "Would you like to set a non-default key mapping for your keyboard?" 0 0 || exit 0
 	exec 3>&1
 	kbdmap 2>&1 1>&3 | grep 'keymap=' > $BSDINSTALL_TMPETC/rc.conf.keymap
 fi

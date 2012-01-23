@@ -495,6 +495,13 @@ tcp_timer_rexmt(void * xtp)
 			CURVNET_RESTORE();
 			return;
 		}
+		if (inp->inp_flags & INP_DROPPED) {
+			INP_WUNLOCK(inp);
+			INP_INFO_WUNLOCK(&V_tcbinfo);
+			CURVNET_RESTORE();
+			return;
+		}
+
 		tp = tcp_drop(tp, tp->t_softerror ?
 			      tp->t_softerror : ETIMEDOUT);
 		headlocked = 1;

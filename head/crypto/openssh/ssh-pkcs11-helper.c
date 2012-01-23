@@ -280,7 +280,6 @@ main(int argc, char **argv)
 	TAILQ_INIT(&pkcs11_keylist);
 	pkcs11_init(0);
 
-	init_rng();
 	seed_rng();
 	__progname = ssh_get_progname(argv[0]);
 

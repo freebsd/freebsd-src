@@ -43,9 +43,6 @@ namespace llvm {
     void processFunctionBeforeCalleeSavedScan(MachineFunction &MF,
                                               RegScavenger *RS = NULL) const;
 
-    //! Perform target-specific stack frame setup.
-    void getInitialFrameState(std::vector<MachineMove> &Moves) const;
-
     //! Return a function's saved spill slots
     /*!
       For CellSPU, a function's saved spill slots is just the link register.
@@ -76,17 +73,6 @@ namespace llvm {
     //! Convert frame index to stack offset
     static int FItoStackOffset(int frame_index) {
       return frame_index * stackSlotSize();
-    }
-    //! Number of instructions required to overcome hint-for-branch latency
-    /*!
-      HBR (hint-for-branch) instructions can be inserted when, for example,
-      we know that a given function is going to be called, such as printf(),
-      in the control flow graph. HBRs are only inserted if a sufficient number
-      of instructions occurs between the HBR and the target. Currently, HBRs
-      take 6 cycles, ergo, the magic number 6.
-     */
-    static int branchHintPenalty() {
-      return 6;
     }
   };
 }

@@ -55,7 +55,7 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
   if (!BE->getBlockDecl()->hasCaptures())
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const BlockDataRegion *R =
     cast<BlockDataRegion>(state->getSVal(BE).getAsRegion());
 
@@ -74,8 +74,9 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
     // Get the VarRegion associated with VD in the local stack frame.
     const LocationContext *LC = C.getPredecessor()->getLocationContext();
     VR = C.getSValBuilder().getRegionManager().getVarRegion(VD, LC);
+    SVal VRVal = state->getSVal(VR);
 
-    if (state->getSVal(VR).isUndef())
+    if (VRVal.isUndef())
       if (ExplodedNode *N = C.generateSink()) {
         if (!BT)
           BT.reset(new BuiltinBug("uninitialized variable captured by block"));
@@ -87,10 +88,10 @@ UndefCapturedBlockVarChecker::checkPostStmt(const BlockExpr *BE,
         os << "Variable '" << VD->getName() 
            << "' is uninitialized when captured by block";
 
-        EnhancedBugReport *R = new EnhancedBugReport(*BT, os.str(), N);
+        BugReport *R = new BugReport(*BT, os.str(), N);
         if (const Expr *Ex = FindBlockDeclRefExpr(BE->getBody(), VD))
           R->addRange(Ex->getSourceRange());
-        R->addVisitorCreator(bugreporter::registerFindLastStore, VR);
+        R->addVisitor(new FindLastStoreBRVisitor(VRVal, VR));
         // need location of block
         C.EmitReport(R);
       }

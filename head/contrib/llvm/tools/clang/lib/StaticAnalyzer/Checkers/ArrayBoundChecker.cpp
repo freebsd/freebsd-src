@@ -27,11 +27,12 @@ class ArrayBoundChecker :
     public Checker<check::Location> {
   mutable llvm::OwningPtr<BuiltinBug> BT;
 public:
-  void checkLocation(SVal l, bool isLoad, CheckerContext &C) const;
+  void checkLocation(SVal l, bool isLoad, const Stmt* S,
+                     CheckerContext &C) const;
 };
 }
 
-void ArrayBoundChecker::checkLocation(SVal l, bool isLoad,
+void ArrayBoundChecker::checkLocation(SVal l, bool isLoad, const Stmt* LoadS,
                                       CheckerContext &C) const {
   // Check for out of bound array element access.
   const MemRegion *R = l.getAsRegion();
@@ -50,15 +51,15 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad,
   if (Idx.isZeroConstant())
     return;
 
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   // Get the size of the array.
   DefinedOrUnknownSVal NumElements 
     = C.getStoreManager().getSizeInElements(state, ER->getSuperRegion(), 
                                             ER->getValueType());
 
-  const GRState *StInBound = state->assumeInBound(Idx, NumElements, true);
-  const GRState *StOutBound = state->assumeInBound(Idx, NumElements, false);
+  const ProgramState *StInBound = state->assumeInBound(Idx, NumElements, true);
+  const ProgramState *StOutBound = state->assumeInBound(Idx, NumElements, false);
   if (StOutBound && !StInBound) {
     ExplodedNode *N = C.generateSink(StOutBound);
     if (!N)
@@ -73,10 +74,10 @@ void ArrayBoundChecker::checkLocation(SVal l, bool isLoad,
     // reference is outside the range.
 
     // Generate a report for this bug.
-    RangedBugReport *report = 
-      new RangedBugReport(*BT, BT->getDescription(), N);
+    BugReport *report = 
+      new BugReport(*BT, BT->getDescription(), N);
 
-    report->addRange(C.getStmt()->getSourceRange());
+    report->addRange(LoadS->getSourceRange());
     C.EmitReport(report);
     return;
   }

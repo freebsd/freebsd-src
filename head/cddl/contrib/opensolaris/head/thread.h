@@ -76,6 +76,7 @@ static __inline int
 thr_create(void *stack_base, size_t stack_size, void *(*start_func) (void*),
     void *arg, long flags, thread_t *new_thread_ID)
 {
+	pthread_t dummy;
 	int ret;
 
 	assert(stack_base == NULL);
@@ -85,8 +86,11 @@ thr_create(void *stack_base, size_t stack_size, void *(*start_func) (void*),
 	pthread_attr_t attr;
 	pthread_attr_init(&attr);
 
-	if(flags & THR_DETACHED)
+	if (flags & THR_DETACHED)
 		pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+	if (new_thread_ID == NULL)
+		new_thread_ID = &dummy;
 
 	/* This function ignores the THR_BOUND flag, since NPTL doesn't seem to support PTHREAD_SCOPE_PROCESS */
 

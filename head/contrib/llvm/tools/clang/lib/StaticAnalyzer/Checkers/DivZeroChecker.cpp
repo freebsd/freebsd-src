@@ -52,7 +52,7 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
 
   // Check for divide by zero.
   ConstraintManager &CM = C.getConstraintManager();
-  const GRState *stateNotZero, *stateZero;
+  const ProgramState *stateNotZero, *stateZero;
   llvm::tie(stateNotZero, stateZero) = CM.assumeDual(C.getState(), *DV);
 
   if (stateZero && !stateNotZero) {
@@ -60,11 +60,11 @@ void DivZeroChecker::checkPreStmt(const BinaryOperator *B,
       if (!BT)
         BT.reset(new BuiltinBug("Division by zero"));
 
-      EnhancedBugReport *R = 
-        new EnhancedBugReport(*BT, BT->getDescription(), N);
+      BugReport *R = 
+        new BugReport(*BT, BT->getDescription(), N);
 
-      R->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
-                           bugreporter::GetDenomExpr(N));
+      R->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
+                                   bugreporter::GetDenomExpr(N)));
 
       C.EmitReport(R);
     }

@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="mroute6d"
-rcvar=`set_rcvar`
+rcvar="mroute6d_enable"
 command="/usr/local/sbin/pim6dd"
 
 load_rc_config $name

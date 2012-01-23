@@ -55,7 +55,9 @@ struct pmap;
 
 #define PCPU_MD_AIM64_FIELDS						\
 	struct slb	pc_slb[64];					\
-	struct slb	**pc_userslb;
+	struct slb	**pc_userslb;					\
+	register_t	pc_slbsave[18];					\
+	uint8_t		pc_slbstack[1024];
 
 #ifdef __powerpc64__
 #define PCPU_MD_AIM_FIELDS	PCPU_MD_AIM64_FIELDS
@@ -135,13 +137,20 @@ struct pmap;
 #ifdef _KERNEL
 
 #define pcpup	((struct pcpu *) powerpc_get_pcpup())
-#ifdef __powerpc64__
-register struct thread *curthread_reg __asm("%r13");
-#else
-register struct thread *curthread_reg __asm("%r2");
-#endif
+
 #ifdef AIM /* Book-E not yet adapted */
-#define curthread	curthread_reg
+static __inline __pure2 struct thread *
+__curthread(void)
+{
+	struct thread *td;
+#ifdef __powerpc64__
+	__asm __volatile("mr %0,13" : "=r"(td));
+#else
+	__asm __volatile("mr %0,2" : "=r"(td));
+#endif
+	return (td);
+}
+#define curthread (__curthread())
 #endif
 
 #define	PCPU_GET(member)	(pcpup->pc_ ## member)

@@ -66,7 +66,7 @@ static const char rcsid[] =
 #define MINCLS12  1U		/* minimum FAT12 clusters */
 #define MINCLS16  0x1000U	/* minimum FAT16 clusters */
 #define MINCLS32  2U		/* minimum FAT32 clusters */
-#define MAXCLS12  0xfedU 	/* maximum FAT12 clusters */
+#define MAXCLS12  0xfedU	/* maximum FAT12 clusters */
 #define MAXCLS16  0xfff5U	/* maximum FAT16 clusters */
 #define MAXCLS32  0xffffff5U	/* maximum FAT32 clusters */
 
@@ -97,9 +97,9 @@ static const char rcsid[] =
 #define argtox(arg, lo, msg)  argtou(arg, lo, UINT_MAX, msg)
 
 struct bs {
-    u_int8_t bsJump[3];		/* bootstrap entry point */
+    u_int8_t bsJump[3];			/* bootstrap entry point */
     u_int8_t bsOemName[8];		/* OEM name and version */
-};
+} __packed;
 
 struct bsbpb {
     u_int8_t bpbBytesPerSec[2];		/* bytes per sector */
@@ -114,7 +114,7 @@ struct bsbpb {
     u_int8_t bpbHeads[2];		/* drive heads */
     u_int8_t bpbHiddenSecs[4];		/* hidden sectors */
     u_int8_t bpbHugeSectors[4];		/* big total sectors */
-};
+} __packed;
 
 struct bsxbpb {
     u_int8_t bpbBigFATsecs[4];		/* big sectors per FAT */
@@ -123,8 +123,8 @@ struct bsxbpb {
     u_int8_t bpbRootClust[4];		/* root directory start cluster */
     u_int8_t bpbFSInfo[2];		/* file system info sector */
     u_int8_t bpbBackup[2];		/* backup boot sector */
-    u_int8_t bpbReserved[12];			/* reserved */
-};
+    u_int8_t bpbReserved[12];		/* reserved */
+} __packed;
 
 struct bsx {
     u_int8_t exDriveNumber;		/* drive number */
@@ -133,17 +133,17 @@ struct bsx {
     u_int8_t exVolumeID[4];		/* volume ID number */
     u_int8_t exVolumeLabel[11]; 	/* volume label */
     u_int8_t exFileSysType[8];		/* file system type */
-};
+} __packed;
 
 struct de {
-    u_int8_t deName[11];	/* name and extension */
-    u_int8_t deAttributes;	/* attributes */
-    u_int8_t rsvd[10];		/* reserved */
-    u_int8_t deMTime[2];	/* creation time */
-    u_int8_t deMDate[2];	/* creation date */
-    u_int8_t deStartCluster[2];	/* starting cluster */
-    u_int8_t deFileSize[4];	/* size */
-};
+    u_int8_t deName[11];		/* name and extension */
+    u_int8_t deAttributes;		/* attributes */
+    u_int8_t rsvd[10];			/* reserved */
+    u_int8_t deMTime[2];		/* creation time */
+    u_int8_t deMDate[2];		/* creation date */
+    u_int8_t deStartCluster[2];		/* starting cluster */
+    u_int8_t deFileSize[4];		/* size */
+} __packed;
 
 struct bpb {
     u_int bpbBytesPerSec;		/* bytes per sector */
@@ -160,29 +160,26 @@ struct bpb {
     u_int bpbHugeSectors; 		/* big total sectors */
     u_int bpbBigFATsecs; 		/* big sectors per FAT */
     u_int bpbRootClust; 		/* root directory start cluster */
-    u_int bpbFSInfo; 		/* file system info sector */
-    u_int bpbBackup; 		/* backup boot sector */
+    u_int bpbFSInfo; 			/* file system info sector */
+    u_int bpbBackup; 			/* backup boot sector */
 };
 
 #define BPBGAP 0, 0, 0, 0, 0, 0
 
-#define INIT(a, b, c, d, e, f, g, h, i, j) \
-    { .bpbBytesPerSec = a, .bpbSecPerClust = b, .bpbResSectors = c, .bpbFATs = d, .bpbRootDirEnts = e, \
-      .bpbSectors = f, .bpbMedia = g, .bpbFATsecs = h, .bpbSecPerTrack = i, .bpbHeads = j, }
 static struct {
     const char *name;
     struct bpb bpb;
 } const stdfmt[] = {
-    {"160",  INIT(512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1)},
-    {"180",  INIT(512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1)},
-    {"320",  INIT(512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2)},
-    {"360",  INIT(512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2)},
-    {"640",  INIT(512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2)},    
-    {"720",  INIT(512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2)},
-    {"1200", INIT(512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2)},
-    {"1232", INIT(1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2)},    
-    {"1440", INIT(512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2)},
-    {"2880", INIT(512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2)}
+    {"160",  {512, 1, 1, 2,  64,  320, 0xfe, 1,  8, 1, BPBGAP}},
+    {"180",  {512, 1, 1, 2,  64,  360, 0xfc, 2,  9, 1, BPBGAP}},
+    {"320",  {512, 2, 1, 2, 112,  640, 0xff, 1,  8, 2, BPBGAP}},
+    {"360",  {512, 2, 1, 2, 112,  720, 0xfd, 2,  9, 2, BPBGAP}},
+    {"640",  {512, 2, 1, 2, 112, 1280, 0xfb, 2,  8, 2, BPBGAP}},    
+    {"720",  {512, 2, 1, 2, 112, 1440, 0xf9, 3,  9, 2, BPBGAP}},
+    {"1200", {512, 1, 1, 2, 224, 2400, 0xf9, 7, 15, 2, BPBGAP}},
+    {"1232", {1024,1, 1, 2, 192, 1232, 0xfe, 2,  8, 2, BPBGAP}},    
+    {"1440", {512, 1, 1, 2, 224, 2880, 0xf0, 9, 18, 2, BPBGAP}},
+    {"2880", {512, 2, 1, 2, 240, 5760, 0xf0, 9, 36, 2, BPBGAP}}
 };
 
 static const u_int8_t bootcode[] = {
@@ -494,7 +491,8 @@ main(int argc, char *argv[])
 	if ((fd1 = open(bname, O_RDONLY)) == -1 || fstat(fd1, &sb))
 	    err(1, "%s", bname);
 	if (!S_ISREG(sb.st_mode) || sb.st_size % bpb.bpbBytesPerSec ||
-	    sb.st_size < bpb.bpbBytesPerSec || sb.st_size > bpb.bpbBytesPerSec * MAXU16)
+	    sb.st_size < bpb.bpbBytesPerSec ||
+	    sb.st_size > bpb.bpbBytesPerSec * MAXU16)
 	    errx(1, "%s: inappropriate file type or format", bname);
 	bss = sb.st_size / bpb.bpbBytesPerSec;
     }
@@ -503,19 +501,23 @@ main(int argc, char *argv[])
     if (!fat) {
 	if (bpb.bpbHugeSectors < (bpb.bpbResSectors ? bpb.bpbResSectors : bss) +
 	    howmany((RESFTE + (bpb.bpbSecPerClust ? MINCLS16 : MAXCLS12 + 1)) *
-		    ((bpb.bpbSecPerClust ? 16 : 12) / BPN), bpb.bpbBytesPerSec * NPB) *
+		(bpb.bpbSecPerClust ? 16 : 12) / BPN,
+		bpb.bpbBytesPerSec * NPB) *
 	    bpb.bpbFATs +
 	    howmany(bpb.bpbRootDirEnts ? bpb.bpbRootDirEnts : DEFRDE,
 		    bpb.bpbBytesPerSec / sizeof(struct de)) +
 	    (bpb.bpbSecPerClust ? MINCLS16 : MAXCLS12 + 1) *
-	    (bpb.bpbSecPerClust ? bpb.bpbSecPerClust : howmany(DEFBLK, bpb.bpbBytesPerSec)))
+	    (bpb.bpbSecPerClust ? bpb.bpbSecPerClust :
+	     howmany(DEFBLK, bpb.bpbBytesPerSec)))
 	    fat = 12;
 	else if (bpb.bpbRootDirEnts || bpb.bpbHugeSectors <
 		 (bpb.bpbResSectors ? bpb.bpbResSectors : bss) +
-		 howmany((RESFTE + MAXCLS16) * 2, bpb.bpbBytesPerSec) * bpb.bpbFATs +
+		 howmany((RESFTE + MAXCLS16) * 2, bpb.bpbBytesPerSec) *
+		 bpb.bpbFATs +
 		 howmany(DEFRDE, bpb.bpbBytesPerSec / sizeof(struct de)) +
 		 (MAXCLS16 + 1) *
-		 (bpb.bpbSecPerClust ? bpb.bpbSecPerClust : howmany(8192, bpb.bpbBytesPerSec)))
+		 (bpb.bpbSecPerClust ? bpb.bpbSecPerClust :
+		  howmany(8192, bpb.bpbBytesPerSec)))
 	    fat = 16;
 	else
 	    fat = 32;
@@ -539,21 +541,27 @@ main(int argc, char *argv[])
 	    x = bpb.bpbBackup + 1;
     }
     if (!bpb.bpbResSectors)
-	bpb.bpbResSectors = fat == 32 ? MAX(x, MAX(16384 / bpb.bpbBytesPerSec, 4)) : x;
+	bpb.bpbResSectors = fat == 32 ? 
+	    MAX(x, MAX(16384 / bpb.bpbBytesPerSec, 4)) : x;
     else if (bpb.bpbResSectors < x)
-	errx(1, "too few reserved sectors (need %d have %d)", x, bpb.bpbResSectors);
+	errx(1, "too few reserved sectors (need %d have %d)", x,
+	     bpb.bpbResSectors);
     if (fat != 32 && !bpb.bpbRootDirEnts)
 	bpb.bpbRootDirEnts = DEFRDE;
     rds = howmany(bpb.bpbRootDirEnts, bpb.bpbBytesPerSec / sizeof(struct de));
     if (!bpb.bpbSecPerClust)
-	for (bpb.bpbSecPerClust = howmany(fat == 16 ? DEFBLK16 : DEFBLK, bpb.bpbBytesPerSec);
+	for (bpb.bpbSecPerClust = howmany(fat == 16 ? DEFBLK16 :
+					  DEFBLK, bpb.bpbBytesPerSec);
 	     bpb.bpbSecPerClust < MAXSPC &&
 	     bpb.bpbResSectors +
 	     howmany((RESFTE + maxcls(fat)) * (fat / BPN),
-		     bpb.bpbBytesPerSec * NPB) * bpb.bpbFATs +
+		     bpb.bpbBytesPerSec * NPB) *
+	     bpb.bpbFATs +
 	     rds +
-	     (u_int64_t)(maxcls(fat) + 1) * bpb.bpbSecPerClust <= bpb.bpbHugeSectors;
-	     bpb.bpbSecPerClust <<= 1);
+	     (u_int64_t) (maxcls(fat) + 1) *
+	     bpb.bpbSecPerClust <= bpb.bpbHugeSectors;
+	     bpb.bpbSecPerClust <<= 1)
+	    continue;
     if (fat != 32 && bpb.bpbBigFATsecs > MAXU16)
 	errx(1, "too many sectors/FAT for FAT12/16");
     x1 = bpb.bpbResSectors + rds;
@@ -562,7 +570,8 @@ main(int argc, char *argv[])
 	errx(1, "meta data exceeds file system size");
     x1 += x * bpb.bpbFATs;
     x = (u_int64_t)(bpb.bpbHugeSectors - x1) * bpb.bpbBytesPerSec * NPB /
-	(bpb.bpbSecPerClust * bpb.bpbBytesPerSec * NPB + fat / BPN * bpb.bpbFATs);
+	(bpb.bpbSecPerClust * bpb.bpbBytesPerSec * NPB + fat /
+	 BPN * bpb.bpbFATs);
     x2 = howmany((RESFTE + MIN(x, maxcls(fat))) * (fat / BPN),
 		 bpb.bpbBytesPerSec * NPB);
     if (!bpb.bpbBigFATsecs) {
@@ -570,7 +579,8 @@ main(int argc, char *argv[])
 	x1 += (bpb.bpbBigFATsecs - 1) * bpb.bpbFATs;
     }
     cls = (bpb.bpbHugeSectors - x1) / bpb.bpbSecPerClust;
-    x = (u_int64_t)bpb.bpbBigFATsecs * bpb.bpbBytesPerSec * NPB / (fat / BPN) - RESFTE;
+    x = (u_int64_t)bpb.bpbBigFATsecs * bpb.bpbBytesPerSec * NPB / (fat / BPN) -
+	RESFTE;
     if (cls > x)
 	cls = x;
     if (bpb.bpbBigFATsecs < x2)
@@ -608,7 +618,8 @@ main(int argc, char *argv[])
 	tm = localtime(&now);
 	if (!(img = malloc(bpb.bpbBytesPerSec)))
 	    err(1, NULL);
-	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs : bpb.bpbBigFATsecs) * bpb.bpbFATs;
+	dir = bpb.bpbResSectors + (bpb.bpbFATsecs ? bpb.bpbFATsecs :
+				   bpb.bpbBigFATsecs) * bpb.bpbFATs;
 	memset(&si_sa, 0, sizeof(si_sa));
 	si_sa.sa_handler = infohandler;
 	if (sigaction(SIGINFO, &si_sa, NULL) == -1)
@@ -638,7 +649,8 @@ main(int argc, char *argv[])
 	    } else
 		memset(img, 0, bpb.bpbBytesPerSec);
 	    if (!lsn ||
-	      (fat == 32 && bpb.bpbBackup != MAXU16 && lsn == bpb.bpbBackup)) {
+		(fat == 32 && bpb.bpbBackup != MAXU16 &&
+		 lsn == bpb.bpbBackup)) {
 		x1 = sizeof(struct bs);
 		bsbpb = (struct bsbpb *)(img + x1);
 		mk2(bsbpb->bpbBytesPerSec, bpb.bpbBytesPerSec);
@@ -702,7 +714,8 @@ main(int argc, char *argv[])
 		mk2(img + MINBPS - 2, DOSMAGIC);
 	    } else if (lsn >= bpb.bpbResSectors && lsn < dir &&
 		       !((lsn - bpb.bpbResSectors) %
-			 (bpb.bpbFATsecs ? bpb.bpbFATsecs : bpb.bpbBigFATsecs))) {
+			 (bpb.bpbFATsecs ? bpb.bpbFATsecs :
+			  bpb.bpbBigFATsecs))) {
 		mk1(img[0], bpb.bpbMedia);
 		for (x = 1; x < fat * (fat == 32 ? 3 : 2) / 8; x++)
 		    mk1(img[x], fat == 32 && x % 4 == 3 ? 0x0f : 0xff);
@@ -817,16 +830,19 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 	if (bpb->bpbBytesPerSec)
 	    dlp.d_secsize = bpb->bpbBytesPerSec;
 	if (ioctl(fd, DIOCGDINFO, &dlp) == -1) {
-	    if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE, &dlp.d_secsize) == -1)
+	    if (bpb->bpbBytesPerSec == 0 && ioctl(fd, DIOCGSECTORSIZE,
+						  &dlp.d_secsize) == -1)
 		errx(1, "Cannot get sector size, %s", strerror(errno));
 
 	    dlp.d_secperunit = ms / dlp.d_secsize;
 
-	    if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS, &dlp.d_nsectors) == -1) {
+	    if (bpb->bpbSecPerTrack == 0 && ioctl(fd, DIOCGFWSECTORS,
+						  &dlp.d_nsectors) == -1) {
 		warnx("Cannot get number of sectors per track, %s", strerror(errno));
 		dlp.d_nsectors = 63;
 	    }
-	    if (bpb->bpbHeads == 0 && ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
+	    if (bpb->bpbHeads == 0 &&
+	        ioctl(fd, DIOCGFWHEADS, &dlp.d_ntracks) == -1) {
 		warnx("Cannot get number of heads, %s", strerror(errno));
 		if (dlp.d_secperunit <= 63*1*1024)
 		    dlp.d_ntracks = 1;
@@ -859,7 +875,8 @@ getdiskinfo(int fd, const char *fname, const char *dtype, __unused int oflag,
 static void
 print_bpb(struct bpb *bpb)
 {
-    printf("BytesPerSec=%u SecPerClust=%u ResSectors=%u FATs=%u", bpb->bpbBytesPerSec, bpb->bpbSecPerClust, bpb->bpbResSectors,
+    printf("BytesPerSec=%u SecPerClust=%u ResSectors=%u FATs=%u",
+	   bpb->bpbBytesPerSec, bpb->bpbSecPerClust, bpb->bpbResSectors,
 	   bpb->bpbFATs);
     if (bpb->bpbRootDirEnts)
 	printf(" RootDirEnts=%u", bpb->bpbRootDirEnts);
@@ -868,11 +885,13 @@ print_bpb(struct bpb *bpb)
     printf(" Media=%#x", bpb->bpbMedia);
     if (bpb->bpbFATsecs)
 	printf(" FATsecs=%u", bpb->bpbFATsecs);
-    printf(" SecPerTrack=%u Heads=%u HiddenSecs=%u", bpb->bpbSecPerTrack, bpb->bpbHeads, bpb->bpbHiddenSecs);
+    printf(" SecPerTrack=%u Heads=%u HiddenSecs=%u", bpb->bpbSecPerTrack,
+	   bpb->bpbHeads, bpb->bpbHiddenSecs);
     if (bpb->bpbHugeSectors)
 	printf(" HugeSectors=%u", bpb->bpbHugeSectors);
     if (!bpb->bpbFATsecs) {
-	printf(" FATsecs=%u RootCluster=%u", bpb->bpbBigFATsecs, bpb->bpbRootClust);
+	printf(" FATsecs=%u RootCluster=%u", bpb->bpbBigFATsecs,
+	       bpb->bpbRootClust);
 	printf(" FSInfo=");
 	printf(bpb->bpbFSInfo == MAXU16 ? "%#x" : "%u", bpb->bpbFSInfo);
 	printf(" Backup=");
@@ -919,6 +938,7 @@ argtooff(const char *arg, const char *msg)
     char *s;
     off_t x;
 
+    errno = 0;
     x = strtoll(arg, &s, 0);
     /* allow at most one extra char */
     if (errno || x < 0 || (s[0] && s[1]) )
@@ -929,30 +949,30 @@ argtooff(const char *arg, const char *msg)
 	    errx(1, "%s: bad %s", arg, msg);
 	    /* notreached */
 	
-	case 's':	/* sector */
+	case 's':		/* sector */
 	case 'S':
-	    x <<= 9;	/* times 512 */
+	    x <<= 9;		/* times 512 */
 	    break;
 
-	case 'k':	/* kilobyte */
+	case 'k':		/* kilobyte */
 	case 'K':
-	    x <<= 10;	/* times 1024 */
+	    x <<= 10;		/* times 1024 */
 	    break;
 
-	case 'm':	/* megabyte */
+	case 'm':		/* megabyte */
 	case 'M':
-	    x <<= 20;	/* times 1024*1024 */
+	    x <<= 20;		/* times 1024*1024 */
 	    break;
 
-	case 'g':	/* gigabyte */
+	case 'g':		/* gigabyte */
 	case 'G':
-	    x <<= 30;	/* times 1024*1024*1024 */
+	    x <<= 30;		/* times 1024*1024*1024 */
 	    break;
 
-	case 'p':	/* partition start */
-	case 'P':	/* partition start */
-	case 'l':	/* partition length */
-	case 'L':	/* partition length */
+	case 'p':		/* partition start */
+	case 'P':
+	case 'l':		/* partition length */
+	case 'L':
 	    errx(1, "%s: not supported yet %s", arg, msg);
 	    /* notreached */
 	}

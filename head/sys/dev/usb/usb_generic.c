@@ -126,7 +126,7 @@ struct usb_fifo_methods usb_ugen_methods = {
 #ifdef USB_DEBUG
 static int ugen_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, ugen, CTLFLAG_RW, 0, "USB generic");
 SYSCTL_INT(_hw_usb_ugen, OID_AUTO, debug, CTLFLAG_RW, &ugen_debug,
     0, "Debug level");
 
@@ -240,7 +240,7 @@ ugen_open_pipe_write(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;
@@ -308,7 +308,7 @@ ugen_open_pipe_read(struct usb_fifo *f)
 		/* transfers are already opened */
 		return (0);
 	}
-	bzero(usb_config, sizeof(usb_config));
+	memset(usb_config, 0, sizeof(usb_config));
 
 	usb_config[1].type = UE_CONTROL;
 	usb_config[1].endpoint = 0;

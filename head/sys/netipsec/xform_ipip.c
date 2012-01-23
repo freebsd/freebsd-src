@@ -687,7 +687,7 @@ static struct ip6protosw ipe6_protosw = {
 };
 #endif /* INET6 && INET */
 
-#if defined(INET)
+#ifdef INET
 /*
  * Check the encapsulated packet to see if we want it
  */

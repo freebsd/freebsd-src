@@ -397,9 +397,12 @@ dmu_buf_hold_array_by_dnode(dnode_t *dn, uint64_t offset, uint64_t length,
 			return (EIO);
 		}
 		/* initiate async i/o */
-		if (read) {
+		if (read)
 			(void) dbuf_read(db, zio, dbuf_flags);
-		}
+#ifdef _KERNEL
+		else
+			curthread->td_ru.ru_oublock++;
+#endif
 		dbp[i] = &db->db;
 	}
 	rw_exit(&dn->dn_struct_rwlock);

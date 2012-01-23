@@ -70,6 +70,7 @@
 #include <sys/tty.h>
 #include <sys/serial.h>
 #include <sys/fcntl.h>
+#include <sys/sysctl.h>
 
 /* Module interface related macros */
 #define	UCOM_MODVER	1
@@ -132,8 +133,11 @@ struct ucom_param_task {
 
 struct ucom_super_softc {
 	struct usb_process sc_tq;
-	uint32_t sc_unit;
-	uint32_t sc_subunits;
+	int sc_unit;
+	int sc_subunits;
+	struct sysctl_oid *sc_sysctl_ttyname;
+	struct sysctl_oid *sc_sysctl_ttyports;
+	char sc_ttyname[16];
 };
 
 struct ucom_softc {

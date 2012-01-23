@@ -14,7 +14,7 @@
 
 #include "InstrInfoEmitter.h"
 #include "CodeGenTarget.h"
-#include "Record.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/ADT/StringExtras.h"
 #include <algorithm>
 using namespace llvm;
@@ -268,6 +268,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
      << Inst.TheDef->getName() << "\", 0";
 
   // Emit all of the target indepedent flags...
+  if (Inst.isPseudo)           OS << "|(1<<MCID::Pseudo)";
   if (Inst.isReturn)           OS << "|(1<<MCID::Return)";
   if (Inst.isBranch)           OS << "|(1<<MCID::Branch)";
   if (Inst.isIndirectBranch)   OS << "|(1<<MCID::IndirectBranch)";
@@ -288,6 +289,7 @@ void InstrInfoEmitter::emitRecord(const CodeGenInstruction &Inst, unsigned Num,
   if (Inst.isNotDuplicable)    OS << "|(1<<MCID::NotDuplicable)";
   if (Inst.Operands.hasOptionalDef) OS << "|(1<<MCID::HasOptionalDef)";
   if (Inst.usesCustomInserter) OS << "|(1<<MCID::UsesCustomInserter)";
+  if (Inst.hasPostISelHook)    OS << "|(1<<MCID::HasPostISelHook)";
   if (Inst.Operands.isVariadic)OS << "|(1<<MCID::Variadic)";
   if (Inst.hasSideEffects)     OS << "|(1<<MCID::UnmodeledSideEffects)";
   if (Inst.isAsCheapAsAMove)   OS << "|(1<<MCID::CheapAsAMove)";

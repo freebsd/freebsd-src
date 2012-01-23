@@ -89,7 +89,7 @@
 
 #define	MAX_STRAY_LOG	5
 
-MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
+static MALLOC_DEFINE(M_INTR, "intr", "interrupt handler data");
 
 struct powerpc_intr {
 	struct intr_event *event;

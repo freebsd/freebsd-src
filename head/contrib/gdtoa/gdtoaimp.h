@@ -201,6 +201,7 @@ THIS SOFTWARE.
 #include "namespace.h"
 #include <pthread.h>
 #include "un-namespace.h"
+#include "xlocale_private.h"
 
 #ifdef KR_headers
 #define Char char
@@ -525,11 +526,11 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
 #define	strtoIQ		__strtoIQ
 #define	strtoIx		__strtoIx
 #define	strtoIxL	__strtoIxL
-#define	strtord		__strtord
+#define	strtord_l		__strtord_l
 #define	strtordd	__strtordd
 #define	strtorf		__strtorf
-#define	strtorQ		__strtorQ
-#define	strtorx		__strtorx
+#define	strtorQ_l		__strtorQ_l
+#define	strtorx_l		__strtorx_l
 #define	strtorxL	__strtorxL
 #define	strtodI		__strtodI
 #define	strtopd		__strtopd
@@ -634,7 +635,7 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern Bigint *s2b ANSI((CONST char*, int, int, ULong, int));
  extern Bigint *set_ones ANSI((Bigint*, int));
  extern char *strcp ANSI((char*, const char*));
- extern int strtodg ANSI((CONST char*, char**, FPI*, Long*, ULong*));
+ extern int strtodg_l ANSI((CONST char*, char**, FPI*, Long*, ULong*, locale_t));
 
  extern int strtoId ANSI((CONST char *, char **, double *, double *));
  extern int strtoIdd ANSI((CONST char *, char **, double *, double *));
@@ -644,17 +645,18 @@ extern void memcpy_D2A ANSI((void*, const void*, size_t));
  extern int strtoIx ANSI((CONST char *, char **, void *, void *));
  extern int strtoIxL ANSI((CONST char *, char **, void *, void *));
  extern double strtod ANSI((const char *s00, char **se));
+ extern double strtod_l ANSI((const char *s00, char **se, locale_t));
  extern int strtopQ ANSI((CONST char *, char **, Void *));
  extern int strtopf ANSI((CONST char *, char **, float *));
  extern int strtopd ANSI((CONST char *, char **, double *));
  extern int strtopdd ANSI((CONST char *, char **, double *));
  extern int strtopx ANSI((CONST char *, char **, Void *));
  extern int strtopxL ANSI((CONST char *, char **, Void *));
- extern int strtord ANSI((CONST char *, char **, int, double *));
+ extern int strtord_l ANSI((CONST char *, char **, int, double *, locale_t));
  extern int strtordd ANSI((CONST char *, char **, int, double *));
  extern int strtorf ANSI((CONST char *, char **, int, float *));
- extern int strtorQ ANSI((CONST char *, char **, int, void *));
- extern int strtorx ANSI((CONST char *, char **, int, void *));
+ extern int strtorQ_l ANSI((CONST char *, char **, int, void *, locale_t));
+ extern int strtorx_l ANSI((CONST char *, char **, int, void *, locale_t));
  extern int strtorxL ANSI((CONST char *, char **, int, void *));
  extern Bigint *sum ANSI((Bigint*, Bigint*));
  extern int trailz ANSI((Bigint*));

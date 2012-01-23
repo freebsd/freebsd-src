@@ -87,6 +87,16 @@ gdb_cnterm(struct consdev *cp)
 {
 }
 
+static void
+gdb_cngrab(struct consdev *cp)
+{
+}
+
+static void
+gdb_cnungrab(struct consdev *cp)
+{
+}
+
 static int
 gdb_cngetc(struct consdev *cp)
 {

@@ -71,8 +71,10 @@ class TokenLexer {
   /// "source location address space".
   unsigned MacroStartSLocOffset;
 
-  /// \brief FileID/offset of the start of the macro definition.
-  std::pair<FileID, unsigned> MacroDefStartInfo;
+  /// \brief Location of the macro definition.
+  SourceLocation MacroDefStart;
+  /// \brief Length of the macro definition.
+  unsigned MacroDefLength;
 
   /// Lexical information about the expansion point of the macro: the identifier
   /// that the macro expanded from had these properties.
@@ -169,7 +171,15 @@ private:
   /// \brief If \arg loc is a FileID and points inside the current macro
   /// definition, returns the appropriate source location pointing at the
   /// macro expansion source location entry.
-  SourceLocation getMacroExpansionLocation(SourceLocation loc) const;
+  SourceLocation getExpansionLocForMacroDefLoc(SourceLocation loc) const;
+
+  /// \brief Creates SLocEntries and updates the locations of macro argument
+  /// tokens to their new expanded locations.
+  ///
+  /// \param ArgIdSpellLoc the location of the macro argument id inside the
+  /// macro definition.
+  void updateLocForMacroArgTokens(SourceLocation ArgIdSpellLoc,
+                                  Token *begin_tokens, Token *end_tokens);
 };
 
 }  // end namespace clang

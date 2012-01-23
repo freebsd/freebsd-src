@@ -16,6 +16,7 @@
 #include "clang/Basic/LangOptions.h"
 #include "llvm/ADT/APFloat.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/Support/ErrorHandling.h"
 #include <cctype>
 #include <cstdlib>
 using namespace clang;
@@ -33,6 +34,8 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   IntWidth = IntAlign = 32;
   LongWidth = LongAlign = 32;
   LongLongWidth = LongLongAlign = 64;
+  HalfWidth = 16;
+  HalfAlign = 16;
   FloatWidth = 32;
   FloatAlign = 32;
   DoubleWidth = 64;
@@ -41,6 +44,7 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   LongDoubleAlign = 64;
   LargeArrayMinWidth = 0;
   LargeArrayAlign = 0;
+  MaxAtomicPromoteWidth = MaxAtomicInlineWidth = 0;
   SizeType = UnsignedLong;
   PtrDiffType = SignedLong;
   IntMaxType = SignedLongLong;
@@ -53,6 +57,9 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
   Int64Type = SignedLongLong;
   SigAtomicType = SignedInt;
   UseBitFieldTypeAlignment = true;
+  UseZeroLengthBitfieldAlignment = false;
+  ZeroLengthBitfieldBoundary = 0;
+  HalfFormat = &llvm::APFloat::IEEEhalf;
   FloatFormat = &llvm::APFloat::IEEEsingle;
   DoubleFormat = &llvm::APFloat::IEEEdouble;
   LongDoubleFormat = &llvm::APFloat::IEEEdouble;
@@ -60,6 +67,8 @@ TargetInfo::TargetInfo(const std::string &T) : Triple(T) {
                       "i64:64:64-f32:32:32-f64:64:64-n32";
   UserLabelPrefix = "_";
   MCountName = "mcount";
+  RegParmMax = 0;
+  SSERegParmMax = 0;
   HasAlignMac68kSupport = false;
 
   // Default to no types using fpret.
@@ -83,7 +92,7 @@ TargetInfo::~TargetInfo() {}
 /// For example, SignedShort -> "short".
 const char *TargetInfo::getTypeName(IntType T) {
   switch (T) {
-  default: assert(0 && "not an integer!");
+  default: llvm_unreachable("not an integer!");
   case SignedShort:      return "short";
   case UnsignedShort:    return "unsigned short";
   case SignedInt:        return "int";
@@ -99,7 +108,7 @@ const char *TargetInfo::getTypeName(IntType T) {
 /// integer type enum. For example, SignedLong -> "L".
 const char *TargetInfo::getTypeConstantSuffix(IntType T) {
   switch (T) {
-  default: assert(0 && "not an integer!");
+  default: llvm_unreachable("not an integer!");
   case SignedShort:
   case SignedInt:        return "";
   case SignedLong:       return "L";
@@ -115,7 +124,7 @@ const char *TargetInfo::getTypeConstantSuffix(IntType T) {
 /// enum. For example, SignedInt -> getIntWidth().
 unsigned TargetInfo::getTypeWidth(IntType T) const {
   switch (T) {
-  default: assert(0 && "not an integer!");
+  default: llvm_unreachable("not an integer!");
   case SignedShort:
   case UnsignedShort:    return getShortWidth();
   case SignedInt:
@@ -131,7 +140,7 @@ unsigned TargetInfo::getTypeWidth(IntType T) const {
 /// enum. For example, SignedInt -> getIntAlign().
 unsigned TargetInfo::getTypeAlign(IntType T) const {
   switch (T) {
-  default: assert(0 && "not an integer!");
+  default: llvm_unreachable("not an integer!");
   case SignedShort:
   case UnsignedShort:    return getShortAlign();
   case SignedInt:
@@ -147,7 +156,7 @@ unsigned TargetInfo::getTypeAlign(IntType T) const {
 /// the type is signed; false otherwise.
 bool TargetInfo::isTypeSigned(IntType T) {
   switch (T) {
-  default: assert(0 && "not an integer!");
+  default: llvm_unreachable("not an integer!");
   case SignedShort:
   case SignedInt:
   case SignedLong:
@@ -174,7 +183,7 @@ void TargetInfo::setForcedLangOptions(LangOptions &Opts) {
 //===----------------------------------------------------------------------===//
 
 
-static llvm::StringRef removeGCCRegisterPrefix(llvm::StringRef Name) {
+static StringRef removeGCCRegisterPrefix(StringRef Name) {
   if (Name[0] == '%' || Name[0] == '#')
     Name = Name.substr(1);
 
@@ -184,7 +193,7 @@ static llvm::StringRef removeGCCRegisterPrefix(llvm::StringRef Name) {
 /// isValidClobber - Returns whether the passed in string is
 /// a valid clobber in an inline asm statement. This is used by
 /// Sema.
-bool TargetInfo::isValidClobber(llvm::StringRef Name) const {
+bool TargetInfo::isValidClobber(StringRef Name) const {
   return (isValidGCCRegisterName(Name) ||
 	  Name == "memory" || Name == "cc");
 }
@@ -192,7 +201,7 @@ bool TargetInfo::isValidClobber(llvm::StringRef Name) const {
 /// isValidGCCRegisterName - Returns whether the passed in string
 /// is a valid register name according to GCC. This is used by Sema for
 /// inline asm statements.
-bool TargetInfo::isValidGCCRegisterName(llvm::StringRef Name) const {
+bool TargetInfo::isValidGCCRegisterName(StringRef Name) const {
   if (Name.empty())
     return false;
 
@@ -248,8 +257,8 @@ bool TargetInfo::isValidGCCRegisterName(llvm::StringRef Name) const {
   return false;
 }
 
-llvm::StringRef
-TargetInfo::getNormalizedGCCRegisterName(llvm::StringRef Name) const {
+StringRef
+TargetInfo::getNormalizedGCCRegisterName(StringRef Name) const {
   assert(isValidGCCRegisterName(Name) && "Invalid register passed in");
 
   // Get rid of any register prefix.

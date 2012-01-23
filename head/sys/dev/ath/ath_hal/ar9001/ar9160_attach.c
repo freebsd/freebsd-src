@@ -320,6 +320,8 @@ ar9160FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halAutoSleepSupport = AH_FALSE;	/* XXX? */
 	pCap->halMbssidAggrSupport = AH_TRUE;
 	pCap->hal4AddrAggrSupport = AH_TRUE;
+	/* BB Read WAR */
+	pCap->halHasBBReadWar = AH_TRUE;
 
 	/* AR9160 is a 2x2 stream device */
 	pCap->halTxStreams = 2;

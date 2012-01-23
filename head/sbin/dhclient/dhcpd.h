@@ -41,7 +41,7 @@
  * $FreeBSD$
  */
 
-#include <sys/types.h>
+#include <sys/param.h>
 
 #include <sys/socket.h>
 #include <sys/sockio.h>
@@ -60,6 +60,7 @@
 #include <ctype.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libutil.h>
 #include <limits.h>
 #include <netdb.h>
 #include <paths.h>
@@ -352,6 +353,8 @@ extern int log_priority;
 extern int log_perror;
 
 extern struct client_config top_level_config;
+
+extern struct pidfh *pidfile;
 
 void dhcpoffer(struct packet *);
 void dhcpack(struct packet *);

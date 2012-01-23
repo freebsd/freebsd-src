@@ -82,7 +82,6 @@ CFLAGS+=-I${SUNW}/uts/common
 CFLAGS+=-I${.CURDIR}/../..
 CFLAGS+=-I${SUNW}/common/zfs
 CFLAGS+=-I${SUNW}/common
-CFLAGS+=-I${.CURDIR}/../../../include
 CFLAGS+=-DBUILDING_ZFS
 
 .if ${MACHINE_ARCH} == "powerpc64"

@@ -384,3 +384,11 @@ ar9280RfAttach(struct ath_hal *ah, HAL_STATUS *status)
 
 	return AH_TRUE;
 }
+
+static HAL_BOOL
+ar9280RfProbe(struct ath_hal *ah)
+{
+	return (AR_SREV_MERLIN(ah));
+}
+
+AH_RF(RF9280, ar9280RfProbe, ar9280RfAttach);

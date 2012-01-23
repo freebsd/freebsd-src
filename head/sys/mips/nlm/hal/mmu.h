@@ -30,7 +30,7 @@
  */
 
 #ifndef __XLP_MMU_H__
-#define __XLP_MMU_H__
+#define	__XLP_MMU_H__
 
 #include <mips/nlm/hal/mips-extns.h>
 

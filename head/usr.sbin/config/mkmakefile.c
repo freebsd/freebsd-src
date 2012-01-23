@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 1993, 19801990
+ * Copyright (c) 1980, 1990, 1993
  *	The Regents of the University of California.  All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -154,7 +154,7 @@ makefile(void)
 		fprintf(ofp, "PROFLEVEL=%d\n", profiling);
 	if (*srcdir != '\0')
 		fprintf(ofp,"S=%s\n", srcdir);
-	while (fgets(line, BUFSIZ, ifp) != 0) {
+	while (fgets(line, BUFSIZ, ifp) != NULL) {
 		if (*line != '%') {
 			fprintf(ofp, "%s", line);
 			continue;
@@ -204,14 +204,14 @@ makehints(void)
 		ifp = fopen(hint->hint_name, "r");
 		if (ifp == NULL)
 			err(1, "%s", hint->hint_name);
-		while (fgets(line, BUFSIZ, ifp) != 0) {
+		while (fgets(line, BUFSIZ, ifp) != NULL) {
 			/* zap trailing CR and/or LF */
-			while ((s = rindex(line, '\n')) != NULL)
+			while ((s = strrchr(line, '\n')) != NULL)
 				*s = '\0';
-			while ((s = rindex(line, '\r')) != NULL)
+			while ((s = strrchr(line, '\r')) != NULL)
 				*s = '\0';
 			/* remove # comments */
-			s = index(line, '#');
+			s = strchr(line, '#');
 			if (s)
 				*s = '\0';
 			/* remove any whitespace and " characters */
@@ -266,14 +266,14 @@ makeenv(void)
 	fprintf(ofp, "int envmode = %d;\n", envmode);
 	fprintf(ofp, "char static_env[] = {\n");
 	if (ifp) {
-		while (fgets(line, BUFSIZ, ifp) != 0) {
+		while (fgets(line, BUFSIZ, ifp) != NULL) {
 			/* zap trailing CR and/or LF */
-			while ((s = rindex(line, '\n')) != NULL)
+			while ((s = strrchr(line, '\n')) != NULL)
 				*s = '\0';
-			while ((s = rindex(line, '\r')) != NULL)
+			while ((s = strrchr(line, '\r')) != NULL)
 				*s = '\0';
 			/* remove # comments */
-			s = index(line, '#');
+			s = strchr(line, '#');
 			if (s)
 				*s = '\0';
 			/* remove any whitespace and " characters */
@@ -689,7 +689,7 @@ tail(char *fn)
 {
 	char *cp;
 
-	cp = rindex(fn, '/');
+	cp = strrchr(fn, '/');
 	if (cp == 0)
 		return (fn);
 	return (cp+1);
@@ -762,16 +762,21 @@ do_rules(FILE *f)
 				break;
 			}
 			snprintf(cmd, sizeof(cmd),
-			    "${%s_%c%s}\n\t@${NORMAL_CTFCONVERT}", ftype,
+			    "${%s_%c%s}\n", ftype,
 			    toupper(och),
 			    ftp->f_flags & NOWERROR ? "_NOWERROR" : "");
 			compilewith = cmd;
 		}
 		*cp = och;
 		if (strlen(ftp->f_objprefix))
-			fprintf(f, "\t%s $S/%s\n\n", compilewith, np);
+			fprintf(f, "\t%s $S/%s\n", compilewith, np);
 		else
-			fprintf(f, "\t%s\n\n", compilewith);
+			fprintf(f, "\t%s\n", compilewith);
+
+		if (!(ftp->f_flags & NO_OBJ))
+			fprintf(f, "\t${NORMAL_CTFCONVERT}\n\n");
+		else
+			fprintf(f, "\n");
 	}
 }
 

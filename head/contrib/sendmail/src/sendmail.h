@@ -133,10 +133,15 @@ SM_UNUSED(static char SmailId[]) = "@(#)$Id: sendmail.h,v 8.1089 2011/03/15 23:1
 
 # if SASL == 2 || SASL >= 20000
 #  include <sasl/sasl.h>
+#  include <sasl/saslplug.h>
 #  include <sasl/saslutil.h>
+#  if SASL_VERSION_FULL < 0x020119
+typedef int (*sasl_callback_ft)(void);
+#  endif
 # else /* SASL == 2 || SASL >= 20000 */
 #  include <sasl.h>
 #  include <saslutil.h>
+typedef int (*sasl_callback_ft)(void);
 # endif /* SASL == 2 || SASL >= 20000 */
 # if defined(SASL_VERSION_MAJOR) && defined(SASL_VERSION_MINOR) && defined(SASL_VERSION_STEP)
 #  define SASL_VERSION (SASL_VERSION_MAJOR * 10000)  + (SASL_VERSION_MINOR * 100) + SASL_VERSION_STEP

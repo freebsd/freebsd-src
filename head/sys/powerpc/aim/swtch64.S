@@ -68,7 +68,7 @@
 /*
  * void cpu_throw(struct thread *old, struct thread *new)
  */
-ENTRY(cpu_throw)
+ENTRY_NOPROF(cpu_throw)
 	mr	%r13, %r4
 	b	cpu_switchin
 
@@ -79,7 +79,7 @@ ENTRY(cpu_throw)
  *
  * Switch to a new thread saving the current state in the old thread.
  */
-ENTRY(cpu_switch)
+ENTRY_NOPROF(cpu_switch)
 	ld	%r6,TD_PCB(%r3)		/* Get the old thread's PCB ptr */
 	std	%r12,PCB_CONTEXT(%r6)	/* Save the non-volatile GP regs.
 					   These can now be used for scratch */
@@ -237,7 +237,7 @@ blocked_loop:
  * savectx(pcb)
  * Update pcb, saving current processor state
  */
-ENTRY(savectx)
+ENTRY_NOPROF(savectx)
 	std	%r12,PCB_CONTEXT(%r3)	/* Save the non-volatile GP regs. */
 	std	%r13,PCB_CONTEXT+1*8(%r3)	
 	std	%r14,PCB_CONTEXT+2*8(%r3)	
@@ -268,7 +268,8 @@ ENTRY(savectx)
  * fork_trampoline()
  * Set up the return from cpu_fork()
  */
-ENTRY(fork_trampoline)
+
+ENTRY_NOPROF(fork_trampoline)
 	ld	%r3,CF_FUNC(%r1)
 	ld	%r4,CF_ARG0(%r1)
 	ld	%r5,CF_ARG1(%r1)

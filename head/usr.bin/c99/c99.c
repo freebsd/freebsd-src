@@ -43,12 +43,12 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-char **args;
-u_int cargs, nargs;
+static char **args;
+static u_int cargs, nargs;
 
-void addarg(const char *);
-void addlib(const char *);
-void usage(void);
+static void addarg(const char *);
+static void addlib(const char *);
+static void usage(void);
 
 int
 main(int argc, char *argv[])
@@ -91,7 +91,7 @@ main(int argc, char *argv[])
 	err(1, "/usr/bin/cc");
 }
 
-void
+static void
 addarg(const char *item)
 {
 	if (nargs + 1 >= cargs) {
@@ -104,7 +104,7 @@ addarg(const char *item)
 	args[nargs] = NULL;
 }
 
-void
+static void
 addlib(const char *lib)
 {
 
@@ -123,7 +123,7 @@ addlib(const char *lib)
 	}
 }
 
-void
+static void
 usage(void)
 {
 	(void)fprintf(stderr, "%s\n%s\n",

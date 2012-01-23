@@ -99,6 +99,7 @@ ijliao [label="Ying-Chieh Liao\nijliao@FreeBSD.org\n2001/01/20"]
 itetcu [label="Ion-Mihai Tetcu\nitetcu@FreeBSD.org\n2006/06/07"]
 jacula [label="Giuseppe Pilichi\njacula@FreeBSD.org\n2010/04/05"]
 jadawin [label="Philippe Audeoud\njadawin@FreeBSD.org\n2008/03/02"]
+jgh [label="Jason Helfman\njgh@FreeBSD.org\n2011/12/16"]
 jkim [label="Jung-uk Kim\njkim@FreeBSD.org\n2007/09/12"]
 jlaffaye [label="Julien Laffaye\njlaffaye@FreeBSD.org\n2011/06/06"]
 jmelo [label="Jean Milanez Melo\njmelo@FreeBSD.org\n2006/03/31"]
@@ -154,12 +155,15 @@ pgj [label="Gabor Pali\npgj@FreeBSD.org\n2009/04/12"]
 philip [label="Philip Paeps\nphilip@FreeBSD.org\n2005/10/19"]
 pgollucci [label="Philip M. Gollucci\npgollucci@FreeBSD.org\n2008/07/21"]
 rafan [label="Rong-En Fan\nrafan@FreeBSD.org\n2006/06/23"]
+rakuco [label="Raphael Kubo da Costa\nrakuco@FreeBSD.org\n2011/08/22"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2010/04/11"]
+rm [label="Ruslan Mahmatkhanov\nrm@FreeBSD.org\n2011/11/06"]
 rnoland [label="Robert Noland\nrnoland@FreeBSD.org\n2008/07/21"]
 romain [label="Romain Tartiere\nromain@FreeBSD.org\n2010/01/24"]
 sahil [label="Sahil Tandon\nsahil@FreeBSD.org\n2010/04/11"]
 sat [label="Andrew Pantyukhin\nsat@FreeBSD.org\n2006/05/06"]
 sbz [label="Sofian Brabez\nsbz@FreeBSD.org\n2011/03/14"]
+scheidell [label="Michael Scheidell\nscheidell@FreeBSD.org\n2011/11/06"]
 sem [label="Sergey Matveychuk\nsem@FreeBSD.org\n2004/07/07"]
 sergei [label="Sergei Kolobov\nsergei@FreeBSD.org\n2003/10/21"]
 shaun [label="Shaun Amott\nshaun@FreeBSD.org\n2006/06/19"]
@@ -210,6 +214,8 @@ arved -> stefan
 
 asami -> obrien
 
+avilla -> rakuco
+
 bapt -> eadler
 bapt -> jlaffaye
 
@@ -228,6 +234,8 @@ clement -> lawrance
 
 clsung -> lwhsu
 clsung -> tabthorpe
+
+crees -> jgh
 
 delphij -> nemoliu
 delphij -> rafan
@@ -265,6 +273,7 @@ flz -> romain
 gabor -> lippe
 gabor -> pgj
 gabor -> stephen
+gabor -> scheidell
 
 garga -> acm
 garga -> alepulver
@@ -277,6 +286,7 @@ garga -> xride
 
 glarkin -> avl
 glarkin -> cs
+glarkin -> rm
 
 glewis -> hq
 glewis -> jkim
@@ -327,6 +337,7 @@ marcus -> eik
 marcus -> jmallett
 
 makc -> bf
+makc -> rakuco
 
 mat -> thierry
 
@@ -348,6 +359,7 @@ miwi -> mandree
 miwi -> mva
 miwi -> nox
 miwi -> pawel
+miwi -> rm
 miwi -> sbz
 miwi -> sylvio
 miwi -> tabthorpe
@@ -362,6 +374,7 @@ nork -> ale
 
 novel -> alexbl
 novel -> ehaupt
+novel -> rm
 
 obrien -> mharo
 obrien -> gerald
@@ -385,6 +398,7 @@ philip -> koitsu
 rafan -> chinsan
 
 rene -> crees
+rene -> jgh
 
 sahil -> culot
 sahil -> eadler
@@ -412,6 +426,7 @@ tabthorpe -> ashish
 tabthorpe -> avilla
 tabthorpe -> avl
 tabthorpe -> bapt
+tabthorpe -> crees
 tabthorpe -> dhn
 tabthorpe -> fluffy
 tabthorpe -> jacula

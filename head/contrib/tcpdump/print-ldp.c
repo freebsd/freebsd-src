@@ -609,7 +609,7 @@ ldp_msg_print(register const u_char *pptr) {
         }
         /* do we want to see an additionally hexdump ? */
         if (vflag > 1 || hexdump==TRUE)
-            print_unknown_data(tptr+sizeof(sizeof(struct ldp_msg_header)),"\n\t  ",
+            print_unknown_data(tptr+sizeof(struct ldp_msg_header),"\n\t  ",
                                msg_len);
 
         tptr += msg_len+4;

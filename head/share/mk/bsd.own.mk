@@ -203,10 +203,14 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
+    CTF \
     INSTALLLIB \
     MAN \
     PROFILE
 .if defined(NO_${var})
+.if defined(WITH_${var})
+.undef WITH_${var}
+.endif
 WITHOUT_${var}=
 .endif
 .endfor
@@ -318,6 +322,7 @@ __DEFAULT_YES_OPTIONS = \
     BSNMP \
     BZIP2 \
     CALENDAR \
+    CAPSICUM \
     CDDL \
     CPP \
     CRYPT \
@@ -410,9 +415,11 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CTF \
     HESIOD \
     ICONV \
     IDEA \
+    LIBCPLUSPLUS \
     OFED
 
 #
@@ -428,14 +435,14 @@ __T=${TARGET_ARCH}
 .else
 __T=${MACHINE_ARCH}
 .endif
-# Clang is only for x86 and 32-bit powerpc right now, by default.
-.if ${__T} == "amd64" || ${__T} == "i386" || ${__T} == "powerpc"
+# Clang is only for x86 and powerpc right now, by default.
+.if ${__T} == "amd64" || ${__T} == "i386" || ${__T:Mpowerpc*}
 __DEFAULT_YES_OPTIONS+=CLANG
 .else
 __DEFAULT_NO_OPTIONS+=CLANG
 .endif
-# FDT is needed only for arm and powerpc (and not powerpc64)
-.if ${__T} == "arm" || ${__T} == "armeb" || ${__T} == "powerpc"
+# FDT is needed only for arm, mips and powerpc
+.if ${__T:Marm*} || ${__T:Mpowerpc*} || ${__T:Mmips*}
 __DEFAULT_YES_OPTIONS+=FDT
 .else
 __DEFAULT_NO_OPTIONS+=FDT
@@ -506,6 +513,7 @@ MK_BIND_ETC:=	no
 
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+MK_CTF:=	no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -605,6 +613,14 @@ MK_${vv:H}:=	no
 MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
+
+.if ${MK_CTF} != "no"
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+CTFCONVERT_CMD=
+.else
+CTFCONVERT_CMD=	@:
+.endif 
 
 .endif # !_WITHOUT_SRCCONF
 

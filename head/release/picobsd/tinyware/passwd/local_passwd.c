@@ -172,7 +172,7 @@ getnewpasswd(pw, nis)
 	to64(&salt[5], random(), 4);
 	salt[9] = '\0';
 #else
-	/* Make a good size salt for algoritms that can use it. */
+	/* Make a good size salt for algorithms that can use it. */
 	gettimeofday(&tv,0);
 #ifdef LOGIN_CAP
 	if (login_setcryptfmt(lc, "md5", NULL) == NULL)

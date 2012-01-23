@@ -174,7 +174,6 @@ static device_method_t fsl_pcib_methods[] = {
 	DEVMETHOD(device_detach,	fsl_pcib_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	fsl_pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,	fsl_pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	fsl_pcib_alloc_resource),
@@ -197,7 +196,7 @@ static device_method_t fsl_pcib_methods[] = {
 	DEVMETHOD(ofw_bus_get_node,     ofw_bus_gen_get_node),
 	DEVMETHOD(ofw_bus_get_type,     ofw_bus_gen_get_type),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t fsl_pcib_driver = {

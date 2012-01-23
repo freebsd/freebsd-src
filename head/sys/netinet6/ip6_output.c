@@ -1421,7 +1421,38 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 	optval = 0;
 	uproto = (int)so->so_proto->pr_protocol;
 
-	if (level == IPPROTO_IPV6) {
+	if (level != IPPROTO_IPV6) {
+		error = EINVAL;
+
+		if (sopt->sopt_level == SOL_SOCKET &&
+		    sopt->sopt_dir == SOPT_SET) {
+			switch (sopt->sopt_name) {
+			case SO_REUSEADDR:
+				INP_WLOCK(in6p);
+				if (IN_MULTICAST(ntohl(in6p->inp_laddr.s_addr))) {
+					if ((so->so_options &
+					    (SO_REUSEADDR | SO_REUSEPORT)) != 0)
+						in6p->inp_flags2 |= INP_REUSEPORT;
+					else
+						in6p->inp_flags2 &= ~INP_REUSEPORT;
+				}
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
+			case SO_REUSEPORT:
+				INP_WLOCK(in6p);
+				if ((so->so_options & SO_REUSEPORT) != 0)
+					in6p->inp_flags2 |= INP_REUSEPORT;
+				else
+					in6p->inp_flags2 &= ~INP_REUSEPORT;
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
+			default:
+				break;
+			}
+		}
+	} else {		/* level == IPPROTO_IPV6 */
 		switch (op) {
 
 		case SOPT_SET:
@@ -2044,8 +2075,6 @@ do { \
 			}
 			break;
 		}
-	} else {		/* level != IPPROTO_IPV6 */
-		error = EINVAL;
 	}
 	return (error);
 }

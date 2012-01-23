@@ -49,12 +49,12 @@ static void usage(void);
 static void print_xferstats(unsigned int, int, double);
 
 /* spray buffer */
-char spray_buffer[SPRAYMAX];
+static char spray_buffer[SPRAYMAX];
 
 /* RPC timeouts */
-struct timeval NO_DEFAULT = { -1, -1 };
-struct timeval ONE_WAY = { 0, 0 };
-struct timeval TIMEOUT = { 25, 0 };
+static struct timeval NO_DEFAULT = { -1, -1 };
+static struct timeval ONE_WAY = { 0, 0 };
+static struct timeval TIMEOUT = { 25, 0 };
 
 int
 main(int argc, char *argv[])

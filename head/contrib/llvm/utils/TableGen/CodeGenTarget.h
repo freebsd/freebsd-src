@@ -19,7 +19,7 @@
 
 #include "CodeGenRegisters.h"
 #include "CodeGenInstruction.h"
-#include "Record.h"
+#include "llvm/TableGen/Record.h"
 #include "llvm/Support/raw_ostream.h"
 #include <algorithm>
 
@@ -105,10 +105,6 @@ public:
   const std::vector<Record*> &getRegAltNameIndices() const {
     if (RegAltNameIndices.empty()) ReadRegAltNameIndices();
     return RegAltNameIndices;
-  }
-
-  const std::vector<CodeGenRegisterClass> &getRegisterClasses() const {
-    return getRegBank().getRegClasses();
   }
 
   const CodeGenRegisterClass &getRegisterClass(Record *R) const {

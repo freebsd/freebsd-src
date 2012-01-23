@@ -168,7 +168,9 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 	ah->ah_setupFirstTxDesc		= ar5416SetupFirstTxDesc;
 	ah->ah_setupLastTxDesc		= ar5416SetupLastTxDesc;
 	ah->ah_set11nRateScenario	= ar5416Set11nRateScenario;
+	ah->ah_set11nAggrFirst		= ar5416Set11nAggrFirst;
 	ah->ah_set11nAggrMiddle		= ar5416Set11nAggrMiddle;
+	ah->ah_set11nAggrLast		= ar5416Set11nAggrLast;
 	ah->ah_clr11nAggr		= ar5416Clr11nAggr;
 	ah->ah_set11nBurstDuration	= ar5416Set11nBurstDuration;
 	ah->ah_get11nExtBusy		= ar5416Get11nExtBusy;
@@ -337,7 +339,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 
 	/* Read Radio Chip Rev Extract */
-	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5416GetRadioRev(ah);
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
         case AR_RAD5122_SREV_MAJOR:	/* Fowl: 5G/2x2 */
         case AR_RAD2122_SREV_MAJOR:	/* Fowl: 2+5G/2x2 */
@@ -863,7 +865,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->halFastCCSupport = AH_TRUE;
-	pCap->halNumGpioPins = 6;
+	pCap->halNumGpioPins = 14;
 	pCap->halWowSupport = AH_FALSE;
 	pCap->halWowMatchPatternExact = AH_FALSE;
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
@@ -892,6 +894,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	pCap->halEnhancedDfsSupport = AH_FALSE;
 	/* Hardware supports 32 bit TSF values in the RX descriptor */
 	pCap->halHasLongRxDescTsf = AH_TRUE;
+	/*
+	 * BB Read WAR: this is only for AR5008/AR9001 NICs
+	 * It is also set individually in the AR91xx attach functions.
+	 */
+	if (AR_SREV_OWL(ah))
+		pCap->halHasBBReadWar = AH_TRUE;
 
 	if (ath_hal_eepromGetFlag(ah, AR_EEP_RFKILL) &&
 	    ath_hal_eepromGet(ah, AR_EEP_RFSILENT, &ahpriv->ah_rfsilent) == HAL_OK) {
@@ -900,7 +908,23 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 		pCap->halRfSilentSupport = AH_TRUE;
 	}
 
+	/*
+	 * The MAC will mark frames as RXed if there's a descriptor
+	 * to write them to. So if it hits a self-linked final descriptor,
+	 * it'll keep ACKing frames even though they're being silently
+	 * dropped. Thus, this particular feature of the driver can't
+	 * be used for 802.11n devices.
+	 */
 	ahpriv->ah_rxornIsFatal = AH_FALSE;
+
+	/*
+	 * If it's a PCI NIC, ask the HAL OS layer to serialise
+	 * register access, or SMP machines may cause the hardware
+	 * to hang. This is applicable to AR5416 and AR9220; I'm not
+	 * sure about AR9160 or AR9227.
+	 */
+	if (! AH_PRIVATE(ah)->ah_ispcie)
+		pCap->halSerialiseRegWar = 1;
 
 	return AH_TRUE;
 }
@@ -908,9 +932,12 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 static const char*
 ar5416Probe(uint16_t vendorid, uint16_t devid)
 {
-	if (vendorid == ATHEROS_VENDOR_ID &&
-	    (devid == AR5416_DEVID_PCI || devid == AR5416_DEVID_PCIE))
-		return "Atheros 5416";
+	if (vendorid == ATHEROS_VENDOR_ID) {
+		if (devid == AR5416_DEVID_PCI)
+			return "Atheros 5416";
+		if (devid == AR5416_DEVID_PCIE)
+			return "Atheros 5418";
+	}
 	return AH_NULL;
 }
 AH_CHIP(AR5416, ar5416Probe, ar5416Attach);

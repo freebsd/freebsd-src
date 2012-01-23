@@ -28,6 +28,7 @@ arm/mv/mv_sata.c		optional	ata | atamvsata
 arm/mv/timer.c			standard
 arm/mv/twsi.c			optional	iicbus
 
+dev/cesa/cesa.c			optional	cesa
 dev/mge/if_mge.c		optional	mge
 dev/mvs/mvs_soc.c		optional	mvs
 dev/uart/uart_dev_ns8250.c	optional	uart

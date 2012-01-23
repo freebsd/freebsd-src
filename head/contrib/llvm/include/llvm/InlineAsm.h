@@ -43,7 +43,7 @@ class InlineAsm : public Value {
   bool HasSideEffects;
   bool IsAlignStack;
   
-  InlineAsm(const PointerType *Ty, const std::string &AsmString,
+  InlineAsm(PointerType *Ty, const std::string &AsmString,
             const std::string &Constraints, bool hasSideEffects,
             bool isAlignStack);
   virtual ~InlineAsm();
@@ -55,7 +55,7 @@ public:
 
   /// InlineAsm::get - Return the specified uniqued inline asm string.
   ///
-  static InlineAsm *get(const FunctionType *Ty, StringRef AsmString,
+  static InlineAsm *get(FunctionType *Ty, StringRef AsmString,
                         StringRef Constraints, bool hasSideEffects,
                         bool isAlignStack = false);
   
@@ -79,7 +79,7 @@ public:
   /// the specified constraint string is legal for the type.  This returns true
   /// if legal, false if not.
   ///
-  static bool Verify(const FunctionType *Ty, StringRef Constraints);
+  static bool Verify(FunctionType *Ty, StringRef Constraints);
 
   // Constraint String Parsing 
   enum ConstraintPrefix {
@@ -219,6 +219,7 @@ public:
   
   static unsigned getFlagWord(unsigned Kind, unsigned NumOps) {
     assert(((NumOps << 3) & ~0xffff) == 0 && "Too many inline asm operands!");
+    assert(Kind >= Kind_RegUse && Kind <= Kind_Mem && "Invalid Kind");
     return Kind | (NumOps << 3);
   }
   
@@ -227,7 +228,22 @@ public:
   /// to a previous output operand.
   static unsigned getFlagWordForMatchingOp(unsigned InputFlag,
                                            unsigned MatchedOperandNo) {
+    assert(MatchedOperandNo <= 0x7fff && "Too big matched operand");
+    assert((InputFlag & ~0xffff) == 0 && "High bits already contain data");
     return InputFlag | Flag_MatchingOperand | (MatchedOperandNo << 16);
+  }
+
+  /// getFlagWordForRegClass - Augment an existing flag word returned by
+  /// getFlagWord with the required register class for the following register
+  /// operands.
+  /// A tied use operand cannot have a register class, use the register class
+  /// from the def operand instead.
+  static unsigned getFlagWordForRegClass(unsigned InputFlag, unsigned RC) {
+    // Store RC + 1, reserve the value 0 to mean 'no register class'.
+    ++RC;
+    assert(RC <= 0x7fff && "Too large register class ID");
+    assert((InputFlag & ~0xffff) == 0 && "High bits already contain data");
+    return InputFlag | (RC << 16);
   }
 
   static unsigned getKind(unsigned Flags) {
@@ -259,6 +275,19 @@ public:
     return true;
   }
 
+  /// hasRegClassConstraint - Returns true if the flag contains a register
+  /// class constraint.  Sets RC to the register class ID.
+  static bool hasRegClassConstraint(unsigned Flag, unsigned &RC) {
+    if (Flag & Flag_MatchingOperand)
+      return false;
+    unsigned High = Flag >> 16;
+    // getFlagWordForRegClass() uses 0 to mean no register class, and otherwise
+    // stores RC + 1.
+    if (!High)
+      return false;
+    RC = High - 1;
+    return true;
+  }
 
 };
 

@@ -17,7 +17,8 @@ SRCS=	ParseAST.cpp \
 	ParseTentative.cpp \
 	Parser.cpp
 
-TGHDRS=	AttrList \
+TGHDRS=	AttrLateParsed \
+	AttrList \
 	Attrs \
 	DeclNodes \
 	DiagnosticCommonKinds \

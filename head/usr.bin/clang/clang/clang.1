@@ -125,7 +125,7 @@
 .\" ========================================================================
 .\"
 .IX Title "CLANG 1"
-.TH CLANG 1 "2011-04-30" "clang 3.0" "Clang Tools Documentation"
+.TH CLANG 1 "2011-10-17" "clang 3.0" "Clang Tools Documentation"
 .\" For nroff, turn off justification.  Always turn off hyphenation; it makes
 .\" way too many mistakes in technical documents.
 .if n .ad l
@@ -456,7 +456,12 @@ Add the specified directory to the search path for include files.
 Add the specified directory to the search path for framework include files.
 .IP "\fB\-nostdinc\fR" 4
 .IX Item "-nostdinc"
-Do not search the standard system directories for include files.
+Do not search the standard system directories or compiler builtin directories
+for include files.
+.IP "\fB\-nostdlibinc\fR" 4
+.IX Item "-nostdlibinc"
+Do not search the standard system directories for include files, but do search
+compiler builting include directories.
 .IP "\fB\-nobuiltininc\fR" 4
 .IX Item "-nobuiltininc"
 Do not search clang's builtin directory for include files.

@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20110527
+#define ACPI_CA_VERSION                 0x20120111
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -59,6 +59,7 @@
 extern UINT32               AcpiCurrentGpeCount;
 extern ACPI_TABLE_FADT      AcpiGbl_FADT;
 extern BOOLEAN              AcpiGbl_SystemAwakeAndRunning;
+extern BOOLEAN              AcpiGbl_ReducedHardware;        /* ACPI 5.0 */
 
 /* Runtime configuration of debug print levels */
 
@@ -76,6 +77,7 @@ extern UINT32               AcpiGbl_TraceFlags;
 extern UINT8                AcpiGbl_EnableAmlDebugObject;
 extern UINT8                AcpiGbl_CopyDsdtLocally;
 extern UINT8                AcpiGbl_TruncateIoAddresses;
+extern UINT8                AcpiGbl_DisableAutoRepair;
 
 
 /*
@@ -142,6 +144,13 @@ AcpiInstallInterface (
 ACPI_STATUS
 AcpiRemoveInterface (
     ACPI_STRING             InterfaceName);
+
+UINT32
+AcpiCheckAddressRange (
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    ACPI_SIZE               Length,
+    BOOLEAN                 Warn);
 
 
 /*
@@ -392,6 +401,21 @@ AcpiReleaseGlobalLock (
 
 
 /*
+ * Interfaces to AML mutex objects
+ */
+ACPI_STATUS
+AcpiAcquireMutex (
+    ACPI_HANDLE             Handle,
+    ACPI_STRING             Pathname,
+    UINT16                  Timeout);
+
+ACPI_STATUS
+AcpiReleaseMutex (
+    ACPI_HANDLE             Handle,
+    ACPI_STRING             Pathname);
+
+
+/*
  * Fixed Event interfaces
  */
 ACPI_STATUS
@@ -516,6 +540,11 @@ AcpiGetPossibleResources (
     ACPI_BUFFER             *RetBuffer);
 
 ACPI_STATUS
+AcpiGetEventResources (
+    ACPI_HANDLE             DeviceHandle,
+    ACPI_BUFFER             *RetBuffer);
+
+ACPI_STATUS
 AcpiWalkResources (
     ACPI_HANDLE                 Device,
     char                        *Name,
@@ -536,6 +565,12 @@ ACPI_STATUS
 AcpiResourceToAddress64 (
     ACPI_RESOURCE           *Resource,
     ACPI_RESOURCE_ADDRESS64 *Out);
+
+ACPI_STATUS
+AcpiBufferToResource (
+    UINT8                   *AmlBuffer,
+    UINT16                  AmlBufferLength,
+    ACPI_RESOURCE           **ResourcePtr);
 
 
 /*

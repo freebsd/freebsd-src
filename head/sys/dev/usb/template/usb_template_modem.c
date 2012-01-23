@@ -98,9 +98,9 @@ static const struct usb_temp_packet_size modem_intr_mps = {
 };
 
 static const struct usb_temp_interval modem_intr_interval = {
-	.bInterval[USB_SPEED_LOW] = 10,
-	.bInterval[USB_SPEED_FULL] = 10,
-	.bInterval[USB_SPEED_HIGH] = 10 * 8,
+	.bInterval[USB_SPEED_LOW] = 8,	/* 8ms */
+	.bInterval[USB_SPEED_FULL] = 8,	/* 8ms */
+	.bInterval[USB_SPEED_HIGH] = 7,	/* 8ms */
 };
 
 static const struct usb_temp_endpoint_desc modem_ep_0 = {

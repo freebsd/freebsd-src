@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd September 13, 2011
+.Dd January 4, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -423,10 +423,10 @@ they support in their capabilities.
 is a synonym for enabling all available WOL mechanisms.
 To disable WOL use
 .Fl wol .
-.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwtso
+.It Cm vlanmtu , vlanhwtag, vlanhwfilter, vlanhwcsum, vlanhwtso
 If the driver offers user-configurable VLAN support, enable
 reception of extended frames, tag processing in hardware,
-frame filtering in hardware, or TSO on VLAN,
+frame filtering in hardware, checksum offloading, or TSO on VLAN,
 respectively.
 Note that this must be issued on a physical interface associated with
 .Xr vlan 4 ,
@@ -1088,6 +1088,38 @@ The
 specifies the number of beacon intervals between DTIM
 and must be in the range 1 to 15.
 By default DTIM is 1 (i.e., DTIM occurs at each beacon).
+.It Cm quiet
+Enable the use of quiet IE.  Hostap will use this to silent other
+stations to reduce interference for radar detection when
+operating on 5Ghz frequency and doth support is enabled.
+Use
+.Fl quiet
+to disable this functionality.
+.It Cm quiet_period Ar period
+Set the QUIET
+.Ar period
+to the number of beacon intervals between the start of regularly
+scheduled quiet intervals defined by Quiet element.
+.It Cm quiet_count Ar count
+Set the QUIET
+.Ar count
+to the number of TBTTs until the beacon interval during which the
+next quiet interval shall start.  A value of 1 indicates the quiet
+interval will start during the beacon interval starting at the next
+TBTT. A value 0 is reserved.
+.It Cm quiet_offset Ar offset
+Set the QUIET
+.Ar offset
+to the offset of the start of the quiet interval from the TBTT
+specified by the Quiet count, expressed in TUs.
+The value of the
+.Ar offset
+shall be less than one beacon interval.
+.It Cm quiet_duration Ar dur
+Set the QUIET
+.Ar dur
+to the duration of the Quiet interval, expressed in TUs.
+The value should be less than beacon interval.
 .It Cm dturbo
 Enable the use of Atheros Dynamic Turbo mode when communicating with
 another Dynamic Turbo-capable station.
@@ -2346,7 +2378,7 @@ interfaces:
 .It Cm vlan Ar vlan_tag
 Set the VLAN tag value to
 .Ar vlan_tag .
-This value is a 16-bit number which is used to create an 802.1Q
+This value is a 12-bit VLAN Identifier (VID) which is used to create an 802.1Q
 VLAN header for packets sent from the
 .Xr vlan 4
 interface.
@@ -2368,7 +2400,7 @@ diverted to the specified physical interface
 .Ar iface
 with 802.1Q VLAN encapsulation.
 Packets with 802.1Q encapsulation received
-by the parent interface with the correct VLAN tag will be diverted to
+by the parent interface with the correct VLAN Identifier will be diverted to
 the associated
 .Xr vlan 4
 pseudo-interface.
@@ -2407,22 +2439,43 @@ pseudo device, disassociate the parent interface from it.
 This breaks the link between the
 .Xr vlan 4
 interface and its parent,
-clears its VLAN tag, flags and its link address and shuts the interface down.
+clears its VLAN Identifier, flags and its link address and shuts the interface
+down.
 The
 .Ar iface
 argument is useless and hence deprecated.
 .El
 .Pp
-The following parameters are specific to
+The following parameters are used to configure
 .Xr carp 4
-interfaces:
+protocol on an interface:
 .Bl -tag -width indent
+.It Cm vhid Ar n
+Set the virtual host ID.
+This is a required setting to initiate
+.Xr carp 4 .
+If the virtual host ID doesn't exist yet, it is created and attached to the
+interface, otherwise configuration of an existing vhid is adjusted.
+If the
+.Cm vhid
+keyword is supplied along with an
+.Dq inet6
+or
+.Dq inet
+address, then this address is configured to be run under control of the
+specified vhid.
+Whenever a last address that refers to a particular vhid is removed from an
+interface, the vhid is automatically removed from interface and destroyed.
+Any other configuration parameters for the
+.Xr carp 4
+protocol should be supplied along with the
+.Cm vhid
+keyword.
+Acceptable values for vhid are 1 to 255.
 .It Cm advbase Ar seconds
 Specifies the base of the advertisement interval in seconds.
 The acceptable values are 1 to 255.
 The default value is 1.
-.\" The default value is
-.\" .Dv CARP_DFLTINTV .
 .It Cm advskew Ar interval
 Specifies the skew to add to the base advertisement interval to
 make one host advertise slower than another host.
@@ -2432,10 +2485,8 @@ The default value is 0.
 .It Cm pass Ar phrase
 Set the authentication key to
 .Ar phrase .
-.It Cm vhid Ar n
-Set the virtual host ID.
-This is a required setting.
-Acceptable values are 1 to 255.
+.It Cm state Ar MASTER|BACKUP
+Forcibly change state of a given vhid.
 .El
 .Pp
 The
@@ -2498,8 +2549,9 @@ The
 .Fl k
 flag causes keying information for the interface, if available, to be
 printed.
-For example, the values of 802.11 WEP keys will be printed, if accessible to
-the current user.
+For example, the values of 802.11 WEP keys and
+.Xr carp 4
+passphrases will be printed, if accessible to the current user.
 This information is not printed by default, as it may be considered
 sensitive.
 .Pp 
@@ -2560,6 +2612,11 @@ and using
 as a synonym for the canonical form of the option
 .Fl alias :
 .Dl # ifconfig em0 inet6 2001:db8:bdbd::123/48 delete
+.Pp
+Configure a single CARP redundant address on igb0, and then switch it
+to be master:
+.Dl # ifconfig igb0 vhid 1 10.0.0.1/24 pass foobar
+.Dl # ifconfig igb0 vhid 1 state master
 .Pp
 Configure the interface
 .Li xl0 ,

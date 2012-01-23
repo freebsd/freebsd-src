@@ -89,9 +89,9 @@ static const struct usb_temp_packet_size keyboard_intr_mps = {
 };
 
 static const struct usb_temp_interval keyboard_intr_interval = {
-	.bInterval[USB_SPEED_LOW] = 2,	/* ms */
-	.bInterval[USB_SPEED_FULL] = 2,
-	.bInterval[USB_SPEED_HIGH] = 2 * 8,
+	.bInterval[USB_SPEED_LOW] = 2,	/* 2 ms */
+	.bInterval[USB_SPEED_FULL] = 2,	/* 2 ms */
+	.bInterval[USB_SPEED_HIGH] = 5,	/* 2 ms */
 };
 
 /* The following HID descriptor was dumped from a HP keyboard. */

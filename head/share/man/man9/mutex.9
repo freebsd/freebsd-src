@@ -28,7 +28,7 @@
 .\"	from BSDI $Id: mutex.4,v 1.1.2.3 1998/04/27 22:53:13 ewv Exp $
 .\" $FreeBSD$
 .\"
-.Dd December 21, 2006
+.Dd November 16, 2011
 .Dt MUTEX 9
 .Os
 .Sh NAME
@@ -83,16 +83,16 @@
 .Ft int
 .Fn mtx_sleep "void *chan" "struct mtx *mtx" "int priority" "const char *wmesg" "int timo"
 .Ft int
-.Fn mtx_initialized "struct mtx *mutex"
+.Fn mtx_initialized "const struct mtx *mutex"
 .Ft int
-.Fn mtx_owned "struct mtx *mutex"
+.Fn mtx_owned "const struct mtx *mutex"
 .Ft int
-.Fn mtx_recursed "struct mtx *mutex"
+.Fn mtx_recursed "const struct mtx *mutex"
 .Pp
 .Cd "options INVARIANTS"
 .Cd "options INVARIANT_SUPPORT"
 .Ft void
-.Fn mtx_assert "struct mtx *mutex" "int what"
+.Fn mtx_assert "const struct mtx *mutex" "int what"
 .In sys/kernel.h
 .Fn MTX_SYSINIT "name" "struct mtx *mtx" "const char *description" "int opts"
 .Sh DESCRIPTION

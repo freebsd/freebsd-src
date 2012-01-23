@@ -8,6 +8,7 @@
 //===----------------------------------------------------------------------===//
 
 #include "clang/Driver/Action.h"
+#include "llvm/Support/ErrorHandling.h"
 
 #include <cassert>
 using namespace clang::driver;
@@ -31,10 +32,10 @@ const char *Action::getClassName(ActionClass AC) {
   case LinkJobClass: return "linker";
   case LipoJobClass: return "lipo";
   case DsymutilJobClass: return "dsymutil";
+  case VerifyJobClass: return "verify";
   }
 
-  assert(0 && "invalid class");
-  return 0;
+  llvm_unreachable("invalid class");
 }
 
 InputAction::InputAction(const Arg &_Input, types::ID _Type)
@@ -83,4 +84,8 @@ LipoJobAction::LipoJobAction(ActionList &Inputs, types::ID Type)
 
 DsymutilJobAction::DsymutilJobAction(ActionList &Inputs, types::ID Type)
   : JobAction(DsymutilJobClass, Inputs, Type) {
+}
+
+VerifyJobAction::VerifyJobAction(ActionList &Inputs, types::ID Type)
+  : JobAction(VerifyJobClass, Inputs, Type) {
 }

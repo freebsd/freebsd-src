@@ -200,7 +200,7 @@ cpu_initclocks(void)
 		hz = 32768 / rel_value;
 		tick = 1000000 / hz;
 	}
-	/* Disable all interrupts. */
+	/* Disable all interrupts. */
 	WR4(ST_IDR, 0xffffffff);
 	/* The system timer shares the system irq (1) */
 	irq = bus_alloc_resource(dev, SYS_RES_IRQ, &rid, 1, 1, 1,

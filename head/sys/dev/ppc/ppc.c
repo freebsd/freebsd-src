@@ -1851,20 +1851,13 @@ int
 ppc_detach(device_t dev)
 {
 	struct ppc_data *ppc = DEVTOSOFTC(dev);
-	device_t *children;
-	int nchildren, i;
 
 	if (ppc->res_irq == 0) {
 		return (ENXIO);
 	}
 
 	/* detach & delete all children */
-	if (!device_get_children(dev, &children, &nchildren)) {
-		for (i = 0; i < nchildren; i++)
-			if (children[i])
-				device_delete_child(dev, children[i]);
-		free(children, M_TEMP);
-	}
+	device_delete_children(dev);
 
 	if (ppc->res_irq != 0) {
 		bus_teardown_intr(dev, ppc->res_irq, ppc->intr_cookie);

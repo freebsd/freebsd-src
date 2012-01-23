@@ -107,7 +107,6 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
     uint32_t size, u_int flags)
 {
 	struct ar5416_desc *ads = AR5416DESC(ds);
-	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
 
 	HALASSERT((size &~ AR_BufLen) == 0);
 
@@ -119,8 +118,7 @@ ar5416SetupRxDesc(struct ath_hal *ah, struct ath_desc *ds,
 	ads->ds_rxstatus8 &= ~AR_RxDone;
 
 	/* clear the rest of the status fields */
-	if (! pCap->halAutoSleepSupport)
-        	OS_MEMZERO(&(ads->u), sizeof(ads->u));
+	OS_MEMZERO(&(ads->u), sizeof(ads->u));
 
 	return AH_TRUE;
 }

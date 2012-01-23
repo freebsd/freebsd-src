@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 
 #define CAM_PATH_ANY (u_int32_t)-1
 
-MALLOC_DEFINE(M_CAMSIM, "CAM SIM", "CAM SIM buffers");
+static MALLOC_DEFINE(M_CAMSIM, "CAM SIM", "CAM SIM buffers");
 
 struct cam_devq *
 cam_simq_alloc(u_int32_t max_sim_transactions)

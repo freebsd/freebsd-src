@@ -3,7 +3,7 @@
 # generate-release.sh: check out source trees, and build release components with
 #  totally clean, fresh trees.
 #
-#  Usage: generate-release.sh svn-branch scratch-dir
+#  Usage: generate-release.sh [-r revision] svn-branch scratch-dir
 #
 # Environment variables:
 #  CVSUP_HOST: Host of a cvsup server to obtain the ports and documentation
@@ -14,16 +14,49 @@
 #  SVNROOT:    SVN URL to FreeBSD source repository (by default, 
 #   svn://svn.freebsd.org/base)
 #  MAKE_FLAGS: optional flags to pass to make (e.g. -j)
+#  RELSTRING:  optional base name for media images (e.g. FreeBSD-9.0-RC2-amd64)
 # 
 #  Note: Since this requires a chroot, release cross-builds will not work!
 #
 # $FreeBSD$
 #
 
-mkdir -p $2/usr/src
+usage()
+{
+	echo "Usage: $0 [-r revision] svn-branch scratch-dir"
+	exit 1
+}
+
+REVISION=
+while getopts r: opt; do
+	case $opt in
+	r)
+		REVISION="-r $OPTARG"
+		;;
+	\?)
+		usage
+		;;
+	esac
+done
+shift $(($OPTIND - 1))
+
+if [ $# -lt 2 ]; then
+	usage
+fi
+
 set -e # Everything must succeed
 
-svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src
+case $MAKE_FLAGS in
+	*-j*)
+		;;
+	*)
+		MAKE_FLAGS="$MAKE_FLAGS -j "$(sysctl -n hw.ncpu)
+		;;
+esac
+
+mkdir -p $2/usr/src
+
+svn co ${SVNROOT:-svn://svn.freebsd.org/base}/$1 $2/usr/src $REVISION
 if [ ! -z $CVSUP_HOST ]; then
 	cat > $2/docports-supfile << EOF
 	*default host=$CVSUP_HOST
@@ -64,4 +97,13 @@ fi
 chroot $2 make -C /usr/src $MAKE_FLAGS buildworld buildkernel
 chroot $2 make -C /usr/src/release release
 chroot $2 make -C /usr/src/release install DESTDIR=/R
+
+: ${RELSTRING=`chroot $2 uname -s`-`chroot $2 uname -r`-`chroot $2 uname -p`}
+
+cd $2/R
+for i in release.iso bootonly.iso memstick; do
+	mv $i $RELSTRING-$i
+done
+sha256 $RELSTRING-* > CHECKSUM.SHA256
+md5 $RELSTRING-* > CHECKSUM.MD5
 

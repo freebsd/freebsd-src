@@ -99,7 +99,7 @@ syscons_configure_keyboard()
 	*)
 		sc_init
 		echo -n ' keychange'
-		set - ${keychange}
+		set -- ${keychange}
 		while [ $# -gt 0 ]; do
 			kbdcontrol <${kbddev} -f "$1" "$2"
 			shift; shift

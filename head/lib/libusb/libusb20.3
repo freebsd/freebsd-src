@@ -614,10 +614,9 @@ The file descriptor can be used for polling purposes.
 .Pp
 .
 .Fn libusb20_dev_kernel_driver_active
-returns a non-zero value if a kernel driver is active on
-the given USB interface.
+returns zero if a kernel driver is active on the given USB interface.
 .
-Else zero is returned.
+Else a LIBUSB20_ERROR value is returned.
 .
 .Pp
 .

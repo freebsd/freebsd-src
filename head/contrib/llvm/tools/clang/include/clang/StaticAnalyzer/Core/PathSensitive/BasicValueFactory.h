@@ -27,7 +27,7 @@ namespace clang {
 
 namespace ento {
 
-  class GRState;
+class ProgramState;
 
 class CompoundValData : public llvm::FoldingSetNode {
   QualType T;
@@ -49,17 +49,17 @@ public:
 
 class LazyCompoundValData : public llvm::FoldingSetNode {
   StoreRef store;
-  const TypedRegion *region;
+  const TypedValueRegion *region;
 public:
-  LazyCompoundValData(const StoreRef &st, const TypedRegion *r)
+  LazyCompoundValData(const StoreRef &st, const TypedValueRegion *r)
     : store(st), region(r) {}
 
   const void *getStore() const { return store.getStore(); }
-  const TypedRegion *getRegion() const { return region; }
+  const TypedValueRegion *getRegion() const { return region; }
 
   static void Profile(llvm::FoldingSetNodeID& ID,
                       const StoreRef &store,
-                      const TypedRegion *region);
+                      const TypedValueRegion *region);
 
   void Profile(llvm::FoldingSetNodeID& ID) { Profile(ID, store, region); }
 };
@@ -68,25 +68,25 @@ class BasicValueFactory {
   typedef llvm::FoldingSet<llvm::FoldingSetNodeWrapper<llvm::APSInt> >
           APSIntSetTy;
 
-  ASTContext& Ctx;
+  ASTContext &Ctx;
   llvm::BumpPtrAllocator& BPAlloc;
 
   APSIntSetTy   APSIntSet;
-  void*         PersistentSVals;
-  void*         PersistentSValPairs;
+  void *        PersistentSVals;
+  void *        PersistentSValPairs;
 
   llvm::ImmutableList<SVal>::Factory SValListFactory;
   llvm::FoldingSet<CompoundValData>  CompoundValDataSet;
   llvm::FoldingSet<LazyCompoundValData> LazyCompoundValDataSet;
 
 public:
-  BasicValueFactory(ASTContext& ctx, llvm::BumpPtrAllocator& Alloc)
+  BasicValueFactory(ASTContext &ctx, llvm::BumpPtrAllocator& Alloc)
   : Ctx(ctx), BPAlloc(Alloc), PersistentSVals(0), PersistentSValPairs(0),
     SValListFactory(Alloc) {}
 
   ~BasicValueFactory();
 
-  ASTContext& getContext() const { return Ctx; }
+  ASTContext &getContext() const { return Ctx; }
 
   const llvm::APSInt& getValue(const llvm::APSInt& X);
   const llvm::APSInt& getValue(const llvm::APInt& X, bool isUnsigned);
@@ -176,7 +176,7 @@ public:
                                             llvm::ImmutableList<SVal> Vals);
 
   const LazyCompoundValData *getLazyCompoundValData(const StoreRef &store,
-                                                    const TypedRegion *region);
+                                            const TypedValueRegion *region);
 
   llvm::ImmutableList<SVal> getEmptySValList() {
     return SValListFactory.getEmptyList();

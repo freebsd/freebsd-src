@@ -1,6 +1,6 @@
 /*
  * $FreeBSD$
- */	
+ */
 
 FBSD_1.2 {
 	teken_256to8;

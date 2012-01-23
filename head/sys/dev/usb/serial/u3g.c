@@ -66,7 +66,7 @@
 #ifdef USB_DEBUG
 static int u3g_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, u3g, CTLFLAG_RW, 0, "USB 3g");
 SYSCTL_INT(_hw_usb_u3g, OID_AUTO, debug, CTLFLAG_RW,
     &u3g_debug, 0, "Debug level");
 #endif
@@ -354,6 +354,7 @@ static const STRUCT_USB_HOST_ID u3g_devs[] = {
 	U3G_DEV(QISDA, H21_2, 0),
 	U3G_DEV(QUALCOMM2, AC8700, 0),
 	U3G_DEV(QUALCOMM2, MF330, 0),
+	U3G_DEV(QUALCOMM2, VW110L, U3GINIT_SCSIEJECT),
 	U3G_DEV(QUALCOMMINC, AC2726, 0),
 	U3G_DEV(QUALCOMMINC, AC8700, 0),
 	U3G_DEV(QUALCOMMINC, AC8710, 0),

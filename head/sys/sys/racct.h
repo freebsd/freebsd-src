@@ -137,6 +137,7 @@ void	racct_create(struct racct **racctp);
 void	racct_destroy(struct racct **racctp);
 
 int	racct_proc_fork(struct proc *parent, struct proc *child);
+void	racct_proc_fork_done(struct proc *child);
 void	racct_proc_exit(struct proc *p);
 
 void	racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,

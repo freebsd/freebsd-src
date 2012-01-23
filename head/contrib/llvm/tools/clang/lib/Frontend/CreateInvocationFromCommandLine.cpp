@@ -29,8 +29,8 @@ using namespace clang;
 /// \return A CompilerInvocation, or 0 if none was built for the given
 /// argument vector.
 CompilerInvocation *
-clang::createInvocationFromCommandLine(llvm::ArrayRef<const char *> ArgList,
-                                   llvm::IntrusiveRefCntPtr<Diagnostic> Diags) {
+clang::createInvocationFromCommandLine(ArrayRef<const char *> ArgList,
+                            llvm::IntrusiveRefCntPtr<DiagnosticsEngine> Diags) {
   if (!Diags.getPtr()) {
     // No diagnostics engine was provided, so create our own diagnostics object
     // with the default options.
@@ -39,7 +39,7 @@ clang::createInvocationFromCommandLine(llvm::ArrayRef<const char *> ArgList,
                                                 ArgList.begin());
   }
 
-  llvm::SmallVector<const char *, 16> Args;
+  SmallVector<const char *, 16> Args;
   Args.push_back("<clang>"); // FIXME: Remove dummy argument.
   Args.insert(Args.end(), ArgList.begin(), ArgList.end());
 
@@ -49,7 +49,7 @@ clang::createInvocationFromCommandLine(llvm::ArrayRef<const char *> ArgList,
 
   // FIXME: We shouldn't have to pass in the path info.
   driver::Driver TheDriver("clang", llvm::sys::getHostTriple(),
-                           "a.out", false, false, *Diags);
+                           "a.out", false, *Diags);
 
   // Don't check that inputs exist, they may have been remapped.
   TheDriver.setCheckInputsExist(false);
@@ -74,7 +74,7 @@ clang::createInvocationFromCommandLine(llvm::ArrayRef<const char *> ArgList,
   }
 
   const driver::Command *Cmd = cast<driver::Command>(*Jobs.begin());
-  if (llvm::StringRef(Cmd->getCreator().getName()) != "clang") {
+  if (StringRef(Cmd->getCreator().getName()) != "clang") {
     Diags->Report(diag::err_fe_expected_clang_command);
     return 0;
   }

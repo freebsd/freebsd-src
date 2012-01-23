@@ -63,7 +63,7 @@
 
 #include <security/mac/mac_framework.h>
 
-MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
+static MALLOC_DEFINE(M_FWCOM, "fw_com", "firewire interface internals");
 
 struct fw_hwaddr firewire_broadcastaddr = {
 	0xffffffff,

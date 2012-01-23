@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 24, 2008
+.Dd November 20, 2011
 .Dt UIPAQ 4
 .Os
 .Sh NAME
@@ -41,6 +41,8 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device usb"
+.Cd "device ucom"
 .Cd "device uipaq"
 .Ed
 .Pp

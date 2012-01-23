@@ -8,7 +8,7 @@
 //===----------------------------------------------------------------------===//
 //
 // This file defines the MCOperandInfo and MCInstrDesc classes, which
-// are used to describe target instructions and their operands. 
+// are used to describe target instructions and their operands.
 //
 //===----------------------------------------------------------------------===//
 
@@ -22,14 +22,14 @@ namespace llvm {
 //===----------------------------------------------------------------------===//
 // Machine Operand Flags and Description
 //===----------------------------------------------------------------------===//
-  
+
 namespace MCOI {
   // Operand constraints
   enum OperandConstraint {
     TIED_TO = 0,    // Must be allocated the same register as.
     EARLY_CLOBBER   // Operand is an early clobber register operand
   };
-  
+
   /// OperandFlags - These are flags set on operands, but should be considered
   /// private, all access should go through the MCOperandInfo accessors.
   /// See the accessors for a description of what these are.
@@ -54,15 +54,15 @@ namespace MCOI {
 ///
 class MCOperandInfo {
 public:
-  /// RegClass - This specifies the register class enumeration of the operand 
+  /// RegClass - This specifies the register class enumeration of the operand
   /// if the operand is a register.  If isLookupPtrRegClass is set, then this is
   /// an index that is passed to TargetRegisterInfo::getPointerRegClass(x) to
   /// get a dynamic register class.
   short RegClass;
-  
+
   /// Flags - These are flags from the MCOI::OperandFlags enum.
   unsigned short Flags;
-  
+
   /// Lower 16 bits are used to specify which constraints are set. The higher 16
   /// bits are used to specify the value of constraints (4 bits each).
   unsigned Constraints;
@@ -70,21 +70,21 @@ public:
   /// OperandType - Information about the type of the operand.
   MCOI::OperandType OperandType;
   /// Currently no other information.
-  
+
   /// isLookupPtrRegClass - Set if this operand is a pointer value and it
   /// requires a callback to look up its register class.
-  bool isLookupPtrRegClass() const { return Flags&(1 <<MCOI::LookupPtrRegClass);}
-  
+  bool isLookupPtrRegClass() const {return Flags&(1 <<MCOI::LookupPtrRegClass);}
+
   /// isPredicate - Set if this is one of the operands that made up of
   /// the predicate operand that controls an isPredicable() instruction.
   bool isPredicate() const { return Flags & (1 << MCOI::Predicate); }
-  
+
   /// isOptionalDef - Set if this operand is a optional def.
   ///
   bool isOptionalDef() const { return Flags & (1 << MCOI::OptionalDef); }
 };
 
-  
+
 //===----------------------------------------------------------------------===//
 // Machine Instruction Flags and Description
 //===----------------------------------------------------------------------===//
@@ -97,6 +97,7 @@ namespace MCID {
   enum {
     Variadic = 0,
     HasOptionalDef,
+    Pseudo,
     Return,
     Call,
     Barrier,
@@ -116,6 +117,7 @@ namespace MCID {
     Commutable,
     ConvertibleTo3Addr,
     UsesCustomInserter,
+    HasPostISelHook,
     Rematerializable,
     CheapAsAMove,
     ExtraSrcRegAllocReq,
@@ -158,13 +160,13 @@ public:
   unsigned getOpcode() const {
     return Opcode;
   }
-  
+
   /// getName - Return the name of the record in the .td file for this
   /// instruction, for example "ADD8ri".
   const char *getName() const {
     return Name;
   }
-  
+
   /// getNumOperands - Return the number of declared MachineOperands for this
   /// MachineInstruction.  Note that variadic (isVariadic() returns true)
   /// instructions may have additional operands at the end of the list, and note
@@ -173,15 +175,15 @@ public:
   unsigned getNumOperands() const {
     return NumOperands;
   }
-  
+
   /// getNumDefs - Return the number of MachineOperands that are register
-  /// definitions.  Register definitions always occur at the start of the 
+  /// definitions.  Register definitions always occur at the start of the
   /// machine operand list.  This is the number of "outs" in the .td file,
   /// and does not include implicit defs.
   unsigned getNumDefs() const {
     return NumDefs;
   }
-  
+
   /// isVariadic - Return true if this instruction can have a variable number of
   /// operands.  In this case, the variable operands will be after the normal
   /// operands but before the implicit definitions and uses (if any are
@@ -189,13 +191,13 @@ public:
   bool isVariadic() const {
     return Flags & (1 << MCID::Variadic);
   }
-  
+
   /// hasOptionalDef - Set if this instruction has an optional definition, e.g.
   /// ARM instructions which can set condition code if 's' bit is set.
   bool hasOptionalDef() const {
     return Flags & (1 << MCID::HasOptionalDef);
   }
-  
+
   /// getImplicitUses - Return a list of registers that are potentially
   /// read by any instance of this machine instruction.  For example, on X86,
   /// the "adc" instruction adds two register operands and adds the carry bit in
@@ -208,7 +210,7 @@ public:
   const unsigned *getImplicitUses() const {
     return ImplicitUses;
   }
-      
+
   /// getNumImplicitUses - Return the number of implicit uses this instruction
   /// has.
   unsigned getNumImplicitUses() const {
@@ -231,7 +233,7 @@ public:
   const unsigned *getImplicitDefs() const {
     return ImplicitDefs;
   }
-  
+
   /// getNumImplicitDefs - Return the number of implicit defs this instruction
   /// has.
   unsigned getNumImplicitDefs() const {
@@ -240,7 +242,7 @@ public:
     for (; ImplicitDefs[i]; ++i) /*empty*/;
     return i;
   }
-  
+
   /// hasImplicitUseOfPhysReg - Return true if this instruction implicitly
   /// uses the specified physical register.
   bool hasImplicitUseOfPhysReg(unsigned Reg) const {
@@ -249,7 +251,7 @@ public:
         if (*ImpUses == Reg) return true;
     return false;
   }
-  
+
   /// hasImplicitDefOfPhysReg - Return true if this instruction implicitly
   /// defines the specified physical register.
   bool hasImplicitDefOfPhysReg(unsigned Reg) const {
@@ -267,28 +269,47 @@ public:
   unsigned getSchedClass() const {
     return SchedClass;
   }
-  
+
   /// getSize - Return the number of bytes in the encoding of this instruction,
   /// or zero if the encoding size cannot be known from the opcode.
   unsigned getSize() const {
     return Size;
   }
 
+  /// isPseudo - Return true if this is a pseudo instruction that doesn't
+  /// correspond to a real machine instruction.
+  ///
+  bool isPseudo() const {
+    return Flags & (1 << MCID::Pseudo);
+  }
+
   bool isReturn() const {
     return Flags & (1 << MCID::Return);
   }
-  
+
   bool isCall() const {
     return Flags & (1 << MCID::Call);
   }
-  
+
   /// isBarrier - Returns true if the specified instruction stops control flow
   /// from executing the instruction immediately following it.  Examples include
   /// unconditional branches and return instructions.
   bool isBarrier() const {
     return Flags & (1 << MCID::Barrier);
   }
-  
+
+  /// findFirstPredOperandIdx() - Find the index of the first operand in the
+  /// operand list that is used to represent the predicate. It returns -1 if
+  /// none is found.
+  int findFirstPredOperandIdx() const {
+    if (isPredicable()) {
+      for (unsigned i = 0, e = getNumOperands(); i != e; ++i)
+        if (OpInfo[i].isPredicate())
+          return i;
+    }
+    return -1;
+  }
+
   /// isTerminator - Returns true if this instruction part of the terminator for
   /// a basic block.  Typically this is things like return and branch
   /// instructions.
@@ -298,7 +319,7 @@ public:
   bool isTerminator() const {
     return Flags & (1 << MCID::Terminator);
   }
-  
+
   /// isBranch - Returns true if this is a conditional, unconditional, or
   /// indirect branch.  Predicates below can be used to discriminate between
   /// these cases, and the TargetInstrInfo::AnalyzeBranch method can be used to
@@ -320,7 +341,7 @@ public:
   bool isConditionalBranch() const {
     return isBranch() & !isBarrier() & !isIndirectBranch();
   }
-  
+
   /// isUnconditionalBranch - Return true if this is a branch which always
   /// transfers control flow to some other block.  The
   /// TargetInstrInfo::AnalyzeBranch method can be used to get more information
@@ -328,7 +349,7 @@ public:
   bool isUnconditionalBranch() const {
     return isBranch() & isBarrier() & !isIndirectBranch();
   }
-  
+
   // isPredicable - Return true if this instruction has a predicate operand that
   // controls execution.  It may be set to 'always', or may be set to other
   /// values.   There are various methods in TargetInstrInfo that can be used to
@@ -336,14 +357,14 @@ public:
   bool isPredicable() const {
     return Flags & (1 << MCID::Predicable);
   }
-  
+
   /// isCompare - Return true if this instruction is a comparison.
   bool isCompare() const {
     return Flags & (1 << MCID::Compare);
   }
-  
+
   /// isMoveImmediate - Return true if this instruction is a move immediate
-  /// (including conditional moves) instruction. 
+  /// (including conditional moves) instruction.
   bool isMoveImmediate() const {
     return Flags & (1 << MCID::MoveImm);
   }
@@ -353,20 +374,20 @@ public:
   bool isBitcast() const {
     return Flags & (1 << MCID::Bitcast);
   }
-  
+
   /// isNotDuplicable - Return true if this instruction cannot be safely
   /// duplicated.  For example, if the instruction has a unique labels attached
   /// to it, duplicating it would cause multiple definition errors.
   bool isNotDuplicable() const {
     return Flags & (1 << MCID::NotDuplicable);
   }
-  
+
   /// hasDelaySlot - Returns true if the specified instruction has a delay slot
   /// which must be filled by the code generator.
   bool hasDelaySlot() const {
     return Flags & (1 << MCID::DelaySlot);
   }
-  
+
   /// canFoldAsLoad - Return true for instructions that can be folded as
   /// memory operands in other instructions. The most common use for this
   /// is instructions that are simple loads from memory that don't modify
@@ -378,7 +399,7 @@ public:
   bool canFoldAsLoad() const {
     return Flags & (1 << MCID::FoldableAsLoad);
   }
-  
+
   //===--------------------------------------------------------------------===//
   // Side Effect Analysis
   //===--------------------------------------------------------------------===//
@@ -389,8 +410,8 @@ public:
   bool mayLoad() const {
     return Flags & (1 << MCID::MayLoad);
   }
-  
-  
+
+
   /// mayStore - Return true if this instruction could possibly modify memory.
   /// Instructions with this flag set are not necessarily simple store
   /// instructions, they may store a modified value based on their operands, or
@@ -398,7 +419,7 @@ public:
   bool mayStore() const {
     return Flags & (1 << MCID::MayStore);
   }
-  
+
   /// hasUnmodeledSideEffects - Return true if this instruction has side
   /// effects that are not modeled by other flags.  This does not return true
   /// for instructions whose effects are captured by:
@@ -415,14 +436,14 @@ public:
   bool hasUnmodeledSideEffects() const {
     return Flags & (1 << MCID::UnmodeledSideEffects);
   }
-  
+
   //===--------------------------------------------------------------------===//
   // Flags that indicate whether an instruction can be modified by a method.
   //===--------------------------------------------------------------------===//
-  
+
   /// isCommutable - Return true if this may be a 2- or 3-address
   /// instruction (of the form "X = op Y, Z, ..."), which produces the same
-  /// result if Y and Z are exchanged.  If this flag is set, then the 
+  /// result if Y and Z are exchanged.  If this flag is set, then the
   /// TargetInstrInfo::commuteInstruction method may be used to hack on the
   /// instruction.
   ///
@@ -433,7 +454,7 @@ public:
   bool isCommutable() const {
     return Flags & (1 << MCID::Commutable);
   }
-  
+
   /// isConvertibleTo3Addr - Return true if this is a 2-address instruction
   /// which can be changed into a 3-address instruction if needed.  Doing this
   /// transformation can be profitable in the register allocator, because it
@@ -451,11 +472,11 @@ public:
   bool isConvertibleTo3Addr() const {
     return Flags & (1 << MCID::ConvertibleTo3Addr);
   }
-  
+
   /// usesCustomInsertionHook - Return true if this instruction requires
   /// custom insertion support when the DAG scheduler is inserting it into a
   /// machine basic block.  If this is true for the instruction, it basically
-  /// means that it is a pseudo instruction used at SelectionDAG time that is 
+  /// means that it is a pseudo instruction used at SelectionDAG time that is
   /// expanded out into magic code by the target when MachineInstrs are formed.
   ///
   /// If this is true, the TargetLoweringInfo::InsertAtEndOfBasicBlock method
@@ -463,7 +484,15 @@ public:
   bool usesCustomInsertionHook() const {
     return Flags & (1 << MCID::UsesCustomInserter);
   }
-  
+
+  /// hasPostISelHook - Return true if this instruction requires *adjustment*
+  /// after instruction selection by calling a target hook. For example, this
+  /// can be used to fill in ARM 's' optional operand depending on whether
+  /// the conditional flag register is used.
+  bool hasPostISelHook() const {
+    return Flags & (1 << MCID::HasPostISelHook);
+  }
+
   /// isRematerializable - Returns true if this instruction is a candidate for
   /// remat.  This flag is deprecated, please don't use it anymore.  If this
   /// flag is set, the isReallyTriviallyReMaterializable() method is called to

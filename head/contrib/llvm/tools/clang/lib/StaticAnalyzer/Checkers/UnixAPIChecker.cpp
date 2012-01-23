@@ -62,7 +62,8 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
   // The definition of O_CREAT is platform specific.  We need a better way
   // of querying this information from the checking environment.
   if (!Val_O_CREAT.hasValue()) {
-    if (C.getASTContext().Target.getTriple().getVendor() == llvm::Triple::Apple)
+    if (C.getASTContext().getTargetInfo().getTriple().getVendor() 
+                                                      == llvm::Triple::Apple)
       Val_O_CREAT = 0x0200;
     else {
       // FIXME: We need a more general way of getting the O_CREAT value.
@@ -73,7 +74,7 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
   }
 
   // Look at the 'oflags' argument for the O_CREAT flag.
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
 
   if (CE->getNumArgs() < 2) {
     // The frontend should issue a warning for this case, so this is a sanity
@@ -101,7 +102,7 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
   DefinedSVal maskedFlags = cast<DefinedSVal>(maskedFlagsUC);
 
   // Check if maskedFlags is non-zero.
-  const GRState *trueState, *falseState;
+  const ProgramState *trueState, *falseState;
   llvm::tie(trueState, falseState) = state->assume(maskedFlags);
 
   // Only emit an error if the value of 'maskedFlags' is properly
@@ -116,8 +117,8 @@ void UnixAPIChecker::CheckOpen(CheckerContext &C, const CallExpr *CE) const {
 
     LazyInitialize(BT_open, "Improper use of 'open'");
 
-    RangedBugReport *report =
-      new RangedBugReport(*BT_open,
+    BugReport *report =
+      new BugReport(*BT_open,
                             "Call to 'open' requires a third argument when "
                             "the 'O_CREAT' flag is set", N);
     report->addRange(oflagsEx->getSourceRange());
@@ -140,7 +141,7 @@ void UnixAPIChecker::CheckPthreadOnce(CheckerContext &C,
 
   // Check if the first argument is stack allocated.  If so, issue a warning
   // because that's likely to be bad news.
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const MemRegion *R = state->getSVal(CE->getArg(0)).getAsRegion();
   if (!R || !isa<StackSpaceRegion>(R->getMemorySpace()))
     return;
@@ -163,7 +164,7 @@ void UnixAPIChecker::CheckPthreadOnce(CheckerContext &C,
 
   LazyInitialize(BT_pthreadOnce, "Improper use of 'pthread_once'");
 
-  RangedBugReport *report = new RangedBugReport(*BT_pthreadOnce, os.str(), N);
+  BugReport *report = new BugReport(*BT_pthreadOnce, os.str(), N);
   report->addRange(CE->getArg(0)->getSourceRange());
   C.EmitReport(report);
 }
@@ -182,13 +183,13 @@ void UnixAPIChecker::CheckMallocZero(CheckerContext &C,
     return;
 
   // Check if the allocation size is 0.
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   SVal argVal = state->getSVal(CE->getArg(0));
 
   if (argVal.isUnknownOrUndef())
     return;
   
-  const GRState *trueState, *falseState;
+  const ProgramState *trueState, *falseState;
   llvm::tie(trueState, falseState) = state->assume(cast<DefinedSVal>(argVal));
   
   // Is the value perfectly constrained to zero?
@@ -202,12 +203,12 @@ void UnixAPIChecker::CheckMallocZero(CheckerContext &C,
 
     LazyInitialize(BT_mallocZero, "Undefined allocation of 0 bytes");
     
-    EnhancedBugReport *report =
-      new EnhancedBugReport(*BT_mallocZero, "Call to 'malloc' has an allocation"
+    BugReport *report =
+      new BugReport(*BT_mallocZero, "Call to 'malloc' has an allocation"
                                             " size of 0 bytes", N);
     report->addRange(CE->getArg(0)->getSourceRange());
-    report->addVisitorCreator(bugreporter::registerTrackNullOrUndefValue,
-                              CE->getArg(0));
+    report->addVisitor(bugreporter::getTrackNullOrUndefValueVisitor(N,
+                                                                CE->getArg(0)));
     C.EmitReport(report);
     return;
   }
@@ -225,7 +226,7 @@ void UnixAPIChecker::CheckMallocZero(CheckerContext &C,
 void UnixAPIChecker::checkPreStmt(const CallExpr *CE, CheckerContext &C) const {
   // Get the callee.  All the functions we care about are C functions
   // with simple identifiers.
-  const GRState *state = C.getState();
+  const ProgramState *state = C.getState();
   const Expr *Callee = CE->getCallee();
   const FunctionDecl *Fn = state->getSVal(Callee).getAsFunctionDecl();
 

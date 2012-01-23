@@ -87,7 +87,7 @@ struct aclstate {
 #define	ACL_HASH(addr)	\
 	(((const uint8_t *)(addr))[IEEE80211_ADDR_LEN - 1] % ACL_HASHSIZE)
 
-MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
+static MALLOC_DEFINE(M_80211_ACL, "acl", "802.11 station acl");
 
 static	int acl_free_all(struct ieee80211vap *);
 
@@ -152,7 +152,7 @@ _acl_free(struct aclstate *as, struct acl *acl)
 }
 
 static int
-acl_check(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
+acl_check(struct ieee80211vap *vap, const struct ieee80211_frame *wh)
 {
 	struct aclstate *as = vap->iv_as;
 
@@ -161,9 +161,9 @@ acl_check(struct ieee80211vap *vap, const uint8_t mac[IEEE80211_ADDR_LEN])
 	case ACL_POLICY_RADIUS:
 		return 1;
 	case ACL_POLICY_ALLOW:
-		return _find_acl(as, mac) != NULL;
+		return _find_acl(as, wh->i_addr2) != NULL;
 	case ACL_POLICY_DENY:
-		return _find_acl(as, mac) == NULL;
+		return _find_acl(as, wh->i_addr2) == NULL;
 	}
 	return 0;		/* should not happen */
 }

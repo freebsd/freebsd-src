@@ -20,15 +20,16 @@
 #include "llvm-c/Disassembler.h"
 #include <string>
 #include "llvm/ADT/OwningPtr.h"
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/raw_ostream.h"
 
 namespace llvm {
-class TargetAsmInfo;
 class MCContext;
 class MCAsmInfo;
 class MCDisassembler;
 class MCInstPrinter; 
+class MCRegisterInfo;
 class Target;
-class TargetMachine;
 
 //
 // This is the disassembler context returned by LLVMCreateDisasm().
@@ -58,12 +59,8 @@ private:
   const Target *TheTarget;
   // The assembly information for the target architecture.
   llvm::OwningPtr<const llvm::MCAsmInfo> MAI;
-  // The target machine instance.
-  llvm::OwningPtr<llvm::TargetMachine> TM;
-  // The disassembler for the target architecture.
-  // FIXME: using llvm::OwningPtr<const llvm::TargetAsmInfo> causes a malloc
-  //        error when this LLVMDisasmContext is deleted.
-  const TargetAsmInfo *Tai;
+  // The register information for the target architecture.
+  llvm::OwningPtr<const llvm::MCRegisterInfo> MRI;
   // The assembly context for creating symbols and MCExprs.
   llvm::OwningPtr<const llvm::MCContext> Ctx;
   // The disassembler for the target architecture.
@@ -72,22 +69,28 @@ private:
   llvm::OwningPtr<llvm::MCInstPrinter> IP;
 
 public:
+  // Comment stream and backing vector.
+  SmallString<128> CommentsToEmit;
+  raw_svector_ostream CommentStream;
+
   LLVMDisasmContext(std::string tripleName, void *disInfo, int tagType,
                     LLVMOpInfoCallback getOpInfo,
                     LLVMSymbolLookupCallback symbolLookUp,
                     const Target *theTarget, const MCAsmInfo *mAI,
-                    llvm::TargetMachine *tM, const TargetAsmInfo *tai,
+                    const MCRegisterInfo *mRI,
                     llvm::MCContext *ctx, const MCDisassembler *disAsm,
                     MCInstPrinter *iP) : TripleName(tripleName),
                     DisInfo(disInfo), TagType(tagType), GetOpInfo(getOpInfo),
-                    SymbolLookUp(symbolLookUp), TheTarget(theTarget), Tai(tai) {
-    TM.reset(tM);
+                    SymbolLookUp(symbolLookUp), TheTarget(theTarget),
+                    CommentStream(CommentsToEmit) {
     MAI.reset(mAI);
+    MRI.reset(mRI);
     Ctx.reset(ctx);
     DisAsm.reset(disAsm);
     IP.reset(iP);
   }
   const MCDisassembler *getDisAsm() const { return DisAsm.get(); }
+  const MCAsmInfo *getAsmInfo() const { return MAI.get(); }
   MCInstPrinter *getIP() { return IP.get(); }
 };
 

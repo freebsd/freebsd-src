@@ -317,7 +317,7 @@ static void InitLibcallNames(const char **Names) {
   Names[RTLIB::SYNC_FETCH_AND_OR_8] = "__sync_fetch_and_or_8";
   Names[RTLIB::SYNC_FETCH_AND_XOR_1] = "__sync_fetch_and_xor_1";
   Names[RTLIB::SYNC_FETCH_AND_XOR_2] = "__sync_fetch_and_xor_2";
-  Names[RTLIB::SYNC_FETCH_AND_XOR_4] = "__sync_fetch_and-xor_4";
+  Names[RTLIB::SYNC_FETCH_AND_XOR_4] = "__sync_fetch_and_xor_4";
   Names[RTLIB::SYNC_FETCH_AND_XOR_8] = "__sync_fetch_and_xor_8";
   Names[RTLIB::SYNC_FETCH_AND_NAND_1] = "__sync_fetch_and_nand_1";
   Names[RTLIB::SYNC_FETCH_AND_NAND_2] = "__sync_fetch_and_nand_2";
@@ -609,6 +609,7 @@ TargetLowering::TargetLowering(const TargetMachine &tm,
   ExceptionPointerRegister = 0;
   ExceptionSelectorRegister = 0;
   BooleanContents = UndefinedBooleanContent;
+  BooleanVectorContents = UndefinedBooleanContent;
   SchedPreferenceInfo = Sched::Latency;
   JumpBufSize = 0;
   JumpBufAlignment = 0;
@@ -617,6 +618,7 @@ TargetLowering::TargetLowering(const TargetMachine &tm,
   PrefLoopAlignment = 0;
   MinStackArgumentAlignment = 1;
   ShouldFoldAtomicFences = false;
+  InsertFencesForAtomic = false;
 
   InitLibcallNames(LibcallRoutineNames);
   InitCmpLibcallCCs(CmpLibcallCCs);
@@ -914,7 +916,8 @@ const char *TargetLowering::getTargetNodeName(unsigned Opcode) const {
 }
 
 
-MVT::SimpleValueType TargetLowering::getSetCCResultType(EVT VT) const {
+EVT TargetLowering::getSetCCResultType(EVT VT) const {
+  assert(!VT.isVector() && "No default SetCC type for vectors!");
   return PointerTy.SimpleTy;
 }
 
@@ -996,7 +999,7 @@ unsigned TargetLowering::getVectorTypeBreakdown(LLVMContext &Context, EVT VT,
 /// type of the given function.  This does not require a DAG or a return value,
 /// and is suitable for use before any DAGs for the function are constructed.
 /// TODO: Move this out of TargetLowering.cpp.
-void llvm::GetReturnInfo(const Type* ReturnType, Attributes attr,
+void llvm::GetReturnInfo(Type* ReturnType, Attributes attr,
                          SmallVectorImpl<ISD::OutputArg> &Outs,
                          const TargetLowering &TLI,
                          SmallVectorImpl<uint64_t> *Offsets) {
@@ -1054,7 +1057,7 @@ void llvm::GetReturnInfo(const Type* ReturnType, Attributes attr,
 /// getByValTypeAlignment - Return the desired alignment for ByVal aggregate
 /// function arguments in the caller parameter area.  This is the actual
 /// alignment, not its logarithm.
-unsigned TargetLowering::getByValTypeAlignment(const Type *Ty) const {
+unsigned TargetLowering::getByValTypeAlignment(Type *Ty) const {
   return TD->getCallFrameTypeAlignment(Ty);
 }
 
@@ -1764,17 +1767,16 @@ bool TargetLowering::SimplifyDemandedBits(SDValue Op,
     break;
   }
   case ISD::AssertZext: {
-    // Demand all the bits of the input that are demanded in the output.
-    // The low bits are obvious; the high bits are demanded because we're
-    // asserting that they're zero here.
-    if (SimplifyDemandedBits(Op.getOperand(0), NewMask,
+    // AssertZext demands all of the high bits, plus any of the low bits
+    // demanded by its users.
+    EVT VT = cast<VTSDNode>(Op.getOperand(1))->getVT();
+    APInt InMask = APInt::getLowBitsSet(BitWidth,
+                                        VT.getSizeInBits());
+    if (SimplifyDemandedBits(Op.getOperand(0), ~InMask | NewMask,
                              KnownZero, KnownOne, TLO, Depth+1))
       return true;
     assert((KnownZero & KnownOne) == 0 && "Bits known to be one AND zero?");
 
-    EVT VT = cast<VTSDNode>(Op.getOperand(1))->getVT();
-    APInt InMask = APInt::getLowBitsSet(BitWidth,
-                                        VT.getSizeInBits());
     KnownZero |= ~InMask & NewMask;
     break;
   }
@@ -2191,7 +2193,7 @@ TargetLowering::SimplifySetCC(EVT VT, SDValue N0, SDValue N1,
         }
       } else if (N1C->getAPIntValue() == 1 &&
                  (VT == MVT::i1 ||
-                  getBooleanContents() == ZeroOrOneBooleanContent)) {
+                  getBooleanContents(false) == ZeroOrOneBooleanContent)) {
         SDValue Op0 = N0;
         if (Op0.getOpcode() == ISD::TRUNCATE)
           Op0 = Op0.getOperand(0);
@@ -2758,16 +2760,8 @@ getRegForInlineAsmConstraint(const std::string &Constraint,
 
     // If none of the value types for this register class are valid, we
     // can't use it.  For example, 64-bit reg classes on 32-bit targets.
-    bool isLegal = false;
-    for (TargetRegisterClass::vt_iterator I = RC->vt_begin(), E = RC->vt_end();
-         I != E; ++I) {
-      if (isTypeLegal(*I)) {
-        isLegal = true;
-        break;
-      }
-    }
-
-    if (!isLegal) continue;
+    if (!isLegalRC(RC))
+      continue;
 
     for (TargetRegisterClass::iterator I = RC->begin(), E = RC->end();
          I != E; ++I) {
@@ -2840,7 +2834,7 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
       // corresponding argument.
       assert(!CS.getType()->isVoidTy() &&
              "Bad inline asm!");
-      if (const StructType *STy = dyn_cast<StructType>(CS.getType())) {
+      if (StructType *STy = dyn_cast<StructType>(CS.getType())) {
         OpInfo.ConstraintVT = getValueType(STy->getElementType(ResNo));
       } else {
         assert(ResNo == 0 && "Asm only has one result!");
@@ -2857,16 +2851,16 @@ TargetLowering::AsmOperandInfoVector TargetLowering::ParseConstraints(
     }
 
     if (OpInfo.CallOperandVal) {
-      const llvm::Type *OpTy = OpInfo.CallOperandVal->getType();
+      llvm::Type *OpTy = OpInfo.CallOperandVal->getType();
       if (OpInfo.isIndirect) {
-        const llvm::PointerType *PtrTy = dyn_cast<PointerType>(OpTy);
+        llvm::PointerType *PtrTy = dyn_cast<PointerType>(OpTy);
         if (!PtrTy)
           report_fatal_error("Indirect operand for inline asm not a pointer!");
         OpTy = PtrTy->getElementType();
       }
 
       // Look for vector wrapped in a struct. e.g. { <16 x i8> }.
-      if (const StructType *STy = dyn_cast<StructType>(OpTy))
+      if (StructType *STy = dyn_cast<StructType>(OpTy))
         if (STy->getNumElements() == 1)
           OpTy = STy->getElementType(0);
 
@@ -3187,7 +3181,7 @@ void TargetLowering::ComputeConstraintToUse(AsmOperandInfo &OpInfo,
 /// isLegalAddressingMode - Return true if the addressing mode represented
 /// by AM is legal for this target, for a load/store of the specified type.
 bool TargetLowering::isLegalAddressingMode(const AddrMode &AM,
-                                           const Type *Ty) const {
+                                           Type *Ty) const {
   // The default implementation of this implements a conservative RISCy, r+r and
   // r+i addr mode.
 

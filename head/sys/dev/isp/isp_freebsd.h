@@ -38,6 +38,7 @@
 #include <sys/malloc.h>
 #include <sys/mutex.h>
 #include <sys/condvar.h>
+#include <sys/sysctl.h>
 
 #include <sys/proc.h>
 #include <sys/bus.h>
@@ -75,6 +76,13 @@
 #define	ISP_IFLAGS	INTR_TYPE_CAM | INTR_ENTROPY | INTR_MPSAFE
 
 #ifdef	ISP_TARGET_MODE
+/* Not quite right, but there was no bump for this change */
+#if __FreeBSD_version < 225469
+#define	SDFIXED(x)	(&x)
+#else
+#define	SDFIXED(x)	((struct scsi_sense_data_fixed *)(&x))
+#endif
+
 #define	ISP_TARGET_FUNCTIONS	1
 #define	ATPDPSIZE	4096
 
@@ -438,11 +446,19 @@ default:							\
 #define	XS_SNSP(ccb)		(&(ccb)->sense_data)
 
 #define	XS_SNSLEN(ccb)		\
-	imin((sizeof((ccb)->sense_data)), ccb->sense_len)
+	imin((sizeof((ccb)->sense_data)), ccb->sense_len - ccb->sense_resid)
 
-#define	XS_SNSKEY(ccb)		((ccb)->sense_data.flags & 0xf)
-#define	XS_SNSASC(ccb)		((ccb)->sense_data.add_sense_code)
-#define	XS_SNSASCQ(ccb)		((ccb)->sense_data.add_sense_code_qual)
+#define	XS_SNSKEY(ccb)		(scsi_get_sense_key(&(ccb)->sense_data, \
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASC(ccb)		(scsi_get_asc(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
+
+#define	XS_SNSASCQ(ccb)		(scsi_get_ascq(&(ccb)->sense_data,	\
+				 ccb->sense_len - ccb->sense_resid, 	\
+				 /*show_errors*/ 1))
 #define	XS_TAG_P(ccb)	\
 	(((ccb)->ccb_h.flags & CAM_TAG_ACTION_VALID) && \
 	 (ccb)->tag_action != CAM_TAG_ACTION_NONE)
@@ -476,9 +492,14 @@ default:							\
 #define	XS_INITERR(ccb)		\
 	XS_SETERR(ccb, CAM_REQ_INPROG), (ccb)->ccb_h.spriv_field0 = 0
 
-#define	XS_SAVE_SENSE(xs, sense_ptr, sense_len)		\
-	(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;	\
-	memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs), sense_len))
+#define	XS_SAVE_SENSE(xs, sense_ptr, slen)	do {			\
+		(xs)->ccb_h.status |= CAM_AUTOSNS_VALID;		\
+		memset(&(xs)->sense_data, 0, sizeof(&(xs)->sense_data));\
+		memcpy(&(xs)->sense_data, sense_ptr, imin(XS_SNSLEN(xs),\
+		       slen)); 						\
+		if (slen < (xs)->sense_len) 				\
+			(xs)->sense_resid = (xs)->sense_len - slen;	\
+	} while (0);
 
 #define	XS_SENSE_VALID(xs)	(((xs)->ccb_h.status & CAM_AUTOSNS_VALID) != 0)
 

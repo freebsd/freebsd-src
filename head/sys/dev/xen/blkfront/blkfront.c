@@ -81,7 +81,7 @@ static int blkif_completion(struct xb_command *);
 static void blkif_free(struct xb_softc *);
 static void blkif_queue_cb(void *, bus_dma_segment_t *, int, int);
 
-MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
+static MALLOC_DEFINE(M_XENBLOCKFRONT, "xbd", "Xen Block Front driver data");
 
 #define GRANT_INVALID_REF 0
 

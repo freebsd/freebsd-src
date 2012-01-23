@@ -40,7 +40,6 @@
 #include <vm/vm_map.h>
 #include <vm/vm_page.h>
 #include <vm/vm_pageout.h>
-#include <vm/vm_phys.h>
 
 #include <machine/md_var.h>
 #include <machine/platform.h>
@@ -410,15 +409,11 @@ slb_alloc_tree(void)
 
 /* Lock entries mapping kernel text and stacks */
 
-#define SLB_SPILLABLE(slbe) \
-	(((slbe & SLBE_ESID_MASK) < VM_MIN_KERNEL_ADDRESS && \
-	    (slbe & SLBE_ESID_MASK) > 16*SEGMENT_LENGTH) || \
-	    (slbe & SLBE_ESID_MASK) > VM_MAX_KERNEL_ADDRESS)
 void
 slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 {
 	struct slb *slbcache;
-	int i, j;
+	int i;
 
 	/* We don't want to be preempted while modifying the kernel map */
 	critical_enter();
@@ -438,15 +433,9 @@ slb_insert_kernel(uint64_t slbe, uint64_t slbv)
 			slbcache[USER_SLB_SLOT].slbe = 1;
 	}
 
-	for (i = mftb() % n_slbs, j = 0; j < n_slbs; j++, i = (i+1) % n_slbs) {
-		if (i == USER_SLB_SLOT)
-			continue;
-
-		if (SLB_SPILLABLE(slbcache[i].slbe))
-			break;
-	}
-
-	KASSERT(j < n_slbs, ("All kernel SLB slots locked!"));
+	i = mftb() % n_slbs;
+	if (i == USER_SLB_SLOT)
+			i = (i+1) % n_slbs;
 
 fillkernslb:
 	KASSERT(i != USER_SLB_SLOT,
@@ -488,15 +477,22 @@ slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	static vm_offset_t realmax = 0;
 	void *va;
 	vm_page_t m;
+	int pflags;
 
 	if (realmax == 0)
 		realmax = platform_real_maxaddr();
 
 	*flags = UMA_SLAB_PRIV;
+	if ((wait & (M_NOWAIT | M_USE_RESERVE)) == M_NOWAIT)
+		pflags = VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
+	else
+		pflags = VM_ALLOC_SYSTEM | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED;
+	if (wait & M_ZERO)
+		pflags |= VM_ALLOC_ZERO;
 
 	for (;;) {
-		m = vm_phys_alloc_contig(1, 0, realmax, PAGE_SIZE,
-			    PAGE_SIZE);
+		m = vm_page_alloc_contig(NULL, 0, pflags, 1, 0, realmax,
+		    PAGE_SIZE, PAGE_SIZE, VM_MEMATTR_DEFAULT);
 		if (m == NULL) {
 			if (wait & M_NOWAIT)
 				return (NULL);
@@ -512,10 +508,6 @@ slb_uma_real_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 
 	if ((wait & M_ZERO) && (m->flags & PG_ZERO) == 0)
 		bzero(va, PAGE_SIZE);
-
-	/* vm_phys_alloc_contig does not track wiring */
-	atomic_add_int(&cnt.v_wire_count, 1);
-	m->wire_count = 1;
 
 	return (va);
 }

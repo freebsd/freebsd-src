@@ -103,7 +103,7 @@ devclass_t cs_devclass;
 driver_intr_t	csintr;
 
 /* sysctl vars */
-SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, cs, CTLFLAG_RD, 0, "cs device parameters");
 
 int	cs_ignore_cksum_failure = 0;
 TUNABLE_INT("hw.cs.ignore_checksum_failure", &cs_ignore_cksum_failure);

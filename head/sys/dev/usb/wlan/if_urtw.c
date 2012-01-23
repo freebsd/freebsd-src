@@ -61,7 +61,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/wlan/if_urtwreg.h>
 #include <dev/usb/wlan/if_urtwvar.h>
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, urtw, CTLFLAG_RW, 0, "USB Realtek 8187L");
 #ifdef URTW_DEBUG
 int urtw_debug = 0;
 SYSCTL_INT(_hw_usb_urtw, OID_AUTO, debug, CTLFLAG_RW, &urtw_debug, 0,
@@ -649,9 +649,9 @@ static const struct usb_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
 };
 
 static struct ieee80211vap *urtw_vap_create(struct ieee80211com *,
-			    const char name[IFNAMSIZ], int unit, int opmode,
-			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
+			    int, const uint8_t [IEEE80211_ADDR_LEN],
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtw_vap_delete(struct ieee80211vap *);
 static void		urtw_init(void *);
 static void		urtw_stop(struct ifnet *, int);
@@ -993,10 +993,10 @@ urtw_free_data_list(struct urtw_softc *sc, struct urtw_data data[], int ndata,
 }
 
 static struct ieee80211vap *
-urtw_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+urtw_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct urtw_vap *uvp;
 	struct ieee80211vap *vap;
@@ -1053,10 +1053,10 @@ urtw_init_locked(void *arg)
 
 	if (!(sc->sc_flags & URTW_INIT_ONCE)) {
 		ret = urtw_alloc_rx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		ret = urtw_alloc_tx_data_list(sc);
-		if (error != 0)
+		if (ret != 0)
 			goto fail;
 		sc->sc_flags |= URTW_INIT_ONCE;
 	}
@@ -1745,7 +1745,7 @@ urtw_tx_start(struct urtw_softc *sc, struct ieee80211_node *ni, struct mbuf *m0,
 	if ((0 == xferlen % 64) || (0 == xferlen % 512))
 		xferlen += 1;
 
-	bzero(data->buf, URTW_TX_MAXSIZE);
+	memset(data->buf, 0, URTW_TX_MAXSIZE);
 	flags = m0->m_pkthdr.len & 0xfff;
 	flags |= URTW_TX_FLAG_NO_ENC;
 	if ((ic->ic_flags & IEEE80211_F_SHPREAMBLE) &&

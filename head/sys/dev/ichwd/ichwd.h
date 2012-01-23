@@ -48,18 +48,12 @@ struct ichwd_softc {
 	int			 smi_enabled;
 	int			 smi_rid;
 	struct resource		*smi_res;
-	bus_space_tag_t		 smi_bst;
-	bus_space_handle_t	 smi_bsh;
 
 	int			 tco_rid;
 	struct resource		*tco_res;
-	bus_space_tag_t		 tco_bst;
-	bus_space_handle_t	 tco_bsh;
 
 	int			 gcs_rid;
 	struct resource		*gcs_res;
-	bus_space_tag_t		 gcs_bst;
-	bus_space_handle_t	 gcs_bsh;
 
 	eventhandler_tag	 ev_tag;
 };

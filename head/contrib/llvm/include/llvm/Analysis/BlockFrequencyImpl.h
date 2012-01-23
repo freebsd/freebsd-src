@@ -19,6 +19,7 @@
 #include "llvm/ADT/PostOrderIterator.h"
 #include "llvm/CodeGen/MachineBasicBlock.h"
 #include "llvm/CodeGen/MachineFunction.h"
+#include "llvm/Support/BlockFrequency.h"
 #include "llvm/Support/BranchProbability.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_ostream.h"
@@ -29,8 +30,8 @@
 namespace llvm {
 
 
-class BlockFrequency;
-class MachineBlockFrequency;
+class BlockFrequencyInfo;
+class MachineBlockFrequencyInfo;
 
 /// BlockFrequencyImpl implements block frequency algorithm for IR and
 /// Machine Instructions. Algorithm starts with value 1024 (START_FREQ)
@@ -40,7 +41,7 @@ class MachineBlockFrequency;
 template<class BlockT, class FunctionT, class BlockProbInfoT>
 class BlockFrequencyImpl {
 
-  DenseMap<BlockT *, uint32_t> Freqs;
+  DenseMap<BlockT *, BlockFrequency> Freqs;
 
   BlockProbInfoT *BPI;
 
@@ -48,7 +49,7 @@ class BlockFrequencyImpl {
 
   typedef GraphTraits< Inverse<BlockT *> > GT;
 
-  static const uint32_t START_FREQ = 1024;
+  const uint32_t EntryFreq;
 
   std::string getBlockName(BasicBlock *BB) const {
     return BB->getNameStr();
@@ -64,26 +65,21 @@ class BlockFrequencyImpl {
     return ss.str();
   }
 
-  void setBlockFreq(BlockT *BB, uint32_t Freq) {
+  void setBlockFreq(BlockT *BB, BlockFrequency Freq) {
     Freqs[BB] = Freq;
     DEBUG(dbgs() << "Frequency(" << getBlockName(BB) << ") = " << Freq << "\n");
   }
 
   /// getEdgeFreq - Return edge frequency based on SRC frequency and Src -> Dst
   /// edge probability.
-  uint32_t getEdgeFreq(BlockT *Src, BlockT *Dst) const {
+  BlockFrequency getEdgeFreq(BlockT *Src, BlockT *Dst) const {
     BranchProbability Prob = BPI->getEdgeProbability(Src, Dst);
-    uint64_t N = Prob.getNumerator();
-    uint64_t D = Prob.getDenominator();
-    uint64_t Res = (N * getBlockFreq(Src)) / D;
-
-    assert(Res <= UINT32_MAX);
-    return (uint32_t) Res;
+    return getBlockFreq(Src) * Prob;
   }
 
   /// incBlockFreq - Increase BB block frequency by FREQ.
   ///
-  void incBlockFreq(BlockT *BB, uint32_t Freq) {
+  void incBlockFreq(BlockT *BB, BlockFrequency Freq) {
     Freqs[BB] += Freq;
     DEBUG(dbgs() << "Frequency(" << getBlockName(BB) << ") += " << Freq
                  << " --> " << Freqs[BB] << "\n");
@@ -95,13 +91,13 @@ class BlockFrequencyImpl {
     uint64_t N = Prob.getNumerator();
     assert(N && "Illegal division by zero!");
     uint64_t D = Prob.getDenominator();
-    uint64_t Freq = (Freqs[BB] * D) / N;
+    uint64_t Freq = (Freqs[BB].getFrequency() * D) / N;
 
     // Should we assert it?
     if (Freq > UINT32_MAX)
       Freq = UINT32_MAX;
 
-    Freqs[BB] = (uint32_t) Freq;
+    Freqs[BB] = BlockFrequency(Freq);
     DEBUG(dbgs() << "Frequency(" << getBlockName(BB) << ") /= (" << Prob
                  << ") --> " << Freqs[BB] << "\n");
   }
@@ -136,15 +132,6 @@ class BlockFrequencyImpl {
   }
 
 
-  /// Return a probability of getting to the DST block through SRC->DST edge.
-  ///
-  BranchProbability getBackEdgeProbability(BlockT *Src, BlockT *Dst) const {
-    uint32_t N = getEdgeFreq(Src, Dst);
-    uint32_t D = getBlockFreq(Dst);
-
-    return BranchProbability(N, D);
-  }
-
   /// isReachable - Returns if BB block is reachable from the entry.
   ///
   bool isReachable(BlockT *BB) {
@@ -160,7 +147,7 @@ class BlockFrequencyImpl {
     unsigned a = RPO[Src];
     unsigned b = RPO[Dst];
 
-    return a > b;
+    return a >= b;
   }
 
   /// getSingleBlockPred - return single BB block predecessor or NULL if
@@ -189,7 +176,7 @@ class BlockFrequencyImpl {
     setBlockFreq(BB, 0);
 
     if (BB == LoopHead) {
-      setBlockFreq(BB, START_FREQ);
+      setBlockFreq(BB, EntryFreq);
       return;
     }
 
@@ -224,10 +211,10 @@ class BlockFrequencyImpl {
     if (!isLoopHead)
       return;
 
-    assert(START_FREQ >= CycleProb[BB]);
+    assert(EntryFreq >= CycleProb[BB]);
     uint32_t CProb = CycleProb[BB];
-    uint32_t Numerator = START_FREQ - CProb ? START_FREQ - CProb : 1;
-    divBlockFreq(BB, BranchProbability(Numerator, START_FREQ));
+    uint32_t Numerator = EntryFreq - CProb ? EntryFreq - CProb : 1;
+    divBlockFreq(BB, BranchProbability(Numerator, EntryFreq));
   }
 
   /// doLoop - Propagate block frequency down throught the loop.
@@ -237,11 +224,13 @@ class BlockFrequencyImpl {
 
     SmallPtrSet<BlockT *, 8> BlocksInLoop;
 
-    for (rpot_iterator I = rpot_at(Head), E = rpot_end(); I != E; ++I) {
+    for (rpot_iterator I = rpot_at(Head), E = rpot_at(Tail); ; ++I) {
       BlockT *BB = *I;
       doBlock(BB, Head, BlocksInLoop);
 
       BlocksInLoop.insert(BB);
+      if (I == E)
+        break;
     }
 
     // Compute loop's cyclic probability using backedges probabilities.
@@ -252,19 +241,23 @@ class BlockFrequencyImpl {
       BlockT *Pred = *PI;
       assert(Pred);
       if (isReachable(Pred) && isBackedge(Pred, Head)) {
-        BranchProbability Prob = getBackEdgeProbability(Pred, Head);
-        uint64_t N = Prob.getNumerator();
-        uint64_t D = Prob.getDenominator();
-        uint64_t Res = (N * START_FREQ) / D;
+        uint64_t N = getEdgeFreq(Pred, Head).getFrequency();
+        uint64_t D = getBlockFreq(Head).getFrequency();
+        assert(N <= EntryFreq && "Backedge frequency must be <= EntryFreq!");
+        uint64_t Res = (N * EntryFreq) / D;
 
         assert(Res <= UINT32_MAX);
         CycleProb[Head] += (uint32_t) Res;
+        DEBUG(dbgs() << "  CycleProb[" << getBlockName(Head) << "] += " << Res
+                     << " --> " << CycleProb[Head] << "\n");
       }
     }
   }
 
-  friend class BlockFrequency;
-  friend class MachineBlockFrequency;
+  friend class BlockFrequencyInfo;
+  friend class MachineBlockFrequencyInfo;
+
+  BlockFrequencyImpl() : EntryFreq(BlockFrequency::getEntryFrequency()) { }
 
   void doFunction(FunctionT *fn, BlockProbInfoT *bpi) {
     Fn = fn;
@@ -314,13 +307,12 @@ class BlockFrequencyImpl {
   }
 
 public:
-  /// getBlockFreq - Return block frequency. Never return 0, value must be
-  /// positive.
-  uint32_t getBlockFreq(BlockT *BB) const {
-    typename DenseMap<BlockT *, uint32_t>::const_iterator I = Freqs.find(BB);
+  /// getBlockFreq - Return block frequency. Return 0 if we don't have it.
+  BlockFrequency getBlockFreq(BlockT *BB) const {
+    typename DenseMap<BlockT *, BlockFrequency>::const_iterator I = Freqs.find(BB);
     if (I != Freqs.end())
-      return I->second ? I->second : 1;
-    return 1;
+      return I->second;
+    return 0;
   }
 
   void print(raw_ostream &OS) const {

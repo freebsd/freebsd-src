@@ -60,11 +60,9 @@ __FBSDID("$FreeBSD$");
 #include <vis.h>
 #include <sys/syslog.h>
 
-char s_msgbufp[] = "_msgbufp";
-
-struct nlist nl[] = {
+static struct nlist nl[] = {
 #define	X_MSGBUF	0
-	{ s_msgbufp, 0, 0, 0, 0 },
+	{ "_msgbufp", 0, 0, 0, 0 },
 	{ NULL, 0, 0, 0, 0 },
 };
 

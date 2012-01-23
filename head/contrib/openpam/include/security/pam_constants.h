@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: pam_constants.h 408 2007-12-21 11:36:24Z des $
+ * $Id: pam_constants.h 443 2011-10-22 01:01:39Z des $
  */
 
 #ifndef SECURITY_PAM_CONSTANTS_H_INCLUDED
@@ -126,6 +126,7 @@ enum {
 	PAM_REPOSITORY			=  10,
 	PAM_AUTHTOK_PROMPT		=  11,		/* OpenPAM extension */
 	PAM_OLDAUTHTOK_PROMPT		=  12,		/* OpenPAM extension */
+	PAM_HOST			=  13,		/* OpenPAM extension */
 	PAM_NUM_ITEMS					/* OpenPAM extension */
 };
 

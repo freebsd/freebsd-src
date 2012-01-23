@@ -810,12 +810,11 @@ cpu_initialize_context(unsigned int cpu)
 {
 	/* vcpu_guest_context_t is too large to allocate on the stack.
 	 * Hence we allocate statically and protect it with a lock */
-	vm_page_t m[4];
+	vm_page_t m[NPGPTD + 2];
 	static vcpu_guest_context_t ctxt;
 	vm_offset_t boot_stack;
 	vm_offset_t newPTD;
 	vm_paddr_t ma[NPGPTD];
-	static int color;
 	int i;
 
 	/*
@@ -825,15 +824,15 @@ cpu_initialize_context(unsigned int cpu)
 	 *
 	 */
 	for (i = 0; i < NPGPTD + 2; i++) {
-		m[i] = vm_page_alloc(NULL, color++,
+		m[i] = vm_page_alloc(NULL, 0,
 		    VM_ALLOC_NORMAL | VM_ALLOC_NOOBJ | VM_ALLOC_WIRED |
 		    VM_ALLOC_ZERO);
 
 		pmap_zero_page(m[i]);
 
 	}
-	boot_stack = kmem_alloc_nofault(kernel_map, 1);
-	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD);
+	boot_stack = kmem_alloc_nofault(kernel_map, PAGE_SIZE);
+	newPTD = kmem_alloc_nofault(kernel_map, NPGPTD * PAGE_SIZE);
 	ma[0] = VM_PAGE_TO_MACH(m[0])|PG_V;
 
 #ifdef PAE	
@@ -855,7 +854,7 @@ cpu_initialize_context(unsigned int cpu)
 	    nkpt*sizeof(vm_paddr_t));
 
 	pmap_qremove(newPTD, 4);
-	kmem_free(kernel_map, newPTD, 4);
+	kmem_free(kernel_map, newPTD, 4 * PAGE_SIZE);
 	/*
 	 * map actual idle stack to boot_stack
 	 */

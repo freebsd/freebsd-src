@@ -2,7 +2,12 @@
 
 .PATH:		${.CURDIR}/../../../sys/boot/zfs ${.CURDIR}/../../../sys/cddl/boot/zfs
 
+BINDIR?=	/usr/bin
+SCRIPTSDIR?=	/usr/bin
+
 PROG=		zfsboottest
+SCRIPTS=	zfsboottest.sh
+SCRIPTSNAME=	zfsboottest.sh
 NO_MAN=
 
 CFLAGS=	-O1 \
@@ -12,6 +17,7 @@ CFLAGS=	-O1 \
 	-fdiagnostics-show-option \
 	-W -Wextra -Wno-sign-compare -Wno-unused-parameter \
 	-Werror
+LDFLAGS+=-lmd
 
 .if ${MACHINE_CPUARCH} == "amd64"
 beforedepend zfsboottest.o: machine

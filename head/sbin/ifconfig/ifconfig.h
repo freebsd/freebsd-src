@@ -148,3 +148,6 @@ void	clone_setdefcallback(const char *, clone_callback_func *);
  * operations on ifmedia can avoid cmd line ordering confusion.
  */
 struct ifmediareq *ifmedia_getstate(int s);
+
+void print_vhid(const struct ifaddrs *, const char *);
+

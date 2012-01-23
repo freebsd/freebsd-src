@@ -57,12 +57,12 @@ __FBSDID("$FreeBSD$");
 #include <wchar.h>
 #include <wctype.h>
 
-int iflag;
-const char *tabs[] = { "", "\t", "\t\t" };
+static int iflag;
+static const char *tabs[] = { "", "\t", "\t\t" };
 
-FILE   *file(const char *);
-wchar_t	*convert(const char *);
-void	show(FILE *, const char *, const char *, char **, size_t *);
+static FILE	*file(const char *);
+static wchar_t	*convert(const char *);
+static void	show(FILE *, const char *, const char *, char **, size_t *);
 static void	usage(void);
 
 int
@@ -189,7 +189,7 @@ main(int argc, char *argv[])
 	exit(0);
 }
 
-wchar_t *
+static wchar_t *
 convert(const char *str)
 {
 	size_t n;
@@ -212,7 +212,7 @@ convert(const char *str)
 	return (buf);
 }
 
-void
+static void
 show(FILE *fp, const char *fn, const char *offset, char **bufp, size_t *buflenp)
 {
 	ssize_t n;
@@ -228,7 +228,7 @@ show(FILE *fp, const char *fn, const char *offset, char **bufp, size_t *buflenp)
 		err(1, "%s", fn);
 }
 
-FILE *
+static FILE *
 file(const char *name)
 {
 	FILE *fp;

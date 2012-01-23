@@ -1851,7 +1851,8 @@ repeat_set_config:
 		}
 	}
 	if (set_config_failed == 0 && config_index == 0 &&
-	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0) {
+	    usb_test_quirk(&uaa, UQ_MSC_NO_SYNC_CACHE) == 0 &&
+	    usb_test_quirk(&uaa, UQ_MSC_NO_GETMAXLUN) == 0) {
 
 		/*
 		 * Try to figure out if there are any MSC quirks we

@@ -348,7 +348,7 @@ void ClassTemplateDecl::AddPartialSpecialization(
 }
 
 void ClassTemplateDecl::getPartialSpecializations(
-          llvm::SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) {
+          SmallVectorImpl<ClassTemplatePartialSpecializationDecl *> &PS) {
   llvm::FoldingSet<ClassTemplatePartialSpecializationDecl> &PartialSpecs
     = getPartialSpecializations();
   PS.clear();
@@ -406,7 +406,7 @@ ClassTemplateDecl::getInjectedClassNameSpecialization() {
   //  pack.
   ASTContext &Context = getASTContext();
   TemplateParameterList *Params = getTemplateParameters();
-  llvm::SmallVector<TemplateArgument, 16> TemplateArgs;
+  SmallVector<TemplateArgument, 16> TemplateArgs;
   TemplateArgs.resize(Params->size());
   GenerateInjectedTemplateArgs(getASTContext(), Params, TemplateArgs.data());
   CommonPtr->InjectedClassNameType
@@ -563,6 +563,24 @@ TemplateArgumentList::CreateCopy(ASTContext &Context,
   return new (Mem) TemplateArgumentList(StoredArgs, NumArgs, true);
 }
 
+FunctionTemplateSpecializationInfo *
+FunctionTemplateSpecializationInfo::Create(ASTContext &C, FunctionDecl *FD,
+                                           FunctionTemplateDecl *Template,
+                                           TemplateSpecializationKind TSK,
+                                       const TemplateArgumentList *TemplateArgs,
+                          const TemplateArgumentListInfo *TemplateArgsAsWritten,
+                                           SourceLocation POI) {
+  const ASTTemplateArgumentListInfo *ArgsAsWritten = 0;
+  if (TemplateArgsAsWritten)
+    ArgsAsWritten = ASTTemplateArgumentListInfo::Create(C,
+                                                        *TemplateArgsAsWritten);
+
+  return new (C) FunctionTemplateSpecializationInfo(FD, Template, TSK,
+                                                    TemplateArgs,
+                                                    ArgsAsWritten,
+                                                    POI);
+}
+
 //===----------------------------------------------------------------------===//
 // ClassTemplateSpecializationDecl Implementation
 //===----------------------------------------------------------------------===//
@@ -638,15 +656,27 @@ ClassTemplateSpecializationDecl::getSpecializedTemplate() const {
 
 SourceRange
 ClassTemplateSpecializationDecl::getSourceRange() const {
-  if (!ExplicitInfo)
-    return SourceRange();
-  SourceLocation Begin = getExternLoc();
-  if (Begin.isInvalid())
-    Begin = getTemplateKeywordLoc();
-  SourceLocation End = getRBraceLoc();
-  if (End.isInvalid())
-    End = getTypeAsWritten()->getTypeLoc().getEndLoc();
-  return SourceRange(Begin, End);
+  if (ExplicitInfo) {
+    SourceLocation Begin = getExternLoc();
+    if (Begin.isInvalid())
+      Begin = getTemplateKeywordLoc();
+    SourceLocation End = getRBraceLoc();
+    if (End.isInvalid())
+      End = getTypeAsWritten()->getTypeLoc().getEndLoc();
+    return SourceRange(Begin, End);
+  }
+  else {
+    // No explicit info available.
+    llvm::PointerUnion<ClassTemplateDecl *,
+                       ClassTemplatePartialSpecializationDecl *>
+      inst_from = getInstantiatedFrom();
+    if (inst_from.isNull())
+      return getSpecializedTemplate()->getSourceRange();
+    if (ClassTemplateDecl *ctd = inst_from.dyn_cast<ClassTemplateDecl*>())
+      return ctd->getSourceRange();
+    return inst_from.get<ClassTemplatePartialSpecializationDecl*>()
+      ->getSourceRange();
+  }
 }
 
 //===----------------------------------------------------------------------===//

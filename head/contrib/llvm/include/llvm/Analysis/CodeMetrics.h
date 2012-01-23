@@ -18,6 +18,9 @@
 #include "llvm/ADT/DenseMap.h"
 
 namespace llvm {
+
+  class TargetData;
+
   // CodeMetrics - Calculate size and a few similar metrics for a set of
   // basic blocks.
   struct CodeMetrics {
@@ -46,7 +49,7 @@ namespace llvm {
 
     /// NumCalls - Keep track of the number of calls to 'big' functions.
     unsigned NumCalls;
-    
+
     /// NumInlineCandidates - Keep track of the number of calls to internal
     /// functions with only a single caller.  These are likely targets for
     /// future inlining, likely exposed by interleaved devirtualization.
@@ -61,24 +64,24 @@ namespace llvm {
     unsigned NumRets;
 
     CodeMetrics() : callsSetJmp(false), isRecursive(false),
-                    containsIndirectBr(false), usesDynamicAlloca(false), 
+                    containsIndirectBr(false), usesDynamicAlloca(false),
                     NumInsts(0), NumBlocks(0), NumCalls(0),
-                    NumInlineCandidates(0), NumVectorInsts(0), 
+                    NumInlineCandidates(0), NumVectorInsts(0),
                     NumRets(0) {}
 
     /// analyzeBasicBlock - Add information about the specified basic block
     /// to the current structure.
-    void analyzeBasicBlock(const BasicBlock *BB);
+    void analyzeBasicBlock(const BasicBlock *BB, const TargetData *TD = 0);
 
     /// analyzeFunction - Add information about the specified function
     /// to the current structure.
-    void analyzeFunction(Function *F);
-    
+    void analyzeFunction(Function *F, const TargetData *TD = 0);
+
     /// CountCodeReductionForConstant - Figure out an approximation for how
     /// many instructions will be constant folded if the specified value is
     /// constant.
     unsigned CountCodeReductionForConstant(Value *V);
-   
+
     /// CountBonusForConstant - Figure out an approximation for how much
     /// per-call performance boost we can expect if the specified value is
     /// constant.

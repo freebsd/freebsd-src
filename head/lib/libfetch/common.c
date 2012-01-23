@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1998-2011 Dag-Erling Smørgrav
+ * Copyright (c) 1998-2011 Dag-Erling SmÃ¸rgrav
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -404,6 +404,33 @@ fetch_ssl_read(SSL *ssl, char *buf, size_t len)
 }
 #endif
 
+/*
+ * Cache some data that was read from a socket but cannot be immediately
+ * returned because of an interrupted system call.
+ */
+static int
+fetch_cache_data(conn_t *conn, char *src, size_t nbytes)
+{
+	char *tmp;
+
+	if (conn->cache.size < nbytes) {
+		tmp = realloc(conn->cache.buf, nbytes);
+		if (tmp == NULL) {
+			fetch_syserr();
+			return (-1);
+		}
+		conn->cache.buf = tmp;
+		conn->cache.size = nbytes;
+	}
+
+	memcpy(conn->cache.buf, src, nbytes);
+	conn->cache.len = nbytes;
+	conn->cache.pos = 0;
+
+	return (0);
+}
+
+
 static ssize_t
 fetch_socket_read(int sd, char *buf, size_t len)
 {
@@ -429,6 +456,7 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 	fd_set readfds;
 	ssize_t rlen, total;
 	int r;
+	char *start;
 
 	if (fetchTimeout) {
 		FD_ZERO(&readfds);
@@ -437,6 +465,24 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 	}
 
 	total = 0;
+	start = buf;
+
+	if (conn->cache.len > 0) {
+		/*
+		 * The last invocation of fetch_read was interrupted by a
+		 * signal after some data had been read from the socket. Copy
+		 * the cached data into the supplied buffer before trying to
+		 * read from the socket again.
+		 */
+		total = (conn->cache.len < len) ? conn->cache.len : len;
+		memcpy(buf, conn->cache.buf, total);
+
+		conn->cache.len -= total;
+		conn->cache.pos += total;
+		len -= total;
+		buf += total;
+	}
+
 	while (len > 0) {
 		/*
 		 * The socket is non-blocking.  Instead of the canonical
@@ -472,6 +518,8 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			total += rlen;
 			continue;
 		} else if (rlen == FETCH_READ_ERROR) {
+			if (errno == EINTR)
+				fetch_cache_data(conn, start, total);
 			return (-1);
 		}
 		// assert(rlen == FETCH_READ_WAIT);
@@ -492,8 +540,12 @@ fetch_read(conn_t *conn, char *buf, size_t len)
 			errno = 0;
 			r = select(conn->sd + 1, &readfds, NULL, NULL, &delta);
 			if (r == -1) {
-				if (errno == EINTR && fetchRestartCalls)
-					continue;
+				if (errno == EINTR) {
+					if (fetchRestartCalls)
+						continue;
+					/* Save anything that was read. */
+					fetch_cache_data(conn, start, total);
+				}
 				fetch_syserr();
 				return (-1);
 			}
@@ -677,6 +729,7 @@ fetch_close(conn_t *conn)
 	if (--conn->ref > 0)
 		return (0);
 	ret = close(conn->sd);
+	free(conn->cache.buf);
 	free(conn->buf);
 	free(conn);
 	return (ret);

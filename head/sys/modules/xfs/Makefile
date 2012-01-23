@@ -86,8 +86,5 @@ CFLAGS+= -I${.CURDIR}/../../gnu/fs/xfs/FreeBSD \
 	 -I${.CURDIR}/../../gnu/fs/xfs/FreeBSD/support \
 	 -I${.CURDIR}/../../gnu/fs/xfs
 
-#
-# XFS sources trigger missing-prototypes warnings.
-# Disable them here.
-#
-CWARNFLAGS+= -Wno-missing-prototypes
+CWARNFLAGS.xfs_ioctl.c=		${NO_WSELF_ASSIGN}
+CWARNFLAGS+=			${CWARNFLAGS.${.IMPSRC:T}}

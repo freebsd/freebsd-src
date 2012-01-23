@@ -2084,7 +2084,7 @@ mpt_send_port_enable(struct mpt_softc *mpt, int port)
 
 	mpt_send_cmd(mpt, req);
 	error = mpt_wait_req(mpt, req, REQ_STATE_DONE, REQ_STATE_DONE,
-	    FALSE, (mpt->is_sas || mpt->is_fc)? 30000 : 3000);
+	    FALSE, (mpt->is_sas || mpt->is_fc)? 300000 : 30000);
 	if (error != 0) {
 		mpt_prt(mpt, "port %d enable timed out\n", port);
 		return (-1);

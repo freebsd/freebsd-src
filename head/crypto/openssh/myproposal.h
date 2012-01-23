@@ -1,4 +1,4 @@
-/* $OpenBSD: myproposal.h,v 1.27 2010/09/01 22:42:13 djm Exp $ */
+/* $OpenBSD: myproposal.h,v 1.28 2011/08/02 01:22:11 djm Exp $ */
 /* $FreeBSD$ */
 
 /*
@@ -80,10 +80,25 @@
 #define KEX_ENCRYPT_INCLUDE_NONE KEX_DEFAULT_ENCRYPT \
 	",none"
 #endif
+#ifdef HAVE_EVP_SHA256
+#define	SHA2_HMAC_MODES \
+	"hmac-sha2-256," \
+	"hmac-sha2-256-96," \
+	"hmac-sha2-512," \
+	"hmac-sha2-512-96,"
+#else
+# define SHA2_HMAC_MODES
+#endif
 #define	KEX_DEFAULT_MAC \
-	"hmac-md5,hmac-sha1,umac-64@openssh.com,hmac-ripemd160," \
+	"hmac-md5," \
+	"hmac-sha1," \
+	"umac-64@openssh.com," \
+	SHA2_HMAC_MODES \
+	"hmac-ripemd160," \
 	"hmac-ripemd160@openssh.com," \
-	"hmac-sha1-96,hmac-md5-96"
+	"hmac-sha1-96," \
+	"hmac-md5-96"
+
 #define	KEX_DEFAULT_COMP	"none,zlib@openssh.com,zlib"
 #define	KEX_DEFAULT_LANG	""
 

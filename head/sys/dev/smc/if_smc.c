@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/smc/if_smcvar.h>
 
 #include <dev/mii/mii.h>
+#include <dev/mii/mii_bitbang.h>
 #include <dev/mii/miivar.h>
 
 #define	SMC_LOCK(sc)		mtx_lock(&(sc)->smc_mtx)
@@ -123,11 +124,33 @@ static timeout_t	smc_watchdog;
 static poll_handler_t	smc_poll;
 #endif
 
+/*
+ * MII bit-bang glue
+ */
+static uint32_t smc_mii_bitbang_read(device_t);
+static void smc_mii_bitbang_write(device_t, uint32_t);
+
+static const struct mii_bitbang_ops smc_mii_bitbang_ops = {
+	smc_mii_bitbang_read,
+	smc_mii_bitbang_write,
+	{
+		MGMT_MDO,	/* MII_BIT_MDO */
+		MGMT_MDI,	/* MII_BIT_MDI */
+		MGMT_MCLK,	/* MII_BIT_MDC */
+		MGMT_MDOE,	/* MII_BIT_DIR_HOST_PHY */
+		0,		/* MII_BIT_DIR_PHY_HOST */
+	}
+};
+
 static __inline void
 smc_select_bank(struct smc_softc *sc, uint16_t bank)
 {
 
+	bus_barrier(sc->smc_reg, BSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 	bus_write_2(sc->smc_reg, BSR, bank & BSR_BANK_MASK);
+	bus_barrier(sc->smc_reg, BSR, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 /* Never call this when not in bank 2. */
@@ -143,35 +166,35 @@ smc_mmu_wait(struct smc_softc *sc)
 }
 
 static __inline uint8_t
-smc_read_1(struct smc_softc *sc, bus_addr_t offset)
+smc_read_1(struct smc_softc *sc, bus_size_t offset)
 {
 
 	return (bus_read_1(sc->smc_reg, offset));
 }
 
 static __inline void
-smc_write_1(struct smc_softc *sc, bus_addr_t offset, uint8_t val)
+smc_write_1(struct smc_softc *sc, bus_size_t offset, uint8_t val)
 {
 
 	bus_write_1(sc->smc_reg, offset, val);
 }
 
 static __inline uint16_t
-smc_read_2(struct smc_softc *sc, bus_addr_t offset)
+smc_read_2(struct smc_softc *sc, bus_size_t offset)
 {
 
 	return (bus_read_2(sc->smc_reg, offset));
 }
 
 static __inline void
-smc_write_2(struct smc_softc *sc, bus_addr_t offset, uint16_t val)
+smc_write_2(struct smc_softc *sc, bus_size_t offset, uint16_t val)
 {
 
 	bus_write_2(sc->smc_reg, offset, val);
 }
 
 static __inline void
-smc_read_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
+smc_read_multi_2(struct smc_softc *sc, bus_size_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
@@ -179,11 +202,19 @@ smc_read_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
 }
 
 static __inline void
-smc_write_multi_2(struct smc_softc *sc, bus_addr_t offset, uint16_t *datap,
+smc_write_multi_2(struct smc_softc *sc, bus_size_t offset, uint16_t *datap,
     bus_size_t count)
 {
 
 	bus_write_multi_2(sc->smc_reg, offset, datap, count);
+}
+
+static __inline void
+smc_barrier(struct smc_softc *sc, bus_size_t offset, bus_size_t length,
+    int flags)
+{
+
+	bus_barrier(sc->smc_reg, offset, length, flags);
 }
 
 int
@@ -900,70 +931,43 @@ smc_task_intr(void *context, int pending)
 	SMC_UNLOCK(sc);
 }
 
-static u_int
-smc_mii_readbits(struct smc_softc *sc, int nbits)
+static uint32_t
+smc_mii_bitbang_read(device_t dev)
 {
-	u_int	mgmt, mask, val;
+	struct smc_softc	*sc;
+	uint32_t		val;
+
+	sc = device_get_softc(dev);
 
 	SMC_ASSERT_LOCKED(sc);
 	KASSERT((smc_read_2(sc, BSR) & BSR_BANK_MASK) == 3,
-	    ("%s: smc_mii_readbits called with bank %d (!= 3)",
+	    ("%s: smc_mii_bitbang_read called with bank %d (!= 3)",
 	    device_get_nameunit(sc->smc_dev),
 	    smc_read_2(sc, BSR) & BSR_BANK_MASK));
 
-	/*
-	 * Set up the MGMT (aka MII) register.
-	 */
-	mgmt = smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO);
-	smc_write_2(sc, MGMT, mgmt);
-
-	/*
-	 * Read the bits in.
-	 */
-	for (mask = 1 << (nbits - 1), val = 0; mask; mask >>= 1) {
-		if (smc_read_2(sc, MGMT) & MGMT_MDI)
-			val |= mask;
-
-		smc_write_2(sc, MGMT, mgmt);
-		DELAY(1);
-		smc_write_2(sc, MGMT, mgmt | MGMT_MCLK);
-		DELAY(1);
-	}
+	val = smc_read_2(sc, MGMT);
+	smc_barrier(sc, MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 
 	return (val);
 }
 
 static void
-smc_mii_writebits(struct smc_softc *sc, u_int val, int nbits)
+smc_mii_bitbang_write(device_t dev, uint32_t val)
 {
-	u_int	mgmt, mask;
+	struct smc_softc	*sc;
+
+	sc = device_get_softc(dev);
 
 	SMC_ASSERT_LOCKED(sc);
 	KASSERT((smc_read_2(sc, BSR) & BSR_BANK_MASK) == 3,
-	    ("%s: smc_mii_writebits called with bank %d (!= 3)",
+	    ("%s: smc_mii_bitbang_write called with bank %d (!= 3)",
 	    device_get_nameunit(sc->smc_dev),
 	    smc_read_2(sc, BSR) & BSR_BANK_MASK));
 
-	/*
-	 * Set up the MGMT (aka MII) register).
-	 */
-	mgmt = smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO);
-	mgmt |= MGMT_MDOE;
-
-	/*
-	 * Push the bits out.
-	 */
-	for (mask = 1 << (nbits - 1); mask; mask >>= 1) {
-		if (val & mask)
-			mgmt |= MGMT_MDO;
-		else
-			mgmt &= ~MGMT_MDO;
-
-		smc_write_2(sc, MGMT, mgmt);
-		DELAY(1);
-		smc_write_2(sc, MGMT, mgmt | MGMT_MCLK);
-		DELAY(1);
-	}
+	smc_write_2(sc, MGMT, val);
+	smc_barrier(sc, MGMT, 2,
+	    BUS_SPACE_BARRIER_READ | BUS_SPACE_BARRIER_WRITE);
 }
 
 int
@@ -978,26 +982,7 @@ smc_miibus_readreg(device_t dev, int phy, int reg)
 
 	smc_select_bank(sc, 3);
 
-	/*
-	 * Send out the idle pattern.
-	 */
-	smc_mii_writebits(sc, 0xffffffff, 32);
-
-	/*
-	 * Start code + read opcode + phy address + phy register
-	 */
-	smc_mii_writebits(sc, 6 << 10 | phy << 5 | reg, 14);
-
-	/*
-	 * Turnaround + data
-	 */
-	val = smc_mii_readbits(sc, 18);
-
-	/*
-	 * Reset the MDIO interface.
-	 */
-	smc_write_2(sc, MGMT,
-	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
+	val = mii_bitbang_readreg(dev, &smc_mii_bitbang_ops, phy, reg);
 
 	SMC_UNLOCK(sc);
 	return (val);
@@ -1014,23 +999,7 @@ smc_miibus_writereg(device_t dev, int phy, int reg, int data)
 
 	smc_select_bank(sc, 3);
 
-	/*
-	 * Send idle pattern.
-	 */
-	smc_mii_writebits(sc, 0xffffffff, 32);
-
-	/*
-	 * Start code + write opcode + phy address + phy register + turnaround
-	 * + data.
-	 */
-	smc_mii_writebits(sc, 5 << 28 | phy << 23 | reg << 18 | 2 << 16 | data,
-	    32);
-
-	/*
-	 * Reset MDIO interface.
-	 */
-	smc_write_2(sc, MGMT,
-	    smc_read_2(sc, MGMT) & ~(MGMT_MCLK | MGMT_MDOE | MGMT_MDO));
+	mii_bitbang_writereg(dev, &smc_mii_bitbang_ops, phy, reg, data);
 
 	SMC_UNLOCK(sc);
 	return (0);

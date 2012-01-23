@@ -202,9 +202,19 @@ waitevent(struct trussinfo *info)
 		find_thread(info, lwpinfo.pl_lwpid);
 		switch(WSTOPSIG(waitval)) {
 		case SIGTRAP:
-			info->pr_why = info->curthread->in_syscall?S_SCX:S_SCE;
-			info->curthread->in_syscall = 1 - info->curthread->in_syscall;
-			break;
+			if (lwpinfo.pl_flags & PL_FLAG_SCE) {
+				info->pr_why = S_SCE;
+				info->curthread->in_syscall = 1;
+				break;
+			} else if (lwpinfo.pl_flags & PL_FLAG_SCX) {
+				info->pr_why = S_SCX;
+				info->curthread->in_syscall = 0;
+				break;
+			} else {
+				errx(1,
+		   "pl_flags %x contains neither PL_FLAG_SCE nor PL_FLAG_SCX",
+				    lwpinfo.pl_flags);
+			}
 		default:
 			info->pr_why = S_SIG;
 			info->pr_data = WSTOPSIG(waitval);

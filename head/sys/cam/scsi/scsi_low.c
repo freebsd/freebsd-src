@@ -145,7 +145,7 @@ __FBSDID("$FreeBSD$");
 #define	SCSI_LOW_DISK_LFLAGS	0x0000ffff
 #define	SCSI_LOW_DISK_TFLAGS	0xffff0000
 
-MALLOC_DEFINE(M_SCSILOW, "SCSI low", "SCSI low buffers");
+static MALLOC_DEFINE(M_SCSILOW, "SCSI low", "SCSI low buffers");
 
 /**************************************************************
  * Declarations
@@ -2577,12 +2577,16 @@ resume:
 #ifdef	SCSI_LOW_DEBUG
 				if (scsi_low_debug & SCSI_LOW_DEBUG_SENSE)
 				{
-					printf("SENSE: [%x][%x][%x][%x][%x]\n",
-					(u_int) cb->ccb_sense.error_code,
-					(u_int) cb->ccb_sense.segment,
-					(u_int) cb->ccb_sense.flags,
-					(u_int) cb->ccb_sense.add_sense_code,
-					(u_int) cb->ccb_sense.add_sense_code_qual);
+					int error_code, sense_key, asc, ascq;
+
+					scsi_extract_sense(&cb->ccb_sense,
+							   &error_code,
+							   &sense_key,
+							   &asc,
+							   &ascq);
+					printf("SENSE: [%x][%x][%x][%x]\n",
+					       error_code, sense_key, asc,
+					       ascq);
 				}
 #endif	/* SCSI_LOW_DEBUG */
 			}

@@ -1176,9 +1176,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	 */
 	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS,
 	    ENC_FLAGS|SF_QUIET_IR, NULL);
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
-	else if (ccb->ccb_h.status != CAM_REQ_CMP) {
+	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_LOG(enc, "Timed Completion Unsupported\n");
 		goto release;
 	}
@@ -1201,9 +1199,7 @@ ses_set_timed_completion(enc_softc_t *enc, uint8_t tc_en)
 	    SSD_FULL_SIZE, /*timeout*/60 * 1000);
 
 	err = cam_periph_runccb(ccb, enc_error, ENC_CFLAGS, ENC_FLAGS, NULL);
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
-	else if (ccb->ccb_h.status != CAM_REQ_CMP) {
+	if (ccb->ccb_h.status != CAM_REQ_CMP) {
 		ENC_LOG(enc, "Timed Completion Set Failed\n");
 		goto release;
 	}

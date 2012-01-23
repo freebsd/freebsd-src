@@ -337,6 +337,22 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 	return (0);
 }
 
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
 Elf_Addr
 reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
     		const Obj_Entry *obj, const Elf_Rel *rel)

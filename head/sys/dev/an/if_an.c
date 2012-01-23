@@ -203,7 +203,8 @@ static char an_conf_cache[256];
 
 /* sysctl vars */
 
-SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0, "Wireless driver parameters");
+static SYSCTL_NODE(_hw, OID_AUTO, an, CTLFLAG_RD, 0,
+    "Wireless driver parameters");
 
 /* XXX violate ethernet/netgraph callback hooks */
 extern	void	(*ng_ether_attach_p)(struct ifnet *ifp);
@@ -760,7 +761,6 @@ an_attach(struct an_softc *sc, int flags)
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(sc->an_dev),
 	    device_get_unit(sc->an_dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = an_ioctl;
 	ifp->if_start = an_start;
@@ -796,7 +796,7 @@ an_attach(struct an_softc *sc, int flags)
 	ADD(IFM_AUTO, IFM_IEEE80211_ADHOC);
 	for (i = 0; i < nrate; i++) {
 		r = sc->an_caps.an_rates[i];
-		mword = ieee80211_rate2media(NULL, r, IEEE80211_T_DS);
+		mword = ieee80211_rate2media(NULL, r, IEEE80211_MODE_AUTO);
 		if (mword == 0)
 			continue;
 		printf("%s%d%sMbps", (i != 0 ? " " : ""),
@@ -3298,7 +3298,7 @@ an_media_status(struct ifnet *ifp, struct ifmediareq *imr)
 	if (sc->an_config.an_opmode == AN_OPMODE_IBSS_ADHOC)
 		imr->ifm_active |= IFM_IEEE80211_ADHOC;
 	imr->ifm_active |= ieee80211_rate2media(NULL,
-		status.an_current_tx_rate, IEEE80211_T_DS);
+		status.an_current_tx_rate, IEEE80211_MODE_AUTO);
 	imr->ifm_status = IFM_AVALID;
 	if (status.an_opmode & AN_STATUS_OPMODE_ASSOCIATED)
 		imr->ifm_status |= IFM_ACTIVE;

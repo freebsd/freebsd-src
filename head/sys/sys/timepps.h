@@ -6,6 +6,12 @@
  * this stuff is worth it, you can buy me a beer in return.   Poul-Henning Kamp
  * ----------------------------------------------------------------------------
  *
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Portions of this software were developed by Julien Ridoux at the University
+ * of Melbourne under sponsorship from the FreeBSD Foundation.
+ *
  * $FreeBSD$
  *
  * The is a FreeBSD version of the RFC 2783 API for Pulse Per Second 
@@ -15,6 +21,7 @@
 #ifndef _SYS_TIMEPPS_H_
 #define _SYS_TIMEPPS_H_
 
+#include <sys/_ffcounter.h>
 #include <sys/ioccom.h>
 #include <sys/time.h>
 
@@ -42,6 +49,16 @@ typedef struct {
 	pps_timeu_t	clear_tu;
 	int		current_mode;		/* current mode bits */
 } pps_info_t;
+
+typedef struct {
+	pps_seq_t	assert_sequence;	/* assert event seq # */
+	pps_seq_t	clear_sequence;		/* clear event seq # */
+	pps_timeu_t	assert_tu;
+	pps_timeu_t	clear_tu;
+	ffcounter	assert_ffcount;		/* ffcounter on assert event */
+	ffcounter	clear_ffcount;		/* ffcounter on clear event */
+	int		current_mode;		/* current mode bits */
+} pps_info_ffc_t;
 
 #define assert_timestamp        assert_tu.tspec
 #define clear_timestamp         clear_tu.tspec
@@ -79,6 +96,10 @@ typedef struct {
 #define PPS_TSFMT_TSPEC		0x1000
 #define PPS_TSFMT_NTPFP		0x2000
 
+#define	PPS_TSCLK_FBCK		0x10000
+#define	PPS_TSCLK_FFWD		0x20000
+#define	PPS_TSCLK_MASK		0x30000
+
 #define PPS_KC_HARDPPS		0
 #define PPS_KC_HARDPPS_PLL	1
 #define PPS_KC_HARDPPS_FLL	2
@@ -86,6 +107,12 @@ typedef struct {
 struct pps_fetch_args {
 	int tsformat;
 	pps_info_t	pps_info_buf;
+	struct timespec	timeout;
+};
+
+struct pps_fetch_ffc_args {
+	int		tsformat;
+	pps_info_ffc_t	pps_info_buf_ffc;
 	struct timespec	timeout;
 };
 
@@ -102,18 +129,21 @@ struct pps_kcbind_args {
 #define PPS_IOC_GETCAP		_IOR('1', 5, int)
 #define PPS_IOC_FETCH		_IOWR('1', 6, struct pps_fetch_args)
 #define PPS_IOC_KCBIND		_IOW('1', 7, struct pps_kcbind_args)
+#define	PPS_IOC_FETCH_FFCOUNTER	_IOWR('1', 8, struct pps_fetch_ffc_args)
 
 #ifdef _KERNEL
 
 struct pps_state {
 	/* Capture information. */
 	struct timehands *capth;
+	struct fftimehands *capffth;
 	unsigned	capgen;
 	unsigned	capcount;
 
 	/* State information. */
 	pps_params_t	ppsparam;
 	pps_info_t	ppsinfo;
+	pps_info_ffc_t	ppsinfo_ffc;
 	int		kcmode;
 	int		ppscap;
 	struct timecounter *ppstc;
@@ -180,6 +210,25 @@ time_pps_fetch(pps_handle_t handle, const int tsformat,
 		arg.timeout = *timeout;
 	error = ioctl(handle, PPS_IOC_FETCH, &arg);
 	*ppsinfobuf = arg.pps_info_buf;
+	return (error);
+}
+
+static __inline int
+time_pps_fetch_ffc(pps_handle_t handle, const int tsformat,
+	pps_info_ffc_t *ppsinfobuf, const struct timespec *timeout)
+{
+	struct pps_fetch_ffc_args arg;
+	int error;
+
+	arg.tsformat = tsformat;
+	if (timeout == NULL) {
+		arg.timeout.tv_sec = -1;
+		arg.timeout.tv_nsec = -1;
+	} else {
+		arg.timeout = *timeout;
+	}
+	error = ioctl(handle, PPS_IOC_FETCH_FFCOUNTER, &arg);
+	*ppsinfobuf = arg.pps_info_buf_ffc;
 	return (error);
 }
 

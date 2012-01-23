@@ -81,7 +81,7 @@
 #ifdef USB_DEBUG
 static int usb_fifo_debug = 0;
 
-SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
+static SYSCTL_NODE(_hw_usb, OID_AUTO, dev, CTLFLAG_RW, 0, "USB device");
 SYSCTL_INT(_hw_usb_dev, OID_AUTO, debug, CTLFLAG_RW,
     &usb_fifo_debug, 0, "Debug Level");
 
@@ -1809,8 +1809,8 @@ usb_fifo_free_buffer(struct usb_fifo *f)
 	}
 	/* reset queues */
 
-	bzero(&f->free_q, sizeof(f->free_q));
-	bzero(&f->used_q, sizeof(f->used_q));
+	memset(&f->free_q, 0, sizeof(f->free_q));
+	memset(&f->used_q, 0, sizeof(f->used_q));
 }
 
 void
@@ -1909,7 +1909,7 @@ usb_fifo_put_data_linear(struct usb_fifo *f, void *ptr,
 
 			io_len = MIN(len, m->cur_data_len);
 
-			bcopy(ptr, m->cur_data_ptr, io_len);
+			memcpy(m->cur_data_ptr, ptr, io_len);
 
 			m->cur_data_len = io_len;
 			ptr = USB_ADD_BYTES(ptr, io_len);
@@ -2052,7 +2052,7 @@ usb_fifo_get_data_linear(struct usb_fifo *f, void *ptr,
 
 			io_len = MIN(len, m->cur_data_len);
 
-			bcopy(m->cur_data_ptr, ptr, io_len);
+			memcpy(ptr, m->cur_data_ptr, io_len);
 
 			len -= io_len;
 			ptr = USB_ADD_BYTES(ptr, io_len);

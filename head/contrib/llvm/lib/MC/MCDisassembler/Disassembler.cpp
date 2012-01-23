@@ -1,4 +1,4 @@
-//===-- lib/MC/Disassembler.cpp - Disassembler Public C Interface -*- C -*-===//
+//===-- lib/MC/Disassembler.cpp - Disassembler Public C Interface ---------===//
 //
 //                     The LLVM Compiler Infrastructure
 //
@@ -11,15 +11,14 @@
 #include "llvm-c/Disassembler.h"
 
 #include "llvm/MC/MCAsmInfo.h"
+#include "llvm/MC/MCContext.h"
 #include "llvm/MC/MCDisassembler.h"
 #include "llvm/MC/MCInst.h"
 #include "llvm/MC/MCInstPrinter.h"
-#include "llvm/MC/MCContext.h"
-#include "llvm/Target/TargetRegistry.h"
-#include "llvm/Target/TargetAsmInfo.h"  // FIXME.
-#include "llvm/Target/TargetMachine.h"  // FIXME.
-#include "llvm/Target/TargetSelect.h"
+#include "llvm/MC/MCRegisterInfo.h"
 #include "llvm/Support/MemoryObject.h"
+#include "llvm/Support/TargetRegistry.h"
+#include "llvm/Support/TargetSelect.h"
 
 namespace llvm {
 class Target;
@@ -38,10 +37,7 @@ LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
                                       LLVMSymbolLookupCallback SymbolLookUp) {
   // Initialize targets and assembly printers/parsers.
   llvm::InitializeAllTargetInfos();
-  // FIXME: We shouldn't need to initialize the Target(Machine)s.
-  llvm::InitializeAllTargets();
-  llvm::InitializeAllMCAsmInfos();
-  llvm::InitializeAllAsmPrinters();
+  llvm::InitializeAllTargetMCs();
   llvm::InitializeAllAsmParsers();
   llvm::InitializeAllDisassemblers();
 
@@ -54,41 +50,38 @@ LLVMDisasmContextRef LLVMCreateDisasm(const char *TripleName, void *DisInfo,
   const MCAsmInfo *MAI = TheTarget->createMCAsmInfo(TripleName);
   assert(MAI && "Unable to create target asm info!");
 
+  const MCRegisterInfo *MRI = TheTarget->createMCRegInfo(TripleName);
+  assert(MRI && "Unable to create target register info!");
+
   // Package up features to be passed to target/subtarget
   std::string FeaturesStr;
   std::string CPU;
 
-  // FIXME: We shouldn't need to do this (and link in codegen).
-  //        When we split this out, we should do it in a way that makes
-  //        it straightforward to switch subtargets on the fly.
-  TargetMachine *TM = TheTarget->createTargetMachine(TripleName, CPU,
-                                                     FeaturesStr);
-  assert(TM && "Unable to create target machine!");
-
-  // Get the target assembler info needed to setup the context.
-  const TargetAsmInfo *tai = new TargetAsmInfo(*TM);
-  assert(tai && "Unable to create target assembler!");
+  const MCSubtargetInfo *STI = TheTarget->createMCSubtargetInfo(TripleName, CPU,
+                                                                FeaturesStr);
+  assert(STI && "Unable to create subtarget info!");
 
   // Set up the MCContext for creating symbols and MCExpr's.
-  MCContext *Ctx = new MCContext(*MAI, tai);
+  MCContext *Ctx = new MCContext(*MAI, *MRI, 0);
   assert(Ctx && "Unable to create MCContext!");
 
   // Set up disassembler.
-  MCDisassembler *DisAsm = TheTarget->createMCDisassembler();
+  MCDisassembler *DisAsm = TheTarget->createMCDisassembler(*STI);
   assert(DisAsm && "Unable to create disassembler!");
-  DisAsm->setupForSymbolicDisassembly(GetOpInfo, DisInfo, Ctx);
+  DisAsm->setupForSymbolicDisassembly(GetOpInfo, SymbolLookUp, DisInfo, Ctx);
 
   // Set up the instruction printer.
   int AsmPrinterVariant = MAI->getAssemblerDialect();
   MCInstPrinter *IP = TheTarget->createMCInstPrinter(AsmPrinterVariant,
-                                                     *MAI);
+                                                     *MAI, *STI);
   assert(IP && "Unable to create instruction printer!");
 
   LLVMDisasmContext *DC = new LLVMDisasmContext(TripleName, DisInfo, TagType,
                                                 GetOpInfo, SymbolLookUp,
-                                                TheTarget, MAI, TM, tai, Ctx,
-                                                DisAsm, IP);
+                                                TheTarget, MAI, MRI,
+                                                Ctx, DisAsm, IP);
   assert(DC && "Allocation failure!");
+
   return DC;
 }
 
@@ -147,18 +140,35 @@ size_t LLVMDisasmInstruction(LLVMDisasmContextRef DCR, uint8_t *Bytes,
   MCInst Inst;
   const MCDisassembler *DisAsm = DC->getDisAsm();
   MCInstPrinter *IP = DC->getIP();
-  if (!DisAsm->getInstruction(Inst, Size, MemoryObject, PC, /*REMOVE*/ nulls()))
+  MCDisassembler::DecodeStatus S;
+  S = DisAsm->getInstruction(Inst, Size, MemoryObject, PC,
+                             /*REMOVE*/ nulls(), DC->CommentStream);
+  switch (S) {
+  case MCDisassembler::Fail:
+  case MCDisassembler::SoftFail:
+    // FIXME: Do something different for soft failure modes?
     return 0;
 
-  SmallVector<char, 64> InsnStr;
-  raw_svector_ostream OS(InsnStr);
-  IP->printInst(&Inst, OS);
-  OS.flush();
+  case MCDisassembler::Success: {
+    DC->CommentStream.flush();
+    StringRef Comments = DC->CommentsToEmit.str();
 
-  assert(OutStringSize != 0 && "Output buffer cannot be zero size");
-  size_t OutputSize = std::min(OutStringSize-1, InsnStr.size());
-  std::memcpy(OutString, InsnStr.data(), OutputSize);
-  OutString[OutputSize] = '\0'; // Terminate string.
+    SmallVector<char, 64> InsnStr;
+    raw_svector_ostream OS(InsnStr);
+    IP->printInst(&Inst, OS, Comments);
+    OS.flush();
 
-  return Size;
+    // Tell the comment stream that the vector changed underneath it.
+    DC->CommentsToEmit.clear();
+    DC->CommentStream.resync();
+
+    assert(OutStringSize != 0 && "Output buffer cannot be zero size");
+    size_t OutputSize = std::min(OutStringSize-1, InsnStr.size());
+    std::memcpy(OutString, InsnStr.data(), OutputSize);
+    OutString[OutputSize] = '\0'; // Terminate string.
+
+    return Size;
+  }
+  }
+  return 0;
 }

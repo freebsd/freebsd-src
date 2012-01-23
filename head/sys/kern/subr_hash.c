@@ -52,9 +52,7 @@ hashinit_flags(int elements, struct malloc_type *type, u_long *hashmask,
 	LIST_HEAD(generic, generic) *hashtbl;
 	int i;
 
-	if (elements <= 0)
-		panic("hashinit: bad elements");
-
+	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	/* Exactly one of HASH_WAITOK and HASH_NOWAIT must be set. */
 	KASSERT((flags & HASH_WAITOK) ^ (flags & HASH_NOWAIT),
 	    ("Bad flags (0x%x) passed to hashinit_flags", flags));
@@ -95,8 +93,7 @@ hashdestroy(void *vhashtbl, struct malloc_type *type, u_long hashmask)
 
 	hashtbl = vhashtbl;
 	for (hp = hashtbl; hp <= &hashtbl[hashmask]; hp++)
-		if (!LIST_EMPTY(hp))
-			panic("hashdestroy: hash not empty");
+		KASSERT(LIST_EMPTY(hp), ("%s: hash not empty", __func__));
 	free(hashtbl, type);
 }
 
@@ -115,8 +112,7 @@ phashinit(int elements, struct malloc_type *type, u_long *nentries)
 	LIST_HEAD(generic, generic) *hashtbl;
 	int i;
 
-	if (elements <= 0)
-		panic("phashinit: bad elements");
+	KASSERT(elements > 0, ("%s: bad elements", __func__));
 	for (i = 1, hashsize = primes[1]; hashsize <= elements;) {
 		i++;
 		if (i == NPRIMES)

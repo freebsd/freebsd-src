@@ -47,6 +47,7 @@ static const char sccsid[] = "@(#)ctl.c	8.1 (Berkeley) 6/6/93";
 #include <string.h>
 
 #include "talk.h"
+#include "talk_ctl.h"
 
 struct	sockaddr_in daemon_addr = { .sin_len = sizeof(daemon_addr), .sin_family = AF_INET };
 struct	sockaddr_in ctl_addr = { .sin_len = sizeof(ctl_addr), .sin_family = AF_INET };

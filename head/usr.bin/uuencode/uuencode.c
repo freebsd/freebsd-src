@@ -60,13 +60,13 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <unistd.h>
 
-void encode(void);
-void base64_encode(void);
+static void encode(void);
+static void base64_encode(void);
 static void usage(void);
 
-FILE *output;
-int mode;
-char **av;
+static FILE *output;
+static int mode;
+static char **av;
 
 int
 main(int argc, char *argv[])
@@ -138,7 +138,7 @@ main(int argc, char *argv[])
 /*
  * Copy from in to out, encoding in base64 as you go along.
  */
-void
+static void
 base64_encode(void)
 {
 	/*
@@ -168,7 +168,7 @@ base64_encode(void)
 /*
  * Copy from in to out, encoding as you go along.
  */
-void
+static void
 encode(void)
 {
 	register int ch, n;

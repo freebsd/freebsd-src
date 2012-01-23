@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/systm.h>
+#include <sys/cons.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
@@ -82,7 +83,7 @@ static int kdb_sysctl_panic(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap(SYSCTL_HANDLER_ARGS);
 static int kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS);
 
-SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
+static SYSCTL_NODE(_debug, OID_AUTO, kdb, CTLFLAG_RW, NULL, "KDB nodes");
 
 SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
     0, kdb_sysctl_available, "A", "list of available KDB backends");
@@ -90,25 +91,30 @@ SYSCTL_PROC(_debug_kdb, OID_AUTO, available, CTLTYPE_STRING | CTLFLAG_RD, NULL,
 SYSCTL_PROC(_debug_kdb, OID_AUTO, current, CTLTYPE_STRING | CTLFLAG_RW, NULL,
     0, kdb_sysctl_current, "A", "currently selected KDB backend");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, enter, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, enter,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_enter, "I", "set to enter the debugger");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, panic, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, panic,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_panic, "I", "set to panic the kernel");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap, "I", "set to cause a page fault via data access");
 
-SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code, CTLTYPE_INT | CTLFLAG_RW, NULL, 0,
+SYSCTL_PROC(_debug_kdb, OID_AUTO, trap_code,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_SECURE, NULL, 0,
     kdb_sysctl_trap_code, "I", "set to cause a page fault via code access");
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger, CTLTYPE_INT | CTLFLAG_RW |
-    CTLFLAG_TUN, &kdb_break_to_debugger, 0, "Enable break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_break_to_debugger, 0, "Enable break to debugger");
 TUNABLE_INT("debug.kdb.break_to_debugger", &kdb_break_to_debugger);
 
-SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger, CTLTYPE_INT |
-    CTLFLAG_RW | CTLFLAG_TUN, &kdb_alt_break_to_debugger, 0,
-    "Enable alternative break to debugger");
+SYSCTL_INT(_debug_kdb, OID_AUTO, alt_break_to_debugger,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_TUN | CTLFLAG_SECURE,
+    &kdb_alt_break_to_debugger, 0, "Enable alternative break to debugger");
 TUNABLE_INT("debug.kdb.alt_break_to_debugger", &kdb_alt_break_to_debugger);
 
 /*
@@ -221,13 +227,7 @@ kdb_sysctl_trap_code(SYSCTL_HANDLER_ARGS)
 void
 kdb_panic(const char *msg)
 {
-#ifdef SMP
-	cpuset_t other_cpus;
 
-	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-	stop_cpus_hard(other_cpus);
-#endif
 	printf("KDB: panic\n");
 	panic("%s", msg);
 }
@@ -589,6 +589,9 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	struct kdb_dbbe *be;
 	register_t intr;
 	int handled;
+#ifdef SMP
+	int did_stop_cpus;
+#endif
 
 	be = kdb_dbbe;
 	if (be == NULL || be->dbbe_trap == NULL)
@@ -601,9 +604,13 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	intr = intr_disable();
 
 #ifdef SMP
-	other_cpus = all_cpus;
-	CPU_CLR(PCPU_GET(cpuid), &other_cpus);
-	stop_cpus_hard(other_cpus);
+	if (!SCHEDULER_STOPPED()) {
+		other_cpus = all_cpus;
+		CPU_CLR(PCPU_GET(cpuid), &other_cpus);
+		stop_cpus_hard(other_cpus);
+		did_stop_cpus = 1;
+	} else
+		did_stop_cpus = 0;
 #endif
 
 	kdb_active++;
@@ -616,6 +623,8 @@ kdb_trap(int type, int code, struct trapframe *tf)
 	makectx(tf, &kdb_pcb);
 	kdb_thr_select(curthread);
 
+	cngrab();
+
 	for (;;) {
 		handled = be->dbbe_trap(type, code);
 		if (be == kdb_dbbe)
@@ -626,10 +635,13 @@ kdb_trap(int type, int code, struct trapframe *tf)
 		printf("Switching to %s back-end\n", be->dbbe_name);
 	}
 
+	cnungrab();
+
 	kdb_active--;
 
 #ifdef SMP
-	restart_cpus(stopped_cpus);
+	if (did_stop_cpus)
+		restart_cpus(stopped_cpus);
 #endif
 
 	intr_restore(intr);

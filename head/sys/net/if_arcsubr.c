@@ -837,7 +837,7 @@ arc_resolvemulti(struct ifnet *ifp, struct sockaddr **llsa,
 	}
 }
 
-MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
+static MALLOC_DEFINE(M_ARCCOM, "arccom", "ARCNET interface internals");
 
 static void*
 arc_alloc(u_char type, struct ifnet *ifp)
