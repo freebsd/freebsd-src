@@ -1506,6 +1506,21 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 				     >> (k * 4)) & 0xf) << 4) | k));
 			}
 
+			/*
+			 * Enable High Bit Rate (HBR) Encoded Packet Type
+			 * (EPT), if supported and needed (8ch data).
+			 */
+			if (HDA_PARAM_PIN_CAP_HDMI(wp->wclass.pin.cap) &&
+			    HDA_PARAM_PIN_CAP_HBR(wp->wclass.pin.cap)) {
+				wp->wclass.pin.ctrl &=
+				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK;
+				if ((ch->fmt & AFMT_AC3) && (cchn == 8))
+					wp->wclass.pin.ctrl |= 0x03;
+				hda_command(ch->devinfo->dev,
+				    HDA_CMD_SET_PIN_WIDGET_CTRL(0, nid,
+				    wp->wclass.pin.ctrl));
+			}
+
 			/* Stop audio infoframe transmission. */
 			hda_command(ch->devinfo->dev,
 			    HDA_CMD_SET_HDMI_DIP_INDEX(0, nid, 0x00));
