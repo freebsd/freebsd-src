@@ -1387,8 +1387,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	mltaddr.sin6_family = AF_INET6;
 	mltaddr.sin6_addr = in6addr_linklocal_allnodes;
 
-	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) !=
-	    0)
+	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) != 0)
 		goto cleanup; 
 
 	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
