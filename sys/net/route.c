@@ -1498,10 +1498,10 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 #ifdef RADIX_MPATH
 			/*
 			 * in case address alias finds the first address
-			 * e.g. ifconfig bge0 192.103.54.246/24
-			 * e.g. ifconfig bge0 192.103.54.247/24
-			 * the address set in the route is 192.103.54.246
-			 * so we need to replace it with 192.103.54.247
+			 * e.g. ifconfig bge0 192.0.2.246/24
+			 * e.g. ifconfig bge0 192.0.2.247/24
+			 * the address set in the route is 192.0.2.246
+			 * so we need to replace it with 192.0.2.247
 			 */
 			if (memcmp(rt->rt_ifa->ifa_addr,
 			    ifa->ifa_addr, ifa->ifa_addr->sa_len)) {
