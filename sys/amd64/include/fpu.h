@@ -43,34 +43,39 @@
 
 /* Contents of each x87 floating point accumulator */
 struct fpacc87 {
-	u_char	fp_bytes[10];
+	uint8_t	fp_bytes[10];
 };
 
 /* Contents of each SSE extended accumulator */
 struct  xmmacc {
-	u_char	xmm_bytes[16];
+	uint8_t	xmm_bytes[16];
+};
+
+/* Contents of the upper 16 bytes of each AVX extended accumulator */
+struct  ymmacc {
+	uint8_t  ymm_bytes[16];
 };
 
 struct  envxmm {
-	u_int16_t	en_cw;		/* control word (16bits) */
-	u_int16_t	en_sw;		/* status word (16bits) */
-	u_int8_t	en_tw;		/* tag word (8bits) */
-	u_int8_t	en_zero;
-	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
-	u_int64_t	en_rip;		/* floating point instruction pointer */
-	u_int64_t	en_rdp;		/* floating operand pointer */
-	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
-	u_int32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
+	uint16_t	en_cw;		/* control word (16bits) */
+	uint16_t	en_sw;		/* status word (16bits) */
+	uint8_t		en_tw;		/* tag word (8bits) */
+	uint8_t		en_zero;
+	uint16_t	en_opcode;	/* opcode last executed (11 bits ) */
+	uint64_t	en_rip;		/* floating point instruction pointer */
+	uint64_t	en_rdp;		/* floating operand pointer */
+	uint32_t	en_mxcsr;	/* SSE sontorol/status register */
+	uint32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
 };
 
 struct  savefpu {
 	struct	envxmm	sv_env;
 	struct {
 		struct fpacc87	fp_acc;
-		u_char		fp_pad[6];      /* padding */
+		uint8_t		fp_pad[6];      /* padding */
 	} sv_fp[8];
 	struct xmmacc	sv_xmm[16];
-	u_char sv_pad[96];
+	uint8_t sv_pad[96];
 } __aligned(16);
 
 #ifdef _KERNEL
