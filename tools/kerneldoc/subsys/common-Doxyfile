@@ -231,7 +231,7 @@ INCLUDE_PATH           = $(DOXYGEN_SRC_INCLUDE_PATH) \
                          .
 INCLUDE_FILE_PATTERNS  = *.h
 PREDEFINED             = _KERNEL \
-                         __FreeBSD__=9 \
+                         __FreeBSD__=10 \
                          __${TARGET_ARCH}__=1 \
                          __${TARGET_ARCH}=1
 EXPAND_AS_DEFINED      = 
