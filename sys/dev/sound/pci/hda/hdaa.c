@@ -2793,12 +2793,11 @@ hdaa_audio_as_parse(struct hdaa_devinfo *devinfo)
 				as[cnt].enable = 0;
 			}
 			if (HDA_PARAM_AUDIO_WIDGET_CAP_DIGITAL(w->param.widget_cap)) {
+				as[cnt].digital |= 0x1;
+				if (HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+					as[cnt].digital |= 0x2;
 				if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap))
-					as[cnt].digital = 3;
-				else if (HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
-					as[cnt].digital = 2;
-				else
-					as[cnt].digital = 1;
+					as[cnt].digital |= 0x4;
 			}
 			if (as[cnt].location == -1) {
 				as[cnt].location =
@@ -6514,9 +6513,10 @@ hdaa_pcm_probe(device_t dev)
 	snprintf(buf, sizeof(buf), "%s PCM (%s%s%s%s%s%s%s)",
 	    device_get_desc(device_get_parent(device_get_parent(dev))),
 	    loc1 >= 0 ? HDA_LOCS[loc1] : "", loc1 >= 0 ? " " : "",
-	    (pdevinfo->digital == 3)?"DisplayPort":
-	    ((pdevinfo->digital == 2)?"HDMI":
-	    ((pdevinfo->digital)?"Digital":"Analog")),
+	    (pdevinfo->digital == 0x7)?"HDMI/DP":
+	    ((pdevinfo->digital == 0x5)?"DisplayPort":
+	    ((pdevinfo->digital == 0x3)?"HDMI":
+	    ((pdevinfo->digital)?"Digital":"Analog"))),
 	    chans1[0] ? " " : "", chans1,
 	    chans2[0] ? "/" : "", chans2);
 	device_set_desc_copy(dev, buf);
