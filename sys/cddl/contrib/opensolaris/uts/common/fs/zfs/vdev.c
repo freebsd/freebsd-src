@@ -499,7 +499,7 @@ vdev_alloc(spa_t *spa, vdev_t **vdp, nvlist_t *nv, vdev_t *parent, uint_t id,
 		    &vd->vdev_removing);
 	}
 
-	if (parent && !parent->vdev_parent) {
+	if (parent && !parent->vdev_parent && alloctype != VDEV_ALLOC_ATTACH) {
 		ASSERT(alloctype == VDEV_ALLOC_LOAD ||
 		    alloctype == VDEV_ALLOC_ADD ||
 		    alloctype == VDEV_ALLOC_SPLIT ||
@@ -675,6 +675,8 @@ vdev_top_transfer(vdev_t *svd, vdev_t *tvd)
 	svd->vdev_ms_shift = 0;
 	svd->vdev_ms_count = 0;
 
+	if (tvd->vdev_mg)
+		ASSERT3P(tvd->vdev_mg, ==, svd->vdev_mg);
 	tvd->vdev_mg = svd->vdev_mg;
 	tvd->vdev_ms = svd->vdev_ms;
 
@@ -1294,13 +1296,18 @@ vdev_open(vdev_t *vd)
  * contents.  This needs to be done before vdev_load() so that we don't
  * inadvertently do repair I/Os to the wrong device.
  *
+ * If 'strict' is false ignore the spa guid check. This is necessary because
+ * if the machine crashed during a re-guid the new guid might have been written
+ * to all of the vdev labels, but not the cached config. The strict check
+ * will be performed when the pool is opened again using the mos config.
+ *
  * This function will only return failure if one of the vdevs indicates that it
  * has since been destroyed or exported.  This is only possible if
  * /etc/zfs/zpool.cache was readonly at the time.  Otherwise, the vdev state
  * will be updated but the function will return 0.
  */
 int
-vdev_validate(vdev_t *vd)
+vdev_validate(vdev_t *vd, boolean_t strict)
 {
 	spa_t *spa = vd->vdev_spa;
 	nvlist_t *label;
@@ -1308,7 +1315,7 @@ vdev_validate(vdev_t *vd)
 	uint64_t state;
 
 	for (int c = 0; c < vd->vdev_children; c++)
-		if (vdev_validate(vd->vdev_child[c]) != 0)
+		if (vdev_validate(vd->vdev_child[c], strict) != 0)
 			return (EBADF);
 
 	/*
@@ -1338,8 +1345,9 @@ vdev_validate(vdev_t *vd)
 			return (0);
 		}
 
-		if (nvlist_lookup_uint64(label, ZPOOL_CONFIG_POOL_GUID,
-		    &guid) != 0 || guid != spa_guid(spa)) {
+		if (strict && (nvlist_lookup_uint64(label,
+		    ZPOOL_CONFIG_POOL_GUID, &guid) != 0 ||
+		    guid != spa_guid(spa))) {
 			vdev_set_state(vd, B_FALSE, VDEV_STATE_CANT_OPEN,
 			    VDEV_AUX_CORRUPT_DATA);
 			nvlist_free(label);
@@ -1501,7 +1509,7 @@ vdev_reopen(vdev_t *vd)
 		    !l2arc_vdev_present(vd))
 			l2arc_add_vdev(spa, vd);
 	} else {
-		(void) vdev_validate(vd);
+		(void) vdev_validate(vd, B_TRUE);
 	}
 
 	/*
