@@ -1178,10 +1178,7 @@ out_inm_release:
 int
 in_leavegroup(struct in_multi *inm, /*const*/ struct in_mfilter *imf)
 {
-	struct ifnet *ifp;
 	int error;
-
-	ifp = inm->inm_ifp;
 
 	IN_MULTI_LOCK();
 	error = in_leavegroup_locked(inm, imf);
