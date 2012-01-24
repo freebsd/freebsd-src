@@ -968,8 +968,9 @@ void	ath_intr(void *);
         ((*(_ah)->ah_gpioGet)((_ah), (_gpio)))
 #define ath_hal_gpiosetintr(_ah, _gpio, _b) \
         ((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
-
 #define ath_hal_radar_wait(_ah, _chan) \
 	((*(_ah)->ah_radarWait)((_ah), (_chan)))
+#define ath_hal_get_chan_ext_busy(_ah) \
+	((*(_ah)->ah_get11nExtBusy)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */
