@@ -101,6 +101,11 @@ struct  xmmacc {
 	u_char	xmm_bytes[16];
 };
 
+/* Contents of the upper 16 bytes of each AVX extended accumulator */
+struct  ymmacc {
+	uint8_t  ymm_bytes[16];
+};
+
 struct  savexmm {
 	struct	envxmm	sv_env;
 	struct {
@@ -115,6 +120,28 @@ union	savefpu {
 	struct	save87	sv_87;
 	struct	savexmm	sv_xmm;
 };
+
+struct xstate_hdr {
+	uint64_t xstate_bv;
+	uint8_t xstate_rsrv0[16];
+	uint8_t	xstate_rsrv[40];
+};
+
+struct savexmm_xstate {
+	struct xstate_hdr sx_hd;
+	struct ymmacc	sx_ymm[16];
+};
+
+struct savexmm_ymm {
+	struct	envxmm	sv_env;
+	struct {
+		struct fpacc87	fp_acc;
+		int8_t		fp_pad[6];      /* padding */
+	} sv_fp[8];
+	struct xmmacc	sv_xmm[16];
+	uint8_t sv_pad[96];
+	struct savexmm_xstate sv_xstate;
+} __aligned(64);
 
 /*
  * The hardware default control word for i387's and later coprocessors is
