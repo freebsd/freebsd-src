@@ -154,10 +154,6 @@ in6_ifaddloop(struct ifaddr *ifa)
 	ifp = ifa->ifa_ifp;
 	IF_AFDATA_LOCK(ifp);
 	ifa->ifa_rtrequest = nd6_rtrequest;
-
-	/* XXX QL
-	 * we need to report rt_newaddrmsg
-	 */
 	ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR |
 	    LLE_EXCLUSIVE), (struct sockaddr *)&ia->ia_addr);
 	IF_AFDATA_UNLOCK(ifp);
