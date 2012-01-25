@@ -670,17 +670,6 @@ intr_restore(register_t rflags)
 }
 
 static __inline void
-xsetbv(uint32_t reg, uint64_t val)
-{
-	uint32_t low, hi;
-
-	low = val;
-	hi = val >> 32;
-	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
-	    "c" (reg), "a" (low), "d" (hi));
-}
-
-static __inline void
 xsave(char *addr, uint64_t mask)
 {
 	uint32_t low, hi;
@@ -690,6 +679,17 @@ xsave(char *addr, uint64_t mask)
 	/* xsave (%rdi) */
 	__asm __volatile(".byte	0x0f,0xae,0x27" : :
 	    "a" (low), "d" (hi), "D" (addr) : "memory");
+}
+
+static __inline void
+xsetbv(uint32_t reg, uint64_t val)
+{
+	uint32_t low, hi;
+
+	low = val;
+	hi = val >> 32;
+	__asm __volatile(".byte 0x0f,0x01,0xd1" : :
+	    "c" (reg), "a" (low), "d" (hi));
 }
 
 static __inline void
@@ -768,8 +768,8 @@ u_int	rgs(void);
 void	wbinvd(void);
 void	write_rflags(u_int rf);
 void	wrmsr(u_int msr, uint64_t newval);
-void	xsetbv(uint32_t reg, uint64_t val);
 void	xsave(char *addr, uint64_t mask);
+void	xsetbv(uint32_t reg, uint64_t val);
 void	xrstor(char *addr, uint64_t mask);
 
 #endif	/* __GNUCLIKE_ASM && __CC_SUPPORTS___INLINE */
