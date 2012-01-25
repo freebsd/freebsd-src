@@ -10,7 +10,6 @@ INSTALLFLAGS=   -b
 FILES=		boot1.hfs
 SRCS=		boot1.c ashldi3.c
 
-INTERNALPROG=
 NO_MAN=
 
 CFLAGS= -ffreestanding -msoft-float -Os \
