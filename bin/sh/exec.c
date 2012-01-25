@@ -493,7 +493,7 @@ hashcd(void)
  */
 
 void
-changepath(const char *newval)
+changepath(const char *newval __unused)
 {
 	clearcmdentry();
 }
