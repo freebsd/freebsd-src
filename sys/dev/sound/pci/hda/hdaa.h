@@ -125,6 +125,7 @@ struct hdaa_widget {
 			uint32_t newconf;
 			uint32_t cap;
 			uint32_t ctrl;
+			int	connected;
 		} pin;
 		struct {
 			uint8_t	stripecap;
@@ -180,6 +181,7 @@ struct hdaa_pcm_devinfo {
 	u_char	digital;
 	uint32_t	ossmask;	/* Mask of supported OSS devices. */
 	uint32_t	recsrc;		/* Mask of supported OSS sources. */
+	int		autorecsrc;
 };
 
 struct hdaa_devinfo {

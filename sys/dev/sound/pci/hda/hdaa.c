@@ -239,44 +239,30 @@ hdaa_audio_ctl_amp_get(struct hdaa_devinfo *devinfo, nid_t nid, int dir,
 }
 
 /*
- * Jack detection (Speaker/HP redirection) event handler.
+ * Headphones redirection change handler.
  */
 static void
-hdaa_hp_switch_handler(struct hdaa_widget *w)
+hdaa_hpredir_handler(struct hdaa_widget *w)
 {
 	struct hdaa_devinfo *devinfo = w->devinfo;
-	struct hdaa_audio_as *as;
+	struct hdaa_audio_as *as = &devinfo->as[w->bindas];
 	struct hdaa_widget *w1;
 	struct hdaa_audio_ctl *ctl;
-	uint32_t val, res;
-	int j;
+	uint32_t val;
+	int j, connected = w->wclass.pin.connected;
 
-	if (w->enable == 0 || w->type !=
-	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-		return;
-
-	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
 	HDA_BOOTVERBOSE(
-		device_printf(devinfo->dev,
-		    "Pin sense: nid=%d sence=0x%08x", w->nid, res);
+		device_printf((as->pdevinfo && as->pdevinfo->dev) ?
+		    as->pdevinfo->dev : devinfo->dev,
+		    "Redirect output to: %s\n",
+		    connected ? "headphones": "main");
 	);
-	res = (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) != 0;
-	if (devinfo->quirks & HDAA_QUIRK_SENSEINV)
-		res ^= 1;
-	HDA_BOOTVERBOSE(
-		printf(" (%sconnected)\n", res == 0 ? "dis" : "");
-	);
-
-	as = &devinfo->as[w->bindas];
-	if (as->hpredir < 0 || as->pins[15] != w->nid)
-		return;
-
 	/* (Un)Mute headphone pin. */
 	ctl = hdaa_audio_ctl_amp_get(devinfo,
 	    w->nid, HDAA_CTL_IN, -1, 1);
 	if (ctl != NULL && ctl->mute) {
 		/* If pin has muter - use it. */
-		val = (res != 0) ? 0 : 1;
+		val = connected ? 0 : 1;
 		if (val != ctl->forcemute) {
 			ctl->forcemute = val;
 			hdaa_audio_ctl_amp_set(ctl,
@@ -285,7 +271,7 @@ hdaa_hp_switch_handler(struct hdaa_widget *w)
 		}
 	} else {
 		/* If there is no muter - disable pin output. */
-		if (res != 0)
+		if (connected)
 			val = w->wclass.pin.ctrl |
 			    HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
 		else
@@ -306,7 +292,7 @@ hdaa_hp_switch_handler(struct hdaa_widget *w)
 		    as->pins[j], HDAA_CTL_IN, -1, 1);
 		if (ctl != NULL && ctl->mute) {
 			/* If pin has muter - use it. */
-			val = (res != 0) ? 1 : 0;
+			val = connected ? 1 : 0;
 			if (val == ctl->forcemute)
 				continue;
 			ctl->forcemute = val;
@@ -317,9 +303,8 @@ hdaa_hp_switch_handler(struct hdaa_widget *w)
 		}
 		/* If there is no muter - disable pin output. */
 		w1 = hdaa_widget_get(devinfo, as->pins[j]);
-		if (w1 != NULL && w1->type ==
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX) {
-			if (res != 0)
+		if (w1 != NULL) {
+			if (connected)
 				val = w1->wclass.pin.ctrl &
 				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_OUT_ENABLE;
 			else
@@ -336,7 +321,117 @@ hdaa_hp_switch_handler(struct hdaa_widget *w)
 }
 
 /*
- * Callback for poll based jack detection.
+ * Recording source change handler.
+ */
+static void
+hdaa_autorecsrc_handler(struct hdaa_audio_as *as, struct hdaa_widget *w)
+{
+	struct hdaa_pcm_devinfo *pdevinfo = as->pdevinfo;
+	struct hdaa_devinfo *devinfo;
+	struct hdaa_widget *w1;
+	int i, mask, fullmask, prio, bestprio;
+	char buf[128];
+
+	if (!as->mixed || pdevinfo == NULL || pdevinfo->mixer == NULL)
+		return;
+	/* Don't touch anything if we asked not to. */
+	if (pdevinfo->autorecsrc == 0 ||
+	    (pdevinfo->autorecsrc == 1 && w != NULL))
+		return;
+	/* Don't touch anything if "mix" or "speaker" selected. */
+	if (pdevinfo->recsrc & (SOUND_MASK_IMIX | SOUND_MASK_SPEAKER))
+		return;
+	/* Don't touch anything if several selected. */
+	if (ffs(pdevinfo->recsrc) != fls(pdevinfo->recsrc))
+		return;
+	devinfo = pdevinfo->devinfo;
+	mask = fullmask = 0;
+	bestprio = 0;
+	for (i = 0; i < 16; i++) {
+		if (as->pins[i] <= 0)
+			continue;
+		w1 = hdaa_widget_get(devinfo, as->pins[i]);
+		if (w1 == NULL || w1->enable == 0)
+			continue;
+		if (w1->wclass.pin.connected == 0)
+			continue;
+		prio = (w1->wclass.pin.connected == 1) ? 2 : 1;
+		if (prio < bestprio)
+			continue;
+		if (prio > bestprio) {
+			mask = 0;
+			bestprio = prio;
+		}
+		mask |= (1 << w1->ossdev);
+		fullmask |= (1 << w1->ossdev);
+	}
+	if (mask == 0)
+		return;
+	/* Prefer newly connected input. */
+	if (w != NULL && (mask & (1 << w->ossdev)))
+		mask = (1 << w->ossdev);
+	/* Prefer previously selected input */
+	if (mask & pdevinfo->recsrc)
+		mask &= pdevinfo->recsrc;
+	/* Prefer mic. */
+	if (mask & SOUND_MASK_MIC)
+		mask = SOUND_MASK_MIC;
+	/* Prefer monitor (2nd mic). */
+	if (mask & SOUND_MASK_MONITOR)
+		mask = SOUND_MASK_MONITOR;
+	/* Just take first one. */
+	mask = (1 << (ffs(mask) - 1));
+	HDA_BOOTVERBOSE(
+		hdaa_audio_ctl_ossmixer_mask2allname(mask, buf, sizeof(buf));
+		device_printf(pdevinfo->dev,
+		    "Automatically set rec source to: %s\n", buf);
+	);
+	hdaa_unlock(devinfo);
+	mix_setrecsrc(pdevinfo->mixer, mask);
+	hdaa_lock(devinfo);
+}
+
+/*
+ * Jack presence detection event handler.
+ */
+static void
+hdaa_presence_handler(struct hdaa_widget *w)
+{
+	struct hdaa_devinfo *devinfo = w->devinfo;
+	struct hdaa_audio_as *as;
+	uint32_t res;
+	int connected;
+
+	if (w->enable == 0 || w->type !=
+	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+		return;
+
+	if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
+	    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0)
+		return;
+
+	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
+	connected = (res & HDA_CMD_GET_PIN_SENSE_PRESENCE_DETECT) != 0;
+	if (devinfo->quirks & HDAA_QUIRK_SENSEINV)
+		connected = !connected;
+	if (connected == w->wclass.pin.connected)
+		return;
+	w->wclass.pin.connected = connected;
+	HDA_BOOTVERBOSE(
+		device_printf(devinfo->dev,
+		    "Pin sense: nid=%d sence=0x%08x (%sconnected)\n",
+		    w->nid, res, !w->wclass.pin.connected ? "dis" : "");
+	);
+
+	as = &devinfo->as[w->bindas];
+	if (as->hpredir >= 0 && as->pins[15] == w->nid)
+		hdaa_hpredir_handler(w);
+	if (as->dir == HDAA_CTL_IN)
+		hdaa_autorecsrc_handler(as, w);
+}
+
+/*
+ * Callback for poll based presence detection.
  */
 static void
 hdaa_jack_poll_callback(void *arg)
@@ -357,89 +452,11 @@ hdaa_jack_poll_callback(void *arg)
 		if (w == NULL || w->enable == 0 || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 			continue;
-		hdaa_hp_switch_handler(w);
+		hdaa_presence_handler(w);
 	}
 	callout_reset(&devinfo->poll_jack, devinfo->poll_ival,
 	    hdaa_jack_poll_callback, devinfo);
 	hdaa_unlock(devinfo);
-}
-
-/*
- * Jack detection initializer.
- */
-static void
-hdaa_hp_switch_init(struct hdaa_devinfo *devinfo)
-{
-	struct hdaa_audio_as *as = devinfo->as;
-        struct hdaa_widget *w;
-        int i, poll = 0;
-
-	for (i = 0; i < devinfo->ascnt; i++) {
-		if (as[i].hpredir < 0)
-			continue;
-
-		w = hdaa_widget_get(devinfo, as[i].pins[15]);
-		if (w == NULL || w->enable == 0 || w->type !=
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
-		    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0) {
-			device_printf(devinfo->dev,
-			    "No jack detection support at pin %d\n",
-			    as[i].pins[15]);
-			continue;
-		}
-		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap) &&
-		    w->unsol < 0) {
-			w->unsol = HDAC_UNSOL_ALLOC(
-			    device_get_parent(devinfo->dev), devinfo->dev,
-			    w->nid);
-			hda_command(devinfo->dev,
-			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
-			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE |
-			    w->unsol));
-		}
-		if (w->unsol < 0)
-			poll = 1;
-		HDA_BOOTVERBOSE(
-			device_printf(devinfo->dev,
-			    "Headphones redirection "
-			    "for as=%d nid=%d using %s.\n",
-			    i, w->nid,
-			    (poll != 0) ? "polling" : "unsolicited responses");
-		);
-		hdaa_hp_switch_handler(w);
-	}
-	if (poll) {
-		callout_reset(&devinfo->poll_jack, 1,
-		    hdaa_jack_poll_callback, devinfo);
-	}
-}
-
-static void
-hdaa_hp_switch_deinit(struct hdaa_devinfo *devinfo)
-{
-	struct hdaa_audio_as *as = devinfo->as;
-        struct hdaa_widget *w;
-        int i;
-
-	for (i = 0; i < devinfo->ascnt; i++) {
-		w = hdaa_widget_get(devinfo, as[i].pins[15]);
-		if (w == NULL || w->enable == 0 || w->type !=
-		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) ||
-		    HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
-			continue;
-		if (w->unsol < 0)
-			continue;
-		hda_command(devinfo->dev,
-		    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid, 0));
-		HDAC_UNSOL_FREE(
-		    device_get_parent(devinfo->dev), devinfo->dev,
-		    w->unsol);
-		w->unsol = -1;
-	}
 }
 
 static void
@@ -534,13 +551,18 @@ hdaa_eld_handler(struct hdaa_widget *w)
 	    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
 		return;
 
+	if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
+	    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0)
+		return;
+
+	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
+	if ((w->eld != 0) == ((res & HDA_CMD_GET_PIN_SENSE_ELD_VALID) != 0))
+		return;
 	if (w->eld != NULL) {
 		w->eld_len = 0;
 		free(w->eld, M_HDAA);
 		w->eld = NULL;
 	}
-
-	res = hda_command(devinfo->dev, HDA_CMD_GET_PIN_SENSE(0, w->nid));
 	HDA_BOOTVERBOSE(
 		device_printf(devinfo->dev,
 		    "Pin sense: nid=%d sence=0x%08x "
@@ -575,48 +597,72 @@ hdaa_eld_handler(struct hdaa_widget *w)
 	);
 }
 
-
+/*
+ * Pin sense initializer.
+ */
 static void
-hdaa_eld_init(struct hdaa_devinfo *devinfo)
+hdaa_sense_init(struct hdaa_devinfo *devinfo)
 {
-        struct hdaa_widget *w;
-        int i;
+	struct hdaa_audio_as *as;
+	struct hdaa_widget *w;
+	int i, poll = 0;
 
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdaa_widget_get(devinfo, i);
-		if (w == NULL || w->type !=
+		if (w == NULL || w->enable == 0 || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
-		    !HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
 			continue;
 		if (HDA_PARAM_AUDIO_WIDGET_CAP_UNSOL_CAP(w->param.widget_cap) &&
 		    w->unsol < 0) {
 			w->unsol = HDAC_UNSOL_ALLOC(
-			    device_get_parent(devinfo->dev), devinfo->dev,
-			    w->nid);
+			    device_get_parent(devinfo->dev), devinfo->dev, w->nid);
 			hda_command(devinfo->dev,
 			    HDA_CMD_SET_UNSOLICITED_RESPONSE(0, w->nid,
-			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE |
-			    w->unsol));
+			    HDA_CMD_SET_UNSOLICITED_RESPONSE_ENABLE | w->unsol));
 		}
+		as = &devinfo->as[w->bindas];
+		if (as->hpredir >= 0 && as->pins[15] == w->nid) {
+			if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
+			    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0) {
+				device_printf(devinfo->dev,
+				    "No presence detection support at nid %d\n",
+				    as[i].pins[15]);
+			} else {
+				if (w->unsol < 0)
+					poll = 1;
+				HDA_BOOTVERBOSE(
+					device_printf(devinfo->dev,
+					    "Headphones redirection for "
+					    "association %d nid=%d using %s.\n",
+					    w->bindas, w->nid,
+					    (poll != 0) ? "polling" :
+					    "unsolicited responses");
+				);
+			};
+		}
+		hdaa_presence_handler(w);
+		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
+		    !HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
+			continue;
 		hdaa_eld_handler(w);
+	}
+	if (poll) {
+		callout_reset(&devinfo->poll_jack, 1,
+		    hdaa_jack_poll_callback, devinfo);
 	}
 }
 
 static void
-hdaa_eld_deinit(struct hdaa_devinfo *devinfo)
+hdaa_sense_deinit(struct hdaa_devinfo *devinfo)
 {
 	struct hdaa_widget *w;
 	int i;
 
+	callout_stop(&devinfo->poll_jack);
 	for (i = devinfo->startnode; i < devinfo->endnode; i++) {
 		w = hdaa_widget_get(devinfo, i);
-		if (w == NULL || w->type !=
+		if (w == NULL || w->enable == 0 || w->type !=
 		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
-			continue;
-		if (!HDA_PARAM_PIN_CAP_DP(w->wclass.pin.cap) &&
-		    !HDA_PARAM_PIN_CAP_HDMI(w->wclass.pin.cap))
 			continue;
 		if (w->unsol < 0)
 			continue;
@@ -1191,6 +1237,10 @@ hdaa_widget_postprocess(struct hdaa_widget *w)
 		}
 		strlcat(w->name, HDA_CONNS[conn], sizeof(w->name));
 		strlcat(w->name, ")", sizeof(w->name));
+
+		if (HDA_PARAM_PIN_CAP_PRESENCE_DETECT_CAP(w->wclass.pin.cap) == 0 ||
+		    (HDA_CONFIG_DEFAULTCONF_MISC(w->wclass.pin.config) & 1) != 0)
+			w->wclass.pin.connected = 2;
 	}
 }
 
@@ -5778,13 +5828,9 @@ hdaa_configure(device_t dev)
 	);
 	hdaa_patch_direct(devinfo);
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "ELD init...\n");
+		device_printf(dev, "Pin sense init...\n");
 	);
-	hdaa_eld_init(devinfo);
-	HDA_BOOTHVERBOSE(
-		device_printf(dev, "HP switch init...\n");
-	);
-	hdaa_hp_switch_init(devinfo);
+	hdaa_sense_init(devinfo);
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Creating PCM devices...\n");
 	);
@@ -5849,13 +5895,9 @@ hdaa_unconfigure(device_t dev)
 	int i, j;
 
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "HP switch deinit...\n");
+		device_printf(dev, "Pin sense deinit...\n");
 	);
-	hdaa_hp_switch_deinit(devinfo);
-	HDA_BOOTHVERBOSE(
-		device_printf(dev, "ELD deinit...\n");
-	);
-	hdaa_eld_deinit(devinfo);
+	hdaa_sense_deinit(devinfo);
 	free(devinfo->ctl, M_HDAA);
 	devinfo->ctl = NULL;
 	devinfo->ctlcnt = 0;
@@ -6085,10 +6127,6 @@ hdaa_suspend(device_t dev)
 		}
 	}
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "HP switch deinit...\n");
-	);
-	hdaa_hp_switch_deinit(devinfo);
-	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Power down FG"
 		    " nid=%d to the D3 state...\n",
 		    devinfo->nid);
@@ -6129,9 +6167,9 @@ hdaa_resume(device_t dev)
 	);
 	hdaa_patch_direct(devinfo);
 	HDA_BOOTHVERBOSE(
-		device_printf(dev, "HP switch init...\n");
+		device_printf(dev, "Pin sense init...\n");
 	);
-	hdaa_hp_switch_init(devinfo);
+	hdaa_sense_init(devinfo);
 
 	hdaa_unlock(devinfo);
 	for (i = 0; i < devinfo->num_devs; i++) {
@@ -6404,7 +6442,7 @@ hdaa_unsol_intr(device_t dev, uint32_t resp)
 		else
 			flags = 0x01;
 		if (flags & 0x01)
-			hdaa_hp_switch_handler(w);
+			hdaa_presence_handler(w);
 		if (flags & 0x02)
 			hdaa_eld_handler(w);
 	}
@@ -6614,8 +6652,6 @@ hdaa_pcm_attach(device_t dev)
 	);
 	if (mixer_init(dev, &hdaa_audio_ctl_ossmixer_class, pdevinfo) != 0)
 		device_printf(dev, "Can't register mixer\n");
-	else
-		hdaa_audio_ctl_set_defaults(pdevinfo);
 
 	HDA_BOOTHVERBOSE(
 		device_printf(dev, "Registering PCM channels...\n");
@@ -6648,6 +6684,24 @@ hdaa_pcm_attach(device_t dev)
 		    "32bit", CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
 		    as, sizeof(as), hdaa_sysctl_32bit, "I",
 		    "Resolution of 32bit samples (20/24/32bit)");
+		pdevinfo->autorecsrc = 2;
+		resource_int_value(device_get_name(dev),
+		    device_get_unit(dev), "autosrc", &pdevinfo->autorecsrc);
+		SYSCTL_ADD_INT(&d->rec_sysctl_ctx,
+		    SYSCTL_CHILDREN(d->rec_sysctl_tree), OID_AUTO,
+		    "autosrc", CTLTYPE_INT | CTLFLAG_RW,
+		    &pdevinfo->autorecsrc, 0,
+		    "Automatic recording source selection");
+	}
+
+	if (pdevinfo->mixer != NULL) {
+		hdaa_audio_ctl_set_defaults(pdevinfo);
+		if (pdevinfo->recas >= 0) {
+			as = &devinfo->as[pdevinfo->recas];
+			hdaa_lock(devinfo);
+			hdaa_autorecsrc_handler(as, NULL);
+			hdaa_unlock(devinfo);
+		}
 	}
 
 	snprintf(status, SND_STATUSLEN, "on %s %s",
