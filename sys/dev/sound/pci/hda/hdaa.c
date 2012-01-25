@@ -6685,8 +6685,8 @@ hdaa_pcm_attach(device_t dev)
 		    as, sizeof(as), hdaa_sysctl_32bit, "I",
 		    "Resolution of 32bit samples (20/24/32bit)");
 		pdevinfo->autorecsrc = 2;
-		resource_int_value(device_get_name(dev),
-		    device_get_unit(dev), "autosrc", &pdevinfo->autorecsrc);
+		resource_int_value(device_get_name(dev), device_get_unit(dev),
+		    "rec.autosrc", &pdevinfo->autorecsrc);
 		SYSCTL_ADD_INT(&d->rec_sysctl_ctx,
 		    SYSCTL_CHILDREN(d->rec_sysctl_tree), OID_AUTO,
 		    "autosrc", CTLTYPE_INT | CTLFLAG_RW,
