@@ -2555,7 +2555,7 @@ fxp_ifmedia_upd(struct ifnet *ifp)
 {
 	struct fxp_softc *sc = ifp->if_softc;
 	struct mii_data *mii;
-		struct mii_softc	*miisc;
+	struct mii_softc	*miisc;
 
 	mii = device_get_softc(sc->miibus);
 	FXP_LOCK(sc);
