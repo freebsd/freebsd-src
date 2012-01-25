@@ -59,6 +59,10 @@ Write the ID of the created process into the
 using the
 .Xr pidfile 3
 functionality.
+If the
+.Fl u
+option is used, the directory to contain the pidfile must be writable
+by the specified user.
 Note, that the file will be created shortly before the process is
 actually executed, and will remain after the process exits (although
 it will be removed if the execution fails).
