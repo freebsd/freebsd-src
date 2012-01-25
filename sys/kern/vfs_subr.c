@@ -2496,6 +2496,18 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
+			if (vp->v_object != NULL) {
+				VM_OBJECT_LOCK(vp->v_object);
+				vm_object_page_clean(vp->v_object, 0, 0, 0);
+				VM_OBJECT_UNLOCK(vp->v_object);
+			}
+			error = VOP_FSYNC(vp, MNT_WAIT, td);
+			if (error != 0) {
+				VOP_UNLOCK(vp, 0);
+				vdrop(vp);
+				MNT_VNODE_FOREACH_ABORT(mp, mvp);
+				return (error);
+			}
 			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
 			VI_LOCK(vp);
 
