@@ -1532,8 +1532,6 @@ nfsmout:
 		if (newvp)
 			vput(newvp);
 	} else {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
@@ -1672,8 +1670,6 @@ nfsmout:
 			vput(newvp);
 	}
 	if (!error) {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
 	mtx_lock(&(VTONFS(dvp))->n_mtx);
