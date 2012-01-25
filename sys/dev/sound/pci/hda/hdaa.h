@@ -259,8 +259,8 @@ struct hdaa_chan {
 		hda_get_device_id(devinfo->dev))
 
 #define hdaa_subvendor_id(devinfo)					\
-		(((uint32_t)hda_get_subvendor_id(devinfo->dev) << 16) +	\
-		hda_get_subdevice_id(devinfo->dev))
+		(((uint32_t)hda_get_subdevice_id(devinfo->dev) << 16) +	\
+		hda_get_subvendor_id(devinfo->dev))
 
 struct hdaa_widget	*hdaa_widget_get(struct hdaa_devinfo *, nid_t);
 uint32_t		hdaa_widget_pin_patch(uint32_t config, const char *str);
