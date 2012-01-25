@@ -2508,13 +2508,11 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
 	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_env, "Process environment");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_AUXV, auxv,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-	sysctl_kern_proc_auxv, "Process ELF auxiliary vector");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_AUXV, auxv, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_auxv, "Process ELF auxiliary vector");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_pathname, "Process executable path");
@@ -2571,6 +2569,6 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RW |
 	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit,
 	"Process resource limits");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-	sysctl_kern_proc_ps_strings, "Process ps_strings location");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_ps_strings,
+	"Process ps_strings location");
