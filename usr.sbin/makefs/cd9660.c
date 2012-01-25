@@ -1086,6 +1086,8 @@ cd9660_rename_filename(cd9660node *iter, int num, int delete_chars)
 		*/
 
 		while (count < maxlength) {
+			if (*naming == ';')
+				break;
 			naming++;
 			count++;
 		}
