@@ -1106,6 +1106,23 @@ nfs_mount(struct mount *mp)
 			error = EIO;
 			goto out;
 		}
+
+		/*
+		 * Cannot switch to UDP if current rsize/wsize/readdirsize is
+		 * too large, since there may be an I/O RPC in progress that
+		 * will get retried after the switch to the UDP socket. These
+		 * retries will fail over and over and over again.
+		 */
+		if (args.sotype == SOCK_DGRAM &&
+		    (nmp->nm_rsize > NFS_MAXDGRAMDATA ||
+		     nmp->nm_wsize > NFS_MAXDGRAMDATA ||
+		     nmp->nm_readdirsize > NFS_MAXDGRAMDATA)) {
+			vfs_mount_error(mp,
+			    "old rsize/wsize/readdirsize greater than UDP max");
+			error = EINVAL;
+			goto out;
+		}
+
 		/*
 		 * When doing an update, we can't change from or to
 		 * v3, switch lockd strategies or change cookie translation
