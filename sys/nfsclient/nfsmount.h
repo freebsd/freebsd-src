@@ -83,6 +83,7 @@ struct	nfsmount {
 	struct rpc_timers nm_timers[NFS_MAX_TIMER]; /* RTT Timers for rpcs */
 	char	nm_principal[MNAMELEN];	/* GSS-API principal of server */
 	gss_OID	nm_mech_oid;		/* OID of selected GSS-API mechanism */
+	int	nm_nametimeo;		/* timeout for +ve entries (sec) */
 	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* NFSv4 */
@@ -114,6 +115,10 @@ struct	nfsmount {
 
 #ifndef NFS_TPRINTF_DELAY
 #define NFS_TPRINTF_DELAY               30
+#endif
+
+#ifndef NFS_DEFAULT_NAMETIMEO
+#define NFS_DEFAULT_NAMETIMEO		60
 #endif
 
 #ifndef NFS_DEFAULT_NEGNAMETIMEO
