@@ -1433,8 +1433,6 @@ nfs_mknodrpc(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp,
 		}
 	}
 	if (!error) {
-		if ((cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
 		*vpp = newvp;
 	} else if (NFS_ISV4(dvp)) {
 		error = nfscl_maperr(cnp->cn_thread, error, vap->va_uid,
@@ -1592,8 +1590,8 @@ again:
 		}
 	}
 	if (!error) {
-		if (cnp->cn_flags & MAKEENTRY)
-			cache_enter(dvp, newvp, cnp);
+		if ((cnp->cn_flags & MAKEENTRY) && attrflag)
+			cache_enter_time(dvp, newvp, cnp, &nfsva.na_ctime);
 		*ap->a_vpp = newvp;
 	} else if (NFS_ISV4(dvp)) {
 		error = nfscl_maperr(cnp->cn_thread, error, vap->va_uid,
@@ -1968,8 +1966,9 @@ nfs_link(struct vop_link_args *ap)
 	 * must care about lookup caching hit rate, so...
 	 */
 	if (VFSTONFS(vp->v_mount)->nm_negnametimeo != 0 &&
-	    (cnp->cn_flags & MAKEENTRY))
-		cache_enter(tdvp, vp, cnp);
+	    (cnp->cn_flags & MAKEENTRY) && dattrflag) {
+		cache_enter_time(tdvp, vp, cnp, &dnfsva.na_mtime);
+	}
 	if (error && NFS_ISV4(vp))
 		error = nfscl_maperr(cnp->cn_thread, error, (uid_t)0,
 		    (gid_t)0);
@@ -2025,15 +2024,6 @@ nfs_symlink(struct vop_symlink_args *ap)
 			error = nfscl_maperr(cnp->cn_thread, error,
 			    vap->va_uid, vap->va_gid);
 	} else {
-		/*
-		 * If negative lookup caching is enabled, I might as well
-		 * add an entry for this node. Not necessary for correctness,
-		 * but if negative caching is enabled, then the system
-		 * must care about lookup caching hit rate, so...
-		 */
-		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
-		    (cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
 		*ap->a_vpp = newvp;
 	}
 
@@ -2043,6 +2033,16 @@ nfs_symlink(struct vop_symlink_args *ap)
 	if (dattrflag != 0) {
 		mtx_unlock(&dnp->n_mtx);
 		(void) nfscl_loadattrcache(&dvp, &dnfsva, NULL, NULL, 0, 1);
+		/*
+		 * If negative lookup caching is enabled, I might as well
+		 * add an entry for this node. Not necessary for correctness,
+		 * but if negative caching is enabled, then the system
+		 * must care about lookup caching hit rate, so...
+		 */
+		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
+		    (cnp->cn_flags & MAKEENTRY)) {
+			cache_enter_time(dvp, newvp, cnp, &dnfsva.na_mtime);
+		}
 	} else {
 		dnp->n_attrstamp = 0;
 		mtx_unlock(&dnp->n_mtx);
@@ -2118,8 +2118,9 @@ nfs_mkdir(struct vop_mkdir_args *ap)
 		 * must care about lookup caching hit rate, so...
 		 */
 		if (VFSTONFS(dvp->v_mount)->nm_negnametimeo != 0 &&
-		    (cnp->cn_flags & MAKEENTRY))
-			cache_enter(dvp, newvp, cnp);
+		    (cnp->cn_flags & MAKEENTRY) && dattrflag) {
+			cache_enter_time(dvp, newvp, cnp, &dnfsva.na_mtime);
+		}
 		*ap->a_vpp = newvp;
 	}
 	return (error);

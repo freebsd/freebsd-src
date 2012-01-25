@@ -237,13 +237,9 @@ static void
 cache_out_ts(struct namecache *ncp, struct timespec *tsp, int *ticksp)
 {
 
-	if ((ncp->nc_flag & NCF_TS) == 0) {
-		if (tsp != NULL)
-			bzero(tsp, sizeof(*tsp));
-		if (ticksp != NULL)
-			*ticksp = 0;
-		return;
-	}
+	KASSERT((ncp->nc_flag & NCF_TS) != 0 ||
+	    (tsp == NULL && ticksp == NULL),
+	    ("No NCF_TS"));
 
 	if (tsp != NULL)
 		*tsp = ((struct namecache_ts *)ncp)->nc_time;
@@ -791,8 +787,8 @@ cache_enter_time(dvp, vp, cnp, tsp)
 		    n2->nc_nlen == cnp->cn_namelen &&
 		    !bcmp(nc_get_name(n2), cnp->cn_nameptr, n2->nc_nlen)) {
 			if (tsp != NULL) {
-				if ((n2->nc_flag & NCF_TS) == 0)
-					continue;
+				KASSERT((n2->nc_flag & NCF_TS) != 0,
+				    ("no NCF_TS"));
 				n3 = (struct namecache_ts *)n2;
 				n3->nc_time =
 				    ((struct namecache_ts *)ncp)->nc_time;
