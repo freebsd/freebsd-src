@@ -2695,6 +2695,8 @@ ath_beacon_alloc(struct ath_softc *sc, struct ieee80211_node *ni)
 	int error;
 
 	bf = avp->av_bcbuf;
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: bf_m=%p, bf_node=%p\n",
+	    __func__, bf->bf_m, bf->bf_node);
 	if (bf->bf_m != NULL) {
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
@@ -3152,6 +3154,8 @@ static void
 ath_beacon_return(struct ath_softc *sc, struct ath_buf *bf)
 {
 
+	DPRINTF(sc, ATH_DEBUG_NODE, "%s: free bf=%p, bf_m=%p, bf_node=%p\n",
+	    __func__, bf, bf->bf_m, bf->bf_node);
 	if (bf->bf_m != NULL) {
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 		m_freem(bf->bf_m);
@@ -3173,6 +3177,9 @@ ath_beacon_free(struct ath_softc *sc)
 	struct ath_buf *bf;
 
 	TAILQ_FOREACH(bf, &sc->sc_bbuf, bf_list) {
+		DPRINTF(sc, ATH_DEBUG_NODE,
+		    "%s: free bf=%p, bf_m=%p, bf_node=%p\n",
+		        __func__, bf, bf->bf_m, bf->bf_node);
 		if (bf->bf_m != NULL) {
 			bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
 			m_freem(bf->bf_m);
