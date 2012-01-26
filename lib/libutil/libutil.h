@@ -71,14 +71,14 @@ typedef	__uid_t		uid_t;
 #define	PROPERTY_MAX_NAME	64
 #define	PROPERTY_MAX_VALUE	512
 
-/* for properties.c */
+/* For properties.c. */
 typedef struct _property {
 	struct _property *next;
 	char	*name;
 	char	*value;
 } *properties;
 
-/* Avoid pulling in all the include files for no need */
+/* Avoid pulling in all the include files for no need. */
 struct in_addr;
 struct pidfh;
 struct sockaddr;
@@ -132,7 +132,11 @@ int	uu_lock(const char *_ttyname);
 int	uu_unlock(const char *_ttyname);
 int	uu_lock_txfr(const char *_ttyname, pid_t _pid);
 
-#ifdef _STDIO_H_	/* avoid adding new includes */
+/*
+ * Conditionally prototype the following functions if the include
+ * files upon which they depend have been included.
+ */
+#ifdef _STDIO_H_
 char	*fparseln(FILE *_fp, size_t *_len, size_t *_lineno,
 	    const char _delim[3], int _flags);
 #endif
@@ -209,18 +213,18 @@ __END_DECLS
 #define	HD_OMIT_HEX		(1 << 17)
 #define	HD_OMIT_CHARS		(1 << 18)
 
-/* Flags for humanize_number(3) flags. */
+/* Values for humanize_number(3)'s flags parameter. */
 #define	HN_DECIMAL		0x01
 #define	HN_NOSPACE		0x02
 #define	HN_B			0x04
 #define	HN_DIVISOR_1000		0x08
 #define	HN_IEC_PREFIXES		0x10
 
-/* Flags for humanize_number(3) scale. */
+/* Values for humanize_number(3)'s scale parameter. */
 #define	HN_GETSCALE		0x10
 #define	HN_AUTOSCALE		0x20
 
-/* return values from realhostname(). */
+/* Return values from realhostname(). */
 #define	HOSTNAME_FOUND		0
 #define	HOSTNAME_INCORRECTNAME	1
 #define	HOSTNAME_INVALIDADDR	2
