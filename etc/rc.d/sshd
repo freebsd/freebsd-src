@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="sshd"
-rcvar=`set_rcvar`
+rcvar="sshd_enable"
 command="/usr/sbin/${name}"
 keygen_cmd="sshd_keygen"
 start_precmd="sshd_precmd"

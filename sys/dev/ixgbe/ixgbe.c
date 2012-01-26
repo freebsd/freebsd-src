@@ -265,7 +265,7 @@ TUNABLE_INT("hw.ixgbe.enable_msix", &ixgbe_enable_msix);
  * it can be a performance win in some workloads, but
  * in others it actually hurts, its off by default. 
  */
-static bool ixgbe_header_split = FALSE;
+static int ixgbe_header_split = FALSE;
 TUNABLE_INT("hw.ixgbe.hdr_split", &ixgbe_header_split);
 
 /*
@@ -1138,6 +1138,31 @@ ixgbe_init_locked(struct adapter *adapter)
 				msec_delay(1);
 		}
 		wmb();
+#ifdef DEV_NETMAP
+		/*
+		 * In netmap mode, we must preserve the buffers made
+		 * available to userspace before the if_init()
+		 * (this is true by default on the TX side, because
+		 * init makes all buffers available to userspace).
+		 *
+		 * netmap_reset() and the device specific routines
+		 * (e.g. ixgbe_setup_receive_rings()) map these
+		 * buffers at the end of the NIC ring, so here we
+		 * must set the RDT (tail) register to make sure
+		 * they are not overwritten.
+		 *
+		 * In this driver the NIC ring starts at RDH = 0,
+		 * RDT points to the last slot available for reception (?),
+		 * so RDT = num_rx_desc - 1 means the whole ring is available.
+		 */
+		if (ifp->if_capenable & IFCAP_NETMAP) {
+			struct netmap_adapter *na = NA(adapter->ifp);
+			struct netmap_kring *kring = &na->rx_rings[i];
+			int t = na->num_rx_desc - 1 - kring->nr_hwavail;
+
+			IXGBE_WRITE_REG(hw, IXGBE_RDT(i), t);
+		} else
+#endif /* DEV_NETMAP */
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), adapter->num_rx_desc - 1);
 	}
 
@@ -2431,7 +2456,6 @@ ixgbe_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_baudrate = 1000000000;
 	ifp->if_init = ixgbe_init;
 	ifp->if_softc = adapter;
@@ -2877,8 +2901,7 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 
 			if (si >= na->num_tx_desc)
 				si -= na->num_tx_desc;
-			netmap_load_map(txr->txtag, txbuf->map,
-			    NMB(slot + si), na->buff_size);
+			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
 		/* Clear the EOP index */
@@ -3066,7 +3089,7 @@ ixgbe_free_transmit_buffers(struct tx_ring *txr)
  *
  **********************************************************************/
 
-static boolean_t
+static bool
 ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3184,7 +3207,7 @@ ixgbe_tx_ctx_setup(struct tx_ring *txr, struct mbuf *mp)
  *  adapters using advanced tx descriptors
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_tso_setup(struct tx_ring *txr, struct mbuf *mp, u32 *paylen)
 {
 	struct adapter *adapter = txr->adapter;
@@ -3348,7 +3371,7 @@ ixgbe_atr(struct tx_ring *txr, struct mbuf *mp)
  *  tx_buffer is put back on the free queue.
  *
  **********************************************************************/
-static boolean_t
+static bool
 ixgbe_txeof(struct tx_ring *txr)
 {
 	struct adapter	*adapter = txr->adapter;
@@ -3811,16 +3834,15 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 */
 		if (slot) {
 			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (sj >= na->num_rx_desc)
 				sj -= na->num_rx_desc;
-			addr = NMB(slot + sj);
-			netmap_load_map(rxr->ptag,
-			    rxbuf->pmap, addr, na->buff_size);
+			addr = PNMB(slot + sj, &paddr);
+			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
-			rxr->rx_base[j].read.pkt_addr =
-			    htole64(vtophys(addr));
+			rxr->rx_base[j].read.pkt_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
@@ -3906,6 +3928,21 @@ skip_head:
 		lro->ifp = adapter->ifp;
 	}
 
+#ifdef DEV_NETMAP1	/* XXX experimental CRC strip */
+	{
+		struct  ixgbe_hw	*hw = &adapter->hw;
+		u32			rdrxctl;
+
+		rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
+		rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
+		if (slot)
+			rdrxctl &= ~IXGBE_RDRXCTL_CRCSTRIP;
+		else
+			rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
+		rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
+		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
+	}
+#endif /* DEV_NETMAP1 */
 	IXGBE_RX_UNLOCK(rxr);
 	return (0);
 
@@ -3985,6 +4022,12 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
+#ifdef DEV_NETMAP1	/* XXX experimental CRCSTRIP */
+        if (ifp->if_capenable & IFCAP_NETMAP)
+		hlreg &= ~IXGBE_HLREG0_RXCRCSTRP;
+	else
+		hlreg |= IXGBE_HLREG0_RXCRCSTRP;
+#endif /* DEV_NETMAP1 */
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
 	bufsz = (adapter->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
@@ -4016,35 +4059,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 
 		/* Setup the HW Rx Head and Tail Descriptor Pointers */
 		IXGBE_WRITE_REG(hw, IXGBE_RDH(i), 0);
-#ifdef DEV_NETMAP
-		/*
-		 * In netmap mode, we must preserve the buffers made
-		 * available to userspace before the if_init()
-		 * (this is true by default on the TX side, because
-		 * init makes all buffers available to userspace).
-		 *
-		 * netmap_reset() and the device specific routines
-		 * (e.g. ixgbe_setup_receive_rings()) map these
-		 * buffers at the end of the NIC ring, so here we
-		 * must set the RDT (tail) register to make sure
-		 * they are not overwritten.
-		 *
-		 * In this driver the NIC ring starts at RDH = 0,
-		 * RDT points to the first 'busy' slot, so RDT = 0
-		 * means the whole ring is available, and
-		 * RDT = (num_rx_desc - X) means X slots are available.
-		 * Computations are done modulo the ring size.
-		 */
-		if (ifp->if_capenable & IFCAP_NETMAP) {
-			struct netmap_adapter *na = NA(adapter->ifp);
-			struct netmap_kring *kring = &na->rx_rings[i];
-			int t = na->num_rx_desc - kring->nr_hwavail;
-
-			if (t >= na->num_rx_desc)
-				t -= adapter->num_rx_desc;
-			IXGBE_WRITE_REG(hw, IXGBE_RDT(i), t);
-		} else
-#endif /* DEV_NETMAP */
 		IXGBE_WRITE_REG(hw, IXGBE_RDT(i), 0);
 	}
 

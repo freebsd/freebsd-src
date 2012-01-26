@@ -92,6 +92,7 @@ static void restartjob(struct job *);
 #endif
 static void freejob(struct job *);
 static struct job *getjob(char *);
+pid_t getjobpgrp(char *);
 static pid_t dowait(int, struct job *);
 static pid_t waitproc(int, int *);
 static void checkzombies(void);

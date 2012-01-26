@@ -369,7 +369,7 @@ man_display_page() {
 		while getopts 'egprtv' preproc_arg; do
 			case "${preproc_arg}" in
 			e)	pipeline="$pipeline | $EQN" ;;
-			g)	;; # Ignore for compatability.
+			g)	;; # Ignore for compatibility.
 			p)	pipeline="$pipeline | $PIC" ;;
 			r)	pipeline="$pipeline | $REFER" ;;
 			t)	pipeline="$pipeline | $TBL" ;;

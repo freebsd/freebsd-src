@@ -165,12 +165,27 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/* Samsung Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD155UI*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Samsung Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "SAMSUNG HD204UI*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/* Seagate Barracuda Green Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DL*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST???DM*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Barracuda Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST????DM*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -185,12 +200,27 @@ static struct ada_quirk_entry ada_quirk_table[] =
 	},
 	{
 		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9640423AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9640424AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750420AS*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
 		/* Seagate Momentus Advanced Format (4k) drives */
 		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750422AS*", "*" },
+		/*quirks*/ADA_Q_4K
+	},
+	{
+		/* Seagate Momentus Advanced Format (4k) drives */
+		{ T_DIRECT, SIP_MEDIA_FIXED, "*", "ST9750423AS*", "*" },
 		/*quirks*/ADA_Q_4K
 	},
 	{
@@ -463,13 +493,6 @@ adaclose(struct disk *dp)
 
 		if ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 			xpt_print(periph->path, "Synchronize cache failed\n");
-
-		if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-			cam_release_devq(ccb->ccb_h.path,
-					 /*relsim_flags*/0,
-					 /*reduction*/0,
-					 /*timeout*/0,
-					 /*getcount_only*/0);
 		xpt_release_ccb(ccb);
 	}
 

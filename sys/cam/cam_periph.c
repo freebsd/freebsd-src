@@ -171,14 +171,16 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 			return (CAM_REQ_INPROG);
 		} else {
 			printf("cam_periph_alloc: attempt to re-allocate "
-			       "valid device %s%d rejected\n",
-			       periph->periph_name, periph->unit_number);
+			       "valid device %s%d rejected flags %#x "
+			       "refcount %d\n", periph->periph_name,
+			       periph->unit_number, periph->flags,
+			       periph->refcount);
 		}
 		return (CAM_REQ_INVALID);
 	}
 	
 	periph = (struct cam_periph *)malloc(sizeof(*periph), M_CAMPERIPH,
-					     M_NOWAIT);
+					     M_NOWAIT|M_ZERO);
 
 	if (periph == NULL)
 		return (CAM_RESRC_UNAVAIL);
@@ -190,7 +192,6 @@ cam_periph_alloc(periph_ctor_t *periph_ctor,
 	path_id = xpt_path_path_id(path);
 	target_id = xpt_path_target_id(path);
 	lun_id = xpt_path_lun_id(path);
-	bzero(periph, sizeof(*periph));
 	cam_init_pinfo(&periph->pinfo);
 	periph->periph_start = periph_start;
 	periph->periph_dtor = periph_dtor;
@@ -305,17 +306,20 @@ cam_periph_find(struct cam_path *path, char *name)
 }
 
 /*
- * Find a peripheral structure with the specified path, target, lun, 
- * and (optionally) type.  If the name is NULL, this function will return
- * the first peripheral driver that matches the specified path.
+ * Find peripheral driver instances attached to the specified path.
  */
 int
 cam_periph_list(struct cam_path *path, struct sbuf *sb)
 {
+	struct sbuf local_sb;
 	struct periph_driver **p_drv;
 	struct cam_periph *periph;
 	int count;
+	int sbuf_alloc_len;
 
+	sbuf_alloc_len = 16;
+retry:
+	sbuf_new(&local_sb, NULL, sbuf_alloc_len, SBUF_FIXEDLEN);
 	count = 0;
 	xpt_lock_buses();
 	for (p_drv = periph_drivers; *p_drv != NULL; p_drv++) {
@@ -324,30 +328,60 @@ cam_periph_list(struct cam_path *path, struct sbuf *sb)
 			if (xpt_path_comp(periph->path, path) != 0)
 				continue;
 
-			if (sbuf_len(sb) != 0)
-				sbuf_cat(sb, ",");
+			if (sbuf_len(&local_sb) != 0)
+				sbuf_cat(&local_sb, ",");
 
-			sbuf_printf(sb, "%s%d", periph->periph_name,
+			sbuf_printf(&local_sb, "%s%d", periph->periph_name,
 				    periph->unit_number);
+
+			if (sbuf_error(&local_sb) == ENOMEM) {
+				sbuf_alloc_len *= 2;
+				xpt_unlock_buses();
+				sbuf_delete(&local_sb);
+				goto retry;
+			}
 			count++;
 		}
 	}
 	xpt_unlock_buses();
+	sbuf_finish(&local_sb);
+	sbuf_cpy(sb, sbuf_data(&local_sb));
+	sbuf_delete(&local_sb);
 	return (count);
 }
 
 cam_status
 cam_periph_acquire(struct cam_periph *periph)
 {
+	cam_status status;
 
+	status = CAM_REQ_CMP_ERR;
 	if (periph == NULL)
-		return(CAM_REQ_CMP_ERR);
+		return (status);
 
 	xpt_lock_buses();
-	periph->refcount++;
+	if ((periph->flags & CAM_PERIPH_INVALID) == 0) {
+		periph->refcount++;
+		status = CAM_REQ_CMP;
+	}
 	xpt_unlock_buses();
 
-	return(CAM_REQ_CMP);
+	return (status);
+}
+
+void
+cam_periph_release_locked_buses(struct cam_periph *periph)
+{
+	if (periph->refcount != 0) {
+		periph->refcount--;
+	} else {
+		panic("%s: release of %p when refcount is zero\n ", __func__,
+		      periph);
+	}
+	if (periph->refcount == 0
+	    && (periph->flags & CAM_PERIPH_INVALID)) {
+		camperiphfree(periph);
+	}
 }
 
 void
@@ -358,15 +392,7 @@ cam_periph_release_locked(struct cam_periph *periph)
 		return;
 
 	xpt_lock_buses();
-	if (periph->refcount != 0) {
-		periph->refcount--;
-	} else {
-		xpt_print(periph->path, "%s: release %p when refcount is zero\n ", __func__, periph);
-	}
-	if (periph->refcount == 0
-	    && (periph->flags & CAM_PERIPH_INVALID)) {
-		camperiphfree(periph);
-	}
+	cam_periph_release_locked_buses(periph);
 	xpt_unlock_buses();
 }
 
@@ -1812,9 +1838,6 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 		error = EIO;
 		break;
 	case CAM_SEL_TIMEOUT:
-	{
-		struct cam_path *newpath;
-
 		if ((camflags & CAM_RETRY_SELTO) != 0) {
 			if (ccb->ccb_h.retry_count > 0 &&
 			    (periph->flags & CAM_PERIPH_INVALID) == 0) {
@@ -1837,12 +1860,30 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 			}
 			action_string = "Retries exhausted";
 		}
+		/* FALLTHROUGH */
+	case CAM_DEV_NOT_THERE:
+	{
+		struct cam_path *newpath;
+		lun_id_t lun_id;
+
 		error = ENXIO;
+
+		/*
+		 * For a selection timeout, we consider all of the LUNs on
+		 * the target to be gone.  If the status is CAM_DEV_NOT_THERE,
+		 * then we only get rid of the device(s) specified by the
+		 * path in the original CCB.
+		 */
+		if (status == CAM_DEV_NOT_THERE)
+			lun_id = xpt_path_lun_id(ccb->ccb_h.path);
+		else
+			lun_id = CAM_LUN_WILDCARD;
+
 		/* Should we do more if we can't create the path?? */
 		if (xpt_create_path(&newpath, periph,
 				    xpt_path_path_id(ccb->ccb_h.path),
 				    xpt_path_target_id(ccb->ccb_h.path),
-				    CAM_LUN_WILDCARD) != CAM_REQ_CMP) 
+				    lun_id) != CAM_REQ_CMP) 
 			break;
 
 		/*
@@ -1855,7 +1896,6 @@ cam_periph_error(union ccb *ccb, cam_flags camflags,
 	}
 	case CAM_REQ_INVALID:
 	case CAM_PATH_INVALID:
-	case CAM_DEV_NOT_THERE:
 	case CAM_NO_HBA:
 	case CAM_PROVIDE_FAIL:
 	case CAM_REQ_TOO_BIG:

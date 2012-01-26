@@ -572,26 +572,18 @@ nd6_timer(void *arg)
 {
 	CURVNET_SET((struct vnet *) arg);
 	int s;
-	struct nd_defrouter *dr;
-	struct nd_prefix *pr;
+	struct nd_defrouter *dr, *ndr;
+	struct nd_prefix *pr, *npr;
 	struct in6_ifaddr *ia6, *nia6;
-	struct in6_addrlifetime *lt6;
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
 	    nd6_timer, curvnet);
 
 	/* expire default router list */
 	s = splnet();
-	dr = TAILQ_FIRST(&V_nd_defrouter);
-	while (dr) {
-		if (dr->expire && dr->expire < time_second) {
-			struct nd_defrouter *t;
-			t = TAILQ_NEXT(dr, dr_entry);
+	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
+		if (dr->expire && dr->expire < time_second)
 			defrtrlist_del(dr);
-			dr = t;
-		} else {
-			dr = TAILQ_NEXT(dr, dr_entry);
-		}
 	}
 
 	/*
@@ -605,7 +597,6 @@ nd6_timer(void *arg)
   addrloop:
 	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
-		lt6 = &ia6->ia6_lifetime;
 		if (IFA6_IS_INVALID(ia6)) {
 			int regen = 0;
 
@@ -668,8 +659,7 @@ nd6_timer(void *arg)
 	}
 
 	/* expire prefix list */
-	pr = V_nd_prefix.lh_first;
-	while (pr) {
+	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
 		/*
 		 * check prefix lifetime.
 		 * since pltime is just for autoconf, pltime processing for
@@ -677,18 +667,13 @@ nd6_timer(void *arg)
 		 */
 		if (pr->ndpr_vltime != ND6_INFINITE_LIFETIME &&
 		    time_second - pr->ndpr_lastupdate > pr->ndpr_vltime) {
-			struct nd_prefix *t;
-			t = pr->ndpr_next;
 
 			/*
 			 * address expiration and prefix expiration are
 			 * separate.  NEVER perform in6_purgeaddr here.
 			 */
-
 			prelist_remove(pr);
-			pr = t;
-		} else
-			pr = pr->ndpr_next;
+		}
 	}
 	splx(s);
 	CURVNET_RESTORE();
@@ -705,7 +690,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 	struct in6_ifaddr *public_ifa6 = NULL;
 
 	ifp = ia6->ia_ifa.ifa_ifp;
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		struct in6_ifaddr *it6;
 
@@ -747,7 +732,7 @@ regen_tmpaddr(struct in6_ifaddr *ia6)
 		if (public_ifa6 != NULL)
 			ifa_ref(&public_ifa6->ia_ifa);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	if (public_ifa6 != NULL) {
 		int e;
@@ -781,8 +766,7 @@ nd6_purge(struct ifnet *ifp)
 	 * in the routing table, in order to keep additional side effects as
 	 * small as possible.
 	 */
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr; dr = ndr) {
-		ndr = TAILQ_NEXT(dr, dr_entry);
+	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
 		if (dr->installed)
 			continue;
 
@@ -790,8 +774,7 @@ nd6_purge(struct ifnet *ifp)
 			defrtrlist_del(dr);
 	}
 
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr; dr = ndr) {
-		ndr = TAILQ_NEXT(dr, dr_entry);
+	TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, ndr) {
 		if (!dr->installed)
 			continue;
 
@@ -800,8 +783,7 @@ nd6_purge(struct ifnet *ifp)
 	}
 
 	/* Nuke prefix list entries toward ifp */
-	for (pr = V_nd_prefix.lh_first; pr; pr = npr) {
-		npr = pr->ndpr_next;
+	LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, npr) {
 		if (pr->ndpr_ifp == ifp) {
 			/*
 			 * Because if_detach() does *not* release prefixes
@@ -912,7 +894,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * If the address matches one of our on-link prefixes, it should be a
 	 * neighbor.
 	 */
-	for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		if (pr->ndpr_ifp != ifp)
 			continue;
 
@@ -962,7 +944,7 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * as on-link, and thus, as a neighbor.
 	 */
 	if (ND_IFINFO(ifp)->flags & ND6_IFF_ACCEPT_RTADV &&
-	    TAILQ_FIRST(&V_nd_defrouter) == NULL &&
+	    TAILQ_EMPTY(&V_nd_defrouter) &&
 	    V_nd6_defifindex == ifp->if_index) {
 		return (1);
 	}
@@ -1234,8 +1216,9 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 */
 		bzero(drl, sizeof(*drl));
 		s = splnet();
-		dr = TAILQ_FIRST(&V_nd_defrouter);
-		while (dr && i < DRLSTSIZ) {
+		TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
+			if (i >= DRLSTSIZ)
+				break;
 			drl->defrouter[i].rtaddr = dr->rtaddr;
 			in6_clearscope(&drl->defrouter[i].rtaddr);
 
@@ -1244,7 +1227,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			drl->defrouter[i].expire = dr->expire;
 			drl->defrouter[i].if_index = dr->ifp->if_index;
 			i++;
-			dr = TAILQ_NEXT(dr, dr_entry);
 		}
 		splx(s);
 		break;
@@ -1263,11 +1245,12 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		 */
 		bzero(oprl, sizeof(*oprl));
 		s = splnet();
-		pr = V_nd_prefix.lh_first;
-		while (pr && i < PRLSTSIZ) {
+		LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 			struct nd_pfxrouter *pfr;
 			int j;
 
+			if (i >= PRLSTSIZ)
+				break;
 			oprl->prefix[i].prefix = pr->ndpr_prefix.sin6_addr;
 			oprl->prefix[i].raflags = pr->ndpr_raf;
 			oprl->prefix[i].prefixlen = pr->ndpr_plen;
@@ -1292,9 +1275,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					oprl->prefix[i].expire = maxexpire;
 			}
 
-			pfr = pr->ndpr_advrtrs.lh_first;
 			j = 0;
-			while (pfr) {
+			LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 				if (j < DRLSTSIZ) {
 #define RTRADDR oprl->prefix[i].advrtr[j]
 					RTRADDR = pfr->router->rtaddr;
@@ -1302,13 +1284,11 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 #undef RTRADDR
 				}
 				j++;
-				pfr = pfr->pfr_next;
 			}
 			oprl->prefix[i].advrtrs = j;
 			oprl->prefix[i].origin = PR_ORIG_RA;
 
 			i++;
-			pr = pr->ndpr_next;
 		}
 		splx(s);
 
@@ -1384,7 +1364,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			 */
 			int duplicated_linklocal = 0;
 
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
@@ -1395,7 +1375,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 					break;
 				}
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 
 			if (duplicated_linklocal) {
 				ND.flags |= ND6_IFF_IFDISABLED;
@@ -1413,14 +1393,14 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			/* Mark all IPv6 address as tentative. */
 
 			ND_IFINFO(ifp)->flags |= ND6_IFF_IFDISABLED;
-			IF_ADDR_LOCK(ifp);
+			IF_ADDR_RLOCK(ifp);
 			TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 				if (ifa->ifa_addr->sa_family != AF_INET6)
 					continue;
 				ia = (struct in6_ifaddr *)ifa;
 				ia->ia6_flags |= IN6_IFF_TENTATIVE;
 			}
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 		}
 
 		if (ND.flags & ND6_IFF_AUTO_LINKLOCAL) {
@@ -1440,7 +1420,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 				 */
 				int haslinklocal = 0;
 			
-				IF_ADDR_LOCK(ifp);
+				IF_ADDR_RLOCK(ifp);
 				TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 					if (ifa->ifa_addr->sa_family != AF_INET6)
 						continue;
@@ -1450,7 +1430,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 						break;
 					}
 				}
-				IF_ADDR_UNLOCK(ifp);
+				IF_ADDR_RUNLOCK(ifp);
 				if (!haslinklocal)
 					in6_ifattach(ifp, NULL);
 			}
@@ -1470,10 +1450,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		struct nd_prefix *pr, *next;
 
 		s = splnet();
-		for (pr = V_nd_prefix.lh_first; pr; pr = next) {
+		LIST_FOREACH_SAFE(pr, &V_nd_prefix, ndpr_entry, next) {
 			struct in6_ifaddr *ia, *ia_next;
-
-			next = pr->ndpr_next;
 
 			if (IN6_IS_ADDR_LINKLOCAL(&pr->ndpr_prefix.sin6_addr))
 				continue; /* XXX */
@@ -1500,8 +1478,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 
 		s = splnet();
 		defrouter_reset();
-		for (dr = TAILQ_FIRST(&V_nd_defrouter); dr; dr = next) {
-			next = TAILQ_NEXT(dr, dr_entry);
+		TAILQ_FOREACH_SAFE(dr, &V_nd_defrouter, dr_entry, next) {
 			defrtrlist_del(dr);
 		}
 		defrouter_select();
@@ -1824,8 +1801,7 @@ nd6_slowtimo(void *arg)
 	callout_reset(&V_nd6_slowtimo_ch, ND6_SLOWTIMER_INTERVAL * hz,
 	    nd6_slowtimo, curvnet);
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	    ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		nd6if = ND_IFINFO(ifp);
 		if (nd6if->basereachable && /* already initialized */
 		    (nd6if->recalctm -= ND6_SLOWTIMER_INTERVAL) <= 0) {
@@ -2173,9 +2149,6 @@ nd6_need_cache(struct ifnet *ifp)
 #ifdef IFT_IEEE80211
 	case IFT_IEEE80211:
 #endif
-#ifdef IFT_CARP
-	case IFT_CARP:
-#endif
 	case IFT_INFINIBAND:
 	case IFT_GIF:		/* XXX need more cases? */
 	case IFT_PPP:
@@ -2297,8 +2270,7 @@ nd6_sysctl_drlist(SYSCTL_HANDLER_ARGS)
 		return EPERM;
 	error = 0;
 
-	for (dr = TAILQ_FIRST(&V_nd_defrouter); dr;
-	     dr = TAILQ_NEXT(dr, dr_entry)) {
+	TAILQ_FOREACH(dr, &V_nd_defrouter, dr_entry) {
 		d = (struct in6_defrouter *)buf;
 		de = (struct in6_defrouter *)(buf + sizeof(buf));
 
@@ -2338,7 +2310,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 		return EPERM;
 	error = 0;
 
-	for (pr = V_nd_prefix.lh_first; pr; pr = pr->ndpr_next) {
+	LIST_FOREACH(pr, &V_nd_prefix, ndpr_entry) {
 		u_short advrtrs;
 		size_t advance;
 		struct sockaddr_in6 *sin6, *s6;
@@ -2383,8 +2355,7 @@ nd6_sysctl_prlist(SYSCTL_HANDLER_ARGS)
 			p->flags = pr->ndpr_stateflags;
 			p->origin = PR_ORIG_RA;
 			advrtrs = 0;
-			for (pfr = pr->ndpr_advrtrs.lh_first; pfr;
-			     pfr = pfr->pfr_next) {
+			LIST_FOREACH(pfr, &pr->ndpr_advrtrs, pfr_entry) {
 				if ((void *)&sin6[advrtrs + 1] > (void *)pe) {
 					advrtrs++;
 					continue;

@@ -360,7 +360,7 @@ err1:
 		fprintf(stderr, "error sending stop condtion\n");
 err2:
 	if (err_msg)
-		fprintf(stderr, err_msg);
+		fprintf(stderr, "%s", err_msg);
 
 	close(fd);
 	return (1);
@@ -453,7 +453,7 @@ err1:
 		fprintf(stderr, "error sending stop condtion\n");
 err2:
 	if (err_msg)
-		fprintf(stderr, err_msg);
+		fprintf(stderr, "%s", err_msg);
 
 	close(fd);
 	return (1);
@@ -464,7 +464,7 @@ main(int argc, char** argv)
 {
 	struct iiccmd cmd;
 	struct options i2c_opt;
-	char *dev, *skip_addr, *err_msg, *i2c_buf;
+	char *dev, *skip_addr, *i2c_buf;
 	int error, chunk_size, i, j, ch;
 
 	errno = 0;
@@ -474,7 +474,6 @@ main(int argc, char** argv)
 	chunk_size = 16;
 
 	dev = I2C_DEV;
-	err_msg = NULL;
 
 	/* Default values */
 	i2c_opt.addr_set = 0;

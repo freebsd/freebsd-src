@@ -81,7 +81,7 @@ SOFTWARE.
  *
  *	    A generalized hash function, hash_HashFunction(), is included
  *	    with this package to make things a little easier.  It is not
- *	    guarenteed to use the best hash algorithm in existence. . . .
+ *	    guaranteed to use the best hash algorithm in existence. . . .
  */
 
 

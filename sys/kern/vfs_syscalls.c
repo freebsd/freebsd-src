@@ -86,6 +86,8 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/uma.h>
 
+#include <ufs/ufs/quota.h>
+
 static MALLOC_DEFINE(M_FADVISE, "fadvise", "posix_fadvise(2) information");
 
 SDT_PROVIDER_DEFINE(vfs);
@@ -212,7 +214,20 @@ sys_quotactl(td, uap)
 		return (error);
 	}
 	error = VFS_QUOTACTL(mp, uap->cmd, uap->uid, uap->arg);
-	vfs_unbusy(mp);
+
+	/*
+	 * Since quota on operation typically needs to open quota
+	 * file, the Q_QUOTAON handler needs to unbusy the mount point
+	 * before calling into namei.  Otherwise, unmount might be
+	 * started between two vfs_busy() invocations (first is our,
+	 * second is from mount point cross-walk code in lookup()),
+	 * causing deadlock.
+	 *
+	 * Require that Q_QUOTAON handles the vfs_busy() reference on
+	 * its own, always returning with ubusied mount point.
+	 */
+	if ((uap->cmd >> SUBCMDSHIFT) != Q_QUOTAON)
+		vfs_unbusy(mp);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }
@@ -880,7 +895,8 @@ chroot_refuse_vdir_fds(fdp)
 static int chroot_allow_open_directories = 1;
 
 SYSCTL_INT(_kern, OID_AUTO, chroot_allow_open_directories, CTLFLAG_RW,
-     &chroot_allow_open_directories, 0, "");
+     &chroot_allow_open_directories, 0,
+     "Allow a process to chroot(2) if it has a directory open");
 
 /*
  * Change notion of root (``/'') directory.
@@ -2049,6 +2065,7 @@ sys_lseek(td, uap)
 	if (error != 0)
 		goto drop;
 	fp->f_offset = offset;
+	VFS_KNOTE_UNLOCKED(vp, 0);
 	*(off_t *)(td->td_retval) = fp->f_offset;
 drop:
 	fdrop(fp, td);

@@ -831,6 +831,7 @@ moea64_mid_bootstrap(mmu_t mmup, vm_offset_t kernelstart, vm_offset_t kernelend)
 
 	kernel_pmap->pmap_phys = kernel_pmap;
 	CPU_FILL(&kernel_pmap->pm_active);
+	LIST_INIT(&kernel_pmap->pmap_pvo);
 
 	PMAP_LOCK_INIT(kernel_pmap);
 
@@ -1401,7 +1402,6 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
 	 * kmem allocation routines, calling kmem for a new address here
 	 * can lead to multiply locking non-recursive mutexes.
 	 */
-	static vm_pindex_t color;
         vm_offset_t va;
 
         vm_page_t m;
@@ -1421,7 +1421,7 @@ moea64_uma_page_alloc(uma_zone_t zone, int bytes, u_int8_t *flags, int wait)
                 pflags |= VM_ALLOC_ZERO;
 
         for (;;) {
-                m = vm_page_alloc(NULL, color++, pflags | VM_ALLOC_NOOBJ);
+                m = vm_page_alloc(NULL, 0, pflags | VM_ALLOC_NOOBJ);
                 if (m == NULL) {
                         if (wait & M_NOWAIT)
                                 return (NULL);
@@ -1855,6 +1855,7 @@ void
 moea64_pinit(mmu_t mmu, pmap_t pmap)
 {
 	PMAP_LOCK_INIT(pmap);
+	LIST_INIT(&pmap->pmap_pvo);
 
 	pmap->pm_slb_tree_root = slb_alloc_tree();
 	pmap->pm_slb = slb_alloc_user_cache();
@@ -1868,6 +1869,7 @@ moea64_pinit(mmu_t mmu, pmap_t pmap)
 	uint32_t hash;
 
 	PMAP_LOCK_INIT(pmap);
+	LIST_INIT(&pmap->pmap_pvo);
 
 	if (pmap_bootstrapped)
 		pmap->pmap_phys = (pmap_t)moea64_kextract(mmu,
@@ -2034,10 +2036,18 @@ moea64_remove(mmu_t mmu, pmap_t pm, vm_offset_t sva, vm_offset_t eva)
 
 	vm_page_lock_queues();
 	PMAP_LOCK(pm);
-	for (; sva < eva; sva += PAGE_SIZE) {
-		pvo = moea64_pvo_find_va(pm, sva);
-		if (pvo != NULL)
+	if ((eva - sva)/PAGE_SIZE < 10) {
+		for (; sva < eva; sva += PAGE_SIZE) {
+			pvo = moea64_pvo_find_va(pm, sva);
+			if (pvo != NULL)
+				moea64_pvo_remove(mmu, pvo);
+		}
+	} else {
+		LIST_FOREACH(pvo, &pm->pmap_pvo, pvo_plink) {
+			if (PVO_VADDR(pvo) < sva || PVO_VADDR(pvo) >= eva)
+				continue;
 			moea64_pvo_remove(mmu, pvo);
+		}
 	}
 	vm_page_unlock_queues();
 	PMAP_UNLOCK(pm);
@@ -2231,6 +2241,11 @@ moea64_pvo_enter(mmu_t mmu, pmap_t pm, uma_zone_t zone,
 	    (uint64_t)(pa) | pte_lo, flags);
 
 	/*
+	 * Add to pmap list
+	 */
+	LIST_INSERT_HEAD(&pm->pmap_pvo, pvo, pvo_plink);
+
+	/*
 	 * Remember if the list was empty and therefore will be the first
 	 * item.
 	 */
@@ -2311,9 +2326,10 @@ moea64_pvo_remove(mmu_t mmu, struct pvo_entry *pvo)
 	}
 
 	/*
-	 * Remove this PVO from the PV list.
+	 * Remove this PVO from the PV and pmap lists.
 	 */
 	LIST_REMOVE(pvo, pvo_vlink);
+	LIST_REMOVE(pvo, pvo_plink);
 
 	/*
 	 * Remove this from the overflow list and return it to the pool

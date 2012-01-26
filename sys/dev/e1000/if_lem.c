@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2011, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -35,6 +35,7 @@
 #ifdef HAVE_KERNEL_OPTION_HEADERS
 #include "opt_device_polling.h"
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #endif
 
 #include <sys/param.h>
@@ -84,7 +85,7 @@
 /*********************************************************************
  *  Legacy Em Driver version:
  *********************************************************************/
-char lem_driver_version[] = "1.0.3";
+char lem_driver_version[] = "1.0.4";
 
 /*********************************************************************
  *  PCI Device ID Table
@@ -390,6 +391,11 @@ lem_attach(device_t dev)
 
 	INIT_DEBUGOUT("lem_attach: begin");
 
+	if (resource_disabled("lem", device_get_unit(dev))) {
+		device_printf(dev, "Disabled by device hint\n");
+		return (ENXIO);
+	}
+
 	adapter = device_get_softc(dev);
 	adapter->dev = adapter->osdep.dev = dev;
 	EM_CORE_LOCK_INIT(adapter, device_get_nameunit(dev));
@@ -453,7 +459,7 @@ lem_attach(device_t dev)
 
         /* Sysctl for setting the interface flow control */
 	lem_set_flow_cntrl(adapter, "flow_control",
-	    "max number of rx packets to process",
+	    "flow control setting",
 	    &adapter->fc_setting, lem_fc_setting);
 
 	/*
@@ -890,11 +896,12 @@ static int
 lem_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 {
 	struct adapter	*adapter = ifp->if_softc;
-	struct ifreq *ifr = (struct ifreq *)data;
-#ifdef INET
-	struct ifaddr *ifa = (struct ifaddr *)data;
+	struct ifreq	*ifr = (struct ifreq *)data;
+#if defined(INET) || defined(INET6)
+	struct ifaddr	*ifa = (struct ifaddr *)data;
 #endif
-	int error = 0;
+	bool		avoid_reset = FALSE;
+	int		error = 0;
 
 	if (adapter->in_detach)
 		return (error);
@@ -902,23 +909,26 @@ lem_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	switch (command) {
 	case SIOCSIFADDR:
 #ifdef INET
-		if (ifa->ifa_addr->sa_family == AF_INET) {
-			/*
-			 * XXX
-			 * Since resetting hardware takes a very long time
-			 * and results in link renegotiation we only
-			 * initialize the hardware only when it is absolutely
-			 * required.
-			 */
-			ifp->if_flags |= IFF_UP;
-			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING)) {
-				EM_CORE_LOCK(adapter);
-				lem_init_locked(adapter);
-				EM_CORE_UNLOCK(adapter);
-			}
-			arp_ifinit(ifp, ifa);
-		} else
+		if (ifa->ifa_addr->sa_family == AF_INET)
+			avoid_reset = TRUE;
 #endif
+#ifdef INET6
+		if (ifa->ifa_addr->sa_family == AF_INET6)
+			avoid_reset = TRUE;
+#endif
+		/*
+		** Calling init results in link renegotiation,
+		** so we avoid doing it when possible.
+		*/
+		if (avoid_reset) {
+			ifp->if_flags |= IFF_UP;
+			if (!(ifp->if_drv_flags & IFF_DRV_RUNNING))
+				lem_init(adapter);
+#ifdef INET
+			if (!(ifp->if_flags & IFF_NOARP))
+				arp_ifinit(ifp, ifa);
+#endif
+		} else
 			error = ether_ioctl(ifp, command, data);
 		break;
 	case SIOCSIFMTU:
@@ -1217,9 +1227,6 @@ lem_init_locked(struct adapter *adapter)
 	/* AMT based hardware can now take control from firmware */
 	if (adapter->has_manage && adapter->has_amt)
 		lem_get_hw_control(adapter);
-
-	/* Don't reset the phy next time init gets called */
-	adapter->hw.phy.reset_disable = TRUE;
 }
 
 static void
@@ -1517,11 +1524,6 @@ lem_media_change(struct ifnet *ifp)
 	default:
 		device_printf(adapter->dev, "Unsupported media type\n");
 	}
-
-	/* As the speed/duplex settings my have changed we need to
-	 * reset the PHY.
-	 */
-	adapter->hw.phy.reset_disable = FALSE;
 
 	lem_init_locked(adapter);
 	EM_CORE_UNLOCK(adapter);
@@ -2352,7 +2354,6 @@ lem_setup_interface(device_t dev, struct adapter *adapter)
 		return (-1);
 	}
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_init =  lem_init;
 	ifp->if_softc = adapter;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -2669,16 +2670,15 @@ lem_setup_transmit_structures(struct adapter *adapter)
 		if (slot) {
 			/* slot si is mapped to the i-th NIC-ring entry */
 			int si = i + na->tx_rings[0].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (si > na->num_tx_desc)
 				si -= na->num_tx_desc;
-			addr = NMB(slot + si);
-			adapter->tx_desc_base[si].buffer_addr =
-			    htole64(vtophys(addr));
+			addr = PNMB(slot + si, &paddr);
+			adapter->tx_desc_base[si].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
-			netmap_load_map(adapter->txtag,
-			    tx_buffer->map, addr, na->buff_size);
+			netmap_load_map(adapter->txtag, tx_buffer->map, addr);
 		}
 #endif /* DEV_NETMAP */
 		tx_buffer->next_eop = -1;
@@ -3246,16 +3246,15 @@ lem_setup_receive_structures(struct adapter *adapter)
 		if (slot) {
 			/* slot si is mapped to the i-th NIC-ring entry */
 			int si = i + na->rx_rings[0].nkr_hwofs;
+			uint64_t paddr;
 			void *addr;
 
 			if (si > na->num_rx_desc)
 				si -= na->num_rx_desc;
-			addr = NMB(slot + si);
-			netmap_load_map(adapter->rxtag,
-			    rx_buffer->map, addr, na->buff_size);
+			addr = PNMB(slot + si, &paddr);
+			netmap_load_map(adapter->rxtag, rx_buffer->map, addr);
 			/* Update descriptor */
-			adapter->rx_desc_base[i].buffer_addr =
-			    htole64(vtophys(addr));
+			adapter->rx_desc_base[i].buffer_addr = htole64(paddr);
 			continue;
 		}
 #endif /* DEV_NETMAP */
@@ -3589,8 +3588,7 @@ lem_rxeof(struct adapter *adapter, int count, int *done)
 #endif
 				if (status & E1000_RXD_STAT_VP) {
 					adapter->fmp->m_pkthdr.ether_vtag =
-					    (le16toh(current_desc->special) &
-					    E1000_RXD_SPC_VLAN_MASK);
+					    le16toh(current_desc->special);
 					adapter->fmp->m_flags |= M_VLANTAG;
 				}
 #ifndef __NO_STRICT_ALIGNMENT

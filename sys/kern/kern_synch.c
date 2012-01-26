@@ -158,7 +158,7 @@ _sleep(void *ident, struct lock_object *lock, int priority,
 	else
 		class = NULL;
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -260,7 +260,7 @@ msleep_spin(void *ident, struct mtx *mtx, const char *wmesg, int timo)
 	KASSERT(p != NULL, ("msleep1"));
 	KASSERT(ident != NULL && TD_IS_RUNNING(td), ("msleep"));
 
-	if (cold) {
+	if (cold || SCHEDULER_STOPPED()) {
 		/*
 		 * During autoconfiguration, just return;
 		 * don't run any other threads or panic below,
@@ -429,6 +429,8 @@ mi_switch(int flags, struct thread *newtd)
 	 */
 	if (kdb_active)
 		kdb_switch();
+	if (SCHEDULER_STOPPED())
+		return;
 	if (flags & SW_VOL) {
 		td->td_ru.ru_nvcsw++;
 		td->td_swvoltick = ticks;

@@ -2150,7 +2150,7 @@ usbd_callback_wrapper(struct usb_xfer_queue *pq)
 	struct usb_xfer_root *info = xfer->xroot;
 
 	USB_BUS_LOCK_ASSERT(info->bus, MA_OWNED);
-	if (!mtx_owned(info->xfer_mtx)) {
+	if (!mtx_owned(info->xfer_mtx) && !SCHEDULER_STOPPED()) {
 		/*
 	       	 * Cases that end up here:
 		 *
@@ -3119,14 +3119,14 @@ usbd_transfer_poll(struct usb_xfer **ppxfer, uint16_t max)
 
 		/* make sure that the BUS mutex is not locked */
 		drop_bus = 0;
-		while (mtx_owned(&xroot->udev->bus->bus_mtx)) {
+		while (mtx_owned(&xroot->udev->bus->bus_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(&xroot->udev->bus->bus_mtx);
 			drop_bus++;
 		}
 
 		/* make sure that the transfer mutex is not locked */
 		drop_xfer = 0;
-		while (mtx_owned(xroot->xfer_mtx)) {
+		while (mtx_owned(xroot->xfer_mtx) && !SCHEDULER_STOPPED()) {
 			mtx_unlock(xroot->xfer_mtx);
 			drop_xfer++;
 		}

@@ -63,6 +63,7 @@
 
 #include <netinet/in.h>
 #include <netinet/if_ether.h>
+#include <netinet/ip_carp.h>
 #ifdef INET6
 #include <netinet6/scope6_var.h>
 #endif
@@ -83,7 +84,7 @@ struct if_data32 {
 	uint8_t	ifi_addrlen;
 	uint8_t	ifi_hdrlen;
 	uint8_t	ifi_link_state;
-	uint8_t	ifi_spare_char1;
+	uint8_t	ifi_vhid;
 	uint8_t	ifi_spare_char2;
 	uint8_t	ifi_datalen;
 	uint32_t ifi_mtu;
@@ -121,6 +122,9 @@ MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 /* NB: these are not modified */
 static struct	sockaddr route_src = { 2, PF_ROUTE, };
 static struct	sockaddr sa_zero   = { sizeof(sa_zero), AF_INET, };
+
+/* These are external hooks for CARP. */
+int	(*carp_get_vhid_p)(struct ifaddr *);
 
 /*
  * Used by rtsock/raw_input callback code to decide whether to filter the update
@@ -452,7 +456,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -464,7 +468,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -494,7 +498,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 		 * Try to find an address on the given outgoing interface
 		 * that belongs to the jail.
 		 */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			struct sockaddr *sa;
 			sa = ifa->ifa_addr;
@@ -507,7 +511,7 @@ rtm_get_jailed(struct rt_addrinfo *info, struct ifnet *ifp,
 				break;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		if (!found) {
 			/*
 			 * As a last resort return the 'default' jail address.
@@ -1508,6 +1512,7 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 	CP(*src, *dst, ifi_addrlen);
 	CP(*src, *dst, ifi_hdrlen);
 	CP(*src, *dst, ifi_link_state);
+	CP(*src, *dst, ifi_vhid);
 	dst->ifi_datalen = sizeof(struct if_data32);
 	CP(*src, *dst, ifi_mtu);
 	CP(*src, *dst, ifi_metric);
@@ -1542,7 +1547,7 @@ sysctl_iflist(int af, struct walkarg *w)
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (w->w_arg && w->w_arg != ifp->if_index)
 			continue;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa->ifa_addr;
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
@@ -1559,6 +1564,9 @@ sysctl_iflist(int af, struct walkarg *w)
 				ifm32->ifm_flags = ifp->if_flags |
 				    ifp->if_drv_flags;
 				copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+				if (carp_get_vhid_p != NULL)
+					ifm32->ifm_data.ifi_vhid =
+					    (*carp_get_vhid_p)(ifa);
 				ifm32->ifm_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, (caddr_t)ifm32,
 				    len);
@@ -1569,6 +1577,9 @@ sysctl_iflist(int af, struct walkarg *w)
 			ifm->ifm_index = ifp->if_index;
 			ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
 			ifm->ifm_data = ifp->if_data;
+			if (carp_get_vhid_p != NULL)
+				ifm->ifm_data.ifi_vhid =
+				    (*carp_get_vhid_p)(ifa);
 			ifm->ifm_addrs = info.rti_addrs;
 			error = SYSCTL_OUT(w->w_req, (caddr_t)ifm, len);
 #ifdef COMPAT_FREEBSD32
@@ -1595,18 +1606,22 @@ sysctl_iflist(int af, struct walkarg *w)
 				ifam->ifam_flags = ifa->ifa_flags;
 				ifam->ifam_metric = ifa->ifa_metric;
 				ifam->ifam_addrs = info.rti_addrs;
+				ifam->ifam_data = ifa->if_data;
+				if (carp_get_vhid_p != NULL)
+					ifam->ifam_data.ifi_vhid =
+					    (*carp_get_vhid_p)(ifa);
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error)
 					goto done;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		info.rti_info[RTAX_IFA] = info.rti_info[RTAX_NETMASK] =
 			info.rti_info[RTAX_BRD] = NULL;
 	}
 done:
 	if (ifp != NULL)
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	IFNET_RUNLOCK();
 	return (error);
 }
@@ -1627,7 +1642,7 @@ sysctl_ifmalist(int af, struct walkarg *w)
 			continue;
 		ifa = ifp->if_addr;
 		info.rti_info[RTAX_IFP] = ifa ? ifa->ifa_addr : NULL;
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (af && af != ifma->ifma_addr->sa_family)
 				continue;
@@ -1648,12 +1663,12 @@ sysctl_ifmalist(int af, struct walkarg *w)
 				ifmam->ifmam_addrs = info.rti_addrs;
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error) {
-					IF_ADDR_UNLOCK(ifp);
+					IF_ADDR_RUNLOCK(ifp);
 					goto done;
 				}
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 	}
 done:
 	IFNET_RUNLOCK();

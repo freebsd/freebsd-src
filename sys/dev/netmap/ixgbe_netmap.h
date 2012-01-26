@@ -253,7 +253,7 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			 * Note that txbuf and curr are indexed by l.
 			 *
 			 * In this driver we collect the buffer address
-			 * (using the NMB() macro) because we always
+			 * (using the PNMB() macro) because we always
 			 * need to rewrite it into the NIC ring.
 			 * Many other drivers preserve the address, so
 			 * we only need to access it if NS_BUF_CHANGED
@@ -262,7 +262,8 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			struct netmap_slot *slot = &ring->slot[j];
 			struct ixgbe_tx_buf *txbuf = &txr->tx_buffers[l];
 			union ixgbe_adv_tx_desc *curr = &txr->tx_base[l];
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 			// XXX type for flags and len ?
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
@@ -290,7 +291,7 @@ ring_reset:
 			 * address in the NIC ring. Other drivers do not
 			 * need this.
 			 */
-			curr->read.buffer_addr = htole64(vtophys(addr));
+			curr->read.buffer_addr = htole64(paddr);
 			curr->read.olinfo_status = 0;
 			curr->read.cmd_type_len =
 			    htole32(txr->txd_cmd | len |
@@ -303,8 +304,7 @@ ring_reset:
 			 */
 			if (slot->flags & NS_BUF_CHANGED) {
 				/* buffer has changed, unload and reload map */
-				netmap_reload_map(txr->txtag, txbuf->map,
-					addr, na->buff_size);
+				netmap_reload_map(txr->txtag, txbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 
@@ -472,22 +472,23 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			 * and flag handling as in the txsync code.
 			 *
 			 * NOTE curr and rxbuf are indexed by l.
-			 * Also, this driver needs to update the physical				 * address in the NIC ring, but other drivers
+			 * Also, this driver needs to update the physical
+			 * address in the NIC ring, but other drivers
 			 * may not have this requirement.
 			 */
 			struct netmap_slot *slot = &ring->slot[j];
 			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
 			struct ixgbe_rx_buf *rxbuf = &rxr->rx_buffers[l];
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 
 			if (addr == netmap_buffer_base) /* bad buf */
 				goto ring_reset;
 
 			curr->wb.upper.status_error = 0;
-			curr->read.pkt_addr = htole64(vtophys(addr));
+			curr->read.pkt_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
-				netmap_reload_map(rxr->ptag, rxbuf->pmap,
-				    addr, na->buff_size);
+				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 

@@ -28,7 +28,7 @@
 .\"     @(#)chroot.2	8.1 (Berkeley) 6/4/93
 .\" $FreeBSD$
 .\"
-.Dd June 4, 1993
+.Dd January 3, 2012
 .Dt CHROOT 2
 .Os
 .Sh NAME
@@ -134,9 +134,27 @@ The
 .Fn chroot
 system call appeared in
 .Bx 4.2 .
+It was marked as
+.Dq legacy
+in
+.St -susv2 ,
+and was removed in subsequent standards.
 .Sh BUGS
 If the process is able to change its working directory to the target
 directory, but another access control check fails (such as a check for
 open directories, or a MAC check), it is possible that this system
 call may return an error, with the working directory of the process
 left changed.
+.Sh SECURITY CONSIDERATIONS
+The system have many hardcoded paths to files where it may load after
+the process starts.
+It is generally recommended to drop privileges immediately after a
+successful
+.Nm
+call,
+and restrict write access to a limited subtree of the
+.Nm
+root,
+for instance,
+setup the sandbox so that the sandboxed user will have no write
+access to any well-known system directories.

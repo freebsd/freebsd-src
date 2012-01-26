@@ -241,15 +241,8 @@ extern struct mtx pf_task_mtx;
 
 #define	PF_LOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_OWNED)
 #define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_NOTOWNED)
-
-#define	PF_LOCK()	do {				\
-	PF_UNLOCK_ASSERT();				\
-	mtx_lock(&pf_task_mtx);				\
-} while(0)
-#define	PF_UNLOCK()	do {				\
-	PF_LOCK_ASSERT();				\
-	mtx_unlock(&pf_task_mtx);			\
-} while(0)
+#define	PF_LOCK()		mtx_lock(&pf_task_mtx)
+#define	PF_UNLOCK()		mtx_unlock(&pf_task_mtx)
 #else
 #define	PF_LOCK_ASSERT()
 #define	PF_UNLOCK_ASSERT()

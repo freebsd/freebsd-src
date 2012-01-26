@@ -18,6 +18,7 @@
  * $FreeBSD$
  */
 #include <stdint.h>
+#include <math.h>
 #define YYSTYPE	int32_t
 extern int32_t end_result;
 extern int yylex(void);
@@ -34,6 +35,7 @@ extern int yyparse(void);
 %left EQ NE
 %left '<' LE '>' GE
 %left LSHIFT RSHIFT
+%right EXPONENT
 %left '+' '-'
 %left '*' '/' '%'
 %right UMINUS UPLUS '!' '~'
@@ -44,6 +46,7 @@ top	: expr { end_result = $1; }
 	;
 expr 	: expr '+' expr { $$ = $1 + $3; }
      	| expr '-' expr { $$ = $1 - $3; }
+	| expr EXPONENT expr { $$ = pow($1, $3); }
      	| expr '*' expr { $$ = $1 * $3; }
 	| expr '/' expr {
 		if ($3 == 0) {

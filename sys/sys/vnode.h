@@ -578,10 +578,14 @@ struct vattr;
 struct vnode;
 
 /* cache_* may belong in namei.h. */
-void	cache_enter(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp);
-int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
-	    struct componentname *cnp);
+#define	cache_enter(dvp, vp, cnp)					\
+	cache_enter_time(dvp, vp, cnp, NULL)
+void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
+	    struct componentname *cnp, struct timespec *tsp);
+#define	cache_lookup(dvp, vpp, cnp)					\
+	cache_lookup_times(dvp, vpp, cnp, NULL, NULL)
+int	cache_lookup_times(struct vnode *dvp, struct vnode **vpp,
+	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);
 void	cache_purgevfs(struct mount *mp);
@@ -605,6 +609,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
+int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
+	    char *path, u_int pathlen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
@@ -705,6 +711,7 @@ int	vop_panic(struct vop_generic_args *ap);
 
 /* These are called from within the actual VOPS. */
 void	vop_create_post(void *a, int rc);
+void	vop_deleteextattr_post(void *a, int rc);
 void	vop_link_post(void *a, int rc);
 void	vop_lock_pre(void *a);
 void	vop_lock_post(void *a, int rc);
@@ -717,6 +724,7 @@ void	vop_rename_post(void *a, int rc);
 void	vop_rename_pre(void *a);
 void	vop_rmdir_post(void *a, int rc);
 void	vop_setattr_post(void *a, int rc);
+void	vop_setextattr_post(void *a, int rc);
 void	vop_strategy_pre(void *a);
 void	vop_symlink_post(void *a, int rc);
 void	vop_unlock_post(void *a, int rc);

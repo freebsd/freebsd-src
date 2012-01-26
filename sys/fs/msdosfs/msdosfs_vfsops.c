@@ -197,7 +197,7 @@ update_mp(struct mount *mp, struct thread *td)
 }
 
 static int
-msdosfs_cmount(struct mntarg *ma, void *data, int flags)
+msdosfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct msdosfs_args args;
 	struct export_args exp;

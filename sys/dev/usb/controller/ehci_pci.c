@@ -77,6 +77,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/ehci.h>
 #include <dev/usb/controller/ehcireg.h>
+#include "usb_if.h"
 
 #define	PCI_EHCI_VENDORID_ACERLABS	0x10b9
 #define	PCI_EHCI_VENDORID_AMD		0x1022
@@ -92,54 +93,10 @@ __FBSDID("$FreeBSD$");
 #define	PCI_EHCI_VENDORID_NVIDIA2	0x10DE
 #define	PCI_EHCI_VENDORID_VIA		0x1106
 
-static void ehci_pci_takecontroller(device_t self);
-
 static device_probe_t ehci_pci_probe;
 static device_attach_t ehci_pci_attach;
 static device_detach_t ehci_pci_detach;
-static device_suspend_t ehci_pci_suspend;
-static device_resume_t ehci_pci_resume;
-static device_shutdown_t ehci_pci_shutdown;
-
-static int
-ehci_pci_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_pci_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_pci_takecontroller(self);
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_pci_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
+static usb_take_controller_t ehci_pci_take_controller;
 
 static const char *
 ehci_pci_match(device_t self)
@@ -418,7 +375,7 @@ ehci_pci_attach(device_t self)
 		sc->sc_intr_hdl = NULL;
 		goto error;
 	}
-	ehci_pci_takecontroller(self);
+	ehci_pci_take_controller(self);
 
 	/* Undocumented quirks taken from Linux */
 
@@ -530,8 +487,8 @@ ehci_pci_detach(device_t self)
 	return (0);
 }
 
-static void
-ehci_pci_takecontroller(device_t self)
+static int
+ehci_pci_take_controller(device_t self)
 {
 	ehci_softc_t *sc = device_get_softc(self);
 	uint32_t cparams;
@@ -573,22 +530,25 @@ ehci_pci_takecontroller(device_t self)
 			usb_pause_mtx(NULL, hz / 100);	/* wait 10ms */
 		}
 	}
+	return (0);
 }
 
-static driver_t ehci_driver =
-{
-	.name = "ehci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, ehci_pci_probe),
-		DEVMETHOD(device_attach, ehci_pci_attach),
-		DEVMETHOD(device_detach, ehci_pci_detach),
-		DEVMETHOD(device_suspend, ehci_pci_suspend),
-		DEVMETHOD(device_resume, ehci_pci_resume),
-		DEVMETHOD(device_shutdown, ehci_pci_shutdown),
+static device_method_t ehci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, ehci_pci_probe),
+	DEVMETHOD(device_attach, ehci_pci_attach),
+	DEVMETHOD(device_detach, ehci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, ehci_pci_take_controller),
 
-		DEVMETHOD_END
-	},
+	DEVMETHOD_END
+};
+
+static driver_t ehci_driver = {
+	.name = "ehci",
+	.methods = ehci_pci_methods,
 	.size = sizeof(struct ehci_softc),
 };
 

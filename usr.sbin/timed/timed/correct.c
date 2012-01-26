@@ -162,8 +162,8 @@ adjclock(corr)
 		}
 	} else {
 		syslog(LOG_WARNING,
-		       "clock correction %ld sec too large to adjust",
-		       adj.tv_sec);
+		       "clock correction %jd sec too large to adjust",
+		       (intmax_t)adj.tv_sec);
 		(void) gettimeofday(&now, 0);
 		timevaladd(&now, corr);
 		if (settimeofday(&now, 0) < 0)

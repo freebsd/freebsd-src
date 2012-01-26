@@ -434,7 +434,7 @@ _libc_sem_post_compat(sem_t *sem)
 		return ksem_post((*sem)->semid);
 
 	atomic_add_rel_int(&(*sem)->count, 1);
-
+	rmb();
 	if ((*sem)->nwaiters)
 		return _umtx_wake(&(*sem)->count);
 	return (0);

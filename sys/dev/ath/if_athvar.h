@@ -371,6 +371,7 @@ struct ath_softc {
 	unsigned int		sc_invalid  : 1,/* disable hardware accesses */
 				sc_mrretry  : 1,/* multi-rate retry support */
 				sc_softled  : 1,/* enable LED gpio status */
+				sc_hardled  : 1,/* enable MAC LED status */
 				sc_splitmic : 1,/* split TKIP MIC keys */
 				sc_needmib  : 1,/* enable MIB stats intr */
 				sc_diversity: 1,/* enable rx diversity */
@@ -445,6 +446,9 @@ struct ath_softc {
 	u_int			sc_keymax;	/* size of key cache */
 	u_int8_t		sc_keymap[ATH_KEYBYTES];/* key use bit map */
 
+	/*
+	 * Software based LED blinking
+	 */
 	u_int			sc_ledpin;	/* GPIO pin for driving LED */
 	u_int			sc_ledon;	/* pin setting for LED on */
 	u_int			sc_ledidle;	/* idle polling interval */
@@ -452,6 +456,12 @@ struct ath_softc {
 	u_int8_t		sc_txrix;	/* current tx rate for LED */
 	u_int16_t		sc_ledoff;	/* off time for current blink */
 	struct callout		sc_ledtimer;	/* led off timer */
+
+	/*
+	 * Hardware based LED blinking
+	 */
+	int			sc_led_pwr_pin;	/* MAC power LED GPIO pin */
+	int			sc_led_net_pin;	/* MAC network LED GPIO pin */
 
 	u_int			sc_rfsilentpin;	/* GPIO pin for rfkill int */
 	u_int			sc_rfsilentpol;	/* pin setting for rfkill on */
@@ -864,11 +874,14 @@ void	ath_intr(void *);
 #define	ath_hal_settpcts(_ah, _tpcts) \
 	ath_hal_setcapability(_ah, HAL_CAP_TPC_CTS, 0, _tpcts, NULL)
 #define	ath_hal_hasintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_PRESENT, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, \
+	HAL_CAP_INTMIT_PRESENT, NULL) == HAL_OK)
 #define	ath_hal_getintmit(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_INTMIT, \
+	HAL_CAP_INTMIT_ENABLE, NULL) == HAL_OK)
 #define	ath_hal_setintmit(_ah, _v) \
-	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, HAL_CAP_INTMIT_ENABLE, _v, NULL)
+	ath_hal_setcapability(_ah, HAL_CAP_INTMIT, \
+	HAL_CAP_INTMIT_ENABLE, _v, NULL)
 #define	ath_hal_getchannoise(_ah, _c) \
 	((*(_ah)->ah_getChanNoise)((_ah), (_c)))
 #define	ath_hal_getrxchainmask(_ah, _prxchainmask) \
@@ -876,14 +889,16 @@ void	ath_intr(void *);
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
 #define	ath_hal_split4ktrans(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_SPLIT_4KB_TRANS, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_SPLIT_4KB_TRANS, \
+	0, NULL) == HAL_OK)
 #define	ath_hal_self_linked_final_rxdesc(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_RXDESC_SELFLINK, 0, NULL) == HAL_OK)
+	(ath_hal_getcapability(_ah, HAL_CAP_RXDESC_SELFLINK, \
+	0, NULL) == HAL_OK)
 #define	ath_hal_gtxto_supported(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_GTXTO, 0, NULL) == HAL_OK)
 #define	ath_hal_has_long_rxdesc_tsf(_ah) \
-	(ath_hal_getcapability(_ah, HAL_CAP_LONG_RXDESC_TSF, 0, NULL) == HAL_OK)
-
+	(ath_hal_getcapability(_ah, HAL_CAP_LONG_RXDESC_TSF, \
+	0, NULL) == HAL_OK)
 #define	ath_hal_setuprxdesc(_ah, _ds, _size, _intreq) \
 	((*(_ah)->ah_setupRxDesc)((_ah), (_ds), (_size), (_intreq)))
 #define	ath_hal_rxprocdesc(_ah, _ds, _dspa, _dsnext, _rs) \
@@ -935,6 +950,15 @@ void	ath_intr(void *);
 #define	ath_hal_clr11n_aggr(_ah, _ds) \
 	((*(_ah)->ah_clr11nAggr)((_ah), (_ds)))
 
+#define	ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
+	((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
+#define	ath_hal_gpioset(_ah, _gpio, _b) \
+	((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
+#define	ath_hal_gpioget(_ah, _gpio) \
+	((*(_ah)->ah_gpioGet)((_ah), (_gpio)))
+#define	ath_hal_gpiosetintr(_ah, _gpio, _b) \
+	((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
+
 /*
  * This is badly-named; you need to set the correct parameters
  * to begin to receive useful radar events; and even then
@@ -946,20 +970,13 @@ void	ath_intr(void *);
 #define	ath_hal_getdfsthresh(_ah, _param) \
 	((*(_ah)->ah_getDfsThresh)((_ah), (_param)))
 #define	ath_hal_procradarevent(_ah, _rxs, _fulltsf, _buf, _event) \
-	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), (_buf), (_event)))
+	((*(_ah)->ah_procRadarEvent)((_ah), (_rxs), (_fulltsf), \
+	(_buf), (_event)))
 #define	ath_hal_is_fast_clock_enabled(_ah) \
 	((*(_ah)->ah_isFastClockEnabled)((_ah)))
-
-#define ath_hal_gpioCfgOutput(_ah, _gpio, _type) \
-        ((*(_ah)->ah_gpioCfgOutput)((_ah), (_gpio), (_type)))
-#define ath_hal_gpioset(_ah, _gpio, _b) \
-        ((*(_ah)->ah_gpioSet)((_ah), (_gpio), (_b)))
-#define ath_hal_gpioget(_ah, _gpio) \
-        ((*(_ah)->ah_gpioGet)((_ah), (_gpio)))
-#define ath_hal_gpiosetintr(_ah, _gpio, _b) \
-        ((*(_ah)->ah_gpioSetIntr)((_ah), (_gpio), (_b)))
-
-#define ath_hal_radar_wait(_ah, _chan) \
+#define	ath_hal_radar_wait(_ah, _chan) \
 	((*(_ah)->ah_radarWait)((_ah), (_chan)))
+#define	ath_hal_get_chan_ext_busy(_ah) \
+	((*(_ah)->ah_get11nExtBusy)((_ah)))
 
 #endif /* _DEV_ATH_ATHVAR_H */

@@ -83,15 +83,15 @@ struct editentry {
 		char	*svalue;
 	} value;
 };
-STAILQ_HEAD(, editentry) editlist;	/* List of page entries. */
-int editlist_changed = 0;		/* Whether any entries were changed. */
+static STAILQ_HEAD(, editentry) editlist; /* List of page entries. */
+static int editlist_changed = 0;	/* Whether any entries were changed. */
 
 struct pagename {
 	SLIST_ENTRY(pagename) link;
 	int pagenum;
 	char *name;
 };
-SLIST_HEAD(, pagename) namelist;	/* Page number to name mappings. */
+static SLIST_HEAD(, pagename) namelist;	/* Page number to name mappings. */
 
 static char format[MAX_FORMAT_SPEC];	/* Buffer for scsi cdb format def. */
 
@@ -869,7 +869,6 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 	  int retry_count, int timeout)
 {
 	u_int8_t data[MAX_COMMAND_SIZE];/* Buffer to hold sense data. */
-	u_int8_t *mode_pars;		/* Pointer to modepage params. */
 	struct scsi_mode_header_6 *mh;	/* Location of mode header. */
 	struct scsi_mode_page_header *mph;
 	struct pagename *nameentry;
@@ -895,7 +894,6 @@ mode_list(struct cam_device *device, int page_control, int dbd,
 		/* Locate the next mode page header. */
 		mph = (struct scsi_mode_page_header *)
 		    ((intptr_t)mh + sizeof(*mh) + len);
-		mode_pars = MODE_PAGE_DATA(mph);
 
 		mph->page_code &= SMS_PAGE_CODE;
 		nameentry = nameentry_lookup(mph->page_code);

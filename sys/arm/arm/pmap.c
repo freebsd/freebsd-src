@@ -4039,6 +4039,7 @@ pmap_zero_page_generic(vm_paddr_t phys, int off, int size)
 	 * order to work without corruption when write-allocate is enabled.
 	 */
 	*cdst_pte = L2_S_PROTO | phys | L2_S_PROT(PTE_KERNEL, VM_PROT_WRITE);
+	PTE_SYNC(cdst_pte);
 	cpu_tlb_flushD_SE(cdstp);
 	cpu_cpwait();
 	if (off || size != PAGE_SIZE)

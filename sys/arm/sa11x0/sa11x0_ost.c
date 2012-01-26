@@ -251,7 +251,7 @@ cpu_initclocks()
 	stathz = STATHZ;
 	profhz = stathz;
 #if 0
-	mtx_init(&clock_lock, "SA1110 Clock locké", NULL, MTX_SPIN);
+	mtx_init(&clock_lock, "SA1110 Clock locked", NULL, MTX_SPIN);
 #endif
 	saost_sc->sc_statclock_step = TIMER_FREQUENCY / stathz;
 	struct resource *irq1, *irq2;

@@ -88,7 +88,7 @@ struct fw_vendor {
 	int inc_cdb_offset;
 };
 
-struct fw_vendor vendors_list[] = {
+static const struct fw_vendor vendors_list[] = {
 	{VENDOR_HITACHI,	"HITACHI",	0x8000, 0x05, 0x05, 1, 0},
 	{VENDOR_HP,		"HP",		0x8000, 0x07, 0x07, 0, 1},
 	{VENDOR_IBM,		"IBM",		0x8000, 0x05, 0x05, 1, 0},
@@ -98,22 +98,22 @@ struct fw_vendor vendors_list[] = {
 	{VENDOR_UNKNOWN,	NULL,		0x0000, 0x00, 0x00, 0, 0}
 };
 
-static struct fw_vendor *fw_get_vendor(struct cam_device *cam_dev);
-static char	*fw_read_img(char *fw_img_path, struct fw_vendor *vp,
-		    int *num_bytes);
+static const struct fw_vendor *fw_get_vendor(struct cam_device *cam_dev);
+static char	*fw_read_img(const char *fw_img_path,
+		    const struct fw_vendor *vp, int *num_bytes);
 static int	 fw_download_img(struct cam_device *cam_dev,
-		    struct fw_vendor *vp, char *buf, int img_size,
+		    const struct fw_vendor *vp, char *buf, int img_size,
 		    int sim_mode, int verbose, int retry_count, int timeout);
 
 /*
  * Find entry in vendors list that belongs to
  * the vendor of given cam device.
  */
-static struct fw_vendor *
+static const struct fw_vendor *
 fw_get_vendor(struct cam_device *cam_dev)
 {
 	char vendor[SID_VENDOR_SIZE + 1];
-	struct fw_vendor *vp;
+	const struct fw_vendor *vp;
 
 	if (cam_dev == NULL)
 		return (NULL);
@@ -133,7 +133,7 @@ fw_get_vendor(struct cam_device *cam_dev)
  * in num_bytes.
  */
 static char *
-fw_read_img(char *fw_img_path, struct fw_vendor *vp, int *num_bytes)
+fw_read_img(const char *fw_img_path, const struct fw_vendor *vp, int *num_bytes)
 {
 	int fd;
 	struct stat stbuf;
@@ -205,7 +205,7 @@ bailout1:
  * device but do not sent any actual packets
  */
 static int
-fw_download_img(struct cam_device *cam_dev, struct fw_vendor *vp,
+fw_download_img(struct cam_device *cam_dev, const struct fw_vendor *vp,
     char *buf, int img_size, int sim_mode, int verbose, int retry_count,
     int timeout)
 {
@@ -319,7 +319,7 @@ int
 fwdownload(struct cam_device *device, int argc, char **argv,
     char *combinedopt, int verbose, int retry_count, int timeout)
 {
-	struct fw_vendor *vp;
+	const struct fw_vendor *vp;
 	char *fw_img_path = NULL;
 	char *buf;
 	int img_size;

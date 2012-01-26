@@ -47,6 +47,7 @@
 
 extern int cold;		/* nonzero if we are doing a cold boot */
 extern int rebooting;		/* kern_reboot() has been called. */
+extern int stop_scheduler;	/* only one thread runs after panic */
 extern const char *panicstr;	/* panic message */
 extern char version[];		/* system version */
 extern char copyright[];	/* system copyright */
@@ -91,10 +92,8 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 } while (0)
 #endif
 
-#ifndef CTASSERT		/* Allow lint to override */
-#define	CTASSERT(x)		_CTASSERT(x, __LINE__)
-#define	_CTASSERT(x, y)		__CTASSERT(x, y)
-#define	__CTASSERT(x, y)	typedef char __assert ## y[(x) ? 1 : -1]
+#ifndef CTASSERT	/* Allow lint to override */
+#define	CTASSERT(x)	_Static_assert(x, "compile-time assertion failed")
 #endif
 
 /*
@@ -107,6 +106,14 @@ enum VM_GUEST { VM_GUEST_NO = 0, VM_GUEST_VM, VM_GUEST_XEN };
 #define	ASSERT_ATOMIC_LOAD_PTR(var, msg)				\
 	KASSERT(sizeof(var) == sizeof(void *) &&			\
 	    ((uintptr_t)&(var) & (sizeof(void *) - 1)) == 0, msg)
+
+/*
+ * If we have already panic'd and this is the thread that called
+ * panic(), then don't block on any mutexes but silently succeed.
+ * Otherwise, the kernel will deadlock since the scheduler isn't
+ * going to run the thread that holds any lock we need.
+ */
+#define	SCHEDULER_STOPPED() __predict_false(stop_scheduler)
 
 /*
  * XXX the hints declarations are even more misplaced than most declarations

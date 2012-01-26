@@ -28,9 +28,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
 #include <sys/systm.h>
-#ifdef FFCLOCK
 #include <sys/timeffc.h>
-#endif
 #include <sys/timepps.h>
 #include <sys/timetc.h>
 #include <sys/timex.h>
@@ -460,8 +458,6 @@ getmicrotime(struct timeval *tvp)
  * have some connection to avoid accessing the timecounter hardware more than
  * necessary.
  */
-
-int sysclock_active = SYSCLOCK_FBCK;
 
 /* Feed-forward clock estimates kept updated by the synchronization daemon. */
 struct ffclock_estimate ffclock_estimate;
@@ -956,7 +952,147 @@ getmicrotime(struct timeval *tvp)
 
 	getmicrouptime_fromclock(tvp, sysclock_active);
 }
+
 #endif /* FFCLOCK */
+
+/*
+ * System clock currently providing time to the system. Modifiable via sysctl
+ * when the FFCLOCK option is defined.
+ */
+int sysclock_active = SYSCLOCK_FBCK;
+
+/* Internal NTP status and error estimates. */
+extern int time_status;
+extern long time_esterror;
+
+/*
+ * Take a snapshot of sysclock data which can be used to compare system clocks
+ * and generate timestamps after the fact.
+ */
+void
+sysclock_getsnapshot(struct sysclock_snap *clock_snap, int fast)
+{
+	struct fbclock_info *fbi;
+	struct timehands *th;
+	struct bintime bt;
+	unsigned int delta, gen;
+#ifdef FFCLOCK
+	ffcounter ffcount;
+	struct fftimehands *ffth;
+	struct ffclock_info *ffi;
+	struct ffclock_estimate cest;
+
+	ffi = &clock_snap->ff_info;
+#endif
+
+	fbi = &clock_snap->fb_info;
+	delta = 0;
+
+	do {
+		th = timehands;
+		gen = th->th_generation;
+		fbi->th_scale = th->th_scale;
+		fbi->tick_time = th->th_offset;
+#ifdef FFCLOCK
+		ffth = fftimehands;
+		ffi->tick_time = ffth->tick_time_lerp;
+		ffi->tick_time_lerp = ffth->tick_time_lerp;
+		ffi->period = ffth->cest.period;
+		ffi->period_lerp = ffth->period_lerp;
+		clock_snap->ffcount = ffth->tick_ffcount;
+		cest = ffth->cest;
+#endif
+		if (!fast)
+			delta = tc_delta(th);
+	} while (gen == 0 || gen != th->th_generation);
+
+	clock_snap->delta = delta;
+	clock_snap->sysclock_active = sysclock_active;
+
+	/* Record feedback clock status and error. */
+	clock_snap->fb_info.status = time_status;
+	/* XXX: Very crude estimate of feedback clock error. */
+	bt.sec = time_esterror / 1000000;
+	bt.frac = ((time_esterror - bt.sec) * 1000000) *
+	    (uint64_t)18446744073709ULL;
+	clock_snap->fb_info.error = bt;
+
+#ifdef FFCLOCK
+	if (!fast)
+		clock_snap->ffcount += delta;
+
+	/* Record feed-forward clock leap second adjustment. */
+	ffi->leapsec_adjustment = cest.leapsec_total;
+	if (clock_snap->ffcount > cest.leapsec_next)
+		ffi->leapsec_adjustment -= cest.leapsec;
+
+	/* Record feed-forward clock status and error. */
+	clock_snap->ff_info.status = cest.status;
+	ffcount = clock_snap->ffcount - cest.update_ffcount;
+	ffclock_convert_delta(ffcount, cest.period, &bt);
+	/* 18446744073709 = int(2^64/1e12), err_bound_rate in [ps/s]. */
+	bintime_mul(&bt, cest.errb_rate * (uint64_t)18446744073709ULL);
+	/* 18446744073 = int(2^64 / 1e9), since err_abs in [ns]. */
+	bintime_addx(&bt, cest.errb_abs * (uint64_t)18446744073ULL);
+	clock_snap->ff_info.error = bt;
+#endif
+}
+
+/*
+ * Convert a sysclock snapshot into a struct bintime based on the specified
+ * clock source and flags.
+ */
+int
+sysclock_snap2bintime(struct sysclock_snap *cs, struct bintime *bt,
+    int whichclock, uint32_t flags)
+{
+#ifdef FFCLOCK
+	struct bintime bt2;
+	uint64_t period;
+#endif
+
+	switch (whichclock) {
+	case SYSCLOCK_FBCK:
+		*bt = cs->fb_info.tick_time;
+
+		/* If snapshot was created with !fast, delta will be >0. */
+		if (cs->delta > 0)
+			bintime_addx(bt, cs->fb_info.th_scale * cs->delta);
+
+		if ((flags & FBCLOCK_UPTIME) == 0)
+			bintime_add(bt, &boottimebin);
+		break;
+#ifdef FFCLOCK
+	case SYSCLOCK_FFWD:
+		if (flags & FFCLOCK_LERP) {
+			*bt = cs->ff_info.tick_time_lerp;
+			period = cs->ff_info.period_lerp;
+		} else {
+			*bt = cs->ff_info.tick_time;
+			period = cs->ff_info.period;
+		}
+
+		/* If snapshot was created with !fast, delta will be >0. */
+		if (cs->delta > 0) {
+			ffclock_convert_delta(cs->delta, period, &bt2);
+			bintime_add(bt, &bt2);
+		}
+
+		/* Leap second adjustment. */
+		if (flags & FFCLOCK_LEAPSEC)
+			bt->sec -= cs->ff_info.leapsec_adjustment;
+
+		/* Boot time adjustment, for uptime/monotonic clocks. */
+		if (flags & FFCLOCK_UPTIME)
+			bintime_sub(bt, &ffclock_boottime);
+#endif
+	default:
+		return (EINVAL);
+		break;
+	}
+
+	return (0);
+}
 
 /*
  * Initialize a new timecounter and possibly use it.

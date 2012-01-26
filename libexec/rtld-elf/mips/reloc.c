@@ -358,7 +358,7 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			def = find_symdef(i, obj, &defobj, false, NULL,
 			    lockstate);
 			if (def == NULL) {
-				dbg("Warning4, cant find symbole %d", i);
+				dbg("Warning4, can't find symbole %d", i);
 				return -1;
 			}
 			*got = def->st_value + (Elf_Addr)defobj->relocbase;
@@ -495,6 +495,22 @@ reloc_jmpslots(Obj_Entry *obj, RtldLockState *lockstate)
 	/* Do nothing */
 	obj->jmpslots_done = true;
 	
+	return (0);
+}
+
+int
+reloc_iresolve(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
+	return (0);
+}
+
+int
+reloc_gnu_ifunc(Obj_Entry *obj, struct Struct_RtldLockState *lockstate)
+{
+
+	/* XXX not implemented */
 	return (0);
 }
 

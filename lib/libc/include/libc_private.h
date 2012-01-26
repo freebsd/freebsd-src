@@ -44,6 +44,17 @@
 extern int	__isthreaded;
 
 /*
+ * libc should use libc_dlopen internally, which respects a global
+ * flag where loading of new shared objects can be restricted.
+ */
+void *libc_dlopen(const char *, int);
+
+/*
+ * For dynamic linker.
+ */
+void _rtld_error(const char *fmt, ...);
+
+/*
  * File lock contention is difficult to diagnose without knowing
  * where locks were set. Allow a debug library to be built which
  * records the source file and line number of each lock call.

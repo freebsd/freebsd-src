@@ -87,7 +87,7 @@ static const struct {
 	{ "General error", SNMP_ERR_GENERR },
 	{ "No access", SNMP_ERR_NO_ACCESS },
 	{ "Wrong type", SNMP_ERR_WRONG_TYPE },
-	{ "Wrong lenght", SNMP_ERR_WRONG_LENGTH },
+	{ "Wrong length", SNMP_ERR_WRONG_LENGTH },
 	{ "Wrong encoding", SNMP_ERR_WRONG_ENCODING },
 	{ "Wrong value", SNMP_ERR_WRONG_VALUE },
 	{ "No creation", SNMP_ERR_NO_CREATION },
@@ -132,6 +132,7 @@ snmptool_init(struct snmp_toolinfo *snmptoolctx)
 	snmptoolctx->flags = SNMP_PDU_GET;	/* XXX */
 	SLIST_INIT(&snmptoolctx->filelist);
 	snmp_client_init(&snmp_client);
+	SET_MAXREP(snmptoolctx, SNMP_MAX_REPETITIONS);
 
 	if (add_filename(snmptoolctx, bsnmpd_defs, &IsoOrgDod_OID, 0) < 0)
 		warnx("Error adding file %s to list", bsnmpd_defs);
@@ -227,12 +228,12 @@ snmp_import_all(struct snmp_toolinfo *snmptoolctx)
 }
 
 /*
- * Add a filename to the file list - the initail idea of keeping a list with all
+ * Add a filename to the file list - the initial idea of keeping a list with all
  * files to read OIDs from was that an application might want to have loaded in
  * memory the OIDs from a single file only and when done with them read the OIDs
  * from another file. This is not used yet but might be a good idea at some
  * point. Size argument is number of bytes in string including trailing '\0',
- * not string lenght.
+ * not string length.
  */
 int32_t
 add_filename(struct snmp_toolinfo *snmptoolctx, const char *filename,
@@ -449,7 +450,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 	uint32_t val;
 	char dptr[3];
 
-	/* Filter 0x at the beggining */
+	/* Filter 0x at the beginning */
 	if ((alen = strlen(ascii)) > 2 && ascii[0] == '0' && ascii[1] == 'x')
 		i = 2;
 	else
@@ -468,7 +469,7 @@ parse_ascii(char *ascii, uint8_t *binstr, size_t binlen)
 		}
 		binstr[count] = (uint8_t) val;
 		if (++count >= binlen) {
-			warnx("Key %s too long - truncating to %zu octest",
+			warnx("Key %s too long - truncating to %zu octets",
 			    ascii, binlen);
 			break;
 		}
@@ -1523,10 +1524,10 @@ snmp_object_seterror(struct snmp_toolinfo *snmptoolctx,
 }
 
 /*
- * Check a PDU received in responce to a SNMP_PDU_GET/SNMP_PDU_GETBULK request
+ * Check a PDU received in response to a SNMP_PDU_GET/SNMP_PDU_GETBULK request
  * but don't compare syntaxes - when sending a request PDU they must be null.
  * This is a (almost) complete copy of snmp_pdu_check() - with matching syntaxes
- * checks and some other checks skiped.
+ * checks and some other checks skipped.
  */
 int32_t
 snmp_parse_get_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
@@ -1605,7 +1606,7 @@ snmp_parse_getnext_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
 }
 
 /*
- * Should be called to check a responce to get/getnext/getbulk.
+ * Should be called to check a response to get/getnext/getbulk.
  */
 int32_t
 snmp_parse_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
@@ -1624,7 +1625,7 @@ snmp_parse_resp(struct snmp_pdu *resp, struct snmp_pdu *req)
 	}
 
 	if (resp->error_status != SNMP_ERR_NOERROR) {
-		warnx("Error %d in responce", resp->error_status);
+		warnx("Error %d in response", resp->error_status);
 		return (-1);
 	}
 
@@ -2039,14 +2040,20 @@ snmp_output_err_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 }
 
 int32_t
-snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
+snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu,
+    struct asn_oid *root)
 {
 	int32_t error;
 	char p[ASN_OIDSTRLEN];
 	uint32_t i;
 	struct snmp_object object;
 
-	for (i = 0, error = 0; i < pdu->nbindings; i++) {
+	i = error = 0;
+	while (i < pdu->nbindings) {
+		if (root != NULL && !(asn_is_suboid(root,
+		    &(pdu->bindings[i].var))))
+			break;
+
 		if (GET_OUTPUT(snmptoolctx) != OUTPUT_QUIET) {
 			if (!ISSET_NUMERIC(snmptoolctx) &&
 			    (snmp_fill_object(snmptoolctx, &object,
@@ -2058,9 +2065,13 @@ snmp_output_resp(struct snmp_toolinfo *snmptoolctx, struct snmp_pdu *pdu)
 			}
 		}
 		error |= snmp_output_numval(snmptoolctx, &(pdu->bindings[i]), object.info);
+		i++;
 	}
 
-	return (error);
+	if (error)
+		return (-1);
+
+	return (i);
 }
 
 void

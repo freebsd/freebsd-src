@@ -145,7 +145,7 @@ static  void	*ffs_build_dinode2(struct ufs2_dinode *, dirbuf_t *, fsnode *,
 
 int	sectorsize;		/* XXX: for buf.c::getblk() */
 
-	/* publically visible functions */
+	/* publicly visible functions */
 
 void
 ffs_prep_opts(fsinfo_t *fsopts)

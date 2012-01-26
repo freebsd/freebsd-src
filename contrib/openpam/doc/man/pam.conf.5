@@ -1,5 +1,5 @@
 .\"-
-.\" Copyright (c) 2005 Dag-Erling Coïdan Smørgrav
+.\" Copyright (c) 2005-2011 Dag-Erling SmÃ¸rgrav
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -26,9 +26,9 @@
 .\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 .\" SUCH DAMAGE.
 .\"
-.\" $Id: pam.conf.5 320 2006-02-16 20:33:19Z des $
+.\" $Id: pam.conf.5 485 2011-11-03 16:57:37Z des $
 .\"
-.Dd June 16, 2005
+.Dd November 3, 2011
 .Dt PAM.CONF 5
 .Os
 .Sh NAME
@@ -56,8 +56,8 @@ policy is used instead, if it exists.
 Entries in per-service policy files must be of one of the two forms
 below:
 .Bd -unfilled -offset indent
-.Ar function-class control-flag module-path Op Ar arguments ...
-.Ar function-class Cm include Ar other-service-name
+.Ar facility control-flag module-path Op Ar arguments ...
+.Ar facility Cm include Ar other-service-name
 .Ed
 .Pp
 Entries in
@@ -71,9 +71,8 @@ to the right of a
 sign.
 .Pp
 The
-.Ar function-class
-field specifies the class of functions the entry applies to, and is
-one of:
+.Ar facility
+field specifies the facility the entry applies to, and is one of:
 .Bl -tag -width ".Cm password"
 .It Cm auth
 Authentication functions
@@ -147,6 +146,11 @@ to call.
 .Pp
 The remaining fields are passed as arguments to the module if and when
 it is invoked.
+As a special case, if an argument is of the form ``name=value'' and
+the right-hand side is surrounded by single or double quotes, any
+whitespace between the quote characters will be considered part of the
+same argument rather than a separator between this argument and the
+next.
 .Pp
 The
 .Cm include
@@ -167,10 +171,9 @@ modify each and every service-specific policy.
 .Sh AUTHORS
 The OpenPAM library was developed for the
 .Fx
-Project by ThinkSec
-AS and Network Associates Laboratories, the Security Research Division
-of Network Associates, Inc.\& under DARPA/SPAWAR contract
-N66001-01-C-8035
+Project by ThinkSec AS and Network Associates Laboratories, the
+Security Research Division of Network Associates, Inc.\& under
+DARPA/SPAWAR contract N66001-01-C-8035
 .Pq Dq CBOSS ,
 as part of the DARPA CHATS research program.
 .Pp

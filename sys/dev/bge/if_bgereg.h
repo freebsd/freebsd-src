@@ -1573,6 +1573,7 @@
 #define	BGE_RDMA_RSRVCTRL_FIFO_HWM_MASK	0x000FF000
 #define	BGE_RDMA_RSRVCTRL_TXMRGN_MASK	0xFFE00000
 
+#define	BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_512	0x00020000
 #define	BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_BD_4K	0x00030000
 #define	BGE_RDMA_LSO_CRPTEN_CTRL_BLEN_LSO_4K	0x000C0000
 
@@ -2863,6 +2864,7 @@ struct bge_softc {
 	int			bge_timer;
 	int			bge_forced_collapse;
 	int			bge_forced_udpcsum;
+	int			bge_msi;
 	int			bge_csum_features;
 	struct callout		bge_stat_ch;
 	uint32_t		bge_rx_discards;

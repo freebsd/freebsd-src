@@ -51,3 +51,9 @@ hint.mx25l.0.cs=0
 
 # Watchdog
 hint.ar71xx_wdog.0.at="nexus0"
+
+# The GPIO function and pin mask is configured per-board
+hint.gpio.0.at="apb0"
+hint.gpio.0.maddr=0x18040000
+hint.gpio.0.msize=0x1000
+hint.gpio.0.irq=2
