@@ -4232,7 +4232,8 @@ scsireadcapacity(struct cam_device *device, int argc, char **argv,
 			      /*lba*/ 0,
 			      /*reladdr*/ 0,
 			      /*pmi*/ 0,
-			      &rcaplong,
+			      /*rcap_buf*/ (uint8_t *)&rcaplong,
+			      /*rcap_buf_len*/ sizeof(rcaplong),
 			      /*sense_len*/ SSD_FULL_SIZE,
 			      /*timeout*/ timeout ? timeout : 5000);
 
