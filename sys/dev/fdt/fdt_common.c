@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/bus.h>
+#include <sys/limits.h>
 
 #include <machine/fdt.h>
 #include <machine/resource.h>
@@ -81,6 +82,11 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 	len = OF_getproplen(node, "ranges");
 	if (len > sizeof(ranges))
 		return (ENOMEM);
+	if (len == 0) {
+		*base = 0;
+		*size = ULONG_MAX;
+		return (0);
+	}
 
 	if (!(range_id < len))
 		return (ERANGE);
@@ -413,16 +419,19 @@ fdt_regsize(phandle_t node, u_long *base, u_long *size)
 }
 
 int
-fdt_reg_to_rl(phandle_t node, struct resource_list *rl, u_long base)
+fdt_reg_to_rl(phandle_t node, struct resource_list *rl)
 {
 	u_long start, end, count;
 	pcell_t *reg, *regptr;
 	pcell_t addr_cells, size_cells;
 	int tuple_size, tuples;
 	int i, rv;
+	long vaddr;
+	long busaddr, bussize;
 
 	if (fdt_addrsize_cells(OF_parent(node), &addr_cells, &size_cells) != 0)
 		return (ENXIO);
+	fdt_get_range(OF_parent(node), 0, &busaddr, &bussize);
 
 	tuple_size = sizeof(pcell_t) * (addr_cells + size_cells);
 	tuples = OF_getprop_alloc(node, "reg", tuple_size, (void **)&reg);
@@ -444,14 +453,15 @@ fdt_reg_to_rl(phandle_t node, struct resource_list *rl, u_long base)
 		reg += addr_cells + size_cells;
 
 		/* Calculate address range relative to base. */
-		start &= 0x000ffffful;
-		start = base + start;
-		end = start + count - 1;
+		start += busaddr;
+		if (bus_space_map(fdtbus_bs_tag, start, count, 0, &vaddr) != 0)
+			panic("Couldn't map the device memory");
+		end = vaddr + count - 1;
 
 		debugf("reg addr start = %lx, end = %lx, count = %lx\n", start,
 		    end, count);
 
-		resource_list_add(rl, SYS_RES_MEMORY, i, start, end,
+		resource_list_add(rl, SYS_RES_MEMORY, i, vaddr, end,
 		    count);
 	}
 	rv = 0;
