@@ -320,6 +320,8 @@ g_part_parm_geom(const char *name, struct g_geom **v)
 	gp = g_part_find_geom(name);
 	if (gp == NULL)
 		return (EINVAL);
+	if ((gp->flags & G_GEOM_WITHER) != 0)
+		return (ENXIO);
 	*v = gp;
 	return (0);
 }
