@@ -330,7 +330,7 @@ static const struct {
 	{ HDA_CODEC_CHXXXX, 0,		"Chrontel" },
 	{ HDA_CODEC_IDTXXXX, 0,		"IDT" },
 	{ HDA_CODEC_INTELXXXX, 0,	"Intel" },
-	{ HDA_CODEC_MOTOXXXX, 0,	"Motorolla" },
+	{ HDA_CODEC_MOTOXXXX, 0,	"Motorola" },
 	{ HDA_CODEC_NVIDIAXXXX, 0,	"NVIDIA" },
 	{ HDA_CODEC_SIIXXXX, 0,		"Silicon Image" },
 	{ HDA_CODEC_STACXXXX, 0,	"Sigmatel" },
