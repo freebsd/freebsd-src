@@ -1410,6 +1410,11 @@ m_print(const struct mbuf *m, int maxlen)
 	int pdata;
 	const struct mbuf *m2;
 
+	if (m == NULL) {
+		printf("mbuf: %p\n", m);
+		return;
+	}
+
 	if (m->m_flags & M_PKTHDR)
 		len = m->m_pkthdr.len;
 	else
