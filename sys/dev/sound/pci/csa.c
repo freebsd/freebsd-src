@@ -861,7 +861,7 @@ static int
 csa_downloadimage(csa_res *resp)
 {
 	int i;
-	u_int32_t tmp, src, dst, count, data;
+	u_int32_t tmp, src, dst, count;
 
 	for (i = 0; i < CLEAR__COUNT; i++) {
 		dst = ClrStat[i].BA1__DestByteOffset;
@@ -875,8 +875,7 @@ csa_downloadimage(csa_res *resp)
 		dst = FillStat[i].Offset;
 		count = FillStat[i].Size;
 		for (tmp = 0; tmp < count; tmp += 4) {
-			data = FillStat[i].pFill[src];
-			csa_writemem(resp, dst + tmp, data);
+			csa_writemem(resp, dst + tmp, FillStat[i].pFill[src]);
 			src++;
 		}
 	}
