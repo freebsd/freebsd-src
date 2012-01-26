@@ -233,12 +233,12 @@ __END_DECLS
 /* Return values from uu_lock(). */
 #define	UU_LOCK_INUSE		1
 #define	UU_LOCK_OK		0
-#define	UU_LOCK_OPEN_ERR	-1
-#define	UU_LOCK_READ_ERR	-2
-#define	UU_LOCK_CREAT_ERR	-3
-#define	UU_LOCK_WRITE_ERR	-4
-#define	UU_LOCK_LINK_ERR	-5
-#define	UU_LOCK_TRY_ERR		-6
-#define	UU_LOCK_OWNER_ERR	-7
+#define	UU_LOCK_OPEN_ERR	(-1)
+#define	UU_LOCK_READ_ERR	(-2)
+#define	UU_LOCK_CREAT_ERR	(-3)
+#define	UU_LOCK_WRITE_ERR	(-4)
+#define	UU_LOCK_LINK_ERR	(-5)
+#define	UU_LOCK_TRY_ERR		(-6)
+#define	UU_LOCK_OWNER_ERR	(-7)
 
 #endif /* !_LIBUTIL_H_ */
