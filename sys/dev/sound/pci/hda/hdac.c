@@ -46,7 +46,7 @@
 #include <dev/sound/pci/hda/hda_reg.h>
 #include <dev/sound/pci/hda/hdac.h>
 
-#define HDA_DRV_TEST_REV	"20120111_0001"
+#define HDA_DRV_TEST_REV	"20120126_0002"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
