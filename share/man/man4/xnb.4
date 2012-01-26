@@ -1,6 +1,5 @@
 .\" Copyright (c) 2012 Spectra Logic Corporation
-.\"	All rights reserved.
-.\"
+.\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
 .\" modification, are permitted provided that the following conditions
@@ -30,7 +29,7 @@
 .\" Authors: Alan Somers         (Spectra Logic Corporation)
 .\" 
 .\" $FreeBSD$
-.\"
+.\" 
 
 .Dd January 6, 2012
 .Dt XNB 4
@@ -50,24 +49,26 @@ The
 .Nm
 driver provides the back half of a paravirtualized
 .Xr xen 4
-network connection.  The netback and netfront drivers appear to their
-respective operating systems as Ethernet devices linked by a crossover cable.
+network connection.
+The netback and netfront drivers appear to their respective operating
+systems as Ethernet devices linked by a crossover cable.
 Typically,
 .Nm
 will run on Domain 0 and the netfront driver will run on a guest domain.
 However, it is also possible to run
 .Nm
-on a guest domain.  It may be bridged or routed to provide the netfront's
+on a guest domain.
+It may be bridged or routed to provide the netfront's
 domain access to other guest domains or to a physical network.
 .Pp
 In most respects, the
 .Nm
-device appears to the OS as an other Ethernet device.  It can be configured at
-runtime entirely with
-.Xr ifconfig 8
-\&.  In particular, it supports MAC changing, arbitrary MTU sizes, checksum
-offload for IP, UDP, and TCP for both receive and transmit, and TSO.  However,
-see
+device appears to the OS as an other Ethernet device.
+It can be configured at runtime entirely with
+.Xr ifconfig 8 .
+In particular, it supports MAC changing, arbitrary MTU sizes, checksum
+offload for IP, UDP, and TCP for both receive and transmit, and TSO.
+However, see
 .Sx CAVEATS
 before enabling txcsum, rxcsum, or tso.
 .Sh SYSCTL VARIABLES
@@ -76,47 +77,51 @@ The following read-only variables are available via
 .Bl -tag -width indent
 .It Va dev.xnb.%d.dump_rings
 Displays information about the ring buffers used to pass requests between the
-netfront and netback.  Mostly useful for debugging, but can also be used to
+netfront and netback.
+Mostly useful for debugging, but can also be used to
 get traffic statistics.
 .It Va dev.xnb.%d.unit_test_results
-Runs a builtin suite of unit tests and displays the results.  Does not affect
-the operation of the driver in any way.  Note that the test suite simulates
-error conditions; this will result in error messages being printed to the
-system system log.
+Runs a builtin suite of unit tests and displays the results.
+Does not affect the operation of the driver in any way.
+Note that the test suite simulates error conditions; this will result in
+error messages being printed to the system system log.
 .Sh CAVEATS
 Packets sent through Xennet pass over shared memory, so the protocol includes
-no form of link-layer checksum or CRC.  Furthermore, Xennet drivers always
-report to their hosts that they support receive and transmit checksum
-offloading.  They "offload" the checksum calculation by simply skipping it.
+no form of link-layer checksum or CRC.
+Furthermore, Xennet drivers always report to their hosts that they support
+receive and transmit checksum offloading.
+They "offload" the checksum calculation by simply skipping it.
 That works fine for packets that are exchanged between two domains on the same
-machine.  However, when a Xennet interface is bridged to a physical interface,
+machine.
+However, when a Xennet interface is bridged to a physical interface,
 a correct checksum must be attached to any packets bound for that physical
-interface.  Currently, FreeBSD lacks any mechanism for an ethernet device to
+interface.
+Currently, FreeBSD lacks any mechanism for an ethernet device to
 inform the OS that newly received packets are valid even though their checksums
-are not.  So if the netfront driver is configured to offload checksum
-calculations, it will pass non-checksumed packets to
-.Nm
-, which must then calculate the checksum in software before passing the packet
+are not.
+So if the netfront driver is configured to offload checksum calculations,
+it will pass non-checksumed packets to
+.Nm ,
+which must then calculate the checksum in software before passing the packet
 to the OS.
 .Pp
 For this reason, it is recommended that if
 .Nm
 is bridged to a physcal interface, then transmit checksum offloading should be
-disabled on the netfront.  The Xennet protocol does not have any mechanism for
-the netback to request the netfront to do this; the operator must do it
-manually.
+disabled on the netfront.
+The Xennet protocol does not have any mechanism for the netback to request
+the netfront to do this; the operator must do it manually.
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
-.Xr ifconfig 8 ,
-.Xr xen 4
+.Xr xen 4 ,
+.Xr ifconfig 8
 .Sh HISTORY
 The
 .Nm
 device driver first appeared in
-.Fx 10.0
-.
+.Fx 10.0 .
 .Sh AUTHORS
 The
 .Nm
@@ -130,5 +135,7 @@ and
 The
 .Nm
 driver does not properly checksum UDP datagrams that span more than one
-Ethernet frame.  Nor does it correctly checksum IPv6 packets.  To workaround
-that bug, disable transmit checksum offloading on the netfront driver.
+Ethernet frame.
+Nor does it correctly checksum IPv6 packets.
+To workaround that bug, disable transmit checksum offloading on the
+netfront driver.
