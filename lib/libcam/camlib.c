@@ -137,7 +137,7 @@ cam_get_device(const char *path, char *dev_name, int devnamelen, int *unit)
 	 */
 	if (*tmpstr == '/') {
 		tmpstr2 = tmpstr;
-		tmpstr = (char *)rindex(tmpstr2, '/');
+		tmpstr = strrchr(tmpstr2, '/');
 		if ((tmpstr != NULL) && (*tmpstr != '\0'))
 			tmpstr++;
 	}

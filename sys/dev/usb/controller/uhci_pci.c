@@ -74,6 +74,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/usb_pci.h>
 #include <dev/usb/controller/uhci.h>
 #include <dev/usb/controller/uhcireg.h>
+#include "usb_if.h"
 
 #define	PCI_UHCI_VENDORID_INTEL		0x8086
 #define	PCI_UHCI_VENDORID_VIA		0x1106
@@ -83,33 +84,13 @@ __FBSDID("$FreeBSD$");
 static device_probe_t uhci_pci_probe;
 static device_attach_t uhci_pci_attach;
 static device_detach_t uhci_pci_detach;
-static device_suspend_t uhci_pci_suspend;
-static device_resume_t uhci_pci_resume;
+static usb_take_controller_t uhci_pci_take_controller;
 
 static int
-uhci_pci_suspend(device_t self)
+uhci_pci_take_controller(device_t self)
 {
-	uhci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err) {
-		return (err);
-	}
-	uhci_suspend(sc);
-	return (0);
-}
-
-static int
-uhci_pci_resume(device_t self)
-{
-	uhci_softc_t *sc = device_get_softc(self);
-
 	pci_write_config(self, PCI_LEGSUP, PCI_LEGSUP_USBPIRQDEN, 2);
 
-	uhci_resume(sc);
-
-	bus_generic_resume(self);
 	return (0);
 }
 
@@ -446,21 +427,22 @@ uhci_pci_detach(device_t self)
 	return (0);
 }
 
-static driver_t uhci_driver =
-{
+static device_method_t uhci_pci_methods[] = {
+	/* Device interface */
+	DEVMETHOD(device_probe, uhci_pci_probe),
+	DEVMETHOD(device_attach, uhci_pci_attach),
+	DEVMETHOD(device_detach, uhci_pci_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
+	DEVMETHOD(usb_take_controller, uhci_pci_take_controller),
+
+	DEVMETHOD_END
+};
+
+static driver_t uhci_driver = {
 	.name = "uhci",
-	.methods = (device_method_t[]){
-		/* device interface */
-		DEVMETHOD(device_probe, uhci_pci_probe),
-		DEVMETHOD(device_attach, uhci_pci_attach),
-		DEVMETHOD(device_detach, uhci_pci_detach),
-
-		DEVMETHOD(device_suspend, uhci_pci_suspend),
-		DEVMETHOD(device_resume, uhci_pci_resume),
-		DEVMETHOD(device_shutdown, bus_generic_shutdown),
-
-		DEVMETHOD_END
-	},
+	.methods = uhci_pci_methods,
 	.size = sizeof(struct uhci_softc),
 };
 

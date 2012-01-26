@@ -2506,7 +2506,7 @@ scsicmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -3412,7 +3412,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 		}
 		if (spi && syncrate != -1) {
 			int prelim_sync_period;
-			u_int freq;
 
 			if ((cpi.hba_inquiry & PI_SDTR_ABLE) == 0) {
 				warnx("HBA is not capable of changing "
@@ -3437,7 +3436,6 @@ ratecontrol(struct cam_device *device, int retry_count, int timeout,
 				prelim_sync_period = 10000000 / syncrate;
 			spi->sync_period =
 				scsi_calc_syncparam(prelim_sync_period);
-			freq = scsi_calc_syncsrate(spi->sync_period);
 			didsettings++;
 		}
 		if (sata && syncrate != -1) {
@@ -4030,13 +4028,12 @@ retry:
 					RPL_LUNDATA_LUN_LUN_MASK);
 				break;
 			case RPL_LUNDATA_ATYP_EXTLUN: {
-				int field_len, field_len_code, eam_code;
+				int field_len_code, eam_code;
 
 				eam_code = lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_EAM_MASK;
 				field_len_code = (lundata->luns[i].lundata[j] &
 					RPL_LUNDATA_EXT_LEN_MASK) >> 4;
-				field_len = field_len_code * 2;
 
 				if ((eam_code == RPL_LUNDATA_EXT_EAM_WK)
 				 && (field_len_code == 0x00)) {
@@ -4449,7 +4446,7 @@ smpcmd(struct cam_device *device, int argc, char **argv, char *combinedopt,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4567,7 +4564,7 @@ try_long:
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4872,7 +4869,7 @@ smpphycontrol(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -4954,7 +4951,7 @@ smpmaninfo(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5351,7 +5348,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 
 	if (((retval = cam_send_ccb(device, ccb)) < 0)
 	 || ((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)) {
-		const char *warnstr = "error sending command";
+		const char warnstr[] = "error sending command";
 
 		if (retval < 0)
 			warn(warnstr);
@@ -5431,7 +5428,7 @@ smpphylist(struct cam_device *device, int argc, char **argv,
 		if (((retval = cam_send_ccb(device, ccb)) < 0)
 		 || (((ccb->ccb_h.status & CAM_STATUS_MASK) != CAM_REQ_CMP)
 		  && (disresponse->function_result != SMP_FR_PHY_VACANT))) {
-			const char *warnstr = "error sending command";
+			const char warnstr[] = "error sending command";
 
 			if (retval < 0)
 				warn(warnstr);
@@ -5732,7 +5729,7 @@ usage(int verbose)
 "defects arguments:\n"
 "-f format         specify defect list format (block, bfi or phys)\n"
 "-G                get the grown defect list\n"
-"-P                get the permanant defect list\n"
+"-P                get the permanent defect list\n"
 "inquiry arguments:\n"
 "-D                get the standard inquiry data\n"
 "-S                get the serial number\n"

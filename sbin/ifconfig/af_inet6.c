@@ -307,6 +307,8 @@ in6_status(int s __unused, const struct ifaddrs *ifa)
 			printf("infty ");
 	}
 
+	print_vhid(ifa, " ");
+
 	putchar('\n');
 }
 

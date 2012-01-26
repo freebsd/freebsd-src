@@ -175,8 +175,8 @@ struct wlan_iface {
 	struct wlan_maclist		mac_maclist;
 
 	uint32_t			mesh_ttl;
-	enum TruthValue			mesh_peering;
-	enum TruthValue			mesh_forwarding;
+	enum wlanMeshPeeringEnabled	mesh_peering;
+	enum wlanMeshForwardingEnabled	mesh_forwarding;
 	enum wlanMeshMetric		mesh_metric;
 	enum wlanMeshPath		mesh_path;
 	enum wlanHWMPRootMode		hwmp_root_mode;

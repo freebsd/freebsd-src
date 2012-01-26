@@ -2136,7 +2136,6 @@ bxe_attach(device_t dev)
 #endif
 
 	ifp->if_init = bxe_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_hwassist = BXE_IF_HWASSIST;
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
 	/* TPA not enabled by default. */
@@ -14115,7 +14114,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			i = 0;
 			config = BXE_SP(sc, mcast_config);
 
-			IF_ADDR_LOCK(ifp);
+			if_maddr_rlock(ifp);
 
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -14144,7 +14143,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 				    config_table->cam_entry.lsb_mac_addr);
 			}
 
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 
 			old = config->hdr.length;
 
@@ -14172,7 +14171,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 			/* Accept one or more multicasts */
 			memset(mc_filter, 0, 4 * MC_HASH_SIZE);
 
-			IF_ADDR_LOCK(ifp);
+			if_maddr_rlock(ifp);
 
 			TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 				if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -14184,7 +14183,7 @@ bxe_set_rx_mode(struct bxe_softc *sc)
 				bit &= 0x1f;
 				mc_filter[regidx] |= (1 << bit);
 			}
-			IF_ADDR_UNLOCK(ifp);
+			if_maddr_runlock(ifp);
 
 			for (i = 0; i < MC_HASH_SIZE; i++)
 				REG_WR(sc, MC_HASH_OFFSET(sc, i), mc_filter[i]);

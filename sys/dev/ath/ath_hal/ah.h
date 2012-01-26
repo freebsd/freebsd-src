@@ -1169,4 +1169,10 @@ void __ahdecl ath_hal_setcca(struct ath_hal *ah, int ena);
  */
 int __ahdecl ath_hal_getcca(struct ath_hal *ah);
 
+/*
+ * Read EEPROM data from ah_eepromdata
+ */
+HAL_BOOL __ahdecl ath_hal_EepromDataRead(struct ath_hal *ah,
+		u_int off, uint16_t *data);
+
 #endif /* _ATH_AH_H_ */

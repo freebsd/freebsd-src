@@ -42,6 +42,15 @@ enum {
 
 enum { MEM_EDC0, MEM_EDC1, MEM_MC };
 
+enum {
+	MEMWIN0_APERTURE = 2048,
+	MEMWIN0_BASE     = 0x1b800,
+	MEMWIN1_APERTURE = 32768,
+	MEMWIN1_BASE     = 0x28000,
+	MEMWIN2_APERTURE = 65536,
+	MEMWIN2_BASE     = 0x30000,
+};
+
 enum dev_master { MASTER_CANT, MASTER_MAY, MASTER_MUST };
 
 enum dev_state { DEV_STATE_UNINIT, DEV_STATE_INIT, DEV_STATE_ERR };
@@ -53,8 +62,8 @@ enum {
 };
 
 #define FW_VERSION_MAJOR 1
-#define FW_VERSION_MINOR 3
-#define FW_VERSION_MICRO 10
+#define FW_VERSION_MINOR 4
+#define FW_VERSION_MICRO 16
 
 struct port_stats {
 	u64 tx_octets;            /* total # of octets in good frames */
@@ -190,7 +199,6 @@ struct tp_proxy_stats {
 struct tp_cpl_stats {
 	u32 req[4];
 	u32 rsp[4];
-	u32 tx_err[4];
 };
 
 struct tp_rdma_stats {
@@ -214,9 +222,9 @@ struct vpd_params {
 };
 
 struct pci_params {
-	unsigned int  vpd_cap_addr;
-	unsigned char speed;
-	unsigned char width;
+	unsigned int vpd_cap_addr;
+	unsigned short speed;
+	unsigned short width;
 };
 
 /*
@@ -239,20 +247,20 @@ struct adapter_params {
 
 	unsigned int fw_vers;
 	unsigned int tp_vers;
-	u8 api_vers[7];
 
 	unsigned short mtus[NMTUS];
 	unsigned short a_wnd[NCCTRL_WIN];
 	unsigned short b_wnd[NCCTRL_WIN];
 
-	unsigned int mc_size;             /* MC memory size */
-	unsigned int nfilters;            /* size of filter region */
+	unsigned int mc_size;		/* MC memory size */
+	unsigned int nfilters;		/* size of filter region */
 
 	unsigned int cim_la_size;
 
-	unsigned int nports;             /* # of ethernet ports */
+	/* Used as int in sysctls, do not reduce size */
+	unsigned int nports;		/* # of ethernet ports */
 	unsigned int portvec;
-	unsigned int rev;                /* chip revision */
+	unsigned int rev;		/* chip revision */
 	unsigned int offload;
 
 	unsigned int ofldq_wr_cred;
@@ -366,6 +374,9 @@ int t4_seeprom_wp(struct adapter *adapter, int enable);
 int t4_read_flash(struct adapter *adapter, unsigned int addr, unsigned int nwords,
 		  u32 *data, int byte_oriented);
 int t4_load_fw(struct adapter *adapter, const u8 *fw_data, unsigned int size);
+int t4_load_boot(struct adapter *adap, const u8 *boot_data,
+                 unsigned int boot_addr, unsigned int size);
+unsigned int t4_flash_cfg_addr(struct adapter *adapter);
 int t4_load_cfg(struct adapter *adapter, const u8 *cfg_data, unsigned int size);
 int t4_get_fw_version(struct adapter *adapter, u32 *vers);
 int t4_get_tp_version(struct adapter *adapter, u32 *vers);
@@ -460,8 +471,8 @@ int t4_wol_pat_enable(struct adapter *adap, unsigned int port, unsigned int map,
 int t4_fw_hello(struct adapter *adap, unsigned int mbox, unsigned int evt_mbox,
 		enum dev_master master, enum dev_state *state);
 int t4_fw_bye(struct adapter *adap, unsigned int mbox);
-int t4_early_init(struct adapter *adap, unsigned int mbox);
 int t4_fw_reset(struct adapter *adap, unsigned int mbox, int reset);
+int t4_fw_initialize(struct adapter *adap, unsigned int mbox);
 int t4_query_params(struct adapter *adap, unsigned int mbox, unsigned int pf,
 		    unsigned int vf, unsigned int nparams, const u32 *params,
 		    u32 *val);

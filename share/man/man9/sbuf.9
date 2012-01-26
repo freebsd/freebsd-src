@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 9, 2011
+.Dd December 21, 2011
 .Dt SBUF 9
 .Os
 .Sh NAME
@@ -495,8 +495,8 @@ TAILQ_FOREACH(foo, &foolist, list) {
 	sbuf_printf(sb, "      Address: %s\en", foo->address);
 	sbuf_printf(sb, "      Zip: %s\en", foo->zipcode);
 }
-if (sbuf_finish(sb)) /* Check for any and all errors */
-	err(1,"Could not generate message");
+if (sbuf_finish(sb) != 0) /* Check for any and all errors */
+	err(1, "Could not generate message");
 transmit_msg(sbuf_data(sb), sbuf_len(sb));
 sbuf_delete(sb);
 .Ed

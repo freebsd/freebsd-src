@@ -1025,7 +1025,7 @@ moused(void)
 {
     struct mouse_info mouse;
     mousestatus_t action0;		/* original mouse action */
-    mousestatus_t action;		/* interrim buffer */
+    mousestatus_t action;		/* interim buffer */
     mousestatus_t action2;		/* mapped action */
     struct timeval timeout;
     fd_set fds;
@@ -2278,7 +2278,7 @@ r_protocol(u_char rBuf, mousestatus_t *act)
 	    act->button |= ((pBuf[0] & MOUSE_PS2_TAP)) ? 0 : MOUSE_BUTTON4DOWN;
 	    break;
 	case MOUSE_MODEL_NETSCROLL:
-	    /* three addtional bytes encode buttons and wheel events */
+	    /* three additional bytes encode buttons and wheel events */
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON3DOWN)
 		? MOUSE_BUTTON4DOWN : 0;
 	    act->button |= (pBuf[3] & MOUSE_PS2_BUTTON1DOWN)
@@ -3242,7 +3242,7 @@ kidspad(u_char rxc, mousestatus_t *act)
     static int buf[5];
     static int buflen = 0, b_prev = 0 , x_prev = -1, y_prev = -1;
     static k_status status = S_IDLE;
-    static struct timespec old, now;
+    static struct timespec now;
 
     int x, y;
 
@@ -3280,7 +3280,6 @@ kidspad(u_char rxc, mousestatus_t *act)
 	x_prev = x;
 	y_prev = y;
     }
-    old = now;
     act->dx = x - x_prev;
     act->dy = y - y_prev;
     if (act->dx || act->dy)

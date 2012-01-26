@@ -34,8 +34,8 @@
  * 
  */
 
-#ifndef _FS_EXT2FS_EXT2_FS_H_
-#define _FS_EXT2FS_EXT2_FS_H_
+#ifndef _FS_EXT2FS_EXT2FS_H_
+#define _FS_EXT2FS_EXT2FS_H_
 
 #include <sys/types.h>
 
@@ -45,6 +45,16 @@
 #define EXT2_LINK_MAX		32000
 
 /*
+ * A summary of contiguous blocks of various sizes is maintained
+ * in each cylinder group. Normally this is set by the initial
+ * value of fs_maxcontig.
+ *
+ * XXX:FS_MAXCONTIG is set to 16 to conserve space. Here we set
+ * EXT2_MAXCONTIG to 32 for better performance.
+ */
+#define EXT2_MAXCONTIG		32
+
+/*
  * Constants relative to the data blocks
  */
 #define	EXT2_NDIR_BLOCKS		12
@@ -52,7 +62,7 @@
 #define	EXT2_DIND_BLOCK			(EXT2_IND_BLOCK + 1)
 #define	EXT2_TIND_BLOCK			(EXT2_DIND_BLOCK + 1)
 #define	EXT2_N_BLOCKS			(EXT2_TIND_BLOCK + 1)
-#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof (uint32_t))
+#define EXT2_MAXSYMLINKLEN		(EXT2_N_BLOCKS * sizeof(uint32_t))
 
 /*
  * The path name on which the file system is mounted is maintained
@@ -151,6 +161,10 @@ struct m_ext2fs {
 	char     e2fs_wasvalid;   /* valid at mount time */
 	off_t    e2fs_maxfilesize;
 	struct   ext2_gd *e2fs_gd; /* Group Descriptors */
+	int32_t  e2fs_maxcontig;        /* max number of contiguous blks */
+	int32_t  e2fs_contigsumsize;    /* size of cluster summary array */
+	int32_t *e2fs_maxcluster;       /* max cluster in each cyl group */
+	struct   csum *e2fs_clustersum; /* cluster summary in each cyl group */
 };
 
 /*
@@ -253,6 +267,13 @@ struct ext2_gd {
 	uint32_t reserved2[3];
 };
 
+/* cluster summary information */
+
+struct csum {
+	int8_t   cs_init; /* cluster summary has been initialized */
+	int32_t *cs_sum;  /* cluster summary array */
+};
+
 /* EXT2FS metadatas are stored in little-endian byte order. These macros
  * helps reading these metadatas
  */
@@ -271,7 +292,7 @@ struct ext2_gd {
 #else
 # define EXT2_BLOCK_SIZE(s)		(EXT2_MIN_BLOCK_SIZE << (s)->e2fs_log_bsize)
 #endif
-#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (uint32_t))
+#define	EXT2_ADDR_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(uint32_t))
 #if defined(_KERNEL)
 # define EXT2_BLOCK_SIZE_BITS(s)	((s)->e2fs_blocksize_bits)
 #else
@@ -311,7 +332,7 @@ struct ext2_gd {
 # define EXT2_DESC_PER_BLOCK_BITS(s)	(EXT2_SB(s)->s_desc_per_block_bits)
 #else
 # define EXT2_BLOCKS_PER_GROUP(s)	((s)->e2fs_bpg)
-# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof (struct ext2_gd))
+# define EXT2_DESC_PER_BLOCK(s)		(EXT2_BLOCK_SIZE(s) / sizeof(struct ext2_gd))
 
 #endif
 

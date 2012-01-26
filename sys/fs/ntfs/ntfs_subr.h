@@ -112,9 +112,9 @@ int ntfs_u28_init(struct ntfsmount *ntmp, wchar *u2w, char *cs_local, char *cs_n
 int ntfs_u28_uninit(struct ntfsmount *ntmp);
 int ntfs_82u_init(struct ntfsmount *ntmp, char *cs_local, char *cs_ntfs);
 int ntfs_82u_uninit(struct ntfsmount *ntmp);
-char * ntfs_u28(struct ntfsmount *ntmp, wchar wc);
+char * ntfs_u28(char *outbuf, struct ntfsmount *ntmp, wchar wc);
 wchar ntfs_82u(struct ntfsmount *ntmp, const char *c, int *len);
-#define NTFS_U28(ch)		ntfs_u28(ntmp, (ch))
+#define NTFS_U28(ch)		ntfs_u28(tmpbuf, ntmp, (ch))
 #define NTFS_82U(ch, len)	ntfs_82u(ntmp, (ch), len)
 #define	NTFS_UASTRCMP(ustr, ustrlen, astr, astrlen)	\
 	ntfs_uastrcmp(ntmp, (ustr), (ustrlen), (astr), (astrlen))

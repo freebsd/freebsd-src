@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 	int Aflag, aflag, eflag, evalue, fflag, fvalue, jflag, Jflag, Lflag;
 	int lflag, mflag, mvalue, Nflag, nflag, oflag, ovalue, pflag, sflag;
 	int tflag;
-	int svalue, Sflag, Svalue;
+	int svalue, Svalue;
 	int ch, found_arg, i;
 	const char *chg[2];
 	struct ufs_args args;
@@ -269,7 +269,6 @@ main(int argc, char *argv[])
 			if (Svalue < SUJ_MIN)
 				errx(10, "%s must be >= %d (was %s)",
 				    name, SUJ_MIN, optarg);
-			Sflag = 1;
 			break;
 
 		case 't':

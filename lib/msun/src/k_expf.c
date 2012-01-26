@@ -44,7 +44,7 @@ static const float kln2 =  162.88958740F;	/* k * ln2 */
 static float
 __frexp_expf(float x, int *expt)
 {
-	double exp_x;
+	float exp_x;
 	uint32_t hx;
 
 	exp_x = expf(x - kln2);

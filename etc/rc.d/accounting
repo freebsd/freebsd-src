@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="accounting"
-rcvar=`set_rcvar`
+rcvar="accounting_enable"
 accounting_command="/usr/sbin/accton"
 accounting_file="/var/account/acct"
 

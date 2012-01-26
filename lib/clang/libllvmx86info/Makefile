@@ -2,7 +2,7 @@
 
 LIB=	llvmx86info
 
-SRCDIR=	lib/Target/X86/TargetInfo/
+SRCDIR=	lib/Target/X86/TargetInfo
 INCDIR=	lib/Target/X86
 SRCS=	X86TargetInfo.cpp
 

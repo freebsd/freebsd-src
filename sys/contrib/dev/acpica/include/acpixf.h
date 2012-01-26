@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -48,7 +48,7 @@
 
 /* Current ACPICA subsystem version in YYYYMMDD format */
 
-#define ACPI_CA_VERSION                 0x20111123
+#define ACPI_CA_VERSION                 0x20120111
 
 #include <contrib/dev/acpica/include/actypes.h>
 #include <contrib/dev/acpica/include/actbl.h>
@@ -144,6 +144,13 @@ AcpiInstallInterface (
 ACPI_STATUS
 AcpiRemoveInterface (
     ACPI_STRING             InterfaceName);
+
+UINT32
+AcpiCheckAddressRange (
+    ACPI_ADR_SPACE_TYPE     SpaceId,
+    ACPI_PHYSICAL_ADDRESS   Address,
+    ACPI_SIZE               Length,
+    BOOLEAN                 Warn);
 
 
 /*

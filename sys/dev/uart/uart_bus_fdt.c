@@ -186,7 +186,7 @@ uart_cpu_getdev(int devtype, struct uart_devinfo *di)
 
 	di->bas.chan = 0;
 	di->bas.regshft = (u_int)shift;
-	di->baudrate = 0;
+	di->baudrate = br;
 	di->bas.rclk = (u_int)rclk;
 	di->ops = uart_getops(class);
 	di->databits = 8;

@@ -78,9 +78,6 @@ struct ixp_ehci_softc {
 
 static device_attach_t ehci_ixp_attach;
 static device_detach_t ehci_ixp_detach;
-static device_shutdown_t ehci_ixp_shutdown;
-static device_suspend_t ehci_ixp_suspend;
-static device_resume_t ehci_ixp_resume;
 
 static uint8_t ehci_bs_r_1(void *, bus_space_handle_t, bus_size_t);
 static void ehci_bs_w_1(void *, bus_space_handle_t, bus_size_t, u_int8_t);
@@ -88,45 +85,6 @@ static uint16_t ehci_bs_r_2(void *, bus_space_handle_t, bus_size_t);
 static void ehci_bs_w_2(void *, bus_space_handle_t, bus_size_t, uint16_t);
 static uint32_t ehci_bs_r_4(void *, bus_space_handle_t, bus_size_t);
 static void ehci_bs_w_4(void *, bus_space_handle_t, bus_size_t, uint32_t);
-
-static int
-ehci_ixp_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ehci_ixp_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ehci_ixp_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
 
 static int
 ehci_ixp_probe(device_t self)
@@ -335,9 +293,9 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ehci_ixp_probe),
 	DEVMETHOD(device_attach, ehci_ixp_attach),
 	DEVMETHOD(device_detach, ehci_ixp_detach),
-	DEVMETHOD(device_suspend, ehci_ixp_suspend),
-	DEVMETHOD(device_resume, ehci_ixp_resume),
-	DEVMETHOD(device_shutdown, ehci_ixp_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };

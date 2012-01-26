@@ -212,7 +212,8 @@
 #define EM_BAR_MEM_TYPE_64BIT	0x00000004
 #define EM_MSIX_BAR		3	/* On 82575 */
 
-#if !defined(SYSCTL_ADD_UQUAD)
+/* More backward compatibility */
+#if __FreeBSD_version < 900000
 #define SYSCTL_ADD_UQUAD SYSCTL_ADD_QUAD
 #endif
 
@@ -418,11 +419,11 @@ struct adapter {
 	u32		shadow_vfta[EM_VFTA_SIZE];
 
 	/* Info about the interface */
-	u8		link_active;
+	u16		link_active;
+	u16		fc;
 	u16		link_speed;
 	u16		link_duplex;
 	u32		smartspeed;
-	u32		fc_setting;
 
 	struct em_int_delay_info tx_int_delay;
 	struct em_int_delay_info tx_abs_int_delay;

@@ -320,7 +320,7 @@ MEDIUM)
 
 PREINIT)
 	delete_old_alias
-	$IFCONFIG $interface inet alias 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	$IFCONFIG $interface inet alias 0.0.0.0 netmask 255.0.0.0 broadcast 255.255.255.255 up
 	;;
 
 ARPCHECK|ARPSEND)

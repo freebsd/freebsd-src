@@ -22,7 +22,14 @@ stop_precmd="dhclient_pre_check"
 dhclient_pre_check()
 {
 	if [ -z "${rc_force}" ] && ! dhcpif $ifn; then
-		err 1 "'$ifn' is not a DHCP-enabled interface"
+		local msg
+		msg="'$ifn' is not a DHCP-enabled interface"
+		if [ -z "${rc_quiet}" ]; then
+			echo "$msg"
+		else
+			debug "$msg"
+		fi
+			exit 1
 	fi
 }
 

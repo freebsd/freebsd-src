@@ -125,7 +125,7 @@ XRINT_CFLAGS:=	${.IMPSRC:M*/s_nearbyint.c:C/^.+$/${XRINT_CFLAGS}/:C/^$//}
 
 SRCS=	${COMMON_SRCS} ${ARCH_SRCS}
 
-INCS=	fenv.h math.h
+INCS+=	fenv.h math.h
 
 MAN=	acos.3 acosh.3 asin.3 asinh.3 atan.3 atan2.3 atanh.3 \
 	ceil.3 ccos.3 ccosh.3 cexp.3 \

@@ -3454,7 +3454,12 @@ nfsrv_commit(struct nfsrv_descript *nfsd, struct nfssvc_sock *slp,
 	}
 	for_ret = VOP_GETATTR(vp, &bfor, cred);
 
-	if (cnt > MAX_COMMIT_COUNT) {
+	/*
+	 * RFC 1813 3.3.21: if count is 0, a flush from offset to the end of file
+	 * is done.  At this time VOP_FSYNC does not accept offset and byte count
+	 * parameters so call VOP_FSYNC the whole file for now.
+	 */
+	if (cnt == 0 || cnt > MAX_COMMIT_COUNT) {
 		/*
 		 * Give up and do the whole thing
 		 */

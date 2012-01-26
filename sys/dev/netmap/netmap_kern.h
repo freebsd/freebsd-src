@@ -39,13 +39,13 @@ MALLOC_DECLARE(M_NETMAP);
 #endif
 
 #define ND(format, ...)
-#define D(format, ...)					\
-	do {						\
-		struct timeval __xxts;			\
+#define D(format, ...)						\
+	do {							\
+		struct timeval __xxts;				\
 		microtime(&__xxts);				\
-		printf("%03d.%06d %s [%d] " format "\n",\
-		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,		\
-		__FUNCTION__, __LINE__, ##__VA_ARGS__);	\
+		printf("%03d.%06d %s [%d] " format "\n",	\
+		(int)__xxts.tv_sec % 1000, (int)__xxts.tv_usec,	\
+		__FUNCTION__, __LINE__, ##__VA_ARGS__);		\
 	} while (0)
  
 struct netmap_adapter;
@@ -169,18 +169,8 @@ int netmap_start(struct ifnet *, struct mbuf *);
 enum txrx { NR_RX = 0, NR_TX = 1 };
 struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
-void netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map,
-        void *buf, bus_size_t buflen);
-void netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map,
-        void *buf, bus_size_t buflen);
 int netmap_ring_reinit(struct netmap_kring *);
 
-/*
- * XXX eventually, get rid of netmap_total_buffers and netmap_buffer_base
- * in favour of the structure
- */
-// struct netmap_buf_pool;
-// extern struct netmap_buf_pool nm_buf_pool;
 extern u_int netmap_total_buffers;
 extern char *netmap_buffer_base;
 extern int netmap_verbose;	// XXX debugging
@@ -196,17 +186,49 @@ enum {                                  /* verbose flags */
 };
 
 /*
- * return a pointer to the struct netmap adapter from the ifp
+ * NA returns a pointer to the struct netmap adapter from the ifp,
+ * WNA is used to write it.
  */
-#define	NA(_ifp)	((struct netmap_adapter *)(_ifp)->if_pspare[0])
+#ifndef WNA
+#define	WNA(_ifp)	(_ifp)->if_pspare[0]
+#endif
+#define	NA(_ifp)	((struct netmap_adapter *)WNA(_ifp))
+
+
+/* Callback invoked by the dma machinery after a successfull dmamap_load */
+static void netmap_dmamap_cb(__unused void *arg,
+    __unused bus_dma_segment_t * segs, __unused int nseg, __unused int error)
+{
+}
+
+/* bus_dmamap_load wrapper: call aforementioned function if map != NULL.
+ * XXX can we do it without a callback ?
+ */
+static inline void
+netmap_load_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
+{
+	if (map)
+		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
+		    netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+}
+
+/* update the map when a buffer changes. */
+static inline void
+netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
+{
+	if (map) {
+		bus_dmamap_unload(tag, map);
+		bus_dmamap_load(tag, map, buf, NETMAP_BUF_SIZE,
+		    netmap_dmamap_cb, NULL, BUS_DMA_NOWAIT);
+	}
+}
 
 
 /*
- * return the address of a buffer.
- * XXX this is a special version with hardwired 2k bufs
- * On error return netmap_buffer_base which is detected as a bad pointer.
+ * NMB return the virtual address of a buffer (buffer 0 on bad index)
+ * PNMB also fills the physical address
  */
-static inline char *
+static inline void *
 NMB(struct netmap_slot *slot)
 {
 	uint32_t i = slot->buf_idx;
@@ -216,6 +238,20 @@ NMB(struct netmap_slot *slot)
 #else
 		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
 #endif
+}
+
+static inline void *
+PNMB(struct netmap_slot *slot, uint64_t *pp)
+{
+	uint32_t i = slot->buf_idx;
+	void *ret = (i >= netmap_total_buffers) ? netmap_buffer_base :
+#if NETMAP_BUF_SIZE == 2048
+		netmap_buffer_base + (i << 11);
+#else
+		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
+#endif
+	*pp = vtophys(ret);
+	return ret;
 }
 
 #endif /* _NET_NETMAP_KERN_H_ */

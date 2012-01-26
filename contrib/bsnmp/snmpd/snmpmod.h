@@ -40,6 +40,7 @@
 #define snmpmod_h_
 
 #include <sys/types.h>
+#include <sys/queue.h>
 #include <sys/socket.h>
 #include <net/if.h>
 #include <netinet/in.h>

@@ -398,6 +398,8 @@ extern uma_zone_t	zone_ext_refcnt;
 
 static __inline struct mbuf	*m_getcl(int how, short type, int flags);
 static __inline struct mbuf	*m_get(int how, short type);
+static __inline struct mbuf	*m_get2(int how, short type, int flags,
+				    int size);
 static __inline struct mbuf	*m_gethdr(int how, short type);
 static __inline struct mbuf	*m_getjcl(int how, short type, int flags,
 				    int size);
@@ -436,7 +438,7 @@ m_gettype(int size)
 		type = EXT_JUMBO16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster size", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (type);
@@ -448,9 +450,6 @@ m_getzone(int size)
 	uma_zone_t zone;
 	
 	switch (size) {
-	case MSIZE:
-		zone = zone_mbuf;
-		break;
 	case MCLBYTES:
 		zone = zone_clust;
 		break;
@@ -466,7 +465,7 @@ m_getzone(int size)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("%s: m_getjcl: invalid cluster type", __func__);
+		panic("%s: invalid cluster size", __func__);
 	}
 
 	return (zone);
@@ -544,6 +543,52 @@ m_getcl(int how, short type, int flags)
 	args.flags = flags;
 	args.type = type;
 	return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
+}
+
+/*
+ * m_get2() allocates minimum mbuf that would fit "size" argument.
+ *
+ * XXX: This is rather large, should be real function maybe.
+ */
+static __inline struct mbuf *
+m_get2(int how, short type, int flags, int size)
+{
+	struct mb_args args;
+	struct mbuf *m, *n;
+	uma_zone_t zone;
+
+	args.flags = flags;
+	args.type = type;
+
+	if (size <= MHLEN || (size <= MLEN && (flags & M_PKTHDR) == 0))
+		return ((struct mbuf *)(uma_zalloc_arg(zone_mbuf, &args, how)));
+	if (size <= MCLBYTES)
+		return ((struct mbuf *)(uma_zalloc_arg(zone_pack, &args, how)));
+
+	if (size > MJUM16BYTES)
+		return (NULL);
+
+	m = uma_zalloc_arg(zone_mbuf, &args, how);
+	if (m == NULL)
+		return (NULL);
+
+#if MJUMPAGESIZE != MCLBYTES
+	if (size <= MJUMPAGESIZE)
+		zone = zone_jumbop;
+	else
+#endif
+	if (size <= MJUM9BYTES)
+		zone = zone_jumbo9;
+	else
+		zone = zone_jumbo16;
+
+	n = uma_zalloc_arg(zone, m, how);
+	if (n == NULL) {
+		uma_zfree(zone_mbuf, m);
+		return (NULL);
+	}
+
+	return (m);
 }
 
 /*
@@ -666,7 +711,7 @@ m_cljset(struct mbuf *m, void *cl, int type)
 		zone = zone_jumbo16;
 		break;
 	default:
-		panic("unknown cluster type");
+		panic("%s: unknown cluster type", __func__);
 		break;
 	}
 

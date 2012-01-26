@@ -649,9 +649,9 @@ static const struct usb_config urtw_8187l_usbconfig[URTW_8187L_N_XFERS] = {
 };
 
 static struct ieee80211vap *urtw_vap_create(struct ieee80211com *,
-			    const char name[IFNAMSIZ], int unit, int opmode,
-			    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-			    const uint8_t mac[IEEE80211_ADDR_LEN]);
+			    const char [IFNAMSIZ], int, enum ieee80211_opmode,
+			    int, const uint8_t [IEEE80211_ADDR_LEN],
+			    const uint8_t [IEEE80211_ADDR_LEN]);
 static void		urtw_vap_delete(struct ieee80211vap *);
 static void		urtw_init(void *);
 static void		urtw_stop(struct ifnet *, int);
@@ -993,10 +993,10 @@ urtw_free_data_list(struct urtw_softc *sc, struct urtw_data data[], int ndata,
 }
 
 static struct ieee80211vap *
-urtw_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+urtw_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct urtw_vap *uvp;
 	struct ieee80211vap *vap;

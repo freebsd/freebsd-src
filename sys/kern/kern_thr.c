@@ -63,11 +63,11 @@ static SYSCTL_NODE(_kern, OID_AUTO, threads, CTLFLAG_RW, 0,
 
 static int max_threads_per_proc = 1500;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_per_proc, CTLFLAG_RW,
-	&max_threads_per_proc, 0, "Limit on threads per proc");
+    &max_threads_per_proc, 0, "Limit on threads per proc");
 
 static int max_threads_hits;
 SYSCTL_INT(_kern_threads, OID_AUTO, max_threads_hits, CTLFLAG_RD,
-	&max_threads_hits, 0, "");
+    &max_threads_hits, 0, "kern.threads.max_threads_per_proc hit count");
 
 #ifdef COMPAT_FREEBSD32
 

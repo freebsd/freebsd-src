@@ -6,11 +6,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * c) Neither the name of Cisco Systems, Inc. nor the names of its
  *    contributors may be used to endorse or promote products derived
@@ -527,7 +527,7 @@ sctp_inpcb_bind(struct socket *, struct sockaddr *,
     struct sctp_ifa *, struct thread *);
 
 struct sctp_tcb *
-sctp_findassociation_addr(struct mbuf *, int, int,
+sctp_findassociation_addr(struct mbuf *, int,
     struct sctphdr *, struct sctp_chunkhdr *, struct sctp_inpcb **,
     struct sctp_nets **, uint32_t vrf_id);
 
@@ -558,7 +558,7 @@ sctp_findassociation_ep_asocid(struct sctp_inpcb *,
     sctp_assoc_t, int);
 
 struct sctp_tcb *
-sctp_findassociation_ep_asconf(struct mbuf *, int, int,
+sctp_findassociation_ep_asconf(struct mbuf *, int,
     struct sctphdr *, struct sctp_inpcb **, struct sctp_nets **, uint32_t vrf_id);
 
 int sctp_inpcb_alloc(struct socket *so, uint32_t vrf_id);
@@ -603,14 +603,14 @@ void sctp_add_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 void sctp_del_local_addr_restricted(struct sctp_tcb *, struct sctp_ifa *);
 
 int
-sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int, int,
+sctp_load_addresses_from_init(struct sctp_tcb *, struct mbuf *, int,
     int, struct sctphdr *, struct sockaddr *);
 
 int
 sctp_set_primary_addr(struct sctp_tcb *, struct sockaddr *,
     struct sctp_nets *);
 
-int sctp_is_vtag_good(struct sctp_inpcb *, uint32_t, uint16_t lport, uint16_t rport, struct timeval *, int);
+int sctp_is_vtag_good(uint32_t, uint16_t lport, uint16_t rport, struct timeval *);
 
 /* void sctp_drain(void); */
 

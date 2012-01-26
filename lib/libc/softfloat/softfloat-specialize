@@ -1,4 +1,4 @@
-/*	$NetBSD: softfloat-specialize,v 1.3 2002/05/12 13:12:45 bjh21 Exp $	*/
+/*	$NetBSD: softfloat-specialize,v 1.6 2011/03/06 10:27:37 martin Exp $	*/
 /* $FreeBSD$ */
 
 /* This is a derivative work. */
@@ -34,6 +34,8 @@ this code that are retained.
 */
 
 #include <signal.h>
+#include <string.h>
+#include <unistd.h>
 
 /*
 -------------------------------------------------------------------------------
@@ -58,16 +60,39 @@ substitute a result value.  If traps are not implemented, this routine
 should be simply `float_exception_flags |= flags;'.
 -------------------------------------------------------------------------------
 */
-fp_except float_exception_mask = 0;
-void float_raise( fp_except flags )
+#ifdef SOFTFLOAT_FOR_GCC
+#define float_exception_mask	__softfloat_float_exception_mask
+#endif
+int float_exception_mask = 0;
+void float_raise( int flags )
 {
 
     float_exception_flags |= flags;
 
     if ( flags & float_exception_mask ) {
+#if 0
+	siginfo_t info;
+	memset(&info, 0, sizeof info);
+	info.si_signo = SIGFPE;
+	info.si_pid = getpid();
+	info.si_uid = geteuid();
+	if (flags & float_flag_underflow)
+	    info.si_code = FPE_FLTUND;
+	else if (flags & float_flag_overflow)
+	    info.si_code = FPE_FLTOVF;
+	else if (flags & float_flag_divbyzero)
+	    info.si_code = FPE_FLTDIV;
+	else if (flags & float_flag_invalid)
+	    info.si_code = FPE_FLTINV;
+	else if (flags & float_flag_inexact)
+	    info.si_code = FPE_FLTRES;
+	sigqueueinfo(getpid(), &info);
+#else
 	raise( SIGFPE );
+#endif
     }
 }
+#undef float_exception_mask
 
 /*
 -------------------------------------------------------------------------------
@@ -108,7 +133,8 @@ Returns 1 if the single-precision floating-point value `a' is a signaling
 NaN; otherwise returns 0.
 -------------------------------------------------------------------------------
 */
-#if defined(SOFTFLOAT_FOR_GCC) && !defined(SOFTFLOATSPARC64_FOR_GCC)
+#if defined(SOFTFLOAT_FOR_GCC) && !defined(SOFTFLOATSPARC64_FOR_GCC) && \
+    !defined(SOFTFLOAT_M68K_FOR_GCC)
 static
 #endif
 flag float32_is_signaling_nan( float32 a )
@@ -207,7 +233,8 @@ Returns 1 if the double-precision floating-point value `a' is a signaling
 NaN; otherwise returns 0.
 -------------------------------------------------------------------------------
 */
-#if defined(SOFTFLOAT_FOR_GCC) && !defined(SOFTFLOATSPARC64_FOR_GCC)
+#if defined(SOFTFLOAT_FOR_GCC) && !defined(SOFTFLOATSPARC64_FOR_GCC) && \
+    !defined(SOFTFLOATM68K_FOR_GCC)
 static
 #endif
 flag float64_is_signaling_nan( float64 a )

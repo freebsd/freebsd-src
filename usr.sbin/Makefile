@@ -16,6 +16,7 @@ SUBDIR=	adduser \
 	clear_locks \
 	crashinfo \
 	cron \
+	ctladm \
 	daemon \
 	dconschat \
 	devinfo \

@@ -1,3 +1,29 @@
+OpenPAM Lycopsida						2011-12-18
+
+ - ENHANCE: removed static build autodetection, which didn't work
+   anyway.  Use an explicit, user-specified preprocessor variable
+   instead.
+
+ - ENHANCE: cleaned up the documentation a bit.
+
+ - ENHANCE: added openpam_subst(3), allowing certain PAM items to be
+   embedded in strings such as prompts.  Apply it to the prompts used
+   by pam_get_user(3) and pam_get_authtok(3).
+
+ - ENHANCE: added support for the user_prompt, authtok_prompt and
+   oldauthtok_prompt module options, which override the prompts passed
+   by the module to pam_set_user(3) and pam_get_authtok(3).
+
+ - ENHANCE: rewrote the policy parser to support quoted option values.
+
+ - ENHANCE: added pamtest(1), a tool for testing modules and policies.
+
+ - ENHANCE: added code to check the ownership and permissions of a
+   module before loading it.
+
+ - ENHANCE: added / improved input validation in many cases, including
+   the policy file and some function arguments.
+============================================================================
 OpenPAM Hydrangea						2007-12-21
 
  - ENHANCE: when compiling with GCC, mark up API functions with GCC
@@ -21,7 +47,7 @@ OpenPAM Hydrangea						2007-12-21
    contexts), since the module cache was the only part of OpenPAM that
    was not thread-safe.
 ============================================================================
-OpenPAM Figwort 2005-06-16
+OpenPAM Figwort							2005-06-16
 
  - BUGFIX: Correct several small signedness and initialization bugs
    discovered during review by the NetBSD team.
@@ -327,4 +353,4 @@ OpenPAM	Calamite						2002-02-09
 
 First (beta) release.
 ============================================================================
-$Id: HISTORY 409 2007-12-21 11:38:50Z des $
+$Id: HISTORY 504 2011-12-18 14:11:12Z des $

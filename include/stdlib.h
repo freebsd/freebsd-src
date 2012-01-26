@@ -149,13 +149,14 @@ _Noreturn void	 _Exit(int);
 #endif /* __ISO_C_VISIBLE >= 1999 */
 
 /*
- * If we're in a mode greater than C99, expose C1x functions.
+ * If we're in a mode greater than C99, expose C11 functions.
  */
-#if __ISO_C_VISIBLE > 1999
-_Noreturn void quick_exit(int)
-int
-at_quick_exit(void (*func)(void));
-#endif /* __ISO_C_VISIBLE > 1999 */
+#if __ISO_C_VISIBLE >= 2011
+void *	aligned_alloc(size_t, size_t);
+int	at_quick_exit(void (*)(void));
+_Noreturn void
+	quick_exit(int);
+#endif /* __ISO_C_VISIBLE >= 2011 */
 /*
  * Extensions made by POSIX relative to C.  We don't know yet which edition
  * of POSIX made these extensions, so assume they've always been there until
@@ -271,7 +272,7 @@ char 	*devname_r(__dev_t, __mode_t, char *, int);
 char	*fdevname(int);
 char 	*fdevname_r(int, char *, int);
 int	 getloadavg(double [], int);
-__const char *
+const char *
 	 getprogname(void);
 
 int	 heapsort(void *, size_t, size_t, int (*)(const void *, const void *));

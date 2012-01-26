@@ -322,6 +322,7 @@ __DEFAULT_YES_OPTIONS = \
     BSNMP \
     BZIP2 \
     CALENDAR \
+    CAPSICUM \
     CDDL \
     CPP \
     CRYPT \

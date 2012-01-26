@@ -70,6 +70,8 @@ int displayhist;
 static FILE *el_in, *el_out, *el_err;
 
 static char *fc_replace(const char *, char *, char *);
+static int not_fcnumber(const char *);
+static int str_to_event(const char *, int);
 
 /*
  * Set history and editing status.  Called whenever the status may
@@ -158,8 +160,7 @@ bad:
 
 
 void
-sethistsize(hs)
-	const char *hs;
+sethistsize(const char *hs)
 {
 	int histsize;
 	HistEvent he;
@@ -425,7 +426,7 @@ fc_replace(const char *s, char *p, char *r)
 	return (dest);
 }
 
-int
+static int
 not_fcnumber(const char *s)
 {
 	if (s == NULL)
@@ -435,7 +436,7 @@ not_fcnumber(const char *s)
 	return (!is_number(s));
 }
 
-int
+static int
 str_to_event(const char *str, int last)
 {
 	HistEvent he;

@@ -670,6 +670,7 @@ ntfs_uastricmp(ntmp, ustr, ustrlen, astr, astrlen)
 	size_t astrlen;
 {
 	const char *astrp = astr;
+	char tmpbuf[5];
 	int len, res;
 	size_t i, j, mbstrlen = astrlen;
 
@@ -712,7 +713,7 @@ ntfs_uastrcmp(ntmp, ustr, ustrlen, astr, astrlen)
 	const char *astr;
 	size_t astrlen;
 {
-	char *c;
+	char *c, tmpbuf[5];
 	size_t i, j, mbstrlen = astrlen;
 	int res;
 
@@ -1635,7 +1636,7 @@ ntfs_readntvattr_plain(
 					for(; remains; remains--)
 						uiomove("", 1, uio);
 				} else 
-					bzero(data, tocopy);
+					memset(data, 0, tocopy);
 				data = data + tocopy;
 			}
 			cnt++;
@@ -1782,7 +1783,7 @@ ntfs_readattr(
 						uiomove("", 1, uio);
 				}
 				else
-					bzero(data, tocopy);
+					memset(data, 0, tocopy);
 			} else {
 				error = ntfs_uncompunit(ntmp, uup, cup);
 				if (error)
@@ -2131,10 +2132,11 @@ ntfs_82u_uninit(struct ntfsmount *ntmp)
  */
 char *
 ntfs_u28(
+	char *outbuf,
 	struct ntfsmount *ntmp, 
 	wchar wc)
 {
-	char *p, *outp, inbuf[3], outbuf[5];;
+	char *p, *outp, inbuf[3];
 	size_t ilen, olen;
 
 	outp = outbuf;

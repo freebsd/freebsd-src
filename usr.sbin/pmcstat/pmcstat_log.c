@@ -254,7 +254,7 @@ static void pmcstat_stats_reset(int _reset_global);
 /*
  * A simple implementation of interned strings.  Each interned string
  * is assigned a unique address, so that subsequent string compares
- * can be done by a simple pointer comparision instead of using
+ * can be done by a simple pointer comparison instead of using
  * strcmp().  This speeds up hash table lookups and saves memory if
  * duplicate strings are the norm.
  */

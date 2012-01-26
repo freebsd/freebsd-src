@@ -80,8 +80,7 @@ get_names(int argc, char *argv[])
 	gethostname(hostname, sizeof (hostname));
 	my_machine_name = hostname;
 	/* check for, and strip out, the machine name of the target */
-	for (cp = argv[1]; *cp && !index("@:!", *cp); cp++)
-		;
+	cp = argv[1] + strcspn(argv[1], "@:!");
 	if (*cp == '\0') {
 		/* this is a local to local talk */
 		his_name = argv[1];

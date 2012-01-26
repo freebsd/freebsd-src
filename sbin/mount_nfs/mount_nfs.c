@@ -411,7 +411,8 @@ main(int argc, char *argv[])
 		exit(1);
 
 	/* resolve the mountpoint with realpath(3) */
-	(void)checkpath(name, mntpath);
+	if (checkpath(name, mntpath) != 0)
+		err(1, "%s", mntpath);
 
 	build_iovec(&iov, &iovlen, "fstype", fstype, (size_t)-1);
 	build_iovec(&iov, &iovlen, "fspath", mntpath, (size_t)-1);
@@ -788,7 +789,7 @@ getnfsargs(char *spec, struct iovec **iov, int *iovlen)
 	for (;;) {
 		/*
 		 * Try each entry returned by getaddrinfo(). Note the
-		 * occurence of remote errors by setting `remoteerr'.
+		 * occurrence of remote errors by setting `remoteerr'.
 		 */
 		remoteerr = 0;
 		for (ai = ai_nfs; ai != NULL; ai = ai->ai_next) {

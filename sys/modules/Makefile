@@ -50,12 +50,14 @@ SUBDIR=	${_3dfx} \
 	${_canbepm} \
 	${_canbus} \
 	${_cardbus} \
+	${_carp} \
 	cas \
 	${_cbb} \
 	cc \
 	cd9660 \
 	cd9660_iconv \
 	${_ce} \
+	${_cfi} \
 	${_ciss} \
 	${_cm} \
 	${_cmx} \
@@ -107,6 +109,7 @@ SUBDIR=	${_3dfx} \
 	hatm \
 	hifn \
 	hme \
+	${_hpt27xx} \
 	${_hptiop} \
 	${_hptmv} \
 	${_hptrr} \
@@ -117,7 +120,6 @@ SUBDIR=	${_3dfx} \
 	${_ida} \
 	${_ie} \
 	if_bridge \
-	${_if_carp} \
 	if_disc \
 	if_edsc \
 	if_ef \
@@ -134,7 +136,7 @@ SUBDIR=	${_3dfx} \
 	${_igb} \
 	${_iir} \
 	${_io} \
-	ipdivert \
+	${_ipdivert} \
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
@@ -319,6 +321,7 @@ SUBDIR=	${_3dfx} \
 	${_vesa} \
 	${_virtio} \
 	vge \
+	${_viawd} \
 	vkbd \
 	${_vpo} \
 	vr \
@@ -368,13 +371,13 @@ _random=	random
 .endif
 .endif
 
-.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
-_if_gre=	if_gre
-.endif
-
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
-_if_carp=	if_carp
+_carp=	carp
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
@@ -382,6 +385,7 @@ _ipfilter=	ipfilter
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
@@ -507,6 +511,7 @@ _coretemp=	coretemp
 _ctau=		ctau
 _dpt=		dpt
 _ex=		ex
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -530,6 +535,7 @@ _nve=		nve
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
+_viawd=		viawd
 _wpi=		wpi
 _wpifw=		wpifw
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -561,6 +567,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
@@ -582,6 +589,7 @@ _et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+_hpt27xx=	hpt27xx
 _hptiop=	hptiop
 _hptmv=		hptmv
 _hptrr=		hptrr
@@ -640,6 +648,7 @@ _sppp=		sppp
 _tpm=		tpm
 _twa=		twa
 _vesa=		vesa
+_viawd=		viawd
 _virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
@@ -649,6 +658,10 @@ _wpifw=		wpifw
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
+.endif
+
+.if ${MACHINE_CPUARCH} == "arm"
+_cfi=		cfi
 .endif
 
 .if ${MACHINE_CPUARCH} == "ia64"
@@ -694,6 +707,7 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
 _smbfs=		smbfs

@@ -290,7 +290,6 @@ struct et_softc {
 	struct resource		*sc_irq_res;
 	struct resource		*sc_mem_res;
 
-	struct arpcom		arpcom;
 	int			sc_if_flags;
 	uint32_t		sc_flags;	/* ET_FLAG_ */
 	int			sc_expcap;
