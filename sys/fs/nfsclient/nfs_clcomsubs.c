@@ -192,7 +192,7 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_SEQUENCE);
 			if (sep == NULL)
-				nfsv4_setsequence(nd, &nmp->nm_clp->nfsc_sess,
+				nfsv4_setsequence(nd, &nmp->nm_sess,
 				    nfs_bigreply[procnum]);
 			else
 				nfsv4_setsequence(nd, sep,

@@ -729,8 +729,6 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 		MALLOC(newclp, struct nfsclclient *,
 		    sizeof (struct nfsclclient) + idlen - 1, M_NFSCLCLIENT,
 		    M_WAITOK | M_ZERO);
-		mtx_init(&newclp->nfsc_mtx, "ClientID lock", NULL,
-		    MTX_DEF | MTX_DUPOK);
 	}
 	NFSLOCKCLSTATE();
 	/*
@@ -740,10 +738,8 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 	 */
 	if ((mp->mnt_kern_flag & MNTK_UNMOUNTF) != 0) {
 		NFSUNLOCKCLSTATE();
-		if (newclp != NULL) {
-			mtx_destroy(&newclp->nfsc_mtx);
+		if (newclp != NULL)
 			free(newclp, M_NFSCLCLIENT);
-		}
 		return (EBADF);
 	}
 	clp = nmp->nm_clp;
@@ -777,10 +773,8 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			nfscl_start_renewthread(clp);
 	} else {
 		NFSUNLOCKCLSTATE();
-		if (newclp != NULL) {
-			mtx_destroy(&newclp->nfsc_mtx);
+		if (newclp != NULL)
 			free(newclp, M_NFSCLCLIENT);
-		}
 	}
 	NFSLOCKCLSTATE();
 	while ((clp->nfsc_flags & NFSCLFLAGS_HASCLIENTID) == 0 && !igotlock &&
@@ -1781,7 +1775,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 {
 	struct nfsclclient *clp;
 	struct ucred *cred;
-	int i, igotlock;
+	int igotlock;
 
 	/*
 	 * For the case that matters, this is the thread that set
@@ -1850,10 +1844,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 		nfscl_cleanclient(clp);
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
-		for (i = 0; i < NFSV4_CBSLOTS; i++)
-			if (clp->nfsc_cbslots[i].nfssl_reply != NULL)
-				m_freem(clp->nfsc_cbslots[i].nfssl_reply);
-		FREE((caddr_t)clp, M_NFSCLCLIENT);
+		free(clp, M_NFSCLCLIENT);
 	} else
 		NFSUNLOCKCLSTATE();
 }
@@ -3205,8 +3196,9 @@ printf("cbrecall\n");
 				error = NFSERR_SEQUENCEPOS;
 			if (error == 0)
 				error = nfsv4_seqsession(seqid, slotid,
-				    highslot, clp->nfsc_cbslots, &rep,
-				    clp->nfsc_backslots);
+				    highslot,
+				    clp->nfsc_nmp->nm_sess.nfsess_cbslots, &rep,
+				    clp->nfsc_nmp->nm_sess.nfsess_backslots);
 			NFSUNLOCKCLSTATE();
 			if (error == 0) {
 				gotseq_ok = 1;
@@ -3273,7 +3265,8 @@ out:
 		NFSLOCKCLSTATE();
 		clp = nfscl_getclntsess(sessionid);
 		if (clp != NULL) {
-			nfsv4_seqsess_cacherep(slotid, clp->nfsc_cbslots, rep);
+			nfsv4_seqsess_cacherep(slotid,
+			    clp->nfsc_nmp->nm_sess.nfsess_cbslots, rep);
 			NFSUNLOCKCLSTATE();
 		} else {
 			NFSUNLOCKCLSTATE();
@@ -3335,8 +3328,8 @@ nfscl_getmnt(int minorvers, uint8_t *sessionid, u_int32_t cbident,
 		if (minorvers == NFSV4_MINORVERSION) {
 			if (clp->nfsc_cbident == cbident)
 				break;
-		} else if (!NFSBCMP(clp->nfsc_sessionid, sessionid,
-		    NFSX_V4SESSIONID))
+		} else if (!NFSBCMP(clp->nfsc_nmp->nm_sess.nfsess_sessionid,
+		    sessionid, NFSX_V4SESSIONID))
 			break;
 	}
 	if (clp == NULL) {
@@ -3377,7 +3370,8 @@ nfscl_getclntsess(uint8_t *sessionid)
 	struct nfsclclient *clp;
 
 	LIST_FOREACH(clp, &nfsclhead, nfsc_list)
-		if (!NFSBCMP(clp->nfsc_sessionid, sessionid, NFSX_V4SESSIONID))
+		if (!NFSBCMP(clp->nfsc_nmp->nm_sess.nfsess_sessionid, sessionid,
+		    NFSX_V4SESSIONID))
 			break;
 	return (clp);
 }

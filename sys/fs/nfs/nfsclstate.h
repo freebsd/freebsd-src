@@ -87,7 +87,6 @@ struct nfsclclient {
 	struct nfscldevinfohead	nfsc_devinfo;
 	struct nfscldevinfohash	nfsc_devinfohash[NFSCLDEVINFOHASHSIZE];
 	struct nfsv4lock	nfsc_lock;
-	struct nfsclsession	nfsc_sess;
 	struct proc		*nfsc_renewthread;
 	struct nfsmount		*nfsc_nmp;
 	time_t			nfsc_expire;
@@ -99,16 +98,6 @@ struct nfsclclient {
 	u_int16_t		nfsc_idlen;
 	u_int8_t		nfsc_id[1];	/* Malloc'd to correct length */
 };
-
-#define	nfsc_mtx	nfsc_sess.nfsess_mtx
-#define	nfsc_cbslots	nfsc_sess.nfsess_cbslots
-#define	nfsc_clientid	nfsc_sess.nfsess_clientid
-#define	nfsc_slotseq	nfsc_sess.nfsess_slotseq
-#define	nfsc_slots	nfsc_sess.nfsess_slots
-#define	nfsc_sequenceid	nfsc_sess.nfsess_sequenceid
-#define	nfsc_foreslots	nfsc_sess.nfsess_foreslots
-#define	nfsc_backslots	nfsc_sess.nfsess_backslots
-#define	nfsc_sessionid	nfsc_sess.nfsess_sessionid
 
 /*
  * Bits for nfsc_flags.

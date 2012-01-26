@@ -797,9 +797,9 @@ tryagain:
 	nd->nd_dpos = NFSMTOD(nd->nd_md, caddr_t);
 	nd->nd_repstat = 0;
 	if (nd->nd_procnum != NFSPROC_NULL) {
-		/* If sep == NULL, set it to the default in nfsclclient. */
-		if (sep == NULL && nmp != NULL && nmp->nm_clp != NULL)
-			sep = &nmp->nm_clp->nfsc_sess;
+		/* If sep == NULL, set it to the default in nmp. */
+		if (sep == NULL && nmp != NULL)
+			sep = &nmp->nm_sess;
 		/*
 		 * and now the actual NFS xdr.
 		 */

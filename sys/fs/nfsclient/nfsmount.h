@@ -69,6 +69,7 @@ struct	nfsmount {
 	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* Newnfs additions */
+	struct	nfsclsession nm_sess;	/* Session for NFSv4.1 mount. */
 	struct	nfsclclient *nm_clp;
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
