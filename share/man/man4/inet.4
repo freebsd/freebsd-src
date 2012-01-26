@@ -32,7 +32,7 @@
 .\"     From: @(#)inet.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd April 9, 2005
+.Dd January 26, 2012
 .Dt INET 4
 .Os
 .Sh NAME
@@ -130,25 +130,37 @@ The
 .Tn ICMP
 message protocol is accessible from a raw socket.
 .Pp
-The 32-bit Internet address contains both network and host parts.
-However, direct examination of addresses is discouraged.
-For those
-programs which absolutely need to break addresses into their component
-parts, the following
+The
+.Nm
+address on an interface consist of the address itself, the
+netmask, either broadcast address in case of a broadcast
+interface or peers address in case of point-to-point interface.
+The following
 .Xr ioctl 2
-commands are provided for a datagram socket in the Internet domain;
-they have the same form as the
-.Dv SIOCIFADDR
-command (see
-.Xr intro 4 ) .
-.Bl -tag -width SIOCSIFNETMASK
-.It Dv SIOCSIFNETMASK
-Set interface network mask.
-The network mask defines the network part of the address;
-if it contains more of the address than the address type would indicate,
-then subnets are in use.
+commands are provided for a datagram socket in the Internet domain:
+.Pp
+.Bl -tag -width ".Dv SIOCGIFBRDADDR" -offset indent -compact   
+.It Dv SIOCAIFADDR
+Add address to an interface.
+The command requires
+.Ft struct in_aliasreq
+as argument.
+.It Dv SIOCDIFADDR
+Delete address from an interface.
+The command requires
+.Ft struct ifreq
+as argument.
+.It Dv SIOCGIFADDR
+.It Dv SIOCGIFBRDADDR
+.It Dv SIOCGIFDSTADDR
 .It Dv SIOCGIFNETMASK
-Get interface network mask.
+Return address information from interface. The returned value
+is in
+.Ft struct ifreq .
+This way of address information retrieval is obsoleted, a
+preferred way is to use
+.Xr getifaddrs 3
+API.
 .El
 .Ss MIB Variables
 A number of variables are implemented in the net.inet branch of the
@@ -260,6 +272,7 @@ in the reassembling queue for a packet.
 .Sh SEE ALSO
 .Xr ioctl 2 ,
 .Xr socket 2 ,
+.Xr getifaddrs 3 ,
 .Xr sysctl 3 ,
 .Xr icmp 4 ,
 .Xr intro 4 ,
