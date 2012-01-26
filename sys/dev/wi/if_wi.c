@@ -62,6 +62,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_wlan.h"
+
 #define WI_HERMES_STATS_WAR	/* Work around stats counter bug. */
 
 #include <sys/param.h>
