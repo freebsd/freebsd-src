@@ -299,6 +299,17 @@ g_part_new_provider(struct g_geom *gp, struct g_part_table *table,
 	g_error_provider(entry->gpe_pp, 0);
 }
 
+static struct g_geom*
+g_part_find_geom(const char *name)
+{
+	struct g_geom *gp;
+	LIST_FOREACH(gp, &g_part_class.geom, geom) {
+		if (!strcmp(name, gp->name))
+			break;
+	}
+	return (gp);
+}
+
 static int
 g_part_parm_geom(const char *name, struct g_geom **v)
 {
@@ -306,10 +317,7 @@ g_part_parm_geom(const char *name, struct g_geom **v)
 
 	if (strncmp(name, _PATH_DEV, strlen(_PATH_DEV)) == 0)
 		name += strlen(_PATH_DEV);
-	LIST_FOREACH(gp, &g_part_class.geom, geom) {
-		if (!strcmp(name, gp->name))
-			break;
-	}
+	gp = g_part_find_geom(name);
 	if (gp == NULL)
 		return (EINVAL);
 	*v = gp;
@@ -682,8 +690,8 @@ g_part_ctl_create(struct gctl_req *req, struct g_part_parms *gpp)
 	g_topology_assert();
 
 	/* Check that there isn't already a g_part geom on the provider. */
-	error = g_part_parm_geom(pp->name, &gp);
-	if (!error) {
+	gp = g_part_find_geom(pp->name);
+	if (gp != NULL) {
 		null = gp->softc;
 		if (null->gpt_scheme != &g_part_null_scheme) {
 			gctl_error(req, "%d geom '%s'", EEXIST, pp->name);
