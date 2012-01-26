@@ -232,7 +232,7 @@ MODULE_DEPEND(ixgbe, ether, 1, 1, 1);
 static int ixgbe_enable_aim = TRUE;
 TUNABLE_INT("hw.ixgbe.enable_aim", &ixgbe_enable_aim);
 
-static int ixgbe_max_interrupt_rate = (8000000 / IXGBE_LOW_LATENCY);
+static int ixgbe_max_interrupt_rate = (4000000 / IXGBE_LOW_LATENCY);
 TUNABLE_INT("hw.ixgbe.max_interrupt_rate", &ixgbe_max_interrupt_rate);
 
 /* How many packets rxeof tries to clean at a time */
@@ -3385,22 +3385,41 @@ ixgbe_txeof(struct tx_ring *txr)
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
+		struct netmap_kring *kring = &na->tx_rings[txr->me];
 
+		tx_desc = (struct ixgbe_legacy_tx_desc *)txr->tx_base;
+
+		bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
+		    BUS_DMASYNC_POSTREAD);
 		/*
 		 * In netmap mode, all the work is done in the context
 		 * of the client thread. Interrupt handlers only wake up
 		 * clients, which may be sleeping on individual rings
 		 * or on a global resource for all rings.
+		 * To implement tx interrupt mitigation, we wake up the client
+		 * thread roughly every half ring, even if the NIC interrupts
+		 * more frequently. This is implemented as follows:
+		 * - ixgbe_txsync() sets kring->nr_kflags with the index of
+		 *   the slot that should wake up the thread (nkr_num_slots
+		 *   means the user thread should not be woken up);
+		 * - the driver ignores tx interrupts unless netmap_mitigate=0
+		 *   or the slot has the DD bit set.
+		 *
 		 * When the driver has separate locks, we need to
 		 * release and re-acquire txlock to avoid deadlocks.
 		 * XXX see if we can find a better way.
 		 */
-		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
-		IXGBE_TX_UNLOCK(txr);
-		IXGBE_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
-		IXGBE_CORE_UNLOCK(adapter);
-		IXGBE_TX_LOCK(txr);
+		if (!netmap_mitigate ||
+		    (kring->nr_kflags < kring->nkr_num_slots &&
+		     tx_desc[kring->nr_kflags].upper.fields.status & IXGBE_TXD_STAT_DD)) {
+			kring->nr_kflags = kring->nkr_num_slots;
+			selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
+			IXGBE_TX_UNLOCK(txr);
+			IXGBE_CORE_LOCK(adapter);
+			selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+			IXGBE_CORE_UNLOCK(adapter);
+			IXGBE_TX_LOCK(txr);
+		}
 		return FALSE;
 	}
 #endif /* DEV_NETMAP */
@@ -3928,21 +3947,6 @@ skip_head:
 		lro->ifp = adapter->ifp;
 	}
 
-#ifdef DEV_NETMAP1	/* XXX experimental CRC strip */
-	{
-		struct  ixgbe_hw	*hw = &adapter->hw;
-		u32			rdrxctl;
-
-		rdrxctl = IXGBE_READ_REG(hw, IXGBE_RDRXCTL);
-		rdrxctl &= ~IXGBE_RDRXCTL_RSCFRSTSIZE;
-		if (slot)
-			rdrxctl &= ~IXGBE_RDRXCTL_CRCSTRIP;
-		else
-			rdrxctl |= IXGBE_RDRXCTL_CRCSTRIP;
-		rdrxctl |= IXGBE_RDRXCTL_RSCACKC;
-		IXGBE_WRITE_REG(hw, IXGBE_RDRXCTL, rdrxctl);
-	}
-#endif /* DEV_NETMAP1 */
 	IXGBE_RX_UNLOCK(rxr);
 	return (0);
 
@@ -4022,12 +4026,6 @@ ixgbe_initialize_receive_units(struct adapter *adapter)
 		hlreg |= IXGBE_HLREG0_JUMBOEN;
 	else
 		hlreg &= ~IXGBE_HLREG0_JUMBOEN;
-#ifdef DEV_NETMAP1	/* XXX experimental CRCSTRIP */
-        if (ifp->if_capenable & IFCAP_NETMAP)
-		hlreg &= ~IXGBE_HLREG0_RXCRCSTRP;
-	else
-		hlreg |= IXGBE_HLREG0_RXCRCSTRP;
-#endif /* DEV_NETMAP1 */
 	IXGBE_WRITE_REG(hw, IXGBE_HLREG0, hlreg);
 
 	bufsz = (adapter->rx_mbuf_sz + BSIZEPKT_ROUNDUP) >> IXGBE_SRRCTL_BSIZEPKT_SHIFT;
@@ -4297,11 +4295,14 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		/*
-		 * Same as the txeof routine, only wakeup clients
-		 * and make sure there are no deadlocks.
+		 * Same as the txeof routine: only wakeup clients on intr.
+		 * NKR_PENDINTR in nr_kflags is used to implement interrupt
+		 * mitigation (ixgbe_rxsync() will not look for new packets
+		 * unless NKR_PENDINTR is set).
 		 */
 		struct netmap_adapter *na = NA(ifp);
 
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		IXGBE_RX_UNLOCK(rxr);
 		IXGBE_CORE_LOCK(adapter);
@@ -4830,7 +4831,7 @@ ixgbe_configure_ivars(struct adapter *adapter)
 	u32 newitr;
 
 	if (ixgbe_max_interrupt_rate > 0)
-		newitr = (8000000 / ixgbe_max_interrupt_rate) & 0x0FF8;
+		newitr = (4000000 / ixgbe_max_interrupt_rate) & 0x0FF8;
 	else
 		newitr = 0;
 
@@ -5193,12 +5194,21 @@ ixgbe_sysctl_interrupt_rate_handler(SYSCTL_HANDLER_ARGS)
 	reg = IXGBE_READ_REG(&que->adapter->hw, IXGBE_EITR(que->msix));
 	usec = ((reg & 0x0FF8) >> 3);
 	if (usec > 0)
-		rate = 1000000 / usec;
+		rate = 500000 / usec;
 	else
 		rate = 0;
 	error = sysctl_handle_int(oidp, &rate, 0, req);
 	if (error || !req->newptr)
 		return error;
+	reg &= ~0xfff; /* default, no limitation */
+	ixgbe_max_interrupt_rate = 0;
+	if (rate > 0 && rate < 500000) {
+		if (rate < 1000)
+			rate = 1000;
+		ixgbe_max_interrupt_rate = rate;
+		reg |= ((4000000/rate) & 0xff8 );
+	}
+	IXGBE_WRITE_REG(&que->adapter->hw, IXGBE_EITR(que->msix), reg);
 	return 0;
 }
 
@@ -5252,10 +5262,13 @@ ixgbe_add_hw_stats(struct adapter *adapter)
 		queue_list = SYSCTL_CHILDREN(queue_node);
 
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "interrupt_rate",
-				CTLTYPE_UINT | CTLFLAG_RD, &adapter->queues[i],
+				CTLTYPE_UINT | CTLFLAG_RW, &adapter->queues[i],
 				sizeof(&adapter->queues[i]),
 				ixgbe_sysctl_interrupt_rate_handler, "IU",
 				"Interrupt Rate");
+		SYSCTL_ADD_UQUAD(ctx, queue_list, OID_AUTO, "irqs",
+				CTLFLAG_RD, &(adapter->queues[i].irqs),
+				"irqs on this queue");
 		SYSCTL_ADD_PROC(ctx, queue_list, OID_AUTO, "txd_head", 
 				CTLTYPE_UINT | CTLFLAG_RD, txr, sizeof(txr),
 				ixgbe_sysctl_tdh_handler, "IU",
