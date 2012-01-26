@@ -1186,12 +1186,14 @@ keycheck:
 	rt = __DEVOLATILE(struct rtentry *, fle->f_rt);
 	lle = __DEVOLATILE(struct llentry *, fle->f_lle);
 	if ((rt != NULL)
+	    && lle != NULL
 	    && fle->f_fhash == hash
 	    && flowtable_key_equal(fle, key)
 	    && (proto == fle->f_proto)
 	    && (fibnum == fle->f_fibnum)
 	    && (rt->rt_flags & RTF_UP)
-	    && (rt->rt_ifp != NULL)) {
+	    && (rt->rt_ifp != NULL)
+	    && (lle->la_flags & LLE_VALID)) {
 		fs->ft_hits++;
 		fle->f_uptime = time_uptime;
 		fle->f_flags |= flags;
