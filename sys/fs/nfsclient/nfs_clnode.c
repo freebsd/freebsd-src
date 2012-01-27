@@ -136,6 +136,7 @@ ncl_nget(struct mount *mntp, u_int8_t *fhp, int fhsize, struct nfsnode **npp,
 		return (error);
 	}
 	vp = nvp;
+	KASSERT(vp->v_bufobj.bo_bsize != 0, ("ncl_nget: bo_bsize == 0"));
 	vp->v_bufobj.bo_ops = &buf_ops_newnfs;
 	vp->v_data = np;
 	np->n_vnode = vp;
