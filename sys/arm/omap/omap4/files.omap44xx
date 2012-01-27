@@ -8,7 +8,6 @@ arm/arm/cpufunc_asm_armv5.S			standard
 arm/arm/cpufunc_asm_arm10.S			standard
 arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
-arm/arm/cpufunc_asm_pj4b.S			standard
 arm/arm/irq_dispatch.S				standard
 
 arm/omap/omap_machdep.c				standard
@@ -17,7 +16,6 @@ arm/omap/omap_cpuid.c				standard
 arm/omap/omap_prcm.c				standard
 arm/omap/omap_scm.c				standard
 arm/omap/omap_if.m				standard
-arm/omap/omap_space_asm.S			standard
 
 arm/omap/omap4/omap4_if.m			standard
 arm/omap/omap4/omap44xx.c			standard

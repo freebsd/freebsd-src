@@ -180,24 +180,6 @@ ENTRY(get_core_id)
 	mrc p15, 0, r0, c0, c0, 5
 	RET
 
-/* Use Privileged Thread Id register as a holder for pcpu pointer */
-ENTRY(get_pcpu)
-	mrc p15, 0, r0, c13, c0, 4
-	RET
-
-ENTRY(set_pcpu)
-	mcr p15, 0, r0, c13, c0, 4
-	RET
-
-/* Use Privileged Thread Id register as a holder for tls pointer */
-ENTRY(get_tls)
-	mrc p15, 0, r0, c13, c0, 3
-	RET
-
-ENTRY(set_tls)
-	mcr p15, 0, r0, c13, c0, 3
-	RET
-
 ENTRY(pj4b_config)
 	/* Set Auxiliary Debug Modes Control 2 register */
 	mrc	p15, 1, r0, c15, c1, 2
