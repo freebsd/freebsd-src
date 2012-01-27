@@ -480,7 +480,7 @@ ncl_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 		/* No caching/ no readaheads. Just read data into the user buffer */
 		return ncl_readrpc(vp, uio, cred);
 
-	biosize = vp->v_mount->mnt_stat.f_iosize;
+	biosize = vp->v_bufobj.bo_bsize;
 	seqcount = (int)((off_t)(ioflag >> IO_SEQSHIFT) * biosize / BKVASIZE);
 	
 	error = nfs_bioread_check_cons(vp, td, cred);
@@ -960,7 +960,7 @@ flush_and_restart:
 	if (vn_rlimit_fsize(vp, uio, td))
 		return (EFBIG);
 
-	biosize = vp->v_mount->mnt_stat.f_iosize;
+	biosize = vp->v_bufobj.bo_bsize;
 	/*
 	 * Find all of this file's B_NEEDCOMMIT buffers.  If our writes
 	 * would exceed the local maximum per-file write commit size when
@@ -1264,12 +1264,8 @@ nfs_getcacheblk(struct vnode *vp, daddr_t bn, int size, struct thread *td)
 		bp = getblk(vp, bn, size, 0, 0, 0);
 	}
 
-	if (vp->v_type == VREG) {
-		int biosize;
-
-		biosize = mp->mnt_stat.f_iosize;
-		bp->b_blkno = bn * (biosize / DEV_BSIZE);
-	}
+	if (vp->v_type == VREG)
+		bp->b_blkno = bn * (vp->v_bufobj.bo_bsize / DEV_BSIZE);
 	return (bp);
 }
 
@@ -1785,7 +1781,7 @@ ncl_meta_setsize(struct vnode *vp, struct ucred *cred, struct thread *td, u_quad
 {
 	struct nfsnode *np = VTONFS(vp);
 	u_quad_t tsize;
-	int biosize = vp->v_mount->mnt_stat.f_iosize;
+	int biosize = vp->v_bufobj.bo_bsize;
 	int error = 0;
 
 	mtx_lock(&np->n_mtx);
