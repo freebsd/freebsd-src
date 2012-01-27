@@ -1811,10 +1811,6 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 
 		IF_AFDATA_LOCK(ifp);
 		ia->ia_ifa.ifa_rtrequest = nd6_rtrequest;
-
-		/* XXX QL
-		 * we need to report rt_newaddrmsg
-		 */
 		ln = lla_lookup(LLTABLE6(ifp), (LLE_CREATE | LLE_IFADDR | LLE_EXCLUSIVE),
 		    (struct sockaddr *)&ia->ia_addr);
 		IF_AFDATA_UNLOCK(ifp);
