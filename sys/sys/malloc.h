@@ -50,6 +50,7 @@
 #define	M_ZERO		0x0100		/* bzero the allocation */
 #define	M_NOVM		0x0200		/* don't ask VM for pages */
 #define	M_USE_RESERVE	0x0400		/* can alloc out of reserve memory */
+#define	M_NODUMP	0x0800		/* don't dump pages in this allocation */
 
 #define	M_MAGIC		877983977	/* time when first defined :-) */
 
