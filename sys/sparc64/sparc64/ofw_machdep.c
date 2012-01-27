@@ -44,6 +44,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/idprom.h>
 #include <machine/ofw_machdep.h>
+#include <machine/stdarg.h>
 
 void
 OF_getetheraddr(device_t dev, u_char *addr)
@@ -79,6 +80,19 @@ OF_getscsinitid(device_t dev)
 		    sizeof(id)) > 0)
 			return (id);
 	return (7);
+}
+
+void
+OF_panic(const char *fmt, ...)
+{
+	char buf[256];
+	va_list ap;
+
+	va_start(ap, fmt);
+	(void)vsnprintf(buf, sizeof(buf), fmt, ap);
+	OF_printf("OF_panic: %s\n", buf);
+	va_end(ap);
+	OF_exit();
 }
 
 static __inline uint32_t
