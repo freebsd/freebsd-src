@@ -242,7 +242,7 @@ zio_data_buf_alloc(size_t size)
 	if (zio_use_uma)
 		return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
 	else
-		return (kmem_alloc(size, KM_SLEEP));
+		return (kmem_alloc(size, KM_SLEEP | KM_NODEBUG));
 }
 
 void
