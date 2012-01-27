@@ -803,6 +803,9 @@ if (error) printf("exch=%d\n",error);
 			error = nfsrpc_createsession(nmp, &nmp->nm_sess, cred,
 			    p);
 if (error) printf("aft crs=%d\n",error);
+		if (error == 0)
+			error = nfsrpc_reclaimcomplete(nmp, cred, p);
+if (error) printf("aft reclcom=%d\n",error);
 		return (error);
 	}
 	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL);
@@ -5018,6 +5021,30 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		NFSBZERO(dsp, sizeof(*dsp));
 	}
+	return (error);
+}
+
+/*
+ * Do the NFSv4.1 Reclaim Complete.
+ */
+int
+nfsrpc_reclaimcomplete(struct nfsmount *nmp, struct ucred *cred, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	struct nfsrv_descript nfsd;
+	struct nfsrv_descript *nd = &nfsd;
+	int error;
+
+	nfscl_reqstart(nd, NFSPROC_RECLAIMCOMPL, nmp, NULL, 0, NULL, NULL);
+	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
+	*tl = newnfs_false;
+	nd->nd_flag |= ND_USEGSSNAME;
+	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
+	if (error != 0)
+		return (error);
+	error = nd->nd_repstat;
+	mbuf_freem(nd->nd_mrep);
 	return (error);
 }
 

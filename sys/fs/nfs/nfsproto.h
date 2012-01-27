@@ -280,11 +280,12 @@
 #define	NFSPROC_GETDEVICEINFO	47
 #define	NFSPROC_LAYOUTCOMMIT	48
 #define	NFSPROC_LAYOUTRETURN	49
+#define	NFSPROC_RECLAIMCOMPL	50
 
 /*
  * Must be defined as one higher than the last NFSv4.1 Proc# above.
  */
-#define	NFSV41_NPROCS		50
+#define	NFSV41_NPROCS		51
 
 #endif	/* NFS_V3NPROCS */
 

@@ -454,6 +454,7 @@ int nfsrpc_layoutcommit(vnode_t, off_t, uint64_t, int, nfsv4stateid_t *, int,
     struct ucred *, NFSPROC_T *, void *);
 int nfsrpc_layoutreturn(vnode_t, int, int, int, int, off_t, uint64_t,
     nfsv4stateid_t *, int, uint32_t *, struct ucred *, NFSPROC_T *, void *);
+int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,

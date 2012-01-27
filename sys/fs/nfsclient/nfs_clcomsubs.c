@@ -108,6 +108,7 @@ static struct {
 	{ NFSV4OP_GETDEVINFO, 1, "GetDeviceInfo", 13, },
 	{ NFSV4OP_LAYOUTCOMMIT, 1, "LayoutCommit", 12, },
 	{ NFSV4OP_LAYOUTRETURN, 1, "LayoutReturn", 12, },
+	{ NFSV4OP_RECLAIMCOMPL, 1, "ReclaimComplete", 15, },
 };
 
 
@@ -117,7 +118,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0
 };
 
 /*
