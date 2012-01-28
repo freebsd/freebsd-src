@@ -501,7 +501,8 @@ schizo_attach(device_t dev)
 	 * Set up the IOMMU.  Schizo, Tomatillo and XMITS all have
 	 * one per PBM.  Schizo and XMITS additionally have a streaming
 	 * buffer, in Schizo version < 5 (i.e. revision < 2.3) it's
-	 * affected by several errata and basically unusable though.
+	 * affected by several errata though.  However, except for context
+	 * flushes, taking advantage of it should be okay even with those.
 	 */
 	memcpy(&sc->sc_dma_methods, &iommu_dma_methods,
 	    sizeof(sc->sc_dma_methods));
@@ -509,8 +510,7 @@ schizo_attach(device_t dev)
 	sc->sc_is.sis_is.is_flags = IOMMU_PRESERVE_PROM;
 	sc->sc_is.sis_is.is_pmaxaddr = IOMMU_MAXADDR(STX_IOMMU_BITS);
 	sc->sc_is.sis_is.is_sb[0] = sc->sc_is.sis_is.is_sb[1] = 0;
-	if (OF_getproplen(node, "no-streaming-cache") < 0 &&
-	    !(sc->sc_mode == SCHIZO_MODE_SCZ && sc->sc_ver < 5))
+	if (OF_getproplen(node, "no-streaming-cache") < 0)
 		sc->sc_is.sis_is.is_sb[0] = STX_PCI_STRBUF;
 
 #define	TSBCASE(x)							\
