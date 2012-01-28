@@ -160,7 +160,7 @@ main(int argc, char *argv[])
 	}
 
 	/*
-	 * Resolve the mountpoint with realpath(3) and remove unnecessary 
+	 * Resolve the mountpoint with realpath(3) and remove unnecessary
 	 * slashes from the devicename if there are any.
 	 */
 	if (checkpath(dir, mntpath) != 0)
