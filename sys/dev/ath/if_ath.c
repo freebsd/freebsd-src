@@ -3983,7 +3983,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 	int len, type, ngood;
 	HAL_STATUS status;
 	int16_t nf;
-	u_int64_t tsf;
+	u_int64_t tsf, rstamp;
 	int npkts = 0;
 
 	/* XXX we must not hold the ATH_LOCK here */
@@ -4054,6 +4054,12 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 		TAILQ_REMOVE(&sc->sc_rxbuf, bf, bf_list);
 		npkts++;
 
+		/*
+		 * Calculate the correct 64 bit TSF given
+		 * the TSF64 register value and rs_tstamp.
+		 */
+		rstamp = ath_extend_tsf(sc, rs->rs_tstamp, tsf);
+
 		/* These aren't specifically errors */
 #ifdef	AH_SUPPORT_AR5416
 		if (rs->rs_flags & HAL_RX_GI)
@@ -4085,7 +4091,7 @@ ath_rx_proc(struct ath_softc *sc, int resched)
 					    bf->bf_dmamap,
 					    BUS_DMASYNC_POSTREAD);
 					/* Now pass it to the radar processing code */
-					ath_dfs_process_phy_err(sc, mtod(m, char *), tsf, rs);
+					ath_dfs_process_phy_err(sc, mtod(m, char *), rstamp, rs);
 				}
 
 				/* Be suitably paranoid about receiving phy errors out of the stats array bounds */
@@ -4149,7 +4155,7 @@ rx_error:
 				len = rs->rs_datalen;
 				m->m_pkthdr.len = m->m_len = len;
 				bf->bf_m = NULL;
-				ath_rx_tap(ifp, m, rs, tsf, nf);
+				ath_rx_tap(ifp, m, rs, rstamp, nf);
 				ieee80211_radiotap_rx_all(ic, m);
 				m_freem(m);
 			}
@@ -4246,7 +4252,7 @@ rx_accept:
 		 * noise setting is filled in above.
 		 */
 		if (ieee80211_radiotap_active(ic))
-			ath_rx_tap(ifp, m, rs, tsf, nf);
+			ath_rx_tap(ifp, m, rs, rstamp, nf);
 
 		/*
 		 * From this point on we assume the frame is at least
@@ -6686,7 +6692,14 @@ ath_dfs_tasklet(void *p, int npending)
 	 */
 	if (ath_dfs_process_radar_event(sc, sc->sc_curchan)) {
 		/* DFS event found, initiate channel change */
+		/*
+		 * XXX doesn't currently tell us whether the event
+		 * XXX was found in the primary or extension
+		 * XXX channel!
+		 */
+		IEEE80211_LOCK(ic);
 		ieee80211_dfs_notify_radar(ic, sc->sc_curchan);
+		IEEE80211_UNLOCK(ic);
 	}
 }
 
