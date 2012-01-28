@@ -60,6 +60,7 @@ static device_attach_t central_attach;
 static bus_print_child_t central_print_child;
 static bus_probe_nomatch_t central_probe_nomatch;
 static bus_alloc_resource_t central_alloc_resource;
+static bus_adjust_resource_t central_adjust_resource;
 static bus_get_resource_list_t central_get_resource_list;
 static ofw_bus_get_devinfo_t central_get_devinfo;
 
@@ -79,6 +80,7 @@ static device_method_t central_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	central_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	central_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	bus_generic_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -177,6 +179,15 @@ central_attach(device_t dev)
 	}
 
 	return (bus_generic_attach(dev));
+}
+
+static int
+central_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, u_long start __unused,
+    u_long end __unused)
+{
+
+	return (ENXIO);
 }
 
 static int
