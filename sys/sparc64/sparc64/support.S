@@ -580,8 +580,8 @@ fpu_fault_begin:
  * void spitfire_block_copy(void *src, void *dst, size_t len)
  */
 ENTRY(spitfire_block_copy)
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -603,7 +603,7 @@ ENTRY(spitfire_block_copy)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	ldda	[%o0] %asi, %f0
 	add	%o0, 64, %o0
@@ -653,8 +653,8 @@ END(spitfire_block_copy)
 ENTRY(zeus_block_copy)
 	prefetch [%o0 + (0 * 64)], 0
 
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -676,7 +676,7 @@ ENTRY(zeus_block_copy)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	ldd	[%o0 + (0 * 8)], %f0
 	prefetch [%o0 + (1 * 64)], 0
@@ -764,8 +764,8 @@ END(zeus_block_copy)
  */
 ALTENTRY(zeus_block_zero)
 ENTRY(spitfire_block_zero)
-	rdpr	%pil, %o3
-	wrpr	%g0, PIL_TICK, %pil
+	rdpr	%pstate, %o3
+	wrpr	%g0, PSTATE_NORMAL, %pstate
 
 	wr	%g0, ASI_BLK_S, %asi
 	wr	%g0, FPRS_FEF, %fprs
@@ -787,7 +787,7 @@ ENTRY(spitfire_block_zero)
 	or	%o4, PCB_FEF, %o4
 	stx	%o4, [PCB_REG + PCB_FLAGS]
 
-1:	wrpr	%o3, 0, %pil
+1:	wrpr	%o3, 0, %pstate
 
 	fzero	%f0
 	fzero	%f2
