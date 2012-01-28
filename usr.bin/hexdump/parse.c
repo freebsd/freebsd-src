@@ -451,21 +451,14 @@ escape(char *p1)
 	char *p2;
 
 	/* alphabetic escape sequences have to be done in place */
-	for (p2 = p1; *p1; p1++, p2++) {
-		/* 
-		 * Let's take a peak at the next item and see whether or not
-		 * we need to escape the value...
-		 */
+	for (p2 = p1;; p1++, p2++) {
 		if (*p1 == '\\') {
-
 			p1++;
-
 			switch(*p1) {
-			/* A standalone `\' */
 			case '\0':
 				*p2 = '\\';
 				*++p2 = '\0';
-				break;
+				return;
 			case 'a':
 			     /* *p2 = '\a'; */
 				*p2 = '\007';
@@ -492,12 +485,12 @@ escape(char *p1)
 				*p2 = *p1;
 				break;
 			}
-
-		} else
+		} else {
 			*p2 = *p1;
-
+			if (*p1 == '\0')
+				return;
+		}
 	}
-
 }
 
 void
