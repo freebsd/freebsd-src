@@ -47,7 +47,6 @@ struct fire_softc {
 	bus_space_handle_t		sc_pci_bh[FIRE_NRANGE];
 	bus_space_tag_t			sc_pci_cfgt;
 	bus_space_tag_t			sc_pci_iot;
-	bus_space_tag_t			sc_pci_memt;
 	bus_dma_tag_t			sc_pci_dmat;
 
 	device_t			sc_dev;
