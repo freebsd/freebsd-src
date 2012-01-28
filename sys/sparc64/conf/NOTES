@@ -37,6 +37,7 @@ device		eeprom		# eeprom (really a front-end for the MK48Txx)
 device		mk48txx		# Mostek MK48Txx clocks
 device		rtc		# rtc (really a front-end for the MC146818)
 device		mc146818	# Motorola MC146818 and compatible clocks
+device		sbbc		# Sun BootBus controller
 
 #
 # Optional devices:
