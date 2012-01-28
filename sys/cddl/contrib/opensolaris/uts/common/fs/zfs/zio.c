@@ -42,6 +42,10 @@ static int zio_use_uma = 0;
 TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
+static int zio_exclude_metadata = 0;
+TUNABLE_INT("vfs.zfs.zio.exclude_metadata", &zio_exclude_metadata);
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, exclude_metadata, CTLFLAG_RDTUN, &zio_exclude_metadata, 0,
+    "Exclude metadata buffers from dumps as well");
 
 /*
  * ==========================================================================
@@ -217,13 +221,14 @@ void *
 zio_buf_alloc(size_t size)
 {
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
+	int flags = zio_exclude_metadata ? KM_NODEBUG : 0;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
 	if (zio_use_uma)
 		return (kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE));
 	else
-		return (kmem_alloc(size, KM_SLEEP));
+		return (kmem_alloc(size, KM_SLEEP|flags));
 }
 
 /*
