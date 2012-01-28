@@ -76,7 +76,7 @@
 9:	add	r2, 1, r3 ;						\
 	casxa	[r1] ASI_N, r2, r3 ;					\
 	cmp	r2, r3 ;						\
-	bne,pn	%icc, 9b ;						\
+	bne,pn	%xcc, 9b ;						\
 	 mov	r3, r2
 
 /*
