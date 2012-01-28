@@ -123,6 +123,9 @@ operational characteristics as follows:
 .Bl -tag -width indent
 .It Dv M_ZERO
 Causes the allocated memory to be set to all zeros.
+.It Dv M_NODUMP
+For allocations greater than page size, causes the allocated 
+memory to be excluded from kernel core dumps.
 .It Dv M_NOWAIT
 Causes
 .Fn malloc ,
