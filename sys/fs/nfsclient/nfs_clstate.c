@@ -2151,6 +2151,10 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		FREE((caddr_t)dp, M_NFSCLDELEG);
 	}
 
+	/* For NFSv4.1 or later, do a RECLAIM_COMPLETE. */
+	if (NFSHASNFSV4N(nmp))
+		(void)nfsrpc_reclaimcomplete(nmp, cred, p);
+
 	NFSLOCKCLSTATE();
 	clp->nfsc_flags &= ~NFSCLFLAGS_RECVRINPROG;
 	wakeup(&clp->nfsc_flags);
