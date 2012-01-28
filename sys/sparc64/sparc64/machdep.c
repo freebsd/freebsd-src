@@ -1014,6 +1014,10 @@ exec_setregs(struct thread *td, u_long entry, u_long stack, u_long ps_strings)
 	tf->tf_out[6] = sp - SPOFF - sizeof(struct frame);
 	tf->tf_tnpc = entry + 4;
 	tf->tf_tpc = entry;
+	/*
+	 * While we could adhere to the memory model indicated in the ELF
+	 * header, it turns out that just always using TSO performs best.
+	 */
 	tf->tf_tstate = TSTATE_IE | TSTATE_PEF | TSTATE_MM_TSO;
 
 	td->td_retval[0] = tf->tf_out[0];
