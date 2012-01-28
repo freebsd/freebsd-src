@@ -1564,7 +1564,7 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 			    HDA_PARAM_PIN_CAP_HBR(wp->wclass.pin.cap)) {
 				wp->wclass.pin.ctrl &=
 				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK;
-				if ((ch->fmt & AFMT_AC3) && (cchn == 8))
+				if ((ch->fmt & AFMT_AC3) && (cchn == 7))
 					wp->wclass.pin.ctrl |= 0x03;
 				hda_command(ch->devinfo->dev,
 				    HDA_CMD_SET_PIN_WIDGET_CTRL(0, nid,
