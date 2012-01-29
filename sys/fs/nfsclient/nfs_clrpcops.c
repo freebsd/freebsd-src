@@ -89,6 +89,7 @@ static int nfsrpc_getlayout(struct nfsmount *, struct nfsfh *, int, uint32_t *,
     nfsv4stateid_t *, struct ucred *, NFSPROC_T *);
 static int nfsrpc_fillsa(struct nfsmount *, struct nfsclds *,
     struct sockaddr_storage *, NFSPROC_T *);
+static void nfscl_initsessionslots(struct nfsclsession *);
 
 /*
  * nfs null call from vfs.
@@ -326,7 +327,8 @@ else printf(" fhl=0\n");
 		op->nfso_opencnt++;
 	    nfscl_openrelease(op, error, newone);
 	    if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
-		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
+		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+		error == NFSERR_BADSESSION) {
 		(void) nfs_catnap(PZERO, error, "nfs_open");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
@@ -335,6 +337,7 @@ else printf(" fhl=0\n");
 	    }
 	} while (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	    error == NFSERR_BADSESSION ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error && retrycnt >= 4)
@@ -519,14 +522,15 @@ nfsrpc_openrpc(struct nfsmount *nmp, vnode_t vp, u_int8_t *nfhp, int fhlen,
 			if (ndp != NULL)
 				FREE((caddr_t)ndp, M_NFSCLDELEG);
 			if (ret == NFSERR_STALECLIENTID ||
-			    ret == NFSERR_STALEDONTRECOVER)
+			    ret == NFSERR_STALEDONTRECOVER ||
+			    ret == NFSERR_BADSESSION)
 				error = ret;
 		    }
 		}
 	}
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
-	if (error == NFSERR_STALECLIENTID)
+	if (error == NFSERR_STALECLIENTID || error == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(op->nfso_own->nfsow_clp);
 nfsmout:
 	if (!error)
@@ -570,7 +574,7 @@ nfsrpc_opendowngrade(vnode_t vp, u_int32_t mode, struct nfsclopen *op,
 	}
 	if (nd->nd_repstat && error == 0)
 		error = nd->nd_repstat;
-	if (error == NFSERR_STALESTATEID)
+	if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(op->nfso_own->nfsow_clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -725,7 +729,7 @@ nfsrpc_closerpc(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	if (nd->nd_repstat == 0)
 		NFSM_DISSECT(tl, u_int32_t *, NFSX_STATEID);
 	error = nd->nd_repstat;
-	if (error == NFSERR_STALESTATEID)
+	if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(op->nfso_own->nfsow_clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -766,7 +770,7 @@ nfsrpc_openconfirm(vnode_t vp, u_int8_t *nfhp, int fhlen,
 		op->nfso_stateid.other[2] = *tl;
 	}
 	error = nd->nd_repstat;
-	if (error == NFSERR_STALESTATEID)
+	if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(op->nfso_own->nfsow_clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -778,7 +782,7 @@ nfsmout:
  * when a mount has just occurred and when the server replies NFSERR_EXPIRED.
  */
 APPLESTATIC int
-nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
+nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
     struct ucred *cred, NFSPROC_T *p)
 {
 	u_int32_t *tl;
@@ -799,13 +803,19 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp,
 		error = nfsrpc_exchangeid(nmp, clp, &nmp->nm_sess,
 		    NFSV4EXCH_USEPNFSMDS | NFSV4EXCH_USENONPNFS, cred, p);
 if (error) printf("exch=%d\n",error);
-		if (error == 0)
+		if (error == 0) {
+			nfscl_initsessionslots(&nmp->nm_sess);
 			error = nfsrpc_createsession(nmp, &nmp->nm_sess, cred,
 			    p);
 if (error) printf("aft crs=%d\n",error);
-		if (error == 0)
+		}
+		if (error == 0 && reclaim == 0) {
 			error = nfsrpc_reclaimcomplete(nmp, cred, p);
 if (error) printf("aft reclcom=%d\n",error);
+			if (error == NFSERR_COMPLETEALREADY)
+				/* Ignore this error. */
+				error = 0;
+		}
 		return (error);
 	}
 	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL);
@@ -1042,7 +1052,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		else
 			error = nfsrpc_setaclrpc(vp, cred, p, aclp, &stateid,
 			    stuff);
-		if (error == NFSERR_STALESTATEID)
+		if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
 			nfscl_lockderef(lckp);
@@ -1050,7 +1060,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 			(void) nfsrpc_close(vp, 0, p);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
-		    error == NFSERR_OLDSTATEID) {
+		    error == NFSERR_OLDSTATEID || error == NFSERR_BADSESSION) {
 			(void) nfs_catnap(PZERO, error, "nfs_setattr");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
@@ -1059,6 +1069,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		retrycnt++;
 	} while (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	    error == NFSERR_BADSESSION ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
@@ -1288,13 +1299,13 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 			    NFSV4OPEN_ACCESSREAD, newcred, p, &stateid, &lckp);
 		error = nfsrpc_readrpc(vp, uiop, newcred, &stateid, p, nap,
 		    attrflagp, stuff);
-		if (error == NFSERR_STALESTATEID)
+		if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
 			nfscl_lockderef(lckp);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
-		    error == NFSERR_OLDSTATEID) {
+		    error == NFSERR_OLDSTATEID || error == NFSERR_BADSESSION) {
 			(void) nfs_catnap(PZERO, error, "nfs_read");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
@@ -1303,6 +1314,7 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 		retrycnt++;
 	} while (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+	    error == NFSERR_BADSESSION ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
@@ -1456,13 +1468,13 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		else
 			error = nfsrpc_writerpc(vp, uiop, iomode, must_commit,
 			    newcred, &stateid, p, nap, attrflagp, stuff);
-		if (error == NFSERR_STALESTATEID)
+		if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
 			nfscl_initiate_recovery(nmp->nm_clp);
 		if (lckp != NULL)
 			nfscl_lockderef(lckp);
 		if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
-		    error == NFSERR_OLDSTATEID) {
+		    error == NFSERR_OLDSTATEID || error == NFSERR_BADSESSION) {
 			(void) nfs_catnap(PZERO, error, "nfs_write");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
@@ -1470,13 +1482,13 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		}
 		retrycnt++;
 	} while (error == NFSERR_GRACE || error == NFSERR_DELAY ||
-	    ((error == NFSERR_STALESTATEID ||
+	    ((error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION ||
 	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy == 0) ||
 	    (error == NFSERR_OLDSTATEID && retrycnt < 20) ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error != 0 && (retrycnt >= 4 ||
-	    ((error == NFSERR_STALESTATEID ||
+	    ((error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION ||
 	      error == NFSERR_STALEDONTRECOVER) && called_from_strategy != 0)))
 		error = EIO;
 	if (NFSHASNFSV4(nmp))
@@ -1790,7 +1802,8 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			    (*nfhpp)->nfh_fh, (*nfhpp)->nfh_len, cred, p, &dp);
 		nfscl_ownerrelease(owp, error, newone, unlocked);
 		if (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
-		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY) {
+		    error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+		    error == NFSERR_BADSESSION) {
 			(void) nfs_catnap(PZERO, error, "nfs_open");
 		} else if ((error == NFSERR_EXPIRED ||
 		    error == NFSERR_BADSTATEID) && clidrev != 0) {
@@ -1799,6 +1812,7 @@ nfsrpc_create(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 		}
 	    } while (error == NFSERR_GRACE || error == NFSERR_STALECLIENTID ||
 		error == NFSERR_STALEDONTRECOVER || error == NFSERR_DELAY ||
+		error == NFSERR_BADSESSION ||
 		((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 		 expireret == 0 && clidrev != 0 && retrycnt < 4));
 	    if (error && retrycnt >= 4)
@@ -2054,7 +2068,8 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 			if (dp != NULL)
 				FREE((caddr_t)dp, M_NFSCLDELEG);
 			if (ret == NFSERR_STALECLIENTID ||
-			    ret == NFSERR_STALEDONTRECOVER)
+			    ret == NFSERR_STALEDONTRECOVER ||
+			    ret == NFSERR_BADSESSION)
 				error = ret;
 		    }
 		}
@@ -2063,7 +2078,7 @@ nfsrpc_createv4(vnode_t dvp, char *name, int namelen, struct vattr *vap,
 	}
 	if (nd->nd_repstat != 0 && error == 0)
 		error = nd->nd_repstat;
-	if (error == NFSERR_STALECLIENTID)
+	if (error == NFSERR_STALECLIENTID || error == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(owp->nfsow_clp);
 nfsmout:
 	if (!error)
@@ -3646,7 +3661,8 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	        error = nd->nd_repstat;
 	    if (error == NFSERR_GRACE || error == NFSERR_STALESTATEID ||
 		error == NFSERR_STALEDONTRECOVER ||
-		error == NFSERR_STALECLIENTID || error == NFSERR_DELAY) {
+		error == NFSERR_STALECLIENTID || error == NFSERR_DELAY ||
+		error == NFSERR_BADSESSION) {
 		(void) nfs_catnap(PZERO, error, "nfs_advlock");
 	    } else if ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID)
 		&& clidrev != 0) {
@@ -3656,6 +3672,7 @@ nfsrpc_advlock(vnode_t vp, off_t size, int op, struct flock *fl,
 	} while (error == NFSERR_GRACE ||
 	    error == NFSERR_STALECLIENTID || error == NFSERR_DELAY ||
 	    error == NFSERR_STALEDONTRECOVER || error == NFSERR_STALESTATEID ||
+	    error == NFSERR_BADSESSION ||
 	    ((error == NFSERR_EXPIRED || error == NFSERR_BADSTATEID) &&
 	     expireret == 0 && clidrev != 0 && retrycnt < 4));
 	if (error && retrycnt >= 4)
@@ -3729,7 +3746,8 @@ nfsrpc_lockt(struct nfsrv_descript *nd, vnode_t vp,
 			error = EBADRPC;
 		if (!error)
 			error = nfsm_advance(nd, NFSM_RNDUP(size), -1);
-	} else if (nd->nd_repstat == NFSERR_STALECLIENTID)
+	} else if (nd->nd_repstat == NFSERR_STALECLIENTID ||
+	    nd->nd_repstat == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -3776,7 +3794,8 @@ nfsrpc_locku(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		lp->nfsl_stateid.other[0] = *tl++;
 		lp->nfsl_stateid.other[1] = *tl++;
 		lp->nfsl_stateid.other[2] = *tl;
-	} else if (nd->nd_repstat == NFSERR_STALESTATEID)
+	} else if (nd->nd_repstat == NFSERR_STALESTATEID ||
+	    nd->nd_repstat == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(lp->nfsl_open->nfso_own->nfsow_clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -3856,7 +3875,8 @@ nfsrpc_lock(struct nfsrv_descript *nd, struct nfsmount *nmp, vnode_t vp,
 			error = EBADRPC;
 		if (!error)
 			error = nfsm_advance(nd, NFSM_RNDUP(size), -1);
-	} else if (nd->nd_repstat == NFSERR_STALESTATEID)
+	} else if (nd->nd_repstat == NFSERR_STALESTATEID ||
+	    nd->nd_repstat == NFSERR_BADSESSION)
 		nfscl_initiate_recovery(lp->nfsl_open->nfso_own->nfsow_clp);
 nfsmout:
 	mbuf_freem(nd->nd_mrep);
@@ -5013,9 +5033,11 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 	if (error == 0)
 		error = nfsrpc_exchangeid(nmp, clp, &dsp->nfsclds_sess,
 		    NFSV4EXCH_USEPNFSDS, dsp->nfsclds_sock.nr_cred, p);
-	if (error == 0)
+	if (error == 0) {
+		nfscl_initsessionslots(&dsp->nfsclds_sess);
 		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
 		    dsp->nfsclds_sock.nr_cred, p);
+	}
 	if (error != 0) {
 		NFSFREECRED(dsp->nfsclds_sock.nr_cred);
 		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
@@ -5046,5 +5068,23 @@ nfsrpc_reclaimcomplete(struct nfsmount *nmp, struct ucred *cred, NFSPROC_T *p)
 	error = nd->nd_repstat;
 	mbuf_freem(nd->nd_mrep);
 	return (error);
+}
+
+/*
+ * Initialize the slot tables for a session.
+ */
+static void
+nfscl_initsessionslots(struct nfsclsession *sep)
+{
+	int i;
+
+	for (i = 0; i < NFSV4_CBSLOTS; i++) {
+		if (sep->nfsess_cbslots[i].nfssl_reply != NULL)
+			m_freem(sep->nfsess_cbslots[i].nfssl_reply);
+		NFSBZERO(&sep->nfsess_cbslots[i], sizeof(struct nfsslot));
+	}
+	for (i = 0; i < 64; i++)
+		sep->nfsess_slotseq[i] = 0;
+	sep->nfsess_slots = 0;
 }
 

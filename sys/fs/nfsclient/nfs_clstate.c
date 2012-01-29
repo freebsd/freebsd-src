@@ -830,13 +830,15 @@ nfscl_getcl(struct mount *mp, struct ucred *cred, NFSPROC_T *p,
 			clidinusedelay = 120;
 		trystalecnt = 3;
 		do {
-			error = nfsrpc_setclient(nmp, clp, cred, p);
+			error = nfsrpc_setclient(nmp, clp, 0, cred, p);
 			if (error == NFSERR_STALECLIENTID ||
 			    error == NFSERR_STALEDONTRECOVER ||
+			    error == NFSERR_BADSESSION ||
 			    error == NFSERR_CLIDINUSE) {
 				(void) nfs_catnap(PZERO, error, "nfs_setcl");
 			}
 		} while (((error == NFSERR_STALECLIENTID ||
+		     error == NFSERR_BADSESSION ||
 		     error == NFSERR_STALEDONTRECOVER) && --trystalecnt > 0) ||
 		    (error == NFSERR_CLIDINUSE && --clidinusedelay > 0));
 		if (error) {
@@ -1840,7 +1842,7 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 			(void)nfsrpc_destroysession(nmp, clp, cred, p);
 			(void)nfsrpc_destroyclient(nmp, clp, cred, p);
 		} else
-			(void)nfsrpc_setclient(nmp, clp, cred, p);
+			(void)nfsrpc_setclient(nmp, clp, 0, cred, p);
 		nfscl_cleanclient(clp);
 		nmp->nm_clp = NULL;
 		NFSFREECRED(cred);
@@ -1851,8 +1853,9 @@ nfscl_umount(struct nfsmount *nmp, NFSPROC_T *p)
 
 /*
  * This function is called when a server replies with NFSERR_STALECLIENTID
- * or NFSERR_STALESTATEID. It traverses the clientid lists, doing Opens
- * and Locks with reclaim. If these fail, it deletes the corresponding state.
+ * NFSERR_STALESTATEID or NFSERR_BADSESSION. It traverses the clientid lists,
+ * doing Opens and Locks with reclaim. If these fail, it deletes the
+ * corresponding state.
  */
 static void
 nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
@@ -1888,8 +1891,9 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 		panic("nfscl recover");
 	trycnt = 5;
 	do {
-		error = nfsrpc_setclient(nmp, clp, cred, p);
+		error = nfsrpc_setclient(nmp, clp, 1, cred, p);
 	} while ((error == NFSERR_STALECLIENTID ||
+	     error == NFSERR_BADSESSION ||
 	     error == NFSERR_STALEDONTRECOVER) && --trycnt > 0);
 	if (error) {
 		nfscl_cleanclient(clp);
@@ -1908,9 +1912,10 @@ nfscl_recover(struct nfsclclient *clp, struct ucred *cred, NFSPROC_T *p)
 	 * Mark requests already queued on the server, so that they don't
 	 * initiate another recovery cycle. Any requests already in the
 	 * queue that handle state information will have the old stale
-	 * clientid/stateid and will get a NFSERR_STALESTATEID or
-	 * NFSERR_STALECLIENTID reply from the server. This will be
-	 * translated to NFSERR_STALEDONTRECOVER when R_DONTRECOVER is set.
+	 * clientid/stateid and will get a NFSERR_STALESTATEID,
+	 * NFSERR_STALECLIENTID or NFSERR_BADSESSION reply from the server.
+	 * This will be translated to NFSERR_STALEDONTRECOVER when
+	 * R_DONTRECOVER is set.
 	 */
 	s = splsoftclock();
 	NFSLOCKREQ();
@@ -2209,8 +2214,9 @@ nfscl_hasexpired(struct nfsclclient *clp, u_int32_t clidrev, NFSPROC_T *p)
 	cred = newnfs_getcred();
 	trycnt = 5;
 	do {
-		error = nfsrpc_setclient(nmp, clp, cred, p);
+		error = nfsrpc_setclient(nmp, clp, 0, cred, p);
 	} while ((error == NFSERR_STALECLIENTID ||
+	     error == NFSERR_BADSESSION ||
 	     error == NFSERR_STALEDONTRECOVER) && --trycnt > 0);
 	if (error) {
 		/*
@@ -2447,7 +2453,8 @@ nfscl_renewthread(struct nfsclclient *clp, NFSPROC_T *p)
 			error = nfsrpc_renew(clp, cred, p);
 			if (error == NFSERR_CBPATHDOWN)
 			    cbpathdown = 1;
-			else if (error == NFSERR_STALECLIENTID) {
+			else if (error == NFSERR_STALECLIENTID ||
+			    error == NFSERR_BADSESSION) {
 			    NFSLOCKCLSTATE();
 			    clp->nfsc_flags |= NFSCLFLAGS_RECOVER;
 			    NFSUNLOCKCLSTATE();
@@ -2618,8 +2625,8 @@ tryagain:
 }
 
 /*
- * Initiate state recovery. Called when NFSERR_STALECLIENTID or
- * NFSERR_STALESTATEID is received.
+ * Initiate state recovery. Called when NFSERR_STALECLIENTID,
+ * NFSERR_STALESTATEID or NFSERR_BADSESSION is received.
  */
 APPLESTATIC void
 nfscl_initiate_recovery(struct nfsclclient *clp)
@@ -3574,7 +3581,8 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 					ret = nfscl_moveopen(vp, clp, nmp, lop,
 					    owp, dp, cred, p);
 					if (ret == NFSERR_STALECLIENTID ||
-					    ret == NFSERR_STALEDONTRECOVER) {
+					    ret == NFSERR_STALEDONTRECOVER ||
+					    ret == NFSERR_BADSESSION) {
 						if (gotvp)
 							vrele(vp);
 						return (ret);
@@ -3605,7 +3613,8 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 				if (ret) {
 					nfscl_freeopenowner(owp, 0);
 					if (ret == NFSERR_STALECLIENTID ||
-					    ret == NFSERR_STALEDONTRECOVER) {
+					    ret == NFSERR_STALEDONTRECOVER ||
+					    ret == NFSERR_BADSESSION) {
 						if (gotvp)
 							vrele(vp);
 						return (ret);
@@ -3629,7 +3638,8 @@ nfscl_recalldeleg(struct nfsclclient *clp, struct nfsmount *nmp,
 			ret = nfscl_relock(vp, clp, nmp, lp, lckp, cred, p);
 			if (ret == NFSERR_STALESTATEID ||
 			    ret == NFSERR_STALEDONTRECOVER ||
-			    ret == NFSERR_STALECLIENTID) {
+			    ret == NFSERR_STALECLIENTID ||
+			    ret == NFSERR_BADSESSION) {
 				if (gotvp)
 					vrele(vp);
 				return (ret);

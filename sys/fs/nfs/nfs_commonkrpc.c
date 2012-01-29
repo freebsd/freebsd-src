@@ -975,6 +975,7 @@ if (j >= 10000) printf("n2op=%d n2st=%d\n",i,j);
 			 * reply, so that recovery isn't initiated.
 			 */
 			if ((nd->nd_repstat == NFSERR_STALECLIENTID ||
+			     nd->nd_repstat == NFSERR_BADSESSION ||
 			     nd->nd_repstat == NFSERR_STALESTATEID) &&
 			    rep != NULL && (rep->r_flags & R_DONTRECOVER))
 				nd->nd_repstat = NFSERR_STALEDONTRECOVER;

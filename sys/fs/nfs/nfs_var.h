@@ -367,7 +367,7 @@ int nfsrpc_closerpc(struct nfsrv_descript *, struct nfsmount *,
     struct nfsclopen *, struct ucred *, NFSPROC_T *, int);
 int nfsrpc_openconfirm(vnode_t, u_int8_t *, int, struct nfsclopen *,
     struct ucred *, NFSPROC_T *);
-int nfsrpc_setclient(struct nfsmount *, struct nfsclclient *,
+int nfsrpc_setclient(struct nfsmount *, struct nfsclclient *, int,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_getattr(vnode_t, struct ucred *, NFSPROC_T *,
     struct nfsvattr *, void *);
