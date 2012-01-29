@@ -1,9 +1,9 @@
 # $FreeBSD$
 
 PROG=	camcontrol
-SRCS=	camcontrol.c fwdownload.c util.c
+SRCS=	camcontrol.c util.c
 .if !defined(RELEASE_CRUNCH)
-SRCS+=	modeedit.c
+SRCS+=	fwdownload.c modeedit.c
 .else
 CFLAGS+= -DMINIMALISTIC
 .endif
