@@ -134,10 +134,11 @@
 #define __glibcxx_signed(T)	((T)(-1) < 0)
 
 #define __glibcxx_min(T) \
-  (__glibcxx_signed (T) ? (T)1 << __glibcxx_digits (T) : (T)0)
+  (__glibcxx_signed (T) ? (((T)1 << (__glibcxx_digits (T) - 1)) << 1) : (T)0)
 
 #define __glibcxx_max(T) \
-  (__glibcxx_signed (T) ? ((T)1 << __glibcxx_digits (T)) - 1 : ~(T)0)
+  (__glibcxx_signed (T) ? \
+   (((((T)1 << (__glibcxx_digits (T) - 1)) - 1) << 1) + 1) : ~(T)0)
 
 #define __glibcxx_digits(T) \
   (sizeof(T) * __CHAR_BIT__ - __glibcxx_signed (T))
