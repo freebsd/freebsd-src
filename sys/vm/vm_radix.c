@@ -277,8 +277,8 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 	 * there is sufficient space.
 	 */
 	while (level == 0 || index > VM_RADIX_MAX(level)) {
-		CTR3(KTR_VM, "insert: expanding %jd > %jd height %d",
-		    index, VM_RADIX_MAX(level), level);
+		CTR3(KTR_VM, "insert: expanding %ju > %ju height %d",
+		    (uintmax_t)index, (uintmax_t)VM_RADIX_MAX(level), level);
 		level++;
 		KASSERT(level <= VM_RADIX_LIMIT,
 		    ("vm_radix_insert: Tree %p height %d too tall",
@@ -461,9 +461,9 @@ restart:
 		start += inc;
 		slot++;
 		CTR5(KTR_VM,
-		    "leaf: start %ju end %ju inc %d mask 0x%lX slot %d",
-		    (uintmax_t)start, (uintmax_t)end, inc,
-		    ~VM_RADIX_MAX(level), slot);
+		    "leaf: start %ju end %ju inc %ju mask 0x%jX slot %d",
+		    (uintmax_t)start, (uintmax_t)end, (uintmax_t)inc,
+		    (uintmax_t)~VM_RADIX_MAX(level), slot);
 		for (; slot < VM_RADIX_COUNT; slot++, start += inc) {
 			if (end != 0 && start >= end) {
 				rnode = NULL;
@@ -604,8 +604,9 @@ restart:
 			index -= inc;
 			slot--;
 			CTR4(KTR_VM,
-			    "lookup_le: start %ju inc %ld mask 0x%lX slot %d",
-			    (uintmax_t)index, inc, VM_RADIX_MAX(level), slot);
+			    "lookup_le: start %ju inc %ju mask 0x%jX slot %d",
+			    (uintmax_t)index, (uintmax_t)inc,
+			    (uintmax_t)VM_RADIX_MAX(level), slot);
 			for (; slot >= 0; slot--, index -= inc) {
 				child = rnode->rn_child[slot];
 				if (child)
