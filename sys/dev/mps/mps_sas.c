@@ -1670,6 +1670,7 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		    sizeof(struct scsi_sense_data));
 		if (sense_len < rep->SenseCount)
 			ccb->csio.sense_resid = rep->SenseCount - sense_len;
+		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
 		bcopy(cm->cm_sense, &ccb->csio.sense_data, sense_len);
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 	}
