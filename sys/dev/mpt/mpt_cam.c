@@ -3170,6 +3170,7 @@ mpt_scsi_reply_frame_handler(struct mpt_softc *mpt, request_t *req,
 		ccb->ccb_h.status |= CAM_AUTOSNS_VALID;
 		ccb->csio.sense_resid =
 		    ccb->csio.sense_len - le32toh(scsi_io_reply->SenseCount);
+		bzero(&ccb->csio.sense_data, sizeof(&ccb->csio.sense_data));
 		bcopy(req->sense_vbuf, &ccb->csio.sense_data,
 		    min(ccb->csio.sense_len,
 		    le32toh(scsi_io_reply->SenseCount)));
