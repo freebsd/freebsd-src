@@ -152,7 +152,7 @@ zio_init(void)
 			(void) sprintf(name, "zio_data_buf_%lu", (ulong_t)size);
 			zio_data_buf_cache[c] = kmem_cache_create(name, size,
 			    align, NULL, NULL, NULL, NULL, NULL,
-			    cflags | KMC_NOTOUCH);
+			    cflags | KMC_NOTOUCH | KMC_NODEBUG);
 		}
 	}
 
