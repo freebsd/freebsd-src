@@ -56,10 +56,13 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
+static device_attach_t miibus_attach;
 static bus_child_location_str_t miibus_child_location_str;
 static bus_child_pnpinfo_str_t miibus_child_pnpinfo_str;
+static device_detach_t miibus_detach;
 static bus_hinted_child_t miibus_hinted_child;
 static bus_print_child_t miibus_print_child;
+static device_probe_t miibus_probe;
 static bus_read_ivar_t miibus_read_ivar;
 static miibus_readreg_t miibus_readreg;
 static miibus_statchg_t miibus_statchg;
@@ -109,7 +112,7 @@ struct miibus_ivars {
 	u_int		mii_offset;
 };
 
-int
+static int
 miibus_probe(device_t dev)
 {
 
@@ -118,7 +121,7 @@ miibus_probe(device_t dev)
 	return (BUS_PROBE_SPECIFIC);
 }
 
-int
+static int
 miibus_attach(device_t dev)
 {
 	struct miibus_ivars	*ivars;
@@ -150,7 +153,7 @@ miibus_attach(device_t dev)
 	return (bus_generic_attach(dev));
 }
 
-int
+static int
 miibus_detach(device_t dev)
 {
 	struct mii_data		*mii;
