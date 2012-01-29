@@ -22,6 +22,7 @@ dev/adb/adb_kbd.c		optional	adb
 dev/adb/adb_mouse.c		optional	adb
 dev/adb/adb_hb_if.m		optional	adb
 dev/adb/adb_if.m		optional	adb
+dev/adb/adb_buttons.c		optional	adb
 dev/agp/agp_apple.c		optional	agp powermac
 dev/cfi/cfi_bus_fdt.c		optional	cfi fdt
 dev/fb/fb.c			optional	sc
