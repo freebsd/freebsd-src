@@ -74,10 +74,8 @@ static device_method_t xhci_device_methods[] = {
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 	DEVMETHOD(usb_take_controller, xhci_pci_take_controller),
-	/* bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t xhci_driver = {

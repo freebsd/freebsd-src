@@ -245,7 +245,6 @@ static device_method_t iicbus_methods[] = {
 
         /* bus interface */
         DEVMETHOD(bus_add_child,	iicbus_add_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
         DEVMETHOD(bus_print_child,      iicbus_print_child),
 	DEVMETHOD(bus_probe_nomatch,	iicbus_probe_nomatch),
 	DEVMETHOD(bus_read_ivar,	iicbus_read_ivar),
@@ -256,7 +255,7 @@ static device_method_t iicbus_methods[] = {
 	/* iicbus interface */
 	DEVMETHOD(iicbus_transfer,	iicbus_transfer),
 
-        { 0, 0 }
+	DEVMETHOD_END
 };
 
 driver_t iicbus_driver = {

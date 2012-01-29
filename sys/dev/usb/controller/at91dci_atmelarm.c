@@ -332,10 +332,7 @@ static device_method_t at91_udp_methods[] = {
 	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
-	/* Bus interface */
-	DEVMETHOD(bus_print_child, bus_generic_print_child),
-
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t at91_udp_driver = {

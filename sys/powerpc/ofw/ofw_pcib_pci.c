@@ -23,9 +23,10 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
- *
- * $FreeBSD$
  */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/module.h>
@@ -59,7 +60,6 @@ static device_method_t ofw_pcib_pci_methods[] = {
 	DEVMETHOD(device_resume,		bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		pcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		pcib_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	pcib_alloc_resource),
@@ -76,9 +76,9 @@ static device_method_t ofw_pcib_pci_methods[] = {
 	DEVMETHOD(pcib_route_interrupt,	ofw_pcib_pci_route_interrupt),
 
 	/* ofw_bus interface */
-	DEVMETHOD(ofw_bus_get_node,     ofw_pcib_pci_get_node),
+	DEVMETHOD(ofw_bus_get_node,	ofw_pcib_pci_get_node),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static devclass_t pcib_devclass;
@@ -93,7 +93,6 @@ struct ofw_pcib_softc {
 	phandle_t		ops_node;
         struct ofw_bus_iinfo    ops_iinfo;
 };
-
 
 DEFINE_CLASS_0(pcib, ofw_pcib_pci_driver, ofw_pcib_pci_methods,
     sizeof(struct ofw_pcib_softc));

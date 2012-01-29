@@ -724,7 +724,6 @@ static device_method_t gt_pci_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	gt_read_ivar),
 	DEVMETHOD(bus_write_ivar,	gt_write_ivar),
 	DEVMETHOD(bus_alloc_resource,	gt_pci_alloc_resource),
@@ -740,7 +739,7 @@ static device_method_t gt_pci_methods[] = {
 	DEVMETHOD(pcib_write_config,	gt_pci_write_config),
 	DEVMETHOD(pcib_route_interrupt,	gt_pci_route_interrupt),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t gt_pci_driver = {

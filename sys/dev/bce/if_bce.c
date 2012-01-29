@@ -455,10 +455,6 @@ static device_method_t bce_methods[] = {
 /*	DEVMETHOD(device_resume,	bce_resume),        */
 /*	DEVMETHOD(device_quiesce,	bce_quiesce),       */
 
-	/* Bus interface (bus_if.h) */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface (miibus_if.h) */
 	DEVMETHOD(miibus_readreg,	bce_miibus_read_reg),
 	DEVMETHOD(miibus_writereg,	bce_miibus_write_reg),
@@ -467,7 +463,7 @@ static device_method_t bce_methods[] = {
 /*	DEVMETHOD(miibus_linkchg,	bce_miibus_linkchg),   */
 /*	DEVMETHOD(miibus_mediainit,	bce_miibus_mediainit), */
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t bce_driver = {

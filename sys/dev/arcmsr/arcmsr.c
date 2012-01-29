@@ -70,8 +70,11 @@
 **     1.20.00.21	03/03/2011		Ching Huang			 if a command timeout, then wait its ccb back before free it
 **     1.20.00.22	07/04/2011		Ching Huang			 Fixed multiple MTX panic
 ******************************************************************************************
-* $FreeBSD$
 */
+
+#include <sys/cdefs.h>
+__FBSDID("$FreeBSD$");
+
 #if 0
 #define ARCMSR_DEBUG1			1
 #endif
@@ -223,9 +226,8 @@ static device_method_t arcmsr_methods[]={
 	DEVMETHOD(device_shutdown,	arcmsr_shutdown),
 	DEVMETHOD(device_suspend,	arcmsr_suspend),
 	DEVMETHOD(device_resume,	arcmsr_resume),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added, bus_generic_driver_added),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 	
 static driver_t arcmsr_driver={

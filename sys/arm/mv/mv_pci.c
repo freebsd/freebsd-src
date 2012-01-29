@@ -151,7 +151,6 @@ static device_method_t pcib_mbus_methods[] = {
 	DEVMETHOD(device_attach,		pcib_mbus_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		pcib_mbus_read_ivar),
 	DEVMETHOD(bus_write_ivar,		pcib_mbus_write_ivar),
 	DEVMETHOD(bus_alloc_resource,		pcib_mbus_alloc_resource),
@@ -167,7 +166,7 @@ static device_method_t pcib_mbus_methods[] = {
 	DEVMETHOD(pcib_write_config,		pcib_mbus_write_config),
 	DEVMETHOD(pcib_route_interrupt,		pcib_route_interrupt),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t pcib_mbus_driver = {
