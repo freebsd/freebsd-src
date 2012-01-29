@@ -1,4 +1,5 @@
 .\"-
+.\" Copyright (c) 2011 Justin Hibbits
 .\" Copyright (c) 2009 Nathan Whitehorn <nwhitehorn@FreeBSD.org>
 .\" All rights reserved.
 .\"
@@ -25,12 +26,12 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 3, 2009
-.Dt AKBD 4
+.Dd October 16, 2011
+.Dt ABTN 4
 .Os
 .Sh NAME
-.Nm akbd
-.Nd ADB Keyboard Driver
+.Nm abtn
+.Nd ADB Keyboard Special Keys Driver
 .Sh SYNOPSIS
 To compile this driver into the kernel,
 place the following lines in your
@@ -41,18 +42,14 @@ kernel configuration file:
 .Sh DESCRIPTION
 The
 .Nm
-driver provides support for all keyboards attached to the Apple Desktop
-Bus (ADB).
+driver provides support for the extended Fn keys on Apple notebooks with an ADB
+interface.
 .Sh HARDWARE
-Devices supported by the
+The
 .Nm
-driver include:
+driver supports extended keyboard keys (special F-keys) on the following devices:
 .Pp
 .Bl -bullet -compact
-.It
-Apple Extended Keyboard
-.It
-Apple Keyboard II
 .It
 Apple iBook Keyboard
 .It
@@ -65,41 +62,54 @@ driver sends events to
 .Xr devd 8
 for the following events under the 
 .Cd PMU
-system:
+system, and
+.Cd keys
+subsystem:
 .Pp
 .Bl -bullet -compact
 .It
-Power button - 
-.Cd "Button"
-subsystem, 
-.Cd "pressed"
-type.
+.Cd brightness
+- Generates
+.Cd up
+and
+.Cd down
+notify types matching the pressed key.
+.It
+.Cd mute
+.It
+.Cd volume
+- Generates
+.Cd up
+and
+.Cd down
+notify types matching the pressed key.
+.It
+.Cd eject
 .El
-.Sh SYSCTL VARIABLES
-The
-.Nm
-driver supports the following sysctl variable for configuring the Fn keys:
-.Bl -tag -width indent
-.It Va dev.akbd.%d.fn_keys_function_as_primary
-Set the Fn keys to be their F-key type as default.  A value of 0 causes the 
-F-keys keys to work as special keys by default (
-.Xr abtn 4 )
-and a value of 1 sets them to behave as F-keys by default.
-.El
+.Pp
+Examples are included in /etc/devd/apple.conf.
 .Sh SEE ALSO
-.Xr abtn 4 ,
 .Xr adb 4 ,
+.Xr akbd 4 ,
 .Xr cuda 4 ,
-.Xr pmu 4
+.Xr pmu 4,
+.Xr devd 8
 .Sh HISTORY
 The
 .Nm
-device driver appeared in
-.Fx 8.0 .
+device driver first appeared in
+.Nx 5.0
+and was ported to
+.Fx 10.0 .
 .Sh AUTHORS
 .An -nosplit
 The
 .Nm
 driver was written by
-.An Nathan Whitehorn
-.Aq nwhitehorn@FreeBSD.org .
+.An Tsubai Masanari
+for
+.Nx
+and ported to
+.Fx
+by
+.An Justin Hibbits .
