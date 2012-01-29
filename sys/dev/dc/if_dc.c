@@ -2456,9 +2456,6 @@ dc_attach(device_t dev)
 		if (sc->dc_pmode != DC_PMODE_SIA)
 			sc->dc_pmode = DC_PMODE_SYM;
 		sc->dc_flags |= DC_21143_NWAY;
-		mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
-		    dc_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
-		    MII_OFFSET_ANY, 0);
 		/*
 		 * For non-MII cards, we need to have the 21143
 		 * drive the LEDs. Except there are some systems
@@ -2469,7 +2466,9 @@ dc_attach(device_t dev)
 		if (!(pci_get_subvendor(dev) == 0x1033 &&
 		    pci_get_subdevice(dev) == 0x8028))
 			sc->dc_flags |= DC_TULIP_LEDS;
-		error = 0;
+		error = mii_attach(dev, &sc->dc_miibus, ifp, dc_ifmedia_upd,
+		    dc_ifmedia_sts, BMSR_DEFCAPMASK, MII_PHY_ANY,
+		    MII_OFFSET_ANY, 0);
 	}
 
 	if (error) {
@@ -2538,7 +2537,7 @@ dc_detach(device_t dev)
 	ifp = sc->dc_ifp;
 
 #ifdef DEVICE_POLLING
-	if (ifp->if_capenable & IFCAP_POLLING)
+	if (ifp != NULL && ifp->if_capenable & IFCAP_POLLING)
 		ether_poll_deregister(ifp);
 #endif
 
@@ -2562,7 +2561,7 @@ dc_detach(device_t dev)
 	if (sc->dc_res)
 		bus_release_resource(dev, DC_RES, DC_RID, sc->dc_res);
 
-	if (ifp)
+	if (ifp != NULL)
 		if_free(ifp);
 
 	dc_dma_free(sc);
@@ -2611,7 +2610,6 @@ dc_list_tx_init(struct dc_softc *sc)
 	    BUS_DMASYNC_PREWRITE | BUS_DMASYNC_PREREAD);
 	return (0);
 }
-
 
 /*
  * Initialize the RX descriptors and allocate mbufs for them. Note that
