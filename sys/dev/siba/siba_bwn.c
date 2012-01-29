@@ -410,7 +410,7 @@ static device_method_t siba_bwn_methods[] = {
 	DEVMETHOD(pci_release_msi,	siba_bwn_release_msi),
 	DEVMETHOD(pci_msi_count,	siba_bwn_msi_count),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 static driver_t siba_bwn_driver = {
 	"siba_bwn",

@@ -151,7 +151,7 @@ static device_method_t vte_methods[] = {
 	DEVMETHOD(miibus_writereg,	vte_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	vte_miibus_statchg),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static driver_t vte_driver = {
