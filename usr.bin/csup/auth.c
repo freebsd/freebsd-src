@@ -35,7 +35,6 @@
 #include <netinet/in.h>
 
 #include <ctype.h>
-#include <openssl/md5.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
