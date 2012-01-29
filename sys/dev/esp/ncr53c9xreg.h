@@ -31,6 +31,9 @@
 
 /* $FreeBSD$ */
 
+#ifndef _NCR53C9XREG_H_
+#define	_NCR53C9XREG_H_
+
 /*
  * Register addresses, relative to some base address
  */
@@ -288,3 +291,4 @@
 #define	NCRFAS_STAT2_OSHUTTLE 0x40	   /* next byte	from FIFO is MSB */
 #define	NCRFAS_STAT2_EMPTY    0x80	   /* FIFO is empty */
 
+#endif /* _NCR53C9XREG_H_ */
