@@ -281,9 +281,10 @@ _hesinfo=	hesinfo
 .if ${MK_OPENSSL} != "no"
 _chkey=		chkey
 _newkey=	newkey
+.endif
+
 .if ${MK_LIBTHR} != "no"
 _csup=		csup
-.endif
 .endif
 
 .if ${MK_LOCATE} != "no"

@@ -1,0 +1,39 @@
+$FreeBSD$
+
+Authors
+-------
+
+CVSup was originally written in Modula-3 by
+	John Polstra <jdp@polstra.com>.
+
+Csup is a rewrite of CVSup in C.  It has been mostly written by
+	Maxime Henrion <mux@FreeBSD.org>.
+
+A few contributors have helped him in his task and they are listed here in
+alphabetical order :
+
+	Olivier Houchard <cognet@FreeBSD.org>
+	Ulf Lilleengen <lulf@kerneled.org>
+	Christoph Mathys <cmathys@bluewin.ch>	(Google SoC Project)
+	Etienne Vidal <etienne.vidal@gmail.com>
+
+
+Building & Installing
+---------------------
+
+Csup should build and run fine under any *BSD OS (that includes FreeBSD,
+NetBSD, OpenBSD and DragonFlyBSD), as well as Linux and Darwin.  If you
+have a problem building from source, drop me a mail!
+
+There is one Makefile specifically tailored for *BSD systems named
+Makefile and another one that is gmake-specific for Darwin and Linux
+users named GNUmakefile.  You don't really need to worry about that
+since whatever your "make" command is, it should pick up the correct
+Makefile.
+
+As usual, to build the source code, just run "make".  Once this is done,
+just run "make install" to install the binary and manual page.
+
+Be warned however that if the packaging system of your OS knows about
+csup, it is certainly better to install it from there rather than by
+hand, so that it can then be properly deinstalled.
