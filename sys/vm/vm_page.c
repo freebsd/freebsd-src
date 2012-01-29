@@ -797,8 +797,9 @@ vm_page_insert(vm_page_t m, vm_object_t object, vm_pindex_t pindex)
 		neighbor = vm_radix_lookup_ge(&object->rtree, pindex,
 		    VM_RADIX_BLACK);
 		if (neighbor != NULL) {
-		    	KASSERT(pindex != neighbor->pindex,
-			    ("vm_page_insert: offset already allocated"));
+		    	KASSERT(pindex < neighbor->pindex,
+			    ("vm_page_insert: offset %ju not minor than %ju",
+			    (uintmax_t)pindex, (uintmax_t)neighbor->pindex));
 			TAILQ_INSERT_BEFORE(neighbor, m, listq);
 		} else 
 			TAILQ_INSERT_TAIL(&object->memq, m, listq);
