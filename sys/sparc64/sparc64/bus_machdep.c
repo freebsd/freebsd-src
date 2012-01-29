@@ -101,6 +101,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mbuf.h>
 #include <sys/mutex.h>
 #include <sys/proc.h>
+#include <sys/rman.h>
 #include <sys/smp.h>
 #include <sys/systm.h>
 #include <sys/uio.h>
@@ -665,7 +666,7 @@ nexus_dmamem_free(bus_dma_tag_t dmat, void *vaddr, bus_dmamap_t map)
 		contigfree(vaddr, dmat->dt_maxsize, M_DEVBUF);
 }
 
-struct bus_dma_methods nexus_dma_methods = {
+static struct bus_dma_methods nexus_dma_methods = {
 	nexus_dmamap_create,
 	nexus_dmamap_destroy,
 	nexus_dmamap_load,
@@ -703,22 +704,43 @@ struct bus_dma_tag nexus_dmatag = {
  * Helpers to map/unmap bus memory
  */
 int
-sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
-    bus_size_t size, int flags, vm_offset_t vaddr, void **hp)
+bus_space_map(bus_space_tag_t tag, bus_addr_t address, bus_size_t size,
+    int flags, bus_space_handle_t *handlep)
 {
-	vm_offset_t addr;
+
+	return (sparc64_bus_mem_map(tag, address, size, flags, 0, handlep));
+}
+
+int
+sparc64_bus_mem_map(bus_space_tag_t tag, bus_addr_t addr, bus_size_t size,
+    int flags, vm_offset_t vaddr, bus_space_handle_t *hp)
+{
 	vm_offset_t sva;
 	vm_offset_t va;
 	vm_paddr_t pa;
 	vm_size_t vsz;
 	u_long pm_flags;
 
-	addr = (vm_offset_t)handle;
+	/*
+	 * Given that we use physical access for bus_space(9) there's no need
+	 * need to map anything in unless BUS_SPACE_MAP_LINEAR is requested.
+	 */
+	if ((flags & BUS_SPACE_MAP_LINEAR) == 0) {
+		*hp = addr;
+		return (0);
+	}
+
+	if (tag->bst_cookie == NULL) {
+		printf("%s: resource cookie not set\n", __func__);
+		return (EINVAL);
+	}
+
 	size = round_page(size);
 	if (size == 0) {
 		printf("%s: zero size\n", __func__);
 		return (EINVAL);
 	}
+
 	switch (tag->bst_type) {
 	case PCI_CONFIG_BUS_SPACE:
 	case PCI_IO_BUS_SPACE:
@@ -730,7 +752,7 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 		break;
 	}
 
-	if (!(flags & BUS_SPACE_MAP_CACHEABLE))
+	if ((flags & BUS_SPACE_MAP_CACHEABLE) == 0)
 		pm_flags |= TD_E;
 
 	if (vaddr != 0L)
@@ -739,9 +761,6 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 		if ((sva = kmem_alloc_nofault(kernel_map, size)) == 0)
 			panic("%s: cannot allocate virtual memory", __func__);
 	}
-
-	/* Preserve page offset. */
-	*hp = (void *)(sva | ((u_long)addr & PAGE_MASK));
 
 	pa = trunc_page(addr);
 	if ((flags & BUS_SPACE_MAP_READONLY) == 0)
@@ -755,17 +774,32 @@ sparc64_bus_mem_map(bus_space_tag_t tag, bus_space_handle_t handle,
 		pa += PAGE_SIZE;
 	} while ((vsz -= PAGE_SIZE) > 0);
 	tlb_range_demap(kernel_pmap, sva, sva + size - 1);
+
+	/* Note: we preserve the page offset. */
+	rman_set_virtual(tag->bst_cookie, (void *)(sva | (addr & PAGE_MASK)));
 	return (0);
 }
 
+void
+bus_space_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t size)
+{
+
+	sparc64_bus_mem_unmap(tag, handle, size);
+}
+
 int
-sparc64_bus_mem_unmap(void *bh, bus_size_t size)
+sparc64_bus_mem_unmap(bus_space_tag_t tag, bus_space_handle_t handle,
+    bus_size_t size)
 {
 	vm_offset_t sva;
 	vm_offset_t va;
 	vm_offset_t endva;
 
-	sva = trunc_page((vm_offset_t)bh);
+	if (tag->bst_cookie == NULL ||
+	    (sva = (vm_offset_t)rman_get_virtual(tag->bst_cookie)) == 0)
+		return (0);
+	sva = trunc_page(sva);
 	endva = sva + round_page(size);
 	for (va = sva; va < endva; va += PAGE_SIZE)
 		pmap_kremove_flags(va);
@@ -788,6 +822,25 @@ sparc64_fake_bustag(int space, bus_addr_t addr, struct bus_space_tag *ptag)
 	ptag->bst_type = space;
 	ptag->bst_bus_barrier = nexus_bus_barrier;
 	return (addr);
+}
+
+/*
+ * Allocate a bus tag.
+ */
+bus_space_tag_t
+sparc64_alloc_bus_tag(void *cookie, struct bus_space_tag *ptag, int type,
+    void *barrier)
+{
+	bus_space_tag_t bt;
+
+	bt = malloc(sizeof(struct bus_space_tag), M_DEVBUF, M_NOWAIT);
+	if (bt == NULL)
+		return (NULL);
+	bt->bst_cookie = cookie;
+	bt->bst_parent = ptag;
+	bt->bst_type = type;
+	bt->bst_bus_barrier = barrier;
+	return (bt);
 }
 
 /*
