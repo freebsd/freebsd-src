@@ -48,7 +48,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_media.h>
-#include <net/route.h>
 
 #include <dev/mii/mii.h>
 #include <dev/mii/miivar.h>
@@ -57,18 +56,17 @@ MODULE_VERSION(miibus, 1);
 
 #include "miibus_if.h"
 
-static int miibus_print_child(device_t dev, device_t child);
-static int miibus_read_ivar(device_t dev, device_t child, int which,
-    uintptr_t *result);
-static int miibus_child_location_str(device_t bus, device_t child, char *buf,
-    size_t buflen);
-static int miibus_child_pnpinfo_str(device_t bus, device_t child, char *buf,
-    size_t buflen);
-static int miibus_readreg(device_t, int, int);
-static int miibus_writereg(device_t, int, int, int);
-static void miibus_statchg(device_t);
-static void miibus_linkchg(device_t);
-static void miibus_mediainit(device_t);
+static bus_child_location_str_t miibus_child_location_str;
+static bus_child_pnpinfo_str_t miibus_child_pnpinfo_str;
+static bus_hinted_child_t miibus_hinted_child;
+static bus_print_child_t miibus_print_child;
+static bus_read_ivar_t miibus_read_ivar;
+static miibus_readreg_t miibus_readreg;
+static miibus_statchg_t miibus_statchg;
+static miibus_writereg_t miibus_writereg;
+static miibus_linkchg_t miibus_linkchg;
+static miibus_mediainit_t miibus_mediainit;
+
 
 static device_method_t miibus_methods[] = {
 	/* device interface */
@@ -83,6 +81,7 @@ static device_method_t miibus_methods[] = {
 	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
 	DEVMETHOD(bus_child_pnpinfo_str, miibus_child_pnpinfo_str),
 	DEVMETHOD(bus_child_location_str, miibus_child_location_str),
+	DEVMETHOD(bus_hinted_child,	miibus_hinted_child),
 
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	miibus_readreg),
@@ -106,7 +105,8 @@ struct miibus_ivars {
 	struct ifnet	*ifp;
 	ifm_change_cb_t	ifmedia_upd;
 	ifm_stat_cb_t	ifmedia_sts;
-	int		mii_flags;
+	u_int		mii_flags;
+	u_int		mii_offset;
 };
 
 int
@@ -128,7 +128,6 @@ miibus_attach(device_t dev)
 	int			i, nchildren;
 
 	mii = device_get_softc(dev);
-	nchildren = 0;
 	if (device_get_children(dev, &children, &nchildren) == 0) {
 		for (i = 0; i < nchildren; i++) {
 			ma = device_get_ivars(children[i]);
@@ -200,7 +199,7 @@ miibus_read_ivar(device_t dev, device_t child __unused, int which,
 }
 
 static int
-miibus_child_pnpinfo_str(device_t bus __unused, device_t child, char *buf,
+miibus_child_pnpinfo_str(device_t dev __unused, device_t child, char *buf,
     size_t buflen)
 {
 	struct mii_attach_args *ma;
@@ -213,7 +212,7 @@ miibus_child_pnpinfo_str(device_t bus __unused, device_t child, char *buf,
 }
 
 static int
-miibus_child_location_str(device_t bus __unused, device_t child, char *buf,
+miibus_child_location_str(device_t dev __unused, device_t child, char *buf,
     size_t buflen)
 {
 	struct mii_attach_args *ma;
@@ -221,6 +220,60 @@ miibus_child_location_str(device_t bus __unused, device_t child, char *buf,
 	ma = device_get_ivars(child);
 	snprintf(buf, buflen, "phyno=%d", ma->mii_phyno);
 	return (0);
+}
+
+static void
+miibus_hinted_child(device_t dev, const char *name, int unit)
+{
+	struct miibus_ivars *ivars;
+	struct mii_attach_args *args, *ma;
+	device_t *children, phy;
+	int i, nchildren;
+	u_int val;
+
+	if (resource_int_value(name, unit, "phyno", &val) != 0)
+		return;
+	if (device_get_children(dev, &children, &nchildren) != 0)
+		return;
+	ma = NULL;
+	for (i = 0; i < nchildren; i++) {
+		args = device_get_ivars(children[i]);
+		if (args->mii_phyno == val) {
+			ma = args;
+			break;
+		}
+	}
+	free(children, M_TEMP);
+
+	/*
+	 * Don't add a PHY that was automatically identified by having media
+	 * in its BMSR twice, only allow to alter its attach arguments.
+	 */
+	if (ma == NULL) {
+		ma = malloc(sizeof(struct mii_attach_args), M_DEVBUF,
+		    M_NOWAIT);
+		if (ma == NULL)
+			return;
+		phy = device_add_child(dev, name, unit);
+		if (phy == NULL) {
+			free(ma, M_DEVBUF);
+			return;
+		}
+		ivars = device_get_ivars(dev);
+		ma->mii_phyno = val;
+		ma->mii_offset = ivars->mii_offset++;
+		ma->mii_id1 = 0;
+		ma->mii_id2 = 0;
+		ma->mii_capmask = BMSR_DEFCAPMASK;
+		device_set_ivars(phy, ma);
+	}
+
+	if (resource_int_value(name, unit, "id1", &val) == 0)
+		ma->mii_id1 = val;
+	if (resource_int_value(name, unit, "id2", &val) == 0)
+		ma->mii_id2 = val;
+	if (resource_int_value(name, unit, "capmask", &val) == 0)
+		ma->mii_capmask = val;
 }
 
 static int
@@ -317,9 +370,10 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
     int phyloc, int offloc, int flags)
 {
 	struct miibus_ivars *ivars;
-	struct mii_attach_args ma, *args;
+	struct mii_attach_args *args, ma;
 	device_t *children, phy;
-	int bmsr, first, i, nchildren, offset, phymax, phymin, rv;
+	int bmsr, first, i, nchildren, phymax, phymin, rv;
+	uint32_t phymask;
 
 	if (phyloc != MII_PHY_ANY && offloc != MII_OFFSET_ANY) {
 		printf("%s: phyloc and offloc specified\n", __func__);
@@ -376,27 +430,30 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 
 	ma.mii_capmask = capmask;
 
-	phy = NULL;
-	offset = 0;
+	if (resource_int_value(device_get_name(*miibus),
+	    device_get_unit(*miibus), "phymask", &phymask) != 0)
+		phymask = 0xffffffff;
+
+	if (device_get_children(*miibus, &children, &nchildren) != 0) {
+		children = NULL;
+		nchildren = 0;
+	}
+	ivars->mii_offset = 0;
 	for (ma.mii_phyno = phymin; ma.mii_phyno <= phymax; ma.mii_phyno++) {
 		/*
 		 * Make sure we haven't already configured a PHY at this
 		 * address.  This allows mii_attach() to be called
 		 * multiple times.
 		 */
-		if (device_get_children(*miibus, &children, &nchildren) == 0) {
-			for (i = 0; i < nchildren; i++) {
-				args = device_get_ivars(children[i]);
-				if (args->mii_phyno == ma.mii_phyno) {
-					/*
-					 * Yes, there is already something
-					 * configured at this address.
-					 */
-					free(children, M_TEMP);
-					goto skip;
-				}
+		for (i = 0; i < nchildren; i++) {
+			args = device_get_ivars(children[i]);
+			if (args->mii_phyno == ma.mii_phyno) {
+				/*
+				 * Yes, there is already something
+				 * configured at this address.
+				 */
+				goto skip;
 			}
-			free(children, M_TEMP);
 		}
 
 		/*
@@ -415,11 +472,17 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		 * There is a PHY at this address.  If we were given an
 		 * `offset' locator, skip this PHY if it doesn't match.
 		 */
-		if (offloc != MII_OFFSET_ANY && offloc != offset)
+		if (offloc != MII_OFFSET_ANY && offloc != ivars->mii_offset)
 			goto skip;
 
 		/*
-		 * Extract the IDs. Braindead PHYs will be handled by
+		 * Skip this PHY if it's not included in the phymask hint.
+		 */
+		if ((phymask & (1 << ma.mii_phyno)) == 0)
+			goto skip;
+
+		/*
+		 * Extract the IDs.  Braindead PHYs will be handled by
 		 * the `ukphy' driver, as we have no ID information to
 		 * match on.
 		 */
@@ -438,11 +501,20 @@ mii_attach(device_t dev, device_t *miibus, struct ifnet *ifp,
 		}
 		device_set_ivars(phy, args);
  skip:
-		offset++;
+		ivars->mii_offset++;
 	}
+	free(children, M_TEMP);
 
 	if (first != 0) {
-		if (phy == NULL) {
+		rv = device_set_driver(*miibus, &miibus_driver);
+		if (rv != 0)
+			goto fail;
+		bus_enumerate_hinted_children(*miibus);
+		rv = device_get_children(*miibus, &children, &nchildren);
+		if (rv != 0)
+			goto fail;
+		free(children, M_TEMP);
+		if (nchildren == 0) {
 			rv = ENXIO;
 			goto fail;
 		}
