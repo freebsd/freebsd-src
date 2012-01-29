@@ -2018,10 +2018,11 @@ device_probe_child(device_t dev, device_t child)
 			else if (result != 0)
 				continue;
 			if (!hasclass) {
-				if (device_set_devclass(child, dl->driver->name)) {
-					printf("driver bug: Unable to set devclass (devname: %s)\n",
-					    (child ? device_get_name(child) :
-						"no device"));
+				if (device_set_devclass(child,
+				    dl->driver->name) != 0) {
+					printf("driver bug: Unable to set "
+					    "devclass (devname: %s)\n",
+					    device_get_name(child));
 					(void)device_set_driver(child, NULL);
 					continue;
 				}
