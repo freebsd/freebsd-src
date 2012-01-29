@@ -95,7 +95,7 @@ static int iso_mountfs(struct vnode *devvp, struct mount *mp);
  */
 
 static int
-cd9660_cmount(struct mntarg *ma, void *data, int flags)
+cd9660_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct iso_args args;
 	struct export_args exp;
