@@ -458,6 +458,12 @@ restart:
 	 	 */
 		inc = 1LL << (level * VM_RADIX_WIDTH);
 		start &= ~VM_RADIX_MAX(level);
+
+		/* Avoid start address wrapping up. */
+		if ((VM_RADIX_MAXVAL - start) < inc) {
+			rnode = NULL;
+			goto out;
+		}
 		start += inc;
 		slot++;
 		CTR5(KTR_VM,
@@ -472,6 +478,10 @@ restart:
 			if (rnode->rn_child[slot]) {
 				rnode = rnode->rn_child[slot];
 				break;
+			}
+			if ((VM_RADIX_MAXVAL - start) < inc) {
+				rnode = NULL;
+				goto out;
 			}
 		}
 		if (slot == VM_RADIX_COUNT)

@@ -35,6 +35,7 @@
 #define	VM_RADIX_WIDTH	5
 #define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
 #define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
+#define	VM_RADIX_MAXVAL	((vm_pindex_t)-1)
 #define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
 #define	VM_RADIX_FLAGS	0x3	/* Flag bits stored in node pointers. */
 #define	VM_RADIX_BLACK	0x1	/* Black node. (leaf only) */
@@ -46,7 +47,7 @@
 
 /* Calculates maximum value for a tree of height h. */
 #define	VM_RADIX_MAX(h)							\
-	    ((h) == VM_RADIX_LIMIT ? ((vm_pindex_t)-1) :		\
+	    ((h) == VM_RADIX_LIMIT ? VM_RADIX_MAXVAL :			\
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
 /*
