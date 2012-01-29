@@ -99,10 +99,11 @@ struct upa_softc {
 
 static device_probe_t upa_probe;
 static device_attach_t upa_attach;
-static bus_alloc_resource_t upa_alloc_resource;
-static bus_setup_intr_t upa_setup_intr;
 static bus_print_child_t upa_print_child;
 static bus_probe_nomatch_t upa_probe_nomatch;
+static bus_alloc_resource_t upa_alloc_resource;
+static bus_adjust_resource_t upa_adjust_resource;
+static bus_setup_intr_t upa_setup_intr;
 static bus_get_resource_list_t upa_get_resource_list;
 static ofw_bus_get_devinfo_t upa_get_devinfo;
 
@@ -130,6 +131,7 @@ static device_method_t upa_methods[] = {
 	DEVMETHOD(bus_alloc_resource,	upa_alloc_resource),
 	DEVMETHOD(bus_activate_resource, bus_generic_activate_resource),
 	DEVMETHOD(bus_deactivate_resource, bus_generic_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	upa_adjust_resource),
 	DEVMETHOD(bus_release_resource,	bus_generic_rl_release_resource),
 	DEVMETHOD(bus_setup_intr,	upa_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -504,6 +506,15 @@ upa_setup_intr(device_t dev, device_t child, struct resource *ires, int flags,
 	}
 	return (bus_generic_setup_intr(dev, child, ires, flags, filt, func,
 	    arg, cookiep));
+}
+
+static int
+upa_adjust_resource(device_t bus __unused, device_t child __unused,
+    int type __unused, struct resource *r __unused, u_long start __unused,
+    u_long end __unused)
+{
+
+	return (ENXIO);
 }
 
 static struct resource_list *
