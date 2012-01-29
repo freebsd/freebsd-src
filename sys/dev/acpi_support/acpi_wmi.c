@@ -175,7 +175,6 @@ static device_method_t acpi_wmi_methods[] = {
 
 	/* bus interface */
 	DEVMETHOD(bus_add_child,	bus_generic_add_child),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
 	/* acpi_wmi interface */
 	DEVMETHOD(acpi_wmi_provides_guid_string,
@@ -189,7 +188,7 @@ static device_method_t acpi_wmi_methods[] = {
 	DEVMETHOD(acpi_wmi_get_block, acpi_wmi_get_block_method),
 	DEVMETHOD(acpi_wmi_set_block, acpi_wmi_set_block_method),
 
-	{0, 0}
+	DEVMETHOD_END
 };
 
 static driver_t acpi_wmi_driver = {

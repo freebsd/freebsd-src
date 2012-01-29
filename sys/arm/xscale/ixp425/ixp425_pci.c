@@ -445,7 +445,6 @@ static device_method_t ixppcib_methods[] = {
 	DEVMETHOD(device_attach,		ixppcib_attach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,		bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,		ixppcib_read_ivar),
 	DEVMETHOD(bus_write_ivar,		ixppcib_write_ivar),
 	DEVMETHOD(bus_setup_intr,		ixppcib_setup_intr),
@@ -462,7 +461,7 @@ static device_method_t ixppcib_methods[] = {
 	DEVMETHOD(pcib_write_config,		ixppcib_write_config),
 	DEVMETHOD(pcib_route_interrupt,		ixppcib_route_interrupt),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t ixppcib_driver = {

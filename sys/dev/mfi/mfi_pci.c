@@ -93,9 +93,8 @@ static device_method_t mfi_methods[] = {
 	DEVMETHOD(device_detach,	mfi_pci_detach),
 	DEVMETHOD(device_suspend,	mfi_pci_suspend),
 	DEVMETHOD(device_resume,	mfi_pci_resume),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-	{ 0, 0 }
+
+	DEVMETHOD_END
 };
 
 static driver_t mfi_pci_driver = {

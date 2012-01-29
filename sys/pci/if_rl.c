@@ -239,16 +239,12 @@ static device_method_t rl_methods[] = {
 	DEVMETHOD(device_resume,	rl_resume),
 	DEVMETHOD(device_shutdown,	rl_shutdown),
 
-	/* bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
-	DEVMETHOD(bus_driver_added,	bus_generic_driver_added),
-
 	/* MII interface */
 	DEVMETHOD(miibus_readreg,	rl_miibus_readreg),
 	DEVMETHOD(miibus_writereg,	rl_miibus_writereg),
 	DEVMETHOD(miibus_statchg,	rl_miibus_statchg),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 static driver_t rl_driver = {

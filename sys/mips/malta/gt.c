@@ -116,9 +116,8 @@ static device_method_t gt_methods[] = {
 	DEVMETHOD(bus_teardown_intr, gt_teardown_intr),
 	DEVMETHOD(bus_alloc_resource, gt_alloc_resource),
 	DEVMETHOD(bus_activate_resource, gt_activate_resource),
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 
-	{0, 0},
+	DEVMETHOD_END
 };
 
 static driver_t gt_driver = {

@@ -130,7 +130,6 @@ static device_method_t schizo_methods[] = {
 	DEVMETHOD(device_resume,	bus_generic_resume),
 
 	/* Bus interface */
-	DEVMETHOD(bus_print_child,	bus_generic_print_child),
 	DEVMETHOD(bus_read_ivar,	schizo_read_ivar),
 	DEVMETHOD(bus_setup_intr,	schizo_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	bus_generic_teardown_intr),
@@ -153,7 +152,7 @@ static device_method_t schizo_methods[] = {
 	/* ofw_pci interface */
 	DEVMETHOD(ofw_pci_setup_device,	schizo_setup_device),
 
-	KOBJMETHOD_END
+	DEVMETHOD_END
 };
 
 static devclass_t schizo_devclass;
