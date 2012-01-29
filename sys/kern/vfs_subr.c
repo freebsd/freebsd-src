@@ -2836,6 +2836,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
+	uint64_t mflags;
 	u_int flags;
 
 	if (!have_addr) {
@@ -2857,13 +2858,13 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_stat.f_mntonname, mp->mnt_stat.f_fstypename);
 
 	buf[0] = '\0';
-	flags = mp->mnt_flag;
+	mflags = mp->mnt_flag;
 #define	MNT_FLAG(flag)	do {						\
-	if (flags & (flag)) {						\
+	if (mflags & (flag)) {						\
 		if (buf[0] != '\0')					\
 			strlcat(buf, ", ", sizeof(buf));		\
 		strlcat(buf, (#flag) + 4, sizeof(buf));			\
-		flags &= ~(flag);					\
+		mflags &= ~(flag);					\
 	}								\
 } while (0)
 	MNT_FLAG(MNT_RDONLY);
@@ -2901,11 +2902,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
 #undef MNT_FLAG
-	if (flags != 0) {
+	if (mflags != 0) {
 		if (buf[0] != '\0')
 			strlcat(buf, ", ", sizeof(buf));
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "0x%08x", flags);
+		    "0x%016jx", mflags);
 	}
 	db_printf("    mnt_flag = %s\n", buf);
 
