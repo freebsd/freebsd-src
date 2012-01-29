@@ -1,9 +1,8 @@
 # $FreeBSD$
 
-.PATH: ${.CURDIR}/../../contrib/csup
-
 PROG=	csup
 SRCS=	attrstack.c \
+	auth.c \
 	config.c \
 	detailer.c \
 	diff.c \
@@ -30,11 +29,14 @@ SRCS=	attrstack.c \
 	token.l \
 	updater.c
 
-CFLAGS+= -I. -I${.CURDIR}/../../contrib/csup
+CFLAGS+= -I. -I${.CURDIR}
 CFLAGS+= -DHAVE_FFLAGS -DNDEBUG
 WARNS?=	1
 
-DPADD=	${LIBCRYPTO} ${LIBZ} ${LIBPTHREAD}
-LDADD=	-lcrypto -lz -lpthread
+DPADD=	${LIBMD} ${LIBZ} ${LIBPTHREAD}
+LDADD=	-lmd -lz -lpthread
+
+SCRIPTS=	cpasswd.sh
+MAN=		csup.1 cpasswd.1
 
 .include <bsd.prog.mk>
