@@ -565,7 +565,6 @@ nd6_timer(void *arg)
 	struct nd_defrouter *dr;
 	struct nd_prefix *pr;
 	struct in6_ifaddr *ia6, *nia6;
-	struct in6_addrlifetime *lt6;
 
 	callout_reset(&V_nd6_timer_ch, V_nd6_prune * hz,
 	    nd6_timer, curvnet);
@@ -595,7 +594,6 @@ nd6_timer(void *arg)
   addrloop:
 	TAILQ_FOREACH_SAFE(ia6, &V_in6_ifaddrhead, ia_link, nia6) {
 		/* check address lifetime */
-		lt6 = &ia6->ia6_lifetime;
 		if (IFA6_IS_INVALID(ia6)) {
 			int regen = 0;
 
