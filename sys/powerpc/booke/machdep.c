@@ -192,6 +192,8 @@ void print_kernel_section_addr(void);
 void print_kenv(void);
 u_int booke_init(uint32_t, uint32_t);
 
+extern int elf32_nxstack;
+
 static void
 cpu_e500_startup(void *dummy)
 {
@@ -227,6 +229,9 @@ cpu_e500_startup(void *dummy)
 	/* Set up buffers, so they can be used to read disk labels. */
 	bufinit();
 	vm_pager_bufferinit();
+
+	/* Cpu supports execution permissions on the pages. */
+	elf32_nxstack = 1;
 }
 
 static char *
