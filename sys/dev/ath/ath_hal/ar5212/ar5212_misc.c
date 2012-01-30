@@ -1233,3 +1233,13 @@ ar5212IsFastClockEnabled(struct ath_hal *ah)
 {
 	return AH_FALSE;
 }
+
+/*
+ * Return what percentage of the extension channel is busy.
+ * This is always disabled for AR5212 series NICs.
+ */
+uint32_t
+ar5212Get11nExtBusy(struct ath_hal *ah)
+{
+	return 0;
+}
