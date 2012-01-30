@@ -146,6 +146,12 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, total_buffers,
     CTLFLAG_RD, &nm_buf_pool.total_buffers, 0, "total_buffers");
 SYSCTL_INT(_dev_netmap, OID_AUTO, free_buffers,
     CTLFLAG_RD, &nm_buf_pool.free, 0, "free_buffers");
+int netmap_mitigate = 1;
+SYSCTL_INT(_dev_netmap, OID_AUTO, mitigate, CTLFLAG_RW, &netmap_mitigate, 0, "");
+int netmap_skip_txsync;
+SYSCTL_INT(_dev_netmap, OID_AUTO, skip_txsync, CTLFLAG_RW, &netmap_skip_txsync, 0, "");
+int netmap_skip_rxsync;
+SYSCTL_INT(_dev_netmap, OID_AUTO, skip_rxsync, CTLFLAG_RW, &netmap_skip_rxsync, 0, "");
 
 /*
  * Allocate n buffers from the ring, and fill the slot.

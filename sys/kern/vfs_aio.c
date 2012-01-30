@@ -1552,6 +1552,12 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		return (error);
 	}
 
+	/* XXX: aio_nbytes is later casted to signed types. */
+	if (aiocbe->uaiocb.aio_nbytes > INT_MAX) {
+		uma_zfree(aiocb_zone, aiocbe);
+		return (EINVAL);
+	}
+
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT &&
 	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_SIGNAL &&
 	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_THREAD_ID &&

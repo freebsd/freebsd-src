@@ -34,7 +34,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipdivert.h"
 #include "opt_inet.h"
 #ifndef INET
-#error IPFIREWALL requires INET.
+#error "IPFIREWALL requires INET"
 #endif /* INET */
 #include "opt_inet6.h"
 #include "opt_ipsec.h"

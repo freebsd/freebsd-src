@@ -99,6 +99,8 @@ struct cam_ed {
 	uint8_t		 *device_id;
 	uint8_t		 physpath_len;
 	uint8_t		 *physpath;	/* physical path string form */
+	uint32_t	 rcap_len;
+	uint8_t		 *rcap_buf;
 	struct		 ata_params ident_data;
 	u_int8_t	 inq_flags;	/*
 					 * Current settings for inquiry flags.

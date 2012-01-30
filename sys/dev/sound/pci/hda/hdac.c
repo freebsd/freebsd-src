@@ -46,7 +46,7 @@
 #include <dev/sound/pci/hda/hda_reg.h>
 #include <dev/sound/pci/hda/hdac.h>
 
-#define HDA_DRV_TEST_REV	"20120111_0001"
+#define HDA_DRV_TEST_REV	"20120126_0002"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -69,17 +69,6 @@ static const struct {
 };
 #define HDAC_QUIRKS_TAB_LEN	\
 		(sizeof(hdac_quirks_tab) / sizeof(hdac_quirks_tab[0]))
-
-#define HDA_BDL_MIN	2
-#define HDA_BDL_MAX	256
-#define HDA_BDL_DEFAULT	HDA_BDL_MIN
-
-#define HDA_BLK_MIN	HDA_DMA_ALIGNMENT
-#define HDA_BLK_ALIGN	(~(HDA_BLK_MIN - 1))
-
-#define HDA_BUFSZ_MIN		4096
-#define HDA_BUFSZ_MAX		65536
-#define HDA_BUFSZ_DEFAULT	16384
 
 MALLOC_DEFINE(M_HDAC, "hdac", "HDA Controller");
 

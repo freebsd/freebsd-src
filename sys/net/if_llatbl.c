@@ -122,6 +122,7 @@ llentry_free(struct llentry *lle)
 		("%s: la_numheld %d > 0, pkts_droped %zd", __func__, 
 		 lle->la_numheld, pkts_dropped));
 
+	lle->la_flags &= ~LLE_VALID;
 	LLE_FREE_LOCKED(lle);
 
 	return (pkts_dropped);

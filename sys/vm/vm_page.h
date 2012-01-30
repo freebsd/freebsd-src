@@ -263,6 +263,7 @@ extern struct vpglocks pa_lock[];
 #define	PG_MARKER	0x10		/* special queue marker page */
 #define	PG_SLAB		0x20		/* object pointer is actually a slab */
 #define	PG_WINATCFLS	0x40		/* flush dirty page on inactive q */
+#define	PG_NODUMP	0x80		/* don't include this page in the dump */
 
 /*
  * Misc constants.
@@ -350,6 +351,7 @@ extern struct vpglocks vm_page_queue_lock;
 #define	VM_ALLOC_IFCACHED	0x0400	/* Fail if the page is not cached */
 #define	VM_ALLOC_IFNOTCACHED	0x0800	/* Fail if the page is cached */
 #define	VM_ALLOC_IGN_SBUSY	0x1000	/* vm_page_grab() only */
+#define	VM_ALLOC_NODUMP		0x2000	/* don't include in dump */
 
 #define	VM_ALLOC_COUNT_SHIFT	16
 #define	VM_ALLOC_COUNT(count)	((count) << VM_ALLOC_COUNT_SHIFT)

@@ -33,4 +33,9 @@
 #ifndef _MACHINE_PTRACE_H_
 #define _MACHINE_PTRACE_H_
 
+#define	__HAVE_PTRACE_MACHDEP
+
+#define PT_GETXSTATE	(PT_FIRSTMACH + 0)
+#define PT_SETXSTATE	(PT_FIRSTMACH + 1)
+
 #endif
