@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -415,4 +415,20 @@ drbr_needs_enqueue(struct ifnet *ifp, struct buf_ring *br)
         return (!buf_ring_empty(br));
 }
 #endif
+
+/*
+** Find the number of unrefreshed RX descriptors
+*/
+static inline u16
+ixv_rx_unrefreshed(struct rx_ring *rxr)
+{       
+	struct adapter  *adapter = rxr->adapter;
+        
+	if (rxr->next_to_check > rxr->next_to_refresh)
+		return (rxr->next_to_check - rxr->next_to_refresh - 1);
+	else
+		return ((adapter->num_rx_desc + rxr->next_to_check) -
+		    rxr->next_to_refresh - 1);
+}       
+
 #endif /* _IXV_H_ */
