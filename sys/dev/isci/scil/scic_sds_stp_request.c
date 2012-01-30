@@ -585,6 +585,8 @@ SCI_STATUS scic_sds_io_request_construct_sata(
    case SAT_PROTOCOL_PACKET_PIO_DATA_IN:
    case SAT_PROTOCOL_PACKET_PIO_DATA_OUT:
       status = scic_sds_stp_packet_request_construct(this_request);
+      if (do_translate_sgl == TRUE)
+         scic_sds_request_build_sgl(this_request);
    break;
 #endif
 

@@ -192,8 +192,8 @@ void scu_stp_packet_request_command_phase_construct_task_context(
       task_context->transfer_length_bytes =
          scic_cb_io_request_get_transfer_length(this_request->user_request);
 
-      // setup sgl
-      scic_sds_request_build_sgl(this_request);
+      // sgls were already built when request was constructed, so don't need to
+      //  to do it here
    }
    else
    {
