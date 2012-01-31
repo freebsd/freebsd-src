@@ -32,8 +32,6 @@
 #include <machine/asm.h>
 __FBSDID("$FreeBSD$");
 
-#define TTB (0x59)
-
 .Lcoherency_level:
 	.word	_C_LABEL(arm_cache_loc)
 .Lcache_type:
@@ -50,6 +48,19 @@ ENTRY(armv7_setttb)
  	bl      _C_LABEL(armv7_idcache_wbinv_all) /* clean the D cache */
  	ldmia   sp!, {r0, lr}
  	dsb
+#if defined(SMP)
+	/*
+	 * Settings for architecture with SMP extension:
+	 * PT memory: inner WBWA, shareable; outer WBWA, non-shareable
+	 */
+	orr	r0, r0, #106
+#else
+	/*
+	 * Settings for architecture without SMP extension:
+	 * PT memory: inner-cacheable, non-shareable; outer WB, non-shareable
+	 */
+	orr 	r0, r0, #25
+#endif
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
  	mcr     p15, 0, r0, c8, c7, 0   /* invalidate I+D TLBs */
  	dsb
