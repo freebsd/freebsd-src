@@ -55,6 +55,7 @@
 /*
  * Pte related macros
  */
+#if ARM_ARCH_6 || ARM_ARCH_7A
 #ifdef SMP
 #define PTE_NOCACHE	2
 #else
@@ -62,6 +63,11 @@
 #endif
 #define PTE_CACHE	4
 #define PTE_PAGETABLE	4
+#else
+#define PTE_NOCACHE	1
+#define PTE_CACHE	2
+#define PTE_PAGETABLE	3
+#endif
 
 enum mem_type {
 	STRONG_ORD = 0,
