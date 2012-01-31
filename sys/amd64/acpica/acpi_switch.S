@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -95,7 +95,6 @@ ENTRY(acpi_restorecpu)
 
 	/* Restore CR0 except for FPU mode. */
 	movq	PCB_CR0(%rdi), %rax
-	movq	%rax, %rcx
 	andq	$~(CR0_EM | CR0_TS), %rax
 	movq	%rax, %cr0
 
@@ -146,21 +145,26 @@ ENTRY(acpi_restorecpu)
 
 	/* Restore FPU state. */
 	fninit
-	movq	WAKEUP_CTX(fpusave),%rdi
-	cmpl	$0,use_xsave
-	jne	1f
-	fxrstor	(%rdi)
+	movq	WAKEUP_CTX(xsmask), %rax
+	testq	%rax, %rax
+	jz	1f
+	movq	%rax, %rdx
+	shrq	$32, %rdx
+	movl	$XCR0, %ecx
+/*	xsetbv	*/
+	.byte	0x0f, 0x01, 0xd1
+	movq	WAKEUP_CTX(fpusave), %rcx
+/*	xrstor	(%rcx) */
+	.byte	0x0f, 0xae, 0x29
 	jmp	2f
-1:	movl	xsave_mask,%eax
-	movl	xsave_mask+4,%edx
-/*	xrstor	(%rdi) */
-	.byte	0x0f,0xae,0x2f
+1:
+	movq	WAKEUP_CTX(fpusave), %rcx
+	fxrstor	(%rcx)
 2:
 
 	/* Reload CR0. */
-	movq	%rcx, %cr0
-
-	movq	WAKEUP_CTX(pcb),%rdi
+	movq	PCB_CR0(%rdi), %rax
+	movq	%rax, %cr0
 
 	/* Restore return address. */
 	movq	PCB_RIP(%rdi), %rax
