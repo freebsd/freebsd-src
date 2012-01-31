@@ -457,6 +457,7 @@ register const int	doextend;
 			_close(fid);
 			return -1;
 		}
+		free(fullname);
 	}
 	u = malloc(sizeof(*u));
 	if (u == NULL)
