@@ -207,8 +207,10 @@ file, specified by name or jid.
 .P
 An argument of
 .Dq *
-is a wildcard that will operate on all jails.  To prevent errors,
-this is the only way for
+is a wildcard that will operate on all jails, regardless of whether
+they appear in
+.Xr jail.conf 5 ;
+this is the surest way for
 .Fl r
 to remove all jails.
 If hierarchical jails exist, a partial-matching wildcard definition may
