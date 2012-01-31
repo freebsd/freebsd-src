@@ -2,31 +2,59 @@
 #
 # Copyright 2002. Gordon Tetlow.
 # gordon@FreeBSD.org
+# Copyright (c) 2012 Sandvine Incorporated. All rights reserved.
 #
 # $FreeBSD$
 
 delete="NO"
+kenv=
 force="NO"
 nextboot_file="/boot/nextboot.conf"
 
+add_kenv()
+{
+	local var value
+
+	var=$1
+	# strip literal quotes if passed in
+	value=${2%\"*}
+	value=${value#*\"}
+
+	if [ -n "${kenv}" ]; then
+		kenv="${kenv}
+"
+	fi
+	kenv="${kenv}${var}=\"${value}\""
+}
+
 display_usage() {
-	echo "Usage: nextboot [-f] [-o options] -k kernel"
+	echo "Usage: nextboot [-e variable=value] [-f] [-k kernel] [-o options]"
 	echo "       nextboot -D"
 }
 
-while getopts "Dfk:o:" argument ; do
+while getopts "De:fk:o:" argument ; do
 	case "${argument}" in
 	D)
 		delete="YES"
+		;;
+	e)
+		var=${OPTARG%%=*}
+		value=${OPTARG#*=}
+		if [ -z "$var" -o -z "$value" ]; then
+			display_usage
+			exit 1
+		fi
+		add_kenv "$var" "$value"
 		;;
 	f)
 		force="YES"
 		;;
 	k)
 		kernel="${OPTARG}"
+		add_kenv kernel "$kernel"
 		;;
 	o)
-		kernel_options="${OPTARG}"
+		add_kenv kernel_options "${OPTARG}"
 		;;
 	*)
 		display_usage
@@ -40,12 +68,12 @@ if [ ${delete} = "YES" ]; then
 	exit 0
 fi
 
-if [ "xxx${kernel}" = "xxx" ]; then
+if [ -z "${kenv}" ]; then
 	display_usage
 	exit 1
 fi
 
-if [ ${force} = "NO" -a ! -d /boot/${kernel} ]; then
+if [ -n "${kernel}" -a ${force} = "NO" -a ! -d /boot/${kernel} ]; then
 	echo "Error: /boot/${kernel} doesn't exist. Use -f to override."
 	exit 1
 fi
@@ -60,6 +88,5 @@ done
 
 cat > ${nextboot_file} << EOF
 nextboot_enable="YES"
-kernel="${kernel}"
-kernel_options="${kernel_options}"
+$kenv
 EOF
