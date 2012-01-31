@@ -1,5 +1,5 @@
 /* minigzip.c -- simulate gzip using the zlib compression library
- * Copyright (C) 1995-2006, 2010 Jean-loup Gailly.
+ * Copyright (C) 1995-2006, 2010, 2011 Jean-loup Gailly.
  * For conditions of distribution and use, see copyright notice in zlib.h
  */
 
@@ -136,6 +136,197 @@ static void pwinerror (s)
    /* Needed for systems with limitation on stack size. */
 #else
 #  define local
+#endif
+
+#ifdef Z_SOLO
+/* for Z_SOLO, create simplified gz* functions using deflate and inflate */
+
+#if defined(Z_HAVE_UNISTD_H) || defined(Z_LARGE)
+#  include <unistd.h>       /* for unlink() */
+#endif
+
+void *myalloc OF((void *, unsigned, unsigned));
+void myfree OF((void *, void *));
+
+void *myalloc(q, n, m)
+    void *q;
+    unsigned n, m;
+{
+    q = Z_NULL;
+    return calloc(n, m);
+}
+
+void myfree(q, p)
+    void *q, *p;
+{
+    q = Z_NULL;
+    free(p);
+}
+
+typedef struct gzFile_s {
+    FILE *file;
+    int write;
+    int err;
+    char *msg;
+    z_stream strm;
+} *gzFile;
+
+gzFile gzopen OF((const char *, const char *));
+gzFile gzdopen OF((int, const char *));
+gzFile gz_open OF((const char *, int, const char *));
+
+gzFile gzopen(path, mode)
+const char *path;
+const char *mode;
+{
+    return gz_open(path, -1, mode);
+}
+
+gzFile gzdopen(fd, mode)
+int fd;
+const char *mode;
+{
+    return gz_open(NULL, fd, mode);
+}
+
+gzFile gz_open(path, fd, mode)
+    const char *path;
+    int fd;
+    const char *mode;
+{
+    gzFile gz;
+    int ret;
+
+    gz = malloc(sizeof(gzFile));
+    if (gz == NULL)
+        return NULL;
+    gz->write = strchr(mode, 'w') != NULL;
+    gz->strm.zalloc = myalloc;
+    gz->strm.zfree = myfree;
+    gz->strm.opaque = Z_NULL;
+    if (gz->write)
+        ret = deflateInit2(&(gz->strm), -1, 8, 15 + 16, 8, 0);
+    else {
+        gz->strm.next_in = 0;
+        gz->strm.avail_in = Z_NULL;
+        ret = inflateInit2(&(gz->strm), 15 + 16);
+    }
+    if (ret != Z_OK) {
+        free(gz);
+        return NULL;
+    }
+    gz->file = path == NULL ? fdopen(fd, gz->write ? "wb" : "rb") :
+                              fopen(path, gz->write ? "wb" : "rb");
+    if (gz->file == NULL) {
+        gz->write ? deflateEnd(&(gz->strm)) : inflateEnd(&(gz->strm));
+        free(gz);
+        return NULL;
+    }
+    gz->err = 0;
+    gz->msg = "";
+    return gz;
+}
+
+int gzwrite OF((gzFile, const void *, unsigned));
+
+int gzwrite(gz, buf, len)
+    gzFile gz;
+    const void *buf;
+    unsigned len;
+{
+    z_stream *strm;
+    unsigned char out[BUFLEN];
+
+    if (gz == NULL || !gz->write)
+        return 0;
+    strm = &(gz->strm);
+    strm->next_in = (void *)buf;
+    strm->avail_in = len;
+    do {
+        strm->next_out = out;
+        strm->avail_out = BUFLEN;
+        (void)deflate(strm, Z_NO_FLUSH);
+        fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
+    } while (strm->avail_out == 0);
+    return len;
+}
+
+int gzread OF((gzFile, void *, unsigned));
+
+int gzread(gz, buf, len)
+    gzFile gz;
+    void *buf;
+    unsigned len;
+{
+    int ret;
+    unsigned got;
+    unsigned char in[1];
+    z_stream *strm;
+
+    if (gz == NULL || gz->write)
+        return 0;
+    if (gz->err)
+        return 0;
+    strm = &(gz->strm);
+    strm->next_out = (void *)buf;
+    strm->avail_out = len;
+    do {
+        got = fread(in, 1, 1, gz->file);
+        if (got == 0)
+            break;
+        strm->next_in = in;
+        strm->avail_in = 1;
+        ret = inflate(strm, Z_NO_FLUSH);
+        if (ret == Z_DATA_ERROR) {
+            gz->err = Z_DATA_ERROR;
+            gz->msg = strm->msg;
+            return 0;
+        }
+        if (ret == Z_STREAM_END)
+            inflateReset(strm);
+    } while (strm->avail_out);
+    return len - strm->avail_out;
+}
+
+int gzclose OF((gzFile));
+
+int gzclose(gz)
+    gzFile gz;
+{
+    z_stream *strm;
+    unsigned char out[BUFLEN];
+
+    if (gz == NULL)
+        return Z_STREAM_ERROR;
+    strm = &(gz->strm);
+    if (gz->write) {
+        strm->next_in = Z_NULL;
+        strm->avail_in = 0;
+        do {
+            strm->next_out = out;
+            strm->avail_out = BUFLEN;
+            (void)deflate(strm, Z_FINISH);
+            fwrite(out, 1, BUFLEN - strm->avail_out, gz->file);
+        } while (strm->avail_out == 0);
+        deflateEnd(strm);
+    }
+    else
+        inflateEnd(strm);
+    fclose(gz->file);
+    free(gz);
+    return Z_OK;
+}
+
+const char *gzerror OF((gzFile, int *));
+
+const char *gzerror(gz, err)
+    gzFile gz;
+    int *err;
+{
+    *err = gz->err;
+    return gz->msg;
+}
+
 #endif
 
 char *prog;
