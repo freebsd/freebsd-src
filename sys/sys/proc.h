@@ -235,6 +235,7 @@ struct thread {
 	short		td_locks;	/* (k) Count of non-spin locks. */
 	short		td_rw_rlocks;	/* (k) Count of rwlock read locks. */
 	short		td_lk_slocks;	/* (k) Count of lockmgr shared locks. */
+	short		td_stopsched;	/* (k) Scheduler stopped. */
 	struct turnstile *td_blocked;	/* (t) Lock thread is blocked on. */
 	const char	*td_lockname;	/* (t) Name of lock blocked on. */
 	LIST_HEAD(, turnstile) td_contested;	/* (q) Contested locks. */

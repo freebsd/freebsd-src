@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2010
+.Dd January 28, 2012
 .Dt VM_PAGE_ALLOC 9
 .Os
 .Sh NAME
@@ -90,23 +90,18 @@ than zero.
 .Pp
 The optional flags are:
 .Bl -tag -width ".Dv VM_ALLOC_IFNOTCACHED"
-.It Dv VM_ALLOC_ZERO
-Indicate a preference for a pre-zeroed page.
-There is no guarantee that the returned page will be zeroed, but it
-will have the
-.Dv PG_ZERO
-flag set if it is zeroed.
+.It Dv VM_ALLOC_NOBUSY
+The returned page will not have the
+.Dv VPO_BUSY
+flag set.
+.It Dv VM_ALLOC_NODUMP
+The returned page will not be included in any kernel core dumps
+regardless of whether or not it is mapped in to KVA.
 .It Dv VM_ALLOC_NOOBJ
 Do not associate the allocated page with a vm object.
 The
 .Fa object
 argument is ignored.
-.It Dv VM_ALLOC_NOBUSY
-The returned page will not have the
-.Dv VPO_BUSY
-flag set.
-.It Dv VM_ALLOC_WIRED
-The returned page will be wired.
 .It Dv VM_ALLOC_IFCACHED
 Allocate the page only if it is cached.
 Otherwise, return
@@ -117,6 +112,14 @@ Only allocate the page if it is not cached in the
 If the page at the specified
 .Fa pindex
 is cached, NULL is returned instead.
+.It Dv VM_ALLOC_WIRED
+The returned page will be wired.
+.It Dv VM_ALLOC_ZERO
+Indicate a preference for a pre-zeroed page.
+There is no guarantee that the returned page will be zeroed, but it
+will have the
+.Dv PG_ZERO
+flag set if it is zeroed.
 .El
 .El
 .Sh RETURN VALUES

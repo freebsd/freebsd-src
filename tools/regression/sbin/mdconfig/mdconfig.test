@@ -189,4 +189,43 @@ $ diskinfo -v /dev/md0 | expand
 
 $ mdconfig -du 0
 
+# Attaching with a specific unit number.
+
+$ mdconfig -as 1g -u 42
+
+$ mdconfig -lv | awk '{ print $1, $2, $3 }'
+> md42 swap 1024M
+
+$ diskinfo -v /dev/md42 | expand
+> /dev/md42
+>         512             # sectorsize
+>         1073741824      # mediasize in bytes (1.0G)
+>         2097152         # mediasize in sectors
+>         0               # stripesize
+>         0               # stripeoffset
+>
+
+$ mdconfig -du 42
+
+# Querying.
+
+$ mdconfig -as 1g
+> md0
+$ mdconfig -as 2g -u 42
+
+$ mdconfig -lv | awk '{ print $1, $2, $3 }'
+> md0 swap 1024M
+> md42 swap 2048M
+
+$ mdconfig -lvu 0 | awk '{ print $1, $2, $3 }'
+> md0 swap 1024M
+
+$ mdconfig -lvu 42 | awk '{ print $1, $2, $3 }'
+> md42 swap 2048M
+
+$ mdconfig -lvu 24 | awk '{ print $1, $2, $3 }'
+
+$ mdconfig -du 42
+$ mdconfig -du 0
+
 $ rm xxx

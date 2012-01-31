@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2011
+.Dd January 26, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -1245,10 +1245,8 @@ or
 .Fn if_delmulti
 function is called to perform the operation; qq.v.
 .Pp
-.It Dv SIOCSIFDSTADDR
-.It Dv SIOCSIFADDR
-.It Dv SIOCSIFBRDADDR
-.It Dv SIOCSIFNETMASK
+.It Dv SIOCAIFADDR
+.It Dv SIOCDIFADDR
 The socket's protocol control routine is called to implement the
 requested action.
 .Pp
