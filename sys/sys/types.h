@@ -73,7 +73,6 @@ typedef	quad_t *	qaddr_t;
 
 typedef	char *		caddr_t;	/* core address */
 typedef	const char *	c_caddr_t;	/* core address, pointer to const */
-typedef	__volatile char *v_caddr_t;	/* core address, pointer to volatile */
 
 #ifndef _BLKSIZE_T_DECLARED
 typedef	__blksize_t	blksize_t;
