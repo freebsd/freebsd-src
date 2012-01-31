@@ -1564,7 +1564,7 @@ hdaa_audio_setup(struct hdaa_chan *ch)
 			    HDA_PARAM_PIN_CAP_HBR(wp->wclass.pin.cap)) {
 				wp->wclass.pin.ctrl &=
 				    ~HDA_CMD_SET_PIN_WIDGET_CTRL_VREF_ENABLE_MASK;
-				if ((ch->fmt & AFMT_AC3) && (cchn == 8))
+				if ((ch->fmt & AFMT_AC3) && (cchn == 7))
 					wp->wclass.pin.ctrl |= 0x03;
 				hda_command(ch->devinfo->dev,
 				    HDA_CMD_SET_PIN_WIDGET_CTRL(0, nid,
@@ -6485,9 +6485,12 @@ hdaa_chan_formula(struct hdaa_devinfo *devinfo, int asid,
 	c = devinfo->chans[as->chans[0]].channels;
 	if (c == 1)
 		snprintf(buf, buflen, "mono");
-	else if (c == 2)
-		buf[0] = 0;
-	else if (as->pinset == 0x0003)
+	else if (c == 2) {
+		if (as->hpredir < 0)
+			buf[0] = 0;
+		else
+			snprintf(buf, buflen, "2.0");
+	} else if (as->pinset == 0x0003)
 		snprintf(buf, buflen, "3.1");
 	else if (as->pinset == 0x0005 || as->pinset == 0x0011)
 		snprintf(buf, buflen, "4.0");
@@ -6497,6 +6500,32 @@ hdaa_chan_formula(struct hdaa_devinfo *devinfo, int asid,
 		snprintf(buf, buflen, "7.1");
 	else
 		snprintf(buf, buflen, "%dch", c);
+	if (as->hpredir >= 0)
+		strlcat(buf, "+HP", buflen);
+}
+
+static int
+hdaa_chan_type(struct hdaa_devinfo *devinfo, int asid)
+{
+	struct hdaa_audio_as *as;
+	struct hdaa_widget *w;
+	int i, t = -1, t1;
+
+	as = &devinfo->as[asid];
+	for (i = 0; i < 16; i++) {
+		w = hdaa_widget_get(devinfo, as->pins[i]);
+		if (w == NULL || w->enable == 0 || w->type !=
+		    HDA_PARAM_AUDIO_WIDGET_CAP_TYPE_PIN_COMPLEX)
+			continue;
+		t1 = HDA_CONFIG_DEFAULTCONF_DEVICE(w->wclass.pin.config);
+		if (t == -1)
+			t = t1;
+		else if (t != t1) {
+			t = -2;
+			break;
+		}
+	}
+	return (t);
 }
 
 static int
@@ -6537,7 +6566,7 @@ hdaa_pcm_probe(device_t dev)
 	struct hdaa_devinfo *devinfo = pdevinfo->devinfo;
 	char chans1[8], chans2[8];
 	char buf[128];
-	int loc1, loc2;
+	int loc1, loc2, t1, t2;
 
 	if (pdevinfo->playas >= 0)
 		loc1 = devinfo->as[pdevinfo->playas].location;
@@ -6553,12 +6582,17 @@ hdaa_pcm_probe(device_t dev)
 		loc1 = -2;
 	chans1[0] = 0;
 	chans2[0] = 0;
-	if (pdevinfo->playas >= 0)
+	t1 = t2 = -1;
+	if (pdevinfo->playas >= 0) {
 		hdaa_chan_formula(devinfo, pdevinfo->playas,
 		    chans1, sizeof(chans1));
-	if (pdevinfo->recas >= 0)
+		t1 = hdaa_chan_type(devinfo, pdevinfo->playas);
+	}
+	if (pdevinfo->recas >= 0) {
 		hdaa_chan_formula(devinfo, pdevinfo->recas,
 		    chans2, sizeof(chans2));
+		t2 = hdaa_chan_type(devinfo, pdevinfo->recas);
+	}
 	if (chans1[0] != 0 || chans2[0] != 0) {
 		if (chans1[0] == 0 && pdevinfo->playas >= 0)
 			snprintf(chans1, sizeof(chans1), "2.0");
@@ -6567,7 +6601,15 @@ hdaa_pcm_probe(device_t dev)
 		if (strcmp(chans1, chans2) == 0)
 			chans2[0] = 0;
 	}
-	snprintf(buf, sizeof(buf), "%s PCM (%s%s%s%s%s%s%s)",
+	if (t1 == -1)
+		t1 = t2;
+	else if (t2 == -1)
+		t2 = t1;
+	if (t1 != t2)
+		t1 = -2;
+	if (pdevinfo->digital)
+		t1 = -2;
+	snprintf(buf, sizeof(buf), "%s PCM (%s%s%s%s%s%s%s%s%s)",
 	    device_get_desc(device_get_parent(device_get_parent(dev))),
 	    loc1 >= 0 ? HDA_LOCS[loc1] : "", loc1 >= 0 ? " " : "",
 	    (pdevinfo->digital == 0x7)?"HDMI/DP":
@@ -6575,7 +6617,8 @@ hdaa_pcm_probe(device_t dev)
 	    ((pdevinfo->digital == 0x3)?"HDMI":
 	    ((pdevinfo->digital)?"Digital":"Analog"))),
 	    chans1[0] ? " " : "", chans1,
-	    chans2[0] ? "/" : "", chans2);
+	    chans2[0] ? "/" : "", chans2,
+	    t1 >= 0 ? " " : "", t1 >= 0 ? HDA_DEVS[t1] : "");
 	device_set_desc_copy(dev, buf);
 	return (BUS_PROBE_SPECIFIC);
 }

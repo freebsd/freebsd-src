@@ -4588,6 +4588,17 @@ xpt_release_device(struct cam_ed *device)
 		cam_devq_resize(devq, devq->alloc_queue.array_size - 1);
 		camq_fini(&device->drvq);
 		cam_ccbq_fini(&device->ccbq);
+		/*
+		 * Free allocated memory.  free(9) does nothing if the
+		 * supplied pointer is NULL, so it is safe to call without
+		 * checking.
+		 */
+		free(device->supported_vpds, M_CAMXPT);
+		free(device->device_id, M_CAMXPT);
+		free(device->physpath, M_CAMXPT);
+		free(device->rcap_buf, M_CAMXPT);
+		free(device->serial_num, M_CAMXPT);
+
 		xpt_release_target(device->target);
 		free(device, M_CAMXPT);
 	} else

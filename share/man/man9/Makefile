@@ -12,6 +12,7 @@ MAN=	accept_filter.9 \
 	boot.9 \
 	bpf.9 \
 	buf.9 \
+	buf_ring.9 \
 	BUF_ISLOCKED.9 \
 	BUF_LOCK.9 \
 	BUF_LOCKFREE.9 \
@@ -99,6 +100,7 @@ MAN=	accept_filter.9 \
 	devtoname.9 \
 	disk.9 \
 	domain.9 \
+	drbr.9 \
 	driver.9 \
 	DRIVER_MODULE.9 \
 	EVENTHANDLER.9 \
@@ -410,6 +412,16 @@ MLINKS+=bpf.9 bpfattach.9 \
 	bpf.9 bpf_tap.9 \
 	bpf.9 bpf_validate.9
 MLINKS+=buf.9 bp.9
+MLINKS+=buf_ring.9 buf_ring_alloc.9 \
+	buf_ring.9 buf_ring_free.9 \
+	buf_ring.9 buf_ring_enqueue.9 \
+	buf_ring.9 buf_ring_enqueue_bytes.9 \
+	buf_ring.9 buf_ring_dequeue_mc.9 \
+	buf_ring.9 buf_ring_dequeue_sc.9 \
+	buf_ring.9 buf_ring_count.9 \
+	buf_ring.9 buf_ring_empty.9 \
+	buf_ring.9 buf_ring_full.9 \
+	buf_ring.9 buf_ring_peek.9
 MLINKS+=bus_activate_resource.9 bus_deactivate_resource.9
 MLINKS+=bus_alloc_resource.9 bus_alloc_resource_any.9
 MLINKS+=BUS_BIND_INTR.9 bus_bind_intr.9
@@ -608,6 +620,14 @@ MLINKS+=domain.9 DOMAIN_SET.9 \
 	domain.9 pfctlinput2.9 \
 	domain.9 pffindproto.9 \
 	domain.9 pffindtype.9
+MLINKS+=drbr.9 drbr_free.9 \
+	drbr.9 drbr_enqueue.9 \
+	drbr.9 drbr_dequeue.9 \
+	drbr.9 drbr_dequeue_cond.9 \
+	drbr.9 drbr_flush.9 \
+	drbr.9 drbr_empty.9 \
+	drbr.9 drbr_inuse.9 \
+	drbr.9 drbr_stats_update.9
 MLINKS+=EVENTHANDLER.9 EVENTHANDLER_DECLARE.9 \
 	EVENTHANDLER.9 EVENTHANDLER_DEREGISTER.9 \
 	EVENTHANDLER.9 eventhandler_deregister.9 \

@@ -1778,6 +1778,19 @@ parse_file_info(struct archive_read *a, struct file_info *parent,
 				free(file);
 				return (NULL);
 			}
+			/*
+			 * A file size of symbolic link files in ISO images
+			 * made by makefs is not zero and its location is
+			 * the same as those of next regular file. That is
+			 * the same as hard like file and it causes unexpected
+			 * error. 
+			 */
+			if (file->size > 0 &&
+			    (file->mode & AE_IFMT) == AE_IFLNK) {
+				file->size = 0;
+				file->number = -1;
+				file->offset = -1;
+			}
 		} else
 			/* If there isn't SUSP, disable parsing
 			 * rock ridge extensions. */

@@ -3434,6 +3434,10 @@ xbb_shutdown(struct xbb_softc *xbb)
 
 	DPRINTF("\n");
 
+	/*
+	 * Before unlocking mutex, set this flag to prevent other threads from
+	 * getting into this function
+	 */
 	xbb->flags |= XBBF_IN_SHUTDOWN;
 	mtx_unlock(&xbb->lock);
 

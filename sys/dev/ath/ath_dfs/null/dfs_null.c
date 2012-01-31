@@ -95,12 +95,19 @@ ath_dfs_detach(struct ath_softc *sc)
 /*
  * Enable radar check
  */
-void
+int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
 	/* Check if the current channel is radar-enabled */
 	if (! IEEE80211_IS_CHAN_DFS(chan))
-		return;
+		return (0);
+
+	/*
+	 * Enabling the radar parameters and setting sc->sc_dodfs = 1
+	 * would occur here.
+	 */
+
+	return (1);
 }
 
 /*

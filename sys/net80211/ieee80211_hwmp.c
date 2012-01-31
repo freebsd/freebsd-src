@@ -1044,12 +1044,21 @@ hwmp_recv_prep(struct ieee80211vap *vap, struct ieee80211_node *ni,
 	 * Sequence number validation.
 	 */
 	hr = IEEE80211_MESH_ROUTE_PRIV(rt, struct ieee80211_hwmp_route);
-	if (HWMP_SEQ_LEQ(prep->prep_targetseq, hr->hr_seq)) {
-		IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
-		    "discard PREP from %6D, old seq no %u <= %u",
-		    prep->prep_targetaddr, ":",
-		    prep->prep_targetseq, hr->hr_seq);
-		return;
+	if ((rt->rt_flags & IEEE80211_MESHRT_FLAGS_VALID)) {
+		if (HWMP_SEQ_LT(prep->prep_targetseq, hr->hr_seq)) {
+			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
+			    "discard PREP from %6D, old seq no %u < %u",
+			    prep->prep_targetaddr, ":",
+			    prep->prep_targetseq, hr->hr_seq);
+			return;
+		} else if (HWMP_SEQ_LEQ(prep->prep_targetseq, hr->hr_seq) &&
+		    prep->prep_metric > rt->rt_metric) {
+			IEEE80211_NOTE(vap, IEEE80211_MSG_HWMP, ni,
+			    "discard PREP from %6D, new metric %u > %u",
+			    prep->prep_targetaddr, ":",
+			    prep->prep_metric, rt->rt_metric);
+			return;
+		}
 	}
 
 	hr->hr_seq = prep->prep_targetseq;

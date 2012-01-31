@@ -1552,6 +1552,12 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		return (error);
 	}
 
+	/* XXX: aio_nbytes is later casted to signed types. */
+	if (aiocbe->uaiocb.aio_nbytes > INT_MAX) {
+		uma_zfree(aiocb_zone, aiocbe);
+		return (EINVAL);
+	}
+
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT &&
 	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_SIGNAL &&
 	    aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_THREAD_ID &&
@@ -2529,10 +2535,13 @@ filt_aioattach(struct knote *kn)
 static void
 filt_aiodetach(struct knote *kn)
 {
-	struct aiocblist *aiocbe = kn->kn_ptr.p_aio;
+	struct knlist *knl;
 
-	if (!knlist_empty(&aiocbe->klist))
-		knlist_remove(&aiocbe->klist, kn, 0);
+	knl = &kn->kn_ptr.p_aio->klist;
+	knl->kl_lock(knl->kl_lockarg);
+	if (!knlist_empty(knl))
+		knlist_remove(knl, kn, 1);
+	knl->kl_unlock(knl->kl_lockarg);
 }
 
 /* kqueue filter function */
@@ -2574,10 +2583,13 @@ filt_lioattach(struct knote *kn)
 static void
 filt_liodetach(struct knote *kn)
 {
-	struct aioliojob * lj = kn->kn_ptr.p_lio;
+	struct knlist *knl;
 
-	if (!knlist_empty(&lj->klist))
-		knlist_remove(&lj->klist, kn, 0);
+	knl = &kn->kn_ptr.p_lio->klist;
+	knl->kl_lock(knl->kl_lockarg);
+	if (!knlist_empty(knl))
+		knlist_remove(knl, kn, 1);
+	knl->kl_unlock(knl->kl_lockarg);
 }
 
 /* kqueue filter function */
