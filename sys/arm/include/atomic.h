@@ -61,7 +61,7 @@
 #endif
 
 /* XXX: Rethink for userland later as those won't be defined */
-#if defined(ARM_ARCH_6) || defined(ARM_ARCH_7) 
+#if ARM_ARCH_6 || ARM_ARCH_7A
 
 static __inline void
 atomic_set_32(volatile uint32_t *address, uint32_t setmask)

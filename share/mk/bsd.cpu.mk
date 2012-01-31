@@ -99,7 +99,7 @@ _CPUCFLAGS = -march=${CPUTYPE}
 #_CPUCFLAGS = -mcpu=xscale
 _CPUCFLAGS = -march=armv5te -D__XSCALE__
 . elif ${CPUTYPE} == "armv6"
-_CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6
+_CPUCFLAGS = -march=${CPUTYPE} -DARM_ARCH_6=1
 .  else
 _CPUCFLAGS = -mcpu=${CPUTYPE}
 .  endif
