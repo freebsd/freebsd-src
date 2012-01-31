@@ -238,24 +238,52 @@
  * If the "xadd" operation is available on this architecture,
  * ISC_PLATFORM_HAVEXADD will be defined.
  */
+/*
+ * FreeBSD local modification, preserve this over upgrades
+ */
+#if defined (__i386__) || defined (__amd64__) || defined (__ia64__)
 #define ISC_PLATFORM_HAVEXADD 1
+#else
+#undef ISC_PLATFORM_HAVEXADD
+#endif
 
 /*
  * If the "atomic swap" operation is available on this architecture,
  * ISC_PLATFORM_HAVEATOMICSTORE" will be defined.
  */
+/*
+ * FreeBSD local modification, preserve this over upgrades
+ */
+#if defined (__i386__) || defined (__amd64__) || defined (__ia64__)
 #define ISC_PLATFORM_HAVEATOMICSTORE 1
+#else
+#undef ISC_PLATFORM_HAVEATOMICSTORE
+#endif
 
 /*
  * If the "compare-and-exchange" operation is available on this architecture,
  * ISC_PLATFORM_HAVECMPXCHG will be defined.
  */
+/*
+ * FreeBSD local modification, preserve this over upgrades
+ */
+#if defined (__i386__) || defined (__amd64__) || defined (__ia64__)
 #define ISC_PLATFORM_HAVECMPXCHG 1
+#else
+#undef ISC_PLATFORM_HAVECMPXCHG
+#endif
 
 /*
  * Define if gcc ASM extension is available
  */
+/*
+ * FreeBSD local modification, preserve this over upgrades
+ */
+#if defined (__i386__) || defined (__amd64__) || defined (__ia64__)
 #define ISC_PLATFORM_USEGCCASM 1
+#else
+#undef ISC_PLATFORM_USEGCCASM
+#endif
 
 /*
  * Define if Tru64 style ASM syntax must be used.
