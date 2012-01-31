@@ -179,6 +179,10 @@ platform_mp_start_ap(void)
 	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
 		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
 
+	/* XXX: Temporary workaround for hangup after releasing AP's */
+	wmb();
+	DELAY(10);
+
 	initialize_coherency_fabric();
 }
 
