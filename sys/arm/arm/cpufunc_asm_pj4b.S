@@ -94,8 +94,6 @@ ENTRY(armv6_dcache_wbinv_all)
 	RET
 
 ENTRY(pj4b_idcache_wbinv_range)
-	sub	r1, r1, #1
-	add	r1, r0, r1
 	ldr	ip, .Lpj4b_cache_line_size
 	ldr	ip, [ip]
 	sub	r1, r1, #1		/* Don't overrun */
