@@ -271,14 +271,13 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 {
 	uint32_t val, i;
 
-	val = 0x01000000;
+	val = 0x00000000;
 	for (i = 0; i < MAXCPU; i++)
-		if (!CPU_ISSET(i, &cpus))
+		if (CPU_ISSET(i, &cpus))
 			val |= (1 << (8 + i));
-	val |= ipi | 0xf00;
+	val |= ipi;
 	bus_space_write_4(mv_mpic_sc->mpic_bst, mv_mpic_sc->mpic_bsh,
 	    MPIC_SOFT_INT, val);
-
 }
 
 int
