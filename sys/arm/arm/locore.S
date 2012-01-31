@@ -160,6 +160,9 @@ Lunmapped:
 	orrne	r5, r5, #PHYSADDR
 	movne	pc, r5
 
+#if defined(SMP)
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 
@@ -335,6 +338,9 @@ ASENTRY_NP(mpentry)
 
 Ltag:
 	ldr	r0, Lstartup_pagetable
+#if defined(SMP)
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* Set TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* Flush TLB */
 

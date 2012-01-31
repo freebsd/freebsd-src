@@ -40,6 +40,9 @@ __FBSDID("$FreeBSD$");
 ENTRY(pj4b_setttb)
 	/* Cache synchronization is not required as this core has PIPT caches */
 	mcr	p15, 0, r1, c7, c10, 4	/* drain the write buffer */
+#ifdef SMP
+	orr 	r0, r0, #2		/* Set TTB shared memory flag */
+#endif
 	mcr	p15, 0, r0, c2, c0, 0	/* load new TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* invalidate I+D TLBs */
 	RET
