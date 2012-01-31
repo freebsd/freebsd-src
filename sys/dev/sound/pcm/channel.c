@@ -395,24 +395,28 @@ chn_wrfeed(struct pcm_channel *c)
 {
     	struct snd_dbuf *b = c->bufhard;
     	struct snd_dbuf *bs = c->bufsoft;
-	unsigned int amt;
+	unsigned int amt, want, wasfree;
 
 	CHN_LOCKASSERT(c);
 
 	if ((c->flags & CHN_F_MMAP) && !(c->flags & CHN_F_CLOSING))
 		sndbuf_acquire(bs, NULL, sndbuf_getfree(bs));
 
-	amt = sndbuf_getfree(b);
+	wasfree = sndbuf_getfree(b);
+	want = min(sndbuf_getsize(b),
+	    imax(0, sndbuf_xbytes(sndbuf_getsize(bs), bs, b) -
+	     sndbuf_getready(b)));
+	amt = min(wasfree, want);
 	if (amt > 0)
 		sndbuf_feed(bs, b, c, c->feeder, amt);
 
 	/*
 	 * Possible xruns. There should be no empty space left in buffer.
 	 */
-	if (sndbuf_getfree(b) > 0)
+	if (sndbuf_getready(b) < want)
 		c->xruns++;
 
-	if (sndbuf_getfree(b) < amt)
+	if (sndbuf_getfree(b) < wasfree)
 		chn_wakeup(c);
 }
 
@@ -721,7 +725,8 @@ chn_start(struct pcm_channel *c, int force)
 		}
 		if (c->parentchannel == NULL) {
 			if (c->direction == PCMDIR_PLAY)
-				sndbuf_fillsilence(b);
+				sndbuf_fillsilence_rl(b,
+				    sndbuf_xbytes(sndbuf_getsize(bs), bs, b));
 			if (snd_verbose > 3)
 				device_printf(c->dev,
 				    "%s(): %s starting! (%s/%s) "
@@ -1728,7 +1733,7 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 					int blkcnt, int blksz)
 {
 	struct snd_dbuf *b, *bs, *pb;
-	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 1;
+	int sblksz, sblkcnt, hblksz, hblkcnt, limit = 0, nsblksz, nsblkcnt;
 	int ret;
 
 	CHN_LOCKASSERT(c);
@@ -1748,7 +1753,6 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		return EINVAL;
 	else {
 		c->latency = latency;
-		limit = 0;
 	}
 
 	bs = c->bufsoft;
@@ -1783,19 +1787,22 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		 */
 		sblksz = round_blksz(blksz, sndbuf_getalign(bs));
 		sblkcnt = round_pow2(blkcnt);
-		limit = 0;
 	}
 
 	if (c->parentchannel != NULL) {
-		pb = CHN_BUF_PARENT(c, NULL);
+		pb = c->parentchannel->bufsoft;
 		CHN_UNLOCK(c);
 		CHN_LOCK(c->parentchannel);
 		chn_notify(c->parentchannel, CHN_N_BLOCKSIZE);
 		CHN_UNLOCK(c->parentchannel);
 		CHN_LOCK(c);
-		limit = (limit != 0 && pb != NULL) ?
-		    sndbuf_xbytes(sndbuf_getsize(pb), pb, bs) : 0;
-		c->timeout = c->parentchannel->timeout;
+		if (c->direction == PCMDIR_PLAY) {
+			limit = (pb != NULL) ?
+			    sndbuf_xbytes(sndbuf_getsize(pb), pb, bs) : 0;
+		} else {
+			limit = (pb != NULL) ?
+			    sndbuf_xbytes(sndbuf_getblksz(pb), pb, bs) * 2 : 0;
+		}
 	} else {
 		hblkcnt = 2;
 		if (c->flags & CHN_F_HAS_SIZE) {
@@ -1836,21 +1843,22 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 		CHN_LOCK(c);
 
 		if (!CHN_EMPTY(c, children)) {
-			sblksz = round_blksz(
-			    sndbuf_xbytes(sndbuf_getsize(b) >> 1, b, bs),
+			nsblksz = round_blksz(
+			    sndbuf_xbytes(sndbuf_getblksz(b), b, bs),
 			    sndbuf_getalign(bs));
-			sblkcnt = 2;
+			nsblkcnt = sndbuf_getblkcnt(b);
+			if (c->direction == PCMDIR_PLAY) {
+				do {
+					nsblkcnt--;
+				} while (nsblkcnt >= 2 &&
+				    nsblksz * nsblkcnt >= sblksz * sblkcnt);
+				nsblkcnt++;
+			}
+			sblksz = nsblksz;
+			sblkcnt = nsblkcnt;
 			limit = 0;
-		} else if (limit != 0)
-			limit = sndbuf_xbytes(sndbuf_getsize(b), b, bs);
-
-		/*
-		 * Interrupt timeout
-		 */
-		c->timeout = ((u_int64_t)hz * sndbuf_getsize(b)) /
-		    ((u_int64_t)sndbuf_getspd(b) * sndbuf_getalign(b));
-		if (c->timeout < 1)
-			c->timeout = 1;
+		} else
+			limit = sndbuf_xbytes(sndbuf_getblksz(b), b, bs) * 2;
 	}
 
 	if (limit > CHN_2NDBUFMAXSIZE)
@@ -1885,6 +1893,16 @@ chn_resizebuf(struct pcm_channel *c, int latency,
 			return ret;
 		}
 	}
+
+	/*
+	 * Interrupt timeout
+	 */
+	c->timeout = ((u_int64_t)hz * sndbuf_getsize(bs)) /
+	    ((u_int64_t)sndbuf_getspd(bs) * sndbuf_getalign(bs));
+	if (c->parentchannel != NULL)
+		c->timeout = min(c->timeout, c->parentchannel->timeout);
+	if (c->timeout < 1)
+		c->timeout = 1;
 
 	/*
 	 * OSSv4 docs: "By default OSS will set the low water level equal
