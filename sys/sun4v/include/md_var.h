@@ -54,10 +54,15 @@ struct md_utrap *utrap_alloc(void);
 void	utrap_free(struct md_utrap *ut);
 struct md_utrap *utrap_hold(struct md_utrap *ut);
 
-
-extern	cpu_block_copy_t *cpu_block_copy;
-extern	cpu_block_zero_t *cpu_block_zero;
-
-
+/*
+ * Given that the VTOC8 disk label only uses 16-bit fields for cylinders,
+ * heads and sectors we might need to adjust the geometry of large disks.
+ */
+struct ccb_calc_geometry;
+int scsi_da_bios_params(struct ccb_calc_geometry *ccg);
+struct disk;
+void sparc64_ata_disk_firmware_geom_adjust(struct disk *disk);
+#define	ata_disk_firmware_geom_adjust(disk)				\
+	sparc64_ata_disk_firmware_geom_adjust(disk)
 
 #endif /* !_MACHINE_MD_VAR_H_ */
