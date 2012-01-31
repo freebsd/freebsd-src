@@ -80,7 +80,7 @@ check_ap(void)
 {
 	uint32_t ms;
 
-	for (ms = 0; ms < 5000; ++ms) {
+	for (ms = 0; ms < 2000; ++ms) {
 		if ((mp_naps + 1) == mp_ncpus)
 			return (0);		/* success */
 		else
@@ -128,6 +128,7 @@ void
 init_secondary(int cpu)
 {
 	struct pcpu *pc;
+	uint32_t loop_counter;
 
 	cpu_setup(NULL);
 
@@ -172,9 +173,13 @@ init_secondary(int cpu)
 	arm_unmask_irq(0);
 	enable_interrupts(I32_bit);
 
-	cpu_dcache_wbinv_all();
-	while (smp_started == 0)
-		cpu_dcache_wbinv_all();
+	loop_counter = 0;
+	while (smp_started == 0) {
+		DELAY(100);
+		loop_counter++;
+		if (loop_counter == 1000)
+			CTR0(KTR_SMP, "AP still wait for smp_started");
+	}
 
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
@@ -255,6 +260,7 @@ ipi_handler(void *arg)
 static void
 release_aps(void *dummy __unused)
 {
+	uint32_t loop_counter;
 
 	if (mp_ncpus == 1)
 		return;
@@ -272,9 +278,13 @@ release_aps(void *dummy __unused)
 
 	printf("Release APs\n");
 
-	while (smp_started == 0) {
-		DELAY(5000);
+	for (loop_counter = 0; loop_counter < 2000; loop_counter++) {
+		if (smp_started)
+			return;
+		DELAY(1000);
 	}
+
+	printf("AP's not started\n");
 }
 
 SYSINIT(start_aps, SI_SUB_SMP, SI_ORDER_FIRST, release_aps, NULL);
