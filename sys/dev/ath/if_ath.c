@@ -678,8 +678,8 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		 * negotiating which MCS rates it'll receive and
 		 * what MCS rates are available for TX.
 		 */
-		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &rxs);
-		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &txs);
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 0, &txs);
+		(void) ath_hal_getcapability(ah, HAL_CAP_STREAMS, 1, &rxs);
 
 		ath_hal_getrxchainmask(ah, &sc->sc_rxchainmask);
 		ath_hal_gettxchainmask(ah, &sc->sc_txchainmask);
