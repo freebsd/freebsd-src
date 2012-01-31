@@ -270,10 +270,10 @@ release_aps(void *dummy __unused)
 	arm_unmask_irq(0);
 
 	atomic_store_rel_int(&aps_ready, 1);
-	cpu_dcache_wbinv_all();
+
 	printf("Release APs\n");
+
 	while (smp_started == 0) {
-		cpu_dcache_wbinv_all();
 		DELAY(5000);
 	}
 }
