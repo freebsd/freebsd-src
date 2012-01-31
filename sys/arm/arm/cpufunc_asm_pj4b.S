@@ -180,11 +180,6 @@ ENTRY(pj4b_flush_brnchtgt_va)
 	mcr	p15, 0, r0, c7, c5, 7	/* flush branch target cache by VA */
 	RET
 
-ENTRY(pj4b_sleep)
-	mcr	p15, 0, r0, c7, c10, 4	/* drain the write buffer */
-	mcr	p15, 0, r0, c7, c0, 4	/* wait for interrupt */
-	RET
-
 ENTRY(get_core_id)
 	mrc p15, 0, r0, c0, c0, 5
 	RET

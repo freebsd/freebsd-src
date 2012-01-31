@@ -524,7 +524,7 @@ struct cpu_functions pj4bv7_cpufuncs = {
 	pj4b_flush_brnchtgt_all,	/* flush_brnchtgt_C	*/
 	pj4b_flush_brnchtgt_va,		/* flush_brnchtgt_E	*/
 
-	pj4b_sleep,			/* sleep		*/
+	(void *)cpufunc_nullop,		/* sleep		*/
 
 	/* Soft functions */
 
@@ -583,7 +583,7 @@ struct cpu_functions pj4bv6_cpufuncs = {
 	pj4b_flush_brnchtgt_all,	/* flush_brnchtgt_C	*/
 	pj4b_flush_brnchtgt_va,		/* flush_brnchtgt_E	*/
 
-	pj4b_sleep,			/* sleep		*/
+	(void *)cpufunc_nullop,		/* sleep		*/
 
 	/* Soft functions */
 
