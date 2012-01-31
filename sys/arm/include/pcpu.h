@@ -32,6 +32,7 @@
 
 #ifdef _KERNEL
 
+#include <machine/cpuconf.h>
 #include <machine/frame.h>
 
 #define	ALT_STACK_SIZE	128
@@ -48,14 +49,44 @@ struct pcb;
 struct pcpu;
 
 extern struct pcpu *pcpup;
+#if ARM_ARCH_6 || ARM_ARCH_7A
+static inline struct pcpu *
+get_pcpu(void)
+{
+	void *pcpu;
 
-#define	PCPU_GET(member)	(pcpup->pc_ ## member)
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 4" : "=r" (pcpu));
+	return (pcpu);
+}
 
-/*
- * XXX The implementation of this operation should be made atomic
- * with respect to preemption.
- */
-#define	PCPU_ADD(member, value)	(pcpup->pc_ ## member += (value))
+static inline void
+set_pcpu(void *pcpu)
+{
+
+	__asm __volatile("mcr p15, 0, %0, c13, c0, 4" : : "r" (pcpu));
+}
+
+static inline void *
+get_tls(void)
+{
+	void *tls;
+
+	__asm __volatile("mrc p15, 0, %0, c13, c0, 3" : "=r" (tls));
+	return (tls);
+}
+
+static inline void
+set_tls(void *tls)
+{
+
+	__asm __volatile("mcr p15, 0, %0, c13, c0, 3" : : "r" (tls));
+}
+#else
+#define get_pcpu()	pcpup
+#endif
+
+#define	PCPU_GET(member)	(get_pcpu()->pc_ ## member)
+#define	PCPU_ADD(member, value)	(get_pcpu()->pc_ ## member += (value))
 #define	PCPU_INC(member)	PCPU_ADD(member, 1)
 #define	PCPU_PTR(member)	(&pcpup->pc_ ## member)
 #define	PCPU_SET(member,value)	(pcpup->pc_ ## member = (value))

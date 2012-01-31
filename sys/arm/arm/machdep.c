@@ -729,8 +729,9 @@ fake_preload_metadata(void)
 void
 pcpu0_init(void)
 {
-
+#if ARM_ARCH_7A || defined(CPU_MV_PJ4B)
 	set_pcpu(pcpup);
+#endif
 	pcpu_init(pcpup, 0, sizeof(struct pcpu));
 	PCPU_SET(curthread, &thread0);
 }
