@@ -310,6 +310,7 @@ ipi_cpu(int cpu, u_int ipi)
 {
 	cpuset_t cpus;
 
+	CPU_ZERO(&cpus);
 	CPU_SET(cpu, &cpus);
 
 	CTR3(KTR_SMP, "%s: cpu: %d, ipi: %x", __func__, cpu, ipi);
