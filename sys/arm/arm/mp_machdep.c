@@ -63,7 +63,7 @@ static int ipi_handler(void *arg);
 void set_stackptrs(int cpu);
 
 /* Temporary variables for init_secondary()  */
-void *dpcpu;
+void *dpcpu[MAXCPU - 1];
 
 /* Determine if we running MP machine */
 int
@@ -76,19 +76,12 @@ cpu_mp_probe(void)
 
 /* Start Application Processor via platform specific function */
 static int
-start_ap(int cpu)
+check_ap(void)
 {
-	int cpus, ms;
-
-	cpus = mp_naps;
-
-	dpcpu = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
-	if (platform_mp_start_ap(cpu) != 0)
-		return (-1);			/* could not start AP */
+	uint32_t ms;
 
 	for (ms = 0; ms < 5000; ++ms) {
-		cpu_dcache_wbinv_all();
-		if (mp_naps > cpus)
+		if ((mp_naps + 1) == mp_ncpus)
 			return (0);		/* success */
 		else
 			DELAY(1000);
@@ -105,16 +98,22 @@ cpu_mp_start(void)
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
-	for (i = 1; i < mp_ncpus; i++) {
-		error = start_ap(i);
-		if (error) {
-			printf("AP #%d failed to start\n", i);
-			continue;
-		}
+	/* Reserve memory for application processors */
+	for(i = 0; i < (mp_ncpus - 1); i++)
+		dpcpu[i] = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
 
-		printf("AP #%d started\n", i);
-		CPU_SET(i, &all_cpus);
-	}
+	/* Initialize boot code and start up processors */
+	platform_mp_start_ap();
+
+	/*  Check if ap's started properly */
+	error = check_ap();
+	if (error)
+		printf("WARNING: Some AP's failed to start\n");
+	else
+		for (i = 1; i < mp_ncpus; i++)
+			CPU_SET(i, &all_cpus);
+
+	printf("%d AP started\n", mp_naps);
 }
 
 /* Introduce rest of cores to the world */
@@ -139,7 +138,7 @@ init_secondary(int cpu)
 	set_pcpu(pc);
 	pcpu_init(pc, cpu, sizeof(struct pcpu));
 
-	dpcpu_init(dpcpu, cpu);
+	dpcpu_init(dpcpu[cpu - 1], cpu);
 
 	/* Provide stack pointers for other processor modes. */
 	set_stackptrs(cpu);

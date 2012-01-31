@@ -121,65 +121,65 @@ initialize_coherency_fabric(void)
 }
 
 
-int
-platform_mp_start_ap(int cpuid)
+void
+platform_mp_start_ap(void)
 {
-	uint32_t reg, *ptr;
+	uint32_t reg, *ptr, cpu_num;
 
-	if (cpuid == 1) {
-		/* Copy boot code to SRAM */
-		*((unsigned int*)(0xf1020240)) = 0xffff0101;
-		*((unsigned int*)(0xf1008500)) = 0xffff0003;
+	/* Copy boot code to SRAM */
+	*((unsigned int*)(0xf1020240)) = 0xffff0101;
+	*((unsigned int*)(0xf1008500)) = 0xffff0003;
 
-		pmap_kenter_nocache(0x880f0000, 0xffff0000);
-		reg = 0x880f0000;
+	pmap_kenter_nocache(0x880f0000, 0xffff0000);
+	reg = 0x880f0000;
 
-		for (ptr = (uint32_t *)mptramp; ptr < (uint32_t *)mpentry;
-		    ptr++, reg += 4)
-			*((uint32_t *)reg) = *ptr;
+	for (ptr = (uint32_t *)mptramp; ptr < (uint32_t *)mpentry;
+	    ptr++, reg += 4)
+		*((uint32_t *)reg) = *ptr;
 
-		if (mp_ncpus > 1) {
-			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0);
-			reg &= 0x00ffffff;
-			reg |= 0x01000000;
-			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0, reg);
-		}
-		if (mp_ncpus > 2) {
-			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
-			reg &= 0xff00ffff;
-			reg |= 0x00010000;
-			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
-		}
-		if (mp_ncpus > 3) {
-			reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
-			reg &= 0x00ffffff;
-			reg |= 0x01000000;
-			write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
-		}
-
-		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL0);
-		reg |= ((0x1 << (mp_ncpus - 1)) - 1) << 21;
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
-		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL0);
+	if (mp_ncpus > 1) {
+		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0);
+		reg &= 0x00ffffff;
 		reg |= 0x01000000;
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
-
-		DELAY(100);
-		reg &= ~(0xf << 21);
-		write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
-		DELAY(100);
-
-		bus_space_write_4(fdtbus_bs_tag, MV_BASE, CPU_RESUME_CONTROL, 0);
-
-		initialize_coherency_fabric();
-
+		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL0, reg);
+	}
+	if (mp_ncpus > 2) {
+		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
+		reg &= 0xff00ffff;
+		reg |= 0x00010000;
+		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
+	}
+	if (mp_ncpus > 3) {
+		reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1);
+		reg &= 0x00ffffff;
+		reg |= 0x01000000;
+		write_cpu_clkdiv(CPU_DIVCLK_CTRL2_RATIO_FULL1, reg);
 	}
 
-	bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpuid), CPU_PMU_BOOT,
-	    pmap_kextract(mpentry));
-	bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpuid), 0);
+	reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL0);
+	reg |= ((0x1 << (mp_ncpus - 1)) - 1) << 21;
+	write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
+	reg = read_cpu_clkdiv(CPU_DIVCLK_CTRL0);
+	reg |= 0x01000000;
+	write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
 
-	return (0);
+	DELAY(100);
+	reg &= ~(0xf << 21);
+	write_cpu_clkdiv(CPU_DIVCLK_CTRL0, reg);
+	DELAY(100);
+
+	bus_space_write_4(fdtbus_bs_tag, MV_BASE, CPU_RESUME_CONTROL, 0);
+
+	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
+		bus_space_write_4(fdtbus_bs_tag, CPU_PMU(cpu_num), CPU_PMU_BOOT,
+		    pmap_kextract(mpentry));
+
+	cpu_idcache_wbinv_all();
+
+	for (cpu_num = 1; cpu_num < mp_ncpus; cpu_num++ )
+		bus_space_write_4(fdtbus_bs_tag, MP, MP_SW_RESET(cpu_num), 0);
+
+	initialize_coherency_fabric();
 }
 
 static int

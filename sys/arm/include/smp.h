@@ -27,7 +27,7 @@ int	pic_ipi_get(void);
 /* Platform interface */
 void	platform_mp_setmaxid(void);
 int	platform_mp_probe(void);
-int	platform_mp_start_ap(int cpuid);
+void	platform_mp_start_ap(void);
 
 void	platform_ipi_send(cpuset_t cpus, u_int ipi);
 
