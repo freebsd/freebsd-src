@@ -75,6 +75,8 @@ ENTRY(pj4b_dcache_inv_range)
 	and	r2, r0, r3
 	add	r1, r1, r2
 	bic	r0, r0, r3
+
+	mcr	p15, 0, r0, c7, c10, 5  /* Data Memory Barrier err:4413 */
 1:
 	mcr	p15, 0, r0, c7, c6, 1
 	add	r0, r0, ip
@@ -104,6 +106,8 @@ ENTRY(pj4b_idcache_wbinv_range)
 	and	r2, r0, r3
 	add	r1, r1, r2
 	bic	r0, r0, r3
+
+	mcr	p15, 0, r0, c7, c10, 5  /* Data Memory Barrier err:4611 */
 1:
 #ifdef SMP
 	/* Request for ownership */
@@ -126,6 +130,8 @@ ENTRY(pj4b_dcache_wbinv_range)
 	and	r2, r0, r3
 	add	r1, r1, r2
 	bic	r0, r0, r3
+
+	mcr	p15, 0, r0, c7, c10, 5  /* Data Memory Barrier err:4611 */
 1:
 #ifdef SMP
 	/* Request for ownership */
@@ -147,6 +153,8 @@ ENTRY(pj4b_dcache_wb_range)
 	and	r2, r0, r3
 	add	r1, r1, r2
 	bic	r0, r0, r3
+
+	mcr	p15, 0, r0, c7, c10, 5  /* Data Memory Barrier err:4611 */
 1:
 #ifdef SMP
 	/* Request for ownership */
