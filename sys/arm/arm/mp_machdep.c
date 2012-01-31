@@ -145,12 +145,11 @@ init_secondary(int cpu)
 	set_stackptrs(cpu);
 
 	/* Signal our startup to BSP */
-	mp_naps++;
-	cpu_dcache_wbinv_all();
+	atomic_add_rel_32(&mp_naps, 1);
 
 	/* Spin until the BSP releases the APs */
 	while (!aps_ready)
-		cpu_dcache_wbinv_all();
+		;
 
 	/* Initialize curthread */
 	KASSERT(PCPU_GET(idlethread) != NULL, ("no idle thread"));
@@ -159,7 +158,7 @@ init_secondary(int cpu)
 
 	mtx_lock_spin(&ap_boot_mtx);
 
-	atomic_store_rel_int(&smp_cpus, 1);
+	atomic_add_rel_32(&smp_cpus, 1);
 
 	if (smp_cpus == mp_ncpus) {
 		/* enable IPI's, tlb shootdown, freezes etc */
