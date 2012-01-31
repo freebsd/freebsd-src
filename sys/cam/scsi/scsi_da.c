@@ -121,6 +121,7 @@ struct da_softc {
 	da_flags flags;	
 	da_quirks quirks;
 	int	 minimum_cmd_size;
+	int	 error_inject;
 	int	 ordered_tag_count;
 	int	 outstanding_cmds;
 	struct	 disk_params params;
@@ -656,7 +657,7 @@ daopen(struct disk *dp)
 	}
 
 	if (cam_periph_acquire(periph) != CAM_REQ_CMP) {
-		return(ENXIO);
+		return (ENXIO);
 	}
 
 	cam_periph_lock(periph);
@@ -715,13 +716,13 @@ daclose(struct disk *dp)
 
 	periph = (struct cam_periph *)dp->d_drv1;
 	if (periph == NULL)
-		return (ENXIO);	
+		return (0);	
 
 	cam_periph_lock(periph);
 	if ((error = cam_periph_hold(periph, PRIBIO)) != 0) {
 		cam_periph_unlock(periph);
 		cam_periph_release(periph);
-		return (error);
+		return (0);
 	}
 
 	softc = (struct da_softc *)periph->softc;
@@ -976,7 +977,8 @@ daoninvalidate(struct cam_periph *periph)
 	bioq_flush(&softc->bio_queue, NULL, ENXIO);
 
 	disk_gone(softc->disk);
-	xpt_print(periph->path, "lost device\n");
+	xpt_print(periph->path, "lost device - %d outstanding, %d refs\n",
+		  softc->outstanding_cmds, periph->refcount);
 }
 
 static void
@@ -1579,6 +1581,13 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 			bp->bio_resid = csio->resid;
 			if (csio->resid > 0)
 				bp->bio_flags |= BIO_ERROR;
+			if (softc->error_inject != 0) {
+				bp->bio_error = softc->error_inject;
+				bp->bio_resid = bp->bio_bcount;
+				bp->bio_flags |= BIO_ERROR;
+				softc->error_inject = 0;
+			}
+
 		}
 
 		/*
@@ -1760,13 +1769,20 @@ dadone(struct cam_periph *periph, union ccb *done_ccb)
 		}
 		free(csio->data_ptr, M_SCSIDA);
 		if (announce_buf[0] != '\0') {
-			xpt_announce_periph(periph, announce_buf);
 			/*
 			 * Create our sysctl variables, now that we know
 			 * we have successfully attached.
 			 */
-			(void) cam_periph_acquire(periph);	/* increase the refcount */
-			taskqueue_enqueue(taskqueue_thread,&softc->sysctl_task);
+			/* increase the refcount */
+			if (cam_periph_acquire(periph) == CAM_REQ_CMP) {
+				taskqueue_enqueue(taskqueue_thread,
+						  &softc->sysctl_task);
+				xpt_announce_periph(periph, announce_buf);
+			} else {
+				xpt_print(periph->path, "fatal error, "
+				    "could not acquire reference count\n");
+			}
+				
 		}
 		softc->state = DA_STATE_NORMAL;	
 		/*
