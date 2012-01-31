@@ -884,6 +884,15 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	/* AR5416 may have 3 antennas but is a 2x2 stream device */
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;
+	/*
+	 * If the TX or RX chainmask has less than 2 chains active,
+	 * mark it as a 1-stream device for the relevant stream.
+	 */
+	if (owl_get_ntxchains(pCap->halTxChainMask) == 1)
+		pCap->halTxStreams = 1;
+	/* XXX Eww */
+	if (owl_get_ntxchains(pCap->halRxChainMask) == 1)
+		pCap->halRxStreams = 1;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
 	pCap->halMbssidAggrSupport = AH_FALSE;	/* Broken on Owl */
 	pCap->halForcePpmSupport = AH_TRUE;
