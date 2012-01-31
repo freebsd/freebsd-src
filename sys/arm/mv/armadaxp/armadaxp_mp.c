@@ -109,7 +109,7 @@ initialize_coherency_fabric(void)
 {
 	uint32_t val, cpus, mask;
 
-	cpus = platform_get_ncpus() - 1;
+	cpus = platform_get_ncpus();
 	mask = (1 << cpus) - 1;
 	val = read_coher_fabric(COHER_FABRIC_CTRL);
 	val |= (mask << 24);
