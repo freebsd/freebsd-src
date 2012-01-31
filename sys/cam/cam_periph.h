@@ -119,6 +119,7 @@ struct cam_periph {
 #define CAM_PERIPH_NEW_DEV_FOUND	0x10
 #define CAM_PERIPH_RECOVERY_INPROG	0x20
 #define CAM_PERIPH_SENSE_INPROG		0x40
+#define CAM_PERIPH_FREE			0x80
 	u_int32_t		 immediate_priority;
 	u_int32_t		 refcount;
 	SLIST_HEAD(, ccb_hdr)	 ccb_list;	/* For "immediate" requests */
@@ -145,6 +146,7 @@ struct cam_periph *cam_periph_find(struct cam_path *path, char *name);
 cam_status	cam_periph_acquire(struct cam_periph *periph);
 void		cam_periph_release(struct cam_periph *periph);
 void		cam_periph_release_locked(struct cam_periph *periph);
+void		cam_periph_release_locked_buses(struct cam_periph *periph);
 int		cam_periph_hold(struct cam_periph *periph, int priority);
 void		cam_periph_unhold(struct cam_periph *periph);
 void		cam_periph_invalidate(struct cam_periph *periph);

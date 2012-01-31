@@ -399,18 +399,24 @@ sgopen(struct cdev *dev, int flags, int fmt, struct thread *td)
 	if (periph == NULL)
 		return (ENXIO);
 
+	if (cam_periph_acquire(periph) != CAM_REQ_CMP)
+		return (ENXIO);
+
 	/*
 	 * Don't allow access when we're running at a high securelevel.
 	 */
 	error = securelevel_gt(td->td_ucred, 1);
-	if (error)
+	if (error) {
+		cam_periph_release(periph);
 		return (error);
+	}
 
 	cam_periph_lock(periph);
 
 	softc = (struct sg_softc *)periph->softc;
 	if (softc->flags & SG_FLAG_INVALID) {
 		cam_periph_unlock(periph);
+		cam_periph_release(periph);
 		return (ENXIO);
 	}
 
