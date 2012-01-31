@@ -236,11 +236,8 @@ ppb_unlock(device_t bus)
 void
 _ppb_assert_locked(device_t bus, const char *file, int line)
 {
-#ifdef INVARIANTS
-	struct ppb_data *ppb = DEVTOSOFTC(bus);
 
-	_mtx_assert(ppb->ppc_lock, MA_OWNED, file, line);
-#endif
+	mtx_assert_(DEVTOSOFTC(bus)->ppc_lock, MA_OWNED, file, line);
 }
 
 void
