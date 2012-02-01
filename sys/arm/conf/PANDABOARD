@@ -28,7 +28,7 @@ ident		PANDABOARD
 
 hints       "PANDABOARD.hints"
 
-include     "../omap/omap4/pandaboard/std.pandaboard"
+include     "../ti/omap4/pandaboard/std.pandaboard"
 
 #To statically compile in device wiring instead of /boot/device.hints
 makeoptions	MODULES_OVERRIDE=""

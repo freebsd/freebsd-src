@@ -36,9 +36,9 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
-#include <arm/omap/omapvar.h>
-#include <arm/omap/omap4/omap4var.h>
-#include <arm/omap/omap4/omap44xx_reg.h>
+#include <arm/ti/omapvar.h>
+#include <arm/ti/omap4/omap4var.h>
+#include <arm/ti/omap4/omap44xx_reg.h>
 
 #include "omap4_if.h"
 

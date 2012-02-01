@@ -55,7 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/bus.h>
 
-#include <arm/omap/omapvar.h>
+#include <arm/ti/omapvar.h>
 
 static int	omap_probe(device_t);
 static void	omap_identify(driver_t *, device_t);

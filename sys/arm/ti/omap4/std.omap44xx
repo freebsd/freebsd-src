@@ -1,7 +1,7 @@
 # Omap4430 generic configuration
 #$FreeBSD$
-files		"../omap/omap4/files.omap44xx"
-include		"../omap/std.omap"
+files		"../ti/omap4/files.omap44xx"
+include		"../ti/std.omap"
 makeoption	ARM_LITTLE_ENDIAN
 
 # Physical memory starts at 0x80000000.  We assume images are loaded at

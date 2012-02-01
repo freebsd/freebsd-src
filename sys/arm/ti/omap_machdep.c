@@ -57,11 +57,11 @@ __FBSDID("$FreeBSD$");
 #define DEBUG_INITARM
 #define VERBOSE_INIT_ARM
 
-#include <arm/omap/omapvar.h>
-#include <arm/omap/omap_prcm.h>
+#include <arm/ti/omapvar.h>
+#include <arm/ti/omap_prcm.h>
 
 #if defined(SOC_OMAP4)
-#include <arm/omap/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap44xx_reg.h>
 const struct pmap_devmap omap_devmap[] = {
 	/*
 	 * Add the main memory areas, 
@@ -118,7 +118,7 @@ const struct pmap_devmap omap_devmap[] = {
 };
 
 #elif defined(SOC_OMAP3)
-#include <arm/omap/omap3/omap35xx_reg.h>
+#include <arm/ti/omap3/omap35xx_reg.h>
 const struct pmap_devmap omap_devmap[] = {
 	/*
 	 * For the moment, map devices with PA==VA.
