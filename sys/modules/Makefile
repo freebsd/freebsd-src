@@ -707,9 +707,12 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cardbus=	cardbus
+_cbb=		cbb
 _cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
+_pccard=	pccard
 _smbfs=		smbfs
 _sound=		sound
 .endif
