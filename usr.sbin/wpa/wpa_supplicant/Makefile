@@ -5,7 +5,7 @@
 .PATH.c:${WPA_SUPPLICANT_DISTDIR} \
 	${WPA_DISTDIR}/src/drivers \
 	${WPA_DISTDIR}/src/eap_peer \
-	${WPA_DISTDIR}/src/rsn_supp
+	${WPA_DISTDIR}/src/rsn_supp \
 
 PROG=	wpa_supplicant
 SRCS=	aes.c aes_wrap.c blacklist.c common.c config.c ctrl_iface.c \
