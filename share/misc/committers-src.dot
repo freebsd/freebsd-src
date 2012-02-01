@@ -118,6 +118,7 @@ cokane [label="Coleman Kane\ncokane@FreeBSD.org\n2000/06/19"]
 cperciva [label="Colin Percival\ncperciva@FreeBSD.org\n2004/01/20"]
 csjp [label="Christian S.J. Peron\ncsjp@FreeBSD.org\n2004/05/04"]
 das [label="David Schultz\ndas@FreeBSD.org\n2003/02/21"]
+davide [label="Davide Italiano\ndavide@FreeBSD.org\n2012/01/27"]
 davidxu [label="David Xu\ndavidxu@FreeBSD.org\n2002/09/02"]
 dchagin [label="Dmitry Chagin\ndchagin@FreeBSD.org\n2009/02/28"]
 delphij [label="Xin Li\ndelphij@FreeBSD.org\n2004/09/14"]
@@ -284,6 +285,8 @@ adrian -> rmh
 
 ae -> melifaro
 
+alc -> davide
+
 andre -> qingli
 
 anholt -> jkim
@@ -376,6 +379,7 @@ gnn -> ivoras
 gnn -> vanhu
 gnn -> lstewart
 gnn -> np
+gnn -> davide
 
 grog -> edwin
 grog -> le
