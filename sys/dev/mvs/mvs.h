@@ -61,6 +61,9 @@
 
 #define CHIP_SOC_LED		0x2C	/* SoC LED Configuration */
 
+/* Additional mask for SoC devices with less than 4 channels */
+#define CHIP_SOC_HC0_MASK(num)	(0xff >> ((4 - (num)) * 2))
+
 /* Chip CCC registers */
 #define CHIP_ICC		0x18008
 #define CHIP_ICC_ALL_PORTS	 (1 << 4)	/* all ports irq event */
