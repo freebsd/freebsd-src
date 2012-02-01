@@ -37,7 +37,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_ipsec.h"
 #include "opt_inet.h"
 #include "opt_inet6.h"
-#include "opt_pf.h"
 #include "opt_sctp.h"
 #include "opt_mpath.h"
 
@@ -100,11 +99,6 @@ static struct pr_usrreqs nousrreqs;
 #include <netinet/sctp.h>
 #include <netinet/sctp_var.h>
 #endif /* SCTP */
-
-#ifdef DEV_PFSYNC
-#include <net/pfvar.h>
-#include <net/if_pfsync.h>
-#endif
 
 FEATURE(inet, "Internet Protocol version 4");
 
@@ -317,17 +311,6 @@ struct protosw inetsw[] = {
 	.pr_ctloutput =		rip_ctloutput,
 	.pr_usrreqs =		&rip_usrreqs
 },
-#ifdef DEV_PFSYNC
-{
-	.pr_type =		SOCK_RAW,
-	.pr_domain =		&inetdomain,
-	.pr_protocol =		IPPROTO_PFSYNC,
-	.pr_flags =		PR_ATOMIC|PR_ADDR,
-	.pr_input =		pfsync_input,
-	.pr_ctloutput =		rip_ctloutput,
-	.pr_usrreqs =		&rip_usrreqs
-},
-#endif	/* DEV_PFSYNC */
 /* Spacer n-times for loadable protocols. */
 IPPROTOSPACER,
 IPPROTOSPACER,
@@ -397,6 +380,3 @@ SYSCTL_NODE(_net_inet, IPPROTO_IPCOMP,	ipcomp,	CTLFLAG_RW, 0,	"IPCOMP");
 SYSCTL_NODE(_net_inet, IPPROTO_IPIP,	ipip,	CTLFLAG_RW, 0,	"IPIP");
 #endif /* IPSEC */
 SYSCTL_NODE(_net_inet, IPPROTO_RAW,	raw,	CTLFLAG_RW, 0,	"RAW");
-#ifdef DEV_PFSYNC
-SYSCTL_NODE(_net_inet, IPPROTO_PFSYNC,	pfsync,	CTLFLAG_RW, 0,	"PFSYNC");
-#endif
