@@ -38,7 +38,7 @@ __FBSDID("$FreeBSD$");
 
 static int xstate_sz = -1;
 
-size_t
+int
 __getcontextx_size(void)
 {
 	u_int p[4];
