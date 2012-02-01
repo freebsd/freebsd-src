@@ -264,8 +264,7 @@ initarm_boilerplate(void *arg1, void *arg2)
 	/*
 	 * Initialize the MI portions of a struct per cpu structure.
 	 */
-	pcpu_init(pcpup, 0, sizeof(struct pcpu));
-	PCPU_SET(curthread, &thread0);
+	pcpu0_init();
 	init_param1();
 	
 	/*
