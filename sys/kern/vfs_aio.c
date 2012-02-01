@@ -1524,6 +1524,7 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int error;
 	int fd, kqfd;
 	int jid;
+	u_short evflags;
 
 	if (p->p_aioinfo == NULL)
 		aio_init_aioinfo(p);
@@ -1646,10 +1647,15 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT)
 		goto no_kqueue;
+	evflags = aiocbe->uaiocb.aio_sigevent.sigev_notify_kevent_flags;
+	if ((evflags & ~(EV_CLEAR | EV_DISPATCH | EV_ONESHOT)) != 0) {
+		error = EINVAL;
+		goto aqueue_fail;
+	}
 	kqfd = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
 	kev.ident = (uintptr_t)aiocbe->uuaiocb;
 	kev.filter = EVFILT_AIO;
-	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
+	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1 | evflags;
 	kev.data = (intptr_t)aiocbe;
 	kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sival_ptr;
 	error = kqfd_register(kqfd, &kev, td, 1);
