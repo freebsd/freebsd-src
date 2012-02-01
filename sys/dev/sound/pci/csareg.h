@@ -1949,4 +1949,25 @@
 #define CS_AC97_POWER_CONTROL_MIXVON_ON	0x0004
 #define CS_AC97_POWER_CONTROL_MIXVOFF_ON 0x0008
 
+/*  
+ * this is 3*1024 for parameter, 3.5*1024 for sample and 2*3.5*1024 
+ * for code since each instruction is 40 bits and takes two dwords
+ */
+
+/* The following struct holds the initialization array. */
+#define INKY_BA1_DWORD_SIZE  (13*1024+512)
+/* this is parameter, sample, and code */
+#define INKY_MEMORY_COUNT     3
+
+struct cs461x_firmware_struct
+{
+	struct
+	{
+		u_int32_t ulDestAddr, ulSourceSize;
+	} MemoryStat[INKY_MEMORY_COUNT];
+
+	u_int32_t BA1Array[INKY_BA1_DWORD_SIZE];
+};
+
+
 #endif /* _CSA_REG_H */
