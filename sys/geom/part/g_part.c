@@ -1216,6 +1216,9 @@ g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (table->gpt_corrupt) {
 		error = G_PART_RECOVER(table);
+		if (error == 0)
+			error = g_part_check_integrity(table,
+			    LIST_FIRST(&gp->consumer));
 		if (error) {
 			gctl_error(req, "%d recovering '%s' failed",
 			    error, gp->name);
