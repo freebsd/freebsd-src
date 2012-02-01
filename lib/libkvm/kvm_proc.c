@@ -474,7 +474,7 @@ struct kinfo_proc *
 kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
 {
 	int mib[4], st, nprocs;
-	size_t size;
+	size_t size, osize;
 	int temp_op;
 
 	if (kd->procbase != 0) {
@@ -524,10 +524,11 @@ kvm_getprocs(kvm_t *kd, int op, int arg, int *cnt)
 			    _kvm_realloc(kd, kd->procbase, size);
 			if (kd->procbase == 0)
 				return (0);
+			osize = size;
 			st = sysctl(mib, temp_op == KERN_PROC_ALL ||
 			    temp_op == KERN_PROC_PROC ? 3 : 4,
 			    kd->procbase, &size, NULL, 0);
-		} while (st == -1 && errno == ENOMEM);
+		} while (st == -1 && errno == ENOMEM && size == osize);
 		if (st == -1) {
 			_kvm_syserr(kd, kd->program, "kvm_getprocs");
 			return (0);
