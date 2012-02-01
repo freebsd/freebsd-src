@@ -296,7 +296,7 @@ gather_inet(int proto)
 				break;
 			if (errno == ENOENT)
 				goto out;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -424,7 +424,7 @@ gather_unix(int proto)
 			len = bufsize;
 			if (sysctlbyname(varname, buf, &len, NULL, 0) == 0)
 				break;
-			if (errno != ENOMEM)
+			if (errno != ENOMEM || len != bufsize)
 				err(1, "sysctlbyname()");
 			bufsize *= 2;
 		}
@@ -476,14 +476,15 @@ out:
 static void
 getfiles(void)
 {
-	size_t len;
+	size_t len, olen;
 
-	if ((xfiles = malloc(len = sizeof *xfiles)) == NULL)
+	olen = len = sizeof *xfiles;
+	if ((xfiles = malloc(len)) == NULL)
 		err(1, "malloc()");
 	while (sysctlbyname("kern.file", xfiles, &len, 0, 0) == -1) {
-		if (errno != ENOMEM)
+		if (errno != ENOMEM || len != olen)
 			err(1, "sysctlbyname()");
-		len *= 2;
+		olen = len *= 2;
 		if ((xfiles = realloc(xfiles, len)) == NULL)
 			err(1, "realloc()");
 	}
