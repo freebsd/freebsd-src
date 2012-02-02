@@ -39,7 +39,8 @@
 
 #include "procstat.h"
 
-static int aflag, bflag, cflag, fflag, iflag, jflag, kflag, sflag, tflag, vflag;
+static int aflag, bflag, cflag, eflag, fflag, iflag, jflag, kflag, sflag, tflag;
+static int vflag, xflag;
 int	hflag, nflag, Cflag;
 
 static void
@@ -47,8 +48,9 @@ usage(void)
 {
 
 	fprintf(stderr, "usage: procstat [-h] [-C] [-M core] [-N system] "
-	    "[-w interval] [-b | -c | -f | -i | -j | -k | -s | -t | -v]\n");
-	fprintf(stderr, "                [-a | pid ...]\n");
+	    "[-w interval] \n");
+	fprintf(stderr, "                [-b | -c | -e | -f | -i | -j | -k | "
+	    "-s | -t | -v | -x] [-a | pid ...]\n");
 	exit(EX_USAGE);
 }
 
@@ -60,6 +62,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_bin(kipp);
 	else if (cflag)
 		procstat_args(kipp);
+	else if (eflag)
+		procstat_env(kipp);
 	else if (fflag)
 		procstat_files(prstat, kipp);
 	else if (iflag)
@@ -74,6 +78,8 @@ procstat(struct procstat *prstat, struct kinfo_proc *kipp)
 		procstat_threads(kipp);
 	else if (vflag)
 		procstat_vm(kipp);
+	else if (xflag)
+		procstat_auxv(kipp);
 	else
 		procstat_basic(kipp);
 }
@@ -117,7 +123,7 @@ main(int argc, char *argv[])
 
 	interval = 0;
 	memf = nlistf = NULL;
-	while ((ch = getopt(argc, argv, "CN:M:abcfijkhstvw:")) != -1) {
+	while ((ch = getopt(argc, argv, "CN:M:abcefijkhstvw:x")) != -1) {
 		switch (ch) {
 		case 'C':
 			Cflag++;
@@ -139,6 +145,10 @@ main(int argc, char *argv[])
 
 		case 'c':
 			cflag++;
+			break;
+
+		case 'e':
+			eflag++;
 			break;
 
 		case 'f':
@@ -186,6 +196,10 @@ main(int argc, char *argv[])
 			interval = l;
 			break;
 
+		case 'x':
+			xflag++;
+			break;
+
 		case '?':
 		default:
 			usage();
@@ -196,7 +210,8 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	/* We require that either 0 or 1 mode flags be set. */
-	tmp = bflag + cflag + fflag + (kflag ? 1 : 0) + sflag + tflag + vflag;
+	tmp = bflag + cflag + eflag + fflag + (kflag ? 1 : 0) + sflag + tflag +
+	    vflag + xflag;
 	if (!(tmp == 0 || tmp == 1))
 		usage();
 
