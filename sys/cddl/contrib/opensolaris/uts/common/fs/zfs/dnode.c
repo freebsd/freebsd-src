@@ -993,7 +993,7 @@ dnode_buf_pageout(dmu_buf_t *db, void *arg)
 		dnh->dnh_dnode = NULL;
 	}
 	kmem_free(children_dnodes, sizeof (dnode_children_t) +
-	    (epb - 1) * sizeof (dnode_handle_t));
+	    epb * sizeof (dnode_handle_t));
 }
 
 /*
@@ -1078,7 +1078,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		int i;
 		dnode_children_t *winner;
 		children_dnodes = kmem_zalloc(sizeof (dnode_children_t) +
-		    (epb - 1) * sizeof (dnode_handle_t), KM_SLEEP);
+		    epb * sizeof (dnode_handle_t), KM_SLEEP);
 		children_dnodes->dnc_count = epb;
 		dnh = &children_dnodes->dnc_children[0];
 		for (i = 0; i < epb; i++) {
@@ -1088,7 +1088,7 @@ dnode_hold_impl(objset_t *os, uint64_t object, int flag,
 		if (winner = dmu_buf_set_user(&db->db, children_dnodes, NULL,
 		    dnode_buf_pageout)) {
 			kmem_free(children_dnodes, sizeof (dnode_children_t) +
-			    (epb - 1) * sizeof (dnode_handle_t));
+			    epb * sizeof (dnode_handle_t));
 			children_dnodes = winner;
 		}
 	}
