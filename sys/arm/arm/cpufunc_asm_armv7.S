@@ -97,6 +97,7 @@ ENTRY(armv7_dcache_wbinv_all)
 Loop1:
 	/* Get cache type for given level */
 	mov	r2, r8, lsl #2
+	add	r2, r2, r2
 	ldr	r0, .Lcache_type
 	ldr	r1, [r0, r2]
 
@@ -131,7 +132,6 @@ Skip:
 	bne Loop1
 Finished:
 	isb
-	mcr	p15, 0, r0, c7, c5, 5
 	ldmia	sp!, {r4, r5, r6, r7, r8, r9}
 	RET
 
