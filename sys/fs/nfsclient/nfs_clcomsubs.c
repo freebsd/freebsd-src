@@ -496,6 +496,11 @@ nfsm_stateidtom(struct nfsrv_descript *nd, nfsv4stateid_t *stateidp, int flag)
 		st->other[0] = 0xffffffff;
 		st->other[1] = 0xffffffff;
 		st->other[2] = 0xffffffff;
+	} else if (flag == NFSSTATEID_PUTSEQIDZERO) {
+		st->seqid = 0;
+		st->other[0] = stateidp->other[0];
+		st->other[1] = stateidp->other[1];
+		st->other[2] = stateidp->other[2];
 	} else {
 		st->seqid = stateidp->seqid;
 		st->other[0] = stateidp->other[0];

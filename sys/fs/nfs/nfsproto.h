@@ -468,6 +468,7 @@
 #define	NFSSTATEID_PUTALLZERO		0
 #define	NFSSTATEID_PUTALLONE		1
 #define	NFSSTATEID_PUTSTATEID		2
+#define	NFSSTATEID_PUTSEQIDZERO		3
 
 /*
  * Bits for share access and deny.
