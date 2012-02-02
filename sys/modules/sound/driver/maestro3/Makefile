@@ -4,7 +4,6 @@
 
 KMOD=	snd_maestro3
 SRCS=	device_if.h bus_if.h pci_if.h
-SRCS+=	allegro_code.h allegro_reg.h
 SRCS+=	maestro3.c
 
 CFLAGS+= -Wall -DM3_DEBUG_LEVEL=-1
