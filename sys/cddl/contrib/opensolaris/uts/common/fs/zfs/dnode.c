@@ -20,6 +20,9 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+ *
+ * Portions Copyright 2012 Sergey Kandaurov <pluknet@FreeBSD.org>
+ * Portions Copyright 2012 Martin Matuska <mm@FreeBSD.org>
  */
 
 #include <sys/zfs_context.h>
