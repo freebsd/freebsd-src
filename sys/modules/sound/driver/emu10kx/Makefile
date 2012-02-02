@@ -1,6 +1,5 @@
 # $FreeBSD$
-.PATH: ${.CURDIR}/../../../../dev/sound/pci \
-       ${.CURDIR}/../../../../gnu/dev/sound/pci
+.PATH: ${.CURDIR}/../../../../dev/sound/pci
 
 KMOD=	snd_emu10kx
 
