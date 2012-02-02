@@ -106,8 +106,14 @@ void  xen_destroy_contiguous_region(void * addr, int npages);
 
 #elif defined(XENHVM)
 
+#if !defined(PAE)
+#define	vtomach(va)	pmap_kextract((vm_offset_t) (va))
+#endif
 #define	PFNTOMFN(pa)	(pa)
 #define	MFNTOPFN(ma)	(ma)
+
+#define	set_phys_to_machine(pfn, mfn)		((void)0)
+#define	phys_to_machine_mapping_valid(pfn)	(TRUE)
 
 #endif /* !XEN && !XENHVM */
 
