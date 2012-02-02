@@ -1149,7 +1149,7 @@ dadump(void *arg, void *virtual, vm_offset_t physical, off_t offset, size_t leng
 				/*data_ptr*/(u_int8_t *) virtual,
 				/*dxfer_len*/length,
 				/*sense_len*/SSD_FULL_SIZE,
-				DA_DEFAULT_TIMEOUT * 1000);		
+				da_default_timeout * 1000);
 		xpt_polled_action((union ccb *)&csio);
 		cam_periph_unlock(periph);
 
@@ -1597,7 +1597,7 @@ daregister(struct cam_periph *periph, void *arg)
 	 */
 	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
 	callout_reset(&softc->sendordered_c,
-	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
+	    (da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
 
 	mtx_unlock(periph->sim->mtx);
@@ -2768,7 +2768,7 @@ dasendorderedtag(void *arg)
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
-	    (DA_DEFAULT_TIMEOUT * hz) / DA_ORDEREDTAG_INTERVAL,
+	    (da_default_timeout * hz) / DA_ORDEREDTAG_INTERVAL,
 	    dasendorderedtag, softc);
 }
 
