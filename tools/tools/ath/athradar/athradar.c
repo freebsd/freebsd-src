@@ -207,6 +207,12 @@ radar_set_param(struct radarhandler *radar, const char *param, const char *val)
 		radarset(radar, DFS_PARAM_RELSTEP, v);
 	} else if (strcmp(param, "maxlen") == 0) {
 		radarset(radar, DFS_PARAM_MAXLEN, v);
+	} else if (strcmp(param, "usefir128") == 0) {
+		radarset(radar, DFS_PARAM_USEFIR128, v);
+	} else if (strcmp(param, "blockradar") == 0) {
+		radarset(radar, DFS_PARAM_BLOCKRADAR, v);
+	} else if (strcmp(param, "enmaxrssi") == 0) {
+		radarset(radar, DFS_PARAM_MAXRSSI_EN, v);
 	} else if (strcmp(param, "extchannel") == 0) {
 		radarset(radar, DFS_PARAM_EN_EXTCH, v);
 	} else {
