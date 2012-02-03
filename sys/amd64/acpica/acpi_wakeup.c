@@ -74,7 +74,7 @@ static struct pcb	**susppcbs;
 static void		**suspfpusave;
 #endif
 
-int			acpi_restorecpu(vm_offset_t, struct pcb *);
+int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
