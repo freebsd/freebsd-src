@@ -1406,6 +1406,8 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		dst = ifa->ifa_addr;
 		netmask = ifa->ifa_netmask;
 	}
+	if (dst->sa_len == 0)
+		return(EINVAL);
 	switch (dst->sa_family) {
 	case AF_INET6:
 	case AF_INET:
@@ -1427,8 +1429,6 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		startfib = fibnum;
 		endfib = fibnum;
 	}
-	if (dst->sa_len == 0)
-		return(EINVAL);
 
 	/*
 	 * If it's a delete, check that if it exists,
