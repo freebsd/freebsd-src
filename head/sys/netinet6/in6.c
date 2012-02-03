@@ -180,6 +180,7 @@ in6_ifaddloop(struct ifaddr *ifa)
 	rt_mask(&rt) = (struct sockaddr *)&mask;
 	rt_key(&rt) = (struct sockaddr *)&addr;
 	rt.rt_flags = RTF_UP | RTF_HOST | RTF_STATIC;
+	/* Announce arrival of local address to all FIBs. */
 	rt_newaddrmsg(RTM_ADD, ifa, 0, &rt);
 }
 
@@ -214,6 +215,7 @@ in6_ifremloop(struct ifaddr *ifa)
 	rt_mask(&rt0) = (struct sockaddr *)&mask;
 	rt_key(&rt0) = (struct sockaddr *)&addr;
 	rt0.rt_flags = RTF_HOST | RTF_STATIC;
+	/* Announce removal of local address to all FIBs. */
 	rt_newaddrmsg(RTM_DELETE, ifa, 0, &rt0);
 }
 
@@ -282,6 +284,11 @@ in6_control(struct socket *so, u_long cmd, caddr_t data,
 	switch (cmd) {
 	case SIOCGETSGCNT_IN6:
 	case SIOCGETMIFCNT_IN6:
+		/*	
+		 * XXX mrt_ioctl has a 3rd, unused, FIB argument in route.c.
+		 * We cannot see how that would be needed, so do not adjust the
+		 * KPI blindly; more likely should clean up the IPv4 variant.
+		 */
 		return (mrt6_ioctl ? mrt6_ioctl(cmd, data) : EOPNOTSUPP);
 	}
 
@@ -820,6 +827,7 @@ out:
 	return (error);
 }
 
+
 /*
  * Join necessary multicast groups.  Factored out from in6_update_ifa().
  * This entire work should only be done once, for the default FIB.
@@ -890,7 +898,7 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	 * reconsider this stuff.  Most applications actually do not need the
 	 * routes, since they usually specify the outgoing interface.
 	 */
-	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt != NULL) {
 		/* XXX: only works in !SCOPEDROUTING case. */
 		if (memcmp(&mltaddr.sin6_addr,
@@ -901,10 +909,10 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		}
 	}
 	if (rt == NULL) {
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
+		error = in6_rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&mltmask, RTF_UP,
-		    (struct rtentry **)0);
+		    (struct rtentry **)0, RT_DEFAULT_FIB);
 		if (error)
 			goto cleanup;
 	} else
@@ -950,7 +958,7 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) != 0)
 		goto cleanup; /* XXX: should not fail */
 	/* XXX: again, do we really need the route? */
-	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt != NULL) {
 		if (memcmp(&mltaddr.sin6_addr,
 		    &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr,
@@ -960,10 +968,10 @@ in6_update_ifa_join_mc(struct ifnet *ifp, struct in6_aliasreq *ifra,
 		}
 	}
 	if (rt == NULL) {
-		error = rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
+		error = in6_rtrequest(RTM_ADD, (struct sockaddr *)&mltaddr,
 		    (struct sockaddr *)&ia->ia_addr,
 		    (struct sockaddr *)&mltmask, RTF_UP,
-		    (struct rtentry **)0);
+		    (struct rtentry **)0, RT_DEFAULT_FIB);
 		if (error)
 			goto cleanup;
 	} else
@@ -1254,8 +1262,7 @@ in6_update_ifa(struct ifnet *ifp, struct in6_aliasreq *ifra,
 
 	/*
 	 * Perform DAD, if needed.
-	 * XXX It may be of use, if we can administratively
-	 * disable DAD.
+	 * XXX It may be of use, if we can administratively disable DAD.
 	 */
 	if (in6if_do_dad(ifp) && ((ifra->ifra_flags & IN6_IFF_NODAD) == 0) &&
 	    (ia->ia6_flags & IN6_IFF_TENTATIVE))
@@ -1349,7 +1356,7 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) != 0)
 		return (error);
 
-	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt != NULL && rt->rt_gateway != NULL &&
 	    (memcmp(&satosin6(rt->rt_gateway)->sin6_addr, 
 		    &ia->ia_addr.sin6_addr,
@@ -1362,11 +1369,11 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 			memcpy(&mltaddr.sin6_addr, &satosin6(rt_key(rt))->sin6_addr, 
 			       sizeof(mltaddr.sin6_addr));
 			RTFREE_LOCKED(rt);
-			error = rtrequest(RTM_DELETE,
+			error = in6_rtrequest(RTM_DELETE,
 			    (struct sockaddr *)&mltaddr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&mltmask, RTF_UP,
-			    (struct rtentry **)0);
+			    (struct rtentry **)0, RT_DEFAULT_FIB);
 			if (error)
 				log(LOG_INFO, "%s: link-local all-nodes "
 				    "multicast address deletion error\n",
@@ -1398,7 +1405,7 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 	if ((error = in6_setscope(&mltaddr.sin6_addr, ifp, NULL)) != 0)
 		return (error);
 
-	rt = rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&mltaddr, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt != NULL && rt->rt_gateway != NULL &&
 	    (memcmp(&satosin6(rt->rt_gateway)->sin6_addr, 
 		    &ia->ia_addr.sin6_addr,
@@ -1412,11 +1419,11 @@ in6_purgeaddr_mc(struct ifnet *ifp, struct in6_ifaddr *ia, struct ifaddr *ifa0)
 			       sizeof(mltaddr.sin6_addr));
 
 			RTFREE_LOCKED(rt);
-			error = rtrequest(RTM_DELETE,
+			error = in6_rtrequest(RTM_DELETE,
 			    (struct sockaddr *)&mltaddr,
 			    (struct sockaddr *)&ia->ia_addr,
 			    (struct sockaddr *)&mltmask, RTF_UP,
-			    (struct rtentry **)0);
+			    (struct rtentry **)0, RT_DEFAULT_FIB);
 			if (error)
 				log(LOG_INFO, "%s: node-local all-nodes"
 				    "multicast address deletion error\n",
@@ -1489,6 +1496,7 @@ in6_purgeaddr(struct ifaddr *ifa)
 	/* stop DAD processing */
 	nd6_dad_stop(ifa);
 
+	/* Remove local address entry from lltable. */
 	in6_ifremloop(ifa);
 
 	/* Leave multicast groups. */
@@ -1499,25 +1507,11 @@ in6_purgeaddr(struct ifaddr *ifa)
 
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
 	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
-		int error;
-		struct sockaddr *dstaddr;
-
-		/* 
-		 * use the interface address if configuring an
-		 * interface address with a /128 prefix len
-		 */
-		if (ia->ia_dstaddr.sin6_family == AF_INET6)
-			dstaddr = (struct sockaddr *)&ia->ia_dstaddr;
-		else
-			dstaddr = (struct sockaddr *)&ia->ia_addr;
-
-		error = rtrequest(RTM_DELETE,
-		    (struct sockaddr *)dstaddr,
-		    (struct sockaddr *)&ia->ia_addr,
-		    (struct sockaddr *)&ia->ia_prefixmask,
-		    ia->ia_flags | RTF_HOST, NULL);
+		error = rtinit(&(ia->ia_ifa), RTM_DELETE, ia->ia_flags |
+		    (ia->ia_dstaddr.sin6_family == AF_INET6) ? RTF_HOST : 0);
 		if (error != 0)
-			return;
+			log(LOG_INFO, "%s: err=%d, destination address delete "
+			    "failed\n", __func__, error);
 		ia->ia_flags &= ~IFA_ROUTE;
 	}
 
@@ -1849,8 +1843,7 @@ in6_lifaddr_ioctl(struct socket *so, u_long cmd, caddr_t data,
 }
 
 /*
- * Initialize an interface's intetnet6 address
- * and routing table entry.
+ * Initialize an interface's IPv6 address and routing table entry.
  */
 static int
 in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
@@ -1900,13 +1893,8 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 	if (!(ia->ia_flags & IFA_ROUTE) && plen == 128 &&
 	    ia->ia_dstaddr.sin6_family == AF_INET6) {
 		int rtflags = RTF_UP | RTF_HOST;
-
-		error = rtrequest(RTM_ADD,
-		    (struct sockaddr *)&ia->ia_dstaddr,
-		    (struct sockaddr *)&ia->ia_addr,
-		    (struct sockaddr *)&ia->ia_prefixmask,
-		    ia->ia_flags | rtflags, NULL);
-		if (error != 0)
+		error = rtinit(&ia->ia_ifa, RTM_ADD, ia->ia_flags | rtflags);
+		if (error)
 			return (error);
 		ia->ia_flags |= IFA_ROUTE;
 		/*
@@ -1926,7 +1914,7 @@ in6_ifinit(struct ifnet *ifp, struct in6_ifaddr *ia,
 			ia->ia_flags |= IFA_RTSELF;
 	}
 
-	/* Add ownaddr as loopback rtentry, if necessary (ex. on p2p link). */
+	/* Add local address to lltable, if necessary (ex. on p2p link). */
 	if (newhost)
 		in6_ifaddloop(&(ia->ia_ifa));
 
@@ -2529,8 +2517,10 @@ in6_lltable_rtcheck(struct ifnet *ifp,
 	KASSERT(l3addr->sa_family == AF_INET6,
 	    ("sin_family %d", l3addr->sa_family));
 
+	/* Our local addresses are always only installed on the default FIB. */
 	/* XXX rtalloc1 should take a const param */
-	rt = rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0);
+	rt = in6_rtalloc1(__DECONST(struct sockaddr *, l3addr), 0, 0,
+	    RT_DEFAULT_FIB);
 	if (rt == NULL || (rt->rt_flags & RTF_GATEWAY) || rt->rt_ifp != ifp) {
 		struct ifaddr *ifa;
 		/* 
