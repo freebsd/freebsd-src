@@ -73,7 +73,11 @@ SYSCTL_UINT(_net, OID_AUTO, fibs, CTLFLAG_RD, &rt_numfibs, 0, "");
 /*
  * Allow the boot code to allow LESS than RT_MAXFIBS to be used.
  * We can't do more because storage is statically allocated for now.
- * (for compatibility reasons.. this will change).
+ * (for compatibility reasons.. this will change. When this changes, code should
+ * be refactored to protocol independent parts and protocol dependent parts,
+ * probably hanging of domain(9) specific storage to not need the full
+ * fib * af RNH allocation etc. but allow tuning the number of tables per
+ * address family).
  */
 TUNABLE_INT("net.fibs", &rt_numfibs);
 
@@ -83,6 +87,9 @@ TUNABLE_INT("net.fibs", &rt_numfibs);
  * changes for the FIB of the caller when adding a new set of addresses
  * to an interface.  XXX this is a shotgun aproach to a problem that needs
  * a more fine grained solution.. that will come.
+ * XXX also has the problems getting the FIB from curthread which will not
+ * always work given the fib can be overridden and prefixes can be added
+ * from the network stack context.
  */
 u_int rt_add_addr_allfibs = 1;
 SYSCTL_UINT(_net, OID_AUTO, add_addr_allfibs, CTLFLAG_RW,
@@ -270,7 +277,8 @@ sys_setfib(struct thread *td, struct setfib_args *uap)
 void
 rtalloc(struct route *ro)
 {
-	rtalloc_ign_fib(ro, 0UL, 0);
+
+	rtalloc_ign_fib(ro, 0UL, RT_DEFAULT_FIB);
 }
 
 void
@@ -290,7 +298,7 @@ rtalloc_ign(struct route *ro, u_long ignore)
 		RTFREE(rt);
 		ro->ro_rt = NULL;
 	}
-	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, 0);
+	ro->ro_rt = rtalloc1_fib(&ro->ro_dst, 1, ignore, RT_DEFAULT_FIB);
 	if (ro->ro_rt)
 		RT_UNLOCK(ro->ro_rt);
 }
@@ -320,7 +328,8 @@ rtalloc_ign_fib(struct route *ro, u_long ignore, u_int fibnum)
 struct rtentry *
 rtalloc1(struct sockaddr *dst, int report, u_long ignflags)
 {
-	return (rtalloc1_fib(dst, report, ignflags, 0));
+
+	return (rtalloc1_fib(dst, report, ignflags, RT_DEFAULT_FIB));
 }
 
 struct rtentry *
@@ -489,7 +498,8 @@ rtredirect(struct sockaddr *dst,
 	int flags,
 	struct sockaddr *src)
 {
-	rtredirect_fib(dst, gateway, netmask, flags, src, 0);
+
+	rtredirect_fib(dst, gateway, netmask, flags, src, RT_DEFAULT_FIB);
 }
 
 void
@@ -620,7 +630,8 @@ out:
 int
 rtioctl(u_long req, caddr_t data)
 {
-	return (rtioctl_fib(req, data, 0));
+
+	return (rtioctl_fib(req, data, RT_DEFAULT_FIB));
 }
 
 /*
@@ -650,7 +661,8 @@ rtioctl_fib(u_long req, caddr_t data, u_int fibnum)
 struct ifaddr *
 ifa_ifwithroute(int flags, struct sockaddr *dst, struct sockaddr *gateway)
 {
-	return (ifa_ifwithroute_fib(flags, dst, gateway, 0));
+
+	return (ifa_ifwithroute_fib(flags, dst, gateway, RT_DEFAULT_FIB));
 }
 
 struct ifaddr *
@@ -735,7 +747,9 @@ rtrequest(int req,
 	int flags,
 	struct rtentry **ret_nrt)
 {
-	return (rtrequest_fib(req, dst, gateway, netmask, flags, ret_nrt, 0));
+
+	return (rtrequest_fib(req, dst, gateway, netmask, flags, ret_nrt,
+	    RT_DEFAULT_FIB));
 }
 
 int
@@ -774,7 +788,8 @@ rtrequest_fib(int req,
 int
 rt_getifa(struct rt_addrinfo *info)
 {
-	return (rt_getifa_fib(info, 0));
+
+	return (rt_getifa_fib(info, RT_DEFAULT_FIB));
 }
 
 /*
@@ -1146,8 +1161,7 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		rt->rt_flags = RTF_UP | flags;
 		rt->rt_fibnum = fibnum;
 		/*
-		 * Add the gateway. Possibly re-malloc-ing the storage for it
-		 * 
+		 * Add the gateway. Possibly re-malloc-ing the storage for it.
 		 */
 		RT_LOCK(rt);
 		if ((error = rt_setgate(rt, dst, gateway)) != 0) {
@@ -1452,9 +1466,7 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	 * Now go through all the requested tables (fibs) and do the
 	 * requested action. Realistically, this will either be fib 0
 	 * for protocols that don't do multiple tables or all the
-	 * tables for those that do. XXX For this version only AF_INET.
-	 * When that changes code should be refactored to protocol
-	 * independent parts and protocol dependent parts.
+	 * tables for those that do.
 	 */
 	for ( fibnum = startfib; fibnum <= endfib; fibnum++) {
 		if (cmd == RTM_DELETE) {
@@ -1594,12 +1606,14 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 	return (error);
 }
 
+#ifndef BURN_BRIDGES
 /* special one for inet internal use. may not use. */
 int
 rtinit_fib(struct ifaddr *ifa, int cmd, int flags)
 {
 	return (rtinit1(ifa, cmd, flags, -1));
 }
+#endif
 
 /*
  * Set up a routing table entry, normally
@@ -1609,7 +1623,7 @@ int
 rtinit(struct ifaddr *ifa, int cmd, int flags)
 {
 	struct sockaddr *dst;
-	int fib = 0;
+	int fib = RT_DEFAULT_FIB;
 
 	if (flags & RTF_HOST) {
 		dst = ifa->ifa_dstaddr;

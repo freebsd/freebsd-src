@@ -406,8 +406,10 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 
+#ifndef BURN_BRIDGES
 /* defaults to "all" FIBs */
 int	 rtinit_fib(struct ifaddr *, int, int);
+#endif
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones
