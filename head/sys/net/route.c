@@ -196,27 +196,23 @@ vnet_route_init(const void *unused __unused)
 	V_rtzone = uma_zcreate("rtentry", sizeof(struct rtentry), NULL, NULL,
 	    NULL, NULL, UMA_ALIGN_PTR, 0);
 	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtattach)  {
-			for  (table = 0; table < rt_numfibs; table++) {
-				if ( (fam = dom->dom_family) == AF_INET ||
-				    table == 0) {
- 			        	/* for now only AF_INET has > 1 table */
-					/* XXX MRT 
-					 * rtattach will be also called
-					 * from vfs_export.c but the
-					 * offset will be 0
-					 * (only for AF_INET and AF_INET6
-					 * which don't need it anyhow)
-					 */
-					rnh = rt_tables_get_rnh_ptr(table, fam);
-					if (rnh == NULL)
-						panic("%s: rnh NULL", __func__);
-					dom->dom_rtattach((void **)rnh,
-				    	    dom->dom_rtoffset);
-				} else {
-					break;
-				}
-			}
+		if (dom->dom_rtattach == NULL)
+			continue;
+
+		for  (table = 0; table < rt_numfibs; table++) {
+			fam = dom->dom_family;
+			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
+				break;
+
+			/*
+			 * XXX MRT rtattach will be also called from
+			 * vfs_export.c but the offset will be 0 (only for
+			 * AF_INET and AF_INET6 which don't need it anyhow).
+			 */
+			rnh = rt_tables_get_rnh_ptr(table, fam);
+			if (rnh == NULL)
+				panic("%s: rnh NULL", __func__);
+			dom->dom_rtattach((void **)rnh, dom->dom_rtoffset);
 		}
 	}
 }
@@ -233,20 +229,19 @@ vnet_route_uninit(const void *unused __unused)
 	struct radix_node_head **rnh;
 
 	for (dom = domains; dom; dom = dom->dom_next) {
-		if (dom->dom_rtdetach) {
-			for (table = 0; table < rt_numfibs; table++) {
-				if ( (fam = dom->dom_family) == AF_INET ||
-				    table == 0) {
-					/* For now only AF_INET has > 1 tbl. */
-					rnh = rt_tables_get_rnh_ptr(table, fam);
-					if (rnh == NULL)
-						panic("%s: rnh NULL", __func__);
-					dom->dom_rtdetach((void **)rnh,
-					    dom->dom_rtoffset);
-				} else {
-					break;
-				}
-			}
+		if (dom->dom_rtdetach == NULL)
+			continue;
+
+		for (table = 0; table < rt_numfibs; table++) {
+			fam = dom->dom_family;
+
+			if (table != 0 && fam != AF_INET6 && fam != AF_INET)
+				break;
+
+			rnh = rt_tables_get_rnh_ptr(table, fam);
+			if (rnh == NULL)
+				panic("%s: rnh NULL", __func__);
+			dom->dom_rtdetach((void **)rnh, dom->dom_rtoffset);
 		}
 	}
 }
@@ -339,8 +334,15 @@ rtalloc1_fib(struct sockaddr *dst, int report, u_long ignflags,
 	int needlock;
 
 	KASSERT((fibnum < rt_numfibs), ("rtalloc1_fib: bad fibnum"));
-	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
-		fibnum = 0;
+	switch (dst->sa_family) {
+	case AF_INET6:
+	case AF_INET:
+		/* We support multiple FIBs. */
+		break;
+	default:
+		fibnum = RT_DEFAULT_FIB;
+		break;
+	}
 	rnh = rt_tables_get_rnh(fibnum, dst->sa_family);
 	newrt = NULL;
 	if (rnh == NULL)
@@ -1029,8 +1031,16 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 #define senderr(x) { error = x ; goto bad; }
 
 	KASSERT((fibnum < rt_numfibs), ("rtrequest1_fib: bad fibnum"));
-	if (dst->sa_family != AF_INET)	/* Only INET supports > 1 fib now */
-		fibnum = 0;
+	switch (dst->sa_family) {
+	case AF_INET6:
+	case AF_INET:
+		/* We support multiple FIBs. */
+		break;
+	default:
+		fibnum = RT_DEFAULT_FIB;
+		break;
+	}
+
 	/*
 	 * Find the correct routing tree to use for this Address Family
 	 */
@@ -1383,8 +1393,15 @@ rtinit1(struct ifaddr *ifa, int cmd, int flags, int fibnum)
 		dst = ifa->ifa_addr;
 		netmask = ifa->ifa_netmask;
 	}
-	if ( dst->sa_family != AF_INET)
-		fibnum = 0;
+	switch (dst->sa_family) {
+	case AF_INET6:
+	case AF_INET:
+		/* We support multiple FIBs. */
+		break;
+	default:
+		fibnum = RT_DEFAULT_FIB;
+		break;
+	}
 	if (fibnum == -1) {
 		if (rt_add_addr_allfibs == 0 && cmd == (int)RTM_ADD) {
 			startfib = endfib = curthread->td_proc->p_fibnum;
@@ -1587,7 +1604,12 @@ rtinit(struct ifaddr *ifa, int cmd, int flags)
 		dst = ifa->ifa_addr;
 	}
 
-	if (dst->sa_family == AF_INET)
+	switch (dst->sa_family) {
+	case AF_INET6:
+	case AF_INET:
+		/* We do support multiple FIBs. */
 		fib = -1;
+		break;
+	}
 	return (rtinit1(ifa, cmd, flags, fib));
 }
