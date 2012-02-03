@@ -242,13 +242,16 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		tsin6.sin6_family = AF_INET6;
 		tsin6.sin6_addr = taddr6;
 
+		/* Always use the default FIB. */
 #ifdef RADIX_MPATH
 		bzero(&ro, sizeof(ro));
 		ro.ro_dst = tsin6;
-		rtalloc_mpath((struct route *)&ro, RTF_ANNOUNCE);
+		rtalloc_mpath_fib((struct route *)&ro, RTF_ANNOUNCE,
+		    RT_DEFAULT_FIB);
 		rt = ro.ro_rt;
 #else
-		rt = rtalloc1((struct sockaddr *)&tsin6, 0, 0);
+		rt = in6_rtalloc1((struct sockaddr *)&tsin6, 0, 0,
+		    RT_DEFAULT_FIB);
 #endif
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);

@@ -129,9 +129,9 @@ VNET_DEFINE(int, ip6_prefer_tempaddr) = 0;
 
 static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
-	struct rtentry **, int));
+	struct rtentry **, int, int));
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **));
+	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **, int));
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
@@ -217,7 +217,9 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		struct in6_ifaddr *ia6;
 
 		/* get the outgoing interface */
-		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp)) != 0)
+		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp,
+		    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB))
+		    != 0)
 			return (error);
 
 		/*
@@ -281,7 +283,8 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * the outgoing interface and the destination address.
 	 */
 	/* get the outgoing interface */
-	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp)) != 0)
+	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp,
+	    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB)) != 0)
 		return (error);
 
 #ifdef DIAGNOSTIC
@@ -504,7 +507,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 static int
 selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro,
-    struct ifnet **retifp, struct rtentry **retrt, int norouteok)
+    struct ifnet **retifp, struct rtentry **retrt, int norouteok, int fibnum)
 {
 	int error = 0;
 	struct ifnet *ifp = NULL;
@@ -581,7 +584,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 
 		if (ron->ro_rt == NULL) {
-			rtalloc((struct route *)ron); /* multi path case? */
+			in6_rtalloc(ron, fibnum); /* multi path case? */
 			if (ron->ro_rt == NULL) {
 				if (ron->ro_rt) {
 					RTFREE(ron->ro_rt);
@@ -616,7 +619,7 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			*satosin6(&ron->ro_dst) = *sin6_next;
 		}
 		if (ron->ro_rt == NULL) {
-			rtalloc((struct route *)ron); /* multi path case? */
+			in6_rtalloc(ron); /* multi path case? */
 			if (ron->ro_rt == NULL ||
 			    !(ron->ro_rt->rt_flags & RTF_LLINFO)) {
 				if (ron->ro_rt) {
@@ -661,11 +664,11 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 			sa6->sin6_scope_id = 0;
 
 #ifdef RADIX_MPATH
-				rtalloc_mpath((struct route *)ro,
-				    ntohl(sa6->sin6_addr.s6_addr32[3]));
+				rtalloc_mpath_fib((struct route *)ro,
+				    ntohl(sa6->sin6_addr.s6_addr32[3]), fibnum);
 #else			
-				ro->ro_rt = rtalloc1(&((struct route *)ro)
-				    ->ro_dst, 0, 0UL);
+				ro->ro_rt = in6_rtalloc1((struct sockaddr *)
+				    &ro->ro_dst, 0, 0UL, fibnum);
 				if (ro->ro_rt)
 					RT_UNLOCK(ro->ro_rt);
 #endif
@@ -746,7 +749,8 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 
 static int
 in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
-    struct ip6_moptions *mopts, struct route_in6 *ro, struct ifnet **retifp)
+    struct ip6_moptions *mopts, struct route_in6 *ro, struct ifnet **retifp,
+    int fibnum)
 {
 	int error;
 	struct route_in6 sro;
@@ -758,7 +762,7 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	}
 
 	if ((error = selectroute(dstsock, opts, mopts, ro, retifp,
-				     &rt, 1)) != 0) {
+	    &rt, 1, fibnum)) != 0) {
 		if (ro == &sro && rt && rt == sro.ro_rt)
 			RTFREE(rt);
 		return (error);
@@ -795,7 +799,10 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 }
 
 /*
- * clone - meaningful only for bsdi and freebsd
+ * Public wrapper function to selectroute().
+ *
+ * XXX-BZ in6_selectroute() should and will grow the FIB argument. The
+ * in6_selectroute_fib() function is only there for backward compat on stable.
  */
 int
 in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
@@ -804,8 +811,20 @@ in6_selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 {
 
 	return (selectroute(dstsock, opts, mopts, ro, retifp,
-	    retrt, 0));
+	    retrt, 0, RT_DEFAULT_FIB));
 }
+
+#ifndef BURN_BRIDGES
+int
+in6_selectroute_fib(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
+    struct ip6_moptions *mopts, struct route_in6 *ro,
+    struct ifnet **retifp, struct rtentry **retrt, int fibnum)
+{
+
+	return (selectroute(dstsock, opts, mopts, ro, retifp,
+	    retrt, 0, fibnum));
+}
+#endif
 
 /*
  * Default hop limit selection. The precedence is as follows:
@@ -830,7 +849,8 @@ in6_selecthlim(struct inpcb *in6p, struct ifnet *ifp)
 		ro6.ro_dst.sin6_family = AF_INET6;
 		ro6.ro_dst.sin6_len = sizeof(struct sockaddr_in6);
 		ro6.ro_dst.sin6_addr = in6p->in6p_faddr;
-		rtalloc((struct route *)&ro6);
+		in6_rtalloc(&ro6, in6p ? in6p->inp_inc.inc_fibnum :
+		    RT_DEFAULT_FIB);
 		if (ro6.ro_rt) {
 			lifp = ro6.ro_rt->rt_ifp;
 			RTFREE(ro6.ro_rt);
