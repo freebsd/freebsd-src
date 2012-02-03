@@ -1448,6 +1448,12 @@ ip6_ctloutput(struct socket *so, struct sockopt *sopt)
 				INP_WUNLOCK(in6p);
 				error = 0;
 				break;
+			case SO_SETFIB:
+				INP_WLOCK(in6p);
+				in6p->inp_inc.inc_fibnum = so->so_fibnum;
+				INP_WUNLOCK(in6p);
+				error = 0;
+				break;
 			default:
 				break;
 			}
