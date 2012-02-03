@@ -111,6 +111,7 @@ struct rt_metrics {
  #endif
 #endif
 
+#define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 extern u_int rt_numfibs;	/* number fo usable routing tables */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
