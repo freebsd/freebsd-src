@@ -792,6 +792,17 @@ void	in6_ifaddloop(struct ifaddr *);
 
 int	in6_is_addr_deprecated __P((struct sockaddr_in6 *));
 int	in6_src_ioctl __P((u_long, caddr_t));
+
+/*
+ * Extended API for IPv6 FIB support.
+ */
+void	in6_rtredirect(struct sockaddr *, struct sockaddr *, struct sockaddr *,
+	    int, struct sockaddr *, u_int);
+int	in6_rtrequest(int, struct sockaddr *, struct sockaddr *,
+	    struct sockaddr *, int, struct rtentry **, u_int);
+void	in6_rtalloc(struct route_in6 *, u_int);
+void	in6_rtalloc_ign(struct route_in6 *, u_long, u_int);
+struct rtentry *in6_rtalloc1(struct sockaddr *, int, u_long, u_int);
 #endif /* _KERNEL */
 
 #endif /* _NETINET6_IN6_VAR_H_ */
