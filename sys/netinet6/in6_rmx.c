@@ -445,3 +445,43 @@ in6_detachhead(void **head, int off)
 	return (1);
 }
 #endif
+
+/*
+ * Extended API for IPv6 FIB support.
+ */
+void
+in6_rtredirect(struct sockaddr *dst, struct sockaddr *gw, struct sockaddr *nm,
+    int flags, struct sockaddr *src, u_int fibnum)
+{
+
+	rtredirect_fib(dst, gw, nm, flags, src, fibnum);
+}
+
+int
+in6_rtrequest(int req, struct sockaddr *dst, struct sockaddr *gw,
+    struct sockaddr *mask, int flags, struct rtentry **ret_nrt, u_int fibnum)
+{
+
+	return (rtrequest_fib(req, dst, gw, mask, flags, ret_nrt, fibnum));
+}
+
+void
+in6_rtalloc(struct route_in6 *ro, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, 0ul, fibnum);
+}
+
+void
+in6_rtalloc_ign(struct route_in6 *ro, u_long ignflags, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, ignflags, fibnum);
+}
+
+struct rtentry *
+in6_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
+{
+
+	return (rtalloc1_fib(dst, report, ignflags, fibnum));
+}
