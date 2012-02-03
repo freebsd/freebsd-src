@@ -4631,8 +4631,9 @@ nfscl_freedevinfo(struct nfscldevinfo *dip)
 	for (i = 0; i < dip->nfsdi_addrcnt; i++) {
 		dsp = nfsfldi_addr(dip, i);
 		if (dsp->nfsclds_sock.nr_nam != NULL) {
-			/* Both are set or both are NULL. */
+			/* All are set or none are. */
 			NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+			NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
 			free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		}
 	}

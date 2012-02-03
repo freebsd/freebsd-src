@@ -5040,6 +5040,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 	}
 	if (error != 0) {
 		NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+		NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
 		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		NFSBZERO(dsp, sizeof(*dsp));
 	}
