@@ -47,6 +47,8 @@ __FBSDID("$FreeBSD$");
 #define _BSD_SOURCE
 
 #include <sys/time.h>
+
+#include <paths.h>
 #include <pwd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -96,6 +98,9 @@ pam_sm_open_session(pam_handle_t *pamh, int flags,
 		pam_err = PAM_SERVICE_ERR;
 		goto err;
 	}
+	/* Strip /dev/ component. */
+	if (strncmp(tty, _PATH_DEV, sizeof(_PATH_DEV) - 1) == 0)
+		tty = (const char *)tty + sizeof(_PATH_DEV) - 1;
 
 	if ((flags & PAM_SILENT) == 0) {
 		if (setutxdb(UTXDB_LASTLOGIN, NULL) != 0) {
