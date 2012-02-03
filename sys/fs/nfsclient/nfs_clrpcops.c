@@ -4544,7 +4544,7 @@ nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = newnfs_request(nd, nmp, NULL, &nmp->nm_sockreq, NULL, p, cred,
 	    NFS_PROG, NFS_VER4, NULL, 1, NULL, NULL);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_STATEID);
@@ -4854,7 +4854,7 @@ nfsrpc_layoutcommit(vnode_t vp, off_t offset, uint64_t len, int reclaim,
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = nfscl_request(nd, vp, p, cred, stuff);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
@@ -4917,7 +4917,7 @@ nfsrpc_layoutreturn(vnode_t vp, int reclaim, int layouttype, int iomode,
 	}
 	nd->nd_flag |= ND_USEGSSNAME;
 	error = nfscl_request(nd, vp, p, cred, stuff);
-	if (error)
+	if (error != 0)
 		return (error);
 	if (nd->nd_repstat == 0) {
 		NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
