@@ -35,6 +35,7 @@
  ***********************************************************************/
 
 #include "opt_inet.h"
+#include "opt_inet6.h"
 #include "opt_route.h"
 #include "opt_mrouting.h"
 #include "opt_mpath.h"
@@ -1192,12 +1193,15 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 
 #ifdef FLOWTABLE
 		rt0 = NULL;
-		/* XXX
-		 * "flow-table" only support IPv4 at the moment.
-		 * XXX-BZ as of r205066 it would support IPv6.
-		 */
+		/* "flow-table" only supports IPv6 and IPv4 at the moment. */
+		switch (dst->sa_family) {
+#ifdef INET6
+		case AF_INET6:
+#endif
 #ifdef INET
-		if (dst->sa_family == AF_INET) {
+		case AF_INET:
+#endif
+#if defined(INET6) || defined(INET)
 			rn = rnh->rnh_matchaddr(dst, rnh);
 			if (rn && ((rn->rn_flags & RNF_ROOT) == 0)) {
 				struct sockaddr *mask;
@@ -1236,9 +1240,9 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 					}
 				}
 			}
+#endif/* INET6 || INET */
 		}
-#endif
-#endif
+#endif /* FLOWTABLE */
 
 		/* XXX mtu manipulation will be done in rnh_addaddr -- itojun */
 		rn = rnh->rnh_addaddr(ndst, netmask, rnh, rt->rt_nodes);
@@ -1259,9 +1263,18 @@ rtrequest1_fib(int req, struct rt_addrinfo *info, struct rtentry **ret_nrt,
 		} 
 #ifdef FLOWTABLE
 		else if (rt0 != NULL) {
-#ifdef INET
-			flowtable_route_flush(V_ip_ft, rt0);
+			switch (dst->sa_family) {
+#ifdef INET6
+			case AF_INET6:
+				flowtable_route_flush(V_ip6_ft, rt0);
+				break;
 #endif
+#ifdef INET
+			case AF_INET:
+				flowtable_route_flush(V_ip_ft, rt0);
+				break;
+#endif
+			}
 			RTFREE(rt0);
 		}
 #endif
