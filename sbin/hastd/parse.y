@@ -85,7 +85,7 @@ isitme(const char *name)
 	size_t bufsize;
 
 	/*
-	 * First check if the give name matches our full hostname.
+	 * First check if the given name matches our full hostname.
 	 */
 	if (gethostname(buf, sizeof(buf)) < 0) {
 		pjdlog_errno(LOG_ERR, "gethostname() failed");
