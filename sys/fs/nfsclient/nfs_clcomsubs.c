@@ -109,6 +109,7 @@ static struct {
 	{ NFSV4OP_LAYOUTCOMMIT, 1, "LayoutCommit", 12, },
 	{ NFSV4OP_LAYOUTRETURN, 1, "LayoutReturn", 12, },
 	{ NFSV4OP_RECLAIMCOMPL, 1, "ReclaimComplete", 15, },
+	{ NFSV4OP_WRITE, 1, "WriteDS", 7, },
 };
 
 
@@ -118,7 +119,7 @@ static struct {
 static int nfs_bigrequest[NFSV41_NPROCS] = {
 	0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0, 0, 0, 0, 0, 0
+	0, 0, 0, 0, 0, 0, 1
 };
 
 /*
@@ -174,6 +175,12 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 				 * Sequence Op.
 				 */
 				opcnt = 1;
+			else if (procnum == NFSPROC_WRITEDS)
+				/*
+				 * For the special case of a Write to a DS,
+				 * the opcnt == 3, for Sequence, PutFH, Write.
+				 */
+				opcnt = 3;
 		}
 		/*
 		 * What should the tag really be?
@@ -203,7 +210,8 @@ nfscl_reqstart(struct nfsrv_descript *nd, int procnum, struct nfsmount *nmp,
 			NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 			*tl = txdr_unsigned(NFSV4OP_PUTFH);
 			(void) nfsm_fhtom(nd, nfhp, fhlen, 0);
-			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh==2){
+			if (nfsv4_opflag[nfsv4_opmap[procnum].op].needscfh
+			    == 2 && procnum != NFSPROC_WRITEDS) {
 				NFSM_BUILD(tl, u_int32_t *, NFSX_UNSIGNED);
 				*tl = txdr_unsigned(NFSV4OP_GETATTR);
 				NFSWCCATTR_ATTRBIT(&attrbits);
