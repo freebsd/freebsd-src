@@ -64,7 +64,7 @@ struct	gettystrs gettystrs[] = {
 	{ "et", &omode.c_cc[VEOF] },	/* eof chatacter (eot) */
 	{ "pc", nullstr },		/* pad character */
 	{ "tt" },			/* terminal type */
-	{ "ev" },			/* enviroment */
+	{ "ev" },			/* environment */
 	{ "lo", loginprg },		/* login program */
 	{ "hn", hostname },		/* host name */
 	{ "he" },			/* host name edit */

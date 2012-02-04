@@ -328,6 +328,7 @@ typedef struct {
 #define	PT_SUNW_UNWIND	0x6464e550	/* amd64 UNWIND program header */
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
+#define	PT_GNU_RELRO	0x6474e552
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -384,7 +385,7 @@ typedef struct {
 #define	DT_INIT_ARRAYSZ	27	/* Size in bytes of the array of
 				   initialization functions. */
 #define	DT_FINI_ARRAYSZ	28	/* Size in bytes of the array of
-				   terminationfunctions. */
+				   termination functions. */
 #define	DT_RUNPATH	29	/* String table offset of a null-terminated
 				   library search path string. */
 #define	DT_FLAGS	30	/* Object specific flag values. */

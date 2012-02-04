@@ -38,6 +38,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/sysctl.h>
 #include <sys/queue.h>
+#include <sys/un.h>
 
 #include <netinet/in.h>
 
@@ -224,28 +225,53 @@ static void
 print_file_info(struct procstat *procstat, struct filestat *fst,
     const char *uname, const char *cmd, int pid)
 {
+	struct sockstat sock;
 	struct vnstat vn;
 	DEVS *d;
 	const char *filename;
 	int error, fsmatch = 0;
 	char errbuf[_POSIX2_LINE_MAX];
 
+	error = 0;
 	filename = NULL;
 	if (checkfile != 0) {
-		if (fst->fs_type != PS_FST_TYPE_VNODE &&
-		    fst->fs_type != PS_FST_TYPE_FIFO)
+		switch (fst->fs_type) {
+		case PS_FST_TYPE_VNODE:
+		case PS_FST_TYPE_FIFO:
+			error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
+			break;
+		case PS_FST_TYPE_SOCKET:
+			error = procstat_get_socket_info(procstat, fst, &sock, errbuf);
+			break;
+		default:
 			return;
-		error = procstat_get_vnode_info(procstat, fst, &vn, errbuf);
+		}
 		if (error != 0)
 			return;
 
 		for (d = devs; d != NULL; d = d->next)
-			if (d->fsid == vn.vn_fsid) {
-				fsmatch = 1;
-				if ((unsigned)d->ino == vn.vn_fileid) {
-					filename = d->name;
-					break;
+			switch (fst->fs_type) {
+			case PS_FST_TYPE_VNODE:
+			case PS_FST_TYPE_FIFO:			
+				if (d->fsid == vn.vn_fsid) {
+					fsmatch = 1;
+					if ((unsigned)d->ino == vn.vn_fileid) {
+						filename = d->name;
+						break;
+					}
 				}
+				break;
+			case PS_FST_TYPE_SOCKET:
+				if (sock.dom_family == AF_UNIX) {
+					fsmatch = 1;
+					if (strcmp(((struct sockaddr_un *)
+					    (&sock.sa_local))->sun_path,
+					    d->name) == 0) {
+						filename = d->name;
+						break;
+					}
+				}
+				break;
 			}
 		if (fsmatch == 0 || (filename == NULL && fsflg == 0))
 			return;

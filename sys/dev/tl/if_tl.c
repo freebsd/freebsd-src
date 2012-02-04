@@ -1175,7 +1175,6 @@ tl_attach(dev)
 	ifp->if_ioctl = tl_ioctl;
 	ifp->if_start = tl_start;
 	ifp->if_init = tl_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_snd.ifq_maxlen = TL_TX_LIST_CNT - 1;
 	ifp->if_capabilities |= IFCAP_VLAN_MTU;
 	ifp->if_capenable |= IFCAP_VLAN_MTU;

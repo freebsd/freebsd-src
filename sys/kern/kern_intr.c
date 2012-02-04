@@ -633,7 +633,7 @@ intr_event_add_handler(struct intr_event *ie, const char *name,
 		mtx_lock(&ie->ie_lock);
 		it->it_event = ie; 
 		ih->ih_thread = it;
-		ithread_update(it); // XXX - do we really need this?!?!?
+		ithread_update(it); /* XXX - do we really need this?!?!? */
 	} else { /* Create the global per-event thread if we need one. */
 		while (ie->ie_thread == NULL && handler != NULL) {
 			if (ie->ie_flags & IE_ADDING_THREAD)

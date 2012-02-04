@@ -53,12 +53,35 @@
  * Note that these macros cannot be implemented with C's ?: operator,
  * because the return type of the whole expression would incorrectly be long
  * double complex regardless of the argument types.
+ *
+ * The structure of the C11 implementation of these macros can in
+ * principle be reused for non-C11 compilers, but due to an integer
+ * promotion bug for complex types in GCC 4.2, simply let non-C11
+ * compilers use an inefficient yet reliable version.
  */
 
-#ifndef __generic
-#error "<tgmath.h> not implemented for this compiler"
-#endif
-
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define	__tg_generic(x, cfnl, cfn, cfnf, fnl, fn, fnf)			\
+	_Generic(x,							\
+		long double _Complex: cfnl,				\
+		double _Complex: cfn,					\
+		float _Complex: cfnf,					\
+		long double: fnl,					\
+		default: fn,						\
+		float: fnf						\
+	)
+#define	__tg_type(x)							\
+	__tg_generic(x, (long double _Complex)0, (double _Complex)0,	\
+	    (float _Complex)0, (long double)0, (double)0, (float)0)
+#define	__tg_impl_simple(x, y, z, fnl, fn, fnf, ...)			\
+	__tg_generic(							\
+	    __tg_type(x) + __tg_type(y) + __tg_type(z),			\
+	    fnl, fn, fnf, fnl, fn, fnf)(__VA_ARGS__)
+#define	__tg_impl_full(x, y, cfnl, cfn, cfnf, fnl, fn, fnf, ...)	\
+	__tg_generic(							\
+	    __tg_type(x) + __tg_type(y),				\
+	    cfnl, cfn, cfnf, fnl, fn, fnf)(__VA_ARGS__)
+#elif defined(__generic)
 #define	__tg_generic_simple(x, fnl, fn, fnf)				\
 	__generic(x, long double _Complex, fnl,				\
 	    __generic(x, double _Complex, fn,				\
@@ -94,6 +117,9 @@
 	    __tg_generic_full(y, cfnl, cfn , cfn , fnl , fn  , fn  ),	\
 	    __tg_generic_full(y, cfnl, cfn , cfnf, fnl , fn  , fnf ))	\
 	    (__VA_ARGS__)
+#else
+#error "<tgmath.h> not implemented for this compiler"
+#endif
 
 /* Macros to save lots of repetition below */
 #define	__tg_simple(x, fn)						\

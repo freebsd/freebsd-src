@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 31, 2011
+.Dd January 22, 2012
 .Dt SOUND 4
 .Os
 .Sh NAME
@@ -324,8 +324,17 @@ for Linux applications, and deny for everything else.
 Always allow PROT_EXEC page mappings.
 .El
 .It Va hw.snd.default_auto
-Enable to automatically assign default sound unit to the most recent
-attached device.
+Automatically assign the default sound unit.
+The following values are supported (default is 1):
+.Bl -tag -width 2n
+.It 0
+Do not assign the default sound unit automatically.
+.It 1
+Use the best available sound device based on playing and recording
+capabilities of the device.
+.It 2
+Use the most recently attached device.
+.El
 .It Va hw.snd.default_unit
 Default sound card for systems with multiple sound cards.
 When using

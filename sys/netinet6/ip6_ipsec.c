@@ -103,7 +103,7 @@ SYSCTL_VNET_INT(_net_inet6_ipsec6, OID_AUTO,
 int
 ip6_ipsec_filtertunnel(struct mbuf *m)
 {
-#if defined(IPSEC)
+#ifdef IPSEC
 
 	/*
 	 * Bypass packet filtering for packets previously handled by IPsec.

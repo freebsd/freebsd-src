@@ -50,7 +50,6 @@ struct sctp_sysctl {
 #if !defined(SCTP_WITH_NO_CSUM)
 	uint32_t sctp_no_csum_on_loopback;
 #endif
-	uint32_t sctp_strict_init;
 	uint32_t sctp_peer_chunk_oh;
 	uint32_t sctp_max_burst_default;
 	uint32_t sctp_max_chunks_on_queue;
@@ -115,6 +114,7 @@ struct sctp_sysctl {
 	uint32_t sctp_vtag_time_wait;
 	uint32_t sctp_buffer_splitting;
 	uint32_t sctp_initial_cwnd;
+	uint32_t sctp_blackhole;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -167,12 +167,6 @@ struct sctp_sysctl {
 #define SCTPCTL_LOOPBACK_NOCSUM_MIN	0
 #define SCTPCTL_LOOPBACK_NOCSUM_MAX	1
 #define SCTPCTL_LOOPBACK_NOCSUM_DEFAULT	1
-
-/* strict_init: Enable strict INIT/INIT-ACK singleton enforcement */
-#define SCTPCTL_STRICT_INIT_DESC	"Enable strict INIT/INIT-ACK singleton enforcement"
-#define SCTPCTL_STRICT_INIT_MIN		0
-#define SCTPCTL_STRICT_INIT_MAX		1
-#define SCTPCTL_STRICT_INIT_DEFAULT	1
 
 /* peer_chkoh: Amount to debit peers rwnd per chunk sent */
 #define SCTPCTL_PEER_CHKOH_DESC		"Amount to debit peers rwnd per chunk sent"
@@ -525,6 +519,11 @@ struct sctp_sysctl {
 #define SCTPCTL_RTTVAR_DCCCECN_MIN	0
 #define SCTPCTL_RTTVAR_DCCCECN_MAX	1
 #define SCTPCTL_RTTVAR_DCCCECN_DEFAULT	1	/* 0 means disable feature */
+
+#define SCTPCTL_BLACKHOLE_DESC		"Enable SCTP blackholing"
+#define SCTPCTL_BLACKHOLE_MIN		0
+#define SCTPCTL_BLACKHOLE_MAX		2
+#define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

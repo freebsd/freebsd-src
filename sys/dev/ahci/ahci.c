@@ -171,6 +171,7 @@ static struct {
 	{0x1d028086, 0x00, "Intel Patsburg",	0},
 	{0x1d048086, 0x00, "Intel Patsburg",	0},
 	{0x1d068086, 0x00, "Intel Patsburg",	0},
+	{0x28268086, 0x00, "Intel Patsburg (RAID)",	0},
 	{0x1e028086, 0x00, "Intel Panther Point",	0},
 	{0x1e038086, 0x00, "Intel Panther Point",	0},
 	{0x1e048086, 0x00, "Intel Panther Point",	0},

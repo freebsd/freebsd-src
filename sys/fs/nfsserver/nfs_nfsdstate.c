@@ -315,7 +315,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 		for (i = 0; i < NFSSTATEHASHSIZE; i++) {
 			LIST_NEWHEAD(&new_clp->lc_stateid[i],
 			    &clp->lc_stateid[i], ls_hash);
-			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_list)
+			LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 				tstp->ls_clp = new_clp;
 		}
 		LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,
@@ -369,7 +369,7 @@ nfsrv_setclient(struct nfsrv_descript *nd, struct nfsclient **new_clpp,
 	for (i = 0; i < NFSSTATEHASHSIZE; i++) {
 		LIST_NEWHEAD(&new_clp->lc_stateid[i], &clp->lc_stateid[i],
 		    ls_hash);
-		LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_list)
+		LIST_FOREACH(tstp, &new_clp->lc_stateid[i], ls_hash)
 			tstp->ls_clp = new_clp;
 	}
 	LIST_INSERT_HEAD(NFSCLIENTHASH(new_clp->lc_clientid), new_clp,

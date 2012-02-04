@@ -714,7 +714,6 @@ ndis_attach(dev)
 	ndis_probe_offload(sc);
 
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = ndis_ioctl;
 	ifp->if_start = ndis_start;

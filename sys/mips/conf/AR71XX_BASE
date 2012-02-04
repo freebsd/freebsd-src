@@ -24,8 +24,9 @@ hints		"AR71XX_BASE.hints"
 
 makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
 
-# Also build these as modules, just to ensure the build gets tested.
-makeoptions	MODULES_OVERRIDE="wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_pci"
+# Build these as modules so small platform builds will have the
+# modules already built.
+makeoptions	MODULES_OVERRIDE="random gpio ar71xx if_gif if_gre if_bridge bridgestp usb wlan wlan_xauth wlan_acl wlan_wep wlan_tkip wlan_ccmp wlan_rssadapt wlan_amrr ath ath_pci"
 
 options		DDB
 options		KDB

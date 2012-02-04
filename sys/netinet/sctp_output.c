@@ -12839,9 +12839,9 @@ sctp_lower_sosend(struct socket *so,
 			goto out_unlocked;
 		}
 	}
-	if ((SCTP_SO_IS_NBIO(so)
+	if (SCTP_SO_IS_NBIO(so)
 	    || (flags & MSG_NBIO)
-	    )) {
+	    ) {
 		non_blocking = 1;
 	}
 	/* would we block? */

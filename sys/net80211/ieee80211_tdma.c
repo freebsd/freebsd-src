@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include "opt_tdma.h"
 #include "opt_wlan.h"
 
+#ifdef	IEEE80211_SUPPORT_TDMA
+
 #include <sys/param.h>
 #include <sys/systm.h> 
 #include <sys/mbuf.h>   
@@ -820,3 +822,5 @@ restart:
 	return ERESTART;
 }
 IEEE80211_IOCTL_SET(tdma, tdma_ioctl_set80211);
+
+#endif	/* IEEE80211_SUPPORT_TDMA */

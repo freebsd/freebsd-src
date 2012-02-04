@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Based heavily on /sys/kern/imgact_aout.c which is:

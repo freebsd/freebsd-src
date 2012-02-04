@@ -520,7 +520,7 @@ exec_setregs(struct thread *td, struct image_params *imgp, u_long stack)
 	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX;
 #endif
 #ifdef CPU_CNMIPS
-	td->td_frame->sr |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX |
+	td->td_frame->sr |= MIPS_SR_PX | MIPS_SR_UX |
 	    MIPS_SR_KX | MIPS_SR_SX;
 #endif
 	/*

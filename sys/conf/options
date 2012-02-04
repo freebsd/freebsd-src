@@ -845,6 +845,7 @@ IEEE80211_SUPPORT_MESH	opt_wlan.h
 IEEE80211_SUPPORT_SUPERG	opt_wlan.h
 IEEE80211_SUPPORT_TDMA	opt_wlan.h
 IEEE80211_ALQ		opt_wlan.h
+IEEE80211_DFS_DEBUG	opt_wlan.h
 
 # 802.11 TDMA support
 TDMA_SLOTLEN_DEFAULT	opt_tdma.h
@@ -899,6 +900,7 @@ RCTL		opt_global.h
 # At least one of the AR71XX ubiquiti boards has a Redboot configuration
 # that "lies" about the amount of RAM it has. Until a cleaner method is
 # defined, this option will suffice in overriding what Redboot says.
-AR71XX_REALMEM    opt_global.h
-AR71XX_ENV_UBOOT	opt_global.h
-AR71XX_ENV_REDBOOT	opt_global.h
+AR71XX_REALMEM		opt_ar71xx.h
+AR71XX_ENV_UBOOT	opt_ar71xx.h
+AR71XX_ENV_REDBOOT	opt_ar71xx.h
+AR71XX_ATH_EEPROM	opt_ar71xx.h

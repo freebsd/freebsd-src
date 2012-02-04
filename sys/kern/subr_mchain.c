@@ -139,7 +139,7 @@ mb_put_padbyte(struct mbchain *mbp)
 	if ((unsigned long)dst & 1)
 		return mb_put_mem(mbp, (caddr_t)&x, 1, MB_MSYSTEM);
 	else
-	return 0;
+		return 0;
 }
 
 int

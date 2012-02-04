@@ -90,7 +90,7 @@ nullfs_uninit(vfsp)
 {
 
 	mtx_destroy(&null_hashmtx);
-	free(null_node_hashtbl, M_NULLFSHASH);
+	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_node_hash);
 	return (0);
 }
 

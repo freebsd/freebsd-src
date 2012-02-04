@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 4, 2002
+.Dd January 31, 2012
 .Dt NEXTBOOT 8
 .Os
 .Sh NAME
@@ -32,15 +32,17 @@
 .Nd "specify an alternate kernel and boot flags for the next reboot"
 .Sh SYNOPSIS
 .Nm
+.Op Fl e Ar variable=value
 .Op Fl f
+.Op Fl k Ar kernel
 .Op Fl o Ar options
-.Fl k Ar kernel
 .Nm
 .Fl D
 .Sh DESCRIPTION
 The
 .Nm
-utility allows specifying an alternate kernel and/or boot flags for the
+utility allows specifying some combination of an alternate kernel, boot flags
+and kernel environment for the
 next time the machine is booted.
 Once the
 .Xr loader 8
@@ -56,6 +58,11 @@ Invoking
 .Nm
 with this
 option removes an existing
+.Nm
+configuration.
+.It Fl e Ar variable=value
+This option adds the provided variable and value to the kernel environment.
+The value is quoted when written to the
 .Nm
 configuration.
 .It Fl f
@@ -117,7 +124,7 @@ The
 .Nm
 code is implemented in the
 .Xr loader 8 .
-It is not the most throughly tested code.
+It is not the most thoroughly tested code.
 It is also my first attempt to write in Forth.
 .Pp
 Finally, it does some evil things like writing to the file system before it

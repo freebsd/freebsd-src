@@ -55,6 +55,11 @@ __END_DECLS
 #define FLT_MAX_EXP	128		/* emax */
 #define FLT_MAX		3.40282347E+38F	/* (1-b**(-p))*b**emax */
 #define FLT_MAX_10_EXP	38		/* floor(log10((1-b**(-p))*b**emax)) */
+#if __ISO_C_VISIBLE >= 2011
+#define	FLT_TRUE_MIN	1.40129846E-45F	/* b**(emin-p) */
+#define	FLT_DECIMAL_DIG	9		/* ceil(1+p*log10(b)) */
+#define	FLT_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define DBL_MANT_DIG	53
 #define DBL_EPSILON	2.2204460492503131E-16
@@ -65,6 +70,11 @@ __END_DECLS
 #define DBL_MAX_EXP	1024
 #define DBL_MAX		1.7976931348623157E+308
 #define DBL_MAX_10_EXP	308
+#if __ISO_C_VISIBLE >= 2011
+#define	DBL_TRUE_MIN	4.9406564584124654E-324
+#define	DBL_DECIMAL_DIG	17
+#define	DBL_HAS_SUBNORM	1
+#endif /* __ISO_C_VISIBLE >= 2011 */
 
 #define LDBL_MANT_DIG	64
 #define LDBL_EPSILON	1.0842021724855044340E-19L
@@ -75,4 +85,10 @@ __END_DECLS
 #define LDBL_MAX_EXP	16384
 #define LDBL_MAX	1.1897314953572317650E+4932L
 #define LDBL_MAX_10_EXP	4932
+#if __ISO_C_VISIBLE >= 2011
+#define	LDBL_TRUE_MIN	3.6451995318824746025E-4951L
+#define	LDBL_DECIMAL_DIG 21
+#define	LDBL_HAS_SUBNORM 1
+#endif /* __ISO_C_VISIBLE >= 2011 */
+
 #endif /* _MACHINE_FLOAT_H_ */

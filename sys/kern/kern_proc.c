@@ -1631,20 +1631,19 @@ get_proc_vector(struct thread *td, struct proc *p, char ***proc_vectorp,
 
 static int
 get_ps_strings(struct thread *td, struct proc *p, struct sbuf *sb,
-    enum proc_vector_type type, size_t nchr)
+    enum proc_vector_type type)
 {
-	size_t done, len, vsize;
+	size_t done, len, nchr, vsize;
 	int error, i;
 	char **proc_vector, *sptr;
 	char pss_string[GET_PS_STRINGS_CHUNK_SZ];
 
 	PROC_ASSERT_HELD(p);
 
-	 /*
-	  * We are not going to read more than 2 * (PATH_MAX + ARG_MAX) bytes.
-	  */
-	if (nchr > 2 * (PATH_MAX + ARG_MAX))
-		nchr = 2 * (PATH_MAX + ARG_MAX);
+	/*
+	 * We are not going to read more than 2 * (PATH_MAX + ARG_MAX) bytes.
+	 */
+	nchr = 2 * (PATH_MAX + ARG_MAX);
 
 	error = get_proc_vector(td, p, &proc_vector, &vsize, type);
 	if (error != 0)
@@ -1679,17 +1678,17 @@ done:
 }
 
 int
-proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+proc_getargv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
 
-	return (get_ps_strings(curthread, p, sb, PROC_ARG, nchr));
+	return (get_ps_strings(curthread, p, sb, PROC_ARG));
 }
 
 int
-proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb, size_t nchr)
+proc_getenvv(struct thread *td, struct proc *p, struct sbuf *sb)
 {
 
-	return (get_ps_strings(curthread, p, sb, PROC_ENV, nchr));
+	return (get_ps_strings(curthread, p, sb, PROC_ENV));
 }
 
 /*
@@ -1728,7 +1727,7 @@ sysctl_kern_proc_args(SYSCTL_HANDLER_ARGS)
 		_PHOLD(p);
 		PROC_UNLOCK(p);
 		sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
-		error = proc_getargv(curthread, p, &sb, req->oldlen);
+		error = proc_getargv(curthread, p, &sb);
 		error2 = sbuf_finish(&sb);
 		PRELE(p);
 		sbuf_delete(&sb);
@@ -1780,7 +1779,7 @@ sysctl_kern_proc_env(SYSCTL_HANDLER_ARGS)
 	}
 
 	sbuf_new_for_sysctl(&sb, NULL, GET_PS_STRINGS_CHUNK_SZ, req);
-	error = proc_getenvv(curthread, p, &sb, req->oldlen);
+	error = proc_getenvv(curthread, p, &sb);
 	error2 = sbuf_finish(&sb);
 	PRELE(p);
 	sbuf_delete(&sb);
@@ -2373,7 +2372,7 @@ sysctl_kern_proc_groups(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * This sysctl allows a process to retrieve the resource limits for
+ * This sysctl allows a process to retrieve or/and set the resource limit for
  * another process.
  */
 static int
@@ -2381,30 +2380,53 @@ sysctl_kern_proc_rlimit(SYSCTL_HANDLER_ARGS)
 {
 	int *name = (int *)arg1;
 	u_int namelen = arg2;
-	struct plimit *limp;
+	struct rlimit rlim;
 	struct proc *p;
-	int error = 0;
+	u_int which;
+	int flags, error;
 
-	if (namelen != 1)
+	if (namelen != 2)
 		return (EINVAL);
 
-	error = pget((pid_t)name[0], PGET_CANSEE, &p);
+	which = (u_int)name[1];
+	if (which >= RLIM_NLIMITS)
+		return (EINVAL);
+
+	if (req->newptr != NULL && req->newlen != sizeof(rlim))
+		return (EINVAL);
+
+	flags = PGET_HOLD | PGET_NOTWEXIT;
+	if (req->newptr != NULL)
+		flags |= PGET_CANDEBUG;
+	else
+		flags |= PGET_CANSEE;
+	error = pget((pid_t)name[0], flags, &p);
 	if (error != 0)
 		return (error);
+
 	/*
-	 * Check the request size.  We alow sizes smaller rlimit array for
-	 * backward binary compatibility: the number of resource limits may
-	 * grow.
+	 * Retrieve limit.
 	 */
-	if (sizeof(limp->pl_rlimit) < req->oldlen) {
+	if (req->oldptr != NULL) {
+		PROC_LOCK(p);
+		lim_rlimit(p, which, &rlim);
 		PROC_UNLOCK(p);
-		return (EINVAL);
+	}
+	error = SYSCTL_OUT(req, &rlim, sizeof(rlim));
+	if (error != 0)
+		goto errout;
+
+	/*
+	 * Set limit.
+	 */
+	if (req->newptr != NULL) {
+		error = SYSCTL_IN(req, &rlim, sizeof(rlim));
+		if (error == 0)
+			error = kern_proc_setrlimit(curthread, p, which, &rlim);
 	}
 
-	limp = lim_hold(p->p_limit);
-	PROC_UNLOCK(p);
-	error = SYSCTL_OUT(req, limp->pl_rlimit, req->oldlen);
-	lim_free(limp);
+errout:
+	PRELE(p);
 	return (error);
 }
 
@@ -2486,13 +2508,11 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_ARGS, args,
 	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_args, "Process argument list");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
+static SYSCTL_NODE(_kern_proc, KERN_PROC_ENV, env, CTLFLAG_RD | CTLFLAG_MPSAFE,
 	sysctl_kern_proc_env, "Process environment");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_AUXV, auxv,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-	sysctl_kern_proc_auxv, "Process ELF auxiliary vector");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_AUXV, auxv, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_auxv, "Process ELF auxiliary vector");
 
 static SYSCTL_NODE(_kern_proc, KERN_PROC_PATHNAME, pathname, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_pathname, "Process executable path");
@@ -2545,9 +2565,10 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_KSTACK, kstack, CTLFLAG_RD |
 static SYSCTL_NODE(_kern_proc, KERN_PROC_GROUPS, groups, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_groups, "Process groups");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RD |
-	CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit, "Process resource limits");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_RLIMIT, rlimit, CTLFLAG_RW |
+	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_rlimit,
+	"Process resource limits");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings,
-	CTLFLAG_RW | CTLFLAG_ANYBODY | CTLFLAG_MPSAFE,
-	sysctl_kern_proc_ps_strings, "Process ps_strings location");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_ps_strings,
+	"Process ps_strings location");

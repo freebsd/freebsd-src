@@ -55,9 +55,10 @@ SRCS+=	pswalk.c psxface.c
 SRCS+=	rsaddr.c rscalc.c rscreate.c rsdump.c rsinfo.c rsio.c rsirq.c rslist.c
 SRCS+=	rsmemory.c rsmisc.c rsserial.c rsutils.c rsxface.c
 SRCS+=	tbfadt.c tbfind.c tbinstal.c tbutils.c tbxface.c tbxfroot.c
-SRCS+=	utalloc.c utcache.c utcopy.c utdebug.c utdecode.c utdelete.c uteval.c
-SRCS+=	utglobal.c utids.c utinit.c utlock.c utmath.c utmisc.c utmutex.c
-SRCS+=	utobject.c utosi.c utresrc.c utstate.c utxface.c utxferror.c
+SRCS+=	utaddress.c utalloc.c utcache.c utcopy.c utdebug.c utdecode.c
+SRCS+=	utdelete.c uteval.c utglobal.c utids.c utinit.c utlock.c utmath.c
+SRCS+=	utmisc.c utmutex.c utobject.c utosi.c utresrc.c utstate.c utxface.c
+SRCS+=	utxferror.c
 #SRCS+=	utxfmutex.c
 
 # OSPM layer and core hardware drivers

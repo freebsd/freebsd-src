@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,6 +45,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pmap.h>
 #include <machine/specialreg.h>
+#include <machine/md_var.h>
 
 #ifdef SMP
 #include <x86/apicreg.h>
@@ -67,11 +68,13 @@ extern int		acpi_reset_video;
 
 #ifdef SMP
 extern struct pcb	**susppcbs;
+extern void		**suspfpusave;
 #else
 static struct pcb	**susppcbs;
+static void		**suspfpusave;
 #endif
 
-int			acpi_restorecpu(vm_offset_t, struct pcb *);
+int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -105,6 +108,7 @@ acpi_wakeup_ap(struct acpi_softc *sc, int cpu)
 	int		ms;
 
 	WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[cpu]);
+	WAKECODE_FIXUP(wakeup_fpusave, void *, suspfpusave[cpu]);
 	WAKECODE_FIXUP(wakeup_gdt, uint16_t, susppcbs[cpu]->pcb_gdt.rd_limit);
 	WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
 	    susppcbs[cpu]->pcb_gdt.rd_base);
@@ -244,6 +248,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	load_cr3(KPML4phys);
 
 	if (savectx(susppcbs[0])) {
+		ctx_fpusave(suspfpusave[0]);
 #ifdef SMP
 		if (!CPU_EMPTY(&wakeup_cpus) &&
 		    suspend_cpus(wakeup_cpus) == 0) {
@@ -256,6 +261,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
+		WAKECODE_FIXUP(wakeup_fpusave, void *, suspfpusave[0]);
 		WAKECODE_FIXUP(wakeup_gdt, uint16_t,
 		    susppcbs[0]->pcb_gdt.rd_limit);
 		WAKECODE_FIXUP(wakeup_gdt + 2, uint64_t,
@@ -333,8 +339,11 @@ acpi_alloc_wakeup_handler(void)
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
-	for (i = 0; i < mp_ncpus; i++)
+	suspfpusave = malloc(mp_ncpus * sizeof(void *), M_DEVBUF, M_WAITOK);
+	for (i = 0; i < mp_ncpus; i++) {
 		susppcbs[i] = malloc(sizeof(**susppcbs), M_DEVBUF, M_WAITOK);
+		suspfpusave[i] = alloc_fpusave(M_WAITOK);
+	}
 
 	return (wakeaddr);
 }
@@ -377,6 +386,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_lstar, uint64_t, rdmsr(MSR_LSTAR));
 	WAKECODE_FIXUP(wakeup_cstar, uint64_t, rdmsr(MSR_CSTAR));
 	WAKECODE_FIXUP(wakeup_sfmask, uint64_t, rdmsr(MSR_SF_MASK));
+	WAKECODE_FIXUP(wakeup_xsmask, uint64_t, xsave_mask);
 
 	/* Build temporary page tables below realmode code. */
 	pt4 = wakeaddr;

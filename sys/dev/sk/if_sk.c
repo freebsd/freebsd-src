@@ -1350,7 +1350,6 @@ sk_attach(dev)
 	}
 	ifp->if_softc = sc_if;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	/*
 	 * SK_GENESIS has a bug in checksum offload - From linux.

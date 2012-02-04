@@ -483,7 +483,6 @@ nfssvc_call(struct thread *p, struct nfssvc_args *uap, struct ucred *cred)
 				newnfsstats.srvcache_nonidemdonehits = 0;
 				newnfsstats.srvcache_misses = 0;
 				newnfsstats.srvcache_tcppeak = 0;
-				newnfsstats.srvcache_size = 0;
 				newnfsstats.srvclients = 0;
 				newnfsstats.srvopenowners = 0;
 				newnfsstats.srvopens = 0;

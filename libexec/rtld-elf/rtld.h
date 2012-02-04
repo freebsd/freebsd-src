@@ -168,6 +168,9 @@ typedef struct Struct_Obj_Entry {
     size_t tlsoffset;		/* Offset of static TLS block for this module */
     size_t tlsalign;		/* Alignment of static TLS block */
 
+    caddr_t relro_page;
+    size_t relro_size;
+
     /* Items from the dynamic section. */
     Elf_Addr *pltgot;		/* PLT or GOT, depending on architecture */
     const Elf_Rel *rel;		/* Relocation entries */
@@ -238,7 +241,7 @@ typedef struct Struct_Obj_Entry {
     Objlist dagmembers;		/* DAG has these members (%) */
     dev_t dev;			/* Object's filesystem's device */
     ino_t ino;			/* Object's inode number */
-    void *priv;			/* Platform-dependant */
+    void *priv;			/* Platform-dependent */
 } Obj_Entry;
 
 #define RTLD_MAGIC	0xd550b87a

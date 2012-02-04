@@ -186,7 +186,8 @@ lem_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &adapter->tx_desc_base[l];
 			struct em_buffer *txbuf = &adapter->tx_buffer_area[l];
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
 					E1000_TXD_CMD_RS : 0;
@@ -204,10 +205,9 @@ lem_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			    htole32( adapter->txd_cmd | len |
 				(E1000_TXD_CMD_EOP | flags) );
 			if (slot->flags & NS_BUF_CHANGED) {
-				curr->buffer_addr = htole64(vtophys(addr));
+				curr->buffer_addr = htole64(paddr);
 				/* buffer has changed, reload map */
-				netmap_reload_map(adapter->txtag, txbuf->map,
-				    addr, na->buff_size);
+				netmap_reload_map(adapter->txtag, txbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 
@@ -314,7 +314,8 @@ lem_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_rx_desc *curr = &adapter->rx_desc_base[l];
 			struct em_buffer *rxbuf = &adapter->rx_buffer_area[l];
-			void *addr = NMB(slot);
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 
 			if (addr == netmap_buffer_base) { /* bad buf */
 				if (do_lock)
@@ -323,10 +324,9 @@ lem_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			}
 			curr->status = 0;
 			if (slot->flags & NS_BUF_CHANGED) {
-				curr->buffer_addr = htole64(vtophys(addr));
+				curr->buffer_addr = htole64(paddr);
 				/* buffer has changed, and reload map */
-				netmap_reload_map(adapter->rxtag, rxbuf->map,
-				    addr, na->buff_size);
+				netmap_reload_map(adapter->rxtag, rxbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
 

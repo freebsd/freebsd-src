@@ -163,7 +163,36 @@ cpu_fork(register struct thread *td1,register struct proc *p2,
 	td2->td_md.md_saved_intr = MIPS_SR_INT_IE;
 	td2->td_md.md_spinlock_count = 1;
 #ifdef CPU_CNMIPS
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	if (td1->td_md.md_flags & MDTD_COP2USED) {
+		if (td1->td_md.md_cop2owner == COP2_OWNER_USERLAND) {
+			if (td1->td_md.md_ucop2)
+				octeon_cop2_save(td1->td_md.md_ucop2);
+			else
+				panic("cpu_fork: ucop2 is NULL but COP2 is enabled");
+		}
+		else {
+			if (td1->td_md.md_cop2)
+				octeon_cop2_save(td1->td_md.md_cop2);
+			else
+				panic("cpu_fork: cop2 is NULL but COP2 is enabled");
+		}
+	}
+
+	if (td1->td_md.md_cop2) {
+		td2->td_md.md_cop2 = octeon_cop2_alloc_ctx();
+		memcpy(td2->td_md.md_cop2, td1->td_md.md_cop2, 
+			sizeof(*td1->td_md.md_cop2));
+	}
+	if (td1->td_md.md_ucop2) {
+		td2->td_md.md_ucop2 = octeon_cop2_alloc_ctx();
+		memcpy(td2->td_md.md_ucop2, td1->td_md.md_ucop2, 
+			sizeof(*td1->td_md.md_ucop2));
+	}
+	td2->td_md.md_cop2owner = td1->td_md.md_cop2owner;
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
+	/* Clear COP2 bits for userland & kernel */
+	td2->td_frame->sr &= ~MIPS_SR_COP_2_BIT;
+	pcb2->pcb_context[PCB_REG_SR] &= ~MIPS_SR_COP_2_BIT;
 #endif
 }
 
@@ -195,11 +224,27 @@ cpu_thread_exit(struct thread *td)
 
 	if (PCPU_GET(fpcurthread) == td)
 		PCPU_GET(fpcurthread) = (struct thread *)0;
+#ifdef  CPU_CNMIPS
+	if (td->td_md.md_cop2)
+		memset(td->td_md.md_cop2, 0,
+			sizeof(*td->td_md.md_cop2));
+	if (td->td_md.md_ucop2)
+		memset(td->td_md.md_ucop2, 0,
+			sizeof(*td->td_md.md_ucop2));
+#endif
 }
 
 void
 cpu_thread_free(struct thread *td)
 {
+#ifdef  CPU_CNMIPS
+	if (td->td_md.md_cop2)
+		octeon_cop2_free_ctx(td->td_md.md_cop2);
+	if (td->td_md.md_ucop2)
+		octeon_cop2_free_ctx(td->td_md.md_ucop2);
+	td->td_md.md_cop2 = NULL;
+	td->td_md.md_ucop2 = NULL;
+#endif
 }
 
 void
@@ -357,7 +402,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	    (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_INT_MASK);
 
 #ifdef CPU_CNMIPS
-	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_2_BIT | MIPS_SR_COP_0_BIT |
+	pcb2->pcb_context[PCB_REG_SR] |= MIPS_SR_COP_0_BIT |
 	  MIPS_SR_PX | MIPS_SR_UX | MIPS_SR_KX | MIPS_SR_SX;
 #endif
 

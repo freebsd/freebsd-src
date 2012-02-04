@@ -1,6 +1,35 @@
-/* $FreeBSD$ */
+/*-
+ * Copyright (c) 2011 LSI Corp.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ *
+ * LSI MPT-Fusion Host Adapter FreeBSD
+ *
+ * $FreeBSD$
+ */
+
 /*
- *  Copyright (c) 2000-2009 LSI Corporation.
+ *  Copyright (c) 2000-2011 LSI Corporation.
  *
  *
  *           Name:  mpi2.h
@@ -9,7 +38,7 @@
  *                  scatter/gather formats.
  *  Creation Date:  June 21, 2006
  *
- *  mpi2.h Version:  02.00.14
+ *  mpi2.h Version:  02.00.18
  *
  *  Version History
  *  ---------------
@@ -58,6 +87,15 @@
  *                      Added MSI-x index mask and shift for Reply Post Host
  *                      Index register.
  *                      Added function code for Host Based Discovery Action.
+ *  02-10-10  02.00.15  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added define for MPI2_FUNCTION_PWR_MGMT_CONTROL.
+ *                      Added defines for product-specific range of message
+ *                      function codes, 0xF0 to 0xFF.
+ *  05-12-10  02.00.16  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added alternative defines for the SGE Direction bit.
+ *  08-11-10  02.00.17  Bumped MPI2_HEADER_VERSION_UNIT.
+ *  11-10-10  02.00.18  Bumped MPI2_HEADER_VERSION_UNIT.
+ *                      Added MPI2_IEEE_SGE_FLAGS_SYSTEMPLBCPI_ADDR define.
  *  --------------------------------------------------------------------------
  */
 
@@ -83,7 +121,7 @@
 #define MPI2_VERSION_02_00                  (0x0200)
 
 /* versioning for this MPI header set */
-#define MPI2_HEADER_VERSION_UNIT            (0x0E)
+#define MPI2_HEADER_VERSION_UNIT            (0x12)
 #define MPI2_HEADER_VERSION_DEV             (0x00)
 #define MPI2_HEADER_VERSION_UNIT_MASK       (0xFF00)
 #define MPI2_HEADER_VERSION_UNIT_SHIFT      (8)
@@ -476,8 +514,6 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 /*****************************************************************************
 *
 *        Message Functions
-*              0x80 -> 0x8F reserved for private message use per product
-*
 *
 *****************************************************************************/
 
@@ -508,6 +544,9 @@ typedef union _MPI2_REPLY_DESCRIPTORS_UNION
 #define MPI2_FUNCTION_TARGET_CMD_BUF_LIST_POST      (0x25) /* Target Command Buffer Post List */
 #define MPI2_FUNCTION_RAID_ACCELERATOR              (0x2C) /* RAID Accelerator */
 #define MPI2_FUNCTION_HOST_BASED_DISCOVERY_ACTION   (0x2F) /* Host Based Discovery Action */
+#define MPI2_FUNCTION_PWR_MGMT_CONTROL              (0x30) /* Power Management Control */
+#define MPI2_FUNCTION_MIN_PRODUCT_SPECIFIC          (0xF0) /* beginning of product-specific range */
+#define MPI2_FUNCTION_MAX_PRODUCT_SPECIFIC          (0xFF) /* end of product-specific range */
 
 
 
@@ -922,6 +961,9 @@ typedef struct _MPI2_MPI_SGE_UNION
 #define MPI2_SGE_FLAGS_IOC_TO_HOST              (0x00)
 #define MPI2_SGE_FLAGS_HOST_TO_IOC              (0x04)
 
+#define MPI2_SGE_FLAGS_DEST                     (MPI2_SGE_FLAGS_IOC_TO_HOST)
+#define MPI2_SGE_FLAGS_SOURCE                   (MPI2_SGE_FLAGS_HOST_TO_IOC)
+
 /* Address Size */
 
 #define MPI2_SGE_FLAGS_32_BIT_ADDRESSING        (0x00)
@@ -1046,11 +1088,11 @@ typedef struct _MPI2_IEEE_SGE_UNION
 /* Data Location Address Space */
 
 #define MPI2_IEEE_SGE_FLAGS_ADDR_MASK           (0x03)
-#define MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR         (0x00)
-#define MPI2_IEEE_SGE_FLAGS_IOCDDR_ADDR         (0x01)
+#define MPI2_IEEE_SGE_FLAGS_SYSTEM_ADDR         (0x00) /* IEEE Simple Element only */
+#define MPI2_IEEE_SGE_FLAGS_IOCDDR_ADDR         (0x01) /* IEEE Simple Element only */
 #define MPI2_IEEE_SGE_FLAGS_IOCPLB_ADDR         (0x02)
-#define MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR      (0x03)
-
+#define MPI2_IEEE_SGE_FLAGS_IOCPLBNTA_ADDR      (0x03) /* IEEE Simple Element only */
+#define MPI2_IEEE_SGE_FLAGS_SYSTEMPLBCPI_ADDR   (0x03) /* IEEE Chain Element only */
 
 /****************************************************************************
 *  IEEE SGE operation Macros

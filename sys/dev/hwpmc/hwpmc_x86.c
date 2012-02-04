@@ -250,7 +250,7 @@ pmc_md_initialize()
 		return (NULL);
 
 	/* disallow sampling if we do not have an LAPIC */
-	if (!lapic_enable_pmc())
+	if (md != NULL && !lapic_enable_pmc())
 		for (i = 1; i < md->pmd_nclass; i++)
 			md->pmd_classdep[i].pcd_caps &= ~PMC_CAP_INTERRUPT;
 

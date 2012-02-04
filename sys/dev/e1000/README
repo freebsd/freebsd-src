@@ -354,6 +354,7 @@ Known Limitations
   include:
         Planex FXG-08TE
         I-O Data ETG-SH8
+        Netgear GS105v3
 
   The driver can be compiled with the following changes:
 

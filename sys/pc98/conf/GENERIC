@@ -214,7 +214,7 @@ device		xe		# Xircom pccard Ethernet
 #device		wlan		# 802.11 support
 #options 	IEEE80211_DEBUG	# enable debug msgs
 #options 	IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
-#options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
+options 	IEEE80211_SUPPORT_MESH	# enable 802.11s draft support
 #device		wlan_wep	# 802.11 WEP support
 #device		wlan_ccmp	# 802.11 CCMP support
 #device		wlan_tkip	# 802.11 TKIP support
@@ -223,7 +223,7 @@ device		xe		# Xircom pccard Ethernet
 #device		ath		# Atheros NIC's
 #device		ath_pci		# Atheros pci/cardbus glue
 #device		ath_hal		# pci/cardbus chip support
-#options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
+options 	AH_SUPPORT_AR5416	# enable AR5416 tx/rx descriptors
 #device		ath_rate_sample	# SampleRate tx rate control for ath
 #device		ral		# Ralink Technology RT2500 wireless NICs.
 #device		wi		# WaveLAN/Intersil/Symbol 802.11 wireless NICs.

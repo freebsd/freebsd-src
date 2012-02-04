@@ -38,7 +38,6 @@ __FBSDID("$FreeBSD$");
  * Socket operations for use by nfs
  */
 
-#include "opt_inet6.h"
 #include "opt_kdtrace.h"
 #include "opt_kgssapi.h"
 #include "opt_nfs.h"
@@ -473,7 +472,7 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 {
 	u_int32_t *tl;
 	time_t waituntil;
-	int i, j, set_uid = 0, set_sigset = 0, timeo;
+	int i, j, set_sigset = 0, timeo;
 	int trycnt, error = 0, usegssname = 0, secflavour = AUTH_SYS;
 	u_int16_t procnum;
 	u_int trylater_delay = 1;
@@ -484,8 +483,8 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 	enum clnt_stat stat;
 	struct nfsreq *rep = NULL;
 	char *srv_principal = NULL;
-	uid_t saved_uid = (uid_t)-1;
 	sigset_t oldset;
+	struct ucred *authcred;
 
 	if (xidp != NULL)
 		*xidp = 0;
@@ -494,6 +493,14 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		m_freem(nd->nd_mreq);
 		return (ESTALE);
 	}
+
+	/*
+	 * Set authcred, which is used to acquire RPC credentials to
+	 * the cred argument, by default. The crhold() should not be
+	 * necessary, but will ensure that some future code change
+	 * doesn't result in the credential being free'd prematurely.
+	 */
+	authcred = crhold(cred);
 
 	/* For client side interruptible mounts, mask off the signals. */
 	if (nmp != NULL && td != NULL && NFSHASINT(nmp)) {
@@ -533,13 +540,16 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			/*
 			 * If there is a client side host based credential,
 			 * use that, otherwise use the system uid, if set.
+			 * The system uid is in the nmp->nm_sockreq.nr_cred
+			 * credentials.
 			 */
 			if (nmp->nm_krbnamelen > 0) {
 				usegssname = 1;
 			} else if (nmp->nm_uid != (uid_t)-1) {
-				saved_uid = cred->cr_uid;
-				cred->cr_uid = nmp->nm_uid;
-				set_uid = 1;
+				KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+				    ("newnfs_request: NULL nr_cred"));
+				crfree(authcred);
+				authcred = crhold(nmp->nm_sockreq.nr_cred);
 			}
 		} else if (nmp->nm_krbnamelen == 0 &&
 		    nmp->nm_uid != (uid_t)-1 && cred->cr_uid == (uid_t)0) {
@@ -548,10 +558,13 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 			 * the system uid is set and this is root, use the
 			 * system uid, since root won't have user
 			 * credentials in a credentials cache file.
+			 * The system uid is in the nmp->nm_sockreq.nr_cred
+			 * credentials.
 			 */
-			saved_uid = cred->cr_uid;
-			cred->cr_uid = nmp->nm_uid;
-			set_uid = 1;
+			KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+			    ("newnfs_request: NULL nr_cred"));
+			crfree(authcred);
+			authcred = crhold(nmp->nm_sockreq.nr_cred);
 		}
 		if (NFSHASINTEGRITY(nmp))
 			secflavour = RPCSEC_GSS_KRB5I;
@@ -567,13 +580,13 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		 * Use the uid that did the mount when the RPC is doing
 		 * NFSv4 system operations, as indicated by the
 		 * ND_USEGSSNAME flag, for the AUTH_SYS case.
+		 * The credentials in nm_sockreq.nr_cred were used for the
+		 * mount.
 		 */
-		saved_uid = cred->cr_uid;
-		if (nmp->nm_uid != (uid_t)-1)
-			cred->cr_uid = nmp->nm_uid;
-		else
-			cred->cr_uid = 0;
-		set_uid = 1;
+		KASSERT(nmp->nm_sockreq.nr_cred != NULL,
+		    ("newnfs_request: NULL nr_cred"));
+		crfree(authcred);
+		authcred = crhold(nmp->nm_sockreq.nr_cred);
 	}
 
 	if (nmp != NULL) {
@@ -589,12 +602,11 @@ newnfs_request(struct nfsrv_descript *nd, struct nfsmount *nmp,
 		auth = authnone_create();
 	else if (usegssname)
 		auth = nfs_getauth(nrp, secflavour, nmp->nm_krbname,
-		    srv_principal, NULL, cred);
+		    srv_principal, NULL, authcred);
 	else
 		auth = nfs_getauth(nrp, secflavour, NULL,
-		    srv_principal, NULL, cred);
-	if (set_uid)
-		cred->cr_uid = saved_uid;
+		    srv_principal, NULL, authcred);
+	crfree(authcred);
 	if (auth == NULL) {
 		m_freem(nd->nd_mreq);
 		if (set_sigset)

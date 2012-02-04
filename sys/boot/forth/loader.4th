@@ -44,9 +44,20 @@ include /boot/support.4th
 only forth also support-functions also builtins definitions
 
 : try-menu-unset
+  \ menu-unset may not be present
+  s" beastie_disable" getenv
+  dup -1 <> if
+    s" YES" compare-insensitive 0= if
+      exit
+    then
+  else
+    drop
+  then
   s" menu-unset"
-  ['] evaluate catch if
-    2drop
+  sfind if
+    execute
+  else
+    drop
   then
 ;
 

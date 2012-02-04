@@ -2136,7 +2136,6 @@ bxe_attach(device_t dev)
 #endif
 
 	ifp->if_init = bxe_init;
-	ifp->if_mtu = ETHERMTU;
 	ifp->if_hwassist = BXE_IF_HWASSIST;
 	ifp->if_capabilities = BXE_IF_CAPABILITIES;
 	/* TPA not enabled by default. */

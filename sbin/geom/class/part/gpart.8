@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 21, 2011
+.Dd January 8, 2012
 .Dt GPART 8
 .Os
 .Sh NAME
@@ -33,7 +33,7 @@
 .Sh SYNOPSIS
 To add support for the disk partitioning GEOM class,
 place one or more of the following
-lines in your kernel configuration file:
+lines in the kernel configuration file:
 .Bd -ragged -offset indent
 .Cd "options GEOM_PART_APM"
 .Cd "options GEOM_PART_BSD"
@@ -48,7 +48,8 @@ lines in your kernel configuration file:
 These options provide support for the various types of partitioning
 schemes supported by the
 .Ns Nm
-utility.  See
+utility.
+See
 .Sx "PARTITIONING SCHEMES"
 below for more details.
 .Pp
@@ -410,13 +411,13 @@ about its use.
 .El
 .\" ==== RESTORE ====
 .It Cm restore
-Restore the partition table from backup previously created by
+Restore the partition table from a backup previously created by the
 .Cm backup
-action and given from standard input.
-Only partition table may be restored.
-This action does not affect content of partitions.
-This mean that you should copy your data from backup after restoring
-partition table and write bootcode again if it is needed.
+action and read from standard input.
+Only the partition table is restored.
+This action does not affect the content of partitions.
+After restoring the partition table and writing bootcode if needed,
+user data must be restored from backup.
 .Pp
 Additional options include:
 .Bl -tag -width 10n
@@ -502,8 +503,8 @@ Traditional BSD disklabel, usually used to subdivide MBR partitions.
 .Po
 This scheme can also be used as the sole partitioning method, without
 an MBR.
-Partition editing tools from other operating systems often do not 
-understand the bare disklabel partition layout, so this is sometimes 
+Partition editing tools from other operating systems often do not
+understand the bare disklabel partition layout, so this is sometimes
 called
 .Dq dangerously dedicated .
 .Pc
@@ -959,17 +960,21 @@ partition that can boot
 from a
 .Cm freebsd-ufs
 partition, and install bootstrap code into it.
-This partition must be larger than
-.Pa /boot/gptboot ,
-or the GPT boot you are planning to write, but smaller than 545 KB.
-A size of 15 blocks (7680 bytes) would be sufficient for
-booting from UFS but 128 blocks (64 KB) is used in
-this example to reserve some space for potential
-future need (e.g.\& a larger
+This partition must be larger than the bootstrap code
+.Po
+usually either
+.Pa /boot/gptboot
+or
 .Pa /boot/gptzfsboot
-for booting from a ZFS partition).
+.Pc ,
+but smaller than 545 kB since the first-stage loader will load the
+entire partition into memory during boot, regardless of how much data
+it actually contains.
+This example uses 94 blocks (47 kB) so the next partition will be
+aligned on a 64 kB boundary without the need to specify an explicit
+offset or alignment.
 .Bd -literal -offset indent
-/sbin/gpart add -b 34 -s 128 -t freebsd-boot ad0
+/sbin/gpart add -b 34 -s 94 -t freebsd-boot ad0
 /sbin/gpart bootcode -p /boot/gptboot -i 1 ad0
 .Ed
 .Pp
@@ -977,7 +982,7 @@ Create a 512MB-sized
 .Cm freebsd-ufs
 partition to contain a UFS filesystem from which the system can boot.
 .Bd -literal -offset indent
-/sbin/gpart add -b 162 -s 1048576 -t freebsd-ufs ad0
+/sbin/gpart add -s 512M -t freebsd-ufs ad0
 .Ed
 .Pp
 Create an MBR scheme on

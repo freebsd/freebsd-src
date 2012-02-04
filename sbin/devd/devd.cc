@@ -298,7 +298,6 @@ media::media(config &, const char *var, const char *type)
 		{ IFM_FDDI,		"FDDI" },
 		{ IFM_IEEE80211,	"802.11" },
 		{ IFM_ATM,		"ATM" },
-		{ IFM_CARP,		"CARP" },
 		{ -1,			"unknown" },
 		{ 0, NULL },
 	};

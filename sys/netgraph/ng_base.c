@@ -50,6 +50,7 @@
 #include <sys/kernel.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
+#include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
 #include <sys/queue.h>
@@ -57,6 +58,7 @@
 #include <sys/syslog.h>
 #include <sys/refcount.h>
 #include <sys/proc.h>
+#include <sys/rwlock.h>
 #include <sys/unistd.h>
 #include <sys/kthread.h>
 #include <sys/smp.h>
@@ -163,19 +165,28 @@ static struct mtx	ng_worklist_mtx;   /* MUST LOCK NODE FIRST */
 
 /* List of installed types */
 static LIST_HEAD(, ng_type) ng_typelist;
-static struct mtx	ng_typelist_mtx;
+static struct rwlock	ng_typelist_lock;
+#define	TYPELIST_RLOCK()	rw_rlock(&ng_typelist_lock)
+#define	TYPELIST_RUNLOCK()	rw_runlock(&ng_typelist_lock)
+#define	TYPELIST_WLOCK()	rw_wlock(&ng_typelist_lock)
+#define	TYPELIST_WUNLOCK()	rw_wunlock(&ng_typelist_lock)
 
 /* Hash related definitions */
 /* XXX Don't need to initialise them because it's a LIST */
 static VNET_DEFINE(LIST_HEAD(, ng_node), ng_ID_hash[NG_ID_HASH_SIZE]);
 #define	V_ng_ID_hash			VNET(ng_ID_hash)
 
-static struct mtx	ng_idhash_mtx;
+static struct rwlock	ng_idhash_lock;
+#define	IDHASH_RLOCK()		rw_rlock(&ng_idhash_lock)
+#define	IDHASH_RUNLOCK()	rw_runlock(&ng_idhash_lock)
+#define	IDHASH_WLOCK()		rw_wlock(&ng_idhash_lock)
+#define	IDHASH_WUNLOCK()	rw_wunlock(&ng_idhash_lock)
+
 /* Method to find a node.. used twice so do it here */
 #define NG_IDHASH_FN(ID) ((ID) % (NG_ID_HASH_SIZE))
 #define NG_IDHASH_FIND(ID, node)					\
 	do { 								\
-		mtx_assert(&ng_idhash_mtx, MA_OWNED);			\
+		rw_assert(&ng_idhash_lock, RA_LOCKED);			\
 		LIST_FOREACH(node, &V_ng_ID_hash[NG_IDHASH_FN(ID)],	\
 						nd_idnodes) {		\
 			if (NG_NODE_IS_VALID(node)			\
@@ -188,7 +199,6 @@ static struct mtx	ng_idhash_mtx;
 static VNET_DEFINE(LIST_HEAD(, ng_node), ng_name_hash[NG_NAME_HASH_SIZE]);
 #define	V_ng_name_hash			VNET(ng_name_hash)
 
-static struct mtx	ng_namehash_mtx;
 #define NG_NAMEHASH(NAME, HASH)				\
 	do {						\
 		u_char	h = 0;				\
@@ -198,6 +208,11 @@ static struct mtx	ng_namehash_mtx;
 		(HASH) = h % (NG_NAME_HASH_SIZE);	\
 	} while (0)
 
+static struct rwlock	ng_namehash_lock;
+#define	NAMEHASH_RLOCK()	rw_rlock(&ng_namehash_lock)
+#define	NAMEHASH_RUNLOCK()	rw_runlock(&ng_namehash_lock)
+#define	NAMEHASH_WLOCK()	rw_wlock(&ng_namehash_lock)
+#define	NAMEHASH_WUNLOCK()	rw_wunlock(&ng_namehash_lock)
 
 /* Internal functions */
 static int	ng_add_hook(node_p node, const char *name, hook_p * hookp);
@@ -650,12 +665,12 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	LIST_INIT(&node->nd_hooks);
 
 	/* Link us into the name hash. */
-	mtx_lock(&ng_namehash_mtx);
+	NAMEHASH_WLOCK();
 	LIST_INSERT_HEAD(&V_ng_name_hash[0], node, nd_nodes);
-	mtx_unlock(&ng_namehash_mtx);
+	NAMEHASH_WUNLOCK();
 
 	/* get an ID and put us in the hash chain */
-	mtx_lock(&ng_idhash_mtx);
+	IDHASH_WLOCK();
 	for (;;) { /* wrap protection, even if silly */
 		node_p node2 = NULL;
 		node->nd_ID = V_nextID++; /* 137/sec for 1 year before wrap */
@@ -668,7 +683,7 @@ ng_make_node_common(struct ng_type *type, node_p *nodepp)
 	}
 	LIST_INSERT_HEAD(&V_ng_ID_hash[NG_IDHASH_FN(node->nd_ID)], node,
 	    nd_idnodes);
-	mtx_unlock(&ng_idhash_mtx);
+	IDHASH_WUNLOCK();
 
 	/* Done */
 	*nodepp = node;
@@ -780,14 +795,14 @@ ng_unref_node(node_p node)
 
 	if (refcount_release(&node->nd_refs)) { /* we were the last */
 
-		mtx_lock(&ng_namehash_mtx);
 		node->nd_type->refs--; /* XXX maybe should get types lock? */
+		NAMEHASH_WLOCK();
 		LIST_REMOVE(node, nd_nodes);
-		mtx_unlock(&ng_namehash_mtx);
+		NAMEHASH_WUNLOCK();
 
-		mtx_lock(&ng_idhash_mtx);
+		IDHASH_WLOCK();
 		LIST_REMOVE(node, nd_idnodes);
-		mtx_unlock(&ng_idhash_mtx);
+		IDHASH_WUNLOCK();
 
 		mtx_destroy(&node->nd_input_queue.q_mtx);
 		NG_FREE_NODE(node);
@@ -801,11 +816,11 @@ static node_p
 ng_ID2noderef(ng_ID_t ID)
 {
 	node_p node;
-	mtx_lock(&ng_idhash_mtx);
+	IDHASH_RLOCK();
 	NG_IDHASH_FIND(ID, node);
 	if(node)
 		NG_NODE_REF(node);
-	mtx_unlock(&ng_idhash_mtx);
+	IDHASH_RUNLOCK();
 	return(node);
 }
 
@@ -854,10 +869,10 @@ ng_name_node(node_p node, const char *name)
 
 	/* Update name hash. */
 	NG_NAMEHASH(name, hash);
-	mtx_lock(&ng_namehash_mtx);
+	NAMEHASH_WLOCK();
 	LIST_REMOVE(node, nd_nodes);
 	LIST_INSERT_HEAD(&V_ng_name_hash[hash], node, nd_nodes);
-	mtx_unlock(&ng_namehash_mtx);
+	NAMEHASH_WUNLOCK();
 
 	return (0);
 }
@@ -892,16 +907,15 @@ ng_name2noderef(node_p here, const char *name)
 
 	/* Find node by name */
 	NG_NAMEHASH(name, hash);
-	mtx_lock(&ng_namehash_mtx);
-	LIST_FOREACH(node, &V_ng_name_hash[hash], nd_nodes) {
+	NAMEHASH_RLOCK();
+	LIST_FOREACH(node, &V_ng_name_hash[hash], nd_nodes)
 		if (NG_NODE_IS_VALID(node) &&
 		    (strcmp(NG_NODE_NAME(node), name) == 0)) {
+			NG_NODE_REF(node);
 			break;
 		}
-	}
-	if (node)
-		NG_NODE_REF(node);
-	mtx_unlock(&ng_namehash_mtx);
+	NAMEHASH_RUNLOCK();
+
 	return (node);
 }
 
@@ -1190,10 +1204,10 @@ ng_newtype(struct ng_type *tp)
 
 
 	/* Link in new type */
-	mtx_lock(&ng_typelist_mtx);
+	TYPELIST_WLOCK();
 	LIST_INSERT_HEAD(&ng_typelist, tp, types);
 	tp->refs = 1;	/* first ref is linked list */
-	mtx_unlock(&ng_typelist_mtx);
+	TYPELIST_WUNLOCK();
 	return (0);
 }
 
@@ -1211,9 +1225,9 @@ ng_rmtype(struct ng_type *tp)
 	}
 
 	/* Unlink type */
-	mtx_lock(&ng_typelist_mtx);
+	TYPELIST_WLOCK();
 	LIST_REMOVE(tp, types);
-	mtx_unlock(&ng_typelist_mtx);
+	TYPELIST_WUNLOCK();
 	return (0);
 }
 
@@ -1225,12 +1239,12 @@ ng_findtype(const char *typename)
 {
 	struct ng_type *type;
 
-	mtx_lock(&ng_typelist_mtx);
+	TYPELIST_RLOCK();
 	LIST_FOREACH(type, &ng_typelist, types) {
 		if (strcmp(type->name, typename) == 0)
 			break;
 	}
-	mtx_unlock(&ng_typelist_mtx);
+	TYPELIST_RUNLOCK();
 	return (type);
 }
 
@@ -2568,7 +2582,7 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		node_p node;
 		int num = 0, i;
 
-		mtx_lock(&ng_namehash_mtx);
+		NAMEHASH_RLOCK();
 		/* Count number of nodes */
 		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
 			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
@@ -2578,12 +2592,12 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 				}
 			}
 		}
-		mtx_unlock(&ng_namehash_mtx);
 
 		/* Get response struct */
 		NG_MKRESPONSE(resp, msg, sizeof(*nl) +
 		    (num * sizeof(struct nodeinfo)), M_NOWAIT);
 		if (resp == NULL) {
+			NAMEHASH_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -2591,7 +2605,6 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Cycle through the linked list of nodes */
 		nl->numnames = 0;
-		mtx_lock(&ng_namehash_mtx);
 		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
 			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
 				struct nodeinfo *const np =
@@ -2601,20 +2614,17 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 					continue;
 				if (!unnamed && (! NG_NODE_HAS_NAME(node)))
 					continue;
-				if (nl->numnames >= num) {
-					log(LOG_ERR, "%s: number of nodes changed\n",
-					    __func__);
-					break;
-				}
 				if (NG_NODE_HAS_NAME(node))
 					strcpy(np->name, NG_NODE_NAME(node));
 				strcpy(np->type, node->nd_type->name);
 				np->id = ng_node2ID(node);
 				np->hooks = node->nd_numhooks;
+				KASSERT(nl->numnames < num, ("%s: no space",
+				    __func__));
 				nl->numnames++;
 			}
 		}
-		mtx_unlock(&ng_namehash_mtx);
+		NAMEHASH_RUNLOCK();
 		break;
 	    }
 
@@ -2624,17 +2634,16 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 		struct ng_type *type;
 		int num = 0;
 
-		mtx_lock(&ng_typelist_mtx);
+		TYPELIST_RLOCK();
 		/* Count number of types */
-		LIST_FOREACH(type, &ng_typelist, types) {
+		LIST_FOREACH(type, &ng_typelist, types)
 			num++;
-		}
-		mtx_unlock(&ng_typelist_mtx);
 
 		/* Get response struct */
 		NG_MKRESPONSE(resp, msg, sizeof(*tl) +
 		    (num * sizeof(struct typeinfo)), M_NOWAIT);
 		if (resp == NULL) {
+			TYPELIST_RUNLOCK();
 			error = ENOMEM;
 			break;
 		}
@@ -2642,20 +2651,15 @@ ng_generic_msg(node_p here, item_p item, hook_p lasthook)
 
 		/* Cycle through the linked list of types */
 		tl->numtypes = 0;
-		mtx_lock(&ng_typelist_mtx);
 		LIST_FOREACH(type, &ng_typelist, types) {
 			struct typeinfo *const tp = &tl->typeinfo[tl->numtypes];
 
-			if (tl->numtypes >= num) {
-				log(LOG_ERR, "%s: number of %s changed\n",
-				    __func__, "types");
-				break;
-			}
 			strcpy(tp->type_name, type->name);
 			tp->numnodes = type->refs - 1; /* don't count list */
+			KASSERT(tl->numtypes < num, ("%s: no space", __func__));
 			tl->numtypes++;
 		}
-		mtx_unlock(&ng_typelist_mtx);
+		TYPELIST_RUNLOCK();
 		break;
 	    }
 
@@ -2989,10 +2993,10 @@ ng_mod_event(module_t mod, int event, void *data)
 		/* Call type specific code */
 		if (type->mod_event != NULL)
 			if ((error = (*type->mod_event)(mod, event, data))) {
-				mtx_lock(&ng_typelist_mtx);
+				TYPELIST_WLOCK();
 				type->refs--;	/* undo it */
 				LIST_REMOVE(type, types);
-				mtx_unlock(&ng_typelist_mtx);
+				TYPELIST_WUNLOCK();
 			}
 		break;
 
@@ -3007,9 +3011,9 @@ ng_mod_event(module_t mod, int event, void *data)
 				if (error != 0)	/* type refuses.. */
 					break;
 			}
-			mtx_lock(&ng_typelist_mtx);
+			TYPELIST_WLOCK();
 			LIST_REMOVE(type, types);
-			mtx_unlock(&ng_typelist_mtx);
+			TYPELIST_WUNLOCK();
 		}
 		break;
 
@@ -3032,7 +3036,7 @@ vnet_netgraph_uninit(const void *unused __unused)
 
 	do {
 		/* Find a node to kill */
-		mtx_lock(&ng_namehash_mtx);
+		NAMEHASH_RLOCK();
 		for (i = 0; i < NG_NAME_HASH_SIZE; i++) {
 			LIST_FOREACH(node, &V_ng_name_hash[i], nd_nodes) {
 				if (node != &ng_deadnode) {
@@ -3043,7 +3047,7 @@ vnet_netgraph_uninit(const void *unused __unused)
 			if (node != NULL)
 				break;
 		}
-		mtx_unlock(&ng_namehash_mtx);
+		NAMEHASH_RUNLOCK();
 
 		/* Attempt to kill it only if it is a regular node */
 		if (node != NULL) {
@@ -3081,12 +3085,9 @@ ngb_mod_event(module_t mod, int event, void *data)
 	case MOD_LOAD:
 		/* Initialize everything. */
 		NG_WORKLIST_LOCK_INIT();
-		mtx_init(&ng_typelist_mtx, "netgraph types mutex", NULL,
-		    MTX_DEF);
-		mtx_init(&ng_idhash_mtx, "netgraph idhash mutex", NULL,
-		    MTX_DEF);
-		mtx_init(&ng_namehash_mtx, "netgraph namehash mutex", NULL,
-		    MTX_DEF);
+		rw_init(&ng_typelist_lock, "netgraph types");
+		rw_init(&ng_idhash_lock, "netgraph idhash");
+		rw_init(&ng_namehash_lock, "netgraph namehash");
 		mtx_init(&ng_topo_mtx, "netgraph topology mutex", NULL,
 		    MTX_DEF);
 #ifdef	NETGRAPH_DEBUG

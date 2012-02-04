@@ -255,7 +255,9 @@ rewrite(FS *fs)
 					sokay = NOTOKAY;
 			}
 
-			p2 = p1 + 1;		/* Set end pointer. */
+			p2 = *p1 ? p1 + 1 : p1;	/* Set end pointer -- make sure
+						 * that it's non-NUL/-NULL first
+						 * though. */
 			cs[0] = *p1;		/* Set conversion string. */
 			cs[1] = '\0';
 
@@ -449,13 +451,14 @@ escape(char *p1)
 	char *p2;
 
 	/* alphabetic escape sequences have to be done in place */
-	for (p2 = p1;; ++p1, ++p2) {
-		if (!*p1) {
-			*p2 = *p1;
-			break;
-		}
-		if (*p1 == '\\')
-			switch(*++p1) {
+	for (p2 = p1;; p1++, p2++) {
+		if (*p1 == '\\') {
+			p1++;
+			switch(*p1) {
+			case '\0':
+				*p2 = '\\';
+				*++p2 = '\0';
+				return;
 			case 'a':
 			     /* *p2 = '\a'; */
 				*p2 = '\007';
@@ -482,6 +485,11 @@ escape(char *p1)
 				*p2 = *p1;
 				break;
 			}
+		} else {
+			*p2 = *p1;
+			if (*p1 == '\0')
+				return;
+		}
 	}
 }
 

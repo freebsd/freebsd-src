@@ -6,7 +6,7 @@
  *****************************************************************************/
 
 /*
- * Copyright (C) 2000 - 2011, Intel Corp.
+ * Copyright (C) 2000 - 2012, Intel Corp.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -879,6 +879,10 @@ AslCommandLine (
     if (Gbl_DoSignon)
     {
         printf (ACPI_COMMON_SIGNON (ASL_COMPILER_NAME));
+        if (Gbl_IgnoreErrors)
+        {
+            printf ("Ignoring all errors, forcing AML file generation\n\n");
+        }
     }
 
     /* Abort if anything went wrong on the command line */

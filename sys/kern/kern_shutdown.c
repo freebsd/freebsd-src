@@ -123,7 +123,7 @@ SYSCTL_INT(_kern, OID_AUTO, sync_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
 	&sync_on_panic, 0, "Do a sync before rebooting from a panic");
 TUNABLE_INT("kern.sync_on_panic", &sync_on_panic);
 
-static int stop_scheduler_on_panic = 0;
+static int stop_scheduler_on_panic = 1;
 SYSCTL_INT(_kern, OID_AUTO, stop_scheduler_on_panic, CTLFLAG_RW | CTLFLAG_TUN,
     &stop_scheduler_on_panic, 0, "stop scheduler upon entering panic");
 TUNABLE_INT("kern.stop_scheduler_on_panic", &stop_scheduler_on_panic);
@@ -145,7 +145,6 @@ SYSCTL_INT(_kern_shutdown, OID_AUTO, show_busybufs, CTLFLAG_RW,
  */
 const char *panicstr;
 
-int stop_scheduler;			/* system stopped CPUs for panic */
 int dumping;				/* system is dumping */
 int rebooting;				/* system is rebooting */
 static struct dumperinfo dumper;	/* our selected dumper */
@@ -597,7 +596,7 @@ panic(const char *fmt, ...)
 		 * stop_scheduler_on_panic is true, then stop_scheduler will
 		 * always be set.  Even if panic has been entered from kdb.
 		 */
-		stop_scheduler = 1;
+		td->td_stopsched = 1;
 	}
 #endif
 

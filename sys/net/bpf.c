@@ -2253,33 +2253,42 @@ bpfdetach(struct ifnet *ifp)
 {
 	struct bpf_if	*bp;
 	struct bpf_d	*d;
+#ifdef INVARIANTS
+	int ndetached;
 
-	/* Locate BPF interface information */
-	mtx_lock(&bpf_mtx);
-	LIST_FOREACH(bp, &bpf_iflist, bif_next) {
-		if (ifp == bp->bif_ifp)
-			break;
-	}
+	ndetached = 0;
+#endif
 
-	/* Interface wasn't attached */
-	if ((bp == NULL) || (bp->bif_ifp == NULL)) {
+	/* Find all bpf_if struct's which reference ifp and detach them. */
+	do {
+		mtx_lock(&bpf_mtx);
+		LIST_FOREACH(bp, &bpf_iflist, bif_next) {
+			if (ifp == bp->bif_ifp)
+				break;
+		}
+		if (bp != NULL)
+			LIST_REMOVE(bp, bif_next);
 		mtx_unlock(&bpf_mtx);
+
+		if (bp != NULL) {
+#ifdef INVARIANTS
+			ndetached++;
+#endif
+			while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
+				bpf_detachd(d);
+				BPFD_LOCK(d);
+				bpf_wakeup(d);
+				BPFD_UNLOCK(d);
+			}
+			mtx_destroy(&bp->bif_mtx);
+			free(bp, M_BPF);
+		}
+	} while (bp != NULL);
+
+#ifdef INVARIANTS
+	if (ndetached == 0)
 		printf("bpfdetach: %s was not attached\n", ifp->if_xname);
-		return;
-	}
-
-	LIST_REMOVE(bp, bif_next);
-	mtx_unlock(&bpf_mtx);
-
-	while ((d = LIST_FIRST(&bp->bif_dlist)) != NULL) {
-		bpf_detachd(d);
-		BPFD_LOCK(d);
-		bpf_wakeup(d);
-		BPFD_UNLOCK(d);
-	}
-
-	mtx_destroy(&bp->bif_mtx);
-	free(bp, M_BPF);
+#endif
 }
 
 /*

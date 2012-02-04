@@ -33,6 +33,7 @@ SUBDIR=	alias \
 	compress \
 	cpuset \
 	csplit \
+	ctlstat \
 	cut \
 	dirname \
 	du \
@@ -339,7 +340,6 @@ SUBDIR+=	usbhidctl
 SUBDIR+=	last
 SUBDIR+=	users
 SUBDIR+=	who
-SUBDIR+=	wtmpcvt
 .endif
 
 .include <bsd.arch.inc.mk>

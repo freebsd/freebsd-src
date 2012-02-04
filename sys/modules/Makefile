@@ -2,6 +2,9 @@
 
 .include <bsd.own.mk>
 
+# Modules that include binary-only blobs of microcode should be selectable by
+# MK_SOURCELESS_UCODE option (see below).
+
 SUBDIR=	${_3dfx} \
 	${_3dfx_linux} \
 	${_aac} \
@@ -36,7 +39,7 @@ SUBDIR=	${_3dfx} \
 	ath \
 	ath_pci \
 	${_auxio} \
-	bce \
+	${_bce} \
 	bfe \
 	bge \
 	${_bxe} \
@@ -95,13 +98,13 @@ SUBDIR=	${_3dfx} \
 	${_ex} \
 	${_exca} \
 	${_ext2fs} \
-	fatm \
+	${_fatm} \
 	fdc \
 	fdescfs \
 	${_fe} \
 	firewire \
 	firmware \
-	fxp \
+	${_fxp} \
 	gem \
 	geom \
 	${_glxiic} \
@@ -136,7 +139,7 @@ SUBDIR=	${_3dfx} \
 	${_igb} \
 	${_iir} \
 	${_io} \
-	ipdivert \
+	${_ipdivert} \
 	${_ipfilter} \
 	${_ipfw} \
 	ipfw_nat \
@@ -145,9 +148,10 @@ SUBDIR=	${_3dfx} \
 	${_ips} \
 	${_ipw} \
 	${_ipwfw} \
+	${_isci} \
 	iscsi \
 	isp \
-	ispfw \
+	${_ispfw} \
 	${_iwi} \
 	${_iwifw} \
 	${_iwn} \
@@ -208,7 +212,7 @@ SUBDIR=	${_3dfx} \
 	${_mthca} \
 	mvs \
 	mwl \
-	mwlfw \
+	${_mwlfw} \
 	mxge \
 	my \
 	${_ncp} \
@@ -258,14 +262,14 @@ SUBDIR=	${_3dfx} \
 	puc \
 	${_qlxgb} \
 	ral \
-	ralfw \
+	${_ralfw} \
 	${_random} \
 	rc4 \
 	${_rdma} \
 	re \
 	reiserfs \
 	rl \
-	runfw \
+	${_runfw} \
 	${_s3} \
 	${_safe} \
 	${_sbni} \
@@ -275,7 +279,7 @@ SUBDIR=	${_3dfx} \
 	sdhci \
 	sem \
 	send \
-	sf \
+	${_sf} \
 	${_sfxge} \
 	sge \
 	siba_bwn \
@@ -284,7 +288,7 @@ SUBDIR=	${_3dfx} \
 	sis \
 	sk \
 	${_smbfs} \
-	sn \
+	${_sn} \
 	${_snc} \
 	snp \
 	${_sound} \
@@ -299,7 +303,7 @@ SUBDIR=	${_3dfx} \
 	${_sym} \
 	${_syscons} \
 	sysvipc \
-	ti \
+	${_ti} \
 	tl \
 	tmpfs \
 	${_tpm} \
@@ -308,7 +312,7 @@ SUBDIR=	${_3dfx} \
 	twe \
 	tws \
 	tx \
-	txp \
+	${_txp} \
 	uart \
 	ubsec \
 	udf \
@@ -357,7 +361,9 @@ _vpo=		vpo
 # No barrier instruction support (specific to this driver)
 _sym=		sym
 # intr_disable() is a macro, causes problems
+.if ${MK_SOURCELESS_UCODE} != "no"
 _cxgb=		cxgb
+.endif
 .endif
 
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
@@ -370,13 +376,13 @@ _random=	random
 .endif
 .endif
 
-.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
-_if_gre=	if_gre
-.endif
-
 .if (${MK_INET_SUPPORT} != "no" || ${MK_INET6_SUPPORT} != "no") || \
 	defined(ALL_MODULES)
 _carp=	carp
+.endif
+
+.if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_if_gre=	if_gre
 .endif
 
 .if ${MK_IPFILTER} != "no" || defined(ALL_MODULES)
@@ -384,6 +390,7 @@ _ipfilter=	ipfilter
 .endif
 
 .if ${MK_INET_SUPPORT} != "no" || defined(ALL_MODULES)
+_ipdivert=	ipdivert
 _ipfw=		ipfw
 .endif
 
@@ -398,6 +405,20 @@ _pflog=		pflog
 .if ${MK_INET_SUPPORT} != "no"
 _pfsync=	pfsync
 .endif
+.endif
+
+.if ${MK_SOURCELESS_UCODE} != "no"
+_bce=		bce
+_fatm=		fatm
+_fxp=		fxp
+_ispfw=		ispfw
+_mwlfw=		mwlfw
+_ralfw=		ralfw
+_runfw=		runfw
+_sf=		sf
+_sn=		sn
+_ti=		ti
+_txp=		txp
 .endif
 
 .if ${MACHINE_CPUARCH} == "i386"
@@ -415,9 +436,13 @@ _bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
+.if ${MK_SOURCELESS_UCODE} != "no"
 _ce=		ce
+.endif
 _coff=		coff
+.if ${MK_SOURCELESS_UCODE} != "no"
 _cp=		cp
+.endif
 _cpuctl=	cpuctl
 _cpufreq=	cpufreq
 _cs=		cs
@@ -506,35 +531,52 @@ _ciss=		ciss
 _cm=		cm
 _cmx=		cmx
 _coretemp=	coretemp
+.if ${MK_SOURCELESS_UCODE} != "no"
 _ctau=		ctau
+.endif
 _dpt=		dpt
 _ex=		ex
+.if ${MK_SOURCELESS_HOST} != "no"
 _hpt27xx=	hpt27xx
+.endif
 _hptiop=	hptiop
+.if ${MK_SOURCELESS_HOST} != "no"
 _hptmv=		hptmv
 _hptrr=		hptrr
+.endif
 _ichwd=		ichwd
 _ida=		ida
 _iir=		iir
 _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
+.if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
+.endif
+_isci=		isci
 _iwi=		iwi
+.if ${MK_SOURCELESS_UCODE} != "no"
 _iwifw=		iwifw
+.endif
 _iwn=		iwn
+.if ${MK_SOURCELESS_UCODE} != "no"
 _iwnfw=		iwnfw
+.endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
 _mly=		mly
 _nfe=		nfe
+.if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
+.endif
 _nvram=		nvram
 _nxge=		nxge
 _tpm=		tpm
 _viawd=		viawd
 _wpi=		wpi
+.if ${MK_SOURCELESS_UCODE} != "no"
 _wpifw=		wpifw
+.endif
 .if ${MK_CRYPT} != "no" || defined(ALL_MODULES)
 _padlock=	padlock
 .endif
@@ -564,6 +606,7 @@ _amdsbwd=	amdsbwd
 _amdtemp=	amdtemp
 _arcmsr=	arcmsr
 _asmc=		asmc
+_bktr=		bktr
 _bxe=		bxe
 _cardbus=	cardbus
 _cbb=		cbb
@@ -585,10 +628,14 @@ _et=		et
 _em=		em
 _exca=		exca
 _ext2fs=	ext2fs
+.if ${MK_SOURCELESS_HOST} != "no"
 _hpt27xx=	hpt27xx
+.endif
 _hptiop=	hptiop
+.if ${MK_SOURCELESS_HOST} != "no"
 _hptmv=		hptmv
 _hptrr=		hptrr
+.endif
 _i2c=		i2c
 _ichwd=		ichwd
 _ida=		ida
@@ -599,11 +646,18 @@ _io=		io
 _ipmi=		ipmi
 _ips=		ips
 _ipw=		ipw
+.if ${MK_SOURCELESS_UCODE} != "no"
 _ipwfw=		ipwfw
+.endif
+_isci=		isci
 _iwi=		iwi
+.if ${MK_SOURCELESS_UCODE} != "no"
 _iwifw=		iwifw
+.endif
 _iwn=		iwn
+.if ${MK_SOURCELESS_UCODE} != "no"
 _iwnfw=		iwnfw
+.endif
 _ixgb=		ixgb
 _ixgbe=		ixgbe
 _lindev=	lindev
@@ -619,7 +673,9 @@ _mthca=		mthca
 .endif
 _ndis=		ndis
 _nfe=		nfe
+.if ${MK_SOURCELESS_HOST} != "no"
 _nve=		nve
+.endif
 _nvram=		nvram
 _nxge=		nxge
 .if ${MK_CDDL} != "no" || defined(ALL_MODULES)
@@ -649,7 +705,9 @@ _vxge=  	vxge
 _x86bios=	x86bios
 _wi=		wi
 _wpi=		wpi
+.if ${MK_SOURCELESS_UCODE} != "no"
 _wpifw=		wpifw
+.endif
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
 _zfs=		zfs
 .endif
@@ -702,9 +760,12 @@ _xe=		xe
 _agp=		agp
 _an=		an
 _bm=		bm
+_cardbus=	cardbus
+_cbb=		cbb
 _cfi=		cfi
 _cpufreq=	cpufreq
 _nvram=		powermac_nvram
+_pccard=	pccard
 _smbfs=		smbfs
 _sound=		sound
 .endif

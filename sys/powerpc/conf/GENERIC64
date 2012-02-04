@@ -170,6 +170,10 @@ device		cdce		# Generic USB over Ethernet
 device		cue		# CATC USB Ethernet
 device		kue		# Kawasaki LSI USB Ethernet
 
+# Wireless NIC cards
+options         IEEE80211_SUPPORT_MESH
+options         AH_SUPPORT_AR5416
+
 # FireWire support
 device		firewire	# FireWire bus code
 device		sbp		# SCSI over FireWire (Requires scbus and da)

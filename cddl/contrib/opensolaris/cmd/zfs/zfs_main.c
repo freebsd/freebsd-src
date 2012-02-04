@@ -21,9 +21,10 @@
 
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright 2011 Nexenta Systems, Inc. All rights reserved.
+ * Copyright 2012 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * All rights reserved.
  * Copyright (c) 2011 Martin Matuska <mm@FreeBSD.org>. All rights reserved.
  */
 
@@ -2837,7 +2838,12 @@ print_dataset(zfs_handle_t *zhp, zprop_list_t *pl, boolean_t scripted)
 			first = B_FALSE;
 		}
 
-		if (pl->pl_prop != ZPROP_INVAL) {
+		if (pl->pl_prop == ZFS_PROP_NAME) {
+			(void) strlcpy(property, zfs_get_name(zhp),
+			    sizeof(property));
+			propstr = property;
+			right_justify = zfs_prop_align_right(pl->pl_prop);
+		} else if (pl->pl_prop != ZPROP_INVAL) {
 			if (zfs_prop_get(zhp, pl->pl_prop, property,
 			    sizeof (property), NULL, NULL, 0, B_FALSE) != 0)
 				propstr = "-";
@@ -3002,6 +3008,13 @@ zfs_do_list(int argc, char **argv)
 
 	if (fields == NULL)
 		fields = default_fields;
+
+	/*
+	 * If we are only going to list snapshot names and sort by name,
+	 * then we can use faster version.
+	 */
+	if (strcmp(fields, "name") == 0 && zfs_sort_only_by_name(sortcol))
+		flags |= ZFS_ITER_SIMPLE;
 
 	/*
 	 * If "-o space" and no types were specified, don't display snapshots.
@@ -4488,7 +4501,7 @@ parse_allow_args(int argc, char **argv, boolean_t un, struct allow_opts *opts)
 		argc--;
 		argv++;
 		opts->dataset = munge_args(argc, argv, un, 2, &opts->perms);
-	} else if (argc == 1) {
+	} else if (argc == 1 && !un) {
 		opts->prt_perms = B_TRUE;
 		opts->dataset = argv[argc-1];
 	} else {
@@ -4975,9 +4988,9 @@ zfs_do_allow_unallow_impl(int argc, char **argv, boolean_t un)
 	parse_allow_args(argc, argv, un, &opts);
 
 	/* try to open the dataset */
-	if ((zhp = zfs_open(g_zfs, opts.dataset, ZFS_TYPE_FILESYSTEM))
-	    == NULL) {
-		(void) fprintf(stderr, "Failed to open Dataset *%s*\n",
+	if ((zhp = zfs_open(g_zfs, opts.dataset, ZFS_TYPE_FILESYSTEM |
+	    ZFS_TYPE_VOLUME)) == NULL) {
+		(void) fprintf(stderr, "Failed to open dataset: %s\n",
 		    opts.dataset);
 		return (-1);
 	}
@@ -4987,7 +5000,7 @@ zfs_do_allow_unallow_impl(int argc, char **argv, boolean_t un)
 
 	fs_perm_set_init(&fs_perm_set);
 	if (parse_fs_perm_set(&fs_perm_set, perm_nvl) != 0) {
-		(void) fprintf(stderr, "Failed to parse fsacl permissionsn");
+		(void) fprintf(stderr, "Failed to parse fsacl permissions\n");
 		goto cleanup1;
 	}
 

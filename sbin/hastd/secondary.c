@@ -181,7 +181,7 @@ static void
 init_local(struct hast_resource *res)
 {
 
-	if (metadata_read(res, true) < 0)
+	if (metadata_read(res, true) == -1)
 		exit(EX_NOINPUT);
 }
 
@@ -262,7 +262,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		 */
 		PJDLOG_ASSERT(res->hr_secondary_localcnt == 0);
 		res->hr_resuid = resuid;
-		if (metadata_write(res) < 0)
+		if (metadata_write(res) == -1)
 			exit(EX_NOINPUT);
 		if (nv_exists(nvin, "virgin")) {
 			free(map);
@@ -282,8 +282,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)resuid, (uintmax_t)res->hr_resuid);
 		pjdlog_error("%s", errmsg);
 		nv_add_string(nvout, errmsg, "errmsg");
-		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+		if (hast_proto_send(res, res->hr_remotein, nvout,
+		    NULL, 0) == -1) {
+			pjdlog_exit(EX_TEMPFAIL,
+			    "Unable to send response to %s",
 			    res->hr_remoteaddr);
 		}
 		nv_free(nvout);
@@ -327,8 +329,10 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		free(map);
 		pjdlog_error("Split-brain detected, exiting.");
 		nv_add_string(nvout, "Split-brain condition!", "errmsg");
-		if (hast_proto_send(res, res->hr_remotein, nvout, NULL, 0) < 0) {
-			pjdlog_exit(EX_TEMPFAIL, "Unable to send response to %s",
+		if (hast_proto_send(res, res->hr_remotein, nvout,
+		    NULL, 0) == -1) {
+			pjdlog_exit(EX_TEMPFAIL,
+			    "Unable to send response to %s",
 			    res->hr_remoteaddr);
 		}
 		nv_free(nvout);
@@ -361,7 +365,7 @@ init_remote(struct hast_resource *res, struct nv *nvin)
 		    (uintmax_t)res->hr_secondary_remotecnt);
 	}
 	nv_add_uint32(nvout, (uint32_t)mapsize, "mapsize");
-	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) < 0) {
+	if (hast_proto_send(res, res->hr_remotein, nvout, map, mapsize) == -1) {
 		pjdlog_exit(EX_TEMPFAIL, "Unable to send activemap to %s",
 		    res->hr_remoteaddr);
 	}
@@ -386,7 +390,7 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between parent and child.
 	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_ctrl) == -1) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create control sockets between parent and child");
@@ -394,14 +398,14 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	/*
 	 * Create communication channel between child and parent.
 	 */
-	if (proto_client(NULL, "socketpair://", &res->hr_event) < 0) {
+	if (proto_client(NULL, "socketpair://", &res->hr_event) == -1) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR,
 		    "Unable to create event sockets between child and parent");
 	}
 
 	pid = fork();
-	if (pid < 0) {
+	if (pid == -1) {
 		KEEP_ERRNO((void)pidfile_remove(pfh));
 		pjdlog_exit(EX_OSERR, "Unable to fork");
 	}
@@ -441,9 +445,9 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 	PJDLOG_VERIFY(sigprocmask(SIG_SETMASK, &mask, NULL) == 0);
 
 	/* Error in setting timeout is not critical, but why should it fail? */
-	if (proto_timeout(res->hr_remotein, 2 * HAST_KEEPALIVE) < 0)
+	if (proto_timeout(res->hr_remotein, 2 * HAST_KEEPALIVE) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
-	if (proto_timeout(res->hr_remoteout, res->hr_timeout) < 0)
+	if (proto_timeout(res->hr_remoteout, res->hr_timeout) == -1)
 		pjdlog_errno(LOG_WARNING, "Unable to set connection timeout");
 
 	init_local(res);
@@ -475,7 +479,8 @@ hastd_secondary(struct hast_resource *res, struct nv *nvin)
 }
 
 static void
-reqlog(int loglevel, int debuglevel, int error, struct hio *hio, const char *fmt, ...)
+reqlog(int loglevel, int debuglevel, int error, struct hio *hio,
+    const char *fmt, ...)
 {
 	char msg[1024];
 	va_list ap;
@@ -623,7 +628,7 @@ recv_thread(void *arg)
 		pjdlog_debug(2, "recv: Taking free request.");
 		QUEUE_TAKE(free, hio);
 		pjdlog_debug(2, "recv: (%p) Got request.", hio);
-		if (hast_proto_recv_hdr(res->hr_remotein, &nv) < 0) {
+		if (hast_proto_recv_hdr(res->hr_remotein, &nv) == -1) {
 			secondary_exit(EX_TEMPFAIL,
 			    "Unable to receive request header");
 		}
@@ -666,7 +671,7 @@ recv_thread(void *arg)
 			continue;
 		} else if (hio->hio_cmd == HIO_WRITE) {
 			if (hast_proto_recv_data(res, res->hr_remotein, nv,
-			    hio->hio_data, MAXPHYS) < 0) {
+			    hio->hio_data, MAXPHYS) == -1) {
 				secondary_exit(EX_TEMPFAIL,
 				    "Unable to receive request data");
 			}
@@ -735,7 +740,7 @@ disk_thread(void *arg)
 			ret = pread(res->hr_localfd, hio->hio_data,
 			    hio->hio_length,
 			    hio->hio_offset + res->hr_localoff);
-			if (ret < 0)
+			if (ret == -1)
 				hio->hio_error = errno;
 			else if (ret != (int64_t)hio->hio_length)
 				hio->hio_error = EIO;
@@ -746,7 +751,7 @@ disk_thread(void *arg)
 			ret = pwrite(res->hr_localfd, hio->hio_data,
 			    hio->hio_length,
 			    hio->hio_offset + res->hr_localoff);
-			if (ret < 0)
+			if (ret == -1)
 				hio->hio_error = errno;
 			else if (ret != (int64_t)hio->hio_length)
 				hio->hio_error = EIO;
@@ -757,7 +762,7 @@ disk_thread(void *arg)
 			ret = g_delete(res->hr_localfd,
 			    hio->hio_offset + res->hr_localoff,
 			    hio->hio_length);
-			if (ret < 0)
+			if (ret == -1)
 				hio->hio_error = errno;
 			else
 				hio->hio_error = 0;
@@ -770,7 +775,7 @@ disk_thread(void *arg)
 				break;
 			}
 			ret = g_flush(res->hr_localfd);
-			if (ret < 0) {
+			if (ret == -1) {
 				if (errno == EOPNOTSUPP)
 					res->hr_localflush = false;
 				hio->hio_error = errno;
@@ -837,8 +842,8 @@ send_thread(void *arg)
 		if (hio->hio_error != 0)
 			nv_add_int16(nvout, hio->hio_error, "error");
 		if (hast_proto_send(res, res->hr_remoteout, nvout, data,
-		    length) < 0) {
-			secondary_exit(EX_TEMPFAIL, "Unable to send reply.");
+		    length) == -1) {
+			secondary_exit(EX_TEMPFAIL, "Unable to send reply");
 		}
 		nv_free(nvout);
 		pjdlog_debug(2, "send: (%p) Moving request to the free queue.",

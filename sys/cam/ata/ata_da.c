@@ -1098,7 +1098,7 @@ adaregister(struct cam_periph *periph, void *arg)
 	 */
 	callout_init_mtx(&softc->sendordered_c, periph->sim->mtx, 0);
 	callout_reset(&softc->sendordered_c,
-	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
+	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 
 	if (ADA_RA >= 0 &&
@@ -1653,7 +1653,7 @@ adasendorderedtag(void *arg)
 	}
 	/* Queue us up again */
 	callout_reset(&softc->sendordered_c,
-	    (ADA_DEFAULT_TIMEOUT * hz) / ADA_ORDEREDTAG_INTERVAL,
+	    (ada_default_timeout * hz) / ADA_ORDEREDTAG_INTERVAL,
 	    adasendorderedtag, softc);
 }
 

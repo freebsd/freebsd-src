@@ -1340,6 +1340,25 @@ LEAF(kdbpeek)
 	PTR_S	zero, U_PCB_ONFAULT(t1)
 END(kdbpeek)
 
+LEAF(kdbpeekd)
+	PTR_LA	v1, ddberr
+	and	v0, a0, 3			# unaligned ?
+	GET_CPU_PCPU(t1)
+	PTR_L	t1, PC_CURPCB(t1)
+	bne	v0, zero, 1f
+	PTR_S	v1, U_PCB_ONFAULT(t1)
+
+	ld	v0, (a0)
+	jr	ra
+	PTR_S	zero, U_PCB_ONFAULT(t1)
+
+1:
+	REG_LHI	v0, 0(a0)
+	REG_LLO	v0, 7(a0)
+	jr	ra
+	PTR_S	zero, U_PCB_ONFAULT(t1)
+END(kdbpeekd)
+
 ddberr:
 	jr	ra
 	nop

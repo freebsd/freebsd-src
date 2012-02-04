@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 4, 2011
+.Dd January 22, 2012
 .Dt VTNET 4
 .Os
 .Sh NAME
@@ -62,7 +62,6 @@ utility configures the adapter to receive and transmit Jumbo Frames.
 .Pp
 For more information on configuring this device, see
 .Xr ifconfig 8 .
-.El
 .Sh LOADER TUNABLES
 Tunables can be set at the
 .Xr loader 8
@@ -70,19 +69,21 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width "xxxxxx"
 .It Va hw.vtnet.csum_disable
-This tunable disables receive and send checksum offload. The default
-value is 0.
+This tunable disables receive and send checksum offload.
+The default value is 0.
 .It Va hw.vtnet.tso_disable
-This tunable disables TSO. The default value is 0.
+This tunable disables TSO.
+The default value is 0.
 .It Va hw.vtnet.lro_disable
-This tunable disables LRO. The default value is 0.
+This tunable disables LRO.
+The default value is 0.
 .El
 .Sh SEE ALSO
 .Xr arp 4 ,
 .Xr netintro 4 ,
 .Xr ng_ether 4 ,
-.Xr vlan 4 ,
 .Xr virtio 4 ,
+.Xr vlan 4 ,
 .Xr ifconfig 8
 .Sh HISTORY
 The

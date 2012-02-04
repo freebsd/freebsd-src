@@ -50,11 +50,6 @@ aic79xx_reg_print.c	optional ahd pci				   \
 aic79xx_reg_print.o		optional ahd pci ahd_reg_pretty_print	   \
 	compile-with	"${NORMAL_C}"					   \
 	no-implicit-rule local
-emu10k1-alsa%diked.h		optional snd_emu10kx	   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/emu10k1-alsa.h emu10k1-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"emu10k1-alsa%diked.h"
 #
 # The 'fdt_dtb_file' target covers an actual DTB file name, which is derived
 # from the specified source (DTS) file: <platform>.dts -> <platform>.dtb
@@ -67,16 +62,6 @@ fdt_static_dtb.h		optional fdt fdt_dtb_static \
 	compile-with "sh $S/tools/fdt/make_dtbh.sh ${FDT_DTS_FILE} ." \
 	no-obj no-implicit-rule before-depend \
 	clean		"fdt_static_dtb.h"
-p16v-alsa%diked.h		optional snd_emu10kx pci		   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p16v-alsa.h p16v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"p16v-alsa%diked.h"
-p17v-alsa%diked.h		optional snd_emu10kx pci		   \
-	dependency	"$S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h" \
-	compile-with	"CC='${CC}' AWK=${AWK} sh $S/tools/sound/emu10k1-mkalsa.sh $S/gnu/dev/sound/pci/p17v-alsa.h p17v-alsa%diked.h" \
-	no-obj no-implicit-rule before-depend				   \
-	clean		"p17v-alsa%diked.h"
 feeder_eq_gen.h			optional sound				   \
 	dependency	"$S/tools/sound/feeder_eq_mkfilter.awk"		   \
 	compile-with	"${AWK} -f $S/tools/sound/feeder_eq_mkfilter.awk -- ${FEEDER_EQ_PRESETS} > feeder_eq_gen.h" \
@@ -130,6 +115,19 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/ata/ata_da.c		optional ada | da
+cam/ctl/ctl.c			optional ctl
+cam/ctl/ctl_backend.c		optional ctl
+cam/ctl/ctl_backend_block.c	optional ctl
+cam/ctl/ctl_backend_ramdisk.c	optional ctl
+cam/ctl/ctl_cmd_table.c		optional ctl
+cam/ctl/ctl_frontend.c		optional ctl
+cam/ctl/ctl_frontend_cam_sim.c	optional ctl
+cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_mem_pool.c		optional ctl
+cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_error.c		optional ctl
+cam/ctl/ctl_util.c		optional ctl
+cam/ctl/scsi_ctl.c		optional ctl
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -282,6 +280,7 @@ contrib/dev/acpica/tables/tbinstal.c		optional acpi
 contrib/dev/acpica/tables/tbutils.c		optional acpi
 contrib/dev/acpica/tables/tbxface.c		optional acpi
 contrib/dev/acpica/tables/tbxfroot.c		optional acpi
+contrib/dev/acpica/utilities/utaddress.c	optional acpi
 contrib/dev/acpica/utilities/utalloc.c		optional acpi
 contrib/dev/acpica/utilities/utcache.c		optional acpi
 contrib/dev/acpica/utilities/utcopy.c		optional acpi
@@ -1396,6 +1395,8 @@ dev/ixgbe/ixgbe_82598.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/ixgbe/ixgbe_82599.c		optional ixgbe inet \
 	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
+dev/ixgbe/ixgbe_x540.c		optional ixgbe inet \
+	compile-with "${NORMAL_C} -I$S/dev/ixgbe"
 dev/jme/if_jme.c		optional jme pci
 dev/joy/joy.c			optional joy
 dev/joy/joy_isa.c		optional joy isa
@@ -1470,8 +1471,11 @@ dev/mmc/mmcbus_if.m		standard
 dev/mmc/mmcsd.c			optional mmcsd
 dev/mn/if_mn.c			optional mn pci
 dev/mps/mps.c			optional mps
+dev/mps/mps_config.c		optional mps
+dev/mps/mps_mapping.c		optional mps
 dev/mps/mps_pci.c		optional mps pci
 dev/mps/mps_sas.c		optional mps
+dev/mps/mps_sas_lsi.c		optional mps
 dev/mps/mps_table.c		optional mps
 dev/mps/mps_user.c		optional mps
 dev/mpt/mpt.c			optional mpt
@@ -1728,32 +1732,20 @@ dev/sound/pci/als4000.c		optional snd_als4000 pci
 dev/sound/pci/atiixp.c		optional snd_atiixp pci
 dev/sound/pci/cmi.c		optional snd_cmi pci
 dev/sound/pci/cs4281.c		optional snd_cs4281 pci
-dev/sound/pci/csa.c		optional snd_csa pci \
-	warning "kernel contains GPL contaminated csaimg.h header"
+dev/sound/pci/csa.c		optional snd_csa pci
 dev/sound/pci/csapcm.c		optional snd_csa pci
 dev/sound/pci/ds1.c		optional snd_ds1 pci
 dev/sound/pci/emu10k1.c		optional snd_emu10k1 pci
-dev/sound/pci/emu10kx.c		optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	dependency "p16v-alsa%diked.h" \
-	dependency "p17v-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
-dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	dependency "p16v-alsa%diked.h" \
-	dependency "p17v-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
-dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci \
-	dependency "emu10k1-alsa%diked.h" \
-	warning "kernel contains GPL contaminated emu10kx headers"
+dev/sound/pci/emu10kx.c		optional snd_emu10kx pci
+dev/sound/pci/emu10kx-pcm.c	optional snd_emu10kx pci
+dev/sound/pci/emu10kx-midi.c	optional snd_emu10kx pci
 dev/sound/pci/envy24.c		optional snd_envy24 pci
 dev/sound/pci/envy24ht.c	optional snd_envy24ht pci
 dev/sound/pci/es137x.c		optional snd_es137x pci
 dev/sound/pci/fm801.c		optional snd_fm801 pci
 dev/sound/pci/ich.c		optional snd_ich pci
 dev/sound/pci/maestro.c		optional snd_maestro pci
-dev/sound/pci/maestro3.c	optional snd_maestro3 pci \
-	warning "kernel contains GPL contaminated maestro3 headers"
+dev/sound/pci/maestro3.c	optional snd_maestro3 pci
 dev/sound/pci/neomagic.c	optional snd_neomagic pci
 dev/sound/pci/solo.c		optional snd_solo pci
 dev/sound/pci/spicds.c		optional snd_spicds pci
@@ -1761,7 +1753,11 @@ dev/sound/pci/t4dwave.c		optional snd_t4dwave pci
 dev/sound/pci/via8233.c		optional snd_via8233 pci
 dev/sound/pci/via82c686.c	optional snd_via82c686 pci
 dev/sound/pci/vibes.c		optional snd_vibes pci
+dev/sound/pci/hda/hdaa.c	optional snd_hda pci
+dev/sound/pci/hda/hdaa_patches.c	optional snd_hda pci
 dev/sound/pci/hda/hdac.c	optional snd_hda pci
+dev/sound/pci/hda/hdac_if.m	optional snd_hda pci
+dev/sound/pci/hda/hdacc.c	optional snd_hda pci
 dev/sound/pcm/ac97.c		optional sound
 dev/sound/pcm/ac97_if.m		optional sound
 dev/sound/pcm/ac97_patch.c	optional sound
@@ -2409,8 +2405,9 @@ kern/sched_ule.c		optional sched_ule
 kern/serdev_if.m		standard
 kern/stack_protector.c		standard \
 	compile-with "${NORMAL_C:N-fstack-protector*}"
-kern/subr_acl_nfs4.c		standard
-kern/subr_acl_posix1e.c		standard
+# XXX subr_acl_nfs4.c is also used by ZFS
+kern/subr_acl_nfs4.c		optional ufs_acl
+kern/subr_acl_posix1e.c		optional ufs_acl
 kern/subr_autoconf.c		standard
 kern/subr_blist.c		standard
 kern/subr_bus.c			standard
@@ -3535,6 +3532,7 @@ dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen
 dev/xen/console/xencons_ring.c	optional xen
 dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci

@@ -123,6 +123,7 @@ static struct g_part_mbr_alias {
 	{ DOSPTYP_LINUX,	G_PART_ALIAS_LINUX_DATA },
 	{ DOSPTYP_LINLVM,	G_PART_ALIAS_LINUX_LVM },
 	{ DOSPTYP_LINRAID,	G_PART_ALIAS_LINUX_RAID },
+	{ DOSPTYP_PPCBOOT,	G_PART_ALIAS_FREEBSD_BOOT },
 };
 
 static int
@@ -304,9 +305,10 @@ g_part_mbr_dumpto(struct g_part_table *table, struct g_part_entry *baseentry)
 {
 	struct g_part_mbr_entry *entry;
 
-	/* Allow dumping to a FreeBSD partition only. */
+	/* Allow dumping to a FreeBSD partition or Linux swap partition only. */
 	entry = (struct g_part_mbr_entry *)baseentry;
-	return ((entry->ent.dp_typ == DOSPTYP_386BSD) ? 1 : 0);
+	return ((entry->ent.dp_typ == DOSPTYP_386BSD ||
+	    entry->ent.dp_typ == DOSPTYP_LINSWP) ? 1 : 0);
 }
 
 static int

@@ -1248,7 +1248,12 @@ ufsdirhash_lowmem()
 {
 	struct dirhash *dh, *dh_temp;
 	int memfreed = 0;
-	/* XXX: this 10% may need to be adjusted */
+	/* 
+	 * Will free a *minimum* of 10% of the dirhash, but possibly much
+	 * more (depending on dirhashreclaimage). System with large dirhashes
+	 * probably also need a much larger dirhashreclaimage.
+	 * XXX: this percentage may need to be adjusted.
+	 */
 	int memwanted = ufs_dirhashmem / 10;
 
 	ufs_dirhashlowmemcount++;
