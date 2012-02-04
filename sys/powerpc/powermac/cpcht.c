@@ -178,7 +178,8 @@ cpcht_attach(device_t dev)
 	if (OF_getprop(node, "reg", reg, sizeof(reg)) < 12)
 		return (ENXIO);
 
-	sc->pci_sc.sc_quirks = OFW_PCI_QUIRK_RANGES_ON_CHILDREN;
+	if (OF_getproplen(node, "ranges") <= 0)
+		sc->pci_sc.sc_quirks = OFW_PCI_QUIRK_RANGES_ON_CHILDREN;
 	sc->sc_populated_slots = 0;
 	sc->sc_data = (vm_offset_t)pmap_mapdev(reg[1], reg[2]);
 
@@ -214,12 +215,13 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	int ptr, nextptr;
 	uint32_t vend, val;
 	int i, nirq, irq;
-	u_int f, s;
+	u_int b, f, s;
 
 	sc = device_get_softc(dev);
 	if (OF_getprop(child, "reg", &pcir, sizeof(pcir)) == -1)
 		return;
 
+	b = OFW_PCI_PHYS_HI_BUS(pcir.phys_hi);
 	s = OFW_PCI_PHYS_HI_DEVICE(pcir.phys_hi);
 	f = OFW_PCI_PHYS_HI_FUNCTION(pcir.phys_hi);
 
@@ -242,41 +244,41 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 	 */
 
 	/* All the devices we are interested in have caps */
-	if (!(PCIB_READ_CONFIG(dev, 0, s, f, PCIR_STATUS, 2)
+	if (!(PCIB_READ_CONFIG(dev, b, s, f, PCIR_STATUS, 2)
 	    & PCIM_STATUS_CAPPRESENT))
 		return;
 
-	nextptr = PCIB_READ_CONFIG(dev, 0, s, f, PCIR_CAP_PTR, 1);
+	nextptr = PCIB_READ_CONFIG(dev, b, s, f, PCIR_CAP_PTR, 1);
 	while (nextptr != 0) {
 		ptr = nextptr;
-		nextptr = PCIB_READ_CONFIG(dev, 0, s, f,
+		nextptr = PCIB_READ_CONFIG(dev, b, s, f,
 		    ptr + PCICAP_NEXTPTR, 1);
 
 		/* Find the HT IRQ capabilities */
-		if (PCIB_READ_CONFIG(dev, 0, s, f,
+		if (PCIB_READ_CONFIG(dev, b, s, f,
 		    ptr + PCICAP_ID, 1) != PCIY_HT)
 			continue;
 
-		val = PCIB_READ_CONFIG(dev, 0, s, f, ptr + PCIR_HT_COMMAND, 2);
+		val = PCIB_READ_CONFIG(dev, b, s, f, ptr + PCIR_HT_COMMAND, 2);
 		if ((val & PCIM_HTCMD_CAP_MASK) != PCIM_HTCAP_INTERRUPT)
 			continue;
 
 		/* Ask for the IRQ count */
-		PCIB_WRITE_CONFIG(dev, 0, s, f, ptr + PCIR_HT_COMMAND, 0x1, 1);
-		nirq = PCIB_READ_CONFIG(dev, 0, s, f, ptr + 4, 4);
+		PCIB_WRITE_CONFIG(dev, b, s, f, ptr + PCIR_HT_COMMAND, 0x1, 1);
+		nirq = PCIB_READ_CONFIG(dev, b, s, f, ptr + 4, 4);
 		nirq = ((nirq >> 16) & 0xff) + 1;
 
 		device_printf(dev, "%d HT IRQs on device %d.%d\n", nirq, s, f);
 
 		for (i = 0; i < nirq; i++) {
-			PCIB_WRITE_CONFIG(dev, 0, s, f,
+			PCIB_WRITE_CONFIG(dev, b, s, f,
 			     ptr + PCIR_HT_COMMAND, 0x10 + (i << 1), 1);
-			irq = PCIB_READ_CONFIG(dev, 0, s, f, ptr + 4, 4);
+			irq = PCIB_READ_CONFIG(dev, b, s, f, ptr + 4, 4);
 
 			/*
 			 * Mask this interrupt for now.
 			 */
-			PCIB_WRITE_CONFIG(dev, 0, s, f, ptr + 4,
+			PCIB_WRITE_CONFIG(dev, b, s, f, ptr + 4,
 			    irq | HTAPIC_MASK, 4);
 			irq = (irq >> 16) & 0xff;
 
@@ -285,10 +287,10 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 			sc->htirq_map[irq].ht_base = sc->sc_data + 
 			    (((((s & 0x1f) << 3) | (f & 0x07)) << 8) | (ptr));
 
-			PCIB_WRITE_CONFIG(dev, 0, s, f,
+			PCIB_WRITE_CONFIG(dev, b, s, f,
 			     ptr + PCIR_HT_COMMAND, 0x11 + (i << 1), 1);
 			sc->htirq_map[irq].eoi_data =
-			    PCIB_READ_CONFIG(dev, 0, s, f, ptr + 4, 4) |
+			    PCIB_READ_CONFIG(dev, b, s, f, ptr + 4, 4) |
 			    0x80000000;
 
 			/*
@@ -296,7 +298,7 @@ cpcht_configure_htbridge(device_t dev, phandle_t child)
 			 * in how we signal EOIs. Check if this device was 
 			 * made by Apple, and act accordingly.
 			 */
-			vend = PCIB_READ_CONFIG(dev, 0, s, f,
+			vend = PCIB_READ_CONFIG(dev, b, s, f,
 			    PCIR_DEVVENDOR, 4);
 			if ((vend & 0xffff) == 0x106b)
 				sc->htirq_map[irq].apple_eoi = 
