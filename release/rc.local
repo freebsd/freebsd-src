@@ -18,7 +18,7 @@ if [ $? -eq 0 ]; then
 		# goes multiuser
 		touch /tmp/bsdinstall_log
 		tail -f /tmp/bsdinstall_log > /dev/ttyv2 &
-		/usr/libexec/getty autologin ttyv3
+		/usr/libexec/getty autologin ttyv3 &
 		EXTERNAL_VTY_STARTED=1
 	fi
 else
