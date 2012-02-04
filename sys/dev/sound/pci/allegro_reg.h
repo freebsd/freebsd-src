@@ -1,25 +1,48 @@
 /* $FreeBSD$ */
 /*-
- *      ESS Technology allegro audio driver.
+ * Copyright (c) 1996-2008, 4Front Technologies
+ * Copyright (C) 1992-2000  Don Kim (don.kim@esstech.com)
+ * All rights reserved.
  *
- *      Copyright (C) 1992-2000  Don Kim (don.kim@esstech.com)
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
- *      This program is free software; you can redistribute it and/or modify
- *      it under the terms of the GNU General Public License as published by
- *      the Free Software Foundation; either version 2 of the License, or
- *      (at your option) any later version.
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHERIN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
  *
- *      This program is distributed in the hope that it will be useful,
- *      but WITHOUT ANY WARRANTY; without even the implied warranty of
- *      MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- *      GNU General Public License for more details.
- *
- *      You should have received a copy of the GNU General Public License
- *      along with this program; if not, write to the Free Software
- *      Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
- *
- *      Hacked for the maestro3 driver by zab
  */
+
+/*---------------------------------------------------------------------------
+ *              Copyright (C) 1997-1999, ESS Technology, Inc.
+ * This source code, its compiled object code, and its associated data sets
+ * are copyright (C) 1997-1999 ESS Technology, Inc.
+ *---------------------------------------------------------------------------
+ * This header contains data structures and registers taken from the
+ * 4Front OSS Allegro BSD licensed driver (in the Attic/ directory).
+ *  Files used for this header include:
+ *    hardware.h
+ *    kernel.h and hckernel.h
+ *    srcmgr.h
+ *---------------------------------------------------------------------------
+ */
+
+#ifndef _DEV_SOUND_PCI_ALLEGRO_REG_H
+#define _DEV_SOUND_PCI_ALLEGRO_REG_H
 
 /* Allegro PCI configuration registers */
 #define PCI_LEGACY_AUDIO_CTRL   0x40
@@ -135,12 +158,6 @@
 #define HV_CTRL_TO_PME          0x0400
 #define SOFTWARE_RESET_ENABLE   0x8000
 
-/*
- * should be using the above defines, probably.
- */
-#define REGB_ENABLE_RESET       0x01
-#define REGB_STOP_CLOCK         0x10
-
 #define HOST_INT_STATUS         0x1A
 #define SB_INT_PENDING          0x01
 #define MPU401_INT_PENDING      0x02
@@ -161,6 +178,87 @@
 #define CODEC_BUSY_B            0x01
 
 #define CODEC_DATA              0x32
+
+/* AC97 registers */
+#ifndef M3_MODEL
+#define AC97_RESET              0x00
+#endif
+
+#define AC97_VOL_MUTE_B         0x8000
+#define AC97_VOL_M              0x1F
+#define AC97_LEFT_VOL_S         8
+
+#define AC97_MASTER_VOL         0x02
+#define AC97_LINE_LEVEL_VOL     0x04
+#define AC97_MASTER_MONO_VOL    0x06
+#define AC97_PC_BEEP_VOL        0x0A
+#define AC97_PC_BEEP_VOL_M      0x0F
+#define AC97_SROUND_MASTER_VOL  0x38
+#define AC97_PC_BEEP_VOL_S      1
+
+#ifndef M3_MODEL
+#define AC97_PHONE_VOL          0x0C
+#define AC97_MIC_VOL            0x0E
+#endif
+#define AC97_MIC_20DB_ENABLE    0x40
+
+#ifndef M3_MODEL
+#define AC97_LINEIN_VOL         0x10
+#define AC97_CD_VOL             0x12
+#define AC97_VIDEO_VOL          0x14
+#define AC97_AUX_VOL            0x16
+#endif
+#define AC97_PCM_OUT_VOL        0x18
+#ifndef M3_MODEL
+#define AC97_RECORD_SELECT      0x1A
+#endif
+#define AC97_RECORD_MIC         0x00
+#define AC97_RECORD_CD          0x01
+#define AC97_RECORD_VIDEO       0x02
+#define AC97_RECORD_AUX         0x03
+#define AC97_RECORD_MONO_MUX    0x02
+#define AC97_RECORD_DIGITAL     0x03
+#define AC97_RECORD_LINE        0x04
+#define AC97_RECORD_STEREO      0x05
+#define AC97_RECORD_MONO        0x06
+#define AC97_RECORD_PHONE       0x07
+
+#ifndef M3_MODEL
+#define AC97_RECORD_GAIN        0x1C
+#endif
+#define AC97_RECORD_VOL_M       0x0F
+
+#ifndef M3_MODEL
+#define AC97_GENERAL_PURPOSE    0x20
+#endif
+#define AC97_POWER_DOWN_CTRL    0x26
+#define AC97_ADC_READY          0x0001
+#define AC97_DAC_READY          0x0002
+#define AC97_ANALOG_READY       0x0004
+#define AC97_VREF_ON            0x0008
+#define AC97_PR0                0x0100
+#define AC97_PR1                0x0200
+#define AC97_PR2                0x0400
+#define AC97_PR3                0x0800
+#define AC97_PR4                0x1000
+
+#define AC97_RESERVED1          0x28
+
+#define AC97_VENDOR_TEST        0x5A
+
+#define AC97_CLOCK_DELAY        0x5C
+#define AC97_LINEOUT_MUX_SEL    0x0001
+#define AC97_MONO_MUX_SEL       0x0002
+#define AC97_CLOCK_DELAY_SEL    0x1F
+#define AC97_DAC_CDS_SHIFT      6
+#define AC97_ADC_CDS_SHIFT      11
+
+#define AC97_MULTI_CHANNEL_SEL  0x74
+
+#ifndef M3_MODEL
+#define AC97_VENDOR_ID1         0x7C
+#define AC97_VENDOR_ID2         0x7E
+#endif
 
 #define RING_BUS_CTRL_A         0x36
 #define RAC_PME_ENABLE          0x0100
@@ -291,91 +389,9 @@
 #define DSP2HOST_REQ_I2SRATE    0x02
 #define DSP2HOST_REQ_TIMER      0x04
 
-/* AC97 registers */
-/* XXX fix this crap up */
-/*#define AC97_RESET              0x00*/
-
-#define AC97_VOL_MUTE_B         0x8000
-#define AC97_VOL_M              0x1F
-#define AC97_LEFT_VOL_S         8
-
-#define AC97_MASTER_VOL         0x02
-#define AC97_LINE_LEVEL_VOL     0x04
-#define AC97_MASTER_MONO_VOL    0x06
-#define AC97_PC_BEEP_VOL        0x0A
-#define AC97_PC_BEEP_VOL_M      0x0F
-#define AC97_SROUND_MASTER_VOL  0x38
-#define AC97_PC_BEEP_VOL_S      1
-
-/*#define AC97_PHONE_VOL          0x0C
-#define AC97_MIC_VOL            0x0E*/
-#define AC97_MIC_20DB_ENABLE    0x40
-
-/*#define AC97_LINEIN_VOL         0x10
-#define AC97_CD_VOL             0x12
-#define AC97_VIDEO_VOL          0x14
-#define AC97_AUX_VOL            0x16*/
-#define AC97_PCM_OUT_VOL        0x18
-/*#define AC97_RECORD_SELECT      0x1A*/
-#define AC97_RECORD_MIC         0x00
-#define AC97_RECORD_CD          0x01
-#define AC97_RECORD_VIDEO       0x02
-#define AC97_RECORD_AUX         0x03
-#define AC97_RECORD_MONO_MUX    0x02
-#define AC97_RECORD_DIGITAL     0x03
-#define AC97_RECORD_LINE        0x04
-#define AC97_RECORD_STEREO      0x05
-#define AC97_RECORD_MONO        0x06
-#define AC97_RECORD_PHONE       0x07
-
-/*#define AC97_RECORD_GAIN        0x1C*/
-#define AC97_RECORD_VOL_M       0x0F
-
-/*#define AC97_GENERAL_PURPOSE    0x20*/
-#define AC97_POWER_DOWN_CTRL    0x26
-#define AC97_ADC_READY          0x0001
-#define AC97_DAC_READY          0x0002
-#define AC97_ANALOG_READY       0x0004
-#define AC97_VREF_ON            0x0008
-#define AC97_PR0                0x0100
-#define AC97_PR1                0x0200
-#define AC97_PR2                0x0400
-#define AC97_PR3                0x0800
-#define AC97_PR4                0x1000
-
-#define AC97_RESERVED1          0x28
-
-#define AC97_VENDOR_TEST        0x5A
-
-#define AC97_CLOCK_DELAY        0x5C
-#define AC97_LINEOUT_MUX_SEL    0x0001
-#define AC97_MONO_MUX_SEL       0x0002
-#define AC97_CLOCK_DELAY_SEL    0x1F
-#define AC97_DAC_CDS_SHIFT      6
-#define AC97_ADC_CDS_SHIFT      11
-
-#define AC97_MULTI_CHANNEL_SEL  0x74
-
-/*#define AC97_VENDOR_ID1         0x7C
-#define AC97_VENDOR_ID2         0x7E*/
-
 /*
- * ASSP control regs
+ * DSP memory map
  */
-#define DSP_PORT_TIMER_COUNT    0x06
-
-#define DSP_PORT_MEMORY_INDEX   0x80
-
-#define DSP_PORT_MEMORY_TYPE    0x82
-#define MEMTYPE_INTERNAL_CODE   0x0002
-#define MEMTYPE_INTERNAL_DATA   0x0003
-#define MEMTYPE_MASK            0x0003
-
-#define DSP_PORT_MEMORY_DATA    0x84
-
-#define DSP_PORT_CONTROL_REG_A  0xA2
-#define DSP_PORT_CONTROL_REG_B  0xA4
-#define DSP_PORT_CONTROL_REG_C  0xA6
 
 #define REV_A_CODE_MEMORY_BEGIN         0x0000
 #define REV_A_CODE_MEMORY_END           0x0FFF
@@ -387,28 +403,61 @@
 #define REV_B_CODE_MEMORY_UNIT_LENGTH   0x0040
 #define REV_B_CODE_MEMORY_LENGTH        (REV_B_CODE_MEMORY_END - REV_B_CODE_MEMORY_BEGIN + 1)
 
+#if (REV_A_CODE_MEMORY_LENGTH % REV_A_CODE_MEMORY_UNIT_LENGTH)
+#error Assumption about code memory unit length failed.
+#endif
+#if (REV_B_CODE_MEMORY_LENGTH % REV_B_CODE_MEMORY_UNIT_LENGTH)
+#error Assumption about code memory unit length failed.
+#endif
+
 #define REV_A_DATA_MEMORY_BEGIN         0x1000
 #define REV_A_DATA_MEMORY_END           0x2FFF
 #define REV_A_DATA_MEMORY_UNIT_LENGTH   0x0080
 #define REV_A_DATA_MEMORY_LENGTH        (REV_A_DATA_MEMORY_END - REV_A_DATA_MEMORY_BEGIN + 1)
 
 #define REV_B_DATA_MEMORY_BEGIN         0x1000
+/*#define REV_B_DATA_MEMORY_END           0x23FF */
 #define REV_B_DATA_MEMORY_END           0x2BFF
 #define REV_B_DATA_MEMORY_UNIT_LENGTH   0x0080
 #define REV_B_DATA_MEMORY_LENGTH        (REV_B_DATA_MEMORY_END - REV_B_DATA_MEMORY_BEGIN + 1)
 
+#if (REV_A_DATA_MEMORY_LENGTH % REV_A_DATA_MEMORY_UNIT_LENGTH)
+#error Assumption about data memory unit length failed.
+#endif
+#if (REV_B_DATA_MEMORY_LENGTH % REV_B_DATA_MEMORY_UNIT_LENGTH)
+#error Assumption about data memory unit length failed.
+#endif
 
-#define NUM_UNITS_KERNEL_CODE          16
-#define NUM_UNITS_KERNEL_DATA           2
+#define CODE_MEMORY_MAP_LENGTH          (64 + 1)
+#define DATA_MEMORY_MAP_LENGTH          (64 + 1)
 
-#define NUM_UNITS_KERNEL_CODE_WITH_HSP 16
-#define NUM_UNITS_KERNEL_DATA_WITH_HSP  5
+#if (CODE_MEMORY_MAP_LENGTH < ((REV_A_CODE_MEMORY_LENGTH / REV_A_CODE_MEMORY_UNIT_LENGTH) + 1))
+#error Code memory map length too short.
+#endif
+#if (DATA_MEMORY_MAP_LENGTH < ((REV_A_DATA_MEMORY_LENGTH / REV_A_DATA_MEMORY_UNIT_LENGTH) + 1))
+#error Data memory map length too short.
+#endif
+#if (CODE_MEMORY_MAP_LENGTH < ((REV_B_CODE_MEMORY_LENGTH / REV_B_CODE_MEMORY_UNIT_LENGTH) + 1))
+#error Code memory map length too short.
+#endif
+#if (DATA_MEMORY_MAP_LENGTH < ((REV_B_DATA_MEMORY_LENGTH / REV_B_DATA_MEMORY_UNIT_LENGTH) + 1))
+#error Data memory map length too short.
+#endif
+
 
 /*
- * Kernel data layout
+ * Kernel code memory definition
  */
 
-#define DP_SHIFT_COUNT                  7
+#define KCODE_VECTORS_BEGIN             0x0000
+#define KCODE_VECTORS_END               0x002F
+#define KCODE_VECTORS_UNIT_LENGTH       0x0002
+#define KCODE_VECTORS_LENGTH            (KCODE_VECTORS_END - KCODE_VECTORS_BEGIN + 1)
+
+
+/*
+ * Kernel data memory definition
+ */
 
 #define KDATA_BASE_ADDR                 0x1000
 #define KDATA_BASE_ADDR2                0x1080
@@ -488,29 +537,29 @@
 
 #define KDATA_ADC1_XFER0                (KDATA_BASE_ADDR + 0x003B)
 #define KDATA_ADC1_XFER_ENDMARK         (KDATA_BASE_ADDR + 0x003C)
-#define KDATA_ADC1_LEFT_VOLUME			(KDATA_BASE_ADDR + 0x003D)
-#define KDATA_ADC1_RIGHT_VOLUME  		(KDATA_BASE_ADDR + 0x003E)
-#define KDATA_ADC1_LEFT_SUR_VOL			(KDATA_BASE_ADDR + 0x003F)
-#define KDATA_ADC1_RIGHT_SUR_VOL		(KDATA_BASE_ADDR + 0x0040)
+#define KDATA_ADC1_LEFT_VOLUME		(KDATA_BASE_ADDR + 0x003D)
+#define KDATA_ADC1_RIGHT_VOLUME  	(KDATA_BASE_ADDR + 0x003E)
+#define KDATA_ADC1_LEFT_SUR_VOL		(KDATA_BASE_ADDR + 0x003F)
+#define KDATA_ADC1_RIGHT_SUR_VOL	(KDATA_BASE_ADDR + 0x0040)
 
 #define KDATA_ADC2_XFER0                (KDATA_BASE_ADDR + 0x0041)
 #define KDATA_ADC2_XFER_ENDMARK         (KDATA_BASE_ADDR + 0x0042)
-#define KDATA_ADC2_LEFT_VOLUME			(KDATA_BASE_ADDR + 0x0043)
-#define KDATA_ADC2_RIGHT_VOLUME			(KDATA_BASE_ADDR + 0x0044)
-#define KDATA_ADC2_LEFT_SUR_VOL			(KDATA_BASE_ADDR + 0x0045)
-#define KDATA_ADC2_RIGHT_SUR_VOL		(KDATA_BASE_ADDR + 0x0046)
+#define KDATA_ADC2_LEFT_VOLUME		(KDATA_BASE_ADDR + 0x0043)
+#define KDATA_ADC2_RIGHT_VOLUME		(KDATA_BASE_ADDR + 0x0044)
+#define KDATA_ADC2_LEFT_SUR_VOL		(KDATA_BASE_ADDR + 0x0045)
+#define KDATA_ADC2_RIGHT_SUR_VOL	(KDATA_BASE_ADDR + 0x0046)
 
-#define KDATA_CD_XFER0					(KDATA_BASE_ADDR + 0x0047)					
-#define KDATA_CD_XFER_ENDMARK			(KDATA_BASE_ADDR + 0x0048)
-#define KDATA_CD_LEFT_VOLUME			(KDATA_BASE_ADDR + 0x0049)
-#define KDATA_CD_RIGHT_VOLUME			(KDATA_BASE_ADDR + 0x004A)
-#define KDATA_CD_LEFT_SUR_VOL			(KDATA_BASE_ADDR + 0x004B)
-#define KDATA_CD_RIGHT_SUR_VOL			(KDATA_BASE_ADDR + 0x004C)
+#define KDATA_CD_XFER0			(KDATA_BASE_ADDR + 0x0047)
+#define KDATA_CD_XFER_ENDMARK		(KDATA_BASE_ADDR + 0x0048)
+#define KDATA_CD_LEFT_VOLUME		(KDATA_BASE_ADDR + 0x0049)
+#define KDATA_CD_RIGHT_VOLUME		(KDATA_BASE_ADDR + 0x004A)
+#define KDATA_CD_LEFT_SUR_VOL		(KDATA_BASE_ADDR + 0x004B)
+#define KDATA_CD_RIGHT_SUR_VOL		(KDATA_BASE_ADDR + 0x004C)
 
-#define KDATA_MIC_XFER0					(KDATA_BASE_ADDR + 0x004D)
-#define KDATA_MIC_XFER_ENDMARK			(KDATA_BASE_ADDR + 0x004E)
-#define KDATA_MIC_VOLUME				(KDATA_BASE_ADDR + 0x004F)
-#define KDATA_MIC_SUR_VOL				(KDATA_BASE_ADDR + 0x0050)
+#define KDATA_MIC_XFER0			(KDATA_BASE_ADDR + 0x004D)
+#define KDATA_MIC_XFER_ENDMARK		(KDATA_BASE_ADDR + 0x004E)
+#define KDATA_MIC_VOLUME		(KDATA_BASE_ADDR + 0x004F)
+#define KDATA_MIC_SUR_VOL		(KDATA_BASE_ADDR + 0x0050)
 
 #define KDATA_I2S_XFER0                 (KDATA_BASE_ADDR + 0x0051)
 #define KDATA_I2S_XFER_ENDMARK          (KDATA_BASE_ADDR + 0x0052)
@@ -527,6 +576,7 @@
 #define KDATA_SPDIF_REQUEST             (KDATA_BASE_ADDR + 0x005A)
 #define KDATA_SPDIF_TEMP                (KDATA_BASE_ADDR + 0x005B)
 
+/*AY SPDIF IN */
 #define KDATA_SPDIFIN_XFER0             (KDATA_BASE_ADDR + 0x005C)
 #define KDATA_SPDIFIN_XFER_ENDMARK      (KDATA_BASE_ADDR + 0x005D)
 #define KDATA_SPDIFIN_INT_METER         (KDATA_BASE_ADDR + 0x005E)
@@ -559,19 +609,20 @@
 
 #define KDATA_ADC1_REQUEST              (KDATA_BASE_ADDR + 0x0074)
 #define KDATA_ADC2_REQUEST              (KDATA_BASE_ADDR + 0x0075)
-#define KDATA_CD_REQUEST				(KDATA_BASE_ADDR + 0x0076)
-#define KDATA_MIC_REQUEST				(KDATA_BASE_ADDR + 0x0077)
+#define KDATA_CD_REQUEST		(KDATA_BASE_ADDR + 0x0076)
+#define KDATA_MIC_REQUEST		(KDATA_BASE_ADDR + 0x0077)
 
 #define KDATA_ADC1_MIXER_REQUEST        (KDATA_BASE_ADDR + 0x0078)
 #define KDATA_ADC2_MIXER_REQUEST        (KDATA_BASE_ADDR + 0x0079)
-#define KDATA_CD_MIXER_REQUEST			(KDATA_BASE_ADDR + 0x007A)
-#define KDATA_MIC_MIXER_REQUEST			(KDATA_BASE_ADDR + 0x007B)
-#define KDATA_MIC_SYNC_COUNTER			(KDATA_BASE_ADDR + 0x007C)
+#define KDATA_CD_MIXER_REQUEST		(KDATA_BASE_ADDR + 0x007A)
+#define KDATA_MIC_MIXER_REQUEST		(KDATA_BASE_ADDR + 0x007B)
+#define KDATA_MIC_SYNC_COUNTER		(KDATA_BASE_ADDR + 0x007C)
 
 /*
- * second 'segment' (?) reserved for mixer
- * buffers..
+ * second segment
  */
+
+/* smart mixer buffer */
 
 #define KDATA_MIXER_WORD0               (KDATA_BASE_ADDR2 + 0x0000)
 #define KDATA_MIXER_WORD1               (KDATA_BASE_ADDR2 + 0x0001)
@@ -609,14 +660,10 @@
 #define KDATA_DAC_LEFT_VOLUME	        (KDATA_BASE_ADDR2 + 0x001F)
 #define KDATA_DAC_RIGHT_VOLUME          (KDATA_BASE_ADDR2 + 0x0020)
 
-#define MAX_INSTANCE_MINISRC            (KDATA_INSTANCE_MINISRC_ENDMARK - KDATA_INSTANCE0_MINISRC)
-#define MAX_VIRTUAL_DMA_CHANNELS        (KDATA_DMA_XFER_ENDMARK - KDATA_DMA_XFER0)
-#define MAX_VIRTUAL_MIXER_CHANNELS      (KDATA_MIXER_XFER_ENDMARK - KDATA_MIXER_XFER0)
-#define MAX_VIRTUAL_ADC1_CHANNELS       (KDATA_ADC1_XFER_ENDMARK - KDATA_ADC1_XFER0)
-
 /*
- * client data area offsets
+ * Client data memory definition
  */
+
 #define CDATA_INSTANCE_READY            0x00
 
 #define CDATA_HOST_SRC_ADDRL            0x01
@@ -633,6 +680,7 @@
 #define CDATA_IN_BUF_END_PLUS_1         0x0A
 #define CDATA_IN_BUF_HEAD               0x0B
 #define CDATA_IN_BUF_TAIL               0x0C
+
 #define CDATA_OUT_BUF_BEGIN             0x0D
 #define CDATA_OUT_BUF_END_PLUS_1        0x0E
 #define CDATA_OUT_BUF_HEAD              0x0F
@@ -647,23 +695,21 @@
 #define CDATA_LEFT_SUR_VOL              0x16
 #define CDATA_RIGHT_SUR_VOL             0x17
 
+/* These are from Allegro hckernel.h */
 #define CDATA_HEADER_LEN                0x18
-
 #define SRC3_DIRECTION_OFFSET           CDATA_HEADER_LEN
-#define SRC3_MODE_OFFSET                (CDATA_HEADER_LEN + 1)
-#define SRC3_WORD_LENGTH_OFFSET         (CDATA_HEADER_LEN + 2)
-#define SRC3_PARAMETER_OFFSET           (CDATA_HEADER_LEN + 3)
-#define SRC3_COEFF_ADDR_OFFSET          (CDATA_HEADER_LEN + 8)
-#define SRC3_FILTAP_ADDR_OFFSET         (CDATA_HEADER_LEN + 10)
-#define SRC3_TEMP_INBUF_ADDR_OFFSET     (CDATA_HEADER_LEN + 16)
-#define SRC3_TEMP_OUTBUF_ADDR_OFFSET    (CDATA_HEADER_LEN + 17)
+#define SRC3_MODE_OFFSET                CDATA_HEADER_LEN + 1
+#define SRC3_WORD_LENGTH_OFFSET         CDATA_HEADER_LEN + 2
+#define SRC3_PARAMETER_OFFSET           CDATA_HEADER_LEN + 3
+#define SRC3_COEFF_ADDR_OFFSET          CDATA_HEADER_LEN + 8
+#define SRC3_FILTAP_ADDR_OFFSET         CDATA_HEADER_LEN + 10
+#define SRC3_TEMP_INBUF_ADDR_OFFSET     CDATA_HEADER_LEN + 16
+#define SRC3_TEMP_OUTBUF_ADDR_OFFSET    CDATA_HEADER_LEN + 17
+#define FOR_FUTURE_USE                  10	/* for storing temporary variable in future */
 
-#define MINISRC_IN_BUFFER_SIZE   ( 0x50 * 2 )
-#define MINISRC_OUT_BUFFER_SIZE  ( 0x50 * 2 * 2)
-#define MINISRC_OUT_BUFFER_SIZE  ( 0x50 * 2 * 2)
-#define MINISRC_TMP_BUFFER_SIZE  ( 112 + ( MINISRC_BIQUAD_STAGE * 3 + 4 ) * 2 * 2 )
-#define MINISRC_BIQUAD_STAGE    2
-#define MINISRC_COEF_LOC          0X175
+/*
+ * DMA control definition
+ */
 
 #define DMACONTROL_BLOCK_MASK           0x000F
 #define  DMAC_BLOCK0_SELECTOR           0x0000
@@ -690,3 +736,55 @@
 #define DMACONTROL_AUTOREPEAT           0x1000
 #define DMACONTROL_STOPPED              0x2000
 #define DMACONTROL_DIRECTION            0x0100
+
+/*
+ * Kernel/client memory allocation
+ */
+
+#define NUM_UNITS_KERNEL_CODE          16
+#define NUM_UNITS_KERNEL_DATA           2
+
+#define NUM_UNITS_KERNEL_CODE_WITH_HSP 16
+#ifdef M3_MODEL
+#define NUM_UNITS_KERNEL_DATA_WITH_HSP  5
+#else
+#define NUM_UNITS_KERNEL_DATA_WITH_HSP  4
+#endif
+
+#define NUM_UNITS( BYTES, UNITLEN )    ((((BYTES+1)>>1) + (UNITLEN-1)) / UNITLEN)
+
+/*
+ * DSP hardware
+ */
+
+#define DSP_PORT_TIMER_COUNT            0x06
+#define DSP_PORT_MEMORY_INDEX           0x80
+#define DSP_PORT_MEMORY_TYPE            0x82
+#define DSP_PORT_MEMORY_DATA            0x84
+#define DSP_PORT_CONTROL_REG_A          0xA2
+#define DSP_PORT_CONTROL_REG_B          0xA4
+#define DSP_PORT_CONTROL_REG_C          0xA6
+
+#define MEMTYPE_INTERNAL_CODE           0x0002
+#define MEMTYPE_INTERNAL_DATA           0x0003
+#define MEMTYPE_MASK                    0x0003
+
+#define REGB_ENABLE_RESET               0x01
+#define REGB_STOP_CLOCK                 0x10
+
+#define REGC_DISABLE_FM_MAPPING         0x02
+
+#define DP_SHIFT_COUNT                  7
+
+#define DMA_BLOCK_LENGTH                32
+
+/* These are from Allegro srcmgr.h */
+#define MINISRC_BIQUAD_STAGE    2
+#define MINISRC_IN_BUFFER_SIZE   ( 0x50 * 2 )
+#define MINISRC_OUT_BUFFER_SIZE  ( 0x50 * 2 * 2)
+#define MINISRC_TMP_BUFFER_SIZE  ( 112 + ( MINISRC_BIQUAD_STAGE * 3 + 4 ) * 2 * 2 )
+#define MINISRC_BIQUAD_STAGE    2
+/* M. SRC LPF coefficient could be changed in the DSP code */
+#define MINISRC_COEF_LOC          0X175
+
+#endif	/* !_DEV_SOUND_PCI_ALLEGRO_REG_H */
