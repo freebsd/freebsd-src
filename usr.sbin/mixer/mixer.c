@@ -193,10 +193,15 @@ main(int argc, char *argv[])
 			argc--;
 			argv++;
 			continue;
-		} else if (argc > 1 && strcmp("rec", *argv + 1) == 0) {
+		} else if (strcmp("rec", *argv + 1) == 0) {
 			if (**argv != '+' && **argv != '-' &&
 			    **argv != '=' && **argv != '^') {
 				warnx("unknown modifier: %c", **argv);
+				dusage = 1;
+				break;
+			}
+			if (argc <= 1) {
+				warnx("no recording device specified");
 				dusage = 1;
 				break;
 			}
