@@ -320,6 +320,9 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -509,6 +512,11 @@ MK_BIND_UTILS:=	no
 
 .if ${MK_BIND_MTREE} == "no"
 MK_BIND_ETC:=	no
+.endif
+
+.if ${MK_SOURCELESS} == "no"
+MK_SOURCELESS_HOST:=	no
+MK_SOURCELESS_UCODE:= no
 .endif
 
 .if ${MK_CDDL} == "no"
