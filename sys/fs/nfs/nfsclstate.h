@@ -219,7 +219,8 @@ struct nfscllayout {
 	TAILQ_ENTRY(nfscllayout)	nfsly_list;
 	LIST_ENTRY(nfscllayout)		nfsly_hash;
 	nfsv4stateid_t			nfsly_stateid;
-	struct nfsclflayouthead		nfsly_flay;
+	struct nfsclflayouthead		nfsly_flayread;
+	struct nfsclflayouthead		nfsly_flayrw;
 	struct nfsclclient		*nfsly_clp;
 	uint32_t			nfsly_refcnt;
 	uint16_t			nfsly_retonclose;
@@ -229,13 +230,16 @@ struct nfscllayout {
 
 /*
  * MALLOC'd to the correct length to accommodate the file handle list.
- * These hang off of nfsly_flay, sorted in increasing offset order.
+ * These hang off of nfsly_flayread and nfsly_flayrw, sorted in increasing
+ * offset order.
+ * The nfsly_flayread list holds the ones with iomode == NFSLAYOUTIOMODE_READ,
+ * whereas the nfsly_flayrw holds the ones with iomode == NFSLAYOUTIOMODE_RW.
  */
 struct nfsclflayout {
 	LIST_ENTRY(nfsclflayout)	nfsfl_list;
 	uint8_t				nfsfl_dev[NFSX_V4DEVICEID];
 	uint64_t			nfsfl_off;
-	uint64_t			nfsfl_len;
+	uint64_t			nfsfl_end;
 	uint64_t			nfsfl_patoff;
 	uint32_t			nfsfl_iomode;
 	uint32_t			nfsfl_util;

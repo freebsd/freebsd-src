@@ -585,6 +585,10 @@
 #define	NFSDEVICEIDNOTIFY_CHANGEBIT	0x1
 #define	NFSDEVICEIDNOTIFY_DELETEBIT	0x2
 
+/* Flags for File Layout. */
+#define	NFSFLAYUTIL_DENSE		0x1
+#define	NFSFLAYUTIL_COMMIT_THRU_MDS	0x2
+
 /* Conversion macros */
 #define	vtonfsv2_mode(t,m) 						\
 		txdr_unsigned(((t) == VFIFO) ? MAKEIMODE(VCHR, (m)) : 	\

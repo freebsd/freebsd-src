@@ -4405,6 +4405,7 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 {
 	struct nfsclclient *clp;
 	struct nfscllayout *lyp, *tlyp;
+	struct nfsclflayout *flp;
 
 	*lypp = NULL;
 	tlyp = malloc(sizeof(*tlyp) + fhlen - 1, M_NFSLAYOUT, M_WAITOK);
@@ -4424,7 +4425,8 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 		lyp->nfsly_stateid.other[0] = stateidp->other[0];
 		lyp->nfsly_stateid.other[1] = stateidp->other[1];
 		lyp->nfsly_stateid.other[2] = stateidp->other[2];
-		LIST_INIT(&lyp->nfsly_flay);
+		LIST_INIT(&lyp->nfsly_flayread);
+		LIST_INIT(&lyp->nfsly_flayrw);
 		lyp->nfsly_clp = clp;
 		lyp->nfsly_retonclose = retonclose;
 		lyp->nfsly_refcnt = 1;	/* Return with a reference cnt. */
@@ -4444,7 +4446,13 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
 	}
 
 	/* Merge the new list of File Layouts into the list. */
-	nfscl_mergeflayouts(&lyp->nfsly_flay, fhlp);
+	flp = LIST_FIRST(fhlp);
+	if (flp != NULL) {
+		if (flp->nfsfl_iomode == NFSLAYOUTIOMODE_READ)
+			nfscl_mergeflayouts(&lyp->nfsly_flayread, fhlp);
+		else
+			nfscl_mergeflayouts(&lyp->nfsly_flayrw, fhlp);
+	}
 	NFSUNLOCKCLSTATE();
 	if (tlyp != NULL)
 		free(tlyp, M_NFSLAYOUT);
@@ -4599,7 +4607,11 @@ nfscl_freelayout(struct nfscllayout *layp)
 {
 	struct nfsclflayout *flp, *nflp;
 
-	LIST_FOREACH_SAFE(flp, &layp->nfsly_flay, nfsfl_list, nflp) {
+	LIST_FOREACH_SAFE(flp, &layp->nfsly_flayread, nfsfl_list, nflp) {
+		LIST_REMOVE(flp, nfsfl_list);
+		nfscl_freeflayout(flp);
+	}
+	LIST_FOREACH_SAFE(flp, &layp->nfsly_flayrw, nfsfl_list, nflp) {
 		LIST_REMOVE(flp, nfsfl_list);
 		nfscl_freeflayout(flp);
 	}

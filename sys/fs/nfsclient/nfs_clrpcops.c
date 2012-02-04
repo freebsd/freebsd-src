@@ -4522,6 +4522,7 @@ nfsrpc_layoutget(struct nfsmount *nmp, uint8_t *fhp, int fhlen, int iomode,
 	struct nfsclflayout *flp, *prevflp, *tflp;
 	int cnt, error, fhcnt, nfhlen, i, j;
 	uint8_t *cp;
+	uint64_t retlen;
 
 	flp = NULL;
 	nfscl_reqstart(nd, NFSPROC_LAYOUTGET, nmp, fhp, fhlen, NULL, NULL);
@@ -4585,7 +4586,11 @@ printf("fhcnt=%d\n", fhcnt);
 				    M_NFSFLAYOUT, M_WAITOK);
 			flp->nfsfl_fhcnt = 0;
 			flp->nfsfl_off = fxdr_hyper(tl); tl += 2;
-			flp->nfsfl_len = fxdr_hyper(tl); tl += 2;
+			retlen = fxdr_hyper(tl); tl += 2;
+			if (flp->nfsfl_off + retlen < flp->nfsfl_off)
+				flp->nfsfl_end = UINT64_MAX - flp->nfsfl_off;
+			else
+				flp->nfsfl_end = flp->nfsfl_off + retlen;
 			flp->nfsfl_iomode = fxdr_unsigned(int, *tl++);
 printf("layg iom=%d\n", iomode);
 			if (fxdr_unsigned(int, *tl++) !=
@@ -4619,18 +4624,24 @@ printf("layg iom=%d\n", iomode);
 				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(fhlen));
 				NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
 			}
-			/* Maintain the list in increasing offset order. */
-			tflp = LIST_FIRST(flhp);
-			prevflp = NULL;
-			while (tflp != NULL &&
-			    tflp->nfsfl_off < flp->nfsfl_off) {
-				prevflp = tflp;
-				tflp = LIST_NEXT(tflp, nfsfl_list);
+			if (flp->nfsfl_iomode == iomode) {
+				/* Keep the list in increasing offset order. */
+				tflp = LIST_FIRST(flhp);
+				prevflp = NULL;
+				while (tflp != NULL &&
+				    tflp->nfsfl_off < flp->nfsfl_off) {
+					prevflp = tflp;
+					tflp = LIST_NEXT(tflp, nfsfl_list);
+				}
+				if (prevflp == NULL)
+					LIST_INSERT_HEAD(flhp, flp, nfsfl_list);
+				else
+					LIST_INSERT_AFTER(prevflp, flp,
+					    nfsfl_list);
+			} else {
+				printf("nfscl_layoutget(): got wrong iomode\n");
+				nfscl_freeflayout(flp);
 			}
-			if (prevflp == NULL)
-				LIST_INSERT_HEAD(flhp, flp, nfsfl_list);
-			else
-				LIST_INSERT_AFTER(prevflp, flp, nfsfl_list);
 			flp = NULL;
 		}
 	}
