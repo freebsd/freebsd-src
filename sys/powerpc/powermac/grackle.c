@@ -98,7 +98,7 @@ static device_method_t	grackle_methods[] = {
 };
 
 static devclass_t	grackle_devclass;
-DEFINE_CLASS_1(pci, grackle_driver, grackle_methods,
+DEFINE_CLASS_1(pcib, grackle_driver, grackle_methods,
     sizeof(struct grackle_softc), ofw_pci_driver);
 DRIVER_MODULE(grackle, nexus, grackle_driver, grackle_devclass, 0, 0);
 
