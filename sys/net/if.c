@@ -1416,6 +1416,7 @@ ifa_init(struct ifaddr *ifa)
 
 	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
 	refcount_init(&ifa->ifa_refcnt, 1);
+	ifa->if_data.ifi_datalen = sizeof(ifa->if_data);
 }
 
 void
