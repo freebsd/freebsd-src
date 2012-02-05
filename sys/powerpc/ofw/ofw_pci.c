@@ -431,6 +431,7 @@ ofw_pci_adjust_resource(device_t bus, device_t child, int type,
 {
 	struct rman *rm = NULL;
 	struct ofw_pci_softc *sc = device_get_softc(bus);
+	int error;
 
 	switch (type) {
 	case SYS_RES_MEMORY:
@@ -445,7 +446,22 @@ ofw_pci_adjust_resource(device_t bus, device_t child, int type,
 
 	if (!rman_is_region_manager(res, rm))
 		return (EINVAL);
-	return (rman_adjust_resource(res, start, end));
+
+	error = rman_adjust_resource(res, start, end);
+	if (error)
+		return (error);
+
+	if (rman_get_flags(res) & RF_ACTIVE) {
+		/* Remap memory resources */
+		error = ofw_pci_deactivate_resource(bus, child, type,
+		    rman_get_rid(res), res);
+		if (error)
+			return (error);
+		error = ofw_pci_activate_resource(bus, child, type,
+		    rman_get_rid(res), res);
+	}
+
+	return (error);
 }
 	
 
