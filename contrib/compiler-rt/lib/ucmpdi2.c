@@ -37,3 +37,13 @@ __ucmpdi2(du_int a, du_int b)
         return 2;
     return 1;
 }
+
+#ifdef __ARM_EABI__
+/* Returns (-1, 0, 1) for (<, ==, >) */
+COMPILER_RT_ABI si_int
+__aeabi_ulcmp(di_int a, di_int b)
+{
+	return __ucmpdi2(a, b) - 1;
+}
+#endif
+
