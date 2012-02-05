@@ -1408,7 +1408,7 @@ if_maddr_runlock(struct ifnet *ifp)
 }
 
 /*
- * Reference count functions for ifaddrs.
+ * Initialization, desctruction and refcounting functions for ifaddrs.
  */
 void
 ifa_init(struct ifaddr *ifa)
