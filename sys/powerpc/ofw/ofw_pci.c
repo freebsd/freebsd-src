@@ -71,6 +71,9 @@ static int		ofw_pci_activate_resource(device_t bus, device_t child,
 static int		ofw_pci_deactivate_resource(device_t bus,
     			    device_t child, int type, int rid,
     			    struct resource *res);
+static int		ofw_pci_adjust_resource(device_t bus, device_t child,
+			    int type, struct resource *res, u_long start,
+			    u_long end);
 
 /*
  * pcib interface.
@@ -106,6 +109,7 @@ static device_method_t	ofw_pci_methods[] = {
 	DEVMETHOD(bus_release_resource,	ofw_pci_release_resource),
 	DEVMETHOD(bus_activate_resource,	ofw_pci_activate_resource),
 	DEVMETHOD(bus_deactivate_resource,	ofw_pci_deactivate_resource),
+	DEVMETHOD(bus_adjust_resource,	ofw_pci_adjust_resource),
 
 	/* pcib interface */
 	DEVMETHOD(pcib_maxslots,	ofw_pci_maxslots),
@@ -420,6 +424,30 @@ ofw_pci_deactivate_resource(device_t bus, device_t child, int type, int rid,
 
 	return (rman_deactivate_resource(res));
 }
+
+static int
+ofw_pci_adjust_resource(device_t bus, device_t child, int type,
+    struct resource *res, u_long start, u_long end)
+{
+	struct rman *rm = NULL;
+	struct ofw_pci_softc *sc = device_get_softc(bus);
+
+	switch (type) {
+	case SYS_RES_MEMORY:
+		rm = &sc->sc_mem_rman;
+		break;
+	case SYS_RES_IOPORT:
+		rm = &sc->sc_io_rman;
+		break;
+	default:
+		return (ENXIO);
+	}
+
+	if (!rman_is_region_manager(res, rm))
+		return (EINVAL);
+	return (rman_adjust_resource(res, start, end));
+}
+	
 
 static phandle_t
 ofw_pci_get_node(device_t bus, device_t dev)
