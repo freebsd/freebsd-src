@@ -353,10 +353,10 @@ vm_radix_insert(struct vm_radix *rtree, vm_pindex_t index, void *val)
 					rnode = root;
 					level = clev;
 					level--;
+					slot = vm_radix_slot(index, level);
 					CTR4(KTR_VM,
 		    "insert: unwind root %p, level %d, slot %d, allocmsk: 0x%x",
 					    root, level, slot, allocmsk);
-					slot = vm_radix_slot(index, level);
 					MPASS(level >= (ffs(allocmsk) - 1));
 					while (level > (ffs(allocmsk) - 1)) {
 						MPASS(level > 0);
