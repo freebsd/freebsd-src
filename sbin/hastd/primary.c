@@ -1326,7 +1326,8 @@ local_send_thread(void *arg)
 			} else {
 				hio->hio_errors[ncomp] = 0;
 				if (hio->hio_replication ==
-				    HAST_REPLICATION_ASYNC) {
+				    HAST_REPLICATION_ASYNC &&
+				    !ISSYNCREQ(hio)) {
 					ggio->gctl_error = 0;
 					write_complete(res, hio);
 				}
