@@ -764,6 +764,7 @@ _cardbus=	cardbus
 _cbb=		cbb
 _cfi=		cfi
 _cpufreq=	cpufreq
+_exca=		exca
 _nvram=		powermac_nvram
 _pccard=	pccard
 _smbfs=		smbfs
