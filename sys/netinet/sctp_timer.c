@@ -1402,31 +1402,30 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 {
 	uint8_t net_was_pf;
 
-	net_was_pf = 0;
-	if (net) {
-		if (net->dest_state & SCTP_ADDR_PF) {
-			net_was_pf = 1;
+	if (net->dest_state & SCTP_ADDR_PF) {
+		net_was_pf = 1;
+	} else {
+		net_was_pf = 0;
+	}
+	if (net->hb_responded == 0) {
+		if (net->ro._s_addr) {
+			/*
+			 * Invalidate the src address if we did not get a
+			 * response last time.
+			 */
+			sctp_free_ifa(net->ro._s_addr);
+			net->ro._s_addr = NULL;
+			net->src_addr_selected = 0;
 		}
-		if (net->hb_responded == 0) {
-			if (net->ro._s_addr) {
-				/*
-				 * Invalidate the src address if we did not
-				 * get a response last time.
-				 */
-				sctp_free_ifa(net->ro._s_addr);
-				net->ro._s_addr = NULL;
-				net->src_addr_selected = 0;
-			}
-			sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
-			if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
-				/* Assoc is over */
-				return (1);
-			}
+		sctp_backoff_on_timeout(stcb, net, 1, 0, 0);
+		if (sctp_threshold_management(inp, stcb, net, stcb->asoc.max_send_times)) {
+			/* Assoc is over */
+			return (1);
 		}
-		/* Zero PBA, if it needs it */
-		if (net->partial_bytes_acked) {
-			net->partial_bytes_acked = 0;
-		}
+	}
+	/* Zero PBA, if it needs it */
+	if (net->partial_bytes_acked) {
+		net->partial_bytes_acked = 0;
 	}
 	if ((stcb->asoc.total_output_queue_size > 0) &&
 	    (TAILQ_EMPTY(&stcb->asoc.send_queue)) &&
