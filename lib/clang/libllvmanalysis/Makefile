@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmanalysis
 
 SRCDIR=	lib/Analysis
@@ -54,6 +56,14 @@ SRCS=	AliasAnalysis.cpp \
 	SparsePropagation.cpp \
 	TypeBasedAliasAnalysis.cpp \
 	ValueTracking.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	BlockFrequencyInfo.cpp \
+	LibCallSemantics.cpp \
+	PathNumbering.cpp \
+	PathProfileInfo.cpp \
+	PathProfileVerifier.cpp
+.endif
 
 TGHDRS=	Intrinsics
 
