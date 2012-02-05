@@ -5025,6 +5025,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 		dsp->nfsclds_sock.nr_nam = (struct sockaddr *)sad6;
 	} else
 		return (EPERM);
+	mtx_init(&dsp->nfsclds_mtx, "nfsds", NULL, MTX_DEF);
 	dsp->nfsclds_sock.nr_sotype = SOCK_STREAM;
 	mtx_init(&dsp->nfsclds_sock.nr_mtx, "nfssock", NULL, MTX_DEF);
 	dsp->nfsclds_sock.nr_prog = NFS_PROG;
@@ -5051,6 +5052,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 	}
 	if (error != 0) {
 		NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+		NFSFREEMUTEX(&dsp->nfsclds_mtx);
 		NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
 		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		NFSBZERO(dsp, sizeof(*dsp));

@@ -73,8 +73,11 @@ struct nfsclsession {
  * This structure holds the information used to access a Data Server (DS).
  */
 struct nfsclds {
+	struct mtx		nfsclds_mtx;
 	struct nfssockreq	nfsclds_sock;
 	struct nfsclsession	nfsclds_sess;
+	int			nfsclds_haswriteverf;
+	uint8_t			nfsclds_verf[NFSX_VERF];
 };
 
 struct nfsclclient {

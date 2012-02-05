@@ -4645,6 +4645,7 @@ nfscl_freedevinfo(struct nfscldevinfo *dip)
 		if (dsp->nfsclds_sock.nr_nam != NULL) {
 			/* All are set or none are. */
 			NFSFREECRED(dsp->nfsclds_sock.nr_cred);
+			NFSFREEMUTEX(&dsp->nfsclds_mtx);
 			NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
 			free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		}
