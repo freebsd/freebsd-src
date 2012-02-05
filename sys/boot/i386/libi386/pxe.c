@@ -405,6 +405,7 @@ pxe_perror(int err)
 	return;
 }
 
+#ifdef LOADER_NFS_SUPPORT
 /*
  * Reach inside the libstand NFS code and dig out an NFS handle
  * for the root filesystem.
@@ -515,6 +516,7 @@ pxe_setnfshandle(char *rootpath)
 	setenv("boot.nfsroot.nfshandlelen", buf, 1);
 }
 #endif	/* OLD_NFSV2 */
+#endif /* LOADER_NFS_SUPPORT */
 
 void
 pxenv_call(int func)
