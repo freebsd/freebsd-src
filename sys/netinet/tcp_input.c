@@ -1446,7 +1446,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 	 */
 	tp->t_rcvtime = ticks;
 	if (TCPS_HAVEESTABLISHED(tp->t_state))
-		tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+		tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 
 	/*
 	 * Unscale the window into a 32-bit value.
@@ -1889,7 +1889,8 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 			} else {
 				tp->t_state = TCPS_ESTABLISHED;
 				cc_conn_init(tp);
-				tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+				tcp_timer_activate(tp, TT_KEEP,
+				    TP_KEEPIDLE(tp));
 			}
 		} else {
 			/*
@@ -2293,7 +2294,7 @@ tcp_do_segment(struct mbuf *m, struct tcphdr *th, struct socket *so,
 		} else {
 			tp->t_state = TCPS_ESTABLISHED;
 			cc_conn_init(tp);
-			tcp_timer_activate(tp, TT_KEEP, tcp_keepidle);
+			tcp_timer_activate(tp, TT_KEEP, TP_KEEPIDLE(tp));
 		}
 		/*
 		 * If segment contains data or ACK, will call tcp_reass()
@@ -2630,12 +2631,11 @@ process_ACK:
 				 * compressed state.
 				 */
 				if (so->so_rcv.sb_state & SBS_CANTRCVMORE) {
-					int timeout;
-
 					soisdisconnected(so);
-					timeout = (tcp_fast_finwait2_recycle) ? 
-						tcp_finwait2_timeout : tcp_maxidle;
-					tcp_timer_activate(tp, TT_2MSL, timeout);
+					tcp_timer_activate(tp, TT_2MSL,
+					    (tcp_fast_finwait2_recycle ?
+					    tcp_finwait2_timeout :
+					    TP_MAXIDLE(tp)));
 				}
 				tp->t_state = TCPS_FIN_WAIT_2;
 			}
