@@ -121,7 +121,6 @@ netcmd(const char *cmd, const char *args)
 	return (0);
 }
 
-
 static void
 changeitems(const char *args, int onoff)
 {
