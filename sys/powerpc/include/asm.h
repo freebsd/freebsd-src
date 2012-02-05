@@ -116,9 +116,9 @@
 #define __FBSDID(s)	/* nothing */
 #endif /* not lint and not STRIP_FBSDID */
 
-#define	WEAK_ALIAS(alias,sym)					\
+#define	WEAK_REFERENCE(sym, alias)				\
 	.weak alias;						\
-	alias = sym
+	.equ alias,sym
 
 #ifdef __STDC__
 #define	WARN_REFERENCES(_sym,_msg)				\
