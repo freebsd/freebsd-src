@@ -104,7 +104,7 @@ create_one(struct hast_resource *res, intmax_t mediasize, intmax_t extentsize,
 	ec = 0;
 	pjdlog_prefix_set("[%s] ", res->hr_name);
 
-	if (provinfo(res, true) < 0) {
+	if (provinfo(res, true) == -1) {
 		ec = EX_NOINPUT;
 		goto end;
 	}
@@ -146,7 +146,7 @@ create_one(struct hast_resource *res, intmax_t mediasize, intmax_t extentsize,
 
 	res->hr_localoff = METADATA_SIZE + mapsize;
 
-	if (metadata_write(res) < 0) {
+	if (metadata_write(res) == -1) {
 		ec = EX_IOERR;
 		goto end;
 	}
@@ -401,15 +401,15 @@ main(int argc, char *argv[])
 			debug++;
 			break;
 		case 'e':
-			if (expand_number(optarg, &extentsize) < 0)
+			if (expand_number(optarg, &extentsize) == -1)
 				errx(EX_USAGE, "Invalid extentsize");
 			break;
 		case 'k':
-			if (expand_number(optarg, &keepdirty) < 0)
+			if (expand_number(optarg, &keepdirty) == -1)
 				errx(EX_USAGE, "Invalid keepdirty");
 			break;
 		case 'm':
-			if (expand_number(optarg, &mediasize) < 0)
+			if (expand_number(optarg, &mediasize) == -1)
 				errx(EX_USAGE, "Invalid mediasize");
 			break;
 		case 'h':
@@ -479,13 +479,13 @@ main(int argc, char *argv[])
 	}
 
 	/* Setup control connection... */
-	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) < 0) {
+	if (proto_client(NULL, cfg->hc_controladdr, &controlconn) == -1) {
 		pjdlog_exit(EX_OSERR,
 		    "Unable to setup control connection to %s",
 		    cfg->hc_controladdr);
 	}
 	/* ...and connect to hastd. */
-	if (proto_connect(controlconn, HAST_TIMEOUT) < 0) {
+	if (proto_connect(controlconn, HAST_TIMEOUT) == -1) {
 		pjdlog_exit(EX_OSERR, "Unable to connect to hastd via %s",
 		    cfg->hc_controladdr);
 	}
@@ -494,14 +494,14 @@ main(int argc, char *argv[])
 		exit(EX_CONFIG);
 
 	/* Send the command to the server... */
-	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) < 0) {
+	if (hast_proto_send(NULL, controlconn, nv, NULL, 0) == -1) {
 		pjdlog_exit(EX_UNAVAILABLE,
 		    "Unable to send command to hastd via %s",
 		    cfg->hc_controladdr);
 	}
 	nv_free(nv);
 	/* ...and receive reply. */
-	if (hast_proto_recv_hdr(controlconn, &nv) < 0) {
+	if (hast_proto_recv_hdr(controlconn, &nv) == -1) {
 		pjdlog_exit(EX_UNAVAILABLE,
 		    "cannot receive reply from hastd via %s",
 		    cfg->hc_controladdr);

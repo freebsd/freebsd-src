@@ -115,7 +115,7 @@ control_set_role_common(struct hastd_config *cfg, struct nv *nvout,
 	 * doing that work.
 	 */
 	if (res->hr_workerpid != 0) {
-		if (kill(res->hr_workerpid, SIGTERM) < 0) {
+		if (kill(res->hr_workerpid, SIGTERM) == -1) {
 			pjdlog_errno(LOG_WARNING,
 			    "Unable to kill worker process %u",
 			    (unsigned int)res->hr_workerpid);
@@ -167,7 +167,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 		    "Unable to prepare control header");
 		goto end;
 	}
-	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) < 0) {
+	if (hast_proto_send(res, res->hr_ctrl, cnvout, NULL, 0) == -1) {
 		error = errno;
 		pjdlog_errno(LOG_ERR, "Unable to send control header");
 		goto end;
@@ -176,7 +176,7 @@ control_status_worker(struct hast_resource *res, struct nv *nvout,
 	/*
 	 * Receive response.
 	 */
-	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) < 0) {
+	if (hast_proto_recv_hdr(res->hr_ctrl, &cnvin) == -1) {
 		error = errno;
 		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		goto end;
@@ -293,7 +293,7 @@ control_handle(struct hastd_config *cfg)
 	uint8_t cmd, role;
 	int error;
 
-	if (proto_accept(cfg->hc_controlconn, &conn) < 0) {
+	if (proto_accept(cfg->hc_controlconn, &conn) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to accept control connection");
 		return;
 	}
@@ -302,7 +302,7 @@ control_handle(struct hastd_config *cfg)
 	nvin = nvout = NULL;
 	role = HAST_ROLE_UNDEF;
 
-	if (hast_proto_recv_hdr(conn, &nvin) < 0) {
+	if (hast_proto_recv_hdr(conn, &nvin) == -1) {
 		pjdlog_errno(LOG_ERR, "Unable to receive control header");
 		nvin = NULL;
 		goto close;
@@ -395,7 +395,7 @@ fail:
 	if (error != 0)
 		nv_add_int16(nvout, error, "error");
 
-	if (hast_proto_send(NULL, conn, nvout, NULL, 0) < 0)
+	if (hast_proto_send(NULL, conn, nvout, NULL, 0) == -1)
 		pjdlog_errno(LOG_ERR, "Unable to send control response");
 close:
 	if (nvin != NULL)
@@ -417,7 +417,7 @@ ctrl_thread(void *arg)
 	uint8_t cmd;
 
 	for (;;) {
-		if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) < 0) {
+		if (hast_proto_recv_hdr(res->hr_ctrl, &nvin) == -1) {
 			if (sigexit_received)
 				pthread_exit(NULL);
 			pjdlog_errno(LOG_ERR,
@@ -481,7 +481,7 @@ ctrl_thread(void *arg)
 			nv_free(nvout);
 			continue;
 		}
-		if (hast_proto_send(NULL, res->hr_ctrl, nvout, NULL, 0) < 0) {
+		if (hast_proto_send(NULL, res->hr_ctrl, nvout, NULL, 0) == -1) {
 			pjdlog_errno(LOG_ERR,
 			    "Unable to send reply to control message");
 		}
