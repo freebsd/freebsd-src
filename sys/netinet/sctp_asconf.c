@@ -138,7 +138,7 @@ sctp_asconf_success_response(uint32_t id)
 	if (m_reply == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "asconf_success_response: couldn't get mbuf!\n");
-		return NULL;
+		return (NULL);
 	}
 	aph = mtod(m_reply, struct sctp_asconf_paramhdr *);
 	aph->correlation_id = id;
@@ -147,7 +147,7 @@ sctp_asconf_success_response(uint32_t id)
 	SCTP_BUF_LEN(m_reply) = aph->ph.param_length;
 	aph->ph.param_length = htons(aph->ph.param_length);
 
-	return m_reply;
+	return (m_reply);
 }
 
 static struct mbuf *
@@ -166,7 +166,7 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t * error_tlv,
 	if (m_reply == NULL) {
 		SCTPDBG(SCTP_DEBUG_ASCONF1,
 		    "asconf_error_response: couldn't get mbuf!\n");
-		return NULL;
+		return (NULL);
 	}
 	aph = mtod(m_reply, struct sctp_asconf_paramhdr *);
 	error = (struct sctp_error_cause *)(aph + 1);
@@ -183,7 +183,7 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t * error_tlv,
 		    "asconf_error_response: tlv_length (%xh) too big\n",
 		    tlv_length);
 		sctp_m_freem(m_reply);	/* discard */
-		return NULL;
+		return (NULL);
 	}
 	if (error_tlv != NULL) {
 		tlv = (uint8_t *) (error + 1);
@@ -193,7 +193,7 @@ sctp_asconf_error_response(uint32_t id, uint16_t cause, uint8_t * error_tlv,
 	error->length = htons(error->length);
 	aph->ph.param_length = htons(aph->ph.param_length);
 
-	return m_reply;
+	return (m_reply);
 }
 
 static struct mbuf *
@@ -231,7 +231,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 	case SCTP_IPV4_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv4addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v4addr = (struct sctp_ipv4addr_param *)ph;
 		sin = (struct sockaddr_in *)&sa_store;
@@ -254,7 +254,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 	case SCTP_IPV6_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv6addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v6addr = (struct sctp_ipv6addr_param *)ph;
 		sin6 = (struct sockaddr_in6 *)&sa_store;
@@ -277,7 +277,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		m_reply = sctp_asconf_error_response(aph->correlation_id,
 		    SCTP_CAUSE_INVALID_PARAM, (uint8_t *) aph,
 		    aparam_length);
-		return m_reply;
+		return (m_reply);
 	}			/* end switch */
 
 	/* if 0.0.0.0/::0, add the source address instead */
@@ -314,7 +314,7 @@ sctp_process_asconf_add_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
 		}
 	}
-	return m_reply;
+	return (m_reply);
 }
 
 static int
@@ -326,7 +326,7 @@ sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 	src_net = sctp_findnet(stcb, src);
 	if (src_net == NULL) {
 		/* not found */
-		return -1;
+		return (-1);
 	}
 	/* delete all destination addresses except the source */
 	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
@@ -342,7 +342,7 @@ sctp_asconf_del_remote_addrs_except(struct sctp_tcb *stcb, struct sockaddr *src)
 			    (struct sockaddr *)&net->ro._l_addr, SCTP_SO_NOT_LOCKED);
 		}
 	}
-	return 0;
+	return (0);
 }
 
 static struct mbuf *
@@ -382,7 +382,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 	case SCTP_IPV4_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv4addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v4addr = (struct sctp_ipv4addr_param *)ph;
 		sin = (struct sockaddr_in *)&sa_store;
@@ -402,7 +402,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 	case SCTP_IPV6_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv6addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v6addr = (struct sctp_ipv6addr_param *)ph;
 		sin6 = (struct sockaddr_in6 *)&sa_store;
@@ -423,7 +423,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		m_reply = sctp_asconf_error_response(aph->correlation_id,
 		    SCTP_CAUSE_UNRESOLVABLE_ADDR, (uint8_t *) aph,
 		    aparam_length);
-		return m_reply;
+		return (m_reply);
 	}
 
 	/* make sure the source address is not being deleted */
@@ -433,7 +433,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		m_reply = sctp_asconf_error_response(aph->correlation_id,
 		    SCTP_CAUSE_DELETING_SRC_ADDR, (uint8_t *) aph,
 		    aparam_length);
-		return m_reply;
+		return (m_reply);
 	}
 	/* if deleting 0.0.0.0/::0, delete all addresses except src addr */
 	if (zero_address && SCTP_BASE_SYSCTL(sctp_nat_friendly)) {
@@ -452,7 +452,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 			m_reply =
 			    sctp_asconf_success_response(aph->correlation_id);
 		}
-		return m_reply;
+		return (m_reply);
 	}
 	/* delete the address */
 	result = sctp_del_remote_addr(stcb, sa);
@@ -474,7 +474,7 @@ sctp_process_asconf_delete_ip(struct mbuf *m, struct sctp_asconf_paramhdr *aph,
 		/* notify upper layer */
 		sctp_ulp_notify(SCTP_NOTIFY_ASCONF_DELETE_IP, stcb, 0, sa, SCTP_SO_NOT_LOCKED);
 	}
-	return m_reply;
+	return (m_reply);
 }
 
 static struct mbuf *
@@ -511,7 +511,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 	case SCTP_IPV4_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv4addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v4addr = (struct sctp_ipv4addr_param *)ph;
 		sin = (struct sockaddr_in *)&sa_store;
@@ -529,7 +529,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 	case SCTP_IPV6_ADDRESS:
 		if (param_length != sizeof(struct sctp_ipv6addr_param)) {
 			/* invalid param size */
-			return NULL;
+			return (NULL);
 		}
 		v6addr = (struct sctp_ipv6addr_param *)ph;
 		sin6 = (struct sockaddr_in6 *)&sa_store;
@@ -548,7 +548,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 		m_reply = sctp_asconf_error_response(aph->correlation_id,
 		    SCTP_CAUSE_UNRESOLVABLE_ADDR, (uint8_t *) aph,
 		    aparam_length);
-		return m_reply;
+		return (m_reply);
 	}
 
 	/* if 0.0.0.0/::0, use the source address instead */
@@ -620,7 +620,7 @@ sctp_process_asconf_set_primary(struct mbuf *m,
 		    aparam_length);
 	}
 
-	return m_reply;
+	return (m_reply);
 }
 
 /*
@@ -2530,9 +2530,9 @@ sctp_is_addr_pending(struct sctp_tcb *stcb, struct sctp_ifa *sctp_ifa)
 	 */
 	if (add_cnt > del_cnt ||
 	    (add_cnt == del_cnt && last_param_type == SCTP_ADD_IP_ADDRESS)) {
-		return 1;
+		return (1);
 	}
-	return 0;
+	return (0);
 }
 
 static struct sockaddr *

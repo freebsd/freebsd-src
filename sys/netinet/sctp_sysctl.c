@@ -389,12 +389,12 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 
 		/* request some more memory than needed */
 		req->oldidx = (n + n / 8);
-		return 0;
+		return (0);
 	}
 	if (req->newptr != USER_ADDR_NULL) {
 		SCTP_INP_INFO_RUNLOCK();
 		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_SYSCTL, EPERM);
-		return EPERM;
+		return (EPERM);
 	}
 	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
 		SCTP_INP_RLOCK(inp);
@@ -425,14 +425,14 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
 		if (error) {
 			SCTP_INP_DECR_REF(inp);
-			return error;
+			return (error);
 		}
 		SCTP_INP_INFO_RLOCK();
 		SCTP_INP_RLOCK(inp);
 		error = copy_out_local_addresses(inp, NULL, req);
 		if (error) {
 			SCTP_INP_DECR_REF(inp);
-			return error;
+			return (error);
 		}
 		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
 			SCTP_TCB_LOCK(stcb);
@@ -476,7 +476,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				return error;
+				return (error);
 			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
@@ -484,7 +484,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
 				atomic_subtract_int(&stcb->asoc.refcnt, 1);
-				return error;
+				return (error);
 			}
 			TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 				xraddr.last = 0;
@@ -510,7 +510,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				if (error) {
 					SCTP_INP_DECR_REF(inp);
 					atomic_subtract_int(&stcb->asoc.refcnt, 1);
-					return error;
+					return (error);
 				}
 				SCTP_INP_INFO_RLOCK();
 				SCTP_INP_RLOCK(inp);
@@ -523,7 +523,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 			error = SYSCTL_OUT(req, &xraddr, sizeof(struct xsctp_raddr));
 			if (error) {
 				SCTP_INP_DECR_REF(inp);
-				return error;
+				return (error);
 			}
 			SCTP_INP_INFO_RLOCK();
 			SCTP_INP_RLOCK(inp);
@@ -535,7 +535,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 		xstcb.last = 1;
 		error = SYSCTL_OUT(req, &xstcb, sizeof(struct xsctp_tcb));
 		if (error) {
-			return error;
+			return (error);
 		}
 skip:
 		SCTP_INP_INFO_RLOCK();
@@ -545,7 +545,7 @@ skip:
 	memset((void *)&xinpcb, 0, sizeof(struct xsctp_inpcb));
 	xinpcb.last = 1;
 	error = SYSCTL_OUT(req, &xinpcb, sizeof(struct xsctp_inpcb));
-	return error;
+	return (error);
 }
 
 
