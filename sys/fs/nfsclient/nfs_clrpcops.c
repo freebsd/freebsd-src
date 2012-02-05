@@ -1026,7 +1026,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 		if (NFSHASNFSV4(nmp)) {
 			nfhp = VTONFS(vp)->n_fhp;
 			error = nfscl_getstateid(vp, nfhp->nfh_fh,
-			    nfhp->nfh_len, mode, cred, p, &stateid, &lckp);
+			    nfhp->nfh_len, mode, 0, cred, p, &stateid, &lckp);
 			if (error && vnode_vtype(vp) == VREG &&
 			    (mode == NFSV4OPEN_ACCESSWRITE ||
 			     nfstest_openallsetattr)) {
@@ -1043,7 +1043,7 @@ nfsrpc_setattr(vnode_t vp, struct vattr *vap, NFSACL_T *aclp,
 				if (!openerr)
 					(void) nfscl_getstateid(vp,
 					    nfhp->nfh_fh, nfhp->nfh_len,
-					    mode, cred, p, &stateid, &lckp);
+					    mode, 0, cred, p, &stateid, &lckp);
 			}
 		}
 		if (vap != NULL)
@@ -1296,7 +1296,8 @@ nfsrpc_read(vnode_t vp, struct uio *uiop, struct ucred *cred,
 		lckp = NULL;
 		if (NFSHASNFSV4(nmp))
 			(void)nfscl_getstateid(vp, nfhp->nfh_fh, nfhp->nfh_len,
-			    NFSV4OPEN_ACCESSREAD, newcred, p, &stateid, &lckp);
+			    NFSV4OPEN_ACCESSREAD, 0, newcred, p, &stateid,
+			    &lckp);
 		error = nfsrpc_readrpc(vp, uiop, newcred, &stateid, p, nap,
 		    attrflagp, stuff);
 		if (error == NFSERR_STALESTATEID || error == NFSERR_BADSESSION)
@@ -1450,7 +1451,8 @@ nfsrpc_write(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 		nostateid = 0;
 		if (NFSHASNFSV4(nmp)) {
 			(void)nfscl_getstateid(vp, nfhp->nfh_fh, nfhp->nfh_len,
-			    NFSV4OPEN_ACCESSWRITE, newcred, p, &stateid, &lckp);
+			    NFSV4OPEN_ACCESSWRITE, 0, newcred, p, &stateid,
+			    &lckp);
 			if (stateid.other[0] == 0 && stateid.other[1] == 0 &&
 			    stateid.other[2] == 0) {
 				nostateid = 1;

@@ -460,7 +460,7 @@ int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,
     struct ucred *, NFSPROC_T *, struct nfsclowner **, struct nfsclopen **,
     int *, int *, int);
-int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, struct ucred *,
+int nfscl_getstateid(vnode_t, u_int8_t *, int, u_int32_t, int, struct ucred *,
     NFSPROC_T *, nfsv4stateid_t *, void **);
 void nfscl_ownerrelease(struct nfsclowner *, int, int, int);
 void nfscl_openrelease(struct nfsclopen *, int, int);

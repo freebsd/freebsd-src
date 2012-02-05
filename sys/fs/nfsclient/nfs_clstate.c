@@ -461,7 +461,7 @@ nfscl_finddeleg(struct nfsclclient *clp, u_int8_t *fhp, int fhlen)
  */
 APPLESTATIC int
 nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
-    struct ucred *cred, NFSPROC_T *p, nfsv4stateid_t *stateidp,
+    int fords, struct ucred *cred, NFSPROC_T *p, nfsv4stateid_t *stateidp,
     void **lckpp)
 {
 	struct nfsclclient *clp;
@@ -476,11 +476,14 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 	*lckpp = NULL;
 	/*
 	 * Initially, just set the special stateid of all zeros.
+	 * (Don't do this for a DS, since the special stateid can't be used.)
 	 */
-	stateidp->seqid = 0;
-	stateidp->other[0] = 0;
-	stateidp->other[1] = 0;
-	stateidp->other[2] = 0;
+	if (fords == 0) {
+		stateidp->seqid = 0;
+		stateidp->other[0] = 0;
+		stateidp->other[1] = 0;
+		stateidp->other[2] = 0;
+	}
 	if (vnode_vtype(vp) != VREG)
 		return (EISDIR);
 	np = VTONFS(vp);
@@ -536,7 +539,8 @@ nfscl_getstateid(vnode_t vp, u_int8_t *nfhp, int fhlen, u_int32_t mode,
 		lp = NULL;
 		error = nfscl_getopen(&clp->nfsc_owner, nfhp, fhlen, own, own,
 		    mode, &lp, &op);
-		if (error == 0 && lp != NULL) {
+		if (error == 0 && lp != NULL && fords == 0) {
+			/* Don't return a lock stateid for a DS. */
 			stateidp->seqid =
 			    lp->nfsl_stateid.seqid;
 			stateidp->other[0] =
