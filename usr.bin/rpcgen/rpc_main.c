@@ -953,7 +953,7 @@ insarg(int place, const char *cp)
 	}
 
 	/* Move up existing arguments */
-	for (i = argcount - 1; i > place; i--)
+	for (i = argcount - 1; i >= place; i--)
 		arglist[i + 1] = arglist[i];
 
 	arglist[place] = xstrdup(cp);
