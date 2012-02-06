@@ -110,6 +110,19 @@ savewhite(char c, bool leading)
 static void
 printwhite(void)
 {
+	off_t i;
+
+	/* Merge spaces at the start of a sentence to tabs if possible. */
+	if ((column % 8) == 0) {
+		for (i = 0; i < column; i++)
+			if (!peekbyte(i + 1, ' '))
+				break;
+		if (i == column) {
+			queuelen -= column;
+			for (i = 0; i < column; i += 8)
+				queue[queuelen++] = '\t';
+		}
+	}
 
 	if (fwrite(queue, 1, queuelen, stdout) != queuelen) {
 		perror("write");
