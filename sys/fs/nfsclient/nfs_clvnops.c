@@ -1042,7 +1042,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 
 	if ((error = VOP_ACCESS(dvp, VEXEC, cnp->cn_cred, td)) != 0)
 		return (error);
-	error = cache_lookup_times(dvp, vpp, cnp, &nctime, &ncticks);
+	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {

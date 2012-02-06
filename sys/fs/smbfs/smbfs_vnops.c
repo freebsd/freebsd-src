@@ -1131,7 +1131,7 @@ smbfs_lookup(ap)
 	if (error) 
 		return ENOENT;
 
-	error = cache_lookup(dvp, vpp, cnp);
+	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);
 	SMBVDEBUG("cache_lookup returned %d\n", error);
 	if (error > 0)
 		return error;
