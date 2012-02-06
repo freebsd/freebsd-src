@@ -12112,6 +12112,7 @@ top:
 		case D_FREEWORK:
 		case D_FREEDEP:
 		case D_JSEGDEP:
+		case D_JNEWBLK:
 			continue;
 
 		default:
