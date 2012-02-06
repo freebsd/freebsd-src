@@ -1,0 +1,34 @@
+/*
+ * $FreeBSD: projects/arm_eabi/lib/libc/arm/Symbol.map 228591 2011-12-16 19:38:31Z andrew $
+ */
+
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...)
+ * and are not used in the ARM EABI.
+ */
+FBSDprivate_1.0 {
+	__umodsi3;
+	__modsi3;
+	__udivsi3;
+	__divsi3;
+
+	/* softfloat */
+	__addsf3;
+	__adddf3;
+	__subsf3;
+	__subdf3;
+	__mulsf3;
+	__muldf3;
+	__divsf3;
+	__divdf3;
+	__floatsisf;
+	__floatsidf;
+	__fixsfsi;
+	__fixdfsi;
+	__fixunssfsi;
+	__fixunsdfsi;
+	__extendsfdf2;
+	__truncdfsf2;
+};
