@@ -221,6 +221,7 @@ cfcs_init(void)
 
 	mtx_lock(&softc->lock);
 	if (xpt_bus_register(softc->sim, NULL, 0) != CAM_SUCCESS) {
+		mtx_unlock(&softc->lock);
 		printf("%s: error registering SIM\n", __func__);
 		retval = ENOMEM;
 		goto bailout;
@@ -230,6 +231,7 @@ cfcs_init(void)
 			    cam_sim_path(softc->sim),
 			    CAM_TARGET_WILDCARD,
 			    CAM_LUN_WILDCARD) != CAM_REQ_CMP) {
+		mtx_unlock(&softc->lock);
 		printf("%s: error creating path\n", __func__);
 		xpt_bus_deregister(cam_sim_path(softc->sim));
 		retval = 1;
@@ -252,8 +254,6 @@ bailout:
 		cam_sim_free(softc->sim, /*free_devq*/ TRUE);
 	else if (softc->devq)
 		cam_simq_free(softc->devq);
-
-	mtx_unlock(&softc->lock);
 
 	return (retval);
 }
