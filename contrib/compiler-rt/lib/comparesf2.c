@@ -129,3 +129,32 @@ enum LE_RESULT __nesf2(fp_t a, fp_t b) {
 enum GE_RESULT __gtsf2(fp_t a, fp_t b) {
     return __gesf2(a, b);
 }
+
+#ifdef __ARM_EABI__
+// The following are required for the ARM EABI.
+
+int __aeabi_fcmpeq(fp_t a, fp_t b) {
+    return __lesf2(a, b) == 0;
+}
+
+int __aeabi_fcmplt(fp_t a, fp_t b) {
+    return __lesf2(a, b) < 0;
+}
+
+int __aeabi_fcmple(fp_t a, fp_t b) {
+    return __lesf2(a, b) <= 0;
+}
+
+int __aeabi_fcmpge(fp_t a, fp_t b) {
+    return __gesf2(a, b) >= 0;
+}
+
+int __aeabi_fcmpgt(fp_t a, fp_t b) {
+    return __gesf2(a, b) > 0;
+}
+
+int __aeabi_fcmpun(fp_t a, fp_t b) {
+    return __unordsf2(a, b);
+}
+#endif
+

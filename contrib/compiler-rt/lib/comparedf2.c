@@ -130,3 +130,31 @@ enum GE_RESULT __gtdf2(fp_t a, fp_t b) {
     return __gedf2(a, b);
 }
 
+#ifdef __ARM_EABI__
+// The following are required for the ARM EABI.
+
+int __aeabi_dcmpeq(fp_t a, fp_t b) {
+    return __ledf2(a, b) == 0;
+}
+
+int __aeabi_dcmplt(fp_t a, fp_t b) {
+    return __ledf2(a, b) < 0;
+}
+
+int __aeabi_dcmple(fp_t a, fp_t b) {
+    return __ledf2(a, b) <= 0;
+}
+
+int __aeabi_dcmpge(fp_t a, fp_t b) {
+    return __gedf2(a, b) >= 0;
+}
+
+int __aeabi_dcmpgt(fp_t a, fp_t b) {
+    return __gedf2(a, b) > 0;
+}
+
+int __aeabi_dcmpun(fp_t a, fp_t b) {
+    return __unorddf2(a, b);
+}
+#endif
+
