@@ -1448,7 +1448,7 @@ nfs_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		tsiz -= len;
 	}
 nfsmout:
-	if (vp->v_mount->mnt_kern_flag & MNTK_ASYNC)
+	if (DOINGASYNC(vp))
 		committed = NFSV3WRITE_FILESYNC;
 	*iomode = committed;
 	if (error)
