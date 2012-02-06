@@ -71,6 +71,28 @@ __FBSDID("$FreeBSD$");
 #include <dev/ath/ath_hal/ah_desc.h>
 
 /*
+ * These are default parameters for the AR5416 and
+ * later 802.11n NICs.  They simply enable some
+ * radar pulse event generation.
+ *
+ * These are very likely not valid for the AR5212 era
+ * NICs.
+ *
+ * Since these define signal sizing and threshold
+ * parameters, they may need changing based on the
+ * specific antenna and receive amplifier
+ * configuration.
+ */
+#define	AR5416_DFS_FIRPWR	-33
+#define	AR5416_DFS_RRSSI	20
+#define	AR5416_DFS_HEIGHT	10
+#define	AR5416_DFS_PRSSI	15
+#define	AR5416_DFS_INBAND	15
+#define	AR5416_DFS_RELPWR	8
+#define	AR5416_DFS_RELSTEP	12
+#define	AR5416_DFS_MAXLEN	255
+
+/*
  * Methods which are required
  */
 
@@ -98,16 +120,45 @@ ath_dfs_detach(struct ath_softc *sc)
 int
 ath_dfs_radar_enable(struct ath_softc *sc, struct ieee80211_channel *chan)
 {
+#if 0
+	HAL_PHYERR_PARAM pe;
+
 	/* Check if the current channel is radar-enabled */
 	if (! IEEE80211_IS_CHAN_DFS(chan))
 		return (0);
 
+	/* Enable radar PHY error reporting */
+	sc->sc_dodfs = 1;
+
 	/*
-	 * Enabling the radar parameters and setting sc->sc_dodfs = 1
-	 * would occur here.
+	 * These are general examples of the parameter values
+	 * to use when configuring radar pulse detection for
+	 * the AR5416, AR91xx, AR92xx NICs.  They are only
+	 * for testing and do require tuning depending upon the
+	 * hardware and deployment specifics.
 	 */
+	pe.pe_firpwr = AR5416_DFS_FIRPWR;
+	pe.pe_rrssi = AR5416_DFS_RRSSI;
+	pe.pe_height = AR5416_DFS_HEIGHT;
+	pe.pe_prssi = AR5416_DFS_PRSSI;
+	pe.pe_inband = AR5416_DFS_INBAND;
+	pe.pe_relpwr = AR5416_DFS_RELPWR;
+	pe.pe_relstep = AR5416_DFS_RELSTEP;
+	pe.pe_maxlen = AR5416_DFS_MAXLEN;
+	pe.pe_enabled = 1;
+	
+	/* Flip on extension channel events only if doing HT40 */
+	if (IEEE80211_IS_CHAN_HT40(chan))
+		pe.pe_extchannel = 1;
+	else
+		pe.pe_extchannel = 0;
+
+	ath_hal_enabledfs(sc->sc_ah, &pe);
 
 	return (1);
+#else
+	return (0);
+#endif
 }
 
 /*
