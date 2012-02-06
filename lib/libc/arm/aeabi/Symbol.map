@@ -1,0 +1,12 @@
+/*
+ * $FreeBSD: projects/arm_eabi/lib/libc/arm/Symbol.map 228591 2011-12-16 19:38:31Z andrew $
+ */
+
+/*
+ * This only needs to contain symbols that are not listed in
+ * symbol maps from other parts of libc (i.e., not found in
+ * stdlib/Symbol.map, string/Symbol.map, sys/Symbol.map, ...).
+ */
+FBSDprivate_1.0 {
+	__aeabi_atexit;
+};

@@ -11,3 +11,6 @@ SYM_MAPS+=${.CURDIR}/arm/Symbol.map
 
 # This contains the symbols that were removed when moving to the ARM EABI
 #SYM_MAPS+=${.CURDIR}/arm/Symbol_oabi.map
+
+.include "${.CURDIR}/arm/aeabi/Makefile.inc"
+
