@@ -290,7 +290,6 @@ prepend_cpp(void)
 	int idx = 1;
 	const char *var;
 	char *dupvar, *s, *t;
-	struct stat buf;
 
 	if (CPP != NULL)
 		insarg(0, CPP);
@@ -304,11 +303,6 @@ prepend_cpp(void)
 				insarg(idx++, t);
 		}
 		free(dupvar);
-	}
-
-	if (stat(arglist[0], &buf) < 0) {
-		warnx("cannot find C preprocessor: %s", arglist[0]);
-		crash();
 	}
 
 	insarg(idx, CPPFLAGS);
@@ -334,8 +328,8 @@ open_input(const char *infile, const char *define)
 		(void) close(1);
 		(void) dup2(pd[1], 1);
 		(void) close(pd[0]);
-		execv(arglist[0], arglist);
-		err(1, "execv");
+		execvp(arglist[0], arglist);
+		err(1, "execvp %s", arglist[0]);
 	case -1:
 		err(1, "fork");
 	}
