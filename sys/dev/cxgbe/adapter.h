@@ -31,6 +31,7 @@
 #ifndef __T4_ADAPTER_H__
 #define __T4_ADAPTER_H__
 
+#include <sys/kernel.h>
 #include <sys/bus.h>
 #include <sys/rman.h>
 #include <sys/types.h>
@@ -46,8 +47,9 @@
 #include <netinet/tcp_lro.h>
 
 #include "offload.h"
-#include "common/t4fw_interface.h"
+#include "firmware/t4fw_interface.h"
 
+#define T4_CFGNAME "t4fw_cfg"
 #define T4_FWNAME "t4fw"
 
 MALLOC_DECLARE(M_CXGBE);
@@ -110,25 +112,21 @@ enum {
 	FW_IQ_QSIZE = 256,
 	FW_IQ_ESIZE = 64,	/* At least 64 mandated by the firmware spec */
 
-	INTR_IQ_QSIZE = 64,
-	INTR_IQ_ESIZE = 64,	/* Handles some CPLs too, do not reduce */
-
-	CTRL_EQ_QSIZE = 128,
-	CTRL_EQ_ESIZE = 64,
-
 	RX_IQ_QSIZE = 1024,
 	RX_IQ_ESIZE = 64,	/* At least 64 so CPL_RX_PKT will fit */
 
-	RX_FL_ESIZE = 64,	/* 8 64bit addresses */
+	EQ_ESIZE = 64,		/* All egress queues use this entry size */
 
+	RX_FL_ESIZE = EQ_ESIZE,	/* 8 64bit addresses */
 #if MJUMPAGESIZE != MCLBYTES
 	FL_BUF_SIZES = 4,	/* cluster, jumbop, jumbo9k, jumbo16k */
 #else
 	FL_BUF_SIZES = 3,	/* cluster, jumbo9k, jumbo16k */
 #endif
 
+	CTRL_EQ_QSIZE = 128,
+
 	TX_EQ_QSIZE = 1024,
-	TX_EQ_ESIZE = 64,
 	TX_SGL_SEGS = 36,
 	TX_WR_FLITS = SGE_MAX_WR_LEN / 8
 };
@@ -144,13 +142,16 @@ enum {
 	/* adapter flags */
 	FULL_INIT_DONE	= (1 << 0),
 	FW_OK		= (1 << 1),
-	INTR_SHARED	= (1 << 2),	/* one set of intrq's for all ports */
+	INTR_DIRECT	= (1 << 2),	/* direct interrupts for everything */
+	MASTER_PF	= (1 << 3),
+	ADAP_SYSCTL_CTX	= (1 << 4),
 
 	CXGBE_BUSY	= (1 << 9),
 
 	/* port flags */
 	DOOMED		= (1 << 0),
-	VI_ENABLED	= (1 << 1),
+	PORT_INIT_DONE	= (1 << 1),
+	PORT_SYSCTL_CTX	= (1 << 2),
 };
 
 #define IS_DOOMED(pi)	(pi->flags & DOOMED)
@@ -186,6 +187,12 @@ struct port_info {
 	int first_txq;	/* index of first tx queue */
 	int nrxq;	/* # of rx queues */
 	int first_rxq;	/* index of first rx queue */
+#ifndef TCP_OFFLOAD_DISABLE
+	int nofldtxq;		/* # of offload tx queues */
+	int first_ofld_txq;	/* index of first offload tx queue */
+	int nofldrxq;		/* # of offload rx queues */
+	int first_ofld_rxq;	/* index of first offload rx queue */
+#endif
 	int tmr_idx;
 	int pktc_idx;
 	int qsize_rxq;
@@ -194,11 +201,8 @@ struct port_info {
 	struct link_config link_cfg;
 	struct port_stats stats;
 
-	struct taskqueue *tq;
 	struct callout tick;
-	struct sysctl_ctx_list ctx;	/* lives from ifconfig up to down */
-	struct sysctl_oid *oid_rxq;
-	struct sysctl_oid *oid_txq;
+	struct sysctl_ctx_list ctx;	/* from ifconfig up to driver detach */
 
 	uint8_t hw_addr[ETHER_ADDR_LEN]; /* factory MAC address, won't change */
 };
@@ -222,17 +226,26 @@ struct tx_map {
 	bus_dmamap_t map;
 };
 
+/* DMA maps used for tx */
+struct tx_maps {
+	struct tx_map *maps;
+	uint32_t map_total;	/* # of DMA maps */
+	uint32_t map_pidx;	/* next map to be used */
+	uint32_t map_cidx;	/* reclaimed up to this index */
+	uint32_t map_avail;	/* # of available maps */
+};
+
 struct tx_sdesc {
 	uint8_t desc_used;	/* # of hardware descriptors used by the WR */
 	uint8_t credits;	/* NIC txq: # of frames sent out in the WR */
 };
 
-typedef void (iq_intr_handler_t)(void *);
-
 enum {
 	/* iq flags */
-	IQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
-	IQ_STARTED	= (1 << 2),	/* started */
+	IQ_ALLOCATED	= (1 << 0),	/* firmware resources allocated */
+	IQ_HAS_FL	= (1 << 1),	/* iq associated with a freelist */
+	IQ_INTR		= (1 << 2),	/* iq takes direct interrupt */
+	IQ_LRO_ENABLED	= (1 << 3),	/* iq is an eth rxq with LRO enabled */
 
 	/* iq state */
 	IQS_DISABLED	= 0,
@@ -252,26 +265,35 @@ struct sge_iq {
 	uint16_t abs_id;	/* absolute SGE id for the iq */
 	int8_t   intr_pktc_idx;	/* packet count threshold index */
 	int8_t   pad0;
-	iq_intr_handler_t *handler;
 	__be64  *desc;		/* KVA of descriptor ring */
 
-	volatile uint32_t state;
+	volatile int state;
 	struct adapter *adapter;
 	const __be64 *cdesc;	/* current descriptor */
 	uint8_t  gen;		/* generation bit */
 	uint8_t  intr_params;	/* interrupt holdoff parameters */
-	uint8_t  intr_next;	/* holdoff for next interrupt */
+	uint8_t  intr_next;	/* XXX: holdoff for next interrupt */
 	uint8_t  esize;		/* size (bytes) of each entry in the queue */
 	uint16_t qsize;		/* size (# of entries) of the queue */
 	uint16_t cidx;		/* consumer index */
-	uint16_t cntxt_id;	/* SGE context id  for the iq */
+	uint16_t cntxt_id;	/* SGE context id for the iq */
+
+	STAILQ_ENTRY(sge_iq) link;
 };
 
 enum {
+	EQ_CTRL		= 1,
+	EQ_ETH		= 2,
+#ifndef TCP_OFFLOAD_DISABLE
+	EQ_OFLD		= 3,
+#endif
+
 	/* eq flags */
-	EQ_ALLOCATED	= (1 << 1),	/* firmware resources allocated */
-	EQ_STARTED	= (1 << 2),	/* started */
-	EQ_CRFLUSHED	= (1 << 3),	/* expecting an update from SGE */
+	EQ_TYPEMASK	= 7,		/* 3 lsbits hold the type */
+	EQ_ALLOCATED	= (1 << 3),	/* firmware resources allocated */
+	EQ_DOOMED	= (1 << 4),	/* about to be destroyed */
+	EQ_CRFLUSHED	= (1 << 5),	/* expecting an update from SGE */
+	EQ_STALLED	= (1 << 6),	/* out of hw descriptors or dmamaps */
 };
 
 /*
@@ -281,10 +303,11 @@ enum {
  * consumes them) but it's special enough to have its own struct (see sge_fl).
  */
 struct sge_eq {
+	unsigned int flags;	/* MUST be first */
+	unsigned int cntxt_id;	/* SGE context id for the eq */
 	bus_dma_tag_t desc_tag;
 	bus_dmamap_t desc_map;
 	char lockname[16];
-	unsigned int flags;
 	struct mtx eq_lock;
 
 	struct tx_desc *desc;	/* KVA of descriptor ring */
@@ -297,8 +320,23 @@ struct sge_eq {
 	uint16_t pidx;		/* producer idx (desc idx) */
 	uint16_t pending;	/* # of descriptors used since last doorbell */
 	uint16_t iqid;		/* iq that gets egr_update for the eq */
-	unsigned int  cntxt_id;	/* SGE context id for the eq */
+	uint8_t tx_chan;	/* tx channel used by the eq */
+	struct task tx_task;
+	struct callout tx_callout;
+
+	/* stats */
+
+	uint32_t egr_update;	/* # of SGE_EGR_UPDATE notifications for eq */
+	uint32_t unstalled;	/* recovered from stall */
 };
+
+enum {
+	FL_STARVING	= (1 << 0), /* on the adapter's list of starving fl's */
+	FL_DOOMED	= (1 << 1), /* about to be destroyed */
+};
+
+#define FL_RUNNING_LOW(fl)	(fl->cap - fl->needed <= fl->lowat)
+#define FL_NOT_RUNNING_LOW(fl)	(fl->cap - fl->needed >= 2 * fl->lowat)
 
 struct sge_fl {
 	bus_dma_tag_t desc_tag;
@@ -307,6 +345,7 @@ struct sge_fl {
 	uint8_t tag_idx;
 	struct mtx fl_lock;
 	char lockname[16];
+	int flags;
 
 	__be64 *desc;		/* KVA of descriptor ring, ptr to addresses */
 	bus_addr_t ba;		/* bus address of descriptor ring */
@@ -317,8 +356,10 @@ struct sge_fl {
 	uint32_t cidx;		/* consumer idx (buffer idx, NOT hw desc idx) */
 	uint32_t pidx;		/* producer idx (buffer idx, NOT hw desc idx) */
 	uint32_t needed;	/* # of buffers needed to fill up fl. */
+	uint32_t lowat;		/* # of buffers <= this means fl needs help */
 	uint32_t pending;	/* # of bufs allocated since last doorbell */
 	unsigned int dmamap_failed;
+	TAILQ_ENTRY(sge_fl) link; /* All starving freelists */
 };
 
 /* txq: SGE egress queue + what's needed for Ethernet NIC */
@@ -330,14 +371,8 @@ struct sge_txq {
 	struct buf_ring *br;	/* tx buffer ring */
 	struct tx_sdesc *sdesc;	/* KVA of software descriptor ring */
 	struct mbuf *m;		/* held up due to temporary resource shortage */
-	struct task resume_tx;
 
-	/* DMA maps used for tx */
-	struct tx_map *maps;
-	uint32_t map_total;	/* # of DMA maps */
-	uint32_t map_pidx;	/* next map to be used */
-	uint32_t map_cidx;	/* reclaimed up to this index */
-	uint32_t map_avail;	/* # of available maps */
+	struct tx_maps txmaps;
 
 	/* stats for common events first */
 
@@ -354,20 +389,14 @@ struct sge_txq {
 
 	uint32_t no_dmamap;	/* no DMA map to load the mbuf */
 	uint32_t no_desc;	/* out of hardware descriptors */
-	uint32_t egr_update;	/* # of SGE_EGR_UPDATE notifications for txq */
 } __aligned(CACHE_LINE_SIZE);
-
-enum {
-	RXQ_LRO_ENABLED	= (1 << 0)
-};
 
 /* rxq: SGE ingress queue + SGE free list + miscellaneous items */
 struct sge_rxq {
 	struct sge_iq iq;	/* MUST be first */
-	struct sge_fl fl;
+	struct sge_fl fl;	/* MUST follow iq */
 
 	struct ifnet *ifp;	/* the interface this rxq belongs to */
-	unsigned int flags;
 #ifdef INET
 	struct lro_ctrl lro;	/* LRO state */
 #endif
@@ -381,12 +410,28 @@ struct sge_rxq {
 
 } __aligned(CACHE_LINE_SIZE);
 
-/* ctrlq: SGE egress queue + stats for control queue */
-struct sge_ctrlq {
+#ifndef TCP_OFFLOAD_DISABLE
+/* ofld_rxq: SGE ingress queue + SGE free list + miscellaneous items */
+struct sge_ofld_rxq {
+	struct sge_iq iq;	/* MUST be first */
+	struct sge_fl fl;	/* MUST follow iq */
+} __aligned(CACHE_LINE_SIZE);
+#endif
+
+/*
+ * wrq: SGE egress queue that is given prebuilt work requests.  Both the control
+ * and offload tx queues are of this type.
+ */
+struct sge_wrq {
 	struct sge_eq eq;	/* MUST be first */
+
+	struct adapter *adapter;
+	struct mbuf *head;	/* held up due to lack of descriptors */
+	struct mbuf *tail;	/* valid only if head is valid */
 
 	/* stats for common events first */
 
+	uint64_t tx_wrs;	/* # of tx work requests */
 
 	/* stats for not-that-common events */
 
@@ -394,20 +439,28 @@ struct sge_ctrlq {
 } __aligned(CACHE_LINE_SIZE);
 
 struct sge {
-	uint16_t timer_val[SGE_NTIMERS];
-	uint8_t  counter_val[SGE_NCOUNTERS];
+	int timer_val[SGE_NTIMERS];
+	int counter_val[SGE_NCOUNTERS];
 	int fl_starve_threshold;
 
-	int nrxq;	/* total rx queues (all ports and the rest) */
-	int ntxq;	/* total tx queues (all ports and the rest) */
-	int niq;	/* total ingress queues */
-	int neq;	/* total egress queues */
+	int nrxq;	/* total # of Ethernet rx queues */
+	int ntxq;	/* total # of Ethernet tx tx queues */
+#ifndef TCP_OFFLOAD_DISABLE
+	int nofldrxq;	/* total # of TOE rx queues */
+	int nofldtxq;	/* total # of TOE tx queues */
+#endif
+	int niq;	/* total # of ingress queues */
+	int neq;	/* total # of egress queues */
 
 	struct sge_iq fwq;	/* Firmware event queue */
-	struct sge_ctrlq *ctrlq;/* Control queues */
-	struct sge_iq *intrq;	/* Interrupt queues */
+	struct sge_wrq mgmtq;	/* Management queue (control queue) */
+	struct sge_wrq *ctrlq;	/* Control queues */
 	struct sge_txq *txq;	/* NIC tx queues */
 	struct sge_rxq *rxq;	/* NIC rx queues */
+#ifndef TCP_OFFLOAD_DISABLE
+	struct sge_wrq *ofld_txq;	/* TOE tx queues */
+	struct sge_ofld_rxq *ofld_rxq;	/* TOE rx queues */
+#endif
 
 	uint16_t iq_start;
 	int eq_start;
@@ -415,7 +468,12 @@ struct sge {
 	struct sge_eq **eqmap;	/* eq->cntxt_id to eq mapping */
 };
 
+struct rss_header;
+typedef int (*cpl_handler_t)(struct sge_iq *, const struct rss_header *,
+    struct mbuf *);
+
 struct adapter {
+	SLIST_ENTRY(adapter) link;
 	device_t dev;
 	struct cdev *cdev;
 
@@ -444,27 +502,47 @@ struct adapter {
 
 	struct sge sge;
 
+	struct taskqueue *tq[NCHAN];	/* taskqueues that flush data out */
 	struct port_info *port[MAX_NPORTS];
 	uint8_t chan_map[NCHAN];
+	uint32_t filter_mode;
 
+#ifndef TCP_OFFLOAD_DISABLE
+	struct uld_softc tom;
+	struct tom_tunables tt;
+#endif
 	struct l2t_data *l2t;	/* L2 table */
 	struct tid_info tids;
 
-	int registered_device_map;
 	int open_device_map;
+#ifndef TCP_OFFLOAD_DISABLE
+	int offload_map;
+#endif
 	int flags;
 
 	char fw_version[32];
+	unsigned int cfcsum;
 	struct adapter_params params;
 	struct t4_virt_res vres;
 
-	struct sysctl_ctx_list ctx; /* from first_port_up to last_port_down */
-	struct sysctl_oid *oid_fwq;
-	struct sysctl_oid *oid_ctrlq;
-	struct sysctl_oid *oid_intrq;
+	uint16_t linkcaps;
+	uint16_t niccaps;
+	uint16_t toecaps;
+	uint16_t rdmacaps;
+	uint16_t iscsicaps;
+	uint16_t fcoecaps;
+
+	struct sysctl_ctx_list ctx; /* from adapter_full_init to full_uninit */
 
 	struct mtx sc_lock;
 	char lockname[16];
+
+	/* Starving free lists */
+	struct mtx sfl_lock;	/* same cache-line as sc_lock? but that's ok */
+	TAILQ_HEAD(, sge_fl) sfl;
+	struct callout sfl_callout;
+
+	cpl_handler_t cpl_handler[256] __aligned(CACHE_LINE_SIZE);
 };
 
 #define ADAPTER_LOCK(sc)		mtx_lock(&(sc)->sc_lock)
@@ -506,11 +584,15 @@ struct adapter {
 #define for_each_rxq(pi, iter, rxq) \
 	rxq = &pi->adapter->sge.rxq[pi->first_rxq]; \
 	for (iter = 0; iter < pi->nrxq; ++iter, ++rxq)
+#define for_each_ofld_txq(pi, iter, ofld_txq) \
+	ofld_txq = &pi->adapter->sge.ofld_txq[pi->first_ofld_txq]; \
+	for (iter = 0; iter < pi->nofldtxq; ++iter, ++ofld_txq)
+#define for_each_ofld_rxq(pi, iter, ofld_rxq) \
+	ofld_rxq = &pi->adapter->sge.ofld_rxq[pi->first_ofld_rxq]; \
+	for (iter = 0; iter < pi->nofldrxq; ++iter, ++ofld_rxq)
 
 /* One for errors, one for firmware events */
 #define T4_EXTRA_INTR 2
-#define NINTRQ(sc) ((sc)->intr_count > T4_EXTRA_INTR ? \
-    (sc)->intr_count - T4_EXTRA_INTR : 1)
 
 static inline uint32_t
 t4_read_reg(struct adapter *sc, uint32_t reg)
@@ -589,29 +671,52 @@ static inline bool is_10G_port(const struct port_info *pi)
 	return ((pi->link_cfg.supported & FW_PORT_CAP_SPEED_10G) != 0);
 }
 
+static inline int tx_resume_threshold(struct sge_eq *eq)
+{
+	return (eq->qsize / 4);
+}
+
 /* t4_main.c */
-void cxgbe_txq_start(void *, int);
+void t4_tx_task(void *, int);
+void t4_tx_callout(void *);
 int t4_os_find_pci_capability(struct adapter *, int);
 int t4_os_pci_save_state(struct adapter *);
 int t4_os_pci_restore_state(struct adapter *);
 void t4_os_portmod_changed(const struct adapter *, int);
 void t4_os_link_changed(struct adapter *, int, int);
+void t4_iterate(void (*)(struct adapter *, void *), void *);
+int t4_register_cpl_handler(struct adapter *, int, cpl_handler_t);
 
 /* t4_sge.c */
 void t4_sge_modload(void);
-void t4_sge_init(struct adapter *);
+int t4_sge_init(struct adapter *);
 int t4_create_dma_tag(struct adapter *);
 int t4_destroy_dma_tag(struct adapter *);
 int t4_setup_adapter_queues(struct adapter *);
 int t4_teardown_adapter_queues(struct adapter *);
-int t4_setup_eth_queues(struct port_info *);
-int t4_teardown_eth_queues(struct port_info *);
+int t4_setup_port_queues(struct port_info *);
+int t4_teardown_port_queues(struct port_info *);
+int t4_alloc_tx_maps(struct tx_maps *, bus_dma_tag_t, int, int);
+void t4_free_tx_maps(struct tx_maps *, bus_dma_tag_t);
 void t4_intr_all(void *);
 void t4_intr(void *);
 void t4_intr_err(void *);
 void t4_intr_evt(void *);
 int t4_mgmt_tx(struct adapter *, struct mbuf *);
+int t4_wrq_tx_locked(struct adapter *, struct sge_wrq *, struct mbuf *);
 int t4_eth_tx(struct ifnet *, struct sge_txq *, struct mbuf *);
 void t4_update_fl_bufsize(struct ifnet *);
+int can_resume_tx(struct sge_eq *);
+
+static inline int t4_wrq_tx(struct adapter *sc, struct sge_wrq *wrq, struct mbuf *m)
+{
+	int rc;
+
+	TXQ_LOCK(wrq);
+	rc = t4_wrq_tx_locked(sc, wrq, m);
+	TXQ_UNLOCK(wrq);
+	return (rc);
+}
+
 
 #endif
