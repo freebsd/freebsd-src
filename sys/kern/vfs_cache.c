@@ -456,7 +456,7 @@ cache_zap(ncp)
  */
 
 int
-cache_lookup_times(dvp, vpp, cnp, tsp, ticksp)
+cache_lookup(dvp, vpp, cnp, tsp, ticksp)
 	struct vnode *dvp;
 	struct vnode **vpp;
 	struct componentname *cnp;
@@ -994,7 +994,7 @@ vfs_cache_lookup(ap)
 	if (error)
 		return (error);
 
-	error = cache_lookup(dvp, vpp, cnp);
+	error = cache_lookup(dvp, vpp, cnp, NULL, NULL);
 	if (error == 0)
 		return (VOP_CACHEDLOOKUP(dvp, vpp, cnp));
 	if (error == -1)
@@ -1374,11 +1374,8 @@ vn_commname(struct vnode *vp, char *buf, u_int buflen)
 
 /* ABI compat shims for old kernel modules. */
 #undef cache_enter
-#undef cache_lookup
 
 void	cache_enter(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp);
-int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp);
 
 void
@@ -1386,13 +1383,6 @@ cache_enter(struct vnode *dvp, struct vnode *vp, struct componentname *cnp)
 {
 
 	cache_enter_time(dvp, vp, cnp, NULL);
-}
-
-int
-cache_lookup(struct vnode *dvp, struct vnode **vpp, struct componentname *cnp)
-{
-
-	return (cache_lookup_times(dvp, vpp, cnp, NULL, NULL));
 }
 
 /*
