@@ -52,12 +52,13 @@ LIB2FUNCS+= _fixuns${mode}si
 .endfor
 
 # Likewise double-word routines.
+.if ${TARGET_CPUARCH} != "arm"
+# These are implemented in an ARM specific file but will not be filtered out
 .for mode in sf df xf tf
 LIB2FUNCS+= _fix${mode}di _fixuns${mode}di
-.if ${TARGET_CPUARCH} != "arm"
 LIB2FUNCS+= _floatdi${mode} _floatundi${mode}
-.endif
 .endfor
+.endif
 
 LIB2ADD = $(LIB2FUNCS_EXTRA)
 LIB2ADD_ST = $(LIB2FUNCS_STATIC_EXTRA)
@@ -110,18 +111,10 @@ LIB2_DIVMOD_FUNCS = _divdi3 _moddi3 _udivdi3 _umoddi3 _udiv_w_sdiv _udivmoddi4
 CFLAGS+=	-Dinhibit_libc -fno-inline
 LIB1ASMSRC =	lib1funcs.asm
 LIB1ASMFUNCS =  _dvmd_tls _bb_init_func
-LIB1ASMFUNCS+=	_udivsi3 _divsi3 _umodsi3 _modsi3\
-	_call_via_rX _interwork_call_via_rX \
-	_lshrdi3 _ashrdi3 _ashldi3 \
-	_negdf2 _addsubdf3 _muldivdf3 _cmpdf2 _unorddf2 _fixdfsi _fixunsdfsi \
-	_truncdfsf2 _negsf2 _addsubsf3 _muldivsf3 _cmpsf2 _unordsf2 \
-	_fixsfsi _fixunssfsi _floatdidf _floatdisf \
-	 _aeabi_ulcmp _aeabi_ldivmod _aeabi_uldivmod
-LIB2ADDEH = unwind-arm.c libunwind.S pr-support.c unwind-c.c
-LIB2FUNCS_EXTRA = bpabi.c
+LIB1ASMFUNCS+=	_addsubdf3 _addsubsf3 _cmpdf2 _cmpsf2 _fixdfsi _fixsfsi \
+		_fixunsdfsi _fixunsdfsi _muldivdf3 _muldivsf3 _udivsi3
 
-# Make bpabi.So depend on bpabi.c and not bpabi.S
-bpabi.So: bpabi.c
+LIB2ADDEH =	unwind-arm.c libunwind.S pr-support.c unwind-c.c
 .endif
 
 .if ${TARGET_CPUARCH} == mips
