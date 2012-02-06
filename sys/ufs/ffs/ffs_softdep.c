@@ -43,6 +43,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ffs.h"
+#include "opt_quota.h"
 #include "opt_ddb.h"
 
 /*
@@ -6428,7 +6429,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	}
 #ifdef QUOTA
 	/* Reference the quotas in case the block count is wrong in the end. */
-	quotaref(vp, freeblks->fb_quota);
+	quotaref(ITOV(ip), freeblks->fb_quota);
 	(void) chkdq(ip, -datablocks, NOCRED, 0);
 #endif
 	freeblks->fb_chkcnt = -datablocks;
