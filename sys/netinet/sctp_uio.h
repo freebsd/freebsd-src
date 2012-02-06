@@ -672,8 +672,8 @@ struct sctp_timeouts {
 };
 
 struct sctp_udpencaps {
-	sctp_assoc_t sue_assoc_id;
 	struct sockaddr_storage sue_address;
+	sctp_assoc_t sue_assoc_id;
 	uint16_t sue_port;
 };
 
