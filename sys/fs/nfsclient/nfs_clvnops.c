@@ -1376,7 +1376,7 @@ ncl_writerpc(struct vnode *vp, struct uio *uiop, struct ucred *cred,
 		if (ret && !error)
 			error = ret;
 	}
-	if (vp->v_mount->mnt_kern_flag & MNTK_ASYNC)
+	if (DOINGASYNC(vp))
 		*iomode = NFSWRITE_FILESYNC;
 	if (error && NFS_ISV4(vp))
 		error = nfscl_maperr(uiop->uio_td, error, (uid_t)0, (gid_t)0);
