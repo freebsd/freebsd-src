@@ -85,7 +85,7 @@ NOASM=
 .include "${.CURDIR}/rpc/Makefile.inc"
 .include "${.CURDIR}/uuid/Makefile.inc"
 .include "${.CURDIR}/xdr/Makefile.inc"
-.if ${LIBC_ARCH} == "arm" || ${LIBC_ARCH} == "mips"
+.if ${LIBC_ARCH} == "mips"
 .include "${.CURDIR}/softfloat/Makefile.inc"
 .endif
 .if ${MK_NIS} != "no"

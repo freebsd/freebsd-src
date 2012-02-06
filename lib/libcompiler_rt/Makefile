@@ -123,7 +123,7 @@ SRCF=	absvdi2 \
 	umodti3
 
 # These are already shipped by libc.a on arm and mips
-.if ${MACHINE_CPUARCH} != "arm" && ${MACHINE_CPUARCH} != "mips"
+.if ${MACHINE_CPUARCH} != "mips"
 SRCF+=	adddf3 \
 	addsf3 \
 	divdf3 \
