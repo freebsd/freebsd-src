@@ -938,7 +938,7 @@ nfs_lookup(struct vop_lookup_args *ap)
 		*vpp = NULLVP;
 		return (error);
 	}
-	error = cache_lookup_times(dvp, vpp, cnp, &nctime, &ncticks);
+	error = cache_lookup(dvp, vpp, cnp, &nctime, &ncticks);
 	if (error > 0 && error != ENOENT)
 		return (error);
 	if (error == -1) {
