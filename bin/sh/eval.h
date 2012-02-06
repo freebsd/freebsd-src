@@ -69,6 +69,7 @@ int commandcmd(int, char **);
 #define in_function()	funcnest
 extern int funcnest;
 extern int evalskip;
+extern int skipcount;
 
 /* reasons for skipping commands (see comment on breakcmd routine) */
 #define SKIPBREAK	1
