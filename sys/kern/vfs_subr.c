@@ -3521,7 +3521,7 @@ sync_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
-	int error;
+	int error, save;
 	struct bufobj *bo;
 
 	/*
@@ -3551,17 +3551,10 @@ sync_fsync(struct vop_fsync_args *ap)
 		vfs_unbusy(mp);
 		return (0);
 	}
-	MNT_ILOCK(mp);
-	mp->mnt_noasync++;
-	mp->mnt_kern_flag &= ~MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	save = curthread_pflags_set(TDP_SYNCIO);
 	vfs_msync(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
-	MNT_ILOCK(mp);
-	mp->mnt_noasync--;
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-		mp->mnt_kern_flag |= MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	curthread_pflags_restore(save);
 	vn_finished_write(mp);
 	vfs_unbusy(mp);
 	return (error);
