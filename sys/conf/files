@@ -2499,17 +2499,17 @@ kern/vfs_vnops.c		standard
 #
 gssd.h				optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x"			\
-	compile-with		"rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h" \
 	no-obj no-implicit-rule before-depend local			\
 	clean			"gssd.h"
 gssd_xdr.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
-	compile-with		"rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
 	no-implicit-rule before-depend local				\
 	clean			"gssd_xdr.c"
 gssd_clnt.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
-	compile-with		"rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
 	no-implicit-rule before-depend local				\
 	clean			"gssd_clnt.c"
 kgssapi/gss_accept_sec_context.c optional kgssapi
