@@ -50,7 +50,7 @@
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <arm/ti/omap_cpuid.h>
+#include <arm/ti/ti_cpuid.h>
 
 
 /*

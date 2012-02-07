@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _OMAP_CPUID_H_
-#define	_OMAP_CPUID_H_
+#ifndef _TI_CPUID_H_
+#define	_TI_CPUID_H_
 
 #define OMAP_MAKEREV(d, a, b, c) \
 	(uint32_t)(((d) << 16) | (((a) & 0xf) << 8) | (((b) & 0xf) << 4) | ((c) & 0xf))
@@ -36,36 +36,38 @@
 #define OMAP_REV_MINOR(x)       (((x) >> 4) & 0xf)
 #define OMAP_REV_MINOR_MINOR(x) (((x) >> 0) & 0xf)
 
-#define OMAP3530_DEV            0x3530
-#define OMAP4430_DEV            0x4430
+#define OMAP3350_REV_ES1_0      OMAP_MAKEREV(0x3530, 1, 0, 0)
+#define OMAP3530_REV_ES2_0      OMAP_MAKEREV(0x3530, 2, 0, 0)
+#define OMAP3530_REV_ES2_1      OMAP_MAKEREV(0x3530, 2, 1, 0)
+#define OMAP3530_REV_ES3_0      OMAP_MAKEREV(0x3530, 3, 0, 0)
+#define OMAP3530_REV_ES3_1      OMAP_MAKEREV(0x3530, 3, 1, 0)
+#define OMAP3530_REV_ES3_1_2    OMAP_MAKEREV(0x3530, 3, 1, 2)
 
-#define OMAP3350_REV_ES1_0      OMAP_MAKEREV(OMAP3530_DEV, 1, 0, 0)
-#define OMAP3530_REV_ES2_0      OMAP_MAKEREV(OMAP3530_DEV, 2, 0, 0)
-#define OMAP3530_REV_ES2_1      OMAP_MAKEREV(OMAP3530_DEV, 2, 1, 0)
-#define OMAP3530_REV_ES3_0      OMAP_MAKEREV(OMAP3530_DEV, 3, 0, 0)
-#define OMAP3530_REV_ES3_1      OMAP_MAKEREV(OMAP3530_DEV, 3, 1, 0)
-#define OMAP3530_REV_ES3_1_2    OMAP_MAKEREV(OMAP3530_DEV, 3, 1, 2)
+#define OMAP4430_REV_ES1_0      OMAP_MAKEREV(0x4430, 1, 0, 0)
+#define OMAP4430_REV_ES2_0      OMAP_MAKEREV(0x4430, 2, 0, 0)
+#define OMAP4430_REV_ES2_1      OMAP_MAKEREV(0x4430, 2, 1, 0)
+#define OMAP4430_REV_ES2_2      OMAP_MAKEREV(0x4430, 2, 2, 0)
+#define OMAP4430_REV_ES2_3      OMAP_MAKEREV(0x4430, 2, 3, 0)
 
-#define OMAP4430_REV_ES1_0      OMAP_MAKEREV(OMAP4430_DEV, 1, 0, 0)
-#define OMAP4430_REV_ES2_0      OMAP_MAKEREV(OMAP4430_DEV, 2, 0, 0)
-#define OMAP4430_REV_ES2_1      OMAP_MAKEREV(OMAP4430_DEV, 2, 1, 0)
-#define OMAP4430_REV_ES2_2      OMAP_MAKEREV(OMAP4430_DEV, 2, 2, 0)
-#define OMAP4430_REV_ES2_3      OMAP_MAKEREV(OMAP4430_DEV, 2, 3, 0)
+#define AM335X_DEVREV(x)	((x) >> 28)
 
-#define	CHIP_OMAP_3	0
-#define	CHIP_OMAP_4	1
+#define CHIP_OMAP_3	0
+#define CHIP_OMAP_4	1
+#define CHIP_AM335X	2
 
-static __inline int omap_chip(void)
+static __inline int ti_chip(void)
 {
 #if defined(SOC_OMAP4)
 	return CHIP_OMAP_4;
 #elif defined(SOC_OMAP3)
 	return CHIP_OMAP_3;
+#elif defined(SOC_TI_AM335X)
+	return CHIP_AM335X;
 #else
-#  error OMAP chip type not defined, ensure SOC_OMAPxxxx is defined
+#  error Chip type not defined, ensure SOC_xxxx is defined
 #endif
 }
 
-uint32_t omap_revision(void);
+uint32_t ti_revision(void);
 
-#endif  /* _OMAP_CPUID_H_ */
+#endif  /* _TI_CPUID_H_ */

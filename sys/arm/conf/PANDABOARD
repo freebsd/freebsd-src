@@ -125,6 +125,9 @@ device		da		# Direct Access (disks)
 # USB Ethernet support, requires miibus
 device		miibus
 device		axe			# ASIX Electronics USB Ethernet
-device		smsc		# SMSC LAN95xx USB Ethernet
+# device		smsc		# SMSC LAN95xx USB Ethernet
 
-
+# Flattened Device Tree
+options         FDT
+options         FDT_DTB_STATIC
+makeoptions     FDT_DTS_FILE=pandaboard.dts

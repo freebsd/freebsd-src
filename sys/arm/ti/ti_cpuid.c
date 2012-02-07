@@ -39,6 +39,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 
 #include <machine/bus.h>
+#include <machine/fdt.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 #include <machine/frame.h>
@@ -46,28 +47,29 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <arm/ti/omapvar.h>
-#include <arm/ti/omap_cpuid.h>
+#include <arm/ti/ti_cpuid.h>
 
 #include <arm/ti/omap4/omap44xx_reg.h>
 #include <arm/ti/omap3/omap35xx_reg.h>
+#ifdef notyet
+#include <arm/ti/am335x/am335x_reg.h>
+#endif
 
-#define OMAP4_STD_FUSE_DIE_ID_0    0x2200 
+#define OMAP4_STD_FUSE_DIE_ID_0    0x2200
 #define OMAP4_ID_CODE              0x2204
-#define OMAP4_STD_FUSE_DIE_ID_1    0x2208 
-#define OMAP4_STD_FUSE_DIE_ID_2    0x220C 
-#define OMAP4_STD_FUSE_DIE_ID_3    0x2210 
-#define OMAP4_STD_FUSE_PROD_ID_0   0x2214 
+#define OMAP4_STD_FUSE_DIE_ID_1    0x2208
+#define OMAP4_STD_FUSE_DIE_ID_2    0x220C
+#define OMAP4_STD_FUSE_DIE_ID_3    0x2210
+#define OMAP4_STD_FUSE_PROD_ID_0   0x2214
 #define OMAP4_STD_FUSE_PROD_ID_1   0x2218
 
 #define OMAP3_ID_CODE              0xA204
 
-#define REG_READ32(r)              *((volatile uint32_t*)(r))
-
 static uint32_t chip_revision = 0xffffffff;
 
 /**
- *	omap_revision - Returns the revision number of the device
- * 
+ *	ti_revision - Returns the revision number of the device
+ *
  *	Simply returns an identifier for the revision of the chip we are running
  *	on.
  *
@@ -75,14 +77,14 @@ static uint32_t chip_revision = 0xffffffff;
  *	A 32-bit identifier for the current chip
  */
 uint32_t
-omap_revision(void)
+ti_revision(void)
 {
 	return chip_revision;
 }
 
 /**
  *	omap4_get_revision - determines omap4 revision
- * 
+ *
  *	Reads the registers to determine the revision of the chip we are currently
  *	running on.  Stores the information in global variables.
  *
@@ -94,25 +96,30 @@ omap4_get_revision(void)
 	uint32_t id_code;
 	uint32_t revision;
 	uint32_t hawkeye;
+	bus_space_handle_t bsh;
 
 	/* The chip revsion is read from the device identification registers and
 	 * the JTAG (?) tap registers, which are located in address 0x4A00_2200 to
 	 * 0x4A00_2218.  This is part of the L4_CORE memory range and should have
 	 * been mapped in by the machdep.c code.
 	 *
-	 *   STD_FUSE_DIE_ID_0    0x4A00 2200 
+	 *   STD_FUSE_DIE_ID_0    0x4A00 2200
 	 *   ID_CODE              0x4A00 2204   (this is the only one we need)
-	 *   STD_FUSE_DIE_ID_1    0x4A00 2208 
-	 *   STD_FUSE_DIE_ID_2    0x4A00 220C 
-	 *   STD_FUSE_DIE_ID_3    0x4A00 2210 
-	 *   STD_FUSE_PROD_ID_0   0x4A00 2214 
+	 *   STD_FUSE_DIE_ID_1    0x4A00 2208
+	 *   STD_FUSE_DIE_ID_2    0x4A00 220C
+	 *   STD_FUSE_DIE_ID_3    0x4A00 2210
+	 *   STD_FUSE_PROD_ID_0   0x4A00 2214
 	 *   STD_FUSE_PROD_ID_1   0x4A00 2218
 	 */
-	id_code = REG_READ32(OMAP44XX_L4_CORE_VBASE + OMAP4_ID_CODE);
-	
+	// id_code = REG_READ32(OMAP44XX_L4_CORE_VBASE + OMAP4_ID_CODE); 
+	//FIXME Should we map somewhere else?
+	bus_space_map(fdtbus_bs_tag,OMAP44XX_L4_CORE_HWBASE, 0x4000, 0, &bsh);
+	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP4_ID_CODE);
+	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
+
 	hawkeye = ((id_code >> 12) & 0xffff);
 	revision = ((id_code >> 28) & 0xf);
-	
+
 	/* Apparently according to the linux code there were some ES2.0 samples that
 	 * have the wrong id code and report themselves as ES1.0 silicon.  So used
 	 * the ARM cpuid to get the correct revision.
@@ -121,7 +128,7 @@ omap4_get_revision(void)
 		id_code = cpufunc_id();
 		revision = (id_code & 0xf) - 1;
 	}
-	
+
 	switch (hawkeye) {
 	case 0xB852:
 		if (revision == 0)
@@ -142,19 +149,19 @@ omap4_get_revision(void)
 		chip_revision = OMAP4430_REV_ES2_3;
 		break;
 	}
-			
-	printf("OMAP%04x ES%u.%u\n", OMAP_REV_DEVICE(chip_revision),
-	       OMAP_REV_MAJOR(chip_revision), OMAP_REV_MINOR(chip_revision));
+	printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
+		OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
+		OMAP_REV_MINOR(chip_revision));
 }
 
 /**
  *	omap3_get_revision - determines omap3 revision
- * 
+ *
  *	Reads the registers to determine the revision of the chip we are currently
  *	running on.  Stores the information in global variables.
  *
  *	WARNING: This function currently only really works for OMAP3530 devices.
- *	
+ *
  *
  *
  */
@@ -164,6 +171,7 @@ omap3_get_revision(void)
 	uint32_t id_code;
 	uint32_t revision;
 	uint32_t hawkeye;
+	bus_space_handle_t bsh;
 
 	/* The chip revsion is read from the device identification registers and
 	 * the JTAG (?) tap registers, which are located in address 0x4A00_2200 to
@@ -174,8 +182,11 @@ omap3_get_revision(void)
 	 *
 	 *
 	 */
-	id_code = REG_READ32(OMAP35XX_L4_WAKEUP_VBASE + OMAP3_ID_CODE);
-	
+	//id_code = REG_READ32(OMAP35XX_L4_WAKEUP_VBASE + OMAP3_ID_CODE);
+	bus_space_map(fdtbus_bs_tag,OMAP35XX_L4_WAKEUP_HWBASE, 0x10000, 0, &bsh);
+	id_code = bus_space_read_4(fdtbus_bs_tag, bsh, OMAP3_ID_CODE);
+	bus_space_unmap(fdtbus_bs_tag, bsh, 0x4000);
+
 	hawkeye = ((id_code >> 12) & 0xffff);
 	revision = ((id_code >> 28) & 0xf);
 
@@ -200,15 +211,56 @@ omap3_get_revision(void)
 		chip_revision = OMAP3530_REV_ES3_1_2;
 		break;
 	}
-
-	printf("OMAP%04x ES%u.%u\n", OMAP_REV_DEVICE(chip_revision),
-	       OMAP_REV_MAJOR(chip_revision), OMAP_REV_MINOR(chip_revision));
+	printf("Texas Instruments OMAP%04x Processor, Revision ES%u.%u\n",
+		OMAP_REV_DEVICE(chip_revision), OMAP_REV_MAJOR(chip_revision), 
+		OMAP_REV_MINOR(chip_revision));
 }
 
+#ifdef notyet
+static void
+am335x_get_revision(void)
+{
+	uint32_t dev_feature;
+	uint8_t cpu_last_char;
+	bus_space_handle_t bsh;
+
+	bus_space_map(fdtbus_bs_tag, AM335X_CONTROL_BASE, AM335X_CONTROL_SIZE, 0, &bsh);
+	chip_revision = bus_space_read_4(fdtbus_bs_tag, bsh, AM335X_CONTROL_DEVICE_ID);
+	dev_feature = bus_space_read_4(fdtbus_bs_tag, bsh, AM335X_CONTROL_DEV_FEATURE);
+	bus_space_unmap(fdtbus_bs_tag, bsh, AM335X_CONTROL_SIZE);
+
+	switch (dev_feature) {
+		case 0x00FF0382:
+			cpu_last_char='2';
+			break;
+		case 0x20FF0382:
+			cpu_last_char='4';
+			break;
+		case 0x00FF0383:
+			cpu_last_char='6';
+			break;
+		case 0x00FE0383:
+			cpu_last_char='7';
+			break;
+		case 0x20FF0383:
+			cpu_last_char='8';
+			break;
+		case 0x20FE0383:
+			cpu_last_char='9';
+			break;
+		default:
+			cpu_last_char='x';
+	}
+
+	printf("Texas Instruments AM335%c Processor, Revision ES1.%u\n",
+		cpu_last_char, AM335X_DEVREV(chip_revision));
+}
+#endif
+
 /**
- *	omap_cpu_ident - attempts to identify the chip we are running on
+ *	ti_cpu_ident - attempts to identify the chip we are running on
  *	@dummy: ignored
- * 
+ *
  *	This function is called before any of the driver are initialised, however
  *	the basic virt to phys maps have been setup in machdep.c so we can still
  *	access the required registers, we just have to use direct register reads
@@ -217,18 +269,23 @@ omap3_get_revision(void)
  *
  */
 static void
-omap_cpu_ident(void *dummy)
+ti_cpu_ident(void *dummy)
 {
-	switch(omap_chip()) {
+	switch(ti_chip()) {
 	case CHIP_OMAP_3:
 		omap3_get_revision();
 		break;
 	case CHIP_OMAP_4:
 		omap4_get_revision();
 		break;
+#ifdef notyet
+	case CHIP_AM335X:
+		am335x_get_revision();
+		break;
+#endif
 	default:
-		panic("Unknown OMAP chip type, fixme!\n");
+		panic("Unknown chip type, fixme!\n");
 	}
 }
 
-SYSINIT(omap_cpu_ident, SI_SUB_CPU, SI_ORDER_SECOND, omap_cpu_ident, NULL);
+SYSINIT(ti_cpu_ident, SI_SUB_CPU, SI_ORDER_SECOND, ti_cpu_ident, NULL);

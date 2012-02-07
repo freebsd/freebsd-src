@@ -10,20 +10,24 @@ arm/arm/cpufunc_asm_arm11.S			standard
 arm/arm/cpufunc_asm_armv7.S			standard
 arm/arm/irq_dispatch.S				standard
 
-arm/ti/omap_machdep.c				standard
-arm/ti/omap.c					standard
-arm/ti/omap_cpuid.c				standard
-arm/ti/omap_prcm.c				standard
-arm/ti/omap_scm.c				standard
-arm/ti/omap_if.m				standard
 
-arm/ti/omap4/omap4_if.m			standard
-arm/ti/omap4/omap44xx.c			standard
-arm/ti/omap4/omap4_intr.c			standard
-arm/ti/omap4/omap4_prcm_clks.c		standard
-arm/ti/omap4/omap4_scm_padconf.c		standard
-arm/ti/omap4/omap4_timer.c			standard
+arm/ti/ti_machdep.c				standard
+# arm/ti/omap.c					standard
+arm/ti/ti_cpuid.c				standard
+# arm/ti/omap_prcm.c				standard
+# arm/ti/omap_scm.c				standard
+# arm/ti/omap_if.m				standard
+arm/ti/timer.c					standard
+arm/ti/gic.c					standard
 
-arm/ti/omap4/uart_cpu_omap4.c			optional	uart
+arm/ti/common.c					standard
+arm/ti/bus_space.c				standard
+
+# arm/ti/omap4/omap4_if.m			standard
+# arm/ti/omap4/omap44xx.c			standard
+# arm/ti/omap4/omap4_intr.c			standard
+# arm/ti/omap4/omap4_prcm_clks.c		standard
+# arm/ti/omap4/omap4_scm_padconf.c		standard
+# arm/ti/omap4/omap4_timer.c			standard
 
 dev/uart/uart_dev_ns8250.c			optional	uart

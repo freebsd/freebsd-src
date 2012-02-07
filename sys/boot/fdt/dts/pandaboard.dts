@@ -1,0 +1,92 @@
+/*-
+ * Copyright (c) 2011 The FreeBSD Foundation
+ * All rights reserved.
+ *
+ * Developed by Damjan Marion <damjan.marion@gmail.com>
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+ * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+ * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+ * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+ * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+ * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+ * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+ * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+ * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+ * SUCH DAMAGE.
+ */
+
+/dts-v1/;
+
+/ {
+	model = "pandaboard";
+	compatible = "pandaboard", "ti,omap4430";
+	#address-cells = <1>;
+	#size-cells = <1>;
+
+	interrupt-parent = <&GIC>;
+
+	aliases {
+		soc = &SOC;
+		uart3 = &uart3;
+	};
+
+	memory {
+		device_type = "memory";
+		reg = < 0x80000000 0x40000000 >;	/* 1GB RAM at 0x0 */
+	};
+
+	SOC: omap4430 {
+		#address-cells = <1>;
+		#size-cells = <1>;
+		compatible = "simple-bus";
+		ranges;
+		bus-frequency = <0>;
+
+		GIC: interrupt-controller@48241000 {
+			compatible = "arm,gic";
+			interrupt-controller;
+			#address-cells = <0>;
+			#interrupt-cells = <1>;
+			reg =	< 0x48241000 0x1000 >,	/* Distributor Registers */
+				< 0x48240100 0x0100 >;	/* CPU Interface Registers */
+		};
+
+		mp_tmr@48240200 {
+			compatible = "arm,mpcore-timers";
+			clock-frequency = < 504000000 >;
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg =	< 0x48240200 0x100 >, /* Global Timer Registers */
+				< 0x48240600 0x100 >; /* Private Timer Registers */
+			interrupts = < 27 29 >;
+			interrupt-parent = < &GIC >;
+		};
+
+
+		uart3: serial@48020000 {
+			compatible = "ns16550";
+			reg = <0x48020000 0x1000>;
+			reg-shift = <2>;
+			interrupts = < 68 >;
+			interrupt-parent = <&GIC>;
+			clock-frequency = < 48000000 >; /* 48Mhz clock for all uarts */
+							/* (techref 17.3.1.1) */
+		};
+	};
+
+	chosen {
+		stdin = "uart3";
+		stdout = "uart3";
+	};
+};
