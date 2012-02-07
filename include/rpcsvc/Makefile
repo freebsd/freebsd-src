@@ -3,7 +3,7 @@
 
 .SUFFIXES: .x
 
-RPCCOM = rpcgen -C
+RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 HDRS= key_prot.h klm_prot.h mount.h nfs_prot.h nlm_prot.h rex.h rnusers.h \
       rquota.h rstat.h rwall.h sm_inter.h spray.h yppasswd.h yp.h \
