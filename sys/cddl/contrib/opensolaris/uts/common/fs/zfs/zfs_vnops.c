@@ -321,32 +321,22 @@ page_lookup(vnode_t *vp, int64_t start, int64_t off, int64_t nbytes)
 
 	obj = vp->v_object;
 	VM_OBJECT_LOCK_ASSERT(obj, MA_OWNED);
-	mtx_assert(&vm_page_queue_free_mtx, MA_NOTOWNED);
 
 	for (;;) {
-		if ((pp = vm_radix_lookup(&obj->rtree, OFF_TO_IDX(start),
-		    VM_RADIX_ANY)) != NULL) {
-			if (pp->flags & PG_CACHED) {
-				mtx_lock(&vm_page_queue_free_mtx);
-				if (pp->object == obj)
-					vm_page_cache_remove(pp);
-				mtx_unlock(&vm_page_queue_free_mtx);
-				pp = NULL;
-			} else if (vm_page_is_valid(pp, (vm_offset_t)off,
-			    nbytes)) {
-				if ((pp->oflags & VPO_BUSY) != 0) {
-					/*
-				 	 * Reference the page before unlocking
-					 * and sleeping so that the page daemon
-					 * is less likely to reclaim it.
-				 	 */
-					vm_page_reference(pp);
-					vm_page_sleep(pp, "zfsmwb");
-					continue;
-				}
-				vm_page_busy(pp);
-				vm_page_undirty(pp);
+		if ((pp = vm_page_lookup(obj, OFF_TO_IDX(start))) != NULL &&
+		    vm_page_is_valid(pp, (vm_offset_t)off, nbytes)) {
+			if ((pp->oflags & VPO_BUSY) != 0) {
+				/*
+				 * Reference the page before unlocking and
+				 * sleeping so that the page daemon is less
+				 * likely to reclaim it.
+				 */
+				vm_page_reference(pp);
+				vm_page_sleep(pp, "zfsmwb");
+				continue;
 			}
+			vm_page_busy(pp);
+			vm_page_undirty(pp);
 		} else
 			pp = NULL;
 		break;
