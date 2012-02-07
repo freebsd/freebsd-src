@@ -142,8 +142,8 @@ SCI_PORT_HANDLE_T scif_domain_get_scic_port_handle(
 {
    SCIF_SAS_DOMAIN_T * fw_domain = (SCIF_SAS_DOMAIN_T*) domain;
 
-   if ( (fw_domain != NULL) && (fw_domain->core_object != SCI_INVALID_HANDLE) )
-      return fw_domain->core_object;
+   if ( (fw_domain == NULL) || (fw_domain->core_object == SCI_INVALID_HANDLE) )
+      return SCI_INVALID_HANDLE;
 
    SCIF_LOG_WARNING((
       sci_base_object_get_logger(fw_domain),
@@ -152,7 +152,7 @@ SCI_PORT_HANDLE_T scif_domain_get_scic_port_handle(
       fw_domain
    ));
 
-   return SCI_INVALID_HANDLE;
+   return fw_domain->core_object;
 }
 
 // ---------------------------------------------------------------------------
