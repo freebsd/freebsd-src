@@ -2813,11 +2813,13 @@ iwn_ampdu_tx_done(struct iwn_softc *sc, int qid, int idx, int nframes,
 		bitmap |= 1ULL << bit;
 	}
 	tap = sc->qid2tap[qid];
-	tid = WME_AC_TO_TID(tap->txa_ac);
-	wn = (void *)tap->txa_ni;
-	wn->agg[tid].bitmap = bitmap;
-	wn->agg[tid].startidx = start;
-	wn->agg[tid].nframes = nframes;
+	if (tap != NULL) {
+		tid = WME_AC_TO_TID(tap->txa_ac);
+		wn = (void *)tap->txa_ni;
+		wn->agg[tid].bitmap = bitmap;
+		wn->agg[tid].startidx = start;
+		wn->agg[tid].nframes = nframes;
+	}
 
 	seqno = le32toh(*(status + nframes)) & 0xfff;
 	for (lastidx = (seqno & 0xff); ring->read != lastidx;) {
