@@ -1408,7 +1408,7 @@ if_maddr_runlock(struct ifnet *ifp)
 }
 
 /*
- * Reference count functions for ifaddrs.
+ * Initialization, destruction and refcounting functions for ifaddrs.
  */
 void
 ifa_init(struct ifaddr *ifa)
@@ -1416,6 +1416,7 @@ ifa_init(struct ifaddr *ifa)
 
 	mtx_init(&ifa->ifa_mtx, "ifaddr", NULL, MTX_DEF);
 	refcount_init(&ifa->ifa_refcnt, 1);
+	ifa->if_data.ifi_datalen = sizeof(ifa->if_data);
 }
 
 void

@@ -1767,19 +1767,6 @@ cxgb_transmit(struct ifnet *ifp, struct mbuf *m)
 		error = drbr_enqueue(ifp, qs->txq[TXQ_ETH].txq_mr, m);
 	return (error);
 }
-void
-cxgb_start(struct ifnet *ifp)
-{
-	struct port_info *pi = ifp->if_softc;
-	struct sge_qset *qs = &pi->adapter->sge.qs[pi->first_qset];
-	
-	if (!pi->link_config.link_ok)
-		return;
-
-	TXQ_LOCK(qs);
-	cxgb_start_locked(qs);
-	TXQ_UNLOCK(qs);
-}
 
 void
 cxgb_qflush(struct ifnet *ifp)

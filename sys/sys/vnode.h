@@ -538,6 +538,10 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
  */
 #define VCALL(c) ((c)->a_desc->vdesc_call(c))
 
+#define DOINGASYNC(vp)	   					\
+	(((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC) != 0 &&	\
+	 ((curthread->td_pflags & TDP_SYNCIO) == 0))
+
 /*
  * VMIO support inline
  */
@@ -582,9 +586,7 @@ struct vnode;
 	cache_enter_time(dvp, vp, cnp, NULL)
 void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
 	    struct componentname *cnp, struct timespec *tsp);
-#define	cache_lookup(dvp, vpp, cnp)					\
-	cache_lookup_times(dvp, vpp, cnp, NULL, NULL)
-int	cache_lookup_times(struct vnode *dvp, struct vnode **vpp,
+int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
 void	cache_purge_negative(struct vnode *vp);

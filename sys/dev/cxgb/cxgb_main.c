@@ -227,14 +227,6 @@ TUNABLE_INT("hw.cxgb.use_16k_clusters", &cxgb_use_16k_clusters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, use_16k_clusters, CTLFLAG_RDTUN,
     &cxgb_use_16k_clusters, 0, "use 16kB clusters for the jumbo queue ");
 
-/*
- * Tune the size of the output queue.
- */
-int cxgb_snd_queue_len = IFQ_MAXLEN;
-TUNABLE_INT("hw.cxgb.snd_queue_len", &cxgb_snd_queue_len);
-SYSCTL_INT(_hw_cxgb, OID_AUTO, snd_queue_len, CTLFLAG_RDTUN,
-    &cxgb_snd_queue_len, 0, "send queue size ");
-
 static int nfilters = -1;
 TUNABLE_INT("hw.cxgb.nfilters", &nfilters);
 SYSCTL_INT(_hw_cxgb, OID_AUTO, nfilters, CTLFLAG_RDTUN,
@@ -1019,11 +1011,8 @@ cxgb_port_attach(device_t dev)
 	ifp->if_softc = p;
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
 	ifp->if_ioctl = cxgb_ioctl;
-	ifp->if_start = cxgb_start;
-
-	ifp->if_snd.ifq_drv_maxlen = max(cxgb_snd_queue_len, ifqmaxlen);
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
+	ifp->if_transmit = cxgb_transmit;
+	ifp->if_qflush = cxgb_qflush;
 
 	ifp->if_capabilities = CXGB_CAP;
 	ifp->if_capenable = CXGB_CAP_ENABLE;
@@ -1039,8 +1028,6 @@ cxgb_port_attach(device_t dev)
 	}
 
 	ether_ifattach(ifp, p->hw_addr);
-	ifp->if_transmit = cxgb_transmit;
-	ifp->if_qflush = cxgb_qflush;
 
 #ifdef DEFAULT_JUMBO
 	if (sc->params.nports <= 2)

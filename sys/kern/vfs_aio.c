@@ -2706,6 +2706,7 @@ convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
 		break;
 	case SIGEV_KEVENT:
 		CP(*sig32, *sig, sigev_notify_kqueue);
+		CP(*sig32, *sig, sigev_notify_kevent_flags);
 		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
 		break;
 	default:

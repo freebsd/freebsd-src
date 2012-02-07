@@ -112,7 +112,6 @@ static struct cdevsw t4_cdevsw = {
 /* ifnet + media interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
-static void cxgbe_start(struct ifnet *);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
 static int cxgbe_media_change(struct ifnet *);
@@ -309,6 +308,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+#ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
@@ -324,6 +324,7 @@ static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
+#endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -827,13 +828,8 @@ cxgbe_attach(device_t dev)
 
 	ifp->if_init = cxgbe_init;
 	ifp->if_ioctl = cxgbe_ioctl;
-	ifp->if_start = cxgbe_start;
 	ifp->if_transmit = cxgbe_transmit;
 	ifp->if_qflush = cxgbe_qflush;
-
-	ifp->if_snd.ifq_drv_maxlen = 1024;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capabilities = T4_CAP;
 #ifndef TCP_OFFLOAD_DISABLE
@@ -1091,21 +1087,6 @@ fail:
 	}
 
 	return (rc);
-}
-
-static void
-cxgbe_start(struct ifnet *ifp)
-{
-	struct port_info *pi = ifp->if_softc;
-	struct sge_txq *txq;
-	int i;
-
-	for_each_txq(pi, i, txq) {
-		if (TXQ_TRYLOCK(txq)) {
-			txq_start(ifp, txq);
-			TXQ_UNLOCK(txq);
-		}
-	}
 }
 
 static int
@@ -2980,6 +2961,7 @@ t4_sysctls(struct adapter *sc)
 	    sizeof(sc->sge.counter_val), sysctl_int_array, "A",
 	    "interrupt holdoff packet counter values");
 
+#ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
 	 */
@@ -3051,6 +3033,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_rate",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tx_rate, "A", "Tx rate");
+#endif
 
 #ifndef TCP_OFFLOAD_DISABLE
 	if (is_offload(sc)) {
@@ -3465,6 +3448,7 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_64(oidp, &val, 0, req));
 }
 
+#ifdef SBUF_DRAIN
 static int
 sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 {
@@ -4297,6 +4281,7 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 
 	return (rc);
 }
+#endif
 
 static inline void
 txq_start(struct ifnet *ifp, struct sge_txq *txq)
@@ -4854,22 +4839,22 @@ filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		unsigned int rc = G_COOKIE(rpl->cookie);
 		struct filter_entry *f = &sc->tids.ftid_tab[idx];
 
+		ADAPTER_LOCK(sc);
 		if (rc == FW_FILTER_WR_FLT_ADDED) {
 			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
 			f->pending = 0;  /* asynchronous setup completed */
 			f->valid = 1;
-			return (0);
-		}
+		} else {
+			if (rc != FW_FILTER_WR_FLT_DELETED) {
+				/* Add or delete failed, display an error */
+				log(LOG_ERR,
+				    "filter %u setup failed with error %u\n",
+				    idx, rc);
+			}
 
-		if (rc != FW_FILTER_WR_FLT_DELETED) {
-			/* Add or delete failed, need to display an error */
-			device_printf(sc->dev,
-			    "filter %u setup failed with error %u\n", idx, rc);
+			clear_filter(f);
+			sc->tids.ftids_in_use--;
 		}
-
-		clear_filter(f);
-		ADAPTER_LOCK(sc);
-		sc->tids.ftids_in_use--;
 		ADAPTER_UNLOCK(sc);
 	}
 

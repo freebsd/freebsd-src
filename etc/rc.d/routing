@@ -98,8 +98,10 @@ routing_stop_inet6()
 	local i
 
 	route -n flush -inet6
-	for i in ${ipv6_network_interfaces}; do
-		ifconfig $i inet6 -defaultif
+	for i in `list_net_interfaces`; do
+		if ipv6if $i; then
+			ifconfig $i inet6 -defaultif
+		fi
 	done
 }
 
