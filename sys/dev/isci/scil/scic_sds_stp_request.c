@@ -1124,9 +1124,6 @@ SCI_STATUS scic_sds_stp_request_pio_data_out_transmit_data(
          if (status == SCI_SUCCESS)
          {
             this_sds_stp_request->type.pio.pio_transfer_bytes -= remaining_bytes_in_current_sgl;
-
-            //update the current sgl, sgl_offset and save for future
-            current_sgl = scic_sds_stp_request_pio_get_next_sgl(this_sds_stp_request);
             sgl_offset = 0;
          }
       }
