@@ -582,7 +582,7 @@ create_jail(struct cfjail *j)
 	 * gives.
 	 */
 	if ((path = string_param(j->intparams[KP_PATH]))) {
-		if (path[0] != '/') {
+		if (j->name != NULL && path[0] != '/') {
 			jail_warnx(j, "path %s: not an absolute pathname",
 			    path);
 			return -1;
