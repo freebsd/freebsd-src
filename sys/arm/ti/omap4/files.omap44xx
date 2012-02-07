@@ -17,7 +17,7 @@ arm/ti/ti_cpuid.c				standard
 # arm/ti/omap_prcm.c				standard
 # arm/ti/omap_scm.c				standard
 # arm/ti/omap_if.m				standard
-arm/ti/timer.c					standard
+arm/ti/mp_timer.c				standard
 arm/ti/gic.c					standard
 
 arm/ti/common.c					standard
@@ -28,6 +28,5 @@ arm/ti/bus_space.c				standard
 # arm/ti/omap4/omap4_intr.c			standard
 # arm/ti/omap4/omap4_prcm_clks.c		standard
 # arm/ti/omap4/omap4_scm_padconf.c		standard
-# arm/ti/omap4/omap4_timer.c			standard
 
 dev/uart/uart_dev_ns8250.c			optional	uart
