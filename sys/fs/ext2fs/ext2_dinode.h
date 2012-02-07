@@ -70,7 +70,7 @@ struct ext2fs_dinode {
 	uint16_t	e2di_uid;	/*   2: Owner UID */
 	uint32_t	e2di_size;	/*	 4: Size (in bytes) */
 	uint32_t	e2di_atime;	/*	 8: Access time */
-	uint32_t	e2di_ctime;	/*	12: Create time */
+	uint32_t	e2di_ctime;	/*	12: Change time */
 	uint32_t	e2di_mtime;	/*	16: Modification time */
 	uint32_t	e2di_dtime;	/*	20: Deletion time */
 	uint16_t	e2di_gid;	/*  24: Owner GID */
@@ -89,6 +89,8 @@ struct ext2fs_dinode {
 	uint16_t	e2di_uid_high;	/* 120: Owner UID top 16 bits */
 	uint16_t	e2di_gid_high;	/* 122: Owner GID top 16 bits */
 	uint32_t	e2di_linux_reserved3; /* 124 */
+	uint16_t	e2di_extra_isize;
+	uint16_t	e2di_pad1;
 };
 
 #endif /* !_FS_EXT2FS_EXT2_DINODE_H_ */
