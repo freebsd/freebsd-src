@@ -760,7 +760,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 	int mcnt = 0;
 	struct ifnet *ifp = ha->ifp;
 
-	IF_ADDR_LOCK(ifp);
+	if_maddr_rlock(ifp);
 
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 
@@ -776,7 +776,7 @@ qla_set_multi(qla_host_t *ha, uint32_t add_multi)
 		mcnt++;
 	}
 
-	IF_ADDR_UNLOCK(ifp);
+	if_maddr_runlock(ifp);
 
 	qla_hw_set_multi(ha, mta, mcnt, add_multi);
 
