@@ -71,9 +71,8 @@
 	ldr	r0, =ARM_RAS_START;					   \
 	mov	r1, #0;							   \
 	str	r1, [r0];						   \
-	ldr	r0, =ARM_RAS_END;					   \
 	mov	r1, #0xffffffff;					   \
-	str	r1, [r0];
+	str	r1, [r0, #4];
 
 /*
  * PULLFRAME - macro to pull a trap frame from the stack in the current mode
@@ -120,20 +119,19 @@
 	stmia	r0, {r13-r14}^;		/* Push the user mode registers */ \
         mov     r0, r0;                 /* NOP for previous instruction */ \
 	ldr	r5, =ARM_RAS_START;	/* Check if there's any RAS */	   \
-	ldr	r3, [r5];						   \
-	cmp	r3, #0;			/* Is the update needed ? */	   \
-	ldrgt	lr, [r0, #16];						   \
-	ldrgt	r1, =ARM_RAS_END;					   \
-	ldrgt	r4, [r1];		/* Get the end of the RAS */	   \
-	movgt	r2, #0;			/* Reset the magic addresses */	   \
-	strgt	r2, [r5];						   \
-	movgt	r2, #0xffffffff;					   \
-	strgt	r2, [r1];						   \
-	cmpgt	lr, r3;			/* Were we in the RAS ? */	   \
-	cmpgt	r4, lr;							   \
-	strgt	r3, [r0, #16];		/* Yes, update the pc */	   \
-	mrs	r0, spsr_all;		/* Put the SPSR on the stack */	   \
-	str	r0, [sp, #-4]!
+	ldr     r4, [r5, #4];           /* reset it to point at the     */ \
+	cmp     r4, #0xffffffff;        /* end of memory if necessary;  */ \
+	movne   r1, #0xffffffff;        /* leave value in r4 for later  */ \
+	strne   r1, [r5, #4];           /* comparision against PC.      */ \
+	ldr     r3, [r5];               /* Retrieve global RAS_START    */ \
+	cmp     r3, #0;                 /* and reset it if non-zero.    */ \
+	movne   r1, #0;                 /* If non-zero RAS_START and    */ \
+	strne   r1, [r5];               /* PC was lower than RAS_END,   */ \
+	ldrne   r1, [r0, #16];          /* adjust the saved PC so that  */ \
+	cmpne   r4, r1;                 /* execution later resumes at   */ \
+	strhi   r3, [r0, #16];          /* the RAS_START location.      */ \
+	mrs     r0, spsr_all;                                              \
+	str     r0, [sp, #-4]!
 
 /*
  * PULLFRAMEFROMSVCANDEXIT - macro to pull a trap frame from the stack
