@@ -301,7 +301,7 @@ sfxge_mac_filter_set_locked(struct sfxge_softc *sc)
 		 * 0xff. */
 		bucket[0xff] = 1;
 
-		IF_ADDR_LOCK(ifp);
+		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 			if (ifma->ifma_addr->sa_family == AF_LINK) {
 				sa = (struct sockaddr_dl *)ifma->ifma_addr;
@@ -309,7 +309,7 @@ sfxge_mac_filter_set_locked(struct sfxge_softc *sc)
 				bucket[index] = 1;
 			}
 		}
-		IF_ADDR_UNLOCK(ifp);
+		if_maddr_runlock(ifp);
 	}
 	return efx_mac_hash_set(enp, bucket);
 }
@@ -391,10 +391,10 @@ sfxge_port_start(struct sfxge_softc *sc)
 		goto fail2;
 
 	/* Set the unicast address */
-	IF_ADDR_LOCK(ifp);
+	if_addr_rlock(ifp);
 	bcopy(LLADDR((struct sockaddr_dl *)ifp->if_addr->ifa_addr),
 	      mac_addr, sizeof(mac_addr));
-	IF_ADDR_UNLOCK(ifp);
+	if_addr_runlock(ifp);
 	if ((rc = efx_mac_addr_set(enp, mac_addr)) != 0)
 		goto fail;
 
