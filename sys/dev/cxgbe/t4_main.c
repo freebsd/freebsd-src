@@ -309,6 +309,7 @@ static int sysctl_holdoff_pktc_idx(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_rxq(SYSCTL_HANDLER_ARGS);
 static int sysctl_qsize_txq(SYSCTL_HANDLER_ARGS);
 static int sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS);
+#ifdef SBUF_DRAIN
 static int sysctl_cctrl(SYSCTL_HANDLER_ARGS);
 static int sysctl_cpl_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_ddp_stats(SYSCTL_HANDLER_ARGS);
@@ -324,6 +325,7 @@ static int sysctl_tcp_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tids(SYSCTL_HANDLER_ARGS);
 static int sysctl_tp_err_stats(SYSCTL_HANDLER_ARGS);
 static int sysctl_tx_rate(SYSCTL_HANDLER_ARGS);
+#endif
 static inline void txq_start(struct ifnet *, struct sge_txq *);
 static uint32_t fconf_to_mode(uint32_t);
 static uint32_t mode_to_fconf(uint32_t);
@@ -2980,6 +2982,7 @@ t4_sysctls(struct adapter *sc)
 	    sizeof(sc->sge.counter_val), sysctl_int_array, "A",
 	    "interrupt holdoff packet counter values");
 
+#ifdef SBUF_DRAIN
 	/*
 	 * dev.t4nex.X.misc.  Marked CTLFLAG_SKIP to avoid information overload.
 	 */
@@ -3051,6 +3054,7 @@ t4_sysctls(struct adapter *sc)
 	SYSCTL_ADD_PROC(ctx, children, OID_AUTO, "tx_rate",
 	    CTLTYPE_STRING | CTLFLAG_RD, sc, 0,
 	    sysctl_tx_rate, "A", "Tx rate");
+#endif
 
 #ifndef TCP_OFFLOAD_DISABLE
 	if (is_offload(sc)) {
@@ -3465,6 +3469,7 @@ sysctl_handle_t4_reg64(SYSCTL_HANDLER_ARGS)
 	return (sysctl_handle_64(oidp, &val, 0, req));
 }
 
+#ifdef SBUF_DRAIN
 static int
 sysctl_cctrl(SYSCTL_HANDLER_ARGS)
 {
@@ -4297,6 +4302,7 @@ sysctl_tx_rate(SYSCTL_HANDLER_ARGS)
 
 	return (rc);
 }
+#endif
 
 static inline void
 txq_start(struct ifnet *ifp, struct sge_txq *txq)
