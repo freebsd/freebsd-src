@@ -1674,7 +1674,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fadvise64 */
 	case 250: {
-		*n_args = 0;
+		struct linux_fadvise64_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* l_loff_t */
+		iarg[2] = p->len; /* l_size_t */
+		iarg[3] = p->advice; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_exit_group */
@@ -1808,7 +1813,12 @@ systrace_args(int sysnum, void *params, uint64_t *uarg, int *n_args)
 	}
 	/* linux_fadvise64_64 */
 	case 272: {
-		*n_args = 0;
+		struct linux_fadvise64_64_args *p = params;
+		iarg[0] = p->fd; /* int */
+		iarg[1] = p->offset; /* l_loff_t */
+		iarg[2] = p->len; /* l_loff_t */
+		iarg[3] = p->advice; /* int */
+		*n_args = 4;
 		break;
 	}
 	/* linux_mbind */
@@ -4613,6 +4623,22 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64 */
 	case 250:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "l_loff_t";
+			break;
+		case 2:
+			p = "l_size_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_exit_group */
 	case 252:
@@ -4772,6 +4798,22 @@ systrace_setargdesc(int sysnum, int ndx, char *desc, size_t descsz)
 		break;
 	/* linux_fadvise64_64 */
 	case 272:
+		switch(ndx) {
+		case 0:
+			p = "int";
+			break;
+		case 1:
+			p = "l_loff_t";
+			break;
+		case 2:
+			p = "l_loff_t";
+			break;
+		case 3:
+			p = "int";
+			break;
+		default:
+			break;
+		};
 		break;
 	/* linux_mbind */
 	case 274:
