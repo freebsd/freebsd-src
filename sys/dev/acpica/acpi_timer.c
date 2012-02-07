@@ -124,7 +124,7 @@ acpi_timer_identify(driver_t *driver, device_t parent)
 	acpi_timer_dev)
 	return_VOID;
 
-    if ((dev = BUS_ADD_CHILD(parent, 0, "acpi_timer", 0)) == NULL) {
+    if ((dev = BUS_ADD_CHILD(parent, 2, "acpi_timer", 0)) == NULL) {
 	device_printf(parent, "could not add acpi_timer0\n");
 	return_VOID;
     }

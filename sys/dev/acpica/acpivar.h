@@ -473,7 +473,7 @@ ACPI_HANDLE	acpi_GetReference(ACPI_HANDLE scope, ACPI_OBJECT *obj);
  * probe order sorted so that things like sysresource are available before
  * their children need them.
  */
-#define	ACPI_DEV_BASE_ORDER	10
+#define	ACPI_DEV_BASE_ORDER	100
 
 /* Default maximum number of tasks to enqueue. */
 #ifndef ACPI_MAX_TASKS
