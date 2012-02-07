@@ -87,16 +87,16 @@ SCI_STATUS scif_controller_construct(
    SCIF_SAS_LIBRARY_T    * fw_library    = (SCIF_SAS_LIBRARY_T*) library;
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
+   // Validate the user supplied parameters.
+   if ((library == SCI_INVALID_HANDLE) || (controller == SCI_INVALID_HANDLE))
+      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(library),
       SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_INITIALIZATION,
       "scif_controller_construct(0x%x, 0x%x) enter\n",
       library, controller
    ));
-
-   // Validate the user supplied parameters.
-   if ((library == SCI_INVALID_HANDLE) || (controller == SCI_INVALID_HANDLE))
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
    // Construct the base controller.  As part of constructing the base
    // controller we ask it to also manage the MDL iteration for the Core.
@@ -144,16 +144,16 @@ SCI_STATUS scif_controller_initialize(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
+   // Validate the user supplied parameters.
+   if (controller == SCI_INVALID_HANDLE)
+      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(controller),
       SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_INITIALIZATION,
       "scif_controller_initialize(0x%x) enter\n",
       controller
    ));
-
-   // Validate the user supplied parameters.
-   if (controller == SCI_INVALID_HANDLE)
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
    return fw_controller->state_handlers->initialize_handler(
              &fw_controller->parent
@@ -187,16 +187,16 @@ SCI_STATUS scif_controller_start(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
+   // Validate the user supplied parameters.
+   if (controller == SCI_INVALID_HANDLE)
+      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(controller),
       SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_INITIALIZATION,
       "scif_controller_start(0x%x, 0x%x) enter\n",
       controller, timeout
    ));
-
-   // Validate the user supplied parameters.
-   if (controller == SCI_INVALID_HANDLE)
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
    return fw_controller->state_handlers->
           start_handler(&fw_controller->parent, timeout);
@@ -211,16 +211,16 @@ SCI_STATUS scif_controller_stop(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
+   // Validate the user supplied parameters.
+   if (controller == SCI_INVALID_HANDLE)
+      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(controller),
       SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_SHUTDOWN,
       "scif_controller_stop(0x%x, 0x%x) enter\n",
       controller, timeout
    ));
-
-   // Validate the user supplied parameters.
-   if (controller == SCI_INVALID_HANDLE)
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
    return fw_controller->state_handlers->
           stop_handler(&fw_controller->parent, timeout);
@@ -235,16 +235,16 @@ SCI_STATUS scif_controller_reset(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
+   // Validate the user supplied parameters.
+   if (controller == SCI_INVALID_HANDLE)
+      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(controller),
       SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_CONTROLLER_RESET,
       "scif_controller_reset(0x%x) enter\n",
       controller
    ));
-
-   // Validate the user supplied parameters.
-   if (controller == SCI_INVALID_HANDLE)
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
 
    return fw_controller->state_handlers->
           reset_handler(&fw_controller->parent);
@@ -306,13 +306,6 @@ SCI_TASK_STATUS scif_controller_start_task(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
-   SCIF_LOG_TRACE((
-      sci_base_object_get_logger(controller),
-      SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_TASK_MANAGEMENT,
-      "scif_controller_start_task(0x%x, 0x%x, 0x%x, 0x%x) enter\n",
-      controller, remote_device, task_request, io_tag
-   ));
-
    // Validate the user supplied parameters.
    if (  (controller == SCI_INVALID_HANDLE)
       || (remote_device == SCI_INVALID_HANDLE)
@@ -320,6 +313,13 @@ SCI_TASK_STATUS scif_controller_start_task(
    {
       return SCI_FAILURE_INVALID_PARAMETER_VALUE;
    }
+
+   SCIF_LOG_TRACE((
+      sci_base_object_get_logger(controller),
+      SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_TASK_MANAGEMENT,
+      "scif_controller_start_task(0x%x, 0x%x, 0x%x, 0x%x) enter\n",
+      controller, remote_device, task_request, io_tag
+   ));
 
    if (scif_sas_controller_sufficient_resource(controller))
    {
@@ -368,13 +368,6 @@ SCI_STATUS scif_controller_complete_task(
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
 
-   SCIF_LOG_TRACE((
-      sci_base_object_get_logger(controller),
-      SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_TASK_MANAGEMENT,
-      "scif_controller_complete_task(0x%x, 0x%x, 0x%x) enter\n",
-      controller, remote_device, task_request
-   ));
-
    // Validate the user supplied parameters.
    if (  (controller == SCI_INVALID_HANDLE)
       || (remote_device == SCI_INVALID_HANDLE)
@@ -382,6 +375,13 @@ SCI_STATUS scif_controller_complete_task(
    {
       return SCI_FAILURE_INVALID_PARAMETER_VALUE;
    }
+
+   SCIF_LOG_TRACE((
+      sci_base_object_get_logger(controller),
+      SCIF_LOG_OBJECT_CONTROLLER | SCIF_LOG_OBJECT_TASK_MANAGEMENT,
+      "scif_controller_complete_task(0x%x, 0x%x, 0x%x) enter\n",
+      controller, remote_device, task_request
+   ));
 
    return fw_controller->state_handlers->complete_task_handler(
              (SCI_BASE_CONTROLLER_T*) controller,
