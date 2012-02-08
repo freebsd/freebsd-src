@@ -62,6 +62,8 @@
 
 
 extern struct bus_space omap_bs_tag;
+/* board-dependent reset function implementation */
+extern void (*ti_cpu_reset)(void);
 
 unsigned int
 omap_sdram_size(void);
@@ -97,9 +99,6 @@ omap_teardown_intr(device_t dev, device_t child, struct resource *res,
 #define OMAP_CPUID_OMAP4430_ES1_2   0xB852
 #define OMAP_CPUID_OMAP4430         0xB95C
 
-
-
-
 /**
  *	struct omap_softc
  *
@@ -113,7 +112,6 @@ omap_cpu_is(uint32_t cpu)
 {
 	return ((omap3_chip_id & 0xffff) == cpu);
 }
-
 
 /**
  *	struct omap_softc
@@ -130,7 +128,6 @@ struct omap_softc {
 	struct rman        sc_mem_rman;
 	bus_dma_tag_t      sc_dmat;
 };
-
 
 struct omap_mem_range {
 	bus_addr_t  base;
@@ -152,14 +149,8 @@ struct omap_cpu_dev {
 	int                   irqs[16];
 };
 
-
-
 struct omap_ivar {
 	struct resource_list resources;
 };
-
-
-
-
 
 #endif /* _OMAP3VAR_H_ */

@@ -155,6 +155,7 @@ static void print_kernel_section_addr(void);
 
 static void physmap_init(void);
 static int platform_devmap_init(void);
+void (*ti_cpu_reset)(void);
 
 static char *
 kenv_next(char *cp)
@@ -210,6 +211,7 @@ physmap_init(void)
 
 	phys_kernelend = KERNPHYSADDR + (virtual_avail - KERNVIRTADDR);
 	kernload = KERNPHYSADDR;
+	ti_cpu_reset = NULL;
 
 	/*
 	 * Remove kernel physical address range from avail
@@ -640,7 +642,10 @@ bus_dma_get_range_nb(void)
 void
 cpu_reset()
 {
-//	omap_prcm_reset();
+	if (ti_cpu_reset)
+		(*ti_cpu_reset)();
+	else
+		printf("no cpu_reset implementation\n");
 	printf("Reset failed!\n");
 	while (1);
 }
