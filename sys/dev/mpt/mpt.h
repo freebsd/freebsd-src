@@ -851,7 +851,7 @@ mpt_lockspl(struct mpt_softc *mpt)
                mpt->mpt_splsaved = s;
        } else {
                splx(s);
-	       panic("Recursed lock with mask: 0x%x\n", s);
+	       panic("Recursed lock with mask: 0x%x", s);
        }
 }
 
@@ -863,7 +863,7 @@ mpt_unlockspl(struct mpt_softc *mpt)
                        splx(mpt->mpt_splsaved);
                }
        } else
-	       panic("Negative lock count\n");
+	       panic("Negative lock count");
 }
 
 static __inline int
@@ -1144,7 +1144,7 @@ static __inline request_t *
 mpt_tag_2_req(struct mpt_softc *mpt, uint32_t tag)
 {
 	uint16_t rtg = (tag >> 18);
-	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d\n", tag));
+	KASSERT(rtg < mpt->tgt_cmds_allocated, ("bad tag %d", tag));
 	KASSERT(mpt->tgt_cmd_ptrs, ("no cmd backpointer array"));
 	KASSERT(mpt->tgt_cmd_ptrs[rtg], ("no cmd backpointer"));
 	return (mpt->tgt_cmd_ptrs[rtg]);
@@ -1211,7 +1211,7 @@ mpt_req_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 			return;
 		}
 	}
-	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs\n",
+	panic("%s(%d): req %p:%u function %x not in els or tgt ptrs",
 	    s, line, req, req->serno,
 	    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function);
 }
@@ -1225,13 +1225,13 @@ mpt_req_not_spcl(struct mpt_softc *mpt, request_t *req, const char *s, int line)
 	int i;
 	for (i = 0; i < mpt->els_cmds_allocated; i++) {
 		KASSERT(req != mpt->els_cmd_ptrs[i],
-		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d\n",
+		    ("%s(%d): req %p:%u func %x in els ptrs at ioindex %d",
 		    s, line, req, req->serno,
 		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
 	}
 	for (i = 0; i < mpt->tgt_cmds_allocated; i++) {
 		KASSERT(req != mpt->tgt_cmd_ptrs[i],
-		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d\n",
+		    ("%s(%d): req %p:%u func %x in tgt ptrs at ioindex %d",
 		    s, line, req, req->serno,
 		    ((PTR_MSG_REQUEST_HEADER)req->req_vbuf)->Function, i));
 	}
