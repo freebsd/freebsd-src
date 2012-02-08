@@ -90,6 +90,17 @@ static int nfsrpc_getlayout(struct nfsmount *, struct nfsfh *, int, uint32_t *,
 static int nfsrpc_fillsa(struct nfsmount *, struct nfsclds *,
     struct sockaddr_storage *, NFSPROC_T *);
 static void nfscl_initsessionslots(struct nfsclsession *);
+static int nfscl_findlayoutforio(struct nfscllayout *, uint64_t, uint32_t,
+    struct nfsclflayout **);
+static int nfscl_doflayoutio(vnode_t, struct uio *, int *, int *, int *,
+    nfsv4stateid_t *, int, struct nfscldevinfo *, struct nfsclflayout *,
+    uint64_t, uint64_t, struct ucred *, NFSPROC_T *);
+static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
+    struct nfsclds *, uint64_t, int, struct nfsfh *, struct ucred *,
+    NFSPROC_T *);
+static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
+    nfsv4stateid_t *, struct nfsclds *, uint64_t, int,
+    struct nfsfh *, int, struct ucred *, NFSPROC_T *);
 
 /*
  * nfs null call from vfs.
@@ -4951,7 +4962,7 @@ nfsmout:
 /*
  * Called from nfsrpc_open() to acquire a layout and associated device
  * info. A separate function mostly to avoid excessive indentation in
- * nfsrpc_open().
+ * nfsrpc_open(). The open has already acquired a reference cnt on the client.
  */
 static int
 nfsrpc_getlayout(struct nfsmount *nmp, struct nfsfh *nfhp, int iomode,
@@ -4964,7 +4975,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, struct nfsfh *nfhp, int iomode,
 	struct nfsclflayouthead flh;
 	int error = 0, retonclose;
 
-	lyp = nfscl_getlayout(nmp, nfhp->nfh_fh, nfhp->nfh_len);
+	lyp = nfscl_getlayout(nmp->nm_clp, nfhp->nfh_fh, nfhp->nfh_len);
 	if (lyp == NULL) {
 		LIST_INIT(&flh);
 		error = nfsrpc_layoutget(nmp, nfhp->nfh_fh, nfhp->nfh_len,
@@ -5102,5 +5113,328 @@ nfscl_initsessionslots(struct nfsclsession *sep)
 	for (i = 0; i < 64; i++)
 		sep->nfsess_slotseq[i] = 0;
 	sep->nfsess_slots = 0;
+}
+
+/*
+ * Called to try and do an I/O operation via an NFSv4.1 Data Server (DS).
+ */
+int
+nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
+    uint32_t rwaccess, struct ucred *cred, NFSPROC_T *p)
+{
+	struct nfsnode *np = VTONFS(vp);
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfscllayout *layp;
+	struct nfscldevinfo *dip;
+	struct nfsclflayout *rflp;
+	nfsv4stateid_t stateid;
+	struct ucred *newcred;
+	uint64_t len, off, oresid, xfer;
+	int eof, error;
+	void *lckp;
+
+	/* First, get a reference cnt on the clientid for this mount. */
+	if (nfscl_getref(nmp) == 0)
+		return (EIO);
+
+	/* Search for a layout for this file. */
+	layp = nfscl_getlayout(nmp->nm_clp, np->n_fhp->nfh_fh,
+	    np->n_fhp->nfh_len);
+	if (layp == NULL) {
+		nfscl_relref(nmp);
+		return (EIO);
+	}
+
+	/* Find an appropriate stateid. */
+	newcred = NFSNEWCRED(cred);
+	error = nfscl_getstateid(vp, np->n_fhp->nfh_fh, np->n_fhp->nfh_len,
+	    rwaccess, 1, newcred, p, &stateid, &lckp);
+	if (error != 0) {
+		NFSFREECRED(newcred);
+		nfscl_rellayout(layp);
+		nfscl_relref(nmp);
+		return (error);
+	}
+
+	/*
+	 * Loop around finding a layout that works for the first part of
+	 * this I/O operation, and then call the function that actually
+	 * does the RPC.
+	 */
+	eof = 0;
+	len = (uint64_t)uiop->uio_resid;
+	while (len > 0 && error == 0 && eof == 0) {
+		off = uiop->uio_offset;
+		error = nfscl_findlayoutforio(layp, off, rwaccess, &rflp);
+		if (error == 0) {
+			oresid = xfer = (uint64_t)uiop->uio_resid;
+			if (xfer > (rflp->nfsfl_end - rflp->nfsfl_off))
+				xfer = rflp->nfsfl_end - rflp->nfsfl_off;
+			dip = nfscl_getdevinfo(nmp->nm_clp, rflp->nfsfl_dev);
+			if (dip != NULL) {
+				error = nfscl_doflayoutio(vp, uiop, iomode,
+				    &eof, must_commit, &stateid, rwaccess, dip,
+				    rflp, off, xfer, newcred, p);
+				nfscl_reldevinfo(dip);
+			} else
+				error = EIO;
+			if (error == 0)
+				len -= (oresid - (uint64_t)uiop->uio_resid);
+		}
+	}
+	if (lckp != NULL)
+		nfscl_lockderef(lckp);
+	NFSFREECRED(newcred);
+	nfscl_rellayout(layp);
+	nfscl_relref(nmp);
+	return (error);
+}
+
+/*
+ * Find a file layout that will handle the first bytes of the requested
+ * range and return the information from it needed to to the I/O operation.
+ */
+static int
+nfscl_findlayoutforio(struct nfscllayout *lyp, uint64_t off, uint32_t rwaccess,
+    struct nfsclflayout **retflpp)
+{
+	struct nfsclflayout *flp, *nflp, *rflp;
+	uint32_t rw;
+
+	rflp = NULL;
+	rw = rwaccess;
+	/* For reading, do the Read list first and then the Write list. */
+	do {
+		if (rw == NFSV4OPEN_ACCESSREAD)
+			flp = LIST_FIRST(&lyp->nfsly_flayread);
+		else
+			flp = LIST_FIRST(&lyp->nfsly_flayrw);
+		while (flp != NULL) {
+			nflp = LIST_NEXT(flp, nfsfl_list);
+			if (flp->nfsfl_off > off)
+				break;
+			if (flp->nfsfl_end > off &&
+			    (rflp == NULL || rflp->nfsfl_end < flp->nfsfl_end))
+				rflp = flp;
+			flp = nflp;
+		}
+		if (rw == NFSV4OPEN_ACCESSREAD)
+			rw = NFSV4OPEN_ACCESSWRITE;
+		else
+			rw = 0;
+	} while (rw != 0);
+	if (rflp != NULL) {
+		/* This one covers the most bytes starting at off. */
+		*retflpp = rflp;
+		return (0);
+	}
+	return (EIO);
+}
+
+/*
+ * Do I/O using an NFSv4.1 file layout.
+ */
+static int
+nfscl_doflayoutio(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
+    int *eofp, nfsv4stateid_t *stateidp, int rwflag, struct nfscldevinfo *dp,
+    struct nfsclflayout *flp, uint64_t off, uint64_t len, struct ucred *cred,
+    NFSPROC_T *p)
+{
+	uint64_t io_off, rel_off, stripe_unit_size, transfer, xfer;
+	int commit_thru_mds, error = 0, stripe_index, stripe_pos;
+	struct nfsnode *np;
+	struct nfsfh *fhp;
+	struct nfsclds *dsp;
+
+	np = VTONFS(vp);
+	rel_off = off - flp->nfsfl_patoff;
+	stripe_unit_size = (flp->nfsfl_util >> 6) & 0x3ffffff;
+	stripe_pos = (rel_off / stripe_unit_size + flp->nfsfl_stripe1) %
+	    dp->nfsdi_stripecnt;
+	transfer = stripe_unit_size - (rel_off % stripe_unit_size);
+
+	/* Loop around, doing I/O for each stripe unit. */
+	while (len > 0 && error == 0) {
+		stripe_index = nfsfldi_stripeindex(dp, stripe_pos);
+		dsp = nfsfldi_addr(dp, stripe_index);
+		if (len > transfer)
+			xfer = transfer;
+		else
+			xfer = len;
+		if ((flp->nfsfl_util & NFSFLAYUTIL_DENSE) != 0) {
+			/* Dense layout. */
+			if (stripe_pos >= flp->nfsfl_fhcnt)
+				return (EIO);
+			fhp = flp->nfsfl_fh[stripe_pos];
+			io_off = (rel_off / (stripe_unit_size *
+			    dp->nfsdi_stripecnt)) * stripe_unit_size +
+			    rel_off % stripe_unit_size;
+		} else {
+			/* Sparse layout. */
+			if (flp->nfsfl_fhcnt > 1) {
+				if (stripe_index >= flp->nfsfl_fhcnt)
+					return (EIO);
+				fhp = flp->nfsfl_fh[stripe_index];
+			} else if (flp->nfsfl_fhcnt == 1)
+				fhp = flp->nfsfl_fh[0];
+			else
+				fhp = np->n_fhp;
+			io_off = off;
+		}
+		if ((flp->nfsfl_util & NFSFLAYUTIL_COMMIT_THRU_MDS) != 0)
+			commit_thru_mds = 1;
+		else
+			commit_thru_mds = 0;
+		if (rwflag == FREAD)
+			error = nfsrpc_readds(vp, uiop, stateidp, eofp, dsp,
+			    io_off, xfer, fhp, cred, p);
+		else
+			error = nfsrpc_writeds(vp, uiop, iomode, must_commit,
+			    stateidp, dsp, io_off, xfer, fhp, commit_thru_mds,
+			    cred, p);
+		if (error == 0) {
+			transfer = stripe_unit_size;
+			stripe_pos = (stripe_pos + 1) % dp->nfsdi_stripecnt;
+			len -= xfer;
+			off += xfer;
+		}
+	}
+	return (error);
+}
+
+/*
+ * The actual read RPC done to a DS.
+ */
+static int
+nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
+    struct nfsclds *dsp, uint64_t io_off, int len, struct nfsfh *fhp,
+    struct ucred *cred, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	int error, retlen;
+	struct nfsrv_descript nfsd;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	struct nfsrv_descript *nd = &nfsd;
+
+	nd->nd_mrep = NULL;
+	nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh, fhp->nfh_len,
+	    NULL, NULL);
+	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
+	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
+	txdr_hyper(io_off, tl);
+	*(tl + 2) = txdr_unsigned(len);
+	error = newnfs_request(nd, nmp, NULL, &dsp->nfsclds_sock, vp, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat != 0) {
+		error = nd->nd_repstat;
+		goto nfsmout;
+	}
+	NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
+	*eofp = fxdr_unsigned(int, *tl);
+	NFSM_STRSIZ(retlen, len);
+	error = nfsm_mbufuio(nd, uiop, retlen);
+nfsmout:
+	if (nd->nd_mrep != NULL)
+		mbuf_freem(nd->nd_mrep);
+	return (error);
+}
+
+/*
+ * The actual write RPC done to a DS.
+ */
+static int
+nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
+    nfsv4stateid_t *stateidp, struct nfsclds *dsp, uint64_t io_off, int len,
+    struct nfsfh *fhp, int commit_thru_mds, struct ucred *cred, NFSPROC_T *p)
+{
+	uint32_t *tl;
+	struct nfsmount *nmp = VFSTONFS(vnode_mount(vp));
+	int error, rlen, commit, committed = NFSWRITE_FILESYNC;
+	int32_t backup;
+	struct nfsrv_descript nfsd;
+	struct nfsrv_descript *nd = &nfsd;
+
+	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
+	nd->nd_mrep = NULL;
+	nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh, fhp->nfh_len,
+	    NULL, NULL);
+	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
+	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
+	txdr_hyper(io_off, tl);
+	tl += 2;
+	*tl++ = txdr_unsigned(*iomode);
+	*tl = txdr_unsigned(len);
+	nfsm_uiombuf(nd, uiop, len);
+	error = newnfs_request(nd, nmp, NULL, &dsp->nfsclds_sock, vp, p, cred,
+	    NFS_PROG, NFS_VER4, NULL, 1, NULL, &dsp->nfsclds_sess);
+	if (error != 0)
+		return (error);
+	if (nd->nd_repstat != 0) {
+		/*
+		 * In case the rpc gets retried, roll
+		 * the uio fileds changed by nfsm_uiombuf()
+		 * back.
+		 */
+		uiop->uio_offset -= len;
+		uio_uio_resid_add(uiop, len);
+		uio_iov_base_add(uiop, -len);
+		uio_iov_len_add(uiop, len);
+		error = nd->nd_repstat;
+	} else {
+		NFSM_DISSECT(tl, uint32_t *, 2 * NFSX_UNSIGNED + NFSX_VERF);
+		rlen = fxdr_unsigned(int, *tl++);
+		if (rlen == 0) {
+			error = NFSERR_IO;
+			goto nfsmout;
+		} else if (rlen < len) {
+			backup = len - rlen;
+			uio_iov_base_add(uiop, -(backup));
+			uio_iov_len_add(uiop, backup);
+			uiop->uio_offset -= backup;
+			uio_uio_resid_add(uiop, backup);
+			len = rlen;
+		}
+		commit = fxdr_unsigned(int, *tl++);
+
+		/*
+		 * Return the lowest committment level
+		 * obtained by any of the RPCs.
+		 */
+		if (committed == NFSWRITE_FILESYNC)
+			committed = commit;
+		else if (committed == NFSWRITE_DATASYNC &&
+		    commit == NFSWRITE_UNSTABLE)
+			committed = commit;
+		if (commit_thru_mds != 0) {
+			NFSLOCKMNT(nmp);
+			if (!NFSHASWRITEVERF(nmp)) {
+				NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
+				NFSSETWRITEVERF(nmp);
+	    		} else if (NFSBCMP(tl, nmp->nm_verf, NFSX_VERF)) {
+				*must_commit = 1;
+				NFSBCOPY(tl, nmp->nm_verf, NFSX_VERF);
+			}
+			NFSUNLOCKMNT(nmp);
+		} else {
+			NFSLOCKDS(dsp);
+			if (dsp->nfsclds_haswriteverf == 0) {
+				NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
+				dsp->nfsclds_haswriteverf = 1;
+			} else if (NFSBCMP(tl, dsp->nfsclds_verf, NFSX_VERF)) {
+				*must_commit = 1;
+				NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
+			}
+			NFSUNLOCKDS(dsp);
+		}
+	}
+nfsmout:
+	if (nd->nd_mrep != NULL)
+		mbuf_freem(nd->nd_mrep);
+	*iomode = committed;
+	if (nd->nd_repstat != 0 && error == 0)
+		error = nd->nd_repstat;
+	return (error);
 }
 

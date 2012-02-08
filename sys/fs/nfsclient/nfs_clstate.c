@@ -4473,17 +4473,11 @@ nfscl_layout(struct nfsmount *nmp, u_int8_t *fhp, int fhlen,
  * return a pointer to it.
  */
 struct nfscllayout *
-nfscl_getlayout(struct nfsmount *nmp, uint8_t *fhp, int fhlen)
+nfscl_getlayout(struct nfsclclient *clp, uint8_t *fhp, int fhlen)
 {
-	struct nfsclclient *clp;
 	struct nfscllayout *lyp;
 
 	NFSLOCKCLSTATE();
-	clp = nmp->nm_clp;
-	if (clp == NULL) {
-		NFSUNLOCKCLSTATE();
-		return (NULL);
-	}
 	lyp = nfscl_findlayout(clp, fhp, fhlen);
 	if (lyp != NULL) {
 		lyp->nfsly_refcnt++;
@@ -4506,6 +4500,26 @@ nfscl_rellayout(struct nfscllayout *lyp)
 	if (lyp->nfsly_refcnt == 0)
 		wakeup(&lyp->nfsly_refcnt);
 	NFSUNLOCKCLSTATE();
+}
+
+/*
+ * Search for a devinfo by deviceid. If one is found, return it after
+ * acquiring a reference count on it.
+ */
+struct nfscldevinfo *
+nfscl_getdevinfo(struct nfsclclient *clp, uint8_t *deviceid)
+{
+	struct nfscldevinfo *dip;
+
+	NFSLOCKCLSTATE();
+	dip = nfscl_finddevinfo(clp, deviceid);
+	if (dip != NULL) {
+		dip->nfsdi_refcnt++;
+		TAILQ_REMOVE(&clp->nfsc_devinfo, dip, nfsdi_list);
+		TAILQ_INSERT_HEAD(&clp->nfsc_devinfo, dip, nfsdi_list);
+	}
+	NFSUNLOCKCLSTATE();
+	return (dip);
 }
 
 /*
