@@ -990,9 +990,11 @@ do {								\
 					ext_hd |= EXT_RTHDR2;
 					break;
 				default:
-					printf("IPFW2: IPV6 - Unknown Routing "
-					    "Header type(%d)\n",
-					    ((struct ip6_rthdr *)ulp)->ip6r_type);
+					if (V_fw_verbose)
+						printf("IPFW2: IPV6 - Unknown "
+						    "Routing Header type(%d)\n",
+						    ((struct ip6_rthdr *)
+						    ulp)->ip6r_type);
 					if (V_fw_deny_unknown_exthdrs)
 					    return (IP_FW_DENY);
 					break;
@@ -1014,8 +1016,9 @@ do {								\
 					IP6F_MORE_FRAG;
 				if (V_fw_permit_single_frag6 == 0 &&
 				    offset == 0 && ip6f_mf == 0) {
-					printf("IPFW2: IPV6 - Invalid Fragment "
-					    "Header\n");
+					if (V_fw_verbose)
+						printf("IPFW2: IPV6 - Invalid "
+						    "Fragment Header\n");
 					if (V_fw_deny_unknown_exthdrs)
 					    return (IP_FW_DENY);
 					break;
@@ -1086,8 +1089,10 @@ do {								\
 				break;
 
 			default:
-				printf("IPFW2: IPV6 - Unknown Extension "
-				    "Header(%d), ext_hd=%x\n", proto, ext_hd);
+				if (V_fw_verbose)
+					printf("IPFW2: IPV6 - Unknown "
+					    "Extension Header(%d), ext_hd=%x\n",
+					     proto, ext_hd);
 				if (V_fw_deny_unknown_exthdrs)
 				    return (IP_FW_DENY);
 				PULLUP_TO(hlen, ulp, struct ip6_ext);
