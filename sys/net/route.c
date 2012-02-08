@@ -130,12 +130,6 @@ static void rt_maskedcopy(struct sockaddr *,
 
 static uma_zone_t rtzone;		/* Routing table UMA zone. */
 
-#if 0
-/* default fib for tunnels to use */
-u_int tunnel_fib = 0;
-SYSCTL_INT(_net, OID_AUTO, tunnelfib, CTLFLAG_RD, &tunnel_fib, 0, "");
-#endif
-
 /*
  * handler for net.my_fibnum
  */
