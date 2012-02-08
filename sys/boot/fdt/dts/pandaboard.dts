@@ -109,6 +109,19 @@
 				0x4a008000 0x8000>;
 		};
 
+		GPIO: gpio {
+			#gpio-cells = <3>;
+			compatible = "ti,omap_gpio";
+			gpio-controller;
+			reg =<	0x4a310000 0x1000
+				0x48055000 0x1000
+				0x48057000 0x1000
+				0x48059000 0x1000
+				0x4805b000 0x1000
+				0x4805d000 0x1000>;
+			interrupts = <61 62 63 64 65 66>;
+			interrupt-parent = <&GIC>;
+		};
 	};
 
 	chosen {
