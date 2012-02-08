@@ -284,7 +284,7 @@ toolchains:
 # existing system is.
 #
 .if make(universe) || make(universe_kernels) || make(tinderbox)
-TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64 sun4v
+TARGETS?=amd64 arm i386 ia64 mips pc98 powerpc sparc64
 
 .if defined(UNIVERSE_TARGET)
 MAKE_JUST_WORLDS=	YES
