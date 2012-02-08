@@ -472,9 +472,17 @@ usb_bus_resume(struct usb_proc_msg *pm)
 	if (bus->methods->set_hw_power != NULL)
 		(bus->methods->set_hw_power) (bus);
 
+	/* restore USB configuration to index 0 */
 	err = usbd_set_config_index(udev, 0);
 	if (err)
 		device_printf(bus->bdev, "Could not configure root HUB\n");
+
+	/* probe and attach */
+	err = usb_probe_and_attach(udev, USB_IFACE_INDEX_ANY);
+	if (err) {
+		device_printf(bus->bdev, "Could not probe and "
+		    "attach root HUB\n");
+	}
 
 	usbd_enum_unlock(udev);
 
