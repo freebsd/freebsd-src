@@ -291,7 +291,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		if (!CPU_EMPTY(&wakeup_cpus))
 			acpi_wakeup_cpus(sc, &wakeup_cpus);
 #endif
-		acpi_resync_clock(sc);
 		ret = 0;
 	}
 
