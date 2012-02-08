@@ -172,8 +172,10 @@ struct netmap_slot *netmap_reset(struct netmap_adapter *na,
 	enum txrx tx, int n, u_int new_cur);
 int netmap_ring_reinit(struct netmap_kring *);
 
+extern int netmap_buf_size;
+#define NETMAP_BUF_SIZE netmap_buf_size
 extern int netmap_mitigate;
-extern int netmap_skip_txsync, netmap_skip_rxsync;
+extern int netmap_no_pendintr;
 extern u_int netmap_total_buffers;
 extern char *netmap_buffer_base;
 extern int netmap_verbose;	// XXX debugging
@@ -236,11 +238,7 @@ NMB(struct netmap_slot *slot)
 {
 	uint32_t i = slot->buf_idx;
 	return (i >= netmap_total_buffers) ? netmap_buffer_base :
-#if NETMAP_BUF_SIZE == 2048
-		netmap_buffer_base + (i << 11);
-#else
 		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
-#endif
 }
 
 static inline void *
@@ -248,11 +246,7 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 {
 	uint32_t i = slot->buf_idx;
 	void *ret = (i >= netmap_total_buffers) ? netmap_buffer_base :
-#if NETMAP_BUF_SIZE == 2048
-		netmap_buffer_base + (i << 11);
-#else
 		netmap_buffer_base + (i *NETMAP_BUF_SIZE);
-#endif
 	*pp = vtophys(ret);
 	return ret;
 }

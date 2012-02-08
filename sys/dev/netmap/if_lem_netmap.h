@@ -62,7 +62,6 @@ lem_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = lem_netmap_rxsync;
 	na.nm_lock = lem_netmap_lock_wrapper;
 	na.nm_register = lem_netmap_reg;
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, 1);
 }
 
@@ -247,6 +246,7 @@ lem_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			ring->avail = kring->nr_hwavail;
 		}
 	}
+
 	if (do_lock)
 		EM_TX_UNLOCK(adapter);
 	return 0;
@@ -351,9 +351,9 @@ lem_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 
 	/* tell userspace that there are new packets */
 	ring->avail = kring->nr_hwavail ;
+
 	if (do_lock)
 		EM_RX_UNLOCK(adapter);
 	return 0;
 }
-
-
+/* end of file */

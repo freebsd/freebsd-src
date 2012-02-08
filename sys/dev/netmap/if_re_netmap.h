@@ -56,7 +56,6 @@ re_netmap_attach(struct rl_softc *sc)
 	na.nm_rxsync = re_netmap_rxsync;
 	na.nm_lock = re_netmap_lock_wrapper;
 	na.nm_register = re_netmap_reg;
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, 1);
 }
 
