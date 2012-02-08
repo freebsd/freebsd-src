@@ -75,7 +75,7 @@ ip_ipsec_filtertunnel(struct mbuf *m)
 {
 #if defined(IPSEC) && !defined(IPSEC_FILTERTUNNEL)
 	/*
-	 * Bypass packet filtering for packets from a tunnel.
+	 * Bypass packet filtering for packets previously handled by IPsec.
 	 */
 	if (m_tag_find(m, PACKET_TAG_IPSEC_IN_DONE, NULL) != NULL)
 		return 1;
