@@ -62,6 +62,8 @@ static void clear_persist(struct cfjail *j);
 static int update_jail(struct cfjail *j);
 static int rdtun_params(struct cfjail *j, int dofail);
 static void running_jid(struct cfjail *j, int dflag);
+static void jail_quoted_warnx(const struct cfjail *j, const char *name_msg,
+    const char *noname_msg);
 static int jailparam_set_note(const struct cfjail *j, struct jailparam *jp,
     unsigned njp, int flags);
 static void print_jail(FILE *fp, struct cfjail *j, int oldcl);
@@ -317,10 +319,10 @@ main(int argc, char **argv)
 	error = 0;
 	if (op == JF_STOP) {
 		for (i = 0; i < argc; i++)
-			if (start_state(argv[i], op, Rflag) < 0)
+			if (start_state(argv[i], docf, op, Rflag) < 0)
 				error = 1;
 	} else {
-		if (start_state(docf ? argv[0] : NULL, op, 0) < 0)
+		if (start_state(argv[0], docf, op, 0) < 0)
 			exit(1);
 	}
 
@@ -376,7 +378,8 @@ main(int argc, char **argv)
 			break;
 		case JF_SET_RESTART:
 			if (j->jid < 0) {
-				warnx("\"%s\" not found", j->name);
+				jail_quoted_warnx(j, "not found",
+				    "no jail specified");
 				failed(j);
 				continue;
 			}
@@ -396,7 +399,8 @@ main(int argc, char **argv)
 			if (j->comparam == NULL) {
 				if (j->jid > 0 &&
 				    !(j->flags & (JF_DEPEND | JF_WILD))) {
-					warnx("\"%s\" already exists", j->name);
+					jail_quoted_warnx(j, "already exists",
+					    NULL);
 					failed(j);
 					continue;
 				}
@@ -420,7 +424,8 @@ main(int argc, char **argv)
 
 		case JF_SET:
 			if (j->jid < 0 && !(j->flags & JF_DEPEND)) {
-				warnx("\"%s\" not found", j->name);
+				jail_quoted_warnx(j, "not found",
+				    "no jail specified");
 				failed(j);
 				continue;
 			}
@@ -444,8 +449,8 @@ main(int argc, char **argv)
 				if (j->jid < 0) {
 					if (!(j->flags & (JF_DEPEND | JF_WILD))
 					    && verbose >= 0)
-						warnx("\"%s\" not found",
-						    j->name);
+						jail_quoted_warnx(j,
+						    "not found", NULL);
 					goto jail_remove_done;
 				}
 				j->comparam = stopcommands;
@@ -832,6 +837,19 @@ running_jid(struct cfjail *j, int dflag)
 		return;
 	}
 	j->jid = jail_get(jiov, 2, dflag ? JAIL_DYING : 0);
+}
+
+static void
+jail_quoted_warnx(const struct cfjail *j, const char *name_msg,
+    const char *noname_msg)
+{
+	const char *pval;
+
+	if ((pval = j->name) || (pval = string_param(j->intparams[KP_JID])) ||
+	    (pval = string_param(j->intparams[KP_NAME])))
+		warnx("\"%s\" %s", pval, name_msg);
+	else
+		warnx("%s", noname_msg);
 }
 
 /*

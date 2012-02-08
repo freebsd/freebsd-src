@@ -274,7 +274,11 @@ run_command(struct cfjail *j)
 
 	case IP__OP:
 		if (down) {
-			(void)jail_remove(j->jid);
+			if (jail_remove(j->jid) < 0 && errno == EPERM) {
+				jail_warnx(j, "jail_remove: %s",
+					   strerror(errno));
+				return -1;
+			}
 			if (verbose > 0 || (verbose == 0 && (j->flags & JF_STOP
 			    ? note_remove : j->name != NULL)))
 			    jail_note(j, "removed\n");
@@ -711,14 +715,14 @@ term_procs(struct cfjail *j)
 		return 0;
 
 	if (kd == NULL) {
-		kd = kvm_open(NULL, NULL, NULL, O_RDONLY, "jail");
+		kd = kvm_open(NULL, NULL, NULL, O_RDONLY, NULL);
 		if (kd == NULL)
-			exit(1);
+			return 0;
 	}
 
 	ki = kvm_getprocs(kd, KERN_PROC_PROC, 0, &pcnt);
 	if (ki == NULL)
-		exit(1);
+		return 0;
 	noted = 0;
 	for (i = 0; i < pcnt; i++)
 		if (ki[i].ki_jid == j->jid &&

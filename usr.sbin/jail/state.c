@@ -128,7 +128,7 @@ dep_setup(int docf)
 
 	/* Look for dependency loops. */
 	if (deps && (deps > 1 || ldeps)) {
-		(void)start_state(NULL, 0, 0);
+		(void)start_state(NULL, 0, 0, 0);
 		while ((j = TAILQ_FIRST(&ready))) {
 			requeue(j, &cfjails);
 			dep_done(j, DF_NOFAIL);
@@ -300,20 +300,23 @@ next_jail(void)
  * Set jails to the proper start state.
  */
 int
-start_state(const char *target, unsigned state, int running)
+start_state(const char *target, int docf, unsigned state, int running)
 {
 	struct iovec jiov[6];
 	struct cfjail *j, *tj;
 	int jid;
 	char namebuf[MAXHOSTNAMELEN];
 
-	if (!target || (!running && !strcmp(target, "*"))) {
+	if (!target || (!docf && state != JF_STOP) ||
+	    (!running && !strcmp(target, "*"))) {
 		/*
-		 * If there's no target specified, set the state on all jails,
-		 * and start with those that have no dependencies.
+		 * For a global wildcard (including no target specified),
+		 * set the state on all jails and start with those that
+		 * have no dependencies.
 		 */
 		TAILQ_FOREACH_SAFE(j, &cfjails, tq, tj) {
-			j->flags = (j->flags & JF_FAILED) | state | JF_WILD;
+			j->flags = (j->flags & JF_FAILED) | state |
+			    (docf ? JF_WILD : 0);
 			dep_reset(j);
 			requeue(j, j->ndeps ? &depend : &ready);
 		}
