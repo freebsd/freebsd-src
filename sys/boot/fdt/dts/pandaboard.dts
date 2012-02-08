@@ -83,7 +83,7 @@
 							/* (techref 17.3.1.1) */
 		};
 
-		omap_scp@4a100000 {
+		omap_scm@4a100000 {
 			compatible = "ti,omap_scm";
 			reg =	< 0x4a100000 0x1000 >;
 			/* Set of triplets < padname, muxname, padstate> */
