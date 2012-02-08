@@ -110,6 +110,9 @@ static u_int32_t set_disable;
 static int fw_verbose;
 static struct callout ipfw_timeout;
 static int verbose_limit;
+#ifdef INET6
+static int fw_permit_single_frag6 = 1;
+#endif
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
@@ -2158,10 +2161,14 @@ ipfw_chk(struct ip_fw_args *args)
 	 *	we have a fragment at this offset of an IPv4 packet.
 	 *	offset == 0 means that (if this is an IPv4 packet)
 	 *	this is the first or only fragment.
-	 *	For IPv6 offset == 0 means there is no Fragment Header. 
+	 *	For IPv6 offset == 0 means there is no Fragment Header or there
+	 *	is a single packet fragement (fragement header added without
+	 *	needed).  We will treat a single packet fragment as if there
+	 *	was no fragment header (or log/block depending on the
+	 *	fw_permit_single_frag6 sysctl setting).
 	 *	If offset != 0 for IPv6 always use correct mask to
-	 *	get the correct offset because we add IP6F_MORE_FRAG
-	 *	to be able to dectect the first fragment which would
+	 *	get the correct offset because we add IP6F_MORE_FRAG to be able
+	 *	to dectect the first of multiple fragments which would
 	 *	otherwise have offset = 0.
 	 */
 	u_short offset = 0;
@@ -2318,10 +2325,11 @@ do {									\
 				offset = ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_OFF_MASK;
 				/* Add IP6F_MORE_FRAG for offset of first
-				 * fragment to be != 0. */
+				 * fragment to be != 0 if there shall be more. */
 				offset |= ((struct ip6_frag *)ulp)->ip6f_offlg &
 					IP6F_MORE_FRAG;
-				if (offset == 0) {
+				if (fw_permit_single_frag6 == 0 &&
+				    offset == 0) {
 					printf("IPFW2: IPV6 - Invalid Fragment "
 					    "Header\n");
 					if (fw_deny_unknown_exthdrs)
@@ -4506,6 +4514,10 @@ ipfw_init(void)
 	    OID_AUTO, "deny_unknown_exthdrs", CTLFLAG_RW | CTLFLAG_SECURE,
 	    &fw_deny_unknown_exthdrs, 0,
 	    "Deny packets with unknown IPv6 Extension Headers");
+	SYSCTL_ADD_INT(&ip6_fw_sysctl_ctx, SYSCTL_CHILDREN(ip6_fw_sysctl_tree),
+	    OID_AUTO, "permit_single_frag6", CTLFLAG_RW | CTLFLAG_SECURE,
+	    &fw_permit_single_frag6, 0,
+	    "Permit single packet IPv6 fragments");
 #endif
 
 	layer3_chain.rules = NULL;
