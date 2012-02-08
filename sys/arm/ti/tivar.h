@@ -30,8 +30,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#ifndef _OMAPVAR_H_
-#define	_OMAPVAR_H_
+#ifndef _TIVAR_H_
+#define	_TIVAR_H_
 
 #include <sys/param.h>
 #include <sys/systm.h>
