@@ -2521,7 +2521,7 @@ swapgeom_orphan(struct g_consumer *cp)
 	mtx_lock(&sw_dev_mtx);
 	TAILQ_FOREACH(sp, &swtailq, sw_list)
 		if (sp->sw_id == cp)
-			sp->sw_id = NULL;
+			sp->sw_flags |= SW_CLOSING;
 	mtx_unlock(&sw_dev_mtx);
 }
 
