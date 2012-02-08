@@ -61,7 +61,6 @@ em_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = em_netmap_rxsync;
 	na.nm_lock = em_netmap_lock_wrapper;
 	na.nm_register = em_netmap_reg;
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, adapter->num_queues);
 }
 
