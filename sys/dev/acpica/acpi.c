@@ -152,6 +152,7 @@ static ACPI_STATUS acpi_EnterSleepState(struct acpi_softc *sc, int state);
 static void	acpi_shutdown_final(void *arg, int howto);
 static void	acpi_enable_fixed_events(struct acpi_softc *sc);
 static BOOLEAN	acpi_has_hid(ACPI_HANDLE handle);
+static void	acpi_resync_clock(struct acpi_softc *sc);
 static int	acpi_wake_sleep_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_run_prep(ACPI_HANDLE handle, int sstate);
 static int	acpi_wake_prep_walk(int sstate);
@@ -277,11 +278,13 @@ TUNABLE_INT("debug.acpi.interpreter_slack", &acpi_interpreter_slack);
 SYSCTL_INT(_debug_acpi, OID_AUTO, interpreter_slack, CTLFLAG_RDTUN,
     &acpi_interpreter_slack, 1, "Turn on interpreter slack mode.");
 
+#ifdef __amd64__
 /* Reset system clock while resuming.  XXX Remove once tested. */
 static int acpi_reset_clock = 1;
 TUNABLE_INT("debug.acpi.reset_clock", &acpi_reset_clock);
 SYSCTL_INT(_debug_acpi, OID_AUTO, reset_clock, CTLFLAG_RW,
     &acpi_reset_clock, 1, "Reset system clock while resuming.");
+#endif
 
 /* Allow users to override quirks. */
 TUNABLE_INT("debug.acpi.quirks", &acpi_quirks);
@@ -2741,8 +2744,10 @@ backout:
 	AcpiLeaveSleepState(state);
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
 	DEVICE_RESUME(root_bus);
-    if (slp_state >= ACPI_SS_SLEPT)
+    if (slp_state >= ACPI_SS_SLEPT) {
+	acpi_resync_clock(sc);
 	acpi_enable_fixed_events(sc);
+    }
     sc->acpi_next_sstate = 0;
 
     mtx_unlock(&Giant);
@@ -2765,10 +2770,10 @@ backout:
     return_ACPI_STATUS (status);
 }
 
-void
+static void
 acpi_resync_clock(struct acpi_softc *sc)
 {
-
+#ifdef __amd64__
     if (!acpi_reset_clock)
 	return;
 
@@ -2778,6 +2783,7 @@ acpi_resync_clock(struct acpi_softc *sc)
     (void)timecounter->tc_get_timecount(timecounter);
     (void)timecounter->tc_get_timecount(timecounter);
     inittodr(time_second + sc->acpi_sleep_delay);
+#endif
 }
 
 /* Enable or disable the device's wake GPE. */
