@@ -192,7 +192,7 @@ cpu_set_upcall(struct thread *td, struct thread *td0)
 	bcopy(td0->td_pcb, pcb, sizeof(*pcb));
 	pcb->pcb_special.bspstore = td->td_kstack;
 	pcb->pcb_special.pfs = 0;
-	pcb->pcb_current_pmap = vmspace_pmap(td->td_proc->p_vmspace);
+	pcb->pcb_current_pmap = vmspace_pmap(td0->td_proc->p_vmspace);
 	pcb->pcb_special.sp = (uintptr_t)tf - 16;
 	pcb->pcb_special.rp = FDESC_FUNC(fork_trampoline);
 	cpu_set_fork_handler(td, (void (*)(void*))fork_return, td);
