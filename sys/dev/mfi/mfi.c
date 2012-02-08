@@ -2133,8 +2133,7 @@ mfi_ioctl(struct cdev *dev, u_long cmd, caddr_t arg, int flag, d_thread_t *td)
 
 		if (ioc->mfi_sense_len) {
 			/* get user-space sense ptr then copy out sense */
-			bcopy(&((struct mfi_ioc_packet*)arg)
-			    ->mfi_frame.raw[ioc->mfi_sense_off],
+			bcopy(&ioc->mfi_frame.raw[ioc->mfi_sense_off],
 			    &sense_ptr.sense_ptr_data[0],
 			    sizeof(sense_ptr.sense_ptr_data));
 #ifdef __amd64__
