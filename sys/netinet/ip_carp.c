@@ -707,19 +707,24 @@ carp_send_ad_all(void *ctx __unused, int pending __unused)
 	LIST_FOREACH(sc, &carp_list, sc_next)
 		if (sc->sc_state == MASTER) {
 			CARP_LOCK(sc);
+			CURVNET_SET(sc->sc_carpdev->if_vnet);
 			carp_send_ad_locked(sc);
+			CURVNET_RESTORE();
 			CARP_UNLOCK(sc);
 		}
 	mtx_unlock(&carp_mtx);
 }
 
+/* Send a periodic advertisement, executed in callout context. */
 static void
 carp_send_ad(void *v)
 {
 	struct carp_softc *sc = v;
 
 	CARP_LOCK_ASSERT(sc);
+	CURVNET_SET(sc->sc_carpdev->if_vnet);
 	carp_send_ad_locked(sc);
+	CURVNET_RESTORE();
 	CARP_UNLOCK(sc);
 }
 
@@ -1090,6 +1095,7 @@ carp_forus(struct ifnet *ifp, u_char *dhost)
 	return (0);
 }
 
+/* Master down timeout event, executed in callout context. */
 static void
 carp_master_down(void *v)
 {
@@ -1097,12 +1103,14 @@ carp_master_down(void *v)
 
 	CARP_LOCK_ASSERT(sc);
 
+	CURVNET_SET(sc->sc_carpdev->if_vnet);
 	if (sc->sc_state == BACKUP) {
 		CARP_LOG("VHID %u@%s: BACKUP -> MASTER (master down)\n",
 		    sc->sc_vhid,
 		    sc->sc_carpdev->if_xname);
 		carp_master_down_locked(sc);
 	}
+	CURVNET_RESTORE();
 
 	CARP_UNLOCK(sc);
 }
