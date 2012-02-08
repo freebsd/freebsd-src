@@ -82,13 +82,6 @@ ixgbe_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = ixgbe_netmap_rxsync;
 	na.nm_lock = ixgbe_netmap_lock_wrapper;
 	na.nm_register = ixgbe_netmap_reg;
-	/*
-	 * XXX where do we put this comment ?
-	 * adapter->rx_mbuf_sz is set by SIOCSETMTU, but in netmap mode
-	 * we allocate the buffers on the first register. So we must
-	 * disallow a SIOCSETMTU when if_capenable & IFCAP_NETMAP is set.
-	 */
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, adapter->num_queues);
 }	
 
@@ -354,7 +347,8 @@ ring_reset:
 		 * otherwise we go to sleep (in netmap_poll()) and will be
 		 * woken up when slot nr_kflags will be ready.
 		 */
-		struct ixgbe_legacy_tx_desc *txd = (struct ixgbe_legacy_tx_desc *)txr->tx_base;
+		struct ixgbe_legacy_tx_desc *txd =
+		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
 
 		j = txr->next_to_clean + kring->nkr_num_slots/2;
 		if (j >= kring->nkr_num_slots)
@@ -365,9 +359,7 @@ ring_reset:
 		kring->nr_kflags = j; /* the slot to check */
 		j = txd[j].upper.fields.status & IXGBE_TXD_STAT_DD;
 	}
-	if (!j) {
-		netmap_skip_txsync++;
-	} else {
+	if (j) {
 		int delta;
 
 		/*
@@ -471,7 +463,7 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	if (j > lim)
 		j -= lim + 1;
 
-    if (force_update) {
+    if (netmap_no_pendintr || force_update) {
 	for (n = 0; ; n++) {
 		union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
 		uint32_t staterr = le32toh(curr->wb.upper.status_error);
@@ -548,6 +540,7 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	}
 	/* tell userspace that there are new packets */
 	ring->avail = kring->nr_hwavail ;
+
 	if (do_lock)
 		IXGBE_RX_UNLOCK(rxr);
 	return 0;
