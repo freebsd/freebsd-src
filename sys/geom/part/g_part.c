@@ -215,7 +215,7 @@ g_part_geometry(struct g_part_table *table, struct g_consumer *cp,
 				continue;
 			/*
 			 * Prefer a geometry with sectors > 1, but only if
-			 * it doesn't bump down the numbver of heads to 1.
+			 * it doesn't bump down the number of heads to 1.
 			 */
 			if (chs > bestchs || (chs == bestchs && heads > 1 &&
 			    table->gpt_sectors == 1)) {
@@ -1216,6 +1216,9 @@ g_part_ctl_recover(struct gctl_req *req, struct g_part_parms *gpp)
 
 	if (table->gpt_corrupt) {
 		error = G_PART_RECOVER(table);
+		if (error == 0)
+			error = g_part_check_integrity(table,
+			    LIST_FIRST(&gp->consumer));
 		if (error) {
 			gctl_error(req, "%d recovering '%s' failed",
 			    error, gp->name);

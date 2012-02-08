@@ -301,6 +301,15 @@ sndbuf_fillsilence(struct snd_dbuf *b)
 	b->rl = b->bufsize;
 }
 
+void
+sndbuf_fillsilence_rl(struct snd_dbuf *b, u_int rl)
+{
+	if (b->bufsize > 0)
+		memset(sndbuf_getbuf(b), sndbuf_zerodata(b->fmt), b->bufsize);
+	b->rp = 0;
+	b->rl = min(b->bufsize, rl);
+}
+
 /**
  * @brief Reset buffer w/o flushing statistics
  *

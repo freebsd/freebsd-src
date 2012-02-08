@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,7 +74,7 @@ static struct pcb	**susppcbs;
 static void		**suspfpusave;
 #endif
 
-int			acpi_restorecpu(vm_offset_t, struct pcb *);
+int			acpi_restorecpu(uint64_t, vm_offset_t);
 
 static void		*acpi_alloc_wakeup_handler(void);
 static void		acpi_stop_beep(void *);
@@ -386,6 +386,7 @@ acpi_install_wakeup_handler(struct acpi_softc *sc)
 	WAKECODE_FIXUP(wakeup_lstar, uint64_t, rdmsr(MSR_LSTAR));
 	WAKECODE_FIXUP(wakeup_cstar, uint64_t, rdmsr(MSR_CSTAR));
 	WAKECODE_FIXUP(wakeup_sfmask, uint64_t, rdmsr(MSR_SF_MASK));
+	WAKECODE_FIXUP(wakeup_xsmask, uint64_t, xsave_mask);
 
 	/* Build temporary page tables below realmode code. */
 	pt4 = wakeaddr;

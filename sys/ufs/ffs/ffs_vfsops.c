@@ -1436,17 +1436,26 @@ ffs_sync(mp, waitfor)
 	int softdep_accdeps;
 	struct bufobj *bo;
 
+	wait = 0;
+	suspend = 0;
+	suspended = 0;
 	td = curthread;
 	fs = ump->um_fs;
 	if (fs->fs_fmod != 0 && fs->fs_ronly != 0 && ump->um_fsckpid == 0)
 		panic("%s: ffs_sync: modification on read-only filesystem",
 		    fs->fs_fsmnt);
 	/*
+	 * For a lazy sync, we just care about the filesystem metadata.
+	 */
+	if (waitfor == MNT_LAZY) {
+		secondary_accwrites = 0;
+		secondary_writes = 0;
+		lockreq = 0;
+		goto metasync;
+	}
+	/*
 	 * Write back each (modified) inode.
 	 */
-	wait = 0;
-	suspend = 0;
-	suspended = 0;
 	lockreq = LK_EXCLUSIVE | LK_NOWAIT;
 	if (waitfor == MNT_SUSPEND) {
 		suspend = 1;
@@ -1517,11 +1526,12 @@ loop:
 #ifdef QUOTA
 	qsync(mp);
 #endif
+
+metasync:
 	devvp = ump->um_devvp;
 	bo = &devvp->v_bufobj;
 	BO_LOCK(bo);
-	if (waitfor != MNT_LAZY &&
-	    (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0)) {
+	if (bo->bo_numoutput > 0 || bo->bo_dirty.bv_cnt > 0) {
 		BO_UNLOCK(bo);
 		vn_lock(devvp, LK_EXCLUSIVE | LK_RETRY);
 		if ((error = VOP_FSYNC(devvp, waitfor, td)) != 0)

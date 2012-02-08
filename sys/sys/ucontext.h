@@ -79,7 +79,7 @@ int	signalcontext(ucontext_t *, int, __sighandler_t *);
 int	swapcontext(ucontext_t *, const ucontext_t *);
 
 #if __BSD_VISIBLE
-size_t __getcontextx_size(void);
+int __getcontextx_size(void);
 int __fillcontextx(char *ctx);
 #endif
 
