@@ -101,6 +101,14 @@
 				"af16", "usbb1_ulpiphy_dat6", "input_pulldown",
 				"ag16", "usbb1_ulpiphy_dat7", "input_pulldown";
 		};
+
+		omap4_prcm@4a306000 {
+			compatible = "ti,omap4_prcm";
+			reg =<	0x4a306000 0x2000
+				0x4a004000 0x1000
+				0x4a008000 0x8000>;
+		};
+
 	};
 
 	chosen {

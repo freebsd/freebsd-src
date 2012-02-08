@@ -137,18 +137,16 @@ struct omap_clock_dev {
 	clk_ident_t  id;
 	
 	/* A bunch of callbacks associated with the clock device */
-	int (*clk_activate)(device_t dev, struct omap_clock_dev *clkdev);
-	int (*clk_deactivate)(device_t dev, struct omap_clock_dev *clkdev);
-	int (*clk_set_source)(device_t dev, struct omap_clock_dev *clkdev,
+	int (*clk_activate)(struct omap_clock_dev *clkdev);
+	int (*clk_deactivate)(struct omap_clock_dev *clkdev);
+	int (*clk_set_source)(struct omap_clock_dev *clkdev,
 	    clk_src_t clksrc);
-	int (*clk_accessible)(device_t dev, struct omap_clock_dev *clkdev);
-	int (*clk_get_source_freq)(device_t dev, struct omap_clock_dev *clkdev,
+	int (*clk_accessible)(struct omap_clock_dev *clkdev);
+	int (*clk_get_source_freq)(struct omap_clock_dev *clkdev,
 	    unsigned int *freq);
 						  
 };
 
-/* Setup PRCM device to be used in API calls */
-void omap_prcm_init(device_t dev);
 int omap_prcm_clk_valid(clk_ident_t clk);
 int omap_prcm_clk_enable(clk_ident_t clk);
 int omap_prcm_clk_disable(clk_ident_t clk);

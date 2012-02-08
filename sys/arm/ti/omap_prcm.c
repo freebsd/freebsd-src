@@ -60,28 +60,6 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/omap_prcm.h>
 
-#include "omap_if.h"
-
-static device_t prcm_dev;
-static struct mtx prcm_mtx;
-
-/**
- *	Structure that stores the driver context.
- *
- *	This structure is allocated during driver attach, it is not designed to be
- *	deallocated and a pointer to it is stored globally (g_omap3_prcm_softc).
- */
-struct omap_prcm_softc {
-	device_t		sc_dev;
-	
-	/* 
-	 * The memory resource(s) for the PRCM register set, when the device is
-	 * created the caller can assign up to 4 memory regions.
-	 */
-	struct resource*	sc_mem_res[4];
-};
-
-
 /**
  *	omap_clk_devmap - Array of clock devices, should be defined one per SoC 
  *
@@ -90,25 +68,6 @@ struct omap_prcm_softc {
  *	corresponds to an individual clock device.
  */
 extern struct omap_clock_dev omap_clk_devmap[];
-
-
-
-/**
- *	Macros for driver mutex locking
- */
-#define OMAP_PRCM_LOCK			mtx_lock(&prcm_mtx)
-#define	OMAP_PRCM_UNLOCK		mtx_unlock(&prcm_mtx)
-#define OMAP_PRCM_LOCK_DESTROY 		mtx_destroy(&prcm_mtx)
-#define OMAP_PRCM_ASSERT_LOCKED		mtx_assert(&prcm_mtx, MA_OWNED)
-#define OMAP_PRCM_ASSERT_UNLOCKED	mtx_assert(&prcm_mtx, MA_NOTOWNED)
-
-void
-omap_prcm_init(device_t dev)
-{
-	prcm_dev = dev;
-
-	mtx_init(&prcm_mtx, device_get_nameunit(dev), "omap_prcm", MTX_DEF);
-}
 
 /**
  *	omap_prcm_clk_dev - returns a pointer to the clock device with given id
@@ -141,7 +100,7 @@ omap_prcm_clk_dev(clk_ident_t clk)
 	}
 
 	/* Sanity check we managed to find the clock */
-	device_printf(prcm_dev, "Error: Failed to find clock device (%d)\n", clk);
+	printf("omap_prcm: Failed to find clock device (%d)\n", clk);
 	return (NULL);
 }
 
@@ -168,18 +127,8 @@ omap_prcm_clk_valid(clk_ident_t clk)
 {
 	int ret = 0;
 
-	/* Sanity check */
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return (EINVAL);
-	}
-
-	OMAP_PRCM_LOCK;
-
 	if (omap_prcm_clk_dev(clk) == NULL)
 		ret = EINVAL;
-	
-	OMAP_PRCM_UNLOCK;
 	
 	return (ret);
 }
@@ -209,14 +158,6 @@ omap_prcm_clk_enable(clk_ident_t clk)
 	struct omap_clock_dev *clk_dev;
 	int ret;
 
-	/* Sanity check */
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return (EINVAL);
-	}
-
-	OMAP_PRCM_LOCK;
-
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
@@ -224,20 +165,15 @@ omap_prcm_clk_enable(clk_ident_t clk)
 	clk_dev = omap_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
-	if (clk_dev == NULL) {
-		OMAP_PRCM_UNLOCK;
+	if (clk_dev == NULL)
 		return (EINVAL);
-	}
 
 	/* Activate the clock */
 	if (clk_dev->clk_activate)
-		ret = clk_dev->clk_activate(prcm_dev, clk_dev);
+		ret = clk_dev->clk_activate(clk_dev);
 	else
 		ret = EINVAL;
 
-	
-	OMAP_PRCM_UNLOCK;
-	
 	return (ret);
 }
 
@@ -266,14 +202,6 @@ omap_prcm_clk_disable(clk_ident_t clk)
 	struct omap_clock_dev *clk_dev;
 	int ret;
 
-	/* Sanity check */
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return (EINVAL);
-	}
-
-	OMAP_PRCM_LOCK;
-
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
@@ -281,19 +209,14 @@ omap_prcm_clk_disable(clk_ident_t clk)
 	clk_dev = omap_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
-	if (clk_dev == NULL) {
-		OMAP_PRCM_UNLOCK;
+	if (clk_dev == NULL)
 		return (EINVAL);
-	}
 
 	/* Activate the clock */
 	if (clk_dev->clk_deactivate)
-		ret = clk_dev->clk_deactivate(prcm_dev, clk_dev);
+		ret = clk_dev->clk_deactivate(clk_dev);
 	else
 		ret = EINVAL;
-
-	
-	OMAP_PRCM_UNLOCK;
 	
 	return (ret);
 }
@@ -322,14 +245,6 @@ omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
 	struct omap_clock_dev *clk_dev;
 	int ret;
 
-	/* Sanity check */
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return (EINVAL);
-	}
-
-	OMAP_PRCM_LOCK;
-
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
@@ -337,20 +252,15 @@ omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
 	clk_dev = omap_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
-	if (clk_dev == NULL) {
-		OMAP_PRCM_UNLOCK;
+	if (clk_dev == NULL)
 		return (EINVAL);
-	}
 
 	/* Activate the clock */
 	if (clk_dev->clk_set_source)
-		ret = clk_dev->clk_set_source(prcm_dev, clk_dev, clksrc);
+		ret = clk_dev->clk_set_source(clk_dev, clksrc);
 	else
 		ret = EINVAL;
 
-	
-	OMAP_PRCM_UNLOCK;
-	
 	return (ret);
 }
 
@@ -379,14 +289,6 @@ omap_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
 	struct omap_clock_dev *clk_dev;
 	int ret;
 
-	/* Sanity check */
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return (EINVAL);
-	}
-
-	OMAP_PRCM_LOCK;
-
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
@@ -394,29 +296,14 @@ omap_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
 	clk_dev = omap_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
-	if (clk_dev == NULL) {
-		OMAP_PRCM_UNLOCK;
+	if (clk_dev == NULL)
 		return (EINVAL);
-	}
 
 	/* Get the source frequency of the clock */
 	if (clk_dev->clk_get_source_freq)
-		ret = clk_dev->clk_get_source_freq(prcm_dev, clk_dev, freq);
+		ret = clk_dev->clk_get_source_freq(clk_dev, freq);
 	else
 		ret = EINVAL;
 	
-	OMAP_PRCM_UNLOCK;
-	
 	return (ret);
-}
-
-void
-omap_prcm_reset()
-{
-	if (prcm_dev == NULL) {
-		device_printf(prcm_dev, "Error: PRCM module not setup (%s)\n", __func__);
-		return;
-	}
-
-	OMAP_PRCM_RESET(prcm_dev);
 }
