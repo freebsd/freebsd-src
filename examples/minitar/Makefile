@@ -5,28 +5,20 @@
 #
 CFLAGS=				\
 	-DNO_BZIP2_CREATE	\
-	-DNO_BZIP2_EXTRACT	\
-	-DNO_COMPRESS_EXTRACT	\
-	-DNO_CPIO_EXTRACT	\
-	-DNO_CREATE		\
-	-DNO_GZIP_CREATE	\
-	-DNO_GZIP_EXTRACT	\
-	-DNO_LOOKUP
+	-I../../libarchive	\
+	-g
 
-# Omit 'tree.o' if you're not including create support
-#OBJS= minitar.o tree.o
-OBJS= minitar.o
+# How to link against libarchive.
+LIBARCHIVE=	../../libarchive/libarchive.a
 
 all: minitar
 
-minitar: $(OBJS)
-	cc -o minitar -static $(OBJS) -larchive -lz -lbz2
+minitar: minitar.o
+	cc -g -o minitar minitar.o $(LIBARCHIVE) -lz -lbz2
 	strip minitar
 	ls -l minitar
 
 minitar.o: minitar.c
-
-tree.o: tree.c
 
 clean::
 	rm -f *.o

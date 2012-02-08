@@ -60,6 +60,18 @@ crc32(unsigned long crc, const void *_p, size_t len)
 	}
 
 	crc = crc ^ 0xffffffffUL;
+	/* A use of this loop is about 20% - 30% faster than
+	 * no use version in any optimization option of gcc.  */
+	for (;len >= 8; len -= 8) {
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
+	}
 	while (len--)
 		crc = crc_tbl[(crc ^ *p++) & 0xff] ^ (crc >> 8);
 	return (crc ^ 0xffffffffUL);

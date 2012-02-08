@@ -26,35 +26,35 @@
  */
 
 #ifndef BSDTAR_WINDOWS_H
-#define BSDTAR_WINDOWS_H 1
+#define	BSDTAR_WINDOWS_H 1
 #include <direct.h>
 #include <windows.h>
 
 #ifndef PRId64
-#define PRId64 "I64"
+#define	PRId64 "I64"
 #endif
-#define geteuid()	0
+#define	geteuid()	0
 
 #ifndef S_IFIFO
-#define S_IFIFO	0010000 /* pipe */
+#define	S_IFIFO	0010000 /* pipe */
 #endif
 
 #include <string.h>  /* Must include before redefining 'strdup' */
 #if !defined(__BORLANDC__)
-#define strdup _strdup
+#define	strdup _strdup
 #endif
 #if !defined(__BORLANDC__)
-#define getcwd _getcwd
+#define	getcwd _getcwd
 #endif
 
-#define chdir __tar_chdir
+#define	chdir __tar_chdir
 int __tar_chdir(const char *);
 
 #ifndef S_ISREG
-#define S_ISREG(a)	(a & _S_IFREG)
+#define	S_ISREG(a)	(a & _S_IFREG)
 #endif
 #ifndef S_ISBLK
-#define S_ISBLK(a)	(0)
+#define	S_ISBLK(a)	(0)
 #endif
 
 #endif /* BSDTAR_WINDOWS_H */

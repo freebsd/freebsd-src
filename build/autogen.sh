@@ -40,8 +40,9 @@ cd ..
 # Clean up the source dir as much as we can.
 /bin/sh build/clean.sh
 
-# Substitute the integer version into Libarchive's archive.h
+# Substitute the versions into Libarchive's archive.h and archive_entry.h
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive.h
+perl -p -i -e "s/^(#define\tARCHIVE_VERSION_NUMBER).*/\$1 $VN/" libarchive/archive_entry.h
 perl -p -i -e "s/^(#define\tARCHIVE_VERSION_STRING).*/\$1 \"libarchive $VS\"/" libarchive/archive.h
 # Substitute versions into configure.ac as well
 perl -p -i -e 's/(m4_define\(\[LIBARCHIVE_VERSION_S\]),.*\)/$1,['"$VS"'])/' configure.ac
@@ -59,10 +60,3 @@ esac
 autoconf
 autoheader
 automake -a -c
-
-curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.guess;hb=HEAD' > build/autoconf/config.guess
-curl 'http://git.savannah.gnu.org/gitweb/?p=config.git;a=blob_plain;f=config.sub;hb=HEAD' > build/autoconf/config.sub
-
-./configure
-make distcheck
-make dist-zip

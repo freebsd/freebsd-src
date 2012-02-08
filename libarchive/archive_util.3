@@ -35,8 +35,12 @@
 .Nm archive_errno ,
 .Nm archive_error_string ,
 .Nm archive_file_count ,
+.Nm archive_filter_code ,
+.Nm archive_filter_count ,
+.Nm archive_filter_name ,
 .Nm archive_format ,
 .Nm archive_format_name ,
+.Nm archive_position ,
 .Nm archive_set_error
 .Nd libarchive utility functions
 .Sh SYNOPSIS
@@ -56,9 +60,17 @@
 .Ft int
 .Fn archive_file_count "struct archive *"
 .Ft int
+.Fn archive_filter_code "struct archive *" "int"
+.Ft int
+.Fn archive_filter_count "struct archive *" "int"
+.Ft const char *
+.Fn archive_filter_name "struct archive *" "int"
+.Ft int
 .Fn archive_format "struct archive *"
 .Ft const char *
 .Fn archive_format_name "struct archive *"
+.Ft int64_t
+.Fn archive_position "struct archive *" "int"
 .Ft void
 .Fo archive_set_error
 .Fa "struct archive *"
@@ -77,17 +89,21 @@ library.
 Clears any error information left over from a previous call.
 Not generally used in client code.
 .It Fn archive_compression
-Returns a numeric code indicating the current compression.
-This value is set by
-.Fn archive_read_open .
+Synonym for
+.Fn archive_filter_code(a, 0) .
 .It Fn archive_compression_name
-Returns a text description of the current compression suitable for display.
+Synonym for
+.Fn archive_filter_name(a, 0) .
 .It Fn archive_copy_error
 Copies error information from one archive to another.
 .It Fn archive_errno
 Returns a numeric error code (see
 .Xr errno 2 )
 indicating the reason for the most recent error return.
+Note that this can not be reliably used to detect whether an
+error has occurred.
+It should be used only after another libarchive function
+has returned an error status.
 .It Fn archive_error_string
 Returns a textual error message suitable for display.
 The error message here is usually more specific than that
@@ -98,9 +114,45 @@ to
 .It Fn archive_file_count
 Returns a count of the number of files processed by this archive object.
 The count is incremented by calls to
-.Xr archive_write_header
+.Xr archive_write_header 3
 or
-.Xr archive_read_next_header .
+.Xr archive_read_next_header 3 .
+.It Fn archive_filter_code
+Returns a numeric code identifying the indicated filter.
+See
+.Fn archive_filter_count
+for details of the numbering.
+.It Fn archive_filter_count
+Returns the number of filters in the current pipeline.
+For read archive handles, these filters are added automatically
+by the automatic format detection.
+For write archive handles, these filters are added by calls to the various
+.Fn archive_write_add_filter_XXX
+functions.
+Filters in the resulting pipeline are numbered so that filter 0
+is the filter closest to the format handler.
+As a convenience, functions that expect a filter number will
+accept -1 as a synonym for the highest-numbered filter.
+.Pp
+For example, when reading a uuencoded gzipped tar archive, there
+are three filters:
+filter 0 is the gunzip filter,
+filter 1 is the uudecode filter,
+and filter 2 is the pseudo-filter that wraps the archive read functions.
+In this case, requesting
+.Fn archive_position(a, -1)
+would be a synonym for
+.Fn archive_position(a, 2)
+which would return the number of bytes currently read from the archive, while
+.Fn archive_position(a, 1)
+would return the number of bytes after uudecoding, and
+.Fn archive_position(a, 0)
+would return the number of bytes after decompression.
+.It Fn archive_filter_name
+Returns a textual name identifying the indicated filter.
+See
+.Fn archive_filter_count
+for details of the numbering.
 .It Fn archive_format
 Returns a numeric code indicating the format of the current
 archive entry.
@@ -113,6 +165,16 @@ utilize GNU tar extensions and several entries that do not.
 These entries will have different format codes.
 .It Fn archive_format_name
 A textual description of the format of the current entry.
+.It Fn archive_position
+Returns the number of bytes read from or written to the indicated filter.
+In particular,
+.Fn archive_position(a, 0)
+returns the number of bytes read or written by the format handler, while
+.Fn archive_position(a, -1)
+returns the number of bytes read or written to the archive.
+See
+.Fn archive_filter_count
+for details of the numbering here.
 .It Fn archive_set_error
 Sets the numeric error code and error description that will be returned
 by

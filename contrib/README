@@ -1,5 +1,6 @@
 Many people have graciously sent me configuration
-files and other useful tidbits for use with libarchive.
+files, small programs that use libarchive, and other
+useful and interesting tidbits.
 
 I do not support or use any of these; but if you can use them, enjoy!
 
@@ -28,5 +29,31 @@ From: Robert Meier <rm1023@dcx.com>
 libarchive.1aix53.spec
 
 As above, for use on AIX5.3.
+
+======================================================================
+
+psota-benchmark
+
+Some scripts used by Jan Psota in benchmarking
+various tar implementations.
+
+I've edited his results slightly to correctly reflect that
+bsdtar does not support a "compare" operation.
+
+======================================================================
+
+shar
+
+A simple shar program written on top of libarchive.
+
+======================================================================
+
+untar.c
+
+A very simple and very portable standalone program that can
+extract basic ustar archives.
+This does not use libarchive and so can be used to extract
+the libarchive distribution on any system that has a C compiler
+but does not have a tar program.
 
 ======================================================================

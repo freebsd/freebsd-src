@@ -1,4 +1,4 @@
-# $LastChangedRevision: 8 $, $LastChangedDate: 2008-05-01 00:11:33 +0200 (Å¡t , 01 mÃ¡j 2008) $
+# $LastChangedRevision$, $LastChangedDate$
 Summary:        Library to create and read several different archive formats
 Summary(pl):    Biblioteka do tworzenia i odczytu ró¿nych formatów archiwów
 Name:           libarchive
@@ -140,7 +140,7 @@ Revision 1.6  2006/11/15 10:41:28  qboosh
 Revision 1.5  2006/11/08 22:22:25  twittner
 - up to 1.3.1
 - added BR: e2fsprogs-devel
-- added -CVE-2006-5680.patch agains entering in infinite
+- added -CVE-2006-5680.patch against entering an infinite
 loop in corrupt archives
 - added bsdtar package (bsdtar is included now in libarchive
 sources)

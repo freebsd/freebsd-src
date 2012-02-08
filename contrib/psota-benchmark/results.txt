@@ -1,4 +1,4 @@
-ODP: [Bug-tar] GNU tar, star and BSD tar speed comparision +new script
+ODP: [Bug-tar] GNU tar, star and BSD tar speed comparison +new script
 
 Jan Psota
 Thu, 25 Oct 2007 06:51:13 -0700
@@ -120,3 +120,17 @@ star    extract         100.814 0.400   39.906  39.98        20849 KB/s
 bsdtar  compare         0.003   0.000   0.004   100.00   700657000 KB/s
 gnutar  compare         80.174  3.932   20.365  30.30        26217 KB/s
 star    compare         73.911  8.341   27.670  48.72        28439 KB/s
+
+=============================================================
+
+Note by Tim Kientzle:  The "bsdtar compare" results here are
+invalid since bsdtar does not support that operation.
+For the list numbers, note that libarchive automatically optimizes
+list operations on uncompressed tar archives on disk by using lseek()
+to skip over the bodies of entries.  GNU tar added an option to
+provide the same feature.
+
+The biggest problem with these tests is that they only
+cover uncompressed archives stored on disk.  The results for
+compressed archives and/or archives stored on tape are
+likely quite different.

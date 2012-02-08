@@ -27,7 +27,6 @@ __FBSDID("$FreeBSD: src/usr.bin/tar/test/test_option_q.c,v 1.3 2008/08/22 01:35:
 
 DEFINE_TEST(test_option_q)
 {
-	FILE *f;
 	int r;
 
 	/*
@@ -40,38 +39,23 @@ DEFINE_TEST(test_option_q)
 	 * what we use to build up the test archive.
 	 */
 
-	f = fopen("foo", "w");
-	assert(f != NULL);
-	fprintf(f, "foo1");
-	fclose(f);
+	assertMakeFile("foo", 0644, "foo1");
 
 	assertEqualInt(0, systemf("%s -cf archive.tar foo", testprog));
 
-	f = fopen("foo", "w");
-	assert(f != NULL);
-	fprintf(f, "foo2");
-	fclose(f);
+	assertMakeFile("foo", 0644, "foo2");
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	f = fopen("bar", "w");
-	assert(f != NULL);
-	fprintf(f, "bar1");
-	fclose(f);
+	assertMakeFile("bar", 0644, "bar1");
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 
-	f = fopen("foo", "w");
-	assert(f != NULL);
-	fprintf(f, "foo3");
-	fclose(f);
+	assertMakeFile("foo", 0644, "foo3");
 
 	assertEqualInt(0, systemf("%s -rf archive.tar foo", testprog));
 
-	f = fopen("bar", "w");
-	assert(f != NULL);
-	fprintf(f, "bar2");
-	fclose(f);
+	assertMakeFile("bar", 0644, "bar2");
 
 	assertEqualInt(0, systemf("%s -rf archive.tar bar", testprog));
 

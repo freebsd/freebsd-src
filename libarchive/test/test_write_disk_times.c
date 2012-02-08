@@ -163,5 +163,5 @@ DEFINE_TEST(test_write_disk_times)
 	skipping("Platform-specific time restore tests");
 #endif
 
-	archive_write_finish(a);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 }

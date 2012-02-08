@@ -14,21 +14,32 @@ IF(ENABLE_TAR AND ENABLE_TEST)
     test_empty_mtree.c
     test_getdate.c
     test_help.c
+    test_option_C_upper.c
+    test_option_H_upper.c
+    test_option_L_upper.c
+    test_option_O_upper.c
     test_option_T_upper.c
+    test_option_U_upper.c
+    test_option_X_upper.c
+    test_option_b.c
+    test_option_exclude.c
+    test_option_gid_gname.c
+    test_option_k.c
+    test_option_keep_newer_files.c
+    test_option_n.c
+    test_option_newer_than.c
     test_option_q.c
     test_option_r.c
     test_option_s.c
+    test_option_uid_uname.c
     test_patterns.c
+    test_print_longpath.c
     test_stdio.c
     test_strip_components.c
     test_symlink_dir.c
     test_version.c
     test_windows.c
   )
-  IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.c)
-    LIST(APPEND bsdtar_test_SOURCES ../bsdtar_windows.h)
-  ENDIF(WIN32 AND NOT CYGWIN)
 
   #
   # Register target
@@ -48,7 +59,7 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
   MACRO (DEFINE_TEST _testname)
-    ADD_TEST_28(
+    ADD_TEST(
       NAME bsdtar_${_testname}
       COMMAND bsdtar_test -vv
                           -p $<TARGET_FILE:bsdtar>
@@ -64,4 +75,4 @@ IF(ENABLE_TAR AND ENABLE_TEST)
   ADD_DEPENDENCIES(run_bsdtar_test bsdtar)
   ADD_DEPENDENCIES(run_all_tests run_bsdtar_test)
 
-ENDIF (ENABLE_TAR AND ENABLE_TEST)
+ENDIF(ENABLE_TAR AND ENABLE_TEST)

@@ -45,19 +45,10 @@ DEFINE_TEST(test_write_format_tar_empty)
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertA(0 == archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	/* Earlier versions wrote 0-length files for empty tar archives. */
-	skipping("empty tar archive size");
-#else
 	assert(used == 1024);
-#endif
 	for (i = 0; i < used; i++) {
 		failure("Empty tar archive should be all nulls.");
 		assert(buff[i] == 0);
@@ -72,19 +63,10 @@ DEFINE_TEST(test_write_format_tar_empty)
 	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertA(0 == archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	/* Earlier versions wrote 0-length files for empty tar archives. */
-	skipping("empty tar archive size");
-#else
 	assertEqualInt((int)used, 1024);
-#endif
 	for (i = 0; i < used; i++) {
 		failure("Empty tar archive should be all nulls.");
 		assert(buff[i] == 0);

@@ -49,7 +49,7 @@ main(int argc, char **argv)
 	ina = archive_read_new();
 	if (ina == NULL)
 		die("Couldn't create archive reader.");
-	if (archive_read_support_compression_all(ina) != ARCHIVE_OK)
+	if (archive_read_support_filter_all(ina) != ARCHIVE_OK)
 		die("Couldn't enable decompression");
 	if (archive_read_support_format_all(ina) != ARCHIVE_OK)
 		die("Couldn't enable read formats");
@@ -105,9 +105,9 @@ main(int argc, char **argv)
 	if (r != ARCHIVE_EOF)
 		die("Error reading archive");
 	/* Close the archives.  */
-	if (archive_read_finish(ina) != ARCHIVE_OK)
+	if (archive_read_free(ina) != ARCHIVE_OK)
 		die("Error closing input archive");
-	if (archive_write_finish(outa) != ARCHIVE_OK)
+	if (archive_write_free(outa) != ARCHIVE_OK)
 		die("Error closing output archive");
 	return (0);
 }

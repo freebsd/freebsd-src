@@ -25,8 +25,6 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_disk.c 201247 2009-12-30 05:59:21Z kientzle $");
 
-#if ARCHIVE_VERSION_NUMBER >= 1009000
-
 #define UMASK 022
 /*
  * When comparing mode values, ignore high-order bits
@@ -47,11 +45,8 @@ static void create(struct archive_entry *ae, const char *msg)
 	failure("%s", msg);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
-	assertEqualInt(0, archive_write_finish(ad));
-#endif
+	assertEqualInt(0, archive_write_free(ad));
+
 	/* Test the entries on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("%s", msg);
@@ -97,11 +92,8 @@ static void create_reg_file(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
-	assertEqualInt(0, archive_write_finish(ad));
-#endif
+	assertEqualInt(0, archive_write_free(ad));
+
 	/* Test the entries on disk. */
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
 	assertFileSize(archive_entry_pathname(ae), sizeof(data));
@@ -136,7 +128,7 @@ static void create_reg_file2(struct archive_entry *ae, const char *msg)
 		    archive_write_data_block(ad, data + i, 1000, i));
 	}
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 	assertIsReg(archive_entry_pathname(ae), archive_entry_mode(ae) & 0777);
@@ -159,11 +151,8 @@ static void create_reg_file3(struct archive_entry *ae, const char *msg)
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(5, archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
-	assertEqualInt(0, archive_write_finish(ad));
-#endif
+	assertEqualInt(0, archive_write_free(ad));
+
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -188,11 +177,8 @@ static void create_reg_file4(struct archive_entry *ae, const char *msg)
 	assertEqualInt(ARCHIVE_OK,
 	    archive_write_data_block(ad, data, sizeof(data), 0));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
-	assertEqualInt(0, archive_write_finish(ad));
-#endif
+	assertEqualInt(0, archive_write_free(ad));
+
 	/* Test the entry on disk. */
 	assert(0 == stat(archive_entry_pathname(ae), &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
@@ -209,48 +195,54 @@ static void create_reg_file_win(struct archive_entry *ae, const char *msg)
 {
 	static const char data[]="abcdefghijklmnopqrstuvwxyz";
 	struct archive *ad;
-	struct stat st;
-	char *p, *fname;
+	struct _stat st;
+	wchar_t *p, *fname;
 	size_t l;
 
 	/* Write the entry to disk. */
 	assert((ad = archive_write_disk_new()) != NULL);
-        archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_TIME);
+	archive_write_disk_set_options(ad, ARCHIVE_EXTRACT_TIME);
 	failure("%s", msg);
 	archive_entry_set_size(ae, sizeof(data));
 	archive_entry_set_mtime(ae, 123456789, 0);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
 	assertEqualInt(sizeof(data), archive_write_data(ad, data, sizeof(data)));
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(ad);
-#else
-	assertEqualInt(0, archive_write_finish(ad));
-#endif
+	assertEqualInt(0, archive_write_free(ad));
+
 	/* Test the entries on disk. */
-	l = strlen(archive_entry_pathname(ae));
-	fname = malloc(l + 1);
+	l = wcslen(archive_entry_pathname_w(ae));
+	fname = malloc((l + 1) * sizeof(wchar_t));
 	assert(NULL != fname);
-	strcpy(fname, archive_entry_pathname(ae));
+	wcscpy(fname, archive_entry_pathname_w(ae));
+	p = fname;
+	/* Skip leading drive letter from archives created
+	 * on Windows. */
+	if (((p[0] >= L'a' && p[0] <= L'z') ||
+	     (p[0] >= L'A' && p[0] <= L'Z')) &&
+		 p[1] == L':' && p[2] == L'\\') {
+		p += 3;
+	}
 	/* Replace unusable characters in Windows to '_' */
-	for (p = fname; *p != '\0'; p++)
-		if (*p == ':' || *p == '*' || *p == '?' ||
-		    *p == '"' || *p == '<' || *p == '>' || *p == '|')
+	for (; *p != L'\0'; p++)
+		if (*p == L':' || *p == L'*' || *p == L'?' ||
+		    *p == L'"' || *p == L'<' || *p == L'>' || *p == L'|')
 			*p = '_';
-	assert(0 == stat(fname, &st));
+	assert(0 == _wstat(fname, &st));
 	failure("st.st_mode=%o archive_entry_mode(ae)=%o",
 	    st.st_mode, archive_entry_mode(ae));
 	assertEqualInt(st.st_size, sizeof(data));
+	free(fname);
 }
 #endif /* _WIN32 && !__CYGWIN__ */
-#endif
 
 DEFINE_TEST(test_write_disk)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("archive_write_disk interface");
-#else
 	struct archive_entry *ae;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	wchar_t *fullpath;
+	DWORD l;
+#endif
 
 	/* Force the umask to something predictable. */
 	assertUmask(UMASK);
@@ -314,7 +306,7 @@ DEFINE_TEST(test_write_disk)
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	/* A file with unusable characters in its file name. */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_copy_pathname(ae, "f:i*l?e\"f<i>l|e");
+	archive_entry_copy_pathname_w(ae, L"f:i*l?e\"f<i>l|e");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	create_reg_file_win(ae, "Test creating a regular file"
 	    " with unusable characters in its file name");
@@ -322,11 +314,36 @@ DEFINE_TEST(test_write_disk)
 
 	/* A file with unusable characters in its directory name. */
 	assert((ae = archive_entry_new()) != NULL);
-	archive_entry_copy_pathname(ae, "d:i*r?e\"c<t>o|ry/file1");
+	archive_entry_copy_pathname_w(ae, L"d:i*r?e\"c<t>o|ry/file1");
 	archive_entry_set_mode(ae, S_IFREG | 0755);
 	create_reg_file_win(ae, "Test creating a regular file"
 	    " with unusable characters in its file name");
 	archive_entry_free(ae);
+
+	/* A full-path file with unusable characters in its file name. */
+	assert((l = GetCurrentDirectoryW(0, NULL)) != 0);
+	assert((fullpath = malloc((l + 20) * sizeof(wchar_t))) != NULL);
+	assert((l = GetCurrentDirectoryW(l, fullpath)) != 0);
+	wcscat(fullpath, L"\\f:i*l?e\"f<i>l|e");
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(ae, fullpath);
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	create_reg_file_win(ae, "Test creating a regular file"
+	    " with unusable characters in its file name");
+	archive_entry_free(ae);
+	free(fullpath);
+
+	/* A full-path file with unusable characters in its directory name. */
+	assert((l = GetCurrentDirectoryW(0, NULL)) != 0);
+	assert((fullpath = malloc((l + 30) * sizeof(wchar_t))) != NULL);
+	assert((l = GetCurrentDirectoryW(l, fullpath)) != 0);
+	wcscat(fullpath, L"\\d:i*r?e\"c<t>o|ry/file1");
+	assert((ae = archive_entry_new()) != NULL);
+	archive_entry_copy_pathname_w(ae, fullpath);
+	archive_entry_set_mode(ae, S_IFREG | 0755);
+	create_reg_file_win(ae, "Test creating a regular file"
+	    " with unusable characters in its file name");
+	archive_entry_free(ae);
+	free(fullpath);
 #endif /* _WIN32 && !__CYGWIN__ */
-#endif
 }

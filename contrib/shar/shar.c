@@ -269,7 +269,7 @@ shar_write(char **fn, size_t nfn)
 		}
 	}
 
-	if (archive_write_finish(a) != ARCHIVE_OK)
+	if (archive_write_free(a) != ARCHIVE_OK)
 		errx(EXIT_FAILURE, "%s", archive_error_string(a));
 
 	if (error != 0)

@@ -37,8 +37,8 @@ __FBSDID("$FreeBSD: head/lib/libarchive/test/test_write_disk_hardlink.c 201247 2
 /*
  * Exercise hardlink recreation.
  *
- * File permissions are chosen so that the authoritive entry
- * has the correct permission and the non-authoritive versions
+ * File permissions are chosen so that the authoritative entry
+ * has the correct permission and the non-authoritative versions
  * are just writeable files.
  */
 DEFINE_TEST(test_write_disk_hardlink)
@@ -157,11 +157,7 @@ DEFINE_TEST(test_write_disk_hardlink)
 	archive_entry_set_mode(ae, S_IFREG | 0600);
 	archive_entry_set_size(ae, 0);
 	assertEqualIntA(ad, 0, archive_write_header(ad, ae));
-#if ARCHIVE_VERSION_NUMBER < 3000000
 	assertEqualInt(ARCHIVE_WARN, archive_write_data(ad, data, 1));
-#else
-	assertEqualInt(-1, archive_write_data(ad, data, 1));
-#endif
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
 
@@ -178,14 +174,14 @@ DEFINE_TEST(test_write_disk_hardlink)
 		assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	}
 	archive_entry_free(ae);
-	assertEqualInt(0, archive_write_finish(ad));
+	assertEqualInt(0, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 
 	/* Test #1 */
 	/* If the hardlink was successfully created and the archive
 	 * doesn't carry data for it, we consider it to be
-	 * non-authoritive for meta data as well.  This is consistent
+	 * non-authoritative for meta data as well.  This is consistent
 	 * with GNU tar and BSD pax.  */
 	assertIsReg("link1a", 0755 & ~UMASK);
 	assertFileSize("link1a", sizeof(data));
