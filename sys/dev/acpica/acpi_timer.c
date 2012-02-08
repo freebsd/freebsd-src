@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include "opt_acpi.h"
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/module.h>
 #include <sys/sysctl.h>
@@ -60,12 +61,15 @@ static device_t			acpi_timer_dev;
 static struct resource		*acpi_timer_reg;
 static bus_space_handle_t	acpi_timer_bsh;
 static bus_space_tag_t		acpi_timer_bst;
+static eventhandler_tag		acpi_timer_eh;
 
 static u_int	acpi_timer_frequency = 14318182 / 4;
 
 static void	acpi_timer_identify(driver_t *driver, device_t parent);
 static int	acpi_timer_probe(device_t dev);
 static int	acpi_timer_attach(device_t dev);
+static int	acpi_timer_suspend(device_t);
+static void	acpi_timer_resume_handler(struct timecounter *);
 static u_int	acpi_timer_get_timecount(struct timecounter *tc);
 static u_int	acpi_timer_get_timecount_safe(struct timecounter *tc);
 static int	acpi_timer_sysctl_freq(SYSCTL_HANDLER_ARGS);
@@ -77,6 +81,7 @@ static device_method_t acpi_timer_methods[] = {
     DEVMETHOD(device_identify,	acpi_timer_identify),
     DEVMETHOD(device_probe,	acpi_timer_probe),
     DEVMETHOD(device_attach,	acpi_timer_attach),
+    DEVMETHOD(device_suspend,	acpi_timer_suspend),
 
     {0, 0}
 };
@@ -245,6 +250,49 @@ acpi_timer_attach(device_t dev)
     acpi_timer_bsh = rman_get_bushandle(acpi_timer_reg);
     acpi_timer_bst = rman_get_bustag(acpi_timer_reg);
     return (0);
+}
+
+static void
+acpi_timer_resume_handler(struct timecounter *newtc)
+{
+	struct timecounter *tc;
+
+	tc = timecounter;
+	if (tc != newtc) {
+		if (bootverbose)
+			device_printf(acpi_timer_dev,
+			    "restoring timecounter, %s -> %s\n",
+			    tc->tc_name, newtc->tc_name);
+		(void)newtc->tc_get_timecount(newtc);
+		(void)newtc->tc_get_timecount(newtc);
+		timecounter = newtc;
+	}
+}
+
+static int
+acpi_timer_suspend(device_t dev)
+{
+	struct timecounter *newtc, *tc;
+	int error;
+
+	error = bus_generic_suspend(dev);
+	if (acpi_timer_eh != NULL) {
+		EVENTHANDLER_DEREGISTER(power_resume, acpi_timer_eh);
+		acpi_timer_eh = NULL;
+	}
+	tc = timecounter;
+	newtc = &acpi_timer_timecounter;
+	if (tc != newtc) {
+		if (bootverbose)
+			device_printf(dev, "switching timecounter, %s -> %s\n",
+			    tc->tc_name, newtc->tc_name);
+		(void)acpi_timer_read();
+		(void)acpi_timer_read();
+		timecounter = newtc;
+		acpi_timer_eh = EVENTHANDLER_REGISTER(power_resume,
+		    acpi_timer_resume_handler, tc, EVENTHANDLER_PRI_LAST);
+	}
+	return (error);
 }
 
 /*
