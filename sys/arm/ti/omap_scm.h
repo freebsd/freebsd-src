@@ -95,14 +95,18 @@ struct omap_scm_padconf {
 	const char  *muxmodes[8];
 };
 
-int omap_scm_padconf_set(device_t dev, const char *padname,
-	const char *muxmode, unsigned int state);
-int omap_scm_padconf_get(device_t dev, const char *padname,
-	const char **muxmode, unsigned int *state);
-int omap_scm_padconf_set_gpiomode(device_t dev, uint32_t gpio,
-	unsigned int state);
-int omap_scm_padconf_get_gpiomode(device_t dev, uint32_t gpio,
-	unsigned int *state);
-int omap_scm_padconf_init_from_hints(device_t dev);
+struct omap_scm_softc {
+	device_t		sc_dev;
+	struct resource *	sc_res[4];
+	bus_space_tag_t		sc_bst;
+	bus_space_handle_t	sc_bsh;
+};
+
+int omap_scm_padconf_set(const char *padname, const char *muxmode, 
+    unsigned int state);
+int omap_scm_padconf_get(const char *padname, const char **muxmode,
+    unsigned int *state);
+int omap_scm_padconf_set_gpiomode(uint32_t gpio, unsigned int state);
+int omap_scm_padconf_get_gpiomode(uint32_t gpio, unsigned int *state);
 
 #endif /* _OMAP_SCM_H_ */

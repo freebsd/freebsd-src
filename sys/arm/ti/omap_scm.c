@@ -64,8 +64,25 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/resource.h>
 
+#include <dev/fdt/fdt_common.h>
+#include <dev/ofw/openfirm.h>
+#include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
+
 #include "omap_scm.h"
 #include "omap_if.h"
+
+static struct resource_spec omap_scm_res_spec[] = {
+	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
+	{ -1, 0 }
+};
+
+static struct omap_scm_softc *omap_scm_sc;
+
+#define	omap_scm_read_2(sc, reg)		\
+    bus_space_read_2((sc)->sc_bst, (sc)->sc_bsh, (reg))
+#define	omap_scm_write_2(sc, reg, val)		\
+    bus_space_write_2((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
 
 /**
  *	omap_padconf_devmap - Array of pins, should be defined one per SoC 
@@ -75,18 +92,6 @@ __FBSDID("$FreeBSD$");
  *	corresponds to an individual pin.
  */
 extern const struct omap_scm_padconf omap_padconf_devmap[];
-
-/**
- *	Macros for driver mutex locking
- */
-#define OMAP_SCM_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	OMAP_SCM_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
-#define OMAP_SCM_LOCK_INIT(_sc) \
-	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "omap_scm", MTX_DEF)
-#define OMAP_SCM_LOCK_DESTROY(_sc)     mtx_destroy(&_sc->sc_mtx)
-#define OMAP_SCM_ASSERT_LOCKED(_sc)    mtx_assert(&_sc->sc_mtx, MA_OWNED)
-#define OMAP_SCM_ASSERT_UNLOCKED(_sc)  mtx_assert(&_sc->sc_mtx, MA_NOTOWNED)
 
 /**
  *	omap_scm_padconf_from_name - searches the list of pads and returns entry
@@ -126,7 +131,7 @@ omap_scm_padconf_from_name(const char *ballname)
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 static int
-omap_scm_padconf_set_internal(device_t dev,
+omap_scm_padconf_set_internal(struct omap_scm_softc *sc,
     const struct omap_scm_padconf *padconf,
     const char *muxmode, unsigned int state)
 {
@@ -153,7 +158,7 @@ omap_scm_padconf_set_internal(device_t dev,
 	
 	printf("setting internal %x for %s\n", reg_val, muxmode);
 	/* write the register value (16-bit writes) */
-	OMAP_SCM_WRITES(dev, padconf->reg_off, reg_val);
+	omap_scm_write_2(sc, padconf->reg_off, reg_val);
 	
 	return (0);
 }
@@ -173,17 +178,19 @@ omap_scm_padconf_set_internal(device_t dev,
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 int
-omap_scm_padconf_set(device_t dev, const char *padname, 
-    const char *muxmode, unsigned int state)
+omap_scm_padconf_set(const char *padname, const char *muxmode, unsigned int state)
 {
 	const struct omap_scm_padconf *padconf;
+
+	if (!omap_scm_sc)
+		return (ENXIO);
 
 	/* find the pin in the devmap */
 	padconf = omap_scm_padconf_from_name(padname);
 	if (padconf == NULL)
 		return (EINVAL);
 	
-	return (omap_scm_padconf_set_internal(dev, padconf, muxmode, state));
+	return (omap_scm_padconf_set_internal(omap_scm_sc, padconf, muxmode, state));
 }
 
 /**
@@ -201,11 +208,14 @@ omap_scm_padconf_set(device_t dev, const char *padname,
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 int
-omap_scm_padconf_get(device_t dev, const char *padname, const char **muxmode,
+omap_scm_padconf_get(const char *padname, const char **muxmode,
     unsigned int *state)
 {
 	const struct omap_scm_padconf *padconf;
 	uint16_t reg_val;
+
+	if (!omap_scm_sc)
+		return (ENXIO);
 
 	/* find the pin in the devmap */
 	padconf = omap_scm_padconf_from_name(padname);
@@ -213,7 +223,7 @@ omap_scm_padconf_get(device_t dev, const char *padname, const char **muxmode,
 		return (EINVAL);
 	
 	/* read the register value (16-bit reads) */
-	reg_val = OMAP_SCM_READS(dev, padconf->reg_off);
+	reg_val = omap_scm_read_2(omap_scm_sc, padconf->reg_off);
 
 	/* save the state */
 	if (state)
@@ -241,10 +251,13 @@ omap_scm_padconf_get(device_t dev, const char *padname, const char **muxmode,
  *	EINVAL if pin requested is outside valid range or already in use.
  */
 int
-omap_scm_padconf_set_gpiomode(device_t dev, uint32_t gpio, unsigned int state)
+omap_scm_padconf_set_gpiomode(uint32_t gpio, unsigned int state)
 {
 	const struct omap_scm_padconf *padconf;
 	uint16_t reg_val;
+
+	if (!omap_scm_sc)
+		return (ENXIO);
 	
 	/* find the gpio pin in the padconf array */
 	padconf = omap_padconf_devmap;
@@ -263,7 +276,7 @@ omap_scm_padconf_set_gpiomode(device_t dev, uint32_t gpio, unsigned int state)
 	reg_val |= (uint16_t)(padconf->gpio_mode & CONTROL_PADCONF_MUXMODE_MASK);
 
 	/* write the register value (16-bit writes) */
-	OMAP_SCM_WRITES(dev, padconf->reg_off, reg_val);
+	omap_scm_write_2(omap_scm_sc, padconf->reg_off, reg_val);
 
 	return (0);
 }
@@ -283,10 +296,13 @@ omap_scm_padconf_set_gpiomode(device_t dev, uint32_t gpio, unsigned int state)
  *	EINVAL if pin requested is outside valid range or not configured as GPIO.
  */
 int
-omap_scm_padconf_get_gpiomode(device_t dev, uint32_t gpio, unsigned int *state)
+omap_scm_padconf_get_gpiomode(uint32_t gpio, unsigned int *state)
 {
 	const struct omap_scm_padconf *padconf;
 	uint16_t reg_val;
+
+	if (!omap_scm_sc)
+		return (ENXIO);
 	
 	/* find the gpio pin in the padconf array */
 	padconf = omap_padconf_devmap;
@@ -299,7 +315,7 @@ omap_scm_padconf_get_gpiomode(device_t dev, uint32_t gpio, unsigned int *state)
 		return (EINVAL);
 
 	/* read the current register settings */
-	reg_val = OMAP_SCM_READS(dev, padconf->reg_off);
+	reg_val = omap_scm_read_2(omap_scm_sc, padconf->reg_off);
 	
 	/* check to make sure the pins is configured as GPIO in the first state */
 	if ((reg_val & CONTROL_PADCONF_MUXMODE_MASK) != padconf->gpio_mode)
@@ -325,73 +341,140 @@ omap_scm_padconf_get_gpiomode(device_t dev, uint32_t gpio, unsigned int *state)
  *	0 on success.
  *	EINVAL if pin requested is outside valid range or already in use.
  */
-int
-omap_scm_padconf_init_from_hints(device_t dev)
+static int
+omap_scm_padconf_init_from_fdt(struct omap_scm_softc *sc)
 {
 	const struct omap_scm_padconf *padconf;
 	int err;
-	char resname[64];
-	const char *resval;
-	char muxname[64];
-	char padstate[64];
 
-	/* Hint names should be of the form "padconf.<padname>" */
-	strcpy(resname, "padconf.");
-	
 
-	/* This is very inefficent ... basically we look up every possible pad name
-	 * in the hints.  Unfortunatly there doesn't seem to be any way to iterate
-	 * over all the hints for a given device, so instead we have to manually
-	 * probe for the existance of every possible pad.
-	 */
-	padconf = omap_padconf_devmap;
-	while (padconf->ballname != NULL) {
-	
-		strncpy(&resname[8], padconf->ballname, 50);
-		
-		err = resource_string_value(device_get_name(dev),
-		     device_get_unit(dev), resname, &resval);
-		if ((err == 0) && (resval != NULL)) {
-		
-			/* Found a matching pad/ball name in the hints section, the hint
-			 * should be of the following format:
-			 *   <muxname>:<padstate> 
-			 * i.e. 
-			 *   usbb1_ulpiphy_stp:output
-			 */
-			
-			/* Read the mux name */
-			if (sscanf(resval, "%64[^:]:%64s", muxname, padstate) != 2) {
-				device_printf(dev, "err: padconf hint for pin \"%s\""
-				              "is incorrectly formated, ignoring hint.\n",
-							  padconf->ballname);
-			}
-			
-			/* Convert the padstate to a flag and write the values */
-			else {
+	phandle_t node;
+	int len;
+	char *fdt_pad_config;
+	int i;
+	char *padname, *muxname, *padstate;
+
+	node = ofw_bus_get_node(sc->sc_dev);
+	len = OF_getproplen(node, "omap-pad-config");
+        OF_getprop_alloc(node, "omap-pad-config", 1, (void **)&fdt_pad_config);
+
+	i = len;
+	while (i > 0) {
+		padname = fdt_pad_config;
+		fdt_pad_config += strlen(padname) + 1;
+		i -= strlen(padname) + 1;
+		if (i <= 0)
+			break;
+
+		muxname = fdt_pad_config;
+		fdt_pad_config += strlen(muxname) + 1;
+		i -= strlen(muxname) + 1;
+		if (i <= 0)
+			break;
+
+		padstate = fdt_pad_config;
+		fdt_pad_config += strlen(padstate) + 1;
+		i -= strlen(padstate) + 1;
+		if (i < 0)
+			break;
+
+		/* This is very inefficent ... basically we look up every possible pad name
+		 * in the hints.  Unfortunatly there doesn't seem to be any way to iterate
+		 * over all the hints for a given device, so instead we have to manually
+		 * probe for the existance of every possible pad.
+		 */
+		padconf = omap_padconf_devmap;
+		while (padconf->ballname != NULL) {
+			if (strcmp(padconf->ballname, padname) == 0) {
 				if (strcmp(padstate, "output") == 0)
-					err = omap_scm_padconf_set_internal(dev,
+					err = omap_scm_padconf_set_internal(sc,
 					    padconf, muxname, PADCONF_PIN_OUTPUT);
 				else if (strcmp(padstate, "input") == 0)
-					err = omap_scm_padconf_set_internal(dev,
+					err = omap_scm_padconf_set_internal(sc,
 					    padconf, muxname, PADCONF_PIN_INPUT);
 				else if (strcmp(padstate, "input_pullup") == 0)
-					err = omap_scm_padconf_set_internal(dev,
+					err = omap_scm_padconf_set_internal(sc,
 					    padconf, muxname,
 					    PADCONF_PIN_INPUT_PULLUP);
 				else if (strcmp(padstate, "input_pulldown") == 0)
-					err = omap_scm_padconf_set_internal(dev,
+					err = omap_scm_padconf_set_internal(sc,
 					    padconf, muxname, 
 					    PADCONF_PIN_INPUT_PULLDOWN);
 				else
-					device_printf(dev, "err: padconf hint for pin \"%s\""
-					              "has incorrectly formated state, ignoring hint.\n",
-					              padconf->ballname);
+					device_printf(sc->sc_dev, "err: padconf hint for pin \"%s\""
+						      "has incorrectly formated state, ignoring hint.\n",
+						      padconf->ballname);
 			}
+			padconf++;
 		}
-		
-		padconf++;
 	}
 	
 	return (0);
 }
+
+/*
+ * Device part of OMAP SCM driver
+ */
+
+static int
+omap_scm_probe(device_t dev)
+{
+	if (!ofw_bus_is_compatible(dev, "ti,omap_scm"))
+		return (ENXIO);
+
+	device_set_desc(dev, "TI OMAP Control Module");
+	return (BUS_PROBE_DEFAULT);
+}
+
+/**
+ *	omap_scm_attach - attaches the timer to the simplebus
+ *	@dev: new device
+ *
+ *	Reserves memory and interrupt resources, stores the softc structure
+ *	globally and registers both the timecount and eventtimer objects.
+ *
+ *	RETURNS
+ *	Zero on sucess or ENXIO if an error occuried.
+ */
+static int
+omap_scm_attach(device_t dev)
+{
+	struct omap_scm_softc *sc = device_get_softc(dev);
+
+	if (omap_scm_sc)
+		return (ENXIO);
+
+	sc->sc_dev = dev;
+
+	if (bus_alloc_resources(dev, omap_scm_res_spec, sc->sc_res)) {
+		device_printf(dev, "could not allocate resources\n");
+		return (ENXIO);
+	}
+
+	/* Global timer interface */
+	sc->sc_bst = rman_get_bustag(sc->sc_res[0]);
+	sc->sc_bsh = rman_get_bushandle(sc->sc_res[0]);
+
+	omap_scm_sc = sc;
+
+	omap_scm_padconf_init_from_fdt(sc);
+
+	return (0);
+}
+
+
+static device_method_t omap_scm_methods[] = {
+	DEVMETHOD(device_probe,		omap_scm_probe),
+	DEVMETHOD(device_attach,	omap_scm_attach),
+	{ 0, 0 }
+};
+
+static driver_t omap_scm_driver = {
+	"omap_scm",
+	omap_scm_methods,
+	sizeof(struct omap_scm_softc),
+};
+
+static devclass_t omap_scm_devclass;
+
+DRIVER_MODULE(omap_scm, simplebus, omap_scm_driver, omap_scm_devclass, 0, 0);

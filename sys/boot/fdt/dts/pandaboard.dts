@@ -73,7 +73,6 @@
 			interrupt-parent = < &GIC >;
 		};
 
-
 		uart3: serial@48020000 {
 			compatible = "ns16550";
 			reg = <0x48020000 0x1000>;
@@ -82,6 +81,25 @@
 			interrupt-parent = <&GIC>;
 			clock-frequency = < 48000000 >; /* 48Mhz clock for all uarts */
 							/* (techref 17.3.1.1) */
+		};
+
+		omap_scp@4a100000 {
+			compatible = "ti,omap_scm";
+			reg =	< 0x4a100000 0x1000 >;
+			/* Set of triplets < padname, muxname, padstate> */
+			omap-pad-config = 
+				"ag19", "usbb1_ulpiphy_stp", "output",
+				"ae18", "usbb1_ulpiphy_clk", "input_pulldown",
+				"af19", "usbb1_ulpiphy_dir", "input_pulldown",
+				"ae19", "usbb1_ulpiphy_nxt", "input_pulldown",
+				"af18", "usbb1_ulpiphy_dat0", "input_pulldown",
+				"ag18", "usbb1_ulpiphy_dat1", "input_pulldown",
+				"ae17", "usbb1_ulpiphy_dat2", "input_pulldown",
+				"af17", "usbb1_ulpiphy_dat3", "input_pulldown",
+				"ah17", "usbb1_ulpiphy_dat4", "input_pulldown",
+				"ae16", "usbb1_ulpiphy_dat5", "input_pulldown",
+				"af16", "usbb1_ulpiphy_dat6", "input_pulldown",
+				"ag16", "usbb1_ulpiphy_dat7", "input_pulldown";
 		};
 	};
 
