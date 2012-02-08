@@ -6,5 +6,6 @@ includedir=@includedir@
 Name: libarchive
 Description: library that can create and read several streaming archive formats
 Version: @VERSION@
-Libs: -larchive
+Cflags: -I${includedir}
+Libs: -L${libdir} -larchive
 Libs.private: @LIBS@

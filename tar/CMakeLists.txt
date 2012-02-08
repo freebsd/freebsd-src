@@ -3,7 +3,7 @@
 # How to build bsdtar
 #
 ############################################
-IF (ENABLE_TAR)
+IF(ENABLE_TAR)
 
   SET(bsdtar_SOURCES
     bsdtar.c

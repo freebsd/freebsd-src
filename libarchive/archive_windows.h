@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2011 Michihiro NAKAJIMA
  * Copyright (c) 2003-2006 Tim Kientzle
  * All rights reserved.
  *
@@ -62,22 +62,14 @@
 #include <sys/stat.h>
 #include <process.h>
 #include <direct.h>
+#if defined(__MINGW32__) && defined(HAVE_UNISTD_H)
+/* Prevent build error from a type mismatch of ftruncate().
+ * This unistd.h defines it as ftruncate(int, off_t). */
+#include <unistd.h>
+#endif
 #define NOCRYPT
 #include <windows.h>
 //#define	EFTYPE 7
-
-#if !defined(STDIN_FILENO)
-#define STDIN_FILENO 0
-#endif
-
-#if !defined(STDOUT_FILENO)
-#define STDOUT_FILENO 1
-#endif
-
-#if !defined(STDERR_FILENO)
-#define STDERR_FILENO 2
-#endif
-
 
 #if defined(_MSC_VER)
 /* TODO: Fix the code, don't suppress the warnings. */
@@ -97,27 +89,16 @@
 #endif
 
 /* Alias the Windows _function to the POSIX equivalent. */
-#define	access		_access
-#define	chdir		__la_chdir
-#define	chmod		__la_chmod
 #define	close		_close
-#define	fcntl		__la_fcntl
+#define	fcntl(fd, cmd, flg)	/* No operation. */		
 #ifndef fileno
 #define	fileno		_fileno
 #endif
 #define	fstat		__la_fstat
-#define	ftruncate	__la_ftruncate
-#define	futimes		__la_futimes
-#define	getcwd		_getcwd
-#define link		__la_link
-#define	lseek		__la_lseek
+#define	lseek		_lseeki64
 #define	lstat		__la_stat
-#define	mbstowcs	__la_mbstowcs
-#define	mkdir(d,m)	__la_mkdir(d, m)
-#define	mktemp		_mktemp
 #define	open		__la_open
 #define	read		__la_read
-#define	rmdir		__la_rmdir
 #if !defined(__BORLANDC__)
 #define setmode		_setmode
 #endif
@@ -129,8 +110,6 @@
 #if !defined(__BORLANDC__)
 #define	umask		_umask
 #endif
-#define	unlink		__la_unlink
-#define	utimes		__la_utimes
 #define	waitpid		__la_waitpid
 #define	write		__la_write
 
@@ -263,78 +242,12 @@
 #endif
 
 
-#ifdef _LARGEFILE_SOURCE
-# define __USE_LARGEFILE 1		/* declare fseeko and ftello */
-#endif
-
-#if defined _FILE_OFFSET_BITS && _FILE_OFFSET_BITS == 64
-# define __USE_FILE_OFFSET64  1	/* replace 32-bit functions by 64-bit ones */
-#endif
-
-#if __USE_LARGEFILE && __USE_FILE_OFFSET64
-/* replace stat and seek by their large-file equivalents */
-#undef	stat
-#define	stat		_stati64
-
-#undef	lseek
-#define	lseek       _lseeki64
-#define	lseek64     _lseeki64
-#define	tell        _telli64
-#define	tell64      _telli64
-
-#ifdef __MINGW32__
-# define fseek      fseeko64
-# define fseeko     fseeko64
-# define ftell      ftello64
-# define ftello     ftello64
-# define ftell64    ftello64
-#endif /* __MINGW32__ */
-#endif /* LARGE_FILES */
-
-#ifdef USE_WINSOCK_TIMEVAL
-/* Winsock timeval has long size tv_sec. */
-#define __timeval timeval
-#else
-struct _timeval64i32 {
-	time_t		tv_sec;
-	long		tv_usec;
-};
-#define __timeval _timeval64i32
-#endif
-
-/* End of Win32 definitions. */
-
-/* Tell libarchive code that we have simulations for these. */
-#ifndef HAVE_FTRUNCATE
-#define HAVE_FTRUNCATE 1
-#endif
-#ifndef HAVE_FUTIMES
-#define HAVE_FUTIMES 1
-#endif
-#ifndef HAVE_UTIMES
-#define HAVE_UTIMES 1
-#endif
-#ifndef HAVE_LINK
-#define HAVE_LINK 1
-#endif
-
 /* Replacement POSIX function */
-extern int	 __la_chdir(const char *path);
-extern int	 __la_chmod(const char *path, mode_t mode);
-extern int	 __la_fcntl(int fd, int cmd, int val);
 extern int	 __la_fstat(int fd, struct stat *st);
-extern int	 __la_ftruncate(int fd, off_t length);
-extern int	 __la_futimes(int fd, const struct __timeval *times);
-extern int	 __la_link(const char *src, const char *dst);
-extern __int64	 __la_lseek(int fd, __int64 offset, int whence);
-extern size_t	 __la_mbstowcs(wchar_t *wcstr, const char *mbstr, size_t nwchars);
-extern int	 __la_mkdir(const char *path, mode_t mode);
+extern int	 __la_lstat(const char *path, struct stat *st);
 extern int	 __la_open(const char *path, int flags, ...);
 extern ssize_t	 __la_read(int fd, void *buf, size_t nbytes);
-extern int	 __la_rmdir(const char *path);
 extern int	 __la_stat(const char *path, struct stat *st);
-extern int	 __la_unlink(const char *path);
-extern int	 __la_utimes(const char *name, const struct __timeval *times);
 extern pid_t	 __la_waitpid(pid_t wpid, int *status, int option);
 extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 
@@ -343,5 +256,11 @@ extern ssize_t	 __la_write(int fd, const void *buf, size_t nbytes);
 /* for status returned by la_waitpid */
 #define WIFEXITED(sts)		((sts & 0x100) == 0)
 #define WEXITSTATUS(sts)	(sts & 0x0FF)
+
+extern wchar_t *__la_win_permissive_name(const char *name);
+extern wchar_t *__la_win_permissive_name_w(const wchar_t *wname);
+extern void __la_dosmaperr(unsigned long e);
+#define la_dosmaperr(e) __la_dosmaperr(e)
+
 
 #endif /* LIBARCHIVE_ARCHIVE_WINDOWS_H_INCLUDED */

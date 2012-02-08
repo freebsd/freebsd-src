@@ -19,7 +19,7 @@ configure script and other build files:
 To create a distribution, please use the 'distcheck' target:
     /bin/sh build/autogen.sh && ./configure && make distcheck
 
-On non-Unix-like systems, use the "cmake" utility (available from
+On Unix-like and non-Unix-like systems, use the "cmake" utility (available from
 http://cmake.org/) to generate suitable build files for your platform.
 Cmake requires the name of the directory containing CmakeLists.txt and
 the "generator" to use for your build environment.  For example, to
@@ -27,4 +27,9 @@ build with Xcode on Mac OS, you can use the following command:
     cmake -G "Xcode" ~/libarchive-download-dir/
 The result will be appropriate makefiles, solution files, or project
 files that can be used with the corresponding development tool.
+The default on Unix-like systems is to generate Makefiles, so you
+can also use cmake instead of the configure script:
+    cmake ~/libarchive-download-dir/
+    make
+    make install
 See the libarchive Wiki or the cmake site for further documentation.

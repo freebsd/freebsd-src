@@ -50,8 +50,14 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle 
 #ifdef HAVE_GRP_H
 #include <grp.h>
 #endif
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>
+#endif
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
 #endif
 #ifdef HAVE_STDARG_H
 #include <stdarg.h>
@@ -68,9 +74,6 @@ __FBSDID("$FreeBSD: src/usr.bin/cpio/cpio.c,v 1.15 2008/12/06 07:30:40 kientzle 
 #endif
 #ifdef HAVE_UNISTD_H
 #include <unistd.h>
-#endif
-#ifdef HAVE_SYS_TIME_H
-#include <sys/time.h>
 #endif
 #ifdef HAVE_TIME_H
 #include <time.h>
@@ -136,6 +139,16 @@ main(int argc, char *argv[])
 	cpio->buff = buff;
 	cpio->buff_size = sizeof(buff);
 
+#if defined(HAVE_SIGACTION) && defined(SIGPIPE)
+	{ /* Ignore SIGPIPE signals. */
+		struct sigaction sa;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sa.sa_handler = SIG_IGN;
+		sigaction(SIGPIPE, &sa, NULL);
+	}
+#endif
+
 	/* Need lafe_progname before calling lafe_warnc. */
 	if (*argv == NULL)
 		lafe_progname = "bsdcpio";
@@ -150,6 +163,10 @@ main(int argc, char *argv[])
 		else
 			lafe_progname = *argv;
 	}
+#if HAVE_SETLOCALE
+	if (setlocale(LC_ALL, "") == NULL)
+		lafe_warnc(0, "Failed to set default locale");
+#endif
 
 	cpio->uid_override = -1;
 	cpio->gid_override = -1;
@@ -187,9 +204,9 @@ main(int argc, char *argv[])
 			cpio->bytes_per_block = 5120;
 			break;
 		case 'C': /* NetBSD/OpenBSD */
-			cpio->bytes_per_block = atoi(cpio->optarg);
+			cpio->bytes_per_block = atoi(cpio->argument);
 			if (cpio->bytes_per_block <= 0)
-				lafe_errc(1, 0, "Invalid blocksize %s", cpio->optarg);
+				lafe_errc(1, 0, "Invalid blocksize %s", cpio->argument);
 			break;
 		case 'c': /* POSIX 1997 */
 			cpio->format = "odc";
@@ -199,22 +216,22 @@ main(int argc, char *argv[])
 			break;
 		case 'E': /* NetBSD/OpenBSD */
 			lafe_include_from_file(&cpio->matching,
-			    cpio->optarg, cpio->option_null);
+			    cpio->argument, cpio->option_null);
 			break;
 		case 'F': /* NetBSD/OpenBSD/GNU cpio */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'f': /* POSIX 1997 */
-			lafe_exclude(&cpio->matching, cpio->optarg);
+			lafe_exclude(&cpio->matching, cpio->argument);
 			break;
 		case 'H': /* GNU cpio (also --format) */
-			cpio->format = cpio->optarg;
+			cpio->format = cpio->argument;
 			break;
 		case 'h':
 			long_help();
 			break;
 		case 'I': /* NetBSD/OpenBSD */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'i': /* POSIX 1997 */
 			if (cpio->mode != '\0')
@@ -251,7 +268,7 @@ main(int argc, char *argv[])
 			cpio->extract_flags &= ~ARCHIVE_EXTRACT_OWNER;
 			break;
 		case 'O': /* GNU cpio */
-			cpio->filename = cpio->optarg;
+			cpio->filename = cpio->argument;
 			break;
 		case 'o': /* POSIX 1997 */
 			if (cpio->mode != '\0')
@@ -275,7 +292,7 @@ main(int argc, char *argv[])
 		case 'R': /* GNU cpio, also --owner */
 			/* TODO: owner_parse should return uname/gname
 			 * also; use that to set [ug]name_override. */
-			errmsg = owner_parse(cpio->optarg, &uid, &gid);
+			errmsg = owner_parse(cpio->argument, &uid, &gid);
 			if (errmsg) {
 				lafe_warnc(-1, "%s", errmsg);
 				usage();
@@ -301,6 +318,9 @@ main(int argc, char *argv[])
 			break;
 		case 'v': /* POSIX 1997 */
 			cpio->verbose++;
+			break;
+		case 'V': /* GNU cpio */
+			cpio->dot++;
 			break;
 		case OPTION_VERSION: /* GNU convention */
 			version();
@@ -345,6 +365,12 @@ main(int argc, char *argv[])
 	/* -l requires -p */
 	if (cpio->option_link && cpio->mode != 'p')
 		lafe_errc(1, 0, "Option -l requires -p");
+	/* -v overrides -V */
+	if (cpio->dot && cpio->verbose)
+		cpio->dot = 0;
+	/* -v overrides -V */
+	if (cpio->dot && cpio->verbose)
+		cpio->dot = 0;
 	/* TODO: Flag other nonsensical combinations. */
 
 	switch (cpio->mode) {
@@ -402,7 +428,7 @@ static const char *long_help_msg =
 	"First option must be a mode specifier:\n"
 	"  -i Input  -o Output  -p Pass\n"
 	"Common Options:\n"
-	"  -v    Verbose\n"
+	"  -v Verbose filenames     -V  one dot per file\n"
 	"Create: %p -o [options]  < [list of files] > [archive]\n"
 	"  -J,-y,-z,--lzma  Compress archive with xz/bzip2/gzip/lzma\n"
 	"  --format {odc|newc|ustar}  Select archive format\n"
@@ -451,7 +477,7 @@ version(void)
 {
 	fprintf(stdout,"bsdcpio %s -- %s\n",
 	    BSDCPIO_VERSION_STRING,
-	    archive_version());
+	    archive_version_string());
 	exit(0);
 }
 
@@ -533,6 +559,8 @@ mode_out(struct cpio *cpio)
 	}
 
 	r = archive_write_close(cpio->archive);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
@@ -543,7 +571,7 @@ mode_out(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_write_finish(cpio->archive);
+	archive_write_free(cpio->archive);
 }
 
 /*
@@ -656,6 +684,8 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	/* Print out the destination name to the user. */
 	if (cpio->verbose)
 		fprintf(stderr,"%s", destpath);
+	if (cpio->dot)
+		fprintf(stderr, ".");
 
 	/*
 	 * Option_link only makes sense in pass mode and for
@@ -725,7 +755,7 @@ entry_to_archive(struct cpio *cpio, struct archive_entry *entry)
 	if (r == ARCHIVE_FATAL)
 		exit(1);
 
-	if (r >= ARCHIVE_WARN && fd >= 0) {
+	if (r >= ARCHIVE_WARN && archive_entry_size(entry) > 0 && fd >= 0) {
 		bytes_read = read(fd, cpio->buff, cpio->buff_size);
 		while (bytes_read > 0) {
 			r = archive_write_data(cpio->archive,
@@ -825,7 +855,7 @@ mode_in(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
@@ -849,7 +879,9 @@ mode_in(struct cpio *cpio)
 		if (destpath == NULL)
 			continue;
 		if (cpio->verbose)
-			fprintf(stdout, "%s\n", destpath);
+			fprintf(stderr, "%s\n", destpath);
+		if (cpio->dot)
+			fprintf(stderr, ".");
 		if (cpio->uid_override >= 0)
 			archive_entry_set_uid(entry, cpio->uid_override);
 		if (cpio->gid_override >= 0)
@@ -859,13 +891,16 @@ mode_in(struct cpio *cpio)
 			fprintf(stderr, "%s: %s\n",
 			    archive_entry_pathname(entry),
 			    archive_error_string(ext));
-		} else if (archive_entry_size(entry) > 0) {
+		} else if (!archive_entry_size_is_set(entry)
+		    || archive_entry_size(entry) > 0) {
 			r = extract_data(a, ext);
 			if (r != ARCHIVE_OK)
 				cpio->return_value = 1;
 		}
 	}
 	r = archive_read_close(a);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(a));
 	r = archive_write_close(ext);
@@ -877,8 +912,8 @@ mode_in(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_read_finish(a);
-	archive_write_finish(ext);
+	archive_read_free(a);
+	archive_write_free(ext);
 	exit(cpio->return_value);
 }
 
@@ -892,7 +927,7 @@ extract_data(struct archive *ar, struct archive *aw)
 	int r;
 	size_t size;
 	const void *block;
-	off_t offset;
+	int64_t offset;
 
 	for (;;) {
 		r = archive_read_data_block(ar, &block, &size, &offset);
@@ -922,7 +957,7 @@ mode_list(struct cpio *cpio)
 	a = archive_read_new();
 	if (a == NULL)
 		lafe_errc(1, 0, "Couldn't allocate archive object");
-	archive_read_support_compression_all(a);
+	archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 
 	if (archive_read_open_file(a, cpio->filename, cpio->bytes_per_block))
@@ -952,7 +987,7 @@ mode_list(struct cpio *cpio)
 		fprintf(stderr, "%lu %s\n", (unsigned long)blocks,
 		    blocks == 1 ? "block" : "blocks");
 	}
-	archive_read_finish(a);
+	archive_read_free(a);
 	exit(0);
 }
 
@@ -989,11 +1024,11 @@ list_item_verbose(struct cpio *cpio, struct archive_entry *entry)
 		/* Use uname if it's present, else lookup name from uid. */
 		uname = archive_entry_uname(entry);
 		if (uname == NULL)
-			uname = lookup_uname(cpio, archive_entry_uid(entry));
+			uname = lookup_uname(cpio, (uid_t)archive_entry_uid(entry));
 		/* Use gname if it's present, else lookup name from gid. */
 		gname = archive_entry_gname(entry);
 		if (gname == NULL)
-			gname = lookup_gname(cpio, archive_entry_gid(entry));
+			gname = lookup_gname(cpio, (uid_t)archive_entry_gid(entry));
 	}
 
 	/* Print device number or file size. */
@@ -1075,6 +1110,8 @@ mode_pass(struct cpio *cpio, const char *destdir)
 
 	archive_entry_linkresolver_free(cpio->linkresolver);
 	r = archive_write_close(cpio->archive);
+	if (cpio->dot)
+		fprintf(stderr, "\n");
 	if (r != ARCHIVE_OK)
 		lafe_errc(1, 0, "%s", archive_error_string(cpio->archive));
 
@@ -1086,7 +1123,7 @@ mode_pass(struct cpio *cpio, const char *destdir)
 		    blocks == 1 ? "block" : "blocks");
 	}
 
-	archive_write_finish(cpio->archive);
+	archive_write_free(cpio->archive);
 }
 
 /*
@@ -1260,8 +1297,9 @@ lookup_gname_helper(struct cpio *cpio, const char **name, id_t id)
 const char *
 cpio_i64toa(int64_t n0)
 {
-	// 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
-	// We also need 1 byte for '-' and 1 for '\0'.
+	/* 2^64 =~ 1.8 * 10^19, so 20 decimal digits suffice.
+	 * We also need 1 byte for '-' and 1 for '\0'.
+	 */
 	static char buff[22];
 	int64_t n = n0 < 0 ? -n0 : n0;
 	char *p = buff + sizeof(buff);

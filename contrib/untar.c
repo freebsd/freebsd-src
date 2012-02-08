@@ -38,7 +38,7 @@ parseoct(const char *p, size_t n)
 {
 	int i = 0;
 
-	while (*p < '0' || *p > '7') {
+	while ((*p < '0' || *p > '7') && n > 0) {
 		++p;
 		--n;
 	}
@@ -140,7 +140,7 @@ untar(FILE *a, const char *path)
 		if (bytes_read < 512) {
 			fprintf(stderr,
 			    "Short read on %s: expected 512, got %d\n",
-			    path, bytes_read);
+			    path, (int)bytes_read);
 			return;
 		}
 		if (is_end_of_archive(buff)) {
@@ -183,7 +183,7 @@ untar(FILE *a, const char *path)
 			if (bytes_read < 512) {
 				fprintf(stderr,
 				    "Short read on %s: Expected 512, got %d\n",
-				    path, bytes_read);
+				    path, (int)bytes_read);
 				return;
 			}
 			if (filesize < 512)

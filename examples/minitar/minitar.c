@@ -40,8 +40,6 @@
  */
 
 #include <sys/types.h>
-__FBSDID("$FreeBSD$");
-
 #include <sys/stat.h>
 
 #include <archive.h>
@@ -51,10 +49,6 @@ __FBSDID("$FreeBSD$");
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-
-#ifndef NO_CREATE
-#include "tree.h"
-#endif
 
 /*
  * NO_CREATE implies NO_BZIP2_CREATE and NO_GZIP_CREATE and NO_COMPRESS_CREATE.
@@ -264,32 +258,75 @@ create(const char *filename, int compress, const char **argv)
 	archive_read_disk_set_standard_lookup(disk);
 #endif
 	while (*argv != NULL) {
-		struct tree *t = tree_open(*argv);
-		while (tree_next(t)) {
+		struct archive *disk = archive_read_disk_new();
+		int r;
+
+		r = archive_read_disk_open(disk, *argv);
+		if (r != ARCHIVE_OK) {
+			errmsg(archive_error_string(disk));
+			errmsg("\n");
+			exit(1);
+		}
+
+		for (;;) {
+			int needcr = 0;
+
 			entry = archive_entry_new();
-			archive_entry_set_pathname(entry, tree_current_path(t));
-			archive_read_disk_entry_from_file(disk, entry, -1,
-			    tree_current_stat(t));
+			r = archive_read_next_header2(disk, entry);
+			if (r == ARCHIVE_EOF)
+				break;
+			if (r != ARCHIVE_OK) {
+				errmsg(archive_error_string(disk));
+				errmsg("\n");
+				exit(1);
+			}
+			archive_read_disk_descend(disk);
 			if (verbose) {
 				msg("a ");
-				msg(tree_current_path(t));
+				msg(archive_entry_pathname(entry));
+				needcr = 1;
 			}
-			archive_write_header(a, entry);
-			fd = open(tree_current_access_path(t), O_RDONLY);
-			len = read(fd, buff, sizeof(buff));
-			while (len > 0) {
-				archive_write_data(a, buff, len);
+			r = archive_write_header(a, entry);
+			if (r < ARCHIVE_OK) {
+				errmsg(": ");
+				errmsg(archive_error_string(a));
+				needcr = 1;
+			}
+			if (r == ARCHIVE_FATAL)
+				exit(1);
+			if (r > ARCHIVE_FAILED) {
+#if 0
+				/* Ideally, we would be able to use
+				 * the same code to copy a body from
+				 * an archive_read_disk to an
+				 * archive_write that we use for
+				 * copying data from an archive_read
+				 * to an archive_write_disk.
+				 * Unfortunately, this doesn't quite
+				 * work yet. */
+				copy_data(disk, a);
+#else
+				/* For now, we use a simpler loop to copy data
+				 * into the target archive. */
+				fd = open(archive_entry_sourcepath(entry), O_RDONLY);
 				len = read(fd, buff, sizeof(buff));
+				while (len > 0) {
+					archive_write_data(a, buff, len);
+					len = read(fd, buff, sizeof(buff));
+				}
+				close(fd);
+#endif
 			}
-			close(fd);
 			archive_entry_free(entry);
-			if (verbose)
+			if (needcr)
 				msg("\n");
 		}
+		archive_read_close(disk);
+		archive_read_free(disk);
 		argv++;
 	}
 	archive_write_close(a);
-	archive_write_finish(a);
+	archive_write_free(a);
 }
 #endif
 
@@ -305,13 +342,13 @@ extract(const char *filename, int do_extract, int flags)
 	ext = archive_write_disk_new();
 	archive_write_disk_set_options(ext, flags);
 #ifndef NO_BZIP2_EXTRACT
-	archive_read_support_compression_bzip2(a);
+	archive_read_support_filter_bzip2(a);
 #endif
 #ifndef NO_GZIP_EXTRACT
-	archive_read_support_compression_gzip(a);
+	archive_read_support_filter_gzip(a);
 #endif
 #ifndef NO_COMPRESS_EXTRACT
-	archive_read_support_compression_compress(a);
+	archive_read_support_filter_compress(a);
 #endif
 #ifndef NO_TAR_EXTRACT
 	archive_read_support_format_tar(a);
@@ -353,7 +390,7 @@ extract(const char *filename, int do_extract, int flags)
 			msg("\n");
 	}
 	archive_read_close(a);
-	archive_read_finish(a);
+	archive_read_free(a);
 	exit(0);
 }
 

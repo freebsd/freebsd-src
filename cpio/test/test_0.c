@@ -40,15 +40,23 @@ DEFINE_TEST(test_0)
 	struct stat st;
 
 	failure("File %s does not exist?!", testprogfile);
-	if (!assertEqualInt(0, stat(testprogfile, &st)))
+	if (!assertEqualInt(0, stat(testprogfile, &st))) {
+		fprintf(stderr,
+		    "\nFile %s does not exist; aborting test.\n\n",
+		    testprog);
 		exit(1);
+	}
 
 	failure("%s is not executable?!", testprogfile);
-	if (!assert((st.st_mode & 0111) != 0))
+	if (!assert((st.st_mode & 0111) != 0)) {
+		fprintf(stderr,
+		    "\nFile %s not executable; aborting test.\n\n",
+		    testprog);
 		exit(1);
+	}
 
 	/*
-	 * Try to succesfully run the program; this requires that
+	 * Try to successfully run the program; this requires that
 	 * we know some option that will succeed.
 	 */
 	if (0 == systemf("%s --version >" DEV_NULL, testprog)) {

@@ -15,6 +15,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_cmdline.c
     test_format_newc.c
     test_gcpio_compat.c
+    test_option_0.c
     test_option_B_upper.c
     test_option_C_upper.c
     test_option_J_upper.c
@@ -38,9 +39,6 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
     test_passthrough_reverse.c
     test_pathmatch.c
   )
-  IF(WIN32 AND NOT CYGWIN)
-    LIST(APPEND bsdcpio_test_SOURCES ../cpio_windows.h)
-  ENDIF(WIN32 AND NOT CYGWIN)
 
   #
   # Register target
@@ -60,7 +58,7 @@ IF(ENABLE_CPIO AND ENABLE_TEST)
   # test.  We can use that to define the tests for cmake by
   # defining a DEFINE_TEST macro and reading list.h in.
   MACRO (DEFINE_TEST _testname)
-    ADD_TEST_28(
+    ADD_TEST(
       NAME bsdcpio_${_testname}
       COMMAND bsdcpio_test -vv
                            -p $<TARGET_FILE:bsdcpio>
