@@ -215,7 +215,8 @@ extern int dep_check(struct cfjail *j);
 extern void dep_done(struct cfjail *j, unsigned flags);
 extern void dep_reset(struct cfjail *j);
 extern struct cfjail *next_jail(void);
-extern int start_state(const char *target, unsigned state, int running);
+extern int start_state(const char *target, int docf, unsigned state,
+    int running);
 extern void requeue(struct cfjail *j, struct cfjails *queue);
 
 extern void yyerror(const char *);
