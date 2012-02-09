@@ -110,9 +110,7 @@ static u_int32_t set_disable;
 static int fw_verbose;
 static struct callout ipfw_timeout;
 static int verbose_limit;
-#ifdef INET6
 static int fw_permit_single_frag6 = 1;
-#endif
 
 #ifdef IPFIREWALL_DEFAULT_TO_ACCEPT
 static int default_to_accept = 1;
