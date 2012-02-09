@@ -529,7 +529,7 @@ mps_enqueue_request(struct mps_softc *sc, struct mps_command *cm)
 	mps_dprint(sc, MPS_TRACE, "%s SMID %u cm %p ccb %p\n", __func__,
 	    cm->cm_desc.Default.SMID, cm, cm->cm_ccb);
 
-	if (sc->mps_flags & MPS_FLAGS_ATTACH_DONE)
+	if (sc->mps_flags & MPS_FLAGS_ATTACH_DONE && !(sc->mps_flags & MPS_FLAGS_SHUTDOWN))
 		mtx_assert(&sc->mps_mtx, MA_OWNED);
 
 	if (++sc->io_cmds_active > sc->io_cmds_highwater)
@@ -1334,6 +1334,8 @@ mps_free(struct mps_softc *sc)
 	if (((error = mps_detach_log(sc)) != 0) ||
 	    ((error = mps_detach_sas(sc)) != 0))
 		return (error);
+
+	mps_detach_user(sc);
 
 	/* Put the IOC back in the READY state. */
 	mps_lock(sc);
@@ -2142,7 +2144,7 @@ mps_wait_command(struct mps_softc *sc, struct mps_command *cm, int timeout)
 	error = mps_map_command(sc, cm);
 	if ((error != 0) && (error != EINPROGRESS))
 		return (error);
-	error = msleep(cm, &sc->mps_mtx, 0, "mpswait", timeout);
+	error = msleep(cm, &sc->mps_mtx, 0, "mpswait", timeout*hz);
 	if (error == EWOULDBLOCK)
 		error = ETIMEDOUT;
 	return (error);
