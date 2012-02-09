@@ -471,6 +471,7 @@ interpret:
 	 * actually an executable image.
 	 */
 	textset = imgp->vp->v_vflag & VV_TEXT;
+	ASSERT_VOP_ELOCKED(imgp->vp, "vv_text");
 	imgp->vp->v_vflag |= VV_TEXT;
 
 	error = exec_map_first_page(imgp);
@@ -502,8 +503,10 @@ interpret:
 
 	if (error) {
 		if (error == -1) {
-			if (textset == 0)
+			if (textset == 0) {
+				ASSERT_VOP_ELOCKED(imgp->vp, "vv_text");
 				imgp->vp->v_vflag &= ~VV_TEXT;
+			}
 			error = ENOEXEC;
 		}
 		goto exec_fail_dealloc;
@@ -596,7 +599,7 @@ interpret:
 
 	/* close files on exec */
 	fdcloseexec(td);
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 
 	/* Get a reference to the vnode prior to locking the proc */
 	VREF(binvp);
@@ -701,7 +704,7 @@ interpret:
 		VOP_UNLOCK(imgp->vp, 0);
 		setugidsafety(td);
 		error = fdcheckstd(td);
-		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 		if (error != 0)
 			goto done1;
 		PROC_LOCK(p);
@@ -805,7 +808,7 @@ interpret:
 		pe.pm_entryaddr = imgp->entry_addr;
 
 		PMC_CALL_HOOK_X(td, PMC_FN_PROCESS_EXEC, (void *) &pe);
-		vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+		vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	} else
 		PROC_UNLOCK(p);
 #else  /* !HWPMC_HOOKS */
@@ -857,7 +860,7 @@ done1:
 	if (tracecred != NULL)
 		crfree(tracecred);
 #endif
-	vn_lock(imgp->vp, LK_EXCLUSIVE | LK_RETRY);
+	vn_lock(imgp->vp, LK_SHARED | LK_RETRY);
 	pargs_drop(oldargs);
 	pargs_drop(newargs);
 	if (oldsigacts != NULL)
