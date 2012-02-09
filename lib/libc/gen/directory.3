@@ -122,9 +122,12 @@ function
 returns a pointer to the next directory entry.
 It returns
 .Dv NULL
-upon reaching the end of the directory or detecting an invalid
-.Fn seekdir
-operation.
+upon reaching the end of the directory or on error.
+In the event of an error,
+.Va errno
+may be set to any of the values documented for the
+.Xr getdirentries 2
+system call.
 .Pp
 The
 .Fn readdir_r
