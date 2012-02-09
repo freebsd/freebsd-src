@@ -3689,7 +3689,7 @@ wb_set_offset(struct archive_write *a, int64_t off)
 		ext_bytes = off - iso9660->wbuff_tail;
 		iso9660->wbuff_remaining = sizeof(iso9660->wbuff)
 		   - (iso9660->wbuff_tail - iso9660->wbuff_offset);
-		while (ext_bytes >= iso9660->wbuff_remaining) {
+		while (ext_bytes >= (int64_t)iso9660->wbuff_remaining) {
 			if (write_null(a, (size_t)iso9660->wbuff_remaining)
 			    != ARCHIVE_OK)
 				return (ARCHIVE_FATAL);
@@ -6513,8 +6513,7 @@ isoent_traverse_tree(struct archive_write *a, struct vdd* vdd)
 	struct idr idr;
 	int depth;
 	int r;
-	int (*genid)(struct archive_write *a, struct isoent *isoent,
-	    struct idr *idr);
+	int (*genid)(struct archive_write *, struct isoent *, struct idr *);
 
 	idr_init(iso9660, vdd, &idr);
 	np = vdd->rootent;
@@ -7283,7 +7282,7 @@ setup_boot_information(struct archive_write *a)
 		size_t rsize;
 		ssize_t i, rs;
 
-		if (size > sizeof(buff))
+		if (size > (int64_t)sizeof(buff))
 			rsize = sizeof(buff);
 		else
 			rsize = (size_t)size;
@@ -7466,7 +7465,7 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 	int64_t entry_size;
 
 	entry_size = archive_entry_size(file->entry);
-	if (sizeof(iso9660->zisofs.magic_buffer) > entry_size)
+	if ((int64_t)sizeof(iso9660->zisofs.magic_buffer) > entry_size)
 		magic_max = entry_size;
 	else
 		magic_max = sizeof(iso9660->zisofs.magic_buffer);
@@ -7511,7 +7510,7 @@ zisofs_detect_magic(struct archive_write *a, const void *buff, size_t s)
 	ceil = (uncompressed_size +
 	        (ARCHIVE_LITERAL_LL(1) << log2_bs) -1) >> log2_bs;
 	doff = (ceil + 1) * 4 + 16;
-	if (entry_size < doff)
+	if (entry_size < (int64_t)doff)
 		return;/* Invalid data. */
 
 	/* Check every Block Pointer has valid value. */

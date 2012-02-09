@@ -2214,7 +2214,8 @@ tree_target_is_same_as_parent(struct tree *t, const struct stat *st)
 	struct tree_entry *te;
 
 	for (te = t->current->parent; te != NULL; te = te->parent) {
-		if (te->dev == st->st_dev && te->ino == st->st_ino)
+		if (te->dev == (int64_t)st->st_dev &&
+		    te->ino == (int64_t)st->st_ino)
 			return (1);
 	}
 	return (0);
@@ -2231,7 +2232,8 @@ tree_current_is_symblic_link_target(struct tree *t)
 
 	lst = tree_current_lstat(t);
 	st = tree_current_stat(t);
-	return (st != NULL && st->st_dev == t->current_filesystem->dev &&
+	return (st != NULL &&
+	    (int64_t)st->st_dev == t->current_filesystem->dev &&
 	    st->st_dev != lst->st_dev);
 }
 

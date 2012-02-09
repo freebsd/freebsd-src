@@ -1672,7 +1672,7 @@ cleanup_pathname_win(struct archive_write_disk *a)
 	p = a->name;
 	while (*p != '\0' && alen) {
 		l = mbtowc(&wc, p, alen);
-		if (l == -1) {
+		if (l == (size_t)-1) {
 			while (*p != '\0') {
 				if (*p == '\\')
 					*p = '/';
@@ -1979,6 +1979,7 @@ set_time(int fd, int mode, const char *name,
 	 * on fds and symlinks.
 	 */
 	struct timespec ts[2];
+	(void)mode; /* UNUSED */
 	ts[0].tv_sec = atime;
 	ts[0].tv_nsec = atime_nsec;
 	ts[1].tv_sec = mtime;
@@ -2036,6 +2037,11 @@ set_time(int fd, int mode, const char *name,
 	/*
 	 * We don't know how to set the time on this platform.
 	 */
+	(void)fd; /* UNUSED */
+	(void)mode; /* UNUSED */
+	(void)name; /* UNUSED */
+	(void)atime_nsec; /* UNUSED */
+	(void)mtime_nsec; /* UNUSED */
 	return (ARCHIVE_WARN);
 #endif
 }
@@ -2105,6 +2111,9 @@ set_times(struct archive_write_disk *a,
 		r1 = set_time(fd, mode, name,
 			      atime, atime_nanos,
 			      birthtime, birthtime_nanos);
+#else
+	(void)birthtime; /* UNUSED */
+	(void)birthtime_nanos; /* UNUSED */
 #endif
 	r2 = set_time(fd, mode, name,
 		      atime, atime_nanos,
@@ -2537,12 +2546,12 @@ set_mac_metadata(struct archive_write_disk *a, const char *pathname,
 /* Default empty function body to satisfy mainline code. */
 static int
 set_acls(struct archive_write_disk *a, int fd, const char *name,
-	 struct archive_acl *acl)
+	 struct archive_acl *aacl)
 {
 	(void)a; /* UNUSED */
 	(void)fd; /* UNUSED */
 	(void)name; /* UNUSED */
-	(void)acl; /* UNUSED */
+	(void)aacl; /* UNUSED */
 	return (ARCHIVE_OK);
 }
 

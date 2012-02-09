@@ -305,7 +305,7 @@ static int archive_read_format_rar_cleanup(struct archive_read *);
 
 /* Support functions */
 static int read_header(struct archive_read *, struct archive_entry *, char);
-static time_t get_time(int time);
+static time_t get_time(int);
 static int read_exttime(const char *, struct rar *, const char *);
 static int read_symlink_stored(struct archive_read *, struct archive_entry *,
                                struct archive_string_conv *);
@@ -1047,7 +1047,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   memcpy(&rar_header, p, sizeof(rar_header));
   rar->file_flags = archive_le16dec(rar_header.flags);
   header_size = archive_le16dec(rar_header.size);
-  if (header_size < sizeof(file_header) + 7) {
+  if (header_size < (int64_t)sizeof(file_header) + 7) {
     archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
       "Invalid header size");
     return (ARCHIVE_FATAL);

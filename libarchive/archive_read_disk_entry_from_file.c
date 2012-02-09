@@ -191,7 +191,7 @@ archive_read_disk_entry_from_file(struct archive *_a,
 			fd = open(path, O_RDONLY | O_NONBLOCK);
 		if (fd >= 0) {
 			unsigned long stflags;
-			int r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
+			r = ioctl(fd, EXT2_IOC_GETFLAGS, &stflags);
 			if (r == 0 && stflags != 0)
 				archive_entry_set_fflags(entry, stflags, 0);
 		}
@@ -870,12 +870,12 @@ setup_sparse(struct archive_read_disk *a,
 		if (fm->fm_mapped_extents == 0)
 			break;
 		fe = fm->fm_extents;
-		for (i = 0; i < fm->fm_mapped_extents; i++, fe++) {
+		for (i = 0; i < (int)fm->fm_mapped_extents; i++, fe++) {
 			if (!(fe->fe_flags & FIEMAP_EXTENT_UNWRITTEN)) {
 				/* The fe_length of the last block does not
 				 * adjust itself to its size files. */
 				int64_t length = fe->fe_length;
-				if (fe->fe_logical + length > size)
+				if (fe->fe_logical + length > (uint64_t)size)
 					length -= fe->fe_logical + length - size;
 				if (fe->fe_logical == 0 && length == size) {
 					/* This is not sparse. */
