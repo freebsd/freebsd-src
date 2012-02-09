@@ -712,7 +712,7 @@ mps_user_command(struct mps_softc *sc, struct mps_usr_command *cmd)
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
 
 	mps_lock(sc);
-	err = mps_wait_command(sc, cm, 0);
+	err = mps_wait_command(sc, cm, 30);
 
 	if (err) {
 		mps_printf(sc, "%s: invalid request: error %d\n",
@@ -842,7 +842,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 		cm->cm_complete = NULL;
 		cm->cm_complete_data = NULL;
 
-		err = mps_wait_command(sc, cm, 0);
+		err = mps_wait_command(sc, cm, 30);
 
 		if (err != 0) {
 			err = EIO;
@@ -979,7 +979,7 @@ mps_user_pass_thru(struct mps_softc *sc, mps_pass_thru_t *data)
 
 	mps_lock(sc);
 
-	err = mps_wait_command(sc, cm, 0);
+	err = mps_wait_command(sc, cm, 30);
 
 	if (err) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
@@ -1098,10 +1098,12 @@ mps_user_get_adapter_data(struct mps_softc *sc, mps_adapter_data_t *data)
 	 * Need to get BIOS Config Page 3 for the BIOS Version.
 	 */
 	data->BiosVersion = 0;
+	mps_lock(sc);
 	if (mps_config_get_bios_pg3(sc, &mpi_reply, &config_page))
 		printf("%s: Error while retrieving BIOS Version\n", __func__);
 	else
 		data->BiosVersion = config_page.BiosVersion;
+	mps_unlock(sc);
 }
 
 static void
@@ -1194,7 +1196,7 @@ mps_post_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 0);
+	status = mps_wait_command(sc, cm, 30);
 	if (status) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
@@ -1278,7 +1280,7 @@ mps_release_fw_diag_buffer(struct mps_softc *sc,
 	/*
 	 * Send command synchronously.
 	 */
-	status = mps_wait_command(sc, cm, 0);
+	status = mps_wait_command(sc, cm, 30);
 	if (status) {
 		mps_printf(sc, "%s: invalid request: error %d\n", __func__,
 		    status);
