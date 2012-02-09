@@ -811,7 +811,7 @@ SCI_STATUS scif_sas_io_request_continue(
    );
 
    //start the new constructed IO.
-   return scif_controller_start_io(
+   return (SCI_STATUS)scif_controller_start_io(
              (SCI_CONTROLLER_HANDLE_T) fw_controller,
              (SCI_REMOTE_DEVICE_HANDLE_T) fw_device,
              (SCI_IO_REQUEST_HANDLE_T) fw_request,

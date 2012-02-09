@@ -586,7 +586,7 @@ SCI_STATUS scif_sas_controller_ready_start_io_handler(
    if (status == SCI_SUCCESS)
    {
       // Ask the core to start processing for this IO request.
-      status = scic_controller_start_io(
+      status = (SCI_STATUS)scic_controller_start_io(
                   fw_controller->core_object,
                   fw_device->core_object,
                   fw_io->parent.core_object,
@@ -903,7 +903,7 @@ SCI_STATUS scif_sas_controller_ready_start_task_handler(
       }
 
       // Ask the core to start processing for this task request.
-      status = scic_controller_start_task(
+      status = (SCI_STATUS)scic_controller_start_task(
                   fw_controller->core_object,
                   fw_device->core_object,
                   fw_task->parent.core_object,
@@ -1072,7 +1072,7 @@ SCI_STATUS scif_sas_controller_common_start_high_priority_io_handler(
    if (status == SCI_SUCCESS)
    {
       // Ask the core to start processing for this IO request.
-      status = scic_controller_start_io(
+      status = (SCI_STATUS)scic_controller_start_io(
                   fw_controller->core_object,
                   fw_device->core_object,
                   fw_io->parent.core_object,
@@ -1683,7 +1683,7 @@ SCI_STATUS scif_sas_controller_failed_state_start_io_handler(
          &((SCIF_SAS_CONTROLLER_T *)controller)->parent.state_machine)
    ));
 
-   return SCI_IO_FAILURE;
+   return SCI_FAILURE;
 }
 
 #define scif_sas_controller_stopping_complete_io_handler   \
