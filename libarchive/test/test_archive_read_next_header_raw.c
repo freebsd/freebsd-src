@@ -40,8 +40,8 @@ test(int skip_explicitely)
 	assertEqualInt(0, archive_errno(a));
 	assertEqualString(NULL, archive_error_string(a));
 
-	assertEqualInt(ARCHIVE_OK, archive_read_open_memory(a, (void*) data,
-	    sizeof(data)));
+	assertEqualInt(ARCHIVE_OK, archive_read_open_memory(a,
+	    (void *)(uintptr_t) data, sizeof(data)));
 	assertEqualString(NULL, archive_error_string(a));
 
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &e));

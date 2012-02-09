@@ -365,10 +365,10 @@ test_write_format_iso9660_zisofs_2(void)
 	for (i = 0; i < 256; i++) {
 		int j;
 		if (i == 0) {
-			for (j = 0; j < sizeof(data); j++)
+			for (j = 0; j < (int)sizeof(data); j++)
 				data[j] = (i^j) & 0xff;
 		} else {
-			for (j = 0; j < sizeof(data); j++)
+			for (j = 0; j < (int)sizeof(data); j++)
 				data[j] ^= i+j;
 		}
 		assertEqualIntA(a, 1024, archive_write_data(a, data, 1024));

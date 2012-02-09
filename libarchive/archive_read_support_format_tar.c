@@ -2333,6 +2333,8 @@ solaris_sparse_parse(struct archive_read *a, struct tar *tar,
 	int64_t start, end;
 	int hole = 1;
 
+	(void)entry; /* UNUSED */
+
 	end = 0;
 	if (*p == ' ')
 		p++;

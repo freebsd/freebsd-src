@@ -349,7 +349,7 @@ static int	lzx_read_bitlen(struct lzx_stream *, struct huffman *, int);
 static int	lzx_huffman_init(struct huffman *, size_t, int);
 static void	lzx_huffman_free(struct huffman *);
 static int	lzx_make_huffman_table(struct huffman *);
-static int inline lzx_decode_huffman(struct huffman *, unsigned);
+static inline int lzx_decode_huffman(struct huffman *, unsigned);
 static int	lzx_decode_huffman_tree(struct huffman *, unsigned, int);
 
 

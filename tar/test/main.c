@@ -2505,25 +2505,25 @@ main(int argc, char **argv)
 		} else {
 			while (*(argv) != NULL) {
 				if (**argv >= '0' && **argv <= '9') {
-					char *p = *argv;
+					char *vp = *argv;
 					start = 0;
-					while (*p >= '0' && *p <= '9') {
+					while (*vp >= '0' && *vp <= '9') {
 						start *= 10;
-						start += *p - '0';
-						++p;
+						start += *vp - '0';
+						++vp;
 					}
-					if (*p == '\0') {
+					if (*vp == '\0') {
 						end = start;
-					} else if (*p == '-') {
-						++p;
-						if (*p == '\0') {
+					} else if (*vp == '-') {
+						++vp;
+						if (*vp == '\0') {
 							end = limit - 1;
 						} else {
 							end = 0;
-							while (*p >= '0' && *p <= '9') {
+							while (*vp >= '0' && *vp <= '9') {
 								end *= 10;
-								end += *p - '0';
-								++p;
+								end += *vp - '0';
+								++vp;
 							}
 						}
 					} else {

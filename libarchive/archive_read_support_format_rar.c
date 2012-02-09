@@ -1021,7 +1021,7 @@ read_header(struct archive_read *a, struct archive_entry *entry,
   char *strp;
   char packed_size[8];
   char unp_size[8];
-  int time;
+  int ttime;
   struct archive_string_conv *sconv, *fn_sconv;
   unsigned long crc32_val;
   int ret = (ARCHIVE_OK), ret2;
@@ -1100,8 +1100,8 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 
   rar->compression_method = file_header.method;
 
-  time = archive_le32dec(file_header.file_time);
-  rar->mtime = get_time(time);
+  ttime = archive_le32dec(file_header.file_time);
+  rar->mtime = get_time(ttime);
 
   rar->file_crc = archive_le32dec(file_header.file_crc);
 
@@ -1381,15 +1381,15 @@ read_header(struct archive_read *a, struct archive_entry *entry,
 }
 
 static time_t
-get_time(int time)
+get_time(int ttime)
 {
   struct tm tm;
-  tm.tm_sec = 2 * (time & 0x1f);
-  tm.tm_min = (time >> 5) & 0x3f;
-  tm.tm_hour = (time >> 11) & 0x1f;
-  tm.tm_mday = (time >> 16) & 0x1f;
-  tm.tm_mon = ((time >> 21) & 0x0f) - 1;
-  tm.tm_year = ((time >> 25) & 0x7f) + 80;
+  tm.tm_sec = 2 * (ttime & 0x1f);
+  tm.tm_min = (ttime >> 5) & 0x3f;
+  tm.tm_hour = (ttime >> 11) & 0x1f;
+  tm.tm_mday = (ttime >> 16) & 0x1f;
+  tm.tm_mon = ((ttime >> 21) & 0x0f) - 1;
+  tm.tm_year = ((ttime >> 25) & 0x7f) + 80;
   tm.tm_isdst = -1;
   return mktime(&tm);
 }
@@ -1398,7 +1398,7 @@ static int
 read_exttime(const char *p, struct rar *rar, const char *endp)
 {
   unsigned rmode, flags, rem, j, count;
-  int time, i;
+  int ttime, i;
   struct tm *tm;
   time_t t;
   long nsec;
@@ -1420,8 +1420,8 @@ read_exttime(const char *p, struct rar *rar, const char *endp)
       {
         if (p + 4 > endp)
           return (-1);
-        time = archive_le32dec(p);
-        t = get_time(time);
+        ttime = archive_le32dec(p);
+        t = get_time(ttime);
         p += 4;
       }
       rem = 0;
@@ -2408,9 +2408,9 @@ expand(struct archive_read *a, int64_t end)
 
       if ((lensymbol = read_next_symbol(a, &rar->lengthcode)) < 0)
         goto bad_data;
-      if (lensymbol > sizeof(lengthbases)/sizeof(lengthbases[0]))
+      if (lensymbol > (int)(sizeof(lengthbases)/sizeof(lengthbases[0])))
         goto bad_data;
-      if (lensymbol > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (lensymbol > (int)(sizeof(lengthbits)/sizeof(lengthbits[0])))
         goto bad_data;
       len = lengthbases[lensymbol] + 2;
       if (lengthbits[lensymbol] > 0) {
@@ -2442,9 +2442,9 @@ expand(struct archive_read *a, int64_t end)
     }
     else
     {
-      if (symbol-271 > sizeof(lengthbases)/sizeof(lengthbases[0]))
+      if (symbol-271 > (int)(sizeof(lengthbases)/sizeof(lengthbases[0])))
         goto bad_data;
-      if (symbol-271 > sizeof(lengthbits)/sizeof(lengthbits[0]))
+      if (symbol-271 > (int)(sizeof(lengthbits)/sizeof(lengthbits[0])))
         goto bad_data;
       len = lengthbases[symbol-271]+3;
       if(lengthbits[symbol-271] > 0) {
@@ -2456,9 +2456,9 @@ expand(struct archive_read *a, int64_t end)
 
       if ((offssymbol = read_next_symbol(a, &rar->offsetcode)) < 0)
         goto bad_data;
-      if (offssymbol > sizeof(offsetbases)/sizeof(offsetbases[0]))
+      if (offssymbol > (int)(sizeof(offsetbases)/sizeof(offsetbases[0])))
         goto bad_data;
-      if (offssymbol > sizeof(offsetbits)/sizeof(offsetbits[0]))
+      if (offssymbol > (int)(sizeof(offsetbits)/sizeof(offsetbits[0])))
         goto bad_data;
       offs = offsetbases[offssymbol]+1;
       if(offsetbits[offssymbol] > 0)

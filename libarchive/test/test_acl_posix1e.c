@@ -263,7 +263,7 @@ DEFINE_TEST(test_acl_posix1e)
 	 * fail when added to existing POSIX.1e ACLs.
 	 */
 	set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
-	for (i = 0; i < sizeof(acls_nfs4)/sizeof(acls_nfs4[0]); ++i) {
+	for (i = 0; i < (int)(sizeof(acls_nfs4)/sizeof(acls_nfs4[0])); ++i) {
 		struct acl_t *p = &acls_nfs4[i];
 		failure("Malformed ACL test #%d", i);
 		assertEqualInt(ARCHIVE_FAILED,

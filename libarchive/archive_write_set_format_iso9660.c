@@ -4508,8 +4508,7 @@ write_file_descriptors(struct archive_write *a)
 
 	/* Write the boot file contents. */
 	if (iso9660->el_torito.boot != NULL) {
-		struct isofile *file = iso9660->el_torito.boot->file;
-
+		file = iso9660->el_torito.boot->file;
 		blocks = file->content.blocks;
 		offset = file->content.offset_of_temp;
 		if (offset != 0) {

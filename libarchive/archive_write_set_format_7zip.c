@@ -512,7 +512,7 @@ static int
 write_to_temp(struct archive_write *a, const void *buff, size_t s)
 {
 	struct _7zip *zip;
-	unsigned char *p;
+	const unsigned char *p;
 	ssize_t ws;
 
 	zip = (struct _7zip *)a->format_data;
@@ -530,7 +530,7 @@ write_to_temp(struct archive_write *a, const void *buff, size_t s)
 		}
 	}
 
-	p = (unsigned char *)buff;
+	p = (const unsigned char *)buff;
 	while (s) {
 		ws = write(zip->temp_fd, p, s);
 		if (ws < 0) {
@@ -846,7 +846,7 @@ enc_uint64(struct archive_write *a, uint64_t val)
 	int i;
 
 	numdata[0] = 0;
-	for (i = 1; i < sizeof(numdata); i++) {
+	for (i = 1; i < (int)sizeof(numdata); i++) {
 		if (val < mask) {
 			numdata[0] |= (uint8_t)val;
 			break;
@@ -1130,11 +1130,11 @@ make_streamsInfo(struct archive_write *a, uint64_t offset, uint64_t pack_size,
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static uint64_t
-utcToFiletime(time_t time, long ns)
+utcToFiletime(time_t t, long ns)
 {
 	uint64_t fileTime;
 
-	fileTime = time;
+	fileTime = t;
 	fileTime *= 10000000;
 	fileTime += ns / 100;
 	fileTime += EPOC_TIME;
@@ -1451,8 +1451,8 @@ static int
 file_cmp_node(const struct archive_rb_node *n1,
     const struct archive_rb_node *n2)
 {
-	struct file *f1 = (struct file *)n1;
-	struct file *f2 = (struct file *)n2;
+	const struct file *f1 = (const struct file *)n1;
+	const struct file *f2 = (const struct file *)n2;
 
 	if (f1->name_len == f2->name_len)
 		return (memcmp(f1->utf16name, f2->utf16name, f1->name_len));
@@ -1462,7 +1462,7 @@ file_cmp_node(const struct archive_rb_node *n1,
 static int
 file_cmp_key(const struct archive_rb_node *n, const void *key)
 {
-	struct file *f = (struct file *)n;
+	const struct file *f = (const struct file *)n;
 
 	return (f->name_len - *(const char *)key);
 }
@@ -2179,6 +2179,8 @@ compression_code_ppmd(struct archive *a,
 {
 	struct ppmd_stream *strm;
 
+	(void)a; /* UNUSED */
+
 	strm = (struct ppmd_stream *)lastrm->real_stream;
 
 	/* Copy encoded data if there are remaining bytes from previous call. */
@@ -2218,6 +2220,8 @@ static int
 compression_end_ppmd(struct archive *a, struct la_zstream *lastrm)
 {
 	struct ppmd_stream *strm;
+
+	(void)a; /* UNUSED */
 
 	strm = (struct ppmd_stream *)lastrm->real_stream;
 	__archive_ppmd7_functions.Ppmd7_Free(&strm->ppmd7_context, &g_szalloc);

@@ -25,7 +25,10 @@
 #include "test.h"
 __FBSDID("$FreeBSD: head/lib/libarchive/test/test_read_file_nonexistent.c 189473 2009-03-07 02:09:21Z kientzle $");
 
-void
+static void read_test(const char *name);
+static void write_test(void);
+
+static void
 read_test(const char *name)
 {
 	struct archive* a = archive_read_new();
@@ -44,7 +47,7 @@ read_test(const char *name)
 	archive_read_free(a);
 }
 
-void
+static void
 write_test(void)
 {
 	char buff[4096];

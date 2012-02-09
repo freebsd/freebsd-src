@@ -2068,7 +2068,7 @@ set_times(struct archive_write_disk *a,
     time_t atime, long atime_nanos,
     time_t birthtime, long birthtime_nanos,
     time_t mtime, long mtime_nanos,
-    time_t ctime, long ctime_nanos)
+    time_t cctime, long ctime_nanos)
 {
 	/* Note: set_time doesn't use libarchive return conventions!
 	 * It uses syscall conventions.  So 0 here instead of ARCHIVE_OK. */
@@ -2083,9 +2083,12 @@ set_times(struct archive_write_disk *a,
 	if (a->user_uid == 0 &&
 	    set_time_tru64(fd, mode, name,
 			   atime, atime_nanos, mtime,
-			   mtime_nanos, ctime, ctime_nanos) == 0) {
+			   mtime_nanos, cctime, ctime_nanos) == 0) {
 		return (ARCHIVE_OK);
 	}
+#else /* Tru64 */
+	(void)cctime; /* UNUSED */
+	(void)ctime_nanos; /* UNUSED */
 #endif /* Tru64 */
 
 #ifdef HAVE_STRUCT_STAT_ST_BIRTHTIME
@@ -2117,11 +2120,11 @@ set_times(struct archive_write_disk *a,
 static int
 set_times_from_entry(struct archive_write_disk *a)
 {
-	time_t atime, birthtime, mtime, ctime;
+	time_t atime, birthtime, mtime, cctime;
 	long atime_nsec, birthtime_nsec, mtime_nsec, ctime_nsec;
 
 	/* Suitable defaults. */
-	atime = birthtime = mtime = ctime = a->start_time;
+	atime = birthtime = mtime = cctime = a->start_time;
 	atime_nsec = birthtime_nsec = mtime_nsec = ctime_nsec = 0;
 
 	/* If no time was provided, we're done. */
@@ -2145,7 +2148,7 @@ set_times_from_entry(struct archive_write_disk *a)
 		mtime_nsec = archive_entry_mtime_nsec(a->entry);
 	}
 	if (archive_entry_ctime_is_set(a->entry)) {
-		ctime = archive_entry_ctime(a->entry);
+		cctime = archive_entry_ctime(a->entry);
 		ctime_nsec = archive_entry_ctime_nsec(a->entry);
 	}
 
@@ -2153,7 +2156,7 @@ set_times_from_entry(struct archive_write_disk *a)
 			 atime, atime_nsec,
 			 birthtime, birthtime_nsec,
 			 mtime, mtime_nsec,
-			 ctime, ctime_nsec);
+			 cctime, ctime_nsec);
 }
 
 static int

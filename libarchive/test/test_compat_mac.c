@@ -34,11 +34,15 @@ __FBSDID("$FreeBSD$");
 	"abcdefghijklmnopqrstuvwxyz/"	\
 	"abcdefghijklmnopqrstuvwxyz/"
 
+static void test_compat_mac_1(void);
+static void test_compat_mac_2(void);
+
 /*
  * Apple shipped an extended version of GNU tar with Mac OS X 10.5
  * and earlier.
  */
-void test_compat_mac_1()
+static void
+test_compat_mac_1(void)
 {
 	char name[] = "test_compat_mac-1.tar.Z";
 	struct archive_entry *ae;
@@ -133,7 +137,8 @@ void test_compat_mac_1()
 /*
  * Apple shipped a customized version of bsdtar starting with MacOS 10.6.
  */
-void test_compat_mac_2()
+static void
+test_compat_mac_2(void)
 {
 	char name[] = "test_compat_mac-2.tar.Z";
 	struct archive_entry *ae;
