@@ -49,10 +49,9 @@ __FBSDID("$FreeBSD$");
 #include <dev/ofw/ofw_bus.h>
 #include <dev/ofw/ofw_bus_subr.h>
 
+/* We are using GICv2 register naming */
 
- /* We are using GICv2 register naming */
-
- /* Distributor Registers */
+/* Distributor Registers */
 #define GICD_CTLR		0x000			/* v1 ICDDCR */
 #define GICD_TYPER		0x004			/* v1 ICDICTR */
 #define GICD_IIDR		0x008			/* v1 ICDIIDR */
@@ -67,7 +66,7 @@ __FBSDID("$FreeBSD$");
 #define GICD_ICFGR(n)		(0x0C00 + ((n) * 4))	/* v1 ICDICFR */
 #define GICD_SGIR(n)		(0x0F00 + ((n) * 4))	/* v1 ICDSGIR */
 
- /* CPU Registers */
+/* CPU Registers */
 #define GICC_CTLR		0x0000			/* v1 ICCICR */
 #define GICC_PMR		0x0004			/* v1 ICCPMR */
 #define GICC_BPR		0x0008			/* v1 ICCBPR */
@@ -77,8 +76,6 @@ __FBSDID("$FreeBSD$");
 #define GICC_HPPIR		0x0018			/* v1 ICCHPIR */
 #define GICC_ABPR		0x001C			/* v1 ICCABPR */
 #define GICC_IIDR		0x00FC			/* v1 ICCIIDR*/
-
-
 
 struct arm_gic_softc {
 	struct resource *	gic_res[3];
@@ -95,7 +92,6 @@ static struct resource_spec arm_gic_spec[] = {
 	{ -1, 0 }
 };
 
-
 static struct arm_gic_softc *arm_gic_sc = NULL;
 
 #define	gic_c_read_4(reg)		\
@@ -106,7 +102,6 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
     bus_space_read_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg)
 #define	gic_d_write_4(reg, val)		\
     bus_space_write_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg, val)
-
 
 static int
 arm_gic_probe(device_t dev)
@@ -166,9 +161,9 @@ arm_gic_attach(device_t dev)
 	}
 
 	/* Route all interrupts to CPU0 and set priority to 0 */
-	for (i = 32; i < nirqs; i += 32) {
-		gic_d_write_4(GICD_IPRIORITYR(i >> 5), 0x00000000);
-		gic_d_write_4(GICD_ITARGETSR(i >> 5), 0x01010101);
+	for (i = 32; i < nirqs; i += 4) {
+		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0x00000000);
+		gic_d_write_4(GICD_ITARGETSR(i >> 2), 0x01010101);
 	}
 
 	/* Enable CPU interface */
