@@ -254,7 +254,7 @@ void scif_sas_stp_task_request_abort_task_set_failure_handler(
                fw_domain->controller,
                fw_device,
                pending_request,
-               SCI_FAILURE_IO_TERMINATED
+               SCI_IO_FAILURE_TERMINATED
             );
          }
          //otherwise, the abort succeeded. Since the waiting flag is cleared,
