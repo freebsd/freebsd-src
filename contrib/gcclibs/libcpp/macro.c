@@ -262,6 +262,10 @@ _cpp_builtin_macro_text (cpp_reader *pfile, cpp_hashnode *node)
       else
 	result = pfile->time;
       break;
+
+    case BT_COUNTER:
+      number = pfile->nextcounter++;
+      break;
     }
 
   if (result == NULL)
