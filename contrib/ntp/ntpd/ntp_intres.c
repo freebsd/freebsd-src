@@ -34,6 +34,7 @@
 
 #include <stdio.h>
 #include <ctype.h>
+#include <resolv.h>
 #include <signal.h>
 
 /**/
@@ -116,15 +117,16 @@ static	int resolve_value;	/* next value of resolve timer */
  * is supposed to consist of entries in the following order
  */
 #define	TOK_HOSTNAME	0
-#define	TOK_HMODE	1
-#define	TOK_VERSION	2
-#define TOK_MINPOLL	3
-#define TOK_MAXPOLL	4
-#define	TOK_FLAGS	5
-#define TOK_TTL		6
-#define	TOK_KEYID	7
-#define TOK_KEYSTR	8
-#define	NUMTOK		9
+#define	TOK_PEERAF	1
+#define	TOK_HMODE	2
+#define	TOK_VERSION	3
+#define TOK_MINPOLL	4
+#define TOK_MAXPOLL	5
+#define	TOK_FLAGS	6
+#define TOK_TTL		7
+#define	TOK_KEYID	8
+#define TOK_KEYSTR	9
+#define	NUMTOK		10
 
 #define	MAXLINESIZE	512
 
@@ -145,7 +147,7 @@ char *req_file;		/* name of the file with configuration info */
 static	void	checkparent	P((void));
 static	void	removeentry	P((struct conf_entry *));
 static	void	addentry	P((char *, int, int, int, int, u_int,
-				   int, keyid_t, char *));
+				   int, keyid_t, char *, u_char));
 static	int	findhostaddr	P((struct conf_entry *));
 static	void	openntp		P((void));
 static	int	request		P((struct conf_peer *));
@@ -402,7 +404,8 @@ addentry(
 	u_int flags,
 	int ttl,
 	keyid_t keyid,
-	char *keystr
+	char *keystr,
+	u_char peeraf
 	)
 {
 	register char *cp;
@@ -412,7 +415,7 @@ addentry(
 #ifdef DEBUG
 	if (debug > 1)
 		msyslog(LOG_INFO, 
-		    "intres: <%s> %d %d %d %d %x %d %x %s\n", name,
+		    "intres: <%s> %u %d %d %d %d %x %d %x %s\n", name, peeraf,
 		    mode, version, minpoll, maxpoll, flags, ttl, keyid,
 		    keystr);
 #endif
@@ -427,6 +430,7 @@ addentry(
 	ce->ce_peeraddr6 = in6addr_any;
 #endif
 	ANYSOCK(&ce->peer_store);
+	ce->peer_store.ss_family = peeraf;	/* Save AF for getaddrinfo hints. */
 	ce->ce_hmode = (u_char)mode;
 	ce->ce_version = (u_char)version;
 	ce->ce_minpoll = (u_char)minpoll;
@@ -488,7 +492,8 @@ findhostaddr(
 #endif /* DEBUG */
 
 		memset(&hints, 0, sizeof(hints));
-		hints.ai_family = AF_UNSPEC;
+		hints.ai_family = entry->peer_store.ss_family;
+		hints.ai_socktype = SOCK_DGRAM;
 		/*
 		 * If the IPv6 stack is not available look only for IPv4 addresses
 		 */
@@ -1022,6 +1027,13 @@ readconf(
 			}
 		}
 
+		if (intval[TOK_PEERAF] != AF_UNSPEC && intval[TOK_PEERAF] !=
+		    AF_INET && intval[TOK_PEERAF] != AF_INET6) {
+			msyslog(LOG_ERR, "invalid peer address family (%u) in "
+			    "file %s", intval[TOK_PEERAF], name);
+			exit(1);
+		}
+
 		if (intval[TOK_HMODE] != MODE_ACTIVE &&
 		    intval[TOK_HMODE] != MODE_CLIENT &&
 		    intval[TOK_HMODE] != MODE_BROADCAST) {
@@ -1078,7 +1090,7 @@ readconf(
 		addentry(token[TOK_HOSTNAME], (int)intval[TOK_HMODE],
 			 (int)intval[TOK_VERSION], (int)intval[TOK_MINPOLL],
 			 (int)intval[TOK_MAXPOLL], flags, (int)intval[TOK_TTL],
-			 intval[TOK_KEYID], token[TOK_KEYSTR]);
+			 intval[TOK_KEYID], token[TOK_KEYSTR], (u_char)intval[TOK_PEERAF]);
 	}
 }
 
@@ -1099,6 +1111,9 @@ doconfigure(
 			msyslog(LOG_INFO, "Running doconfigure %s DNS",
 			    dores ? "with" : "without" );
 #endif
+
+	if (dores)         /* Reload /etc/resolv.conf - bug 1226 */
+		res_init();
 
 	ce = confentries;
 	while (ce != NULL) {
