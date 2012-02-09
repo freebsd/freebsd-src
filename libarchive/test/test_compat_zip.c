@@ -359,12 +359,16 @@ compat_zip_6_verify(struct archive *a)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("New Folder/New Folder/", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFDIR, archive_entry_filetype(ae));
-	assertEqualInt(1327314468, archive_entry_mtime(ae));
+	/* Zip timestamps are local time, so vary by time zone. */
+	/* TODO: A more complex assert would work here; we could
+	   verify that it's within +/- 24 hours of a particular value. */
+	/* assertEqualInt(1327314468, archive_entry_mtime(ae)); */
 	assertEqualInt(0, archive_entry_size(ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assertEqualString("New Folder/New Folder/New Text Document.txt", archive_entry_pathname(ae));
 	assertEqualInt(AE_IFREG, archive_entry_filetype(ae));
-	assertEqualInt(1327314476, archive_entry_mtime(ae));
+	/* Zip timestamps are local time, so vary by time zone. */
+	/* assertEqualInt(1327314476, archive_entry_mtime(ae)); */
 	assertEqualInt(11, archive_entry_size(ae));
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 }

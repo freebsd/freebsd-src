@@ -101,6 +101,7 @@ struct mtree {
 	int64_t			 cur_size;
 };
 
+static int	bid_keycmp(const char *, const char *, ssize_t);
 static int	cleanup(struct archive_read *);
 static int	mtree_bid(struct archive_read *, int);
 static int	parse_file(struct archive_read *, struct archive_entry *,
@@ -317,7 +318,7 @@ next_line(struct archive_read *a,
  * Returns the length of a mtree keyword if matched.
  * Returns 0 if not matched.
  */
-int
+static int
 bid_keycmp(const char *p, const char *key, ssize_t len)
 {
 	int match_len = 0;

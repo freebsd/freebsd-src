@@ -36,7 +36,7 @@ test_read_format_mtree1(void)
 	/* Compute max 64-bit signed twos-complement value
 	 * without relying on overflow.  This assumes that long long
 	 * is at least 64 bits. */
-	const static long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
+	static const long long max_int64 = ((((long long)1) << 62) - 1) + (((long long)1) << 62);
 	time_t min_time, t;
 
 	extract_reference_file(reffile);

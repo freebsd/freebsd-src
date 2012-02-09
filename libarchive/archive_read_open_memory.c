@@ -149,6 +149,7 @@ memory_read_seek(struct archive *a, void *client_data, int64_t offset, int whenc
 {
 	struct read_memory_data *mine = (struct read_memory_data *)client_data;
 
+	(void)a; /* UNUSED */
 	switch (whence) {
 	case SEEK_SET:
 		mine->p = mine->start + offset;

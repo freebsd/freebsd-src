@@ -1286,7 +1286,7 @@ create_sconv_object(const char *fc, const char *tc,
 	 * Check if "from charset" and "to charset" are the same.
 	 */
 	if (strcmp(fc, tc) == 0 ||
-	    (sc->from_cp != -1 && sc->from_cp == sc->to_cp))
+	    (sc->from_cp != (unsigned)-1 && sc->from_cp == sc->to_cp))
 		sc->same = 1;
 	else
 		sc->same = 0;

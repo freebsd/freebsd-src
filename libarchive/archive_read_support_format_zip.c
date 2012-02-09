@@ -140,6 +140,9 @@ static time_t	zip_time(const char *);
 static const char *compression_name(int compression);
 static void process_extra(const char *, size_t, struct zip_entry *);
 
+int	archive_read_support_format_zip_streamable(struct archive *);
+int	archive_read_support_format_zip_seekable(struct archive *);
+
 int
 archive_read_support_format_zip_streamable(struct archive *_a)
 {
@@ -716,8 +719,8 @@ compression_name(int compression)
 		"deflation"
 	};
 
-	if (compression <
-	    sizeof(compression_names)/sizeof(compression_names[0]))
+	if (0 <= compression && compression <
+	    (int)(sizeof(compression_names)/sizeof(compression_names[0])))
 		return compression_names[compression];
 	else
 		return "??";
@@ -860,6 +863,8 @@ zip_read_data_none(struct archive_read *a, const void **_buff,
 	const char *buff;
 	ssize_t bytes_avail;
 
+	(void)offset; /* UNUSED */
+
 	zip = (struct zip *)(a->format->data);
 
 	if (zip->entry->flags & ZIP_LENGTH_AT_END) {
@@ -939,6 +944,8 @@ zip_read_data_deflate(struct archive_read *a, const void **buff,
 	ssize_t bytes_avail;
 	const void *compressed_buff;
 	int r;
+
+	(void)offset; /* UNUSED */
 
 	zip = (struct zip *)(a->format->data);
 

@@ -276,7 +276,7 @@ DEFINE_TEST(test_acl_nfs4)
 	 * fail when added to existing NFS4 ACLs.
 	 */
 	set_acls(ae, acls2, sizeof(acls2)/sizeof(acls2[0]));
-	for (i = 0; i < sizeof(acls_bad)/sizeof(acls_bad[0]); ++i) {
+	for (i = 0; i < (int)(sizeof(acls_bad)/sizeof(acls_bad[0])); ++i) {
 		struct acl_t *p = &acls_bad[i];
 		failure("Malformed ACL test #%d", i);
 		assertEqualInt(ARCHIVE_FAILED,

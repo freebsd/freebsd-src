@@ -37,6 +37,9 @@ static int64_t
 group_lookup(void *d, const char *name, int64_t g)
 {
 	int *mp = d;
+
+	(void)g; /* UNUSED */
+
 	assertEqualInt(*mp, 0x13579);
 	if (strcmp(name, "FOOGROUP"))
 		return (1);
@@ -55,6 +58,9 @@ static int64_t
 user_lookup(void *d, const char *name, int64_t u)
 {
 	int *mp = d;
+
+	(void)u; /* UNUSED */
+
 	assertEqualInt(*mp, 0x1234);
 	if (strcmp("FOO", name) == 0)
 		return (2);

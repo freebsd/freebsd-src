@@ -289,7 +289,7 @@ static void	lzh_huffman_free(struct huffman *);
 static int	lzh_read_pt_bitlen(struct lzh_stream *, int start, int end);
 static int	lzh_make_fake_table(struct huffman *, uint16_t);
 static int	lzh_make_huffman_table(struct huffman *);
-static int inline lzh_decode_huffman(struct huffman *, unsigned);
+static inline int lzh_decode_huffman(struct huffman *, unsigned);
 static int	lzh_decode_huffman_tree(struct huffman *, unsigned, int);
 
 

@@ -481,7 +481,7 @@ check_7zip_header_in_sfx(const char *p)
 		 * Magic Code, so we should do this in order not to
 		 * make a mis-detection.
 		 */
-		if (crc32(0, (unsigned char *)p + 12, 20)
+		if (crc32(0, (const unsigned char *)p + 12, 20)
 			!= archive_le32dec(p + 8))
 			return (6); 
 		/* Hit the header! */
@@ -630,7 +630,7 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if (zip_entry->flg & ATIME_IS_SET)
 		archive_entry_set_atime(entry, zip_entry->atime,
 		    zip_entry->atime_ns);
-	if (zip_entry->ssIndex != -1) {
+	if (zip_entry->ssIndex != (uint32_t)-1) {
 		zip->entry_bytes_remaining =
 		    zip->si.ss.unpackSizes[zip_entry->ssIndex];
 		archive_entry_set_size(entry, zip->entry_bytes_remaining);
@@ -646,7 +646,6 @@ archive_read_format_7zip_read_header(struct archive_read *a,
 	if ((zip_entry->mode & AE_IFMT) == AE_IFLNK) {
 		unsigned char *symname = NULL;
 		size_t symsize = 0;
-		int r;
 
 		/*
 		 * Symbolic-name is recorded as its contents. We have to
@@ -1985,7 +1984,7 @@ folder_uncompressed_size(struct _7z_folder *f)
 	while (--n >= 0) {
 		unsigned i;
 		for (i = 0; i < pairs; i++) {
-			if (f->bindPairs[i].outIndex == n)
+			if (f->bindPairs[i].outIndex == (uint64_t)n)
 				break;
 		}
 		if (i >= pairs)
@@ -2517,17 +2516,17 @@ read_Header(struct archive_read *a, struct _7z_header_info *h,
 
 #define EPOC_TIME ARCHIVE_LITERAL_ULL(116444736000000000)
 static void
-fileTimeToUtc(uint64_t fileTime, time_t *time, long *ns)
+fileTimeToUtc(uint64_t fileTime, time_t *timep, long *ns)
 {
 
 	if (fileTime >= EPOC_TIME) {
 		fileTime -= EPOC_TIME;
 		/* milli seconds base */
-		*time = (time_t)(fileTime / 10000000);
+		*timep = (time_t)(fileTime / 10000000);
 		/* nano seconds base */
 		*ns = (long)(fileTime % 10000000) * 100;
 	} else {
-		*time = 0;
+		*timep = 0;
 		*ns = 0;
 	}
 }
@@ -2695,7 +2694,8 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 
 	/* CRC check. */
-	if (crc32(0, (unsigned char *)p + 12, 20) != archive_le32dec(p + 8)) {
+	if (crc32(0, (const unsigned char *)p + 12, 20)
+	    != archive_le32dec(p + 8)) {
 		archive_set_error(&a->archive, -1, "Header CRC error");
 		return (ARCHIVE_FATAL);
 	}
@@ -2714,7 +2714,7 @@ slurp_central_directory(struct archive_read *a, struct _7zip *zip,
 	}
 	__archive_read_consume(a, 32);
 	if (next_header_offset != 0) {
-		if (bytes_avail >= next_header_offset)
+		if (bytes_avail >= (ssize_t)next_header_offset)
 			__archive_read_consume(a, next_header_offset);
 		else if (__archive_read_seek(a,
 		    next_header_offset + zip->seek_base, SEEK_SET) < 0)
@@ -2827,7 +2827,7 @@ get_uncompressed_data(struct archive_read *a, const void **buff, size_t size,
 	struct _7zip *zip = (struct _7zip *)a->format->data;
 	ssize_t bytes_avail;
 
-	if (zip->codec == _7Z_COPY && zip->codec2 == -1) {
+	if (zip->codec == _7Z_COPY && zip->codec2 == (unsigned long)-1) {
 		/* Copy mode. */
 
 		/*
@@ -2886,7 +2886,7 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 	ssize_t bytes_avail;
 	int r;
 
-	if (zip->codec == _7Z_COPY && zip->codec2 == -1) {
+	if (zip->codec == _7Z_COPY && zip->codec2 == (unsigned long)-1) {
 		if (minimum == 0)
 			minimum = 1;
 		if (__archive_read_ahead(a, minimum, &bytes_avail) == NULL
@@ -2896,10 +2896,10 @@ extract_pack_stream(struct archive_read *a, size_t minimum)
 			    "Truncated 7-Zip file body");
 			return (ARCHIVE_FATAL);
 		}
-		if (bytes_avail > zip->pack_stream_inbytes_remaining)
+		if (bytes_avail > (ssize_t)zip->pack_stream_inbytes_remaining)
 			bytes_avail = zip->pack_stream_inbytes_remaining;
 		zip->pack_stream_inbytes_remaining -= bytes_avail;
-		if (bytes_avail > zip->folder_outbytes_remaining)
+		if (bytes_avail > (ssize_t)zip->folder_outbytes_remaining)
 			bytes_avail = zip->folder_outbytes_remaining;
 		zip->folder_outbytes_remaining -= bytes_avail;
 		zip->uncompressed_buffer_bytes_remaining = bytes_avail;
@@ -3041,7 +3041,7 @@ static int
 seek_pack(struct archive_read *a)
 {
 	struct _7zip *zip = (struct _7zip *)a->format->data;
-	uint64_t pack_offset;
+	int64_t pack_offset;
 
 	if (zip->pack_stream_remaining <= 0) {
 		archive_set_error(&(a->archive),
@@ -3321,7 +3321,7 @@ setup_decode_folder(struct archive_read *a, struct _7z_folder *folder,
 			if ((r = seek_pack(a)) < 0)
 				return (r);
 
-			if (sunpack[i] == -1)
+			if (sunpack[i] == (uint64_t)-1)
 				zip->folder_outbytes_remaining =
 				    zip->pack_stream_inbytes_remaining;
 			else
@@ -3506,16 +3506,16 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 			uint32_t dest;
 			for (;;) {
 				uint8_t b;
-				int index;
+				int b_index;
 
 				dest = src - (ip + (uint32_t)bufferPos);
 				if (prevMask == 0)
 					break;
-				index = kMaskToBitNumber[prevMask] * 8;
-				b = (uint8_t)(dest >> (24 - index));
+				b_index = kMaskToBitNumber[prevMask] * 8;
+				b = (uint8_t)(dest >> (24 - b_index));
 				if (!Test86MSByte(b))
 					break;
-				src = dest ^ ((1 << (32 - index)) - 1);
+				src = dest ^ ((1 << (32 - b_index)) - 1);
 			}
 			p[4] = (uint8_t)(~(((dest >> 24) & 1) - 1));
 			p[3] = (uint8_t)(dest >> 16);
@@ -3556,7 +3556,7 @@ x86_Convert(struct _7zip *zip, uint8_t *data, size_t size)
 #define RC_READ_BYTE (*buffer++)
 #define RC_TEST { if (buffer == bufferLim) return SZ_ERROR_DATA; }
 #define RC_INIT2 zip->bcj2_code = 0; zip->bcj2_range = 0xFFFFFFFF; \
-  { int i; for (i = 0; i < 5; i++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
+  { int ii; for (ii = 0; ii < 5; ii++) { RC_TEST; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }}
 
 #define NORMALIZE if (zip->bcj2_range < kTopValue) { RC_TEST; zip->bcj2_range <<= 8; zip->bcj2_code = (zip->bcj2_code << 8) | RC_READ_BYTE; }
 
@@ -3622,14 +3622,14 @@ Bcj2_Decode(struct _7zip *zip, uint8_t *outBuf, size_t outSize)
 
 		if (zip->bcj_state == 1) {
 			while (limit != 0) {
-				uint8_t b = buf0[inPos];
-				outBuf[outPos++] = b;
-				if (IsJ(zip->bcj2_prevByte, b)) {
+				uint8_t bb = buf0[inPos];
+				outBuf[outPos++] = bb;
+				if (IsJ(zip->bcj2_prevByte, bb)) {
 					zip->bcj_state = 2;
 					break;
 				}
 				inPos++;
-				zip->bcj2_prevByte = b;
+				zip->bcj2_prevByte = bb;
 				limit--;
 			}
 		}

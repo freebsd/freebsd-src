@@ -2624,6 +2624,7 @@ strappend_base64(struct xar *xar,
 	const unsigned char *b;
 	size_t len;
 
+	(void)xar; /* UNUSED */
 	len = 0;
 	out = buff;
 	b = (const unsigned char *)s;

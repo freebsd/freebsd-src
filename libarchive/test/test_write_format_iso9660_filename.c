@@ -98,13 +98,13 @@ verify_file(struct archive *a, enum vtype type, struct fns *fns)
 	for (i = 0; i < fns->cnt; i++) {
 		const char *p;
 		const char *pathname = archive_entry_pathname(ae);
-		const char *symlink = archive_entry_symlink(ae);
+		const char *symlinkname = archive_entry_symlink(ae);
 		size_t length;
 
-		if (symlink != NULL) {
-			length = strlen(symlink);
+		if (symlinkname != NULL) {
+			length = strlen(symlinkname);
 			assert(length == 1 || length == 128 || length == 255);
-			assertEqualInt(symlink[length-1], 'x');
+			assertEqualInt(symlinkname[length-1], 'x');
 		}
 		failure("Found duplicate for %s", pathname);
 		assert(strcmp(fns->names[i], pathname) != 0);
@@ -228,11 +228,11 @@ create_iso_image(unsigned char *buff, size_t buffsize, size_t *used,
 
 	sym1[0] = 'x';
 	sym1[1] = '\0';
-	for (i = 0; i < sizeof(sym128)-2; i++)
+	for (i = 0; i < (int)sizeof(sym128)-2; i++)
 		sym128[i] = 'a';
 	sym128[sizeof(sym128)-2] = 'x';
 	sym128[sizeof(sym128)-1] = '\0';
-	for (i = 0; i < sizeof(sym255)-2; i++)
+	for (i = 0; i < (int)sizeof(sym255)-2; i++)
 		sym255[i] = 'a';
 	sym255[sizeof(sym255)-2] = 'x';
 	sym255[sizeof(sym255)-1] = '\0';

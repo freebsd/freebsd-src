@@ -95,9 +95,9 @@ test_read_uu_sub(const char *uudata, size_t uusize, int no_nl)
 	if (buff == NULL)
 		return;
 	for (extra = 0; extra <= 64; extra = extra==0?1:extra*2) {
-		size_t size = extra * 1024;
 		char *p = buff;
 
+		size = extra * 1024;
 		/* Add extra text size of which is from 1K bytes to
 		 * 64Kbytes before uuencoded data. */
 		while (size) {
