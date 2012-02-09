@@ -765,7 +765,7 @@ dofault:
 	case T_RES_INST + T_USER:
 		{
 			InstFmt inst;
-			inst = *(InstFmt *)trapframe->pc;
+			inst = *(InstFmt *)(intptr_t)trapframe->pc;
 			switch (inst.RType.op) {
 			case OP_SPECIAL3:
 				switch (inst.RType.func) {
@@ -773,7 +773,7 @@ dofault:
 					/* Register 29 used for TLS */
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
-						frame_regs[inst.RType.rt] = (register_t)td->td_md.md_tls;
+						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
