@@ -24,17 +24,17 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 25, 1999
+.Dd January 19, 2012
 .Dt DEVTONAME 9
 .Os
 .Sh NAME
 .Nm devtoname
-.Nd "converts dev_t data into a string indicating the device name"
+.Nd "converts character device into a string indicating the device name"
 .Sh SYNOPSIS
 .In sys/param.h
 .In sys/conf.h
 .Ft const char *
-.Fn devtoname "dev_t dev"
+.Fn devtoname "struct cdev *dev"
 .Sh DESCRIPTION
 The
 .Fn devtoname
