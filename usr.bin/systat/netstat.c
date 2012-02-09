@@ -128,7 +128,7 @@ closenetstat(WINDOW *w)
 			lastrow--;
 		p->ni_line = -1;
 	}
-        if (w != NULL) {
+	if (w != NULL) {
 		wclear(w);
 		wrefresh(w);
 		delwin(w);
