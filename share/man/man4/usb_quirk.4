@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 27, 2011
+.Dd February 8, 2012
 .Dt USB_QUIRK 4
 .Os
 .Sh NAME
@@ -41,7 +41,7 @@ The
 .Nm
 module provides support for dynamically adding and removing quirks for
 USB devices with
-.Xr usbconfig 5 .
+.Xr usbconfig 8 .
 .Sh General quirks:
 .Bl -tag -width Ds
 .It UQ_AUDIO_SWAP_LR
@@ -183,7 +183,7 @@ device which appears as a USB device on
 usbconfig -d ugen0.3 add_quirk UQ_MSC_EJECT_WAIT
 .Ed
 .Sh SEE ALSO
-.Xr usbconfig 5
+.Xr usbconfig 8
 .Sh HISTORY
 The
 .Nm
