@@ -44,6 +44,7 @@
 #include <sys/sx.h>
 #include <sys/vnode.h>
 #include <sys/limits.h>
+#include <sys/jail.h>
 
 #include <fs/devfs/devfs.h>
 
@@ -69,6 +70,7 @@ devfs_mount(struct mount *mp)
 	int error;
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
+	struct thread *td = curthread;
 	int rsnum;
 
 	if (devfs_unr == NULL)
@@ -88,6 +90,16 @@ devfs_mount(struct mount *mp)
 		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
 		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",
 		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535))
+			error = EINVAL;
+	}
+
+	/* jails enforce their ruleset, prison0 has no restrictions */
+	if (td->td_ucred->cr_prison->pr_devfs_rsnum != 0) {
+		rsnum = td->td_ucred->cr_prison->pr_devfs_rsnum;
+		if (rsnum == -1)
+			return (EPERM);
+		/* check rsnum for sanity, devfs_rsnum is uint16_t */
+		if (rsnum < 0 || rsnum > 65535)
 			error = EINVAL;
 	}
 
@@ -227,4 +239,4 @@ static struct vfsops devfs_vfsops = {
 	.vfs_unmount =		devfs_unmount,
 };
 
-VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC);
+VFS_SET(devfs_vfsops, devfs, VFCF_SYNTHETIC | VFCF_JAIL);
