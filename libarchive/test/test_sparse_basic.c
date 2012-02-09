@@ -177,6 +177,7 @@ is_sparse_supported(const char *path)
 	char buff[1024];
 	const char *testfile = "can_sparse";
 
+	(void)path; /* UNUSED */
 	memset(&ut, 0, sizeof(ut));
 	assertEqualInt(uname(&ut), 0);
 	p = ut.release;
@@ -221,6 +222,7 @@ is_sparse_supported(const char *path)
 static int
 is_sparse_supported(const char *path)
 {
+	(void)path; /* UNUSED */
 	return (0);
 }
 

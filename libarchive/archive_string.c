@@ -1646,7 +1646,7 @@ make_codepage_from_charset(const char *charset)
  * Return ANSI Code Page of current locale set by setlocale().
  */
 static unsigned
-get_current_codepage()
+get_current_codepage(void)
 {
 	char *locale, *p;
 	unsigned cp;
@@ -1721,7 +1721,7 @@ static struct {
  * Return OEM Code Page of current locale set by setlocale().
  */
 static unsigned
-get_current_oemcp()
+get_current_oemcp(void)
 {
 	int i;
 	char *locale, *p;
@@ -1750,7 +1750,7 @@ get_current_oemcp()
  */
 
 static unsigned
-get_current_codepage()
+get_current_codepage(void)
 {
 	return (-1);/* Unknown */
 }
@@ -1761,7 +1761,7 @@ make_codepage_from_charset(const char *charset)
 	return (-1);/* Unknown */
 }
 static unsigned
-get_current_oemcp()
+get_current_oemcp(void)
 {
 	return (-1);/* Unknown */
 }

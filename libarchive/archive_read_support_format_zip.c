@@ -265,7 +265,7 @@ archive_read_format_zip_seekable_bid(struct archive_read *a, int best_bid)
 	if (zip->central_directory_entries != archive_le16dec(p + 8))
 		return 0;
 	/* Central directory can't extend beyond end of this file. */
-	if (zip->central_directory_offset + zip->central_directory_size > filesize)
+	if (zip->central_directory_offset + (int64_t)zip->central_directory_size > filesize)
 		return 0;
 
 	/* This is just a tiny bit higher than the maximum returned by

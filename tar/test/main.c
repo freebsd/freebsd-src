@@ -1316,7 +1316,7 @@ assertion_file_nlinks(const char *file, int line,
 
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
-	if (r == 0 && st.st_nlink == nlinks)
+	if (r == 0 && (int)st.st_nlink == nlinks)
 			return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
@@ -1380,7 +1380,7 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
-	if (mode >= 0 && mode != (st.st_mode & 07777)) {
+	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "Dir %s has wrong mode", pathname);
 		logprintf("  Expected: 0%3o\n", mode);
 		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
@@ -1413,7 +1413,7 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
-	if (mode >= 0 && mode != (st.st_mode & 07777)) {
+	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "File %s has wrong mode", pathname);
 		logprintf("  Expected: 0%3o\n", mode);
 		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
