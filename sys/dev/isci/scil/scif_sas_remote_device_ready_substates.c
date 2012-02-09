@@ -255,7 +255,7 @@ void scif_sas_remote_device_ready_ncq_error_substate_enter(
       }
    }
 
-   status = scif_controller_start_task(
+   scif_controller_start_task(
       fw_controller,
       fw_device,
       fw_request,

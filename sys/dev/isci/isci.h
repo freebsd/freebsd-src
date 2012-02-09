@@ -160,7 +160,6 @@ struct ISCI_REQUEST
 struct ISCI_IO_REQUEST
 {
 	struct ISCI_REQUEST	parent;
-	SCI_STATUS		status;
 	SCI_IO_REQUEST_HANDLE_T	sci_object;
 	union ccb		*ccb;
 	uint32_t		num_segments;
