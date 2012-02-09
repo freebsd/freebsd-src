@@ -396,7 +396,7 @@ SCI_STATUS scif_sas_stp_io_request_construct(
       fw_io->parent.protocol_complete_handler
          = scif_sas_stp_core_cb_io_request_complete_handler;
       // Done with translation
-      sci_status = SATI_SUCCESS;
+      sci_status = SCI_SUCCESS;
    }
    else if (sati_status == SATI_COMPLETE)
       sci_status = SCI_SUCCESS_IO_COMPLETE_BEFORE_START;

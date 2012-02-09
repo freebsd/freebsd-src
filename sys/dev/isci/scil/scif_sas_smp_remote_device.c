@@ -1853,7 +1853,7 @@ void scif_sas_smp_remote_device_terminated_request_handler(
    ));
 
    scif_sas_smp_remote_device_decode_smp_response(
-      fw_device, fw_request, NULL, SCI_FAILURE_RETRY_REQUIRED
+      fw_device, fw_request, NULL, SCI_IO_FAILURE_RETRY_REQUIRED
    );
 }
 

@@ -124,8 +124,8 @@ SATI_STATUS sati_abort_task_set_translate_data(
 
    for (tag_index = 0; tag_index < 32; tag_index++)
    {
-      void     * matching_command;
-      SCI_STATUS completion_status;
+      void *        matching_command;
+      SCI_IO_STATUS completion_status;
       sati_cb_device_get_request_by_ncq_tag(
          scsi_task,
          tag_index,
@@ -141,7 +141,7 @@ SATI_STATUS sati_abort_task_set_translate_data(
             )
          {
             sati_translate_error(sequence, matching_command, log->error);
-            completion_status = SCI_FAILURE_IO_RESPONSE_VALID;
+            completion_status = SCI_IO_FAILURE_RESPONSE_VALID;
 
             if(sequence->state == SATI_SEQUENCE_STATE_READ_ERROR)
             {
@@ -159,7 +159,7 @@ SATI_STATUS sati_abort_task_set_translate_data(
          }
          else
          {
-            completion_status = SCI_FAILURE_IO_TERMINATED;
+            completion_status = SCI_IO_FAILURE_TERMINATED;
          }
 
          sati_cb_io_request_complete(matching_command, completion_status);

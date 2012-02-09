@@ -195,7 +195,7 @@ isci_remote_device_reset(struct ISCI_REMOTE_DEVICE *remote_device,
 	if (status != SCI_SUCCESS) {
 		isci_task_request_complete(controller->scif_controller_handle,
 		    remote_device->sci_object, task_request->sci_object,
-		    status);
+		    (SCI_TASK_STATUS)status);
 		return;
 	}
 
@@ -207,7 +207,7 @@ isci_remote_device_reset(struct ISCI_REMOTE_DEVICE *remote_device,
 		isci_task_request_complete(
 		    controller->scif_controller_handle,
 		    remote_device->sci_object, task_request->sci_object,
-		    status);
+		    (SCI_TASK_STATUS)status);
 		return;
 	}
 }
