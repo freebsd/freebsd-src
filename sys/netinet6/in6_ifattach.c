@@ -513,12 +513,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	}
 
 	ia = in6ifa_ifpforlinklocal(ifp, 0); /* ia must not be NULL */
-#ifdef DIAGNOSTIC
-	if (!ia) {
-		panic("ia == NULL in in6_ifattach_linklocal");
-		/* NOTREACHED */
-	}
-#endif
+	KASSERT(ia != NULL, ("%s: ia == NULL, ifp=%p", __func__, ifp));
+
 	ifa_free(&ia->ia_ifa);
 
 	/*
