@@ -103,6 +103,7 @@ struct prison prison0 = {
 	.pr_uref	= 1,
 	.pr_path	= "/",
 	.pr_securelevel	= -1,
+	.pr_devfs_rsnum = 0,
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(prison0.pr_children),
@@ -216,8 +217,10 @@ const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
 #define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
+#define	JAIL_DEFAULT_DEVFS_RSNUM	-1
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
 static int jail_default_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
+static int jail_default_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
 #if defined(INET) || defined(INET6)
 static unsigned jail_max_af_ips = 255;
 #endif
@@ -529,9 +532,9 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	unsigned long hid;
 	size_t namelen, onamelen;
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
-	int gotchildmax, gotenforce, gothid, gotslevel;
+	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int fi, jid, jsys, len, level;
-	int childmax, slevel, vfslocked;
+	int childmax, rsnum, slevel, vfslocked;
 	int fullpath_disabled;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
@@ -611,6 +614,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_free;
 	} else
 		gotenforce = 1;
+
+	error = vfs_copyopt(opts, "devfs_ruleset", &rsnum, sizeof(rsnum));
+	if (error == ENOENT)
+		gotrsnum = 0;
+	else if (error != 0)
+		goto done_free;
+	else
+		gotrsnum = 1;
 
 	pr_flags = ch_flags = 0;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -1268,6 +1279,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
 		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
+		pr->pr_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
@@ -1344,6 +1356,27 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (enforce < ppr->pr_enforce_statfs) {
 			error = EPERM;
 			goto done_deref_locked;
+		}
+	}
+	if (gotrsnum) {
+		/*
+		 * devfs_rsnum is a uint16_t
+		 * value of -1 disables devfs mounts
+		 */
+		if (rsnum < -1 || rsnum > 65535) {
+			error = EINVAL;
+			goto done_deref_locked;
+		}
+		/*
+		 * Nested jails may inherit parent's devfs ruleset
+		 * or disable devfs
+		 */
+		if (jailed(td->td_ucred)) {
+			if (rsnum > 0 && rsnum != ppr->pr_devfs_rsnum) {
+				error = EPERM;
+				goto done_deref_locked;
+			} else if (rsnum == 0)
+				rsnum = ppr->pr_devfs_rsnum;
 		}
 	}
 #ifdef INET
@@ -1585,6 +1618,13 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
 			if (tpr->pr_enforce_statfs < enforce)
 				tpr->pr_enforce_statfs = enforce;
+	}
+	if (gotrsnum) {
+		pr->pr_devfs_rsnum = rsnum;
+		/* Pass this restriction on to the children. */
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
+			if (tpr->pr_devfs_rsnum != -1)
+				tpr->pr_devfs_rsnum = rsnum;
 	}
 	if (name != NULL) {
 		if (ppr == &prison0)
@@ -2018,6 +2058,10 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		goto done_deref;
 	error = vfs_setopt(opts, "enforce_statfs", &pr->pr_enforce_statfs,
 	    sizeof(pr->pr_enforce_statfs));
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopt(opts, "devfs_ruleset", &pr->pr_devfs_rsnum,
+	    sizeof(pr->pr_devfs_rsnum));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -4173,6 +4217,12 @@ SYSCTL_PROC(_security_jail, OID_AUTO, enforce_statfs,
     sysctl_jail_default_level, "I",
     "Processes in jail cannot see all mounted file systems");
 
+SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    &jail_default_devfs_rsnum, offsetof(struct prison, pr_devfs_rsnum),
+    sysctl_jail_default_level, "I",
+    "Ruleset for the devfs filesystem in jail");
+
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters
  * is returned in the string itself, and the other parameters exist merely
@@ -4221,6 +4271,8 @@ SYSCTL_JAIL_PARAM(, securelevel, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail secure level");
 SYSCTL_JAIL_PARAM(, enforce_statfs, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail cannot see all mounted file systems");
+SYSCTL_JAIL_PARAM(, devfs_ruleset, CTLTYPE_INT | CTLFLAG_RW,
+    "I", "Ruleset for in-jail devfs mounts");
 SYSCTL_JAIL_PARAM(, persist, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail persistence");
 #ifdef VIMAGE
@@ -4413,6 +4465,7 @@ db_show_prison(struct prison *pr)
 #endif
 	db_printf(" root            = %p\n", pr->pr_root);
 	db_printf(" securelevel     = %d\n", pr->pr_securelevel);
+	db_printf(" devfs_rsnum     = %d\n", pr->pr_devfs_rsnum);
 	db_printf(" children.max    = %d\n", pr->pr_childmax);
 	db_printf(" children.cur    = %d\n", pr->pr_childcount);
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));
