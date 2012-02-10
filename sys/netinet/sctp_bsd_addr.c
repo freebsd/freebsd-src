@@ -74,22 +74,6 @@ MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
 
 /* Global NON-VNET structure that controls the iterator */
 struct iterator_control sctp_it_ctl;
-static int __sctp_thread_based_iterator_started = 0;
-
-
-static void
-sctp_cleanup_itqueue(void)
-{
-	struct sctp_iterator *it, *nit;
-
-	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
-		if (it->function_atend != NULL) {
-			(*it->function_atend) (it->pointer, it->val);
-		}
-		TAILQ_REMOVE(&sctp_it_ctl.iteratorhead, it, sctp_nxt_itr);
-		SCTP_FREE(it, SCTP_M_ITER);
-	}
-}
 
 
 void
@@ -102,17 +86,11 @@ static void
 sctp_iterator_thread(void *v)
 {
 	SCTP_IPI_ITERATOR_WQ_LOCK();
+	/* In FreeBSD this thread never terminates. */
 	while (1) {
 		msleep(&sctp_it_ctl.iterator_running,
 		    &sctp_it_ctl.ipi_iterator_wq_mtx,
 		    0, "waiting_for_work", 0);
-		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
-			SCTP_IPI_ITERATOR_WQ_DESTROY();
-			SCTP_ITERATOR_LOCK_DESTROY();
-			sctp_cleanup_itqueue();
-			__sctp_thread_based_iterator_started = 0;
-			kthread_exit();
-		}
 		sctp_iterator_worker();
 	}
 }
@@ -120,21 +98,21 @@ sctp_iterator_thread(void *v)
 void
 sctp_startup_iterator(void)
 {
-	if (__sctp_thread_based_iterator_started) {
+	static int called = 0;
+	int ret;
+
+	if (called) {
 		/* You only get one */
 		return;
 	}
 	/* init the iterator head */
-	__sctp_thread_based_iterator_started = 1;
+	called = 1;
 	sctp_it_ctl.iterator_running = 0;
 	sctp_it_ctl.iterator_flags = 0;
 	sctp_it_ctl.cur_it = NULL;
 	SCTP_ITERATOR_LOCK_INIT();
 	SCTP_IPI_ITERATOR_WQ_INIT();
 	TAILQ_INIT(&sctp_it_ctl.iteratorhead);
-
-	int ret;
-
 	ret = kproc_create(sctp_iterator_thread,
 	    (void *)NULL,
 	    &sctp_it_ctl.thread_proc,
