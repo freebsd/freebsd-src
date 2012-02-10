@@ -531,6 +531,12 @@ struct sctp_assoc_value {
 	uint32_t assoc_value;
 };
 
+struct sctp_stream_value {
+	sctp_assoc_t assoc_id;
+	uint16_t stream_id;
+	uint16_t stream_value;
+};
+
 struct sctp_assoc_ids {
 	uint32_t gaids_number_of_ids;
 	sctp_assoc_t gaids_assoc_id[];
