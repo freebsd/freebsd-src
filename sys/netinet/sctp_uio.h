@@ -233,30 +233,9 @@ struct sctp_paddr_change {
 #define SCTP_ADDR_MADE_PRIM	0x0005
 #define SCTP_ADDR_CONFIRMED	0x0006
 
-/*
- * CAUTION: these are user exposed SCTP addr reachability states must be
- * compatible with SCTP_ADDR states in sctp_constants.h
- */
-#ifdef SCTP_ACTIVE
-#undef SCTP_ACTIVE
-#endif
 #define SCTP_ACTIVE		0x0001	/* SCTP_ADDR_REACHABLE */
-
-#ifdef SCTP_INACTIVE
-#undef SCTP_INACTIVE
-#endif
 #define SCTP_INACTIVE		0x0002	/* SCTP_ADDR_NOT_REACHABLE */
-
-#ifdef SCTP_UNCONFIRMED
-#undef SCTP_UNCONFIRMED
-#endif
 #define SCTP_UNCONFIRMED	0x0200	/* SCTP_ADDR_UNCONFIRMED */
-
-#ifdef SCTP_NOHEARTBEAT
-#undef SCTP_NOHEARTBEAT
-#endif
-#define SCTP_NOHEARTBEAT	0x0040	/* SCTP_ADDR_NOHB */
-
 
 /* remote error events */
 struct sctp_remote_error {
