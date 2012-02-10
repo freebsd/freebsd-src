@@ -39,8 +39,11 @@ __FBSDID("$FreeBSD$");
 #include <string.h>
 #include <inttypes.h>
 
+#include <machine/sysarch.h>
+
 #include "debug.h"
 #include "rtld.h"
+#include "rtld_printf.h"
 
 #ifdef __mips_n64
 #define	GOT1_MASK	0x8000000000000000UL
@@ -528,11 +531,32 @@ reloc_jmpslot(Elf_Addr *where, Elf_Addr target, const Obj_Entry *defobj,
 void
 allocate_initial_tls(Obj_Entry *objs)
 {
+	char *tls;
 	
+	/*
+	 * Fix the size of the static TLS block by using the maximum
+	 * offset allocated so far and adding a bit for dynamic modules to
+	 * use.
+	 */
+	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
+
+	tls = ((char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8) 
+	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
+
+	sysarch(MIPS_SET_TLS, tls);
+	rtld_printf("allocate_initial_tls -> %p(%p)\n", tls, tls - TLS_TP_OFFSET -  TLS_TCB_SIZE);
 }
 
 void *
 __tls_get_addr(tls_index* ti)
 {
-	return (NULL);
+	Elf_Addr** tls;
+	char *p;
+
+	sysarch(MIPS_GET_TLS, &tls);
+
+	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tls - TLS_TP_OFFSET 
+	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
+
+	return (p + TLS_DTV_OFFSET);
 }
