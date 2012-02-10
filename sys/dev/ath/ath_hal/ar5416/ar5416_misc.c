@@ -440,6 +440,7 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 
 	switch (type) {
 	case HAL_CAP_RX_CHAINMASK:
+		setting &= ath_hal_eepromGet(ah, AR_EEP_RXMASK, NULL);
 		pCap->halRxChainMask = setting;
 		if (owl_get_ntxchains(setting) > 2)
 			pCap->halRxStreams = 2;
@@ -447,6 +448,7 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halRxStreams = 1;
 		return HAL_OK;
 	case HAL_CAP_TX_CHAINMASK:
+		setting &= ath_hal_eepromGet(ah, AR_EEP_TXMASK, NULL);
 		pCap->halTxChainMask = setting;
 		if (owl_get_ntxchains(setting) > 2)
 			pCap->halTxStreams = 2;
