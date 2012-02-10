@@ -3129,8 +3129,8 @@ plan_d:
 	}
 #endif
 out:
-	if (sifa) {
 #ifdef INET
+	if (sifa) {
 		if (retried == 1) {
 			LIST_FOREACH(sctp_ifn, &vrf->ifnlist, next_ifn) {
 				if (dest_is_loop == 0 && SCTP_IFN_IS_IFT_LOOP(sctp_ifn)) {
