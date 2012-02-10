@@ -207,7 +207,8 @@ struct ifnet {
 	char	if_cspare[3];
 	char	*if_description;	/* interface description */
 	void	*if_pspare[7];
-	int	if_ispare[4];
+	int	if_ispare[3];
+	u_int	if_fib;			/* interface FIB */
 };
 
 typedef void if_init_f_t(void *);
