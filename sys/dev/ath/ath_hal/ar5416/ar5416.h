@@ -207,6 +207,9 @@ extern	HAL_STATUS ar5416SetQuiet(struct ath_hal *ah, uint32_t period,
 	    uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t *result);
+extern	HAL_BOOL ar5416SetCapability(struct ath_hal *ah,
+	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t val,
+	    HAL_STATUS *status);
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    const void *args, uint32_t argsize,
 	    void **result, uint32_t *resultsize);
