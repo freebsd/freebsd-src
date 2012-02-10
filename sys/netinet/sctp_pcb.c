@@ -331,19 +331,9 @@ sctp_mark_ifa_addr_down(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (if_name) {
-		int len1, len2;
-
-		len1 = strlen(if_name);
-		len2 = strlen(sctp_ifap->ifn_p->ifn_name);
-		if (len1 != len2) {
-			SCTPDBG(SCTP_DEBUG_PCB4, "IFN of ifa names different length %d vs %d - ignored\n",
-			    len1, len2);
-			goto out;
-		}
-		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) != 0) {
+		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) != 0) {
 			SCTPDBG(SCTP_DEBUG_PCB4, "IFN %s of IFA not the same as %s\n",
-			    sctp_ifap->ifn_p->ifn_name,
-			    if_name);
+			    sctp_ifap->ifn_p->ifn_name, if_name);
 			goto out;
 		}
 	} else {
@@ -384,19 +374,9 @@ sctp_mark_ifa_addr_up(uint32_t vrf_id, struct sockaddr *addr,
 		goto out;
 	}
 	if (if_name) {
-		int len1, len2;
-
-		len1 = strlen(if_name);
-		len2 = strlen(sctp_ifap->ifn_p->ifn_name);
-		if (len1 != len2) {
-			SCTPDBG(SCTP_DEBUG_PCB4, "IFN of ifa names different length %d vs %d - ignored\n",
-			    len1, len2);
-			goto out;
-		}
-		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, len1) != 0) {
+		if (strncmp(if_name, sctp_ifap->ifn_p->ifn_name, SCTP_IFNAMSIZ) != 0) {
 			SCTPDBG(SCTP_DEBUG_PCB4, "IFN %s of IFA not the same as %s\n",
-			    sctp_ifap->ifn_p->ifn_name,
-			    if_name);
+			    sctp_ifap->ifn_p->ifn_name, if_name);
 			goto out;
 		}
 	} else {
