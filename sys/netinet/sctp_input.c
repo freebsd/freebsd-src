@@ -530,38 +530,57 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sockaddr_storage store;
-	struct sockaddr_in *sin;
-	struct sockaddr_in6 *sin6;
 	struct sctp_nets *r_net, *f_net;
 	struct timeval tv;
 	int req_prim = 0;
+
+#ifdef INET
+	struct sockaddr_in *sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+
+#endif
 
 	if (ntohs(cp->ch.chunk_length) != sizeof(struct sctp_heartbeat_chunk)) {
 		/* Invalid length */
 		return;
 	}
-	sin = (struct sockaddr_in *)&store;
-	sin6 = (struct sockaddr_in6 *)&store;
-
 	memset(&store, 0, sizeof(store));
-	if (cp->heartbeat.hb_info.addr_family == AF_INET &&
-	    cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in)) {
-		sin->sin_family = cp->heartbeat.hb_info.addr_family;
-		sin->sin_len = cp->heartbeat.hb_info.addr_len;
-		sin->sin_port = stcb->rport;
-		memcpy(&sin->sin_addr, cp->heartbeat.hb_info.address,
-		    sizeof(sin->sin_addr));
-	} else if (cp->heartbeat.hb_info.addr_family == AF_INET6 &&
-	    cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in6)) {
-		sin6->sin6_family = cp->heartbeat.hb_info.addr_family;
-		sin6->sin6_len = cp->heartbeat.hb_info.addr_len;
-		sin6->sin6_port = stcb->rport;
-		memcpy(&sin6->sin6_addr, cp->heartbeat.hb_info.address,
-		    sizeof(sin6->sin6_addr));
-	} else {
+	switch (cp->heartbeat.hb_info.addr_family) {
+#ifdef INET
+	case AF_INET:
+		if (cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in)) {
+			sin = (struct sockaddr_in *)&store;
+			sin->sin_family = cp->heartbeat.hb_info.addr_family;
+			sin->sin_len = cp->heartbeat.hb_info.addr_len;
+			sin->sin_port = stcb->rport;
+			memcpy(&sin->sin_addr, cp->heartbeat.hb_info.address,
+			    sizeof(sin->sin_addr));
+		} else {
+			return;
+		}
+		break;
+#endif
+#ifdef INET6
+	case AF_INET6:
+		if (cp->heartbeat.hb_info.addr_len == sizeof(struct sockaddr_in6)) {
+			sin6 = (struct sockaddr_in6 *)&store;
+			sin6->sin6_family = cp->heartbeat.hb_info.addr_family;
+			sin6->sin6_len = cp->heartbeat.hb_info.addr_len;
+			sin6->sin6_port = stcb->rport;
+			memcpy(&sin6->sin6_addr, cp->heartbeat.hb_info.address,
+			    sizeof(sin6->sin6_addr));
+		} else {
+			return;
+		}
+		break;
+#endif
+	default:
 		return;
 	}
-	r_net = sctp_findnet(stcb, (struct sockaddr *)sin);
+	r_net = sctp_findnet(stcb, (struct sockaddr *)&store);
 	if (r_net == NULL) {
 		SCTPDBG(SCTP_DEBUG_INPUT1, "Huh? I can't find the address I sent it to, discard\n");
 		return;
@@ -1940,8 +1959,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	struct sctp_init_ack_chunk *initack_cp, initack_buf;
 	struct sockaddr_storage sa_store;
 	struct sockaddr *initack_src = (struct sockaddr *)&sa_store;
-	struct sockaddr_in *sin;
-	struct sockaddr_in6 *sin6;
 	struct sctp_association *asoc;
 	int chk_length;
 	int init_offset, initack_offset, initack_limit;
@@ -1950,6 +1967,14 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	uint32_t old_tag;
 	uint8_t auth_chunk_buf[SCTP_PARAM_BUFFER_SIZE];
 
+#ifdef INET
+	struct sockaddr_in *sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 *sin6;
+
+#endif
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -2169,14 +2194,19 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	/* warning, we re-use sin, sin6, sa_store here! */
 	/* pull in local_address (our "from" address) */
-	if (cookie->laddr_type == SCTP_IPV4_ADDRESS) {
+	switch (cookie->laddr_type) {
+#ifdef INET
+	case SCTP_IPV4_ADDRESS:
 		/* source addr is IPv4 */
 		sin = (struct sockaddr_in *)initack_src;
 		memset(sin, 0, sizeof(*sin));
 		sin->sin_family = AF_INET;
 		sin->sin_len = sizeof(struct sockaddr_in);
 		sin->sin_addr.s_addr = cookie->laddress[0];
-	} else if (cookie->laddr_type == SCTP_IPV6_ADDRESS) {
+		break;
+#endif
+#ifdef INET6
+	case SCTP_IPV6_ADDRESS:
 		/* source addr is IPv6 */
 		sin6 = (struct sockaddr_in6 *)initack_src;
 		memset(sin6, 0, sizeof(*sin6));
@@ -2185,7 +2215,9 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		sin6->sin6_scope_id = cookie->scope_id;
 		memcpy(&sin6->sin6_addr, cookie->laddress,
 		    sizeof(sin6->sin6_addr));
-	} else {
+		break;
+#endif
+	default:
 		atomic_add_int(&stcb->asoc.refcnt, 1);
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 		SCTP_TCB_UNLOCK(stcb);
@@ -2295,8 +2327,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
     struct sctp_tcb **locked_tcb, uint32_t vrf_id, uint16_t port)
 {
 	struct sctp_state_cookie *cookie;
-	struct sockaddr_in6 sin6;
-	struct sockaddr_in sin;
 	struct sctp_tcb *l_stcb = *stcb;
 	struct sctp_inpcb *l_inp;
 	struct sockaddr *to;
@@ -2318,6 +2348,15 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	int had_a_existing_tcb = 0;
 	int send_int_conf = 0;
 
+#ifdef INET
+	struct sockaddr_in sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 sin6;
+
+#endif
+
 	SCTPDBG(SCTP_DEBUG_INPUT2,
 	    "sctp_handle_cookie: handling COOKIE-ECHO\n");
 
@@ -2327,6 +2366,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	/* First get the destination address setup too. */
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
+#ifdef INET
 	case IPVERSION:
 		{
 			/* its IPv4 */
@@ -2341,6 +2381,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			size_of_pkt = SCTP_GET_IPV4_LENGTH(iph);
 			break;
 		}
+#endif
 #ifdef INET6
 	case IPV6_VERSION >> 4:
 		{
@@ -2535,7 +2576,9 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	 * up.
 	 */
 	to = NULL;
-	if (cookie->addr_type == SCTP_IPV6_ADDRESS) {
+	switch (cookie->addr_type) {
+#ifdef INET6
+	case SCTP_IPV6_ADDRESS:
 		memset(&sin6, 0, sizeof(sin6));
 		sin6.sin6_family = AF_INET6;
 		sin6.sin6_len = sizeof(sin6);
@@ -2544,14 +2587,19 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		memcpy(&sin6.sin6_addr.s6_addr, cookie->address,
 		    sizeof(sin6.sin6_addr.s6_addr));
 		to = (struct sockaddr *)&sin6;
-	} else if (cookie->addr_type == SCTP_IPV4_ADDRESS) {
+		break;
+#endif
+#ifdef INET
+	case SCTP_IPV4_ADDRESS:
 		memset(&sin, 0, sizeof(sin));
 		sin.sin_family = AF_INET;
 		sin.sin_len = sizeof(sin);
 		sin.sin_port = sh->src_port;
 		sin.sin_addr.s_addr = cookie->address[0];
 		to = (struct sockaddr *)&sin;
-	} else {
+		break;
+#endif
+	default:
 		/* This should not happen */
 		return (NULL);
 	}
@@ -5705,6 +5753,7 @@ sctp_print_mbuf_chain(struct mbuf *m)
 
 #endif
 
+#ifdef INET
 void
 sctp_input_with_port(struct mbuf *i_pak, int off, uint16_t port)
 {
@@ -6003,3 +6052,5 @@ sctp_input(struct mbuf *m, int off)
 #endif
 	sctp_input_with_port(m, off, 0);
 }
+
+#endif
