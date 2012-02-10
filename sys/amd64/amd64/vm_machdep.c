@@ -552,6 +552,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 		return (EINVAL);
 
 	pcb = td->td_pcb;
+	set_pcb_flags(pcb, PCB_FULL_IRET);
 #ifdef COMPAT_FREEBSD32
 	if (SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 		pcb->pcb_gsbase = (register_t)tls_base;
@@ -559,7 +560,6 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	}
 #endif
 	pcb->pcb_fsbase = (register_t)tls_base;
-	set_pcb_flags(pcb, PCB_FULL_IRET);
 	return (0);
 }
 
