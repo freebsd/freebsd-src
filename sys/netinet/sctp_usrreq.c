@@ -2424,7 +2424,7 @@ flags_out:
 						paddrp->spp_flags |= SPP_PMTUD_DISABLE;
 					}
 					if (net->dscp & 0x01) {
-						paddrp->spp_dscp = net->dscp >> 2;
+						paddrp->spp_dscp = net->dscp & 0xfc;
 						paddrp->spp_flags |= SPP_DSCP;
 					}
 #ifdef INET6
@@ -2442,7 +2442,7 @@ flags_out:
 					paddrp->spp_pathmaxrxt = stcb->asoc.def_net_failure;
 					paddrp->spp_pathmtu = sctp_get_frag_point(stcb, &stcb->asoc);
 					if (stcb->asoc.default_dscp & 0x01) {
-						paddrp->spp_dscp = stcb->asoc.default_dscp >> 2;
+						paddrp->spp_dscp = stcb->asoc.default_dscp & 0xfc;
 						paddrp->spp_flags |= SPP_DSCP;
 					}
 #ifdef INET6
@@ -2477,7 +2477,7 @@ flags_out:
 					paddrp->spp_assoc_id = SCTP_FUTURE_ASSOC;
 					/* get inp's default */
 					if (inp->sctp_ep.default_dscp & 0x01) {
-						paddrp->spp_dscp = inp->sctp_ep.default_dscp >> 2;
+						paddrp->spp_dscp = inp->sctp_ep.default_dscp & 0xfc;
 						paddrp->spp_flags |= SPP_DSCP;
 					}
 #ifdef INET6
@@ -4659,7 +4659,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						net->failure_threshold = paddrp->spp_pathmaxrxt;
 					}
 					if (paddrp->spp_flags & SPP_DSCP) {
-						net->dscp = paddrp->spp_dscp << 2;
+						net->dscp = paddrp->spp_dscp & 0xfc;
 						net->dscp |= 0x01;
 					}
 #ifdef INET6
@@ -4762,10 +4762,10 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 					}
 					if (paddrp->spp_flags & SPP_DSCP) {
 						TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
-							net->dscp = paddrp->spp_dscp << 2;
+							net->dscp = paddrp->spp_dscp & 0xfc;
 							net->dscp |= 0x01;
 						}
-						stcb->asoc.default_dscp = paddrp->spp_dscp << 2;
+						stcb->asoc.default_dscp = paddrp->spp_dscp & 0xfc;
 						stcb->asoc.default_dscp |= 0x01;
 					}
 #ifdef INET6
@@ -4819,7 +4819,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						sctp_feature_on(inp, SCTP_PCB_FLAGS_DO_NOT_PMTUD);
 					}
 					if (paddrp->spp_flags & SPP_DSCP) {
-						inp->sctp_ep.default_dscp = paddrp->spp_dscp << 2;
+						inp->sctp_ep.default_dscp = paddrp->spp_dscp & 0xfc;
 						inp->sctp_ep.default_dscp |= 0x01;
 					}
 #ifdef INET6
