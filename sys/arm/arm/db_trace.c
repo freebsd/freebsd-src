@@ -81,6 +81,7 @@ __FBSDID("$FreeBSD$");
 static void
 db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
 {
+#ifndef __ARM_EABI__	/* The frame format is differend in AAPCS */
 	u_int32_t	*frame, *lastframe;
 	c_db_sym_t sym;
 	const char *name;
@@ -171,6 +172,9 @@ db_stack_trace_cmd(db_expr_t addr, db_expr_t count)
 			}
 		}
 	}
+#else
+	printf("TODO: Implement db_stack_trace_cmd for AAPCS\n");
+#endif
 }
 
 /* XXX stubs */
