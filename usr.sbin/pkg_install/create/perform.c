@@ -216,7 +216,7 @@ pkg_perform(char **pkgs)
     /* Prefix should add an @cwd to the packing list */
     if (Prefix) {
         char resolved_prefix[PATH_MAX];
-        if (realpath(Prefix, resolved_prefix) != 0)
+        if (realpath(Prefix, resolved_prefix) == NULL)
 	    err(EXIT_FAILURE, "couldn't resolve path for prefix: %s", Prefix);
 	add_plist_top(&plist, PLIST_CWD, resolved_prefix);
     }
