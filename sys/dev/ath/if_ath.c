@@ -284,6 +284,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	int error = 0, i;
 	u_int wmodes;
 	uint8_t macaddr[IEEE80211_ADDR_LEN];
+	int rx_chainmask, tx_chainmask;
 
 	DPRINTF(sc, ATH_DEBUG_ANY, "%s: devid 0x%x\n", __func__, devid);
 
@@ -632,6 +633,29 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 		ic->ic_tdma_update = ath_tdma_update;
 	}
 #endif
+
+	/*
+	 * Allow the TX and RX chainmasks to be overridden by
+	 * environment variables and/or device.hints.
+	 *
+	 * This must be done early - before the hardware is
+	 * calibrated or before the 802.11n stream calculation
+	 * is done.
+	 */
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "rx_chainmask",
+	    &rx_chainmask) == 0) {
+		device_printf(sc->sc_dev, "Setting RX chainmask to 0x%x\n",
+		    rx_chainmask);
+		(void) ath_hal_setrxchainmask(sc->sc_ah, rx_chainmask);
+	}
+	if (resource_int_value(device_get_name(sc->sc_dev),
+	    device_get_unit(sc->sc_dev), "tx_chainmask",
+	    &tx_chainmask) == 0) {
+		device_printf(sc->sc_dev, "Setting TX chainmask to 0x%x\n",
+		    tx_chainmask);
+		(void) ath_hal_settxchainmask(sc->sc_ah, rx_chainmask);
+	}
 
 	/*
 	 * The if_ath 11n support is completely not ready for normal use.
