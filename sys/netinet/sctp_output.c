@@ -4680,24 +4680,24 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 #ifdef INET6
 #ifdef INET
 	/* we support 2 types: IPv4/IPv6 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint16_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + 2 * sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV4_ADDRESS);
 	sup_addr->addr_type[1] = htons(SCTP_IPV6_ADDRESS);
 #else
 	/* we support 1 type: IPv6 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint8_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV6_ADDRESS);
 	sup_addr->addr_type[1] = htons(0);	/* this is the padding */
 #endif
 #else
 	/* we support 1 type: IPv4 */
-	sup_addr->ph.param_length = htons(sizeof(*sup_addr) + sizeof(uint8_t));
+	sup_addr->ph.param_length = htons(sizeof(struct sctp_paramhdr) + sizeof(uint16_t));
 	sup_addr->addr_type[0] = htons(SCTP_IPV4_ADDRESS);
 	sup_addr->addr_type[1] = htons(0);	/* this is the padding */
 #endif
-	SCTP_BUF_LEN(m) += sizeof(*sup_addr) + sizeof(uint16_t);
+	SCTP_BUF_LEN(m) += sizeof(struct sctp_supported_addr_param);
 	/* adaptation layer indication parameter */
-	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)sup_addr + sizeof(*sup_addr) + sizeof(uint16_t));
+	ali = (struct sctp_adaptation_layer_indication *)((caddr_t)sup_addr + sizeof(struct sctp_supported_addr_param));
 	ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
 	ali->ph.param_length = htons(sizeof(*ali));
 	ali->indication = ntohl(inp->sctp_ep.adaptation_layer_indicator);
