@@ -923,16 +923,19 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->sctp_cmt_pf = (uint8_t) 0;
 	asoc->sctp_frag_point = m->sctp_frag_point;
 	asoc->sctp_features = m->sctp_features;
-#ifdef INET
-	asoc->default_dscp = m->ip_inp.inp.inp_ip_tos;
-#else
-	asoc->default_dscp = 0;
-#endif
-
+	asoc->default_dscp = m->sctp_ep.default_dscp;
 #ifdef INET6
-	asoc->default_flowlabel = ((struct in6pcb *)m)->in6p_flowinfo;
-#else
-	asoc->default_flowlabel = 0;
+	if (m->sctp_ep.default_flowlabel) {
+		asoc->default_flowlabel = m->sctp_ep.default_flowlabel;
+	} else {
+		if (m->ip_inp.inp.inp_flags & IN6P_AUTOFLOWLABEL) {
+			asoc->default_flowlabel = sctp_select_initial_TSN(&m->sctp_ep);
+			asoc->default_flowlabel &= 0x000fffff;
+			asoc->default_flowlabel |= 0x80000000;
+		} else {
+			asoc->default_flowlabel = 0;
+		}
+	}
 #endif
 	asoc->sb_send_resv = 0;
 	if (override_tag) {
