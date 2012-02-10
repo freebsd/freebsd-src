@@ -266,7 +266,7 @@ struct sctp_nets {
 	uint32_t tos_flowlabel;
 
 	struct timeval start_time;	/* time when this net was created */
-
+	struct timeval last_measured_rtt;
 	uint32_t marked_retrans;/* number or DATA chunks marked for timer
 				 * based retransmissions */
 	uint32_t marked_fastretrans;
