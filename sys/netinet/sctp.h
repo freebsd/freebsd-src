@@ -161,9 +161,10 @@ struct sctp_paramhdr {
 /* JRS - Pluggable Congestion Control Socket option */
 #define SCTP_PLUGGABLE_CC               0x00001202
 /* RS - Pluggable Stream Scheduling Socket option */
-#define SCTP_PLUGGABLE_SS				0x00001203
-#define SCTP_SS_VALUE					0x00001204
-
+#define SCTP_PLUGGABLE_SS		0x00001203
+#define SCTP_SS_VALUE			0x00001204
+#define SCTP_CC_OPTION			0x00001205	/* Options for CC
+							 * modules */
 /* read only */
 #define SCTP_GET_SNDBUF_USE		0x00001101
 #define SCTP_GET_STAT_LOG		0x00001103

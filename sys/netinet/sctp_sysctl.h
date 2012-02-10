@@ -104,6 +104,11 @@ struct sctp_sysctl {
 	uint32_t sctp_mobility_base;
 	uint32_t sctp_mobility_fasthandoff;
 	uint32_t sctp_inits_include_nat_friendly;
+#ifdef SCTP_HAS_RTTCC
+	uint32_t sctp_rttvar_bw;
+	uint32_t sctp_rttvar_rtt;
+	uint32_t sctp_rttvar_eqret;
+#endif
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
@@ -514,6 +519,25 @@ struct sctp_sysctl {
 #define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
+#ifdef SCTP_HAS_RTTCC
+
+/* rttvar smooth avg for bw calc  */
+#define SCTPCTL_RTTVAR_BW_DESC	"Shift amount for bw smothing on rtt calc"
+#define SCTPCTL_RTTVAR_BW_MIN	0
+#define SCTPCTL_RTTVAR_BW_MAX	32
+#define SCTPCTL_RTTVAR_BW_DEFAULT	4
+
+/* rttvar smooth avg for bw calc  */
+#define SCTPCTL_RTTVAR_RTT_DESC	"Shift amount for rtt smothing on rtt calc"
+#define SCTPCTL_RTTVAR_RTT_MIN	0
+#define SCTPCTL_RTTVAR_RTT_MAX	32
+#define SCTPCTL_RTTVAR_RTT_DEFAULT	5
+
+#define SCTPCTL_RTTVAR_EQRET_DESC	"When rtt and bw are unchanged return what"
+#define SCTPCTL_RTTVAR_EQRET_MIN	0
+#define SCTPCTL_RTTVAR_EQRET_MAX	1
+#define SCTPCTL_RTTVAR_EQRET_DEFAULT	0
+#endif
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */
