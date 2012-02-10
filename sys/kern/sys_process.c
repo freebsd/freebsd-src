@@ -1145,6 +1145,8 @@ kern_ptrace(struct thread *td, int req, pid_t pid, void *addr, int data)
 			pl->pl_flags |= PL_FLAG_FORKED;
 			pl->pl_child_pid = td2->td_dbg_forked;
 		}
+		if (td2->td_dbgflags & TDB_CHILD)
+			pl->pl_flags |= PL_FLAG_CHILD;
 		pl->pl_sigmask = td2->td_sigmask;
 		pl->pl_siglist = td2->td_siglist;
 		strcpy(pl->pl_tdname, td2->td_name);
