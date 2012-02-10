@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 
 #include <stdlib.h>
 #include <string.h>
+#include <inttypes.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -244,9 +245,9 @@ _mips_rtld_bind(Obj_Entry *obj, Elf_Size reloff)
 		_rtld_error("bind failed no symbol");
 
         target = (Elf_Addr)(defobj->relocbase + def->st_value);
-        dbg("bind now/fixup at %s sym # %d in %s --> was=%p new=%p",
+        dbg("bind now/fixup at %s sym # %jd in %s --> was=%p new=%p",
 	    obj->path,
-	    reloff, defobj->strtab + def->st_name, 
+	    (intmax_t)reloff, defobj->strtab + def->st_name, 
 	    (void *)got[obj->local_gotno + reloff - obj->gotsym],
 	    (void *)target);
         got[obj->local_gotno + reloff - obj->gotsym] = target;
@@ -283,8 +284,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 
 	/* Relocate the local GOT entries */
 	got += i;
-	dbg("got:%p for %d entries adding %x",
-	    got, obj->local_gotno, (uint32_t)obj->relocbase);
+	dbg("got:%p for %d entries adding %p",
+	    got, obj->local_gotno, obj->relocbase);
 	for (; i < obj->local_gotno; i++) {
 		*got += (Elf_Addr)obj->relocbase;
 		got++;
@@ -339,8 +340,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			 */
 			*got = sym->st_value + (Elf_Addr)obj->relocbase;
 			if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-				dbg("Warning2, i:%d maps to relocbase address:%x",
-				    i, (uint32_t)obj->relocbase);
+				dbg("Warning2, i:%d maps to relocbase address:%p",
+				    i, obj->relocbase);
 			}
 
 		} else if (sym->st_info == ELF_ST_INFO(STB_GLOBAL, STT_SECTION)) {
@@ -349,8 +350,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 				*got = sym->st_value +
 				    (Elf_Addr)obj->relocbase;
 				if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-					dbg("Warning3, i:%d maps to relocbase address:%x",
-					    i, (uint32_t)obj->relocbase);
+					dbg("Warning3, i:%d maps to relocbase address:%p",
+					    i, obj->relocbase);
 				}
 			}
 		} else {
@@ -363,8 +364,8 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			}
 			*got = def->st_value + (Elf_Addr)defobj->relocbase;
 			if ((Elf_Addr)(*got) == (Elf_Addr)obj->relocbase) {
-				dbg("Warning4, i:%d maps to relocbase address:%x",
-				    i, (uint32_t)obj->relocbase);
+				dbg("Warning4, i:%d maps to relocbase address:%p",
+				    i, obj->relocbase);
 				dbg("via first obj symbol %s",
 				    obj->strtab + obj->symtab[i].st_name);
 				dbg("found in obj %p:%s",
@@ -470,8 +471,8 @@ reloc_plt(Obj_Entry *obj)
 	const Elf_Rel *rellim;
 	const Elf_Rel *rel;
 		
-	dbg("reloc_plt obj:%p pltrel:%p sz:%d", obj, obj->pltrel, (int)obj->pltrelsize);
-	dbg("gottable %p num syms:%d", obj->pltgot, obj->symtabno );
+	dbg("reloc_plt obj:%p pltrel:%p sz:%s", obj, obj->pltrel, (int)obj->pltrelsize);
+	dbg("gottable %p num syms:%s", obj->pltgot, obj->symtabno );
 	dbg("*****************************************************");
 	rellim = (const Elf_Rel *)((char *)obj->pltrel +
 	    obj->pltrelsize);
