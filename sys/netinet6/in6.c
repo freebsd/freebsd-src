@@ -1369,6 +1369,8 @@ in6_purgeaddr(struct ifaddr *ifa)
 	}
 
 cleanup:
+	if (ifa0 != NULL)
+		ifa_free(ifa0);
 
 	plen = in6_mask2len(&ia->ia_prefixmask.sin6_addr, NULL); /* XXX */
 	if ((ia->ia_flags & IFA_ROUTE) && plen == 128) {
@@ -1393,8 +1395,6 @@ cleanup:
 			return;
 		ia->ia_flags &= ~IFA_ROUTE;
 	}
-	if (ifa0 != NULL)
-		ifa_free(ifa0);
 
 	in6_unlink_ifa(ia, ifp);
 }
