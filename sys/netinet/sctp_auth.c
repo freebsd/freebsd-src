@@ -1949,9 +1949,6 @@ sctp_validate_init_auth_params(struct mbuf *m, int offset, int limit)
 				case SCTP_ASCONF_ACK:
 					peer_supports_asconf = 1;
 					break;
-				case SCTP_AUTHENTICATION:
-					peer_supports_auth = 1;
-					break;
 				default:
 					/* one we don't care about */
 					break;
