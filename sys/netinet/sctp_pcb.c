@@ -4332,7 +4332,10 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			struct sockaddr_in *sin;
 
 			sin = (struct sockaddr_in *)firstaddr;
-			if ((sin->sin_port == 0) || (sin->sin_addr.s_addr == 0)) {
+			if ((ntohs(sin->sin_port) == 0) ||
+			    (sin->sin_addr.s_addr == INADDR_ANY) ||
+			    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
+			    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 				/* Invalid address */
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
@@ -4349,8 +4352,9 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			struct sockaddr_in6 *sin6;
 
 			sin6 = (struct sockaddr_in6 *)firstaddr;
-			if ((sin6->sin6_port == 0) ||
-			    (IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr))) {
+			if ((ntohs(sin6->sin6_port) == 0) ||
+			    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
+			    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 				/* Invalid address */
 				SCTP_INP_RUNLOCK(inp);
 				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
