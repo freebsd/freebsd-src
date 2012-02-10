@@ -533,6 +533,11 @@ struct sctp_assoc_value {
 	uint32_t assoc_value;
 };
 
+struct sctp_cc_option {
+	int option;
+	struct sctp_assoc_value aid_value;
+};
+
 struct sctp_stream_value {
 	sctp_assoc_t assoc_id;
 	uint16_t stream_id;

@@ -6476,6 +6476,9 @@ all_done:
 			asoc->peers_rwnd = 0;
 		}
 	}
+	if (asoc->cc_functions.sctp_cwnd_update_packet_transmitted) {
+		(*asoc->cc_functions.sctp_cwnd_update_packet_transmitted) (stcb, net);
+	}
 }
 
 static void
@@ -7340,6 +7343,10 @@ nothing_to_send:
 					    SCTP_CWND_LOG_FILL_OUTQ_CALLED);
 				}
 				continue;
+			}
+			if ((stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) &&
+			    (net->flight_size == 0)) {
+				(*stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) (stcb, net);
 			}
 			if ((asoc->sctp_cmt_on_off == 0) &&
 			    (asoc->primary_destination != net) &&
