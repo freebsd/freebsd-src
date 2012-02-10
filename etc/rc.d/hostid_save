@@ -5,7 +5,6 @@
 
 # PROVIDE: hostid_save
 # REQUIRE: root
-# BEFORE: mountcritlocal
 # KEYWORD: nojail
 
 . /etc/rc.subr
