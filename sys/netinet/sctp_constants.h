@@ -343,8 +343,8 @@ __FBSDID("$FreeBSD$");
  */
 #define SCTP_NO_FR_UNLESS_SEGMENT_SMALLER 1
 
-/* default max I can burst out after a fast retransmit */
-#define SCTP_DEF_MAX_BURST 4
+/* default max I can burst out after a fast retransmit, 0 disables it */
+#define SCTP_DEF_MAX_BURST 0
 /* IP hdr (20/40) + 12+2+2 (enet) + sctp common 12 */
 #define SCTP_FIRST_MBUF_RESV 68
 /* Packet transmit states in the sent field */
@@ -642,8 +642,7 @@ __FBSDID("$FreeBSD$");
 #define SCTP_DEFAULT_SECRET_LIFE_SEC 3600
 
 #define SCTP_RTO_UPPER_BOUND	(60000)	/* 60 sec in ms */
-#define SCTP_RTO_UPPER_BOUND_SEC 60	/* for the init timer */
-#define SCTP_RTO_LOWER_BOUND	(1000)	/* 1 sec in ms */
+#define SCTP_RTO_LOWER_BOUND	(300)	/* 0.3 sec is ms */
 #define SCTP_RTO_INITIAL	(3000)	/* 3 sec in ms */
 
 
