@@ -12628,14 +12628,10 @@ sctp_lower_sosend(struct socket *so,
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
 		SCTP_INP_RLOCK(inp);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
-		if (stcb == NULL) {
-			SCTP_INP_RUNLOCK(inp);
-			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOTCONN);
-			error = ENOTCONN;
-			goto out_unlocked;
+		if (stcb) {
+			SCTP_TCB_LOCK(stcb);
+			hold_tcblock = 1;
 		}
-		SCTP_TCB_LOCK(stcb);
-		hold_tcblock = 1;
 		SCTP_INP_RUNLOCK(inp);
 	} else if (sinfo_assoc_id) {
 		stcb = sctp_findassociation_ep_asocid(inp, sinfo_assoc_id, 0);
@@ -12700,21 +12696,12 @@ sctp_lower_sosend(struct socket *so,
 		}
 	}
 	if (stcb == NULL) {
-		if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
-		    (inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOTCONN);
-			error = ENOTCONN;
-			goto out_unlocked;
-		}
 		if (addr == NULL) {
 			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOENT);
 			error = ENOENT;
 			goto out_unlocked;
 		} else {
-			/*
-			 * UDP style, we must go ahead and start the INIT
-			 * process
-			 */
+			/* We must go ahead and start the INIT process */
 			uint32_t vrf_id;
 
 			if ((sinfo_flags & SCTP_ABORT) ||
@@ -12740,6 +12727,14 @@ sctp_lower_sosend(struct socket *so,
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;
+			}
+			if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
+				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
+				/*
+				 * Set the connected flag so we can queue
+				 * data
+				 */
+				soisconnecting(so);
 			}
 			hold_tcblock = 1;
 			if (create_lock_applied) {

@@ -3622,9 +3622,13 @@ sctp_abort_notification(struct sctp_tcb *stcb, int error, int so_locked
 #endif
 )
 {
-
 	if (stcb == NULL) {
 		return;
+	}
+	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
+	    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
+	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {
+		stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_WAS_ABORTED;
 	}
 	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
@@ -3633,11 +3637,6 @@ sctp_abort_notification(struct sctp_tcb *stcb, int error, int so_locked
 	}
 	/* Tell them we lost the asoc */
 	sctp_report_all_outbound(stcb, 1, so_locked);
-	if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
-	    ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
-	    (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {
-		stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_WAS_ABORTED;
-	}
 	sctp_ulp_notify(SCTP_NOTIFY_ASSOC_ABORTED, stcb, error, NULL, so_locked);
 }
 
@@ -5098,17 +5097,6 @@ restart_nosblocks:
 					 */
 					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ECONNRESET);
 					error = ECONNRESET;
-					/*
-					 * You get this once if you are
-					 * active open side
-					 */
-					if (!(inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-						/*
-						 * Remove flag if on the
-						 * active open side
-						 */
-						inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_ABORTED;
-					}
 				}
 				so->so_state &= ~(SS_ISCONNECTING |
 				    SS_ISDISCONNECTING |
@@ -5118,8 +5106,6 @@ restart_nosblocks:
 					if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) == 0) {
 						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOTCONN);
 						error = ENOTCONN;
-					} else {
-						inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_CONNECTED;
 					}
 				}
 				goto out;
@@ -5152,18 +5138,6 @@ restart_nosblocks:
 						 */
 						SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ECONNRESET);
 						error = ECONNRESET;
-						/*
-						 * You get this once if you
-						 * are active open side
-						 */
-						if (!(inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) {
-							/*
-							 * Remove flag if on
-							 * the active open
-							 * side
-							 */
-							inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_ABORTED;
-						}
 					}
 					so->so_state &= ~(SS_ISCONNECTING |
 					    SS_ISDISCONNECTING |
@@ -5173,8 +5147,6 @@ restart_nosblocks:
 						if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) == 0) {
 							SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, ENOTCONN);
 							error = ENOTCONN;
-						} else {
-							inp->sctp_flags &= ~SCTP_PCB_FLAGS_WAS_CONNECTED;
 						}
 					}
 					goto out;
