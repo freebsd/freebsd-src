@@ -92,8 +92,8 @@ CFLAGS+=	-I${.OBJDIR}/../../uboot/lib
 # where to get libstand from
 CFLAGS+=	-I${.CURDIR}/../../../../lib/libstand/
 
-DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND}
-LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand
+DPADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} ${LIBSTAND} ${LIBGCC}
+LDADD=		${LIBFICL} ${LIBUBOOT} ${LIBFDT} -lstand -lgcc
 
 vers.c:	${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version
 	sh ${.CURDIR}/../../common/newvers.sh ${.CURDIR}/version ${NEWVERSWHAT}
