@@ -508,6 +508,7 @@ __FBSDID("$FreeBSD$");
 
 /* SCTP reachability state for each address */
 #define SCTP_ADDR_REACHABLE		0x001
+#define SCTP_ADDR_NO_PMTUD              0x002
 #define SCTP_ADDR_NOHB			0x004
 #define SCTP_ADDR_BEING_DELETED		0x008
 #define SCTP_ADDR_NOT_IN_ASSOC		0x010

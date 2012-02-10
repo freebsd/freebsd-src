@@ -2052,6 +2052,9 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		if (net == NULL) {
 			return;
 		}
+		if (net->dest_state & SCTP_ADDR_NO_PMTUD) {
+			return;
+		}
 		to_ticks = inp->sctp_ep.sctp_timeoutticks[SCTP_TIMER_PMTU];
 		tmr = &net->pmtu_timer;
 		break;
