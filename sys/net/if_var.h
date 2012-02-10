@@ -187,7 +187,8 @@ struct ifnet {
 	void	*if_pf_kif;
 	void	*if_lagg;		/* lagg glue */
 	void	*if_pspare[10];		/* multiq/TOE 3; vimage 3; general use 4 */
-	int	if_ispare[2];		/* general use 2 */
+	int	if_ispare[1];		/* general use */
+	u_int	if_fib;			/* interface FIB */
 };
 
 typedef void if_init_f_t(void *);

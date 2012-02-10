@@ -108,6 +108,9 @@
 #define	SIOCGPRIVATE_0	_IOWR('i', 80, struct ifreq)	/* device private 0 */
 #define	SIOCGPRIVATE_1	_IOWR('i', 81, struct ifreq)	/* device private 1 */
 
+#define	SIOCGIFFIB	_IOWR('i', 92, struct ifreq)	/* get IF fib */
+#define	SIOCSIFFIB	 _IOW('i', 93, struct ifreq)	/* set IF fib */
+
 #define	SIOCSDRVSPEC	_IOW('i', 123, struct ifdrv)	/* set driver-specific
 								  parameters */
 #define	SIOCGDRVSPEC	_IOWR('i', 123, struct ifdrv)	/* get driver-specific
