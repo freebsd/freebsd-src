@@ -162,6 +162,12 @@ struct sctp_prinfo {
 	uint32_t pr_value;
 };
 
+struct sctp_default_prinfo {
+	uint16_t pr_policy;
+	uint32_t pr_value;
+	sctp_assoc_t pr_assoc_id;
+};
+
 struct sctp_authinfo {
 	uint16_t auth_keyid;
 };
