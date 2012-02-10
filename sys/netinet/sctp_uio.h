@@ -329,7 +329,8 @@ struct sctp_paddr_change {
 #define SCTP_ADDR_CONFIRMED	0x0006
 
 #define SCTP_ACTIVE		0x0001	/* SCTP_ADDR_REACHABLE */
-#define SCTP_INACTIVE		0x0002	/* SCTP_ADDR_NOT_REACHABLE */
+#define SCTP_INACTIVE		0x0002	/* neither SCTP_ADDR_REACHABLE nor
+					 * SCTP_ADDR_UNCONFIRMED */
 #define SCTP_UNCONFIRMED	0x0200	/* SCTP_ADDR_UNCONFIRMED */
 
 /* remote error events */
@@ -515,6 +516,13 @@ struct sctp_paddrparams {
 #define SPP_HB_TIME_IS_ZERO     0x00000080
 #define SPP_IPV6_FLOWLABEL      0x00000100
 #define SPP_IPV4_TOS            0x00000200
+
+struct sctp_paddrthlds {
+	sctp_assoc_t spt_assoc_id;
+	struct sockaddr_storage spt_address;
+	uint16_t spt_pathmaxrxt;
+	uint16_t spt_pathpfthld;
+};
 
 struct sctp_paddrinfo {
 	struct sockaddr_storage spinfo_address;
@@ -978,18 +986,8 @@ struct sctpstat {
 					 * fired */
 	uint32_t sctps_timoassockill;	/* Number of asoc free timers expired */
 	uint32_t sctps_timoinpkill;	/* Number of inp free timers expired */
-	/* Early fast retransmission counters */
-	uint32_t sctps_earlyfrstart;
-	uint32_t sctps_earlyfrstop;
-	uint32_t sctps_earlyfrmrkretrans;
-	uint32_t sctps_earlyfrstpout;
-	uint32_t sctps_earlyfrstpidsck1;
-	uint32_t sctps_earlyfrstpidsck2;
-	uint32_t sctps_earlyfrstpidsck3;
-	uint32_t sctps_earlyfrstpidsck4;
-	uint32_t sctps_earlyfrstrid;
-	uint32_t sctps_earlyfrstrout;
-	uint32_t sctps_earlyfrstrtmr;
+	/* former early FR counters */
+	uint32_t sctps_spare[11];
 	/* others */
 	uint32_t sctps_hdrops;	/* packet shorter than header */
 	uint32_t sctps_badsum;	/* checksum error             */
@@ -1162,9 +1160,11 @@ struct xsctp_raddr {
 	uint8_t active;		/* sctpAssocLocalRemEntry 3   */
 	uint8_t confirmed;	/* */
 	uint8_t heartbeat_enabled;	/* sctpAssocLocalRemEntry 4   */
+	uint8_t potentially_failed;
 	struct sctp_timeval start_time;	/* sctpAssocLocalRemEntry 8   */
 	uint32_t rtt;
-	uint32_t extra_padding[32];	/* future */
+	uint32_t heartbeat_interval;
+	uint32_t extra_padding[31];	/* future */
 };
 
 #define SCTP_MAX_LOGGING_SIZE 30000

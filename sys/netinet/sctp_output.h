@@ -155,7 +155,7 @@ void send_forward_tsn(struct sctp_tcb *, struct sctp_association *);
 
 void sctp_send_sack(struct sctp_tcb *, int);
 
-int sctp_send_hb(struct sctp_tcb *, int, struct sctp_nets *, int);
+void sctp_send_hb(struct sctp_tcb *, struct sctp_nets *, int);
 
 void sctp_send_ecn_echo(struct sctp_tcb *, struct sctp_nets *, uint32_t);
 

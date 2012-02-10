@@ -74,16 +74,14 @@ struct sctp_sysctl {
 	uint32_t sctp_init_rtx_max_default;
 	uint32_t sctp_assoc_rtx_max_default;
 	uint32_t sctp_path_rtx_max_default;
+	uint32_t sctp_path_pf_threshold;
 	uint32_t sctp_add_more_threshold;
 	uint32_t sctp_nr_outgoing_streams_default;
 	uint32_t sctp_cmt_on_off;
 	uint32_t sctp_cmt_use_dac;
 	/* EY 5/5/08 - nr_sack flag variable */
 	uint32_t sctp_nr_sack_on_off;
-	uint32_t sctp_cmt_pf;
 	uint32_t sctp_use_cwnd_based_maxburst;
-	uint32_t sctp_early_fr;
-	uint32_t sctp_early_fr_msec;
 	uint32_t sctp_asconf_auth_nochk;
 	uint32_t sctp_auth_disable;
 	uint32_t sctp_nat_friendly;
@@ -322,6 +320,12 @@ struct sctp_sysctl {
 #define SCTPCTL_PATH_RTX_MAX_MAX	0xFFFFFFFF
 #define SCTPCTL_PATH_RTX_MAX_DEFAULT	SCTP_DEF_MAX_PATH_RTX
 
+/* path_pf_threshold: threshold for considering the path potentially failed */
+#define SCTPCTL_PATH_PF_THRESHOLD_DESC		"Default potentially failed threshold"
+#define SCTPCTL_PATH_PF_THRESHOLD_MIN		0
+#define SCTPCTL_PATH_PF_THRESHOLD_MAX		0xFFFF
+#define SCTPCTL_PATH_PF_THRESHOLD_DEFAULT	SCTPCTL_PATH_PF_THRESHOLD_MAX
+
 /* add_more_on_output: When space-wise is it worthwhile to try to add more to a socket send buffer */
 #define SCTPCTL_ADD_MORE_ON_OUTPUT_DESC	"When space-wise is it worthwhile to try to add more to a socket send buffer"
 #define SCTPCTL_ADD_MORE_ON_OUTPUT_MIN	0
@@ -352,29 +356,11 @@ struct sctp_sysctl {
 #define SCTPCTL_CMT_USE_DAC_MAX		1
 #define SCTPCTL_CMT_USE_DAC_DEFAULT    	0
 
-/* JRS 5/2107 - CMT PF type flag */
-#define SCTPCTL_CMT_PF_DESC		"CMT PF type flag"
-#define SCTPCTL_CMT_PF_MIN		0
-#define SCTPCTL_CMT_PF_MAX		2
-#define SCTPCTL_CMT_PF_DEFAULT		0
-
 /* cwnd_maxburst: Use a CWND adjusting maxburst */
 #define SCTPCTL_CWND_MAXBURST_DESC	"Use a CWND adjusting maxburst"
 #define SCTPCTL_CWND_MAXBURST_MIN	0
 #define SCTPCTL_CWND_MAXBURST_MAX	1
 #define SCTPCTL_CWND_MAXBURST_DEFAULT	1
-
-/* early_fast_retran: Early Fast Retransmit with timer */
-#define SCTPCTL_EARLY_FAST_RETRAN_DESC	"Early Fast Retransmit with timer"
-#define SCTPCTL_EARLY_FAST_RETRAN_MIN	0
-#define SCTPCTL_EARLY_FAST_RETRAN_MAX	0xFFFFFFFF
-#define SCTPCTL_EARLY_FAST_RETRAN_DEFAULT	0
-
-/* early_fast_retran_msec: Early Fast Retransmit minimum timer value */
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DESC	"Early Fast Retransmit minimum timer value"
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MIN	0
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC_MAX	0xFFFFFFFF
-#define SCTPCTL_EARLY_FAST_RETRAN_MSEC_DEFAULT	SCTP_MINFR_MSEC_TIMER
 
 /* asconf_auth_nochk: Disable SCTP ASCONF AUTH requirement */
 #define SCTPCTL_ASCONF_AUTH_NOCHK_DESC	"Disable SCTP ASCONF AUTH requirement"
