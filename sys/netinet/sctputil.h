@@ -313,9 +313,13 @@ do { \
 	} \
 } while (0)
 
-/* new functions to start/stop udp tunneling */
+/* functions to start/stop udp tunneling */
+/* XXX: Remove the #ifdef after tunneling over IPv6 works also on FreeBSD. */
+#ifdef INET
 void sctp_over_udp_stop(void);
 int sctp_over_udp_start(void);
+
+#endif
 
 int
 sctp_soreceive(struct socket *so, struct sockaddr **psa,
