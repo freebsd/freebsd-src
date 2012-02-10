@@ -41,12 +41,11 @@
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_auth.h>
 #include <netinet/sctp_asconf.h>
-#include <netinet/sctp_cc_functions.h>
 #include <netinet/sctp_dtrace_declare.h>
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-void
+static void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	struct sctp_association *assoc;
@@ -84,7 +83,7 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
@@ -191,7 +190,7 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
@@ -447,7 +446,7 @@ skip_cwnd_update:
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
@@ -489,7 +488,7 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
@@ -512,7 +511,7 @@ sctp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
     struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
     uint32_t * bottle_bw, uint32_t * on_queue)
@@ -628,7 +627,7 @@ sctp_cwnd_update_after_packet_dropped(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
     struct sctp_nets *net, int burst_limit)
 {
@@ -647,7 +646,7 @@ sctp_cwnd_update_after_output(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -836,7 +835,7 @@ sctp_hs_cwnd_decrease(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
@@ -908,7 +907,7 @@ sctp_hs_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_hs_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
@@ -1374,7 +1373,7 @@ htcp_init(struct sctp_tcb *stcb, struct sctp_nets *net)
 	net->htcp_ca.last_cong = sctp_get_tick_count();
 }
 
-void
+static void
 sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	/*
@@ -1390,7 +1389,7 @@ sctp_htcp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_sack(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     int accum_moved, int reneged_all, int will_exit)
@@ -1550,7 +1549,7 @@ skip_cwnd_update:
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
     struct sctp_association *asoc)
 {
@@ -1629,7 +1628,7 @@ sctp_htcp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
@@ -1645,7 +1644,7 @@ sctp_htcp_cwnd_update_after_timeout(struct sctp_tcb *stcb,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -1669,7 +1668,7 @@ sctp_htcp_cwnd_update_after_fr_timer(struct sctp_inpcb *inp,
 	}
 }
 
-void
+static void
 sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
     struct sctp_nets *net)
 {
@@ -1691,3 +1690,36 @@ sctp_htcp_cwnd_update_after_ecn_echo(struct sctp_tcb *stcb,
 		sctp_log_cwnd(stcb, net, (net->cwnd - old_cwnd), SCTP_CWND_LOG_FROM_SAT);
 	}
 }
+
+struct sctp_cc_functions sctp_cc_functions[] = {
+	{
+		.sctp_set_initial_cc_param = sctp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_cwnd_update_after_fr_timer
+	},
+	{
+		.sctp_set_initial_cc_param = sctp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_hs_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_hs_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_cwnd_update_after_fr_timer
+	},
+	{
+		.sctp_set_initial_cc_param = sctp_htcp_set_initial_cc_param,
+		.sctp_cwnd_update_after_sack = sctp_htcp_cwnd_update_after_sack,
+		.sctp_cwnd_update_after_fr = sctp_htcp_cwnd_update_after_fr,
+		.sctp_cwnd_update_after_timeout = sctp_htcp_cwnd_update_after_timeout,
+		.sctp_cwnd_update_after_ecn_echo = sctp_htcp_cwnd_update_after_ecn_echo,
+		.sctp_cwnd_update_after_packet_dropped = sctp_cwnd_update_after_packet_dropped,
+		.sctp_cwnd_update_after_output = sctp_cwnd_update_after_output,
+		.sctp_cwnd_update_after_fr_timer = sctp_htcp_cwnd_update_after_fr_timer
+	}
+};
