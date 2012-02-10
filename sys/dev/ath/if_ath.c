@@ -654,7 +654,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	    &tx_chainmask) == 0) {
 		device_printf(sc->sc_dev, "Setting TX chainmask to 0x%x\n",
 		    tx_chainmask);
-		(void) ath_hal_settxchainmask(sc->sc_ah, rx_chainmask);
+		(void) ath_hal_settxchainmask(sc->sc_ah, tx_chainmask);
 	}
 
 	/*
