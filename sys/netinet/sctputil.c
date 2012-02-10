@@ -2844,9 +2844,11 @@ sctp_notify_peer_addr_change(struct sctp_tcb *stcb, uint32_t state,
 	spc->spc_flags = 0;
 	spc->spc_length = sizeof(struct sctp_paddr_change);
 	switch (sa->sa_family) {
+#ifdef INET
 	case AF_INET:
 		memcpy(&spc->spc_aaddr, sa, sizeof(struct sockaddr_in));
 		break;
+#endif
 #ifdef INET6
 	case AF_INET6:
 		{
@@ -4084,6 +4086,7 @@ sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 			    sin6_2));
 		}
 #endif
+#ifdef INET
 	case AF_INET:
 		{
 			/* IPv4 addresses */
@@ -4093,6 +4096,7 @@ sctp_cmpaddr(struct sockaddr *sa1, struct sockaddr *sa2)
 			sin_2 = (struct sockaddr_in *)sa2;
 			return (sin_1->sin_addr.s_addr == sin_2->sin_addr.s_addr);
 		}
+#endif
 	default:
 		/* we don't do these... */
 		return (0);
@@ -4122,6 +4126,7 @@ sctp_print_address(struct sockaddr *sa)
 			break;
 		}
 #endif
+#ifdef INET
 	case AF_INET:
 		{
 			struct sockaddr_in *sin;
@@ -4133,6 +4138,7 @@ sctp_print_address(struct sockaddr *sa)
 			    p[0], p[1], p[2], p[3], ntohs(sin->sin_port));
 			break;
 		}
+#endif
 	default:
 		SCTP_PRINTF("?\n");
 		break;
@@ -4143,6 +4149,7 @@ void
 sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 {
 	switch (iph->ip_v) {
+#ifdef INET
 	case IPVERSION:
 		{
 			struct sockaddr_in lsa, fsa;
@@ -4163,6 +4170,7 @@ sctp_print_address_pkt(struct ip *iph, struct sctphdr *sh)
 			sctp_print_address((struct sockaddr *)&fsa);
 			break;
 		}
+#endif
 #ifdef INET6
 	case IPV6_VERSION >> 4:
 		{
@@ -4862,22 +4870,33 @@ sctp_find_ifa_in_ep(struct sctp_inpcb *inp, struct sockaddr *addr,
 uint32_t
 sctp_get_ifa_hash_val(struct sockaddr *addr)
 {
-	if (addr->sa_family == AF_INET) {
-		struct sockaddr_in *sin;
+	switch (addr->sa_family) {
+#ifdef INET
+	case AF_INET:
+		{
+			struct sockaddr_in *sin;
 
-		sin = (struct sockaddr_in *)addr;
-		return (sin->sin_addr.s_addr ^ (sin->sin_addr.s_addr >> 16));
-	} else if (addr->sa_family == AF_INET6) {
-		struct sockaddr_in6 *sin6;
-		uint32_t hash_of_addr;
+			sin = (struct sockaddr_in *)addr;
+			return (sin->sin_addr.s_addr ^ (sin->sin_addr.s_addr >> 16));
+		}
+#endif
+#ifdef INET6
+	case INET6:
+		{
+			struct sockaddr_in6 *sin6;
+			uint32_t hash_of_addr;
 
-		sin6 = (struct sockaddr_in6 *)addr;
-		hash_of_addr = (sin6->sin6_addr.s6_addr32[0] +
-		    sin6->sin6_addr.s6_addr32[1] +
-		    sin6->sin6_addr.s6_addr32[2] +
-		    sin6->sin6_addr.s6_addr32[3]);
-		hash_of_addr = (hash_of_addr ^ (hash_of_addr >> 16));
-		return (hash_of_addr);
+			sin6 = (struct sockaddr_in6 *)addr;
+			hash_of_addr = (sin6->sin6_addr.s6_addr32[0] +
+			    sin6->sin6_addr.s6_addr32[1] +
+			    sin6->sin6_addr.s6_addr32[2] +
+			    sin6->sin6_addr.s6_addr32[3]);
+			hash_of_addr = (hash_of_addr ^ (hash_of_addr >> 16));
+			return (hash_of_addr);
+		}
+#endif
+	default:
+		break;
 	}
 	return (0);
 }
@@ -6250,7 +6269,9 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 	inp = stcb->sctp_ep;
 	*error = 0;
 	for (i = 0; i < totaddr; i++) {
-		if (sa->sa_family == AF_INET) {
+		switch (sa->sa_family) {
+#ifdef INET
+		case AF_INET:
 			incr = sizeof(struct sockaddr_in);
 			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
@@ -6260,7 +6281,10 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 				goto out_now;
 			}
 			added++;
-		} else if (sa->sa_family == AF_INET6) {
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
 			incr = sizeof(struct sockaddr_in6);
 			if (sctp_add_remote_addr(stcb, sa, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
 				/* assoc gone no un-lock */
@@ -6270,6 +6294,10 @@ sctp_connectx_helper_add(struct sctp_tcb *stcb, struct sockaddr *addr,
 				goto out_now;
 			}
 			added++;
+			break;
+#endif
+		default:
+			break;
 		}
 		sa = (struct sockaddr *)((caddr_t)sa + incr);
 	}
@@ -6288,10 +6316,13 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
 
 	at = incr = 0;
 	sa = addr;
+
 	*error = *num_v6 = *num_v4 = 0;
 	/* account and validate addresses */
 	for (i = 0; i < (size_t)*totaddr; i++) {
-		if (sa->sa_family == AF_INET) {
+		switch (sa->sa_family) {
+#ifdef INET
+		case AF_INET:
 			(*num_v4) += 1;
 			incr = sizeof(struct sockaddr_in);
 			if (sa->sa_len != incr) {
@@ -6300,28 +6331,38 @@ sctp_connectx_helper_find(struct sctp_inpcb *inp, struct sockaddr *addr,
 				*bad_addr = 1;
 				return (NULL);
 			}
-		} else if (sa->sa_family == AF_INET6) {
-			struct sockaddr_in6 *sin6;
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			{
+				struct sockaddr_in6 *sin6;
 
-			sin6 = (struct sockaddr_in6 *)sa;
-			if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
-				/* Must be non-mapped for connectx */
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
-				*error = EINVAL;
-				*bad_addr = 1;
-				return (NULL);
+				sin6 = (struct sockaddr_in6 *)sa;
+				if (IN6_IS_ADDR_V4MAPPED(&sin6->sin6_addr)) {
+					/* Must be non-mapped for connectx */
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+					*error = EINVAL;
+					*bad_addr = 1;
+					return (NULL);
+				}
+				(*num_v6) += 1;
+				incr = sizeof(struct sockaddr_in6);
+				if (sa->sa_len != incr) {
+					SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
+					*error = EINVAL;
+					*bad_addr = 1;
+					return (NULL);
+				}
+				break;
 			}
-			(*num_v6) += 1;
-			incr = sizeof(struct sockaddr_in6);
-			if (sa->sa_len != incr) {
-				SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
-				*error = EINVAL;
-				*bad_addr = 1;
-				return (NULL);
-			}
-		} else {
+#endif
+		default:
 			*totaddr = i;
 			/* we are done */
+			break;
+		}
+		if (i == (size_t)*totaddr) {
 			break;
 		}
 		SCTP_INP_INCR_REF(inp);
@@ -6364,7 +6405,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 		return;
 	}
 	addr_touse = sa;
-#if defined(INET6) && !defined(__Userspace__)	/* TODO port in6_sin6_2_sin */
+#ifdef INET6
 	if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
@@ -6393,6 +6434,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 		}
 	}
 #endif
+#ifdef INET
 	if (sa->sa_family == AF_INET) {
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
@@ -6407,6 +6449,7 @@ sctp_bindx_add_address(struct socket *so, struct sctp_inpcb *inp,
 			return;
 		}
 	}
+#endif
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		if (p == NULL) {
 			/* Can't get proc for Net/Open BSD */
@@ -6519,6 +6562,7 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
 		}
 	}
 #endif
+#ifdef INET
 	if (sa->sa_family == AF_INET) {
 		if (sa->sa_len != sizeof(struct sockaddr_in)) {
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTPUTIL, EINVAL);
@@ -6533,6 +6577,7 @@ sctp_bindx_delete_address(struct socket *so, struct sctp_inpcb *inp,
 			return;
 		}
 	}
+#endif
 	/*
 	 * No lock required mgmt_ep_sa does its own locking. If the FIX:
 	 * below is ever changed we may need to lock before calling
@@ -6599,6 +6644,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 				if (sctp_is_addr_restricted(stcb, sctp_ifa))
 					continue;
 				switch (sctp_ifa->address.sa.sa_family) {
+#ifdef INET
 				case AF_INET:
 					if (ipv4_addr_legal) {
 						struct sockaddr_in *sin;
@@ -6621,6 +6667,7 @@ sctp_local_addr_count(struct sctp_tcb *stcb)
 						continue;
 					}
 					break;
+#endif
 #ifdef INET6
 				case AF_INET6:
 					if (ipv6_addr_legal) {
@@ -6715,6 +6762,8 @@ sctp_log_trace(uint32_t subsys, const char *str SCTP_UNUSED, uint32_t a, uint32_
 }
 
 #endif
+/* XXX: Remove the #ifdef after tunneling over IPv6 works also on FreeBSD. */
+#ifdef INET
 /* We will need to add support
  * to bind the ports and such here
  * so we can do UDP tunneling. In
@@ -6816,7 +6865,7 @@ out:
 	m_freem(m);
 }
 
-void 
+void
 sctp_over_udp_stop(void)
 {
 	struct socket *sop;
@@ -6833,7 +6882,8 @@ sctp_over_udp_stop(void)
 	soclose(sop);
 	SCTP_BASE_INFO(udp_tun_socket) = NULL;
 }
-int 
+
+int
 sctp_over_udp_start(void)
 {
 	uint16_t port;
@@ -6886,3 +6936,5 @@ exit_stage_left:
 	 */
 	return (0);
 }
+
+#endif
