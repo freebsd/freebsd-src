@@ -3543,7 +3543,7 @@ tls_get_addr_common(Elf_Addr** dtvp, int index, size_t offset)
 
 /* XXX not sure what variants to use for arm. */
 
-#if defined(__ia64__) || defined(__powerpc__)
+#if defined(__ia64__) || defined(__powerpc__) || defined(__mips__)
 
 /*
  * Allocate Static TLS using the Variant I method.
@@ -3625,7 +3625,7 @@ free_tls(void *tcb, size_t tcbsize, size_t tcbalign)
 #endif
 
 #if defined(__i386__) || defined(__amd64__) || defined(__sparc64__) || \
-    defined(__arm__) || defined(__mips__)
+    defined(__arm__)
 
 /*
  * Allocate Static TLS using the Variant II method.
