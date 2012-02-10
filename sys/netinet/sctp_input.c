@@ -623,7 +623,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	 * timer is running, for the destination, stop the timer because a
 	 * PF-heartbeat was received.
 	 */
-	if ((stcb->asoc.sctp_cmt_on_off == 1) &&
+	if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 	    (stcb->asoc.sctp_cmt_pf > 0) &&
 	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
 		if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
