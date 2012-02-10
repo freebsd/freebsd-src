@@ -3335,7 +3335,8 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 				if ((stcb->asoc.strm_realoutsize - stcb->asoc.streamoutcnt) < addstrmcnt) {
 					/* Need to allocate more */
 					struct sctp_stream_out *oldstream;
-					struct sctp_stream_queue_pending *sp;
+					struct sctp_stream_queue_pending *sp,
+					                         *nsp;
 					int removed;
 
 					oldstream = stcb->asoc.strmout;
@@ -3374,8 +3375,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 						 * now anything on those
 						 * queues?
 						 */
-						while (TAILQ_EMPTY(&oldstream[i].outqueue) == 0) {
-							sp = TAILQ_FIRST(&oldstream[i].outqueue);
+						TAILQ_FOREACH_SAFE(sp, &oldstream[i].outqueue, next, nsp) {
 							TAILQ_REMOVE(&oldstream[i].outqueue, sp, next);
 							TAILQ_INSERT_TAIL(&stcb->asoc.strmout[i].outqueue, sp, next);
 						}
