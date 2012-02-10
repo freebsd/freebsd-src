@@ -113,7 +113,7 @@ rto_logging(struct sctp_nets *net, int from)
 
 	memset(&sctp_clog, 0, sizeof(sctp_clog));
 	sctp_clog.x.rto.net = (void *)net;
-	sctp_clog.x.rto.rtt = net->prev_rtt;
+	sctp_clog.x.rto.rtt = net->rtt / 1000;
 	SCTP_CTR6(KTR_SCTP, "SCTP:%d[%d]:%x-%x-%x-%x",
 	    SCTP_LOG_EVENT_RTT,
 	    from,
@@ -2475,9 +2475,8 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	 * given an association and the starting time of the current RTT
 	 * period (in value1/value2) return RTO in number of msecs.
 	 */
-	int calc_time = 0;
-	int o_calctime;
-	uint32_t new_rto = 0;
+	int32_t rtt;		/* RTT in ms */
+	uint32_t new_rto;
 	int first_measure = 0;
 	struct timeval now, then, *old;
 
@@ -2497,95 +2496,58 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/************************/
 	/* get the current time */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
-	/*
-	 * Record the real time of the last RTT for use in DC-CC.
-	 */
-	net->last_measured_rtt = now;
-	timevalsub(&net->last_measured_rtt, old);
+	timevalsub(&now, old);
+	/* store the current RTT in us */
+	net->rtt = (uint64_t) 10000000 *(uint64_t) now.tv_sec +
+	         (uint64_t) now.tv_usec;
+
+	/* computer rtt in ms */
+	rtt = net->rtt / 1000;
 
 	/* Do we need to determine the lan type? */
-	if ((local_lan_determine == SCTP_DETERMINE_LL_OK) && (net->lan_type == SCTP_LAN_UNKNOWN)) {
-		if ((net->last_measured_rtt.tv_sec) ||
-		    (net->last_measured_rtt.tv_usec > SCTP_LOCAL_LAN_RTT)) {
+	if ((local_lan_determine == SCTP_DETERMINE_LL_OK) &&
+	    (net->lan_type == SCTP_LAN_UNKNOWN)) {
+		if (net->rtt > SCTP_LOCAL_LAN_RTT) {
 			net->lan_type = SCTP_LAN_INTERNET;
 		} else {
 			net->lan_type = SCTP_LAN_LOCAL;
 		}
 	}
-	/* compute the RTT value */
-	if ((u_long)now.tv_sec > (u_long)old->tv_sec) {
-		calc_time = ((u_long)now.tv_sec - (u_long)old->tv_sec) * 1000;
-		if ((u_long)now.tv_usec > (u_long)old->tv_usec) {
-			calc_time += (((u_long)now.tv_usec -
-			    (u_long)old->tv_usec) / 1000);
-		} else if ((u_long)now.tv_usec < (u_long)old->tv_usec) {
-			/* Borrow 1,000ms from current calculation */
-			calc_time -= 1000;
-			/* Add in the slop over */
-			calc_time += ((int)now.tv_usec / 1000);
-			/* Add in the pre-second ms's */
-			calc_time += (((int)1000000 - (int)old->tv_usec) / 1000);
-		}
-	} else if ((u_long)now.tv_sec == (u_long)old->tv_sec) {
-		if ((u_long)now.tv_usec > (u_long)old->tv_usec) {
-			calc_time = ((u_long)now.tv_usec -
-			    (u_long)old->tv_usec) / 1000;
-		} else if ((u_long)now.tv_usec < (u_long)old->tv_usec) {
-			/* impossible .. garbage in nothing out */
-			goto calc_rto;
-		} else if ((u_long)now.tv_usec == (u_long)old->tv_usec) {
-			/*
-			 * We have to have 1 usec :-D this must be the
-			 * loopback.
-			 */
-			calc_time = 1;
-		} else {
-			/* impossible .. garbage in nothing out */
-			goto calc_rto;
-		}
-	} else {
-		/* Clock wrapped? */
-		goto calc_rto;
-	}
 	/***************************/
 	/* 2. update RTTVAR & SRTT */
 	/***************************/
-	net->rtt = o_calctime = calc_time;
-	/* this is Van Jacobson's integer version */
+	/*-
+	 * Compute the scaled average lastsa and the
+	 * scaled variance lastsv as described in van Jacobson
+	 * Paper "Congestion Avoidance and Control", Annex A.
+	 *
+	 * (net->lastsa >> SCTP_RTT_SHIFT) is the srtt
+	 * (net->lastsa >> SCTP_RTT_VAR_SHIFT) is the rttvar
+	 */
 	if (net->RTO_measured) {
-		calc_time -= (net->lastsa >> SCTP_RTT_SHIFT);	/* take away 1/8th when
-								 * shift=3 */
+		rtt -= (net->lastsa >> SCTP_RTT_SHIFT);
+		net->lastsa += rtt;
+		if (rtt < 0) {
+			rtt = -rtt;
+		}
+		rtt -= (net->lastsv >> SCTP_RTT_VAR_SHIFT);
+		net->lastsv += rtt;
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RTTVAR_LOGGING_ENABLE) {
 			rto_logging(net, SCTP_LOG_RTTVAR);
-		}
-		net->prev_rtt = o_calctime;
-		net->lastsa += calc_time;	/* add 7/8th into sa when
-						 * shift=3 */
-		if (calc_time < 0) {
-			calc_time = -calc_time;
-		}
-		calc_time -= (net->lastsv >> SCTP_RTT_VAR_SHIFT);	/* take away 1/4 when
-									 * VAR shift=2 */
-		net->lastsv += calc_time;
-		if (net->lastsv == 0) {
-			net->lastsv = SCTP_CLOCK_GRANULARITY;
 		}
 	} else {
 		/* First RTO measurment */
 		net->RTO_measured = 1;
-		net->lastsa = calc_time << SCTP_RTT_SHIFT;	/* Multiply by 8 when
-								 * shift=3 */
-		net->lastsv = calc_time;
-		if (net->lastsv == 0) {
-			net->lastsv = SCTP_CLOCK_GRANULARITY;
-		}
 		first_measure = 1;
-		net->prev_rtt = o_calctime;
+		net->lastsa = rtt << SCTP_RTT_SHIFT;
+		net->lastsv = (rtt / 2) << SCTP_RTT_VAR_SHIFT;
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_RTTVAR_LOGGING_ENABLE) {
 			rto_logging(net, SCTP_LOG_INITIAL_RTT);
 		}
 	}
-calc_rto:
+	if (net->lastsv == 0) {
+		net->lastsv = SCTP_CLOCK_GRANULARITY;
+	}
 	new_rto = (net->lastsa >> SCTP_RTT_SHIFT) + net->lastsv;
 	if ((new_rto > SCTP_SAT_NETWORK_MIN) &&
 	    (stcb->asoc.sat_network_lockout == 0)) {
