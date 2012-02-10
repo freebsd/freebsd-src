@@ -6468,7 +6468,7 @@ sctp_toss_old_asconf(struct sctp_tcb *stcb)
 		if (chk->rec.chunk_id.id == SCTP_ASCONF) {
 			if (chk->data) {
 				acp = mtod(chk->data, struct sctp_asconf_chunk *);
-				if (compare_with_wrap(ntohl(acp->serial_number), asoc->asconf_seq_out_acked, MAX_TSN)) {
+				if (SCTP_TSN_GT(ntohl(acp->serial_number), asoc->asconf_seq_out_acked)) {
 					/* Not Acked yet */
 					break;
 				}
@@ -6516,8 +6516,7 @@ sctp_clean_up_datalist(struct sctp_tcb *stcb,
 		}
 		/* on to the sent queue */
 		tp1 = TAILQ_LAST(&asoc->sent_queue, sctpchunk_listhead);
-		if ((tp1) && (compare_with_wrap(tp1->rec.data.TSN_seq,
-		    data_list[i]->rec.data.TSN_seq, MAX_TSN))) {
+		if ((tp1) && SCTP_TSN_GT(tp1->rec.data.TSN_seq, data_list[i]->rec.data.TSN_seq)) {
 			struct sctp_tmit_chunk *tpp;
 
 			/* need to move back */
@@ -6528,8 +6527,7 @@ sctp_clean_up_datalist(struct sctp_tcb *stcb,
 				goto all_done;
 			}
 			tp1 = tpp;
-			if (compare_with_wrap(tp1->rec.data.TSN_seq,
-			    data_list[i]->rec.data.TSN_seq, MAX_TSN)) {
+			if (SCTP_TSN_GT(tp1->rec.data.TSN_seq, data_list[i]->rec.data.TSN_seq)) {
 				goto back_up_more;
 			}
 			TAILQ_INSERT_AFTER(&asoc->sent_queue, tp1, data_list[i], sctp_next);
@@ -10002,7 +10000,7 @@ sctp_send_sack(struct sctp_tcb *stcb)
 	if (a_chk->whoTo) {
 		atomic_add_int(&a_chk->whoTo->ref_count, 1);
 	}
-	if (compare_with_wrap(asoc->highest_tsn_inside_map, asoc->highest_tsn_inside_nr_map, MAX_TSN)) {
+	if (SCTP_TSN_GT(asoc->highest_tsn_inside_map, asoc->highest_tsn_inside_nr_map)) {
 		highest_tsn = asoc->highest_tsn_inside_map;
 	} else {
 		highest_tsn = asoc->highest_tsn_inside_nr_map;
@@ -10097,15 +10095,15 @@ sctp_send_sack(struct sctp_tcb *stcb)
 		}
 	}
 
-	if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
+	if (SCTP_TSN_GT(asoc->mapping_array_base_tsn, asoc->cumulative_tsn)) {
 		offset = 1;
 	} else {
 		offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
 	}
 	if (((type == SCTP_SELECTIVE_ACK) &&
-	    compare_with_wrap(highest_tsn, asoc->cumulative_tsn, MAX_TSN)) ||
+	    SCTP_TSN_GT(highest_tsn, asoc->cumulative_tsn)) ||
 	    ((type == SCTP_NR_SELECTIVE_ACK) &&
-	    compare_with_wrap(asoc->highest_tsn_inside_map, asoc->cumulative_tsn, MAX_TSN))) {
+	    SCTP_TSN_GT(asoc->highest_tsn_inside_map, asoc->cumulative_tsn))) {
 		/* we have a gap .. maybe */
 		for (i = 0; i < siz; i++) {
 			tsn_map = asoc->mapping_array[i];
@@ -10177,12 +10175,12 @@ sctp_send_sack(struct sctp_tcb *stcb)
 			siz = (((MAX_TSN - asoc->mapping_array_base_tsn) + 1) + asoc->highest_tsn_inside_nr_map + 7) / 8;
 		}
 
-		if (compare_with_wrap(asoc->mapping_array_base_tsn, asoc->cumulative_tsn, MAX_TSN)) {
+		if (SCTP_TSN_GT(asoc->mapping_array_base_tsn, asoc->cumulative_tsn)) {
 			offset = 1;
 		} else {
 			offset = asoc->mapping_array_base_tsn - asoc->cumulative_tsn;
 		}
-		if (compare_with_wrap(asoc->highest_tsn_inside_nr_map, asoc->cumulative_tsn, MAX_TSN)) {
+		if (SCTP_TSN_GT(asoc->highest_tsn_inside_nr_map, asoc->cumulative_tsn)) {
 			/* we have a gap .. maybe */
 			for (i = 0; i < siz; i++) {
 				tsn_map = asoc->nr_mapping_array[i];
@@ -11075,8 +11073,7 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
 		if (chk->rec.chunk_id.id == SCTP_ECN_CWR) {
 			/* found a previous ECN_CWR update it if needed */
 			cwr = mtod(chk->data, struct sctp_cwr_chunk *);
-			if (compare_with_wrap(high_tsn, ntohl(cwr->tsn),
-			    MAX_TSN)) {
+			if (SCTP_TSN_GT(high_tsn, ntohl(cwr->tsn))) {
 				cwr->tsn = htonl(high_tsn);
 			}
 			return;

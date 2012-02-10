@@ -577,11 +577,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 
 	asoc = &stcb->asoc;
 	TAILQ_FOREACH_SAFE(chk, &asoc->sent_queue, sctp_next, nchk) {
-		if ((compare_with_wrap(asoc->last_acked_seq,
-		    chk->rec.data.TSN_seq,
-		    MAX_TSN)) ||
-		    (asoc->last_acked_seq == chk->rec.data.TSN_seq)) {
-
+		if (SCTP_TSN_GE(asoc->last_acked_seq, chk->rec.data.TSN_seq)) {
 			SCTP_PRINTF("Found chk:%p tsn:%x <= last_acked_seq:%x\n",
 			    chk, chk->rec.data.TSN_seq, asoc->last_acked_seq);
 			TAILQ_REMOVE(&asoc->sent_queue, chk, sctp_next);
@@ -692,10 +688,7 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 start_again:
 #endif
 	TAILQ_FOREACH_SAFE(chk, &stcb->asoc.sent_queue, sctp_next, nchk) {
-		if ((compare_with_wrap(stcb->asoc.last_acked_seq,
-		    chk->rec.data.TSN_seq,
-		    MAX_TSN)) ||
-		    (stcb->asoc.last_acked_seq == chk->rec.data.TSN_seq)) {
+		if (SCTP_TSN_GE(stcb->asoc.last_acked_seq, chk->rec.data.TSN_seq)) {
 			/* Strange case our list got out of order? */
 			SCTP_PRINTF("Our list is out of order? last_acked:%x chk:%x",
 			    (unsigned int)stcb->asoc.last_acked_seq, (unsigned int)chk->rec.data.TSN_seq);
@@ -1150,8 +1143,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 
 		lchk = sctp_try_advance_peer_ack_point(stcb, &stcb->asoc);
 		/* C3. See if we need to send a Fwd-TSN */
-		if (compare_with_wrap(stcb->asoc.advanced_peer_ack_point,
-		    stcb->asoc.last_acked_seq, MAX_TSN)) {
+		if (SCTP_TSN_GT(stcb->asoc.advanced_peer_ack_point, stcb->asoc.last_acked_seq)) {
 			/*
 			 * ISSUE with ECN, see FWD-TSN processing for notes
 			 * on issues that will occur when the ECN NONCE
