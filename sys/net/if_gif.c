@@ -603,6 +603,7 @@ gif_input(m, af, ifp)
 
 	ifp->if_ipackets++;
 	ifp->if_ibytes += m->m_pkthdr.len;
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 }
 

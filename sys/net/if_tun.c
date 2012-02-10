@@ -921,6 +921,7 @@ tunwrite(struct cdev *dev, struct uio *uio, int flag)
 		random_harvest(m, 16, 3, 0, RANDOM_NET);
 	ifp->if_ibytes += m->m_pkthdr.len;
 	ifp->if_ipackets++;
+	M_SETFIB(m, ifp->if_fib);
 	netisr_dispatch(isr, m);
 	return (0);
 }
