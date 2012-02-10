@@ -1,5 +1,8 @@
 /*-
  * Copyright (c) 2001-2008, by Cisco Systems, Inc. All rights reserved.
+ * Copyright (c) 2008-2011, by Randall Stewart, rrs@lakerest.net and
+ *                          Michael Tuexen, tuexen@fh-muenster.de
+ *                          All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:
@@ -475,6 +478,7 @@ struct sctp_stream_queue_pending {
 	struct timeval ts;
 	struct sctp_nets *net;
 	          TAILQ_ENTRY(sctp_stream_queue_pending) next;
+	          TAILQ_ENTRY(sctp_stream_queue_pending) ss_next;
 	uint32_t length;
 	uint32_t timetolive;
 	uint32_t ppid;
@@ -652,7 +656,7 @@ struct sctp_ss_functions {
 	         int holds_lock);
 	void (*sctp_ss_clear) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         int clear_values, int holds_lock);
-	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq);
+	void (*sctp_ss_init_stream) (struct sctp_stream_out *strq, struct sctp_stream_out *with_strq);
 	void (*sctp_ss_add_to_stream) (struct sctp_tcb *stcb, struct sctp_association *asoc,
 	         struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp, int holds_lock);
 	int (*sctp_ss_is_empty) (struct sctp_tcb *stcb, struct sctp_association *asoc);
@@ -751,12 +755,7 @@ struct sctp_association {
 	/* re-assembly queue for fragmented chunks on the inbound path */
 	struct sctpchunk_listhead reasmqueue;
 
-	/*
-	 * this queue is used when we reach a condition that we can NOT put
-	 * data into the socket buffer. We track the size of this queue and
-	 * set our rwnd to the space in the socket minus also the
-	 * size_on_delivery_queue.
-	 */
+	/* Scheduling queues */
 	union scheduling_data ss_data;
 
 	/*
