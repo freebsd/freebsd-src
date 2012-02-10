@@ -946,8 +946,9 @@ struct sctpstat {
 					 * max burst inflight to net */
 	uint32_t sctps_fwdtsn_map_over;	/* number of map array over-runs via
 					 * fwd-tsn's */
-
-	uint32_t sctps_reserved[32];	/* Future ABI compat - remove int's
+	uint32_t sctps_queue_upd_ecne;	/* Number of times we queued or
+					 * updated an ECN chunk on send queue */
+	uint32_t sctps_reserved[31];	/* Future ABI compat - remove int's
 					 * from here when adding new */
 };
 
