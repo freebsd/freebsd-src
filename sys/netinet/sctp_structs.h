@@ -321,7 +321,8 @@ struct sctp_nets {
 	uint32_t fast_recovery_tsn;
 	uint32_t heartbeat_random1;
 	uint32_t heartbeat_random2;
-	uint32_t tos_flowlabel;
+	uint32_t flowlabel;
+	uint8_t dscp;
 
 	struct timeval start_time;	/* time when this net was created */
 	uint32_t marked_retrans;/* number or DATA chunks marked for timer
@@ -1137,7 +1138,7 @@ struct sctp_association {
 	uint8_t last_flags_delivered;
 	uint8_t hb_ect_randombit;
 	uint8_t hb_random_idx;
-	uint8_t default_tos;
+	uint8_t default_dscp;
 	uint8_t asconf_del_pending;	/* asconf delete last addr pending */
 
 	/*

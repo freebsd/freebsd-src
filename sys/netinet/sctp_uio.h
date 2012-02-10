@@ -505,8 +505,10 @@ struct sctp_paddrparams {
 	uint32_t spp_flags;
 	uint32_t spp_ipv6_flowlabel;
 	uint16_t spp_pathmaxrxt;
-	uint8_t spp_ipv4_tos;
+	uint8_t spp_dscp;
 };
+
+#define spp_ipv4_tos spp_dscp
 
 #define SPP_HB_ENABLE		0x00000001
 #define SPP_HB_DISABLE		0x00000002
@@ -515,7 +517,8 @@ struct sctp_paddrparams {
 #define SPP_PMTUD_DISABLE	0x00000010
 #define SPP_HB_TIME_IS_ZERO     0x00000080
 #define SPP_IPV6_FLOWLABEL      0x00000100
-#define SPP_IPV4_TOS            0x00000200
+#define SPP_DSCP                0x00000200
+#define SPP_IPV4_TOS            SPP_DSCP
 
 struct sctp_paddrthlds {
 	sctp_assoc_t spt_assoc_id;
