@@ -245,7 +245,7 @@ struct sctp_nets {
 	/* smoothed average things for RTT and RTO itself */
 	int lastsa;
 	int lastsv;
-	int rtt;		/* last measured rtt value in ms */
+	uint64_t rtt;		/* last measured rtt value in us */
 	unsigned int RTO;
 
 	/* This is used for SHUTDOWN/SHUTDOWN-ACK/SEND or INIT timers */
@@ -254,6 +254,10 @@ struct sctp_nets {
 
 	/* last time in seconds I sent to it */
 	struct timeval last_sent_time;
+
+	/* JRS - struct used in HTCP algorithm */
+	struct htcp htcp_ca;
+
 	int ref_count;
 
 	/* Congestion stats per destination */
@@ -267,7 +271,6 @@ struct sctp_nets {
 	uint32_t ecn_prev_cwnd;	/* ECN prev cwnd at first ecn_echo seen in new
 				 * window */
 	uint32_t partial_bytes_acked;	/* in CA tracks when to incr a MTU */
-	uint32_t prev_rtt;
 	/* tracking variables to avoid the aloc/free in sack processing */
 	unsigned int net_ack;
 	unsigned int net_ack2;
@@ -298,7 +301,6 @@ struct sctp_nets {
 	uint32_t tos_flowlabel;
 
 	struct timeval start_time;	/* time when this net was created */
-	struct timeval last_measured_rtt;
 	uint32_t marked_retrans;/* number or DATA chunks marked for timer
 				 * based retransmissions */
 	uint32_t marked_fastretrans;
@@ -348,8 +350,6 @@ struct sctp_nets {
 	uint8_t RTO_measured;	/* Have we done the first measure */
 	uint8_t last_hs_used;	/* index into the last HS table entry we used */
 	uint8_t lan_type;
-	/* JRS - struct used in HTCP algorithm */
-	struct htcp htcp_ca;
 	uint32_t flowid;
 #ifdef INVARIANTS
 	uint8_t flowidset;
