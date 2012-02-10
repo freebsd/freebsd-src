@@ -2500,6 +2500,13 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 	/************************/
 	/* get the current time */
 	(void)SCTP_GETTIME_TIMEVAL(&now);
+
+	/*
+	 * Record the real time of the last RTT for use in DC-CC.
+	 */
+	net->last_measured_rtt = now;
+	timevalsub(&net->last_measured_rtt, old);
+
 	/* compute the RTT value */
 	if ((u_long)now.tv_sec > (u_long)old->tv_sec) {
 		calc_time = ((u_long)now.tv_sec - (u_long)old->tv_sec) * 1000;
