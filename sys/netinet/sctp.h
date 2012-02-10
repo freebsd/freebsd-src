@@ -265,6 +265,13 @@ struct sctp_paramhdr {
 #define SCTP_CC_OPT_USE_DCCC_ECN	0x00002001
 #define SCTP_CC_OPT_STEADY_STEP         0x00002002
 
+#define SCTP_CMT_OFF            0
+#define SCTP_CMT_BASE           1
+#define SCTP_CMT_RPV1           2
+#define SCTP_CMT_RPV2           3
+#define SCTP_CMT_MPTCP          4
+#define SCTP_CMT_MAX            SCTP_CMT_MPTCP
+
 /* RS - Supported stream scheduling modules for pluggable
  * stream scheduling
  */

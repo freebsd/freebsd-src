@@ -47,6 +47,10 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#define SHIFT_MPTCP_MULTI_N 40
+#define SHIFT_MPTCP_MULTI_Z 16
+#define SHIFT_MPTCP_MULTI 8
+
 static void
 sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
@@ -67,7 +71,8 @@ sctp_set_initial_cc_param(struct sctp_tcb *stcb, struct sctp_nets *net)
 			cwnd_in_mtu = assoc->max_burst;
 		net->cwnd = (net->mtu - sizeof(struct sctphdr)) * cwnd_in_mtu;
 	}
-	if (stcb->asoc.sctp_cmt_on_off == 2) {
+	if ((stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV1) ||
+	    (stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV2)) {
 		/* In case of resource pooling initialize appropriately */
 		net->cwnd /= assoc->numnets;
 		if (net->cwnd < (net->mtu - sizeof(struct sctphdr))) {
@@ -91,14 +96,23 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 {
 	struct sctp_nets *net;
 	uint32_t t_ssthresh, t_cwnd;
+	uint64_t t_ucwnd_sbw;
 
 	/* MT FIXME: Don't compute this over and over again */
 	t_ssthresh = 0;
 	t_cwnd = 0;
-	if (asoc->sctp_cmt_on_off == 2) {
+	t_ucwnd_sbw = 0;
+	if ((asoc->sctp_cmt_on_off == SCTP_CMT_RPV1) ||
+	    (asoc->sctp_cmt_on_off == SCTP_CMT_RPV2)) {
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			t_ssthresh += net->ssthresh;
 			t_cwnd += net->cwnd;
+			if (net->lastsa > 0) {
+				t_ucwnd_sbw += (uint64_t) net->cwnd / (uint64_t) net->lastsa;
+			}
+		}
+		if (t_ucwnd_sbw == 0) {
+			t_ucwnd_sbw = 1;
 		}
 	}
 	/*-
@@ -119,11 +133,37 @@ sctp_cwnd_update_after_fr(struct sctp_tcb *stcb,
 				struct sctp_tmit_chunk *lchk;
 				int old_cwnd = net->cwnd;
 
-				if (asoc->sctp_cmt_on_off == 2) {
-					net->ssthresh = (uint32_t) (((uint64_t) 4 *
-					    (uint64_t) net->mtu *
-					    (uint64_t) net->ssthresh) /
-					    (uint64_t) t_ssthresh);
+				if ((asoc->sctp_cmt_on_off == SCTP_CMT_RPV1) ||
+				    (asoc->sctp_cmt_on_off == SCTP_CMT_RPV2)) {
+					if (asoc->sctp_cmt_on_off == SCTP_CMT_RPV1) {
+						net->ssthresh = (uint32_t) (((uint64_t) 4 *
+						    (uint64_t) net->mtu *
+						    (uint64_t) net->ssthresh) /
+						    (uint64_t) t_ssthresh);
+
+					}
+					if (asoc->sctp_cmt_on_off == SCTP_CMT_RPV2) {
+						uint32_t srtt;
+
+						srtt = net->lastsa;
+						/*
+						 * lastsa>>3;  we don't need
+						 * to devide ...
+						 */
+						if (srtt == 0) {
+							srtt = 1;
+						}
+						/*
+						 * Short Version => Equal to
+						 * Contel Version MBe
+						 */
+						net->ssthresh = (uint32_t) (((uint64_t) 4 *
+						    (uint64_t) net->mtu *
+						    (uint64_t) net->cwnd) /
+						    ((uint64_t) srtt *
+						    t_ucwnd_sbw));
+						 /* INCREASE FACTOR */ ;
+					}
 					if ((net->cwnd > t_cwnd / 2) &&
 					    (net->ssthresh < net->cwnd - t_cwnd / 2)) {
 						net->ssthresh = net->cwnd - t_cwnd / 2;
@@ -629,14 +669,47 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 	struct sctp_nets *net;
 	int old_cwnd;
 	uint32_t t_ssthresh, t_cwnd, incr;
+	uint64_t t_ucwnd_sbw;
+	uint64_t t_path_mptcp;
+	uint64_t mptcp_like_alpha;
+	uint32_t srtt;
+	uint64_t max_path;
 
 	/* MT FIXME: Don't compute this over and over again */
 	t_ssthresh = 0;
 	t_cwnd = 0;
-	if (stcb->asoc.sctp_cmt_on_off == 2) {
+	t_ucwnd_sbw = 0;
+	t_path_mptcp = 0;
+	mptcp_like_alpha = 1;
+	if ((stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV1) ||
+	    (stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV2) ||
+	    (stcb->asoc.sctp_cmt_on_off == SCTP_CMT_MPTCP)) {
+		max_path = 0;
 		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 			t_ssthresh += net->ssthresh;
 			t_cwnd += net->cwnd;
+			/* lastsa>>3;  we don't need to devide ... */
+			srtt = net->lastsa;
+			if (srtt > 0) {
+				uint64_t tmp;
+
+				t_ucwnd_sbw += (uint64_t) net->cwnd / (uint64_t) srtt;
+				t_path_mptcp += (((uint64_t) net->cwnd) << SHIFT_MPTCP_MULTI_Z) /
+				    (((uint64_t) net->mtu) * (uint64_t) srtt);
+				tmp = (((uint64_t) net->cwnd) << SHIFT_MPTCP_MULTI_N) /
+				    ((uint64_t) net->mtu * (uint64_t) (srtt * srtt));
+				if (tmp > max_path) {
+					max_path = tmp;
+				}
+			}
+		}
+		if (t_ucwnd_sbw == 0) {
+			t_ucwnd_sbw = 1;
+		}
+		if (t_path_mptcp > 0) {
+			mptcp_like_alpha = max_path / (t_path_mptcp * t_path_mptcp);
+		} else {
+			mptcp_like_alpha = 1;
 		}
 	}
 	/******************************/
@@ -818,10 +891,11 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 			if (net->cwnd <= net->ssthresh) {
 				/* We are in slow start */
 				if (net->flight_size + net->net_ack >= net->cwnd) {
-					old_cwnd = net->cwnd;
-					if (stcb->asoc.sctp_cmt_on_off == 2) {
-						uint32_t limit;
+					uint32_t limit;
 
+					old_cwnd = net->cwnd;
+					switch (asoc->sctp_cmt_on_off) {
+					case SCTP_CMT_RPV1:
 						limit = (uint32_t) (((uint64_t) net->mtu *
 						    (uint64_t) SCTP_BASE_SYSCTL(sctp_L2_abc_variable) *
 						    (uint64_t) net->ssthresh) /
@@ -835,11 +909,56 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 						if (incr == 0) {
 							incr = 1;
 						}
-					} else {
+						break;
+					case SCTP_CMT_RPV2:
+						/*
+						 * lastsa>>3;  we don't need
+						 * to divide ...
+						 */
+						srtt = net->lastsa;
+						if (srtt == 0) {
+							srtt = 1;
+						}
+						limit = (uint32_t) (((uint64_t) net->mtu *
+						    (uint64_t) SCTP_BASE_SYSCTL(sctp_L2_abc_variable) *
+						    (uint64_t) net->cwnd) /
+						    ((uint64_t) srtt * t_ucwnd_sbw));
+						/* INCREASE FACTOR */
+						incr = (uint32_t) (((uint64_t) net->net_ack *
+						    (uint64_t) net->cwnd) /
+						    ((uint64_t) srtt * t_ucwnd_sbw));
+						/* INCREASE FACTOR */
+						if (incr > limit) {
+							incr = limit;
+						}
+						if (incr == 0) {
+							incr = 1;
+						}
+						break;
+					case SCTP_CMT_MPTCP:
+						limit = (uint32_t) (((uint64_t) net->mtu *
+						    mptcp_like_alpha *
+						    (uint64_t) SCTP_BASE_SYSCTL(sctp_L2_abc_variable)) >>
+						    SHIFT_MPTCP_MULTI);
+						incr = (uint32_t) (((uint64_t) net->net_ack *
+						    mptcp_like_alpha) >>
+						    SHIFT_MPTCP_MULTI);
+						if (incr > limit) {
+							incr = limit;
+						}
+						if (incr > net->net_ack) {
+							incr = net->net_ack;
+						}
+						if (incr > net->mtu) {
+							incr = net->mtu;
+						}
+						break;
+					default:
 						incr = net->net_ack;
 						if (incr > net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable)) {
 							incr = net->mtu * SCTP_BASE_SYSCTL(sctp_L2_abc_variable);
 						}
+						break;
 					}
 					net->cwnd += incr;
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_MONITOR_ENABLE) {
@@ -868,15 +987,44 @@ sctp_cwnd_update_after_sack_common(struct sctp_tcb *stcb,
 				    (net->partial_bytes_acked >= net->cwnd)) {
 					net->partial_bytes_acked -= net->cwnd;
 					old_cwnd = net->cwnd;
-					if (asoc->sctp_cmt_on_off == 2) {
+					switch (asoc->sctp_cmt_on_off) {
+					case SCTP_CMT_RPV1:
 						incr = (uint32_t) (((uint64_t) net->mtu *
 						    (uint64_t) net->ssthresh) /
 						    (uint64_t) t_ssthresh);
 						if (incr == 0) {
 							incr = 1;
 						}
-					} else {
+						break;
+					case SCTP_CMT_RPV2:
+						/*
+						 * lastsa>>3;  we don't need
+						 * to divide ...
+						 */
+						srtt = net->lastsa;
+						if (srtt == 0) {
+							srtt = 1;
+						}
+						incr = (uint32_t) ((uint64_t) net->mtu *
+						    (uint64_t) net->cwnd /
+						    ((uint64_t) srtt *
+						    t_ucwnd_sbw));
+						/* INCREASE FACTOR */
+						if (incr == 0) {
+							incr = 1;
+						}
+						break;
+					case SCTP_CMT_MPTCP:
+						incr = (uint32_t) ((mptcp_like_alpha *
+						    (uint64_t) net->cwnd) >>
+						    SHIFT_MPTCP_MULTI);
+						if (incr > net->mtu) {
+							incr = net->mtu;
+						}
+						break;
+					default:
 						incr = net->mtu;
+						break;
 					}
 					net->cwnd += incr;
 					SDT_PROBE(sctp, cwnd, net, ack,
@@ -926,21 +1074,49 @@ sctp_cwnd_update_after_timeout(struct sctp_tcb *stcb, struct sctp_nets *net)
 {
 	int old_cwnd = net->cwnd;
 	uint32_t t_ssthresh, t_cwnd;
+	uint64_t t_ucwnd_sbw;
 
 	/* MT FIXME: Don't compute this over and over again */
 	t_ssthresh = 0;
 	t_cwnd = 0;
-	if (stcb->asoc.sctp_cmt_on_off == 2) {
+	if ((stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV1) ||
+	    (stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV2)) {
 		struct sctp_nets *lnet;
+		uint32_t srtt;
 
+		t_ucwnd_sbw = 0;
 		TAILQ_FOREACH(lnet, &stcb->asoc.nets, sctp_next) {
 			t_ssthresh += lnet->ssthresh;
 			t_cwnd += lnet->cwnd;
+			srtt = lnet->lastsa;
+			/* lastsa>>3;  we don't need to divide ... */
+			if (srtt > 0) {
+				t_ucwnd_sbw += (uint64_t) lnet->cwnd / (uint64_t) srtt;
+			}
 		}
-		net->ssthresh = (uint32_t) (((uint64_t) 4 *
-		    (uint64_t) net->mtu *
-		    (uint64_t) net->ssthresh) /
-		    (uint64_t) t_ssthresh);
+		if (t_ucwnd_sbw < 1) {
+			t_ucwnd_sbw = 1;
+		}
+		if (stcb->asoc.sctp_cmt_on_off == SCTP_CMT_RPV1) {
+			net->ssthresh = (uint32_t) (((uint64_t) 4 *
+			    (uint64_t) net->mtu *
+			    (uint64_t) net->ssthresh) /
+			    (uint64_t) t_ssthresh);
+		} else {
+			uint64_t cc_delta;
+
+			srtt = net->lastsa;
+			/* lastsa>>3;  we don't need to divide ... */
+			if (srtt == 0) {
+				srtt = 1;
+			}
+			cc_delta = t_ucwnd_sbw * (uint64_t) srtt / 2;
+			if (cc_delta < t_cwnd) {
+				net->ssthresh = (uint32_t) ((uint64_t) t_cwnd - cc_delta);
+			} else {
+				net->ssthresh = net->mtu;
+			}
+		}
 		if ((net->cwnd > t_cwnd / 2) &&
 		    (net->ssthresh < net->cwnd - t_cwnd / 2)) {
 			net->ssthresh = net->cwnd - t_cwnd / 2;
