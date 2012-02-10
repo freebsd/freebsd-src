@@ -27,7 +27,7 @@
 
 # PROVIDE: netif
 # REQUIRE: atm1 cleanvar FILESYSTEMS serial sppp sysctl
-# REQUIRE: ipfilter ipfs
+# REQUIRE: ipfilter ipfs auto_linklocal
 # KEYWORD: nojail
 
 . /etc/rc.subr

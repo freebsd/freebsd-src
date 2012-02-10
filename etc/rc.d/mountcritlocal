@@ -4,7 +4,7 @@
 #
 
 # PROVIDE: mountcritlocal
-# REQUIRE: root
+# REQUIRE: root hostid_save mdconfig
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
