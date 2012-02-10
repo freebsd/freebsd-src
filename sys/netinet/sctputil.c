@@ -3850,8 +3850,6 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #endif
 )
 {
-	uint32_t vtag;
-
 #if defined (__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so;
 
@@ -3872,7 +3870,6 @@ sctp_abort_an_association(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	} else {
 		stcb->asoc.state |= SCTP_STATE_WAS_ABORTED;
 	}
-	vtag = stcb->asoc.peer_vtag;
 	/* notify the ulp */
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) == 0)
 		sctp_abort_notification(stcb, error, so_locked);
