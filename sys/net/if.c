@@ -56,6 +56,8 @@
 #include <sys/taskqueue.h>
 #include <sys/domain.h>
 #include <sys/jail.h>
+#include <sys/priv.h>
+
 #include <machine/stdarg.h>
 
 #include <net/if.h>
@@ -1681,6 +1683,20 @@ ifhwioctl(u_long cmd, struct ifnet *ifp, caddr_t data, struct thread *td)
 
 	case SIOCGIFPHYS:
 		ifr->ifr_phys = ifp->if_physical;
+		break;
+
+	case SIOCGIFFIB:
+		ifr->ifr_fib = ifp->if_fib;
+		break;
+
+	case SIOCSIFFIB:
+		error = priv_check(td, PRIV_NET_SETIFFIB);
+		if (error)
+			return (error);
+		if (ifr->ifr_fib >= rt_numfibs)
+			return (EINVAL);
+
+		ifp->if_fib = ifr->ifr_fib;
 		break;
 
 	case SIOCSIFFLAGS:
