@@ -3355,52 +3355,336 @@ sctp_source_address_selection(struct sctp_inpcb *inp,
 }
 
 static int
-sctp_find_cmsg(int c_type, void *data, struct mbuf *control, int cpsize)
+sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 {
 	struct cmsghdr cmh;
-	int tlen, at;
+	int tlen, at, found;
+	struct sctp_sndinfo sndinfo;
+	struct sctp_prinfo prinfo;
+	struct sctp_authinfo authinfo;
 
 	tlen = SCTP_BUF_LEN(control);
 	at = 0;
+	found = 0;
 	/*
 	 * Independent of how many mbufs, find the c_type inside the control
 	 * structure and copy out the data.
 	 */
 	while (at < tlen) {
 		if ((tlen - at) < (int)CMSG_ALIGN(sizeof(cmh))) {
-			/* not enough room for one more we are done. */
-			return (0);
+			/* There is not enough room for one more. */
+			return (found);
 		}
 		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+			/* We dont't have a complete CMSG header. */
+			return (found);
+		}
 		if (((int)cmh.cmsg_len + at) > tlen) {
-			/*
-			 * this is real messed up since there is not enough
-			 * data here to cover the cmsg header. We are done.
-			 */
-			return (0);
+			/* We don't have the complete CMSG. */
+			return (found);
 		}
 		if ((cmh.cmsg_level == IPPROTO_SCTP) &&
-		    (c_type == cmh.cmsg_type)) {
-			/* found the one we want, copy it out */
-			at += CMSG_ALIGN(sizeof(struct cmsghdr));
-			if ((int)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < cpsize) {
-				/*
-				 * space of cmsg_len after header not big
-				 * enough
-				 */
-				return (0);
+		    ((c_type == cmh.cmsg_type) ||
+		    ((c_type == SCTP_SNDRCV) &&
+		    ((cmh.cmsg_type == SCTP_SNDINFO) ||
+		    (cmh.cmsg_type == SCTP_PRINFO) ||
+		    (cmh.cmsg_type == SCTP_AUTHINFO))))) {
+			if (c_type == cmh.cmsg_type) {
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < cpsize) {
+					return (found);
+				}
+				/* It is exactly what we want. Copy it out. */
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), cpsize, (caddr_t)data);
+				return (1);
+			} else {
+				struct sctp_sndrcvinfo *sndrcvinfo;
+
+				sndrcvinfo = (struct sctp_sndrcvinfo *)data;
+				if (found == 0) {
+					if (cpsize < sizeof(struct sctp_sndrcvinfo)) {
+						return (found);
+					}
+					memset(sndrcvinfo, 0, sizeof(struct sctp_sndrcvinfo));
+				}
+				switch (cmh.cmsg_type) {
+				case SCTP_SNDINFO:
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_sndinfo)) {
+						return (found);
+					}
+					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_sndinfo), (caddr_t)&sndinfo);
+					sndrcvinfo->sinfo_stream = sndinfo.snd_sid;
+					sndrcvinfo->sinfo_flags = sndinfo.snd_flags;
+					sndrcvinfo->sinfo_ppid = sndinfo.snd_ppid;
+					sndrcvinfo->sinfo_context = sndinfo.snd_context;
+					sndrcvinfo->sinfo_assoc_id = sndinfo.snd_assoc_id;
+					break;
+				case SCTP_PRINFO:
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_prinfo)) {
+						return (found);
+					}
+					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
+					sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
+					sndrcvinfo->sinfo_flags |= prinfo.pr_policy;
+					break;
+				case SCTP_AUTHINFO:
+					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_authinfo)) {
+						return (found);
+					}
+					m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
+					sndrcvinfo->sinfo_keynumber_valid = 1;
+					sndrcvinfo->sinfo_keynumber = authinfo.auth_keyid;
+					break;
+				default:
+					return (found);
+				}
+				found = 1;
 			}
-			m_copydata(control, at, cpsize, data);
+		}
+		at += CMSG_ALIGN(cmh.cmsg_len);
+	}
+	return (found);
+}
+
+static int
+sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *error)
+{
+	struct cmsghdr cmh;
+	int tlen, at;
+	struct sctp_initmsg initmsg;
+
+#ifdef INET
+	struct sockaddr_in sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 sin6;
+
+#endif
+
+	tlen = SCTP_BUF_LEN(control);
+	at = 0;
+	while (at < tlen) {
+		if ((tlen - at) < (int)CMSG_ALIGN(sizeof(cmh))) {
+			/* There is not enough room for one more. */
+			*error = EINVAL;
 			return (1);
-		} else {
-			at += CMSG_ALIGN(cmh.cmsg_len);
-			if (cmh.cmsg_len == 0) {
+		}
+		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+			/* We dont't have a complete CMSG header. */
+			*error = EINVAL;
+			return (1);
+		}
+		if (((int)cmh.cmsg_len + at) > tlen) {
+			/* We don't have the complete CMSG. */
+			*error = EINVAL;
+			return (1);
+		}
+		if (cmh.cmsg_level == IPPROTO_SCTP) {
+			switch (cmh.cmsg_type) {
+			case SCTP_INIT:
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct sctp_initmsg)) {
+					*error = EINVAL;
+					return (1);
+				}
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct sctp_initmsg), (caddr_t)&initmsg);
+				if (initmsg.sinit_max_attempts)
+					stcb->asoc.max_init_times = initmsg.sinit_max_attempts;
+				if (initmsg.sinit_num_ostreams)
+					stcb->asoc.pre_open_streams = initmsg.sinit_num_ostreams;
+				if (initmsg.sinit_max_instreams)
+					stcb->asoc.max_inbound_streams = initmsg.sinit_max_instreams;
+				if (initmsg.sinit_max_init_timeo)
+					stcb->asoc.initial_init_rto_max = initmsg.sinit_max_init_timeo;
+				if (stcb->asoc.streamoutcnt < stcb->asoc.pre_open_streams) {
+					struct sctp_stream_out *tmp_str;
+					unsigned int i;
+
+					/* Default is NOT correct */
+					SCTPDBG(SCTP_DEBUG_OUTPUT1, "Ok, default:%d pre_open:%d\n",
+					    stcb->asoc.streamoutcnt, stcb->asoc.pre_open_streams);
+					SCTP_TCB_UNLOCK(stcb);
+					SCTP_MALLOC(tmp_str,
+					    struct sctp_stream_out *,
+					    (stcb->asoc.pre_open_streams * sizeof(struct sctp_stream_out)),
+					    SCTP_M_STRMO);
+					SCTP_TCB_LOCK(stcb);
+					if (tmp_str != NULL) {
+						SCTP_FREE(stcb->asoc.strmout, SCTP_M_STRMO);
+						stcb->asoc.strmout = tmp_str;
+						stcb->asoc.strm_realoutsize = stcb->asoc.streamoutcnt = stcb->asoc.pre_open_streams;
+					} else {
+						stcb->asoc.pre_open_streams = stcb->asoc.streamoutcnt;
+					}
+					for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+						stcb->asoc.strmout[i].next_sequence_sent = 0;
+						TAILQ_INIT(&stcb->asoc.strmout[i].outqueue);
+						stcb->asoc.strmout[i].stream_no = i;
+						stcb->asoc.strmout[i].last_msg_incomplete = 0;
+						stcb->asoc.ss_functions.sctp_ss_init_stream(&stcb->asoc.strmout[i], NULL);
+					}
+				}
+				break;
+#ifdef INET
+			case SCTP_DSTADDRV4:
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in_addr)) {
+					*error = EINVAL;
+					return (1);
+				}
+				memset(&sin, 0, sizeof(struct sockaddr_in));
+				sin.sin_family = AF_INET;
+				sin.sin_len = sizeof(struct sockaddr_in);
+				sin.sin_port = stcb->rport;
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
+				if ((sin.sin_addr.s_addr == INADDR_ANY) ||
+				    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
+				    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
+					*error = EINVAL;
+					return (-1);
+				}
+				if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+					*error = ENOBUFS;
+					return (1);
+				}
+				break;
+#endif
+#ifdef INET6
+			case SCTP_DSTADDRV6:
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in6_addr)) {
+					*error = EINVAL;
+					return (1);
+				}
+				memset(&sin6, 0, sizeof(struct sockaddr_in6));
+				sin6.sin6_family = AF_INET6;
+				sin6.sin6_len = sizeof(struct sockaddr_in6);
+				sin6.sin6_port = stcb->rport;
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
+				if (IN6_IS_ADDR_UNSPECIFIED(&sin6.sin6_addr) ||
+				    IN6_IS_ADDR_MULTICAST(&sin6.sin6_addr)) {
+					*error = EINVAL;
+					return (-1);
+				}
+#ifdef INET
+				if (IN6_IS_ADDR_V4MAPPED(&sin6.sin6_addr)) {
+					in6_sin6_2_sin(&sin, &sin6);
+					if ((sin.sin_addr.s_addr == INADDR_ANY) ||
+					    (sin.sin_addr.s_addr == INADDR_BROADCAST) ||
+					    IN_MULTICAST(ntohl(sin.sin_addr.s_addr))) {
+						*error = EINVAL;
+						return (-1);
+					}
+					if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+						*error = ENOBUFS;
+						return (1);
+					}
+				} else
+#endif
+				if (sctp_add_remote_addr(stcb, (struct sockaddr *)&sin6, SCTP_DONOT_SETSCOPE, SCTP_ADDR_IS_CONFIRMED)) {
+					*error = ENOBUFS;
+					return (1);
+				}
+				break;
+#endif
+			default:
 				break;
 			}
 		}
+		at += CMSG_ALIGN(cmh.cmsg_len);
 	}
-	/* not found */
 	return (0);
+}
+
+static struct sctp_tcb *
+sctp_findassociation_cmsgs(struct sctp_inpcb **inp_p,
+    in_port_t port,
+    struct mbuf *control,
+    struct sctp_nets **net_p,
+    int *error)
+{
+	struct cmsghdr cmh;
+	int tlen, at;
+	struct sctp_tcb *stcb;
+	struct sockaddr *addr;
+
+#ifdef INET
+	struct sockaddr_in sin;
+
+#endif
+#ifdef INET6
+	struct sockaddr_in6 sin6;
+
+#endif
+
+	tlen = SCTP_BUF_LEN(control);
+	at = 0;
+	while (at < tlen) {
+		if ((tlen - at) < (int)CMSG_ALIGN(sizeof(cmh))) {
+			/* There is not enough room for one more. */
+			*error = EINVAL;
+			return (NULL);
+		}
+		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
+		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(struct cmsghdr))) {
+			/* We dont't have a complete CMSG header. */
+			*error = EINVAL;
+			return (NULL);
+		}
+		if (((int)cmh.cmsg_len + at) > tlen) {
+			/* We don't have the complete CMSG. */
+			*error = EINVAL;
+			return (NULL);
+		}
+		if (cmh.cmsg_level == IPPROTO_SCTP) {
+			switch (cmh.cmsg_type) {
+#ifdef INET
+			case SCTP_DSTADDRV4:
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in_addr)) {
+					*error = EINVAL;
+					return (NULL);
+				}
+				memset(&sin, 0, sizeof(struct sockaddr_in));
+				sin.sin_family = AF_INET;
+				sin.sin_len = sizeof(struct sockaddr_in);
+				sin.sin_port = port;
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in_addr), (caddr_t)&sin.sin_addr);
+				addr = (struct sockaddr *)&sin;
+				break;
+#endif
+#ifdef INET6
+			case SCTP_DSTADDRV6:
+				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(struct cmsghdr))) < sizeof(struct in6_addr)) {
+					*error = EINVAL;
+					return (NULL);
+				}
+				memset(&sin6, 0, sizeof(struct sockaddr_in6));
+				sin6.sin6_family = AF_INET6;
+				sin6.sin6_len = sizeof(struct sockaddr_in6);
+				sin6.sin6_port = port;
+				m_copydata(control, at + CMSG_ALIGN(sizeof(struct cmsghdr)), sizeof(struct in6_addr), (caddr_t)&sin6.sin6_addr);
+#ifdef INET
+				if (IN6_IS_ADDR_V4MAPPED(&sin6.sin6_addr)) {
+					in6_sin6_2_sin(&sin, &sin6);
+					addr = (struct sockaddr *)&sin;
+				} else
+#endif
+					addr = (struct sockaddr *)&sin6;
+				break;
+#endif
+			default:
+				addr = NULL;
+				break;
+			}
+			if (addr) {
+				stcb = sctp_findassociation_ep_addr(inp_p, addr, net_p, NULL, NULL);
+				if (stcb != NULL) {
+					return (stcb);
+				}
+			}
+		}
+		at += CMSG_ALIGN(cmh.cmsg_len);
+	}
+	return (NULL);
 }
 
 static struct mbuf *
@@ -5989,19 +6273,26 @@ sctp_msg_append(struct sctp_tcb *stcb,
 	sp->some_taken = 0;
 	sp->data = m;
 	sp->tail_mbuf = NULL;
-	sp->length = 0;
-	at = m;
 	sctp_set_prsctp_policy(sp);
 	/*
 	 * We could in theory (for sendall) sifa the length in, but we would
 	 * still have to hunt through the chain since we need to setup the
 	 * tail_mbuf
 	 */
-	while (at) {
+	sp->length = 0;
+	for (at = m; at; at = SCTP_BUF_NEXT(at)) {
 		if (SCTP_BUF_NEXT(at) == NULL)
 			sp->tail_mbuf = at;
 		sp->length += SCTP_BUF_LEN(at);
-		at = SCTP_BUF_NEXT(at);
+	}
+	if (srcv->sinfo_keynumber_valid) {
+		sp->auth_keyid = srcv->sinfo_keynumber;
+	} else {
+		sp->auth_keyid = stcb->asoc.authinfo.active_keyid;
+	}
+	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
+		sctp_auth_key_acquire(stcb, sp->auth_keyid);
+		sp->holds_key_ref = 1;
 	}
 	SCTP_TCB_SEND_LOCK(stcb);
 	sctp_snd_sb_alloc(stcb, sp->length);
@@ -6478,7 +6769,9 @@ sctp_sendall(struct sctp_inpcb *inp, struct uio *uio, struct mbuf *m,
 	memset(ca, 0, sizeof(struct sctp_copy_all));
 
 	ca->inp = inp;
-	memcpy(&ca->sndrcv, srcv, sizeof(struct sctp_nonpad_sndrcvinfo));
+	if (srcv) {
+		memcpy(&ca->sndrcv, srcv, sizeof(struct sctp_nonpad_sndrcvinfo));
+	}
 	/*
 	 * take off the sendall flag, it would be bad if we failed to do
 	 * this :-0
@@ -12229,9 +12522,13 @@ sctp_copy_it_in(struct sctp_tcb *stcb,
 		*error = 0;
 		goto skip_copy;
 	}
-	sp->auth_keyid = stcb->asoc.authinfo.active_keyid;
+	if (srcv->sinfo_keynumber_valid) {
+		sp->auth_keyid = srcv->sinfo_keynumber;
+	} else {
+		sp->auth_keyid = stcb->asoc.authinfo.active_keyid;
+	}
 	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
-		sctp_auth_key_acquire(stcb, stcb->asoc.authinfo.active_keyid);
+		sctp_auth_key_acquire(stcb, sp->auth_keyid);
 		sp->holds_key_ref = 1;
 	}
 	*error = sctp_copy_one(sp, uio, resv_in_first);
@@ -12263,8 +12560,8 @@ sctp_sosend(struct socket *so,
     struct thread *p
 )
 {
-	int error, use_rcvinfo = 0;
-	struct sctp_sndrcvinfo srcv;
+	int error, use_sndinfo = 0;
+	struct sctp_sndrcvinfo sndrcvninfo;
 	struct sockaddr *addr_to_use;
 
 #if defined(INET) && defined(INET6)
@@ -12274,10 +12571,10 @@ sctp_sosend(struct socket *so,
 
 	if (control) {
 		/* process cmsg snd/rcv info (maybe a assoc-id) */
-		if (sctp_find_cmsg(SCTP_SNDRCV, (void *)&srcv, control,
-		    sizeof(srcv))) {
+		if (sctp_find_cmsg(SCTP_SNDRCV, (void *)&sndrcvninfo, control,
+		    sizeof(sndrcvninfo))) {
 			/* got one */
-			use_rcvinfo = 1;
+			use_sndinfo = 1;
 		}
 	}
 	addr_to_use = addr;
@@ -12295,7 +12592,7 @@ sctp_sosend(struct socket *so,
 	error = sctp_lower_sosend(so, addr_to_use, uio, top,
 	    control,
 	    flags,
-	    use_rcvinfo ? &srcv : NULL
+	    use_sndinfo ? &sndrcvninfo : NULL
 	    ,p
 	    );
 	return (error);
@@ -12500,12 +12797,18 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_INP_WUNLOCK(inp);
 		/* With the lock applied look again */
 		stcb = sctp_findassociation_ep_addr(&t_inp, addr, &net, NULL, NULL);
+		if ((stcb == NULL) && (control != NULL) && (port > 0)) {
+			stcb = sctp_findassociation_cmsgs(&t_inp, port, control, &net, &error);
+		}
 		if (stcb == NULL) {
 			SCTP_INP_WLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
 			SCTP_INP_WUNLOCK(inp);
 		} else {
 			hold_tcblock = 1;
+		}
+		if (error) {
+			goto out_unlocked;
 		}
 		if (t_inp != inp) {
 			SCTP_LTRACE_ERR_RET(inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, ENOTCONN);
@@ -12555,6 +12858,7 @@ sctp_lower_sosend(struct socket *so,
 				/* Error is setup for us in the call */
 				goto out_unlocked;
 			}
+			hold_tcblock = 1;
 			if (create_lock_applied) {
 				SCTP_ASOC_CREATE_UNLOCK(inp);
 				create_lock_applied = 0;
@@ -12574,84 +12878,13 @@ sctp_lower_sosend(struct socket *so,
 			sctp_initialize_auth_params(inp, stcb);
 
 			if (control) {
-				/*
-				 * see if a init structure exists in cmsg
-				 * headers
-				 */
-				struct sctp_initmsg initm;
-				int i;
-
-				if (sctp_find_cmsg(SCTP_INIT, (void *)&initm, control,
-				    sizeof(initm))) {
-					/*
-					 * we have an INIT override of the
-					 * default
-					 */
-					if (initm.sinit_max_attempts)
-						asoc->max_init_times = initm.sinit_max_attempts;
-					if (initm.sinit_num_ostreams)
-						asoc->pre_open_streams = initm.sinit_num_ostreams;
-					if (initm.sinit_max_instreams)
-						asoc->max_inbound_streams = initm.sinit_max_instreams;
-					if (initm.sinit_max_init_timeo)
-						asoc->initial_init_rto_max = initm.sinit_max_init_timeo;
-					if (asoc->streamoutcnt < asoc->pre_open_streams) {
-						struct sctp_stream_out *tmp_str;
-						int had_lock = 0;
-
-						/* Default is NOT correct */
-						SCTPDBG(SCTP_DEBUG_OUTPUT1, "Ok, defout:%d pre_open:%d\n",
-						    asoc->streamoutcnt, asoc->pre_open_streams);
-						/*
-						 * What happens if this
-						 * fails? we panic ...
-						 */
-
-						if (hold_tcblock) {
-							had_lock = 1;
-							SCTP_TCB_UNLOCK(stcb);
-						}
-						SCTP_MALLOC(tmp_str,
-						    struct sctp_stream_out *,
-						    (asoc->pre_open_streams *
-						    sizeof(struct sctp_stream_out)),
-						    SCTP_M_STRMO);
-						if (had_lock) {
-							SCTP_TCB_LOCK(stcb);
-						}
-						if (tmp_str != NULL) {
-							SCTP_FREE(asoc->strmout, SCTP_M_STRMO);
-							asoc->strmout = tmp_str;
-							asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams;
-						} else {
-							asoc->pre_open_streams = asoc->streamoutcnt;
-						}
-						for (i = 0; i < asoc->streamoutcnt; i++) {
-							/*-
-							 * inbound side must be set
-							 * to 0xffff, also NOTE when
-							 * we get the INIT-ACK back
-							 * (for INIT sender) we MUST
-							 * reduce the count
-							 * (streamoutcnt) but first
-							 * check if we sent to any
-							 * of the upper streams that
-							 * were dropped (if some
-							 * were). Those that were
-							 * dropped must be notified
-							 * to the upper layer as
-							 * failed to send.
-							 */
-							asoc->strmout[i].next_sequence_sent = 0x0;
-							TAILQ_INIT(&asoc->strmout[i].outqueue);
-							asoc->strmout[i].stream_no = i;
-							asoc->strmout[i].last_msg_incomplete = 0;
-							asoc->ss_functions.sctp_ss_init_stream(&asoc->strmout[i], NULL);
-						}
-					}
+				if (sctp_process_cmsgs_for_init(stcb, control, &error)) {
+					sctp_free_assoc(inp, stcb, SCTP_PCBFREE_FORCE, SCTP_FROM_SCTP_OUTPUT + SCTP_LOC_7);
+					hold_tcblock = 0;
+					stcb = NULL;
+					goto out_unlocked;
 				}
 			}
-			hold_tcblock = 1;
 			/* out with the INIT */
 			queue_only_for_init = 1;
 			/*-

@@ -141,7 +141,7 @@ in6_sin6_2_sin(struct sockaddr_in *sin, struct sockaddr_in6 *sin6)
 int
 sctp_getaddrlen(sa_family_t family)
 {
-	int error, sd;
+	int ret, sd;
 	socklen_t siz;
 	struct sctp_assoc_value av;
 
@@ -151,13 +151,15 @@ sctp_getaddrlen(sa_family_t family)
 	sd = socket(AF_INET, SOCK_SEQPACKET, IPPROTO_SCTP);
 #elif defined(AF_INET6)
 	sd = socket(AF_INET6, SOCK_SEQPACKET, IPPROTO_SCTP);
+#else
+	sd = -1;
 #endif
 	if (sd == -1) {
 		return (-1);
 	}
-	error = getsockopt(sd, IPPROTO_SCTP, SCTP_GET_ADDR_LEN, &av, &siz);
+	ret = getsockopt(sd, IPPROTO_SCTP, SCTP_GET_ADDR_LEN, &av, &siz);
 	close(sd);
-	if (error == 0) {
+	if (ret == 0) {
 		return ((int)av.assoc_value);
 	} else {
 		return (-1);
@@ -401,6 +403,9 @@ sctp_opt_info(int sd, sctp_assoc_t id, int opt, void *arg, socklen_t * size)
 		break;
 	case SCTP_TIMEOUTS:
 		((struct sctp_timeouts *)arg)->stimo_assoc_id = id;
+		break;
+	case SCTP_EVENT:
+		((struct sctp_event *)arg)->se_assoc_id = id;
 		break;
 	default:
 		break;
@@ -919,32 +924,259 @@ sctp_recvmsg(int s,
 #endif
 }
 
-
-#if defined(HAVE_SCTP_PEELOFF_SOCKOPT)
-#include <netinet/sctp_peeloff.h>
-
-int
-sctp_peeloff(int sd, sctp_assoc_t assoc_id)
+ssize_t 
+sctp_recvv(int sd,
+    const struct iovec *iov,
+    int iovlen,
+    struct sockaddr *from,
+    socklen_t * fromlen,
+    void *info,
+    socklen_t * infolen,
+    unsigned int *infotype,
+    int *flags)
 {
-	struct sctp_peeloff_opt peeloff;
-	int result;
-	socklen_t optlen;
+	char ctlbuf[SCTP_CONTROL_VEC_SIZE_RCV];
+	struct msghdr msg;
+	struct cmsghdr *cmsg;
+	ssize_t n;
+	struct sctp_rcvinfo *rcvinfo;
+	struct sctp_nxtinfo *nxtinfo;
 
-	/* set in the socket option params */
-	memset(&peeloff, 0, sizeof(peeloff));
-	peeloff.s = sd;
-	peeloff.assoc_id = assoc_id;
-	optlen = sizeof(peeloff);
-	result = getsockopt(sd, IPPROTO_SCTP, SCTP_PEELOFF, (void *)&peeloff, &optlen);
-
-	if (result < 0) {
-		return (-1);
-	} else {
-		return (peeloff.new_sd);
+	if (infotype) {
+		*infotype = SCTP_RECVV_NOINFO;
 	}
+	msg.msg_name = from;
+	if (fromlen == NULL) {
+		msg.msg_namelen = 0;
+	} else {
+		msg.msg_namelen = *fromlen;
+	}
+	msg.msg_iov = (struct iovec *)iov;
+	msg.msg_iovlen = iovlen;
+	msg.msg_control = ctlbuf;
+	msg.msg_controllen = sizeof(ctlbuf);
+	errno = 0;
+	n = recvmsg(sd, &msg, *flags);
+	*flags = msg.msg_flags;
+	if ((n > 0) &&
+	    (msg.msg_controllen > 0) &&
+	    (infotype != NULL) &&
+	    (infolen != NULL) &&
+	    (*infolen > 0)) {
+		rcvinfo = NULL;
+		nxtinfo = NULL;
+		for (cmsg = CMSG_FIRSTHDR(&msg); cmsg; cmsg = CMSG_NXTHDR(&msg, cmsg)) {
+			if (cmsg->cmsg_level != IPPROTO_SCTP) {
+				continue;
+			}
+			if (cmsg->cmsg_type == SCTP_RCVINFO) {
+				rcvinfo = (struct sctp_rcvinfo *)CMSG_DATA(cmsg);
+			}
+			if (cmsg->cmsg_type == SCTP_NXTINFO) {
+				nxtinfo = (struct sctp_nxtinfo *)CMSG_DATA(cmsg);
+			}
+			if (rcvinfo && nxtinfo) {
+				break;
+			}
+		}
+		if (rcvinfo) {
+			if (nxtinfo) {
+				if (*infolen >= sizeof(struct sctp_recvv_rn)) {
+					struct sctp_recvv_rn *rn_info;
+
+					rn_info = (struct sctp_recvv_rn *)info;
+					rn_info->recvv_rcvinfo = *rcvinfo;
+					rn_info->recvv_nxtinfo = *nxtinfo;
+					*infolen = (socklen_t) sizeof(struct sctp_recvv_rn);
+					*infotype = SCTP_RECVV_RN;
+				}
+			} else {
+				if (*infolen >= sizeof(struct sctp_rcvinfo)) {
+					memcpy(info, rcvinfo, sizeof(struct sctp_rcvinfo));
+					*infolen = (socklen_t) sizeof(struct sctp_rcvinfo);
+					*infotype = SCTP_RECVV_RCVINFO;
+				}
+			}
+		} else if (nxtinfo) {
+			if (*infolen >= sizeof(struct sctp_rcvinfo)) {
+				memcpy(info, nxtinfo, sizeof(struct sctp_nxtinfo));
+				*infolen = (socklen_t) sizeof(struct sctp_nxtinfo);
+				*infotype = SCTP_RECVV_NXTINFO;
+			}
+		}
+	}
+	return (n);
 }
 
-#endif
+ssize_t
+sctp_sendv(int sd,
+    const struct iovec *iov, int iovcnt,
+    struct sockaddr *addrs, int addrcnt,
+    void *info, socklen_t infolen, unsigned int infotype,
+    int flags)
+{
+	ssize_t ret;
+	int i;
+	size_t addr_len;
+	struct sctp_sendv_spa *spa_info;
+	struct msghdr msg;
+	struct cmsghdr *cmsg;
+	char *cmsgbuf;
+	struct sockaddr *addr;
+	struct sockaddr_in *addr_in;
+	struct sockaddr_in6 *addr_in6;
+
+	if ((addrcnt < 0) || (iovcnt < 0)) {
+		errno = EINVAL;
+		return (-1);
+	}
+	cmsgbuf = malloc(CMSG_SPACE(sizeof(struct sctp_sndinfo)) +
+	    CMSG_SPACE(sizeof(struct sctp_prinfo)) +
+	    CMSG_SPACE(sizeof(struct sctp_authinfo)) +
+	    addrcnt * CMSG_SPACE(sizeof(struct in6_addr)));
+	if (cmsgbuf == NULL) {
+		errno = ENOBUFS;
+		return (-1);
+	}
+	msg.msg_control = cmsgbuf;
+	msg.msg_controllen = 0;
+	cmsg = (struct cmsghdr *)cmsgbuf;
+	switch (infotype) {
+	case SCTP_SENDV_SNDINFO:
+		if (infolen < sizeof(struct sctp_sndinfo)) {
+			free(cmsgbuf);
+			errno = EINVAL;
+			return (-1);
+		}
+		cmsg->cmsg_level = IPPROTO_SCTP;
+		cmsg->cmsg_type = SCTP_SNDINFO;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndinfo));
+		memcpy(CMSG_DATA(cmsg), info, sizeof(struct sctp_sndinfo));
+		msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_sndinfo));
+		cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_sndinfo)));
+		break;
+	case SCTP_SENDV_PRINFO:
+		if (infolen < sizeof(struct sctp_prinfo)) {
+			free(cmsgbuf);
+			errno = EINVAL;
+			return (-1);
+		}
+		cmsg->cmsg_level = IPPROTO_SCTP;
+		cmsg->cmsg_type = SCTP_PRINFO;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_prinfo));
+		memcpy(CMSG_DATA(cmsg), info, sizeof(struct sctp_prinfo));
+		msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_prinfo));
+		cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_prinfo)));
+		break;
+	case SCTP_SENDV_AUTHINFO:
+		if (infolen < sizeof(struct sctp_authinfo)) {
+			free(cmsgbuf);
+			errno = EINVAL;
+			return (-1);
+		}
+		cmsg->cmsg_level = IPPROTO_SCTP;
+		cmsg->cmsg_type = SCTP_AUTHINFO;
+		cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_authinfo));
+		memcpy(CMSG_DATA(cmsg), info, sizeof(struct sctp_authinfo));
+		msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_authinfo));
+		cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_authinfo)));
+		break;
+	case SCTP_SENDV_SPA:
+		if (infolen < sizeof(struct sctp_sendv_spa)) {
+			free(cmsgbuf);
+			errno = EINVAL;
+			return (-1);
+		}
+		spa_info = (struct sctp_sendv_spa *)info;
+		if (spa_info->sendv_flags & SCTP_SEND_SNDINFO_VALID) {
+			cmsg->cmsg_level = IPPROTO_SCTP;
+			cmsg->cmsg_type = SCTP_SNDINFO;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_sndinfo));
+			memcpy(CMSG_DATA(cmsg), &spa_info->sendv_sndinfo, sizeof(struct sctp_sndinfo));
+			msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_sndinfo));
+			cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_sndinfo)));
+		}
+		if (spa_info->sendv_flags & SCTP_SEND_PRINFO_VALID) {
+			cmsg->cmsg_level = IPPROTO_SCTP;
+			cmsg->cmsg_type = SCTP_PRINFO;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_prinfo));
+			memcpy(CMSG_DATA(cmsg), &spa_info->sendv_prinfo, sizeof(struct sctp_prinfo));
+			msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_prinfo));
+			cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_prinfo)));
+		}
+		if (spa_info->sendv_flags & SCTP_SEND_AUTHINFO_VALID) {
+			cmsg->cmsg_level = IPPROTO_SCTP;
+			cmsg->cmsg_type = SCTP_AUTHINFO;
+			cmsg->cmsg_len = CMSG_LEN(sizeof(struct sctp_authinfo));
+			memcpy(CMSG_DATA(cmsg), &spa_info->sendv_authinfo, sizeof(struct sctp_authinfo));
+			msg.msg_controllen += CMSG_SPACE(sizeof(struct sctp_authinfo));
+			cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct sctp_authinfo)));
+		}
+		break;
+	default:
+		free(cmsgbuf);
+		errno = EINVAL;
+		return (-1);
+	}
+	addr = addrs;
+	if (addrcnt == 1) {
+		msg.msg_name = addr;
+		switch (addr->sa_family) {
+		case AF_INET:
+			msg.msg_namelen = sizeof(struct sockaddr_in);
+			break;
+		case AF_INET6:
+			msg.msg_namelen = sizeof(struct sockaddr_in6);
+			break;
+		default:
+			free(cmsgbuf);
+			errno = EINVAL;
+			return (-1);
+		}
+	} else {
+		msg.msg_name = NULL;
+		msg.msg_namelen = 0;
+		for (i = 0; i < addrcnt; i++) {
+			switch (addr->sa_family) {
+			case AF_INET:
+				addr_len = sizeof(struct sockaddr_in);
+				addr_in = (struct sockaddr_in *)addr;
+				cmsg->cmsg_level = IPPROTO_SCTP;
+				cmsg->cmsg_type = SCTP_DSTADDRV4;
+				cmsg->cmsg_len = CMSG_LEN(sizeof(struct in_addr));
+				memcpy(CMSG_DATA(cmsg), &addr_in->sin_addr, sizeof(struct in_addr));
+				msg.msg_controllen += CMSG_SPACE(sizeof(struct in_addr));
+				cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct in_addr)));
+				break;
+			case AF_INET6:
+				addr_len = sizeof(struct sockaddr_in6);
+				addr_in6 = (struct sockaddr_in6 *)addr;
+				cmsg->cmsg_level = IPPROTO_SCTP;
+				cmsg->cmsg_type = SCTP_DSTADDRV6;
+				cmsg->cmsg_len = CMSG_LEN(sizeof(struct in6_addr));
+				memcpy(CMSG_DATA(cmsg), &addr_in6->sin6_addr, sizeof(struct in6_addr));
+				msg.msg_controllen += CMSG_SPACE(sizeof(struct in6_addr));
+				cmsg = (struct cmsghdr *)((caddr_t)cmsg + CMSG_SPACE(sizeof(struct in6_addr)));
+				break;
+			default:
+				free(cmsgbuf);
+				errno = EINVAL;
+				return (-1);
+			}
+			addr = (struct sockaddr *)((caddr_t)addr + addr_len);
+		}
+	}
+	if (msg.msg_controllen == 0) {
+		msg.msg_control = NULL;
+	}
+	msg.msg_iov = (struct iovec *)iov;
+	msg.msg_iovlen = iovcnt;
+	msg.msg_flags = 0;
+	ret = sendmsg(sd, &msg, flags);
+	free(cmsgbuf);
+	return (ret);
+}
+
 
 #if !defined(SYS_sctp_peeloff) && !defined(HAVE_SCTP_PEELOFF_SOCKOPT)
 
