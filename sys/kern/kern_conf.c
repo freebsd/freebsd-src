@@ -690,8 +690,7 @@ prep_devname(struct cdev *dev, const char *fmt, va_list ap)
 
 	mtx_assert(&devmtx, MA_OWNED);
 
-	len = vsnrprintf(dev->si_name, sizeof(dev->si_name), 32,
-	    fmt, ap);
+	len = vsnrprintf(dev->si_name, sizeof(dev->si_name), 32, fmt, ap);
 	if (len > sizeof(dev->si_name) - 1)
 		return (ENAMETOOLONG);
 
