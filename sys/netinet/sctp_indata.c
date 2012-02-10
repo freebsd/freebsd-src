@@ -3829,6 +3829,10 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	}
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		if (SCTP_TSN_GT(cumack, net->cwr_window_tsn)) {
+			/* Drag along the window_tsn for cwr's */
+			net->cwr_window_tsn = cumack;
+		}
 		net->prev_cwnd = net->cwnd;
 		net->net_ack = 0;
 		net->net_ack2 = 0;
@@ -4522,6 +4526,10 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	 * destination address basis.
 	 */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
+		if (SCTP_TSN_GT(cum_ack, net->cwr_window_tsn)) {
+			/* Drag along the window_tsn for cwr's */
+			net->cwr_window_tsn = cum_ack;
+		}
 		net->prev_cwnd = net->cwnd;
 		net->net_ack = 0;
 		net->net_ack2 = 0;

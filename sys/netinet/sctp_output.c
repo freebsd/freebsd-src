@@ -7274,7 +7274,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	 * fomulate and send the low level chunks. Making sure to combine
 	 * any control in the control chunk queue also.
 	 */
-	struct sctp_nets *net, *start_at, *old_start_at = NULL;
+	struct sctp_nets *net, *start_at, *sack_goes_to = NULL, *old_start_at = NULL;
 	struct mbuf *outchain, *endoutchain;
 	struct sctp_tmit_chunk *chk, *nchk;
 
@@ -7327,10 +7327,12 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		no_data_chunks = 0;
 
 	/* Nothing to possible to send? */
-	if (TAILQ_EMPTY(&asoc->control_send_queue) &&
+	if ((TAILQ_EMPTY(&asoc->control_send_queue) ||
+	    (asoc->ctrl_queue_cnt == stcb->asoc.ecn_echo_cnt_onq)) &&
 	    TAILQ_EMPTY(&asoc->asconf_send_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
 	    stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, asoc)) {
+nothing_to_send:
 		*reason_code = 9;
 		return (0);
 	}
@@ -7340,6 +7342,21 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 		if (asoc->total_flight > 0) {
 			/* we are allowed one chunk in flight */
 			no_data_chunks = 1;
+		}
+	}
+	if (stcb->asoc.ecn_echo_cnt_onq) {
+		/* Record where a sack goes, if any */
+		if (no_data_chunks &&
+		    (asoc->ctrl_queue_cnt == stcb->asoc.ecn_echo_cnt_onq)) {
+			/* Nothing but ECNe to send - we don't do that */
+			goto nothing_to_send;
+		}
+		TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
+			if ((chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) ||
+			    (chk->rec.chunk_id.id == SCTP_NR_SELECTIVE_ACK)) {
+				sack_goes_to = chk->whoTo;
+				break;
+			}
 		}
 	}
 	max_rwnd_per_dest = ((asoc->peers_rwnd + asoc->total_flight) / asoc->numnets);
@@ -7685,6 +7702,28 @@ again_one_more_time:
 		/************************/
 		/* Now first lets go through the control queue */
 		TAILQ_FOREACH_SAFE(chk, &asoc->control_send_queue, sctp_next, nchk) {
+			if ((sack_goes_to) &&
+			    (chk->rec.chunk_id.id == SCTP_ECN_ECHO) &&
+			    (chk->whoTo != sack_goes_to)) {
+				/*
+				 * if we have a sack in queue, and we are
+				 * looking at an ecn echo that is NOT queued
+				 * to where the sack is going..
+				 */
+				if (chk->whoTo == net) {
+					/*
+					 * Don't transmit it to where its
+					 * going (current net)
+					 */
+					continue;
+				} else if (sack_goes_to == net) {
+					/*
+					 * But do transmit it to this
+					 * address
+					 */
+					goto skip_net_check;
+				}
+			}
 			if (chk->whoTo != net) {
 				/*
 				 * No, not sent to the network we are
@@ -7692,6 +7731,7 @@ again_one_more_time:
 				 */
 				continue;
 			}
+	skip_net_check:
 			if (chk->data == NULL) {
 				continue;
 			}
@@ -10761,11 +10801,19 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
-		if (chk->rec.chunk_id.id == SCTP_ECN_ECHO) {
+		if ((chk->rec.chunk_id.id == SCTP_ECN_ECHO) && (net == chk->whoTo)) {
 			/* found a previous ECN_ECHO update it if needed */
+			uint32_t cnt, ctsn;
+
 			ecne = mtod(chk->data, struct sctp_ecne_chunk *);
-			ecne->tsn = htonl(high_tsn);
-			SCTP_STAT_INCR(sctps_queue_upd_ecne);
+			ctsn = ntohl(ecne->tsn);
+			if (SCTP_TSN_GT(high_tsn, ctsn)) {
+				ecne->tsn = htonl(high_tsn);
+				cnt = ntohl(ecne->num_pkts_since_cwr);
+				cnt++;
+				ecne->num_pkts_since_cwr = htonl(cnt);
+				SCTP_STAT_INCR(sctps_queue_upd_ecne);
+			}
 			return;
 		}
 	}
@@ -10797,7 +10845,8 @@ sctp_send_ecn_echo(struct sctp_tcb *stcb, struct sctp_nets *net,
 	ecne->ch.chunk_flags = 0;
 	ecne->ch.chunk_length = htons(sizeof(struct sctp_ecne_chunk));
 	ecne->tsn = htonl(high_tsn);
-	TAILQ_INSERT_TAIL(&stcb->asoc.control_send_queue, chk, sctp_next);
+	ecne->num_pkts_since_cwr = htonl(1);
+	TAILQ_INSERT_HEAD(&stcb->asoc.control_send_queue, chk, sctp_next);
 	asoc->ctrl_queue_cnt++;
 }
 
@@ -10975,7 +11024,7 @@ jump_out:
 }
 
 void
-sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
+sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn, uint8_t override)
 {
 	struct sctp_association *asoc;
 	struct sctp_cwr_chunk *cwr;
@@ -10983,17 +11032,7 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
 
 	asoc = &stcb->asoc;
 	SCTP_TCB_LOCK_ASSERT(stcb);
-	TAILQ_FOREACH(chk, &asoc->control_send_queue, sctp_next) {
-		if (chk->rec.chunk_id.id == SCTP_ECN_CWR) {
-			/* found a previous ECN_CWR update it if needed */
-			cwr = mtod(chk->data, struct sctp_cwr_chunk *);
-			if (SCTP_TSN_GT(high_tsn, ntohl(cwr->tsn))) {
-				cwr->tsn = htonl(high_tsn);
-			}
-			return;
-		}
-	}
-	/* nope could not find one to update so we must build one */
+
 	sctp_alloc_a_chunk(stcb, chk);
 	if (chk == NULL) {
 		return;
@@ -11016,7 +11055,7 @@ sctp_send_cwr(struct sctp_tcb *stcb, struct sctp_nets *net, uint32_t high_tsn)
 	atomic_add_int(&chk->whoTo->ref_count, 1);
 	cwr = mtod(chk->data, struct sctp_cwr_chunk *);
 	cwr->ch.chunk_type = SCTP_ECN_CWR;
-	cwr->ch.chunk_flags = 0;
+	cwr->ch.chunk_flags = override;
 	cwr->ch.chunk_length = htons(sizeof(struct sctp_cwr_chunk));
 	cwr->tsn = htonl(high_tsn);
 	TAILQ_INSERT_TAIL(&stcb->asoc.control_send_queue, chk, sctp_next);
