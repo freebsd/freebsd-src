@@ -300,6 +300,7 @@ icintr(device_t dev, int event, char *ptr)
 		BPF_TAP(sc->ic_ifp, sc->ic_ifbuf, len + ICHDRLEN);
 		top = m_devget(sc->ic_ifbuf + ICHDRLEN, len, 0, sc->ic_ifp, 0);
 		if (top)
+			M_SETFIB(top, sc->ic_ifp->if_fib);
 			netisr_dispatch(NETISR_IP, top);
 		break;
 	err:

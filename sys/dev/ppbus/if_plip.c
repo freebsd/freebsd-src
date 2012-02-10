@@ -516,6 +516,9 @@ lp_intr (void *arg)
 	    if (top) {
 		if (bpf_peers_present(sc->sc_ifp->if_bpf))
 		    lptap(sc->sc_ifp, top);
+
+		M_SETFIB(top, sc->sc_ifp->if_fib);
+
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	    goto done;
@@ -561,6 +564,9 @@ lp_intr (void *arg)
 	    if (top) {
 		if (bpf_peers_present(sc->sc_ifp->if_bpf))
 		    lptap(sc->sc_ifp, top);
+
+		M_SETFIB(top, sc->sc_ifp->if_fib);
+
 		netisr_queue(NETISR_IP, top);	/* mbuf is free'd on failure. */
 	    }
 	}
