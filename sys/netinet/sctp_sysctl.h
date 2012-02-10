@@ -500,7 +500,7 @@ struct sctp_sysctl {
 
 /* Initial congestion window in MTU */
 #define SCTPCTL_INITIAL_CWND_DESC	"Initial congestion window in MTUs"
-#define SCTPCTL_INITIAL_CWND_MIN	1
+#define SCTPCTL_INITIAL_CWND_MIN	0
 #define SCTPCTL_INITIAL_CWND_MAX	0xffffffff
 #define SCTPCTL_INITIAL_CWND_DEFAULT	3
 
