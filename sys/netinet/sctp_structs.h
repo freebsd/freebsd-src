@@ -330,8 +330,6 @@ struct sctp_data_chunkrec {
 	uint32_t payloadtype;
 	uint32_t context;	/* from send */
 
-	/* ECN Nonce: Nonce Value for this chunk */
-	uint8_t ect_nonce;
 	uint8_t fwd_tsn_cnt;
 	/*
 	 * part of the Highest sacked algorithm to be able to stroke counts
@@ -607,7 +605,7 @@ struct sctp_cc_functions {
 	void (*sctp_cwnd_update_after_timeout) (struct sctp_tcb *stcb,
 	         struct sctp_nets *net);
 	void (*sctp_cwnd_update_after_ecn_echo) (struct sctp_tcb *stcb,
-	         struct sctp_nets *net);
+	         struct sctp_nets *net, int in_window, int num_pkt_lost);
 	void (*sctp_cwnd_update_after_packet_dropped) (struct sctp_tcb *stcb,
 	         struct sctp_nets *net, struct sctp_pktdrop_chunk *cp,
 	         uint32_t * bottle_bw, uint32_t * on_queue);
@@ -866,7 +864,6 @@ struct sctp_association {
 	uint8_t *nr_mapping_array;
 	uint32_t highest_tsn_inside_nr_map;
 
-	uint32_t last_echo_tsn;
 	uint32_t fast_recovery_tsn;
 	uint32_t sat_t3_recovery_tsn;
 	uint32_t tsn_last_delivered;
@@ -921,12 +918,9 @@ struct sctp_association {
 	uint32_t sb_send_resv;	/* amount reserved on a send */
 	uint32_t my_rwnd_control_len;	/* shadow of sb_mbcnt used for rwnd
 					 * control */
-	/* 32 bit nonce stuff */
-	uint32_t nonce_resync_tsn;
-	uint32_t nonce_wait_tsn;
 	uint32_t default_flowlabel;
 	uint32_t pr_sctp_cnt;
-	int ctrl_queue_cnt;	/* could be removed  REM */
+	int ctrl_queue_cnt;	/* could be removed  REM - NO IT CAN'T!! RRS */
 	/*
 	 * All outbound datagrams queue into this list from the individual
 	 * stream queue. Here they get assigned a TSN and then await
@@ -1075,20 +1069,13 @@ struct sctp_association {
 	uint8_t default_tos;
 	uint8_t asconf_del_pending;	/* asconf delete last addr pending */
 
-	/* ECN Nonce stuff */
-	uint8_t receiver_nonce_sum;	/* nonce I sum and put in my sack */
-	uint8_t ecn_nonce_allowed;	/* Tells us if ECN nonce is on */
-	uint8_t nonce_sum_check;/* On off switch used during re-sync */
-	uint8_t nonce_wait_for_ecne;	/* flag when we expect a ECN */
-	uint8_t peer_supports_ecn_nonce;
-
 	/*
 	 * This value, plus all other ack'd but above cum-ack is added
 	 * together to cross check against the bit that we have yet to
 	 * define (probably in the SACK). When the cum-ack is updated, this
 	 * sum is updated as well.
 	 */
-	uint8_t nonce_sum_expect_base;
+
 	/* Flag to tell if ECN is allowed */
 	uint8_t ecn_allowed;
 
