@@ -597,7 +597,7 @@ sctp_recover_sent_list(struct sctp_tcb *stcb)
 				}
 			}
 			asoc->sent_queue_cnt--;
-			sctp_free_a_chunk(stcb, chk);
+			sctp_free_a_chunk(stcb, chk, SCTP_SO_NOT_LOCKED);
 		}
 	}
 	SCTP_PRINTF("after recover order is as follows\n");
@@ -1056,7 +1056,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 					 * no recent feed back in an RTO or
 					 * more, request a RTT update
 					 */
-					if (sctp_send_hb(stcb, 1, net) < 0)
+					if (sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED) < 0)
 						/*
 						 * Less than 0 means we lost
 						 * the assoc
@@ -1120,7 +1120,7 @@ sctp_t3rxt_timer(struct sctp_inpcb *inp,
 		 * but is in PF state, a PF-heartbeat needs to be sent
 		 * manually.
 		 */
-		if (sctp_send_hb(stcb, 1, net) < 0)
+		if (sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED) < 0)
 			/* Return less than 0 means we lost the association */
 			return (1);
 	}
@@ -1598,7 +1598,7 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	}
 	/* Send a new HB, this will do threshold managment, pick a new dest */
 	if (cnt_of_unconf == 0) {
-		if (sctp_send_hb(stcb, 0, NULL) < 0) {
+		if (sctp_send_hb(stcb, 0, NULL, SCTP_SO_NOT_LOCKED) < 0) {
 			return (1);
 		}
 	} else {
@@ -1620,7 +1620,7 @@ sctp_heartbeat_timer(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 						net->src_addr_selected = 0;
 					}
 				}
-				ret = sctp_send_hb(stcb, 1, net);
+				ret = sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED);
 				if (ret < 0)
 					return 1;
 				else if (ret == 0) {
