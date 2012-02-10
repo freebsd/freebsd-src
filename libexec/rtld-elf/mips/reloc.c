@@ -43,7 +43,6 @@ __FBSDID("$FreeBSD$");
 
 #include "debug.h"
 #include "rtld.h"
-#include "rtld_printf.h"
 
 #ifdef __mips_n64
 #define	GOT1_MASK	0x8000000000000000UL
@@ -544,7 +543,6 @@ allocate_initial_tls(Obj_Entry *objs)
 	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
 
 	sysarch(MIPS_SET_TLS, tls);
-	rtld_printf("allocate_initial_tls -> %p(%p)\n", tls, tls - TLS_TP_OFFSET -  TLS_TCB_SIZE);
 }
 
 void *
