@@ -203,6 +203,7 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 	const priv_p priv = NG_NODE_PRIVATE(node);
 	struct ng_mesg *msg;
 	struct ng_mesg *resp = NULL;
+	const char *dn;
 	int error = 0;
 
 	NGI_GET_MSG(item, msg);
@@ -217,8 +218,8 @@ ng_device_rcvmsg(node_p node, item_p item, hook_p lasthook)
 			if (resp == NULL)
 				ERROUT(ENOMEM);
 
-			strlcpy((char *)resp->data, priv->ngddev->si_name,
-			    strlen(priv->ngddev->si_name) + 1);
+			dn = devtoname(priv->ngddev);
+			strlcpy((char *)resp->data, dn, strlen(dn) + 1);
 			break;
 
 		default:
