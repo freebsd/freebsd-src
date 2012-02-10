@@ -4138,6 +4138,9 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 #ifdef INVARIANTS
 	net->flowidset = 1;
 #endif
+	if (netp) {
+		*netp = net;
+	}
 	netfirst = TAILQ_FIRST(&stcb->asoc.nets);
 	if (net->ro.ro_rt == NULL) {
 		/* Since we have no route put it at the back */
@@ -4208,9 +4211,6 @@ sctp_add_remote_addr(struct sctp_tcb *stcb, struct sockaddr *newaddr,
 		    stcb->asoc.primary_destination, sctp_next);
 		TAILQ_INSERT_HEAD(&stcb->asoc.nets,
 		    stcb->asoc.primary_destination, sctp_next);
-	}
-	if (netp) {
-		*netp = net;
 	}
 	return (0);
 }
