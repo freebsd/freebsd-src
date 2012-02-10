@@ -473,15 +473,6 @@ cxgb_controller_attach(device_t dev)
 		device_printf(dev, "Cannot allocate BAR region 0\n");
 		return (ENXIO);
 	}
-	sc->udbs_rid = PCIR_BAR(2);
-	sc->udbs_res = NULL;
-	if (is_offload(sc) &&
-	    ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-		   &sc->udbs_rid, RF_ACTIVE)) == NULL)) {
-		device_printf(dev, "Cannot allocate BAR region 1\n");
-		error = ENXIO;
-		goto out;
-	}
 
 	snprintf(sc->lockbuf, ADAPTER_LOCK_NAME_LEN, "cxgb controller lock %d",
 	    device_get_unit(dev));
@@ -510,6 +501,17 @@ cxgb_controller_attach(device_t dev)
 		error = ENODEV;
 		goto out;
 	}
+
+	sc->udbs_rid = PCIR_BAR(2);
+	sc->udbs_res = NULL;
+	if (is_offload(sc) &&
+	    ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		   &sc->udbs_rid, RF_ACTIVE)) == NULL)) {
+		device_printf(dev, "Cannot allocate BAR region 1\n");
+		error = ENXIO;
+		goto out;
+	}
+
         /* Allocate the BAR for doing MSI-X.  If it succeeds, try to allocate
 	 * enough messages for the queue sets.  If that fails, try falling
 	 * back to MSI.  If that fails, then try falling back to the legacy
@@ -980,7 +982,7 @@ cxgb_makedev(struct port_info *pi)
 #define CXGB_CAP (IFCAP_VLAN_HWTAGGING | IFCAP_VLAN_MTU | IFCAP_HWCSUM | \
     IFCAP_VLAN_HWCSUM | IFCAP_TSO | IFCAP_JUMBO_MTU | IFCAP_LRO | \
     IFCAP_VLAN_HWTSO | IFCAP_LINKSTATE)
-#define CXGB_CAP_ENABLE (CXGB_CAP & ~IFCAP_TSO6)
+#define CXGB_CAP_ENABLE CXGB_CAP
 
 static int
 cxgb_port_attach(device_t dev)
@@ -2057,8 +2059,8 @@ fail:
 		}
 		if (mask & IFCAP_RXCSUM)
 			ifp->if_capenable ^= IFCAP_RXCSUM;
-		if (mask & IFCAP_TSO4) {
-			ifp->if_capenable ^= IFCAP_TSO4;
+		if (mask & IFCAP_TSO) {
+			ifp->if_capenable ^= IFCAP_TSO;
 
 			if (IFCAP_TSO & ifp->if_capenable) {
 				if (IFCAP_TXCSUM & ifp->if_capenable)

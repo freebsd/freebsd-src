@@ -4165,7 +4165,7 @@ SCI_IO_STATUS scic_controller_start_io(
    U16                        io_tag
 )
 {
-   SCI_IO_STATUS          status;
+   SCI_STATUS          status;
    SCIC_SDS_CONTROLLER_T *this_controller;
    this_controller = (SCIC_SDS_CONTROLLER_T *)controller;
 
@@ -4183,7 +4183,7 @@ SCI_IO_STATUS scic_controller_start_io(
                io_tag
             );
 
-   return status;
+   return (SCI_IO_STATUS)status;
 }
 
 // ---------------------------------------------------------------------------
@@ -4253,7 +4253,7 @@ SCI_TASK_STATUS scic_controller_start_task(
    U16                        task_tag
 )
 {
-   SCI_TASK_STATUS        status = SCI_FAILURE_INVALID_STATE;
+   SCI_STATUS             status = SCI_FAILURE_INVALID_STATE;
    SCIC_SDS_CONTROLLER_T *this_controller;
    this_controller = (SCIC_SDS_CONTROLLER_T *)controller;
 
@@ -4282,7 +4282,7 @@ SCI_TASK_STATUS scic_controller_start_task(
       ));
    }
 
-   return status;
+   return (SCI_TASK_STATUS)status;
 }
 
 // ---------------------------------------------------------------------------

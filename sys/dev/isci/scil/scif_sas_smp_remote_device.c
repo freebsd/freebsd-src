@@ -748,7 +748,6 @@ SCI_STATUS scif_sas_smp_remote_device_decode_target_reset_discover_response(
 {
    SCIF_SAS_DOMAIN_T  * fw_domain;
    SCI_SAS_ADDRESS_T attached_device_address;
-   SCIF_SAS_REMOTE_DEVICE_T * attached_remote_device;
    SMP_RESPONSE_DISCOVER_T * discover_response =
       &smp_response->response.discover;
 
@@ -782,13 +781,11 @@ SCI_STATUS scif_sas_smp_remote_device_decode_target_reset_discover_response(
       fw_domain = fw_device->domain;
       attached_device_address = discover_response->attached_sas_address;
 
-      attached_remote_device = (SCIF_SAS_REMOTE_DEVICE_T *)
-         scif_domain_get_device_by_sas_address(
-         fw_domain, &attached_device_address
-      );
-
       // the device should have already existed in the domian.
-      ASSERT (attached_remote_device != SCI_INVALID_HANDLE);
+      ASSERT(scif_domain_get_device_by_sas_address(
+                fw_domain,
+                &attached_device_address
+             ) != SCI_INVALID_HANDLE);
       return SCI_SUCCESS;
    }
    else
@@ -1774,6 +1771,8 @@ SCIF_SAS_SMP_PHY_T * scif_sas_smp_remote_device_find_smp_phy_by_id(
    SCI_FAST_LIST_ELEMENT_T  * element = smp_remote_device->smp_phy_list.list_head;
    SCIF_SAS_SMP_PHY_T * curr_smp_phy = NULL;
 
+   ASSERT(phy_identifier < smp_remote_device->smp_phy_list.number_of_phys);
+
    while (element != NULL)
    {
       curr_smp_phy = (SCIF_SAS_SMP_PHY_T*) sci_fast_list_get_object(element);
@@ -1854,7 +1853,7 @@ void scif_sas_smp_remote_device_terminated_request_handler(
    ));
 
    scif_sas_smp_remote_device_decode_smp_response(
-      fw_device, fw_request, NULL, SCI_FAILURE_RETRY_REQUIRED
+      fw_device, fw_request, NULL, SCI_IO_FAILURE_RETRY_REQUIRED
    );
 }
 
@@ -1934,11 +1933,8 @@ SCI_STATUS scif_sas_smp_remote_device_save_smp_phy_info(
       scif_domain_get_device_by_sas_address(
          fw_device->domain, &discover_response->attached_sas_address);
 
-   if (smp_phy != NULL)
-   {
-      scif_sas_smp_phy_save_information(
-         smp_phy, attached_device, discover_response);
-   }
+   scif_sas_smp_phy_save_information(
+      smp_phy, attached_device, discover_response);
 
    //handle the special case of smp phys between expanders.
    if ( discover_response->protocols.u.bits.attached_smp_target )
@@ -2372,11 +2368,7 @@ void scif_sas_smp_remote_device_clean_route_table(
    SCIF_SAS_REMOTE_DEVICE_T * fw_device
 )
 {
-   SCIF_SAS_SMP_PHY_T * smp_phy_being_config =
-      scif_sas_smp_remote_device_find_smp_phy_by_id(
-         fw_device->protocol_device.smp_device.current_activity_phy_index,
-         &(fw_device->protocol_device.smp_device)
-      );
+   SCIF_SAS_SMP_PHY_T * smp_phy_being_config;
 
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(fw_device),

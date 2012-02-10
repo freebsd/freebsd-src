@@ -92,6 +92,39 @@ MALLOC_DEFINE(M_NETMAP, "netmap", "Network memory map");
  */
 #define NMA_LOCK()	mtx_lock(&netmap_mem_d->nm_mtx);
 #define NMA_UNLOCK()	mtx_unlock(&netmap_mem_d->nm_mtx);
+struct netmap_mem_d;
+static struct netmap_mem_d *netmap_mem_d;	/* Our memory allocator. */
+
+u_int netmap_total_buffers;
+char *netmap_buffer_base;	/* address of an invalid buffer */
+
+/* user-controlled variables */
+int netmap_verbose;
+
+static int netmap_no_timestamp; /* don't timestamp on rxsync */
+
+SYSCTL_NODE(_dev, OID_AUTO, netmap, CTLFLAG_RW, 0, "Netmap args");
+SYSCTL_INT(_dev_netmap, OID_AUTO, verbose,
+    CTLFLAG_RW, &netmap_verbose, 0, "Verbose mode");
+SYSCTL_INT(_dev_netmap, OID_AUTO, no_timestamp,
+    CTLFLAG_RW, &netmap_no_timestamp, 0, "no_timestamp");
+int netmap_buf_size = 2048;
+TUNABLE_INT("hw.netmap.buf_size", &netmap_buf_size);
+SYSCTL_INT(_dev_netmap, OID_AUTO, buf_size,
+    CTLFLAG_RD, &netmap_buf_size, 0, "Size of packet buffers");
+int netmap_mitigate = 1;
+SYSCTL_INT(_dev_netmap, OID_AUTO, mitigate, CTLFLAG_RW, &netmap_mitigate, 0, "");
+int netmap_no_pendintr;
+SYSCTL_INT(_dev_netmap, OID_AUTO, no_pendintr,
+    CTLFLAG_RW, &netmap_no_pendintr, 0, "Always look for new received packets.");
+
+
+
+/*----- memory allocator -----------------*/
+/*
+ * Here we have the low level routines for memory allocator
+ * and its primary users.
+ */
 
 /*
  * Default amount of memory pre-allocated by the module.
@@ -128,30 +161,13 @@ struct netmap_buf_pool {
 	uint32_t *bitmap;	/* one bit per buffer, 1 means free */
 };
 struct netmap_buf_pool nm_buf_pool;
-/* XXX move these two vars back into netmap_buf_pool */
-u_int netmap_total_buffers;
-char *netmap_buffer_base;	/* address of an invalid buffer */
-
-/* user-controlled variables */
-int netmap_verbose;
-
-static int no_timestamp; /* don't timestamp on rxsync */
-
-SYSCTL_NODE(_dev, OID_AUTO, netmap, CTLFLAG_RW, 0, "Netmap args");
-SYSCTL_INT(_dev_netmap, OID_AUTO, verbose,
-    CTLFLAG_RW, &netmap_verbose, 0, "Verbose mode");
-SYSCTL_INT(_dev_netmap, OID_AUTO, no_timestamp,
-    CTLFLAG_RW, &no_timestamp, 0, "no_timestamp");
 SYSCTL_INT(_dev_netmap, OID_AUTO, total_buffers,
     CTLFLAG_RD, &nm_buf_pool.total_buffers, 0, "total_buffers");
 SYSCTL_INT(_dev_netmap, OID_AUTO, free_buffers,
     CTLFLAG_RD, &nm_buf_pool.free, 0, "free_buffers");
-int netmap_mitigate = 1;
-SYSCTL_INT(_dev_netmap, OID_AUTO, mitigate, CTLFLAG_RW, &netmap_mitigate, 0, "");
-int netmap_skip_txsync;
-SYSCTL_INT(_dev_netmap, OID_AUTO, skip_txsync, CTLFLAG_RW, &netmap_skip_txsync, 0, "");
-int netmap_skip_rxsync;
-SYSCTL_INT(_dev_netmap, OID_AUTO, skip_rxsync, CTLFLAG_RW, &netmap_skip_rxsync, 0, "");
+
+
+
 
 /*
  * Allocate n buffers from the ring, and fill the slot.
@@ -239,6 +255,373 @@ struct netmap_mem_d {
 			    area. */
 };
 
+/* Shorthand to compute a netmap interface offset. */
+#define netmap_if_offset(v)                                     \
+    ((char *) (v) - (char *) netmap_mem_d->nm_buffer)
+/* .. and get a physical address given a memory offset */
+#define netmap_ofstophys(o)                                     \
+    (vtophys(netmap_mem_d->nm_buffer) + (o))
+
+
+/*------ netmap memory allocator -------*/
+/*
+ * Request for a chunk of memory.
+ *
+ * Memory objects are arranged into a list, hence we need to walk this
+ * list until we find an object with the needed amount of data free. 
+ * This sounds like a completely inefficient implementation, but given
+ * the fact that data allocation is done once, we can handle it
+ * flawlessly.
+ *
+ * Return NULL on failure.
+ */
+static void *
+netmap_malloc(size_t size, __unused const char *msg)
+{
+	struct netmap_mem_obj *mem_obj, *new_mem_obj;
+	void *ret = NULL;
+
+	NMA_LOCK();
+	TAILQ_FOREACH(mem_obj, &netmap_mem_d->nm_molist, nmo_next) {
+		if (mem_obj->nmo_used != 0 || mem_obj->nmo_size < size)
+			continue;
+
+		new_mem_obj = malloc(sizeof(struct netmap_mem_obj), M_NETMAP,
+				     M_WAITOK | M_ZERO);
+		TAILQ_INSERT_BEFORE(mem_obj, new_mem_obj, nmo_next);
+
+		new_mem_obj->nmo_used = 1;
+		new_mem_obj->nmo_size = size;
+		new_mem_obj->nmo_data = mem_obj->nmo_data;
+		memset(new_mem_obj->nmo_data, 0, new_mem_obj->nmo_size);
+
+		mem_obj->nmo_size -= size;
+		mem_obj->nmo_data = (char *) mem_obj->nmo_data + size;
+		if (mem_obj->nmo_size == 0) {
+			TAILQ_REMOVE(&netmap_mem_d->nm_molist, mem_obj,
+				     nmo_next);
+			free(mem_obj, M_NETMAP);
+		}
+
+		ret = new_mem_obj->nmo_data;
+
+		break;
+	}
+	NMA_UNLOCK();
+	ND("%s: %d bytes at %p", msg, size, ret);
+
+	return (ret);
+}
+
+/*
+ * Return the memory to the allocator.
+ *
+ * While freeing a memory object, we try to merge adjacent chunks in
+ * order to reduce memory fragmentation.
+ */
+static void
+netmap_free(void *addr, const char *msg)
+{
+	size_t size;
+	struct netmap_mem_obj *cur, *prev, *next;
+
+	if (addr == NULL) {
+		D("NULL addr for %s", msg);
+		return;
+	}
+
+	NMA_LOCK();
+	TAILQ_FOREACH(cur, &netmap_mem_d->nm_molist, nmo_next) {
+		if (cur->nmo_data == addr && cur->nmo_used)
+			break;
+	}
+	if (cur == NULL) {
+		NMA_UNLOCK();
+		D("invalid addr %s %p", msg, addr);
+		return;
+	}
+
+	size = cur->nmo_size;
+	cur->nmo_used = 0;
+
+	/* merge current chunk of memory with the previous one,
+	   if present. */
+	prev = TAILQ_PREV(cur, netmap_mem_obj_h, nmo_next);
+	if (prev && prev->nmo_used == 0) {
+		TAILQ_REMOVE(&netmap_mem_d->nm_molist, cur, nmo_next);
+		prev->nmo_size += cur->nmo_size;
+		free(cur, M_NETMAP);
+		cur = prev;
+	}
+
+	/* merge with the next one */
+	next = TAILQ_NEXT(cur, nmo_next);
+	if (next && next->nmo_used == 0) {
+		TAILQ_REMOVE(&netmap_mem_d->nm_molist, next, nmo_next);
+		cur->nmo_size += next->nmo_size;
+		free(next, M_NETMAP);
+	}
+	NMA_UNLOCK();
+	ND("freed %s %d bytes at %p", msg, size, addr);
+}
+
+
+/*
+ * Create and return a new ``netmap_if`` object, and possibly also
+ * rings and packet buffors.
+ *
+ * Return NULL on failure.
+ */
+static void *
+netmap_if_new(const char *ifname, struct netmap_adapter *na)
+{
+	struct netmap_if *nifp;
+	struct netmap_ring *ring;
+	char *buff;
+	u_int i, len, ofs;
+	u_int n = na->num_queues + 1; /* shorthand, include stack queue */
+
+	/*
+	 * the descriptor is followed inline by an array of offsets
+	 * to the tx and rx rings in the shared memory region.
+	 */
+	len = sizeof(struct netmap_if) + 2 * n * sizeof(ssize_t);
+	nifp = netmap_if_malloc(len);
+	if (nifp == NULL)
+		return (NULL);
+
+	/* initialize base fields */
+	*(int *)(uintptr_t)&nifp->ni_num_queues = na->num_queues;
+	strncpy(nifp->ni_name, ifname, IFNAMSIZ);
+
+	(na->refcount)++;	/* XXX atomic ? we are under lock */
+	if (na->refcount > 1)
+		goto final;
+
+	/*
+	 * If this is the first instance, allocate the shadow rings and
+	 * buffers for this card (one for each hw queue, one for the host).
+	 * The rings are contiguous, but have variable size.
+	 * The entire block is reachable at
+	 *	na->tx_rings[0].ring
+	 */
+
+	len = n * (2 * sizeof(struct netmap_ring) +
+		  (na->num_tx_desc + na->num_rx_desc) *
+		   sizeof(struct netmap_slot) );
+	buff = netmap_ring_malloc(len);
+	if (buff == NULL) {
+		D("failed to allocate %d bytes for %s shadow ring",
+			len, ifname);
+error:
+		(na->refcount)--;
+		netmap_if_free(nifp);
+		return (NULL);
+	}
+	/* do we have the bufers ? we are in need of num_tx_desc buffers for
+	 * each tx ring and num_tx_desc buffers for each rx ring. */
+	len = n * (na->num_tx_desc + na->num_rx_desc);
+	NMA_LOCK();
+	if (nm_buf_pool.free < len) {
+		NMA_UNLOCK();
+		netmap_free(buff, "not enough bufs");
+		goto error;
+	}
+	/*
+	 * in the kring, store the pointers to the shared rings
+	 * and initialize the rings. We are under NMA_LOCK().
+	 */
+	ofs = 0;
+	for (i = 0; i < n; i++) {
+		struct netmap_kring *kring;
+		int numdesc;
+
+		/* Transmit rings */
+		kring = &na->tx_rings[i];
+		numdesc = na->num_tx_desc;
+		bzero(kring, sizeof(*kring));
+		kring->na = na;
+
+		ring = kring->ring = (struct netmap_ring *)(buff + ofs);
+		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
+			nm_buf_pool.base - (char *)ring;
+		ND("txring[%d] at %p ofs %d", i, ring, ring->buf_ofs);
+		*(uint32_t *)(uintptr_t)&ring->num_slots =
+			kring->nkr_num_slots = numdesc;
+
+		/*
+		 * IMPORTANT:
+		 * Always keep one slot empty, so we can detect new
+		 * transmissions comparing cur and nr_hwcur (they are
+		 * the same only if there are no new transmissions).
+		 */
+		ring->avail = kring->nr_hwavail = numdesc - 1;
+		ring->cur = kring->nr_hwcur = 0;
+		*(uint16_t *)(uintptr_t)&ring->nr_buf_size = NETMAP_BUF_SIZE;
+		netmap_new_bufs(nifp, ring->slot, numdesc);
+
+		ofs += sizeof(struct netmap_ring) +
+			numdesc * sizeof(struct netmap_slot);
+
+		/* Receive rings */
+		kring = &na->rx_rings[i];
+		numdesc = na->num_rx_desc;
+		bzero(kring, sizeof(*kring));
+		kring->na = na;
+
+		ring = kring->ring = (struct netmap_ring *)(buff + ofs);
+		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
+			nm_buf_pool.base - (char *)ring;
+		ND("rxring[%d] at %p offset %d", i, ring, ring->buf_ofs);
+		*(uint32_t *)(uintptr_t)&ring->num_slots =
+			kring->nkr_num_slots = numdesc;
+		ring->cur = kring->nr_hwcur = 0;
+		ring->avail = kring->nr_hwavail = 0; /* empty */
+		*(uint16_t *)(uintptr_t)&ring->nr_buf_size = NETMAP_BUF_SIZE;
+		netmap_new_bufs(nifp, ring->slot, numdesc);
+		ofs += sizeof(struct netmap_ring) +
+			numdesc * sizeof(struct netmap_slot);
+	}
+	NMA_UNLOCK();
+	for (i = 0; i < n+1; i++) {
+		// XXX initialize the selrecord structs.
+	}
+final:
+	/*
+	 * fill the slots for the rx and tx queues. They contain the offset
+	 * between the ring and nifp, so the information is usable in
+	 * userspace to reach the ring from the nifp.
+	 */
+	for (i = 0; i < n; i++) {
+		char *base = (char *)nifp;
+		*(ssize_t *)(uintptr_t)&nifp->ring_ofs[i] =
+			(char *)na->tx_rings[i].ring - base;
+		*(ssize_t *)(uintptr_t)&nifp->ring_ofs[i+n] =
+			(char *)na->rx_rings[i].ring - base;
+	}
+	return (nifp);
+}
+
+/*
+ * Initialize the memory allocator.
+ *
+ * Create the descriptor for the memory , allocate the pool of memory
+ * and initialize the list of memory objects with a single chunk
+ * containing the whole pre-allocated memory marked as free.
+ *
+ * Start with a large size, then halve as needed if we fail to
+ * allocate the block. While halving, always add one extra page
+ * because buffers 0 and 1 are used for special purposes.
+ * Return 0 on success, errno otherwise.
+ */
+static int
+netmap_memory_init(void)
+{
+	struct netmap_mem_obj *mem_obj;
+	void *buf = NULL;
+	int i, n, sz = NETMAP_MEMORY_SIZE;
+	int extra_sz = 0; // space for rings and two spare buffers
+
+	for (; sz >= 1<<20; sz >>=1) {
+		extra_sz = sz/200;
+		extra_sz = (extra_sz + 2*PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
+	        buf = contigmalloc(sz + extra_sz,
+			     M_NETMAP,
+			     M_WAITOK | M_ZERO,
+			     0, /* low address */
+			     -1UL, /* high address */
+			     PAGE_SIZE, /* alignment */
+			     0 /* boundary */
+			    );
+		if (buf)
+			break;
+	} 
+	if (buf == NULL)
+		return (ENOMEM);
+	sz += extra_sz;
+	netmap_mem_d = malloc(sizeof(struct netmap_mem_d), M_NETMAP,
+			      M_WAITOK | M_ZERO);
+	mtx_init(&netmap_mem_d->nm_mtx, "netmap memory allocator lock", NULL,
+		 MTX_DEF);
+	TAILQ_INIT(&netmap_mem_d->nm_molist);
+	netmap_mem_d->nm_buffer = buf;
+	netmap_mem_d->nm_totalsize = sz;
+
+	/*
+	 * A buffer takes 2k, a slot takes 8 bytes + ring overhead,
+	 * so the ratio is 200:1. In other words, we can use 1/200 of
+	 * the memory for the rings, and the rest for the buffers,
+	 * and be sure we never run out.
+	 */
+	netmap_mem_d->nm_size = sz/200;
+	netmap_mem_d->nm_buf_start =
+		(netmap_mem_d->nm_size + PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
+	netmap_mem_d->nm_buf_len = sz - netmap_mem_d->nm_buf_start;
+
+	nm_buf_pool.base = netmap_mem_d->nm_buffer;
+	nm_buf_pool.base += netmap_mem_d->nm_buf_start;
+	netmap_buffer_base = nm_buf_pool.base;
+	D("netmap_buffer_base %p (offset %d)",
+		netmap_buffer_base, (int)netmap_mem_d->nm_buf_start);
+	/* number of buffers, they all start as free */
+
+	netmap_total_buffers = nm_buf_pool.total_buffers =
+		netmap_mem_d->nm_buf_len / NETMAP_BUF_SIZE;
+	nm_buf_pool.bufsize = NETMAP_BUF_SIZE;
+
+	D("Have %d MB, use %dKB for rings, %d buffers at %p",
+		(sz >> 20), (int)(netmap_mem_d->nm_size >> 10),
+		nm_buf_pool.total_buffers, nm_buf_pool.base);
+
+	/* allocate and initialize the bitmap. Entry 0 is considered
+	 * always busy (used as default when there are no buffers left).
+	 */
+	n = (nm_buf_pool.total_buffers + 31) / 32;
+	nm_buf_pool.bitmap = malloc(sizeof(uint32_t) * n, M_NETMAP,
+			 M_WAITOK | M_ZERO);
+	nm_buf_pool.bitmap[0] = ~3; /* slot 0 and 1 always busy */
+	for (i = 1; i < n; i++)
+		nm_buf_pool.bitmap[i] = ~0;
+	nm_buf_pool.free = nm_buf_pool.total_buffers - 2;
+	
+	mem_obj = malloc(sizeof(struct netmap_mem_obj), M_NETMAP,
+			 M_WAITOK | M_ZERO);
+	TAILQ_INSERT_HEAD(&netmap_mem_d->nm_molist, mem_obj, nmo_next);
+	mem_obj->nmo_used = 0;
+	mem_obj->nmo_size = netmap_mem_d->nm_size;
+	mem_obj->nmo_data = netmap_mem_d->nm_buffer;
+
+	return (0);
+}
+
+
+/*
+ * Finalize the memory allocator.
+ *
+ * Free all the memory objects contained inside the list, and deallocate
+ * the pool of memory; finally free the memory allocator descriptor.
+ */
+static void
+netmap_memory_fini(void)
+{
+	struct netmap_mem_obj *mem_obj;
+
+	while (!TAILQ_EMPTY(&netmap_mem_d->nm_molist)) {
+		mem_obj = TAILQ_FIRST(&netmap_mem_d->nm_molist);
+		TAILQ_REMOVE(&netmap_mem_d->nm_molist, mem_obj, nmo_next);
+		if (mem_obj->nmo_used == 1) {
+			printf("netmap: leaked %d bytes at %p\n",
+			       (int)mem_obj->nmo_size,
+			       mem_obj->nmo_data);
+		}
+		free(mem_obj, M_NETMAP);
+	}
+	contigfree(netmap_mem_d->nm_buffer, netmap_mem_d->nm_totalsize, M_NETMAP);
+	// XXX mutex_destroy(nm_mtx);
+	free(netmap_mem_d, M_NETMAP);
+}
+/*------------- end of memory allocator -----------------*/
+
 
 /* Structure associated to each thread which registered an interface. */
 struct netmap_priv_d {
@@ -250,15 +633,8 @@ struct netmap_priv_d {
 	uint16_t	np_txpoll;
 };
 
-/* Shorthand to compute a netmap interface offset. */
-#define netmap_if_offset(v)                                     \
-    ((char *) (v) - (char *) netmap_mem_d->nm_buffer)
-/* .. and get a physical address given a memory offset */
-#define netmap_ofstophys(o)                                     \
-    (vtophys(netmap_mem_d->nm_buffer) + (o))
 
 static struct cdev *netmap_dev; /* /dev/netmap character device. */
-static struct netmap_mem_d *netmap_mem_d; /* Our memory allocator. */
 
 
 static d_mmap_t netmap_mmap;
@@ -351,6 +727,7 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
 }
 #endif /* NETMAP_KEVENT */
 
+
 /*
  * File descriptor's private data destructor.
  *
@@ -358,18 +735,12 @@ netmap_kqfilter(struct cdev *dev, struct knote *kn)
  * revert to normal operation. We expect that np_ifp has not gone.
  */
 static void
-netmap_dtor(void *data)
+netmap_dtor_locked(void *data)
 {
 	struct netmap_priv_d *priv = data;
 	struct ifnet *ifp = priv->np_ifp;
 	struct netmap_adapter *na = NA(ifp);
 	struct netmap_if *nifp = priv->np_nifp;
-
-	if (0)
-	    printf("%s starting for %p ifp %p\n", __FUNCTION__, priv,
-		priv ? priv->np_ifp : NULL);
-
-	na->nm_lock(ifp->if_softc, NETMAP_CORE_LOCK, 0); 
 
 	na->refcount--;
 	if (na->refcount <= 0) {	/* last instance */
@@ -422,148 +793,23 @@ netmap_dtor(void *data)
 		wakeup(na);
 	}
 	netmap_if_free(nifp);
-
-	na->nm_lock(ifp->if_softc, NETMAP_CORE_UNLOCK, 0); 
-
-	if_rele(ifp);
-
-	bzero(priv, sizeof(*priv));	/* XXX for safety */
-	free(priv, M_DEVBUF);
 }
 
 
-/*
- * Create and return a new ``netmap_if`` object, and possibly also
- * rings and packet buffors.
- *
- * Return NULL on failure.
- */
-static void *
-netmap_if_new(const char *ifname, struct netmap_adapter *na)
+static void
+netmap_dtor(void *data)
 {
-	struct netmap_if *nifp;
-	struct netmap_ring *ring;
-	char *buff;
-	u_int i, len, ofs;
-	u_int n = na->num_queues + 1; /* shorthand, include stack queue */
+	struct netmap_priv_d *priv = data;
+	struct ifnet *ifp = priv->np_ifp;
+	struct netmap_adapter *na = NA(ifp);
 
-	/*
-	 * the descriptor is followed inline by an array of offsets
-	 * to the tx and rx rings in the shared memory region.
-	 */
-	len = sizeof(struct netmap_if) + 2 * n * sizeof(ssize_t);
-	nifp = netmap_if_malloc(len);
-	if (nifp == NULL)
-		return (NULL);
+	na->nm_lock(ifp->if_softc, NETMAP_CORE_LOCK, 0);
+	netmap_dtor_locked(data);
+	na->nm_lock(ifp->if_softc, NETMAP_CORE_UNLOCK, 0); 
 
-	/* initialize base fields */
-	*(int *)(uintptr_t)&nifp->ni_num_queues = na->num_queues;
-	strncpy(nifp->ni_name, ifname, IFNAMSIZ);
-
-	(na->refcount)++;	/* XXX atomic ? we are under lock */
-	if (na->refcount > 1)
-		goto final;
-
-	/*
-	 * If this is the first instance, allocate the shadow rings and
-	 * buffers for this card (one for each hw queue, one for the host).
-	 * The rings are contiguous, but have variable size.
-	 * The entire block is reachable at
-	 *	na->tx_rings[0].ring
-	 */
-
-	len = n * (2 * sizeof(struct netmap_ring) +
-		  (na->num_tx_desc + na->num_rx_desc) *
-		   sizeof(struct netmap_slot) );
-	buff = netmap_ring_malloc(len);
-	if (buff == NULL) {
-		D("failed to allocate %d bytes for %s shadow ring",
-			len, ifname);
-error:
-		(na->refcount)--;
-		netmap_if_free(nifp);
-		return (NULL);
-	}
-	/* do we have the bufers ? we are in need of num_tx_desc buffers for
-	 * each tx ring and num_tx_desc buffers for each rx ring. */
-	len = n * (na->num_tx_desc + na->num_rx_desc);
-	NMA_LOCK();
-	if (nm_buf_pool.free < len) {
-		NMA_UNLOCK();
-		netmap_free(buff, "not enough bufs");
-		goto error;
-	}
-	/*
-	 * in the kring, store the pointers to the shared rings
-	 * and initialize the rings. We are under NMA_LOCK().
-	 */
-	ofs = 0;
-	for (i = 0; i < n; i++) {
-		struct netmap_kring *kring;
-		int numdesc;
-
-		/* Transmit rings */
-		kring = &na->tx_rings[i];
-		numdesc = na->num_tx_desc;
-		bzero(kring, sizeof(*kring));
-		kring->na = na;
-
-		ring = kring->ring = (struct netmap_ring *)(buff + ofs);
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
-			nm_buf_pool.base - (char *)ring;
-		ND("txring[%d] at %p ofs %d", i, ring, ring->buf_ofs);
-		*(int *)(int *)(uintptr_t)&ring->num_slots =
-			kring->nkr_num_slots = numdesc;
-
-		/*
-		 * IMPORTANT:
-		 * Always keep one slot empty, so we can detect new
-		 * transmissions comparing cur and nr_hwcur (they are
-		 * the same only if there are no new transmissions).
-		 */
-		ring->avail = kring->nr_hwavail = numdesc - 1;
-		ring->cur = kring->nr_hwcur = 0;
-		netmap_new_bufs(nifp, ring->slot, numdesc);
-
-		ofs += sizeof(struct netmap_ring) +
-			numdesc * sizeof(struct netmap_slot);
-
-		/* Receive rings */
-		kring = &na->rx_rings[i];
-		numdesc = na->num_rx_desc;
-		bzero(kring, sizeof(*kring));
-		kring->na = na;
-
-		ring = kring->ring = (struct netmap_ring *)(buff + ofs);
-		*(ssize_t *)(uintptr_t)&ring->buf_ofs =
-			nm_buf_pool.base - (char *)ring;
-		ND("rxring[%d] at %p offset %d", i, ring, ring->buf_ofs);
-		*(int *)(int *)(uintptr_t)&ring->num_slots =
-			kring->nkr_num_slots = numdesc;
-		ring->cur = kring->nr_hwcur = 0;
-		ring->avail = kring->nr_hwavail = 0; /* empty */
-		netmap_new_bufs(nifp, ring->slot, numdesc);
-		ofs += sizeof(struct netmap_ring) +
-			numdesc * sizeof(struct netmap_slot);
-	}
-	NMA_UNLOCK();
-	for (i = 0; i < n+1; i++) {
-		// XXX initialize the selrecord structs.
-	}
-final:
-	/*
-	 * fill the slots for the rx and tx queues. They contain the offset
-	 * between the ring and nifp, so the information is usable in
-	 * userspace to reach the ring from the nifp.
-	 */
-	for (i = 0; i < n; i++) {
-		char *base = (char *)nifp;
-		*(ssize_t *)(uintptr_t)&nifp->ring_ofs[i] =
-			(char *)na->tx_rings[i].ring - base;
-		*(ssize_t *)(uintptr_t)&nifp->ring_ofs[i+n] =
-			(char *)na->rx_rings[i].ring - base;
-	}
-	return (nifp);
+	if_rele(ifp);
+	bzero(priv, sizeof(*priv));	/* XXX for safety */
+	free(priv, M_DEVBUF);
 }
 
 
@@ -894,7 +1140,6 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 			break;
 		}
 
-
 		for (i = 10; i > 0; i--) {
 			na->nm_lock(adapter, NETMAP_CORE_LOCK, 0);
 			if (!NETMAP_DELETING(na))
@@ -924,25 +1169,16 @@ netmap_ioctl(__unused struct cdev *dev, u_long cmd, caddr_t data,
 			 * and make it use the shared buffers.
 			 */
 			error = na->nm_register(ifp, 1); /* mode on */
-			if (error) {
-				/*
-				 * do something similar to netmap_dtor().
-				 */
-				netmap_free_rings(na);
-				// XXX tx_rings is inline, must not be freed.
-				// free(na->tx_rings, M_DEVBUF); // XXX wrong ?
-				na->tx_rings = na->rx_rings = NULL;
-				na->refcount--;
-				netmap_if_free(nifp);
-				nifp = NULL;
-			}
+			if (error)
+				netmap_dtor_locked(priv);
 		}
 
 		if (error) {	/* reg. failed, release priv and ref */
 error:
 			na->nm_lock(adapter, NETMAP_CORE_UNLOCK, 0);
-			free(priv, M_DEVBUF);
 			if_rele(ifp);	/* return the refcount */
+			bzero(priv, sizeof(*priv));
+			free(priv, M_DEVBUF);
 			break;
 		}
 
@@ -1166,6 +1402,12 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 	if (priv->np_txpoll || want_tx) {
 		for (i = priv->np_qfirst; i < priv->np_qlast; i++) {
 			kring = &na->tx_rings[i];
+			/*
+			 * Skip the current ring if want_tx == 0
+			 * (we have already done a successful sync on
+			 * a previous ring) AND kring->cur == kring->hwcur
+			 * (there are no pending transmissions for this ring).
+			 */
 			if (!want_tx && kring->ring->cur == kring->nr_hwcur)
 				continue;
 			if (core_lock == NEED_CL) {
@@ -1181,6 +1423,7 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 			if (na->nm_txsync(adapter, i, 0 /* no lock */))
 				revents |= POLLERR;
 
+			/* Check avail/call selrecord only if called with POLLOUT */
 			if (want_tx) {
 				if (kring->ring->avail > 0) {
 					/* stop at the first ring. We don't risk
@@ -1212,9 +1455,10 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 
 			if (na->nm_rxsync(adapter, i, 0 /* no lock */))
 				revents |= POLLERR;
-			if (no_timestamp == 0 ||
-					kring->ring->flags & NR_TIMESTAMP)
+			if (netmap_no_timestamp == 0 ||
+					kring->ring->flags & NR_TIMESTAMP) {
 				microtime(&kring->ring->ts);
+			}
 
 			if (kring->ring->avail > 0)
 				revents |= want_rx;
@@ -1269,6 +1513,7 @@ netmap_attach(struct netmap_adapter *na, int num_queues)
 		WNA(ifp) = buf;
 		na->tx_rings = (void *)((char *)buf + sizeof(*na));
 		na->rx_rings = na->tx_rings + n;
+		na->buff_size = NETMAP_BUF_SIZE;
 		bcopy(na, buf, sizeof(*na));
 		ifp->if_capabilities |= IFCAP_NETMAP;
 	}
@@ -1396,229 +1641,6 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
 	selwakeuppri(&kring->si, PI_NET);
 	selwakeuppri(&kring[na->num_queues + 1 - n].si, PI_NET);
 	return kring->ring->slot;
-}
-
-
-/*------ netmap memory allocator -------*/
-/*
- * Request for a chunk of memory.
- *
- * Memory objects are arranged into a list, hence we need to walk this
- * list until we find an object with the needed amount of data free. 
- * This sounds like a completely inefficient implementation, but given
- * the fact that data allocation is done once, we can handle it
- * flawlessly.
- *
- * Return NULL on failure.
- */
-static void *
-netmap_malloc(size_t size, __unused const char *msg)
-{
-	struct netmap_mem_obj *mem_obj, *new_mem_obj;
-	void *ret = NULL;
-
-	NMA_LOCK();
-	TAILQ_FOREACH(mem_obj, &netmap_mem_d->nm_molist, nmo_next) {
-		if (mem_obj->nmo_used != 0 || mem_obj->nmo_size < size)
-			continue;
-
-		new_mem_obj = malloc(sizeof(struct netmap_mem_obj), M_NETMAP,
-				     M_WAITOK | M_ZERO);
-		TAILQ_INSERT_BEFORE(mem_obj, new_mem_obj, nmo_next);
-
-		new_mem_obj->nmo_used = 1;
-		new_mem_obj->nmo_size = size;
-		new_mem_obj->nmo_data = mem_obj->nmo_data;
-		memset(new_mem_obj->nmo_data, 0, new_mem_obj->nmo_size);
-
-		mem_obj->nmo_size -= size;
-		mem_obj->nmo_data = (char *) mem_obj->nmo_data + size;
-		if (mem_obj->nmo_size == 0) {
-			TAILQ_REMOVE(&netmap_mem_d->nm_molist, mem_obj,
-				     nmo_next);
-			free(mem_obj, M_NETMAP);
-		}
-
-		ret = new_mem_obj->nmo_data;
-
-		break;
-	}
-	NMA_UNLOCK();
-	ND("%s: %d bytes at %p", msg, size, ret);
-
-	return (ret);
-}
-
-/*
- * Return the memory to the allocator.
- *
- * While freeing a memory object, we try to merge adjacent chunks in
- * order to reduce memory fragmentation.
- */
-static void
-netmap_free(void *addr, const char *msg)
-{
-	size_t size;
-	struct netmap_mem_obj *cur, *prev, *next;
-
-	if (addr == NULL) {
-		D("NULL addr for %s", msg);
-		return;
-	}
-
-	NMA_LOCK();
-	TAILQ_FOREACH(cur, &netmap_mem_d->nm_molist, nmo_next) {
-		if (cur->nmo_data == addr && cur->nmo_used)
-			break;
-	}
-	if (cur == NULL) {
-		NMA_UNLOCK();
-		D("invalid addr %s %p", msg, addr);
-		return;
-	}
-
-	size = cur->nmo_size;
-	cur->nmo_used = 0;
-
-	/* merge current chunk of memory with the previous one,
-	   if present. */
-	prev = TAILQ_PREV(cur, netmap_mem_obj_h, nmo_next);
-	if (prev && prev->nmo_used == 0) {
-		TAILQ_REMOVE(&netmap_mem_d->nm_molist, cur, nmo_next);
-		prev->nmo_size += cur->nmo_size;
-		free(cur, M_NETMAP);
-		cur = prev;
-	}
-
-	/* merge with the next one */
-	next = TAILQ_NEXT(cur, nmo_next);
-	if (next && next->nmo_used == 0) {
-		TAILQ_REMOVE(&netmap_mem_d->nm_molist, next, nmo_next);
-		cur->nmo_size += next->nmo_size;
-		free(next, M_NETMAP);
-	}
-	NMA_UNLOCK();
-	ND("freed %s %d bytes at %p", msg, size, addr);
-}
-
-
-/*
- * Initialize the memory allocator.
- *
- * Create the descriptor for the memory , allocate the pool of memory
- * and initialize the list of memory objects with a single chunk
- * containing the whole pre-allocated memory marked as free.
- *
- * Start with a large size, then halve as needed if we fail to
- * allocate the block. While halving, always add one extra page
- * because buffers 0 and 1 are used for special purposes.
- * Return 0 on success, errno otherwise.
- */
-static int
-netmap_memory_init(void)
-{
-	struct netmap_mem_obj *mem_obj;
-	void *buf = NULL;
-	int i, n, sz = NETMAP_MEMORY_SIZE;
-	int extra_sz = 0; // space for rings and two spare buffers
-
-	for (; sz >= 1<<20; sz >>=1) {
-		extra_sz = sz/200;
-		extra_sz = (extra_sz + 2*PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
-	        buf = contigmalloc(sz + extra_sz,
-			     M_NETMAP,
-			     M_WAITOK | M_ZERO,
-			     0, /* low address */
-			     -1UL, /* high address */
-			     PAGE_SIZE, /* alignment */
-			     0 /* boundary */
-			    );
-		if (buf)
-			break;
-	} 
-	if (buf == NULL)
-		return (ENOMEM);
-	sz += extra_sz;
-	netmap_mem_d = malloc(sizeof(struct netmap_mem_d), M_NETMAP,
-			      M_WAITOK | M_ZERO);
-	mtx_init(&netmap_mem_d->nm_mtx, "netmap memory allocator lock", NULL,
-		 MTX_DEF);
-	TAILQ_INIT(&netmap_mem_d->nm_molist);
-	netmap_mem_d->nm_buffer = buf;
-	netmap_mem_d->nm_totalsize = sz;
-
-	/*
-	 * A buffer takes 2k, a slot takes 8 bytes + ring overhead,
-	 * so the ratio is 200:1. In other words, we can use 1/200 of
-	 * the memory for the rings, and the rest for the buffers,
-	 * and be sure we never run out.
-	 */
-	netmap_mem_d->nm_size = sz/200;
-	netmap_mem_d->nm_buf_start =
-		(netmap_mem_d->nm_size + PAGE_SIZE - 1) & ~(PAGE_SIZE-1);
-	netmap_mem_d->nm_buf_len = sz - netmap_mem_d->nm_buf_start;
-
-	nm_buf_pool.base = netmap_mem_d->nm_buffer;
-	nm_buf_pool.base += netmap_mem_d->nm_buf_start;
-	netmap_buffer_base = nm_buf_pool.base;
-	D("netmap_buffer_base %p (offset %d)",
-		netmap_buffer_base, (int)netmap_mem_d->nm_buf_start);
-	/* number of buffers, they all start as free */
-
-	netmap_total_buffers = nm_buf_pool.total_buffers =
-		netmap_mem_d->nm_buf_len / NETMAP_BUF_SIZE;
-	nm_buf_pool.bufsize = NETMAP_BUF_SIZE;
-
-	D("Have %d MB, use %dKB for rings, %d buffers at %p",
-		(sz >> 20), (int)(netmap_mem_d->nm_size >> 10),
-		nm_buf_pool.total_buffers, nm_buf_pool.base);
-
-	/* allocate and initialize the bitmap. Entry 0 is considered
-	 * always busy (used as default when there are no buffers left).
-	 */
-	n = (nm_buf_pool.total_buffers + 31) / 32;
-	nm_buf_pool.bitmap = malloc(sizeof(uint32_t) * n, M_NETMAP,
-			 M_WAITOK | M_ZERO);
-	nm_buf_pool.bitmap[0] = ~3; /* slot 0 and 1 always busy */
-	for (i = 1; i < n; i++)
-		nm_buf_pool.bitmap[i] = ~0;
-	nm_buf_pool.free = nm_buf_pool.total_buffers - 2;
-	
-	mem_obj = malloc(sizeof(struct netmap_mem_obj), M_NETMAP,
-			 M_WAITOK | M_ZERO);
-	TAILQ_INSERT_HEAD(&netmap_mem_d->nm_molist, mem_obj, nmo_next);
-	mem_obj->nmo_used = 0;
-	mem_obj->nmo_size = netmap_mem_d->nm_size;
-	mem_obj->nmo_data = netmap_mem_d->nm_buffer;
-
-	return (0);
-}
-
-
-/*
- * Finalize the memory allocator.
- *
- * Free all the memory objects contained inside the list, and deallocate
- * the pool of memory; finally free the memory allocator descriptor.
- */
-static void
-netmap_memory_fini(void)
-{
-	struct netmap_mem_obj *mem_obj;
-
-	while (!TAILQ_EMPTY(&netmap_mem_d->nm_molist)) {
-		mem_obj = TAILQ_FIRST(&netmap_mem_d->nm_molist);
-		TAILQ_REMOVE(&netmap_mem_d->nm_molist, mem_obj, nmo_next);
-		if (mem_obj->nmo_used == 1) {
-			printf("netmap: leaked %d bytes at %p\n",
-			       (int)mem_obj->nmo_size,
-			       mem_obj->nmo_data);
-		}
-		free(mem_obj, M_NETMAP);
-	}
-	contigfree(netmap_mem_d->nm_buffer, netmap_mem_d->nm_totalsize, M_NETMAP);
-	// XXX mutex_destroy(nm_mtx);
-	free(netmap_mem_d, M_NETMAP);
 }
 
 

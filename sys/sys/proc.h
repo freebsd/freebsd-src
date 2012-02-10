@@ -384,6 +384,7 @@ do {									\
 				      process */
 #define	TDB_STOPATFORK	0x00000080 /* Stop at the return from fork (child
 				      only) */
+#define	TDB_CHILD	0x00000100 /* New child indicator for ptrace() */
 
 /*
  * "Private" flags kept in td_pflags:

@@ -149,8 +149,8 @@ struct vnode {
 	struct	lock *v_vnlock;			/* u pointer to vnode lock */
 	int	v_holdcnt;			/* i prevents recycling. */
 	int	v_usecount;			/* i ref count of users */
-	u_long	v_iflag;			/* i vnode flags (see below) */
-	u_long	v_vflag;			/* v vnode flags */
+	u_int	v_iflag;			/* i vnode flags (see below) */
+	u_int	v_vflag;			/* v vnode flags */
 	int	v_writecount;			/* v ref count of writers */
 
 	/*

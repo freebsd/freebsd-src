@@ -626,16 +626,16 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 		return;
 	}
 
-	io_request->status = scif_io_request_construct(
+	status = scif_io_request_construct(
 	    io_request->parent.controller_handle,
 	    io_request->parent.remote_device_handle,
 	    SCI_CONTROLLER_INVALID_IO_TAG, (void *)io_request,
 	    (void *)((char*)io_request + sizeof(struct ISCI_IO_REQUEST)),
 	    &io_request->sci_object);
 
-	if (io_request->status != SCI_SUCCESS) {
+	if (status != SCI_SUCCESS) {
 		isci_io_request_complete(io_request->parent.controller_handle,
-		    device, io_request, io_request->status);
+		    device, io_request, (SCI_IO_STATUS)status);
 		return;
 	}
 
@@ -650,7 +650,7 @@ isci_io_request_construct(void *arg, bus_dma_segment_t *seg, int nseg,
 
 	if (status != SCI_SUCCESS) {
 		isci_io_request_complete(io_request->parent.controller_handle,
-		    device, io_request, status);
+		    device, io_request, (SCI_IO_STATUS)status);
 		return;
 	}
 
@@ -900,7 +900,7 @@ isci_io_request_execute_smp_io(union ccb *ccb,
 
 	if (status != SCI_SUCCESS) {
 		isci_io_request_complete(controller->scif_controller_handle,
-		    smp_device_handle, io_request, status);
+		    smp_device_handle, io_request, (SCI_IO_STATUS)status);
 		return;
 	}
 
@@ -912,7 +912,7 @@ isci_io_request_execute_smp_io(union ccb *ccb,
 
 	if (status != SCI_SUCCESS) {
 		isci_io_request_complete(controller->scif_controller_handle,
-		    smp_device_handle, io_request, status);
+		    smp_device_handle, io_request, (SCI_IO_STATUS)status);
 		return;
 	}
 

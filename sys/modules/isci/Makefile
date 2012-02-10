@@ -87,6 +87,4 @@ SRCS += \
 SRCS += opt_scsi.h opt_cam.h opt_isci.h
 SRCS += device_if.h bus_if.h pci_if.h
 
-CC	= gcc
-
 .include <bsd.kmod.mk>
