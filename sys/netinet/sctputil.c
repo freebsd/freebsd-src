@@ -1117,6 +1117,7 @@ sctp_init_asoc(struct sctp_inpcb *m, struct sctp_tcb *stcb,
 	asoc->authinfo.recv_keyid = 0;
 	LIST_INIT(&asoc->shared_keys);
 	asoc->marked_retrans = 0;
+	asoc->port = m->sctp_ep.port;
 	asoc->timoinit = 0;
 	asoc->timodata = 0;
 	asoc->timosack = 0;

@@ -110,7 +110,6 @@ struct sctp_sysctl {
 #if defined(SCTP_LOCAL_TRACE_BUF)
 	struct sctp_log sctp_log;
 #endif
-	uint32_t sctp_udp_tunneling_for_client_enable;
 	uint32_t sctp_udp_tunneling_port;
 	uint32_t sctp_enable_sack_immediately;
 	uint32_t sctp_vtag_time_wait;
@@ -463,12 +462,6 @@ struct sctp_sysctl {
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MIN	0
 #define SCTPCTL_MOBILITY_FASTHANDOFF_MAX	1
 #define SCTPCTL_MOBILITY_FASTHANDOFF_DEFAULT	SCTP_DEFAULT_MOBILITY_FASTHANDOFF
-
-/* Enable SCTP/UDP tunneling for clients*/
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DESC	"Enable SCTP/UDP tunneling for client"
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN	0
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MAX	1
-#define SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_DEFAULT	SCTPCTL_UDP_TUNNELING_FOR_CLIENT_ENABLE_MIN
 
 /* Enable SCTP/UDP tunneling port */
 #define SCTPCTL_UDP_TUNNELING_PORT_DESC		"Set the SCTP/UDP tunneling port"
