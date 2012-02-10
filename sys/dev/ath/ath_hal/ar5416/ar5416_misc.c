@@ -27,6 +27,8 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
+#include "ah_eeprom_v14.h"	/* for owl_get_ntxchains() */
+
 /*
  * Return the wireless modes (a,b,g,n,t) supported by hardware.
  *
@@ -428,6 +430,33 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 		break;
 	}
 	return ar5212GetCapability(ah, type, capability, result);
+}
+
+HAL_BOOL
+ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
+    u_int32_t capability, u_int32_t setting, HAL_STATUS *status)
+{
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+	switch (type) {
+	case HAL_CAP_RX_CHAINMASK:
+		pCap->halRxChainMask = setting;
+		if (owl_get_ntxchains(setting) > 2)
+			pCap->halRxStreams = 2;
+		else
+			pCap->halRxStreams = 1;
+		return HAL_OK;
+	case HAL_CAP_TX_CHAINMASK:
+		pCap->halTxChainMask = setting;
+		if (owl_get_ntxchains(setting) > 2)
+			pCap->halTxStreams = 2;
+		else
+			pCap->halTxStreams = 1;
+		return HAL_OK;
+	default:
+		break;
+	}
+	return ar5212SetCapability(ah, type, capability, setting, status);
 }
 
 static int ar5416DetectMacHang(struct ath_hal *ah);
