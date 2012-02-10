@@ -537,6 +537,7 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 	struct sctp_nets *r_net, *f_net;
 	struct timeval tv;
 	int req_prim = 0;
+	uint16_t old_error_counter;
 
 #ifdef INET
 	struct sockaddr_in *sin;
@@ -599,7 +600,6 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		r_net->dest_state &= ~SCTP_ADDR_UNCONFIRMED;
 		if (r_net->dest_state & SCTP_ADDR_REQ_PRIMARY) {
 			stcb->asoc.primary_destination = r_net;
-			r_net->dest_state &= ~SCTP_ADDR_WAS_PRIMARY;
 			r_net->dest_state &= ~SCTP_ADDR_REQ_PRIMARY;
 			f_net = TAILQ_FIRST(&stcb->asoc.nets);
 			if (f_net != r_net) {
@@ -616,44 +616,37 @@ sctp_handle_heartbeat_ack(struct sctp_heartbeat_chunk *cp,
 		}
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 		    stcb, 0, (void *)r_net, SCTP_SO_NOT_LOCKED);
+		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, r_net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_3);
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, r_net);
 	}
+	old_error_counter = r_net->error_count;
 	r_net->error_count = 0;
 	r_net->hb_responded = 1;
 	tv.tv_sec = cp->heartbeat.hb_info.time_value_1;
 	tv.tv_usec = cp->heartbeat.hb_info.time_value_2;
-	if (r_net->dest_state & SCTP_ADDR_NOT_REACHABLE) {
-		r_net->dest_state &= ~SCTP_ADDR_NOT_REACHABLE;
-		r_net->dest_state |= SCTP_ADDR_REACHABLE;
-		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
-		    SCTP_HEARTBEAT_SUCCESS, (void *)r_net, SCTP_SO_NOT_LOCKED);
-		/* now was it the primary? if so restore */
-		if (r_net->dest_state & SCTP_ADDR_WAS_PRIMARY) {
-			(void)sctp_set_primary_addr(stcb, (struct sockaddr *)NULL, r_net);
-		}
-	}
-	/*
-	 * JRS 5/14/07 - If CMT PF is on and the destination is in PF state,
-	 * set the destination to active state and set the cwnd to one or
-	 * two MTU's based on whether PF1 or PF2 is being used. If a T3
-	 * timer is running, for the destination, stop the timer because a
-	 * PF-heartbeat was received.
-	 */
-	if ((stcb->asoc.sctp_cmt_on_off > 0) &&
-	    (stcb->asoc.sctp_cmt_pf > 0) &&
-	    ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF)) {
-		if (SCTP_OS_TIMER_PENDING(&net->rxt_timer.timer)) {
-			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
-			    stcb, net,
-			    SCTP_FROM_SCTP_INPUT + SCTP_LOC_5);
-		}
-		net->dest_state &= ~SCTP_ADDR_PF;
-		net->cwnd = net->mtu * stcb->asoc.sctp_cmt_pf;
-		SCTPDBG(SCTP_DEBUG_INPUT1, "Destination %p moved from PF to reachable with cwnd %d.\n",
-		    net, net->cwnd);
-	}
 	/* Now lets do a RTO with this */
 	r_net->RTO = sctp_calculate_rto(stcb, &stcb->asoc, r_net, &tv, sctp_align_safe_nocopy,
 	    SCTP_RTT_FROM_NON_DATA);
+	if (!(r_net->dest_state & SCTP_ADDR_REACHABLE)) {
+		r_net->dest_state |= SCTP_ADDR_REACHABLE;
+		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_UP, stcb,
+		    SCTP_HEARTBEAT_SUCCESS, (void *)r_net, SCTP_SO_NOT_LOCKED);
+	}
+	if (r_net->dest_state & SCTP_ADDR_PF) {
+		r_net->dest_state &= ~SCTP_ADDR_PF;
+		stcb->asoc.cc_functions.sctp_cwnd_update_exit_pf(stcb, net);
+	}
+	if (old_error_counter > 0) {
+		sctp_timer_stop(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, r_net, SCTP_FROM_SCTP_INPUT + SCTP_LOC_3);
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, r_net);
+	}
+	if (r_net == stcb->asoc.primary_destination) {
+		if (stcb->asoc.alternate) {
+			/* release the alternate, primary is good */
+			sctp_free_remote_addr(stcb->asoc.alternate);
+			stcb->asoc.alternate = NULL;
+		}
+	}
 	/* Mobility adaptation */
 	if (req_prim) {
 		if ((sctp_is_mobility_feature_on(stcb->sctp_ep,
@@ -825,6 +818,35 @@ sctp_handle_abort(struct sctp_abort_chunk *cp,
 }
 
 static void
+sctp_start_net_timers(struct sctp_tcb *stcb)
+{
+	uint32_t cnt_hb_sent;
+	struct sctp_nets *net;
+
+	cnt_hb_sent = 0;
+	TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
+		/*
+		 * For each network start: 1) A pmtu timer. 2) A HB timer 3)
+		 * If the dest in unconfirmed send a hb as well if under
+		 * max_hb_burst have been sent.
+		 */
+		sctp_timer_start(SCTP_TIMER_TYPE_PATHMTURAISE, stcb->sctp_ep, stcb, net);
+		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, stcb->sctp_ep, stcb, net);
+		if ((net->dest_state & SCTP_ADDR_UNCONFIRMED) &&
+		    (cnt_hb_sent < SCTP_BASE_SYSCTL(sctp_hb_maxburst))) {
+			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
+			cnt_hb_sent++;
+		}
+	}
+	if (cnt_hb_sent) {
+		sctp_chunk_output(stcb->sctp_ep, stcb,
+		    SCTP_OUTPUT_FROM_COOKIE_ACK,
+		    SCTP_SO_NOT_LOCKED);
+	}
+}
+
+
+static void
 sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
     struct sctp_tcb *stcb, struct sctp_nets *net, int *abort_flag)
 {
@@ -916,7 +938,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	} else {
 		/* no outstanding data to send, so move on... */
 		/* send SHUTDOWN-ACK */
-		sctp_send_shutdown_ack(stcb, stcb->asoc.primary_destination);
+		sctp_send_shutdown_ack(stcb, net);
 		/* move to SHUTDOWN-ACK-SENT state */
 		if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 		    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
@@ -2685,7 +2707,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 		/* TSNH! Huh, why do I need to add this address here? */
 		int ret;
 
-		ret = sctp_add_remote_addr(*stcb, to, SCTP_DONOT_SETSCOPE,
+		ret = sctp_add_remote_addr(*stcb, to, NULL, SCTP_DONOT_SETSCOPE,
 		    SCTP_IN_COOKIE_PROC);
 		netl = sctp_findnet(*stcb, to);
 	}
@@ -2697,10 +2719,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			send_int_conf = 1;
 		}
 	}
-	if (*stcb) {
-		sctp_timer_start(SCTP_TIMER_TYPE_HEARTBEAT, *inp_p,
-		    *stcb, NULL);
-	}
+	sctp_start_net_timers(*stcb);
 	if ((*inp_p)->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
 		if (!had_a_existing_tcb ||
 		    (((*inp_p)->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
@@ -2890,6 +2909,7 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp,
 		/* state change only needed when I am in right state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
 		SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
+		sctp_start_net_timers(stcb);
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 			    stcb->sctp_ep, stcb, asoc->primary_destination);
@@ -3380,7 +3400,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 			 * Only retransmit if we KNOW we wont destroy the
 			 * tcb
 			 */
-			(void)sctp_send_hb(stcb, 1, net, SCTP_SO_NOT_LOCKED);
+			sctp_send_hb(stcb, net, SCTP_SO_NOT_LOCKED);
 		}
 		break;
 	case SCTP_SHUTDOWN:
@@ -3999,8 +4019,7 @@ strres_nochunk:
 	/* setup chunk parameters */
 	chk->sent = SCTP_DATAGRAM_UNSENT;
 	chk->snd_count = 0;
-	chk->whoTo = stcb->asoc.primary_destination;
-	atomic_add_int(&chk->whoTo->ref_count, 1);
+	chk->whoTo = NULL;
 
 	ch = mtod(chk->data, struct sctp_chunkhdr *);
 	ch->chunk_type = SCTP_STREAM_RESET;
@@ -4630,8 +4649,7 @@ process_control_chunks:
 			if ((stcb != NULL) &&
 			    (SCTP_GET_STATE(&stcb->asoc) ==
 			    SCTP_STATE_SHUTDOWN_ACK_SENT)) {
-				sctp_send_shutdown_ack(stcb,
-				    stcb->asoc.primary_destination);
+				sctp_send_shutdown_ack(stcb, NULL);
 				*offset = length;
 				sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 				if (locked_tcb) {

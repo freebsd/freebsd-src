@@ -83,16 +83,14 @@ sctp_init_sysctls()
 	SCTP_BASE_SYSCTL(sctp_init_rtx_max_default) = SCTPCTL_INIT_RTX_MAX_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_assoc_rtx_max_default) = SCTPCTL_ASSOC_RTX_MAX_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_path_rtx_max_default) = SCTPCTL_PATH_RTX_MAX_DEFAULT;
+	SCTP_BASE_SYSCTL(sctp_path_pf_threshold) = SCTPCTL_PATH_PF_THRESHOLD_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_add_more_threshold) = SCTPCTL_ADD_MORE_ON_OUTPUT_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default) = SCTPCTL_OUTGOING_STREAMS_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_on_off) = SCTPCTL_CMT_ON_OFF_DEFAULT;
 	/* EY */
 	SCTP_BASE_SYSCTL(sctp_nr_sack_on_off) = SCTPCTL_NR_SACK_ON_OFF_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_cmt_use_dac) = SCTPCTL_CMT_USE_DAC_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_cmt_pf) = SCTPCTL_CMT_PF_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst) = SCTPCTL_CWND_MAXBURST_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_early_fr) = SCTPCTL_EARLY_FAST_RETRAN_DEFAULT;
-	SCTP_BASE_SYSCTL(sctp_early_fr_msec) = SCTPCTL_EARLY_FAST_RETRAN_MSEC_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk) = SCTPCTL_ASCONF_AUTH_NOCHK_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_auth_disable) = SCTPCTL_AUTH_DISABLE_DEFAULT;
 	SCTP_BASE_SYSCTL(sctp_nat_friendly) = SCTPCTL_NAT_FRIENDLY_DEFAULT;
@@ -494,6 +492,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.active = ((net->dest_state & SCTP_ADDR_REACHABLE) == SCTP_ADDR_REACHABLE);
 				xraddr.confirmed = ((net->dest_state & SCTP_ADDR_UNCONFIRMED) == 0);
 				xraddr.heartbeat_enabled = ((net->dest_state & SCTP_ADDR_NOHB) == 0);
+				xraddr.potentially_failed = ((net->dest_state & SCTP_ADDR_PF) == SCTP_ADDR_PF);
 				xraddr.rto = net->RTO;
 				xraddr.max_path_rtx = net->failure_threshold;
 				xraddr.rtx = net->marked_retrans;
@@ -502,6 +501,7 @@ sctp_assoclist(SYSCTL_HANDLER_ARGS)
 				xraddr.flight_size = net->flight_size;
 				xraddr.mtu = net->mtu;
 				xraddr.rtt = net->rtt / 1000;
+				xraddr.heartbeat_interval = net->heart_beat_delay;
 				xraddr.start_time.tv_sec = (uint32_t) net->start_time.tv_sec;
 				xraddr.start_time.tv_usec = (uint32_t) net->start_time.tv_usec;
 				SCTP_INP_RUNLOCK(inp);
@@ -633,16 +633,14 @@ sysctl_sctp_check(SYSCTL_HANDLER_ARGS)
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_init_rtx_max_default), SCTPCTL_INIT_RTX_MAX_MIN, SCTPCTL_INIT_RTX_MAX_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_assoc_rtx_max_default), SCTPCTL_ASSOC_RTX_MAX_MIN, SCTPCTL_ASSOC_RTX_MAX_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), SCTPCTL_PATH_RTX_MAX_MIN, SCTPCTL_PATH_RTX_MAX_MAX);
+		RANGECHK(SCTP_BASE_SYSCTL(sctp_path_pf_threshold), SCTPCTL_PATH_PF_THRESHOLD_MIN, SCTPCTL_PATH_PF_THRESHOLD_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_add_more_threshold), SCTPCTL_ADD_MORE_ON_OUTPUT_MIN, SCTPCTL_ADD_MORE_ON_OUTPUT_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_outgoing_streams_default), SCTPCTL_OUTGOING_STREAMS_MIN, SCTPCTL_OUTGOING_STREAMS_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_on_off), SCTPCTL_CMT_ON_OFF_MIN, SCTPCTL_CMT_ON_OFF_MAX);
 		/* EY */
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nr_sack_on_off), SCTPCTL_NR_SACK_ON_OFF_MIN, SCTPCTL_NR_SACK_ON_OFF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_use_dac), SCTPCTL_CMT_USE_DAC_MIN, SCTPCTL_CMT_USE_DAC_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_cmt_pf), SCTPCTL_CMT_PF_MIN, SCTPCTL_CMT_PF_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), SCTPCTL_CWND_MAXBURST_MIN, SCTPCTL_CWND_MAXBURST_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_early_fr), SCTPCTL_EARLY_FAST_RETRAN_MIN, SCTPCTL_EARLY_FAST_RETRAN_MAX);
-		RANGECHK(SCTP_BASE_SYSCTL(sctp_early_fr_msec), SCTPCTL_EARLY_FAST_RETRAN_MSEC_MIN, SCTPCTL_EARLY_FAST_RETRAN_MSEC_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk), SCTPCTL_ASCONF_AUTH_NOCHK_MIN, SCTPCTL_ASCONF_AUTH_NOCHK_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_auth_disable), SCTPCTL_AUTH_DISABLE_MIN, SCTPCTL_AUTH_DISABLE_MAX);
 		RANGECHK(SCTP_BASE_SYSCTL(sctp_nat_friendly), SCTPCTL_NAT_FRIENDLY_MIN, SCTPCTL_NAT_FRIENDLY_MAX);
@@ -793,17 +791,6 @@ sysctl_stat_get(SYSCTL_HANDLER_ARGS)
 		sb.sctps_timoautoclose += sarry->sctps_timoautoclose;
 		sb.sctps_timoassockill += sarry->sctps_timoassockill;
 		sb.sctps_timoinpkill += sarry->sctps_timoinpkill;
-		sb.sctps_earlyfrstart += sarry->sctps_earlyfrstart;
-		sb.sctps_earlyfrstop += sarry->sctps_earlyfrstop;
-		sb.sctps_earlyfrmrkretrans += sarry->sctps_earlyfrmrkretrans;
-		sb.sctps_earlyfrstpout += sarry->sctps_earlyfrstpout;
-		sb.sctps_earlyfrstpidsck1 += sarry->sctps_earlyfrstpidsck1;
-		sb.sctps_earlyfrstpidsck2 += sarry->sctps_earlyfrstpidsck2;
-		sb.sctps_earlyfrstpidsck3 += sarry->sctps_earlyfrstpidsck3;
-		sb.sctps_earlyfrstpidsck4 += sarry->sctps_earlyfrstpidsck4;
-		sb.sctps_earlyfrstrid += sarry->sctps_earlyfrstrid;
-		sb.sctps_earlyfrstrout += sarry->sctps_earlyfrstrout;
-		sb.sctps_earlyfrstrtmr += sarry->sctps_earlyfrstrtmr;
 		sb.sctps_hdrops += sarry->sctps_hdrops;
 		sb.sctps_badsum += sarry->sctps_badsum;
 		sb.sctps_noport += sarry->sctps_noport;
@@ -994,6 +981,10 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_rtx_max, CTLTYPE_UINT | CTLFLAG_
     &SCTP_BASE_SYSCTL(sctp_path_rtx_max_default), 0, sysctl_sctp_check, "IU",
     SCTPCTL_PATH_RTX_MAX_DESC);
 
+SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, path_pf_threshold, CTLTYPE_UINT | CTLFLAG_RW,
+    &SCTP_BASE_SYSCTL(sctp_path_pf_threshold), 0, sysctl_sctp_check, "IU",
+    SCTPCTL_PATH_PF_THRESHOLD_DESC);
+
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, add_more_on_output, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_add_more_threshold), 0, sysctl_sctp_check, "IU",
     SCTPCTL_ADD_MORE_ON_OUTPUT_DESC);
@@ -1014,21 +1005,9 @@ SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_use_dac, CTLTYPE_UINT | CTLFLAG_R
     &SCTP_BASE_SYSCTL(sctp_cmt_use_dac), 0, sysctl_sctp_check, "IU",
     SCTPCTL_CMT_USE_DAC_DESC);
 
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cmt_pf, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_cmt_pf), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_CMT_PF_DESC);
-
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, cwnd_maxburst, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_use_cwnd_based_maxburst), 0, sysctl_sctp_check, "IU",
     SCTPCTL_CWND_MAXBURST_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, early_fast_retran, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_early_fr), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_EARLY_FAST_RETRAN_DESC);
-
-SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, early_fast_retran_msec, CTLTYPE_UINT | CTLFLAG_RW,
-    &SCTP_BASE_SYSCTL(sctp_early_fr_msec), 0, sysctl_sctp_check, "IU",
-    SCTPCTL_EARLY_FAST_RETRAN_MSEC_DESC);
 
 SYSCTL_VNET_PROC(_net_inet_sctp, OID_AUTO, asconf_auth_nochk, CTLTYPE_UINT | CTLFLAG_RW,
     &SCTP_BASE_SYSCTL(sctp_asconf_auth_nochk), 0, sysctl_sctp_check, "IU",
