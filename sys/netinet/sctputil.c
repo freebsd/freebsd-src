@@ -1370,11 +1370,10 @@ sctp_iterator_worker(void)
 		SCTP_IPI_ITERATOR_WQ_UNLOCK();
 		CURVNET_SET(it->vn);
 		sctp_iterator_work(it);
-
+		sctp_it_ctl.cur_it = NULL;
 		CURVNET_RESTORE();
 		SCTP_IPI_ITERATOR_WQ_LOCK();
 		if (sctp_it_ctl.iterator_flags & SCTP_ITERATOR_MUST_EXIT) {
-			sctp_it_ctl.cur_it = NULL;
 			break;
 		}
 		/* sa_ignore FREED_MEMORY */
@@ -2469,7 +2468,7 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
     struct sctp_association *asoc,
     struct sctp_nets *net,
     struct timeval *told,
-    int safe, int local_lan_determine)
+    int safe, int rtt_from_sack)
 {
 	/*-
 	 * given an association and the starting time of the current RTT
@@ -2507,9 +2506,18 @@ sctp_calculate_rto(struct sctp_tcb *stcb,
 
 	/* computer rtt in ms */
 	rtt = net->rtt / 1000;
-
-	/* Do we need to determine the lan type? */
-	if ((local_lan_determine == SCTP_DETERMINE_LL_OK) &&
+	if ((asoc->cc_functions.sctp_rtt_calculated) && (rtt_from_sack == SCTP_RTT_FROM_DATA)) {
+		/*
+		 * Tell the CC module that a new update has just occurred
+		 * from a sack
+		 */
+		(*asoc->cc_functions.sctp_rtt_calculated) (stcb, net, &now);
+	}
+	/*
+	 * Do we need to determine the lan? We do this only on sacks i.e.
+	 * RTT being determined from data not non-data (HB/INIT->INITACK).
+	 */
+	if ((rtt_from_sack == SCTP_RTT_FROM_DATA) &&
 	    (net->lan_type == SCTP_LAN_UNKNOWN)) {
 		if (net->rtt > SCTP_LOCAL_LAN_RTT) {
 			net->lan_type = SCTP_LAN_INTERNET;
