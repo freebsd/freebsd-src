@@ -42,8 +42,10 @@ static const char rcsid[] =
 #endif /* not lint */
 
 #include <sys/types.h>
+#include <sys/select.h>
 #include <sys/stat.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <stdio.h>
@@ -60,6 +62,7 @@ static LIST *head;
 
 static void add(int, const char *);
 static void usage(void);
+static void waitfor(int fd);
 
 int
 main(int argc, char *argv[])
@@ -106,9 +109,14 @@ main(int argc, char *argv[])
 			bp = buf;
 			do {
 				if ((wval = write(p->fd, bp, n)) == -1) {
-					warn("%s", p->name);
-					exitval = 1;
-					break;
+					if (errno == EAGAIN) {
+						waitfor(p->fd);
+						wval = 0;
+					} else {
+						warn("%s", p->name);
+						exitval = 1;
+						break;
+					}
 				}
 				bp += wval;
 			} while (n -= wval);
@@ -136,4 +144,16 @@ add(int fd, const char *name)
 	p->name = name;
 	p->next = head;
 	head = p;
+}
+
+/* Wait for the specified fd to be ready for writing */
+static void
+waitfor(int fd)
+{
+       fd_set writefds;
+
+       FD_ZERO(&writefds);
+       FD_SET(fd, &writefds);
+       if (select(fd + 1, NULL, &writefds, NULL, NULL) == -1)
+               err(1, "select");
 }
