@@ -240,6 +240,7 @@ SUBDIR=	${_3dfx} \
 	${_nwfs} \
 	${_nxge} \
 	${_opensolaris} \
+	oce \
 	${_padlock} \
 	patm \
 	${_pccard} \
