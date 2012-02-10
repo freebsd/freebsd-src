@@ -1513,9 +1513,8 @@ static void
 sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
     struct sctp_tcb *stcb)
 {
-	struct sctp_stream_out *outs;
 	struct sctp_stream_queue_pending *sp;
-	unsigned int chks_in_queue = 0;
+	unsigned int i, chks_in_queue = 0;
 	int being_filled = 0;
 
 	/*
@@ -1530,13 +1529,17 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 		stcb->asoc.sent_queue_retran_cnt = 0;
 	}
 	SCTP_TCB_SEND_LOCK(stcb);
-	if (TAILQ_EMPTY(&stcb->asoc.out_wheel)) {
-		int i, cnt = 0;
+	if (stcb->asoc.ss_functions.sctp_ss_is_empty(stcb, &stcb->asoc)) {
+		int cnt = 0;
 
 		/* Check to see if a spoke fell off the wheel */
 		for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
 			if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
-				sctp_insert_on_wheel(stcb, &stcb->asoc, &stcb->asoc.strmout[i], 1);
+				stcb->asoc.ss_functions.sctp_ss_add_to_stream(stcb,
+				    &stcb->asoc,
+				    &stcb->asoc.strmout[i],
+				    NULL,
+				    1);
 				cnt++;
 			}
 		}
@@ -1552,9 +1555,9 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 	}
 	SCTP_TCB_SEND_UNLOCK(stcb);
 	/* Check to see if some data queued, if so report it */
-	TAILQ_FOREACH(outs, &stcb->asoc.out_wheel, next_spoke) {
-		if (!TAILQ_EMPTY(&outs->outqueue)) {
-			TAILQ_FOREACH(sp, &outs->outqueue, next) {
+	for (i = 0; i < stcb->asoc.streamoutcnt; i++) {
+		if (!TAILQ_EMPTY(&stcb->asoc.strmout[i].outqueue)) {
+			TAILQ_FOREACH(sp, &stcb->asoc.strmout[i].outqueue, next) {
 				if (sp->msg_is_complete)
 					being_filled++;
 				chks_in_queue++;
