@@ -558,7 +558,7 @@ oce_hw_update_multicast(POCE_SOFTC sc)
 	bzero(req, sizeof(struct mbx_set_common_iface_multicast));
 
 #if __FreeBSD_version > 800000
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 #endif
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_LINK)
@@ -578,7 +578,7 @@ oce_hw_update_multicast(POCE_SOFTC sc)
 		req->params.req.num_mac = req->params.req.num_mac + 1;
 	}
 #if __FreeBSD_version > 800000
-IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 #endif
 	req->params.req.if_id = sc->if_id;
 	rc = oce_update_multicast(sc, &dma);
