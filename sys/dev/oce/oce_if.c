@@ -39,6 +39,9 @@
 
 /* $FreeBSD$ */
 
+#include "opt_inet6.h"
+#include "opt_inet.h"
+
 #include "oce_if.h"
 
 
@@ -68,8 +71,10 @@ static int  oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index);
 static void oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq);
 static void oce_tx_complete(struct oce_wq *wq, uint32_t wqe_idx,
 					uint32_t status);
+#if defined(INET6) || defined(INET)
 static struct mbuf * oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp,
 					uint16_t *mss);
+#endif
 static int  oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m,
 				 struct oce_wq *wq);
 
@@ -77,7 +82,9 @@ static int  oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m,
 static void oce_discard_rx_comp(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe);
 static int  oce_cqe_vtp_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe);
 static int  oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe);
+#if defined(INET6) || defined(INET)
 static void oce_rx_flush_lro(struct oce_rq *rq);
+#endif
 static void oce_rx(struct oce_rq *rq, uint32_t rqe_idx,
 						struct oce_nic_rx_cqe *cqe);
 
@@ -89,7 +96,9 @@ static int  oce_vid_config(POCE_SOFTC sc);
 static void oce_mac_addr_set(POCE_SOFTC sc);
 static int  oce_handle_passthrough(struct ifnet *ifp, caddr_t data);
 static void oce_local_timer(void *arg);
+#if defined(INET6) || defined(INET)
 static int  oce_init_lro(POCE_SOFTC sc);
+#endif
 static void oce_if_deactivate(POCE_SOFTC sc);
 static void oce_if_activate(POCE_SOFTC sc);
 static void setup_max_queues_want(POCE_SOFTC sc);
@@ -238,9 +247,11 @@ oce_attach(device_t dev)
 		goto queues_free;
 
 
+#if defined(INET6) || defined(INET)
 	rc = oce_init_lro(sc);
 	if (rc)
 		goto ifp_free;	
+#endif
 
 
 	rc = oce_hw_start(sc);
@@ -277,8 +288,10 @@ vlan_free:
 		EVENTHANDLER_DEREGISTER(vlan_unconfig, sc->vlan_detach);
 	oce_hw_intr_disable(sc);
 lro_free:
+#if defined(INET6) || defined(INET)
 	oce_free_lro(sc);
 ifp_free:
+#endif
 	ether_ifdetach(sc->ifp);
 	if_free(sc->ifp);
 queues_free:
@@ -462,8 +475,10 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			oce_vid_config(sc);
 		}
 
+#if defined(INET6) || defined(INET)
 		if (u & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
+#endif
 
 		break;
 
@@ -798,7 +813,9 @@ oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index)
 	struct oce_nic_frag_wqe *nicfrag;
 	int num_wqes;
 	uint32_t reg_value;
+#if defined(INET6) || defined(INET)
 	uint16_t mss = 0;
+#endif
 
 	m = *mpp;
 	if (!m)
@@ -810,8 +827,12 @@ oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index)
 	}
 
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
+#if defined(INET6) || defined(INET)
 		/* consolidate packet buffers for TSO/LSO segment offload */
 		m = oce_tso_setup(sc, mpp, &mss);
+#else
+		m = NULL;
+#endif
 		if (m == NULL) {
 			rc = ENXIO;
 			goto free_ret;
@@ -991,17 +1012,22 @@ oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 
 }
 
-
+#if defined(INET6) || defined(INET)
 static struct mbuf *
 oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 {
 	struct mbuf *m;
+#ifdef INET
 	struct ip *ip;
+#endif
+#ifdef INET6
 	struct ip6_hdr *ip6;
+#endif
 	struct ether_vlan_header *eh;
 	struct tcphdr *th;
+	int total_len = 0;
 	uint16_t etype;
-	int total_len = 0, ehdrlen = 0;
+	int ehdrlen = 0;
 	
 	m = *mpp;
 	*mss = m->m_pkthdr.tso_segsz;
@@ -1025,6 +1051,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 
 	
 	switch (etype) {
+#ifdef INET
 	case ETHERTYPE_IP:
 		ip = (struct ip *)(m->m_data + ehdrlen);
 		if (ip->ip_p != IPPROTO_TCP)
@@ -1033,6 +1060,8 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 
 		total_len = ehdrlen + (ip->ip_hl << 2) + (th->th_off << 2);
 		break;
+#endif
+#ifdef INET6
 	case ETHERTYPE_IPV6:
 		ip6 = (struct ip6_hdr *)(m->m_data + ehdrlen);
 		if (ip6->ip6_nxt != IPPROTO_TCP)
@@ -1041,6 +1070,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 
 		total_len = ehdrlen + sizeof(struct ip6_hdr) + (th->th_off << 2);
 		break;
+#endif
 	default:
 		return NULL;
 	}
@@ -1052,6 +1082,7 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 	return m;
 	
 }
+#endif /* INET6 || INET */
 
 
 void
@@ -1305,6 +1336,7 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 		}
 
 		sc->ifp->if_ipackets++;
+#if defined(INET6) || defined(INET)
 		/* Try to queue to LRO */
 		if (IF_LRO_ENABLED(sc) &&
 		    !(m->m_flags & M_VLANTAG) &&
@@ -1319,9 +1351,12 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 			}
 			/* If LRO posting fails then try to post to STACK */
 		}
+#endif
 	
 		(*sc->ifp->if_input) (sc->ifp, m);
+#if defined(INET6) || defined(INET)
 post_done:
+#endif
 		/* Update rx stats per queue */
 		rq->rx_stats.rx_pkts++;
 		rq->rx_stats.rx_bytes += cqe->u0.s.pkt_size;
@@ -1408,6 +1443,7 @@ oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 }
 
 
+#if defined(INET6) || defined(INET)
 static void
 oce_rx_flush_lro(struct oce_rq *rq)
 {
@@ -1446,11 +1482,12 @@ oce_init_lro(POCE_SOFTC sc)
 
 	return rc;		
 }
-
+#endif /* INET6 || INET */
 
 void
 oce_free_lro(POCE_SOFTC sc)
 {
+#if defined(INET6) || defined(INET)
 	struct lro_ctrl *lro = NULL;
 	int i = 0;
 
@@ -1459,6 +1496,7 @@ oce_free_lro(POCE_SOFTC sc)
 		if (lro)
 			tcp_lro_free(lro);
 	}
+#endif
 }
 
 
@@ -1567,9 +1605,11 @@ oce_rq_handler(void *arg)
 		rq->rx_stats.rx_compl++;
 		cqe->u0.dw[2] = 0;
 
+#if defined(INET6) || defined(INET)
 		if (IF_LRO_ENABLED(sc) && rq->lro_pkts_queued >= 16) {
 			oce_rx_flush_lro(rq);
 		}
+#endif
 
 		RING_GET(cq->ring, 1);
 		bus_dmamap_sync(cq->ring->dma.tag,
@@ -1580,8 +1620,10 @@ oce_rq_handler(void *arg)
 		if (num_cqes >= (IS_XE201(sc) ? 8 : oce_max_rsp_handled))
 			break;
 	}
+#if defined(INET6) || defined(INET)
 	if (IF_LRO_ENABLED(sc))
 		oce_rx_flush_lro(rq);
+#endif
 	
 	if (num_cqes) {
 		oce_arm_cq(sc, cq->cq_id, num_cqes, FALSE);
@@ -1638,10 +1680,12 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_hwassist |= (CSUM_IP | CSUM_TCP | CSUM_UDP);
 
 	sc->ifp->if_capabilities = OCE_IF_CAPABILITIES;
-	sc->ifp->if_capabilities |= IFCAP_TSO;
 	sc->ifp->if_capabilities |= IFCAP_HWCSUM;
 	sc->ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
+#if defined(INET6) || defined(INET)
+	sc->ifp->if_capabilities |= IFCAP_TSO;
 	sc->ifp->if_capabilities |= IFCAP_LRO;
+#endif
 	
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
 	sc->ifp->if_baudrate = IF_Gbps(10UL);
