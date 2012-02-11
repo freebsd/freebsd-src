@@ -6895,11 +6895,6 @@ skip_vtag_check:
 	return (1);
 }
 
-
-static sctp_assoc_t reneged_asoc_ids[256];
-static uint8_t reneged_at = 0;
-
-
 static void
 sctp_drain_mbufs(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 {
@@ -7004,8 +6999,6 @@ sctp_drain_mbufs(struct sctp_inpcb *inp, struct sctp_tcb *stcb)
 		/* sa_ignore NO_NULL_CHK */
 		sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
 		sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_DRAIN, SCTP_SO_NOT_LOCKED);
-		reneged_asoc_ids[reneged_at] = sctp_get_associd(stcb);
-		reneged_at++;
 	}
 	/*
 	 * Another issue, in un-setting the TSN's in the mapping array we
