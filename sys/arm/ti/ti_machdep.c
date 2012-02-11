@@ -97,6 +97,9 @@ __FBSDID("$FreeBSD$");
 #define debugf(fmt, args...)
 #endif
 
+/* Start of address space used for bootstrap map */
+#define DEVMAP_BOOTSTRAP_MAP_START	0xE0000000
+
 /*
  * This is the number of L2 page tables required for covering max
  * (hypothetical) memsize of 4GB and all kernel mappings (vectors, msgbuf,
@@ -368,7 +371,7 @@ initarm(void *mdp, void *unused __unused)
 //		while (1);
 
 	/* Platform-specific initialisation */
-	pmap_bootstrap_lastaddr = 0xE0000000 - ARM_NOCACHE_KVA_SIZE;
+	pmap_bootstrap_lastaddr = DEVMAP_BOOTSTRAP_MAP_START - ARM_NOCACHE_KVA_SIZE;
 
 	pcpu0_init();
 
@@ -608,14 +611,14 @@ platform_devmap_init(void)
 	fdt_devmap[i].pd_pa = 0x48000000;
 	fdt_devmap[i].pd_size = 0x1000000;
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = PTE_NOCACHE;
+	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 #elif defined(SOC_TI_AM335X)
 	fdt_devmap[i].pd_va = 0xE4C00000;
 	fdt_devmap[i].pd_pa = 0x44C00000;       /* L4_WKUP */
 	fdt_devmap[i].pd_size = 0x400000;       /* 4 MB */
 	fdt_devmap[i].pd_prot = VM_PROT_READ | VM_PROT_WRITE;
-	fdt_devmap[i].pd_cache = 2; //PTE_NOCACHE;
+	fdt_devmap[i].pd_cache = PTE_DEVICE;
 	i++;
 #else
 #error "Unknown SoC"
