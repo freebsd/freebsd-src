@@ -142,7 +142,7 @@ static void
 usage(void)
 {
 
-	fprintf(stderr, "usage: who [-bHmqsTu] [am I] [file]\n");
+	fprintf(stderr, "usage: who [-abHmqsTu] [am I] [file]\n");
 	exit(1);
 }
 
