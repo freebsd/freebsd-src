@@ -1517,6 +1517,9 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		docow |= MAP_DISABLE_SYNCER;
 	if (flags & MAP_NOCORE)
 		docow |= MAP_DISABLE_COREDUMP;
+	/* Shared memory is also shared with children. */
+	if (flags & MAP_SHARED)
+		docow |= MAP_INHERIT_SHARE;
 
 	if (flags & MAP_STACK)
 		rv = vm_map_stack(map, *addr, size, prot, maxprot,
@@ -1536,13 +1539,6 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 		 * or named anonymous without other references.
 		 */
 		vm_object_deallocate(object);
-	} else if (flags & MAP_SHARED) {
-		/*
-		 * Shared memory is also shared with children.
-		 */
-		rv = vm_map_inherit(map, *addr, *addr + size, VM_INHERIT_SHARE);
-		if (rv != KERN_SUCCESS)
-			(void) vm_map_remove(map, *addr, *addr + size);
 	}
 
 	/*
