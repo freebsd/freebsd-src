@@ -3801,6 +3801,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 {
 	struct sctp_chunkhdr *ch, chunk_buf;
 	unsigned int chk_length;
+	int contains_init_chunk;
 
 	SCTP_STAT_INCR_COUNTER32(sctps_outoftheblue);
 	/* Generate a TO address for future reference */
@@ -3810,6 +3811,7 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 			    SCTP_CALLED_DIRECTLY_NOCMPSET);
 		}
 	}
+	contains_init_chunk = 0;
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, offset,
 	    sizeof(*ch), (uint8_t *) & chunk_buf);
 	while (ch != NULL) {
@@ -3819,6 +3821,9 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 			break;
 		}
 		switch (ch->chunk_type) {
+		case SCTP_INIT:
+			contains_init_chunk = 1;
+			break;
 		case SCTP_COOKIE_ECHO:
 			/* We hit here only if the assoc is being freed */
 			return;
@@ -3844,7 +3849,11 @@ sctp_handle_ootb(struct mbuf *m, int iphlen, int offset, struct sctphdr *sh,
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, offset,
 		    sizeof(*ch), (uint8_t *) & chunk_buf);
 	}
-	sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, port);
+	if ((SCTP_BASE_SYSCTL(sctp_blackhole) == 0) ||
+	    ((SCTP_BASE_SYSCTL(sctp_blackhole) == 1) &&
+	    (contains_init_chunk == 0))) {
+		sctp_send_abort(m, iphlen, sh, 0, op_err, vrf_id, port);
+	}
 }
 
 /*
