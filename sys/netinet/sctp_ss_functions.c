@@ -7,11 +7,11 @@
  * modification, are permitted provided that the following conditions are met:
  *
  * a) Redistributions of source code must retain the above copyright notice,
- *   this list of conditions and the following disclaimer.
+ *    this list of conditions and the following disclaimer.
  *
  * b) Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in
- *   the documentation and/or other materials provided with the distribution.
+ *    the documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
  * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO,
@@ -68,7 +68,7 @@ sctp_ss_default_init(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 static void
 sctp_ss_default_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    int clear_values, int holds_lock)
+    int clear_values SCTP_UNUSED, int holds_lock)
 {
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
@@ -88,7 +88,7 @@ sctp_ss_default_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_ss_default_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
+sctp_ss_default_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq SCTP_UNUSED)
 {
 	strq->ss_params.rr.next_spoke.tqe_next = NULL;
 	strq->ss_params.rr.next_spoke.tqe_prev = NULL;
@@ -98,7 +98,7 @@ sctp_ss_default_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out
 static void
 sctp_ss_default_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_stream_out *strq,
-    struct sctp_stream_queue_pending *sp, int holds_lock)
+    struct sctp_stream_queue_pending *sp SCTP_UNUSED, int holds_lock)
 {
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
@@ -117,7 +117,7 @@ sctp_ss_default_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static int
-sctp_ss_default_is_empty(struct sctp_tcb *stcb, struct sctp_association *asoc)
+sctp_ss_default_is_empty(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc)
 {
 	if (TAILQ_EMPTY(&asoc->ss_data.out_wheel)) {
 		return (1);
@@ -129,7 +129,7 @@ sctp_ss_default_is_empty(struct sctp_tcb *stcb, struct sctp_association *asoc)
 static void
 sctp_ss_default_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_stream_out *strq,
-    struct sctp_stream_queue_pending *sp, int holds_lock)
+    struct sctp_stream_queue_pending *sp SCTP_UNUSED, int holds_lock)
 {
 	if (holds_lock == 0) {
 		SCTP_TCB_SEND_LOCK(stcb);
@@ -165,7 +165,7 @@ sctp_ss_default_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 
 static struct sctp_stream_out *
-sctp_ss_default_select(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_default_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
 {
 	struct sctp_stream_out *strq, *strqt;
@@ -208,33 +208,33 @@ default_again:
 }
 
 static void
-sctp_ss_default_scheduled(struct sctp_tcb *stcb, struct sctp_nets *net,
-    struct sctp_association *asoc,
-    struct sctp_stream_out *strq, int moved_how_much)
+sctp_ss_default_scheduled(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net SCTP_UNUSED,
+    struct sctp_association *asoc SCTP_UNUSED,
+    struct sctp_stream_out *strq, int moved_how_much SCTP_UNUSED)
 {
 	asoc->last_out_stream = strq;
 	return;
 }
 
 static void
-sctp_ss_default_packet_done(struct sctp_tcb *stcb, struct sctp_nets *net,
-    struct sctp_association *asoc)
+sctp_ss_default_packet_done(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net SCTP_UNUSED,
+    struct sctp_association *asoc SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return;
 }
 
 static int
-sctp_ss_default_get_value(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, uint16_t * value)
+sctp_ss_default_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
+    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t * value SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return (-1);
 }
 
 static int
-sctp_ss_default_set_value(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, uint16_t value)
+sctp_ss_default_set_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
+    struct sctp_stream_out *strq SCTP_UNUSED, uint16_t value SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return (-1);
@@ -247,7 +247,7 @@ sctp_ss_default_set_value(struct sctp_tcb *stcb, struct sctp_association *asoc,
 static void
 sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
     struct sctp_stream_out *strq,
-    struct sctp_stream_queue_pending *sp, int holds_lock)
+    struct sctp_stream_queue_pending *sp SCTP_UNUSED, int holds_lock)
 {
 	struct sctp_stream_out *strqt;
 
@@ -283,14 +283,14 @@ sctp_ss_rr_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
  * only fills messages of the same stream in a packet.
  */
 static struct sctp_stream_out *
-sctp_ss_rrp_select(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_rrp_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net SCTP_UNUSED,
     struct sctp_association *asoc)
 {
 	return asoc->last_out_stream;
 }
 
 static void
-sctp_ss_rrp_packet_done(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_rrp_packet_done(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
 {
 	struct sctp_stream_out *strq, *strqt;
@@ -378,7 +378,7 @@ sctp_ss_prio_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *w
 
 static void
 sctp_ss_prio_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp SCTP_UNUSED,
     int holds_lock)
 {
 	struct sctp_stream_out *strqt;
@@ -412,7 +412,7 @@ sctp_ss_prio_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 static void
 sctp_ss_prio_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp SCTP_UNUSED,
     int holds_lock)
 {
 	if (holds_lock == 0) {
@@ -447,7 +447,7 @@ sctp_ss_prio_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static struct sctp_stream_out *
-sctp_ss_prio_select(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_prio_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
 {
 	struct sctp_stream_out *strq, *strqt, *strqn;
@@ -493,7 +493,7 @@ prio_again:
 }
 
 static int
-sctp_ss_prio_get_value(struct sctp_tcb *stcb, struct sctp_association *asoc,
+sctp_ss_prio_get_value(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc SCTP_UNUSED,
     struct sctp_stream_out *strq, uint16_t * value)
 {
 	if (strq == NULL) {
@@ -559,7 +559,7 @@ sctp_ss_fb_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *wit
 
 static void
 sctp_ss_fb_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp SCTP_UNUSED,
     int holds_lock)
 {
 	if (holds_lock == 0) {
@@ -580,7 +580,7 @@ sctp_ss_fb_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 static void
 sctp_ss_fb_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp SCTP_UNUSED,
     int holds_lock)
 {
 	if (holds_lock == 0) {
@@ -615,7 +615,7 @@ sctp_ss_fb_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static struct sctp_stream_out *
-sctp_ss_fb_select(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_fb_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
 {
 	struct sctp_stream_out *strq = NULL, *strqt;
@@ -648,9 +648,9 @@ sctp_ss_fb_select(struct sctp_tcb *stcb, struct sctp_nets *net,
 }
 
 static void
-sctp_ss_fb_scheduled(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_fb_scheduled(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net SCTP_UNUSED,
     struct sctp_association *asoc, struct sctp_stream_out *strq,
-    int moved_how_much)
+    int moved_how_much SCTP_UNUSED)
 {
 	struct sctp_stream_out *strqt;
 	int subtract;
@@ -732,7 +732,7 @@ sctp_ss_fcfs_clear(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static void
-sctp_ss_fcfs_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *with_strq)
+sctp_ss_fcfs_init_stream(struct sctp_stream_out *strq SCTP_UNUSED, struct sctp_stream_out *with_strq SCTP_UNUSED)
 {
 	/* Nothing to be done here */
 	return;
@@ -740,7 +740,7 @@ sctp_ss_fcfs_init_stream(struct sctp_stream_out *strq, struct sctp_stream_out *w
 
 static void
 sctp_ss_fcfs_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq SCTP_UNUSED, struct sctp_stream_queue_pending *sp,
     int holds_lock)
 {
 	if (holds_lock == 0) {
@@ -757,7 +757,7 @@ sctp_ss_fcfs_add(struct sctp_tcb *stcb, struct sctp_association *asoc,
 }
 
 static int
-sctp_ss_fcfs_is_empty(struct sctp_tcb *stcb, struct sctp_association *asoc)
+sctp_ss_fcfs_is_empty(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_association *asoc)
 {
 	if (TAILQ_EMPTY(&asoc->ss_data.out_list)) {
 		return (1);
@@ -768,7 +768,7 @@ sctp_ss_fcfs_is_empty(struct sctp_tcb *stcb, struct sctp_association *asoc)
 
 static void
 sctp_ss_fcfs_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
-    struct sctp_stream_out *strq, struct sctp_stream_queue_pending *sp,
+    struct sctp_stream_out *strq SCTP_UNUSED, struct sctp_stream_queue_pending *sp,
     int holds_lock)
 {
 	if (holds_lock == 0) {
@@ -787,7 +787,7 @@ sctp_ss_fcfs_remove(struct sctp_tcb *stcb, struct sctp_association *asoc,
 
 
 static struct sctp_stream_out *
-sctp_ss_fcfs_select(struct sctp_tcb *stcb, struct sctp_nets *net,
+sctp_ss_fcfs_select(struct sctp_tcb *stcb SCTP_UNUSED, struct sctp_nets *net,
     struct sctp_association *asoc)
 {
 	struct sctp_stream_out *strq;
