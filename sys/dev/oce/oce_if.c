@@ -1644,7 +1644,7 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_capabilities |= IFCAP_LRO;
 	
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
-	sc->ifp->if_baudrate = IF_Mbps(10000ULL);
+	sc->ifp->if_baudrate = IF_Gbps(10UL);
 
 	ether_ifattach(sc->ifp, sc->macaddr.mac_addr);
 	
