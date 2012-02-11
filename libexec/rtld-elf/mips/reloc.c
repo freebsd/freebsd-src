@@ -446,6 +446,89 @@ reloc_non_plt(Obj_Entry *obj, Obj_Entry *obj_rtld, RtldLockState *lockstate)
 			break;
 		}
 
+#ifdef __mips_n64
+		case R_TYPE(TLS_DTPMOD64):
+#else
+		case R_TYPE(TLS_DTPMOD32): 
+#endif
+		{
+
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+	    			lockstate);
+			if (def == NULL)
+				return -1;
+
+			val += (Elf_Addr)defobj->tlsindex;
+
+			store_ptr(where, val, rlen);
+			dbg("DTPMOD %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void *)old, (void*)val, defobj->path);
+			break;
+		}
+
+#ifdef __mips_n64
+		case R_TYPE(TLS_DTPREL64):
+#else
+		case R_TYPE(TLS_DTPREL32):
+#endif
+		{
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+	    			lockstate);
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			val += (Elf_Addr)def->st_value - TLS_DTP_OFFSET;
+			store_ptr(where, val, rlen);
+
+			dbg("DTPREL %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void*)old, (void *)val, defobj->path);
+			break;
+		}
+
+#ifdef __mips_n64
+		case R_TYPE(TLS_TPREL64):
+#else
+		case R_TYPE(TLS_TPREL32):
+#endif
+		{
+			const size_t rlen = sizeof(Elf_Addr);
+			Elf_Addr old = load_ptr(where, rlen);
+			Elf_Addr val = old;
+
+        		def = find_symdef(r_symndx, obj, &defobj, false, NULL,
+	    			lockstate);
+
+			if (def == NULL)
+				return -1;
+
+			if (!defobj->tls_done && allocate_tls_offset(obj))
+				return -1;
+
+			val += (Elf_Addr)(def->st_value + defobj->tlsoffset
+			    - TLS_TP_OFFSET - TLS_TCB_SIZE);
+			store_ptr(where, val, rlen);
+
+			dbg("TPREL %s in %s %p --> %p in %s",
+			    obj->strtab + obj->symtab[r_symndx].st_name,
+			    obj->path, (void*)old, (void *)val, defobj->path);
+			break;
+		}
+
+
+
 		default:
 			dbg("sym = %lu, type = %lu, offset = %p, "
 			    "contents = %p, symbol = %s",
@@ -554,7 +637,7 @@ __tls_get_addr(tls_index* ti)
 	sysarch(MIPS_GET_TLS, &tls);
 
 	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tls - TLS_TP_OFFSET 
-	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset);
+	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
 
-	return (p + TLS_DTV_OFFSET);
+	return (p);
 }
