@@ -406,7 +406,7 @@ struct sockproto {
 	{ "flags", CTLTYPE_STRUCT }, \
 	{ "iflist", CTLTYPE_STRUCT }, \
 	{ "ifmalist", CTLTYPE_STRUCT }, \
-	{ "iflist2", CTLTYPE_STRUCT }, \
+	{ "iflistl", CTLTYPE_STRUCT }, \
 }
 #endif /* __BSD_VISIBLE */
 
