@@ -53,7 +53,8 @@ Elf_Addr reloc_jmpslot(Elf_Addr *where, Elf_Addr target,
  */
 
 #define TLS_TP_OFFSET	0x7000
-#define TLS_DTV_OFFSET	0x8000
+#define TLS_DTP_OFFSET	0x8000
+
 #ifdef __mips_n64
 #define TLS_TCB_SIZE	16
 #else
