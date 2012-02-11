@@ -1,4 +1,4 @@
-.\" Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+.\" Copyright (c) 2011-2012 Ed Schouten <ed@FreeBSD.org>
 .\" All rights reserved.
 .\"
 .\" Redistribution and use in source and binary forms, with or without
@@ -24,20 +24,46 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 19, 2011
-.Dt UTXRM 8
+.Dd February 11, 2012
+.Dt UTX 8
 .Os
 .Sh NAME
+.Nm utx ,
 .Nm utxrm
-.Nd remove sessions from the user accounting database
+.Nd manage the user accounting database
 .Sh SYNOPSIS
 .Nm
+.Cm boot
+.Nm
+.Cm shutdown
+.Nm
+.Cm rm
+.Ar identifier
+.Ar ...
+.Nm utxrm
 .Ar identifier
 .Ar ...
 .Sh DESCRIPTION
 The
 .Nm
-utility can be used to remove stale sessions from the user accounting
+utility can be used to perform operations on the user accounting
+database, as done by
+.Xr pututxline 3 .
+.Pp
+The first argument to
+.Nm
+indicates an action to be performed:
+.Bl -tag -width ".Cm shutdown"
+.It Cm boot
+Write a boot time record to the user accounting database.
+This option should typically only be used by
+.Xr rc 8 .
+.It Cm shutdown
+Write a shutdown time record to the user accounting database.
+This option should typically only be used by
+.Xr rc 8 .
+.It Cm rm
+Remove stale sessions from the user accounting
 database, by referring to their
 .Ar identifier .
 Stale sessions can occur if a login service exits prematurely or fails
@@ -57,6 +83,13 @@ Identifiers can either be supplied in hexadecimal form as displayed by
 .Xr getent 1 ,
 or as a string if the identifier allows such a representation.
 .Pp
+To remain backward compatible, this action can also be invoked directly
+by using the
+.Nm utxrm
+command.
+.El
+.Pp
+.Pp
 Because this utility requires write-access to the user accounting
 database, its use is limited to the super-user.
 .Sh SEE ALSO
@@ -66,7 +99,9 @@ database, its use is limited to the super-user.
 .Sh HISTORY
 The
 .Nm
-utility appeared in
-.Fx 9.0 .
+utility replaced
+.Nm utxrm
+in
+.Fx 10.0 .
 .Sh AUTHORS
 .An Ed Schouten Aq ed@FreeBSD.org
