@@ -1053,6 +1053,12 @@ mpt_hard_reset(struct mpt_softc *mpt)
 
 	mpt_lprt(mpt, MPT_PRT_DEBUG, "hard reset\n");
 
+	if (mpt->is_1078) {
+		mpt_write(mpt, MPT_OFFSET_RESET_1078, 0x07);
+		DELAY(1000);
+		return;
+	}
+
 	error = mpt_enable_diag_mode(mpt);
 	if (error) {
 		mpt_prt(mpt, "WARNING - Could not enter diagnostic mode !\n");
@@ -2449,6 +2455,11 @@ mpt_download_fw(struct mpt_softc *mpt)
 	int error;
 	uint32_t ext_offset;
 	uint32_t data;
+
+	if (mpt->pci_pio_reg == NULL) {
+		mpt_prt(mpt, "No PIO resource!\n");
+		return (ENXIO);
+	}
 
 	mpt_prt(mpt, "Downloading Firmware - Image Size %d\n",
 		mpt->fw_image_size);
