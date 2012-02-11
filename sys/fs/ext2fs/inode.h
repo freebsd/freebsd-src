@@ -85,11 +85,13 @@ struct inode {
 	int16_t		i_nlink;	/* File link count. */
 	uint64_t	i_size;		/* File byte count. */
 	int32_t		i_atime;	/* Last access time. */
-	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_mtime;	/* Last modified time. */
-	int32_t		i_mtimensec;	/* Last modified time. */
 	int32_t		i_ctime;	/* Last inode change time. */
+	int32_t		i_birthtime;	/* Inode creation time. */
+	int32_t		i_mtimensec;	/* Last modified time. */
+	int32_t		i_atimensec;	/* Last access time. */
 	int32_t		i_ctimensec;	/* Last inode change time. */
+	int32_t		i_birthnsec;	/* Inode creation time. */
 	int32_t		i_db[NDADDR];	/* Direct disk blocks. */
 	int32_t		i_ib[NIADDR];	/* Indirect disk blocks. */
 	uint32_t	i_flags;	/* Status flags (chflags). */
