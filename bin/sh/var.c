@@ -600,7 +600,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		}
 	}
 
-	INTON;
+	INTOFF;
 	vars = ckmalloc(n * sizeof(*vars));
 	i = 0;
 	for (vpp = vartab; vpp < vartab + VTABSIZE; vpp++) {
@@ -625,7 +625,7 @@ showvarscmd(int argc __unused, char **argv __unused)
 		out1c('\n');
 	}
 	ckfree(vars);
-	INTOFF;
+	INTON;
 
 	return 0;
 }
