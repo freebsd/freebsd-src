@@ -50,7 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/omap4/omap4var.h>
 #include <arm/ti/omap_prcm.h>
 
-#include <arm/ti/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
 
 #include "omap4_if.h"
 

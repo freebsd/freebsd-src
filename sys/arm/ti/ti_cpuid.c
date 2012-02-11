@@ -49,8 +49,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/tivar.h>
 #include <arm/ti/ti_cpuid.h>
 
-#include <arm/ti/omap4/omap44xx_reg.h>
-#include <arm/ti/omap3/omap35xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
+#include <arm/ti/omap3/omap3_reg.h>
 #ifdef notyet
 #include <arm/ti/am335x/am335x_reg.h>
 #endif

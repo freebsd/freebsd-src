@@ -44,7 +44,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/omapvar.h>
 #include <arm/ti/omap4/omap4var.h>
-#include <arm/ti/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
 
 /* Registers in the SCRM that control the AUX clocks */
 #define SCRM_ALTCLKSRC			     (OMAP44XX_SCRM_VBASE + 0x110)
@@ -170,7 +170,7 @@ usb_hub_init(void)
  *	   - no interrupts
  *
  *	What we do have:
- *	   - virt/phys mappings from the devmap (see omap44xx.c)
+ *	   - virt/phys mappings from the devmap (see omap4.c)
  *	   - 
  *
  *

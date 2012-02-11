@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/uart/uart_cpu.h>
 
 #include <arm/ti/omapvar.h>
-#include <arm/ti/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
 
 bus_space_tag_t uart_bus_space_io;
 bus_space_tag_t uart_bus_space_mem;

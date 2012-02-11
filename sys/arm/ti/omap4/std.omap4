@@ -1,6 +1,6 @@
 # Omap4430 generic configuration
 #$FreeBSD$
-files		"../ti/omap4/files.omap44xx"
+files		"../ti/omap4/files.omap4"
 include		"../ti/std.omap"
 makeoption	ARM_LITTLE_ENDIAN
 

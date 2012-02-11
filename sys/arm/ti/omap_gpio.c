@@ -56,8 +56,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <arm/omap/omap_scm.h>
-#include <arm/omap/omap_prcm.h>
+#include <arm/ti/omap_scm.h>
+#include <arm/ti/omap_prcm.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -746,7 +746,7 @@ omap_gpio_attach(device_t dev)
 
 	/* There are up to 6 different GPIO register sets located in different
 	 * memory areas on the chip.  The memory range should have been set for
-	 * the driver when it was added as a child (for example in omap44xx.c).
+	 * the driver when it was added as a child (for example in omap4.c).
 	 */
 	err = bus_alloc_resources(dev, omap_gpio_mem_spec, sc->sc_mem_res);
 	if (err) {

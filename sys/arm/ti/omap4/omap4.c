@@ -43,7 +43,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/omapvar.h>
 #include <arm/ti/omap_scm.h>
 #include <arm/ti/omap4/omap4var.h>
-#include <arm/ti/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
 
 #include "omap_if.h"
 #include "omap4_if.h"
@@ -54,7 +54,7 @@ __FBSDID("$FreeBSD$");
  *
  * Currently these are all set to the same standard value.
  */
-static const struct omap4_intr_conf omap44xx_irq_prio[] =
+static const struct omap4_intr_conf omap4_irq_prio[] =
 {
 	{ OMAP44XX_IRQ_L2CACHE,         0,   0x1},      /* L2 cache controller interrupt */
 	{ OMAP44XX_IRQ_CTI_0,           0,   0x1},      /* Cross-trigger module 0 (CTI0) interrupt */
@@ -198,7 +198,7 @@ omap_sdram_size(void)
  * Writes val to SCM register at offset off
  */
 static void 
-omap4xx_scm_writes(device_t dev, bus_size_t off, uint16_t val)
+omap4_scm_writes(device_t dev, bus_size_t off, uint16_t val)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -209,7 +209,7 @@ omap4xx_scm_writes(device_t dev, bus_size_t off, uint16_t val)
  * Reads SCM register at offset off
  */
 static uint16_t 
-omap4xx_scm_reads(device_t dev, bus_size_t off)
+omap4_scm_reads(device_t dev, bus_size_t off)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -217,7 +217,7 @@ omap4xx_scm_reads(device_t dev, bus_size_t off)
 }
 
 static void 
-omap4xx_gic_dist_write(device_t dev, bus_size_t off, uint32_t val)
+omap4_gic_dist_write(device_t dev, bus_size_t off, uint32_t val)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -226,7 +226,7 @@ omap4xx_gic_dist_write(device_t dev, bus_size_t off, uint32_t val)
 }
 
 static uint32_t 
-omap4xx_gic_dist_read(device_t dev, bus_size_t off)
+omap4_gic_dist_read(device_t dev, bus_size_t off)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -234,7 +234,7 @@ omap4xx_gic_dist_read(device_t dev, bus_size_t off)
 }
 
 static void 
-omap4xx_gic_cpu_write(device_t dev, bus_size_t off, uint32_t val)
+omap4_gic_cpu_write(device_t dev, bus_size_t off, uint32_t val)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -243,7 +243,7 @@ omap4xx_gic_cpu_write(device_t dev, bus_size_t off, uint32_t val)
 }
 
 static uint32_t 
-omap4xx_gic_cpu_read(device_t dev, bus_size_t off)
+omap4_gic_cpu_read(device_t dev, bus_size_t off)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -251,7 +251,7 @@ omap4xx_gic_cpu_read(device_t dev, bus_size_t off)
 }
 
 static inline uint32_t
-omap4xx_gbl_timer_read(device_t dev, bus_size_t off)
+omap4_gbl_timer_read(device_t dev, bus_size_t off)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -259,7 +259,7 @@ omap4xx_gbl_timer_read(device_t dev, bus_size_t off)
 }
 
 static inline void
-omap4xx_gbl_timer_write(device_t dev, bus_size_t off, uint32_t val)
+omap4_gbl_timer_write(device_t dev, bus_size_t off, uint32_t val)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -267,7 +267,7 @@ omap4xx_gbl_timer_write(device_t dev, bus_size_t off, uint32_t val)
 }
 
 static inline uint32_t
-omap4xx_prv_timer_read(device_t dev, bus_size_t off)
+omap4_prv_timer_read(device_t dev, bus_size_t off)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -275,7 +275,7 @@ omap4xx_prv_timer_read(device_t dev, bus_size_t off)
 }
 
 static inline void
-omap4xx_prv_timer_write(device_t dev, bus_size_t off, uint32_t val)
+omap4_prv_timer_write(device_t dev, bus_size_t off, uint32_t val)
 {
 	struct omap4_softc *sc = device_get_softc(dev);
 
@@ -283,56 +283,56 @@ omap4xx_prv_timer_write(device_t dev, bus_size_t off, uint32_t val)
 }
 
 /**
- *	omap44xx_identify - adds the SoC child components
+ *	omap4_identify - adds the SoC child components
  *	@dev: this device, the one we are adding to
  * 
  *	Adds a child to the omap3 base device.
  *
  */
 static void
-omap44xx_identify(driver_t *drv, device_t parent)
+omap4_identify(driver_t *drv, device_t parent)
 {
-	int omap44xx_irqs[] = { 27, 29, -1 };
-	struct omap_mem_range omap44xx_mem[] = { { OMAP44XX_MPU_SUBSYS_HWBASE,
+	int omap4_irqs[] = { 27, 29, -1 };
+	struct omap_mem_range omap4_mem[] = { { OMAP44XX_MPU_SUBSYS_HWBASE,
 	                                           OMAP44XX_MPU_SUBSYS_SIZE    },
 	                                         { 0, 0 } }; 
 	int i;
 
-	device_t self = BUS_ADD_CHILD(parent, 0, "omap44xx", 0);
+	device_t self = BUS_ADD_CHILD(parent, 0, "omap4", 0);
 
-	for (i = 0; omap44xx_irqs[i] != -1; i++)
-		bus_set_resource(self, SYS_RES_IRQ, i, omap44xx_irqs[i], 1);
+	for (i = 0; omap4_irqs[i] != -1; i++)
+		bus_set_resource(self, SYS_RES_IRQ, i, omap4_irqs[i], 1);
 	
 	/* Assign the memory region to the resource list */
-	for (i = 0; omap44xx_mem[i].base != 0; i++) {
+	for (i = 0; omap4_mem[i].base != 0; i++) {
 		bus_set_resource(self, SYS_RES_MEMORY, i,
-		    omap44xx_mem[i].base, omap44xx_mem[i].size);
+		    omap4_mem[i].base, omap4_mem[i].size);
 	}
 }
 
 /**
- *	omap44xx_probe - called when the device is probed
+ *	omap4_probe - called when the device is probed
  *	@dev: the new device
  * 
  *	All we do in this routine is set the description of this device
  *
  */
 static int
-omap44xx_probe(device_t dev)
+omap4_probe(device_t dev)
 {
 	device_set_desc(dev, "TI OMAP44XX");
 	return (0);
 }
 
 /**
- *	omap44xx_attach - called when the device is attached
+ *	omap4_attach - called when the device is attached
  *	@dev: the new device
  * 
  *	All we do in this routine is set the description of this device
  *
  */
 static int
-omap44xx_attach(device_t dev)
+omap4_attach(device_t dev)
 {
 	struct omap_softc *omapsc = device_get_softc(device_get_parent(dev));
 	struct omap4_softc *sc = device_get_softc(dev);
@@ -384,7 +384,7 @@ omap44xx_attach(device_t dev)
 	arm_post_filter = omap4_post_filter_intr;
 	
 	/* Setup the ARM GIC interrupt controller */
-	omap4_setup_intr_controller(dev, omap44xx_irq_prio);
+	omap4_setup_intr_controller(dev, omap4_irq_prio);
 	/* Should be called after omap4_setup_intr_controller */
 	omap4_setup_gic_cpu(0xF0);
 
@@ -401,38 +401,38 @@ omap44xx_attach(device_t dev)
 
 
 
-static device_method_t omap44xx_methods[] = {
-	DEVMETHOD(device_probe, omap44xx_probe),
-	DEVMETHOD(device_attach, omap44xx_attach),
-	DEVMETHOD(device_identify, omap44xx_identify),
+static device_method_t omap4_methods[] = {
+	DEVMETHOD(device_probe, omap4_probe),
+	DEVMETHOD(device_attach, omap4_attach),
+	DEVMETHOD(device_identify, omap4_identify),
 
 	/* SCM access methods */
-	DEVMETHOD(omap_scm_reads, omap4xx_scm_reads),
-	DEVMETHOD(omap_scm_writes, omap4xx_scm_writes),
+	DEVMETHOD(omap_scm_reads, omap4_scm_reads),
+	DEVMETHOD(omap_scm_writes, omap4_scm_writes),
 
 	/* OMAP4-specific accessors methods */
 
 	/* Interrupt controller */
-	DEVMETHOD(omap4_gic_dist_read, omap4xx_gic_dist_read),
-	DEVMETHOD(omap4_gic_dist_write, omap4xx_gic_dist_write),
-	DEVMETHOD(omap4_gic_cpu_read, omap4xx_gic_cpu_read),
-	DEVMETHOD(omap4_gic_cpu_write, omap4xx_gic_cpu_write),
+	DEVMETHOD(omap4_gic_dist_read, omap4_gic_dist_read),
+	DEVMETHOD(omap4_gic_dist_write, omap4_gic_dist_write),
+	DEVMETHOD(omap4_gic_cpu_read, omap4_gic_cpu_read),
+	DEVMETHOD(omap4_gic_cpu_write, omap4_gic_cpu_write),
 
 	/* Timers */
-	DEVMETHOD(omap4_gbl_timer_read, omap4xx_gbl_timer_read),
-	DEVMETHOD(omap4_gbl_timer_write, omap4xx_gbl_timer_write),
-	DEVMETHOD(omap4_prv_timer_read, omap4xx_prv_timer_read),
-	DEVMETHOD(omap4_prv_timer_write, omap4xx_prv_timer_write),
+	DEVMETHOD(omap4_gbl_timer_read, omap4_gbl_timer_read),
+	DEVMETHOD(omap4_gbl_timer_write, omap4_gbl_timer_write),
+	DEVMETHOD(omap4_prv_timer_read, omap4_prv_timer_read),
+	DEVMETHOD(omap4_prv_timer_write, omap4_prv_timer_write),
 
 	{0, 0},
 };
 
-static driver_t omap44xx_driver = {
-	"omap44xx",
-	omap44xx_methods,
+static driver_t omap4_driver = {
+	"omap4",
+	omap4_methods,
 	sizeof(struct omap4_softc),
 };
 
-static devclass_t omap44xx_devclass;
+static devclass_t omap4_devclass;
 
-DRIVER_MODULE(omap44xx, omap, omap44xx_driver, omap44xx_devclass, 0, 0);
+DRIVER_MODULE(omap4, omap, omap4_driver, omap4_devclass, 0, 0);

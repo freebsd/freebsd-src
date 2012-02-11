@@ -49,7 +49,7 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/tivar.h>
 #include <arm/ti/omap_scm.h>
 #include <arm/ti/omap4/omap4var.h>
-#include <arm/ti/omap4/omap44xx_reg.h>
+#include <arm/ti/omap4/omap4_reg.h>
 
 
 /*
