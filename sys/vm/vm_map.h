@@ -307,7 +307,7 @@ long vmspace_wired_count(struct vmspace *vmspace);
 /*
  * Copy-on-write flags for vm_map operations
  */
-#define MAP_UNUSED_01		0x0001
+#define MAP_INHERIT_SHARE	0x0001
 #define MAP_COPY_ON_WRITE	0x0002
 #define MAP_NOFAULT		0x0004
 #define MAP_PREFAULT		0x0008
