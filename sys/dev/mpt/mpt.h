@@ -608,7 +608,7 @@ struct mpt_softc {
 #endif
 	uint32_t		mpt_pers_mask;
 	uint32_t
-				: 8,
+				: 7,
 		unit		: 8,
 		ready		: 1,
 		fw_uploaded	: 1,
@@ -625,7 +625,8 @@ struct mpt_softc {
 		disabled	: 1,
 		is_spi		: 1,
 		is_sas		: 1,
-		is_fc		: 1;
+		is_fc		: 1,
+		is_1078		: 1;
 
 	u_int			cfg_role;
 	u_int			role;	/* role: none, ini, target, both */
@@ -982,12 +983,14 @@ mpt_read(struct mpt_softc *mpt, int offset)
 static __inline void
 mpt_pio_write(struct mpt_softc *mpt, size_t offset, uint32_t val)
 {
+	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	bus_space_write_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset, val);
 }
 
 static __inline uint32_t
 mpt_pio_read(struct mpt_softc *mpt, int offset)
 {
+	KASSERT(mpt->pci_pio_reg != NULL, ("no PIO resource"));
 	return (bus_space_read_4(mpt->pci_pio_st, mpt->pci_pio_sh, offset));
 }
 /*********************** Reply Frame/Request Management ***********************/
