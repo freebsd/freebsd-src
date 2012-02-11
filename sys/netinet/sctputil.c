@@ -6373,7 +6373,7 @@ sctp_bindx_delete_address(struct sctp_inpcb *inp,
 		return;
 	}
 	addr_touse = sa;
-#if defined(INET6) && !defined(__Userspace__)	/* TODO port in6_sin6_2_sin */
+#if defined(INET6)
 	if (sa->sa_family == AF_INET6) {
 		struct sockaddr_in6 *sin6;
 
