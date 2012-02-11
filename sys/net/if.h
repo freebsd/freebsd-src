@@ -267,8 +267,6 @@ struct ifa_msghdr {
 	int	ifam_flags;	/* value of ifa_flags */
 	u_short	ifam_index;	/* index for associated ifp */
 	int	ifam_metric;	/* value of ifa_metric */
-	struct	if_data ifam_data;/* statistics and other data about if or
-				 * address */
 };
 
 /*
