@@ -172,7 +172,7 @@ mps_pci_probe(device_t dev)
 
 	if ((id = mps_find_ident(dev)) != NULL) {
 		device_set_desc(dev, id->desc);
-		return (BUS_PROBE_VENDOR);
+		return (BUS_PROBE_DEFAULT);
 	}
 	return (ENXIO);
 }
