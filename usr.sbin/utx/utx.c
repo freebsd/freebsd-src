@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+ * Copyright (c) 2011-2012 Ed Schouten <ed@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -31,6 +31,7 @@ __FBSDID("$FreeBSD$");
 #include <errno.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #include <utmpx.h>
 
@@ -47,38 +48,67 @@ b16_pton(const char *in, char *out, size_t len)
 	return (0);
 }
 
-int
-main(int argc, char *argv[])
+static int
+rm(char *id[])
 {
 	struct utmpx utx = { .ut_type = DEAD_PROCESS };
 	size_t len;
-	int i, ret = 0;
+	int ret = 0;
 
-	if (argc < 2) {
-		fprintf(stderr, "usage: utxrm identifier ...\n");
-		return (1);
-	}
-
-	gettimeofday(&utx.ut_tv, NULL);
-	for (i = 1; i < argc; i++) {
-		len = strlen(argv[i]);
+	(void)gettimeofday(&utx.ut_tv, NULL);
+	for (; *id != NULL; id++) {
+		len = strlen(*id);
 		if (len <= sizeof(utx.ut_id)) {
 			/* Identifier as string. */
-			strncpy(utx.ut_id, argv[i], sizeof(utx.ut_id));
+			strncpy(utx.ut_id, *id, sizeof(utx.ut_id));
 		} else if (len != sizeof(utx.ut_id) * 2 ||
-		    b16_pton(argv[i], utx.ut_id, sizeof(utx.ut_id)) != 0) {
+		    b16_pton(*id, utx.ut_id, sizeof(utx.ut_id)) != 0) {
 			/* Also not hexadecimal. */
-			fprintf(stderr, "%s: Invalid identifier format\n",
-			    argv[i]);
+			fprintf(stderr, "%s: Invalid identifier format\n", *id);
 			ret = 1;
 			continue;
 		}
 
 		/* Zap the entry. */
 		if (pututxline(&utx) == NULL) {
-			perror(argv[i]);
+			perror(*id);
 			ret = 1;
 		}
 	}
 	return (ret);
+}
+
+static int
+boot(short type)
+{
+	struct utmpx utx = { .ut_type = type };
+
+	(void)gettimeofday(&utx.ut_tv, NULL);
+	if (pututxline(&utx) == NULL) {
+		perror("pututxline");
+		return (1);
+	}
+	return (0);
+}
+
+int
+main(int argc, char *argv[])
+{
+
+	if (argc >= 2 && strcmp(getprogname(), "utxrm") == 0)
+		/* For compatibility. */
+		return (rm(&argv[1]));
+	else if (argc == 2 && strcmp(argv[1], "boot") == 0)
+		return (boot(BOOT_TIME));
+	else if (argc == 2 && strcmp(argv[1], "shutdown") == 0)
+		return (boot(SHUTDOWN_TIME));
+	else if (argc >= 3 && strcmp(argv[1], "rm") == 0)
+		return (rm(&argv[2]));
+
+	fprintf(stderr,
+	    "usage: utx boot\n"
+	    "       utx shutdown\n"
+	    "       utx rm identifier ...\n"
+	    "       utxrm identifier ...\n");
+	exit(1);
 }

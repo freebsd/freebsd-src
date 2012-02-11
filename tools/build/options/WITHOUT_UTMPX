@@ -6,4 +6,4 @@ Set to not build user accounting tools such as
 .Xr ac 8 ,
 .Xr lastlogin 8
 and
-.Xr utxrm 8 .
+.Xr utx 8 .
