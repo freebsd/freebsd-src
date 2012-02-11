@@ -1606,10 +1606,6 @@ sysctl_iflist(int af, struct walkarg *w)
 				ifam->ifam_flags = ifa->ifa_flags;
 				ifam->ifam_metric = ifa->ifa_metric;
 				ifam->ifam_addrs = info.rti_addrs;
-				ifam->ifam_data = ifa->if_data;
-				if (carp_get_vhid_p != NULL)
-					ifam->ifam_data.ifi_vhid =
-					    (*carp_get_vhid_p)(ifa);
 				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
 				if (error)
 					goto done;
