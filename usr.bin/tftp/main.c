@@ -10,10 +10,6 @@
  * 2. Redistributions in binary form must reproduce the above copyright
  *    notice, this list of conditions and the following disclaimer in the
  *    documentation and/or other materials provided with the distribution.
- * 3. All advertising materials mentioning features or use of this software
- *    must display the following acknowledgement:
- *	This product includes software developed by the University of
- *	California, Berkeley and its contributors.
  * 4. Neither the name of the University nor the names of its contributors
  *    may be used to endorse or promote products derived from this software
  *    without specific prior written permission.
@@ -56,7 +52,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sysctl.h>
 #include <sys/file.h>
-#include <sys/param.h>
 #include <sys/stat.h>
 
 #include <netinet/in.h>
@@ -82,7 +77,7 @@ __FBSDID("$FreeBSD$");
 #define	MAXLINE		200
 #define	TIMEOUT		5		/* secs between rexmt's */
 
-static struct	sockaddr_storage peeraddr;
+typedef struct	sockaddr_storage peeraddr;
 static int	connected;
 static char	mode[32];
 jmp_buf		toplevel;
@@ -159,7 +154,7 @@ static struct cmd cmdtab[] = {
 	{ "options",	setoptions,
 	  "enable or disable RFC2347 style options" },
 	{ "help",	help,		"print help information"	},
-	{ "packetdrop",	setpacketdrop,	"artifical packetloss feature"	},
+	{ "packetdrop",	setpacketdrop,	"artificial packetloss feature"	},
 	{ "?",		help,		"print help information"	},
 	{ NULL,		NULL,		NULL				}
 };
@@ -442,16 +437,16 @@ put(int argc, char *argv[])
 		return;
 	}
 	targ = argv[argc - 1];
-	if (rindex(argv[argc - 1], ':')) {
+	if (strrchr(argv[argc - 1], ':')) {
 		char *lcp;
 
 		for (n = 1; n < argc - 1; n++)
-			if (index(argv[n], ':')) {
+			if (strchr(argv[n], ':')) {
 				putusage(argv[0]);
 				return;
 			}
 		lcp = argv[argc - 1];
-		targ = rindex(lcp, ':');
+		targ = strrchr(lcp, ':');
 		*targ++ = 0;
 		if (lcp[0] == '[' && lcp[strlen(lcp) - 1] == ']') {
 			lcp[strlen(lcp) - 1] = '\0';
@@ -482,7 +477,7 @@ put(int argc, char *argv[])
 	}
 				/* this assumes the target is a directory */
 				/* on a remote unix system.  hmmmm.  */
-	cp = index(targ, '\0');
+	cp = strchr(targ, '\0');
 	*cp++ = '/';
 	for (n = 1; n < argc - 1; n++) {
 		strcpy(cp, tail(argv[n]));
@@ -537,7 +532,7 @@ get(int argc, char *argv[])
 	}
 	if (!connected) {
 		for (n = 1; n < argc ; n++)
-			if (rindex(argv[n], ':') == 0) {
+			if (strrchr(argv[n], ':') == 0) {
 				printf("No remote host specified and "
 				    "no host given for file '%s'\n", argv[n]);
 				getusage(argv[0]);
@@ -545,7 +540,7 @@ get(int argc, char *argv[])
 			}
 	}
 	for (n = 1; n < argc ; n++) {
-		src = rindex(argv[n], ':');
+		src = strrchr(argv[n], ':');
 		if (src == NULL)
 			src = argv[n];
 		else {
@@ -686,7 +681,7 @@ tail(char *filename)
 	char *s;
 
 	while (*filename) {
-		s = rindex(filename, '/');
+		s = strrchr(filename, '/');
 		if (s == NULL)
 			break;
 		if (s[1])
@@ -739,7 +734,7 @@ command(void)
                         history(hist, &he, H_ENTER, bp);
 		} else {
 			line[0] = 0;
-			if (fgets(line, sizeof line , stdin) == 0) {
+			if (fgets(line, sizeof line , stdin) == NULL) {
 				if (feof(stdin)) {
 					exit(txrx_error);
 				} else {
@@ -844,8 +839,8 @@ help(int argc, char *argv[])
 			printf("%-*s\t%s\n", (int)HELPINDENT, c->name, c->help);
 
 		printf("\n[-] : You shouldn't use these ones anymore.\n");
-		printf("[*] : RFC2834 options support required.\n");
-		printf("[**] : Non-standard RFC2834 option.\n");
+		printf("[*] : RFC2347 options support required.\n");
+		printf("[**] : Non-standard RFC2347 option.\n");
 		return;
 	}
 	while (--argc > 0) {
@@ -959,7 +954,7 @@ setblocksize(int argc, char *argv[])
 
 	if (!options_rfc_enabled)
 		printf("RFC2347 style options are not enabled "
-		    "(but proceding anyway)\n");
+		    "(but proceeding anyway)\n");
 
 	if (argc != 1) {
 		int size = atoi(argv[1]);
@@ -997,7 +992,7 @@ setblocksize2(int argc, char *argv[])
 	if (!options_rfc_enabled || !options_extra_enabled)
 		printf(
 		    "RFC2347 style or non-RFC defined options are not enabled "
-		    "(but proceding anyway)\n");
+		    "(but proceeding anyway)\n");
 
 	if (argc != 1) {
 		int size = atoi(argv[1]);
