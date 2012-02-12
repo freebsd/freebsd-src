@@ -115,11 +115,11 @@ as an argument:
 struct ng_l2tp_config {
     u_char      enabled;        /* enables traffic flow */
     u_char      match_id;       /* tunnel id must match 'tunnel_id' */
-    u_int16_t   tunnel_id;      /* local tunnel id */
-    u_int16_t   peer_id;        /* peer's tunnel id */
-    u_int16_t   peer_win;       /* peer's max recv window size */
-    u_int16_t   rexmit_max;     /* max retransmits before failure */
-    u_int16_t   rexmit_max_to;  /* max delay between retransmits */
+    uint16_t    tunnel_id;      /* local tunnel id */
+    uint16_t    peer_id;        /* peer's tunnel id */
+    uint16_t    peer_win;       /* peer's max recv window size */
+    uint16_t    rexmit_max;     /* max retransmits before failure */
+    uint16_t    rexmit_max_to;  /* max delay between retransmits */
 };
 .Ed
 .Pp
@@ -197,8 +197,8 @@ The argument is a
 .Bd -literal
 /* Configuration for a session hook */
 struct ng_l2tp_sess_config {
-    u_int16_t   session_id;     /* local session id */
-    u_int16_t   peer_id;        /* peer's session id */
+    uint16_t    session_id;     /* local session id */
+    uint16_t    peer_id;        /* peer's session id */
     u_char      control_dseq;   /* we control data sequencing? */
     u_char      enable_dseq;    /* enable data sequencing? */
     u_char      include_length; /* include length field? */

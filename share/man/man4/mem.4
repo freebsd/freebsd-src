@@ -101,8 +101,8 @@ The region cannot be written to.
 Memory ranges are described by
 .Vt struct mem_range_desc :
 .Bd -literal -offset indent
-u_int64_t	mr_base;	/\(** physical base address \(**/
-u_int64_t	mr_len;		/\(** physical length of region \(**/
+uint64_t	mr_base;	/\(** physical base address \(**/
+uint64_t	mr_len;		/\(** physical length of region \(**/
 int		mr_flags;	/\(** attributes of region \(**/
 char		mr_owner[8];
 .Ed
