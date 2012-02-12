@@ -133,8 +133,8 @@ static device_suspend_t omap_ehci_suspend;
 static device_resume_t omap_ehci_resume;
 
 /**
- *	omap_tll_readl - read a 32-bit value from the USBTLL registers
- *	omap_tll_writel - write a 32-bit value from the USBTLL registers
+ *	omap_tll_read_4 - read a 32-bit value from the USBTLL registers
+ *	omap_tll_write_4 - write a 32-bit value from the USBTLL registers
  *	omap_tll_readb - read an 8-bit value from the USBTLL registers
  *	omap_tll_writeb - write an 8-bit value from the USBTLL registers
  *	@sc: omap ehci device context
@@ -149,13 +149,13 @@ static device_resume_t omap_ehci_resume;
  *	nothing in case of write function, if read function returns the value read.
  */
 static inline uint32_t
-omap_tll_readl(struct omap_ehci_softc *sc, bus_size_t off)
+omap_tll_read_4(struct omap_ehci_softc *sc, bus_size_t off)
 {
 	return bus_read_4(sc->tll_mem_res, off);
 }
 
 static inline void
-omap_tll_writel(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
+omap_tll_write_4(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->tll_mem_res, off, val);
 }
@@ -173,8 +173,8 @@ omap_tll_writeb(struct omap_ehci_softc *sc, bus_size_t off, uint8_t val)
 }
 
 /**
- *	omap_ehci_readl - read a 32-bit value from the EHCI registers
- *	omap_ehci_writel - write a 32-bit value from the EHCI registers
+ *	omap_ehci_read_4 - read a 32-bit value from the EHCI registers
+ *	omap_ehci_write_4 - write a 32-bit value from the EHCI registers
  *	@sc: omap ehci device context
  *	@off: byte offset within the register set to read from
  *	@val: the value to write into the register
@@ -187,19 +187,19 @@ omap_tll_writeb(struct omap_ehci_softc *sc, bus_size_t off, uint8_t val)
  *	nothing in case of write function, if read function returns the value read.
  */
 static inline uint32_t
-omap_ehci_readl(struct omap_ehci_softc *sc, bus_size_t off)
+omap_ehci_read_4(struct omap_ehci_softc *sc, bus_size_t off)
 {
 	return (bus_read_4(sc->base.sc_io_res, off));
 }
 static inline void
-omap_ehci_writel(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
+omap_ehci_write_4(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->base.sc_io_res, off, val);
 }
 
 /**
- *	omap_uhh_readl - read a 32-bit value from the UHH registers
- *	omap_uhh_writel - write a 32-bit value from the UHH registers
+ *	omap_uhh_read_4 - read a 32-bit value from the UHH registers
+ *	omap_uhh_write_4 - write a 32-bit value from the UHH registers
  *	@sc: omap ehci device context
  *	@off: byte offset within the register set to read from
  *	@val: the value to write into the register
@@ -212,12 +212,12 @@ omap_ehci_writel(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
  *	nothing in case of write function, if read function returns the value read.
  */
 static inline uint32_t
-omap_uhh_readl(struct omap_ehci_softc *sc, bus_size_t off)
+omap_uhh_read_4(struct omap_ehci_softc *sc, bus_size_t off)
 {
 	return bus_read_4(sc->uhh_mem_res, off);
 }
 static inline void
-omap_uhh_writel(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
+omap_uhh_write_4(struct omap_ehci_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->uhh_mem_res, off, val);
 }
@@ -244,17 +244,17 @@ omap_ehci_utmi_init(struct omap_ehci_softc *isc, unsigned int en_mask)
 	 * same, SDR mode, bit stuffing and no autoidle.
 	 */
 	for (i=0; i<3; i++) {
-		reg = omap_tll_readl(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i));
+		reg = omap_tll_read_4(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i));
 		
 		reg &= ~(TLL_CHANNEL_CONF_UTMIAUTOIDLE
 				 | TLL_CHANNEL_CONF_ULPINOBITSTUFF
 				 | TLL_CHANNEL_CONF_ULPIDDRMODE);
 		
-		omap_tll_writel(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i), reg);
+		omap_tll_write_4(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i), reg);
 	}
 	
 	/* Program the common TLL register */
-	reg = omap_tll_readl(isc, OMAP_USBTLL_TLL_SHARED_CONF);
+	reg = omap_tll_read_4(isc, OMAP_USBTLL_TLL_SHARED_CONF);
 
 	reg &= ~( TLL_SHARED_CONF_USB_90D_DDR_EN
 			| TLL_SHARED_CONF_USB_DIVRATIO_MASK);
@@ -262,18 +262,18 @@ omap_ehci_utmi_init(struct omap_ehci_softc *isc, unsigned int en_mask)
 			| TLL_SHARED_CONF_USB_DIVRATIO_2
 			| TLL_SHARED_CONF_USB_180D_SDR_EN);
 	
-	omap_tll_writel(isc, OMAP_USBTLL_TLL_SHARED_CONF, reg);
+	omap_tll_write_4(isc, OMAP_USBTLL_TLL_SHARED_CONF, reg);
 	
 	/* Enable channels now */
 	for (i = 0; i < 3; i++) {
-		reg = omap_tll_readl(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i));
+		reg = omap_tll_read_4(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i));
 		
 		/* Enable only the reg that is needed */
 		if ((en_mask & (1 << i)) == 0)
 			continue;
 		
 		reg |= TLL_CHANNEL_CONF_CHANEN;
-		omap_tll_writel(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i), reg);
+		omap_tll_write_4(isc, OMAP_USBTLL_TLL_CHANNEL_CONF(i), reg);
 	}
 }
 
@@ -305,10 +305,10 @@ omap_ehci_soft_phy_reset(struct omap_ehci_softc *isc, unsigned int port)
 		/* start ULPI access*/
 		| (1 << OMAP_USBHOST_INSNREG05_ULPI_CONTROL_SHIFT);
 
-	omap_ehci_writel(isc, OMAP_USBHOST_INSNREG05_ULPI, reg);
+	omap_ehci_write_4(isc, OMAP_USBHOST_INSNREG05_ULPI, reg);
 
 	/* Wait for ULPI access completion */
-	while ((omap_ehci_readl(isc, OMAP_USBHOST_INSNREG05_ULPI)
+	while ((omap_ehci_read_4(isc, OMAP_USBHOST_INSNREG05_ULPI)
 	       & (1 << OMAP_USBHOST_INSNREG05_ULPI_CONTROL_SHIFT))) {
 
 		/* Sleep for a tick */
@@ -371,7 +371,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		DELAY(10);
 
 	/* Read the UHH revision */
-	isc->ehci_rev = omap_uhh_readl(isc, OMAP_USBHOST_UHH_REVISION);
+	isc->ehci_rev = omap_uhh_read_4(isc, OMAP_USBHOST_UHH_REVISION);
 	device_printf(isc->sc_dev, "UHH revision 0x%08x\n", isc->ehci_rev);
 	
 	/* Initilise the low level interface module(s) */
@@ -381,13 +381,13 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		omap_prcm_clk_enable(USBTLL_CLK);
 
 		/* Perform TLL soft reset, and wait until reset is complete */
-		omap_tll_writel(isc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_SOFTRESET);
+		omap_tll_write_4(isc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_SOFTRESET);
 	
 		/* Set the timeout to 100ms*/
 		timeout = (hz < 10) ? 1 : ((100 * hz) / 1000);
 
 		/* Wait for TLL reset to complete */
-		while ((omap_tll_readl(isc, OMAP_USBTLL_SYSSTATUS) & 
+		while ((omap_tll_read_4(isc, OMAP_USBTLL_SYSSTATUS) & 
 		        TLL_SYSSTATUS_RESETDONE) == 0x00) {
 
 			/* Sleep for a tick */
@@ -407,7 +407,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		 *                     assertion when no more activity on the USB.
 		 * ENAWAKEUP = 1     : Wakeup generation enabled
 		 */
-		omap_tll_writel(isc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_ENAWAKEUP |
+		omap_tll_write_4(isc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_ENAWAKEUP |
 		                                            TLL_SYSCONFIG_AUTOIDLE |
 		                                            TLL_SYSCONFIG_SIDLE_SMART_IDLE |
 		                                            TLL_SYSCONFIG_CACTIVITY);
@@ -439,7 +439,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	}
 
 	/* Put UHH in SmartIdle/SmartStandby mode */
-	reg = omap_uhh_readl(isc, OMAP_USBHOST_UHH_SYSCONFIG);
+	reg = omap_uhh_read_4(isc, OMAP_USBHOST_UHH_SYSCONFIG);
 	if (isc->ehci_rev == OMAP_EHCI_REV1) {
 		reg &= ~(UHH_SYSCONFIG_SIDLEMODE_MASK |
 		         UHH_SYSCONFIG_MIDLEMODE_MASK);
@@ -454,10 +454,10 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		reg &= ~UHH_SYSCONFIG_STANDBYMODE_MASK;
 		reg |=  UHH_SYSCONFIG_STANDBYMODE_NOSTDBY;
 	}
-	omap_uhh_writel(isc, OMAP_USBHOST_UHH_SYSCONFIG, reg);
+	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_SYSCONFIG, reg);
 	device_printf(isc->sc_dev, "OMAP_UHH_SYSCONFIG: 0x%08x\n", reg);
 
-	reg = omap_uhh_readl(isc, OMAP_USBHOST_UHH_HOSTCONFIG);
+	reg = omap_uhh_read_4(isc, OMAP_USBHOST_UHH_HOSTCONFIG);
 	
 	/* Setup ULPI bypass and burst configurations */
 	reg |= (UHH_HOSTCONFIG_ENA_INCR4 |
@@ -499,7 +499,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 			reg |= UHH_HOSTCONFIG_P2_MODE_HSIC;
 	}
 
-	omap_uhh_writel(isc, OMAP_USBHOST_UHH_HOSTCONFIG, reg);
+	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_HOSTCONFIG, reg);
 	device_printf(isc->sc_dev, "UHH setup done, uhh_hostconfig=0x%08x\n", reg);
 	
 
@@ -512,7 +512,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	 * register bit disables this feature and restores normal behavior."
 	 */
 #if 0
-	omap_ehci_writel(isc, OMAP_USBHOST_INSNREG04,
+	omap_ehci_write_4(isc, OMAP_USBHOST_INSNREG04,
 	                 OMAP_USBHOST_INSNREG04_DISABLE_UNSUSPEND);
 #endif
 
@@ -554,10 +554,10 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	 * which the host controller issues interrupts.  We set it to 1 microframe
 	 * at startup - the default is 8 mircoframes (equates to 1ms).
 	 */
-	reg = omap_ehci_readl(isc, OMAP_USBHOST_USBCMD);
+	reg = omap_ehci_read_4(isc, OMAP_USBHOST_USBCMD);
 	reg &= 0xff00ffff;
 	reg |= (1 << 16);
-	omap_ehci_writel(isc, OMAP_USBHOST_USBCMD, reg);
+	omap_ehci_write_4(isc, OMAP_USBHOST_USBCMD, reg);
 
 	/* Soft reset the PHY using PHY reset command over ULPI */
 	if (isc->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY)
@@ -605,8 +605,8 @@ omap_ehci_fini(struct omap_ehci_softc *isc)
 		timeout = (100 * hz) / 1000;
 
 	/* Reset the UHH, OHCI and EHCI modules */
-	omap_uhh_writel(isc, OMAP_USBHOST_UHH_SYSCONFIG, 0x0002);
-	while ((omap_uhh_readl(isc, OMAP_USBHOST_UHH_SYSSTATUS) & 0x07) == 0x00) {
+	omap_uhh_write_4(isc, OMAP_USBHOST_UHH_SYSCONFIG, 0x0002);
+	while ((omap_uhh_read_4(isc, OMAP_USBHOST_UHH_SYSSTATUS) & 0x07) == 0x00) {
 		/* Sleep for a tick */
 		pause("USBRESET", 1);
 		
@@ -624,8 +624,8 @@ omap_ehci_fini(struct omap_ehci_softc *isc)
 		timeout = (100 * hz) / 1000;
 
 	/* Reset the TLL module */
-	omap_tll_writel(isc, OMAP_USBTLL_SYSCONFIG, 0x0002);
-	while ((omap_tll_readl(isc, OMAP_USBTLL_SYSSTATUS) & (0x01)) == 0x00) {
+	omap_tll_write_4(isc, OMAP_USBTLL_SYSCONFIG, 0x0002);
+	while ((omap_tll_read_4(isc, OMAP_USBTLL_SYSSTATUS) & (0x01)) == 0x00) {
 		/* Sleep for a tick */
 		pause("USBRESET", 1);
 		
