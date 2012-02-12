@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: watchdogd
-# REQUIRE: DAEMON cleanvar
+# REQUIRE: FILESYSTEMS cleanvar syslogd
 # KEYWORD: nojail shutdown
 
 . /etc/rc.subr
