@@ -77,7 +77,7 @@
 			compatible = "ns16550";
 			reg = <0x48020000 0x1000>;
 			reg-shift = <2>;
-			interrupts = < 68 >;
+			interrupts = < 106 >;
 			interrupt-parent = <&GIC>;
 			clock-frequency = < 48000000 >; /* 48Mhz clock for all uarts */
 							/* (techref 17.3.1.1) */
