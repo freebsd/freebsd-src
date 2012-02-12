@@ -5,7 +5,6 @@
 
 # PROVIDE: utx
 # REQUIRE: DAEMON cleanvar
-# BEFORE:  LOGIN
 # KEYWORD: shutdown
 
 . /etc/rc.subr
