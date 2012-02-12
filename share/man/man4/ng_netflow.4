@@ -148,8 +148,8 @@ This message requires
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setifindex {
-	u_int16_t iface;	/* which iface to operate on */
-	u_int16_t index;	/* new index */
+	uint16_t iface;		/* which iface to operate on */
+	uint16_t index;		/* new index */
 };
 .Ed
 .Pp
@@ -175,8 +175,8 @@ This message requires
 as an argument:
 .Bd -literal -offset 4n
 struct ng_netflow_setconfig {
-	u_int16_t iface;
-	u_int32_t conf;
+	uint16_t iface;
+	uint32_t conf;
 #define NG_NETFLOW_CONF_INGRESS		1
 #define NG_NETFLOW_CONF_EGRESS		2
 #define NG_NETFLOW_CONF_ONCE		4
