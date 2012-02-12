@@ -110,7 +110,7 @@ The interface on these hooks is defined in
 and uses a structure
 .Bd -literal
 struct ccatm_op {
-	u_int32_t	op;	/* request code */
+	uint32_t	op;	/* request code */
 	u_char		data[];	/* optional data */
 };
 .Ed
@@ -230,7 +230,7 @@ struct ngm_ccatm_get_addresses {
 	struct ngm_ccatm_address_req addr[0];
 };
 struct ngm_ccatm_address_req {
-	u_int32_t	port;
+	uint32_t	port;
 	struct uni_addr	addr;
 };
 .Ed
