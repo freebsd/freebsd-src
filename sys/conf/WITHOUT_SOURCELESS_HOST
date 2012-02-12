@@ -1,5 +1,5 @@
 #
-# WITHOUT_SOURCELESS_UCODE -- Disable drivers that include sourceless
+# WITHOUT_SOURCELESS_HOST -- Disable drivers that include sourceless
 # native code for host CPU.
 #
 # $FreeBSD$
