@@ -59,7 +59,7 @@ system call sets up a jail and locks the current process in it.
 The argument is a pointer to a structure describing the prison:
 .Bd -literal -offset indent
 struct jail {
-	u_int32_t	version;
+	uint32_t	version;
 	char		*path;
 	char		*hostname;
 	char		*jailname;

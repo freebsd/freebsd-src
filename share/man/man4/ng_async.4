@@ -118,9 +118,9 @@ Sets the node configuration, which is described by a
 .Bd -literal -offset 4n
 struct ng_async_cfg {
   u_char    enabled;  /* Turn encoding on/off */
-  u_int16_t amru;     /* Max receive async frame len */
-  u_int16_t smru;     /* Max receive sync frame len */
-  u_int32_t accm;     /* ACCM encoding */
+  uint16_t  amru;     /* Max receive async frame len */
+  uint16_t  smru;     /* Max receive sync frame len */
+  uint32_t  accm;     /* ACCM encoding */
 };
 .Ed
 .Pp

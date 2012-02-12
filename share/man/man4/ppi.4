@@ -53,7 +53,7 @@ interface is performed using
 .Fn ioctl
 calls.
 Each command takes a single
-.Ft u_int8_t
+.Ft uint8_t
 argument, transferring one byte of data.
 The following commands are available:
 .Bl -tag -width indent
@@ -85,7 +85,7 @@ again, the following code fragment can be used:
 .Bd -literal -compact
 
 	int		fd;
-	u_int8_t	val;
+	uint8_t		val;
 
 	val = 0x5a;
 	ioctl(fd, PPISDATA, &val);
