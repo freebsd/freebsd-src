@@ -1255,7 +1255,7 @@ ggate_recv_thread(void *arg)
 		pjdlog_debug(2,
 		    "ggate_recv: (%p) Moving request to the send queues.", hio);
 		refcount_init(&hio->hio_countdown, ncomps);
-		for (ii = ncomp; ii < ncomps; ii++)
+		for (ii = ncomp; ii < ncomp + ncomps; ii++)
 			QUEUE_INSERT1(hio, send, ii);
 	}
 	/* NOTREACHED */
@@ -1326,7 +1326,8 @@ local_send_thread(void *arg)
 			} else {
 				hio->hio_errors[ncomp] = 0;
 				if (hio->hio_replication ==
-				    HAST_REPLICATION_ASYNC) {
+				    HAST_REPLICATION_ASYNC &&
+				    !ISSYNCREQ(hio)) {
 					ggio->gctl_error = 0;
 					write_complete(res, hio);
 				}
