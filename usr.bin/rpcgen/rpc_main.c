@@ -1129,9 +1129,11 @@ parseargs(int argc, const char *argv[], struct commandline *cmd)
 					if (++i == argc) {
 						return (0);
 					}
-					(void) strlcpy(pathbuf, argv[i], sizeof(pathbuf));
-					if (strlcat(pathbuf, "/cpp", sizeof(pathbuf))
-					    >= sizeof(pathbuf)) {
+					if (strlcpy(pathbuf, argv[i],
+					    sizeof(pathbuf)) >= sizeof(pathbuf)
+					    || strlcat(pathbuf, "/cpp",
+					    sizeof(pathbuf)) >=
+					    sizeof(pathbuf)) {
 						warnx("argument too long");
 						return (0);
 					}
