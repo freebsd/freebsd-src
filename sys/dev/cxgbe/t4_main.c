@@ -2013,6 +2013,8 @@ build_medialist(struct port_info *pi)
 	PORT_UNLOCK(pi);
 }
 
+#define FW_MAC_EXACT_CHUNK	7
+
 /*
  * Program the port's XGMAC based on parameters in ifnet.  The caller also
  * indicates which parameters should be programmed (the rest are left alone).
@@ -2064,28 +2066,57 @@ update_mac_settings(struct port_info *pi, int flags)
 	}
 
 	if (flags & XGMAC_MCADDRS) {
-		const uint8_t *mcaddr;
+		const uint8_t *mcaddr[FW_MAC_EXACT_CHUNK];
 		int del = 1;
 		uint64_t hash = 0;
 		struct ifmultiaddr *ifma;
+		int i = 0, j;
 
 		if_maddr_rlock(ifp);
 		TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
-			if (ifma->ifma_addr->sa_family != AF_LINK)
+			if (ifma->ifma_addr->sa_family == AF_LINK)
 				continue;
-			mcaddr = LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
+			mcaddr[i++] =
+			    LLADDR((struct sockaddr_dl *)ifma->ifma_addr);
 
-			rc = t4_alloc_mac_filt(sc, sc->mbox, pi->viid, del, 1,
-			    &mcaddr, NULL, &hash, 0);
+			if (i == FW_MAC_EXACT_CHUNK) {
+				rc = t4_alloc_mac_filt(sc, sc->mbox, pi->viid,
+				    del, i, mcaddr, NULL, &hash, 0);
+				if (rc < 0) {
+					rc = -rc;
+					for (j = 0; j < i; j++) {
+						if_printf(ifp,
+						    "failed to add mc address"
+						    " %02x:%02x:%02x:"
+						    "%02x:%02x:%02x rc=%d\n",
+						    mcaddr[j][0], mcaddr[j][1],
+						    mcaddr[j][2], mcaddr[j][3],
+						    mcaddr[j][4], mcaddr[j][5],
+						    rc);
+					}
+					goto mcfail;
+				}
+				del = 0;
+				i = 0;
+			}
+		}
+		if (i > 0) {
+			rc = t4_alloc_mac_filt(sc, sc->mbox, pi->viid,
+			    del, i, mcaddr, NULL, &hash, 0);
 			if (rc < 0) {
 				rc = -rc;
-				if_printf(ifp, "failed to add mc address"
-				    " %02x:%02x:%02x:%02x:%02x:%02x rc=%d\n",
-				    mcaddr[0], mcaddr[1], mcaddr[2], mcaddr[3],
-				    mcaddr[4], mcaddr[5], rc);
+				for (j = 0; j < i; j++) {
+					if_printf(ifp,
+					    "failed to add mc address"
+					    " %02x:%02x:%02x:"
+					    "%02x:%02x:%02x rc=%d\n",
+					    mcaddr[j][0], mcaddr[j][1],
+					    mcaddr[j][2], mcaddr[j][3],
+					    mcaddr[j][4], mcaddr[j][5],
+					    rc);
+				}
 				goto mcfail;
 			}
-			del = 0;
 		}
 
 		rc = -t4_set_addr_hash(sc, sc->mbox, pi->viid, 0, hash, 0);
