@@ -40,6 +40,7 @@
  * 802.11s Information Elements.
 */
 /* Mesh Configuration */
+#define IEEE80211_MESH_CONF_SZ		(7)
 struct ieee80211_meshconf_ie {
 	uint8_t		conf_ie;	/* IEEE80211_ELEMID_MESHCONF */
 	uint8_t		conf_len;
@@ -49,31 +50,66 @@ struct ieee80211_meshconf_ie {
 	uint8_t		conf_syncid;	/* Sync. Protocol ID */
 	uint8_t		conf_authid;	/* Auth. Protocol ID */
 	uint8_t		conf_form;	/* Formation Information */
-	uint16_t	conf_cap;
+	uint8_t		conf_cap;
 } __packed;
 
 /* Hybrid Wireless Mesh Protocol */
-#define	IEEE80211_MESHCONF_PATH_HWMP		0x00
+enum {
+	/* 0 reserved */
+	IEEE80211_MESHCONF_PATH_HWMP		= 1,
+	/* 2-254 reserved */
+	IEEE80211_MESHCONF_PATH_VENDOR		= 255,
+};
+
 /* Airtime Link Metric */
-#define	IEEE80211_MESHCONF_METRIC_AIRTIME	0x00
+enum {
+	/* 0 reserved */
+	IEEE80211_MESHCONF_METRIC_AIRTIME	= 1,
+	/* 2-254 reserved */
+	IEEE80211_MESHCONF_METRIC_VENDOR	= 255,
+};
+
 /* Congestion Control */
-#define	IEEE80211_MESHCONF_CC_DISABLED		0x00
-#define	IEEE80211_MESHCONF_CC_SIG		0x01
+enum {
+	IEEE80211_MESHCONF_CC_DISABLED		= 0,
+	IEEE80211_MESHCONF_CC_SIG		= 1,
+	/* 2-254 reserved */
+	IEEE80211_MESHCONF_CC_VENDOR		= 255,
+};
+
 /* Neighbour Offset */
-#define	IEEE80211_MESHCONF_SYNC_NEIGHOFF	0x00
-#define	IEEE80211_MESHCONF_AUTH_DISABLED	0x00
-/* Simultaneous Authenticaction of Equals */
-#define	IEEE80211_MESHCONF_AUTH_SAE		0x01
-#define	IEEE80211_MESHCONF_FORM_MP		0x01 /* Connected to Portal */
-#define	IEEE80211_MESHCONF_FORM_NNEIGH_MASK	0x04 /* Number of Neighbours */
+enum {
+	/* 0 reserved */
+	IEEE80211_MESHCONF_SYNC_NEIGHOFF	= 1,
+	/* 2-254 rserved */
+	IEEE80211_MESHCONF_SYNC_VENDOR		= 255,
+};
+
+/* Authentication Protocol Identifier */
+enum {
+	
+	IEEE80211_MESHCONF_AUTH_DISABLED	= 0,
+	/* Simultaneous Authenticaction of Equals */
+	IEEE80211_MESHCONF_AUTH_SEA		= 1,
+	IEEE80211_MESHCONF_AUTH_8021X		= 2, /* IEEE 802.1X */
+	/* 3-254 reserved */
+	IEEE80211_MESHCONF_AUTH_VENDOR		= 255,
+};
+
+/* Mesh Formation Info */
+#define	IEEE80211_MESHCONF_FORM_MP	0x01 	/* Connected to Portal */
+#define	IEEE80211_MESHCONF_FORM_NNEIGH_MASK 0x7E /* Number of Neighbours */
+#define	IEEE80211_MESHCONF_FORM_SA	0xF0 	/* indicating 802.1X auth */
+
+/* Mesh Capability */
 #define	IEEE80211_MESHCONF_CAP_AP	0x01	/* Accepting Peers */
 #define	IEEE80211_MESHCONF_CAP_MCCAS	0x02	/* MCCA supported */
 #define	IEEE80211_MESHCONF_CAP_MCCAE	0x04	/* MCCA enabled */
 #define	IEEE80211_MESHCONF_CAP_FWRD 	0x08	/* forwarding enabled */
 #define	IEEE80211_MESHCONF_CAP_BTR	0x10	/* Beacon Timing Report Enab */
-#define	IEEE80211_MESHCONF_CAP_TBTTA	0x20	/* TBTT Adj. Enabled */
-#define	IEEE80211_MESHCONF_CAP_TBTT	0x40	/* TBTT Adjusting  */
-#define	IEEE80211_MESHCONF_CAP_PSL	0x80	/* Power Save Level */
+#define	IEEE80211_MESHCONF_CAP_TBTT	0x20	/* TBTT Adjusting  */
+#define	IEEE80211_MESHCONF_CAP_PSL	0x40	/* Power Save Level */
+/* 0x80 reserved */
 
 /* Mesh Identifier */
 struct ieee80211_meshid_ie {
