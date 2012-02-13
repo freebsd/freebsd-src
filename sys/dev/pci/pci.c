@@ -1136,10 +1136,8 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 		if (memcmp(kw, cfg->vpd.vpd_ros[i].keyword,
 		    sizeof(cfg->vpd.vpd_ros[i].keyword)) == 0) {
 			*vptr = cfg->vpd.vpd_ros[i].value;
+			return (0);
 		}
-
-	if (i != cfg->vpd.vpd_rocnt)
-		return (0);
 
 	*vptr = NULL;
 	return (ENXIO);
