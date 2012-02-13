@@ -7161,13 +7161,16 @@ check_inode_unwritten(inodedep)
 	mtx_assert(&lk, MA_OWNED);
 
 	if ((inodedep->id_state & (DEPCOMPLETE | UNLINKED)) != 0 ||
+	    !LIST_EMPTY(&inodedep->id_dirremhd) ||
 	    !LIST_EMPTY(&inodedep->id_pendinghd) ||
 	    !LIST_EMPTY(&inodedep->id_bufwait) ||
 	    !LIST_EMPTY(&inodedep->id_inowait) ||
+	    !TAILQ_EMPTY(&inodedep->id_inoreflst) ||
 	    !TAILQ_EMPTY(&inodedep->id_inoupdt) ||
 	    !TAILQ_EMPTY(&inodedep->id_newinoupdt) ||
 	    !TAILQ_EMPTY(&inodedep->id_extupdt) ||
 	    !TAILQ_EMPTY(&inodedep->id_newextupdt) ||
+	    !TAILQ_EMPTY(&inodedep->id_freeblklst) ||
 	    inodedep->id_mkdiradd != NULL || 
 	    inodedep->id_nlinkdelta != 0)
 		return (0);
