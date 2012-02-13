@@ -38,9 +38,9 @@
 #include <dev/netmap/netmap_kern.h>
 
 static int	igb_netmap_reg(struct ifnet *, int onoff);
-static int	igb_netmap_txsync(void *, u_int, int);
-static int	igb_netmap_rxsync(void *, u_int, int);
-static void	igb_netmap_lock_wrapper(void *, int, u_int);
+static int	igb_netmap_txsync(struct ifnet *, u_int, int);
+static int	igb_netmap_rxsync(struct ifnet *, u_int, int);
+static void	igb_netmap_lock_wrapper(struct ifnet *, int, u_int);
 
 
 static void
@@ -66,9 +66,9 @@ igb_netmap_attach(struct adapter *adapter)
  * wrapper to export locks to the generic code
  */
 static void
-igb_netmap_lock_wrapper(void *_a, int what, u_int queueid)
+igb_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int queueid)
 {
-	struct adapter *adapter = _a;
+	struct adapter *adapter = ifp->if_softc;
 
 	ASSERT(queueid < adapter->num_queues);
 	switch (what) {
@@ -140,9 +140,9 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  */
 static int
-igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
@@ -258,9 +258,9 @@ igb_netmap_txsync(void *a, u_int ring_nr, int do_lock)
  * Reconcile kernel and user view of the receive ring.
  */
 static int
-igb_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];

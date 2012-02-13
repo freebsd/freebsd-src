@@ -37,9 +37,9 @@
 #include <dev/netmap/netmap_kern.h>
 
 static int re_netmap_reg(struct ifnet *, int onoff);
-static int re_netmap_txsync(void *, u_int, int);
-static int re_netmap_rxsync(void *, u_int, int);
-static void re_netmap_lock_wrapper(void *, int, u_int);
+static int re_netmap_txsync(struct ifnet *, u_int, int);
+static int re_netmap_rxsync(struct ifnet *, u_int, int);
+static void re_netmap_lock_wrapper(struct ifnet *, int, u_int);
 
 static void
 re_netmap_attach(struct rl_softc *sc)
@@ -65,9 +65,9 @@ re_netmap_attach(struct rl_softc *sc)
  * We should not use the tx/rx locks
  */
 static void
-re_netmap_lock_wrapper(void *_a, int what, u_int queueid)
+re_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int queueid)
 {
-	struct rl_softc *adapter = _a;
+	struct rl_softc *adapter = ifp->if_softc;
 
 	switch (what) {
 	case NETMAP_CORE_LOCK:
@@ -133,9 +133,9 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  */
 static int
-re_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct rl_softc *sc = a;
+	struct rl_softc *sc = ifp->if_softc;
 	struct rl_txdesc *txd = sc->rl_ldata.rl_tx_desc;
 	struct netmap_adapter *na = NA(sc->rl_ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
@@ -236,9 +236,9 @@ re_netmap_txsync(void *a, u_int ring_nr, int do_lock)
  * Reconcile kernel and user view of the receive ring.
  */
 static int
-re_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct rl_softc *sc = a;
+	struct rl_softc *sc = ifp->if_softc;
 	struct rl_rxdesc *rxd = sc->rl_ldata.rl_rx_desc;
 	struct netmap_adapter *na = NA(sc->rl_ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
