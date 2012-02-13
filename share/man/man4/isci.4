@@ -57,7 +57,7 @@ The
 .Nm
 driver provides support for Intel C600
 .Tn SAS
-controller.
+controllers.
 .Sh CONFIGURATION
 To force legacy interrupts for all
 .Nm
@@ -77,9 +77,11 @@ hw.isci.debug_level
 variable to a value between 1 and 4 in
 .Xr loader.conf 5 .
 .Pp
-The hardware layer in the isci driver has extensive logging capabilities
-which are disabled by default for performance reasons.  These can be enabled
-by adding
+The hardware layer in the
+.Nm
+driver has extensive logging capabilities
+which are disabled by default for performance reasons.
+These can be enabled by adding
 .Bd -literal -offset indent
 options ISCI_LOGGING
 .Ed
@@ -91,7 +93,7 @@ to the kernel configuration file.
 .Xr da 4 ,
 .Xr pci 4 ,
 .Xr sa 4 ,
-.Xr scsi 4 .
+.Xr scsi 4
 .Sh HISTORY
 The
 .Nm
