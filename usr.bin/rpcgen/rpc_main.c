@@ -79,13 +79,8 @@ static void s_output(int, const char **, const char *, const char *, int, const 
 #define	EXTEND	1		/* alias for TRUE */
 #define	DONT_EXTEND	0		/* alias for FALSE */
 
-#define	SVR4_CPP "/usr/ccs/lib/cpp"
-#define SUNOS_CPP "/usr/bin/cpp"
-
-static int cppDefined = 0;	/* explicit path for C preprocessor */
-
 static const char *svcclosetime = "120";
-static const char *CPP = SVR4_CPP;
+static const char *CPP = NULL;
 static const char CPPFLAGS[] = "-C";
 static char pathbuf[MAXPATHLEN + 1];
 static const char *allv[] = {
@@ -101,7 +96,7 @@ static int allnc = sizeof (allnv)/sizeof (allnv[0]);
  * machinations for handling expanding argument list
  */
 static void addarg(const char *);	/* add another argument to the list */
-static void putarg(int, const char *);	/* put argument at specified location */
+static void insarg(int, const char *);	/* insert arg at specified location */
 static void clear_args(void);		/* clear argument list */
 static void checkfiles(const char *, const char *);
 					/* check if out file already exists */
@@ -109,7 +104,7 @@ static void checkfiles(const char *, const char *);
 
 
 #define	ARGLISTLEN	20
-#define	FIXEDARGS	2
+#define	FIXEDARGS	0
 
 static char *arglist[ARGLISTLEN];
 static int argcount = FIXEDARGS;
@@ -292,24 +287,29 @@ clear_args(void)
 	argcount = FIXEDARGS;
 }
 
-/* make sure that a CPP exists */
+/* prepend C-preprocessor and flags before arguments */
 static void
-find_cpp(void)
+prepend_cpp(void)
 {
-	struct stat buf;
+	int idx = 1;
+	const char *var;
+	char *dupvar, *s, *t;
 
-	if (stat(CPP, &buf) < 0)  { /* SVR4 or explicit cpp does not exist */
-		if (cppDefined) {
-			warnx("cannot find C preprocessor: %s", CPP);
-			crash();
-		} else {	/* try the other one */
-			CPP = SUNOS_CPP;
-			if (stat(CPP, &buf) < 0) { /* can't find any cpp */
-				warnx("cannot find C preprocessor: %s", CPP);
-				crash();
-			}
+	if (CPP != NULL)
+		insarg(0, CPP);
+	else if ((var = getenv("RPCGEN_CPP")) == NULL)
+		insarg(0, "/usr/bin/cpp");
+	else {
+		/* Parse command line in a rudimentary way */
+		dupvar = xstrdup(var);
+		for (s = dupvar, idx = 0; (t = strsep(&s, " \t")) != NULL; ) {
+			if (t[0])
+				insarg(idx++, t);
 		}
+		free(dupvar);
 	}
+
+	insarg(idx, CPPFLAGS);
 }
 
 /*
@@ -324,9 +324,7 @@ open_input(const char *infile, const char *define)
 	(void) pipe(pd);
 	switch (childpid = fork()) {
 	case 0:
-		find_cpp();
-		putarg(0, CPP);
-		putarg(1, CPPFLAGS);
+		prepend_cpp();
 		addarg(define);
 		if (infile)
 			addarg(infile);
@@ -334,8 +332,8 @@ open_input(const char *infile, const char *define)
 		(void) close(1);
 		(void) dup2(pd[1], 1);
 		(void) close(pd[0]);
-		execv(arglist[0], arglist);
-		err(1, "execv");
+		execvp(arglist[0], arglist);
+		err(1, "execvp %s", arglist[0]);
 	case -1:
 		err(1, "fork");
 	}
@@ -938,18 +936,26 @@ addarg(const char *cp)
 
 }
 
+/*
+ * Insert an argument at the specified location
+ */
 static void
-putarg(int place, const char *cp)
+insarg(int place, const char *cp)
 {
-	if (place >= ARGLISTLEN) {
-		warnx("arglist coding error");
+	int i;
+
+	if (argcount >= ARGLISTLEN) {
+		warnx("too many defines");
 		crash();
 		/*NOTREACHED*/
 	}
-	if (cp != NULL)
-		arglist[place] = xstrdup(cp);
-	else
-		arglist[place] = NULL;
+
+	/* Move up existing arguments */
+	for (i = argcount - 1; i >= place; i--)
+		arglist[i + 1] = arglist[i];
+
+	arglist[place] = xstrdup(cp);
+	argcount++;
 }
 
 /*
@@ -1138,7 +1144,6 @@ parseargs(int argc, const char *argv[], struct commandline *cmd)
 						return (0);
 					}
 					CPP = pathbuf;
-					cppDefined = 1;
 					goto nextarg;
 
 
