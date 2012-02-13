@@ -1114,6 +1114,11 @@ digest_phdr(const Elf_Phdr *phdr, int phnum, caddr_t entry, const char *path)
 	case PT_GNU_STACK:
 	    obj->stack_flags = ph->p_flags;
 	    break;
+
+	case PT_GNU_RELRO:
+	    obj->relro_page = obj->relocbase + trunc_page(ph->p_vaddr);
+	    obj->relro_size = round_page(ph->p_memsz);
+	    break;
 	}
     }
     if (nsegs < 1) {
@@ -2006,6 +2011,14 @@ relocate_objects(Obj_Entry *first, bool bind_now, Obj_Entry *rtldobj,
 	if (obj->bind_now || bind_now)
 	    if (reloc_jmpslots(obj, lockstate) == -1)
 		return -1;
+
+	if (obj->relro_size > 0) {
+	    if (mprotect(obj->relro_page, obj->relro_size, PROT_READ) == -1) {
+		_rtld_error("%s: Cannot enforce relro protection: %s",
+		  obj->path, strerror(errno));
+		return -1;
+	    }
+	}
 
 	/*
 	 * Set up the magic number and version in the Obj_Entry.  These
