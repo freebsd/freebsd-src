@@ -259,6 +259,7 @@ t4_free_l2t(struct l2t_data *d)
 	return (0);
 }
 
+#ifdef SBUF_DRAIN
 static inline unsigned int
 vlan_prio(const struct l2t_entry *e)
 {
@@ -333,6 +334,7 @@ skip:
 
 	return (rc);
 }
+#endif
 
 #ifndef TCP_OFFLOAD_DISABLE
 static inline void
@@ -652,6 +654,11 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 	} else
 		return (NULL);
 
+#ifndef VLAN_TAG
+	if (ifp->if_type == IFT_L2VLAN)
+		return (NULL);
+#endif
+
 	hash = addr_hash(addr, addr_len, ifp->if_index);
 
 	rw_wlock(&d->lock);
@@ -678,10 +685,12 @@ t4_l2t_get(struct port_info *pi, struct ifnet *ifp, struct sockaddr *sa)
 		e->v6 = (addr_len == 16);
 		e->lle = NULL;
 		atomic_store_rel_int(&e->refcnt, 1);
+#ifdef VLAN_TAG
 		if (ifp->if_type == IFT_L2VLAN)
 			VLAN_TAG(ifp, &e->vlan);
 		else
 			e->vlan = VLAN_NONE;
+#endif
 		e->next = d->l2tab[hash].first;
 		d->l2tab[hash].first = e;
 		mtx_unlock(&e->lock);
