@@ -112,7 +112,6 @@ static struct cdevsw t4_cdevsw = {
 /* ifnet + media interface */
 static void cxgbe_init(void *);
 static int cxgbe_ioctl(struct ifnet *, unsigned long, caddr_t);
-static void cxgbe_start(struct ifnet *);
 static int cxgbe_transmit(struct ifnet *, struct mbuf *);
 static void cxgbe_qflush(struct ifnet *);
 static int cxgbe_media_change(struct ifnet *);
@@ -829,13 +828,8 @@ cxgbe_attach(device_t dev)
 
 	ifp->if_init = cxgbe_init;
 	ifp->if_ioctl = cxgbe_ioctl;
-	ifp->if_start = cxgbe_start;
 	ifp->if_transmit = cxgbe_transmit;
 	ifp->if_qflush = cxgbe_qflush;
-
-	ifp->if_snd.ifq_drv_maxlen = 1024;
-	IFQ_SET_MAXLEN(&ifp->if_snd, ifp->if_snd.ifq_drv_maxlen);
-	IFQ_SET_READY(&ifp->if_snd);
 
 	ifp->if_capabilities = T4_CAP;
 #ifndef TCP_OFFLOAD_DISABLE
@@ -1093,21 +1087,6 @@ fail:
 	}
 
 	return (rc);
-}
-
-static void
-cxgbe_start(struct ifnet *ifp)
-{
-	struct port_info *pi = ifp->if_softc;
-	struct sge_txq *txq;
-	int i;
-
-	for_each_txq(pi, i, txq) {
-		if (TXQ_TRYLOCK(txq)) {
-			txq_start(ifp, txq);
-			TXQ_UNLOCK(txq);
-		}
-	}
 }
 
 static int
