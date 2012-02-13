@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011 Matteo Landi, Luigi Rizzo. All rights reserved.
+ * Copyright (C) 2011-2012 Matteo Landi, Luigi Rizzo. All rights reserved.
  * 
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -34,6 +34,20 @@
 #ifndef _NET_NETMAP_KERN_H_
 #define _NET_NETMAP_KERN_H_
 
+#if defined(__FreeBSD__)
+#define	NM_LOCK_T	struct mtx
+#define	NM_SELINFO_T	struct selinfo
+#define	MBUF_LEN(m)	((m)->m_pkthdr.len)
+#define	NM_SEND_UP(ifp, m)	((ifp)->if_input)(ifp, m)
+#elif defined (__linux__)
+#define	NM_LOCK_T	spinlock_t
+#define	NM_SELINFO_T	wait_queue_head_t
+#define	MBUF_LEN(m)	((m)->len)
+#define	NM_SEND_UP(ifp, m)	netif_rx(m)
+#else
+#error unsupported platform
+#endif
+
 #ifdef MALLOC_DECLARE
 MALLOC_DECLARE(M_NETMAP);
 #endif
@@ -53,11 +67,10 @@ struct netmap_adapter;
 /*
  * private, kernel view of a ring.
  *
- * XXX 20110627-todo
- * The index in the NIC and netmap ring is offset by nkr_hwofs slots.
+ * The indexes in the NIC and netmap rings are offset by nkr_hwofs slots.
  * This is so that, on a reset, buffers owned by userspace are not
  * modified by the kernel. In particular:
- * RX rings: the next empty buffer (hwcur + hwavail + hwofs) coincides
+ * RX rings: the next empty buffer (hwcur + hwavail + hwofs) coincides with
  * 	the next empty buffer as known by the hardware (next_to_check or so).
  * TX rings: hwcur + hwofs coincides with next_to_send
  */
@@ -70,12 +83,13 @@ struct netmap_kring {
 	u_int nkr_num_slots;
 
 	int	nkr_hwofs;	/* offset between NIC and netmap ring */
-	struct netmap_adapter *na;	 // debugging
-	struct selinfo si; /* poll/select wait queue */
+	struct netmap_adapter *na;
+	NM_SELINFO_T si;	/* poll/select wait queue */
+	NM_LOCK_T q_lock;	/* used if no device lock available */
 } __attribute__((__aligned__(64)));
 
 /*
- * This struct is part of and extends the 'struct adapter' (or
+ * This struct extends the 'struct adapter' (or
  * equivalent) device descriptor. It contains all fields needed to
  * support netmap operation.
  */
@@ -93,9 +107,9 @@ struct netmap_adapter {
 
 	u_int num_tx_desc; /* number of descriptor in each queue */
 	u_int num_rx_desc;
-	u_int buff_size;
+	u_int buff_size;	
 
-	u_int	flags;
+	//u_int	flags;	// XXX unused
 	/* tx_rings and rx_rings are private but allocated
 	 * as a contiguous chunk of memory. Each array has
 	 * N+1 entries, for the adapter queues and for the host queue.
@@ -107,7 +121,7 @@ struct netmap_adapter {
 	 * packets from the network stack when netmap is active.
 	 * XXX probably if_qflush is not necessary.
 	 */
-	void    (*if_qflush)(struct ifnet *);
+	//void    (*if_qflush)(struct ifnet *);	// XXX unused
 	int     (*if_transmit)(struct ifnet *, struct mbuf *);
 
 	/* references to the ifnet and device routines, used by
@@ -115,10 +129,12 @@ struct netmap_adapter {
 	 */
 	struct ifnet *ifp; /* adapter is ifp->if_softc */
 
+	NM_LOCK_T core_lock;	/* used if no device lock available */
+
 	int (*nm_register)(struct ifnet *, int onoff);
-	void (*nm_lock)(void *, int what, u_int ringid);
-	int (*nm_txsync)(void *, u_int ring, int lock);
-	int (*nm_rxsync)(void *, u_int ring, int lock);
+	void (*nm_lock)(struct ifnet *, int what, u_int ringid);
+	int (*nm_txsync)(struct ifnet *, u_int ring, int lock);
+	int (*nm_rxsync)(struct ifnet *, u_int ring, int lock);
 };
 
 /*
@@ -144,6 +160,12 @@ enum {
 	NETMAP_CORE_LOCK, NETMAP_CORE_UNLOCK,
 	NETMAP_TX_LOCK, NETMAP_TX_UNLOCK,
 	NETMAP_RX_LOCK, NETMAP_RX_UNLOCK,
+#ifdef __FreeBSD__
+#define	NETMAP_REG_LOCK		NETMAP_CORE_LOCK
+#define	NETMAP_REG_UNLOCK	NETMAP_CORE_UNLOCK
+#else
+	NETMAP_REG_LOCK, NETMAP_REG_UNLOCK
+#endif
 };
 
 /*
@@ -251,4 +273,11 @@ PNMB(struct netmap_slot *slot, uint64_t *pp)
 	return ret;
 }
 
+/* default functions to handle rx/tx interrupts */
+int netmap_rx_irq(struct ifnet *, int, int *);
+#define netmap_tx_irq(_n, _q) netmap_rx_irq(_n, _q, NULL)
+#ifdef __linux__
+#define bus_dmamap_sync(_a, _b, _c) // wmb() or rmb() ?
+netdev_tx_t netmap_start_linux(struct sk_buff *skb, struct net_device *dev);
+#endif
 #endif /* _NET_NETMAP_KERN_H_ */
