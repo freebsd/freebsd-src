@@ -850,12 +850,9 @@ ngs_findhook(node_p node, const char *name)
 	uint32_t h;
 
 	/*
-	 * Microoptimisations for a ng_socket with no
-	 * hooks, or with a single hook, which is a
-	 * common case.
+	 * Microoptimisation for an ng_socket with
+	 * a single hook, which is a common case.
 	 */
-	if (node->nd_numhooks == 0)
-		return (NULL);
 	if (node->nd_numhooks == 1) {
 		hook_p hook;
 
