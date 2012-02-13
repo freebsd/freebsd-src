@@ -473,15 +473,6 @@ cxgb_controller_attach(device_t dev)
 		device_printf(dev, "Cannot allocate BAR region 0\n");
 		return (ENXIO);
 	}
-	sc->udbs_rid = PCIR_BAR(2);
-	sc->udbs_res = NULL;
-	if (is_offload(sc) &&
-	    ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
-		   &sc->udbs_rid, RF_ACTIVE)) == NULL)) {
-		device_printf(dev, "Cannot allocate BAR region 1\n");
-		error = ENXIO;
-		goto out;
-	}
 
 	snprintf(sc->lockbuf, ADAPTER_LOCK_NAME_LEN, "cxgb controller lock %d",
 	    device_get_unit(dev));
@@ -510,6 +501,17 @@ cxgb_controller_attach(device_t dev)
 		error = ENODEV;
 		goto out;
 	}
+
+	sc->udbs_rid = PCIR_BAR(2);
+	sc->udbs_res = NULL;
+	if (is_offload(sc) &&
+	    ((sc->udbs_res = bus_alloc_resource_any(dev, SYS_RES_MEMORY,
+		   &sc->udbs_rid, RF_ACTIVE)) == NULL)) {
+		device_printf(dev, "Cannot allocate BAR region 1\n");
+		error = ENXIO;
+		goto out;
+	}
+
         /* Allocate the BAR for doing MSI-X.  If it succeeds, try to allocate
 	 * enough messages for the queue sets.  If that fails, try falling
 	 * back to MSI.  If that fails, then try falling back to the legacy
