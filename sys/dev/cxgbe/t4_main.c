@@ -4839,22 +4839,22 @@ filter_rpl(struct sge_iq *iq, const struct rss_header *rss, struct mbuf *m)
 		unsigned int rc = G_COOKIE(rpl->cookie);
 		struct filter_entry *f = &sc->tids.ftid_tab[idx];
 
+		ADAPTER_LOCK(sc);
 		if (rc == FW_FILTER_WR_FLT_ADDED) {
 			f->smtidx = (be64toh(rpl->oldval) >> 24) & 0xff;
 			f->pending = 0;  /* asynchronous setup completed */
 			f->valid = 1;
-			return (0);
-		}
+		} else {
+			if (rc != FW_FILTER_WR_FLT_DELETED) {
+				/* Add or delete failed, display an error */
+				log(LOG_ERR,
+				    "filter %u setup failed with error %u\n",
+				    idx, rc);
+			}
 
-		if (rc != FW_FILTER_WR_FLT_DELETED) {
-			/* Add or delete failed, need to display an error */
-			device_printf(sc->dev,
-			    "filter %u setup failed with error %u\n", idx, rc);
+			clear_filter(f);
+			sc->tids.ftids_in_use--;
 		}
-
-		clear_filter(f);
-		ADAPTER_LOCK(sc);
-		sc->tids.ftids_in_use--;
 		ADAPTER_UNLOCK(sc);
 	}
 
