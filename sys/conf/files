@@ -1068,12 +1068,6 @@ dev/e1000/e1000_mbx.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
 dev/e1000/e1000_osdep.c		optional em | igb \
 	compile-with "${NORMAL_C} -I$S/dev/e1000"
-dev/oce/oce_hw.c		optional oce pci
-dev/oce/oce_if.c		optional oce pci
-dev/oce/oce_mbox.c		optional oce pci
-dev/oce/oce_queue.c		optional oce pci
-dev/oce/oce_sysctl.c		optional oce pci
-dev/oce/oce_util.c		optional oce pci
 dev/et/if_et.c			optional et
 dev/en/if_en_pci.c		optional en pci
 dev/en/midway.c			optional en
@@ -1555,6 +1549,12 @@ dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
 dev/null/null.c			standard
+dev/oce/oce_hw.c		optional oce pci
+dev/oce/oce_if.c		optional oce pci
+dev/oce/oce_mbox.c		optional oce pci
+dev/oce/oce_queue.c		optional oce pci
+dev/oce/oce_sysctl.c		optional oce pci
+dev/oce/oce_util.c		optional oce pci
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
