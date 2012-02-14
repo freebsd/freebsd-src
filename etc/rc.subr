@@ -71,22 +71,29 @@ set_rcvar_obsolete()
 }
 
 #
-# force_depend script
+# force_depend script [rcvar]
 #	Force a service to start. Intended for use by services
-#	to resolve dependency issues. It is assumed the caller
-#	has check to make sure this call is necessary
+#	to resolve dependency issues.
 #	$1 - filename of script, in /etc/rc.d, to run
+#	$2 - name of the script's rcvar (minus the _enable)
 #
 force_depend()
 {
+	local _depend _dep_rcvar
+
 	_depend="$1"
+	_dep_rcvar="${2:-$1}_enable"
+
+	[ -n "$rc_fast" ] && ! checkyesno always_force_depends &&
+	    checkyesno $_dep_rcvar && return 0
+
+	/etc/rc.d/${_depend} forcestatus >/dev/null 2>&1 && return 0
 
 	info "${name} depends on ${_depend}, which will be forced to start."
 	if ! /etc/rc.d/${_depend} forcestart; then
 		warn "Unable to force ${_depend}. It may already be running."
 		return 1
 	fi
-	return 0
 }
 
 #
