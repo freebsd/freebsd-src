@@ -183,6 +183,8 @@ __wrap_setrunelocale(const char *locale)
 	_CurrentRuneLocale = __xlocale_global_ctype.runes;
 	return (_LDP_LOADED);
 }
+
+#ifndef __NO_TLS
 void
 __set_thread_rune_locale(locale_t loc) {
 
@@ -192,10 +194,11 @@ __set_thread_rune_locale(locale_t loc) {
 		_ThreadRuneLocale = XLOCALE_CTYPE(loc)->runes;
 	}
 }
+#endif
+
 void *
 __ctype_load(const char *locale, locale_t unused)
 {
-#ifndef __NO_TLS
 	struct xlocale_ctype *l = calloc(sizeof(struct xlocale_ctype), 1);
 	l->header.header.destructor = destruct_ctype;
 	if (__setrunelocale(l, locale))
@@ -204,5 +207,4 @@ __ctype_load(const char *locale, locale_t unused)
 		return NULL;
 	}
 	return l;
-#endif
 }
