@@ -126,6 +126,7 @@ lib/libc/stdtime	edwin   Heads-up appreciated, since parts of this code
 sysinstall	randi	Please contact about any major changes so that
 			they can be co-ordinated.
 sbin/routed	bms	Pre-commit review; notify vendor at rhyolite.com
+isci(4)		jimharris	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.
