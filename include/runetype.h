@@ -86,10 +86,10 @@ typedef struct {
 __BEGIN_DECLS
 extern const _RuneLocale _DefaultRuneLocale;
 extern const _RuneLocale *_CurrentRuneLocale;
-extern const _Thread_local _RuneLocale *_ThreadRuneLocale;
 #if defined(__NO_TLS) || defined(__RUNETYPE_INTERNAL)
 extern const _RuneLocale *__getCurrentRuneLocale(void);
 #else
+extern const _Thread_local _RuneLocale *_ThreadRuneLocale;
 static inline const _RuneLocale *__getCurrentRuneLocale(void)
 {
 

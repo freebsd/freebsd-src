@@ -183,7 +183,7 @@ extern int __has_thread_locale;
  * The per-thread locale.  Avoids the need to use pthread lookup functions when
  * getting the per-thread locale.
  */
-extern __thread locale_t __thread_locale;
+extern _Thread_local locale_t __thread_locale;
 
 /**
  * Returns the current locale for this thread, or the global locale if none is
