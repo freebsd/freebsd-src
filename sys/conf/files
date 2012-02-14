@@ -1401,6 +1401,12 @@ dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
 dev/null/null.c			standard
+dev/oce/oce_hw.c		optional oce pci
+dev/oce/oce_if.c		optional oce pci
+dev/oce/oce_mbox.c		optional oce pci
+dev/oce/oce_queue.c		optional oce pci
+dev/oce/oce_sysctl.c		optional oce pci
+dev/oce/oce_util.c		optional oce pci
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
