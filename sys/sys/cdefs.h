@@ -230,8 +230,7 @@
 #define	_Alignof(e)		alignof(e)
 #define	_Noreturn		[[noreturn]]
 #define	_Static_assert(e, s)	static_assert(e, s)
-/* FIXME: change this to thread_local when clang in base supports it */
-#define	_Thread_local		__thread
+#define	_Thread_local		thread_local
 #elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
 /* Do nothing.  They are language keywords. */
 #else
@@ -401,18 +400,12 @@
 #define	__printflike(fmtarg, firstvararg)
 #define	__scanflike(fmtarg, firstvararg)
 #define	__format_arg(fmtarg)
-#define	__strfmonlike(fmtarg, firstvararg)
-#define	__strftimelike(fmtarg, firstvararg)
 #else
 #define	__printflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__printf__, fmtarg, firstvararg)))
 #define	__scanflike(fmtarg, firstvararg) \
 	    __attribute__((__format__ (__scanf__, fmtarg, firstvararg)))
 #define	__format_arg(fmtarg)	__attribute__((__format_arg__ (fmtarg)))
-#define	__strfmonlike(fmtarg, firstvararg) \
-	    __attribute__((__format__ (__strfmon__, fmtarg, firstvararg)))
-#define	__strftimelike(fmtarg, firstvararg) \
-	    __attribute__((__format__ (__strftime__, fmtarg, firstvararg)))
 #endif
 
 /* Compiler-dependent macros that rely on FreeBSD-specific extensions. */
@@ -655,10 +648,6 @@
 #endif
 #ifndef	__has_builtin
 #define	__has_builtin(x) 0
-#endif
-
-#if defined(__arm) || defined(__mips)
-#define __NO_TLS 1
 #endif
 
 #endif /* !_SYS_CDEFS_H_ */
