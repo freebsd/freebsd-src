@@ -6,17 +6,18 @@
  * the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions * are met:
- * 1.  Redistributions of source code must retain the above copyright notice,
- *     this list of conditions and the following disclaimer.
- * 2. Redistributions in binary form must reproduce the above copyright notice,
- *    this list of conditions and the following disclaimer in the documentation
- *    and/or other materials provided with the distribution.
+ * modification, are permitted provided that the following conditions
+ * are met:
+ * 1. Redistributions of source code must retain the above copyright
+ *    notice, this list of conditions and the following disclaimer.
+ * 2. Redistributions in binary form must reproduce the above copyright
+ *    notice, this list of conditions and the following disclaimer in the
+ *    documentation and/or other materials provided with the distribution.
  *
  * THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
  * ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
  * IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
- * ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+ * ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
  * FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
  * DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
  * OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
@@ -27,28 +28,45 @@
  *
  * $FreeBSD$
  */
-#ifndef _XLOCALE_H_
-#error This header should only be included by <xlocale.h>, never directly.
+
+
+#if	(defined(_XLOCALE_WCTYPES) && !defined(_XLOCALE_WCTYPE_H)) || \
+	(!defined(_XLOCALE_WCTYPES) && !defined(_XLOCALE_CTYPE_H))
+
+#ifdef _XLOCALE_WCTYPES
+#define _XLOCALE_WCTYPE_H
+#else
+#define _XLOCALE_CTYPE_H
+#endif
+
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
 #ifndef _XLOCALE_CTYPE_H_
-__BEGIN_DECLS
-unsigned long	___runetype_l(__ct_rune_t, locale_t) __pure;
-__ct_rune_t	___tolower_l(__ct_rune_t, locale_t) __pure;
-__ct_rune_t	___toupper_l(__ct_rune_t, locale_t) __pure;
+unsigned long	 ___runetype_l(__ct_rune_t, locale_t) __pure;
+__ct_rune_t	 ___tolower_l(__ct_rune_t, locale_t) __pure;
+__ct_rune_t	 ___toupper_l(__ct_rune_t, locale_t) __pure;
 _RuneLocale	*__runes_for_locale(locale_t, int*);
-__END_DECLS
 #endif
 
 #ifndef _XLOCALE_INLINE
 #if __GNUC__ && !__GNUC_STDC_INLINE__
+/* GNU89 inline has nonstandard semantics. */
 #define _XLOCALE_INLINE extern inline
 #else
+/* Hack to work around people who define inline away */
+#ifdef inline
+#define _XLOCALE_INLINE __inline static
+#else
+/* Define with C++ / C99 compatible semantics */
 #define _XLOCALE_INLINE inline
 #endif
 #endif
+#endif /* _XLOCALE_INLINE */
 
-#ifdef XLOCALE_WCTYPES
+#ifdef _XLOCALE_WCTYPES
 static __inline int
 __maskrune_l(__ct_rune_t _c, unsigned long _f, locale_t locale)
 {
@@ -108,7 +126,7 @@ XLOCALE_ISCTYPE(upper, _CTYPE_U)
 XLOCALE_ISCTYPE(xdigit, _CTYPE_X)
 #undef XLOCALE_ISCTYPE
 
-#ifdef XLOCALE_WCTYPES
+#ifdef _XLOCALE_WCTYPES
 _XLOCALE_INLINE int towlower_l(int c, locale_t locale)
 {
 	int mb_sb_limit;
@@ -140,7 +158,7 @@ wctype_t wctype_l(const char *property, locale_t locale);
 wint_t towctrans_l(wint_t wc, wctrans_t desc, locale_t locale);
 wint_t nextwctype_l(wint_t wc, wctype_t wct, locale_t locale);
 wctrans_t wctrans_l(const char *charclass, locale_t locale);
-#undef XLOCALE_WCTYPES
+#undef _XLOCALE_WCTYPES
 #else
 _XLOCALE_INLINE int digittoint_l(int c, locale_t locale)
 { return __sbmaskrune_l((c), 0xFF, locale); }
@@ -160,3 +178,5 @@ _XLOCALE_INLINE int toupper_l(int c, locale_t locale)
 	       runes->__mapupper[c];
 }
 #endif
+#endif /* (defined(_XLOCALE_WCTYPES) && !defined(_XLOCALE_WCTYPE_H)) || \
+	(!defined(_XLOCALE_WCTYPES) && !defined(_XLOCALE_CTYPE_H)) */

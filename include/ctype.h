@@ -78,6 +78,10 @@ int	isphonogram(int);
 int	isrune(int);
 int	isspecial(int);
 #endif
+
+#if __POSIX_VISIBLE >= 200809
+#include <xlocale/_ctype.h>
+#endif
 __END_DECLS
 
 #ifndef __cplusplus

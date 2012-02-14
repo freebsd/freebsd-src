@@ -194,6 +194,7 @@ FBSD_1.3 {
 	wcstoull_l;
 	wcstoumax_l;
 	__runes_for_locale;
+	_ThreadRuneLocale;
 };
 
 FBSDprivate_1.0 {
