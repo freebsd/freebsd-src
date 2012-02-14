@@ -220,6 +220,7 @@ struct if_data {
 #define	IFCAP_POLLING_NOCOUNT	0x20000 /* polling ticks cannot be fragmented */
 #define	IFCAP_VLAN_HWTSO	0x40000 /* can do IFCAP_TSO on VLANs */
 #define	IFCAP_LINKSTATE		0x80000 /* the runtime link state is dynamic */
+#define	IFCAP_NETMAP		0x100000 /* netmap mode supported/enabled */
 
 #define IFCAP_HWCSUM	(IFCAP_RXCSUM | IFCAP_TXCSUM)
 #define	IFCAP_TSO	(IFCAP_TSO4 | IFCAP_TSO6)
