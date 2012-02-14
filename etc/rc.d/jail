@@ -17,7 +17,7 @@
 . /etc/rc.subr
 
 name="jail"
-rcvar=`set_rcvar`
+rcvar="jail_enable"
 
 start_precmd="jail_prestart"
 start_cmd="jail_start"
