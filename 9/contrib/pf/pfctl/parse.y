@@ -33,6 +33,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
+#ifdef __FreeBSD__
+#include <sys/sysctl.h>
+#endif
 #include <net/if.h>
 #include <netinet/in.h>
 #include <netinet/in_systm.h>
@@ -335,6 +338,7 @@ int		 expand_skip_interface(struct node_if *);
 int	 check_rulestate(int);
 int	 getservice(char *);
 int	 rule_label(struct pf_rule *, char *);
+int	 rt_tableid_max(void);
 
 void	 mv_rules(struct pf_ruleset *, struct pf_ruleset *);
 void	 decide_address_family(struct node_host *, sa_family_t *);
@@ -1174,7 +1178,7 @@ scrub_opt	: NODF	{
 			scrub_opts.randomid = 1;
 		}
 		| RTABLE NUMBER				{
-			if ($2 < 0 /* || $2 > RT_TABLEID_MAX */) {
+			if ($2 < 0 || $2 > rt_tableid_max()) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
@@ -1322,7 +1326,7 @@ antispoof_opt	: label	{
 			antispoof_opts.label = $1;
 		}
 		| RTABLE NUMBER				{
-			if ($2 < 0 /* || $2 > RT_TABLEID_MAX */ ) {
+			if ($2 < 0 || $2 > rt_tableid_max()) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
@@ -2361,7 +2365,7 @@ filter_opt	: USER uids {
 				filter_opts.prob = 1;
 		}
 		| RTABLE NUMBER				{
-			if ($2 < 0 /* || $2 > RT_TABLEID_MAX */ ) {
+			if ($2 < 0 || $2 > rt_tableid_max()) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
@@ -4190,7 +4194,7 @@ tagged		: /* empty */		{ $$.neg = 0; $$.name = NULL; }
 
 rtable		: /* empty */		{ $$ = -1; }
 		| RTABLE NUMBER		{
-			if ($2 < 0 /* || $2 > RT_TABLEID_MAX */ ) {
+			if ($2 < 0 || $2 > rt_tableid_max()) {
 				yyerror("invalid rtable id");
 				YYERROR;
 			}
@@ -6050,4 +6054,24 @@ pfctl_load_anchors(int dev, struct pfctl *pf, struct pfr_buffer *trans)
 	}
 
 	return (0);
+}
+
+int
+rt_tableid_max(void)
+{
+#ifdef __FreeBSD__
+	int fibs;
+	size_t l = sizeof(fibs);
+
+        if (sysctlbyname("net.fibs", &fibs, &l, NULL, 0) == -1)
+		fibs = 16;	/* XXX RT_MAXFIBS, at least limit it some. */
+	/*
+	 * As the OpenBSD code only compares > and not >= we need to adjust
+	 * here given we only accept values of 0..n and want to avoid #ifdefs
+	 * in the grammer.
+	 */
+	return (fibs - 1);
+#else
+	return (RT_TABLEID_MAX);
+#endif
 }
