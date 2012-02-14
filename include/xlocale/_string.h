@@ -2,9 +2,6 @@
  * Copyright (c) 2011, 2012 The FreeBSD Foundation
  * All rights reserved.
  *
- * This software was developed by David Chisnall under sponsorship from
- * the FreeBSD Foundation.
- *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
  * are met:
@@ -29,57 +26,36 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
-
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
-
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
+/*
+ * This file is included from both string.h and xlocale.h.  We need to expose
+ * the declarations unconditionally if we are included from xlocale.h, but only
+ * if we are in POSIX2008 mode if included from string.h.
+ */
 
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
+#ifndef _XLOCALE_STRING1_H
+#define _XLOCALE_STRING1_H
 
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
+/*
+ * POSIX2008 functions
+ */
+int	 strcoll_l(const char *, const char *, locale_t);
+size_t	 strxfrm_l(char *, const char *, size_t, locale_t);
+#endif /* _XLOCALE_STRING1_H */
 
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
+/*
+ * xlocale extensions
+ */
+#ifdef _XLOCALE_H_
+#ifndef _XLOCALE_STRING2_H
+#define _XLOCALE_STRING2_H
+int	 strcasecmp_l(const char *, const char *, locale_t);
+char	*strcasestr_l(const char *, const char *, locale_t);
+int	 strncasecmp_l(const char *, const char *, size_t, locale_t);
 
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
-
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
+#endif /* _XLOCALE_STRING2_H */
+#endif /* _XLOCALE_H_ */
