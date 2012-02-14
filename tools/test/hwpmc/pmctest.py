@@ -38,10 +38,14 @@
 #
 # To use:
 #
-# pmctest.py ls > /dev/null
+# pmctest.py -p ls > /dev/null
 #
 # This should result in ls being run with every available counter
 # and the system should neither lock up nor panic.
+#
+# The default is to wait after each counter is tested.  Since the
+# prompt would go to stdout you won't see it, just press return
+# to continue or Ctrl-D to stop.
 
 import sys
 import subprocess
@@ -53,10 +57,15 @@ notcounter = ["IAF", "IAP", "TSC", "UNC", "UCF"]
 
 def main():
 
-    if (len(sys.argv) != 2):
-        print ("usage: pmctest.py program")
+    from optparse import OptionParser
+    
+    parser = OptionParser()
+    parser.add_option("-p", "--program", dest="program", 
+                      help="program to execute")
+    parser.add_option("-w", "--wait", action="store_true", dest="wait",
+                      default=True, help="wait after each execution")
 
-    program = sys.argv[1]
+    (options, args) = parser.parse_args()
 
     p = subprocess.Popen(["pmccontrol", "-L"], stdout=PIPE)
     counters = p.communicate()[0]
@@ -68,9 +77,15 @@ def main():
     for counter in counters.split():
         if counter in notcounter:
             continue
-        p = subprocess.Popen(["pmcstat", "-p", counter, program], stdout=PIPE)
+        p = subprocess.Popen(["pmcstat", "-p", counter, options.program],
+                             stdout=PIPE)
         result = p.communicate()[0]
         print result
+        if (options.wait == True):
+            try:
+                value = raw_input("next?")
+            except EOFError:
+                sys.exit()
 
 # The canonical way to make a python module into a script.
 # Remove if unnecessary.
