@@ -1,0 +1,317 @@
+VI_MESSAGE_CATALOG
+Line length overflowX
+unable to delete line %luX
+unable to append to line %luX
+unable to insert at line %luX
+unable to store line %luX
+unable to get last lineX
+Error: unable to retrieve line %luX
+Log fileX
+Logging not being performed, undo not possibleX
+No changes to undoX
+Logging not being performed, undo not possibleX
+Logging not being performed, roll-forward not possibleX
+No changes to re-doX
+%s/%d: log put errorX
+Vi's standard input and output must be a terminalX
+Mark %s: not setX
+Mark %s: the line was deletedX
+Mark %s: cursor position no longer existsX
+Error: X
+new fileX
+name changedX
+modifiedX
+unmodifiedX
+UNLOCKEDX
+readonlyX
+line %lu of %lu [%ld%%]X
+empty fileX
+line %luX
+The file %s is not a message catalogX
+Unable to set default %s optionX
+Usage: %sX
+set: no %s option: 'set all' gives all option valuesX
+set: [no]%s option doesn't take a valueX
+set: %s option isn't a booleanX
+set: %s option: %sX
+set: %s option: %s: value overflowX
+set: %s option: %s is an illegal numberX
+set: %s option isn't a booleanX
+Screen columns too small, less than %dX
+Screen columns too large, greater than %dX
+Screen lines too small, less than %dX
+Screen lines too large, greater than %dX
+The lisp option is not implementedX
+messages not turned off: %sX
+messages not turned on: %sX
+
+The paragraph option must be in two character groupsX
+The section option must be in two character groupsX
+
+
+
+The default buffer is emptyX
+Buffer %s is emptyX
+Files with newlines in the name are unrecoverableX
+Modifications not recoverable if the session failsX
+Copying file for recovery...X
+Preservation failed: %sX
+Modifications not recoverable if the session failsX
+File backup failed: %sX
+Copying file for recovery...X
+Information on user id %u not foundX
+Unable to lock recovery fileX
+Recovery file buffer overrunX
+Recovery fileX
+%s: malformed recovery fileX
+%s: malformed recovery fileX
+No files named %s, readable by you, to recoverX
+There are older versions of this file for you to recoverX
+There are other files for you to recoverX
+not sending email: %sX
+File empty; nothing to searchX
+Reached end-of-file without finding the patternX
+No previous search patternX
+Pattern not foundX
+Reached top-of-file without finding the patternX
+Search wrappedX
+Searching...X
+No non-printable character foundX
+Unknown command nameX
+
+%s: command not available in ex modeX
+Count may not be zeroX
+%s: bad line specificationX
+Internal syntax table error (%s: %s)X
+Usage: %sX
+%s: temporary buffer not releasedX
+Flag offset to before line 1X
+Flag offset past end-of-fileX
+@ with range running when the file/screen changedX
+Global/v command running when the file/screen changedX
+Ex command failed: pending commands discardedX
+Ex command failed: mapped keys discardedX
+The second address is smaller than the firstX
+No mark name suppliedX
+\\ not followed by / or ?X
+Reference to a line number less than 0X
+The %s command is unknownX
+Address value overflowX
+Address value underflowX
+Illegal address combinationX
+Illegal address: only %lu lines in the fileX
+Illegal address: the file is emptyX
+The %s command doesn't permit an address of 0X
+No abbreviations to displayX
+Abbreviations must end with a "word" characterX
+Abbreviations may not contain tabs or spacesX
+Abbreviations may not mix word/non-word characters, except at the endX
+"%s" is not an abbreviationX
+Vi command failed: mapped keys discardedX
+No more files to editX
+No previous files to editX
+No previous files to rewindX
+No file list to displayX
+No previous command to replace "!"X
+No filename to substitute for %%X
+No filename to substitute for #X
+Error: execl: %sX
+I/O error: %sX
+File modified since last complete write; write or use ! to overrideX
+Unable to find home directory locationX
+New current directory: %sX
+No cut buffers to displayX
+The %s command can't be used as part of a global or v commandX
+%s/%s: not sourced: not owned by you or rootX
+%s/%s: not sourced: not owned by youX
+%s/%s: not sourced: writeable by a user other than the ownerX
+%s: not sourced: not owned by you or rootX
+%s: not sourced: not owned by youX
+%s: not sourced: writeable by a user other than the ownerX
+No following lines to joinX
+No input map entriesX
+No command map entriesX
+The %s character may not be remappedX
+"%s" isn't currently mappedX
+Mark names must be a single characterX
+%s exists, not written; use ! to overrideX
+New exrc file: %sX
+Destination line is inside move rangeX
+The open command requires that the open option be setX
+The open command is not yet implementedX
+Preservation of this file not possibleX
+File preservedX
+%s: expanded into too many file namesX
+Only regular files and named pipes may be readX
+%s: read lock was unavailableX
+Reading...X
+%s: %lu lines, %lu charactersX
+No background screens to displayX
+The script command is only available in vi modeX
+No command to executeX
+shiftwidth option set to 0X
+Count overflowX
+Count underflowX
+Regular expression specified; r flag meaninglessX
+The #, l and p flags may not be combined with the c flag in vi modeX
+No match foundX
+No previous tag enteredX
+Less than %s entries on the tags stack; use :display t[ags]X
+No file %s on the tags stack to return to; use :display t[ags]X
+Press Enter to continue: X
+%s: tag not foundX
+%s: corrupted tag in %sX
+%s: the tag's line number is past the end of the fileX
+The tags stack is emptyX
+%s: search pattern not foundX
+%d more files to editX
+Buffer %s is emptyX
+Confirm change? [n]X
+InterruptedX
+No previous buffer to executeX
+No previous regular expressionX
+The %s command requires that a file have already been read inX
+Usage: %sX
+The visual command requires that the open option be setX
+
+Empty fileX
+No previous F, f, T or t searchX
+%s not foundX
+No previous file to editX
+Cursor not in a numberX
+Resulting number too largeX
+Resulting number too smallX
+No match character on this lineX
+Matching character not foundX
+No characters to replaceX
+No other screen to switch toX
+Characters after search string, line offset and/or z commandX
+No previous search patternX
+Search wrapped to original positionX
+Abbreviation exceeded expansion limit: characters discardedX
+Illegal character; quote to enterX
+Already at the beginning of the insertX
+No more characters to eraseX
+Movement past the end-of-fileX
+Movement past the end-of-lineX
+No cursor movement madeX
+Already at the beginning of the fileX
+Movement past the beginning of the fileX
+Already in the first columnX
+Buffers should be specified before the commandX
+Already at end-of-fileX
+Already at end-of-lineX
+%s isn't a vi commandX
+Usage: %sX
+No characters to deleteX
+The Q command requires the ex terminal interfaceX
+No command to repeatX
+The file is emptyX
+%s may not be used as a motion commandX
+Already in command modeX
+Cursor not in a wordX
+
+Windows option value is too large, max is %uX
+AppendX
+ChangeX
+CommandX
+InsertX
+ReplaceX
+Movement past the end-of-screenX
+Movement past the beginning-of-screenX
+Screen must be larger than %d lines to splitX
+There are no background screensX
+There's no background screen editing a file named %sX
+You may not background your only displayed screenX
+The screen can only shrink to %d rowsX
+The screen cannot shrinkX
+The screen cannot growX
+
+This screen may not be suspendedX
+Interrupted: mapped keys discardedX
+vi: temporary buffer not releasedX
+This terminal has no %s keyX
+Only one buffer may be specifiedX
+Number larger than %luX
+InterruptedX
+Unable to create temporary fileX
+Warning: %s is not a regular fileX
+%s already locked, session is read-onlyX
+%s: removeX
+%s: closeX
+%s: removeX
+%s: removeX
+Read-only file, not written; use ! to overrideX
+Read-only file, not writtenX
+%s exists, not written; use ! to overrideX
+%s exists, not writtenX
+Partial file, not written; use ! to overrideX
+Partial file, not writtenX
+%s: file modified more recently than this copy; use ! to overrideX
+%s: file modified more recently than this copyX
+%s: write lock was unavailableX
+Writing...X
+%s: WARNING: FILE TRUNCATEDX
+Already at the first tag of this groupX
+%s: new file: %lu lines, %lu charactersX
+%s: %lu lines, %lu charactersX
+%s expanded into too many file namesX
+%s: not a regular fileX
+%s: not owned by youX
+%s: accessible by a user other than the ownerX
+File modified since last complete write; write or use ! to overrideX
+File modified since last complete write; write or use :edit! to overrideX
+File modified since last complete write; write or use ! to overrideX
+File is a temporary; exit will discard modificationsX
+File readonly, modifications not auto-writtenX
+Log restartedX
+confirm? [ynq]X
+Press any key to continue: X
+Press any key to continue [: to enter more ex commands]: X
+Press any key to continue [q to quit]: X
+That form of %s requires the ex terminal interfaceX
+Entering ex input mode.X
+Command failed, no file read in yet.X
+ cont?X
+Unexpected character eventX
+Unexpected end-of-file eventX
+No matches for queryX
+Unexpected interrupt eventX
+Unexpected quit eventX
+Unexpected repaint eventX
+Already at the last tag of this groupX
+The %s command requires the ex terminal interfaceX
+That form of %s is not supported when the secure edit option is setX
+Unexpected string eventX
+Unexpected timeout eventX
+Unexpected write eventX
+
+Shell expansions not supported when the secure edit option is setX
+The %s command is not supported when the secure edit option is setX
+set: the %s option may not be turned offX
+Display too small.X
+addedX
+changedX
+deletedX
+joinedX
+movedX
+shiftedX
+yankedX
+lineX
+linesX
+Vi was not loaded with a Tcl interpreterX
+File modified since last write.X
+Shell expansion failedX
+No %s edit option specifiedX
+Vi was not loaded with a Perl interpreterX
+No ex command to executeX
+Enter <CR> to execute a command, :q to exitX
+Use "cscope help" for helpX
+No cscope connections runningX
+%s: unknown search type: use one of %sX
+%d: no such cscope sessionX
+set: the %s option may never be turned onX
+set: the %s option may never be set to 0X
+%s: appended: %lu lines, %lu charactersX
+Unexpected resize eventX
+%d files to editX

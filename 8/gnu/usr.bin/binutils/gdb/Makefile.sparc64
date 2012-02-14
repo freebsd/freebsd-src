@@ -1,0 +1,4 @@
+# $FreeBSD$
+
+XSRCS+=	sparc-nat.c sparc-tdep.c
+CFLAGS+= -DDEFAULT_BFD_VEC=bfd_elf64_sparc_vec

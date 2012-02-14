@@ -1,0 +1,538 @@
+This describes the protocol used by OpenSSH's ssh-agent.
+
+OpenSSH's agent supports managing keys for the standard SSH protocol
+2 as well as the legacy SSH protocol 1. Support for these key types
+is almost completely disjoint - in all but a few cases, operations on
+protocol 2 keys cannot see or affect protocol 1 keys and vice-versa.
+
+Protocol 1 and protocol 2 keys are separated because of the differing
+cryptographic usage: protocol 1 private RSA keys are used to decrypt
+challenges that were encrypted with the corresponding public key,
+whereas protocol 2 RSA private keys are used to sign challenges with
+a private key for verification with the corresponding public key. It
+is considered unsound practice to use the same key for signing and
+encryption.
+
+With a couple of exceptions, the protocol message names used in this
+document indicate which type of key the message relates to. SSH_*
+messages refer to protocol 1 keys only. SSH2_* messages refer to
+protocol 2 keys. Furthermore, the names also indicate whether the
+message is a request to the agent (*_AGENTC_*) or a reply from the
+agent (*_AGENT_*). Section 3 below contains the mapping of the
+protocol message names to their integer values.
+
+1. Data types
+
+Because of support for legacy SSH protocol 1 keys, OpenSSH's agent
+protocol makes use of some data types not defined in RFC 4251.
+
+1.1 uint16
+
+The "uint16" data type is a simple MSB-first 16 bit unsigned integer
+encoded in two bytes.
+
+1.2 mpint1
+
+The "mpint1" type represents an arbitrary precision integer (bignum).
+Its format is as follows:
+
+	uint16			bits
+	byte[(bits + 7) / 8]	bignum
+
+"bignum" contains an unsigned arbitrary precision integer encoded as
+eight bits per byte in big-endian (MSB first) format.
+
+Note the difference between the "mpint1" encoding and the "mpint"
+encoding defined in RFC 4251. Also note that the length of the encoded
+integer is specified in bits, not bytes and that the byte length of
+the integer must be calculated by rounding up the number of bits to the
+nearest eight.
+
+2. Protocol Messages
+
+All protocol messages are prefixed with their length in bytes, encoded
+as a 32 bit unsigned integer. Specifically:
+
+	uint32			message_length
+	byte[message_length]	message
+
+The following message descriptions refer only to the content the
+"message" field.
+
+2.1 Generic server responses
+
+The following generic messages may be sent by the server in response to
+requests from the client. On success the agent may reply either with:
+
+	byte			SSH_AGENT_SUCCESS
+
+or a request-specific success message.
+
+On failure, the agent may reply with:
+
+	byte			SSH_AGENT_FAILURE
+
+SSH_AGENT_FAILURE messages are also sent in reply to unknown request
+types.
+
+2.2 Adding keys to the agent
+
+Keys are added to the agent using the SSH_AGENTC_ADD_RSA_IDENTITY and
+SSH2_AGENTC_ADD_IDENTITY requests for protocol 1 and protocol 2 keys
+respectively.
+
+Two variants of these requests are SSH_AGENTC_ADD_RSA_ID_CONSTRAINED
+and SSH2_AGENTC_ADD_ID_CONSTRAINED - these add keys with optional
+"constraints" on their usage.
+
+OpenSSH may be built with support for keys hosted on a smartcard
+or other hardware security module. These keys may be added
+to the agent using the SSH_AGENTC_ADD_SMARTCARD_KEY and
+SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED requests.
+
+2.2.1 Key constraints
+
+The OpenSSH agent supports some basic optional constraints on key usage.
+At present there are two constraints defined.
+
+The first constraint limits the validity duration of a key. It is
+encoded as:
+
+	byte			SSH_AGENT_CONSTRAIN_LIFETIME
+	uint32			seconds
+
+Where "seconds" contains the number of seconds that the key shall remain
+valid measured from the moment that the agent receives it. After the
+validity period has expired, OpenSSH's agent will erase these keys from
+memory.
+
+The second constraint requires the agent to seek explicit user
+confirmation before performing private key operations with the loaded
+key. This constraint is encoded as:
+
+	byte			SSH_AGENT_CONSTRAIN_CONFIRM
+
+Zero or more constraints may be specified when adding a key with one
+of the *_CONSTRAINED requests. Multiple constraints are appended
+consecutively to the end of the request:
+
+	byte			constraint1_type
+	....			constraint1_data
+	byte			constraint2_type
+	....			constraint2_data
+	....
+	byte			constraintN_type
+	....			constraintN_data
+
+Such a sequence of zero or more constraints will be referred to below
+as "constraint[]". Agents may determine whether there are constraints
+by checking whether additional data exists in the "add key" request
+after the key data itself. OpenSSH will refuse to add a key if it
+contains unknown constraints.
+
+2.2.2 Add protocol 1 key
+
+A client may add a protocol 1 key to an agent with the following
+request:
+
+	byte			SSH_AGENTC_ADD_RSA_IDENTITY or
+				SSH_AGENTC_ADD_RSA_ID_CONSTRAINED
+	uint32			ignored
+	mpint1			rsa_n
+	mpint1			rsa_e
+	mpint1			rsa_d
+	mpint1			rsa_iqmp
+	mpint1			rsa_q
+	mpint1			rsa_p
+	string			key_comment
+	constraint[]		key_constraints
+
+Note that there is some redundancy in the key parameters; a key could be
+fully specified using just rsa_q, rsa_p and rsa_e at the cost of extra
+computation.
+
+"key_constraints" may only be present if the request type is
+SSH_AGENTC_ADD_RSA_IDENTITY.
+
+The agent will reply with a SSH_AGENT_SUCCESS if the key has been
+successfully added or a SSH_AGENT_FAILURE if an error occurred.
+
+2.2.3 Add protocol 2 key
+
+The OpenSSH agent supports DSA and RSA keys for protocol 2. DSA keys may
+be added using the following request
+
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-dss"
+	mpint			dsa_p
+	mpint			dsa_q
+	mpint			dsa_g
+	mpint			dsa_public_key
+	mpint			dsa_private_key
+	string			key_comment
+	constraint[]		key_constraints
+
+DSA certificates may be added with:
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-dss-cert-v00@openssh.com"
+	string			certificate
+	mpint			dsa_private_key
+	string			key_comment
+	constraint[]		key_constraints
+
+RSA keys may be added with this request:
+
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-rsa"
+	mpint			rsa_n
+	mpint			rsa_e
+	mpint			rsa_d
+	mpint			rsa_iqmp
+	mpint			rsa_p
+	mpint			rsa_q
+	string			key_comment
+	constraint[]		key_constraints
+
+RSA certificates may be added with this request:
+
+	byte			SSH2_AGENTC_ADD_IDENTITY or
+				SSH2_AGENTC_ADD_ID_CONSTRAINED
+	string			"ssh-rsa-cert-v00@openssh.com"
+	string			certificate
+	mpint			rsa_d
+	mpint			rsa_iqmp
+	mpint			rsa_p
+	mpint			rsa_q
+	string			key_comment
+	constraint[]		key_constraints
+
+Note that the 'rsa_p' and 'rsa_q' parameters are sent in the reverse
+order to the protocol 1 add keys message. As with the corresponding
+protocol 1 "add key" request, the private key is overspecified to avoid
+redundant processing.
+
+For both DSA and RSA key add requests, "key_constraints" may only be
+present if the request type is SSH2_AGENTC_ADD_ID_CONSTRAINED.
+
+The agent will reply with a SSH_AGENT_SUCCESS if the key has been
+successfully added or a SSH_AGENT_FAILURE if an error occurred.
+
+2.2.4 Loading keys from a smartcard
+
+The OpenSSH agent may have optional smartcard support built in to it. If
+so, it supports an operation to load keys from a smartcard. Technically,
+only the public components of the keys are loaded into the agent so
+this operation really arranges for future private key operations to be
+delegated to the smartcard.
+
+	byte			SSH_AGENTC_ADD_SMARTCARD_KEY or
+				SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED
+	string			reader_id
+	string			pin
+	constraint[]		key_constraints
+
+"reader_id" is an identifier to a smartcard reader and "pin"
+is a PIN or passphrase used to unlock the private key(s) on the
+device. "key_constraints" may only be present if the request type is
+SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED.
+
+This operation may load all SSH keys that are unlocked using the
+"pin" on the specified reader. The type of key loaded (protocol 1
+or protocol 2) will be specified by the smartcard itself, it is not
+client-specified.
+
+The agent will reply with a SSH_AGENT_SUCCESS if one or more keys have
+been successfully loaded or a SSH_AGENT_FAILURE if an error occurred.
+The agent will also return SSH_AGENT_FAILURE if it does not support
+smartcards.
+
+2.3 Removing multiple keys
+
+A client may request that an agent delete all protocol 1 keys using the
+following request:
+
+	byte			SSH_AGENTC_REMOVE_ALL_RSA_IDENTITIES
+
+This message requests the deletion of all protocol 2 keys:
+
+	byte			SSH2_AGENTC_REMOVE_ALL_IDENTITIES
+
+On success, the agent will delete all keys of the requested type and
+reply with a SSH_AGENT_SUCCESS message. If an error occurred, the agent
+will reply with SSH_AGENT_FAILURE.
+
+Note that, to delete all keys (both protocol 1 and 2), a client
+must send both a SSH_AGENTC_REMOVE_ALL_RSA_IDENTITIES and a
+SSH2_AGENTC_REMOVE_ALL_IDENTITIES request.
+
+2.4 Removing specific keys
+
+2.4.1 Removing a protocol 1 key
+
+Removal of a protocol 1 key may be requested with the following message:
+
+	byte 			SSH_AGENTC_REMOVE_RSA_IDENTITY
+	uint32			key_bits
+	mpint1			rsa_e
+	mpint1			rsa_n
+
+Note that key_bits is strictly redundant, as it may be inferred by the
+length of rsa_n.
+
+The agent will delete any private key matching the specified public key
+and return SSH_AGENT_SUCCESS. If no such key was found, the agent will
+return SSH_AGENT_FAILURE.
+
+2.4.2 Removing a protocol 2 key
+
+Protocol 2 keys may be removed with the following request:
+
+	byte			SSH2_AGENTC_REMOVE_IDENTITY
+	string			key_blob
+
+Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
+Algorithms" for either of the supported key types: "ssh-dss" or
+"ssh-rsa".
+
+The agent will delete any private key matching the specified public key
+and return SSH_AGENT_SUCCESS. If no such key was found, the agent will
+return SSH_AGENT_FAILURE.
+
+2.4.3 Removing keys loaded from a smartcard
+
+A client may request that a server remove one or more smartcard-hosted
+keys using this message:
+
+	byte			SSH_AGENTC_REMOVE_SMARTCARD_KEY
+	string			reader_id
+	string			pin
+
+"reader_id" the an identifier to a smartcard reader and "pin" is a PIN
+or passphrase used to unlock the private key(s) on the device.
+
+When this message is received, and if the agent supports
+smartcard-hosted keys, it will delete all keys that are hosted on the
+specified smartcard that may be accessed with the given "pin".
+
+The agent will reply with a SSH_AGENT_SUCCESS if one or more keys have
+been successfully removed or a SSH_AGENT_FAILURE if an error occurred.
+The agent will also return SSH_AGENT_FAILURE if it does not support
+smartcards.
+
+2.5 Requesting a list of known keys
+
+An agent may be requested to list which keys it holds. Different
+requests exist for protocol 1 and protocol 2 keys.
+
+2.5.1 Requesting a list of protocol 1 keys
+
+To request a list of protocol 1 keys that are held in the agent, a
+client may send the following message:
+
+	byte			SSH_AGENTC_REQUEST_RSA_IDENTITIES
+
+The agent will reply with the following message:
+
+	byte			SSH_AGENT_RSA_IDENTITIES_ANSWER
+	uint32			num_keys
+
+Followed by zero or more consecutive keys, encoded as:
+
+	uint32			bits
+	mpint1			rsa_e
+	mpint1			rsa_n
+	string			key_comment
+
+2.5.2 Requesting a list of protocol 2 keys
+
+A client may send the following message to request a list of
+protocol 2 keys that are stored in the agent:
+
+	byte			SSH2_AGENTC_REQUEST_IDENTITIES
+
+The agent will reply with the following message header:
+
+	byte			SSH2_AGENT_IDENTITIES_ANSWER
+	uint32			num_keys
+
+Followed by zero or more consecutive keys, encoded as:
+
+	string			key_blob
+	string			key_comment
+
+Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
+Algorithms" for either of the supported key types: "ssh-dss" or
+"ssh-rsa".
+
+2.6 Private key operations
+
+The purpose of the agent is to perform private key operations, such as
+signing and encryption without requiring a passphrase to unlock the
+key and without allowing the private key itself to be exposed. There
+are separate requests for the protocol 1 and protocol 2 private key
+operations.
+
+2.6.1 Protocol 1 private key challenge
+
+The private key operation used in version 1 of the SSH protocol is
+decrypting a challenge that has been encrypted with a public key.
+It may be requested using this message:
+
+	byte			SSH_AGENTC_RSA_CHALLENGE
+	uint32			ignored
+	mpint1			rsa_e
+	mpint1			rsa_n
+	mpint1			encrypted_challenge
+	byte[16]		session_id
+	uint32			response_type /* must be 1 */
+
+"rsa_e" and "rsa_n" are used to identify which private key to use.
+"encrypted_challenge" is a challenge blob that has (presumably)
+been encrypted with the public key and must be in the range 
+1 <= encrypted_challenge < 2^256. "session_id" is the SSH protocol 1
+session ID (computed from the server host key, the server semi-ephemeral
+key and the session cookie).
+
+"ignored" and "response_type" exist for compatibility with legacy
+implementations. "response_type" must be equal to 1; other response
+types are not supported.
+
+On receiving this request, the server decrypts the "encrypted_challenge"
+using the private key matching the supplied (rsa_e, rsa_n) values. For
+the response derivation, the decrypted challenge is represented as an
+unsigned, big-endian integer encoded in a 32 byte buffer (i.e. values
+smaller than 2^248 will have leading 0 bytes).
+
+The response value is then calculated as:
+
+	response = MD5(decrypted_challenge || session_id)
+
+and returned in the following message
+
+	byte			SSH_AGENT_RSA_RESPONSE
+	byte[16]		response
+
+If the agent cannot find the key specified by the supplied (rsa_e,
+rsa_n) then it will return SSH_AGENT_FAILURE.
+
+2.6.2 Protocol 2 private key signature request
+
+A client may use the following message to request signing of data using
+a protocol 2 key:
+
+	byte			SSH2_AGENTC_SIGN_REQUEST
+	string			key_blob
+	string			data
+	uint32			flags
+
+Where "key_blob" is encoded as per RFC 4253 section 6.6 "Public Key
+Algorithms" for either of the supported key types: "ssh-dss" or
+"ssh-rsa". "flags" is a bit-mask, but at present only one possible value
+is defined (see below for its meaning):
+
+	SSH_AGENT_OLD_SIGNATURE		1
+
+Upon receiving this request, the agent will look up the private key that
+corresponds to the public key contained in key_blob. It will use this
+private key to sign the "data" and produce a signature blob using the
+key type-specific method described in RFC 4253 section 6.6 "Public Key
+Algorithms".
+
+An exception to this is for "ssh-dss" keys where the "flags" word
+contains the value SSH_AGENT_OLD_SIGNATURE. In this case, a legacy
+signature encoding is used in lieu of the standard one. In this case,
+the DSA signature blob is encoded as:
+
+	byte[40]		signature
+
+The signature will be returned in the response message:
+
+	byte			SSH2_AGENT_SIGN_RESPONSE
+	string			signature_blob
+
+If the agent cannot find the key specified by the supplied key_blob then
+it will return SSH_AGENT_FAILURE.
+
+2.7 Locking or unlocking an agent
+
+The agent supports temporary locking with a passphrase to suspend
+processing of sensitive operations until it has been unlocked with the
+same passphrase. To lock an agent, a client send the following request:
+
+	byte			SSH_AGENTC_LOCK
+	string			passphrase
+
+Upon receipt of this message and if the agent is not already locked,
+it will suspend processing requests and return a SSH_AGENT_SUCCESS
+reply. If the agent is already locked, it will return SSH_AGENT_FAILURE.
+
+While locked, the agent will refuse all requests except
+SSH_AGENTC_UNLOCK, SSH_AGENTC_REQUEST_RSA_IDENTITIES and
+SSH2_AGENTC_REQUEST_IDENTITIES. The "request identities" requests are
+treated specially by a locked agent: it will always return an empty list
+of keys.
+
+To unlock an agent, a client may request:
+
+	byte			SSH_AGENTC_UNLOCK
+	string			passphrase
+
+If the passphrase matches and the agent is locked, then it will resume
+processing all requests and return SSH_AGENT_SUCCESS. If the agent
+is not locked or the passphrase does not match then it will return
+SSH_AGENT_FAILURE.
+
+Locking and unlocking affects both protocol 1 and protocol 2 keys.
+
+3. Protocol message numbers
+
+3.1 Requests from client to agent for protocol 1 key operations
+
+	SSH_AGENTC_REQUEST_RSA_IDENTITIES		1
+	SSH_AGENTC_RSA_CHALLENGE			3
+	SSH_AGENTC_ADD_RSA_IDENTITY			7
+	SSH_AGENTC_REMOVE_RSA_IDENTITY			8
+	SSH_AGENTC_REMOVE_ALL_RSA_IDENTITIES		9
+	SSH_AGENTC_ADD_RSA_ID_CONSTRAINED		24
+
+3.2 Requests from client to agent for protocol 2 key operations
+
+	SSH2_AGENTC_REQUEST_IDENTITIES			11
+	SSH2_AGENTC_SIGN_REQUEST			13
+	SSH2_AGENTC_ADD_IDENTITY			17
+	SSH2_AGENTC_REMOVE_IDENTITY			18
+	SSH2_AGENTC_REMOVE_ALL_IDENTITIES		19
+	SSH2_AGENTC_ADD_ID_CONSTRAINED			25
+
+3.3 Key-type independent requests from client to agent
+
+	SSH_AGENTC_ADD_SMARTCARD_KEY			20
+	SSH_AGENTC_REMOVE_SMARTCARD_KEY			21
+	SSH_AGENTC_LOCK					22
+	SSH_AGENTC_UNLOCK				23
+	SSH_AGENTC_ADD_SMARTCARD_KEY_CONSTRAINED	26
+
+3.4 Generic replies from agent to client
+
+	SSH_AGENT_FAILURE				5
+	SSH_AGENT_SUCCESS				6
+
+3.5 Replies from agent to client for protocol 1 key operations
+
+	SSH_AGENT_RSA_IDENTITIES_ANSWER			2
+	SSH_AGENT_RSA_RESPONSE				4
+
+3.6 Replies from agent to client for protocol 2 key operations
+
+	SSH2_AGENT_IDENTITIES_ANSWER			12
+	SSH2_AGENT_SIGN_RESPONSE			14
+
+3.7 Key constraint identifiers
+
+	SSH_AGENT_CONSTRAIN_LIFETIME			1
+	SSH_AGENT_CONSTRAIN_CONFIRM			2
+
+$OpenBSD: PROTOCOL.agent,v 1.5 2010/02/26 20:29:54 djm Exp $

@@ -1,0 +1,61 @@
+.\" This is the man page for CVS.  It is auto-generated from the
+.\" cvs.man.header, cvs.texinfo, & cvs.man.footer files.  Please make changes
+.\" there.  A full copyright & license notice may also be found in cvs.texinfo.
+.\"
+.\" Man page autogeneration, including this header file, is
+.\" Copyright 2004-2005 The Free Software Foundation, Inc.,
+.\"                     Derek R. Price, & Ximbiot <http://ximbiot.com>.
+.\"
+.\" This documentation is free software; you can redistribute it and/or modify
+.\" it under the terms of the GNU General Public License as published by
+.\" the Free Software Foundation; either version 2, or (at your option)
+.\" any later version.
+.\"
+.\" This documentation is distributed in the hope that it will be useful,
+.\" but WITHOUT ANY WARRANTY; without even the implied warranty of
+.\" MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+.\" GNU General Public License for more details.
+.\"
+.\" You should have received a copy of the GNU General Public License
+.\" along with this documentation; if not, write to the Free Software
+.\" Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+.de Id
+.ds Rv \\$3
+.ds Dt \\$4
+..
+.TH CVS 1 "\*(Dt"
+.\" Full space in nroff; half space in troff
+.de SP
+.if n .sp
+.if t .sp .5
+..
+.\" quoted command
+.de `
+.RB ` "\|\\$1\|" '\\$2
+..
+.SH "NAME"
+cvs \- Concurrent Versions System
+.SH "SYNOPSIS"
+.TP
+\fBcvs\fP [ \fIcvs_options\fP ]
+.I cvs_command
+[
+.I command_options
+] [
+.I command_args
+]
+.SH "NOTE"
+.IX "revision control system" "\fLcvs\fR"
+.IX  cvs  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  "concurrent versions system \- \fLcvs\fP"
+.IX  "release control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  "source control system"  "cvs command"  ""  "\fLcvs\fP \- concurrent versions system"
+.IX  revisions  "cvs command"  ""  "\fLcvs\fP \- source control"
+This manpage is a summary of some of the features of
+\fBcvs\fP.  It is auto-generated from an appendix of the CVS manual.
+For more in-depth documentation, please consult the
+Cederqvist manual (via the
+.B info CVS
+command or otherwise,
+as described in the SEE ALSO section of this manpage).  Cross-references
+in this man page refer to nodes in the same.

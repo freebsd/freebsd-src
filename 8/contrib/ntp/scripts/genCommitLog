@@ -1,0 +1,7 @@
+#! /bin/sh
+
+set -e
+
+. packageinfo.sh
+bk -R prs -hr${CLTAG}.. -nd':I:' | bk changes -m -v - > CommitLog.new
+mv CommitLog.new CommitLog

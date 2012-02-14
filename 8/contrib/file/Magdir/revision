@@ -1,0 +1,19 @@
+
+#------------------------------------------------------------------------------
+# file(1) magic for revision control files
+# From Hendrik Scholz <hendrik@scholz.net>
+0	string	/1\ :pserver:	cvs password text file
+
+# Conary changesets
+# From: Jonathan Smith <smithj@rpath.com>
+0	belong	0xea3f81bb	Conary changeset data
+
+# Type: Git bundles (git-bundle)
+# From: Josh Triplett <josh@freedesktop.org>
+0	string	#\ v2\ git\ bundle\n	Git bundle
+
+# Type:	Mercurial bundles
+# From:	Seo Sanghyeon <tinuviel@sparcs.kaist.ac.kr>
+0	string	HG10		Mercurial bundle,
+>4	string	UN		uncompressed
+>4	string	BZ		bzip2 compressed

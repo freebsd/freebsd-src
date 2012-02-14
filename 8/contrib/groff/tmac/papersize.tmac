@@ -1,0 +1,158 @@
+.\" papersize.tmac
+.\"
+.\" Set up groff for various paper sizes.
+.\"
+.\" Usage:
+.\"
+.\"   groff ... -dpaper=<format> ...
+.\"
+.\" Possible values for `format' are the same as the predefined `papersize'
+.\" values (see the groff_font man page) except a7-d7.  An appended `l'
+.\" (ell) character denotes landscape orientation.  Examples: `a4', `c3l',
+.\" `letterl'.
+.\"
+.\" Most output drivers need additional command line switches `-p' and
+.\" `-l' to override the default paper length and orientation as set in
+.\" the driver specific DESC file.
+.\"
+.\" For example, use the following for PS output on A4 paper in landscape
+.\" orientation::
+.\"
+.\"   groff -Tps -dpaper=a4l -P-pa4 -P-l -ms foo.ms > foo.ps
+.
+.nr _C \n(.C
+.cp 0
+.
+.if d paper \{\
+.  ds paper-a0-length 118.9c
+.  ds paper-a0-width 84.1c
+.  ds paper-a1-length 84.1c
+.  ds paper-a1-width 59.4c
+.  ds paper-a2-length 59.4c
+.  ds paper-a2-width 42c
+.  ds paper-a3-length 42c
+.  ds paper-a3-width 29.7c
+.  ds paper-a4-length 29.7c
+.  ds paper-a4-width 21c
+.  ds paper-a5-length 21c
+.  ds paper-a5-width 14.8c
+.  ds paper-a6-length 14.8c
+.  ds paper-a6-width 10.5c
+.
+.  ds paper-b0-length 141.4c
+.  ds paper-b0-width 100c
+.  ds paper-b1-length 100c
+.  ds paper-b1-width 70.7c
+.  ds paper-b2-length 70.7c
+.  ds paper-b2-width 50c
+.  ds paper-b3-length 50c
+.  ds paper-b3-width 35.3c
+.  ds paper-b4-length 35.3c
+.  ds paper-b4-width 25c
+.  ds paper-b5-length 25c
+.  ds paper-b5-width 17.6c
+.  ds paper-b6-length 17.6c
+.  ds paper-b6-width 12.5c
+.
+.  ds paper-c0-length 129.7c
+.  ds paper-c0-width 91.7c
+.  ds paper-c1-length 91.7c
+.  ds paper-c1-width 64.8c
+.  ds paper-c2-length 64.8c
+.  ds paper-c2-width 45.8c
+.  ds paper-c3-length 45.8c
+.  ds paper-c3-width 32.4c
+.  ds paper-c4-length 32.4c
+.  ds paper-c4-width 22.9c
+.  ds paper-c5-length 22.9c
+.  ds paper-c5-width 16.2c
+.  ds paper-c6-length 16.2c
+.  ds paper-c6-width 11.4c
+.
+.  ds paper-d0-length 109.0c
+.  ds paper-d0-width 77.1c
+.  ds paper-d1-length 77.1c
+.  ds paper-d1-width 54.5c
+.  ds paper-d2-length 54.5c
+.  ds paper-d2-width 38.5c
+.  ds paper-d3-length 38.5c
+.  ds paper-d3-width 27.2c
+.  ds paper-d4-length 27.2c
+.  ds paper-d4-width 19.2c
+.  ds paper-d5-length 19.2c
+.  ds paper-d5-width 13.6c
+.  ds paper-d6-length 13.6c
+.  ds paper-d6-width 9.6c
+.
+.  ds paper-letter-length 11i
+.  ds paper-letter-width 8.5i
+.  ds paper-legal-length 14i
+.  ds paper-legal-width 8.5i
+.  ds paper-tabloid-length 17i
+.  ds paper-tabloid-width 11i
+.  ds paper-ledger-length 11i
+.  ds paper-ledger-width 17i
+.  ds paper-statement-length 8.5i
+.  ds paper-statement-width 5.5i
+.  ds paper-executive-length 10i
+.  ds paper-executive-width 7.5i
+.
+.  ds paper-com10-length 9.5i
+.  ds paper-com10-width 4.125i
+.  ds paper-monarch-length 7.5i
+.  ds paper-monarch-width 3.875i
+.  ds paper-dl-length 22c
+.  ds paper-dl-width 11c
+.
+.  \" We assume that letters a-z and A-Z aren't mapped during start-up.
+.  tr AaBbCcDdEeFfGgHhIiJjKkLlMmNnOoPpQqRrSsTtUuVvWwXxYyZz
+.  di lowercase
+.    nop \*[paper]
+.    br
+.  di
+.  asciify lowercase
+.  chop lowercase
+.  tr AABBCCDDEEFFGGHHIIJJKKLLMMNNOOPPQQRRSSTTUUVVWWXXYYZZ
+.  ds paper \*[lowercase]
+.  rm lowercase
+.
+.  ds paper-p \*[paper]
+.  ds paper-l \*[paper]
+.  length paper-n \*[paper]
+.  if (\n[paper-n] > 1) \{\
+.    substring paper-p 0 -2
+.    substring paper-l -1 -1
+.    if !d paper-\*[paper-p]-length \{\
+.      ds paper-p \*[paper]
+.      ds paper-l
+.    \}
+.  \}
+.
+.  nr paper-w 0
+.
+.  ie d paper-\*[paper-p]-length \{\
+.    ie '\*[paper-l]'l' \{\
+.      pl \*[paper-\*[paper-p]-width]
+.      ll (\*[paper-\*[paper-p]-length] - 2i)
+.    \}
+.    el \{\
+.      ie '\*[paper-l]'' \{\
+.        pl \*[paper-\*[paper-p]-length]
+.        ll (\*[paper-\*[paper-p]-width] - 2i)
+.      \}
+.      el \
+.        nr paper-w 1
+.    \}
+.  \}
+.  el \
+.    nr paper-w 1
+.
+.  ie \n[paper-w] \
+.    tm warning: Unknown paper size `\*[paper]'
+.  el \
+.    if !r LL .nr LL \n[.l]u  \" for ms, mdoc, man
+.\}
+.
+.cp \n[_C]
+.
+.\" EOF

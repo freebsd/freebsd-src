@@ -1,0 +1,32 @@
+Replied: Sun, 19 Dec 93 09:58:30 PST
+Replied: "Darren Reed <avalon@coombs.anu.edu.au> "
+Return-Path: avalon@coombs.anu.edu.au
+Received: by gw.home.vix.com id AA12017; Sun, 19 Dec 93 07:04:44 -0800
+Message-Id: <9312191504.AA12017@gw.home.vix.com>
+Received: by coombs.anu.edu.au
+	(1.37.109.8/16.2) id AA10850; Mon, 20 Dec 1993 02:07:21 +1100
+From: Darren Reed <avalon@coombs.anu.edu.au>
+Subject: Addition for 4.9 "contrib" directory
+To: paul@vix.com
+Date: Mon, 20 Dec 1993 02:07:20 +1000 (EDT)
+X-Mailer: ELM [version 2.4 PL21]
+Mime-Version: 1.0
+Content-Type: text/plain; charset=US-ASCII
+Content-Transfer-Encoding: 7bit
+Content-Length: 67950     
+
+
+Well, I just sent one letter off to dec.com, being from the 4.9 README I had.
+
+So, to sum up what I said, I've included below, some code I've written to
+perform async. DNS lookups - `replacements' for gethostbyname and
+gethostbyaddr.  I've written and tested it mainly on a HP-UX machine, so
+I'm not sure how it will port to others, but I've tried to keep the amount
+of OS specific code to a minimum.
+
+The Makefile is setup to work best from "contrib/arlib", which is how I
+checked to make sure it worked and ran well.  There's a man page included
+also.
+
+Cheers,
+Darren

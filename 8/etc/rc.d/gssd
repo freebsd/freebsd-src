@@ -1,0 +1,18 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: gssd
+# REQUIRE: root
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="gssd"
+
+load_rc_config $name
+rcvar="gssd_enable"
+command="${gssd:-/usr/sbin/${name}}"
+eval ${name}_flags=\"${gssd_flags}\"
+run_rc_command "$1"

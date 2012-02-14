@@ -1,0 +1,10 @@
+
+#------------------------------------------------------------------------------
+# kde:  file(1) magic for KDE
+
+0		string	[KDE\ Desktop\ Entry]	KDE desktop entry
+!:mime	application/x-kdelnk
+0		string	#\ KDE\ Config\ File	KDE config file
+!:mime	application/x-kdelnk
+0		string	#\ xmcd	xmcd database file for kscd
+!:mime	text/x-xmcd

@@ -1,0 +1,201 @@
+.ig
+ditroff.man
+
+Last update: 2 Jul 2004
+
+This file is part of groff, the GNU roff type-setting system.
+
+Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+written by Bernd Warken <bwarken@mayn.de>
+maintained by Werner Lemberg <wl@gnu.org>
+
+Permission is granted to copy, distribute and/or modify this document
+under the terms of the GNU Free Documentation License, Version 1.1 or
+any later version published by the Free Software Foundation; with the
+Invariant Sections being this .ig-section and AUTHORS, with no
+Front-Cover Texts, and with no Back-Cover Texts.
+
+A copy of the Free Documentation License is included as a file called
+FDL in the main directory of the groff source package.
+..
+.
+.\" --------------------------------------------------------------------
+.\" Setup
+.\" --------------------------------------------------------------------
+.
+.mso www.tmac
+.
+.if n \{\
+.  mso tty-char.tmac
+.  ftr CR R
+.  ftr CI I
+.  ftr CB B
+.\}
+.
+.if '\*[.T]'dvi' \
+.  ftr CB CW
+.
+.
+.\" --------------------------------------------------------------------
+.\" Title
+.\" --------------------------------------------------------------------
+.
+.TH DITROFF @MAN7EXT@ "@MDATE@" "Groff Version @VERSION@"
+.SH NAME
+ditroff \- classical device independent roff
+.
+.
+.\" --------------------------------------------------------------------
+.SH DESCRIPTION
+.\" --------------------------------------------------------------------
+.
+The name
+.I ditroff
+once marked a development level of the
+.I troff
+text processing system.
+.
+In actual
+.BR roff (@MAN7EXT@)
+systems, the name
+.I troff
+is used as a synonym for
+.IR ditroff .
+.
+.P
+The first roff system was written by Joe Osanna around 1973.
+.
+It supported only two output devices, the
+.B nroff
+program produced text oriented tty output, while the
+.B troff
+program generated graphical output for exactly one output device, the Wang
+.I Graphic Systems CAT
+typesetter.
+.
+.P
+In 1979, Brian Kernighan rewrote troff to support more devices by
+creating an intermediate output format for troff that can be fed into
+postprocessor programs which actually do the printout on the device.
+.
+Kernighan's version marks what is known as 
+.I classical troff
+today.
+.
+In order to distinguish it from Osanna's original mono-device version,
+it was called
+.I ditroff
+(\c
+.IR d\/ evice\~ i\/ ndependent\~ troff\/\c
+)
+on some systems, though this naming isn't mentioned in the classical
+documentation.
+.
+.P
+Today, any existing roff system is based on Kernighan's multi-device
+troff.
+.
+The distinction between
+.I troff
+and 
+.I ditroff
+isn't necessary any longer, for each modern
+.I troff
+provides already the complete functionality of
+.IR ditroff .
+.
+On most systems, the name
+.I troff
+is used to denote
+.IR ditroff .
+.
+.P
+The easiest way to use ditroff is the GNU roff system,
+.IR groff .
+The
+.BR groff (@MAN1EXT@)
+program is a wrapper around
+.I (di)troff
+that automatically handles postprocessing.
+.
+.
+.\" --------------------------------------------------------------------
+.SH "SEE ALSO"
+.\" --------------------------------------------------------------------
+.
+.TP
+.I [CSTR\~#54]
+The 1992 revision of the
+.I Nroff/Troff User's Manual
+by
+.I J. F. Osanna
+and
+.IR "Brian Kernighan" ,
+see
+.br
+.URL http://\:cm.bell-labs.com/\:cm/\:cs/\:cstr/\:54.ps.gz \
+     "Bell Labs CSTR\~#54" .
+.
+.TP
+.I [CSTR\~#97]
+.I A Typesetter-independent TROFF
+by
+.I Brian Kernighan
+is the original documentation of the first multi-device troff
+.RI ( ditroff\/ ),
+see
+.br
+.URL http://\:cm.bell-labs.com/\:cm/\:cs/\:cstr/\:97.ps.gz \
+     "Bell Labs CSTR\~#97" .
+.
+.TP
+.BR roff (@MAN7EXT@)
+This document gives details on the history and concepts of roff.
+.
+.TP
+.BR @g@troff (@MAN1EXT@)
+The actual implementation of
+.IR ditroff .
+.
+.TP
+.BR groff (@MAN1EXT@)
+The GNU roff program and pointers to all documentation around groff.
+.
+.TP
+.BR groff_out (@MAN5EXT@)
+The groff version of the intermediate output language, the basis for
+multi-devicing.
+.
+.
+.\" --------------------------------------------------------------------
+.SH "AUTHORS"
+.\" --------------------------------------------------------------------
+.
+Copyright (C) 2001, 2002, 2004 Free Software Foundation, Inc.
+.
+.P
+This document is distributed under the terms of the FDL (GNU Free
+Documentation License) version 1.1 or later.
+.
+You should have received a copy of the FDL on your system, it is also
+available on-line at the
+.URL http://\:www.gnu.org/\:copyleft/\:fdl.html "GNU copyleft site" .
+.
+.P
+This document is part of
+.IR groff ,
+the GNU roff distribution.
+.
+It was written by
+.MTO bwarken@mayn.de "Bernd Warken"
+and is maintained by
+.MTO wl@gnu.org "Werner Lemberg" .
+.
+.
+.\" --------------------------------------------------------------------
+.\" Emacs settings
+.\" --------------------------------------------------------------------
+.\"
+.\" Local Variables:
+.\" mode: nroff
+.\" End:

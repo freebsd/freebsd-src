@@ -1,0 +1,9 @@
+- Added two variables to call to dialog_menu() to save the position 
+  in the menu when choosing a menu-option.
+
+- Added dialog_fselect(), implements a fileselector dialog
+- Added ui-interface objects: Stringobject, Listobject and Buttonobject.
+  The fileselector dialog was built using these objects.
+- changed dialog_menu to use PGUP and PGDN
+- Added dialog_mesgbox, which display text given in a char buffer.
+- 

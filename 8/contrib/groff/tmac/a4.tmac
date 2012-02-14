@@ -1,0 +1,20 @@
+.\" a4.tmac
+.\"
+.\" Set up groff for A4 paper.  Must be called before any other macro
+.\" package.
+.\"
+.\" Some output drivers need an additional command line switch `-p' to
+.\" override the default paper length set in the driver specific DESC
+.\" file.
+.\"
+.\" For example, use the following for PS output:
+.\"
+.\"   groff -Tps -P-pa4 -ma4 -ms foo.ms > foo.ps
+.
+.pl 29.7c
+.ll 21c-2i
+.
+.\" for ms, mdoc, man
+.do if !r LL .nr LL \n[.l]u
+.
+.\" EOF

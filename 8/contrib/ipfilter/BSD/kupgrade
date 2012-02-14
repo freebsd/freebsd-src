@@ -1,0 +1,264 @@
+#!/bin/sh
+#
+PATH=/sbin:/usr/sbin:/bin:/usr/bin; export PATH
+argv0=`basename $0`
+ 
+os=`uname -s`
+rev=`uname -r`
+maj=`expr $rev : '\([0-9]*\)\.'`
+min=`expr $rev : '[0-9]*\.\([0-9]*\)'`
+sub=`expr $rev : '[0-9]*\.[0-9]*\.\([0-9]*\)'`
+
+# try to bomb out fast if anything fails....
+set -e
+
+fullrev=`printf '%02d%02d%02d' $maj $min $sub`
+dir=`pwd`
+karch=`uname -m`
+archdir="/sys/arch/$karch"
+ipfdir=/sys/netinet
+if [ -d /sys/contrib/ipfilter ] ; then
+	ipfdir=/sys/contrib/ipfilter/netinet
+fi
+if [ -d /sys/dist/ipf ] ; then
+	ipfdir=/sys/dist/ipf/netinet
+fi
+confdir="$archdir/conf"
+if [ -f /dev/ipnat ] ; then
+	major=`ls -l /dev/ipnat | sed -e 's/.* \([0-9]*\),.*/\1/'`
+	echo "Major number for IP Filter is $major"
+else
+	major=x
+fi
+ 
+if [ ! -f ip_rules.c -o ! -f ip_rules.h ] ; then
+	echo "Trying to build ip_rules.c and ip_rules.h"
+	make ip_rules.c
+	if [ ! -f ip_rules.c -o ! -f ip_rules.h ] ; then
+		echo "Please do a build of ipfilter and then run the following"
+		echo "command to build extra files:"
+		echo
+		echo "make ip_rules.c"
+		exit 1
+	fi
+fi
+
+echo -n "Installing "
+for j in auth frag nat proxy scan state sync pool htable lookup rules; do
+	for i in ip_$j.[ch]; do
+		if [ -f "$i" ] ; then
+			echo -n " $i"
+			cp $i $ipfdir
+			chmod 644 $ipfdir/$i
+		fi
+	done
+done
+
+case $os in
+SunOS)
+	case `uname -r` in
+	5.*)
+		filc=ip_fil_solaris.c
+		;;
+	4.*)
+		filc=ip_fil_sunos.c
+		;;
+	esac
+	;;
+*BSD)
+	filc=ip_fil_`echo $os | tr A-Z a-z`.c
+	case $os in
+	FreeBSD)
+		cp mlfk_ipl.c $ipfdir/
+		;;
+	*)
+		;;
+	esac
+	;;
+esac
+
+if [ -f $ipfdir/$filc ] ; then
+	echo -n "$filc -> $ipfdir/$filc "
+	cp $filc $ipfdir/$filc
+	chmod 644 $ipfdir/$filc
+fi
+if [ -f $ipfdir/ip_fil.c ] ; then
+	echo -n "$filc -> $ipfdir/ip_fil.c "
+	cp $filc $ipfdir/ip_fil.c
+	chmod 644 $ipfdir/ip_fil.c
+fi
+
+for i in ip_fil.h fil.c ip_log.c ip_compat.h ipl.h ip_*_pxy.c; do
+	echo -n " $i"
+	cp $i $ipfdir
+	chmod 644 $ipfdir/$i
+done
+echo ""
+echo -n "Installing into /usr/include/netinet"
+for j in auth compat fil frag nat proxy scan state sync pool htable lookup; do
+	i=ip_$j.h
+	if [ -f "$i" ] ; then
+		echo -n " $i"
+		cp $i /usr/include/netinet/$i
+		chmod 644 /usr/include/netinet/$i
+	fi
+done
+for j in ipl.h; do
+	if [ -f "$j" ] ; then
+		echo -n " $j"
+		cp $j /usr/include/netinet/$j
+		chmod 644 /usr/include/netinet/$j
+	fi
+done
+echo
+
+if [ -f /sys/netinet/ip_fil_compat.h ] ; then
+	echo "Linking /sys/netinet/ip_compat.h to /sys/netinet/ip_fil_compat.h"
+	rm /sys/netinet/ip_fil_compat.h
+	ln -s /sys/netinet/ip_compat.h /sys/netinet/ip_fil_compat.h
+fi
+
+if [ $major != x ] ; then
+	if [ ! -e /dev/ipsync ] ; then
+		echo "Creating /dev/ipsync"
+		mknod /dev/ipsync c $major 4
+	fi
+
+	if [ ! -e /dev/ipsync ] ; then
+		echo "Creating /dev/ipscan"
+		mknod /dev/ipsync c $major 5
+	fi
+
+	if [ ! -e /dev/iplookup ] ; then
+		echo "Creating /dev/iplookup"
+		mknod /dev/iplookup c $major 6
+	fi
+fi
+
+set +e
+os=`uname -s`
+if [ $os = FreeBSD -a -f /sys/conf/files ] ; then
+	cd /sys/conf
+	if [ -f options ] ; then
+		if [ ! -f options.preipf4 ] ; then
+			mv options options.preipf4
+			cp -p options.preipf4 options
+		fi
+		for i in SCAN SYNC LOOKUP COMPILED; do
+			grep IPFILTER_$i options >/dev/null 2>&1
+			if [ $? -ne 0 ] ; then
+				echo >> options
+				echo "# extra option for IP Filter" >> options
+				echo "IPFILTER_$i	opt_ipfilter.h" >> options
+			fi
+		done
+	fi
+	if [ ! -f files.preipf4 ] ; then
+		mv files files.preipf4
+		cp -p files.preipf4 files
+	fi
+	for i in htable pool lookup; do
+		grep ip_$i.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo "contrib/ipfilter/netinet/ip_$i.c	optional ipfilter inet ipfilter_lookup" >> files
+		fi
+	done
+	grep ip_sync.c files >/dev/null 2>&1
+	if [ $? -ne 0 ] ; then
+		echo 'contrib/ipfilter/netinet/ip_sync.c	optional ipfilter inet ipfilter_sync' >> files
+	fi
+	grep ip_scan.c files >/dev/null 2>&1
+	if [ $? -ne 0 ] ; then
+		echo 'contrib/ipfilter/netinet/ip_scan.c	optional ipfilter inet ipfilter_scan' >> files
+	fi
+	grep ip_rules.c files >/dev/null 2>&1
+	if [ $? -ne 0 ] ; then
+		echo 'contrib/ipfilter/netinet/ip_rules.c	optional ipfilter inet ipfilter_compiled' >> files
+	fi
+fi
+if [ $os = NetBSD -a -f /sys/conf/files ] ; then
+	cd /sys/conf
+	if [ ! -f files.preipf4 ] ; then
+		mv files files.preipf4
+		cp -p files.preipf4 files
+	fi
+	if [ $fullrev -ge 010600 -a $fullrev -lt 020000 ] ; then
+		for i in htable pool lookup; do
+			grep ip_$i.c files >/dev/null 2>&1
+			if [ $? -ne 0 ] ; then
+				echo "file	netinet/ip_$i.c	ipfilter & ipfilter_lookup" >> files
+			fi
+		done
+		grep ip_sync.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_sync.c	ipfilter & ipfilter_sync' >> files
+		fi
+		grep ip_scan.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_scan.c	ipfilter & ipfilter_scan' >> files
+		fi
+		grep ip_rules.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_rules.c	ipfilter & ipfilter_compiled' >> files
+		fi
+	fi
+fi
+if [ $os = OpenBSD -a -f /sys/conf/files ] ; then
+	cd /sys/conf
+	if [ ! -f files.preipf4 ] ; then
+		mv files files.preipf4
+		cp -p files.preipf4 files
+	fi
+	if [ $fullrev -ge 030400 ] ; then
+		for i in htable pool lookup; do
+			grep ip_$i.c files >/dev/null 2>&1
+			if [ $? -ne 0 ] ; then
+				echo "file	netinet/ip_$i.c	ipfilter & ipfilter_lookup" >> files
+			fi
+		done
+		grep ip_sync.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_sync.c	ipfilter & ipfilter_sync' >> files
+		fi
+		grep ip_scan.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_scan.c	ipfilter & ipfilter_scan' >> files
+		fi
+		grep ip_rules.c files >/dev/null 2>&1
+		if [ $? -ne 0 ] ; then
+			echo 'file	netinet/ip_rules.c	ipfilter & ipfilter_compiled' >> files
+		fi
+	fi
+fi
+
+if [ -f /usr/src/sys/modules/ipfilter/Makefile -a \
+   ! -f /usr/src/sys/modules/ipfilter/Makefile.orig ] ; then
+cat | (cd /usr/src/sys/modules/ipfilter; patch) <<__EOF__
+*** Makefile.orig	Mon Mar 28 09:10:11 2005
+--- Makefile	Mon Mar 28 09:12:51 2005
+***************
+*** 5,13 ****
+  KMOD=	ipl
+  SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \\
+! 	ip_log.c ip_fil.c fil.c
+  
+  .if !defined(NOINET6)
+  CFLAGS+= -DUSE_INET6
+  .endif
+  CFLAGS+=  -I$${.CURDIR}/../../contrib/ipfilter
+! CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG -DPFIL_HOOKS
+--- 5,15 ----
+  KMOD=	ipl
+  SRCS=	mlfk_ipl.c ip_nat.c ip_frag.c ip_state.c ip_proxy.c ip_auth.c \\
+! 	ip_log.c ip_fil.c fil.c ip_lookup.c ip_pool.c ip_htable.c \\
+! 	ip_sync.c ip_scan.c ip_rules.c
+  
+  .if !defined(NOINET6)
+  CFLAGS+= -DUSE_INET6
+  .endif
+  CFLAGS+=  -I$${.CURDIR}/../../contrib/ipfilter
+! CFLAGS+= -DIPFILTER=1 -DIPFILTER_LKM -DIPFILTER_LOG -DPFIL_HOOKS \\
+! 	-DIPFILTER_LOOKUP -DIPFILTER_COMPILED
+__EOF__
+fi
+exit 0
