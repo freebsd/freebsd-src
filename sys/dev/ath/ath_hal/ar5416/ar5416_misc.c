@@ -805,11 +805,10 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	else if (pe->pe_enabled == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_ENA);
 
-	/* XXX is this around the correct way?! */
 	if (pe->pe_usefir128 == 1)
-		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
-	else if (pe->pe_usefir128 == 0)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
+	else if (pe->pe_usefir128 == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
 
 	if (pe->pe_enmaxrssi == 1)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
