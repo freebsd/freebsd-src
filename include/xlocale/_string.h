@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011 Ed Schouten <ed@FreeBSD.org>
+ * Copyright (c) 2011, 2012 The FreeBSD Foundation
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -22,63 +22,40 @@
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
+ *
+ * $FreeBSD$
  */
 
-#include <sys/cdefs.h>
-__FBSDID("$FreeBSD$");
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
+#endif
 
-#include <sys/time.h>
-#include <errno.h>
-#include <ctype.h>
-#include <stdio.h>
-#include <string.h>
-#include <utmpx.h>
+/*
+ * This file is included from both string.h and xlocale.h.  We need to expose
+ * the declarations unconditionally if we are included from xlocale.h, but only
+ * if we are in POSIX2008 mode if included from string.h.
+ */
 
-static int
-b16_pton(const char *in, char *out, size_t len)
-{
-	size_t i;
+#ifndef _XLOCALE_STRING1_H
+#define _XLOCALE_STRING1_H
 
-	for (i = 0; i < len * 2; i++)
-		if (!isxdigit((unsigned char)in[i]))
-			return (1);
-	for (i = 0; i < len; i++)
-		sscanf(&in[i * 2], "%02hhx", &out[i]);
-	return (0);
-}
+/*
+ * POSIX2008 functions
+ */
+int	 strcoll_l(const char *, const char *, locale_t);
+size_t	 strxfrm_l(char *, const char *, size_t, locale_t);
+#endif /* _XLOCALE_STRING1_H */
 
-int
-main(int argc, char *argv[])
-{
-	struct utmpx utx = { .ut_type = DEAD_PROCESS };
-	size_t len;
-	int i, ret = 0;
+/*
+ * xlocale extensions
+ */
+#ifdef _XLOCALE_H_
+#ifndef _XLOCALE_STRING2_H
+#define _XLOCALE_STRING2_H
+int	 strcasecmp_l(const char *, const char *, locale_t);
+char	*strcasestr_l(const char *, const char *, locale_t);
+int	 strncasecmp_l(const char *, const char *, size_t, locale_t);
 
-	if (argc < 2) {
-		fprintf(stderr, "usage: utxrm identifier ...\n");
-		return (1);
-	}
-
-	gettimeofday(&utx.ut_tv, NULL);
-	for (i = 1; i < argc; i++) {
-		len = strlen(argv[i]);
-		if (len <= sizeof(utx.ut_id)) {
-			/* Identifier as string. */
-			strncpy(utx.ut_id, argv[i], sizeof(utx.ut_id));
-		} else if (len != sizeof(utx.ut_id) * 2 ||
-		    b16_pton(argv[i], utx.ut_id, sizeof(utx.ut_id)) != 0) {
-			/* Also not hexadecimal. */
-			fprintf(stderr, "%s: Invalid identifier format\n",
-			    argv[i]);
-			ret = 1;
-			continue;
-		}
-
-		/* Zap the entry. */
-		if (pututxline(&utx) == NULL) {
-			perror(argv[i]);
-			ret = 1;
-		}
-	}
-	return (ret);
-}
+#endif /* _XLOCALE_STRING2_H */
+#endif /* _XLOCALE_H_ */

@@ -1,6 +1,7 @@
 # $FreeBSD$
 
-PROG=	utxrm
-MAN=	utxrm.8
+PROG=	scescx
+NO_MAN=
+WARNS?=	6
 
 .include <bsd.prog.mk>

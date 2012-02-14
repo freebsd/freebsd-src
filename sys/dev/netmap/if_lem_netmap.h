@@ -40,9 +40,9 @@
 #include <dev/netmap/netmap_kern.h>
 
 static int	lem_netmap_reg(struct ifnet *, int onoff);
-static int	lem_netmap_txsync(void *, u_int, int);
-static int	lem_netmap_rxsync(void *, u_int, int);
-static void	lem_netmap_lock_wrapper(void *, int, u_int);
+static int	lem_netmap_txsync(struct ifnet *, u_int, int);
+static int	lem_netmap_rxsync(struct ifnet *, u_int, int);
+static void	lem_netmap_lock_wrapper(struct ifnet *, int, u_int);
 
 
 SYSCTL_NODE(_dev, OID_AUTO, lem, CTLFLAG_RW, 0, "lem card");
@@ -67,9 +67,9 @@ lem_netmap_attach(struct adapter *adapter)
 
 
 static void
-lem_netmap_lock_wrapper(void *_a, int what, u_int ringid)
+lem_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int ringid)
 {
-	struct adapter *adapter = _a;
+	struct adapter *adapter = ifp->if_softc;
 
 	/* only one ring here so ignore the ringid */
 	switch (what) {
@@ -153,9 +153,9 @@ fail:
  * Reconcile kernel and user view of the transmit ring.
  */
 static int
-lem_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[0];
 	struct netmap_ring *ring = kring->ring;
@@ -257,9 +257,9 @@ lem_netmap_txsync(void *a, u_int ring_nr, int do_lock)
  * Reconcile kernel and user view of the receive ring.
  */
 static int
-lem_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->rx_rings[0];
 	struct netmap_ring *ring = kring->ring;

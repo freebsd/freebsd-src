@@ -78,7 +78,7 @@
 .Ft typedef void
 .Fn ng_hook_f "const char *hook" "const u_char *mesg" "size_t len" "void *uarg"
 .Ft void *
-.Fn ng_register_cookie "const struct lmodule *mod" "u_int32_t cookie" "ng_ID_t id" "ng_cookie_f *func" "void *uarg"
+.Fn ng_register_cookie "const struct lmodule *mod" "uint32_t cookie" "ng_ID_t id" "ng_cookie_f *func" "void *uarg"
 .Ft void
 .Fn ng_unregister_cookie "void *reg"
 .Ft void *

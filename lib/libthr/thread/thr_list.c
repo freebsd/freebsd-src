@@ -154,8 +154,12 @@ _thr_alloc(struct pthread *curthread)
 			atomic_fetchadd_int(&total_threads, -1);
 			return (NULL);
 		}
-		thread->sleepqueue = _sleepq_alloc();
-		thread->wake_addr = _thr_alloc_wake_addr();
+		if ((thread->sleepqueue = _sleepq_alloc()) == NULL ||
+		    (thread->wake_addr = _thr_alloc_wake_addr()) == NULL) {
+			thr_destroy(curthread, thread);
+			atomic_fetchadd_int(&total_threads, -1);
+			return (NULL);
+		}
 	} else {
 		bzero(&thread->_pthread_startzero, 
 			__rangeof(struct pthread, _pthread_startzero, _pthread_endzero));

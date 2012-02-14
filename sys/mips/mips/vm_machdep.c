@@ -608,7 +608,7 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 	 * to make it the same way TLS base is passed to 
 	 * MIPS_SET_TLS/MIPS_GET_TLS API 
 	 */
-#ifndef __mips_n64
+#ifdef __mips_n64
 	td->td_md.md_tls = (char*)tls_base + 0x7010;
 #else
 	td->td_md.md_tls = (char*)tls_base + 0x7008;
