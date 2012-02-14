@@ -131,7 +131,8 @@ static int selectroute __P((struct sockaddr_in6 *, struct ip6_pktopts *,
 	struct ip6_moptions *, struct route_in6 *, struct ifnet **,
 	struct rtentry **, int, int));
 static int in6_selectif __P((struct sockaddr_in6 *, struct ip6_pktopts *,
-	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **, int));
+	struct ip6_moptions *, struct route_in6 *ro, struct ifnet **,
+	struct ifnet *, int));
 
 static struct in6_addrpolicy *lookup_addrsel_policy(struct sockaddr_in6 *);
 
@@ -182,7 +183,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ifnet **ifpp, struct in6_addr *srcp)
 {
 	struct in6_addr dst, tmp;
-	struct ifnet *ifp = NULL;
+	struct ifnet *ifp = NULL, *oifp = NULL;
 	struct in6_ifaddr *ia = NULL, *ia_best = NULL;
 	struct in6_pktinfo *pi = NULL;
 	int dst_scope = -1, best_scope = -1, best_matchlen = -1;
@@ -195,8 +196,18 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	KASSERT(srcp != NULL, ("%s: srcp is NULL", __func__));
 
 	dst = dstsock->sin6_addr; /* make a copy for local operation */
-	if (ifpp)
+	if (ifpp) {
+		/*
+		 * Save a possibly passed in ifp for in6_selectsrc. Only
+		 * neighbor discovery code should use this feature, where
+		 * we may know the interface but not the FIB number holding
+		 * the connected subnet in case someone deleted it from the
+		 * default FIB and we need to check the interface.
+		 */
+		if (*ifpp != NULL)
+			oifp = *ifpp;
 		*ifpp = NULL;
+	}
 
 	if (inp != NULL) {
 		INP_LOCK_ASSERT(inp);
@@ -217,7 +228,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 		struct in6_ifaddr *ia6;
 
 		/* get the outgoing interface */
-		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp,
+		if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp, oifp,
 		    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB))
 		    != 0)
 			return (error);
@@ -283,7 +294,7 @@ in6_selectsrc(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	 * the outgoing interface and the destination address.
 	 */
 	/* get the outgoing interface */
-	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp,
+	if ((error = in6_selectif(dstsock, opts, mopts, ro, &ifp, oifp,
 	    (inp != NULL) ? inp->inp_inc.inc_fibnum : RT_DEFAULT_FIB)) != 0)
 		return (error);
 
@@ -750,11 +761,13 @@ selectroute(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 static int
 in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
     struct ip6_moptions *mopts, struct route_in6 *ro, struct ifnet **retifp,
-    int fibnum)
+    struct ifnet *oifp, int fibnum)
 {
 	int error;
 	struct route_in6 sro;
 	struct rtentry *rt = NULL;
+
+	KASSERT(retifp != NULL, ("%s: retifp is NULL", __func__));
 
 	if (ro == NULL) {
 		bzero(&sro, sizeof(sro));
@@ -765,6 +778,11 @@ in6_selectif(struct sockaddr_in6 *dstsock, struct ip6_pktopts *opts,
 	    &rt, 1, fibnum)) != 0) {
 		if (ro == &sro && rt && rt == sro.ro_rt)
 			RTFREE(rt);
+		/* Help ND. See oifp comment in in6_selectsrc(). */
+		if (oifp != NULL && fibnum == RT_DEFAULT_FIB) {
+			*retifp = oifp;
+			error = 0;
+		}
 		return (error);
 	}
 
