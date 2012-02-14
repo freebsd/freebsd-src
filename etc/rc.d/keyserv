@@ -13,7 +13,7 @@
 . /etc/rc.subr
 
 name="keyserv"
-rcvar=`set_rcvar`
+rcvar="keyserv_enable"
 command="/usr/sbin/${name}"
 start_precmd="keyserv_prestart"
 
