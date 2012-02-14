@@ -28,7 +28,7 @@
 #
 
 # PROVIDE: var
-# REQUIRE: FILESYSTEMS kld
+# REQUIRE: FILESYSTEMS kld addswap
 
 . /etc/rc.subr
 
