@@ -84,7 +84,7 @@ copymkdir(char const * dir, char const * skel, mode_t mode, uid_t uid, gid_t gid
 							if (strcmp(e->d_name, ".") != 0 && strcmp(e->d_name, "..") != 0)
 								copymkdir(dst, src, st.st_mode & _DEF_DIRMODE, uid, gid);
 								chflags(dst, st.st_flags);	/* propagate flags */
-						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk))) != -1) {
+						    } else if (S_ISLNK(st.st_mode) && (len = readlink(src, lnk, sizeof(lnk) - 1)) != -1) {
 							lnk[len] = '\0';
 							symlink(lnk, dst);
 							lchown(dst, uid, gid);
