@@ -13,7 +13,7 @@ LDADD=	-lgssapi
 CLEANFILES= gssd_svc.c gssd.h
 
 RPCSRC=	${.CURDIR}/../../sys/kgssapi/gssd.x
-RPCGEN= rpcgen -L -C -M
+RPCGEN= RPCGEN_CPP=${CPP:Q} rpcgen -L -C -M
 
 gssd_svc.c: ${RPCSRC} gssd.h
 	${RPCGEN} -m -o ${.TARGET} ${RPCSRC}
