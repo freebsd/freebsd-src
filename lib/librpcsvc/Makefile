@@ -18,7 +18,7 @@ SECRPCSRCS= secretkey.c xcrypt.c
 OTHERSRCS+= yp_passwd.c yp_update.c
 .endif
 
-RPCCOM = rpcgen -C
+RPCCOM=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 
 INCDIRS= -I${DESTDIR}/usr/include/rpcsvc
 
