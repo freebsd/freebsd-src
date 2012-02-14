@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="mountd"
-rcvar=`set_rcvar`
+rcvar="mountd_enable"
 command="/usr/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/exports"

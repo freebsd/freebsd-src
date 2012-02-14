@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="pfsync"
-rcvar=`set_rcvar`
+rcvar="pfsync_enable"
 start_precmd="pfsync_prestart"
 start_cmd="pfsync_start"
 stop_cmd="pfsync_stop"

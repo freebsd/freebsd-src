@@ -9,7 +9,7 @@
 . /etc/rc.subr
 
 name="cleanvar"
-rcvar=`set_rcvar`
+rcvar="cleanvar_enable"
 
 start_precmd="${name}_prestart"
 start_cmd="${name}_start"

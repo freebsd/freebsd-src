@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="mrouted"
-rcvar=`set_rcvar`
+rcvar="mrouted_enable"
 command="/usr/local/sbin/${name}"
 pidfile="/var/run/${name}.pid"
 required_files="/etc/${name}.conf"
