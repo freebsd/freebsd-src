@@ -22,7 +22,7 @@ GENSRCS=yp.h \
 	yppasswd_private_clnt.c \
 	yppasswd_private_xdr.c
 
-RPCGEN=	rpcgen -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -C
 RPCSRC=	${.CURDIR}/../../include/rpcsvc/yp.x
 RPCSRC_PW=	${.CURDIR}/../../include/rpcsvc/yppasswd.x
 RPCSRC_PRIV=	${.CURDIR}/../../usr.sbin/rpc.yppasswdd/yppasswd_private.x
