@@ -11,7 +11,7 @@
 . /etc/rc.subr
 
 name="amd"
-rcvar=`set_rcvar`
+rcvar="amd_enable"
 command="/usr/sbin/${name}"
 start_precmd="amd_precmd"
 command_args="&"

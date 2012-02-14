@@ -10,7 +10,7 @@
 . /etc/rc.subr
 
 name="moused"
-rcvar=`set_rcvar`
+rcvar="moused_enable"
 command="/usr/sbin/${name}"
 start_cmd="moused_start"
 pidprefix="/var/run/moused"
@@ -23,7 +23,7 @@ load_rc_config $name
 #
 if [ -n "$2" ]; then
 	eval moused_$2_enable=\${moused_$2_enable-${moused_nondefault_enable}}
-	rcvar=`set_rcvar moused_$2`
+	rcvar="moused_${2}_enable"
 	pidfile="${pidprefix}.$2.pid"
 	pidarg="-I $pidfile"
 fi

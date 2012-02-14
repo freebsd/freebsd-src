@@ -12,7 +12,7 @@
 . /etc/rc.subr
 
 name="isdnd"
-rcvar=`set_rcvar isdn`
+rcvar="isdn_enable"
 pidfile="/var/run/${name}.pid"
 command="/usr/sbin/isdnd"
 start_cmd="isdnd_start"
