@@ -1,0 +1,7 @@
+.\" $FreeBSD$
+Set to avoid building or installing the BIND userland utilities,
+.Xr dig 1 ,
+.Xr host 1 ,
+.Xr nslookup 1 ,
+and
+.Xr nsupdate 8 .

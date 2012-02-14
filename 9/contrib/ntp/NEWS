@@ -1,0 +1,157 @@
+NTP 4.2.4p8 (Harlan Stenn <stenn@ntp.org>, 2009/12/08)
+
+Focus: Security Fixes
+
+Severity: HIGH
+
+This release fixes the following high-severity vulnerability:
+
+* [Sec 1331] DoS with mode 7 packets - CVE-2009-3563.
+
+  See http://support.ntp.org/security for more information.
+
+  NTP mode 7 (MODE_PRIVATE) is used by the ntpdc query and control utility.
+  In contrast, ntpq uses NTP mode 6 (MODE_CONTROL), while routine NTP time
+  transfers use modes 1 through 5.  Upon receipt of an incorrect mode 7
+  request or a mode 7 error response from an address which is not listed
+  in a "restrict ... noquery" or "restrict ... ignore" statement, ntpd will
+  reply with a mode 7 error response (and log a message).  In this case:
+
+	* If an attacker spoofs the source address of ntpd host A in a
+	  mode 7 response packet sent to ntpd host B, both A and B will
+	  continuously send each other error responses, for as long as
+	  those packets get through.
+
+	* If an attacker spoofs an address of ntpd host A in a mode 7
+	  response packet sent to ntpd host A, A will respond to itself
+	  endlessly, consuming CPU and logging excessively.
+
+  Credit for finding this vulnerability goes to Robin Park and Dmitri
+  Vinokurov of Alcatel-Lucent.
+
+THIS IS A STRONGLY RECOMMENDED UPGRADE.
+
+---
+NTP 4.2.4p7 (Harlan Stenn <stenn@ntp.org>, 2009/05/04)
+
+Focus: Security and Bug Fixes
+
+Severity: HIGH
+
+This release fixes the following high-severity vulnerability:
+
+* [Sec 1151] Remote exploit if autokey is enabled.  CVE-2009-1252
+
+  See http://support.ntp.org/security for more information.
+
+  If autokey is enabled (if ntp.conf contains a "crypto pw whatever"
+  line) then a carefully crafted packet sent to the machine will cause
+  a buffer overflow and possible execution of injected code, running
+  with the privileges of the ntpd process (often root).
+
+  Credit for finding this vulnerability goes to Chris Ries of CMU.
+
+This release fixes the following low-severity vulnerabilities:
+
+* [Sec 1144] limited (two byte) buffer overflow in ntpq.  CVE-2009-0159
+  Credit for finding this vulnerability goes to Geoff Keating of Apple.
+  
+* [Sec 1149] use SO_EXCLUSIVEADDRUSE on Windows
+  Credit for finding this issue goes to Dave Hart.
+
+This release fixes a number of bugs and adds some improvements:
+
+* Improved logging
+* Fix many compiler warnings
+* Many fixes and improvements for Windows
+* Adds support for AIX 6.1
+* Resolves some issues under MacOS X and Solaris
+
+THIS IS A STRONGLY RECOMMENDED UPGRADE.
+
+---
+NTP 4.2.4p6 (Harlan Stenn <stenn@ntp.org>, 2009/01/07)
+
+Focus: Security Fix
+
+Severity: Low
+
+This release fixes oCERT.org's CVE-2009-0021, a vulnerability affecting
+the OpenSSL library relating to the incorrect checking of the return
+value of EVP_VerifyFinal function.
+
+Credit for finding this issue goes to the Google Security Team for
+finding the original issue with OpenSSL, and to ocert.org for finding
+the problem in NTP and telling us about it.
+
+This is a recommended upgrade.
+---
+NTP 4.2.4p5 (Harlan Stenn <stenn@ntp.org>, 2008/08/17)
+
+Focus: Minor Bugfixes 
+
+This release fixes a number of Windows-specific ntpd bugs and 
+platform-independent ntpdate bugs. A logging bugfix has been applied
+to the ONCORE driver.
+
+The "dynamic" keyword and is now obsolete and deferred binding to local 
+interfaces is the new default. The minimum time restriction for the 
+interface update interval has been dropped. 
+
+A number of minor build system and documentation fixes are included. 
+
+This is a recommended upgrade for Windows. 
+
+---
+NTP 4.2.4p4 (Harlan Stenn <stenn@ntp.org>, 2007/09/10)
+
+Focus: Minor Bugfixes
+
+This release updates certain copyright information, fixes several display
+bugs in ntpdc, avoids SIGIO interrupting malloc(), cleans up file descriptor
+shutdown in the parse refclock driver, removes some lint from the code,
+stops accessing certain buffers immediately after they were freed, fixes
+a problem with non-command-line specification of -6, and allows the loopback
+interface to share addresses with other interfaces.
+
+---
+NTP 4.2.4p3 (Harlan Stenn <stenn@ntp.org>, 2007/06/29)
+
+Focus: Minor Bugfixes
+
+This release fixes a bug in Windows that made it difficult to
+terminate ntpd under windows.
+This is a recommended upgrade for Windows.
+
+---
+NTP 4.2.4p2 (Harlan Stenn <stenn@ntp.org>, 2007/06/19)
+
+Focus: Minor Bugfixes
+
+This release fixes a multicast mode authentication problem, 
+an error in NTP packet handling on Windows that could lead to 
+ntpd crashing, and several other minor bugs. Handling of 
+multicast interfaces and logging configuration were improved. 
+The required versions of autogen and libopts were incremented.
+This is a recommended upgrade for Windows and multicast users.
+
+---
+NTP 4.2.4 (Harlan Stenn <stenn@ntp.org>, 2006/12/31)
+
+Focus: enhancements and bug fixes.
+
+Dynamic interface rescanning was added to simplify the use of ntpd in 
+conjunction with DHCP. GNU AutoGen is used for its command-line options 
+processing. Separate PPS devices are supported for PARSE refclocks, MD5 
+signatures are now provided for the release files. Drivers have been 
+added for some new ref-clocks and have been removed for some older 
+ref-clocks. This release also includes other improvements, documentation 
+and bug fixes. 
+
+K&R C is no longer supported as of NTP-4.2.4. We are now aiming for ANSI 
+C support.
+
+---
+NTP 4.2.0 (Harlan Stenn <stenn@ntp.org>, 2003/10/15)
+
+Focus: enhancements and bug fixes.

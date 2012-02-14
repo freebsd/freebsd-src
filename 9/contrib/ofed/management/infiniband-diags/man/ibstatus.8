@@ -1,0 +1,41 @@
+.TH IBSTATUS 8 "July 25, 2006" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibstatus \- query basic status of InfiniBand device(s)
+
+.SH SYNOPSIS
+.B ibstatus
+[\-h] [devname[:port]]...
+
+.SH DESCRIPTION
+.PP
+ibstatus is a script which displays basic information obtained from the local
+IB driver. Output includes LID, SMLID, port state, link width active, and port
+physical state.
+
+.SH OPTIONS
+
+.PP
+.TP
+devname
+InfiniBand device name
+.TP
+portnum
+port number of InfiniBand device
+
+.SH EXAMPLES
+
+.PP
+ibstatus                # display status of all IB ports
+.PP
+ibstatus mthca1         # status of mthca1 ports
+.PP
+ibstatus mthca1:1 mthca0:2      # show status of specified ports
+
+.SH SEE ALSO
+.BR ibstat (8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

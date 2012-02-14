@@ -1,0 +1,115 @@
+.\"
+.\" Copyright (c) 2001-2003
+.\"	Fraunhofer Institute for Open Communication Systems (FhG Fokus).
+.\" 	All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" Author: Hartmut Brandt <harti@FreeBSD.org>
+.\"
+.\" $FreeBSD$
+.\"
+.\" fatm(4) man page
+.\"
+.Dd May 15, 2003
+.Dt FATM 4
+.Os
+.Sh NAME
+.Nm fatm
+.Nd "device driver for Fore PCA200E ATM interfaces"
+.Sh SYNOPSIS
+.Cd device fatm
+.Cd device utopia
+.Cd device atm
+.Pp
+.Cd options NATM
+.Sh DESCRIPTION
+The
+.Nm
+device driver supports the FORE (now Marconi) PCA200E ATM interface cards.
+The driver interfaces with the
+.Xr natm 4
+framework,
+.Xr netgraph 4
+and HARP.
+It provides only PVC services.
+Signalling, ATMARP, ILMI and other
+higher layer protocols are implemented using
+.Xr netgraph 4
+or HARP.
+.Pp
+For configuring the card for IP see
+.Xr natmip 4 .
+The following sysctls are recognized by the driver additionally to those
+handled by
+.Xr utopia 4 :
+.Bl -tag -width indent
+.It Va hw.atm.fatm Ns Ar N Ns Va .stats
+Returns a device specific statistic list of
+.Vt uint32_t
+statistic counters.
+.It Va hw.atm.fatm Ns Ar N Ns Va .istats
+Returns a list of
+.Vt uint32_t
+with internal driver statistics.
+.It Va hw.atm.fatm Ns Ar N Ns Va .retry_tx
+If this is set packets are stuffed back into the interface's send queue when
+the cards transmit queue is found to be full.
+They are transmitted later.
+If this is not set the packets are dropped.
+It may be useful to set this
+if only UBR traffic is sent.
+.It Va hw.atm.fatm Ns Ar N Ns Va .debug
+.Bf Em
+(Only if debugging enabled.)
+.Ef
+These are debugging flags.
+See
+.Pa src/sys/dev/fatm/if_fatmvar.h
+for the possible flags.
+.El
+.Pp
+The driver supports the media options
+.Cm sdh , noscramb
+and
+.Cm unassigned
+(see
+.Xr utopia 4 ) .
+.Sh DIAGNOSTICS
+.Bd -literal
+fatm0: <FORE PCA200E> mem 0xd5800000-0xd59fffff irq 9 at device 9.0 on pci0
+.Ed
+.Sh SEE ALSO
+.Xr natm 4 ,
+.Xr natmip 4 ,
+.Xr utopia 4
+.Sh AUTHORS
+.An Harti Brandt Aq harti@FreeBSD.org
+.Sh BUGS
+These cards can CBR shape a single VCC only.
+It is currently possible to
+request more than one CBR connection.
+In this case all the timing will be
+wrong.
+See
+.Xr hatm 4
+for a better card.

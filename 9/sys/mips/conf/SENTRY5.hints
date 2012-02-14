@@ -1,0 +1,5 @@
+# $FreeBSD$
+hint.siba.0.at="nexus0"
+hint.siba.0.maddr="0x18000000"
+hint.siba.0.msize="0x1000"
+# XXX irq?

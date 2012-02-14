@@ -1,0 +1,38 @@
+# $FreeBSD$
+
+#
+# Device wiring for the Linksys NSLU2
+#
+
+# DBGU is unit 0
+hint.uart.0.at="ixp0"
+hint.uart.0.addr=0xc8000000
+hint.uart.0.irq=15
+hint.uart.0.flags=0x10
+# USART0 is unit 1
+hint.uart.1.at="ixp0"
+hint.uart.1.addr=0xc8001000
+hint.uart.1.irq=13
+
+# NPE Hardware Queue Manager
+hint.ixpqmgr.0.at="ixp0"
+
+# NPE wired NICs, requires ixpqmgr
+hint.npe.0.at="ixp0"
+hint.npe.0.mac="B"
+hint.npe.0.mii="B"
+hint.npe.0.phy=1
+# The second MAC isn't used on the NSLU, but it needs to be configured or
+# we timeout on dhcp packets
+hint.npe.1.at="ixp0"
+#hint.npe.1.mac="B"
+#hint.npe.1.mii="A"
+#hint.npe.1.phy=0
+
+#not yet
+# RTC
+#hint.xrtc.0.at="iicbus0"
+#hint.xrtc.0.addr=0xde
+# Slug LED
+# Slug button
+# Slug Buzzer

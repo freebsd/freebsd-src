@@ -1,0 +1,7 @@
+.\" $FreeBSD$
+Set to not build
+.Xr groff 1
+and
+.Xr vgrind 1 .
+You should consider installing the textproc/groff port to not break
+.Xr man 1 .

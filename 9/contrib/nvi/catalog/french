@@ -1,0 +1,317 @@
+VI_MESSAGE_CATALOG
+Dépassement de longueur de ligneX
+impossible de supprimer la ligne %luX
+impossible d'ajouter à la ligne %luX
+impossible d'insérer devant la ligne %luX
+impossible de stocker la ligne %luX
+impossible d'obtenir la dernière ligneX
+Erreur : impossible de récupérer la ligne %luX
+Fichier journalX
+Aucune journalisation n'étant effectuée, impossible d'annulerX
+Aucune action à annulerX
+Aucune journalisation n'étant effectuée, impossible d'annulerX
+Aucune journalisation n'étant effectuée, reprise actualisée impossibleX
+Aucune action à refaireX
+%s/%d : Erreur d'écriture de journalX
+L'entrée et la sortie Vi standards doivent être un terminalX
+Marque %s : non définieX
+Marque %s : la ligne a été suppriméeX
+Marque %s : la position du curseur n'existe plusX
+Erreur : X
+nouveau fichierX
+le nom a changéX
+modifiéX
+non modifiéX
+DÉVERROUILLÉX
+lecture seuleX
+ligne %lu de %lu [%ld%%]X
+fichier videX
+ligne %luX
+Ce fichier %s n'est pas un catalogue de messagesX
+Impossible de configurer option %s par défautX
+Utilisation : %sX
+Définition : pas d'option %s : 'set all' donne toutes les valeurs optionnellesX
+Définition : option [no]%s ne prend pas de valeurX
+Définition : l'option %s n'est pas booléenneX
+Définition : option %s : %sX
+Définition : option %s : %s : Dépassement de valeurX
+Définition : option %s : %s n'est pas un nombre valideX
+Définition : l'option %s n'est pas booléenneX
+Les colonnes de l'écran sont trop petites, inférieures à %dX
+Les colonnes de l'écran sont trop grandes, supérieures à %dX
+Les lignes de l'écran sont trop courtes, inférieures à %dX
+Les lignes de l'écran sont trop longues, supérieures à %dX
+L'option lisp n'est pas implémentéeX
+Les messages ne sont pas désactivés : %sX
+Les messages ne sont pas activés : %sX
+
+L'option de paragraphe doit être en groupe de deux caractèresX
+L'option de section doit être en groupe de deux caractèresX
+
+
+
+Le tampon par défaut est videX
+Le tampon %s est videX
+Les fichiers dont le nom contient des caractères de saut de ligne sont irrécupérablesX
+Impossible de récupérer les modifications si la session échoueX
+Copie en cours du fichier pour récupération...X
+La préservation a échoué : %sX
+Impossible de récupérer les modifications si la session échoueX
+La sauvegarde du fichier a échoué : %sX
+Copie en cours du fichier pour récupération...X
+Les renseignements sur l'identité %u de l'utilisateur sont introuvablesX
+Impossible de verrouiller le fichier de récupérationX
+Débordement de tampon du fichier de récupérationX
+Fichier de récupérationX
+%s : Fichier de récupération malforméX
+%s : Fichier de récupération malforméX
+Aucun fichier nommé %s à récupérer, que vous puissiez lireX
+Il existe des versions récupérables antérieures à ce fichierX
+Vous avez d'autres fichiers à récupérerX
+pas d'envoi d'email : %sX
+Fichier vide, rien à rechercherX
+Fin de fichier atteinte sans trouver le motifX
+Pas de motif de recherche précédentX
+Motif introuvableX
+Début du fichier atteint sans trouver le motifX
+La recherche est revenue à son point de départX
+Recherche en cours...X
+Caractère non-imprimable introuvableX
+Nom de commande inconnuX
+
+%s : Commande non disponible en ex modeX
+Le compteur ne peut être zéroX
+%s : mauvaise spécification de ligneX
+Erreur de tableau de syntaxe interne (%s: %s)X
+Utilisation : %sX
+%s : tampon temporaire non libéréX
+Décalage de drapeau hors de la ligne 1X
+Décalage de drapeau hors de la fin du fichierX
+@ avec plage, en cours d'exécution quand le fichier/l'écran a changéX
+Commande Global/v en cours d'exécution quand le fichier/l'écran a changéX
+La commande ex a échoué : commandes en attente abandonnéesX
+La commande ex a échoué : les touches affectées sont abandonnéesX
+La deuxième adresse est plus petite que la premièreX
+Aucun nom de marque fourniX
+\\ non suivi par / ou ?X
+Référence à un numéro de ligne inférieure à 0X
+La commande %s est inconnueX
+Dépassement de la valeur adresseX
+Dépassement négatif de la valeur adresseX
+Combinaison d'adresse non valideX
+Adresse non valide : il n'y a que %lu lignes dans ce fichierX
+Adresse non valide : le fichier est videX
+La commande %s ne permet pas une adresse de 0X
+Pas d'abréviations à afficherX
+Les abréviations doivent finir par un caractère"motX
+Les abréviations ne peuvent pas contenir de tabulations ni d'espacesX
+Les abréviations ne peuvent pas contenir un mélange de caractères mot/non-mot, sauf à la finX
+"%s" n'est pas une abréviationX
+La commande Vi a échoué : Les touches affectées ont été abandonnéesX
+Plus de fichiers à éditerX
+Pas de fichiers précédents à éditerX
+Pas de fichiers précédents à rembobinerX
+Pas de liste de fichiers à afficherX
+Pas de commande précédente à remplacer"!"X
+Pas de nom de fichier à substituer à %%X
+Pas de nom de fichier à substituer à #X
+Erreur : execl : %sX
+Erreur E/S : %sX
+Fichier modifié depuis la dernière écriture complète ; écrire ou utiliser ! pour outrepasserX
+Impossible de trouver l'emplacement du répertoire d'origineX
+Nouveau répertoire en cours : %sX
+Pas de tampon de coupure à afficherX
+La commande %s ne peut pas être utilisée à l'intérieur d'une commande globale ou commande vX
+%s/%s : échec de source : ni vous ni le super-utilisateur n'êtes les propriétaires X
+%s/%s : échec de source : vous n'êtes pas le propriétaireX
+%s/%s : échec de source : peut être écrit par un utilisateur autre que le propriétaireX
+%s : échec de source : ni vous ni le super-utilisateur n'êtes les propriétairesX
+%s : échec de source : vous n'êtes pas le propriétaireX
+%s : échec de source : peut être écrit par un utilisateur autre que le propriétaireX
+Pas de lignes suivantes à joindreX
+Pas d'entrées de mappage d'entréeX
+Pas d'entrées de mappage de commandesX
+Le caractère %s ne peut pas être remappéX
+"%s" n'est pas actuellement mappéX
+Les noms de marque ne doivent avoir qu'un caractèreX
+%s existe, non enregistré; utiliser ! pour outrepasserX
+Nouveau fichier exrc : %sX
+La ligne de destination est à l'intérieur de la plage à déplacerX
+La commande ouverte nécessite que l'option ouverte soit définieX
+La commande ouverte n'est pas encore implémentéeX
+La préservation de ce fichier est impossibleX
+Fichier préservéX
+%s: étendu dans trop de noms de fichiersX
+Vous ne pouvez lire que les fichiers standards et les canaux de transmission nommésX
+%s: Interdiction de lecture non disponibleX
+Lecture en cours...X
+%s: %lu lignes, %lu caractèresX
+Pas d'écrans d'arrière-plan à afficherX
+La commande script n'est disponible qu'en mode viX
+Pas de commande à exécuterX
+Option de largeur de décalage définie sur 0X
+Compter dépassementX
+Compter dépassement négatifX
+Expression standard spécifiée; drapeau r superfluX
+Vous ne pouvez pas en mode vi, combiner les drapeaux #, l et p avec le drapeau cX
+Aucune correspondance trouvéeX
+Aucune marque précédente entréeX
+Moins de %s entrées dans la pile de marques ; utilisez t[ags]X
+Pas de fichier %s vers lequel retourner dans la pile de marques ; utiliser : affichage t[ags]X
+Appuyez sur Entrée pour continuer :X
+%s : marque introuvableX
+%s : marque corrompue en %sX
+%s : le numéro de ligne de la marque dépasse la fin du fichierX
+La pile de marques est videX
+%s : motif de recherche introuvableX
+%d fichiers supplémentaires à éditerX
+Le tampon %s est vide
+Confirmer les changements ? [n]X
+InterrompuX
+Pas de tampon précédent à exécuterX
+Pas d'expression standard précédenteX
+La commande %s nécessite qu'un fichier ait déjà été lu en mémoireX
+Utilisation : %sX
+La commande visual nécessite que l'option open soit définieX
+
+Fichier videX
+Pas de recherche précédente F, f, T ou tX
+%s introuvableX
+Pas de fichier précédent à éditerX
+Le curseur n'est pas dans un nombreX
+Le nombre obtenu est trop grandX
+Le nombre obtenu est trop petitX
+Pas de correspondance de caractère sur cette ligneX
+Caractère correspondant introuvableX
+Pas de caractères à remplacerX
+Pas d'autre écran vers lequel basculerX
+Caractères après la chaîne de recherche, décalage de ligne et/ou commande zX
+Pas de motif de recherche précédentX
+La recherche est revenue à son point de départX
+L'abréviation a dépassé la limite de l'expansion : caractères abandonnésX
+Caractère non valide ; guillemet pour saisirX
+Déjà au début de l'insertionX
+Plus de caractères à effacerX
+Déplacement hors de fin de fichierX
+Déplacement hors de fin de ligneX
+Aucun mouvement de curseur n'a été effectuéX
+Déjà au début du fichierX
+Déplacement hors du début du fichierX
+Déjà dans la première colonneX
+Les tampons doivent être spécifiés avant la commandeX
+Déjà à la fin du fichierX
+Déjà à la fin de la ligneX
+%s n'est pas une commande viX
+Utilisation : %sX
+Pas de caractères à supprimerX
+La commande Q nécessite une interface terminal exX
+Pas de commande à répéterX
+Le fichier est videX
+Vous ne pouvez pas utiliser %s comme commande de déplacementX
+Déjà en mode commandeX
+Le curseur n'est pas dans un motX
+
+Valeur optionnelle de fenêtre trop grande, maximum est %uX
+AjouterX
+ChangerX
+CommandeX
+InsérerX
+RemplacerX
+Déplacement hors de la fin d'écranX
+Déplacement hors du début d'écranX
+L'écran doit être supérieur à %d lignes pour se fractionnerX
+Il n'y a pas d'écran d'arrière-planX
+Il n'y a pas d'écran d'arrière-plan qui édite un fichier nommé %sX
+Vous ne pouvez pas mettre à l'arrière-plan votre seul écran affichéX
+L'écran ne peut être réduit qu'à %d rangsX
+L'écran n'est pas auto-réductibleX
+L'écran n'est pas auto-extensibleX
+
+Vous ne pouvez pas mettre cet écran en attenteX
+Interrompu : les touches affectées ont été abandonnéesX
+vi : le tampon temporaire n' a pas été libéréX
+Ce terminal n'a pas de touche %sX
+Vous ne pouvez spécifier qu'un seul tamponX
+Nombre supérieur à %luX
+InterrompuX
+Impossible de créer un fichier temporaireX
+Avertissement : %s n'est pas un fichier standardX
+%s déjà verrouillé, session en lecture seuleX
+%s: supprimerX
+%s: fermerX
+%s: supprimerX
+%s: supprimerX
+Fichier en lecture seule, non écrit, utiliser ! pour outrepasserX
+Fichier en lecture seule, non écritX
+%s existe, non écrit; utiliser ! pour outrepasserX
+%s existe, non écritX
+Fichier partiel, non écrit; utiliser ! pour outrepasserX
+Fichier partiel, non écritX
+%s: fichier modifié plus récemment que cet exemplaire; utiliser ! pour outrepasserX
+%s: fichier modifié plus récemment que cet exemplaireX
+%s: interdiction d'écriture non disponibleX
+Ecriture en cours...X
+%s: AVERTISSEMENT : FICHIER TRONQUÉX
+Première marque de ce groupe déjà atteinteX
+%s: nouveau fichier : %lu lignes, %lu caractèresX
+%s: %lu lignes, %lu caractèresX
+%s étendue à trop de noms de fichiersX
+%s: pas un fichier standardX
+%s: ne vous appartient pasX
+%s: accessible par un utilisateur autre que son propriétaireX
+Fichier modifé depuis la dernière écriture complète ; écrire ou utiliser ! pour outrepasser X
+Fichier modifé depuis la dernière écriture complète ; écrire ou utiliser :edit! pour outrepasserX
+Fichier modifé depuis la dernière écriture complète ; écrire ou utiliser ! pour outrepasserX
+Fichier temporaire ; quitter annulera les modificationsX
+Fichier en lecture seule ; les modifications ne sont pas écrites automatiquementX
+Journal redémarréX
+confirmer ? [ynq]X
+Appuyez sur n'importe quelle touche pour continuer : X
+Appuyez sur n'importe quelle touche pour continuer [: pour entrer plus de commandes ex] : X
+Appuyez sur n'importe quelle touche pour continuer [q pour Quitter]: X
+Cette forme de %s nécessite l'interface de terminal exX
+Entrée de mode entrée ex.X
+La commande a échoué, aucun fichier n'a encore été lu.X
+cont?X
+Evénement imprévu de caractèreX
+Evénement imprévu de fin-de-fichierX
+Pas de correspondances pour cette requêteX
+Evénement imprévu d'interruptionX
+Evénement quitter imprévuX
+Evénement imprévu de rafraîchissementX
+La dernière marque de ce groupe a déjà été atteinteX
+La commande %s nécessite l'interface de terminal exX
+Cette forme de %s n'est pas reconnue quand l'option d'édition protégée est activéeX
+Evénement imprévu de chaîneX
+Evénement imprévu de délai impartiX
+Evénement d'écriture imprévuX
+
+Les expansions du shell ne sont pas reconnues quand l'option d'édition protégée est activéeX
+La commande %s n'est pas reconnue quand l'option d'édition protégée est activéeX
+Définition : l'option %s ne peut pas être désactivéeX
+Affichage trop petit.X
+ajoutéX
+changéX
+suppriméX
+jointX
+déplacéX
+décaléX
+coupéX
+ligneX
+lignesX
+Vi n'a pas été chargé avec un interprétateur TclX
+Ficher modifié depuis le dernier enregistrement.X
+L'expansion du shell a échouéX
+Pas d'option d'édition %s spécifiéeX
+Vi n'a pas été chargé avec un interprétateur PerlX
+Pas de commande ex à exécuterX
+Entrez <CR> pour exécuter une commande, :q pour quitterX
+Utiliser "cscope help" pour obtenir de l'aideX
+Aucune connexion cscope n'est lancéeX
+%s : type de recherche inconnu : utiliser un des %sX
+%d : Il n'existe pas de telle session cscopeX
+Définition : l'option %s ne peut jamais être activéeX
+Définition : l'option %s ne peut jamais être définie sur 0X
+%s: joints : %lu lignes, %lu caractèresX
+événement imprévu de redimensionnementX
+%d fichiers à éditerX

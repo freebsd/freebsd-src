@@ -1,0 +1,378 @@
+2006-11-09  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0.3.
+
+2006-10-17  Roland Dreier  <rdreier@cisco.com>
+
+	* src/cq.c, src/qp.c, src/srq.c: Convert existing uses of mb() to
+	rmb() or wmb() as appropriate.  In fact all memory barriers were
+	really just wmb(), except for the barrier between reading a CQE's
+	ownership bit and contents, which should be rmb().
+
+	* src/mthca.h: Add compatibility defines of rmb()/wmb() so that
+	libmthca continues to build against old libibverbs releases.
+
+2006-10-03  Roland Dreier  <rdreier@cisco.com>
+
+	* src/cq.c (mthca_poll_one): Annotate so that Valgrind knows
+	contents of CQ entry are all valid after they are written by HCA.
+	(set_cqe_hw): Annotate so that CQ entries owned by hardware are
+	not defined.
+
+	* src/mthca.h: Add wrapper for VALGRIND_MAKE_MEM_DEFINED so that
+	it can be used in .c files without worrying about whether Valgrind
+	is installed or enabled.
+
+	* configure.in: Add support for Valgrind annotation (enabled with
+	--with-valgrind option to configure).
+
+	* src/verbs.c (mthca_create_qp): Set reserved fields to 0 to avoid
+	future problems and also to make Valgrind a little quieter.
+
+2006-09-04  Roland Dreier  <rdreier@cisco.com>
+
+	* src/verbs.c (mthca_destroy_qp): Avoid potential AB-BA deadlock
+	when destroying QPs by always taking CQ locks in a consistent
+	order (lowest CQN first).  The old code always took the send_cq
+	lock first, which is prone to deadlock if the send_cq of one QP is
+	the recv_cq of another QP destroyed at the same time.  This bug
+	was pointed out by Dotan Barak and Jack Morgenstein.
+
+2006-08-23  Roland Dreier  <rdreier@cisco.com>
+
+	* src/verbs.c (mthca_resize_cq): Add a test for
+	IBV_CMD_RESIZE_CQ_HAS_RESP_PARAMS to make libmthca work with newer
+	libibverbs libraries that add two parameters to ibv_cmd_resize_cq().
+
+2006-08-09  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/qp.c (mthca_tavor_post_send, mthca_arbel_post_send): Fence
+	bit must be set in both doorbell and WQE.
+
+2006-08-03  Jack Morgenstein  <jackm@mellanox.co.il>
+
+	* src/mthca.h: Include <stddef.h> to get definition of offsetof().
+
+2006-08-03  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/verbs.c (mthca_create_srq): Limit SRQ max_wr to avoid
+	integer overflow.
+
+2006-07-26  Roland Dreier  <rdreier@cisco.com>
+
+	* src/mthca.h, src/ah.c, src/cq.c, src/memfree.c, src/qp.c,
+	src/srq.c, src/verbs.c: Convert internal allocations for AH pages
+	(for non-memfree HCAs), CQ buffers, doorbell pages (for memfree
+	HCAs), QP buffers and SRQ buffers to use the new buffer
+	allocator.  This makes libmthca fork()-clean when built against
+	libibverbs 1.1.
+
+	* src/buf.c (mthca_alloc_buf, mthca_free_buf): Add new functions
+	to wrap up allocating page-aligned buffers.  The new functions
+	will call ibv_dontfork_range()/ibv_dofork_range() to do proper
+	madvise()ing to handle fork(), if applicable.
+
+	* configure.in: Check for ibv_dontfork_range() and ibv_dontfork_range().
+
+2006-07-04  Dotan Barak  <dotanb@mellanox.co.il>
+
+	* src/verbs.c (mthca_create_cq, mthca_resize_cq): Passing huge
+	size values to create_cq/resize_cq causes a hang in
+	align_cq_size().  Fix this by validating input, similiar to what
+	we do for mthca_create_qp() and mthca_create_srq().
+
+2006-06-13  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0.2.
+
+2006-06-13  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/cq.c (mthca_poll_one): Add workaround for MemFree FW bug
+	that causes wrong WQE addr to be reported.
+
+2006-05-24  Roland Dreier  <rdreier@cisco.com>
+
+	* src/mthca.c: If <sysfs/libsysfs.h> is detected, include it
+	explicitly.  This lets things build when sysfs headers are
+	installed on the build system even when building against
+	libibverbs 1.1 (which does not include sysfs headers implicitly).
+
+	* src/ah.c, src/cq.c, src/memfree.c, src/mthca.c, src/qp.c,
+	src/srq.c: Add include of <string.h>, since it may no long be
+	implicitly included from libsysfs headers when building with
+	libibverbs 1.1.
+
+2006-05-24  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/srq.c (mthca_tavor_post_srq_recv): Fix posting of lists of
+	receives that have exactly a multiple of 256 entries (same as QP
+	bug fixed below).
+
+2006-05-22  Roland Dreier  <rdreier@cisco.com>
+
+	* configure.in, src/mthca.c (openib_driver_init): Check for the
+	presence of <sysfs/libsysfs.h>, and if it is not installed, don't
+	export the old openib_driver_init() entry point.
+
+2006-05-18  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/qp.c (mthca_tavor_post_recv): Fix posting of lists of
+	receives that have exactly a multiple of 256 entries.
+
+2006-05-08  Jack Morgenstein  <jackm@mellanox.co.il>
+
+	* src/mthca.c: Add include files needed for open() if
+	HAVE_IBV_READ_SYSFS_FILE is not defined (so libmthca includes a
+	private local definition of ibv_read_sysfs_file()).
+
+2006-04-11  Roland Dreier  <rdreier@cisco.com>
+
+	* src/mthca.c (ibv_driver_init, openib_driver_init): Add new
+	forward-compatible driver entry point.  Make old entry point a
+	simple wrapper for the new one.
+
+2006-03-14  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0.1.
+
+	* Makefile.am (EXTRA_DIST): Remove debian/ directory from
+	tarballs, since Debian policy is that upstream tarballs should not
+	include it.
+
+2006-03-13  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0.
+
+2006-02-27  Dotan Barak  <dotanb@mellanox.co.il>
+
+	* src/qp.c (mthca_tavor_post_send, mthca_arbel_post_send): Add
+	support for IBV_SEND_FENCE flag.
+
+2006-02-16  Roland Dreier  <rdreier@cisco.com>
+
+	* src/memfree.c (mthca_alloc_db): Introduce a temporary variable
+	to pass to posix_memalign() to avoid "warning: dereferencing
+	type-punned pointer will break strict-aliasing rules."
+
+	* Release version 1.0-rc7.
+
+2006-02-15  Roland Dreier  <rdreier@cisco.com>
+
+	* src/verbs.c (mthca_create_qp): Update to add new response and
+	response size parameters for libibverbs ibv_cmd_create_qp().
+
+2006-02-14  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0-rc6.
+
+2006-02-13  Dotan Barak  <dotanb@mellanox.co.il>
+
+	* src/verbs.c (mthca_query_qp, mthca_query_srq): Add query QP and
+	query SRQ verbs.
+
+2006-01-31  Roland Dreier  <rdreier@cisco.com>
+
+	* src/mthca.h: Remove useless "extern" from function declarations.
+
+2006-01-30  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/qp.c (mthca_tavor_post_recv, mthca_arbel_post_recv): Pass
+	recv_cq to wq_overflow() so we lock the correct CQ.  Noticed by
+	Yossi Leybovich.
+
+2006-01-26  Roland Dreier  <rdreier@cisco.com>
+
+	* src/mthca.h, src/verbs.c, src/cq.c, src/mthca.c: Add
+	implementation of resize CQ operation.
+
+	* src/mthca-abi.h: Add mthca-specific resize CQ ABI.
+
+2006-01-22  Roland Dreier  <rdreier@cisco.com>
+
+	* Release version 1.0-rc5.
+
+2006-01-11  Jack Morgenstein  <jackm@mellanox.co.il>
+
+	* src/verbs.c (mthca_free_pd): Free pointer to correct structure
+	(we get lucky now, but don't rely on this).
+	* src/mthca.c (mthca_free_context): Free context's PD so we don't
+	leak it.
+
+2006-01-06  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/verbs.c (mthca_destroy_qp): Jack Morgenstein has discovered
+	the following race condition in libmthca:
+
+	Thread A destroys QP A at the kernel side by calling
+	ibv_cmd_destroy_qp, but its time-slice is over before removing it
+	from the user-space qp_table removal.
+
+	Thread B allocates QP B, receiving a QP number that matches the
+	just-destroyed QP A in the low 16 bits.  Thread B will now
+	over-write the slot in qp_table which was used for QP A.
+
+	Thread A wakes up and clears qp_table slot, in effect removing QP
+	B from qp_table.
+
+	As a solution, remove the QP from qp_table before calling
+	ibv_cmd_destroy_qp.  This also makes sense since operations are
+	performed in the reverse order in create_qp.
+
+	* src/cq.c (handle_error_cqe): Fill in vendor_err field for
+	completions with error.
+
+2006-01-05  Jack Morgenstein  <jackm@mellanox.co.il>
+
+	* src/verbs.c (mthca_destroy_qp, mthca_destroy_srq): Free QP/SRQ
+	object to avoid memory leak.
+
+2005-12-15  Jack Morgenstein  <jackm@mellanox.co.il>
+
+	* src/cq.c (mthca_cq_clean): When cleaning up a CQ, we should free
+	an SRQ WQE if and only if the CQE is a receive.
+
+2005-12-15  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/qp.c (mthca_store_qp): Don't increment qp_table ref count if
+	allocation fails.
+
+2005-11-29  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/qp.c (mthca_arbel_post_send): Add handling for posting long
+	send lists for mem-free HCAs.
+	* src/qp.c (mthca_tavor_post_recv): Fix posting long receive
+	lists: nreq is set to zero early on, so we need to use
+	MTHCA_TAVOR_MAX_WQES_PER_RECV_DB as the increment to rq.head.
+
+2005-11-28  Roland Dreier  <roland@cisco.com>
+
+	* src/qp.c (mthca_init_qp_indices): Set qp->sq.last and
+	qp->rq.last so that QP is fully reset when the indices are
+	reinited on transition to RESET state.
+	(mthca_tavor_post_send, mthca_arbel_post_send): Don't create an
+	inline send segment when a work request is posted that has the
+	inline flag set but no gather entries included.
+
+2005-11-09  Roland Dreier  <roland@cisco.com>
+
+	* src/srq.c (mthca_tavor_post_srq_recv), src/qp.c
+	(mthca_tavor_post_recv): Fix bugs in long receive list handling;
+	need to set nreq to 0 and not put 256 credits into the second
+	doorbell word.
+
+	* src/cq.c (mthca_cq_clean): Handle case where CQ indices wrap
+	around by treating signed comparisons of prod_index and
+	cq->cons_index carefully.
+
+2005-11-09  Michael S. Tsirkin  <mst@mellanox.co.il>
+
+	* src/srq.c (mthca_tavor_post_srq_recv), src/qp.c
+	(mthca_tavor_post_recv): Tavor requires that a doorbell be rung
+	at least every 256 receives, so add code to ring doorbells in the
+	middle of posting a huge list of receives.
+	
+	* src/qp.c (mthca_tavor_post_send, mthca_tavor_post_send): When
+	posting atomic operations, could wqe size in "octowords" correctly.
+
+	* src/ah.c (mthca_alloc_av): Don't free ah if page allocation
+	fails.  It will be freed where it's allocated, in the caller.
+
+2005-11-08  Roland Dreier  <roland@cisco.com>
+
+	* src/qp.c, src/verbs.c, src/mthca.h: Delegate setting of QP
+	capabilities (max_sge, max_inline_data, etc) to kernel.
+
+2005-11-04  Roland Dreier  <roland@cisco.com>
+
+	* src/verbs.c (mthca_destroy_qp): Clean CQEs when we destroy a QP.
+	(mthca_modify_qp): Clean CQEs when we move a QP to RESET state,
+	and reset QP index pointers.
+
+	* src/cq.c (mthca_cq_clean): Add function to clean out CQEs for
+	QPs that are being destroyed or reset.
+
+2005-10-30  Roland Dreier  <roland@cisco.com>
+
+	* src/srq.c (wqe_to_link): Change to use an offset of 12 (the imm
+	field), because posting an SRQ WQE may actually change the ee_nds
+	field and still cause free list corruption.  A receive WQE will
+	never have immediate data, so using imm is definitely safe.
+
+2005-10-25  Roland Dreier  <roland@cisco.com>
+
+	* Release version 1.0-rc4.
+
+2005-10-23  Roland Dreier  <roland@cisco.com>
+
+	* src/qp.c (mthca_return_cap, mthca_alloc_qp_buf), src/verbs.c
+	(mthca_create_qp): Explicitly pass QP type to functions used while
+	creating QP, since we can't rely on ibv_qp.qp_type to be set until
+	after we return.  This fixes breakage with UD QPs introduced in
+	the last change below.
+
+2005-10-19  Roland Dreier  <roland@cisco.com>
+
+	* src/mthca.h, src/verbs.c (mthca_create_qp), src/qp.c
+	(mthca_tavor_post_send, mthca_arbel_post_send, mthca_alloc_qp_buf,
+	mthca_return_cap): Eliminate struct mthca_qp.qpt field and use
+	struct ibv_qp.qp_type instead (now that that field has been added
+	in libibverbs).
+
+2005-10-18  Roland Dreier  <roland@cisco.com>
+
+	* src/cq.c (handle_error_cqe, mthca_poll_one): Dump CQEs for local
+	QP operation errors instead of all error statuses.
+
+2005-10-06  Roland Dreier  <roland@cisco.com>
+
+	* src/srq.c (mthca_free_srq_wqe): Pass index instead of WQE
+	address.  The only caller already has the index handy, so there's
+	no need to recalculate it here.
+	
+	* src/srq.c (mthca_tavor_post_srq_recv,
+	mthca_arbel_post_srq_recv): Add an extra check so that we report
+	the SRQ as full before using the one extra WQE we need internally.
+
+2005-10-05  Roland Dreier  <roland@cisco.com>
+
+	* src/verbs.c (mthca_modify_srq): Fill in mthca_modify_srq().
+
+2005-09-29  Roland Dreier  <roland@cisco.com>
+
+	* src/verbs.c (mthca_query_device): Update to match new libibverbs
+	API that requires device-specific libraries to format firmware version.
+
+2005-09-25  Roland Dreier  <roland@cisco.com>
+
+	* src/cq.c, src/mthca.c, src/mthca.h, src/verbs.c: Update to match
+	new libibverbs API introduced with completion channel implementation.
+
+2005-09-13  Roland Dreier  <roland@cisco.com>
+
+	* src/qp.c (mthca_tavor_post_send, mthca_tavor_post_recv,
+	mthca_arbel_post_send), src/srq.c (mthca_tavor_post_srq_recv):
+	Apply Michael S. Tsirkin's patch to fix linking of WQEs on
+	mem-free HCAs.  While we're at it, simplify the Tavor WQE posting
+	code as well -- there's no need for a conditional, just always lik
+	the previous WQE.
+
+2005-09-07  Roland Dreier  <roland@cisco.com>
+
+	* src/mthca.h: Get rid of ntohll() and htonll() now that
+	libibverbs defines them in <infiniband/arch.h>.
+
+2005-08-31  Roland Dreier  <roland@cisco.com>
+
+	* src/memfree.c (mthca_free_db): When we free a doorbell record,
+	really mark it as free in the free bitmap.  This we we don't
+	eventually run out of doorbells if a consumer creates and frees a
+	lot of objects.
+
+	* src/memfree.c (mthca_alloc_db): Introduce MTHCA_FREE_MAP_SIZE so
+	that we iterate over the correct number of entries in the mem-free
+	doorbell record free maps.  This fixes some off-by-a-factor-of-8
+	bugs that could lead to crashes.
+
+	* src/verbs.c (mthca_create_cq): In the mem-free case, when
+	creating a CQ fails to allocate an arm doorbell, make sure we free
+	the set CI doorbell instead of the (non-existent) arm doorbell.

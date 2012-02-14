@@ -1,0 +1,24 @@
+# $FreeBSD$
+
+NATIVE_EMULATION= elf64_ia64_fbsd
+
+SRCS+=		e${NATIVE_EMULATION}.c
+CLEANFILES+=	e${NATIVE_EMULATION}.c
+e${NATIVE_EMULATION}.c: ${.CURDIR}/${NATIVE_EMULATION}.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    ${NATIVE_EMULATION} "" no ${NATIVE_EMULATION} ${TARGET_TUPLE} \
+	    ${.CURDIR}/${NATIVE_EMULATION}.sh
+
+#XXX	EMS+=	eelf64_ia64
+
+SRCS+=	eelf64_ia64.c
+CLEANFILES+=	eelf64_ia64.c
+eelf64_ia64.c: emulparams/elf64_ia64.sh emultempl/elf32.em \
+    scripttempl/elf.sc genscripts.sh stringify.sed
+	sh ${.CURDIR}/genscripts.sh ${SRCDIR}/ld ${LIBSEARCHPATH} \
+	    ${TOOLS_PREFIX}/usr \
+	    ${HOST} ${TARGET_TUPLE} ${TARGET_TUPLE} \
+	    elf64_ia64 "" no elf64_ia64 ${TARGET_TUPLE}

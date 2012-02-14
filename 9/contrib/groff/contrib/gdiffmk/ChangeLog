@@ -1,0 +1,63 @@
+2005-01-16  Mike Bianchi  <MBianchi@Foveal.com>
+
+	* gdiffmk.sh (Usage): Fix typos.
+	<top>: Allow `-M<arg1> <arg2>' also.
+
+	* gdiffmk.man: Updated.
+
+2005-01-13  Mike Bianchi  <MBianchi@Foveal.com>
+
+	* gdiffmk.sh: Add the -D, -M, and -B options, which provide actions
+	akin to nrchbar.
+	Thanks to Larry Kollar (http://home.alltel.net/kollar/groff/).
+
+	* gdiffmk.man: Updated.
+
+	* tests/runtests.in: Added tests for gdiffmk's -D, -M, and -B
+	options.
+
+	* tests/baseline8, tests/baseline9, tests/baseline10: New files.
+
+2004-12-16  Mike Bianchi  <MBianchi@Foveal.com>
+
+	* tests/runtests.in: Fix typo (s/$(srcdir)/${srcdir}/).
+
+2004-12-15  Werner LEMBERG  <wl@gnu.org>
+
+	The configure script now generates tests/runtests.
+
+	* tests/tests.sh: Renamed to...
+	* tests/runtests.in: This.
+	Add proper $srcdir prefixes to make it run from build directory.
+	* README, Makefile.sub (CLEANADD), tests/test_baseline7: Updated.
+
+2004-12-14  Werner LEMBERG  <wl@gnu.org>
+
+	* gdiffmk.sh: Make sed pattern work with alternate result of GNU
+	diff's -D option, using `!' instead of `not' in #endif comments.
+	(Exit): Use prefix for each emitted message line.
+
+2004-12-14  Mike Bianchi  <MBianchi@Foveal.com>
+
+	* tests/*: New files for testing gdiffmk.
+
+	* README, gdiffmk.man, gdiffmk.sh: Updated.
+	Minor fixes.
+
+2004-12-13  Mike Bianchi  <MBianchi@Foveal.com>
+
+	Add `-x' command line option to select a diff program.
+
+	* gdiffmk.sh: Add code to handle `-x'.
+	Move test for working `diff' down.
+	Fix sed pattern -- `.mc *' needs to be followed by `.mc .'.
+	(Usage): Updated.
+	* gdiffmk.man: Updated.
+
+2004-12-12  Mike Bianchi  <MBianchi@Foveal.com>
+
+	* README: New file.
+
+2004-12-11  Mike Bianchi  <MBianchi@Foveal.com>
+
+	First import of gdiffmk files.

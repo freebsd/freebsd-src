@@ -1,0 +1,160 @@
+@(#)FAQ	8.13 (Berkeley) 10/14/96
+
+Q: How can I get vi to display my character set?
+A: Vi uses the C library routine isprint(3) to determine if a character
+   is printable, or should be displayed as an octal or hexadecimal value
+   on the screen.  Generally, if vi is displaying printable characters
+   in octal/hexadecimal forms, your environment is not configured correctly.
+   Try looking at the man pages that allow you to configure your locale.
+   For example, to configure an ISO 8859-1 locale under Solaris using csh,
+   you would do:
+
+	setenv LANG C
+	setenv LC_CTYPE iso_8859_1
+
+   Other LC_CTYPE systems/values that I'm told work:
+
+   System	Value
+   ======	=====
+   FreeBSD	lt_LN.ISO_8859-1
+   HP-UX  9.X	american.iso88591
+   HP-UX 10.X	en_US.iso88591
+   SunOS  4.X	iso_8859_1
+   SunOS  5.X	iso_8859_1
+
+   If there's no other solution, you can use the print and noprint edit
+   options of vi to specify that a specific character is printable or not
+   printable.
+	
+Q: My map won't work!
+A: One thing that you should immediately check if a vi map doesn't work
+   is if depends on the final cursor position after a P or p command.
+   Historic vi's were inconsistent as to the final position of the cursor,
+   and, to make matter worse, the final cursor position also depended on
+   whether the put text came from a named or unnamed buffer!  Vi follows
+   the POSIX 1003.2 standard on this one, and makes this consistent, always
+   placing the cursor on the first character.
+
+Q: I'm using ksh or csh as my vi edit option shell value, and file
+   expansions don't work right!
+A: The problem may be in your ksh or csh startup files, e.g., .cshrc.  Vi
+   executes the shell to do name expansion, and the shell generally reads
+   its startup files.  If the startup files are not correctly configured
+   for non-interactive use, e.g., they always echo a prompt to the screen,
+   vi will be unable to parse the output and things will not work
+   correctly.
+
+Q: How does the iclower edit option differ from the ignorecase (i.e. ic)
+   edit option?
+A: The difference is that the ignorecase edit option always ignores the
+   case of letters in the Regular Expression (RE), and the iclower edit
+   option only ignores the case if there are no upper-case letters in the
+   RE.  If any upper-case letters appear in the Regular Expression, then
+   it will be treated case-sensitively, as if the ignorecase edit option
+   was not set.
+
+Q: When I edit binary files, vi appends a <newline> to the last line!
+A: This is historic practice for vi, and further, it's required by the
+   POSIX 1003.2 standard.  My intent is to provide a command line and/or
+   edit option to turn this behavior off when I switch to version 2.0 of
+   the Berkeley DB package.
+
+Q: My cursor keys don't work when I'm in text input mode!
+A: A common problem over slow links is that the set of characters sent by
+   the cursor keys don't arrive close enough together for vi to understand
+   that they are a single keystroke, and not separate keystrokes.  Try
+   increasing the value of the escapetime edit option, which will cause
+   vi to wait longer before deciding that the <escape> character that
+   starts cursor key sequences doesn't have any characters following it.
+
+Q: When I edit some files, vi seems to hang forever, and I have to kill it.
+A: Vi uses flock(2) and fcntl(2) to do file locking.  When it attempts to
+   acquired a lock for a file on an NFS mounted filesystem, it can hang
+   for a very long (perhaps infinite) period of time.  Turning off the
+   "lock" edit option will keep vi from attempting to acquire any locks
+   on the files you edit.
+
+Q: When I compile vi I get lots of warnings about pointer assignments
+   being incompatible!
+A: Vi is partially written to support wide characters.  When this code
+   interfaces with the code that doesn't yet support wide characters,
+   the pointer types clash.  This will hopefully be fixed in the near
+   future, but I've been saying that for awhile, now.
+
+Q: I get jumpy scrolling behavior in the screen!
+A: This is almost certainly a problem with the system's terminfo or
+   termcap information for your terminal.  If the terminfo/termcap entry
+   doesn't have the settable scrolling region capabilities, or the more
+   powerful scrolling commands, these behaviors can result.  Historic
+   implementations of vi, and some of the vi clones, don't suffer from
+   this problem because they wrote their own screen support instead of
+   using the curses library.
+
+   The solution is to find a good terminfo or termcap entry for your
+   terminal, which will fix the problem for all of the applications on
+   your system, not just vi.  Eric Raymond maintains the freely
+   redistributable termcap/terminfo entries.  They can be downloaded
+   from http://www.ccil.org/~esr/ncurses.html, or you can contact him
+   at esr@snark.thyrsus.com.
+
+Q: The entire screen repaints on every keystroke!
+A: Your system's curses implementation is broken.  You should use the
+   curses implementation provided with vi or a curses replacement such
+   as ncurses.  Eric Raymond is one of the maintainers of the freely
+   redistributable ncurses package.  You can download ncurses from
+   http://www.ccil.org/~esr/ncurses.html, or you can contact him at
+   esr@snark.thyrsus.com.
+
+Q: When I use vi on a Sun console (terminal type sun-34) the screen
+   is occasionally trashed, usually when exiting vi!
+A: The Sun console can't handle the 'al' capability of the termcap
+   entry (the il1 capability of terminfo entries).  If you delete that
+   entry from your terminfo/termcap information everything should work
+   correctly.
+
+Q: I don't have a version of ctags (or I have ctags, but it doesn't tag
+   nearly enough things)!
+A: There's a version of ctags available on the 4.4BSD-Lite distributions,
+   as well as the FreeBSD, NetBSD, Linux and GNU distributions.  Or, you
+   might want to try Exuberant Ctags:
+
+	Title:		Exuberant Ctags
+	Version:	1.3
+	Entered-date:	16JUN96
+	Description:
+	    A better ctags which generates tags for all possible tag types:
+	    macro definitions, enumerated values (values inside enum{...}),
+	    function and method definitions, enum/struct/union tags, external
+	    function prototypes (optional), typedefs, and variable
+	    declarations. It is far less easily fooled by code containing #if
+	    preprocessor conditional constructs, using a conditional path
+	    selection algorithm to resolve complicated choices, and a
+	    fall-back algorithm when this one fails. Can also be used to print
+	    out a list of selected objects found in source files.
+	Keywords:	ctags, tags, exuberant
+	Author:		darren@sirsi.com (Darren Hiebert)
+			darren@hiwaay.net (Darren Hiebert)
+	Maintained-by:	darren@sirsi.com (Darren Hiebert)
+			darren@hiwaay.net (Darren Hiebert)
+	Primary-site:	sunsite.unc.edu /pub/Linux/devel/lang/c
+			27kB ctags-1.3.tar.gz
+	Alternate-site:	ftp.halcyon.com /local/gvr
+			27kB ctags-1.3.tar.gz
+	Original-site:
+	Platforms:	UNIX, MSDOS, WindowsNT, Windows95, OS/2, Amiga
+	Copying-policy:	Public domain
+
+Q: When I update a file I already have open, and use :e to reread it, I
+   get nul's for the rest of the file!
+A: Your system's implementation of mmap(2) has a bug; you will have to
+   exit vi and re-execute it.
+
+Q: Where can I get cscope?
+A: Cscope is available on UNIXWare System V Release 4.0 variants such as
+   Sun Solaris 2.x (/opt/SUNWspro/bin) and UNIXWare System V Release 4.1.
+
+   You can buy version 13.3 source with an unrestricted license for $400
+   from AT&T Software Solutions by calling +1-800-462-8146.  Binary
+   redistribution of cscope is an additional $1500, one-time flat fee.
+
+   For more information, see http://www.unipress.com/att/new/cscope.html.

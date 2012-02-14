@@ -1,0 +1,176 @@
+.TH NTP-KEYGEN 1 2009-12-08 "(ntp 4.2.4p8)" "Programmer's Manual"
+.\"  EDIT THIS FILE WITH CAUTION  (ntp-keygen.1)
+.\"  
+.\"  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:57 AM EST
+.\"  From the definitions    ntp-keygen-opts.def
+.\"  and the template file   agman1.tpl
+.\"
+.SH NAME
+ntp-keygen \- Create a NTP host key
+.SH SYNOPSIS
+.B ntp-keygen
+.\" Mixture of short (flag) options and long options
+.RB [ \-\fIflag\fP " [\fIvalue\fP]]... [" \--\fIopt-name\fP " [[=| ]\fIvalue\fP]]..."
+.PP
+All arguments must be options.
+.SH "DESCRIPTION"
+This manual page documents, briefly, the \fBntp-keygen\fP command.
+If there is no new host key, look for an existing one.
+If one is not found, create it.
+.SH OPTIONS
+.TP
+.BR \-c " \fIscheme\fP, " \--certificate "=" \fIscheme\fP
+certificate scheme.
+.sp
+Just some descriptive text.
+.TP
+.BR \-d ", " \--debug-level
+Increase output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Increase the debugging message output level.
+.TP
+.BR \-D " \fIstring\fP, " \--set-debug-level "=" \fIstring\fP
+Set the output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Set the output debugging level.  Can be supplied multiple times,
+but each overrides the previous value(s).
+.TP
+.BR \-e ", " \--id-key
+Write identity keys.
+.sp
+Just some descriptive text.
+.TP
+.BR \-G ", " \--gq-params
+Generate GQ parameters and keys.
+.sp
+Just some descriptive text.
+.TP
+.BR \-g ", " \--gq-keys
+update GQ keys.
+.sp
+Just some descriptive text.
+.TP
+.BR \-H ", " \--host-key
+generate RSA host key.
+.sp
+Just some descriptive text.
+.TP
+.BR \-I ", " \--iffkey
+generate IFF parameters.
+.sp
+Just some descriptive text.
+.TP
+.BR \-i ", " \--issuer-name
+set issuer name.
+.sp
+Just some descriptive text.
+.TP
+.BR \-M ", " \--md5key
+generate MD5 keys.
+.sp
+Just some descriptive text.
+.TP
+.BR \-m " \fImodulus\fP, " \--modulus "=" \fImodulus\fP
+modulus.
+This option takes an integer number as its argument.
+The value of \fImodulus\fP is constrained to being:
+.in +4
+.nf
+.na
+in the range  256 through 2048
+.fi
+.in -4
+.sp
+Just some descriptive text.
+.TP
+.BR \-P ", " \--pvt-cert
+generate PC private certificate.
+.sp
+Just some descriptive text.
+.TP
+.BR \-p " \fIpasswd\fP, " \--pvt-passwd "=" \fIpasswd\fP
+output private password.
+.sp
+Just some descriptive text.
+.TP
+.BR \-q " \fIpasswd\fP, " \--get-pvt-passwd "=" \fIpasswd\fP
+input private password.
+.sp
+Just some descriptive text.
+.TP
+.BR \-S " \fIsign\fP, " \--sign-key "=" \fIsign\fP
+generate sign key (RSA or DSA).
+.sp
+Just some descriptive text.
+.TP
+.BR \-s " \fIhost\fP, " \--subject-name "=" \fIhost\fP
+set subject name.
+.sp
+Just some descriptive text.
+.TP
+.BR \-T ", " \--trusted-cert
+trusted certificate (TC scheme).
+.sp
+Just some descriptive text.
+.TP
+.BR \-V " \fInum\fP, " \--mv-params "=" \fInum\fP
+generate <num> MV parameters.
+This option takes an integer number as its argument.
+.sp
+Just some descriptive text.
+.TP
+.BR \-v " \fInum\fP, " \--mv-keys "=" \fInum\fP
+update <num> MV keys.
+This option takes an integer number as its argument.
+.sp
+Just some descriptive text.
+.TP
+.BR \-? , " \--help"
+Display usage information and exit.
+.TP
+.BR \-! , " \--more-help"
+Extended usage information passed thru pager.
+.TP
+.BR \-> " [\fIrcfile\fP]," " \--save-opts" "[=\fIrcfile\fP]"
+Save the option state to \fIrcfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+.TP
+.BR \-< " \fIrcfile\fP," " \--load-opts" "=\fIrcfile\fP," " \--no-load-opts"
+Load options from \fIrcfile\fP.
+The \fIno-load-opts\fP form will disable the loading
+of earlier RC/INI files.  \fI--no-load-opts\fP is handled early,
+out of order.
+.TP
+.BR \-v " [{\fIv|c|n\fP}]," " \--version" "[=\fI{v|c|n}\fP]"
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.SH OPTION PRESETS
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBNTP_KEYGEN_<option-name>\fP or \fBNTP_KEYGEN\fP
+.fi
+.aj
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.SH AUTHOR
+David L. Mills and/or others
+.br
+Please send bug reports to:  http://bugs.ntp.org, bugs@ntp.org
+
+.PP
+.nf
+.na
+see html/copyright.html
+.fi
+.ad
+.PP
+This manual page was \fIAutoGen\fP-erated from the \fBntp-keygen\fP
+option definitions.

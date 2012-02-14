@@ -1,0 +1,13 @@
+# $FreeBSD$
+
+# ADM5120 on-board devices
+# mips/adm5120/console.c		standard
+mips/adm5120/adm5120_machdep.c	standard
+mips/adm5120/admpci.c		optional admpci
+mips/adm5120/if_admsw.c		optional admsw
+mips/adm5120/obio.c		standard
+mips/adm5120/uart_bus_adm5120.c	optional uart
+mips/adm5120/uart_cpu_adm5120.c	optional uart
+mips/adm5120/uart_dev_adm5120.c	optional uart
+mips/mips/intr_machdep.c        standard
+mips/mips/tick.c		standard

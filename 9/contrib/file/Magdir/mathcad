@@ -1,0 +1,7 @@
+
+#------------------------------------------------------------------------------
+# mathcad:  file(1) magic for Mathcad documents
+# URL:	http://www.mathsoft.com/
+# From:	Josh Triplett <josh@freedesktop.org>
+
+0	string	.MCAD\t		Mathcad document

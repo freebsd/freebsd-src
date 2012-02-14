@@ -1,0 +1,200 @@
+wpa_supplicant and Wi-Fi Protected Setup (WPS)
+==============================================
+
+This document describes how the WPS implementation in wpa_supplicant
+can be configured and how an external component on the client (e.g.,
+management GUI) is used to enable WPS enrollment and registrar
+registration.
+
+
+Introduction to WPS
+-------------------
+
+Wi-Fi Protected Setup (WPS) is a mechanism for easy configuration of a
+wireless network. It allows automated generation of random keys (WPA
+passphrase/PSK) and configuration of an access point and client
+devices. WPS includes number of methods for setting up connections
+with PIN method and push-button configuration (PBC) being the most
+commonly deployed options.
+
+While WPS can enable more home networks to use encryption in the
+wireless network, it should be noted that the use of the PIN and
+especially PBC mechanisms for authenticating the initial key setup is
+not very secure. As such, use of WPS may not be suitable for
+environments that require secure network access without chance for
+allowing outsiders to gain access during the setup phase.
+
+WPS uses following terms to describe the entities participating in the
+network setup:
+- access point: the WLAN access point
+- Registrar: a device that control a network and can authorize
+  addition of new devices); this may be either in the AP ("internal
+  Registrar") or in an external device, e.g., a laptop, ("external
+  Registrar")
+- Enrollee: a device that is being authorized to use the network
+
+It should also be noted that the AP and a client device may change
+roles (i.e., AP acts as an Enrollee and client device as a Registrar)
+when WPS is used to configure the access point.
+
+
+More information about WPS is available from Wi-Fi Alliance:
+http://www.wi-fi.org/wifi-protected-setup
+
+
+wpa_supplicant implementation
+-----------------------------
+
+wpa_supplicant includes an optional WPS component that can be used as
+an Enrollee to enroll new network credential or as a Registrar to
+configure an AP. The current version of wpa_supplicant does not
+support operation as an external WLAN Management Registrar for adding
+new client devices or configuring the AP over UPnP.
+
+
+wpa_supplicant configuration
+----------------------------
+
+WPS is an optional component that needs to be enabled in
+wpa_supplicant build configuration (.config). Here is an example
+configuration that includes WPS support and Linux wireless extensions
+-based driver interface:
+
+CONFIG_DRIVER_WEXT=y
+CONFIG_WPS=y
+
+
+WPS needs the Universally Unique IDentifier (UUID; see RFC 4122) for
+the device. This is configured in the runtime configuration for
+wpa_supplicant (if not set, UUID will be generated based on local MAC
+address):
+
+# example UUID for WPS
+uuid=12345678-9abc-def0-1234-56789abcdef0
+
+The network configuration blocks needed for WPS are added
+automatically based on control interface commands, so they do not need
+to be added explicitly in the configuration file.
+
+WPS registration will generate new network blocks for the acquired
+credentials. If these are to be stored for future use (after
+restarting wpa_supplicant), wpa_supplicant will need to be configured
+to allow configuration file updates:
+
+update_config=1
+
+
+
+External operations
+-------------------
+
+WPS requires either a device PIN code (usually, 8-digit number) or a
+pushbutton event (for PBC) to allow a new WPS Enrollee to join the
+network. wpa_supplicant uses the control interface as an input channel
+for these events.
+
+If the client device has a display, a random PIN has to be generated
+for each WPS registration session. wpa_supplicant can do this with a
+control interface request, e.g., by calling wpa_cli:
+
+wpa_cli wps_pin any
+
+This will return the generated 8-digit PIN which will then need to be
+entered at the Registrar to complete WPS registration. At that point,
+the client will be enrolled with credentials needed to connect to the
+AP to access the network.
+
+
+If the client device does not have a display that could show the
+random PIN, a hardcoded PIN that is printed on a label can be
+used. wpa_supplicant is notified this with a control interface
+request, e.g., by calling wpa_cli:
+
+wpa_cli wps_pin any 12345670
+
+This starts the WPS negotiation in the same way as above with the
+generated PIN.
+
+
+If the client design wants to support optional WPS PBC mode, this can
+be enabled by either a physical button in the client device or a
+virtual button in the user interface. The PBC operation requires that
+a button is also pressed at the AP/Registrar at about the same time (2
+minute window). wpa_supplicant is notified of the local button event
+over the control interface, e.g., by calling wpa_cli:
+
+wpa_cli wps_pbc
+
+At this point, the AP/Registrar has two minutes to complete WPS
+negotiation which will generate a new WPA PSK in the same way as the
+PIN method described above.
+
+
+If the client wants to operate in the Registrar role to learn the
+current AP configuration and optionally, to configure an AP,
+wpa_supplicant is notified over the control interface, e.g., with
+wpa_cli:
+
+wpa_cli wps_reg <AP BSSID> <AP PIN>
+(example: wpa_cli wps_reg 02:34:56:78:9a:bc 12345670)
+
+This is used to fetch the current AP settings instead of actually
+changing them. The main difference with the wps_pin command is that
+wps_reg uses the AP PIN (e.g., from a label on the AP) instead of a
+PIN generated at the client.
+
+In order to change the AP configuration, the new configuration
+parameters are given to the wps_reg command:
+
+wpa_cli wps_reg <AP BSSID> <AP PIN> <new SSID> <auth> <encr> <new key>
+examples:
+  wpa_cli wps_reg 02:34:56:78:9a:bc 12345670 testing WPA2PSK CCMP 12345678
+  wpa_cli wps_reg 02:34:56:78:9a:bc 12345670 clear OPEN NONE ""
+
+<auth> must be one of the following: OPEN WPAPSK WPA2PSK
+<encr> must be one of the following: NONE WEP TKIP CCMP
+
+
+Scanning
+--------
+
+Scan results ('wpa_cli scan_results' or 'wpa_cli bss <idx>') include a
+flags field that is used to indicate whether the BSS support WPS. If
+the AP support WPS, but has not recently activated a Registrar, [WPS]
+flag will be included. If PIN method has been recently selected,
+[WPS-PIN] is shown instead. Similarly, [WPS-PBC] is shown if PBC mode
+is in progress. GUI programs can use these as triggers for suggesting
+a guided WPS configuration to the user. In addition, control interface
+monitor events WPS-AP-AVAILABLE{,-PBC,-PIN} can be used to find out if
+there are WPS enabled APs in scan results without having to go through
+all the details in the GUI. These notification could be used, e.g., to
+suggest possible WPS connection to the user.
+
+
+wpa_gui
+-------
+
+wpa_gui-qt4 directory contains a sample GUI that shows an example of
+how WPS support can be integrated into the GUI. Its main window has a
+WPS tab that guides user through WPS registration with automatic AP
+selection. In addition, it shows how WPS can be started manually by
+selecting an AP from scan results.
+
+
+Credential processing
+---------------------
+
+By default, wpa_supplicant processes received credentials and updates
+its configuration internally. However, it is possible to
+control these operations from external programs, if desired.
+
+This internal processing can be disabled with wps_cred_processing=1
+option. When this is used, an external program is responsible for
+processing the credential attributes and updating wpa_supplicant
+configuration based on them.
+
+Following control interface messages are sent out for external programs:
+
+WPS-CRED-RECEIVED  <hexdump of Credential attribute(s)>
+For example:
+<2>WPS-CRED-RECEIVED 100e006f10260001011045000c6a6b6d2d7770732d74657374100300020020100f000200081027004030653462303435366332363666653064333961643135353461316634626637313234333761636664623766333939653534663166316230323061643434386235102000060266a0ee1727

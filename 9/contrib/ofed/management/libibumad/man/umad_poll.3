@@ -1,0 +1,40 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_POLL 3  "October 23, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_poll \- poll umad
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_poll(int " "portid" ", int " "timeout_ms");
+.fi
+.SH "DESCRIPTION"
+.B umad_poll()
+waits up to
+.I timeout_ms\fR
+milliseconds for a packet to be received from the port specified by
+.I portid\fR.
+Once a packet is ready to be read, the function
+returns 0. After that the packet can be read using
+.B umad_recv().
+Otherwise, \-ETIMEDOUT is returned. Note that successfully polling a port
+does not guarantee that the subsequent
+.B umad_recv()
+will be non blocking when several threads are using
+the same port. Instead, use a
+.I timeout_ms\fR
+parameter of zero to
+.B umad_recv()
+to ensure a non-blocking read.
+.SH "RETURN VALUE"
+.B umad_poll()
+returns 0 on success, and a negative value on error as follows:
+ -EINVAL    invalid port handle or agentid
+ -ETIMEDOUT poll operation timed out
+ -EIO       poll operation failed
+.SH "SEE ALSO"
+.BR umad_recv (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

@@ -1,0 +1,145 @@
+[PATCHv7 1/2] libmlx4: Add RoCEE support
+
+Modify libmlx4 to support RoCEE. The change involves retrieving the MAC address
+of a port based on its GID through a new system call, ibv_cmd_get_mac(), and
+embedding the MAC in the address vector representation of mlx4.
+
+Signed-off-by: Eli Cohen <eli@mellanox.co.il>
+---
+ src/mlx4.h  |    3 +++
+ src/qp.c    |    2 ++
+ src/verbs.c |   29 +++++++++++++++++++++++++++++
+ src/wqe.h   |    3 ++-
+ 4 files changed, 36 insertions(+), 1 deletions(-)
+
+Index: libmlx4/src/mlx4.h
+===================================================================
+--- libmlx4.orig/src/mlx4.h	2010-08-23 08:07:47.599964446 +0300
++++ libmlx4/src/mlx4.h	2010-08-23 08:08:32.039462057 +0300
+@@ -277,11 +277,15 @@ struct mlx4_av {
+ 	uint8_t				hop_limit;
+ 	uint32_t			sl_tclass_flowlabel;
+ 	uint8_t				dgid[16];
++	uint8_t				mac[8];
+ };
+ 
+ struct mlx4_ah {
+ 	struct ibv_ah			ibv_ah;
+ 	struct mlx4_av			av;
++	uint16_t			vlan;
++	uint8_t				mac[6];
++	uint8_t				tagged;
+ };
+ 
+ struct mlx4_xrc_domain {
+Index: libmlx4/src/qp.c
+===================================================================
+--- libmlx4.orig/src/qp.c	2010-08-23 08:07:46.283963844 +0300
++++ libmlx4/src/qp.c	2010-08-23 08:08:32.039462057 +0300
+@@ -143,6 +143,8 @@ static void set_datagram_seg(struct mlx4
+ 	memcpy(dseg->av, &to_mah(wr->wr.ud.ah)->av, sizeof (struct mlx4_av));
+ 	dseg->dqpn = htonl(wr->wr.ud.remote_qpn);
+ 	dseg->qkey = htonl(wr->wr.ud.remote_qkey);
++	dseg->vlan = htons(to_mah(wr->wr.ud.ah)->vlan);
++	memcpy(dseg->mac, to_mah(wr->wr.ud.ah)->mac, 6);
+ }
+ 
+ static void __set_data_seg(struct mlx4_wqe_data_seg *dseg, struct ibv_sge *sg)
+@@ -284,6 +286,11 @@ int mlx4_post_send(struct ibv_qp *ibqp, 
+ 			set_datagram_seg(wqe, wr);
+ 			wqe  += sizeof (struct mlx4_wqe_datagram_seg);
+ 			size += sizeof (struct mlx4_wqe_datagram_seg) / 16;
++			if (to_mah(wr->wr.ud.ah)->tagged) {
++				ctrl->ins_vlan = 1 << 6;
++				ctrl->vlan_tag = htons(to_mah(wr->wr.ud.ah)->vlan);
++			}
++
+ 			break;
+ 
+ 		default:
+@@ -396,7 +403,7 @@ out:
+ 
+ 	if (nreq == 1 && inl && size > 1 && size < ctx->bf_buf_size / 16) {
+ 		ctrl->owner_opcode |= htonl((qp->sq.head & 0xffff) << 8);
+-		*(uint32_t *) ctrl->reserved |= qp->doorbell_qpn;
++		*(uint32_t *) (&ctrl->vlan_tag) |= qp->doorbell_qpn;
+ 		/*
+ 		 * Make sure that descriptor is written to memory
+ 		 * before writing to BlueFlame page.
+Index: libmlx4/src/verbs.c
+===================================================================
+--- libmlx4.orig/src/verbs.c	2010-08-23 08:07:48.451964305 +0300
++++ libmlx4/src/verbs.c	2010-08-23 08:08:32.039462057 +0300
+@@ -643,12 +643,14 @@ int mlx4_destroy_qp(struct ibv_qp *ibqp)
+ struct ibv_ah *mlx4_create_ah(struct ibv_pd *pd, struct ibv_ah_attr *attr)
+ {
+ 	struct mlx4_ah *ah;
++	struct ibv_port_attr port_attr;
++	uint8_t is_mcast;
+ 
+ 	ah = malloc(sizeof *ah);
+ 	if (!ah)
+ 		return NULL;
+ 
+-	memset(&ah->av, 0, sizeof ah->av);
++	memset(ah, 0, sizeof *ah);
+ 
+ 	ah->av.port_pd   = htonl(to_mpd(pd)->pdn | (attr->port_num << 24));
+ 	ah->av.g_slid    = attr->src_path_bits;
+@@ -668,7 +670,32 @@ struct ibv_ah *mlx4_create_ah(struct ibv
+ 		memcpy(ah->av.dgid, attr->grh.dgid.raw, 16);
+ 	}
+ 
++	if (ibv_query_port(pd->context, attr->port_num, &port_attr))
++		goto err;
++
++	if (port_attr.link_layer == IBV_LINK_LAYER_ETHERNET) {
++		if (ibv_resolve_eth_gid(pd, attr->port_num,
++					(union ibv_gid *)ah->av.dgid,
++					attr->grh.sgid_index,
++					ah->mac, &ah->vlan,
++					&ah->tagged, &is_mcast))
++			goto err;
++
++		if (is_mcast) {
++			ah->av.dlid = htons(0xc000);
++			ah->av.port_pd |= htonl(1 << 31);
++		}
++		if (ah->tagged) {
++			ah->av.port_pd |= htonl(1 << 29);
++			ah->vlan |= (attr->sl & 7) << 13;
++		}
++	}
++
++
+ 	return &ah->ibv_ah;
++err:
++	free(ah);
++	return NULL;
+ }
+ 
+ int mlx4_destroy_ah(struct ibv_ah *ah)
+Index: libmlx4/src/wqe.h
+===================================================================
+--- libmlx4.orig/src/wqe.h	2010-08-23 08:07:46.287962570 +0300
++++ libmlx4/src/wqe.h	2010-08-23 08:07:50.231963413 +0300
+@@ -54,7 +54,8 @@ enum {
+ 
+ struct mlx4_wqe_ctrl_seg {
+ 	uint32_t		owner_opcode;
+-	uint8_t			reserved[3];
++	uint16_t                vlan_tag;
++	uint8_t                 ins_vlan;
+ 	uint8_t			fence_size;
+ 	/*
+ 	 * High 24 bits are SRC remote buffer; low 8 bits are flags:
+@@ -78,7 +79,8 @@ struct mlx4_wqe_datagram_seg {
+ 	uint32_t		av[8];
+ 	uint32_t		dqpn;
+ 	uint32_t		qkey;
+-	uint32_t		reserved[2];
++	uint16_t		vlan;
++	uint8_t			mac[6];
+ };
+ 
+ struct mlx4_wqe_data_seg {

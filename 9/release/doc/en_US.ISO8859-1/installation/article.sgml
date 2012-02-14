@@ -1,0 +1,162 @@
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+]>
+
+<article>
+  <articleinfo>
+    <title>&os; &release.current; Installation Instructions</title>
+
+    <corpauthor>The &os; Project</corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2012</year>
+
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This article gives some brief instructions on installing
+      &os; &release.current; and upgrading the systems running earlier
+      releases.</para>
+  </abstract>
+
+  <sect1 id="install">
+    <title>Installing &os;</title>
+
+    <para>The <ulink
+	url="&url.books.handbook;/bsdinstall.html"><quote>Installing
+	  &os;</quote></ulink>
+      chapter of the <ulink
+	url="&url.books.handbook;/">&os;
+	Handbook</ulink> provides more in-depth information about the
+      installation program itself, including a guided walk-through with
+      screenshots.</para>
+  </sect1>
+
+  <sect1 id="upgrade">
+    <title>Upgrading &os;</title>
+
+    <para>If you are upgrading from a previous release of &os;, please
+      read <ulink
+      url="http://www.FreeBSD.org/releases/9.0R/relnotes-detailed.html#UPGRADE">upgrading
+      section in the Release Notes</ulink> for notable
+      incompatibilities carefully.</para>
+
+    <sect2>
+      <title>Upgrading from Source</title>
+
+      <para>The procedure for doing a source code based update is
+	described in
+	<ulink url="&url.books.handbook;/synching.html"></ulink> and
+	<ulink url="&url.books.handbook;//makeworld.html"></ulink>.</para>
+
+      <para>For SVN use the <filename>releng/9.0</filename> branch
+	which will be where any upcoming Security Advisories or Errata
+	Notices will be applied.  The branch tag to use for updating
+	the source is <literal>RELENG_9_0</literal> for CVS.</para>
+    </sect2>
+
+    <sect2>
+      <title>Upgrading Using <quote>&os; Update</quote></title>
+
+      <para>The &man.freebsd-update.8; utility supports binary
+	upgrades of &arch.i386; and &arch.amd64; systems running
+	earlier FreeBSD releases. Systems running
+	<literal>7.[34]-RELEASE</literal>,
+	<literal>8.[12]-RELEASE</literal>,
+	<literal>9.0-BETA[123]</literal>, or
+	<literal>9.0-RC[123]</literal> can upgrade as follows:</para>
+
+      <para>First, ensure that your current system is up to date; a
+	change was recently made to &man.freebsd-update.8; (Errata
+	Notice <ulink
+	  url="http://security.FreeBSD.org/advisories/FreeBSD-EN-12:01.freebsd-update.asc">FreeBSD-EN-12:01.freebsd-update</ulink>)
+	which is needed in order to upgrade to &os;
+	&release.current;.</para>
+
+      <screen>&prompt.root; freebsd-update fetch
+&prompt.root; freebsd-update install</screen>
+
+      <para>Now the &man.freebsd-update.8; utility can fetch bits
+	belonging to &release.current;.  During this process
+	&man.freebsd-update.8; will ask for help in merging
+	configuration files.</para>
+
+      <screen>&prompt.root; freebsd-update upgrade -r 9.0-RELEASE</screen>
+
+      <para>Due to changes in the way that &os; is packaged on the
+	release media, two complications may arise in this process if
+	upgrading from FreeBSD 7.x or 8.x:</para>
+
+      <orderedlist>
+	<listitem>
+	  <para>The &os;, which previously could appear in either
+	    <filename>/boot/kernel</filename> or
+	    <filename>/boot/GENERIC</filename>, now only appears as
+	    <filename>/boot/kernel</filename>.  As a result, any
+	    kernel appearing in <filename>/boot/GENERIC</filename>
+	    will be deleted.  Please carefully read the output printed
+	    by &man.freebsd-update.8; and confirm that an updated
+	    kernel will be placed into
+	    <filename>/boot/kernel</filename> before proceeding beyond
+	    this point.</para>
+	</listitem>
+
+	<listitem>
+	  <para>The &os; source tree in <filename>/usr/src</filename>
+	    (if present) will be deleted.  (Normally the
+	    &man.freebsd-update.8; utility will update a source tree,
+	    but in this case the changes in release packaging result
+	    in the &man.freebsd-update.8; utility not recognizing that
+	    the source tree from the old release and the source tree
+	    from the new release correspond to the same part of
+	    &os;.)</para>
+	</listitem>
+      </orderedlist>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>The system must now be rebooted with the newly installed
+	kernel before the non-kernel components are updated.</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+
+      <para>After rebooting, &man.freebsd-update.8; needs to be run
+	again to install the new userland components:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>At this point, users of systems being upgraded from &os;
+	8.2-RELEASE or earlier will be prompted by
+	&man.freebsd-update.8; to rebuild all third-party applications
+	(e.g., ports installed from the ports tree) due to updates in
+	system libraries.</para>
+
+      <para>After updating installed third-party applications (and
+	again, only if &man.freebsd-update.8; printed a message
+	indicating that this was necessary), run
+	&man.freebsd-update.8; again so that it can delete the old (no
+	longer used) system libraries:</para>
+
+      <screen>&prompt.root; freebsd-update install</screen>
+
+      <para>Finally, reboot into &release.current;</para>
+
+      <screen>&prompt.root; shutdown -r now</screen>
+    </sect2>
+  </sect1>
+</article>

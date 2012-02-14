@@ -1,0 +1,12 @@
+# $FreeBSD$
+
+LSDIR=	${.CURDIR}/../../contrib/less
+.PATH:	${LSDIR}
+
+CFLAGS+=-I${.CURDIR}/../less -I${LSDIR}
+WARNS?=	1
+
+.SUFFIXES: .nro .1
+
+.nro.1:
+	cat ${.IMPSRC} > ${.TARGET}

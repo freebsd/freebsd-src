@@ -1,0 +1,181 @@
+.\" $FreeBSD$
+.Dd September 16, 1995
+.Dt SI 4
+.Os
+.Sh NAME
+.Nm si
+.Nd "driver for Specialix International SI/XIO or SX intelligent serial card"
+.Sh SYNOPSIS
+.Cd "device si"
+.Pp
+For ISA host cards put the following lines in
+.Pa /boot/device.hints :
+.Cd hint.si.0.at="isa"
+.Cd hint.si.0.maddr="0xd0000"
+.Cd hint.si.0.irq="12"
+.Sh DESCRIPTION
+The Specialix SI/XIO and SX hardware makes up an 8 to 32 port RS-232 serial
+multiplexor.
+.Pp
+The system uses two components: a "Host adapter", which is plugged into
+an ISA, EISA or PCI slot and provides intelligence and buffering/processing
+capabilities, as well as an external bus in the form of a 37 pin cable.
+.Pp
+On this cable, "modules" are connected.
+The "SI" module comes in a 4 and 8 port version.
+The "XIO" and "SX" modules come only in
+8 port versions.
+.Pp
+The host adapter polls and transfers data between the modules and the rest
+of the machine.
+The Host adapter provides a 256 byte transmit and 256 byte
+receive FIFO for each of the 32 ports that it can maintain.
+.Pp
+The XIO modules can operate each of their 8 ports at 115,200 baud.
+The SI version can run at 57,600 baud.
+The SX modules can operate each of their
+8 ports at up to 921,600 baud.
+.Pp
+SX modules are only supported when connected to an SX host card.
+SI or
+XIO modules are supported on any host card.
+.Pp
+The host adapter uses a shared memory block in the traditional ISA bus
+"hole" between 0xA0000 and 0xEFFFF.
+The adapter can be configured outside
+range, but requires the memory range to be explicitly non-cached.
+The driver does not yet support this mode of operation.
+.Pp
+SX ISA Host cards have an 8/16 bit mode switch or jumper on them.
+This switch
+or jumper MUST be set for 8 bit mode.
+.Pp
+The ISA adapters can use Irq's 11, 12 or 15 (and 9 and 10 in the case of
+SX host cards).
+.Pp
+The si device driver may have some of its configuration settings changed
+at run-time with the
+.Xr sicontrol 8
+utility.
+.Pp
+The si device driver also responds to the
+.Xr comcontrol 8
+utility for configuring drain-on-close timeouts.
+.Pp
+The driver also defines 3 sysctl variables that can be manipulated:
+machdep.si_debug sets the debug level for the whole driver.
+It depends
+on the driver being compiled with SI_DEBUG.
+machdep.si_pollrate
+sets how often per second the driver polls for lost interrupts.
+machdep.si_realpoll sets whether or not the card will treat the
+poll intervals as if they were interrupts.
+.Pp
+An open on a /dev device node controlled by the si driver obeys the same
+semantics as the
+.Xr sio 4
+driver.
+It fully supports the usual semantics of the cua ports, and the
+"initial termios" and "locked termios" settings.
+In summary, an open on a
+tty port will block until DCD is raised, unless O_NONBLOCK is specified.
+CLOCAL is honored.
+An open on a cua port will always succeed, but DCD
+transitions will be honored after DCD rises for the first time.
+.Pp
+Up to four SI/XIO host cards may be controlled by the si driver.
+Due to the lack of available interrupts, only 3 ISA SI/XIO host cards can be
+used at once.
+.Pp
+The lowest 5 bits of the minor device number are used to select the port
+number on the module cluster.
+The next 2 bits select which of 4 host adapter
+cards.
+This allows a maximum of 128 ports on this driver.
+.Pp
+Bit 7 is used to differentiate a tty/dialin port (bit 7=0) and a
+cua/callout port (bit 7=1).
+.Pp
+Bit 8 through 15 (on
+.Fx )
+are unavailable as they are a shadow of the
+major device number.
+.Pp
+If bit 16 is a 1, the device node is referring to the "initial state" device.
+This "initial state" is used to prime the
+.Xr termios 4
+settings of the device when it is initially opened.
+If bit 17 is a 1, the device node is referring to the "locked state" device.
+The "locked state" is used to prevent the
+.Xr termios 4
+settings from being changed.
+.Pp
+To manipulate the initial/locked settings, the
+.Xr stty 1
+command is useful.
+When setting the "locked" variables, enabling the mode
+on the lock device will lock the termios mode, while disabling the mode will
+unlock it.
+.Sh FILES
+.Bl -tag -width /dev/si_control -compact
+.It Pa /dev/si_control
+global driver control file for
+.Xr sicontrol 8
+.It Pa /dev/ttyA*
+terminal/dialin ports
+.It Pa /dev/cuaA*
+dialout ports
+.It Pa /dev/ttyiA*
+initial termios state devices
+.It Pa /dev/ttylA*
+locked termios state devices
+.It Pa /dev/cuaiA*
+initial termios state devices for dialout ports
+.It Pa /dev/cualA*
+locked termios state devices for dialout ports
+.El
+.Sh SEE ALSO
+.Xr stty 1 ,
+.Xr sio 4 ,
+.Xr termios 4 ,
+.Xr tty 4 ,
+.Xr comcontrol 8 ,
+.Xr sicontrol 8
+.Sh HISTORY
+This driver is loosely based on driver code originating at Specialix, which
+was ported to run on BSDI by
+.An Andy Rutter Aq andy@specialix.co.uk .
+The System V driver source is/was available by ftp from
+.Sy ftp.specialix.co.uk .
+.Pp
+This driver is not supported by Specialix International.
+.Sh AUTHORS
+.An -nosplit
+.An Peter Wemm Aq peter@netplex.com.au
+obtained the code from
+.An Andy Rutter
+and ported it to
+.Fx
+and threw the man page together.
+.An Bruce Evans Aq bde@zeta.org.au
+provided a large amount of assistance during porting.
+.An Nick Sayer Aq nick@specialix.com
+wrote the EISA, PCI and SX portions.
+.Sh BUGS
+The interrupt tuning rate is not believed to be optimal at this time for
+maximum efficiency.
+.Pp
+Polled mode (a feature of standard Specialix drivers) is not implemented,
+but it can be approximated by turning on machdep.si_realpoll.
+The poll
+frequency is set by machdep.si_pollrate (in units of 1/100th of a second).
+.Pp
+The driver does not yet support baud rates higher than 115,200 on SX
+modules.
+.Pp
+Operation outside the traditional ISA "hole" is not yet supported, although it
+should work if the test is removed from the probe routine.
+.Pp
+Multiple host cards are supported although combinations of hosts on
+different bus types have not been tested - device numbering is known to
+be a problem and may lead to unexpected results.

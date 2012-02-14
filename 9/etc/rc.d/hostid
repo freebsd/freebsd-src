@@ -1,0 +1,103 @@
+#!/bin/sh
+#
+# Copyright (c) 2007 Pawel Jakub Dawidek <pjd@FreeBSD.org>
+# All rights reserved.
+#
+# Redistribution and use in source and binary forms, with or without
+# modification, are permitted provided that the following conditions
+# are met:
+# 1. Redistributions of source code must retain the above copyright
+#    notice, this list of conditions and the following disclaimer.
+# 2. Redistributions in binary form must reproduce the above copyright
+#    notice, this list of conditions and the following disclaimer in the
+#    documentation and/or other materials provided with the distribution.
+#
+# THIS SOFTWARE IS PROVIDED BY THE AUTHORS AND CONTRIBUTORS ``AS IS'' AND
+# ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+# IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+# ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHORS OR CONTRIBUTORS BE LIABLE
+# FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+# DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+# OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+# HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+# LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+# OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+# SUCH DAMAGE.
+#
+# $FreeBSD$
+#
+
+# PROVIDE: hostid
+# REQUIRE: sysctl
+# KEYWORD: nojail
+
+. /etc/rc.subr
+
+name="hostid"
+start_cmd="hostid_start"
+stop_cmd=":"
+reset_cmd="hostid_reset"
+extra_commands="reset"
+rcvar="hostid_enable"
+
+hostid_set()
+{
+	uuid=$1
+	# Generate hostid based on hostuuid - take first four bytes from md5(uuid).
+	id=`echo -n $uuid | /sbin/md5`
+	id="0x${id%????????????????????????}"
+
+	# Set both kern.hostuuid and kern.hostid.
+	#
+	check_startmsgs && echo "Setting hostuuid: ${uuid}."
+	${SYSCTL} kern.hostuuid="${uuid}" >/dev/null
+	check_startmsgs && echo "Setting hostid: ${id}."
+	${SYSCTL} kern.hostid=${id} >/dev/null
+}
+
+hostid_hardware()
+{
+	uuid=`kenv -q smbios.system.uuid`
+	x="[0-9a-f]"
+	y=$x$x$x$x
+	case "${uuid}" in
+	$y$y-$y-$y-$y-$y$y$y)
+		echo "${uuid}"
+		;;
+	esac
+}
+
+hostid_generate()
+{
+	# First look for UUID in hardware.
+	uuid=`hostid_hardware`
+	if [ -z ${uuid} ]; then
+		# If not found, fall back to software-generated UUID.
+		uuid=`uuidgen`
+	fi
+	hostid_set $uuid
+}
+
+hostid_reset()
+{
+	hostid_generate
+	# Store newly generated UUID in ${hostid_file}.
+	echo $uuid > ${hostid_file}
+	if [ $? -ne 0 ]; then
+		warn "could not store hostuuid in ${hostid_file}."
+	fi
+}
+
+hostid_start()
+{
+	# If ${hostid_file} already exists, we take UUID from there.
+	if [ -r ${hostid_file} ]; then
+		hostid_set `cat ${hostid_file}`
+	else
+		# No hostid file, generate UUID.
+		hostid_generate
+	fi
+}
+
+load_rc_config $name
+run_rc_command "$1"

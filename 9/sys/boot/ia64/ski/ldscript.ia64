@@ -1,0 +1,61 @@
+/* $FreeBSD$ */
+OUTPUT_FORMAT("elf64-ia64-freebsd", "elf64-ia64-freebsd", "elf64-ia64-freebsd")
+OUTPUT_ARCH(ia64)
+ENTRY(_start)
+SECTIONS
+{
+  /* Read-only sections, merged into text segment: */
+  . = 0x100000;
+  .text		: {
+    *(.text .stub .text.* .gnu.linkonce.t.*)
+    /* .gnu.warning sections are handled specially by elf32.em. */
+    *(.gnu.warning)
+    *(.plt)
+  } =0x00300000010070000002000001000400
+  __start_set_Xcommand_set = .;
+  set_Xcommand_set      : { *(set_Xcommand_set) }
+  __stop_set_Xcommand_set = .;
+  .data		: {
+    *(.rodata .rodata.* .gnu.linkonce.r.*)
+    *(.rodata1)
+    *(.sdata2 .sdata2.* .gnu.linkonce.s2.*)
+    *(.sbss2 .sbss2.* .gnu.linkonce.sb2.*)
+    *(.opd)
+    *(.data .data.* .gnu.linkonce.d.*)
+    *(.data1)
+    *(.plabel)
+    *(.dynbss)
+    *(.bss .bss.* .gnu.linkonce.b.*)
+    *(COMMON)
+  }
+  .IA_64.unwind_info	: { *(.IA_64.unwind_info* .gnu.linkonce.ia64unwi.*) }
+  .IA_64.unwind	: { *(.IA_64.unwind* .gnu.linkonce.ia64unw.*) }
+  __gp = .;
+  .sdata	: {
+    *(.got.plt .got)
+    *(.IA_64.pltoff)
+    *(.sdata .sdata.* .gnu.linkonce.s.*)
+    *(dynsbss)
+    *(.sbss .sbss.* .gnu.linkonce.sb.*)
+    *(.scommon)
+  }
+  .dynamic	: { *(.dynamic) }
+  .rela		: {
+    *(.rela.text .rela.text.* .rela.gnu.linkonce.t.*)
+    *(.rela.rodata .rela.rodata.* .rela.gnu.linkonce.r.*)
+    *(.rela.data .rela.data.* .rela.gnu.linkonce.d.*)
+    *(.rela.got)
+    *(.rela.sdata .rela.sdata.* .rela.gnu.linkonce.s.*)
+    *(.rela.sbss .rela.sbss.* .rela.gnu.linkonce.sb.*)
+    *(.rela.sdata2 .rela.sdata2.* .rela.gnu.linkonce.s2.*)
+    *(.rela.sbss2 .rela.sbss2.* .rela.gnu.linkonce.sb2.*)
+    *(.rela.bss .rela.bss.* .rela.gnu.linkonce.b.*)
+    *(.rela.plt)
+    *(.rela.IA_64.pltoff)
+    *(.relaset_*)
+    *(.rela.dyn .rela.dyn.*)
+  }
+  .hash		: { *(.hash) }
+  .dynsym	: { *(.dynsym) }
+  .dynstr	: { *(.dynstr) }
+}

@@ -1,0 +1,34 @@
+$FreeBSD$
+
+This image is intended to be programmed into boot EEPROM.  The image is nearly
+0x4000 so it will not fit in KB9200's 0x2000.  It is intended for KB9201 or
+later.  Alternatively, the KB9200 can be upgraded with larger EEPROM.
+It performs basic functions prior to executing an image at a
+specified address.  The pre-boot functions can be modified and saved back into
+EEPROM.
+The MAC address is set with 0.0.0.0.0.0 by default.  This is an invalid address
+and must be changed to a valid value in order to use the ethernet interface.
+
+Memory usage:
+
+EEPROM = 0x4000
+SDRAM = 
+  run stack = 0x21800000
+  variables = 0x21200000
+  ethernet  = 0x21000000 (buffers and descriptors)
+
+
+Functions supported:
+
+	c 		- copy
+	d 		- display auto command table (in RAM)
+	e 		- execute image
+	? 		- help
+	ip 		- set local ip
+	m 		- set mac
+	server_ip 	- set server ip
+	s 		- set auto command entry
+	t 		- create linux boot tag list
+	tftp 		- download image via tftp
+	w 		- update auto command table
+	x 		- download image via xmodem

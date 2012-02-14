@@ -1,0 +1,1388 @@
+
+Version 1.16.1 released
+=======================
+
+2000-07-31  Werner LEMBERG  <wl@gnu.org>
+
+	Preparing release 1.16.1.
+
+	* REVISION: Revision number set to 1.
+	* MORE.STUFF: Added info about port to DOS.
+	* NEWS, win32-diffs: Updated.
+
+	* src/include/nonposix.h: Remove first line -- this file is used
+	in C also.
+
+	* Makefile.in (dist): Delete Imakefile earlier to avoid a soft
+	link to it.
+
+2000-07-30  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/texinfo.tex: Update to latest version.
+
+2000-06-28  Paul Eggert  <eggert@twinsun.com>
+
+	* Makefile.in (ENVSETUP): Don't assume POSIX make semantics for
+	commands that fail.  Don't assume that "export a=b" is valid shell
+	syntax.  This is needed for Solaris 2.5.1.
+
+	* src/libs/libgroff/tmpfile.cc, src/utils/indxbib/indxbib.cc: Fix
+	comment about missing Solaris headers.
+
+	* PROBLEMS: Add section about problems with Sun Make and VPATH.
+
+2000-06-25  Werner LEMBERG  <wl@gnu.org>
+
+	* src/devics/grodvi/dvi.cc: Replace _setmode() (for MSC) with
+	SET_BINARY().
+
+	* src/include/posix.h: Use HAVE_UNISTD instead of _MSC_VER.
+
+	* win32-diffs: Updated.
+	* README.WIN32: Added CRs to make all Windows editors happy.
+
+	* src/roff/troff/node.cc: Added WIFSIGNALED() macro (copied from
+	src/roff/groff/pipeline.c).
+
+2000-06-23  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* src/roff/grog/Makefile.sub (grog): Prepend `-e' to
+	$(SH_SCRIPT_SED_CMD), for the case where its value is empty.
+
+2000-06-17  Eli Zaretskii  <eliz@is.elta.co.il>
+
+	* src/utils/tfmtodit/tfmtodit.cc: #include nonposix.h.
+	(tfm::load, gf::load): Open tfm and gf files in binary mode: these
+	are binary files.
+	(main): Support non-Posix systems with several different styles of
+	slash characters in file names.
+
+	* src/utils/pfbtops/pfbtops.c: #include nonposix.h.
+	(main) [SET_BINARY]: Switch stdin into binary mode.
+
+	* src/utils/indxbib/indxbib.cc: #include nonposix.h.
+	(main): Support file names with several possible slash-type
+	characters, as given by DIR_SEPS[] in nonposix.h.
+	(main) [__MSDOS__]: If renaming the temporary index file fails
+	because it has more than one dot in its trunk, replace the dot
+	with an underscore and try again.
+	(do_file): Use FOPEN_RB instead of "r".  Skip every CR before a
+	Newline.
+	[__MSDOS__ || _MSC_VER]: Stop at the first ^Z character.
+
+	* src/utils/hpftodit/hpftodit.cc: #include nonposix.h.
+	(File::File): Open the input file in binary mode.  Strip CR
+	characters from each CR-LF pair.
+	(xbasename): Support file names with several possible slash-type
+	characters, as given by DIR_SEPS[] in nonposix.h.
+
+	* src/include/Makefile.sub (HDRS): Add nonposix.h.
+
+	* src/roff/troff/node.cc [HAVE_UNISTD_H]: Include <unistd.h>.
+	(WIFEXITED, WEXITSTATUS, WTERMSIG, WIFSTOPPED, WSTOPSIG)
+	[!_POSIX_VERSION]: Define for traditional Unix systems.
+	(real_output_file::real_output_file): Remove the MSVC-specific
+	call to popen, use instead POPEN_WT, appropriately defined on
+	nonposix.h.  #include nonposix.h.
+	(real_output_file::~real_output_file): Remove the MSVC-specific
+	call to pclose, a suitable macro is now defined on nonposix.h.
+	Use the portable macros WIFEXITED, WIFSIGNALED, WTERMSIG, WSTOPSIG
+	and WEXITSTATUS instead of assuming traditional Unix
+	interpretation of the status returned by pclose.
+
+	* src/roff/troff/input.cc (pipe_source): Remove the MSVC-specific
+	call to popen, use POPEN_RT instead (appropriately defined on
+	nonposix.h).  #include nonposix.h.
+	(ps_bbox_request): Open the PostScript file in binary mode.
+	Close the file after processing it.
+	(getpid) [_MSC_VER]: Remove; a suitable macro is now defined on
+	nonposix.h.
+
+	* src/roff/groff/pipeline.c (run_pipeline) [__MSDOS__ || _WIN32]:
+	A version of run_pipeline that doesn't use `fork'.
+	(signal_catcher) [__MSDOS__ || _WIN32]: New function.
+	(system_shell_name, system_shell_dash_c)
+	(is_system_shell) [__MSDOS__ || _WIN32]: New functions, to hide
+	the ugliness of testing DOS/Windows file names for equality, and
+	support both stock shells and ports of Unix shells.
+
+	* src/roff/groff/groff.cc: #include nonposix.h.
+	(BSHELL): Definition moved to nonposix.h.
+	(main): Use PATH_SEP[0] instead of literal ':'.  Use BSHELL_DASH_C
+	instead of a literal "-c".
+	(xbasename): Support file names with several possible slash-type
+	characters, as given by DIR_SEPS[] in nonposix.h.
+	(possible_command::print): Use BSHELL_DASH_C and IS_BSHELL instead
+	of literal strings.
+
+	* src/preproc/soelim/soelim.cc: #include nonposix.h.
+	(do_file): Use IS_ABSOLUTE instead of testing for a literal '/'.
+
+	* src/preproc/pic/Makefile.sub (YTABH): Change pic.tab.h to
+	pic_tab.h.
+
+	* src/preproc/pic/lex.cc: Change pic.tab.h to pic_tab.h.
+
+	* src/preproc/eqn/Makefile.sub (YTABH): Rename eqn.tab.h to
+	eqn_tab.h.
+
+	* src/preproc/eqn/lex.cc: #include eqn_tab.h, not eqn.tab.h.
+
+	* src/libs/libgroff/tmpfile.cc (DEFAULT_TMPDIR) [P_tmpdir]: If
+	P_tmpdir is defined, use it instead of the literal "/tmp".
+	(remove_tmp_files, add_tmp_file): New functions.
+	(xtmpfile): Record temporary files and register an atexit function
+	to delete them explicitly, instead of relying on the OS to do
+	that, which doesn't work on non-Unix systems.
+
+	* src/libs/libgroff/searchpath.cc: #include nonposix.h.
+	(search_path::search_path): Use PATH_SEP instead of a literal
+	colon.
+	(search_path::command_line_dir): Ditto.
+	(search_path::open_file): Use IS_ABSOLUTE, PATH_SEP and DIR_SEPS,
+	to support non-Posix systems.
+
+	* src/libs/libbib/search.cc: #include nonposix.h.
+	(search_list::add_file): Open the file in binary mode.
+
+	* src/libs/libbib/linear.cc: #include nonposix.h.
+	(file_buffer::load): Remove \r characters preceding \n from the
+	loaded buffer.
+
+	* src/libs/libbib/index.cc: #include nonposix.h.
+	(make_index_search_item): Open index_filename in O_BINARY mode.
+	(index_search_item_iterator::get_tag): Ditto.  Remove \r
+	characters before \n characters.
+	(index_search_item::check_files): Open files in binary mode.
+	(index_search_item::munge_filename): Support DOS-style file names
+	with backslashes and drive letters, use IS_ABSOLUTE.
+
+	* src/devices/grops/ps.cc: #include nonposix.h.
+	(main) [SET_BINARY]: Switch stdout to binary mode.
+
+	* src/devices/grolj4/lj4.cc: #include nonposix.h.
+	(main) [SET_BINARY]: Switch stdout to binary mode.
+
+	* src/devices/grolbp/lbp.cc: #include nonposix.h
+	(fill_pattern) [SET_BINARY]: Switch stdout to binary mode.
+
+	* src/devices/grodvi/dvi.cc: #include nonposix.h.
+	[_MSC_VER]: Remove inclusion of Windows-specific headers (done by
+	nonposix.h).
+	(main) [SET_BINARY]: Switch stdout to binary mode.
+	[_MSC_VER]: Remove an explicit call to _setmode.
+
+	* src/include/nonposix.h: New file.
+
+	* Makefile.in (ENVSETUP): New variable, to set up case-sensitive
+	operation when building with DJGPP.
+	($(TARGETS), dot, $(LIBDIRS), $(CPROGDIRS), $(CCPROGDIRS))
+	($(DEVDIRS), $(TTYDEVDIRS), $(INCDIRS), $(OTHERDIRS)): Use
+	ENVSETUP.
+
+	* Makefile.comm: mv y.tab.[ch] to y_tab.[ch], to make it work on
+	MS-DOS.
+	(.man.n): Replace `;' with `|', since FONTPATH, MACROPATH,
+	etc. can include a semi-colon on DOS/Windows.
+	(depend.temp): Use depend1.temp instead of depend.temp1, to
+	prevent files from overerwiting each other on 8+3 filesystems.
+
+	* gendef.sh (t): Change definition to work with DOS/Windows.
+
+	doc/groff.texinfo: Apart of some typo corrections, I also changed
+	some index entris, to make them more non-ambiguous, and also put
+	@ignore around some parts that are not yet written, to allow the
+	Info output be readable.
+
+2000-06-10  Gael Queri  <gqueri@mail.dotcom.fr>
+
+	Replaced specific checks for function declarations with a generic
+	routine taken from GNU bfd.
+
+	* aclocal.m4 (GROFF_NEED_DECLARATION): New function.
+	GROFF_PUTENV, GROFF_POPEN, GROFF_PCLOSE, GROFF_HYPOT: Removed.
+	* configure.in: Use it.
+	* src/devices/grolbp/lbp.cc, src/include/lib.h,
+	src/preproc/grn/hgraph.cc, src/preproc/pic/pic.h,
+	src/roff/groff/groff.cc: Use it.
+	* Makefile.in, configure: Updated.
+
+2000-06-07  Paco Andrés Verdú  <pandres@dragonet.es>
+
+	* src/devides/grolbp/lbp.h: Removed unused variables.
+
+2000-05-31  Keith Thompson  <kst@sdsc.edu>
+
+	* src/devices/grolbp/lbp.cc (set_papersizes): Add declaration of
+	strncasecmp().
+
+2000-05-31  Werner LEMBERG  <wl@gnu.org>
+
+	* aclocal.m4 (GROFF_SRAND): New function to test the return value
+	of srand() -- at least SunOS 4.1.3 uses `int' instead of `void'.
+	* configure.in: Use it.
+	* src/preproc/pic/pic.y, src/preproc/pic/pic.cc: Use it.
+	* configure, Makefile.in: Updated.
+
+	* configure.in: Add test for strncasecmp().
+	* src/include/lib.h: Use it.
+
+2000-05-29  Andrej Borsenkow  <Andrej.Borsenkow@mow.siemens.ru>
+
+	* src/preproc/grn/Makefile.sub: Add MLIB.
+
+2000-05-29  Nix  <nix@esperi.demon.co.uk>
+
+	* Makefile.in: Use @datadir@ and @mandir@ appropriately.
+
+2000-05-29  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/grog/Makefile.sub, src/roff/grog/grog.sh: Add `@g@'.
+
+	* PROBLEMS: Small update.
+
+	* src/devices/grolbp/lbp.cc: Various small fixes.
+
+2000-05-28  Keith Thompson  <kst@sdsc.edu>
+
+	* src/roff/nroff/nroff.sh: Fix main loop syntax.
+
+	* src/utils/indxbib/indxbib.cc: Add declaration of mkstemp().
+
+2000-05-25  Werner LEMBERG  <wl@gnu.org>
+
+	* man/roff.man: Removed unused macro.
+
+2000-05-24  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.in (dist): Remove src/xditview/Imakefile explicitly.
+	This is needed e.g. if you do
+	`make distclean; ./configure; make dist'.
+
+Version 1.16 released
+=====================
+
+2000-05-23  Werner LEMBERG  <wl@gnu.org>
+
+	Adding font CWI (constant width italic) to devdvi.
+
+	* font/devdvi/CWI: New file.
+	* font/devdvi/generate/Makefile: Add generating rule.
+	* font/devdvi/DESC.in, font/devdvi/Makefile.sub, win32-diffs,
+	tmac/tmac.dvi: Use it.
+	* NEWS: Announce it.
+
+	* font/devlj4/*: Regenerated (only adding kernings for `cq' glyph).
+	* font/devlj4/generate/Makefile: Cosmetic changes only.
+
+	* man/groff.man: Removed most of the redundant description of
+	special characters (which is in groff_char.man).  Added font
+	translation CB->CR for devdvi.  Other minor fixes.
+
+	* tmac/tmac.dvi: Improved appearance of \(co (copyright) and \(rg
+	(registered) symbols.
+
+2000-05-22  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/Makefile: Added rule for creating info files.
+
+	* font/devdvi/*: Added kernings for `cq' glyph.  Updated to latest
+	AMS font metrics.
+	* font/devdvi/generate/Makefile: Fixed dependencies.
+
+	* font/devps/*: Regenerated.  Heavy changes for Bookman and
+	NewCentury Schoolbook!
+	* font/devps/generate/afmname: Will now run with GNU awk.
+	* font/devps/generate/textmap: Added forgotten `cq' glyph name.
+	* font/devps/generate/Makefile: Cosmetic changes only.
+
+2000-05-21  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.an: Added a new command line option `-rSxx' (`xx' can be
+	10, 11, or 12) to support output with 11pt and 12pt base font sizes.
+	`.SS' now produces a heading with a smaller size than `.SH'.
+	Completely formatted.
+	* doc/groff.texinfo, tmac/groff_man.man, NEWS: Document it.
+
+	* man/groff.man: Improved table appearance.  Use of `eo' request
+	to reduce number of doubled backslashes in macro definitions.
+	Replacing `\e' with `\(rs'.  Other minor fixes.
+
+	* src/preproc/tbl/main.cc: Insert HTML table end tag before `lf'
+	to have correct line number.
+
+	* INSTALL: Small improvement.
+
+2000-05-20  Bernd Warken  <bwarken@mayn.de>
+
+	* man/roff.man, tmac/groff_tmac.man: Updates (with corrections by
+	WL).
+
+2000-05-19  Bernd Warken  <bwarken@mayn.de>
+
+	* man/groff.man: Complete update (with a lot of corrections by WL).
+
+2000-05-18  Werner LEMBERG  <wl@gnu.org>
+
+	Adding `cq' (PS name `quoteright') glyph name as an alias for "'".
+
+	* font/*/*: Implement it.
+	* man/groff_char.man, NEWS: Document it.
+
+	* src/include/unix.h: Removed.  It isn't used.
+
+	* doc/groff.texinfo: Slight improvements.
+
+2000-05-17  Werner LEMBERG  <wl@gnu.org>
+
+	* README, win32-diffs: Small fixes and improvements.
+
+2000-05-16  Werner LEMBERG  <wl@gnu.org>
+
+	* FDL: New file (the Free Documentation License version 1.1).
+
+	* doc/groff.texinfo: Added many start-up values for gtroff.
+	Some structural improvements of the source code.
+
+2000-05-15  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/input.cc: Added small comment about troffrc-end.
+	* src/roff/troff/troff.man: Added info about troffrc-end.
+
+2000-05-14  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.in (EXTRADIRS): Fix typos.
+	(dist): Handle deletion of old .tar.gz file correctly.
+	(DISTDIRS): Include all tty output devices.
+
+	* doc/groff.texinfo: Adding more cross references; countless other
+	fixes.
+
+2000-05-13  Werner LEMBERG  <wl@gnu.org>
+
+	* MORE.STUFF: Added Robert Marks's utilities.
+
+2000-05-12  Werner LEMBERG  <wl@gnu.org>
+
+	Added win32 port contributed by Blake McBride
+	<blake@florida-software.com>.
+
+	* README.WIN32, win32-diffs: New files.
+	* NEWS: Updated.
+
+	* src/preproc/grn/hgraph.cc (HGSetBrush): Replace `%lf' with `%f'.
+	(tmove, tmove2): Added parentheses to avoid compiler warnings.
+	(change): Removed unused variables.
+
+	* src/preproc/grn/main.cc (main, conv): Removed unused variables.
+	(savebounds): Changed return value from `int' to `void'.
+	* src/preproc/grn/hdb.cc: Ditto.
+
+	* src/devices/grolbp/lbp.cc (lbp_printer::draw): Removed superfluous
+	final backslash in comment to avoid compiler warning.
+
+	* src/utils/pfbtops/pfbtops.c: Added `getopt.h'.
+
+	* doc/groff.texinfo: More fixes.
+
+2000-05-11  OKAZAKI Tetsurou  <okazaki@be.to>
+
+	* tmac/tmac.doc: Documentation fix.
+
+2000-05-11  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Reading the source code shows up a lot of
+	omissions and incorrect data...  More conversion to @Deffn macros.
+
+2000-05-10  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/reg.cc (number_value_to_ascii): Remove ASCII
+	dependency.
+
+	* src/roff/troff/request.h: Removing unused `no_break_flag'.
+
+2000-05-09  Werner LEMBERG  <wl@gnu.org>
+
+	* man/groff.man, man/roff.man, tmac/groff_tmac.man: Minor
+	improvements.
+
+	* doc/groff.texinfo: Extended history section.  More conversion to
+	@Deffn macros.  More .tr documentation.
+
+2000-05-07  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Completed tab section.  Added info about
+	fields.
+
+2000-05-06  Mike MacIsaac  <mikemac@us.ibm.com>
+
+	* PROBLEMS: Describe configure script fix for OS/390 Unix.
+
+2000-05-05  Werner LEMBERG  <wl@gnu.org>
+
+	* font/devdvi/DESC.in: Change size 11pt to 10.95pt (as used in
+	LaTeX 2e).
+	* NEWS: Document it.
+
+	* man/troff.man: Minor optical improvements.
+
+2000-05-03  Werner LEMBERG  <wl@gnu.org>
+
+	Adding `dq' (PS name `quotedbl') glyph name as an alias for `"'.
+
+	* font/*/*: Implement it.
+	* man/groff_char.man, NEWS: Document it.
+
+2000-05-02  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/groff_tmac.man, man/groff.man, man/roff.man: Fixing @MANxEXT@
+	expansion.
+	* NEWS: Document the three new man pages.
+
+	* aclocal.m4 (GROFF_CXX_CHECK): Removing obsolete AC_C_CROSS call.
+	* configure: Updated.
+
+	* font/devcp1047/R.proto: Fixing fatal bug (a missing `"' character).
+
+2000-05-01  Werner LEMBERG  <wl@gnu.org>
+
+	Added grap support to grog.
+
+	* src/roff/grog/grog.sh, src/roff/grog/grog.pl: Implement it.
+	* src/roff/grog/grog.man: Document it.
+
+	* doc/groff.texinfo, NEWS: Add info about grap support.
+
+	Add new man pages comptributed by Bernd Warken <bwarken@mayn.de>
+	(with slight fixes by me).
+
+	* tmac/groff_tmac.man: New file documenting tmac mechanism.
+	* tmac/Makefile.sub: Add groff_tmac.man.
+	* man/roff.man: New file giving overview of roff system.
+	* man/troff.man: A short reference of troff.
+	* man/Makefile.sub: Add roff.man and troff.man.
+
+2000-04-30  Werner LEMBERG  <wl@gnu.org>
+
+	Added grap support to groff.
+
+	* src/roff/groff/groff.cc: Implement it.
+	* src/roff/groff/groff.man: Document it.
+
+	* src/devices/grotty/grotty.man: Add cp1047 device.
+	* src/preproc/eqn/eqn.man, src/preproc/eqn/neqn.sh, tmac/eqnrc:
+	Ditto.
+	* src/roff/groff/groff.man: Ditto.
+	* src/roff/nroff/nroff.sh, src/roff/nroff/nroff.man: Ditto.
+	* doc/groff.texinfo: Ditto.
+
+	* tmac/troffrc: Fix mapping of latin-1 char 160 (non-breakable space)
+	for cp1047.
+
+2000-04-29  Werner LEMBERG  <wl@gnu.org>
+
+	* man/groff_char.man: Add `pc' glyph.
+	* tmac/tmac.latin1: Replacing `md' glyph with `pc'.
+	* tmac/tmac.tty: Add `pc' glyph.
+	* tmac/tmac.tty-char: Use/add `pc' glyph.  Don't call tmac.latin1 if
+	we use cp1047 output device.
+
+	* Makefile.in, aclocal.m4: Don't build utf8 on EBCDIC hosts since
+	there are still hardcoded latin1->unicode values in utf8's font
+	definition files.
+	* configure: Updated.
+	* NEWS: Minor clarification.  Updated.
+
+	* PROBLEMS: Formatted.  Added info about C++ fix pack for OS/390
+	Unix.
+
+2000-04-28  Werner LEMBERG  <wl@gnu.org>
+
+	Adding EBCDIC code page 1047.
+
+	* font/devcp1047/R.proto, font/devcp1047/Makefile.sub,
+	font/devcp1047/DESC.proto: New files.
+
+	* aclocal.m4 (GROFF_EBCDIC): Introduce TTYDEVDIRS which can be
+	either ascii/latin1 or cp1047.
+	* Makefile.in: Use it.
+	* configure: Updated.
+
+	Replacing and/or adding `md' (mathdot) glyph with `pc'
+	(periodcentered) in all text fonts.
+
+	* font/*/*: Change it.
+
+2000-04-27  Werner LEMBERG  <wl@gnu.org>
+
+	* aclocal.m4 (GROFF_OS390): Fixing compiler flags.
+
+	* configure.in: Add check for strings.h.
+	* src/include/driver.h: Use HAVE_STRINGS_H.
+	* src/devices/grolbp/lpb.cc: Remove string.h.
+
+	* src/include/groff-getopt.h: New file.  It will be used instead of
+	getopt.h (to be included in lib.h) to avoid endless problems with
+	picky C++ compilers.
+	* src/include/lib.h: Use groff-getopt.h.
+	* src/include/Makefile.sub: Updated.
+
+	* configure: Updated.
+	* Makefile.in: Updated.
+
+	* NEWS: Mention EBCDIC support.
+
+2000-04-26  Werner LEMBERG  <wl@gnu.org>
+
+	* TODO: Some additions.
+
+2000-04-25  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/troff.man, doc/groff.texinfo: Fixing documentation
+	of mso request.
+
+2000-04-23  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/troff.man: Minor fixes.
+
+2000-04-22  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/troff.man, doc/groff.texinfo, NEWS: Document the
+	`.T' string register and the incompatible definition of the `.T'
+	number register (compared to Unix troff).
+
+	* man/groff_char.man: Add some missing characters.
+	* font/devutf8/NOTES: Update.
+
+2000-04-21  Werner LEMBERG  <wl@gnu.org>
+
+	* src/include/htmlindicate.h, src/include/lib.h,
+	src/include/posix.h: Fix copyright.
+
+	* src/include/Makefile.sub: Update.
+
+2000-04-20  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/input.cc (input_char_description): Removing
+	superfluous space char.
+
+	* tmac/tmac.X: Fix typo \(bq -> \(Bq.
+
+	* doc/groff.texinfo: Document EBCDIC.
+
+2000-04-19  Werner LEMBERG  <wl@gnu.org>
+
+	Introducing `shc' as the glyph name for the soft hyphen character.
+
+	* tmac/tmac.tty, tmac/tmac.latin1, tmac/tmac.html,
+	font/devlatin1/R.proto: Use it.
+
+	* NEWS: Updated.
+
+2000-04-18  Werner LEMBERG  <wl@gnu.org>
+
+	* src/devices/grops/ps.cc (ps_printer::flush_sbuf): Removing
+	dependency on ASCII order.
+
+2000-04-16  Sandor BARANY  <S.Barany@infosys.tuwien.ac.at>
+
+	* src/libs/libgroff/illegal.c: Added EBCDIC table.
+	* src/roff/troff/input.cc: Added adaptation to EBCDIC.
+
+	* src/preproc/refer/refer.cc, src/roff/troff/env.cc: Minor changes
+	to increase portability.
+
+2000-04-15  Werner LEMBERG  <wl@gnu.org>
+
+	* aclocal.m4: Added GROFF_EBCDIC and GROFF_OS390 tests.
+	Redefined AC_OUTPUT_MAKE_DEFS to replace ASCII character `012' with
+	the generic `\n' if under OS/390 Unix.
+
+	* configure.in: Call GROFF_EBCDIC and GROFF_OS390.
+
+	* configure: Regenerated.
+
+2000-04-14  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: More conversions to @Deffn.
+
+2000-04-12  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.psfig: Fix incorrect use of `&' operator by replacing it
+	with `:'.
+
+	* src/roff/nroff/nroff.man: Add note about tmac.tty-char.
+
+2000-04-10  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: More conversions to @Deffn.
+
+2000-04-08  Werner LEMBERG  <wl@gnu.org>
+
+	* src/libs/libgroff/{getopt.c,getopt1.c}, src/include/getopt.h:
+	Updated to latest version (glibc 2.1.3).
+
+2000-04-07  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/Makefile (clean): Include more index files.
+	Add rule texinfo->dvi.
+
+2000-04-05  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Added new index `op' for operators.  More
+	info on end of sentence characters.  More use of @Deffn.
+
+2000-03-30  Werner LEMBERG  <wl@gnu.org>
+
+	* */*.man: Adding a note that a whitespace can be inserted between
+	a command line option and its parameter -- we are using GNU getopt.
+
+	* src/roff/groff/groff.man: Add example of `-m mandoc'.
+
+2000-03-28  Werner LEMBERG  <wl@gnu.org>
+
+	Correct anachronism of calling the man macro file with `-man'
+	instead of `-m man' etc.
+
+	* tmac/tmac.man, tmac/tmac.mandoc, tmac/tmac.markup, tmac/tmac.mdoc,
+	tmac/tmac.me, tmac/tmac.ms: New files tmac.m<package> which simply
+	load tmac.<package>.
+
+	* tmac/Makefile.sub: Updated.  Take care of $(tmac_an_prefix) etc.
+
+	* NEWS: Updated.
+
+	* doc/groff.texinfo: Updated.
+
+	* tmac/groff_man.man: Copyright added.
+
+2000-03-27  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Introducing macros `Deffn' and `Defmac' to
+	typeset the request resp. escape name with a tt font -- due to a
+	bug in texinfo.tex it is necessary to use the `-e' switch with
+	texi2dvi.
+
+	Improving info about usage of groff units.
+
+	Other minor fixes.
+
+2000-03-20  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Added section about man macro package
+	(I've basically taken groff_man.man).  Introducing new indices `ma'
+	for macros/strings and `gl' for glyph names.  Other minor fixes.
+
+	* tmac/groff_man.man: Fixed some typos.
+
+2000-03-19  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Removed all occurrences of `you', `we', etc.
+	Other minor fixes.
+
+	* doc/texinfo.tex: New file.
+
+2000-03-18  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Improved section on number registers.  Other
+	minor updates.
+
+2000-03-16  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/groff/groff.man: Added info about grolbp.  Make nicer
+	synopsis.
+
+	* src/devices/grolbp/grolbp.man, src/roff/nroff/nroff.man,
+	src/devices/grolj4/grlj4.man, src/devices/grops/grops.man,
+	src/preproc/eqn/eqn.man, src/utils/afmtodit/afmtodit.man,
+	src/utils/tfmtodit/tfmtodit.man: Make nicer synopsis.
+
+	* src/preproc/grn/grn.man: Better synopsis; added copyright.
+
+	* src/roff/grog/grog.man: Updated copyright date.
+
+2000-03-14  Francisco Andrés Verdú  <pandres@dragonet.es>
+
+	* configure.in: Added test for strdup.
+
+	* src/devices/grolbp/lbp.cc: Added a strdup() version in case none
+	is available.
+
+	Replaced dynamic allocation of arrays `[...]' with `new' operator.
+
+	Other minor fixes.
+
+2000-03-12  OKAZAKI Tetsurou  <okazaki@be.to>
+
+	* Makefile.comm: Add $(INCLUDES) to $(ALL_CFLAGS).
+
+2000-03-11  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/hdb.cc (DBGetType): Added return value to make
+	compilers silent.
+	* src/preproc/grn/hgraph.cc: Add #ifdef for hypot().
+	* src/include/lib.h: Remove some spaces.
+
+2000-03-10  Werner LEMBERG  <wl@gnu.org>
+
+	* src/libs/libgroff/tmpfile.cc (xtmptemplate, xtmpfile): Removing
+	initializers from arguments (some compilers don't like this).
+
+2000-03-09  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* src/libs/libgroff/htmlindicate.cc: Added library file which is now
+	used by pic and eqn to tell grohtml where the graphic regions start
+	and end.
+	* src/libs/libgroff/Makefile.sub: Use it.
+	* src/preproc/eqn/main.cc, src/preproc/pic/troff.cc: Altered to use
+	graphic_start() and graphic_end() from htmlindicate.cc.
+
+2000-03-09  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.safer: Will now work correctly in compatibility mode.
+	* tmac/groff_man.man: More fixes.
+
+2000-03-08  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/Makefile: Added texput.log to the `clean' target.
+	* doc/groff.texinfo: Added info about delimiters for escapes.
+
+2000-03-08  Bernd Warken  <bwarken@mayn.de>
+
+	* src/preproc/pic/pic.man: Add info on conversion of pic images to
+	other graphic formats.
+
+2000-03-07  OKAZAKI Tetsurou  <okazaki@be.to>
+
+	* Makefile.in, Makefile.sub, src/preproc/eqn/Makefile.sub,
+	src/roff/groff/Makefile.sub, src/roff/nroff/Makefile.sub,
+	src/utils/afmtodit/Makefile.sub: Use $(INSTALL_SCRIPT) for script
+	files.
+
+2000-03-07  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Spelling fixes.
+
+2000-03-06  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/groff_man.man: Completely revised to cover everything in
+	tmac.an.
+
+	* doc/groff.texinfo, src/roff/troff/troff.man: Document evc request.
+	Other minor fixings.
+	* src/roff/troff/env.cc (environment_copy): Improve error message and
+	fix itoa->i_to_a.
+	* src/roff/troff/TODO: Updated.
+
+	* doc/Makefile: Bug fixes -- this is still provisional, though...
+
+	* tmac/eqnrc: Small fixes.
+
+2000-03-05  Abramo Bagnara  <abramo@alsa-project.org>
+
+	Adding a request `evc' to copy environments.
+
+	* src/roff/troff/env.cc (environment::copy, environment_copy):
+	Implement it.
+	* src/roff/troff/env.h: Add prototype.
+
+2000-03-05  Francisco Andrés Verdú  <pandres@dragonet.es>
+
+	Adding strsep() -- Solaris 8 doesn't have it.
+
+	* configure.in: Test it.
+	* src/devices/grolbp/lbp.cc: Add code.
+
+2000-03-05  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/troff/div.cc (macro_diversion::output,
+	top_level_diversion::output): Fixing an incompatibility with
+	original troff: \x'0' updates the .a register also.  Thanks to
+	<Andries.Brouwer@cwi.nl> for pointing this out.
+	* doc/groff.texinfo: Document it.
+
+	* Makefile.in: Create Makefile.dep if necessary before calling the
+	submake process to avoid warning about nonexistent file.
+
+	* NEWS, PROJECTS: Updated.
+
+2000-03-04  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/troffrc: Add tmac.lbp.
+
+2000-03-03  Francisco Andrés Verdú  <pandres@dragonet.es>
+
+	* tmac/tmac.lbp: New file.
+	* src/devices/grolbp/grolbp.man: Add documentation of `lbpname'
+	command.
+
+2000-03-03  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.in: Fixing $(subdir).
+
+	* README, NEWS: Small fixes.
+
+	* test-groff: Adding path to grolbp.
+
+	* configure.in: The (new) file src/xditview/Imakefile.in will be
+	also configured -- it is now possible to build gxditview in a
+	directory different from $srcdir.
+
+2000-03-02  Blake McBride  <blake@florida-software.com>
+
+	* src/libs/libgroff/searchpath.cc (open_file): Adapting to WinNT.
+
+	* MORE.STUFF: Added website of bell labs and info about plot2dev.
+
+2000-03-01  Colin Phipps  <crp22@cam.ac.uk>
+
+	* src/utils/indxbib/indxbib.cc (main): Use mkstemp() for temporary
+	files.
+
+2000-02-29  Werner LEMBERG  <wl@gnu.org>
+
+	Adding GNU getopt to the groff distribution.
+
+	* src/include/getopt.h, src/libs/libgroff/{getopt.c,getopt1.c}:
+	New files.
+	* src/include/Makefile.sub, src/libs/libgroff/Makefile.sub: Update.
+	* aclocal.a4: Remove GROFF_GETOPT function.
+	* configure.in, Makefile.in, PROBLEMS: Update.
+	* src/include/lib.h: Replace getopt tests with getopt.h.
+	* src/devices/grolbp/lpb.cc: Remove inclusion of getopt.h.
+
+	* doc/groff.texinfo: Further checking/updating.  Adding more index
+	entries.
+
+	* man/groff_out.man: Fix nroff mode activation (for emacs).
+	* man/groff_font.man: Add missing ligature.
+
+2000-02-28  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Further checking/updating.  Adding more index
+	entries.
+
+	* src/devices/grolbp/grolbp.man: Added a comment line at the
+	beginning of the file (similar to shell scripts) which indicates
+	that `tbl' should be used as a preprocessor.
+
+2000-02-27  Blake McBride  <blake@florida-software.com>
+
+	Adapting groff to MS Visual C++ 6.0 compiler (tested with
+	Windows NT 4.0).  Uses _MSC_VER define where necessary.
+
+	* src/devices/grodvi/dvi.cc: Making stdout a binary stream.
+	* src/devices/grolj4/lj4.cc: Making getopt variables `extern "C"'.
+	* src/devices/grohtml/html.cc, src/devices/grops/ps.cc,
+	src/include/lib.h, src/libs/libgroff/errarg.cc,
+	src/libs/libgroff/itoa.c, src/libs/libgroff/nametoindex.cc,
+	src/preproc/refer/label.y, src/preproc/refer/label.cc,
+	src/roff/groff/pipeline.c, src/roff/troff/column.cc,
+	src/roff/troff/div.cc, src/roff/troff/env.cc,
+	src/roff/troff/input.cc, src/roff/troff/node.cc,
+	src/roff/troff/reg.cc: Renaming itoa() to i_to_a() and iftoa() to
+	if_to_a() to avoid name	clashes.
+	* src/include/posix.h: Don't use unistd.h.
+	* src/libs/libgroff/tmpfile.cc: Use `#ifndef...#else...#endif'
+	clause for integrating non-Unix xtmpfile() code.
+	* src/roff/troff/input.cc: Adding `public' keyword to macro_header
+	structure; use "rt" for popen() in pipe_source(); add getpid()
+	dummy function.
+	* src/roff/troff/node.cc: Use special versions of popen() in
+	real_output_file() and pclose() in ~real_output_file().
+
+2000-02-27  Werner LEMBERG  <wl@gnu.org>
+
+	Adding a new driver, grolbp, for Canon CAPSL printers (LBP-4 and
+	LBP-8 series laser printers).  This code has been contributed by
+	Francisco Andrés Verdú <pandres@dragonet.es>.
+
+	* src/devices/grolbp/*: The grolbp output device.
+	* font/devlpb/*: The font description files.
+	* Makefile.in: Add grolpb and devlbp subdirectories.
+
+	* src/devices/grodvi/grodvi.man, src/devices/grolj4/grolj4.man,
+	src/devices/grotty/grotty.man,src/roff/troff/troff.man: Minor
+	typographic fixes.
+
+	* doc/groff.texinfo: Further checking/updating.  Adding more index
+	entries.
+
+	* NEWS: Updated.
+
+	* src/devices/grolbp/Makefile.sub: Adding $(srcdir).
+
+	* man/groff_font.man: Adding info about obsolete DESC keywords.
+	* src/devices/grolj4/grolj4.man: Documenting additional DESC
+	keywords.
+
+2000-02-26  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/grn.man: Added info about the gremlin file format
+	(contributed by Daniel Senderowicz <daniel@synchrods.com>).
+
+2000-02-25  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/main.cc: Allow values of `narrow' parameter and
+	friends to be non-integer.
+
+	* src/preproc/grn/grn.man: Document it.
+
+	* doc/groff.texinfo: Further checking/updating.  Adding more index
+	entries.
+
+2000-02-24  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/main.cc: Introduce BASE_THICKNESS, defining
+	line thicknesses to be integer multiples of this value.
+
+	* src/preproc/grn/grn.man: Commenting out the -s option -- the
+	corresponding code doesn't work (yet).
+
+	* doc/groff.texinfo: Further checking/updating.  Adding more index
+	entries.
+
+2000-02-23  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/{main.cc, hgraph.cc}: Using point units to
+	specify line thickness instead of base units.  The new default
+	values are now 0.15,pt 0.45pt, and 0.75pt for thin, middle, and
+	thick lines respectively.
+
+	Removed unused variable `prevval'.
+
+	* src/preproc/grn/grn.man: Updated.
+
+2000-02-22  Werner LEMBERG  <wl@gnu.org>
+
+	* src/preproc/grn/main.cc: Slight formatting.
+
+	* src/roff/groff/groff.man: Formatting fix.
+	* src/preproc/grn/grn.man: Ditto.
+
+	* src/roff/grog/grog.pl: Fixing two embarassing bugs.
+
+	* doc/groff.texinfo: Further checking/updating.
+
+2000-02-21  Werner LEMBERG  <wl@gnu.org>
+
+	* README, INSTALL, PROJECT, PROBLEMS, BUGREPORT: Updated.
+
+	* test-groff: Added grn subdir to path.
+
+	* doc/groff.texinfo: Some restructing and other small improvements.
+
+	* src/roff/groff/groff.cc (help): Fixed info string.
+
+2000-02-20  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/meref.me: Fix description of .GS request.
+
+	* src/roff/troff/troff.man: Fixing typo.
+
+	Adding the `grn' preprocessor for gremlin graphic files.
+
+	* src/preproc/grn/*: This is the Berkeley distribution written by
+	David Slattengren and Barry Roitblat, adapted to groff by Daniel
+	Senderowicz and Werner Lemberg.
+
+	* doc/grnexampl.{me,g}: A sample for grn.
+
+	* Makefile.in: Added subdirectory entry for grn.
+
+	* src/roff/groff/groff.cc: Added support for grn.  It can be now
+	called with the switch `-g'.
+
+	* src/roff/groff/groff.man: Updated.
+
+	* src/roff/grog/grog.{man,pl,sh}: Updated.
+
+	* NEWS: Updated.
+
+2000-02-11  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* src/include/lib.h: Added xtmptemplate and made xtmpfile
+	parametrically polymorphic.
+
+	* src/libs/libgroff/tmpfile.cc: Implemented xtmptemplate
+	and the alterations to xtmpfile.
+	xtmpfile can be requested to return the filename created
+	and asked not to unlink the temp file.  The default behaviour
+	if parameters are absent is exactly the same as before.
+
+2000-02-11  Abramo Bagnara  <abramo@alsa-project.org>
+
+	A new request `length' is available which returns the length of a
+	string in a number register:
+
+	* src/roff/troff/input.cc (length_macro): Implement it.
+	* src/roff/troff/input.cc (init_input_requests): Register it.
+
+2000-02-11  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo, src/roff/troff/troff.man: Add documentation
+	of the `substring' request.
+
+	* src/roff/troff/troff.man, doc/groff.texinfo: Document `length'
+	request.
+
+	* src/roff/troff/TODO, NEWS: Updated.
+
+2000-02-09  Werner LEMBERG  <wl@gnu.org>
+
+	* src/roff/groff/groff.man: Added an example.
+
+2000-02-06  Werner LEMBERG  <wl@gnu.org>
+
+	I've considerably modified the directory structure of the
+	distribution to get a more vertical layout.  For example, the number
+	of top level directories has been reduced from 42 to 6.
+
+	As a consequence, many changes, especially to the makefiles, were
+	necessary:
+
+	* The makefile variables `top_builddir' and `top_srcdir' have been
+	introduced.  Virtually all relative paths have been replaced with
+	absolute ones using these two variables.
+
+	* Dependencies (in the files `Makefile.dep') are no longer part of
+	the distribution.  Instead, they are created during a `make install'
+	in the build directory.
+
+	* aclocal.m4 (GROFF_SRCDIR, GROFF_BUILDDIR): Two new functions to
+	make `top_srcdir' and `top_builddir' absolute.
+
+	Some other changes:
+
+	* Man pages now depend on the files `VERSION' and `REVISION'.
+
+	* The added shell script `mkinstalldirs' will replace `mkdir' in
+	almost all cases.
+
+	* VERSION: Version number increased to 1.16.
+
+2000-02-04  Werner LEMBERG  <wl@gnu.org>
+
+	* grops/psrm.cc (read_one_of): Fixed pointer incrementation.
+
+	* Makefile.in: Removed $(tmac_m) since it is no longer needed
+	(after an update of the mm stuff).
+
+	* troff/Makefile.sub (majorminor.cc): Fix dependencies.
+
+2000-02-03  Werner LEMBERG  <wl@gnu.org>
+
+	The .psbb request will now also accept Mac PS images (i.e. using LF
+	as the EOL character).
+
+	* troff/input.cc (ps_get_line): New function, taken from psrm.cc
+	(with slight modifications).
+	* troff/input.cc (do_ps_file): Use it.
+
+	* test-groff: Add grohtml and grolj4 output devices to PATH.
+
+2000-01-30  Werner LEMBERG  <wl@gnu.org>
+
+	* NEWS, MORE.STUFF: Updated.
+
+2000-01-30  Cary D. Renzema  <caryr@dollar.mxim.com>
+
+	Add the `srand' command to pic.
+
+	* pic/lex.cc, pic/pic.y: Implement it.
+	* pic/pic.man: Document it.
+	* pic/pic.cc, pic/pic.tab.h: Regenerated (with yacc).
+
+2000-01-30  Werner LEMBERG  <wl@gnu.org>
+
+	Add a new request `.psbb'.  This does exactly what the external
+	program psbb did.  It scans a PostScript image file for a
+	%%BoundingBox comment and extracts the bounding box values (in
+	PostScript units) which	are then stored in the four new (read-only)
+	number registers `llx', `lly', `urx', and `ury'.
+
+	This will allow the usage of the .PSPIC macro without worrying
+	about unsafe behaviour of groff, i.e., it will work without the
+	`-U' switch of groff.
+
+	* troff/input.cc: Implement it.
+	* tmac/tmac.pspic: Use it.
+	* troff/troff.man, grops/grops.man, NEWS: Document it.
+	* psbb/*, Makefile.in: Remove it since it is no longer needed.
+
+	This is bloody C code simply adapted from psbb.c!  Any improvements
+	welcome.
+
+2000-01-29  Werner LEMBERG  <wl@gnu.org>
+
+	* man/groff_font.man: Minor clarifications.
+
+	* NEWS: Updated.
+
+2000-01-28  Werner LEMBERG  <wl@gnu.org>
+
+	* afmtodit/afmtodit.pl: Use new `--' comment delimiter.
+
+2000-01-28  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* man/groff_font.man: Brought up to date regarding tcommand
+	extensions.
+	* libgroff/font.cc: Handle everything after `--' as a comment
+	in the font files.
+	* devps/*: Added comment delimiter inside devps font files.
+
+2000-01-28  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.arkup, tmac/groff_markup.man: Replace \fC...\fR with
+	\fC...\fP (which now works as expected).
+
+	* troff/troff.man: Fix typo.
+
+2000-01-27  Gaius Mulley  <gaius@glam.ac.uk>
+
+	Completed the pass_filenames implementation in troff.
+
+	* libdriver/input.cc: Will read the new `F' tcommand.
+	* troff/node.cc, troff/node.h: Will issue the new `F' tcommand.
+	* troff/input.cc: Use it.
+
+2000-01-26  Werner LEMBERG  <wl@gnu.org>
+
+	* troff/env.cc (set_font): Fix the behaviour of \fP.  The previous
+	font will now be updated even if an invalid font is selected.
+
+2000-01-24  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/homepage.ms: Updated for new tmac.arkup.
+
+	* tmac/tmac.html: Disable line breaks after hyphen-like characters.
+
+	* tmac/tmac.arkup: Cleanup.
+
+	Added `\&' to .HTML macro to `leave vertical mode', so to say.
+
+	Removed obsolete .LINK macro completely.
+
+	The macros .URL, .FTP, and .MAILTO now accept a third argument which
+	will be immediately appended to the second argument (to be used with
+	punctuation, for example).
+
+	Disabled .CDFTP macro temporarily for security reasons.
+
+	* tmac/groff_markup.man: Complete revision for latest changes in
+	tmac.arkup -- note that it does not yet format correctly with
+	grohtml :-(
+
+2000-01-23  Bruno Haible  <haible@clisp.cons.org>
+
+	* nroff/nroff.sh: Accept -Tutf8 option and pass it through.
+	* devutf8/R.proto: Add mappings for wp, lh, rh.
+	* devutf8/NOTES: Updated.
+
+2000-01-23  Werner LEMBERG  <wl@gnu.org>
+
+	* doc/groff.texinfo: Updated version/copyright info.
+
+2000-01-21  Gaius Mulley  <gaius@glam.ac.uk>
+
+	Added support for two new directives in device descriptions:
+	`pass_filenames' (to pass the input file name to the output device)
+	and `use_charnames_in_special' (to support e.g. accented characters
+	in the `X' request).
+
+	* include/font.h, troff/charinfo.h: Declare it.
+
+	* libgroff/font.cc, libgroff/fontfile.cc: Set it.
+
+	* devhtml/DESC: Use it.
+
+	* troff/input.cc: New function encoded_char.
+
+	* troff/token.h: Add test for `specialness'.
+
+2000-01-21  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/Makefile.sub: tmac.a4 and tmac.trace have been removed by
+	mistake from the list of files to be installed.
+
+2000-01-18  Werner LEMBERG  <wl@gnu.org>
+
+	* README: Added info how to apply patches.
+
+2000-01-15  Jan Echternach  <echter@informatik.uni-rostock.de>
+
+	* troff/node.cc (ligature_note::operator delete):  Fix g++ warning.
+
+2000-01-15  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* troff/input.cc: Add support for troffrc-end.
+
+	* tbl/main.cc: Altered to issue table-start and table-end special
+	characters if using the html device.
+
+	* devhtml/*: Modified font files to incorporate html encoding of
+	characters.
+
+	* tmac/groff_markup.man: New file documenting tmac.arkup.
+
+	* tmac/troffrc-end: New file.  This is invoked after all user
+	specified macros.  Currently used by the html device to	include
+	tmac.html.  Thus no need for users to specify -mhtml anymore.
+
+	* tmac/Makefile.sub (NORMALFILES): Add troffrc-end.
+	(MAN7): Add groff_markup.man.
+
+	* tmac/tmac.an, tmac/tmac.html: Small html updates.
+
+	* tmac/troffrc: tmac.arkup will now be called for the html device.
+
+	* libgroff/font.cc, libgroff/font.h: Altered to include reading of
+	extra device specific information about fonts.
+
+	* doc/homepage.ms: New file.  It is an example how an HTML home page
+	could look like with grohtml.
+
+	* doc/Makefile: Add homepage.ms.  Remove rule for pic.html.
+
+2000-01-12  Bruno Haible  <haible@clisp.cons.org>
+
+	* devutf8/R.proto: Add mappings for ti, Fn, st, an.  Change mappings
+	of Im, Re.
+
+	* devutf8/NOTES: Updated.
+
+2000-01-08  Bruno Haible  <haible@clisp.cons.org>
+
+	* eqn/box.cc, eqn/lex.cc, eqn/other.cc, eqn/over.cc, eqn/special.cc,
+	eqn/text.cc, grodvi/dvi.cc, grops/ps.cc, grops/psrm.cc,
+	libbib/index.cc, libbib/linear.cc, libbib/search.cc,
+	libdriver/printer.cc, libgroff/font.cc, libgroff/string.cc,
+	pic/lex.cc, pic/object.cc, refer/label.y, refer/ref.cc, tbl/main.cc,
+	tbl/table.cc, tfmtodit/tfmtodit.cc, troff/dictionary.cc,
+	troff/div.cc, troff/env.cc, troff/input.cc, troff/node.cc,
+	troff/node.h, troff/reg.cc: Avoid most "g++ -Wall -Wno-sign-compare"
+	warnings.
+
+	* troff/node.cc (bracket_node::copy): Initialize last to NULL.
+
+2000-01-12  Fabrizio Polacco  <fab@prosa.it>
+
+	grolj4: Paper size will be searched case-insensitively.
+
+	* include/lib.h: Add check for strcasecmp().
+	* grolj4/li4.cc (lookup_paper_size): Use strcasecmp().
+	* configure.in: Check for strcasecmp().
+
+2000-01-11  Werner LEMBERG  <wl@gnu.org>
+
+	* troff/Makefile.sub (majorminor.cc): Fix incorrect path to
+	`REVISION'.
+
+2000-01-10  Werner LEMBERG  <wl@gnu.org>
+
+	* Makefile.comm, Makefile.in, doc/Makefile: More fixes for the
+	revision scheme.
+
+	Add a new read-only register, `.Y', which contains the groff
+	revision.
+
+	* troff/input.cc (init_input_requests): Define it.
+	* troff/Makefile.sub (majorminor.cc): Define `revision' string.
+	* doc/groff.texinfo, troff/troff.man: Document it.
+
+	* libgroff/Makefile.sub (version.cc): Add definition of
+	`Version_string[]', consisting of `<major>.<minor>.<revision>'
+	* eqn/main.cc, grodvi/dvi.cc, grolj4/lj4.cc, grops/ps.cc,
+	grotty/tty.cc, hpftodit/hpftodit.cc, indxbib/indxbib.cc, pic/main.cc,
+	refer/refer.cc, soelim/soelim.cc, tbl/main.cc, tfmtodit/tfmtodit.cc,
+	troff/input.cc, pfbtops/pfbtops.c: Use it.
+
+2000-01-10  Fabrizio Polacco  <fab@prosa.it>
+
+	Add a revision scheme to the groff package.
+
+	* REVISION: New file.
+	* libgroff/Makefile.sub (version.cc): Use it to define
+	`revision_string[]'.
+	* grops/psrm.cc: Use revision_string (converted to an unsigned
+	integer) in constructor of resource_manager.
+
+2000-01-10  Bruno Haible  <haible@clisp.cons.org>
+
+	* devutf8/Makefile.sub, devutf8/DESC.proto, devutf8/R.proto: New
+	files.
+	* Makefile.in (DEVDIRS): Add devutf8.
+	* grotty/tty.cc: Include device.h.
+	(glyph): Change type of `code' to `unsigned int'.
+	(tty_printer): New field is_utf8.  Constructor takes device argument.
+	(tty_printer::tty_printer): If device if `utf8', set is_utf8.
+	(tty_printer::add_char): Change type of first arg to `unsigned int'.
+	(tty_printer::put_char): New function.
+	(tty_printer::end_page): Use put_char() instead of ::putchar().
+	(make_printer): Pass device to tty_printer constructor.
+	* nroff.sh: Determine default device by calling 'locale'.  As a
+	fallback, look at all of $LC_ALL, $LC_CTYPE, $LANG, $LESSCHARSET.
+	Recognize UTF-8 locales.
+	* tmac/eqnrc: Recognize utf8 like latin1.
+	* tmac/troffrc: Device utf8 needs tmac.tty.
+
+2000-01-07  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/Makefile.sub: tmac.a4 and tmac.trace will now be installed.
+
+2000-01-07  Paul Eggert  <eggert@twinsun.com>
+
+	Add a new predefined writeable number register, `year',
+	which contains the current year.
+
+	* doc/groff.texinfo, PROBLEMS, troff/troff.man: Document it.
+	* tmac/tmac.s: Use it.
+	* troff/input.cc (init_registers): Initialize it.
+
+2000-01-06  Werner LEMBERG  <wl@gnu.org>
+
+	* PROBLEMS: Fixed typo.
+
+2000-01-04  Paul Eggert  <eggert@twinsun.com>
+
+	* PROBLEMS: Add Y2k advice for the yr number register.
+
+2000-01-03  Paul Eggert  <eggert@twinsun.com>
+
+	* doc/groff.texinfo: Fix Y2k bug in documentation of \n(yr.
+
+2000-01-02  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.arkup: Slight modification of macros to provide better
+	appearance for non-HTML formats.
+
+2000-01-01  Charles Levert  <charles@comm.polymtl.ca>
+
+	* soelim/soelim.cc (include_path_append): realloc(NULL, n)
+	does not automatically translate to malloc(n) on all OSes
+	(e.g., SunOS) so do it explicitly.  Also, check the returned
+	value.
+
+2000-01-01  Werner LEMBERG  <wl@gnu.org>
+
+	* tmac/tmac.arkup: Added .LINE macro.  Some formatting.
+
+	* Makefile.in: Added $(tmac_m) again since the Makefile in `mm'
+	expects this variable
+
+2000-01-01  Gaius Mulley  <gaius@glam.ac.uk>
+
+	* doc/Makefile: Added instructions to create HTML and text
+	versions of some files.
+
+1999-12-31  Werner LEMBERG  <wl@gnu.org>
+
+	* Updated INSTALL.gen.
+
+	* tmac/tmac.arkup: Added fixes so that .FTP and .MAILTO works
+	better resp. correctly with non-HTML devices.
+
+Local Variables:
+version-control: never
+coding: latin-1
+End:

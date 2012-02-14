@@ -1,0 +1,112 @@
+# Mensajes en español para dialog.
+# Copyright (C) 2001, 2003, 2004 Thomas Dickey.
+# This file is distributed under the same license as the dialog package.
+# Santiago Vila Doncel <sanvila@unex.es>, 2001, 2003, 2004, 2010.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: dialog 1.1.20080819\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2011-01-16 17:57-0500\n"
+"PO-Revision-Date: 2010-02-14 14:26+0100\n"
+"Last-Translator: Santiago Vila Doncel <sanvila@unex.es>\n"
+"Language-Team: Spanish <es@li.org>\n"
+"Language: es\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8-bit\n"
+
+#: buttons.c:387
+msgid "Yes"
+msgstr "Sí"
+
+#: buttons.c:395
+msgid "No"
+msgstr "No"
+
+#: buttons.c:403
+msgid "OK"
+msgstr "Aceptar"
+
+#: buttons.c:411
+msgid "Cancel"
+msgstr "Cancelar"
+
+#: buttons.c:419
+msgid "EXIT"
+msgstr "Salir"
+
+#: buttons.c:427
+msgid "Extra"
+msgstr "Extra"
+
+#: buttons.c:435
+msgid "Help"
+msgstr "Ayuda"
+
+#. Headline "Month"
+#: calendar.c:298
+msgid "Month"
+msgstr "Mes"
+
+#. Headline "Year"
+#: calendar.c:318
+msgid "Year"
+msgstr "Año"
+
+#: dialog.c:756
+msgid "Rename"
+msgstr "Renombrar"
+
+#: fselect.c:571
+msgid "Directories"
+msgstr "Directorios"
+
+#: fselect.c:572
+msgid "Files"
+msgstr "Ficheros"
+
+#: mixedgauge.c:58
+msgid "Succeeded"
+msgstr "Finalizado con éxito"
+
+#: mixedgauge.c:61
+msgid "Failed"
+msgstr "Falló"
+
+# Esta no me convence mucho. Se admiten sugerencias
+#: mixedgauge.c:64
+msgid "Passed"
+msgstr "Pasado"
+
+#: mixedgauge.c:67
+msgid "Completed"
+msgstr "Completado"
+
+#: mixedgauge.c:70
+msgid "Checked"
+msgstr "Comprobado"
+
+#: mixedgauge.c:73
+msgid "Done"
+msgstr "Hecho"
+
+#: mixedgauge.c:76
+msgid "Skipped"
+msgstr "Saltado"
+
+#: mixedgauge.c:79
+msgid "In Progress"
+msgstr "En progreso"
+
+#: mixedgauge.c:85
+msgid "N/A"
+msgstr "N/A"
+
+#: mixedgauge.c:193
+msgid "Overall Progress"
+msgstr "Progreso total"
+
+#: textbox.c:468
+msgid "Search"
+msgstr "Buscar"

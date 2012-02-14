@@ -1,0 +1,107 @@
+
+# Packets backup directory - You have to CREATE this directory
+BAK=/var/spool/ifmail/BAK
+
+# logfile of ifcico
+IFLOG=/var/log/ifmail/sysiflog
+
+# log archive
+IFLOGARC=/var/log/ifmail/TheLog
+
+# owner of "ifcico"
+IFCICO_OWNER=fnet
+
+# how often should i try to call NODE?
+MaxTry=30
+
+# delay between outgoing calls in seconds
+DELAY=10
+
+# where to log processing - file or tty/console
+INFO_TTY=/dev/console
+
+# Lets backup the log and use a new one
+if [ -e $IFLOG ]; then
+	echo Rearranging logs...
+	cat $IFLOG >> $IFLOGARC
+	cp /dev/null $IFLOG
+fi
+
+echo "`date \"+%b %d %T\"` ifpoll[$$]: starting" # >> $INFO_TTY
+
+# remember me, not to run as root..
+#
+if [ `whoami` != "$IFCICO_OWNER" ]; then
+	echo "*** run $0 as the owner of ifcico ***"
+	echo "`date \"+%b %d %T\"` ifpoll[$$]: wrong uid (rc 2)" # >> $INFO_TTY
+	exit 2
+fi
+
+# argv[1] is the optional node to call
+#
+if [ "$1" != "" ]; then
+	if [ "$1" = "-?" ] || [ "$1" = "-h" ]; then
+		echo "usage: ifpoll [<node>]"
+		exit 3
+	else
+		NODE=$1
+	fi
+fi
+
+# let's pack the fido stuff..
+#
+$FIDOPATH/ifpack
+
+# loop until ifcico could connect the node or MaxTry is encountered
+#
+i=1; errlv=1
+while let 'i <= MaxTry' && let 'errlv != 0'
+do
+	echo -n "`date \"+%b %d %T\"` ifpoll[$$]: $i. try ($NODE) " # >> $INFO_TTY
+	#
+	# start ifcico in master mode ..
+	#
+	$FIDOPATH/ifcico -r 1 $NODE
+	errlv=$?
+	if [ $errlv != "0" ]; then
+		echo "failed" # >> $INFO_TTY
+		if [ $i != $MaxTry ]; then
+			sleep $DELAY
+		fi
+		let i=i+1
+	else
+		echo "ok :)" # >> $INFO_TTY
+	fi
+done
+
+# if the poll was fine, unpacking..
+#
+if [ $errlv = "0" ]; then
+	echo "`date \"+%b %d %T\"` ifpoll[$$]: unpacking.. " # >> $INFO_TTY
+    	cp -f /var/spool/ifmail/inb/*.* $BAK
+	$FIDOPATH/ifunpack
+	# add here some additional lines for processing tic files or
+	# incoming file-lists or simular..
+else
+	# write me a mail about the failed poll
+	tail --lines=20 $IFLOG | elm -s "ifpoll: failed" $IFCICO_SYSOP >/dev/null
+fi
+
+echo "`date \"+%b %d %T\"` ifpoll[$$]: finished (rc $errlv)" # >> $INFO_TTY
+
+# Collect some infos...
+echo ""
+echo "*** Outgoing File Transfer Stats: ***"
+grep sent $IFLOG
+echo "*** Incoming File Transfer Stats: ***"
+grep received $IFLOG
+echo ""
+
+echo "---->> New mail: <<-----"
+grep echomail $IFLOG
+echo "---->> Personal mail: <<-----"
+grep "mail from" $IFLOG
+echo ""
+
+# return the errorlevel of ifcico
+exit $errlv

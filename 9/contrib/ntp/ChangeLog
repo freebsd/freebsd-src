@@ -1,0 +1,484 @@
+---
+(4.2.4p8) 2009/12/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1331] DoS with mode 7 packets - CVE-2009-3563.
+
+---
+(4.2.4p7) 2009/05/18 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1151] Remote exploit if autokey is enabled - CVE-2009-1252.
+* [Bug 1187] Update the copyright date.
+* [Bug 1191] ntpd fails on Win2000 - "Address already in use" after fix
+  for [Sec 1149].
+
+---
+(4.2.4p7-RC7) 2009/05/12 Released by Harlan Stenn <stenn@ntp.org>
+
+* ntp.isc.org -> ntp.org cleanup.
+* [Bug 1178] Use prior FORCE_DNSRETRY behavior as needed at runtime,
+  add configure --enable-ignore-dns-errors to be even more stubborn
+
+---
+(4.2.4p7-RC6) 2009/05/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 784] Make --enable-linuxcaps the default when available
+* [Bug 1179] error messages for -u/--user and -i lacking droproot
+* Updated JJY reference clock driver from Takao Abe
+* [Bug 1071] Log a message and exit before trying to use FD_SET with a
+  descriptor larger than FD_SETSIZE, which will corrupt memory
+* On corruption of the iface list head in add_interface, log and exit
+
+---
+(4.2.4p7-RC5) 2009/05/02 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1172] 4.2.4p7-RC{3,4} fail to build on linux.
+* flock-build script unportable 'set -m' use removed
+
+---
+(4.2.4p7-RC4) 2009/04/29 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1167] use gcc -Winit-self only if it is understood
+
+---
+(4.2.4p7-RC3) 2009/04/22 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 787] Bug fixes for 64-bit time_t on Windows
+* [Bug 813] Conditional naming of Event
+* [Bug 1147] System errors should be logged to msyslog()
+* [Bug 1155] Fix compile problem on Windows with VS2005
+* [Bug 1156] lock_thread_to_processor() should be declared in header
+* [Bug 1157] quiet OpenSSL warnings, clean up configure.ac
+* [Bug 1158] support for aix6.1
+* [Bug 1160] MacOS X is like BSD regarding F_SETOWN
+
+---
+(4.2.4p7-RC2) 2009/04/09 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Sec 1144] limited buffer overflow in ntpq.  CVE-2009-0159
+* [Sec 1149] use SO_EXCLUSIVEADDRUSE on Windows
+
+---
+(4.2.4p7-RC1) 2009/03/30 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1131] UDP sockets should not use SIGPOLL on Solaris.
+* build system email address cleanup
+* [Bug 774] parsesolaris.c does not compile under the new Solaris
+* [Bug 873] Windows serial refclock proper TTY line discipline emulation
+* [Bug 1014] Enable building with VC9 (in Visual Studio 2008,
+  Visual C++ 2008, or SDK)
+* [Bug 1117] Deferred interface binding under Windows works only correctly
+  if FORCE_DNSRETRY is defined
+* [BUG 1124] Lock QueryPerformanceCounter() client threads to same CPU
+* DPRINTF macro made safer, always evaluates to a statement and will not
+  misassociate an else which follows the macro.
+
+---
+(4.2.4p6) 2009/01/08 Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 1113] Fixed build errors with recent versions of openSSL. 
+* [Sec 1111] Fix incorrect check of EVP_VerifyFinal()'s return value.
+* Update the copyright year.
+
+---
+(4.2.4p5) 2008/08/17 Released by Harlan Stenn <stenn@ntp.org>
+
+* [BUG 1051] Month off by one in leap second message written to clockstats
+  file fixed.
+* [Bug 450] Windows only: Under original Windows NT we must not discard the
+  wildcard socket to workaround a bug in NT's getsockname().
+* [Bug 1038] Built-in getpass() function also prompts for password if
+  not built with DEBUG.
+* [Bug 841] Obsolete the "dynamic" keyword and make deferred binding
+  to local interfaces the default.
+  Emit a warning if that keyword is used for configuration.
+* [Bug 959] Refclock on Windows not properly releasing recvbuffs.
+* [Bug 993] Fix memory leak when fetching system messages.
+* [Bug 987] Wake up the resolver thread/process when a new interface has
+  become available.
+* Correctly apply negative-sawtooth for oncore 12 channel receiver.
+* Startup code for original LinuxPPS removed.  LinuxPPS now conforms to
+  the PPSAPI.
+* [Bug 1000] allow implicit receive buffer allocation for Windows.
+  fixes startup for windows systems with many interfaces.
+  reduces dropped packets on network bursts.
+  additionally fix timer() starvation during high load.
+* [Bug 990] drop minimum time restriction for interface update interval.
+* [Bug 977] Fix mismatching #ifdefs for builds without IPv6.
+* Update the copyright year.
+* Build system cleanup (make autogen-generated files writable).
+* [Bug 957] Windows only: Let command line parameters from the Windows SCM GUI
+  override the standard parameters from the ImagePath registry key.
+* Fixes for ntpdate:
+* [Bug 532] nptdate timeout is too long if several servers are supplied.
+* [Bug 698] timeBeginPeriod is called without timeEndPeriod in some NTP tools.
+* [Bug 857] ntpdate debug mode adjusts system clock when it shouldn't.
+* [Bug 908] ntpdate crashes sometimes.
+* [Bug 982] ntpdate(and ntptimeset) buffer overrun if HAVE_POLL_H isn't set
+  (dup of 908).
+* [Bug 997] ntpdate buffer too small and unsafe.
+* ntpdate.c: Under Windows check whether NTP port in use under same conditions
+  as under other OSs.
+* ntpdate.c: Fixed some typos and indents (tabs/spaces).
+
+---
+(4.2.4p4) Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 902] Fix problems with the -6 flag.
+* Updated include/copyright.def (owner and year).
+* [Bug 878] Avoid ntpdc use of refid value as unterminated string.
+* [Bug 881] Corrected display of pll offset on 64bit systems.
+* [Bug 886] Corrected sign handling on 64bit in ntpdc loopinfo command.
+* [Bug 889] avoid malloc() interrupted by SIGIO risk
+* ntpd/refclock_parse.c: cleanup shutdown while the file descriptor is still open.
+* [Bug 885] use emalloc() to get a message at the end of the memory
+            unsigned types cannot be less than 0
+            default_ai_family is a short
+            lose trailing , from enum list
+	    clarify ntp_restrict.c for easier automated analysis
+* [Bug 884] don't access recv buffers after having them passed to the free list.
+* [Bug 882] allow loopback interfaces to share addresses with other interfaces.
+
+---
+(4.2.4p3) Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 863] unable to stop ntpd on Windows as the handle reference for events
+	    changed
+
+---
+(4.2.4p2) Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 854] Broadcast address was not correctly set for interface addresses
+* [Bug 829] reduce syslog noise, while there fix Enabled/Disable logging
+	    to reflect the actual configuration.
+* [Bug 795] Moved declaration of variable to top of function.
+* [Bug 789] Fix multicast client crypto authentication and make sure arriving
+	    multicast packets do not disturb the autokey dance.
+* [Bug 785] improve handling of multicast interfaces
+	    (multicast routers still need to run a multicast routing
+	    software/daemon)
+* [Bug 527] Don't write from source address length to wrong location
+* Upgraded autogen and libopts.
+* [Bug 811] ntpd should not read a .ntprc file.
+
+---
+(4.2.4p1) (skipped)
+
+---
+(4.2.4p0) Released by Harlan Stenn <stenn@ntp.org>
+
+* [Bug 793] Update Hans Lambermont's email address in ntpsweep.
+* [Bug 776] Remove unimplemented "rate" flag from ntpdate.
+* [Bug 586] Avoid lookups if AI_NUMERICHOST is set.
+* [Bug 770] Fix numeric parameters to ntp-keygen (Alain Guibert).
+* [Bug 768] Fix io_setbclient() error message.
+* [Bug 765] Use net_bind_service capability on linux.
+* [Bug 760] The background resolver must be aware of the 'dynamic' keyword.
+* [Bug 753] make union timestamp anonymous (Philip Prindeville).
+* confopt.html: move description for "dynamic" keyword into the right section.
+* pick the right type for the recv*() length argument.
+
+---
+(4.2.4) Released by Harlan Stenn <stenn@ntp.org>
+
+* monopt.html fixes from Dave Mills.
+* [Bug 452] Do not report kernel PLL/FLL flips.
+* [Bug 746] Expert mouseCLOCK USB v2.0 support added.'
+* driver8.html updates.
+* [Bug 747] Drop <NOBR> tags from ntpdc.html.
+* sntp now uses the returned precision to control decimal places.
+* sntp -u will use an unprivileged port for its queries.
+* [Bug 741] "burst" doesn't work with !unfit peers.
+* [Bug 735] Fix a make/gmake VPATH issue on Solaris.
+* [Bug 739] ntpd -x should not take an argument.
+* [Bug 737] Some systems need help providing struct iovec.
+* [Bug 717] Fix libopts compile problem.
+* [Bug 728] parse documentation fixes.
+* [Bug 734] setsockopt(..., IP_MULTICAST_IF, ...) fails on 64-bit platforms.
+* [Bug 732] C-DEX JST2000 patch from Hideo Kuramatsu.
+* [Bug 721] check for __ss_family and __ss_len separately.
+* [Bug 666] ntpq opeers displays jitter rather than dispersion.
+* [Bug 718] Use the recommended type for the saddrlen arg to getsockname().
+* [Bug 715] Fix a multicast issue under Linux.
+* [Bug 690] Fix a Windows DNS lookup buffer overflow.
+* [Bug 670] Resolved a Windows issue with the dynamic interface rescan code.
+* K&R C support is being deprecated.
+* [Bug 714] ntpq -p should conflict with -i, not -c.
+* WWV refclock improvements from Dave Mills.
+* [Bug 708] Use thread affinity only for the clock interpolation thread.
+* [Bug 706] ntpd can be running several times in parallel.
+* [Bug 704] Documentation typos.
+* [Bug 701] coverity: NULL dereference in ntp_peer.c
+* [Bug 695] libopts does not protect against macro collisions.
+* [Bug 693] __adjtimex is independent of ntp_{adj,get}time.
+* [Bug 692] sys_limitrejected was not being incremented.
+* [Bug 691] restrictions() assumption not always valid.
+* [Bug 689] Deprecate HEATH GC-1001 II; the driver never worked.
+* [Bug 688] Fix documentation typos.
+* [Bug 686] Handle leap seconds better under Windows.
+* [Bug 685] Use the Windows multimedia timer.
+* [Bug 684] Only allow debug options if debugging is enabled.
+* [Bug 683] Use the right version string.
+* [Bug 680] Fix the generated version string on Windows.
+* [Bug 678] Use the correct size for control messages.
+* [Bug 677] Do not check uint_t in configure.ac.
+* [Bug 676] Use the right value for msg_namelen.
+* [Bug 675] Make sure ntpd builds without debugging.
+* [Bug 672] Fix cross-platform structure padding/size differences.
+* [Bug 660] New TIMESTAMP code fails tp build on Solaris Express.
+* [Bug 659] libopts does not build under Windows.
+* [Bug 658] HP-UX with cc needs -Wp,-H8166 in CFLAGS.
+* [Bug 656] ntpdate doesn't work with multicast address.
+* [Bug 638] STREAMS_TLI is deprecated - remove it.
+* [Bug 635] Fix tOptions definition.
+* [Bug 628] Fallback to ntp discipline not working for large offsets.
+* [Bug 622] Dynamic interface tracking for ntpd.
+* [Bug 603] Don't link with libelf if it's not needed.
+* [Bug 523] ntpd service under Windows does't shut down properly.
+* [Bug 500] sntp should always be built.
+* [Bug 479] Fix the -P option.
+* [Bug 421] Support the bc637PCI-U card.
+* [Bug 342] Deprecate broken TRAK refclock driver.
+* [Bug 340] Deprecate broken MSF EES refclock driver.
+* [Bug 153] Don't do DNS lookups on address masks.
+* [Bug 143] Fix interrupted system call on HP-UX.
+* [Bug 42] Distribution tarballs should be signed.
+* Support separate PPS devices for PARSE refclocks.
+* [Bug 637, 51?] Dynamic interface scanning can now be done.
+* Options processing now uses GNU AutoGen.
+
+---
+(4.2.2p4) Released by Harlan Stenn <stenn@ntp.org>
+
+ * [Bug 710] compat getnameinfo() has off-by-one error
+ * [Bug 690] Buffer overflow in Windows when doing DNS Lookups
+
+---
+(4.2.2p3) Released by Harlan Stenn <stenn@ntp.org>
+
+ * Make the ChangeLog file cleaner and easier to read
+ * [Bug 601] ntpq's decodeint uses an extra level of indirection
+ * [Bug 657] Different OSes need different sized args for IP_MULTICAST_LOOP
+ * release engineering/build changes
+ * Documentation fixes
+ * Get sntp working under AIX-5
+
+---
+(4.2.2p2) (broken)
+
+ * Get sntp working under AIX-5
+
+---
+(4.2.2p1)
+
+ * [Bug 661] Use environment variable to specify the base path to openssl.
+ * Resolve an ambiguity in the copyright notice
+ * Added some new documentation files
+ * URL cleanup in the documentation
+ * [Bug 657]: IP_MULTICAST_LOOP uses a u_char value/size
+ * quiet gcc4 complaints
+ * more Coverity fixes
+ * [Bug 614] manage file descriptors better
+ * [Bug 632] update kernel PPS offsets when PPS offset is re-configured
+ * [Bug 637] Ignore UP in*addr_any interfaces
+ * [Bug 633] Avoid writing files in srcdir
+ * release engineering/build changes
+
+---
+(4.2.2)
+
+ * SNTP
+ * Many bugfixes
+ * Implements the current "goal state" of NTPv4
+ * Autokey improvements
+ * Much better IPv6 support
+ * [Bug 360] ntpd loses handles with LAN connection disabled.
+ * [Bug 239] Fix intermittent autokey failure with multicast clients.
+ * Rewrite of the multicast code
+ * New version numbering scheme
+
+---
+(4.2.0)
+
+* More stuff than I have time to document
+* IPv6 support
+* Bugfixes
+* call-gap filtering
+* wwv and chu refclock improvements
+* OpenSSL integration
+
+---
+(4.1.2)
+
+* clock state machine bugfix
+* Lose the source port check on incoming packets
+* (x)ntpdc compatibility patch
+* Virtual IP improvements
+* ntp_loopfilter fixes and improvements
+* ntpdc improvements
+* GOES refclock fix
+* JJY driver
+* Jupiter refclock fixes
+* Neoclock4X refclock fixes
+* AIX 5 port
+* bsdi port fixes
+* Cray unicos port upgrade
+* HP MPE/iX port
+* Win/NT port upgrade
+* Dynix PTX port fixes
+* Document conversion from CVS to BK
+* readline support for ntpq
+
+---
+(4.1.0)
+
+* CERT problem fixed (99k23)
+
+* Huff-n-Puff filter
+* Preparation for OpenSSL support
+* Resolver changes/improvements are not backward compatible with mode 7
+  requests (which are implementation-specific anyway)
+* leap second stuff
+* manycast should work now
+* ntp-genkeys does new good things.
+* scripts/ntp-close
+* PPS cleanup and improvements
+* readline support for ntpdc
+* Crypto/authentication rewrite
+* WINNT builds with MD5 by default
+* WINNT no longer requires Perl for building with Visual C++ 6.0
+* algorithmic improvements, bugfixes
+* Solaris dosynctodr info update
+* html/pic/* is *lots* smaller
+* New/updated drivers: Forum Graphic GPS, WWV/H, Heath GC-100 II, HOPF
+  serial and PCI, ONCORE, ulink331
+* Rewrite of the audio drivers
+
+---
+(4.0.99)
+
+* Driver updates: CHU, DCF, GPS/VME, Oncore, PCF, Ulink, WWVB, burst
+  If you use the ONCORE driver with a HARDPPS kernel module,
+  you *must* have a properly specified:
+	pps <filename> [assert/clear] [hardpps]
+  line in the /etc/ntp.conf file.
+* PARSE cleanup
+* PPS cleanup
+* ntpd, ntpq, ntpdate cleanup and fixes
+* NT port improvements
+* AIX, BSDI, DEC OSF, FreeBSD, NetBSD, Reliant, SCO, Solaris port improvements
+
+---
+(4.0.98)
+
+* Solaris kernel FLL bug is fixed in 106541-07
+* Bug/lint cleanup
+* PPS cleanup
+* ReliantUNIX patches
+* NetInfo support
+* Ultralink driver
+* Trimble OEM Ace-II support
+* DCF77 power choices
+* Oncore improvements
+
+---
+(4.0.97)
+
+* NT patches
+* AIX,SunOS,IRIX portability
+* NeXT portability
+* ntptimeset utility added
+* cygwin portability patches
+
+---
+(4.0.96)
+
+* -lnsl, -lsocket, -lgen configuration patches
+* Y2K patches from AT&T
+* Linux portability cruft
+
+---
+(4.0.95)
+
+* NT port cleanup/replacement
+* a few portability fixes
+* VARITEXT Parse clock added
+
+---
+(4.0.94)
+
+* PPS updates (including ntp.config options)
+* Lose the old DES stuff in favor of the (optional) RSAREF stuff
+* html cleanup/updates
+* numerous drivers cleaned up
+* numerous portability patches and code cleanup
+
+---
+(4.0.93)
+
+* Oncore refclock needs PPS or one of two ioctls.
+* Don't make ntptime under Linux.  It doesn't compile for too many folks.
+* Autokey cleanup
+* ReliantUnix patches
+* html cleanup
+* tickadj cleanup
+* PARSE cleanup
+* IRIX -n32 cleanup
+* byte order cleanup
+* ntptrace improvements and patches
+* ntpdc improvements and patches
+* PPS cleanup
+* mx4200 cleanup
+* New clock state machine
+* SCO cleanup
+* Skip alias interfaces
+
+---
+(4.0.92)
+
+* chronolog and dumbclock refclocks
+* SCO updates
+* Cleanup/bugfixes
+* Y2K patches
+* Updated palisade driver
+* Plug memory leak
+* wharton kernel clock
+* Oncore clock upgrades
+* NMEA clock improvements
+* PPS improvements
+* AIX portability patches
+
+---
+(4.0.91)
+
+* New ONCORE driver
+* New MX4200 driver
+* Palisade improvements
+* config file bugfixes and problem reporting
+* autoconf upgrade and cleanup
+* HP-UX, IRIX lint cleanup
+* AIX portability patches
+* NT cleanup
+
+---
+(4.0.90)
+
+* Nanoseconds
+* New palisade driver
+* New Oncore driver
+
+---
+(4.0.73)
+
+* README.hackers added
+* PARSE driver is working again
+* Solaris 2.6 has nasty kernel bugs.  DO NOT enable pll!
+* DES is out of the distribution.
+
+---
+(4.0.72)
+
+* K&R C compiling should work again.
+* IRIG patches.
+* MX4200 driver patches.
+* Jupiter driver added.
+* Palisade driver added.  Needs work (ANSI, ntoh/hton, sizeof double, ???)

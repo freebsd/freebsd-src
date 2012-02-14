@@ -1,0 +1,75 @@
+#!/bin/sh
+# $FreeBSD$
+#
+
+# PROVIDE: faith
+# REQUIRE: netif
+# KEYWORD: nojail
+
+. /etc/rc.subr
+. /etc/network.subr
+
+name="faith"
+start_cmd="faith_up"
+stop_cmd="faith_down"
+
+faith_up()
+{
+	case ${ipv6_faith_prefix} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		echo "Configuring IPv6-to-IPv4 TCP relay capturing interface:" \
+		    " faith0."
+		${SYSCTL} net.inet6.ip6.keepfaith=1
+		ifconfig faith0 create >/dev/null 2>&1
+		ifconfig faith0 up
+		for prefix in ${ipv6_faith_prefix}; do
+			prefixlen=`expr "${prefix}" : ".*/\(.*\)"`
+			case ${prefixlen} in
+			'')
+				prefixlen=96
+				;;
+			*)
+				prefix=`expr "${prefix}" : \
+					     "\(.*\)/${prefixlen}"`
+				;;
+			esac
+			route add -inet6 ${prefix} -prefixlen ${prefixlen} ::1
+			route change -inet6 ${prefix} -prefixlen ${prefixlen} \
+				-ifp faith0
+		done
+		check_startmsgs && ifconfig faith0
+		;;
+	esac
+}
+
+faith_down()
+{
+	echo "Removing IPv6-to-IPv4 TCP relay capturing interface: faith0."
+	ifconfig faith0 destroy
+	${SYSCTL} net.inet6.ip6.keepfaith=0
+
+	case ${ipv6_faith_prefix} in
+	[Nn][Oo] | '')
+		;;
+	*)
+		for prefix in ${ipv6_faith_prefix}; do
+			prefixlen=`expr "${prefix}" : ".*/\(.*\)"`
+			case ${prefixlen} in
+			'')
+				prefixlen=96
+				;;
+			*)
+				prefix=`expr "${prefix}" : \
+					     "\(.*\)/${prefixlen}"`
+				;;
+			esac
+			route delete -inet6 ${prefix} -prefixlen ${prefixlen}
+		done
+		;;
+	esac
+}
+
+load_rc_config $name
+run_rc_command "$1"
