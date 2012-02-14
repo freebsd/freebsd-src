@@ -11,8 +11,8 @@
 . /etc/rc.subr
 
 name="ubthidhci"
+rcvar="ubthidhci_enable"
 command="/usr/sbin/usbconfig"
-rcvar=`set_rcvar`
 start_precmd="ubthidhci_prestart"
 
 ubthidhci_prestart()

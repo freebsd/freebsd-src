@@ -19,7 +19,7 @@
 . /etc/rc.subr
 
 name="nscd"
-rcvar=`set_rcvar`
+rcvar="nscd_enable"
 
 command=/usr/sbin/nscd
 extra_commands="flush"

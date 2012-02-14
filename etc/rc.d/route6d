@@ -10,6 +10,7 @@
 . /etc/rc.subr
 
 name="route6d"
+rcvar="ipv6_router_enable"
 
 # XXX - Executable may be in a different location. The $name variable
 #       is different from the variable in rc.conf(5) so the
@@ -18,7 +19,6 @@ name="route6d"
 #
 load_rc_config $name
 
-rcvar="ipv6_router_enable"
 command="${ipv6_router:-/usr/sbin/${name}}"
 eval ${name}_flags=\"${ipv6_router_flags}\"
 
