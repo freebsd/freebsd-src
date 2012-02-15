@@ -223,7 +223,6 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
-	register_t	cr3, rf;
 	ACPI_STATUS	status;
 	int		ret;
 
@@ -255,16 +254,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
-	rf = intr_disable();
+	spinlock_enter();
 	intr_suspend();
-
-	/*
-	 * Temporarily switch to the kernel pmap because it provides
-	 * an identity mapping (setup at boot) for the low physical
-	 * memory region containing the wakeup code.
-	 */
-	cr3 = rcr3();
-	load_cr3(KPML4phys);
 
 	if (savectx(susppcbs[0])) {
 		ctx_fpusave(suspfpusave[0]);
@@ -304,6 +295,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 			ia32_pause();
 	} else {
 		pmap_init_pat();
+		load_cr3(susppcbs[0]->pcb_cr3);
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 #ifdef SMP
@@ -319,10 +311,9 @@ out:
 		restart_cpus(wakeup_cpus);
 #endif
 
-	load_cr3(cr3);
 	mca_resume();
 	intr_resume();
-	intr_restore(rf);
+	spinlock_exit();
 
 	AcpiSetFirmwareWakingVector(0);
 
@@ -346,7 +337,7 @@ acpi_alloc_wakeup_handler(void)
 	 * and ROM area (0xa0000 and above).  The temporary page tables must be
 	 * page-aligned.
 	 */
-	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_NOWAIT, 0x500,
+	wakeaddr = contigmalloc(4 * PAGE_SIZE, M_DEVBUF, M_WAITOK, 0x500,
 	    0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
