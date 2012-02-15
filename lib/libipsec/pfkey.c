@@ -662,7 +662,7 @@ pfkey_send_register(so, satype)
 {
 	int len, algno;
 
-	if (satype == PF_UNSPEC) {
+	if (satype == SADB_SATYPE_UNSPEC) {
 		for (algno = 0;
 		     algno < sizeof(supported_map)/sizeof(supported_map[0]);
 		     algno++) {
