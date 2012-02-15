@@ -27,7 +27,7 @@
  * $FreeBSD$
  * $Id: if_em_netmap.h 9802 2011-12-02 18:42:37Z luigi $
  *
- * netmap support for if_em.
+ * netmap support for if_em.c
  *
  * For structure and details on the individual functions please see
  * ixgbe_netmap.h
@@ -66,9 +66,6 @@ em_netmap_attach(struct adapter *adapter)
 }
 
 
-/*
- * wrapper to export locks to the generic code
- */
 static void
 em_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int queueid)
 {
@@ -214,9 +211,7 @@ em_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_tidx_k2n(na, ring_nr, j);
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &txr->tx_base[l];
@@ -322,12 +317,7 @@ em_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 *	j == (l + kring->nkr_hwofs) % ring_size
 	 */
 	l = rxr->next_to_check;
-	j = l + kring->nkr_hwofs;
-	/* XXX here nkr_hwofs can be negative so must check for j < 0 */
-	if (j < 0)
-		j += lim + 1;
-	else if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 	for (n = 0; ; n++) {
 		struct e1000_rx_desc *curr = &rxr->rx_base[l];
 
@@ -347,15 +337,10 @@ em_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	}
 
 	/* skip past packets that userspace has already processed */
-	j = kring->nr_hwcur;
+	j = kring->nr_hwcur;	/* netmap ring index */
 	if (j != k) { /* userspace has read some packets. */
 		n = 0;
-		l = j - kring->nkr_hwofs; /* NIC ring index */
-		/* here nkr_hwofs can be negative so check for l > lim */
-		if (l < 0)
-			l += lim + 1;
-		else if (l > lim)
-			l -= lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j); /* NIC ring index */
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_rx_desc *curr = &rxr->rx_base[l];

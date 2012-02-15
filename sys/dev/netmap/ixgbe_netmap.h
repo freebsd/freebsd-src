@@ -210,6 +210,7 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		IXGBE_TX_LOCK(txr);
 	/* take a copy of ring->cur now, and never read it again */
 	k = ring->cur;
+	/* do a sanity check on cur - hwcur XXX verify */
 	l = k - kring->nr_hwcur;
 	if (l < 0)
 		l += lim + 1;
@@ -240,9 +241,7 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)	/* wraparound */
-			l += lim + 1;
+		l = netmap_tidx_k2n(na, ring_nr, j); /* NIC index */
 
 		while (j != k) {
 			/*
@@ -459,9 +458,7 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	l = rxr->next_to_check;
-	j = rxr->next_to_check + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 
     if (netmap_no_pendintr || force_update) {
 	for (n = 0; ; n++) {
@@ -493,9 +490,7 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur;
 	if (j != k) {	/* userspace has read some packets. */
 		n = 0;
-		l = kring->nr_hwcur - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j);
 		while (j != k) {
 			/* collect per-slot info, with similar validations
 			 * and flag handling as in the txsync code.

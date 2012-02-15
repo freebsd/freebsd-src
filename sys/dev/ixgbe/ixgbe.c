@@ -2969,14 +2969,11 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 * Slots in the netmap ring (indexed by "si") are
 		 * kring->nkr_hwofs positions "ahead" wrt the
 		 * corresponding slot in the NIC ring. In some drivers
-		 * (not here) nkr_hwofs can be negative. When computing
-		 * si = i + kring->nkr_hwofs make sure to handle wraparounds.
+		 * (not here) nkr_hwofs can be negative. Function
+		 * netmap_tidx_n2k() handles wraparounds properly.
 		 */
 		if (slot) {
-			int si = i + na->tx_rings[txr->me].nkr_hwofs;
-
-			if (si >= na->num_tx_desc)
-				si -= na->num_tx_desc;
+			int si = netmap_tidx_n2k(na, txr->me, i);
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -3925,12 +3922,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if (slot) {
-			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			int sj = netmap_ridx_n2k(na, rxr->me, j);
 			uint64_t paddr;
 			void *addr;
 
-			if (sj >= na->num_rx_desc)
-				sj -= na->num_rx_desc;
 			addr = PNMB(slot + sj, &paddr);
 			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
