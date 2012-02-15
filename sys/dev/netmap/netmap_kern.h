@@ -250,6 +250,58 @@ netmap_reload_map(bus_dma_tag_t tag, bus_dmamap_t map, void *buf)
 	}
 }
 
+/*
+ * functions to map NIC to KRING indexes (n2k) and vice versa (k2n)
+ */
+static inline int
+netmap_ridx_n2k(struct netmap_adapter *na, int ring, int nic_idx)
+{
+	int kring_idx = nic_idx + na->rx_rings[ring].nkr_hwofs;
+	if (kring_idx < 0)
+		return kring_idx + na->num_rx_desc;
+	else if (kring_idx < na->num_rx_desc)
+		return kring_idx;
+	else
+		return kring_idx - na->num_rx_desc;
+}
+
+static inline int
+netmap_tidx_n2k(struct netmap_adapter *na, int ring, int nic_idx)
+{
+	int kring_idx = nic_idx + na->tx_rings[ring].nkr_hwofs;
+	if (kring_idx < 0)
+		return kring_idx + na->num_tx_desc;
+	else if (kring_idx < na->num_tx_desc)
+		return kring_idx;
+	else
+		return kring_idx - na->num_tx_desc;
+}
+
+
+static inline int
+netmap_ridx_k2n(struct netmap_adapter *na, int ring, int kring_idx)
+{
+	int nic_idx = kring_idx - na->rx_rings[ring].nkr_hwofs;
+	if (nic_idx < 0)
+		return nic_idx + na->num_rx_desc;
+	else if (nic_idx < na->num_rx_desc)
+		return nic_idx;
+	else
+		return nic_idx - na->num_rx_desc;
+}
+
+
+static inline int
+netmap_tidx_k2n(struct netmap_adapter *na, int ring, int kring_idx)
+{
+	int nic_idx = kring_idx - na->tx_rings[ring].nkr_hwofs;
+	if (nic_idx < 0)
+		return nic_idx + na->num_tx_desc;
+	else if (nic_idx < na->num_tx_desc)
+		return nic_idx;
+	else
+		return nic_idx - na->num_tx_desc;
+}
 
 /*
  * NMB return the virtual address of a buffer (buffer 0 on bad index)

@@ -263,7 +263,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * is to limit the amount of data reported up to 'lim'
 	 */
 	l = sc->rl_ldata.rl_rx_prodidx; /* next pkt to check */
-	j = l + kring->nkr_hwofs;
+	j = netmap_ridx_n2k(na, ring_nr, l); /* the kring index */
 	for (n = kring->nr_hwavail; n < lim ; n++) {
 		struct rl_desc *cur_rx = &sc->rl_ldata.rl_rx_list[l];
 		uint32_t rxstat = le32toh(cur_rx->rl_cmdstat);
@@ -296,9 +296,7 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur;
 	if (j != k) {	/* userspace has read some packets. */
 		n = 0;
-		l = kring->nr_hwcur - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j); /* the NIC index */
 		while (j != k) {
 			struct netmap_slot *slot = ring->slot + j;
 			struct rl_desc *desc = &sc->rl_ldata.rl_rx_list[l];
@@ -370,11 +368,7 @@ re_netmap_tx_init(struct rl_softc *sc)
 	for (i = 0; i < n; i++) {
 		void *addr;
 		uint64_t paddr;
-		struct netmap_kring *kring = &na->tx_rings[0];
-		int l = i + kring->nkr_hwofs;
-
-		if (l >= n)
-			l -= n;
+		int l = netmap_tidx_n2k(na, 0, i);
 
 		addr = PNMB(slot + l, &paddr);
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
@@ -391,19 +385,21 @@ re_netmap_rx_init(struct rl_softc *sc)
 	struct netmap_slot *slot = netmap_reset(na, NR_RX, 0, 0);
 	struct rl_desc *desc = sc->rl_ldata.rl_rx_list;
 	uint32_t cmdstat;
-	int i, n;
+	int i, n, max_avail;
 
 	if (!slot)
 		return;
 	n = sc->rl_ldata.rl_rx_desc_cnt;
+	/*
+	 * Userspace owned hwavail packets before the reset,
+	 * so the NIC that last hwavail descriptors of the ring
+	 * are still owned by the driver (and keep one empty).
+	 */
+	max_avail = n - 1 - na->rx_rings[0].nr_hwavail;
 	for (i = 0; i < n; i++) {
 		void *addr;
 		uint64_t paddr;
-		struct netmap_kring *kring = &na->rx_rings[0];
-		int l = i + kring->nkr_hwofs;
-
-		if (l >= n)
-			l -= n;
+		int l = netmap_ridx_n2k(na, 0, i);
 
 		addr = PNMB(slot + l, &paddr);
 
@@ -414,14 +410,9 @@ re_netmap_rx_init(struct rl_softc *sc)
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
 		desc[i].rl_bufaddr_hi = htole32(RL_ADDR_HI(paddr));
 		cmdstat = na->buff_size;
-		if (i == n - 1)
+		if (i == n - 1) /* mark the end of ring */
 			cmdstat |= RL_RDESC_CMD_EOR;
-		/*
-		 * userspace knows that hwavail packets were ready before the
-		 * reset, so we need to tell the NIC that last hwavail
-		 * descriptors of the ring are still owned by the driver.
-		 */
-		if (i < n - 1 - kring->nr_hwavail) // XXX + 1 ?
+		if (i < max_avail)
 			cmdstat |= RL_RDESC_CMD_OWN;
 		desc[i].rl_cmdstat = htole32(cmdstat);
 	}
