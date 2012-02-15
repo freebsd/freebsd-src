@@ -1161,6 +1161,10 @@ ng_bypass(hook_p hook1, hook_p hook2)
 		return (EINVAL);
 	}
 	mtx_lock(&ng_topo_mtx);
+	if (NG_HOOK_NOT_VALID(hook1) || NG_HOOK_NOT_VALID(hook2)) {
+		mtx_unlock(&ng_topo_mtx);
+		return (EINVAL);
+	}
 	hook1->hk_peer->hk_peer = hook2->hk_peer;
 	hook2->hk_peer->hk_peer = hook1->hk_peer;
 
