@@ -364,8 +364,9 @@ fail:
 static int
 et_detach(device_t dev)
 {
-	struct et_softc *sc = device_get_softc(dev);
+	struct et_softc *sc;
 
+	sc = device_get_softc(dev);
 	if (device_is_attached(dev)) {
 		ether_ifdetach(sc->ifp);
 		ET_LOCK(sc);
@@ -402,8 +403,9 @@ et_detach(device_t dev)
 static int
 et_shutdown(device_t dev)
 {
-	struct et_softc *sc = device_get_softc(dev);
+	struct et_softc *sc;
 
+	sc = device_get_softc(dev);
 	ET_LOCK(sc);
 	et_stop(sc);
 	ET_UNLOCK(sc);
@@ -413,10 +415,11 @@ et_shutdown(device_t dev)
 static int
 et_miibus_readreg(device_t dev, int phy, int reg)
 {
-	struct et_softc *sc = device_get_softc(dev);
+	struct et_softc *sc;
 	uint32_t val;
 	int i, ret;
 
+	sc = device_get_softc(dev);
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
@@ -456,10 +459,11 @@ back:
 static int
 et_miibus_writereg(device_t dev, int phy, int reg, int val0)
 {
-	struct et_softc *sc = device_get_softc(dev);
+	struct et_softc *sc;
 	uint32_t val;
 	int i;
 
+	sc = device_get_softc(dev);
 	/* Stop any pending operations */
 	CSR_WRITE_4(sc, ET_MII_CMD, 0);
 
@@ -594,10 +598,12 @@ et_miibus_statchg(device_t dev)
 static int
 et_ifmedia_upd_locked(struct ifnet *ifp)
 {
-	struct et_softc *sc = ifp->if_softc;
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
+	struct et_softc *sc;
+	struct mii_data *mii;
 	struct mii_softc *miisc;
 
+	sc = ifp->if_softc;
+	mii = device_get_softc(sc->sc_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		mii_phy_reset(miisc);
 	return (mii_mediachg(mii));
@@ -606,9 +612,10 @@ et_ifmedia_upd_locked(struct ifnet *ifp)
 static int
 et_ifmedia_upd(struct ifnet *ifp)
 {
-	struct et_softc *sc = ifp->if_softc;
+	struct et_softc *sc;
 	int res;
 
+	sc = ifp->if_softc;
 	ET_LOCK(sc);
 	res = et_ifmedia_upd_locked(ifp);
 	ET_UNLOCK(sc);
@@ -639,10 +646,11 @@ et_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 static void
 et_stop(struct et_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	struct ifnet *ifp;
 
 	ET_LOCK_ASSERT(sc);
 
+	ifp = sc->ifp;
 	callout_stop(&sc->sc_tick);
 	/* Disable interrupts. */
 	CSR_WRITE_4(sc, ET_INTR_MASK, 0xffffffff);
@@ -758,6 +766,7 @@ et_get_eaddr(device_t dev, uint8_t eaddr[])
 static void
 et_reset(struct et_softc *sc)
 {
+
 	CSR_WRITE_4(sc, ET_MAC_CFG1,
 		    ET_MAC_CFG1_RST_TXFUNC | ET_MAC_CFG1_RST_RXFUNC |
 		    ET_MAC_CFG1_RST_TXMC | ET_MAC_CFG1_RST_RXMC |
@@ -1164,10 +1173,11 @@ et_chip_attach(struct et_softc *sc)
 static void
 et_intr(void *xsc)
 {
-	struct et_softc *sc = xsc;
+	struct et_softc *sc;
 	struct ifnet *ifp;
 	uint32_t status;
 
+	sc = xsc;
 	ET_LOCK(sc);
 	ifp = sc->ifp;
 	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
@@ -1269,10 +1279,14 @@ et_init(void *xsc)
 static int
 et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
-	struct et_softc *sc = ifp->if_softc;
-	struct mii_data *mii = device_get_softc(sc->sc_miibus);
-	struct ifreq *ifr = (struct ifreq *)data;
-	int error = 0, mask, max_framelen;
+	struct et_softc *sc;
+	struct mii_data *mii;
+	struct ifreq *ifr;
+	int error, mask, max_framelen;
+
+	sc = ifp->if_softc;
+	ifr = (struct ifreq *)data;
+	error = 0;
 
 /* XXX LOCKSUSED */
 	switch (cmd) {
@@ -1296,6 +1310,7 @@ et_ioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 
 	case SIOCSIFMEDIA:
 	case SIOCGIFMEDIA:
+		mii = device_get_softc(sc->sc_miibus);
 		error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, cmd);
 		break;
 
@@ -1425,8 +1440,9 @@ et_start_locked(struct ifnet *ifp)
 static void
 et_start(struct ifnet *ifp)
 {
-	struct et_softc *sc = ifp->if_softc;
+	struct et_softc *sc;
 
+	sc = ifp->if_softc;
 	ET_LOCK(sc);
 	et_start_locked(ifp);
 	ET_UNLOCK(sc);
@@ -1457,6 +1473,7 @@ et_watchdog(struct et_softc *sc)
 static int
 et_stop_rxdma(struct et_softc *sc)
 {
+
 	CSR_WRITE_4(sc, ET_RXDMA_CTRL,
 		    ET_RXDMA_CTRL_HALT | ET_RXDMA_CTRL_RING1_ENABLE);
 
@@ -1471,6 +1488,7 @@ et_stop_rxdma(struct et_softc *sc)
 static int
 et_stop_txdma(struct et_softc *sc)
 {
+
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL,
 		    ET_TXDMA_CTRL_HALT | ET_TXDMA_CTRL_SINGLE_EPKT);
 	return (0);
@@ -1599,10 +1617,11 @@ back:
 static int
 et_chip_init(struct et_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
+	struct ifnet *ifp;
 	uint32_t rxq_end;
 	int error, frame_len, rxmem_size;
 
+	ifp = sc->ifp;
 	/*
 	 * Split 16Kbytes internal memory between TX and RX
 	 * according to frame length.
@@ -1717,8 +1736,8 @@ et_init_rx_ring(struct et_softc *sc)
 static int
 et_init_rxdma(struct et_softc *sc)
 {
-	struct et_rxstatus_data *rxsd = &sc->sc_rx_status;
-	struct et_rxstat_ring *rxst_ring = &sc->sc_rxstat_ring;
+	struct et_rxstatus_data *rxsd;
+	struct et_rxstat_ring *rxst_ring;
 	struct et_rxdesc_ring *rx_ring;
 	int error;
 
@@ -1731,12 +1750,14 @@ et_init_rxdma(struct et_softc *sc)
 	/*
 	 * Install RX status
 	 */
+	rxsd = &sc->sc_rx_status;
 	CSR_WRITE_4(sc, ET_RX_STATUS_HI, ET_ADDR_HI(rxsd->rxsd_paddr));
 	CSR_WRITE_4(sc, ET_RX_STATUS_LO, ET_ADDR_LO(rxsd->rxsd_paddr));
 
 	/*
 	 * Install RX stat ring
 	 */
+	rxst_ring = &sc->sc_rxstat_ring;
 	CSR_WRITE_4(sc, ET_RXSTAT_HI, ET_ADDR_HI(rxst_ring->rsr_paddr));
 	CSR_WRITE_4(sc, ET_RXSTAT_LO, ET_ADDR_LO(rxst_ring->rsr_paddr));
 	CSR_WRITE_4(sc, ET_RXSTAT_CNT, ET_RX_NSTAT - 1);
@@ -1787,8 +1808,8 @@ et_init_rxdma(struct et_softc *sc)
 static int
 et_init_txdma(struct et_softc *sc)
 {
-	struct et_txdesc_ring *tx_ring = &sc->sc_tx_ring;
-	struct et_txstatus_data *txsd = &sc->sc_tx_status;
+	struct et_txdesc_ring *tx_ring;
+	struct et_txstatus_data *txsd;
 	int error;
 
 	error = et_stop_txdma(sc);
@@ -1800,6 +1821,7 @@ et_init_txdma(struct et_softc *sc)
 	/*
 	 * Install TX descriptor ring
 	 */
+	tx_ring = &sc->sc_tx_ring;
 	CSR_WRITE_4(sc, ET_TX_RING_HI, ET_ADDR_HI(tx_ring->tr_paddr));
 	CSR_WRITE_4(sc, ET_TX_RING_LO, ET_ADDR_LO(tx_ring->tr_paddr));
 	CSR_WRITE_4(sc, ET_TX_RING_CNT, ET_TX_NDESC - 1);
@@ -1807,6 +1829,7 @@ et_init_txdma(struct et_softc *sc)
 	/*
 	 * Install TX status
 	 */
+	txsd = &sc->sc_tx_status;
 	CSR_WRITE_4(sc, ET_TX_STATUS_HI, ET_ADDR_HI(txsd->txsd_paddr));
 	CSR_WRITE_4(sc, ET_TX_STATUS_LO, ET_ADDR_LO(txsd->txsd_paddr));
 
@@ -1822,8 +1845,8 @@ et_init_txdma(struct et_softc *sc)
 static void
 et_init_mac(struct et_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
-	const uint8_t *eaddr = IF_LLADDR(ifp);
+	struct ifnet *ifp;
+	const uint8_t *eaddr;
 	uint32_t val;
 
 	/* Reset MAC */
@@ -1859,6 +1882,8 @@ et_init_mac(struct et_softc *sc)
 	/*
 	 * Set MAC address
 	 */
+	ifp = sc->ifp;
+	eaddr = IF_LLADDR(ifp);
 	val = eaddr[2] | (eaddr[3] << 8) | (eaddr[4] << 16) | (eaddr[5] << 24);
 	CSR_WRITE_4(sc, ET_MAC_ADDR1, val);
 	val = (eaddr[0] << 16) | (eaddr[1] << 24);
@@ -1874,8 +1899,8 @@ et_init_mac(struct et_softc *sc)
 static void
 et_init_rxmac(struct et_softc *sc)
 {
-	struct ifnet *ifp = sc->ifp;
-	const uint8_t *eaddr = IF_LLADDR(ifp);
+	struct ifnet *ifp;
+	const uint8_t *eaddr;
 	uint32_t val;
 	int i;
 
@@ -1893,6 +1918,8 @@ et_init_rxmac(struct et_softc *sc)
 	/*
 	 * Set WOL source address.  XXX is this necessary?
 	 */
+	ifp = sc->ifp;
+	eaddr = IF_LLADDR(ifp);
 	val = (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8) | eaddr[5];
 	CSR_WRITE_4(sc, ET_WOL_SA_LO, val);
 	val = (eaddr[0] << 8) | eaddr[1];
@@ -1959,6 +1986,7 @@ et_init_rxmac(struct et_softc *sc)
 static void
 et_init_txmac(struct et_softc *sc)
 {
+
 	/* Disable TX MAC and FC(?) */
 	CSR_WRITE_4(sc, ET_TXMAC_CTRL, ET_TXMAC_CTRL_FC_DISABLE);
 
@@ -1977,12 +2005,12 @@ et_init_txmac(struct et_softc *sc)
 static int
 et_start_rxdma(struct et_softc *sc)
 {
-	uint32_t val = 0;
+	uint32_t val;
 
-	val |= (sc->sc_rx_data[0].rbd_bufsize & ET_RXDMA_CTRL_RING0_SIZE_MASK) |
-	       ET_RXDMA_CTRL_RING0_ENABLE;
+	val = (sc->sc_rx_data[0].rbd_bufsize & ET_RXDMA_CTRL_RING0_SIZE_MASK) |
+	    ET_RXDMA_CTRL_RING0_ENABLE;
 	val |= (sc->sc_rx_data[1].rbd_bufsize & ET_RXDMA_CTRL_RING1_SIZE_MASK) |
-	       ET_RXDMA_CTRL_RING1_ENABLE;
+	    ET_RXDMA_CTRL_RING1_ENABLE;
 
 	CSR_WRITE_4(sc, ET_RXDMA_CTRL, val);
 
@@ -1998,6 +2026,7 @@ et_start_rxdma(struct et_softc *sc)
 static int
 et_start_txdma(struct et_softc *sc)
 {
+
 	CSR_WRITE_4(sc, ET_TXDMA_CTRL, ET_TXDMA_CTRL_SINGLE_EPKT);
 	return (0);
 }
@@ -2275,10 +2304,11 @@ et_txeof(struct et_softc *sc)
 static void
 et_tick(void *xsc)
 {
-	struct et_softc *sc = xsc;
+	struct et_softc *sc;
 	struct ifnet *ifp;
 	struct mii_data *mii;
 
+	sc = xsc;
 	ET_LOCK_ASSERT(sc);
 	ifp = sc->ifp;
 	mii = device_get_softc(sc->sc_miibus);
@@ -2540,10 +2570,12 @@ et_add_sysctls(struct et_softc * sc)
 static int
 et_sysctl_rx_intr_npkts(SYSCTL_HANDLER_ARGS)
 {
-	struct et_softc *sc = arg1;
-	struct ifnet *ifp = sc->ifp;
-	int error = 0, v;
+	struct et_softc *sc;
+	struct ifnet *ifp;
+	int error, v;
 
+	sc = arg1;
+	ifp = sc->ifp;
 	v = sc->sc_rx_intr_npkts;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 	if (error || req->newptr == NULL)
@@ -2565,10 +2597,12 @@ back:
 static int
 et_sysctl_rx_intr_delay(SYSCTL_HANDLER_ARGS)
 {
-	struct et_softc *sc = arg1;
-	struct ifnet *ifp = sc->ifp;
-	int error = 0, v;
+	struct et_softc *sc;
+	struct ifnet *ifp;
+	int error, v;
 
+	sc = arg1;
+	ifp = sc->ifp;
 	v = sc->sc_rx_intr_delay;
 	error = sysctl_handle_int(oidp, &v, 0, req);
 	if (error || req->newptr == NULL)
