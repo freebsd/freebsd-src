@@ -133,7 +133,7 @@ SYSCTL_INT(_dev_netmap, OID_AUTO, no_pendintr,
  * At the moment the block is contiguous, but we can easily
  * restrict our demand to smaller units (16..64k)
  */
-#define NETMAP_MEMORY_SIZE (64 * 1024 * PAGE_SIZE)
+#define NETMAP_MEMORY_SIZE (64 * 1024 * 4096)
 static void * netmap_malloc(size_t size, const char *msg);
 static void netmap_free(void *addr, const char *msg);
 
