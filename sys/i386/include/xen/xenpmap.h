@@ -35,6 +35,8 @@
 
 #ifndef _XEN_XENPMAP_H_
 #define _XEN_XENPMAP_H_
+
+#if defined(XEN)
 void _xen_queue_pt_update(vm_paddr_t, vm_paddr_t, char *, int);
 void xen_pt_switch(vm_paddr_t);
 void xen_set_ldt(vm_paddr_t, unsigned long);
@@ -230,5 +232,6 @@ phys_to_machine_mapping_valid(unsigned long pfn)
 	return xen_phys_machine[pfn] != INVALID_P2M_ENTRY;
 }
 
+#endif /* !XEN */
 
 #endif /* _XEN_XENPMAP_H_ */

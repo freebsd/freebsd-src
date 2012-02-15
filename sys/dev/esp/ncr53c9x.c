@@ -316,7 +316,7 @@ ncr53c9x_attach(struct ncr53c9x_softc *sc)
 	 * The recommended timeout is 250ms.  This register is loaded
 	 * with a value calculated as follows, from the docs:
 	 *
-	 *		(timout period) x (CLK frequency)
+	 *		(timeout period) x (CLK frequency)
 	 *	reg = -------------------------------------
 	 *		 8192 x (Clock Conversion Factor)
 	 *

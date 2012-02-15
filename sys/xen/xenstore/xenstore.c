@@ -559,7 +559,7 @@ xs_read_store(void *tdata, unsigned len)
 			 * when msleep returns.
 			 */
 			error = msleep(xen_store, &xs.ring_lock, PCATCH|PDROP,
-			    "xbread", /*timout*/0);
+			    "xbread", /*timeout*/0);
 			if (error && error != EWOULDBLOCK)
 				return (error);
 			continue;
@@ -721,8 +721,8 @@ xs_reply_filter(uint32_t request_msg_type,
 	/*
 	 * The count of transactions drops if we attempted
 	 * to end a transaction (even if that attempt fails
-	 * in error), we receive a transaction end acknowledgement
-	 * or if our attempt to begin a transactionfails.
+	 * in error), we receive a transaction end acknowledgement,
+	 * or if our attempt to begin a transaction fails.
 	 */
 	if (request_msg_type == XS_TRANSACTION_END
 	 || (request_reply_error == 0 && reply_msg_type == XS_TRANSACTION_END)
@@ -1099,10 +1099,9 @@ xs_probe(device_t dev)
 	 * We are either operating within a PV kernel or being probed
 	 * as the child of the successfully attached xenpci device.
 	 * Thus we are in a Xen environment and there will be a XenStore.
-	 * Uncontitionally return success.
+	 * Unconditionally return success.
 	 */
 	device_set_desc(dev, "XenStore");
-printf("xs_probe: Probe retuns 0\n");
 	return (0);
 }
 
@@ -1195,8 +1194,14 @@ xs_attach(device_t dev)
  * all transactions and individual requests have completed.
  */
 static int
-xs_suspend(device_t dev __unused)
+xs_suspend(device_t dev)
 {
+	int error;
+
+	/* Suspend child Xen devices. */
+	error = bus_generic_suspend(dev);
+	if (error != 0)
+		return (error);
 
 	sx_xlock(&xs.suspend_mutex);
 	sx_xlock(&xs.request_mutex);
@@ -1227,6 +1232,9 @@ xs_resume(device_t dev __unused)
 	}
 
 	sx_xunlock(&xs.suspend_mutex);
+
+	/* Resume child Xen devices. */
+	bus_generic_resume(dev);
 
 	return (0);
 }

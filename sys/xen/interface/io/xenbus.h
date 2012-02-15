@@ -64,6 +64,15 @@ enum xenbus_state {
 
     /*
      * Closed: No connection exists between front and back end.
+     *
+     * For backend devices with the "online" attribute, the front can
+     * request a reconnect at any time.  To handle this transition
+     * gracefully, backend devices must reinitialize any XenStore data
+     * used to negotiate features with a peer before transitioning to
+     * the closed state.  When a reconnect request occurs, the
+     * XenBus backend support code will automatically transition the
+     * backend device from Closed to InitWait, kicking off the ring
+     * and feature negotiation process.
      */
     XenbusStateClosed        = 6,
 
