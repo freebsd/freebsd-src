@@ -9,7 +9,7 @@ SYSDIR=	${_dir}
 .endfor
 .if !defined(SYSDIR) || !exists(${SYSDIR}/kern/) || \
     !exists(${SYSDIR}/conf/kmod.mk)
-.error "can't find kernel source tree"
+.error "can't locate the kernel source tree, set SYSDIR to override."
 .endif
 
 .include "${SYSDIR}/conf/kmod.mk"
