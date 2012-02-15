@@ -45,8 +45,6 @@ static int	lem_netmap_rxsync(struct ifnet *, u_int, int);
 static void	lem_netmap_lock_wrapper(struct ifnet *, int, u_int);
 
 
-SYSCTL_NODE(_dev, OID_AUTO, lem, CTLFLAG_RW, 0, "lem card");
-
 static void
 lem_netmap_attach(struct adapter *adapter)
 {
@@ -153,7 +151,7 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
 	struct adapter *adapter = ifp->if_softc;
 	struct netmap_adapter *na = NA(adapter->ifp);
-	struct netmap_kring *kring = &na->tx_rings[0];
+	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	int j, k, l, n = 0, lim = kring->nkr_num_slots - 1;
 
@@ -176,9 +174,7 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_tidx_k2n(na, ring_nr, j);
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &adapter->tx_desc_base[l];
@@ -260,7 +256,7 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
 	struct adapter *adapter = ifp->if_softc;
 	struct netmap_adapter *na = NA(adapter->ifp);
-	struct netmap_kring *kring = &na->rx_rings[0];
+	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
 	int j, k, l, n, lim = kring->nkr_num_slots - 1;
 
@@ -283,9 +279,7 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 *      j == (l + kring->nkr_hwofs) % ring_size
 	 */
 	l = adapter->next_rx_desc_to_check;
-	j = l + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 	for (n = 0; ; n++) {
 		struct e1000_rx_desc *curr = &adapter->rx_desc_base[l];
 		int len;
@@ -310,12 +304,10 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	}
 
 	/* skip past packets that userspace has already processed */
-	j = kring->nr_hwcur; /* netmap ring index */
+	j = kring->nr_hwcur;	/* netmap ring index */
 	if (j != k) {	/* userspace has read some packets. */
 		n = 0;
-		l = j - kring->nkr_hwofs; /* NIC ring index */
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j); /* NIC ring index */
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_rx_desc *curr = &adapter->rx_desc_base[l];
@@ -332,7 +324,7 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			curr->status = 0;
 			if (slot->flags & NS_BUF_CHANGED) {
 				curr->buffer_addr = htole64(paddr);
-				/* buffer has changed, and reload map */
+				/* buffer has changed, reload map */
 				netmap_reload_map(adapter->rxtag, rxbuf->map, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}

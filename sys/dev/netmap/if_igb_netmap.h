@@ -169,9 +169,7 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		u32 olinfo_status =
 		    (adapter->hw.mac.type == e1000_82575) ? (txr->me << 4) : 0;
 
-		l = j - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_tidx_k2n(na, ring_nr, j);
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			union e1000_adv_tx_desc *curr =
@@ -287,9 +285,7 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 *      j == (l + kring->nkr_hwofs) % ring_size
 	 */
 	l = rxr->next_to_check;
-	j = l + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 	for (n = 0; ; n++) {
 		union e1000_adv_rx_desc *curr = &rxr->rx_base[l];
 		uint32_t staterr = le32toh(curr->wb.upper.status_error);
@@ -311,9 +307,7 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur;
 	if (j != k) { /* userspace has read some packets. */
 		n = 0;
-		l = j - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j);
 		while (j != k) {
 			struct netmap_slot *slot = ring->slot + j;
 			union e1000_adv_rx_desc *curr = &rxr->rx_base[l];
