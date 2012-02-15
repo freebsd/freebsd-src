@@ -51,8 +51,6 @@
 
 #include <xen/xenstore/xenstorevar.h>
 
-#include "xenbus_if.h"
-
 /* XenBus allocations including XenStore data returned to clients. */
 MALLOC_DECLARE(M_XENBUS);
 
@@ -116,6 +114,8 @@ XenbusState xenbus_read_driver_state(const char *path);
  *                  must be stable for the lifetime of the watch.
  * \param callback  The function to call when XenStore objects at or below
  *                  path are modified.
+ * \param cb_data   Client data that can be retrieved from the watch object
+ *                  during the callback.
  *
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
@@ -126,7 +126,8 @@ XenbusState xenbus_read_driver_state(const char *path);
  */
 int xenbus_watch_path(device_t dev, char *path,
 		      struct xs_watch *watch, 
-		      xs_watch_cb_t *callback);
+		      xs_watch_cb_t *callback,
+		      uintptr_t cb_data);
 
 /**
  * Initialize and register a watch at path/path2 in the XenStore.
@@ -138,6 +139,8 @@ int xenbus_watch_path(device_t dev, char *path,
  *                  must be stable for the lifetime of the watch.
  * \param callback  The function to call when XenStore objects at or below
  *                  path are modified.
+ * \param cb_data   Client data that can be retrieved from the watch object
+ *                  during the callback.
  *
  * \return  On success, 0. Otherwise an errno value indicating the
  *          type of failure.
@@ -153,7 +156,8 @@ int xenbus_watch_path(device_t dev, char *path,
  */
 int xenbus_watch_path2(device_t dev, const char *path,
 		       const char *path2, struct xs_watch *watch, 
-		       xs_watch_cb_t *callback);
+		       xs_watch_cb_t *callback,
+		       uintptr_t cb_data);
 
 /**
  * Grant access to the given ring_mfn to the peer of the given device.
@@ -274,5 +278,17 @@ const char *xenbus_strstate(enum xenbus_state state);
  *          does not exist, 0 (offline) is returned.
  */
 int xenbus_dev_is_online(device_t dev);
+
+/**
+ * Default callback invoked when a change to the local XenStore sub-tree
+ * for a device is modified.
+ * 
+ * \param dev   The XenBus device whose tree was modified.
+ * \param path  The tree relative sub-path to the modified node.  The empty
+ *              string indicates the root of the tree was destroyed.
+ */
+void xenbus_localend_changed(device_t dev, const char *path);
+
+#include "xenbus_if.h"
 
 #endif /* _XEN_XENBUS_XENBUSVAR_H */

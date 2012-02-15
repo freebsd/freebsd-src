@@ -103,12 +103,13 @@ xenbus_strstate(XenbusState state)
 
 int 
 xenbus_watch_path(device_t dev, char *path, struct xs_watch *watch, 
-    xs_watch_cb_t *callback)
+    xs_watch_cb_t *callback, uintptr_t callback_data)
 {
 	int error;
 
 	watch->node = path;
 	watch->callback = callback;
+	watch->callback_data = callback_data;
 
 	error = xs_register_watch(watch);
 
@@ -124,7 +125,7 @@ xenbus_watch_path(device_t dev, char *path, struct xs_watch *watch,
 int
 xenbus_watch_path2(device_t dev, const char *path,
     const char *path2, struct xs_watch *watch, 
-    xs_watch_cb_t *callback)
+    xs_watch_cb_t *callback, uintptr_t callback_data)
 {
 	int error;
 	char *state = malloc(strlen(path) + 1 + strlen(path2) + 1,
@@ -134,7 +135,7 @@ xenbus_watch_path2(device_t dev, const char *path,
 	strcat(state, "/");
 	strcat(state, path2);
 
-	error = xenbus_watch_path(dev, state, watch, callback);
+	error = xenbus_watch_path(dev, state, watch, callback, callback_data);
 	if (error) {
 		free(state,M_XENBUS);
 	}
@@ -285,4 +286,9 @@ xenbus_dev_is_online(device_t dev)
 	}
 
 	return (value);
+}
+
+void
+xenbus_localend_changed(device_t dev, const char *path)
+{
 }
