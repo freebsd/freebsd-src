@@ -295,6 +295,14 @@ static struct scsi_quirk_entry scsi_quirk_table[] =
 	},
 	{
 		/*
+		 * Experiences command timeouts under load with a
+		 * tag count higher than 55.
+		 */
+		{ T_DIRECT, SIP_MEDIA_FIXED, seagate, "ST3146855LW", "*"},
+		/*quirks*/0, /*mintags*/2, /*maxtags*/55
+	},
+	{
+		/*
 		 * Slow when tagged queueing is enabled.  Write performance
 		 * steadily drops off with more and more concurrent
 		 * transactions.  Best sequential write performance with
