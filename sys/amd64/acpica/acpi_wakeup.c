@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
@@ -92,11 +94,11 @@ static void		acpi_wakeup_cpus(struct acpi_softc *, const cpuset_t *);
 	*addr = val;					\
 } while (0)
 
-/* Turn off bits 1&2 of the PIT, stopping the beep. */
 static void
 acpi_stop_beep(void *arg)
 {
-	outb(0x61, inb(0x61) & ~0x3);
+
+	timer_spkr_release();
 }
 
 #ifdef SMP
@@ -217,6 +219,7 @@ acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
+	static eventhandler_tag stop_beep = NULL;
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
@@ -233,6 +236,22 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	wakeup_cpus = all_cpus;
 	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
 #endif
+
+	if (acpi_resume_beep == 0) {
+		if (stop_beep != NULL) {
+			EVENTHANDLER_DEREGISTER(power_resume, stop_beep);
+			stop_beep = NULL;
+		}
+	} else {
+		if (stop_beep == NULL)
+			stop_beep = EVENTHANDLER_REGISTER(power_resume,
+			    acpi_stop_beep, NULL, EVENTHANDLER_PRI_LAST);
+		if (stop_beep == NULL)
+			device_printf(sc->acpi_dev,
+			    "Failed to set up event handler\n");
+		else
+			timer_spkr_acquire();
+	}
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
@@ -257,7 +276,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		}
 #endif
 
-		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
+		WAKECODE_FIXUP(resume_beep, uint8_t, (stop_beep != NULL));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
@@ -310,10 +329,6 @@ out:
 	if (ret == 0 && mem_range_softc.mr_op != NULL &&
 	    mem_range_softc.mr_op->reinit != NULL)
 		mem_range_softc.mr_op->reinit(&mem_range_softc);
-
-	/* If we beeped, turn it off after a delay. */
-	if (acpi_resume_beep)
-		timeout(acpi_stop_beep, NULL, 3 * hz);
 
 	return (ret);
 }
