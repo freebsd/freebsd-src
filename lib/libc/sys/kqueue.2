@@ -322,6 +322,9 @@ The sigevent portion of the AIO request is filled in, with
 .Va sigev_notify_kqueue
 containing the descriptor of the kqueue that the event should
 be attached to,
+.Va sigev_notify_kevent_flags
+containing the kevent flags which should be EV_ONESHOT, EV_CLEAR or
+EV_DISPATCH,
 .Va sigev_value
 containing the udata value, and
 .Va sigev_notify
