@@ -43,25 +43,25 @@
  */
 
 #include <sys/param.h>
-#include <sys/systm.h>
 #include <sys/ctype.h>
 #include <sys/errno.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
+#include <sys/kthread.h>
 #include <sys/ktr.h>
 #include <sys/limits.h>
 #include <sys/lock.h>
 #include <sys/malloc.h>
 #include <sys/mbuf.h>
+#include <sys/proc.h>
 #include <sys/queue.h>
+#include <sys/refcount.h>
+#include <sys/rwlock.h>
+#include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/refcount.h>
-#include <sys/proc.h>
-#include <sys/rwlock.h>
+#include <sys/systm.h>
 #include <sys/unistd.h>
-#include <sys/kthread.h>
-#include <sys/smp.h>
 #include <machine/cpu.h>
 
 #include <net/netisr.h>
