@@ -43,8 +43,8 @@
  */
 
 #include <sys/param.h>
+#include <sys/systm.h>
 #include <sys/ctype.h>
-#include <sys/errno.h>
 #include <sys/kdb.h>
 #include <sys/kernel.h>
 #include <sys/kthread.h>
@@ -60,7 +60,6 @@
 #include <sys/smp.h>
 #include <sys/sysctl.h>
 #include <sys/syslog.h>
-#include <sys/systm.h>
 #include <sys/unistd.h>
 #include <machine/cpu.h>
 
