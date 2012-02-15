@@ -96,7 +96,7 @@ lem_netmap_lock_wrapper(struct ifnet *ifp, int what, u_int ringid)
 
 
 /*
- * Register/unregister routine
+ * register-unregister routine
  */
 static int
 lem_netmap_reg(struct ifnet *ifp, int onoff)
@@ -106,14 +106,13 @@ lem_netmap_reg(struct ifnet *ifp, int onoff)
 	int error = 0;
 
 	if (na == NULL)
-		return EINVAL;
+		return EINVAL;	/* no netmap support here */
 
 	lem_disable_intr(adapter);
 
 	/* Tell the stack that the interface is no longer active */
 	ifp->if_drv_flags &= ~(IFF_DRV_RUNNING | IFF_DRV_OACTIVE);
 
-	/* lem_netmap_block_tasks(adapter); */
 #ifndef EM_LEGACY_IRQ // XXX do we need this ?
 	taskqueue_block(adapter->tq);
 	taskqueue_drain(adapter->tq, &adapter->rxtx_task);
@@ -122,9 +121,6 @@ lem_netmap_reg(struct ifnet *ifp, int onoff)
 	if (onoff) {
 		ifp->if_capenable |= IFCAP_NETMAP;
 
-		/* save if_transmit to restore it when exiting.
-		 * XXX what about if_start and if_qflush ?
-		 */
 		na->if_transmit = ifp->if_transmit;
 		ifp->if_transmit = netmap_start;
 
@@ -135,10 +131,10 @@ lem_netmap_reg(struct ifnet *ifp, int onoff)
 		}
 	} else {
 fail:
-		/* restore non-netmap mode */
+		/* return to non-netmap mode */
 		ifp->if_transmit = na->if_transmit;
 		ifp->if_capenable &= ~IFCAP_NETMAP;
-		lem_init_locked(adapter);	/* also enables intr */
+		lem_init_locked(adapter);	/* also enable intr */
 	}
 
 #ifndef EM_LEGACY_IRQ
@@ -150,7 +146,7 @@ fail:
 
 
 /*
- * Reconcile kernel and user view of the transmit ring.
+ * Reconcile hardware and user view of the transmit ring.
  */
 static int
 lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
@@ -173,23 +169,25 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 			BUS_DMASYNC_POSTREAD);
 
-	/* update avail to what the hardware knows */
-	ring->avail = kring->nr_hwavail;
-
-	j = kring->nr_hwcur; /* points into the netmap ring */
-	if (j != k) {	/* we have new packets to send */
-		l = j - kring->nkr_hwofs; /* points into the NIC ring */
+	/* check for new packets to send.
+	 * j indexes the netmap ring, l indexes the nic ring, and
+	 *      j = kring->nr_hwcur, l = E1000_TDT (not tracked),
+	 *      j == (l + kring->nkr_hwofs) % ring_size
+	 */
+	j = kring->nr_hwcur;
+	if (j != k) {	/* we have packets to send */
+		l = j - kring->nkr_hwofs;
 		if (l < 0)
 			l += lim + 1;
 		while (j != k) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &adapter->tx_desc_base[l];
 			struct em_buffer *txbuf = &adapter->tx_buffer_area[l];
-			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
 					E1000_TXD_CMD_RS : 0;
+			uint64_t paddr;
+			void *addr = PNMB(slot, &paddr);
 			int len = slot->len;
 
 			if (addr == netmap_buffer_base || len > NETMAP_BUF_SIZE) {
@@ -220,7 +218,6 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 		/* decrease avail by number of sent packets */
 		kring->nr_hwavail -= n;
-		ring->avail = kring->nr_hwavail;
 
 		bus_dmamap_sync(adapter->txdma.dma_tag, adapter->txdma.dma_map,
 		    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
@@ -233,19 +230,21 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 		/* record completed transmissions using TDH */
 		l = E1000_READ_REG(&adapter->hw, E1000_TDH(0));
-		if (l >= kring->nkr_num_slots) { /* can it happen ? */
+		if (l >= kring->nkr_num_slots) { /* XXX can it happen ? */
 			D("bad TDH %d", l);
 			l -= kring->nkr_num_slots;
 		}
 		delta = l - adapter->next_tx_to_clean;
 		if (delta) {
+			/* some completed, increment hwavail. */
 			if (delta < 0)
 				delta += kring->nkr_num_slots;
 			adapter->next_tx_to_clean = l;
 			kring->nr_hwavail += delta;
-			ring->avail = kring->nr_hwavail;
 		}
 	}
+	/* update avail to what the hardware knows */
+	ring->avail = kring->nr_hwavail;
 
 	if (do_lock)
 		EM_TX_UNLOCK(adapter);
@@ -271,13 +270,20 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 	if (do_lock)
 		EM_RX_LOCK(adapter);
+
 	/* XXX check sync modes */
 	bus_dmamap_sync(adapter->rxdma.dma_tag, adapter->rxdma.dma_map,
 			BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
 
-	/* import newly received packets into the netmap ring */
-	l = adapter->next_rx_desc_to_check; /* points into the NIC ring */
-	j = l + kring->nkr_hwofs; /* points into the netmap ring */
+	/* import newly received packets into the netmap ring
+	 * j is an index in the netmap ring, l in the NIC ring, and
+	 *      j = (kring->nr_hwcur + kring->nr_hwavail) % ring_size
+	 *      l = rxr->next_to_check;
+	 * and
+	 *      j == (l + kring->nkr_hwofs) % ring_size
+	 */
+	l = adapter->next_rx_desc_to_check;
+	j = l + kring->nkr_hwofs;
 	if (j > lim)
 		j -= lim + 1;
 	for (n = 0; ; n++) {
@@ -322,6 +328,7 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 					EM_RX_UNLOCK(adapter);
 				return netmap_ring_reinit(kring);
 			}
+
 			curr->status = 0;
 			if (slot->flags & NS_BUF_CHANGED) {
 				curr->buffer_addr = htole64(paddr);
@@ -348,10 +355,8 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		l = (l == 0) ? lim : l - 1;
 		E1000_WRITE_REG(&adapter->hw, E1000_RDT(0), l);
 	}
-
 	/* tell userspace that there are new packets */
 	ring->avail = kring->nr_hwavail ;
-
 	if (do_lock)
 		EM_RX_UNLOCK(adapter);
 	return 0;
