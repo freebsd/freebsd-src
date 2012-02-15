@@ -3737,32 +3737,3 @@ ng_replace_retaddr(node_p here, item_p item, ng_ID_t retaddr)
 		NGI_RETADDR(item) = ng_node2ID(here);
 	}
 }
-
-#define TESTING
-#ifdef TESTING
-/* just test all the macros */
-void
-ng_macro_test(item_p item);
-void
-ng_macro_test(item_p item)
-{
-	node_p node = NULL;
-	hook_p hook = NULL;
-	struct mbuf *m;
-	struct ng_mesg *msg;
-	ng_ID_t retaddr;
-	int	error;
-
-	NGI_GET_M(item, m);
-	NGI_GET_MSG(item, msg);
-	retaddr = NGI_RETADDR(item);
-	NG_SEND_DATA(error, hook, m, NULL);
-	NG_SEND_DATA_ONLY(error, hook, m);
-	NG_FWD_NEW_DATA(error, item, hook, m);
-	NG_FWD_ITEM_HOOK(error, item, hook);
-	NG_SEND_MSG_HOOK(error, node, msg, hook, retaddr);
-	NG_SEND_MSG_ID(error, node, msg, retaddr, retaddr);
-	NG_SEND_MSG_PATH(error, node, msg, ".:", retaddr);
-	NG_FWD_MSG_HOOK(error, node, item, hook, retaddr);
-}
-#endif /* TESTING */
