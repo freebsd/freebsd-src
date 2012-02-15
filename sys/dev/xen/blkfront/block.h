@@ -49,7 +49,7 @@
  *       guarantee we can handle an unaligned transfer without the need to
  *       use a bounce buffer..
  */
-#define	XBF_MAX_REQUEST_SIZE		\
+#define	XBF_MAX_REQUEST_SIZE						\
 	MIN(MAXPHYS, (BLKIF_MAX_SEGMENTS_PER_REQUEST - 1) * PAGE_SIZE)
 
 /**
@@ -57,8 +57,8 @@
  * segment blocks) per request we will allow in a negotiated block-front/back
  * communication channel.
  */
-#define	XBF_MAX_SEGMENTS_PER_REQUEST		\
-	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,	\
+#define	XBF_MAX_SEGMENTS_PER_REQUEST					\
+	(MIN(BLKIF_MAX_SEGMENTS_PER_REQUEST,				\
 	     (XBF_MAX_REQUEST_SIZE / PAGE_SIZE) + 1))
 
 /**
