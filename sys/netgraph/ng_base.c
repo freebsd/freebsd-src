@@ -240,7 +240,6 @@ int	ng_path_parse(char *addr, char **node, char **path, char **hook);
 void	ng_rmnode(node_p node, hook_p dummy1, void *dummy2, int dummy3);
 void	ng_unname(node_p node);
 
-
 /* Our own netgraph malloc type */
 MALLOC_DEFINE(M_NETGRAPH, "netgraph", "netgraph structures and ctrl messages");
 MALLOC_DEFINE(M_NETGRAPH_MSG, "netgraph_msg", "netgraph name storage");
@@ -340,7 +339,6 @@ ng_alloc_node(void)
 
 #define NG_ALLOC_HOOK(hook) do { (hook) = ng_alloc_hook(); } while (0)
 #define NG_ALLOC_NODE(node) do { (node) = ng_alloc_node(); } while (0)
-
 
 #define NG_FREE_HOOK(hook)						\
 	do {								\
@@ -1205,7 +1203,6 @@ ng_newtype(struct ng_type *tp)
 		TRAP_ERROR();
 		return (EEXIST);
 	}
-
 
 	/* Link in new type */
 	TYPELIST_WLOCK();
@@ -3275,7 +3272,6 @@ SYSCTL_PROC(_debug, OID_AUTO, ng_dump_items, CTLTYPE_INT | CTLFLAG_RW,
     0, sizeof(int), sysctl_debug_ng_dump_items, "I", "Number of allocated items");
 #endif	/* NETGRAPH_DEBUG */
 
-
 /***********************************************************************
 * Worklist routines
 **********************************************************************/
@@ -3359,7 +3355,6 @@ ng_worklist_add(node_p node)
 	}
 }
 
-
 /***********************************************************************
 * Externally useable functions to set up a queue item ready for sending
 ***********************************************************************/
@@ -3439,8 +3434,6 @@ ng_package_msg(struct ng_mesg *msg, int flags)
 	NGI_RETADDR(item) = 0;
 	return (item);
 }
-
-
 
 #define SET_RETADDR(item, here, retaddr)				\
 	do {	/* Data or fn items don't have retaddrs */		\
@@ -3666,7 +3659,6 @@ ng_callout_trampoline(void *arg)
 	ng_snd_item(item, 0);
 	CURVNET_RESTORE();
 }
-
 
 int
 ng_callout(struct callout *c, node_p node, hook_p hook, int ticks,
