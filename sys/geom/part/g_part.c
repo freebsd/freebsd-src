@@ -2057,6 +2057,7 @@ g_part_start(struct bio *bp)
 	struct g_part_table *table;
 	struct g_kerneldump *gkd;
 	struct g_provider *pp;
+	char buf[64];
 
 	pp = bp->bio_to;
 	gp = pp->geom;
@@ -2104,6 +2105,9 @@ g_part_start(struct bio *bp)
 			return;
 		if (g_handleattr_str(bp, "PART::scheme",
 		    table->gpt_scheme->name))
+			return;
+		if (g_handleattr_str(bp, "PART::type",
+		    G_PART_TYPE(table, entry, buf, sizeof(buf))))
 			return;
 		if (!strcmp("GEOM::kerneldump", bp->bio_attribute)) {
 			/*
