@@ -3134,7 +3134,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 
 	if (xbb->ring_config.ring_pages	> XBB_MAX_RING_PAGES) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed ring-pages of %u "
+				 "Front-end specified ring-pages of %u "
 				 "exceeds backend limit of %zu.  "
 				 "Unable to connect.",
 				 xbb->ring_config.ring_pages,
@@ -3142,7 +3142,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_requests > XBB_MAX_REQUESTS) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_requests of %u "
+				 "Front-end specified max_requests of %u "
 				 "exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_requests,
@@ -3150,7 +3150,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_request_segments > XBB_MAX_SEGMENTS_PER_REQUEST) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_requests_segments "
+				 "Front-end specified max_requests_segments "
 				 "of %u exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_request_segments,
@@ -3158,7 +3158,7 @@ xbb_collect_frontend_info(struct xbb_softc *xbb)
 		return (EINVAL);
 	} else if (xbb->max_request_size > XBB_MAX_REQUEST_SIZE) {
 		xenbus_dev_fatal(xbb->dev, EINVAL,
-				 "Front-end specificed max_request_size "
+				 "Front-end specified max_request_size "
 				 "of %u exceeds backend limit of %u.  "
 				 "Unable to connect.",
 				 xbb->max_request_size,
