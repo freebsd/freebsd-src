@@ -14,8 +14,8 @@ Documentation is available at acpica.org:
 http://www.acpica.org/documentation/
 
 The acpica/source/tools directory contains the following utilities.
-Note: These utilities are tested and supported as 32-bit versions
-only.
+Note: These utilities are tested and supported in both 32-bit
+and 64-bit versions.
 
 acpibin
 acpiexec

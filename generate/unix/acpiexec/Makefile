@@ -117,12 +117,14 @@ OBJECTS = \
 	$(OBJDIR)/exutils.o \
 	$(OBJDIR)/getopt.o \
 	$(OBJDIR)/hwacpi.o \
+	$(OBJDIR)/hwesleep.o \
 	$(OBJDIR)/hwgpe.o \
 	$(OBJDIR)/hwpci.o \
 	$(OBJDIR)/hwregs.o \
 	$(OBJDIR)/hwsleep.o \
 	$(OBJDIR)/hwvalid.o \
 	$(OBJDIR)/hwxface.o \
+	$(OBJDIR)/hwxfsleep.o \
 	$(OBJDIR)/nsaccess.o \
 	$(OBJDIR)/nsalloc.o \
 	$(OBJDIR)/nsdump.o \
