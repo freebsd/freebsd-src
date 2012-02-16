@@ -160,6 +160,7 @@ SUBDIR=	${_ac} \
 	${_rpc.ypupdated} \
 	${_rpc.ypxfrd} \
 	${_rrenumd} \
+	${_rtadvctl} \
 	${_rtadvd} \
 	rtprio \
 	${_rtsold} \
@@ -284,6 +285,7 @@ _ndp=		ndp
 _rip6query=	rip6query
 _route6d=	route6d
 _rrenumd=	rrenumd
+_rtadvctl=	rtadvctl
 _rtadvd=	rtadvd
 _rtsold=	rtsold
 _traceroute6=	traceroute6
