@@ -109,9 +109,6 @@ MALLOC_DEFINE(M_NEWNFSDROLLBACK, "NFSD rollback",
  * Definition of mutex locks.
  * newnfsd_mtx is used in nfsrvd_nfsd() to protect the nfs socket list
  * and assorted other nfsd structures.
- * Giant is used to protect the nfsd list and count, which is just
- *  updated when nfsd's start/stop and is grabbed for nfsrvd_dorpc()
- *  for the VFS ops.
  */
 struct mtx newnfsd_mtx;
 struct mtx nfs_sockl_mutex;
