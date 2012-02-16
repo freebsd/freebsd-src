@@ -1,0 +1,20 @@
+#$FreeBSD$
+
+kern/kern_clocksource.c				standard
+
+arm/arm/bus_space_generic.c			standard
+arm/arm/bus_space_asm_generic.S			standard
+arm/arm/cpufunc_asm_armv5.S			standard
+arm/arm/cpufunc_asm_arm10.S			standard
+arm/arm/cpufunc_asm_arm11.S			standard
+arm/arm/cpufunc_asm_armv7.S			standard
+arm/arm/irq_dispatch.S				standard
+
+arm/ti/ti_machdep.c				standard
+arm/ti/aintc.c					standard
+
+arm/ti/am335x/am335x_prcm.c			standard
+arm/ti/am335x/am335x_dmtimer.c			standard
+arm/ti/am335x/if_cpsw.c				standard
+
+dev/uart/uart_dev_ns8250.c			optional	uart

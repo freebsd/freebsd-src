@@ -51,9 +51,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/omap4/omap4_reg.h>
 #include <arm/ti/omap3/omap3_reg.h>
-#ifdef notyet
 #include <arm/ti/am335x/am335x_reg.h>
-#endif
 
 #define OMAP4_STD_FUSE_DIE_ID_0    0x2200
 #define OMAP4_ID_CODE              0x2204
@@ -216,7 +214,6 @@ omap3_get_revision(void)
 		OMAP_REV_MINOR(chip_revision));
 }
 
-#ifdef notyet
 static void
 am335x_get_revision(void)
 {
@@ -255,7 +252,6 @@ am335x_get_revision(void)
 	printf("Texas Instruments AM335%c Processor, Revision ES1.%u\n",
 		cpu_last_char, AM335X_DEVREV(chip_revision));
 }
-#endif
 
 /**
  *	ti_cpu_ident - attempts to identify the chip we are running on
@@ -278,11 +274,9 @@ ti_cpu_ident(void *dummy)
 	case CHIP_OMAP_4:
 		omap4_get_revision();
 		break;
-#ifdef notyet
 	case CHIP_AM335X:
 		am335x_get_revision();
 		break;
-#endif
 	default:
 		panic("Unknown chip type, fixme!\n");
 	}
