@@ -112,6 +112,7 @@ ata_queue_request(struct ata_request *request)
 	ATA_DEBUG_RQ(request, "wait for completion");
 	if (!dumping &&
 	    sema_timedwait(&request->done, request->timeout * hz * 4)) {
+	    callout_drain(&request->callout);
 	    device_printf(request->dev,
 			  "WARNING - %s taskqueue timeout "
 			  "- completing request directly\n",
