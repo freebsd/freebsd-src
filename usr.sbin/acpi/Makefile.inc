@@ -22,4 +22,4 @@ CFLAGS+= -I${.CURDIR}/../../../sys
 	${ACPICA_DIR}/components/resources		\
 	${ACPICA_DIR}/components/tables			\
 	${ACPICA_DIR}/components/utilities		\
-	${ACPICA_DIR}/os_specific/service_layers	\
+	${ACPICA_DIR}/os_specific/service_layers
