@@ -268,7 +268,7 @@
  * max-requests
  *      Values:         <uint32_t>
  *      Default Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE)
- *      Maximum Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE * max-ring_pages)
+ *      Maximum Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE * max-ring-pages)
  *
  *      The maximum number of concurrent, logical requests that will be
  *      issued by the frontend.
