@@ -2715,7 +2715,8 @@ acpi_EnterSleepState(struct acpi_softc *sc, int state)
 	DELAY(sc->acpi_sleep_delay * 1000000);
 
     if (state != ACPI_STATE_S1) {
-	acpi_sleep_machdep(sc, state);
+	if (acpi_sleep_machdep(sc, state))
+		goto backout;
 
 	/* Re-enable ACPI hardware on wakeup from sleep state 4. */
 	if (state == ACPI_STATE_S4)
@@ -2740,8 +2741,10 @@ backout:
 	acpi_wake_prep_walk(state);
 	sc->acpi_sstate = ACPI_STATE_S0;
     }
-    if (slp_state >= ACPI_SS_SLP_PREP)
+    if (slp_state >= ACPI_SS_SLP_PREP) {
+	AcpiLeaveSleepStatePrep(state);
 	AcpiLeaveSleepState(state);
+    }
     if (slp_state >= ACPI_SS_DEV_SUSPEND)
 	DEVICE_RESUME(root_bus);
     if (slp_state >= ACPI_SS_SLEPT) {
