@@ -757,6 +757,7 @@ die(void)
     if (msg == NULL)
 	msg = "Fatal error";
     rtld_fdputstr(STDERR_FILENO, msg);
+    rtld_fdputchar(STDERR_FILENO, '\n');
     _exit(1);
 }
 
