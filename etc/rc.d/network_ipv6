@@ -41,10 +41,6 @@ start_cmd="network_ipv6_start"
 
 network_ipv6_start()
 {
-	# disallow "internal" addresses to appear on the wire
-	route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
-	route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
-
 	case ${ipv6_network_interfaces} in
 	[Aa][Uu][Tt][Oo])
 		# Get a list of network interfaces
