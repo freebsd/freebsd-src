@@ -53,6 +53,7 @@ struct fdt_fixup_entry fdt_fixup_table[] = {
 	{ NULL, NULL }
 };
 
+#ifdef SOC_OMAP4
 static int
 fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
     int *pol)
@@ -67,8 +68,31 @@ fdt_gic_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
 
 	return (0);
 }
+#endif
+
+#ifdef SOC_TI_AM335X
+static int
+fdt_aintc_decode_ic(phandle_t node, pcell_t *intr, int *interrupt, int *trig,
+    int *pol)
+{
+
+	if (!fdt_is_compatible(node, "ti,aintc"))
+		return (ENXIO);
+
+	*interrupt = fdt32_to_cpu(intr[0]);
+	*trig = INTR_TRIGGER_CONFORM;
+	*pol = INTR_POLARITY_CONFORM;
+
+	return (0);
+}
+#endif
 
 fdt_pic_decode_t fdt_pic_table[] = {
+#ifdef SOC_OMAP4
 	&fdt_gic_decode_ic,
+#endif
+#ifdef SOC_TI_AM335X
+	&fdt_aintc_decode_ic,
+#endif
 	NULL
 };
