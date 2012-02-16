@@ -98,7 +98,8 @@ static void
 acpi_stop_beep(void *arg)
 {
 
-	timer_spkr_release();
+	if (acpi_resume_beep != 0)
+		timer_spkr_release();
 }
 
 #ifdef SMP
@@ -219,7 +220,6 @@ acpi_wakeup_cpus(struct acpi_softc *sc, const cpuset_t *wakeup_cpus)
 int
 acpi_sleep_machdep(struct acpi_softc *sc, int state)
 {
-	static eventhandler_tag stop_beep = NULL;
 #ifdef SMP
 	cpuset_t	wakeup_cpus;
 #endif
@@ -236,21 +236,8 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
 #endif
 
-	if (acpi_resume_beep == 0) {
-		if (stop_beep != NULL) {
-			EVENTHANDLER_DEREGISTER(power_resume, stop_beep);
-			stop_beep = NULL;
-		}
-	} else {
-		if (stop_beep == NULL)
-			stop_beep = EVENTHANDLER_REGISTER(power_resume,
-			    acpi_stop_beep, NULL, EVENTHANDLER_PRI_LAST);
-		if (stop_beep == NULL)
-			device_printf(sc->acpi_dev,
-			    "Failed to set up event handler\n");
-		else
-			timer_spkr_acquire();
-	}
+	if (acpi_resume_beep != 0)
+		timer_spkr_acquire();
 
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
@@ -267,7 +254,7 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 		}
 #endif
 
-		WAKECODE_FIXUP(resume_beep, uint8_t, (stop_beep != NULL));
+		WAKECODE_FIXUP(resume_beep, uint8_t, (acpi_resume_beep != 0));
 		WAKECODE_FIXUP(reset_video, uint8_t, (acpi_reset_video != 0));
 
 		WAKECODE_FIXUP(wakeup_pcb, struct pcb *, susppcbs[0]);
@@ -341,6 +328,12 @@ acpi_alloc_wakeup_handler(void)
 	    0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
+		return (NULL);
+	}
+	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
+	    EVENTHANDLER_PRI_LAST) == NULL) {
+		printf("%s: can't register event handler\n", __func__);
+		contigfree(wakeaddr, 4 * PAGE_SIZE, M_DEVBUF);
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
