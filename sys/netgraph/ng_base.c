@@ -3066,7 +3066,7 @@ vnet_netgraph_uninit(const void *unused __unused)
 		}
 	} while (node != NULL);
 }
-VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_PROTO_IFATTACHDOMAIN, SI_ORDER_ANY,
+VNET_SYSUNINIT(vnet_netgraph_uninit, SI_SUB_NETGRAPH, SI_ORDER_FIRST,
     vnet_netgraph_uninit, NULL);
 #endif /* VIMAGE */
 
@@ -3132,7 +3132,7 @@ static moduledata_t netgraph_mod = {
 	ngb_mod_event,
 	(NULL)
 };
-DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_MIDDLE);
+DECLARE_MODULE(netgraph, netgraph_mod, SI_SUB_NETGRAPH, SI_ORDER_FIRST);
 SYSCTL_NODE(_net, OID_AUTO, graph, CTLFLAG_RW, 0, "netgraph Family");
 SYSCTL_INT(_net_graph, OID_AUTO, abi_version, CTLFLAG_RD, 0, NG_ABI_VERSION,"");
 SYSCTL_INT(_net_graph, OID_AUTO, msg_version, CTLFLAG_RD, 0, NG_VERSION, "");
