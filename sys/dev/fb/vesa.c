@@ -1311,7 +1311,9 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if (!(info.vi_flags & V_INFO_GRAPHICS))
 		info.vi_flags &= ~V_INFO_LINEAR;
 
-	if (vesa_bios_set_mode(mode | ((info.vi_flags & V_INFO_LINEAR) ? 0x4000 : 0)))
+	if ((info.vi_flags & V_INFO_LINEAR) != 0)
+		mode |= 0x4000;
+	if (vesa_bios_set_mode(mode))
 		return (1);
 
 	/* Palette format is reset by the above VBE function call. */
@@ -1329,7 +1331,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
 #endif
-	vesa_adp->va_mode = mode;
+	vesa_adp->va_mode = mode & 0x1ff;	/* Mode number is 9-bit. */
 	vesa_adp->va_flags &= ~V_ADP_COLOR;
 	vesa_adp->va_flags |= 
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
