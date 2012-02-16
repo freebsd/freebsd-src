@@ -1469,6 +1469,7 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
+	int mode;
 
 	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
 		return ((*prevvidsw->load_state)(adp, p));
@@ -1478,8 +1479,10 @@ vesa_load_state(video_adapter_t *adp, void *p)
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
-	(void)int10_set_mode(adp->va_initial_bios_mode);
-	(void)vesa_set_mode(adp, adp->va_mode);
+	mode = adp->va_mode;
+	(void)vesa_set_mode(adp, adp->va_initial_mode);
+	if (mode != adp->va_initial_mode);
+		(void)vesa_set_mode(adp, mode);
 
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs));
 }
