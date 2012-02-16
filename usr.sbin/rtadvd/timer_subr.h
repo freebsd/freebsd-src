@@ -1,8 +1,8 @@
 /*	$FreeBSD$	*/
-/*	$KAME: config.h,v 1.8 2003/06/17 08:26:22 itojun Exp $	*/
+/*	$KAME: timer.h,v 1.5 2002/05/31 13:30:38 jinmei Exp $	*/
 
 /*
- * Copyright (C) 1995, 1996, 1997, 1998, and 1999 WIDE Project.
+ * Copyright (C) 1998 WIDE Project.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,24 +30,28 @@
  * SUCH DAMAGE.
  */
 
-extern struct ifinfo *getconfig(struct ifinfo *);
-extern int rm_ifinfo(struct ifinfo *);
-extern int rm_ifinfo_index(int);
-extern int rm_rainfo(struct rainfo *);
-extern int loadconfig_ifname(char *);
-extern int loadconfig_index(int);
-extern void delete_prefix(struct prefix *);
-extern void invalidate_prefix(struct prefix *);
-extern void update_prefix(struct prefix *);
-extern void make_prefix(struct rainfo *, int, struct in6_addr *, int);
-extern void make_packet(struct rainfo *);
-extern void get_prefix(struct rainfo *);
+#define	SSBUFLEN	1024
+#define MILLION 1000000
 
-/*
- * it is highly unlikely to have 100 prefix information options,
- * so it should be okay to limit it
- */
-#define MAXPREFIX	100
-#define MAXROUTE	100
-#define MAXRDNSSENT	100
-#define MAXDNSSLENT	100
+/* a < b */
+#define	TIMEVAL_LT(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec < (b)->tv_usec)))
+
+/* a <= b */
+#define	TIMEVAL_LEQ(a, b)				\
+		(((a)->tv_sec < (b)->tv_sec) ||		\
+		    (((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec <= (b)->tv_usec)))
+
+#define	TIMEVAL_EQUAL(a,b)				\
+		(((a)->tv_sec == (b)->tv_sec) &&	\
+		    ((a)->tv_usec == (b)->tv_usec))
+
+struct timeval	*rtadvd_timer_rest(struct rtadvd_timer *);
+void		TIMEVAL_ADD(struct timeval *, struct timeval *,
+		    struct timeval *);
+void		TIMEVAL_SUB(struct timeval *, struct timeval *,
+		    struct timeval *);
+char		*sec2str(uint32_t, char *buf);
