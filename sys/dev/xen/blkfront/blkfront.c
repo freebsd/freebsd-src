@@ -228,7 +228,7 @@ xlvbd_add(struct xb_softc *sc, blkif_sector_t sectors,
 	sc->xb_disk->d_sectorsize = sector_size;
 
 	sc->xb_disk->d_mediasize = sectors * sector_size;
-	sc->xb_disk->d_maxsize = sc->max_request_size - PAGE_SIZE;
+	sc->xb_disk->d_maxsize = sc->max_request_size;
 	sc->xb_disk->d_flags = 0;
 	disk_create(sc->xb_disk, DISK_VERSION_00);
 
@@ -555,7 +555,7 @@ blkfront_initialize(struct xb_softc *sc)
 	max_ring_page_order = 0;
 	sc->ring_pages = 1;
 	sc->max_request_segments = BLKIF_MAX_SEGMENTS_PER_HEADER_BLOCK;
-	sc->max_request_size = (sc->max_request_segments - 1) * PAGE_SIZE;
+	sc->max_request_size = XBF_SEGS_TO_SIZE(sc->max_request_segments);
 	sc->max_request_blocks = BLKIF_SEGS_TO_BLOCKS(sc->max_request_segments);
 
 	/*
@@ -621,8 +621,8 @@ blkfront_initialize(struct xb_softc *sc)
 	}
 
 	if (sc->max_request_segments > XBF_MAX_SEGMENTS_PER_REQUEST) {
-		device_printf(sc->xb_dev, "Back-end specificed "
-			      "max_requests_segments of %u limited to "
+		device_printf(sc->xb_dev, "Back-end specified "
+			      "max_request_segments of %u limited to "
 			      "front-end limit of %u.\n",
 			      sc->max_request_segments,
 			      XBF_MAX_SEGMENTS_PER_REQUEST);
@@ -630,12 +630,23 @@ blkfront_initialize(struct xb_softc *sc)
 	}
 
 	if (sc->max_request_size > XBF_MAX_REQUEST_SIZE) {
-		device_printf(sc->xb_dev, "Back-end specificed "
+		device_printf(sc->xb_dev, "Back-end specified "
 			      "max_request_size of %u limited to front-end "
 			      "limit of %u.\n", sc->max_request_size,
 			      XBF_MAX_REQUEST_SIZE);
 		sc->max_request_size = XBF_MAX_REQUEST_SIZE;
 	}
+ 
+ 	if (sc->max_request_size > XBF_SEGS_TO_SIZE(sc->max_request_segments)) {
+ 		device_printf(sc->xb_dev, "Back-end specified "
+ 			      "max_request_size of %u limited to front-end "
+ 			      "limit of %u.  (Too few segments.)\n",
+ 			      sc->max_request_size,
+ 			      XBF_SEGS_TO_SIZE(sc->max_request_segments));
+ 		sc->max_request_size =
+ 		    XBF_SEGS_TO_SIZE(sc->max_request_segments);
+ 	}
+
 	sc->max_request_blocks = BLKIF_SEGS_TO_BLOCKS(sc->max_request_segments);
 
 	/* Allocate datastructures based on negotiated values. */
