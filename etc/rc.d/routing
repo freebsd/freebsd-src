@@ -57,6 +57,14 @@ static_start()
 			atmconfig natm add ${route_args}
 		done
 	fi
+
+	# Disallow "internal" addresses to appear on the wire if inet6
+	# is enabled.
+	if afexists inet6; then
+		# disallow "internal" addresses to appear on the wire
+		route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+		route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+	fi
 }
 
 _ropts_initdone=
