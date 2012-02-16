@@ -1438,18 +1438,18 @@ vm_mmap(vm_map_t map, vm_offset_t *addr, vm_size_t size, vm_prot_t prot,
 
 	size = round_page(size);
 
-	PROC_LOCK(td->td_proc);
-	if (td->td_proc->p_vmspace->vm_map.size + size >
-	    lim_cur(td->td_proc, RLIMIT_VMEM)) {
+	if (map == &td->td_proc->p_vmspace->vm_map) {
+		PROC_LOCK(td->td_proc);
+		if (map->size + size > lim_cur(td->td_proc, RLIMIT_VMEM)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
+		if (racct_set(td->td_proc, RACCT_VMEM, map->size + size)) {
+			PROC_UNLOCK(td->td_proc);
+			return (ENOMEM);
+		}
 		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
 	}
-	if (racct_set(td->td_proc, RACCT_VMEM,
-	    td->td_proc->p_vmspace->vm_map.size + size)) {
-		PROC_UNLOCK(td->td_proc);
-		return (ENOMEM);
-	}
-	PROC_UNLOCK(td->td_proc);
 
 	/*
 	 * We currently can only deal with page aligned file offsets.
