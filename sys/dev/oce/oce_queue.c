@@ -36,10 +36,7 @@
  * Costa Mesa, CA 92626
  */
 
-
-
 /* $FreeBSD$ */
-
 
 #include "oce_if.h"
 
@@ -653,11 +650,11 @@ static struct oce_mq *
 oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 {
 	struct oce_mbx mbx;
-	struct mbx_create_common_mq *fwcmd = NULL;
+	struct mbx_create_common_mq_ex *fwcmd = NULL;
 	struct oce_mq *mq = NULL;
 	int rc = 0;
 	struct oce_cq *cq;
-	oce_mq_ctx_t *ctx;
+	oce_mq_ext_ctx_t *ctx;
 	uint32_t num_pages;
 	uint32_t page_size;
 	uint32_t version;
@@ -683,13 +680,13 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 
 	bzero(&mbx, sizeof(struct oce_mbx));
 
-	fwcmd = (struct mbx_create_common_mq *)&mbx.payload;
+	fwcmd = (struct mbx_create_common_mq_ex *)&mbx.payload;
 	version = OCE_MBX_VER_V0;
 	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
 				MBX_SUBSYSTEM_COMMON,
-				OPCODE_COMMON_CREATE_MQ,
+				OPCODE_COMMON_CREATE_MQ_EXT,
 				MBX_TIMEOUT_SEC,
-				sizeof(struct mbx_create_common_mq),
+				sizeof(struct mbx_create_common_mq_ex),
 				version);
 
 	num_pages = oce_page_list(mq->ring, &fwcmd->params.req.pages[0]);
@@ -700,9 +697,11 @@ oce_mq_create(POCE_SOFTC sc, struct oce_eq *eq, uint32_t q_len)
 	ctx->v0.cq_id = cq->cq_id;
 	ctx->v0.ring_size = OCE_LOG2(q_len) + 1;
 	ctx->v0.valid = 1;
+	/* Subscribe to Link State and Group 5 Events(bits 1 and 5 set) */
+	ctx->v0.async_evt_bitmap = 0xffffffff;
 
 	mbx.u0.s.embedded = 1;
-	mbx.payload_length = sizeof(struct mbx_create_common_mq);
+	mbx.payload_length = sizeof(struct mbx_create_common_mq_ex);
 	DW_SWAP(u32ptr(&mbx), mbx.payload_length + OCE_BMBX_RHDR_SZ);
 
 	rc = oce_mbox_post(sc, &mbx, NULL);

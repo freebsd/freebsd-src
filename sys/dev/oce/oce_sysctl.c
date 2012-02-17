@@ -36,9 +36,7 @@
  * Costa Mesa, CA 92626
  */
 
-
 /* $FreeBSD$ */
-
 
 #include "oce_if.h"
 
@@ -107,6 +105,13 @@ oce_add_sysctls(POCE_SOFTC sc)
 				CTLFLAG_RD,
 				&sc->speed,
 				0,"Link Speed");
+
+	if (sc->function_mode & FNM_UMC_MODE)
+		SYSCTL_ADD_UINT(ctx, child,
+				OID_AUTO, "pvid",
+				CTLFLAG_RD,
+				&sc->pvid,
+				0,"PVID");
 
 	SYSCTL_ADD_PROC(ctx, child, OID_AUTO, "loop_back",
 		CTLTYPE_INT | CTLFLAG_RW, (void *)sc, 0,

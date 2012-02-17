@@ -36,7 +36,6 @@
  * Costa Mesa, CA 92626
  */
 
-
 /* $FreeBSD$ */
 
 #include "opt_inet6.h"
@@ -71,10 +70,6 @@ static int  oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index);
 static void oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq);
 static void oce_tx_complete(struct oce_wq *wq, uint32_t wqe_idx,
 					uint32_t status);
-#if defined(INET6) || defined(INET)
-static struct mbuf * oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp,
-					uint16_t *mss);
-#endif
 static int  oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m,
 				 struct oce_wq *wq);
 
@@ -82,9 +77,6 @@ static int  oce_multiq_transmit(struct ifnet *ifp, struct mbuf *m,
 static void oce_discard_rx_comp(struct oce_rq *rq, struct oce_nic_rx_cqe *cqe);
 static int  oce_cqe_vtp_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe);
 static int  oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe);
-#if defined(INET6) || defined(INET)
-static void oce_rx_flush_lro(struct oce_rq *rq);
-#endif
 static void oce_rx(struct oce_rq *rq, uint32_t rqe_idx,
 						struct oce_nic_rx_cqe *cqe);
 
@@ -96,13 +88,20 @@ static int  oce_vid_config(POCE_SOFTC sc);
 static void oce_mac_addr_set(POCE_SOFTC sc);
 static int  oce_handle_passthrough(struct ifnet *ifp, caddr_t data);
 static void oce_local_timer(void *arg);
-#if defined(INET6) || defined(INET)
-static int  oce_init_lro(POCE_SOFTC sc);
-#endif
 static void oce_if_deactivate(POCE_SOFTC sc);
 static void oce_if_activate(POCE_SOFTC sc);
 static void setup_max_queues_want(POCE_SOFTC sc);
 static void update_queues_got(POCE_SOFTC sc);
+static void process_link_state(POCE_SOFTC sc,
+		 struct oce_async_cqe_link_state *acqe);
+
+
+/* IP specific */
+#if defined(INET6) || defined(INET)
+static int  oce_init_lro(POCE_SOFTC sc);
+static void oce_rx_flush_lro(struct oce_rq *rq);
+static struct mbuf * oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp);
+#endif
 
 static device_method_t oce_dispatch[] = {
 	DEVMETHOD(device_probe, oce_probe),
@@ -157,10 +156,10 @@ static uint32_t supportedDevices[] =  {
 static int
 oce_probe(device_t dev)
 {
-	uint16_t vendor;
-	uint16_t device;
-	int i;
-	char str[80];
+	uint16_t vendor = 0;
+	uint16_t device = 0;
+	int i = 0;
+	char str[256] = {0};
 	POCE_SOFTC sc;
 
 	sc = device_get_softc(dev);
@@ -170,11 +169,10 @@ oce_probe(device_t dev)
 	vendor = pci_get_vendor(dev);
 	device = pci_get_device(dev);
 
-	for (i = 0; i < (sizeof(supportedDevices) / sizeof(uint16_t)); i++) {
+	for (i = 0; i < (sizeof(supportedDevices) / sizeof(uint32_t)); i++) {
 		if (vendor == ((supportedDevices[i] >> 16) & 0xffff)) {
 			if (device == (supportedDevices[i] & 0xffff)) {
-				sprintf(str, "%s:%s",
-					"Emulex CNA NIC function",
+				sprintf(str, "%s:%s", "Emulex CNA NIC function",
 					component_revision);
 				device_set_desc_copy(dev, str);
 
@@ -228,36 +226,29 @@ oce_attach(device_t dev)
 	if (rc)
 		goto pci_res_free;
 
-
 	setup_max_queues_want(sc);	
-
 
 	rc = oce_setup_intr(sc);
 	if (rc)
 		goto mbox_free;
 
-
 	rc = oce_queue_init_all(sc);
 	if (rc)
 		goto intr_free;
-
 
 	rc = oce_attach_ifp(sc);
 	if (rc)
 		goto queues_free;
 
-
 #if defined(INET6) || defined(INET)
 	rc = oce_init_lro(sc);
 	if (rc)
-		goto ifp_free;	
+		goto ifp_free;
 #endif
-
 
 	rc = oce_hw_start(sc);
 	if (rc)
 		goto lro_free;;
-
 
 	sc->vlan_attach = EVENTHANDLER_REGISTER(vlan_config,
 				oce_add_vlan, sc, EVENTHANDLER_PRI_FIRST);
@@ -270,11 +261,12 @@ oce_attach(device_t dev)
 
 	oce_add_sysctls(sc);
 
-
 	callout_init(&sc->timer, CALLOUT_MPSAFE);
 	rc = callout_reset(&sc->timer, 2 * hz, oce_local_timer, sc);
 	if (rc)
 		goto stats_free;
+#ifdef DEV_NETMAP
+#endif /* DEV_NETMAP */
 
 	return 0;
 
@@ -315,9 +307,7 @@ oce_detach(device_t dev)
 	POCE_SOFTC sc = device_get_softc(dev);
 
 	LOCK(&sc->dev_lock);
-	
 	oce_if_deactivate(sc);
-
 	UNLOCK(&sc->dev_lock);
 
 	callout_drain(&sc->timer);
@@ -359,32 +349,9 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	uint32_t u;
 
 	switch (command) {
-	case SIOCGIFPSRCADDR_IN6:
-		rc = ether_ioctl(ifp, command, data);
-		break;
-
-	case SIOCGIFPSRCADDR:
-		rc = ether_ioctl(ifp, command, data);
-		break;
-
-	case SIOCGIFSTATUS:
-		rc = ether_ioctl(ifp, command, data);
-		break;
 
 	case SIOCGIFMEDIA:
 		rc = ifmedia_ioctl(ifp, ifr, &sc->media, command);
-		break;
-
-	case SIOCSIFMEDIA:
-		rc = ether_ioctl(ifp, command, data);
-		break;
-
-	case SIOCGIFGENERIC:
-		rc = ether_ioctl(ifp, command, data);
-		break;
-
-	case SIOCGETMIFCNT_IN6:
-		rc = ether_ioctl(ifp, command, data);
 		break;
 
 	case SIOCSIFMTU:
@@ -474,7 +441,6 @@ oce_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 			ifp->if_capenable ^= IFCAP_VLAN_HWFILTER;
 			oce_vid_config(sc);
 		}
-
 #if defined(INET6) || defined(INET)
 		if (u & IFCAP_LRO)
 			ifp->if_capenable ^= IFCAP_LRO;
@@ -813,9 +779,6 @@ oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index)
 	struct oce_nic_frag_wqe *nicfrag;
 	int num_wqes;
 	uint32_t reg_value;
-#if defined(INET6) || defined(INET)
-	uint16_t mss = 0;
-#endif
 
 	m = *mpp;
 	if (!m)
@@ -827,9 +790,9 @@ oce_tx(POCE_SOFTC sc, struct mbuf **mpp, int wq_index)
 	}
 
 	if (m->m_pkthdr.csum_flags & CSUM_TSO) {
-#if defined(INET6) || defined(INET)
 		/* consolidate packet buffers for TSO/LSO segment offload */
-		m = oce_tso_setup(sc, mpp, &mss);
+#if defined(INET6) || defined(INET)
+		m = oce_tso_setup(sc, mpp);
 #else
 		m = NULL;
 #endif
@@ -1012,9 +975,10 @@ oce_tx_restart(POCE_SOFTC sc, struct oce_wq *wq)
 
 }
 
+
 #if defined(INET6) || defined(INET)
 static struct mbuf *
-oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
+oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp)
 {
 	struct mbuf *m;
 #ifdef INET
@@ -1025,12 +989,10 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 #endif
 	struct ether_vlan_header *eh;
 	struct tcphdr *th;
-	int total_len = 0;
 	uint16_t etype;
-	int ehdrlen = 0;
+	int total_len = 0, ehdrlen = 0;
 	
 	m = *mpp;
-	*mss = m->m_pkthdr.tso_segsz;
 
 	if (M_WRITABLE(m) == 0) {
 		m = m_dup(*mpp, M_DONTWAIT);
@@ -1049,7 +1011,6 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 		ehdrlen = ETHER_HDR_LEN;
 	}
 
-	
 	switch (etype) {
 #ifdef INET
 	case ETHERTYPE_IP:
@@ -1084,7 +1045,6 @@ oce_tso_setup(POCE_SOFTC sc, struct mbuf **mpp, uint16_t *mss)
 }
 #endif /* INET6 || INET */
 
-
 void
 oce_tx_task(void *arg, int npending)
 {
@@ -1115,6 +1075,7 @@ oce_start(struct ifnet *ifp)
 	POCE_SOFTC sc = ifp->if_softc;
 	struct mbuf *m;
 	int rc = 0;
+	int def_q = 0; /* Defualt tx queue is 0*/
 
 	if ((ifp->if_drv_flags & (IFF_DRV_RUNNING | IFF_DRV_OACTIVE)) !=
 			IFF_DRV_RUNNING)
@@ -1124,13 +1085,13 @@ oce_start(struct ifnet *ifp)
 		IF_DEQUEUE(&sc->ifp->if_snd, m);
 		if (m == NULL)
 			break;
-		/* oce_start always uses default TX queue 0 */
-		LOCK(&sc->wq[0]->tx_lock);
-		rc = oce_tx(sc, &m, 0);
-		UNLOCK(&sc->wq[0]->tx_lock);
+
+		LOCK(&sc->wq[def_q]->tx_lock);
+		rc = oce_tx(sc, &m, def_q);
+		UNLOCK(&sc->wq[def_q]->tx_lock);
 		if (rc) {
 			if (m != NULL) {
-				sc->wq[0]->tx_stats.tx_stops ++;
+				sc->wq[def_q]->tx_stats.tx_stops ++;
 				ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 				IFQ_DRV_PREPEND(&ifp->if_snd, m);
 				m = NULL;
@@ -1140,7 +1101,7 @@ oce_start(struct ifnet *ifp)
 		if (m != NULL)
 			ETHER_BPF_MTAP(ifp, m);
 
-	} while (1);
+	} while (TRUE);
 
 	return;
 }
@@ -1248,12 +1209,18 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 	uint16_t vtag;
 
 	len = cqe->u0.s.pkt_size;
-	vtag = cqe->u0.s.vlan_tag;
 	if (!len) {
 		/*partial DMA workaround for Lancer*/
 		oce_discard_rx_comp(rq, cqe);
 		goto exit;
 	}
+
+	 /* Get vlan_tag value */
+	if(IS_BE(sc))
+		vtag = BSWAP_16(cqe->u0.s.vlan_tag);
+	else
+		vtag = cqe->u0.s.vlan_tag;
+
 
 	for (i = 0; i < cqe->u0.s.num_fragments; i++) {
 
@@ -1290,7 +1257,7 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 					pd->mbuf->m_pkthdr.csum_data = 0xffff;
 				}
 				if (cqe->u0.s.ip_cksum_pass) {
-					if (!cqe->u0.s.ip_ver) { //IPV4 
+					if (!cqe->u0.s.ip_ver) { /* IPV4 */
 						pd->mbuf->m_pkthdr.csum_flags |=
 						(CSUM_IP_CHECKED|CSUM_IP_VALID);
 					}
@@ -1313,24 +1280,20 @@ oce_rx(struct oce_rq *rq, uint32_t rqe_idx, struct oce_nic_rx_cqe *cqe)
 		m->m_pkthdr.flowid = rq->queue_index;
 		m->m_flags |= M_FLOWID;
 #endif
-		//This deternies if vlan tag is present
+		/* This deternies if vlan tag is Valid */
 		if (oce_cqe_vtp_valid(sc, cqe)) { 
 			if (sc->function_mode & FNM_FLEX10_MODE) {
-				/* FLEX10 */
+				/* FLEX10. If QnQ is not set, neglect VLAN */
 				if (cqe->u0.s.qnq) {
-					/* If QnQ is not set, neglect VLAN */
-					if (IS_BE(sc))	
-						m->m_pkthdr.ether_vtag = 
-								BSWAP_16(vtag);
-					else
-						m->m_pkthdr.ether_vtag = vtag;
+					m->m_pkthdr.ether_vtag = vtag;
 					m->m_flags |= M_VLANTAG;
 				}
-			} else {
-				if (IS_BE(sc))	
-					m->m_pkthdr.ether_vtag = BSWAP_16(vtag);
-				else
-					m->m_pkthdr.ether_vtag = vtag;
+			} else if (sc->pvid != (vtag & VLAN_VID_MASK))  {
+				/* In UMC mode generally pvid will be striped by
+				   hw. But in some cases we have seen it comes
+				   with pvid. So if pvid == vlan, neglect vlan.
+				*/
+				m->m_pkthdr.ether_vtag = vtag;
 				m->m_flags |= M_VLANTAG;
 			}
 		}
@@ -1415,9 +1378,8 @@ oce_cqe_vtp_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 	if (sc->be3_native) {
 		cqe_v1 = (struct oce_nic_rx_cqe_v1 *)cqe;
 		vtp =  cqe_v1->u0.s.vlan_tag_present; 
-	} else {
+	} else
 		vtp = cqe->u0.s.vlan_tag_present;
-	}
 	
 	return vtp;
 
@@ -1441,7 +1403,6 @@ oce_cqe_portid_valid(POCE_SOFTC sc, struct oce_nic_rx_cqe *cqe)
 	return 1;
 
 }
-
 
 #if defined(INET6) || defined(INET)
 static void
@@ -1482,12 +1443,11 @@ oce_init_lro(POCE_SOFTC sc)
 
 	return rc;		
 }
-#endif /* INET6 || INET */
+
 
 void
 oce_free_lro(POCE_SOFTC sc)
 {
-#if defined(INET6) || defined(INET)
 	struct lro_ctrl *lro = NULL;
 	int i = 0;
 
@@ -1496,9 +1456,8 @@ oce_free_lro(POCE_SOFTC sc)
 		if (lro)
 			tcp_lro_free(lro);
 	}
-#endif
 }
-
+#endif /* INET6 || INET */
 
 int
 oce_alloc_rx_bufs(struct oce_rq *rq, int count)
@@ -1620,6 +1579,7 @@ oce_rq_handler(void *arg)
 		if (num_cqes >= (IS_XE201(sc) ? 8 : oce_max_rsp_handled))
 			break;
 	}
+
 #if defined(INET6) || defined(INET)
 	if (IF_LRO_ENABLED(sc))
 		oce_rx_flush_lro(rq);
@@ -1682,9 +1642,11 @@ oce_attach_ifp(POCE_SOFTC sc)
 	sc->ifp->if_capabilities = OCE_IF_CAPABILITIES;
 	sc->ifp->if_capabilities |= IFCAP_HWCSUM;
 	sc->ifp->if_capabilities |= IFCAP_VLAN_HWFILTER;
+
 #if defined(INET6) || defined(INET)
 	sc->ifp->if_capabilities |= IFCAP_TSO;
 	sc->ifp->if_capabilities |= IFCAP_LRO;
+	sc->ifp->if_capabilities |= IFCAP_VLAN_HWTSO;
 #endif
 	
 	sc->ifp->if_capenable = sc->ifp->if_capabilities;
@@ -1944,6 +1906,26 @@ oce_if_activate(POCE_SOFTC sc)
 
 }
 
+static void
+process_link_state(POCE_SOFTC sc, struct oce_async_cqe_link_state *acqe)
+{
+	/* Update Link status */
+	if ((acqe->u0.s.link_status & ~ASYNC_EVENT_LOGICAL) ==
+	     ASYNC_EVENT_LINK_UP) {
+		sc->link_status = ASYNC_EVENT_LINK_UP;
+		if_link_state_change(sc->ifp, LINK_STATE_UP);
+	} else {
+		sc->link_status = ASYNC_EVENT_LINK_DOWN;
+		if_link_state_change(sc->ifp, LINK_STATE_DOWN);
+	}
+
+	/* Update speed */
+	sc->link_speed = acqe->u0.s.speed;
+	sc->qos_link_speed = (uint32_t) acqe->u0.s.qos_link_speed * 10;
+
+}
+
+
 /* Handle the Completion Queue for the Mailbox/Async notifications */
 uint16_t
 oce_mq_handler(void *arg)
@@ -1951,36 +1933,39 @@ oce_mq_handler(void *arg)
 	struct oce_mq *mq = (struct oce_mq *)arg;
 	POCE_SOFTC sc = mq->parent;
 	struct oce_cq *cq = mq->cq;
-	int num_cqes = 0;
+	int num_cqes = 0, evt_type = 0, optype = 0;
 	struct oce_mq_cqe *cqe;
 	struct oce_async_cqe_link_state *acqe;
+	struct oce_async_event_grp5_pvid_state *gcqe;
+
 
 	bus_dmamap_sync(cq->ring->dma.tag,
 			cq->ring->dma.map, BUS_DMASYNC_POSTWRITE);
 	cqe = RING_GET_CONSUMER_ITEM_VA(cq->ring, struct oce_mq_cqe);
+
 	while (cqe->u0.dw[3]) {
 		DW_SWAP((uint32_t *) cqe, sizeof(oce_mq_cqe));
 		if (cqe->u0.s.async_event) {
-			acqe = (struct oce_async_cqe_link_state *)cqe;
-			if ((acqe->u0.s.link_status & ~ASYNC_EVENT_LOGICAL) ==
-			    ASYNC_EVENT_LINK_UP) {
-				sc->link_status = ASYNC_EVENT_LINK_UP;
-				if_link_state_change(sc->ifp, LINK_STATE_UP);
-			} else {
-				sc->link_status = ASYNC_EVENT_LINK_DOWN;
-				if_link_state_change(sc->ifp, LINK_STATE_DOWN);
-			}
-
-			if (acqe->u0.s.event_code ==
-				ASYNC_EVENT_CODE_LINK_STATE) {
-				sc->link_speed = acqe->u0.s.speed;
-				sc->qos_link_speed =
-				(uint32_t )acqe->u0.s.qos_link_speed * 10;
+			evt_type = cqe->u0.s.event_type;
+			optype = cqe->u0.s.async_type;
+			if (evt_type  == ASYNC_EVENT_CODE_LINK_STATE) {
+				/* Link status evt */
+				acqe = (struct oce_async_cqe_link_state *)cqe;
+				process_link_state(sc, acqe);
+			} else if ((evt_type == ASYNC_EVENT_GRP5) &&
+				   (optype == ASYNC_EVENT_PVID_STATE)) {
+				/* GRP5 PVID */
+				gcqe = 
+				(struct oce_async_event_grp5_pvid_state *)cqe;
+				if (gcqe->enabled)
+					sc->pvid = gcqe->tag & VLAN_VID_MASK;
+				else
+					sc->pvid = 0;
+				
 			}
 		}
 		cqe->u0.dw[3] = 0;
 		RING_GET(cq->ring, 1);
-		RING_GET(mq->ring, 1);
 		bus_dmamap_sync(cq->ring->dma.tag,
 				cq->ring->dma.map, BUS_DMASYNC_POSTWRITE);
 		cqe = RING_GET_CONSUMER_ITEM_VA(cq->ring, struct oce_mq_cqe);
@@ -2001,8 +1986,10 @@ setup_max_queues_want(POCE_SOFTC sc)
 
 	/* Check if it is FLEX machine. Is so dont use RSS */	
 	if ((sc->function_mode & FNM_FLEX10_MODE) ||
-		(!sc->rss_enable) ||
-		(sc->flags & OCE_FLAGS_BE2)) {
+	    (sc->function_mode & FNM_UMC_MODE)    ||
+	    (sc->function_mode & FNM_VNIC_MODE)	  ||
+	    (!sc->rss_enable)			  ||
+	    (sc->flags & OCE_FLAGS_BE2)) {
 		sc->nrqs = 1;
 		sc->nwqs = 1;
 		sc->rss_enable = 0;
@@ -2018,11 +2005,6 @@ setup_max_queues_want(POCE_SOFTC sc)
 
 		sc->nrqs = MIN(OCE_NCPUS, max_rss) + 1; /* 1 for def RX */
 		sc->nwqs = MIN(OCE_NCPUS, max_rss);
-	
-		/*Hardware issue. Turn off multi TX for be2 */	
-		if (IS_BE(sc) && (sc->flags & OCE_FLAGS_BE2))
-			sc->nwqs = 1;
-
 	}
 
 }
@@ -2034,8 +2016,6 @@ update_queues_got(POCE_SOFTC sc)
 	if (sc->rss_enable) {
 		sc->nrqs = sc->intr_count + 1;
 		sc->nwqs = sc->intr_count;
-		if (IS_BE(sc) && (sc->flags & OCE_FLAGS_BE2))
-			sc->nwqs = 1;
 	} else {
 		sc->nrqs = 1;
 		sc->nwqs = 1;
