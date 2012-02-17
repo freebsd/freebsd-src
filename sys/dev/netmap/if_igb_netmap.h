@@ -170,7 +170,7 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		    (adapter->hw.mac.type == e1000_82575) ? (txr->me << 4) : 0;
 
 		l = netmap_tidx_k2n(na, ring_nr, j);
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			union e1000_adv_tx_desc *curr =
 			    (union e1000_adv_tx_desc *)&txr->tx_base[l];
@@ -209,7 +209,6 @@ igb_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				BUS_DMASYNC_PREWRITE);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwcur = k;
 
@@ -306,9 +305,8 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	/* skip past packets that userspace has already processed */
 	j = kring->nr_hwcur;
 	if (j != k) { /* userspace has read some packets. */
-		n = 0;
 		l = netmap_ridx_k2n(na, ring_nr, j);
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = ring->slot + j;
 			union e1000_adv_rx_desc *curr = &rxr->rx_base[l];
 			struct igb_rx_buf *rxbuf = rxr->rx_buffers + l;
@@ -333,7 +331,6 @@ igb_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;
