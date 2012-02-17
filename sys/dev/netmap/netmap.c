@@ -24,9 +24,6 @@
  */
 
 /*
- * $FreeBSD$
- * $Id: netmap.c 9795 2011-12-02 11:39:08Z luigi $
- *
  * This module supports memory mapped access to network devices,
  * see netmap(4).
  *
@@ -634,100 +631,6 @@ struct netmap_priv_d {
 };
 
 
-static struct cdev *netmap_dev; /* /dev/netmap character device. */
-
-
-static d_mmap_t netmap_mmap;
-static d_ioctl_t netmap_ioctl;
-static d_poll_t netmap_poll;
-
-#ifdef NETMAP_KEVENT
-static d_kqfilter_t netmap_kqfilter;
-#endif
-
-static struct cdevsw netmap_cdevsw = {
-	.d_version = D_VERSION,
-	.d_name = "netmap",
-	.d_mmap = netmap_mmap,
-	.d_ioctl = netmap_ioctl,
-	.d_poll = netmap_poll,
-#ifdef NETMAP_KEVENT
-	.d_kqfilter = netmap_kqfilter,
-#endif
-};
-
-#ifdef NETMAP_KEVENT
-static int              netmap_kqread(struct knote *, long);
-static int              netmap_kqwrite(struct knote *, long);
-static void             netmap_kqdetach(struct knote *);
-
-static struct filterops netmap_read_filterops = {
-	.f_isfd =       1,
-	.f_attach =     NULL,
-	.f_detach =     netmap_kqdetach,
-	.f_event =      netmap_kqread,
-};
-  
-static struct filterops netmap_write_filterops = {
-	.f_isfd =       1,
-	.f_attach =     NULL,
-	.f_detach =     netmap_kqdetach,
-	.f_event =      netmap_kqwrite,
-};
-
-/*
- * support for the kevent() system call.
- *
- * This is the kevent filter, and is executed each time a new event
- * is triggered on the device. This function execute some operation
- * depending on the received filter.
- *
- * The implementation should test the filters and should implement
- * filter operations we are interested on (a full list in /sys/event.h).
- *
- * On a match we should:
- * - set kn->kn_fop
- * - set kn->kn_hook
- * - call knlist_add() to deliver the event to the application.
- *
- * Return 0 if the event should be delivered to the application.
- */
-static int
-netmap_kqfilter(struct cdev *dev, struct knote *kn)
-{
-	/* declare variables needed to read/write */
-
-	switch(kn->kn_filter) {
-	case EVFILT_READ:
-		if (netmap_verbose)
-			D("%s kqfilter: EVFILT_READ" ifp->if_xname);
-
-		/* read operations */
-		kn->kn_fop = &netmap_read_filterops;
-		break;
-
-	case EVFILT_WRITE:
-		if (netmap_verbose)
-			D("%s kqfilter: EVFILT_WRITE" ifp->if_xname);
-
-		/* write operations */
-		kn->kn_fop = &netmap_write_filterops;
-		break;
-  
-	default:
-		if (netmap_verbose)
-			D("%s kqfilter: invalid filter" ifp->if_xname);
-		return(EINVAL);
-	}
-  
-	kn->kn_hook = 0;//
-	knlist_add(&netmap_sc->tun_rsel.si_note, kn, 0);
-
-	return (0);
-}
-#endif /* NETMAP_KEVENT */
-
-
 /*
  * File descriptor's private data destructor.
  *
@@ -822,14 +725,16 @@ netmap_dtor(void *data)
  *
  * Return 0 on success, -1 otherwise.
  */
+
 static int
+netmap_mmap(__unused struct cdev *dev,
 #if __FreeBSD_version < 900000
-netmap_mmap(__unused struct cdev *dev, vm_offset_t offset, vm_paddr_t *paddr,
-	    int nprot)
+		vm_offset_t offset, vm_paddr_t *paddr, int nprot
 #else
-netmap_mmap(__unused struct cdev *dev, vm_ooffset_t offset, vm_paddr_t *paddr,
-	    int nprot, __unused vm_memattr_t *memattr)
+		vm_ooffset_t offset, vm_paddr_t *paddr, int nprot,
+		__unused vm_memattr_t *memattr
 #endif
+	)
 {
 	if (nprot & PROT_EXEC)
 		return (-1);	// XXX -1 or EINVAL ?
@@ -1252,11 +1157,8 @@ error:
 		D("ignore BIOCIMMEDIATE/BIOCSHDRCMPLT/BIOCSHDRCMPLT/BIOCSSEESENT");
 		break;
 
-	default:
+	default:	/* allow device-specific ioctls */
 	    {
-		/*
-		 * allow device calls
-		 */
 		struct socket so;
 		bzero(&so, sizeof(so));
 		error = get_ifp(nmr->nr_name, &ifp); /* keep reference */
@@ -1266,6 +1168,7 @@ error:
 		// so->so_proto not null.
 		error = ifioctl(&so, cmd, data, td);
 		if_rele(ifp);
+		break;
 	    }
 	}
 
@@ -1477,19 +1380,19 @@ netmap_poll(__unused struct cdev *dev, int events, struct thread *td)
 /*------- driver support routines ------*/
 
 /*
- * default lock wrapper. On linux we use mostly netmap-specific locks.
+ * default lock wrapper.
  */
 static void
-netmap_lock_wrapper(struct ifnet *_a, int what, u_int queueid)
+netmap_lock_wrapper(struct ifnet *dev, int what, u_int queueid)
 {
-	struct netmap_adapter *na = NA(_a);
+	struct netmap_adapter *na = NA(dev);
 
 	switch (what) {
-#ifndef __FreeBSD__	/* some system do not need lock on register */
+#ifdef linux	/* some system do not need lock on register */
 	case NETMAP_REG_LOCK:
 	case NETMAP_REG_UNLOCK:
 		break;
-#endif
+#endif /* linux */
 
 	case NETMAP_CORE_LOCK:
 		mtx_lock(&na->core_lock);
@@ -1701,7 +1604,8 @@ netmap_reset(struct netmap_adapter *na, enum txrx tx, int n,
  * N rings, separate locks:
  *     lock(i); wake(i); unlock(i); lock(core) wake(N+1) unlock(core)
  */
-int netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
+int
+netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 {
 	struct netmap_adapter *na;
 	struct netmap_kring *r;
@@ -1731,6 +1635,18 @@ int netmap_rx_irq(struct ifnet *ifp, int q, int *work_done)
 	return 1;
 }
 
+static struct cdevsw netmap_cdevsw = {
+	.d_version = D_VERSION,
+	.d_name = "netmap",
+	.d_mmap = netmap_mmap,
+	.d_ioctl = netmap_ioctl,
+	.d_poll = netmap_poll,
+};
+
+
+static struct cdev *netmap_dev; /* /dev/netmap character device. */
+
+
 /*
  * Module loader.
  *
@@ -1744,7 +1660,6 @@ netmap_init(void)
 {
 	int error;
 
-
 	error = netmap_memory_init();
 	if (error != 0) {
 		printf("netmap: unable to initialize the memory allocator.");
@@ -1752,11 +1667,9 @@ netmap_init(void)
 	}
 	printf("netmap: loaded module with %d Mbytes\n",
 		(int)(netmap_mem_d->nm_totalsize >> 20));
-
 	netmap_dev = make_dev(&netmap_cdevsw, 0, UID_ROOT, GID_WHEEL, 0660,
 			      "netmap");
-
-	return (0);
+	return (error);
 }
 
 
@@ -1769,9 +1682,7 @@ static void
 netmap_fini(void)
 {
 	destroy_dev(netmap_dev);
-
 	netmap_memory_fini();
-
 	printf("netmap: unloaded module.\n");
 }
 

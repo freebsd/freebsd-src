@@ -175,9 +175,8 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
-		n = 0;
 		l = sc->rl_ldata.rl_tx_prodidx;
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct rl_desc *desc = &sc->rl_ldata.rl_tx_list[l];
 			int cmd = slot->len | RL_TDESC_CMD_EOF |
@@ -210,7 +209,6 @@ re_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				txd[l].tx_dmamap, BUS_DMASYNC_PREWRITE);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		sc->rl_ldata.rl_tx_prodidx = l;
 		kring->nr_hwcur = k;
@@ -295,9 +293,8 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* userspace has read some packets. */
-		n = 0;
 		l = netmap_ridx_k2n(na, ring_nr, j); /* the NIC index */
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = ring->slot + j;
 			struct rl_desc *desc = &sc->rl_ldata.rl_rx_list[l];
 			int cmd = na->buff_size | RL_RDESC_CMD_OWN;
@@ -326,7 +323,6 @@ re_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 				rxd[l].rx_dmamap, BUS_DMASYNC_PREREAD);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;
@@ -366,11 +362,10 @@ re_netmap_tx_init(struct rl_softc *sc)
 
 	/* l points in the netmap ring, i points in the NIC ring */
 	for (i = 0; i < n; i++) {
-		void *addr;
 		uint64_t paddr;
 		int l = netmap_tidx_n2k(na, 0, i);
+		void *addr = PNMB(slot + l, &paddr);
 
-		addr = PNMB(slot + l, &paddr);
 		desc[i].rl_bufaddr_lo = htole32(RL_ADDR_LO(paddr));
 		desc[i].rl_bufaddr_hi = htole32(RL_ADDR_HI(paddr));
 		netmap_load_map(sc->rl_ldata.rl_tx_mtag,
