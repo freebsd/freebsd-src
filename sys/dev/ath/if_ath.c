@@ -1934,6 +1934,7 @@ ath_txrx_stop_locked(struct ath_softc *sc)
 }
 #undef	MAX_TXRX_ITERATIONS
 
+#if 0
 static void
 ath_txrx_stop(struct ath_softc *sc)
 {
@@ -1944,6 +1945,7 @@ ath_txrx_stop(struct ath_softc *sc)
 	ath_txrx_stop_locked(sc);
 	ATH_PCU_UNLOCK(sc);
 }
+#endif
 
 static void
 ath_txrx_start(struct ath_softc *sc)
@@ -2049,11 +2051,12 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	ATH_UNLOCK_ASSERT(sc);
 
 	ATH_PCU_LOCK(sc);
+	ath_hal_intrset(ah, 0);		/* disable interrupts */
+	ath_txrx_stop_locked(sc);	/* Ensure TX/RX is stopped */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-	ath_hal_intrset(ah, 0);		/* disable interrupts */
 	ATH_PCU_UNLOCK(sc);
 
 	/*
@@ -2061,7 +2064,6 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * and block future ones from occuring. This needs to be
 	 * done before the TX queue is drained.
 	 */
-	ath_txrx_stop(sc);
 	ath_draintxq(sc, reset_type);	/* stop xmit side */
 
 	/*
@@ -5383,21 +5385,16 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	struct ieee80211com *ic = ifp->if_l2com;
 	struct ath_hal *ah = sc->sc_ah;
 	int ret = 0;
-	int dointr = 0;
 
 	/* Treat this as an interface reset */
 	ATH_PCU_LOCK(sc);
+	ath_hal_intrset(ah, 0);		/* Stop new RX/TX completion */
+	ath_txrx_stop_locked(sc);	/* Stop pending RX/TX completion */
 	if (ath_reset_grablock(sc, 1) == 0) {
 		device_printf(sc->sc_dev, "%s: concurrent reset! Danger!\n",
 		    __func__);
 	}
-	if (chan != sc->sc_curchan) {
-		dointr = 1;
-		/* XXX only do this if inreset_cnt is 1? */
-		ath_hal_intrset(ah, 0);
-	}
 	ATH_PCU_UNLOCK(sc);
-	ath_txrx_stop(sc);
 
 	DPRINTF(sc, ATH_DEBUG_RESET, "%s: %u (%u MHz, flags 0x%x)\n",
 	    __func__, ieee80211_chan2ieee(ic, chan),
@@ -5466,10 +5463,10 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 			ath_beacon_config(sc, NULL);
 		}
 
-#if 0
 		/*
 		 * Re-enable interrupts.
 		 */
+#if 0
 		ath_hal_intrset(ah, sc->sc_imask);
 #endif
 	}
@@ -5478,8 +5475,7 @@ finish:
 	ATH_PCU_LOCK(sc);
 	sc->sc_inreset_cnt--;
 	/* XXX only do this if sc_inreset_cnt == 0? */
-	if (dointr)
-		ath_hal_intrset(ah, sc->sc_imask);
+	ath_hal_intrset(ah, sc->sc_imask);
 	ATH_PCU_UNLOCK(sc);
 
 	/* XXX do this inside of IF_LOCK? */
