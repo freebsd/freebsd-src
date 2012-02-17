@@ -900,7 +900,10 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 
 		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
 			struct rtentry *rt;
-			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+
+			/* Always use the default FIB here. */
+			rt = in6_rtalloc1((struct sockaddr *)&pr->ndpr_prefix,
+			    0, 0, RT_DEFAULT_FIB);
 			if (rt == NULL)
 				continue;
 			/*
