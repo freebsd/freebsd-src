@@ -1,0 +1,4 @@
+# $FreeBSD$
+set -e
+while false; false; do
+done

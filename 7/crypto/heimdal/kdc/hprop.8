@@ -1,0 +1,201 @@
+.\" Copyright (c) 2000 - 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden). 
+.\" All rights reserved. 
+.\"
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\"
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors 
+.\"    may be used to endorse or promote products derived from this software 
+.\"    without specific prior written permission. 
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\" 
+.\" $Id: hprop.8,v 1.18 2003/02/16 21:10:19 lha Exp $
+.\"
+.Dd June 19, 2000
+.Dt HPROP 8
+.Os HEIMDAL
+.Sh NAME
+.Nm hprop
+.Nd propagate the KDC database
+.Sh SYNOPSIS
+.Nm
+.Oo Fl m Ar file \*(Ba Xo
+.Fl -master-key= Ns Pa file
+.Xc
+.Oc
+.Oo Fl d Ar file \*(Ba Xo
+.Fl -database= Ns Pa file
+.Xc
+.Oc
+.Op Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
+.Oo Fl r Ar string \*(Ba Xo
+.Fl -v4-realm= Ns Ar string
+.Xc
+.Oc
+.Oo Fl c Ar cell \*(Ba Xo
+.Fl -cell= Ns Ar cell
+.Xc
+.Oc
+.Op Fl S | Fl -kaspecials
+.Oo Fl k Ar keytab \*(Ba Xo
+.Fl -keytab= Ns Ar keytab
+.Xc
+.Oc
+.Oo Fl R Ar string \*(Ba Xo
+.Fl -v5-realm= Ns Ar string
+.Xc
+.Oc
+.Op Fl D | Fl -decrypt
+.Op Fl E | Fl -encrypt
+.Op Fl n | Fl -stdout
+.Op Fl v | Fl -verbose
+.Op Fl -version
+.Op Fl h | Fl -help
+.Op Ar host Ns Op : Ns Ar port
+.Ar ...
+.Sh DESCRIPTION
+.Nm
+takes a principal database in a specified format and converts it into
+a stream of Heimdal database records. This stream can either be
+written to standard out, or (more commonly) be propagated to a
+.Xr hpropd 8
+server running on a different machine.
+.Pp
+If propagating, it connects to all
+.Ar hosts
+specified on the command by opening a TCP connection to port 754
+(service hprop) and sends the database in encrypted form.
+.Pp
+Supported options:
+.Bl -tag -width Ds
+.It Xo
+.Fl m Ar file ,
+.Fl -master-key= Ns Pa file
+.Xc
+Where to find the master key to encrypt or decrypt keys with.
+.It Xo
+.Fl d Ar file ,
+.Fl -database= Ns Pa file
+.Xc
+The database to be propagated.
+.It Xo
+.Fl -source= Ns Ar heimdal|mit-dump|krb4-dump|krb4-db|kaserver
+.Xc
+Specifies the type of the source database. Alternatives include:
+.Pp
+.Bl -tag -width krb4-dump -compact -offset indent
+.It heimdal
+a Heimdal database
+.It mit-dump
+a MIT Kerberos 5 dump file
+.It krb4-db
+a Kerberos 4 database
+.It krb4-dump
+a Kerberos 4 dump file
+.It kaserver
+an AFS kaserver database
+.El
+.It Xo
+.Fl k Ar keytab ,
+.Fl -keytab= Ns Ar keytab
+.Xc
+The keytab to use for fetching the key to be used for authenticating
+to the propagation daemon(s). The key
+.Pa kadmin/hprop
+is used from this keytab.  The default is to fetch the key from the
+KDC database.
+.It Xo
+.Fl R Ar string ,
+.Fl -v5-realm= Ns Ar string
+.Xc
+Local realm override.
+.It Xo
+.Fl D ,
+.Fl -decrypt
+.Xc
+The encryption keys in the database can either be in clear, or
+encrypted with a master key. This option transmits the database with
+unencrypted keys.
+.It Xo
+.Fl E ,
+.Fl -encrypt
+.Xc
+This option transmits the database with encrypted keys.
+.It Xo
+.Fl n ,
+.Fl -stdout
+.Xc
+Dump the database on stdout, in a format that can be fed to hpropd.
+.El
+.Pp
+The following options are only valid if
+.Nm hprop
+is compiled with support for Kerberos 4 (kaserver).
+.Bl -tag -width Ds
+.It Xo
+.Fl r Ar string ,
+.Fl -v4-realm= Ns Ar string
+.Xc
+v4 realm to use.
+.It Xo
+.Fl c Ar cell ,
+.Fl -cell= Ns Ar cell
+.Xc
+The AFS cell name, used if reading a kaserver database.
+.It Xo
+.Fl S ,
+.Fl -kaspecials
+.Xc
+Also dump the principals marked as special in the kaserver database.
+.It Xo
+.Fl 4 ,
+.Fl -v4-db
+.Xc
+Deprecated, identical to
+.Sq --source=krb4-db .
+.It Xo
+.Fl K ,
+.Fl -ka-db
+.Xc
+Deprecated, identical to
+.Sq --source=kaserver .
+.El
+.Sh EXAMPLES
+The following will propagate a database to another machine (which
+should run
+.Xr hpropd 8):
+.Bd -literal -offset indent
+$ hprop slave-1 slave-2
+.Ed
+.Pp
+Copy a Kerberos 4 database to a Kerberos 5 slave:
+.Bd -literal -offset indent
+$ hprop --source=krb4-db -E krb5-slave
+.Ed
+.Pp
+Convert a Kerberos 4 dump-file for use with a Heimdal KDC:
+.Bd -literal -offset indent
+$ hprop -n --source=krb4-dump -d /var/kerberos/principal.dump --master-key=/.k | hpropd -n
+.Ed
+.Sh SEE ALSO
+.Xr hpropd 8

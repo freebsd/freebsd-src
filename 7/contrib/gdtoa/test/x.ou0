@@ -1,0 +1,1182 @@
+
+Input: 1.23
+
+strtox consumes 4 bytes and returns 33
+with bits = #3fff 9d70 a3d7 a3d 70a4
+g_xfmt(0) gives 4 bytes: "1.23"
+
+strtoIx returns 33, consuming 4 bytes.
+fI[0] = #3fff 9d70 a3d7 a3d 70a3
+fI[1] = #3fff 9d70 a3d7 a3d 70a4
+fI[1] == strtox
+
+
+Input: 1.23e+20
+
+strtox consumes 8 bytes and returns 1
+with bits = #4041 d55e f90a 2da1 8000
+g_xfmt(0) gives 8 bytes: "1.23e+20"
+
+strtoIx returns 1, consuming 8 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.23e-20
+
+strtox consumes 8 bytes and returns 17
+with bits = #3fbc e857 267b b3a9 84f2
+g_xfmt(0) gives 8 bytes: "1.23e-20"
+
+strtoIx returns 17, consuming 8 bytes.
+fI[0] = #3fbc e857 267b b3a9 84f2
+fI[1] = #3fbc e857 267b b3a9 84f3
+fI[0] == strtox
+
+
+Input: 1.23456789
+
+strtox consumes 10 bytes and returns 33
+with bits = #3fff 9e06 5214 1ef0 dbf6
+g_xfmt(0) gives 10 bytes: "1.23456789"
+
+strtoIx returns 33, consuming 10 bytes.
+fI[0] = #3fff 9e06 5214 1ef0 dbf5
+fI[1] = #3fff 9e06 5214 1ef0 dbf6
+fI[1] == strtox
+
+
+Input: 1.23456589e+20
+
+strtox consumes 14 bytes and returns 1
+with bits = #4041 d629 bd33 5cc ba00
+g_xfmt(0) gives 14 bytes: "1.23456589e+20"
+
+strtoIx returns 1, consuming 14 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.23e+30
+
+strtox consumes 8 bytes and returns 17
+with bits = #4062 f865 8274 7dbc 824a
+g_xfmt(0) gives 8 bytes: "1.23e+30"
+
+strtoIx returns 17, consuming 8 bytes.
+fI[0] = #4062 f865 8274 7dbc 824a
+fI[1] = #4062 f865 8274 7dbc 824b
+fI[0] == strtox
+
+
+Input: 1.23e-30
+
+strtox consumes 8 bytes and returns 17
+with bits = #3f9b c794 337a 8085 54eb
+g_xfmt(0) gives 8 bytes: "1.23e-30"
+
+strtoIx returns 17, consuming 8 bytes.
+fI[0] = #3f9b c794 337a 8085 54eb
+fI[1] = #3f9b c794 337a 8085 54ec
+fI[0] == strtox
+
+
+Input: 1.23456789e-20
+
+strtox consumes 14 bytes and returns 17
+with bits = #3fbc e934 a38 f3d6 d352
+g_xfmt(0) gives 14 bytes: "1.23456789e-20"
+
+strtoIx returns 17, consuming 14 bytes.
+fI[0] = #3fbc e934 a38 f3d6 d352
+fI[1] = #3fbc e934 a38 f3d6 d353
+fI[0] == strtox
+
+
+Input: 1.23456789e-30
+
+strtox consumes 14 bytes and returns 17
+with bits = #3f9b c851 f19d decc a8fc
+g_xfmt(0) gives 14 bytes: "1.23456789e-30"
+
+strtoIx returns 17, consuming 14 bytes.
+fI[0] = #3f9b c851 f19d decc a8fc
+fI[1] = #3f9b c851 f19d decc a8fd
+fI[0] == strtox
+
+
+Input: 1.234567890123456789
+
+strtox consumes 20 bytes and returns 17
+with bits = #3fff 9e06 5214 62cf db8d
+g_xfmt(0) gives 20 bytes: "1.234567890123456789"
+
+strtoIx returns 17, consuming 20 bytes.
+fI[0] = #3fff 9e06 5214 62cf db8d
+fI[1] = #3fff 9e06 5214 62cf db8e
+fI[0] == strtox
+
+
+Input: 1.23456789012345678901234567890123456789
+
+strtox consumes 40 bytes and returns 17
+with bits = #3fff 9e06 5214 62cf db8d
+g_xfmt(0) gives 20 bytes: "1.234567890123456789"
+
+strtoIx returns 17, consuming 40 bytes.
+fI[0] = #3fff 9e06 5214 62cf db8d
+fI[1] = #3fff 9e06 5214 62cf db8e
+fI[0] == strtox
+
+
+Input: 1.23e306
+
+strtox consumes 8 bytes and returns 17
+with bits = #43f7 e033 b668 e30f a6d5
+g_xfmt(0) gives 9 bytes: "1.23e+306"
+
+strtoIx returns 17, consuming 8 bytes.
+fI[0] = #43f7 e033 b668 e30f a6d5
+fI[1] = #43f7 e033 b668 e30f a6d6
+fI[0] == strtox
+
+
+Input: 1.23e-306
+
+strtox consumes 9 bytes and returns 33
+with bits = #3c06 dd1d c2ed 1cb7 3f25
+g_xfmt(0) gives 9 bytes: "1.23e-306"
+
+strtoIx returns 33, consuming 9 bytes.
+fI[0] = #3c06 dd1d c2ed 1cb7 3f24
+fI[1] = #3c06 dd1d c2ed 1cb7 3f25
+fI[1] == strtox
+
+
+Input: 1.23e-320
+
+strtox consumes 9 bytes and returns 33
+with bits = #3bd8 9b98 c371 844c 3f1a
+g_xfmt(0) gives 9 bytes: "1.23e-320"
+
+strtoIx returns 33, consuming 9 bytes.
+fI[0] = #3bd8 9b98 c371 844c 3f19
+fI[1] = #3bd8 9b98 c371 844c 3f1a
+fI[1] == strtox
+
+
+Input: 1.23e-20
+
+strtox consumes 8 bytes and returns 17
+with bits = #3fbc e857 267b b3a9 84f2
+g_xfmt(0) gives 8 bytes: "1.23e-20"
+
+strtoIx returns 17, consuming 8 bytes.
+fI[0] = #3fbc e857 267b b3a9 84f2
+fI[1] = #3fbc e857 267b b3a9 84f3
+fI[0] == strtox
+
+
+Input: 1.23456789e307
+
+strtox consumes 14 bytes and returns 17
+with bits = #43fb 8ca5 8a5e d766 de75
+g_xfmt(0) gives 15 bytes: "1.23456789e+307"
+
+strtoIx returns 17, consuming 14 bytes.
+fI[0] = #43fb 8ca5 8a5e d766 de75
+fI[1] = #43fb 8ca5 8a5e d766 de76
+fI[0] == strtox
+
+
+Input: 1.23456589e-307
+
+strtox consumes 15 bytes and returns 17
+with bits = #3c03 b18c b5dc c22f d369
+g_xfmt(0) gives 15 bytes: "1.23456589e-307"
+
+strtoIx returns 17, consuming 15 bytes.
+fI[0] = #3c03 b18c b5dc c22f d369
+fI[1] = #3c03 b18c b5dc c22f d36a
+fI[0] == strtox
+
+
+Input: 1.234567890123456789
+
+strtox consumes 20 bytes and returns 17
+with bits = #3fff 9e06 5214 62cf db8d
+g_xfmt(0) gives 20 bytes: "1.234567890123456789"
+
+strtoIx returns 17, consuming 20 bytes.
+fI[0] = #3fff 9e06 5214 62cf db8d
+fI[1] = #3fff 9e06 5214 62cf db8e
+fI[0] == strtox
+
+
+Input: 1.234567890123456789e301
+
+strtox consumes 24 bytes and returns 33
+with bits = #43e7 937a 8baf ab20 980c
+g_xfmt(0) gives 25 bytes: "1.234567890123456789e+301"
+
+strtoIx returns 33, consuming 24 bytes.
+fI[0] = #43e7 937a 8baf ab20 980b
+fI[1] = #43e7 937a 8baf ab20 980c
+fI[1] == strtox
+
+
+Input: 1.234567890123456789e-301
+
+strtox consumes 25 bytes and returns 33
+with bits = #3c17 a953 271a 5d06 9ad9
+g_xfmt(0) gives 25 bytes: "1.234567890123456789e-301"
+
+strtoIx returns 33, consuming 25 bytes.
+fI[0] = #3c17 a953 271a 5d06 9ad8
+fI[1] = #3c17 a953 271a 5d06 9ad9
+fI[1] == strtox
+
+
+Input: 1.234567890123456789e-321
+
+strtox consumes 25 bytes and returns 33
+with bits = #3bd4 f9e1 1b4c ea6d cce9
+g_xfmt(0) gives 25 bytes: "1.234567890123456789e-321"
+
+strtoIx returns 33, consuming 25 bytes.
+fI[0] = #3bd4 f9e1 1b4c ea6d cce8
+fI[1] = #3bd4 f9e1 1b4c ea6d cce9
+fI[1] == strtox
+
+
+Input: 1e23
+
+strtox consumes 4 bytes and returns 1
+with bits = #404b a968 163f a57 b400
+g_xfmt(0) gives 5 bytes: "1e+23"
+
+strtoIx returns 1, consuming 4 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1e310
+
+strtox consumes 5 bytes and returns 33
+with bits = #4404 de81 e40a 34b cf50
+g_xfmt(0) gives 6 bytes: "1e+310"
+
+strtoIx returns 33, consuming 5 bytes.
+fI[0] = #4404 de81 e40a 34b cf4f
+fI[1] = #4404 de81 e40a 34b cf50
+fI[1] == strtox
+
+
+Input: 9.0259718793241475e-277
+
+strtox consumes 23 bytes and returns 33
+with bits = #3c69 ffff ffff ffff fcf7
+g_xfmt(0) gives 23 bytes: "9.0259718793241475e-277"
+
+strtoIx returns 33, consuming 23 bytes.
+fI[0] = #3c69 ffff ffff ffff fcf6
+fI[1] = #3c69 ffff ffff ffff fcf7
+fI[1] == strtox
+
+
+Input: 9.025971879324147880346310405869e-277
+
+strtox consumes 37 bytes and returns 17
+with bits = #3c6a 8000 0 0 0
+g_xfmt(0) gives 26 bytes: "9.0259718793241478803e-277"
+
+strtoIx returns 17, consuming 37 bytes.
+fI[0] = #3c6a 8000 0 0 0
+fI[1] = #3c6a 8000 0 0 1
+fI[0] == strtox
+
+
+Input: 9.025971879324147880346310405868e-277
+
+strtox consumes 37 bytes and returns 33
+with bits = #3c6a 8000 0 0 0
+g_xfmt(0) gives 26 bytes: "9.0259718793241478803e-277"
+
+strtoIx returns 33, consuming 37 bytes.
+fI[0] = #3c69 ffff ffff ffff ffff
+fI[1] = #3c6a 8000 0 0 0
+fI[1] == strtox
+
+
+Input: 2.2250738585072014e-308
+
+strtox consumes 23 bytes and returns 17
+with bits = #3c01 8000 0 0 46
+g_xfmt(0) gives 23 bytes: "2.2250738585072014e-308"
+
+strtoIx returns 17, consuming 23 bytes.
+fI[0] = #3c01 8000 0 0 46
+fI[1] = #3c01 8000 0 0 47
+fI[0] == strtox
+
+
+Input: 2.2250738585072013e-308
+
+strtox consumes 23 bytes and returns 17
+with bits = #3c00 ffff ffff ffff fd4f
+g_xfmt(0) gives 23 bytes: "2.2250738585072013e-308"
+
+strtoIx returns 17, consuming 23 bytes.
+fI[0] = #3c00 ffff ffff ffff fd4f
+fI[1] = #3c00 ffff ffff ffff fd50
+fI[0] == strtox
+
+Rounding mode for strtor... changed from 1 (nearest) to 0 (toward zero)
+
+Input: 1.1
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff 8ccc cccc cccc cccc
+g_xfmt(0) gives 21 bytes: "1.0999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 8ccc cccc cccc cccc
+fI[1] = #3fff 8ccc cccc cccc cccd
+fI[0] == strtox
+
+
+Input: -1.1
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff 8ccc cccc cccc cccc
+g_xfmt(0) gives 22 bytes: "-1.0999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 8ccc cccc cccc cccd
+fI[1] = #bfff 8ccc cccc cccc cccc
+fI[1] == strtox
+
+
+Input: 1.2
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff 9999 9999 9999 9999
+g_xfmt(0) gives 21 bytes: "1.1999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 9999 9999 9999 9999
+fI[1] = #3fff 9999 9999 9999 999a
+fI[0] == strtox
+
+
+Input: -1.2
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff 9999 9999 9999 9999
+g_xfmt(0) gives 22 bytes: "-1.1999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 9999 9999 9999 999a
+fI[1] = #bfff 9999 9999 9999 9999
+fI[1] == strtox
+
+
+Input: 1.3
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff a666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.3"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff a666 6666 6666 6666
+fI[1] = #3fff a666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.3
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff a666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.3"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff a666 6666 6666 6667
+fI[1] = #bfff a666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.4
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff b333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.4"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff b333 3333 3333 3333
+fI[1] = #3fff b333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.4
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff b333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.4"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff b333 3333 3333 3334
+fI[1] = #bfff b333 3333 3333 3333
+fI[1] == strtox
+
+
+Input: 1.5
+
+strtox consumes 3 bytes and returns 1
+with bits = #3fff c000 0 0 0
+g_xfmt(0) gives 3 bytes: "1.5"
+
+strtoIx returns 1, consuming 3 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: -1.5
+
+strtox consumes 4 bytes and returns 9
+with bits = #bfff c000 0 0 0
+g_xfmt(0) gives 4 bytes: "-1.5"
+
+strtoIx returns 9, consuming 4 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.6
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff cccc cccc cccc cccc
+g_xfmt(0) gives 21 bytes: "1.5999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff cccc cccc cccc cccc
+fI[1] = #3fff cccc cccc cccc cccd
+fI[0] == strtox
+
+
+Input: -1.6
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff cccc cccc cccc cccc
+g_xfmt(0) gives 22 bytes: "-1.5999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff cccc cccc cccc cccd
+fI[1] = #bfff cccc cccc cccc cccc
+fI[1] == strtox
+
+
+Input: 1.7
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff d999 9999 9999 9999
+g_xfmt(0) gives 21 bytes: "1.6999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff d999 9999 9999 9999
+fI[1] = #3fff d999 9999 9999 999a
+fI[0] == strtox
+
+
+Input: -1.7
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff d999 9999 9999 9999
+g_xfmt(0) gives 22 bytes: "-1.6999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff d999 9999 9999 999a
+fI[1] = #bfff d999 9999 9999 9999
+fI[1] == strtox
+
+
+Input: 1.8
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff e666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.8"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff e666 6666 6666 6666
+fI[1] = #3fff e666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.8
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff e666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.8"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff e666 6666 6666 6667
+fI[1] = #bfff e666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.9
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff f333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.9"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff f333 3333 3333 3333
+fI[1] = #3fff f333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.9
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff f333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.9"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff f333 3333 3333 3334
+fI[1] = #bfff f333 3333 3333 3333
+fI[1] == strtox
+
+Rounding mode for strtor... changed from 0 (toward zero) to 1 (nearest)
+
+Input: 1.1
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff 8ccc cccc cccc cccd
+g_xfmt(0) gives 3 bytes: "1.1"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 8ccc cccc cccc cccc
+fI[1] = #3fff 8ccc cccc cccc cccd
+fI[1] == strtox
+
+
+Input: -1.1
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff 8ccc cccc cccc cccd
+g_xfmt(0) gives 4 bytes: "-1.1"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 8ccc cccc cccc cccd
+fI[1] = #bfff 8ccc cccc cccc cccc
+fI[0] == strtox
+
+
+Input: 1.2
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff 9999 9999 9999 999a
+g_xfmt(0) gives 3 bytes: "1.2"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 9999 9999 9999 9999
+fI[1] = #3fff 9999 9999 9999 999a
+fI[1] == strtox
+
+
+Input: -1.2
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff 9999 9999 9999 999a
+g_xfmt(0) gives 4 bytes: "-1.2"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 9999 9999 9999 999a
+fI[1] = #bfff 9999 9999 9999 9999
+fI[0] == strtox
+
+
+Input: 1.3
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff a666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.3"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff a666 6666 6666 6666
+fI[1] = #3fff a666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.3
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff a666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.3"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff a666 6666 6666 6667
+fI[1] = #bfff a666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.4
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff b333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.4"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff b333 3333 3333 3333
+fI[1] = #3fff b333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.4
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff b333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.4"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff b333 3333 3333 3334
+fI[1] = #bfff b333 3333 3333 3333
+fI[1] == strtox
+
+
+Input: 1.5
+
+strtox consumes 3 bytes and returns 1
+with bits = #3fff c000 0 0 0
+g_xfmt(0) gives 3 bytes: "1.5"
+
+strtoIx returns 1, consuming 3 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: -1.5
+
+strtox consumes 4 bytes and returns 9
+with bits = #bfff c000 0 0 0
+g_xfmt(0) gives 4 bytes: "-1.5"
+
+strtoIx returns 9, consuming 4 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.6
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff cccc cccc cccc cccd
+g_xfmt(0) gives 3 bytes: "1.6"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff cccc cccc cccc cccc
+fI[1] = #3fff cccc cccc cccc cccd
+fI[1] == strtox
+
+
+Input: -1.6
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff cccc cccc cccc cccd
+g_xfmt(0) gives 4 bytes: "-1.6"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff cccc cccc cccc cccd
+fI[1] = #bfff cccc cccc cccc cccc
+fI[0] == strtox
+
+
+Input: 1.7
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff d999 9999 9999 999a
+g_xfmt(0) gives 3 bytes: "1.7"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff d999 9999 9999 9999
+fI[1] = #3fff d999 9999 9999 999a
+fI[1] == strtox
+
+
+Input: -1.7
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff d999 9999 9999 999a
+g_xfmt(0) gives 4 bytes: "-1.7"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff d999 9999 9999 999a
+fI[1] = #bfff d999 9999 9999 9999
+fI[0] == strtox
+
+
+Input: 1.8
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff e666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.8"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff e666 6666 6666 6666
+fI[1] = #3fff e666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.8
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff e666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.8"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff e666 6666 6666 6667
+fI[1] = #bfff e666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.9
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff f333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.9"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff f333 3333 3333 3333
+fI[1] = #3fff f333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.9
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff f333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.9"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff f333 3333 3333 3334
+fI[1] = #bfff f333 3333 3333 3333
+fI[1] == strtox
+
+Rounding mode for strtor... changed from 1 (nearest) to 2 (toward +Infinity)
+
+Input: 1.1
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff 8ccc cccc cccc cccd
+g_xfmt(0) gives 3 bytes: "1.1"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 8ccc cccc cccc cccc
+fI[1] = #3fff 8ccc cccc cccc cccd
+fI[1] == strtox
+
+
+Input: -1.1
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff 8ccc cccc cccc cccc
+g_xfmt(0) gives 22 bytes: "-1.0999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 8ccc cccc cccc cccd
+fI[1] = #bfff 8ccc cccc cccc cccc
+fI[1] == strtox
+
+
+Input: 1.2
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff 9999 9999 9999 999a
+g_xfmt(0) gives 3 bytes: "1.2"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 9999 9999 9999 9999
+fI[1] = #3fff 9999 9999 9999 999a
+fI[1] == strtox
+
+
+Input: -1.2
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff 9999 9999 9999 9999
+g_xfmt(0) gives 22 bytes: "-1.1999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 9999 9999 9999 999a
+fI[1] = #bfff 9999 9999 9999 9999
+fI[1] == strtox
+
+
+Input: 1.3
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff a666 6666 6666 6667
+g_xfmt(0) gives 21 bytes: "1.3000000000000000001"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff a666 6666 6666 6666
+fI[1] = #3fff a666 6666 6666 6667
+fI[1] == strtox
+
+
+Input: -1.3
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff a666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.3"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff a666 6666 6666 6667
+fI[1] = #bfff a666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.4
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff b333 3333 3333 3334
+g_xfmt(0) gives 21 bytes: "1.4000000000000000001"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff b333 3333 3333 3333
+fI[1] = #3fff b333 3333 3333 3334
+fI[1] == strtox
+
+
+Input: -1.4
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff b333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.4"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff b333 3333 3333 3334
+fI[1] = #bfff b333 3333 3333 3333
+fI[1] == strtox
+
+
+Input: 1.5
+
+strtox consumes 3 bytes and returns 1
+with bits = #3fff c000 0 0 0
+g_xfmt(0) gives 3 bytes: "1.5"
+
+strtoIx returns 1, consuming 3 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: -1.5
+
+strtox consumes 4 bytes and returns 9
+with bits = #bfff c000 0 0 0
+g_xfmt(0) gives 4 bytes: "-1.5"
+
+strtoIx returns 9, consuming 4 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.6
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff cccc cccc cccc cccd
+g_xfmt(0) gives 3 bytes: "1.6"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff cccc cccc cccc cccc
+fI[1] = #3fff cccc cccc cccc cccd
+fI[1] == strtox
+
+
+Input: -1.6
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff cccc cccc cccc cccc
+g_xfmt(0) gives 22 bytes: "-1.5999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff cccc cccc cccc cccd
+fI[1] = #bfff cccc cccc cccc cccc
+fI[1] == strtox
+
+
+Input: 1.7
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff d999 9999 9999 999a
+g_xfmt(0) gives 3 bytes: "1.7"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff d999 9999 9999 9999
+fI[1] = #3fff d999 9999 9999 999a
+fI[1] == strtox
+
+
+Input: -1.7
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff d999 9999 9999 9999
+g_xfmt(0) gives 22 bytes: "-1.6999999999999999999"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff d999 9999 9999 999a
+fI[1] = #bfff d999 9999 9999 9999
+fI[1] == strtox
+
+
+Input: 1.8
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff e666 6666 6666 6667
+g_xfmt(0) gives 21 bytes: "1.8000000000000000001"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff e666 6666 6666 6666
+fI[1] = #3fff e666 6666 6666 6667
+fI[1] == strtox
+
+
+Input: -1.8
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff e666 6666 6666 6666
+g_xfmt(0) gives 4 bytes: "-1.8"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff e666 6666 6666 6667
+fI[1] = #bfff e666 6666 6666 6666
+fI[1] == strtox
+
+
+Input: 1.9
+
+strtox consumes 3 bytes and returns 33
+with bits = #3fff f333 3333 3333 3334
+g_xfmt(0) gives 21 bytes: "1.9000000000000000001"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff f333 3333 3333 3333
+fI[1] = #3fff f333 3333 3333 3334
+fI[1] == strtox
+
+
+Input: -1.9
+
+strtox consumes 4 bytes and returns 25
+with bits = #bfff f333 3333 3333 3333
+g_xfmt(0) gives 4 bytes: "-1.9"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff f333 3333 3333 3334
+fI[1] = #bfff f333 3333 3333 3333
+fI[1] == strtox
+
+Rounding mode for strtor... changed from 2 (toward +Infinity) to 3 (toward -Infinity)
+
+Input: 1.1
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff 8ccc cccc cccc cccc
+g_xfmt(0) gives 21 bytes: "1.0999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 8ccc cccc cccc cccc
+fI[1] = #3fff 8ccc cccc cccc cccd
+fI[0] == strtox
+
+
+Input: -1.1
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff 8ccc cccc cccc cccd
+g_xfmt(0) gives 4 bytes: "-1.1"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 8ccc cccc cccc cccd
+fI[1] = #bfff 8ccc cccc cccc cccc
+fI[0] == strtox
+
+
+Input: 1.2
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff 9999 9999 9999 9999
+g_xfmt(0) gives 21 bytes: "1.1999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff 9999 9999 9999 9999
+fI[1] = #3fff 9999 9999 9999 999a
+fI[0] == strtox
+
+
+Input: -1.2
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff 9999 9999 9999 999a
+g_xfmt(0) gives 4 bytes: "-1.2"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff 9999 9999 9999 999a
+fI[1] = #bfff 9999 9999 9999 9999
+fI[0] == strtox
+
+
+Input: 1.3
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff a666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.3"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff a666 6666 6666 6666
+fI[1] = #3fff a666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.3
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff a666 6666 6666 6667
+g_xfmt(0) gives 22 bytes: "-1.3000000000000000001"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff a666 6666 6666 6667
+fI[1] = #bfff a666 6666 6666 6666
+fI[0] == strtox
+
+
+Input: 1.4
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff b333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.4"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff b333 3333 3333 3333
+fI[1] = #3fff b333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.4
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff b333 3333 3333 3334
+g_xfmt(0) gives 22 bytes: "-1.4000000000000000001"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff b333 3333 3333 3334
+fI[1] = #bfff b333 3333 3333 3333
+fI[0] == strtox
+
+
+Input: 1.5
+
+strtox consumes 3 bytes and returns 1
+with bits = #3fff c000 0 0 0
+g_xfmt(0) gives 3 bytes: "1.5"
+
+strtoIx returns 1, consuming 3 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: -1.5
+
+strtox consumes 4 bytes and returns 9
+with bits = #bfff c000 0 0 0
+g_xfmt(0) gives 4 bytes: "-1.5"
+
+strtoIx returns 9, consuming 4 bytes.
+fI[0] == fI[1] == strtox
+
+
+Input: 1.6
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff cccc cccc cccc cccc
+g_xfmt(0) gives 21 bytes: "1.5999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff cccc cccc cccc cccc
+fI[1] = #3fff cccc cccc cccc cccd
+fI[0] == strtox
+
+
+Input: -1.6
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff cccc cccc cccc cccd
+g_xfmt(0) gives 4 bytes: "-1.6"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff cccc cccc cccc cccd
+fI[1] = #bfff cccc cccc cccc cccc
+fI[0] == strtox
+
+
+Input: 1.7
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff d999 9999 9999 9999
+g_xfmt(0) gives 21 bytes: "1.6999999999999999999"
+
+strtoIx returns 33, consuming 3 bytes.
+fI[0] = #3fff d999 9999 9999 9999
+fI[1] = #3fff d999 9999 9999 999a
+fI[0] == strtox
+
+
+Input: -1.7
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff d999 9999 9999 999a
+g_xfmt(0) gives 4 bytes: "-1.7"
+
+strtoIx returns 41, consuming 4 bytes.
+fI[0] = #bfff d999 9999 9999 999a
+fI[1] = #bfff d999 9999 9999 9999
+fI[0] == strtox
+
+
+Input: 1.8
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff e666 6666 6666 6666
+g_xfmt(0) gives 3 bytes: "1.8"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff e666 6666 6666 6666
+fI[1] = #3fff e666 6666 6666 6667
+fI[0] == strtox
+
+
+Input: -1.8
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff e666 6666 6666 6667
+g_xfmt(0) gives 22 bytes: "-1.8000000000000000001"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff e666 6666 6666 6667
+fI[1] = #bfff e666 6666 6666 6666
+fI[0] == strtox
+
+
+Input: 1.9
+
+strtox consumes 3 bytes and returns 17
+with bits = #3fff f333 3333 3333 3333
+g_xfmt(0) gives 3 bytes: "1.9"
+
+strtoIx returns 17, consuming 3 bytes.
+fI[0] = #3fff f333 3333 3333 3333
+fI[1] = #3fff f333 3333 3333 3334
+fI[0] == strtox
+
+
+Input: -1.9
+
+strtox consumes 4 bytes and returns 41
+with bits = #bfff f333 3333 3333 3334
+g_xfmt(0) gives 22 bytes: "-1.9000000000000000001"
+
+strtoIx returns 25, consuming 4 bytes.
+fI[0] = #bfff f333 3333 3333 3334
+fI[1] = #bfff f333 3333 3333 3333
+fI[0] == strtox
+

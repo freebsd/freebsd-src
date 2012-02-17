@@ -1,0 +1,198 @@
+More stuff for groff
+====================
+
+Windows 32
+----------
+
+Here two ports using the gcc compiler and other GNU tools:
+
+. Cygwin:
+
+    http://sources.redhat.com/cygwin/
+
+  Look for a convenient mirror site in
+
+    http://sources.redhat.com/cygwin/mirrors.html
+
+  At any of those mirrors, groff can be found in the directory
+  latest/groff.
+
+. Kees Zeelenberg <c.zeelenberg@hccnet.nl>:
+
+    http://gnuwin32.sourceforge.net/packages/groffl.htm
+
+  This port includes recent versions of grap and deroff.
+
+dos
+---
+
+Binaries for Eli Zaretskii's port using the djgpp compiler are available
+from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2gnu/gro*b.zip
+
+and its mirrors; for installation details please read `arch/djgpp/README'.
+This port also runs on Windows 32 systems, except Windows 2000.
+
+grap
+----
+
+An implementation of Kernighan & Bentley's grap language for typesetting
+graphs.  Written by Ted Faber <faber@lunabase.org>.  The actual version
+can be found at
+
+  http://www.lunabase.org/~faber/Vault/software/grap/
+
+A djgpp port which runs on dos and most Windows 32 systems (Windows 95,
+Windows 98, Windows NT) done by Kees Zeelenberg <c.zeelenberg@hccnet.nl>
+is available from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
+
+It is intended to be used with the djgpp port of groff.
+
+A Windows 32 port is included in the groff package available from
+
+    http://gnuwin32.sourceforge.net/
+
+plot2dev
+--------
+
+This utility program can convert plot graphics to either pic or gremlin
+files.  It has been written by Richard Murphey <richard-murphey@rice.edu>
+and Daniel Senderowicz <daniel@synchrods.com> (who has added the gremlin
+driver).  The actual version can be found as
+
+  ftp://ftp.ffii.org/pub/groff/plot2dev-x.x.tar.gz
+
+troffcvt
+--------
+
+From the web page:
+
+  troffcvt is a translator that turns troff input into a form that can be
+  more easily processed.  The troffcvt distribution comes with
+  postprocessors that turn troffcvt into various destination formats such
+  as HTML (Hypertext Markup Language), RTF (Rich Text Format) or plain
+  text.
+
+Note that you need a lot of additional packages to compile troffcvt;
+everything is available from
+
+  http://www.primate.wisc.edu/software/troffcvt/
+
+unroff
+------
+
+From the README file:
+
+  Unroff is a Scheme-based, programmable, extensible troff translator with
+  a back-end for the Hypertext Markup Language.  Unroff is free software
+  and is distributed both as source and as precompiled binaries.
+
+    http://www.informatik.uni-bremen.de/~net/unroff/unroff.html
+
+You need als Elk, the Scheme based Extension Language Kit, which is
+available from
+
+  http://www.informatik.uni-bremen.de/~net/elk
+
+deroff
+------
+
+Deroff removes roff constructs from documents for the purpose of indexing,
+spell checking etc.
+
+Michael Haardt's <michael@moria.de> implementation is a little smarter
+than traditional implementations, because it knows about certain -man and
+-mm macros.  It is able to generate a word list for spell checking tools
+or omit headers for sentence analysis tools.  It can further generate
+cpp-style #line lines.
+
+  http://www.moria.de/deroff/
+
+Version 1.6 compiled with DJGPP (for MS-DOS and all Windows 32 systems,
+i.e. Windows 95, Windows 98, Windows NT) is available from
+
+  ftp://ftp.simtel.net/pub/simtelnet/gnu/djgpp/v2apps/
+
+and its mirrors.
+
+A Windows 32 port of version 1.8 is available from
+
+  http://gnuwin32.sourceforge.net/
+
+David Frey <dfrey@debian.org> has also written a deroff implementation
+for Debian; it is available from
+
+  ftp://ftp.debian.org/debian/pool/main/d/deroff/
+
+miscellaneous
+-------------
+
+. Ralph Corderoy's excellent page on troff:
+
+    www.troff.org
+
+  There are links for virtually everything related to troff.
+
+. Dr. Robert Hermann's groff gems are available from
+
+    http://www.eas.slu.edu/People/RBHerrmann/GROFF/index.html
+
+  At present there are examples for
+
+  o creating business cards
+  o using groff to make large format posters for presentations
+
+. Robert Marks's collection of useful macros and scripts is available from
+
+    http://www.agsm.edu.au/~bobm/odds+ends/scripts.html
+
+  Description:
+
+  o `polish': Is a sed (= the Unix stream editor) script that does many
+    things to ASCII text.  Amongst other things, it breaks lines at new
+    sentences, reduces upper-case acronyms by one point size, adds
+    diacriticals, changes simple quotes into smart quotes, and makes a few
+    simple grammar checks.  The best way to see what it does is to run it
+    as a sed script file (or files) on a text file and then compare the
+    output file with the original.
+
+  o `DropCaps' is a troff script which replaces the initial letters of
+    paragraphs immediately after H1 and H2 headings with drop-capitals of
+    specified point size, and automatically flows the text around the new
+    drop cap.
+
+  o `AJM Header' is a set of troff macros used in production of the
+    Australian Journal of Management.  They use the Memorandum Macros (mm)
+    of AT&T, and so should be invoked with the UNIX troff -mm flag; they
+    should also work with the GNU troff -mm flag.
+
+. Thomas Baruchel <baruchel@libertysurf.fr> has developed Meta-tbl, a tbl
+  postprocessor to manipulate table cells (like adding gray shades).  The
+  latest version can be found at
+
+    http://perso.libertysurf.fr/baruchel/
+
+. gpresent, written by Bob Diertens <bobd@science.uva.nl>.  From the README
+  file:
+
+    gpresent is a package for making presentation with groff and acroread.
+    It consist of a set of macros to be used with groff and a post-processor
+    for manipulating the PostScript output of groff.  Without the use of the
+    PAUSE macro, it can also be used for making slides.
+    
+  It is available from
+
+    www.science.uva.nl/~bobd/useful/gpresent/
+
+
+documentation
+-------------
+
+Many documents related to the original versions of troff, ditroff, pic,
+and others can be accessed from the following web pages:
+
+  http://www.cs.bell-labs.com/cm/cs/cstr.html
+  http://www.cs.bell-labs.com/cm/cs/papers.html

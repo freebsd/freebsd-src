@@ -1,0 +1,57 @@
+# Process this file with autoconf to produce a configure script.
+AC_INIT
+AM_INIT_AUTOMAKE(arlib, 1.0)
+AC_CONFIG_SRCDIR([arlib.c])
+#AM_CONFIG_HEADER([config.h])
+
+# Checks for programs.
+AC_PROG_CC
+AC_PROG_RANLIB
+
+# Checks for libraries.
+AC_CHECK_FUNC(gethostent, , AC_CHECK_LIB(nsl, gethostent, , , -lsocket))
+AC_CHECK_FUNC(setsockopt, , AC_CHECK_LIB(socket, setsockopt))
+AC_CHECK_FUNC(res_init, , AC_CHECK_LIB(resolv, res_init))
+
+# Checks for header files.
+dnl AC_CHECK_HEADERS([errno.h fcntl.h netdb.h netinet/in.h strings.h sys/socket.h sys/time.h])
+
+# Checks for typedefs, structures, and compiler characteristics.
+dnl AC_HEADER_TIME
+
+AC_CHECK_TYPE(u_int32_t, ,
+	[AC_DEFINE(u_int32_t, [unsigned int], [Unsigned 32-bit type])],[
+#include <sys/types.h>
+#include <netinet/in.h>])
+
+AC_CACHE_CHECK([for name of NS address list], [ac_cv_var_ns_addr_list],
+	[ans=''
+# Normal
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>], [ return sizeof(_res.nsaddr_list);],
+[ans=nsaddr_list],
+[# Ultrix
+AC_TRY_COMPILE([
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <arpa/nameser.h>
+#include <resolv.h>], [ return sizeof(_res.ns_list);],
+[ans=ns_list])])
+	case "$ans" in
+	 '') AC_MSG_RESULT([???])
+	     AC_MSG_ERROR([Can't find nameserver address list in _res])
+	     ;;
+	esac
+	ac_cv_var_ns_addr_list=$ans])
+AC_DEFINE_UNQUOTED(NS_ADDR_LIST, $ans, [The name of the NS address list in _res])
+
+# Checks for library functions.
+dnl AC_HEADER_STDC
+dnl AC_FUNC_MALLOC
+dnl AC_CHECK_FUNCS([bzero inet_ntoa select socket])
+
+AC_CONFIG_FILES([Makefile])
+AC_OUTPUT

@@ -1,0 +1,563 @@
+
+
+
+
+
+
+Network Working Group                                         B. Manning
+Request for Comments: 1706                                           ISI
+Obsoletes: 1637, 1348                                         R. Colella
+Category: Informational                                             NIST
+                                                            October 1994
+
+
+                       DNS NSAP Resource Records
+
+
+Status of this Memo
+
+   This memo provides information for the Internet community.  This memo
+   does not specify an Internet standard of any kind.  Distribution of
+   this memo is unlimited.
+
+Abstract
+
+   OSI lower layer protocols, comprising the connectionless network
+   protocol (CLNP) and supporting routing protocols, are deployed in
+   some parts of the global Internet.  Maintenance and debugging of CLNP
+   connectivity is greatly aided by support in the Domain Name System
+   (DNS) for mapping between names and NSAP addresses.
+
+   This document defines the format of one new Resource Record (RR) for
+   the DNS for domain name-to-NSAP mapping. The RR may be used with any
+   NSAP address format.
+
+   NSAP-to-name translation is accomplished through use of the PTR RR
+   (see STD 13, RFC 1035 for a description of the PTR RR). This paper
+   describes how PTR RRs are used to support this translation.
+
+   This document obsoletes RFC 1348 and RFC 1637.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Manning & Colella                                               [Page 1]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+1.  Introduction
+
+   OSI lower layer protocols, comprising the connectionless network
+   protocol (CLNP) [5] and supporting routing protocols, are deployed in
+   some parts of the global Internet.  Maintenance and debugging of CLNP
+   connectivity is greatly aided by support in the Domain Name System
+   (DNS) [7] [8] for mapping between names and NSAP (network service
+   access point) addresses [6] [Note: NSAP and NSAP address are used
+   interchangeably throughout this memo].
+
+   This document defines the format of one new Resource Record (RR) for
+   the DNS for domain name-to-NSAP mapping. The RR may be used with any
+   NSAP address format.
+
+   NSAP-to-name translation is accomplished through use of the PTR RR
+   (see RFC 1035 for a description of the PTR RR). This paper describes
+   how PTR RRs are used to support this translation.
+
+   This memo assumes that the reader is familiar with the DNS. Some
+   familiarity with NSAPs is useful; see [1] or Annex A of [6] for
+   additional information.
+
+2.  Background
+
+   The reason for defining DNS mappings for NSAPs is to support the
+   existing CLNP deployment in the Internet.  Debugging with CLNP ping
+   and traceroute has become more difficult with only numeric NSAPs as
+   the scale of deployment has increased. Current debugging is supported
+   by maintaining and exchanging a configuration file with name/NSAP
+   mappings similar in function to hosts.txt. This suffers from the lack
+   of a central coordinator for this file and also from the perspective
+   of scaling.  The former describes the most serious short-term
+   problem. Scaling of a hosts.txt-like solution has well-known long-
+   term scaling difficiencies.
+
+3.  Scope
+
+   The methods defined in this paper are applicable to all NSAP formats.
+
+   As a point of reference, there is a distinction between registration
+   and publication of addresses. For IP addresses, the IANA is the root
+   registration authority and the DNS a publication method. For NSAPs,
+   Annex A of the network service definition, ISO8348 [6], describes the
+   root registration authority and this memo defines how the DNS is used
+   as a publication method.
+
+
+
+
+
+
+Manning & Colella                                               [Page 2]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+4.  Structure of NSAPs
+
+   NSAPs are hierarchically structured to allow distributed
+   administration and efficient routing. Distributed administration
+   permits subdelegated addressing authorities to, as allowed by the
+   delegator, further structure the portion of the NSAP space under
+   their delegated control.  Accomodating this distributed authority
+   requires that there be little or no a priori knowledge of the
+   structure of NSAPs built into DNS resolvers and servers.
+
+   For the purposes of this memo, NSAPs can be thought of as a tree of
+   identifiers. The root of the tree is ISO8348 [6], and has as its
+   immediately registered subordinates the one-octet Authority and
+   Format Identifiers (AFIs) defined there. The size of subsequently-
+   defined fields depends on which branch of the tree is taken. The
+   depth of the tree varies according to the authority responsible for
+   defining subsequent fields.
+
+   An example is the authority under which U.S. GOSIP defines NSAPs [2].
+   Under the AFI of 47, NIST (National Institute of Standards and
+   Technology) obtained a value of 0005 (the AFI of 47 defines the next
+   field as being two octets consisting of four BCD digits from the
+   International Code Designator space [3]). NIST defined the subsequent
+   fields in [2], as shown in Figure 1. The field immediately following
+   0005 is a format identifier for the rest of the U.S. GOSIP NSAP
+   structure, with a hex value of 80. Following this is the three-octet
+   field, values for which are allocated to network operators; the
+   registration authority for this field is delegated to GSA (General
+   Services Administration).
+
+   The last octet of the NSAP is the NSelector (NSel). In practice, the
+   NSAP minus the NSel identifies the CLNP protocol machine on a given
+   system, and the NSel identifies the CLNP user. Since there can be
+   more than one CLNP user (meaning multiple NSel values for a given
+   "base" NSAP), the representation of the NSAP should be CLNP-user
+   independent. To achieve this, an NSel value of zero shall be used
+   with all NSAP values stored in the DNS. An NSAP with NSel=0
+   identifies the network layer itself. It is left to the application
+   retrieving the NSAP to determine the appropriate value to use in that
+   instance of communication.
+
+   When CLNP is used to support TCP and UDP services, the NSel value
+   used is the appropriate IP PROTO value as registered with the IANA.
+   For "standard" OSI, the selection of NSel values is left as a matter
+   of local administration. Administrators of systems that support the
+   OSI transport protocol [4] in addition to TCP/UDP must select NSels
+   for use by OSI Transport that do not conflict with the IP PROTO
+   values.
+
+
+
+Manning & Colella                                               [Page 3]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+              |--------------|
+              | <-- IDP -->  |
+              |--------------|-------------------------------------|
+              | AFI |  IDI   |            <-- DSP -->              |
+              |-----|--------|-------------------------------------|
+              | 47  |  0005  | DFI | AA |Rsvd | RD |Area | ID |Sel |
+              |-----|--------|-----|----|-----|----|-----|----|----|
+       octets |  1  |   2    |  1  | 3  |  2  | 2  |  2  | 6  | 1  |
+              |-----|--------|-----|----|-----|----|-----|----|----|
+
+                    IDP    Initial Domain Part
+                    AFI    Authority and Format Identifier
+                    IDI    Initial Domain Identifier
+                    DSP    Domain Specific Part
+                    DFI    DSP Format Identifier
+                    AA     Administrative Authority
+                    Rsvd   Reserved
+                    RD     Routing Domain Identifier
+                    Area   Area Identifier
+                    ID     System Identifier
+                    SEL    NSAP Selector
+
+                  Figure 1: GOSIP Version 2 NSAP structure.
+
+
+   In the NSAP RRs in Master Files and in the printed text in this memo,
+   NSAPs are often represented as a string of "."-separated hex values.
+   The values correspond to convenient divisions of the NSAP to make it
+   more readable. For example, the "."-separated fields might correspond
+   to the NSAP fields as defined by the appropriate authority (RARE,
+   U.S. GOSIP, ANSI, etc.). The use of this notation is strictly for
+   readability. The "."s do not appear in DNS packets and DNS servers
+   can ignore them when reading Master Files. For example, a printable
+   representation of the first four fields of a U.S. GOSIP NSAP might
+   look like
+
+                             47.0005.80.005a00
+
+   and a full U.S. GOSIP NSAP might appear as
+
+             47.0005.80.005a00.0000.1000.0020.00800a123456.00.
+
+   Other NSAP formats have different lengths and different
+   administratively defined field widths to accomodate different
+   requirements. For more information on NSAP formats in use see RFC
+   1629 [1].
+
+
+
+
+
+Manning & Colella                                               [Page 4]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+5.  The NSAP RR
+
+   The NSAP RR is defined with mnemonic "NSAP" and TYPE code 22
+   (decimal) and is used to map from domain names to NSAPs. Name-to-NSAP
+   mapping in the DNS using the NSAP RR operates analogously to IP
+   address lookup. A query is generated by the resolver requesting an
+   NSAP RR for a provided domain name.
+
+   NSAP RRs conform to the top level RR format and semantics as defined
+   in Section 3.2.1 of RFC 1035.
+
+                                            1  1  1  1  1  1
+              0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           |                                               |
+           /                                               /
+           /                        NAME                   /
+           |                                               |
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           |                    TYPE = NSAP                |
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           |                    CLASS = IN                 |
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           |                        TTL                    |
+           |                                               |
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           |                      RDLENGTH                 |
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+           /                       RDATA                   /
+           /                                               /
+           +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+   where:
+
+   *  NAME: an owner name, i.e., the name of the node to which this
+      resource record pertains.
+
+   *  TYPE: two octets containing the NSAP RR TYPE code of 22 (decimal).
+
+   *  CLASS: two octets containing the RR IN CLASS code of 1.
+
+   *  TTL: a 32 bit signed integer that specifies the time interval in
+      seconds that the resource record may be cached before the source
+      of the information should again be consulted. Zero values are
+      interpreted to mean that the RR can only be used for the
+      transaction in progress, and should not be cached. For example,
+      SOA records are always distributed with a zero TTL to prohibit
+      caching. Zero values can also be used for extremely volatile data.
+
+
+
+Manning & Colella                                               [Page 5]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+   *  RDLENGTH: an unsigned 16 bit integer that specifies the length in
+      octets of the RDATA field.
+
+   *  RDATA: a variable length string of octets containing the NSAP.
+      The value is the binary encoding of the NSAP as it would appear in
+      the CLNP source or destination address field. A typical example of
+      such an NSAP (in hex) is shown below. For this NSAP, RDLENGTH is
+      20 (decimal); "."s have been omitted to emphasize that they don't
+      appear in the DNS packets.
+
+                 39840f80005a0000000001e13708002010726e00
+
+   NSAP RRs cause no additional section processing.
+
+6.  NSAP-to-name Mapping Using the PTR RR
+
+   The PTR RR is defined in RFC 1035. This RR is typically used under
+   the "IN-ADDR.ARPA" domain to map from IPv4 addresses to domain names.
+
+   Similarly, the PTR RR is used to map from NSAPs to domain names under
+   the "NSAP.INT" domain. A domain name is generated from the NSAP
+   according to the rules described below. A query is sent by the
+   resolver requesting a PTR RR for the provided domain name.
+
+   A domain name is generated from an NSAP by reversing the hex nibbles
+   of the NSAP, treating each nibble as a separate subdomain, and
+   appending the top-level subdomain name "NSAP.INT" to it. For example,
+   the domain name used in the reverse lookup for the NSAP
+
+             47.0005.80.005a00.0000.0001.e133.ffffff000162.00
+
+   would appear as
+
+     0.0.2.6.1.0.0.0.f.f.f.f.f.f.3.3.1.e.1.0.0.0.0.0.0.0.0.0.a.5.0.0. \
+                         0.8.5.0.0.0.7.4.NSAP.INT.
+
+   [Implementation note: For sanity's sake user interfaces should be
+   designed to allow users to enter NSAPs using their natural order,
+   i.e., as they are typically written on paper. Also, arbitrary "."s
+   should be allowed (and ignored) on input.]
+
+7.  Master File Format
+
+   The format of NSAP RRs (and NSAP-related PTR RRs) in Master Files
+   conforms to Section 5, "Master Files," of RFC 1035. Below are
+   examples of the use of these RRs in Master Files to support name-to-
+   NSAP and NSAP-to-name mapping.
+
+
+
+
+Manning & Colella                                               [Page 6]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+   The NSAP RR introduces a new hex string format for the RDATA field.
+   The format is "0x" (i.e., a zero followed by an 'x' character)
+   followed by a variable length string of hex characters (0 to 9, a to
+   f). The hex string is case-insensitive. "."s (i.e., periods) may be
+   inserted in the hex string anywhere after the "0x" for readability.
+   The "."s have no significance other than for readability and are not
+   propagated in the protocol (e.g., queries or zone transfers).
+
+
+   ;;;;;;
+   ;;;;;; Master File for domain nsap.nist.gov.
+   ;;;;;;
+
+
+   @      IN     SOA    emu.ncsl.nist.gov.  root.emu.ncsl.nist.gov. (
+                                     1994041800   ; Serial  - date
+                                     1800         ; Refresh - 30 minutes
+                                     300          ; Retry   - 5 minutes
+                                     604800       ; Expire  - 7 days
+                                     3600 )       ; Minimum - 1 hour
+          IN     NS     emu.ncsl.nist.gov.
+          IN     NS     tuba.nsap.lanl.gov.
+   ;
+   ;
+   $ORIGIN nsap.nist.gov.
+   ;
+   ;     hosts
+   ;
+   bsdi1    IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.ffffff000161.00
+            IN  A     129.6.224.161
+            IN  HINFO PC_486    BSDi1.1
+   ;
+   bsdi2    IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.ffffff000162.00
+            IN  A     129.6.224.162
+            IN  HINFO PC_486    BSDi1.1
+   ;
+   cursive  IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.ffffff000171.00
+            IN  A     129.6.224.171
+            IN  HINFO PC_386    DOS_5.0/NCSA_Telnet(TUBA)
+   ;
+   infidel  IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.ffffff000164.00
+            IN  A     129.6.55.164
+            IN  HINFO PC/486    BSDi1.0(TUBA)
+   ;
+   ;     routers
+   ;
+   cisco1   IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.aaaaaa000151.00
+            IN  A     129.6.224.151
+
+
+
+Manning & Colella                                               [Page 7]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+            IN  A     129.6.225.151
+            IN  A     129.6.229.151
+   ;
+   3com1    IN  NSAP  0x47.0005.80.005a00.0000.0001.e133.aaaaaa000111.00
+            IN  A     129.6.224.111
+            IN  A     129.6.225.111
+            IN  A     129.6.228.111
+
+
+
+
+   ;;;;;;
+   ;;;;;; Master File for reverse mapping of NSAPs under the
+   ;;;;;;     NSAP prefix:
+   ;;;;;;
+   ;;;;;;          47.0005.80.005a00.0000.0001.e133
+   ;;;;;;
+
+
+   @      IN     SOA    emu.ncsl.nist.gov.  root.emu.ncsl.nist.gov. (
+                                     1994041800   ; Serial  - date
+                                     1800         ; Refresh - 30 minutes
+                                     300          ; Retry   - 5 minutes
+                                     604800       ; Expire  - 7 days
+                                     3600 )       ; Minimum - 1 hour
+          IN     NS     emu.ncsl.nist.gov.
+          IN     NS     tuba.nsap.lanl.gov.
+   ;
+   ;
+   $ORIGIN 3.3.1.e.1.0.0.0.0.0.0.0.0.0.a.5.0.0.0.8.5.0.0.0.7.4.NSAP.INT.
+   ;
+   0.0.1.6.1.0.0.0.f.f.f.f.f.f  IN    PTR  bsdi1.nsap.nist.gov.
+   ;
+   0.0.2.6.1.0.0.0.f.f.f.f.f.f  IN    PTR  bsdi2.nsap.nist.gov.
+   ;
+   0.0.1.7.1.0.0.0.f.f.f.f.f.f  IN    PTR  cursive.nsap.nist.gov.
+   ;
+   0.0.4.6.1.0.0.0.f.f.f.f.f.f  IN    PTR  infidel.nsap.nist.gov.
+   ;
+   0.0.1.5.1.0.0.0.a.a.a.a.a.a  IN    PTR  cisco1.nsap.nist.gov.
+   ;
+   0.0.1.1.1.0.0.0.a.a.a.a.a.a  IN    PTR  3com1.nsap.nist.gov.
+
+8.  Security Considerations
+
+   Security issues are not discussed in this memo.
+
+
+
+
+
+Manning & Colella                                               [Page 8]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+9.  Authors' Addresses
+
+   Bill Manning
+   USC/Information Sciences Institute
+   4676 Admiralty Way
+   Marina del Rey, CA. 90292
+   USA
+
+   Phone: +1.310.822.1511
+   EMail: bmanning@isi.edu
+
+
+   Richard Colella
+   National Institute of Standards and Technology
+   Technology/B217
+   Gaithersburg, MD 20899
+   USA
+
+   Phone: +1 301-975-3627
+   Fax: +1 301 590-0932
+   EMail: colella@nist.gov
+
+10.  References
+
+   [1] Colella, R., Gardner, E., Callon, R., and Y. Rekhter, "Guidelines
+       for OSI NSAP Allocation inh the Internet", RFC 1629, NIST,
+       Wellfleet, Mitre, T.J. Watson Research Center, IBM Corp., May
+       1994.
+
+   [2] GOSIP Advanced Requirements Group.  Government Open Systems
+       Interconnection Profile (GOSIP) Version 2. Federal Information
+       Processing Standard 146-1, U.S. Department of Commerce, National
+       Institute of Standards and Technology, Gaithersburg, MD, April
+       1991.
+
+   [3] ISO/IEC.  Data interchange - structures for the identification of
+       organization.  International Standard 6523, ISO/IEC JTC 1,
+       Switzerland, 1984.
+
+   [4] ISO/IEC. Connection oriented transport protocol specification.
+       International Standard 8073, ISO/IEC JTC 1, Switzerland, 1986.
+
+   [5] ISO/IEC.  Protocol for Providing the Connectionless-mode Network
+       Service.  International Standard 8473, ISO/IEC JTC 1,
+       Switzerland, 1986.
+
+
+
+
+
+
+Manning & Colella                                               [Page 9]
+
+RFC 1706                      DNS NSAP RRs                  October 1994
+
+
+   [6] ISO/IEC. Information Processing Systems -- Data Communications --
+       Network Service Definition.  International Standard 8348, ISO/IEC
+       JTC 1, Switzerland, 1993.
+
+   [7] Mockapetris, P., "Domain Names -- Concepts and Facilities", STD
+       13, RFC 1034, USC/Information Sciences Institute, November 1987.
+
+   [8] Mockapetris, P., "Domain Names -- Implementation and
+       Specification", STD 13, RFC 1035, USC/Information Sciences
+       Institute, November 1987.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Manning & Colella                                              [Page 10]
+

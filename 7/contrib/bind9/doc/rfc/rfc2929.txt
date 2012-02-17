@@ -1,0 +1,675 @@
+
+
+
+
+
+
+Network Working Group                                   D. Eastlake, 3rd
+Request for Comments: 2929                                      Motorola
+BCP: 42                                              E. Brunner-Williams
+Category: Best Current Practice                                   Engage
+                                                              B. Manning
+                                                                     ISI
+                                                          September 2000
+
+              Domain Name System (DNS) IANA Considerations
+
+Status of this Memo
+
+   This document specifies an Internet Best Current Practices for the
+   Internet Community, and requests discussion and suggestions for
+   improvements.  Distribution of this memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2000).  All Rights Reserved.
+
+Abstract
+
+   Internet Assigned Number Authority (IANA) parameter assignment
+   considerations are given for the allocation of Domain Name System
+   (DNS) classes, Resource Record (RR) types, operation codes, error
+   codes, etc.
+
+Table of Contents
+
+   1. Introduction.................................................  2
+   2. DNS Query/Response Headers...................................  2
+   2.1 One Spare Bit?..............................................  3
+   2.2 Opcode Assignment...........................................  3
+   2.3 RCODE Assignment............................................  4
+   3. DNS Resource Records.........................................  5
+   3.1 RR TYPE IANA Considerations.................................  6
+   3.1.1 Special Note on the OPT RR................................  7
+   3.2 RR CLASS IANA Considerations................................  7
+   3.3 RR NAME Considerations......................................  8
+   4. Security Considerations......................................  9
+   References......................................................  9
+   Authors' Addresses.............................................. 11
+   Full Copyright Statement........................................ 12
+
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 1]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+1. Introduction
+
+   The Domain Name System (DNS) provides replicated distributed secure
+   hierarchical databases which hierarchically store "resource records"
+   (RRs) under domain names.
+
+   This data is structured into CLASSes and zones which can be
+   independently maintained.  See [RFC 1034, 1035, 2136, 2181, 2535]
+   familiarity with which is assumed.
+
+   This document covers, either directly or by reference, general IANA
+   parameter assignment considerations applying across DNS query and
+   response headers and all RRs.  There may be additional IANA
+   considerations that apply to only a particular RR type or
+   query/response opcode.  See the specific RFC defining that RR type or
+   query/response opcode for such considerations if they have been
+   defined.
+
+   IANA currently maintains a web page of DNS parameters.  See
+   <http://www.iana.org/numbers.htm>.
+
+   "IETF Standards Action", "IETF Consensus", "Specification Required",
+   and "Private Use" are as defined in [RFC 2434].
+
+2. DNS Query/Response Headers
+
+   The header for DNS queries and responses contains field/bits in the
+   following diagram taken from [RFC 2136, 2535]:
+
+                                           1  1  1  1  1  1
+             0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |                      ID                       |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |QR|   Opcode  |AA|TC|RD|RA| Z|AD|CD|   RCODE   |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |                QDCOUNT/ZOCOUNT                |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |                ANCOUNT/PRCOUNT                |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |                NSCOUNT/UPCOUNT                |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+            |                    ARCOUNT                    |
+            +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+   The ID field identifies the query and is echoed in the response so
+   they can be matched.
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 2]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+   The QR bit indicates whether the header is for a query or a response.
+
+   The AA, TC, RD, RA, AD, and CD bits are each theoretically meaningful
+   only in queries or only in responses, depending on the bit.  However,
+   many DNS implementations copy the query header as the initial value
+   of the response header without clearing bits.  Thus any attempt to
+   use a "query" bit with a different meaning in a response or to define
+   a query meaning for a "response" bit is dangerous given existing
+   implementation.  Such meanings may only be assigned by an IETF
+   Standards Action.
+
+   The unsigned fields query count (QDCOUNT), answer count (ANCOUNT),
+   authority count (NSCOUNT), and additional information count (ARCOUNT)
+   express the number of records in each section for all opcodes except
+   Update.  These fields have the same structure and data type for
+   Update but are instead the counts for the zone (ZOCOUNT),
+   prerequisite (PRCOUNT), update (UPCOUNT), and additional information
+   (ARCOUNT) sections.
+
+2.1 One Spare Bit?
+
+   There have been ancient DNS implementations for which the Z bit being
+   on in a query meant that only a response from the primary server for
+   a zone is acceptable.  It is believed that current DNS
+   implementations ignore this bit.
+
+   Assigning a meaning to the Z bit requires an IETF Standards Action.
+
+2.2 Opcode Assignment
+
+   New OpCode assignments require an IETF Standards Action.
+
+   Currently DNS OpCodes are assigned as follows:
+
+       OpCode Name                      Reference
+
+        0     Query                     [RFC 1035]
+        1     IQuery  (Inverse Query)   [RFC 1035]
+        2     Status                    [RFC 1035]
+        3     available for assignment
+        4     Notify                    [RFC 1996]
+        5     Update                    [RFC 2136]
+       6-15   available for assignment
+
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 3]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+2.3 RCODE Assignment
+
+   It would appear from the DNS header above that only four bits of
+   RCODE, or response/error code are available.  However, RCODEs can
+   appear not only at the top level of a DNS response but also inside
+   OPT RRs [RFC 2671], TSIG RRs [RFC 2845], and TKEY RRs [RFC 2930].
+   The OPT RR provides an eight bit extension resulting in a 12 bit
+   RCODE field and the TSIG and TKEY RRs have a 16 bit RCODE field.
+
+   Error codes appearing in the DNS header and in these three RR types
+   all refer to the same error code space with the single exception of
+   error code 16 which has a different meaning in the OPT RR from its
+   meaning in other contexts.  See table below.
+
+   RCODE   Name    Description                        Reference
+   Decimal
+     Hexadecimal
+    0    NoError   No Error                           [RFC 1035]
+    1    FormErr   Format Error                       [RFC 1035]
+    2    ServFail  Server Failure                     [RFC 1035]
+    3    NXDomain  Non-Existent Domain                [RFC 1035]
+    4    NotImp    Not Implemented                    [RFC 1035]
+    5    Refused   Query Refused                      [RFC 1035]
+    6    YXDomain  Name Exists when it should not     [RFC 2136]
+    7    YXRRSet   RR Set Exists when it should not   [RFC 2136]
+    8    NXRRSet   RR Set that should exist does not  [RFC 2136]
+    9    NotAuth   Server Not Authoritative for zone  [RFC 2136]
+   10    NotZone   Name not contained in zone         [RFC 2136]
+   11-15           available for assignment
+   16    BADVERS   Bad OPT Version                    [RFC 2671]
+   16    BADSIG    TSIG Signature Failure             [RFC 2845]
+   17    BADKEY    Key not recognized                 [RFC 2845]
+   18    BADTIME   Signature out of time window       [RFC 2845]
+   19    BADMODE   Bad TKEY Mode                      [RFC 2930]
+   20    BADNAME   Duplicate key name                 [RFC 2930]
+   21    BADALG    Algorithm not supported            [RFC 2930]
+   22-3840         available for assignment
+     0x0016-0x0F00
+   3841-4095       Private Use
+     0x0F01-0x0FFF
+   4096-65535      available for assignment
+     0x1000-0xFFFF
+
+   Since it is important that RCODEs be understood for interoperability,
+   assignment of new RCODE listed above as "available for assignment"
+   requires an IETF Consensus.
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 4]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+3. DNS Resource Records
+
+   All RRs have the same top level format shown in the figure below
+   taken from [RFC 1035]:
+
+                                         1  1  1  1  1  1
+           0  1  2  3  4  5  6  7  8  9  0  1  2  3  4  5
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+         |                                               |
+         /                                               /
+         /                      NAME                     /
+         |                                               |
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+         |                      TYPE                     |
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+         |                     CLASS                     |
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+         |                      TTL                      |
+         |                                               |
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+         |                   RDLENGTH                    |
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--|
+         /                     RDATA                     /
+         /                                               /
+         +--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+--+
+
+   NAME is an owner name, i.e., the name of the node to which this
+   resource record pertains.  NAMEs are specific to a CLASS as described
+   in section 3.2.  NAMEs consist of an ordered sequence of one or more
+   labels each of which has a label type [RFC 1035, 2671].
+
+   TYPE is a two octet unsigned integer containing one of the RR TYPE
+   codes.  See section 3.1.
+
+   CLASS is a two octet unsigned integer containing one of the RR CLASS
+   codes.  See section 3.2.
+
+   TTL is a four octet (32 bit) bit unsigned integer that specifies the
+   number of seconds that the resource record may be cached before the
+   source of the information should again be consulted.  Zero is
+   interpreted to mean that the RR can only be used for the transaction
+   in progress.
+
+   RDLENGTH is an unsigned 16 bit integer that specifies the length in
+   octets of the RDATA field.
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 5]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+   RDATA is a variable length string of octets that constitutes the
+   resource.  The format of this information varies according to the
+   TYPE and in some cases the CLASS of the resource record.
+
+3.1 RR TYPE IANA Considerations
+
+   There are three subcategories of RR TYPE numbers: data TYPEs, QTYPEs,
+   and MetaTYPEs.
+
+   Data TYPEs are the primary means of storing data.  QTYPES can only be
+   used in queries.  Meta-TYPEs designate transient data associated with
+   an particular DNS message and in some cases can also be used in
+   queries.  Thus far, data TYPEs have been assigned from 1 upwards plus
+   the block from 100 through 103 while Q and Meta Types have been
+   assigned from 255 downwards (except for the OPT Meta-RR which is
+   assigned TYPE 41).  There have been DNS implementations which made
+   caching decisions based on the top bit of the bottom byte of the RR
+   TYPE.
+
+   There are currently three Meta-TYPEs assigned: OPT [RFC 2671], TSIG
+   [RFC 2845], and TKEY [RFC 2930].
+
+   There are currently five QTYPEs assigned: * (all), MAILA, MAILB,
+   AXFR, and IXFR.
+
+   Considerations for the allocation of new RR TYPEs are as follows:
+
+     Decimal
+   Hexadecimal
+
+     0
+   0x0000 - TYPE zero is used as a special indicator for the SIG RR [RFC
+          2535] and in other circumstances and must never be allocated
+          for ordinary use.
+
+     1 - 127
+   0x0001 - 0x007F - remaining TYPEs in this range are assigned for data
+          TYPEs by IETF Consensus.
+
+     128 - 255
+   0x0080 - 0x00FF - remaining TYPEs in this rage are assigned for Q and
+          Meta TYPEs by IETF Consensus.
+
+     256 - 32767
+   0x0100 - 0x7FFF - assigned for data, Q, or Meta TYPE use by IETF
+          Consensus.
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 6]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+     32768 - 65279
+   0x8000 - 0xFEFF - Specification Required as defined in [RFC 2434].
+
+     65280 - 65535
+   0xFF00 - 0xFFFF - Private Use.
+
+3.1.1 Special Note on the OPT RR
+
+   The OPT (OPTion) RR, number 41, is specified in [RFC 2671].  Its
+   primary purpose is to extend the effective field size of various DNS
+   fields including RCODE, label type, flag bits, and RDATA size.  In
+   particular, for resolvers and servers that recognize it, it extends
+   the RCODE field from 4 to 12 bits.
+
+3.2 RR CLASS IANA Considerations
+
+   DNS CLASSes have been little used but constitute another dimension of
+   the DNS distributed database.  In particular, there is no necessary
+   relationship between the name space or root servers for one CLASS and
+   those for another CLASS.  The same name can have completely different
+   meanings in different CLASSes although the label types are the same
+   and the null label is usable only as root in every CLASS.  However,
+   as global networking and DNS have evolved, the IN, or Internet, CLASS
+   has dominated DNS use.
+
+   There are two subcategories of DNS CLASSes: normal data containing
+   classes and QCLASSes that are only meaningful in queries or updates.
+
+   The current CLASS assignments and considerations for future
+   assignments are as follows:
+
+     Decimal
+   Hexadecimal
+
+     0
+   0x0000 - assignment requires an IETF Standards Action.
+
+     1
+   0x0001 - Internet (IN).
+
+     2
+   0x0002 - available for assignment by IETF Consensus as a data CLASS.
+
+     3
+   0x0003 - Chaos (CH) [Moon 1981].
+
+     4
+   0x0004 - Hesiod (HS) [Dyer 1987].
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 7]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+     5 - 127
+   0x0005 - 0x007F - available for assignment by IETF Consensus as data
+          CLASSes only.
+
+     128 - 253
+   0x0080 - 0x00FD - available for assignment by IETF Consensus as
+          QCLASSes only.
+
+     254
+   0x00FE - QCLASS None [RFC 2136].
+
+     255
+   0x00FF - QCLASS Any [RFC 1035].
+
+     256 - 32767
+   0x0100 - 0x7FFF - assigned by IETF Consensus.
+
+     32768 - 65280
+   0x8000 - 0xFEFF - assigned based on Specification Required as defined
+          in [RFC 2434].
+
+     65280 - 65534
+   0xFF00 - 0xFFFE - Private Use.
+
+     65535
+   0xFFFF - can only be assigned by an IETF Standards Action.
+
+3.3 RR NAME Considerations
+
+   DNS NAMEs are sequences of labels [RFC 1035].  The last label in each
+   NAME is "ROOT" which is the zero length label.  By definition, the
+   null or ROOT label can not be used for any other NAME purpose.
+
+   At the present time, there are two categories of label types, data
+   labels and compression labels.  Compression labels are pointers to
+   data labels elsewhere within an RR or DNS message and are intended to
+   shorten the wire encoding of NAMEs.  The two existing data label
+   types are sometimes referred to as Text and Binary.  Text labels can,
+   in fact, include any octet value including zero octets but most
+   current uses involve only [US-ASCII].  For retrieval, Text labels are
+   defined to treat ASCII upper and lower case letter codes as matching.
+   Binary labels are bit sequences [RFC 2673].
+
+   IANA considerations for label types are given in [RFC 2671].
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 8]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+   NAMEs are local to a CLASS.  The Hesiod [Dyer 1987] and Chaos [Moon
+   1981] CLASSes are essentially for local use.  The IN or Internet
+   CLASS is thus the only DNS CLASS in global use on the Internet at
+   this time.
+
+   A somewhat dated description of name allocation in the IN Class is
+   given in [RFC 1591].  Some information on reserved top level domain
+   names is in Best Current Practice 32 [RFC 2606].
+
+4. Security Considerations
+
+   This document addresses IANA considerations in the allocation of
+   general DNS parameters, not security.  See [RFC 2535] for secure DNS
+   considerations.
+
+References
+
+   [Dyer 1987] Dyer, S., and F. Hsu, "Hesiod", Project Athena Technical
+               Plan - Name Service, April 1987,
+
+   [Moon 1981] D. Moon, "Chaosnet", A.I. Memo 628, Massachusetts
+               Institute of Technology Artificial Intelligence
+               Laboratory, June 1981.
+
+   [RFC 1034]  Mockapetris, P., "Domain Names - Concepts and
+               Facilities", STD 13, RFC 1034, November 1987.
+
+   [RFC 1035]  Mockapetris, P., "Domain Names - Implementation and
+               Specifications", STD 13, RFC 1035, November 1987.
+
+   [RFC 1591]  Postel, J., "Domain Name System Structure and
+               Delegation", RFC 1591, March 1994.
+
+   [RFC 1996]  Vixie, P., "A Mechanism for Prompt Notification of Zone
+               Changes (DNS NOTIFY)", RFC 1996, August 1996.
+
+   [RFC 2136]  Vixie, P., Thomson, S., Rekhter, Y. and J. Bound,
+               "Dynamic Updates in the Domain Name System (DNS UPDATE)",
+               RFC 2136, April 1997.
+
+   [RFC 2181]  Elz, R. and R. Bush, "Clarifications to the DNS
+               Specification", RFC 2181, July 1997.
+
+   [RFC 2434]  Narten, T. and H. Alvestrand, "Guidelines for Writing an
+               IANA Considerations Section in RFCs", BCP 26, RFC 2434,
+               October 1998.
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                  [Page 9]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+   [RFC 2535]  Eastlake, D., "Domain Name System Security Extensions",
+               RFC 2535, March 1999.
+
+   [RFC 2606]  Eastlake, D. and A. Panitz, "Reserved Top Level DNS
+               Names", RFC 2606, June 1999.
+
+   [RFC 2671]  Vixie, P., "Extension mechanisms for DNS (EDNS0)", RFC
+               2671, August 1999.
+
+   [RFC 2672]  Crawford, M., "Non-Terminal DNS Name Redirection", RFC
+               2672, August 1999.
+
+   [RFC 2673]  Crawford, M., "Binary Labels in the Domain Name System",
+               RFC 2673, August 1999.
+
+   [RFC 2845]  Vixie, P., Gudmundsson, O., Eastlake, D. and B.
+               Wellington, "Secret Key Transaction Authentication for
+               DNS (TSIG)", RFC 2845, May 2000.
+
+   [RFC 2930]  Eastlake, D., "Secret Key Establishment for DNS (TKEY
+               RR)", RFC 2930, September 2000.
+
+   [US-ASCII]  ANSI, "USA Standard Code for Information Interchange",
+               X3.4, American National Standards Institute: New York,
+               1968.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                 [Page 10]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+Authors' Addresses
+
+   Donald E. Eastlake 3rd
+   Motorola
+   140 Forest Avenue
+   Hudson, MA 01749 USA
+
+   Phone: +1-978-562-2827 (h)
+          +1-508-261-5434 (w)
+   Fax:   +1-508-261-4447 (w)
+   EMail: Donald.Eastlake@motorola.com
+
+
+   Eric Brunner-Williams
+   Engage
+   100 Brickstone Square, 2nd Floor
+   Andover, MA 01810
+
+   Phone: +1-207-797-0525 (h)
+          +1-978-684-7796 (w)
+   Fax:   +1-978-684-3118
+   EMail: brunner@engage.com
+
+
+   Bill Manning
+   USC/ISI
+   4676 Admiralty Way, #1001
+   Marina del Rey, CA 90292 USA
+
+   Phone: +1-310-822-1511
+   EMail: bmanning@isi.edu
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                 [Page 11]
+
+RFC 2929                DNS IANA Considerations           September 2000
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2000).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is currently provided by the
+   Internet Society.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake, et al.         Best Current Practice                 [Page 12]
+

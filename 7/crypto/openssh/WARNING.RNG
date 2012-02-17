@@ -1,0 +1,95 @@
+This document contains a description of portable OpenSSH's random
+number collection code. An alternate reading of this text could
+well be titled "Why I should pressure my system vendor to supply
+/dev/random in their OS".
+
+Why is this important? OpenSSH depends on good, unpredictable numbers
+for generating keys, performing digital signatures and forming
+cryptographic challenges. If the random numbers that it uses are
+predictable, then the strength of the whole system is compromised.
+
+A particularly pernicious problem arises with DSA keys (used by the
+ssh2 protocol). Performing a DSA signature (which is required for
+authentication), entails the use of a 160 bit random number.  If an
+attacker can predict this number, then they can deduce your *private*
+key and impersonate you or your hosts.
+
+If you are using the builtin random number support (configure will
+tell you if this is the case), then read this document in its entirety.
+Alternately, you can use Lutz Jaenicke's PRNGd - a small daemon which
+collects random numbers and makes them available by a socket.
+
+Please also request that your OS vendor provides a kernel-based random
+number collector (/dev/random) in future versions of your operating
+systems by default.
+
+On to the description...
+
+The portable OpenSSH contains random number collection support for
+systems which lack a kernel entropy pool (/dev/random).
+
+This collector (as of 3.1 and beyond) comes as an external application
+that allows the local admin to decide on how to implement entropy
+collection.
+
+The default entropy collector operates by executing the programs listed
+in ($etcdir)/ssh_prng_cmds, reading their output and adding it to the
+PRNG supplied by OpenSSL (which is hash-based). It also stirs in the
+output of several system calls and timings from the execution of the
+programs that it runs.
+
+The ssh_prng_cmds file also specifies a 'rate' for each program. This
+represents the number of bits of randomness per byte of output from
+the specified program.
+
+The random number code will also read and save a seed file to
+~/.ssh/prng_seed. This contents of this file are added to the random
+number generator at startup. The goal here is to maintain as much
+randomness between sessions as possible.
+
+The default entropy collection code has two main problems:
+
+1. It is slow.
+
+Executing each program in the list can take a large amount of time,
+especially on slower machines. Additionally some program can take a
+disproportionate time to execute.
+
+Tuning the random helper can be done by running ./ssh-random-helper in
+very verbose mode ("-vvv") and identifying the commands that are taking
+excessive amounts of time or hanging altogher.  Any problem commands can
+be modified or removed from ssh_prng_cmds.
+
+The default entropy collector will timeout programs which take too long
+to execute, the actual timeout used can be adjusted with the
+--with-entropy-timeout configure option. OpenSSH will not try to
+re-execute programs which have not been found, have had a non-zero
+exit status or have timed out more than a couple of times.
+
+2. Estimating the real 'rate' of program outputs is non-trivial
+
+The shear volume of the task is problematic: there are currently
+around 50 commands in the ssh_prng_cmds list, portable OpenSSH
+supports at least 12 different OSs. That is already 600 sets of data
+to be analysed, without taking into account the numerous differences
+between versions of each OS.
+
+On top of this, the different commands can produce varying amounts of
+usable data depending on how busy the machine is, how long it has been
+up and various other factors.
+
+To make matters even more complex, some of the commands are reporting
+largely the same data as other commands (eg. the various "ps" calls).
+
+
+How to avoid the default entropy code?
+
+The best way is to read the OpenSSL documentation and recompile OpenSSL
+to use prngd or egd.  Some platforms (like earily solaris) have 3rd
+party /dev/random devices that can be also used for this task.
+
+If you are forced to use ssh-rand-helper consider still downloading
+prngd/egd and configure OpenSSH using --with-prngd-port=xx or
+--with-prngd-socket=xx (refer to INSTALL for more information).
+
+$Id: WARNING.RNG,v 1.8 2005/05/26 01:47:54 djm Exp $

@@ -1,0 +1,194 @@
+<!--
+	FreeBSD errata document.  Unlike some of the other RELNOTESng
+	files, this file should remain as a single SGML file, so that
+	the dollar FreeBSD dollar header has a meaningful modification
+	time.  This file is all but useless without a datestamp on it,
+	so we'll take some extra care to make sure it has one.
+
+	(If we didn't do this, then the file with the datestamp might
+	not be the one that received the last change in the document.)
+
+-->
+
+<!DOCTYPE article PUBLIC "-//FreeBSD//DTD DocBook V4.1-Based Extension//EN" [
+<!ENTITY % articles.ent PUBLIC "-//FreeBSD//ENTITIES DocBook FreeBSD Articles Entity Set//EN">
+%articles.ent;
+
+<!ENTITY % release PUBLIC "-//FreeBSD//ENTITIES Release Specification//EN">
+%release;
+<!ENTITY release.bugfix "7.4-RELEASE">
+]>
+
+<article>
+  <articleinfo>
+    <title>&os;
+<![ %release.type.current [
+    &release.current;
+]]>
+<![ %release.type.snapshot [
+    &release.prev;
+]]>
+<![ %release.type.release [
+    &release.current;
+]]>
+    Errata</title>
+
+    <corpauthor>
+    The &os; Project
+    </corpauthor>
+
+    <pubdate>$FreeBSD$</pubdate>
+
+    <copyright>
+      <year>2011</year>
+      <holder role="mailto:doc@FreeBSD.org">The &os; Documentation Project</holder>
+    </copyright>
+
+    <legalnotice id="trademarks" role="trademarks">
+      &tm-attrib.freebsd;
+      &tm-attrib.intel;
+      &tm-attrib.sparc;
+      &tm-attrib.general;
+    </legalnotice>
+  </articleinfo>
+
+  <abstract>
+    <para>This document lists errata items for &os;
+<![ %release.type.current [
+      &release.current;,
+]]>
+<![ %release.type.snapshot [
+      &release.prev;,
+]]>
+<![ %release.type.release [
+      &release.current;,
+]]>
+      containing significant information discovered after the release
+      or too late in the release cycle to be otherwise included in the
+      release documentation.
+      This information includes security advisories, as well as news
+      relating to the software or documentation that could affect its
+      operation or usability.  An up-to-date version of this document
+      should always be consulted before installing this version of
+      &os;.</para>
+
+    <para>This errata document for &os;
+<![ %release.type.current [
+      &release.current;
+]]>
+<![ %release.type.snapshot [
+      &release.prev;
+]]>
+<![ %release.type.release [
+      &release.current;
+]]>
+      will be maintained until the release of &os; &release.next;.</para>
+  </abstract>
+
+  <sect1 id="intro">
+    <title>Introduction</title>
+
+    <para>This errata document contains <quote>late-breaking news</quote>
+      about &os;
+<![ %release.type.current [
+      &release.current;.
+]]>
+<![ %release.type.snapshot [
+      &release.prev;.
+]]>
+<![ %release.type.release [
+      &release.current;.
+]]>
+      Before installing this version, it is important to consult this
+      document to learn about any post-release discoveries or problems
+      that may already have been found and fixed.</para>
+
+    <para>Any version of this errata document actually distributed
+      with the release (for example, on a CDROM distribution) will be
+      out of date by definition, but other copies are kept updated on
+      the Internet and should be consulted as the <quote>current
+      errata</quote> for this release.  These other copies of the
+      errata are located at <ulink
+      url="http://www.FreeBSD.org/releases/"></ulink>, plus any sites
+      which keep up-to-date mirrors of this location.</para>
+
+    <para>Source and binary snapshots of &os; &release.branch; also
+      contain up-to-date copies of this document (as of the time of
+      the snapshot).</para>
+
+    <para>For a list of all &os; CERT security advisories, see <ulink
+      url="http://www.FreeBSD.org/security/"></ulink> or <ulink
+      url="ftp://ftp.FreeBSD.org/pub/FreeBSD/CERT/"></ulink>.</para>
+
+  </sect1>
+
+  <sect1 id="security">
+    <title>Security Advisories</title>
+
+    <para>No advisory.</para>
+
+<!--
+    <para>The following security advisories pertain to &os; &release.bugfix;.
+      For more information, consult the individual advisories available from
+      <ulink url="http://security.FreeBSD.org/"></ulink>.</para>
+
+    <informaltable frame="none" pgwide="0">
+      <tgroup cols="3">
+	<colspec colwidth="1*">
+	<colspec colwidth="1*">
+	<colspec colwidth="3*">
+	<thead>
+	  <row>
+	    <entry>Advisory</entry>
+	    <entry>Date</entry>
+	    <entry>Topic</entry>
+	  </row>
+	</thead>
+
+	<tbody>
+	  <row>
+	    <entry><ulink url="http://security.freebsd.org/advisories/FreeBSD-SA-08:05.openssh.asc"
+		>SA-08:05.openssh</ulink></entry>
+	    <entry>17&nbsp;April&nbsp;2008</entry>
+	    <entry><para>OpenSSH X11-forwarding privilege escalation</para></entry>
+	  </row>
+	</tbody>
+      </tgroup>
+    </informaltable>
+-->
+
+  </sect1>
+
+  <sect1 id="open-issues">
+    <title>Open Issues</title>
+
+    <para>No issue.</para>
+
+  <sect1 id="late-news">
+    <title>Late-Breaking News and Corrections</title>
+
+    <para>A bug in <application>OpenSSL</application> that could cause
+      it to parse past the end of the message was found at the late
+      stage of &release.bugfix; release process.  The &release.bugfix;
+      includes a fix for this issue by importing relevant parts from
+      the OpenSSL CVS.  This could be triggered by an incorrectly
+      formatted ClientHello SSL/TLS handshake messages.  The details
+      can be found at <ulink
+      url="http://www.openssl.org/news/secadv_20110208.txt"></ulink>.</para>
+
+    <para>The shared object version numbers of
+      <application>libcrypto</application> and
+      <application>libssl</application> have been decreased from
+      <literal>6</literal> to <literal>5</literal>.  These are
+      accidentaly increased on 28 November, 2010 (r215997) as OpenSSL
+      0.9.8p was merged.  Note that this affects systems running
+      7-STABLE after that date (after 7.3-RELEASE), not 7.3-RELEASE
+      and the security branch.  Also note that in &os;
+      &release.bugfix;, the library files with the version number
+      <literal>6</literal> are still provided as symbolic links to
+      prevent binaries built in the time window with the accidentaly
+      increased version number from being broken after the system gets
+      updated to &release.bugfix;.</para>
+
+  </sect1>
+</article>

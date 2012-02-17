@@ -1,0 +1,71 @@
+# Makefile for less.
+# Windows version
+# Bolarnd C++ 5.5.1 free command line tools
+
+#### Start of system configuration section. ####
+# 
+# Borland's make knows its own location in the
+# filesystem.
+#
+
+CC = bcc32
+LIBDIR = $(MAKEDIR)\..\lib
+
+CFLAGS = -O2 -w-pro -TWC -P-c -v- -d -f- -ff- -vi
+LDFLAGS = -Tpe -v- -ap -c -x -V4.0 -GF:AGGRESSIVE
+LD = ilink32
+LIBS = ${LIBDIR}\import32.lib ${LIBDIR}\cw32.lib
+
+#### End of system configuration section. ####
+
+# 
+# This rule allows us to supply the necessary -D options
+# in addition to whatever the user asks for.
+# 
+.c.obj:
+	${CC} -c -I. ${CPPFLAGS} ${CFLAGS} $<
+
+OBJ = \
+	main.obj screen.obj brac.obj ch.obj charset.obj cmdbuf.obj \
+	command.obj cvt.obj decode.obj edit.obj filename.obj forwback.obj \
+	help.obj ifile.obj input.obj jump.obj line.obj linenum.obj \
+	lsystem.obj mark.obj optfunc.obj option.obj opttbl.obj os.obj \
+	output.obj pattern.obj position.obj prompt.obj search.obj signal.obj \
+	tags.obj ttyin.obj version.obj regexp.obj
+
+all: less lesskey lessecho
+
+# 
+# This is really horrible, but the command line is too long for 
+# MS-DOS if we try to link ${OBJ}.
+# 
+less: ${OBJ}
+	${LD} ${LDFLAGS} ${LIBDIR}\c0x32.obj $**, $@,,${LIBS}
+
+lesskey: lesskey.obj version.obj
+	${LD} ${LDFLAGS} ${LIBDIR}\c0x32.obj $**, $@,,${LIBS}
+
+lessecho: lessecho.obj version.obj
+	${LD} ${LDFLAGS} ${LIBDIR}\c0x32.obj $**, $@,,${LIBS}
+
+defines.h: defines.wn
+	-del defines.h
+	-copy defines.wn defines.h
+
+${OBJ}: less.h defines.h funcs.h cmd.h
+
+clean:
+	-del *.obj 
+	-del *.il? 
+	-del *.tds 
+	-del defines.h
+
+spotless: clean
+	-del less.exe
+	-del lesskey.exe
+	-del lessecho.exe
+
+realclean: spotless
+
+distclean: spotless
+

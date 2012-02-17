@@ -1,0 +1,166 @@
+.\" Copyright (c) 2004
+.\"	<ran@styx.aic.net>. All right reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 3. All advertising materials mentioning features or use of this software
+.\"    must display the following acknowledgement:
+.\"	This product includes software developed by <ran@styx.aic.net>
+.\" 4. Neither the name of the author nor the names of any co-contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"   without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY ran@styx.aic.net AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL <ran@styx.aic.net> OR THE VOICES IN HIS
+.\" HEAD BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR
+.\" CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF
+.\" SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS
+.\" INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN
+.\" CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
+.\" ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF
+.\" THE POSSIBILITY OF SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd March 15, 2004
+.Dt ARLCONTROL 8 i386
+.Os
+.Sh NAME
+.Nm arlcontrol
+.Nd configure Aironet Arlan 655 device
+.Sh SYNOPSIS
+.Nm
+.Ar iface
+.Nm
+.Ar iface Cm country Ar country Pq Cm 9 Ns - Ns Cm 15
+.Nm
+.Ar iface Cm priority Ar priority Pq Cm normal , high , highest
+.Nm
+.Ar iface Cm txretry Ar txretry
+.Nm
+.Ar iface Cm stat
+.Nm
+.Ar iface Cm quality
+.Sh DESCRIPTION
+The
+.Nm
+utility controls the operation of Aironet Arlan 655 wireless networking
+devices via the
+.Xr arl 4
+driver.
+Most of the parameters that can be changed are related to the
+Aironet protocol which the Aironet Arlan 655 card implements.
+The
+.Nm
+utility can also be used to view the current NIC status, configuration,
+and to dump out the values of the card's statistics counters.
+.Pp
+The
+.Ar iface
+argument given to
+.Nm
+should be the logical interface name associated with the Aironet Arlan 655
+device
+.Li ( arl0 , arl1 ,
+etc.) and must be specified.
+.Sh OPTIONS
+The options are as follows:
+.Bl -tag -width indent
+.It Ar iface
+Display current settings of the specified wireless interface.
+This retrieves current card settings from the driver and prints
+them out.
+.It Ar iface Cm country Ar country Pq Cm 9 Ns - Ns Cm 15
+Chose
+.Ar country , channel
+parameters that depend on the
+.Ar country
+according to the following table:
+.Bl -column ".No North America" ".Em Channel" ".Em MHz"
+.Em "Country	Ch_Set	MHz"
+.It "North America" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "U.S.A" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Canada" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "Mexico" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "New Zealand" Ta 9 Ta "2412, 2427, 2442, 2457, 2465"
+.It "E.T.S.I" Ta 10 Ta "2412, 2427, 2442, 2457, 2472"
+.It "Japan" Ta 11 Ta "2484"
+.It "France" Ta 12 Ta "2457, 2465, 2475"
+.It "Australia" Ta 13 Ta "2411, 2425, 2439"
+.It "Germany" Ta 14 Ta "2427, 2442, 2457"
+.It "U.K.(MPT1349)" Ta 15 Ta "2460"
+.It "U.K." Ta 15 Ta "2460"
+.It "Spain" Ta 15 Ta "2460"
+.El
+.It Ar iface Cm priority Ar priority Pq Cm normal , high , highest
+Use the
+.Ar priority
+parameter to set the priority of the Arlan 655 Radio Media Access Control
+the values are
+.Cm normal , high
+or
+.Cm highest .
+The higher the priority is set, the more likely this unit will be the first
+to successfully transmit a packet when multiple units are trying
+to transmit at the same time.
+.Pp
+The percentage of units on your network that you set to values other than
+.Cm normal
+should be kept small - 10 percent or less.
+.It Ar iface Cm txretry Ar txretry
+Set transmit retries.
+Default is 0.
+.It Ar iface Cm stat
+Print internal Arlan 655 statistics block.
+.It Ar iface Cm quality
+Display the cached signal level and quality maintained by the
+.Xr arl 4
+driver.
+The driver retains information about quality and level for packets
+received from different hosts.
+Also the driver extracts values from ACK packets.
+.El
+.Sh EXAMPLES
+.Bd -literal -offset indent
+arlcontrol arl0 country 11 priority high
+arlcontrol arl0 quality
+arlcontrol arl0 stat
+arlcontrol arl0
+.Ed
+.Pp
+You can configure the Arlan 655 card from
+.Pa /etc/start_if.arl0 .
+For example:
+.Bd -literal -offset indent
+#!/bin/sh
+/usr/sbin/arlcontrol country 9 priority highest
+.Ed
+.Sh SEE ALSO
+.Xr arl 4
+.Rs
+.%T "Arlan 655 ISA Wireless LAN Client Card User Guide"
+.Re
+.Sh HISTORY
+The
+.Nm
+utility first appeared in
+.Fx 5.3 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+utility was written by
+.Aq ran@styx.aic.net .
+This manpage was written by
+.An Yuri Kurenkov Aq y.kurenkov@init.ru .
+.Sh BUGS
+Aironet Arlan 640 bridges and Arlan 630 access points do not understand
+country codes other than 9.

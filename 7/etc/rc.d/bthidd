@@ -1,0 +1,33 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: bthidd
+# REQUIRE: DAEMON hcsecd
+# BEFORE: LOGIN
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="bthidd"
+rcvar="bthidd_enable"
+command="/usr/sbin/${name}"
+pidfile="/var/run/${name}.pid"
+start_precmd="bthidd_prestart"
+
+bthidd_prestart()
+{
+	load_kld -m kbdmux kbdmux
+	load_kld -m vkbd vkbd
+	load_kld -m ng_btsocket ng_btsocket
+	return 0
+}
+
+load_rc_config $name
+config="${bthidd_config:-/etc/bluetooth/${name}.conf}"
+hids="${bthidd_hids:-/var/db/${name}.hids}"
+command_args="-c ${config} -H ${hids} -p ${pidfile}"
+required_files="${config}"
+
+run_rc_command "$1"

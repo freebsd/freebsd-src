@@ -1,0 +1,729 @@
+
+
+Network Working Group                                             J. Yao
+Internet-Draft                                                    X. Lee
+Intended status: Standards Track                                   CNNIC
+Expires: February 12, 2011                                      P. Vixie
+                                            Internet Software Consortium
+                                                         August 11, 2010
+
+
+                      Bundle DNS Name Redirection
+                     draft-yao-dnsext-bname-04.txt
+
+Abstract
+
+   This document defines a new DNS Resource Record called "BNAME", which
+   provides the capability to map itself and its subtree of the DNS name
+   space to another domain.  It differs from the CNAME record which only
+   maps a single node of the DNS name space, from the DNAME which only
+   maps the subtree of the DNS name space to another domain.
+
+Status of this Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at http://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on February 12, 2011.
+
+Copyright Notice
+
+   Copyright (c) 2010 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents
+   (http://trustee.ietf.org/license-info) in effect on the date of
+   publication of this document.  Please review these documents
+   carefully, as they describe your rights and restrictions with respect
+   to this document.  Code Components extracted from this document must
+   include Simplified BSD License text as described in Section 4.e of
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 1]
+
+Internet-Draft                    bname                      August 2010
+
+
+   the Trust Legal Provisions and are provided without warranty as
+   described in the Simplified BSD License.
+
+   This document may contain material from IETF Documents or IETF
+   Contributions published or made publicly available before November
+   10, 2008.  The person(s) controlling the copyright in some of this
+   material may not have granted the IETF Trust the right to allow
+   modifications of such material outside the IETF Standards Process.
+   Without obtaining an adequate license from the person(s) controlling
+   the copyright in such materials, this document may not be modified
+   outside the IETF Standards Process, and derivative works of it may
+   not be created outside the IETF Standards Process, except to format
+   it for publication as an RFC or to translate it into languages other
+   than English.
+
+
+Table of Contents
+
+   1.  Introduction . . . . . . . . . . . . . . . . . . . . . . . . .  3
+     1.1.  Terminology  . . . . . . . . . . . . . . . . . . . . . . .  3
+   2.  Motivation . . . . . . . . . . . . . . . . . . . . . . . . . .  3
+   3.  The BNAME Resource Record  . . . . . . . . . . . . . . . . . .  4
+     3.1.  Format . . . . . . . . . . . . . . . . . . . . . . . . . .  4
+     3.2.  The BNAME Substitution . . . . . . . . . . . . . . . . . .  4
+     3.3.  The BNAME Rules  . . . . . . . . . . . . . . . . . . . . .  4
+   4.  Query Processing . . . . . . . . . . . . . . . . . . . . . . .  4
+     4.1.  Processing by Servers  . . . . . . . . . . . . . . . . . .  5
+     4.2.  Processing by Resolvers  . . . . . . . . . . . . . . . . .  8
+   5.  BNAME in DNSSEC  . . . . . . . . . . . . . . . . . . . . . . .  9
+     5.1.  BNAME validating . . . . . . . . . . . . . . . . . . . . .  9
+     5.2.  BNAME alias algorithm identifiers  . . . . . . . . . . . . 10
+   6.  IANA Considerations  . . . . . . . . . . . . . . . . . . . . . 10
+   7.  Security Considerations  . . . . . . . . . . . . . . . . . . . 10
+   8.  Acknowledgements . . . . . . . . . . . . . . . . . . . . . . . 11
+   9.  Change History . . . . . . . . . . . . . . . . . . . . . . . . 11
+     9.1.  draft-yao-dnsext-bname: Version 00 . . . . . . . . . . . . 11
+     9.2.  draft-yao-dnsext-bname: Version 01 . . . . . . . . . . . . 11
+     9.3.  draft-yao-dnsext-bname: Version 02 . . . . . . . . . . . . 11
+     9.4.  draft-yao-dnsext-bname: Version 03 . . . . . . . . . . . . 11
+   10. References . . . . . . . . . . . . . . . . . . . . . . . . . . 12
+     10.1. Normative References . . . . . . . . . . . . . . . . . . . 12
+     10.2. Informative References . . . . . . . . . . . . . . . . . . 13
+   Authors' Addresses . . . . . . . . . . . . . . . . . . . . . . . . 13
+
+
+
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 2]
+
+Internet-Draft                    bname                      August 2010
+
+
+1.  Introduction
+
+   More and more internationalized domain name labels [RFC3490] appear
+   in the DNS trees.  Some labels [RFC3743] are equivalent in some
+   languages.  The internet users want them to be identical in the DNS
+   resolution.  For example, color.exmaple.com==colour.example.com.  The
+   BNAME represents for bundle names.  This document defines a new DNS
+   Resource Record called "BNAME", which provides the capability to map
+   an entire tree of the DNS name space to another domain.  It means
+   that the BNAME redirects both itself and its descendants to its
+   owner.  The DNAME [RFC2672] and [RFC2672bis] do not redirect itself,
+   only the descendants.  The domain name that owns a DNAME record is
+   allowed to have other resource record types at that domain name.  The
+   domain name that owns a BNAME record is not allowed to have other
+   resource record types at that domain name unless they are the DNSSEC
+   related resource record types defined in [RFC4033], [RFC4034],
+   [RFC4035] and [RFC5155].  A server MAY refuse to load a zone that has
+   data at a sub-domain of a domain name owning a BNAME RR or that has
+   other data except the DNSSEC related resource record types and BNAME
+   at that name.  BNAME is a singleton type, meaning only one BNAME is
+   allowed per name except the DNSSEC related resource record types.
+   Resolvers, servers and zone content administrators should be cautious
+   that usage of BNAME or its combination with CNAME or DNAME may lead
+   to form loops.  The loops should be avoided.
+
+1.1.  Terminology
+
+   All the basic terms used in this specification are defined in the
+   documents [RFC1034], [RFC1035] and [RFC2672].
+
+
+2.  Motivation
+
+   In some languages, some characters have the variants, which look
+   differently or very similar but are identical in the meaning.  For
+   example, Chinese character U+56FD and its variant U+570B look
+   differently, but are identical in the meaning.  If Internationalized
+   Domain Label" or "IDL" [RFC3743] are composed of variant characters,
+   we regard this kind of IDL as the IDL variant.  If these IDL variants
+   are put into the DNS for resolution, they are expected to be
+   identical in the DNS resolution.  More comprehensible example is that
+   we expect color.exmaple.com to be equivalent with the
+   colour.exmaple.com in the DNS resolution.  The BNAME Resource Record
+   and its processing rules are conceived as a solution to this
+   equivalence problem.  Without the BNAME mechanism, current mechanisms
+   such as DNAME or CNAME are not enough capable to solve all the
+   problems with the emergence of internationalized domain names.  The
+   internationalized domain names may have alias or equivalence of the
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 3]
+
+Internet-Draft                    bname                      August 2010
+
+
+   original one.  The BNAME solution provides the solution to both ASCII
+   alias names and internationalized domain alias names.
+
+
+3.  The BNAME Resource Record
+
+3.1.  Format
+
+   The BNAME RR has mnemonic BNAME and type code xx (decimal).  It is
+   not class-sensitive.  Its RDATA is comprised of a single field,
+   <target>, which contains a fully qualified domain name that must be
+   sent in uncompressed form [RFC1035], [RFC3597].  The <target> field
+   MUST be present.  The presentation format of <target> is that of a
+   domain name [RFC1035].  The wildcards in the BNAME RR SHOULD NOT be
+   used.
+
+     <owner> <ttl> <class> BNAME <target>
+
+   The effect of the BNAME RR is the substitution of the record's
+   <target> for its owner name, as a suffix of a domain name.  This
+   substitution has to be applied for every BNAME RR found in the
+   resolution process, which allows fairly lengthy valid chains of BNAME
+   RRs.
+
+3.2.  The BNAME Substitution
+
+   A BNAME substitution is performed by replacing the suffix labels of
+   the name being sought matching the owner name of the BNAME resource
+   record with the string of labels in the RDATA field.  The matching
+   labels end with the root label in all cases.  Only whole labels are
+   replaced.
+
+3.3.  The BNAME Rules
+
+   There are two rules which governs the use of BNAMEs in a zone file.
+   The first one is that there SHOULD be no descendants under the owner
+   of the BNAME.  The second one is that no resource records can co-
+   exist with the BNAME for the same name except the DNSSEC related
+   resource record types.  It means that if a BNAME RR is present at a
+   node N, there MUST be no other data except the DNSSEC related
+   resource record types at N and no data at any descendant of N. This
+   restriction applies only to records of the same class as the BNAME
+   record.
+
+
+4.  Query Processing
+
+   To exploit the BNAME mechanism the name resolution algorithms
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 4]
+
+Internet-Draft                    bname                      August 2010
+
+
+   [RFC1034] must be modified slightly for both servers and resolvers.
+   Both modified algorithms incorporate the operation of making a
+   substitution on a name (either QNAME or SNAME) under control of a
+   BNAME record.  This operation will be referred to as "the BNAME
+   substitution".
+
+4.1.  Processing by Servers
+
+   For a server performing non-recursive service steps 3.a, 3.c and 4 of
+   section 4.3.2 [RFC1034] are changed to check for a BNAME record, and
+   to return certain BNAME records from zone data and the cache.
+
+   If the owner name of the bname is the suffix of the name queryed but
+   different, when preparing a response, a server performing a BNAME
+   substitution will in all cases include the relevant BNAME RR in the
+   answer section.  A CNAME RR is synthesized and included in the answer
+   section.  This will help the client to reach the correct DNS data.
+
+   If the owner name of the bname is same with the name queryed, when
+   preparing a response, a server performing a BNAME substitution will
+   not include the relevant BNAME RR in the answer section unless the
+   type queryed is BNAME.  A CNAME RR will be synthesized and included
+   in the answer section unless the type queryed is BNAME or the query
+   is the DNSSEC query.
+
+   The provided synthesized CNAME RR if there has one, MUST have
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 5]
+
+Internet-Draft                    bname                      August 2010
+
+
+      The same CLASS as the QCLASS of the query,
+
+      TTL equal to the corresponding BNAME RR,
+
+      An <owner> equal to the QNAME in effect at the moment the BNAME RR
+      was encountered, and
+
+      An RDATA field containing the new QNAME formed by the action of
+      the BNAME substitution.
+
+
+   The revised server algorithm is:
+
+
+   1. Set or clear the value of recursion available in the response
+      depending on whether the name server is willing to provide
+      recursive service.  If recursive service is available and
+      requested via the RD bit in the query, go to step 5, otherwise
+      step 2.
+
+   2. Search the available zones for the zone which is the nearest
+      ancestor to QNAME.  If such a zone is found, go to step 3,
+      otherwise step 4.
+
+   3. Start matching down, label by label, in the zone.  The matching
+      process can terminate several ways:
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 6]
+
+Internet-Draft                    bname                      August 2010
+
+
+     a. If the whole of QNAME is matched, we have found the node.
+
+         If the data at the node is a CNAME, and QTYPE doesn't match
+         CNAME, copy the CNAME RR into the answer section of the
+         response, change QNAME to the canonical name in the CNAME RR,
+         and go back to step 1.
+
+         If the data at the node is a BNAME, and QTYPE doesn't
+         match BNAME, copy the BNAME RR and also a corresponding,
+         synthesized CNAME RR into the answer section of the
+         response, change QNAME to the name carried as RDATA in
+         the BNAME RR, and go back to step 1.
+
+         Otherwise, copy all RRs which match QTYPE into the answer
+         section and go to step 6.
+
+      b. If a match would take us out of the authoritative data, we have
+         a referral.  This happens when we encounter a node with NS RRs
+         marking cuts along the bottom of a zone.
+
+         Copy the NS RRs for the subzone into the authority section of
+         the reply.  Put whatever addresses are available into the
+         additional section, using glue RRs if the addresses are not
+         available from authoritative data or the cache.  Go to step 4.
+
+      c. If at some label, a match is impossible (i.e., the
+         corresponding label does not exist), look to see whether the
+         last label matched has a BNAME record.
+
+
+         If a BNAME record exists at that point, copy that record into
+         the answer section.  If substitution of its <target> for its
+         <owner> in QNAME would overflow the legal size for a <domain-
+         name>, set RCODE to YXDOMAIN [RFC2136] and exit; otherwise
+         perform the substitution and continue.  The server SHOULD
+         synthesize a corresponding CNAME record as described above and
+         include it in the answer section.  Go back to step 1.
+
+         If there was no BNAME record, look to see if the "*" label
+         exists.
+
+         If the "*" label does not exist, check whether the name we are
+         looking for is the original QNAME in the query or a name we
+         have followed due to a CNAME.  If the name is original, set an
+         authoritative name error in the response and exit.  Otherwise
+         just exit.
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 7]
+
+Internet-Draft                    bname                      August 2010
+
+
+
+         If the "*" label does exist, match RRs at that node against
+         QTYPE.  If any match, copy them into the answer section, but
+         set the owner of the RR to be QNAME, and not the node with the
+         "*" label.  Go to step 6.
+
+
+   4. Start matching down in the cache.  If QNAME is found in the cache,
+      copy all RRs attached to it that match QTYPE into the answer
+      section.  If QNAME is not found in the cache but a BNAME record is
+      present at QNAME, copy that BNAME record into the
+      answer section.  If there was no delegation from authoritative
+      data, look for the best one from the cache, and put it in the
+      authority section.  Go to step 6.
+
+   5. Use the local resolver or a copy of its algorithm (see resolver
+      section of this memo) to answer the query.  Store the results,
+      including any intermediate CNAMEs and BNAMEs, in the answer
+      section of the response.
+
+   6. Using local data only, attempt to add other RRs which may be
+      useful to the additional section of the query.  Exit.
+
+
+
+   Note that there will be at most one ancestor with a BNAME as
+   described in step 4 unless some zone's data is in violation of the
+   no-descendants limitation in section 3.  An implementation might take
+   advantage of this limitation by stopping the search of step 3c or
+   step 4 when a BNAME record is encountered.
+
+
+4.2.  Processing by Resolvers
+
+   A resolver or a server providing recursive service must be modified
+   to treat a BNAME as somewhat analogous to a CNAME.  The resolver
+   algorithm of [RFC1034] section 5.3.3 is modified to renumber step 4.d
+   as 4.e and insert a new 4.d.  The complete algorithm becomes:
+
+
+
+
+
+
+
+
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 8]
+
+Internet-Draft                    bname                      August 2010
+
+
+   1. See if the answer is in local information, and if so return it to
+      the client.
+
+   2. Find the best servers to ask.
+
+   3. Send them queries until one returns a response.
+
+   4. Analyze the response, either:
+
+      a. if the response answers the question or contains a name error,
+         cache the data as well as returning it back to the client.
+
+      b. if the response contains a better delegation to other servers,
+         cache the delegation information, and go to step 2.
+
+      c. if the response shows a CNAME and that is not the answer
+         itself, cache the CNAME, change the SNAME to the canonical name
+         in the CNAME RR and go to step 1.
+
+      d. if the response shows a BNAME and that is not the answer
+         itself, cache the BNAME.  If substitution of the BNAME's
+         <target> for its <owner> in the SNAME would overflow the legal
+         size for a <domain-name>, return an implementation-dependent
+         error to the application; otherwise perform the substitution
+         and go to step 1.
+
+      e. if the response shows a server failure or other bizarre
+         contents, delete the server from the SLIST and go back to step
+         3.
+
+
+   A resolver or recursive server which understands BNAME records but
+   sends non-extended queries MUST augment step 4.c by deleting from the
+   reply any CNAME records which have an <owner> which is a subdomain of
+   the <owner> of any BNAME record in the response.
+
+
+5.  BNAME in DNSSEC
+
+5.1.  BNAME validating
+
+   With the deployment of DNSSEC, more and more servers and resolvers
+   will support DNSSEC.  In order to make BNAME valid in DNSSEC
+   verification, the DNSSEC enabled resolvers and servers MUST support
+   BNAME.  The synthesized CNAME in the answer section for the BNAME
+   will never be signed if there has one.
+
+   If the owner name of the bname is the suffix of the name queryed but
+
+
+
+Yao, et al.             Expires February 12, 2011               [Page 9]
+
+Internet-Draft                    bname                      August 2010
+
+
+   different, DNSSEC validators MUST understand BNAME, verify the BNAME
+   and then checking that the CNAME was properly synthesized in order to
+   verify the synthesized CNAME.
+
+   If the owner name of the bname is same with the name queryed, DNSSEC
+   validators MUST understand BNAME and verify the BNAME.  The BNAME
+   enabled resolver (validator) should do somewhat analogous to a CNAME
+   for further query.
+
+   In any negative response, the NSEC or NSEC3 [RFC5155] record type bit
+   map SHOULD be checked to see that there was no BNAME that could have
+   been applied.  If the BNAME bit in the type bit map is set and the
+   query type is not BNAME, then BNAME substitution should have been
+   done.
+
+5.2.  BNAME alias algorithm identifiers
+
+   In order to prevent BNAME-unaware resolvers from attempting to
+   validate responses from BNAME-signed zones, this specification
+   allocates two new DNSKEY algorithm identifiers.  Algorithm Y, DSA-
+   BNAME-SHA1 is an alias for algorithm 3, DSA.  Algorithm Z, RSASHA1-
+   BNAME-SHA1 is an alias for algorithm 5, RSASHA1.  These are not new
+   algorithms, they are additional identifiers for the existing
+   algorithms.  Zones signed according to this specification MUST only
+   use these algorithm identifiers for their DNSKEY RRs.  The BNAME-
+   unaware resolvers will not know these new identifiers and treat
+   responses from the BNAME signed zone as insecure, otherwise the bname
+   RR will be regarded as bogus if there is no such a mechanism.  These
+   algorithm identifiers are used with the BNAME hash algorithm SHA1.
+   Using other BNAME hash algorithms requires allocation of a new alias.
+   Validating resolvers which follow the BNAME specification MUST
+   recognize the new alias algorithm identifier.
+
+
+6.  IANA Considerations
+
+   IANA is requested to assign the number to XX.  This document updates
+   the IANA registry "DNS SECURITY ALGORITHM NUMBERS".  IANA is
+   requested to assign the number to Y and Z.
+
+   [[anchor14: Note in draft: before this document goes to WG Last call,
+   it is better that we list all DNSSEC algorithms that need to be
+   aliased to reflect compatibility with this extension.]]
+
+
+7.  Security Considerations
+
+   Both ASCII domain name labels and non-ASCII ones have some aliases.
+
+
+
+Yao, et al.             Expires February 12, 2011              [Page 10]
+
+Internet-Draft                    bname                      August 2010
+
+
+   We can bundle the domain name labels and their aliases through BNAME
+   in the DNS resolutions.  The name labels and their aliases in the
+   particular languages are only known by those who know these
+   languages.  Those labels may be regarded as different ones by those
+   who don't know those languages.  Those who do not know the aliases
+   should only use the familar ones.  The applications will not know the
+   aliases unless they are properly configured.
+
+
+8.  Acknowledgements
+
+   Because the BNAME is very similar to DNAME, the authors learn a lot
+   from [RFC2672].  Many ideas are from the discussion in the DNSOP and
+   DNSEXT mailling list.  Thanks a lot to all in the list.  Many
+   important comments and suggestions are contributed by many members of
+   the DNSEXT and DNSOP WGs.  The authors especially thanks the
+   following ones:Niall O'Reilly, Glen Zorn, Mark Andrews, George
+   Barwood,Olafur Gudmundsson, Sun Guonian and Hanfeng for improving
+   this document.
+
+
+9.  Change History
+
+   [[anchor17: RFC Editor: Please remove this section.]]
+
+9.1.  draft-yao-dnsext-bname: Version 00
+
+   o  Bundle DNS Name Redirection
+
+9.2.  draft-yao-dnsext-bname: Version 01
+
+   o  Improve the algorithm
+   o  Improve the text
+
+9.3.  draft-yao-dnsext-bname: Version 02
+
+   o  Add the DNSSEC discussion
+   o  Improve the text
+
+9.4.  draft-yao-dnsext-bname: Version 03
+
+   o  Update the DNSSEC discussion
+   o  Update the IANA consideration
+
+
+10.  References
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011              [Page 11]
+
+Internet-Draft                    bname                      August 2010
+
+
+10.1.  Normative References
+
+   [ASCII]    American National Standards Institute (formerly United
+              States of America Standards Institute), "USA Code for
+              Information Interchange", ANSI X3.4-1968, 1968.
+
+   [EDNS0]    Vixie, P., "Extension Mechanisms for DNS (EDNS0)",
+              RFC 2671, August 1999.
+
+   [RFC1034]  Mockapetris, P., "Domain names - concepts and facilities",
+              STD 13, RFC 1034, November 1987.
+
+   [RFC1035]  Mockapetris, P., "Domain names - implementation and
+              specification", STD 13, RFC 1035, November 1987.
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC2136]  Vixie, P., Thomson, S., Rekhter, Y., and J. Bound,
+              "Dynamic Updates in the Domain Name System (DNS UPDATE)",
+              RFC 2136, April 1997.
+
+   [RFC2671]  Vixie, P., "Extension Mechanisms for DNS (EDNS0)",
+              RFC 2671, August 1999.
+
+   [RFC2672]  Crawford, M., "Non-Terminal DNS Name Redirection",
+              RFC 2672, August 1999.
+
+   [RFC3490]  Faltstrom, P., Hoffman, P., and A. Costello,
+              "Internationalizing Domain Names in Applications (IDNA)",
+              RFC 3490, March 2003.
+
+   [RFC3597]  Gustafsson, A., "Handling of Unknown DNS Resource Record
+              (RR) Types", RFC 3597, September 2003.
+
+   [RFC3629]  Yergeau, F., "UTF-8, a transformation format of ISO
+              10646", RFC 3629, November 2003.
+
+   [RFC3743]  Konishi, K., Huang, K., Qian, H., and Y. Ko, "Joint
+              Engineering Team (JET) Guidelines for Internationalized
+              Domain Names (IDN) Registration and Administration for
+              Chinese, Japanese, and Korean", RFC 3743, April 2004.
+
+   [RFC4033]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "DNS Security Introduction and Requirements",
+              RFC 4033, March 2005.
+
+   [RFC4034]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+
+
+
+Yao, et al.             Expires February 12, 2011              [Page 12]
+
+Internet-Draft                    bname                      August 2010
+
+
+              Rose, "Resource Records for the DNS Security Extensions",
+              RFC 4034, March 2005.
+
+   [RFC4035]  Arends, R., Austein, R., Larson, M., Massey, D., and S.
+              Rose, "Protocol Modifications for the DNS Security
+              Extensions", RFC 4035, March 2005.
+
+   [RFC5155]  Laurie, B., Sisson, G., Arends, R., and D. Blacka, "DNS
+              Security (DNSSEC) Hashed Authenticated Denial of
+              Existence", RFC 5155, March 2008.
+
+10.2.  Informative References
+
+   [RFC2672bis]
+              Rose, S. and W. Wijngaards, "Update to DNAME Redirection
+              in the DNS", Internet-Draft ietf-dnsext-rfc2672bis-dname-
+              17.txt, 6 2009.
+
+
+Authors' Addresses
+
+   Jiankang YAO
+   CNNIC
+   No.4 South 4th Street, Zhongguancun
+   Beijing
+
+   Phone: +86 10 58813007
+   Email: yaojk@cnnic.cn
+
+
+   Xiaodong LEE
+   CNNIC
+   No.4 South 4th Street, Zhongguancun
+   Beijing
+
+   Phone: +86 10 58813020
+   Email: lee@cnnic.cn
+
+
+   Paul Vixie
+   Internet Software Consortium
+   950 Charter Street
+   Redwood City, CA
+
+   Phone: +1 650 779 7001
+   Email: vixie@isc.org
+
+
+
+
+
+Yao, et al.             Expires February 12, 2011              [Page 13]
+
+
+

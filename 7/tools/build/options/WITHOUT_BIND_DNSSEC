@@ -1,0 +1,5 @@
+.\" $FreeBSD$
+Set to avoid building or installing the DNSSEC related binaries,
+.Xr dnssec-keygen 8
+and
+.Xr dnssec-signzone 8 .

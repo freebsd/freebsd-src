@@ -1,0 +1,62 @@
+The oltr driver uses objects and microcode from Olicom's
+OC-3300 PowerMACH Works Kit.
+
+As the Linux driver says..
+==================================================================
+* 
+*      This driver uses the Token Ring Low Level Driver (TRlld,
+*      PowerMach Works) as the lower level driver.  The PMW kit is
+*      (C) Olicom. The executable object may be distributed along
+*      with this driver for the purpose of linking this driver.
+*
+=================================================================
+The low level driver is combined with a FreeBSD specific driver
+supplied in source, which provides all OS dependent functions.
+
+files from olicom are:
+
+trlld.o - Olicom low-level driver interface
+
+trlldmac.o - TMS 380 Microcode for Olicom TMS380 based cards
+trlldbm.o - "bullseye" Microcode for Olicom "bullseye" based cards
+trlldhm.o - "hawkeye" Microcode for Olicom "hawkeye" based cards
+
+The file trlld.o is stored in uuencode format as trlld.o.uu
+It represents a state machine of some kind that has no OS dependencies
+and communicates with the firmware on the cards via a proprietary interface.
+All communication with this module is achieved via functions supplied in
+the FreeBSD specific driver.
+
+The other 3 files have been encoded using file2c(1)
+and represent only microcode to be loaded into the appropriate board
+when found.
+
+Here is the release notice from Olicom regarding these files:
+-------------------------------------------------------------------------------
+OC-3300 PowerMach Works and its components are wholly owned products of
+Olicom A/S 
+Nybrovej 114
+2800 Lyngby
+Denmark
+(45) 45 27 00 00
+and are used and distributed with permission. (#SS022499)
+-------------------------------------------------------------------------------
+
+A supporting email is also included.
+---------- Forwarded message ----------
+Date: Wed, 24 Feb 1999 17:07:14 +0100
+From: Starla Scott <sscott@olicom.com>
+To: 'Larry Lile' <lile@stdio.com>
+Subject: RE: FreeBSD Token-ring driver
+
+Larry,
+
+You may freely distribute the driver and/or kit. However, we do request that
+you include an acknowledgement of Olicom's copyright and ownership as
+related to your driver. 
+
+Thanks,
+Starla
+Olicom Tech Support
+------------------------------------------------------------------------------
+

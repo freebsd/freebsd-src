@@ -1,0 +1,350 @@
+#!/bin/sh
+#
+# Copyright (C) 2006 by Darren Reed.
+#
+# See the IPFILTER.LICENCE file for details on licencing.
+#
+prog=$0
+
+RCD=/etc/rc.conf.d
+
+# This script is an interface to the following rc.d scripts:
+# /etc/rc.d/ipfilter
+# /etc/rc.d/ipfs
+# /etc/rc.d/ipnat
+# /etc/rc.d/ipmon
+
+running=`ipf -V 2>/dev/null|sed -ne 's/Running: \(.*\)/\1/p'`
+
+usage() {
+	echo "$prog status"
+	echo "$prog ipfilter <enable|disable|reload|resync|start|status|stop>"
+	echo "$prog ipfs <enable|disable|status|start|stop>"
+	echo "$prog ipmon <enable|disable|restart|start|status|stop>"
+	echo "$prog ipnat <enable|disable|reload|start|status|stop>"
+	exit 1
+}
+
+enable() {
+	old=${RCD}/$1.old
+	new=${RCD}/$1
+	mkdir ${RCD}/$1.d
+	if [ $? -eq 0 ] ; then
+		if [ -f ${RCD}/$1 ] ; then
+			cp ${RCD}/$1 ${RCD}/$1.old
+			sed -e "s/^${1} *\=.*/${1}\=YES/" ${old} > ${new}
+			/bin/rm ${old}
+		else
+			echo "$1=YES" > ${RCD}/$1
+			chmod go-wx ${RCD}/$1
+		fi
+		rmdir ${RCD}/$1.d
+	fi
+}
+
+disable() {
+	old=${RCD}/$1.old
+	new=${RCD}/$1
+	mkdir ${RCD}/$1.d
+	if [ $? -eq 0 ] ; then
+		if [ -f ${RCD}/$1 ] ; then
+			cp ${RCD}/$1 ${RCD}/$1.old
+			sed -e "s/^${1} *\=.*/${1}\=NO/" ${old} > ${new}
+			/bin/rm ${old}
+		else
+			echo "$1=NO" > ${RCD}/$1
+			chmod go-wx ${RCD}/$1
+		fi
+		rmdir ${RCD}/$1.d
+	fi
+}
+
+status() {
+	active=`/etc/rc.d/$1 rcvar|sed -ne "s/^$""${1}\=\(.*\)$/\1/p"`
+	case $active in
+	NO)
+		return 0
+		;;
+	YES)
+		return 1
+		;;
+	esac
+	return 2
+}
+
+status_ipmon() {
+	echo -n "ipmon "
+	pid=`pgrep ipmon`
+	status ipmon
+	case $? in
+	0)
+		if [ -n "$pid" ] ; then
+			echo "disabled-but-running"
+		else
+			echo "disabled"
+		fi
+		;;
+	1)
+		if [ -n "$pid" ] ; then
+			echo "enabled"
+		else
+			echo "enabled-not-running"
+		fi
+		;;
+	2)
+		if [ -n "$pid" ] ; then
+			echo "unknown-state-running"
+		else
+			echo "unknown-state"
+		fi
+		;;
+	esac
+}
+
+status_ipfilter() {
+	if [ -z "$running" ] ; then
+		rules=
+		emsg="-not-in-kernel"
+		dmsg=
+	else
+		case $running in
+		yes)
+			emsg=
+			dmsg="-rules-loaded"
+			rules=`ipfstat -io 2>/dev/null`
+			if [ -z "$rules" ] ; then
+				rules=`ipfstat -aio 2>/dev/null`
+				if [ -z "$rules" ] ; then
+					emsg="-no-rules"
+					dmsg=
+				fi
+			fi
+			;;
+		no)
+			rules=
+			emsg="-not-running"
+			dmsg=
+			;;
+		esac
+	fi
+
+	echo -n "ipfilter "
+	status ipfilter
+	case $? in
+	0)
+		echo "disabled${dmsg}"
+		;;
+	1)
+		echo "enabled${emsg}"
+		;;
+	2)
+		if [ -n "$rules" ] ; then
+			echo "unknown${dmsg}"
+		else
+			echo "unknown-state"
+		fi
+		;;
+	esac
+}
+
+status_ipnat() {
+	if [ -z "$running" ] ; then
+		rules=
+		emsg="-not-in-kernel"
+		dmsg=
+	else
+		case $running in
+		yes)
+			emsg=
+			dmsg="-rules-loaded"
+			rules=`ipnat -l 2>/dev/null | egrep '^map|rdr' 2>/dev/null`
+			if [ -z "$rules" ] ; then
+				emsg="-no-rules"
+				dmsg=
+			fi
+			;;
+		no)
+			rules=
+			emsg="-not-running"
+			dmsg=
+			;;
+		esac
+	fi
+
+	echo -n "ipnat "
+	status ipnat
+	case $? in
+	0)
+		echo "disabled${dmsg}"
+		;;
+	1)
+		echo "enabled${dmsg}"
+		;;
+	2)
+		if [ -n "$rules" ] ; then
+			echo "unknown${dmsg}"
+		else
+			echo "unknown-state"
+		fi
+		;;
+	esac
+}
+
+status_ipfs() {
+	status ipfs
+	report ipfs $?
+}
+
+report() {
+	echo -n "$1 "
+	case $2 in
+	0)
+		echo "disabled"
+		;;
+	1)
+		echo "enabled"
+		;;
+	2)
+		echo "unknown-status"
+		;;
+	*)
+		echo "$2"
+		;;
+	esac
+}
+
+do_ipfilter() {
+	case $1 in
+	enable)
+		enable ipfilter
+		;;
+	disable)
+		disable ipfilter
+		;;
+	reload)
+		/etc/rc.d/ipfilter reload
+		;;
+	resync)
+		/etc/rc.d/ipfilter resync
+		;;
+	start)
+		/etc/rc.d/ipfilter start
+		;;
+	status)
+		status_ipfilter
+		;;
+	stop)
+		/etc/rc.d/ipfilter stop
+		;;
+	*)
+		usage
+		;;
+	esac
+}
+
+do_ipfs() {
+	case $1 in
+	enable)
+		enable ipfs
+		;;
+	disable)
+		disble ipfs
+		;;
+	start)
+		/etc/rc.d/ipfs start
+		;;
+	status)
+		status_ipfs
+		;;
+	stop)
+		/etc/rc.d/ipfs stop
+		;;
+	*)
+		usage
+		;;
+	esac
+}
+
+do_ipmon() {
+	case $1 in
+	enable)
+		enable ipmon
+		;;
+	disable)
+		disble ipmon
+		;;
+	restart)
+		/etc/rc.d/ipmon restart
+		;;
+	start)
+		/etc/rc.d/ipmon start
+		;;
+	status)
+		status_ipmon
+		;;
+	stop)
+		/etc/rc.d/ipmon stop
+		;;
+	*)
+		usage
+		;;
+	esac
+}
+
+do_ipnat() {
+	case $1 in
+	enable)
+		enable ipnat
+		;;
+	disable)
+		disable ipnat
+		;;
+	reload)
+		/etc/rc.d/ipnat reload
+		;;
+	restart)
+		/etc/rc.d/ipnat restart
+		;;
+	start)
+		/etc/rc.d/ipnat start
+		;;
+	status)
+		status_ipnat
+		;;
+	stop)
+		/etc/rc.d/ipnat stop
+		;;
+	*)
+		usage
+		;;
+	esac
+}
+
+do_status_all() {
+	status_ipfilter
+	status_ipfs
+	status_ipmon
+	status_ipnat
+}
+
+case $1 in
+status)
+	do_status_all
+	;;
+ipfilter)
+	do_ipfilter $2
+	;;
+ipfs)
+	do_ipfs $2
+	;;
+ipmon)
+	do_ipmon $2
+	;;
+ipnat)
+	do_ipnat $2
+	;;
+*)
+	usage
+	;;
+esac
+exit 0

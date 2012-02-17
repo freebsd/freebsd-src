@@ -1,0 +1,13 @@
+$Id: README,v 1.3 2004/04/11 17:56:46 karl Exp $
+texinfo/lib/README
+
+  Copyright (C) 2002 Free Software Foundation, Inc.
+
+  Copying and distribution of this file, with or without modification,
+  are permitted in any medium without royalty provided the copyright
+  notice and this notice are preserved.
+
+Common routines for the Texinfo programs.
+
+Many are common to other GNU packages as well.
+See the gnulib project at savannah: http://savannah.gnu.org/projects/gnulib

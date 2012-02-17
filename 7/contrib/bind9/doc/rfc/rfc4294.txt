@@ -1,0 +1,1123 @@
+
+
+
+
+
+
+Network Working Group                                   J. Loughney, Ed.
+Request for Comments: 4294                                         Nokia
+Category: Informational                                       April 2006
+
+
+                         IPv6 Node Requirements
+
+Status of This Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (2006).
+
+Abstract
+
+   This document defines requirements for IPv6 nodes.  It is expected
+   that IPv6 will be deployed in a wide range of devices and situations.
+   Specifying the requirements for IPv6 nodes allows IPv6 to function
+   well and interoperate in a large number of situations and
+   deployments.
+
+Table of Contents
+
+   1. Introduction ....................................................2
+      1.1. Requirement Language .......................................3
+      1.2. Scope of This Document .....................................3
+      1.3. Description of IPv6 Nodes ..................................3
+   2. Abbreviations Used in This Document .............................3
+   3. Sub-IP Layer ....................................................4
+      3.1. Transmission of IPv6 Packets over Ethernet Networks
+           - RFC 2464 .................................................4
+      3.2. IP version 6 over PPP - RFC 2472 ...........................4
+      3.3. IPv6 over ATM Networks - RFC 2492 ..........................4
+   4. IP Layer ........................................................5
+      4.1. Internet Protocol Version 6 - RFC 2460 .....................5
+      4.2. Neighbor Discovery for IPv6 - RFC 2461 .....................5
+      4.3. Path MTU Discovery and Packet Size .........................6
+      4.4. ICMP for the Internet Protocol Version 6 (IPv6) -
+           RFC 2463 ...................................................7
+      4.5. Addressing .................................................7
+      4.6. Multicast Listener Discovery (MLD) for IPv6 - RFC 2710 .....8
+   5. DNS and DHCP ....................................................8
+      5.1. DNS ........................................................8
+
+
+
+
+Loughney                     Informational                      [Page 1]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+      5.2. Dynamic Host Configuration Protocol for IPv6
+           (DHCPv6) - RFC 3315 ........................................9
+   6. IPv4 Support and Transition ....................................10
+      6.1. Transition Mechanisms .....................................10
+   7. Mobile IP ......................................................10
+   8. Security .......................................................10
+      8.1. Basic Architecture ........................................10
+      8.2. Security Protocols ........................................11
+      8.3. Transforms and Algorithms .................................11
+      8.4. Key Management Methods ....................................12
+   9. Router-Specific Functionality ..................................12
+      9.1. General ...................................................12
+   10. Network Management ............................................12
+      10.1. Management Information Base Modules (MIBs) ...............12
+   11. Security Considerations .......................................13
+   12. References ....................................................13
+      12.1. Normative References .....................................13
+      12.2. Informative References ...................................16
+   13. Authors and Acknowledgements ..................................18
+
+1.  Introduction
+
+   The goal of this document is to define the common functionality
+   required from both IPv6 hosts and routers.  Many IPv6 nodes will
+   implement optional or additional features, but this document
+   summarizes requirements from other published Standards Track
+   documents in one place.
+
+   This document tries to avoid discussion of protocol details, and
+   references RFCs for this purpose.  This document is informational in
+   nature and does not update Standards Track RFCs.
+
+   Although the document points to different specifications, it should
+   be noted that in most cases, the granularity of requirements are
+   smaller than a single specification, as many specifications define
+   multiple, independent pieces, some of which may not be mandatory.
+
+   As it is not always possible for an implementer to know the exact
+   usage of IPv6 in a node, an overriding requirement for IPv6 nodes is
+   that they should adhere to Jon Postel's Robustness Principle:
+
+      Be conservative in what you do, be liberal in what you accept from
+      others [RFC-793].
+
+
+
+
+
+
+
+
+Loughney                     Informational                      [Page 2]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+1.1.  Requirement Language
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "MAY", and "OPTIONAL" in this
+   document are to be interpreted as described in RFC 2119 [RFC-2119].
+
+1.2.  Scope of This Document
+
+   IPv6 covers many specifications.  It is intended that IPv6 will be
+   deployed in many different situations and environments.  Therefore,
+   it is important to develop the requirements for IPv6 nodes to ensure
+   interoperability.
+
+   This document assumes that all IPv6 nodes meet the minimum
+   requirements specified here.
+
+1.3.  Description of IPv6 Nodes
+
+   From the Internet Protocol, Version 6 (IPv6) Specification
+   [RFC-2460], we have the following definitions:
+
+      Description of an IPv6 Node
+
+         -  a device that implements IPv6.
+
+      Description of an IPv6 router
+
+         -  a node that forwards IPv6 packets not explicitly addressed
+            to itself.
+
+      Description of an IPv6 Host
+
+      -  any node that is not a router.
+
+2.  Abbreviations Used in This Document
+
+   ATM   Asynchronous Transfer Mode
+
+   AH    Authentication Header
+
+   DAD   Duplicate Address Detection
+
+   ESP   Encapsulating Security Payload
+
+   ICMP  Internet Control Message Protocol
+
+   IKE   Internet Key Exchange
+
+
+
+
+Loughney                     Informational                      [Page 3]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+   MIB   Management Information Base
+
+   MLD   Multicast Listener Discovery
+
+   MTU   Maximum Transfer Unit
+
+   NA    Neighbor Advertisement
+
+   NBMA  Non-Broadcast Multiple Access
+
+   ND    Neighbor Discovery
+
+   NS    Neighbor Solicitation
+
+   NUD   Neighbor Unreachability Detection
+
+   PPP   Point-to-Point Protocol
+
+   PVC   Permanent Virtual Circuit
+
+   SVC   Switched Virtual Circuit
+
+3.  Sub-IP Layer
+
+   An IPv6 node must include support for one or more IPv6 link-layer
+   specifications.  Which link-layer specifications are included will
+   depend upon what link-layers are supported by the hardware available
+   on the system.  It is possible for a conformant IPv6 node to support
+   IPv6 on some of its interfaces and not on others.
+
+   As IPv6 is run over new layer 2 technologies, it is expected that new
+   specifications will be issued.  This section highlights some major
+   layer 2 technologies and is not intended to be complete.
+
+3.1.  Transmission of IPv6 Packets over Ethernet Networks - RFC 2464
+
+   Nodes supporting IPv6 over Ethernet interfaces MUST implement
+   Transmission of IPv6 Packets over Ethernet Networks [RFC-2464].
+
+3.2.  IP version 6 over PPP - RFC 2472
+
+   Nodes supporting IPv6 over PPP MUST implement IPv6 over PPP
+   [RFC-2472].
+
+3.3.  IPv6 over ATM Networks - RFC 2492
+
+   Nodes supporting IPv6 over ATM Networks MUST implement IPv6 over ATM
+   Networks [RFC-2492].  Additionally, RFC 2492 states:
+
+
+
+Loughney                     Informational                      [Page 4]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+      A minimally conforming IPv6/ATM driver SHALL support the PVC mode
+      of operation.  An IPv6/ATM driver that supports the full SVC mode
+      SHALL also support PVC mode of operation.
+
+4.  IP Layer
+
+4.1.  Internet Protocol Version 6 - RFC 2460
+
+   The Internet Protocol Version 6 is specified in [RFC-2460].  This
+   specification MUST be supported.
+
+   Unrecognized options in Hop-by-Hop Options or Destination Options
+   extensions MUST be processed as described in RFC 2460.
+
+   The node MUST follow the packet transmission rules in RFC 2460.
+
+   Nodes MUST always be able to send, receive, and process fragment
+   headers.  All conformant IPv6 implementations MUST be capable of
+   sending and receiving IPv6 packets; the forwarding functionality MAY
+   be supported.
+
+   RFC 2460 specifies extension headers and the processing for these
+   headers.
+
+      A full implementation of IPv6 includes implementation of the
+      following extension headers: Hop-by-Hop Options, Routing (Type 0),
+      Fragment, Destination Options, Authentication and Encapsulating
+      Security Payload [RFC-2460].
+
+   An IPv6 node MUST be able to process these headers.  It should be
+   noted that there is some discussion about the use of Routing Headers
+   and possible security threats [IPv6-RH] that they cause.
+
+4.2.  Neighbor Discovery for IPv6 - RFC 2461
+
+   Neighbor Discovery SHOULD be supported.  [RFC-2461] states:
+
+      "Unless specified otherwise (in a document that covers operating
+      IP over a particular link type) this document applies to all link
+      types.  However, because ND uses link-layer multicast for some of
+      its services, it is possible that on some link types (e.g., NBMA
+      links) alternative protocols or mechanisms to implement those
+      services will be specified (in the appropriate document covering
+      the operation of IP over a particular link type).  The services
+      described in this document that are not directly dependent on
+      multicast, such as Redirects, Next-hop determination, Neighbor
+      Unreachability Detection, etc., are expected to be provided as
+
+
+
+
+Loughney                     Informational                      [Page 5]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+      specified in this document.  The details of how one uses ND on
+      NBMA links is an area for further study."
+
+   Some detailed analysis of Neighbor Discovery follows:
+
+   Router Discovery is how hosts locate routers that reside on an
+   attached link.  Router Discovery MUST be supported for
+   implementations.
+
+   Prefix Discovery is how hosts discover the set of address prefixes
+   that define which destinations are on-link for an attached link.
+   Prefix discovery MUST be supported for implementations.  Neighbor
+   Unreachability Detection (NUD) MUST be supported for all paths
+   between hosts and neighboring nodes.  It is not required for paths
+   between routers.  However, when a node receives a unicast Neighbor
+   Solicitation (NS) message (that may be a NUD's NS), the node MUST
+   respond to it (i.e., send a unicast Neighbor Advertisement).
+
+   Duplicate Address Detection MUST be supported on all links supporting
+   link-layer multicast (RFC 2462, Section 5.4, specifies DAD MUST take
+   place on all unicast addresses).
+
+   A host implementation MUST support sending Router Solicitations.
+
+   Receiving and processing Router Advertisements MUST be supported for
+   host implementations.  The ability to understand specific Router
+   Advertisement options is dependent on supporting the specification
+   where the RA is specified.
+
+   Sending and Receiving Neighbor Solicitation (NS) and Neighbor
+   Advertisement (NA) MUST be supported.  NS and NA messages are
+   required for Duplicate Address Detection (DAD).
+
+   Redirect functionality SHOULD be supported.  If the node is a router,
+   Redirect functionality MUST be supported.
+
+4.3.  Path MTU Discovery and Packet Size
+
+4.3.1.  Path MTU Discovery - RFC 1981
+
+   Path MTU Discovery [RFC-1981] SHOULD be supported, though minimal
+   implementations MAY choose to not support it and avoid large packets.
+   The rules in RFC 2460 MUST be followed for packet fragmentation and
+   reassembly.
+
+4.3.2.  IPv6 Jumbograms - RFC 2675
+
+   IPv6 Jumbograms [RFC-2675] MAY be supported.
+
+
+
+Loughney                     Informational                      [Page 6]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+4.4.  ICMP for the Internet Protocol Version 6 (IPv6) - RFC 2463
+
+   ICMPv6 [RFC-2463] MUST be supported.
+
+4.5.  Addressing
+
+4.5.1.  IP Version 6 Addressing Architecture - RFC 3513
+
+   The IPv6 Addressing Architecture [RFC-3513] MUST be supported as
+   updated by [RFC-3879].
+
+4.5.2.  IPv6 Stateless Address Autoconfiguration - RFC 2462
+
+   IPv6 Stateless Address Autoconfiguration is defined in [RFC-2462].
+   This specification MUST be supported for nodes that are hosts.
+   Static address can be supported as well.
+
+   Nodes that are routers MUST be able to generate link local addresses
+   as described in RFC 2462 [RFC-2462].
+
+   From 2462:
+
+      The autoconfiguration process specified in this document applies
+      only to hosts and not routers.  Since host autoconfiguration uses
+      information advertised by routers, routers will need to be
+      configured by some other means.  However, it is expected that
+      routers will generate link-local addresses using the mechanism
+      described in this document.  In addition, routers are expected to
+      successfully pass the Duplicate Address Detection procedure
+      described in this document on all addresses prior to assigning
+      them to an interface.
+
+   Duplicate Address Detection (DAD) MUST be supported.
+
+4.5.3.  Privacy Extensions for Address Configuration in IPv6 - RFC 3041
+
+   Privacy Extensions for Stateless Address Autoconfiguration [RFC-3041]
+   SHOULD be supported.  It is recommended that this behavior be
+   configurable on a connection basis within each application when
+   available.  It is noted that a number of applications do not work
+   with addresses generated with this method, while other applications
+   work quite well with them.
+
+4.5.4.  Default Address Selection for IPv6 - RFC 3484
+
+   The rules specified in the Default Address Selection for IPv6
+   [RFC-3484] document MUST be implemented.  It is expected that IPv6
+   nodes will need to deal with multiple addresses.
+
+
+
+Loughney                     Informational                      [Page 7]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+4.5.5.  Stateful Address Autoconfiguration
+
+   Stateful Address Autoconfiguration MAY be supported.  DHCPv6
+   [RFC-3315] is the standard stateful address configuration protocol;
+   see Section 5.3 for DHCPv6 support.
+
+   Nodes which do not support Stateful Address Autoconfiguration may be
+   unable to obtain any IPv6 addresses, aside from link-local addresses,
+   when it receives a router advertisement with the 'M' flag (Managed
+   address configuration) set and that contains no prefixes advertised
+   for Stateless Address Autoconfiguration (see Section 4.5.2).
+   Additionally, such nodes will be unable to obtain other configuration
+   information, such as the addresses of DNS servers when it is
+   connected to a link over which the node receives a router
+   advertisement in which the 'O' flag ("Other stateful configuration")
+   is set.
+
+4.6.  Multicast Listener Discovery (MLD) for IPv6 - RFC 2710
+
+   Nodes that need to join multicast groups SHOULD implement MLDv2
+   [RFC-3810].  However, if the node has applications that only need
+   support for Any-Source Multicast [RFC-3569], the node MAY implement
+   MLDv1 [RFC-2710] instead.  If the node has applications that need
+   support for Source-Specific Multicast [RFC-3569, SSM-ARCH], the node
+   MUST support MLDv2 [RFC-3810].
+
+   When MLD is used, the rules in the "Source Address Selection for the
+   Multicast Listener Discovery (MLD) Protocol" [RFC-3590] MUST be
+   followed.
+
+5.  DNS and DHCP
+
+5.1.  DNS
+
+   DNS is described in [RFC-1034], [RFC-1035], [RFC-3152], [RFC-3363],
+   and [RFC-3596].  Not all nodes will need to resolve names; those that
+   will never need to resolve DNS names do not need to implement
+   resolver functionality.  However, the ability to resolve names is a
+   basic infrastructure capability that applications rely on and
+   generally needs to be supported.  All nodes that need to resolve
+   names SHOULD implement stub-resolver [RFC-1034] functionality, as in
+   RFC 1034, Section 5.3.1, with support for:
+
+      -  AAAA type Resource Records [RFC-3596];
+
+      -  reverse addressing in ip6.arpa using PTR records [RFC-3152];
+
+
+
+
+
+Loughney                     Informational                      [Page 8]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+      -  EDNS0 [RFC-2671] to allow for DNS packet sizes larger than 512
+         octets.
+
+   Those nodes are RECOMMENDED to support DNS security extensions
+   [RFC-4033], [RFC-4034], and [RFC-4035].
+
+   Those nodes are NOT RECOMMENDED to support the experimental A6 and
+   DNAME Resource Records [RFC-3363].
+
+5.2.  Dynamic Host Configuration Protocol for IPv6 (DHCPv6) - RFC 3315
+
+5.2.1.  Managed Address Configuration
+
+   The method by which IPv6 nodes that use DHCP for address assignment
+   can obtain IPv6 addresses and other configuration information upon
+   receipt of a Router Advertisement with the 'M' flag set is described
+   in Section 5.5.3 of RFC 2462.
+
+   In addition, in the absence of a router, those IPv6 nodes that use
+   DHCP for address assignment MUST initiate DHCP to obtain IPv6
+   addresses and other configuration information, as described in
+   Section 5.5.2 of RFC 2462.  Those IPv6 nodes that do not use DHCP for
+   address assignment can ignore the 'M' flag in Router Advertisements.
+
+5.2.2.  Other Configuration Information
+
+   The method by which IPv6 nodes that use DHCP to obtain other
+   configuration information can obtain other configuration information
+   upon receipt of a Router Advertisement with the 'O' flag set is
+   described in Section 5.5.3 of RFC 2462.
+
+   Those IPv6 nodes that use DHCP to obtain other configuration
+   information initiate DHCP for other configuration information upon
+   receipt of a Router Advertisement with the 'O' flag set, as described
+   in Section 5.5.3 of RFC 2462.  Those IPv6 nodes that do not use DHCP
+   for other configuration information can ignore the 'O' flag in Router
+   Advertisements.
+
+   An IPv6 node can use the subset of DHCP (described in [RFC-3736]) to
+   obtain other configuration information.
+
+5.3.3.  Use of Router Advertisements in Managed Environments
+
+   Nodes using the Dynamic Host Configuration Protocol for IPv6 (DHCPv6)
+   are expected to determine their default router information and on-
+   link prefix information from received Router Advertisements.
+
+
+
+
+
+Loughney                     Informational                      [Page 9]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+6.  IPv4 Support and Transition
+
+   IPv6 nodes MAY support IPv4.
+
+6.1.  Transition Mechanisms
+
+6.1.1.  Transition Mechanisms for IPv6 Hosts and Routers - RFC 2893
+
+   If an IPv6 node implements dual stack and tunneling, then [RFC-4213]
+   MUST be supported.
+
+7.  Mobile IP
+
+   The Mobile IPv6 [RFC-3775] specification defines requirements for the
+   following types of nodes:
+
+      -  mobile nodes
+
+      -  correspondent nodes with support for route optimization
+
+      -  home agents
+
+      -  all IPv6 routers
+
+   Hosts MAY support mobile node functionality described in Section 8.5
+   of [RFC-3775], including support of generic packet tunneling [RFC-
+   2473] and secure home agent communications [RFC-3776].
+
+   Hosts SHOULD support route optimization requirements for
+   correspondent nodes described in Section 8.2 of [RFC-3775].
+
+   Routers SHOULD support the generic mobility-related requirements for
+   all IPv6 routers described in Section 8.3 of [RFC-3775].  Routers MAY
+   support the home agent functionality described in Section 8.4 of
+   [RFC-3775], including support of [RFC-2473] and [RFC-3776].
+
+8.  Security
+
+   This section describes the specification of IPsec for the IPv6 node.
+
+8.1.  Basic Architecture
+
+   Security Architecture for the Internet Protocol [RFC-4301] MUST be
+   supported.
+
+
+
+
+
+
+
+Loughney                     Informational                     [Page 10]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+8.2.  Security Protocols
+
+   ESP [RFC-4303] MUST be supported.  AH [RFC-4302] MUST be supported.
+
+8.3.  Transforms and Algorithms
+
+   Current IPsec RFCs specify the support of transforms and algorithms
+   for use with AH and ESP: NULL encryption, DES-CBC, HMAC-SHA-1-96, and
+   HMAC-MD5-96.  However, "Cryptographic Algorithm Implementation
+   Requirements For ESP And AH" [RFC-4305] contains the current set of
+   mandatory to implement algorithms for ESP and AH.  It also specifies
+   algorithms that should be implemented because they are likely to be
+   promoted to mandatory at some future time.  IPv6 nodes SHOULD conform
+   to the requirements in [RFC-4305], as well as the requirements
+   specified below.
+
+   Since ESP encryption and authentication are both optional, support
+   for the NULL encryption algorithm [RFC-2410] and the NULL
+   authentication algorithm [RFC-4303] MUST be provided to maintain
+   consistency with the way these services are negotiated.  However,
+   while authentication and encryption can each be NULL, they MUST NOT
+   both be NULL.  The NULL encryption algorithm is also useful for
+   debugging.
+
+   The DES-CBC encryption algorithm [RFC-2405] SHOULD NOT be supported
+   within ESP.  Security issues related to the use of DES are discussed
+   in [DESDIFF], [DESINT], and [DESCRACK].  DES-CBC is still listed as
+   required by the existing IPsec RFCs, but updates to these RFCs will
+   be published in the near future.  DES provides 56 bits of protection,
+   which is no longer considered sufficient.
+
+   The use of the HMAC-SHA-1-96 algorithm [RFC-2404] within AH and ESP
+   MUST be supported.  The use of the HMAC-MD5-96 algorithm [RFC-2403]
+   within AH and ESP MAY also be supported.
+
+   The 3DES-CBC encryption algorithm [RFC-2451] does not suffer from the
+   same security issues as DES-CBC, and the 3DES-CBC algorithm within
+   ESP MUST be supported to ensure interoperability.
+
+   The AES-128-CBC algorithm [RFC-3602] MUST also be supported within
+   ESP.  AES-128 is expected to be a widely available, secure, and
+   efficient algorithm.  While AES-128-CBC is not required by the
+   current IPsec RFCs, it is expected to become required in the future.
+
+
+
+
+
+
+
+
+Loughney                     Informational                     [Page 11]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+8.4.  Key Management Methods
+
+   An implementation MUST support the manual configuration of the
+   security key and SPI.  The SPI configuration is needed in order to
+   delineate between multiple keys.
+
+   Key management SHOULD be supported.  Examples of key management
+   systems include IKEv2 [RFC-4306] and Kerberos; S/MIME and TLS include
+   key management functions.
+
+   Where key refresh, anti-replay features of AH and ESP, or on-demand
+   creation of Security Associations (SAs) is required, automated keying
+   MUST be supported.
+
+   Key management methods for multicast traffic are also being worked on
+   by the MSEC WG.
+
+9.  Router-Specific Functionality
+
+   This section defines general host considerations for IPv6 nodes that
+   act as routers.  Currently, this section does not discuss routing-
+   specific requirements.
+
+9.1.  General
+
+9.1.1.  IPv6 Router Alert Option - RFC 2711
+
+   The IPv6 Router Alert Option [RFC-2711] is an optional IPv6 Hop-by-
+   Hop Header that is used in conjunction with some protocols (e.g.,
+   RSVP [RFC-2205] or MLD [RFC-2710]).  The Router Alert option will
+   need to be implemented whenever protocols that mandate its usage are
+   implemented.  See Section 4.6.
+
+9.1.2.  Neighbor Discovery for IPv6 - RFC 2461
+
+   Sending Router Advertisements and processing Router Solicitation MUST
+   be supported.
+
+10.  Network Management
+
+   Network Management MAY be supported by IPv6 nodes.  However, for IPv6
+   nodes that are embedded devices, network management may be the only
+   possible way of controlling these nodes.
+
+10.1.  Management Information Base Modules (MIBs)
+
+   The following two MIBs SHOULD be supported by nodes that support an
+   SNMP agent.
+
+
+
+Loughney                     Informational                     [Page 12]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+10.1.1.  IP Forwarding Table MIB
+
+   IP Forwarding Table MIB [RFC-4292] SHOULD be supported by nodes that
+   support an SNMP agent.
+
+10.1.2.  Management Information Base for the Internet Protocol (IP)
+
+   IP MIB [RFC-4293] SHOULD be supported by nodes that support an SNMP
+   agent.
+
+11.  Security Considerations
+
+   This document does not affect the security of the Internet, but
+   implementations of IPv6 are expected to support a minimum set of
+   security features to ensure security on the Internet.  "IP Security
+   Document Roadmap" [RFC-2411] is important for everyone to read.
+
+   The security considerations in RFC 2460 state the following:
+
+      The security features of IPv6 are described in the Security
+      Architecture for the Internet Protocol [RFC-2401].
+
+   RFC 2401 has been obsoleted by RFC 4301, therefore refer RFC 4301 for
+   the security features of IPv6.
+
+12.  References
+
+12.1.  Normative References
+
+   [RFC-1035]     Mockapetris, P., "Domain names - implementation and
+                  specification", STD 13, RFC 1035, November 1987.
+
+   [RFC-1981]     McCann, J., Deering, S., and J. Mogul, "Path MTU
+                  Discovery for IP version 6", RFC 1981, August 1996.
+
+   [RFC-2104]     Krawczyk, H., Bellare, M., and R. Canetti, "HMAC:
+                  Keyed-Hashing for Message Authentication", RFC 2104,
+                  February 1997.
+
+   [RFC-2119]     Bradner, S., "Key words for use in RFCs to Indicate
+                  Requirement Levels", BCP 14, RFC 2119, March 1997.
+
+   [RFC-2403]     Madson, C. and R. Glenn, "The Use of HMAC-MD5-96
+                  within ESP and AH", RFC 2403, November 1998.
+
+   [RFC-2404]     Madson, C. and R. Glenn, "The Use of HMAC-SHA-1-96
+                  within ESP and AH", RFC 2404, November 1998.
+
+
+
+
+Loughney                     Informational                     [Page 13]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+   [RFC-2405]     Madson, C. and N. Doraswamy, "The ESP DES-CBC Cipher
+                  Algorithm With Explicit IV", RFC 2405, November 1998.
+
+   [RFC-2410]     Glenn, R. and S. Kent, "The NULL Encryption Algorithm
+                  and Its Use With IPsec", RFC 2410, November 1998.
+
+   [RFC-2411]     Thayer, R., Doraswamy, N., and R. Glenn, "IP Security
+                  Document Roadmap", RFC 2411, November 1998.
+
+   [RFC-2451]     Pereira, R. and R. Adams, "The ESP CBC-Mode Cipher
+                  Algorithms", RFC 2451, November 1998.
+
+   [RFC-2460]     Deering, S. and R. Hinden, "Internet Protocol, Version
+                  6 (IPv6) Specification", RFC 2460, December 1998.
+
+   [RFC-2461]     Narten, T., Nordmark, E., and W. Simpson, "Neighbor
+                  Discovery for IP Version 6 (IPv6)", RFC 2461, December
+                  1998.
+
+   [RFC-2462]     Thomson, S. and T. Narten, "IPv6 Stateless Address
+                  Autoconfiguration", RFC 2462, December 1998.
+
+   [RFC-2463]     Conta, A. and S. Deering, "Internet Control Message
+                  Protocol (ICMPv6) for the Internet Protocol Version 6
+                  (IPv6) Specification", RFC 2463, December 1998.
+
+   [RFC-2472]     Haskin, D. and E. Allen, "IP Version 6 over PPP", RFC
+                  2472, December 1998.
+
+   [RFC-2473]     Conta, A. and S. Deering, "Generic Packet Tunneling in
+                  IPv6 Specification", RFC 2473, December 1998.
+
+   [RFC-2671]     Vixie, P., "Extension Mechanisms for DNS (EDNS0)", RFC
+                  2671, August 1999.
+
+   [RFC-2710]     Deering, S., Fenner, W., and B. Haberman, "Multicast
+                  Listener Discovery (MLD) for IPv6", RFC 2710, October
+                  1999.
+
+   [RFC-2711]     Partridge, C. and A. Jackson, "IPv6 Router Alert
+                  Option", RFC 2711, October 1999.
+
+   [RFC-3041]     Narten, T. and R. Draves, "Privacy Extensions for
+                  Stateless Address Autoconfiguration in IPv6", RFC
+                  3041, January 2001.
+
+   [RFC-3152]     Bush, R., "Delegation of IP6.ARPA", BCP 49, RFC 3152,
+                  August 2001.
+
+
+
+Loughney                     Informational                     [Page 14]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+   [RFC-3315]     Droms, R., Bound, J., Volz, B., Lemon, T., Perkins,
+                  C., and M. Carney, "Dynamic Host Configuration
+                  Protocol for IPv6 (DHCPv6)", RFC 3315, July 2003.
+
+   [RFC-3363]     Bush, R., Durand, A., Fink, B., Gudmundsson, O., and
+                  T. Hain, "Representing Internet Protocol version 6
+                  (IPv6) Addresses in the Domain Name System (DNS)", RFC
+                  3363, August 2002.
+
+   [RFC-3484]     Frye, R., Levi, D., Routhier, S., and B. Wijnen,
+                  "Coexistence between Version 1, Version 2, and Version
+                  3 of the Internet-standard Network Management
+                  Framework", BCP 74, RFC 3584, August 2003.
+
+   [RFC-3513]     Hinden, R. and S. Deering, "Internet Protocol Version
+                  6 (IPv6) Addressing Architecture", RFC 3513, April
+                  2003.
+
+   [RFC-3590]     Haberman, B., "Source Address Selection for the
+                  Multicast Listener Discovery (MLD) Protocol", RFC
+                  3590, September 2003.
+
+   [RFC-3596]     Thomson, S., Huitema, C., Ksinant, V., and M. Souissi,
+                  "DNS Extensions to Support IP Version 6", RFC 3596,
+                  October 2003.
+
+   [RFC-3602]     Frankel, S., Glenn, R., and S. Kelly, "The AES-CBC
+                  Cipher Algorithm and Its Use with IPsec", RFC 3602,
+                  September 2003.
+
+   [RFC-3775]     Johnson, D., Perkins, C., and J. Arkko, "Mobility
+                  Support in IPv6", RFC 3775, June 2004.
+
+   [RFC-3776]     Arkko, J., Devarapalli, V., and F. Dupont, "Using
+                  IPsec to Protect Mobile IPv6 Signaling Between Mobile
+                  Nodes and Home Agents", RFC 3776, June 2004.
+
+   [RFC-3810]     Vida, R. and L. Costa, "Multicast Listener Discovery
+                  Version 2 (MLDv2) for IPv6", RFC 3810, June 2004.
+
+   [RFC-3879]     Huitema, C. and B. Carpenter, "Deprecating Site Local
+                  Addresses", RFC 3879, September 2004.
+
+   [RFC-4292]     Haberman, B., "IP Forwarding Table MIB", RFC 4292,
+                  April 2006.
+
+   [RFC-4293]     Routhier, S., Ed., "Management Information Base for
+                  the Internet Protocol (IP)", RFC 4293, April 2006.
+
+
+
+Loughney                     Informational                     [Page 15]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+   [RFC-4301]     Kent, S. and R. Atkinson, "Security Architecture for
+                  the Internet Protocol", RFC 4301, December 2005.
+
+   [RFC-4302]     Kent, S., "IP Authentication Header", RFC 4302,
+                  December 2005.
+
+   [RFC-4303]     Kent, S., "IP Encapsulating Security Payload (ESP)",
+                  RFC 4303, December 2005.
+
+   [RFC-4305]     Eastlake 3rd, D., "Cryptographic Algorithm
+                  Implementation Requirements for Encapsulating Security
+                  Payload (ESP) and Authentication Header (AH)", RFC
+                  4305, December 2005.
+
+12.2.  Informative References
+
+   [DESDIFF]      Biham, E., Shamir, A., "Differential Cryptanalysis of
+                  DES-like cryptosystems", Journal of Cryptology Vol 4,
+                  Jan 1991.
+
+   [DESCRACK]     Cracking DES, O'Reilly & Associates, Sebastapol, CA
+                  2000.
+
+   [DESINT]       Bellovin, S., "An Issue With DES-CBC When Used Without
+                  Strong Integrity", Proceedings of the 32nd IETF,
+                  Danvers, MA, April 1995.
+
+   [IPv6-RH]      P. Savola, "Security of IPv6 Routing Header and Home
+                  Address Options", Work in Progress.
+
+   [RFC-793]      Postel, J., "Transmission Control Protocol", STD 7,
+                  RFC 793, September 1981.
+
+   [RFC-1034]     Mockapetris, P., "Domain names - concepts and
+                  facilities", STD 13, RFC 1034, November 1987.
+
+   [RFC-2205]     Braden, R., Zhang, L., Berson, S., Herzog, S., and S.
+                  Jamin, "Resource ReSerVation Protocol (RSVP) --
+                  Version 1 Functional Specification", RFC 2205,
+                  September 1997.
+
+   [RFC-2464]     Crawford, M., "Transmission of IPv6 Packets over
+                  Ethernet Networks", RFC 2464, December 1998.
+
+   [RFC-2492]     Armitage, G., Schulter, P., and M. Jork, "IPv6 over
+                  ATM Networks", RFC 2492, January 1999.
+
+
+
+
+
+Loughney                     Informational                     [Page 16]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+   [RFC-2675]     Borman, D., Deering, S., and R. Hinden, "IPv6
+                  Jumbograms", RFC 2675, August 1999.
+
+   [RFC-4213]     Nordmark, E. and R. Gilligan, "Basic Transition
+                  Mechanisms for IPv6 Hosts and Routers", RFC 4213,
+                  October 2005.
+
+   [RFC-3569]     Bhattacharyya, S., "An Overview of Source-Specific
+                  Multicast (SSM)", RFC 3569, July 2003.
+
+   [RFC-3736]     Droms, R., "Stateless Dynamic Host Configuration
+                  Protocol (DHCP) Service for IPv6", RFC 3736, April
+                  2004.
+
+   [RFC-4001]     Daniele, M., Haberman, B., Routhier, S., and J.
+                  Schoenwaelder, "Textual Conventions for Internet
+                  Network Addresses", RFC 4001, February 2005.
+
+   [RFC-4033]     Arends, R., Austein, R., Larson, M., Massey, D., and
+                  S. Rose, "DNS Security Introduction and Requirements",
+                  RFC 4033, March 2005.
+
+   [RFC-4034]     Arends, R., Austein, R., Larson, M., Massey, D., and
+                  S. Rose, "Resource Records for the DNS Security
+                  Extensions", RFC 4034, March 2005.
+
+   [RFC-4035]     Arends, R., Austein, R., Larson, M., Massey, D., and
+                  S. Rose, "Protocol Modifications for the DNS Security
+                  Extensions", RFC 4035, March 2005.
+
+   [RFC-4306]     Kaufman, C., Ed., "Internet Key Exchange (IKEv2)
+                  Protocol", RFC 4306, December 2005.
+
+   [SSM-ARCH]     H. Holbrook, B. Cain, "Source-Specific Multicast for
+                  IP", Work in Progress.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Loughney                     Informational                     [Page 17]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+13.  Authors and Acknowledgements
+
+   This document was written by the IPv6 Node Requirements design team:
+
+   Jari Arkko
+   [jari.arkko@ericsson.com]
+
+   Marc Blanchet
+   [marc.blanchet@viagenie.qc.ca]
+
+   Samita Chakrabarti
+   [samita.chakrabarti@eng.sun.com]
+
+   Alain Durand
+   [alain.durand@sun.com]
+
+   Gerard Gastaud
+   [gerard.gastaud@alcatel.fr]
+
+   Jun-ichiro itojun Hagino
+   [itojun@iijlab.net]
+
+   Atsushi Inoue
+   [inoue@isl.rdc.toshiba.co.jp]
+
+   Masahiro Ishiyama
+   [masahiro@isl.rdc.toshiba.co.jp]
+
+   John Loughney
+   [john.loughney@nokia.com]
+
+   Rajiv Raghunarayan
+   [raraghun@cisco.com]
+
+   Shoichi Sakane
+   [shouichi.sakane@jp.yokogawa.com]
+
+   Dave Thaler
+   [dthaler@windows.microsoft.com]
+
+   Juha Wiljakka
+   [juha.wiljakka@Nokia.com]
+
+   The authors would like to thank Ran Atkinson, Jim Bound, Brian
+   Carpenter, Ralph Droms, Christian Huitema, Adam Machalek, Thomas
+   Narten, Juha Ollila, and Pekka Savola for their comments.
+
+
+
+
+
+Loughney                     Informational                     [Page 18]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+Editor's Contact Information
+
+   Comments or questions regarding this document should be sent to the
+   IPv6 Working Group mailing list (ipv6@ietf.org) or to:
+
+   John Loughney
+   Nokia Research Center
+   Itamerenkatu 11-13
+   00180 Helsinki
+   Finland
+
+   Phone: +358 50 483 6242
+   EMail: John.Loughney@Nokia.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Loughney                     Informational                     [Page 19]
+
+RFC 4294                 IPv6 Node Requirements               April 2006
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (2006).
+
+   This document is subject to the rights, licenses and restrictions
+   contained in BCP 78, and except as set forth therein, the authors
+   retain all their rights.
+
+   This document and the information contained herein are provided on an
+   "AS IS" basis and THE CONTRIBUTOR, THE ORGANIZATION HE/SHE REPRESENTS
+   OR IS SPONSORED BY (IF ANY), THE INTERNET SOCIETY AND THE INTERNET
+   ENGINEERING TASK FORCE DISCLAIM ALL WARRANTIES, EXPRESS OR IMPLIED,
+   INCLUDING BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE
+   INFORMATION HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED
+   WARRANTIES OF MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+Intellectual Property
+
+   The IETF takes no position regarding the validity or scope of any
+   Intellectual Property Rights or other rights that might be claimed to
+   pertain to the implementation or use of the technology described in
+   this document or the extent to which any license under such rights
+   might or might not be available; nor does it represent that it has
+   made any independent effort to identify any such rights.  Information
+   on the procedures with respect to rights in RFC documents can be
+   found in BCP 78 and BCP 79.
+
+   Copies of IPR disclosures made to the IETF Secretariat and any
+   assurances of licenses to be made available, or the result of an
+   attempt made to obtain a general license or permission for the use of
+   such proprietary rights by implementers or users of this
+   specification can be obtained from the IETF on-line IPR repository at
+   http://www.ietf.org/ipr.
+
+   The IETF invites any interested party to bring to its attention any
+   copyrights, patents or patent applications, or other proprietary
+   rights that may cover technology that may be required to implement
+   this standard.  Please address the information to the IETF at
+   ietf-ipr@ietf.org.
+
+Acknowledgement
+
+   Funding for the RFC Editor function is provided by the IETF
+   Administrative Support Activity (IASA).
+
+
+
+
+
+
+
+Loughney                     Informational                     [Page 20]
+

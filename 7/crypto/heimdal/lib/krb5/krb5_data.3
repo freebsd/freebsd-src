@@ -1,0 +1,149 @@
+.\" Copyright (c) 2003 Kungliga Tekniska Högskolan
+.\" (Royal Institute of Technology, Stockholm, Sweden). 
+.\" All rights reserved. 
+.\"
+.\" Redistribution and use in source and binary forms, with or without 
+.\" modification, are permitted provided that the following conditions 
+.\" are met: 
+.\"
+.\" 1. Redistributions of source code must retain the above copyright 
+.\"    notice, this list of conditions and the following disclaimer. 
+.\"
+.\" 2. Redistributions in binary form must reproduce the above copyright 
+.\"    notice, this list of conditions and the following disclaimer in the 
+.\"    documentation and/or other materials provided with the distribution. 
+.\"
+.\" 3. Neither the name of the Institute nor the names of its contributors 
+.\"    may be used to endorse or promote products derived from this software 
+.\"    without specific prior written permission. 
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE INSTITUTE AND CONTRIBUTORS ``AS IS'' AND 
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE 
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE 
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE INSTITUTE OR CONTRIBUTORS BE LIABLE 
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL 
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS 
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) 
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT 
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY 
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF 
+.\" SUCH DAMAGE. 
+.\" 
+.\" $Id: krb5_data.3,v 1.4 2003/04/16 13:58:13 lha Exp $
+.\" 
+.Dd March 20, 2003
+.Dt KRB5_DATA 3
+.Os HEIMDAL
+.Sh NAME
+.Nm krb5_data
+.Nm krb5_data_zero
+.Nm krb5_data_free
+.Nm krb5_free_data_contents
+.Nm krb5_free_data
+.Nm krb5_data_alloc
+.Nm krb5_data_realloc
+.Nm krb5_data_copy
+.Nm krb5_copy_data
+.Nd operates on the Kerberos datatype krb5_data.
+.Sh LIBRARY
+Kerberos 5 Library (libkrb5, -lkrb5)
+.Sh SYNOPSIS
+.In krb5.h
+.Pp
+.Li "struct krb5_data;"
+.Ft void
+.Fn krb5_data_zero "krb5_data *p"
+.Ft void
+.Fn krb5_data_free "krb5_data *p"
+.Ft void
+.Fn krb5_free_data_contents "krb5_context context" "krb5_data *p"
+.Ft void
+.Fn krb5_free_data "krb5_context context" "krb5_data *p"
+.Ft krb5_error_code
+.Fn krb5_data_alloc "krb5_data *p" "int len"
+.Ft krb5_error_code
+.Fn krb5_data_realloc "krb5_data *p" "int len"
+.Ft krb5_error_code
+.Fn krb5_data_copy "krb5_data *p" "const void *data" "size_t len"
+.Ft krb5_error_code
+.Fn krb5_copy_data "krb5_context context" "const krb5_data *indata" "krb5_data **outdata"
+.Sh DESCRIPTION
+The
+.Li krb5_data
+structure holds a data element.
+The structure contains two public accessible elements
+.Fa length
+(the length of data)
+and
+.Fa data
+(the data itself).
+The structure must always be initiated and freed by the functions
+documented in this manual.
+.Pp
+.Fn krb5_data_zero
+resets the content of
+.Fa p .
+.Pp
+.Fn krb5_data_free
+free the data in
+.Fa p .
+.Pp
+.Fn krb5_free_data_contents
+works the same way as
+.Fa krb5_data_free .
+The diffrence is that krb5_free_data_contents is more portable (exists
+in MIT api).
+.Pp
+.Fn krb5_free_data
+frees the data in
+.Fa p
+and
+.Fa p
+itself .
+.Pp
+.Fn krb5_data_alloc
+allocates
+.Fa len
+bytes in
+.Fa p
+Returns 0 or an error.
+.Pp
+.Fn  krb5_data_realloc
+reallocates the length of
+.Fa p
+to the length in
+.Fa len .
+Returns 0 or an error.
+.Pp
+.Fn krb5_data_copy
+copies the
+.Fa data
+that have the length
+.Fa len
+into
+.Fa p .
+.Fa p
+is not freed so the calling function should make sure the
+.Fa p
+doesn't contain anything needs to be freed.
+Returns 0 or an error.
+.Pp
+.Fn krb5_copy_data
+copies the
+.Li krb5_data
+in
+.Fa indata
+to
+.Fa outdata .
+.Fa outdata
+is not freed so the calling function should make sure the
+.Fa outdata
+doesn't contain anything needs to be freed.
+.Fa outdata
+should be freed using
+.Fn krb5_free_data .
+Returns 0 or an error.
+.Sh SEE ALSO
+.Xr krb5 3 ,
+.Xr krb5_storage 3 ,
+.Xr kerberos 8

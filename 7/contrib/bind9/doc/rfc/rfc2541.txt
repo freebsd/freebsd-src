@@ -1,0 +1,395 @@
+
+
+
+
+
+
+Network Working Group                                        D. Eastlake
+Request for Comments: 2541                                           IBM
+Category: Informational                                       March 1999
+
+
+                DNS Security Operational Considerations
+
+Status of this Memo
+
+   This memo provides information for the Internet community.  It does
+   not specify an Internet standard of any kind.  Distribution of this
+   memo is unlimited.
+
+Copyright Notice
+
+   Copyright (C) The Internet Society (1999).  All Rights Reserved.
+
+Abstract
+
+   Secure DNS is based on cryptographic techniques.  A necessary part of
+   the strength of these techniques is careful attention to the
+   operational aspects of key and signature generation, lifetime, size,
+   and storage.  In addition, special attention must be paid to the
+   security of the high level zones, particularly the root zone.  This
+   document discusses these operational aspects for keys and signatures
+   used in connection with the KEY and SIG DNS resource records.
+
+Acknowledgments
+
+   The contributions and suggestions of the following persons (in
+   alphabetic order) are gratefully acknowledged:
+
+         John Gilmore
+         Olafur Gudmundsson
+         Charlie Kaufman
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake                     Informational                      [Page 1]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+Table of Contents
+
+   Abstract...................................................1
+   Acknowledgments............................................1
+   1. Introduction............................................2
+   2. Public/Private Key Generation...........................2
+   3. Public/Private Key Lifetimes............................2
+   4. Public/Private Key Size Considerations..................3
+   4.1 RSA Key Sizes..........................................3
+   4.2 DSS Key Sizes..........................................4
+   5. Private Key Storage.....................................4
+   6. High Level Zones, The Root Zone, and The Meta-Root Key..5
+   7. Security Considerations.................................5
+   References.................................................6
+   Author's Address...........................................6
+   Full Copyright Statement...................................7
+
+1. Introduction
+
+   This document describes operational considerations for the
+   generation, lifetime, size, and storage of DNS cryptographic keys and
+   signatures for use in the KEY and SIG resource records [RFC 2535].
+   Particular attention is paid to high level zones and the root zone.
+
+2. Public/Private Key Generation
+
+   Careful generation of all keys is a sometimes overlooked but
+   absolutely essential element in any cryptographically secure system.
+   The strongest algorithms used with the longest keys are still of no
+   use if an adversary can guess enough to lower the size of the likely
+   key space so that it can be exhaustively searched.  Technical
+   suggestions for the generation of random keys will be found in [RFC
+   1750].
+
+   Long term keys are particularly sensitive as they will represent a
+   more valuable target and be subject to attack for a longer time than
+   short period keys.  It is strongly recommended that long term key
+   generation occur off-line in a manner isolated from the network via
+   an air gap or, at a minimum, high level secure hardware.
+
+3. Public/Private Key Lifetimes
+
+   No key should be used forever.  The longer a key is in use, the
+   greater the probability that it will have been compromised through
+   carelessness, accident, espionage, or cryptanalysis.  Furthermore, if
+
+
+
+
+
+
+Eastlake                     Informational                      [Page 2]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+   key rollover is a rare event, there is an increased risk that, when
+   the time does come to change the key, no one at the site will
+   remember how to do it or operational problems will have developed in
+   the key rollover procedures.
+
+   While public key lifetime is a matter of local policy, these
+   considerations imply that, unless there are extraordinary
+   circumstances, no long term key should have a lifetime significantly
+   over four years.  In fact, a reasonable guideline for long term keys
+   that are kept off-line and carefully guarded is a 13 month lifetime
+   with the intent that they be replaced every year.  A reasonable
+   maximum lifetime for keys that are used for transaction security or
+   the like and are kept on line is 36 days with the intent that they be
+   replaced monthly or more often.  In many cases, a key lifetime of
+   somewhat over a day may be reasonable.
+
+   On the other hand, public keys with too short a lifetime can lead to
+   excessive resource consumption in re-signing data and retrieving
+   fresh information because cached information becomes stale.  In the
+   Internet environment, almost all public keys should have lifetimes no
+   shorter than three minutes, which is a reasonable estimate of maximum
+   packet delay even in unusual circumstances.
+
+4. Public/Private Key Size Considerations
+
+   There are a number of factors that effect public key size choice for
+   use in the DNS security extension.  Unfortunately, these factors
+   usually do not all point in the same direction.  Choice of zone key
+   size should generally be made by the zone administrator depending on
+   their local conditions.
+
+   For most schemes, larger keys are more secure but slower.  In
+   addition, larger keys increase the size of the KEY and SIG RRs.  This
+   increases the chance of DNS UDP packet overflow and the possible
+   necessity for using higher overhead TCP in responses.
+
+4.1 RSA Key Sizes
+
+   Given a small public exponent, verification (the most common
+   operation) for the MD5/RSA algorithm will vary roughly with the
+   square of the modulus length, signing will vary with the cube of the
+   modulus length, and key generation (the least common operation) will
+   vary with the fourth power of the modulus length.  The current best
+   algorithms for factoring a modulus and breaking RSA security vary
+   roughly with the 1.6 power of the modulus itself.  Thus going from a
+   640 bit modulus to a 1280 bit modulus only increases the verification
+   time by a factor of 4 but may increase the work factor of breaking
+   the key by over 2^900.
+
+
+
+Eastlake                     Informational                      [Page 3]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+   The recommended minimum RSA algorithm modulus size is 704 bits which
+   is believed by the author to be secure at this time.  But high level
+   zones in the DNS tree may wish to set a higher minimum, perhaps 1000
+   bits, for security reasons.  (Since the United States National
+   Security Agency generally permits export of encryption systems using
+   an RSA modulus of up to 512 bits, use of that small a modulus, i.e.
+   n, must be considered weak.)
+
+   For an RSA key used only to secure data and not to secure other keys,
+   704 bits should be adequate at this time.
+
+4.2 DSS Key Sizes
+
+   DSS keys are probably roughly as strong as an RSA key of the same
+   length but DSS signatures are significantly smaller.
+
+5. Private Key Storage
+
+   It is recommended that, where possible, zone private keys and the
+   zone file master copy be kept and used in off-line, non-network
+   connected, physically secure machines only.  Periodically an
+   application can be run to add authentication to a zone by adding SIG
+   and NXT RRs and adding no-key type KEY RRs for subzones/algorithms
+   where a real KEY RR for the subzone with that algorithm is not
+   provided. Then the augmented file can be transferred, perhaps by
+   sneaker-net, to the networked zone primary server machine.
+
+   The idea is to have a one way information flow to the network to
+   avoid the possibility of tampering from the network.  Keeping the
+   zone master file on-line on the network and simply cycling it through
+   an off-line signer does not do this.  The on-line version could still
+   be tampered with if the host it resides on is compromised.  For
+   maximum security, the master copy of the zone file should be off net
+   and should not be updated based on an unsecured network mediated
+   communication.
+
+   This is not possible if the zone is to be dynamically updated
+   securely [RFC 2137]. At least a private key capable of updating the
+   SOA and NXT chain must be on line in that case.
+
+   Secure resolvers must be configured with some trusted on-line public
+   key information (or a secure path to such a resolver) or they will be
+   unable to authenticate.  Although on line, this public key
+   information must be protected or it could be altered so that spoofed
+   DNS data would appear authentic.
+
+
+
+
+
+
+Eastlake                     Informational                      [Page 4]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+   Non-zone private keys, such as host or user keys, generally have to
+   be kept on line to be used for real-time purposes such as DNS
+   transaction security.
+
+6. High Level Zones, The Root Zone, and The Meta-Root Key
+
+   Higher level zones are generally more sensitive than lower level
+   zones.  Anyone controlling or breaking the security of a zone thereby
+   obtains authority over all of its subdomains (except in the case of
+   resolvers that have locally configured the public key of a
+   subdomain).  Therefore, extra care should be taken with high level
+   zones and strong keys used.
+
+   The root zone is the most critical of all zones.  Someone controlling
+   or compromising the security of the root zone would control the
+   entire DNS name space of all resolvers using that root zone (except
+   in the case of resolvers that have locally configured the public key
+   of a subdomain). Therefore, the utmost care must be taken in the
+   securing of the root zone. The strongest and most carefully handled
+   keys should be used.  The root zone private key should always be kept
+   off line.
+
+   Many resolvers will start at a root server for their access to and
+   authentication of DNS data.  Securely updating an enormous population
+   of resolvers around the world will be extremely difficult.  Yet the
+   guidelines in section 3 above would imply that the root zone private
+   key be changed annually or more often and if it were staticly
+   configured at all these resolvers, it would have to be updated when
+   changed.
+
+   To permit relatively frequent change to the root zone key yet
+   minimize exposure of the ultimate key of the DNS tree, there will be
+   a "meta-root" key used very rarely and then only to sign a sequence
+   of regular root key RRsets with overlapping time validity periods
+   that are to be rolled out. The root zone contains the meta-root and
+   current regular root KEY RR(s) signed by SIG RRs under both the
+   meta-root and other root private key(s) themselves.
+
+   The utmost security in the storage and use of the meta-root key is
+   essential.  The exact techniques are precautions to be used are
+   beyond the scope of this document.  Because of its special position,
+   it may be best to continue with the same meta-root key for an
+   extended period of time such as ten to fifteen years.
+
+7. Security Considerations
+
+   The entirety of this document is concerned with operational
+   considerations of public/private key pair DNS Security.
+
+
+
+Eastlake                     Informational                      [Page 5]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+References
+
+   [RFC 1034]   Mockapetris, P., "Domain Names - Concepts and
+                Facilities", STD 13, RFC 1034, November 1987.
+
+   [RFC 1035]   Mockapetris, P., "Domain Names - Implementation and
+                Specifications", STD 13, RFC 1035, November 1987.
+
+   [RFC 1750]   Eastlake, D., Crocker, S. and J. Schiller, "Randomness
+                Requirements for Security", RFC 1750, December 1994.
+
+   [RFC 2065]   Eastlake, D. and C. Kaufman, "Domain Name System
+                Security Extensions", RFC 2065, January 1997.
+
+   [RFC 2137]   Eastlake, D., "Secure Domain Name System Dynamic
+                Update", RFC 2137, April 1997.
+
+   [RFC 2535]   Eastlake, D., "Domain Name System Security Extensions",
+                RFC 2535, March 1999.
+
+   [RSA FAQ]    RSADSI Frequently Asked Questions periodic posting.
+
+Author's Address
+
+   Donald E. Eastlake 3rd
+   IBM
+   65 Shindegan Hill Road, RR #1
+   Carmel, NY 10512
+
+   Phone:   +1-914-276-2668(h)
+            +1-914-784-7913(w)
+   Fax:     +1-914-784-3833(w)
+   EMail:   dee3@us.ibm.com
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake                     Informational                      [Page 6]
+
+RFC 2541        DNS Security Operational Considerations       March 1999
+
+
+Full Copyright Statement
+
+   Copyright (C) The Internet Society (1999).  All Rights Reserved.
+
+   This document and translations of it may be copied and furnished to
+   others, and derivative works that comment on or otherwise explain it
+   or assist in its implementation may be prepared, copied, published
+   and distributed, in whole or in part, without restriction of any
+   kind, provided that the above copyright notice and this paragraph are
+   included on all such copies and derivative works.  However, this
+   document itself may not be modified in any way, such as by removing
+   the copyright notice or references to the Internet Society or other
+   Internet organizations, except as needed for the purpose of
+   developing Internet standards in which case the procedures for
+   copyrights defined in the Internet Standards process must be
+   followed, or as required to translate it into languages other than
+   English.
+
+   The limited permissions granted above are perpetual and will not be
+   revoked by the Internet Society or its successors or assigns.
+
+   This document and the information contained herein is provided on an
+   "AS IS" basis and THE INTERNET SOCIETY AND THE INTERNET ENGINEERING
+   TASK FORCE DISCLAIMS ALL WARRANTIES, EXPRESS OR IMPLIED, INCLUDING
+   BUT NOT LIMITED TO ANY WARRANTY THAT THE USE OF THE INFORMATION
+   HEREIN WILL NOT INFRINGE ANY RIGHTS OR ANY IMPLIED WARRANTIES OF
+   MERCHANTABILITY OR FITNESS FOR A PARTICULAR PURPOSE.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Eastlake                     Informational                      [Page 7]
+

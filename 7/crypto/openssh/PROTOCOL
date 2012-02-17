@@ -1,0 +1,243 @@
+This documents OpenSSH's deviations and extensions to the published SSH
+protocol.
+
+Note that OpenSSH's sftp and sftp-server implement revision 3 of the SSH
+filexfer protocol described in:
+
+http://www.openssh.com/txt/draft-ietf-secsh-filexfer-02.txt
+
+Features from newer versions of the draft are not supported, unless
+explicitly implemented as extensions described below.
+
+The protocol used by OpenSSH's ssh-agent is described in the file
+PROTOCOL.agent
+
+1. transport: Protocol 2 MAC algorithm "umac-64@openssh.com"
+
+This is a new transport-layer MAC method using the UMAC algorithm
+(rfc4418). This method is identical to the "umac-64" method documented
+in:
+
+http://www.openssh.com/txt/draft-miller-secsh-umac-01.txt
+
+2. transport: Protocol 2 compression algorithm "zlib@openssh.com"
+
+This transport-layer compression method uses the zlib compression
+algorithm (identical to the "zlib" method in rfc4253), but delays the
+start of compression until after authentication has completed. This
+avoids exposing compression code to attacks from unauthenticated users.
+
+The method is documented in:
+
+http://www.openssh.com/txt/draft-miller-secsh-compression-delayed-00.txt
+
+3. connection: Channel write close extension "eow@openssh.com"
+
+The SSH connection protocol (rfc4254) provides the SSH_MSG_CHANNEL_EOF
+message to allow an endpoint to signal its peer that it will send no
+more data over a channel. Unfortunately, there is no symmetric way for
+an endpoint to request that its peer should cease sending data to it
+while still keeping the channel open for the endpoint to send data to
+the peer.
+
+This is desirable, since it saves the transmission of data that would
+otherwise need to be discarded and it allows an endpoint to signal local
+processes of the condition, e.g. by closing the corresponding file
+descriptor.
+
+OpenSSH implements a channel extension message to perform this
+signalling: "eow@openssh.com" (End Of Write). This message is sent by
+an endpoint when the local output of a session channel is closed or
+experiences a write error. The message is formatted as follows:
+
+	byte		SSH_MSG_CHANNEL_REQUEST
+	uint32		recipient channel
+	string		"eow@openssh.com"
+	boolean		FALSE
+
+On receiving this message, the peer SHOULD cease sending data of
+the channel and MAY signal the process from which the channel data
+originates (e.g. by closing its read file descriptor).
+
+As with the symmetric SSH_MSG_CHANNEL_EOF message, the channel does
+remain open after a "eow@openssh.com" has been sent and more data may
+still be sent in the other direction. This message does not consume
+window space and may be sent even if no window space is available.
+
+4. connection: disallow additional sessions extension
+   "no-more-sessions@openssh.com"
+
+Most SSH connections will only ever request a single session, but a
+attacker may abuse a running ssh client to surreptitiously open
+additional sessions under their control. OpenSSH provides a global
+request "no-more-sessions@openssh.com" to mitigate this attack.
+
+When an OpenSSH client expects that it will never open another session
+(i.e. it has been started with connection multiplexing disabled), it
+will send the following global request:
+
+	byte		SSH_MSG_GLOBAL_REQUEST
+	string		"no-more-sessions@openssh.com"
+	char		want-reply
+
+On receipt of such a message, an OpenSSH server will refuse to open
+future channels of type "session" and instead immediately abort the
+connection.
+
+Note that this is not a general defence against compromised clients
+(that is impossible), but it thwarts a simple attack.
+
+5. connection: Tunnel forward extension "tun@openssh.com"
+
+OpenSSH supports layer 2 and layer 3 tunnelling via the "tun@openssh.com"
+channel type. This channel type supports forwarding of network packets
+with datagram boundaries intact between endpoints equipped with 
+interfaces like the BSD tun(4) device. Tunnel forwarding channels are
+requested by the client with the following packet:
+
+	byte		SSH_MSG_CHANNEL_OPEN
+	string		"tun@openssh.com"
+	uint32		sender channel
+	uint32		initial window size
+	uint32		maximum packet size
+	uint32		tunnel mode
+	uint32		remote unit number
+
+The "tunnel mode" parameter specifies whether the tunnel should forward
+layer 2 frames or layer 3 packets. It may take one of the following values:
+
+	SSH_TUNMODE_POINTOPOINT  1		/* layer 3 packets */
+	SSH_TUNMODE_ETHERNET     2		/* layer 2 frames */
+
+The "tunnel unit number" specifies the remote interface number, or may
+be zero to allow the server to automatically chose an interface. A server
+that is not willing to open a client-specified unit should refuse the
+request with a SSH_MSG_CHANNEL_OPEN_FAILURE error. On successful open,
+the server should reply with SSH_MSG_CHANNEL_OPEN_SUCCESS.
+
+Once established the client and server may exchange packet or frames
+over the tunnel channel by encapsulating them in SSH protocol strings
+and sending them as channel data. This ensures that packet boundaries
+are kept intact. Specifically, packets are transmitted using normal
+SSH_MSG_CHANNEL_DATA packets:
+
+	byte		SSH_MSG_CHANNEL_DATA
+	uint32		recipient channel
+	string		data
+
+The contents of the "data" field for layer 3 packets is:
+
+	uint32			packet length
+	uint32			address family
+	byte[packet length - 4]	packet data
+
+The "address family" field identifies the type of packet in the message.
+It may be one of:
+
+	SSH_TUN_AF_INET		2		/* IPv4 */
+	SSH_TUN_AF_INET6	24		/* IPv6 */
+
+The "packet data" field consists of the IPv4/IPv6 datagram itself
+without any link layer header.
+
+The contents of the "data" field for layer 3 packets is:
+
+	uint32			packet length
+	byte[packet length]	frame
+
+The "frame" field contains an IEEE 802.3 Ethernet frame, including
+header.
+
+6. sftp: Reversal of arguments to SSH_FXP_SYMLINK
+
+When OpenSSH's sftp-server was implemented, the order of the arguments
+to the SSH_FXP_SYMLINK method was inadvertently reversed. Unfortunately,
+the reversal was not noticed until the server was widely deployed. Since
+fixing this to follow the specification would cause incompatibility, the
+current order was retained. For correct operation, clients should send
+SSH_FXP_SYMLINK as follows:
+
+	uint32		id
+	string		targetpath
+	string		linkpath
+
+7. sftp: Server extension announcement in SSH_FXP_VERSION
+
+OpenSSH's sftp-server lists the extensions it supports using the
+standard extension announcement mechanism in the SSH_FXP_VERSION server
+hello packet:
+
+	uint32		3		/* protocol version */
+	string		ext1-name
+	string		ext1-version
+	string		ext2-name
+	string		ext2-version
+	...
+	string		extN-name
+	string		extN-version
+
+Each extension reports its integer version number as an ASCII encoded
+string, e.g. "1". The version will be incremented if the extension is
+ever changed in an incompatible way. The server MAY advertise the same
+extension with multiple versions (though this is unlikely). Clients MUST
+check the version number before attempting to use the extension.
+
+8. sftp: Extension request "posix-rename@openssh.com"
+
+This operation provides a rename operation with POSIX semantics, which
+are different to those provided by the standard SSH_FXP_RENAME in
+draft-ietf-secsh-filexfer-02.txt. This request is implemented as a
+SSH_FXP_EXTENDED request with the following format:
+
+	uint32		id
+	string		"posix-rename@openssh.com"
+	string		oldpath
+	string		newpath
+
+On receiving this request the server will perform the POSIX operation
+rename(oldpath, newpath) and will respond with a SSH_FXP_STATUS message.
+This extension is advertised in the SSH_FXP_VERSION hello with version
+"1".
+
+9. sftp: Extension requests "statvfs@openssh.com" and
+         "fstatvfs@openssh.com"
+
+These requests correspond to the statvfs and fstatvfs POSIX system
+interfaces. The "statvfs@openssh.com" request operates on an explicit
+pathname, and is formatted as follows:
+
+	uint32		id
+	string		"statvfs@openssh.com"
+	string		path
+
+The "fstatvfs@openssh.com" operates on an open file handle:
+
+	uint32		id
+	string		"fstatvfs@openssh.com"
+	string		handle
+
+These requests return a SSH_FXP_STATUS reply on failure. On success they
+return the following SSH_FXP_EXTENDED_REPLY reply:
+
+	uint32		id
+	uint64		f_bsize		/* file system block size */
+	uint64		f_frsize	/* fundamental fs block size */
+	uint64		f_blocks	/* number of blocks (unit f_frsize) */
+	uint64		f_bfree		/* free blocks in file system */
+	uint64		f_bavail	/* free blocks for non-root */
+	uint64		f_files		/* total file inodes */
+	uint64		f_ffree		/* free file inodes */
+	uint64		f_favail	/* free file inodes for to non-root */
+	uint64		f_fsid		/* file system id */
+	uint64		f_flag		/* bit mask of f_flag values */
+	uint64		f_namemax	/* maximum filename length */
+
+The values of the f_flag bitmask are as follows:
+
+	#define SSH_FXE_STATVFS_ST_RDONLY	0x1	/* read-only */
+	#define SSH_FXE_STATVFS_ST_NOSUID	0x2	/* no setuid */
+
+Both the "statvfs@openssh.com" and "fstatvfs@openssh.com" extensions are
+advertised in the SSH_FXP_VERSION hello with version "2".
+
+$OpenBSD: PROTOCOL,v 1.11 2008/07/05 05:16:01 djm Exp $

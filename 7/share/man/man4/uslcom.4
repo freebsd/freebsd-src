@@ -1,0 +1,97 @@
+.\"	$OpenBSD: uslcom.4,v 1.6 2007/10/08 03:10:42 jcs Exp $
+.\"
+.\" Copyright (c) 2006 Jonathan Gray <jsg@openbsd.org>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 31, 2007
+.Dt USLCOM 4
+.Os
+.Sh NAME
+.Nm uslcom
+.Nd Silicon Laboratories CP2101/CP2102 based USB serial adapter
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uslcom"
+.Cd "device ucom"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uslcom_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver supports Silicon Laboratories CP2101/CP2102 based serial adapters.
+.Sh HARDWARE
+The following devices should work with the
+.Nm
+driver:
+.Pp
+.Bl -bullet -compact
+.It
+Argussoft ISP
+.It
+Baltech card reader
+.It
+Burnside Telecom Desktop Mobile
+.It
+chip45.com Crumb128 module
+.It
+Jablotron PC-60B
+.It
+Lipowsky Baby-JTAG
+.It
+Lipowsky Baby-LIN
+.It
+Lipowsky HARP-1
+.It
+Pololu USB to Serial
+.It
+Silicon Laboratories CP2101
+.It
+Silicon Laboratories CP2102
+.It
+Track Systems Traqmate
+.El
+.Sh SEE ALSO
+.Xr tty 4 ,
+.Xr ucom 4 ,
+.Xr usb 4
+.Sh HISTORY
+The
+.Nm
+device driver first appeared in
+.Ox 4.0 .
+The first
+.Fx
+release to include it was
+.Fx 7.1 .
+.Sh AUTHORS
+The
+.Nm
+driver was written by
+.An Jonathan Gray Aq jsg@openbsd.org .
+.Sh CAVEATS
+Setting hardware flow control is not currently supported.
+.Pp
+Silicon Laboratories do not release any programming information
+on their products.
