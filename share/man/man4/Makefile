@@ -328,6 +328,7 @@ MAN=	aac.4 \
 	${_nvram.4} \
 	${_nvram2env.4} \
 	${_nxge.4} \
+	oce.4 \
 	ohci.4 \
 	orm.4 \
 	${_padlock.4} \
