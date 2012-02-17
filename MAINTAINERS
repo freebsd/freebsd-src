@@ -129,6 +129,7 @@ gnu/usr.bin/send-pr	bugmaster	Pre-commit review requested.
 BSD.{local,x11*}.dist	portmgr	Pre-commit review requested, since these files interface with ports.
 usb		core	Please contact core@ before any major changes
 ncurses		rafan	Heads-up appreciated, try not to break it.
+isci(4)		jimharris	Pre-commit review requested.
 
 Following are the entries from the Makefiles, and a few other sources.
 Please remove stale entries from both their origin, and this file.

@@ -68,3 +68,6 @@ KDTRACE_FRAME		opt_kdtrace.h
 
 # BPF just-in-time compiler
 BPF_JITTER		opt_bpf.h
+
+# options for the Intel C600 SAS driver (isci)
+ISCI_LOGGING	opt_isci.h
