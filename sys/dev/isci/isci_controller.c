@@ -549,7 +549,7 @@ void isci_action(struct cam_sim *sim, union ccb *ccb)
 			cpi->hba_eng_cnt = 0;
 			cpi->max_target = SCI_MAX_REMOTE_DEVICES - 1;
 			cpi->max_lun = ISCI_MAX_LUN;
-#if __FreeBSD_version >= 704100
+#if __FreeBSD_version >= 800102
 			cpi->maxio = isci_io_request_get_max_io_size();
 #endif
 			cpi->unit_number = cam_sim_unit(sim);
