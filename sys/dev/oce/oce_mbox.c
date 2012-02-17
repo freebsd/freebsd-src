@@ -37,9 +37,7 @@
  */
 
 
-
 /* $FreeBSD$ */
-
 
 #include "oce_if.h"
 
@@ -143,7 +141,6 @@ oce_mbox_wait(POCE_SOFTC sc, uint32_t tmo_sec)
 
 	return ETIMEDOUT;
 }
-
 
 
 /**
@@ -287,6 +284,42 @@ oce_get_fw_version(POCE_SOFTC sc)
 	return 0;
 }
 
+
+/**
+ * @brief	Firmware will send gracious notifications during
+ *		attach only after sending first mcc commnad. We  
+ *		use MCC queue only for getting async and mailbox
+ *		for sending cmds. So to get gracious notifications
+ *		atleast send one dummy command on mcc.
+ */
+int 
+oce_first_mcc_cmd(POCE_SOFTC sc)
+{
+	struct oce_mbx *mbx;
+	struct oce_mq *mq = sc->mq;
+	struct mbx_get_common_fw_version *fwcmd;
+	uint32_t reg_value;
+
+	mbx = RING_GET_PRODUCER_ITEM_VA(mq->ring, struct oce_mbx);
+	bzero(mbx, sizeof(struct oce_mbx));
+	
+	fwcmd = (struct mbx_get_common_fw_version *)&mbx->payload;
+	mbx_common_req_hdr_init(&fwcmd->hdr, 0, 0,
+				MBX_SUBSYSTEM_COMMON,
+				OPCODE_COMMON_GET_FW_VERSION,
+				MBX_TIMEOUT_SEC,
+				sizeof(struct mbx_get_common_fw_version),
+				OCE_MBX_VER_V0);
+	mbx->u0.s.embedded = 1;
+	mbx->payload_length = sizeof(struct mbx_get_common_fw_version);
+	bus_dmamap_sync(mq->ring->dma.tag, mq->ring->dma.map,
+				BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
+	RING_PUT(mq->ring, 1);
+	reg_value = (1 << 16) | mq->mq_id;
+	OCE_WRITE_REG32(sc, db, PD_MQ_DB, reg_value);
+
+	return 0;
+}
 
 /**
  * @brief		Function to post a MBX to the mbox
@@ -1328,6 +1361,7 @@ oce_mbox_write_flashrom(POCE_SOFTC sc, uint32_t optype,uint32_t opcode,
 	sgl->length = payload_len;
 
 	/* post the command */
+	rc = oce_mbox_post(sc, &mbx, NULL);
 	if (rc) {
 		device_printf(sc->dev, "Write FlashROM mbox post failed\n");
 	} else {
