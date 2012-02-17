@@ -265,19 +265,12 @@ tmpfs_close(struct vop_close_args *v)
 {
 	struct vnode *vp = v->a_vp;
 
-	struct tmpfs_node *node;
-
 	MPASS(VOP_ISLOCKED(vp));
 
-	node = VP_TO_TMPFS_NODE(vp);
+	/* Update node times. */
+	tmpfs_update(vp);
 
-	if (node->tn_links > 0) {
-		/* Update node times.  No need to do it if the node has
-		 * been deleted, because it will vanish after we return. */
-		tmpfs_update(vp);
-	}
-
-	return 0;
+	return (0);
 }
 
 /* --------------------------------------------------------------------- */
@@ -444,7 +437,7 @@ tmpfs_nocacheread(vm_object_t tobj, vm_pindex_t idx,
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	m = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (m->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &m, 1, 0);
@@ -645,7 +638,7 @@ nocache:
 	VM_OBJECT_LOCK(tobj);
 	vm_object_pip_add(tobj, 1);
 	tpg = vm_page_grab(tobj, idx, VM_ALLOC_WIRED |
-	    VM_ALLOC_ZERO | VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
+	    VM_ALLOC_NORMAL | VM_ALLOC_RETRY);
 	if (tpg->valid != VM_PAGE_BITS_ALL) {
 		if (vm_pager_has_page(tobj, idx, NULL, NULL)) {
 			error = vm_pager_get_pages(tobj, &tpg, 1, 0);
@@ -822,8 +815,7 @@ tmpfs_remove(struct vop_remove_args *v)
 	 * reclaimed. */
 	tmpfs_free_dirent(tmp, de, TRUE);
 
-	if (node->tn_links > 0)
-		node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
+	node->tn_status |= TMPFS_NODE_ACCESSED | TMPFS_NODE_CHANGED;
 	error = 0;
 
 out:

@@ -142,7 +142,6 @@ struct xb_softc {
 #define XB_READY	(1 << 2)	/* Is ready */
 #define XB_FROZEN	(1 << 3)	/* Waiting for resources */
 	int			vdevice;
-	blkif_vdev_t		handle;
 	int			connected;
 	u_int			ring_pages;
 	uint32_t		max_requests;

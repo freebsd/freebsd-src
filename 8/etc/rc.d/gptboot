@@ -34,7 +34,7 @@
 . /etc/rc.subr
 
 name="gptboot"
-rcvar=`set_rcvar`
+rcvar="gptboot_enable"
 start_cmd="gptboot_report"
 
 gptboot_report()

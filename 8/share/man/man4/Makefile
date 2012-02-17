@@ -171,6 +171,7 @@ MAN=	aac.4 \
 	ipsec.4 \
 	ipw.4 \
 	ipwfw.4 \
+	isci.4 \
 	iscsi_initiator.4 \
 	isp.4 \
 	ispfw.4 \
@@ -245,6 +246,7 @@ MAN=	aac.4 \
 	net80211.4 \
 	netgraph.4 \
 	netintro.4 \
+	netmap.4 \
 	${_nfe.4} \
 	${_nfsmb.4} \
 	ng_async.4 \
@@ -506,6 +508,7 @@ MAN=	aac.4 \
 	${_xen.4} \
 	xhci.4 \
 	xl.4 \
+	${_xnb.4} \
 	xpt.4 \
 	zero.4 \
 	zyd.4
@@ -694,6 +697,7 @@ _urtw.4=	urtw.4
 _viawd.4=	viawd.4
 _wpi.4=		wpi.4
 _xen.4=		xen.4
+_xnb.4=		xnb.4
 
 MLINKS+=lindev.4 full.4
 .endif

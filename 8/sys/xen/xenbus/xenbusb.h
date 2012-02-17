@@ -41,7 +41,6 @@
  * Datastructures and function declarations for use in implementing
  * bus attachements (e.g. frontend and backend device busses) for XenBus.
  */
-#include "xenbusb_if.h"
 
 /**
  * Enumeration of state flag values for the xbs_flags field of
@@ -61,10 +60,6 @@ struct xenbusb_softc {
 	 * XenStore watch used to monitor the subtree of the
 	 * XenStore where devices for this bus attachment arrive	
 	 * and depart.
-	 *
-	 * \note This field must be the first in the softc structure
-	 *       so that a simple cast can be used to retrieve the
-	 *	 softc from within a XenStore watch event callback.
 	 */
 	struct xs_watch	        xbs_device_watch;
 
@@ -129,13 +124,16 @@ struct xenbus_device_ivars {
 	 * XenStore watch used to monitor the subtree of the
 	 * XenStore where information about the otherend of
 	 * the split Xen device this device instance represents.
-	 *
-	 * \note This field must be the first in the instance
-	 *	 variable structure so that a simple cast can be
-	 *	 used to retrieve ivar data from within a XenStore
-	 *	 watch event callback.
 	 */
 	struct xs_watch		xd_otherend_watch;
+
+	/**
+	 * XenStore watch used to monitor the XenStore sub-tree
+	 * associated with this device.  This watch will fire
+	 * for modifications that we make from our domain as
+	 * well as for those made by the control domain.
+	 */
+	struct xs_watch		xd_local_watch;
 
 	/** Sleepable lock used to protect instance data. */
 	struct sx		xd_lock;
@@ -151,6 +149,9 @@ struct xenbus_device_ivars {
 	 * this VMs half of this device.
 	 */
 	char		       *xd_node;
+
+	/** The length of xd_node.  */
+	int			xd_node_len;
 
 	/** XenBus device type ("vbd", "vif", etc.). */
 	char		       *xd_type;
@@ -168,6 +169,9 @@ struct xenbus_device_ivars {
 	 * about the otherend of this split device instance.
 	 */
 	char		       *xd_otherend_path;
+
+	/** The length of xd_otherend_path.  */
+	int			xd_otherend_path_len;
 };
 
 /**
@@ -247,6 +251,26 @@ int xenbusb_write_ivar(device_t dev, device_t child, int index,
 		       uintptr_t value);
 
 /**
+ * \brief Common XenBus method implementing responses to peer state changes.
+ * 
+ * \param bus       The XenBus bus parent of child.
+ * \param child     The XenBus child whose peer stat has changed.
+ * \param state     The current state of the peer.
+ */
+void xenbusb_otherend_changed(device_t bus, device_t child,
+			      enum xenbus_state state);
+
+/**
+ * \brief Common XenBus method implementing responses to local XenStore changes.
+ * 
+ * \param bus    The XenBus bus parent of child.
+ * \param child  The XenBus child whose peer stat has changed.
+ * \param path   The tree relative sub-path to the modified node.  The empty
+ *               string indicates the root of the tree was destroyed.
+ */
+void xenbusb_localend_changed(device_t bus, device_t child, const char *path);
+
+/**
  * \brief Attempt to add a XenBus device instance to this XenBus bus.
  *
  * \param dev   The NewBus device representing this XenBus bus.
@@ -268,5 +292,7 @@ int xenbusb_write_ivar(device_t dev, device_t child, int index,
  * a callback from the XenStore.
  */
 int xenbusb_add_device(device_t dev, const char *type, const char *id);
+
+#include "xenbusb_if.h"
 
 #endif /* _XEN_XENBUS_XENBUSB_H */

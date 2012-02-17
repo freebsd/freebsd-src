@@ -52,6 +52,14 @@ struct ngpcb {
 	int		  type;		/* NG_CONTROL or NG_DATA */
 };
 
+#ifdef _KERNEL
+struct hookpriv {
+	LIST_ENTRY(hookpriv)	next;
+	hook_p			hook;
+};
+LIST_HEAD(ngshash, hookpriv);
+#endif
+
 /* Per-node private data */
 struct ngsock {
 	struct ng_node	*node;		/* the associated netgraph node */
@@ -62,6 +70,10 @@ struct ngsock {
 	struct mtx	mtx;		/* mtx to wait on */
 	int		error;		/* place to store error */
 	ng_ID_t		node_id;	/* a hint for netstat(1) to find the node */
+#ifdef _KERNEL
+	struct ngshash	*hash;		/* hash for hook names */
+	u_long		hmask;		/* hash mask */
+#endif
 };
 #define	NGS_FLAG_NOLINGER	1	/* close with last hook */
 

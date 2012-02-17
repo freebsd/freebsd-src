@@ -1397,7 +1397,6 @@ sound_modevent(module_t mod, int type, void *data)
 			pcmsg_unrhdr = new_unrhdr(1, INT_MAX, NULL);
 			break;
 		case MOD_UNLOAD:
-		case MOD_SHUTDOWN:
 			ret = sndstat_acquire(curthread);
 			if (ret != 0)
 				break;
@@ -1405,6 +1404,8 @@ sound_modevent(module_t mod, int type, void *data)
 				delete_unrhdr(pcmsg_unrhdr);
 				pcmsg_unrhdr = NULL;
 			}
+			break;
+		case MOD_SHUTDOWN:
 			break;
 		default:
 			ret = ENOTSUP;

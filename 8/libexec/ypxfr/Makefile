@@ -19,7 +19,7 @@ LDADD=	-lrpcsvc
 CLEANFILES= ${GENSRCS}
 
 RPCDIR= ${.CURDIR}/../../include/rpcsvc
-RPCGEN= rpcgen -I -C
+RPCGEN=	RPCGEN_CPP=${CPP:Q} rpcgen -I -C
 
 ypxfr_clnt.c: ${RPCDIR}/yp.x
 	rm -f ${.TARGET}

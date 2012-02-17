@@ -17,6 +17,7 @@ makeoptions	MODULES_OVERRIDE=""
 #
 options 	NO_ADAPTIVE_MUTEXES
 options 	NO_ADAPTIVE_RWLOCKS
+options 	NO_ADAPTIVE_SX
 
 # Xen HVM support
 options 	XENHVM
