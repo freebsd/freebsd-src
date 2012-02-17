@@ -446,7 +446,7 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halRxStreams = 2;
 		else
 			pCap->halRxStreams = 1;
-		return HAL_OK;
+		return AH_TRUE;
 	case HAL_CAP_TX_CHAINMASK:
 		setting &= ath_hal_eepromGet(ah, AR_EEP_TXMASK, NULL);
 		pCap->halTxChainMask = setting;
@@ -454,7 +454,7 @@ ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 			pCap->halTxStreams = 2;
 		else
 			pCap->halTxStreams = 1;
-		return HAL_OK;
+		return AH_TRUE;
 	default:
 		break;
 	}
