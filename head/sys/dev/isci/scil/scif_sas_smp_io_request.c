@@ -580,7 +580,7 @@ SCI_STATUS scif_sas_smp_external_request_retry(
 
       default:
          //unsupported case, TBD
-         break;
+         return SCI_FAILURE;
    } //end of switch
 
    //set the retry count to new built smp request.

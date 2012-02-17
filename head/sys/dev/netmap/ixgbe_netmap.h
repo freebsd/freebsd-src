@@ -55,9 +55,9 @@
  * *_netmap_attach() routine.
  */
 static int	ixgbe_netmap_reg(struct ifnet *, int onoff);
-static int	ixgbe_netmap_txsync(void *, u_int, int);
-static int	ixgbe_netmap_rxsync(void *, u_int, int);
-static void	ixgbe_netmap_lock_wrapper(void *, int, u_int);
+static int	ixgbe_netmap_txsync(struct ifnet *, u_int, int);
+static int	ixgbe_netmap_rxsync(struct ifnet *, u_int, int);
+static void	ixgbe_netmap_lock_wrapper(struct ifnet *, int, u_int);
 
 
 /*
@@ -82,13 +82,6 @@ ixgbe_netmap_attach(struct adapter *adapter)
 	na.nm_rxsync = ixgbe_netmap_rxsync;
 	na.nm_lock = ixgbe_netmap_lock_wrapper;
 	na.nm_register = ixgbe_netmap_reg;
-	/*
-	 * XXX where do we put this comment ?
-	 * adapter->rx_mbuf_sz is set by SIOCSETMTU, but in netmap mode
-	 * we allocate the buffers on the first register. So we must
-	 * disallow a SIOCSETMTU when if_capenable & IFCAP_NETMAP is set.
-	 */
-	na.buff_size = NETMAP_BUF_SIZE;
 	netmap_attach(&na, adapter->num_queues);
 }	
 
@@ -97,9 +90,9 @@ ixgbe_netmap_attach(struct adapter *adapter)
  * wrapper to export locks to the generic netmap code.
  */
 static void
-ixgbe_netmap_lock_wrapper(void *_a, int what, u_int queueid)
+ixgbe_netmap_lock_wrapper(struct ifnet *_a, int what, u_int queueid)
 {
-	struct adapter *adapter = _a;
+	struct adapter *adapter = _a->if_softc;
 
 	ASSERT(queueid < adapter->num_queues);
 	switch (what) {
@@ -197,9 +190,9 @@ fail:
  * buffers irrespective of interrupt mitigation.
  */
 static int
-ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
@@ -217,6 +210,7 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 		IXGBE_TX_LOCK(txr);
 	/* take a copy of ring->cur now, and never read it again */
 	k = ring->cur;
+	/* do a sanity check on cur - hwcur XXX verify */
 	l = k - kring->nr_hwcur;
 	if (l < 0)
 		l += lim + 1;
@@ -247,9 +241,7 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)	/* wraparound */
-			l += lim + 1;
+		l = netmap_tidx_k2n(na, ring_nr, j); /* NIC index */
 
 		while (j != k) {
 			/*
@@ -354,7 +346,8 @@ ring_reset:
 		 * otherwise we go to sleep (in netmap_poll()) and will be
 		 * woken up when slot nr_kflags will be ready.
 		 */
-		struct ixgbe_legacy_tx_desc *txd = (struct ixgbe_legacy_tx_desc *)txr->tx_base;
+		struct ixgbe_legacy_tx_desc *txd =
+		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
 
 		j = txr->next_to_clean + kring->nkr_num_slots/2;
 		if (j >= kring->nkr_num_slots)
@@ -365,9 +358,7 @@ ring_reset:
 		kring->nr_kflags = j; /* the slot to check */
 		j = txd[j].upper.fields.status & IXGBE_TXD_STAT_DD;
 	}
-	if (!j) {
-		netmap_skip_txsync++;
-	} else {
+	if (j) {
 		int delta;
 
 		/*
@@ -426,9 +417,9 @@ ring_reset:
  * do_lock has a special meaning: please refer to txsync.
  */
 static int
-ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
@@ -467,11 +458,9 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	l = rxr->next_to_check;
-	j = rxr->next_to_check + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 
-    if (force_update) {
+    if (netmap_no_pendintr || force_update) {
 	for (n = 0; ; n++) {
 		union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
 		uint32_t staterr = le32toh(curr->wb.upper.status_error);
@@ -501,9 +490,7 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur;
 	if (j != k) {	/* userspace has read some packets. */
 		n = 0;
-		l = kring->nr_hwcur - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
+		l = netmap_ridx_k2n(na, ring_nr, j);
 		while (j != k) {
 			/* collect per-slot info, with similar validations
 			 * and flag handling as in the txsync code.
@@ -548,6 +535,7 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	}
 	/* tell userspace that there are new packets */
 	ring->avail = kring->nr_hwavail ;
+
 	if (do_lock)
 		IXGBE_RX_UNLOCK(rxr);
 	return 0;

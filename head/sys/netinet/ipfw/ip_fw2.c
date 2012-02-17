@@ -1649,8 +1649,22 @@ do {								\
 				break;
 
 			case O_TCPWIN:
-				match = (proto == IPPROTO_TCP && offset == 0 &&
-				    cmd->arg1 == TCP(ulp)->th_win);
+				if (proto == IPPROTO_TCP && offset == 0) {
+				    uint16_t x;
+				    uint16_t *p;
+				    int i;
+
+				    x = ntohs(TCP(ulp)->th_win);
+				    if (cmdlen == 1) {
+					match = (cmd->arg1 == x);
+					break;
+				    }
+				    /* Otherwise we have ranges. */
+				    p = ((ipfw_insn_u16 *)cmd)->ports;
+				    i = cmdlen - 1;
+				    for (; !match && i > 0; i--, p += 2)
+					match = (x >= p[0] && x <= p[1]);
+				}
 				break;
 
 			case O_ESTAB:

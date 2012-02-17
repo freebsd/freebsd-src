@@ -601,7 +601,18 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	td->td_md.md_tls = tls_base;
+	/* 
+	 * tls_base passed to this function 
+         * from thr_new call and points to actual TCB struct, 
+	 * so we should add TP_OFFSET + sizeof(struct tcb)
+	 * to make it the same way TLS base is passed to 
+	 * MIPS_SET_TLS/MIPS_GET_TLS API 
+	 */
+#ifdef __mips_n64
+	td->td_md.md_tls = (char*)tls_base + 0x7010;
+#else
+	td->td_md.md_tls = (char*)tls_base + 0x7008;
+#endif
 	return (0);
 }
 

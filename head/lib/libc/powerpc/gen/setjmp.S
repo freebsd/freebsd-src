@@ -69,7 +69,7 @@ ENTRY(setjmp)
 	li	%r3,0			/* return (0) */
 	blr
 
-	WEAK_ALIAS(longjmp, __longjmp)
+	WEAK_REFERENCE(CNAME(__longjmp), longjmp)
 ENTRY(__longjmp)
 	lmw	%r9,20(%r3)		/* restore regs */
 	mr	%r6,%r4			/* save val param */

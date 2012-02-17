@@ -891,14 +891,14 @@ shminit()
 		printf("kern.ipc.shmmaxpgs is now called kern.ipc.shmall!\n");
 #endif
 	TUNABLE_ULONG_FETCH("kern.ipc.shmall", &shminfo.shmall);
-
-	/* Initialize shmmax dealing with possible overflow. */
-	for (i = PAGE_SIZE; i > 0; i--) {
-		shminfo.shmmax = shminfo.shmall * i;
-		if (shminfo.shmmax >= shminfo.shmall)
-			break;
+	if (!TUNABLE_ULONG_FETCH("kern.ipc.shmmax", &shminfo.shmmax)) {
+		/* Initialize shmmax dealing with possible overflow. */
+		for (i = PAGE_SIZE; i > 0; i--) {
+			shminfo.shmmax = shminfo.shmall * i;
+			if (shminfo.shmmax >= shminfo.shmall)
+				break;
+		}
 	}
-
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmin", &shminfo.shmmin);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmmni", &shminfo.shmmni);
 	TUNABLE_ULONG_FETCH("kern.ipc.shmseg", &shminfo.shmseg);

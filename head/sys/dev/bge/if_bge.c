@@ -2786,6 +2786,8 @@ bge_attach(device_t dev)
 	sc = device_get_softc(dev);
 	sc->bge_dev = dev;
 
+	bge_add_sysctls(sc);
+
 	TASK_INIT(&sc->bge_intr_task, 0, bge_intr_task, sc);
 
 	/*
@@ -3197,8 +3199,6 @@ bge_attach(device_t dev)
 		error = ENXIO;
 		goto fail;
 	}
-
-	bge_add_sysctls(sc);
 
 	/* Set default tuneable values. */
 	sc->bge_stat_ticks = BGE_TICKS_PER_SEC;

@@ -337,4 +337,3 @@ fetchip(void)
 	if (sysctl(name, 4, &curstat.u, &len, 0, 0) < 0)
 		return;
 }
-

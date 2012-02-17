@@ -107,7 +107,7 @@ struct _ata_identify_device_data {
 	u16 model_number[20];	/* 27-46*/
 	u16 reserved3[209];	/* 47-255*/
 };
-
+static u32 event_count;
 static void mpssas_fw_work(struct mps_softc *sc,
     struct mps_fw_event_work *fw_event);
 static void mpssas_fw_event_free(struct mps_softc *,
@@ -119,7 +119,7 @@ static int mpssas_get_sata_identify(struct mps_softc *sc, u16 handle,
 int mpssas_get_sas_address_for_sata_disk(struct mps_softc *sc,
     u64 *sas_address, u16 handle, u32 device_info);
 static int mpssas_volume_add(struct mps_softc *sc,
-    Mpi2EventIrConfigElement_t *element);
+    u16 handle);
 
 void
 mpssas_evt_handler(struct mps_softc *sc, uintptr_t data,
@@ -191,6 +191,8 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 	struct mpssas_softc *sassc;
 	sassc = sc->sassc;
 
+	mps_dprint(sc, MPS_INFO, "(%d)->(%s) Working on  Event: [%x]\n",
+			event_count++,__func__,fw_event->event);
 	switch (fw_event->event) {
 	case MPI2_EVENT_SAS_TOPOLOGY_CHANGE_LIST: 
 	{
@@ -284,7 +286,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			case MPI2_EVENT_IR_CHANGE_RC_VOLUME_CREATED:
 			case MPI2_EVENT_IR_CHANGE_RC_ADDED:
 				if (!foreign_config) {
-					if (mpssas_volume_add(sc, element)) {
+					if (mpssas_volume_add(sc, le16toh(element->VolDevHandle))){
 						printf("%s: failed to add RAID "
 						    "volume with handle 0x%x\n",
 						    __func__, le16toh(element->
@@ -319,12 +321,18 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 				}
 				break;
 			case MPI2_EVENT_IR_CHANGE_RC_PD_CREATED:
+			case MPI2_EVENT_IR_CHANGE_RC_HIDE:
 				/*
 				 * Phys Disk of a volume has been created.  Hide
 				 * it from the OS.
 				 */
-				mpssas_prepare_remove(sassc, element->
-				    PhysDiskDevHandle);
+				targ = mpssas_find_target_by_handle(sassc, 0, element->PhysDiskDevHandle);
+				if (targ == NULL) 
+					break;
+
+				targ->flags |= MPS_TARGET_FLAGS_RAID_COMPONENT;
+				mpssas_rescan_target(sc, targ);
+				
 				break;
 			case MPI2_EVENT_IR_CHANGE_RC_PD_DELETED:
 				/*
@@ -379,6 +387,35 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			    "handle 0x%x", event_data->PreviousValue,
 			    event_data->NewValue,
 			    event_data->VolDevHandle);
+				u32 state;
+				struct mpssas_target *targ;
+				state = le32toh(event_data->NewValue);
+				switch (state) {
+				case MPI2_RAID_VOL_STATE_MISSING:
+				case MPI2_RAID_VOL_STATE_FAILED:
+					mpssas_prepare_volume_remove(sassc, event_data->
+							VolDevHandle);
+					break;
+		 
+				case MPI2_RAID_VOL_STATE_ONLINE:
+				case MPI2_RAID_VOL_STATE_DEGRADED:
+				case MPI2_RAID_VOL_STATE_OPTIMAL:
+					targ = mpssas_find_target_by_handle(sassc, 0, event_data->VolDevHandle);
+					if (targ) {
+						printf("%s %d: Volume handle 0x%x is already added \n",
+							       	__func__, __LINE__ , event_data->VolDevHandle);
+						break;
+					}
+					if (mpssas_volume_add(sc, le16toh(event_data->VolDevHandle))) {
+						printf("%s: failed to add RAID "
+							"volume with handle 0x%x\n",
+							__func__, le16toh(event_data->
+							VolDevHandle));
+					}
+					break;
+				default:
+					break;
+				}
 			break;
 		default:
 			break;
@@ -389,6 +426,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 	{
 		Mpi2EventDataIrPhysicalDisk_t *event_data =
 		    fw_event->event_data;
+		struct mpssas_target *targ;
 
 		/*
 		 * Informational only.
@@ -399,7 +437,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 			mps_dprint(sc, MPS_INFO, "   Phys Disk Settings "
 			    "changed from 0x%x to 0x%x for Phys Disk Number "
 			    "%d and handle 0x%x at Enclosure handle 0x%x, Slot "
-			    "%d", event_data->PreviousValue,
+			    "%d\n", event_data->PreviousValue,
 			    event_data->NewValue, event_data->PhysDiskNum,
 			    event_data->PhysDiskDevHandle,
 			    event_data->EnclosureHandle, event_data->Slot);
@@ -407,7 +445,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		case MPI2_EVENT_IR_PHYSDISK_RC_STATUS_FLAGS_CHANGED:
 			mps_dprint(sc, MPS_INFO, "   Phys Disk Status changed "
 			    "from 0x%x to 0x%x for Phys Disk Number %d and "
-			    "handle 0x%x at Enclosure handle 0x%x, Slot %d",
+			    "handle 0x%x at Enclosure handle 0x%x, Slot %d\n",
 			    event_data->PreviousValue, event_data->NewValue,
 			    event_data->PhysDiskNum,
 			    event_data->PhysDiskDevHandle,
@@ -416,12 +454,38 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		case MPI2_EVENT_IR_PHYSDISK_RC_STATE_CHANGED:
 			mps_dprint(sc, MPS_INFO, "   Phys Disk State changed "
 			    "from 0x%x to 0x%x for Phys Disk Number %d and "
-			    "handle 0x%x at Enclosure handle 0x%x, Slot %d",
+			    "handle 0x%x at Enclosure handle 0x%x, Slot %d\n",
 			    event_data->PreviousValue, event_data->NewValue,
 			    event_data->PhysDiskNum,
 			    event_data->PhysDiskDevHandle,
 			    event_data->EnclosureHandle, event_data->Slot);
-			break;
+			switch (event_data->NewValue) {
+				case MPI2_RAID_PD_STATE_ONLINE:
+				case MPI2_RAID_PD_STATE_DEGRADED:
+				case MPI2_RAID_PD_STATE_REBUILDING:
+				case MPI2_RAID_PD_STATE_OPTIMAL:
+				case MPI2_RAID_PD_STATE_HOT_SPARE:
+					targ = mpssas_find_target_by_handle(sassc, 0, 
+							event_data->PhysDiskDevHandle);
+					if (targ) {
+						targ->flags |= MPS_TARGET_FLAGS_RAID_COMPONENT;
+						printf("%s %d: Found Target for handle 0x%x.  \n",
+						__func__, __LINE__ , event_data->PhysDiskDevHandle);
+					}
+				break;
+				case MPI2_RAID_PD_STATE_OFFLINE:
+				case MPI2_RAID_PD_STATE_NOT_CONFIGURED:
+				case MPI2_RAID_PD_STATE_NOT_COMPATIBLE:
+				default:
+					targ = mpssas_find_target_by_handle(sassc, 0, 
+							event_data->PhysDiskDevHandle);
+					if (targ) {
+						targ->flags |= ~MPS_TARGET_FLAGS_RAID_COMPONENT;
+						printf("%s %d: Found Target for handle 0x%x.  \n",
+						__func__, __LINE__ , event_data->PhysDiskDevHandle);
+					}
+				break;
+			}
 		default:
 			break;
 		}
@@ -494,6 +558,7 @@ mpssas_fw_work(struct mps_softc *sc, struct mps_fw_event_work *fw_event)
 		break;
 
 	}
+	mps_dprint(sc, MPS_INFO, "(%d)->(%s) Event Free: [%x]\n",event_count,__func__, fw_event->event);
 	mpssas_fw_event_free(sc, fw_event);
 }
 
@@ -584,7 +649,7 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 		error = ENXIO;
 		goto out;
 	}
-	mps_vprintf(sc, "SAS Address from SAS device page0 = %jx\n",
+	mps_dprint(sc, MPS_INFO, "SAS Address from SAS device page0 = %jx\n",
 	    sas_address);
 	targ = &sassc->targets[id];
 	targ->devinfo = device_info;
@@ -605,12 +670,12 @@ mpssas_add_device(struct mps_softc *sc, u16 handle, u8 linkrate){
 	TAILQ_INIT(&targ->timedout_commands);
 	SLIST_INIT(&targ->luns);
 	mps_describe_devinfo(targ->devinfo, devstring, 80);
-	mps_vprintf(sc, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
+	mps_dprint(sc, MPS_INFO, "Found device <%s> <%s> <0x%04x> <%d/%d>\n", devstring,
 	    mps_describe_table(mps_linkrate_names, targ->linkrate),
 	    targ->handle, targ->encl_handle, targ->encl_slot);
 	if ((sassc->flags & MPSSAS_IN_STARTUP) == 0)
 		mpssas_rescan_target(sc, targ);
-	mps_vprintf(sc, "Target id 0x%x added\n", targ->tid);
+	mps_dprint(sc, MPS_INFO, "Target id 0x%x added\n", targ->tid);
 out:
 	mpssas_startup_decrement(sassc);
 	return (error);
@@ -751,12 +816,11 @@ out:
 }
 
 static int
-mpssas_volume_add(struct mps_softc *sc, Mpi2EventIrConfigElement_t *element)
+mpssas_volume_add(struct mps_softc *sc, u16 handle)
 {
 	struct mpssas_softc *sassc;
 	struct mpssas_target *targ;
 	u64 wwid;
-	u16 handle = le16toh(element->VolDevHandle);
 	unsigned int id;
 	int error = 0;
 
@@ -855,7 +919,9 @@ mpssas_ir_shutdown(struct mps_softc *sc)
 	action->Function = MPI2_FUNCTION_RAID_ACTION;
 	action->Action = MPI2_RAID_ACTION_SYSTEM_SHUTDOWN_INITIATED;
 	cm->cm_desc.Default.RequestFlags = MPI2_REQ_DESCRIPT_FLAGS_DEFAULT_TYPE;
+	mps_lock(sc);
 	mps_request_polled(sc, cm);
+	mps_unlock(sc);
 
 	/*
 	 * Don't check for reply, just leave.
