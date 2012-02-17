@@ -154,6 +154,9 @@
 #define	ASYNC_EVENT_CODE_LINK_STATE	0x1
 #define	ASYNC_EVENT_LINK_UP		0x1
 #define	ASYNC_EVENT_LINK_DOWN		0x0
+#define ASYNC_EVENT_GRP5		0x5
+#define ASYNC_EVENT_PVID_STATE		0x3
+#define VLAN_VID_MASK			0x0FFF
 
 /* port link_status */
 #define	ASYNC_EVENT_LOGICAL		0x02
@@ -610,7 +613,10 @@ struct oce_mq_cqe {
 			uint32_t hpi_buffer_cmpl:1;
 			uint32_t completed:1;
 			uint32_t consumed:1;
-			uint32_t rsvd0:27;
+			uint32_t rsvd0:3;
+			uint32_t async_type:8;
+			uint32_t event_type:8;
+			uint32_t rsvd1:8;
 #else
 			/* dw0 */
 			uint32_t completion_status:16;
@@ -618,7 +624,10 @@ struct oce_mq_cqe {
 			/* dw1 dw2 */
 			uint32_t mq_tag[2];
 			/* dw3 */
-			uint32_t rsvd0:27;
+			uint32_t rsvd1:8;
+			uint32_t event_type:8;
+			uint32_t async_type:8;
+			uint32_t rsvd0:3;
 			uint32_t consumed:1;
 			uint32_t completed:1;
 			uint32_t hpi_buffer_cmpl:1;
@@ -686,6 +695,63 @@ struct oce_async_cqe_link_state {
 		uint32_t dw[4];
 	} u0;
 };
+
+
+/* PVID aync event */
+struct oce_async_event_grp5_pvid_state {
+	uint8_t enabled;
+	uint8_t rsvd0;
+	uint16_t tag;
+	uint32_t event_tag;
+	uint32_t rsvd1;
+	uint32_t code;
+};
+
+typedef union oce_mq_ext_ctx_u {
+	uint32_t dw[6];
+	struct {
+		#ifdef _BIG_ENDIAN
+		/* dw0 */
+		uint32_t dw4rsvd1:16;
+		uint32_t num_pages:16;
+		/* dw1 */
+		uint32_t async_evt_bitmap;
+		/* dw2 */
+		uint32_t cq_id:10;
+		uint32_t dw5rsvd2:2;
+		uint32_t ring_size:4;
+		uint32_t dw5rsvd1:16;
+		/* dw3 */
+		uint32_t valid:1;
+		uint32_t dw6rsvd1:31;
+		/* dw4 */
+		uint32_t dw7rsvd1:21;
+		uint32_t async_cq_id:10;
+		uint32_t async_cq_valid:1;
+	#else
+		/* dw0 */
+		uint32_t num_pages:16;
+		uint32_t dw4rsvd1:16;
+		/* dw1 */
+		uint32_t async_evt_bitmap;
+		/* dw2 */
+		uint32_t dw5rsvd1:16;
+		uint32_t ring_size:4;
+		uint32_t dw5rsvd2:2;
+		uint32_t cq_id:10;
+		/* dw3 */
+		uint32_t dw6rsvd1:31;
+		uint32_t valid:1;
+		/* dw4 */
+		uint32_t async_cq_valid:1;
+		uint32_t async_cq_id:10;
+		uint32_t dw7rsvd1:21;
+	#endif
+		/* dw5 */
+		uint32_t dw8rsvd1;
+	} v0;
+} oce_mq_ext_ctx_t;
+
 
 /* MQ mailbox structure */
 struct oce_bmbx {
@@ -1342,6 +1408,23 @@ struct mbx_create_common_mq {
 	} params;
 };
 
+struct mbx_create_common_mq_ex {
+	struct mbx_hdr hdr;
+	union {
+		struct {
+			oce_mq_ext_ctx_t context;
+			struct phys_addr pages[8];
+		} req;
+
+		struct {
+			uint32_t mq_id:16;
+			uint32_t rsvd0:16;
+		} rsp;
+	} params;
+};
+
+
+
 /* [53] OPCODE_COMMON_DESTROY_MQ */
 struct mbx_destroy_common_mq {
 	struct mbx_hdr hdr;
@@ -1584,7 +1667,7 @@ enum CQFW_FUNCTION_MODES_SUPPORTED {
 	FNM_BE3_COMPAT_MODE = 0x10000,	/* BE3 features */
 	FNM_VNIC_MODE = 0x20000,	/* Set when IBM vNIC mode is set */
 	FNM_VNTAG_MODE = 0x40000, 	/* Set when VNTAG mode is set */
-	FNM_UMC_MODE = 0x80000,		/* Set when UMC mode is set */
+	FNM_UMC_MODE = 0x1000000,	/* Set when UMC mode is set */
 	FNM_UMC_DEF_EN = 0x100000,	/* Set when UMC Default is set */
 	FNM_ONE_GB_EN = 0x200000,	/* Set when 1GB Default is set */
 	FNM_VNIC_DEF_VALID = 0x400000,	/* Set when VNIC_DEF_EN is valid */

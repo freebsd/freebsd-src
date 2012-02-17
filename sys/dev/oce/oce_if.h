@@ -36,7 +36,6 @@
  * Costa Mesa, CA 92626
  */
 
-
 /* $FreeBSD$ */
 
 #include <sys/param.h>
@@ -88,7 +87,9 @@
 
 #include "oce_hw.h"
 
-#define COMPONENT_REVISION "4.2.116.0"
+/* OCE device driver module component revision informaiton */
+#define COMPONENT_REVISION "4.2.127.0"
+
 
 /* OCE devices supported by this driver */
 #define PCI_VENDOR_EMULEX		0x10df	/* Emulex */
@@ -111,7 +112,9 @@
 
 extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_NCPUS			mp_ncpus
-#define OCE_MAX_RSS			8 /* This should be powers of 2. Like 2,4,8 & 16 */ 
+
+/* This should be powers of 2. Like 2,4,8 & 16 */
+#define OCE_MAX_RSS			4 /* TODO: 8*/ 
 #define OCE_LEGACY_MODE_RSS		4 /* For BE3 Legacy mode*/
 
 #define OCE_MIN_RQ			1
@@ -171,8 +174,7 @@ extern int mp_ncpus;			/* system's total active cpu cores */
 #define OCE_IF_HWASSIST			(CSUM_IP | CSUM_TCP | CSUM_UDP)
 #define OCE_IF_CAPABILITIES		(IFCAP_VLAN_MTU | IFCAP_VLAN_HWTAGGING | \
 					IFCAP_HWCSUM | IFCAP_VLAN_HWCSUM | \
-					IFCAP_VLAN_HWTSO | IFCAP_JUMBO_MTU | \
-					IFCAP_VLAN_MTU)
+					IFCAP_JUMBO_MTU | IFCAP_VLAN_MTU)
 #define OCE_IF_HWASSIST_NONE		0
 #define OCE_IF_CAPABILITIES_NONE 	0
 
@@ -835,6 +837,7 @@ typedef struct oce_softc {
 	struct oce_drv_stats oce_stats_info;
 	struct callout  timer;
 	int8_t be3_native;
+	uint32_t pvid;
 
 } OCE_SOFTC, *POCE_SOFTC;
 
@@ -926,10 +929,12 @@ uint32_t oce_page_list(oce_ring_buffer_t *ring, struct phys_addr *pa_list);
 /***********************************************************
  * cleanup  functions
  ***********************************************************/
-void oce_free_lro(POCE_SOFTC sc);
 void oce_stop_rx(POCE_SOFTC sc);
 void oce_intr_free(POCE_SOFTC sc);
 void oce_free_posted_rxbuf(struct oce_rq *rq);
+#if defined(INET6) || defined(INET)
+void oce_free_lro(POCE_SOFTC sc);
+#endif
 
 
 /************************************************************
@@ -940,6 +945,8 @@ int oce_reset_fun(POCE_SOFTC sc);
 int oce_mbox_init(POCE_SOFTC sc);
 int oce_mbox_dispatch(POCE_SOFTC sc, uint32_t tmo_sec);
 int oce_get_fw_version(POCE_SOFTC sc);
+int oce_first_mcc_cmd(POCE_SOFTC sc);
+
 int oce_read_mac_addr(POCE_SOFTC sc, uint32_t if_id, uint8_t perm,
 			uint8_t type, struct mac_address_format *mac);
 int oce_get_fw_config(POCE_SOFTC sc);
