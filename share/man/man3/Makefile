@@ -10,6 +10,7 @@ MAN=		assert.3 \
 		fpgetround.3 \
 		intro.3 \
 		makedev.3 \
+		offsetof.3 \
 		${PTHREAD_MAN} \
 		queue.3 \
 		siginfo.3 \

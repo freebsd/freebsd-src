@@ -362,8 +362,8 @@ SCI_REMOTE_DEVICE_HANDLE_T scif_remote_device_get_scic_handle(
    SCIF_SAS_REMOTE_DEVICE_T * fw_device = (SCIF_SAS_REMOTE_DEVICE_T*)
                                           scif_remote_device;
 
-   if ( (fw_device != NULL) && (fw_device->core_object != SCI_INVALID_HANDLE) )
-      return fw_device->core_object;
+   if ( (fw_device == NULL) || (fw_device->core_object == SCI_INVALID_HANDLE) )
+      return SCI_INVALID_HANDLE;
 
    SCIF_LOG_WARNING((
       sci_base_object_get_logger(fw_device),
@@ -372,7 +372,7 @@ SCI_REMOTE_DEVICE_HANDLE_T scif_remote_device_get_scic_handle(
       fw_device
    ));
 
-   return SCI_INVALID_HANDLE;
+   return fw_device->core_object;
 }
 
 // ---------------------------------------------------------------------------

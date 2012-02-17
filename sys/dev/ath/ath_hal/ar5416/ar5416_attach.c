@@ -129,6 +129,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 
 	/* Misc Functions */
 	ah->ah_getCapability		= ar5416GetCapability;
+	ah->ah_setCapability		= ar5416SetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -884,6 +885,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	/* AR5416 may have 3 antennas but is a 2x2 stream device */
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;
+
 	/*
 	 * If the TX or RX chainmask has less than 2 chains active,
 	 * mark it as a 1-stream device for the relevant stream.

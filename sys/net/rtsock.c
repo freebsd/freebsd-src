@@ -115,7 +115,34 @@ struct if_msghdr32 {
 	uint16_t ifm_index;
 	struct	if_data32 ifm_data;
 };
-#endif
+
+struct if_msghdrl32 {
+	uint16_t ifm_msglen;
+	uint8_t	ifm_version;
+	uint8_t	ifm_type;
+	int32_t	ifm_addrs;
+	int32_t	ifm_flags;
+	uint16_t ifm_index;
+	uint16_t _ifm_spare1;
+	uint16_t ifm_len;
+	uint16_t ifm_data_off;
+	struct	if_data32 ifm_data;
+};
+
+struct ifa_msghdrl32 {
+	uint16_t ifam_msglen;
+	uint8_t	ifam_version;
+	uint8_t	ifam_type;
+	int32_t	ifam_addrs;
+	int32_t	ifam_flags;
+	uint16_t ifam_index;
+	uint16_t _ifam_spare1;
+	uint16_t ifam_len;
+	uint16_t ifam_data_off;
+	int32_t	ifam_metric;
+	struct	if_data32 ifam_data;
+};
+#endif /* COMPAT_FREEBSD32 */
 
 MALLOC_DEFINE(M_RTABLE, "routetbl", "routing tables");
 
@@ -1014,6 +1041,9 @@ rt_xaddrs(caddr_t cp, caddr_t cplim, struct rt_addrinfo *rtinfo)
 	return (0);
 }
 
+/*
+ * Used by the routing socket.
+ */
 static struct mbuf *
 rt_msg1(int type, struct rt_addrinfo *rtinfo)
 {
@@ -1081,6 +1111,9 @@ rt_msg1(int type, struct rt_addrinfo *rtinfo)
 	return (m);
 }
 
+/*
+ * Used by the sysctl code and routing socket.
+ */
 static int
 rt_msg2(int type, struct rt_addrinfo *rtinfo, caddr_t cp, struct walkarg *w)
 {
@@ -1094,17 +1127,31 @@ again:
 
 	case RTM_DELADDR:
 	case RTM_NEWADDR:
-		len = sizeof(struct ifa_msghdr);
+		if (w != NULL && w->w_op == NET_RT_IFLISTL) {
+#ifdef COMPAT_FREEBSD32
+			if (w->w_req->flags & SCTL_MASK32)
+				len = sizeof(struct ifa_msghdrl32);
+			else
+#endif
+				len = sizeof(struct ifa_msghdrl);
+		} else
+			len = sizeof(struct ifa_msghdr);
 		break;
 
 	case RTM_IFINFO:
 #ifdef COMPAT_FREEBSD32
 		if (w != NULL && w->w_req->flags & SCTL_MASK32) {
-			len = sizeof(struct if_msghdr32);
+			if (w->w_op == NET_RT_IFLISTL)
+				len = sizeof(struct if_msghdrl32);
+			else
+				len = sizeof(struct if_msghdr32);
 			break;
 		}
 #endif
-		len = sizeof(struct if_msghdr);
+		if (w != NULL && w->w_op == NET_RT_IFLISTL)
+			len = sizeof(struct if_msghdrl);
+		else
+			len = sizeof(struct if_msghdr);
 		break;
 
 	case RTM_NEWMADDR:
@@ -1535,6 +1582,147 @@ copy_ifdata32(struct if_data *src, struct if_data32 *dst)
 #endif
 
 static int
+sysctl_iflist_ifml(struct ifnet *ifp, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct if_msghdrl *ifm;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct if_msghdrl32 *ifm32;
+
+		ifm32 = (struct if_msghdrl32 *)w->w_tmem;
+		ifm32->ifm_addrs = info->rti_addrs;
+		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_index = ifp->if_index;
+		ifm32->_ifm_spare1 = 0;
+		ifm32->ifm_len = sizeof(*ifm32);
+		ifm32->ifm_data_off = offsetof(struct if_msghdrl32, ifm_data);
+
+		copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifm32->ifm_data.ifi_vhid =
+			    (*carp_get_vhid_p)(ifp->if_addr);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifm32, len));
+	}
+#endif
+	ifm = (struct if_msghdrl *)w->w_tmem;
+	ifm->ifm_addrs = info->rti_addrs;
+	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+	ifm->ifm_index = ifp->if_index;
+	ifm->_ifm_spare1 = 0;
+	ifm->ifm_len = sizeof(*ifm);
+	ifm->ifm_data_off = offsetof(struct if_msghdrl, ifm_data);
+
+	ifm->ifm_data = ifp->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifm->ifm_data.ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+}
+
+static int
+sysctl_iflist_ifm(struct ifnet *ifp, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct if_msghdr *ifm;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct if_msghdr32 *ifm32;
+
+		ifm32 = (struct if_msghdr32 *)w->w_tmem;
+		ifm32->ifm_addrs = info->rti_addrs;
+		ifm32->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+		ifm32->ifm_index = ifp->if_index;
+
+		copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifm32->ifm_data.ifi_vhid =
+			    (*carp_get_vhid_p)(ifp->if_addr);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifm32, len));
+	}
+#endif
+	ifm = (struct if_msghdr *)w->w_tmem;
+	ifm->ifm_addrs = info->rti_addrs;
+	ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
+	ifm->ifm_index = ifp->if_index;
+
+	ifm->ifm_data = ifp->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifm->ifm_data.ifi_vhid = (*carp_get_vhid_p)(ifp->if_addr);
+
+	return (SYSCTL_OUT(w->w_req, (caddr_t)ifm, len));
+}
+
+static int
+sysctl_iflist_ifaml(struct ifaddr *ifa, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct ifa_msghdrl *ifam;
+
+#ifdef COMPAT_FREEBSD32
+	if (w->w_req->flags & SCTL_MASK32) {
+		struct ifa_msghdrl32 *ifam32;
+
+		ifam32 = (struct ifa_msghdrl32 *)w->w_tmem;
+		ifam32->ifam_addrs = info->rti_addrs;
+		ifam32->ifam_flags = ifa->ifa_flags;
+		ifam32->ifam_index = ifa->ifa_ifp->if_index;
+		ifam32->_ifam_spare1 = 0;
+		ifam32->ifam_len = sizeof(*ifam32);
+		ifam32->ifam_data_off =
+		    offsetof(struct ifa_msghdrl32, ifam_data);
+		ifam32->ifam_metric = ifa->ifa_metric;
+
+		copy_ifdata32(&ifa->ifa_ifp->if_data, &ifam32->ifam_data);
+		/* Fixup if_data carp(4) vhid. */
+		if (carp_get_vhid_p != NULL)
+			ifam32->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);
+
+		return (SYSCTL_OUT(w->w_req, (caddr_t)ifam32, len));
+	}
+#endif
+
+	ifam = (struct ifa_msghdrl *)w->w_tmem;
+	ifam->ifam_addrs = info->rti_addrs;
+	ifam->ifam_flags = ifa->ifa_flags;
+	ifam->ifam_index = ifa->ifa_ifp->if_index;
+	ifam->_ifam_spare1 = 0;
+	ifam->ifam_len = sizeof(*ifam);
+	ifam->ifam_data_off = offsetof(struct ifa_msghdrl, ifam_data);
+	ifam->ifam_metric = ifa->ifa_metric;
+
+	ifam->ifam_data = ifa->if_data;
+	/* Fixup if_data carp(4) vhid. */
+	if (carp_get_vhid_p != NULL)
+		ifam->ifam_data.ifi_vhid = (*carp_get_vhid_p)(ifa);
+
+	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
+}
+
+static int
+sysctl_iflist_ifam(struct ifaddr *ifa, struct rt_addrinfo *info,
+    struct walkarg *w, int len)
+{
+	struct ifa_msghdr *ifam;
+
+	ifam = (struct ifa_msghdr *)w->w_tmem;
+	ifam->ifam_addrs = info->rti_addrs;
+	ifam->ifam_flags = ifa->ifa_flags;
+	ifam->ifam_index = ifa->ifa_ifp->if_index;
+	ifam->ifam_metric = ifa->ifa_metric;
+
+	return (SYSCTL_OUT(w->w_req, w->w_tmem, len));
+}
+
+static int
 sysctl_iflist(int af, struct walkarg *w)
 {
 	struct ifnet *ifp;
@@ -1553,38 +1741,10 @@ sysctl_iflist(int af, struct walkarg *w)
 		len = rt_msg2(RTM_IFINFO, &info, NULL, w);
 		info.rti_info[RTAX_IFP] = NULL;
 		if (w->w_req && w->w_tmem) {
-			struct if_msghdr *ifm;
-
-#ifdef COMPAT_FREEBSD32
-			if (w->w_req->flags & SCTL_MASK32) {
-				struct if_msghdr32 *ifm32;
-
-				ifm32 = (struct if_msghdr32 *)w->w_tmem;
-				ifm32->ifm_index = ifp->if_index;
-				ifm32->ifm_flags = ifp->if_flags |
-				    ifp->if_drv_flags;
-				copy_ifdata32(&ifp->if_data, &ifm32->ifm_data);
-				if (carp_get_vhid_p != NULL)
-					ifm32->ifm_data.ifi_vhid =
-					    (*carp_get_vhid_p)(ifa);
-				ifm32->ifm_addrs = info.rti_addrs;
-				error = SYSCTL_OUT(w->w_req, (caddr_t)ifm32,
-				    len);
-				goto sysctl_out;
-			}
-#endif
-			ifm = (struct if_msghdr *)w->w_tmem;
-			ifm->ifm_index = ifp->if_index;
-			ifm->ifm_flags = ifp->if_flags | ifp->if_drv_flags;
-			ifm->ifm_data = ifp->if_data;
-			if (carp_get_vhid_p != NULL)
-				ifm->ifm_data.ifi_vhid =
-				    (*carp_get_vhid_p)(ifa);
-			ifm->ifm_addrs = info.rti_addrs;
-			error = SYSCTL_OUT(w->w_req, (caddr_t)ifm, len);
-#ifdef COMPAT_FREEBSD32
-		sysctl_out:
-#endif
+			if (w->w_op == NET_RT_IFLISTL)
+				error = sysctl_iflist_ifml(ifp, &info, w, len);
+			else
+				error = sysctl_iflist_ifm(ifp, &info, w, len);
 			if (error)
 				goto done;
 		}
@@ -1599,18 +1759,12 @@ sysctl_iflist(int af, struct walkarg *w)
 			info.rti_info[RTAX_BRD] = ifa->ifa_dstaddr;
 			len = rt_msg2(RTM_NEWADDR, &info, NULL, w);
 			if (w->w_req && w->w_tmem) {
-				struct ifa_msghdr *ifam;
-
-				ifam = (struct ifa_msghdr *)w->w_tmem;
-				ifam->ifam_index = ifa->ifa_ifp->if_index;
-				ifam->ifam_flags = ifa->ifa_flags;
-				ifam->ifam_metric = ifa->ifa_metric;
-				ifam->ifam_addrs = info.rti_addrs;
-				ifam->ifam_data = ifa->if_data;
-				if (carp_get_vhid_p != NULL)
-					ifam->ifam_data.ifi_vhid =
-					    (*carp_get_vhid_p)(ifa);
-				error = SYSCTL_OUT(w->w_req, w->w_tmem, len);
+				if (w->w_op == NET_RT_IFLISTL)
+					error = sysctl_iflist_ifaml(ifa, &info,
+					    w, len);
+				else
+					error = sysctl_iflist_ifam(ifa, &info,
+					    w, len);
 				if (error)
 					goto done;
 			}
@@ -1740,6 +1894,7 @@ sysctl_rtsock(SYSCTL_HANDLER_ARGS)
 		break;
 
 	case NET_RT_IFLIST:
+	case NET_RT_IFLISTL:
 		error = sysctl_iflist(af, &w);
 		break;
 

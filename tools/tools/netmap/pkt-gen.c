@@ -124,7 +124,7 @@ struct pkt {
 	struct ether_header eh;
 	struct ip ip;
 	struct udphdr udp;
-	uint8_t body[NETMAP_BUF_SIZE];
+	uint8_t body[2048];	// XXX hardwired
 } __attribute__((__packed__));
 
 /*

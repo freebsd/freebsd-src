@@ -723,7 +723,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
 
-			if (unlink(path_localtime) < 0) {
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
 				snprintf(prompt, sizeof(prompt),
 				    "Could not unlink %s: %s",
 				    path_localtime, strerror(errno));
@@ -780,7 +780,7 @@ install_zoneinfo_file(const char *zoneinfo_file)
 					fprintf(stderr, "%s\n", prompt);
 				return (DITEM_FAILURE | DITEM_RECREATE);
 			}
-			if (unlink(path_localtime) < 0) {
+			if (unlink(path_localtime) < 0 && errno != ENOENT) {
 				snprintf(prompt, sizeof(prompt),
 				    "Could not unlink %s: %s",
 				    path_localtime, strerror(errno));

@@ -133,9 +133,9 @@ The next sections specify the HCI packet formats.
 .Bd -literal -offset indent
 #define NG_HCI_CMD_PKT 0x01
 typedef struct {
-        u_int8_t  type;   /* MUST be 0x1 */
-        u_int16_t opcode; /* OpCode */
-        u_int8_t  length; /* parameter(s) length in bytes */
+        uint8_t  type;   /* MUST be 0x1 */
+        uint16_t opcode; /* OpCode */
+        uint8_t  length; /* parameter(s) length in bytes */
 } __attribute__ ((packed)) ng_hci_cmd_pkt_t;
 .Ed
 .Pp
@@ -156,9 +156,9 @@ Controller to the Host.
 .Bd -literal -offset indent
 #define NG_HCI_EVENT_PKT 0x04
 typedef struct {
-        u_int8_t type;   /* MUST be 0x4 */
-        u_int8_t event;  /* event */
-        u_int8_t length; /* parameter(s) length in bytes */
+        uint8_t type;   /* MUST be 0x4 */
+        uint8_t event;  /* event */
+        uint8_t length; /* parameter(s) length in bytes */
 } __attribute__ ((packed)) ng_hci_event_pkt_t;
 .Ed
 .Pp
@@ -168,9 +168,9 @@ when events occur.
 .Bd -literal -offset indent
 #define NG_HCI_ACL_DATA_PKT 0x02
 typedef struct {
-        u_int8_t  type;       /* MUST be 0x2 */
-        u_int16_t con_handle; /* connection handle + PB + BC flags */
-        u_int16_t length;     /* payload length in bytes */
+        uint8_t  type;       /* MUST be 0x2 */
+        uint16_t con_handle; /* connection handle + PB + BC flags */
+        uint16_t length;     /* payload length in bytes */
 } __attribute__ ((packed)) ng_hci_acldata_pkt_t;
 .Ed
 .Pp
@@ -180,9 +180,9 @@ Host Controller.
 .Bd -literal -offset indent
 #define NG_HCI_SCO_DATA_PKT 0x03
 typedef struct {
-        u_int8_t  type;       /* MUST be 0x3 */
-        u_int16_t con_handle; /* connection handle + reserved bits */
-        u_int8_t  length;     /* payload length in bytes */
+        uint8_t  type;       /* MUST be 0x3 */
+        uint16_t con_handle; /* connection handle + reserved bits */
+        uint8_t  length;     /* payload length in bytes */
 } __attribute__ ((packed)) ng_hci_scodata_pkt_t;
 .Ed
 .Pp
@@ -216,9 +216,9 @@ Netgraph message defined as follows.
 .Bd -literal -offset indent
 #define NGM_HCI_NODE_UP 112 /* HCI -> Upper */
 typedef struct {
-        u_int16_t pkt_size; /* max. ACL/SCO packet size (w/o hdr) */
-        u_int16_t num_pkts; /* ACL/SCO packet queue size */
-        u_int16_t reserved; /* place holder */
+        uint16_t  pkt_size; /* max. ACL/SCO packet size (w/o hdr) */
+        uint16_t  num_pkts; /* ACL/SCO packet queue size */
+        uint16_t  reserved; /* place holder */
         bdaddr_t  bdaddr;   /* bdaddr */
 } ng_hci_node_up_ep;
 .Ed
@@ -244,8 +244,8 @@ Netgraph message is defined as follows.
 .Bd -literal -offset indent
 #define NGM_HCI_SYNC_CON_QUEUE 113 /* HCI -> Upper */
 typedef struct {
-        u_int16_t con_handle; /* connection handle */
-        u_int16_t completed;  /* number of completed packets */
+        uint16_t con_handle; /* connection handle */
+        uint16_t completed;  /* number of completed packets */
 } ng_hci_sync_con_queue_ep;
 .Ed
 .Sh HOOKS

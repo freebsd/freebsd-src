@@ -661,7 +661,6 @@ ttydisc_echo(struct tty *tp, char c, int quote)
 	return ttydisc_echo_force(tp, c, quote);
 }
 
-
 static void
 ttydisc_reprint_char(void *d, char c, int quote)
 {

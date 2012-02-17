@@ -27,6 +27,8 @@
 #include "ar5416/ar5416reg.h"
 #include "ar5416/ar5416phy.h"
 
+#include "ah_eeprom_v14.h"	/* for owl_get_ntxchains() */
+
 /*
  * Return the wireless modes (a,b,g,n,t) supported by hardware.
  *
@@ -430,6 +432,35 @@ ar5416GetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
 	return ar5212GetCapability(ah, type, capability, result);
 }
 
+HAL_BOOL
+ar5416SetCapability(struct ath_hal *ah, HAL_CAPABILITY_TYPE type,
+    u_int32_t capability, u_int32_t setting, HAL_STATUS *status)
+{
+	HAL_CAPABILITIES *pCap = &AH_PRIVATE(ah)->ah_caps;
+
+	switch (type) {
+	case HAL_CAP_RX_CHAINMASK:
+		setting &= ath_hal_eepromGet(ah, AR_EEP_RXMASK, NULL);
+		pCap->halRxChainMask = setting;
+		if (owl_get_ntxchains(setting) > 2)
+			pCap->halRxStreams = 2;
+		else
+			pCap->halRxStreams = 1;
+		return HAL_OK;
+	case HAL_CAP_TX_CHAINMASK:
+		setting &= ath_hal_eepromGet(ah, AR_EEP_TXMASK, NULL);
+		pCap->halTxChainMask = setting;
+		if (owl_get_ntxchains(setting) > 2)
+			pCap->halTxStreams = 2;
+		else
+			pCap->halTxStreams = 1;
+		return HAL_OK;
+	default:
+		break;
+	}
+	return ar5212SetCapability(ah, type, capability, setting, status);
+}
+
 static int ar5416DetectMacHang(struct ath_hal *ah);
 static int ar5416DetectBBHang(struct ath_hal *ah);
 
@@ -709,19 +740,12 @@ ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	pe->pe_prssi = MS(val, AR_PHY_RADAR_0_PRSSI);
 	pe->pe_inband = MS(val, AR_PHY_RADAR_0_INBAND);
 
+	/* RADAR_1 values */
 	val = OS_REG_READ(ah, AR_PHY_RADAR_1);
-	temp = val & AR_PHY_RADAR_1_RELPWR_ENA;
 	pe->pe_relpwr = MS(val, AR_PHY_RADAR_1_RELPWR_THRESH);
-	if (temp)
-		pe->pe_relpwr |= HAL_PHYERR_PARAM_ENABLE;
-	temp = val & AR_PHY_RADAR_1_RELSTEP_CHECK;
 	pe->pe_relstep = MS(val, AR_PHY_RADAR_1_RELSTEP_THRESH);
-	if (temp)
-		pe->pe_enabled = 1;
-	else
-		pe->pe_enabled = 0;
-
 	pe->pe_maxlen = MS(val, AR_PHY_RADAR_1_MAXLEN);
+
 	pe->pe_extchannel = !! (OS_REG_READ(ah, AR_PHY_RADAR_EXT) &
 	    AR_PHY_RADAR_EXT_ENA);
 
@@ -731,6 +755,12 @@ ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 	    AR_PHY_RADAR_1_BLOCK_CHECK);
 	pe->pe_enmaxrssi = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
 	    AR_PHY_RADAR_1_MAX_RRSSI);
+	pe->pe_enabled = !!
+	    (OS_REG_READ(ah, AR_PHY_RADAR_0) & AR_PHY_RADAR_0_ENA);
+	pe->pe_enrelpwr = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
+	    AR_PHY_RADAR_1_RELPWR_ENA);
+	pe->pe_en_relstep_check = !! (OS_REG_READ(ah, AR_PHY_RADAR_1) &
+	    AR_PHY_RADAR_1_RELSTEP_CHECK);
 }
 
 /*
@@ -767,13 +797,18 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 
 	/*Enable FFT data*/
 	val |= AR_PHY_RADAR_0_FFT_ENA;
+	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val);
 
-	OS_REG_WRITE(ah, AR_PHY_RADAR_0, val | AR_PHY_RADAR_0_ENA);
+	/* Implicitly enable */
+	if (pe->pe_enabled == 1)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_ENA);
+	else if (pe->pe_enabled == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_0, AR_PHY_RADAR_0_ENA);
 
 	if (pe->pe_usefir128 == 1)
-		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
-	else if (pe->pe_usefir128 == 0)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
+	else if (pe->pe_usefir128 == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_USE_FIR128);
 
 	if (pe->pe_enmaxrssi == 1)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_MAX_RRSSI);
@@ -784,6 +819,33 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
 	else if (pe->pe_blockradar == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1, AR_PHY_RADAR_1_BLOCK_CHECK);
+
+	if (pe->pe_relstep != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+		val &= ~AR_PHY_RADAR_1_RELSTEP_THRESH;
+		val |= SM(pe->pe_relstep, AR_PHY_RADAR_1_RELSTEP_THRESH);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
+	}
+	if (pe->pe_relpwr != HAL_PHYERR_PARAM_NOVAL) {
+		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
+		val &= ~AR_PHY_RADAR_1_RELPWR_THRESH;
+		val |= SM(pe->pe_relpwr, AR_PHY_RADAR_1_RELPWR_THRESH);
+		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
+	}
+
+	if (pe->pe_en_relstep_check == 1)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1,
+		    AR_PHY_RADAR_1_RELSTEP_CHECK);
+	else if (pe->pe_en_relstep_check == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1,
+		    AR_PHY_RADAR_1_RELSTEP_CHECK);
+
+	if (pe->pe_enrelpwr == 1)
+		OS_REG_SET_BIT(ah, AR_PHY_RADAR_1,
+		    AR_PHY_RADAR_1_RELPWR_ENA);
+	else if (pe->pe_enrelpwr == 0)
+		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_1,
+		    AR_PHY_RADAR_1_RELPWR_ENA);
 
 	if (pe->pe_maxlen != HAL_PHYERR_PARAM_NOVAL) {
 		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
@@ -801,19 +863,6 @@ ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe)
 		OS_REG_SET_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
 	else if (pe->pe_extchannel == 0)
 		OS_REG_CLR_BIT(ah, AR_PHY_RADAR_EXT, AR_PHY_RADAR_EXT_ENA);
-
-	if (pe->pe_relstep != HAL_PHYERR_PARAM_NOVAL) {
-		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
-		val &= ~AR_PHY_RADAR_1_RELSTEP_THRESH;
-		val |= SM(pe->pe_relstep, AR_PHY_RADAR_1_RELSTEP_THRESH);
-		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
-	}
-	if (pe->pe_relpwr != HAL_PHYERR_PARAM_NOVAL) {
-		val = OS_REG_READ(ah, AR_PHY_RADAR_1);
-		val &= ~AR_PHY_RADAR_1_RELPWR_THRESH;
-		val |= SM(pe->pe_relpwr, AR_PHY_RADAR_1_RELPWR_THRESH);
-		OS_REG_WRITE(ah, AR_PHY_RADAR_1, val);
-	}
 }
 
 /*

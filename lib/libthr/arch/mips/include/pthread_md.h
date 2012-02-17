@@ -39,15 +39,19 @@
 
 #define	CPU_SPINWAIT
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
+#ifdef __mips_n64
+#define	TP_OFFSET		0x7010
+#else
+#define	TP_OFFSET		0x7008
+#endif
 
 /*
- * Variant II tcb, first two members are required by rtld.
+ * Variant I tcb. The structure layout is fixed, don't blindly
+ * change it!
  */
 struct tcb {
-	struct tcb		*tcb_self;	/* required by rtld */
-	void			*tcb_dtv;	/* required by rtld */
-	struct pthread		*tcb_thread;	/* our hook */
-	void			*tcb_spare[1];
+	void			*tcb_dtv;
+	struct pthread		*tcb_thread;
 };
 
 /*
@@ -61,7 +65,7 @@ static __inline void
 _tcb_set(struct tcb *tcb)
 {
 
-	sysarch(MIPS_SET_TLS, tcb);
+	sysarch(MIPS_SET_TLS, ((uint8_t*)tcb + TP_OFFSET));
 }
 
 /*
@@ -70,10 +74,10 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	void *tcb;
+	uint8_t *tcb;
 
 	sysarch(MIPS_GET_TLS, &tcb);
-	return tcb;
+	return ((struct tcb *)(tcb - TP_OFFSET));
 }
 
 extern struct pthread *_thr_initial;

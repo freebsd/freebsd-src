@@ -1229,7 +1229,7 @@ tty_makedev(struct tty *tp, struct ucred *cred, const char *fmt, ...)
 
 		/* Slave call-out devices. */
 		if (tp->t_flags & TF_INITLOCK) {
-			dev = make_dev_cred(&ttyil_cdevsw, 
+			dev = make_dev_cred(&ttyil_cdevsw,
 			    TTYUNIT_CALLOUT | TTYUNIT_INIT, cred,
 			    UID_UUCP, GID_DIALER, 0660, "cua%s.init", name);
 			dev_depends(tp->t_dev, dev);

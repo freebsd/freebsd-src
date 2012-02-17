@@ -1039,6 +1039,7 @@ vfs_domount(
 	struct vfsconf *vfsp;
 	struct nameidata nd;
 	struct vnode *vp;
+	char *pathbuf;
 	int error;
 
 	/*
@@ -1102,12 +1103,15 @@ vfs_domount(
 	NDFREE(&nd, NDF_ONLY_PNBUF);
 	vp = nd.ni_vp;
 	if ((fsflags & MNT_UPDATE) == 0) {
-		error = vn_path_to_global_path(td, vp, fspath, MNAMELEN);
+		pathbuf = malloc(MNAMELEN, M_TEMP, M_WAITOK);
+		strcpy(pathbuf, fspath);
+		error = vn_path_to_global_path(td, vp, pathbuf, MNAMELEN);
 		/* debug.disablefullpath == 1 results in ENODEV */
 		if (error == 0 || error == ENODEV) {
-			error = vfs_domount_first(td, vfsp, fspath, vp,
+			error = vfs_domount_first(td, vfsp, pathbuf, vp,
 			    fsflags, optlist);
 		}
+		free(pathbuf, M_TEMP);
 	} else
 		error = vfs_domount_update(td, vp, fsflags, optlist);
 	mtx_unlock(&Giant);

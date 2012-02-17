@@ -652,13 +652,13 @@ static void
 isc_add_sysctls(isc_session_t *sp)
 {
      debug_called(8);
-     sdebug(6, "sid=%d %s", sp->sid, sp->dev->si_name);
+     sdebug(6, "sid=%d %s", sp->sid, devtoname(sp->dev));
 
      sysctl_ctx_init(&sp->clist);
      sp->oid = SYSCTL_ADD_NODE(&sp->clist,
 			       SYSCTL_CHILDREN(sp->isc->oid),
 			       OID_AUTO,
-			       sp->dev->si_name+5, // iscsi0
+			       devtoname(sp->dev) + 5, // iscsi0
 			       CTLFLAG_RD,
 			       0,
 			       "initiator");

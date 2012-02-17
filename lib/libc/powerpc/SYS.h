@@ -33,38 +33,38 @@
 #include <sys/syscall.h>
 #include <machine/asm.h>
 
-#define _SYSCALL(x)						\
+#define	_SYSCALL(name)						\
 	.text;							\
 	.align 2;						\
-	li	0,(__CONCAT(SYS_,x));				\
+	li	0,(__CONCAT(SYS_, name));			\
 	sc
 
-#define	SYSCALL(x)						\
+#define	SYSCALL(name)						\
 	.text;							\
 	.align 2;						\
 2:	b	PIC_PLT(CNAME(HIDENAME(cerror)));		\
-ENTRY(__CONCAT(__sys_,x));					\
-	WEAK_ALIAS(x,__CONCAT(__sys_,x));			\
-	WEAK_ALIAS(__CONCAT(_,x),__CONCAT(__sys_,x));		\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));				\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), name);		\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));\
+	_SYSCALL(name);						\
 	bso	2b
 
-#define	PSEUDO(x)						\
+#define	PSEUDO(name)						\
 	.text;							\
 	.align 2;						\
-ENTRY(__CONCAT(__sys_,x));					\
-	WEAK_ALIAS(__CONCAT(_,x),__CONCAT(__sys_,x));		\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));				\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));\
+	_SYSCALL(name);						\
 	bnslr;							\
 	b	PIC_PLT(CNAME(HIDENAME(cerror)))
 
-#define	RSYSCALL(x)						\
+#define	RSYSCALL(name)						\
 	.text;							\
 	.align 2;						\
 2:	b	PIC_PLT(CNAME(HIDENAME(cerror)));		\
-ENTRY(__CONCAT(__sys_,x));					\
-	WEAK_ALIAS(x,__CONCAT(__sys_,x));			\
-	WEAK_ALIAS(__CONCAT(_,x), __CONCAT(__sys_,x));		\
-	_SYSCALL(x);						\
+ENTRY(__CONCAT(__sys_, name));				\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), name);		\
+	WEAK_REFERENCE(__CONCAT(__sys_, name), __CONCAT(_, name));\
+	_SYSCALL(name);						\
 	bnslr;							\
 	b	PIC_PLT(CNAME(HIDENAME(cerror)))
