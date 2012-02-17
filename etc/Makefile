@@ -7,48 +7,48 @@
 SUBDIR=	sendmail
 .endif
 
-BIN1=	auth.conf
-BIN1+=	crontab
-BIN1+=	devd.conf
-BIN1+=	devfs.conf
-BIN1+=	ddb.conf
-BIN1+=	dhclient.conf
-BIN1+=	disktab
-BIN1+=	fbtab
-BIN1+=	ftpusers
-BIN1+=	gettytab
-BIN1+=	group
-BIN1+=	hosts
-BIN1+=	hosts.allow
-BIN1+=	hosts.equiv
-BIN1+=	inetd.conf
-BIN1+=	libalias.conf
-BIN1+=	login.access
-BIN1+=	login.conf
-BIN1+=	mac.conf
-BIN1+=	motd
-BIN1+=	netconfig
-BIN1+=	network.subr
-BIN1+=	networks
-BIN1+=	newsyslog.conf
-BIN1+=	nsswitch.conf
-BIN1+=	phones
-BIN1+=	profile
-BIN1+=	protocols
-BIN1+=	rc
-BIN1+=	rc.bsdextended
-BIN1+=	rc.firewall
-BIN1+=	rc.initdiskless
-BIN1+=	rc.sendmail
-BIN1+=	rc.shutdown
-BIN1+=	rc.subr
-BIN1+=	remote
-BIN1+=	rpc
-BIN1+=	services
-BIN1+=	shells
-BIN1+=	sysctl.conf
-BIN1+=	syslog.conf
-BIN1+=	termcap.small
+BIN1=	auth.conf \
+	crontab \
+	devd.conf \
+	devfs.conf \
+	ddb.conf \
+	dhclient.conf \
+	disktab \
+	fbtab \
+	ftpusers \
+	gettytab \
+	group \
+	hosts \
+	hosts.allow \
+	hosts.equiv \
+	inetd.conf \
+	libalias.conf \
+	login.access \
+	login.conf \
+	mac.conf \
+	motd \
+	netconfig \
+	network.subr \
+	networks \
+	newsyslog.conf \
+	nsswitch.conf \
+	phones \
+	profile \
+	protocols \
+	rc \
+	rc.bsdextended \
+	rc.firewall \
+	rc.initdiskless \
+	rc.sendmail \
+	rc.shutdown \
+	rc.subr \
+	remote \
+	rpc \
+	services \
+	shells \
+	sysctl.conf \
+	syslog.conf \
+	termcap.small
 
 .if exists(${.CURDIR}/etc.${MACHINE}/ttys)
 BIN1+=	etc.${MACHINE}/ttys
