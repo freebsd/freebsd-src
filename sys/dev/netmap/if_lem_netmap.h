@@ -175,7 +175,7 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have packets to send */
 		l = netmap_tidx_k2n(na, ring_nr, j);
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_tx_desc *curr = &adapter->tx_desc_base[l];
 			struct em_buffer *txbuf = &adapter->tx_buffer_area[l];
@@ -208,7 +208,6 @@ lem_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			    BUS_DMASYNC_PREWRITE);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwcur = k;
 
@@ -306,9 +305,8 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	/* skip past packets that userspace has already processed */
 	j = kring->nr_hwcur;	/* netmap ring index */
 	if (j != k) {	/* userspace has read some packets. */
-		n = 0;
 		l = netmap_ridx_k2n(na, ring_nr, j); /* NIC ring index */
-		while (j != k) {
+		for (n = 0; j != k; n++) {
 			struct netmap_slot *slot = &ring->slot[j];
 			struct e1000_rx_desc *curr = &adapter->rx_desc_base[l];
 			struct em_buffer *rxbuf = &adapter->rx_buffer_area[l];
@@ -334,7 +332,6 @@ lem_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;
