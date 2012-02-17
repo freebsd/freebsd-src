@@ -1903,15 +1903,16 @@ ath_stop_locked(struct ifnet *ifp)
 
 #define	MAX_TXRX_ITERATIONS	1000
 static void
-ath_txrx_stop(struct ath_softc *sc)
+ath_txrx_stop_locked(struct ath_softc *sc)
 {
 	int i = MAX_TXRX_ITERATIONS;
 
 	ATH_UNLOCK_ASSERT(sc);
+	ATH_PCU_LOCK_ASSERT(sc);
+
 	/* Stop any new TX/RX from occuring */
 	taskqueue_block(sc->sc_tq);
 
-	ATH_PCU_LOCK(sc);
 	/*
 	 * Sleep until all the pending operations have completed.
 	 *
@@ -1925,7 +1926,6 @@ ath_txrx_stop(struct ath_softc *sc)
 		msleep(sc, &sc->sc_pcu_mtx, 0, "ath_txrx_stop", 1);
 		i--;
 	}
-	ATH_PCU_UNLOCK(sc);
 
 	if (i <= 0)
 		device_printf(sc->sc_dev,
@@ -1933,6 +1933,17 @@ ath_txrx_stop(struct ath_softc *sc)
 		    __func__, MAX_TXRX_ITERATIONS);
 }
 #undef	MAX_TXRX_ITERATIONS
+
+static void
+ath_txrx_stop(struct ath_softc *sc)
+{
+	ATH_UNLOCK_ASSERT(sc);
+	ATH_PCU_UNLOCK_ASSERT(sc);
+
+	ATH_PCU_LOCK(sc);
+	ath_txrx_stop_locked(sc);
+	ATH_PCU_UNLOCK(sc);
+}
 
 static void
 ath_txrx_start(struct ath_softc *sc)
