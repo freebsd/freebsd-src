@@ -392,6 +392,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	so->so_type = type;
 	so->so_cred = crhold(cred);
 	if ((prp->pr_domain->dom_family == PF_INET) ||
+	    (prp->pr_domain->dom_family == PF_INET6) ||
 	    (prp->pr_domain->dom_family == PF_ROUTE))
 		so->so_fibnum = td->td_proc->p_fibnum;
 	else
@@ -2504,6 +2505,7 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 			}
 			if (so->so_proto != NULL &&
 			   ((so->so_proto->pr_domain->dom_family == PF_INET) ||
+			   (so->so_proto->pr_domain->dom_family == PF_INET6) ||
 			   (so->so_proto->pr_domain->dom_family == PF_ROUTE))) {
 				so->so_fibnum = optval;
 				/* Note: ignore error */
