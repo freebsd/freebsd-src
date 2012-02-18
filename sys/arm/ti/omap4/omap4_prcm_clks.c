@@ -325,6 +325,12 @@ struct omap_clock_dev omap_clk_devmap[] = {
 	/* sDMA */
 	OMAP4_GENERIC_CLOCK_DEV(SDMA_CLK),	
 
+	/* I2C */
+	OMAP4_GENERIC_CLOCK_DEV(I2C1_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(I2C2_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(I2C3_CLK),
+	OMAP4_GENERIC_CLOCK_DEV(I2C4_CLK),
+
 	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
 };
 
@@ -420,7 +426,17 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
 	/* sDMA block */
 	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE_MEM_REGION,
 		(CORE_CM2_OFFSET + 0x320), CLKCTRL_MODULEMODE_AUTO),
-	
+
+	/* I2C modules */
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C1_CLK, -1, CM2_INSTANCE_MEM_REGION,
+		(L4PER_CM2_OFFSET + 0x0A0), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C2_CLK, -1, CM2_INSTANCE_MEM_REGION,
+		(L4PER_CM2_OFFSET + 0x0A8), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C3_CLK, -1, CM2_INSTANCE_MEM_REGION,
+		(L4PER_CM2_OFFSET + 0x0B0), CLKCTRL_MODULEMODE_ENABLE),
+	OMAP4_GENERIC_CLOCK_DETAILS(I2C4_CLK, -1, CM2_INSTANCE_MEM_REGION,
+		(L4PER_CM2_OFFSET + 0x0B8), CLKCTRL_MODULEMODE_ENABLE),
+
 	{ INVALID_CLK_IDENT, 0, 0, 0, 0 },
 };
 
@@ -487,10 +503,11 @@ omap4_clk_generic_activate(struct omap_clock_dev *clkdev)
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -550,10 +567,11 @@ omap4_clk_generic_deactivate(struct omap_clock_dev *clkdev)
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_mem_res == NULL)
 		return (EINVAL);
@@ -617,10 +635,12 @@ omap4_clk_generic_accessible(struct omap_clock_dev *clkdev)
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 	
@@ -691,10 +711,12 @@ omap4_clk_gptimer_set_source(struct omap_clock_dev *clkdev,
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 	
@@ -732,10 +754,12 @@ omap4_clk_gptimer_get_source_freq(struct omap_clock_dev *clkdev,
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 	
@@ -778,10 +802,12 @@ omap4_clk_hsmmc_set_source(struct omap_clock_dev *clkdev,
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 		
@@ -836,10 +862,12 @@ omap4_clk_hsmmc_get_source_freq(struct omap_clock_dev *clkdev,
 		return ENXIO;
 
 	clk_details = omap4_clk_details(clkdev->id);
-	clk_mem_res = sc->sc_res[clk_details->mem_region];
 
 	if (clk_details == NULL)
 		return (ENXIO);
+
+	clk_mem_res = sc->sc_res[clk_details->mem_region];
+
 	if (clk_mem_res == NULL)
 		return (EINVAL);
 	
