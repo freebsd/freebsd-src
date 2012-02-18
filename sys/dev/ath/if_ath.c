@@ -5711,6 +5711,15 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 		ieee80211_state_name[vap->iv_state],
 		ieee80211_state_name[nstate]);
 
+	/*
+	 * net80211 _should_ have the comlock asserted at this point.
+	 * There are some comments around the calls to vap->iv_newstate
+	 * which indicate that it (newstate) may end up dropping the
+	 * lock.  This and the subsequent lock assert check after newstate
+	 * are an attempt to catch these and figure out how/why.
+	 */
+	IEEE80211_LOCK_ASSERT(ic);
+
 	if (vap->iv_state == IEEE80211_S_CSA && nstate == IEEE80211_S_RUN)
 		csa_run_transition = 1;
 
@@ -5759,6 +5768,12 @@ ath_newstate(struct ieee80211vap *vap, enum ieee80211_state nstate, int arg)
 	error = avp->av_newstate(vap, nstate, arg);
 	if (error != 0)
 		goto bad;
+
+	/*
+	 * See above: ensure av_newstate() doesn't drop the lock
+	 * on us.
+	 */
+	IEEE80211_LOCK_ASSERT(ic);
 
 	if (nstate == IEEE80211_S_RUN) {
 		/* NB: collect bss node again, it may have changed */
