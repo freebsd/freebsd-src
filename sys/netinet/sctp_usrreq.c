@@ -6357,7 +6357,7 @@ sctp_ingetaddr(struct socket *so, struct sockaddr **addr)
 int
 sctp_peeraddr(struct socket *so, struct sockaddr **addr)
 {
-	struct sockaddr_in *sin = (struct sockaddr_in *)*addr;
+	struct sockaddr_in *sin;
 	int fnd;
 	struct sockaddr_in *sin_a;
 	struct sctp_inpcb *inp;
