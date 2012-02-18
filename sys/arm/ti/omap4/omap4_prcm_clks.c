@@ -175,7 +175,7 @@ __FBSDID("$FreeBSD$");
 #define CLKCTRL_IDLEST_IDLE           0x00020000UL
 #define CLKCTRL_IDLEST_DISABLED       0x00030000UL
 
-static struct resource_spec omap_scm_res_spec[] = {
+static struct resource_spec omap4_scm_res_spec[] = {
 	{ SYS_RES_MEMORY,	0,	RF_ACTIVE },	/* Control memory window */
 	{ SYS_RES_MEMORY,	1,	RF_ACTIVE },	/* Control memory window */
 	{ SYS_RES_MEMORY,	2,	RF_ACTIVE },	/* Control memory window */
@@ -1388,7 +1388,7 @@ omap4_prcm_attach(device_t dev)
 {
 	struct omap4_prcm_softc *sc = device_get_softc(dev);
 
-	if (bus_alloc_resources(dev, omap_scm_res_spec, sc->sc_res)) {
+	if (bus_alloc_resources(dev, omap4_scm_res_spec, sc->sc_res)) {
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}

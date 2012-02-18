@@ -83,11 +83,11 @@
 							/* (techref 17.3.1.1) */
 		};
 
-		omap_scm@4a100000 {
-			compatible = "ti,omap_scm";
+		scm@4a100000 {
+			compatible = "ti,scm";
 			reg =	< 0x4a100000 0x1000 >;
 			/* Set of triplets < padname, muxname, padstate> */
-			omap-pad-config = 
+			scm-pad-config = 
 				"ag19", "usbb1_ulpiphy_stp", "output",
 				"ae18", "usbb1_ulpiphy_clk", "input_pulldown",
 				"af19", "usbb1_ulpiphy_dir", "input_pulldown",

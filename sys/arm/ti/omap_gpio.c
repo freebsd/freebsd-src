@@ -56,7 +56,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/resource.h>
 
-#include <arm/ti/omap_scm.h>
+#include <arm/ti/ti_scm.h>
 #include <arm/ti/omap_prcm.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -356,7 +356,6 @@ omap_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 {
 	struct omap_gpio_softc *sc = device_get_softc(dev);
 	uint32_t bank = (pin / PINS_PER_BANK);
-	unsigned int state;
 
 	OMAP_GPIO_LOCK(sc);
 
@@ -367,30 +366,10 @@ omap_gpio_pin_getflags(device_t dev, uint32_t pin, uint32_t *flags)
 	}
 
 	/* Get the current pin state */
-	if (omap_scm_padconf_get_gpiomode(pin, &state) != 0)
-		*flags = 0;
-	else {
-		switch (state) {
-			case PADCONF_PIN_OUTPUT:
-				*flags = GPIO_PIN_OUTPUT;
-				break;
-			case PADCONF_PIN_INPUT:
-				*flags = GPIO_PIN_INPUT;
-				break;
-			case PADCONF_PIN_INPUT_PULLUP:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLUP;
-				break;
-			case PADCONF_PIN_INPUT_PULLDOWN:
-				*flags = GPIO_PIN_INPUT | GPIO_PIN_PULLDOWN;
-				break;
-			default:
-				*flags = 0;
-				break;
-		}
-	}
+	ti_scm_padconf_get_gpioflags(pin, flags);
 
 	OMAP_GPIO_UNLOCK(sc);
-	
+
 	return (0);
 }
 
@@ -455,7 +434,6 @@ static int
 omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 {
 	struct omap_gpio_softc *sc = device_get_softc(dev);
-	unsigned int state = 0;
 	uint32_t bank = (pin / PINS_PER_BANK);
 	uint32_t mask = (1UL << (pin % PINS_PER_BANK));
 	uint32_t reg_off;
@@ -480,25 +458,12 @@ omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		return (EINVAL);
 	}
 
-	/* First the SCM driver needs to be told to put the pad into GPIO mode */
-	if (flags & GPIO_PIN_OUTPUT)
-		state = PADCONF_PIN_OUTPUT;
-	else if (flags & GPIO_PIN_INPUT) {
-		if (flags & GPIO_PIN_PULLUP)
-			state = PADCONF_PIN_INPUT_PULLUP;
-		else if (flags & GPIO_PIN_PULLDOWN)
-			state = PADCONF_PIN_INPUT_PULLDOWN;
-		else
-			state = PADCONF_PIN_INPUT;
-	}
-
 	/* Set the GPIO mode and state */
-	if (omap_scm_padconf_set_gpiomode(pin, state) != 0) {
+	if (ti_scm_padconf_set_gpioflags(pin, flags) != 0) {
 		OMAP_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
-	
-	
+
 	/* Get the offset of the register to use */
 	if (omap_gpio_is_omap3(sc, bank))
 		reg_off = OMAP3_GPIO_OE;
@@ -508,7 +473,6 @@ omap_gpio_pin_setflags(device_t dev, uint32_t pin, uint32_t flags)
 		OMAP_GPIO_UNLOCK(sc);
 		return (EINVAL);
 	}
-	
 
 	/* If configuring as an output set the "output enable" bit */
 	reg_val = omap_gpio_read_4(sc, bank, reg_off);

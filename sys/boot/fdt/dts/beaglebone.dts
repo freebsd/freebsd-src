@@ -59,6 +59,29 @@
 			reg =	< 0x48200000 0x1000 >;
 		};
 
+		scm@44e10000 {
+			compatible = "ti,scm";
+			reg =	< 0x44e10000 0x2000 >;
+			/* Set of triplets < padname, muxname, padstate> */
+			scm-pad-config =
+				/* Ethernet */
+				"MII1_RX_ER", "gmii1_rxerr", "input",
+				"MII1_TX_EN", "gmii1_txen", "output",
+				"MII1_RX_DV", "gmii1_rxdv", "input",
+				"MII1_TXD3", "gmii1_txd3", "output",
+				"MII1_TXD2", "gmii1_txd2", "output",
+				"MII1_TXD1", "gmii1_txd1", "output",
+				"MII1_TXD0", "gmii1_txd0", "output",
+				"MII1_TX_CLK", "gmii1_txclk", "input",
+				"MII1_RX_CLK", "gmii1_rxclk", "input",
+				"MII1_RXD3", "gmii1_rxd3", "input",
+				"MII1_RXD2", "gmii1_rxd2", "input",
+				"MII1_RXD1", "gmii1_rxd1",  "input",
+				"MII1_RXD0", "gmii1_rxd0",  "input",
+				"MDIO", "mdio_data", "input_pullup_inact",
+				"MDC", "mdio_clk", "output_pullup";
+		};
+
 		prcm@44E00000 {
 			compatible = "am335x,prcm";
 			#address-cells = <1>;

@@ -12,9 +12,11 @@ arm/arm/irq_dispatch.S				standard
 
 arm/ti/ti_machdep.c				standard
 arm/ti/aintc.c					standard
+arm/ti/ti_scm.c					standard
 
 arm/ti/am335x/am335x_prcm.c			standard
 arm/ti/am335x/am335x_dmtimer.c			standard
 arm/ti/am335x/if_cpsw.c				standard
+arm/ti/am335x/am335x_scm_padconf.c		standard
 
 dev/uart/uart_dev_ns8250.c			optional	uart

@@ -99,7 +99,7 @@ __FBSDID("$FreeBSD$");
 
 #include <arm/ti/tivar.h>
 #include <arm/ti/omap_prcm.h>
-#include <arm/ti/omap_scm.h>
+#include <arm/ti/ti_scm.h>
 
 #include <arm/ti/usb/omap_usb.h>
 
