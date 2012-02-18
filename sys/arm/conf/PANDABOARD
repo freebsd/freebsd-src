@@ -75,9 +75,9 @@ device		mmc				# mmc/sd bus
 device		mmcsd			# mmc/sd flash cards
 
 # I2C support
-#device		iicbus
-#device		iic
-#device		omap3_i2c
+device		iicbus
+device		iic
+device		omap_i2c
 
 device		loop
 device		ether
