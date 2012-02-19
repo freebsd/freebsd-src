@@ -25,11 +25,7 @@ nfsd_precmd()
 		#
 		rc_flags="-e ${nfs_server_flags}"
 
-		if ! checkyesno nfsuserd_enable  && \
-		    ! /etc/rc.d/nfsuserd forcestatus 1>/dev/null 2>&1
-		then
-			force_depend nfsuserd || return 1
-		fi
+		force_depend nfsuserd || return 1
 	else
 		rc_flags="${nfs_server_flags}"
 
