@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 19, 2007
+.Dd February 19, 2012
 .Dt DAEMON 8
 .Os
 .Sh NAME
@@ -59,14 +59,18 @@ Write the ID of the created process into the
 using the
 .Xr pidfile 3
 functionality.
-If the
+The program is executed in a spawned child process while the
+.Nm
+waits until it terminates to keep the
+.Ar file
+locked and removes it after the process exits.
+The
+.Ar file
+owner is the user who runs the
+.Nm
+regardless of whether the
 .Fl u
-option is used, either the pidfile needs to have been pre-created
-with appropriate ownership and permissions, or the directory to contain
-the pidfile must be writable by the specified user.
-Note, that the file will be created shortly before the process is
-actually executed, and will remain after the process exits (although
-it will be removed if the execution fails).
+option is used or not.
 .It Fl u Ar user
 Login name of the user to execute the program under.
 Requires adequate superuser privileges.
