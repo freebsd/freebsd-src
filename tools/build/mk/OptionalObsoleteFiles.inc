@@ -671,6 +671,44 @@ OLD_FILES+=usr/share/man/man1/clang-cpp.1.gz
 OLD_FILES+=usr/share/man/man1/tblgen.1.gz
 .endif
 
+.if ${MK_CLANG_EXTRAS} == no
+OLD_FILES+=usr/bin/bugpoint
+OLD_FILES+=usr/bin/llc
+OLD_FILES+=usr/bin/lli
+OLD_FILES+=usr/bin/llvm-ar
+OLD_FILES+=usr/bin/llvm-as
+OLD_FILES+=usr/bin/llvm-bcanalyzer
+OLD_FILES+=usr/bin/llvm-diff
+OLD_FILES+=usr/bin/llvm-dis
+OLD_FILES+=usr/bin/llvm-extract
+OLD_FILES+=usr/bin/llvm-ld
+OLD_FILES+=usr/bin/llvm-link
+OLD_FILES+=usr/bin/llvm-mc
+OLD_FILES+=usr/bin/llvm-nm
+OLD_FILES+=usr/bin/llvm-objdump
+OLD_FILES+=usr/bin/llvm-prof
+OLD_FILES+=usr/bin/llvm-ranlib
+OLD_FILES+=usr/bin/llvm-rtdyld
+OLD_FILES+=usr/bin/llvm-stub
+OLD_FILES+=usr/bin/macho-dump
+OLD_FILES+=usr/bin/opt
+OLD_FILES+=usr/share/man/man1/bugpoint.1.gz
+OLD_FILES+=usr/share/man/man1/llc.1.gz
+OLD_FILES+=usr/share/man/man1/lli.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ar.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-as.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-bcanalyzer.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-diff.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-dis.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-extract.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ld.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-link.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-nm.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-prof.1.gz
+OLD_FILES+=usr/share/man/man1/llvm-ranlib.1.gz
+OLD_FILES+=usr/share/man/man1/opt.1.gz
+.endif
+
 .if ${MK_CPP} == no
 OLD_FILES+=usr/bin/cpp
 OLD_FILES+=usr/share/man/man1/cpp.1.gz
