@@ -98,7 +98,7 @@ __FBSDID("$FreeBSD$");
 #include <dev/usb/controller/ehcireg.h>
 
 #include <arm/ti/tivar.h>
-#include <arm/ti/omap_prcm.h>
+#include <arm/ti/ti_prcm.h>
 #include <arm/ti/ti_scm.h>
 
 #include <arm/ti/usb/omap_usb.h>
@@ -350,7 +350,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	
 	
 	/* Enable Clocks for high speed USBHOST */
-	omap_prcm_clk_enable(USBHSHOST_CLK);
+	ti_prcm_clk_enable(USBHSHOST_CLK);
 	
 	/* Hold the PHY in reset while configuring */
 	for (int i = 0; i < 3; i++) {
@@ -378,7 +378,7 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 	if (isc->ehci_rev == OMAP_EHCI_REV1) {
 
 		/* Enable the USB TLL */
-		omap_prcm_clk_enable(USBTLL_CLK);
+		ti_prcm_clk_enable(USBTLL_CLK);
 
 		/* Perform TLL soft reset, and wait until reset is complete */
 		omap_tll_write_4(isc, OMAP_USBTLL_SYSCONFIG, TLL_SYSCONFIG_SOFTRESET);
@@ -421,20 +421,20 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 		 */
 		if (isc->ehci_rev == OMAP_EHCI_REV2) {
 			if (isc->port_mode[0] == EHCI_HCD_OMAP_MODE_PHY) {
-				omap_prcm_clk_set_source(USBP1_PHY_CLK, EXT_CLK);
-				omap_prcm_clk_enable(USBP1_PHY_CLK);
+				ti_prcm_clk_set_source(USBP1_PHY_CLK, EXT_CLK);
+				ti_prcm_clk_enable(USBP1_PHY_CLK);
 			} else if (isc->port_mode[0] == EHCI_HCD_OMAP_MODE_TLL)
-				omap_prcm_clk_enable(USBP1_UTMI_CLK);
+				ti_prcm_clk_enable(USBP1_UTMI_CLK);
 			else if (isc->port_mode[0] == EHCI_HCD_OMAP_MODE_HSIC)
-				omap_prcm_clk_enable(USBP1_HSIC_CLK);
+				ti_prcm_clk_enable(USBP1_HSIC_CLK);
 
 			if (isc->port_mode[1] == EHCI_HCD_OMAP_MODE_PHY) {
-				omap_prcm_clk_set_source(USBP2_PHY_CLK, EXT_CLK);
-				omap_prcm_clk_enable(USBP2_PHY_CLK);
+				ti_prcm_clk_set_source(USBP2_PHY_CLK, EXT_CLK);
+				ti_prcm_clk_enable(USBP2_PHY_CLK);
 			} else if (isc->port_mode[1] == EHCI_HCD_OMAP_MODE_TLL)
-				omap_prcm_clk_enable(USBP2_UTMI_CLK);
+				ti_prcm_clk_enable(USBP2_UTMI_CLK);
 			else if (isc->port_mode[1] == EHCI_HCD_OMAP_MODE_HSIC)
-				omap_prcm_clk_enable(USBP2_HSIC_CLK);
+				ti_prcm_clk_enable(USBP2_HSIC_CLK);
 		}
 	}
 
@@ -570,10 +570,10 @@ omap_ehci_init(struct omap_ehci_softc *isc)
 err_sys_status:
 	
 	/* Disable the TLL clocks */
-	omap_prcm_clk_disable(USBTLL_CLK);
+	ti_prcm_clk_disable(USBTLL_CLK);
 	
 	/* Disable Clocks for USBHOST */
-	omap_prcm_clk_disable(USBHSHOST_CLK);
+	ti_prcm_clk_disable(USBHSHOST_CLK);
 
 	return(ret);
 }
@@ -637,8 +637,8 @@ omap_ehci_fini(struct omap_ehci_softc *isc)
 
 
 	/* Disable functional and interface clocks for the TLL and HOST modules */
-	omap_prcm_clk_disable(USBTLL_CLK);
-	omap_prcm_clk_disable(USBHSHOST_CLK);
+	ti_prcm_clk_disable(USBTLL_CLK);
+	ti_prcm_clk_disable(USBHSHOST_CLK);
 
 	device_printf(isc->sc_dev, "Clock to USB host has been disabled\n");
 	

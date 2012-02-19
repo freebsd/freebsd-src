@@ -57,7 +57,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 
 #include <arm/ti/ti_scm.h>
-#include <arm/ti/omap_prcm.h>
+#include <arm/ti/ti_prcm.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -750,7 +750,7 @@ omap_gpio_attach(device_t dev)
 		if (sc->sc_mem_res[i] != NULL) {
 		
 			/* Enable the interface and functional clocks for the module */
-			omap_prcm_clk_enable(GPIO1_CLK + i);
+			ti_prcm_clk_enable(GPIO1_CLK + i);
 			
 			/* Read the revision number of the module. TI don't publish the
 			 * actual revision numbers, so instead the values have been

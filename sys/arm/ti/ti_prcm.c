@@ -58,19 +58,19 @@ __FBSDID("$FreeBSD$");
 #include <machine/resource.h>
 #include <machine/intr.h>
 
-#include <arm/ti/omap_prcm.h>
+#include <arm/ti/ti_prcm.h>
 
 /**
- *	omap_clk_devmap - Array of clock devices, should be defined one per SoC 
+ *	ti_clk_devmap - Array of clock devices, should be defined one per SoC 
  *
- *	This array is typically defined in one of the targeted omap??_prcm_clk.c
+ *	This array is typically defined in one of the targeted *_prcm_clk.c
  *	files and is specific to the given SoC platform.  Each entry in the array
  *	corresponds to an individual clock device.
  */
-extern struct omap_clock_dev omap_clk_devmap[];
+extern struct ti_clock_dev ti_clk_devmap[];
 
 /**
- *	omap_prcm_clk_dev - returns a pointer to the clock device with given id
+ *	ti_prcm_clk_dev - returns a pointer to the clock device with given id
  *	@clk: the ID of the clock device to get
  *
  *	Simply iterates through the clk_devmap global array and returns a pointer
@@ -82,16 +82,16 @@ extern struct omap_clock_dev omap_clk_devmap[];
  *	RETURNS:
  *	The pointer to the clock device on success, on failure NULL is returned.
  */
-static struct omap_clock_dev *
-omap_prcm_clk_dev(clk_ident_t clk)
+static struct ti_clock_dev *
+ti_prcm_clk_dev(clk_ident_t clk)
 {
-	struct omap_clock_dev *clk_dev;
+	struct ti_clock_dev *clk_dev;
 	
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = &(omap_clk_devmap[0]);
+	clk_dev = &(ti_clk_devmap[0]);
 	while (clk_dev->id != INVALID_CLK_IDENT) {
 		if (clk_dev->id == clk) {
 			return (clk_dev);
@@ -100,13 +100,13 @@ omap_prcm_clk_dev(clk_ident_t clk)
 	}
 
 	/* Sanity check we managed to find the clock */
-	printf("omap_prcm: Failed to find clock device (%d)\n", clk);
+	printf("ti_prcm: Failed to find clock device (%d)\n", clk);
 	return (NULL);
 }
 
 /**
- *	omap_prcm_clk_valid - enables a clock for a particular module
- *	@clk: identifier for the module to enable, see omap_prcm.h for a list
+ *	ti_prcm_clk_valid - enables a clock for a particular module
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	         Example: OMAP3_MODULE_MMC1_ICLK or OMAP3_MODULE_GPTIMER10_FCLK.
  *	
@@ -123,11 +123,11 @@ omap_prcm_clk_dev(clk_ident_t clk)
  *	Returns 0 on success or positive error code on failure.
  */
 int
-omap_prcm_clk_valid(clk_ident_t clk)
+ti_prcm_clk_valid(clk_ident_t clk)
 {
 	int ret = 0;
 
-	if (omap_prcm_clk_dev(clk) == NULL)
+	if (ti_prcm_clk_dev(clk) == NULL)
 		ret = EINVAL;
 	
 	return (ret);
@@ -135,8 +135,8 @@ omap_prcm_clk_valid(clk_ident_t clk)
 
 
 /**
- *	omap_prcm_clk_enable - enables a clock for a particular module
- *	@clk: identifier for the module to enable, see omap_prcm.h for a list
+ *	ti_prcm_clk_enable - enables a clock for a particular module
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	         Example: OMAP3_MODULE_MMC1_ICLK or OMAP3_MODULE_GPTIMER10_FCLK.
  *	
@@ -153,16 +153,16 @@ omap_prcm_clk_valid(clk_ident_t clk)
  *	Returns 0 on success or positive error code on failure.
  */
 int
-omap_prcm_clk_enable(clk_ident_t clk)
+ti_prcm_clk_enable(clk_ident_t clk)
 {
-	struct omap_clock_dev *clk_dev;
+	struct ti_clock_dev *clk_dev;
 	int ret;
 
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = omap_prcm_clk_dev(clk);
+	clk_dev = ti_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
 	if (clk_dev == NULL)
@@ -179,8 +179,8 @@ omap_prcm_clk_enable(clk_ident_t clk)
 
 
 /**
- *	omap_prcm_clk_disable - disables a clock for a particular module
- *	@clk: identifier for the module to enable, see omap_prcm.h for a list
+ *	ti_prcm_clk_disable - disables a clock for a particular module
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	         Example: OMAP3_MODULE_MMC1_ICLK or OMAP3_MODULE_GPTIMER10_FCLK.
  *	
@@ -197,16 +197,16 @@ omap_prcm_clk_enable(clk_ident_t clk)
  *	Returns 0 on success or positive error code on failure.
  */
 int
-omap_prcm_clk_disable(clk_ident_t clk)
+ti_prcm_clk_disable(clk_ident_t clk)
 {
-	struct omap_clock_dev *clk_dev;
+	struct ti_clock_dev *clk_dev;
 	int ret;
 
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = omap_prcm_clk_dev(clk);
+	clk_dev = ti_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
 	if (clk_dev == NULL)
@@ -222,8 +222,8 @@ omap_prcm_clk_disable(clk_ident_t clk)
 }
 
 /**
- *	omap_prcm_clk_set_source - sets the source 
- *	@clk: identifier for the module to enable, see omap_prcm.h for a list
+ *	ti_prcm_clk_set_source - sets the source 
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	         Example: OMAP3_MODULE_MMC1_ICLK or OMAP3_MODULE_GPTIMER10_FCLK.
  *	
@@ -240,16 +240,16 @@ omap_prcm_clk_disable(clk_ident_t clk)
  *	Returns 0 on success or positive error code on failure.
  */
 int
-omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
+ti_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
 {
-	struct omap_clock_dev *clk_dev;
+	struct ti_clock_dev *clk_dev;
 	int ret;
 
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = omap_prcm_clk_dev(clk);
+	clk_dev = ti_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
 	if (clk_dev == NULL)
@@ -266,8 +266,8 @@ omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
 
 
 /**
- *	omap_prcm_clk_get_source_freq - gets the source clock frequency
- *	@clk: identifier for the module to enable, see omap_prcm.h for a list
+ *	ti_prcm_clk_get_source_freq - gets the source clock frequency
+ *	@clk: identifier for the module to enable, see ti_prcm.h for a list
  *	      of possible modules.
  *	@freq: pointer to an integer that upon return will contain the src freq
  *	
@@ -284,16 +284,16 @@ omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc)
  *	Returns 0 on success or positive error code on failure.
  */
 int
-omap_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
+ti_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq)
 {
-	struct omap_clock_dev *clk_dev;
+	struct ti_clock_dev *clk_dev;
 	int ret;
 
 	/* Find the clock within the devmap - it's a bit inefficent having a for 
 	 * loop for this, but this function should only called when a driver is 
 	 * being activated so IMHO not a big issue.
 	 */
-	clk_dev = omap_prcm_clk_dev(clk);
+	clk_dev = ti_prcm_clk_dev(clk);
 
 	/* Sanity check we managed to find the clock */
 	if (clk_dev == NULL)

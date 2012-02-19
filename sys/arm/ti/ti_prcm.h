@@ -39,12 +39,12 @@
  *   Technical Reference Manual
  *  (omap35xx_techref.pdf)
  */
-#ifndef _OMAP_PRCM_H_
-#define _OMAP_PRCM_H_
+#ifndef _TI_PRCM_H_
+#define _TI_PRCM_H_
 
 typedef enum {
 
-	/* System clocks, typically you can only call omap_prcm_clk_get_source_freq()
+	/* System clocks, typically you can only call ti_prcm_clk_get_source_freq()
 	 * on these clocks as they are enabled by default.
 	 */
 	SYS_CLK = 1,
@@ -132,28 +132,28 @@ typedef enum {
 
 } clk_src_t;
 
-struct omap_clock_dev {
+struct ti_clock_dev {
 	/* The profile of the timer */
 	clk_ident_t  id;
 	
 	/* A bunch of callbacks associated with the clock device */
-	int (*clk_activate)(struct omap_clock_dev *clkdev);
-	int (*clk_deactivate)(struct omap_clock_dev *clkdev);
-	int (*clk_set_source)(struct omap_clock_dev *clkdev,
+	int (*clk_activate)(struct ti_clock_dev *clkdev);
+	int (*clk_deactivate)(struct ti_clock_dev *clkdev);
+	int (*clk_set_source)(struct ti_clock_dev *clkdev,
 	    clk_src_t clksrc);
-	int (*clk_accessible)(struct omap_clock_dev *clkdev);
-	int (*clk_get_source_freq)(struct omap_clock_dev *clkdev,
+	int (*clk_accessible)(struct ti_clock_dev *clkdev);
+	int (*clk_get_source_freq)(struct ti_clock_dev *clkdev,
 	    unsigned int *freq);
 						  
 };
 
-int omap_prcm_clk_valid(clk_ident_t clk);
-int omap_prcm_clk_enable(clk_ident_t clk);
-int omap_prcm_clk_disable(clk_ident_t clk);
-int omap_prcm_clk_accessible(clk_ident_t clk);
-int omap_prcm_clk_disable_autoidle(clk_ident_t clk);
-int omap_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc);
-int omap_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq);
-void omap_prcm_reset(void);
+int ti_prcm_clk_valid(clk_ident_t clk);
+int ti_prcm_clk_enable(clk_ident_t clk);
+int ti_prcm_clk_disable(clk_ident_t clk);
+int ti_prcm_clk_accessible(clk_ident_t clk);
+int ti_prcm_clk_disable_autoidle(clk_ident_t clk);
+int ti_prcm_clk_set_source(clk_ident_t clk, clk_src_t clksrc);
+int ti_prcm_clk_get_source_freq(clk_ident_t clk, unsigned int *freq);
+void ti_prcm_reset(void);
 
-#endif   /* _OMAP_PRCM_H_ */
+#endif   /* _TI_PRCM_H_ */

@@ -48,7 +48,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/intr.h>
 
 #include <arm/ti/tivar.h>
-#include <arm/ti/omap_prcm.h>
+#include <arm/ti/ti_prcm.h>
 #include <arm/ti/omap4/omap4_reg.h>
 
 #include <dev/fdt/fdt_common.h>
@@ -188,25 +188,25 @@ struct omap4_prcm_softc {
 
 static struct omap4_prcm_softc *omap4_prcm_sc;
 
-static int omap4_clk_generic_activate(struct omap_clock_dev *clkdev);
-static int omap4_clk_generic_deactivate(struct omap_clock_dev *clkdev);
-static int omap4_clk_generic_accessible(struct omap_clock_dev *clkdev);
-static int omap4_clk_generic_set_source(struct omap_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_generic_get_source_freq(struct omap_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_generic_activate(struct ti_clock_dev *clkdev);
+static int omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev);
+static int omap4_clk_generic_accessible(struct ti_clock_dev *clkdev);
+static int omap4_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_gptimer_set_source(struct omap_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_gptimer_get_source_freq(struct omap_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_hsmmc_set_source(struct omap_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_hsmmc_get_source_freq(struct omap_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 
-static int omap4_clk_hsusbhost_set_source(struct omap_clock_dev *clkdev, clk_src_t clksrc);
-static int omap4_clk_hsusbhost_activate(struct omap_clock_dev *clkdev);
-static int omap4_clk_hsusbhost_deactivate(struct omap_clock_dev *clkdev);
-static int omap4_clk_hsusbhost_accessible(struct omap_clock_dev *clkdev);
+static int omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev);
+static int omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev);
+static int omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev);
 
-static int omap4_clk_get_sysclk_freq(struct omap_clock_dev *clkdev, unsigned int *freq);
-static int omap4_clk_get_arm_fclk_freq(struct omap_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 
 /**
  *	omap_clk_devmap - Array of clock devices available on OMAP4xxx devices
@@ -257,7 +257,7 @@ static int omap4_clk_get_arm_fclk_freq(struct omap_clock_dev *clkdev, unsigned i
 	}
 
 
-struct omap_clock_dev omap_clk_devmap[] = {
+struct ti_clock_dev ti_clk_devmap[] = {
 
 	/* System clocks */
 	{	.id                  = SYS_CLK,
@@ -491,7 +491,7 @@ omap4_clk_details(clk_ident_t id)
  *	Returns 0 on success or a positive error code on failure.
  */
 static int
-omap4_clk_generic_activate(struct omap_clock_dev *clkdev)
+omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct omap4_clk_details* clk_details;
@@ -556,7 +556,7 @@ omap4_clk_generic_activate(struct omap_clock_dev *clkdev)
  *	Returns 0 on success or a positive error code on failure.
  */
 static int
-omap4_clk_generic_deactivate(struct omap_clock_dev *clkdev)
+omap4_clk_generic_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct omap4_clk_details* clk_details;
@@ -602,7 +602,7 @@ omap4_clk_generic_deactivate(struct omap_clock_dev *clkdev)
  *	Returns 0 on success or a positive error code on failure.
  */
 static int
-omap4_clk_generic_set_source(struct omap_clock_dev *clkdev,
+omap4_clk_generic_set_source(struct ti_clock_dev *clkdev,
                              clk_src_t clksrc)
 {
 
@@ -624,7 +624,7 @@ omap4_clk_generic_set_source(struct omap_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_generic_accessible(struct omap_clock_dev *clkdev)
+omap4_clk_generic_accessible(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct omap4_clk_details* clk_details;
@@ -668,7 +668,7 @@ omap4_clk_generic_accessible(struct omap_clock_dev *clkdev)
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_generic_get_source_freq(struct omap_clock_dev *clkdev,
+omap4_clk_generic_get_source_freq(struct ti_clock_dev *clkdev,
                                   unsigned int *freq
                                   )
 {
@@ -700,7 +700,7 @@ omap4_clk_generic_get_source_freq(struct omap_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_gptimer_set_source(struct omap_clock_dev *clkdev,
+omap4_clk_gptimer_set_source(struct ti_clock_dev *clkdev,
                              clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
@@ -740,7 +740,7 @@ omap4_clk_gptimer_set_source(struct omap_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_gptimer_get_source_freq(struct omap_clock_dev *clkdev,
+omap4_clk_gptimer_get_source_freq(struct ti_clock_dev *clkdev,
                                   unsigned int *freq
                                   )
 {
@@ -790,7 +790,7 @@ omap4_clk_gptimer_get_source_freq(struct omap_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_hsmmc_set_source(struct omap_clock_dev *clkdev,
+omap4_clk_hsmmc_set_source(struct ti_clock_dev *clkdev,
                            clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
@@ -848,7 +848,7 @@ omap4_clk_hsmmc_set_source(struct omap_clock_dev *clkdev,
  *	Returns 0 on success or a negative error code on failure.
  */
 static int
-omap4_clk_hsmmc_get_source_freq(struct omap_clock_dev *clkdev,
+omap4_clk_hsmmc_get_source_freq(struct ti_clock_dev *clkdev,
                                 unsigned int *freq
                                 )
 {
@@ -908,7 +908,7 @@ omap4_clk_hsmmc_get_source_freq(struct omap_clock_dev *clkdev,
  *	nothing, values are saved in global variables
  */
 static int
-omap4_clk_get_sysclk_freq(struct omap_clock_dev *clkdev,
+omap4_clk_get_sysclk_freq(struct ti_clock_dev *clkdev,
                           unsigned int *freq)
 {
 	uint32_t clksel;
@@ -965,7 +965,7 @@ omap4_clk_get_sysclk_freq(struct omap_clock_dev *clkdev,
  *	returns 0 on success, a positive error code on failure.
  */
 static int
-omap4_clk_get_arm_fclk_freq(struct omap_clock_dev *clkdev,
+omap4_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev,
                             unsigned int *freq)
 {
 	uint32_t clksel;
@@ -1048,7 +1048,7 @@ struct dpll_param usb_dpll_param[7] = {
 #endif
 };
 static int
-omap4_clk_hsusbhost_activate(struct omap_clock_dev *clkdev)
+omap4_clk_hsusbhost_activate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct resource* clk_mem_res;
@@ -1163,7 +1163,7 @@ omap4_clk_hsusbhost_activate(struct omap_clock_dev *clkdev)
  *	Returns 0 on success or a positive error code on failure.
  */
 static int
-omap4_clk_hsusbhost_deactivate(struct omap_clock_dev *clkdev)
+omap4_clk_hsusbhost_deactivate(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct resource* clk_mem_res;
@@ -1253,7 +1253,7 @@ omap4_clk_hsusbhost_deactivate(struct omap_clock_dev *clkdev)
  *	error code on failure.
  */
 static int
-omap4_clk_hsusbhost_accessible(struct omap_clock_dev *clkdev)
+omap4_clk_hsusbhost_accessible(struct ti_clock_dev *clkdev)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;
 	struct resource* clk_mem_res;
@@ -1301,7 +1301,7 @@ omap4_clk_hsusbhost_accessible(struct omap_clock_dev *clkdev)
  *	Returns 0 if sucessful otherwise a negative error code on failure.
  */
 static int
-omap4_clk_hsusbhost_set_source(struct omap_clock_dev *clkdev,
+omap4_clk_hsusbhost_set_source(struct ti_clock_dev *clkdev,
                                clk_src_t clksrc)
 {
 	struct omap4_prcm_softc *sc = omap4_prcm_sc;

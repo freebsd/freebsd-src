@@ -25,8 +25,8 @@
  * SUCH DAMAGE.
  */
 
-#ifndef _OMAP_I2C_H_
-#define	_OMAP_I2C_H_
+#ifndef _TI_I2C_H_
+#define	_TI_I2C_H_
 
 /**
  * Header file for the OMAP I2C driver.
@@ -110,4 +110,4 @@
 
 
 
-#endif /* _OMAP_I2C_H_ */
+#endif /* _TI_I2C_H_ */
