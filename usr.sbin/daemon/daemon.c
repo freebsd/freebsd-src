@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/wait.h>
 
 #include <err.h>
 #include <errno.h>
@@ -43,15 +44,16 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 
 static void restrict_process(const char *);
+static void wait_child(pid_t pid);
 static void usage(void);
 
 int
 main(int argc, char *argv[])
 {
 	struct pidfh *pfh = NULL;
-	int ch, nochdir, noclose, errcode;
+	int ch, nochdir, noclose;
 	const char *pidfile, *user;
-	pid_t otherpid;
+	pid_t otherpid, pid;
 
 	nochdir = noclose = 1;
 	pidfile = user = NULL;
@@ -79,14 +81,12 @@ main(int argc, char *argv[])
 	if (argc == 0)
 		usage();
 
-	if (user != NULL)
-		restrict_process(user);
-
+	pfh = NULL;
 	/*
 	 * Try to open the pidfile before calling daemon(3),
 	 * to be able to report the error intelligently
 	 */
-	if (pidfile) {
+	if (pidfile != NULL) {
 		pfh = pidfile_open(pidfile, 0600, &otherpid);
 		if (pfh == NULL) {
 			if (errno == EEXIST) {
@@ -100,22 +100,37 @@ main(int argc, char *argv[])
 	if (daemon(nochdir, noclose) == -1)
 		err(1, NULL);
 
-	/* Now that we are the child, write out the pid */
-	if (pidfile)
+	pid = 0;
+	if (pidfile != NULL) {
+		/*
+		 * Spawn a child to exec the command, so in the parent
+		 * we could wait for it to exit and remove pidfile.
+		 */
+		pid = fork();
+		if (pid == -1) {
+			pidfile_remove(pfh);
+			err(1, "fork");
+		}
+	}
+	if (pid == 0) {
+		/* Now that we are the child, write out the pid. */
 		pidfile_write(pfh);
 
-	execvp(argv[0], argv);
+		if (user != NULL)
+			restrict_process(user);
 
-	/*
-	 * execvp() failed -- unlink pidfile if any, and
-	 * report the error
-	 */
-	errcode = errno; /* Preserve errcode -- unlink may reset it */
-	if (pidfile)
-		pidfile_remove(pfh);
+		execvp(argv[0], argv);
 
-	/* The child is now running, so the exit status doesn't matter. */
-	errc(1, errcode, "%s", argv[0]);
+		/*
+		 * execvp() failed -- report the error. The child is
+		 * now running, so the exit status doesn't matter.
+		 */
+		err(1, "%s", argv[0]);
+	}
+	setproctitle("%s[%d]", argv[0], pid);
+	wait_child(pid);
+	pidfile_remove(pfh);
+	exit(0); /* Exit status does not matter. */
 }
 
 static void
@@ -129,6 +144,19 @@ restrict_process(const char *user)
 
 	if (setusercontext(NULL, pw, pw->pw_uid, LOGIN_SETALL) != 0)
 		errx(1, "failed to set user environment");
+}
+
+static void
+wait_child(pid_t pid)
+{
+	int status;
+
+	while (waitpid(pid, &status, 0) == -1) {
+		if (errno != EINTR) {
+			warn("waitpid");
+			break;
+		}
+	}
 }
 
 static void
