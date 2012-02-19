@@ -205,7 +205,7 @@ _thr_umtx_timedwait_uint(volatile u_int *mtx, u_int id, int clockid,
 	if (abstime != NULL) {
 		clock_gettime(clockid, &ts);
 		TIMESPEC_SUB(&ts2, abstime, &ts);
-		if (ts2.tv_sec < 0 || ts2.tv_nsec <= 0)
+		if (ts2.tv_sec < 0 || (ts2.tv_sec == 0 && ts2.tv_nsec <= 0))
 			return (ETIMEDOUT);
 		tsp = &ts2;
 	} else {
