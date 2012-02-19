@@ -71,6 +71,12 @@ owner is the user who runs the
 regardless of whether the
 .Fl u
 option is used or not.
+If the monitoring
+.Nm
+receives software termination signal (SIGTERM) it forwards it to the
+spawned process.
+Normally it will cause the child to exit followed by the termination
+of the supervising process after removing the pidfile.
 .It Fl u Ar user
 Login name of the user to execute the program under.
 Requires adequate superuser privileges.
