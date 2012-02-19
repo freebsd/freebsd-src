@@ -413,6 +413,7 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CLANG_EXTRAS \
     HESIOD \
     ICONV \
     IDEA \
@@ -514,6 +515,10 @@ MK_SOURCELESS_UCODE:= no
 
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"

@@ -1,5 +1,7 @@
 # $FreeBSD$
 
+.include <bsd.own.mk>
+
 LIB=	llvmmc
 
 SRCDIR=	lib/MC
@@ -42,5 +44,9 @@ SRCS=	ELFObjectWriter.cpp \
 	SubtargetFeature.cpp \
 	WinCOFFObjectWriter.cpp \
 	WinCOFFStreamer.cpp
+
+.if ${MK_CLANG_EXTRAS} != "no"
+SRCS+=	MCDisassembler.cpp
+.endif
 
 .include "../clang.lib.mk"
