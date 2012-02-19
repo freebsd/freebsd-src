@@ -36,9 +36,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-
-
-.Dd February 14, 2012
+.Dd February 19, 2012
 .Dt OCE 4
 .Os
 .Sh NAME
@@ -49,10 +47,11 @@ To compile this driver into the kernel,
 place the following lines in your
 kernel configuration file:
 .Bd -ragged -offset indent
+.Cd "device pci"
 .Cd "device oce"
 .Ed
 .Pp
-To load the driver as a
+Alternatively, to load the driver as a
 module at boot time, place the following line in
 .Xr loader.conf 5 :
 .Bd -literal -offset indent
@@ -61,17 +60,21 @@ if_oce_load="YES"
 .Sh DESCRIPTION
 Emulex one connect adapters come in various skews and with
 different combinations of NIC, FCoE and iSCSI functions.
-oce claims the NIC functions in all these adapters.
+The
+.Nm
+driver claims the NIC functions in all these adapters.
 .Pp
 The
 .Nm
 driver supports VLAN Hardware offload, TCP checksum offload,
 TCP segmentation offload (TSO), Large receive offload (LRO),
 Bonding, Jumbo frames (from 1500 - 9000), Multiple TX queues,
-Receive-Side Scaling(RSS) and MSI-X interrupts.	
+Receive-Side Scaling(RSS) and MSI-X interrupts.
 .Sh HARDWARE
+The
 .Nm
 driver supports the following Emulex network adapters:
+.Pp
 .Bl -bullet -compact
 .It
 BladeEngine 2
@@ -82,9 +85,9 @@ Lancer
 .El
 .Sh UPDATING FIRMWARE
 Adapter firmware updates are persistent.
-
+.Pp
 Firmware can be updated by following the steps below:
-.nf
+.Bd -literal -compact
  1) Copy the below code to a Makefile
   ".KMOD=elxflash
    FIRMWS=imagename.ufi:elxflash
@@ -94,18 +97,18 @@ Firmware can be updated by following the steps below:
  4) Execute make & copy generated elxflash.ko to /lib/modules
  5) sysctl dev.oce.<if_id>.fw_upgrade=elxflash
  6) Reboot the machine.
-
+.Pp
 In case of issues with supplied UFI, flashing fails with one
 of the below errors.
  1) "Invalid BE3 firmware image"
  2) "Invalid Cookie. Firmware image corrupted ?"
  3) "cmd to write to flash rom failed."
-.fi
+.Ed
 .Sh SUPPORT
 For general information and support,
 go to the Emulex website at:
 .Fa http://www.Emulex.com/
-or E-Mail at 
+or E-Mail at
 .Fa freebsd-drivers@emulex.com.
 .Sh SEE ALSO
 .Xr ifconfig 8
