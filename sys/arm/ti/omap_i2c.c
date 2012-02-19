@@ -1132,8 +1132,8 @@ static driver_t omap_i2c_driver = {
 	sizeof(struct omap_i2c_softc),
 };
 
-DRIVER_MODULE(omap_i2c, simplebus, omap_i2c_driver, omap_i2c_devclass, 0, 0);
-DRIVER_MODULE(iicbus, omap_i2c, iicbus_driver, iicbus_devclass, 0, 0);
+DRIVER_MODULE(omap_iic, simplebus, omap_i2c_driver, omap_i2c_devclass, 0, 0);
+DRIVER_MODULE(iicbus, omap_iic, iicbus_driver, iicbus_devclass, 0, 0);
 
 MODULE_DEPEND(omap_i2c, omap_prcm, 1, 1, 1);
 MODULE_DEPEND(omap_i2c, iicbus, 1, 1, 1);
