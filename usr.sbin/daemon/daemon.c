@@ -46,7 +46,7 @@ __FBSDID("$FreeBSD$");
 
 static void dummy_sighandler(int);
 static void restrict_process(const char *);
-static void wait_child(pid_t pid, sigset_t *mask);
+static int  wait_child(pid_t pid, sigset_t *mask);
 static void usage(void);
 
 int
@@ -54,13 +54,14 @@ main(int argc, char *argv[])
 {
 	struct pidfh *pfh = NULL;
 	sigset_t mask, oldmask;
-	int ch, nochdir, noclose;
+	int ch, nochdir, noclose, restart;
 	const char *pidfile, *user;
 	pid_t otherpid, pid;
 
 	nochdir = noclose = 1;
+	restart = 0;
 	pidfile = user = NULL;
-	while ((ch = getopt(argc, argv, "-cfp:u:")) != -1) {
+	while ((ch = getopt(argc, argv, "-cfp:ru:")) != -1) {
 		switch (ch) {
 		case 'c':
 			nochdir = 0;
@@ -70,6 +71,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			pidfile = optarg;
+			break;
+		case 'r':
+			restart = 1;
 			break;
 		case 'u':
 			user = optarg;
@@ -104,15 +108,16 @@ main(int argc, char *argv[])
 		err(1, NULL);
 
 	/*
-	 * If the pidfile option is specified the daemon executes the
-	 * command in a forked process and wait on child exit to
-	 * remove the pidfile. Normally we don't want the monitoring
-	 * daemon to be terminated leaving the running process and the
-	 * stale pidfile, so we catch SIGTERM and pass it to the
-	 * children expecting to get SIGCHLD eventually.
+	 * If the pidfile or restart option is specified the daemon
+	 * executes the command in a forked process and wait on child
+	 * exit to remove the pidfile or restart the command. Normally
+	 * we don't want the monitoring daemon to be terminated
+	 * leaving the running process and the stale pidfile, so we
+	 * catch SIGTERM and forward it to the children expecting to
+	 * get SIGCHLD eventually.
 	 */
 	pid = -1;
-	if (pidfile != NULL) {
+	if (pidfile != NULL || restart) {
 		/*
 		 * Restore default action for SIGTERM in case the
 		 * parent process decided to ignore it.
@@ -133,6 +138,7 @@ main(int argc, char *argv[])
 		sigaddset(&mask, SIGCHLD);
 		if (sigprocmask(SIG_SETMASK, &mask, &oldmask) == -1)
 			err(1, "sigprocmask");
+restart:
 		/*
 		 * Spawn a child to exec the command, so in the parent
 		 * we could wait for it to exit and remove pidfile.
@@ -164,7 +170,10 @@ main(int argc, char *argv[])
 		err(1, "%s", argv[0]);
 	}
 	setproctitle("%s[%d]", argv[0], pid);
-	wait_child(pid, &mask);
+	if (wait_child(pid, &mask) == 0 && restart) {
+		sleep(1);
+		goto restart;
+	}
 	pidfile_remove(pfh);
 	exit(0); /* Exit status does not matter. */
 }
@@ -188,28 +197,30 @@ restrict_process(const char *user)
 		errx(1, "failed to set user environment");
 }
 
-static void
+static int
 wait_child(pid_t pid, sigset_t *mask)
 {
-	int signo;
+	int terminate, signo;
 
+	terminate = 0;
 	for (;;) {
 		if (sigwait(mask, &signo) == -1) {
 			warn("sigwaitinfo");
-			return;
+			return (-1);
 		}
 		switch (signo) {
 		case SIGCHLD:
-			return;
+			return (terminate);
 		case SIGTERM:
+			terminate = 1;
 			if (kill(pid, signo) == -1) {
 				warn("kill");
-				return;
+				return (-1);
 			}
 			continue;
 		default:
 			warnx("sigwaitinfo: invalid signal: %d", signo);
-			return;
+			return (-1);
 		}
 	}
 }
