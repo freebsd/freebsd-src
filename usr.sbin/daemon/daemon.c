@@ -32,6 +32,7 @@
 __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
+#include <sys/mman.h>
 #include <sys/wait.h>
 
 #include <err.h>
@@ -138,6 +139,12 @@ main(int argc, char *argv[])
 		sigaddset(&mask, SIGCHLD);
 		if (sigprocmask(SIG_SETMASK, &mask, &oldmask) == -1)
 			err(1, "sigprocmask");
+		/*
+		 * Try to protect against pageout kill. Ignore the
+		 * error, madvise(2) will fail only if a process does
+		 * not have superuser privileges.
+		 */
+		(void)madvise(NULL, 0, MADV_PROTECT);
 restart:
 		/*
 		 * Spawn a child to exec the command, so in the parent
