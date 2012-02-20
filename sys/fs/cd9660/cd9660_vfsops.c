@@ -205,7 +205,7 @@ iso_mountfs(devvp, mp)
 	struct vnode *devvp;
 	struct mount *mp;
 {
-	struct iso_mnt *isomp = (struct iso_mnt *)0;
+	struct iso_mnt *isomp = NULL;
 	struct buf *bp = NULL;
 	struct buf *pribp = NULL, *supbp = NULL;
 	struct cdev *dev;
