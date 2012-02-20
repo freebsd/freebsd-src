@@ -1,140 +1,140 @@
 $ $tcsh: set1,v 1.5 1998/06/27 12:27:55 christos Exp $
 $ Error messages
 $set 1 
-1 B≥±d sk≥adni
+1 B≈ÇƒÖd sk≈Çadni
 2 %s jest niedozwolone
-3 Zbyt d≥ugie s≥owo
-4 $< zbyt d≥uga linia
+3 Zbyt d≈Çugie s≈Çowo
+4 $< zbyt d≈Çuga linia
 5 Brak pliku dla $0
 6 Niekompletny modyfikator []
-7 ekspansja $ musi zakoÒczyÊ siÍ przed ]
-8 B≥±d : modyfikator w $ (%c)
-9 B≥±d subskrypcji
-10 ¨le stworzona liczba
-11 Brak s≥Ûw
+7 ekspansja $ musi zako≈Ñczyƒá siƒô przed ]
+8 B≈ÇƒÖd : modyfikator w $ (%c)
+9 B≈ÇƒÖd subskrypcji
+10 ≈πle stworzona liczba
+11 Brak s≈Ç√≥w
 12 Brakuje nazwy pliku
-13 WewnÍtrzny b≥±d podczas dopasowywania
+13 Wewnƒôtrzny b≈ÇƒÖd podczas dopasowywania
 14 Nie znaleziono polecenia
-15 Zbyt ma≥o argumentÛw
-16 Zbyt duøo argumentÛw
-17 Zbyt niebezpiecznie aliasowaÊ
+15 Zbyt ma≈Ço argument√≥w
+16 Zbyt du≈ºo argument√≥w
+17 Zbyt niebezpiecznie aliasowaƒá
 18 Pusty if
-19 Nieprawid≥owy then
-20 S≥owa nie s± w nawiasach
-21 %s nie zosta≥ znaleziony
-22 Nieprawid≥owa maska
+19 Nieprawid≈Çowy then
+20 S≈Çowa nie sƒÖ w nawiasach
+21 %s nie zosta≈Ç znaleziony
+22 Nieprawid≈Çowa maska
 23 Nie ma takiego limitu
-24 Zbyt duøy argument
-25 Nieprawid≥owy, lub nieznany wspÛ≥czynnik skali
+24 Zbyt du≈ºy argument
+25 Nieprawid≈Çowy, lub nieznany wsp√≥≈Çczynnik skali
 26 Niezdefiniowana zmienna
-27 Stos katalogÛw nie jest aø tak g≥Íboki
-28 Z≥y numer sygna≥u
-29 Nieznany sygna≥; kill -l pokaøe znane sygna≥y
-30 Nazwa zmiennej musi zaczynaÊ siÍ od litery
-31 Nazwa zmiennej jest zbyt d≥uga
-32 Nazwa zmiennej musi zawieraÊ znaki alfanumeryczne
-33 Brak kontroli pracami w tej pow≥oce
-34 B≥±d sk≥adni wyraøenia
+27 Stos katalog√≥w nie jest a≈º tak g≈Çƒôboki
+28 Z≈Çy numer sygna≈Çu
+29 Nieznany sygna≈Ç; kill -l poka≈ºe znane sygna≈Çy
+30 Nazwa zmiennej musi zaczynaƒá siƒô od litery
+31 Nazwa zmiennej jest zbyt d≈Çuga
+32 Nazwa zmiennej musi zawieraƒá znaki alfanumeryczne
+33 Brak kontroli pracami w tej pow≈Çoce
+34 B≈ÇƒÖd sk≈Çadni wyra≈ºenia
 35 Brak katalogu domowego
-36 Nie mogÍ przej∂Ê do katalogu domowego
-37 Nieprawid≥owe puste polecenie
-38 Wyraøenie pozbawione przyporz±dkowania
+36 Nie mogƒô przej≈õƒá do katalogu domowego
+37 Nieprawid≈Çowe puste polecenie
+38 Wyra≈ºenie pozbawione przyporzƒÖdkowania
 39 Nieznany operator
 40 Niejasne
 41 %s: Plik istnieje
-42 Argument dla -c zakoÒczony jest backslashem
+42 Argument dla -c zako≈Ñczony jest backslashem
 43 Przerwano
-44 Za duøa warto∂Ê przyporz±dkowania
-45 Przepe≥nienie linii
+44 Za du≈ºa warto≈õƒá przyporzƒÖdkowania
+45 Przepe≈Çnienie linii
 46 Brak takiej pracy
-47 Z terminala nie mogÍ
+47 Z terminala nie mogƒô
 48 Nie w while/foreach
-49 Brak innych procesÛw
-50 Brak pasuj±cych
+49 Brak innych proces√≥w
+50 Brak pasujƒÖcych
 51 Brakuje %c
 52 Niedopasowany %c
-53 Brak pamiÍci
-54 Nie mogÍ stworzyÊ potoku
+53 Brak pamiƒôci
+54 Nie mogƒô stworzyƒá potoku
 55 %s: %s
 56 %s
-57 Uøycie: jobs [ -l ]
-58 Argumentami powinny byÊ identyfikatory prac lub procesÛw
+57 U≈ºycie: jobs [ -l ]
+58 Argumentami powinny byƒá identyfikatory prac lub proces√≥w
 59 Nie ma aktualnej pracy
 60 Brak poprzednich prac
-61 Brak prac pasuj±cych do wzorca
-62 Zagnieødøenie fork > %d; prawdopodobnie pÍtla `...`
-63 Brak kontroli pracami w podpow≥okach
-64 B≥±d synchronizacji: Proces %d nie zosta≥ znaleziony
-65 %sIstniej± u∂pione prace
-66 %sIstniej± zatrzymane prace
-67 Brak innych katalogÛw
-68 Stos katalogÛw jest pusty
-69 Z≥y katalog
-70 Uøycie: %s [-%s]%s
+61 Brak prac pasujƒÖcych do wzorca
+62 Zagnie≈ºd≈ºenie fork > %d; prawdopodobnie pƒôtla `...`
+63 Brak kontroli pracami w podpow≈Çokach
+64 B≈ÇƒÖd synchronizacji: Proces %d nie zosta≈Ç znaleziony
+65 %sIstniejƒÖ u≈õpione prace
+66 %sIstniejƒÖ zatrzymane prace
+67 Brak innych katalog√≥w
+68 Stos katalog√≥w jest pusty
+69 Z≈Çy katalog
+70 U≈ºycie: %s [-%s]%s
 71 Brak operandu dla flagi -h
-72 To nie jest pow≥oka logowania
+72 To nie jest pow≈Çoka logowania
 73 Dzielenie przez 0
 74 Modula przez 0
-75 Z≥a skala; czy my∂la≥e∂ o "%s"?
-76 Nie moøna zatrzymaÊ pow≥oki logowania (na razie)
-77 Nieznany uøytkownik: %s
+75 Z≈Ça skala; czy my≈õla≈Çe≈õ o "%s"?
+76 Nie mo≈ºna zatrzymaƒá pow≈Çoki logowania (na razie)
+77 Nieznany u≈ºytkownik: %s
 78 Zmienna $home nie jest ustawiona
-79 Uøycie: history [-%s] [# liczba zdarzeÒ]
-80 $, ! i < s± niedozwolone z $#, lub $?
+79 U≈ºycie: history [-%s] [# liczba zdarze≈Ñ]
+80 $, ! i < sƒÖ niedozwolone z $#, lub $?
 81 Znak nowej linii w nazwie zmiennej
 82 * jest zabronione z $# i $?
-83 $?<cyfra> lub $#<cyfra> s± zabronione
+83 $?<cyfra> lub $#<cyfra> sƒÖ zabronione
 84 Nielegalna nazwa zmiennej
 85 Znak nowej linii w indeksie zmiennych
-86 Przepe≥nienie bufora ekspansji
-87 S≥adnia zmiennej
-88 Z≥a forma !
+86 Przepe≈Çnienie bufora ekspansji
+87 S≈Çadnia zmiennej
+88 Z≈Ça forma !
 89 Brak poprzedniego dopasowania
-90 Z≥e dopasowanie
+90 Z≈Çe dopasowanie
 91 No previous left hand side
 92 Right hand side too long
-93 Z≥y modyfikator ! : %c
-94 Modyfikator zawiÛd≥
-95 Przepe≥nienie bufora dopasowania
-96 Z≥y ! selektor argumentÛw
+93 Z≈Çy modyfikator ! : %c
+94 Modyfikator zawi√≥d≈Ç
+95 Przepe≈Çnienie bufora dopasowania
+96 Z≈Çy ! selektor argument√≥w
 97 Brak poprzedniego wyszukiwania
-98 %s: Zdarzenie nie zosta≥o znalezione
+98 %s: Zdarzenie nie zosta≈Ço znalezione
 99 Zbyt wiele )
 100 Zbyt wiele (
-101 ¨le wstawiony (
+101 ≈πle wstawiony (
 102 Brakuje nazwy dla przekierowania
-103 Niejasne przekierowanie wyj∂cia
-104 Nie moøna << wewn±trz ()
-105 Niejasne przekierowanie wej∂cia
-106 ¨le wstawione ()
-107 ZapÍtlenie siÍ aliasÛw
-108 Zmienna $watch nie zosta≥a ustawiona
+103 Niejasne przekierowanie wyj≈õcia
+104 Nie mo≈ºna << wewnƒÖtrz ()
+105 Niejasne przekierowanie wej≈õcia
+106 ≈πle wstawione ()
+107 Zapƒôtlenie siƒô alias√≥w
+108 Zmienna $watch nie zosta≈Ça ustawiona
 109 Brak zaplanowanych prac
-110 Uøycie: sched -<item#>.\nUøycie: sched [+]hh:mm <polecenie>
-111 Nie ma aø tylu zaplanowanych prac
+110 U≈ºycie: sched -<item#>.\nU≈ºycie: sched [+]hh:mm <polecenie>
+111 Nie ma a≈º tylu zaplanowanych prac
 112 Brak programu do uruchomienia
-113 Nieprawid≥owy czas dla pracy
+113 Nieprawid≈Çowy czas dla pracy
 114 Czas relatywny jest sprzeczny z am/pm
-115 Brak miejsc w ≥aÒcuchu termcap
-116 Uøycie: settc %s [yes|no]
-117 Nieznana zdolno∂Ê `%s'
+115 Brak miejsc w ≈Ça≈Ñcuchu termcap
+116 U≈ºycie: settc %s [yes|no]
+117 Nieznana zdolno≈õƒá `%s'
 118 Nieznany parametr termcap `%%%c'
-119 Zbyt wiele argumentÛw dla `%s' (%d)
+119 Zbyt wiele argument√≥w dla `%s' (%d)
 120 `%s' requires %d arguments
-121 Uøycie: echotc [-v|-s] [<zdolno∂Ê> [<argumenty>]]
-122 %s: %s. Nieprawid≥owa architektura
-123 !# ZapÍtlenie siÍ historii
-124 Zniekszta≥cony zapytanie na temat pliku
-125 Przepe≥nienie selektora
-126 Nieznana opcja: `-%s'\nUøycie: %s [ -bcdefilmnqstvVxX -Dnazwa[=warto∂Ê] ] [ argument ... ]
-127 Nieznana opcja: `-%s'\nUøycie: %s [ -bcdefFilmnqstvVxX ] [ argument ... ]
-128 Nieznana opcja: `-%s'\nUøycie: %s [ -bcdefilmnqstvVxX ] [ argument ... ]
-129 \nNieprawid≥owe dope≥nienie: "%s"
-130 \nNieprawid≥owe %s: '%c'
+121 U≈ºycie: echotc [-v|-s] [<zdolno≈õƒá> [<argumenty>]]
+122 %s: %s. Nieprawid≈Çowa architektura
+123 !# Zapƒôtlenie siƒô historii
+124 Zniekszta≈Çcony zapytanie na temat pliku
+125 Przepe≈Çnienie selektora
+126 Nieznana opcja: `-%s'\nU≈ºycie: %s [ -bcdefilmnqstvVxX -Dnazwa[=warto≈õƒá] ] [ argument ... ]
+127 Nieznana opcja: `-%s'\nU≈ºycie: %s [ -bcdefFilmnqstvVxX ] [ argument ... ]
+128 Nieznana opcja: `-%s'\nU≈ºycie: %s [ -bcdefilmnqstvVxX ] [ argument ... ]
+129 \nNieprawid≈Çowe dope≈Çnienie: "%s"
+130 \nNieprawid≈Çowe %s: '%c'
 131 \nBrakuje separatora '%c' po %s "%s"
 132 \nNiekompletne %s: "%s"
 133 Brak operandu dla flagi -m
-134 Uøycie: unlimit [-fh] [limity]
+134 U≈ºycie: unlimit [-fh] [limity]
 135 $%S jest tylko-do-odczytu
 136 Brak takiej pracy
 137 Nieznana zmienna colorls `%c%c'

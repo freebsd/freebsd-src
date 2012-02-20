@@ -1,0 +1,605 @@
+tcsh Windows NT version
+-----------------------
+
+You can get current binaries for this version of tcsh from 
+ftp.blarg.net:users/amol/tcsh.
+
+--------------------------------------------------------------------------
+NT sources for tcsh can be now found in the same place as
+the unix tcsh sources, via anonymous ftp from ftp.astron.com.
+The location is /pub/tcsh.
+
+Files to get:
+
+tcsh-6.xx.tar.gz  - Basic Unix source
+tcsh-6.xxwin32src.tar.gz - Extracts into "win32" subdirectory of basic source.
+
+Pre-compiled binaries and html docs for Alpha and x86 can also be
+found in the same location.
+--------------------------------------------------------------------------
+
+Send comments/bug-fixes/questions to amol@blarg.net 
+
+(Any requests to make tcsh more like DOS shells will be ignored. If you 
+like DOS shells, use them. tcsh provides unix shell behaviour on windows,
+not the other way around.)
+
+Please do not ask me general shell questions either. If you've never
+used a unix shell, read the man pages and docs. Read the comp.unix.shell
+FAQ.
+
+Bug reports that do not contain your operating system type will
+also be ignored.
+
+Bug reports that can be solved by reading the docs or  README.NT will be 
+ignored as well.
+
+Microsoft Corporation has nothing to do with this code. It is not supported in
+any fashion by Microsoft.
+
+-----------------------------------------------------------------------------
+This is NOT a Cygwin gcc version. It will not compile with Cygwin gcc or
+work seamlessly with Cygwin apps. Do NOT ask me to hack support for Cygwin
+'mount points' unless you are willing to provide the translation code.
+
+To prevent Cygwin applications from expanding wildcards, set the environment
+variable CYGWIN to "noglob".  i.e., in your .tcshrc, put a line like this:
+
+setenv CYGWIN noglob
+
+(Cygwin applications assume that if they are not started from a shell
+using the Cygwin runtime, the parent shell does not have the ability to glob.
+This is visible as tcsh apparently expanding wildcards for quoted arguments.)
+
+-----------------------------------------------------------------------------
+
+All paths MUST be '/'-delimited. Do not expect the shell to work with
+DOS-style paths.
+
+
+Compiling:
+---------
+You will need sed to generate some headers.
+
+You must extract the win32src.tar.gz into a subdirectory of the basic
+unix source.
+
+tcsh currently only compiles with Microsoft Visual C++ (2.0 and greater) on 
+x86 or Alpha platforms. Simply copy config/win32 to config.h and 
+win32/makefile.win32 to the base directory.
+
+run nmake -f makefile.win32
+
+If you plan to contribute changes, PLEASE read the file CODING
+
+(Note: This distribution does not have a VC project. To compile the shell,
+you will need to open a cmd.exe/command.com window, run vcvars32.bat from
+your VC bin subdirectory and then run nmake as above).
+
+
+
+Known Bugs:
+----------
+* Horizontal scrolling is completely busted.
+* The 'time' builtin does not work.
+
+* There is a hard limit of 64Kb on the size of the command line. This is
+  an os-specific limit and cannot be changed.
+
+* Launching applications via explorer associations is slow if the argument
+  list is large.
+ 
+-----------------------------------------------------------------------------
+* This section only documents features specific to Windows NT/95 or 
+* behaviour that is different from the Unix version. For complete tcsh
+* documentation, please read the man pages or html docs.
+-----------------------------------------------------------------------------
+
+Version numbers below refer to the tail end of the $version variable,
+containing the NT-specific version. For example,
+
+tcsh 6.09.00 (Astron) 1999-08-16 (i586-Microsoft-Windows2000) options 8b,nls,dl,hb,color,nt-rev-5.40
+
+In this case, the NT-specific version is 5.40
+
+
+Environment Variables:
+---------------------
+Environment variables are case-insensitive on NT. tcsh as of 5.33 has
+also been changed to reflect this behaviour. Thus,
+
+setenv FOO bar
+
+and,
+
+setenv foo bar
+
+are equivalent.
+
+Note that the *value* is, of course, not case-insensitive.
+
+
+Features
+--------
+
+* No backgrounding/job control. Use 'start' instead
+
+  You can also use 
+  <foo> & 
+  or,
+  nohup <foo> &
+
+  where <foo> is some arbitrary command.
+
+DO NOT start console apps with & unless u want them to read/write to your
+console.  (A "console app" is any 32-bit application that is not GUI based.)
+
+(nohup foo & will say "foo Done" pretty quickly, but ignore that. There is no
+way for the shell to know when the nohupped process dies. Your job may still
+be running in the background.)
+
+* Filenames in the directories under WINNT (or WINDOWS or whatever you call
+  your windows directory) are hashed only if they are .EXE.
+  Names which are uppercase (For example, CALC.EXE) will also be hashed as
+  lowercase,without extension. Thus, "where calc" as well as 
+  "where CALC.EXE" will work.
+
+(Explanation: tcsh uses a hashtable to track the location of executables. By
+default on Unix, all the files in every path element are hashed. Since the
+SystemRoot on NT has hundreds of junk files, tcsh will only hash .EXE files.
+This hashing is, of course, case-sensitive. Thus CALC.EXE hashes to a
+different value than calc.exe would. To enable the shell to work in a Windows
+environment, tcsh will hash CALC.EXE as CALC.EXE as well as "calc").
+
+
+Special Variables
+-----------------
+* The tcsh "complete" variable can be set to igncase and  will cause the shell 
+  to ignore case in completion. This is slightly different from
+  the behaviour of complete=enhance, which should still work as before.
+
+* oldtitle: 
+
+  Stores the previous value of the console title, when you use
+  the title builtin below. Use it like so:
+
+	 title "$oldtitle"
+
+  to restore the previous title.
+
+* NTlamepathfix: 
+
+  When set,  '/'-s in the PATH environment variable will be
+  changed to '\'.  This helps applications started within tcsh that may
+  not handle Unix-style PATHs.
+
+* NTslowexec: 
+
+ When set, this variable disables attempts to save a fork() by
+ directly executing simple commands. "Simple" command means one which is
+ interactive and not piped, niced, nohupped etc. redirecting output of
+ a command also disables this optimization. 
+
+ Since this shortcut feature is new, the variable provides a way to retain
+ backward compatibility. It may be taken out at some time in the future, if
+ the shell is found to be stable enough.
+
+ If you see problems like the shell seeming to expand wildcards when it
+ shouldn't, or other substitutions which should be quoted, set this
+ variable and see if that fixes the problem.
+
+* NTnoquoteprotect:
+
+  Ordinarily , if you pass a double quote to a command string, tcsh 
+  will protect the quotes by adding backslashes. For example,
+  
+  find . -name '"*.c"' 
+  would get executed as 
+
+  find . -name \"*.c\"
+
+  Some applications (MKS find, for example) do not like the '\'. To
+  prevent tcsh from quoting such arguments, set this variable.
+
+  Of course, it may cause other applications to break, so use at
+  your own risk.
+
+* NTcaseifypwd:
+
+  If set, corrects case of current directory when cd'ing into it. Apparently,
+  some "filesystems" can't handle the default behaviour. Only works on
+  Windows NT.
+
+* TCSHSUBSTHB (Environment, NOT shell variable): 
+
+  Specifies mappings for hashbang emulation. Should be ';'-separated pairs 
+  of blank-separated mappings.
+
+  For example,
+
+     setenv TCSHSUBSTHB "/usr/local/bin/perl c:/bin/perl.exe;"
+
+  will substitute #!c:/bin/perl.exe for scripts which have
+  #!/usr/local/bin/perl at the top.
+
+  The final ';' MUST be included. I don't check for errors too
+  carefully, so it's up to you to supply the exact sequence.
+  There is a hardcoded limit of 20 such pairs.
+
+
+* TCSHONLYSTARTEXES (Environment variable): 
+
+  Can be set on the fly and controls whether associations will be tried 
+  for non-executables. 
+  
+  ("Associations" here means Explorer file-type associations, that cause,
+  for example, Microsoft Word to be launched when you type "foo.doc" at
+  a command prompt. That can have unexpected side-effects like batch files
+  and perl scripts launching in another window when run from tcsh. )
+
+  Any changes to this variable will NOT affect the the "start" builtin. 
+  This builtin ALWAYS launches associations, since the whole point of 
+  using "start" is to not block the current shell.
+
+  You can also supply a semi-colon-separated list of extensions for 
+  which to NOT try associations. For example, if the variable is set to
+
+  "cmd;bat",
+  
+  .cmd/.bat files will be executed in the same window because the default 
+  association is not used, instead an internal hack feeds them to the 
+  DOS command processor.
+
+  If the file extension does not match the list, the shell will try to 
+  launch an association.
+
+  o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-
+
+  To achieve the old behaviour of this setting, you must set the
+  variable to a 1-character value.i.e.,
+
+  setenv TCSHONLYSTARTEXES 
+
+  should be replaced by
+
+  setenv TCSHONLYSTARTEXES 1
+
+  This setting, as before, will prevent tcsh from trying associations
+  for ANY non-executable.
+
+  (a zero-length setting will not work. A length greater than 1 will 
+  be assumed to be a list of extensions as above.)
+
+  o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-
+
+ 
+
+* TCSH_NOASYNCGUI (Enviroment variable): 
+
+  Makes tcsh wait for win32 GUI apps to terminate, instead of returning 
+  immediately.  This affects child processes, so it can be set/unset in 
+  the parent shell at any point.
+
+
+NT-specific Builtins
+--------------------
+* start: like cmd.exe's start
+* title: change the shell title
+* cls: Clear the entire console buffer instead of just the visible window.
+* ps: list processes running currently. With -w, list window titles as well.
+
+* shutdown:  (works on Windows NT only)
+
+	shutdown -[r|l|f] now
+
+(Even though no time argument is supported, "now" must be specified, EXCEPT
+with -l .This is to prevent you from accidentally shutting the machine down.)
+    -r reboots, -l logs you off and -f forces apps to terminate.
+
+The default action is to shut the machine down.
+
+     
+* sourcerc: tcsh can be compiled with a stringtable resource that can be
+	sourced using this command. This feature is designed as a way to avoid
+	having to copy the .tcshrc to every computer you run tcsh on. The default
+	resource is a simple version of my .tcshrc. More complicated settings can
+	then be copied when needed.
+
+* printrc: print the compiled-in resource that will be sourced by sourcerc.
+
+
+Notes:
+-----
+* You should probably get the Cygwin utilities from http://cygwin.com
+
+  Things like 'ls' and 'cat' are useful, since we don't have a 'type' or 'dir'
+  anymore. 'ls' is pretty much a requirement unless you never do  'ls -l'.
+
+
+* tcsh was compiled with Visual C++ >= 4.2. I don't guarantee it will compile
+  with any other compilers, but it should. It will *not* compile with the
+  Cygwin gcc port, so don't even tell me about it. 
+
+* It should be pointed out that there is also a Cygwin version of tcsh that 
+  will compile with gcc and provide all the other features emulated by the
+  Cygwin runtime (like job control, signals, etc.). So, if you are looking for
+  a way to pretend that you are on Unix, you should use that version.
+  The same holds true for UWIN as well.
+
+
+Startup Files:
+--------------
+
+For Windows 95: 
+	<windows_directory>/.tcshrc
+	For Example, C:\WINDOWS\.tcshrc
+
+For Windows NT:
+	version 3.51: <getenv(HOMEDRIVE)/getenv(HOMEPATH)/.tcshrc>
+	Usually something like C:\USERS\DEFAULT\.tcshrc
+
+	version 4.00: <getenv(USERPROFILE)/.tcshrc)
+	Usually something like C:\WINNT\USERS\amold\profile\.tcshrc
+
+These can all be overridden by setting HOME in the user's environment
+
+
+
+* TCSHLANG: NLS support
+
+You can get messages in a specific language by doing:
+
+    setenv TCSHLANG <dll>, where <dll> is the name of the NLS dll.
+
+tcsh comes with:
+
+	tcshde.dll -> German
+	tcshfr.dll -> French
+	tcshsp.dll -> Spanish
+	tcsh-it.dll -> Italian
+
+	tcshc.dll  => Default "C" locale
+
+You can change the dll at runtime by setting/unsetting this variable.
+
+You can specify the DLL name, or the complete path, if it is not in your
+standard search path.
+
+(Using tcshc.dll is useless and adds unnecessary overhead. If you are
+using English versions, do not install the dlls)
+
+
+Virtual key code bindings:
+-------------------------
+To use keys like function keys, arrows, insert, etc., the following 
+form of bindkey must be used:
+
+bindkey -b N-xxx <command>
+
+where xxx is either:
+	a) A number from 1 through 24, representing the fucntion keys.
+	For example, bindkey -b N-1 run-help
+
+	b) The strings "pgup","pgdown","end","home", "left","up","right","down",
+	"ins","del"
+	For example, bindkey -b N-del delete-char
+
+Here are the bindings I use in my .tcshrc:
+
+# NT specific bindkey extensions
+	bindkey -b N-up up-history           
+	bindkey -b N-down down-history      
+	bindkey -b N-right forward-char    
+	bindkey -b N-left backward-char
+	bindkey -b N-del delete-char
+	bindkey -b N-ins overwrite-mode
+	bindkey -b N-1 which-command
+	bindkey -b N-2 expand-history
+	bindkey -b N-3 complete-word-raw
+	bindkey -b N-home beginning-of-line
+	bindkey -b N-end end-of-line
+
+	bindkey -b N-pgup e_page_up
+	bindkey -b N-pgdown e_page_down
+
+(Note that on Win9x, you must set your console window to NOT be Auto
+sized, and you must use the "settc" builtin to increase and then reduce
+back the number of lines, in order to get a scrollbar. pgup and
+pgdown will not work without a scroll bar)
+
+
+To bind ctrl or alt combinations, use the following as examples.
+
+	bindkey -b N-C-left backward-word
+	bindkey -b N-M-right forward-word    
+
+For Shift combinations:
+	bindkey -b N-S-1 backward-word
+
+Clipboard support
+-----------------
+Since version 3.58, you can cut and paste to and from the clipboard
+directly from the shell. To do this, use bindings like the following:
+
+	bindkey -b M-x e_copy_to_clipboard
+	bindkey -b M-y e_paste_from_clipboard
+
+Then, to paste text from the clipboard into the current input line, you
+can type:
+	M-y
+And to copy the current shell's kill buffer to the clipboard,
+	M-x
+
+(The kill buffer contains the last deletion from an editing command. Sort 
+of like an 'undo' buffer).
+
+You can also use the clipboard to redirect I/O, with /dev/clipboard as
+the destination/source file.
+
+
+NOTE: From version 6.00 onwards, the e_paste operation does NOT copy the
+clipboard contents to the shell kill buffer. 
+
+
+
+e_dosify_next
+-------------
+A key bound to this editor function can be used to convert unix-style
+paths to DOS-style paths.
+For example,
+	bindkey -b M-/ e_dosify_next
+Then, if I had line like so:
+	xcopy /e /u c:/nt40/system32
+I would move the cursor to the C: and hit alt-/. magically, the command
+line changes to
+	xcopy /e /u c:\\nt40\\system32
+
+This function converts every '/' to '\\' until the first space. If the
+space is escaped by a '\', the function looks for the next space.
+
+e_dosify_prev
+-------------
+Works like above, but on the previous word. Matt Landau pointed out that
+this was much more convenient.
+
+e_page_up
+---------
+Editor function to move console window up one page. Can be bound to
+PageUp key.
+
+e_page_down
+----------
+Ditto for page down.
+
+
+Literal Prompt Characters
+-------------------------
+tcsh uses a special syntax for embedding literal character sequences in the
+prompt. For example, ANSI escapes.
+Thus, if you did
+set prompt='%{<ESC>[44mfoo%}\>', 
+this will print the prompt in the appropriate colors.
+
+The color-ls patch in 6.07.09 implements parsing for ANSI escapes. To keep
+the prompt specification consistent with the availablity of this feature,
+the literal string will now accept ANSI escapes like color-ls would.
+
+The shell can be compiled for the old behaviour, but I don't recommend it.
+
+I'm aware this is a major incompatibility, but I think the change is
+worthwhile.
+
+As an example, here is my new prompt, with the old one as a reference. 
+
+#old specification
+#   set prompt='%{f9%}%c03%{gg%}\>'
+#   set prompt3 = '%{fc%}Correct to %R ?(y|n|e)%{gg%} '
+
+# new spec.
+    set prompt='%{^[[1;34m%}%c03%{^[[0m%}\>'
+	set prompt3='%{^[[1;31m%}Correct to %R ?(y|n|e)%{^[[0m%} '
+#
+#
+
+ls-F is noticeably slow if color is set. This is especially true on slower
+machines (P100, for example). You may not want to set it for those kinds
+of systems. More so if you already have an external color-ls.
+
+watch:
+-----
+Since rev 3.12, support (ha ha) for the watch variable has been added. This
+will work only on a Microsoft Windows Network, i.e, where computers
+participate in an NT domain. Here is how tcsh will work if your network
+configuration is to its taste:
+
+	set watch=(2 AMOLD SKYNYRD any LYNYRD)
+
+sets a watch for AMOLD on machine SKYNYRD, and any user on machine LYNYRD. The
+watch interval is 2 minutes.
+
+Note that these are NETBIOS names, and hence the results may be flaky. There
+is no good way to distinguish computer names from user names in a netbios name
+table (even a good guess is very expensive), so be prepared for unexpected
+results. 
+
+There may be problems depending on what protocol is on lana number 0.
+(This will usually be shown (and/or set) on NT in the properties for the
+NETBIOS interface in the control panel/networks applet. Win95 is screwed up,
+and if you have more than one protocol, watch may not work. Don't bug me 
+about it)
+
+Also note that names must all be uppercase. 
+
+The default time interval of 10 minutes is probably good, since you don't want
+to generate too much network traffic.
+
+Nice:
+-----
+//
+// nice(niceness)
+//
+// where niceness is an integer in the range -6 to +7
+//
+// A usual foreground process starts at level 9 in the chart below
+//
+// the range -6 to +7 takes it from Base priority 15 down to 2. 
+//
+// Note that level 1 or > 15 are not allowed.
+//
+// Priority Level 11 (niceness -2) or greater affects system performance, 
+//	so use with care.
+//
+// niceness defaults to  +4, which is lowest for background normal class.
+// As in unix, +ve niceness indicates lower priorities.
+
+/***************************************************************************
+Niceness    Base    Priority class/thread priority
+
+            1    Idle, normal, or high class,    THREAD_PRIORITY_IDLE
+
++7          2    Idle class,                     THREAD_PRIORITY_LOWEST
++6          3    Idle class,                     THREAD_PRIORITY_BELOW_NORMAL
++5          4    Idle class,                     THREAD_PRIORITY_NORMAL
++4          5    Background normal class,        THREAD_PRIORITY_LOWEST
+                    Idle class,                  THREAD_PRIORITY_ABOVE_NORMAL
++3          6    Background normal class,        THREAD_PRIORITY_BELOW_NORMAL
+                    Idle class,                  THREAD_PRIORITY_HIGHEST
++2          7    Foreground normal class,        THREAD_PRIORITY_LOWEST
+                    Background normal class,     THREAD_PRIORITY_NORMAL
++1          8    Foreground normal class,        THREAD_PRIORITY_BELOW_NORMAL
+                    Background normal class,     THREAD_PRIORITY_ABOVE_NORMAL
+ 0          9    Foreground normal class,        THREAD_PRIORITY_NORMAL
+                    Background normal class,     THREAD_PRIORITY_HIGHEST
+-1          10   Foreground normal class,        THREAD_PRIORITY_ABOVE_NORMAL
+-2          11    High class,                    THREAD_PRIORITY_LOWEST
+                    Foreground normal class,     THREAD_PRIORITY_HIGHEST
+-3          12    High class,                    THREAD_PRIORITY_BELOW_NORMAL
+-4          13    High class,                    THREAD_PRIORITY_NORMAL
+-5          14    High class,                    THREAD_PRIORITY_ABOVE_NORMAL
+-6          15    Idle, normal, or high class,   THREAD_PRIORITY_TIME_CRITICAL 
+                  High class,                    THREAD_PRIORITY_HIGHEST
+
+
+    16    Real-time class, THREAD_PRIORITY_IDLE
+    22    Real-time class, THREAD_PRIORITY_LOWEST
+    23    Real-time class, THREAD_PRIORITY_BELOW_NORMAL
+    24    Real-time class, THREAD_PRIORITY_NORMAL
+    25    Real-time class, THREAD_PRIORITY_ABOVE_NORMAL
+    26    Real-time class, THREAD_PRIORITY_HIGHEST
+    31    Real-time class, THREAD_PRIORITY_TIME_CRITICAL
+****************************************************************************/
+
+kill:
+----
+
+You can try to kill a process 4 ways:
+
+kill -1 <pid> (which will send a sigint)
+kill -2 <pid> (which will send a sigbreak)
+
+1 and 2 are only good for processes started in the same console. The
+signals cannot be sent to other process groups (other consoles/GUI apps).
+
+kill -3 <pid> (which will send a quit message to each window of the child>
+
+kill -7 <pid> , which will call TerminateProcess() 

@@ -1,0 +1,20 @@
+# $... substitution handling
+
+AT_SETUP([$<])
+
+AT_DATA([cat.csh],
+[[while (1)
+  set line=$<:q
+  if ("$line" == "") goto END;
+  echo "$line"
+end
+END:
+  exit 0
+]])
+AT_DATA([input],
+[[foo
+!@#$%^&*()_+-=[]{};':"\|,./<>?`~
+]])
+AT_CHECK([tcsh -f cat.csh < input | cmp -s input -])
+
+AT_CLEANUP

@@ -1,17 +1,17 @@
 $ $tcsh: set17,v 1.3 1996/10/19 17:52:33 christos Exp $
 $ sh.proc.c
 $set 17 
-1 PLUSKWA: czekam na zadanie pracuj±ce w tle!\n
-2 ZakoÒczono %d\n
-3 PLUSKWA: proces wywo≥any drugi raz
+1 PLUSKWA: czekam na zadanie pracujƒÖce w tle!\n
+2 Zako≈Ñczono %d\n
+3 PLUSKWA: proces wywo≈Çany drugi raz
 4 Running 
-5 Sygna≥ 
-6 ZwrÛcono %-25d
-7 ZakoÒczony
+5 Sygna≈Ç 
+6 Zwr√≥cono %-25d
+7 Zako≈Ñczony
 8 PLUSKWA: status=%-9o
 9 \040(zrzucono core)
 10 \040(KR:
 11 (KR jest:  
-12 %S: Juø jest zawieszony\n
-13 %S: Juø jest zatrzymany\n
+12 %S: Ju≈º jest zawieszony\n
+13 %S: Ju≈º jest zatrzymany\n
 14 %S: Badly formed number\n

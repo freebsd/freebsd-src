@@ -1,8 +1,8 @@
 $ $tcsh: set10,v 1.2 1995/03/19 18:07:15 christos Exp $
 $ ma.setp.c
 $set 10 
-1 setpath: nieprawid≥owe polecenie '%s'.\n
-2 setpath: za ma≥o argumentÛw dla polecenia '%s'.\n
-3 setpath: brakuje warto∂ci w ∂cieøce '%s'\n
-4 setpath: %s nie zosta≥ znaleziony w %s\n
-5 setpath: %d nie jest prawid≥ow± pozycj± w %s\n
+1 setpath: nieprawid≈Çowe polecenie '%s'.\n
+2 setpath: za ma≈Ço argument√≥w dla polecenia '%s'.\n
+3 setpath: brakuje warto≈õci w ≈õcie≈ºce '%s'\n
+4 setpath: %s nie zosta≈Ç znaleziony w %s\n
+5 setpath: %d nie jest prawid≈ÇowƒÖ pozycjƒÖ w %s\n

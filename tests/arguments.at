@@ -1,0 +1,166 @@
+# Command-line argument handling
+
+AT_SETUP([-b])
+
+AT_DATA([-script.csh],
+[[echo $1
+]])
+AT_CHECK([tcsh -f -b -script.csh --version], , [--version
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([-c])
+
+AT_CHECK([tcsh -f -c 'echo $1' foo], , [foo
+])
+
+AT_CHECK([tcsh -f -c 'exit 99'], 99)
+
+AT_CHECK([tcsh -f -c 'echo \\\'], 1, ,
+[Argument for -c ends in backslash.
+])
+
+AT_CHECK([tcsh -f -c 'echo \\'], ,
+[\
+])
+
+AT_CHECK([tcsh -f -c])
+
+AT_CLEANUP
+
+
+TCSH_UNTESTED([-d])
+
+
+AT_SETUP([-e])
+
+# Note that exit is a builtin, won't work here without using a subshell
+AT_CHECK([tcsh -f -e -c 'echo 1; (exit 3); echo 2'], 3, [1
+])
+
+AT_CLEANUP
+
+
+TCSH_UNTESTED([-f])
+
+
+AT_SETUP([-i])
+
+AT_CHECK([echo 'echo $1' | tcsh -f -q -i foo], ,
+[[> foo
+> exit
+]])
+
+AT_CLEANUP
+
+
+# Warning message contains strerror(EBADF), libc-dependent; can't be turned
+# off using -q because -l works only when alone
+TCSH_UNTESTED([-l])
+
+
+
+TCSH_UNTESTED([-m])
+
+
+# -n tested in noexec.at
+
+
+TCSH_UNTESTED([-q])
+#AT_SETUP([-q])
+
+# Nested to make the SIGQUIT reporting predictable
+#AT_CHECK([tcsh -f -q -c 'kill -QUIT $$'], 131, ,)
+
+#AT_CLEANUP
+
+
+AT_SETUP([-s])
+
+AT_CHECK([echo 'echo $1' | tcsh -f -s foo], , [foo
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([-t])
+
+AT_DATA([input.csh],
+[[echo 1\
+2
+]])
+AT_CHECK([tcsh -f -t < input.csh], , [1 2
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([-v])
+
+AT_CHECK([echo 'repeat 2 echo OK' | tcsh -f -v], ,
+[OK
+OK
+],
+[repeat 2 echo OK
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([-x])
+
+AT_CHECK([echo 'repeat 2 echo OK' | tcsh -f -x], ,
+[OK
+OK
+],
+[repeat 2 echo OK
+echo OK
+echo OK
+])
+
+AT_CLEANUP
+
+
+TCSH_UNTESTED([-V])
+TCSH_UNTESTED([-X])
+
+
+TCSH_UNTESTED([--help])
+TCSH_UNTESTED([--version])
+
+
+AT_SETUP([invalid option])
+
+AT_CHECK([tcsh -f -Z], 1, ,
+[[Unknown option: `-Z'
+Usage: tcsh [ -bcdefilmnqstvVxX ] [ argument ... ].
+]])
+
+AT_CLEANUP
+
+
+
+AT_SETUP([non-option arguments])
+
+AT_DATA([options.csh],
+[[echo $0
+echo $1
+echo $#argv
+echo $argv
+]])
+AT_CHECK([tcsh -f ./././options.csh one two three], ,
+[./././options.csh
+one
+3
+one two three
+])
+
+AT_DATA([unreadable.csh],
+[[echo fail
+]])
+chmod 0 unreadable.csh
+AT_CHECK([tcsh -f unreadable.csh], 1, [], [ignore])
+
+AT_CLEANUP

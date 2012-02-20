@@ -1,15 +1,23 @@
-$ $tcsh: set19,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set19,v 1.6 2011/02/25 23:58:07 christos Exp $
 $ tc.alloc.c
 $set 19 
-1 nbytes=%d: Plus de mÈmoire\n
-2 free(%lx) appelÈ avant allocation.
-3 free(%lx) au del‡ de la limite memoire.
-4 free(%lx) en deÁ‡ de la limite memoire.
+1 nbytes=%d: Plus de m√©moire\n
+2 free(%lx) appel√© avant allocation.
+3 free(%lx) au del√† de la limite memoire.
+4 free(%lx) en de√ß√† de la limite memoire.
 5 free(%lx) mauvais bloc.
 6 free(%lx) limites incorrectes.
 7 free(%lx) index de bloc incorrect.
-8 %s allocation mÈmoire actuelle:\nfree:\t
-9 \nutilisÈ:\t
-10 \n\tTotal utilisÈ: %d, total libre: %d\n
-11 \tMÈmoire allouÈe de 0x%lx ‡ 0x%lx.  Limite rÈelle supÈrieure ‡ 0x%lx\n
-12 MÈmoire allouÈe de 0x%lx ‡ 0x%lx (%ld).\n
+8 %s allocation m√©moire actuelle:\nfree:\t
+9 utilis√©
+10 \n\tTotal utilis√©: %d, total libre: %d\n
+11 \tM√©moire allou√©e de 0x%lx √† 0x%lx.  Limite r√©elle sup√©rieure √† 0x%lx\n
+12 M√©moire allou√©e de 0x%lx √† 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

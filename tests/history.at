@@ -1,0 +1,444 @@
+# Test of the history functions.  Some of these are already tested in
+# variables and commands.
+
+AT_SETUP([history])
+
+# Check history duplicate erase
+AT_DATA([hist-base.csh],
+[[set histdup=erase history=( 5 "%h TIME %R\n")
+echo $histdup $history
+: 1
+: 2
+: 3
+: 2
+: 4
+]])
+AT_CHECK([{ cat hist-base.csh; echo "!4"; } > hist.csh; \
+	  tcsh -f -q -i < hist.csh], 1,
+[> erase 5 %h TIME %R
+
+> exit
+],
+[4: Event not found.
+])
+
+# Try all four variants with different values of histdup.
+AT_CHECK([{ cat hist-base.csh; echo : 4; echo history 9; } > hist.csh; ] dnl
+	 [tcsh -f -q -i < hist.csh], ,
+[> erase 5 %h TIME %R
+
+     3 TIME : 1
+     5 TIME : 3
+     6 TIME : 2
+     8 TIME : 4
+     9 TIME history 9
+> exit
+],)
+AT_CHECK([{ sed 's/erase/all/' hist-base.csh; echo : 4; echo history 9;}] dnl
+	 [> hist.csh; tcsh -f -q -i < hist.csh], ,
+[> all 5 %h TIME %R
+
+     3 TIME : 1
+     4 TIME : 2
+     5 TIME : 3
+     6 TIME : 4
+     7 TIME history 9
+> exit
+],)
+AT_CHECK([{ sed 's/erase/prev/' hist-base.csh; echo : 4; echo history 9; }] dnl
+	 [> hist.csh; tcsh -f -q -i < hist.csh], ,
+[> prev 5 %h TIME %R
+
+     4 TIME : 2
+     5 TIME : 3
+     6 TIME : 2
+     7 TIME : 4
+     8 TIME history 9
+> exit
+],)
+AT_CHECK([{ sed 's/erase//' hist-base.csh; echo : 4; echo history 9;}] dnl
+	 [> hist.csh; tcsh -f -q -i < hist.csh], ,
+[> 5 %h TIME %R
+
+     5 TIME : 3
+     6 TIME : 2
+     7 TIME : 4
+     8 TIME : 4
+     9 TIME history 9
+> exit
+],)
+
+# Illustrating reference credit scheme (Hist.Href) that preserves
+# recently used items in the history list, instead of using a strictly
+# FIFO discipline.
+AT_DATA([hist-ev.csh],
+[[: !3
+: : !6
+: : !3
+: x !6
+history 9
+]])
+AT_CHECK([[cat hist-base.csh hist-ev.csh > hist.csh; ] dnl
+	  [ tcsh -f -q -i < hist.csh ]], ,
+[> erase 5 %h TIME %R
+
+     3 TIME : 1
+     6 TIME : 2
+     8 TIME : : 1
+     9 TIME : : : 2
+    10 TIME : : : 1
+    11 TIME : x : 2
+    12 TIME history 9
+> exit
+],
+[: : 1
+: : : 2
+: : : 1
+: x : 2
+])
+
+# Repeat with a duplicate command.  This demonstrates a problem in the
+# old code that renumbers Href counters following a successful match in
+# erase mode.
+AT_CHECK([[{ cat hist-base.csh; sed 's/x !6/: !6/' hist-ev.csh;}] dnl
+	  [> hist.csh; tcsh -f -q -i < hist.csh ]], ,
+[> erase 5 %h TIME %R
+
+     3 TIME : 1
+     6 TIME : 2
+     8 TIME : : 1
+    10 TIME : : : 1
+    11 TIME : : : 2
+    12 TIME history 9
+> exit
+],
+[: : 1
+: : : 2
+: : : 1
+: : : 2
+])
+# The old code discards events 3 & 6 and instead retains 7:
+# -     3 TIME : 1
+# -     6 TIME : 2
+# +     7 TIME : 4
+#       8 TIME : : 1
+
+AT_CLEANUP
+
+AT_SETUP([history performance])
+
+# Now some scaling tests with large history.  Unfortunately the
+# reasonable settings here will depend on test hardware.
+
+# First a "test" that just generates a large history file.
+AT_DATA([hist-generate.awk],
+[[BEGIN {
+    if (ARGC != 2) {
+	print "Usage is: " ARGV[0] " <n-history-lines>"
+	exit 13
+    }
+    lines = ARGV[1];
+    tBase = 1234567890;
+    for (i = 1; i<= lines; i++) {
+	print "#+" tBase+i "\n: " i;
+    }
+}
+]])
+AT_CHECK([awk -f hist-generate.awk 5000 > test.history])
+
+AT_DATA([hist-load-save.csh],
+[[: echo Testing performance of history features of tcsh.
+if ( $#argv < 3 ) then
+       echo Usage is: tcsh -f -i "[hist size (15000)]" "[use dup (erase)]"
+    echo "    [use merge (1)]" "< $0"
+    exit 1
+endif
+set histSize=$1
+set usedup=$2
+set usemerge=$3
+
+: echo in tcshrc with history size $histSize at `date +%F\ %T.%N`
+set histfile=test.history
+echo Generating
+@ len = `wc -l < $histfile` / 2
+if ( $len != $histSize ) then
+    awk -f hist-generate.awk $histSize > $histfile
+endif
+
+set history=$histSize
+set histdup=$usedup
+if ( $usemerge ) then
+    set savehist=( $histSize merge )
+else
+    set savehist=$histSize
+endif
+: echo "savehist=$savehist" "history=$history"
+: # Cannot use the time built-in because history is a shell function
+echo Loading at `date +%F\ %T.%N`
+history -L
+: 'wc -l $histfile; history | wc -l; history | head -2; history | tail -2'
+echo Saving at `date +%F\ %T.%N`
+history -S
+echo Done at `date +%F\ %T.%N`
+]])
+AT_CHECK([[ tcsh -f -q -i 5000 erase 1 < hist-load-save.csh] dnl
+	  [ | sed 's/ at [-: 0-9.]*/ at TIME/' ]], 0,
+[> Generating
+Loading at TIME
+Saving at TIME
+Done at TIME
+> exit
+], [])
+
+AT_CHECK([[ tcsh -f -q -i 4096 erase 1 < hist-load-save.csh] dnl
+	  [ | sed 's/ at [-: 0-9.]*/ at TIME/' ]], 0,
+[> Generating
+Loading at TIME
+Saving at TIME
+Done at TIME
+> exit
+], [])
+
+# Could repeat test with different sizes (on a faster machine), with
+# different histdup settings ("all", "prev", or "") and with merge (for
+# savehist) set to 0 instead of 1.
+
+AT_CLEANUP
+
+AT_SETUP([history faults])
+
+# Try some things that have caused failures before
+AT_DATA([hist-err.csh],
+[[set histfile=test.history histdup=erase history=0
+set savehist  = (4096 merge)
+echo next
+set history="(5 %h TIME %R\n)"
+]])
+
+AT_CHECK([[ tcsh -f -q -i < hist-err.csh]], 0,
+[> next
+> exit
+], [])
+
+AT_CHECK([[ ( cat hist-err.csh; echo history; echo echo done ) | ] dnl
+	  [ tcsh -f -q -i ]], 1,
+[> next
+> exit
+],
+[history: Badly formed number.
+])
+
+AT_CLEANUP
+
+AT_SETUP([history hup])
+
+# Test for problem introduced in 6.15 where the history file gets
+# truncated if a tcsh is run from a pty that is closed unexpectedly.
+# Test this three ways, depending on availability of local programs to
+# create pseudo-ttys (pty).
+
+AT_DATA([hist-kill.sh],
+[[#!/bin/sh
+
+program=script
+[ $# -eq 0 ] || program=$1
+progpath=`which $program`
+[ -n "$progpath" -a -x "$progpath" ] || {
+    echo $program was not found; exit 0
+}
+echo Using $program "($progpath)" to run tcsh inside a pty
+
+set -e
+
+saveHistfile=
+histfile=$PWD/test.history
+# Initialize the history file to something small but non-zero.
+{ echo "#+1234567890"; echo echo dummy history; } > $histfile
+
+setHistSize() {
+    histsize=`stat -c %s $histfile`
+    [ $histsize -gt 0 ] || exit 3       # should never happen
+    histdate=`stat -c %Y $histfile`
+    ls -l --full-time $histfile
+    echo size is $histsize date is $histdate at `date`
+}
+
+checkHistSize () {
+    local oldS=$1
+    local oldD=$2
+    local newHistsize=`stat -c %s $histfile`
+    local newHistdate=`stat -c %Y $histfile`
+    ls -l --full-time $histfile
+    echo size is now $newHistsize date is now $newHistdate at `date`
+    # if the size not zero while the date and size are not both unchanged then
+    # the test is successful
+    [ $newHistsize -eq 0 ] && \
+        { echo FAILED: history file truncated; return 66; }
+    [ $newHistsize -gt 0 -a \
+      \( $oldS -ne $newHistsize -o $oldD -ne $newHistdate \) ] || \
+        { echo check hist size/date failed, try rerunning test; return 66; }
+}
+
+tcshPath=`which tcsh`
+[ -x $tcshPath ] || exit 1
+tcshInput=hist-kill.csh
+[ -e $tcshInput ] || exit 2
+
+# To avoid the problem of large history files that may take more than 1 second
+# to read, replace the user's history file with the small one created above.
+saveHistfile=$PWD/save.history.$$
+origHistfile=$HOME/.history
+mv $origHistfile $saveHistfile
+cp $histfile $origHistfile              # initialize contents created above
+
+if [ $program = script ]; then
+    # use script to create the pty
+    ( echo 'set histfile='$histfile; cat $tcshInput ; sleep 2; echo exit ) | \
+        script -c "exec $tcshPath" /dev/null & scriptPid=$!
+    sleep 1
+    setHistSize
+    # Not sure if there is a more standard way to do this.
+    childScript=`ps --ppid $scriptPid --no-headers --format pid`
+    [ -n $childScript -a $childScript -gt 1 ] && kill $childScript
+elif [ $program = xterm ]; then
+    # use xterm to create the pty
+    # Can't override the default history file, so this test trashes user's real
+    # history file.  We try to preserve it, above.
+    histfile=$origHistfile
+    xterm -iconic -geom -1+1 -e "$tcshPath" & xtermPid=$!
+    sleep 1
+    setHistSize
+    kill $xtermPid
+elif [ $program = ./hist-kill ]; then
+    # use custom C program to create the pty
+    ( echo 'set histfile='$histfile; cat $tcshInput ) | \
+        ./hist-kill $tcshPath & histkillPid=$!
+    sleep 1
+    setHistSize
+    kill $histkillPid
+else
+    echo unsupported program $program
+fi
+sleep 1
+checkHistSize $histsize $histdate || rc=$?
+# Restore original history file, if necessary
+[ -n "$saveHistfile" ] && mv $saveHistfile $origHistfile
+[ -z "$rc" ] || exit $rc
+echo Done testing tcsh with $program successfully
+]])
+
+AT_DATA([hist-kill.csh],
+[[set history = ( 20 "%h %D-%w-%y %P %R\n" )
+set savehist=(20 merge)
+history -S
+echo $version pid=$$
+/bin/ls -l --full-time ~/.hi* ./*history*
+]])
+
+# Try both variants of this script, then the C version.
+AT_CHECK([sh hist-kill.sh script], 0, stdout, stderr)
+AT_CHECK([[if [ -n "$DISPLAY" ]; then sh hist-kill.sh xterm; ] dnl
+	 [  else echo Skip xterm test: no display; fi]], 0, stdout, stderr)
+
+AT_DATA([hist-kill.c],
+[[/* Test tcsh response to loss of pseudo-terminal (pty) master.  Creates a pty
+ * and attaches it to a child process, the pty slave.  Sends the contents to
+ * stdin to the pty and echos output from the pty onto stdout.  Takes one
+ * optional argument, which is the pathname to the program to run attached to
+ * the pty.  The main process is the pty master and does not exit, but must be
+ * killed by the invoker.  When the master dies, the slave process should
+ * receive a SIGHUP courtesy of the kernel. */
+
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <pty.h>			/* for openpty and forkpty */
+#include <unistd.h>
+#include <errno.h>
+#include <signal.h>
+
+int main(int argc, char *argv[])
+{
+    const char *binFile = "/bin/tcsh";
+    if (argc > 1)
+	binFile = argv[1];
+    int masterFd;
+    int pid = forkpty(&masterFd, NULL, NULL, NULL);
+    if (pid == 0) {			/* child */
+	printf("pty slave is %d\n", getpid());
+	char *bin = strdup(binFile);
+	char *argv[] = { bin, NULL };
+	execvp(bin, argv);
+	perror("execvp");
+	exit(99);
+    }
+    if (pid < 0) {
+	perror("forkpty");
+	exit(66);
+    }
+    { /* parent */
+	int nbytes;
+	int input = dup(masterFd);
+	int output = dup(masterFd);
+	close(masterFd);
+
+	printf("pty master is %d\n", getpid());
+
+	if (fork() == 0) {
+	    /* subparent, sends data from our stdin to child pty, then exits */
+	    unsigned nSent = 0;
+	    char buf[128];
+	    printf("sub parent is %d\n", getpid());
+	    while ((nbytes = read(0, buf, sizeof(buf))) > 0) {
+		int sent = write(output, buf, nbytes);
+		if (sent > 0)
+		    nSent += sent;
+		if (sent != nbytes)
+		    break;
+	    }
+	    printf("Sent %d bytes to child.\n", nSent);
+	    exit(0);
+	}
+
+	/* Main process reads data from the child pty and displays it.  Unless
+	 * killed or some unexpected error occurs, this process runs until the
+	 * child pty exits. */
+	unsigned count = 0;
+	while (1) {
+	    char buf[72];
+	    nbytes = read(input, buf, sizeof(buf)-1);
+	    if (nbytes < 0)
+		break;
+	    count += nbytes;
+	    unsigned i;
+	    for (i = 0; i<nbytes; i++) { /* filter control characters */
+		if (buf[i] < 32 &&
+		    buf[i] != '\n' && buf[i] != '\r' && buf[i] != '\t') {
+		    printf("Bytes: ");
+		    for (i = 0; i<nbytes; i++)
+			printf(" %02x", buf[i] & 0xff);
+		    printf("\n");
+		    break;
+		}
+	    }
+	    if (i == nbytes) {		/* no funny business seen */
+		buf[nbytes] = 0;
+		printf("Got _%s_\n", buf);
+	    }
+	    fflush(stdout);
+	}
+	if (nbytes < 0)
+	    perror("read");
+	usleep(100000);
+	printf("exiting, got EOF after %d bytes\n", count);
+	exit(0);
+    }
+}
+]])
+
+AT_CHECK([if cc -o hist-kill hist-kill.c -lutil; ] dnl
+	 [ then sh hist-kill.sh ./hist-kill; ] dnl
+	 [ else echo C compiler failed, skipping this approach; fi],
+ 	 0, stdout, stderr)
+
+AT_CLEANUP

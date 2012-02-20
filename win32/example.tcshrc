@@ -1,0 +1,211 @@
+#set verbose
+# 	set environmental variables
+	setenv EDITOR vi.exe
+	setenv PAGER c:/bin/less
+#	setenv DISPLAY unix:0
+	setenv LESS "-B -c -h4 -i -M -q -x4 -G"
+	setenv SHELL C:/bin/tcsh.exe
+if ($?PROCESSOR_ARCHITECTURE) then
+	setenv USER  $USERNAME
+	setenv LOGNAME $USER
+	setenv HOSTNAME $COMPUTERNAME
+endif
+
+umask 077
+if (! $?prompt) then	# Everything else is interactive
+	exit(0)
+endif
+
+#tcsh-specific stuff
+if ($?tcsh) then
+# 	bindkey -v 
+	set autolist
+	set listlinks
+	set pushdtohome
+	set visiblebell
+
+	set ellipsis
+	set rmstar
+#	set prompt='%{f9%}%/%{gg%}(%{f2%}%?%{gg%})\>'
+if ($?TERM) then
+    if ($TERM == "emacs") then
+	set prompt='%/\>'
+    else
+	set prompt='%{f9%}%c03%{gg%}\>'
+	set prompt3 = '%{fc%}Correct to %R ?(y|n|e)%{gg%} '
+    endif
+else
+	set prompt='%{f9%}%c03%{gg%}\>'
+	set prompt3 = '%{fc%}Correct to %R ?(y|n|e)%{gg%} '
+endif
+
+	if ($?loginsh) then
+		set correct=all
+		set savedirs=100
+		set autocorrect
+	endif
+
+#	set printexitvalue
+	set complete=igncase
+
+	complete which 'p/*/c/'
+	complete where 'p/*/c/'
+	complete start 'p/*/c/'
+	complete cd 'p/1/d/'
+	complete pushd 'p/1/d/'
+	complete popd 'p/1/d/'
+	complete tar 'n/-tvf/t:*.tar/' 'n/-xvf/t:*.tar/' 
+	complete winhlp32 'p/*/f:*.HLP/'
+	complete pkunzip 'p/*/f:*.{ZIP,zip}/'
+	complete pkzip 'p/*/f:*.{zip,ZIP}/'
+	complete nmake 'p/*/f:*.MAK/'
+	complete bindkey 'p/*/b/'
+	complete set 'p/*/v/'
+	complete unset 'p/*/v/'
+
+# complex completions
+
+set noglob
+    complete gzip	c/--/"(stdout to-stdout decompress uncompress \
+			force help list license no-name quiet recurse \
+			suffix test verbose version fast best)"/ \
+			c/-/"(c d f h l L n q r S t v V 1 2 3 4 5 6 7 8 9 -)"/\
+			n/{-S,--suffix}/x:'<file_name_suffix>'/ \
+			n/{-d,--{de,un}compress}/f:*.{gz,Z,z,zip,taz,tgz}/ \
+			N/{-d,--{de,un}compress}/f:*.{gz,Z,z,zip,taz,tgz}/ \
+			n/*/f:^*.{gz,Z,z,zip,taz,tgz}/
+    complete {gunzip,ungzip} c/--/"(stdout to-stdout force help list license \
+			no-name quiet recurse suffix test verbose version)"/ \
+			c/-/"(c f h l L n q r S t v V -)"/ \
+			n/{-S,--suffix}/x:'<file_name_suffix>'/ \
+			n/*/f:*.{gz,Z,z,zip,taz,tgz}/
+    complete mv		c/--/"(backup force interactive update verbose suffix \
+			version-control help version)"/ \
+			c/-/"(b f i u v S V -)"/ \
+			n/{-S,--suffix}/x:'<suffix>'/ \
+			n/{-V,--version-control}/"(t numbered nil existing \
+			never simple)"/ n/-/f/ N/-/d/ p/1/f/ p/2/d/ n/*/f/
+    complete cp		c/--/"(archive backup no-dereference force interactive \
+			link preserve symbolic-link update verbose parents \
+			one-file-system recursive suffix version-control help \
+			version)"/ c/-/"(a b d f i l p r s u v x P R S V -)"/ \
+			n/-*r/d/ n/{-S,--suffix}/x:'<suffix>'/ \
+			n/{-V,--version-control}/"(t numbered nil existing \
+			never simple)"/ n/-/f/ N/-/d/ p/1/f/ p/2/d/ n/*/f/
+
+
+    complete net p/1/"(accounts computer config continue file group \
+			help helpmsg localgroup name pause print send session \
+			share start statistics stop time use user view)"/ \
+			n/config/"(server workstation)"/ \
+			n/help/"(accounts computer config continue file group \
+			help helpmsg localgroup name pause print send session \
+			share start statistics stop time use user view)"/ \
+			n/view/"( \\server1  \\server2 )"/ \
+			n/\*/"( \\server1\share1 \\server2\share2 )"/
+
+	complete cl c@-@"(O G F C D E P  U u I X v Z ? c H J nologo T V \
+			w W Y M  L link)"@ \
+			n@-link@F:d:/lang/msdev/lib@ \
+			c/-O/"(1 2 a b d g i p s t w x y)"/ \
+			c/-G/"(3 4 5 B d r z e s f y h X)"/ \
+			c/-F/"(a A d e m o p r R)"/ \
+			c/-Z/"(i 7 d p a e g l z)"/ \
+			c/-M/"(T D L)"/ \
+			n@*@f:*.{c,C,cpp,CPP}@
+unset noglob
+#end completions
+
+	bindkey -b ^W backward-delete-word
+	bindkey -b ^U backward-kill-line
+	bindkey -b ^R complete-word-fwd
+	bindkey -b M-g list-glob
+	bindkey -b M-* expand-glob
+	bindkey -b M-v expand-variables
+	bindkey -b M-w normalize-command
+	bindkey -b M-/ which-command
+	bindkey -b M-r i-search-back
+	bindkey -b M-s i-search-fwd
+
+#	bindkey -b C-I complete-word-fwd
+
+# NT specific bindkey extensions
+	bindkey -b N-up up-history
+	bindkey -b N-down down-history
+	bindkey -b N-right forward-char
+	bindkey -b N-left backward-char
+	bindkey -b N-del delete-char
+	bindkey -b N-ins overwrite-mode
+	bindkey -b N-1 which-command
+	bindkey -b N-2 expand-history
+	bindkey -b N-3 complete-word-raw
+	bindkey -b N-home beginning-of-line
+	bindkey -b N-end end-of-line
+
+#csh stuff
+else 
+	set sedstr = "s:/[^/]*/[^/]*/[^/]*/::"
+	set prompt="`echo $cwd | sed -e 's:/[^/]*/[^/]*/[^/]*/::'`>"
+	alias cd ' cd \!*; set prompt=`echo $cwd | sed -e "$sedstr"`\>'
+	alias pushd ' pushd \!*; set prompt=`echo $cwd | sed -e "$sedstr"`\>'
+	alias popd ' popd \!*; set prompt=`echo $cwd | sed -e "$sedstr"`\>'
+endif
+
+#common to tcsh and csh
+
+
+
+if (! $?PATH_DONE) then
+set path=($path c:/gnubin .)
+setenv PATH_DONE  1
+endif
+
+set notify
+set cdpath=( C:/ D:/ )#E:/ H:/samples )
+set noclobber
+set filec
+set history=(1000) 
+#"%h  %T   %{a2%}%R%{gg%}\n")
+#set histdup=all
+set savehist=(200 merge)
+set ignoreeof
+set fignore =(.obj .pdb .bsc .ilk .idb  .OBJ .PDB .BSC .ILK .IDB)
+
+set NTlamepathfix
+eval `dircolors`
+unalias v d ls vdir dir
+
+alias	ls  ls-F 
+alias   lc ls $LS_OPTIONS
+alias 	h 	history
+#alias   cwdcmd 'title `echo $cwd`'
+
+#
+# use the win32gnu utils for the following. or the win32sdk ones if you prefer.
+# PLEASE don't alias them to the posix utils in the reskit..
+#
+alias 	rm 	c:/gnubin/rm.exe -i
+alias 	rd	c:/gnubin/rmdir.exe
+alias 	md	c:/gnubin/mkdir.exe
+alias 	mv	C:/bin/mv.exe -i
+alias   cp  C:/bin/cp.exe -i
+alias	pwd 'echo $cwd'
+#
+alias   env printenv
+alias	net NET.EXE  # avoid spelling correction to "set"
+alias	cl  CL.EXE  # avoid spelling correction to "cp"
+alias   word c:/apps/winword/winword/winword.exe
+alias   excel e:/apps/excel/Excel/Excel.exe
+#alias	telnet qvtnet32
+alias	emacs c:/bin/emacs.csh
+alias	gemacs c:/bin/gemacs.csh #gui emacs
+alias	eshell c:/bin/eshell.csh
+alias	helpcommand winhlp32
+alias	benvcmd  start cmd /k benv.cmd
+alias   benv   source c:/bin/razzle.csh
+
+alias	use c:/bin/netuse.csh
+alias	unuse c:/bin/netunuse.csh
+
+alias   unsave unset savehist savedirs
+

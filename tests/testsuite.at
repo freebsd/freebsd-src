@@ -1,0 +1,26 @@
+# Process this file with autom4te to create testsuite. -*- Autotest -*-
+
+AT_INIT
+AT_TESTED([tcsh])
+
+m4_define([TCSH_UNTESTED],
+[AT_SETUP([$1])
+AT_CHECK([exit 77])
+AT_CLEANUP
+])
+
+m4_include([aliases.at])
+m4_include([arguments.at])
+m4_include([commands.at])
+m4_include([expr.at])
+#  Disabled because of non-portable use of stat
+#m4_include([history.at])
+m4_include([lexical.at])
+m4_include([mb-eucjp.at])
+m4_include([mb-utf8.at])
+m4_include([subst.at])
+m4_include([syntax.at])
+m4_include([variables.at])
+
+m4_include([noexec.at])
+m4_include([sh.dol.at])

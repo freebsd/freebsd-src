@@ -1,0 +1,546 @@
+# Lexical analysis and substitutions
+
+AT_SETUP([Word splitting])
+
+AT_CHECK([tcsh -f -v -c '&|;<>()&||<<>>space tab	end'], 1, ,
+[& | ; < > ( ) & || << >> space tab end
+Invalid null command.
+])
+
+# Note that the tab becomes a space!
+AT_DATA([oneword.csh],
+[[set var=('&|;<>()&||<<>>space tab	end')
+echo $var[1]
+]])
+AT_CHECK([tcsh -f oneword.csh], ,
+[&|;<>()&||<<>>space tab end
+])
+
+# Note that the tab becomes a space!
+AT_DATA([oneword.csh],
+[[set var=("&|;<>()&||<<>>space tab	end")
+echo $var[1]
+]])
+AT_CHECK([tcsh -f oneword.csh], ,
+[&|;<>()&||<<>>space tab end
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Comments])
+
+AT_CHECK([echo 'echo OK@%:@comment' | tcsh -f], , [OK
+])
+
+AT_CHECK([tcsh -f -c 'echo @%:@no comment'], ,
+[@%:@no comment
+])
+
+AT_DATA([comment2.csh],
+[[echo testing...@%:@\
+OK
+]])
+AT_CHECK([tcsh -f comment2.csh], ,
+[testing... OK
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Escaping special characters])
+
+AT_DATA([nosplit.csh],
+[[echo \&\|\;\<\>\(\)\&\|\|\<\<\>\>\space\ tab\	end
+echo '&|;<>()&||<<>>space tab	end'
+echo "&|;<>()&||<<>>space tab	end"
+set verbose
+echo `&|;<>()&||<<>>space tab	end`
+]])
+AT_CHECK([tcsh -f nosplit.csh], 1,
+[&|;<>()&||<<>>space tab	end
+&|;<>()&||<<>>space tab	end
+&|;<>()&||<<>>space tab	end
+
+],
+[echo `&|;<>()&||<<>>space tab	end`
+Invalid null command.
+])
+
+# backslash handling tested with $backslash_quote
+
+AT_CHECK([tcsh -f -c 'echo "foo\"bar"'], 1, , [Unmatched ".
+])
+dnl " Pacify emacs
+
+AT_CHECK([tcsh -f -c "echo 'foo\'bar'"], 1, , [Unmatched '.
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Preventing substitution])
+
+AT_CHECK([tcsh -f -c 'echo \$OK'], , [$OK
+])
+
+AT_CHECK([tcsh -f -c 'echo \`OK\`'], , [`OK`
+])
+
+AT_DATA([noalias.csh],
+[[alias true='echo error'
+\true
+tru\e
+]])
+AT_CHECK([tcsh -f noalias.csh])
+
+AT_CHECK([tcsh -f -c 'echo g\?\*b'], , [g?*b
+])
+
+AT_DATA([novar.csh],
+[[echo '$OK'
+]])
+AT_CHECK([tcsh -f novar.csh], , [$OK
+])
+
+AT_DATA([nocmd.csh],
+[[echo '`OK`'
+]])
+AT_CHECK([tcsh -f nocmd.csh], , [`OK`
+])
+
+AT_DATA([noalias.csh],
+[[alias true='echo error'
+'t'rue
+tru'e'
+]])
+AT_CHECK([tcsh -f noalias.csh])
+
+AT_DATA([noglob.csh],
+[[echo 'g?*b'
+]])
+AT_CHECK([tcsh -f noglob.csh], , [g?*b
+])
+
+AT_CHECK([tcsh -f -c 'echo \!OK'], , [!OK
+])
+
+AT_CHECK([tcsh -f -c "echo !OK"], 1, ,
+[OK: Event not found.
+])
+
+AT_CHECK([tcsh -f -c 'echo "$OK"'], 1, , [OK: Undefined variable.
+])
+
+AT_CHECK([tcsh -f -c 'echo "`OK`"'], 1, [
+],
+[OK: Command not found.
+])
+
+AT_DATA([noalias.csh],
+[[alias true='echo error'
+"t"rue
+tru"e"
+]])
+AT_CHECK([tcsh -f noalias.csh])
+
+AT_CHECK([tcsh -f -c 'echo "g?*b"'], , [g?*b
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([History basics])
+
+# Printing prompt only when at end of input is rather nondeterministic...
+AT_DATA([basic.csh],
+[[echo 1
+echo 2
+!1
+]])
+AT_CHECK([tcsh -f -q -i < basic.csh], ,
+[> 1
+2
+1
+> exit
+],
+[echo 1
+])
+
+AT_DATA([histlit.csh],
+[[echo foo
+!!
+history | cut -d '	' -f 1,3-
+set histlit
+history | cut -d '	' -f 1,3-
+]])
+AT_CHECK([tcsh -f -q -i < histlit.csh], ,
+[> foo
+foo
+     1	echo foo
+     2	echo foo
+     3	history | cut -d '	' -f 1,3-
+     1	echo foo
+     2	!!
+     3	history | cut -d '	' -f 1,3-
+     4	set histlit
+     5	history | cut -d '	' -f 1,3-
+> exit
+],
+[echo foo
+])
+
+AT_DATA([nohist.csh],
+[echo ! space !	tab != "!(" newline !
+])
+AT_CHECK([tcsh -f nohist.csh], ,
+[[! space ! tab != !( newline !
+]])
+
+AT_CLEANUP
+
+
+AT_SETUP([Event specification])
+
+AT_DATA([positive.csh],
+[[echo 1
+echo 2
+!1
+]])
+AT_CHECK([tcsh -f -q -i < positive.csh], ,
+[> 1
+2
+1
+> exit
+],
+[echo 1
+])
+
+AT_DATA([negative.csh],
+[[echo 1
+echo 2
+!-2
+]])
+AT_CHECK([tcsh -f -q -i < negative.csh], ,
+[> 1
+2
+1
+> exit
+],
+[echo 1
+])
+
+AT_CHECK([echo 'echo !@%:@:0' | tcsh -f -q -i], ,
+[> echo
+> exit
+],
+[echo echo
+])
+
+AT_CHECK([echo 'echo !@%:@:1' | tcsh -f -q -i], 1,
+[> > exit
+],
+[Bad ! arg selector.
+])
+
+AT_DATA([bang.csh],
+[[echo 1
+echo 2
+!!
+]])
+AT_CHECK([tcsh -f -q -i < bang.csh], ,
+[> 1
+2
+2
+> exit
+],
+[echo 2
+])
+
+AT_DATA([startsearch.csh],
+[[echo 1
+echo 2
+true
+!e
+]])
+AT_CHECK([tcsh -f -q -i < startsearch.csh], ,
+[> 1
+2
+2
+> exit
+],
+[echo 2
+])
+
+AT_DATA([subsearch.csh],
+[[echo 1
+echo 12
+true
+!?2
+!?1?
+]])
+AT_CHECK([tcsh -f -q -i < subsearch.csh], ,
+[> 1
+12
+12
+12
+> exit
+],
+[echo 12
+echo 12
+])
+
+AT_DATA([braces.csh],
+[[echo 1
+!{!}
+!{1}
+!{-1}
+!{e}
+!{?e?}
+]])
+AT_CHECK([tcsh -f -q -i < braces.csh], ,
+[> 1
+1
+1
+1
+1
+1
+> exit
+],
+[echo 1
+echo 1
+echo 1
+echo 1
+echo 1
+])
+
+AT_DATA([1x],
+[[#! /bin/sh
+echo string
+]])
+AT_DATA([number.csh],
+[[echo number
+set path=(. $path)
+1x
+!1x
+!{1x}
+!{1}x
+]])
+AT_CHECK([chmod a+x 1x && tcsh -f -q -i < number.csh], ,
+[> number
+string
+string
+string
+numberx
+> exit
+],
+[1x
+1x
+echo numberx
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Word selection])
+
+AT_DATA([words.csh],
+[[echo 1 2 3 4 5
+:
+echo !1:0
+echo !1:2
+echo !1:^
+echo !1:$
+echo !?4?%
+echo !1:2-4
+echo !1:*
+set foo=(!2:*)
+echo ${#foo}
+echo !1:4*
+echo !1:2-
+echo !1*
+]])
+AT_CHECK([tcsh -f -q -i < words.csh], ,
+[> 1 2 3 4 5
+echo
+2
+1
+5
+4
+2 3 4
+1 2 3 4 5
+0
+4 5
+2 3 4
+1 2 3 4 5
+> exit
+],
+[echo echo
+echo 2
+echo 1
+echo 5
+echo 4
+echo 2 3 4
+echo 1 2 3 4 5
+set foo= ( )
+echo 4 5
+echo 2 3 4
+echo 1 2 3 4 5
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([History modifiers])
+
+AT_DATA([modifiers.csh],
+[[echo foo bar baz quux /usr/src/sys/sys/malloc.c
+^baz^bash
+^bar^kPa^:p
+echo !1:$:h
+echo !1:$:t
+echo !1:$:r
+echo !1:$:e
+echo !1:1-:u
+echo !!:1-:l
+echo !1:1-:s,ba,ab
+echo '!1:$:s/src\/sys/&\&more/'
+echo !echo:0:s//OK/
+echo !?ux?:*:s//uux/
+echo !!:*:&
+echo !1:*:gu:gr
+echo !1:*:gas/o/O/
+echo !1:*:gas/o/\[oo\]/
+echo !1:1-:p:au
+set var=(!1:1-:gs/a/ /)
+echo ${#var}
+set var=(!1:1-:gs/a/ /:q)
+echo ${#var}
+set var=(!1:1-:gs/a/ /:x)
+echo ${#var}
+]])
+AT_CHECK([tcsh -f -q -i < modifiers.csh], ,
+[[> foo bar baz quux /usr/src/sys/sys/malloc.c
+foo bar bash quux /usr/src/sys/sys/malloc.c
+/usr/src/sys/sys
+malloc.c
+/usr/src/sys/sys/malloc
+c
+Foo bar baz quux
+foo bar baz
+foo abr baz quux
+/usr/src/sys&more/sys/malloc.c
+OK
+foo abr baz quuux
+foo abr baz quuuux
+Foo Bar Baz Quux /Usr/src/sys/sys/malloc
+fOO bar baz quux /usr/src/sys/sys/mallOc.c
+f[oo][oo] bar baz quux /usr/src/sys/sys/mall[oo]c.c
+6
+4
+6
+> exit
+]],
+[[echo foo bar bash quux /usr/src/sys/sys/malloc.c
+echo foo kPa bash quux /usr/src/sys/sys/malloc.c
+echo /usr/src/sys/sys
+echo malloc.c
+echo /usr/src/sys/sys/malloc
+echo c
+echo Foo bar baz quux
+echo foo bar baz
+echo foo abr baz quux
+echo '/usr/src/sys&more/sys/malloc.c'
+echo OK
+echo foo abr baz quuux
+echo foo abr baz quuuux
+echo Foo Bar Baz Quux /Usr/src/sys/sys/malloc
+echo fOO bar baz quux /usr/src/sys/sys/mallOc.c
+echo f\[oo\]\[oo\] bar baz quux /usr/src/sys/sys/mall\[oo\]c.c
+echo FOO bar baz quux
+set var= ( foo b r b z quux )
+set var= ( foo b r b z quux )
+set var= ( foo b r b z quux )
+]])
+
+AT_CLEANUP
+
+
+AT_SETUP([Alias substitution])
+
+AT_DATA([alias.csh],
+[[alias simple 'echo OK'
+simple
+simple ; simple
+alias compile 'echo cc -o \!^ \!^.c'
+compile hw
+alias echo 'echo no'
+echo bug
+unalias echo
+alias l1 'l2 a'
+alias l2 'l1 b'
+l1
+]])
+AT_CHECK([tcsh -f alias.csh], 1,
+[OK
+OK
+OK
+cc -o hw hw.c
+no bug
+],
+[Alias loop.
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Variable substitution])
+
+AT_DATA([var.csh],
+[[set v=foo
+set a=(foo bar baz 1 2 3)
+set echo_style=none
+echo $v "$v" '$v' \$v "\$v" '\$v' $ space $	tab $
+touch zzzabc
+set filename='zzz*'
+echo $filename $filename:q "$filename"
+set a2=($a:q)
+echo ${#a2}
+set a2=("$a")
+echo ${#a2}
+echo ${v}tail
+echo $env_var:l
+echo $a[2] ${a[-2]} $a[5-] $a[*] ${a[-0]}
+#echo ${a[7-]}
+#a: Subscript out of range.
+echo $a[$a[5]]
+echo $0 $1 $2
+echo $*
+echo $?v $?a $?this_is_unknown
+echo $?0
+echo $#v $#a $#
+echo $%v
+echo $?
+# untested: $$, $!, $_
+echo $<:q
+]])
+AT_CHECK([echo '`"{}$@'"'" | env_var=ENV_VAL tcsh -f var.csh arg1 arg2], ,
+[foo foo $v $v \foo \$v $ space $ tab $
+zzzabc zzz* zzz*
+6
+1
+footail
+eNV_VAL
+bar foo bar 2 3 foo bar baz 1 2 3
+bar
+var.csh arg1 arg2
+arg1 arg2
+1 1 0
+1
+1 6 2
+3
+0
+`"{}$@'
+])
+
+AT_CLEANUP

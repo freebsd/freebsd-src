@@ -1,0 +1,141 @@
+# '-n' handling
+
+AT_SETUP([-n])
+
+AT_DATA([correct.csh],
+[[echo $nonexistent
+
+if ( `ls` ) ls
+
+if ( $?nonexistent ) then
+  echo foo
+else if ( something ) then
+  /bin/echo foo
+else
+  ls
+endif
+
+while ( 1 )
+  continue
+  break
+end
+
+foreach name ( nonexistent* )
+  echo $name
+end
+
+switch ( $something )
+case foo*:
+  foo
+case foo2:
+  bar
+  breaksw
+case baz
+  ls
+default:
+  quuz
+endsw
+
+repeat 1000000 sleep 1
+]])
+AT_CHECK([tcsh -f -n correct.csh])
+
+AT_DATA([ifnoskip.csh],
+[[if ( 0 ) then
+  <
+endif
+]])
+AT_CHECK([tcsh -f -n ifnoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([elsenoskip.csh],
+[[if ( 1 ) then
+  true
+else
+  <
+endif
+]])
+AT_CHECK([tcsh -f -n elsenoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([gotonoskip.csh],
+[[goto label
+  <
+label:
+]])
+AT_CHECK([tcsh -f -n gotonoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([switchnoskip.csh],
+[[switch ( value )
+case foo:
+  <
+case value:
+  breaksw
+endsw
+]])
+AT_CHECK([tcsh -f -n switchnoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([switchsyntax.csh],
+[[switch value
+endsw
+]])
+AT_CHECK([tcsh -f -n switchsyntax.csh], 1, [], [Syntax Error.
+])
+
+AT_DATA([breaknowhile.csh],
+[[break
+]])
+AT_CHECK([tcsh -f -n breaknowhile.csh], 1, [], [break: Not in while/foreach.
+])
+
+AT_DATA([breaknoskip.csh],
+[[while ( 1 )
+  break
+  <
+end
+]])
+AT_CHECK([tcsh -f -n breaknoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([foreachsyntax.csh],
+[[foreach name val1 val2
+  echo $name
+end
+]])
+AT_CHECK([tcsh -f -n foreachsyntax.csh], 1, [],
+[foreach: Words not parenthesized.
+])
+
+AT_DATA([whilenoskip.csh],
+[[while ( 0 )
+  <
+end
+]])
+AT_CHECK([tcsh -f -n whilenoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_DATA([endnowhile.csh],
+[[end
+]])
+AT_CHECK([tcsh -f -n endnowhile.csh], 1, [], [end: Not in while/foreach.
+])
+
+AT_DATA([continuenowhile.csh],
+[[continue
+]])
+AT_CHECK([tcsh -f -n continuenowhile.csh], 1, [],
+[continue: Not in while/foreach.
+])
+
+AT_DATA([continuenoskip.csh],
+[[while ( 1 )
+  continue
+  <
+end
+]])
+AT_CHECK([tcsh -f -n continuenoskip.csh], 1, [], [Missing name for redirect.
+])
+
+AT_CLEANUP

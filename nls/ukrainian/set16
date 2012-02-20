@@ -1,9 +1,9 @@
-$ $tcsh: set16,v 1.3 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set16,v 1.4 2011/02/04 18:19:44 christos Exp $
 $ sh.lex.c
 $set 16 
 1 Reset tty pgrp from %d to %d\n
-2 \nВикористайте "logout" щоб вийти.\n
-3 \nВикористайте "exit" щоб вийти з %s.\n
+2 \nп▓п╦п╨п╬я─п╦я│я┌п╟п╧я┌п╣ "logout" я┴п╬п╠ п╡п╦п╧я┌п╦.\n
+3 \nп▓п╦п╨п╬я─п╦я│я┌п╟п╧я┌п╣ "exit" я┴п╬п╠ п╡п╦п╧я┌п╦ п╥ %s.\n
 4 seek to eval %x %x\n
 5 seek to alias %x %x\n
 6 seek to file %x\n
