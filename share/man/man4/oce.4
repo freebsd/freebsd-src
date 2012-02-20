@@ -58,7 +58,7 @@ module at boot time, place the following line in
 if_oce_load="YES"
 .Ed
 .Sh DESCRIPTION
-Emulex one connect adapters come in various skews and with
+Emulex OneConnect adapters come in various skews and with
 different combinations of NIC, FCoE and iSCSI functions.
 The
 .Nm
@@ -69,47 +69,63 @@ The
 driver supports VLAN Hardware offload, TCP checksum offload,
 TCP segmentation offload (TSO), Large receive offload (LRO),
 Bonding, Jumbo frames (from 1500 - 9000), Multiple TX queues,
-Receive-Side Scaling(RSS) and MSI-X interrupts.
+Receive-Side Scaling (RSS) and MSI-X interrupts.
 .Sh HARDWARE
 The
 .Nm
-driver supports the following Emulex network adapters:
+driver supports the following network adapters:
 .Pp
 .Bl -bullet -compact
 .It
-BladeEngine 2
+Emulex BladeEngine 2
 .It
-BladeEngine 3
+Emulex BladeEngine 3
 .It
-Lancer
+Emulex Lancer
 .El
 .Sh UPDATING FIRMWARE
 Adapter firmware updates are persistent.
 .Pp
 Firmware can be updated by following the steps below:
-.Bd -literal -compact
- 1) Copy the below code to a Makefile
-  ".KMOD=elxflash
-   FIRMWS=imagename.ufi:elxflash
-   .include <bsd.kmod.mk>"
- 2) Replace imagename in above with UFI file name.
- 3) Copy Makefile and UFI to a directory
- 4) Execute make & copy generated elxflash.ko to /lib/modules
- 5) sysctl dev.oce.<if_id>.fw_upgrade=elxflash
- 6) Reboot the machine.
+.Bl -enum
+.It
+Copy the below code to a Makefile:
+.Pp
+.Bd -literal -offset indent
+\&.KMOD=elxflash
+FIRMWS=imagename.ufi:elxflash
+\&.include <bsd.kmod.mk>
+.Ed
+.It
+Replace imagename in above with UFI file name
+.It
+Copy Makefile and UFI file to a directory
+.It
+Execute make & copy generated elxflash.ko to
+.Pa /lib/modules
+.It
+sysctl dev.oce.<if_id>.fw_upgrade=elxflash
+.It
+Reboot the machine
+.El
 .Pp
 In case of issues with supplied UFI, flashing fails with one
-of the below errors.
- 1) "Invalid BE3 firmware image"
- 2) "Invalid Cookie. Firmware image corrupted ?"
- 3) "cmd to write to flash rom failed."
-.Ed
+of the following errors.
+.Pp
+.Bl -enum -compact
+.It
+.Qq Invalid BE3 firmware image
+.It
+.Qq "Invalid Cookie. Firmware image corrupted ?"
+.It
+.Qq cmd to write to flash rom failed.
+.El
 .Sh SUPPORT
 For general information and support,
 go to the Emulex website at:
-.Fa http://www.Emulex.com/
+.Pa http://www.Emulex.com/
 or E-Mail at
-.Fa freebsd-drivers@emulex.com.
+.Pa freebsd-drivers@emulex.com .
 .Sh SEE ALSO
 .Xr ifconfig 8
 .Sh AUTHORS
@@ -117,4 +133,4 @@ or E-Mail at
 The
 .Nm
 driver was written by
-.An freebsd-drivers@emulex.com.
+.An freebsd-drivers@emulex.com .
