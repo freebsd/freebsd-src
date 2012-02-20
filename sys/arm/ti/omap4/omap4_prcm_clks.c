@@ -425,7 +425,7 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
 		
 	/* sDMA block */
 	OMAP4_GENERIC_CLOCK_DETAILS(SDMA_CLK, -1, CM2_INSTANCE_MEM_REGION,
-		(CORE_CM2_OFFSET + 0x320), CLKCTRL_MODULEMODE_AUTO),
+		(CORE_CM2_OFFSET + 0x300), CLKCTRL_MODULEMODE_AUTO),
 
 	/* I2C modules */
 	OMAP4_GENERIC_CLOCK_DETAILS(I2C1_CLK, -1, CM2_INSTANCE_MEM_REGION,
@@ -445,7 +445,7 @@ static struct omap4_clk_details g_omap4_clk_details[] = {
  *	alive.
  *
  */
-#define MAX_MODULE_ENABLE_WAIT    1000
+#define MAX_MODULE_ENABLE_WAIT    100
 	
 /**
  *	ARRAY_SIZE - Macro to return the number of elements in a static const array.
@@ -529,6 +529,7 @@ omap4_clk_generic_activate(struct ti_clock_dev *clkdev)
 		clksel = bus_read_4(clk_mem_res, clk_details->clksel_reg);
 		if ((clksel & CLKCTRL_IDLEST_MASK) == CLKCTRL_IDLEST_ENABLED)
 			break;
+		DELAY(10);
 	}
 		
 	/* Check the enabled state */
