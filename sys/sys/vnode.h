@@ -538,6 +538,10 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
  */
 #define VCALL(c) ((c)->a_desc->vdesc_call(c))
 
+#define DOINGASYNC(vp)	   					\
+	(((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC) != 0 &&	\
+	 ((curthread->td_pflags & TDP_SYNCIO) == 0))
+
 /*
  * VMIO support inline
  */
