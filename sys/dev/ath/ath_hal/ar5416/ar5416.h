@@ -215,6 +215,7 @@ extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    void **result, uint32_t *resultsize);
 extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
+
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,
