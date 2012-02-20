@@ -1,0 +1,96 @@
+# Optional substitutions
+
+AT_SETUP([Command substitution])
+
+AT_DATA([backq.csh],
+[[set a=(a`echo 1 2; echo 3 4`b)
+echo $#a
+set a=(a"`echo 1 2; echo 3 4`b")
+echo $#a
+unset csubstnonl
+echo `echo 1; \\
+echo 2`
+set csubstnonl
+echo `echo 1; \\
+  echo 2`
+]])
+AT_CHECK([tcsh -f backq.csh], 1,
+[4
+2
+1 2
+1
+],
+[ : Command not found.
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Filename substitution])
+
+AT_DATA([files.csh],
+[[mkdir d
+cd d
+touch foo baz bar .quux '*'
+echo *a* *[ox] [f.]* .q* ./*[ox] ./[f.]* ./.q* \*
+echo [a-g]* [^b]* ^b?r
+echo { ba{z,r} } {}
+echo nothing* fo*
+set nonomatch
+echo nothing*
+set noglob
+echo foo* ab{c,d} ^fo*
+]])
+AT_CHECK([tcsh -f files.csh], ,
+[bar baz foo foo .quux ./foo ./foo ./.quux *
+bar baz foo * foo * baz foo
+{ baz bar } {}
+foo
+nothing*
+foo* ab{c,d} ^fo*
+])
+
+AT_CHECK([echo 'echo ~; echo "$HOME"' | tcsh -f | uniq | wc -l | tr -d ' \t'],
+, [1
+])
+
+AT_CHECK([echo "echo ~$(id -un)/foo; echo \"$HOME/foo\"" | tcsh -f | uniq dnl
+	  | wc -l | tr -d ' \t'], , [1
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([Directory stack substitution])
+
+AT_DATA([dirstack.csh],
+[[set home=$cwd
+pushd /
+pushd /dev
+echo =0/:foo
+echo =1/:foo
+echo =-
+set noglob
+echo =1
+unset noglob
+sh -c 'echo 1 >&2'
+(echo =5)
+sh -c 'echo 2 >&2'
+set nonomatch
+echo =5
+]])
+AT_CHECK([tcsh -f dirstack.csh | sed "s,$PWD,CWD,"], ,
+[/ ~ @&t@
+/dev / ~ @&t@
+/dev/:foo
+//:foo
+CWD
+=1
+=5
+],
+[1
+Directory stack not that deep.
+2
+])
+
+AT_CLEANUP

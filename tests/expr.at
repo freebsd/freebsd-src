@@ -1,0 +1,167 @@
+# Expression evaluation
+
+AT_SETUP([Arithmetic operators])
+
+AT_CHECK([tcsh -f -c 'exit (2 || 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (2 || 0)'], 1)
+AT_CHECK([tcsh -f -c 'exit (0 || 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (0 || 0)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (2 && 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (2 && 0)'], 0)
+AT_CHECK([tcsh -f -c 'exit (0 && 3)'], 0)
+AT_CHECK([tcsh -f -c 'exit (0 && 0)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (1 | 2)'], 3)
+
+AT_CHECK([tcsh -f -c 'exit (2 ^ 3)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (2 & 3)'], 2)
+
+AT_CHECK([tcsh -f -c 'exit (2 == 3)'], 0)
+AT_CHECK([tcsh -f -c 'exit (2 == 2)'], 1)
+AT_CHECK([tcsh -f -c 'exit (02 == 2)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (2 != 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (2 != 2)'], 0)
+AT_CHECK([tcsh -f -c 'exit (02 != 2)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (foo =~ f*o)'], 1)
+AT_CHECK([tcsh -f -c 'exit (foo =~ b*o)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (foo !~ f*o)'], 0)
+AT_CHECK([tcsh -f -c 'exit (foo !~ b*o)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (2 >= 3)'], 0)
+AT_CHECK([tcsh -f -c 'exit (2 >= 2)'], 1)
+AT_CHECK([tcsh -f -c 'exit (3 >= 2)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (2 <= 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (2 <= 2)'], 1)
+AT_CHECK([tcsh -f -c 'exit (3 <= 2)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (2 > 3)'], 0)
+AT_CHECK([tcsh -f -c 'exit (2 > 2)'], 0)
+AT_CHECK([tcsh -f -c 'exit (3 > 2)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (2 < 3)'], 1)
+AT_CHECK([tcsh -f -c 'exit (2 < 2)'], 0)
+AT_CHECK([tcsh -f -c 'exit (3 < 2)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (2 << 3)'], 16)
+
+AT_CHECK([tcsh -f -c 'exit (3 >> 1)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit (2 + 3)'], 5)
+
+AT_CHECK([tcsh -f -c 'exit (2 - 3)'], 255)
+
+AT_CHECK([tcsh -f -c 'exit (2 * 3)'], 6)
+
+AT_CHECK([tcsh -f -c 'exit (10 / 2)'], 5)
+
+AT_CHECK([tcsh -f -c 'exit (5 % 3)'], 2)
+
+AT_CHECK([tcsh -f -c 'exit (! 0)'], 1)
+AT_CHECK([tcsh -f -c 'exit (! 3)'], 0)
+
+AT_CHECK([tcsh -f -c 'exit (~ 0)'], 255)
+AT_CHECK([tcsh -f -c 'exit (~ 254)'], 1)
+
+AT_CHECK([tcsh -f -c 'exit ((3))'], 3)
+
+AT_CLEANUP
+
+
+AT_SETUP([Primary expressions])
+
+AT_CHECK([tcsh -f -c 'set parseoctal; exit (010)'], 8)
+AT_CHECK([tcsh -f -c 'exit (010)'], 10)
+
+AT_CHECK([tcsh -f -c 'exit ( "" )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit { true }'], 1)
+AT_CHECK([tcsh -f -c 'exit { false }'], 0)
+
+touch file1 file2
+chmod 6777 file1
+chmod 000 file2
+
+AT_CHECK([tcsh -f -c 'exit ( -r file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -r file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -w file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -w file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -x file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -x file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -X ls )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -X unknown_command )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -e file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -e nonexistent )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -o file1 )'], 1)
+
+echo > nonempty
+AT_CHECK([tcsh -f -c 'exit ( -z file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -z nonempty )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -s file1 )'], 0)
+AT_CHECK([tcsh -f -c 'exit ( -r nonempty )'], 1)
+
+mkdir dir
+chmod +t dir
+ln -s file2 link
+mkfifo pipe
+
+AT_CHECK([tcsh -f -c 'exit ( -f file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -f dir )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -d dir )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -d file1 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -l link )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -l file1 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -p pipe )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -p file1 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -u file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -u file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -g file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -g file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -k dir )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -k file2 )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -t 0 )' < /dev/null], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -f link )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -Lf link )'], 0)
+
+AT_CHECK([tcsh -f -c 'exit ( -rwx file1 )'], 1)
+
+# -A, -A:, -M, -M:, -C, -C:, -D, -I, -F, -U, -U:, -G, -G: not tested
+
+AT_CHECK([tcsh -f -c 'exit ( -L link == file2 )'], 1)
+
+ln file2 file2link
+AT_CHECK([tcsh -f -c 'exit ( -N file1 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -N file2 )'], 2)
+
+# S_ISVTX is masked out
+AT_CHECK([tcsh -f -c 'exit ( -P file1 == 6777 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -P: file1 == 06777 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -P111 file1 == 111 )'], 1)
+AT_CHECK([tcsh -f -c 'exit ( -P111: file1 == 0111 )'], 1)
+
+AT_CHECK([tcsh -f -c 'exit ( -Z file1 )'], 0)
+AT_CHECK([tcsh -f -c 'exit ( -Z nonempty )'], 1)
+
+AT_CHECK([tcsh -f -c 'exit ( -N unknown )'], 255)
+
+AT_CLEANUP
+

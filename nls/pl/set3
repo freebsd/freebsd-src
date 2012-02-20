@@ -1,12 +1,12 @@
 $ $tcsh: set3,v 1.3 1995/04/24 14:12:51 christos Exp $
 $ Editor function descriptions
 $set 3 
-1 Przejd¼ znak wstecz
-2 Usuñ znak za kursorem
-3 Obetnij od pocz±tku s³owa do kursora, zachowaj w buforze wyciêæ
-4 Obetnij od pocz±tku linii do kursora, zachowaj w buforze wyciêæ
-5 Przejd¼ do pocz±tku aktualnego s³owa
-6 Przejd¼ do pocz±tku linii
+1 PrzejdÅº znak wstecz
+2 UsuÅ„ znak za kursorem
+3 Obetnij od poczÄ…tku sÅ‚owa do kursora, zachowaj w buforze wyciÄ™Ä‡
+4 Obetnij od poczÄ…tku linii do kursora, zachowaj w buforze wyciÄ™Ä‡
+5 PrzejdÅº do poczÄ…tku aktualnego sÅ‚owa
+6 PrzejdÅº do poczÄ…tku linii
 7 Capitalize the characters from cursor to end of current word
 8 Vi change case of character under cursor and advance one character
 9 Vi change to end of line

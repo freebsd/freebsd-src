@@ -1,0 +1,602 @@
+# $tcsh: BUGS,v 3.5 2006/03/02 18:46:44 christos Exp $
+============
+Bugs in TCSH
+============
+-IAN! idallen@ncf.ca
+April 2002
+
+--------------------------------------------------------------------------------
+| *FIXED*
+| From: idallen
+| Subject: Can't redirect output of "source"
+|    % echo "date" >file
+|    % source file >output
+|    Thu Sep      3 17:47:19 EDT 1987
+--------------------------------------------------------------------------------
+
+From: idallen
+Subject: nice is not cumulative
+   % nice date
+   % nice nice date
+
+   Both have a nice of 4; nice does not accumulate.
+
+From: idallen
+Subject: no warning on integer overflow
+    % @ x=99999999999999999999999
+    % echo $x
+    -159383553
+
+From: idallen
+Subject: goto seeks backwards in terminal input
+    % goto x
+    goto? ignored
+    goto? ignored
+    goto? ignored
+    goto? x:
+    % goto x
+
+    The terminal is now hung - you have to break out.
+
+From: idallen
+Subject: nice applied to too many commands
+    % nice +20 simple `long`
+
+    The CSH shell applies the nice to both commands "simple" and "long".
+
+From: idallen
+Subject: redirection always happens in single-line "if"
+   if ( 0 ) echo hi > date
+
+   The file date is created empty.
+
+From: idallen
+Subject: Expanding variable with newline generates syntax error
+       % set x="abc\
+       def"
+       % echo "$x"
+       Unmatched ".
+
+From: idallen
+Subject: Expanding variable with newline generates extra word
+       % set x="abc\
+       def"
+       % echo $x
+       abc  def
+       % set y=( $x ) ; echo $#y
+       3
+
+From: idallen
+Subject: Modifier ":e" doesn't work on history
+    CSH is missing an entry in a case statement for it.
+
+From: idallen
+Subject: Shell messages appear on stdout; get redirected
+    If a program in a shell script exits with a signal that the shell
+    reports (e.g. Terminated), the report appears on standard output
+    and if the output of the shell script is redirected the report
+    gets sent there and you never find out.
+
+From: Steve Hayman <sahayman>
+Subject: No error message given for failure to NICE
+    % nice -10 date
+    Fri May 30 12:11:12 EDT 1986
+    CSH never checks the error returns from nice().
+
+From: Ray Butterworth <rbutterworth>
+Subject: CSH history reading takes '#' as a comment
+    % echo a b # c d
+    a b # c d
+    % exit
+    % login
+    % history
+      ...
+      99 echo a b
+
+    '#' indicates a comment when reading from a shell script file,
+    and of course CSH thinks it is reading from a file when it reads
+    the history back in.
+
+From: idallen
+Subject: csh: No current job, even if only one job
+    % somecommand ^Z
+    Suspended
+    % bg
+    [1]   somecommand &
+    % fg
+    fg: No current job.
+
+    The C shell always turns off the current job indicator for a job
+    that is put in the background with "bg" -- even if it is the only job.
+
+From: idallen (Ian! D. Allen)
+Subject: Redirection ignored inside if ( { cmd >xxx } ) ....
+    % if ( { date >out } ) echo hi
+    Sun Apr 14 13:24:31 EDT 2002
+    hi
+
+    The shell does not set up its file descriptors for the forked
+    command.  The redirection is completely ignored.
+
+>From idallen
+Subject: Error in CSH script causes script exit
+    If a script has an error in a built-in command (e.g. redirection file not
+    found), the script exits instead of continuing.
+
+From: idallen (Ian! D. Allen)
+Subject: Variables $$, $# don't accept :-modifiers
+    echo   $$:q   $#:q
+    12345:q 0:q
+
+From: idallen (Ian! D. Allen)
+Subject: Variable $* (a synonym for argv) doesn't accept subscripts.
+    % set argv=( a b c d )
+    % echo $argv[2]
+    b
+    % echo $*[2]
+    echo: No match.
+
+>From idallen
+Subject: Using WHICH from CSH
+    The WHICH command tells the wrong thing if you've created
+    a new file and haven't done a REHASH.  WHICH thinks you
+    get the new file, but the CSH will give you the old one.
+
+From: idallen (Ian! D. Allen)
+Subject: Redirected input to built-in functions misbehaves badly
+    % date | echo hi
+    hi
+    % % jobs
+    [1]  + Running                       date |
+
+    Note the duplicate prompt and spurious job entry.
+
+    % % date | echo hi
+    hi
+    % % date | echo hi
+    hi
+    % % jobs
+    [1]  + Running                       date |
+    [2]  - Running                       date |
+    [3]    Running                       date |
+    % fg
+    date |
+    % fg
+    date |
+    fg: No such job (badjob).
+    % fg
+    [tcsh shell hangs here in an infinite loop]
+
+    Just a general mess of mishandled processes.
+
+From: idallen (Ian! D. Allen)
+Subject: stopped pipes generate spurious job ID
+    % date | sleep 99
+    ^Z
+    Suspended
+    [1] 123 456
+
+>From idallen(idallen )
+Subject: NICE and NOHUP have no effect as last component of sub-shells.
+    % nice +10 ps -laxtd0
+     UID   PID  PPID CP PRI NI RSS WCHAN STAT TT  TIME COMMAND
+      47  3559     1  0  15  0  33 ff000 S    d0  0:16 -csh (csh)
+      47  7606  3559125  76 10  23       R N  d0  0:01 ps -laxtd0
+    % (nice +10 ps -laxtd0)
+     UID   PID  PPID CP PRI NI RSS WCHAN STAT TT  TIME COMMAND
+      47  3559     1  3  15  0  33 ff000 S    d0  0:16 -csh (csh)
+      47  7605  3559 92  48  0  23       R    d0  0:01 ps -laxtd0
+
+    % (nice ps lx)
+    ... Shows no nice.
+    % (nice ps lx;date)
+    ... Works.
+    % (nohup sleep 999)&
+    ... Doesn't ignore SIGHUP.
+    % (nohup sleep 999;date)&
+    ... Works.
+    % echo `nice ps lx >/dev/tty`
+    ... Shows no nice.
+    % echo `nice ps lx >/dev/tty;date`
+    ... Works.
+    % echo `nohup sleep 999`
+    ... Doesn't ignore SIGHUP.
+    % echo `nohup sleep 999;date`
+    ... Works.
+
+>From idallen
+Subject: you can't nest back-quotes
+    % echo ` echo \`pwd\` `
+    Unmatched `.
+
+From: idallen (Ian! D. Allen)
+Subject: GLOB not applied to names in setenv or unsetenv
+    % setenv `echo abc` def
+    
+    It doesn't set abc, it sets the nasty variable: `echo abc`
+
+    % unsetenv `echo abc def ghi`
+
+    Doesn't unset abc or def or ghi
+
+>From idallen Thu Mar 15 09:48:35 1984
+Subject: Stopping jobs in list of command names throws away the rest.
+    % a ; b ; c
+    CSH documents that if you stop B, C will immediately start.
+    It doesn't.  The rest of the list gets thrown away.
+
+From: idallen (Ian! D. Allen)
+Subject: Stopping jobs in source'd file aborts the rest of the file.
+    With the file TEST containing:
+
+        mail
+        echo Hi There you never see this
+
+    and typing
+
+        % source TEST
+
+    and then using ^Z to stop MAIL, the rest of the TEST file is abandoned.
+    This is especially annoying in one's .login or .cshrc.
+
+>From idallen
+Subject: CSH doesn't handle EXIT when it sees it.
+    % date; exit 99 ; date ; date
+    Wed Mar 14 19:21:51 EST 1984
+    Wed Mar 14 19:21:52 EST 1984
+    Wed Mar 14 19:21:53 EST 1984
+
+    The shell doesn't flush pending input when the EXIT is seen.
+    The shell then exits with status 0 instead of status 99.
+
+>From idallen
+Subject: CSH mishandles suspend in subshells.
+    % ( date; suspend; date )
+    Sun Mar  4 01:28:28 EST 1984
+
+    Suspended
+    % fg
+    ( date; suspend; date )
+
+    Suspended (tty input)
+    ...and you can never get it started again.
+
+>From idallenSun Mar  18 01:28:16
+Subject: ECHO mis-handles interrupts and errors in back-quotes
+    % echo `sleep 999`
+    <hit break>
+    [1] 24244
+    % jobs
+    [1]    Interrupt                     ` ... `
+
+    Note the inability of CSH to tell you the command name used inside
+    the back-quotes.
+
+>From idallen
+Subject: CSH botches $#X where X is environment var
+    % echo $#path
+    4
+    % echo $#PATH
+    /usr/ucb:/bin:/usr/bin:/usr/public
+
+>From idallen Wed Apr 18, 1984
+Subject: Inconsistent handling of variables
+    The manual says that "set x=word" assigns a single word to x.
+    To assign multiple words, one is supposed to use "set x=(words)".
+    But, CSH allows "set x=`date`", which sets x to the many words
+    resulting from `date`, and $x[1] prints "Mon".
+    
+    One observes that if x and y are single-word variables, the statements:
+    % set x=word2
+    % set y[1]=word2
+    are identical; both replace the contents of the variable with word2.
+
+    But, you can't assign a word to y[1] if y doesn't exist, even though
+    you can (of course) assign a word to plain "y" if y doesn't exist.
+
+>From idallen(Ian! D. Allen)
+Subject: extra next level when nested single-line IF line ends in THEN
+    Any IF line that ends in THEN is taken as another nesting level, and
+    requires a corresponding ENDIF:
+
+    if ( 0 ) then
+        if ( 0 ) echo This line ends with then
+    endif
+    echo You do not see this.
+    endif # This shouldn't be needed; but it is.
+    echo Now you do.
+
+>From idallen
+Subject: EXEC doesn't close the file descriptors
+
+    /* This program will demonstrate that CSH leaves internal
+     * file descriptors open across an EXEC built-in command.
+     *
+     *      % exec ./a.out
+     */
+    main()
+    {
+    int i;
+
+    for( i=0; i < 20; i++ ){
+        printf("%d = %d\n", i, isatty(i) );
+    }
+    }
+
+    The output shows:
+    > exec ./a.out
+    0 = 1
+    1 = 1
+    2 = 1
+    3 = 1
+    4 = 1
+    5 = 1
+    6 = 0
+    7 = 0
+    8 = 0
+    9 = 0
+    ...
+
+From: idallen
+Subject: can't test success of CD, CHDIR, etc.
+    cd nosuchdir || echo CD failed
+    cd nosuchdir && echo CD failed
+    cd nosuchdir ;  echo CD failed
+
+    None of the above work in CSH.
+
+>From idallen Mon Dec 16 21:40:32 1985
+Subject: GLOB loses memory on directories
+    echo /*/*/*
+
+    If you interrupt the above GLOB, CSH loses memory.
+
+From: idallen
+Subject: C Shells don't parse when looking for labels.
+    The shells just look at the first word on each line.  You can
+    cause the shell to branch in to the middle of a HERE document:
+
+    #!/bin/csh -f
+    onintr quit
+    sleep 999
+    cat << EOF
+    quit:
+    echo Amazing how this prints.
+    exit 88  # this exit is taken when break is hit
+    EOF
+    quit:
+    echo You never get here.
+
+>From arwhite Thu Aug 26 13:53:58 1982
+Subject: CSH/Bourne shell inconsistent newlines
+    "`command`" deletes newlines from the command in the cshell, not in the
+    Bourne shell.
+
+>From idallen (Ian! D. Allen)
+Subject: aliases aren't seen after redirection
+   % date >x
+   % >x date
+
+   % alias foo date
+   % foo >x
+   % >x foo
+   foo: Command not found.
+
+>From idallen (Ian! D. Allen)
+Subject: $< misbehaves in pipes
+
+   % date | /bin/echo aaa $< bbb
+   abcdef
+   aaa a bbb
+   % bcdef
+   bcdef: Command not found.
+
+>From chris@pixutl.UUCP (chris) Fri Oct  5 14:01:13 1984
+Subject: bug in CSH (history)
+    There are a couple of bugs in the 'history' command of /bin/csh (and
+    offspring, such as newcsh):
+
+    1) The maximum number of arguments to the history command is set to 2.
+       % history -h -r 2  # fails
+
+>From idallen
+Subject: C Shell expression operators explained
+
+    Some odd CSH context-sensitive features.  There is ambiguity on how
+    !~ != and !( should be interpreted:
+
+       1 -  % ~idallen/study                 # a valid command line
+       2 -  % !~                             # doesn't work
+       3 -  % echo " !~ "                    # no history
+       4 -  % if ( abc !~ def ) echo hi
+
+       1 -  % =xxx                           # a valid command line
+       2 -  % !=                             # doesn't work
+       3 -  % echo " != "                    # no history
+       4 -  % if ( 1 != 2 ) echo hi
+
+       1 -  % ( date )                       # a valid command line
+       2 -  % !(                             # doesn't work
+       3 -  % echo " !( "                    # no history
+       4 -  % if ( !( 1 + 1 ) ) echo hi
+
+    The C Shell parser isn't clever enough to distinguish any of cases 2,
+    3, or 4, so it always behaves as if the character pair was part of an
+    expression, not a history substitution.
+
+--------------------------------------------------------------------------------
+| *NOT A BUG*
+| >From idallenThu Jun 27 08:20:08 1985
+| Subject: Re: Using > vs. | on shell built-in commands.
+| 
+|     CSH cannot put the output of the JOBS command into a pipe.  In fact,
+|     the output is going into the pipe, but the output is empty.  You
+|     couldn't know this, but these shells implement piped built-in commands
+|     by forking the shell to create an independent process for which the
+|     main shell can wait.  But the internal process table is cleaned
+|     out after a fork(), since a forked shell is just like a subshell
+|     and must have its own clean process table in which to enter its own
+|     running jobs.  So by the time the JOBS command executes, it's in a
+|     child shell that has no jobs running.  Hence, the output is empty.
+|     "echo `jobs`" and "( jobs )" are both empty, for the same reason.
+--------------------------------------------------------------------------------
+
+From: jjg@security.UUCP (Jeff Glass)
+Subject: csh and I/O redirection
+
+    put these four lines in a file, say cshtest :
+
+        #! /bin/csh -f
+        cat << END | ( sh & )
+        echo hi there
+        END
+
+    ( the intent is to send some commands to sh to be executed in the
+    background, without csh printing the job number of the sh. )
+
+    now, from csh, enter the command
+
+        source cshtest
+
+    and note that you see the message "hi there".
+    now enter the commands
+
+        chmod +x cshtest
+        ./cshtest
+
+    and you get no output.
+
+    removing either the parentheses or the ampersand causes the message
+    to appear, but not quietly in the background.  I don't understand why
+    it works when source'd but not when exec'd, either.
+
+--------------------------------------------------------------------------------
+| *FIXED*
+| From: matt@prism.UUCP
+| Subject: Pointless csh puzzle
+| 
+|     Here's a pointless little csh puzzle:  In the c-shell, it is
+|     possible to set and environment variable whose name consist of
+|     more than one word, in the obvious way:
+| 
+|         % setenv "FOO BAR" quux
+| 
+|     The printenv builtin will show it residing happily in the
+|     environment.  Now for the puzzle:  can anyone find a way to GET
+|     TO the value of this variable, using only csh builtins?  In
+|     other words, is there an <expression> such that
+| 
+|         % echo <expression>
+| 
+|     will print "quux" on the screen, where <expression> is formed
+|     only from csh commands?
+--------------------------------------------------------------------------------
+
+--------------------------------------------------------------------------------
+| *FIXED*
+| >From tim@ISM780B.UUCP Wed Nov 20 18:00:00 1985
+| Subject: Re: C-shell puzzles
+| 
+|     Here's another good C shell quirk:
+| 
+|         $ echo foo
+|         foo
+|         $ repeat 3 echo foo
+|         foo
+|         foo
+|         foo
+|         $ repeat 3 repeat 3 echo foo
+|         foo
+|         foo
+|         foo
+|         foo
+|         foo
+|         $ repeat $N repeat $M echo foo        # $N and $M are integers
+|         [ $N + $M - 1 foo's ]
+|         $ repeat $N1 repeat $N2 ... repeat $Nk echo foo
+|         [ $N1 + $N2 + ... + $Nk - k + 1 foo's ]
+|         $
+--------------------------------------------------------------------------------
+
+>From pur-ee!uiucdcsb!liberte Mon Dec 30 23:20:31 EST 1985
+Subject: Csh null strings
+
+    There are at least two different-sized null strings in csh.
+    But sometimes they are equal anyway.
+
+        % set x = ""
+        % set y = "`echo`"
+        % echo $#x $#y
+        1 0
+
+        % set x =
+        % set y = `echo`
+        % echo $#x $#y
+        1 0
+
+        % set x = ("")
+        % set y = ("`echo`")
+        % echo $#x $#y
+        1 0
+
+        % set x = ()
+        % set y = (`echo`)
+        % echo $#x $#y
+        0 0
+
+        % if (() == "`echo`") echo huh
+        % if (() == ("`echo`")) echo huh
+        huh
+        % if ("" == ("`echo`")) echo huh
+        % if ("" == "`echo`") echo "huh?"
+        huh?
+
+
+>On Jul 18,  8:15am, mark@peek.org (Mark Peek) wrote:
+>-- Subject: Updated tcsh-6.12.0 release date?
+>
+>| Hi Christos,
+>| I know I've been (part of) the cause of slipping the release date out
+>| for tcsh-6.12.0. :-) Do you have an updated date for releasing it?
+>| I'm trying to determine whether it will fit in the time frame for
+>| shipment with the next FreeBSD 5.0-DP release.
+>
+>I hope to release it sometime next week. There are only minor changes in it.
+>Is that convenient, or would you like me to push it more?
+
+I sent a note to the FreeBSD release engineers and they're inclined 
+to hold off on including the new version in the release which they're 
+branching later today. If DP2 slips out a bit they might consider 
+including it. I'd say go ahead with your current schedule and I'll 
+import it whenever it is available. I definitely will be including it 
+into the next -stable FreeBSD 4.7 release.
+
+BTW, one of the release engineers pointed out a bug with using 
+jobcmd. If you use the example in the book to update an xterm and 
+then run something like
+    grep bar `cat file.list`
+It screws up the xterm title bar containing "Faulty alias 'jobcmd' 
+removed" plus the list of files from the cat command.
+
+The good news is that I was able to reproduce this at home last 
+night. The bad news is that it is working fine right now here at 
+work. Oh wait, let me log in remotely and look at the alias I was 
+using...got it! The command fails if you use:
+
+     alias jobcmd 'echo -n "^[]2;\!#^G"'
+
+but works fine if you use: (note the switch of ' and " quotes)
+
+     alias jobcmd "echo -n '^[]2;\!#^G'"
+
+Note: I used the above by vi'ing a file and sourcing it from the shell.
+
+If you can confirm, I think this just needs to be updated in the man page.
+
+>Thanks for all the help BTW...
+
+No problem. I like fixing bugs and contributing code...especially for 
+a great piece of software like tcsh that I use *all* the time. Thank 
+you for keeping it going!
+
+Mark

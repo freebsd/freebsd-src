@@ -1,0 +1,285 @@
+# $Id: Makefile.win32,v 1.15 2010/05/24 22:19:26 amold Exp $
+#	Makefile.std	4.3	6/11/83
+#
+# C Shell with process control; VM/UNIX VAX Makefile
+# Bill Joy UC Berkeley; Jim Kulp IIASA, Austria
+#
+# With an input editor, command completion, etc. and ported to all sorts of
+# things; Paul Placeway, CIS Dept., Ohio State University
+#
+#
+# Windows NT version: Amol Deshpande, Microsoft Corp.
+#
+
+################################################################
+## CFLAGS.  For various -D things, see config.h
+################################################################
+#
+# These are the default suffixes from .c to .o and -c to get there
+# but to use the global optimizer on the mips boxes, see below
+#
+SUF=obj
+CF=-c -nologo 
+
+INCLUDES=-I. -I.. -Iwin32 
+
+DEBUG_CRTLIBS= libcmtd.lib oldnames.lib  libcpmtd.lib
+CRTLIBS= libcmt.lib oldnames.lib libcpmt.lib
+
+EXTRAFLAGS = -DWINNT_NATIVE -DNO_CRYPT -DHAVE_DIRENT_H $(EFL)
+WINDOWS_WARNING_LEVEL=-W4 -WX
+REST_WARNING_LEVEL=-WX -W3
+ANALYZE_FLAGS = -analyze
+
+
+!if "$(PROCESSOR_ARCHITECTURE)" == "AMD64"
+#main code is broken for 64-bit. ignore warnings and pray it works
+ 
+REST_WARNING_LEVEL= -W3
+ANALYZE_FLAGS= 
+IGNORE_64= -wd4244 -wd4267 
+
+!if "$(WIN64)" == ""
+!Message
+!Message Assuming x64 compile. pass WIN64=0 in command line if compiling 32-bit
+!Message
+WIN64=1
+!endif
+
+!endif
+
+
+!if "$(WIN64)" == ""
+WIN64=0
+ARCH=x86
+!else
+ARCH=x64
+WIN64=1
+!endif
+
+BUILD=tcsh-$(ARCH).exe
+
+!if "$(BLDTYPE)" == ""
+BLDTYPE=retail
+!endif
+
+!if "$(BLDTYPE)" == "debug"
+
+
+NTLDFLAGS=  -entry:silly_entry  -debug
+NTCFLAGS = -Zi -DNTDBG   -Od
+LIBES= user32.lib advapi32.lib kernel32.lib $(DEBUG_CRTLIBS) strsafe.lib
+
+!else if "$(BLDTYPE)" == "retail"
+
+NTLDFLAGS=  -entry:silly_entry  -debug
+NTCFLAGS = -Zi -O2 
+LIBES= user32.lib advapi32.lib kernel32.lib  $(CRTLIBS) strsafe.lib
+
+!else
+
+!ERROR Unknown compilation mode $(BLDTYPE). Set debug or retail
+!endif
+
+!if "$(WIN64)" == "1"
+NTCFLAGS = $(NTCFLAGS) -Zp8
+!endif
+
+CFLAGS= -MT $(NTCFLAGS) $(INCLUDES) 
+LDFLAGS= -nodefaultlib $(NTLDFLAGS) -stack:1048576,524288
+
+
+CC=	cl 	
+
+ED=	ed
+RM=	-del
+#
+# Resources. which icon you want to use.
+NTRES = BSDLOGO
+
+ASSRCS=	sh.c sh.dir.c sh.dol.c sh.err.c sh.exec.c sh.char.c \
+	sh.exp.c sh.file.c sh.func.c sh.glob.c sh.hist.c sh.init.c \
+	sh.lex.c sh.misc.c sh.parse.c sh.print.c sh.proc.c sh.sem.c \
+	sh.set.c sh.time.c sh.char.h sh.dir.h sh.proc.h sh.h 
+PSSRCS= sh.decls.h glob.c glob.h mi.termios.c mi.wait.h mi.varargs.h ma.setp.c \
+	vms.termcap.c
+SHSRCS= $(ASSRCS) $(PSSRCS)
+SHOBJS=	sh.$(SUF) sh.dir.$(SUF) sh.dol.$(SUF) sh.err.$(SUF) sh.exec.$(SUF) \
+	sh.char.$(SUF) sh.exp.$(SUF) sh.func.$(SUF) sh.glob.$(SUF) \
+	sh.hist.$(SUF) sh.init.$(SUF) sh.lex.$(SUF) sh.misc.$(SUF) \
+	sh.parse.$(SUF) sh.print.$(SUF) sh.proc.$(SUF) sh.sem.$(SUF) \
+	sh.set.$(SUF) sh.time.$(SUF) glob.$(SUF) mi.termios.$(SUF) \
+	ma.setp.$(SUF)  
+
+TWSRCS= tw.decls.h tw.h tw.help.c tw.init.c tw.parse.c tw.spell.c \
+	tw.comp.c tw.color.c
+TWOBJS=	tw.help.$(SUF) tw.init.$(SUF) tw.parse.$(SUF) tw.spell.$(SUF) \
+	tw.comp.$(SUF) tw.color.$(SUF)
+
+EDSRCS= ed.chared.c ed.decls.h ed.defns.c ed.h ed.init.c ed.inputl.c \
+	ed.refresh.c ed.xmap.c ed.term.c ed.term.h
+EDOBJS=	ed.chared.$(SUF) ed.refresh.$(SUF) ed.init.$(SUF) \
+	ed.inputl.$(SUF) ed.defns.$(SUF) ed.xmap.$(SUF) ed.term.$(SUF)
+
+TCSRCS= tc.alloc.c tc.bind.c tc.const.c tc.decls.h tc.disc.c \
+	tc.func.c tc.os.c tc.os.h tc.printf.c tc.prompt.c tc.nsl.c \
+	tc.sched.c tc.sig.c tc.sig.h tc.str.c sh.types.h tc.vers.c tc.wait.h \
+	tc.who.c tc.h
+TCOBJS=	tc.alloc.$(SUF) tc.bind.$(SUF) tc.const.$(SUF)  \
+	tc.disc.$(SUF) tc.func.$(SUF) tc.os.$(SUF) tc.printf.$(SUF) tc.nls.$(SUF) \
+	tc.prompt.$(SUF) tc.sched.$(SUF) tc.sig.$(SUF) tc.str.$(SUF) \
+	tc.vers.$(SUF) tc.who.$(SUF) 
+
+NTSRCS = win32\io.c win32\stdio.c win32\dirent.c win32\signal.c\
+		win32\support.c \
+		win32\nt.char.c win32\bogus.c win32\console.c win32\fork.c \
+		win32\ntfunc.c win32\ntb1.c win32\ntb2.c win32\globals.c \
+		win32\nt.who.c win32\ps.c win32\clip.c win32\nt.const.c \
+		win32\nt.bind.c  win32\nt.screen.c
+NTOBJS = io.$(SUF) stdio.$(SUF) dirent.$(SUF) signal.$(SUF) support.$(SUF) \
+	    nt.char.$(SUF) bogus.$(SUF) console.$(SUF) fork.$(SUF) ntfunc.$(SUF) \
+        globals.$(SUF) nt.who.$(SUF) ps.$(SUF) \
+		clip.$(SUF) nt.const.$(SUF) nt.bind.$(SUF) nt.screen.$(SUF)
+
+VHSRCS=$(PVSRCS) $(AVSRCS)
+
+
+ALLSRCS=  $(SHSRCS) $(TWSRCS) $(EDSRCS) $(TCSRCS) $(VHSRCS) $(NTSRCS)
+DISTSRCS= $(PSSRCS) $(TWSRCS) $(EDSRCS) $(TCSRCS) $(AVSRCS) 
+
+
+OBJS= $(SHOBJS) $(TWOBJS) $(EDOBJS) $(TCOBJS) $(NTOBJS)
+
+
+all: $(BUILD)
+
+$(BUILD): $(OBJS)  ntb1.$(SUF) ntb2.$(SUF) win32/$(NTRES).res 
+	link $(LDFLAGS) ntb1.$(SUF) $(OBJS)  $(LIBES) ntb2.$(SUF) $(EXTRALIBS) \
+	win32/$(NTRES).res $(LOADABLE_RES) -map:tcsh.map -out:$(BUILD) 
+
+gcompress:$(BUILD)
+	gzip -v9 $(BUILD)
+
+bintar:  gcompress
+	tar -cvf tcsh-$(ARCH)-bin.tar $(BUILD) win32/README.NT \
+	win32/example.tcshrc  win32/tcsh-html.tgz win32/bin
+	gzip -v9 tcsh-$(ARCH)-bin.tar
+	move tcsh-$(ARCH)-bin.tar.gz ..
+
+win32srctar: $(NTSRCS)
+	tar -cvf tcshwin32src.tar win32 --exclude win32/bin
+	gzip -v9 tcshwin32src.tar
+	move tcshwin32src.tar.gz ..
+
+
+chlog:
+	tcsh -fc "echo \<XMP\> > win32\\Changelog.html"
+	type win32\Changelog >> win32\ChangeLog.html
+	tcsh -fc "echo \</XMP\> >> win32\\ChangeLog.html"
+
+
+
+.c.$(SUF):
+	$(CC) $(CF) $(CFLAGS) $(REST_WARNING_LEVEL) $(DFLAGS) $(EXTRAFLAGS) $<
+
+
+ed.defns.h: ed.defns.c
+	-@del  $@
+	@echo /* Do not edit this file, make creates it. */ > $@
+	@echo #ifndef _h_ed_defns >> $@
+	@echo #define _h_ed_defns >> $@
+	findstr /R [FV]_ ed.defns.c | findstr /B #define >> $@
+	@echo #endif /* _h_ed_defns */ >> $@
+
+sh.err.h: sh.err.c
+	-@del  $@
+	@echo /* Do not edit this file, make creates it. */ > $@
+	@echo #ifndef _h_sh_err >> $@
+	@echo #define _h_sh_err >> $@
+	findstr ERR_ sh.err.c | findstr /B #define >> $@
+	@echo #endif /* _h_sh_err */ >> $@
+
+tc.const.h: tc.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h
+	-@del  $@
+	@echo /* Do not edit this file, make creates it. */ > $@
+	@echo #ifndef _h_tc_const >> $@
+	@echo #define _h_tc_const >> $@
+    @for /f "tokens=1 delims==" %i in ('$(CC) -E $(INCLUDES) $(DFLAGS) $(EXTRAFLAGS) -D_h_tc_const -nologo \
+	    tc.const.c ^| findstr /c:"Char STR" ^|  sort') do @echo extern %i; >> $@ 
+	@echo #endif /* _h_tc_const */ >> $@
+
+win32\nt.const.h: win32\nt.const.c sh.char.h config.h config_f.h sh.types.h sh.err.h tc.const.h
+	-@del  $@
+	@echo /* Do not edit this file, make creates it. */ > $@
+	@echo #ifndef _h_nt_const >> $@
+	@echo #define _h_nt_const >> $@
+    @for /f "tokens=1 delims==" %i in ('$(CC) -E $(INCLUDES) $(DFLAGS) $(EXTRAFLAGS) -D_h_nt_const -nologo \
+	    win32\nt.const.c ^| findstr /c:"Char STR" ^|  sort') do @echo extern %i; >> $@ 
+	@echo #endif /* _h_nt_const */ >> $@
+
+clean:
+	$(RM)  *.$(SUF) sh.prof.c ed.defns.h tc.const.h sh.err.h tc.defs.c
+	$(RM)  *.pdb *.pch *.ilk *.map *.dbg *.res
+	cd win32
+	$(RM) *.res nt.const.h
+	cd ..
+
+cleanall: clean
+	-del $(BUILD)
+
+
+config.h: config_f.h
+
+TCH=tc.h tc.const.h tc.decls.h tc.os.h tc.sig.h
+SHH=sh.h sh.types.h sh.char.h sh.err.h sh.dir.h sh.proc.h pathnames.h \
+    sh.decls.h $(TCH)
+TWH=tw.h tw.decls.h
+EDH=ed.h ed.decls.h
+
+# EDH
+EDINC=sh.$(SUF) sh.func.$(SUF) sh.lex.$(SUF) sh.print.$(SUF) sh.proc.$(SUF) \
+      sh.set.$(SUF) tc.bind.$(SUF) tc.os.$(SUF) tc.prompt.$(SUF) \
+      tc.sched.$(SUF) tw.parse.$(SUF)
+$(EDOBJS) $(EDINC) : $(EDH)
+
+# SHH
+$(OBJS): win32\nt.const.h win32\ntport.h win32\version.h config.h $(SHH)
+
+# TWH
+TWINC=ed.chared.$(SUF) ed.inputl.$(SUF) sh.exec.$(SUF) sh.func.$(SUF) \
+      sh.set.$(SUF) tc.func.$(SUF)
+$(TWOBJS) $(TWINC): $(TWH)
+
+# glob.h
+glob.$(SUF) sh.glob.$(SUF): glob.h
+
+# ed.defns.h
+EDDINC=tc.bind.$(SUF) tc.func.$(SUF) tc.os.$(SUF)
+$(EDOBJS) $(EDDINC): ed.defns.h
+
+# tc.defs.o
+tc.defs.$(SUF):	tc.defs.c sh.h
+
+# too many 64-bit warnings in these files. for now, turn the warning off.
+ed.chared.$(SUF): ed.chared.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.chared.c
+ed.inputl.$(SUF): ed.inputl.c
+	$(CC) $(CF) $(CFLAGS) $(DFLAGS) $(EXTRAFLAGS)  $(IGNORE_64) ed.inputl.c
+	
+#
+# NT dependencies and rules
+#
+CFLAGS_WX = $(CFLAGS) $(WINDOWS_WARNING_LEVEL) -DWINDOWS_ONLY $(ANALYZE_FLAGS)
+
+{win32}.c.$(SUF): 
+	$(CC) $(CF) $(CFLAGS_WX) $(DFLAGS) $(EXTRAFLAGS) $<
+
+fork.$(SUF):win32\fork.c 
+	$(CC) $(CF) $(CFLAGS_WX) $(DFLAGS) $(EXTRAFLAGS) -GS- win32\fork.c
+
+nt.bind.$(SUF):win32\nt.bind.c ed.defns.h
+
+nt.screen.$(SUF):win32\nt.screen.c ed.defns.h
+
+win32/$(NTRES).res: win32/$(NTRES).rc win32/tcshrc.rc
+	rc -v $(RCFLAGS_WX) -r win32/$(NTRES).rc

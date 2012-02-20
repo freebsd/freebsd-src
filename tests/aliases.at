@@ -1,0 +1,56 @@
+# Special aliases
+
+TCSH_UNTESTED([beepcmd])
+
+
+AT_SETUP([cwdcmd])
+
+AT_DATA([cwdcmd.csh],
+[[alias cwdcmd 'echo ">>" $cwd'
+cd /
+]])
+AT_CHECK([tcsh -f cwdcmd.csh], ,
+[>> /
+])
+
+AT_CLEANUP
+
+
+TCSH_UNTESTED([jobcmd])
+TCSH_UNTESTED([helpcommand])
+TCSH_UNTESTED([periodic])
+TCSH_UNTESTED([precmd])
+
+
+AT_SETUP([postcmd])
+
+AT_DATA([postcmd.csh],
+[[alias postcmd 'echo ">>" "\!#"'
+echo foo
+echo foo | cat
+]])
+AT_CHECK([tcsh -f postcmd.csh], ,
+[>> echo foo
+foo
+>> echo foo | cat
+foo
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([shell])
+
+AT_DATA([script],
+[OK
+])
+chmod a+x script
+AT_DATA([shell.csh],
+[[alias shell `which cat`
+./script
+]])
+AT_CHECK([tcsh -f shell.csh], ,
+[OK
+])
+
+AT_CLEANUP

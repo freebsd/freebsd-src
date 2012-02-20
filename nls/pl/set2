@@ -1,11 +1,11 @@
 $ $tcsh: set2,v 1.4 1998/10/25 15:12:38 christos Exp $
 $ Signal names
 $set 2 
-1 Pusty sygna≥
+1 Pusty sygna≈Ç
 2 Hangup
 3 Przerwij
 4 Quit
-5 Nieprawdi≥owa instrukcja
+5 Nieprawdi≈Çowa instrukcja
 6 Trace/BPT trap
 7 Abort
 8 IOT trap
@@ -16,19 +16,19 @@ $set 2
 13 Zabity
 14 User signal 1
 15 User signal 2
-16 Naruszenie ochrony pamiÍci
-17 B≥±d szyny
+16 Naruszenie ochrony pamiƒôci
+17 B≈ÇƒÖd szyny
 18 Program range error
 19 Operand range error
-20 Nieprawid≥owe wywo≥anie systemowe
+20 Nieprawid≈Çowe wywo≈Çanie systemowe
 21 Broken pipe
 22 Alarm clock
-23 ZakoÒczono
+23 Zako≈Ñczono
 24 Child status change
-25 ¶mierÊ potomka
+25 ≈ömierƒá potomka
 26 Apollo-specific fault
-27 Potomek zakoÒczy≥ dzia≥anie, lub zosta≥ wy≥±czony
-28 Potomek zakoÒczy≥ dzia≥anie
+27 Potomek zako≈Ñczy≈Ç dzia≈Çanie, lub zosta≈Ç wy≈ÇƒÖczony
+28 Potomek zako≈Ñczy≈Ç dzia≈Çanie
 29 Brak zasilania
 30 Resource Lost
 31 Przerwanie (Ctrl-Break)
@@ -46,8 +46,8 @@ $set 2
 43 Thread error - (use cord -T for detailed info)
 44 CRAY Y-MP register parity error
 45 Information request
-46 Zawieszony (sygna≥)
-47 Zatrzymany (sygna≥)
+46 Zawieszony (sygna≈Ç)
+47 Zatrzymany (sygna≈Ç)
 48 Zawieszony
 49 Zatrzymany
 50 Continued

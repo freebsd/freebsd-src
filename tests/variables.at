@@ -1,0 +1,1055 @@
+# Special shell variables
+
+# The space after $ is to avoid expanding the variables in testsuite output,
+# to work-around a bug in autotest
+
+# Not testing any functionality
+m4_define([VAR_UNSET],
+[AT_SETUP([$ $1])
+AT_CHECK([tcsh -f -c 'echo $?$1'], ,
+[0
+])
+AT_CLEANUP
+])
+m4_define([ENV_SET],
+[AT_SETUP([$ $1])
+AT_CHECK([tcsh -f -c 'printenv $1'], 0, [ignore])
+AT_CLEANUP
+])
+m4_define([ENV_UNSET],
+[AT_SETUP([$ $1])
+AT_CHECK([tcsh -f -c 'printenv $1'], 1,
+[0
+])
+AT_CLEANUP
+])
+
+
+AT_SETUP([$ addsuffix])
+
+AT_CHECK([tcsh -f -c 'echo $?addsuffix'], ,
+[1
+])
+# Nothing more
+
+AT_CLEANUP
+
+
+VAR_UNSET([afsuser])
+VAR_UNSET([ampm])
+
+
+AT_SETUP([$ argv])
+
+AT_CHECK([tcsh -f -c 'echo $argv; echo $2' foo bar baz], ,
+[foo bar baz
+bar
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([autocorrect])
+VAR_UNSET([autoexpand])
+VAR_UNSET([autolist])
+TCSH_UNTESTED([$ autologout])
+
+
+AT_SETUP([$ backslash_quote])
+
+AT_DATA([backslash.csh],
+[[echo $?backslash_quote
+set echo_style=none
+echo 'foo\\bar'
+echo "foo\\bar"
+echo 'foo\bar'
+echo "foo\bar"
+set backslash_quote
+echo 'foo\\bar'
+echo "foo\\bar"
+echo 'foo\'bar'
+echo 'foo\"bar'
+echo "foo\"bar"
+echo "foo\'bar"
+echo 'foo\bar'
+echo "foo\bar"
+]])
+AT_CHECK([tcsh -f backslash.csh], ,
+[0
+foo\\bar
+foo\\bar
+foo\bar
+foo\bar
+foo\bar
+foo\bar
+foo'bar
+foo"bar
+foo"bar
+foo'bar
+foo\bar
+foo\bar
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([catalog])
+
+
+AT_SETUP([$ cdpath])
+
+AT_DATA([cdpath.csh],
+[[echo $?cdpath
+set cdpath=($cwd /)
+set home=$cwd
+mkdir tcsh_test_dir
+cd dev
+cd tcsh_test_dir
+]])
+AT_CHECK([tcsh -f cdpath.csh], ,
+[0
+/dev @&t@
+~/tcsh_test_dir @&t@
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([color])
+VAR_UNSET([colorcat])
+
+
+AT_SETUP([$ command])
+
+AT_CHECK([tcsh -f -c 'echo $command'], ,
+[echo $command
+])
+
+AT_DATA([command.csh],
+[[echo $?command
+]])
+AT_CHECK([tcsh -f command.csh], ,
+[0
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([complete])
+VAR_UNSET([continue])
+VAR_UNSET([continue_args])
+VAR_UNSET([correct])
+
+
+AT_SETUP([$ csubstnonl])
+
+touch test_file
+
+AT_DATA([csubstnonl.csh],
+[[echo $?csubstnonl
+echo `echo fail \
+| sed 's/fail/OK/'`
+sh -c 'echo 1 >&2'
+(echo `echo fail | \\
+sed 's/fail/OK/'`)
+sh -c 'echo 2 >&2'
+echo `echo a\
+b`
+unset csubstnonl
+sh -c 'echo 3 >&2'
+(echo `echo fail \
+| sed 's/fail/OK/'`)
+sh -c 'echo 4 >&2'
+echo `echo fail | \\
+sed 's/fail/OK/'`
+echo `echo \\
+?est_file`
+echo `cat << END\
+OK\
+END`
+]])
+AT_CHECK([tcsh -f csubstnonl.csh], ,
+[1
+OK
+
+a b
+fail
+OK
+test_file
+OK
+],
+[1
+ sed: Command not found.
+2
+3
+Invalid null command.
+4
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ cwd])
+
+AT_DATA([cwd.csh],
+[[echo $?cwd
+printenv PWD
+cd /
+echo $cwd
+pushd /dev
+echo $cwd
+popd
+echo $cwd
+printenv PWD
+setenv PWD foo
+echo $cwd
+set cwd=bar
+printenv PWD
+]])
+AT_CHECK([tcsh -f cwd.csh | sed "s,$PWD,CWD,"], ,
+[1
+CWD
+/
+/dev / @&t@
+/dev
+/ @&t@
+/
+/
+/
+foo
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([dextract]) # Behavior tested with pushd
+VAR_UNSET([dirsfile])
+
+
+AT_SETUP([$ dirstack])
+
+AT_DATA([dirstack.csh],
+[[echo $dirstack
+set home=$cwd
+pushd /
+echo $dirstack
+set dirstack=(/ /dev $home)
+# The first popd does nothing, looks like a bug
+popd
+popd
+echo $dirstack
+]])
+AT_CHECK([tcsh -f dirstack.csh | sed "s,$PWD,CWD,g"], ,
+[CWD
+/ ~ @&t@
+/ CWD
+/ /dev ~ @&t@
+/dev ~ @&t@
+/dev CWD
+])
+
+AT_CLEANUP
+
+
+TCSH_UNTESTED([$ dspmbyte])
+VAR_UNSET([dunique]) # Behavior tested with pushd
+
+
+AT_SETUP([$ echo])
+
+touch some_file;
+
+AT_CHECK([tcsh -f -c 'echo $?echo'], ,
+[0
+])
+
+AT_CHECK([tcsh -f -x -c 'echo $?echo'], ,
+[1
+],
+[echo 1
+])
+
+AT_DATA([echo.csh],
+[[ls some_*
+set echo
+ls some_* $echo
+echo some_* $echo
+]])
+AT_CHECK([tcsh -f echo.csh], ,
+[some_file
+some_file
+some_file
+],
+[ls some_file
+echo some_*
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ echo_style])
+
+AT_DATA([echo_style.csh],
+[[echo $?echo_style
+set echo_style=bsd
+echo -n foo
+echo 'b\tr'
+set echo_style=sysv
+echo -n foo
+echo 'b\tr'
+set echo_style=both
+echo -n foo
+echo 'b\tr'
+set echo_style=none
+echo -n foo
+echo 'b\tr'
+]])
+AT_CHECK([tcsh -f echo_style.csh], ,
+[1
+foob\tr
+-n foo
+b	r
+foob	r
+-n foo
+b\tr
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ edit])
+
+AT_CHECK([TERM=something tcsh -f -c 'echo $?edit'], ,
+[1
+])
+
+AT_CHECK([TERM=dumb tcsh -f -c 'echo $?edit'], ,
+[0
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ ellipsis])
+
+AT_DATA([ellipsis0.csh],
+[[echo $?ellipsis
+set home=$cwd
+mkdir -p a/b
+cd a/b
+set prompt='%c01 '
+]])
+AT_CHECK([tcsh -f -i -q < ellipsis0.csh], ,
+[> 0
+~/<1>b exit
+])
+
+AT_DATA([ellipsis0.csh],
+[[set ellipsis
+set home=$cwd
+mkdir -p a/b
+cd a/b
+set prompt='%c01 '
+]])
+AT_CHECK([tcsh -f -i -q < ellipsis0.csh], ,
+[> ~...b exit
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([fignore])
+VAR_UNSET([filec])
+
+
+AT_SETUP([$ gid])
+
+AT_CHECK([(tcsh -f -c 'echo $gid'; id -gr) | uniq | wc -l | tr -d ' \t'], ,
+[1
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ group])
+
+AT_DATA([group.csh],
+[[echo $?group
+set group=foo
+printenv GROUP
+setenv GROUP bar
+echo $group
+]])
+AT_CHECK([tcsh -f group.csh], ,
+[1
+foo
+bar
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ histchars])
+
+AT_DATA([histchars.csh],
+[[echo $?histchars
+set histchars='/+'
+echo OK
+/3
++K+k
+]])
+AT_CHECK([tcsh -f -q -i < histchars.csh], ,
+[> 0
+OK
+OK
+Ok
+> exit
+],
+[echo OK
+echo Ok
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ histdup])
+
+AT_DATA([histdup.csh],
+[[echo $?histdup
+history -c
+: 1
+: 2
+: 1
+history
+set histdup=all
+history -c
+: 1
+: 2
+: 1
+history
+set histdup=prev
+history -c
+: 1
+: 2
+: 1
+: 3
+: 3
+history
+set histdup=erase
+history -c
+: 1
+: 2
+: 1
+history
+]])
+AT_CHECK([[tcsh -f -q -i < histdup.csh] dnl
+	   [| sed 's/	[^	]*	/ TIME /']], ,
+[> 0
+     3 TIME : 1
+     4 TIME : 2
+     5 TIME : 1
+     6 TIME history
+     9 TIME : 1
+    10 TIME : 2
+    11 TIME history
+    14 TIME : 1
+    15 TIME : 2
+    16 TIME : 1
+    17 TIME : 3
+    18 TIME history
+    22 TIME : 2
+    23 TIME : 1
+    24 TIME history
+> exit
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([histfile])
+
+
+AT_SETUP([$ histlit])
+
+AT_DATA([histlit.csh],
+[[echo $?histlit
+echo OK
+!!
+history
+history -S hist1
+set histlit
+history
+history -S hist2
+]])
+AT_CHECK([[tcsh -f -q -i < histlit.csh] dnl
+	   [| sed 's/	[^	]*	/ TIME /']], ,
+[> 0
+OK
+OK
+     1 TIME echo $?histlit
+     2 TIME echo OK
+     3 TIME echo OK
+     4 TIME history
+     1 TIME echo $?histlit
+     2 TIME echo OK
+     3 TIME !!
+     4 TIME history
+     5 TIME history -S hist1
+     6 TIME set histlit
+     7 TIME history
+> exit
+],
+[echo OK
+])
+AT_CHECK([[sed 's/^#+[0123456789]*$/#+STAMP/' < hist1]], ,
+[#+STAMP
+echo $?histlit
+#+STAMP
+echo OK
+#+STAMP
+echo OK
+#+STAMP
+history
+#+STAMP
+history -S hist1
+])
+AT_CHECK([[sed 's/^#+[0123456789]*$/#+STAMP/' < hist2]], ,
+[#+STAMP
+echo $?histlit
+#+STAMP
+echo OK
+#+STAMP
+!!
+#+STAMP
+history
+#+STAMP
+history -S hist1
+#+STAMP
+set histlit
+#+STAMP
+history
+#+STAMP
+history -S hist2
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ history])
+
+AT_DATA([history.csh],
+[[echo $#history $history
+set home=$cwd
+set var=value
+set history=(1 '%/,%~,%h,%\!,\!,%%,%j,%$var,%#,%R\n')
+: OK
+history
+]])
+AT_CHECK([tcsh -f -i -q < history.csh | sed "s,$PWD,CWD,"], ,
+[> 1 100
+CWD,~,     6,     6,     6,%,0,value,>,history
+> exit
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ home])
+
+AT_DATA([home.csh],
+[[echo $?home
+(echo $home; echo ~) | uniq | wc -l | tr -d ' \t'
+set home=/foo
+printenv HOME
+setenv HOME /bar
+echo $home
+]])
+AT_CHECK([tcsh -f home.csh], ,
+[1
+1
+/foo
+/bar
+])
+
+AT_CHECK([(unset HOME; tcsh -f -c 'echo $?home; printenv HOME')], 1,
+[0
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([ignoreeof])
+
+
+AT_SETUP([$ implicitcd])
+
+AT_DATA([implicitcd.csh],
+[[echo $?implicitcd
+mkdir subdir
+set home=$cwd
+sh -c 'echo 1 >&2'
+(subdir)
+sh -c 'echo 2 >&2'
+(~/subdir)
+sh -c 'echo 3 >&2'
+set implicitcd
+subdir
+/bin/pwd
+..
+~/subdir
+/bin/pwd
+cd
+set implicitcd=verbose
+subdir
+..
+~/subdir
+]])
+(echo 1; echo 'subdir: Command not found.';
+ echo 2; echo "$PWD/subdir: Permission denied."; echo 3) > experr
+AT_CHECK([tcsh -f -i -q < implicitcd.csh | sed "s,`/bin/pwd`,CWD,"], ,
+[> 0
+CWD/subdir
+CWD/subdir
+cd subdir
+cd ..
+cd ~/subdir
+> exit
+], [experr])
+
+AT_CLEANUP
+
+
+VAR_UNSET([inputmode])
+VAR_UNSET([killdup])
+
+
+AT_SETUP([$ killring])
+
+AT_CHECK([tcsh -f -c 'echo $killring'], ,
+[30
+])
+# Nothing more
+
+AT_CLEANUP
+
+
+AT_SETUP([$ listflags])
+
+# First word checked with ls-F
+AT_DATA([listflags.csh],
+[[echo $?listflags
+set listflags=(-xA $cwd/args.sh)
+ls-F -something .
+]])
+AT_DATA([args.sh],
+[[echo "$@"
+]])
+chmod a+x args.sh
+AT_CHECK([tcsh -f listflags.csh], ,
+[0
+-xFA -something .
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([listjobs])
+VAR_UNSET([listlinks]) # Functionality tested with ls-F
+VAR_UNSET([listmax])
+VAR_UNSET([listmaxrows])
+VAR_UNSET([loginsh]) # Can't test the other case
+VAR_UNSET([logout])
+
+
+AT_SETUP([$ mail])
+
+AT_DATA([mail.csh],
+[[echo $?mail
+mkdir maildir
+touch spool
+set mail=(0 spool maildir)
+echo > maildir/1
+echo > maildir/2
+echo >> spool
+echo >> spool
+]])
+AT_CHECK([tcsh -f mail.csh], ,
+[0
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([matchbeep])
+VAR_UNSET([nobeep])
+VAR_UNSET([noclobber]) # Functionality tested with "Command execution"
+VAR_UNSET([noding])
+# Functionality tested with "Filename substitution" and
+# "Directory stack substitution"
+VAR_UNSET([noglob])
+VAR_UNSET([nostat])
+VAR_UNSET([notify])
+TCSH_UNTESTED([$ oid])
+
+
+AT_SETUP([$ owd])
+
+AT_DATA([owd.csh],
+[[echo $owd
+cd /
+echo $owd
+pushd /bin
+echo $owd
+popd
+echo $owd
+]])
+AT_CHECK([tcsh -f owd.csh | sed "s,$PWD,CWD,"], ,
+[
+CWD
+/bin / @&t@
+/
+/ @&t@
+/bin
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ path])
+
+mkdir subdir
+AT_DATA([script.sh],
+[[echo home
+]])
+AT_DATA([subdir/script.sh],
+[[echo subdir
+]])
+chmod a+x script.sh subdir/script.sh
+AT_DATA([path.csh],
+[[echo $?path
+set path=(. subdir)
+script.sh
+set path=(subdir .)
+script.sh
+printenv PATH
+setenv PATH :foo::bar:
+echo $path
+]])
+AT_CHECK([tcsh -f path.csh], ,
+[1
+home
+subdir
+subdir:.
+. foo . bar .
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ printexitvalue])
+
+AT_DATA([printexitvalue.csh],
+[[echo $?printexitvalue
+set printexitvalue
+false
+(exit 3 >/dev/null)
+:
+]])
+AT_CHECK([tcsh -f printexitvalue.csh], ,
+[0
+Exit 1
+Exit 3
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ prompt])
+
+AT_DATA([prompt.csh],
+[[echo "$prompt"
+set home=$cwd
+mkdir -p a/b
+cd a/b
+set var=value
+set prompt='%/,%~,%c,%.,%c2,%.2,%c01,%.01,%C,%h,%\!,\!,%%,%j,%$var,%#,%? '
+(exit 50)
+]])
+AT_CHECK([tcsh -f -i -q < prompt.csh | sed "s,$PWD,CWD,"], ,
+[> %# @&t@
+CWD/a/b,~/a/b,b,b,~/a/b,~/a/b,~/<1>b,~/<1>b,b,8,8,8,%,0,value,>,50 exit
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ prompt2])
+
+AT_CHECK([echo 'echo "$prompt2"' | tcsh -f], ,
+[%R? @&t@
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ prompt3])
+
+AT_CHECK([echo 'echo "$prompt3"' | tcsh -f], ,
+[CORRECT>%R (y|n|e|a)? @&t@
+])
+
+AT_CLEANUP
+
+AT_SETUP([$ promptchars])
+
+AT_DATA([promptchars.csh],
+[[echo $?promptchars
+set promptchars=_x
+]])
+AT_CHECK([tcsh -f  -i -q < promptchars.csh], ,
+[> 0
+_ exit
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([pushdtohome]) # Functionality tested with pushd
+VAR_UNSET([pushdsilent]) # Functionality tested with pushd
+VAR_UNSET([recexact])
+VAR_UNSET([recognize_only_executablers])
+VAR_UNSET([rmstar])
+
+
+AT_SETUP([$ rprompt])
+
+AT_DATA([rprompt.csh],
+[[echo $?rprompt
+set home=$cwd
+mkdir -p a/b
+cd a/b
+set var=value
+set rprompt='%/,%~,%c,%.,%c2,%.2,%c01,%.01,%C,%h,%\!,\!,%%,%j,%$var,%#,%?'
+(exit 50)
+]])
+AT_CHECK([tcsh -f -i -q < rprompt.csh | sed "s,$PWD,CWD,"], ,
+[> 0
+> CWD/a/b,~/a/b,b,b,~/a/b,~/a/b,~/<1>b,~/<1>b,b,8,8,8,%,0,value,>,50 exit
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([savedirs])
+VAR_UNSET([savehist])
+VAR_UNSET([sched])
+
+
+AT_SETUP([$ shell])
+
+AT_CHECK([tcsh -f -c 'echo $?shell'], ,
+[1
+])
+
+AT_CHECK([SHELL=foo/tcsh tcsh -f -c 'echo $shell'], ,
+[foo/tcsh
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ shlvl])
+
+AT_DATA([shlvl.csh],
+[[echo $shlvl
+set shlvl=8
+printenv SHLVL
+setenv SHLVL 2
+echo $shlvl
+tcsh -f -c 'echo $shlvl'
+]])
+AT_CHECK([SHLVL=5 tcsh -f shlvl.csh], ,
+[6
+8
+2
+3
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ status])
+
+AT_DATA([status.csh],
+[[echo $status
+sh -c 'kill -ABRT $$'
+if ( $status > 128 ) echo OK
+true
+echo $status
+]])
+AT_CHECK([tcsh -f status.csh | sed 's/Abort (core dumped)/Abort/'], ,
+[0
+Abort
+OK
+0
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ symlinks])
+
+AT_DATA([symlinks.csh],
+[[echo $?symlinks
+set home=$cwd
+mkdir -p a/b
+ln -s a/b link
+set symlinks=chase
+cd link
+echo $cwd
+cd
+set symlinks=ignore
+cd link
+echo $cwd
+cd ..
+echo $cwd
+set symlinks=expand
+cd a
+(echo ../a; echo $cwd) | uniq | wc -l | tr -d ' \t'
+]])
+AT_CHECK([tcsh -f symlinks.csh | sed "s,`tcsh -f -c echo\\ \\$PWD`,CWD,"], ,
+[0
+CWD/a/b
+CWD/link
+CWD
+1
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ tcsh])
+
+AT_CHECK([tcsh -f -c 'echo $?tcsh'], ,
+[1
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ term])
+
+AT_DATA([term.csh],
+[[echo $term
+set term=foo
+printenv TERM
+setenv TERM bar
+echo $term
+]])
+AT_CHECK([TERM=something tcsh -f term.csh], ,
+[something
+foo
+bar
+])
+
+AT_CHECK([(unset TERM; tcsh -f -c 'echo $?term; printenv TERM')], 1,
+[0
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([time])
+VAR_UNSET([tperiod])
+
+
+AT_SETUP([$ tty])
+
+AT_CHECK([tcsh -f -c 'echo ">$tty<"' < /dev/null], ,
+[><
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ uid])
+
+AT_CHECK([(tcsh -f -c 'echo $uid'; id -ru) | uniq | wc -l | tr -d ' \t'], ,
+[1
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ user])
+
+AT_DATA([user.csh],
+[[echo $?user
+set user=foo
+printenv USER
+setenv USER bar
+echo $user
+]])
+AT_CHECK([tcsh -f user.csh], ,
+[1
+foo
+bar
+])
+
+AT_CHECK([(unset USER; LOGNAME=foo tcsh -f -c 'echo $user; printenv USER')], ,
+[foo
+foo
+])
+
+AT_CHECK([(unset LOGNAME; USER=foo tcsh -f -c 'echo $user; printenv LOGNAME')],
+ ,
+[foo
+foo
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ verbose])
+
+AT_CHECK([tcsh -f -v -c 'echo $verbose'], , [
+],
+[echo $verbose
+])
+
+AT_DATA([verbose.csh],
+[[echo $?verbose
+set verbose
+echo $verbose
+!!
+]])
+AT_CHECK([tcsh -f -i -q < verbose.csh], ,
+[> 0
+
+
+> exit
+],
+[echo $verbose
+echo $verbose
+])
+
+AT_CLEANUP
+
+
+AT_SETUP([$ version])
+
+AT_CHECK([tcsh -f -c 'echo $?version'], ,
+[1
+])
+
+AT_CLEANUP
+
+
+VAR_UNSET([visiblebell])
+VAR_UNSET([watch])
+VAR_UNSET([who])
+VAR_UNSET([wordchars])
+
+
+# Nothing to test for environment variables, except for the synchronization
+# above

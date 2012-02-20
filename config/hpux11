@@ -1,0 +1,113 @@
+/*
+ * config.h -- configure various defines for tcsh
+ *
+ * All source files should #include this FIRST.
+ *
+ * Edit this to match your system type.
+ */
+
+#ifndef _h_config
+#define _h_config
+/****************** System dependant compilation flags ****************/
+/*
+ * POSIX	This system supports IEEE Std 1003.1-1988 (POSIX).
+ */
+#define POSIX
+
+#if defined(__hpux) && !defined(hpux)
+# define hpux
+#endif /* __hpux && !hpux */
+
+#if __STDC__ && !defined(__GNUC__)
+# define _POSIX_SOURCE
+# ifndef _HPUX_SOURCE
+# define  _HPUX_SOURCE
+# endif /* !_HPUX_SOURCE */
+#endif
+
+/*
+ * We need to define the following, otherwise we get:
+ * #error "Large Files (ILP32) not supported in strict ANSI mode."
+ */
+#ifndef __STDC_EXT__
+#define __STDC_EXT__ 
+#endif
+
+/* for access to large files from 32 bit apps
+ * define the following.  Removes the need to 
+ * redefine stat, fstat and lstat in sh.h
+ */
+#define _FILE_OFFSET_BITS 64
+
+/*
+ * POSIXJOBS	This system supports the optional IEEE Std 1003.1-1988 (POSIX)
+ *		job control facilities.
+ */
+#define POSIXJOBS
+
+/*
+ * VFORK	This machine has a vfork().  
+ *		It used to be that for job control to work, this define
+ *		was mandatory. This is not the case any more.
+ *		If you think you still need it, but you don't have vfork, 
+ *		define this anyway and then do #define vfork fork.  
+ *		I do this anyway on a Sun because of yellow pages brain damage,
+ *		[should not be needed under 4.1]
+ *		and on the iris4d cause	SGI's fork is sufficiently "virtual" 
+ *		that vfork isn't necessary.  (Besides, SGI's vfork is weird).
+ *		Note that some machines eg. rs6000 have a vfork, but not
+ *		with the berkeley semantics, so we cannot use it there either.
+ */
+#define VFORK
+
+/*
+ * BSDJOBS	You have BSD-style job control (both process groups and
+ *		a tty that deals correctly
+ */
+#define BSDJOBS
+
+/*
+ * BSDTIMES	You have BSD-style process time stuff (like rusage)
+ *		This may or may not be true.  For example, Apple Unix
+ *		(OREO) has BSDJOBS but not BSDTIMES.
+ */
+#undef BSDTIMES
+
+/*
+ * BSDLIMIT	You have BSD-style resource limit stuff (getrlimit/setrlimit)
+ */
+#define BSDLIMIT
+
+/*
+ * TERMIO	You have struct termio instead of struct sgttyb.
+ * 		This is usually the case for SYSV systems, where
+ *		BSD uses sgttyb. POSIX systems should define this
+ *		anyway, even though they use struct termios.
+ */
+#define TERMIO
+
+/*
+ * SYSVREL	Your machine is SYSV based (HPUX, A/UX)
+ *		NOTE: don't do this if you are on a Pyramid -- tcsh is
+ *		built in a BSD universe.
+ *		Set SYSVREL to 1, 2, 3, or 4, depending the version of System V
+ *		you are running. Or set it to 0 if you are not SYSV based
+ */
+#define SYSVREL	3
+
+/*
+ * ECHO_STYLE	Optionally change the behavior of the builtin echo
+ *		BOTH_ECHO: Support both bsd options (-n) and sysv escapes (\nnn)
+ *		BSD_ECHO:  Support only -n
+ *		SYSV_ECHO: Support only sysv escapes (\nnn)
+ *		NONE_ECHO: Pure echo.
+ */
+#define ECHO_STYLE BOTH_ECHO	/* Both BSD and SYSV options */
+
+/****************** local defines *********************/
+#define NAMEI_BUG	/* Great! you broke that one too */
+
+#define HPUXVERSION  1100 /* For HP-UX version 11.00 */
+#define _XOPEN_SOURCE_EXTENDED	/* for socklen_t */
+
+#endif /* _h_config */

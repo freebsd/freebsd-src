@@ -5,12 +5,12 @@ $set 30
 2 complete %d 
 3 complete %d %S\n
 4 %s: Internal match error.\n
-5 elementów
+5 elementÃ³w
 6 wierszy
-7 Jest %d %s, pokazaæ je? [n/y] 
+7 Jest %d %s, pokazaÄ‡ je? [n/y] 
 8 looking = %d\n
 9 \ntcsh internal error: I don't know what I'm looking for!\n
 10 nie jest katalogiem
-11 nie zosta³ znaleziony
+11 nie zostaÅ‚ znaleziony
 12 jest nieczytelny
 13 yY

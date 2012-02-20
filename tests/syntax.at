@@ -1,0 +1,163 @@
+# Command syntax
+
+AT_SETUP([Command combinations])
+
+AT_CHECK([tcsh -f -c 'echo ok|tr ok OK'], ,
+[OK
+])
+
+AT_CHECK([tcsh -f -c 'echo 1;echo 2'], ,
+[1
+2
+])
+
+AT_CHECK([tcsh -f -c 'true || echo fail'])
+
+AT_CHECK([tcsh -f -c 'false || echo OK'], ,
+[OK
+])
+
+AT_CHECK([tcsh -f -c 'true && echo OK'], ,
+[OK
+])
+
+AT_CHECK([tcsh -f -c 'false && echo fail'], 1)
+
+AT_CHECK([[tcsh -f -c '(sleep 1; echo async) & echo sync; wait' \
+| sed 's/ [0123456789]*$/ /']], ,
+[[[1] @&t@
+sync
+async
+[1]    Done                          ( sleep 1; echo async )
+]])
+
+AT_CLEANUP
+
+
+AT_SETUP([Command execution])
+
+AT_CHECK([tcsh -f -c '((true | cd ..; pwd); cd ..; pwd)' | uniq | wc -l dnl
+	  | tr -d ' \t'], ,
+[1
+])
+
+AT_DATA([other_script.csh],
+[[echo OK
+]])
+chmod u+x other_script.csh
+AT_CHECK([tcsh -f -c 'set path=(. $path); other_script.csh'], ,
+[OK
+])
+
+AT_DATA([input],
+[[OK
+]])
+AT_CHECK([tcsh -f -c 'cat < input'], ,
+[OK
+])
+
+AT_DATA([heredoc.csh],
+[[set var=-
+cat << EOF
+\$\\\`
+a`echo b`c
+foo${var}bar
+EOF
+cat << E\OF
+$var
+E\OF
+cat << "E"OF
+$var
+"E"OF
+cat << EO'F'
+$var
+EO'F'
+cat << `EOF`
+$var
+`EOF`
+]])
+AT_CHECK([tcsh -f heredoc.csh], ,
+[[$\`
+abc
+foo-bar
+$var
+$var
+$var
+$var
+]])
+
+AT_CHECK([tcsh -f -c 'echo OK > output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+touch output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK > output'], 1, [],
+[output: File exists.
+])
+
+touch output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >! output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+AT_CHECK([tcsh -f -c '(echo OK; $this_does_not_exist) >& output'], 1)
+AT_CHECK([cat output], ,
+[OK
+this_does_not_exist: Undefined variable.
+])
+
+touch output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >& output'], 1, [],
+[output: File exists.
+])
+
+touch output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >&! output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+echo > output
+AT_CHECK([tcsh -f -c 'echo OK >> output'])
+AT_CHECK([cat output], ,
+[
+OK
+])
+
+echo > output
+AT_CHECK([tcsh -f -c '(echo OK; echo $this_does_not_exist) >>& output'], 1)
+AT_CHECK([cat output], ,
+[
+OK
+this_does_not_exist: Undefined variable.
+])
+
+rm -f output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >> output'], 1, [],
+[output: No such file or directory.
+])
+
+rm -f output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >>! output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+rm -f output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >>& output'], 1, [],
+[output: No such file or directory.
+])
+
+rm -f output
+AT_CHECK([tcsh -f -c 'set noclobber; echo OK >>&! output'])
+AT_CHECK([cat output], ,
+[OK
+])
+
+AT_CHECK([tcsh -f -c '(echo $this_does_not_exist) |& cat'], 1,
+[this_does_not_exist: Undefined variable.
+])
+
+AT_CLEANUP

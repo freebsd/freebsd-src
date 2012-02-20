@@ -1,0 +1,556 @@
+This document applies to the Windows NT (including Windows 2000, XP, Server
+        2003 etc.) native versions of tcsh.
+
+Note that the shell probably does work on Windows NT 4.0 or Windows 95, 98, and
+Me. However, making fixes solely for those operating systems is lowest on my
+priority list.
+
+"Windows NT" from here on refers to Windows 2000, XP etc. "Win 9x" means
+Windows 95,98 etc.
+
+
+I will attempt to describe the various differences between the Unix and the
+native Windows versions of tcsh. I assume at least a passing familiarity with
+Unix, Windows and tcsh. 
+
+
+How to tell if you're running the native version (versus cygwin)
+----------------------------------------------------------------
+If, 
+    - You built the binary from the tcsh distribution, using Visual C++.
+
+    Or, you downloaded it from www.blarg.net/~amol/~tcsh.exe.gz.
+
+    Or, you downloaded it from ftp.blarg.net:users/amol/tcsh.
+
+    Or, you type  echo $version and see something like:
+
+        tcsh 6.12.01 (Astron) 2003-02-08 (i686-Microsoft-WindowsXP) options 8b,nls,dl,hb,color,nt-rev-7.03
+
+        (The string "nt-rev-N.NN" only exists on native binaries of
+        tcsh. The actual revision may be different, as it is a minor
+        revision of the tcsh major version (6.12.01 in this case).)
+
+    If none of the above is true, this document is not for you.
+
+
+Who do I bug about bugs ?
+-------------------------
+
+    If the bug is on the lines of "cmd.exe does this, but tcsh doesn't", you 
+    have a very slim chance of having me look at it. If you feel strongly 
+    enough, grab the source and hack away. Isn't that the joy of Open Source 
+    (TM) ?
+
+
+    Also, try running the latest version if you can. Your bug may already be
+    fixed.
+
+    If you still want to report a bug:
+
+    First, verify if applicable/possible on a Unix system that the behaviour is
+    actually different.
+
+    Secondly,  setenv CYGWIN noglob if it's not already set. If that still 
+    doesn't work, then
+
+    Third,
+
+        set NTslowexec
+        setenv TCSHONLYSTARTEXES 1
+
+    and try to reproduce the problem. 
+
+
+    Even if the 3rd step seems to fix the behaviour, you should still report the
+    bug to amol@blarg.net with the following information:
+
+    - The output of echo $version
+    - The version of the operating system ("Windows" is not good enough.)
+    - The output from "set" and "setenv"
+    - The exact steps to reproduce the problem.
+
+
+    Be prepared to be quizzed on the contents of this file.
+
+How do I compile the source ?
+-----------------------------
+    - Download and extract the source from ftp.astron.com. Say it creates a
+      directory called tcsh-6.12.01
+
+    - Open a cmd.exe prompt and cd into this directory. Run "vcvars32.bat" from
+      your Visual C++ installation. 
+
+    - type "copy config\win32 config.h"
+
+    - type "nmake -f win32\makefile.win32"
+
+
+    You will need sed to generate some headers.
+
+
+
+Known bugs
+----------
+    The "time" builtin does not work.
+
+
+Startup Files:
+--------------
+
+tcsh will create a HOME variable, if none is set, based on the OS.
+
+For Win 9x:
+	<windows_directory>/.tcshrc
+	For Example, C:\WINDOWS\.tcshrc
+
+For Windows NT:
+	version 3.51: <getenv(HOMEDRIVE)/getenv(HOMEPATH)/.tcshrc>
+	Usually something like C:\USERS\DEFAULT\.tcshrc
+
+	version 4.00 and above: <getenv(USERPROFILE)/.tcshrc)
+
+	This can vary from something like C:\WINNT\USERS\amol\profile\.tcshrc
+    on NT 4.0 to C:\Documents And Settings\amol\.tcshrc on Windows 2000 and
+    higher.
+
+These can all be overridden by setting HOME in the user's environment before
+the shell is launched.
+
+To create a .tcshrc on Windows, you just need a real editor like Vim.
+
+
+
+o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o
+
+               Various differences from Unix, FAQs, etc.
+
+o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o-o
+
+
+This document is correct as of 6.12.01
+
+                        New Builtins
+                        ------------
+    * start : Works like cmd.exe's "start". Use to launch an application or
+              launch a filetype association. 
+
+              Can also be used to launch Windows Explorer on a directory by
+              typing "start c:/foo", for example.
+
+              Also "start http://www.tcsh.org" will launch Internet explorer
+              with that URL.
+
+      ("Associations" here means Explorer file-type associations, that cause,
+      for example, Microsoft Word to be launched when you type "foo.doc" at
+      a cmd.exe prompt. That can have unexpected side-effects like batch files
+      and perl scripts launching in another window when run from tcsh. )
+
+    * title: Sets the title of the shell. Stores the current title in
+             $oldtitle before changing it.
+
+
+    * cls: Clear the entire console screen buffer instead of the visible
+           window. 
+
+    * ps : List processes. With -w, list titles as well.
+
+
+    * shutdown [-r | -l | -f] now : Windows NT only. Reboot or log off. -f
+      forces open applications to close. "now" must be specified for reboots.
+
+
+                        Builtins that behave differently
+                        ------------------------------------
+This section documents the builtins that present on Unix as well as windows,
+but function slightly differently on Windows. Also mentioned is behaviour that
+is different from what you are used to on Windows.
+
+    * Backgrounding (launching commands with '&'). 
+
+        While this is possible, be aware that Windows does not have any job
+        control. Thus you cannot attempt to bring a backgrounded job into the
+        foreground with '%<job number>' as on Unix.
+
+        Also note that a background job will most likely be killed if you exit
+        the command prompt that launched it. To prevent this from happening,
+        use the "nohup" builtin. For example:
+
+            nohup foo &
+
+        This will print "foo Done" quickly, as if the job actually completed.
+        However, if you type "ps", you will see that foo is still running. The
+        shell does not know after nohup whether the child process is
+        running or not.
+    
+    * Case insenstivity of environment variable names. 
+
+        To maintain consistency with Windows, and avoid conflicts, the
+        following are equivalent on Windows:
+
+            setenv FOO bar
+
+            setenv foo bar
+
+        Note that setenv foo BAR and setenv foo bar ARE NOT the same. Thus if
+        some application is sensitive to the case of an environment variable's
+        VALUE, you should set it exactly as required.
+
+    * No termcap set/unset with settc/echotc/telltc.
+
+        The only capabilities controllable are lines and columns. For example,
+
+        settc co 80 
+        settc li 50
+
+        similarly, 
+
+        echotc cols  
+        or
+        echotc lines
+
+        will echo the number of columns and lines respectively.
+
+        echotc buffer
+
+        will echo the size of the console screen buffer.
+
+
+        Note that settc has an interesting side effect, which was left in
+        because it can be useful. Consider the following:
+
+        If your original line size was 50, with a console screen buffer of 50
+        as well (no scrollback), then typing
+
+        settc li 300
+
+        followed by
+
+        settc li 50
+
+
+        has the effect of setting your console screen buffer to 300, so you
+        now have a scrollback, without having to set the properties of the
+        tcsh.exe window.
+
+
+        This is particularly useful on Win9x, where getting a console
+        scrollback buffer seems to be practically impossible in a reasonable
+        fashion otherwise.
+
+
+    * No execution of .bat or .cmd files by name alone. 
+
+        That is, you have to type foo.bat or foo.cmd to execute a batch file,
+        even if it is in your path.
+
+        This is by design. No file types other than 32-bit executables are
+        recognized by the shell. Unless you type the full name, the shell
+        attempt to execute either the name as typed ("foo" for example) or the
+        name with .exe appended to it ("foo.exe").
+
+    * The "watch" variable and the "log" builtin.
+
+        To attempt to duplicate the functionality of the log/watch combination
+        on Unix, the Windows version of shell uses NETBIOS and the semantics
+        are slightly different.
+
+        Whereas in Unix you might type
+
+            set watch=(amol tty0 root any)
+
+        in Windows you would type
+
+            set watch=(AMOL AMOLSCOMPUTER THEBOSS any)
+
+        Thus, instead of tty, the computer name of the user may be specified.
+        In this case, you will be notified if the user AMOL is logged on
+        AMOLSCOMPUTER or THEBOSS is logged on any computer.
+
+        Note that the names must be uppercase.
+
+    * The "nice" builtin.
+
+        Functionally, pretty much the same as Unix, with the range being from
+        -6 to +7, and +4 by default.  
+        
+        These niceness numbers map to  absolutes priorities based on the 
+        assumption that the process started at the typical Foreground Normal 
+        Priority Class.
+
+        That means, if your shell is somehow started at a higher than normal
+        priority, even a nice +1 will lower the priority to below normal, much
+        more than just a relative lowering by one level.
+
+    * The "kill" builtin.
+
+        You can try to kill a process 4 ways:
+
+        kill -1 <pid> (which will send a sigint)
+        kill -2 <pid> (which will send a sigbreak)
+
+        1 and 2 are only good for processes started in the same console. The
+        signals cannot be sent to other process groups (other consoles/GUI apps).
+
+        kill -3 <pid> (sends a WM_QUIT message to each window of the child>
+                        Useful for closing GUI apps.
+
+        kill -7 <pid> , which will call TerminateProcess() on the process.
+                        This is dangerous and should be a last resort.
+
+
+
+                            Special Variables
+                            -----------------
+
+        o Environment Variables:
+        *-*-*-*-*-*-*-*-*-*-*-*-*
+
+        This version of tcsh uses the following environment variables
+
+
+    - TCSHSUBSTHB (Short for "tcsh substitute hashbang"):
+
+        Supplies mappings for the shell's hashbang emulation. For example,
+
+        setenv TCSHSUBSTHB "/usr/local/bin/perl c:/bin/perl.exe;"
+
+        If the variable is thus set, any script that has 
+        "#!/usr/local/bin/perl" on the first line will be run as 
+        if "#!c:/bin/perl.exe" was the first line.
+
+        The terminating ";" is a must.There is a limit of 20 such pairs.
+
+    - TCSHONLYSTARTEXES
+
+          Controls whether Explorer Associations will be tried for 
+          non-executables. 
+          
+
+          For example, "setenv TCSHONLYSTARTEXES 1" , tells tcsh to not try to 
+          execute a non-exe or non-script.
+
+          The value must be EXACTLY one character long.
+
+          (a zero-length setting will not work. A length greater than 1 will 
+          be assumed to be a list of extensions as below.)
+
+
+          You can also supply a semi-colon-separated list of extensions for 
+          which to NOT try associations. For example, if the variable is set to
+
+          "cmd;bat",
+          
+          .cmd/.bat files will be executed in the same window because the 
+          default association is not used, instead an internal hack feeds them 
+          to the DOS command processor.
+
+          If the file extension does not match the list, the shell will try to 
+          launch an association.
+
+          
+          Any changes to this variable will NOT affect the the "start" builtin. 
+          That builtin ALWAYS launches associations, since the whole point of 
+          using "start" is to launch an application.
+
+
+    - TCSH_NOASYNCGUI:
+          
+          By default, a Windows GUI application is launched asynchronously.
+          That is, the shell does not wait for the application to terminate
+          but immediately returns you to the prompt. If this variable is set,
+          the shell will wait for the GUI application to exit before going on.
+
+    - TCSHLANG: NLS support
+
+           You can get messages in a specific language by doing:
+
+           setenv TCSHLANG <dll>, where <dll> is the name of the NLS dll.
+
+           tcsh comes with:
+
+                tcshde.dll -> German
+                tcshfr.dll -> French
+                tcshsp.dll -> Spanish
+                tcsh-it.dll -> Italian
+
+                tcshc.dll  => Default "C" locale
+
+            You can change the dll at runtime by setting/unsetting this 
+            variable.
+            You can specify the DLL name, or the complete path, if it is not 
+            in your standard search path.
+
+             (Using tcshc.dll is useless and adds unnecessary overhead. If you
+             are using English versions, do not install the dlls)
+
+    o Shell Variables:
+      *-*-*-*-*-*-*-*
+
+      This version of tcsh recognizes the following shell variables:
+
+    - oldtitle : Stores the previous value of the title, when the "title"
+                 builtin is used to change it. So, "title $oldtitle", will
+                 restore the previous title.
+
+
+    - NTlamepathfix: 
+
+      Normally, tcsh sets the PATH variable to be delimited by
+      "/". However, some applications may have trouble with this, so you can
+      force the shell to convert "/" to "\" before executing an external (not
+      builtin) command.
+
+    - NTslowexec: 
+
+      The shell will usually try to avoid forking if a command can be executed 
+      directly (using the CreateProcess() API instead of fork()). This only 
+      applies to "simple" commands. These are commands that do not have their 
+      output piped, redirected or are not niced or nohupped.
+
+      If you see any strange behaviour from the shell in terms of wildcard
+      expansion or quote substitution, try setting this variable (AFTER
+      setting CYGWIN noglob!!!).
+
+    - NTnoquoteprotect:
+
+
+      Ordinarily , if you pass a double quote to a command string, tcsh 
+      will protect the quotes by adding backslashes. For example,
+
+        find . -name '"*.c"' 
+        would get executed as 
+
+        find . -name \"*.c\"
+
+      Some applications (MKS find, for example) do not like the '\'. To
+      prevent tcsh from quoting such arguments, set this variable.
+
+      Of course, it may cause other applications to break, so use at
+      your own risk.
+
+    - NTcaseifypwd:
+
+       If set, corrects case of current directory when cd'ing into it. 
+       Some "filesystems" can't handle the default behaviour. Only works on
+       Windows NT.
+          
+
+
+                Key bindings, clipboard support and edit functions
+                --------------------------------------------------
+
+    To use keys like function keys, arrows, insert, etc., the following 
+    form of bindkey must be used:
+
+        bindkey -b N-xxx <command>
+
+        where xxx is either:
+        a) A number from 1 through 24, representing the fucntion keys.
+        For example, bindkey -b N-1 run-help
+
+        b) The strings "pgup","pgdown","end","home", "left","up","right","down",
+        "ins","del"
+        For example, bindkey -b N-del delete-char
+
+        Here are the bindings I use in my .tcshrc:
+
+            # NT specific bindkey extensions
+            bindkey -b N-up up-history           
+            bindkey -b N-down down-history      
+            bindkey -b N-right forward-char    
+            bindkey -b N-left backward-char
+            bindkey -b N-del delete-char
+            bindkey -b N-ins overwrite-mode
+            bindkey -b N-1 which-command
+            bindkey -b N-2 expand-history
+            bindkey -b N-3 complete-word-raw
+            bindkey -b N-home beginning-of-line
+            bindkey -b N-end end-of-line
+
+            bindkey -b N-pgup e_page_up
+            bindkey -b N-pgdown e_page_down
+
+        (Note that on Win9x, you must set your console window to NOT be Auto
+         sized, and you must use the "settc" builtin to increase and then reduce
+         back the number of lines, in order to get a scrollbar. pgup and
+         pgdown will not work without a scroll bar)
+
+
+        To bind ctrl or alt combinations, use the following as examples.
+        (Alt on PC keyboards is treated as the Meta on Unix keyboards )
+
+            bindkey -b N-C-left backward-word
+            bindkey -b N-M-right forward-word    
+
+        For Shift combinations:
+            bindkey -b N-S-1 backward-word
+
+    Clipboard support
+    o-o-o-o-o-o-o-o-o
+
+        You can also cut and paste to and from the clipboard directly from 
+        the shell. To do this, use bindings like the following:
+
+            bindkey -b M-x e_copy_to_clipboard
+            bindkey -b M-y e_paste_from_clipboard
+
+        Then, to paste text from the clipboard into the current input 
+        line, you can type:
+            M-y
+        And to copy the current shell's kill buffer to the clipboard,
+            M-x
+
+        (The kill buffer contains the last deletion from an editing 
+        command. Sort of like an 'undo' buffer).
+
+        You can also use the clipboard to redirect I/O, with /dev/clipboard as
+        the destination/source file.
+
+
+
+    Editor Functions
+    o-o-o-o-o-o-o-o-o
+
+        e_dosify_next
+        -------------
+            A key bound to this editor function can be used to convert 
+            unix-style paths to DOS-style paths.
+
+            For example,
+
+                bindkey -b M-/ e_dosify_next
+
+            Then, if I had line like so:
+
+                xcopy /e /u c:/nt40/system32
+
+            I would move the cursor to the C: and hit alt-/. magically, the 
+            command line changes to
+
+                xcopy /e /u c:\\nt40\\system32
+
+            This function converts every '/' to '\\' until the first space. 
+            If the space is escaped by a '\', the function looks for the 
+            next space.
+
+        e_dosify_prev
+        -------------
+            Works like above, but on the previous word. 
+
+        e_page_up
+        ---------
+            Editor function to move console window up one page. Can be bound to
+            PageUp key, for example.
+
+        e_page_down
+        ----------
+            Ditto for page down.
+
+        e_copy_to_clipboard
+        -------------------
+            See Clipboard Support above.
+
+        e_paste_from_clipboard
+        -----------------------
+            See Clipboard Support above.
