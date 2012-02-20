@@ -153,6 +153,13 @@
 			interrupt-parent = <&GIC>;
 
 		};
+
+		sdma@x48070000 {
+			compatible = "ti,sdma";
+			reg =<	0x4A056000 0x1000 >;
+			interrupts = <44 45 46 47>;
+			interrupt-parent = <&GIC>;
+		};
 	};
 
 	chosen {
