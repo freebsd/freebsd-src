@@ -28,4 +28,7 @@ arm/ti/omap_mmc.c				optional	mmc
 arm/ti/omap4/omap4_prcm_clks.c			standard
 arm/ti/omap4/omap4_scm_padconf.c		standard
 
+arm/ti/twl/twl.c				optional	twl
+arm/ti/twl/twl_vreg.c				optional	twl twl_vreg
+
 dev/uart/uart_dev_ns8250.c			optional	uart

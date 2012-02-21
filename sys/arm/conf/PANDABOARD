@@ -130,6 +130,8 @@ device		smsc		# SMSC LAN95xx USB Ethernet
 
 # OMAP-specific devices
 device		omap_dma
+device		twl
+device		twl_vreg
 
 # Flattened Device Tree
 options         FDT
