@@ -1001,7 +1001,8 @@ ext2_dirempty(ip, parentino, cred)
 	off_t off;
 	struct dirtemplate dbuf;
 	struct ext2fs_direct_2 *dp = (struct ext2fs_direct_2 *)&dbuf;
-	int error, count, namlen;
+	int error, namlen;
+	ssize_t count;
 #define	MINDIRSIZ (sizeof(struct dirtemplate) / 2)
 
 	for (off = 0; off < ip->i_size; off += dp->e2d_reclen) {

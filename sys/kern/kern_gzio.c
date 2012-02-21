@@ -97,7 +97,7 @@ gzFile gz_open (path, mode, vp)
     gz_stream *s;
     char fmode[80]; /* copy of mode, without the compression level */
     char *m = fmode;
-    int resid;
+    ssize_t resid;
     int error;
     char buf[GZ_HEADER_LEN + 1];
 
@@ -342,7 +342,7 @@ local void putU32 (s, x)
 {
     uint32_t xx;
     off_t curoff = s->outoff;
-    int resid;
+    ssize_t resid;
 
 #if BYTE_ORDER == BIG_ENDIAN
     xx = bswap32(x);
