@@ -422,7 +422,8 @@ ufs_setacl_nfs4_internal(struct vnode *vp, struct acl *aclp, struct thread *td)
 
 	VN_KNOTE_UNLOCKED(vp, NOTE_ATTRIB);
 
-	return (0);
+	error = UFS_UPDATE(vp, 0);
+	return (error);
 }
 
 static int
@@ -591,10 +592,11 @@ ufs_setacl_posix1e(struct vop_setacl_args *ap)
 		 */
 		ufs_sync_inode_from_acl(ap->a_aclp, ip);
 		ip->i_flag |= IN_CHANGE;
+		error = UFS_UPDATE(ap->a_vp, 0);
 	}
 
 	VN_KNOTE_UNLOCKED(ap->a_vp, NOTE_ATTRIB);
-	return (0);
+	return (error);
 }
 
 int
