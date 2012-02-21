@@ -160,6 +160,14 @@
 			interrupts = <44 45 46 47>;
 			interrupt-parent = <&GIC>;
 		};
+
+		mmc@x4809C000 {
+			compatible = "ti,omap_mmc";
+			reg =<0x4809C000 0x1000 >;
+			interrupts = <115>;
+			interrupt-parent = <&GIC>;
+		};
+
 	};
 
 	chosen {
