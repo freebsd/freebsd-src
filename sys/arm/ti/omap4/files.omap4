@@ -23,6 +23,7 @@ arm/ti/omap_gpio.c				optional	gpio
 arm/ti/usb/omap_ehci.c				optional	usb ehci
 arm/ti/omap_dma.c				optional	omap_dma
 arm/ti/ti_i2c.c					optional	ti_i2c
+arm/ti/omap_mmc.c				optional	mmc
 
 arm/ti/omap4/omap4_prcm_clks.c			standard
 arm/ti/omap4/omap4_scm_padconf.c		standard

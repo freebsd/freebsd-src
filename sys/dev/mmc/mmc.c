@@ -1538,5 +1538,6 @@ static driver_t mmc_driver = {
 static devclass_t mmc_devclass;
 
 
+DRIVER_MODULE(mmc, omap_mmc, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, at91_mci, mmc_driver, mmc_devclass, NULL, NULL);
 DRIVER_MODULE(mmc, sdhci, mmc_driver, mmc_devclass, NULL, NULL);
