@@ -80,6 +80,7 @@ __FBSDID("$FreeBSD$");
 struct ti_i2c_softc
 {
 	device_t		sc_dev;
+	uint32_t		device_id;
 	struct resource*	sc_irq_res;
 	struct resource*	sc_mem_res;
 	device_t		sc_iicbus;
@@ -812,7 +813,7 @@ ti_i2c_activate(device_t dev)
 	 *
 	 * 1. Enable the functional and interface clocks (see Section 18.3.1.1.1).
 	 */
-	clk = I2C1_CLK + device_get_unit(dev);
+	clk = I2C0_CLK + sc->device_id;
 	err = ti_prcm_clk_enable(clk);
 	if (err)
 		return (err);
@@ -982,7 +983,7 @@ ti_i2c_deactivate(device_t dev)
 	}
 
 	/* Finally disable the functional and interface clocks */
-	clk = I2C1_CLK + device_get_unit(dev);
+	clk = I2C0_CLK + sc->device_id;
 	ti_prcm_clk_disable(clk);
 
 	return;
@@ -1026,10 +1027,20 @@ static int
 ti_i2c_attach(device_t dev)
 {
 	struct ti_i2c_softc *sc = device_get_softc(dev);
+	phandle_t node;
+	pcell_t did;
 	int err;
 	int rid;
 
 	sc->sc_dev = dev;
+
+	/* Get the i2c device id from FDT */
+	node = ofw_bus_get_node(dev);
+	if ((OF_getprop(node, "i2c-device-id", &did, sizeof(did))) <= 0) {
+		device_printf(dev, "missing i2c-device-id attribute in FDT\n");
+		return (ENXIO);
+	}
+	sc->device_id = fdt32_to_cpu(did);
 
 	TI_I2C_LOCK_INIT(sc);
 

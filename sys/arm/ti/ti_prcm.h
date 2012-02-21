@@ -48,7 +48,7 @@ typedef enum {
 	 * on these clocks as they are enabled by default.
 	 */
 	SYS_CLK = 1,
-	
+
 	/* The MPU (ARM) core clock */
 	MPU_CLK = 20,
 
@@ -58,13 +58,14 @@ typedef enum {
 	MMC3_CLK,
 	MMC4_CLK,
 	MMC5_CLK,
-	
+
 	/* I2C modules */
-	I2C1_CLK = 200,
+	I2C0_CLK = 200,
+	I2C1_CLK,
 	I2C2_CLK,
 	I2C3_CLK,
 	I2C4_CLK,
-	
+
 	/* USB module(s) */
 	USBTLL_CLK = 300,
 	USBHSHOST_CLK,
@@ -75,13 +76,13 @@ typedef enum {
 	USBP2_UTMI_CLK,
 	USBP1_HSIC_CLK,
 	USBP2_HSIC_CLK,
-	
+
 	/* UART modules */
 	UART1_CLK = 400,
 	UART2_CLK,
 	UART3_CLK,
 	UART4_CLK,
-	
+
 	/* General purpose timer modules */
 	GPTIMER1_CLK = 500,
 	GPTIMER2_CLK,
@@ -95,14 +96,14 @@ typedef enum {
 	GPTIMER10_CLK,
 	GPTIMER11_CLK,
 	GPTIMER12_CLK,
-	
+
 	/* McBSP module(s) */
 	MCBSP1_CLK = 600,
 	MCBSP2_CLK,
 	MCBSP3_CLK,
 	MCBSP4_CLK,
 	MCBSP5_CLK,
-	
+
 	/* General purpose I/O modules */
 	GPIO1_CLK = 700,
 	GPIO2_CLK,
@@ -110,12 +111,12 @@ typedef enum {
 	GPIO4_CLK,
 	GPIO5_CLK,
 	GPIO6_CLK,
-	
+
 	/* sDMA module */
 	SDMA_CLK = 800,
 
 	INVALID_CLK_IDENT
-	
+
 } clk_ident_t;
 
 /*
@@ -124,7 +125,7 @@ typedef enum {
 typedef enum {
 	SYSCLK_CLK,   /* System clock */
 	EXT_CLK,
-	
+
 	F32KHZ_CLK,   /* 32KHz clock */
 	F48MHZ_CLK,   /* 48MHz clock */
 	F64MHZ_CLK,   /* 64MHz clock */
@@ -135,7 +136,7 @@ typedef enum {
 struct ti_clock_dev {
 	/* The profile of the timer */
 	clk_ident_t  id;
-	
+
 	/* A bunch of callbacks associated with the clock device */
 	int (*clk_activate)(struct ti_clock_dev *clkdev);
 	int (*clk_deactivate)(struct ti_clock_dev *clkdev);
@@ -144,7 +145,6 @@ struct ti_clock_dev {
 	int (*clk_accessible)(struct ti_clock_dev *clkdev);
 	int (*clk_get_source_freq)(struct ti_clock_dev *clkdev,
 	    unsigned int *freq);
-						  
 };
 
 int ti_prcm_clk_valid(clk_ident_t clk);
