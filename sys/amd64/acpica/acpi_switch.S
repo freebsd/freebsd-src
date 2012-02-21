@@ -146,10 +146,21 @@ ENTRY(acpi_restorecpu)
 
 	/* Restore FPU state. */
 	fninit
-	fxrstor	PCB_USERFPU(%rdi)
+	movq	WAKEUP_CTX(fpusave),%rdi
+	cmpl	$0,use_xsave
+	jne	1f
+	fxrstor	(%rdi)
+	jmp	2f
+1:	movl	xsave_mask,%eax
+	movl	xsave_mask+4,%edx
+/*	xrstor	(%rdi) */
+	.byte	0x0f,0xae,0x2f
+2:
 
 	/* Reload CR0. */
 	movq	%rcx, %cr0
+
+	movq	WAKEUP_CTX(pcb),%rdi
 
 	/* Restore return address. */
 	movq	PCB_RIP(%rdi), %rax
