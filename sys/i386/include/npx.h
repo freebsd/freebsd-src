@@ -165,13 +165,6 @@ struct savexmm_ymm {
 
 #ifdef _KERNEL
 
-struct fpu_kern_ctx {
-	union savefpu hwstate;
-	union savefpu *prev;
-	uint32_t flags;
-};
-#define	FPU_KERN_CTX_NPXINITDONE 0x01
-
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNNPX) == 0)
 
 int	npxdna(void);
@@ -184,6 +177,8 @@ void	npxsave(union savefpu *addr);
 void	npxsetregs(struct thread *td, union savefpu *addr);
 int	npxtrap(void);
 void	npxuserinited(struct thread *);
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
@@ -194,6 +189,7 @@ int	is_fpu_kern_thread(u_int flags);
  * Flags for fpu_kern_enter() and fpu_kern_thread().
  */
 #define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
 
 #endif
 
