@@ -440,7 +440,8 @@ link_elf_load_file(linker_class_t cls, const char *filename,
 	vm_offset_t mapbase;
 	size_t mapsize;
 	int error = 0;
-	int resid, flags;
+	ssize_t resid;
+	int flags;
 	elf_file_t ef;
 	linker_file_t lf;
 	int symtabindex;
