@@ -1138,7 +1138,7 @@ static device_method_t ti_i2c_methods[] = {
 };
 
 static driver_t ti_i2c_driver = {
-	"ti-iic",
+	"ti_iic",
 	ti_i2c_methods,
 	sizeof(struct ti_i2c_softc),
 };
