@@ -115,6 +115,19 @@ typedef enum {
 	/* sDMA module */
 	SDMA_CLK = 800,
 
+	/* DMTimer modules */
+	DMTIMER0_CLK = 900,
+	DMTIMER1_CLK,
+	DMTIMER2_CLK,
+	DMTIMER3_CLK,
+	DMTIMER4_CLK,
+	DMTIMER5_CLK,
+	DMTIMER6_CLK,
+	DMTIMER7_CLK,
+
+	/* CPSW modules */
+	CPSW_CLK = 1000,
+
 	INVALID_CLK_IDENT
 
 } clk_ident_t;

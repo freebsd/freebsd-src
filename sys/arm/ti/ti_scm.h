@@ -76,5 +76,6 @@ int ti_scm_padconf_set_gpiomode(uint32_t gpio, unsigned int state);
 int ti_scm_padconf_get_gpiomode(uint32_t gpio, unsigned int *state);
 int ti_scm_padconf_set_gpioflags(uint32_t gpio, uint32_t flags);
 void ti_scm_padconf_get_gpioflags(uint32_t gpio, uint32_t *flags);
+int ti_scm_reg_read_4(uint32_t reg, uint32_t *val);
 
 #endif /* _TI_SCM_H_ */

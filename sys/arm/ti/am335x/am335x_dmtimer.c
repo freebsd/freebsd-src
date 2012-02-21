@@ -50,6 +50,8 @@ __FBSDID("$FreeBSD$");
 #include <machine/bus.h>
 #include <machine/fdt.h>
 
+#include <arm/ti/ti_prcm.h>
+
 #define AM335X_NUM_TIMERS	8
 
 #define DMTIMER_TIDR		0x00 /* Identification Register */
@@ -74,7 +76,7 @@ __FBSDID("$FreeBSD$");
 struct am335x_dmtimer_softc {
 	struct resource *	tmr_mem_res[AM335X_NUM_TIMERS];
 	struct resource *	tmr_irq_res[AM335X_NUM_TIMERS];
-	uint32_t		clkfreq;
+	uint32_t		sysclk_freq;
 	struct am335x_dmtimer {
 		bus_space_tag_t		bst;
 		bus_space_handle_t	bsh;
@@ -233,8 +235,6 @@ static int
 am335x_dmtimer_attach(device_t dev)
 {
 	struct am335x_dmtimer_softc *sc = device_get_softc(dev);
-	phandle_t node;
-	pcell_t clock;
 	void *ihl;
 	int err;
 	int i;
@@ -243,12 +243,11 @@ am335x_dmtimer_attach(device_t dev)
 		return (EINVAL);
 
 	/* Get the base clock frequency */
-	node = ofw_bus_get_node(dev);
-	if ((OF_getprop(node, "clock-frequency", &clock, sizeof(clock))) <= 0) {
-		device_printf(dev, "missing clock-frequency attribute in FDT\n");
+	err = ti_prcm_clk_get_source_freq(SYS_CLK, &sc->sysclk_freq);
+	if (err) {
+		device_printf(dev, "Error: could not get sysclk frequency\n");
 		return (ENXIO);
 	}
-	sc->clkfreq = fdt32_to_cpu(clock);
 
 	/* Request the memory resources */
 	err = bus_alloc_resources(dev, am335x_dmtimer_mem_spec,
@@ -271,6 +270,16 @@ am335x_dmtimer_attach(device_t dev)
 		sc->t[i].bsh = rman_get_bushandle(sc->tmr_mem_res[i]);
 	}
 
+	/* Configure DMTimer2 and DMTimer3 source and enable them */
+	err  = ti_prcm_clk_set_source(DMTIMER2_CLK, SYSCLK_CLK);
+	err |= ti_prcm_clk_enable(DMTIMER2_CLK);
+	err |= ti_prcm_clk_set_source(DMTIMER3_CLK, SYSCLK_CLK);
+	err |= ti_prcm_clk_enable(DMTIMER3_CLK);
+	if (err) {
+		device_printf(dev, "Error: could not setup timer clock\n");
+		return (ENXIO);
+	}
+
 	/* Take DMTimer2 for TC */
 	am335x_dmtimer_tc_tmr = &sc->t[2];
 
@@ -289,8 +298,10 @@ am335x_dmtimer_attach(device_t dev)
 	/* Set Timer autoreload(AR) and start timer(ST) */
 	am335x_dmtimer_tc_write_4(DMTIMER_TCLR, 3);
 
-	am335x_dmtimer_tc.tc_frequency = sc->clkfreq;
+	am335x_dmtimer_tc.tc_frequency = sc->sysclk_freq;
 	tc_init(&am335x_dmtimer_tc);
+
+	/* Register DMTimer3 as ET */
 
 	/* Setup and enable the timer */
 	if (bus_setup_intr(dev, sc->tmr_irq_res[3], INTR_TYPE_CLK,
@@ -304,7 +315,7 @@ am335x_dmtimer_attach(device_t dev)
 	sc->t[3].et.et_name = "AM335x Eventtimer0";
 	sc->t[3].et.et_flags = ET_FLAGS_PERIODIC | ET_FLAGS_ONESHOT;
 	sc->t[3].et.et_quality = 1000;
-	sc->t[3].et.et_frequency = sc->clkfreq;
+	sc->t[3].et.et_frequency = sc->sysclk_freq;
 	sc->t[3].et.et_min_period.sec = 0;
 	sc->t[3].et.et_min_period.frac =
 	    ((0x00000002LLU << 32) / sc->t[3].et.et_frequency) << 32;
@@ -326,7 +337,7 @@ static device_method_t am335x_dmtimer_methods[] = {
 };
 
 static driver_t am335x_dmtimer_driver = {
-	"am335x-dmtimer",
+	"am335x_dmtimer",
 	am335x_dmtimer_methods,
 	sizeof(struct am335x_dmtimer_softc),
 };
@@ -334,6 +345,7 @@ static driver_t am335x_dmtimer_driver = {
 static devclass_t am335x_dmtimer_devclass;
 
 DRIVER_MODULE(am335x_dmtimer, simplebus, am335x_dmtimer_driver, am335x_dmtimer_devclass, 0, 0);
+MODULE_DEPEND(am335x_dmtimer, am335x_prcm, 1, 1, 1);
 
 void
 cpu_initclocks(void)

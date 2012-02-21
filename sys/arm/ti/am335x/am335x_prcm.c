@@ -42,6 +42,9 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
+#include <arm/ti/ti_scm.h>
+#include <arm/ti/ti_prcm.h>
+
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
@@ -51,21 +54,30 @@ __FBSDID("$FreeBSD$");
 #include <machine/fdt.h>
 
 #define CM_PER				0
-#define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x00)
-#define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x7C)
-#define CM_PER_TIMER2_CLKCTRL		(CM_PER + 0x80)
-#define CM_PER_TIMER3_CLKCTRL		(CM_PER + 0x84)
-#define CM_PER_TIMER4_CLKCTRL		(CM_PER + 0x88)
-#define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0xEC)
-#define CM_PER_TIMER6_CLKCTRL		(CM_PER + 0xF0)
+#define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
+#define CM_PER_CPGMAC0_CLKCTRL		(CM_PER + 0x014)
+#define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
+#define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
+#define CM_PER_TIMER7_CLKCTRL		(CM_PER + 0x07C)
+#define CM_PER_TIMER2_CLKCTRL		(CM_PER + 0x080)
+#define CM_PER_TIMER3_CLKCTRL		(CM_PER + 0x084)
+#define CM_PER_TIMER4_CLKCTRL		(CM_PER + 0x088)
+#define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0x0EC)
+#define CM_PER_TIMER6_CLKCTRL		(CM_PER + 0x0F0)
+#define CM_PER_CPSW_CLKSTCTRL		(CM_PER + 0x144)
+
+#define CM_WKUP				0x400
+#define CM_CLKSEL_DPLL_MPU		(CM_WKUP + 0x02C)
+#define CM_WKUP_I2C0_CLKCTRL		(CM_WKUP + 0x0B8)
 
 #define CM_DPLL				0x500
-#define CLKSEL_TIMER7_CLK		(CM_DPLL + 0x04)
-#define CLKSEL_TIMER2_CLK		(CM_DPLL + 0x08)
-#define CLKSEL_TIMER3_CLK		(CM_DPLL + 0x0C)
-#define CLKSEL_TIMER4_CLK		(CM_DPLL + 0x10)
-#define CLKSEL_TIMER5_CLK		(CM_DPLL + 0x18)
-#define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x1C)
+#define CLKSEL_TIMER7_CLK		(CM_DPLL + 0x004)
+#define CLKSEL_TIMER2_CLK		(CM_DPLL + 0x008)
+#define CLKSEL_TIMER3_CLK		(CM_DPLL + 0x00C)
+#define CLKSEL_TIMER4_CLK		(CM_DPLL + 0x010)
+#define CLKSEL_TIMER5_CLK		(CM_DPLL + 0x018)
+#define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
+
 
 struct am335x_prcm_softc {
 	struct resource *	res[2];
@@ -80,11 +92,101 @@ static struct resource_spec am335x_prcm_spec[] = {
 
 static struct am335x_prcm_softc *am335x_prcm_sc = NULL;
 
+static int am335x_clk_generic_activate(struct ti_clock_dev *clkdev);
+static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
+static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
+static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
+
+#define AM335X_GENERIC_CLOCK_DEV(i) \
+	{	.id = (i), \
+		.clk_activate = am335x_clk_generic_activate, \
+		.clk_deactivate = am335x_clk_generic_deactivate, \
+		.clk_set_source = am335x_clk_generic_set_source, \
+		.clk_accessible = NULL, \
+		.clk_get_source_freq = NULL \
+	}
+
+struct ti_clock_dev ti_clk_devmap[] = {
+	/* System clocks */
+	{	.id                  = SYS_CLK,
+		.clk_activate        = NULL,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = am335x_clk_get_sysclk_freq,
+	},
+	/* MPU (ARM) core clocks */
+	{	.id                  = MPU_CLK,
+		.clk_activate        = NULL,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = am335x_clk_get_arm_fclk_freq,
+	},
+	/* CPSW Ethernet Switch core clocks */
+	{	.id                  = CPSW_CLK,
+		.clk_activate        = am335x_clk_cpsw_activate,
+		.clk_deactivate      = NULL,
+		.clk_set_source      = NULL,
+		.clk_accessible      = NULL,
+		.clk_get_source_freq = NULL,
+	},
+
+	/* DMTimer */
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER2_CLK),
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER3_CLK),
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER4_CLK),
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER5_CLK),
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER6_CLK),
+	AM335X_GENERIC_CLOCK_DEV(DMTIMER7_CLK),
+
+	/* I2C */
+	AM335X_GENERIC_CLOCK_DEV(I2C0_CLK),
+	AM335X_GENERIC_CLOCK_DEV(I2C1_CLK),
+	AM335X_GENERIC_CLOCK_DEV(I2C2_CLK),
+
+	{  INVALID_CLK_IDENT, NULL, NULL, NULL, NULL }
+};
+
+struct am335x_clk_details {
+	clk_ident_t	id;
+	uint32_t	clkctrl_reg;
+	uint32_t	clksel_reg;
+};
+
+#define _CLK_DETAIL(i, c, s) \
+	{	.id = (i), \
+		.clkctrl_reg = (c), \
+		.clksel_reg = (s), \
+	}
+
+static struct am335x_clk_details g_am335x_clk_details[] = {
+
+	/* DMTimer modules */
+	_CLK_DETAIL(DMTIMER2_CLK, CM_PER_TIMER2_CLKCTRL, CLKSEL_TIMER2_CLK),
+	_CLK_DETAIL(DMTIMER3_CLK, CM_PER_TIMER3_CLKCTRL, CLKSEL_TIMER3_CLK),
+	_CLK_DETAIL(DMTIMER4_CLK, CM_PER_TIMER4_CLKCTRL, CLKSEL_TIMER4_CLK),
+	_CLK_DETAIL(DMTIMER5_CLK, CM_PER_TIMER5_CLKCTRL, CLKSEL_TIMER5_CLK),
+	_CLK_DETAIL(DMTIMER6_CLK, CM_PER_TIMER6_CLKCTRL, CLKSEL_TIMER6_CLK),
+	_CLK_DETAIL(DMTIMER7_CLK, CM_PER_TIMER7_CLKCTRL, CLKSEL_TIMER7_CLK),
+
+	/* I2C modules */
+	_CLK_DETAIL(I2C0_CLK, CM_WKUP_I2C0_CLKCTRL, 0),
+	_CLK_DETAIL(I2C1_CLK, CM_PER_I2C1_CLKCTRL, 0),
+	_CLK_DETAIL(I2C2_CLK, CM_PER_I2C2_CLKCTRL, 0),
+
+	{ INVALID_CLK_IDENT, 0},
+};
+
 /* Read/Write macros */
 #define prcm_read_4(reg)		\
 	bus_space_read_4(am335x_prcm_sc->bst, am335x_prcm_sc->bsh, reg)
 #define prcm_write_4(reg, val)		\
 	bus_space_write_4(am335x_prcm_sc->bst, am335x_prcm_sc->bsh, reg, val)
+
+void am335x_prcm_setup_dmtimer(int);
 
 static int
 am335x_prcm_probe(device_t dev)
@@ -93,7 +195,7 @@ am335x_prcm_probe(device_t dev)
 	sc = (struct am335x_prcm_softc *)device_get_softc(dev);
 
 	if (ofw_bus_is_compatible(dev, "am335x,prcm")) {
-		device_set_desc(dev, "AM335x PRCM");
+		device_set_desc(dev, "AM335x Power and Clock Management");
 		return(BUS_PROBE_DEFAULT);
 	}
 
@@ -104,6 +206,7 @@ static int
 am335x_prcm_attach(device_t dev)
 {
 	struct am335x_prcm_softc *sc = device_get_softc(dev);
+	unsigned int sysclk, fclk;
 
 	if (am335x_prcm_sc)
 		return (ENXIO);
@@ -118,21 +221,10 @@ am335x_prcm_attach(device_t dev)
 
 	am335x_prcm_sc = sc;
 
-	/* Select CLK_M_OSC clock for Timer 2 */
-	prcm_write_4(CLKSEL_TIMER2_CLK,1);
-        while ((prcm_read_4(CLKSEL_TIMER2_CLK) & 0x1) != 1);
-
-	/* Enable Timer 2 Module */
-	prcm_write_4(CM_PER_TIMER2_CLKCTRL, 2);
-        while ((prcm_read_4(CM_PER_TIMER2_CLKCTRL) & 0x3) != 2);
-
-	/* Select CLK_M_OSC clock for Timer 3 */
-	prcm_write_4(CLKSEL_TIMER3_CLK,1);
-        while ((prcm_read_4(CLKSEL_TIMER3_CLK) & 0x1) != 1);
-
-	/* Enable Timer 3 Module */
-	prcm_write_4(CM_PER_TIMER3_CLKCTRL, 2);
-        while ((prcm_read_4(CM_PER_TIMER3_CLKCTRL) & 0x3) != 2);
+	am335x_clk_get_sysclk_freq(NULL, &sysclk);
+	am335x_clk_get_arm_fclk_freq(NULL, &fclk);
+	device_printf(dev, "Clocks: System %u.%01u MHz, CPU %u MHz\n",
+		sysclk/1000000, (sysclk % 1000000)/100000, fclk/1000000);
 
 	return (0);
 }
@@ -144,7 +236,7 @@ static device_method_t am335x_prcm_methods[] = {
 };
 
 static driver_t am335x_prcm_driver = {
-	"am335x-prcm",
+	"am335x_prcm",
 	am335x_prcm_methods,
 	sizeof(struct am335x_prcm_softc),
 };
@@ -153,4 +245,180 @@ static devclass_t am335x_prcm_devclass;
 
 DRIVER_MODULE(am335x_prcm, simplebus, am335x_prcm_driver,
 	am335x_prcm_devclass, 0, 0);
+MODULE_DEPEND(am335x_prcm, ti_scm, 1, 1, 1);
+
+static struct am335x_clk_details*
+am335x_clk_details(clk_ident_t id)
+{
+	struct am335x_clk_details *walker;
+
+	for (walker = g_am335x_clk_details; walker->id != INVALID_CLK_IDENT; walker++) {
+		if (id == walker->id)
+			return (walker);
+	}
+
+	return NULL;
+}
+
+static int
+am335x_clk_generic_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+	struct am335x_clk_details* clk_details;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_details = am335x_clk_details(clkdev->id);
+
+	if (clk_details == NULL)
+		return (ENXIO);
+
+	/* set *_CLKCTRL register MODULEMODE[1:0] to enable(2) */
+	prcm_write_4(clk_details->clkctrl_reg, 2);
+	while ((prcm_read_4(clk_details->clkctrl_reg) & 0x3) != 2)
+		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+	struct am335x_clk_details* clk_details;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_details = am335x_clk_details(clkdev->id);
+
+	if (clk_details == NULL)
+		return (ENXIO);
+
+	/* set *_CLKCTRL register MODULEMODE[1:0] to disable(0) */
+	prcm_write_4(clk_details->clkctrl_reg, 0);
+	while ((prcm_read_4(clk_details->clkctrl_reg) & 0x3) != 0)
+		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+	struct am335x_clk_details* clk_details;
+	uint32_t reg;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_details = am335x_clk_details(clkdev->id);
+
+	if (clk_details == NULL)
+		return (ENXIO);
+
+	switch (clksrc) {
+		case EXT_CLK:
+			reg = 0; /* SEL2: TCLKIN clock */
+			break;
+		case SYSCLK_CLK:
+			reg = 1; /* SEL1: CLK_M_OSC clock */
+			break;
+		case F32KHZ_CLK:
+			reg = 2; /* SEL3: CLK_32KHZ clock */
+			break;
+		default:
+			return (ENXIO);
+	}
+
+	prcm_write_4(clk_details->clksel_reg, reg);
+	while ((prcm_read_4(clk_details->clksel_reg) & 0x3) != reg)
+		DELAY(10);
+
+	return (0);
+}
+
+static int
+am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
+{
+	uint32_t ctrl_status;
+
+	/* Read the input clock freq from the control module */
+	/* control_status reg (0x40) */
+	if (ti_scm_reg_read_4(0x40, &ctrl_status))
+		return ENXIO;
+
+	switch ((ctrl_status>>22) & 0x3) {
+	case 0x0:
+		/* 19.2Mhz */
+		*freq = 19200000;
+		break;
+	case 0x1:
+		/* 24Mhz */
+		*freq = 24000000;
+		break;
+	case 0x2:
+		/* 25Mhz */
+		*freq = 25000000;
+		break;
+	case 0x3:
+		/* 26Mhz */
+		*freq = 26000000;
+		break;
+	}
+
+	return (0);
+}
+
+static int
+am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
+{
+	uint32_t reg;
+	uint32_t sysclk;
+#define DPLL_BYP_CLKSEL(reg)	((reg>>23) & 1)
+#define DPLL_DIV(reg)		((reg & 0x7f)+1)
+#define DPLL_MULT(reg)		((reg>>8) & 0x7FF)
+
+	reg = prcm_read_4(CM_CLKSEL_DPLL_MPU);
+
+	/*Check if we are running in bypass */
+	if (DPLL_BYP_CLKSEL(reg))
+		return ENXIO;
+
+	am335x_clk_get_sysclk_freq(NULL, &sysclk);
+	*freq = DPLL_MULT(reg) * (sysclk / DPLL_DIV(reg));
+	return(0);
+}
+
+static int
+am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev)
+{
+	struct am335x_prcm_softc *sc = am335x_prcm_sc;
+	struct am335x_clk_details* clk_details;
+
+	if (sc == NULL)
+		return ENXIO;
+
+	clk_details = am335x_clk_details(clkdev->id);
+
+	if (clk_details == NULL)
+		return (ENXIO);
+
+
+	/* set MODULENAME to ENABLE */
+        prcm_write_4(CM_PER_CPGMAC0_CLKCTRL, 2);
+
+	/* wait for IDLEST to become Func(0) */
+	while(prcm_read_4(CM_PER_CPGMAC0_CLKCTRL) & (3<<16));
+
+	/*set CLKTRCTRL to SW_WKUP(2) */
+	prcm_write_4(CM_PER_CPSW_CLKSTCTRL, 2);
+
+	/* wait for 125 MHz OCP clock to become active */
+	while((prcm_read_4(CM_PER_CPSW_CLKSTCTRL) & (1<<4)) == 0);
+	return(0);
+}
+
 

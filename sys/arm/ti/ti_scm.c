@@ -82,6 +82,11 @@ static struct ti_scm_softc *ti_scm_sc;
     bus_space_read_2((sc)->sc_bst, (sc)->sc_bsh, (reg))
 #define	ti_scm_write_2(sc, reg, val)		\
     bus_space_write_2((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+#define	ti_scm_read_4(sc, reg)		\
+    bus_space_read_4((sc)->sc_bst, (sc)->sc_bsh, (reg))
+#define	ti_scm_write_4(sc, reg, val)		\
+    bus_space_write_4((sc)->sc_bst, (sc)->sc_bsh, (reg), (val))
+
 
 /**
  *	ti_padconf_devmap - Array of pins, should be defined one per SoC
@@ -450,6 +455,15 @@ ti_scm_attach(device_t dev)
 	return (0);
 }
 
+int
+ti_scm_reg_read_4(uint32_t reg, uint32_t *val)
+{
+	if (!ti_scm_sc)
+		return (ENXIO);
+
+	*val = ti_scm_read_4(ti_scm_sc, reg);
+	return (0);
+}
 
 static device_method_t ti_scm_methods[] = {
 	DEVMETHOD(device_probe,		ti_scm_probe),
@@ -458,7 +472,7 @@ static device_method_t ti_scm_methods[] = {
 };
 
 static driver_t ti_scm_driver = {
-	"ti-scm",
+	"ti_scm",
 	ti_scm_methods,
 	sizeof(struct ti_scm_softc),
 };
