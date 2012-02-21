@@ -543,7 +543,7 @@ msdosfs_read(ap)
 	int error = 0;
 	int blsize;
 	int isadir;
-	int orig_resid;
+	ssize_t orig_resid;
 	u_int n;
 	u_long diff;
 	u_long on;
@@ -643,7 +643,7 @@ msdosfs_write(ap)
 {
 	int n;
 	int croffset;
-	int resid;
+	ssize_t resid;
 	u_long osize;
 	int error = 0;
 	u_long count;
