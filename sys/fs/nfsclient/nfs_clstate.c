@@ -4669,6 +4669,7 @@ nfscl_freedevinfo(struct nfscldevinfo *dip)
 			NFSFREECRED(dsp->nfsclds_sock.nr_cred);
 			NFSFREEMUTEX(&dsp->nfsclds_mtx);
 			NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
+			NFSFREEMUTEX(&dsp->nfsclds_sess.nfsess_mtx);
 			free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		}
 	}

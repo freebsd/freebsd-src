@@ -1341,9 +1341,18 @@ ncl_readrpc(struct vnode *vp, struct uio *uiop, struct ucred *cred)
 {
 	int error, ret, attrflag;
 	struct nfsvattr nfsva;
+	struct nfsmount *nmp;
 
-	error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva, &attrflag,
-	    NULL);
+	nmp = VFSTONFS(vnode_mount(vp));
+	error = EIO;
+	attrflag = 0;
+	if (NFSHASPNFS(nmp))
+		error = nfscl_doiods(vp, uiop, NULL, NULL,
+		    NFSV4OPEN_ACCESSREAD, cred, uiop->uio_td);
+printf("aft doiods=%d\n", error);
+	if (error != 0)
+		error = nfsrpc_read(vp, uiop, cred, uiop->uio_td, &nfsva,
+		    &attrflag, NULL);
 	if (attrflag) {
 		ret = nfscl_loadattrcache(&vp, &nfsva, NULL, NULL, 0, 1);
 		if (ret && !error)

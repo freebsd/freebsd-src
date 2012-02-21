@@ -4634,7 +4634,7 @@ printf("layg iom=%d\n", iomode);
 				flp->nfsfl_fh[j] = nfhp;
 				flp->nfsfl_fhcnt++;
 				nfhp->nfh_len = nfhlen;
-				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(fhlen));
+				NFSM_DISSECT(cp, uint8_t *, NFSM_RNDUP(nfhlen));
 				NFSBCOPY(cp, nfhp->nfh_fh, nfhlen);
 			}
 			if (flp->nfsfl_iomode == iomode) {
@@ -4692,7 +4692,7 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 	tl += (NFSX_V4DEVICEID / NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(layouttype);
 	*tl++ = txdr_unsigned(100000);
-	if (*notifybitsp != 0) {
+	if (notifybitsp != NULL && *notifybitsp != 0) {
 		*tl = txdr_unsigned(1);		/* One word of bits. */
 		NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED);
 		*tl = txdr_unsigned(*notifybitsp);
@@ -4804,7 +4804,9 @@ nfsrpc_getdeviceinfo(struct nfsmount *nmp, uint8_t *deviceid, int layouttype,
 			bitcnt = fxdr_unsigned(int, *tl);
 			if (bitcnt > 0) {
 				NFSM_DISSECT(tl, uint32_t *, NFSX_UNSIGNED);
-				*notifybitsp = fxdr_unsigned(uint32_t, *tl);
+				if (notifybitsp != NULL)
+					*notifybitsp =
+					    fxdr_unsigned(uint32_t, *tl);
 			}
 			*ndip = ndi;
 		} else
@@ -4979,7 +4981,7 @@ nfsrpc_getlayout(struct nfsmount *nmp, struct nfsfh *nfhp, int iomode,
 	if (lyp == NULL) {
 		LIST_INIT(&flh);
 		error = nfsrpc_layoutget(nmp, nfhp->nfh_fh, nfhp->nfh_len,
-		    iomode, (uint64_t)0, INT64_MAX, (uint64_t)(4 * NFS_MAXDATA),
+		    iomode, (uint64_t)0, INT64_MAX, (uint64_t)0,
 		    stateidp, &retonclose, &flh, cred, p, NULL);
 		if (error == 0)
 			LIST_FOREACH(flp, &flh, nfsfl_list) {
@@ -5043,6 +5045,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 	mtx_init(&dsp->nfsclds_sock.nr_mtx, "nfssock", NULL, MTX_DEF);
 	dsp->nfsclds_sock.nr_prog = NFS_PROG;
 	dsp->nfsclds_sock.nr_vers = NFS_VER4;
+	mtx_init(&dsp->nfsclds_sess.nfsess_mtx, "nfssession", NULL, MTX_DEF);
 
 	/*
 	 * Use the credentials that were used for the mount, which are
@@ -5067,6 +5070,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct nfsclds *dsp,
 		NFSFREECRED(dsp->nfsclds_sock.nr_cred);
 		NFSFREEMUTEX(&dsp->nfsclds_mtx);
 		NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
+		NFSFREEMUTEX(&dsp->nfsclds_sess.nfsess_mtx);
 		free(dsp->nfsclds_sock.nr_nam, M_SONAME);
 		NFSBZERO(dsp, sizeof(*dsp));
 	}
@@ -5173,7 +5177,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			dip = nfscl_getdevinfo(nmp->nm_clp, rflp->nfsfl_dev);
 			if (dip != NULL) {
 				error = nfscl_doflayoutio(vp, uiop, iomode,
-				    &eof, must_commit, &stateid, rwaccess, dip,
+				    must_commit, &eof, &stateid, rwaccess, dip,
 				    rflp, off, xfer, newcred, p);
 				nfscl_reldevinfo(dip);
 			} else
@@ -5318,7 +5322,7 @@ nfsrpc_readds(vnode_t vp, struct uio *uiop, nfsv4stateid_t *stateidp, int *eofp,
 
 	nd->nd_mrep = NULL;
 	nfscl_reqstart(nd, NFSPROC_READ, nmp, fhp->nfh_fh, fhp->nfh_len,
-	    NULL, NULL);
+	    NULL, &dsp->nfsclds_sess);
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
 	NFSM_BUILD(tl, uint32_t *, NFSX_UNSIGNED * 3);
 	txdr_hyper(io_off, tl);
@@ -5359,7 +5363,7 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	KASSERT(uiop->uio_iovcnt == 1, ("nfs: writerpc iovcnt > 1"));
 	nd->nd_mrep = NULL;
 	nfscl_reqstart(nd, NFSPROC_WRITEDS, nmp, fhp->nfh_fh, fhp->nfh_len,
-	    NULL, NULL);
+	    NULL, &dsp->nfsclds_sess);
 	nfsm_stateidtom(nd, stateidp, NFSSTATEID_PUTSEQIDZERO);
 	NFSM_BUILD(tl, uint32_t *, NFSX_HYPER + 2 * NFSX_UNSIGNED);
 	txdr_hyper(io_off, tl);
