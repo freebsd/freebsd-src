@@ -87,10 +87,8 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
 
-#ifdef TWL_SUPPORTED
-#include <arm/omap/twl/twl.h>
-#include <arm/omap/twl/twl_vreg.h>
-#endif
+#include <arm/ti/twl/twl.h>
+#include <arm/ti/twl/twl_vreg.h>
 
 #ifdef DEBUG
 #define omap_mmc_dbg(sc, fmt, args...) \
@@ -119,10 +117,8 @@ struct omap_mmc_softc {
 	device_t		sc_gpio_dev;
 	int			sc_wp_gpio_pin;  /* GPIO pin for MMC write protect */
 
-#ifdef TWL_SUPPORTED
 	device_t		sc_vreg_dev;
 	const char*		sc_vreg_name;
-#endif
 
 	struct mtx		sc_mtx;
 
@@ -944,11 +940,9 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 
 			omap_mmc_write_4(sc, MMCHS_HCTL, hctl_reg);
 
-#ifdef TWL_SUPPORTED
 			/* Set the desired voltage on the regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
 				twl_vreg_set_voltage(sc->sc_vreg_dev, sc->sc_vreg_name, mv);
-#endif
 
 			/* Enable the bus power */
 			omap_mmc_write_4(sc, MMCHS_HCTL, (hctl_reg | MMCHS_HCTL_SDBP));
@@ -964,11 +958,9 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 			hctl_reg = omap_mmc_read_4(sc, MMCHS_HCTL);
 			omap_mmc_write_4(sc, MMCHS_HCTL, (hctl_reg & ~MMCHS_HCTL_SDBP));
 
-#ifdef TWL_SUPPORTED
 			/* Turn the power off on the voltage regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
 				twl_vreg_set_voltage(sc->sc_vreg_dev, sc->sc_vreg_name, 0);
-#endif
 
 		} else if (ios->power_mode == power_on) {
 			/* Force a card re-initialisation sequence */
@@ -1611,19 +1603,18 @@ omap_mmc_attach(device_t dev)
 			                  GPIO_PIN_INPUT);
 	}
 
-#ifdef TWL_SUPPORTED
 	/* Get the TWL voltage regulator device, we need this to for setting the
 	 * voltage of the bus on certain OMAP platforms.
 	 */
-	if (resource_string_value("omap_mmc", unit, "vreg", &sc->sc_vreg_name) != 0){
+	sc->sc_vreg_name = NULL;
+
+	/* TODO: add voltage regulator knob to FDT */
+#ifdef notyet
+	sc->sc_vreg_dev = devclass_get_device(devclass_find("twl_vreg"), 0);
+	if (sc->sc_vreg_dev == NULL) {
+		device_printf(dev, "Error: failed to get the votlage regulator"
+		    " device\n");
 		sc->sc_vreg_name = NULL;
-	} else {
-		sc->sc_vreg_dev = devclass_get_device(devclass_find("twl_vreg"), 0);
-		if (sc->sc_vreg_dev == NULL) {
-			device_printf(dev, "Error: failed to get the votlage regulator"
-			                   " device\n");
-			sc->sc_vreg_name = NULL;
-		}
 	}
 #endif
 
