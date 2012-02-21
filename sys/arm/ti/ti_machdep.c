@@ -576,7 +576,7 @@ initarm(void *mdp, void *unused __unused)
 	/* Do basic tuning, hz etc */
 	init_param2(physmem);
 	kdb_init();
-	printf("%s:%d\n", __FILE__, __LINE__);
+
 	return ((void *)(kernelstack.pv_va + USPACE_SVC_STACK_TOP -
 	    sizeof(struct pcb)));
 }
