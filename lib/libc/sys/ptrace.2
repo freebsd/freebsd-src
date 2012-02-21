@@ -2,7 +2,7 @@
 .\"	$NetBSD: ptrace.2,v 1.2 1995/02/27 12:35:37 cgd Exp $
 .\"
 .\" This file is in the public domain.
-.Dd October 5, 2011
+.Dd February 19, 2012
 .Dt PTRACE 2
 .Os
 .Sh NAME
@@ -355,6 +355,11 @@ The process identifier of the new process is available in the
 .Va pl_child_pid
 member of
 .Vt "struct ptrace_lwpinfo" .
+.It PL_FLAG_CHILD
+The flag is set for first event reported from a new child, which is
+automatically attached due to
+.Dv PT_FOLLOW_FORK
+enabled.
 .El
 .It pl_sigmask
 The current signal mask of the LWP
