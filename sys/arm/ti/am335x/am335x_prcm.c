@@ -42,6 +42,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/frame.h>
 #include <machine/intr.h>
 
+#include <arm/ti/tivar.h>
 #include <arm/ti/ti_scm.h>
 #include <arm/ti/ti_prcm.h>
 
@@ -78,6 +79,8 @@ __FBSDID("$FreeBSD$");
 #define CLKSEL_TIMER5_CLK		(CM_DPLL + 0x018)
 #define CLKSEL_TIMER6_CLK		(CM_DPLL + 0x01C)
 
+#define PRM_DEVICE_OFFSET		0xF00
+#define PRM_RSTCTRL			(PRM_DEVICE_OFFSET + 0x00)
 
 struct am335x_prcm_softc {
 	struct resource *	res[2];
@@ -97,6 +100,7 @@ static int am335x_clk_generic_deactivate(struct ti_clock_dev *clkdev);
 static int am335x_clk_generic_set_source(struct ti_clock_dev *clkdev, clk_src_t clksrc);
 static int am335x_clk_get_sysclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
 static int am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq);
+static void am335x_prcm_reset(void);
 static int am335x_clk_cpsw_activate(struct ti_clock_dev *clkdev);
 
 #define AM335X_GENERIC_CLOCK_DEV(i) \
@@ -220,6 +224,7 @@ am335x_prcm_attach(device_t dev)
 	sc->bsh = rman_get_bushandle(sc->res[0]);
 
 	am335x_prcm_sc = sc;
+	ti_cpu_reset = am335x_prcm_reset;
 
 	am335x_clk_get_sysclk_freq(NULL, &sysclk);
 	am335x_clk_get_arm_fclk_freq(NULL, &fclk);
@@ -390,6 +395,12 @@ am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 	am335x_clk_get_sysclk_freq(NULL, &sysclk);
 	*freq = DPLL_MULT(reg) * (sysclk / DPLL_DIV(reg));
 	return(0);
+}
+
+static void
+am335x_prcm_reset(void)
+{
+	prcm_write_4(PRM_RSTCTRL, (1<<1));
 }
 
 static int
