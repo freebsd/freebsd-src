@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/gethost.c,v 1.12 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/gethost.c,v 1.15 2012/01/15 17:14:54 christos Exp $ */
 /*
  * gethost.c: Create version file from prototype
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: gethost.c,v 1.12 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: gethost.c,v 1.15 2012/01/15 17:14:54 christos Exp $")
 
 #ifdef SCO
 # define perror __perror
@@ -91,6 +91,7 @@ static const char *keyword[] =
 
 static int findtoken (char *);
 static char *gettoken (char **, char  *);
+static char *pname;
 
 int main (int, char *[]);
 
@@ -141,13 +142,78 @@ gettoken(char **pptr, char *token)
     *pptr = ptr;
     return token;
 }
+
+static char *
+cat(const char *a, const char *b, size_t len)
+{
+	size_t l;
+	char *r;
+
+	if (len == 0)
+		len = strlen(b);
+	l = strlen(a) + len + 1;
+	if ((r = malloc(l)) == NULL)
+		abort();
+	snprintf(r, l, "%s%.*s", a, (int)len, b);
+	return r;
+}
+
+static const char *
+explode(const char *defs)
+{
+	static const char def[] = "defined("; /* ) */
+	static char *buf;
+	size_t len;
+	const char *ptr, *bptr, *eptr = NULL, *name;
+	size_t buflen = 0;
+
+	if (strstr(defs, "#machine(" /* ) */))
+		return defs;
+
+	free(buf);
+	buf = strdup("("); /* ) */
+	for (ptr = defs; (bptr = strstr(ptr, def)) != NULL; ptr = eptr + 1) {
+		if (ptr != bptr)
+			buf = cat(buf, ptr, bptr - ptr);
+		if ((eptr = strchr(ptr + sizeof(def) - 1, ')')) == NULL) {
+			(void) fprintf(stderr, "%s: missing close paren `%s'\n",
+			    pname, defs);
+			return defs;
+		}
+		buf = cat(buf, bptr, eptr - bptr + 1);
+		name = bptr + sizeof(def) - 1;
+		len = eptr - name;
+		if (len < 1) {
+			(void) fprintf(stderr, "%s: empty define `%s'\n",
+			    pname, defs);
+			return defs;
+		}
+		if (*name != '_') {
+			char *undername = malloc(len + 10);
+			buf = cat(buf, " || defined(", 0);
+			snprintf(undername, len + 10, "__%.*s__)", (int)len,
+			    name);
+			buf = cat(buf, undername, len + 5);
+			buf = cat(buf, " || defined(", 0);
+			snprintf(undername, len + 10, "__%.*s)", (int)len,
+			    name);
+			buf = cat(buf, undername, len + 3);
+		}
+	}
+	if (!eptr) {
+	    (void) fprintf(stderr, "%s: invalid input `%s'\n", pname, defs);
+	    return defs;
+        }
+	buf = cat(buf, eptr + 1, 0);
+	buf = cat(buf, ")", 0);
+	return buf;
+}
 	
 
 int
 main(int argc, char *argv[])
 {
     char line[INBUFSIZE];
-    char *pname;
     const char *fname = "stdin";
     char *ptr, *tok;
     char defs[INBUFSIZE];
@@ -231,7 +297,7 @@ main(int argc, char *argv[])
 	    break;
 
 	case T_NONE:
-	    if (state != S_CODE && defs && *defs != '\0') {
+	    if (state != S_CODE && *defs != '\0') {
 		(void) fprintf(stderr, "%s: \"%s\", %d: Discarded\n",
 			       pname, fname, lineno);
 		if (++errs == 30) {
@@ -280,7 +346,7 @@ main(int argc, char *argv[])
 	    else {
 		if (tok && *tok)
 		    (void) fprintf(stdout, "# if (%s) && !defined(_%s_)\n",
-				   defs, keyword[token]);
+				   explode(defs), keyword[token]);
 		else
 		    (void) fprintf(stdout, "# if !defined(_%s_)\n", 
 				   keyword[token]);

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.func.c,v 3.139 2009/06/25 21:15:38 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.func.c,v 3.148 2011/12/14 16:36:44 christos Exp $ */
 /*
  * tc.func.c: New tcsh builtins.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.func.c,v 3.139 2009/06/25 21:15:38 christos Exp $")
+RCSID("$tcsh: tc.func.c,v 3.148 2011/12/14 16:36:44 christos Exp $")
 
 #include "ed.h"
 #include "ed.defns.h"		/* for the function names */
@@ -118,7 +118,7 @@ expand_lex(const struct wordent *sp0, int from, int to)
 		 * elsewhere.
 		 */
 		if ((*s & QUOTE)
-		    && (((*s & TRIM) == HIST) ||
+		    && (((*s & TRIM) == HIST && HIST != '\0') ||
 			(((*s & TRIM) == '\'') && (prev_c != '\\')) ||
 			(((*s & TRIM) == '\"') && (prev_c != '\\')) ||
 			(((*s & TRIM) == '\\') && (prev_c != '\\')))) {
@@ -174,7 +174,7 @@ Itoa(int n, size_t min_digits, Char attributes)
     do {
 	*p++ = un % 10 + '0';
 	un /= 10;
-    } while ((pad && --min_digits > 0) || un != 0);
+    } while ((pad && (ssize_t)--min_digits > 0) || un != 0);
 
     res = xmalloc((p - buf + 2) * sizeof(*res));
     s = res;
@@ -671,7 +671,7 @@ auto_lock(void)
     struct authorization *apw;
     extern char *crypt16 (const char *, const char *);
 
-# define XCRYPT(a, b) crypt16(a, b)
+# define XCRYPT(pw, a, b) crypt16(a, b)
 
     if ((pw = xgetpwuid(euid)) != NULL &&	/* effective user passwd  */
         (apw = getauthuid(euid)) != NULL) 	/* enhanced ultrix passwd */
@@ -681,7 +681,7 @@ auto_lock(void)
 
     struct spwd *spw;
 
-# define XCRYPT(a, b) crypt(a, b)
+# define XCRYPT(pw, a, b) crypt(a, b)
 
     if ((pw = xgetpwuid(euid)) != NULL)	{	/* effective user passwd  */
 	errno = 0;
@@ -695,7 +695,12 @@ auto_lock(void)
 
 #else
 
-#define XCRYPT(a, b) crypt(a, b)
+
+#ifdef __CYGWIN__
+# define XCRYPT(pw, a, b) cygwin_xcrypt(pw, a, b)
+#else
+# define XCRYPT(pw, a, b) crypt(a, b)
+#endif
 
 #if !defined(__MVS__)
     if ((pw = xgetpwuid(euid)) != NULL)	/* effective user passwd  */
@@ -727,7 +732,7 @@ auto_lock(void)
 #endif
 	pp = xgetpass("Password:");
 
-	crpp = XCRYPT(pp, srpp);
+	crpp = XCRYPT(pw, pp, srpp);
 	if ((strcmp(crpp, srpp) == 0)
 #ifdef AFS
 	    || (ka_UserAuthenticateGeneral(KA_USERAUTH_VERSION,
@@ -1035,7 +1040,7 @@ aliasrun(int cnt, Char *s1, Char *s2)
     cleanup_until(&w);
     pendjob();
     /* Restore status */
-    setv(STRstatus, putn(status), VAR_READWRITE);
+    setv(STRstatus, putn((tcsh_number_t)status), VAR_READWRITE);
 }
 
 void
@@ -1635,7 +1640,7 @@ fixio(int fd, int e)
 # endif /* !EWOULDBLOCK || EWOULDBLOCK != EAGAIN */
 #endif /* POSIX && EAGAIN */
 
-	e = 0;
+	e = -1;
 #ifdef FDRETRY
 # ifdef F_SETFL
 /*
@@ -1683,19 +1688,17 @@ fixio(int fd, int e)
 	if (fcntl(fd, F_SETFL, e) == -1)
 	    return -1;
 	else 
-	    e = 1;
+	    e = 0;
 # endif /* F_SETFL */
 
 # ifdef FIONBIO
 	e = 0;
 	if (ioctl(fd, FIONBIO, (ioctl_t) &e) == -1)
 	    return -1;
-	else
-	    e = 1;
 # endif	/* FIONBIO */
 
 #endif /* FDRETRY */
-	return e ? 0 : -1;
+	return e;
 
     case EINTR:
 	return 0;
@@ -1928,7 +1931,7 @@ getremotehost(int dest_fd)
 				(ptr = strstr(domain, s)) != NULL) {
 			        char *cbuf;
 
-				cbuf = strspl(name, ptr);
+				cbuf = strspl(name, ptr + strlen(s));
 				if (getaddrinfo(cbuf, NULL, &hints, &res) != 0)
 				    res = NULL;
 				xfree(cbuf);
@@ -1939,6 +1942,7 @@ getremotehost(int dest_fd)
 		    if (res != NULL) {
 			if (res->ai_canonname != NULL) {
 			    strncpy(hbuf, res->ai_canonname, sizeof(hbuf));
+			    hbuf[sizeof(hbuf) - 1] = '\0';
 			    host = hbuf;
 			}
 			freeaddrinfo(res);
@@ -2025,12 +2029,13 @@ remotehost(void)
     }
     wait_options = 0;
  done:
+    cleanup_push(&hostname, strbuf_cleanup);
     xclose(fds[0]);
     while ((wait_res = waitpid(pid, &status, wait_options)) == -1
 	   && errno == EINTR)
 	handle_pending_signals();
-    cleanup_push(&hostname, strbuf_cleanup);
-    if (wait_res == pid && WIFEXITED(status) && WEXITSTATUS(status) == 0) {
+    if (hostname.len > 0 && wait_res == pid && WIFEXITED(status)
+	   && WEXITSTATUS(status) == 0) {
 	strbuf_terminate(&hostname);
 	tsetenv(STRREMOTEHOST, str2short(hostname.s));
     }

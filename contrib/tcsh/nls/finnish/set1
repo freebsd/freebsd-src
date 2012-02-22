@@ -1,140 +1,140 @@
-$ $tcsh: set1,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set1,v 1.4 2011/02/04 18:19:34 christos Exp $
 $ Error messages
 $set 1 
 1 Kielioppivirhe
 2 %s ei ole sallittu
-3 Liian pitk‰ sana
-4 $< rivi liian pitk‰
+3 Liian pitk√§ sana
+4 $< rivi liian pitk√§
 5 Puuttuva tiedosto $0
 6 Vajavainen [] muunnos
-7 $ -laajennuksen on p‰‰tytt‰v‰ ennen ']'-merkki‰
+7 $ -laajennuksen on p√§√§tytt√§v√§ ennen ']'-merkki√§
 8 Virheellinen : -muunnos $ (%c)
 9 Indeksivirhe
 10 Virheellinen numero
-11 Liian v‰h‰n sanoja
+11 Liian v√§h√§n sanoja
 12 Puuttuva tiedoston nimi
-13 Sis‰inen laajennusvirhe (glob)
-14 K‰sky‰ ei lˆydy
-15 Liian v‰h‰n argumentteja
+13 Sis√§inen laajennusvirhe (glob)
+14 K√§sky√§ ei l√∂ydy
+15 Liian v√§h√§n argumentteja
 16 Liian monta argumenttia
 17 Vaarallinen alias
-18 Tyhj‰ ehto (if)
+18 Tyhj√§ ehto (if)
 19 Soveltumaton seuraus (then)
-20 Sanat eiv‰t ole suluissa
-21 %s ei lˆydy
+20 Sanat eiv√§t ole suluissa
+21 %s ei l√∂ydy
 22 Soveltumaton maski
 23 Rajoite tuntematon
 24 Liian suuri argumentti
 25 Soveltumaton tai tuntematon muunnoskerroin
-26 M‰‰rittelem‰tˆn muuttuja
+26 M√§√§rittelem√§t√∂n muuttuja
 27 Hakemistopino on matalampi
 28 Virheellinen signaalin numero
 29 Tuntematon signaali; kill -l tulostaa signaalit
 30 Muutujan nimi on aloitettava kirjaimella
-31 Liian pitk‰ muuttuja nimi
+31 Liian pitk√§ muuttuja nimi
 32 Muuttujan nimi on koostuttava kirjaimista ja numeroista
-33 T‰ss‰ komentotulkissa ei ole tˆiden hallintaa
+33 T√§ss√§ komentotulkissa ei ole t√∂iden hallintaa
 34 Lauseke virheellinen
 35 Kotihakemisto puuttuu
 36 Siirtyminen kotihakemistoon ei onnistu
-37 Tyhj‰ k‰sky
+37 Tyhj√§ k√§sky
 38 Sijoituksesta puuttuu lauseke
 39 Tuntematon operaattori
 40 Tulkinnanvarainen
 41 %s: Tiedosto ei ole uusi
-42 Parametrin -c argumentti p‰‰tty takakenoviivaan (\\)
+42 Parametrin -c argumentti p√§√§tty takakenoviivaan (\\)
 43 Keskeytetty
 44 Indeksi viittaa rajojen ulkopuollelle
 45 Rivin ylivuoto
-46 Olematon tyˆ
-47 Ei onnistu p‰‰tteelt‰
+46 Olematon ty√∂
+47 Ei onnistu p√§√§tteelt√§
 48 Silmukan (while/foreach) ulkopuolella
-49 Lis‰‰ prosesseja ei voida luoda
+49 Lis√§√§ prosesseja ei voida luoda
 50 Ei vastaavuuksia (match)
 51 Puuttuva %c
-52 Ylim‰‰r‰inen/pariton %c
+52 Ylim√§√§r√§inen/pariton %c
 53 Muisti loppu
 54 Putkea ei voida luoda
 55 %s: %s
 56 %s
-57 K‰yttˆ: jobs [ -l ]
-58 Argumenttien on oltava tˆiden tai prosessien tunnisteita
-59 Ei t‰m‰nhetkist‰ tyˆt‰
-60 Ei edellist‰ tyˆt‰
-61 Mik‰‰n tyˆ ei vastaa mallia
-62 Sis‰kk‰inen prosessin luonti (fork) > %d; mahdollisesti `...` silmukka
-63 Alemman tason komentotulkeissa ei ole tˆidenhallintaa
-64 Synkronointivirhe: Prosessia %d ei lˆydy
-65 %sTilap‰isesti keskeytettyj‰ tˆit‰
-66 %sPys‰htyneen‰ olevia tˆit‰
+57 K√§ytt√∂: jobs [ -l ]
+58 Argumenttien on oltava t√∂iden tai prosessien tunnisteita
+59 Ei t√§m√§nhetkist√§ ty√∂t√§
+60 Ei edellist√§ ty√∂t√§
+61 Mik√§√§n ty√∂ ei vastaa mallia
+62 Sis√§kk√§inen prosessin luonti (fork) > %d; mahdollisesti `...` silmukka
+63 Alemman tason komentotulkeissa ei ole t√∂idenhallintaa
+64 Synkronointivirhe: Prosessia %d ei l√∂ydy
+65 %sTilap√§isesti keskeytettyj√§ t√∂it√§
+66 %sPys√§htyneen√§ olevia t√∂it√§
 67 Toinen hakemisto puuttuu
-68 Hakemistopino on tyhj‰
+68 Hakemistopino on tyhj√§
 69 Virheellinen hakemisto
-70 K‰yttˆ: %s [-%s]%s
+70 K√§ytt√∂: %s [-%s]%s
 71 Lipulle -h ei ole argumenttia
-72 T‰m‰ ei ole ensimm‰isen tason komentotulkki (login shell)
+72 T√§m√§ ei ole ensimm√§isen tason komentotulkki (login shell)
 73 Jako 0:lla
-74 Jakoj‰‰nnˆs 0:lla
+74 Jakoj√§√§nn√∂s 0:lla
 75 Virheellinen muunnoskerroin; tarkoititko "%s"?
-76 Ensimm‰isen tason komentotulkkia ei voi keskeytt‰‰ (viel‰)
-77 Tuntematon k‰ytt‰j‰: %s
+76 Ensimm√§isen tason komentotulkkia ei voi keskeytt√§√§ (viel√§)
+77 Tuntematon k√§ytt√§j√§: %s
 78 Muuttujaa $home ei ole asetettu
-79 K‰yttˆ: history [-%s] [# tapahtumien/k‰skyjen lukum‰‰r‰]
-80 $, ! tai < ei ole sallittu $# eik‰ $? yhteydess‰
-81 Muuttujan nimi sis‰lt‰‰ rivin vaihdon
-82 * ei ole sallittu $# eik‰ $? yhteydess‰
+79 K√§ytt√∂: history [-%s] [# tapahtumien/k√§skyjen lukum√§√§r√§]
+80 $, ! tai < ei ole sallittu $# eik√§ $? yhteydess√§
+81 Muuttujan nimi sis√§lt√§√§ rivin vaihdon
+82 * ei ole sallittu $# eik√§ $? yhteydess√§
 83 $?<numero> tai $#<numero> ei ole sallittu
 84 Soveltumaton muuttujan nimi
-85 Rivin vaihto muutujan indeksiss‰
+85 Rivin vaihto muutujan indeksiss√§
 86 Laajennuspuskurin ylivuoto
 87 Muuttujassa kielioppivirhe
 88 Virheellinen ! -muoto
-89 Edellist‰ korvaavaa merkkijonoa ei ole
+89 Edellist√§ korvaavaa merkkijonoa ei ole
 90 Virheellinen korvaava merkkijono
-91 Edellist‰ vasemmanpuolista merkkijonoa ei ole
-92 Oikeanpuolinen merkkijono on liian pitk‰
+91 Edellist√§ vasemmanpuolista merkkijonoa ei ole
+92 Oikeanpuolinen merkkijono on liian pitk√§
 93 Virheellinen ! -muunnos: %c
-94 Muunnos ep‰onnistui
+94 Muunnos ep√§onnistui
 95 Korvauspuskurin ylivuoto
 96 Virheellinen ! argumenttivalitsin
-97 Edellist‰ hakua ei ole
-98 %s: Tapahtumaa/k‰sky‰ ei lˆydy
+97 Edellist√§ hakua ei ole
+98 %s: Tapahtumaa/k√§sky√§ ei l√∂ydy
 99 Liian paljon loppusulkuja ')'
 100 Liian paljon alkusulkuja '('
 101 Virheellisesti sijoitettu alkusulku '('
 102 Uudelleen ohjauksesta puuttuu nimi
 103 Tulkinnanvarainen tulostuksen ohjaus
-104 Ohjaus << ei onnistu sulkujen '()' sis‰ll‰
-105 Tulkinnanvarainen syˆtteen ohjaus
+104 Ohjaus << ei onnistu sulkujen '()' sis√§ll√§
+105 Tulkinnanvarainen sy√∂tteen ohjaus
 106 Virheelisesti sijoitetut sulut '()'
-107 Silmukka alias-m‰‰rittelyiss‰
+107 Silmukka alias-m√§√§rittelyiss√§
 108 Muuttujaa $watch ei ole asetettu
 109 Jonossa ei ole tapahtumia
-110 K‰yttˆ: sched -<tapahtumien lukum‰‰r‰>.\nK‰yttˆ: sched [+]tt:mm <k‰sky>
+110 K√§ytt√∂: sched -<tapahtumien lukum√§√§r√§>.\nK√§ytt√∂: sched [+]tt:mm <k√§sky>
 111 Jonotettuja tapahtumia ei ole niin monta
-112 Suoritettava k‰sky puuttuu
+112 Suoritettava k√§sky puuttuu
 113 Virheellinen tapahtuma-aika
-114 Suhteellinen ajan m‰‰re ei sovellu k‰ytett‰v‰ksi am/pm yhteydess‰
-115 P‰‰tetyypin kuvaukselle (termcap) ei ole tarpeeksi tilaa
-116 K‰yttˆ: settc %s [yes|no]
+114 Suhteellinen ajan m√§√§re ei sovellu k√§ytett√§v√§ksi am/pm yhteydess√§
+115 P√§√§tetyypin kuvaukselle (termcap) ei ole tarpeeksi tilaa
+116 K√§ytt√∂: settc %s [yes|no]
 117 Tuntematon toiminne `%s'
-118 Tuntematon p‰‰tetyypin (termcap) parameteri `%%%c'
-119 Liian paljon argumentteja k‰skylle `%s' (%d)
-120 `%s' edellytt‰‰ %d argumenttia
-121 K‰yttˆ: echotc [-v|-s] [<toiminne> [<argumentit>]]
-122 %s: %s. V‰‰r‰ laitearkkitehtuuri
+118 Tuntematon p√§√§tetyypin (termcap) parameteri `%%%c'
+119 Liian paljon argumentteja k√§skylle `%s' (%d)
+120 `%s' edellytt√§√§ %d argumenttia
+121 K√§ytt√∂: echotc [-v|-s] [<toiminne> [<argumentit>]]
+122 %s: %s. V√§√§r√§ laitearkkitehtuuri
 123 !# Silmukka komentohistoriassa
 124 Virheellinen tiedostotesti
 125 Valitsimen ylivuoto
-126 Tuntematon valitsin: `-%s'\nK‰yttˆ: %s [ -bcdefilmnqstvVxX -Dnimi[=arvo] ] [ argumentti ... ]
-127 Tuntematon valitsin: `-%s'\nK‰yttˆ: %s [ -bcdefFilmnqstvVxX ] [ argumentti ... ]
-128 Tuntematon valitsin: `-%s'\nK‰yttˆ: %s [ -bcdefilmnqstvVxX ] [ argumentti ... ]
-129 \nSoveltumaton t‰ydennys: "%s"
+126 Tuntematon valitsin: `-%s'\nK√§ytt√∂: %s [ -bcdefilmnqstvVxX -Dnimi[=arvo] ] [ argumentti ... ]
+127 Tuntematon valitsin: `-%s'\nK√§ytt√∂: %s [ -bcdefFilmnqstvVxX ] [ argumentti ... ]
+128 Tuntematon valitsin: `-%s'\nK√§ytt√∂: %s [ -bcdefilmnqstvVxX ] [ argumentti ... ]
+129 \nSoveltumaton t√§ydennys: "%s"
 130 \nSoveltumaton %s: '%c'
-131 \nErotin '%c' puuttuu %s "%s" j‰ljest‰
+131 \nErotin '%c' puuttuu %s "%s" j√§ljest√§
 132 \nVajaa %s: "%s"
 133 Valitsimelle -m ei ole kohdeargumenttia
-134 K‰yttˆ: unlimit [-fh] [rajoitteet (limits)]
+134 K√§ytt√∂: unlimit [-fh] [rajoitteet (limits)]
 135 Muuttujalle $%S ei voida asettaa arvoa
-136 Viitattua tyˆt‰ ei ole
+136 Viitattua ty√∂t√§ ei ole
 137 Tuntematon colorls-muuttuja `%c%c'

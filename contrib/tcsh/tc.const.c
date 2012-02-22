@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.91 2009/06/19 16:35:33 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.const.c,v 3.98 2011/04/14 18:25:26 christos Exp $ */
 /*
  * sh.const.c: String constants for tcsh.
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: tc.const.c,v 3.91 2009/06/19 16:35:33 christos Exp $")
+RCSID("$tcsh: tc.const.c,v 3.98 2011/04/14 18:25:26 christos Exp $")
 
 Char STRlogout[]	= { 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRautologout[]	= { 'a', 'u', 't', 'o', 'l', 'o', 'g', 'o', 'u', 't', 
@@ -43,6 +43,7 @@ Char STRrootdefautologout[] = { '1', '5', '\0' };
 #endif
 Char STRautomatic[]	= { 'a', 'u', 't', 'o', 'm', 'a', 't', 'i', 'c',
 			    '\0' };
+Char STRanyerror[]	= { 'a', 'n', 'y', 'e', 'r', 'r', 'o', 'r', '\0' };
 Char STRhangup[]	= { 'h', 'a', 'n', 'g', 'u', 'p', '\0' };
 Char STRaout[]		= { 'a', '.', 'o', 'u', 't', '\0' };
 Char STRtty[]		= { 't', 't', 'y', '\0' };
@@ -60,6 +61,7 @@ Char STR_[]		= { '_', '\0' };
 Char STRNULL[]		= { '\0' };
 Char STRtcsh[]		= { 't', 'c', 's', 'h', '\0' };
 Char STRhome[]		= { 'h', 'o', 'm', 'e', '\0' };
+Char STReuser[]         = { 'e', 'u', 's', 'e', 'r', '\0'};
 Char STRuser[]		= { 'u', 's', 'e', 'r', '\0' };
 Char STRgroup[]		= { 'g', 'r', 'o', 'u', 'p', '\0' };
 #ifdef AFS
@@ -67,6 +69,7 @@ Char STRafsuser[]	   = { 'a', 'f', 's', 'u', 's', 'e', 'r', '\0' };
 #endif /* AFS */
 Char STRterm[]		= { 't', 'e', 'r', 'm', '\0' };
 Char STRversion[]	= { 'v', 'e', 'r', 's', 'i', 'o', 'n', '\0' };
+Char STReuid[]		= { 'e', 'u', 'i', 'd', '\0' };
 Char STRuid[]		= { 'u', 'i', 'd', '\0' };
 Char STRgid[]		= { 'g', 'i', 'd', '\0' };
 Char STRunknown[]	= { 'u', 'n', 'k', 'n', 'o', 'w', 'n', '\0' };
@@ -161,7 +164,7 @@ Char STRLANGBIG5[]	= { 'z', 'h', '_', 'T', 'W', '.', 'B', 'i', 'g', '5',
 			    '\0' };
 Char STRLANGEUCZH[]	= { '\0' };
 Char STRLANGEUCZHB[]	= { '\0' };
-#  elif defined(linux) || defined(__GNU__) || defined(__GLIBC__)
+#  elif defined(__linux__) || defined(__GNU__) || defined(__GLIBC__)
 Char STRLANGEUCJP[]	= { 'j', 'a', '_', 'J', 'P', '.', 'E', 'U', 'C', '-',
 			    'J', 'P', '\0' };
 Char STRLANGEUCKR[]	= { 'k', 'o', '_', 'K', 'R', '.', 'E', 'U', 'C', '\0' };
@@ -249,8 +252,7 @@ Char STRsavehist[]	= { 's', 'a', 'v', 'e', 'h', 'i', 's', 't', '\0' };
 Char STRnormal[]	= { 'n', 'o', 'r', 'm', 'a', 'l', '\0' };
 Char STRsldtlogout[]	= { '/', '.', 'l', 'o', 'g', 'o', 'u', 't', '\0' };
 Char STRjobs[]		= { 'j', 'o', 'b', 's', '\0' };
-Char STRdeftcshprompt[]	= { '%', '#', ' ', '\0' };
-Char STRdefcshprompt[]	= { '%', '\0' };
+Char STRdefprompt[]	= { '%', '#', ' ', '\0' };
 Char STRmquestion[]	= { '%', 'R', '?' | QUOTE, ' ', '\0' };
 Char STRKCORRECT[]	= { 'C', 'O', 'R', 'R', 'E', 'C', 'T', '>', '%', 'R', 
 			    ' ', '(', 'y', '|', 'n', '|', 'e', '|', 'a', ')', 
@@ -305,6 +307,8 @@ Char STRmn[]		= { '-', 'n', '\0' };
 Char STRminus[]		= { '-', '\0' };
 Char STRnoglob[]	= { 'n', 'o', 'g', 'l', 'o', 'b', '\0' };
 Char STRnonomatch[]	= { 'n', 'o', 'n', 'o', 'm', 'a', 't', 'c', 'h', '\0' };
+Char STRglobstar[]	= { 'g', 'l', 'o', 'b', 's', 't', 'a', 'r', '\0' };
+Char STRglobdot[]	= { 'g', 'l', 'o', 'b', 'd', 'o', 't', '\0' };
 Char STRfakecom1[]	= { '`', ' ', '.', '.', '.', ' ', '`', '\0' };
 Char STRampm[]		= { 'a', 'm', 'p', 'm', '\0' };
 Char STRtime[]		= { 't', 'i', 'm', 'e', '\0' };
@@ -378,9 +382,11 @@ Char STRQNULL[]		= { '\0' | QUOTE, '\0' };
 Char STRcorrect[]	= { 'c', 'o', 'r', 'r', 'e', 'c', 't', '\0' };
 Char STRcmd[]		= { 'c', 'm', 'd', '\0' };
 Char STRall[]		= { 'a', 'l', 'l', '\0' };
+Char STRalways[]	= { 'a', 'l', 'w', 'a', 'y', 's', '\0' };
 Char STRerase[]		= { 'e', 'r', 'a', 's', 'e', '\0' };
 Char STRprev[]		= { 'p', 'r', 'e', 'v', '\0' };
 Char STRcomplete[]	= { 'c', 'o', 'm', 'p', 'l', 'e', 't', 'e', '\0' };
+Char STREnhance[]	= { 'E', 'n', 'h', 'a', 'n', 'c', 'e', '\0' };
 Char STRenhance[]	= { 'e', 'n', 'h', 'a', 'n', 'c', 'e', '\0' };
 Char STRigncase[]	= { 'i', 'g', 'n', 'c', 'a', 's', 'e', '\0' };
 Char STRautoexpand[]	= { 'a', 'u', 't', 'o', 'e', 'x', 'p', 'a', 'n', 'd',
@@ -388,6 +394,7 @@ Char STRautoexpand[]	= { 'a', 'u', 't', 'o', 'e', 'x', 'p', 'a', 'n', 'd',
 Char STRautocorrect[]	= { 'a', 'u', 't', 'o', 'c', 'o', 'r', 'r', 'e', 'c',
 			    't', '\0' };
 Char STRautolist[]	= { 'a', 'u', 't', 'o', 'l', 'i', 's', 't', '\0' };
+Char STRautorehash[]	= { 'a', 'u', 't', 'o', 'r', 'e', 'h', 'a', 's', 'h', '\0' };
 Char STRbeepcmd[]	= { 'b', 'e', 'e', 'p', 'c', 'm', 'd', '\0' };
 Char STRmatchbeep[]	= { 'm', 'a', 't', 'c', 'h', 'b', 'e', 'e', 'p', '\0' };
 Char STRnomatch[]	= { 'n', 'o', 'm', 'a', 't', 'c', 'h', '\0' };
@@ -505,3 +512,7 @@ Char STRrepeat[]	= { 'r', 'e', 'p', 'e', 'a', 't', '\0' };
 Char STReof[]		= { '^', 'D', '\b', '\b', '\0' };
 Char STRonlyhistory[]	= { 'o', 'n', 'l', 'y', 'h', 'i', 's', 't', 'o', 'r',
 			    'y', '\0' };
+Char STRparseoctal[]	= { 'p', 'a', 'r', 's', 'e', 'o', 'c', 't', 'a', 'l',
+			    '\0' };
+Char STRli[]		= { 'l', 'i', '#', '\0' };
+Char STRco[]		= { 'c', 'o', '#', '\0' };
