@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.parse.c,v 3.18 2006/03/02 18:46:44 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.parse.c,v 3.19 2011/03/30 16:21:37 christos Exp $ */
 /*
  * sh.parse.c: Interpret a list of tokens
  */
@@ -32,7 +32,7 @@
  */
 #include "sh.h"
 
-RCSID("$tcsh: sh.parse.c,v 3.18 2006/03/02 18:46:44 christos Exp $")
+RCSID("$tcsh: sh.parse.c,v 3.19 2011/03/30 16:21:37 christos Exp $")
 
 /*
  * C shell
@@ -677,6 +677,9 @@ freesyn(struct command *t)
     default:
 	break;
     }
+#ifdef DEBUG
+    memset(t, 0, sizeof(*t));
+#endif
     xfree(t);
 }
 
