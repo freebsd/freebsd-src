@@ -105,7 +105,7 @@ static struct djswitch {
 	{"RO", "Romania",       {1919,  3, 31}},
 	{"RU", "Russia",        {1918,  1, 31}},
 	{"SI", "Slovenia",      {1919,  3,  4}},
-	{"SW", "Sweden",        {1753,  2, 17}},
+	{"SE", "Sweden",        {1753,  2, 17}},
 	{"TR", "Turkey",        {1926, 12, 18}},
 	{"US", "United States", {1752,  9,  2}},
 	{"YU", "Yugoslavia",    {1919,  3,  4}}
