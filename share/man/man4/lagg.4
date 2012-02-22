@@ -88,8 +88,9 @@ variable to a nonzero value,
 which is useful for certain bridged network setups.
 .It Ic fec
 Supports Cisco EtherChannel.
-This is a static setup and does not negotiate aggregation with the peer or
-exchange frames to monitor the link.
+This is an alias for
+.Ic loadbalance
+mode.
 .It Ic lacp
 Supports the IEEE 802.3ad Link Aggregation Control Protocol (LACP) and the
 Marker Protocol.
