@@ -3303,7 +3303,7 @@ __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
 	struct timespec *ts, timeout;
 	int error;
-	uint32_ flags;
+	uint32_t flags;
 
 	if (uap->uaddr2 == NULL)
 		ts = NULL;
