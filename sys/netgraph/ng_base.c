@@ -3208,11 +3208,11 @@ ngb_mod_event(module_t mod, int event, void *data)
 		    MTX_DEF);
 #endif
 		ng_qzone = uma_zcreate("NetGraph items", sizeof(struct ng_item),
-		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, M_WAITOK);
+		    NULL, NULL, NULL, NULL, UMA_ALIGN_CACHE, 0);
 		uma_zone_set_max(ng_qzone, maxalloc);
 		ng_qdzone = uma_zcreate("NetGraph data items",
 		    sizeof(struct ng_item), NULL, NULL, NULL, NULL,
-		    UMA_ALIGN_CACHE, M_WAITOK);
+		    UMA_ALIGN_CACHE, 0);
 		uma_zone_set_max(ng_qdzone, maxdata);
 		/* Autoconfigure number of threads. */
 		if (numthreads <= 0)
