@@ -262,6 +262,8 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 	struct ifnet *ifp;
 	int i, error = 0;
 	static const u_char eaddr[6];	/* 00:00:00:00:00:00 */
+	struct sysctl_oid *oid;
+	char num[14];			/* sufficient for 32 bits */
 
 	sc = malloc(sizeof(*sc), M_DEVBUF, M_WAITOK|M_ZERO);
 	ifp = sc->sc_ifp = if_alloc(IFT_ETHER);
@@ -269,6 +271,15 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 		free(sc, M_DEVBUF);
 		return (ENOSPC);
 	}
+
+	sysctl_ctx_init(&sc->ctx);
+	snprintf(num, sizeof(num), "%u", unit);
+	sc->use_flowid = 1;
+	oid = SYSCTL_ADD_NODE(&sc->ctx, &SYSCTL_NODE_CHILDREN(_net_link, lagg),
+		OID_AUTO, num, CTLFLAG_RD, NULL, "");
+	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
+		"use_flowid", CTLTYPE_INT|CTLFLAG_RW, &sc->use_flowid, sc->use_flowid,
+		"Use flow id for load sharing");
 
 	sc->sc_proto = LAGG_PROTO_NONE;
 	for (i = 0; lagg_protos[i].ti_proto != LAGG_PROTO_NONE; i++) {
@@ -349,6 +360,7 @@ lagg_clone_destroy(struct ifnet *ifp)
 
 	LAGG_WUNLOCK(sc);
 
+	sysctl_ctx_free(&sc->ctx);
 	ifmedia_removeall(&sc->sc_media);
 	ether_ifdetach(ifp);
 	if_free(ifp);
@@ -1676,7 +1688,7 @@ lagg_lb_start(struct lagg_softc *sc, struct mbuf *m)
 	struct lagg_port *lp = NULL;
 	uint32_t p = 0;
 
-	if (m->m_flags & M_FLOWID)
+	if (sc->use_flowid && (m->m_flags & M_FLOWID))
 		p = m->m_pkthdr.flowid;
 	else
 		p = lagg_hashmbuf(m, lb->lb_key);
