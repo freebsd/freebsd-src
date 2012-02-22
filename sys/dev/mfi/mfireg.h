@@ -1294,9 +1294,9 @@ struct mfi_config_data {
 	uint16_t		spares_count;
 	uint16_t		spares_size;
 	uint8_t			reserved[16];
-	struct mfi_array	array[1];
-	struct mfi_ld_config	ld[1];
-	struct mfi_spare	spare[1];
+	struct mfi_array	array[0];
+	struct mfi_ld_config	ld[0];
+	struct mfi_spare	spare[0];
 } __packed;
 
 struct mfi_bbu_capacity_info {
