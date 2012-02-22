@@ -72,7 +72,7 @@
 .\"   used here if you can. In particular, please don't use nroff commands
 .\"   which aren't already used herein.
 .\" 
-.TH TCSH 1 "10 July 2009" "Astron 6.17.00"
+.TH TCSH 1 "14 February 2012" "Astron 6.18.01"
 .SH NAME
 tcsh \- C shell with file name completion and command line editing
 .SH SYNOPSIS
@@ -444,6 +444,17 @@ would list all three files, because case is ignored and hyphens and
 underscores are equivalent.  Periods, however, are not equivalent to
 hyphens or underscores.
 .PP
+If the \fBcomplete\fR shell variable is set to `Enhance', completion
+ignores case and differences between a hyphen and an underscore word
+separator only when the user types a lowercase character or a hyphen.
+Entering an uppercase character or an underscore will not match the 
+corresponding lowercase character or hyphen word separator.  
+Typing `rm a\-\-file[^D]' in the directory of the previous example would 
+still list all three files, but typing `rm A\-\-file' would match only 
+`A_silly_file' and typing `rm a__file[^D]' would match just `A_silly_file' 
+and `another_silly_file' because the user explicitly used an uppercase 
+or an underscore character.  
+.PP
 Completion and listing are affected by several other shell variables:
 \fBrecexact\fR can be set to complete on the shortest possible unique
 match, even if more typing might result in a longer match:
@@ -609,7 +620,7 @@ See \fBFilename substitution\fR.
 .TP 8
 .B expand-line \fR(not bound)
 Like \fIexpand-history\fR, but
-expands history substitutions in each word in the input buffer,
+expands history substitutions in each word in the input buffer.
 .TP 8
 .B expand-variables \fR(^X-$)
 Expands the variable to the left of the cursor.
@@ -860,7 +871,7 @@ history use the literal form.
 .PP
 The \fIhistory\fR builtin command can print, store in a file, restore
 and clear the history list at any time,
-and the \fBsavehist\fR and \fBhistfile\fR shell variables can be can be set to
+and the \fBsavehist\fR and \fBhistfile\fR shell variables can be set to
 store the history list automatically on logout and restore it on login.
 .PP
 History substitutions introduce words from the history list into the input
@@ -1150,7 +1161,7 @@ The system maintains its own list of ``environment'' variables.
 These can be displayed and changed with \fIprintenv\fR, \fIsetenv\fR and
 \fIunsetenv\fR.
 .PP
-(+) Variables may be made read-only with `set \-r' (q.v.)
+(+) Variables may be made read-only with `set \-r' (q.v.).
 Read-only variables may not be modified or unset;
 attempting to do so will cause an error.
 Once made read-only, a variable cannot be made writable,
@@ -1328,9 +1339,14 @@ pattern.
 .PP
 In matching filenames, the character `.' at the beginning of a filename or
 immediately following a `/', as well as the character `/' must be matched
-explicitly.  The character `*' matches any string of characters, including the
-null string.  The character `?' matches any single character.  The sequence
-`[...]' matches any one of the characters enclosed.  Within `[...]', a pair of
+explicitly (unless either
+.B globdot
+or
+.B globstar
+or both are set(+)).  The character `*' matches any string of characters, 
+including the null string.  The character `?' matches any single character.  
+The sequence `[...]' matches any one of the characters enclosed.  
+Within `[...]', a pair of
 characters separated by `\-' matches any character lexically between the two.
 .PP
 (+) Some glob-patterns can be negated:
@@ -1380,6 +1396,20 @@ only if there were no files in the current directory ending in `.a', `.c', or
 `.o'), and if the \fBnonomatch\fR shell variable is set a pattern (or list
 of patterns) which matches nothing is left unchanged rather than causing
 an error.
+.PP
+The \fBglobstar\fR shell variable can be set to allow `**' or `***' as 
+a file glob pattern that matches any string of characters including `/',
+recursively traversing any existing sub-directories.  For example, 
+`ls **.c' will list all the .c files in the current directory tree.
+If used by itself, it will match match zero or more sub-directories
+(e.g. `ls /usr/include/**/time.h' will list any file named `time.h'
+in the /usr/include directory tree; `ls /usr/include/**time.h' will match 
+any file in the /usr/include directory tree ending in `time.h'; and
+`ls /usr/include/**time**.h' will match any .h file with `time' either
+in a subdirectory name or in the filename itself).
+To prevent problems with recursion, the `**' glob-pattern will not 
+descend into a symbolic link containing a directory.  To override this,
+use `***' (+)
 .PP
 The \fBnoglob\fR shell variable can be set to prevent filename substitution,
 and the \fIexpand-glob\fR editor command, normally bound to `^X-*', can be
@@ -1501,7 +1531,7 @@ to specify an interpreter other than the shell itself.
 .PP
 On systems which do not understand the `#!' script interpreter convention
 the shell may be compiled to emulate it; see the \fBversion\fR shell
-variable\fR.  If so, the shell checks the first line of the file to
+variable.  If so, the shell checks the first line of the file to
 see if it is of the form `#!\fIinterpreter\fR \fIarg\fR ...'.  If it is,
 the shell starts \fIinterpreter\fR with the given \fIarg\fRs and feeds the
 file to it on standard input.
@@ -1704,7 +1734,7 @@ Sticky bit is set (+)
 for a terminal device (+)
 .TP 4
 .B R
-Has been migrated (convex only) (+)
+Has been migrated (Convex only) (+)
 .TP 4
 .B L
 Applies subsequent operators in a multiple-operator test to a symbolic link
@@ -1730,7 +1760,7 @@ non-links.  \fBL\fR has a different meaning when it is the last operator
 in a multiple-operator test; see below.
 .PP
 It is possible but not useful, and sometimes misleading, to combine operators
-which expect \fIfile\fR to be a file with operators which do not,
+which expect \fIfile\fR to be a file with operators which do not
 (e.g., \fBX\fR and \fBt\fR).  Following \fBL\fR with a non-file operator
 can lead to particularly strange results.
 .PP
@@ -2261,7 +2291,7 @@ see the \fBversion\fR shell variable.
 .B case \fIlabel\fB:
 A label in a \fIswitch\fR statement as discussed below.
 .TP 8
-.B cd \fR[\fB\-p\fR] [\fB\-l\fR] [\fB\-n\fR|\fB\-v\fR] [\fIname\fR]
+.B cd \fR[\fB\-p\fR] [\fB\-l\fR] [\fB\-n\fR|\fB\-v\fR] [\I--\fR] [\fIname\fR]
 If a directory \fIname\fR is given, changes the shell's working directory
 to \fIname\fR.  If not, changes to \fBhome\fR.
 If \fIname\fR is `\-' it is interpreted as the previous working directory
@@ -2276,6 +2306,8 @@ begins with `/', then this is tried to see if it is a directory.
 With \fB\-p\fR, prints the final directory stack, just like \fIdirs\fR.
 The \fB\-l\fR, \fB\-n\fR and \fB\-v\fR flags have the same effect on \fIcd\fR
 as on \fIdirs\fR, and they imply \fB\-p\fR.  (+)
+Using \fB\-\-\fR forces a break from option processing so the next word
+is taken as the directory \fIname\fR even if it begins with '\-'. (+)
 .PP
 See also the \fBimplicitcd\fR shell variable.
 .RE
@@ -2559,7 +2591,7 @@ Finally, here's a complex example for inspiration:
 .br
 \&'n/\-name/f/' 'n/\-newer/f/' 'n/\-{,n}cpio/f/' \e
 .br
-\'n/\-exec/c/' 'n/\-ok/c/' 'n/\-user/u/' \e
+\&\'n/\-exec/c/' 'n/\-ok/c/' 'n/\-user/u/' \e
 .br
 \&'n/\-group/g/' 'n/\-fstype/(nfs 4.2)/' \e
 .br
@@ -2811,7 +2843,7 @@ With \fIcommand\fR, runs \fIcommand\fR such that it will exit on a hangup
 signal and arranges for the shell to send it a hangup signal when the shell
 exits.
 Note that commands may set their own response to hangups, overriding \fIhup\fR.
-Without an argument (allowed in only a shell script), causes the shell to
+Without an argument, causes the non-interactive shell only to
 exit on a hangup for the remainder of the script.
 See also \fBSignal handling\fR and the \fInohup\fR builtin command.
 .TP 8
@@ -2911,6 +2943,14 @@ the size of the largest core dump that will be created
 the maximum amount of physical memory a process
 may have allocated to it at a given time
 .TP
+\fIvmemoryuse\fR
+the maximum amount of virtual memory a process
+may have allocated to it at a given time (address space)
+.TP
+\fIvmemoryuse\fR
+the maximum amount of virtual memory a process
+may have allocated to it at a given time
+.TP
 \fIheapsize\fR
 the maximum amount of memory a process
 may allocate per \fIbrk()\fR system call
@@ -2929,17 +2969,39 @@ the maximum number of simultaneous processes for this user id
 .TP
 \fIsbsize\fR
 the maximum size of socket buffer usage for this user
-.TP 
-\fIswapsize\fR 
-the maximum amount of swap space reserved or used for this user 
+.TP
+\fIswapsize\fR
+the maximum amount of swap space reserved or used for this user
+.TP
+\fImaxlocks\fR
+the maximum number of locks for this user
+.TP
+\fImaxsignal\fR
+the maximum number of pending signals for this user
+.TP
+\fImaxmessage\fR
+the maximum number of bytes in POSIX mqueues for this user
+.TP
+\fImaxnice\fR
+the maximum nice priority the user is allowed to raise mapped from [19...-20]
+to [0...39] for this user
+.TP
+\fImaxrtprio\fR
+the maximum realtime priority for this user
+\fImaxrttime\fR
+the timeout for RT tasks in microseconds for this user.
 .PP
 \fImaximum-use\fR may be given as a (floating point or
 integer) number followed by a scale factor.  For all limits
 other than \fIcputime\fR the default scale is `k' or `kilobytes'
-(1024 bytes); a scale factor of `m' or `megabytes' may also
-be used.  For \fIcputime\fR the default scaling is `seconds',
+(1024 bytes); a scale factor of `m' or `megabytes' or `g' or `gigabytes'
+may also be used.  For \fIcputime\fR the default scaling is `seconds',
 while `m' for minutes or `h' for hours, or a time of the
 form `mm:ss' giving minutes and seconds may be used.
+.PP
+If \fImaximum-use\fR  is `unlimited',
+then the limitation on the specified \fIresource\fR
+is removed (this is equivalent to the \fIunlimit\fR builtin command).
 .PP
 For both \fIresource\fR names and scale factors, unambiguous
 prefixes of the names suffice.
@@ -2952,7 +3014,7 @@ See also \fIwatchlog\fR.
 .TP 8
 .B login
 Terminates a login shell, replacing it with an instance of
-\fI/bin/login.\fR This is one way to log off, included for
+\fI/bin/login\fR. This is one way to log off, included for
 compatibility with \fIsh\fR(1).
 .TP 8
 .B logout
@@ -3021,7 +3083,7 @@ unless \fBlistflags\fR contains an `x', in which case it acts like `ls \-xF'.
 so `alias ls ls\-F' generally does the right thing.
 .PP
 The \fBls\-F\fR builtin can list files using different colors depending on the
-filetype or extension.  See the \fBcolor\fR \fItcsh\fR variable and the
+filetype or extension.  See the \fBcolor\fR shell variable and the
 \fBLS_COLORS\fR environment variable.
 .RE
 .PP
@@ -3037,7 +3099,7 @@ itself can cause unexpected behavior, because the shell
 does not like to lose its tty.  (TCF only)
 .PD
 .TP 8
-.B newgrp \fR[\fB\-\fR] \fIgroup\fR (+)
+.B newgrp \fR[\fB\-\fR] \fI[group]\fR (+)
 Equivalent to `exec newgrp'; see \fInewgrp\fR(1).
 Available only if the shell was so compiled;
 see the \fBversion\fR shell variable.
@@ -3055,7 +3117,7 @@ commands in simple \fIif\fR statements apply.
 .B nohup \fR[\fIcommand\fR]
 With \fIcommand\fR, runs \fIcommand\fR such that it will ignore hangup signals.
 Note that commands may set their own response to hangups, overriding \fInohup\fR.
-Without an argument (allowed in only a shell script), causes the shell to
+Without an argument, causes the non-interactive shell only to
 ignore hangups for the remainder of the script.
 See also \fBSignal handling\fR and the \fIhup\fR builtin command.
 .TP 8
@@ -3118,11 +3180,12 @@ as on \fIdirs\fR.  (+)
 .B rehash
 Causes the internal hash table of the contents of the
 directories in the \fBpath\fR variable to be recomputed.  This is
-needed if new commands are added to directories in \fBpath\fR
-while you are logged in.  This should be necessary only if
-you add commands to one of your own directories, or if a
-systems programmer changes the contents of one of the
-system directories.  Also flushes the cache of home directories
+needed if the \fBautorehash\fR shell variable is not set and new
+commands are added to directories in \fBpath\fR while you are logged
+in.  With \fBautorehash\fR, a new command will be found
+automatically, except in the special case where another command of
+the same name which is located in a different directory already
+exists in the hash table.  Also flushes the cache of home directories
 built by tilde expansion.
 .TP 8
 .B repeat \fIcount command
@@ -3217,14 +3280,13 @@ The second form sets \fIname\fR to the null string.
 The third form sets \fIname\fR to the single \fIword\fR.
 The fourth form sets \fIname\fR to the list of words in
 \fIwordlist\fR.  In all cases the value is command and filename expanded.
-If \-r is specified, the value is set read-only.  If \-f or \-l are
-specified, set only unique words keeping their order.
-\-f prefers the first occurrence of a word, and \-l the last.
-The fifth form sets the \fIindex\fR'th component of name to \fIword\fR;
+If \fB\-r\fR is specified, the value is set read-only.  If \fB\-f\fR or
+\fB\-l\fR are specified, set only unique words keeping their order.
+\fB\-f\fR prefers the first occurrence of a word, and \fB\-l\fR the last.
+The fifth form sets the \fIindex\fR'th component of \fIname\fR to \fIword\fR;
 this component must already exist.
 The sixth form lists only the names of all shell variables that are read-only.
 The seventh form makes \fIname\fR read-only, whether or not it has a value.
-The second form sets \fIname\fR to the null string.
 The eighth form is the same as the third form, but
 make \fIname\fR read-only at the same time.
 .PD
@@ -3360,7 +3422,7 @@ Common values for the mask are
 022, giving read and execute access to the group and others.
 Without \fIvalue\fR, prints the current file creation mask.
 .TP 8
-.B unalias \fIpattern
+.B unalias \fIpattern\fR
 .br
 Removes all aliases whose names match \fIpattern\fR.
 `unalias *' thus removes all aliases.
@@ -3590,8 +3652,8 @@ characters are added by completion.
 The first word is the number of minutes of inactivity before automatic
 logout.  The optional second word is the number of minutes of inactivity
 before automatic locking.
-When the shell automatically logs out,
-it prints `auto-logout', sets the variable logout to `automatic' and exits.
+When the shell automatically logs out, it prints `auto-logout', sets the
+variable \fBlogout\fR to `automatic' and exits.
 When the shell automatically locks, the user is required to enter his password
 to continue working.  Five incorrect attempts result in automatic logout.
 Set to `60' (automatic logout after 60 minutes, and no locking) by default
@@ -3600,6 +3662,14 @@ under a window system (i.e., the \fBDISPLAY\fR environment variable is set),
 the tty is a pseudo-tty (pty) or the shell was not so compiled (see the
 \fBversion\fR shell variable).
 See also the \fBafsuser\fR and \fBlogout\fR shell variables.
+.TP 8
+.B autorehash \fR(+)
+If set, the internal hash table of the contents of the directories in the
+\fBpath\fR variable will be recomputed if a command is not found in the hash
+table.  In addition, the list of available commands will be rebuilt for each
+command completion or spelling correction attempt if set to `complete' or
+`correct' respectively; if set to `always', this will be done for both
+cases.
 .TP 8
 .B backslash_quote \fR(+)
 If set, backslashes (`\\') always quote `\\', `'', and `"'.  This may make
@@ -3633,10 +3703,15 @@ If set, the shell will evaluate expressions right to left, like the original
 \fIcsh\fR.
 .TP 8
 .B complete \fR(+)
-If set to `enhance', completion 1) ignores case and 2) considers
-periods, hyphens and underscores (`.', `\-' and `_') to be word
-separators and hyphens and underscores to be equivalent. If set to
-`igncase', the completion becomes case insensitive.
+If set to `igncase', the completion becomes case insensitive.
+If set to `enhance', completion ignores case and considers
+hyphens and underscores to be equivalent; it will also treat
+periods, hyphens and underscores (`.', `\-' and `_') as word
+separators.
+If set to `Enhance', completion matches uppercase and underscore
+characters explicitly and matches lowercase and hyphens in a
+case-insensivite manner; it will treat periods, hypens and underscores
+as word separators.
 .TP 8
 .B continue \fR(+)
 If set to a list of commands, the shell will continue the listed
@@ -3683,7 +3758,7 @@ but the first element (the current working directory) is always correct.
 See also the \fBcwd\fR and \fBowd\fR shell variables.
 .TP 8
 .B dspmbyte \fR(+)
-Has an affect iff 'dspm' is listed as part of the \fBversion\fR shell variable.
+Has an effect iff 'dspm' is listed as part of the \fBversion\fR shell variable.
 If set to `euc', it enables display and editing EUC-kanji(Japanese) code.
 If set to `sjis', it enables display and editing Shift-JIS(Japanese) code.
 If set to `big5', it enables display and editing Big5(Chinese) code.
@@ -3709,12 +3784,12 @@ is set to number 0,1,2 and 3.  Each number has the following meaning:
   3 ... used for both the first byte and second byte of a multi-byte character.
 .\" SHK: I tried my best to get the following to be grammatically correct.
 .\" However, I still don't understand what's going on here.  In the
- \" following example, there are three bytes, but the text seems to refer to
- \" each nybble as a character.  What's going on here?  It this 3-byte code
- \" in the table?  The text above seems to imply that there are 256
- \" characters/bytes in the table.  If I get some more info on this (perhaps
- \" a complete example), I could fix the text to be grammatically correct.
- \" (steve.kelem@xilinx.com 1999/09/13)
+.\" following example, there are three bytes, but the text seems to refer to
+.\" each nybble as a character.  What's going on here?  It this 3-byte code
+.\" in the table?  The text above seems to imply that there are 256
+.\" characters/bytes in the table.  If I get some more info on this (perhaps
+.\" a complete example), I could fix the text to be grammatically correct.
+.\" (steve.kelem@xilinx.com 1999/09/13)
 .PP
   Example:
 .br
@@ -3782,6 +3857,12 @@ If set, the `%c'/`%.' and `%C' prompt sequences (see the \fBprompt\fR
 shell variable) indicate skipped directories with an ellipsis (`...')
 instead of `/<skipped>'.
 .TP 8
+.B euid \fR(+)
+The user's effective user ID.
+.TP 8
+.B euser \fR(+)
+The first matching passwd entry name corresponding to the effective user ID.
+.TP 8
 .B fignore \fR(+)
 Lists file name suffixes to be ignored by completion.
 .TP 8
@@ -3795,6 +3876,22 @@ If set in \fIcsh\fR, filename completion is used.
 .B gid \fR(+)
 The user's real group ID.
 .TP 8
+.B globdot \fR(+)
+If set, wild-card glob patterns will match files and directories beginning
+with `.' except for `.' and `..'
+.TP 8
+.B globstar \fR(+)
+If set, the `**' and `***' file glob patterns will match any string of 
+characters including `/' traversing any existing sub-directories.  (e.g. 
+`ls **.c' will list all the .c files in the current directory tree).
+If used by itself, it will match match zero or more sub-directories
+(e.g. `ls /usr/include/**/time.h' will list any file named `time.h'
+in the /usr/include directory tree; whereas `ls /usr/include/**time.h'
+will match any file in the /usr/include directory tree ending in `time.h').
+To prevent problems with recursion, the `**' glob-pattern will not 
+descend into a symbolic link containing a directory.  To override this,
+use `***'
+.TP 8
 .B group \fR(+)
 The user's group name.
 .TP 8
@@ -3802,7 +3899,7 @@ The user's group name.
 If set, the incremental search match (in \fIi-search-back\fR and
 \fIi-search-fwd\fR) and the region between the mark and the cursor are
 highlighted in reverse video.
-
+.IP "" 8
 Highlighting requires more frequent terminal writes, which introduces extra
 overhead. If you care about terminal performance, you may want to leave this
 unset.
@@ -3926,13 +4023,12 @@ signal (see \fBSignal handling\fR).  See also the \fBautologout\fR
 shell variable.
 .TP 8
 .B mail
-The names of the files or directories to check for incoming mail,
-separated by whitespace, and optionally preceded by a numeric word.
-Before each prompt, if 10 minutes have passed since the last check, the
-shell checks each file and says `You have new mail.' (or, if \fBmail\fR
-contains multiple files, `You have new mail in \fIname\fR.') if the
-filesize is greater than zero in size and has a modification time
-greater than its access time.
+A list of files and directories to check for incoming mail, optionally
+preceded by a numeric word.  Before each prompt, if 10 minutes have
+passed since the last check, the shell checks each file and says `You
+have new mail.' (or, if \fBmail\fR contains multiple files, `You have
+new mail in \fIname\fR.') if the filesize is greater than zero in size
+and has a modification time greater than its access time.
 .PP
 .RS +8
 .PD
@@ -4011,7 +4107,12 @@ See also the \fBcwd\fR and \fBdirstack\fR shell variables.
 .TP 8
 .B padhour
 If set, enable the printing of padding '0' for hours, in 24 and 12 hour
-formats.  E.G.: 07:45:42 vs. 7:45:42
+formats.  E.G.: 07:45:42 vs. 7:45:42.
+.TP 8
+.B parseoctal
+To retain compatibily with older versions numeric variables starting with
+0 are not interpreted as octal. Setting this variable enables proper octal
+parsing.
 .TP 8
 .B path
 A list of directories in which to look for executable commands.
@@ -4104,6 +4205,9 @@ A single `%'.
 .TP 4
 %n
 The user name.
+.TP 4
+%N
+The effective user name.
 .TP 4
 %j
 The number of jobs.
@@ -4249,7 +4353,14 @@ Reset to 1 in login shells.
 See also \fBloginsh\fR.
 .TP 8
 .B status
-The status returned by the last command.  If it terminated
+The status returned by the last command, unless the variable
+.B anyerror
+is set, and any error in a pipeline or a backquote expansion will be
+propagated (this is the default
+.B csh
+behavior, and the current
+.B tcsh
+default). If it terminated
 abnormally, then 0200 is added to the status.  Builtin commands
 which fail return exit status `1', all other builtin commands
 return status `0'.
@@ -4991,7 +5102,7 @@ See the \fBgid\fR, \fBloginsh\fR, \fBoid\fR, \fBshlvl\fR, \fBtcsh\fR,
 variables.
 .PP
 A new syntax for including useful information in the prompt string
-(see \fBprompt\fR).
+(see \fBprompt\fR),
 and special prompts for loops and spelling correction
 (see \fBprompt2\fR and \fBprompt3\fR).
 .PP
@@ -5016,8 +5127,7 @@ done with output control.
 Alias substitution is most often used to clumsily simulate shell procedures;
 shell procedures should be provided rather than aliases.
 .PP
-Commands within loops are not placed in the history
-list.  Control structures should be parsed rather than being recognized as
+Control structures should be parsed rather than being recognized as
 built-in commands.  This would allow control commands to be placed anywhere,
 to be combined with `|', and to be used with `&' and `;' metasyntax.
 .PP
@@ -5091,7 +5201,7 @@ pipe(2), setrlimit(2), sigvec(2), stat(2), umask(2), vfork(2), wait(2),
 malloc(3), setlocale(3), tty(4), a.out(5), termcap(5), environ(7),
 termio(7), Introduction to the C Shell
 .SH VERSION
-This manual documents tcsh 6.17.00 (Astron) 2009-07-10.
+This manual documents tcsh 6.18.01 (Astron) 2012-02-14.
 .SH AUTHORS
 .PD 0
 .TP 2

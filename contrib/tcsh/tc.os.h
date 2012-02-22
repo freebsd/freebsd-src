@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.h,v 3.102 2007/07/05 14:13:06 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/tc.os.h,v 3.105 2011/02/04 18:00:26 christos Exp $ */
 /*
  * tc.os.h: Shell os dependent defines
  */
@@ -164,7 +164,7 @@ struct ucred {
  * It would break on glibc, where all this is
  * defined in <termios.h>. Wrapper added.
  */
-#if !defined(linux) && !defined(__GNU__) && !defined(__GLIBC__) && !defined(_VMS_POSIX)
+#if !defined(__linux__) && !defined(__GNU__) && !defined(__GLIBC__) && !defined(_VMS_POSIX)
 # if defined(INTEL) || defined(u3b2) || defined (u3b5) || defined(ub15) || defined(u3b20d) || defined(ISC) || defined(SCO) || defined(tower32)
 #  ifdef TIOCGWINSZ
 /*
@@ -361,6 +361,18 @@ struct ucred {
 #ifndef O_RDWR
 # define O_RDWR		2
 #endif /* O_RDWR */
+#ifndef O_TEMPORARY
+# define O_TEMPORARY	0
+#endif /* O_TEMPORARY */
+#ifndef O_EXCL
+# define O_EXCL		0
+#endif /* O_EXCL */
+#ifndef O_LARGEFILE
+# define O_LARGEFILE	0
+#endif /* O_LARGEFILE */
+#ifndef O_CREAT
+# define O_CREAT	0
+#endif /* O_CREAT */
 
 /*
  * Lseek()
@@ -600,5 +612,9 @@ extern int killpg (pid_t, int);
 #  define va_copy(DEST, SRC) memcpy(&(DEST), &(SRC), sizeof(va_list))
 # endif
 #endif
+
+#if defined(__CYGWIN__) && !defined(NO_CRYPT)
+extern char *cygwin_xcrypt(struct passwd *, const char *, const char *);
+#endif /* __CYGWIN__ && !NO_CRYPT */
 
 #endif /* _h_tc_os */
