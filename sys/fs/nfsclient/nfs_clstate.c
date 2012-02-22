@@ -3216,8 +3216,10 @@ printf("cbrecall\n");
 			if (error == 0)
 				error = nfsv4_seqsession(seqid, slotid,
 				    highslot,
-				    clp->nfsc_nmp->nm_sess.nfsess_cbslots, &rep,
-				    clp->nfsc_nmp->nm_sess.nfsess_backslots);
+				    NFSMNT_MDSSESSION(clp->nfsc_nmp)->
+				    nfsess_cbslots, &rep,
+				    NFSMNT_MDSSESSION(clp->nfsc_nmp)->
+				    nfsess_backslots);
 			NFSUNLOCKCLSTATE();
 			if (error == 0) {
 				gotseq_ok = 1;
@@ -3285,7 +3287,8 @@ out:
 		clp = nfscl_getclntsess(sessionid);
 		if (clp != NULL) {
 			nfsv4_seqsess_cacherep(slotid,
-			    clp->nfsc_nmp->nm_sess.nfsess_cbslots, rep);
+			    NFSMNT_MDSSESSION(clp->nfsc_nmp)->nfsess_cbslots,
+			    rep);
 			NFSUNLOCKCLSTATE();
 		} else {
 			NFSUNLOCKCLSTATE();
@@ -3347,8 +3350,8 @@ nfscl_getmnt(int minorvers, uint8_t *sessionid, u_int32_t cbident,
 		if (minorvers == NFSV4_MINORVERSION) {
 			if (clp->nfsc_cbident == cbident)
 				break;
-		} else if (!NFSBCMP(clp->nfsc_nmp->nm_sess.nfsess_sessionid,
-		    sessionid, NFSX_V4SESSIONID))
+		} else if (!NFSBCMP(NFSMNT_MDSSESSION(clp->nfsc_nmp)->
+		    nfsess_sessionid, sessionid, NFSX_V4SESSIONID))
 			break;
 	}
 	if (clp == NULL) {
@@ -3389,8 +3392,8 @@ nfscl_getclntsess(uint8_t *sessionid)
 	struct nfsclclient *clp;
 
 	LIST_FOREACH(clp, &nfsclhead, nfsc_list)
-		if (!NFSBCMP(clp->nfsc_nmp->nm_sess.nfsess_sessionid, sessionid,
-		    NFSX_V4SESSIONID))
+		if (!NFSBCMP(NFSMNT_MDSSESSION(clp->nfsc_nmp)->nfsess_sessionid,
+		    sessionid, NFSX_V4SESSIONID))
 			break;
 	return (clp);
 }
@@ -4659,20 +4662,7 @@ nfscl_freeflayout(struct nfsclflayout *flp)
 APPLESTATIC void
 nfscl_freedevinfo(struct nfscldevinfo *dip)
 {
-	int i;
-	struct nfsclds *dsp;
 
-	for (i = 0; i < dip->nfsdi_addrcnt; i++) {
-		dsp = nfsfldi_addr(dip, i);
-		if (dsp->nfsclds_sock.nr_nam != NULL) {
-			/* All are set or none are. */
-			NFSFREECRED(dsp->nfsclds_sock.nr_cred);
-			NFSFREEMUTEX(&dsp->nfsclds_mtx);
-			NFSFREEMUTEX(&dsp->nfsclds_sock.nr_mtx);
-			NFSFREEMUTEX(&dsp->nfsclds_sess.nfsess_mtx);
-			free(dsp->nfsclds_sock.nr_nam, M_SONAME);
-		}
-	}
 	free(dip, M_NFSDEVINFO);
 }
 

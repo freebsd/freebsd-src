@@ -70,7 +70,7 @@ struct	nfsmount {
 	int	nm_negnametimeo;	/* timeout for -ve entries (sec) */
 
 	/* Newnfs additions */
-	struct	nfsclsession nm_sess;	/* Session for NFSv4.1 mount. */
+	LIST_HEAD(, nfsclds) nm_sess;	/* Session(s) for NFSv4.1. */
 	struct	nfsclclient *nm_clp;
 	uid_t	nm_uid;			/* Uid for SetClientID etc. */
 	u_int64_t nm_clval;		/* identifies which clientid */
@@ -108,6 +108,12 @@ struct	nfsmount {
  * Convert mount ptr to nfsmount ptr.
  */
 #define	VFSTONFS(mp)	((struct nfsmount *)((mp)->mnt_data))
+
+/*
+ * Get a pointer to the MDS session, which is always the first element
+ * in the list.
+ */
+#define	NFSMNT_MDSSESSION(m)	(&(LIST_FIRST(&((m)->nm_sess))->nfsclds_sess))
 
 #ifndef NFS_DEFAULT_NAMETIMEO
 #define NFS_DEFAULT_NAMETIMEO		60

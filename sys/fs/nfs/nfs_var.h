@@ -437,7 +437,8 @@ int nfsrpc_delegreturn(struct nfscldeleg *, struct ucred *,
 int nfsrpc_getacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
 int nfsrpc_setacl(vnode_t, struct ucred *, NFSPROC_T *, NFSACL_T *, void *);
 int nfsrpc_exchangeid(struct nfsmount *, struct nfsclclient *,
-    struct nfsclsession *, uint32_t, struct ucred *, NFSPROC_T *);
+    struct nfssockreq *, uint32_t, struct nfsclds **, struct ucred *,
+    NFSPROC_T *);
 int nfsrpc_createsession(struct nfsmount *, struct nfsclsession *,
     struct ucred *, NFSPROC_T *);
 int nfsrpc_destroysession(struct nfsmount *, struct nfsclclient *,
@@ -457,6 +458,7 @@ int nfsrpc_layoutreturn(vnode_t, int, int, int, int, off_t, uint64_t,
 int nfsrpc_reclaimcomplete(struct nfsmount *, struct ucred *, NFSPROC_T *);
 int nfscl_doiods(vnode_t, struct uio *, int *, int *, uint32_t,
     struct ucred *, NFSPROC_T *);
+void nfscl_freenfsclds(struct nfsclds *);
 
 /* nfs_clstate.c */
 int nfscl_open(vnode_t, u_int8_t *, int, u_int32_t, int,

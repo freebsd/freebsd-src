@@ -799,7 +799,7 @@ tryagain:
 	if (nd->nd_procnum != NFSPROC_NULL) {
 		/* If sep == NULL, set it to the default in nmp. */
 		if (sep == NULL && nmp != NULL)
-			sep = &nmp->nm_sess;
+			sep = NFSMNT_MDSSESSION(nmp);
 		/*
 		 * and now the actual NFS xdr.
 		 */

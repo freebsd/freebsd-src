@@ -1193,9 +1193,10 @@ mountnfs(struct nfs_args *argp, struct mount *mp, struct sockaddr *nam,
 {
 	struct nfsmount *nmp;
 	struct nfsnode *np;
-	int error, i, trycnt, ret;
+	int error, trycnt, ret;
 	struct nfsvattr nfsva;
 	struct nfsclclient *clp;
+	struct nfsclds *dsp, *tdsp;
 	uint32_t lease;
 	static u_int64_t clval = 0;
 
@@ -1254,7 +1255,6 @@ printf("in mnt\n");
 		}
 		nmp->nm_sockreq.nr_cred = crhold(cred);
 		mtx_init(&nmp->nm_sockreq.nr_mtx, "nfssock", NULL, MTX_DEF);
-		mtx_init(&nmp->nm_sess.nfsess_mtx, "nfssession", NULL, MTX_DEF);
 		mp->mnt_data = nmp;
 		nmp->nm_getinfo = nfs_getnlminfo;
 		nmp->nm_vinvalbuf = ncl_vinvalbuf;
@@ -1445,18 +1445,15 @@ bad:
 	newnfs_disconnect(&nmp->nm_sockreq);
 	crfree(nmp->nm_sockreq.nr_cred);
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
-	mtx_destroy(&nmp->nm_sess.nfsess_mtx);
 	mtx_destroy(&nmp->nm_mtx);
 	if (nmp->nm_clp != NULL) {
 		NFSLOCKCLSTATE();
 		LIST_REMOVE(nmp->nm_clp, nfsc_list);
 		NFSUNLOCKCLSTATE();
 		free(nmp->nm_clp, M_NFSCLCLIENT);
-		for (i = 0; i < NFSV4_CBSLOTS; i++)
-			if (nmp->nm_sess.nfsess_cbslots[i].nfssl_reply != NULL)
-				m_freem(
-				   nmp->nm_sess.nfsess_cbslots[i].nfssl_reply);
 	}
+	LIST_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 	FREE(nam, M_SONAME);
 	return (error);
@@ -1470,7 +1467,8 @@ nfs_unmount(struct mount *mp, int mntflags)
 {
 	struct thread *td;
 	struct nfsmount *nmp;
-	int error, flags = 0, i, trycnt = 0;
+	int error, flags = 0, trycnt = 0;
+	struct nfsclds *dsp, *tdsp;
 
 	td = curthread;
 
@@ -1511,10 +1509,8 @@ nfs_unmount(struct mount *mp, int mntflags)
 
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
-	mtx_destroy(&nmp->nm_sess.nfsess_mtx);
-	for (i = 0; i < NFSV4_CBSLOTS; i++)
-		if (nmp->nm_sess.nfsess_cbslots[i].nfssl_reply != NULL)
-			m_freem(nmp->nm_sess.nfsess_cbslots[i].nfssl_reply);
+	LIST_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 out:
 	return (error);

@@ -71,13 +71,17 @@ struct nfsclsession {
 
 /*
  * This structure holds the information used to access a Data Server (DS).
+ * It is malloc'd to the correct length.
  */
 struct nfsclds {
-	struct mtx		nfsclds_mtx;
-	struct nfssockreq	nfsclds_sock;
+	LIST_ENTRY(nfsclds)	nfsclds_list;
 	struct nfsclsession	nfsclds_sess;
-	int			nfsclds_haswriteverf;
+	struct mtx		nfsclds_mtx;
+	struct nfssockreq	*nfsclds_sockp;
+	uint16_t		nfsclds_haswriteverf;
+	uint16_t		nfsclds_servownlen;
 	uint8_t			nfsclds_verf[NFSX_VERF];
+	uint8_t			nfsclds_serverown[0];
 };
 
 struct nfsclclient {
@@ -268,14 +272,14 @@ struct nfscldevinfo {
 	uint32_t			nfsdi_refcnt;
 	uint16_t			nfsdi_stripecnt;
 	uint16_t			nfsdi_addrcnt;
-	struct nfsclds			nfsdi_data[1];
+	struct nfsclds			*nfsdi_data[0];
 };
 
 /* These inline functions return values from nfsdi_data[]. */
 /*
  * Return a pointer to the address at "pos".
  */
-static __inline struct nfsclds *
+static __inline struct nfsclds **
 nfsfldi_addr(struct nfscldevinfo *ndi, int pos)
 {
 
