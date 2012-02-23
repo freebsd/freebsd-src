@@ -30,7 +30,9 @@
  */
 
 #include <machine/asmacros.h>
+#include <machine/ppireg.h>
 #include <machine/specialreg.h>
+#include <machine/timerreg.h>
 
 #include "assym.s"
 
@@ -71,13 +73,21 @@ wakeup_start:
 	testb	$~0, resume_beep - wakeup_start
 	jz	1f
 	movb	$0, resume_beep - wakeup_start
-	movb	$0xc0, %al
-	outb	%al, $0x42
-	movb	$0x04, %al
-	outb	%al, $0x42
-	inb	$0x61, %al
-	orb	$0x3, %al
-	outb	%al, $0x61
+
+	/* Set PIC timer2 to beep. */
+	movb	$(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT), %al
+	outb	%al, $TIMER_MODE
+
+	/* Turn on speaker. */
+	inb	$IO_PPI, %al
+	orb	$PIT_SPKR, %al
+	outb	%al, $IO_PPI
+
+	/* Set frequency. */
+	movw	$0x4c0, %ax
+	outb	%al, $TIMER_CNTR2
+	shrw	$8, %ax
+	outb	%al, $TIMER_CNTR2
 1:
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
