@@ -172,6 +172,11 @@ static int lagg_failover_rx_all = 0; /* Allow input on any failover links */
 SYSCTL_INT(_net_link_lagg, OID_AUTO, failover_rx_all, CTLFLAG_RW,
     &lagg_failover_rx_all, 0,
     "Accept input from any interface in a failover lagg");
+static int def_use_flowid = 1; /* Default value for using M_FLOWID */
+TUNABLE_INT("net.link.lagg.default_use_flowid", &def_use_flowid);
+SYSCTL_INT(_net_link_lagg, OID_AUTO, default_use_flowid, CTLFLAG_RW,
+    &def_use_flowid, 0,
+    "Default setting for using flow id for load sharing");
 
 static int
 lagg_modevent(module_t mod, int type, void *data)
@@ -274,7 +279,7 @@ lagg_clone_create(struct if_clone *ifc, int unit, caddr_t params)
 
 	sysctl_ctx_init(&sc->ctx);
 	snprintf(num, sizeof(num), "%u", unit);
-	sc->use_flowid = 1;
+	sc->use_flowid = def_use_flowid;
 	oid = SYSCTL_ADD_NODE(&sc->ctx, &SYSCTL_NODE_CHILDREN(_net_link, lagg),
 		OID_AUTO, num, CTLFLAG_RD, NULL, "");
 	SYSCTL_ADD_INT(&sc->ctx, SYSCTL_CHILDREN(oid), OID_AUTO,
