@@ -96,7 +96,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/socket.h>
 #include <sys/sockio.h>
 #include <sys/sysctl.h>
-#include <sys/taskqueue.h>
 
 #include <net/bpf.h>
 #include <net/if.h>
@@ -192,7 +191,6 @@ static uint8_t sf_read_eeprom(struct sf_softc *, int);
 static int sf_miibus_readreg(device_t, int, int);
 static int sf_miibus_writereg(device_t, int, int, int);
 static void sf_miibus_statchg(device_t);
-static void sf_link_task(void *, int);
 #ifdef DEVICE_POLLING
 static int sf_poll(struct ifnet *ifp, enum poll_cmd cmd, int count);
 #endif
@@ -394,30 +392,16 @@ static void
 sf_miibus_statchg(device_t dev)
 {
 	struct sf_softc		*sc;
-
-	sc = device_get_softc(dev);
-	taskqueue_enqueue(taskqueue_swi, &sc->sf_link_task);
-}
-
-static void
-sf_link_task(void *arg, int pending)
-{
-	struct sf_softc		*sc;
 	struct mii_data		*mii;
 	struct ifnet		*ifp;
 	uint32_t		val;
 
-	sc = (struct sf_softc *)arg;
-
-	SF_LOCK(sc);
-
+	sc = device_get_softc(dev);
 	mii = device_get_softc(sc->sf_miibus);
 	ifp = sc->sf_ifp;
 	if (mii == NULL || ifp == NULL ||
-	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0) {
-		SF_UNLOCK(sc);
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
-	}
 
 	if (mii->mii_media_status & IFM_ACTIVE) {
 		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
@@ -454,8 +438,6 @@ sf_link_task(void *arg, int pending)
 	else
 		val &= ~SF_TIMER_TIMES_TEN;
 	csr_write_4(sc, SF_TIMER_CTL, val);
-
-	SF_UNLOCK(sc);
 }
 
 static void
@@ -558,8 +540,12 @@ sf_ifmedia_sts(struct ifnet *ifp, struct ifmediareq *ifmr)
 
 	sc = ifp->if_softc;
 	SF_LOCK(sc);
-	mii = device_get_softc(sc->sf_miibus);
+	if ((ifp->if_flags & IFF_UP) == 0) {
+		SF_UNLOCK(sc);
+		return;
+	}
 
+	mii = device_get_softc(sc->sf_miibus);
 	mii_pollstat(mii);
 	ifmr->ifm_active = mii->mii_media_active;
 	ifmr->ifm_status = mii->mii_media_status;
@@ -753,7 +739,6 @@ sf_attach(device_t dev)
 	mtx_init(&sc->sf_mtx, device_get_nameunit(dev), MTX_NETWORK_LOCK,
 	    MTX_DEF);
 	callout_init_mtx(&sc->sf_co, &sc->sf_mtx, 0);
-	TASK_INIT(&sc->sf_link_task, 0, sf_link_task, sc);
 
 	/*
 	 * Map control/status registers.
@@ -955,7 +940,6 @@ sf_detach(device_t dev)
 		sf_stop(sc);
 		SF_UNLOCK(sc);
 		callout_drain(&sc->sf_co);
-		taskqueue_drain(taskqueue_swi, &sc->sf_link_task);
 		if (ifp != NULL)
 			ether_ifdetach(ifp);
 	}
