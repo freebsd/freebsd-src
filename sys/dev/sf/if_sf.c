@@ -600,7 +600,8 @@ sf_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCADDMULTI:
 	case SIOCDELMULTI:
 		SF_LOCK(sc);
-		sf_rxfilter(sc);
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0)
+			sf_rxfilter(sc);
 		SF_UNLOCK(sc);
 		break;
 	case SIOCGIFMEDIA:
