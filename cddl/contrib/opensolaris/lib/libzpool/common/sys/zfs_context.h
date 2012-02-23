@@ -329,6 +329,7 @@ extern void cv_broadcast(kcondvar_t *cv);
 #define	KM_SLEEP		UMEM_NOFAIL
 #define	KM_PUSHPAGE		KM_SLEEP
 #define	KM_NOSLEEP		UMEM_DEFAULT
+#define	KM_NODEBUG		0
 #define	KMC_NODEBUG		UMC_NODEBUG
 #define	KMC_NOTOUCH		0	/* not needed for userland caches */
 #define	kmem_alloc(_s, _f)	umem_alloc(_s, _f)
