@@ -2010,6 +2010,7 @@ sf_init_locked(struct sf_softc *sc)
 	if (sf_init_rx_ring(sc) == ENOBUFS) {
 		device_printf(sc->sf_dev,
 		    "initialization failed: no memory for rx buffers\n");
+		sf_stop(sc);
 		return;
 	}
 
