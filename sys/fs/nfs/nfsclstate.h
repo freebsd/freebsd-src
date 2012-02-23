@@ -70,19 +70,27 @@ struct nfsclsession {
 };
 
 /*
- * This structure holds the information used to access a Data Server (DS).
+ * This structure holds the session, clientid and related information
+ * needed for an NFSv4.1 Meta Data Server (MDS) or Data Server (DS).
  * It is malloc'd to the correct length.
  */
 struct nfsclds {
-	LIST_ENTRY(nfsclds)	nfsclds_list;
+	TAILQ_ENTRY(nfsclds)	nfsclds_list;
 	struct nfsclsession	nfsclds_sess;
 	struct mtx		nfsclds_mtx;
 	struct nfssockreq	*nfsclds_sockp;
-	uint16_t		nfsclds_haswriteverf;
+	uint16_t		nfsclds_flags;
 	uint16_t		nfsclds_servownlen;
 	uint8_t			nfsclds_verf[NFSX_VERF];
 	uint8_t			nfsclds_serverown[0];
 };
+
+/*
+ * Flags for nfsclds_flags.
+ */
+#define	NFSCLDS_HASWRITEVERF	0x0001
+#define	NFSCLDS_MDS		0x0002
+#define	NFSCLDS_DS		0x0004
 
 struct nfsclclient {
 	LIST_ENTRY(nfsclclient) nfsc_list;

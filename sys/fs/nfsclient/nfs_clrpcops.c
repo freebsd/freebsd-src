@@ -66,6 +66,19 @@ int nfstest_openallsetattr = 0;
 
 #define	DIRHDSIZ	(sizeof (struct dirent) - (MAXNAMLEN + 1))
 
+/*
+ * nfscl_getsameserver() can return one of three values:
+ * NFSDSP_USETHISSESSION - Use this session for the DS.
+ * NFSDSP_SEQTHISSESSION - Use the nfsclds_sequence field of this dsp for new
+ *     session.
+ * NFSDSP_NOTFOUND - No matching server was found.
+ */
+enum nfsclds_state {
+	NFSDSP_USETHISSESSION = 0,
+	NFSDSP_SEQTHISSESSION = 1,
+	NFSDSP_NOTFOUND = 2,
+};
+
 static int nfsrpc_setattrrpc(vnode_t , struct vattr *, nfsv4stateid_t *,
     struct ucred *, NFSPROC_T *, struct nfsvattr *, int *, void *);
 static int nfsrpc_readrpc(vnode_t , struct uio *, struct ucred *,
@@ -101,7 +114,8 @@ static int nfsrpc_readds(vnode_t, struct uio *, nfsv4stateid_t *, int *,
 static int nfsrpc_writeds(vnode_t, struct uio *, int *, int *,
     nfsv4stateid_t *, struct nfsclds *, uint64_t, int,
     struct nfsfh *, int, struct ucred *, NFSPROC_T *);
-static struct nfsclds *nfscl_getsameserver(struct nfsmount *, struct nfsclds *);
+static enum nfsclds_state nfscl_getsameserver(struct nfsmount *,
+    struct nfsclds *, struct nfsclds **);
 
 /*
  * nfs null call from vfs.
@@ -818,12 +832,12 @@ nfsrpc_setclient(struct nfsmount *nmp, struct nfsclclient *clp, int reclaim,
 if (error) printf("exch=%d\n",error);
 		if (error == 0) {
 			error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-			    cred, p);
+			    dsp->nfsclds_sess.nfsess_sequenceid, cred, p);
 			if (error == 0) {
-				KASSERT(LIST_FIRST(&nmp->nm_sess) == NULL,
+				KASSERT(TAILQ_FIRST(&nmp->nm_sess) == NULL,
 				    ("nfscl session non-NULL"));
 				NFSLOCKMNT(nmp);
-				LIST_INSERT_HEAD(&nmp->nm_sess, dsp,
+				TAILQ_INSERT_HEAD(&nmp->nm_sess, dsp,
 				    nfsclds_list);
 				NFSUNLOCKMNT(nmp);
 			} else
@@ -4389,7 +4403,10 @@ printf("v41fl=0x%x\n", v41flags);
 			NFSLOCKMNT(nmp);
 			nmp->nm_state |= NFSSTA_PNFS;
 			NFSUNLOCKMNT(nmp);
+			dsp->nfsclds_flags |= NFSCLDS_MDS;
 		}
+		if ((v41flags & NFSV4EXCH_USEPNFSDS) != 0)
+			dsp->nfsclds_flags |= NFSCLDS_DS;
 		nd->nd_repstat = nfsrv_mtostr(nd, dsp->nfsclds_serverown, len);
 		if (nd->nd_repstat == 0) {
 			mtx_init(&dsp->nfsclds_mtx, "nfsds", NULL, MTX_DEF);
@@ -4411,7 +4428,7 @@ nfsmout:
  */
 int
 nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
-    struct ucred *cred, NFSPROC_T *p)
+    uint32_t sequenceid, struct ucred *cred, NFSPROC_T *p)
 {
 	uint32_t *tl;
 	struct nfsrv_descript nfsd;
@@ -4422,8 +4439,8 @@ nfsrpc_createsession(struct nfsmount *nmp, struct nfsclsession *sep,
 	NFSM_BUILD(tl, uint32_t *, 4 * NFSX_UNSIGNED);
 	*tl++ = sep->nfsess_clientid.lval[0];
 	*tl++ = sep->nfsess_clientid.lval[1];
-	*tl++ = txdr_unsigned(sep->nfsess_sequenceid);
-printf("clseq0=0x%x\n",sep->nfsess_sequenceid);
+	*tl++ = txdr_unsigned(sequenceid);
+printf("clseq0=0x%x\n",sequenceid);
 	if (nfscl_enablecallb != 0 && nfs_numnfscbd > 0)
 		*tl = txdr_unsigned(NFSV4CRSESS_PERSIST |
 		    NFSV4CRSESS_CONNBACKCHAN);
@@ -5055,6 +5072,8 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	struct nfssockreq *nrp;
 	struct nfsclds *dsp, *tdsp;
 	int error;
+	enum nfsclds_state retv;
+	uint32_t sequenceid;
 
 	KASSERT(nmp->nm_sockreq.nr_cred != NULL,
 	    ("nfsrpc_fillsa: NULL nr_cred"));
@@ -5106,8 +5125,10 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		    &dsp, nrp->nr_cred, p);
 	if (error == 0) {
 		dsp->nfsclds_sockp = nrp;
-		tdsp = nfscl_getsameserver(nmp, dsp);
-		if (tdsp != NULL) {
+		NFSLOCKMNT(nmp);
+		retv = nfscl_getsameserver(nmp, dsp, &tdsp);
+		if (retv == NFSDSP_USETHISSESSION) {
+			NFSUNLOCKMNT(nmp);
 			/*
 			 * If there is already a session for this server,
 			 * use it.
@@ -5117,8 +5138,14 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 			*dspp = tdsp;
 			return (0);
 		}
+		if (retv == NFSDSP_SEQTHISSESSION) {
+			tdsp->nfsclds_sess.nfsess_sequenceid++;
+			sequenceid = tdsp->nfsclds_sess.nfsess_sequenceid;
+		} else
+			sequenceid = dsp->nfsclds_sess.nfsess_sequenceid;
+		NFSUNLOCKMNT(nmp);
 		error = nfsrpc_createsession(nmp, &dsp->nfsclds_sess,
-		    nrp->nr_cred, p);
+		    sequenceid, nrp->nr_cred, p);
 	} else {
 		NFSFREECRED(nrp->nr_cred);
 		NFSFREEMUTEX(&nrp->nr_mtx);
@@ -5127,14 +5154,13 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	}
 	if (error == 0) {
 		/*
-		 * The first element should be the one for the MDS.
+		 * Put it at the end of the list. That way the list
+		 * is ordered by when the entry was added. This matters
+		 * since the one done first is the one that should be
+		 * used for sequencid'ing any subsequent create sessions.
 		 */
 		NFSLOCKMNT(nmp);
-		tdsp = LIST_FIRST(&nmp->nm_sess);
-		if (tdsp == NULL)
-			LIST_INSERT_HEAD(&nmp->nm_sess, dsp, nfsclds_list);
-		else
-			LIST_INSERT_AFTER(tdsp, dsp, nfsclds_list);
+		TAILQ_INSERT_TAIL(&nmp->nm_sess, dsp, nfsclds_list);
 		NFSUNLOCKMNT(nmp);
 		*dspp = dsp;
 	} else if (dsp != NULL)
@@ -5498,9 +5524,9 @@ nfsrpc_writeds(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 			NFSUNLOCKMNT(nmp);
 		} else {
 			NFSLOCKDS(dsp);
-			if (dsp->nfsclds_haswriteverf == 0) {
+			if ((dsp->nfsclds_flags & NFSCLDS_HASWRITEVERF) == 0) {
 				NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
-				dsp->nfsclds_haswriteverf = 1;
+				dsp->nfsclds_flags |= NFSCLDS_HASWRITEVERF;
 			} else if (NFSBCMP(tl, dsp->nfsclds_verf, NFSX_VERF)) {
 				*must_commit = 1;
 				NFSBCOPY(tl, dsp->nfsclds_verf, NFSX_VERF);
@@ -5543,14 +5569,40 @@ nfscl_freenfsclds(struct nfsclds *dsp)
 	free(dsp, M_NFSCLDS);
 }
 
-static struct nfsclds *
-nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp)
+static enum nfsclds_state
+nfscl_getsameserver(struct nfsmount *nmp, struct nfsclds *newdsp,
+    struct nfsclds **retdspp)
 {
+	struct nfsclds *dsp, *cur_dsp;
 
 	/*
 	 * Search the list of nfsclds structures for one with the same
 	 * server.
 	 */
-	return (LIST_FIRST(&nmp->nm_sess));
+	cur_dsp = NULL;
+	TAILQ_FOREACH(dsp, &nmp->nm_sess, nfsclds_list) {
+		if (dsp->nfsclds_servownlen == newdsp->nfsclds_servownlen &&
+		    !NFSBCMP(dsp->nfsclds_serverown, newdsp->nfsclds_serverown,
+		     dsp->nfsclds_servownlen)) {
+printf("fnd same fdsp=%p dsp=%p flg=0x%x\n", TAILQ_FIRST(&nmp->nm_sess), dsp, dsp->nfsclds_flags);
+			/* Server major id matches. */
+			if ((dsp->nfsclds_flags & NFSCLDS_DS) != 0) {
+				*retdspp = dsp;
+				return (NFSDSP_USETHISSESSION);
+			}
+
+			/*
+			 * Note the first match, so it can be used for
+			 * sequence'ing new sessions.
+			 */
+			if (cur_dsp == NULL)
+				cur_dsp = dsp;
+		}
+	}
+	if (cur_dsp != NULL) {
+		*retdspp = cur_dsp;
+		return (NFSDSP_SEQTHISSESSION);
+	}
+	return (NFSDSP_NOTFOUND);
 }
 

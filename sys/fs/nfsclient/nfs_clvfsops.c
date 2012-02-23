@@ -1452,7 +1452,7 @@ bad:
 		NFSUNLOCKCLSTATE();
 		free(nmp->nm_clp, M_NFSCLCLIENT);
 	}
-	LIST_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
 		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 	FREE(nam, M_SONAME);
@@ -1509,7 +1509,7 @@ nfs_unmount(struct mount *mp, int mntflags)
 
 	mtx_destroy(&nmp->nm_sockreq.nr_mtx);
 	mtx_destroy(&nmp->nm_mtx);
-	LIST_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
+	TAILQ_FOREACH_SAFE(dsp, &nmp->nm_sess, nfsclds_list, tdsp)
 		nfscl_freenfsclds(dsp);
 	FREE(nmp, M_NEWNFSMNT);
 out:
