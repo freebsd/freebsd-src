@@ -5432,7 +5432,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		sc->sc_diversity = ath_hal_getdiversity(ah);
 
 		/* Let DFS at it in case it's a DFS channel */
-		ath_dfs_radar_enable(sc, ic->ic_curchan);
+		ath_dfs_radar_enable(sc, chan);
 
 		/*
 		 * Re-enable rx framework.
