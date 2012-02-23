@@ -1861,10 +1861,12 @@ bstp_tick(void *arg)
 
 	CURVNET_SET(bs->bs_vnet);
 
-	/* slow timer to catch missed link events */
+	/* poll link events on interfaces that do not support linkstate */
 	if (bstp_timer_expired(&bs->bs_link_timer)) {
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
-			bstp_ifupdstatus(bs, bp);
+		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+			if (!(bp->bp_ifp->if_capabilities & IFCAP_LINKSTATE))
+				bstp_ifupdstatus(bs, bp);
+		}
 		bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
 	}
 
