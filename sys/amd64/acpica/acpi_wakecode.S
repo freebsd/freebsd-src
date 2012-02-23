@@ -267,10 +267,10 @@ wakeup_ctx:
 	.quad	0
 wakeup_pcb:
 	.quad	0
+wakeup_fpusave:
+	.quad	0
 wakeup_gdt:
 	.word	0
-	.quad	0
-wakeup_fpusave:
 	.quad	0
 
 	ALIGN_DATA
