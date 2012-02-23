@@ -956,6 +956,8 @@
 
       &hwlist.nxge;
 
+      &hwlist.oce;
+
       &hwlist.pcn;
 
       &hwlist.qlxgb;
