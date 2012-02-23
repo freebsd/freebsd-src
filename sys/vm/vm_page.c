@@ -1424,6 +1424,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 * must be cleared before the free page queues lock is released.
 	 */
 	flags = 0;
+	if (req & VM_ALLOC_NODUMP)
+		flags |= PG_NODUMP;
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		if (req & VM_ALLOC_ZERO)

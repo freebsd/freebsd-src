@@ -121,7 +121,7 @@ zio_init(void)
 		size_t size = (c + 1) << SPA_MINBLOCKSHIFT;
 		size_t p2 = size;
 		size_t align = 0;
-		size_t cflags = (size > zio_buf_debug_limit) ? KMC_NODEBUG : 0;
+		size_t cflags = (size > zio_buf_debug_limit) ? (KMC_NODEBUG|KMC_NOTOUCH) : 0;
 
 		while (p2 & (p2 - 1))
 			p2 &= p2 - 1;
@@ -242,7 +242,7 @@ zio_data_buf_alloc(size_t size)
 	if (zio_use_uma)
 		return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
 	else
-		return (kmem_alloc(size, KM_SLEEP));
+		return (kmem_alloc(size, KM_SLEEP | KM_NODEBUG));
 }
 
 void
