@@ -199,7 +199,8 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 
 #endif /* _KERNEL */
 
-/* NetBSD/OpenBSD compatible interfaces. */
+#ifndef _KERNEL			/* NetBSD/OpenBSD compatible interfaces */
+
 #define	timerclear(tvp)		((tvp)->tv_sec = (tvp)->tv_usec = 0)
 #define	timerisset(tvp)		((tvp)->tv_sec || (tvp)->tv_usec)
 #define	timercmp(tvp, uvp, cmp)					\
@@ -224,6 +225,7 @@ timeval2bintime(const struct timeval *tv, struct bintime *bt)
 			(vvp)->tv_usec += 1000000;			\
 		}							\
 	} while (0)
+#endif
 
 /*
  * Names of the interval timers, and structure
