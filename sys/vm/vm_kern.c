@@ -382,6 +382,8 @@ kmem_back(vm_map_t map, vm_offset_t addr, vm_size_t size, int flags)
 
 	if (flags & M_ZERO)
 		pflags |= VM_ALLOC_ZERO;
+	if (flags & M_NODUMP)
+		pflags |= VM_ALLOC_NODUMP;
 
 	VM_OBJECT_LOCK(kmem_object);
 	for (i = 0; i < size; i += PAGE_SIZE) {
