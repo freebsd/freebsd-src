@@ -201,6 +201,8 @@ static char *pr_allow_names[] = {
 	"allow.mount",
 	"allow.quotas",
 	"allow.socket_af",
+	"allow.mount.devfs",
+	"allow.mount.nullfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -212,12 +214,14 @@ static char *pr_allow_nonames[] = {
 	"allow.nomount",
 	"allow.noquotas",
 	"allow.nosocket_af",
+	"allow.mount.nodevfs",
+	"allow.mount.nonullfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
 #define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
-#define	JAIL_DEFAULT_DEVFS_RSNUM	-1
+#define	JAIL_DEFAULT_DEVFS_RSNUM	0
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
 static int jail_default_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
 static int jail_default_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
@@ -1279,7 +1283,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
 		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
-		pr->pr_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
+		pr->pr_devfs_rsnum = ppr->pr_devfs_rsnum;
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
@@ -1361,21 +1365,19 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	if (gotrsnum) {
 		/*
 		 * devfs_rsnum is a uint16_t
-		 * value of -1 disables devfs mounts
 		 */
-		if (rsnum < -1 || rsnum > 65535) {
+		if (rsnum < 0 || rsnum > 65535) {
 			error = EINVAL;
 			goto done_deref_locked;
 		}
 		/*
-		 * Nested jails may inherit parent's devfs ruleset
-		 * or disable devfs
+		 * Nested jails always inherit parent's devfs ruleset
 		 */
 		if (jailed(td->td_ucred)) {
 			if (rsnum > 0 && rsnum != ppr->pr_devfs_rsnum) {
 				error = EPERM;
 				goto done_deref_locked;
-			} else if (rsnum == 0)
+			} else
 				rsnum = ppr->pr_devfs_rsnum;
 		}
 	}
@@ -1623,8 +1625,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_devfs_rsnum = rsnum;
 		/* Pass this restriction on to the children. */
 		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
-			if (tpr->pr_devfs_rsnum != -1)
-				tpr->pr_devfs_rsnum = rsnum;
+			tpr->pr_devfs_rsnum = rsnum;
 	}
 	if (name != NULL) {
 		if (ppr == &prison0)
@@ -4195,6 +4196,14 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT, sysctl_jail_default_allow, "I",
     "Processes in jail can mount/unmount jail-friendly file systems");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount/unmount the devfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount/unmount the nullfs file system");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -4329,12 +4338,18 @@ SYSCTL_JAIL_PARAM(_allow, raw_sockets, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create raw sockets");
 SYSCTL_JAIL_PARAM(_allow, chflags, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may alter system file flags");
-SYSCTL_JAIL_PARAM(_allow, mount, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount jail-friendly file systems");
 SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
+
+SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
+SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount jail-friendly file systems in general");
+SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount the devfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount the nullfs file system");
 
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,
