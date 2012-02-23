@@ -403,11 +403,19 @@ sf_miibus_statchg(device_t dev)
 	    (ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
 		return;
 
-	if (mii->mii_media_status & IFM_ACTIVE) {
-		if (IFM_SUBTYPE(mii->mii_media_active) != IFM_NONE)
+	sc->sf_link = 0;
+	if ((mii->mii_media_status & (IFM_ACTIVE | IFM_AVALID)) ==
+	    (IFM_ACTIVE | IFM_AVALID)) {
+		switch (IFM_SUBTYPE(mii->mii_media_active)) {
+		case IFM_10_T:
+		case IFM_100_TX:
+		case IFM_100_FX:
 			sc->sf_link = 1;
-	} else
-		sc->sf_link = 0;
+			break;
+		}
+	}
+	if (sc->sf_link == 0)
+		return;
 
 	val = csr_read_4(sc, SF_MACCFG_1);
 	val &= ~SF_MACCFG1_FULLDUPLEX;
