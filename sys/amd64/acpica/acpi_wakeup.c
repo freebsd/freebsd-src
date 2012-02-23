@@ -32,6 +32,7 @@ __FBSDID("$FreeBSD$");
 
 #include <sys/param.h>
 #include <sys/bus.h>
+#include <sys/eventhandler.h>
 #include <sys/kernel.h>
 #include <sys/malloc.h>
 #include <sys/memrange.h>
@@ -40,6 +41,7 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/pmap.h>
 
+#include <machine/clock.h>
 #include <machine/intr_machdep.h>
 #include <x86/mca.h>
 #include <machine/pcb.h>
@@ -92,11 +94,12 @@ static void		acpi_wakeup_cpus(struct acpi_softc *, const cpuset_t *);
 	*addr = val;					\
 } while (0)
 
-/* Turn off bits 1&2 of the PIT, stopping the beep. */
 static void
 acpi_stop_beep(void *arg)
 {
-	outb(0x61, inb(0x61) & ~0x3);
+
+	if (acpi_resume_beep != 0)
+		timer_spkr_release();
 }
 
 #ifdef SMP
@@ -234,6 +237,9 @@ acpi_sleep_machdep(struct acpi_softc *sc, int state)
 	CPU_CLR(PCPU_GET(cpuid), &wakeup_cpus);
 #endif
 
+	if (acpi_resume_beep != 0)
+		timer_spkr_acquire();
+
 	AcpiSetFirmwareWakingVector(WAKECODE_PADDR(sc));
 
 	rf = intr_disable();
@@ -312,10 +318,6 @@ out:
 	    mem_range_softc.mr_op->reinit != NULL)
 		mem_range_softc.mr_op->reinit(&mem_range_softc);
 
-	/* If we beeped, turn it off after a delay. */
-	if (acpi_resume_beep)
-		timeout(acpi_stop_beep, NULL, 3 * hz);
-
 	return (ret);
 }
 
@@ -336,6 +338,12 @@ acpi_alloc_wakeup_handler(void)
 	    0xa0000, PAGE_SIZE, 0ul);
 	if (wakeaddr == NULL) {
 		printf("%s: can't alloc wake memory\n", __func__);
+		return (NULL);
+	}
+	if (EVENTHANDLER_REGISTER(power_resume, acpi_stop_beep, NULL,
+	    EVENTHANDLER_PRI_LAST) == NULL) {
+		printf("%s: can't register event handler\n", __func__);
+		contigfree(wakeaddr, 4 * PAGE_SIZE, M_DEVBUF);
 		return (NULL);
 	}
 	susppcbs = malloc(mp_ncpus * sizeof(*susppcbs), M_DEVBUF, M_WAITOK);
