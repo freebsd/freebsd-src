@@ -1,0 +1,26 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_OPEN_PORT 3  "May 11, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_close_port \- close InfiniBand device port for umad access
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "int umad_close_port(int " "portid" );
+.fi
+.SH "DESCRIPTION"
+.B umad_close_port()
+closes the port specified by the handle
+.I portid\fR.
+.SH "RETURN VALUE"
+.B umad_close_port()
+returns 0 on success, and a negative value on error.
+-EINVAL is returned if the
+.I portid\fR
+is not a handle to a valid (open) port.
+.SH "SEE ALSO"
+.BR umad_open_port (3)
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

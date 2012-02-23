@@ -1,0 +1,158 @@
+.TH NTPDC 1 2009-12-08 "( 4.2.4p8)" "Programmer's Manual"
+.\"  EDIT THIS FILE WITH CAUTION  (ntpdc.1)
+.\"  
+.\"  It has been AutoGen-ed  Tuesday December  8, 2009 at 08:14:01 AM EST
+.\"  From the definitions    ntpdc-opts.def
+.\"  and the template file   agman1.tpl
+.\"
+.SH NAME
+ntpdc \- vendor-specific NTP query program
+.SH SYNOPSIS
+.B ntpdc
+.\" Mixture of short (flag) options and long options
+.RB [ \-\fIflag\fP " [\fIvalue\fP]]... [" \--\fIopt-name\fP " [[=| ]\fIvalue\fP]]..."
+.br
+.in +8
+[ host ...]
+.SH "DESCRIPTION"
+This manual page documents, briefly, the \fBntpdc\fP command.
+The
+[= prog-name =]
+utility program is used to query an NTP daemon about its
+current state and to request changes in that state.
+It uses NTP mode 7 control message formats described in the source code.
+The program may
+be run either in interactive mode or controlled using command line
+arguments.
+Extensive state and statistics information is available
+through the
+[= prog-name =]
+interface.
+In addition, nearly all the
+configuration options which can be specified at startup using
+ntpd's configuration file may also be specified at run time using
+[= prog-name =] .
+
+
+.SH OPTIONS
+.TP
+.BR \-4 ", " \--ipv4
+Force IPv4 DNS name resolution.
+This option is a member of the ipv4 class of options.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv4 namespace.
+.TP
+.BR \-6 ", " \--ipv6
+Force IPv6 DNS name resolution.
+This option is a member of the ipv4 class of options.
+.sp
+Force DNS resolution of following host names on the command line
+to the IPv6 namespace.
+.TP
+.BR \-c " \fIcmd\fP, " \--command "=" \fIcmd\fP
+run a command and exit.
+This option may appear an unlimited number of times.
+.sp
+The following argument is interpreted as an interactive format command
+and is added to the list of commands to be executed on the specified
+host(s).
+.TP
+.BR \-l ", " \--listpeers
+Print a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary of
+their state. This is equivalent to the 'listpeers' interactive command.
+.TP
+.BR \-p ", " \--peers
+Print a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the 'peers' interactive command.
+.TP
+.BR \-s ", " \--showpeers
+Show a list of the peers.
+This option must not appear in combination with any of the following options:
+command.
+.sp
+Print a list of the peers known to the server as well as a summary
+of their state. This is equivalent to the 'dmpeers' interactive command.
+.TP
+.BR \-i ", " \--interactive
+Force ntpq to operate in interactive mode.
+This option must not appear in combination with any of the following options:
+command, listpeers, peers, showpeers.
+.sp
+Force ntpq to operate in interactive mode.  Prompts will be written
+to the standard output and commands read from the standard input.
+.TP
+.BR \-d ", " \--debug-level
+Increase output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Increase the debugging message output level.
+.TP
+.BR \-D " \fIstring\fP, " \--set-debug-level "=" \fIstring\fP
+Set the output debug message level.
+This option may appear an unlimited number of times.
+.sp
+Set the output debugging level.  Can be supplied multiple times,
+but each overrides the previous value(s).
+.TP
+.BR \-n ", " \--numeric
+numeric host addresses.
+.sp
+Output all host addresses in dotted-quad numeric format rather than
+converting to the canonical host names. 
+.TP
+.BR \-? , " \--help"
+Display usage information and exit.
+.TP
+.BR \-! , " \--more-help"
+Extended usage information passed thru pager.
+.TP
+.BR \-> " [\fIrcfile\fP]," " \--save-opts" "[=\fIrcfile\fP]"
+Save the option state to \fIrcfile\fP.  The default is the \fIlast\fP
+configuration file listed in the \fBOPTION PRESETS\fP section, below.
+.TP
+.BR \-< " \fIrcfile\fP," " \--load-opts" "=\fIrcfile\fP," " \--no-load-opts"
+Load options from \fIrcfile\fP.
+The \fIno-load-opts\fP form will disable the loading
+of earlier RC/INI files.  \fI--no-load-opts\fP is handled early,
+out of order.
+.TP
+.BR \-v " [{\fIv|c|n\fP}]," " \--version" "[=\fI{v|c|n}\fP]"
+Output version of program and exit.  The default mode is `v', a simple
+version.  The `c' mode will print copyright information and `n' will
+print the full copyright notice.
+.SH OPTION PRESETS
+Any option that is not marked as \fInot presettable\fP may be preset
+by loading values from configuration ("RC" or ".INI") file(s) and values from
+environment variables named:
+.nf
+  \fBNTPDC_<option-name>\fP or \fBNTPDC\fP
+.fi
+.aj
+The environmental presets take precedence (are processed later than)
+the configuration files.
+The \fIhomerc\fP files are "\fI$HOME\fP", and "\fI.\fP".
+If any of these are directories, then the file \fI.ntprc\fP
+is searched for within those directories.
+.SH AUTHOR
+David L. Mills and/or others
+.br
+Please send bug reports to:  http://bugs.ntp.org, bugs@ntp.org
+
+.PP
+.nf
+.na
+see html/copyright.html
+.fi
+.ad
+.PP
+This manual page was \fIAutoGen\fP-erated from the \fBntpdc\fP
+option definitions.

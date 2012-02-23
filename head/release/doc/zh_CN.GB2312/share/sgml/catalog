@@ -1,0 +1,10 @@
+  -- FreeBSD SGML Public Identifiers --
+  -- Language-specific --
+
+  -- Original Revision: 79462 --
+  -- $FreeBSD$ --
+
+PUBLIC "-//FreeBSD//DOCUMENT Release Notes DocBook Stylesheet//EN"
+       "release.dsl"
+
+

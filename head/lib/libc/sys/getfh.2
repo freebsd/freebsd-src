@@ -1,0 +1,115 @@
+.\" Copyright (c) 1989, 1991, 1993
+.\"	The Regents of the University of California.  All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\" 4. Neither the name of the University nor the names of its contributors
+.\"    may be used to endorse or promote products derived from this software
+.\"    without specific prior written permission.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE REGENTS AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE REGENTS OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\"	@(#)getfh.2	8.1 (Berkeley) 6/9/93
+.\" $FreeBSD$
+.\"
+.Dd April 14, 2011
+.Dt GETFH 2
+.Os
+.Sh NAME
+.Nm getfh ,
+.Nm lgetfh
+.Nd get file handle
+.Sh LIBRARY
+.Lb libc
+.Sh SYNOPSIS
+.In sys/param.h
+.In sys/mount.h
+.Ft int
+.Fn getfh "const char *path" "fhandle_t *fhp"
+.Ft int
+.Fn lgetfh "const char *path" "fhandle_t *fhp"
+.Sh DESCRIPTION
+The
+.Fn getfh
+system call
+returns a file handle for the specified file or directory
+in the file handle pointed to by
+.Fa fhp .
+The
+.Fn lgetfh
+system call is like
+.Fn getfh
+except in the case where the named file is a symbolic link,
+in which case
+.Fn lgetfh
+returns information about the link,
+while
+.Fn getfh
+returns information about the file the link references.
+These system calls are restricted to the superuser.
+.Sh RETURN VALUES
+.Rv -std
+.Sh ERRORS
+The
+.Fn getfh
+and
+.Fn lgetfh
+system calls
+fail if one or more of the following are true:
+.Bl -tag -width Er
+.It Bq Er ENOTDIR
+A component of the path prefix of
+.Fa path
+is not a directory.
+.It Bq Er ENAMETOOLONG
+The length of a component of
+.Fa path
+exceeds 255 characters,
+or the length of
+.Fa path
+exceeds 1023 characters.
+.It Bq Er ENOENT
+The file referred to by
+.Fa path
+does not exist.
+.It Bq Er EACCES
+Search permission is denied for a component of the path prefix of
+.Fa path .
+.It Bq Er ELOOP
+Too many symbolic links were encountered in translating
+.Fa path .
+.It Bq Er EFAULT
+The
+.Fa fhp
+argument
+points to an invalid address.
+.It Bq Er EIO
+An
+.Tn I/O
+error occurred while reading from or writing to the file system.
+.El
+.Sh SEE ALSO
+.Xr fhopen 2 ,
+.Xr open 2 ,
+.Xr stat 2
+.Sh HISTORY
+The
+.Fn getfh
+system call first appeared in
+.Bx 4.4 .

@@ -1,0 +1,5 @@
+# $FreeBSD$
+
+SUBDIR+=		efi
+SUBDIR+=		zfs
+SUBDIR+=		userboot

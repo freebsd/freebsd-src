@@ -1,0 +1,122 @@
+#! /bin/sh
+
+LOGF=make.log
+IAM=`hostname || uname -n`
+MYNAME=`IFS=. ; set $IAM ; echo $1`
+SIG=
+
+case "$1" in
+ 0.*)
+    SIG=$1
+    shift
+    CONFIG_ARGS="$@"
+    KEY=`sed -e q < .buildkey-$MYNAME`
+    case "$SIG" in
+     $KEY) ;;
+     *)
+	echo "Wrong directory for build on host $IAM"
+	echo "This is <`pwd`>"
+	echo "SIG is <$SIG>"
+	echo "KEY is <$KEY>"
+        exit 1
+        ;;
+    esac
+    ;;
+ *)
+    CONFIG_ARGS="$@"
+    ;;
+esac
+
+#set -e
+#set -x
+
+CVO=`./config.guess`
+case "$CVO" in
+ *-*-*) ;;
+ *) echo "config.guess returned <$CVO>, which makes no sense to me."
+    exit 1
+    ;;
+esac
+
+case "$IAM" in
+ *.udel.edu)
+    BDIR=A.$MYNAME
+    CONFIG_ARGS="$CONFIG_ARGS --enable-local-libopts"
+    case "$CVO" in
+     *-*-ultrix*)
+	CONFIG_ARGS="$CONFIG_ARGS --with-libregex=/usr/local"
+	;;
+    esac
+    ;;
+ *)
+    BDIR=A.$CVO
+    ;;
+esac
+
+KEYSUF=""
+
+case "$CONFIG_ARGS" in
+ *--with-crypto=autokey*)
+    KEYSUF="-autokey"
+    ;;
+ *--without-crypto*)
+    KEYSUF="-noopenssl"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-all-clocks*)
+    KEYSUF="$KEYSUF-no-refclocks"
+    ;;
+esac
+
+case "$CONFIG_ARGS" in
+ *--disable-debugging*)
+    KEYSUF="$KEYSUF-nodebug"
+    ;;
+esac
+
+CCSUF=""
+
+case "$CC" in
+ '') ;;
+ *) CCSUF="-$CC"
+    ;;
+esac
+
+BDIR="$BDIR$KEYSUF$CCSUF"
+
+[ -d "$BDIR" ] || mkdir $BDIR
+[ -f "$BDIR/.buildcvo" ] || echo $CVO > $BDIR/.buildcvo
+[ -f "$BDIR/.buildhost" ] || echo $IAM > $BDIR/.buildhost
+
+
+cd $BDIR
+
+#
+# make sure we have a nice that works,
+#
+nice true && NICEB=nice
+nice true || NICEB=./.nicebuild-$MYNAME-$SIG && (
+    cat > .nicebuild-$MYNAME-$SIG <<UNLYKUHLY
+#! /bin/sh
+shift
+\$*
+UNLYKUHLY
+    chmod +x .nicebuild-$MYNAME-$SIG
+)
+
+
+(
+[ -f config.status ] || $NICEB -7 ../configure --config-cache \
+				$CONFIG_ARGS
+
+$NICEB -5 ./config.status
+
+case "$MAKE" in
+ '') $NICEB -14 make && $NICEB -10 make check
+     ;;
+ *)  $NICEB -14 $MAKE && $NICEB -10 $MAKE check
+     ;;
+esac
+) > $LOGF 2>&1

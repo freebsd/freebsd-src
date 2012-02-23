@@ -1,0 +1,103 @@
+# Copyright (C) 2009, 2010  Internet Systems Consortium, Inc. ("ISC")
+#
+# Permission to use, copy, modify, and/or distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+# REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+# AND FITNESS.  IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+# INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+# LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+# OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+# PERFORMANCE OF THIS SOFTWARE.
+
+# $Id: Makefile.in,v 1.13 2010-01-07 23:48:53 tbox Exp $
+
+srcdir =	@srcdir@
+VPATH =		@srcdir@
+top_srcdir =	@top_srcdir@
+
+@BIND9_MAKE_INCLUDES@
+
+CINCLUDES =	${DNS_INCLUDES} ${ISC_INCLUDES} ${ISCCFG_INCLUDES} \
+		${LWRES_INCLUDES} ${OMAPI_INCLUDES}
+
+CDEFINES =
+CWARNINGS =
+
+DNSLIBS =	../../lib/dns/libdns.@A@ @DNS_CRYPTO_LIBS@
+ISCLIBS =	../../lib/isc/libisc.@A@ @DNS_CRYPTO_LIBS@
+ISCNOSYMLIBS =	../../lib/isc/libisc-nosymtbl.@A@
+ISCCFGLIBS = 	../../lib/isccfg/libisccfg.@A@
+LWRESLIBS =	../../lib/lwres/liblwres.@A@
+
+DNSDEPLIBS =	../../lib/dns/libdns.@A@
+ISCDEPLIBS =	../../lib/isc/libisc.@A@
+ISCCFGDEPLIBS = ../../lib/isccfg/libisccfg.@A@
+LWRESDEPLIBS =	../../lib/lwres/liblwres.@A@
+
+LIBS =		${ISCLIBS} @LIBS@
+NOSYMLIBS =	${ISCNOSYMLIBS} @LIBS@
+
+SUBDIRS = 
+
+TARGETS =	arpaname@EXEEXT@ named-journalprint@EXEEXT@ nsec3hash@EXEEXT@ \
+		genrandom@EXEEXT@ isc-hmac-fixup@EXEEXT@
+SRCS =		arpaname.c named-journalprint.c nsec3hash.c genrandom.c \
+		isc-hmac-fixup.c
+
+MANPAGES =	arpaname.1 named-journalprint.8 nsec3hash.8 genrandom.8 \
+		isc-hmac-fixup.8
+HTMLPAGES =	arpaname.html named-journalprint.html nsec3hash.html \
+		genrandom.html isc-hmac-fixup.html
+MANOBJS =	${MANPAGES} ${HTMLPAGES}
+
+@BIND9_MAKE_RULES@
+
+arpaname@EXEEXT@: arpaname.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ arpaname.@O@ \
+		${ISCLIBS} ${LIBS}
+
+named-journalprint@EXEEXT@: named-journalprint.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	export BASEOBJS="named-journalprint.@O@"; \
+	export LIBS0="${DNSLIBS}"; \
+	${FINALBUILDCMD}
+
+nsec3hash@EXEEXT@: nsec3hash.@O@ ${ISCDEPLIBS} ${DNSDEPLIBS}
+	export BASEOBJS="nsec3hash.@O@"; \
+	export LIBS0="${DNSLIBS}"; \
+	${FINALBUILDCMD}
+
+isc-hmac-fixup@EXEEXT@: isc-hmac-fixup.@O@ ${ISCDEPLIBS}
+	export BASEOBJS="isc-hmac-fixup.@O@"; \
+	export LIBS0="${ISCLIBS}"; \
+	${FINALBUILDCMD}
+
+genrandom@EXEEXT@: genrandom.@O@
+	${LIBTOOL_MODE_LINK} ${PURIFY} ${CC} ${CFLAGS} ${LDFLAGS} -o $@ genrandom.@O@ @GENRANDOMLIB@ ${LIBS}
+
+doc man:: ${MANOBJS}
+
+docclean manclean maintainer-clean::
+	rm -f ${MANOBJS}
+
+installdirs:
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${sbindir}
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man1
+	$(SHELL) ${top_srcdir}/mkinstalldirs ${DESTDIR}${mandir}/man8
+
+install:: ${TARGETS} installdirs
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} arpaname@EXEEXT@ ${DESTDIR}${sbindir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} named-journalprint@EXEEXT@ ${DESTDIR}${sbindir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} nsec3hash@EXEEXT@ ${DESTDIR}${sbindir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} genrandom@EXEEXT@ ${DESTDIR}${sbindir}
+	${LIBTOOL_MODE_INSTALL} ${INSTALL_PROGRAM} isc-hmac-fixup@EXEEXT@ ${DESTDIR}${sbindir}
+	${INSTALL_DATA} ${srcdir}/arpaname.1 ${DESTDIR}${mandir}/man1
+	${INSTALL_DATA} ${srcdir}/isc-hmac-fixup.8 ${DESTDIR}${mandir}/man8
+	${INSTALL_DATA} ${srcdir}/named-journalprint.8 ${DESTDIR}${mandir}/man8
+	${INSTALL_DATA} ${srcdir}/nsec3hash.8 ${DESTDIR}${mandir}/man8
+	${INSTALL_DATA} ${srcdir}/genrandom.8 ${DESTDIR}${mandir}/man8
+
+clean distclean::
+	rm -f ${TARGETS}

@@ -1,0 +1,137 @@
+README for libarchive bundle.
+
+Questions?  Issues?
+   * http://libarchive.googlecode.com/ is the home for ongoing
+     libarchive development, including issue tracker, additional
+     documentation, and links to the libarchive mailing lists.
+
+This distribution bundle includes the following components:
+   * libarchive: a library for reading and writing streaming archives
+   * tar: the 'bsdtar' program is a full-featured 'tar'
+          replacement built on libarchive
+   * cpio: the 'bsdcpio' program is a different interface to
+          essentially the same functionality
+   * examples: Some small example programs that you may find useful.
+   * examples/minitar: a compact sample demonstrating use of libarchive.
+          I use this for testing link pollution; it should produce a very
+          small executable file on most systems.
+   * contrib:  Various items sent to me by third parties;
+          please contact the authors with any questions.
+
+The top-level directory contains the following information files:
+   * NEWS - highlights of recent changes
+   * COPYING - what you can do with this
+   * INSTALL - installation instructions
+   * README - this file
+   * configure - configuration script, see INSTALL for details.
+   * CMakeLists.txt - input for "cmake" build tool, see INSTALL
+
+The following files in the top-level directory are used by the
+'configure' script:
+   * Makefile.am, aclocal.m4, configure.ac
+       - used to build this distribution, only needed by maintainers
+   * Makefile.in, config.h.in
+	- templates used by configure script
+
+Guide to Documentation installed by this system:
+ * bsdtar.1 explains the use of the bsdtar program
+ * bsdcpio.1 explains the use of the bsdcpio program
+ * libarchive.3 gives an overview of the library as a whole
+ * archive_read.3, archive_write.3, archive_write_disk.3, and
+   archive_read_disk.3 provide detailed calling sequences for the read
+   and write APIs
+ * archive_entry.3 details the "struct archive_entry" utility class
+ * archive_internals.3 provides some insight into libarchive's
+   internal structure and operation.
+ * libarchive-formats.5 documents the file formats supported by the library
+ * cpio.5, mtree.5, and tar.5 provide detailed information about these
+   popular archive formats, including hard-to-find details about
+   modern cpio and tar variants.
+The manual pages above are provided in the 'doc' directory in
+a number of different formats.
+
+You should also read the copious comments in "archive.h" and the
+source code for the sample programs for more details.  Please let me
+know about any errors or omissions you find.
+
+Currently, the library automatically detects and reads the following:
+  * gzip compression
+  * bzip2 compression
+  * compress/LZW compression
+  * lzma and xz compression
+  * GNU tar format (including GNU long filenames, long link names, and
+    sparse files)
+  * Solaris 9 extended tar format (including ACLs)
+  * Old V7 tar archives
+  * POSIX ustar
+  * POSIX pax interchange format
+  * POSIX octet-oriented cpio
+  * SVR4 ASCII cpio
+  * POSIX octet-oriented cpio
+  * Binary cpio (big-endian or little-endian)
+  * ISO9660 CD-ROM images (with optional Rockridge or Joliet extensions)
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * GNU and BSD 'ar' archives
+  * 'mtree' format
+
+The library can write:
+  * gzip compression
+  * bzip2 compression
+  * compress/LZW compression
+  * lzma and xz compression
+  * POSIX ustar
+  * POSIX pax interchange format
+  * "restricted" pax format, which will create ustar archives except for
+    entries that require pax extensions (for long filenames, ACLs, etc).
+  * POSIX octet-oriented cpio
+  * SVR4 "newc" cpio
+  * shar archives
+  * ZIP archives (with uncompressed or "deflate" compressed entries)
+  * GNU and BSD 'ar' archives
+  * 'mtree' format
+
+Notes about the library architecture:
+
+ * This is a heavily stream-oriented system.  There is no direct
+   support for in-place modification or random access.
+
+ * The library is designed to be extended with new compression and
+   archive formats.  The only requirement is that the format be
+   readable or writable as a stream and that each archive entry be
+   independent.  There are articles on the libarchive Wiki explaining
+   how to extend libarchive.
+
+ * On read, compression and format are always detected automatically.
+
+ * I've attempted to minimize static link pollution.  If you don't
+   explicitly invoke a particular feature (such as support for a
+   particular compression or format), it won't get pulled in.
+   In particular, if you don't explicitly enable a particular
+   compression or decompression support, you won't need to link
+   against the corresponding compression or decompression libraries.
+   This also reduces the size of statically-linked binaries in
+   environments where that matters.
+
+ * On read, the library accepts whatever blocks you hand it.
+   Your read callback is free to pass the library a byte at a time
+   or mmap the entire archive and give it to the library at once.
+   On write, the library always produces correctly-blocked output.
+
+ * The object-style approach allows you to have multiple archive streams
+   open at once.  bsdtar uses this in its "@archive" extension.
+
+ * The archive itself is read/written using callback functions.
+   You can read an archive directly from an in-memory buffer or
+   write it to a socket, if you wish.  There are some utility
+   functions to provide easy-to-use "open file," etc, capabilities.
+
+ * The read/write APIs are designed to allow individual entries
+   to be read or written to any data source:  You can create
+   a block of data in memory and add it to a tar archive without
+   first writing a temporary file.  You can also read an entry from
+   an archive and write the data directly to a socket.  If you want
+   to read/write entries to disk, there are convenience functions to
+   make this especially easy.
+
+ * Note: "pax interchange format" is really an extended tar format,
+   despite what the name says.

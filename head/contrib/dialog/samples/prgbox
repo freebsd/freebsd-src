@@ -1,0 +1,6 @@
+#!/bin/sh
+# $Id: prgbox,v 1.1 2011/03/02 00:10:54 tom Exp $
+
+. ./setup-vars
+
+$DIALOG --title "PRGBOX" "$@" --prgbox "./shortlist" 20 70

@@ -1,0 +1,18 @@
+#------------------------------------------------------------------------------
+# varied.script:  file(1) magic for various interpreter scripts
+
+0	string		#!\ /			a
+>3	string		>\0			%s script text executable
+0	string		#!\t/			a
+>3	string		>\0			%s script text executable
+0	string		#!/			a
+>2	string		>\0			%s script text executable
+0	string		#!\ 			script text executable
+>3	string		>\0			for %s
+
+# From: arno <arenevier@fdn.fr>
+# mozilla xpconnect typelib
+# see http://www.mozilla.org/scriptable/typelib_file.html
+0	string 		XPCOM\nTypeLib\r\n\032		XPConnect Typelib
+>0x10  byte        x       version %d
+>>0x11 byte        x      \b.%d

@@ -1,0 +1,112 @@
+[PATCHv7 3/4] libibverbs: Add API to retrieve eth MAC
+
+Add a command to retrieve the MAC address of a port's GID. This is required by
+libraries to build work requests when the port's link layer is Ethernet.
+
+Signed-off-by: Eli Cohen <eli@mellanox.co.il>
+---
+ include/infiniband/driver.h   |    1 +
+ include/infiniband/kern-abi.h |   20 +++++++++++++++++++-
+ src/cmd.c                     |   19 +++++++++++++++++++
+ src/libibverbs.map            |    1 +
+ 4 files changed, 40 insertions(+), 1 deletions(-)
+
+Index: libibverbs/include/infiniband/driver.h
+===================================================================
+--- libibverbs.orig/include/infiniband/driver.h	2010-02-18 13:48:37.000000000 +0200
++++ libibverbs/include/infiniband/driver.h	2010-02-18 13:50:53.000000000 +0200
+@@ -136,6 +136,11 @@ int ibv_cmd_create_ah(struct ibv_pd *pd,
+ int ibv_cmd_destroy_ah(struct ibv_ah *ah);
+ int ibv_cmd_attach_mcast(struct ibv_qp *qp, const union ibv_gid *gid, uint16_t lid);
+ int ibv_cmd_detach_mcast(struct ibv_qp *qp, const union ibv_gid *gid, uint16_t lid);
++int ibv_cmd_get_eth_l2_addr(struct ibv_pd *pd, uint8_t port, const union ibv_gid *gid,
++			    int sgid_idx, uint8_t *mac, uint16_t *vlan_id);
++
++int ibv_cmd_get_eth_l2_addr(struct ibv_pd *pd, uint8_t port, const union ibv_gid *gid,
++                            int sgid_idx, uint8_t *mac, uint16_t *vlan_id);
+ 
+ int ibv_dontfork_range(void *base, size_t size);
+ int ibv_dofork_range(void *base, size_t size);
+Index: libibverbs/include/infiniband/kern-abi.h
+===================================================================
+--- libibverbs.orig/include/infiniband/kern-abi.h	2010-02-18 13:48:46.000000000 +0200
++++ libibverbs/include/infiniband/kern-abi.h	2010-02-18 13:50:53.000000000 +0200
+@@ -94,6 +94,7 @@ enum {
+ 	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP,
+ 	IB_USER_VERBS_CMD_REG_XRC_RCV_QP,
+ 	IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP,
++	IB_USER_VERBS_CMD_GET_ETH_L2_ADDR,
+ };
+ 
+ /*
+@@ -946,6 +947,7 @@ enum {
+ 	IB_USER_VERBS_CMD_QUERY_XRC_RCV_QP_V2 = -1,
+ 	IB_USER_VERBS_CMD_REG_XRC_RCV_QP_V2 = -1,
+ 	IB_USER_VERBS_CMD_UNREG_XRC_RCV_QP_V2 = -1,
++	IB_USER_VERBS_CMD_GET_ETH_L2_ADDR_V2 = -1,
+ };
+ 
+ struct ibv_destroy_cq_v1 {
+@@ -1021,4 +1023,21 @@ struct ibv_create_srq_resp_v5 {
+ 	__u32 srq_handle;
+ };
+ 
++struct ibv_get_eth_l2_addr {
++        __u32 command;
++        __u16 in_words;
++        __u16 out_words;
++        __u64 response;
++        __u32 pd_handle;
++        __u8  port;
++        __u8  sgid_idx;
++        __u8  reserved[2];
++        __u8  dgid[16];
++};
++
++struct ibv_get_eth_l2_addr_resp {
++        __u8    mac[6];
++        __u16   vlan_id;
++};
++
+ #endif /* KERN_ABI_H */
+Index: libibverbs/src/cmd.c
+===================================================================
+--- libibverbs.orig/src/cmd.c	2010-02-18 13:48:46.000000000 +0200
++++ libibverbs/src/cmd.c	2010-02-18 13:50:53.000000000 +0200
+@@ -1407,4 +1407,24 @@ int ibv_cmd_unreg_xrc_rcv_qp(struct ibv_
+ 	return 0;
+ }
+ 
++int ibv_cmd_get_eth_l2_addr(struct ibv_pd *pd, uint8_t port, const union ibv_gid *gid,
++                            int sgid_idx, uint8_t *mac, uint16_t *vlan_id)
++{
++        struct ibv_get_eth_l2_addr cmd;
++        struct ibv_get_eth_l2_addr_resp resp;
++
++        IBV_INIT_CMD_RESP(&cmd, sizeof cmd, GET_ETH_L2_ADDR, &resp, sizeof resp);
++        memcpy(cmd.dgid, gid, sizeof cmd.dgid);
++        cmd.pd_handle = pd->handle;
++        cmd.port = port;
++        cmd.sgid_idx = sgid_idx;
++
++        if (write(pd->context->cmd_fd, &cmd, sizeof cmd) != sizeof cmd)
++                return errno;
++
++        memcpy(mac, resp.mac, 6);
++        *vlan_id = resp.vlan_id;
++
++        return 0;
++}
+ 
+Index: libibverbs/src/libibverbs.map
+===================================================================
+--- libibverbs.orig/src/libibverbs.map	2010-02-18 13:48:37.000000000 +0200
++++ libibverbs/src/libibverbs.map	2010-02-18 13:50:53.000000000 +0200
+@@ -64,6 +64,7 @@ IBVERBS_1.0 {
+ 		ibv_cmd_destroy_ah;
+ 		ibv_cmd_attach_mcast;
+ 		ibv_cmd_detach_mcast;
++		ibv_cmd_get_eth_l2_addr;
+ 		ibv_copy_qp_attr_from_kern;
+ 		ibv_copy_path_rec_from_kern;
+ 		ibv_copy_path_rec_to_kern;

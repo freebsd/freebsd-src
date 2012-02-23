@@ -1,0 +1,6 @@
+#XScale IXP425 generic configuration
+#$FreeBSD$
+files		"../xscale/ixp425/files.ixp425"
+include		"../xscale/std.xscale"
+cpu 		CPU_XSCALE_IXP425
+makeoption	ARM_BIG_ENDIAN

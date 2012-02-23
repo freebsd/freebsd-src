@@ -1,0 +1,110 @@
+.TH IBSTAT 8 "July 25, 2006" "OpenIB" "OpenIB Diagnostics"
+
+.SH NAME
+ibstat \- query basic status of InfiniBand device(s)
+
+.SH SYNOPSIS
+.B ibstat
+[\-d(ebug)] [\-l(ist_of_cas)] [\-s(hort)] [\-p(ort_list)] [\-V(ersion)] [\-h] <ca_name> [portnum]
+
+.SH DESCRIPTION
+.PP
+ibstat is a binary which displays basic information obtained from the local
+IB driver. Output includes LID, SMLID, port state, link width active, and port
+physical state.
+
+It is similar to the ibstatus utility but implemented as a binary rather
+than a script. It has options to list CAs and/or ports and displays more
+information than ibstatus.
+
+.SH OPTIONS
+
+.PP
+.TP
+\fB\-l\fR, \fB\-\-list_of_cas\fR
+list all IB devices
+.TP
+\fB\-s\fR, \fB\-\-short\fR
+short output
+.TP
+\fB\-p\fR, \fB\-\-port_list\fR
+show port list
+.TP
+ca_name
+InfiniBand device name
+.TP
+portnum
+port number of InfiniBand device
+
+.SH COMMON OPTIONS
+
+Most OpenIB diagnostics take the following common flags. The exact list of
+supported flags per utility can be found in the usage message and can be shown
+using the util_name -h syntax.
+
+# Debugging flags
+.PP
+\-d      raise the IB debugging level.
+        May be used several times (-ddd or -d -d -d).
+.PP
+\-e      show send and receive errors (timeouts and others)
+.PP
+\-h      show the usage message
+.PP
+\-v      increase the application verbosity level.
+        May be used several times (-vv or -v -v -v)
+.PP
+\-V      show the version info.
+
+# Addressing flags
+.PP
+\-D      use directed path address arguments. The path
+        is a comma separated list of out ports.
+        Examples:
+        "0"             # self port
+        "0,1,2,1,4"     # out via port 1, then 2, ...
+.PP
+\-G      use GUID address argument. In most cases, it is the Port GUID.
+        Example:
+        "0x08f1040023"
+.PP
+\-s <smlid>      use 'smlid' as the target lid for SM/SA queries.
+
+# Other common flags:
+.PP
+\-C <ca_name>    use the specified ca_name.
+.PP
+\-P <ca_port>    use the specified ca_port.
+.PP
+\-t <timeout_ms> override the default timeout for the solicited mads.
+
+Multiple CA/Multiple Port Support
+
+When no IB device or port is specified, the port to use is selected
+by the following criteria:
+.PP
+1. the first port that is ACTIVE.
+.PP
+2. if not found, the first port that is UP (physical link up).
+
+If a port and/or CA name is specified, the user request is
+attempted to be fulfilled, and will fail if it is not possible.
+
+.SH EXAMPLES
+
+.PP
+ibstat            # display status of all ports on all IB devices
+.PP
+ibstat -l         # list all IB devices
+.PP
+ibstat -p         # show port guids
+.PP
+ibstat mthca0 2   # show status of port 2 of 'mthca0'
+
+.SH SEE ALSO
+.BR ibstatus (8)
+
+.SH AUTHOR
+.TP
+Hal Rosenstock
+.RI < halr@voltaire.com >

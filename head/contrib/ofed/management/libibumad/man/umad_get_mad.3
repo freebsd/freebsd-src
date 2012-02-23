@@ -1,0 +1,24 @@
+.\" -*- nroff -*-
+.\"
+.TH UMAD_GET_MAD 3  "May 21, 2007" "OpenIB" "OpenIB Programmer\'s Manual"
+.SH "NAME"
+umad_get_mad \- get the MAD pointer of a umad buffer
+.SH "SYNOPSIS"
+.nf
+.B #include <infiniband/umad.h>
+.sp
+.BI "void * umad_get_mad(void " "*umad");
+.fi
+.SH "DESCRIPTION"
+.B umad_get_mad()
+returns a pointer to the MAD contained within the
+.I umad\fR
+buffer.
+.SH "RETURN VALUE"
+.B umad_get_mad()
+returns a pointer to the MAD contained within the supplied
+.I umad\fR
+buffer.
+.SH "AUTHOR"
+.TP
+Hal Rosenstock <halr@voltaire.com>

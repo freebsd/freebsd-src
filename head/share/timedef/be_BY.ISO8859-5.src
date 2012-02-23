@@ -1,0 +1,100 @@
+# $FreeBSD$
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+#
+# Short month names
+#
+сту
+лют
+сак
+кра
+тра
+чэр
+ліп
+жні
+вер
+кас
+ліс
+сне
+#
+# Long month names (as in a date)
+#
+студзеня
+лютага
+сакавіка
+красавіка
+траўня
+чэрвеня
+ліпеня
+жніўня
+верасня
+кастрычніка
+лістапада
+снежня
+#
+# Short weekday names
+# (padded with a space to conform with other languages)
+нд 
+пн 
+аў 
+ср 
+чц 
+пт 
+сб 
+#
+# Long weekday names
+#
+нядзеля
+панядзелак
+аўторак
+серада
+чацвер
+пятніца
+субота
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d.%m.%y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+am
+#
+# pm
+#
+pm
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
+#
+# Long month names (without case ending)
+#
+студзень
+люты
+сакавік
+красавік
+травень
+чэрвень
+ліпень
+жнівень
+верасень
+кастрычнік
+лістапад
+снежань
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+%I:%M:%S %p
+# EOF

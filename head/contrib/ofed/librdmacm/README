@@ -1,0 +1,50 @@
+This README is for userspace RDMA cm library.
+
+
+Building
+========
+To make this directory, run:
+./autogen.sh && ./configure && make && make install
+
+Typically the autogen and configure steps only need be done the first
+time unless configure.in or Makefile.am changes.
+
+Libraries are installed by default at /usr/local/lib.
+
+
+Device files
+============
+The userspace CMA uses a single device file regardless of the number
+of adapters or ports present.
+
+To create the appropriate character device file automatically with
+udev, a rule like
+
+    KERNEL="rdma_cm", NAME="infiniband/%k", MODE="0666"
+
+can be used.  This will create the device node named
+
+    /dev/infiniband/rdma_cm
+
+or you can create it manually
+
+  mknod /dev/infiniband/rdma_cm c 231 255
+
+
+Common issues
+=============
+
+Using multiple interfaces
+	The librdmacm does support multiple interfaces.  To make use
+	of multiple interfaces, however, you need to instruct linux
+	to only send ARP reples on the interface targetted in the ARP
+	request.  This can be done using a command similar to the
+	following:
+
+	sysctl -w net.ipv4.conf.all.arp_ignore=2
+
+	Without this change, it's possible for linux to resopnd to ARP
+	requests on a different interface (IP address) than the IP
+	address carried in the ARP request.  This causes the RDMA stack
+	to incorrectly map the remote IP address to the wrong RDMA
+	device.

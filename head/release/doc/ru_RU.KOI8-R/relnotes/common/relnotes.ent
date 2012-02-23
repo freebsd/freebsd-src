@@ -1,0 +1,23 @@
+<!-- -*- sgml -*- -->
+
+<!--
+     The FreeBSD Russian Documentation Project
+
+     $FreeBSD$
+     $FreeBSDru: frdp/release/doc/ru_RU.KOI8-R/relnotes/common/relnotes.ent,v 1.1 2004/05/20 07:02:25 den Exp $
+
+     Original revision: 1.3
+-->
+
+<!-- Text constants which probably don't need to be changed.-->
+
+<!-- The marker for MFCs. -->
+<!ENTITY merged "[MERGED]">
+
+<!ENTITY % include.historic "IGNORE">
+<!ENTITY % no.include.historic "IGNORE">
+
+<!-- Files to be included -->
+
+<!ENTITY art SYSTEM "../common/new.sgml">
+

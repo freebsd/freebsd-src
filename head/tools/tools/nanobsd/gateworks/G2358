@@ -1,0 +1,130 @@
+#
+# Gateworks Cambria IXP435 XScale board
+# kernel configuration file for FreeBSD/arm
+#
+# $FreeBSD$
+
+machine		arm
+ident		G2358
+
+include		"../xscale/ixp425/std.ixp435"
+include		"../xscale/ixp425/std.avila"
+options		XSCALE_CACHE_READ_WRITE_ALLOCATE
+#options	ARM_USE_SMALL_ALLOC
+hints		"CAMBRIA.hints"
+makeoptions	MODULES_OVERRIDE=""
+
+# NB: patched by boot2 to reflect boot/root partition
+options		ROOTDEVNAME=\"ufs:ad0s1\"
+
+makeoptions	DEBUG=-g		#Build kernel with gdb(1) debug symbols
+makeoptions	CONF_CFLAGS=-mcpu=xscale
+
+options		HZ=100
+#options		DEVICE_POLLING
+
+# Debugging for use in -current
+options		KDB
+options 	DDB			#Enable the kernel debugger
+#options 	INVARIANTS		#Enable calls of extra sanity checking
+#options 	INVARIANT_SUPPORT	#Extra sanity checks of internal structures, required by INVARIANTS
+#options 	WITNESS			#Enable checks to detect deadlocks and cycles
+#options 	WITNESS_SKIPSPIN	#Don't run witness on spinlocks for speed
+#options		DIAGNOSTIC
+
+options 	SCHED_4BSD		#4BSD scheduler
+options		PREEMPTION
+
+options 	INET			#InterNETworking
+#options 	INET6			#IPv6 communications protocols
+options 	FFS			#Berkeley Fast Filesystem
+#options 	SOFTUPDATES		#Enable FFS soft updates support
+#options 	UFS_ACL			#Support for access control lists
+#options 	UFS_DIRHASH		#Improve performance on big directories
+options 	NFSCLIENT		#Network Filesystem Client
+options 	NFSLOCKD		#Network Lock Manager
+options 	KTRACE			#ktrace(1) support
+#options 	SYSVSHM			#SYSV-style shared memory
+#options 	SYSVMSG			#SYSV-style message queues
+#options 	SYSVSEM			#SYSV-style semaphores
+options 	_KPOSIX_PRIORITY_SCHEDULING #Posix P1003_1B real-time extensions
+#options 	KBD_INSTALL_CDEV	# install a CDEV entry in /dev
+#options		VERBOSE_SYSINIT
+
+#device		saarm
+
+device		pci
+device		uart
+
+# I2C support
+device		iicbus
+device		iicbb
+device		iic
+device		ixpiic
+device		ds1672		# DS1672 on ipxiic
+device		ad7418		# AD7418 on ipxiic
+
+device		ixpwdog		# watchdog timer
+device		cambria_fled	# front panel led
+device		cambria_led	# octal led latch
+
+device		ata
+device		atadisk         # ATA disk drives
+device		avila_ata	# Gateworks CF/IDE support
+
+device		cfi		# flash support
+#options		CFI_SUPPORT_STRATAFLASH
+
+device		npe		# Network Processing Engine
+device		npe_fw
+device		firmware
+device		qmgr		# Q Manager (required by npe)
+device		mii		# NB: required by npe
+device		ether
+device		bpf
+
+device		pty
+device		loop
+device		if_bridge
+
+device		md
+device          random          # Entropy device
+
+# Wireless NIC cards
+device		wlan		# 802.11 support
+options		IEEE80211_DEBUG		# enable debugging msgs
+options		IEEE80211_AMPDU_AGE	# age frames in AMPDU reorder q's
+options		IEEE80211_SUPPORT_MESH
+options		IEEE80211_SUPPORT_TDMA
+device		wlan_wep	# 802.11 WEP support
+device		wlan_ccmp	# 802.11 CCMP support
+device		wlan_tkip	# 802.11 TKIP support
+
+device		ath		# Atheros pci/cardbus NIC's
+device		ath_rate_sample	# SampleRate tx rate control for ath
+options		ATH_DEBUG	# enable athdebug msgs
+options		ATH_DIAGAPI	# enable api for athregs
+
+device		ath_hal		# Atheros HAL (includes binary component)
+options		AH_DEBUG
+#options		AH_ASSERT
+options		AH_SUPPORT_AR5416
+
+#device		crypto
+#device		cryptodev
+#device		hifn		# NB: Soekris minipci card known to work
+
+# NB: 2 USB 2.0 ports standard
+device		usb
+options 	USB_EHCI_BIG_ENDIAN_DESC	# handle big-endian byte order
+#options 	USB_DEBUG
+device		ehci
+device		umass
+device		scbus		# SCSI bus (required for SCSI)
+device		da		# Direct Access (disks)
+
+#device		ural
+#device		zyd
+#device		wlan_amrr
+
+device		axe

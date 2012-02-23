@@ -1,0 +1,23 @@
+*** files.oldconf.orig	Sat Apr 29 19:59:31 1995
+--- files.oldconf	Sun Apr 23 17:54:18 1995
+***************
+*** 180,185 ****
+--- 180,197 ----
+  netinet/tcp_timer.c	optional inet
+  netinet/tcp_usrreq.c	optional inet
+  netinet/udp_usrreq.c	optional inet
++ netinet/ip_fil.c	optional ipfilter requires inet
++ netinet/fil.c		optional ipfilter requires inet
++ netinet/ip_nat.c	optional ipfilter requires inet
++ netinet/ip_frag.c	optional ipfilter requires inet
++ netinet/ip_state.c	optional ipfilter requires inet
++ netinet/ip_proxy.c	optional ipfilter requires inet
++ netinet/ip_auth.c	optional ipfilter requires inet
++ netinet/ip_log.c	optional ipfilter requires inet
++ netinet/ip_scan.c	optional ipfilter requires inet
++ netinet/ip_sync.c	optional ipfilter requires inet
++ netinet/ip_pool.c	optional ipfilter_pool requires ipfilter
++ netinet/ip_rules.c	optional ipfilter_compiled requires ipfilter
+  netiso/clnp_debug.c	optional iso
+  netiso/clnp_er.c	optional iso
+  netiso/clnp_frag.c	optional iso

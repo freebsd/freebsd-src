@@ -1,0 +1,103 @@
+# $FreeBSD$
+#
+# WARNING: spaces may be essential at the end of lines
+# WARNING: empty lines are essential too
+# In Portugal we don't use the 12 + am/pm but the 24h format
+#
+# Short month names
+#
+Jan
+Fev
+Mar
+Abr
+Mai
+Jun
+Jul
+Ago
+Set
+Out
+Nov
+Dez
+#
+# Long month names (as in a date)
+#
+Janeiro
+Fevereiro
+Março
+Abril
+Maio
+Junho
+Julho
+Agosto
+Setembro
+Outubro
+Novembro
+Dezembro
+#
+# Short weekday names
+#
+dom
+seg
+ter
+qua
+qui
+sex
+sáb
+#
+# Long weekday names
+#
+domingo
+segunda-feira
+terça-feira
+quarta-feira
+quinta-feira
+sexta-feira
+sábado
+#
+# X_fmt
+#
+%H:%M:%S
+#
+# x_fmt
+#
+%d/%m/%Y
+#
+# c_fmt
+#
+%a %e %b %X %Y
+#
+# am
+#
+
+#
+# pm
+#
+
+#
+# date_fmt
+#
+%a %e %b %Y %X %Z
+#
+# Long month names (without case ending)
+#
+Janeiro
+Fevereiro
+Março
+Abril
+Maio
+Junho
+Julho
+Agosto
+Setembro
+Outubro
+Novembro
+Dezembro
+#
+# md_order
+#
+dm
+#
+# ampm_fmt
+#
+
+# EOF

@@ -1,0 +1,204 @@
+ $FreeBSD$
+
+;	@(#)syscalls.master	8.1 (Berkeley) 7/19/93
+; System call name/number master file (or rather, slave, from IBCS2).
+; Processed to created ibcs2_sysent.c, ibcs2_syscalls.c and ibcs2_syscall.h.
+
+; Columns: number audit type nargs name alt{name,tag,rtyp}/comments
+;	number	system call number, must be in order
+;	audit	the audit event associated with the system call
+;		A value of AUE_NULL means no auditing, but it also means that
+;		there is no audit event for the call at this time. For the
+;		case where the event exists, but we don't want auditing, the
+;		event should be #defined to AUE_NULL in audit_kevents.h.
+;	type	one of STD, OBSOL, UNIMPL, COMPAT
+;	name	psuedo-prototype of syscall routine
+;		If one of the following alts is different, then all appear:
+;	altname	name of system call if different
+;	alttag	name of args struct tag if different from [o]`name'"_args"
+;	altrtyp	return type if not int (bogus - syscalls always return int)
+;		for UNIMPL/OBSOL, name continues with comments
+
+; types:
+;	STD	always included
+;	COMPAT	included on COMPAT #ifdef
+;	OBSOL	obsolete, not included in system, only specifies name
+;	UNIMPL	not implemented, placeholder only
+
+#include <sys/param.h>
+#include <sys/sysent.h>
+#include <sys/sysproto.h>
+#include <i386/ibcs2/ibcs2_types.h>
+#include <i386/ibcs2/ibcs2_signal.h>
+#include <i386/ibcs2/ibcs2_proto.h>
+
+; #ifdef's, etc. may be included, and are copied to the output files.
+
+0	AUE_NULL	NOPROTO	{ int nosys(void); } syscall nosys_args int
+1	AUE_EXIT	NOPROTO	{ void sys_exit(int rval); } exit \
+				    sys_exit_args void
+2	AUE_FORK	NOPROTO	{ int fork(void); }
+3	AUE_NULL	STD	{ int ibcs2_read(int fd, char *buf, \
+				    u_int nbytes); }
+4	AUE_NULL	NOPROTO	{ int write(int fd, char *buf, \
+				    u_int nbytes); }
+5	AUE_OPEN_RWTC	STD	{ int ibcs2_open(char *path, int flags, \
+				    int mode); }
+6	AUE_CLOSE	NOPROTO	{ int close(int fd); }
+7	AUE_WAIT4	STD	{ int ibcs2_wait(int a1, int a2, int a3); }
+8	AUE_CREAT	STD	{ int ibcs2_creat(char *path, int mode); }
+9	AUE_LINK	NOPROTO	{ int link(char *path, char *link); }
+10	AUE_UNLINK	STD	{ int ibcs2_unlink(char *path); }
+11	AUE_EXECVE	STD	{ int ibcs2_execv(char *path, char **argp); }
+12	AUE_CHDIR	STD	{ int ibcs2_chdir(char *path); }
+13	AUE_NULL	STD	{ int ibcs2_time(ibcs2_time_t *tp); }
+14	AUE_MKNOD	STD	{ int ibcs2_mknod(char* path, int mode, \
+				    int dev); }
+15	AUE_CHMOD	STD	{ int ibcs2_chmod(char *path, int mode); }
+16	AUE_CHOWN	STD	{ int ibcs2_chown(char *path, int uid, \
+				    int gid); }
+17	AUE_NULL	NOPROTO	{ int obreak(caddr_t nsize); }
+18	AUE_STAT	STD	{ int ibcs2_stat(char* path, \
+				    struct ibcs2_stat *st); }
+19	AUE_LSEEK	STD	{ long ibcs2_lseek(int fd, long offset, \
+				    int whence); }
+20	AUE_NULL	NOPROTO	{ pid_t getpid(void); }
+21	AUE_MOUNT	STD	{ int ibcs2_mount(char *special, char *dir, \
+				    int flags, int fstype, char *data, \
+				    int len); }
+22	AUE_UMOUNT	STD	{ int ibcs2_umount(char *name); }
+23	AUE_SETUID	STD	{ int ibcs2_setuid(int uid); }
+24	AUE_GETUID	NOPROTO	{ uid_t getuid(void); }
+25	AUE_SETTIMEOFDAY	STD	{ int ibcs2_stime(long *timep); }
+26	AUE_PTRACE	NOPROTO	{ int ptrace(int req, pid_t pid, \
+				    caddr_t addr, int data); }
+27	AUE_NULL	STD	{ int ibcs2_alarm(unsigned sec); }
+28	AUE_FSTAT	STD	{ int ibcs2_fstat(int fd, \
+				    struct ibcs2_stat *st); }
+29	AUE_NULL	STD	{ int ibcs2_pause(void); }
+30	AUE_NULL	STD	{ int ibcs2_utime(char *path, \
+				    struct ibcs2_utimbuf *buf); }
+31	AUE_NULL	UNIMPL	ibcs2_stty
+32	AUE_NULL	UNIMPL	ibcs2_gtty
+33	AUE_ACCESS	STD	{ int ibcs2_access(char *path, int amode); }
+34	AUE_NICE	STD	{ int ibcs2_nice(int incr); }
+35	AUE_STATFS	STD	{ int ibcs2_statfs(char *path, \
+				    struct ibcs2_statfs *buf, int len, \
+				    int fstype); }
+36	AUE_NULL	NOPROTO	{ int sync(void); }
+37	AUE_KILL	STD	{ int ibcs2_kill(int pid, int signo); }
+38	AUE_FSTATFS	STD	{ int ibcs2_fstatfs(int fd, \
+				    struct ibcs2_statfs *buf, int len, \
+				    int fstype); }
+39	AUE_NULL	STD	{ int ibcs2_pgrpsys(int type, caddr_t dummy, \
+				    int pid, int pgid); }
+40	AUE_NULL	STD	{ int ibcs2_xenix(int a1, int a2, int a3, \
+				    int a4, int a5); }
+41	AUE_NULL	NOPROTO	{ int dup(u_int fd); }
+42	AUE_PIPE	NOPROTO	{ int pipe(void); }
+43	AUE_NULL	STD	{ int ibcs2_times(struct tms *tp); }
+44	AUE_PROFILE	NOPROTO	{ int profil(caddr_t samples, u_int size, \
+				    u_int offset, u_int scale); }
+45	AUE_NULL	STD	{ int ibcs2_plock(int cmd); }
+46	AUE_SETGID	STD	{ int ibcs2_setgid(int gid); }
+47	AUE_GETGID	NOPROTO	{ gid_t getgid(void); }
+48	AUE_NULL	STD	{ int ibcs2_sigsys(int sig, ibcs2_sig_t fp); }
+49	AUE_MSGSYS	STD	{ int ibcs2_msgsys(int which, int a2, \
+				    int a3, int a4, int a5, int a6); }
+50	AUE_NULL	STD	{ int ibcs2_sysi86(int cmd, int *arg); }
+51	AUE_NULL	UNIMPL	ibcs2_acct
+52	AUE_SHMSYS	STD	{ int ibcs2_shmsys(int which, int a2, \
+				    int a3, int a4); }
+53	AUE_SEMSYS	STD	{ int ibcs2_semsys(int which, int a2, \
+				    int a3, int a4, int a5); }
+54	AUE_IOCTL	STD	{ int ibcs2_ioctl(int fd, int cmd, \
+				    caddr_t data); }
+55	AUE_NULL	STD	{ int ibcs2_uadmin(int cmd, int func, \
+				    caddr_t data); }
+56	AUE_NULL	UNIMPL	nosys
+57	AUE_NULL	STD	{ int ibcs2_utssys(int a1, int a2, \
+				    int flag); }
+58      AUE_FSYNC	NOPROTO	{ int fsync(int fd); }
+59	AUE_EXECVE	STD	{ int ibcs2_execve(char *path, char **argp, \
+				    char **envp); }
+60	AUE_UMASK	NOPROTO	{ int umask(int newmask); }
+61	AUE_CHROOT	NOPROTO	{ int chroot(char *path); }
+62	AUE_FCNTL	STD	{ int ibcs2_fcntl(int fd, int cmd, \
+				    char *arg); }
+63	AUE_NULL	STD	{ long ibcs2_ulimit(int cmd, int newlimit); }
+64	AUE_NULL	UNIMPL	reserved for unix/pc
+65	AUE_NULL	UNIMPL	reserved for unix/pc
+66	AUE_NULL	UNIMPL	reserved for unix/pc
+67	AUE_NULL	UNIMPL	reserved for unix/pc
+68	AUE_NULL	UNIMPL	reserved for unix/pc
+69	AUE_NULL	UNIMPL	reserved for unix/pc
+70	AUE_NULL	OBSOL	rfs_advfs
+71	AUE_NULL	OBSOL	rfs_unadvfs
+72	AUE_NULL	OBSOL	rfs_rmount
+73	AUE_NULL	OBSOL	rfs_rumount
+74	AUE_NULL	OBSOL	rfs_rfstart
+75	AUE_NULL	OBSOL	rfs_sigret
+76	AUE_NULL	OBSOL	rfs_rdebug
+77	AUE_NULL	OBSOL	rfs_rfstop
+78	AUE_NULL	UNIMPL	rfs_rfsys
+79	AUE_RMDIR	STD	{ int ibcs2_rmdir(char *path); }
+80	AUE_MKDIR	STD	{ int ibcs2_mkdir(char *path, int mode); }
+81	AUE_GETDIRENTRIES	STD	{ int ibcs2_getdents(int fd, char *buf, \
+				    int nbytes); }
+82	AUE_NULL	UNIMPL	nosys
+83	AUE_NULL	UNIMPL	nosys
+84	AUE_NULL	STD	{ int ibcs2_sysfs(int cmd, caddr_t d1, \
+				    char *buf); }
+85	AUE_GETMSG	STD	{ int ibcs2_getmsg(int fd, \
+				    struct ibcs2_stropts *ctl, \
+				    struct ibcs2_stropts *dat, int *flags); }
+86	AUE_PUTMSG	STD	{ int ibcs2_putmsg(int fd, \
+				    struct ibcs2_stropts *ctl, \
+				    struct ibcs2_stropts *dat, int flags); }
+87	AUE_POLL	NOPROTO	{ int poll(struct pollfd *fds, u_int nfds, \
+				    int timeout); }
+88	AUE_NULL	UNIMPL	nosys
+89	AUE_NULL	STD	{ int ibcs2_secure(int cmd, int a1, int a2, \
+				    int a3, int a4, int a5); }
+90	AUE_SYMLINK	STD	{ int ibcs2_symlink(char *path, \
+				    char *link); }
+91	AUE_LSTAT	STD	{ int ibcs2_lstat(char *path, \
+				    struct ibcs2_stat *st); }
+92	AUE_READLINK	STD	{ int ibcs2_readlink(char *path, char *buf, \
+				    int count); }
+93	AUE_NULL	UNIMPL	nosys
+94	AUE_NULL	UNIMPL	nosys
+95	AUE_NULL	UNIMPL	nosys
+96	AUE_NULL	UNIMPL	nosys
+97	AUE_NULL	UNIMPL	nosys
+98	AUE_NULL	UNIMPL	nosys
+99	AUE_NULL	UNIMPL	nosys
+100	AUE_NULL	UNIMPL	nosys
+101	AUE_NULL	UNIMPL	nosys
+102	AUE_NULL	UNIMPL	nosys
+103	AUE_NULL	NOPROTO	{ int sigreturn( \
+				    struct sigcontext *sigcntxp); }
+104	AUE_NULL	UNIMPL	nosys
+105	AUE_NULL	STD	{ int ibcs2_isc(void); }
+106	AUE_NULL	UNIMPL	nosys
+107	AUE_NULL	UNIMPL	nosys
+108	AUE_NULL	UNIMPL	nosys
+109	AUE_NULL	UNIMPL	nosys
+110	AUE_NULL	UNIMPL	nosys
+111	AUE_NULL	UNIMPL	nosys
+112	AUE_NULL	UNIMPL	nosys
+113	AUE_NULL	UNIMPL	nosys
+114	AUE_NULL	UNIMPL	nosys
+115	AUE_NULL	UNIMPL	nosys
+116	AUE_NULL	UNIMPL	nosys
+117	AUE_NULL	UNIMPL	nosys
+118	AUE_NULL	UNIMPL	nosys
+119	AUE_NULL	UNIMPL	nosys
+120	AUE_NULL	UNIMPL	nosys
+121	AUE_NULL	UNIMPL	nosys
+122	AUE_NULL	UNIMPL	nosys
+123	AUE_NULL	UNIMPL	nosys
+124	AUE_NULL	UNIMPL	nosys
+125	AUE_NULL	UNIMPL	nosys
+126	AUE_NULL	UNIMPL	nosys
+127	AUE_NULL	UNIMPL	nosys

@@ -1,0 +1,73 @@
+.\"-
+.\" Copyright (c) 2009 "Bjoern A. Zeeb" <bz@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\" notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\" notice, this list of conditions and the following disclaimer in the
+.\" documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED. IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 26, 2009
+.Dt LINDEV 4
+.Os
+.Sh NAME
+.Nm lindev
+.Nd Linux-specific pseudo devices support
+.Sh SYNOPSIS
+To compile this collection of linux-specific pseudo devices into the kernel,
+place the following line in your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device lindev"
+.Ed
+.Pp
+Alternatively, to load the driver as a module at boot time,
+place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+lindev_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+module provides a collection of linux-specific pseudo devices.
+.Sh DEVICES
+.Bl -tag -width /dev/full
+.It Pa /dev/full
+The
+.Xr full
+device always returns
+.Er ENOSPC
+on write attempts.
+For reads it emulates
+.Xr zero 4 .
+.El
+.Sh FILES
+.Bl -tag -width /dev/full
+.It Pa /dev/full
+.El
+.Sh SEE ALSO
+.Xr null 4 ,
+.Xr zero 4
+.Sh HISTORY
+The
+.Nm
+module first appeared in
+.Fx 8.1 .

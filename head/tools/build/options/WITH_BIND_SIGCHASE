@@ -1,0 +1,2 @@
+.\" $FreeBSD$
+Set to enable DNSSEC validation support for dig, host, and nslookup.

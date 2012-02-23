@@ -1,0 +1,143 @@
+.\" Copyright (C) 2009 Internet Systems Consortium, Inc. ("ISC")
+.\" 
+.\" Permission to use, copy, modify, and/or distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\" 
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND ISC DISCLAIMS ALL WARRANTIES WITH
+.\" REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF MERCHANTABILITY
+.\" AND FITNESS. IN NO EVENT SHALL ISC BE LIABLE FOR ANY SPECIAL, DIRECT,
+.\" INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES WHATSOEVER RESULTING FROM
+.\" LOSS OF USE, DATA OR PROFITS, WHETHER IN AN ACTION OF CONTRACT, NEGLIGENCE
+.\" OR OTHER TORTIOUS ACTION, ARISING OUT OF OR IN CONNECTION WITH THE USE OR
+.\" PERFORMANCE OF THIS SOFTWARE.
+.\"
+.\" $Id: ddns-confgen.8,v 1.10 2009-09-19 01:14:52 tbox Exp $
+.\"
+.hy 0
+.ad l
+.\"     Title: ddns\-confgen
+.\"    Author: 
+.\" Generator: DocBook XSL Stylesheets v1.71.1 <http://docbook.sf.net/>
+.\"      Date: Jan 29, 2009
+.\"    Manual: BIND9
+.\"    Source: BIND9
+.\"
+.TH "DDNS\-CONFGEN" "8" "Jan 29, 2009" "BIND9" "BIND9"
+.\" disable hyphenation
+.nh
+.\" disable justification (adjust text to left margin only)
+.ad l
+.SH "NAME"
+ddns\-confgen \- ddns key generation tool
+.SH "SYNOPSIS"
+.HP 13
+\fBddns\-confgen\fR [\fB\-a\ \fR\fB\fIalgorithm\fR\fR] [\fB\-h\fR] [\fB\-k\ \fR\fB\fIkeyname\fR\fR] [\fB\-r\ \fR\fB\fIrandomfile\fR\fR] [\-s\ \fIname\fR | \-z\ \fIzone\fR] [\fB\-q\fR] [name]
+.SH "DESCRIPTION"
+.PP
+\fBddns\-confgen\fR
+generates a key for use by
+\fBnsupdate\fR
+and
+\fBnamed\fR. It simplifies configuration of dynamic zones by generating a key and providing the
+\fBnsupdate\fR
+and
+\fBnamed.conf\fR
+syntax that will be needed to use it, including an example
+\fBupdate\-policy\fR
+statement.
+.PP
+If a domain name is specified on the command line, it will be used in the name of the generated key and in the sample
+\fBnamed.conf\fR
+syntax. For example,
+\fBddns\-confgen example.com\fR
+would generate a key called "ddns\-key.example.com", and sample
+\fBnamed.conf\fR
+command that could be used in the zone definition for "example.com".
+.PP
+Note that
+\fBnamed\fR
+itself can configure a local DDNS key for use with
+\fBnsupdate \-l\fR.
+\fBddns\-confgen\fR
+is only needed when a more elaborate configuration is required: for instance, if
+\fBnsupdate\fR
+is to be used from a remote system.
+.SH "OPTIONS"
+.PP
+\-a \fIalgorithm\fR
+.RS 4
+Specifies the algorithm to use for the TSIG key. Available choices are: hmac\-md5, hmac\-sha1, hmac\-sha224, hmac\-sha256, hmac\-sha384 and hmac\-sha512. The default is hmac\-sha256.
+.RE
+.PP
+\-h
+.RS 4
+Prints a short summary of the options and arguments to
+\fBddns\-confgen\fR.
+.RE
+.PP
+\-k \fIkeyname\fR
+.RS 4
+Specifies the key name of the DDNS authentication key. The default is
+\fBddns\-key\fR
+when neither the
+\fB\-s\fR
+nor
+\fB\-z\fR
+option is specified; otherwise, the default is
+\fBddns\-key\fR
+as a separate label followed by the argument of the option, e.g.,
+\fBddns\-key.example.com.\fR
+The key name must have the format of a valid domain name, consisting of letters, digits, hyphens and periods.
+.RE
+.PP
+\-q
+.RS 4
+Quiet mode: Print only the key, with no explanatory text or usage examples.
+.RE
+.PP
+\-r \fIrandomfile\fR
+.RS 4
+Specifies a source of random data for generating the authorization. If the operating system does not provide a
+\fI/dev/random\fR
+or equivalent device, the default source of randomness is keyboard input.
+\fIrandomdev\fR
+specifies the name of a character device or file containing random data to be used instead of the default. The special value
+\fIkeyboard\fR
+indicates that keyboard input should be used.
+.RE
+.PP
+\-s \fIname\fR
+.RS 4
+Single host mode: The example
+\fBnamed.conf\fR
+text shows how to set an update policy for the specified
+\fIname\fR
+using the "name" nametype. The default key name is ddns\-key.\fIname\fR. Note that the "self" nametype cannot be used, since the name to be updated may differ from the key name. This option cannot be used with the
+\fB\-z\fR
+option.
+.RE
+.PP
+\-z \fIzone\fR
+.RS 4
+zone mode: The example
+\fBnamed.conf\fR
+text shows how to set an update policy for the specified
+\fIzone\fR
+using the "zonesub" nametype, allowing updates to all subdomain names within that
+\fIzone\fR. This option cannot be used with the
+\fB\-s\fR
+option.
+.RE
+.SH "SEE ALSO"
+.PP
+\fBnsupdate\fR(1),
+\fBnamed.conf\fR(5),
+\fBnamed\fR(8),
+BIND 9 Administrator Reference Manual.
+.SH "AUTHOR"
+.PP
+Internet Systems Consortium
+.SH "COPYRIGHT"
+Copyright \(co 2009 Internet Systems Consortium, Inc. ("ISC")
+.br

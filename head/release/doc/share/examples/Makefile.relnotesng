@@ -1,0 +1,61 @@
+# -*- makefile -*-
+#
+# $FreeBSD$
+#
+# Sample makefile for rendering and uploading RELNOTESng files outside
+# the build tree.
+#
+
+ARCHS=		amd64 ia64 i386 pc98 powerpc sparc64
+MULTITEXTS=	
+UNITEXTS=	hardware readme relnotes errata
+
+IMAGEDIR=	.imagedir
+RHOST=		freefall.freebsd.org
+RDIR=		public_html/relnotes/CURRENT
+DOCDIR=		./release/doc
+LANG=		en_US.ISO8859-1
+
+DOC_PREFIX?=	/usr/doc
+CSS_SHEET?=	${DOC_PREFIX}/share/misc/docbook.css
+FORMATS?=	html txt pdf
+
+BUILD_OPTIONS+=	URLS_ABSOLUTE=YES
+
+all:
+	(cd ${DOCDIR}; ${MAKE} DOC_PREFIX=${DOC_PREFIX} FORMATS="${FORMATS}" ${BUILD_OPTIONS} all)
+
+lint:
+	(cd ${DOCDIR}; ${MAKE} DOC_PREFIX=${DOC_PREFIX} lint)
+
+image:	all
+	@echo "#"
+	@echo "# Creating local image"
+	@echo "#"
+	rm -rf ${IMAGEDIR}
+	mkdir ${IMAGEDIR}
+	cp -p ${CSS_SHEET} ${IMAGEDIR}/docbook.css
+	for i in ${ARCHS}; do \
+		for j in ${MULTITEXTS}; do \
+			for k in ${FORMATS}; do \
+	cp -p ${DOCDIR}/${LANG}/$${j}/$${i}/article.$${k} ${IMAGEDIR}/$${j}-$${i}.$${k} ; \
+			done; \
+		done; \
+	done
+	for j in ${UNITEXTS}; do \
+		for k in ${FORMATS}; do \
+	cp -p ${DOCDIR}/${LANG}/$${j}/article.$${k} ${IMAGEDIR}/$${j}.$${k} ; \
+		done; \
+	done
+
+push:	image
+	@echo "#"
+	@echo "# Pushing to ${RHOST}"
+	@echo "#"
+#	(cd ${IMAGEDIR}; tar -cf - .) | gzip -c -9 | (ssh ${RHOST} "( cd ${RDIR}; gunzip -c | tar -xf -)" )
+	(cd ${IMAGEDIR}; rsync -azuv * ${RHOST}:${RDIR})
+	rm -rf ${IMAGEDIR}
+
+clean:
+	(cd ${DOCDIR}; ${MAKE} DOC_PREFIX=${DOC_PREFIX} FORMATS="${FORMATS}" clean)
+	rm -rf ${IMAGEDIR}

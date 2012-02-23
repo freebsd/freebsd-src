@@ -1,0 +1,294 @@
+# $FreeBSD$
+
+hint.atacbus.0.at="isa"
+hint.atacbus.0.port="0x640"
+hint.atacbus.0.irq="9"
+
+hint.fdc.0.at="isa"
+hint.fdc.0.port="0x090"
+hint.fdc.0.irq="11"
+hint.fdc.0.drq="2"
+hint.fd.0.at="fdc0"
+hint.fd.0.drive="0"
+hint.fd.1.at="fdc0"
+hint.fd.1.drive="1"
+hint.fd.2.at="fdc0"
+hint.fd.2.drive="2"
+hint.fd.3.at="fdc0"
+hint.fd.3.drive="3"
+
+# PC-9801-100
+hint.aic.0.at="isa"
+hint.aic.0.port="0x1840"
+hint.aic.0.irq="5"
+hint.aic.0.flags="0x10000"
+
+# GENERIC
+hint.ct.0.at="isa"
+# SC98
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x10000"
+# TEXA
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x20000"
+# ELECOM
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x30000"
+# SMIT
+#hint.ct.0.at="isa"
+#hint.ct.0.maddr="0xdc000"
+#hint.ct.0.flags="0x40000"
+# LOGITEC
+#hint.ct.0.at="isa"
+#hint.ct.0.flags="0x50000"
+
+hint.attimer.0.at="isa"
+hint.attimer.0.port="0x71"
+hint.attimer.0.irq="0"
+
+hint.pcrtc.0.at="isa"
+
+hint.pckbd.0.at="isa"
+hint.pckbd.0.port="0x041"
+hint.pckbd.0.irq="1"
+hint.gdc.0.at="isa"
+hint.sc.0.at="isa"
+
+#hint.apm.0.disabled="1"
+#hint.apm.0.flags="0x20"
+#hint.pmc.0.at="isa"
+#hint.pmc.0.port="0x8f0"
+
+# Microsoft Sound System
+#hint.pcm.0.at="isa"
+#hint.pcm.0.port="0xf40"
+#hint.pcm.0.irq="12"
+#hint.pcm.0.drq="1"
+#hint.pcm.0.flags="0x10000"
+# Sound Blaster 16
+#hint.sbc.0.at="isa"
+#hint.sbc.0.port="0x20d2"
+#hint.sbc.0.irq="10"
+#hint.sbc.0.drq="3"
+
+# COM1
+hint.sio.0.at="isa"
+hint.sio.0.port="0x030"
+hint.sio.0.irq="4"
+# COM2 (2nd CCU)
+hint.sio.1.at="isa"
+hint.sio.1.port="0x238"
+hint.sio.1.irq="5"
+hint.sio.1.flags="0x12000000"
+# PC-9861K, PC-9801-101, MDC-926Rs
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x0B1"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x01000000"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x0B9"
+#hint.sio.2.irq="6"
+#hint.sio.2.flags="0x02000000"
+# PC-9801-120 (PnP off)
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x8b0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x11000000"
+# MC-16550II, MC-RS98
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xd2"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x14000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x8d2"
+#hint.sio.2.flags="0x14000101"
+# RSB-2000, RSB-3000, B98-02
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xb0"
+#hint.sio.1.flags="0x15000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0xb1"
+#hint.sio.2.flags="0x15000101"
+# RSB-384
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0xb0"
+#hint.sio.1.flags="0x16000000"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0xb1"
+#hint.sio.2.flags="0x16000000"
+# RSA-98III
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x50e0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x18000101"
+#hint.sio.2.at="isa"
+#hint.sio.2.port="0x51e0"
+#hint.sio.2.flags="0x18000101"
+# ESP98
+#hint.sio.1.at="isa"
+#hint.sio.1.port="0x18b0"
+#hint.sio.1.irq="5"
+#hint.sio.1.flags="0x19000000"
+
+# COM2 (2nd CCU)
+hint.uart.1.at="isa"
+hint.uart.1.port="0x238"
+hint.uart.1.irq="5"
+
+hint.mse.0.at="isa"
+hint.mse.0.port="0x7FD9"
+hint.mse.0.irq="13"
+
+#hint.joy.0.at="isa"
+#hint.joy.0.port="0x04d2"
+
+hint.ppc.0.at="isa"
+hint.ppc.0.irq="14"
+hint.olpt.0.at="isa"
+hint.olpt.0.port="0x040"
+
+#
+# ed0: generic driver/EtherEZ98
+# ed1: LANEED LD-BDN
+# ed2: EGY-98
+# ed3: LGY-98
+# ed4: ICM-IF-2766/EN-2298-T
+# ed5: SIC-98
+# ed6: PC-9801-108
+# ed7: LA-98
+# ed8: C-NET(98)
+# ed9: C-NET(98)E/L
+# ed10: EC/EP-98X
+# ed11: SB-9801
+# ed12: NC5098
+#
+hint.ed.0.at="isa"
+hint.ed.0.port="0x00d0"
+hint.ed.0.irq="6"
+# EtherEZ98
+#hint.ed.0.at="isa"
+#hint.ed.0.port="0x10d0"
+#hint.ed.0.irq="6"
+#hint.ed.0.maddr="0xc8000"
+# SIC-98
+hint.ed.5.at="isa"
+hint.ed.5.port="0x00d0"
+hint.ed.5.irq="6"
+hint.ed.5.maddr="0xd0000"
+hint.ed.5.msize="16384"
+hint.ed.5.flags="0x600000"
+hint.ed.5.disabled="1"
+# SIU-98-E
+#hint.ed.5.at="isa"
+#hint.ed.5.port="0x00d0"
+#hint.ed.5.irq="6"
+#hint.ed.5.maddr="0xd0000"
+#hint.ed.5.msize="32768"
+#hint.ed.5.flags="0x610000"
+# LANEED LD-BDN
+hint.ed.1.at="isa"
+hint.ed.1.port="0x00d8"
+hint.ed.1.irq="6"
+hint.ed.1.flags="0x200000"
+hint.ed.1.disabled="1"
+# LGY-98
+hint.ed.3.at="isa"
+hint.ed.3.port="0x00d0"
+hint.ed.3.irq="6"
+hint.ed.3.flags="0x400000"
+hint.ed.3.disabled="1"
+# ICM-IF-2766/EN-2298-T
+hint.ed.4.at="isa"
+hint.ed.4.port="0x56d0"
+hint.ed.4.irq="5"
+hint.ed.4.flags="0x500000"
+hint.ed.4.disabled="1"
+# EGY-98
+hint.ed.2.at="isa"
+hint.ed.2.port="0x00d8"
+hint.ed.2.irq="6"
+hint.ed.2.flags="0x300000"
+hint.ed.2.disabled="1"
+# LA-98
+hint.ed.7.at="isa"
+hint.ed.7.port="0x00d0"
+hint.ed.7.irq="6"
+hint.ed.7.flags="0x900000"
+hint.ed.7.disabled="1"
+# PC-9801-77
+#hint.ed.7.at="isa"
+#hint.ed.7.port="0x00d0"
+#hint.ed.7.irq="6"
+#hint.ed.7.flags="0x910000"
+# PC-9801-108
+hint.ed.6.at="isa"
+hint.ed.6.port="0x0770"
+hint.ed.6.irq="6"
+hint.ed.6.flags="0x800000"
+hint.ed.6.disabled="1"
+# C-NET(98)E/L
+hint.ed.9.at="isa"
+hint.ed.9.port="0x03d0"
+hint.ed.9.irq="6"
+hint.ed.9.flags="0xb00000"
+hint.ed.9.disabled="1"
+# C-NET(98)E/L(0x55ED)
+#hint.ed.9.at="isa"
+#hint.ed.9.port="0x03d0"
+#hint.ed.9.irq="6"
+#hint.ed.9.flags="0xb10000"
+# C-NET(98)
+hint.ed.8.at="isa"
+hint.ed.8.port="0xa3d0"
+hint.ed.8.irq="6"
+hint.ed.8.maddr="0xd0000"
+hint.ed.8.msize="16384"
+hint.ed.8.flags="0xa00000"
+hint.ed.8.disabled="1"
+# EN1646
+#hint.ed.10.at="isa"
+#hint.ed.10.port="0x00d0"
+#hint.ed.10.irq="3"
+#hint.ed.10.flags="0xd00000"
+# EC/EP-98X
+hint.ed.10.at="isa"
+hint.ed.10.port="0x00d0"
+hint.ed.10.irq="3"
+hint.ed.10.flags="0xd10000"
+hint.ed.10.disabled="1"
+# SB-9801
+hint.ed.11.at="isa"
+hint.ed.11.port="0x00d0"
+hint.ed.11.irq="3"
+hint.ed.11.flags="0xe00000"
+hint.ed.11.disabled="1"
+# SN-9801-2
+#hint.ed.11.at="isa"
+#hint.ed.11.port="0x00d0"
+#hint.ed.11.irq="3"
+#hint.ed.11.flags="0xe00001"
+# NC5098
+hint.ed.12.at="isa"
+hint.ed.12.port="0x20d0"
+hint.ed.12.irq="3"
+hint.ed.12.flags="0xf00000"
+hint.ed.12.disabled="1"
+
+# fe0: RE1000/1000Plus/AccessPC N98C+/LAC-98
+hint.fe.0.at="isa"
+hint.fe.0.port="0x00d0"
+hint.fe.0.irq="3"
+# fe1: C-NET(98)P2/C-NET(9N)E
+hint.fe.1.at="isa"
+hint.fe.1.port="0x73d0"
+hint.fe.1.irq="5"
+
+# C-NET(98)S
+hint.le.0.at="isa"
+hint.le.0.port="0x03d0"
+hint.le.0.irq="6"
+
+hint.snc.0.at="isa"
+hint.snc.0.port="0x888"
+hint.snc.0.irq="6"
+hint.snc.0.maddr="0xc0000"

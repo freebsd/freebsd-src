@@ -1,0 +1,79 @@
+.\" Copyright (c) 2010 Gleb Smirnoff <glebius@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd May 25, 2010
+.Dt UEP 4
+.Os
+.Sh NAME
+.Nm uep
+.Nd eGalax touchscreen driver
+.Sh SYNOPSIS
+To compile this driver into the kernel, place the following lines into
+your kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device uep"
+.Cd "device usb"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+uep_load="YES"
+.Ed
+.Sh DESCRIPTION
+The
+.Nm
+driver provides support for the eGalax onscreen touch panels.
+.Pp
+The driver is stub.
+It just probes and attaches to USB device, creates device entry
+and feeds reassembled packets from the hardware to it.
+.Pp
+To get mouse working in
+.Xr X 7 ,
+one needs to install
+.Pa ports/x11-drivers/xf86-input-egalax .
+.Sh FILES
+.Nm
+creates a blocking pseudo\-device file,
+.Pa /dev/uep0 .
+.Sh SEE ALSO
+.Xr usb 4 ,
+.Xr loader.conf 5 ,
+.Xr xorg.conf 5 Pq Pa ports/x11/xorg ,
+.Xr egalax 4 Pq Pa ports/x11-drivers/xf86-input-egalax .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Gleb Smirnoff Aq glebius@FreeBSD.org
+.Sh BUGS
+.Nm
+can't act like
+.Xr sysmouse 4 ,
+since the latter does not support absolute motion events.

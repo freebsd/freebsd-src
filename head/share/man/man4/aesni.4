@@ -1,0 +1,94 @@
+.\" Copyright (c) 2010 Konstantin Belousov <kib@FreeBSD.org>
+.\" All rights reserved.
+.\"
+.\" Redistribution and use in source and binary forms, with or without
+.\" modification, are permitted provided that the following conditions
+.\" are met:
+.\" 1. Redistributions of source code must retain the above copyright
+.\"    notice, this list of conditions and the following disclaimer.
+.\" 2. Redistributions in binary form must reproduce the above copyright
+.\"    notice, this list of conditions and the following disclaimer in the
+.\"    documentation and/or other materials provided with the distribution.
+.\"
+.\" THIS SOFTWARE IS PROVIDED BY THE AUTHOR AND CONTRIBUTORS ``AS IS'' AND
+.\" ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE
+.\" IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE
+.\" ARE DISCLAIMED.  IN NO EVENT SHALL THE AUTHOR OR CONTRIBUTORS BE LIABLE
+.\" FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL
+.\" DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS
+.\" OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION)
+.\" HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
+.\" LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY
+.\" OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
+.\" SUCH DAMAGE.
+.\"
+.\" $FreeBSD$
+.\"
+.Dd September 6, 2010
+.Dt AESNI 4
+.Os
+.Sh NAME
+.Nm aesni
+.Nd "driver for the AES accelerator on Intel CPUs"
+.Sh SYNOPSIS
+To compile this driver into the kernel,
+place the following lines in your
+kernel configuration file:
+.Bd -ragged -offset indent
+.Cd "device crypto"
+.Cd "device aesni"
+.Ed
+.Pp
+Alternatively, to load the driver as a
+module at boot time, place the following line in
+.Xr loader.conf 5 :
+.Bd -literal -offset indent
+aesni_load="YES"
+.Ed
+.Sh DESCRIPTION
+Starting with some models of Core i5/i7, Intel processors implement
+a new set of instructions called AESNI.
+The set of six instructions accelerates the calculation of the key
+schedule for key lengths of 128, 192, and 256 of the Advanced
+Encryption Standard (AES) symmetric cipher, and provides a hardware
+implementation of the regular and the last encryption and decryption
+rounds.
+.Pp
+The processor capability is reported as AESNI in the Features2 line at boot.
+The
+.Nm
+driver does not attach on systems that lack the required CPU capability.
+.Pp
+The
+.Nm
+driver registers itself to accelerate AES operations for
+.Xr crypto 4 .
+Besides speed, the advantage of using the
+.Nm
+driver is that the AESNI operation
+is data-independent, thus eliminating some attack vectors based on
+measuring cache use and timings typically present in table-driven
+implementations.
+.Sh SEE ALSO
+.Xr crypt 3 ,
+.Xr crypto 4 ,
+.Xr intro 4 ,
+.Xr ipsec 4 ,
+.Xr padlock 4 ,
+.Xr random 4 ,
+.Xr crypto 9
+.Sh HISTORY
+The
+.Nm
+driver first appeared in
+.Fx 9.0 .
+.Sh AUTHORS
+.An -nosplit
+The
+.Nm
+driver was written by
+.An Konstantin Belousov Aq kib@FreeBSD.org .
+The key schedule calculation code was adopted from the sample provided
+by Intel and used in the analogous
+.Ox
+driver.

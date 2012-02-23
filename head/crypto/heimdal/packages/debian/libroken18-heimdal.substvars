@@ -1,0 +1,1 @@
+shlibs:Depends=libc6 (>= 2.6-1)

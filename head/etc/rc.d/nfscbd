@@ -1,0 +1,19 @@
+#!/bin/sh
+#
+# $FreeBSD$
+#
+
+# PROVIDE: nfscbd
+# REQUIRE: NETWORKING nfsuserd
+# KEYWORD: nojail shutdown
+
+. /etc/rc.subr
+
+name="nfscbd"
+rcvar="nfscbd_enable"
+command="/usr/sbin/${name}"
+sig_stop="USR1"
+
+load_rc_config $name
+
+run_rc_command "$1"
