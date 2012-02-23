@@ -297,7 +297,7 @@ struct ctl_page_index {
 #define	CTL_PAGE_DEFAULT	0x02
 #define	CTL_PAGE_SAVED		0x03
 
-static struct ctl_page_index page_index_template[] = {
+static const struct ctl_page_index page_index_template[] = {
 	{SMS_FORMAT_DEVICE_PAGE, 0, sizeof(struct scsi_format_page), NULL,
 	 CTL_PAGE_FLAG_DISK_ONLY, NULL, NULL},
 	{SMS_RIGID_DISK_PAGE, 0, sizeof(struct scsi_rigid_disk_page), NULL,
