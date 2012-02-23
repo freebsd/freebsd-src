@@ -1083,7 +1083,6 @@ struct sf_softc {
 	int			sf_if_flags;
 	struct callout		sf_co;
 	int			sf_watchdog_timer;
-	struct task		sf_link_task;
 	int			sf_link;
 	int			sf_suspended;
 	int			sf_detach;
