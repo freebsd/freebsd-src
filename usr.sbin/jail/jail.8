@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 9, 2012
+.Dd February 23, 2012
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -303,15 +303,16 @@ If the system securelevel is changed, any jail securelevels will be at
 least as secure.
 .It Va devfs_ruleset
 The number of the devfs ruleset that is enforced for mounting devfs in
-this jail and its descendants. A value of zero means no ruleset is enforced
-or if set inside a jail for a descendant jail, the parent jails's devfs
-ruleset enforcement is inherited. A value of -1 (default) means mounting a
-devfs filesystem is not allowed. Mounting devfs inside a jail is possible
-only if the
+this jail. A value of zero (default) means no ruleset is enforced. Descendant
+jails inherit the parent jail's devfs ruleset enforcement. Mounting devfs
+inside a jail is possible only if the
 .Va allow.mount
-permission is effective and
+and
+.Va allow.mount.devfs
+permissions are effective and
 .Va enforce_statfs
-is set to a value lower than 2.
+is set to a value lower than 2. Devfs rules and rulesets cannot be viewed or
+modified from inside a jail.
 .It Va children.max
 The number of child jails allowed to be created by this jail (or by
 other jails under this jail).
@@ -405,6 +406,25 @@ The
 command can be used to find file system types available for mount from
 within a jail.
 This permission is effective only if
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.devfs
+privileged users inside the jail will be able to mount and unmount the
+devfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2. Please consider restricting the devfs ruleset
+with the
+.Va devfs_ruleset
+option.
+.It Va allow.mount.nullfs
+privileged users inside the jail will be able to mount and unmount the
+nullfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
 .Va enforce_statfs
 is set to a value lower than 2.
 .It Va allow.quotas
