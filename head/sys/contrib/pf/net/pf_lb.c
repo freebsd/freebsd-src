@@ -35,15 +35,12 @@
  *
  */
 
-#ifdef __FreeBSD__
 #include "opt_inet.h"
 #include "opt_inet6.h"
 
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
-#endif
 
-#ifdef __FreeBSD__
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
@@ -71,12 +68,6 @@ __FBSDID("$FreeBSD$");
 #define	NPFLOW	0
 #endif
 
-#else
-#include "bpfilter.h"
-#include "pflog.h"
-#include "pfsync.h"
-#include "pflow.h"
-#endif
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -86,26 +77,13 @@ __FBSDID("$FreeBSD$");
 #include <sys/socketvar.h>
 #include <sys/kernel.h>
 #include <sys/time.h>
-#ifdef  __FreeBSD__
 #include <sys/sysctl.h>
-#endif
-#ifndef __FreeBSD__
-#include <sys/pool.h>
-#endif
 #include <sys/proc.h>
-#ifdef __FreeBSD__
 #include <sys/kthread.h>
 #include <sys/lock.h>
 #include <sys/sx.h>
-#else
-#include <sys/rwlock.h>
-#endif
 
-#ifdef __FreeBSD__
 #include <sys/md5.h>
-#else
-#include <crypto/md5.h>
-#endif
 
 #include <net/if.h>
 #include <net/if_types.h>
@@ -129,9 +107,6 @@ __FBSDID("$FreeBSD$");
 #include <netinet/icmp_var.h>
 #include <netinet/if_ether.h>
 
-#ifndef __FreeBSD__
-#include <dev/rndvar.h>
-#endif
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 #include <net/if_pflow.h>
@@ -148,11 +123,7 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 
-#ifdef __FreeBSD__
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
-#else
-#define DPFPRINTF(n, x)	if (pf_status.debug >= (n)) printf x
-#endif
 
 /*
  * Global variables
@@ -279,11 +250,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 		    !pf_match_port(dst->port_op, dst->port[0],
 		    dst->port[1], dport))
 			r = r->skip[PF_SKIP_DST_PORT].ptr;
-#ifdef __FreeBSD__
 		else if (r->match_tag && !pf_match_tag(m, r, &tag, pd->pf_mtag))
-#else
-		else if (r->match_tag && !pf_match_tag(m, r, &tag))
-#endif
 			r = TAILQ_NEXT(r, entries);
 		else if (r->os_fingerprint != PF_OSFP_ANY && (pd->proto !=
 		    IPPROTO_TCP || !pf_osfp_match(pf_osfp_fingerprint(pd, m,
@@ -304,11 +271,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 			pf_step_out_of_anchor(&asd, &ruleset, rs_num, &r,
 			    NULL, NULL);
 	}
-#ifdef __FreeBSD__
 	if (pf_tag_packet(m, tag, rtableid, pd->pf_mtag))
-#else
-	if (pf_tag_packet(m, tag, rtableid))
-#endif
 		return (NULL);
 	if (rm != NULL && (rm->action == PF_NONAT ||
 	    rm->action == PF_NORDR || rm->action == PF_NOBINAT))
@@ -370,20 +333,12 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 				high = tmp;
 			}
 			/* low < high */
-#ifdef __FreeBSD__
 			cut = htonl(arc4random()) % (1 + high - low) + low;
-#else
-			cut = arc4random_uniform(1 + high - low) + low;
-#endif
 			/* low <= cut <= high */
 			for (tmp = cut; tmp <= high; ++(tmp)) {
 				key.port[0] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
-#ifdef __FreeBSD__
 				    NULL) {
-#else
-				    NULL && !in_baddynamic(tmp, proto)) {
-#endif
 					*nport = htons(tmp);
 					return (0);
 				}
@@ -391,11 +346,7 @@ pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
 			for (tmp = cut - 1; tmp >= low; --(tmp)) {
 				key.port[0] = htons(tmp);
 				if (pf_find_state_all(&key, PF_IN, NULL) ==
-#ifdef __FreeBSD__
 				    NULL) {
-#else
-				    NULL && !in_baddynamic(tmp, proto)) {
-#endif
 					*nport = htons(tmp);
 					return (0);
 				}
@@ -438,20 +389,11 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 			k.rule.ptr = r;
 		else
 			k.rule.ptr = NULL;
-#ifdef __FreeBSD__
 		V_pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
 		*sn = RB_FIND(pf_src_tree, &V_tree_src_tracking, &k);
-#else
-		pf_status.scounters[SCNT_SRC_NODE_SEARCH]++;
-		*sn = RB_FIND(pf_src_tree, &tree_src_tracking, &k);
-#endif
 		if (*sn != NULL && !PF_AZERO(&(*sn)->raddr, af)) {
 			PF_ACPY(naddr, &(*sn)->raddr, af);
-#ifdef __FreeBSD__
 			if (V_pf_status.debug >= PF_DEBUG_MISC) {
-#else
-			if (pf_status.debug >= PF_DEBUG_MISC) {
-#endif
 				printf("pf_map_addr: src tracking maps ");
 				pf_print_host(&k.addr, 0, af);
 				printf(" to ");
@@ -598,11 +540,7 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 	if (*sn != NULL)
 		PF_ACPY(&(*sn)->raddr, naddr, af);
 
-#ifdef __FreeBSD__
 	if (V_pf_status.debug >= PF_DEBUG_MISC &&
-#else
-	if (pf_status.debug >= PF_DEBUG_MISC &&
-#endif
 	    (rpool->opts & PF_POOL_TYPEMASK) != PF_POOL_NONE) {
 		printf("pf_map_addr: selected address ");
 		pf_print_host(naddr, 0, af);
@@ -776,13 +714,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		 * Pretend there was no match.
 		 */
 		if (!bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
-#ifdef __FreeBSD__
-			pool_put(&V_pf_state_key_pl, *nkp);
-			pool_put(&V_pf_state_key_pl, *skp);
-#else
-			pool_put(&pf_state_key_pl, *nkp);
-			pool_put(&pf_state_key_pl, *skp);
-#endif
+			uma_zfree(V_pf_state_key_pl, *nkp);
+			uma_zfree(V_pf_state_key_pl, *skp);
 			*skw = *sks = *nkp = *skp = NULL;
 			return (NULL);
 		}

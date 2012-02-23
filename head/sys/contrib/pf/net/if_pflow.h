@@ -66,11 +66,7 @@ struct pflow_softc {
 	unsigned int		 sc_maxcount;
 	u_int64_t		 sc_gcounter;
 	struct ip_moptions	 sc_imo;
-#ifdef __FreeBSD__
 	struct callout		 sc_tmo;
-#else
-	struct timeout		 sc_tmo;
-#endif
 	struct in_addr		 sc_sender_ip;
 	u_int16_t		 sc_sender_port;
 	struct in_addr		 sc_receiver_ip;
