@@ -446,7 +446,7 @@ bstp_pdu_flags(struct bstp_port *bp)
 	return (flags);
 }
 
-struct mbuf *
+void
 bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 {
 	struct bstp_state *bs = bp->bp_bs;
@@ -456,7 +456,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	if (bp->bp_active == 0) {
 		m_freem(m);
-		return (NULL);
+		return;
 	}
 
 	BSTP_LOCK(bs);
@@ -521,7 +521,6 @@ out:
 	BSTP_UNLOCK(bs);
 	if (m)
 		m_freem(m);
-	return (NULL);
 }
 
 static void
