@@ -268,10 +268,8 @@ struct pfsyncreq {
 	int		 pfsyncr_authlevel;
 };
 
-#ifdef __FreeBSD__
 #define	SIOCSETPFSYNC   _IOW('i', 247, struct ifreq)
 #define	SIOCGETPFSYNC   _IOWR('i', 248, struct ifreq)
-#endif
 
 #ifdef _KERNEL
 
@@ -288,11 +286,7 @@ struct pfsyncreq {
 #define	PFSYNC_S_DEFER	0xfe
 #define	PFSYNC_S_NONE	0xff
 
-#ifdef __FreeBSD__
 void			pfsync_input(struct mbuf *, __unused int);
-#else
-void			pfsync_input(struct mbuf *, ...);
-#endif
 int			pfsync_sysctl(int *, u_int,  void *, size_t *,
 			    void *, size_t);
 
@@ -300,10 +294,6 @@ int			pfsync_sysctl(int *, u_int,  void *, size_t *,
 #define	PFSYNC_SI_CKSUM		0x02
 #define	PFSYNC_SI_ACK		0x04
 int			pfsync_state_import(struct pfsync_state *, u_int8_t);
-#ifndef __FreeBSD__
-void			pfsync_state_export(struct pfsync_state *,
-			    struct pf_state *);
-#endif
 
 void			pfsync_insert_state(struct pf_state *);
 void			pfsync_update_state(struct pf_state *);
