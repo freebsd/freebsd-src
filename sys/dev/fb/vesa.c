@@ -1481,7 +1481,7 @@ vesa_load_state(video_adapter_t *adp, void *p)
 	(void)vesa_bios_post();
 	mode = adp->va_mode;
 	(void)vesa_set_mode(adp, adp->va_initial_mode);
-	if (mode != adp->va_initial_mode);
+	if (mode != adp->va_initial_mode)
 		(void)vesa_set_mode(adp, mode);
 
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs));
