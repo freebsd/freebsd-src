@@ -1549,7 +1549,9 @@ sf_rxeof(struct sf_softc *sc)
 	 */
 	eidx = 0;
 	prog = 0;
-	for (cons = sc->sf_cdata.sf_rxc_cons; ; SF_INC(cons, SF_RX_CLIST_CNT)) {
+	for (cons = sc->sf_cdata.sf_rxc_cons;
+	    (ifp->if_drv_flags & IFF_DRV_RUNNING) != 0;
+	    SF_INC(cons, SF_RX_CLIST_CNT)) {
 		cur_cmp = &sc->sf_rdata.sf_rx_cring[cons];
 		status = le32toh(cur_cmp->sf_rx_status1);
 		if (status == 0)
@@ -1852,6 +1854,7 @@ sf_intr(void *arg)
 	struct sf_softc		*sc;
 	struct ifnet		*ifp;
 	uint32_t		status;
+	int			cnt;
 
 	sc = (struct sf_softc *)arg;
 	SF_LOCK(sc);
@@ -1870,13 +1873,13 @@ sf_intr(void *arg)
 	if ((ifp->if_capenable & IFCAP_POLLING) != 0)
 		goto done_locked;
 #endif
-	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
-		goto done_locked;
 
 	/* Disable interrupts. */
 	csr_write_4(sc, SF_IMR, 0x00000000);
 
-	for (; (status & SF_INTRS) != 0;) {
+	for (cnt = 32; (status & SF_INTRS) != 0;) {
+		if ((ifp->if_drv_flags & IFF_DRV_RUNNING) == 0)
+			break;
 		if ((status & SF_ISR_RXDQ1_DMADONE) != 0)
 			sf_rxeof(sc);
 
@@ -1911,15 +1914,19 @@ sf_intr(void *arg)
 #endif
 			}
 		}
+		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
+			sf_start_locked(ifp);
+		if (--cnt <= 0)
+			break;
 		/* Reading the ISR register clears all interrrupts. */
 		status = csr_read_4(sc, SF_ISR);
 	}
 
-	/* Re-enable interrupts. */
-	csr_write_4(sc, SF_IMR, SF_INTRS);
+	if ((ifp->if_drv_flags & IFF_DRV_RUNNING) != 0) {
+		/* Re-enable interrupts. */
+		csr_write_4(sc, SF_IMR, SF_INTRS);
+	}
 
-	if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
-		sf_start_locked(ifp);
 done_locked:
 	SF_UNLOCK(sc);
 }
