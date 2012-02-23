@@ -2329,6 +2329,9 @@ sf_stop(struct sf_softc *sc)
 	/* Disable Tx/Rx egine. */
 	csr_write_4(sc, SF_GEN_ETH_CTL, 0);
 
+	/* Give hardware chance to drain active DMA cycles. */
+	DELAY(1000);
+
 	csr_write_4(sc, SF_CQ_CONSIDX, 0);
 	csr_write_4(sc, SF_CQ_PRODIDX, 0);
 	csr_write_4(sc, SF_RXDQ_ADDR_Q1, 0);
