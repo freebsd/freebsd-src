@@ -172,6 +172,7 @@ static void sf_init_locked(struct sf_softc *);
 static void sf_stop(struct sf_softc *);
 static void sf_watchdog(struct sf_softc *);
 static int sf_ifmedia_upd(struct ifnet *);
+static int sf_ifmedia_upd_locked(struct ifnet *);
 static void sf_ifmedia_sts(struct ifnet *, struct ifmediareq *);
 static void sf_reset(struct sf_softc *);
 static int sf_dma_alloc(struct sf_softc *);
@@ -523,20 +524,27 @@ static int
 sf_ifmedia_upd(struct ifnet *ifp)
 {
 	struct sf_softc		*sc;
-	struct mii_data		*mii;
-	struct mii_softc        *miisc;
 	int			error;
 
 	sc = ifp->if_softc;
 	SF_LOCK(sc);
+	error = sf_ifmedia_upd_locked(ifp);
+	SF_UNLOCK(sc);
+	return (error);
+}
 
+static int
+sf_ifmedia_upd_locked(struct ifnet *ifp)
+{
+	struct sf_softc		*sc;
+	struct mii_data		*mii;
+	struct mii_softc        *miisc;
+
+	sc = ifp->if_softc;
 	mii = device_get_softc(sc->sf_miibus);
 	LIST_FOREACH(miisc, &mii->mii_phys, mii_list)
 		PHY_RESET(miisc);
-	error = mii_mediachg(mii);
-	SF_UNLOCK(sc);
-
-	return (error);
+	return (mii_mediachg(mii));
 }
 
 /*
@@ -2136,11 +2144,11 @@ sf_init_locked(struct sf_softc *sc)
 	else
 		SF_CLRBIT(sc, SF_GEN_ETH_CTL, SF_ETHCTL_RXGFP_ENB);
 
-	sc->sf_link = 0;
-	mii_mediachg(mii);
-
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+
+	sc->sf_link = 0;
+	sf_ifmedia_upd_locked(ifp);
 
 	callout_reset(&sc->sf_co, hz, sf_tick, sc);
 }
