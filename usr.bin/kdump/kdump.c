@@ -1015,9 +1015,9 @@ ktrsyscall(struct ktr_syscall *ktr, u_int flags)
 				capname(arg);
 				break;
 			case SYS_posix_fadvise:
-				print_number(ip,narg,c);
-				print_number(ip,narg,c);
-				print_number(ip,narg,c);
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
+				print_number(ip, narg, c);
 				(void)putchar(',');
 				fadvisebehavname((int)*ip);
 				ip++;
