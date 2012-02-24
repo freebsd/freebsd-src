@@ -157,8 +157,10 @@ ieee80211_start(struct ifnet *ifp)
 			    "%s: ignore queue, in %s state\n",
 			    __func__, ieee80211_state_name[vap->iv_state]);
 			vap->iv_stats.is_tx_badstate++;
-			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 			IEEE80211_UNLOCK(ic);
+			IFQ_LOCK(&ifp->if_snd);
+			ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+			IFQ_UNLOCK(&ifp->if_snd);
 			return;
 		}
 		IEEE80211_UNLOCK(ic);
@@ -389,7 +391,9 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 	struct ieee80211_frame *wh;
 	int error;
 
+	IFQ_LOCK(&ifp->if_snd);
 	if (ifp->if_drv_flags & IFF_DRV_OACTIVE) {
+		IFQ_UNLOCK(&ifp->if_snd);
 		/*
 		 * Short-circuit requests if the vap is marked OACTIVE
 		 * as this can happen because a packet came down through
@@ -400,6 +404,7 @@ ieee80211_output(struct ifnet *ifp, struct mbuf *m,
 		 */
 		senderr(ENETDOWN);
 	}
+	IFQ_UNLOCK(&ifp->if_snd);
 	vap = ifp->if_softc;
 	/*
 	 * Hand to the 802.3 code if not tagged as
