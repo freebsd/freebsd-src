@@ -916,6 +916,7 @@ loop:
 
 			if (status)
 				*status = SIGCONT;
+			return (0);
 		}
 		PROC_UNLOCK(p);
 	}
