@@ -142,7 +142,7 @@ static int ip6_insertfraghdr __P((struct mbuf *, struct mbuf *, int,
 static int ip6_insert_jumboopt(struct ip6_exthdrs *, u_int32_t);
 static int ip6_splithdr(struct mbuf *, struct ip6_exthdrs *);
 static int ip6_getpmtu __P((struct route_in6 *, struct route_in6 *,
-	struct ifnet *, struct in6_addr *, u_long *, int *, int));
+	struct ifnet *, struct in6_addr *, u_long *, int *, u_int));
 static int copypktopts(struct ip6_pktopts *, struct ip6_pktopts *, int);
 
 
@@ -1324,7 +1324,7 @@ ip6_insertfraghdr(struct mbuf *m0, struct mbuf *m, int hlen,
 static int
 ip6_getpmtu(struct route_in6 *ro_pmtu, struct route_in6 *ro,
     struct ifnet *ifp, struct in6_addr *dst, u_long *mtup,
-    int *alwaysfragp, int fibnum)
+    int *alwaysfragp, u_int fibnum)
 {
 	u_int32_t mtu = 0;
 	int alwaysfrag = 0;
