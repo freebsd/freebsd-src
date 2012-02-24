@@ -667,10 +667,10 @@ omap_ehci_suspend(device_t dev)
 	ehci_softc_t *sc = device_get_softc(dev);
 	int err;
 	
+	sc = sc;
 	err = bus_generic_suspend(dev);
 	if (err)
 		return (err);
-	ehci_suspend(sc);
 	return (0);
 }
 
@@ -691,8 +691,7 @@ static int
 omap_ehci_resume(device_t dev)
 {
 	ehci_softc_t *sc = device_get_softc(dev);
-	
-	ehci_resume(sc);
+	sc = sc;
 	
 	bus_generic_resume(dev);
 	
@@ -718,10 +717,10 @@ omap_ehci_shutdown(device_t dev)
 	ehci_softc_t *sc = device_get_softc(dev);
 	int err;
 	
+	sc = sc;
 	err = bus_generic_shutdown(dev);
 	if (err)
 		return (err);
-	ehci_shutdown(sc);
 	
 	return (0);
 }
