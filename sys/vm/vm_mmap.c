@@ -1272,10 +1272,10 @@ vm_mmap_vnode(struct thread *td, vm_size_t objsize,
 				VFS_UNLOCK_GIANT(vfslocked);
 				return (error);
 			}
-			if (locktype == LK_EXCLUSIVE) {
-				*writecounted = TRUE;
-				vnode_pager_update_writecount(obj, 0, objsize);
-			}
+		}
+		if (locktype == LK_EXCLUSIVE) {
+			*writecounted = TRUE;
+			vnode_pager_update_writecount(obj, 0, objsize);
 		}
 	} else if (vp->v_type == VCHR) {
 		error = vm_mmap_cdev(td, objsize, prot, maxprotp, flagsp,
