@@ -91,6 +91,7 @@ device		gpio
 
 device		pty
 
+device		pl310			#  PL310 L2 cache controller
 # Debugging for use in -current
 #options		VERBOSE_SYSINIT		#Enable verbose sysinit messages
 options 	KDB
