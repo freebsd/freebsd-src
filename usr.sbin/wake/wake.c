@@ -78,7 +78,7 @@ wake(int bpf, const char *host)
 	if (get_ether(host, &macaddr) == -1)
 		return (-1);
 
-	return send_wakeup(bpf, &macaddr);
+	return (send_wakeup(bpf, &macaddr));
 }
 
 static int
@@ -111,10 +111,10 @@ find_ether(char *dst, size_t len)
 	int nifs;
 
 	if (dst == NULL || len == 0)
-		return 0;
+		return (0);
 
 	if (getifaddrs(&ifap) != 0)
-		return -1;
+		return (-1);
 
 	/* XXX also check the link state */
 	for (nifs = 0, ifa = ifap; ifa; ifa = ifa->ifa_next)
@@ -128,7 +128,7 @@ find_ether(char *dst, size_t len)
 		}
 
 	freeifaddrs(ifap);
-	return nifs == 1 ? 0 : -1;
+	return (nifs == 1 ? 0 : -1);
 }
 
 static int
