@@ -1615,6 +1615,7 @@ markwaiting(struct ieee80211vap *vap0)
 		if (vap->iv_state != IEEE80211_S_INIT) {
 			/* NB: iv_newstate may drop the lock */
 			vap->iv_newstate(vap, IEEE80211_S_INIT, 0);
+			IEEE80211_LOCK_ASSERT(ic);
 			vap->iv_flags_ext |= IEEE80211_FEXT_SCANWAIT;
 		}
 	}
@@ -1649,6 +1650,7 @@ wakeupwaiting(struct ieee80211vap *vap0)
 			vap->iv_newstate(vap,
 			    vap->iv_opmode == IEEE80211_M_STA ?
 			        IEEE80211_S_SCAN : IEEE80211_S_RUN, 0);
+			IEEE80211_LOCK_ASSERT(ic);
 		}
 	}
 }
@@ -1678,6 +1680,7 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		    ieee80211_state_name[vap->iv_state],
 		    ieee80211_state_name[IEEE80211_S_INIT], arg);
 		vap->iv_newstate(vap, IEEE80211_S_INIT, arg);
+		IEEE80211_LOCK_ASSERT(ic);
 		vap->iv_flags_ext &= ~IEEE80211_FEXT_REINIT;
 	}
 
@@ -1699,6 +1702,7 @@ ieee80211_newstate_cb(void *xvap, int npending)
 	    ieee80211_state_name[ostate], ieee80211_state_name[nstate], arg);
 
 	rc = vap->iv_newstate(vap, nstate, arg);
+	IEEE80211_LOCK_ASSERT(ic);
 	vap->iv_flags_ext &= ~IEEE80211_FEXT_STATEWAIT;
 	if (rc != 0) {
 		/* State transition failed */
@@ -1724,7 +1728,9 @@ ieee80211_newstate_cb(void *xvap, int npending)
 		 * Note this can also happen as a result of SLEEP->RUN
 		 * (i.e. coming out of power save mode).
 		 */
+		IF_LOCK(&vap->iv_ifp->if_snd);
 		vap->iv_ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+		IF_UNLOCK(&vap->iv_ifp->if_snd);
 		if_start(vap->iv_ifp);
 
 		/* bring up any vaps waiting on us */
