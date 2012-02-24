@@ -33,6 +33,7 @@
 #include <sys/systm.h>
 #include <sys/namei.h>
 #include <sys/conf.h>
+#include <sys/priv.h>
 #include <sys/proc.h>
 #include <sys/kernel.h>
 #include <sys/vnode.h>
@@ -150,13 +151,16 @@ static const char *ntfs_opts[] = {
 };
 
 static int
-ntfs_mount (struct mount *mp)
+ntfs_mount(struct mount *mp)
 {
-	int		err = 0, error;
-	struct vnode	*devvp;
+	int err = 0, error;
+	accmode_t accmode;
+	struct vnode *devvp;
 	struct nameidata ndp;
+	struct thread *td;
 	char *from;
 
+	td = curthread;
 	if (vfs_filteropt(mp->mnt_optnew, ntfs_opts))
 		return (EINVAL);
 
@@ -183,7 +187,7 @@ ntfs_mount (struct mount *mp)
 	 * Not an update, or updating the name: look up the name
 	 * and verify that it refers to a sensible block device.
 	 */
-	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, curthread);
+	NDINIT(&ndp, LOOKUP, FOLLOW | LOCKLEAF, UIO_SYSSPACE, from, td);
 	err = namei(&ndp);
 	if (err) {
 		/* can't get devvp!*/
@@ -193,6 +197,21 @@ ntfs_mount (struct mount *mp)
 	devvp = ndp.ni_vp;
 
 	if (!vn_isdisk(devvp, &err))  {
+		vput(devvp);
+		return (err);
+	}
+
+	/*
+	 * If mount by non-root, then verify that user has necessary
+	 * permissions on the device.
+	 */
+	accmode = VREAD;
+	if ((mp->mnt_flag & MNT_RDONLY) == 0)
+		accmode |= VWRITE;
+	err = VOP_ACCESS(devvp, accmode, td->td_ucred, td);
+	if (err)
+		err = priv_check(td, PRIV_VFS_MOUNT_PERM);
+	if (err) {
 		vput(devvp);
 		return (err);
 	}
@@ -230,7 +249,7 @@ ntfs_mount (struct mount *mp)
 		/* Save "mounted from" info for mount point (NULL pad)*/
 		vfs_mountedfrom(mp, from);
 
-		err = ntfs_mountfs(devvp, mp, curthread);
+		err = ntfs_mountfs(devvp, mp, td);
 	}
 	if (err) {
 		vrele(devvp);
@@ -243,7 +262,7 @@ error_1:	/* no state to back out*/
 	/* XXX: missing NDFREE(&ndp, ...) */
 
 success:
-	return(err);
+	return (err);
 }
 
 /*
