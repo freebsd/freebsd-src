@@ -43,45 +43,71 @@
 
 /* Contents of each x87 floating point accumulator */
 struct fpacc87 {
-	u_char	fp_bytes[10];
+	uint8_t	fp_bytes[10];
 };
 
 /* Contents of each SSE extended accumulator */
 struct  xmmacc {
-	u_char	xmm_bytes[16];
+	uint8_t	xmm_bytes[16];
+};
+
+/* Contents of the upper 16 bytes of each AVX extended accumulator */
+struct  ymmacc {
+	uint8_t  ymm_bytes[16];
 };
 
 struct  envxmm {
-	u_int16_t	en_cw;		/* control word (16bits) */
-	u_int16_t	en_sw;		/* status word (16bits) */
-	u_int8_t	en_tw;		/* tag word (8bits) */
-	u_int8_t	en_zero;
-	u_int16_t	en_opcode;	/* opcode last executed (11 bits ) */
-	u_int64_t	en_rip;		/* floating point instruction pointer */
-	u_int64_t	en_rdp;		/* floating operand pointer */
-	u_int32_t	en_mxcsr;	/* SSE sontorol/status register */
-	u_int32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
+	uint16_t	en_cw;		/* control word (16bits) */
+	uint16_t	en_sw;		/* status word (16bits) */
+	uint8_t		en_tw;		/* tag word (8bits) */
+	uint8_t		en_zero;
+	uint16_t	en_opcode;	/* opcode last executed (11 bits ) */
+	uint64_t	en_rip;		/* floating point instruction pointer */
+	uint64_t	en_rdp;		/* floating operand pointer */
+	uint32_t	en_mxcsr;	/* SSE sontorol/status register */
+	uint32_t	en_mxcsr_mask;	/* valid bits in mxcsr */
 };
 
 struct  savefpu {
 	struct	envxmm	sv_env;
 	struct {
 		struct fpacc87	fp_acc;
-		u_char		fp_pad[6];      /* padding */
+		uint8_t		fp_pad[6];      /* padding */
 	} sv_fp[8];
 	struct xmmacc	sv_xmm[16];
-	u_char sv_pad[96];
+	uint8_t sv_pad[96];
 } __aligned(16);
 
-#ifdef _KERNEL
-struct fpu_kern_ctx {
-	struct savefpu hwstate;
-	struct savefpu *prev;
-	uint32_t flags;
+struct xstate_hdr {
+	uint64_t xstate_bv;
+	uint8_t xstate_rsrv0[16];
+	uint8_t	xstate_rsrv[40];
 };
-#define	FPU_KERN_CTX_FPUINITDONE 0x01
+
+struct savefpu_xstate {
+	struct xstate_hdr sx_hd;
+	struct ymmacc	sx_ymm[16];
+};
+
+struct savefpu_ymm {
+	struct	envxmm	sv_env;
+	struct {
+		struct fpacc87	fp_acc;
+		int8_t		fp_pad[6];      /* padding */
+	} sv_fp[8];
+	struct xmmacc	sv_xmm[16];
+	uint8_t sv_pad[96];
+	struct savefpu_xstate sv_xstate;
+} __aligned(64);
+
+#ifdef _KERNEL
+
+struct fpu_kern_ctx;
 
 #define	PCB_USER_FPU(pcb) (((pcb)->pcb_flags & PCB_KERNFPU) == 0)
+
+#define	XSAVE_AREA_ALIGN	64
+
 #endif
 
 /*
@@ -114,9 +140,15 @@ void	fpuexit(struct thread *td);
 int	fpuformat(void);
 int	fpugetregs(struct thread *td);
 void	fpuinit(void);
-void	fpusetregs(struct thread *td, struct savefpu *addr);
+void	fpusave(void *addr);
+int	fpusetregs(struct thread *td, struct savefpu *addr,
+	    char *xfpustate, size_t xfpustate_size);
+int	fpusetxstate(struct thread *td, char *xfpustate,
+	    size_t xfpustate_size);
 int	fputrap(void);
 void	fpuuserinited(struct thread *td);
+struct fpu_kern_ctx *fpu_kern_alloc_ctx(u_int flags);
+void	fpu_kern_free_ctx(struct fpu_kern_ctx *ctx);
 int	fpu_kern_enter(struct thread *td, struct fpu_kern_ctx *ctx,
 	    u_int flags);
 int	fpu_kern_leave(struct thread *td, struct fpu_kern_ctx *ctx);
@@ -124,9 +156,10 @@ int	fpu_kern_thread(u_int flags);
 int	is_fpu_kern_thread(u_int flags);
 
 /*
- * Flags for fpu_kern_enter() and fpu_kern_thread().
+ * Flags for fpu_kern_alloc_ctx(), fpu_kern_enter() and fpu_kern_thread().
  */
 #define	FPU_KERN_NORMAL	0x0000
+#define	FPU_KERN_NOWAIT	0x0001
 
 #endif
 

@@ -205,7 +205,11 @@ struct tws_init_connect_info {
 
 /* ------------ boolean types ------------------- */
 
+#ifndef __bool_true_false_are_defined
 typedef enum _boolean { false, true } boolean;
+#else
+#define	boolean		bool
+#endif
 enum err { SUCCESS, FAILURE };
 
 /* ----------- per instance data ---------------- */

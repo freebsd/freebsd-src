@@ -464,10 +464,10 @@ static uint64_t		arc_loaned_bytes;
 static uint64_t		arc_meta_used;
 static uint64_t		arc_meta_limit;
 static uint64_t		arc_meta_max = 0;
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_used, CTLFLAG_RDTUN,
-    &arc_meta_used, 0, "ARC metadata used");
-SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_limit, CTLFLAG_RDTUN,
-    &arc_meta_limit, 0, "ARC metadata limit");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_used, CTLFLAG_RD, &arc_meta_used, 0,
+    "ARC metadata used");
+SYSCTL_UQUAD(_vfs_zfs, OID_AUTO, arc_meta_limit, CTLFLAG_RW, &arc_meta_limit, 0,
+    "ARC metadata limit");
 
 typedef struct l2arc_buf_hdr l2arc_buf_hdr_t;
 
@@ -3105,6 +3105,9 @@ top:
 		ARCSTAT_CONDSTAT(!(hdr->b_flags & ARC_PREFETCH),
 		    demand, prefetch, hdr->b_type != ARC_BUFC_METADATA,
 		    data, metadata, misses);
+#ifdef _KERNEL
+		curthread->td_ru.ru_inblock++;
+#endif
 
 		if (vd != NULL && l2arc_ndev != 0 && !(l2arc_norw && devw)) {
 			/*

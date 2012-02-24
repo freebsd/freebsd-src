@@ -7,6 +7,7 @@ SUBDIR=		engines
 
 LIB=		crypto
 SHLIB_MAJOR=	6
+ALLOW_SHARED_TEXTREL=
 
 NO_LINT=
 

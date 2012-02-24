@@ -28,6 +28,8 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_ar71xx.h"
+
 #include <sys/param.h>
 #include <sys/systm.h>
 
@@ -248,6 +250,77 @@ ar71xx_pci_write_config(device_t dev, u_int bus, u_int slot, u_int func,
 	}
 }
 
+#ifdef	AR71XX_ATH_EEPROM
+/*
+ * Some embedded boards (eg AP94) have the MAC attached via PCI but they
+ * don't have the MAC-attached EEPROM.  The register initialisation
+ * values and calibration data are stored in the on-board flash.
+ * This routine initialises the NIC via the EEPROM register contents
+ * before the probe/attach routines get a go at things.
+ */
+static void
+ar71xx_pci_fixup(device_t dev, u_int bus, u_int slot, u_int func,
+    long flash_addr)
+{
+	uint16_t *cal_data = (uint16_t *) MIPS_PHYS_TO_KSEG1(flash_addr);
+	uint32_t reg, val, bar0;
+
+	printf("%s: flash_addr=%lx, cal_data=%p\n",
+	    __func__, flash_addr, cal_data);
+
+	/* XXX check 0xa55a */
+	/* Save bar(0) address - just to flush bar(0) (SoC WAR) ? */
+	bar0 = ar71xx_pci_read_config(dev, bus, slot, func, PCIR_BAR(0), 4);
+	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_BAR(0),
+	    AR71XX_PCI_MEM_BASE, 4);
+
+	val = ar71xx_pci_read_config(dev, bus, slot, func, PCIR_COMMAND, 2);
+	val |= (PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_COMMAND, val, 2); 
+
+	cal_data += 3;
+	while (*cal_data != 0xffff) {
+		reg = *cal_data++;
+		val = *cal_data++;
+		val |= (*cal_data++) << 16;
+		printf("  reg: %x, val=%x\n", reg, val);
+
+		/* Write eeprom fixup data to device memory */
+		ATH_WRITE_REG(AR71XX_PCI_MEM_BASE + reg, val);
+		DELAY(100);
+	}
+
+	val = ar71xx_pci_read_config(dev, bus, slot, func, PCIR_COMMAND, 2);
+	val &= ~(PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN);
+	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_COMMAND, val, 2);
+
+	/* Write the saved bar(0) address */
+	ar71xx_pci_write_config(dev, bus, slot, func, PCIR_BAR(0), bar0, 4);
+}
+
+static void
+ar71xx_pci_slot_fixup(device_t dev, u_int bus, u_int slot, u_int func)
+{
+	long int flash_addr;
+	char buf[32];
+
+	/*
+	 * Check whether the given slot has a hint to poke.
+	 */
+	printf("%s: checking dev %s, %d/%d/%d\n",
+	    __func__, device_get_nameunit(dev), bus, slot, func);
+	snprintf(buf, sizeof(buf), "bus.%d.%d.%d.ath_fixup_addr",
+	    bus, slot, func);
+
+	if (resource_long_value(device_get_name(dev), device_get_unit(dev),
+	    buf, &flash_addr) == 0) {
+		printf("%s: found fixupaddr at %lx: updating\n",
+		    __func__, flash_addr);
+		ar71xx_pci_fixup(dev, bus, slot, func, flash_addr);
+	}
+}
+#endif	/* AR71XX_ATH_EEPROM */
+
 static int
 ar71xx_pci_probe(device_t dev)
 {
@@ -320,6 +393,16 @@ ar71xx_pci_attach(device_t dev)
             PCIM_CMD_BUSMASTEREN | PCIM_CMD_MEMEN 
 	    | PCIM_CMD_SERRESPEN | PCIM_CMD_BACKTOBACK
 	    | PCIM_CMD_PERRESPEN | PCIM_CMD_MWRICEN, 2);
+
+#ifdef	AR71XX_ATH_EEPROM
+	/*
+	 * Hard-code a check for slot 17 and 18 - these are
+	 * the two PCI slots which may have a PCI device that
+	 * requires "fixing".
+	 */
+	ar71xx_pci_slot_fixup(dev, 0, 17, 0);
+	ar71xx_pci_slot_fixup(dev, 0, 18, 0);
+#endif	/* AR71XX_ATH_EEPROM */
 
 	device_add_child(dev, "pci", busno);
 	return (bus_generic_attach(dev));

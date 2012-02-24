@@ -200,20 +200,10 @@ int
 _thr_umtx_timedwait_uint(volatile u_int *mtx, u_int id, int clockid,
 	const struct timespec *abstime, int shared)
 {
-	struct timespec ts, ts2, *tsp;
-
-	if (abstime != NULL) {
-		clock_gettime(clockid, &ts);
-		TIMESPEC_SUB(&ts2, abstime, &ts);
-		if (ts2.tv_sec < 0 || ts2.tv_nsec <= 0)
-			return (ETIMEDOUT);
-		tsp = &ts2;
-	} else {
-		tsp = NULL;
-	}
 	return _umtx_op_err(__DEVOLATILE(void *, mtx), 
-		shared ? UMTX_OP_WAIT_UINT : UMTX_OP_WAIT_UINT_PRIVATE, id, NULL,
-			tsp);
+		shared ? UMTX_OP_WAIT_UINT : UMTX_OP_WAIT_UINT_PRIVATE, id, 
+	       	abstime != NULL ? (void *)(uintptr_t)((clockid << 16) | UMTX_WAIT_ABSTIME) : 0, 
+		__DECONST(void *, abstime));
 }
 
 int

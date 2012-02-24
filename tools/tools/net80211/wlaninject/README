@@ -46,7 +46,7 @@ Interesting 802.11 header options.
    will be calculated.  Symbolic names are:
 	preq, probereq	Probe Request
 	auth		Authenticate
-	areq, assocreq	Assocation Request
+	areq, assocreq	Association Request
 	data		Data
    Otherwise the numerical subtype must be supplied.
 -4 The 4th MAC addr used for WDS.  Make sure you specify this before

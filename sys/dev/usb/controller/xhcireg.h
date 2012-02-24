@@ -115,7 +115,7 @@
 #define	XHCI_PS_PR		0x00000010	/* RW - port reset */
 #define	XHCI_PS_PLS_GET(x)	(((x) >> 5) & 0xF)	/* RW - port link state */
 #define	XHCI_PS_PLS_SET(x)	(((x) & 0xF) << 5)	/* RW - port link state */
-#define	XHCI_PS_PP		0x00000100	/* RW - port power */
+#define	XHCI_PS_PP		0x00000200	/* RW - port power */
 #define	XHCI_PS_SPEED_GET(x)	(((x) >> 10) & 0xF)	/* RO - port speed */
 #define	XHCI_PS_PIC_GET(x)	(((x) >> 14) & 0x3)	/* RW - port indicator */
 #define	XHCI_PS_PIC_SET(x)	(((x) & 0x3) << 14)	/* RW - port indicator */

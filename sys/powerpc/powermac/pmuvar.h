@@ -160,6 +160,7 @@ struct pmu_softc {
 	volatile int	sc_autopoll;
 	int		sc_batteries;
 	struct cdev	*sc_leddev;
+	int	lid_closed;
 };
 
 struct pmu_battstate {

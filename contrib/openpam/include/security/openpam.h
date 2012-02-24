@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2008 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,7 +32,7 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam.h 418 2008-12-13 22:39:24Z des $
+ * $Id: openpam.h 455 2011-10-29 18:31:11Z des $
  */
 
 #ifndef SECURITY_OPENPAM_H_INCLUDED
@@ -58,6 +58,12 @@ int
 openpam_borrow_cred(pam_handle_t *_pamh,
 	const struct passwd *_pwd)
 	OPENPAM_NONNULL((1,2));
+
+int
+openpam_subst(const pam_handle_t *_pamh,
+	char *_buf,
+	size_t *_bufsize,
+	const char *_template);
 
 void
 openpam_free_data(pam_handle_t *_pamh,

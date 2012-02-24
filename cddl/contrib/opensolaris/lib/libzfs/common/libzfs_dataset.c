@@ -23,7 +23,7 @@
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
  * Copyright 2010 Nexenta Systems, Inc. All rights reserved.
  * Copyright (c) 2011 by Delphix. All rights reserved.
- * Copyright (c) 2011 Pawel Jakub Dawidek <pawel@dawidek.net>.
+ * Copyright (c) 2011-2012 Pawel Jakub Dawidek <pawel@dawidek.net>.
  * All rights reserved.
  */
 
@@ -510,6 +510,22 @@ make_dataset_handle_zc(libzfs_handle_t *hdl, zfs_cmd_t *zc)
 		free(zhp);
 		return (NULL);
 	}
+	return (zhp);
+}
+
+zfs_handle_t *
+make_dataset_simple_handle_zc(zfs_handle_t *pzhp, zfs_cmd_t *zc)
+{
+	zfs_handle_t *zhp = calloc(sizeof (zfs_handle_t), 1);
+
+	if (zhp == NULL)
+		return (NULL);
+
+	zhp->zfs_hdl = pzhp->zfs_hdl;
+	(void) strlcpy(zhp->zfs_name, zc->zc_name, sizeof (zhp->zfs_name));
+	zhp->zfs_head_type = pzhp->zfs_type;
+	zhp->zfs_type = ZFS_TYPE_SNAPSHOT;
+	zhp->zpool_hdl = zpool_handle(zhp);
 	return (zhp);
 }
 
@@ -4197,7 +4213,7 @@ tryagain:
 
 	(void) strlcpy(zc.zc_name, zhp->zfs_name, ZFS_MAXNAMELEN);
 
-	if (zfs_ioctl(hdl, ZFS_IOC_GET_FSACL, &zc) != 0) {
+	if (ioctl(hdl->libzfs_fd, ZFS_IOC_GET_FSACL, &zc) != 0) {
 		(void) snprintf(errbuf, sizeof (errbuf),
 		    dgettext(TEXT_DOMAIN, "cannot get permissions on '%s'"),
 		    zc.zc_name);

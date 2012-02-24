@@ -51,14 +51,14 @@
 .Fn rad_create_response "struct rad_handle *h" "int code"
 .Ft "struct in_addr"
 .Fn rad_cvt_addr "const void *data"
-.Ft u_int32_t
+.Ft uint32_t
 .Fn rad_cvt_int "const void *data"
 .Ft char *
 .Fn rad_cvt_string "const void *data" "size_t len"
 .Ft int
 .Fn rad_get_attr "struct rad_handle *h" "const void **data" "size_t *len"
 .Ft int
-.Fn rad_get_vendor_attr "u_int32_t *vendor" "const void **data" "size_t *len"
+.Fn rad_get_vendor_attr "uint32_t *vendor" "const void **data" "size_t *len"
 .Ft int
 .Fn rad_init_send_request "struct rad_handle *h" "int *fd" "struct timeval *tv"
 .Ft int
@@ -66,7 +66,7 @@
 .Ft int
 .Fn rad_put_attr "struct rad_handle *h" "int type" "const void *data" "size_t len"
 .Ft int
-.Fn rad_put_int "struct rad_handle *h" "int type" "u_int32_t value"
+.Fn rad_put_int "struct rad_handle *h" "int type" "uint32_t value"
 .Ft int
 .Fn rad_put_string "struct rad_handle *h" "int type" "const char *str"
 .Ft int
@@ -76,7 +76,7 @@
 .Ft int
 .Fn rad_put_vendor_attr "struct rad_handle *h" "int vendor" "int type" "const void *data" "size_t len"
 .Ft int
-.Fn rad_put_vendor_int "struct rad_handle *h" "int vendor" "int type" "u_int32_t value"
+.Fn rad_put_vendor_int "struct rad_handle *h" "int vendor" "int type" "uint32_t value"
 .Ft int
 .Fn rad_put_vendor_string "struct rad_handle *h" "int vendor" "int type" "const char *str"
 .Ft ssize_t
@@ -91,6 +91,8 @@
 .Fn rad_server_open "int fd"
 .Ft "const char *"
 .Fn rad_server_secret "struct rad_handle *h"
+.Ft "void"
+.Fn rad_bind_to "struct rad_handle *h" "in_addr_t addr"
 .Ft u_char *
 .Fn rad_demangle "struct rad_handle *h" "const void *mangled" "size_t mlen"
 .Ft u_char *
@@ -429,6 +431,10 @@ The
 .Fn rad_server_secret
 returns the secret shared with the current RADIUS server according to the
 supplied rad_handle.
+.Pp
+The
+.Fn rad_bind_to
+assigns a source address for all requests to the current RADIUS server.
 .Pp
 The
 .Fn rad_demangle

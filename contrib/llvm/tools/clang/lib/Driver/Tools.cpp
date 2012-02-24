@@ -364,16 +364,6 @@ void Clang::AddPreprocessingOptions(const Driver &D,
   Args.AddAllArgs(CmdArgs, options::OPT_I_Group, options::OPT_F,
                   options::OPT_index_header_map);
 
-  // Add C++ include arguments, if needed.
-  types::ID InputType = Inputs[0].getType();
-  if (types::isCXX(InputType)) {
-    bool ObjCXXAutoRefCount
-      = types::isObjC(InputType) && isObjCAutoRefCount(Args);
-    getToolChain().AddClangCXXStdlibIncludeArgs(Args, CmdArgs,
-                                                ObjCXXAutoRefCount);
-    Args.AddAllArgs(CmdArgs, options::OPT_stdlib_EQ);
-  }
-
   // Add -Wp, and -Xassembler if using the preprocessor.
 
   // FIXME: There is a very unfortunate problem here, some troubled
@@ -428,6 +418,13 @@ void Clang::AddPreprocessingOptions(const Driver &D,
   // OBJCPLUS_INCLUDE_PATH - system includes enabled when compiling ObjC++.
   AddIncludeDirectoryList(Args, CmdArgs, "-objcxx-isystem",
                           ::getenv("OBJCPLUS_INCLUDE_PATH"));
+
+  // Add C++ include arguments, if needed.
+  if (types::isCXX(Inputs[0].getType()))
+    getToolChain().AddClangCXXStdlibIncludeArgs(Args, CmdArgs);
+
+  // Add system include arguments.
+  getToolChain().AddClangSystemIncludeArgs(Args, CmdArgs);
 }
 
 /// getARMTargetCPU - Get the (LLVM) name of the ARM cpu we are targeting.
@@ -1965,6 +1962,16 @@ void Clang::ConstructJob(Compilation &C, const JobAction &JA,
   bool ARC = isObjCAutoRefCount(Args);
   if (ARC) {
     CmdArgs.push_back("-fobjc-arc");
+
+    // FIXME: It seems like this entire block, and several around it should be
+    // wrapped in isObjC, but for now we just use it here as this is where it
+    // was being used previously.
+    if (types::isCXX(InputType) && types::isObjC(InputType)) {
+      if (getToolChain().GetCXXStdlibType(Args) == ToolChain::CST_Libcxx)
+        CmdArgs.push_back("-fobjc-arc-cxxlib=libc++");
+      else
+        CmdArgs.push_back("-fobjc-arc-cxxlib=libstdc++");
+    }
 
     // Allow the user to enable full exceptions code emission.
     // We define off for Objective-CC, on for Objective-C++.

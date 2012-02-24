@@ -3,7 +3,7 @@
  * "THE BEER-WARE LICENSE" (Revision 42):
  * <beat@chruetertee.ch> wrote this file. As long as you retain this notice you
  * can do whatever you want with this stuff. If we meet some day, and you think
- * this stuff is worth it, you can buy me a beer in return.          Beat Gätzi
+ * this stuff is worth it, you can buy me a beer in return.          Beat GÃ¤tzi
  * ----------------------------------------------------------------------------
  */
 
@@ -141,7 +141,7 @@ main(int argc, char *argv[])
 					strcmp(pkgdbdir->d_name, "..") != 0) {
 
 					/* Create path to +CONTENTS file for each installed port */
-					n = strlcpy(tmp_file, pkgdbpath, strlen(pkgdbpath)+1);
+					n = strlcpy(tmp_file, pkgdbpath, sizeof(tmp_file));
 					n = strlcpy(tmp_file + n, "/", sizeof(tmp_file) - n);
 					n = strlcat(tmp_file + n, pkgdbdir->d_name,
 						sizeof(tmp_file) - n);
@@ -181,7 +181,7 @@ main(int argc, char *argv[])
 								(void)exit(EXIT_FAILURE);
 							if (pname[strlen(pname) - 1] == '\n')
 								pname[strlen(pname) - 1] = '\0';
-							strlcpy (curr->name, pname, strlen(pname)+1);
+							strlcpy (curr->name, pname, sizeof(curr->name));
 							curr->next = head;
 							head = curr;
 						}

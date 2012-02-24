@@ -78,7 +78,7 @@ wake(int bpf, const char *host)
 	if (get_ether(host, &macaddr) == -1)
 		return (-1);
 
-	return send_wakeup(bpf, &macaddr);
+	return (send_wakeup(bpf, &macaddr));
 }
 
 static int
@@ -111,10 +111,10 @@ find_ether(char *dst, size_t len)
 	int nifs;
 
 	if (dst == NULL || len == 0)
-		return 0;
+		return (0);
 
 	if (getifaddrs(&ifap) != 0)
-		return -1;
+		return (-1);
 
 	/* XXX also check the link state */
 	for (nifs = 0, ifa = ifap; ifa; ifa = ifa->ifa_next)
@@ -128,7 +128,7 @@ find_ether(char *dst, size_t len)
 		}
 
 	freeifaddrs(ifap);
-	return nifs == 1 ? 0 : -1;
+	return (nifs == 1 ? 0 : -1);
 }
 
 static int
@@ -183,7 +183,7 @@ send_wakeup(int bpf, struct ether_addr const *addr)
 int
 main(int argc, char *argv[])
 {
-	int bpf, n;
+	int bpf, n, rval;
 	char ifname[IF_NAMESIZE];
 
 	if (argc < 2)
@@ -204,10 +204,13 @@ main(int argc, char *argv[])
 
 	if (n >= argc)
 		usage();
-	for (; n < argc; n++)
-		if (wake(bpf, argv[n]))
+	rval = 0;
+	for (; n < argc; n++) {
+		if (wake(bpf, argv[n]) != 0) {
+			rval = 1;
 			warn("Cannot send Wake on LAN frame over `%s' to `%s'",
 			    ifname, argv[n]);
-
-	return (0);
+		}
+	}
+	exit(rval);
 }

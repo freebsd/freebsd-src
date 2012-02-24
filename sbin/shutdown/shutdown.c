@@ -123,7 +123,7 @@ main(int argc, char **argv)
 	 * Test for the special case where the utility is called as
 	 * "poweroff", for which it runs 'shutdown -p now'.
 	 */
-	if ((p = rindex(argv[0], '/')) == NULL)
+	if ((p = strrchr(argv[0], '/')) == NULL)
 		p = argv[0];
 	else
 		++p;

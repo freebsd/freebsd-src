@@ -413,6 +413,7 @@ got_key:
 	3:
 #endif /* ONLY_F_KEYS */
 #endif /* SIO */
+check_selection:
 		cmpb $0x5,%al			# F1..F6 or 1..6 ?
 #ifdef PXE /* enable PXE/INT18 using F6 */
 		jne 1f;
@@ -421,7 +422,6 @@ got_key:
 #endif /* PXE */
 		jae beep			# Not in F1..F5, beep
 
-check_selection:
 	/*
 	 * We have a selection.  If it's a bad selection go back to complain.
 	 * The bits in MNUOPT were set when the options were printed.

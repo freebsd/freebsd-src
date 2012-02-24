@@ -399,7 +399,7 @@ gjournal_check(const char *filesys)
 	void *p;
 	struct cgchain *cgc;
 	struct cg *cgp;
-	uint8_t *inosused, *blksfree;
+	uint8_t *inosused;
 	ino_t cino, ino;
 	int cg, mode;
 
@@ -438,7 +438,6 @@ gjournal_check(const char *filesys)
 		/* We don't want it to be freed in the meantime. */
 		busycg(cgc);
 		inosused = cg_inosused(cgp);
-		blksfree = cg_blksfree(cgp);
 		/*
 		 * Now go through the list of all inodes in this cylinder group
 		 * to find unreferenced ones.

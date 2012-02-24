@@ -59,7 +59,7 @@ __FBSDID("$FreeBSD$");
  * Key will be tcplisten/host/port
  *
  * Create a TCP socket bound to the requested host and port.
- * If the host is "ANY" the receving address will be set to INADDR_ANY.
+ * If the host is "ANY" the receiving address will be set to INADDR_ANY.
  * If the port is 0 the caller must find out the returned port number
  * using a call to getsockname.
  *

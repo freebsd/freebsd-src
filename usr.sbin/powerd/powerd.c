@@ -71,7 +71,7 @@ typedef enum {
 	SRC_UNKNOWN,
 } power_src_t;
 
-const char *modes[] = {
+static const char *modes[] = {
 	"AC",
 	"battery",
 	"unknown"

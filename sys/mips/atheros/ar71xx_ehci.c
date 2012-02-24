@@ -65,51 +65,9 @@ struct ar71xx_ehci_softc {
 
 static device_attach_t ar71xx_ehci_attach;
 static device_detach_t ar71xx_ehci_detach;
-static device_shutdown_t ar71xx_ehci_shutdown;
-static device_suspend_t ar71xx_ehci_suspend;
-static device_resume_t ar71xx_ehci_resume;
 
 bs_r_1_proto(reversed);
 bs_w_1_proto(reversed);
-
-static int
-ar71xx_ehci_suspend(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_suspend(self);
-	if (err)
-		return (err);
-	ehci_suspend(sc);
-	return (0);
-}
-
-static int
-ar71xx_ehci_resume(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-
-	ehci_resume(sc);
-
-	bus_generic_resume(self);
-
-	return (0);
-}
-
-static int
-ar71xx_ehci_shutdown(device_t self)
-{
-	ehci_softc_t *sc = device_get_softc(self);
-	int err;
-
-	err = bus_generic_shutdown(self);
-	if (err)
-		return (err);
-	ehci_shutdown(sc);
-
-	return (0);
-}
 
 static int
 ar71xx_ehci_probe(device_t self)
@@ -280,17 +238,17 @@ static device_method_t ehci_methods[] = {
 	DEVMETHOD(device_probe, ar71xx_ehci_probe),
 	DEVMETHOD(device_attach, ar71xx_ehci_attach),
 	DEVMETHOD(device_detach, ar71xx_ehci_detach),
-	DEVMETHOD(device_suspend, ar71xx_ehci_suspend),
-	DEVMETHOD(device_resume, ar71xx_ehci_resume),
-	DEVMETHOD(device_shutdown, ar71xx_ehci_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t ehci_driver = {
-	"ehci",
-	ehci_methods,
-	sizeof(struct ar71xx_ehci_softc),
+	.name = "ehci",
+	.methods = ehci_methods,
+	.size = sizeof(struct ar71xx_ehci_softc),
 };
 
 static devclass_t ehci_devclass;

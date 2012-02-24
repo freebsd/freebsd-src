@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2002-2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_ttyconv.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_ttyconv.c 437 2011-09-13 12:00:13Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <sys/types.h>
 
@@ -211,7 +215,7 @@ openpam_ttyconv(int n,
 	}
 	*resp = aresp;
 	RETURNC(PAM_SUCCESS);
- fail:
+fail:
 	for (i = 0; i < n; ++i) {
 		if (aresp[i].resp != NULL) {
 			memset(aresp[i].resp, 0, strlen(aresp[i].resp));

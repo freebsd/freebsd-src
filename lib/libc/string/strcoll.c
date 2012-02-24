@@ -40,7 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <stdio.h>
 
 int
-strcoll_l(const char *s1, const char *s2, locale_t locale)
+strcoll_l(const char *s, const char *s2, locale_t locale)
 {
 	int len, len2, prim, prim2, sec, sec2, ret, ret2;
 	const char *t, *t2;
@@ -50,16 +50,16 @@ strcoll_l(const char *s1, const char *s2, locale_t locale)
 		(struct xlocale_collate*)locale->components[XLC_COLLATE];
 
 	if (table->__collate_load_error)
-		return strcmp(s1, s2);
+		return strcmp(s, s2);
 
 	len = len2 = 1;
 	ret = ret2 = 0;
 	if (table->__collate_substitute_nontrivial) {
-		t = tt = __collate_substitute(table, s1);
+		t = tt = __collate_substitute(table, s);
 		t2 = tt2 = __collate_substitute(table, s2);
 	} else {
 		tt = tt2 = NULL;
-		t = s1;
+		t = s;
 		t2 = s2;
 	}
 	while(*t && *t2) {
@@ -95,8 +95,8 @@ strcoll_l(const char *s1, const char *s2, locale_t locale)
 }
 
 int
-strcoll(const char *s1, const char *s2)
+strcoll(const char *s, const char *s2)
 {
-	return strcoll_l(s1, s2, __get_locale());
+	return strcoll_l(s, s2, __get_locale());
 }
 

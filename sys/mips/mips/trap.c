@@ -251,6 +251,9 @@ char *access_name[] = {
 	"Store Doubleword"
 };
 
+#ifdef	CPU_CNMIPS
+#include <machine/octeon_cop2.h>
+#endif
 
 static int allow_unaligned_acc = 1;
 
@@ -410,6 +413,8 @@ trap(struct trapframe *trapframe)
 	char *msg = NULL;
 	intptr_t addr = 0;
 	register_t pc;
+	int cop;
+	register_t *frame_regs;
 
 	trapdebug_enter(trapframe, 0);
 	
@@ -758,37 +763,120 @@ dofault:
 		}
 
 	case T_RES_INST + T_USER:
-		log_illegal_instruction("RES_INST", trapframe);
-		i = SIGILL;
-		addr = trapframe->pc;
+		{
+			InstFmt inst;
+			inst = *(InstFmt *)(intptr_t)trapframe->pc;
+			switch (inst.RType.op) {
+			case OP_SPECIAL3:
+				switch (inst.RType.func) {
+				case OP_RDHWR:
+					/* Register 29 used for TLS */
+					if (inst.RType.rd == 29) {
+						frame_regs = &(trapframe->zero);
+						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
+						trapframe->pc += sizeof(int);
+						goto out;
+					}
+				break;
+				}
+			break;
+			}
+
+			log_illegal_instruction("RES_INST", trapframe);
+			i = SIGILL;
+			addr = trapframe->pc;
+		}
 		break;
 	case T_C2E:
 	case T_C2E + T_USER:
 		goto err;
 		break;
 	case T_COP_UNUSABLE:
+#ifdef	CPU_CNMIPS
+		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
+		/* Handle only COP2 exception */
+		if (cop != 2)
+			goto err;
+
+		addr = trapframe->pc;
+		/* save userland cop2 context if it has been touched */
+		if ((td->td_md.md_flags & MDTD_COP2USED) &&
+		    (td->td_md.md_cop2owner == COP2_OWNER_USERLAND)) {
+			if (td->td_md.md_ucop2)
+				octeon_cop2_save(td->td_md.md_ucop2);
+			else
+				panic("COP2 was used in user mode but md_ucop2 is NULL");
+		}
+
+		if (td->td_md.md_cop2 == NULL) {
+			td->td_md.md_cop2 = octeon_cop2_alloc_ctx();
+			if (td->td_md.md_cop2 == NULL)
+				panic("Failed to allocate COP2 context");
+			memset(td->td_md.md_cop2, 0, sizeof(*td->td_md.md_cop2));
+		}
+
+		octeon_cop2_restore(td->td_md.md_cop2);
+		
+		/* Make userland re-request its context */
+		td->td_frame->sr &= ~MIPS_SR_COP_2_BIT;
+		td->td_md.md_flags |= MDTD_COP2USED;
+		td->td_md.md_cop2owner = COP2_OWNER_KERNEL;
+		/* Enable COP2, it will be disabled in cpu_switch */
+		mips_wr_status(mips_rd_status() | MIPS_SR_COP_2_BIT);
+		return (trapframe->pc);
+#else
 		goto err;
 		break;
+#endif
+
 	case T_COP_UNUSABLE + T_USER:
+		cop = (trapframe->cause & MIPS_CR_COP_ERR) >> MIPS_CR_COP_ERR_SHIFT;
+		if (cop == 1) {
 #if !defined(CPU_HAVEFPU)
 		/* FP (COP1) instruction */
-		if ((trapframe->cause & MIPS_CR_COP_ERR) == 0x10000000) {
 			log_illegal_instruction("COP1_UNUSABLE", trapframe);
 			i = SIGILL;
 			break;
+#else
+			addr = trapframe->pc;
+			MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
+			PCPU_SET(fpcurthread, td);
+			td->td_frame->sr |= MIPS_SR_COP_1_BIT;
+			td->td_md.md_flags |= MDTD_FPUSED;
+			goto out;
+#endif
+		}
+#ifdef	CPU_CNMIPS
+		else  if (cop == 2) {
+			addr = trapframe->pc;
+			if ((td->td_md.md_flags & MDTD_COP2USED) &&
+			    (td->td_md.md_cop2owner == COP2_OWNER_KERNEL)) {
+				if (td->td_md.md_cop2)
+					octeon_cop2_save(td->td_md.md_cop2);
+				else
+					panic("COP2 was used in kernel mode but md_cop2 is NULL");
+			}
+
+			if (td->td_md.md_ucop2 == NULL) {
+				td->td_md.md_ucop2 = octeon_cop2_alloc_ctx();
+				if (td->td_md.md_ucop2 == NULL)
+					panic("Failed to allocate userland COP2 context");
+				memset(td->td_md.md_ucop2, 0, sizeof(*td->td_md.md_ucop2));
+			}
+
+			octeon_cop2_restore(td->td_md.md_ucop2);
+
+			td->td_frame->sr |= MIPS_SR_COP_2_BIT;
+			td->td_md.md_flags |= MDTD_COP2USED;
+			td->td_md.md_cop2owner = COP2_OWNER_USERLAND;
+			goto out;
 		}
 #endif
-		if ((trapframe->cause & MIPS_CR_COP_ERR) != 0x10000000) {
+		else {
 			log_illegal_instruction("COPn_UNUSABLE", trapframe);
 			i = SIGILL;	/* only FPU instructions allowed */
 			break;
 		}
-		addr = trapframe->pc;
-		MipsSwitchFPState(PCPU_GET(fpcurthread), td->td_frame);
-		PCPU_SET(fpcurthread, td);
-		td->td_frame->sr |= MIPS_SR_COP_1_BIT;
-		td->td_md.md_flags |= MDTD_FPUSED;
-		goto out;
 
 	case T_FPE:
 #if !defined(SMP) && (defined(DDB) || defined(DEBUG))

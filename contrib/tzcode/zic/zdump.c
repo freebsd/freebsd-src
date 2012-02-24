@@ -260,6 +260,7 @@ char *	argv[];
 	register struct tm *	tmp;
 	register struct tm *	newtmp;
 
+	progname=argv[0];
 	INITIALIZE(cutlotime);
 	INITIALIZE(cuthitime);
 #if HAVE_GETTEXT

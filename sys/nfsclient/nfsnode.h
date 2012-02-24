@@ -104,9 +104,6 @@ struct nfsnode {
 	time_t			n_attrstamp;	/* Attr. cache timestamp */
 	struct nfs_accesscache	n_accesscache[NFS_ACCESSCACHESIZE];
 	struct timespec		n_mtime;	/* Prev modify time. */
-	struct timespec		n_ctime;	/* Prev create time. */
-	struct timespec		n_dmtime;	/* Prev dir modify time. */
-	int			n_dmtime_ticks;	/* Tick of -ve cache entry */
 	nfsfh_t			*n_fhp;		/* NFS File Handle */
 	struct vnode		*n_vnode;	/* associated vnode */
 	struct vnode		*n_dvp;		/* parent vnode */

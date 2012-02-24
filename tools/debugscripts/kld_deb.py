@@ -68,9 +68,9 @@ gdb = popen2.popen4(gdb_cmd)
 
 def searchfor(inp, re, j = 0, l = None):
 	"""searchfor(inp, re, j, l):  Searches for regex re in inp.  It will
-automaticly add more lines.  If j is set, the lines will be joined together.
+automatically add more lines.  If j is set, the lines will be joined together.
 l can provide a starting line to help search against.  Return value is a
-tupple of the last line, and the match if any."""
+tuple of the last line, and the match if any."""
 	ret = None
 	if not l:
 		l = inp.readline()
@@ -87,7 +87,7 @@ tupple of the last line, and the match if any."""
 def get_addresses(inp, out):
 	"""get_addresses(inp, out):  It will search for addresses from gdb.
 inp and out, are the gdb input and output respectively.  Return value is
-a list of tupples.  The tupples contain the filename and the address the
+a list of tuples.  The tuples contain the filename and the address the
 filename was loaded."""
 	addr = []
 	nxad = 1

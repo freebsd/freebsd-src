@@ -125,6 +125,7 @@ static struct td_sched td_sched0;
  */
 #define	PRI_TIMESHARE_RANGE	(PRI_MAX_TIMESHARE - PRI_MIN_TIMESHARE + 1)
 #define	PRI_INTERACT_RANGE	((PRI_TIMESHARE_RANGE - SCHED_PRI_NRESV) / 2)
+#define	PRI_BATCH_RANGE		(PRI_TIMESHARE_RANGE - PRI_INTERACT_RANGE)
 
 #define	PRI_MIN_INTERACT	PRI_MIN_TIMESHARE
 #define	PRI_MAX_INTERACT	(PRI_MIN_TIMESHARE + PRI_INTERACT_RANGE - 1)
@@ -416,7 +417,6 @@ sched_shouldpreempt(int pri, int cpri, int remote)
 	return (0);
 }
 
-#define	TS_RQ_PPQ	(((PRI_MAX_BATCH - PRI_MIN_BATCH) + 1) / RQ_NQS)
 /*
  * Add a thread to the actual run-queue.  Keeps transferable counts up to
  * date with what is actually on the run-queue.  Selects the correct
@@ -449,7 +449,7 @@ tdq_runq_add(struct tdq *tdq, struct thread *td, int flags)
 		 * realtime.  Use the whole queue to represent these values.
 		 */
 		if ((flags & (SRQ_BORROWING|SRQ_PREEMPTED)) == 0) {
-			pri = (pri - PRI_MIN_BATCH) / TS_RQ_PPQ;
+			pri = RQ_NQS * (pri - PRI_MIN_BATCH) / PRI_BATCH_RANGE;
 			pri = (pri + tdq->tdq_idx) % RQ_NQS;
 			/*
 			 * This effectively shortens the queue by one so we
@@ -1434,7 +1434,8 @@ sched_priority(struct thread *td)
 	} else {
 		pri = SCHED_PRI_MIN;
 		if (td->td_sched->ts_ticks)
-			pri += SCHED_PRI_TICKS(td->td_sched);
+			pri += min(SCHED_PRI_TICKS(td->td_sched),
+			    SCHED_PRI_RANGE);
 		pri += SCHED_PRI_NICE(td->td_proc->p_nice);
 		KASSERT(pri >= PRI_MIN_BATCH && pri <= PRI_MAX_BATCH,
 		    ("sched_priority: invalid priority %d: nice %d, " 
@@ -2586,6 +2587,8 @@ sched_throw(struct thread *td)
 		/* Correct spinlock nesting and acquire the correct lock. */
 		TDQ_LOCK(tdq);
 		spinlock_exit();
+		PCPU_SET(switchtime, cpu_ticks());
+		PCPU_SET(switchticks, ticks);
 	} else {
 		MPASS(td->td_lock == TDQ_LOCKPTR(tdq));
 		tdq_load_rem(tdq, td);
@@ -2594,8 +2597,6 @@ sched_throw(struct thread *td)
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
 	newtd = choosethread();
 	TDQ_LOCKPTR(tdq)->mtx_lock = (uintptr_t)newtd;
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
 	cpu_throw(td, newtd);		/* doesn't return */
 }
 

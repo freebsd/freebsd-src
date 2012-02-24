@@ -205,7 +205,7 @@ __END_DECLS
 
 /* System V/ANSI C; this is the wrong way to do this, do *not* use these. */
 #if __XSI_VISIBLE
-#define	P_tmpdir	"/var/tmp/"
+#define	P_tmpdir	"/tmp/"
 #endif
 #define	L_tmpnam	1024	/* XXX must be == PATH_MAX */
 #define	TMP_MAX		308915776
@@ -404,8 +404,8 @@ int	 vasprintf(char **, const char *, __va_list)
  * positive errno values.  Use strerror() or strerror_r() from <string.h>
  * instead.
  */
-extern __const int sys_nerr;
-extern __const char *__const sys_errlist[];
+extern const int sys_nerr;
+extern const char * const sys_errlist[];
 
 /*
  * Stdio function-access interface.
@@ -470,6 +470,9 @@ static __inline int __sputc(int _c, FILE *_p) {
 			__swbuf((int)(c), p) : \
 		(*(p)->_p = (c), (int)*(p)->_p++))
 #endif
+
+extern int __isthreaded;
+
 #ifndef __cplusplus
 
 #define	__sfeof(p)	(((p)->_flags & __SEOF) != 0)
@@ -477,7 +480,6 @@ static __inline int __sputc(int _c, FILE *_p) {
 #define	__sclearerr(p)	((void)((p)->_flags &= ~(__SERR|__SEOF)))
 #define	__sfileno(p)	((p)->_file)
 
-extern int __isthreaded;
 
 #define	feof(p)		(!__isthreaded ? __sfeof(p) : (feof)(p))
 #define	ferror(p)	(!__isthreaded ? __sferror(p) : (ferror)(p))

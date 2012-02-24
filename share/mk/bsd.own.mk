@@ -203,6 +203,7 @@ COMPRESS_EXT?=	.gz
 # regardless of user's setting).
 #
 .for var in \
+    CTF \
     INSTALLLIB \
     MAN \
     PROFILE
@@ -319,8 +320,12 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
+    CAPSICUM \
     CDDL \
     CPP \
     CRYPT \
@@ -413,6 +418,8 @@ __DEFAULT_NO_OPTIONS = \
     BIND_LIBS \
     BIND_SIGCHASE \
     BIND_XML \
+    CLANG_EXTRAS \
+    CTF \
     HESIOD \
     ICONV \
     IDEA \
@@ -508,8 +515,18 @@ MK_BIND_UTILS:=	no
 MK_BIND_ETC:=	no
 .endif
 
+.if ${MK_SOURCELESS} == "no"
+MK_SOURCELESS_HOST:=	no
+MK_SOURCELESS_UCODE:= no
+.endif
+
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
+MK_CTF:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_EXTRAS:= no
 .endif
 
 .if ${MK_CRYPT} == "no"
@@ -609,6 +626,14 @@ MK_${vv:H}:=	no
 MK_${vv:H}:=	${MK_${vv:T}}
 .endif
 .endfor
+
+.if ${MK_CTF} != "no"
+CTFCONVERT_CMD=	${CTFCONVERT} ${CTFFLAGS} ${.TARGET}
+.elif ${MAKE_VERSION} >= 5201111300
+CTFCONVERT_CMD=
+.else
+CTFCONVERT_CMD=	@:
+.endif 
 
 .endif # !_WITHOUT_SRCCONF
 

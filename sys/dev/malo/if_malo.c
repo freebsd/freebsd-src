@@ -125,10 +125,10 @@ enum {
 
 static MALLOC_DEFINE(M_MALODEV, "malodev", "malo driver dma buffers");
 
-static struct ieee80211vap *malo_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN]);
+static struct ieee80211vap *malo_vap_create(struct ieee80211com *,
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static  void	malo_vap_delete(struct ieee80211vap *);
 static	int	malo_dma_setup(struct malo_softc *);
 static	int	malo_setup_hwdma(struct malo_softc *);
@@ -344,10 +344,10 @@ bad:
 }
 
 static struct ieee80211vap *
-malo_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+malo_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct malo_vap *mvp;

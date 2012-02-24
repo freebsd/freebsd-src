@@ -122,7 +122,7 @@ int
 main(int argc, char *argv[])
 {
 	int op;
-	char *ifname, *hostname, *name;
+	char *ifname, *name;
 
 	int aflag = 0;		/* listen on "all" interfaces  */
 	int fflag = 0;		/* don't fork */
@@ -174,7 +174,6 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	ifname = (aflag == 0) ? argv[0] : NULL;
-	hostname = ifname ? argv[1] : argv[0];
 	
 	if ((aflag && ifname) || (!aflag && ifname == NULL))
 		usage();

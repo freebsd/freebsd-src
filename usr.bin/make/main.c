@@ -146,6 +146,14 @@ uint32_t	warn_nocmd;	/* command line no-warning flags */
 time_t		now;		/* Time at start of make */
 struct GNode	*DEFAULT;	/* .DEFAULT node */
 
+static struct {
+	const char *foreign_name;
+	const char *freebsd_name;
+} arch_aliases[] = {
+	{ "x86_64", "amd64" },
+	{ "mipsel", "mips" },
+};
+
 /**
  * Exit with usage message.
  */
@@ -267,13 +275,13 @@ ReadMakefile(const char p[])
 			 * XXX The realpath stuff breaks relative includes
 			 * XXX in some cases.   The problem likely is in
 			 * XXX parse.c where it does special things in
-			 * XXX ParseDoInclude if the file is relateive
+			 * XXX ParseDoInclude if the file is relative
 			 * XXX or absolute and not a system file.  There
 			 * XXX it assumes that if the current file that's
 			 * XXX being included is absolute, that any files
 			 * XXX that it includes shouldn't do the -I path
-			 * XXX stuff, which is inconsistant with historical
-			 * XXX behavior.  However, I can't pentrate the mists
+			 * XXX stuff, which is inconsistent with historical
+			 * XXX behavior.  However, I can't penetrate the mists
 			 * XXX further, so I'm putting this workaround in
 			 * XXX here until such time as the underlying bug
 			 * XXX can be fixed.
@@ -675,7 +683,7 @@ chdir_verify_path(const char *path, char *obpath)
  * prevent a forkbomb from happening, in a dumb and mechanical way.
  *
  * Side Effects:
- *	Creates or modifies enviornment variable MKLVL_ENVVAR via setenv().
+ *	Creates or modifies environment variable MKLVL_ENVVAR via setenv().
  */
 static void
 check_make_level(void)
@@ -939,10 +947,19 @@ main(int argc, char **argv)
 	 */
 	if ((machine = getenv("MACHINE")) == NULL) {
 		static struct utsname utsname;
+		unsigned int i;
 
 		if (uname(&utsname) == -1)
 			err(2, "uname");
 		machine = utsname.machine;
+
+		/* Canonicalize non-FreeBSD naming conventions */
+		for (i = 0; i < sizeof(arch_aliases)
+		     / sizeof(arch_aliases[0]); i++)
+			if (!strcmp(machine, arch_aliases[i].foreign_name)) {
+				machine = arch_aliases[i].freebsd_name;
+				break;
+			}
 	}
 
 	if ((machine_arch = getenv("MACHINE_ARCH")) == NULL) {
@@ -954,7 +971,7 @@ main(int argc, char **argv)
 	}
 
 	/*
-	 * Set machine_cpu to the minumum supported CPU revision based
+	 * Set machine_cpu to the minimum supported CPU revision based
 	 * on the target architecture, if not already set.
 	 */
 	if ((machine_cpu = getenv("MACHINE_CPU")) == NULL) {
@@ -1047,7 +1064,7 @@ main(int argc, char **argv)
 	 *
 	 * Once things are initted,
 	 * have to add the original directory to the search path,
-	 * and modify the paths for the Makefiles apropriately.  The
+	 * and modify the paths for the Makefiles appropriately.  The
 	 * current directory is also placed as a variable for make scripts.
 	 */
 	if (!(pathp = getenv("MAKEOBJDIRPREFIX"))) {

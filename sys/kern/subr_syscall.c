@@ -85,7 +85,11 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 
 	if (error == 0) {
 		STOPEVENT(p, S_SCE, sa->narg);
-		PTRACESTOP_SC(p, td, S_PT_SCE);
+		if (p->p_flag & P_TRACED && p->p_stops & S_PT_SCE) {
+			PROC_LOCK(p);
+			ptracestop((td), SIGTRAP);
+			PROC_UNLOCK(p);
+		}
 		if (td->td_dbgflags & TDB_USERWR) {
 			/*
 			 * Reread syscall number and arguments if
@@ -212,7 +216,8 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 		 * executes.  If debugger requested tracing of syscall
 		 * returns, do it now too.
 		 */
-		if (traced && ((td->td_dbgflags & TDB_EXEC) != 0 ||
+		if (traced &&
+		    ((td->td_dbgflags & (TDB_FORK | TDB_EXEC)) != 0 ||
 		    (p->p_stops & S_PT_SCX) != 0))
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);

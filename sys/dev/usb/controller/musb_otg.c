@@ -1910,16 +1910,16 @@ musbotg_uninit(struct musbotg_softc *sc)
 	USB_BUS_UNLOCK(&sc->sc_bus);
 }
 
-void
+static void
 musbotg_suspend(struct musbotg_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
-void
+static void
 musbotg_resume(struct musbotg_softc *sc)
 {
-	return;
+	/* TODO */
 }
 
 static void
@@ -2776,6 +2776,26 @@ musbotg_ep_init(struct usb_device *udev, struct usb_endpoint_descriptor *edesc,
 	}
 }
 
+static void
+musbotg_set_hw_power_sleep(struct usb_bus *bus, uint32_t state)
+{
+	struct musbotg_softc *sc = MUSBOTG_BUS2SC(bus);
+
+	switch (state) {
+	case USB_HW_POWER_SUSPEND:
+		musbotg_suspend(sc);
+		break;
+	case USB_HW_POWER_SHUTDOWN:
+		musbotg_uninit(sc);
+		break;
+	case USB_HW_POWER_RESUME:
+		musbotg_resume(sc);
+		break;
+	default:
+		break;
+	}
+}
+
 struct usb_bus_methods musbotg_bus_methods =
 {
 	.endpoint_init = &musbotg_ep_init,
@@ -2786,4 +2806,5 @@ struct usb_bus_methods musbotg_bus_methods =
 	.clear_stall = &musbotg_clear_stall,
 	.roothub_exec = &musbotg_roothub_exec,
 	.xfer_poll = &musbotg_do_poll,
+	.set_hw_power_sleep = &musbotg_set_hw_power_sleep,
 };

@@ -706,6 +706,10 @@ device		aacp	# SCSI Passthrough interface (optional, CAM required)
 device		asr
 
 #
+# Highpoint RocketRAID 27xx.
+device		hpt27xx
+
+#
 # Highpoint RocketRAID 182x.
 device		hptmv
 
@@ -721,6 +725,11 @@ device		hptiop
 #
 # IBM (now Adaptec) ServeRAID controllers
 device		ips
+
+#
+# Intel C600 (Patsburg) integrated SAS controller
+device		isci
+options		ISCI_LOGGING	# enable debugging in isci HAL
 
 #
 # SafeNet crypto driver: can be moved to the MI NOTES as soon as
@@ -828,9 +837,11 @@ hint.pcf.0.irq="5"
 #
 # ichwd: Intel ICH watchdog timer
 # amdsbwd: AMD SB7xx watchdog timer
+# viawd: VIA south bridge watchdog timer
 #
 device		ichwd
 device		amdsbwd
+device		viawd
 
 #
 # Temperature sensors:

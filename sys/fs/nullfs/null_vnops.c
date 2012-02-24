@@ -365,9 +365,7 @@ null_lookup(struct vop_lookup_args *ap)
 			vrele(lvp);
 		} else {
 			error = null_nodeget(dvp->v_mount, lvp, &vp);
-			if (error)
-				vput(lvp);
-			else
+			if (error == 0)
 				*ap->a_vpp = vp;
 		}
 	}
@@ -809,9 +807,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 		NULLVPTOLOWERVP(*dvp);
 #endif
 		VOP_UNLOCK(*dvp, 0); /* keep reference on *dvp */
-	} else
-		vput(ldvp);
-
+	}
 	vn_lock(vp, locked | LK_RETRY);
 	return (error);
 }

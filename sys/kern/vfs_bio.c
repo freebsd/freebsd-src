@@ -3499,7 +3499,7 @@ vfs_page_set_valid(struct buf *bp, vm_ooffset_t off, vm_page_t m)
 	 * entire page.
 	 */
 	if (eoff > off)
-		vm_page_set_valid(m, off & PAGE_MASK, eoff - off);
+		vm_page_set_valid_range(m, off & PAGE_MASK, eoff - off);
 }
 
 /*
@@ -3662,7 +3662,7 @@ vfs_bio_set_valid(struct buf *bp, int base, int size)
 		m = bp->b_pages[i];
 		if (n > size)
 			n = size;
-		vm_page_set_valid(m, base & PAGE_MASK, n);
+		vm_page_set_valid_range(m, base & PAGE_MASK, n);
 		base += n;
 		size -= n;
 		n = PAGE_SIZE;

@@ -469,7 +469,7 @@ snmp_leaf_insert(struct snmp_toolinfo *snmptoolctx, struct snmp_oid2str *entry)
 static int32_t
 snmp_index_insert(struct snmp_idxlist *headp, struct index *idx)
 {
-	if (headp == NULL || index == NULL)
+	if (headp == NULL || idx == NULL)
 		return (-1);
 
 	STAILQ_INSERT_TAIL(headp, idx, link);

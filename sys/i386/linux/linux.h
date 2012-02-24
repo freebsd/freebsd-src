@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -571,6 +571,16 @@ int	linux_ioctl_unregister_handler(struct linux_ioctl_handler *h);
 #define	LINUX_F_RDLCK		0
 #define	LINUX_F_WRLCK		1
 #define	LINUX_F_UNLCK		2
+
+/*
+ * posix_fadvise advice
+ */
+#define	LINUX_POSIX_FADV_NORMAL		0
+#define	LINUX_POSIX_FADV_RANDOM		1
+#define	LINUX_POSIX_FADV_SEQUENTIAL    	2
+#define	LINUX_POSIX_FADV_WILLNEED      	3
+#define	LINUX_POSIX_FADV_DONTNEED      	4
+#define	LINUX_POSIX_FADV_NOREUSE       	5
 
 /*
  * mount flags

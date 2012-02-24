@@ -341,7 +341,7 @@ class RGTestOptions
 	#   for test data.  Format of all recognized values should be:
 	#		[%-object.value-%]
 	#   which is hopefully distinctive-enough that they will never
-	#   conflict with any naturally-occuring string.  Also note that
+	#   conflict with any naturally-occurring string.  Also note that
 	#   we only match the specific values that we recognize, and not
 	#   "just anything" that matches the general pattern.  There are
 	#   no blanks in the recognized values, but I use an x-tended

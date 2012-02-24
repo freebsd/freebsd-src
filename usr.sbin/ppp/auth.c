@@ -126,9 +126,11 @@ auth_CheckPasswd(const char *name, const char *data, const char *key)
     /* Then look up the real password database */
     struct passwd *pw;
     int result;
+    char *cryptpw;
 
+    cryptpw = crypt(key, pw->pw_passwd);
     result = (pw = getpwnam(name)) &&
-             !strcmp(crypt(key, pw->pw_passwd), pw->pw_passwd);
+             (cryptpw == NULL || !strcmp(cryptpw, pw->pw_passwd));
     endpwent();
     return result;
 #else /* !NOPAM */

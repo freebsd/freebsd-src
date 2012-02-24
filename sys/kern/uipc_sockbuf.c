@@ -1048,4 +1048,4 @@ SYSCTL_INT(_kern, KERN_DUMMY, dummy, CTLFLAG_RW, &dummy, 0, "");
 SYSCTL_OID(_kern_ipc, KIPC_MAXSOCKBUF, maxsockbuf, CTLTYPE_ULONG|CTLFLAG_RW,
     &sb_max, 0, sysctl_handle_sb_max, "LU", "Maximum socket buffer size");
 SYSCTL_ULONG(_kern_ipc, KIPC_SOCKBUF_WASTE, sockbuf_waste_factor, CTLFLAG_RW,
-    &sb_efficiency, 0, "");
+    &sb_efficiency, 0, "Socket buffer size waste factor");

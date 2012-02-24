@@ -679,8 +679,6 @@ ses_runcmd(struct ses_softc *ssc, char *cdb, int cdbl, char *dptr, int *dlenp)
 	bcopy(cdb, ccb->csio.cdb_io.cdb_bytes, cdbl);
 
 	error = cam_periph_runccb(ccb, seserror, SES_CFLAGS, SES_FLAGS, NULL);
-	if ((ccb->ccb_h.status & CAM_DEV_QFRZN) != 0)
-		cam_release_devq(ccb->ccb_h.path, 0, 0, 0, FALSE);
 	if (error) {
 		if (dptr) {
 			*dlenp = dlen;

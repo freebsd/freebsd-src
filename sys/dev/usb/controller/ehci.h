@@ -333,8 +333,6 @@ typedef struct ehci_softc {
 
 	uint32_t sc_terminate_self;	/* TD short packet termination pointer */
 	uint32_t sc_eintrs;
-	uint32_t sc_cmd;		/* shadow of cmd register during
-					 * suspend */
 
 	uint16_t sc_intr_stat[EHCI_VIRTUAL_FRAMELIST_COUNT];
 	uint16_t sc_id_vendor;		/* vendor ID for root hub */
@@ -445,9 +443,6 @@ usb_bus_mem_cb_t ehci_iterate_hw_softc;
 usb_error_t ehci_reset(ehci_softc_t *sc);
 usb_error_t ehci_init(ehci_softc_t *sc);
 void	ehci_detach(struct ehci_softc *sc);
-void	ehci_suspend(struct ehci_softc *sc);
-void	ehci_resume(struct ehci_softc *sc);
-void	ehci_shutdown(ehci_softc_t *sc);
 void	ehci_interrupt(ehci_softc_t *sc);
 
 #endif					/* _EHCI_H_ */

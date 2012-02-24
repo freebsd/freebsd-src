@@ -38,6 +38,11 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120113: removal of wtmpcvt(1)
+OLD_FILES+=usr/bin/wtmpcvt
+OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
+# 20111214: eventtimers(7) moved to eventtimers(4)
+OLD_FILES+=usr/share/man/man7/eventtimers.7.gz
 # 20111125: amd(4) removed
 OLD_FILES+=usr/share/man/man4/amd.4.gz
 # 20111125: libodialog removed
@@ -702,6 +707,8 @@ OLD_LIBS+=usr/lib32/pam_unix.so.4
 .endif
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h

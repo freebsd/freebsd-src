@@ -243,7 +243,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 	static u_int8_t allone[8] =
 		{ 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff };
 
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 		if (ifa->ifa_addr->sa_family != AF_LINK)
 			continue;
@@ -255,7 +255,7 @@ in6_get_hw_ifid(struct ifnet *ifp, struct in6_addr *in6)
 
 		goto found;
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	return -1;
 
@@ -282,7 +282,7 @@ found:
 
 		/* look at IEEE802/EUI64 only */
 		if (addrlen != 8 && addrlen != 6) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -292,11 +292,11 @@ found:
 		 * card insertion.
 		 */
 		if (bcmp(addr, allzero, addrlen) == 0) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 		if (bcmp(addr, allone, addrlen) == 0) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -317,11 +317,11 @@ found:
 
 	case IFT_ARCNET:
 		if (addrlen != 1) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 		if (!addr[0]) {
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			return -1;
 		}
 
@@ -345,17 +345,17 @@ found:
 		 * identifier source (can be renumbered).
 		 * we don't do this.
 		 */
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 
 	default:
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
 	/* sanity check: g bit must not indicate "group" */
 	if (EUI64_GROUP(in6)) {
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
@@ -368,11 +368,11 @@ found:
 	 */
 	if ((in6->s6_addr[8] & ~(EUI64_GBIT | EUI64_UBIT)) == 0x00 &&
 	    bcmp(&in6->s6_addr[9], allzero, 7) == 0) {
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		return -1;
 	}
 
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 	return 0;
 }
 
@@ -405,7 +405,7 @@ get_ifid(struct ifnet *ifp0, struct ifnet *altifp,
 
 	/* next, try to get it from some other hardware interface */
 	IFNET_RLOCK_NOSLEEP();
-	for (ifp = V_ifnet.tqh_first; ifp; ifp = ifp->if_list.tqe_next) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		if (ifp == ifp0)
 			continue;
 		if (in6_get_hw_ifid(ifp, in6) != 0)
@@ -513,12 +513,8 @@ in6_ifattach_linklocal(struct ifnet *ifp, struct ifnet *altifp)
 	}
 
 	ia = in6ifa_ifpforlinklocal(ifp, 0); /* ia must not be NULL */
-#ifdef DIAGNOSTIC
-	if (!ia) {
-		panic("ia == NULL in in6_ifattach_linklocal");
-		/* NOTREACHED */
-	}
-#endif
+	KASSERT(ia != NULL, ("%s: ia == NULL, ifp=%p", __func__, ifp));
+
 	ifa_free(&ia->ia_ifa);
 
 	/*
@@ -705,7 +701,6 @@ in6_ifattach(struct ifnet *ifp, struct ifnet *altifp)
 	switch (ifp->if_type) {
 	case IFT_PFLOG:
 	case IFT_PFSYNC:
-	case IFT_CARP:
 		return;
 	}
 
@@ -795,7 +790,6 @@ in6_ifdetach(struct ifnet *ifp)
 	struct ifaddr *ifa, *next;
 	struct radix_node_head *rnh;
 	struct rtentry *rt;
-	short rtflags;
 	struct sockaddr_in6 sin6;
 	struct in6_multi_mship *imm;
 
@@ -821,26 +815,19 @@ in6_ifdetach(struct ifnet *ifp)
 		/*
 		 * leave from multicast groups we have joined for the interface
 		 */
-		while ((imm = ia->ia6_memberships.lh_first) != NULL) {
+		while ((imm = LIST_FIRST(&ia->ia6_memberships)) != NULL) {
 			LIST_REMOVE(imm, i6mm_chain);
 			in6_leavegroup(imm);
 		}
 
-		/* remove from the routing table */
-		if ((ia->ia_flags & IFA_ROUTE) &&
-		    (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
-			rtflags = rt->rt_flags;
-			RTFREE_LOCKED(rt);
-			rtrequest(RTM_DELETE, (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_prefixmask,
-			    rtflags, (struct rtentry **)0);
-		}
+		/* Remove link-local from the routing table. */
+		if (ia->ia_flags & IFA_ROUTE)
+			(void)rtinit(&ia->ia_ifa, RTM_DELETE, ia->ia_flags);
 
 		/* remove from the linked list */
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_WLOCK(ifp);
 		TAILQ_REMOVE(&ifp->if_addrhead, ifa, ifa_link);
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_WUNLOCK(ifp);
 		ifa_free(ifa);				/* if_addrhead */
 
 		IN6_IFADDR_WLOCK();
@@ -864,7 +851,10 @@ in6_ifdetach(struct ifnet *ifp)
 	 */
 	nd6_purge(ifp);
 
-	/* remove route to link-local allnodes multicast (ff02::1) */
+	/*
+	 * Remove route to link-local allnodes multicast (ff02::1).
+	 * These only get automatically installed for the default FIB.
+	 */
 	bzero(&sin6, sizeof(sin6));
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	sin6.sin6_family = AF_INET6;
@@ -873,10 +863,11 @@ in6_ifdetach(struct ifnet *ifp)
 		/* XXX: should not fail */
 		return;
 	/* XXX grab lock first to avoid LOR */
-	rnh = rt_tables_get_rnh(0, AF_INET6);
+	rnh = rt_tables_get_rnh(RT_DEFAULT_FIB, AF_INET6);
 	if (rnh != NULL) {
 		RADIX_NODE_HEAD_LOCK(rnh);
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED);
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED,
+		    RT_DEFAULT_FIB);
 		if (rt) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);
@@ -924,8 +915,7 @@ in6_tmpaddrtimer(void *arg)
 	    V_ip6_temp_regen_advance) * hz, in6_tmpaddrtimer, curvnet);
 
 	bzero(nullbuf, sizeof(nullbuf));
-	for (ifp = TAILQ_FIRST(&V_ifnet); ifp;
-	    ifp = TAILQ_NEXT(ifp, if_list)) {
+	TAILQ_FOREACH(ifp, &V_ifnet, if_list) {
 		ndi = ND_IFINFO(ifp);
 		if (bcmp(ndi->randomid, nullbuf, sizeof(nullbuf)) != 0) {
 			/*
@@ -956,7 +946,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 	 * We need to do this as IF_ADDR_LOCK() may be re-acquired
 	 * by code further down.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifma, &ifp->if_multiaddrs, ifma_link) {
 		if (ifma->ifma_addr->sa_family != AF_INET6 ||
 		    ifma->ifma_protospec == NULL)
@@ -964,7 +954,7 @@ in6_purgemaddrs(struct ifnet *ifp)
 		inm = (struct in6_multi *)ifma->ifma_protospec;
 		LIST_INSERT_HEAD(&purgeinms, inm, in6m_entry);
 	}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	LIST_FOREACH_SAFE(inm, &purgeinms, in6m_entry, tinm) {
 		LIST_REMOVE(inm, in6m_entry);

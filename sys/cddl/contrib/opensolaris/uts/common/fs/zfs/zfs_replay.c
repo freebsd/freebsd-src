@@ -904,11 +904,15 @@ zfs_replay_setattr(zfsvfs_t *zfsvfs, lr_setattr_t *lr, boolean_t byteswap)
 	return (error);
 }
 
+extern int zfs_setsecattr(vnode_t *vp, vsecattr_t *vsecp, int flag, cred_t *cr,
+    caller_context_t *ct);
+
 static int
 zfs_replay_acl_v0(zfsvfs_t *zfsvfs, lr_acl_v0_t *lr, boolean_t byteswap)
 {
 	ace_t *ace = (ace_t *)(lr + 1);	/* ace array follows lr_acl_t */
 	vsecattr_t vsa;
+	vnode_t *vp;
 	znode_t *zp;
 	int error;
 
@@ -927,13 +931,12 @@ zfs_replay_acl_v0(zfsvfs_t *zfsvfs, lr_acl_v0_t *lr, boolean_t byteswap)
 	vsa.vsa_aclflags = 0;
 	vsa.vsa_aclentp = ace;
 
-#ifdef TODO
-	error = VOP_SETSECATTR(ZTOV(zp), &vsa, 0, kcred, NULL);
-#else
-	panic("%s:%u: unsupported condition", __func__, __LINE__);
-#endif
+	vp = ZTOV(zp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	error = zfs_setsecattr(vp, &vsa, 0, kcred, NULL);
+	VOP_UNLOCK(vp, 0);
 
-	VN_RELE(ZTOV(zp));
+	VN_RELE(vp);
 
 	return (error);
 }
@@ -958,6 +961,7 @@ zfs_replay_acl(zfsvfs_t *zfsvfs, lr_acl_t *lr, boolean_t byteswap)
 	ace_t *ace = (ace_t *)(lr + 1);
 	vsecattr_t vsa;
 	znode_t *zp;
+	vnode_t *vp;
 	int error;
 
 	if (byteswap) {
@@ -973,7 +977,6 @@ zfs_replay_acl(zfsvfs_t *zfsvfs, lr_acl_t *lr, boolean_t byteswap)
 	if ((error = zfs_zget(zfsvfs, lr->lr_foid, &zp)) != 0)
 		return (error);
 
-#ifdef TODO
 	bzero(&vsa, sizeof (vsa));
 	vsa.vsa_mask = VSA_ACE | VSA_ACECNT | VSA_ACE_ACLFLAGS;
 	vsa.vsa_aclcnt = lr->lr_aclcnt;
@@ -990,16 +993,16 @@ zfs_replay_acl(zfsvfs_t *zfsvfs, lr_acl_t *lr, boolean_t byteswap)
 		    lr->lr_fuidcnt, lr->lr_domcnt, 0, 0);
 	}
 
-	error = VOP_SETSECATTR(ZTOV(zp), &vsa, 0, kcred, NULL);
+	vp = ZTOV(zp);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	error = zfs_setsecattr(vp, &vsa, 0, kcred, NULL);
+	VOP_UNLOCK(vp, 0);
 
 	if (zfsvfs->z_fuid_replay)
 		zfs_fuid_info_free(zfsvfs->z_fuid_replay);
-#else
-	error = EOPNOTSUPP;
-#endif
 
 	zfsvfs->z_fuid_replay = NULL;
-	VN_RELE(ZTOV(zp));
+	VN_RELE(vp);
 
 	return (error);
 }

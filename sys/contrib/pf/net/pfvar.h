@@ -241,15 +241,8 @@ extern struct mtx pf_task_mtx;
 
 #define	PF_LOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_OWNED)
 #define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_NOTOWNED)
-
-#define	PF_LOCK()	do {				\
-	PF_UNLOCK_ASSERT();				\
-	mtx_lock(&pf_task_mtx);				\
-} while(0)
-#define	PF_UNLOCK()	do {				\
-	PF_LOCK_ASSERT();				\
-	mtx_unlock(&pf_task_mtx);			\
-} while(0)
+#define	PF_LOCK()		mtx_lock(&pf_task_mtx)
+#define	PF_UNLOCK()		mtx_unlock(&pf_task_mtx)
 #else
 #define	PF_LOCK_ASSERT()
 #define	PF_UNLOCK_ASSERT()
@@ -409,14 +402,18 @@ extern struct mtx pf_task_mtx;
 #endif /* PF_INET6_ONLY */
 #endif /* PF_INET_INET6 */
 
-#define	PF_MISMATCHAW(aw, x, af, neg, ifp)				\
+/*
+ * XXX callers not FIB-aware in our version of pf yet.
+ * OpenBSD fixed it later it seems, 2010/05/07 13:33:16 claudio.
+ */
+#define	PF_MISMATCHAW(aw, x, af, neg, ifp, rtid)			\
 	(								\
 		(((aw)->type == PF_ADDR_NOROUTE &&			\
-		    pf_routable((x), (af), NULL)) ||			\
+		    pf_routable((x), (af), NULL, (rtid))) ||		\
 		(((aw)->type == PF_ADDR_URPFFAILED && (ifp) != NULL &&	\
-		    pf_routable((x), (af), (ifp))) ||			\
+		    pf_routable((x), (af), (ifp), (rtid))) ||		\
 		((aw)->type == PF_ADDR_RTLABEL &&			\
-		    !pf_rtlabel_match((x), (af), (aw))) ||		\
+		    !pf_rtlabel_match((x), (af), (aw), (rtid))) ||	\
 		((aw)->type == PF_ADDR_TABLE &&				\
 		    !pfr_match_addr((aw)->p.tbl, (x), (af))) ||		\
 		((aw)->type == PF_ADDR_DYNIFTL &&			\
@@ -1984,8 +1981,10 @@ int	pf_normalize_tcp_stateful(struct mbuf *, int, struct pf_pdesc *,
 u_int32_t
 	pf_state_expires(const struct pf_state *);
 void	pf_purge_expired_fragments(void);
-int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *);
-int	pf_rtlabel_match(struct pf_addr *, sa_family_t, struct pf_addr_wrap *);
+int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
+	    int);
+int	pf_rtlabel_match(struct pf_addr *, sa_family_t, struct pf_addr_wrap *,
+	    int);
 #ifdef __FreeBSD__
 int	pf_socket_lookup(int, struct pf_pdesc *,  struct inpcb *);
 #else

@@ -233,6 +233,23 @@ xdialog_count_rows(const char *p)
 	return rows ? rows : 1;
 }
 
+static int
+xdialog_count_columns(const char *p)
+{
+	int len;
+	int max_len = 0;
+	const char *q;
+
+	for (; (q = strchr(p, '\n')) != NULL; p = q + 1) {
+		len = q - p;
+		max_len = MAX(max_len, len);
+	}
+
+	len = strlen(p);
+	max_len = MAX(max_len, len);
+	return max_len;
+}
+
 int
 xdialog_menu(const char *title, const char *cprompt, int height, int width,
 	     int menu_height, int item_no, dialogMenuItem *ditems)
@@ -270,7 +287,7 @@ xdialog_menu(const char *title, const char *cprompt, int height, int width,
 				tag_x = MAX(tag_x, l + k + 2);
 			}
 		}
-		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(xdialog_count_columns(cprompt), title != NULL ? xdialog_count_columns(title) : 0);
 		width = MAX(width, tag_x + 4) + 4;
 	}
 	width = MAX(width, 24);
@@ -345,7 +362,7 @@ xdialog_radiolist(const char *title, const char *cprompt, int height, int width,
 				check_x = MAX(check_x, l + k + 6);
 			}
 		}
-		width = MAX(dlg_count_columns(cprompt), title != NULL ? dlg_count_columns(title) : 0);
+		width = MAX(xdialog_count_columns(cprompt), title != NULL ? xdialog_count_columns(title) : 0);
 		width = MAX(width, check_x + 4) + 4;
 	}
 	width = MAX(width, 24);
@@ -397,8 +414,8 @@ xdialog_msgbox(const char *title, const char *cprompt,
 
 	/* calculate width */
 	if (width < 0) {
-		width = title != NULL ? dlg_count_columns(title) : 0;
-		width = MAX(width, dlg_count_columns(cprompt)) + 4;
+		width = title != NULL ? xdialog_count_columns(title) : 0;
+		width = MAX(width, xdialog_count_columns(cprompt)) + 4;
 	}
 	if (pauseopt)
 		width = MAX(width, 10);

@@ -37,7 +37,7 @@ test name.  For example,
 A test may be flagged as 'todo'.  This indicates that you expect the test
 to fail (perhaps because the necessary functionality hasn't been written
 yet).  'todo' tests are expected to fail, so when they start working the
-test framework can alert you to this happy occurence.  Flag these tests 
+test framework can alert you to this happy occurrence.  Flag these tests 
 with a '# TODO' comment after the test name
 
     not ok 1 - infiniteloop # TODO write test for an infinite loop

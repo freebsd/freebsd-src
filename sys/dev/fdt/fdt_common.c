@@ -70,6 +70,22 @@ fdt_get_range(phandle_t node, int range_id, u_long *base, u_long *size)
 	pcell_t addr_cells, size_cells, par_addr_cells;
 	int len, tuple_size, tuples;
 
+	/*
+	 * Try to access the SOC node directly i.e. through /aliases/.
+	 */
+	if ((node = OF_finddevice("soc")) != -1)
+		if (fdt_is_compatible_strict(node, "simple-bus"))
+			goto moveon;
+	/*
+	 * Find the node the long way.
+	 */
+	if ((node = OF_finddevice("/")) == -1)
+		return (ENXIO);
+
+	if ((node = fdt_find_compatible(node, "simple-bus", 1)) == 0)
+		return (ENXIO);
+
+moveon:
 	if ((fdt_addrsize_cells(node, &addr_cells, &size_cells)) != 0)
 		return (ENXIO);
 	/*
@@ -598,7 +614,7 @@ fdt_get_mem_regions(struct mem_region *mr, int *mrcnt, uint32_t *memsize)
 
 	max_size = sizeof(reg);
 	memory = OF_finddevice("/memory");
-	if (memory <= 0) {
+	if (memory == -1) {
 		rv = ENXIO;
 		goto out;
 	}

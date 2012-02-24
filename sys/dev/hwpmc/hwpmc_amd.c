@@ -889,7 +889,6 @@ pmc_amd_initialize(void)
 	 * field returned by CPUID for instruction family >= 6.
 	 */
 
-	class = cputype = -1;
 	name = NULL;
 	switch (cpu_id & 0xF00) {
 #if	defined(__i386__)
@@ -906,9 +905,8 @@ pmc_amd_initialize(void)
 		class = PMC_CLASS_K8;
 		name = "K8";
 		break;
-	}
 
-	if ((int) cputype == -1) {
+	default:
 		(void) printf("pmc: Unknown AMD CPU.\n");
 		return NULL;
 	}

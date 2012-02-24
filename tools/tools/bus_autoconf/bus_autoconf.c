@@ -27,7 +27,7 @@
 
 /*
  * Disclaimer: This utility and format is subject to change and not a
- * comitted interface.
+ * committed interface.
  */
 
 #include <stdio.h>

@@ -61,9 +61,9 @@
 extern struct iconv_functions *msdosfs_iconv;
 
 static int mbsadjpos(const char **, size_t, size_t, int, int, void *handle);
-static u_char * dos2unixchr(const u_char **, size_t *, int, struct msdosfsmount *);
+static u_char * dos2unixchr(u_char *, const u_char **, size_t *, int, struct msdosfsmount *);
 static u_int16_t unix2doschr(const u_char **, size_t *, struct msdosfsmount *);
-static u_char * win2unixchr(u_int16_t, struct msdosfsmount *);
+static u_char * win2unixchr(u_char *, u_int16_t, struct msdosfsmount *);
 static u_int16_t unix2winchr(const u_char **, size_t *, int, struct msdosfsmount *);
 
 /*
@@ -242,7 +242,7 @@ dos2unixfn(dn, un, lower, pmp)
 {
 	size_t i;
 	int thislong = 0;
-	u_char *c;
+	u_char *c, tmpbuf[5];
 
 	/*
 	 * If first char of the filename is SLOT_E5 (0x05), then the real
@@ -257,8 +257,8 @@ dos2unixfn(dn, un, lower, pmp)
 	 * Copy the name portion into the unix filename string.
 	 */
 	for (i = 8; i > 0 && *dn != ' ';) {
-		c = dos2unixchr((const u_char **)&dn, &i, lower & LCASE_BASE,
-		    pmp);
+		c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
+		    lower & LCASE_BASE, pmp);
 		while (*c != '\0') {
 			*un++ = *c++;
 			thislong++;
@@ -274,7 +274,7 @@ dos2unixfn(dn, un, lower, pmp)
 		*un++ = '.';
 		thislong++;
 		for (i = 3; i > 0 && *dn != ' ';) {
-			c = dos2unixchr((const u_char **)&dn, &i,
+			c = dos2unixchr(tmpbuf, (const u_char **)&dn, &i,
 			    lower & LCASE_EXT, pmp);
 			while (*c != '\0') {
 				*un++ = *c++;
@@ -648,7 +648,7 @@ win2unixfn(nbp, wep, chksum, pmp)
 	int chksum;
 	struct msdosfsmount *pmp;
 {
-	u_char *c;
+	u_char *c, tmpbuf[5];
 	u_int8_t *cp;
 	u_int8_t *np, name[WIN_CHARS * 3 + 1];
 	u_int16_t code;
@@ -683,7 +683,7 @@ win2unixfn(nbp, wep, chksum, pmp)
 			*np = '\0';
 			return -1;
 		default:
-			c = win2unixchr(code, pmp);
+			c = win2unixchr(tmpbuf, code, pmp);
 			while (*c != '\0')
 				*np++ = *c++;
 			break;
@@ -701,7 +701,7 @@ win2unixfn(nbp, wep, chksum, pmp)
 			*np = '\0';
 			return -1;
 		default:
-			c = win2unixchr(code, pmp);
+			c = win2unixchr(tmpbuf, code, pmp);
 			while (*c != '\0')
 				*np++ = *c++;
 			break;
@@ -719,7 +719,7 @@ win2unixfn(nbp, wep, chksum, pmp)
 			*np = '\0';
 			return -1;
 		default:
-			c = win2unixchr(code, pmp);
+			c = win2unixchr(tmpbuf, code, pmp);
 			while (*c != '\0')
 				*np++ = *c++;
 			break;
@@ -812,9 +812,9 @@ mbsadjpos(const char **instr, size_t inlen, size_t outlen, int weight, int flag,
  * Convert DOS char to Local char
  */
 static u_char *
-dos2unixchr(const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
+dos2unixchr(u_char *outbuf, const u_char **instr, size_t *ilen, int lower, struct msdosfsmount *pmp)
 {
-	u_char c, *outp, outbuf[5];
+	u_char c, *outp;
 	size_t len, olen;
 
 	outp = outbuf;
@@ -933,9 +933,9 @@ unix2doschr(const u_char **instr, size_t *ilen, struct msdosfsmount *pmp)
  * Convert Windows char to Local char
  */
 static u_char *
-win2unixchr(u_int16_t wc, struct msdosfsmount *pmp)
+win2unixchr(u_char *outbuf, u_int16_t wc, struct msdosfsmount *pmp)
 {
-	u_char *inp, *outp, inbuf[3], outbuf[5];
+	u_char *inp, *outp, inbuf[3];
 	size_t ilen, olen, len;
 
 	outp = outbuf;

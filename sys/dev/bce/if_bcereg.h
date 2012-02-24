@@ -6560,6 +6560,7 @@ struct bce_softc
 	u16			pg_prod;
 	u16			pg_cons;
 
+	int			bce_link_tick;
 	int			bce_link_up;
 	struct		callout bce_tick_callout;
 	struct		callout bce_pulse_callout;

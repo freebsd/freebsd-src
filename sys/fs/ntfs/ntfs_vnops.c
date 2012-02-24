@@ -481,7 +481,7 @@ ntfs_readdir(ap)
 	struct uio *uio = ap->a_uio;
 	struct ntfsmount *ntmp = ip->i_mp;
 	int i, j, error = 0;
-	char *c;
+	char *c, tmpbuf[5];
 	u_int32_t faked = 0, num;
 	int ncookies = 0;
 	struct dirent cde;

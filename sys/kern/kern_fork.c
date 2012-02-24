@@ -590,6 +590,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
+	LIST_INIT(&p2->p_orphans);
 
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
@@ -1035,7 +1036,9 @@ fork_return(struct thread *td, struct trapframe *frame)
 			p->p_oppid = p->p_pptr->p_pid;
 			proc_reparent(p, dbg);
 			sx_xunlock(&proctree_lock);
+			td->td_dbgflags |= TDB_CHILD;
 			ptracestop(td, SIGSTOP);
+			td->td_dbgflags &= ~TDB_CHILD;
 		} else {
 			/*
 			 * ... otherwise clear the request.

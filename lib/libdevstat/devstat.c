@@ -365,6 +365,12 @@ devstat_getdevs(kvm_t *kd, struct statinfo *stats)
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				 sizeof(long);
 			dinfo->mem_ptr = (u_int8_t *)malloc(dssize);
+			if (dinfo->mem_ptr == NULL) {
+				snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+					 "%s: Cannot allocate memory for mem_ptr element",
+					 __func__);
+				return(-1);
+			}
 		} else
 			dssize = (dinfo->numdevs * sizeof(struct devstat)) +
 				 sizeof(long);
@@ -567,7 +573,7 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	 * either enlarge or reduce the size of the device selection list.
 	 */
 	} else if (*num_selections != numdevs) {
-		*dev_select = (struct device_selection *)realloc(*dev_select,
+		*dev_select = (struct device_selection *)reallocf(*dev_select,
 			numdevs * sizeof(struct device_selection));
 		*select_generation = current_generation;
 		init_selections = 1;
@@ -579,6 +585,13 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	} else if (*select_generation < current_generation) {
 		*select_generation = current_generation;
 		init_selections = 1;
+	}
+
+	if (*dev_select == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: Cannot (re)allocate memory for dev_select argument",
+			 __func__);
+		return(-1);
 	}
 
 	/*
@@ -608,6 +621,12 @@ devstat_selectdevs(struct device_selection **dev_select, int *num_selected,
 	 || (perf_select != 0)) && (changed == 0)){
 		old_dev_select = (struct device_selection *)malloc(
 		    *num_selections * sizeof(struct device_selection));
+		if (old_dev_select == NULL) {
+			snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+				 "%s: Cannot allocate memory for selection list backup",
+				 __func__);
+			return(-1);
+		}
 		old_num_selections = *num_selections;
 		bcopy(*dev_select, old_dev_select, 
 		    sizeof(struct device_selection) * *num_selections);
@@ -1028,16 +1047,17 @@ devstat_buildmatch(char *match_str, struct devstat_match **matches,
 		return(-1);
 	}
 
-	/*
-	 * Since you can't realloc a pointer that hasn't been malloced
-	 * first, we malloc first and then realloc.
-	 */
 	if (*num_matches == 0)
-		*matches = (struct devstat_match *)malloc(
-			   sizeof(struct devstat_match));
-	else
-		*matches = (struct devstat_match *)realloc(*matches,
-			  sizeof(struct devstat_match) * (*num_matches + 1));
+		*matches = NULL;
+
+	*matches = (struct devstat_match *)reallocf(*matches,
+		  sizeof(struct devstat_match) * (*num_matches + 1));
+
+	if (*matches == NULL) {
+		snprintf(devstat_errbuf, sizeof(devstat_errbuf),
+			 "%s: Cannot allocate memory for matches list", __func__);
+		return(-1);
+	}
 			  
 	/* Make sure the current entry is clear */
 	bzero(&matches[0][*num_matches], sizeof(struct devstat_match));

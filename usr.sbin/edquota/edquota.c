@@ -426,7 +426,7 @@ putprivs(long id, struct quotause *quplist)
 }
 
 /*
- * Take a list of priviledges and get it edited.
+ * Take a list of privileges and get it edited.
  */
 int
 editit(char *tmpf)

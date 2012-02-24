@@ -350,14 +350,13 @@ icmp6_print(netdissect_options *ndo,
         printf("ICMP6, %s", tok2str(icmp6_type_values,"unknown icmp6 type (%u)",dp->icmp6_type));
 
         /* display cosmetics: print the packet length for printer that use the vflag now */
-        if (vflag && (dp->icmp6_type ==
-                      ND_ROUTER_SOLICIT ||
-                      ND_ROUTER_ADVERT ||
-                      ND_NEIGHBOR_ADVERT ||
-                      ND_NEIGHBOR_SOLICIT ||
-                      ND_REDIRECT ||
-                      ICMP6_HADISCOV_REPLY ||
-                      ICMP6_MOBILEPREFIX_ADVERT ))
+        if (vflag && (dp->icmp6_type == ND_ROUTER_SOLICIT ||
+                      dp->icmp6_type == ND_ROUTER_ADVERT ||
+                      dp->icmp6_type == ND_NEIGHBOR_ADVERT ||
+                      dp->icmp6_type == ND_NEIGHBOR_SOLICIT ||
+                      dp->icmp6_type == ND_REDIRECT ||
+                      dp->icmp6_type == ICMP6_HADISCOV_REPLY ||
+                      dp->icmp6_type == ICMP6_MOBILEPREFIX_ADVERT ))
             printf(", length %u", length);
                       
 	switch (dp->icmp6_type) {

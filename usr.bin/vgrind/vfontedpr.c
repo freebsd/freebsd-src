@@ -110,7 +110,7 @@ static char	pstack[PSMAX][PNAMELEN+1];	/* the procedure name stack */
 
 char	*l_acmbeg;		/* string introducing a comment */
 char	*l_acmend;		/* string ending a comment */
-char	*l_blkbeg;		/* string begining of a block */
+char	*l_blkbeg;		/* string beginning of a block */
 char	*l_blkend;		/* string ending a block */
 char    *l_chrbeg;		/* delimiter for character constant */
 char    *l_chrend;		/* delimiter for character constant */

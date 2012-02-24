@@ -93,7 +93,7 @@ ar724x_pci_write(uint32_t reg, uint32_t offset, uint32_t data, int bytes)
 	uint32_t val, mask, shift;
 
 	/* Register access is 32-bit aligned */
-	shift = 8 * (offset & (bytes % 4));
+	shift = (offset & 3) * 8;
 	if (bytes % 4)
 		mask = (1 << (bytes * 8)) - 1;
 	else

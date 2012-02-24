@@ -103,6 +103,7 @@ struct prison prison0 = {
 	.pr_uref	= 1,
 	.pr_path	= "/",
 	.pr_securelevel	= -1,
+	.pr_devfs_rsnum = 0,
 	.pr_childmax	= JAIL_MAX,
 	.pr_hostuuid	= DEFAULT_HOSTUUID,
 	.pr_children	= LIST_HEAD_INITIALIZER(prison0.pr_children),
@@ -200,6 +201,8 @@ static char *pr_allow_names[] = {
 	"allow.mount",
 	"allow.quotas",
 	"allow.socket_af",
+	"allow.mount.devfs",
+	"allow.mount.nullfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -211,13 +214,17 @@ static char *pr_allow_nonames[] = {
 	"allow.nomount",
 	"allow.noquotas",
 	"allow.nosocket_af",
+	"allow.mount.nodevfs",
+	"allow.mount.nonullfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
 #define	JAIL_DEFAULT_ALLOW		PR_ALLOW_SET_HOSTNAME
 #define	JAIL_DEFAULT_ENFORCE_STATFS	2
+#define	JAIL_DEFAULT_DEVFS_RSNUM	0
 static unsigned jail_default_allow = JAIL_DEFAULT_ALLOW;
 static int jail_default_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
+static int jail_default_devfs_rsnum = JAIL_DEFAULT_DEVFS_RSNUM;
 #if defined(INET) || defined(INET6)
 static unsigned jail_max_af_ips = 255;
 #endif
@@ -521,6 +528,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	struct prison *pr, *deadpr, *mypr, *ppr, *tpr;
 	struct vnode *root;
 	char *domain, *errmsg, *host, *name, *namelc, *p, *path, *uuid;
+	char *g_path;
 #if defined(INET) || defined(INET6)
 	struct prison *tppr;
 	void *op;
@@ -528,9 +536,10 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	unsigned long hid;
 	size_t namelen, onamelen;
 	int created, cuflags, descend, enforce, error, errmsg_len, errmsg_pos;
-	int gotchildmax, gotenforce, gothid, gotslevel;
+	int gotchildmax, gotenforce, gothid, gotrsnum, gotslevel;
 	int fi, jid, jsys, len, level;
-	int childmax, slevel, vfslocked;
+	int childmax, rsnum, slevel, vfslocked;
+	int fullpath_disabled;
 #if defined(INET) || defined(INET6)
 	int ii, ij;
 #endif
@@ -574,6 +583,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	ip6 = NULL;
 #endif
+	g_path = NULL;
 
 	error = vfs_copyopt(opts, "jid", &jid, sizeof(jid));
 	if (error == ENOENT)
@@ -608,6 +618,14 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		goto done_free;
 	} else
 		gotenforce = 1;
+
+	error = vfs_copyopt(opts, "devfs_ruleset", &rsnum, sizeof(rsnum));
+	if (error == ENOENT)
+		gotrsnum = 0;
+	else if (error != 0)
+		goto done_free;
+	else
+		gotrsnum = 1;
 
 	pr_flags = ch_flags = 0;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -880,6 +898,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 #endif
 
+	fullpath_disabled = 0;
 	root = NULL;
 	error = vfs_getopt(opts, "path", (void **)&path, &len);
 	if (error == ENOENT)
@@ -897,30 +916,44 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			error = EINVAL;
 			goto done_free;
 		}
-		if (len < 2 || (len == 2 && path[0] == '/'))
-			path = NULL;
-		else {
+		NDINIT(&nd, LOOKUP, FOLLOW | LOCKLEAF | MPSAFE, UIO_SYSSPACE,
+		    path, td);
+		error = namei(&nd);
+		if (error)
+			goto done_free;
+		vfslocked = NDHASGIANT(&nd);
+		root = nd.ni_vp;
+		NDFREE(&nd, NDF_ONLY_PNBUF);
+		g_path = malloc(MAXPATHLEN, M_TEMP, M_WAITOK);
+		strlcpy(g_path, path, MAXPATHLEN);
+		error = vn_path_to_global_path(td, root, g_path, MAXPATHLEN);
+		if (error == 0)
+			path = g_path;
+		else if (error == ENODEV) {
+			/* proceed if sysctl debug.disablefullpath == 1 */
+			fullpath_disabled = 1;
+			if (len < 2 || (len == 2 && path[0] == '/'))
+				path = NULL;
+		} else {
+			/* exit on other errors */
+			VFS_UNLOCK_GIANT(vfslocked);
+			goto done_free;
+		}
+		if (root->v_type != VDIR) {
+			error = ENOTDIR;
+			vput(root);
+			VFS_UNLOCK_GIANT(vfslocked);
+			goto done_free;
+		}
+		VOP_UNLOCK(root, 0);
+		VFS_UNLOCK_GIANT(vfslocked);
+		if (fullpath_disabled) {
 			/* Leave room for a real-root full pathname. */
 			if (len + (path[0] == '/' && strcmp(mypr->pr_path, "/")
 			    ? strlen(mypr->pr_path) : 0) > MAXPATHLEN) {
 				error = ENAMETOOLONG;
 				goto done_free;
 			}
-			NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW, UIO_SYSSPACE,
-			    path, td);
-			error = namei(&nd);
-			if (error)
-				goto done_free;
-			vfslocked = NDHASGIANT(&nd);
-			root = nd.ni_vp;
-			NDFREE(&nd, NDF_ONLY_PNBUF);
-			if (root->v_type != VDIR) {
-				error = ENOTDIR;
-				vrele(root);
-				VFS_UNLOCK_GIANT(vfslocked);
-				goto done_free;
-			}
-			VFS_UNLOCK_GIANT(vfslocked);
 		}
 	}
 
@@ -1250,6 +1283,7 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		pr->pr_securelevel = ppr->pr_securelevel;
 		pr->pr_allow = JAIL_DEFAULT_ALLOW & ppr->pr_allow;
 		pr->pr_enforce_statfs = JAIL_DEFAULT_ENFORCE_STATFS;
+		pr->pr_devfs_rsnum = ppr->pr_devfs_rsnum;
 
 		LIST_INIT(&pr->pr_children);
 		mtx_init(&pr->pr_mtx, "jail mutex", NULL, MTX_DEF | MTX_DUPOK);
@@ -1326,6 +1360,25 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 		if (enforce < ppr->pr_enforce_statfs) {
 			error = EPERM;
 			goto done_deref_locked;
+		}
+	}
+	if (gotrsnum) {
+		/*
+		 * devfs_rsnum is a uint16_t
+		 */
+		if (rsnum < 0 || rsnum > 65535) {
+			error = EINVAL;
+			goto done_deref_locked;
+		}
+		/*
+		 * Nested jails always inherit parent's devfs ruleset
+		 */
+		if (jailed(td->td_ucred)) {
+			if (rsnum > 0 && rsnum != ppr->pr_devfs_rsnum) {
+				error = EPERM;
+				goto done_deref_locked;
+			} else
+				rsnum = ppr->pr_devfs_rsnum;
 		}
 	}
 #ifdef INET
@@ -1568,6 +1621,12 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 			if (tpr->pr_enforce_statfs < enforce)
 				tpr->pr_enforce_statfs = enforce;
 	}
+	if (gotrsnum) {
+		pr->pr_devfs_rsnum = rsnum;
+		/* Pass this restriction on to the children. */
+		FOREACH_PRISON_DESCENDANT_LOCKED(pr, tpr, descend)
+			tpr->pr_devfs_rsnum = rsnum;
+	}
 	if (name != NULL) {
 		if (ppr == &prison0)
 			strlcpy(pr->pr_name, name, sizeof(pr->pr_name));
@@ -1583,7 +1642,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 	}
 	if (path != NULL) {
 		/* Try to keep a real-rooted full pathname. */
-		if (path[0] == '/' && strcmp(mypr->pr_path, "/"))
+		if (fullpath_disabled && path[0] == '/' &&
+		    strcmp(mypr->pr_path, "/"))
 			snprintf(pr->pr_path, sizeof(pr->pr_path), "%s%s",
 			    mypr->pr_path, path);
 		else
@@ -1806,6 +1866,8 @@ kern_jail_set(struct thread *td, struct uio *optuio, int flags)
 #ifdef INET6
 	free(ip6, M_PRISON);
 #endif
+	if (g_path != NULL)
+		free(g_path, M_TEMP);
 	vfs_freeopts(opts);
 	return (error);
 }
@@ -1997,6 +2059,10 @@ kern_jail_get(struct thread *td, struct uio *optuio, int flags)
 		goto done_deref;
 	error = vfs_setopt(opts, "enforce_statfs", &pr->pr_enforce_statfs,
 	    sizeof(pr->pr_enforce_statfs));
+	if (error != 0 && error != ENOENT)
+		goto done_deref;
+	error = vfs_setopt(opts, "devfs_ruleset", &pr->pr_devfs_rsnum,
+	    sizeof(pr->pr_devfs_rsnum));
 	if (error != 0 && error != ENOENT)
 		goto done_deref;
 	for (fi = 0; fi < sizeof(pr_flag_names) / sizeof(pr_flag_names[0]);
@@ -4130,6 +4196,14 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT, sysctl_jail_default_allow, "I",
     "Processes in jail can mount/unmount jail-friendly file systems");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount/unmount the devfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount/unmount the nullfs file system");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -4151,6 +4225,12 @@ SYSCTL_PROC(_security_jail, OID_AUTO, enforce_statfs,
     &jail_default_enforce_statfs, offsetof(struct prison, pr_enforce_statfs),
     sysctl_jail_default_level, "I",
     "Processes in jail cannot see all mounted file systems");
+
+SYSCTL_PROC(_security_jail, OID_AUTO, devfs_ruleset,
+    CTLTYPE_INT | CTLFLAG_RD | CTLFLAG_MPSAFE,
+    &jail_default_devfs_rsnum, offsetof(struct prison, pr_devfs_rsnum),
+    sysctl_jail_default_level, "I",
+    "Ruleset for the devfs filesystem in jail");
 
 /*
  * Nodes to describe jail parameters.  Maximum length of string parameters
@@ -4200,6 +4280,8 @@ SYSCTL_JAIL_PARAM(, securelevel, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail secure level");
 SYSCTL_JAIL_PARAM(, enforce_statfs, CTLTYPE_INT | CTLFLAG_RW,
     "I", "Jail cannot see all mounted file systems");
+SYSCTL_JAIL_PARAM(, devfs_ruleset, CTLTYPE_INT | CTLFLAG_RW,
+    "I", "Ruleset for in-jail devfs mounts");
 SYSCTL_JAIL_PARAM(, persist, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail persistence");
 #ifdef VIMAGE
@@ -4256,12 +4338,18 @@ SYSCTL_JAIL_PARAM(_allow, raw_sockets, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create raw sockets");
 SYSCTL_JAIL_PARAM(_allow, chflags, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may alter system file flags");
-SYSCTL_JAIL_PARAM(_allow, mount, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount jail-friendly file systems");
 SYSCTL_JAIL_PARAM(_allow, quotas, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may set file quotas");
 SYSCTL_JAIL_PARAM(_allow, socket_af, CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may create sockets other than just UNIX/IPv4/IPv6/route");
+
+SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
+SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount jail-friendly file systems in general");
+SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount the devfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount/unmount the nullfs file system");
 
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,
@@ -4392,6 +4480,7 @@ db_show_prison(struct prison *pr)
 #endif
 	db_printf(" root            = %p\n", pr->pr_root);
 	db_printf(" securelevel     = %d\n", pr->pr_securelevel);
+	db_printf(" devfs_rsnum     = %d\n", pr->pr_devfs_rsnum);
 	db_printf(" children.max    = %d\n", pr->pr_childmax);
 	db_printf(" children.cur    = %d\n", pr->pr_childcount);
 	db_printf(" child           = %p\n", LIST_FIRST(&pr->pr_children));

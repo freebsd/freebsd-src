@@ -35,10 +35,10 @@ SRCS+=	ifgre.c			# GRE keys etc
 SRCS+=	ifgif.c			# GIF reversed header workaround
 
 SRCS+=	ifieee80211.c regdomain.c # SIOC[GS]IEEE80211 support
-DPADD+=	${LIBBSDXML} ${LIBJAIL} ${LIBSBUF}
-LDADD+=	-lbsdxml -ljail -lsbuf
+DPADD+=	${LIBBSDXML} ${LIBSBUF}
+LDADD+=	-lbsdxml -lsbuf
 
-SRCS+=	ifcarp.c		# SIOC[GS]VH support
+SRCS+=	carp.c			# SIOC[GS]VH support
 SRCS+=	ifgroup.c		# ...
 SRCS+=	ifpfsync.c		# pfsync(4) support
 
@@ -55,6 +55,11 @@ CFLAGS+= -DINET
 SRCS+=	af_ipx.c		# IPX support
 DPADD+=	${LIBIPX}
 LDADD+=	-lipx
+.endif
+.if ${MK_JAIL} != "no" && !defined(RELEASE_CRUNCH) && !defined(RESCUE)
+CFLAGS+= -DJAIL
+DPADD+= ${LIBJAIL}
+LDADD+= -ljail
 .endif
 
 MAN=	ifconfig.8

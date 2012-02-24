@@ -477,7 +477,7 @@ bbb_command_start(struct bbb_transfer *sc, uint8_t dir, uint8_t lun,
 	sc->cmd_len = cmd_len;
 	memset(&sc->cbw.CBWCDB, 0, sizeof(sc->cbw.CBWCDB));
 	memcpy(&sc->cbw.CBWCDB, cmd_ptr, cmd_len);
-	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, &sc->cbw.CBWCDB, ":");
+	DPRINTFN(1, "SCSI cmd = %*D\n", (int)cmd_len, (char *)sc->cbw.CBWCDB, ":");
 
 	mtx_lock(&sc->mtx);
 	usbd_transfer_start(sc->xfer[sc->state]);

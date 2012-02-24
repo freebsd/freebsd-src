@@ -185,7 +185,7 @@ ofwn_init(struct iodesc *desc, void *machdep_hint)
 	int		pathlen;
 
 	pathlen = OF_getprop(chosen, "bootpath", path, 64);
-	if ((ch = index(path, ':')) != NULL)
+	if ((ch = strchr(path, ':')) != NULL)
 		*ch = '\0';
 	netdev = OF_finddevice(path);
 #ifdef __sparc64__

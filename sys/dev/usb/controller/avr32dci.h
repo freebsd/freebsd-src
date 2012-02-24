@@ -166,6 +166,7 @@ struct avr32dci_td {
 	uint32_t offset;
 	uint32_t remainder;
 	uint16_t max_packet_size;
+	uint8_t bank_shift;
 	uint8_t	error:1;
 	uint8_t	alt_next:1;
 	uint8_t	short_pkt:1;
@@ -246,8 +247,6 @@ struct avr32dci_softc {
 
 usb_error_t avr32dci_init(struct avr32dci_softc *sc);
 void	avr32dci_uninit(struct avr32dci_softc *sc);
-void	avr32dci_suspend(struct avr32dci_softc *sc);
-void	avr32dci_resume(struct avr32dci_softc *sc);
 void	avr32dci_interrupt(struct avr32dci_softc *sc);
 void	avr32dci_vbus_interrupt(struct avr32dci_softc *sc, uint8_t is_on);
 

@@ -170,8 +170,8 @@ OS_getSystemDate(struct snmp_value *value)
 
 /**
  * Get kernel boot path. For FreeBSD it seems that no arguments are
- * present. Returns NULL if an error occured. The returned data is a
- * pointer to a global strorage.
+ * present. Returns NULL if an error occurred. The returned data is a
+ * pointer to a global storage.
  */
 int
 OS_getSystemInitialLoadParameters(u_char **params)

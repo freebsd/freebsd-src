@@ -46,9 +46,6 @@ __FBSDID("$FreeBSD$");
 #include "fdt_common.h"
 #include "ofw_bus_if.h"
 
-#define DEBUG
-#undef DEBUG
-
 #ifdef DEBUG
 #define debugf(fmt, args...) do { printf("%s(): ", __func__);	\
     printf(fmt,##args); } while (0)
@@ -177,7 +174,7 @@ fdtbus_attach(device_t dev)
 	u_long start, end;
 	int error;
 
-	if ((root = OF_peer(0)) == 0)
+	if ((root = OF_finddevice("/")) == -1)
 		panic("fdtbus_attach: no root node.");
 
 	sc = device_get_softc(dev);

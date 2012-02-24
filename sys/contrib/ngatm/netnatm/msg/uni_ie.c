@@ -47,6 +47,8 @@
 #include <netnatm/msg/uniprint.h>
 #include <netnatm/msg/priv.h>
 
+#define UNUSED(_p) do { (void)(_p); } while (0)
+
 /*
  * Define internal functions.
  */
@@ -1321,7 +1323,7 @@ check_cause(struct uni_ie_cause *ie, struct unicx *cx,
 			return (-1);
 	}
 	if (ie->h.present & UNI_CAUSE_PARAM_P) {
-		cx = cx;
+		UNUSED(cx);
 	}
 
 	return (0);
@@ -1656,7 +1658,7 @@ DEF_IE_PRINT(itu, callstate)
 
 DEF_IE_CHECK(itu, callstate)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->state) {
 	  default:
@@ -1742,7 +1744,7 @@ DEF_IE_PRINT(itu, facility)
 
 DEF_IE_CHECK(itu, facility)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->len > UNI_FACILITY_MAXAPDU)
 		return -1;
@@ -1811,7 +1813,7 @@ DEF_IE_PRINT(itu, notify)
 
 DEF_IE_CHECK(itu, notify)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->len > UNI_NOTIFY_MAXLEN)
 		return -1;
@@ -1904,7 +1906,7 @@ DEF_IE_PRINT(net, eetd)
 DEF_IE_CHECK(itu, eetd)
 {
 
-	cx = cx;
+	UNUSED(cx);
 
 	if (!(ie->h.present & UNI_EETD_CUM_P))
 		return (-1);
@@ -2298,7 +2300,7 @@ DEF_IE_PRINT(itu, called)
 
 DEF_IE_CHECK(itu, called)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if (check_addr(&ie->addr))
 		return (-1);
@@ -2345,7 +2347,7 @@ DEF_IE_PRINT(itu, calledsub)
 
 DEF_IE_CHECK(itu, calledsub)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(check_subaddr(&ie->addr))
 		return -1;
@@ -2396,7 +2398,7 @@ DEF_IE_PRINT(itu, calling)
 
 DEF_IE_CHECK(itu, calling)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(check_addr(&ie->addr))
 		return -1;
@@ -2459,7 +2461,7 @@ DEF_IE_PRINT(itu, callingsub)
 
 DEF_IE_CHECK(itu, callingsub)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(check_subaddr(&ie->addr))
 		return -1;
@@ -2510,7 +2512,7 @@ DEF_IE_PRINT(itu, conned)
 
 DEF_IE_CHECK(itu, conned)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(check_addr(&ie->addr))
 		return -1;
@@ -2573,7 +2575,7 @@ DEF_IE_PRINT(itu, connedsub)
 
 DEF_IE_CHECK(itu, connedsub)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(check_subaddr(&ie->addr))
 		return -1;
@@ -2627,7 +2629,7 @@ DEF_IE_PRINT(itu, epref)
 
 DEF_IE_CHECK(itu, epref)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->epref >= (2<<15))
 		return -1;
@@ -2702,7 +2704,7 @@ DEF_IE_PRINT(itu, epstate)
 
 DEF_IE_CHECK(itu, epstate)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->state) {
 	  default:
@@ -2895,7 +2897,7 @@ DEF_IE_PRINT(itu, aal)
 
 DEF_IE_CHECK(itu, aal)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->type == UNI_AAL_0) {
 		;
@@ -3784,7 +3786,7 @@ DEF_IE_CHECK(itu, mintraffic)
 {
 	u_int abr;
 	u_int xbr;
-	cx = cx;
+	UNUSED(cx);
 
 	abr = ie->h.present & (UNI_MINTRAFFIC_FABR1_P|UNI_MINTRAFFIC_BABR1_P);
 	xbr = ie->h.present & (UNI_MINTRAFFIC_FPCR0_P|UNI_MINTRAFFIC_BPCR0_P|
@@ -3869,7 +3871,7 @@ DEF_IE_PRINT(net, mdcr)
 
 DEF_IE_CHECK(net, mdcr)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if ((ie->origin != UNI_MDCR_ORIGIN_USER &&
 	    ie->origin != UNI_MDCR_ORIGIN_NET) ||
@@ -3965,7 +3967,7 @@ DEF_IE_PRINT(itu, connid)
 
 DEF_IE_CHECK(itu, connid)
 {
-	cx = cx;
+	UNUSED(cx);
 	switch(ie->type) {
 	  default:
 		return -1;
@@ -4075,7 +4077,7 @@ DEF_IE_PRINT(net, qos)
 
 DEF_IE_CHECK(itu, qos)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->fwd) {
 	  default:
@@ -4096,7 +4098,7 @@ DEF_IE_CHECK(itu, qos)
 
 DEF_IE_CHECK(net, qos)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->fwd) {
 	  default:
@@ -4205,7 +4207,7 @@ DEF_IE_PRINT(itu, bhli)
 
 DEF_IE_CHECK(itu, bhli)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->type) {
 	  default:
@@ -4357,7 +4359,7 @@ DEF_IE_PRINT(itu, bearer)
 #define QTYPE0(C)	((UNI_BEARER_##C << 8) | (1 << 16))
 DEF_IE_CHECK(itu, bearer)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch((ie->bclass << 8) |
 	       ((ie->h.present & UNI_BEARER_ATC_P) == 0
@@ -4656,7 +4658,7 @@ DEF_IE_PRINT(itu, blli)
 
 DEF_IE_CHECK(itu, blli)
 {
-	cx = cx;
+	UNUSED(cx);
 /*
 	if(ie->h.present & UNI_BLLI_L1_P)
 		;
@@ -5171,7 +5173,7 @@ DEF_IE_PRINT(itu, lshift)
 
 DEF_IE_CHECK(itu, lshift)
 {
-	cx = cx; ie = ie;
+	UNUSED(cx); UNUSED(ie);
 	return -1;
 }
 
@@ -5212,7 +5214,7 @@ DEF_IE_PRINT(itu, nlshift)
 
 DEF_IE_CHECK(itu, nlshift)
 {
-	cx = cx; ie = ie;
+	UNUSED(cx); UNUSED(ie);
 	return -1;
 }
 
@@ -5261,7 +5263,7 @@ DEF_IE_PRINT(itu, scompl)
 
 DEF_IE_CHECK(itu, scompl)
 {
-	ie = ie; cx = cx;
+	UNUSED(ie); UNUSED(cx);
 	return 0;
 }
 
@@ -5398,7 +5400,7 @@ DEF_IE_CHECK(itu, tns)
 {
 	u_int i;
 
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->len == 0 || ie->len > UNI_TNS_MAXLEN)
 		return -1;
@@ -5466,7 +5468,7 @@ DEF_IE_PRINT(itu, restart)
 
 DEF_IE_CHECK(itu, restart)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->rclass) {
 	  default:
@@ -5535,7 +5537,7 @@ DEF_IE_PRINT(itu, uu)
 
 DEF_IE_CHECK(itu, uu)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->len > UNI_UU_MAXLEN)
 		return -1;
@@ -5754,8 +5756,8 @@ DEF_IE_PRINT(net, abradd)
 
 DEF_IE_CHECK(net, abradd)
 {
-	cx = cx;
-	ie = ie;
+	UNUSED(cx);
+	UNUSED(ie);
 
 	return 0;
 }
@@ -6015,7 +6017,7 @@ DEF_IE_PRINT(itu, report)
 
 DEF_IE_CHECK(itu, report)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->report) {
 
@@ -6098,7 +6100,7 @@ DEF_IE_PRINT(net, called_soft)
 
 DEF_IE_CHECK(net, calling_soft)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->vpi >= 1 << 12)
 		return -1;
@@ -6107,7 +6109,7 @@ DEF_IE_CHECK(net, calling_soft)
 
 DEF_IE_CHECK(net, called_soft)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->sel) {
 
@@ -6357,7 +6359,7 @@ DEF_IE_PRINT(net, crankback)
 
 DEF_IE_CHECK(net, crankback)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->level > 104)
 		return -1;
@@ -6595,7 +6597,7 @@ DEF_IE_CHECK(net, dtl)
 {
 	u_int i;
 
-	cx = cx;
+	UNUSED(cx);
 
 	if(ie->ptr % UNI_DTL_LOGNP_SIZE != 0)
 		return -1;
@@ -6703,7 +6705,7 @@ DEF_IE_PRINT(net, lij_callid)
 
 DEF_IE_CHECK(net, lij_callid)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->type) {
 
@@ -6761,7 +6763,7 @@ DEF_IE_PRINT(net, lij_param)
 
 DEF_IE_CHECK(net, lij_param)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->screen) {
 
@@ -6809,7 +6811,7 @@ DEF_IE_PRINT(net, lij_seqno)
 
 DEF_IE_CHECK(net, lij_seqno)
 {
-	cx = cx; ie = ie;
+	UNUSED(cx); UNUSED(ie);
 
 	return 0;
 }
@@ -6888,7 +6890,7 @@ DEF_IE_PRINT(net, cscope)
 
 DEF_IE_CHECK(net, cscope)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->type) {
 
@@ -7018,7 +7020,7 @@ DEF_IE_PRINT(net, exqos)
 
 DEF_IE_CHECK(net, exqos)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	switch(ie->origin) {
 	  case UNI_EXQOS_USER:
@@ -7130,7 +7132,7 @@ DEF_IE_PRINT(itu, unrec)
 
 DEF_IE_CHECK(itu, unrec)
 {
-	cx = cx;
+	UNUSED(cx);
 
 	if (ie->len > sizeof(ie->data))
 		return (-1);

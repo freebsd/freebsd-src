@@ -87,9 +87,7 @@ struct vtblk_softc {
 	struct taskqueue	*vtblk_tq;
 	struct task		 vtblk_intr_task;
 
-	int			 vtblk_sector_size;
 	int			 vtblk_max_nsegs;
-	int			 vtblk_unit;
 	int			 vtblk_request_count;
 
 	struct vtblk_request	 vtblk_dump_request;
@@ -185,7 +183,6 @@ TUNABLE_INT("hw.vtblk.no_ident", &vtblk_no_ident);
 				mtx_init(VTBLK_MTX((_sc)), (_name), \
 				    "VTBLK Lock", MTX_DEF)
 #define VTBLK_LOCK(_sc)		mtx_lock(VTBLK_MTX((_sc)))
-#define VTBLK_TRYLOCK(_sc)	mtx_trylock(VTBLK_MTX((_sc)))
 #define VTBLK_UNLOCK(_sc)	mtx_unlock(VTBLK_MTX((_sc)))
 #define VTBLK_LOCK_DESTROY(_sc)	mtx_destroy(VTBLK_MTX((_sc)))
 #define VTBLK_LOCK_ASSERT(_sc)	mtx_assert(VTBLK_MTX((_sc)), MA_OWNED)
@@ -281,7 +278,6 @@ vtblk_attach(device_t dev)
 
 	sc = device_get_softc(dev);
 	sc->vtblk_dev = dev;
-	sc->vtblk_unit = device_get_unit(dev);
 
 	VTBLK_LOCK_INIT(sc, device_get_nameunit(dev));
 
@@ -299,13 +295,8 @@ vtblk_attach(device_t dev)
 		sc->vtblk_flags |= VTBLK_FLAG_READONLY;
 
 	/* Get local copy of config. */
-	if (virtio_with_feature(dev, VIRTIO_BLK_F_TOPOLOGY) == 0) {
-		bzero(&blkcfg, sizeof(struct virtio_blk_config));
-		virtio_read_device_config(dev, 0, &blkcfg,
-		    offsetof(struct virtio_blk_config, physical_block_exp));
-	} else
-		virtio_read_device_config(dev, 0, &blkcfg,
-		    sizeof(struct virtio_blk_config));
+	virtio_read_device_config(dev, 0, &blkcfg,
+	    sizeof(struct virtio_blk_config));
 
 	/*
 	 * With the current sglist(9) implementation, it is not easy
@@ -498,12 +489,6 @@ vtblk_dump(void *arg, void *virtual, vm_offset_t physical, off_t offset,
 	if ((sc = dp->d_drv1) == NULL)
 		return (ENXIO);
 
-	if (VTBLK_TRYLOCK(sc) == 0) {
-		device_printf(sc->vtblk_dev,
-		    "softc already locked, cannot dump...\n");
-		return (EBUSY);
-	}
-
 	if ((sc->vtblk_flags & VTBLK_FLAG_DUMPING) == 0) {
 		vtblk_prepare_dump(sc);
 		sc->vtblk_flags |= VTBLK_FLAG_DUMPING;
@@ -622,7 +607,7 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_ioctl = vtblk_ioctl;
 	dp->d_strategy = vtblk_strategy;
 	dp->d_name = VTBLK_DISK_NAME;
-	dp->d_unit = sc->vtblk_unit;
+	dp->d_unit = device_get_unit(dev);
 	dp->d_drv1 = sc;
 
 	if ((sc->vtblk_flags & VTBLK_FLAG_READONLY) == 0)
@@ -632,10 +617,9 @@ vtblk_alloc_disk(struct vtblk_softc *sc, struct virtio_blk_config *blkcfg)
 	dp->d_mediasize = blkcfg->capacity * 512;
 
 	if (virtio_with_feature(dev, VIRTIO_BLK_F_BLK_SIZE))
-		sc->vtblk_sector_size = blkcfg->blk_size;
+		dp->d_sectorsize = blkcfg->blk_size;
 	else
-		sc->vtblk_sector_size = 512;
-	dp->d_sectorsize = sc->vtblk_sector_size;
+		dp->d_sectorsize = 512;
 
 	/*
 	 * The VirtIO maximum I/O size is given in terms of segments.
@@ -905,8 +889,9 @@ vtblk_get_ident(struct vtblk_softc *sc)
 
 	VTBLK_LOCK(sc);
 	error = vtblk_poll_request(sc, req);
-	vtblk_enqueue_request(sc, req);
 	VTBLK_UNLOCK(sc);
+
+	vtblk_enqueue_request(sc, req);
 
 	if (error) {
 		device_printf(sc->vtblk_dev,

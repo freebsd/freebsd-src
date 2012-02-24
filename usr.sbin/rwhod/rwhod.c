@@ -227,7 +227,7 @@ main(int argc, char *argv[])
 		syslog(LOG_ERR, "gethostname: %m");
 		exit(1);
 	}
-	if ((cp = index(myname, '.')) != NULL)
+	if ((cp = strchr(myname, '.')) != NULL)
 		*cp = '\0';
 	strncpy(mywd.wd_hostname, myname, sizeof(mywd.wd_hostname) - 1);
 	mywd.wd_hostname[sizeof(mywd.wd_hostname) - 1] = '\0';

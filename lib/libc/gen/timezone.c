@@ -59,7 +59,7 @@ timezone(int zone, int dst)
 			*end;
 
 	if ( (beg = getenv("TZNAME")) ) {	/* set in environment */
-		if ( (end = index(beg, ',')) ) {/* "PST,PDT" */
+		if ((end = strchr(beg, ','))) {	/* "PST,PDT" */
 			if (dst)
 				return(++end);
 			*end = '\0';

@@ -77,7 +77,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t at91_udp_probe;
 static device_attach_t at91_udp_attach;
 static device_detach_t at91_udp_detach;
-static device_shutdown_t at91_udp_shutdown;
 
 struct at91_udp_softc {
 	struct at91dci_softc sc_dci;	/* must be first */
@@ -324,35 +323,22 @@ at91_udp_detach(device_t dev)
 	return (0);
 }
 
-static int
-at91_udp_shutdown(device_t dev)
-{
-	struct at91_udp_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	at91dci_uninit(&sc->sc_dci);
-
-	return (0);
-}
-
 static device_method_t at91_udp_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, at91_udp_probe),
 	DEVMETHOD(device_attach, at91_udp_attach),
 	DEVMETHOD(device_detach, at91_udp_detach),
-	DEVMETHOD(device_shutdown, at91_udp_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t at91_udp_driver = {
-	"at91_udp",
-	at91_udp_methods,
-	sizeof(struct at91_udp_softc),
+	.name = "at91_udp",
+	.methods = at91_udp_methods,
+	.size = sizeof(struct at91_udp_softc),
 };
 
 static devclass_t at91_udp_devclass;

@@ -442,19 +442,19 @@ ieee80211_mesh_init(void)
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
 	    IEEE80211_ACTION_MESHLMETRIC_REP, mesh_recv_action_meshlmetric_rep);
 
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING, 
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_OPEN,
 	    mesh_send_action_meshpeering_open);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING, 
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_CONFIRM,
 	    mesh_send_action_meshpeering_confirm);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING, 
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_CLOSE,
 	    mesh_send_action_meshpeering_close);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC, 
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
 	    IEEE80211_ACTION_MESHLMETRIC_REQ,
 	    mesh_send_action_meshlink_request);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC, 
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
 	    IEEE80211_ACTION_MESHLMETRIC_REP,
 	    mesh_send_action_meshlink_reply);
 
@@ -1120,7 +1120,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	 *
 	 * NB: this check is also done upon peering link initiation.
 	 */
-	if (vap->iv_acl != NULL && !vap->iv_acl->iac_check(vap, wh->i_addr2)) {
+	if (vap->iv_acl != NULL && !vap->iv_acl->iac_check(vap, wh)) {
 		IEEE80211_DISCARD(vap, IEEE80211_MSG_ACL,
 		    wh, NULL, "%s", "disallowed by ACL");
 		vap->iv_stats.is_rx_acl++;
@@ -1378,8 +1378,7 @@ mesh_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0, int subtype,
 		/*
 		 * Peer only based on the current ACL policy.
 		 */
-		if (vap->iv_acl != NULL &&
-		    !vap->iv_acl->iac_check(vap, wh->i_addr2)) {
+		if (vap->iv_acl != NULL && !vap->iv_acl->iac_check(vap, wh)) {
 			IEEE80211_DISCARD(vap, IEEE80211_MSG_ACL,
 			    wh, NULL, "%s", "disallowed by ACL");
 			vap->iv_stats.is_rx_acl++;
@@ -1935,10 +1934,10 @@ mesh_send_action_meshpeering_open(struct ieee80211_node *ni,
 	    ic->ic_headroom + sizeof(struct ieee80211_frame),
 	    sizeof(uint16_t)	/* action+category */
 	    + sizeof(uint16_t)	/* capabilites */
-	    + 2 + IEEE80211_RATE_SIZE	 
-	    + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)	 
+	    + 2 + IEEE80211_RATE_SIZE
+	    + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 	    + 2 + IEEE80211_MESHID_LEN
-	    + sizeof(struct ieee80211_meshconf_ie)	 
+	    + sizeof(struct ieee80211_meshconf_ie)
 	    + sizeof(struct ieee80211_meshpeer_ie)
 	);
 	if (m != NULL) {
@@ -1998,10 +1997,10 @@ mesh_send_action_meshpeering_confirm(struct ieee80211_node *ni,
 	    + sizeof(uint16_t)	/* capabilites */
 	    + sizeof(uint16_t)	/* status code */
 	    + sizeof(uint16_t)	/* AID */
-	    + 2 + IEEE80211_RATE_SIZE	 
-	    + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)	 
+	    + 2 + IEEE80211_RATE_SIZE
+	    + 2 + (IEEE80211_RATE_MAXSIZE - IEEE80211_RATE_SIZE)
 	    + 2 + IEEE80211_MESHID_LEN
-	    + sizeof(struct ieee80211_meshconf_ie)	 
+	    + sizeof(struct ieee80211_meshconf_ie)
 	    + sizeof(struct ieee80211_meshpeer_ie)
 	);
 	if (m != NULL) {
@@ -2064,7 +2063,7 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 	    sizeof(uint16_t)	/* action+category */
 	    + sizeof(uint16_t)	/* reason code */
 	    + 2 + IEEE80211_MESHID_LEN
-	    + sizeof(struct ieee80211_meshpeer_ie) 
+	    + sizeof(struct ieee80211_meshpeer_ie)
 	);
 	if (m != NULL) {
 		/*
@@ -2290,7 +2289,6 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 	const struct ieee80211_meshconf_ie *meshconf =
 	    (const struct ieee80211_meshconf_ie *) ie;
 	const struct ieee80211_mesh_state *ms = vap->iv_mesh;
-	uint16_t cap;
 
 	if (meshconf == NULL)
 		return 1;
@@ -2324,10 +2322,8 @@ mesh_verify_meshconf(struct ieee80211vap *vap, const uint8_t *ie)
 		    meshconf->conf_pselid);
 		return 1;
 	}
-	/* NB: conf_cap is only read correctly here */
-	cap = LE_READ_2(&meshconf->conf_cap);
 	/* Not accepting peers */
-	if (!(cap & IEEE80211_MESHCONF_CAP_AP)) {
+	if (!(meshconf->conf_cap & IEEE80211_MESHCONF_CAP_AP)) {
 		IEEE80211_DPRINTF(vap, IEEE80211_MSG_MESH,
 		    "not accepting peers: 0x%x\n", meshconf->conf_cap);
 		return 1;
@@ -2396,7 +2392,7 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 	KASSERT(vap->iv_opmode == IEEE80211_M_MBSS, ("not a MBSS vap"));
 
 	*frm++ = IEEE80211_ELEMID_MESHCONF;
-	*frm++ = sizeof(struct ieee80211_meshconf_ie) - 2;
+	*frm++ = IEEE80211_MESH_CONF_SZ;
 	*frm++ = ms->ms_ppath->mpp_ie;		/* path selection */
 	*frm++ = ms->ms_pmetric->mpm_ie;	/* link metric */
 	*frm++ = IEEE80211_MESHCONF_CC_DISABLED;
@@ -2412,7 +2408,7 @@ ieee80211_add_meshconf(uint8_t *frm, struct ieee80211vap *vap)
 		caps |= IEEE80211_MESHCONF_CAP_AP;
 	if (ms->ms_flags & IEEE80211_MESHFLAGS_FWD)
 		caps |= IEEE80211_MESHCONF_CAP_FWRD;
-	ADDSHORT(frm, caps);
+	*frm++ = caps;
 	return frm;
 }
 

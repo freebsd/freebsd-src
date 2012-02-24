@@ -152,14 +152,17 @@ static device_method_t ehci_ps3_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, ehci_ps3_probe),
 	DEVMETHOD(device_attach, ehci_ps3_attach),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t ehci_ps3_driver = {
-	"ehci",
-	ehci_ps3_methods,
-	sizeof(ehci_softc_t),
+	.name = "ehci",
+	.methods = ehci_ps3_methods,
+	.size = sizeof(ehci_softc_t),
 };
 
 static devclass_t ehci_ps3_devclass;

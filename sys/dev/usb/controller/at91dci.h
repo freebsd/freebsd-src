@@ -235,8 +235,6 @@ struct at91dci_softc {
 
 usb_error_t at91dci_init(struct at91dci_softc *sc);
 void	at91dci_uninit(struct at91dci_softc *sc);
-void	at91dci_suspend(struct at91dci_softc *sc);
-void	at91dci_resume(struct at91dci_softc *sc);
 void	at91dci_interrupt(struct at91dci_softc *sc);
 void	at91dci_vbus_interrupt(struct at91dci_softc *sc, uint8_t is_on);
 

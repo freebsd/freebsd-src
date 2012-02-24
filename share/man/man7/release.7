@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 18, 2011
+.Dd January 14, 2012
 .Dt RELEASE 7
 .Os
 .Sh NAME
@@ -316,9 +316,7 @@ The following sequence of commands can be used to build a
 .Dq "-CURRENT snapshot"
 in a clean environment, including ports and documentation:
 .Bd -literal -offset indent
-cd /usr/src
-make buildworld
-cd release
+cd /usr/src/release
 export CVSUP_HOST=cvsupN.freebsd.org
 sh generate-release.sh head /local3/release
 .Ed

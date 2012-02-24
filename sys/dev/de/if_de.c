@@ -1567,7 +1567,7 @@ tulip_null_media_poll(tulip_softc_t * const sc, tulip_mediapoll_event_t event)
 #endif
 }
 
-__inline static void
+static inline void
 tulip_21140_mediainit(tulip_softc_t * const sc, tulip_media_info_t * const mip,
     tulip_media_t const media, unsigned gpdata, unsigned cmdmode)
 {

@@ -282,7 +282,7 @@ struct port_hw_cfg {			/* port 0: 0x12c  port 1: 0x2bc */
 	 * 4 times 16 bits for all 4 lanes. In case external PHY is present
 	 * (not direct mode), those values will not take effect on the 4 XGXS
 	 * lanes. For some external PHYs (such as 8706 and 8726) the values
-	 * will be used to configure the external PHY – in those cases, not
+	 * will be used to configure the external PHY -- in those cases, not
 	 * all 4 values are needed.
 	 */
 	uint16_t xgxs_config_rx[4];			/* 0x198 */

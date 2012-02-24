@@ -61,7 +61,7 @@ main(int argc, char *argv[])
 
 	(void)setlocale(LC_ALL, "");
 
-	if (!(p = rindex(argv[0], 'o')) || strcmp(p, "od"))
+	if (!(p = strrchr(argv[0], 'o')) || strcmp(p, "od"))
 		newsyntax(argc, &argv);
 	else
 		oldsyntax(argc, &argv);

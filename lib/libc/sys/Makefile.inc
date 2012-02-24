@@ -188,6 +188,7 @@ MLINKS+=read.2 pread.2 read.2 preadv.2 read.2 readv.2
 MLINKS+=readlink.2 readlinkat.2
 MLINKS+=recv.2 recvfrom.2 recv.2 recvmsg.2
 MLINKS+=rename.2 renameat.2
+MLINKS+=rtprio.2 rtprio_thread.2
 .if !defined(NO_P1003_1B)
 MLINKS+=sched_get_priority_max.2 sched_get_priority_min.2 \
 	sched_get_priority_max.2 sched_rr_get_interval.2

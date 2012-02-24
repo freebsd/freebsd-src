@@ -28,29 +28,35 @@ void
 vcmn_err(int ce, const char *fmt, va_list adx)
 {
 	char buf[256];
+	const char *prefix;
 
+	prefix = NULL; /* silence unwitty compilers */
 	switch (ce) {
 	case CE_CONT:
-		snprintf(buf, sizeof(buf), "Solaris(cont): %s\n", fmt);
+		prefix = "Solaris(cont): ";
 		break;
 	case CE_NOTE:
-		snprintf(buf, sizeof(buf), "Solaris: NOTICE: %s\n", fmt);
+		prefix = "Solaris: NOTICE: ";
 		break;
 	case CE_WARN:
-		snprintf(buf, sizeof(buf), "Solaris: WARNING: %s\n", fmt);
+		prefix = "Solaris: WARNING: ";
 		break;
 	case CE_PANIC:
-		snprintf(buf, sizeof(buf), "Solaris(panic): %s\n", fmt);
+		prefix = "Solaris(panic): ";
 		break;
 	case CE_IGNORE:
 		break;
 	default:
 		panic("Solaris: unknown severity level");
 	}
-	if (ce == CE_PANIC)
-		panic("%s", buf);
-	if (ce != CE_IGNORE)
-		vprintf(buf, adx);
+	if (ce == CE_PANIC) {
+		vsnprintf(buf, sizeof(buf), fmt, adx);
+		panic("%s%s", prefix, buf);
+	}
+	if (ce != CE_IGNORE) {
+		printf("%s", prefix);
+		vprintf(fmt, adx);
+	}
 }
 
 void

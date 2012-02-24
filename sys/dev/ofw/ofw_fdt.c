@@ -392,6 +392,8 @@ ofw_fdt_finddevice(ofw_t ofw, const char *device)
 	int offset;
 
 	offset = fdt_path_offset(fdtp, device);
+	if (offset < 0)
+		return (-1);
 	return (fdt_offset_phandle(offset));
 }
 
@@ -420,7 +422,7 @@ ofw_fdt_fixup(ofw_t ofw)
 	ssize_t len;
 	int i;
 
-	if ((root = ofw_fdt_finddevice(ofw, "/")) == 0)
+	if ((root = ofw_fdt_finddevice(ofw, "/")) == -1)
 		return (ENODEV);
 
 	if ((len = ofw_fdt_getproplen(ofw, root, "model")) <= 0)

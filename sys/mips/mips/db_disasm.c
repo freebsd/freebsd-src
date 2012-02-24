@@ -388,5 +388,6 @@ md_printins(int ins, int mdbdot)
 		    reg_name[i.IType.rt], reg_name[i.IType.rs],
 		    (short)i.IType.imm);
 	}
+	db_printf("\n");
 	return (delay);
 }

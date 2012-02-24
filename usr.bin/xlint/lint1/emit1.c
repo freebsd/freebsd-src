@@ -81,7 +81,7 @@ static	void	outfstrg(strg_t *);
  *				2 n typename		only type name
  *
  * spaces are only for better readability
- * additionaly it is possible to prepend the characters 'c' (for const)
+ * additionally it is possible to prepend the characters 'c' (for const)
  * and 'v' (for volatile)
  */
 void

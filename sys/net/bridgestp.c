@@ -134,7 +134,7 @@ static void	bstp_tick(void *);
 static void	bstp_timer_start(struct bstp_timer *, uint16_t);
 static void	bstp_timer_stop(struct bstp_timer *);
 static void	bstp_timer_latch(struct bstp_timer *);
-static int	bstp_timer_expired(struct bstp_timer *);
+static int	bstp_timer_dectest(struct bstp_timer *);
 static void	bstp_hello_timer_expiry(struct bstp_state *,
 		    struct bstp_port *);
 static void	bstp_message_age_expiry(struct bstp_state *,
@@ -446,7 +446,7 @@ bstp_pdu_flags(struct bstp_port *bp)
 	return (flags);
 }
 
-struct mbuf *
+void
 bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 {
 	struct bstp_state *bs = bp->bp_bs;
@@ -456,7 +456,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	if (bp->bp_active == 0) {
 		m_freem(m);
-		return (NULL);
+		return;
 	}
 
 	BSTP_LOCK(bs);
@@ -521,7 +521,6 @@ out:
 	BSTP_UNLOCK(bs);
 	if (m)
 		m_freem(m);
-	return (NULL);
 }
 
 static void
@@ -1862,30 +1861,32 @@ bstp_tick(void *arg)
 
 	CURVNET_SET(bs->bs_vnet);
 
-	/* slow timer to catch missed link events */
-	if (bstp_timer_expired(&bs->bs_link_timer)) {
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
-			bstp_ifupdstatus(bs, bp);
+	/* poll link events on interfaces that do not support linkstate */
+	if (bstp_timer_dectest(&bs->bs_link_timer)) {
+		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+			if (!(bp->bp_ifp->if_capabilities & IFCAP_LINKSTATE))
+				bstp_ifupdstatus(bs, bp);
+		}
 		bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
 	}
 
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
 		/* no events need to happen for these */
-		bstp_timer_expired(&bp->bp_tc_timer);
-		bstp_timer_expired(&bp->bp_recent_root_timer);
-		bstp_timer_expired(&bp->bp_forward_delay_timer);
-		bstp_timer_expired(&bp->bp_recent_backup_timer);
+		bstp_timer_dectest(&bp->bp_tc_timer);
+		bstp_timer_dectest(&bp->bp_recent_root_timer);
+		bstp_timer_dectest(&bp->bp_forward_delay_timer);
+		bstp_timer_dectest(&bp->bp_recent_backup_timer);
 
-		if (bstp_timer_expired(&bp->bp_hello_timer))
+		if (bstp_timer_dectest(&bp->bp_hello_timer))
 			bstp_hello_timer_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_message_age_timer))
+		if (bstp_timer_dectest(&bp->bp_message_age_timer))
 			bstp_message_age_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_migrate_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_migrate_delay_timer))
 			bstp_migrate_delay_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_edge_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_edge_delay_timer))
 			bstp_edge_delay_expiry(bs, bp);
 
 		/* update the various state machines for the port */
@@ -1924,7 +1925,7 @@ bstp_timer_latch(struct bstp_timer *t)
 }
 
 static int
-bstp_timer_expired(struct bstp_timer *t)
+bstp_timer_dectest(struct bstp_timer *t)
 {
 	if (t->active == 0 || t->latched)
 		return (0);

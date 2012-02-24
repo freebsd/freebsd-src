@@ -16,7 +16,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 18, 2010
+.Dd February 23, 2012
 .Dt LAGG 4
 .Os
 .Sh NAME
@@ -88,8 +88,9 @@ variable to a nonzero value,
 which is useful for certain bridged network setups.
 .It Ic fec
 Supports Cisco EtherChannel.
-This is a static setup and does not negotiate aggregation with the peer or
-exchange frames to monitor the link.
+This is an alias for
+.Ic loadbalance
+mode.
 .It Ic lacp
 Supports the IEEE 802.3ad Link Aggregation Control Protocol (LACP) and the
 Marker Protocol.
@@ -133,6 +134,21 @@ variable in
 .Pp
 The MTU of the first interface to be added is used as the lagg MTU.
 All additional interfaces are required to have exactly the same value.
+.Pp
+The
+.Ic loadbalance
+and
+.Ic lacp
+modes will use the RSS hash from the network card if available to avoid
+computing one, this may give poor traffic distribution if the hash is invalid
+or uses less of the protocol header information.
+Local hash computation can be forced per interface by setting the
+.Va net.link.lagg.X.use_flowid
+.Xr sysctl 8
+variable to zero where X is the interface number.
+The default for new interfaces is set via the
+.Va net.link.lagg.default_use_flowid
+.Xr sysctl 8 .
 .Sh EXAMPLES
 Create a 802.3ad link aggregation using LACP with two
 .Xr bge 4

@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.h,v 3.35 2008/09/25 14:41:34 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.char.h,v 3.36 2010/05/08 00:36:02 christos Exp $ */
 /*
  * sh.char.h: Table for spotting special characters quickly
  * 	      Makes for very obscure but efficient coding.
@@ -150,17 +150,15 @@ extern tcshuc _cmap_lower[], _cmap_upper[];
 
 #ifdef WIDE_STRINGS
 # define cmap(c, bits)	\
-	(((c) < 0) ? 0 : \
-	((c) & QUOTE) || (c) >= 0x0080 ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+    (((c) & QUOTE) || (unsigned int)(c) >= 0x0080 ? 0 : \
+	(_cmap[(tcshuc)ASC(c)] & (bits)))
 #elif defined(SHORT_STRINGS) && defined(KANJI)
 #  define cmap(c, bits)	\
-	(((c) < 0) ? 0 : \
-	(((c) & QUOTE) || ((ASC(c) & 0x80) && adrof(STRnokanji))) ? \
+    ((((c) & QUOTE) || ((tcshuc)(ASC(c) & 0x80) && adrof(STRnokanji))) ? \
 	0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #else /* SHORT_STRINGS && KANJI */
 # define cmap(c, bits)	\
-	(((c) < 0) ? 0 : \
-	((c) & QUOTE) ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
+    (((c) & QUOTE) ? 0 : (_cmap[(tcshuc)ASC(c)] & (bits)))
 #endif /* SHORT_STRINGS && KANJI */
 
 #define isglob(c)	cmap((c), _GLOB)

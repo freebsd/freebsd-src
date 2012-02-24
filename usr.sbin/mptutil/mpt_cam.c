@@ -277,7 +277,7 @@ fetch_scsi_capacity(struct cam_device *dev, struct mpt_standalone_disk *disk)
 	    sizeof(struct ccb_hdr));
 
 	scsi_read_capacity_16(&ccb->csio, 1, NULL, MSG_SIMPLE_Q_TAG, 0, 0, 0,
-	    &rcaplong, SSD_FULL_SIZE, 5000);
+	    (uint8_t *)&rcaplong, sizeof(rcaplong), SSD_FULL_SIZE, 5000);
 
 	/* Disable freezing the device queue */
 	ccb->ccb_h.flags |= CAM_DEV_QFRZDIS;

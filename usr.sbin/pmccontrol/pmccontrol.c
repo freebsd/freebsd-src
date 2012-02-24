@@ -452,7 +452,7 @@ main(int argc, char **argv)
 
 		case '?':
 			warnx("Unrecognized option \"-%c\"", optopt);
-			errx(EX_USAGE, usage_message);
+			errx(EX_USAGE, "%s", usage_message);
 			break;
 
 		default:
@@ -462,7 +462,7 @@ main(int argc, char **argv)
 		}
 
 	if (command == PMCC_PRINT_USAGE)
-		(void) errx(EX_USAGE, usage_message);
+		(void) errx(EX_USAGE, "%s", usage_message);
 
 	if (error)
 		exit(EX_USAGE);

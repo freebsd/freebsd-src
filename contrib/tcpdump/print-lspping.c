@@ -878,7 +878,7 @@ lspping_print(register const u_char *pptr, register u_int len) {
         }
         /* do we want to see an additionally tlv hexdump ? */
         if (vflag > 1 || tlv_hexdump==TRUE)
-            print_unknown_data(tptr+sizeof(sizeof(struct lspping_tlv_header)),"\n\t    ",
+            print_unknown_data(tptr+sizeof(struct lspping_tlv_header),"\n\t    ",
                                lspping_tlv_len);
 
 

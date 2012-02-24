@@ -46,7 +46,7 @@ name has been obsolete for some time.
 Limitations
 
 TestFloat as written requires an ISO/ANSI-style C compiler.  No attempt has
-been made to accomodate compilers that are not ISO-conformant.  Older ``K&R-
+been made to accommodate compilers that are not ISO-conformant.  Older ``K&R-
 style'' compilers are not adequate for compiling TestFloat.  All testing I
 have done so far has been with the GNU C Compiler.  Compilation with other
 compilers should be possible but has not been tested.
@@ -168,7 +168,7 @@ intended to be identical to that included with the SoftFloat source.
 
 These are the defaults, but other organizations of the sources are possible.
 The TestFloat makefiles and `milieu.h' files (see below) are easily edited
-to accomodate other arrangements.
+to accommodate other arrangements.
 
 
 -------------------------------------------------------------------------------

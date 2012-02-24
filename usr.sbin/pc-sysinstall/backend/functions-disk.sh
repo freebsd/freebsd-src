@@ -417,7 +417,7 @@ setup_disk_slice()
 
         if [ $LASTSLICE -gt 4 ]
         then
-          exit_err "ERROR: BSD only supports primary partitions, and there are none availble on $DISK"
+          exit_err "ERROR: BSD only supports primary partitions, and there are none available on $DISK"
         fi
 
       fi

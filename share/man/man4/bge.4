@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 23, 2010
+.Dd January 19, 2012
 .Dt BGE 4
 .Os
 .Sh NAME
@@ -82,9 +82,9 @@ copper gigabit transceivers,
 which support autonegotiation of 10, 100 and 1000Mbps modes in
 full or half duplex.
 .Pp
-The BCM5700, BCM5701, BCM5702, BCM5703, BCM5704 and BCM5717 also support
-jumbo frames, which can be configured
-via the interface MTU setting.
+The BCM5700, BCM5701, BCM5702, BCM5703, BCM5704, BCM5714, BCM5717, BCM5719,
+BCM5720, BCM5780 and BCM57765 also support jumbo frames, which can be
+configured via the interface MTU setting.
 Selecting an MTU larger than 1500 bytes with the
 .Xr ifconfig 8
 utility configures the adapter to receive and transmit jumbo frames.
@@ -188,7 +188,7 @@ SysKonnect SK-9D21 (10/100/1000baseTX)
 SysKonnect SK-9D41 (1000baseSX)
 .El
 .Sh LOADER TUNABLES
-The following tunable can be set at the
+The following tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel, or stored in
 .Xr loader.conf 5 .
@@ -197,6 +197,9 @@ prompt before booting the kernel, or stored in
 Allow the ASF feature for cooperating with IPMI.
 Can cause system lockup problems on a small number of systems.
 Enabled by default.
+.It Va dev.bge.%d.msi
+Non-zero value enables MSI support on the Ethernet hardware.
+The default value is 1.
 .El
 .Sh SYSCTL VARIABLES
 The following variables are available as both

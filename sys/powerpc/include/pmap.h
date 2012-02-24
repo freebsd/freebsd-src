@@ -88,28 +88,13 @@ struct pmap_md {
 #endif /* !defined(NPMAPS) */
 
 struct	slbtnode;
-
-struct	pmap {
-	struct	mtx	pm_mtx;
-	
-    #ifdef __powerpc64__
-	struct slbtnode	*pm_slb_tree_root;
-	struct slb	**pm_slb;
-	int		pm_slb_len;
-    #else
-	register_t	pm_sr[16];
-    #endif
-	cpuset_t	pm_active;
-
-	struct pmap	*pmap_phys;
-	struct		pmap_statistics	pm_stats;
-};
-
+struct	pmap;
 typedef	struct pmap *pmap_t;
 
 struct pvo_entry {
 	LIST_ENTRY(pvo_entry) pvo_vlink;	/* Link to common virt page */
 	LIST_ENTRY(pvo_entry) pvo_olink;	/* Link to overflow entry */
+	LIST_ENTRY(pvo_entry) pvo_plink;	/* Link to pmap entries */
 	union {
 		struct	pte pte;		/* 32 bit PTE */
 		struct	lpte lpte;		/* 64 bit PTE */
@@ -136,6 +121,23 @@ LIST_HEAD(pvo_head, pvo_entry);
 #define	PVO_PTEGIDX_SET(pvo, i)	\
 	((void)((pvo)->pvo_vaddr |= (i)|PVO_PTEGIDX_VALID))
 #define	PVO_VSID(pvo)		((pvo)->pvo_vpn >> 16)
+
+struct	pmap {
+	struct	mtx	pm_mtx;
+	
+    #ifdef __powerpc64__
+	struct slbtnode	*pm_slb_tree_root;
+	struct slb	**pm_slb;
+	int		pm_slb_len;
+    #else
+	register_t	pm_sr[16];
+    #endif
+	cpuset_t	pm_active;
+
+	struct pmap	*pmap_phys;
+	struct		pmap_statistics	pm_stats;
+	struct pvo_head pmap_pvo;
+};
 
 struct	md_page {
 	u_int64_t	 mdpg_attrs;

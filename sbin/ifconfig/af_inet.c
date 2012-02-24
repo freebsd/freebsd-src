@@ -84,8 +84,11 @@ in_status(int s __unused, const struct ifaddrs *ifa)
 	if (ifa->ifa_flags & IFF_BROADCAST) {
 		sin = (struct sockaddr_in *)ifa->ifa_broadaddr;
 		if (sin != NULL && sin->sin_addr.s_addr != 0)
-			printf("broadcast %s", inet_ntoa(sin->sin_addr));
+			printf("broadcast %s ", inet_ntoa(sin->sin_addr));
 	}
+
+	print_vhid(ifa, " ");
+
 	putchar('\n');
 }
 
@@ -123,6 +126,7 @@ in_getaddr(const char *s, int which)
 				*p = '/';
 				errx(1, "%s: bad value (width %s)", s, errstr);
 			}
+			min->sin_family = AF_INET;
 			min->sin_len = sizeof(*min);
 			min->sin_addr.s_addr = htonl(~((1LL << (32 - masklen)) - 1) & 
 				              0xffffffff);

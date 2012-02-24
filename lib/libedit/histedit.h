@@ -158,8 +158,8 @@ void		 el_resize(EditLine *);
 /*
  * Set user private data.
  */
-void            el_data_set    __P((EditLine *, void *));
-void *          el_data_get    __P((EditLine *));
+void            el_data_set(EditLine *, void *);
+void *          el_data_get(EditLine *);
 
 /*
  * User-defined function interface.

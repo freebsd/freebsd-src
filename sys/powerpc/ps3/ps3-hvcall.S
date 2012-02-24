@@ -1081,13 +1081,25 @@ ASENTRY(lv1_gpu_memory_free)
 ASENTRY(lv1_gpu_context_allocate)
 	mflr	%r0
 	std	%r0,16(%r1)
-	stdu	%r1,-56(%r1)
+	stdu	%r1,-88(%r1)
 	std	%r5,48(%r1)
+	std	%r6,56(%r1)
+	std	%r7,64(%r1)
+	std	%r8,72(%r1)
+	std	%r9,80(%r1)
 	li	%r11,217
 	hc
 	extsw	%r3,%r3
 	ld	%r11,48(%r1)
 	std	%r4,0(%r11)
+	ld	%r11,56(%r1)
+	std	%r5,0(%r11)
+	ld	%r11,64(%r1)
+	std	%r6,0(%r11)
+	ld	%r11,72(%r1)
+	std	%r7,0(%r11)
+	ld	%r11,80(%r1)
+	std	%r8,0(%r11)
 	ld	%r1,0(%r1)
 	ld	%r0,16(%r1)
 	mtlr	%r0
@@ -1139,6 +1151,18 @@ ASENTRY(lv1_gpu_context_intr)
 	extsw	%r3,%r3
 	ld	%r11,48(%r1)
 	std	%r4,0(%r11)
+	ld	%r1,0(%r1)
+	ld	%r0,16(%r1)
+	mtlr	%r0
+	blr
+
+ASENTRY(lv1_gpu_attribute)
+	mflr	%r0
+	std	%r0,16(%r1)
+	stdu	%r1,-48(%r1)
+	li	%r11,228
+	hc
+	extsw	%r3,%r3
 	ld	%r1,0(%r1)
 	ld	%r0,16(%r1)
 	mtlr	%r0

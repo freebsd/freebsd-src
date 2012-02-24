@@ -74,6 +74,8 @@ static int cpuctl_do_update(int cpu, cpuctl_update_args_t *data,
 static int update_intel(int cpu, cpuctl_update_args_t *args,
     struct thread *td);
 static int update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td);
+static int update_via(int cpu, cpuctl_update_args_t *args,
+    struct thread *td);
 
 static struct cdev **cpuctl_devs;
 static MALLOC_DEFINE(M_CPUCTL, "cpuctl", "CPUCTL buffer");
@@ -281,8 +283,10 @@ cpuctl_do_update(int cpu, cpuctl_update_args_t *data, struct thread *td)
 	vendor[12] = '\0';
 	if (strncmp(vendor, INTEL_VENDOR_ID, sizeof(INTEL_VENDOR_ID)) == 0)
 		ret = update_intel(cpu, data, td);
-	else if(strncmp(vendor, INTEL_VENDOR_ID, sizeof(AMD_VENDOR_ID)) == 0)
+	else if(strncmp(vendor, AMD_VENDOR_ID, sizeof(AMD_VENDOR_ID)) == 0)
 		ret = update_amd(cpu, data, td);
+	else if(strncmp(vendor, CENTAUR_VENDOR_ID, sizeof(CENTAUR_VENDOR_ID)) == 0)
+		ret = update_via(cpu, data, td);
 	else
 		ret = ENXIO;
 	return (ret);
@@ -396,6 +400,81 @@ update_amd(int cpu, cpuctl_update_args_t *args, struct thread *td)
 	critical_exit();
 	restore_cpu(oldcpu, is_bound, td);
 	ret = 0;
+fail:
+	if (ptr != NULL)
+		contigfree(ptr, args->size, M_CPUCTL);
+	return (ret);
+}
+
+static int
+update_via(int cpu, cpuctl_update_args_t *args, struct thread *td)
+{
+	void *ptr = NULL;
+	uint64_t rev0, rev1, res;
+	uint32_t tmp[4];
+	int is_bound = 0;
+	int oldcpu;
+	int ret;
+
+	if (args->size == 0 || args->data == NULL) {
+		DPRINTF("[cpuctl,%d]: zero-sized firmware image", __LINE__);
+		return (EINVAL);
+	}
+	if (args->size > UCODE_SIZE_MAX) {
+		DPRINTF("[cpuctl,%d]: firmware image too large", __LINE__);
+		return (EINVAL);
+	}
+
+	/*
+	 * 4 byte alignment required.
+	 */
+	ptr = malloc(args->size + 16, M_CPUCTL, M_WAITOK);
+	ptr = (void *)(16 + ((intptr_t)ptr & ~0xf));
+	if (copyin(args->data, ptr, args->size) != 0) {
+		DPRINTF("[cpuctl,%d]: copyin %p->%p of %zd bytes failed",
+		    __LINE__, args->data, ptr, args->size);
+		ret = EFAULT;
+		goto fail;
+	}
+	oldcpu = td->td_oncpu;
+	is_bound = cpu_sched_is_bound(td);
+	set_cpu(cpu, td);
+	critical_enter();
+	rdmsr_safe(MSR_BIOS_SIGN, &rev0); /* Get current micorcode revision. */
+
+	/*
+	 * Perform update.
+	 */
+	wrmsr_safe(MSR_BIOS_UPDT_TRIG, (uintptr_t)(ptr));
+	do_cpuid(1, tmp);
+
+	/*
+	 * Result are in low byte of MSR FCR5:
+	 * 0x00: No update has been attempted since RESET.
+	 * 0x01: The last attempted update was successful.
+	 * 0x02: The last attempted update was unsuccessful due to a bad
+	 *       environment. No update was loaded and any preexisting
+	 *       patches are still active.
+	 * 0x03: The last attempted update was not applicable to this processor.
+	 *       No update was loaded and any preexisting patches are still
+	 *       active.
+	 * 0x04: The last attempted update was not successful due to an invalid
+	 *       update data block. No update was loaded and any preexisting
+	 *       patches are still active
+	 */
+	rdmsr_safe(0x1205, &res);
+	res &= 0xff;
+	critical_exit();
+	rdmsr_safe(MSR_BIOS_SIGN, &rev1); /* Get new microcode revision. */
+	restore_cpu(oldcpu, is_bound, td);
+
+	DPRINTF("[cpu,%d]: rev0=%x rev1=%x res=%x\n", __LINE__,
+	    (unsigned)(rev0 >> 32), (unsigned)(rev1 >> 32), (unsigned)res);
+
+	if (res != 0x01)
+		ret = EINVAL;
+	else
+		ret = 0;
 fail:
 	if (ptr != NULL)
 		contigfree(ptr, args->size, M_CPUCTL);

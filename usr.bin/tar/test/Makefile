@@ -1,13 +1,13 @@
 # $FreeBSD$
 
-# Where to find the tar sources (for the internal unit tests)
-TAR_SRCDIR=${.CURDIR}/..
-.PATH: ${TAR_SRCDIR}
+LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 
+.PATH: ${LIBARCHIVEDIR}/tar
 # Some tar sources are pulled in for white-box tests
-TAR_SRCS=					\
+TAR_SRCS=						\
 	getdate.c
 
+.PATH: ${LIBARCHIVEDIR}/tar/test
 TESTS=	\
 	test_0.c				\
 	test_basic.c				\
@@ -26,7 +26,7 @@ TESTS=	\
 	test_version.c
 
 # Build the test program
-SRCS= ${TAR_SRCS}				\
+SRCS=	${TAR_SRCS}				\
 	${TESTS}				\
 	list.h					\
 	main.c
@@ -37,24 +37,25 @@ NO_MAN=yes
 
 PROG=bsdtar_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-CFLAGS+=	-I..
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../config_freebsd.h\"
 LDADD= -larchive -lz -lbz2 -llzma
 CFLAGS+= -static -g -O2 -Wall
-CFLAGS+= -I${.OBJDIR}
-CFLAGS+= -I${TAR_SRCDIR}
+CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
+CFLAGS+= -I${LIBARCHIVEDIR}/tar
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
 check test:	bsdtar_test
-	./bsdtar_test -p ${.OBJDIR}/../bsdtar -r ${.CURDIR}
+	./bsdtar_test -p ${.OBJDIR}/../bsdtar -r ${LIBARCHIVEDIR}/tar/test
 
 list.h: ${TESTS} Makefile
-	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
+	(cd ${LIBARCHIVEDIR}/tar/test; cat ${TESTS}) | \
+	grep DEFINE_TEST > ${.OBJDIR}/list.h
 
 clean:
+	rm -f ${CLEANFILES}
 	rm -f *.out
 	rm -f *.o
 	rm -f *.core

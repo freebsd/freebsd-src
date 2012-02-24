@@ -547,7 +547,7 @@ check_file(const char *keym)
 }
 
 /*
- * Read options from the relevent configuration file, then
+ * Read options from the relevant configuration file, then
  *  present to user.
  */
 static void

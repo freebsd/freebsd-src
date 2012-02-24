@@ -276,7 +276,7 @@ ieee80211_ifattach(struct ieee80211com *ic,
 	/* Create a taskqueue for all state changes */
 	ic->ic_tq = taskqueue_create("ic_taskq", M_WAITOK | M_ZERO,
 	    taskqueue_thread_enqueue, &ic->ic_tq);
-	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s taskq",
+	taskqueue_start_threads(&ic->ic_tq, 1, PI_NET, "%s net80211 taskq",
 	    ifp->if_xname);
 	/*
 	 * Fill in 802.11 available channel set, mark all
@@ -384,9 +384,9 @@ default_reset(struct ieee80211vap *vap, u_long cmd)
  */
 int
 ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t macaddr[IEEE80211_ADDR_LEN])
+    const char name[IFNAMSIZ], int unit, enum ieee80211_opmode opmode,
+    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t macaddr[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp;
 
@@ -447,6 +447,8 @@ ieee80211_vap_setup(struct ieee80211com *ic, struct ieee80211vap *vap,
 		}
 		break;
 #endif
+	default:
+		break;
 	}
 	/* auto-enable s/w beacon miss support */
 	if (flags & IEEE80211_CLONE_NOBEACONS)
@@ -1008,7 +1010,8 @@ ieee80211_media_setup(struct ieee80211com *ic,
 	struct ifmedia *media, int caps, int addsta,
 	ifm_change_cb_t media_change, ifm_stat_cb_t media_stat)
 {
-	int i, j, mode, rate, maxrate, mword, r;
+	int i, j, rate, maxrate, mword, r;
+	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
 	struct ieee80211_rateset allrates;
 
@@ -1137,7 +1140,8 @@ void
 ieee80211_announce(struct ieee80211com *ic)
 {
 	struct ifnet *ifp = ic->ic_ifp;
-	int i, mode, rate, mword;
+	int i, rate, mword;
+	enum ieee80211_phymode mode;
 	const struct ieee80211_rateset *rs;
 
 	/* NB: skip AUTO since it has no rates */

@@ -1305,6 +1305,7 @@ vm_page_cache_transfer(vm_object_t orig_object, vm_pindex_t offidxstart,
  *	VM_ALLOC_IFNOTCACHED	return NULL, do not reactivate if the page
  *				is cached
  *	VM_ALLOC_NOBUSY		do not set the flag VPO_BUSY on the page
+ *	VM_ALLOC_NODUMP		do not include the page in a kernel core dump
  *	VM_ALLOC_NOOBJ		page is not associated with an object and
  *				should not have the flag VPO_BUSY set
  *	VM_ALLOC_WIRED		wire the allocated page
@@ -1429,6 +1430,8 @@ vm_page_alloc(vm_object_t object, vm_pindex_t pindex, int req)
 	 * must be cleared before the free page queues lock is released.
 	 */
 	flags = 0;
+	if (req & VM_ALLOC_NODUMP)
+		flags |= PG_NODUMP;
 	if (m->flags & PG_ZERO) {
 		vm_page_zero_count--;
 		if (req & VM_ALLOC_ZERO)
@@ -1554,9 +1557,12 @@ vm_page_alloc_contig(vm_object_t object, vm_pindex_t pindex, int req,
 	    cnt.v_free_count + cnt.v_cache_count >= npages)) {
 #if VM_NRESERVLEVEL > 0
 retry:
+		if (object == NULL || (object->flags & OBJ_COLORED) == 0 ||
+		    (m_ret = vm_reserv_alloc_contig(object, pindex, npages,
+		    low, high, alignment, boundary)) == NULL)
 #endif
-		m_ret = vm_phys_alloc_contig(npages, low, high, alignment,
-		    boundary);
+			m_ret = vm_phys_alloc_contig(npages, low, high,
+			    alignment, boundary);
 	} else {
 		mtx_unlock(&vm_page_queue_free_mtx);
 		atomic_add_int(&vm_pageout_deficit, npages);
@@ -1581,8 +1587,8 @@ retry:
 		}
 	else {
 #if VM_NRESERVLEVEL > 0
-		if (vm_reserv_reclaim_contig(npages << PAGE_SHIFT, low, high,
-		    alignment, boundary))
+		if (vm_reserv_reclaim_contig(npages, low, high, alignment,
+		    boundary))
 			goto retry;
 #endif
 	}
@@ -1596,6 +1602,8 @@ retry:
 	flags = 0;
 	if ((req & VM_ALLOC_ZERO) != 0)
 		flags = PG_ZERO;
+	if ((req & VM_ALLOC_NODUMP) != 0)
+		flags |= PG_NODUMP;
 	if ((req & VM_ALLOC_WIRED) != 0)
 		atomic_add_int(&cnt.v_wire_count, npages);
 	oflags = VPO_UNMANAGED;
@@ -2538,7 +2546,7 @@ vm_page_bits(int base, int size)
 }
 
 /*
- *	vm_page_set_valid:
+ *	vm_page_set_valid_range:
  *
  *	Sets portions of a page valid.  The arguments are expected
  *	to be DEV_BSIZE aligned but if they aren't the bitmap is inclusive
@@ -2548,7 +2556,7 @@ vm_page_bits(int base, int size)
  *	(base + size) must be less then or equal to PAGE_SIZE.
  */
 void
-vm_page_set_valid(vm_page_t m, int base, int size)
+vm_page_set_valid_range(vm_page_t m, int base, int size)
 {
 	int endoff, frag;
 
@@ -2581,7 +2589,7 @@ vm_page_set_valid(vm_page_t m, int base, int size)
 	 * is already dirty. 
 	 */
 	KASSERT((~m->valid & vm_page_bits(base, size) & m->dirty) == 0,
-	    ("vm_page_set_valid: page %p is dirty", m)); 
+	    ("vm_page_set_valid_range: page %p is dirty", m));
 
 	/*
 	 * Set valid bits inclusive of any overlap.

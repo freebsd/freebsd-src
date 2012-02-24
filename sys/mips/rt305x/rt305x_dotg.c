@@ -67,7 +67,6 @@ __FBSDID("$FreeBSD$");
 static device_probe_t dotg_obio_probe;
 static device_attach_t dotg_obio_attach;
 static device_detach_t dotg_obio_detach;
-static device_shutdown_t dotg_obio_shutdown;
 
 struct dotg_obio_softc {
 	struct dotg_softc sc_dci;	/* must be first */
@@ -208,35 +207,22 @@ dotg_obio_detach(device_t dev)
 	return (0);
 }
 
-static int
-dotg_obio_shutdown(device_t dev)
-{
-	struct dotg_obio_softc *sc = device_get_softc(dev);
-	int err;
-
-	err = bus_generic_shutdown(dev);
-	if (err)
-		return (err);
-
-	dotg_uninit(&sc->sc_dci);
-
-	return (0);
-}
-
 static device_method_t dotg_obio_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe, dotg_obio_probe),
 	DEVMETHOD(device_attach, dotg_obio_attach),
 	DEVMETHOD(device_detach, dotg_obio_detach),
-	DEVMETHOD(device_shutdown, dotg_obio_shutdown),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
+	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t dotg_obio_driver = {
-	"dotg",
-	dotg_obio_methods,
-	sizeof(struct dotg_obio_softc),
+	.name = "dotg",
+	.methods = dotg_obio_methods,
+	.size = sizeof(struct dotg_obio_softc),
 };
 
 static devclass_t dotg_obio_devclass;

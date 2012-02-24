@@ -584,7 +584,7 @@ parwrite(int fd, char *buf, size_t n)
 			bp++;
 		}
 	if (write(fd, buf, n) < 0) {
-		if (errno == EIO)
+		if (errno == EIO || errno == ENXIO)
 			tipabort("Lost carrier.");
 		/* this is questionable */
 		perror("write");

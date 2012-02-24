@@ -220,7 +220,7 @@ bpad(PR *pr)
 	pr->cchar[0] = 's';
 	pr->cchar[1] = '\0';
 	for (p1 = pr->fmt; *p1 != '%'; ++p1);
-	for (p2 = ++p1; *p1 && index(spec, *p1); ++p1);
+	for (p2 = ++p1; *p1 && strchr(spec, *p1); ++p1);
 	while ((*p2++ = *p1++));
 }
 

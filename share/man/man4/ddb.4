@@ -60,7 +60,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 5, 2010
+.Dd December 16, 2011
 .Dt DDB 4
 .Os
 .Sh NAME
@@ -522,6 +522,16 @@ The optional
 .Ar count
 argument limits the search.
 .\"
+.Pp
+.It Xo
+.Ic findstack
+.Ar addr
+.Xc
+Prints the thread address for a thread kernel-mode stack of which contains the
+specified address.
+If the thread is not found, search the thread stack cache and prints the
+cached stack address.
+Otherwise, prints nothing.
 .Pp
 .It Ic show Cm all procs Ns Op Li / Ns Cm m
 .It Ic ps Ns Op Li / Ns Cm m

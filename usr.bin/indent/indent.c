@@ -326,7 +326,7 @@ main(int argc, char **argv)
 
 	    case lbrace:	/* this is a brace that starts the compound
 				 * stmt */
-		if (sc_end == 0) {	/* ignore buffering if a comment wasnt
+		if (sc_end == 0) {	/* ignore buffering if a comment wasn't
 					 * stored up */
 		    ps.search_brace = false;
 		    goto check_type;
@@ -384,7 +384,7 @@ main(int argc, char **argv)
 			&& e_code != s_code && e_code[-1] == '}'))
 		    force_nl = false;
 
-		if (sc_end == 0) {	/* ignore buffering if comment wasnt
+		if (sc_end == 0) {	/* ignore buffering if comment wasn't
 					 * saved up */
 		    ps.search_brace = false;
 		    goto check_type;
@@ -794,8 +794,8 @@ check_type:
 		/* ?		dec_ind = 0; */
 	    }
 	    else {
-		ps.decl_on_line = false;	/* we cant be in the middle of
-						 * a declaration, so dont do
+		ps.decl_on_line = false;	/* we can't be in the middle of
+						 * a declaration, so don't do
 						 * special indentation of
 						 * comments */
 		if (blanklines_after_declarations_at_proctop

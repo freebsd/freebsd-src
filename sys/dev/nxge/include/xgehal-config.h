@@ -621,7 +621,7 @@ typedef struct xge_hal_mac_config_t {
  * stable in order for the adapter to declare "LINK UP".
  * The enumerated settings (see Xframe-II UG) are:
  *      0 ........... instantaneous
- *      1 ........... 500 ³s
+ *      1 ........... 500 Î¼s
  *      2 ........... 1 ms
  *      3 ........... 64 ms
  *      4 ........... 256 ms

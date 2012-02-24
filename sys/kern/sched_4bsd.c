@@ -1572,14 +1572,14 @@ sched_throw(struct thread *td)
 	if (td == NULL) {
 		mtx_lock_spin(&sched_lock);
 		spinlock_exit();
+		PCPU_SET(switchtime, cpu_ticks());
+		PCPU_SET(switchticks, ticks);
 	} else {
 		lock_profile_release_lock(&sched_lock.lock_object);
 		MPASS(td->td_lock == &sched_lock);
 	}
 	mtx_assert(&sched_lock, MA_OWNED);
 	KASSERT(curthread->td_md.md_spinlock_count == 1, ("invalid count"));
-	PCPU_SET(switchtime, cpu_ticks());
-	PCPU_SET(switchticks, ticks);
 	cpu_throw(td, choosethread());	/* doesn't return */
 }
 

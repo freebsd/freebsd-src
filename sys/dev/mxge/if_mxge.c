@@ -2827,7 +2827,7 @@ mxge_media_init(mxge_softc_t *sc)
 	}
 
 	for (i = 0; i < 3; i++, ptr++) {
-		ptr = index(ptr, '-');
+		ptr = strchr(ptr, '-');
 		if (ptr == NULL) {
 			device_printf(sc->dev,
 				      "only %d dashes in PC?!?\n", i);

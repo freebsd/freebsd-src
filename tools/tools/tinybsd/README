@@ -105,7 +105,7 @@ do that step-by-step.
 3) Edit the tinybsd.basefiles file and add/remove all binaries you'll need on
 your system.
 
-4) Copy all your /etc configuration wich you want to conf/YOURIMAGE/etc/.
+4) Copy all your /etc configuration which you want to conf/YOURIMAGE/etc/.
 
 5) Gather the right information on your destination media. To do that, plug in
 the device on the system and fetch the information using diskinfo(8):

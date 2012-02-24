@@ -39,13 +39,6 @@
  *
  * (3) Resource limits?  Does this need its own resource limits or are the
  *     existing limits in mmap(2) sufficient?
- *
- * (4) Partial page truncation.  vnode_pager_setsize() will zero any parts
- *     of a partially mapped page as a result of ftruncate(2)/truncate(2).
- *     We can do the same (with the same pmap evil), but do we need to
- *     worry about the bits on disk if the page is swapped out or will the
- *     swapper zero the parts of a page that are invalid if the page is
- *     swapped back in for us?
  */
 
 #include <sys/cdefs.h>
@@ -81,9 +74,12 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm.h>
 #include <vm/vm_param.h>
 #include <vm/pmap.h>
+#include <vm/vm_extern.h>
 #include <vm/vm_map.h>
+#include <vm/vm_kern.h>
 #include <vm/vm_object.h>
 #include <vm/vm_page.h>
+#include <vm/vm_pageout.h>
 #include <vm/vm_pager.h>
 #include <vm/swap_pager.h>
 
@@ -251,9 +247,10 @@ static int
 shm_dotruncate(struct shmfd *shmfd, off_t length)
 {
 	vm_object_t object;
-	vm_page_t m;
-	vm_pindex_t nobjsize;
+	vm_page_t m, ma[1];
+	vm_pindex_t idx, nobjsize;
 	vm_ooffset_t delta;
+	int base, rv;
 
 	object = shmfd->shm_object;
 	VM_OBJECT_LOCK(object);
@@ -265,6 +262,64 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 
 	/* Are we shrinking?  If so, trim the end. */
 	if (length < shmfd->shm_size) {
+		/*
+		 * Disallow any requests to shrink the size if this
+		 * object is mapped into the kernel.
+		 */
+		if (shmfd->shm_kmappings > 0) {
+			VM_OBJECT_UNLOCK(object);
+			return (EBUSY);
+		}
+
+		/*
+		 * Zero the truncated part of the last page.
+		 */
+		base = length & PAGE_MASK;
+		if (base != 0) {
+			idx = OFF_TO_IDX(length);
+retry:
+			m = vm_page_lookup(object, idx);
+			if (m != NULL) {
+				if ((m->oflags & VPO_BUSY) != 0 ||
+				    m->busy != 0) {
+					vm_page_sleep(m, "shmtrc");
+					goto retry;
+				}
+			} else if (vm_pager_has_page(object, idx, NULL, NULL)) {
+				m = vm_page_alloc(object, idx, VM_ALLOC_NORMAL);
+				if (m == NULL) {
+					VM_OBJECT_UNLOCK(object);
+					VM_WAIT;
+					VM_OBJECT_LOCK(object);
+					goto retry;
+				} else if (m->valid != VM_PAGE_BITS_ALL) {
+					ma[0] = m;
+					rv = vm_pager_get_pages(object, ma, 1,
+					    0);
+					m = vm_page_lookup(object, idx);
+				} else
+					/* A cached page was reactivated. */
+					rv = VM_PAGER_OK;
+				vm_page_lock(m);
+				if (rv == VM_PAGER_OK) {
+					vm_page_deactivate(m);
+					vm_page_unlock(m);
+					vm_page_wakeup(m);
+				} else {
+					vm_page_free(m);
+					vm_page_unlock(m);
+					VM_OBJECT_UNLOCK(object);
+					return (EIO);
+				}
+			}
+			if (m != NULL) {
+				pmap_zero_page_area(m, base, PAGE_SIZE - base);
+				KASSERT(m->valid == VM_PAGE_BITS_ALL,
+				    ("shm_dotruncate: page %p is invalid", m));
+				vm_page_dirty(m);
+				vm_pager_page_unswapped(m);
+			}
+		}
 		delta = ptoa(object->size - nobjsize);
 
 		/* Toss in memory pages. */
@@ -279,45 +334,7 @@ shm_dotruncate(struct shmfd *shmfd, off_t length)
 		/* Free the swap accounted for shm */
 		swap_release_by_cred(delta, object->cred);
 		object->charge -= delta;
-
-		/*
-		 * If the last page is partially mapped, then zero out
-		 * the garbage at the end of the page.  See comments
-		 * in vnode_pager_setsize() for more details.
-		 *
-		 * XXXJHB: This handles in memory pages, but what about
-		 * a page swapped out to disk?
-		 */
-		if ((length & PAGE_MASK) &&
-		    (m = vm_page_lookup(object, OFF_TO_IDX(length))) != NULL &&
-		    m->valid != 0) {
-			int base = (int)length & PAGE_MASK;
-			int size = PAGE_SIZE - base;
-
-			pmap_zero_page_area(m, base, size);
-
-			/*
-			 * Update the valid bits to reflect the blocks that
-			 * have been zeroed.  Some of these valid bits may
-			 * have already been set.
-			 */
-			vm_page_set_valid(m, base, size);
-
-			/*
-			 * Round "base" to the next block boundary so that the
-			 * dirty bit for a partially zeroed block is not
-			 * cleared.
-			 */
-			base = roundup2(base, DEV_BSIZE);
-
-			vm_page_clear_dirty(m, base, PAGE_SIZE - base);
-		} else if ((length & PAGE_MASK) &&
-		    __predict_false(object->cache != NULL)) {
-			vm_page_cache_free(object, OFF_TO_IDX(length),
-			    nobjsize);
-		}
 	} else {
-
 		/* Attempt to reserve the swap */
 		delta = ptoa(nobjsize - object->size);
 		if (!swap_reserve_by_cred(delta, object->cred)) {
@@ -724,4 +741,106 @@ shm_chown(struct file *fp, uid_t uid, gid_t gid, struct ucred *active_cred,
 out:
 	mtx_unlock(&shm_timestamp_lock);
 	return (error);
+}
+
+/*
+ * Helper routines to allow the backing object of a shared memory file
+ * descriptor to be mapped in the kernel.
+ */
+int
+shm_map(struct file *fp, size_t size, off_t offset, void **memp)
+{
+	struct shmfd *shmfd;
+	vm_offset_t kva, ofs;
+	vm_object_t obj;
+	int rv;
+
+	if (fp->f_type != DTYPE_SHM)
+		return (EINVAL);
+	shmfd = fp->f_data;
+	obj = shmfd->shm_object;
+	VM_OBJECT_LOCK(obj);
+	/*
+	 * XXXRW: This validation is probably insufficient, and subject to
+	 * sign errors.  It should be fixed.
+	 */
+	if (offset >= shmfd->shm_size ||
+	    offset + size > round_page(shmfd->shm_size)) {
+		VM_OBJECT_UNLOCK(obj);
+		return (EINVAL);
+	}
+
+	shmfd->shm_kmappings++;
+	vm_object_reference_locked(obj);
+	VM_OBJECT_UNLOCK(obj);
+
+	/* Map the object into the kernel_map and wire it. */
+	kva = vm_map_min(kernel_map);
+	ofs = offset & PAGE_MASK;
+	offset = trunc_page(offset);
+	size = round_page(size + ofs);
+	rv = vm_map_find(kernel_map, obj, offset, &kva, size,
+	    VMFS_ALIGNED_SPACE, VM_PROT_READ | VM_PROT_WRITE,
+	    VM_PROT_READ | VM_PROT_WRITE, 0);
+	if (rv == KERN_SUCCESS) {
+		rv = vm_map_wire(kernel_map, kva, kva + size,
+		    VM_MAP_WIRE_SYSTEM | VM_MAP_WIRE_NOHOLES);
+		if (rv == KERN_SUCCESS) {
+			*memp = (void *)(kva + ofs);
+			return (0);
+		}
+		vm_map_remove(kernel_map, kva, kva + size);
+	} else
+		vm_object_deallocate(obj);
+
+	/* On failure, drop our mapping reference. */
+	VM_OBJECT_LOCK(obj);
+	shmfd->shm_kmappings--;
+	VM_OBJECT_UNLOCK(obj);
+
+	return (vm_mmap_to_errno(rv));
+}
+
+/*
+ * We require the caller to unmap the entire entry.  This allows us to
+ * safely decrement shm_kmappings when a mapping is removed.
+ */
+int
+shm_unmap(struct file *fp, void *mem, size_t size)
+{
+	struct shmfd *shmfd;
+	vm_map_entry_t entry;
+	vm_offset_t kva, ofs;
+	vm_object_t obj;
+	vm_pindex_t pindex;
+	vm_prot_t prot;
+	boolean_t wired;
+	vm_map_t map;
+	int rv;
+
+	if (fp->f_type != DTYPE_SHM)
+		return (EINVAL);
+	shmfd = fp->f_data;
+	kva = (vm_offset_t)mem;
+	ofs = kva & PAGE_MASK;
+	kva = trunc_page(kva);
+	size = round_page(size + ofs);
+	map = kernel_map;
+	rv = vm_map_lookup(&map, kva, VM_PROT_READ | VM_PROT_WRITE, &entry,
+	    &obj, &pindex, &prot, &wired);
+	if (rv != KERN_SUCCESS)
+		return (EINVAL);
+	if (entry->start != kva || entry->end != kva + size) {
+		vm_map_lookup_done(map, entry);
+		return (EINVAL);
+	}
+	vm_map_lookup_done(map, entry);
+	if (obj != shmfd->shm_object)
+		return (EINVAL);
+	vm_map_remove(map, kva, kva + size);
+	VM_OBJECT_LOCK(obj);
+	KASSERT(shmfd->shm_kmappings > 0, ("shm_unmap: object not mapped"));
+	shmfd->shm_kmappings--;
+	VM_OBJECT_UNLOCK(obj);
+	return (0);
 }

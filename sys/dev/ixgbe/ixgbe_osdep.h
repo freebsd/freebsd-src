@@ -1,6 +1,6 @@
 /******************************************************************************
 
-  Copyright (c) 2001-2010, Intel Corporation 
+  Copyright (c) 2001-2012, Intel Corporation 
   All rights reserved.
   
   Redistribution and use in source and binary forms, with or without 
@@ -37,6 +37,7 @@
 
 #include <sys/types.h>
 #include <sys/param.h>
+#include <sys/endian.h>
 #include <sys/systm.h>
 #include <sys/mbuf.h>
 #include <sys/protosw.h>
@@ -83,11 +84,21 @@
 #define true                1
 #define CMD_MEM_WRT_INVALIDATE          0x0010  /* BIT_4 */
 #define PCI_COMMAND_REGISTER            PCIR_COMMAND
+
+/* Bunch of defines for shared code bogosity */
 #define UNREFERENCED_PARAMETER(_p)
+#define UNREFERENCED_1PARAMETER(_p)
+#define UNREFERENCED_2PARAMETER(_p, _q)
+#define UNREFERENCED_3PARAMETER(_p, _q, _r)
+#define UNREFERENCED_4PARAMETER(_p, _q, _r, _s)
 
 
 #define IXGBE_NTOHL(_i)	ntohl(_i)
 #define IXGBE_NTOHS(_i)	ntohs(_i)
+
+/* XXX these need to be revisited */
+#define IXGBE_CPU_TO_LE32 le32toh
+#define IXGBE_LE32_TO_CPUS le32dec
 
 typedef uint8_t		u8;
 typedef int8_t		s8;
@@ -95,7 +106,9 @@ typedef uint16_t	u16;
 typedef uint32_t	u32;
 typedef int32_t		s32;
 typedef uint64_t	u64;
+#ifndef __bool_true_false_are_defined
 typedef boolean_t	bool;
+#endif
 
 #define le16_to_cpu 
 

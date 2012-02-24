@@ -1562,7 +1562,6 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 	struct mbuf *m[3] = {NULL, NULL, NULL};
 	struct ti_rx_desc_ext *r;
 	vm_page_t frame;
-	static int color;
 	/* 1 extra buf to make nobufs easy*/
 	struct sf_buf *sf[3] = {NULL, NULL, NULL};
 	int i;
@@ -1605,7 +1604,7 @@ ti_newbuf_jumbo(struct ti_softc *sc, int idx, struct mbuf *m_old)
 				    "failed -- packet dropped!\n");
 				goto nobufs;
 			}
-			frame = vm_page_alloc(NULL, color++,
+			frame = vm_page_alloc(NULL, 0,
 			    VM_ALLOC_INTERRUPT | VM_ALLOC_NOOBJ |
 			    VM_ALLOC_WIRED);
 			if (frame == NULL) {

@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -214,8 +214,12 @@ pkg_perform(char **pkgs)
     read_plist(&plist, pkg_in);
 
     /* Prefix should add an @cwd to the packing list */
-    if (Prefix)
-	add_plist_top(&plist, PLIST_CWD, Prefix);
+    if (Prefix) {
+        char resolved_prefix[PATH_MAX];
+        if (realpath(Prefix, resolved_prefix) == NULL)
+	    err(EXIT_FAILURE, "couldn't resolve path for prefix: %s", Prefix);
+	add_plist_top(&plist, PLIST_CWD, resolved_prefix);
+    }
 
     /* Add the origin if asked, at the top */
     if (Origin)
@@ -260,7 +264,9 @@ pkg_perform(char **pkgs)
     /* mark_plist(&plist); */
 
     /* Now put the release specific items in */
-    add_plist(&plist, PLIST_CWD, ".");
+    if (!Prefix) {
+	add_plist(&plist, PLIST_CWD, ".");
+    }
     write_file(COMMENT_FNAME, Comment);
     add_plist(&plist, PLIST_IGNORE, NULL);
     add_plist(&plist, PLIST_FILE, COMMENT_FNAME);

@@ -203,7 +203,7 @@ result similarly denotes an unavailable value.
 The
 .Fn localeconv_l
 function takes an explicit locale parameter.  For more information, see
-.Xr xlocale 3 .  
+.Xr xlocale 3 .
 .Sh RETURN VALUES
 The
 .Fn localeconv
@@ -212,9 +212,10 @@ which may be altered by later calls to
 .Xr setlocale 3
 or
 .Fn localeconv .
-The return value for 
+The return value for
 .Fn localeconv_l
-is stored with the locale.  It will remain valid until a subsequent call to
+is stored with the locale.
+It will remain valid until a subsequent call to
 .Xr freelocale 3 .
 If a thread-local locale is in effect then the return value from
 .Fn localeconv

@@ -83,9 +83,9 @@ __FBSDID("$FreeBSD$");
 #define	SM(v,x)	(((v) << x##_S) & x)
 
 static struct ieee80211vap *mwl_vap_create(struct ieee80211com *,
-		    const char name[IFNAMSIZ], int unit, int opmode,
-		    int flags, const uint8_t bssid[IEEE80211_ADDR_LEN],
-		    const uint8_t mac[IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	mwl_vap_delete(struct ieee80211vap *);
 static int	mwl_setupdma(struct mwl_softc *);
 static int	mwl_hal_reset(struct mwl_softc *sc);
@@ -601,10 +601,10 @@ reclaim_address(struct mwl_softc *sc, uint8_t mac[IEEE80211_ADDR_LEN])
 }
 
 static struct ieee80211vap *
-mwl_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac0[IEEE80211_ADDR_LEN])
+mwl_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac0[IEEE80211_ADDR_LEN])
 {
 	struct ifnet *ifp = ic->ic_ifp;
 	struct mwl_softc *sc = ifp->if_softc;

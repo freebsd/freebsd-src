@@ -1745,7 +1745,7 @@ static int radeon_cp_dispatch_texture(struct drm_device * dev,
 	DRM_DEBUG("tex=%dx%d blit=%d\n", tex_width, tex->height, blit_width);
 
 	do {
-		DRM_DEBUG("tex: ofs=0x%x p=%d f=%d x=%hd y=%hd w=%hd h=%hd\n",
+		DRM_DEBUG("tex: ofs=0x%x p=%d f=%d x=%d y=%d w=%d h=%d\n",
 			  tex->offset >> 10, tex->pitch, tex->format,
 			  image->x, image->y, image->width, image->height);
 

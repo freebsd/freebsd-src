@@ -30,14 +30,17 @@ __FBSDID("$FreeBSD$");
 
 #include <stdint.h>
 #include <stdlib.h>
+#include <unistd.h>
 #include <errno.h>
 #include <err.h>
 #include <fcntl.h>
 #include <string.h>
 #include <stdio.h>
 #include <sys/ioctl.h>
+#include <sys/mman.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <net/ethernet.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
@@ -83,10 +86,13 @@ usage(FILE *fp)
 	    "\tfilter <idx> delete|clear           delete a filter\n"
 	    "\tfilter list                         list all filters\n"
 	    "\tfilter mode [<match>] ...           get/set global filter mode\n"
+	    "\tloadfw <fw-image.bin>               install firmware\n"
+	    "\tmemdump <addr> <len>                dump a memory range\n"
 	    "\treg <address>[=<val>]               read/write register\n"
 	    "\treg64 <address>[=<val>]             read/write 64 bit register\n"
 	    "\tregdump [<module>] ...              dump registers\n"
 	    "\tstdio                               interactive mode\n"
+	    "\ttcb <tid>                           read TCB\n"
 	    );
 }
 
@@ -396,12 +402,12 @@ do_show_info_header(uint32_t mode)
 			printf (" Port");
 			break;
 
-		case T4_FILTER_OVLAN:
-			printf ("     vld:oVLAN");
+		case T4_FILTER_VNIC:
+			printf ("      vld:VNIC");
 			break;
 
-		case T4_FILTER_IVLAN:
-			printf ("     vld:iVLAN");
+		case T4_FILTER_VLAN:
+			printf ("      vld:VLAN");
 			break;
 
 		case T4_FILTER_IP_TOS:
@@ -653,18 +659,18 @@ do_show_one_filter_info(struct t4_filter *t, uint32_t mode)
 			printf("  %1d/%1d", t->fs.val.iport, t->fs.mask.iport);
 			break;
 
-		case T4_FILTER_OVLAN:
+		case T4_FILTER_VNIC:
 			printf(" %1d:%1x:%02x/%1d:%1x:%02x",
-			    t->fs.val.ovlan_vld, (t->fs.val.ovlan >> 7) & 0x7,
-			    t->fs.val.ovlan & 0x7f, t->fs.mask.ovlan_vld,
-			    (t->fs.mask.ovlan >> 7) & 0x7,
-			    t->fs.mask.ovlan & 0x7f);
+			    t->fs.val.vnic_vld, (t->fs.val.vnic >> 7) & 0x7,
+			    t->fs.val.vnic & 0x7f, t->fs.mask.vnic_vld,
+			    (t->fs.mask.vnic >> 7) & 0x7,
+			    t->fs.mask.vnic & 0x7f);
 			break;
 
-		case T4_FILTER_IVLAN:
+		case T4_FILTER_VLAN:
 			printf(" %1d:%04x/%1d:%04x",
-			    t->fs.val.ivlan_vld, t->fs.val.ivlan,
-			    t->fs.mask.ivlan_vld, t->fs.mask.ivlan);
+			    t->fs.val.vlan_vld, t->fs.val.vlan,
+			    t->fs.mask.vlan_vld, t->fs.mask.vlan);
 			break;
 
 		case T4_FILTER_IP_TOS:
@@ -830,11 +836,11 @@ get_filter_mode(void)
 	if (mode & T4_FILTER_IP_TOS)
 		printf("tos ");
 
-	if (mode & T4_FILTER_IVLAN)
-		printf("ivlan ");
+	if (mode & T4_FILTER_VLAN)
+		printf("vlan ");
 
-	if (mode & T4_FILTER_OVLAN)
-		printf("ovlan ");
+	if (mode & T4_FILTER_VNIC)
+		printf("vnic ");
 
 	if (mode & T4_FILTER_PORT)
 		printf("iport ");
@@ -868,11 +874,12 @@ set_filter_mode(int argc, const char *argv[])
 		if (!strcmp(argv[0], "tos"))
 			mode |= T4_FILTER_IP_TOS;
 
-		if (!strcmp(argv[0], "ivlan"))
-			mode |= T4_FILTER_IVLAN;
+		if (!strcmp(argv[0], "vlan"))
+			mode |= T4_FILTER_VLAN;
 
-		if (!strcmp(argv[0], "ovlan"))
-			mode |= T4_FILTER_OVLAN;
+		if (!strcmp(argv[0], "ovlan") ||
+		    !strcmp(argv[0], "vnic"))
+			mode |= T4_FILTER_VNIC;
 
 		if (!strcmp(argv[0], "iport"))
 			mode |= T4_FILTER_PORT;
@@ -936,15 +943,20 @@ set_filter(uint32_t idx, int argc, const char *argv[])
 			t.fs.val.iport = val;
 			t.fs.mask.iport = mask;
 		} else if (!parse_val_mask("ovlan", args, &val, &mask)) {
-			t.fs.val.ovlan = val;
-			t.fs.mask.ovlan = mask;
-			t.fs.val.ovlan_vld = 1;
-			t.fs.mask.ovlan_vld = 1;
-		} else if (!parse_val_mask("ivlan", args, &val, &mask)) {
-			t.fs.val.ivlan = val;
-			t.fs.mask.ivlan = mask;
-			t.fs.val.ivlan_vld = 1;
-			t.fs.mask.ivlan_vld = 1;
+			t.fs.val.vnic = val;
+			t.fs.mask.vnic = mask;
+			t.fs.val.vnic_vld = 1;
+			t.fs.mask.vnic_vld = 1;
+		} else if (!parse_val_mask("vnic", args, &val, &mask)) {
+			t.fs.val.vnic = val;
+			t.fs.mask.vnic = mask;
+			t.fs.val.vnic_vld = 1;
+			t.fs.mask.vnic_vld = 1;
+		} else if (!parse_val_mask("vlan", args, &val, &mask)) {
+			t.fs.val.vlan = val;
+			t.fs.mask.vlan = mask;
+			t.fs.val.vlan_vld = 1;
+			t.fs.mask.vlan_vld = 1;
 		} else if (!parse_val_mask("tos", args, &val, &mask)) {
 			t.fs.val.tos = val;
 			t.fs.mask.tos = mask;
@@ -1347,6 +1359,169 @@ get_sge_context(int argc, const char *argv[])
 }
 
 static int
+loadfw(int argc, const char *argv[])
+{
+	int rc, fd;
+	struct t4_data data = {0};
+	const char *fname = argv[0];
+	struct stat st = {0};
+
+	if (argc != 1) {
+		warnx("loadfw: incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	fd = open(fname, O_RDONLY);
+	if (fd < 0) {
+		warn("open(%s)", fname);
+		return (errno);
+	}
+
+	if (fstat(fd, &st) < 0) {
+		warn("fstat");
+		close(fd);
+		return (errno);
+	}
+
+	data.len = st.st_size;
+	data.data = mmap(0, data.len, PROT_READ, 0, fd, 0);
+	if (data.data == MAP_FAILED) {
+		warn("mmap");
+		close(fd);
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_LOAD_FW, &data);
+	munmap(data.data, data.len);
+	close(fd);
+	return (rc);
+}
+
+static int
+read_mem(uint32_t addr, uint32_t len, void (*output)(uint32_t *, uint32_t))
+{
+	int rc;
+	struct t4_mem_range mr;
+
+	mr.addr = addr;
+	mr.len = len;
+	mr.data = malloc(mr.len);
+
+	if (mr.data == 0) {
+		warn("read_mem: malloc");
+		return (errno);
+	}
+
+	rc = doit(CHELSIO_T4_GET_MEM, &mr);
+	if (rc != 0)
+		goto done;
+
+	if (output)
+		(*output)(mr.data, mr.len);
+done:
+	free(mr.data);
+	return (rc);
+}
+
+/*
+ * Display memory as list of 'n' 4-byte values per line.
+ */
+static void
+show_mem(uint32_t *buf, uint32_t len)
+{
+	const char *s;
+	int i, n = 8;
+
+	while (len) {
+		for (i = 0; len && i < n; i++, buf++, len -= 4) {
+			s = i ? " " : "";
+			printf("%s%08x", s, htonl(*buf));
+		}
+		printf("\n");
+	}
+}
+
+static int
+memdump(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	uint32_t addr, len;
+
+	if (argc != 2) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid address \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	addr = l;
+
+	p = str_to_number(argv[1], &l, NULL);
+	if (*p) {
+		warnx("memdump: invalid length \"%s\"", argv[1]);
+		return (EINVAL);
+	}
+	len = l;
+
+	return (read_mem(addr, len, show_mem));
+}
+
+/*
+ * Display TCB as list of 'n' 4-byte values per line.
+ */
+static void
+show_tcb(uint32_t *buf, uint32_t len)
+{
+	const char *s;
+	int i, n = 8;
+
+	while (len) {
+		for (i = 0; len && i < n; i++, buf++, len -= 4) {
+			s = i ? " " : "";
+			printf("%s%08x", s, htonl(*buf));
+		}
+		printf("\n");
+	}
+}
+
+#define A_TP_CMM_TCB_BASE 0x7d10
+#define TCB_SIZE 128
+static int
+read_tcb(int argc, const char *argv[])
+{
+	char *p;
+	long l;
+	long long val;
+	unsigned int tid;
+	uint32_t addr;
+	int rc;
+
+	if (argc != 1) {
+		warnx("incorrect number of arguments.");
+		return (EINVAL);
+	}
+
+	p = str_to_number(argv[0], &l, NULL);
+	if (*p) {
+		warnx("invalid tid \"%s\"", argv[0]);
+		return (EINVAL);
+	}
+	tid = l;
+
+	rc = read_reg(A_TP_CMM_TCB_BASE, 4, &val);
+	if (rc != 0)
+		return (rc);
+
+	addr = val + tid * TCB_SIZE;
+
+	return (read_mem(addr, TCB_SIZE, show_tcb));
+}
+
+static int
 run_cmd(int argc, const char *argv[])
 {
 	int rc = -1;
@@ -1366,6 +1541,12 @@ run_cmd(int argc, const char *argv[])
 		rc = filter_cmd(argc, argv);
 	else if (!strcmp(cmd, "context"))
 		rc = get_sge_context(argc, argv);
+	else if (!strcmp(cmd, "loadfw"))
+		rc = loadfw(argc, argv);
+	else if (!strcmp(cmd, "memdump"))
+		rc = memdump(argc, argv);
+	else if (!strcmp(cmd, "tcb"))
+		rc = read_tcb(argc, argv);
 	else {
 		rc = EINVAL;
 		warnx("invalid command \"%s\"", cmd);

@@ -99,6 +99,7 @@ struct vtnet_softc {
 #define VTNET_MEDIATYPE		 (IFM_ETHER | IFM_1000_T | IFM_FDX)
 	char			 vtnet_hwaddr[ETHER_ADDR_LEN];
 
+	struct vtnet_mac_filter	*vtnet_mac_filter;
 	/*
 	 * During reset, the host's VLAN filtering table is lost. The
 	 * array below is used to restore all the VLANs configured on

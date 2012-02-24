@@ -153,7 +153,7 @@ struct twa_softc {
 	struct mtx		sim_lock_handle;/* sim lock shared with cam */
 	struct mtx		*sim_lock;/* ptr to sim lock */
 
-	struct callout		watchdog_callout[2]; /* For command timout */
+	struct callout		watchdog_callout[2]; /* For command timeout */
 	TW_UINT32		watchdog_index;
 
 #ifdef TW_OSL_DEBUG

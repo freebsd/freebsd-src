@@ -171,6 +171,7 @@ static struct {
 	{0x1d028086, 0x00, "Intel Patsburg",	0},
 	{0x1d048086, 0x00, "Intel Patsburg",	0},
 	{0x1d068086, 0x00, "Intel Patsburg",	0},
+	{0x28268086, 0x00, "Intel Patsburg (RAID)",	0},
 	{0x1e028086, 0x00, "Intel Panther Point",	0},
 	{0x1e038086, 0x00, "Intel Panther Point",	0},
 	{0x1e048086, 0x00, "Intel Panther Point",	0},
@@ -291,6 +292,9 @@ static struct {
 #define RECOVERY_REQUEST_SENSE	2
 #define recovery_slot		spriv_field1
 
+static int force_ahci = 1;
+TUNABLE_INT("hw.ahci.force", &force_ahci);
+
 static int
 ahci_probe(device_t dev)
 {
@@ -308,7 +312,8 @@ ahci_probe(device_t dev)
 	for (i = 0; ahci_ids[i].id != 0; i++) {
 		if (ahci_ids[i].id == devid &&
 		    ahci_ids[i].rev <= revid &&
-		    (valid || !(ahci_ids[i].quirks & AHCI_Q_NOFORCE))) {
+		    (valid || (force_ahci == 1 &&
+		     !(ahci_ids[i].quirks & AHCI_Q_NOFORCE)))) {
 			/* Do not attach JMicrons with single PCI function. */
 			if (pci_get_vendor(dev) == 0x197b &&
 			    (pci_read_config(dev, 0xdf, 1) & 0x40) == 0)

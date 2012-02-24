@@ -506,7 +506,7 @@ decldef(pos_t *posp, const char *cp)
 }
 
 /*
- * Read an u-record (emited by lint1 if a symbol was used).
+ * Read an u-record (emitted by lint1 if a symbol was used).
  */
 static void
 usedsym(pos_t *posp, const char *cp)

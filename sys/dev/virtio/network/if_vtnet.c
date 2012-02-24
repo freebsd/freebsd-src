@@ -317,8 +317,20 @@ vtnet_attach(device_t dev)
 	if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_VQ)) {
 		sc->vtnet_flags |= VTNET_FLAG_CTRL_VQ;
 
-		if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_RX))
+		if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_RX)) {
+			sc->vtnet_mac_filter = malloc(
+			    sizeof(struct vtnet_mac_filter), M_DEVBUF,
+			    M_NOWAIT | M_ZERO);
+			if (sc->vtnet_mac_filter == NULL) {
+				device_printf(dev,
+				    "cannot allocate mac filter table\n");
+				error = ENOMEM;
+				goto fail;
+			}
+
 			sc->vtnet_flags |= VTNET_FLAG_CTRL_RX;
+		}
+
 		if (virtio_with_feature(dev, VIRTIO_NET_F_CTRL_VLAN))
 			sc->vtnet_flags |= VTNET_FLAG_VLAN_FILTER;
 	}
@@ -505,7 +517,12 @@ vtnet_detach(device_t dev)
 		sc->vtnet_vlan_detach = NULL;
 	}
 
-	if (ifp) {
+	if (sc->vtnet_mac_filter != NULL) {
+		free(sc->vtnet_mac_filter, M_DEVBUF);
+		sc->vtnet_mac_filter = NULL;
+	}
+
+	if (ifp != NULL) {
 		if_free(ifp);
 		sc->vtnet_ifp = NULL;
 	}
@@ -742,17 +759,11 @@ vtnet_update_link_status(struct vtnet_softc *sc)
 
 	if (link && ((sc->vtnet_flags & VTNET_FLAG_LINK) == 0)) {
 		sc->vtnet_flags |= VTNET_FLAG_LINK;
-		if (bootverbose)
-			device_printf(dev, "Link is up\n");
-
 		if_link_state_change(ifp, LINK_STATE_UP);
 		if (!IFQ_DRV_IS_EMPTY(&ifp->if_snd))
 			vtnet_start_locked(ifp);
 	} else if (!link && (sc->vtnet_flags & VTNET_FLAG_LINK)) {
 		sc->vtnet_flags &= ~VTNET_FLAG_LINK;
-		if (bootverbose)
-			device_printf(dev, "Link is down\n");
-
 		if_link_state_change(ifp, LINK_STATE_DOWN);
 	}
 }
@@ -1105,7 +1116,7 @@ vtnet_alloc_rxbuf(struct vtnet_softc *sc, int nbufs, struct mbuf **m_tailp)
 		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
 		    ("chained Rx mbuf requested without LRO_NOMRG"));
 
-		for (i = 0; i < nbufs - 1; i++) {
+		for (i = 1; i < nbufs; i++) {
 			m = m_getjcl(M_DONTWAIT, MT_DATA, 0, clsize);
 			if (m == NULL)
 				goto fail;
@@ -1143,9 +1154,8 @@ vtnet_replace_rxbuf(struct vtnet_softc *sc, struct mbuf *m0, int len0)
 	clsize = sc->vtnet_rx_mbuf_size;
 	nreplace = 0;
 
-	if (m->m_next != NULL)
-		KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG,
-		    ("chained Rx mbuf without LRO_NOMRG"));
+	KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG ||
+	    m->m_next == NULL, ("chained Rx mbuf without LRO_NOMRG"));
 
 	/*
 	 * Since LRO_NOMRG mbuf chains are so large, we want to avoid
@@ -1275,8 +1285,8 @@ vtnet_enqueue_rxbuf(struct vtnet_softc *sc, struct mbuf *m)
 	int offset, error;
 
 	VTNET_LOCK_ASSERT(sc);
-	if ((sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG) == 0)
-		KASSERT(m->m_next == NULL, ("chained Rx mbuf"));
+	KASSERT(sc->vtnet_flags & VTNET_FLAG_LRO_NOMRG ||
+	    m->m_next == NULL, ("chained Rx mbuf without LRO_NOMRG"));
 
 	sglist_init(&sg, VTNET_MAX_RX_SEGS, segs);
 
@@ -1688,7 +1698,8 @@ vtnet_rxeof(struct vtnet_softc *sc, int count, int *rx_npktsp)
 			break;
 	}
 
-	virtqueue_notify(vq);
+	if (deq > 0)
+		virtqueue_notify(vq);
 
 	if (rx_npktsp != NULL)
 		*rx_npktsp = rx_npkts;
@@ -1946,9 +1957,14 @@ vtnet_encap(struct vtnet_softc *sc, struct mbuf **m_head)
 	struct mbuf *m;
 	int error;
 
+	m = *m_head;
+
 	txhdr = uma_zalloc(vtnet_tx_header_zone, M_NOWAIT | M_ZERO);
-	if (txhdr == NULL)
+	if (txhdr == NULL) {
+		*m_head = NULL;
+		m_freem(m);
 		return (ENOMEM);
+	}
 
 	/*
 	 * Always use the non-mergeable header to simplify things. When
@@ -1957,21 +1973,22 @@ vtnet_encap(struct vtnet_softc *sc, struct mbuf **m_head)
 	 * the correct header size to the host.
 	 */
 	hdr = &txhdr->vth_uhdr.hdr;
-	m = *m_head;
-
-	error = ENOBUFS;
 
 	if (m->m_flags & M_VLANTAG) {
 		m = ether_vlanencap(m, m->m_pkthdr.ether_vtag);
-		if ((*m_head = m) == NULL)
+		if ((*m_head = m) == NULL) {
+			error = ENOBUFS;
 			goto fail;
+		}
 		m->m_flags &= ~M_VLANTAG;
 	}
 
 	if (m->m_pkthdr.csum_flags != 0) {
 		m = vtnet_tx_offload(sc, m, hdr);
-		if ((*m_head = m) == NULL)
+		if ((*m_head = m) == NULL) {
+			error = ENOBUFS;
 			goto fail;
+		}
 	}
 
 	error = vtnet_enqueue_txbuf(sc, m_head, txhdr);
@@ -2387,6 +2404,7 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	uint8_t ack;
 
 	ifp = sc->vtnet_ifp;
+	filter = sc->vtnet_mac_filter;
 	ucnt = 0;
 	mcnt = 0;
 	promisc = 0;
@@ -2396,19 +2414,6 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 	VTNET_LOCK_ASSERT(sc);
 	KASSERT(sc->vtnet_flags & VTNET_FLAG_CTRL_RX,
 	    ("CTRL_RX feature not negotiated"));
-
-	/*
-	 * Allocate the MAC filtering table. Note we could do this
-	 * at attach time, but it is probably not worth keeping it
-	 * around for an infrequent occurrence.
-	 */
-	filter = malloc(sizeof(struct vtnet_mac_filter), M_DEVBUF,
-	    M_NOWAIT | M_ZERO);
-	if (filter == NULL) {
-		device_printf(sc->vtnet_dev,
-		    "cannot allocate MAC address filtering table\n");
-		return;
-	}
 
 	/* Unicast MAC addresses: */
 	if_addr_rlock(ifp);
@@ -2481,8 +2486,6 @@ vtnet_rx_filter_mac(struct vtnet_softc *sc)
 		if_printf(ifp, "error setting host MAC filter table\n");
 
 out:
-	free(filter, M_DEVBUF);
-
 	if (promisc)
 		if (vtnet_set_promisc(sc, 1) != 0)
 			if_printf(ifp, "cannot enable promiscuous mode\n");

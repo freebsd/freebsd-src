@@ -53,7 +53,8 @@ read_file(char *fn, long n)
 		errmsg = "cannot close input file";
 		return ERR;
 	}
-	fprintf(stdout, !scripted ? "%lu\n" : "", size);
+	if (!scripted)
+		fprintf(stdout, "%lu\n", size);
 	return current_addr - n;
 }
 
@@ -161,7 +162,8 @@ write_file(char *fn, const char *mode, long n, long m)
 		errmsg = "cannot close output file";
 		return ERR;
 	}
-	fprintf(stdout, !scripted ? "%lu\n" : "", size);
+	if (!scripted)
+		fprintf(stdout, "%lu\n", size);
 	return n ? m - n + 1 : 0;
 }
 

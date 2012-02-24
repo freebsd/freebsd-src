@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd Aug 29, 2011
+.Dd Dec 27, 2011
 .Dt MENU.4TH 8
 .Os
 .Sh NAME
@@ -69,9 +69,13 @@ Clears the screen area within the menu bounding box.
 Calls
 .Ic menu-erase
 and then redraws the menu.
+.It Ic menu-unset
+Unsets the environment variables associated with individual menu items,
+clearing the way for a new menu.
 .It Ic menu-clear
-Unsets all possible environment variables used
-to configure the menu and then calls
+Calls
+.Ic menu-unset
+and then
 .Ic menu-erase .
 .El
 .Pp

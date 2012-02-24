@@ -96,9 +96,9 @@ struct bwi_myaddr_bssid {
 } __packed;
 
 static struct ieee80211vap *bwi_vap_create(struct ieee80211com *,
-		   const char [IFNAMSIZ], int, int, int,
-		   const uint8_t [IEEE80211_ADDR_LEN],
-		   const uint8_t [IEEE80211_ADDR_LEN]);
+		    const char [IFNAMSIZ], int, enum ieee80211_opmode, int,
+		    const uint8_t [IEEE80211_ADDR_LEN],
+		    const uint8_t [IEEE80211_ADDR_LEN]);
 static void	bwi_vap_delete(struct ieee80211vap *);
 static void	bwi_init(void *);
 static int	bwi_ioctl(struct ifnet *, u_long, caddr_t);
@@ -118,7 +118,7 @@ static void	bwi_calibrate(void *);
 
 static int	bwi_calc_rssi(struct bwi_softc *, const struct bwi_rxbuf_hdr *);
 static int	bwi_calc_noise(struct bwi_softc *);
-static __inline uint8_t bwi_plcp2rate(uint32_t, enum ieee80211_phymode);
+static __inline uint8_t bwi_plcp2rate(uint32_t, enum ieee80211_phytype);
 static void	bwi_rx_radiotap(struct bwi_softc *, struct mbuf *,
 			struct bwi_rxbuf_hdr *, const void *, int, int, int);
 
@@ -591,10 +591,10 @@ bwi_detach(struct bwi_softc *sc)
 }
 
 static struct ieee80211vap *
-bwi_vap_create(struct ieee80211com *ic,
-	const char name[IFNAMSIZ], int unit, int opmode, int flags,
-	const uint8_t bssid[IEEE80211_ADDR_LEN],
-	const uint8_t mac[IEEE80211_ADDR_LEN])
+bwi_vap_create(struct ieee80211com *ic, const char name[IFNAMSIZ], int unit,
+    enum ieee80211_opmode opmode, int flags,
+    const uint8_t bssid[IEEE80211_ADDR_LEN],
+    const uint8_t mac[IEEE80211_ADDR_LEN])
 {
 	struct bwi_vap *bvp;
 	struct ieee80211vap *vap;
@@ -2667,9 +2667,9 @@ bwi_rxeof(struct bwi_softc *sc, int end_idx)
 		m_adj(m, sizeof(*hdr) + wh_ofs);
 
 		if (htole16(hdr->rxh_flags1) & BWI_RXH_F1_OFDM)
-			rate = bwi_plcp2rate(plcp, IEEE80211_MODE_11G);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_OFDM);
 		else
-			rate = bwi_plcp2rate(plcp, IEEE80211_MODE_11B);
+			rate = bwi_plcp2rate(plcp, IEEE80211_T_CCK);
 
 		/* RX radio tap */
 		if (ieee80211_radiotap_active(ic))
@@ -3801,10 +3801,10 @@ bwi_calc_noise(struct bwi_softc *sc)
 }
 
 static __inline uint8_t
-bwi_plcp2rate(const uint32_t plcp0, enum ieee80211_phymode phymode)
+bwi_plcp2rate(const uint32_t plcp0, enum ieee80211_phytype type)
 {
-       uint32_t plcp = le32toh(plcp0) & IEEE80211_OFDM_PLCP_RATE_MASK;
-	return (ieee80211_plcp2rate(plcp, phymode));
+	uint32_t plcp = le32toh(plcp0) & IEEE80211_OFDM_PLCP_RATE_MASK;
+	return (ieee80211_plcp2rate(plcp, type));
 }
 
 static void

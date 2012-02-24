@@ -102,7 +102,7 @@ fixsymbol(Elf *e, Elf_Data *data, size_t idx, int nprobes, char *buf,
 	int ndx;
 
 	while (gelf_getsym(data, j++, &sym) != NULL) {
-		prb = (dof_probe_t *)(buf + sec->dofs_offset);
+		prb = (dof_probe_t *)(void *)(buf + sec->dofs_offset);
 
 		for (ndx = nprobes; ndx; ndx--, prb += 1) {
 			funcname = dofstrtab + prb->dofpr_func;

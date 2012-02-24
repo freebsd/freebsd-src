@@ -458,6 +458,9 @@ vdev_init_from_nvlist(const unsigned char *nvlist, vdev_t *pvdev,
 
 	if (strcmp(type, VDEV_TYPE_MIRROR)
 	    && strcmp(type, VDEV_TYPE_DISK)
+#ifdef ZFS_TEST
+	    && strcmp(type, VDEV_TYPE_FILE)
+#endif
 	    && strcmp(type, VDEV_TYPE_RAIDZ)
 	    && strcmp(type, VDEV_TYPE_REPLACING)) {
 		printf("ZFS: can only boot from disk, mirror, raidz1, raidz2 and raidz3 vdevs\n");

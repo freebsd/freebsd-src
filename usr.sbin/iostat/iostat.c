@@ -101,19 +101,20 @@
 #include <sys/resource.h>
 #include <sys/sysctl.h>
 
-#include <err.h>
 #include <ctype.h>
+#include <devstat.h>
+#include <err.h>
 #include <fcntl.h>
+#include <inttypes.h>
 #include <kvm.h>
+#include <limits.h>
+#include <math.h>
 #include <nlist.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <limits.h>
-#include <devstat.h>
-#include <math.h>
 
 struct nlist namelist[] = {
 #define X_TK_NIN	0
@@ -818,7 +819,7 @@ devstats(int perf_select, long double etime, int havelast)
 			    mb_per_second_write > ((long double).0005)/1024 ||
 			    busy_pct > 0.5) {
 				if (Iflag == 0)
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4" PRIu64 " %5.1Lf %3.0Lf ",
 					    devname, transfers_per_second_read,
 					    transfers_per_second_write,
 					    mb_per_second_read * 1024,
@@ -826,7 +827,7 @@ devstats(int perf_select, long double etime, int havelast)
 					    queue_len,
 					    ms_per_transaction, busy_pct);
 				else
-					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4qu %5.1Lf %3.0Lf ",
+					printf("%-8.8s %5.1Lf %5.1Lf %7.1Lf %7.1Lf %4" PRIu64 " %5.1Lf %3.0Lf ",
 					    devname,
 					    (long double)total_transfers_read,
 					    (long double)total_transfers_write,
@@ -863,7 +864,7 @@ devstats(int perf_select, long double etime, int havelast)
 				       msdig,
 				       ms_per_transaction);
 			else
-				printf("%4.1qu%4.1qu%5.*Lf ",
+				printf("%4.1" PRIu64 "%4.1" PRIu64 "%5.*Lf ",
 				       total_blocks,
 				       total_transfers,
 				       msdig,
@@ -878,7 +879,7 @@ devstats(int perf_select, long double etime, int havelast)
 				total_mb = total_bytes;
 				total_mb /= 1024 * 1024;
 
-				printf(" %5.2Lf %3.1qu %5.2Lf ",
+				printf(" %5.2Lf %3.1" PRIu64 " %5.2Lf ",
 				       kb_per_transfer,
 				       total_transfers,
 				       total_mb);

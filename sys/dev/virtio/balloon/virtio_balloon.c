@@ -475,7 +475,6 @@ vtballoon_update_size(struct vtballoon_softc *sc)
 	virtio_write_dev_config_4(sc->vtballoon_dev,
 	    offsetof(struct virtio_balloon_config, actual),
 	    htole32(sc->vtballoon_current_npages));
-
 }
 
 static int

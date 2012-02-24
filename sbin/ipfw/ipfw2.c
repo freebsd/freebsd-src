@@ -454,8 +454,8 @@ _substrcmp(const char *str1, const char* str2)
  * of the first.  A warning is printed to stderr in the case that the
  * first string does not match the third.
  *
- * This function exists to warn about the bizzare construction
- * strncmp(str, "by", 2) which is used to allow people to use a shotcut
+ * This function exists to warn about the bizarre construction
+ * strncmp(str, "by", 2) which is used to allow people to use a shortcut
  * for "bytes".  The problem is that in addition to accepting "by",
  * "byt", "byte", and "bytes", it also excepts "by_rabid_dogs" and any
  * other string beginning with "by".
@@ -512,6 +512,7 @@ static struct _s_x _port_name[] = {
 	{"ipttl",	O_IPTTL},
 	{"mac-type",	O_MAC_TYPE},
 	{"tcpdatalen",	O_TCPDATALEN},
+	{"tcpwin",	O_TCPWIN},
 	{"tagged",	O_TAGGED},
 	{NULL,		0}
 };
@@ -1480,7 +1481,11 @@ show_ipfw(struct ip_fw *rule, int pcwidth, int bcwidth)
 				break;
 
 			case O_TCPWIN:
-				printf(" tcpwin %d", ntohs(cmd->arg1));
+				if (F_LEN(cmd) == 1)
+				    printf(" tcpwin %u", cmd->arg1);
+				else
+				    print_newports((ipfw_insn_u16 *)cmd, 0,
+					O_TCPWIN);
 				break;
 
 			case O_TCPACK:
@@ -2866,9 +2871,9 @@ chkarg:
 			((struct sockaddr_in*)&result)->sin_addr.s_addr =
 			    INADDR_ANY;
 		} else {
-			/* 
+			/*
 			 * Resolve the host name or address to a family and a
-			 * network representation of the addres.
+			 * network representation of the address.
 			 */
 			if (getaddrinfo(*av, NULL, NULL, &res))
 				errx(EX_DATAERR, NULL);
@@ -3447,8 +3452,12 @@ read_options:
 
 		case TOK_TCPWIN:
 			NEED1("tcpwin requires length");
-			fill_cmd(cmd, O_TCPWIN, 0,
-			    htons(strtoul(*av, NULL, 0)));
+			if (strpbrk(*av, "-,")) {
+			    if (!add_ports(cmd, *av, 0, O_TCPWIN))
+				errx(EX_DATAERR, "invalid tcpwin len %s", *av);
+			} else
+			    fill_cmd(cmd, O_TCPWIN, 0,
+				    strtoul(*av, NULL, 0));
 			av++;
 			break;
 

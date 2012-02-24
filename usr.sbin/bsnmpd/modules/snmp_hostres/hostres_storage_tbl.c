@@ -133,7 +133,7 @@ static const struct asn_oid OIDX_hrStorageVirtualMemory_c =
     OIDX_hrStorageVirtualMemory;
 
 /**
- * Create a new entry into the storage table and, if neccessary, an
+ * Create a new entry into the storage table and, if necessary, an
  * entry into the storage map.
  */
 static struct storage_entry *

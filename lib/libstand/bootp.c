@@ -703,13 +703,13 @@ setenv_(u_char *cp,  u_char *ep, struct dhcp_opt *opts)
 		u_char *s = NULL;	/* semicolon ? */
 
 		/* skip leading whitespace */
-		while (*endv && index(" \t\n\r", *endv))
+		while (*endv && strchr(" \t\n\r", *endv))
 		    endv++;
-		vp = index(endv, '=');	/* find name=value separator */
+		vp = strchr(endv, '=');	/* find name=value separator */
 		if (!vp)
 		    break;
 		*vp++ = 0;
-		if (op->fmt == __ILIST && (s = index(vp, ';')))
+		if (op->fmt == __ILIST && (s = strchr(vp, ';')))
 		    *s++ = '\0';
 		setenv(endv, vp, 1);
 		vp = s;	/* prepare for next round */

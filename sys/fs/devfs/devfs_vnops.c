@@ -602,10 +602,14 @@ devfs_close_f(struct file *fp, struct thread *td)
 	int error;
 	struct file *fpop;
 
-	fpop = td->td_fpop;
-	td->td_fpop = fp;
+	/*
+	 * NB: td may be NULL if this descriptor is closed due to
+	 * garbage collection from a closed UNIX domain socket.
+	 */
+	fpop = curthread->td_fpop;
+	curthread->td_fpop = fp;
 	error = vnops.fo_close(fp, td);
-	td->td_fpop = fpop;
+	curthread->td_fpop = fpop;
 
 	/*
 	 * The f_cdevpriv cannot be assigned non-NULL value while we
@@ -1152,7 +1156,8 @@ static int
 devfs_read_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int ioflag, error, ref, resid;
+	int ioflag, error, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 
@@ -1630,7 +1635,8 @@ static int
 devfs_write_f(struct file *fp, struct uio *uio, struct ucred *cred, int flags, struct thread *td)
 {
 	struct cdev *dev;
-	int error, ioflag, ref, resid;
+	int error, ioflag, ref;
+	ssize_t resid;
 	struct cdevsw *dsw;
 	struct file *fpop;
 

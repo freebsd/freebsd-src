@@ -55,6 +55,7 @@ __FBSDID("$FreeBSD$");
 #include <unistd.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #define MAXWIDTH  132
 #define MAXREP    10
@@ -115,7 +116,7 @@ main(int argc, char *argv[])
 			acctfile = cp;
 	}
 
-	for (cp = buf[0], limit = buf[MAXREP]; cp < limit; *cp++ = ' ');
+	memset(buf, ' ', sizeof(buf));
 	done = 0;
 
 	while (!done) {

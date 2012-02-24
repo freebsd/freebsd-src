@@ -17,7 +17,7 @@
 . /etc/rc.subr
 
 name="jail"
-rcvar=`set_rcvar`
+rcvar="jail_enable"
 
 start_precmd="jail_prestart"
 start_cmd="jail_start"
@@ -601,10 +601,7 @@ jail_start()
 				devfs_mount_jail "${_devdir}" ${_ruleset}
 				# Transitional symlink for old binaries
 				if [ ! -L "${_devdir}/log" ]; then
-					__pwd="`pwd`"
-					cd "${_devdir}"
-					ln -sf ../var/run/log log
-					cd "$__pwd"
+					ln -sf ../var/run/log "${_devdir}/log"
 				fi
 			fi
 

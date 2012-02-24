@@ -88,7 +88,7 @@ ypxfr_exit(ypxfrstat retval, char *temp)
 			exit(1);
 		}
 
-		ypxfr_resp.status = retval;
+		ypxfr_resp.status = (yppush_status)retval;
 
 		if (yppushproc_xfrresp_1(&ypxfr_resp, clnt) == NULL) {
 			yp_error("%s", clnt_sperror(clnt, "callback failed"));
@@ -329,7 +329,7 @@ the local domain name isn't set");
 					     	ypxfr_use_yplib)) == NULL) {
 			yp_error("failed to find master of %s in domain %s: %s",
 				  ypxfr_mapname, ypxfr_source_domain,
-				  ypxfrerr_string(yp_errno));
+				  ypxfrerr_string((ypxfrstat)yp_errno));
 			ypxfr_exit(YPXFR_MADDR,NULL);
 		}
 	}
@@ -358,7 +358,8 @@ the local domain name isn't set");
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
 				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
-				"map has order 0" : ypxfrerr_string(yp_errno));
+				"map has order 0" :
+				ypxfrerr_string((ypxfrstat)yp_errno));
 		ypxfr_exit(YPXFR_YPERR,NULL);
 	}
 
@@ -533,7 +534,8 @@ leave:
 					     ypxfr_master, 0)) == 0) {
 		yp_error("failed to get order number of %s: %s",
 				ypxfr_mapname, yp_errno == YPXFR_SUCC ?
-				"map has order 0" : ypxfrerr_string(yp_errno));
+				"map has order 0" :
+				ypxfrerr_string((ypxfrstat)yp_errno));
 		ypxfr_exit(YPXFR_YPERR,ypxfr_temp_map);
 	}
 

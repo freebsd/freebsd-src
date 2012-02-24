@@ -447,11 +447,11 @@ chkau(hte_t *hte, int n, sym_t *def, sym_t *decl, pos_t *pos1p,
 	char	*pos1;
 
 	/*
-	 * If a function definition is available (def != NULL), we compair the
+	 * If a function definition is available (def != NULL), we compare the
 	 * function call (call) with the definition. Otherwise, if a function
 	 * definition is available and it is not an old style definition
-	 * (decl != NULL && TP(decl->s_type)->t_proto), we compair the call
-	 * with this declaration. Otherwise we compair it with the first
+	 * (decl != NULL && TP(decl->s_type)->t_proto), we compare the call
+	 * with this declaration. Otherwise we compare it with the first
 	 * call we have found (call1).
 	 */
 
@@ -474,7 +474,7 @@ chkau(hte_t *hte, int n, sym_t *def, sym_t *decl, pos_t *pos1p,
 	 * of an argument does not match exactly the expected type. The
 	 * result are lots of warnings which are really not necessary.
 	 * We print a warning only if
-	 *   (0) at least one type is not an interger type and types differ
+	 *   (0) at least one type is not an integer type and types differ
 	 *   (1) hflag is set and types differ
 	 *   (2) types differ, except in signedness
 	 * If the argument is an integer constant whose msb is not set,
@@ -482,7 +482,7 @@ chkau(hte_t *hte, int n, sym_t *def, sym_t *decl, pos_t *pos1p,
 	 * int). This is with and without hflag.
 	 * If the argument is an integer constant with value 0 and the
 	 * expected argument is of type pointer and the width of the
-	 * interger constant is the same as the width of the pointer,
+	 * integer constant is the same as the width of the pointer,
 	 * no warning is printed.
 	 */
 	t1 = arg1->t_tspec;
@@ -490,7 +490,7 @@ chkau(hte_t *hte, int n, sym_t *def, sym_t *decl, pos_t *pos1p,
 	if (isityp(t1) && isityp(t2) && !arg1->t_isenum && !arg2->t_isenum) {
 		if (promote) {
 			/*
-			 * XXX Here is a problem: Althrough it is possible to
+			 * XXX Here is a problem: Although it is possible to
 			 * pass an int where a char/short it expected, there
 			 * may be loss in significant digits. We should first
 			 * check for const arguments if they can be converted

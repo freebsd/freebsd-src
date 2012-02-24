@@ -18,6 +18,13 @@ CFLAGS+=${SENDMAIL_CFLAGS}
 
 WARNS?=	2
 
+.if ${CC:T:Mclang} == "clang"
+# Unfortunately, clang gives warnings about sendmail code that cannot
+# be turned off yet.  Since this is contrib code, and we don't really
+# care about the warnings, just make them non-fatal for now.
+NO_WERROR=
+.endif
+
 LIB=	sm
 
 SRCS+=	sm_os.h

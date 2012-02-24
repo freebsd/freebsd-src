@@ -28,6 +28,7 @@
 __FBSDID("$FreeBSD$");
 
 #include "opt_ddb.h"
+#include "opt_ar71xx.h"
 
 #include <sys/param.h>
 #include <sys/conf.h>

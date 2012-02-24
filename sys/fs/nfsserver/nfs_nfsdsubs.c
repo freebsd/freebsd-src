@@ -56,6 +56,13 @@ static nfstype newnfsv2_type[9] = { NFNON, NFREG, NFDIR, NFBLK, NFCHR, NFLNK,
 extern nfstype nfsv34_type[9];
 #endif	/* !APPLEKEXT */
 
+SYSCTL_DECL(_vfs_nfsd);
+
+static int	disable_checkutf8 = 0;
+SYSCTL_INT(_vfs_nfsd, OID_AUTO, disable_checkutf8, CTLFLAG_RW,
+    &disable_checkutf8, 0,
+    "Disable the NFSv4 check for a UTF8 compliant name");
+
 static char nfsrv_hexdigit(char, int *);
 
 /*
@@ -1963,7 +1970,8 @@ nfsrv_parsename(struct nfsrv_descript *nd, char *bufp, u_long *hashp,
 		    error = 0;
 		    goto nfsmout;
 		}
-		if (nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
+		if (disable_checkutf8 == 0 &&
+		    nfsrv_checkutf8((u_int8_t *)bufp, outlen)) {
 		    nd->nd_repstat = NFSERR_INVAL;
 		    error = 0;
 		    goto nfsmout;

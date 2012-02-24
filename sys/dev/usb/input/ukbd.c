@@ -198,7 +198,6 @@ struct ukbd_softc {
 	int	sc_mode;		/* input mode (K_XLATE,K_RAW,K_CODE) */
 	int	sc_state;		/* shift/lock key state */
 	int	sc_accents;		/* accent key index (> 0) */
-	int	sc_poll_tick_last;
 	int	sc_led_size;
 	int	sc_kbd_size;
 
@@ -227,7 +226,6 @@ struct ukbd_softc {
 	uint8_t sc_id_events;
 	uint8_t sc_kbd_id;
 
-	uint8_t sc_poll_detected;
 	uint8_t sc_buffer[UKBD_BUFFER_SIZE];
 };
 
@@ -246,6 +244,33 @@ struct ukbd_softc {
 #define	SCAN_PREFIX	(SCAN_PREFIX_E0  | SCAN_PREFIX_E1 | \
 			 SCAN_PREFIX_CTL | SCAN_PREFIX_SHIFT)
 #define	SCAN_CHAR(c)	((c) & 0x7f)
+
+#define	UKBD_LOCK()	mtx_lock(&Giant)
+#define	UKBD_UNLOCK()	mtx_unlock(&Giant)
+
+#ifdef	INVARIANTS
+
+/*
+ * Assert that the lock is held in all contexts
+ * where the code can be executed.
+ */
+#define	UKBD_LOCK_ASSERT()	mtx_assert(&Giant, MA_OWNED)
+
+/*
+ * Assert that the lock is held in the contexts
+ * where it really has to be so.
+ */
+#define	UKBD_CTX_LOCK_ASSERT()			 	\
+	do {						\
+		if (!kdb_active && panicstr == NULL)	\
+			mtx_assert(&Giant, MA_OWNED);	\
+	} while (0)
+#else
+
+#define UKBD_LOCK_ASSERT()	(void)0
+#define UKBD_CTX_LOCK_ASSERT()	(void)0
+
+#endif
 
 struct ukbd_mods {
 	uint32_t mask, key;
@@ -339,8 +364,6 @@ static int	ukbd_ioctl(keyboard_t *, u_long, caddr_t);
 static int	ukbd_enable(keyboard_t *);
 static int	ukbd_disable(keyboard_t *);
 static void	ukbd_interrupt(struct ukbd_softc *);
-static int	ukbd_is_polling(struct ukbd_softc *);
-static int	ukbd_polls_other_thread(struct ukbd_softc *);
 static void	ukbd_event_keyinput(struct ukbd_softc *);
 
 static device_probe_t ukbd_probe;
@@ -370,7 +393,8 @@ ukbd_start_timer(struct ukbd_softc *sc)
 static void
 ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 {
-	mtx_assert(&Giant, MA_OWNED);
+
+	UKBD_CTX_LOCK_ASSERT();
 
 	DPRINTF("0x%02x (%d) %s\n", key, key,
 	    (key & KEY_RELEASE) ? "released" : "pressed");
@@ -388,52 +412,32 @@ ukbd_put_key(struct ukbd_softc *sc, uint32_t key)
 }
 
 static void
-ukbd_yield(void)
-{
-	struct thread *td = curthread;
-	uint32_t old_prio;
-
-	DROP_GIANT();
-
-	thread_lock(td);
-
-	/* get current priority */
-	old_prio = td->td_base_pri;
-
-	/* set new priority */
-	sched_prio(td, td->td_user_pri);
-
-	/* cause a task switch */
-	mi_switch(SW_INVOL | SWT_RELINQUISH, NULL);
-
-	/* restore priority */
-	sched_prio(td, old_prio);
-
-	thread_unlock(td);
-
-	PICKUP_GIANT();
-}
-
-static void
 ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 {
+
+	UKBD_CTX_LOCK_ASSERT();
+	KASSERT((sc->sc_flags & UKBD_FLAG_POLLING) != 0,
+	    ("ukbd_do_poll called when not polling\n"));
 	DPRINTFN(2, "polling\n");
 
-	/* update stats about last polling event */
-	sc->sc_poll_tick_last = ticks;
-	sc->sc_poll_detected = 1;
-
-	if (kdb_active == 0) {
+	if (!kdb_active && !SCHEDULER_STOPPED()) {
+		/*
+		 * In this context the kernel is polling for input,
+		 * but the USB subsystem works in normal interrupt-driven
+		 * mode, so we just wait on the USB threads to do the job.
+		 * Note that we currently hold the Giant, but it's also used
+		 * as the transfer mtx, so we must release it while waiting.
+		 */
 		while (sc->sc_inputs == 0) {
-
-			/* give USB threads a chance to run */
-			ukbd_yield();
-
-			/* check if we should wait */
+			/*
+			 * Give USB threads a chance to run.  Note that
+			 * kern_yield performs DROP_GIANT + PICKUP_GIANT.
+			 */
+			kern_yield(PRI_UNCHANGED);
 			if (!wait)
 				break;
 		}
-		return;		/* Only poll if KDB is active */
+		return;
 	}
 
 	while (sc->sc_inputs == 0) {
@@ -441,7 +445,6 @@ ukbd_do_poll(struct ukbd_softc *sc, uint8_t wait)
 		usbd_transfer_poll(sc->sc_xfer, UKBD_N_TRANSFER);
 
 		/* Delay-optimised support for repetition of keys */
-
 		if (ukbd_any_key_pressed(sc)) {
 			/* a key is pressed - need timekeeping */
 			DELAY(1000);
@@ -462,15 +465,15 @@ ukbd_get_key(struct ukbd_softc *sc, uint8_t wait)
 {
 	int32_t c;
 
-	mtx_assert(&Giant, MA_OWNED);
+	UKBD_CTX_LOCK_ASSERT();
+	KASSERT((!kdb_active && !SCHEDULER_STOPPED())
+	    || (sc->sc_flags & UKBD_FLAG_POLLING) != 0,
+	    ("not polling in kdb or panic\n"));
 
 	if (sc->sc_inputs == 0) {
 		/* start transfer, if not already started */
 		usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 	}
-
-	if (ukbd_polls_other_thread(sc))
-		return (-1);
 
 	if (sc->sc_flags & UKBD_FLAG_POLLING)
 		ukbd_do_poll(sc, wait);
@@ -498,6 +501,8 @@ ukbd_interrupt(struct ukbd_softc *sc)
 	uint8_t key;
 	uint8_t i;
 	uint8_t j;
+
+	UKBD_CTX_LOCK_ASSERT();
 
 	if (sc->sc_ndata.keycode[0] == KEY_ERROR)
 		return;
@@ -584,7 +589,9 @@ ukbd_event_keyinput(struct ukbd_softc *sc)
 {
 	int c;
 
-	if (ukbd_is_polling(sc))
+	UKBD_CTX_LOCK_ASSERT();
+
+	if ((sc->sc_flags & UKBD_FLAG_POLLING) != 0)
 		return;
 
 	if (sc->sc_inputs == 0)
@@ -608,7 +615,7 @@ ukbd_timeout(void *arg)
 {
 	struct ukbd_softc *sc = arg;
 
-	mtx_assert(&Giant, MA_OWNED);
+	UKBD_LOCK_ASSERT();
 
 	sc->sc_time_ms += 25;	/* milliseconds */
 
@@ -655,6 +662,8 @@ ukbd_intr_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t offset;
 	uint8_t id;
 	int len;
+
+	UKBD_LOCK_ASSERT();
 
 	usbd_xfer_status(xfer, &len, NULL, NULL, NULL);
 	pc = usbd_xfer_get_frame(xfer, 0);
@@ -842,6 +851,8 @@ ukbd_set_leds_callback(struct usb_xfer *xfer, usb_error_t error)
 	uint8_t any;
 	int len;
 
+	UKBD_LOCK_ASSERT();
+
 #ifdef USB_DEBUG
 	if (ukbd_no_leds)
 		return;
@@ -972,6 +983,7 @@ ukbd_probe(device_t dev)
 	int error;
 	uint16_t d_len;
 
+	UKBD_LOCK_ASSERT();
 	DPRINTFN(11, "\n");
 
 	if (sw == NULL) {
@@ -998,7 +1010,7 @@ ukbd_probe(device_t dev)
 	if (error)
 		return (ENXIO);
 
-	/* 
+	/*
 	 * NOTE: we currently don't support USB mouse and USB keyboard
 	 * on the same USB endpoint.
 	 */
@@ -1165,6 +1177,8 @@ ukbd_attach(device_t dev)
 	uint16_t n;
 	uint16_t hid_len;
 
+	UKBD_LOCK_ASSERT();
+
 	kbd_init_struct(kbd, UKBD_DRIVER_NAME, KB_OTHER, unit, 0, 0, 0);
 
 	kbd->kb_data = (void *)sc;
@@ -1241,13 +1255,9 @@ ukbd_attach(device_t dev)
 	/* ignore if SETIDLE fails, hence it is not crucial */
 	usbd_req_set_idle(sc->sc_udev, NULL, sc->sc_iface_index, 0, 0);
 
-	mtx_lock(&Giant);
-
 	ukbd_ioctl(kbd, KDSETLED, (caddr_t)&sc->sc_state);
 
 	KBD_INIT_DONE(kbd);
-
-	mtx_unlock(&Giant);
 
 	if (kbd_register(kbd) < 0) {
 		goto detach;
@@ -1266,15 +1276,10 @@ ukbd_attach(device_t dev)
 	if (bootverbose) {
 		genkbd_diag(kbd, bootverbose);
 	}
-	/* lock keyboard mutex */
-
-	mtx_lock(&Giant);
 
 	/* start the keyboard */
-
 	usbd_transfer_start(sc->sc_xfer[UKBD_INTR_DT]);
 
-	mtx_unlock(&Giant);
 	return (0);			/* success */
 
 detach:
@@ -1288,9 +1293,9 @@ ukbd_detach(device_t dev)
 	struct ukbd_softc *sc = device_get_softc(dev);
 	int error;
 
-	DPRINTF("\n");
+	UKBD_LOCK_ASSERT();
 
-	mtx_lock(&Giant);
+	DPRINTF("\n");
 
 	sc->sc_flags |= UKBD_FLAG_GONE;
 
@@ -1318,8 +1323,6 @@ ukbd_detach(device_t dev)
 	}
 	sc->sc_kbd.kb_flags = 0;
 
-	mtx_unlock(&Giant);
-
 	usbd_transfer_unsetup(sc->sc_xfer, UKBD_N_TRANSFER);
 
 	usb_callout_drain(&sc->sc_callout);
@@ -1335,11 +1338,9 @@ ukbd_resume(device_t dev)
 {
 	struct ukbd_softc *sc = device_get_softc(dev);
 
-	mtx_lock(&Giant);
+	UKBD_LOCK_ASSERT();
 
 	ukbd_clear_state(&sc->sc_kbd);
-
-	mtx_unlock(&Giant);
 
 	return (0);
 }
@@ -1400,15 +1401,11 @@ ukbd_lock(keyboard_t *kbd, int lock)
 static int
 ukbd_enable(keyboard_t *kbd)
 {
-	if (!mtx_owned(&Giant)) {
-		/* XXX cludge */
-		int retval;
-		mtx_lock(&Giant);
-		retval = ukbd_enable(kbd);
-		mtx_unlock(&Giant);
-		return (retval);
-	}
+
+	UKBD_LOCK();
 	KBD_ACTIVATE(kbd);
+	UKBD_UNLOCK();
+
 	return (0);
 }
 
@@ -1416,44 +1413,24 @@ ukbd_enable(keyboard_t *kbd)
 static int
 ukbd_disable(keyboard_t *kbd)
 {
-	if (!mtx_owned(&Giant)) {
-		/* XXX cludge */
-		int retval;
-		mtx_lock(&Giant);
-		retval = ukbd_disable(kbd);
-		mtx_unlock(&Giant);
-		return (retval);
-	}
+
+	UKBD_LOCK();
 	KBD_DEACTIVATE(kbd);
+	UKBD_UNLOCK();
+
 	return (0);
 }
 
 /* check if data is waiting */
+/* Currently unused. */
 static int
 ukbd_check(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
+	UKBD_CTX_LOCK_ASSERT();
+
 	if (!KBD_IS_ACTIVE(kbd))
-		return (0);
-
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		if (!mtx_owned(&Giant)) {
-			/* XXX cludge */
-			int retval;
-			mtx_lock(&Giant);
-			retval = ukbd_check(kbd);
-			mtx_unlock(&Giant);
-			return (retval);
-		}
-	} else {
-		/* XXX the keyboard layer requires Giant */
-		if (!mtx_owned(&Giant))
-			return (0);
-	}
-
-	/* check if key belongs to this thread */
-	if (ukbd_polls_other_thread(sc))
 		return (0);
 
 	if (sc->sc_flags & UKBD_FLAG_POLLING)
@@ -1472,30 +1449,13 @@ ukbd_check(keyboard_t *kbd)
 
 /* check if char is waiting */
 static int
-ukbd_check_char(keyboard_t *kbd)
+ukbd_check_char_locked(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
+	UKBD_CTX_LOCK_ASSERT();
+
 	if (!KBD_IS_ACTIVE(kbd))
-		return (0);
-
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		if (!mtx_owned(&Giant)) {
-			/* XXX cludge */
-			int retval;
-			mtx_lock(&Giant);
-			retval = ukbd_check_char(kbd);
-			mtx_unlock(&Giant);
-			return (retval);
-		}
-	} else {
-		/* XXX the keyboard layer requires Giant */
-		if (!mtx_owned(&Giant))
-			return (0);
-	}
-
-	/* check if key belongs to this thread */
-	if (ukbd_polls_other_thread(sc))
 		return (0);
 
 	if ((sc->sc_composed_char > 0) &&
@@ -1505,39 +1465,34 @@ ukbd_check_char(keyboard_t *kbd)
 	return (ukbd_check(kbd));
 }
 
+static int
+ukbd_check_char(keyboard_t *kbd)
+{
+	int result;
+
+	UKBD_LOCK();
+	result = ukbd_check_char_locked(kbd);
+	UKBD_UNLOCK();
+
+	return (result);
+}
 
 /* read one byte from the keyboard if it's allowed */
+/* Currently unused. */
 static int
 ukbd_read(keyboard_t *kbd, int wait)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 	int32_t usbcode;
-
 #ifdef UKBD_EMULATE_ATSCANCODE
 	uint32_t keycode;
 	uint32_t scancode;
 
 #endif
+
+	UKBD_CTX_LOCK_ASSERT();
+
 	if (!KBD_IS_ACTIVE(kbd))
-		return (-1);
-
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		if (!mtx_owned(&Giant)) {
-			/* XXX cludge */
-			int retval;
-			mtx_lock(&Giant);
-			retval = ukbd_read(kbd, wait);
-			mtx_unlock(&Giant);
-			return (retval);
-		}
-	} else {
-		/* XXX the keyboard layer requires Giant */
-		if (!mtx_owned(&Giant))
-			return (-1);
-	}
-
-	/* check if key belongs to this thread */
-	if (ukbd_polls_other_thread(sc))
 		return (-1);
 
 #ifdef UKBD_EMULATE_ATSCANCODE
@@ -1574,38 +1529,19 @@ ukbd_read(keyboard_t *kbd, int wait)
 
 /* read char from the keyboard */
 static uint32_t
-ukbd_read_char(keyboard_t *kbd, int wait)
+ukbd_read_char_locked(keyboard_t *kbd, int wait)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 	uint32_t action;
 	uint32_t keycode;
 	int32_t usbcode;
-
 #ifdef UKBD_EMULATE_ATSCANCODE
 	uint32_t scancode;
-
 #endif
 
+	UKBD_CTX_LOCK_ASSERT();
+
 	if (!KBD_IS_ACTIVE(kbd))
-		return (NOKEY);
-
-	if (sc->sc_flags & UKBD_FLAG_POLLING) {
-		if (!mtx_owned(&Giant)) {
-			/* XXX cludge */
-			int retval;
-			mtx_lock(&Giant);
-			retval = ukbd_read_char(kbd, wait);
-			mtx_unlock(&Giant);
-			return (retval);
-		}
-	} else {
-		/* XXX the keyboard layer requires Giant */
-		if (!mtx_owned(&Giant))
-			return (NOKEY);
-	}
-
-	/* check if key belongs to this thread */
-	if (ukbd_polls_other_thread(sc))
 		return (NOKEY);
 
 next_code:
@@ -1782,39 +1718,32 @@ errkey:
 	return (ERRKEY);
 }
 
+/* Currently wait is always false. */
+static uint32_t
+ukbd_read_char(keyboard_t *kbd, int wait)
+{
+	uint32_t keycode;
+
+	UKBD_LOCK();
+	keycode = ukbd_read_char_locked(kbd, wait);
+	UKBD_UNLOCK();
+
+	return (keycode);
+}
+
 /* some useful control functions */
 static int
-ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
+ukbd_ioctl_locked(keyboard_t *kbd, u_long cmd, caddr_t arg)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 	int i;
-
 #if defined(COMPAT_FREEBSD6) || defined(COMPAT_FREEBSD5) || \
     defined(COMPAT_FREEBSD4) || defined(COMPAT_43)
 	int ival;
 
 #endif
-	if (!mtx_owned(&Giant)) {
-		/*
-		 * XXX big problem: If scroll lock is pressed and "printf()"
-		 * is called, the CPU will get here, to un-scroll lock the
-		 * keyboard. But if "printf()" acquires the "Giant" lock,
-		 * there will be a locking order reversal problem, so the
-		 * keyboard system must get out of "Giant" first, before the
-		 * CPU can proceed here ...
-		 */
-		switch (cmd) {
-		case KDGKBMODE:
-		case KDSKBMODE:
-			/* workaround for Geli */
-			mtx_lock(&Giant);
-			i = ukbd_ioctl(kbd, cmd, arg);
-			mtx_unlock(&Giant);
-			return (i);
-		default:
-			return (EINVAL);
-		}
-	}
+
+	UKBD_LOCK_ASSERT();
 
 	switch (cmd) {
 	case KDGKBMODE:		/* get keyboard mode */
@@ -1839,7 +1768,7 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 		case K_RAW:
 		case K_CODE:
 			if (sc->sc_mode != *(int *)arg) {
-				if (ukbd_is_polling(sc) == 0)
+				if ((sc->sc_flags & UKBD_FLAG_POLLING) == 0)
 					ukbd_clear_state(kbd);
 				sc->sc_mode = *(int *)arg;
 			}
@@ -1943,19 +1872,44 @@ ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
 	return (0);
 }
 
+static int
+ukbd_ioctl(keyboard_t *kbd, u_long cmd, caddr_t arg)
+{
+	int result;
+
+	/*
+	 * XXX KDGKBSTATE, KDSKBSTATE and KDSETLED can be called from any
+	 * context where printf(9) can be called, which among other things
+	 * includes interrupt filters and threads with any kinds of locks
+	 * already held.  For this reason it would be dangerous to acquire
+	 * the Giant here unconditionally.  On the other hand we have to
+	 * have it to handle the ioctl.
+	 * So we make our best effort to auto-detect whether we can grab
+	 * the Giant or not.  Blame syscons(4) for this.
+	 */
+	switch (cmd) {
+	case KDGKBSTATE:
+	case KDSKBSTATE:
+	case KDSETLED:
+		if (!mtx_owned(&Giant) && !SCHEDULER_STOPPED())
+			return (EDEADLK);	/* best I could come up with */
+		/* FALLTHROUGH */
+	default:
+		UKBD_LOCK();
+		result = ukbd_ioctl_locked(kbd, cmd, arg);
+		UKBD_UNLOCK();
+		return (result);
+	}
+}
+
+
 /* clear the internal state of the keyboard */
 static void
 ukbd_clear_state(keyboard_t *kbd)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	if (!mtx_owned(&Giant)) {
-		/* XXX cludge */
-		mtx_lock(&Giant);
-		ukbd_clear_state(kbd);
-		mtx_unlock(&Giant);
-		return;
-	}
+	UKBD_CTX_LOCK_ASSERT();
 
 	sc->sc_flags &= ~(UKBD_FLAG_COMPOSE | UKBD_FLAG_POLLING);
 	sc->sc_state &= LOCK_MASK;	/* preserve locking key state */
@@ -1986,43 +1940,11 @@ ukbd_set_state(keyboard_t *kbd, void *buf, size_t len)
 }
 
 static int
-ukbd_is_polling(struct ukbd_softc *sc)
-{
-	int delta;
-
-	if (sc->sc_flags & UKBD_FLAG_POLLING)
-		return (1);	/* polling */
-
-	delta = ticks - sc->sc_poll_tick_last;
-	if ((delta < 0) || (delta >= hz)) {
-		sc->sc_poll_detected = 0;
-		return (0);		/* not polling */
-	}
-
-	return (sc->sc_poll_detected);
-}
-
-static int
-ukbd_polls_other_thread(struct ukbd_softc *sc)
-{
-	return (ukbd_is_polling(sc) &&
-	    (sc->sc_poll_thread != curthread));
-}
-
-static int
 ukbd_poll(keyboard_t *kbd, int on)
 {
 	struct ukbd_softc *sc = kbd->kb_data;
 
-	if (!mtx_owned(&Giant)) {
-		/* XXX cludge */
-		int retval;
-		mtx_lock(&Giant);
-		retval = ukbd_poll(kbd, on);
-		mtx_unlock(&Giant);
-		return (retval);
-	}
-
+	UKBD_LOCK();
 	if (on) {
 		sc->sc_flags |= UKBD_FLAG_POLLING;
 		sc->sc_poll_thread = curthread;
@@ -2030,6 +1952,8 @@ ukbd_poll(keyboard_t *kbd, int on)
 		sc->sc_flags &= ~UKBD_FLAG_POLLING;
 		ukbd_start_timer(sc);	/* start timer */
 	}
+	UKBD_UNLOCK();
+
 	return (0);
 }
 
@@ -2038,6 +1962,8 @@ ukbd_poll(keyboard_t *kbd, int on)
 static void
 ukbd_set_leds(struct ukbd_softc *sc, uint8_t leds)
 {
+
+	UKBD_LOCK_ASSERT();
 	DPRINTF("leds=0x%02x\n", leds);
 
 	sc->sc_leds = leds;

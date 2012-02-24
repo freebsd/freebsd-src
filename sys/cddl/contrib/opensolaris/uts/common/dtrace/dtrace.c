@@ -5877,6 +5877,9 @@ dtrace_probe(dtrace_id_t id, uintptr_t arg0, uintptr_t arg1,
 	volatile uint16_t *flags;
 	hrtime_t now;
 
+	if (panicstr != NULL)
+		return;
+
 #if defined(sun)
 	/*
 	 * Kick out immediately if this CPU is still being born (in which case

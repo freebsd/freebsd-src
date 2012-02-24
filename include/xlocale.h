@@ -157,9 +157,9 @@ int	 vfscanf_l(FILE * __restrict, locale_t, const char * __restrict, __va_list)
 		__scanflike(3, 0);
 int	 vscanf_l(locale_t, const char * __restrict, __va_list) __scanflike(2, 0);
 int	 vsnprintf_l(char * __restrict, size_t, locale_t, const char * __restrict,
-		va_list) __printflike(4, 0);
+		__va_list) __printflike(4, 0);
 int	 vsscanf_l(const char * __restrict, locale_t, const char * __restrict,
-		va_list) __scanflike(3, 0);
+		__va_list) __scanflike(3, 0);
 int	 dprintf_l(int, locale_t, const char * __restrict, ...) __printflike(3, 4);
 int	 vdprintf_l(int, locale_t, const char * __restrict, __va_list)
 		__printflike(3, 0);

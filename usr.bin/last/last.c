@@ -83,7 +83,7 @@ struct idtab {
 static const	char *crmsg;			/* cause of last reboot */
 static time_t	currentout;			/* current logout value */
 static long	maxrec;				/* records to display */
-static const	char *file = NULL;		/* wtmp file */
+static const	char *file = NULL;		/* utx.log file */
 static int	sflag = 0;			/* show delta in seconds */
 static int	width = 5;			/* show seconds in delta */
 static int	yflag;				/* show year */
@@ -194,7 +194,7 @@ main(int argc, char *argv[])
 
 /*
  * wtmp --
- *	read through the wtmp file
+ *	read through the utx.log file
  */
 static void
 wtmp(void)
@@ -229,13 +229,13 @@ wtmp(void)
 		doentry(&buf[--amount]);
 
 	tm = localtime(&t);
-	(void) strftime(ct, sizeof(ct), "\nwtmp begins %+\n", tm);
-	printf("%s", ct);
+	(void) strftime(ct, sizeof(ct), "%+", tm);
+	printf("\n%s begins %s\n", ((file == NULL) ? "utx.log" : file), ct);
 }
 
 /*
  * doentry --
- *	process a single wtmp entry
+ *	process a single utx.log entry
  */
 static void
 doentry(struct utmpx *bp)

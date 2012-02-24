@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 1994-1996 Søren Schmidt
+ * Copyright (c) 1994-1996 SÃ¸ren Schmidt
  * All rights reserved.
  *
  * Based heavily on /sys/kern/imgact_aout.c which is:
@@ -64,8 +64,8 @@ exec_linux_imgact(struct image_params *imgp)
     struct vmspace *vmspace;
     vm_offset_t vmaddr;
     unsigned long virtual_offset, file_offset;
-    vm_offset_t buffer;
     unsigned long bss_size;
+    ssize_t aresid;
     int error;
 
     if (((a_out->a_magic >> 16) & 0xff) != 0x64)
@@ -144,21 +144,15 @@ exec_linux_imgact(struct image_params *imgp)
 	if (error)
 	    goto fail;
 
-	error = vm_mmap(kernel_map, &buffer,
-			round_page(a_out->a_text + a_out->a_data + file_offset),
-			VM_PROT_READ, VM_PROT_READ, 0, OBJT_VNODE,
-			imgp->vp, trunc_page(file_offset));
-	if (error)
-	    goto fail;
-
-	error = copyout((void *)(uintptr_t)(buffer + file_offset),
-			(void *)vmaddr, a_out->a_text + a_out->a_data);
-
-	vm_map_remove(kernel_map, buffer,
-		      buffer + round_page(a_out->a_text + a_out->a_data + file_offset));
-
-	if (error)
-	    goto fail;
+	error = vn_rdwr(UIO_READ, imgp->vp, (void *)vmaddr, file_offset,
+	    a_out->a_text + a_out->a_data, UIO_USERSPACE, 0,
+	    curthread->td_ucred, NOCRED, &aresid, curthread);
+	if (error != 0)
+		goto fail;
+	if (aresid != 0) {
+		error = ENOEXEC;
+		goto fail;
+	}
 
 	/*
 	 * remove write enable on the 'text' part

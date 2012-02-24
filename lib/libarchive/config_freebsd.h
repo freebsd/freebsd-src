@@ -68,6 +68,7 @@
 #endif
 
 #define	HAVE_BSDXML_H 1
+#define	HAVE_BZLIB_H 1
 #define	HAVE_CHFLAGS 1
 #define	HAVE_CHOWN 1
 #define	HAVE_DECL_EXTATTR_NAMESPACE_USER 1

@@ -46,7 +46,7 @@ static const char sccsid[] = "@(#)ctl_transact.c	8.1 (Berkeley) 6/6/93";
 
 /*
  * SOCKDGRAM is unreliable, so we must repeat messages if we have
- * not recieved an acknowledgement within a reasonable amount
+ * not received an acknowledgement within a reasonable amount
  * of time
  */
 void

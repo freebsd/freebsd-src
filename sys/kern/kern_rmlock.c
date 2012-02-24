@@ -344,6 +344,9 @@ _rm_rlock(struct rmlock *rm, struct rm_priotracker *tracker, int trylock)
 	struct thread *td = curthread;
 	struct pcpu *pc;
 
+	if (SCHEDULER_STOPPED())
+		return (1);
+
 	tracker->rmp_flags  = 0;
 	tracker->rmp_thread = td;
 	tracker->rmp_rmlock = rm;
@@ -413,6 +416,9 @@ _rm_runlock(struct rmlock *rm, struct rm_priotracker *tracker)
 	struct pcpu *pc;
 	struct thread *td = tracker->rmp_thread;
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	td->td_critnest++;	/* critical_enter(); */
 	pc = cpuid_to_pcpu[td->td_oncpu]; /* pcpu_find(td->td_oncpu); */
 	rm_tracker_remove(pc, tracker);
@@ -431,6 +437,9 @@ _rm_wlock(struct rmlock *rm)
 	struct rm_priotracker *prio;
 	struct turnstile *ts;
 	cpuset_t readcpus;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
 		sx_xlock(&rm->rm_lock_sx);
@@ -486,6 +495,9 @@ _rm_wunlock(struct rmlock *rm)
 void _rm_wlock_debug(struct rmlock *rm, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	WITNESS_CHECKORDER(&rm->lock_object, LOP_NEWORDER | LOP_EXCLUSIVE,
 	    file, line, NULL);
 
@@ -507,6 +519,9 @@ void
 _rm_wunlock_debug(struct rmlock *rm, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	curthread->td_locks--;
 	if (rm->lock_object.lo_flags & RM_SLEEPABLE)
 		WITNESS_UNLOCK(&rm->rm_lock_sx.lock_object, LOP_EXCLUSIVE,
@@ -521,6 +536,10 @@ int
 _rm_rlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     int trylock, const char *file, int line)
 {
+
+	if (SCHEDULER_STOPPED())
+		return (1);
+
 	if (!trylock && (rm->lock_object.lo_flags & RM_SLEEPABLE))
 		WITNESS_CHECKORDER(&rm->rm_lock_sx.lock_object, LOP_NEWORDER,
 		    file, line, NULL);
@@ -543,6 +562,9 @@ void
 _rm_runlock_debug(struct rmlock *rm, struct rm_priotracker *tracker,
     const char *file, int line)
 {
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	curthread->td_locks--;
 	WITNESS_UNLOCK(&rm->lock_object, 0, file, line);

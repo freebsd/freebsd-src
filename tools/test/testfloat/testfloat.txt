@@ -289,7 +289,7 @@ raise the invalid exception if the source value cannot be rounded to a
 representable integer of the desired size (32 or 64 bits).  If such a
 conversion overflows, TestFloat expects the largest integer with the same
 sign as the operand to be returned.  If the floating-point operand is a NaN,
-TestFloat allows either the largest postive or largest negative integer to
+TestFloat allows either the largest positive or largest negative integer to
 be returned.
 
 - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -629,7 +629,7 @@ TestFloat assumes that conversions to integer will raise the invalid
 exception if the source value cannot be rounded to a representable integer.
 When the conversion overflows, TestFloat expects the largest integer with
 the same sign as the operand to be returned.  If the floating-point operand
-is a NaN, TestFloat allows either the largest postive or largest negative
+is a NaN, TestFloat allows either the largest positive or largest negative
 integer to be returned.  The current version of TestFloat provides no means
 to alter these conventions.
 

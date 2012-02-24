@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003 - 2008 Søren Schmidt <sos@FreeBSD.org>
+ * Copyright (c) 2003 - 2008 SÃ¸ren Schmidt <sos@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -193,6 +193,10 @@ struct ata_pci_controller {
 #define ATA_I82801IB_AH4        0x29238086
 #define ATA_I82801IB_R1         0x29258086
 #define ATA_I82801IB_S2         0x29268086
+#define ATA_I82801IBM_S1        0x29288086
+#define ATA_I82801IBM_AH        0x29298086
+#define ATA_I82801IBM_R1        0x292a8086
+#define ATA_I82801IBM_S2        0x292d8086
 #define ATA_I82801JIB_S1        0x3a208086
 #define ATA_I82801JIB_AH        0x3a228086
 #define ATA_I82801JIB_R1        0x3a258086
@@ -232,6 +236,7 @@ struct ata_pci_controller {
 #define ATA_PBG_AH1		0x1d028086
 #define ATA_PBG_R1		0x1d048086
 #define ATA_PBG_R2		0x1d068086
+#define ATA_PBG_R3		0x28268086
 #define ATA_PBG_S2		0x1d088086
 
 #define ATA_PPT_S1		0x1e008086

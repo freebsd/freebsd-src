@@ -129,6 +129,7 @@ ar5416InitState(struct ath_hal_5416 *ahp5416, uint16_t devid, HAL_SOFTC sc,
 
 	/* Misc Functions */
 	ah->ah_getCapability		= ar5416GetCapability;
+	ah->ah_setCapability		= ar5416SetCapability;
 	ah->ah_getDiagState		= ar5416GetDiagState;
 	ah->ah_setLedState		= ar5416SetLedState;
 	ah->ah_gpioCfgOutput		= ar5416GpioCfgOutput;
@@ -339,7 +340,7 @@ ar5416Attach(uint16_t devid, HAL_SOFTC sc,
 	OS_REG_WRITE(ah, AR_PHY(0), 0x00000007);
 
 	/* Read Radio Chip Rev Extract */
-	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5212GetRadioRev(ah);
+	AH_PRIVATE(ah)->ah_analog5GhzRev = ar5416GetRadioRev(ah);
 	switch (AH_PRIVATE(ah)->ah_analog5GhzRev & AR_RADIO_SREV_MAJOR) {
         case AR_RAD5122_SREV_MAJOR:	/* Fowl: 5G/2x2 */
         case AR_RAD2122_SREV_MAJOR:	/* Fowl: 2+5G/2x2 */
@@ -865,7 +866,7 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 			;
 
 	pCap->halFastCCSupport = AH_TRUE;
-	pCap->halNumGpioPins = 6;
+	pCap->halNumGpioPins = 14;
 	pCap->halWowSupport = AH_FALSE;
 	pCap->halWowMatchPatternExact = AH_FALSE;
 	pCap->halBtCoexSupport = AH_FALSE;	/* XXX need support */
@@ -884,6 +885,16 @@ ar5416FillCapabilityInfo(struct ath_hal *ah)
 	/* AR5416 may have 3 antennas but is a 2x2 stream device */
 	pCap->halTxStreams = 2;
 	pCap->halRxStreams = 2;
+
+	/*
+	 * If the TX or RX chainmask has less than 2 chains active,
+	 * mark it as a 1-stream device for the relevant stream.
+	 */
+	if (owl_get_ntxchains(pCap->halTxChainMask) == 1)
+		pCap->halTxStreams = 1;
+	/* XXX Eww */
+	if (owl_get_ntxchains(pCap->halRxChainMask) == 1)
+		pCap->halRxStreams = 1;
 	pCap->halRtsAggrLimit = 8*1024;		/* Owl 2.0 limit */
 	pCap->halMbssidAggrSupport = AH_FALSE;	/* Broken on Owl */
 	pCap->halForcePpmSupport = AH_TRUE;

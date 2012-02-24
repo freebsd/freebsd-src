@@ -72,13 +72,13 @@ struct errmsg {
 #define DROPPACKET(s)							\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return;							\
 	}
 #define DROPPACKETn(s,n)						\
 	if (packetdroppercentage != 0 &&				\
 	    random()%100 < packetdroppercentage) {			\
-		tftp_log(LOG_DEBUG, "Artifical packet drop in %s", s);	\
+		tftp_log(LOG_DEBUG, "Artificial packet drop in %s", s);	\
 		return (n);						\
 	}
 
@@ -323,7 +323,6 @@ send_ack(int fp, uint16_t block)
 {
 	struct tftphdr *tp;
 	int size;
-	char *bp;
 	char buf[MAXPKTSIZE];
 
 	if (debug&DEBUG_PACKETS)
@@ -332,7 +331,6 @@ send_ack(int fp, uint16_t block)
 	DROPPACKETn("send_ack", 0);
 
 	tp = (struct tftphdr *)buf;
-	bp = buf + 2;
 	size = sizeof(buf) - 2;
 	tp->th_opcode = htons((u_short)ACK);
 	tp->th_block = htons((u_short)block);
@@ -465,7 +463,8 @@ receive_packet(int peer, char *data, int size, struct sockaddr_storage *from,
 	}
 
 	if (pkt->th_opcode == ERROR) {
-		tftp_log(LOG_ERR, "Got ERROR packet: %s", pkt->th_msg);
+		tftp_log(pkt->th_code == EUNDEF ? LOG_DEBUG : LOG_ERR,
+		    "Got ERROR packet: %s", pkt->th_msg);
 		return (RP_ERROR);
 	}
 

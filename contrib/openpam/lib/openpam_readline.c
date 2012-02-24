@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003 Networks Associates Technology, Inc.
- * Copyright (c) 2004-2007 Dag-Erling Smørgrav
+ * Copyright (c) 2004-2011 Dag-Erling Smørgrav
  * All rights reserved.
  *
  * This software was developed for the FreeBSD Project by ThinkSec AS and
@@ -32,8 +32,12 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * $Id: openpam_readline.c 408 2007-12-21 11:36:24Z des $
+ * $Id: openpam_readline.c 473 2011-11-03 10:48:25Z des $
  */
+
+#ifdef HAVE_CONFIG_H
+# include "config.h"
+#endif
 
 #include <ctype.h>
 #include <stdio.h>
@@ -83,33 +87,23 @@ openpam_readline(FILE *f, int *lineno, size_t *lenp)
 		}
 		/* eof */
 		if (ch == EOF) {
-			/* remove trailing whitespace */
-			while (len > 0 && isspace((int)line[len - 1]))
-				--len;
-			line[len] = '\0';
-			if (len == 0)
-				goto fail;
+			/* done */
 			break;
 		}
 		/* eol */
 		if (ch == '\n') {
 			if (lineno != NULL)
 				++*lineno;
-
-			/* remove trailing whitespace */
-			while (len > 0 && isspace((int)line[len - 1]))
-				--len;
-			line[len] = '\0';
 			/* skip blank lines */
 			if (len == 0)
 				continue;
 			/* continuation */
 			if (line[len - 1] == '\\') {
 				line[--len] = '\0';
-				/* fall through to whitespace case */
-			} else {
-				break;
+				continue;
 			}
+			/* done */
+			break;
 		}
 		/* whitespace */
 		if (isspace(ch)) {
@@ -123,10 +117,16 @@ openpam_readline(FILE *f, int *lineno, size_t *lenp)
 		line_putch(ch);
 	}
 
+	/* remove trailing whitespace */
+	while (len > 0 && isspace((unsigned char)line[len - 1]))
+		--len;
+	line[len] = '\0';
+	if (len == 0)
+		goto fail;
 	if (lenp != NULL)
 		*lenp = len;
 	return (line);
- fail:
+fail:
 	FREE(line);
 	return (NULL);
 }
@@ -136,13 +136,14 @@ openpam_readline(FILE *f, int *lineno, size_t *lenp)
  * in a NUL-terminated buffer allocated with =malloc.
  *
  * The =openpam_readline function performs a certain amount of processing
- * on the data it reads.
- * Comments (introduced by a hash sign) are stripped, as is leading and
- * trailing whitespace.
- * Any amount of linear whitespace is collapsed to a single space.
- * Blank lines are ignored.
- * If a line ends in a backslash, the backslash is stripped and the next
- * line is appended.
+ * on the data it reads:
+ *
+ *  - Comments (introduced by a hash sign) are stripped, as is leading and
+ *    trailing whitespace.
+ *  - Any amount of linear whitespace is collapsed to a single space.
+ *  - Blank lines are ignored.
+ *  - If a line ends in a backslash, the backslash is stripped and the
+ *    next line is appended.
  *
  * If =lineno is not =NULL, the integer variable it points to is
  * incremented every time a newline character is read.

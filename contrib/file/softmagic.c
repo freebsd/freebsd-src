@@ -1582,7 +1582,7 @@ mget(struct magic_set *ms, const unsigned char *s,
 
 	case FILE_INDIRECT:
 	  	if ((ms->flags & (MAGIC_MIME|MAGIC_APPLE)) == 0 &&
-		    file_printf(ms, m->desc) == -1)
+		    file_printf(ms, "%s", m->desc) == -1)
 			return -1;
 		if (nbytes < offset)
 			return 0;

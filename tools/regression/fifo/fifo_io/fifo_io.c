@@ -395,7 +395,7 @@ timed_read(int fd, void *data, size_t len, ssize_t *read_lenp,
  *
  * We use a timeout of 5 seconds, concluding that in 5 seconds either all I/O
  * that can take place will, and that if we reach the end of the timeout,
- * then blocking has occured.
+ * then blocking has occurred.
  *
  * We assume that the buffer size on a fifo is <512K, and as such, that
  * writing that much data without an active reader will result in blocking.

@@ -1,14 +1,14 @@
 # $FreeBSD$
 
-# Where to find the cpio sources (for the internal unit tests)
-CPIO_SRCDIR=${.CURDIR}/..
+LIBARCHIVEDIR=	${.CURDIR}/../../../contrib/libarchive
 
-.PATH:	${CPIO_SRCDIR}
+.PATH:	${LIBARCHIVEDIR}/cpio
 CPIO_SRCS= cmdline.c
 
-.PATH:	${.CURDIR}/../../../lib/libarchive/libarchive_fe
+.PATH:	${LIBARCHIVEDIR}/libarchive_fe
 CPIO_SRCS+= err.c pathmatch.c
 
+.PATH:	${LIBARCHIVEDIR}/cpio/test
 TESTS=	\
 	test_0.c				\
 	test_basic.c				\
@@ -49,29 +49,30 @@ NO_MAN=yes
 
 PROG=bsdcpio_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"config_freebsd.h\"
-CFLAGS+=	-I..
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../config_freebsd.h\"
+CFLAGS+=	-I${.CURDIR}/..
 LDADD= -larchive -lz -lbz2 -llzma
 #CFLAGS+= -static -g -O2 -Wall
 CFLAGS+= -g -O2 -Wall
 CFLAGS+= -I${.OBJDIR}
-CFLAGS+= -I${CPIO_SRCDIR}
-CFLAGS+= -I${.CURDIR}/../../../lib/libarchive/libarchive_fe
+CFLAGS+= -I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/libarchive_fe
 
 # Uncomment to link against dmalloc
 #LDADD+= -L/usr/local/lib -ldmalloc
 #CFLAGS+= -I/usr/local/include -DUSE_DMALLOC
 
 check test:	bsdcpio_test
-	${.OBJDIR}/bsdcpio_test -p ${.OBJDIR}/../bsdcpio -r ${.CURDIR}
+	${.OBJDIR}/bsdcpio_test -p ${.OBJDIR}/../bsdcpio \
+	-r ${LIBARCHIVEDIR}/cpio/test
 
 ${.OBJDIR}/list.h list.h: ${TESTS} Makefile
-	(cd ${.CURDIR}; cat ${TESTS}) | grep DEFINE_TEST > list.h
+	(cd ${LIBARCHIVEDIR}/cpio/test; cat ${TESTS}) | \
+	grep DEFINE_TEST > ${.OBJDIR}/list.h
 
 clean:
 	rm -f ${CLEANFILES}
 	rm -f *~
 	-chmod -R +w /tmp/bsdcpio_test.*
-	rm -rf /tmp/bsdcpio_test.*
+	rm -rf /tmp/bsdcpio_test
 
 .include <bsd.prog.mk>

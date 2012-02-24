@@ -201,7 +201,9 @@ add_new_resolv_conf() {
 	local tmpres=/var/run/resolv.conf.${interface}
 	rm -f $tmpres
 
-	if [ -n "$new_domain_name" ]; then
+	if [ -n "$new_domain_search" ]; then
+		echo "search $new_domain_search" >>$tmpres
+	elif [ -n "$new_domain_name" ]; then
 		echo "search $new_domain_name" >>$tmpres
 	fi
 
@@ -318,7 +320,7 @@ MEDIUM)
 
 PREINIT)
 	delete_old_alias
-	$IFCONFIG $interface inet alias 0.0.0.0 netmask 0.0.0.0 broadcast 255.255.255.255 up
+	$IFCONFIG $interface inet alias 0.0.0.0 netmask 255.0.0.0 broadcast 255.255.255.255 up
 	;;
 
 ARPCHECK|ARPSEND)

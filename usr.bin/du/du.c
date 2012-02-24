@@ -89,18 +89,18 @@ main(int argc, char *argv[])
 	off_t		threshold, threshold_sign;
 	int		ftsoptions;
 	int		depth;
-	int		Hflag, Lflag, Pflag, aflag, sflag, dflag, cflag;
+	int		Hflag, Lflag, aflag, sflag, dflag, cflag;
 	int		hflag, lflag, ch, notused, rval;
 	char 		**save;
 	static char	dot[] = ".";
 
 	setlocale(LC_ALL, "");
 
-	Hflag = Lflag = Pflag = aflag = sflag = dflag = cflag = hflag =
+	Hflag = Lflag = aflag = sflag = dflag = cflag = hflag =
 	    lflag = Aflag = 0;
 
 	save = argv;
-	ftsoptions = 0;
+	ftsoptions = FTS_PHYSICAL;
 	savednumber = 0;
 	threshold = 0;
 	threshold_sign = 1;
@@ -125,19 +125,17 @@ main(int argc, char *argv[])
 			break;
 		case 'H':
 			Hflag = 1;
+			Lflag = 0;
 			break;
 		case 'I':
 			ignoreadd(optarg);
 			break;
 		case 'L':
-			if (Pflag)
-				usage();
 			Lflag = 1;
+			Hflag = 0;
 			break;
 		case 'P':
-			if (Lflag)
-				usage();
-			Pflag = 1;
+			Hflag = Lflag = 0;
 			break;
 		case 'a':
 			aflag = 1;
@@ -210,20 +208,12 @@ main(int argc, char *argv[])
 	 * the man page, so it's a feature.
 	 */
 
-	if (Hflag + Lflag + Pflag > 1)
-		usage();
-
-	if (Hflag + Lflag + Pflag == 0)
-		Pflag = 1;			/* -P (physical) is default */
-
 	if (Hflag)
 		ftsoptions |= FTS_COMFOLLOW;
-
-	if (Lflag)
+	if (Lflag) {
+		ftsoptions &= ~FTS_PHYSICAL;
 		ftsoptions |= FTS_LOGICAL;
-
-	if (Pflag)
-		ftsoptions |= FTS_PHYSICAL;
+	}
 
 	if (!Aflag && (cblocksize % DEV_BSIZE) != 0)
 		cblocksize = howmany(cblocksize, DEV_BSIZE) * DEV_BSIZE;
@@ -499,9 +489,9 @@ static void
 usage(void)
 {
 	(void)fprintf(stderr,
-		"usage: du [-A] [-H | -L | -P] [-a | -s | -d depth] [-c] "
-		"[-l] [-h | -k | -m | -B bsize] [-n] [-x] [-I mask] "
-		"[file ...]\n");
+		"usage: du [-Aclnx] [-H | -L | -P] [-h | -k | -m ] "
+		"[-a | -s | -d depth] [-B blocksize] [-I mask] "
+		"[-t threshold] [file ...]\n");
 	exit(EX_USAGE);
 }
 

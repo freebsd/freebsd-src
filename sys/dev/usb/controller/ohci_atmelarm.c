@@ -221,15 +221,17 @@ static device_method_t ohci_methods[] = {
 	DEVMETHOD(device_probe, ohci_atmelarm_probe),
 	DEVMETHOD(device_attach, ohci_atmelarm_attach),
 	DEVMETHOD(device_detach, ohci_atmelarm_detach),
+	DEVMETHOD(device_suspend, bus_generic_suspend),
+	DEVMETHOD(device_resume, bus_generic_resume),
 	DEVMETHOD(device_shutdown, bus_generic_shutdown),
 
 	DEVMETHOD_END
 };
 
 static driver_t ohci_driver = {
-	"ohci",
-	ohci_methods,
-	sizeof(struct at91_ohci_softc),
+	.name = "ohci",
+	.methods = ohci_methods,
+	.size = sizeof(struct at91_ohci_softc),
 };
 
 static devclass_t ohci_devclass;

@@ -92,14 +92,17 @@ for dir in /bin /usr/bin /usr/local/bin; do
 		svnversion=${dir}/svnversion
 		break
 	fi
-	if [ -d "${SYSDIR}/../.git" -a -x "${dir}/git" ] ; then
-		git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
-		break
-	fi
 done
+if [ -d "${SYSDIR}/../.git" ] ; then
+	for dir in /bin /usr/bin /usr/local/bin; do
+		if [ -x "${dir}/git" ] ; then
+			git_cmd="${dir}/git --git-dir=${SYSDIR}/../.git"
+			break
+		fi
+	done
+fi
 
 if [ -n "$svnversion" ] ; then
-	echo "$svnversion"
 	svn=`cd ${SYSDIR} && $svnversion`
 	case "$svn" in
 	[0-9]*)	svn=" r${svn}" ;;

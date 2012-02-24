@@ -617,7 +617,7 @@ passin:
 		bad = 1;
 #define	sa_equal(a1, a2)						\
 	(bcmp((a1), (a2), ((a1))->sin6_len) == 0)
-		IF_ADDR_LOCK(ifp);
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
 			if (ifa->ifa_addr->sa_family != dst6.sin6_family)
 				continue;
@@ -649,7 +649,7 @@ passin:
 			    ip6_sprintf(ip6bufs, &ip6->ip6_src),
 			    ip6_sprintf(ip6bufd, &ip6->ip6_dst)));
 		}
-		IF_ADDR_UNLOCK(ifp);
+		IF_ADDR_RUNLOCK(ifp);
 		LLE_RUNLOCK(lle);
 		if (bad)
 			goto bad;
@@ -666,7 +666,7 @@ passin:
 	dst->sin6_len = sizeof(struct sockaddr_in6);
 	dst->sin6_family = AF_INET6;
 	dst->sin6_addr = ip6->ip6_dst;
-	rin6.ro_rt = rtalloc1((struct sockaddr *)dst, 0, 0);
+	rin6.ro_rt = in6_rtalloc1((struct sockaddr *)dst, 0, 0, M_GETFIB(m));
 	if (rin6.ro_rt)
 		RT_UNLOCK(rin6.ro_rt);
 

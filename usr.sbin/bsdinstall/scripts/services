@@ -26,6 +26,8 @@
 #
 # $FreeBSD$
 
+: ${DIALOG_OK=0}
+
 if [ -f $BSDINSTALL_TMPETC/rc.conf.services ]; then
 	eval `sed -e s/YES/on/I -e s/NO/off/I $BSDINSTALL_TMPETC/rc.conf.services`
 else
@@ -51,3 +53,15 @@ for daemon in $DAEMONS; do
 	echo ${daemon}_enable=\"YES\" >> $BSDINSTALL_TMPETC/rc.conf.services
 done
 
+echo \# Set dumpdev to \"AUTO\" to enable crash dumps, \"NO\" to disable >> \
+	$BSDINSTALL_TMPETC/rc.conf.services
+
+dialog --backtitle "FreeBSD Installer" --title "Dumpdev Configuration" \
+	--nocancel --yesno \
+	"Would you like to enable crash dumps?  If you start having problems with the system it can help the FreeBSD developers debug the problem.  But the crash dumps can take up a lot of disk space in /var." 0 0
+
+if [ $? -eq $DIALOG_OK ]; then
+	echo dumpdev=\"AUTO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+else
+	echo dumpdev=\"NO\" >> $BSDINSTALL_TMPETC/rc.conf.services
+fi

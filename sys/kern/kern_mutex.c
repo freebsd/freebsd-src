@@ -192,6 +192,8 @@ void
 _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock() of destroyed mutex @ %s:%d", file, line));
@@ -211,6 +213,9 @@ _mtx_lock_flags(struct mtx *m, int opts, const char *file, int line)
 void
 _mtx_unlock_flags(struct mtx *m, int opts, const char *file, int line)
 {
+
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock() of destroyed mutex @ %s:%d", file, line));
@@ -232,6 +237,8 @@ void
 _mtx_lock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_lock_spin() of destroyed mutex @ %s:%d", file, line));
@@ -254,6 +261,8 @@ void
 _mtx_unlock_spin_flags(struct mtx *m, int opts, const char *file, int line)
 {
 
+	if (SCHEDULER_STOPPED())
+		return;
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
 	    ("mtx_unlock_spin() of destroyed mutex @ %s:%d", file, line));
@@ -281,6 +290,9 @@ mtx_trylock_flags_(struct mtx *m, int opts, const char *file, int line)
 	int contested = 0;
 #endif
 	int rval;
+
+	if (SCHEDULER_STOPPED())
+		return (1);
 
 	MPASS(curthread != NULL);
 	KASSERT(m->mtx_lock != MTX_DESTROYED,
@@ -337,6 +349,9 @@ _mtx_lock_sleep(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	uint64_t sleep_cnt = 0;
 	int64_t sleep_time = 0;
 #endif
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (mtx_owned(m)) {
 		KASSERT((m->lock_object.lo_flags & LO_RECURSABLE) != 0,
@@ -508,6 +523,9 @@ _mtx_lock_spin(struct mtx *m, uintptr_t tid, int opts, const char *file,
 	uint64_t waittime = 0;
 #endif
 
+	if (SCHEDULER_STOPPED())
+		return;
+
 	if (LOCK_LOG_TEST(&m->lock_object, opts))
 		CTR1(KTR_LOCK, "_mtx_lock_spin: %p spinning", m);
 
@@ -555,6 +573,10 @@ thread_lock_flags_(struct thread *td, int opts, const char *file, int line)
 
 	i = 0;
 	tid = (uintptr_t)curthread;
+
+	if (SCHEDULER_STOPPED())
+		return;
+
 	for (;;) {
 retry:
 		spinlock_enter();
@@ -655,6 +677,9 @@ void
 _mtx_unlock_sleep(struct mtx *m, int opts, const char *file, int line)
 {
 	struct turnstile *ts;
+
+	if (SCHEDULER_STOPPED())
+		return;
 
 	if (mtx_recursed(m)) {
 		if (--(m->mtx_recurse) == 0)

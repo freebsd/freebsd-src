@@ -64,7 +64,7 @@ __FBSDID("$FreeBSD$");
 #include <netinet/in_var.h>
 #include <net/if_llatbl.h>
 #include <netinet/if_ether.h>
-#if defined(INET) || defined(INET6)
+#ifdef INET
 #include <netinet/ip_carp.h>
 #endif
 
@@ -123,8 +123,6 @@ SYSCTL_VNET_INT(_net_link_ether_inet, OID_AUTO, maxhold, CTLFLAG_RW,
 	"Number of packets to hold per ARP entry");
 
 static void	arp_init(void);
-void		arprequest(struct ifnet *,
-			struct in_addr *, struct in_addr *, u_char *);
 static void	arpintr(struct mbuf *);
 static void	arptimer(void *);
 #ifdef INET
@@ -139,8 +137,6 @@ static const struct netisr_handler arp_nh = {
 };
 
 #ifdef AF_INET
-void arp_ifscrub(struct ifnet *ifp, uint32_t addr);
-
 /*
  * called by in_ifscrub to remove entry from the table when
  * the interface goes away
@@ -215,29 +211,41 @@ arprequest(struct ifnet *ifp, struct in_addr *sip, struct in_addr  *tip,
 	struct mbuf *m;
 	struct arphdr *ah;
 	struct sockaddr sa;
+	u_char *carpaddr = NULL;
 
 	if (sip == NULL) {
-		/* XXX don't believe this can happen (or explain why) */
 		/*
 		 * The caller did not supply a source address, try to find
 		 * a compatible one among those assigned to this interface.
 		 */
 		struct ifaddr *ifa;
 
+		IF_ADDR_RLOCK(ifp);
 		TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link) {
-			if (!ifa->ifa_addr ||
-			    ifa->ifa_addr->sa_family != AF_INET)
+			if (ifa->ifa_addr->sa_family != AF_INET)
 				continue;
-			sip = &SIN(ifa->ifa_addr)->sin_addr;
+
+			if (ifa->ifa_carp) {
+				if ((*carp_iamatch_p)(ifa, &carpaddr) == 0)
+					continue;
+				sip = &IA_SIN(ifa)->sin_addr;
+			} else {
+				carpaddr = NULL;
+				sip = &IA_SIN(ifa)->sin_addr;
+			}
+
 			if (0 == ((sip->s_addr ^ tip->s_addr) &
-			    SIN(ifa->ifa_netmask)->sin_addr.s_addr) )
+			    IA_MASKSIN(ifa)->sin_addr.s_addr))
 				break;  /* found it. */
 		}
+		IF_ADDR_RUNLOCK(ifp);
 		if (sip == NULL) {  
 			printf("%s: cannot find matching address\n", __func__);
 			return;
 		}
 	}
+	if (enaddr == NULL)
+		enaddr = carpaddr ? carpaddr : (u_char *)IF_LLADDR(ifp);
 
 	if ((m = m_gethdr(M_DONTWAIT, MT_DATA)) == NULL)
 		return;
@@ -332,9 +340,7 @@ retry:
 		 */
 		if (!(la->la_flags & LLE_STATIC) &&
 		    time_uptime + la->la_preempt > la->la_expire) {
-			arprequest(ifp, NULL,
-			    &SIN(dst)->sin_addr, IF_LLADDR(ifp));
-
+			arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 			la->la_preempt--;
 		}
 		
@@ -410,8 +416,7 @@ retry:
 			LLE_REMREF(la);
 		la->la_asked++;
 		LLE_WUNLOCK(la);
-		arprequest(ifp, NULL, &SIN(dst)->sin_addr,
-		    IF_LLADDR(ifp));
+		arprequest(ifp, NULL, &SIN(dst)->sin_addr, NULL);
 		return (error);
 	}
 done:
@@ -516,7 +521,7 @@ in_arpinput(struct mbuf *m)
 	int op, flags;
 	int req_len;
 	int bridged = 0, is_bridge = 0;
-	int carp_match = 0;
+	int carped;
 	struct sockaddr_in sin;
 	sin.sin_len = sizeof(struct sockaddr_in);
 	sin.sin_family = AF_INET;
@@ -561,24 +566,14 @@ in_arpinput(struct mbuf *m)
 	 * For a bridge, we want to check the address irrespective
 	 * of the receive interface. (This will change slightly
 	 * when we have clusters of interfaces).
-	 * If the interface does not match, but the recieving interface
-	 * is part of carp, we call carp_iamatch to see if this is a
-	 * request for the virtual host ip.
-	 * XXX: This is really ugly!
 	 */
 	IN_IFADDR_RLOCK();
 	LIST_FOREACH(ia, INADDR_HASH(itaddr.s_addr), ia_hash) {
 		if (((bridged && ia->ia_ifp->if_bridge == ifp->if_bridge) ||
 		    ia->ia_ifp == ifp) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
-			ifa_ref(&ia->ia_ifa);
-			IN_IFADDR_RUNLOCK();
-			goto match;
-		}
-		if (ifp->if_carp != NULL &&
-		    (*carp_iamatch_p)(ifp, ia, &isaddr, &enaddr) &&
-		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr) {
-			carp_match = 1;
+		    itaddr.s_addr == ia->ia_addr.sin_addr.s_addr &&
+		    (ia->ia_ifa.ifa_carp == NULL ||
+		    (*carp_iamatch_p)(&ia->ia_ifa, &enaddr))) {
 			ifa_ref(&ia->ia_ifa);
 			IN_IFADDR_RUNLOCK();
 			goto match;
@@ -620,15 +615,17 @@ in_arpinput(struct mbuf *m)
 	 * No match, use the first inet address on the receive interface
 	 * as a dummy address for the rest of the function.
 	 */
-	IF_ADDR_LOCK(ifp);
+	IF_ADDR_RLOCK(ifp);
 	TAILQ_FOREACH(ifa, &ifp->if_addrhead, ifa_link)
-		if (ifa->ifa_addr->sa_family == AF_INET) {
+		if (ifa->ifa_addr->sa_family == AF_INET &&
+		    (ifa->ifa_carp == NULL ||
+		    (*carp_iamatch_p)(ifa, &enaddr))) {
 			ia = ifatoia(ifa);
 			ifa_ref(ifa);
-			IF_ADDR_UNLOCK(ifp);
+			IF_ADDR_RUNLOCK(ifp);
 			goto match;
 		}
-	IF_ADDR_UNLOCK(ifp);
+	IF_ADDR_RUNLOCK(ifp);
 
 	/*
 	 * If bridging, fall back to using any inet address.
@@ -643,6 +640,7 @@ in_arpinput(struct mbuf *m)
 match:
 	if (!enaddr)
 		enaddr = (u_int8_t *)IF_LLADDR(ifp);
+	carped = (ia->ia_ifa.ifa_carp != NULL);
 	myaddr = ia->ia_addr.sin_addr;
 	ifa_free(&ia->ia_ifa);
 	if (!bcmp(ar_sha(ah), enaddr, ifp->if_addrlen))
@@ -659,9 +657,9 @@ match:
 	 * case we suppress the warning to avoid false positive complaints of
 	 * potential misconfiguration.
 	 */
-	if (!bridged && isaddr.s_addr == myaddr.s_addr && myaddr.s_addr != 0) {
-		log(LOG_ERR,
-		   "arp: %*D is using my IP address %s on %s!\n",
+	if (!bridged && !carped && isaddr.s_addr == myaddr.s_addr &&
+	    myaddr.s_addr != 0) {
+		log(LOG_ERR, "arp: %*D is using my IP address %s on %s!\n",
 		   ifp->if_addrlen, (u_char *)ar_sha(ah), ":",
 		   inet_ntoa(isaddr), ifp->if_xname);
 		itaddr = myaddr;
@@ -682,7 +680,7 @@ match:
 	IF_AFDATA_UNLOCK(ifp);
 	if (la != NULL) {
 		/* the following is not an error when doing bridging */
-		if (!bridged && la->lle_tbl->llt_ifp != ifp && !carp_match) {
+		if (!bridged && la->lle_tbl->llt_ifp != ifp) {
 			if (log_arp_wrong_iface)
 				log(LOG_WARNING, "arp: %s is on %s "
 				    "but got reply from %*D on %s\n",
@@ -878,6 +876,9 @@ void
 arp_ifinit(struct ifnet *ifp, struct ifaddr *ifa)
 {
 	struct llentry *lle;
+
+	if (ifa->ifa_carp != NULL)
+		return;
 
 	if (ntohl(IA_SIN(ifa)->sin_addr.s_addr) != INADDR_ANY) {
 		arprequest(ifp, &IA_SIN(ifa)->sin_addr,

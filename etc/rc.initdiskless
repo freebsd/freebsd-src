@@ -46,16 +46,16 @@
 #  bcast/${ipba} same as above
 #  ${class}	where ${class} is a list of directories supplied by
 #		bootp/dhcp through the T134 option.
-#		${ipba} and ${class} are typicall used to configure features
+#		${ipba} and ${class} are typically used to configure features
 #		for group of diskless clients, or even individual features;
 #  ${ip}	where ${ip} is the machine's assigned IP address, typically
 #		used to set host-specific features;
 #  ip/${ip}	same as above
 #
 # Template directories are scanned in the order they are listed above,
-# with each sucessive directory overriding (merged into) the previous one;
+# with each successive directory overriding (merged into) the previous one;
 # non-existing directories are ignored.  The subdirectory forms exist to
-# help keep the top level /conf managable in large installations.
+# help keep the top level /conf manageable in large installations.
 #
 # The existence of a directory /conf/T/M causes this script to create a
 # memory filesystem mounted as /M on the client.

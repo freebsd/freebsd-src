@@ -232,7 +232,7 @@ dump_line(void)
 			target = ((target - 1) & ~7) + 9, com_st++;
 		    else
 			target = 1;
-		if (cur_col > target) {	/* if comment cant fit on this line,
+		if (cur_col > target) {	/* if comment can't fit on this line,
 					 * put it on next line */
 		    putc('\n', output);
 		    cur_col = 1;
@@ -581,12 +581,12 @@ diag2(int level, const char *msg)
 	found_err = 1;
     if (output == stdout) {
 	fprintf(stdout, "/**INDENT** %s@%d: ", level == 0 ? "Warning" : "Error", line_no);
-	fprintf(stdout, msg);
+	fprintf(stdout, "%s", msg);
 	fprintf(stdout, " */\n");
     }
     else {
 	fprintf(stderr, "%s@%d: ", level == 0 ? "Warning" : "Error", line_no);
-	fprintf(stderr, msg);
+	fprintf(stderr, "%s", msg);
 	fprintf(stderr, "\n");
     }
 }

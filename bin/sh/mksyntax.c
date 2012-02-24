@@ -219,16 +219,16 @@ main(int argc __unused, char **argv __unused)
 	add("`", "CBQUOTE");
 	add("$", "CVAR");
 	add("}", "CENDVAR");
-	/* ':/' for tilde expansion, '-' for [a\-x] pattern ranges */
-	add("!*?[=~:/-", "CCTL");
+	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
+	add("!*?[]=~:/-^", "CCTL");
 	print("dqsyntax");
 	init();
 	fputs("\n/* syntax table used when in single quotes */\n", cfile);
 	add("\n", "CNL");
 	add("\\", "CSBACK");
 	add("'", "CENDQUOTE");
-	/* ':/' for tilde expansion, '-' for [a\-x] pattern ranges */
-	add("!*?[=~:/-", "CCTL");
+	/* ':/' for tilde expansion, '-^]' for [a\-x] pattern ranges */
+	add("!*?[]=~:/-^", "CCTL");
 	print("sqsyntax");
 	init();
 	fputs("\n/* syntax table used when in arithmetic */\n", cfile);

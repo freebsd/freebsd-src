@@ -478,7 +478,7 @@ ktrsysret(code, error, retval)
 	ktp = &req->ktr_data.ktr_sysret;
 	ktp->ktr_code = code;
 	ktp->ktr_error = error;
-	ktp->ktr_retval = retval;		/* what about val2 ? */
+	ktp->ktr_retval = ((error == 0) ? retval: 0);		/* what about val2 ? */
 	ktr_submitrequest(curthread, req);
 }
 
@@ -684,7 +684,7 @@ ktrgenio(fd, rw, uio, error)
 	}
 	uio->uio_offset = 0;
 	uio->uio_rw = UIO_WRITE;
-	datalen = imin(uio->uio_resid, ktr_geniosize);
+	datalen = MIN(uio->uio_resid, ktr_geniosize);
 	buf = malloc(datalen, M_KTRACE, M_WAITOK);
 	error = uiomove(buf, datalen, uio);
 	free(uio, M_IOV);

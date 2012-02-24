@@ -89,6 +89,20 @@
 #define	ENTRY(x)	_ENTRY(x)
 #endif
 
+/*
+ * WEAK_ALIAS: create a weak alias.
+ */
+#define	WEAK_ALIAS(alias,sym)						\
+	.weak alias;							\
+	alias = sym
+
+/*
+ * STRONG_ALIAS: create a strong alias.
+ */
+#define	STRONG_ALIAS(alias,sym)						\
+	.globl alias;							\
+	alias = sym
+
 #define RCSID(x)	.text; .asciz x
 
 #undef __FBSDID

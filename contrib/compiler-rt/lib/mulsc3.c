@@ -13,8 +13,7 @@
  */
 
 #include "int_lib.h"
-#include <math.h>
-#include <complex.h>
+#include "int_math.h"
 
 /* Returns: the product of a + ib and c + id */
 
@@ -28,46 +27,46 @@ __mulsc3(float __a, float __b, float __c, float __d)
     float _Complex z;
     __real__ z = __ac - __bd;
     __imag__ z = __ad + __bc;
-    if (isnan(__real__ z) && isnan(__imag__ z))
+    if (crt_isnan(__real__ z) && crt_isnan(__imag__ z))
     {
         int __recalc = 0;
-        if (isinf(__a) || isinf(__b))
+        if (crt_isinf(__a) || crt_isinf(__b))
         {
-            __a = copysignf(isinf(__a) ? 1 : 0, __a);
-            __b = copysignf(isinf(__b) ? 1 : 0, __b);
-            if (isnan(__c))
-                __c = copysignf(0, __c);
-            if (isnan(__d))
-                __d = copysignf(0, __d);
+            __a = crt_copysignf(crt_isinf(__a) ? 1 : 0, __a);
+            __b = crt_copysignf(crt_isinf(__b) ? 1 : 0, __b);
+            if (crt_isnan(__c))
+                __c = crt_copysignf(0, __c);
+            if (crt_isnan(__d))
+                __d = crt_copysignf(0, __d);
             __recalc = 1;
         }
-        if (isinf(__c) || isinf(__d))
+        if (crt_isinf(__c) || crt_isinf(__d))
         {
-            __c = copysignf(isinf(__c) ? 1 : 0, __c);
-            __d = copysignf(isinf(__d) ? 1 : 0, __d);
-            if (isnan(__a))
-                __a = copysignf(0, __a);
-            if (isnan(__b))
-                __b = copysignf(0, __b);
+            __c = crt_copysignf(crt_isinf(__c) ? 1 : 0, __c);
+            __d = crt_copysignf(crt_isinf(__d) ? 1 : 0, __d);
+            if (crt_isnan(__a))
+                __a = crt_copysignf(0, __a);
+            if (crt_isnan(__b))
+                __b = crt_copysignf(0, __b);
             __recalc = 1;
         }
-        if (!__recalc && (isinf(__ac) || isinf(__bd) ||
-                          isinf(__ad) || isinf(__bc)))
+        if (!__recalc && (crt_isinf(__ac) || crt_isinf(__bd) ||
+                          crt_isinf(__ad) || crt_isinf(__bc)))
         {
-            if (isnan(__a))
-                __a = copysignf(0, __a);
-            if (isnan(__b))
-                __b = copysignf(0, __b);
-            if (isnan(__c))
-                __c = copysignf(0, __c);
-            if (isnan(__d))
-                __d = copysignf(0, __d);
+            if (crt_isnan(__a))
+                __a = crt_copysignf(0, __a);
+            if (crt_isnan(__b))
+                __b = crt_copysignf(0, __b);
+            if (crt_isnan(__c))
+                __c = crt_copysignf(0, __c);
+            if (crt_isnan(__d))
+                __d = crt_copysignf(0, __d);
             __recalc = 1;
         }
         if (__recalc)
         {
-            __real__ z = INFINITY * (__a * __c - __b * __d);
-            __imag__ z = INFINITY * (__a * __d + __b * __c);
+            __real__ z = CRT_INFINITY * (__a * __c - __b * __d);
+            __imag__ z = CRT_INFINITY * (__a * __d + __b * __c);
         }
     }
     return z;

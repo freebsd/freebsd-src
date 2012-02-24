@@ -24,6 +24,7 @@ SRCS=	MipsAsmPrinter.cpp \
 TGHDRS=	Intrinsics \
 	MipsGenAsmWriter \
 	MipsGenCallingConv \
+	MipsGenCodeEmitter \
 	MipsGenDAGISel \
 	MipsGenInstrInfo \
 	MipsGenRegisterInfo \

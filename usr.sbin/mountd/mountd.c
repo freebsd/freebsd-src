@@ -1642,9 +1642,8 @@ get_exportlist(void)
 	struct iovec *iov;
 	struct statfs *fsp, *mntbufp;
 	struct xvfsconf vfc;
-	char *dirp;
 	char errmsg[255];
-	int dirplen, num, i;
+	int num, i;
 	int iovlen;
 	int done;
 	struct nfsex_args eargs;
@@ -1652,8 +1651,6 @@ get_exportlist(void)
 	v4root_dirpath[0] = '\0';
 	bzero(&export, sizeof(export));
 	export.ex_flags = MNT_DELEXPORT;
-	dirp = NULL;
-	dirplen = 0;
 	iov = NULL;
 	iovlen = 0;
 	bzero(errmsg, sizeof(errmsg));
@@ -3092,7 +3089,7 @@ checkmask(struct sockaddr *sa)
 /*
  * Compare two sockaddrs according to a specified mask. Return zero if
  * `sa1' matches `sa2' when filtered by the netmask in `samask'.
- * If samask is NULL, perform a full comparision.
+ * If samask is NULL, perform a full comparison.
  */
 int
 sacmp(struct sockaddr *sa1, struct sockaddr *sa2, struct sockaddr *samask)

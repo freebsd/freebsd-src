@@ -98,8 +98,10 @@ routing_stop_inet6()
 	local i
 
 	route -n flush -inet6
-	for i in ${ipv6_network_interfaces}; do
-		ifconfig $i inet6 -defaultif
+	for i in `list_net_interfaces`; do
+		if ipv6if $i; then
+			ifconfig $i inet6 -defaultif
+		fi
 	done
 }
 
@@ -137,12 +139,22 @@ static_inet()
 
 static_inet6()
 {
-	local _action i
+	local _action i fibs
 	_action=$1
 
+	# get the number of FIBs supported.
+	fibs=`sysctl -n net.fibs`
+	: ${fibs:=1}
+
 	# disallow "internal" addresses to appear on the wire
-	route ${_action} -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
-	route ${_action} -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+	i=0
+	while test ${i} -lt ${fibs}; do
+		setfib -F ${i} route ${_action} \
+		    -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+		setfib -F ${i} route ${_action} \
+		    -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+		i=$((i + 1))
+	done
 
 	case ${ipv6_defaultrouter} in
 	[Nn][Oo] | '')
@@ -214,8 +226,14 @@ static_inet6()
 	# for the host case, you will allow to omit the identifiers.
 	# Under this configuration, the packets will go to the default
 	# interface.
-	route ${_action} -inet6 fe80:: -prefixlen 10 ::1 -reject
-	route ${_action} -inet6 ff02:: -prefixlen 16 ::1 -reject
+	i=0
+	while test ${i} -lt ${fibs}; do
+		setfib -F ${i} route ${_action} \
+		    -inet6 fe80:: -prefixlen 10 ::1 -reject
+		setfib -F ${i} route ${_action} \
+		    -inet6 ff02:: -prefixlen 16 ::1 -reject
+		i=$((i + 1))
+	done
 
 	case ${ipv6_default_interface} in
 	'')

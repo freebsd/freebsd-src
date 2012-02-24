@@ -342,3 +342,9 @@ biospci_read_config(uint32_t locator, int offset, int width, uint32_t *val)
 	return (0);
 }
 
+uint32_t
+biospci_locator(int8_t bus, uint8_t device, uint8_t function)
+{
+
+	return ((bus << 8) | ((device & 0x1f) << 3) | (function & 0x7));
+}

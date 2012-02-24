@@ -105,7 +105,7 @@ cmd_exec()
 start_mca(action, prompt, mlist, cmdflags)
 	int action;
 	char *prompt;
-	void *mlist;
+	void constant *mlist;
 	int cmdflags;
 {
 	mca = action;
@@ -686,7 +686,7 @@ make_display()
 	static void
 prompt()
 {
-	register char *p;
+	register char constant *p;
 
 	if (ungot != NULL)
 	{

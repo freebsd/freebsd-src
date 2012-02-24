@@ -1,5 +1,5 @@
 /*
- * FreeBSD install - a package for the installation and maintainance
+ * FreeBSD install - a package for the installation and maintenance
  * of non-core utilities.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -361,7 +361,7 @@ LIST_HEAD(, iip_memo) iip_memo = LIST_HEAD_INITIALIZER(iip_memo);
 /*
  * 
  * Return 1 if the specified package is installed,
- * 0 if not, and -1 if an error occured.
+ * 0 if not, and -1 if an error occurred.
  */
 int
 isinstalledpkg(const char *name)

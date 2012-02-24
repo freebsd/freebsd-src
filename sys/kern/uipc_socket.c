@@ -392,6 +392,7 @@ socreate(int dom, struct socket **aso, int type, int proto,
 	so->so_type = type;
 	so->so_cred = crhold(cred);
 	if ((prp->pr_domain->dom_family == PF_INET) ||
+	    (prp->pr_domain->dom_family == PF_INET6) ||
 	    (prp->pr_domain->dom_family == PF_ROUTE))
 		so->so_fibnum = td->td_proc->p_fibnum;
 	else
@@ -886,7 +887,8 @@ sosend_copyin(struct uio *uio, struct mbuf **retmp, int atomic, long *space,
     int flags)
 {
 	struct mbuf *m, **mp, *top;
-	long len, resid;
+	long len;
+	ssize_t resid;
 	int error;
 #ifdef ZERO_COPY_SOCKETS
 	int cow_send;
@@ -986,7 +988,8 @@ int
 sosend_dgram(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
-	long space, resid;
+	long space;
+	ssize_t resid;
 	int clen = 0, error, dontroute;
 #ifdef ZERO_COPY_SOCKETS
 	int atomic = sosendallatonce(so) || top;
@@ -1158,7 +1161,8 @@ int
 sosend_generic(struct socket *so, struct sockaddr *addr, struct uio *uio,
     struct mbuf *top, struct mbuf *control, int flags, struct thread *td)
 {
-	long space, resid;
+	long space;
+	ssize_t resid;
 	int clen = 0, error, dontroute;
 	int atomic = sosendallatonce(so) || top;
 
@@ -1455,11 +1459,12 @@ soreceive_generic(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct mbuf *m, **mp;
-	int flags, len, error, offset;
+	int flags, error, offset;
+	ssize_t len;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 	int moff, type = 0;
-	int orig_resid = uio->uio_resid;
+	ssize_t orig_resid = uio->uio_resid;
 
 	mp = mp0;
 	if (psa != NULL)
@@ -2118,7 +2123,8 @@ soreceive_dgram(struct socket *so, struct sockaddr **psa, struct uio *uio,
     struct mbuf **mp0, struct mbuf **controlp, int *flagsp)
 {
 	struct mbuf *m, *m2;
-	int flags, len, error;
+	int flags, error;
+	ssize_t len;
 	struct protosw *pr = so->so_proto;
 	struct mbuf *nextrecord;
 
@@ -2498,12 +2504,13 @@ sosetopt(struct socket *so, struct sockopt *sopt)
 		case SO_SETFIB:
 			error = sooptcopyin(sopt, &optval, sizeof optval,
 					    sizeof optval);
-			if (optval < 0 || optval > rt_numfibs) {
+			if (optval < 0 || optval >= rt_numfibs) {
 				error = EINVAL;
 				goto bad;
 			}
 			if (so->so_proto != NULL &&
 			   ((so->so_proto->pr_domain->dom_family == PF_INET) ||
+			   (so->so_proto->pr_domain->dom_family == PF_INET6) ||
 			   (so->so_proto->pr_domain->dom_family == PF_ROUTE))) {
 				so->so_fibnum = optval;
 				/* Note: ignore error */

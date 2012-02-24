@@ -1745,9 +1745,9 @@ ffs_nodealloccg(ip, cg, ipref, mode, unused)
 	struct cg *cgp;
 	struct buf *bp, *ibp;
 	struct ufsmount *ump;
-	u_int8_t *inosused;
+	u_int8_t *inosused, *loc;
 	struct ufs2_dinode *dp2;
-	int error, start, len, loc, map, i;
+	int error, start, len, i;
 
 	fs = ip->i_fs;
 	ump = ip->i_ump;
@@ -1777,25 +1777,19 @@ ffs_nodealloccg(ip, cg, ipref, mode, unused)
 	}
 	start = cgp->cg_irotor / NBBY;
 	len = howmany(fs->fs_ipg - cgp->cg_irotor, NBBY);
-	loc = skpc(0xff, len, &inosused[start]);
-	if (loc == 0) {
+	loc = memcchr(&inosused[start], 0xff, len);
+	if (loc == NULL) {
 		len = start + 1;
 		start = 0;
-		loc = skpc(0xff, len, &inosused[0]);
-		if (loc == 0) {
+		loc = memcchr(&inosused[start], 0xff, len);
+		if (loc == NULL) {
 			printf("cg = %d, irotor = %ld, fs = %s\n",
 			    cg, (long)cgp->cg_irotor, fs->fs_fsmnt);
 			panic("ffs_nodealloccg: map corrupted");
 			/* NOTREACHED */
 		}
 	}
-	i = start + len - loc;
-	map = inosused[i] ^ 0xff;
-	if (map == 0) {
-		printf("fs = %s\n", fs->fs_fsmnt);
-		panic("ffs_nodealloccg: block not in map");
-	}
-	ipref = i * NBBY + ffs(map) - 1;
+	ipref = (loc - inosused) * NBBY + ffs(~*loc) - 1;
 	cgp->cg_irotor = ipref;
 gotit:
 	/*
