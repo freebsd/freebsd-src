@@ -70,6 +70,7 @@ delay()
 
 	# sleep 1 is too long.
 	touch /tmp/foo || true
+	stat /tmp/foo > /dev/null 2>&1 || true
 }
 
 check_rc()
@@ -222,7 +223,7 @@ testtx_udp6_connected()
 #
 testtx_icmp6_connected_blackhole()
 {
-	local _opts _fib
+	local _opts fib
 
 	_opts=""
 	case ${DEBUG} in
@@ -231,20 +232,20 @@ testtx_icmp6_connected_blackhole()
 	*)	_opts="-d" ;;
 	esac
 
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 		print_debug "./reflect -p ${CTRLPORT} -T TCP6 " \
-		    "-t testtx_icmp6_connected_blackhole${_fib} ${_opts}"
+		    "-t testtx_icmp6_connected_blackhole${fib} ${_opts}"
 		./reflect -p ${CTRLPORT} -T TCP6 \
-		    -t testtx_icmp6_connected_blackhole${_fib} ${_opts}
+		    -t testtx_icmp6_connected_blackhole${fib} ${_opts}
 		print_debug "reflect terminated without error."
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 }
 
 testtx_tcp6_connected_blackhole()
 {
-	local _opts _fib
+	local _opts fib
 
 	_opts=""
 	case ${DEBUG} in
@@ -253,20 +254,20 @@ testtx_tcp6_connected_blackhole()
 	*)	_opts="-d" ;;
 	esac
 
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 		print_debug "./reflect -p ${CTRLPORT} -T TCP6 " \
-		    "-t testtx_tcp6_connected_blackhole${_fib} ${_opts}"
+		    "-t testtx_tcp6_connected_blackhole${fib} ${_opts}"
 		./reflect -p ${CTRLPORT} -T TCP6 \
-		    -t testtx_tcp6_connected_blackhole${_fib} ${_opts}
+		    -t testtx_tcp6_connected_blackhole${fib} ${_opts}
 		print_debug "reflect terminated without error."
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 }
 
 testtx_udp6_connected_blackhole()
 {
-	local _opts _fib
+	local _opts fib
 
 	_opts=""
 	case ${DEBUG} in
@@ -275,14 +276,14 @@ testtx_udp6_connected_blackhole()
 	*)	_opts="-d" ;;
 	esac
 
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 		print_debug "./reflect -p ${CTRLPORT} -T UDP6 " \
-		    "-t testtx_udp6_connected_blackhole${_fib} ${_opts}"
+		    "-t testtx_udp6_connected_blackhole${fib} ${_opts}"
 		./reflect -p ${CTRLPORT} -T UDP6 \
-		    -t testtx_udp6_connected_blackhole${_fib} ${_opts}
+		    -t testtx_udp6_connected_blackhole${fib} ${_opts}
 		print_debug "reflect terminated without error."
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 }
 
@@ -290,7 +291,7 @@ testtx_udp6_connected_blackhole()
 #
 testtx_ulp6_connected_transfernets()
 {
-	local _opts _fib _n _o
+	local _opts fib _n _o
 	_n="$1"
 	_o="$2"
 
@@ -302,28 +303,28 @@ testtx_ulp6_connected_transfernets()
 	esac
 
 	# Setup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 alias
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 alias
+		fib=$((fib + 1))
 	done
 
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		print_debug "./reflect -p ${CTRLPORT} -T ${_o} -t ${_n}${_fib} ${_opts}"
-		./reflect -p ${CTRLPORT} -T ${_o} -t ${_n}${_fib} ${_opts}
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		print_debug "./reflect -p ${CTRLPORT} -T ${_o} -t ${_n}${fib} ${_opts}"
+		./reflect -p ${CTRLPORT} -T ${_o} -t ${_n}${fib} ${_opts}
 		print_debug "reflect terminated without error."
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Cleanup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 -alias
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 -alias
 		delay
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 }
 
@@ -420,7 +421,7 @@ testtx_udp6_gateway()
 #
 testtx_ulp6_transfernets_gateways()
 {
-	local _opts _fib _n _o
+	local _opts fib _n _o
 	_n="$1"
 	_o="$2"
 
@@ -432,11 +433,11 @@ testtx_ulp6_transfernets_gateways()
 	esac
 
 	# Setup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 alias
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 alias
+		fib=$((fib + 1))
 	done
 
 	# Setup out listener IP.
@@ -452,12 +453,12 @@ testtx_ulp6_transfernets_gateways()
 	print_debug "reflect terminated without error."
 
 	# Cleanup transfer networks and listener IP.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 -alias
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 -alias
 		delay
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 	ifconfig lo0 inet6 2001:2:ff01::2 -alias
 }
@@ -488,7 +489,7 @@ testtx_udp6_transfernets_gateways()
 #
 testtx_ulp6_transfernets_gateway()
 {
-	local _opts _fib _n _o
+	local _opts fib _n _o
 	_n="$1"
 	_o="$2"
 
@@ -500,11 +501,11 @@ testtx_ulp6_transfernets_gateway()
 	esac
 
 	# Setup transfer networks.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 alias
-		_fib=$((_fib + 1))
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 alias
+		fib=$((fib + 1))
 	done
 
 	# Setup out listener IP.
@@ -513,23 +514,23 @@ testtx_ulp6_transfernets_gateway()
 	ifconfig lo0 inet6 2001:2:ff01::2 alias
 
 	# Reflect requests.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
 		print_debug "./reflect -p ${CTRLPORT} -T ${_o} " \
-		    "-t ${_n}${_fib} ${_opts} -A 2001:2:ff01::2"
+		    "-t ${_n}${fib} ${_opts} -A 2001:2:ff01::2"
 		./reflect -p ${CTRLPORT} -T ${_o} \
-		    -t ${_n}${_fib} ${_opts} -A 2001:2:ff01::2
+		    -t ${_n}${fib} ${_opts} -A 2001:2:ff01::2
 		print_debug "reflect terminated without error."
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 
 	# Cleanup transfer networks and listener IP.
-	_fib=0
-	while test ${_fib} -lt ${RT_NUMFIBS}; do
-		setfib -F${_fib} \
-		    ifconfig ${IFACE} inet6 2001:2:${_fib}::2/64 -alias
+	fib=0
+	while test ${fib} -lt ${RT_NUMFIBS}; do
+		setfib -F${fib} \
+		    ifconfig ${IFACE} inet6 2001:2:${fib}::2/64 -alias
 		delay
-		_fib=$((_fib + 1))
+		fib=$((fib + 1))
 	done
 	ifconfig lo0 inet6 2001:2:ff01::2 -alias
 }
@@ -755,7 +756,7 @@ testrx_remove_connected()
 		done
 
 	else
-		_prefix="${OURADDR%2}"	# Luckily we know the details.
+		_prefix=${OURADDR%2}	# Luckily we know the details.
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
 
@@ -955,7 +956,7 @@ testrx_run_test()
 
 testrx_main()
 {
-	local _n _o s t _fib _instances _destructive
+	local _n _o s t fib _instances _destructive
 	_n="$1"
 	_o="$2"
 	_instances=$3
@@ -968,17 +969,17 @@ testrx_main()
 			for t in ipfw ifconfig; do
 
 				print_debug "${_n}_${t}"
-				_fib=0
-				while test ${_fib} -lt ${RT_NUMFIBS}; do
+				fib=0
+				while test ${fib} -lt ${RT_NUMFIBS}; do
 
-					print_debug "${_n}_${t}_${_fib}" \
+					print_debug "${_n}_${t}_${fib}" \
 					    "${_instances} ${_destructive}" \
 					    "${_transfer}"
-					testrx_run_test "${_n}" "${t}" ${_fib} \
+					testrx_run_test "${_n}" "${t}" ${fib} \
 					   "${_o}" ${_instances} \
 					   ${_destructive} ${_transfer}
 
-					_fib=$((_fib + 1))
+					fib=$((fib + 1))
 				done
 			done
 		done
@@ -1028,7 +1029,11 @@ testrx_udp6_same_addr_all_fibs_a_time()
 #
 # Prereqs.
 #
-kldload ipfw > /dev/null 2>&1 || kldstat -v | grep -q ipfw
+if test `sysctl -n security.jail.jailed` -eq 0; then
+	kldload ipfw > /dev/null 2>&1 || kldstat -v | grep -q ipfw 
+fi
+ipfw -f flush > /dev/null 2>&1 || die "please load ipfw in base system"
+ipfw add 65000 permit ip from any to any > /dev/null 2>&1
 killall reflect || true
 
 ################################################################################
@@ -1039,7 +1044,7 @@ wait_remote_ready
 
 # We are receiver reflecting the input back.
 for uso in 0 1; do
-	
+
 	# Only run ICMP6 tests for the first loop.
 	test ${uso} -ne 0 || testtx_icmp6_connected
 	testtx_tcp6_connected
@@ -1071,6 +1076,7 @@ for uso in 0 1; do
 done
 
 ipfw -f flush > /dev/null 2>&1
+ipfw add 65000 permit ip from any to any > /dev/null 2>&1
 
 # We are receiver, but the FIBs are with us this time.
 for uso in 0 1; do
