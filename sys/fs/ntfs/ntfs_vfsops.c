@@ -67,8 +67,6 @@ MALLOC_DEFINE(M_NTFSNTNODE,"ntfs_ntnode",  "NTFS ntnode information");
 MALLOC_DEFINE(M_NTFSFNODE,"ntfs_fnode",  "NTFS fnode information");
 MALLOC_DEFINE(M_NTFSDIR,"ntfs_dir",  "NTFS dir buffer");
 
-struct sockaddr;
-
 static int	ntfs_mountfs(register struct vnode *, struct mount *, 
 				  struct thread *);
 static int	ntfs_calccfree(struct ntfsmount *ntmp, cn_t *cfreep);
