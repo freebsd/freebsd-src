@@ -281,7 +281,7 @@ parse_input(int argc, char *argv[])
 	case EOF:
 		/* No arguments since last exec. */
 		if (p == bbp) {
-			waitchildren(*argv, 1);
+			waitchildren(*av, 1);
 			exit(rval);
 		}
 		goto arg1;
@@ -368,7 +368,7 @@ arg2:
 			}
 			prerun(argc, av);
 			if (ch == EOF || foundeof) {
-				waitchildren(*argv, 1);
+				waitchildren(*av, 1);
 				exit(rval);
 			}
 			p = bbp;
@@ -608,8 +608,11 @@ waitchildren(const char *name, int waitall)
 		 * If utility signaled or exited with a value of 255,
 		 * exit 1-125.
 		 */
-		if (WIFSIGNALED(status) || WEXITSTATUS(status) == 255)
-			exit(1);
+		if (WIFSIGNALED(status))
+			errx(1, "%s: terminated with signal %d, aborting",
+			    name, WTERMSIG(status));
+		if (WEXITSTATUS(status) == 255)
+			errx(1, "%s: exited with status 255, aborting", name);
 		if (WEXITSTATUS(status))
 			rval = 1;
 	}
