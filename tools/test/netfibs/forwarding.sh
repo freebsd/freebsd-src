@@ -222,36 +222,36 @@ _reachability_check()
 
 reachability_check()
 {
-	local _i _rc
+	local _i rc
 
 	# Try to reach all control addresses on other nodes.
 	# We need to loop for a while as we cannot expect all to be up
 	# the very same moment.
 	i=1
-	_rc=42
-	while test ${_rc} -ne 0 -a ${i} -le ${WAITS}; do
+	rc=42
+	while test ${rc} -ne 0 -a ${i} -le ${WAITS}; do
 		print_debug "${i}/${WAITS} trying to ping6 control addresses."
-		_rc=0
+		rc=0
 		set +e
 		case ${node} in
 		left)	_reachability_check ${MIDDLELEFTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			_reachability_check ${MIDDLERIGHTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			_reachability_check ${RIGHTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			;;
 		middle)	_reachability_check ${LEFTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			_reachability_check ${RIGHTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			;;
 		right)	_reachability_check ${MIDDLERIGHTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			_reachability_check ${MIDDLELEFTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			_reachability_check ${LEFTADDR}
-			_rc=$((_rc + $?))
+			rc=$((rc + $?))
 			;;
 		esac
 		set -e
@@ -390,14 +390,14 @@ test_icmp6()
 
 test_ulp_reflect_one()
 {
-	local _txt _opts _port _fib
+	local _txt _opts port fib
 	_txt="$1"
 	_opts="$2"
-	_port=$3
-	_fib=$4
+	port=$3
+	fib=$4
 
-	print_debug "./reflect -p $((_port + 1 + _fib)) -t ${_txt}" "${_opts}"
-	./reflect -p $((_port + 1 + _fib)) -t ${_txt} ${_opts}
+	print_debug "./reflect -p $((port + 1 + fib)) -t ${_txt}" "${_opts}"
+	./reflect -p $((port + 1 + fib)) -t ${_txt} ${_opts}
 	print_debug "reflect '${_txt}' terminated without error."
 }
 
@@ -463,19 +463,19 @@ nc_send_recv()
 
 test_ulp()
 {
-	local _maxfibs _msg _addr _port _fib i _txt testno _rc _reply
-	_maxfibs=$1
+	local maxfibs _msg _addr port fib i _txt testno _rc _reply
+	maxfibs=$1
 	_msg="$2"
 	_addr=$3
-	_port=$4
-	_fib=$5
+	port=$4
+	fib=$5
 
-	printf "1..%d\n" $((${_maxfibs} * 2))
+	printf "1..%d\n" $((${maxfibs} * 2))
 	testno=1
 	i=0
-	while test ${i} -lt ${_maxfibs}; do
+	while test ${i} -lt ${maxfibs}; do
 
-		if test ${i} -eq $((${_maxfibs} - 1)); then
+		if test ${i} -eq $((${maxfibs} - 1)); then
 			# Last one; signal DONE.
 			_txt="DONE ${_msg}_${i}"
 		else
@@ -485,18 +485,18 @@ test_ulp()
 		eval _rc="\${rc_${i}}"
 
 		# Test TCP.
-		nc_send_recv ${_maxfibs} "${_txt}" "${_txt}" ${_addr} \
-		    $((${_port} + 1 + _fib)) ""
+		nc_send_recv ${maxfibs} "${_txt}" "${_txt}" ${_addr} \
+		    $((${port} + 1 + fib)) ""
 		check_rc $? ${_rc} ${testno} "${_msg}_${i}_tcp" \
-		    "[${_addr}]:$((${_port} + 1 + _fib)) ${_reply}"
+		    "[${_addr}]:$((${port} + 1 + fib)) ${_reply}"
 		testno=$((testno + 1))
 		sleep 1
 
 		# Test UDP.
-		nc_send_recv ${_maxfibs} "${_txt}" "${_txt}" ${_addr} \
-		    $((${_port} + 1 + _fib)) "-u"
+		nc_send_recv ${maxfibs} "${_txt}" "${_txt}" ${_addr} \
+		    $((${port} + 1 + fib)) "-u"
 		check_rc $? ${_rc} ${testno} "${_msg}_${i}_udp" \
-		    "[${_addr}]:$((${_port} + 1 + _fib)) ${_reply}"
+		    "[${_addr}]:$((${port} + 1 + fib)) ${_reply}"
 		sleep 1
 
 		i=$((i + 1))
@@ -506,18 +506,18 @@ test_ulp()
 
 setup_ipfw_count()
 {
-	local i _port _maxfib _p _fib _ofib
-	_port=$1
-	_maxfib=$2
+	local i port maxfib _p _fib _ofib
+	port=$1
+	maxfib=$2
 	_fib=$3
 	_ofib=$4
 
 	i=0
-	while test ${i} -lt ${_maxfib}; do
+	while test ${i} -lt ${maxfib}; do
 
 		case ${_ofib} in
-		-1)	_p=$((_port + 1 + i)) ;;
-		*)	_p=$((_port + 1 + _maxfib - 1 - i)) ;;
+		-1)	_p=$((port + 1 + i)) ;;
+		*)	_p=$((port + 1 + maxfib - 1 - i)) ;;
 		esac
 
 		# Only count ICMP6 echo replies.
@@ -532,10 +532,10 @@ setup_ipfw_count()
 		ipfw add $((20000 + i)) count ipv6-icmp from any to any \
 		    icmp6types 128 fib ${i} via ${IFACEFAR} out > /dev/null
 		ipfw add $((20000 + i)) count tcp from any to any \
-		    dst-port $((${_port} + 1 + i)) fib ${i} \
+		    dst-port $((${port} + 1 + i)) fib ${i} \
 		    via ${IFACEFAR} out > /dev/null
 		ipfw add $((20000 + i)) count udp from any to any \
-		    dst-port $((${_port} + 1 + i)) fib ${i} \
+		    dst-port $((${port} + 1 + i)) fib ${i} \
 		    via ${IFACEFAR} out > /dev/null
 
 		i=$((i + 1))
@@ -544,7 +544,7 @@ setup_ipfw_count()
 
 report_ipfw_count()
 {
-	local _fib _o i _rstr _c _req _p _opts
+	local _fib _o i _rstr _c _req _p _opts base
 	_o="$2"
 
 	case ${DEBUG} in
@@ -553,9 +553,9 @@ report_ipfw_count()
 	esac
 
 	_rstr="RESULTS "
-	for _base in 10000 20000; do
+	for base in 10000 20000; do
 		for _o in i t u; do
-			case ${_base} in
+			case ${base} in
 			10000)	_rstr="${_rstr}\nLEFT " ;;
 			20000)	_rstr="${_rstr}\nRIGHT " ;;
 			esac
@@ -568,11 +568,11 @@ report_ipfw_count()
 			while test ${i} -lt ${RT_NUMFIBS}; do
 
 				case "${_o}" in
-				i)	_c=`ipfw show $((${_base} + i)) | \
+				i)	_c=`ipfw show $((${base} + i)) | \
 					    awk '/ ipv6-icmp / { print $2 }'` ;;
-				t)	_c=`ipfw show $((${_base} + i)) | \
+				t)	_c=`ipfw show $((${base} + i)) | \
 					    awk '/ tcp / { print $2 }'` ;;
-				u)	_c=`ipfw show $((${_base} + i)) | \
+				u)	_c=`ipfw show $((${base} + i)) | \
 					    awk '/ udp / { print $2 }'` ;;
 				esac
 				_rstr="${_rstr}${i} ${_c},"
@@ -582,7 +582,7 @@ report_ipfw_count()
 		done
 		i=0
 		while test ${i} -lt ${RT_NUMFIBS}; do
-			ipfw delete $((${_base} + i)) > /dev/null 2>&1 || true
+			ipfw delete $((${base} + i)) > /dev/null 2>&1 || true
 			i=$((i + 1))
 		done
 	done
@@ -994,18 +994,18 @@ fwd_fib_symmetric_ipfw()
 
 _fwd_fib_asymmetric_results()
 {
-	local _n _fib _maxfib i _edge _type _rc
+	local _n fib maxfib i _edge _type _rc
 	_n="$1"
-	_fib=$2
-	_maxfib=$3
+	fib=$2
+	maxfib=$3
 
 	i=0
-	while test ${i} -lt ${_maxfib}; do
+	while test ${i} -lt ${maxfib}; do
 		_edge="RIGHT"
 			for _type in "ICMP6" "TCP" "UDP"; do
 
 				case ${i} in
-				${_fib}) eval rc_${_n}_${_edge}_${_type}_${i}=1
+				${fib}) eval rc_${_n}_${_edge}_${_type}_${i}=1
 					#print_debug \
 					#   "rc_${_n}_${_edge}_${_type}_${i}=1"
 					;;
@@ -1018,14 +1018,14 @@ _fwd_fib_asymmetric_results()
 			done
 		i=$((i + 1))
 	done
-	_fib=$((_maxfib - 1 - _fib))
+	fib=$((maxfib - 1 - fib))
 	i=0
-	while test ${i} -lt ${_maxfib}; do
+	while test ${i} -lt ${maxfib}; do
 		_edge="LEFT"
 			for _type in "ICMP6" "TCP" "UDP"; do
 
 				case ${i} in
-				${_fib}) eval rc_${_n}_${_edge}_${_type}_${i}=1
+				${fib}) eval rc_${_n}_${_edge}_${_type}_${i}=1
 					#print_debug \
 					#   "rc_${_n}_${_edge}_${_type}_${i}=1"
 					;;
@@ -1073,16 +1073,16 @@ _fwd_fib_asymmetric_left()
 
 _fwd_fib_asymmetric_middle_ifconfig()
 {
-	local _n _maxfib i
+	local _n maxfib i
 	_n="$1"
-	_maxfib=$2
+	maxfib=$2
 
 	i=0
-	while test ${i} -lt ${_maxfib}; do
+	while test ${i} -lt ${maxfib}; do
 		ifconfig ${IFACE} fib ${i}
-		ifconfig ${IFACEFAR} fib $((${_maxfib} - 1 - ${i}))
-		setup_ipfw_count ${CTRLPORT} ${_maxfib} ${i} \
-		    $((${_maxfib} - 1 - ${i}))
+		ifconfig ${IFACEFAR} fib $((${maxfib} - 1 - ${i}))
+		setup_ipfw_count ${CTRLPORT} ${maxfib} ${i} \
+		    $((${maxfib} - 1 - ${i}))
 		wait_remote_ready "START_${_n}_${i}"
 		ipfw -q zero > /dev/null
 		# Nothing to do for the middle node testing the default.
@@ -1095,12 +1095,12 @@ _fwd_fib_asymmetric_middle_ifconfig()
 
 _fwd_fib_asymmetric_middle_ipfw()
 {
-	local _n _maxfib i j _port
+	local _n maxfib i j _port
 	_n="$1"
-	_maxfib=$2
+	maxfib=$2
 
 	i=0
-	while test ${i} -lt ${_maxfib}; do
+	while test ${i} -lt ${maxfib}; do
 
 		_port=$((CTRLPORT + 1 + i))
 		ipfw add 100 setfib ${i} ipv6-icmp from any to any \
@@ -1110,7 +1110,7 @@ _fwd_fib_asymmetric_middle_ipfw()
 		ipfw add 100 setfib ${i} udp from any to any \
 		    dst-port ${_port} via ${IFACE} in > /dev/null
 
-		j=$((${_maxfib} - 1 - ${i}))
+		j=$((${maxfib} - 1 - ${i}))
 		ipfw add 100 setfib ${j} ipv6-icmp from any to any \
 		    icmp6types 129 via ${IFACEFAR} in > /dev/null
 		ipfw add 100 setfib ${j} tcp from any to any \
@@ -1118,7 +1118,7 @@ _fwd_fib_asymmetric_middle_ipfw()
 		ipfw add 100 setfib ${j} udp from any to any \
 		    src-port ${_port} via ${IFACEFAR} in > /dev/null
 
-		setup_ipfw_count ${CTRLPORT} ${_maxfib} ${i} ${j}
+		setup_ipfw_count ${CTRLPORT} ${maxfib} ${i} ${j}
 		wait_remote_ready "START_${_n}_${i}"
 		ipfw -q zero > /dev/null
 		# Nothing to do for the middle node testing the default.
