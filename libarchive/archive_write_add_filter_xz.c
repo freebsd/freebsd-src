@@ -1,6 +1,6 @@
 /*-
- * Copyright (c) 2009,2010 Michihiro NAKAJIMA
  * Copyright (c) 2003-2010 Tim Kientzle
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -365,6 +365,9 @@ archive_compressor_xz_options(struct archive_write_filter *f,
 		return (ARCHIVE_OK);
 	}
 
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
 	return (ARCHIVE_WARN);
 }
 

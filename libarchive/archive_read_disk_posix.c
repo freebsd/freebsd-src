@@ -733,7 +733,7 @@ _archive_read_data_block(struct archive *_a, const void **buff,
 	t->entry_buff_size = t->current_filesystem->buff_size;
 
 	buffbytes = t->entry_buff_size;
-	if (buffbytes > t->current_sparse->length)
+	if ((int64_t)buffbytes > t->current_sparse->length)
 		buffbytes = t->current_sparse->length;
 
 	/*

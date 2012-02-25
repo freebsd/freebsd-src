@@ -413,7 +413,10 @@ _7z_options(struct archive_write *a, const char *key, const char *value)
 		return (ARCHIVE_OK);
 	}
 
-	return (ARCHIVE_FAILED);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 static int
@@ -1587,7 +1590,8 @@ file_init_register_empty(struct _7zip *zip)
 	zip->empty_list.last = &(zip->empty_list.first);
 }
 
-#if !defined(HAVE_BZLIB_H) || !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
+#if !defined(HAVE_ZLIB_H) || !defined(HAVE_BZLIB_H) ||\
+	 !defined(BZ_CONFIG_ERROR) || !defined(HAVE_LZMA_H)
 static int
 compression_unsupported_encoder(struct archive *a,
     struct la_zstream *lastrm, const char *name)

@@ -322,6 +322,15 @@ if test "x$ac_cv_header_libxml_xmlreader_h" != "xyes"; then
   fi
 fi
 
+AC_ARG_WITH([libregex],
+  AS_HELP_STRING([--without-libregex], [Don't build support for regex through libregex]))
+
+if test "x$with_libregex" != "xno"; then
+  if test "x$ac_cv_header_regex_h" != "xno"; then
+    AC_CHECK_FUNC(regcomp, , [AC_CHECK_LIB(regex,regcomp)])
+  fi
+fi
+
 # TODO: Give the user the option of using a pre-existing system
 # libarchive.  This will define HAVE_LIBARCHIVE which will cause
 # bsdtar_platform.h to use #include <...> for the libarchive headers.

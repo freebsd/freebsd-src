@@ -633,7 +633,7 @@ archive_read_data(struct archive *_a, void *buff, size_t s)
 		}
 
 		/* Compute the amount of zero padding needed. */
-		if (a->read_data_output_offset + s <
+		if (a->read_data_output_offset + (int64_t)s <
 		    a->read_data_offset) {
 			len = s;
 		} else if (a->read_data_output_offset <

@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2011 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -849,7 +849,7 @@ archive_string_append_from_wcs(struct archive_string *as,
 			}
 		}
 		as->length += r;
-		if (wp == NULL || (wp - wpp) >= nwc)
+		if (wp == NULL || (wp - wpp) >= (int64_t)nwc)
 			break;
 		/* Get a remaining WCS lenth. */
 		nwc -= wp - wpp;
@@ -2333,7 +2333,7 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 {
 	size_t remaining;
 	char *outp;
-	const char *inp;
+	const uint8_t *inp;
 	size_t avail;
 	int return_value = 0; /* success */
 
@@ -2357,11 +2357,11 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 		return (-1);
 
 	remaining = length;
-	inp = (const char *)_p;
+	inp = (const uint8_t *)_p;
 	outp = as->s + as->length;
 	avail = as->buffer_length - as->length -1;
 	while (*inp && remaining > 0) {
-		if (*inp < 0 && (sc->flag & SCONV_TO_UTF8)) {
+		if (*inp > 127 && (sc->flag & SCONV_TO_UTF8)) {
 			if (avail < UTF8_R_CHAR_SIZE) {
 				as->length = outp - as->s;
 				if (NULL == archive_string_ensure(as,
@@ -2381,13 +2381,13 @@ best_effort_strncat_in_locale(struct archive_string *as, const void *_p,
 			inp++;
 			remaining--;
 			return_value = -1;
-		} else if (*inp < 0) {
+		} else if (*inp > 127) {
 			*outp++ = '?';
 			inp++;
 			remaining--;
 			return_value = -1;
 		} else {
-			*outp++ = *inp++;
+			*outp++ = (char)*inp++;
 			remaining--;
 		}
 	}

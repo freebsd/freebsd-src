@@ -1434,7 +1434,7 @@ restore_entry(struct archive_write_disk *a)
 
 	if (en) {
 		/* Everything failed; give up here. */
-		archive_set_error(&a->archive, en, "Can't create '%s'",
+		archive_set_error(&a->archive, en, "Can't create '%ls'",
 		    a->name);
 		return (ARCHIVE_FAILED);
 	}
@@ -1844,7 +1844,7 @@ check_symlinks(struct archive_write_disk *a)
 				 */
 				if (disk_unlink(a->name)) {
 					archive_set_error(&a->archive, errno,
-					    "Could not remove symlink %s",
+					    "Could not remove symlink %ls",
 					    a->name);
 					pn[0] = c;
 					return (ARCHIVE_FAILED);
@@ -1858,7 +1858,7 @@ check_symlinks(struct archive_write_disk *a)
 				 */
 				if (!S_ISLNK(a->mode)) {
 					archive_set_error(&a->archive, 0,
-					    "Removing symlink %s",
+					    "Removing symlink %ls",
 					    a->name);
 				}
 				/* Symlink gone.  No more problem! */
@@ -1868,15 +1868,15 @@ check_symlinks(struct archive_write_disk *a)
 				/* User asked us to remove problems. */
 				if (disk_unlink(a->name) != 0) {
 					archive_set_error(&a->archive, 0,
-					    "Cannot remove intervening symlink %s",
-					    a->name);
+					    "Cannot remove intervening "
+					    "symlink %ls", a->name);
 					pn[0] = c;
 					return (ARCHIVE_FAILED);
 				}
 				a->pst = NULL;
 			} else {
 				archive_set_error(&a->archive, 0,
-				    "Cannot extract through symlink %s",
+				    "Cannot extract through symlink %ls",
 				    a->name);
 				pn[0] = c;
 				return (ARCHIVE_FAILED);
@@ -2147,19 +2147,20 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 			return (ARCHIVE_OK);
 		if ((a->flags & ARCHIVE_EXTRACT_NO_OVERWRITE)) {
 			archive_set_error(&a->archive, EEXIST,
-			    "Can't create directory '%s'", path);
+			    "Can't create directory '%ls'", path);
 			return (ARCHIVE_FAILED);
 		}
 		if (disk_unlink(path) != 0) {
 			archive_set_error(&a->archive, errno,
-			    "Can't create directory '%s': "
+			    "Can't create directory '%ls': "
 			    "Conflicting file cannot be removed",
 			    path);
 			return (ARCHIVE_FAILED);
 		}
 	} else if (errno != ENOENT && errno != ENOTDIR) {
 		/* Stat failed? */
-		archive_set_error(&a->archive, errno, "Can't test directory '%s'", path);
+		archive_set_error(&a->archive, errno,
+		    "Can't test directory '%ls'", path);
 		return (ARCHIVE_FAILED);
 	} else if (slash != NULL) {
 		*slash = '\0';
@@ -2211,7 +2212,7 @@ create_dir(struct archive_write_disk *a, wchar_t *path)
 	if (file_information(a, path, &st, &st_mode, 0) == 0 && S_ISDIR(st_mode))
 		return (ARCHIVE_OK);
 
-	archive_set_error(&a->archive, errno, "Failed to create dir '%s'",
+	archive_set_error(&a->archive, errno, "Failed to create dir '%ls'",
 	    path);
 	return (ARCHIVE_FAILED);
 }
@@ -2240,7 +2241,7 @@ set_ownership(struct archive_write_disk *a)
 	}
 
 	archive_set_error(&a->archive, errno,
-	    "Can't set user=%jd/group=%jd for %s",
+	    "Can't set user=%jd/group=%jd for %ls",
 	    (intmax_t)a->uid, (intmax_t)a->gid, a->name);
 	return (ARCHIVE_WARN);
 }
