@@ -1670,6 +1670,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		 * connection limit until we can come up with a better
 		 * lowerbound to the TS echo check.
 		 */
+		struct timeval delta_ts;
 		int ts_fudge;
 
 
@@ -1685,9 +1686,10 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 		/* Calculate max ticks since the last timestamp */
 #define TS_MAXFREQ	1100		/* RFC max TS freq of 1Khz + 10% skew */
 #define TS_MICROSECS	1000000		/* microseconds per second */
-		timevalsub(&uptime, &src->scrub->pfss_last);
-		tsval_from_last = (uptime.tv_sec + ts_fudge) * TS_MAXFREQ;
-		tsval_from_last += uptime.tv_usec / (TS_MICROSECS/TS_MAXFREQ);
+		delta_ts = uptime;
+		timevalsub(&delta_ts, &src->scrub->pfss_last);
+		tsval_from_last = (delta_ts.tv_sec + ts_fudge) * TS_MAXFREQ;
+		tsval_from_last += delta_ts.tv_usec / (TS_MICROSECS/TS_MAXFREQ);
 
 		if ((src->state >= TCPS_ESTABLISHED &&
 		    dst->state >= TCPS_ESTABLISHED) &&
@@ -1711,8 +1713,8 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 			DPFPRINTF((" tsval: %u  tsecr: %u  +ticks: %u  "
 			    "idle: %jus %lums\n",
 			    tsval, tsecr, tsval_from_last,
-			    (uintmax_t)uptime.tv_sec,
-			    uptime.tv_usec / 1000));
+			    (uintmax_t)delta_ts.tv_sec,
+			    delta_ts.tv_usec / 1000));
 			DPFPRINTF((" src->tsval: %u  tsecr: %u\n",
 			    src->scrub->pfss_tsval, src->scrub->pfss_tsecr));
 			DPFPRINTF((" dst->tsval: %u  tsecr: %u  tsval0: %u"
