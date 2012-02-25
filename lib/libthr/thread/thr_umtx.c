@@ -109,23 +109,30 @@ __thr_umutex_lock_spin(struct umutex *mtx, uint32_t id)
 
 int
 __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
-	const struct timespec *ets)
+	const struct timespec *abstime)
 {
-	struct timespec timo, cts;
+	struct _umtx_time *tm_p, timeout;
+	size_t tm_size;
 	uint32_t owner;
 	int ret;
 
-	clock_gettime(CLOCK_REALTIME, &cts);
-	TIMESPEC_SUB(&timo, ets, &cts);
-
-	if (timo.tv_sec < 0)
-		return (ETIMEDOUT);
+	if (abstime == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._clockid = CLOCK_REALTIME;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._timeout = *abstime;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
+	}
 
 	for (;;) {
 		if ((mtx->m_flags & (UMUTEX_PRIO_PROTECT | UMUTEX_PRIO_INHERIT)) == 0) {
 
 			/* wait in kernel */
-			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_WAIT, 0, 0, &timo);
+			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_WAIT, 0,
+				 (void *)tm_size, __DECONST(void *, tm_p));
 
 			/* now try to lock it */
 			owner = mtx->m_owner;
@@ -133,18 +140,13 @@ __thr_umutex_timedlock(struct umutex *mtx, uint32_t id,
 			     atomic_cmpset_acq_32(&mtx->m_owner, owner, id|owner))
 				return (0);
 		} else {
-			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_LOCK, 0, 0, &timo);
+			ret = _umtx_op_err(mtx, UMTX_OP_MUTEX_LOCK, 0, 
+				 (void *)tm_size, __DECONST(void *, tm_p));
 			if (ret == 0)
 				break;
 		}
 		if (ret == ETIMEDOUT)
 			break;
-		clock_gettime(CLOCK_REALTIME, &cts);
-		TIMESPEC_SUB(&timo, ets, &cts);
-		if (timo.tv_sec < 0 || (timo.tv_sec == 0 && timo.tv_nsec == 0)) {
-			ret = ETIMEDOUT;
-			break;
-		}
 	}
 	return (ret);
 }
@@ -200,10 +202,23 @@ int
 _thr_umtx_timedwait_uint(volatile u_int *mtx, u_int id, int clockid,
 	const struct timespec *abstime, int shared)
 {
+	struct _umtx_time *tm_p, timeout;
+	size_t tm_size;
+
+	if (abstime == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._clockid = CLOCK_REALTIME;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._timeout = *abstime;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
+	}
+
 	return _umtx_op_err(__DEVOLATILE(void *, mtx), 
 		shared ? UMTX_OP_WAIT_UINT : UMTX_OP_WAIT_UINT_PRIVATE, id, 
-	       	abstime != NULL ? (void *)(uintptr_t)((clockid << 16) | UMTX_WAIT_ABSTIME) : 0, 
-		__DECONST(void *, abstime));
+		(void *)tm_size, __DECONST(void *, tm_p));
 }
 
 int
