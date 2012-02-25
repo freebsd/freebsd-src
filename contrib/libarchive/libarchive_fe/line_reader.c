@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2008 Tim Kientzle
+ * Copyright (c) 2010 Joerg Sonnenberger
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -74,12 +75,18 @@ lafe_line_reader(const char *pathname, int nullSeparator)
 	if (lr->f == NULL)
 		lafe_errc(1, errno, "Couldn't open %s", pathname);
 	lr->buff_length = 8192;
-	lr->buff = malloc(lr->buff_length);
-	if (lr->buff == NULL)
-		lafe_errc(1, ENOMEM, "Can't read %s", pathname);
-	lr->line_start = lr->line_end = lr->buff_end = lr->buff;
+	lr->line_start = lr->line_end = lr->buff_end = lr->buff = NULL;
 
 	return (lr);
+}
+
+static void
+lafe_line_reader_find_eol(struct lafe_line_reader *lr)
+{
+
+	lr->line_end += strcspn(lr->line_end,
+	    lr->nullSeparator ? "" : "\x0d\x0a");
+	*lr->line_end = '\0'; /* Noop if line_end == buff_end */
 }
 
 const char *
@@ -91,36 +98,21 @@ lafe_line_reader_next(struct lafe_line_reader *lr)
 	for (;;) {
 		/* If there's a line in the buffer, return it immediately. */
 		while (lr->line_end < lr->buff_end) {
-			if (lr->nullSeparator) {
-				if (*lr->line_end == '\0') {
-					line_start = lr->line_start;
-					lr->line_start = lr->line_end + 1;
-					lr->line_end = lr->line_start;
-					return (line_start);
-				}
-			} else if (*lr->line_end == '\x0a' || *lr->line_end == '\x0d') {
-				*lr->line_end = '\0';
-				line_start = lr->line_start;
-				lr->line_start = lr->line_end + 1;
-				lr->line_end = lr->line_start;
-				if (line_start[0] != '\0')
-					return (line_start);
-			}
-			lr->line_end++;
+			line_start = lr->line_start;
+			lr->line_start = ++lr->line_end;
+			lafe_line_reader_find_eol(lr);
+
+			if (lr->nullSeparator || line_start[0] != '\0')
+				return (line_start);
 		}
 
 		/* If we're at end-of-file, process the final data. */
 		if (lr->f == NULL) {
-			/* If there's more text, return one last line. */
-			if (lr->line_end > lr->line_start) {
-				*lr->line_end = '\0';
-				line_start = lr->line_start;
-				lr->line_start = lr->line_end + 1;
-				lr->line_end = lr->line_start;
-				return (line_start);
-			}
-			/* Otherwise, we're done. */
-			return (NULL);
+			if (lr->line_start == lr->buff_end)
+				return (NULL); /* No more text */
+			line_start = lr->line_start;
+			lr->line_start = lr->buff_end;
+			return (line_start);
 		}
 
 		/* Buffer only has part of a line. */
@@ -138,7 +130,11 @@ lafe_line_reader_next(struct lafe_line_reader *lr)
 				lafe_errc(1, ENOMEM,
 				    "Line too long in %s", lr->pathname);
 			lr->buff_length = new_buff_size;
-			p = realloc(lr->buff, new_buff_size);
+			/*
+			 * Allocate one extra byte to allow terminating
+			 * the buffer.
+			 */
+			p = realloc(lr->buff, new_buff_size + 1);
 			if (p == NULL)
 				lafe_errc(1, ENOMEM,
 				    "Line too long in %s", lr->pathname);
@@ -151,6 +147,8 @@ lafe_line_reader_next(struct lafe_line_reader *lr)
 		bytes_wanted = lr->buff + lr->buff_length - lr->buff_end;
 		bytes_read = fread(lr->buff_end, 1, bytes_wanted, lr->f);
 		lr->buff_end += bytes_read;
+		*lr->buff_end = '\0'; /* Always terminate buffer */
+		lafe_line_reader_find_eol(lr);
 
 		if (ferror(lr->f))
 			lafe_errc(1, errno, "Can't read %s", lr->pathname);
