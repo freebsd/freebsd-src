@@ -41,14 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
-#include "opt_bpf.h"
 #include "opt_pf.h"
-
-#ifdef DEV_BPF
-#define	NBPFILTER	DEV_BPF
-#else
-#define	NBPFILTER	0
-#endif
 
 #ifdef DEV_PFLOG
 #define	NPFLOG		DEV_PFLOG
@@ -56,18 +49,11 @@ __FBSDID("$FreeBSD$");
 #define	NPFLOG		0
 #endif
 
-#ifdef DEV_PFSYNC
-#define	NPFSYNC		DEV_PFSYNC
-#else
-#define	NPFSYNC		0
-#endif
-
 #ifdef DEV_PFLOW
 #define	NPFLOW	DEV_PFLOW
 #else
 #define	NPFLOW	0
 #endif
-
 
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -87,7 +73,6 @@ __FBSDID("$FreeBSD$");
 
 #include <net/if.h>
 #include <net/if_types.h>
-#include <net/bpf.h>
 #include <net/route.h>
 #include <net/radix_mpath.h>
 
@@ -110,10 +95,6 @@ __FBSDID("$FreeBSD$");
 #include <net/pfvar.h>
 #include <net/if_pflog.h>
 #include <net/if_pflow.h>
-
-#if NPFSYNC > 0
-#include <net/if_pfsync.h>
-#endif /* NPFSYNC > 0 */
 
 #ifdef INET6
 #include <netinet/ip6.h>
