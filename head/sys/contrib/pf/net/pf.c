@@ -44,8 +44,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#define	NPFSYNC		1
-
 #ifdef DEV_PFLOW
 #define	NPFLOW		DEV_PFLOW
 #else
@@ -871,10 +869,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
 	V_pf_status.states++;
 	pfi_kif_ref(kif, PFI_KIF_REF_STATE);
-#if NPFSYNC > 0
 	if (pfsync_insert_state_ptr != NULL)
 		pfsync_insert_state_ptr(s);
-#endif
+
 	return (0);
 }
 
@@ -1172,10 +1169,8 @@ pf_unlink_state(struct pf_state *cur)
 		if (export_pflow_ptr != NULL)
 			export_pflow_ptr(cur);
 #endif
-#if NPFSYNC > 0
 	if (pfsync_delete_state_ptr != NULL)
 		pfsync_delete_state_ptr(cur);
-#endif
 	cur->timeout = PFTM_UNLINKED;
 	pf_src_tree_remove_state(cur);
 	pf_detach_state(cur);
@@ -1187,11 +1182,10 @@ void
 pf_free_state(struct pf_state *cur)
 {
 
-#if NPFSYNC > 0
 	if (pfsync_state_in_use_ptr != NULL &&
 		pfsync_state_in_use_ptr(cur))
 		return;
-#endif
+
 	KASSERT(cur->timeout == PFTM_UNLINKED,
 	    ("pf_free_state: cur->timeout != PFTM_UNLINKED"));
 	if (--cur->rule.ptr->states_cur <= 0 &&
@@ -3023,7 +3017,6 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	if (rewrite)
 		m_copyback(m, off, hdrlen, pd->hdr.any);
 
-#if NPFSYNC > 0
 	if (*sm != NULL && !ISSET((*sm)->state_flags, PFSTATE_NOSYNC) &&
 	    direction == PF_OUT && pfsync_up_ptr != NULL && pfsync_up_ptr()) {
 		/*
@@ -3036,7 +3029,6 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 			pfsync_defer_ptr(*sm, m))
 			return (PF_DEFER);
 	}
-#endif
 
 	return (PF_PASS);
 
@@ -5465,10 +5457,8 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 		action = pf_test_state_tcp(&s, dir, kif, m, off, h, &pd,
 		    &reason);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5496,10 +5486,8 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 		}
 		action = pf_test_state_udp(&s, dir, kif, m, off, h, &pd);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5521,10 +5509,8 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 		action = pf_test_state_icmp(&s, dir, kif, m, off, h, &pd,
 		    &reason);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5546,10 +5532,8 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 	default:
 		action = pf_test_state_other(&s, dir, kif, m, &pd);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5889,10 +5873,8 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 		action = pf_test_state_tcp(&s, dir, kif, m, off, h, &pd,
 		    &reason);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5920,10 +5902,8 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 		}
 		action = pf_test_state_udp(&s, dir, kif, m, off, h, &pd);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5952,10 +5932,8 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 		action = pf_test_state_icmp(&s, dir, kif,
 		    m, off, h, &pd, &reason);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;
@@ -5968,10 +5946,8 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	default:
 		action = pf_test_state_other(&s, dir, kif, m, &pd);
 		if (action == PF_PASS) {
-#if NPFSYNC > 0
 			if (pfsync_update_state_ptr != NULL)
 				pfsync_update_state_ptr(s);
-#endif /* NPFSYNC */
 			r = s->rule.ptr;
 			a = s->anchor.ptr;
 			log = s->log;

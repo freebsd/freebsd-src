@@ -43,8 +43,6 @@ __FBSDID("$FreeBSD$");
 #include "opt_bpf.h"
 #include "opt_pf.h"
 
-#define		NPFSYNC		1
-
 #ifdef DEV_PFLOG
 #define		NPFLOG		DEV_PFLOG
 #else
@@ -1735,19 +1733,15 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 
 			if (!psk->psk_ifname[0] || !strcmp(psk->psk_ifname,
 			    s->kif->pfik_name)) {
-#if NPFSYNC > 0
 				/* don't send out individual delete messages */
 				SET(s->state_flags, PFSTATE_NOSYNC);
-#endif
 				pf_unlink_state(s);
 				killed++;
 			}
 		}
 		psk->psk_killed = killed;
-#if NPFSYNC > 0
 		if (pfsync_clear_states_ptr != NULL)
 			pfsync_clear_states_ptr(V_pf_status.hostid, psk->psk_ifname);
-#endif
 		break;
 	}
 
@@ -3196,10 +3190,8 @@ pf_clear_states(void)
  
 	RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
 		state->timeout = PFTM_PURGE;
-#if NPFSYNC
 		/* don't send out individual delete messages */
 		state->sync_state = PFSTATE_NOSYNC;
-#endif
 		pf_unlink_state(state);
 	}
  
