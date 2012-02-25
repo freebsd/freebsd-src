@@ -39,7 +39,7 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	int r;
 
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_bzip2(a);
+	r = archive_read_support_filter_bzip2(a);
 	if (r != ARCHIVE_OK) {
 		skipping("bzip2 support unavailable");
 		archive_read_close(a);
@@ -51,8 +51,8 @@ DEFINE_TEST(test_read_format_cpio_bin_bz2)
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
 	assert(archive_compression(a) == ARCHIVE_COMPRESSION_BZIP2);
 	assert(archive_format(a) == ARCHIVE_FORMAT_CPIO_BIN_LE);
-	assert(0 == archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

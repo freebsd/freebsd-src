@@ -114,6 +114,7 @@ struct vm_object {
 		 */
 		struct {
 			off_t vnp_size;
+			vm_ooffset_t writemappings;
 		} vnp;
 
 		/*

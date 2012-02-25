@@ -74,6 +74,10 @@ __FBSDID("$FreeBSD$");
 
 #include <security/audit/audit.h>
 
+int iosize_max_clamp = 1;
+SYSCTL_INT(_debug, OID_AUTO, iosize_max_clamp, CTLFLAG_RW, &iosize_max_clamp, 0,
+    "Clamp max i/o size to INT_MAX");
+
 static MALLOC_DEFINE(M_IOCTLOPS, "ioctlops", "ioctl data buffer");
 static MALLOC_DEFINE(M_SELECT, "select", "select() buffer");
 MALLOC_DEFINE(M_IOV, "iov", "large iov's");
@@ -145,7 +149,7 @@ sys_read(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -178,7 +182,7 @@ sys_pread(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -334,7 +338,12 @@ dofileread(td, fd, fp, auio, offset, flags)
 		ktrgenio(fd, UIO_READ, ktruio, error);
 	}
 #endif
+#if SSIZE_MAX > LONG_MAX
+	td->td_retval[1] = cnt >> (sizeof(register_t) * CHAR_BIT);
 	td->td_retval[0] = cnt;
+#else
+	td->td_retval[0] = cnt;
+#endif
 	return (error);
 }
 
@@ -354,7 +363,7 @@ sys_write(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -387,7 +396,7 @@ sys_pwrite(td, uap)
 	struct iovec aiov;
 	int error;
 
-	if (uap->nbyte > INT_MAX)
+	if (uap->nbyte > IOSIZE_MAX)
 		return (EINVAL);
 	aiov.iov_base = (void *)(uintptr_t)uap->buf;
 	aiov.iov_len = uap->nbyte;
@@ -546,7 +555,12 @@ dofilewrite(td, fd, fp, auio, offset, flags)
 		ktrgenio(fd, UIO_WRITE, ktruio, error);
 	}
 #endif
+#if SSIZE_MAX > LONG_MAX
+	td->td_retval[1] = cnt >> (sizeof(register_t) * CHAR_BIT);
 	td->td_retval[0] = cnt;
+#else
+	td->td_retval[0] = cnt;
+#endif
 	return (error);
 }
 

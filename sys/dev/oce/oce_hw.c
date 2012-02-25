@@ -340,8 +340,10 @@ oce_hw_shutdown(POCE_SOFTC sc)
 	oce_stats_free(sc);
 	/* disable hardware interrupts */
 	oce_hw_intr_disable(sc);
+#if defined(INET6) || defined(INET)
 	/* Free LRO resources */
 	oce_free_lro(sc);
+#endif
 	/* Release queue*/
 	oce_queue_release_all(sc);
 	/*Delete Network Interface*/
@@ -494,11 +496,16 @@ oce_hw_start(POCE_SOFTC sc)
 
 	rc = oce_start_mq(sc->mq);
 	
-	/* we need to get MCC aync events.
-	   So enable intrs and also arm first EQ
+	/* we need to get MCC aync events. So enable intrs and arm
+	   first EQ, Other EQs will be armed after interface is UP 
 	*/
 	oce_hw_intr_enable(sc);
 	oce_arm_eq(sc, sc->eq[0]->eq_id, 0, TRUE, FALSE);
+
+	/* Send first mcc cmd and after that we get gracious
+	   MCC notifications from FW
+	*/
+	oce_first_mcc_cmd(sc);
 
 	return rc;
 }
@@ -537,8 +544,8 @@ oce_hw_intr_disable(POCE_SOFTC sc)
 
 
 /**
- * @brief               Function for hardware update multicast filter
- * @param sc            software handle to the device
+ * @brief		Function for hardware update multicast filter
+ * @param sc		software handle to the device
  */
 int
 oce_hw_update_multicast(POCE_SOFTC sc)

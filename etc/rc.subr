@@ -985,9 +985,9 @@ run_rc_script()
 			if [ -n "$rc_fast_and_loose" ]; then
 				set $_arg; . $_file
 			else
-				( trap "echo Script $_file interrupted; kill -QUIT $$" 3
-				  trap "echo Script $_file interrupted; exit 1" 2
-				  trap "echo Script $_file running" 29
+				( trap "echo Script $_file interrupted >&2 ; kill -QUIT $$" 3
+				  trap "echo Script $_file interrupted >&2 ; exit 1" 2
+				  trap "echo Script $_file running >&2" 29
 				  set $_arg; . $_file )
 			fi
 		fi

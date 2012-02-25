@@ -733,10 +733,11 @@ typedef struct {
 					 */
 	int32_t		pe_extchannel;	/* Enable DFS on ext channel */
 	int32_t		pe_enabled;	/* Whether radar detection is enabled */
+	int32_t		pe_enrelpwr;
+	int32_t		pe_en_relstep_check;
 } HAL_PHYERR_PARAM;
 
 #define	HAL_PHYERR_PARAM_NOVAL	65535
-#define	HAL_PHYERR_PARAM_ENABLE	0x8000	/* Enable/Disable if applicable */
 
 /*
  * DFS operating mode flags.

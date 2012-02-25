@@ -1,6 +1,7 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
  * Copyright (c) 2008 Joerg Sonnenberger
+ * Copyright (c) 2011 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,9 +87,8 @@ struct mtree {
 	struct archive_string	 line;
 	size_t			 buffsize;
 	char			*buff;
-	off_t			 offset;
+	int64_t			 offset;
 	int			 fd;
-	int			 filetype;
 	int			 archive_format;
 	const char		*archive_format_name;
 	struct mtree_entry	*entries;
@@ -98,11 +98,12 @@ struct mtree {
 
 	struct archive_entry_linkresolver *resolver;
 
-	off_t			 cur_size, cur_offset;
+	int64_t			 cur_size;
 };
 
+static int	bid_keycmp(const char *, const char *, ssize_t);
 static int	cleanup(struct archive_read *);
-static int	mtree_bid(struct archive_read *);
+static int	mtree_bid(struct archive_read *, int);
 static int	parse_file(struct archive_read *, struct archive_entry *,
 		    struct mtree *, struct mtree_entry *, int *);
 static void	parse_escapes(char *, struct mtree_entry *);
@@ -111,7 +112,7 @@ static int	parse_line(struct archive_read *, struct archive_entry *,
 static int	parse_keyword(struct archive_read *, struct mtree *,
 		    struct archive_entry *, struct mtree_option *, int *);
 static int	read_data(struct archive_read *a,
-		    const void **buff, size_t *size, off_t *offset);
+		    const void **buff, size_t *size, int64_t *offset);
 static ssize_t	readline(struct archive_read *, struct mtree *, char **, ssize_t);
 static int	skip(struct archive_read *a);
 static int	read_header(struct archive_read *,
@@ -119,6 +120,53 @@ static int	read_header(struct archive_read *,
 static int64_t	mtree_atol10(char **);
 static int64_t	mtree_atol8(char **);
 static int64_t	mtree_atol(char **);
+
+/*
+ * There's no standard for TIME_T_MAX/TIME_T_MIN.  So we compute them
+ * here.  TODO: Move this to configure time, but be careful
+ * about cross-compile environments.
+ */
+static int64_t
+get_time_t_max(void)
+{
+#if defined(TIME_T_MAX)
+	return TIME_T_MAX;
+#else
+	static time_t t;
+	time_t a;
+	if (t == 0) {
+		a = 1;
+		while (a > t) {
+			t = a;
+			a = a * 2 + 1;
+		}
+	}
+	return t;
+#endif
+}
+
+static int64_t
+get_time_t_min(void)
+{
+#if defined(TIME_T_MIN)
+	return TIME_T_MIN;
+#else
+	/* 't' will hold the minimum value, which will be zero (if
+	 * time_t is unsigned) or -2^n (if time_t is signed). */
+	static int computed;
+	static time_t t;
+	time_t a;
+	if (computed == 0) {
+		a = (time_t)-1;
+		while (a < t) {
+			t = a;
+			a = a * 2;
+		}			
+		computed = 1;
+	}
+	return t;
+#endif
+}
 
 static void
 free_options(struct mtree_option *head)
@@ -138,6 +186,9 @@ archive_read_support_format_mtree(struct archive *_a)
 	struct archive_read *a = (struct archive_read *)_a;
 	struct mtree *mtree;
 	int r;
+
+	archive_check_magic(_a, ARCHIVE_READ_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_read_support_format_mtree");
 
 	mtree = (struct mtree *)malloc(sizeof(*mtree));
 	if (mtree == NULL) {
@@ -183,20 +234,389 @@ cleanup(struct archive_read *a)
 	return (ARCHIVE_OK);
 }
 
+static ssize_t
+get_line_size(const char *b, ssize_t avail, ssize_t *nlsize)
+{
+	ssize_t len;
+
+	len = 0;
+	while (len < avail) {
+		switch (*b) {
+		case '\0':/* Non-ascii character or control character. */
+			if (nlsize != NULL)
+				*nlsize = 0;
+			return (-1);
+		case '\r':
+			if (avail-len > 1 && b[1] == '\n') {
+				if (nlsize != NULL)
+					*nlsize = 2;
+				return (len+2);
+			}
+			/* FALL THROUGH */
+		case '\n':
+			if (nlsize != NULL)
+				*nlsize = 1;
+			return (len+1);
+		default:
+			b++;
+			len++;
+			break;
+		}
+	}
+	if (nlsize != NULL)
+		*nlsize = 0;
+	return (avail);
+}
+
+static ssize_t
+next_line(struct archive_read *a,
+    const char **b, ssize_t *avail, ssize_t *ravail, ssize_t *nl)
+{
+	ssize_t len;
+	int quit;
+	
+	quit = 0;
+	if (*avail == 0) {
+		*nl = 0;
+		len = 0;
+	} else
+		len = get_line_size(*b, *avail, nl);
+	/*
+	 * Read bytes more while it does not reach the end of line.
+	 */
+	while (*nl == 0 && len == *avail && !quit) {
+		ssize_t diff = *ravail - *avail;
+		size_t nbytes_req = (*ravail+1023) & ~1023U;
+		ssize_t tested;
+
+		/* Increase reading bytes if it is not enough to at least
+		 * new two lines. */
+		if (nbytes_req < (size_t)*ravail + 160)
+			nbytes_req <<= 1;
+
+		*b = __archive_read_ahead(a, nbytes_req, avail);
+		if (*b == NULL) {
+			if (*ravail >= *avail)
+				return (0);
+			/* Reading bytes reaches the end of file. */
+			*b = __archive_read_ahead(a, *avail, avail);
+			quit = 1;
+		}
+		*ravail = *avail;
+		*b += diff;
+		*avail -= diff;
+		tested = len;/* Skip some bytes we already determinated. */
+		len = get_line_size(*b, *avail, nl);
+		if (len >= 0)
+			len += tested;
+	}
+	return (len);
+}
+
+/*
+ * Compare characters with a mtree keyword.
+ * Returns the length of a mtree keyword if matched.
+ * Returns 0 if not matched.
+ */
+static int
+bid_keycmp(const char *p, const char *key, ssize_t len)
+{
+	int match_len = 0;
+
+	while (len > 0 && *p && *key) {
+		if (*p == *key) {
+			--len;
+			++p;
+			++key;
+			++match_len;
+			continue;
+		}
+		return (0);/* Not match */
+	}
+	if (*key != '\0')
+		return (0);/* Not match */
+
+	/* A following character should be specified characters */
+	if (p[0] == '=' || p[0] == ' ' || p[0] == '\t' ||
+	    p[0] == '\n' || p[0] == '\r' ||
+	   (p[0] == '\\' && (p[1] == '\n' || p[1] == '\r')))
+		return (match_len);
+	return (0);/* Not match */
+}
+
+/*
+ * Test whether the characters 'p' has is mtree keyword.
+ * Returns the length of a detected keyword.
+ * Returns 0 if any keywords were not found.
+ */
+static ssize_t
+bid_keyword(const char *p,  ssize_t len)
+{
+	static const char *keys_c[] = {
+		"content", "contents", "cksum", NULL
+	};
+	static const char *keys_df[] = {
+		"device", "flags", NULL
+	};
+	static const char *keys_g[] = {
+		"gid", "gname", NULL
+	};
+	static const char *keys_il[] = {
+		"ignore", "link", NULL
+	};
+	static const char *keys_m[] = {
+		"md5", "md5digest", "mode", NULL
+	};
+	static const char *keys_no[] = {
+		"nlink", "optional", NULL
+	};
+	static const char *keys_r[] = {
+		"rmd160", "rmd160digest", NULL
+	};
+	static const char *keys_s[] = {
+		"sha1", "sha1digest",
+		"sha256", "sha256digest",
+		"sha384", "sha384digest",
+		"sha512", "sha512digest",
+		"size", NULL
+	};
+	static const char *keys_t[] = {
+		"tags", "time", "type", NULL
+	};
+	static const char *keys_u[] = {
+		"uid", "uname",	NULL
+	};
+	const char **keys;
+	int i;
+
+	switch (*p) {
+	case 'c': keys = keys_c; break;
+	case 'd': case 'f': keys = keys_df; break;
+	case 'g': keys = keys_g; break;
+	case 'i': case 'l': keys = keys_il; break;
+	case 'm': keys = keys_m; break;
+	case 'n': case 'o': keys = keys_no; break;
+	case 'r': keys = keys_r; break;
+	case 's': keys = keys_s; break;
+	case 't': keys = keys_t; break;
+	case 'u': keys = keys_u; break;
+	default: return (0);/* Unknown key */
+	}
+
+	for (i = 0; keys[i] != NULL; i++) {
+		int l = bid_keycmp(p, keys[i], len);
+		if (l > 0)
+			return (l);
+	}
+	return (0);/* Unknown key */
+}
+
+/*
+ * Test whether there is a set of mtree keywords.
+ * Returns the number of keyword.
+ * Returns -1 if we got incorrect sequence.
+ * This function expects a set of "<space characters>keyword=value".
+ * When "unset" is specified, expects a set of "<space characters>keyword".
+ */
+static int
+bid_keyword_list(const char *p,  ssize_t len, int unset)
+{
+	int l;
+	int keycnt = 0;
+
+	while (len > 0 && *p) {
+		int blank = 0;
+
+		/* Test whether there are blank characters in the line. */
+		while (len >0 && (*p == ' ' || *p == '\t')) {
+			++p;
+			--len;
+			blank = 1;
+		}
+		if (*p == '\n' || *p == '\r')
+			break;
+		if (p[0] == '\\' && (p[1] == '\n' || p[1] == '\r'))
+			break;
+		if (!blank) /* No blank character. */
+			return (-1);
+
+		if (unset) {
+			l = bid_keycmp(p, "all", len);
+			if (l > 0)
+				return (1);
+		}
+		/* Test whether there is a correct key in the line. */
+		l = bid_keyword(p, len);
+		if (l == 0)
+			return (-1);/* Unknown keyword was found. */
+		p += l;
+		len -= l;
+		keycnt++;
+
+		/* Skip value */
+		if (*p == '=') {
+			int value = 0;
+			++p;
+			--len;
+			while (len > 0 && *p != ' ' && *p != '\t') {
+				++p;
+				--len;
+				value = 1;
+			}
+			/* A keyword should have a its value unless
+			 * "/unset" operation. */ 
+			if (!unset && value == 0)
+				return (-1);
+		}
+	}
+	return (keycnt);
+}
 
 static int
-mtree_bid(struct archive_read *a)
+bid_entry(const char *p, ssize_t len)
+{
+	int f = 0;
+	static const unsigned char safe_char[256] = {
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 00 - 0F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 10 - 1F */
+		/* !"$%&'()*+,-./  EXCLUSION:( )(#) */
+		0, 1, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 20 - 2F */
+		/* 0123456789:;<>?  EXCLUSION:(=) */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 1, /* 30 - 3F */
+		/* @ABCDEFGHIJKLMNO */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 40 - 4F */
+		/* PQRSTUVWXYZ[\]^_  */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 50 - 5F */
+		/* `abcdefghijklmno */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, /* 60 - 6F */
+		/* pqrstuvwxyz{|}~ */
+		1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, /* 70 - 7F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 80 - 8F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* 90 - 9F */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* A0 - AF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* B0 - BF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* C0 - CF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* D0 - DF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* E0 - EF */
+		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, /* F0 - FF */
+	};
+
+	/*
+	 * Skip the path-name which is quoted.
+	 */
+	while (len > 0 && *p != ' ' && *p != '\t') {
+		if (!safe_char[*(const unsigned char *)p])
+			return (-1);
+		++p;
+		--len;
+		++f;
+	}
+	/* If a path-name was not found, returns error. */
+	if (f == 0)
+		return (-1);
+
+	return (bid_keyword_list(p, len, 0));
+}
+
+#define MAX_BID_ENTRY	3
+
+static int
+mtree_bid(struct archive_read *a, int best_bid)
 {
 	const char *signature = "#mtree";
 	const char *p;
+	ssize_t avail, ravail;
+	ssize_t len, nl;
+	int detected_bytes = 0, entry_cnt = 0, multiline = 0;
+
+	(void)best_bid; /* UNUSED */
 
 	/* Now let's look at the actual header and see if it matches. */
-	p = __archive_read_ahead(a, strlen(signature), NULL);
+	p = __archive_read_ahead(a, strlen(signature), &avail);
 	if (p == NULL)
 		return (-1);
 
-	if (strncmp(p, signature, strlen(signature)) == 0)
+	if (memcmp(p, signature, strlen(signature)) == 0)
 		return (8 * (int)strlen(signature));
+
+	/*
+	 * There is not a mtree signature. Let's try to detect mtree format.
+	 */
+	ravail = avail;
+	for (;;) {
+		len = next_line(a, &p, &avail, &ravail, &nl);
+		/* The terminal character of the line should be
+		 * a new line character, '\r\n' or '\n'. */
+		if (len <= 0 || nl == 0)
+			break;
+		if (!multiline) {
+			/* Leading whitespace is never significant,
+			 * ignore it. */
+			while (len > 0 && (*p == ' ' || *p == '\t')) {
+				++p;
+				--avail;
+				--len;
+			}
+			/* Skip comment or empty line. */ 
+			if (p[0] == '#' || p[0] == '\n' || p[0] == '\r') {
+				p += len;
+				avail -= len;
+				continue;
+			}
+		} else {
+			/* A continuance line; the terminal
+			 * character of previous line was '\' character. */
+			if (bid_keyword_list(p, len, 0) <= 0)
+				break;
+			if (multiline == 1)
+				detected_bytes += len;
+			if (p[len-nl-1] != '\\') {
+				if (multiline == 1 &&
+				    ++entry_cnt >= MAX_BID_ENTRY)
+					break;
+				multiline = 0;
+			}
+			p += len;
+			avail -= len;
+			continue;
+		}
+		if (p[0] != '/') {
+			if (bid_entry(p, len) >= 0) {
+				detected_bytes += len;
+				if (p[len-nl-1] == '\\')
+					/* This line continues. */
+					multiline = 1;
+				else {
+					/* We've got plenty of correct lines
+					 * to assume that this file is a mtree
+					 * format. */
+					if (++entry_cnt >= MAX_BID_ENTRY)
+						break;
+				}
+			} else
+				break;
+		} else if (strncmp(p, "/set", 4) == 0) {
+			if (bid_keyword_list(p+4, len-4, 0) <= 0)
+				break;
+			/* This line continues. */
+			if (p[len-nl-1] == '\\')
+				multiline = 2;
+		} else if (strncmp(p, "/unset", 6) == 0) {
+			if (bid_keyword_list(p+6, len-6, 1) <= 0)
+				break;
+			/* This line continues. */
+			if (p[len-nl-1] == '\\')
+				multiline = 2;
+		} else
+			break;
+
+		/* Test next line. */
+		p += len;
+		avail -= len;
+	}
+	if (entry_cnt >= MAX_BID_ENTRY || (entry_cnt > 0 && len == 0))
+		return (32);
+
 	return (0);
 }
 
@@ -215,21 +635,21 @@ static int
 add_option(struct archive_read *a, struct mtree_option **global,
     const char *value, size_t len)
 {
-	struct mtree_option *option;
+	struct mtree_option *opt;
 
-	if ((option = malloc(sizeof(*option))) == NULL) {
+	if ((opt = malloc(sizeof(*opt))) == NULL) {
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	if ((option->value = malloc(len + 1)) == NULL) {
-		free(option);
+	if ((opt->value = malloc(len + 1)) == NULL) {
+		free(opt);
 		archive_set_error(&a->archive, errno, "Can't allocate memory");
 		return (ARCHIVE_FATAL);
 	}
-	memcpy(option->value, value, len);
-	option->value[len] = '\0';
-	option->next = *global;
-	*global = option;
+	memcpy(opt->value, value, len);
+	opt->value[len] = '\0';
+	opt->next = *global;
+	*global = opt;
 	return (ARCHIVE_OK);
 }
 
@@ -400,7 +820,7 @@ read_mtree(struct archive_read *a, struct mtree *mtree)
 	last_entry = NULL;
 
 	for (counter = 1; ; ++counter) {
-		len = readline(a, mtree, &p, 256);
+		len = readline(a, mtree, &p, 65536);
 		if (len == 0) {
 			mtree->this_entry = mtree->entries;
 			free_options(global);
@@ -518,12 +938,12 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	struct stat st_storage, *st;
 	struct mtree_entry *mp;
 	struct archive_entry *sparse_entry;
-	int r = ARCHIVE_OK, r1, parsed_kws, mismatched_type;
+	int r = ARCHIVE_OK, r1, parsed_kws;
 
 	mentry->used = 1;
 
 	/* Initialize reasonable defaults. */
-	mtree->filetype = AE_IFREG;
+	archive_entry_set_filetype(entry, AE_IFREG);
 	archive_entry_set_size(entry, 0);
 	archive_string_empty(&mtree->contents_name);
 
@@ -618,44 +1038,49 @@ parse_file(struct archive_read *a, struct archive_entry *entry,
 	 * the type of the contents object on disk.
 	 */
 	if (st != NULL) {
-		mismatched_type = 0;
-		if ((st->st_mode & S_IFMT) == S_IFREG &&
-		    archive_entry_filetype(entry) != AE_IFREG)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFMT) == S_IFLNK &&
-		    archive_entry_filetype(entry) != AE_IFLNK)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFSOCK) == S_IFSOCK &&
-		    archive_entry_filetype(entry) != AE_IFSOCK)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFMT) == S_IFCHR &&
-		    archive_entry_filetype(entry) != AE_IFCHR)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFMT) == S_IFBLK &&
-		    archive_entry_filetype(entry) != AE_IFBLK)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFMT) == S_IFDIR &&
-		    archive_entry_filetype(entry) != AE_IFDIR)
-			mismatched_type = 1;
-		if ((st->st_mode & S_IFMT) == S_IFIFO &&
-		    archive_entry_filetype(entry) != AE_IFIFO)
-			mismatched_type = 1;
-
-		if (mismatched_type) {
-			if ((parsed_kws & MTREE_HAS_OPTIONAL) == 0) {
+		if (
+		    ((st->st_mode & S_IFMT) == S_IFREG &&
+		     archive_entry_filetype(entry) == AE_IFREG)
+#ifdef S_IFLNK
+		    || ((st->st_mode & S_IFMT) == S_IFLNK &&
+			archive_entry_filetype(entry) == AE_IFLNK)
+#endif
+#ifdef S_IFSOCK
+		    || ((st->st_mode & S_IFSOCK) == S_IFSOCK &&
+			archive_entry_filetype(entry) == AE_IFSOCK)
+#endif
+#ifdef S_IFCHR
+		    || ((st->st_mode & S_IFMT) == S_IFCHR &&
+			archive_entry_filetype(entry) == AE_IFCHR)
+#endif
+#ifdef S_IFBLK
+		    || ((st->st_mode & S_IFMT) == S_IFBLK &&
+			archive_entry_filetype(entry) == AE_IFBLK)
+#endif
+		    || ((st->st_mode & S_IFMT) == S_IFDIR &&
+			archive_entry_filetype(entry) == AE_IFDIR)
+#ifdef S_IFIFO
+		    || ((st->st_mode & S_IFMT) == S_IFIFO &&
+			archive_entry_filetype(entry) == AE_IFIFO)
+#endif
+		    ) {
+			/* Types match. */
+		} else {
+			/* Types don't match; bail out gracefully. */
+			if (mtree->fd >= 0)
+				close(mtree->fd);
+			mtree->fd = -1;
+			if (parsed_kws & MTREE_HAS_OPTIONAL) {
+				/* It's not an error for an optional entry
+				   to not match disk. */
+				*use_next = 1;
+			} else if (r == ARCHIVE_OK) {
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_MISC,
 				    "mtree specification has different type for %s",
 				    archive_entry_pathname(entry));
 				r = ARCHIVE_WARN;
-			} else {
-				*use_next = 1;
 			}
-			/* Don't hold a non-regular file open. */
-			if (mtree->fd >= 0)
-				close(mtree->fd);
-			mtree->fd = -1;
-			st = NULL;
 			return r;
 		}
 	}
@@ -735,7 +1160,7 @@ parse_line(struct archive_read *a, struct archive_entry *entry,
 		if (r1 < r)
 			r = r1;
 	}
-	if ((*parsed_kws & MTREE_HAS_TYPE) == 0) {
+	if (r == ARCHIVE_OK && (*parsed_kws & MTREE_HAS_TYPE) == 0) {
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Missing type keyword in mtree specification");
 		return (ARCHIVE_WARN);
@@ -779,11 +1204,11 @@ parse_device(struct archive *a, struct archive_entry *entry, char *val)
  */
 static int
 parse_keyword(struct archive_read *a, struct mtree *mtree,
-    struct archive_entry *entry, struct mtree_option *option, int *parsed_kws)
+    struct archive_entry *entry, struct mtree_option *opt, int *parsed_kws)
 {
 	char *val, *key;
 
-	key = option->value;
+	key = opt->value;
 
 	if (*key == '\0')
 		return (ARCHIVE_OK);
@@ -900,58 +1325,67 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 			break;
 		}
 		if (strcmp(key, "time") == 0) {
-			time_t m;
+			int64_t m;
+			int64_t my_time_t_max = get_time_t_max();
+			int64_t my_time_t_min = get_time_t_min();
 			long ns;
 
 			*parsed_kws |= MTREE_HAS_MTIME;
-			m = (time_t)mtree_atol10(&val);
+			m = mtree_atol10(&val);
+			/* Replicate an old mtree bug:
+			 * 123456789.1 represents 123456789
+			 * seconds and 1 nanosecond. */
 			if (*val == '.') {
 				++val;
 				ns = (long)mtree_atol10(&val);
 			} else
 				ns = 0;
-			archive_entry_set_mtime(entry, m, ns);
+			if (m > my_time_t_max)
+				m = my_time_t_max;
+			else if (m < my_time_t_min)
+				m = my_time_t_min;
+			archive_entry_set_mtime(entry, (time_t)m, ns);
 			break;
 		}
 		if (strcmp(key, "type") == 0) {
-			*parsed_kws |= MTREE_HAS_TYPE;
 			switch (val[0]) {
 			case 'b':
 				if (strcmp(val, "block") == 0) {
-					mtree->filetype = AE_IFBLK;
+					archive_entry_set_filetype(entry, AE_IFBLK);
 					break;
 				}
 			case 'c':
 				if (strcmp(val, "char") == 0) {
-					mtree->filetype = AE_IFCHR;
+					archive_entry_set_filetype(entry, AE_IFCHR);
 					break;
 				}
 			case 'd':
 				if (strcmp(val, "dir") == 0) {
-					mtree->filetype = AE_IFDIR;
+					archive_entry_set_filetype(entry, AE_IFDIR);
 					break;
 				}
 			case 'f':
 				if (strcmp(val, "fifo") == 0) {
-					mtree->filetype = AE_IFIFO;
+					archive_entry_set_filetype(entry, AE_IFIFO);
 					break;
 				}
 				if (strcmp(val, "file") == 0) {
-					mtree->filetype = AE_IFREG;
+					archive_entry_set_filetype(entry, AE_IFREG);
 					break;
 				}
 			case 'l':
 				if (strcmp(val, "link") == 0) {
-					mtree->filetype = AE_IFLNK;
+					archive_entry_set_filetype(entry, AE_IFLNK);
 					break;
 				}
 			default:
 				archive_set_error(&a->archive,
 				    ARCHIVE_ERRNO_FILE_FORMAT,
-				    "Unrecognized file type \"%s\"", val);
+				    "Unrecognized file type \"%s\"; assuming \"file\"", val);
+				archive_entry_set_filetype(entry, AE_IFREG);
 				return (ARCHIVE_WARN);
 			}
-			archive_entry_set_filetype(entry, mtree->filetype);
+			*parsed_kws |= MTREE_HAS_TYPE;
 			break;
 		}
 	case 'u':
@@ -974,7 +1408,7 @@ parse_keyword(struct archive_read *a, struct mtree *mtree,
 }
 
 static int
-read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset)
+read_data(struct archive_read *a, const void **buff, size_t *size, int64_t *offset)
 {
 	size_t bytes_to_read;
 	ssize_t bytes_read;
@@ -999,7 +1433,7 @@ read_data(struct archive_read *a, const void **buff, size_t *size, off_t *offset
 
 	*buff = mtree->buff;
 	*offset = mtree->offset;
-	if ((off_t)mtree->buffsize > mtree->cur_size - mtree->offset)
+	if ((int64_t)mtree->buffsize > mtree->cur_size - mtree->offset)
 		bytes_to_read = mtree->cur_size - mtree->offset;
 	else
 		bytes_to_read = mtree->buffsize;
@@ -1147,26 +1581,41 @@ mtree_atol10(char **p)
 	int base, digit, sign;
 
 	base = 10;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
 
 	if (**p == '-') {
 		sign = -1;
+		limit = ((uint64_t)(INT64_MAX) + 1) / base;
+		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
 		++(*p);
-	} else
+	} else {
 		sign = 1;
+		limit = INT64_MAX / base;
+		last_digit_limit = INT64_MAX % base;
+	}
 
 	l = 0;
 	digit = **p - '0';
 	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
+		if (l > limit || (l == limit && digit > last_digit_limit))
+			return (sign < 0) ? INT64_MIN : INT64_MAX;
 		l = (l * base) + digit;
 		digit = *++(*p) - '0';
 	}
 	return (sign < 0) ? -l : l;
+}
+
+/* Parse a hex digit. */
+static int
+parsehex(char c)
+{
+	if (c >= '0' && c <= '9')
+		return c - '0';
+	else if (c >= 'a' && c <= 'f')
+		return c - 'a';
+	else if (c >= 'A' && c <= 'F')
+		return c - 'A';
+	else
+		return -1;
 }
 
 /*
@@ -1181,38 +1630,25 @@ mtree_atol16(char **p)
 	int base, digit, sign;
 
 	base = 16;
-	limit = INT64_MAX / base;
-	last_digit_limit = INT64_MAX % base;
 
 	if (**p == '-') {
 		sign = -1;
+		limit = ((uint64_t)(INT64_MAX) + 1) / base;
+		last_digit_limit = ((uint64_t)(INT64_MAX) + 1) % base;
 		++(*p);
-	} else
+	} else {
 		sign = 1;
+		limit = INT64_MAX / base;
+		last_digit_limit = INT64_MAX % base;
+	}
 
 	l = 0;
-	if (**p >= '0' && **p <= '9')
-		digit = **p - '0';
-	else if (**p >= 'a' && **p <= 'f')
-		digit = **p - 'a' + 10;
-	else if (**p >= 'A' && **p <= 'F')
-		digit = **p - 'A' + 10;
-	else
-		digit = -1;
+	digit = parsehex(**p);
 	while (digit >= 0 && digit < base) {
-		if (l > limit || (l == limit && digit > last_digit_limit)) {
-			l = INT64_MAX; /* Truncate on overflow. */
-			break;
-		}
+		if (l > limit || (l == limit && digit > last_digit_limit))
+			return (sign < 0) ? INT64_MIN : INT64_MAX;
 		l = (l * base) + digit;
-		if (**p >= '0' && **p <= '9')
-			digit = **p - '0';
-		else if (**p >= 'a' && **p <= 'f')
-			digit = **p - 'a' + 10;
-		else if (**p >= 'A' && **p <= 'F')
-			digit = **p - 'A' + 10;
-		else
-			digit = -1;
+		digit = parsehex(*++(*p));
 	}
 	return (sign < 0) ? -l : l;
 }

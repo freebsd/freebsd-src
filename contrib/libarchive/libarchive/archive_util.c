@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009 Michihiro NAKAJIMA
+ * Copyright (c) 2009,2010 Michihiro NAKAJIMA
  * Copyright (c) 2003-2007 Tim Kientzle
  * All rights reserved.
  *
@@ -30,47 +30,33 @@ __FBSDID("$FreeBSD$");
 #ifdef HAVE_SYS_TYPES_H
 #include <sys/types.h>
 #endif
+#ifdef HAVE_ERRNO_H
+#include <errno.h>
+#endif
+#ifdef HAVE_FCNTL_H
+#include <fcntl.h>
+#endif
 #ifdef HAVE_STDLIB_H
 #include <stdlib.h>
 #endif
 #ifdef HAVE_STRING_H
 #include <string.h>
 #endif
+#if defined(HAVE_WINCRYPT_H) && !defined(__CYGWIN__)
+#include <wincrypt.h>
+#endif
 
 #include "archive.h"
 #include "archive_private.h"
 #include "archive_string.h"
 
-#if ARCHIVE_VERSION_NUMBER < 3000000
-/* These disappear in libarchive 3.0 */
-/* Deprecated. */
+/* Generic initialization of 'struct archive' objects. */
 int
-archive_api_feature(void)
+__archive_clean(struct archive *a)
 {
-	return (ARCHIVE_API_FEATURE);
+	archive_string_conversion_free(a);
+	return (ARCHIVE_OK);
 }
-
-/* Deprecated. */
-int
-archive_api_version(void)
-{
-	return (ARCHIVE_API_VERSION);
-}
-
-/* Deprecated synonym for archive_version_number() */
-int
-archive_version_stamp(void)
-{
-	return (archive_version_number());
-}
-
-/* Deprecated synonym for archive_version_string() */
-const char *
-archive_version(void)
-{
-	return (archive_version_string());
-}
-#endif
 
 int
 archive_version_number(void)
@@ -97,7 +83,7 @@ archive_error_string(struct archive *a)
 	if (a->error != NULL  &&  *a->error != '\0')
 		return (a->error);
 	else
-		return ("(Empty error message)");
+		return (NULL);
 }
 
 int
@@ -122,13 +108,13 @@ archive_format_name(struct archive *a)
 int
 archive_compression(struct archive *a)
 {
-	return (a->compression_code);
+	return archive_filter_code(a, 0);
 }
 
 const char *
 archive_compression_name(struct archive *a)
 {
-	return (a->compression_name);
+	return archive_filter_name(a, 0);
 }
 
 
@@ -138,7 +124,7 @@ archive_compression_name(struct archive *a)
 int64_t
 archive_position_compressed(struct archive *a)
 {
-	return (a->raw_position);
+	return archive_filter_bytes(a, -1);
 }
 
 /*
@@ -147,7 +133,7 @@ archive_position_compressed(struct archive *a)
 int64_t
 archive_position_uncompressed(struct archive *a)
 {
-	return (a->file_position);
+	return archive_filter_bytes(a, 0);
 }
 
 void
@@ -169,6 +155,7 @@ archive_set_error(struct archive *a, int error_number, const char *fmt, ...)
 		return;
 	}
 
+	archive_string_empty(&(a->error_string));
 	va_start(ap, fmt);
 	archive_string_vsprintf(&(a->error_string), fmt, ap);
 	va_end(ap);
@@ -200,193 +187,279 @@ __archive_errx(int retvalue, const char *msg)
 }
 
 /*
- * Parse option strings
- *  Detail of option format.
- *    - The option can accept:
- *     "opt-name", "!opt-name", "opt-name=value".
- *
- *    - The option entries are separated by comma.
- *        e.g  "compression=9,opt=XXX,opt-b=ZZZ"
- *
- *    - The name of option string consist of '-' and alphabet
- *      but character '-' cannot be used for the first character.
- *      (Regular expression is [a-z][-a-z]+)
- *
- *    - For a specfic format/filter, using the format name with ':'.
- *        e.g  "zip:compression=9"
- *        (This "compression=9" option entry is for "zip" format only)
- *
- *      If another entries follow it, those are not for
- *      the specfic format/filter.
- *        e.g  handle "zip:compression=9,opt=XXX,opt-b=ZZZ"
- *          "zip" format/filter handler will get "compression=9"
- *          all format/filter handler will get "opt=XXX"
- *          all format/filter handler will get "opt-b=ZZZ"
- *
- *    - Whitespace and tab are bypassed.
- *
+ * Create a temporary file
+ */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+
+/*
+ * Do not use Windows tmpfile() function.
+ * It will make a temporary file under the root directory
+ * and it'll cause permission error if a user who is
+ * non-Administrator creates temporary files.
+ * Also Windows version of mktemp family including _mktemp_s
+ * are not secure.
  */
 int
-__archive_parse_options(const char *p, const char *fn, int keysize, char *key,
-    int valsize, char *val)
+__archive_mktemp(const char *tmpdir)
 {
-	const char *p_org;
-	int apply;
-	int kidx, vidx;
-	int negative; 
-	enum {
-		/* Requested for initialization. */
-		INIT,
-		/* Finding format/filter-name and option-name. */
-		F_BOTH,
-		/* Finding option-name only.
-		 * (already detected format/filter-name) */
-		F_NAME,
-		/* Getting option-value. */
-		G_VALUE,
-	} state;
+	static const wchar_t num[] = {
+		L'0', L'1', L'2', L'3', L'4', L'5', L'6', L'7',
+		L'8', L'9', L'A', L'B', L'C', L'D', L'E', L'F',
+		L'G', L'H', L'I', L'J', L'K', L'L', L'M', L'N',
+		L'O', L'P', L'Q', L'R', L'S', L'T', L'U', L'V',
+		L'W', L'X', L'Y', L'Z', L'a', L'b', L'c', L'd',
+		L'e', L'f', L'g', L'h', L'i', L'j', L'k', L'l',
+		L'm', L'n', L'o', L'p', L'q', L'r', L's', L't',
+		L'u', L'v', L'w', L'x', L'y', L'z'
+	};
+	HCRYPTPROV hProv;
+	struct archive_wstring temp_name;
+	wchar_t *ws;
+	DWORD attr;
+	wchar_t *xp, *ep;
+	int fd;
 
-	p_org = p;
-	state = INIT;
-	kidx = vidx = negative = 0;
-	apply = 1;
-	while (*p) {
-		switch (state) {
-		case INIT:
-			kidx = vidx = 0;
-			negative = 0;
-			apply = 1;
-			state = F_BOTH;
-			break;
-		case F_BOTH:
-		case F_NAME:
-			if ((*p >= 'a' && *p <= 'z') ||
-			    (*p >= '0' && *p <= '9') || *p == '-') {
-				if (kidx == 0 && !(*p >= 'a' && *p <= 'z'))
-					/* Illegal sequence. */
-					return (-1);
-				if (kidx >= keysize -1)
-					/* Too many characters. */
-					return (-1);
-				key[kidx++] = *p++;
-			} else if (*p == '!') {
-				if (kidx != 0)
-					/* Illegal sequence. */
-					return (-1);
-				negative = 1;
-				++p;
-			} else if (*p == ',') {
-				if (kidx == 0)
-					/* Illegal sequence. */
-					return (-1);
-				if (!negative)
-					val[vidx++] = '1';
-				/* We have got boolean option data. */
-				++p;
-				if (apply)
-					goto complete;
-				else
-					/* This option does not apply to the
-					 * format which the fn variable
-					 * indicate. */
-					state = INIT;
-			} else if (*p == ':') {
-				/* obuf data is format name */
-				if (state == F_NAME)
-					/* We already found it. */
-					return (-1);
-				if (kidx == 0)
-					/* Illegal sequence. */
-					return (-1);
-				if (negative)
-					/* We cannot accept "!format-name:". */
-					return (-1);
-				key[kidx] = '\0';
-				if (strcmp(fn, key) != 0)
-					/* This option does not apply to the
-					 * format which the fn variable
-					 * indicate. */
-					apply = 0;
-				kidx = 0;
-				++p;
-				state = F_NAME;
-			} else if (*p == '=') {
-				if (kidx == 0)
-					/* Illegal sequence. */
-					return (-1);
-				if (negative)
-					/* We cannot accept "!opt-name=value". */
-					return (-1);
-				++p;
-				state = G_VALUE;
-			} else if (*p == ' ') {
-				/* Pass the space character */
-				++p;
-			} else {
-				/* Illegal character. */
-				return (-1);
-			}
-			break;
-		case G_VALUE:
-			if (*p == ',') {
-				if (vidx == 0)
-					/* Illegal sequence. */
-					return (-1);
-				/* We have got option data. */
-				++p;
-				if (apply)
-					goto complete;
-				else
-					/* This option does not apply to the
-					 * format which the fn variable
-					 * indicate. */
-					state = INIT;
-			} else if (*p == ' ') {
-				/* Pass the space character */
-				++p;
-			} else {
-				if (vidx >= valsize -1)
-					/* Too many characters. */
-					return (-1);
-				val[vidx++] = *p++;
-			}
-			break;
-		} 
-	}
+	hProv = (HCRYPTPROV)NULL;
+	fd = -1;
+	ws = NULL;
+	archive_string_init(&temp_name);
 
-	switch (state) {
-	case F_BOTH:
-	case F_NAME:
-		if (kidx != 0) {
-			if (!negative)
-				val[vidx++] = '1';
-			/* We have got boolean option. */
-			if (apply)
-				/* This option apply to the format which the
-				 * fn variable indicate. */
-				goto complete;
+	/* Get a temporary directory. */
+	if (tmpdir == NULL) {
+		size_t l;
+		wchar_t *tmp;
+
+		l = GetTempPathW(0, NULL);
+		if (l == 0) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
 		}
-		break;
-	case G_VALUE:
-		if (vidx == 0)
-			/* Illegal sequence. */
-			return (-1);
-		/* We have got option value. */
-		if (apply)
-			/* This option apply to the format which the fn
-			 * variable indicate. */
-			goto complete;
-		break;
-	case INIT:/* nothing */
-		break;
+		tmp = malloc(l*sizeof(wchar_t));
+		if (tmp == NULL) {
+			errno = ENOMEM;
+			goto exit_tmpfile;
+		}
+		GetTempPathW(l, tmp);
+		archive_wstrcpy(&temp_name, tmp);
+		free(tmp);
+	} else {
+		archive_wstring_append_from_mbs(&temp_name, tmpdir,
+		    strlen(tmpdir));
+		if (temp_name.s[temp_name.length-1] != L'/')
+			archive_wstrappend_wchar(&temp_name, L'/');
 	}
 
-	/* End of Option string. */
-	return (0);
+	/* Check if temp_name is a directory. */
+	attr = GetFileAttributesW(temp_name.s);
+	if (attr == (DWORD)-1) {
+		if (GetLastError() != ERROR_FILE_NOT_FOUND) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		ws = __la_win_permissive_name_w(temp_name.s);
+		if (ws == NULL) {
+			errno = EINVAL;
+			goto exit_tmpfile;
+		}
+		attr = GetFileAttributesW(ws);
+		if (attr == (DWORD)-1) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+	}
+	if (!(attr & FILE_ATTRIBUTE_DIRECTORY)) {
+		errno = ENOTDIR;
+		goto exit_tmpfile;
+	}
 
-complete:
-	key[kidx] = '\0';
-	val[vidx] = '\0';
-	/* Return a size which we've consumed for detecting option */
-	return ((int)(p - p_org));
+	/*
+	 * Create a temporary file.
+	 */
+	archive_wstrcat(&temp_name, L"libarchive_");
+	xp = temp_name.s + archive_strlen(&temp_name);
+	archive_wstrcat(&temp_name, L"XXXXXXXXXX");
+	ep = temp_name.s + archive_strlen(&temp_name);
+
+	if (!CryptAcquireContext(&hProv, NULL, NULL, PROV_RSA_FULL,
+		CRYPT_VERIFYCONTEXT)) {
+		la_dosmaperr(GetLastError());
+		goto exit_tmpfile;
+	}
+
+	for (;;) {
+		wchar_t *p;
+		HANDLE h;
+
+		/* Generate a random file name through CryptGenRandom(). */
+		p = xp;
+		if (!CryptGenRandom(hProv, (ep - p)*sizeof(wchar_t), (BYTE*)p)) {
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		for (; p < ep; p++)
+			*p = num[((DWORD)*p) % (sizeof(num)/sizeof(num[0]))];
+
+		free(ws);
+		ws = __la_win_permissive_name_w(temp_name.s);
+		if (ws == NULL) {
+			errno = EINVAL;
+			goto exit_tmpfile;
+		}
+		/* Specifies FILE_FLAG_DELETE_ON_CLOSE flag is to
+		 * delete this temporary file immediately when this
+		 * file closed. */
+		h = CreateFileW(ws,
+		    GENERIC_READ | GENERIC_WRITE | DELETE,
+		    0,/* Not share */
+		    NULL,
+		    CREATE_NEW,/* Create a new file only */
+		    FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE,
+		    NULL);
+		if (h == INVALID_HANDLE_VALUE) {
+			/* The same file already exists. retry with
+			 * a new filename. */
+			if (GetLastError() == ERROR_FILE_EXISTS)
+				continue;
+			/* Otherwise, fail creation temporary file. */
+			la_dosmaperr(GetLastError());
+			goto exit_tmpfile;
+		}
+		fd = _open_osfhandle((intptr_t)h, _O_BINARY | _O_RDWR);
+		if (fd == -1) {
+			CloseHandle(h);
+			goto exit_tmpfile;
+		} else
+			break;/* success! */
+	}
+exit_tmpfile:
+	if (hProv != (HCRYPTPROV)NULL)
+		CryptReleaseContext(hProv, 0);
+	free(ws);
+	archive_wstring_free(&temp_name);
+	return (fd);
 }
+
+#else
+
+static int
+get_tempdir(struct archive_string *temppath)
+{
+	const char *tmp;
+
+	tmp = getenv("TMPDIR");
+	if (tmp == NULL)
+#ifdef _PATH_TMP
+		tmp = _PATH_TMP;
+#else
+                tmp = "/tmp";
+#endif
+	archive_strcpy(temppath, tmp);
+	if (temppath->s[temppath->length-1] != '/')
+		archive_strappend_char(temppath, '/');
+	return (ARCHIVE_OK);
+}
+
+#if defined(HAVE_MKSTEMP)
+
+/*
+ * We can use mkstemp().
+ */
+
+int
+__archive_mktemp(const char *tmpdir)
+{
+	struct archive_string temp_name;
+	int fd = -1;
+
+	archive_string_init(&temp_name);
+	if (tmpdir == NULL) {
+		if (get_tempdir(&temp_name) != ARCHIVE_OK)
+			goto exit_tmpfile;
+	} else {
+		archive_strcpy(&temp_name, tmpdir);
+		if (temp_name.s[temp_name.length-1] != '/')
+			archive_strappend_char(&temp_name, '/');
+	}
+	archive_strcat(&temp_name, "libarchive_XXXXXX");
+	fd = mkstemp(temp_name.s);
+	if (fd < 0)
+		goto exit_tmpfile;
+	unlink(temp_name.s);
+exit_tmpfile:
+	archive_string_free(&temp_name);
+	return (fd);
+}
+
+#else
+
+/*
+ * We use a private routine.
+ */
+
+int
+__archive_mktemp(const char *tmpdir)
+{
+        static const char num[] = {
+		'0', '1', '2', '3', '4', '5', '6', '7',
+		'8', '9', 'A', 'B', 'C', 'D', 'E', 'F',
+		'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N',
+		'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V',
+		'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+		'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l',
+		'm', 'n', 'o', 'p', 'q', 'r', 's', 't',
+		'u', 'v', 'w', 'x', 'y', 'z'
+        };
+	struct archive_string temp_name;
+	struct stat st;
+	int fd;
+	char *tp, *ep;
+	unsigned seed;
+
+	fd = -1;
+	archive_string_init(&temp_name);
+	if (tmpdir == NULL) {
+		if (get_tempdir(&temp_name) != ARCHIVE_OK)
+			goto exit_tmpfile;
+	} else
+		archive_strcpy(&temp_name, tmpdir);
+	if (temp_name.s[temp_name.length-1] == '/') {
+		temp_name.s[temp_name.length-1] = '\0';
+		temp_name.length --;
+	}
+	if (stat(temp_name.s, &st) < 0)
+		goto exit_tmpfile;
+	if (!S_ISDIR(st.st_mode)) {
+		errno = ENOTDIR;
+		goto exit_tmpfile;
+	}
+	archive_strcat(&temp_name, "/libarchive_");
+	tp = temp_name.s + archive_strlen(&temp_name);
+	archive_strcat(&temp_name, "XXXXXXXXXX");
+	ep = temp_name.s + archive_strlen(&temp_name);
+
+	fd = open("/dev/random", O_RDONLY);
+	if (fd < 0)
+		seed = time(NULL);
+	else {
+		if (read(fd, &seed, sizeof(seed)) < 0)
+			seed = time(NULL);
+		close(fd);
+	}
+	do {
+		char *p;
+
+		p = tp;
+		while (p < ep)
+			*p++ = num[((unsigned)rand_r(&seed)) % sizeof(num)];
+		fd = open(temp_name.s, O_CREAT | O_EXCL | O_RDWR, 0600);
+	} while (fd < 0 && errno == EEXIST);
+	if (fd < 0)
+		goto exit_tmpfile;
+	unlink(temp_name.s);
+exit_tmpfile:
+	archive_string_free(&temp_name);
+	return (fd);
+}
+
+#endif /* HAVE_MKSTEMP */
+#endif /* !_WIN32 || __CYGWIN__ */

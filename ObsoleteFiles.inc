@@ -38,6 +38,24 @@
 #   xargs -n1 | sort | uniq -d;
 # done
 
+# 20120225: libarchive 3.0.3
+OLD_FILES+=man/man3/archive_read_data_into_buffer.3.gz \
+	man/man3/archive_read_support_compression_all.3.gz \
+	man/man3/archive_read_support_compression_bzip2.3.gz \
+	man/man3/archive_read_support_compression_compress.3.gz \
+	man/man3/archive_read_support_compression_gzip.3.gz \
+	man/man3/archive_read_support_compression_lzma.3.gz \
+	man/man3/archive_read_support_compression_none.3.gz \
+	man/man3/archive_read_support_compression_program.3.gz \
+	man/man3/archive_read_support_compression_program_signature.3.gz \
+	man/man3/archive_read_support_compression_xz.3.gz \
+	man/man3/archive_write_set_callbacks.3.gz \
+	man/man3/archive_write_set_compression_bzip2.3.gz \
+	man/man3/archive_write_set_compression_compress.3.gz \
+	man/man3/archive_write_set_compression_gzip.3.gz \
+	man/man3/archive_write_set_compression_none.3.gz \
+	man/man3/archive_write_set_compression_program.3.gz
+OLD_LIBS+=usr/lib/libarchive.so.5
 # 20120113: removal of wtmpcvt(1)
 OLD_FILES+=usr/bin/wtmpcvt
 OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
@@ -707,6 +725,8 @@ OLD_LIBS+=usr/lib32/pam_unix.so.4
 .endif
 # 20090718: the gdm pam.d file is no longer required.
 OLD_FILES+=etc/pam.d/gdm
+# 20090714: net_add_domain(9) renamed to domain_add(9)
+OLD_FILES+=usr/share/man/man9/net_add_domain.9.gz
 # 20090713: vimage container structs removed.
 OLD_FILES+=usr/include/netinet/vinet.h
 OLD_FILES+=usr/include/netinet6/vinet6.h

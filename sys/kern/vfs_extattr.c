@@ -181,7 +181,7 @@ extattr_set_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 	auio.uio_iov = &aiov;
 	auio.uio_iovcnt = 1;
 	auio.uio_offset = 0;
-	if (nbytes > INT_MAX) {
+	if (nbytes > IOSIZE_MAX) {
 		error = EINVAL;
 		goto done;
 	}
@@ -355,7 +355,7 @@ extattr_get_vp(struct vnode *vp, int attrnamespace, const char *attrname,
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
-		if (nbytes > INT_MAX) {
+		if (nbytes > IOSIZE_MAX) {
 			error = EINVAL;
 			goto done;
 		}
@@ -672,7 +672,7 @@ extattr_list_vp(struct vnode *vp, int attrnamespace, void *data,
 		auio.uio_iov = &aiov;
 		auio.uio_iovcnt = 1;
 		auio.uio_offset = 0;
-		if (nbytes > INT_MAX) {
+		if (nbytes > IOSIZE_MAX) {
 			error = EINVAL;
 			goto done;
 		}

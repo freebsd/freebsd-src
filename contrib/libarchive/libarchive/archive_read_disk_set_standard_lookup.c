@@ -72,8 +72,8 @@ struct name_cache {
 	} cache[name_cache_size];
 };
 
-static const char *	lookup_gname(void *, gid_t);
-static const char *	lookup_uname(void *, uid_t);
+static const char *	lookup_gname(void *, int64_t);
+static const char *	lookup_uname(void *, int64_t);
 static void	cleanup(void *);
 static const char *	lookup_gname_helper(struct name_cache *, id_t gid);
 static const char *	lookup_uname_helper(struct name_cache *, id_t uid);
@@ -175,7 +175,7 @@ lookup_name(struct name_cache *cache,
 }
 
 static const char *
-lookup_uname(void *data, uid_t uid)
+lookup_uname(void *data, int64_t uid)
 {
 	struct name_cache *uname_cache = (struct name_cache *)data;
 	return (lookup_name(uname_cache,
@@ -187,6 +187,8 @@ static const char *
 lookup_uname_helper(struct name_cache *cache, id_t id)
 {
 	struct passwd	pwent, *result;
+	char * nbuff;
+	size_t nbuff_size;
 	int r;
 
 	if (cache->buff_size == 0) {
@@ -208,10 +210,12 @@ lookup_uname_helper(struct name_cache *cache, id_t id)
 		 * we just double it and try again.  Because the buffer
 		 * is kept around in the cache object, we shouldn't
 		 * have to do this very often. */
-		cache->buff_size *= 2;
-		cache->buff = realloc(cache->buff, cache->buff_size);
-		if (cache->buff == NULL)
+		nbuff_size = cache->buff_size * 2;
+		nbuff = realloc(cache->buff, nbuff_size);
+		if (nbuff == NULL)
 			break;
+		cache->buff = nbuff;
+		cache->buff_size = nbuff_size;
 	}
 	if (r != 0) {
 		archive_set_error(cache->archive, errno,
@@ -239,7 +243,7 @@ lookup_uname_helper(struct name_cache *cache, id_t id)
 #endif
 
 static const char *
-lookup_gname(void *data, gid_t gid)
+lookup_gname(void *data, int64_t gid)
 {
 	struct name_cache *gname_cache = (struct name_cache *)data;
 	return (lookup_name(gname_cache,
@@ -251,6 +255,8 @@ static const char *
 lookup_gname_helper(struct name_cache *cache, id_t id)
 {
 	struct group	grent, *result;
+	char * nbuff;
+	size_t nbuff_size;
 	int r;
 
 	if (cache->buff_size == 0) {
@@ -270,10 +276,12 @@ lookup_gname_helper(struct name_cache *cache, id_t id)
 		/* ERANGE means our buffer was too small, but POSIX
 		 * doesn't tell us how big the buffer should be, so
 		 * we just double it and try again. */
-		cache->buff_size *= 2;
-		cache->buff = realloc(cache->buff, cache->buff_size);
-		if (cache->buff == NULL)
+		nbuff_size = cache->buff_size * 2;
+		nbuff = realloc(cache->buff, nbuff_size);
+		if (nbuff == NULL)
 			break;
+		cache->buff = nbuff;
+		cache->buff_size = nbuff_size;
 	}
 	if (r != 0) {
 		archive_set_error(cache->archive, errno,

@@ -92,8 +92,9 @@
 #define AE_SAME_HANDLER                 (ACPI_STATUS) (0x0019 | AE_CODE_ENVIRONMENTAL)
 #define AE_NO_HANDLER                   (ACPI_STATUS) (0x001A | AE_CODE_ENVIRONMENTAL)
 #define AE_OWNER_ID_LIMIT               (ACPI_STATUS) (0x001B | AE_CODE_ENVIRONMENTAL)
+#define AE_NOT_CONFIGURED               (ACPI_STATUS) (0x001C | AE_CODE_ENVIRONMENTAL)
 
-#define AE_CODE_ENV_MAX                 0x001B
+#define AE_CODE_ENV_MAX                 0x001C
 
 
 /*
@@ -222,7 +223,8 @@ char const   *AcpiGbl_ExceptionNames_Env[] =
     "AE_ABORT_METHOD",
     "AE_SAME_HANDLER",
     "AE_NO_HANDLER",
-    "AE_OWNER_ID_LIMIT"
+    "AE_OWNER_ID_LIMIT",
+    "AE_NOT_CONFIGURED"
 };
 
 char const   *AcpiGbl_ExceptionNames_Pgm[] =

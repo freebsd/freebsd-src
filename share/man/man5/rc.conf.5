@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2012
+.Dd February 25, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -200,7 +200,7 @@ to handle device added, removed or unknown events from the kernel.
 .Pq Vt bool
 Run
 .Xr ddb 8
-to install 
+to install
 .Xr ddb 4
 scripts at boot time.
 .It Va ddb_config
@@ -1273,7 +1273,7 @@ options in this variable, in addition to the
 file.
 For instance, to configure an
 .Xr ath 4
-wireless device in station mode with an address obtained 
+wireless device in station mode with an address obtained
 via DHCP, using WPA authentication and 802.11b mode, it is
 possible to use something like:
 .Bd -literal
@@ -1427,7 +1427,7 @@ Note that ICMPv6 Router Advertisement messages will be
 accepted even when
 .Va net.inet6.ip6.forwarding
 is 1
-.Pq packet fowarding is enabled
+.Pq packet forwarding is enabled
 when
 .Va net.inet6.ip6.rfc6204w3
 is set to 1.
@@ -1449,7 +1449,8 @@ Aliases should be set by
 .Va ifconfig_ Ns Ao Ar interface Ac Ns Va _alias Ns Aq Ar n
 with
 .Dq Li inet6
-keyword.  For example:
+keyword.
+For example:
 .Bd -literal
 ifconfig_ed0_ipv6="inet6 2001:db8:1::1 prefixlen 64"
 ifconfig_ed0_alias0="inet6 2001:db8:2::1 prefixlen 64"
@@ -1552,14 +1553,17 @@ If
 .Dq Li AUTO
 is specified, it attempts to read a file
 .Pa /etc/ip6addrctl.conf
-first.  If this file is found,
+first.
+If this file is found,
 .Xr ip6addrctl 8
-reads and installs it.  If not found, a policy is automatically set
+reads and installs it.
+If not found, a policy is automatically set
 according to
 .Va ipv6_activate_all_interfaces
 variable; if the variable is set to
 .Dq Li YES
-the IPv6-preferred one is used.  Otherwise IPv4-preferred.
+the IPv6-preferred one is used.
+Otherwise IPv4-preferred.
 .Pp
 The default value of
 .Va ip6addrctl_enable

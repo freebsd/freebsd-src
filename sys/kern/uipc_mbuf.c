@@ -1726,7 +1726,8 @@ struct mbuf *
 m_uiotombuf(struct uio *uio, int how, int len, int align, int flags)
 {
 	struct mbuf *m, *mb;
-	int error, length, total;
+	int error, length;
+	ssize_t total;
 	int progress = 0;
 
 	/*

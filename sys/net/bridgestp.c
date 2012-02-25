@@ -134,7 +134,7 @@ static void	bstp_tick(void *);
 static void	bstp_timer_start(struct bstp_timer *, uint16_t);
 static void	bstp_timer_stop(struct bstp_timer *);
 static void	bstp_timer_latch(struct bstp_timer *);
-static int	bstp_timer_expired(struct bstp_timer *);
+static int	bstp_timer_dectest(struct bstp_timer *);
 static void	bstp_hello_timer_expiry(struct bstp_state *,
 		    struct bstp_port *);
 static void	bstp_message_age_expiry(struct bstp_state *,
@@ -446,7 +446,7 @@ bstp_pdu_flags(struct bstp_port *bp)
 	return (flags);
 }
 
-struct mbuf *
+void
 bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 {
 	struct bstp_state *bs = bp->bp_bs;
@@ -456,7 +456,7 @@ bstp_input(struct bstp_port *bp, struct ifnet *ifp, struct mbuf *m)
 
 	if (bp->bp_active == 0) {
 		m_freem(m);
-		return (NULL);
+		return;
 	}
 
 	BSTP_LOCK(bs);
@@ -521,7 +521,6 @@ out:
 	BSTP_UNLOCK(bs);
 	if (m)
 		m_freem(m);
-	return (NULL);
 }
 
 static void
@@ -1862,30 +1861,32 @@ bstp_tick(void *arg)
 
 	CURVNET_SET(bs->bs_vnet);
 
-	/* slow timer to catch missed link events */
-	if (bstp_timer_expired(&bs->bs_link_timer)) {
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next)
-			bstp_ifupdstatus(bs, bp);
+	/* poll link events on interfaces that do not support linkstate */
+	if (bstp_timer_dectest(&bs->bs_link_timer)) {
+		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+			if (!(bp->bp_ifp->if_capabilities & IFCAP_LINKSTATE))
+				bstp_ifupdstatus(bs, bp);
+		}
 		bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
 	}
 
 	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
 		/* no events need to happen for these */
-		bstp_timer_expired(&bp->bp_tc_timer);
-		bstp_timer_expired(&bp->bp_recent_root_timer);
-		bstp_timer_expired(&bp->bp_forward_delay_timer);
-		bstp_timer_expired(&bp->bp_recent_backup_timer);
+		bstp_timer_dectest(&bp->bp_tc_timer);
+		bstp_timer_dectest(&bp->bp_recent_root_timer);
+		bstp_timer_dectest(&bp->bp_forward_delay_timer);
+		bstp_timer_dectest(&bp->bp_recent_backup_timer);
 
-		if (bstp_timer_expired(&bp->bp_hello_timer))
+		if (bstp_timer_dectest(&bp->bp_hello_timer))
 			bstp_hello_timer_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_message_age_timer))
+		if (bstp_timer_dectest(&bp->bp_message_age_timer))
 			bstp_message_age_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_migrate_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_migrate_delay_timer))
 			bstp_migrate_delay_expiry(bs, bp);
 
-		if (bstp_timer_expired(&bp->bp_edge_delay_timer))
+		if (bstp_timer_dectest(&bp->bp_edge_delay_timer))
 			bstp_edge_delay_expiry(bs, bp);
 
 		/* update the various state machines for the port */
@@ -1924,7 +1925,7 @@ bstp_timer_latch(struct bstp_timer *t)
 }
 
 static int
-bstp_timer_expired(struct bstp_timer *t)
+bstp_timer_dectest(struct bstp_timer *t)
 {
 	if (t->active == 0 || t->latched)
 		return (0);
@@ -2012,24 +2013,33 @@ bstp_reinit(struct bstp_state *bs)
 	struct bstp_port *bp;
 	struct ifnet *ifp, *mif;
 	u_char *e_addr;
+	void *bridgeptr;
 	static const u_char llzero[ETHER_ADDR_LEN];	/* 00:00:00:00:00:00 */
 
 	BSTP_LOCK_ASSERT(bs);
 
+	if (LIST_EMPTY(&bs->bs_bplist))
+		goto disablestp;
+
 	mif = NULL;
+	bridgeptr = LIST_FIRST(&bs->bs_bplist)->bp_ifp->if_bridge;
+	KASSERT(bridgeptr != NULL, ("Invalid bridge pointer"));
 	/*
 	 * Search through the Ethernet adapters and find the one with the
-	 * lowest value. The adapter which we take the MAC address from does
-	 * not need to be part of the bridge, it just needs to be a unique
-	 * value.
+	 * lowest value. Make sure the adapter which we take the MAC address
+	 * from is part of this bridge, so we can have more than one independent
+	 * bridges in the same STP domain.
 	 */
 	IFNET_RLOCK_NOSLEEP();
 	TAILQ_FOREACH(ifp, &V_ifnet, if_link) {
 		if (ifp->if_type != IFT_ETHER)
-			continue;
+			continue;	/* Not Ethernet */
+
+		if (ifp->if_bridge != bridgeptr)
+			continue;	/* Not part of our bridge */
 
 		if (bstp_addr_cmp(IF_LLADDR(ifp), llzero) == 0)
-			continue;
+			continue;	/* No mac address set */
 
 		if (mif == NULL) {
 			mif = ifp;
@@ -2041,21 +2051,8 @@ bstp_reinit(struct bstp_state *bs)
 		}
 	}
 	IFNET_RUNLOCK_NOSLEEP();
-
-	if (LIST_EMPTY(&bs->bs_bplist) || mif == NULL) {
-		/* Set the bridge and root id (lower bits) to zero */
-		bs->bs_bridge_pv.pv_dbridge_id =
-		    ((uint64_t)bs->bs_bridge_priority) << 48;
-		bs->bs_bridge_pv.pv_root_id = bs->bs_bridge_pv.pv_dbridge_id;
-		bs->bs_root_pv = bs->bs_bridge_pv;
-		/* Disable any remaining ports, they will have no MAC address */
-		LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
-			bp->bp_infois = BSTP_INFO_DISABLED;
-			bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
-		}
-		callout_stop(&bs->bs_bstpcallout);
-		return;
-	}
+	if (mif == NULL)
+		goto disablestp;
 
 	e_addr = IF_LLADDR(mif);
 	bs->bs_bridge_pv.pv_dbridge_id =
@@ -2083,6 +2080,20 @@ bstp_reinit(struct bstp_state *bs)
 
 	bstp_assign_roles(bs);
 	bstp_timer_start(&bs->bs_link_timer, BSTP_LINK_TIMER);
+	return;
+
+disablestp:
+	/* Set the bridge and root id (lower bits) to zero */
+	bs->bs_bridge_pv.pv_dbridge_id =
+	    ((uint64_t)bs->bs_bridge_priority) << 48;
+	bs->bs_bridge_pv.pv_root_id = bs->bs_bridge_pv.pv_dbridge_id;
+	bs->bs_root_pv = bs->bs_bridge_pv;
+	/* Disable any remaining ports, they will have no MAC address */
+	LIST_FOREACH(bp, &bs->bs_bplist, bp_next) {
+		bp->bp_infois = BSTP_INFO_DISABLED;
+		bstp_set_port_role(bp, BSTP_ROLE_DISABLED);
+	}
+	callout_stop(&bs->bs_bstpcallout);
 }
 
 static int

@@ -210,6 +210,7 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 		IXGBE_TX_LOCK(txr);
 	/* take a copy of ring->cur now, and never read it again */
 	k = ring->cur;
+	/* do a sanity check on cur - hwcur XXX verify */
 	l = k - kring->nr_hwcur;
 	if (l < 0)
 		l += lim + 1;
@@ -240,11 +241,8 @@ ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)	/* wraparound */
-			l += lim + 1;
-
-		while (j != k) {
+		l = netmap_tidx_k2n(na, ring_nr, j); /* NIC index */
+		for (n = 0; j != k; n++) {
 			/*
 			 * Collect per-slot info.
 			 * Note that txbuf and curr are indexed by l.
@@ -282,6 +280,11 @@ ring_reset:
 			}
 
 			slot->flags &= ~NS_REPORT;
+			if (slot->flags & NS_BUF_CHANGED) {
+				/* buffer has changed, unload and reload map */
+				netmap_reload_map(txr->txtag, txbuf->map, addr);
+				slot->flags &= ~NS_BUF_CHANGED;
+			}
 			/*
 			 * Fill the slot in the NIC ring.
 			 * In this driver we need to rewrite the buffer
@@ -296,25 +299,14 @@ ring_reset:
 				    IXGBE_ADVTXD_DCMD_DEXT |
 				    IXGBE_ADVTXD_DCMD_IFCS |
 				    IXGBE_TXD_CMD_EOP | flags) );
-			/* If the buffer has changed, unload and reload map
-			 * (and possibly the physical address in the NIC
-			 * slot, but we did it already).
-			 */
-			if (slot->flags & NS_BUF_CHANGED) {
-				/* buffer has changed, unload and reload map */
-				netmap_reload_map(txr->txtag, txbuf->map, addr);
-				slot->flags &= ~NS_BUF_CHANGED;
-			}
 
 			/* make sure changes to the buffer are synced */
 			bus_dmamap_sync(txr->txtag, txbuf->map,
 				BUS_DMASYNC_PREWRITE);
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwcur = k; /* the saved ring->cur */
-
 		/* decrease avail by number of sent packets */
 		kring->nr_hwavail -= n;
 
@@ -357,7 +349,7 @@ ring_reset:
 		j= (j < kring->nkr_num_slots / 4 || j >= kring->nkr_num_slots*3/4) ?
 			0 : report_frequency;
 		kring->nr_kflags = j; /* the slot to check */
-		j = txd[j].upper.fields.status & IXGBE_TXD_STAT_DD;
+		j = txd[j].upper.fields.status & IXGBE_TXD_STAT_DD;	// XXX cpu_to_le32 ?
 	}
 	if (j) {
 		int delta;
@@ -397,7 +389,6 @@ ring_reset:
 	if (do_lock)
 		IXGBE_TX_UNLOCK(txr);
 	return 0;
-
 }
 
 
@@ -459,29 +450,27 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	l = rxr->next_to_check;
-	j = rxr->next_to_check + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_ridx_n2k(na, ring_nr, l);
 
-    if (netmap_no_pendintr || force_update) {
-	for (n = 0; ; n++) {
-		union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
-		uint32_t staterr = le32toh(curr->wb.upper.status_error);
+	if (netmap_no_pendintr || force_update) {
+		for (n = 0; ; n++) {
+			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
+			uint32_t staterr = le32toh(curr->wb.upper.status_error);
 
-		if ((staterr & IXGBE_RXD_STAT_DD) == 0)
-			break;
-		ring->slot[j].len = le16toh(curr->wb.upper.length);
-		bus_dmamap_sync(rxr->ptag,
-			rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
-		j = (j == lim) ? 0 : j + 1;
-		l = (l == lim) ? 0 : l + 1;
+			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
+				break;
+			ring->slot[j].len = le16toh(curr->wb.upper.length);
+			bus_dmamap_sync(rxr->ptag,
+			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
+			j = (j == lim) ? 0 : j + 1;
+			l = (l == lim) ? 0 : l + 1;
+		}
+		if (n) { /* update the state variables */
+			rxr->next_to_check = l;
+			kring->nr_hwavail += n;
+		}
+		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
-	if (n) { /* update the state variables */
-		rxr->next_to_check = l;
-		kring->nr_hwavail += n;
-	}
-	kring->nr_kflags &= ~NKR_PENDINTR;
-    }
 
 	/*
 	 * Skip past packets that userspace has already processed
@@ -492,11 +481,8 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* userspace has read some packets. */
-		n = 0;
-		l = kring->nr_hwcur - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
-		while (j != k) {
+		l = netmap_ridx_k2n(na, ring_nr, j);
+		for (n = 0; j != k; n++) {
 			/* collect per-slot info, with similar validations
 			 * and flag handling as in the txsync code.
 			 *
@@ -514,19 +500,16 @@ ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 			if (addr == netmap_buffer_base) /* bad buf */
 				goto ring_reset;
 
-			curr->wb.upper.status_error = 0;
-			curr->read.pkt_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
 				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
-
+			curr->wb.upper.status_error = 0;
+			curr->read.pkt_addr = htole64(paddr);
 			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_PREREAD);
-
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;

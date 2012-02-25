@@ -63,6 +63,7 @@
 #include <contrib/octeon-sdk/cvmx.h>
 #include <contrib/octeon-sdk/cvmx-interrupt.h>
 #include <contrib/octeon-sdk/cvmx-mgmt-port.h>
+#include "octe/ethernet-common.h"
 
 struct octm_softc {
 	struct ifnet *sc_ifp;
@@ -176,9 +177,10 @@ octm_attach(device_t dev)
 	/*
 	 * Set MAC address for this management port.
 	 */
-	mac = 0;
-	memcpy((u_int8_t *)&mac + 2, cvmx_sysinfo_get()->mac_addr_base, 6);
-	mac += sc->sc_port;
+	if (cvm_assign_mac_address(&mac, NULL) != 0) {
+		device_printf(dev, "unable to allocate MAC address.\n");
+		return (ENXIO);
+	}
 	cvmx_mgmt_port_set_mac(sc->sc_port, mac);
 
 	/* No watermark for input ring.  */
