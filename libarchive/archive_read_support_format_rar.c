@@ -757,11 +757,13 @@ archive_read_format_rar_options(struct archive_read *a,
       else
         ret = ARCHIVE_FATAL;
     }
-  } else
-    archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-        "rar: unknown keyword ``%s''", key);
-                
-  return (ret);
+    return (ret);
+  }
+
+  /* Note: The "warn" return is just to inform the options
+   * supervisor that we didn't handle it.  It will generate
+   * a suitable error if no one used this option. */
+  return (ARCHIVE_WARN);
 }
 
 static int

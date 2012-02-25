@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2004 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -441,7 +441,7 @@ archive_read_format_zip_options(struct archive_read *a,
 	if (strcmp(key, "compat-2x")  == 0) {
 		/* Handle filnames as libarchive 2.x */
 		zip->init_default_conversion = (val != NULL) ? 1 : 0;
-		ret = ARCHIVE_OK;
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -456,11 +456,13 @@ archive_read_format_zip_options(struct archive_read *a,
 			} else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "zip: unknown keyword ``%s''", key);
+		return (ret);
+	}
 
-	return (ret);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 static int

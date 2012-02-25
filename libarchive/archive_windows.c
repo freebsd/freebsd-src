@@ -48,6 +48,7 @@
 
 #include "archive_platform.h"
 #include "archive_private.h"
+#include "archive_entry.h"
 #include <ctype.h>
 #include <errno.h>
 #include <stddef.h>
@@ -638,6 +639,113 @@ __la_write(int fd, const void *buf, size_t nbytes)
 	}
 	return (bytes_written);
 }
+
+/*
+ * Replace the Windows path separator '\' with '/'.
+ */
+static int
+replace_pathseparator(struct archive_wstring *ws, const wchar_t *wp)
+{
+	wchar_t *w;
+	size_t path_length;
+
+	if (wp == NULL)
+		return(0);
+	if (wcschr(wp, L'\\') == NULL)
+		return(0);
+	path_length = wcslen(wp);
+	if (archive_wstring_ensure(ws, path_length) == NULL)
+		return(-1);
+	archive_wstrncpy(ws, wp, path_length);
+	for (w = ws->s; *w; w++) {
+		if (*w == L'\\')
+			*w = L'/';
+	}
+	return(1);
+}
+
+static int
+fix_pathseparator(struct archive_entry *entry)
+{
+	struct archive_wstring ws;
+	const wchar_t *wp;
+	int ret = ARCHIVE_OK;
+
+	archive_string_init(&ws);
+	wp = archive_entry_pathname_w(entry);
+	switch (replace_pathseparator(&ws, wp)) {
+	case 0: /* Not replaced. */
+		break;
+	case 1: /* Replaced. */
+		archive_entry_copy_pathname_w(entry, ws.s);
+		break;
+	default:
+		ret = ARCHIVE_FAILED;
+	}
+	wp = archive_entry_hardlink_w(entry);
+	switch (replace_pathseparator(&ws, wp)) {
+	case 0: /* Not replaced. */
+		break;
+	case 1: /* Replaced. */
+		archive_entry_copy_hardlink_w(entry, ws.s);
+		break;
+	default:
+		ret = ARCHIVE_FAILED;
+	}
+	wp = archive_entry_symlink_w(entry);
+	switch (replace_pathseparator(&ws, wp)) {
+	case 0: /* Not replaced. */
+		break;
+	case 1: /* Replaced. */
+		archive_entry_copy_symlink_w(entry, ws.s);
+		break;
+	default:
+		ret = ARCHIVE_FAILED;
+	}
+	archive_wstring_free(&ws);
+	return(ret);
+}
+
+struct archive_entry *
+__la_win_entry_in_posix_pathseparator(struct archive_entry *entry)
+{
+	struct archive_entry *entry_main;
+	const wchar_t *wp;
+	int has_backslash = 0;
+	int ret;
+
+	wp = archive_entry_pathname_w(entry);
+	if (wp != NULL && wcschr(wp, L'\\') != NULL)
+		has_backslash = 1;
+	if (!has_backslash) {
+		wp = archive_entry_hardlink_w(entry);
+		if (wp != NULL && wcschr(wp, L'\\') != NULL)
+			has_backslash = 1;
+	}
+	if (!has_backslash) {
+		wp = archive_entry_symlink_w(entry);
+		if (wp != NULL && wcschr(wp, L'\\') != NULL)
+			has_backslash = 1;
+	}
+	/*
+	 * If there is no backslach chars, return the original.
+	 */
+	if (!has_backslash)
+		return (entry);
+
+	/* Copy entry so we can modify it as needed. */
+	entry_main = archive_entry_clone(entry);
+	if (entry_main == NULL)
+		return (NULL);
+	/* Replace the Windows path-separator '\' with '/'. */
+	ret = fix_pathseparator(entry_main);
+	if (ret < ARCHIVE_WARN) {
+		archive_entry_free(entry_main);
+		return (NULL);
+	}
+	return (entry_main);
+}
+
 
 /*
  * The following function was modified from PostgreSQL sources and is

@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -147,11 +148,13 @@ archive_write_cpio_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "%s: unknown keyword ``%s''", a->format_name, key);
+		return (ret);
+	}
 
-	return (ret);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 /*
@@ -278,18 +281,37 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	int64_t	ino;
 	char h[76];
 	struct archive_string_conv *sconv;
+	struct archive_entry *entry_main;
 	size_t len;
 
 	cpio = (struct cpio *)a->format_data;
 	ret_final = ARCHIVE_OK;
 	sconv = get_sconv(a);
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure the path separators in pahtname, hardlink and symlink
+	 * are all slash '/', not the Windows path separator '\'. */
+	entry_main = __la_win_entry_in_posix_pathseparator(entry);
+	if (entry_main == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate ustar data");
+		return(ARCHIVE_FATAL);
+	}
+	if (entry != entry_main)
+		entry = entry_main;
+	else
+		entry_main = NULL;
+#else
+	entry_main = NULL;
+#endif
+
 	ret = archive_entry_pathname_l(entry, &path, &len, sconv);
 	if (ret != 0) {
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Pathname");
-			return (ARCHIVE_FATAL);
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
 		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate pathname '%s' to %s",
@@ -308,11 +330,13 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	if (ino < 0) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for ino translation table");
-		return (ARCHIVE_FATAL);
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
 	} else if (ino > 0777777) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Too many files for this cpio format");
-		return (ARCHIVE_FATAL);
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
 	}
 	format_octal(ino & 0777777, h + c_ino_offset, c_ino_size);
 
@@ -339,7 +363,8 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 		if (errno == ENOMEM) {
 			archive_set_error(&a->archive, ENOMEM,
 			    "Can't allocate memory for Linkname");
-			return (ARCHIVE_FATAL);
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
 		}
 		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
 		    "Can't translate linkname '%s' to %s",
@@ -356,25 +381,35 @@ write_header(struct archive_write *a, struct archive_entry *entry)
 	if (ret) {
 		archive_set_error(&a->archive, ERANGE,
 		    "File is too large for cpio format.");
-		return (ARCHIVE_FAILED);
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
 	}
 
 	ret = __archive_write_output(a, h, sizeof(h));
-	if (ret != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+	if (ret != ARCHIVE_OK) {
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
+	}
 
 	ret = __archive_write_output(a, path, pathlength);
-	if (ret != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+	if (ret != ARCHIVE_OK) {
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
+	}
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
 
 	/* Write the symlink now. */
 	if (p != NULL  &&  *p != '\0') {
 		ret = __archive_write_output(a, p, strlen(p));
-		if (ret != ARCHIVE_OK)
-			return (ARCHIVE_FATAL);
+		if (ret != ARCHIVE_OK) {
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
 	}
+exit_write_header:
+	if (entry_main)
+		archive_entry_free(entry_main);
 	return (ret_final);
 }
 

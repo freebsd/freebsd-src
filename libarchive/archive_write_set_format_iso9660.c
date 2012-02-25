@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2009-2011 Michihiro NAKAJIMA
+ * Copyright (c) 2009-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -1506,6 +1506,11 @@ iso9660_options(struct archive_write *a, const char *key, const char *value)
 		}
 		break;
 	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 
 invalid_value:
 	archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,

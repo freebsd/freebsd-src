@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -369,7 +369,7 @@ archive_read_format_tar_options(struct archive_read *a,
 		/* Handle UTF-8 filnames as libarchive 2.x */
 		tar->compat_2x = (val != NULL)?1:0;
 		tar->init_default_conversion = tar->compat_2x;
-		ret = ARCHIVE_OK;
+		return (ARCHIVE_OK);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0)
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -383,11 +383,13 @@ archive_read_format_tar_options(struct archive_read *a,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "tar: unknown keyword ``%s''", key);
+		return (ret);
+	}
 
-	return (ret);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 /* utility function- this exists to centralize the logic of tracking

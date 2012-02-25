@@ -40,6 +40,15 @@ DEFINE_TEST(test_write_compress_program)
 		skipping("Cannot run 'gzip'");
 		return;
 	}
+	/* NOTE: Setting blocksize=1024 will cause gunzip failure because
+	 * it add extra bytes that gunzip ignores with its warning and
+	 * exit code 1. So we should set blocksize=1 in order not to
+	 * yield the extra bytes when using gunzip. */
+	assert((a = archive_read_new()) != NULL);
+	r = archive_read_support_filter_gzip(a);
+	if (r != ARCHIVE_OK && canGunzip())
+		blocksize = 1;
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Create a new archive in memory. */
 	/* Write it through an external "gzip" program. */

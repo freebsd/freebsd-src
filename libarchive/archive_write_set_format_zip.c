@@ -1,7 +1,7 @@
 /*-
  * Copyright (c) 2008 Anselm Strauss
  * Copyright (c) 2009 Joerg Sonnenberger
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -238,6 +238,7 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			zip->compression = COMPRESSION_STORE;
 			ret = ARCHIVE_OK;
 		}
+		return (ret);
 	} else if (strcmp(key, "hdrcharset")  == 0) {
 		if (val == NULL || val[0] == 0) {
 			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
@@ -251,10 +252,13 @@ archive_write_zip_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "%s: unknown keyword ``%s''", a->format_name, key);
-	return (ret);
+		return (ret);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 int
@@ -381,7 +385,21 @@ archive_write_zip_header(struct archive_write *a, struct archive_entry *entry)
 		    "Can't allocate zip header data");
 		return (ARCHIVE_FATAL);
 	}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure the path separators in pahtname, hardlink and symlink
+	 * are all slash '/', not the Windows path separator '\'. */
+	l->entry = __la_win_entry_in_posix_pathseparator(entry);
+	if (l->entry == entry)
+		l->entry = archive_entry_clone(entry);
+#else
 	l->entry = archive_entry_clone(entry);
+#endif
+	if (l->entry == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate zip header data");
+		free(l);
+		return (ARCHIVE_FATAL);
+	}
 	l->flags = zip->flags;
 	if (zip->opt_sconv != NULL)
 		sconv = zip->opt_sconv;

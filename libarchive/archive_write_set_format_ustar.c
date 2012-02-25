@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
- * Copyright (c) 2011 Michihiro NAKAJIMA
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -224,11 +224,13 @@ archive_write_ustar_options(struct archive_write *a, const char *key,
 			else
 				ret = ARCHIVE_FATAL;
 		}
-	} else
-		archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
-		    "%s: unknown keyword ``%s''", a->format_name, key);
+		return (ret);
+	}
 
-	return (ret);
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 static int
@@ -237,6 +239,7 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 	char buff[512];
 	int ret, ret2;
 	struct ustar *ustar;
+	struct archive_entry *entry_main;
 	struct archive_string_conv *sconv;
 
 	ustar = (struct ustar *)a->format_data;
@@ -267,37 +270,106 @@ archive_write_ustar_header(struct archive_write *a, struct archive_entry *entry)
 
 	if (AE_IFDIR == archive_entry_filetype(entry)) {
 		const char *p;
-		char *t;
+		size_t path_length;
 		/*
 		 * Ensure a trailing '/'.  Modify the entry so
 		 * the client sees the change.
 		 */
-		p = archive_entry_pathname(entry);
-		if (p[strlen(p) - 1] != '/') {
-			t = (char *)malloc(strlen(p) + 2);
-			if (t == NULL) {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		const wchar_t *wp;
+
+		wp = archive_entry_pathname_w(entry);
+		if (wp != NULL && wp[wcslen(wp) -1] != L'/') {
+			struct archive_wstring ws;
+
+			archive_string_init(&ws);
+			path_length = wcslen(wp);
+			if (archive_wstring_ensure(&ws,
+			    path_length + 2) == NULL) {
 				archive_set_error(&a->archive, ENOMEM,
-				"Can't allocate ustar data");
+				    "Can't allocate ustar data");
+				archive_wstring_free(&ws);
 				return(ARCHIVE_FATAL);
 			}
-			strcpy(t, p);
-			strcat(t, "/");
-			archive_entry_copy_pathname(entry, t);
-			free(t);
+			/* Should we keep '\' ? */
+			if (wp[path_length -1] == L'\\')
+				path_length--;
+			archive_wstrncpy(&ws, wp, path_length);
+			archive_wstrappend_wchar(&ws, L'/');
+			archive_entry_copy_pathname_w(entry, ws.s);
+			archive_wstring_free(&ws);
+			p = NULL;
+		} else
+#endif
+			p = archive_entry_pathname(entry);
+		/*
+		 * On Windows, this is a backup operation just in
+		 * case getting WCS failed. On POSIX, this is a
+		 * normal operation.
+		 */
+		if (p != NULL && p[strlen(p) - 1] != '/') {
+			struct archive_string as;
+
+			archive_string_init(&as);
+			path_length = strlen(p);
+			if (archive_string_ensure(&as,
+			    path_length + 2) == NULL) {
+				archive_set_error(&a->archive, ENOMEM,
+				    "Can't allocate ustar data");
+				archive_string_free(&as);
+				return(ARCHIVE_FATAL);
+			}
+#if defined(_WIN32) && !defined(__CYGWIN__)
+			/* NOTE: This might break the pathname
+			 * if the current code page is CP932 and
+			 * the pathname includes a character '\'
+			 * as a part of its multibyte pathname. */
+			if (p[strlen(p) -1] == '\\')
+				path_length--;
+			else
+#endif
+			archive_strncpy(&as, p, path_length);
+			archive_strappend_char(&as, '/');
+			archive_entry_copy_pathname(entry, as.s);
+			archive_string_free(&as);
 		}
 	}
 
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure the path separators in pahtname, hardlink and symlink
+	 * are all slash '/', not the Windows path separator '\'. */
+	entry_main = __la_win_entry_in_posix_pathseparator(entry);
+	if (entry_main == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate ustar data");
+		return(ARCHIVE_FATAL);
+	}
+	if (entry != entry_main)
+		entry = entry_main;
+	else
+		entry_main = NULL;
+#else
+	entry_main = NULL;
+#endif
 	ret = __archive_write_format_header_ustar(a, buff, entry, -1, 1, sconv);
-	if (ret < ARCHIVE_WARN)
+	if (ret < ARCHIVE_WARN) {
+		if (entry_main)
+			archive_entry_free(entry_main);
 		return (ret);
+	}
 	ret2 = __archive_write_output(a, buff, 512);
-	if (ret2 < ARCHIVE_WARN)
+	if (ret2 < ARCHIVE_WARN) {
+		if (entry_main)
+			archive_entry_free(entry_main);
 		return (ret2);
+	}
 	if (ret2 < ret)
 		ret = ret2;
 
 	ustar->entry_bytes_remaining = archive_entry_size(entry);
 	ustar->entry_padding = 0x1ff & (-(int64_t)ustar->entry_bytes_remaining);
+	if (entry_main)
+		archive_entry_free(entry_main);
 	return (ret);
 }
 

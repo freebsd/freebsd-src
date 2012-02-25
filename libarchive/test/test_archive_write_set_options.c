@@ -33,14 +33,13 @@ static void
 test(int pristine)
 {
 	struct archive* a = archive_write_new();
-	int halfempty_options_rv = pristine ? ARCHIVE_WARN : ARCHIVE_OK;
+	int halfempty_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
 	int known_option_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_OK;
-	int mixed_options_rv = pristine ? ARCHIVE_FAILED : ARCHIVE_WARN;
 
 	if (!pristine) {
 		archive_write_set_compression_gzip(a);
 		archive_write_set_format_iso9660(a);
-        }
+	}
 
 	/* NULL and "" denote `no option', so they're ok no matter
 	 * what, if any, formats are registered */
@@ -49,25 +48,73 @@ test(int pristine)
 
 	/* unknown modules and options */
 	should(a, ARCHIVE_FAILED, "fubar:snafu");
+	assertEqualString("Unknown module name: `fubar'",
+	    archive_error_string(a));
 	should(a, ARCHIVE_FAILED, "fubar:snafu=betcha");
+	assertEqualString("Unknown module name: `fubar'",
+	    archive_error_string(a));
 
 	/* unknown modules and options */
 	should(a, ARCHIVE_FAILED, "snafu");
+	assertEqualString("Undefined option: `snafu'",
+	    archive_error_string(a));
 	should(a, ARCHIVE_FAILED, "snafu=betcha");
+	assertEqualString("Undefined option: `snafu'",
+	    archive_error_string(a));
 
-	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_WARN otherwise */
+	/* ARCHIVE_OK with iso9660 loaded, ARCHIVE_FAILED otherwise */
 	should(a, known_option_rv, "iso9660:joliet");
+	if (pristine) {
+		assertEqualString("Unknown module name: `iso9660'",
+		    archive_error_string(a));
+	}
 	should(a, known_option_rv, "iso9660:joliet");
+	if (pristine) {
+		assertEqualString("Unknown module name: `iso9660'",
+		    archive_error_string(a));
+	}
 	should(a, known_option_rv, "joliet");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
 	should(a, known_option_rv, "!joliet");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
 
 	should(a, ARCHIVE_OK, ",");
 	should(a, ARCHIVE_OK, ",,");
 
 	should(a, halfempty_options_rv, ",joliet");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
 	should(a, halfempty_options_rv, "joliet,");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	}
 
-	should(a, mixed_options_rv, "joliet,snafu");
+	should(a, ARCHIVE_FAILED, "joliet,snafu");
+	if (pristine) {
+		assertEqualString("Undefined option: `joliet'",
+		    archive_error_string(a));
+	} else {
+		assertEqualString("Undefined option: `snafu'",
+		    archive_error_string(a));
+	}
+
+	should(a, ARCHIVE_FAILED, "iso9660:snafu");
+	if (pristine) {
+		assertEqualString("Unknown module name: `iso9660'",
+		    archive_error_string(a));
+	} else {
+		assertEqualString("Undefined option: `iso9660:snafu'",
+		    archive_error_string(a));
+	}
 
 	archive_write_finish(a);
 }

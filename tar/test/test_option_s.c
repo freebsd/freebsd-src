@@ -55,33 +55,35 @@ DEFINE_TEST(test_option_s)
 	 * Test 1: Filename substitution when creating archives.
 	 */
 	assertMakeDir("test1", 0755);
-	systemf("%s -cf - -s /foo/bar/ in/d1/foo | %s -xf - -C test1",
-	    testprog, testprog);
+	systemf("%s -cf test1_1.tar -s /foo/bar/ in/d1/foo", testprog);
+	systemf("%s -xf test1_1.tar -C test1", testprog);
 	assertFileContents("foo", 3, "test1/in/d1/bar");
-	systemf("%s -cf - -s /d1/d2/ in/d1/foo | %s -xf - -C test1",
-	    testprog, testprog);
+	systemf("%s -cf test1_2.tar -s /d1/d2/ in/d1/foo", testprog);
+	systemf("%s -xf test1_2.tar -C test1", testprog);
 	assertFileContents("foo", 3, "test1/in/d2/foo");
 
 	/*
 	 * Test 2: Basic substitution when extracting archive.
 	 */
 	assertMakeDir("test2", 0755);
-	systemf("%s -cf - in/d1/foo | %s -xf - -s /foo/bar/ -C test2",
-	    testprog, testprog);
+	systemf("%s -cf test2.tar in/d1/foo", testprog);
+	systemf("%s -xf test2.tar -s /foo/bar/ -C test2", testprog);
 	assertFileContents("foo", 3, "test2/in/d1/bar");
 
 	/*
 	 * Test 3: Files with empty names shouldn't be archived.
 	 */
-	systemf("%s -cf - -s ,in/d1/foo,, in/d1/foo | %s -tvf - > in.lst",
-	    testprog, testprog);
+	systemf("%s -cf test3.tar -s ,in/d1/foo,, in/d1/foo", testprog);
+	systemf("%s -tvf test3.tar > in.lst", testprog);
 	assertEmptyFile("in.lst");
 
 	/*
 	 * Test 4: Multiple substitutions when extracting archive.
 	 */
 	assertMakeDir("test4", 0755);
-	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}baz} -C test4",
+	systemf("%s -cf test4.tar in/d1/foo in/d1/bar",
+	    testprog, testprog);
+	systemf("%s -xf test4.tar -s /foo/bar/ -s }bar}baz} -C test4",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test4/in/d1/bar");
 	assertFileContents("bar", 3, "test4/in/d1/baz");
@@ -90,7 +92,9 @@ DEFINE_TEST(test_option_s)
 	 * Test 5: Name-switching substitutions when extracting archive.
 	 */
 	assertMakeDir("test5", 0755);
-	systemf("%s -cf - in/d1/foo in/d1/bar | %s -xf - -s /foo/bar/ -s }bar}foo} -C test5",
+	systemf("%s -cf test5.tar in/d1/foo in/d1/bar",
+	    testprog, testprog);
+	systemf("%s -xf test5.tar -s /foo/bar/ -s }bar}foo} -C test5",
 	    testprog, testprog);
 	assertFileContents("foo", 3, "test5/in/d1/bar");
 	assertFileContents("bar", 3, "test5/in/d1/foo");
@@ -140,13 +144,13 @@ DEFINE_TEST(test_option_s)
 	 */
 	/* At extraction time. */
 	assertMakeDir("test8a", 0755);
-	systemf("%s -cf - in/d1 | %s -xf - -s /d1/d2/ -C test8a",
-	    testprog, testprog);
+	systemf("%s -cf test8a.tar in/d1", testprog);
+	systemf("%s -xf test8a.tar -s /d1/d2/ -C test8a", testprog);
 	assertIsHardlink("test8a/in/d2/hardlink1", "test8a/in/d2/hardlink2");
 	/* At creation time. */
 	assertMakeDir("test8b", 0755);
-	systemf("%s -cf - -s /d1/d2/ in/d1 | %s -xf - -C test8b",
-	    testprog, testprog);
+	systemf("%s -cf test8b.tar -s /d1/d2/ in/d1", testprog);
+	systemf("%s -xf test8b.tar -C test8b", testprog);
 	assertIsHardlink("test8b/in/d2/hardlink1", "test8b/in/d2/hardlink2");
 
 	/*
@@ -154,23 +158,27 @@ DEFINE_TEST(test_option_s)
 	 */
 	/* At extraction. (assuming hardlink2 is the hardlink entry) */
 	assertMakeDir("test9a", 0755);
-	systemf("%s -cf - in/d1 | %s -xf - -s /hardlink1/hardlink1-renamed/ -C test9a",
-	    testprog, testprog);
+	systemf("%s -cf test9a.tar in/d1", testprog);
+	systemf("%s -xf test9a.tar -s /hardlink1/hardlink1-renamed/ -C test9a",
+	    testprog);
 	assertIsHardlink("test9a/in/d1/hardlink1-renamed", "test9a/in/d1/hardlink2");
 	/* At extraction. (assuming hardlink1 is the hardlink entry) */
 	assertMakeDir("test9b", 0755);
-	systemf("%s -cf - in/d1 | %s -xf - -s /hardlink2/hardlink2-renamed/ -C test9b",
-	    testprog, testprog);
+	systemf("%s -cf test9b.tar in/d1", testprog);
+	systemf("%s -xf test9b.tar -s /hardlink2/hardlink2-renamed/ -C test9b",
+	    testprog);
 	assertIsHardlink("test9b/in/d1/hardlink1", "test9b/in/d1/hardlink2-renamed");
 	/* At creation. (assuming hardlink2 is the hardlink entry) */
 	assertMakeDir("test9c", 0755);
-	systemf("%s -cf - -s /hardlink1/hardlink1-renamed/ in/d1 | %s -xf - -C test9c",
-	    testprog, testprog);
+	systemf("%s -cf test9c.tar -s /hardlink1/hardlink1-renamed/ in/d1",
+	    testprog);
+	systemf("%s -xf test9c.tar -C test9c", testprog);
 	assertIsHardlink("test9c/in/d1/hardlink1-renamed", "test9c/in/d1/hardlink2");
 	/* At creation. (assuming hardlink1 is the hardlink entry) */
 	assertMakeDir("test9d", 0755);
-	systemf("%s -cf - -s /hardlink2/hardlink2-renamed/ in/d1 | %s -xf - -C test9d",
-	    testprog, testprog);
+	systemf("%s -cf test9d.tar -s /hardlink2/hardlink2-renamed/ in/d1",
+	    testprog);
+	systemf("%s -xf test9d.tar -C test9d", testprog);
 	assertIsHardlink("test9d/in/d1/hardlink1", "test9d/in/d1/hardlink2-renamed");
 
 	/*
@@ -224,8 +232,8 @@ DEFINE_TEST(test_option_s)
 	 */
 	extract_reference_file("test_option_s.tar.Z");
 	assertMakeDir("test12a", 0755);
-	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/H -s /foo/hardlink1/ -C test12a",
-	    testprog);
+	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/H -s /foo/hardlink1/ %s -C test12a",
+	    testprog, canSymlink()?"":"--exclude in/d1/symlink");
 	assertFileContents("foo", 3, "test12a/in/d1/hardlink1");
 	assertFileContents("hardlinkedfile", 14, "test12a/in/d1/foo");
 	assertFileContents("foo", 3, "test12a/in/d1/hardlink2");
@@ -243,8 +251,8 @@ DEFINE_TEST(test_option_s)
 	 */
 	extract_reference_file("test_option_s.tar.Z");
 	assertMakeDir("test13a", 0755);
-	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/Rh -s /foo/hardlink1/Rh -C test13a",
-	    testprog);
+	systemf("%s -xf test_option_s.tar.Z -s /hardlink1/foo/Rh -s /foo/hardlink1/Rh %s -C test13a",
+	    testprog, canSymlink()?"":"--exclude in/d1/symlink");
 	assertFileContents("foo", 3, "test13a/in/d1/foo");
 	assertFileContents("hardlinkedfile", 14, "test13a/in/d1/hardlink1");
 	assertFileContents("foo", 3, "test13a/in/d1/hardlink2");

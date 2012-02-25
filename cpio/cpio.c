@@ -119,6 +119,7 @@ static void	mode_in(struct cpio *);
 static void	mode_list(struct cpio *);
 static void	mode_out(struct cpio *);
 static void	mode_pass(struct cpio *, const char *);
+static const char *remove_leading_slash(const char *);
 static int	restore_time(struct cpio *, struct archive_entry *,
 		    const char *, int fd);
 static void	usage(void);
@@ -155,9 +156,9 @@ main(int argc, char *argv[])
 	else {
 #if defined(_WIN32) && !defined(__CYGWIN__)
 		lafe_progname = strrchr(*argv, '\\');
-#else
-		lafe_progname = strrchr(*argv, '/');
+		if (strrchr(*argv, '/') > lafe_progname)
 #endif
+		lafe_progname = strrchr(*argv, '/');
 		if (lafe_progname != NULL)
 			lafe_progname++;
 		else
@@ -574,6 +575,49 @@ mode_out(struct cpio *cpio)
 	archive_write_free(cpio->archive);
 }
 
+static const char *
+remove_leading_slash(const char *p)
+{
+	const char *rp;
+
+	/* Remove leading "//./" or "//?/" or "//?/UNC/"
+	 * (absolute path prefixes used by Windows API) */
+	if ((p[0] == '/' || p[0] == '\\') &&
+	    (p[1] == '/' || p[1] == '\\') &&
+	    (p[2] == '.' || p[2] == '?') &&
+	    (p[3] == '/' || p[3] == '\\'))
+	{
+		if (p[2] == '?' &&
+		    (p[4] == 'U' || p[4] == 'u') &&
+		    (p[5] == 'N' || p[5] == 'n') &&
+		    (p[6] == 'C' || p[6] == 'c') &&
+		    (p[7] == '/' || p[7] == '\\'))
+			p += 8;
+		else
+			p += 4;
+	}
+	do {
+		rp = p;
+		/* Remove leading drive letter from archives created
+		 * on Windows. */
+		if (((p[0] >= 'a' && p[0] <= 'z') ||
+		     (p[0] >= 'A' && p[0] <= 'Z')) &&
+			 p[1] == ':') {
+			p += 2;
+		}
+		/* Remove leading "/../", "//", etc. */
+		while (p[0] == '/' || p[0] == '\\') {
+			if (p[1] == '.' && p[2] == '.' &&
+				(p[3] == '/' || p[3] == '\\')) {
+				p += 3; /* Remove "/..", leave "/"
+					 * for next pass. */
+			} else
+				p += 1; /* Remove "/". */
+		}
+	} while (rp != p);
+	return (p);
+}
+
 /*
  * This is used by both out mode (to copy objects from disk into
  * an archive) and pass mode (to copy objects from disk to
@@ -585,7 +629,6 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 	const char *destpath;
 	struct archive_entry *entry, *spare;
 	size_t len;
-	const char *p;
 	int r;
 
 	/*
@@ -639,10 +682,7 @@ file_to_archive(struct cpio *cpio, const char *srcpath)
 				    "Can't allocate path buffer");
 		}
 		strcpy(cpio->pass_destpath, cpio->destdir);
-		p = srcpath;
-		while (p[0] == '/')
-			++p;
-		strcat(cpio->pass_destpath, p);
+		strcat(cpio->pass_destpath, remove_leading_slash(srcpath));
 		destpath = cpio->pass_destpath;
 	}
 	if (cpio->option_rename)
@@ -1139,12 +1179,24 @@ cpio_rename(const char *name)
 	static char buff[1024];
 	FILE *t;
 	char *p, *ret;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	FILE *to;
 
+	t = fopen("CONIN$", "r");
+	if (t == NULL)
+		return (name);
+	to = fopen("CONOUT$", "w");
+	if (to == NULL)
+		return (name);
+	fprintf(to, "%s (Enter/./(new name))? ", name);
+	fclose(to);
+#else
 	t = fopen("/dev/tty", "r+");
 	if (t == NULL)
 		return (name);
 	fprintf(t, "%s (Enter/./(new name))? ", name);
 	fflush(t);
+#endif
 
 	p = fgets(buff, sizeof(buff), t);
 	fclose(t);
