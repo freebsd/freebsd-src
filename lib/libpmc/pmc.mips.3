@@ -23,7 +23,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 11, 2010
+.Dd February 25, 2012
 .Dt PMC.MIPS 3
 .Os
 .Sh NAME
@@ -166,7 +166,7 @@ This includes all instructions that normally write to a general
 purpose register, but where the destination register was set to r0.
 .It Li INTEGER_MULDIV_COMPLETED
 .Pq Event 17, Counter 1
-Integer multipy and divide instructions completed.  (MULxx, DIVx, MADDx, MSUBx).
+Integer multiply and divide instructions completed.  (MULxx, DIVx, MADDx, MSUBx).
 .It Li RF_STALL
 .Pq Event 18, Counter 0
 Counts the total number of cycles where no instructions are issued
