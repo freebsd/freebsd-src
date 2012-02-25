@@ -369,7 +369,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 			maxlength = count;
 	}
 	n_nchash = nchash + 1;
-	pct = (used * 100 * 100) / n_nchash;
+	pct = (used * 100) / (n_nchash / 100);
 	error = SYSCTL_OUT(req, &n_nchash, sizeof(n_nchash));
 	if (error)
 		return (error);
@@ -386,7 +386,7 @@ sysctl_debug_hashstat_nchash(SYSCTL_HANDLER_ARGS)
 }
 SYSCTL_PROC(_debug_hashstat, OID_AUTO, nchash, CTLTYPE_INT|CTLFLAG_RD|
     CTLFLAG_MPSAFE, 0, 0, sysctl_debug_hashstat_nchash, "I",
-    "nchash chain lengths");
+    "nchash statistics (number of total/used buckets, maximum chain length, usage percentage)");
 #endif
 
 /*
