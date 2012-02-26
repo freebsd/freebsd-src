@@ -152,6 +152,8 @@ static fo_poll_t	pipe_poll;
 static fo_kqfilter_t	pipe_kqfilter;
 static fo_stat_t	pipe_stat;
 static fo_close_t	pipe_close;
+static fo_chmod_t	pipe_chmod;
+static fo_chown_t	pipe_chown;
 
 struct fileops pipeops = {
 	.fo_read = pipe_read,
@@ -162,8 +164,8 @@ struct fileops pipeops = {
 	.fo_kqfilter = pipe_kqfilter,
 	.fo_stat = pipe_stat,
 	.fo_close = pipe_close,
-	.fo_chmod = invfo_chmod,
-	.fo_chown = invfo_chown,
+	.fo_chmod = pipe_chmod,
+	.fo_chown = pipe_chown,
 	.fo_flags = DFLAG_PASSABLE
 };
 
@@ -1546,6 +1548,43 @@ pipe_close(fp, td)
 	pipe_dtor(fp->f_data);
 	fp->f_data = NULL;
 	return (0);
+}
+
+static int
+pipe_chmod(fp, mode, active_cred, td)
+	struct file *fp;
+ 	mode_t mode;
+	struct ucred *active_cred;
+	struct thread *td;
+{
+	struct pipe *cpipe;
+	int error;
+
+	cpipe = fp->f_data;
+	if (cpipe->pipe_state & PIPE_NAMED)
+		error = vn_chmod(fp, mode, active_cred, td);
+	else
+		error = invfo_chmod(fp, mode, active_cred, td);
+	return (error);
+}
+
+static int
+pipe_chown(fp, uid, gid, active_cred, td)
+	struct file *fp;
+	uid_t uid;
+	gid_t gid;
+	struct ucred *active_cred;
+	struct thread *td;
+{
+	struct pipe *cpipe;
+	int error;
+
+	cpipe = fp->f_data;
+	if (cpipe->pipe_state & PIPE_NAMED)
+		error = vn_chown(fp, uid, gid, active_cred, td);
+	else
+		error = invfo_chown(fp, uid, gid, active_cred, td);
+	return (error);
 }
 
 static void
