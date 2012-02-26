@@ -110,6 +110,16 @@ ti_aintc_attach(device_t dev)
 
 	x = aintc_read_4(INTC_REVISION);
 	device_printf(dev, "Revision %u.%u\n",(x >> 4) & 0xF, x & 0xF);
+
+	/* SoftReset */
+	aintc_write_4(INTC_SYSCONFIG, 2);
+
+	/* Wait for reset to complete */
+	while(!(aintc_read_4(INTC_SYSSTATUS) & 1));
+
+	/*Set Priority Threshold */
+	aintc_write_4(INTC_THRESHOLD, 0xFF);
+
 	return (0);
 }
 
