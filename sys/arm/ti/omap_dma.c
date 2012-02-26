@@ -133,8 +133,8 @@ static struct omap_dma_softc *omap_dma_sc = NULL;
 /**
  *	Macros for driver mutex locking
  */
-#define OMAP_DMA_LOCK(_sc)             mtx_lock(&(_sc)->sc_mtx)
-#define	OMAP_DMA_UNLOCK(_sc)           mtx_unlock(&(_sc)->sc_mtx)
+#define OMAP_DMA_LOCK(_sc)             mtx_lock_spin(&(_sc)->sc_mtx)
+#define	OMAP_DMA_UNLOCK(_sc)           mtx_unlock_spin(&(_sc)->sc_mtx)
 #define OMAP_DMA_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
 	         "omap_dma", MTX_SPIN)
