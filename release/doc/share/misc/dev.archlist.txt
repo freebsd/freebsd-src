@@ -80,6 +80,7 @@ ida	i386
 ie	i386
 iir	i386,ia64,amd64
 ips	i386,amd64
+isci	i386,amd64
 ixgb	i386,amd64
 kue	i386,pc98,ia64,amd64,powerpc
 lge	i386,pc98,amd64
