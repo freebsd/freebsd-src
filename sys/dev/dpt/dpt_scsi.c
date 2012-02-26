@@ -1034,7 +1034,6 @@ dpt_action(struct cam_sim *sim, union ccb *ccb)
 
 			spi->valid = CTS_SPI_VALID_SYNC_RATE
 				| CTS_SPI_VALID_SYNC_OFFSET
-				| CTS_SPI_VALID_SYNC_RATE
 				| CTS_SPI_VALID_BUS_WIDTH
 				| CTS_SPI_VALID_DISC;
 			scsi->valid = CTS_SCSI_VALID_TQ;
