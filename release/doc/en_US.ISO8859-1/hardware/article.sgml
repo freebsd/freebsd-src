@@ -790,6 +790,8 @@
 
       &hwlist.ips;
 
+      &hwlist.isci;
+
       &hwlist.isp;
 
       &hwlist.mfi;
