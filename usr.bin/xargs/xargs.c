@@ -604,10 +604,6 @@ waitchildren(const char *name, int waitall)
 			errno = childerr;
 			err(errno == ENOENT ? 127 : 126, "%s", name);
 		}
-		/*
-		 * If utility signaled or exited with a value of 255,
-		 * exit 1-125.
-		 */
 		if (WIFSIGNALED(status))
 			errx(1, "%s: terminated with signal %d; aborting",
 			    name, WTERMSIG(status));
