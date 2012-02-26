@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 26, 2011
+.Dd February 26, 2012
 .Dt ZFS 8
 .Os
 .Sh NAME
@@ -413,9 +413,15 @@ subcommand. You cannot attach a dataset to one jail and the children of the
 same dataset to another jails. To allow management of the dataset from within
 a jail, the
 .Sy jailed
-property has to be set. The
+property has to be set and the jail needs access to the
+.Pa /dev/zfs
+device. The
 .Sy quota
-property cannot be changed from within a jail.
+property cannot be changed from within a jail. See
+.Xr jail 8
+for information on how to allow mounting
+.Tn ZFS
+datasets from within a jail.
 .Pp
 .No A Tn ZFS
 dataset can be detached from a jail using the
@@ -2715,13 +2721,12 @@ to the jail identified by JID
 From now on this file system tree can be managed from within a jail if the
 .Sy jailed
 property has been set. To use this functionality, the jail needs the
-.Va enforce_statfs
-parameter set to
-.Sy 0
-and the
 .Va allow.mount
-parameter set to
-.Sy 1 .
+and
+.Va allow.mount.zfs
+parameters set to 1 and the
+.Va enforce_statfs
+parameter set to a value lower than 2.
 .Pp
 See
 .Xr jail 8
