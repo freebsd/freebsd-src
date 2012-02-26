@@ -609,10 +609,10 @@ waitchildren(const char *name, int waitall)
 		 * exit 1-125.
 		 */
 		if (WIFSIGNALED(status))
-			errx(1, "%s: terminated with signal %d, aborting",
+			errx(1, "%s: terminated with signal %d; aborting",
 			    name, WTERMSIG(status));
 		if (WEXITSTATUS(status) == 255)
-			errx(1, "%s: exited with status 255, aborting", name);
+			errx(1, "%s: exited with status 255; aborting", name);
 		if (WEXITSTATUS(status))
 			rval = 1;
 	}
