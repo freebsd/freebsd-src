@@ -156,13 +156,13 @@ twl_read(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 	msg[1].flags = IIC_M_RD;
 	msg[1].len = cnt;
 	msg[1].buf = buf;
-
-	rc = iicbus_transfer(sc->sc_dev, msg, 2);
-
 	TWL_UNLOCK(sc);
 
+	rc = iicbus_transfer(dev, msg, 2);
+
+
 	if (rc != 0) {
-		device_printf(sc->sc_dev, "iicbus read failed (adr:0x%02x, reg:0x%02x)\n",
+		device_printf(dev, "iicbus read failed (adr:0x%02x, reg:0x%02x)\n",
 		              addr, reg);
 		return (EIO);
 	}
@@ -217,10 +217,10 @@ twl_write(device_t dev, uint8_t nsub, uint8_t reg, uint8_t *buf, uint16_t cnt)
 	msg.flags = IIC_M_WR;
 	msg.len = cnt + 1;
 	msg.buf = tmp_buf;
-
-	rc = iicbus_transfer(sc->sc_dev, &msg, 1);
-
 	TWL_UNLOCK(sc);
+
+	rc = iicbus_transfer(dev, &msg, 1);
+
 
 	if (rc != 0) {
 		device_printf(sc->sc_dev, "iicbus write failed (adr:0x%02x, reg:0x%02x)\n",
@@ -250,8 +250,6 @@ twl_test_present(struct twl_softc *sc, uint8_t addr)
 {
 	struct iic_msg msg;
 	uint8_t tmp;
-
-	TWL_ASSERT_LOCKED(sc);
 
 	/* Set the address to read from */
 	msg.slave = addr;
@@ -283,8 +281,6 @@ twl_scan(void *dev)
 
 	sc = device_get_softc((device_t)dev);
 
-	TWL_LOCK(sc);
-
 	memset(sc->sc_subaddr_map, TWL_INVALID_CHIP_ID, TWL_MAX_SUBADDRS);
 
 	/* Try each of the addresses (0x48, 0x49, 0x4a & 0x4b) to determine which
@@ -296,8 +292,6 @@ twl_scan(void *dev)
 			device_printf(sc->sc_dev, "Found (sub)device at 0x%02x\n", (base + i));
 		}
 	}
-
-	TWL_UNLOCK(sc);
 
 	/* Finished with the interrupt hook */
 	config_intrhook_disestablish(&sc->sc_scan_hook);

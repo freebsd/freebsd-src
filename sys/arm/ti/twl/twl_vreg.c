@@ -81,6 +81,11 @@ __FBSDID("$FreeBSD$");
  */
 
 /*
+ * XXX cognet: the locking is plain wrong, but we can't just keep locks while
+ * calling functions that can sleep, such as malloc() or iicbus_transfer
+ */
+
+/*
  * Power Groups bits for the 4030 and 6030 devices
  */
 #define TWL4030_P3_GRP		0x80	/* Peripherals, power group */
@@ -427,8 +432,6 @@ twl_vreg_is_regulator_enabled(struct twl_vreg_softc *sc,
 	uint8_t grp;
 	uint8_t state;
 
-	TWL_VREG_ASSERT_LOCKED(sc);
-
 	/* The status reading is different for the different devices */
 	if (twl_is_4030(sc->sc_dev)) {
 
@@ -481,8 +484,6 @@ twl_vreg_disable_regulator(struct twl_vreg_softc *sc,
 	int err = 0;
 	uint8_t grp;
 
-	TWL_VREG_ASSERT_LOCKED(sc);
-
 	if (twl_is_4030(sc->sc_dev)) {
 
 		/* Read the regulator CFG_GRP register */
@@ -530,8 +531,6 @@ twl_vreg_enable_regulator(struct twl_vreg_softc *sc,
 {
 	int err;
 	uint8_t grp;
-
-	TWL_VREG_ASSERT_LOCKED(sc);
 
 	/* Read the regulator CFG_GRP register */
 	err = twl_vreg_read_1(sc, regulator, TWL_VREG_GRP, &grp);
@@ -586,8 +585,6 @@ twl_vreg_write_regulator_voltage(struct twl_vreg_softc *sc,
 	int err;
 	int vsel;
 
-	TWL_VREG_ASSERT_LOCKED(sc);
-
 	/* If millivolts is zero then we simply disable the output */
 	if (millivolts == 0)
 		return (twl_vreg_disable_regulator(sc, regulator));
@@ -640,8 +637,6 @@ twl_vreg_read_regulator_voltage(struct twl_vreg_softc *sc,
 	int err;
 	int ret;
 	uint8_t vsel;
-
-	TWL_VREG_ASSERT_LOCKED(sc);
 
 	/* Check if the regulator is currently enabled */
 	if ((ret = twl_vreg_is_regulator_enabled(sc, regulator)) < 0)
@@ -707,7 +702,6 @@ twl_vreg_get_voltage(device_t dev, const char *name, int *millivolts)
 	/* Get the device context, take the lock and find the matching regulator */
 	sc = device_get_softc(dev);
 
-	TWL_VREG_LOCK(sc);
 
 	/* Find the regulator with the matching name */
 	LIST_FOREACH(regulator, &sc->sc_vreg_list, entries) {
@@ -720,8 +714,6 @@ twl_vreg_get_voltage(device_t dev, const char *name, int *millivolts)
 	/* Sanity check that we found the regulator */
 	if (found)
 		err = twl_vreg_read_regulator_voltage(sc, regulator, millivolts);
-
-	TWL_VREG_UNLOCK(sc);
 
 	return (err);
 }
@@ -751,8 +743,6 @@ twl_vreg_set_voltage(device_t dev, const char *name, int millivolts)
 	/* Get the device context, take the lock and find the matching regulator */
 	sc = device_get_softc(dev);
 
-	TWL_VREG_LOCK(sc);
-
 	/* Find the regulator with the matching name */
 	LIST_FOREACH(regulator, &sc->sc_vreg_list, entries) {
 		if (strcmp(regulator->name, name) == 0) {
@@ -764,8 +754,6 @@ twl_vreg_set_voltage(device_t dev, const char *name, int millivolts)
 	/* Sanity check that we found the regulator */
 	if (found)
 		err = twl_vreg_write_regulator_voltage(sc, regulator, millivolts);
-
-	TWL_VREG_UNLOCK(sc);
 
 	return (err);
 }
@@ -835,14 +823,28 @@ twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
 {
 	struct sysctl_ctx_list *ctx = device_get_sysctl_ctx(sc->sc_dev);
 	struct sysctl_oid *tree = device_get_sysctl_tree(sc->sc_dev);
-	struct twl_regulator_entry *new;
+	struct twl_regulator_entry *new, *tmp;
 
 	TWL_VREG_ASSERT_LOCKED(sc);
+	TWL_VREG_UNLOCK(sc);
 
 	new = malloc(sizeof(struct twl_regulator_entry), M_DEVBUF, M_NOWAIT | M_ZERO);
+	TWL_VREG_LOCK(sc);
 	if (new == NULL)
 		return (NULL);
 
+	/*
+	 * We had to drop the lock while calling malloc(), maybe 
+	 * the regulator got added in the meanwhile.
+	 */
+	   
+	LIST_FOREACH(tmp, &sc->sc_vreg_list, entries) {
+		if (!strncmp(new->name, name, strlen(new->name)) &&
+		    new->sub_dev == nsub && new->reg_off == regbase) {
+			free(new, M_DEVBUF);
+			return (NULL);
+		}
+	}
 	/* Copy over the name and register details */
 	strncpy(new->name, name, TWL_VREG_MAX_NAMELEN);
 	new->name[TWL_VREG_MAX_NAMELEN - 1] = '\0';
@@ -855,10 +857,17 @@ twl_vreg_add_regulator(struct twl_vreg_softc *sc, const char *name,
 	new->supp_voltages = voltages;
 	new->num_supp_voltages = num_voltages;
 
+	/* 
+	 * We're in the list now, so we should be protected against double
+	 * inclusion.
+	 */
+	   
+	TWL_VREG_UNLOCK(sc);
 	/* Add a sysctl entry for the voltage */
 	new->oid = SYSCTL_ADD_PROC(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, name,
 	    CTLTYPE_INT | CTLFLAG_RD, sc, 0,
 	    twl_vreg_sysctl_voltage, "I", "voltage regulator");
+	TWL_VREG_LOCK(sc);
 
 	/* Finally add the regulator to list of supported regulators */
 	LIST_INSERT_HEAD(&sc->sc_vreg_list, new, entries);
@@ -907,7 +916,9 @@ twl_vreg_add_regulators(struct twl_vreg_softc *sc,
 		/* TODO: set voltage from FDT if required */
 
 		/* Read the current voltage and print the info */
+		TWL_VREG_UNLOCK(sc);
 		twl_vreg_read_regulator_voltage(sc, entry, &millivolts);
+		TWL_VREG_LOCK(sc);
 		if (debug)
 			device_printf(sc->sc_dev, "%s : %d mV\n", walker->name, millivolts);
 
