@@ -34,7 +34,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 23, 2012
+.Dd February 26, 2012
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -427,6 +427,17 @@ This permission is effective only together with
 and if
 .Va enforce_statfs
 is set to a value lower than 2.
+.It Va allow.mount.zfs
+privileged users inside the jail will be able to mount and unmount the
+ZFS file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2. See
+.Xr zfs 8
+for information on how to configure the ZFS filesystem to operate from
+within a jail.
 .It Va allow.quotas
 The prison root may administer quotas on the jail's filesystem(s).
 This includes filesystems that the jail may share with other jails or
