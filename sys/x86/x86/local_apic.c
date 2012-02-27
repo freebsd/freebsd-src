@@ -34,6 +34,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_atpic.h"
 #include "opt_hwpmc_hooks.h"
 #include "opt_kdtrace.h"
 
@@ -308,7 +309,8 @@ lapic_create(u_int apic_id, int boot_cpu)
 	lapics[apic_id].la_ioint_irqs[APIC_TIMER_INT - APIC_IO_INTS] =
 	    IRQ_TIMER;
 #ifdef KDTRACE_HOOKS
-	lapics[apic_id].la_ioint_irqs[IDT_DTRACE_RET - APIC_IO_INTS] = IRQ_DTRACE_RET;
+	lapics[apic_id].la_ioint_irqs[IDT_DTRACE_RET - APIC_IO_INTS] =
+	    IRQ_DTRACE_RET;
 #endif
 
 
@@ -890,6 +892,10 @@ lapic_enable_cmc(void)
 {
 	u_int apic_id;
 
+#ifdef DEV_ATPIC
+	if (lapic == NULL)
+		return;
+#endif
 	apic_id = PCPU_GET(apic_id);
 	KASSERT(lapics[apic_id].la_present,
 	    ("%s: missing APIC %u", __func__, apic_id));
@@ -1286,6 +1292,9 @@ apic_init(void *dummy __unused)
 	if (best_enum == NULL) {
 		if (bootverbose)
 			printf("APIC: Could not find any APICs.\n");
+#ifndef DEV_ATPIC
+		panic("running without device atpic requires a local APIC");
+#endif
 		return;
 	}
 
