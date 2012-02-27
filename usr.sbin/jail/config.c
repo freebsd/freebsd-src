@@ -81,7 +81,6 @@ static const struct ipspec intparams[] = {
 #endif
     [IP_MOUNT] =		{"mount",		PF_INTERNAL},
     [IP_MOUNT_DEVFS] =		{"mount.devfs",		PF_INTERNAL | PF_BOOL},
-    [IP_MOUNT_DEVFS_RULESET]=	{"mount.devfs.ruleset",	PF_INTERNAL},
     [IP_MOUNT_FSTAB] =		{"mount.fstab",		PF_INTERNAL},
     [IP_STOP_TIMEOUT] =		{"stop.timeout",	PF_INTERNAL | PF_INT},
     [IP_VNET_INTERFACE] =	{"vnet.interface",	PF_INTERNAL},
@@ -99,6 +98,7 @@ static const struct ipspec intparams[] = {
     [KP_ALLOW_SET_HOSTNAME]=	{"allow.set_hostname",	0},
     [KP_ALLOW_SOCKET_AF] =	{"allow.socket_af",	0},
     [KP_ALLOW_SYSVIPC] =	{"allow.sysvipc",	0},
+    [KP_DEVFS_RULESET] =	{"devfs_ruleset",	0},
     [KP_ENFORCE_STATFS] =	{"enforce_statfs",	0},
     [KP_HOST_HOSTNAME] =	{"host.hostname",	0},
 #ifdef INET
