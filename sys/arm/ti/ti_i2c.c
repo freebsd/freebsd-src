@@ -95,6 +95,34 @@ struct ti_i2c_softc
 	uint16_t		sc_rev;
 };
 
+struct ti_i2c_clock_config
+{
+	int speed;
+	int bitrate;
+	uint8_t psc;		/* Fast/Standard mode prescale divider */
+	uint8_t scll;		/* Fast/Standard mode SCL low time */
+	uint8_t sclh;		/* Fast/Standard mode SCL high time */
+	uint8_t hsscll;		/* High Speed mode SCL low time */
+	uint8_t hssclh;		/* High Speed mode SCL high time */
+};
+
+static struct ti_i2c_clock_config ti_i2c_clock_configs[] = {
+
+#if defined(SOC_OMAP4)
+	{ IIC_SLOW,      100000, 23,  13,  15, 0,  0},
+	{ IIC_FAST,      400000,  9,   5,   7, 0,  0},
+	{ IIC_FASTEST,	3310000,  1, 113, 115, 7, 10},
+#elif defined(SOC_TI_AM335X)
+	{ IIC_SLOW,      100000,  3,  53,  55, 0,  0},
+	{ IIC_FAST,      400000,  3,   8,  10, 0,  0},
+	{ IIC_FASTEST,   400000,  3,   8,  10, 0,  0}, /* This might be higher */
+#else
+#error "TI I2C driver is not supported on this SoC"
+#endif
+	{ -1, 0 }
+};
+
+
 #define TI_I2C_REV1  0x003C      /* OMAP3 */
 #define TI_I2C_REV2  0x000A      /* OMAP4 */
 
@@ -246,7 +274,20 @@ static int
 ti_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 {
 	struct ti_i2c_softc *sc = device_get_softc(dev);
-	uint16_t psc_reg, scll_reg, sclh_reg, con_reg;
+	struct ti_i2c_clock_config *clkcfg;
+	uint16_t con_reg;
+
+	clkcfg = ti_i2c_clock_configs;
+	while (clkcfg->speed != -1) {
+		if (clkcfg->speed == speed)
+			break;
+		/* take slow if speed is unknown */
+		if ((speed == IIC_UNKNOWN) && (clkcfg->speed == IIC_SLOW))
+			break;
+		clkcfg++;
+	}
+	if (clkcfg->speed == -1)
+		return (EINVAL);
 
 	TI_I2C_LOCK(sc);
 
@@ -254,56 +295,28 @@ ti_i2c_reset(device_t dev, u_char speed, u_char addr, u_char *oldaddr)
 		*oldaddr = sc->sc_i2c_addr;
 	sc->sc_i2c_addr = addr;
 
-	/* The header file doesn't actual tell you what speeds should be used for
-	 * the 3 possible settings, so I'm going to go with the usual:
-	 *
-	 *    IIC_SLOW    => 100kbps
-	 *    IIC_FAST    => 400kbps
-	 *    IIC_FASTEST => 3.4Mbps
-	 *
-	 * I2Ci_INTERNAL_CLK = I2Ci_FCLK / (PSC + 1)
-	 * I2Ci_INTERNAL_CLK = 96MHZ / (PSC + 1)
-	 */
-	switch (speed) {
-		case IIC_FASTEST:
-			psc_reg = 0x0004;
-			scll_reg = 0x0811;
-			sclh_reg = 0x0a13;
-			break;
-
-		case IIC_FAST:
-			psc_reg = 0x0009;
-			scll_reg = 0x0005;
-			sclh_reg = 0x0007;
-			break;
-
-		case IIC_SLOW:
-		case IIC_UNKNOWN:
-		default:
-			psc_reg = 0x0017;
-			scll_reg = 0x000D;
-			sclh_reg = 0x000F;
-			break;
-	}
-
 	/* First disable the controller while changing the clocks */
 	con_reg = ti_i2c_read_reg(sc, I2C_REG_CON);
 	ti_i2c_write_reg(sc, I2C_REG_CON, 0x0000);
 
 	/* Program the prescaler */
-	ti_i2c_write_reg(sc, I2C_REG_PSC, psc_reg);
+	ti_i2c_write_reg(sc, I2C_REG_PSC, clkcfg->psc);
 
 	/* Set the bitrate */
-	ti_i2c_write_reg(sc, I2C_REG_SCLL, scll_reg);
-	ti_i2c_write_reg(sc, I2C_REG_SCLH, sclh_reg);
+	ti_i2c_write_reg(sc, I2C_REG_SCLL, clkcfg->scll | (clkcfg->hsscll<<8));
+	ti_i2c_write_reg(sc, I2C_REG_SCLH, clkcfg->sclh | (clkcfg->hssclh<<8));
 
 	/* Set the remote slave address */
 	ti_i2c_write_reg(sc, I2C_REG_SA, addr);
 
+	/* Check if we are dealing with high speed mode */
+	if ((clkcfg->hsscll + clkcfg->hssclh) > 0)
+		con_reg  = I2C_CON_OPMODE_HS;
+	else
+		con_reg  = I2C_CON_OPMODE_STD;
+
 	/* Enable the I2C module again */
-	con_reg  = I2C_CON_I2C_EN;
-	con_reg |= (speed == IIC_FASTEST) ? I2C_CON_OPMODE_HS : I2C_CON_OPMODE_STD;
-	ti_i2c_write_reg(sc, I2C_REG_CON, con_reg);
+	ti_i2c_write_reg(sc, I2C_REG_CON, I2C_CON_I2C_EN | con_reg);
 
 	TI_I2C_UNLOCK(sc);
 
