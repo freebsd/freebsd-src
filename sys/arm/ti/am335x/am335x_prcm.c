@@ -56,6 +56,8 @@ __FBSDID("$FreeBSD$");
 
 #define CM_PER				0
 #define CM_PER_L4LS_CLKSTCTRL		(CM_PER + 0x000)
+#define CM_PER_L3S_CLKSTCTRL		(CM_PER + 0x004)
+#define CM_PER_L3_CLKSTCTRL		(CM_PER + 0x00C)
 #define CM_PER_CPGMAC0_CLKCTRL		(CM_PER + 0x014)
 #define CM_PER_I2C2_CLKCTRL		(CM_PER + 0x044)
 #define CM_PER_I2C1_CLKCTRL		(CM_PER + 0x048)
@@ -63,12 +65,19 @@ __FBSDID("$FreeBSD$");
 #define CM_PER_TIMER2_CLKCTRL		(CM_PER + 0x080)
 #define CM_PER_TIMER3_CLKCTRL		(CM_PER + 0x084)
 #define CM_PER_TIMER4_CLKCTRL		(CM_PER + 0x088)
+#define CM_PER_L3_INSTR_CLKCTRL		(CM_PER + 0x0DC)
+#define CM_PER_L3_CLKCTRL		(CM_PER + 0x0E0)
 #define CM_PER_TIMER5_CLKCTRL		(CM_PER + 0x0EC)
 #define CM_PER_TIMER6_CLKCTRL		(CM_PER + 0x0F0)
+#define CM_PER_OCPWP_L3_CLKSTCTRL	(CM_PER + 0x12C)
+#define CM_PER_OCPWP_CLKCTRL		(CM_PER + 0x130)
 #define CM_PER_CPSW_CLKSTCTRL		(CM_PER + 0x144)
 
 #define CM_WKUP				0x400
-#define CM_CLKSEL_DPLL_MPU		(CM_WKUP + 0x02C)
+#define CM_WKUP_CLKSTCTRL		(CM_WKUP + 0x000)
+#define CM_WKUP_CONTROL_CLKCTRL		(CM_WKUP + 0x004)
+#define CM_WKUP_CM_L3_AON_CLKSTCTRL	(CM_WKUP + 0x01C)
+#define CM_WKUP_CM_CLKSEL_DPLL_MPU	(CM_WKUP + 0x02C)
 #define CM_WKUP_I2C0_CLKCTRL		(CM_WKUP + 0x0B8)
 
 #define CM_DPLL				0x500
@@ -386,7 +395,7 @@ am335x_clk_get_arm_fclk_freq(struct ti_clock_dev *clkdev, unsigned int *freq)
 #define DPLL_DIV(reg)		((reg & 0x7f)+1)
 #define DPLL_MULT(reg)		((reg>>8) & 0x7FF)
 
-	reg = prcm_read_4(CM_CLKSEL_DPLL_MPU);
+	reg = prcm_read_4(CM_WKUP_CM_CLKSEL_DPLL_MPU);
 
 	/*Check if we are running in bypass */
 	if (DPLL_BYP_CLKSEL(reg))
