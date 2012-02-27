@@ -93,7 +93,6 @@ enum intparam {
 #endif
 	IP_MOUNT,		/* Mount points in fstab(5) form */
 	IP_MOUNT_DEVFS,		/* Mount /dev under prison root */
-	IP_MOUNT_DEVFS_RULESET,	/* Ruleset for the devfs mount */
 	IP_MOUNT_FSTAB,		/* A standard fstab(5) file */
 	IP_STOP_TIMEOUT,	/* Time to wait after sending SIGTERM */
 	IP_VNET_INTERFACE,	/* Assign interface(s) to vnet jail */
@@ -111,6 +110,7 @@ enum intparam {
 	KP_ALLOW_SET_HOSTNAME,
 	KP_ALLOW_SOCKET_AF,
 	KP_ALLOW_SYSVIPC,
+	KP_DEVFS_RULESET,
 	KP_ENFORCE_STATFS,
 	KP_HOST_HOSTNAME,
 #ifdef INET

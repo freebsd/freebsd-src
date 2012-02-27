@@ -693,15 +693,10 @@ format file containing filesystems to mount before creating a jail.
 .It Va mount.devfs
 Mount a
 .Xr devfs
- filesystem on the chrooted /dev directory, and run
-.Xr devfs 8
+filesystem on the chrooted /dev directory, and apply the ruleset in the
+.Va devfs_ruleset
+parameter (or a default of ruleset 4: devfsrules_jail)
 to restrict the devices visible inside the prison.
-.It Va mount.devfs.ruleset
-The ruleset from
-.Xr devfs.rules 5
-to use when mounting a devfs filesystem.
-The default ruleset is
-.Dq devfsrules_jail .
 .It Va allow.dying
 Allow making changes to a
 .Va dying
