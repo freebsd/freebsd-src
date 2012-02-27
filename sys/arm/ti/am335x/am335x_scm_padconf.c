@@ -62,17 +62,19 @@ __FBSDID("$FreeBSD$");
 		.muxmodes[7] = m7, \
 	}
 
+#define SLEWCTRL	(0x01 << 6) /* faster(0) or slower(1) slew rate. */
 #define RXACTIVE	(0x01 << 5) /* Input enable value for the Pad */
 #define PULLTYPESEL	(0x01 << 4) /* Pad pullup/pulldown type selection */
 #define PULLUDEN	(0x01 << 3) /* Pullup/pulldown enabled */
 
 const struct ti_scm_padstate ti_padstate_devmap[] = {
-	{"output",		0 },
-	{"output_pullup",	PULLTYPESEL },
-	{"input",		RXACTIVE },
-	{"input_pulldown",	RXACTIVE | PULLUDEN },
-	{"input_pullup",	RXACTIVE | PULLUDEN | PULLTYPESEL },
-	{"input_pullup_inact",	RXACTIVE | PULLTYPESEL },
+	{"output",			0 },
+	{"output_pullup",		PULLTYPESEL },
+	{"input",			RXACTIVE },
+	{"input_pulldown",		RXACTIVE | PULLUDEN },
+	{"input_pullup",		RXACTIVE | PULLUDEN | PULLTYPESEL },
+	{"input_pullup_inact",		RXACTIVE | PULLTYPESEL },
+	{"input_pullup_inact_slow",	RXACTIVE | PULLTYPESEL | SLEWCTRL },
 	{ .state = NULL }
 };
 
@@ -166,8 +168,10 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 #if 0 /* Incomplete Entries - fill with data from table 2-7 in datasheet */
 	_PIN(0x950, "spi0_sclk",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x954, "spi0_d0",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x958, "spi0_d1",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x95c, "spi0_cs0",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+#endif
+	_PIN(0x958, "spi0_d1",		  4, 7, "spi0_d1", "mmc1_sdwp", "I2C1_SDA", "ehrpwm0_tripzone_input", "pr1_uart0_rxd", "pr1_edio_data_in0", "pr1_edio_data_out0", "gpio0_4"),
+	_PIN(0x95c, "spi0_cs0",		  5, 7, "spi0_cs0", "mmc2_sdwp", "I2C1_SCL", "ehrpwm0_synci", "pr1_uart0_txd", "pr1_edio_data_in1", "pr1_edio_data_out1", "gpio0_5"),
+#if 0
 	_PIN(0x960, "spi0_cs1",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x964, "ecap0_in_pwm0_out",0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x968, "uart0_ctsn",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
@@ -178,8 +182,10 @@ const struct ti_scm_padconf ti_padconf_devmap[] = {
 	_PIN(0x97c, "uart1_rtsn",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x980, "uart1_rxd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x984, "uart1_txd",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x988, "i2c0_sda",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
-	_PIN(0x98c, "i2c0_scl",		0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
+#endif
+	_PIN(0x988, "I2C0_SDA",		101, 7, "I2C0_SDA", "timer4", "uart2_ctsn", "eCAP2_in_PWM2_out", NULL, NULL, NULL, "gpio3_5"),
+	_PIN(0x98c, "I2C0_SCL",		102, 7, "I2C0_SCL", "timer7", "uart2_rtsn", "eCAP1_in_PWM1_out", NULL, NULL, NULL, "gpio3_6"),
+#if 0
 	_PIN(0x990, "mcasp0_aclkx",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x994, "mcasp0_fsx",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),
 	_PIN(0x998, "mcasp0_axr0",	0, 0, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL),

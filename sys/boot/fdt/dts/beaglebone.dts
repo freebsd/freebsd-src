@@ -64,6 +64,9 @@
 			reg =	< 0x44e10000 0x2000 >;
 			/* Set of triplets < padname, muxname, padstate> */
 			scm-pad-config =
+				/* I2C0 */
+				"I2C0_SDA", "I2C0_SDA","input_pullup_inact_slow",
+				"I2C0_SCL", "I2C0_SCL","input_pullup_inact_slow",
 				/* Ethernet */
 				"MII1_RX_ER", "gmii1_rxerr", "input",
 				"MII1_TX_EN", "gmii1_txen", "output",
@@ -133,27 +136,17 @@
 		};
 
 		i2c0: i2c@44e0b000 {
+			#address-cells = <1>;
+			#size-cells = <0>;
 			compatible = "ti,i2c";
 			reg =<	0x44e0b000 0x1000 >;
 			interrupts = <70>;
 			interrupt-parent = <&AINTC>;
 			i2c-device-id = <0>;
-		};
-
-		i2c1: i2c@4802a000 {
-			compatible = "ti,i2c";
-			reg =<	0x4802a000 0x1000 >;
-			interrupts = <71>;
-			interrupt-parent = <&AINTC>;
-			i2c-device-id = <1>;
-		};
-
-		i2c2: i2c@4819c000 {
-			compatible = "ti,i2c";
-			reg =<	0x4819c000 0x1000 >;
-			interrupts = <30>;
-			interrupt-parent = <&AINTC>;
-			i2c-device-id = <2>;
+			pmic@24 {
+				compatible = "ti,am335x-pmic";
+				reg = <0x24>;
+			};
 		};
 	};
 
