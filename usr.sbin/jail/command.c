@@ -417,6 +417,7 @@ run_command(struct cfjail *j)
 		break;
 
 	case IP_MOUNT_DEVFS:
+		argv = alloca(7 * sizeof(char *));
 		path = string_param(j->intparams[KP_PATH]);
 		if (path == NULL) {
 			jail_warnx(j, "mount.devfs: no path");
@@ -428,22 +429,21 @@ run_command(struct cfjail *j)
 		    down ? "devfs" : NULL) < 0)
 			return -1;
 		if (down) {
-			argv = alloca(3 * sizeof(char *));
 			*(const char **)&argv[0] = "/sbin/umount";
 			argv[1] = devpath;
 			argv[2] = NULL;
 		} else {
-			argv = alloca(4 * sizeof(char *));
-			*(const char **)&argv[0] = _PATH_BSHELL;
-			*(const char **)&argv[1] = "-c";
-			ruleset = string_param(j->intparams
-			    [IP_MOUNT_DEVFS_RULESET]);
-			argv[2] = alloca(strlen(path) +
-			    (ruleset ? strlen(ruleset) + 1 : 0) + 56);
-			sprintf(argv[2], ". /etc/rc.subr; load_rc_config .; "
-			    "devfs_mount_jail %s/dev%s%s", path,
-			    ruleset ? " " : "", ruleset ? ruleset : "");
-			argv[3] = NULL;
+			*(const char **)&argv[0] = _PATH_MOUNT;
+			*(const char **)&argv[1] = "-t";
+			*(const char **)&argv[2] = "devfs";
+			ruleset = string_param(j->intparams[KP_DEVFS_RULESET]);
+			if (!ruleset)
+			    ruleset = "4";	/* devfsrules_jail */
+			argv[3] = alloca(11 + strlen(ruleset));
+			sprintf(argv[3], "-oruleset=%s", ruleset);
+			*(const char **)&argv[4] = ".";
+			argv[5] = devpath;
+			argv[6] = NULL;
 		}
 		break;
 
