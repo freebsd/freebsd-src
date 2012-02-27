@@ -3315,7 +3315,7 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		}
 #ifdef DEV_NETMAP
 		if (slot) {
-			int si = netmap_tidx_n2k(na, txr->me, i);
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			/* no need to set the address */
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
@@ -3693,7 +3693,7 @@ igb_txeof(struct tx_ring *txr)
 		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 		IGB_TX_UNLOCK(txr);
 		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->tx_si, PI_NET);
 		IGB_CORE_UNLOCK(adapter);
 		IGB_TX_LOCK(txr);
 		return FALSE;
@@ -4057,7 +4057,7 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* slot sj is mapped to the i-th NIC-ring entry */
-			int sj = netmap_ridx_n2k(na, rxr->me, j);
+			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
@@ -4554,10 +4554,11 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
 
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		IGB_RX_UNLOCK(rxr);
 		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		IGB_CORE_UNLOCK(adapter);
 		return (0);
 	}
