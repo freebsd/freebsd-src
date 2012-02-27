@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd October 20, 2010
+.Dd February 26, 2012
 .Dt JAIL 8
 .Os
 .Sh NAME
@@ -396,6 +396,18 @@ A jail never has a lower securelevel than the default system, but by
 setting this parameter it may have a higher one.
 If the system securelevel is changed, any jail securelevels will be at
 least as secure.
+.It Va devfs_ruleset
+The number of the devfs ruleset that is enforced for mounting devfs in
+this jail. A value of zero (default) means no ruleset is enforced. Descendant
+jails inherit the parent jail's devfs ruleset enforcement. Mounting devfs
+inside a jail is possible only if the
+.Va allow.mount
+and
+.Va allow.mount.devfs
+permissions are effective and
+.Va enforce_statfs
+is set to a value lower than 2.
+Devfs rules and rulesets cannot be viewed or modified from inside a jail.
 .It Va children.max
 The number of child jails allowed to be created by this jail (or by
 other jails under this jail).
@@ -490,6 +502,39 @@ system types marked as jail-friendly.
 The
 .Xr lsvfs 1
 command can be used to find file system types available for mount from
+within a jail.
+This permission is effective only if
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.devfs
+privileged users inside the jail will be able to mount and unmount the
+devfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2. Please consider restricting the devfs ruleset
+with the
+.Va devfs_ruleset
+option.
+.It Va allow.mount.nullfs
+privileged users inside the jail will be able to mount and unmount the
+nullfs file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2.
+.It Va allow.mount.zfs
+privileged users inside the jail will be able to mount and unmount the
+ZFS file system.
+This permission is effective only together with
+.Va allow.mount
+and if
+.Va enforce_statfs
+is set to a value lower than 2. See
+.Xr zfs 8
+for information on how to configure the ZFS filesystem to operate from
 within a jail.
 .It Va allow.quotas
 The prison root may administer quotas on the jail's filesystem(s).
@@ -997,9 +1042,11 @@ It is not possible to
 or
 .Xr umount 8
 any file system inside a jail unless the file system is marked
-jail-friendly and the jail's
+jail-friendly, the jail's
 .Va allow.mount
-parameter is set.
+parameter is set and the jail's
+.Va enforce_statfs
+parameter is lower than 2.
 .Pp
 Multiple jails sharing the same file system can influence each other.
 For example a user in one jail can fill the file system also
@@ -1154,3 +1201,10 @@ Currently, the simplest answer is to minimize services
 offered on the host, possibly limiting it to services offered from
 .Xr inetd 8
 which is easily configurable.
+.Sh NOTES
+Great care should be taken when managing directories visible within the jail.
+For example, if a jailed process has its current working directory set to a
+directory that is moved out of the jail's chroot, then the process may gain
+access to the file space outside of the jail.
+It is recommended that directories always be copied, rather than moved, out
+of a jail.
