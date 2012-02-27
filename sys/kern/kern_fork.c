@@ -708,6 +708,10 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		_PHOLD(p2);
 		p2_held = 1;
 	}
+	if (flags & RFPPWAIT) {
+		td->td_pflags |= TDP_RFPPWAIT;
+		td->td_rfppwait_p = p2;
+	}
 	PROC_UNLOCK(p2);
 	if ((flags & RFSTOPPED) == 0) {
 		/*
@@ -740,14 +744,6 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 		cv_wait(&p2->p_dbgwait, &p2->p_mtx);
 	if (p2_held)
 		_PRELE(p2);
-
-	/*
-	 * Preserve synchronization semantics of vfork.  If waiting for
-	 * child to exec or exit, set P_PPWAIT on child, and sleep on our
-	 * proc (in case of exit).
-	 */
-	while (p2->p_flag & P_PPWAIT)
-		cv_wait(&p2->p_pwait, &p2->p_mtx);
 	PROC_UNLOCK(p2);
 }
 
