@@ -265,15 +265,42 @@ _thr_ucond_broadcast(struct ucond *cv)
 }
 
 int
-__thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp)
+__thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
+	const struct timespec *tsp)
 {
-	return _umtx_op_err(rwlock, UMTX_OP_RW_RDLOCK, flags, NULL, tsp);
+	struct _umtx_time timeout, *tm_p;
+	size_t tm_size;
+
+	if (tsp == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._timeout = *tsp;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._clockid = CLOCK_REALTIME;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
+	}
+	return _umtx_op_err(rwlock, UMTX_OP_RW_RDLOCK, flags, (void *)tm_size, tm_p);
 }
 
 int
-__thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp)
+__thr_rwlock_wrlock(struct urwlock *rwlock, const struct timespec *tsp)
 {
-	return _umtx_op_err(rwlock, UMTX_OP_RW_WRLOCK, 0, NULL, tsp);
+	struct _umtx_time timeout, *tm_p;
+	size_t tm_size;
+
+	if (tsp == NULL) {
+		tm_p = NULL;
+		tm_size = 0;
+	} else {
+		timeout._timeout = *tsp;
+		timeout._flags = UMTX_ABSTIME;
+		timeout._clockid = CLOCK_REALTIME;
+		tm_p = &timeout;
+		tm_size = sizeof(timeout);
+	}
+	return _umtx_op_err(rwlock, UMTX_OP_RW_WRLOCK, 0, (void *)tm_size, tm_p);
 }
 
 int
