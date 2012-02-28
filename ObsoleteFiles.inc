@@ -56,6 +56,9 @@ OLD_FILES+=man/man3/archive_read_data_into_buffer.3.gz \
 	man/man3/archive_write_set_compression_none.3.gz \
 	man/man3/archive_write_set_compression_program.3.gz
 OLD_LIBS+=usr/lib/libarchive.so.5
+.if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
+OLD_LIBS+=usr/lib32/libarchive.so.5
+.endif
 # 20120113: removal of wtmpcvt(1)
 OLD_FILES+=usr/bin/wtmpcvt
 OLD_FILES+=usr/share/man/man1/wtmpcvt.1.gz
