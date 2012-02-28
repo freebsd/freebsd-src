@@ -82,7 +82,7 @@
 __FBSDID("$FreeBSD$");
 
 /*
- * Moschip MCS7730/MCS7830 USB to Ethernet controller
+ * Moschip MCS7730/MCS7830/MCS7832 USB to Ethernet controller
  * The datasheet is available at the following URL:
  * http://www.moschip.com/data/products/MCS7830/Data%20Sheet_7830.pdf
  */
@@ -149,6 +149,7 @@ SYSCTL_INT(_hw_usb_mos, OID_AUTO, debug, CTLFLAG_RW, &mos_debug, 0,
 static const STRUCT_USB_HOST_ID mos_devs[] = {
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7730, MCS7730)},
 	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7830, MCS7830)},
+	{USB_VPI(USB_VENDOR_MOSCHIP, USB_PRODUCT_MOSCHIP_MCS7832, MCS7832)},
 	{USB_VPI(USB_VENDOR_SITECOMEU, USB_PRODUCT_SITECOMEU_LN030, MCS7830)},
 };
 
@@ -715,6 +716,8 @@ mos_attach(device_t dev)
 		MOS_DPRINTFN("model: MCS7730");
 	} else if (sc->mos_flags & MCS7830) {
 		MOS_DPRINTFN("model: MCS7830");
+	} else if (sc->mos_flags & MCS7832) {
+		MOS_DPRINTFN("model: MCS7832");
 	}
 	error = uether_ifattach(ue);
 	if (error) {
