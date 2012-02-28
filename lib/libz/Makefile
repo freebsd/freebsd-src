@@ -47,10 +47,6 @@ ACFLAGS+=	-Wa,--noexecstack
 #SRCS+=		gvmat64.S
 #CFLAGS+=	-DASMV -DNO_UNDERLINE
 #ACFLAGS+=	-Wa,--noexecstack
-#.if ${CC:T:Mclang} == "clang"
-## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
-#ACFLAGS+=	${.IMPSRC:T:Mgvmat64.S:C/^.+$/-no-integrated-as/}
-#.endif
 #.endif
 
 VERSION_DEF=	${.CURDIR}/Versions.def
@@ -71,3 +67,7 @@ test: example minigzip
 		echo hello world | ./minigzip | ./minigzip -d )
 
 .include <bsd.lib.mk>
+
+## XXX: clang integrated-as doesn't grok .intel_syntax directives yet
+#ACFLAGS.gvmat64.S=	${CLANG_NO_IAS}
+#ACFLAGS+=		${ACFLAGS.${.IMPSRC:T}}
