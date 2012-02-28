@@ -1551,11 +1551,7 @@ pipe_close(fp, td)
 }
 
 static int
-pipe_chmod(fp, mode, active_cred, td)
-	struct file *fp;
- 	mode_t mode;
-	struct ucred *active_cred;
-	struct thread *td;
+pipe_chmod(struct file *fp, mode_t mode, struct ucred *active_cred, struct thread *td)
 {
 	struct pipe *cpipe;
 	int error;
