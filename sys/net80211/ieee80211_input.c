@@ -652,7 +652,8 @@ ieee80211_parse_beacon(struct ieee80211_node *ni, struct mbuf *m,
 	      scan->bintval <= IEEE80211_BINTVAL_MAX)) {
 		IEEE80211_DISCARD(vap,
 		    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
-		    wh, NULL, "bogus beacon interval", scan->bintval);
+		    wh, NULL, "bogus beacon interval (%d TU)",
+		    (int) scan->bintval);
 		vap->iv_stats.is_rx_badbintval++;
 		scan->status |= IEEE80211_BPARSE_BINTVAL_INVALID;
 	}
