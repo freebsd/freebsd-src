@@ -39,22 +39,22 @@
 # done
 
 # 20120225: libarchive 3.0.3
-OLD_FILES+=man/man3/archive_read_data_into_buffer.3.gz \
-	man/man3/archive_read_support_compression_all.3.gz \
-	man/man3/archive_read_support_compression_bzip2.3.gz \
-	man/man3/archive_read_support_compression_compress.3.gz \
-	man/man3/archive_read_support_compression_gzip.3.gz \
-	man/man3/archive_read_support_compression_lzma.3.gz \
-	man/man3/archive_read_support_compression_none.3.gz \
-	man/man3/archive_read_support_compression_program.3.gz \
-	man/man3/archive_read_support_compression_program_signature.3.gz \
-	man/man3/archive_read_support_compression_xz.3.gz \
-	man/man3/archive_write_set_callbacks.3.gz \
-	man/man3/archive_write_set_compression_bzip2.3.gz \
-	man/man3/archive_write_set_compression_compress.3.gz \
-	man/man3/archive_write_set_compression_gzip.3.gz \
-	man/man3/archive_write_set_compression_none.3.gz \
-	man/man3/archive_write_set_compression_program.3.gz
+OLD_FILES+=usr/share/man/man3/archive_read_data_into_buffer.3.gz \
+	usr/share/man/man3/archive_read_support_compression_all.3.gz \
+	usr/share/man/man3/archive_read_support_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_read_support_compression_compress.3.gz \
+	usr/share/man/man3/archive_read_support_compression_gzip.3.gz \
+	usr/share/man/man3/archive_read_support_compression_lzma.3.gz \
+	usr/share/man/man3/archive_read_support_compression_none.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program.3.gz \
+	usr/share/man/man3/archive_read_support_compression_program_signature.3.gz \
+	usr/share/man/man3/archive_read_support_compression_xz.3.gz \
+	usr/share/man/man3/archive_write_set_callbacks.3.gz \
+	usr/share/man/man3/archive_write_set_compression_bzip2.3.gz \
+	usr/share/man/man3/archive_write_set_compression_compress.3.gz \
+	usr/share/man/man3/archive_write_set_compression_gzip.3.gz \
+	usr/share/man/man3/archive_write_set_compression_none.3.gz \
+	usr/share/man/man3/archive_write_set_compression_program.3.gz
 OLD_LIBS+=usr/lib/libarchive.so.5
 .if ${TARGET_ARCH} == "amd64" || ${TARGET_ARCH} == "powerpc64"
 OLD_LIBS+=usr/lib32/libarchive.so.5
