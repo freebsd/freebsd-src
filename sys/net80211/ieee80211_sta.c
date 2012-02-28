@@ -1305,8 +1305,10 @@ sta_recv_mgmt(struct ieee80211_node *ni, struct mbuf *m0,
 			return;
 		}
 		/* XXX probe response in sta mode when !scanning? */
-		if (ieee80211_parse_beacon(ni, m0, &scan) != 0)
+		if (ieee80211_parse_beacon(ni, m0, &scan) != 0) {
+			vap->iv_stats.is_beacon_bad++;
 			return;
+		}
 		/*
 		 * Count frame now that we know it's to be processed.
 		 */
