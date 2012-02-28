@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/setjmp.h>
+#include <x86/setjmp.h>
