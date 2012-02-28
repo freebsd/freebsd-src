@@ -472,8 +472,12 @@ next:
 
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
+#define	TCP_FLAGS	(TH_FLAGS | (TH_FLAGS << 8))
+#define	ACK_FWD		0x10000			/* fwd ack seen */
+#define	ACK_REV		0x20000			/* rev ack seen */
+
 		q->state |= (dir == MATCH_FORWARD) ? flags : (flags << 8);
-		switch (q->state) {
+		switch (q->state & TCP_FLAGS) {
 		case TH_SYN:			/* opening */
 			q->expire = time_uptime + V_dyn_syn_lifetime;
 			break;
@@ -482,24 +486,28 @@ next:
 		case BOTH_SYN | TH_FIN:		/* one side tries to close */
 		case BOTH_SYN | (TH_FIN << 8):
 #define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
-			if (tcp == NULL) {
-				q->expire = time_uptime + V_dyn_ack_lifetime;
+			if (tcp == NULL)
 				break;
-			}
 
 			ack = ntohl(tcp->th_ack);
 			if (dir == MATCH_FORWARD) {
-				if (q->ack_fwd == 0 || _SEQ_GE(ack, q->ack_fwd))
+				if (q->ack_fwd == 0 ||
+				    _SEQ_GE(ack, q->ack_fwd)) {
 					q->ack_fwd = ack;
-				else	/* ignore out-of-sequence */
-					break;
+					q->state |= ACK_FWD;
+				}
 			} else {
-				if (q->ack_rev == 0 || _SEQ_GE(ack, q->ack_rev))
+				if (q->ack_rev == 0 ||
+				    _SEQ_GE(ack, q->ack_rev)) {
 					q->ack_rev = ack;
-				else	/* ignore out-of-sequence */
-					break;
+					q->state |= ACK_REV;
+				}
 			}
-			q->expire = time_uptime + V_dyn_ack_lifetime;
+			if ((q->state & (ACK_FWD | ACK_REV)) ==
+			    (ACK_FWD | ACK_REV)) {
+				q->expire = time_uptime + V_dyn_ack_lifetime;
+				q->state &= ~(ACK_FWD | ACK_REV);
+			}
 			break;
 
 		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
@@ -1074,10 +1082,12 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(q->expire, time_uptime))
 				continue;	/* too late, rule expired */
 
-			m = ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
-				q->ack_fwd, TH_SYN);
-			mnext = ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
-				q->ack_rev, 0);
+			m = (q->state & ACK_REV) ? NULL :
+			    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
+			    q->ack_fwd, TH_SYN);
+			mnext = (q->state & ACK_FWD) ? NULL :
+			    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
+			    q->ack_rev, 0);
 
 			switch (q->id.addr_type) {
 			case 4:
@@ -1103,18 +1113,16 @@ ipfw_tick(void * vnetx)
 				break;
 #endif
 			}
-
-			m = mnext = NULL;
 		}
 	}
 	IPFW_DYN_UNLOCK();
-	for (m = mnext = m0; m != NULL; m = mnext) {
+	for (m = m0; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		ip_output(m, NULL, NULL, 0, NULL, NULL);
 	}
 #ifdef INET6
-	for (m = mnext = m6; m != NULL; m = mnext) {
+	for (m = m6; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);
