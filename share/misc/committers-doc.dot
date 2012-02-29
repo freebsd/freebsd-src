@@ -72,6 +72,7 @@ maxim [label="Maxim Konovalov\nmaxim@FreeBSD.org\n2002/02/07"]
 miwi [label="Martin Wilke\nmiwi@FreeBSD.org\n2007/10/26"]
 murray [label="Murray Stokely\nmurray@FreeBSD.org\n2000/04/05"]
 pav [label="Pav Lucistnik\npav@FreeBSD.org\n2005/08/12"]
+pluknet [label="Sergey Kandaurov\npluknet@FreeBSD.org\n2012/02/14"]
 remko [label="Remko Lodder\nremko@FreeBSD.org\n2004/10/16"]
 rene [label="Rene Ladan\nrene@FreeBSD.org\n2008/11/03"]
 roam [label="Peter Pentchev\nroam@FreeBSD.org\n2003/02/14"]
@@ -129,6 +130,7 @@ keramida -> gjb
 keramida -> pav
 
 marck -> bvs
+marck -> pluknet
 marck -> taras
 
 maxim -> taras
