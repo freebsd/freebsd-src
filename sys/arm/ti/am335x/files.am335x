@@ -23,4 +23,6 @@ arm/ti/am335x/am335x_dmtimer.c		standard
 arm/ti/am335x/if_cpsw.c				standard
 arm/ti/am335x/am335x_scm_padconf.c	standard
 
+dev/ofw/ofw_iicbus.c				optional iicbus
+
 dev/uart/uart_dev_ns8250.c			optional	uart

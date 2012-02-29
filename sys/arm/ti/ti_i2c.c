@@ -154,6 +154,9 @@ static int ti_i2c_attach(device_t dev);
 static int ti_i2c_detach(device_t dev);
 static void ti_i2c_intr(void *);
 
+/* OFW routine */
+static phandle_t ti_i2c_get_node(device_t bus, device_t dev);
+
 /* helper routines */
 static int ti_i2c_activate(device_t dev);
 static void ti_i2c_deactivate(device_t dev);
@@ -1137,11 +1140,24 @@ ti_i2c_detach(device_t dev)
 	return (0);
 }
 
+
+static phandle_t
+ti_i2c_get_node(device_t bus, device_t dev)
+{
+	/* 
+	 * Share controller node with iibus device
+	 */
+	return ofw_bus_get_node(bus);
+}
+
 static device_method_t ti_i2c_methods[] = {
 	/* Device interface */
 	DEVMETHOD(device_probe,		ti_i2c_probe),
 	DEVMETHOD(device_attach,	ti_i2c_attach),
 	DEVMETHOD(device_detach,	ti_i2c_detach),
+
+	/* OFW methods */
+	DEVMETHOD(ofw_bus_get_node,	ti_i2c_get_node),
 
 	/* iicbus interface */
 	DEVMETHOD(iicbus_callback,	ti_i2c_callback),
@@ -1151,7 +1167,7 @@ static device_method_t ti_i2c_methods[] = {
 };
 
 static driver_t ti_i2c_driver = {
-	"ti_iic",
+	"iichb",
 	ti_i2c_methods,
 	sizeof(struct ti_i2c_softc),
 };
