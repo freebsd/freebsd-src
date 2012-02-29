@@ -348,7 +348,6 @@ ENTRY(cpu_switch)
 	beq	.Lcs_same_vector
 	str	r0, [r7]		/* Otherwise, update it */
 
-#if !defined(CPU_ARM11) && !defined(CPU_CORTEXA) && !defined(CPU_MV_PJ4B)
 	/*
 	 * Need to sync the cache to make sure that last store is
 	 * visible to the MMU.
@@ -358,7 +357,6 @@ ENTRY(cpu_switch)
 	mov	r1, #4
 	mov	lr, pc
 	ldr	pc, [r2, #CF_DCACHE_WB_RANGE]
-#endif
 
 .Lcs_same_vector:
 #endif /* PMAP_INCLUDE_PTE_SYNC */
@@ -396,7 +394,6 @@ ENTRY(cpu_switch)
 	str	r6, [r4, #TD_LOCK]
 	ldr	r6, .Lblocked_lock
 	GET_CURTHREAD_PTR(r3)
-	ldr	r3, [r3]
 
 1:
 	ldr	r4, [r3, #TD_LOCK]
