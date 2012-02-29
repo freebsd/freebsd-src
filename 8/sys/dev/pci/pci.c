@@ -170,7 +170,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
 DEFINE_CLASS_0(pci, pci_driver, pci_methods, 0);
@@ -182,7 +182,6 @@ MODULE_VERSION(pci, 1);
 static char	*pci_vendordata;
 static size_t	pci_vendordata_size;
 
-
 struct pci_quirk {
 	uint32_t devid;	/* Vendor/device of the card */
 	int	type;
@@ -193,7 +192,7 @@ struct pci_quirk {
 	int	arg2;
 };
 
-struct pci_quirk pci_quirks[] = {
+static const struct pci_quirk const pci_quirks[] = {
 	/* The Intel 82371AB and 82443MX has a map register at offset 0x90. */
 	{ 0x71138086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 	{ 0x719b8086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
@@ -224,6 +223,12 @@ struct pci_quirk pci_quirks[] = {
 	 * bridge.
 	 */
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * MSI-X doesn't work with at least LSI SAS1068E passed through by
+	 * VMware.
+	 */
+	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	/*
 	 * Some virtualization environments emulate an older chipset
@@ -1813,7 +1818,7 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 int
 pci_msi_device_blacklisted(device_t dev)
 {
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 
 	if (!pci_honor_msi_blacklist)
 		return (0);
@@ -1833,7 +1838,7 @@ pci_msi_device_blacklisted(device_t dev)
 static int
 pci_msi_vm_chipset(device_t dev)
 {
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 
 	for (q = &pci_quirks[0]; q->devid; q++) {
 		if (q->devid == pci_get_devid(dev) &&
@@ -2788,7 +2793,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 	int i;
 
 	/* ATA devices needs special map treatment */
@@ -3593,7 +3598,6 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	}
 }
 
-
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -3733,7 +3737,6 @@ pci_alloc_map(device_t dev, device_t child, int type, int *rid,
 out:;
 	return (res);
 }
-
 
 struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
