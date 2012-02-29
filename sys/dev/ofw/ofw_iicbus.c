@@ -35,6 +35,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/module.h>
 #include <sys/mutex.h>
 
+#include <dev/fdt/fdt_common.h>
 #include <dev/iicbus/iicbus.h>
 #include <dev/iicbus/iiconf.h>
 #include <dev/ofw/ofw_bus.h>
@@ -101,6 +102,7 @@ ofw_iicbus_attach(device_t dev)
 	struct iicbus_softc *sc = IICBUS_SOFTC(dev);
 	struct ofw_iicbus_devinfo *dinfo;
 	phandle_t child;
+	pcell_t paddr;
 	device_t childdev;
 	uint32_t addr;
 
@@ -121,10 +123,11 @@ ofw_iicbus_attach(device_t dev)
 		 * property, then try the reg property.  It moves around
 		 * on different systems.
 		 */
-		if (OF_getprop(child, "i2c-address", &addr, sizeof(addr)) == -1)
-			if (OF_getprop(child, "reg", &addr, sizeof(addr)) == -1)
+		if (OF_getprop(child, "i2c-address", &paddr, sizeof(paddr)) == -1)
+			if (OF_getprop(child, "reg", &paddr, sizeof(paddr)) == -1)
 				continue;
 
+		addr = fdt32_to_cpu(paddr);
 		/*
 		 * Now set up the I2C and OFW bus layer devinfo and add it
 		 * to the bus.
