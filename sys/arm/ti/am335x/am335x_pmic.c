@@ -44,17 +44,19 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/ofw/openfirm.h>
 #include <dev/ofw/ofw_bus.h>
+#include <dev/ofw/ofw_bus_subr.h>
 
 #include "iicbus_if.h"
 
 #define TPS65217A		0x7
 #define TPS65217B		0xF
 
-#define TPS65217_IIC_ADDR	0x24
-
 /* TPS65217 Reisters */
 #define TPS65217_CHIPID_REG	0x00
 #define TPS65217_STATUS_REG	0x0A
+
+#define MAX_IIC_DATA_SIZE	2
+
 
 struct am335x_pmic_softc {
 	device_t		sc_dev;
@@ -65,28 +67,39 @@ struct am335x_pmic_softc {
 static int
 am335x_pmic_read(device_t dev, uint8_t addr, uint8_t *data, uint8_t size)
 {
+	struct am335x_pmic_softc *sc = device_get_softc(dev);
 	struct iic_msg msg[] = {
-		{ TPS65217_IIC_ADDR, IIC_M_WR, 1, &addr },
-		{ TPS65217_IIC_ADDR, IIC_M_RD, size, data },
+		{ sc->sc_addr, IIC_M_WR, 1, &addr },
+		{ sc->sc_addr, IIC_M_RD, size, data },
 	};
 	return (iicbus_transfer(dev, msg, 2));
 }
 
-static void
-am335x_pmic_identify(driver_t *driver, device_t parent)
+static int
+am335x_pmic_write(device_t dev, uint8_t address, uint8_t *data, uint8_t size)
 {
-        BUS_ADD_CHILD(parent, 0, "am335x_pmic", 0);
+	uint8_t buffer[MAX_IIC_DATA_SIZE + 1];
+	struct am335x_pmic_softc *sc = device_get_softc(dev);
+	struct iic_msg msg[] = {
+		{ sc->sc_addr, IIC_M_WR, size + 1, buffer },
+	};
+
+	if (size > MAX_IIC_DATA_SIZE)
+		return (ENOMEM);
+
+	buffer[0] = address;
+	memcpy(buffer + 1, data, size);
+
+	return (iicbus_transfer(dev, msg, 1));
 }
 
 static int
 am335x_pmic_probe(device_t dev)
 {
 	struct am335x_pmic_softc *sc;
-	int error;
-	const char  *name, *compatible;
 
-	name = ofw_bus_get_name(dev);
-	compatible = ofw_bus_get_compat(dev);
+	if (!ofw_bus_is_compatible(dev, "ti,am335x-pmic"))
+		return (ENXIO);
 
 	sc = device_get_softc(dev);
 	sc->sc_dev = dev;
@@ -94,7 +107,7 @@ am335x_pmic_probe(device_t dev)
 
 	device_set_desc(dev, "TI TPS65217 Power Management IC");
 
-	return (BUS_PROBE_NOWILDCARD);
+	return (0);
 }
 
 static void
@@ -103,7 +116,7 @@ am335x_pmic_start(void *xdev)
 	struct am335x_pmic_softc *sc;
 	device_t dev = (device_t)xdev;
 	uint8_t reg;
-	char name[16];
+	char name[20];
 	char pwr[4][11] = {"Unknown", "USB", "AC", "USB and AC"};
 
 	sc = device_get_softc(dev);
@@ -143,7 +156,6 @@ am335x_pmic_attach(device_t dev)
 }
 
 static device_method_t am335x_pmic_methods[] = {
-	DEVMETHOD(device_identify,	am335x_pmic_identify),
 	DEVMETHOD(device_probe,		am335x_pmic_probe),
 	DEVMETHOD(device_attach,	am335x_pmic_attach),
 	{0, 0},
