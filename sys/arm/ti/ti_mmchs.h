@@ -24,11 +24,11 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  */
-#ifndef _OMAP_MMC_H_
-#define _OMAP_MMC_H_
+#ifndef _TI_MMCHS_H_
+#define _TI_MMCHS_H_
 
 /**
- * Header file for the OMAP MMC/SD/SDIO driver.
+ * Header file for the TI MMC/SD/SDIO driver.
  *
  * Simply contains register addresses and bit flags.
  */
@@ -164,4 +164,4 @@
 #define MMCHS_CAPA_VS30             (1UL << 25)
 #define MMCHS_CAPA_VS33             (1UL << 24)
 
-#endif  /* _OMAP_MMC_H_ */
+#endif  /* _TI_MMCHS_H_ */

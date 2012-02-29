@@ -162,7 +162,7 @@
 		};
 
 		mmc@x4809C000 {
-			compatible = "ti,omap_mmc";
+			compatible = "ti,mmchs";
 			reg =<0x4809C000 0x1000 >;
 			interrupts = <115>;
 			interrupt-parent = <&GIC>;

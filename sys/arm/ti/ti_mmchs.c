@@ -83,7 +83,7 @@ __FBSDID("$FreeBSD$");
 #include "mmcbus_if.h"
 
 #include <arm/ti/omap_dma.h>
-#include <arm/ti/omap_mmc.h>
+#include <arm/ti/ti_mmchs.h>
 #include <arm/ti/ti_cpuid.h>
 #include <arm/ti/ti_prcm.h>
 
@@ -91,16 +91,16 @@ __FBSDID("$FreeBSD$");
 #include <arm/ti/twl/twl_vreg.h>
 
 #ifdef DEBUG
-#define omap_mmc_dbg(sc, fmt, args...) \
+#define ti_mmchs_dbg(sc, fmt, args...) \
 	device_printf((sc)->sc_dev, fmt, ## args);
 #else
-#define omap_mmc_dbg(sc, fmt, args...)
+#define ti_mmchs_dbg(sc, fmt, args...)
 #endif
 
 /**
  *	Structure that stores the driver context
  */
-struct omap_mmc_softc {
+struct ti_mmchs_softc {
 	device_t		sc_dev;
 	struct resource*	sc_irq_res;
 	struct resource*	sc_mem_res;
@@ -156,16 +156,16 @@ struct omap_mmc_softc {
 #define	OMAP_MMC_UNLOCK(_sc)            mtx_unlock(&(_sc)->sc_mtx)
 #define OMAP_MMC_LOCK_INIT(_sc) \
 	mtx_init(&_sc->sc_mtx, device_get_nameunit(_sc->sc_dev), \
-	         "omap_mmc", MTX_DEF)
+	         "ti_mmchs", MTX_DEF)
 #define OMAP_MMC_LOCK_DESTROY(_sc)      mtx_destroy(&_sc->sc_mtx);
 #define OMAP_MMC_ASSERT_LOCKED(_sc)     mtx_assert(&_sc->sc_mtx, MA_OWNED);
 #define OMAP_MMC_ASSERT_UNLOCKED(_sc)   mtx_assert(&_sc->sc_mtx, MA_NOTOWNED);
 
-static void omap_mmc_start(struct omap_mmc_softc *sc);
+static void ti_mmchs_start(struct ti_mmchs_softc *sc);
 
 /**
- *	omap_mmc_read_4 - reads a 32-bit value from a register
- *	omap_mmc_write_4 - writes a 32-bit value to a register
+ *	ti_mmchs_read_4 - reads a 32-bit value from a register
+ *	ti_mmchs_write_4 - writes a 32-bit value to a register
  *	@sc: pointer to the driver context
  *	@off: register offset to read from
  *	@val: the value to write into the register
@@ -177,19 +177,19 @@ static void omap_mmc_start(struct omap_mmc_softc *sc);
  *	The 32-bit value read from the register
  */
 static inline uint32_t
-omap_mmc_read_4(struct omap_mmc_softc *sc, bus_size_t off)
+ti_mmchs_read_4(struct ti_mmchs_softc *sc, bus_size_t off)
 {
 	return bus_read_4(sc->sc_mem_res, (sc->sc_reg_off + off));
 }
 
 static inline void
-omap_mmc_write_4(struct omap_mmc_softc *sc, bus_size_t off, uint32_t val)
+ti_mmchs_write_4(struct ti_mmchs_softc *sc, bus_size_t off, uint32_t val)
 {
 	bus_write_4(sc->sc_mem_res, (sc->sc_reg_off + off), val);
 }
 
 /**
- *	omap_mmc_reset_controller -
+ *	ti_mmchs_reset_controller -
  *	@arg: caller supplied arg
  *	@segs: array of segments (although in our case should only be one)
  *	@nsegs: number of segments (in our case should be 1)
@@ -199,35 +199,35 @@ omap_mmc_write_4(struct omap_mmc_softc *sc, bus_size_t off, uint32_t val)
  *
  */
 static void
-omap_mmc_reset_controller(struct omap_mmc_softc *sc, uint32_t bit)
+ti_mmchs_reset_controller(struct ti_mmchs_softc *sc, uint32_t bit)
 {
 	unsigned long attempts;
 	uint32_t sysctl;
 
-	omap_mmc_dbg(sc, "reseting controller - bit 0x%08x\n", bit);
+	ti_mmchs_dbg(sc, "reseting controller - bit 0x%08x\n", bit);
 
-	sysctl = omap_mmc_read_4(sc, MMCHS_SYSCTL);
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl | bit);
+	sysctl = ti_mmchs_read_4(sc, MMCHS_SYSCTL);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl | bit);
 
 	if ((ti_chip() == CHIP_OMAP_4) && (ti_revision() > OMAP4430_REV_ES1_0)) {
 		/* OMAP4 ES2 and greater has an updated reset logic.
 		 * Monitor a 0->1 transition first
 		 */
 		attempts = 10000;
-		while (!(omap_mmc_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
+		while (!(ti_mmchs_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
 			continue;
 	}
 
 	attempts = 10000;
-	while ((omap_mmc_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
+	while ((ti_mmchs_read_4(sc, MMCHS_SYSCTL) & bit) && (attempts-- > 0))
 		continue;
 
-	if (omap_mmc_read_4(sc, MMCHS_SYSCTL) & bit)
+	if (ti_mmchs_read_4(sc, MMCHS_SYSCTL) & bit)
 		device_printf(sc->sc_dev, "Error - Timeout waiting on controller reset\n");
 }
 
 /**
- *	omap_mmc_getaddr - called by the DMA function to simply return the phys addr
+ *	ti_mmchs_getaddr - called by the DMA function to simply return the phys addr
  *	@arg: caller supplied arg
  *	@segs: array of segments (although in our case should only be one)
  *	@nsegs: number of segments (in our case should be 1)
@@ -237,11 +237,11 @@ omap_mmc_reset_controller(struct omap_mmc_softc *sc, uint32_t bit)
  *	of segments, each segment is a phsyical chunk of memory. However in our case
  *	we should only have one segment, because we don't (yet?) support DMA scatter
  *	gather. To ensure we only have one segment, the DMA tag was created by
- *	bus_dma_tag_create() (called from omap_mmc_attach) with nsegments set to 1.
+ *	bus_dma_tag_create() (called from ti_mmchs_attach) with nsegments set to 1.
  *
  */
 static void
-omap_mmc_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
+ti_mmchs_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 {
 	if (error != 0)
 		return;
@@ -250,7 +250,7 @@ omap_mmc_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
 }
 
 /**
- *	omap_mmc_dma_intr - interrupt handler for DMA events triggered by the controller
+ *	ti_mmchs_dma_intr - interrupt handler for DMA events triggered by the controller
  *	@ch: the dma channel number
  *	@status: bit field of the status bytes
  *	@data: callback data, in this case a pointer to the controller struct
@@ -261,7 +261,7 @@ omap_mmc_getaddr(void *arg, bus_dma_segment_t *segs, int nsegs, int error)
  *
  */
 static void
-omap_mmc_dma_intr(unsigned int ch, uint32_t status, void *data)
+ti_mmchs_dma_intr(unsigned int ch, uint32_t status, void *data)
 {
 	/* Ignore for now ... we don't need this interrupt as we already have the
 	 * interrupt from the MMC controller.
@@ -269,7 +269,7 @@ omap_mmc_dma_intr(unsigned int ch, uint32_t status, void *data)
 }
 
 /**
- *	omap_mmc_intr_xfer_compl - called if a 'transfer complete' IRQ was received
+ *	ti_mmchs_intr_xfer_compl - called if a 'transfer complete' IRQ was received
  *	@sc: pointer to the driver context
  *	@cmd: the command that was sent previously
  *
@@ -282,12 +282,12 @@ omap_mmc_dma_intr(unsigned int ch, uint32_t status, void *data)
  *	Return value indicates if the transaction is complete, not done = 0, done != 0
  */
 static int
-omap_mmc_intr_xfer_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
+ti_mmchs_intr_xfer_compl(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 {
 	uint32_t cmd_reg;
 
 	/* Read command register to test whether this command was a read or write. */
-	cmd_reg = omap_mmc_read_4(sc, MMCHS_CMD);
+	cmd_reg = ti_mmchs_read_4(sc, MMCHS_CMD);
 
 	/* Sync-up the DMA buffer so the caller can access the new memory */
 	if (cmd_reg & MMCHS_CMD_DDIR) {
@@ -319,7 +319,7 @@ omap_mmc_intr_xfer_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 }
 
 /**
- *	omap_mmc_intr_cmd_compl - called if a 'command complete' IRQ was received
+ *	ti_mmchs_intr_cmd_compl - called if a 'command complete' IRQ was received
  *	@sc: pointer to the driver context
  *	@cmd: the command that was sent previously
  *
@@ -331,7 +331,7 @@ omap_mmc_intr_xfer_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
  *	Return value indicates if the transaction is complete, not done = 0, done != 0
  */
 static int
-omap_mmc_intr_cmd_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
+ti_mmchs_intr_cmd_compl(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 {
 	uint32_t cmd_reg;
 
@@ -339,23 +339,23 @@ omap_mmc_intr_cmd_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 	 * expected */
 	if (cmd != NULL && (cmd->flags & MMC_RSP_PRESENT)) {
 		if (cmd->flags & MMC_RSP_136) {
-			cmd->resp[3] = omap_mmc_read_4(sc, MMCHS_RSP10);
-			cmd->resp[2] = omap_mmc_read_4(sc, MMCHS_RSP32);
-			cmd->resp[1] = omap_mmc_read_4(sc, MMCHS_RSP54);
-			cmd->resp[0] = omap_mmc_read_4(sc, MMCHS_RSP76);
+			cmd->resp[3] = ti_mmchs_read_4(sc, MMCHS_RSP10);
+			cmd->resp[2] = ti_mmchs_read_4(sc, MMCHS_RSP32);
+			cmd->resp[1] = ti_mmchs_read_4(sc, MMCHS_RSP54);
+			cmd->resp[0] = ti_mmchs_read_4(sc, MMCHS_RSP76);
 		} else {
-			cmd->resp[0] = omap_mmc_read_4(sc, MMCHS_RSP10);
+			cmd->resp[0] = ti_mmchs_read_4(sc, MMCHS_RSP10);
 		}
 	}
 
 	/* Check if the command was expecting some data transfer, if not
 	 * we are done. */
-	cmd_reg = omap_mmc_read_4(sc, MMCHS_CMD);
+	cmd_reg = ti_mmchs_read_4(sc, MMCHS_CMD);
 	return ((cmd_reg & MMCHS_CMD_DP) == 0);
 }
 
 /**
- *	omap_mmc_intr_error - handles error interrupts
+ *	ti_mmchs_intr_error - handles error interrupts
  *	@sc: pointer to the driver context
  *	@cmd: the command that was sent previously
  *	@stat_reg: the value that was in the status register
@@ -368,10 +368,10 @@ omap_mmc_intr_cmd_compl(struct omap_mmc_softc *sc, struct mmc_command *cmd)
  *	Return value indicates if the transaction is complete, not done = 0, done != 0
  */
 static int
-omap_mmc_intr_error(struct omap_mmc_softc *sc, struct mmc_command *cmd,
+ti_mmchs_intr_error(struct ti_mmchs_softc *sc, struct mmc_command *cmd,
 					 uint32_t stat_reg)
 {
-	omap_mmc_dbg(sc, "error in xfer - stat 0x%08x\n", stat_reg);
+	ti_mmchs_dbg(sc, "error in xfer - stat 0x%08x\n", stat_reg);
 
 	/* Ignore CRC errors on CMD2 and ACMD47, per relevant standards */
 	if ((stat_reg & MMCHS_STAT_CCRC) && (cmd->opcode == MMC_SEND_OP_COND ||
@@ -385,10 +385,10 @@ omap_mmc_intr_error(struct omap_mmc_softc *sc, struct mmc_command *cmd,
 		cmd->error = MMC_ERR_FAILED;
 
 	/* If a dma transaction we should also stop the dma transfer */
-	if (omap_mmc_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DE) {
+	if (ti_mmchs_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DE) {
 
 		/* Abort the DMA transfer (DDIR bit tells direction) */
-		if (omap_mmc_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DDIR)
+		if (ti_mmchs_read_4(sc, MMCHS_CMD) & MMCHS_CMD_DDIR)
 			omap_dma_stop_xfer(sc->sc_dmach_rd);
 		else
 			omap_dma_stop_xfer(sc->sc_dmach_wr);
@@ -402,12 +402,12 @@ omap_mmc_intr_error(struct omap_mmc_softc *sc, struct mmc_command *cmd,
 
 	/* Command error occured? ... if so issue a soft reset for the cmd fsm */
 	if (stat_reg & (MMCHS_STAT_CCRC | MMCHS_STAT_CTO)) {
-		omap_mmc_reset_controller(sc, MMCHS_SYSCTL_SRC);
+		ti_mmchs_reset_controller(sc, MMCHS_SYSCTL_SRC);
 	}
 
 	/* Data error occured? ... if so issue a soft reset for the data line */
 	if (stat_reg & (MMCHS_STAT_DEB | MMCHS_STAT_DCRC | MMCHS_STAT_DTO)) {
-		omap_mmc_reset_controller(sc, MMCHS_SYSCTL_SRD);
+		ti_mmchs_reset_controller(sc, MMCHS_SYSCTL_SRD);
 	}
 
 	/* On any error the command is cancelled ... so we are done */
@@ -415,7 +415,7 @@ omap_mmc_intr_error(struct omap_mmc_softc *sc, struct mmc_command *cmd,
 }
 
 /**
- *	omap_mmc_intr - interrupt handler for MMC/SD/SDIO controller
+ *	ti_mmchs_intr - interrupt handler for MMC/SD/SDIO controller
  *	@arg: pointer to the driver context
  *
  *	Interrupt handler for the MMC/SD/SDIO controller, responsible for handling
@@ -428,27 +428,27 @@ omap_mmc_intr_error(struct omap_mmc_softc *sc, struct mmc_command *cmd,
  *	nothing
  */
 static void
-omap_mmc_intr(void *arg)
+ti_mmchs_intr(void *arg)
 {
-	struct omap_mmc_softc *sc = (struct omap_mmc_softc *) arg;
+	struct ti_mmchs_softc *sc = (struct ti_mmchs_softc *) arg;
 	uint32_t stat_reg;
 	int done = 0;
 
 	OMAP_MMC_LOCK(sc);
 
-	stat_reg = omap_mmc_read_4(sc, MMCHS_STAT)
-	    & (omap_mmc_read_4(sc, MMCHS_IE) | MMCHS_STAT_ERRI);
+	stat_reg = ti_mmchs_read_4(sc, MMCHS_STAT)
+	    & (ti_mmchs_read_4(sc, MMCHS_IE) | MMCHS_STAT_ERRI);
 
 	if (sc->curcmd == NULL) {
 		device_printf(sc->sc_dev, "Error: current cmd NULL, already done?\n");
-		omap_mmc_write_4(sc, MMCHS_STAT, stat_reg);
+		ti_mmchs_write_4(sc, MMCHS_STAT, stat_reg);
 		OMAP_MMC_UNLOCK(sc);
 		return;
 	}
 
 	if (stat_reg & MMCHS_STAT_ERRI) {
 		/* An error has been tripped in the status register */
-		done = omap_mmc_intr_error(sc, sc->curcmd, stat_reg);
+		done = ti_mmchs_intr_error(sc, sc->curcmd, stat_reg);
 
 	} else {
 
@@ -463,37 +463,37 @@ omap_mmc_intr(void *arg)
 
 		/* Check if the command completed */
 		if (stat_reg & MMCHS_STAT_CC) {
-			done = omap_mmc_intr_cmd_compl(sc, sc->curcmd);
+			done = ti_mmchs_intr_cmd_compl(sc, sc->curcmd);
 		}
 
 		/* Check if the transfer has completed */
 		if (stat_reg & MMCHS_STAT_TC) {
-			done = omap_mmc_intr_xfer_compl(sc, sc->curcmd);
+			done = ti_mmchs_intr_xfer_compl(sc, sc->curcmd);
 		}
 
 	}
 
 	/* Clear all the interrupt status bits by writing the value back */
-	omap_mmc_write_4(sc, MMCHS_STAT, stat_reg);
+	ti_mmchs_write_4(sc, MMCHS_STAT, stat_reg);
 
 	/* This may mark the command as done if there is no stop request */
 	/* TODO: This is a bit ugly, needs fix-up */
 	if (done) {
-		omap_mmc_start(sc);
+		ti_mmchs_start(sc);
 	}
 
 	OMAP_MMC_UNLOCK(sc);
 }
 
 /**
- *	omap_mmc_start_cmd - starts the given command
+ *	ti_mmchs_start_cmd - starts the given command
  *	@sc: pointer to the driver context
  *	@cmd: the command to start
  *
  *	The call tree for this function is
- *		- omap_mmc_start_cmd
- *			- omap_mmc_start
- *				- omap_mmc_request
+ *		- ti_mmchs_start_cmd
+ *			- ti_mmchs_start
+ *				- ti_mmchs_request
  *
  *	LOCKING:
  *	Caller should be holding the OMAP_MMC lock.
@@ -502,7 +502,7 @@ omap_mmc_intr(void *arg)
  *	nothing
  */
 static void
-omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
+ti_mmchs_start_cmd(struct ti_mmchs_softc *sc, struct mmc_command *cmd)
 {
 	uint32_t cmd_reg, con_reg, ise_reg;
 	struct mmc_data *data;
@@ -518,7 +518,7 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 	/* Ensure the STR and MIT bits are cleared, these are only used for special
 	 * command types.
 	 */
-	con_reg = omap_mmc_read_4(sc, MMCHS_CON);
+	con_reg = ti_mmchs_read_4(sc, MMCHS_CON);
 	con_reg &= ~(MMCHS_CON_STR | MMCHS_CON_MIT);
 
 	/* Load the command into bits 29:24 of the CMD register */
@@ -561,14 +561,14 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 	/* Check if there is any data to write */
 	if (data == NULL) {
 		/* Clear the block count */
-		omap_mmc_write_4(sc, MMCHS_BLK, 0);
+		ti_mmchs_write_4(sc, MMCHS_BLK, 0);
 
 		/* The no data case is fairly simple */
-		omap_mmc_write_4(sc, MMCHS_CON, con_reg);
-		omap_mmc_write_4(sc, MMCHS_IE, ise_reg);
-		omap_mmc_write_4(sc, MMCHS_ISE, ise_reg);
-		omap_mmc_write_4(sc, MMCHS_ARG, cmd->arg);
-		omap_mmc_write_4(sc, MMCHS_CMD, cmd_reg);
+		ti_mmchs_write_4(sc, MMCHS_CON, con_reg);
+		ti_mmchs_write_4(sc, MMCHS_IE, ise_reg);
+		ti_mmchs_write_4(sc, MMCHS_ISE, ise_reg);
+		ti_mmchs_write_4(sc, MMCHS_ARG, cmd->arg);
+		ti_mmchs_write_4(sc, MMCHS_CMD, cmd_reg);
 		return;
 	}
 
@@ -598,7 +598,7 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 	cmd_reg |= MMCHS_CMD_DE;
 
 	/* Set the block size and block count */
-	omap_mmc_write_4(sc, MMCHS_BLK, (1 << 16) | data->len);
+	ti_mmchs_write_4(sc, MMCHS_BLK, (1 << 16) | data->len);
 
 	/* Setup the DMA stuff */
 	if (data->flags & (MMC_DATA_READ | MMC_DATA_WRITE)) {
@@ -608,7 +608,7 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 
 		/* Map the buffer buf into bus space using the dmamap map. */
 		if (bus_dmamap_load(sc->sc_dmatag, sc->sc_dmamap, vaddr, data->len,
-		    omap_mmc_getaddr, &paddr, 0) != 0) {
+		    ti_mmchs_getaddr, &paddr, 0) != 0) {
 
 			if (req->cmd->flags & STOP_STARTED)
 				req->stop->error = MMC_ERR_NO_MEMORY;
@@ -644,20 +644,20 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
 	}
 
 	/* Finally kick off the command */
-	omap_mmc_write_4(sc, MMCHS_CON, con_reg);
-	omap_mmc_write_4(sc, MMCHS_IE, ise_reg);
-	omap_mmc_write_4(sc, MMCHS_ISE, ise_reg);
-	omap_mmc_write_4(sc, MMCHS_ARG, cmd->arg);
-	omap_mmc_write_4(sc, MMCHS_CMD, cmd_reg);
+	ti_mmchs_write_4(sc, MMCHS_CON, con_reg);
+	ti_mmchs_write_4(sc, MMCHS_IE, ise_reg);
+	ti_mmchs_write_4(sc, MMCHS_ISE, ise_reg);
+	ti_mmchs_write_4(sc, MMCHS_ARG, cmd->arg);
+	ti_mmchs_write_4(sc, MMCHS_CMD, cmd_reg);
 
 	/* and we're done */
 }
 
 /**
- *	omap_mmc_start - starts a request stored in the driver context
+ *	ti_mmchs_start - starts a request stored in the driver context
  *	@sc: pointer to the driver context
  *
- *	This function is called by omap_mmc_request() in response to a read/write
+ *	This function is called by ti_mmchs_request() in response to a read/write
  *	request from the MMC core module.
  *
  *	LOCKING:
@@ -667,7 +667,7 @@ omap_mmc_start_cmd(struct omap_mmc_softc *sc, struct mmc_command *cmd)
  *	nothing
  */
 static void
-omap_mmc_start(struct omap_mmc_softc *sc)
+ti_mmchs_start(struct ti_mmchs_softc *sc)
 {
 	struct mmc_request *req;
 
@@ -679,13 +679,13 @@ omap_mmc_start(struct omap_mmc_softc *sc)
 	/* assert locked */
 	if (!(sc->flags & CMD_STARTED)) {
 		sc->flags |= CMD_STARTED;
-		omap_mmc_start_cmd(sc, req->cmd);
+		ti_mmchs_start_cmd(sc, req->cmd);
 		return;
 	}
 
 	if (!(sc->flags & STOP_STARTED) && req->stop) {
 		sc->flags |= STOP_STARTED;
-		omap_mmc_start_cmd(sc, req->stop);
+		ti_mmchs_start_cmd(sc, req->stop);
 		return;
 	}
 
@@ -696,7 +696,7 @@ omap_mmc_start(struct omap_mmc_softc *sc)
 }
 
 /**
- *	omap_mmc_request - entry point for all read/write/cmd requests
+ *	ti_mmchs_request - entry point for all read/write/cmd requests
  *	@brdev: mmc bridge device handle
  *	@reqdev: the device doing the requesting ?
  *	@req: the action requested
@@ -709,9 +709,9 @@ omap_mmc_start(struct omap_mmc_softc *sc)
  *	EBUSY if the driver is already performing a request
  */
 static int
-omap_mmc_request(device_t brdev, device_t reqdev, struct mmc_request *req)
+ti_mmchs_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 {
-	struct omap_mmc_softc *sc = device_get_softc(brdev);
+	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 
 	OMAP_MMC_LOCK(sc);
 
@@ -728,7 +728,7 @@ omap_mmc_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 	/* Store the request and start the command */
 	sc->req = req;
 	sc->flags = 0;
-	omap_mmc_start(sc);
+	ti_mmchs_start(sc);
 
 	OMAP_MMC_UNLOCK(sc);
 
@@ -736,7 +736,7 @@ omap_mmc_request(device_t brdev, device_t reqdev, struct mmc_request *req)
 }
 
 /**
- *	omap_mmc_get_ro - returns the status of the read-only setting
+ *	ti_mmchs_get_ro - returns the status of the read-only setting
  *	@brdev: mmc bridge device handle
  *	@reqdev: device doing the request
  *
@@ -752,9 +752,9 @@ omap_mmc_request(device_t brdev, device_t reqdev, struct mmc_request *req)
  *	1 if read only
  */
 static int
-omap_mmc_get_ro(device_t brdev, device_t reqdev)
+ti_mmchs_get_ro(device_t brdev, device_t reqdev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(brdev);
+	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 	unsigned int readonly = 0;
 
 	OMAP_MMC_LOCK(sc);
@@ -772,7 +772,7 @@ omap_mmc_get_ro(device_t brdev, device_t reqdev)
 }
 
 /**
- *	omap_mmc_send_init_stream - sets bus/controller settings
+ *	ti_mmchs_send_init_stream - sets bus/controller settings
  *	@brdev: mmc bridge device handle
  *	@reqdev: device doing the request
  *
@@ -785,12 +785,12 @@ omap_mmc_get_ro(device_t brdev, device_t reqdev)
  *	0 if function succeeded
  */
 static void
-omap_mmc_send_init_stream(struct omap_mmc_softc *sc)
+ti_mmchs_send_init_stream(struct ti_mmchs_softc *sc)
 {
 	unsigned long timeout;
 	uint32_t ie, ise, con;
 
-	omap_mmc_dbg(sc, "Performing init sequence\n");
+	ti_mmchs_dbg(sc, "Performing init sequence\n");
 
 	/* Prior to issuing any command, the MMCHS controller has to execute a
 	 * special INIT procedure. The MMCHS controller has to generate a clock
@@ -812,20 +812,20 @@ omap_mmc_send_init_stream(struct omap_mmc_softc *sc)
 	 */
 
 	/* Enable interrupt generation */
-	ie = omap_mmc_read_4(sc, MMCHS_IE);
-	omap_mmc_write_4(sc, MMCHS_IE, 0x307F0033);
+	ie = ti_mmchs_read_4(sc, MMCHS_IE);
+	ti_mmchs_write_4(sc, MMCHS_IE, 0x307F0033);
 
 	/* Disable generation of status events (stops interrupt triggering) */
-	ise = omap_mmc_read_4(sc, MMCHS_ISE);
-	omap_mmc_write_4(sc, MMCHS_ISE, 0);
+	ise = ti_mmchs_read_4(sc, MMCHS_ISE);
+	ti_mmchs_write_4(sc, MMCHS_ISE, 0);
 
 	/* Set the initialise stream bit */
-	con = omap_mmc_read_4(sc, MMCHS_CON);
+	con = ti_mmchs_read_4(sc, MMCHS_CON);
 	con |= MMCHS_CON_INIT;
-	omap_mmc_write_4(sc, MMCHS_CON, con);
+	ti_mmchs_write_4(sc, MMCHS_CON, con);
 
 	/* Write a dummy command 0x00 */
-	omap_mmc_write_4(sc, MMCHS_CMD, 0x00000000);
+	ti_mmchs_write_4(sc, MMCHS_CMD, 0x00000000);
 
 	/* Loop waiting for the command to finish */
 	timeout = hz;
@@ -835,13 +835,13 @@ omap_mmc_send_init_stream(struct omap_mmc_softc *sc)
 			device_printf(sc->sc_dev, "Error: first stream init timed out\n");
 			break;
 		}
-	} while (!(omap_mmc_read_4(sc, MMCHS_STAT) & MMCHS_STAT_CC));
+	} while (!(ti_mmchs_read_4(sc, MMCHS_STAT) & MMCHS_STAT_CC));
 
 	/* Clear the command complete status bit */
-	omap_mmc_write_4(sc, MMCHS_STAT, MMCHS_STAT_CC);
+	ti_mmchs_write_4(sc, MMCHS_STAT, MMCHS_STAT_CC);
 
 	/* Write another dummy command 0x00 */
-	omap_mmc_write_4(sc, MMCHS_CMD, 0x00000000);
+	ti_mmchs_write_4(sc, MMCHS_CMD, 0x00000000);
 
 	/* Loop waiting for the second command to finish */
 	timeout = hz;
@@ -851,22 +851,22 @@ omap_mmc_send_init_stream(struct omap_mmc_softc *sc)
 			device_printf(sc->sc_dev, "Error: second stream init timed out\n");
 			break;
 		}
-	} while (!(omap_mmc_read_4(sc, MMCHS_STAT) & MMCHS_STAT_CC));
+	} while (!(ti_mmchs_read_4(sc, MMCHS_STAT) & MMCHS_STAT_CC));
 
 	/* Clear the stream init bit */
 	con &= ~MMCHS_CON_INIT;
-	omap_mmc_write_4(sc, MMCHS_CON, con);
+	ti_mmchs_write_4(sc, MMCHS_CON, con);
 
 	/* Clear the status register, then restore the IE and ISE registers */
-	omap_mmc_write_4(sc, MMCHS_STAT, 0xffffffff);
-	omap_mmc_read_4(sc, MMCHS_STAT);
+	ti_mmchs_write_4(sc, MMCHS_STAT, 0xffffffff);
+	ti_mmchs_read_4(sc, MMCHS_STAT);
 
-	omap_mmc_write_4(sc, MMCHS_ISE, ise);
-	omap_mmc_write_4(sc, MMCHS_IE, ie);
+	ti_mmchs_write_4(sc, MMCHS_ISE, ise);
+	ti_mmchs_write_4(sc, MMCHS_IE, ie);
 }
 
 /**
- *	omap_mmc_update_ios - sets bus/controller settings
+ *	ti_mmchs_update_ios - sets bus/controller settings
  *	@brdev: mmc bridge device handle
  *	@reqdev: device doing the request
  *
@@ -881,9 +881,9 @@ omap_mmc_send_init_stream(struct omap_mmc_softc *sc)
  *	0 if function succeeded
  */
 static int
-omap_mmc_update_ios(device_t brdev, device_t reqdev)
+ti_mmchs_update_ios(device_t brdev, device_t reqdev)
 {
-	struct omap_mmc_softc *sc;
+	struct ti_mmchs_softc *sc;
 	struct mmc_host *host;
 	struct mmc_ios *ios;
 	uint32_t clkdiv;
@@ -899,8 +899,8 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 	ios = &host->ios;
 
 	/* Read the initial values of the registers */
-	hctl_reg = omap_mmc_read_4(sc, MMCHS_HCTL);
-	con_reg = omap_mmc_read_4(sc, MMCHS_CON);
+	hctl_reg = ti_mmchs_read_4(sc, MMCHS_HCTL);
+	con_reg = ti_mmchs_read_4(sc, MMCHS_CON);
 
 	/* Set the bus width */
 	switch (ios->bus_width) {
@@ -918,8 +918,8 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 	}
 
 	/* Finally write all these settings back to the registers */
-	omap_mmc_write_4(sc, MMCHS_HCTL, hctl_reg);
-	omap_mmc_write_4(sc, MMCHS_CON, con_reg);
+	ti_mmchs_write_4(sc, MMCHS_HCTL, hctl_reg);
+	ti_mmchs_write_4(sc, MMCHS_CON, con_reg);
 
 	/* Check if we need to change the external voltage regulator */
 	if (sc->sc_cur_power_mode != ios->power_mode) {
@@ -927,7 +927,7 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 		if (ios->power_mode == power_up) {
 
 			/* Set the power level */
-			hctl_reg = omap_mmc_read_4(sc, MMCHS_HCTL);
+			hctl_reg = ti_mmchs_read_4(sc, MMCHS_HCTL);
 			hctl_reg &= ~(MMCHS_HCTL_SDVS_MASK | MMCHS_HCTL_SDBP);
 
 			if ((ios->vdd == -1) || (ios->vdd >= vdd_240)) {
@@ -938,16 +938,16 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 				hctl_reg |= MMCHS_HCTL_SDVS_V18;
 			}
 
-			omap_mmc_write_4(sc, MMCHS_HCTL, hctl_reg);
+			ti_mmchs_write_4(sc, MMCHS_HCTL, hctl_reg);
 
 			/* Set the desired voltage on the regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
 				twl_vreg_set_voltage(sc->sc_vreg_dev, sc->sc_vreg_name, mv);
 
 			/* Enable the bus power */
-			omap_mmc_write_4(sc, MMCHS_HCTL, (hctl_reg | MMCHS_HCTL_SDBP));
+			ti_mmchs_write_4(sc, MMCHS_HCTL, (hctl_reg | MMCHS_HCTL_SDBP));
 			timeout = hz;
-			while (!(omap_mmc_read_4(sc, MMCHS_HCTL) & MMCHS_HCTL_SDBP)) {
+			while (!(ti_mmchs_read_4(sc, MMCHS_HCTL) & MMCHS_HCTL_SDBP)) {
 				if (timeout-- == 0)
 					break;
 				pause("MMC_PWRON", 1);
@@ -955,8 +955,8 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 
 		} else if (ios->power_mode == power_off) {
 			/* Disable the bus power */
-			hctl_reg = omap_mmc_read_4(sc, MMCHS_HCTL);
-			omap_mmc_write_4(sc, MMCHS_HCTL, (hctl_reg & ~MMCHS_HCTL_SDBP));
+			hctl_reg = ti_mmchs_read_4(sc, MMCHS_HCTL);
+			ti_mmchs_write_4(sc, MMCHS_HCTL, (hctl_reg & ~MMCHS_HCTL_SDBP));
 
 			/* Turn the power off on the voltage regulator */
 			if (sc->sc_vreg_dev && sc->sc_vreg_name)
@@ -972,7 +972,7 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 	}
 
 	/* need the MMCHS_SYSCTL register */
-	sysctl_reg = omap_mmc_read_4(sc, MMCHS_SYSCTL);
+	sysctl_reg = ti_mmchs_read_4(sc, MMCHS_SYSCTL);
 
 	/* Just in case this hasn't been setup before, set the timeout to the default */
 	sysctl_reg &= ~MMCHS_SYSCTL_DTO_MASK;
@@ -980,7 +980,7 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 
 	/* Disable the clock output while configuring the new clock */
 	sysctl_reg &= ~(MMCHS_SYSCTL_ICE | MMCHS_SYSCTL_CEN);
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
 
 	/* bus mode? */
 	if (ios->clock == 0) {
@@ -1000,36 +1000,36 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
 	sysctl_reg |= MMCHS_SYSCTL_CLKD(clkdiv);
 
 	/* Write the new settings ... */
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
 	/* ... write the internal clock enable bit ... */
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl_reg | MMCHS_SYSCTL_ICE);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl_reg | MMCHS_SYSCTL_ICE);
 	/* ... wait for the clock to stablise ... */
-	while (((sysctl_reg = omap_mmc_read_4(sc, MMCHS_SYSCTL)) &
+	while (((sysctl_reg = ti_mmchs_read_4(sc, MMCHS_SYSCTL)) &
 	    MMCHS_SYSCTL_ICS) == 0) {
 		continue;
 	}
 	/* ... then enable */
 	sysctl_reg |= MMCHS_SYSCTL_CEN;
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl_reg);
 
 	/* If the power state has changed to 'power_on' then run the init sequence*/
 	if (do_card_init) {
-		omap_mmc_send_init_stream(sc);
+		ti_mmchs_send_init_stream(sc);
 	}
 
 	/* Set the bus mode (opendrain or normal) */
-	con_reg = omap_mmc_read_4(sc, MMCHS_CON);
+	con_reg = ti_mmchs_read_4(sc, MMCHS_CON);
 	if (ios->bus_mode == opendrain)
 		con_reg |= MMCHS_CON_OD;
 	else
 		con_reg &= ~MMCHS_CON_OD;
-	omap_mmc_write_4(sc, MMCHS_CON, con_reg);
+	ti_mmchs_write_4(sc, MMCHS_CON, con_reg);
 
 	return (0);
 }
 
 /**
- *	omap_mmc_acquire_host -
+ *	ti_mmchs_acquire_host -
  *	@brdev: mmc bridge device handle
  *	@reqdev: device doing the request
  *
@@ -1043,9 +1043,9 @@ omap_mmc_update_ios(device_t brdev, device_t reqdev)
  *
  */
 static int
-omap_mmc_acquire_host(device_t brdev, device_t reqdev)
+ti_mmchs_acquire_host(device_t brdev, device_t reqdev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(brdev);
+	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 	int err = 0;
 
 	OMAP_MMC_LOCK(sc);
@@ -1062,7 +1062,7 @@ omap_mmc_acquire_host(device_t brdev, device_t reqdev)
 }
 
 /**
- *	omap_mmc_release_host -
+ *	ti_mmchs_release_host -
  *	@brdev: mmc bridge device handle
  *	@reqdev: device doing the request
  *
@@ -1076,9 +1076,9 @@ omap_mmc_acquire_host(device_t brdev, device_t reqdev)
  *
  */
 static int
-omap_mmc_release_host(device_t brdev, device_t reqdev)
+ti_mmchs_release_host(device_t brdev, device_t reqdev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(brdev);
+	struct ti_mmchs_softc *sc = device_get_softc(brdev);
 
 	OMAP_MMC_LOCK(sc);
 
@@ -1091,7 +1091,7 @@ omap_mmc_release_host(device_t brdev, device_t reqdev)
 }
 
 /**
- *	omap_mmc_read_ivar - returns driver conf variables
+ *	ti_mmchs_read_ivar - returns driver conf variables
  *	@bus:
  *	@child:
  *	@which: The variable to get the result for
@@ -1107,9 +1107,9 @@ omap_mmc_release_host(device_t brdev, device_t reqdev)
  *	EINVAL if the variable requested is invalid
  */
 static int
-omap_mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
+ti_mmchs_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 {
-	struct omap_mmc_softc *sc = device_get_softc(bus);
+	struct ti_mmchs_softc *sc = device_get_softc(bus);
 
 	switch (which) {
 		case MMCBR_IVAR_BUS_MODE:
@@ -1158,7 +1158,7 @@ omap_mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
 }
 
 /**
- *	omap_mmc_write_ivar - writes a driver conf variables
+ *	ti_mmchs_write_ivar - writes a driver conf variables
  *	@bus:
  *	@child:
  *	@which: The variable to set
@@ -1174,9 +1174,9 @@ omap_mmc_read_ivar(device_t bus, device_t child, int which, uintptr_t *result)
  *	EINVAL if the variable requested is invalid
  */
 static int
-omap_mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
+ti_mmchs_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 {
-	struct omap_mmc_softc *sc = device_get_softc(bus);
+	struct ti_mmchs_softc *sc = device_get_softc(bus);
 
 	switch (which) {
 		case MMCBR_IVAR_BUS_MODE:
@@ -1217,7 +1217,7 @@ omap_mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
 }
 
 /**
- *	omap_mmc_hw_init - initialises the MMC/SD/SIO controller
+ *	ti_mmchs_hw_init - initialises the MMC/SD/SIO controller
  *	@dev: mmc device handle
  *
  *	Called by the driver attach function during driver initialisation. This
@@ -1230,9 +1230,9 @@ omap_mmc_write_ivar(device_t bus, device_t child, int which, uintptr_t value)
  *	nothing
  */
 static void
-omap_mmc_hw_init(device_t dev)
+ti_mmchs_hw_init(device_t dev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(dev);
+	struct ti_mmchs_softc *sc = device_get_softc(dev);
 	clk_ident_t clk;
 	unsigned long timeout;
 	uint32_t sysctl;
@@ -1254,9 +1254,9 @@ omap_mmc_hw_init(device_t dev)
 	}
 
 	/* 2: Issue a softreset to the controller */
-	omap_mmc_write_4(sc, MMCHS_SYSCONFIG, 0x0002);
+	ti_mmchs_write_4(sc, MMCHS_SYSCONFIG, 0x0002);
 	timeout = 100;
-	while ((omap_mmc_read_4(sc, MMCHS_SYSSTATUS) & 0x01) == 0x0) {
+	while ((ti_mmchs_read_4(sc, MMCHS_SYSSTATUS) & 0x01) == 0x0) {
 		DELAY(1000);
 		if (timeout-- == 0) {
 			device_printf(dev, "Error: reset operation timed out\n");
@@ -1265,10 +1265,10 @@ omap_mmc_hw_init(device_t dev)
 	}
 
 	/* 3: Reset both the command and data state machines */
-	sysctl = omap_mmc_read_4(sc, MMCHS_SYSCTL);
-	omap_mmc_write_4(sc, MMCHS_SYSCTL, sysctl | MMCHS_SYSCTL_SRA);
+	sysctl = ti_mmchs_read_4(sc, MMCHS_SYSCTL);
+	ti_mmchs_write_4(sc, MMCHS_SYSCTL, sysctl | MMCHS_SYSCTL_SRA);
 	timeout = 100;
-	while ((omap_mmc_read_4(sc, MMCHS_SYSCTL) & MMCHS_SYSCTL_SRA) != 0x0) {
+	while ((ti_mmchs_read_4(sc, MMCHS_SYSCTL) & MMCHS_SYSCTL_SRA) != 0x0) {
 		DELAY(1000);
 		if (timeout-- == 0) {
 			device_printf(dev, "Error: reset operation timed out\n");
@@ -1277,10 +1277,10 @@ omap_mmc_hw_init(device_t dev)
 	}
 
 	/* 4: Set initial host configuration (1-bit mode, pwroff) and capabilities */
-	omap_mmc_write_4(sc, MMCHS_HCTL, MMCHS_HCTL_SDVS_V30);
+	ti_mmchs_write_4(sc, MMCHS_HCTL, MMCHS_HCTL_SDVS_V30);
 
-	capa = omap_mmc_read_4(sc, MMCHS_CAPA);
-	omap_mmc_write_4(sc, MMCHS_CAPA, capa | MMCHS_CAPA_VS30 | MMCHS_CAPA_VS18);
+	capa = ti_mmchs_read_4(sc, MMCHS_CAPA);
+	ti_mmchs_write_4(sc, MMCHS_CAPA, capa | MMCHS_CAPA_VS30 | MMCHS_CAPA_VS18);
 
 	/* 5: Set the initial bus configuration
 	 *       0  CTPL_MMC_SD      : Control Power for DAT1 line
@@ -1294,13 +1294,13 @@ omap_mmc_hw_init(device_t dev)
 	 *       0  INIT_DISABLED    : Send initialization stream
 	 *       0  OD_DISABLED      : No Open Drain
 	 */
-	con = omap_mmc_read_4(sc, MMCHS_CON) & MMCHS_CON_DVAL_MASK;
-	omap_mmc_write_4(sc, MMCHS_CON, con);
+	con = ti_mmchs_read_4(sc, MMCHS_CON) & MMCHS_CON_DVAL_MASK;
+	ti_mmchs_write_4(sc, MMCHS_CON, con);
 
 }
 
 /**
- *	omap_mmc_fini - shutdown the MMC/SD/SIO controller
+ *	ti_mmchs_fini - shutdown the MMC/SD/SIO controller
  *	@dev: mmc device handle
  *
  *	Responsible for shutting done the MMC controller, this function may be
@@ -1313,13 +1313,13 @@ omap_mmc_hw_init(device_t dev)
  *	nothing
  */
 static void
-omap_mmc_hw_fini(device_t dev)
+ti_mmchs_hw_fini(device_t dev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(dev);
+	struct ti_mmchs_softc *sc = device_get_softc(dev);
 
 	/* Disable all interrupts */
-	omap_mmc_write_4(sc, MMCHS_ISE, 0x00000000);
-	omap_mmc_write_4(sc, MMCHS_IE, 0x00000000);
+	ti_mmchs_write_4(sc, MMCHS_ISE, 0x00000000);
+	ti_mmchs_write_4(sc, MMCHS_IE, 0x00000000);
 
 	/* Disable the functional and interface clocks */
 	switch (device_get_unit(dev)) {
@@ -1336,7 +1336,7 @@ omap_mmc_hw_fini(device_t dev)
 }
 
 /**
- *	omap_mmc_init_dma_channels - initalise the DMA channels
+ *	ti_mmchs_init_dma_channels - initalise the DMA channels
  *	@sc: driver soft context
  *
  *	Attempts to activate an RX and TX DMA channel for the MMC device.
@@ -1348,7 +1348,7 @@ omap_mmc_hw_fini(device_t dev)
  *	0 on success, a negative error code on failure.
  */
 static int
-omap_mmc_init_dma_channels(struct omap_mmc_softc *sc)
+ti_mmchs_init_dma_channels(struct ti_mmchs_softc *sc)
 {
 	int err;
 	int unit;
@@ -1392,7 +1392,7 @@ omap_mmc_init_dma_channels(struct omap_mmc_softc *sc)
 	}
 
 	/* Activate a RX channel from the OMAP DMA driver */
-	err = omap_dma_activate_channel(&sc->sc_dmach_rd, omap_mmc_dma_intr, sc);
+	err = omap_dma_activate_channel(&sc->sc_dmach_rd, ti_mmchs_dma_intr, sc);
 	if (err != 0)
 		return(err);
 
@@ -1406,7 +1406,7 @@ omap_mmc_init_dma_channels(struct omap_mmc_softc *sc)
 	    OMAP_SDMA_ADDR_POST_INCREMENT);
 
 	/* Activate and configure the TX DMA channel */
-	err = omap_dma_activate_channel(&sc->sc_dmach_wr, omap_mmc_dma_intr, sc);
+	err = omap_dma_activate_channel(&sc->sc_dmach_wr, ti_mmchs_dma_intr, sc);
 	if (err != 0)
 		return(err);
 
@@ -1423,7 +1423,7 @@ omap_mmc_init_dma_channels(struct omap_mmc_softc *sc)
 }
 
 /**
- *	omap_mmc_deactivate - deactivates the driver
+ *	ti_mmchs_deactivate - deactivates the driver
  *	@dev: mmc device handle
  *
  *	Unmaps the register set and releases the IRQ resource.
@@ -1435,9 +1435,9 @@ omap_mmc_init_dma_channels(struct omap_mmc_softc *sc)
  *	nothing
  */
 static void
-omap_mmc_deactivate(device_t dev)
+ti_mmchs_deactivate(device_t dev)
 {
-	struct omap_mmc_softc *sc= device_get_softc(dev);
+	struct ti_mmchs_softc *sc= device_get_softc(dev);
 
 	/* Remove the IRQ handler */
 	if (sc->sc_irq_h != NULL) {
@@ -1470,7 +1470,7 @@ omap_mmc_deactivate(device_t dev)
 }
 
 /**
- *	omap_mmc_activate - activates the driver
+ *	ti_mmchs_activate - activates the driver
  *	@dev: mmc device handle
  *
  *	Maps in the register set and requests an IRQ handler for the MMC controller.
@@ -1483,9 +1483,9 @@ omap_mmc_deactivate(device_t dev)
  *	ENOMEM if failed to map register set
  */
 static int
-omap_mmc_activate(device_t dev)
+ti_mmchs_activate(device_t dev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(dev);
+	struct ti_mmchs_softc *sc = device_get_softc(dev);
 	unsigned long addr;
 	int rid;
 	int err;
@@ -1517,7 +1517,7 @@ omap_mmc_activate(device_t dev)
 		goto errout;
 
 	/* Initialise the DMA channels to be used by the controller */
-	err = omap_mmc_init_dma_channels(sc);
+	err = ti_mmchs_init_dma_channels(sc);
 	if (err != 0)
 		goto errout;
 
@@ -1539,12 +1539,12 @@ omap_mmc_activate(device_t dev)
 	return (0);
 
 errout:
-	omap_mmc_deactivate(dev);
+	ti_mmchs_deactivate(dev);
 	return (ENOMEM);
 }
 
 /**
- *	omap_mmc_probe - probe function for the driver
+ *	ti_mmchs_probe - probe function for the driver
  *	@dev: mmc device handle
  *
  *
@@ -1553,29 +1553,29 @@ errout:
  *	always returns 0
  */
 static int
-omap_mmc_probe(device_t dev)
+ti_mmchs_probe(device_t dev)
 {
-	if (!ofw_bus_is_compatible(dev, "ti,omap_mmc"))
+	if (!ofw_bus_is_compatible(dev, "ti,mmchs"))
 		return (ENXIO);
 
-	device_set_desc(dev, "TI OMAP MMC/SD/SDIO host bridge");
+	device_set_desc(dev, "TI MMC/SD/SDIO High Speed Interface");
 	return (0);
 }
 
 /**
- *	omap_mmc_attach - attach function for the driver
+ *	ti_mmchs_attach - attach function for the driver
  *	@dev: mmc device handle
  *
  *	Driver initialisation, sets-up the bus mappings, DMA mapping/channels and
- *	the actual controller by calling omap_mmc_init().
+ *	the actual controller by calling ti_mmchs_init().
  *
  *	RETURNS:
  *	Returns 0 on success or a negative error code.
  */
 static int
-omap_mmc_attach(device_t dev)
+ti_mmchs_attach(device_t dev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(dev);
+	struct ti_mmchs_softc *sc = device_get_softc(dev);
 	int unit = device_get_unit(dev);
 	int err;
 	device_t child;
@@ -1591,7 +1591,7 @@ omap_mmc_attach(device_t dev)
 	sc->sc_dmach_wr = (unsigned int)-1;
 
 	/* Get the hint'ed write detect pin */
-	if (resource_int_value("omap_mmc", unit, "wp_gpio", &sc->sc_wp_gpio_pin) != 0){
+	if (resource_int_value("ti_mmchs", unit, "wp_gpio", &sc->sc_wp_gpio_pin) != 0){
 		sc->sc_wp_gpio_pin = -1;
 	} else {
 		/* Get the GPIO device, we need this for the write protect pin */
@@ -1619,16 +1619,16 @@ omap_mmc_attach(device_t dev)
 #endif
 
 	/* Activate the device */
-	err = omap_mmc_activate(dev);
+	err = ti_mmchs_activate(dev);
 	if (err)
 		goto out;
 
 	/* Initialise the controller */
-	omap_mmc_hw_init(dev);
+	ti_mmchs_hw_init(dev);
 
 	/* Activate the interrupt and attach a handler */
 	err = bus_setup_intr(dev, sc->sc_irq_res, INTR_TYPE_MISC | INTR_MPSAFE,
-	    NULL, omap_mmc_intr, sc, &sc->sc_irq_h);
+	    NULL, ti_mmchs_intr, sc, &sc->sc_irq_h);
 	if (err != 0)
 		goto out;
 
@@ -1646,7 +1646,7 @@ omap_mmc_attach(device_t dev)
 out:
 	if (err) {
 		OMAP_MMC_LOCK_DESTROY(sc);
-		omap_mmc_deactivate(dev);
+		ti_mmchs_deactivate(dev);
 
 		if (sc->sc_dmach_rd != (unsigned int)-1)
 			omap_dma_deactivate_channel(sc->sc_dmach_rd);
@@ -1658,7 +1658,7 @@ out:
 }
 
 /**
- *	omap_mmc_detach - dettach function for the driver
+ *	ti_mmchs_detach - dettach function for the driver
  *	@dev: mmc device handle
  *
  *	Shutdowns the controll and release resources allocated by the driver.
@@ -1667,12 +1667,12 @@ out:
  *	Always returns 0.
  */
 static int
-omap_mmc_detach(device_t dev)
+ti_mmchs_detach(device_t dev)
 {
-	struct omap_mmc_softc *sc = device_get_softc(dev);
+	struct ti_mmchs_softc *sc = device_get_softc(dev);
 
-	omap_mmc_hw_fini(dev);
-	omap_mmc_deactivate(dev);
+	ti_mmchs_hw_fini(dev);
+	ti_mmchs_deactivate(dev);
 
 	omap_dma_deactivate_channel(sc->sc_dmach_wr);
 	omap_dma_deactivate_channel(sc->sc_dmach_rd);
@@ -1680,36 +1680,36 @@ omap_mmc_detach(device_t dev)
 	return (0);
 }
 
-static device_method_t omap_mmc_methods[] = {
+static device_method_t ti_mmchs_methods[] = {
 	/* device_if */
-	DEVMETHOD(device_probe, omap_mmc_probe),
-	DEVMETHOD(device_attach, omap_mmc_attach),
-	DEVMETHOD(device_detach, omap_mmc_detach),
+	DEVMETHOD(device_probe, ti_mmchs_probe),
+	DEVMETHOD(device_attach, ti_mmchs_attach),
+	DEVMETHOD(device_detach, ti_mmchs_detach),
 
 	/* Bus interface */
-	DEVMETHOD(bus_read_ivar,	omap_mmc_read_ivar),
-	DEVMETHOD(bus_write_ivar,	omap_mmc_write_ivar),
+	DEVMETHOD(bus_read_ivar,	ti_mmchs_read_ivar),
+	DEVMETHOD(bus_write_ivar,	ti_mmchs_write_ivar),
 
 	/* mmcbr_if - MMC state machine callbacks */
-	DEVMETHOD(mmcbr_update_ios, omap_mmc_update_ios),
-	DEVMETHOD(mmcbr_request, omap_mmc_request),
-	DEVMETHOD(mmcbr_get_ro, omap_mmc_get_ro),
-	DEVMETHOD(mmcbr_acquire_host, omap_mmc_acquire_host),
-	DEVMETHOD(mmcbr_release_host, omap_mmc_release_host),
+	DEVMETHOD(mmcbr_update_ios, ti_mmchs_update_ios),
+	DEVMETHOD(mmcbr_request, ti_mmchs_request),
+	DEVMETHOD(mmcbr_get_ro, ti_mmchs_get_ro),
+	DEVMETHOD(mmcbr_acquire_host, ti_mmchs_acquire_host),
+	DEVMETHOD(mmcbr_release_host, ti_mmchs_release_host),
 
 	{0, 0},
 };
 
-static driver_t omap_mmc_driver = {
-	"omap_mmc",
-	omap_mmc_methods,
-	sizeof(struct omap_mmc_softc),
+static driver_t ti_mmchs_driver = {
+	"ti_mmchs",
+	ti_mmchs_methods,
+	sizeof(struct ti_mmchs_softc),
 };
-static devclass_t omap_mmc_devclass;
+static devclass_t ti_mmchs_devclass;
 
-DRIVER_MODULE(omap_mmc, simplebus, omap_mmc_driver, omap_mmc_devclass, 0, 0);
-MODULE_DEPEND(omap_mmc, ti_prcm, 1, 1, 1);
-MODULE_DEPEND(omap_mmc, omap_dma, 1, 1, 1);
-MODULE_DEPEND(omap_mmc, ti_gpio, 1, 1, 1);
+DRIVER_MODULE(ti_mmchs, simplebus, ti_mmchs_driver, ti_mmchs_devclass, 0, 0);
+MODULE_DEPEND(ti_mmchs, ti_prcm, 1, 1, 1);
+MODULE_DEPEND(ti_mmchs, omap_dma, 1, 1, 1);
+MODULE_DEPEND(ti_mmchs, ti_gpio, 1, 1, 1);
 
-/* FIXME: MODULE_DEPEND(omap_mmc, twl_vreg, 1, 1, 1); */
+/* FIXME: MODULE_DEPEND(ti_mmchs, twl_vreg, 1, 1, 1); */

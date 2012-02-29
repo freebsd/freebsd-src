@@ -7,7 +7,7 @@ arm/ti/ti_smc.S					standard
 arm/ti/omap_gpio.c				optional	gpio
 arm/ti/usb/omap_ehci.c				optional	usb ehci
 arm/ti/omap_dma.c				optional	omap_dma
-arm/ti/omap_mmc.c				optional	mmc
+arm/ti/ti_mmchs.c				optional	mmc
 
 arm/ti/omap4/omap4_l2cache.c			optional	pl310
 arm/ti/omap4/omap4_prcm_clks.c			standard
