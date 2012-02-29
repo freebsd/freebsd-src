@@ -13,19 +13,13 @@
 . /etc/rc.subr
 
 name="keyserv"
-rcvar=`set_rcvar`
+rcvar="keyserv_enable"
 command="/usr/sbin/${name}"
 start_precmd="keyserv_prestart"
 
 keyserv_prestart()
 {
-	if ! checkyesno rpcbind_enable  && \
-		! /etc/rc.d/rpcbind forcestatus 1>/dev/null 2>&1
-	then
-		force_depend rpcbind || return 1
-	fi
-
-	return 0
+	force_depend rpcbind || return 1
 }
 
 load_rc_config $name

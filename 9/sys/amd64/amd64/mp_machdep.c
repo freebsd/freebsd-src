@@ -99,7 +99,8 @@ char *nmi_stack;
 void *dpcpu;
 
 struct pcb stoppcbs[MAXCPU];
-struct pcb **susppcbs = NULL;
+struct pcb **susppcbs;
+void **suspfpusave;
 
 /* Variables needed for SMP tlb shootdown. */
 vm_offset_t smp_tlb_addr1;
@@ -1413,19 +1414,17 @@ cpustop_handler(void)
 void
 cpususpend_handler(void)
 {
-	register_t cr3, rf;
 	u_int cpu;
 
 	cpu = PCPU_GET(cpuid);
 
-	rf = intr_disable();
-	cr3 = rcr3();
-
 	if (savectx(susppcbs[cpu])) {
+		ctx_fpusave(suspfpusave[cpu]);
 		wbinvd();
 		CPU_SET_ATOMIC(cpu, &stopped_cpus);
 	} else {
 		pmap_init_pat();
+		load_cr3(susppcbs[cpu]->pcb_cr3);
 		PCPU_SET(switchtime, 0);
 		PCPU_SET(switchticks, ticks);
 	}
@@ -1437,11 +1436,9 @@ cpususpend_handler(void)
 	CPU_CLR_ATOMIC(cpu, &started_cpus);
 	CPU_CLR_ATOMIC(cpu, &stopped_cpus);
 
-	/* Restore CR3 and enable interrupts */
-	load_cr3(cr3);
+	/* Resume MCA and local APIC */
 	mca_resume();
 	lapic_setup(0);
-	intr_restore(rf);
 }
 
 /*

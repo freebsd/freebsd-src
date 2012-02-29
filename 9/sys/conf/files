@@ -115,6 +115,19 @@ cam/scsi/scsi_all.c		optional scbus
 cam/scsi/scsi_cd.c		optional cd
 cam/scsi/scsi_ch.c		optional ch
 cam/ata/ata_da.c		optional ada | da
+cam/ctl/ctl.c			optional ctl
+cam/ctl/ctl_backend.c		optional ctl
+cam/ctl/ctl_backend_block.c	optional ctl
+cam/ctl/ctl_backend_ramdisk.c	optional ctl
+cam/ctl/ctl_cmd_table.c		optional ctl
+cam/ctl/ctl_frontend.c		optional ctl
+cam/ctl/ctl_frontend_cam_sim.c	optional ctl
+cam/ctl/ctl_frontend_internal.c	optional ctl
+cam/ctl/ctl_mem_pool.c		optional ctl
+cam/ctl/ctl_scsi_all.c		optional ctl
+cam/ctl/ctl_error.c		optional ctl
+cam/ctl/ctl_util.c		optional ctl
+cam/ctl/scsi_ctl.c		optional ctl
 cam/scsi/scsi_da.c		optional da
 cam/scsi/scsi_low.c		optional ct | ncv | nsp | stg
 cam/scsi/scsi_low_pisa.c	optional ct | ncv | nsp | stg
@@ -1501,6 +1514,7 @@ dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
+dev/netmap/netmap.c		optional netmap
 dev/nge/if_nge.c		optional nge
 dev/nxge/if_nxge.c		optional nxge \
 	compile-with "${NORMAL_C} ${NO_WSELF_ASSIGN}"
@@ -1525,6 +1539,12 @@ dev/nmdm/nmdm.c			optional nmdm
 dev/nsp/nsp.c			optional nsp
 dev/nsp/nsp_pccard.c		optional nsp pccard
 dev/null/null.c			standard
+dev/oce/oce_hw.c		optional oce pci
+dev/oce/oce_if.c		optional oce pci
+dev/oce/oce_mbox.c		optional oce pci
+dev/oce/oce_queue.c		optional oce pci
+dev/oce/oce_sysctl.c		optional oce pci
+dev/oce/oce_util.c		optional oce pci
 dev/patm/if_patm.c		optional patm pci
 dev/patm/if_patm_attach.c	optional patm pci
 dev/patm/if_patm_intr.c		optional patm pci
@@ -2454,17 +2474,17 @@ kern/vfs_vnops.c		standard
 #
 gssd.h				optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x"			\
-	compile-with		"rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -hM $S/kgssapi/gssd.x | grep -v pthread.h > gssd.h" \
 	no-obj no-implicit-rule before-depend local			\
 	clean			"gssd.h"
 gssd_xdr.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
-	compile-with		"rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -c $S/kgssapi/gssd.x -o gssd_xdr.c" \
 	no-implicit-rule before-depend local				\
 	clean			"gssd_xdr.c"
 gssd_clnt.c			optional kgssapi			\
 	dependency		"$S/kgssapi/gssd.x gssd.h"		\
-	compile-with		"rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
+	compile-with		"RPCGEN_CPP='${CPP}' rpcgen -lM $S/kgssapi/gssd.x | grep -v string.h > gssd_clnt.c" \
 	no-implicit-rule before-depend local				\
 	clean			"gssd_clnt.c"
 kgssapi/gss_accept_sec_context.c optional kgssapi
@@ -3486,6 +3506,7 @@ dev/xen/blkback/blkback.c	optional xen | xenhvm
 dev/xen/console/console.c	optional xen
 dev/xen/console/xencons_ring.c	optional xen
 dev/xen/control/control.c	optional xen | xenhvm
+dev/xen/netback/netback.c	optional xen | xenhvm
 dev/xen/netfront/netfront.c	optional xen | xenhvm
 dev/xen/xenpci/xenpci.c		optional xenpci
 dev/xen/xenpci/evtchn.c         optional xenpci

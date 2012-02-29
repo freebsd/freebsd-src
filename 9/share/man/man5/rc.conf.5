@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 13, 2011
+.Dd February 11, 2012
 .Dt RC.CONF 5
 .Os
 .Sh NAME
@@ -149,6 +149,19 @@ and before changing it one should ensure that there are
 adequate provisions to recover from a failed boot
 (such as physical contact with the machine,
 or reliable remote console access).
+.It Va always_force_depends
+.Pq Vt bool
+Various
+.Pa rc.d
+scripts use the force_depend function to check whether required
+services are already running, and to start them if necessary.
+By default during boot time this check is bypassed if the
+required service is enabled in
+.Pa /etc/rc.conf[.local] .
+Setting this option will bypass that check at boot time and
+always test whether or not the service is actually running.
+Enabling this option is likely to increase your boot time if
+services are enabled that utilize the force_depend check.
 .It Va swapfile
 .Pq Vt str
 If set to
@@ -3673,6 +3686,25 @@ is set to
 these are the flags passed to the
 .Xr watchdogd 8
 daemon.
+.It Va devfs_rulesets
+.Pq Vt str
+List of files containing sets of rules for
+.Xr devfs 8 .
+.It Va devfs_system_ruleset
+.Pq Vt str
+Rule name(s) to apply to the system
+.Pa /dev
+itself.
+.It Va devfs_set_rulesets
+.Pq Vt str
+Pairs of already-mounted
+.Pa dev
+directories and rulesets that should be applied to them.
+For example: /mount/dev=ruleset_name
+.It Va devfs_load_rulesets
+.Pq Vt bool
+If set, always load the default rulesets listed in
+.Va devfs_rulesets .
 .It Va performance_cx_lowest
 .Pq Vt str
 CPU idle state to use while on AC power.
@@ -4532,6 +4564,7 @@ The default is 30.
 .Xr chkprintcap 8 ,
 .Xr chown 8 ,
 .Xr cron 8 ,
+.Xr devfs 8 ,
 .Xr dhclient 8 ,
 .Xr ftpd 8 ,
 .Xr geli 8 ,

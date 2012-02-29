@@ -1,6 +1,6 @@
 /*-
  * Copyright (c) 1998 Kazutaka YOKOTA and Michael Smith
- * Copyright (c) 2009-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2009-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -80,6 +80,7 @@ typedef struct adp_state adp_state_t;
 
 static struct mtx vesa_lock;
 
+static int vesa_state;
 static void *vesa_state_buf = NULL;
 static uint32_t vesa_state_buf_offs = 0;
 static ssize_t vesa_state_buf_size = 0;
@@ -205,13 +206,7 @@ static int vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g,
 #define STATE_SIZE	0
 #define STATE_SAVE	1
 #define STATE_LOAD	2
-#define STATE_HW	(1<<0)
-#define STATE_DATA	(1<<1)
-#define STATE_DAC	(1<<2)
-#define STATE_REG	(1<<3)
-#define STATE_MOST	(STATE_HW | STATE_DATA | STATE_REG)
-#define STATE_ALL	(STATE_HW | STATE_DATA | STATE_DAC | STATE_REG)
-static ssize_t vesa_bios_state_buf_size(void);
+static ssize_t vesa_bios_state_buf_size(int);
 static int vesa_bios_save_restore(int code, void *p);
 #ifdef MODE_TABLE_BROKEN
 static int vesa_bios_get_line_length(void);
@@ -509,14 +504,14 @@ vesa_bios_load_palette2(int start, int colors, u_char *r, u_char *g, u_char *b,
 }
 
 static ssize_t
-vesa_bios_state_buf_size(void)
+vesa_bios_state_buf_size(int state)
 {
 	x86regs_t regs;
 
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
 	/* regs.R_DL = STATE_SIZE; */
-	regs.R_CX = STATE_MOST;
+	regs.R_CX = state;
 
 	x86bios_intr(&regs, 0x10);
 
@@ -537,7 +532,7 @@ vesa_bios_save_restore(int code, void *p)
 	x86bios_init_regs(&regs);
 	regs.R_AX = 0x4f04;
 	regs.R_DL = code;
-	regs.R_CX = STATE_MOST;
+	regs.R_CX = vesa_state;
 
 	regs.R_ES = X86BIOS_PHYSTOSEG(vesa_state_buf_offs);
 	regs.R_BX = X86BIOS_PHYSTOOFF(vesa_state_buf_offs);
@@ -1041,7 +1036,12 @@ vesa_bios_init(void)
 
 	x86bios_free(vmbuf, sizeof(*buf));
 
-	vesa_state_buf_size = vesa_bios_state_buf_size();
+	/* Probe supported save/restore states. */
+	for (i = 0; i < 4; i++)
+		if (vesa_bios_state_buf_size(1 << i) > 0)
+			vesa_state |= 1 << i;
+	if (vesa_state != 0)
+		vesa_state_buf_size = vesa_bios_state_buf_size(vesa_state);
 	vesa_palette = x86bios_alloc(&vesa_palette_offs,
 	    VESA_PALETTE_SIZE + vesa_state_buf_size, M_WAITOK);
 	if (vesa_state_buf_size > 0) {
@@ -1311,7 +1311,9 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 	if (!(info.vi_flags & V_INFO_GRAPHICS))
 		info.vi_flags &= ~V_INFO_LINEAR;
 
-	if (vesa_bios_set_mode(mode | ((info.vi_flags & V_INFO_LINEAR) ? 0x4000 : 0)))
+	if ((info.vi_flags & V_INFO_LINEAR) != 0)
+		mode |= 0x4000;
+	if (vesa_bios_set_mode(mode))
 		return (1);
 
 	/* Palette format is reset by the above VBE function call. */
@@ -1329,7 +1331,7 @@ vesa_set_mode(video_adapter_t *adp, int mode)
 #if VESA_DEBUG > 0
 	printf("VESA: mode set!\n");
 #endif
-	vesa_adp->va_mode = mode;
+	vesa_adp->va_mode = mode & 0x1ff;	/* Mode number is 9-bit. */
 	vesa_adp->va_flags &= ~V_ADP_COLOR;
 	vesa_adp->va_flags |= 
 		(info.vi_flags & V_INFO_COLOR) ? V_ADP_COLOR : 0;
@@ -1449,15 +1451,13 @@ static int
 vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 {
 
-	if (adp != vesa_adp)
+	if (adp != vesa_adp || vesa_state_buf_size == 0)
 		return ((*prevvidsw->save_state)(adp, p, size));
 
-	if (vesa_state_buf_size == 0)
-		return (1);
 	if (size == 0)
 		return (offsetof(adp_state_t, regs) + vesa_state_buf_size);
 	if (size < (offsetof(adp_state_t, regs) + vesa_state_buf_size))
-		return (1);
+		return (EINVAL);
 
 	((adp_state_t *)p)->sig = V_STATE_SIG;
 	bzero(((adp_state_t *)p)->regs, vesa_state_buf_size);
@@ -1467,18 +1467,20 @@ vesa_save_state(video_adapter_t *adp, void *p, size_t size)
 static int
 vesa_load_state(video_adapter_t *adp, void *p)
 {
+	int mode;
 
-	if ((adp != vesa_adp) || (((adp_state_t *)p)->sig != V_STATE_SIG))
+	if (adp != vesa_adp)
 		return ((*prevvidsw->load_state)(adp, p));
-
-	if (vesa_state_buf_size == 0)
-		return (1);
 
 	/* Try BIOS POST to restore a sane state. */
 	(void)vesa_bios_post();
-	(void)int10_set_mode(adp->va_initial_bios_mode);
-	(void)vesa_set_mode(adp, adp->va_mode);
+	mode = adp->va_mode;
+	(void)vesa_set_mode(adp, adp->va_initial_mode);
+	if (mode != adp->va_initial_mode)
+		(void)vesa_set_mode(adp, mode);
 
+	if (((adp_state_t *)p)->sig != V_STATE_SIG)
+		return ((*prevvidsw->load_state)(adp, p));
 	return (vesa_bios_save_restore(STATE_LOAD, ((adp_state_t *)p)->regs));
 }
 

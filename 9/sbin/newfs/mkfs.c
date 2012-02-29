@@ -989,9 +989,7 @@ void
 iput(union dinode *ip, ino_t ino)
 {
 	ufs2_daddr_t d;
-	int c;
 
-	c = ino_to_cg(&sblock, ino);
 	bread(&disk, part_ofs + fsbtodb(&sblock, cgtod(&sblock, 0)), (char *)&acg,
 	    sblock.fs_cgsize);
 	if (acg.cg_magic != CG_MAGIC) {

@@ -790,6 +790,8 @@
 
       &hwlist.ips;
 
+      &hwlist.isci;
+
       &hwlist.isp;
 
       &hwlist.mfi;
@@ -955,6 +957,8 @@
       &hwlist.nve;
 
       &hwlist.nxge;
+
+      &hwlist.oce;
 
       &hwlist.pcn;
 

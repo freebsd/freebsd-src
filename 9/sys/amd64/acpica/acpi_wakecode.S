@@ -2,7 +2,7 @@
  * Copyright (c) 2001 Takanori Watanabe <takawata@jp.freebsd.org>
  * Copyright (c) 2001 Mitsuru IWASAKI <iwasaki@jp.freebsd.org>
  * Copyright (c) 2003 Peter Wemm
- * Copyright (c) 2008-2010 Jung-uk Kim <jkim@FreeBSD.org>
+ * Copyright (c) 2008-2012 Jung-uk Kim <jkim@FreeBSD.org>
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -30,7 +30,9 @@
  */
 
 #include <machine/asmacros.h>
+#include <machine/ppireg.h>
 #include <machine/specialreg.h>
+#include <machine/timerreg.h>
 
 #include "assym.s"
 
@@ -71,13 +73,21 @@ wakeup_start:
 	testb	$~0, resume_beep - wakeup_start
 	jz	1f
 	movb	$0, resume_beep - wakeup_start
-	movb	$0xc0, %al
-	outb	%al, $0x42
-	movb	$0x04, %al
-	outb	%al, $0x42
-	inb	$0x61, %al
-	orb	$0x3, %al
-	outb	%al, $0x61
+
+	/* Set PIC timer2 to beep. */
+	movb	$(TIMER_SEL2 | TIMER_SQWAVE | TIMER_16BIT), %al
+	outb	%al, $TIMER_MODE
+
+	/* Turn on speaker. */
+	inb	$IO_PPI, %al
+	orb	$PIT_SPKR, %al
+	outb	%al, $IO_PPI
+
+	/* Set frequency. */
+	movw	$0x4c0, %ax
+	outb	%al, $TIMER_CNTR2
+	shrw	$8, %ax
+	outb	%al, $TIMER_CNTR2
 1:
 
 	/* Re-initialize video BIOS if the reset_video tunable is set. */
@@ -267,6 +277,8 @@ wakeup_ctx:
 	.quad	0
 wakeup_pcb:
 	.quad	0
+wakeup_fpusave:
+	.quad	0
 wakeup_gdt:
 	.word	0
 	.quad	0
@@ -281,6 +293,8 @@ wakeup_lstar:
 wakeup_cstar:
 	.quad	0
 wakeup_sfmask:
+	.quad	0
+wakeup_xsmask:
 	.quad	0
 wakeup_cpu:
 	.long	0

@@ -538,6 +538,10 @@ void	assert_vop_unlocked(struct vnode *vp, const char *str);
  */
 #define VCALL(c) ((c)->a_desc->vdesc_call(c))
 
+#define DOINGASYNC(vp)	   					\
+	(((vp)->v_mount->mnt_kern_flag & MNTK_ASYNC) != 0 &&	\
+	 ((curthread->td_pflags & TDP_SYNCIO) == 0))
+
 /*
  * VMIO support inline
  */
@@ -605,6 +609,8 @@ int	vn_fullpath(struct thread *td, struct vnode *vn,
 int	vn_fullpath_global(struct thread *td, struct vnode *vn,
 	    char **retbuf, char **freebuf);
 int	vn_commname(struct vnode *vn, char *buf, u_int buflen);
+int	vn_path_to_global_path(struct thread *td, struct vnode *vp,
+	    char *path, u_int pathlen);
 int	vaccess(enum vtype type, mode_t file_mode, uid_t file_uid,
 	    gid_t file_gid, accmode_t accmode, struct ucred *cred,
 	    int *privused);
