@@ -21,6 +21,8 @@
 #ifndef _NET_LAGG_H
 #define _NET_LAGG_H
 
+#include <sys/sysctl.h>
+
 /*
  * Global definitions
  */
@@ -202,6 +204,8 @@ struct lagg_softc {
 	eventhandler_tag vlan_attach;
 	eventhandler_tag vlan_detach;
 #endif
+	struct sysctl_ctx_list		ctx;		/* sysctl variables */
+	int				use_flowid;	/* use M_FLOWID */
 };
 
 struct lagg_port {
