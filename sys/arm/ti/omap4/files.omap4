@@ -1,29 +1,12 @@
 #$FreeBSD$
 
-kern/kern_clocksource.c				standard
-
-arm/arm/bus_space_generic.c			standard
-arm/arm/bus_space_asm_generic.S			standard
-arm/arm/cpufunc_asm_armv5.S			standard
-arm/arm/cpufunc_asm_arm10.S			standard
-arm/arm/cpufunc_asm_arm11.S			standard
-arm/arm/cpufunc_asm_armv7.S			standard
-arm/arm/irq_dispatch.S				standard
-
-arm/ti/bus_space.c				standard
-arm/ti/common.c					standard
 arm/ti/gic.c					standard
 arm/ti/mp_timer.c				standard
-arm/ti/ti_prcm.c				standard
-arm/ti/ti_scm.c					standard
-arm/ti/ti_cpuid.c				standard
-arm/ti/ti_machdep.c				standard
 arm/ti/ti_smc.S					standard
 
 arm/ti/omap_gpio.c				optional	gpio
 arm/ti/usb/omap_ehci.c				optional	usb ehci
 arm/ti/omap_dma.c				optional	omap_dma
-arm/ti/ti_i2c.c					optional	ti_i2c
 arm/ti/omap_mmc.c				optional	mmc
 
 arm/ti/omap4/omap4_l2cache.c			optional	pl310
@@ -32,5 +15,3 @@ arm/ti/omap4/omap4_scm_padconf.c		standard
 
 arm/ti/twl/twl.c				optional	twl
 arm/ti/twl/twl_vreg.c				optional	twl twl_vreg
-
-dev/uart/uart_dev_ns8250.c			optional	uart
