@@ -28,7 +28,7 @@ CFLAGS		+= -std=${CSTD}
 . if defined(WARNS)
 .  if ${WARNS} >= 1
 CWARNFLAGS	+=	-Wsystem-headers
-.   if !defined(NO_WERROR) && (${CC:T:Mclang} != "clang" || !defined(NO_WERROR.clang))
+.   if !defined(NO_WERROR) && ((${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang") || !defined(NO_WERROR.clang))
 CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
@@ -42,7 +42,7 @@ CWARNFLAGS	+=	-W -Wno-unused-parameter -Wstrict-prototypes\
 .  if ${WARNS} >= 4
 CWARNFLAGS	+=	-Wreturn-type -Wcast-qual -Wwrite-strings -Wswitch\
 			-Wshadow -Wunused-parameter
-.   if !defined(NO_WCAST_ALIGN) && (${CC:T:Mclang} != "clang" || !defined(NO_WCAST_ALIGN.clang))
+.   if !defined(NO_WCAST_ALIGN) && ((${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang") || !defined(NO_WCAST_ALIGN.clang))
 CWARNFLAGS	+=	-Wcast-align
 .   endif
 .  endif
@@ -59,7 +59,7 @@ CWARNFLAGS	+=	-Wno-uninitialized
 CWARNFLAGS	+=	-Wno-pointer-sign
 # Clang has more warnings enabled by default, and when using -Wall, so if WARNS
 # is set to low values, these have to be disabled explicitly.
-.  if ${CC:T:Mclang} == "clang"
+.  if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 .   if ${WARNS} <= 3
 CWARNFLAGS	+=	-Wno-tautological-compare -Wno-unused-value\
 			-Wno-parentheses-equality -Wno-unused-function\
@@ -84,12 +84,12 @@ WFORMAT		=	1
 .  if ${WFORMAT} > 0
 #CWARNFLAGS	+=	-Wformat-nonliteral -Wformat-security -Wno-format-extra-args
 CWARNFLAGS	+=	-Wformat=2 -Wno-format-extra-args
-.   if !defined(NO_WERROR) && (${CC:T:Mclang} != "clang" || !defined(NO_WERROR.clang))
+.   if !defined(NO_WERROR) && ((${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang") || !defined(NO_WERROR.clang))
 CWARNFLAGS	+=	-Werror
 .   endif
 .  endif
 . endif
-. if defined(NO_WFORMAT) || (${CC:T:Mclang} == "clang" && defined(NO_WFORMAT.clang))
+. if defined(NO_WFORMAT) || ((${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang") && defined(NO_WFORMAT.clang))
 CWARNFLAGS	+=	-Wno-format
 . endif
 .endif
@@ -98,7 +98,7 @@ CWARNFLAGS	+=	-Wno-format
 CWARNFLAGS	+=	-Wno-unknown-pragmas
 .endif
 
-.if ${CC:T:Mclang} == "clang"
+.if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CLANG_NO_IAS	=	-no-integrated-as
 CLANG_OPT_SMALL	=	-mllvm -stack-alignment=8 -mllvm -inline-threshold=3 \
 			-mllvm -enable-load-pre=false
