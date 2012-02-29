@@ -3955,16 +3955,12 @@ xbb_frontend_changed(device_t dev, XenbusState frontend_state)
 		xbb_connect(xbb);
 		break;
 	case XenbusStateClosing:
-		/*
-		 * Frontend has acknowledged Closing request.
-		 * Wait for Closed state.
-		 */
-		break;
 	case XenbusStateClosed:
 		mtx_lock(&xbb->lock);
 		xbb_shutdown(xbb);
 		mtx_unlock(&xbb->lock);
-		xenbus_set_state(xbb->dev, XenbusStateClosed);
+		if (frontend_state == XenbusStateClosed)
+			xenbus_set_state(xbb->dev, XenbusStateClosed);
 		break;
 	default:
 		xenbus_dev_fatal(xbb->dev, EINVAL, "saw state %d at frontend",
