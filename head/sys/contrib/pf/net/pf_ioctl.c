@@ -104,31 +104,35 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <net/pfil.h>
 
-void			 init_zone_var(void);
-void			 cleanup_pf_zone(void);
+static void		 init_zone_var(void);
+static void		 cleanup_pf_zone(void);
 int			 pfattach(void);
-struct pf_pool		*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
+static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
 			    u_int8_t, u_int8_t, u_int8_t);
 
-void			 pf_mv_pool(struct pf_palist *, struct pf_palist *);
-void			 pf_empty_pool(struct pf_palist *);
-int			 pfioctl(struct cdev *, u_long, caddr_t, int, struct thread *);
+static void		 pf_mv_pool(struct pf_palist *, struct pf_palist *);
+static void		 pf_empty_pool(struct pf_palist *);
+static int		 pfioctl(struct cdev *, u_long, caddr_t, int,
+			    struct thread *);
 #ifdef ALTQ
-int			 pf_begin_altq(u_int32_t *);
-int			 pf_rollback_altq(u_int32_t);
-int			 pf_commit_altq(u_int32_t);
-int			 pf_enable_altq(struct pf_altq *);
-int			 pf_disable_altq(struct pf_altq *);
+static int		 pf_begin_altq(u_int32_t *);
+static int		 pf_rollback_altq(u_int32_t);
+static int		 pf_commit_altq(u_int32_t);
+static int		 pf_enable_altq(struct pf_altq *);
+static int		 pf_disable_altq(struct pf_altq *);
+static u_int32_t	 pf_qname2qid(char *);
+static void		 pf_qid_unref(u_int32_t);
 #endif /* ALTQ */
-int			 pf_begin_rules(u_int32_t *, int, const char *);
-int			 pf_rollback_rules(u_int32_t, int, char *);
-int			 pf_setup_pfsync_matching(struct pf_ruleset *);
-void			 pf_hash_rule(MD5_CTX *, struct pf_rule *);
-void			 pf_hash_rule_addr(MD5_CTX *, struct pf_rule_addr *);
-int			 pf_commit_rules(u_int32_t, int, char *);
-int			 pf_addr_setup(struct pf_ruleset *,
+static int		 pf_begin_rules(u_int32_t *, int, const char *);
+static int		 pf_rollback_rules(u_int32_t, int, char *);
+static int		 pf_setup_pfsync_matching(struct pf_ruleset *);
+static void		 pf_hash_rule(MD5_CTX *, struct pf_rule *);
+static void		 pf_hash_rule_addr(MD5_CTX *, struct pf_rule_addr *);
+static int		 pf_commit_rules(u_int32_t, int, char *);
+static int		 pf_addr_setup(struct pf_ruleset *,
 			    struct pf_addr_wrap *, sa_family_t);
-void			 pf_addr_copyout(struct pf_addr_wrap *);
+static void		 pf_addr_copyout(struct pf_addr_wrap *);
+static void		 pf_pkt_addr_changed(struct mbuf *);
 
 #define	TAGID_MAX	 50000
 
@@ -152,12 +156,12 @@ VNET_DEFINE(struct pf_tags, pf_qids);
 #error PF_QNAME_SIZE must be equal to PF_TAG_NAME_SIZE
 #endif
 
-u_int16_t		 tagname2tag(struct pf_tags *, char *);
-void			 tag2tagname(struct pf_tags *, u_int16_t, char *);
+static u_int16_t	 tagname2tag(struct pf_tags *, char *);
+static u_int16_t	 pf_tagname2tag(char *);
 void			 tag_unref(struct pf_tags *, u_int16_t);
-int			 pf_rtlabel_add(struct pf_addr_wrap *);
-void			 pf_rtlabel_remove(struct pf_addr_wrap *);
-void			 pf_rtlabel_copyout(struct pf_addr_wrap *);
+static int		 pf_rtlabel_add(struct pf_addr_wrap *);
+static void		 pf_rtlabel_remove(struct pf_addr_wrap *);
+static void		 pf_rtlabel_copyout(struct pf_addr_wrap *);
 
 #define DPFPRINTF(n, x) if (V_pf_status.debug >= (n)) printf x
 
@@ -238,7 +242,8 @@ destroy_pf_mutex(void)
 
 	mtx_destroy(&pf_task_mtx);
 }
-void
+
+static void
 init_zone_var(void)
 {
 	V_pf_src_tree_pl = V_pf_rule_pl = NULL;
@@ -249,7 +254,7 @@ init_zone_var(void)
 	V_pfr_ktable_pl = V_pfr_kentry_pl = NULL;
 }
 
-void
+static void
 cleanup_pf_zone(void)
 {
 
@@ -383,7 +388,7 @@ pfattach(void)
 	return (0);
 }
 
-struct pf_pool *
+static struct pf_pool *
 pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
     u_int32_t rule_number, u_int8_t r_last, u_int8_t active,
     u_int8_t check_ticket)
@@ -427,7 +432,7 @@ pf_get_pool(char *anchor, u_int32_t ticket, u_int8_t rule_action,
 	return (&rule->rpool);
 }
 
-void
+static void
 pf_mv_pool(struct pf_palist *poola, struct pf_palist *poolb)
 {
 	struct pf_pooladdr	*mv_pool_pa;
@@ -438,7 +443,7 @@ pf_mv_pool(struct pf_palist *poola, struct pf_palist *poolb)
 	}
 }
 
-void
+static void
 pf_empty_pool(struct pf_palist *poola)
 {
 	struct pf_pooladdr	*empty_pool_pa;
@@ -498,7 +503,7 @@ pf_rm_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
 	uma_zfree(V_pf_rule_pl, rule);
 }
 
-u_int16_t
+static u_int16_t
 tagname2tag(struct pf_tags *head, char *tagname)
 {
 	struct pf_tagname	*tag, *p = NULL;
@@ -542,18 +547,6 @@ tagname2tag(struct pf_tags *head, char *tagname)
 }
 
 void
-tag2tagname(struct pf_tags *head, u_int16_t tagid, char *p)
-{
-	struct pf_tagname	*tag;
-
-	TAILQ_FOREACH(tag, head, entries)
-		if (tag->tag == tagid) {
-			strlcpy(p, tag->name, PF_TAG_NAME_SIZE);
-			return;
-		}
-}
-
-void
 tag_unref(struct pf_tags *head, u_int16_t tag)
 {
 	struct pf_tagname	*p, *next;
@@ -573,16 +566,10 @@ tag_unref(struct pf_tags *head, u_int16_t tag)
 	}
 }
 
-u_int16_t
+static u_int16_t
 pf_tagname2tag(char *tagname)
 {
 	return (tagname2tag(&V_pf_tags, tagname));
-}
-
-void
-pf_tag2tagname(u_int16_t tagid, char *p)
-{
-	tag2tagname(&V_pf_tags, tagid, p);
 }
 
 void
@@ -603,20 +590,20 @@ pf_tag_unref(u_int16_t tag)
 	tag_unref(&V_pf_tags, tag);
 }
 
-int
+static int
 pf_rtlabel_add(struct pf_addr_wrap *a)
 {
 	/* XXX_IMPORT: later */
 	return (0);
 }
 
-void
+static void
 pf_rtlabel_remove(struct pf_addr_wrap *a)
 {
 	/* XXX_IMPORT: later */
 }
 
-void
+static void
 pf_rtlabel_copyout(struct pf_addr_wrap *a)
 {
 	/* XXX_IMPORT: later */
@@ -625,25 +612,19 @@ pf_rtlabel_copyout(struct pf_addr_wrap *a)
 }
 
 #ifdef ALTQ
-u_int32_t
+static u_int32_t
 pf_qname2qid(char *qname)
 {
 	return ((u_int32_t)tagname2tag(&V_pf_qids, qname));
 }
 
-void
-pf_qid2qname(u_int32_t qid, char *p)
-{
-	tag2tagname(&V_pf_qids, (u_int16_t)qid, p);
-}
-
-void
+static void
 pf_qid_unref(u_int32_t qid)
 {
 	tag_unref(&V_pf_qids, (u_int16_t)qid);
 }
 
-int
+static int
 pf_begin_altq(u_int32_t *ticket)
 {
 	struct pf_altq	*altq;
@@ -667,7 +648,7 @@ pf_begin_altq(u_int32_t *ticket)
 	return (0);
 }
 
-int
+static int
 pf_rollback_altq(u_int32_t ticket)
 {
 	struct pf_altq	*altq;
@@ -690,12 +671,12 @@ pf_rollback_altq(u_int32_t ticket)
 	return (error);
 }
 
-int
+static int
 pf_commit_altq(u_int32_t ticket)
 {
 	struct pf_altqqueue	*old_altqs;
 	struct pf_altq		*altq;
-	int			 s, err, error = 0;
+	int			 err, error = 0;
 
 	if (!V_altqs_inactive_open || ticket != V_ticket_altqs_inactive)
 		return (EBUSY);
@@ -742,12 +723,12 @@ pf_commit_altq(u_int32_t ticket)
 	return (error);
 }
 
-int
+static int
 pf_enable_altq(struct pf_altq *altq)
 {
 	struct ifnet		*ifp;
 	struct tb_profile	 tb;
-	int			 s, error = 0;
+	int			 error = 0;
 
 	if ((ifp = ifunit(altq->ifname)) == NULL)
 		return (EINVAL);
@@ -767,12 +748,12 @@ pf_enable_altq(struct pf_altq *altq)
 	return (error);
 }
 
-int
+static int
 pf_disable_altq(struct pf_altq *altq)
 {
 	struct ifnet		*ifp;
 	struct tb_profile	 tb;
-	int			 s, error;
+	int			 error;
 
 	if ((ifp = ifunit(altq->ifname)) == NULL)
 		return (EINVAL);
@@ -866,7 +847,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 	}
 #endif /* ALTQ */
 
-int
+static int
 pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 {
 	struct pf_ruleset	*rs;
@@ -886,7 +867,7 @@ pf_begin_rules(u_int32_t *ticket, int rs_num, const char *anchor)
 	return (0);
 }
 
-int
+static int
 pf_rollback_rules(u_int32_t ticket, int rs_num, char *anchor)
 {
 	struct pf_ruleset	*rs;
@@ -922,7 +903,7 @@ pf_rollback_rules(u_int32_t ticket, int rs_num, char *anchor)
 		MD5Update(ctx, (u_int8_t *) &(stor), sizeof(u_int16_t));\
 } while (0)
 
-void
+static void
 pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 {
 	PF_MD5_UPD(pfr, addr.type);
@@ -950,7 +931,7 @@ pf_hash_rule_addr(MD5_CTX *ctx, struct pf_rule_addr *pfr)
 	PF_MD5_UPD(pfr, port_op);
 }
 
-void
+static void
 pf_hash_rule(MD5_CTX *ctx, struct pf_rule *rule)
 {
 	u_int16_t x;
@@ -989,7 +970,7 @@ pf_hash_rule(MD5_CTX *ctx, struct pf_rule *rule)
 	PF_MD5_UPD(rule, tos);
 }
 
-int
+static int
 pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 {
 	struct pf_ruleset	*rs;
@@ -1045,7 +1026,7 @@ pf_commit_rules(u_int32_t ticket, int rs_num, char *anchor)
 	return (0);
 }
 
-int
+static int
 pf_setup_pfsync_matching(struct pf_ruleset *rs)
 {
 	MD5_CTX			 ctx;
@@ -1085,7 +1066,7 @@ pf_setup_pfsync_matching(struct pf_ruleset *rs)
 	return (0);
 }
 
-int
+static int
 pf_addr_setup(struct pf_ruleset *ruleset, struct pf_addr_wrap *addr,
     sa_family_t af)
 {
@@ -1096,7 +1077,7 @@ pf_addr_setup(struct pf_ruleset *ruleset, struct pf_addr_wrap *addr,
 	return (0);
 }
 
-void
+static void
 pf_addr_copyout(struct pf_addr_wrap *addr)
 {
 	pfi_dynaddr_copyout(addr);
@@ -1104,7 +1085,7 @@ pf_addr_copyout(struct pf_addr_wrap *addr)
 	pf_rtlabel_copyout(addr);
 }
 
-int
+static int
 pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td)
 {
 	struct pf_pooladdr	*pa = NULL;
@@ -3516,6 +3497,19 @@ dehook_pf(void)
 
 	V_pf_pfil_hooked = 0;
 	return (0);
+}
+
+/*
+ * Must be called whenever any addressing information such as
+ * address, port, protocol has changed.
+ */
+static void
+pf_pkt_addr_changed(struct mbuf *m)
+{
+	struct pf_mtag	*pf_tag;
+
+	if ((pf_tag = pf_find_mtag(m)) != NULL)
+		pf_tag->statekey = NULL;
 }
 
 static int

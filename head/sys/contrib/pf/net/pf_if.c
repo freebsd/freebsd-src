@@ -83,22 +83,28 @@ eventhandler_tag	 pfi_change_group_cookie;
 eventhandler_tag	 pfi_detach_group_cookie;
 eventhandler_tag	 pfi_ifaddr_event_cookie;
 
-void		 pfi_kif_update(struct pfi_kif *);
-void		 pfi_dynaddr_update(struct pfi_dynaddr *dyn);
-void		 pfi_table_update(struct pfr_ktable *, struct pfi_kif *,
-		    int, int);
-void		 pfi_kifaddr_update(void *);
-void		 pfi_instance_add(struct ifnet *, int, int);
-void		 pfi_address_add(struct sockaddr *, int, int);
-int		 pfi_if_compare(struct pfi_kif *, struct pfi_kif *);
-int		 pfi_skip_if(const char *, struct pfi_kif *);
-int		 pfi_unmask(void *);
-void		 pfi_attach_ifnet_event(void * __unused, struct ifnet *);
-void		 pfi_detach_ifnet_event(void * __unused, struct ifnet *);
-void		 pfi_attach_group_event(void *, struct ifg_group *);
-void		 pfi_change_group_event(void *, char *);
-void		 pfi_detach_group_event(void *, struct ifg_group *);
-void		 pfi_ifaddr_event(void * __unused, struct ifnet *);
+static void	 pfi_attach_ifnet(struct ifnet *);
+static void	 pfi_detach_ifnet(struct ifnet *);
+static void	 pfi_attach_ifgroup(struct ifg_group *);
+static void	 pfi_detach_ifgroup(struct ifg_group *);
+static void	 pfi_group_change(const char *);
+
+static void	 pfi_kif_update(struct pfi_kif *);
+static void	 pfi_dynaddr_update(struct pfi_dynaddr *dyn);
+static void	 pfi_table_update(struct pfr_ktable *, struct pfi_kif *, int,
+		    int);
+static void	 pfi_kifaddr_update(void *);
+static void	 pfi_instance_add(struct ifnet *, int, int);
+static void	 pfi_address_add(struct sockaddr *, int, int);
+static int	 pfi_if_compare(struct pfi_kif *, struct pfi_kif *);
+static int	 pfi_skip_if(const char *, struct pfi_kif *);
+static int	 pfi_unmask(void *);
+static void	 pfi_attach_ifnet_event(void * __unused, struct ifnet *);
+static void	 pfi_detach_ifnet_event(void * __unused, struct ifnet *);
+static void	 pfi_attach_group_event(void *, struct ifg_group *);
+static void	 pfi_change_group_event(void *, char *);
+static void	 pfi_detach_group_event(void *, struct ifg_group *);
+static void	 pfi_ifaddr_event(void * __unused, struct ifnet *);
 
 RB_PROTOTYPE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
 RB_GENERATE(pfi_ifhead, pfi_kif, pfik_tree, pfi_if_compare);
@@ -269,7 +275,7 @@ pfi_kif_match(struct pfi_kif *rule_kif, struct pfi_kif *packet_kif)
 	return (0);
 }
 
-void
+static void
 pfi_attach_ifnet(struct ifnet *ifp)
 {
 	struct pfi_kif		*kif;
@@ -286,7 +292,7 @@ pfi_attach_ifnet(struct ifnet *ifp)
 	pfi_kif_update(kif);
 }
 
-void
+static void
 pfi_detach_ifnet(struct ifnet *ifp)
 {
 	struct pfi_kif		*kif;
@@ -302,7 +308,7 @@ pfi_detach_ifnet(struct ifnet *ifp)
 	pfi_kif_unref(kif, PFI_KIF_REF_NONE);
 }
 
-void
+static void
 pfi_attach_ifgroup(struct ifg_group *ifg)
 {
 	struct pfi_kif	*kif;
@@ -316,7 +322,7 @@ pfi_attach_ifgroup(struct ifg_group *ifg)
 	ifg->ifg_pf_kif = (caddr_t)kif;
 }
 
-void
+static void
 pfi_detach_ifgroup(struct ifg_group *ifg)
 {
 	struct pfi_kif	*kif;
@@ -331,7 +337,7 @@ pfi_detach_ifgroup(struct ifg_group *ifg)
 	pfi_kif_unref(kif, PFI_KIF_REF_NONE);
 }
 
-void
+static void
 pfi_group_change(const char *group)
 {
 	struct pfi_kif		*kif;
@@ -450,7 +456,7 @@ _bad:
 	return (rv);
 }
 
-void
+static void
 pfi_kif_update(struct pfi_kif *kif)
 {
 	struct ifg_list		*ifgl;
@@ -467,7 +473,7 @@ pfi_kif_update(struct pfi_kif *kif)
 			    ifgl->ifgl_group->ifg_pf_kif);
 }
 
-void
+static void
 pfi_dynaddr_update(struct pfi_dynaddr *dyn)
 {
 	struct pfi_kif		*kif;
@@ -487,7 +493,7 @@ pfi_dynaddr_update(struct pfi_dynaddr *dyn)
 	pfr_dynaddr_update(kt, dyn);
 }
 
-void
+static void
 pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 {
 	int			 e, size2 = 0;
@@ -507,7 +513,7 @@ pfi_table_update(struct pfr_ktable *kt, struct pfi_kif *kif, int net, int flags)
 		    "into table %s: %d\n", V_pfi_buffer_cnt, kt->pfrkt_name, e);
 }
 
-void
+static void
 pfi_instance_add(struct ifnet *ifp, int net, int flags)
 {
 	struct ifaddr	*ia;
@@ -574,7 +580,7 @@ pfi_instance_add(struct ifnet *ifp, int net, int flags)
 	}
 }
 
-void
+static void
 pfi_address_add(struct sockaddr *sa, int af, int net)
 {
 	struct pfr_addr	*p;
@@ -647,7 +653,7 @@ pfi_dynaddr_copyout(struct pf_addr_wrap *aw)
 	aw->p.dyncnt = aw->p.dyn->pfid_acnt4 + aw->p.dyn->pfid_acnt6;
 }
 
-void
+static void
 pfi_kifaddr_update(void *v)
 {
 	struct pfi_kif		*kif = (struct pfi_kif *)v;
@@ -656,7 +662,7 @@ pfi_kifaddr_update(void *v)
 	pfi_kif_update(kif);
 }
 
-int
+static int
 pfi_if_compare(struct pfi_kif *p, struct pfi_kif *q)
 {
 	return (strncmp(p->pfik_name, q->pfik_name, IFNAMSIZ));
@@ -741,7 +747,7 @@ pfi_get_ifaces(const char *name, struct pfi_kif *buf, int *size)
 	return (0);
 }
 
-int
+static int
 pfi_skip_if(const char *filter, struct pfi_kif *p)
 {
 	int	n;
@@ -787,7 +793,7 @@ pfi_clear_flags(const char *name, int flags)
 }
 
 /* from pf_print_state.c */
-int
+static int
 pfi_unmask(void *addr)
 {
 	struct pf_addr *m = addr;
@@ -806,7 +812,7 @@ pfi_unmask(void *addr)
 	return (b);
 }
 
-void
+static void
 pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 
@@ -820,7 +826,7 @@ pfi_attach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 	CURVNET_RESTORE();
 }
 
-void
+static void
 pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 {
 
@@ -834,7 +840,7 @@ pfi_detach_ifnet_event(void *arg __unused, struct ifnet *ifp)
 	CURVNET_RESTORE();
 }
 
-void
+static void
 pfi_attach_group_event(void *arg , struct ifg_group *ifg)
 {
 
@@ -845,7 +851,7 @@ pfi_attach_group_event(void *arg , struct ifg_group *ifg)
 	CURVNET_RESTORE();
 }
 
-void
+static void
 pfi_change_group_event(void *arg, char *gname)
 {
 
@@ -856,7 +862,7 @@ pfi_change_group_event(void *arg, char *gname)
 	CURVNET_RESTORE();
 }
 
-void
+static void
 pfi_detach_group_event(void *arg, struct ifg_group *ifg)
 {
 
@@ -867,7 +873,7 @@ pfi_detach_group_event(void *arg, struct ifg_group *ifg)
 	CURVNET_RESTORE();
 }
 
-void
+static void
 pfi_ifaddr_event(void *arg __unused, struct ifnet *ifp)
 {
 

@@ -1780,17 +1780,11 @@ VNET_DECLARE(uma_zone_t,		 pfi_addr_pl);
 
 extern void			 pf_purge_thread(void *);
 extern int			 pf_purge_expired_src_nodes(int);
-extern int			 pf_purge_expired_states(u_int32_t , int);
 extern void			 pf_unlink_state(struct pf_state *);
-extern void			 pf_free_state(struct pf_state *);
 extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,
 				    struct pf_state *);
-extern int			 pf_insert_src_node(struct pf_src_node **,
-				    struct pf_rule *, struct pf_addr *,
-				    sa_family_t);
-void				 pf_src_tree_remove_state(struct pf_state *);
 extern struct pf_state		*pf_find_state_byid(struct pf_state_cmp *);
 extern struct pf_state		*pf_find_state_all(struct pf_state_key_cmp *,
 				    u_int, int *);
@@ -1824,18 +1818,12 @@ u_int32_t	pf_new_isn(struct pf_state *);
 void   *pf_pull_hdr(struct mbuf *, int, void *, int, u_short *, u_short *,
 	    sa_family_t);
 void	pf_change_a(void *, u_int16_t *, u_int32_t, u_int8_t);
-int	pflog_packet(struct pfi_kif *, struct mbuf *, sa_family_t, u_int8_t,
-	    u_int8_t, struct pf_rule *, struct pf_rule *, struct pf_ruleset *,
-	    struct pf_pdesc *);
 void	pf_send_deferred_syn(struct pf_state *);
 int	pf_match_addr(u_int8_t, struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);
 int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 	    struct pf_addr *, sa_family_t);
-int	pf_match(u_int8_t, u_int32_t, u_int32_t, u_int32_t);
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
-int	pf_match_uid(u_int8_t, uid_t, uid_t, uid_t);
-int	pf_match_gid(u_int8_t, gid_t, gid_t, gid_t);
 
 void	pf_normalize_init(void);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
@@ -1857,10 +1845,7 @@ int	pf_routable(struct pf_addr *addr, sa_family_t af, struct pfi_kif *,
 	    int);
 int	pf_rtlabel_match(struct pf_addr *, sa_family_t, struct pf_addr_wrap *,
 	    int);
-int	pf_socket_lookup(int, struct pf_pdesc *,  struct inpcb *);
 struct pf_state_key *pf_alloc_state_key(int);
-void	pf_pkt_addr_changed(struct mbuf *);
-int	pf_state_key_attach(struct pf_state_key *, struct pf_state *, int);
 void	pfr_initialize(void);
 int	pfr_match_addr(struct pfr_ktable *, struct pf_addr *, sa_family_t);
 void	pfr_update_stats(struct pfr_ktable *, struct pf_addr *, sa_family_t,
@@ -1907,11 +1892,6 @@ struct pfi_kif	*pfi_kif_get(const char *);
 void		 pfi_kif_ref(struct pfi_kif *, enum pfi_kif_refs);
 void		 pfi_kif_unref(struct pfi_kif *, enum pfi_kif_refs);
 int		 pfi_kif_match(struct pfi_kif *, struct pfi_kif *);
-void		 pfi_attach_ifnet(struct ifnet *);
-void		 pfi_detach_ifnet(struct ifnet *);
-void		 pfi_attach_ifgroup(struct ifg_group *);
-void		 pfi_detach_ifgroup(struct ifg_group *);
-void		 pfi_group_change(const char *);
 int		 pfi_match_addr(struct pfi_dynaddr *, struct pf_addr *,
 		    sa_family_t);
 int		 pfi_dynaddr_setup(struct pf_addr_wrap *, sa_family_t);
@@ -1924,14 +1904,10 @@ int		 pfi_clear_flags(const char *, int);
 
 int		 pf_match_tag(struct mbuf *, struct pf_rule *, int *,
 		    struct pf_mtag *);
-u_int16_t	 pf_tagname2tag(char *);
-void		 pf_tag2tagname(u_int16_t, char *);
 void		 pf_tag_ref(u_int16_t);
 void		 pf_tag_unref(u_int16_t);
 int		 pf_tag_packet(struct mbuf *, int, int, struct pf_mtag *);
-u_int32_t	 pf_qname2qid(char *);
 void		 pf_qid2qname(u_int32_t, char *);
-void		 pf_qid_unref(u_int32_t);
 
 VNET_DECLARE(struct pf_status,		 pf_status);
 #define	V_pf_status			 VNET(pf_status)
@@ -1999,7 +1975,6 @@ int			 pf_anchor_copyout(const struct pf_ruleset *,
 			    const struct pf_rule *, struct pfioc_rule *);
 void			 pf_anchor_remove(struct pf_rule *);
 void			 pf_remove_if_empty_ruleset(struct pf_ruleset *);
-struct pf_anchor	*pf_find_anchor(const char *);
 struct pf_ruleset	*pf_find_ruleset(const char *);
 struct pf_ruleset	*pf_find_or_create_ruleset(const char *);
 void			 pf_rs_initialize(void);
@@ -2011,16 +1986,11 @@ struct pf_osfp_enlist *
 	pf_osfp_fingerprint(struct pf_pdesc *, struct mbuf *, int,
 	    const struct tcphdr *);
 #endif /* _KERNEL */
-struct pf_osfp_enlist *
-	pf_osfp_fingerprint_hdr(const struct ip *, const struct ip6_hdr *,
-	    const struct tcphdr *);
 void	pf_osfp_flush(void);
 int	pf_osfp_get(struct pf_osfp_ioctl *);
 void	pf_osfp_initialize(void);
 void	pf_osfp_cleanup(void);
 int	pf_osfp_match(struct pf_osfp_enlist *, pf_osfp_t);
-struct pf_os_fingerprint *
-	pf_osfp_validate(void);
 
 #ifdef _KERNEL
 void			 pf_print_host(struct pf_addr *, u_int16_t, u_int8_t);

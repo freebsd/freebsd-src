@@ -100,20 +100,20 @@ __FBSDID("$FreeBSD$");
 #define DPRINTF(x)
 #endif
 
-void	pflogattach(int);
-int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
-	    struct route *);
-int	pflogioctl(struct ifnet *, u_long, caddr_t);
-void	pflogstart(struct ifnet *);
-static int pflog_clone_create(struct if_clone *, int, caddr_t);
-static void pflog_clone_destroy(struct ifnet *);
+static int	pflogoutput(struct ifnet *, struct mbuf *, struct sockaddr *,
+		    struct route *);
+static void	pflogattach(int);
+static int	pflogioctl(struct ifnet *, u_long, caddr_t);
+static void	pflogstart(struct ifnet *);
+static int	pflog_clone_create(struct if_clone *, int, caddr_t);
+static void	pflog_clone_destroy(struct ifnet *);
 
 LIST_HEAD(, pflog_softc)	pflogif_list;
 IFC_SIMPLE_DECLARE(pflog, 1);
 
 struct ifnet	*pflogifs[PFLOGIFS_MAX];	/* for fast access */
 
-void
+static void
 pflogattach(int npflog)
 {
 	int	i;
@@ -186,7 +186,7 @@ pflog_clone_destroy(struct ifnet *ifp)
 /*
  * Start output on the pflog interface.
  */
-void
+static void
 pflogstart(struct ifnet *ifp)
 {
 	struct mbuf *m;
@@ -204,7 +204,7 @@ pflogstart(struct ifnet *ifp)
 	}
 }
 
-int
+static int
 pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 	struct route *rt)
 {
@@ -213,7 +213,7 @@ pflogoutput(struct ifnet *ifp, struct mbuf *m, struct sockaddr *dst,
 }
 
 /* ARGSUSED */
-int
+static int
 pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 {
 	switch (cmd) {
@@ -230,7 +230,7 @@ pflogioctl(struct ifnet *ifp, u_long cmd, caddr_t data)
 	return (0);
 }
 
-int
+static int
 pflog_packet(struct pfi_kif *kif, struct mbuf *m, sa_family_t af, u_int8_t dir,
     u_int8_t reason, struct pf_rule *rm, struct pf_rule *am,
     struct pf_ruleset *ruleset, struct pf_pdesc *pd)

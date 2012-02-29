@@ -106,17 +106,13 @@ __FBSDID("$FreeBSD$");
 
 #define DPFPRINTF(n, x)	if (V_pf_status.debug >= (n)) printf x
 
-/*
- * Global variables
- */
-
-void			 pf_hash(struct pf_addr *, struct pf_addr *,
+static void		 pf_hash(struct pf_addr *, struct pf_addr *,
 			    struct pf_poolhashkey *, sa_family_t);
-struct pf_rule		*pf_match_translation(struct pf_pdesc *, struct mbuf *,
+static struct pf_rule	*pf_match_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *,
 			    struct pf_addr *, u_int16_t, struct pf_addr *,
 			    u_int16_t, int);
-int			 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
+static int		 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
 			    struct pf_addr *, struct pf_addr *, u_int16_t,
 			    struct pf_addr *, u_int16_t*, u_int16_t, u_int16_t,
 			    struct pf_src_node **);
@@ -137,7 +133,7 @@ int			 pf_get_sport(sa_family_t, u_int8_t, struct pf_rule *,
 /*
  * hash function based on bridge_hash in if_bridge.c
  */
-void
+static void
 pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
     struct pf_poolhashkey *key, sa_family_t af)
 {
@@ -178,7 +174,7 @@ pf_hash(struct pf_addr *inaddr, struct pf_addr *hash,
 	}
 }
 
-struct pf_rule *
+static struct pf_rule *
 pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
     int direction, struct pfi_kif *kif, struct pf_addr *saddr, u_int16_t sport,
     struct pf_addr *daddr, u_int16_t dport, int rs_num)
@@ -260,7 +256,7 @@ pf_match_translation(struct pf_pdesc *pd, struct mbuf *m, int off,
 	return (rm);
 }
 
-int
+static int
 pf_get_sport(sa_family_t af, u_int8_t proto, struct pf_rule *r,
     struct pf_addr *saddr, struct pf_addr *daddr, u_int16_t dport,
     struct pf_addr *naddr, u_int16_t *nport, u_int16_t low, u_int16_t high,
