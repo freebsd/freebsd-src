@@ -2937,11 +2937,11 @@ umtx_copyin_umtx_time(const void *addr, size_t size, struct _umtx_time *tp)
 {
 	int error;
 	
-	tp->_clockid = CLOCK_REALTIME;
-	tp->_flags   = 0;
-	if (size <= sizeof(struct timespec))
+	if (size <= sizeof(struct timespec)) {
+		tp->_clockid = CLOCK_REALTIME;
+		tp->_flags = 0;
 		error = copyin(addr, &tp->_timeout, sizeof(struct timespec));
-	else 
+	} else 
 		error = copyin(addr, tp, sizeof(struct _umtx_time));
 	if (error != 0)
 		return (error);
