@@ -94,21 +94,21 @@ RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 /* Private prototypes */
-void			 pf_ip2key(struct pf_fragment *, struct ip *);
-void			 pf_remove_fragment(struct pf_fragment *);
-void			 pf_flush_fragments(void);
-void			 pf_free_fragment(struct pf_fragment *);
-struct pf_fragment	*pf_find_fragment(struct ip *, struct pf_frag_tree *);
-struct mbuf		*pf_reassemble(struct mbuf **, struct pf_fragment **,
+static void		 pf_ip2key(struct pf_fragment *, struct ip *);
+static void		 pf_remove_fragment(struct pf_fragment *);
+static void		 pf_flush_fragments(void);
+static void		 pf_free_fragment(struct pf_fragment *);
+static struct pf_fragment *pf_find_fragment(struct ip *, struct pf_frag_tree *);
+static struct mbuf	*pf_reassemble(struct mbuf **, struct pf_fragment **,
 			    struct pf_frent *, int);
-struct mbuf		*pf_fragcache(struct mbuf **, struct ip*,
+static struct mbuf	*pf_fragcache(struct mbuf **, struct ip*,
 			    struct pf_fragment **, int, int, int *);
-int			 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
+static int		 pf_normalize_tcpopt(struct pf_rule *, struct mbuf *,
 			    struct tcphdr *, int, sa_family_t);
-void			 pf_scrub_ip(struct mbuf **, u_int32_t, u_int8_t,
+static void		 pf_scrub_ip(struct mbuf **, u_int32_t, u_int8_t,
 			    u_int8_t);
 #ifdef INET6
-void			 pf_scrub_ip6(struct mbuf **, u_int8_t);
+static void		 pf_scrub_ip6(struct mbuf **, u_int8_t);
 #endif
 #define	DPFPRINTF(x) do {				\
 	if (V_pf_status.debug >= PF_DEBUG_MISC) {	\
@@ -201,7 +201,7 @@ pf_purge_expired_fragments(void)
  * Try to flush old fragments to make space for new ones
  */
 
-void
+static void
 pf_flush_fragments(void)
 {
 	struct pf_fragment	*frag;
@@ -231,7 +231,7 @@ pf_flush_fragments(void)
 
 /* Frees the fragments and all associated entries */
 
-void
+static void
 pf_free_fragment(struct pf_fragment *frag)
 {
 	struct pf_frent		*frent;
@@ -266,7 +266,7 @@ pf_free_fragment(struct pf_fragment *frag)
 	pf_remove_fragment(frag);
 }
 
-void
+static void
 pf_ip2key(struct pf_fragment *key, struct ip *ip)
 {
 	key->fr_p = ip->ip_p;
@@ -275,7 +275,7 @@ pf_ip2key(struct pf_fragment *key, struct ip *ip)
 	key->fr_dst.s_addr = ip->ip_dst.s_addr;
 }
 
-struct pf_fragment *
+static struct pf_fragment *
 pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 {
 	struct pf_fragment	 key;
@@ -301,7 +301,7 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 
 /* Removes a fragment from the fragment queue and frees the fragment */
 
-void
+static void
 pf_remove_fragment(struct pf_fragment *frag)
 {
 	if (BUFFER_FRAGMENTS(frag)) {
@@ -316,7 +316,7 @@ pf_remove_fragment(struct pf_fragment *frag)
 }
 
 #define FR_IP_OFF(fr)	((ntohs((fr)->fr_ip->ip_off) & IP_OFFMASK) << 3)
-struct mbuf *
+static struct mbuf *
 pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
     struct pf_frent *frent, int mff)
 {
@@ -522,7 +522,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	return (NULL);
 }
 
-struct mbuf *
+static struct mbuf *
 pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
     int drop, int *nomem)
 {
@@ -1841,7 +1841,7 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	return (0);
 }
 
-int
+static int
 pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
     int off, sa_family_t af)
 {
@@ -1893,7 +1893,7 @@ pf_normalize_tcpopt(struct pf_rule *r, struct mbuf *m, struct tcphdr *th,
 	return (rewrite);
 }
 
-void
+static void
 pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 {
 	struct mbuf		*m = *m0;
@@ -1936,7 +1936,7 @@ pf_scrub_ip(struct mbuf **m0, u_int32_t flags, u_int8_t min_ttl, u_int8_t tos)
 }
 
 #ifdef INET6
-void
+static void
 pf_scrub_ip6(struct mbuf **m0, u_int8_t min_ttl)
 {
 	struct mbuf		*m = *m0;

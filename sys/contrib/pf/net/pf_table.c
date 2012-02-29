@@ -167,52 +167,56 @@ VNET_DEFINE(union sockaddr_union,	pfr_mask);
 VNET_DEFINE(struct pf_addr,		pfr_ffaddr);
 #define	V_pfr_ffaddr			VNET(pfr_ffaddr)
 
-void			 pfr_copyout_addr(struct pfr_addr *,
+static void		 pfr_copyout_addr(struct pfr_addr *,
 			    struct pfr_kentry *ke);
-int			 pfr_validate_addr(struct pfr_addr *);
-void			 pfr_enqueue_addrs(struct pfr_ktable *,
+static int		 pfr_validate_addr(struct pfr_addr *);
+static void		 pfr_enqueue_addrs(struct pfr_ktable *,
 			    struct pfr_kentryworkq *, int *, int);
-void			 pfr_mark_addrs(struct pfr_ktable *);
-struct pfr_kentry	*pfr_lookup_addr(struct pfr_ktable *,
+static void		 pfr_mark_addrs(struct pfr_ktable *);
+static struct pfr_kentry
+			*pfr_lookup_addr(struct pfr_ktable *,
 			    struct pfr_addr *, int);
-struct pfr_kentry	*pfr_create_kentry(struct pfr_addr *, int);
-void			 pfr_destroy_kentries(struct pfr_kentryworkq *);
-void			 pfr_destroy_kentry(struct pfr_kentry *);
-void			 pfr_insert_kentries(struct pfr_ktable *,
+static struct pfr_kentry *pfr_create_kentry(struct pfr_addr *, int);
+static void		 pfr_destroy_kentries(struct pfr_kentryworkq *);
+static void		 pfr_destroy_kentry(struct pfr_kentry *);
+static void		 pfr_insert_kentries(struct pfr_ktable *,
 			    struct pfr_kentryworkq *, long);
-void			 pfr_remove_kentries(struct pfr_ktable *,
+static void		 pfr_remove_kentries(struct pfr_ktable *,
 			    struct pfr_kentryworkq *);
-void			 pfr_clstats_kentries(struct pfr_kentryworkq *, long,
+static void		 pfr_clstats_kentries(struct pfr_kentryworkq *, long,
 			    int);
-void			 pfr_reset_feedback(struct pfr_addr *, int, int);
-void			 pfr_prepare_network(union sockaddr_union *, int, int);
-int			 pfr_route_kentry(struct pfr_ktable *,
+static void		 pfr_reset_feedback(struct pfr_addr *, int, int);
+static void		 pfr_prepare_network(union sockaddr_union *, int, int);
+static int		 pfr_route_kentry(struct pfr_ktable *,
 			    struct pfr_kentry *);
-int			 pfr_unroute_kentry(struct pfr_ktable *,
+static int		 pfr_unroute_kentry(struct pfr_ktable *,
 			    struct pfr_kentry *);
-int			 pfr_walktree(struct radix_node *, void *);
-int			 pfr_validate_table(struct pfr_table *, int, int);
-int			 pfr_fix_anchor(char *);
-void			 pfr_commit_ktable(struct pfr_ktable *, long);
-void			 pfr_insert_ktables(struct pfr_ktableworkq *);
-void			 pfr_insert_ktable(struct pfr_ktable *);
-void			 pfr_setflags_ktables(struct pfr_ktableworkq *);
-void			 pfr_setflags_ktable(struct pfr_ktable *, int);
-void			 pfr_clstats_ktables(struct pfr_ktableworkq *, long,
+static int		 pfr_walktree(struct radix_node *, void *);
+static int		 pfr_validate_table(struct pfr_table *, int, int);
+static int		 pfr_fix_anchor(char *);
+static void		 pfr_commit_ktable(struct pfr_ktable *, long);
+static void		 pfr_insert_ktables(struct pfr_ktableworkq *);
+static void		 pfr_insert_ktable(struct pfr_ktable *);
+static void		 pfr_setflags_ktables(struct pfr_ktableworkq *);
+static void		 pfr_setflags_ktable(struct pfr_ktable *, int);
+static void		 pfr_clstats_ktables(struct pfr_ktableworkq *, long,
 			    int);
-void			 pfr_clstats_ktable(struct pfr_ktable *, long, int);
-struct pfr_ktable	*pfr_create_ktable(struct pfr_table *, long, int, int);
-void			 pfr_destroy_ktables(struct pfr_ktableworkq *, int);
-void			 pfr_destroy_ktable(struct pfr_ktable *, int);
-int			 pfr_ktable_compare(struct pfr_ktable *,
+static void		 pfr_clstats_ktable(struct pfr_ktable *, long, int);
+static struct pfr_ktable
+			*pfr_create_ktable(struct pfr_table *, long, int, int);
+static void		 pfr_destroy_ktables(struct pfr_ktableworkq *, int);
+static void		 pfr_destroy_ktable(struct pfr_ktable *, int);
+static int		 pfr_ktable_compare(struct pfr_ktable *,
 			    struct pfr_ktable *);
-struct pfr_ktable	*pfr_lookup_table(struct pfr_table *);
-void			 pfr_clean_node_mask(struct pfr_ktable *,
+static struct pfr_ktable
+			*pfr_lookup_table(struct pfr_table *);
+static void		 pfr_clean_node_mask(struct pfr_ktable *,
 			    struct pfr_kentryworkq *);
-int			 pfr_table_count(struct pfr_table *, int);
-int			 pfr_skip_table(struct pfr_table *,
+static int		 pfr_table_count(struct pfr_table *, int);
+static int		 pfr_skip_table(struct pfr_table *,
 			    struct pfr_ktable *, int);
-struct pfr_kentry	*pfr_kentry_byidx(struct pfr_ktable *, int, int);
+static struct pfr_kentry
+			*pfr_kentry_byidx(struct pfr_ktable *, int, int);
 
 RB_PROTOTYPE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
 RB_GENERATE(pfr_ktablehead, pfr_ktable, pfrkt_tree, pfr_ktable_compare);
@@ -733,7 +737,7 @@ _bad:
 	return (rv);
 }
 
-int
+static int
 pfr_validate_addr(struct pfr_addr *ad)
 {
 	int i;
@@ -767,7 +771,7 @@ pfr_validate_addr(struct pfr_addr *ad)
 	return (0);
 }
 
-void
+static void
 pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 	int *naddr, int sweep)
 {
@@ -789,7 +793,7 @@ pfr_enqueue_addrs(struct pfr_ktable *kt, struct pfr_kentryworkq *workq,
 		*naddr = w.pfrw_cnt;
 }
 
-void
+static void
 pfr_mark_addrs(struct pfr_ktable *kt)
 {
 	struct pfr_walktree	w;
@@ -803,7 +807,7 @@ pfr_mark_addrs(struct pfr_ktable *kt)
 }
 
 
-struct pfr_kentry *
+static struct pfr_kentry *
 pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 {
 	union sockaddr_union	 sa, mask;
@@ -834,7 +838,7 @@ pfr_lookup_addr(struct pfr_ktable *kt, struct pfr_addr *ad, int exact)
 	return (ke);
 }
 
-struct pfr_kentry *
+static struct pfr_kentry *
 pfr_create_kentry(struct pfr_addr *ad, int intr)
 {
 	struct pfr_kentry	*ke;
@@ -853,7 +857,7 @@ pfr_create_kentry(struct pfr_addr *ad, int intr)
 	return (ke);
 }
 
-void
+static void
 pfr_destroy_kentries(struct pfr_kentryworkq *workq)
 {
 	struct pfr_kentry	*p, *q;
@@ -864,7 +868,7 @@ pfr_destroy_kentries(struct pfr_kentryworkq *workq)
 	}
 }
 
-void
+static void
 pfr_destroy_kentry(struct pfr_kentry *ke)
 {
 	if (ke->pfrke_counters)
@@ -872,7 +876,7 @@ pfr_destroy_kentry(struct pfr_kentry *ke)
 	uma_zfree(V_pfr_kentry_pl, ke);
 }
 
-void
+static void
 pfr_insert_kentries(struct pfr_ktable *kt,
     struct pfr_kentryworkq *workq, long tzero)
 {
@@ -915,7 +919,7 @@ pfr_insert_kentry(struct pfr_ktable *kt, struct pfr_addr *ad, long tzero)
 	return (0);
 }
 
-void
+static void
 pfr_remove_kentries(struct pfr_ktable *kt,
     struct pfr_kentryworkq *workq)
 {
@@ -930,7 +934,7 @@ pfr_remove_kentries(struct pfr_ktable *kt,
 	pfr_destroy_kentries(workq);
 }
 
-void
+static void
 pfr_clean_node_mask(struct pfr_ktable *kt,
     struct pfr_kentryworkq *workq)
 {
@@ -940,7 +944,7 @@ pfr_clean_node_mask(struct pfr_ktable *kt,
 		pfr_unroute_kentry(kt, p);
 }
 
-void
+static void
 pfr_clstats_kentries(struct pfr_kentryworkq *workq, long tzero, int negchange)
 {
 	struct pfr_kentry	*p;
@@ -956,7 +960,7 @@ pfr_clstats_kentries(struct pfr_kentryworkq *workq, long tzero, int negchange)
 	}
 }
 
-void
+static void
 pfr_reset_feedback(struct pfr_addr *addr, int size, int flags)
 {
 	struct pfr_addr	ad;
@@ -971,7 +975,7 @@ pfr_reset_feedback(struct pfr_addr *addr, int size, int flags)
 	}
 }
 
-void
+static void
 pfr_prepare_network(union sockaddr_union *sa, int af, int net)
 {
 	int	i;
@@ -996,7 +1000,7 @@ pfr_prepare_network(union sockaddr_union *sa, int af, int net)
 	}
 }
 
-int
+static int
 pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 {
 	union sockaddr_union	 mask;
@@ -1019,7 +1023,7 @@ pfr_route_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	return (rn == NULL ? -1 : 0);
 }
 
-int
+static int
 pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 {
 	union sockaddr_union	 mask;
@@ -1045,7 +1049,7 @@ pfr_unroute_kentry(struct pfr_ktable *kt, struct pfr_kentry *ke)
 	return (0);
 }
 
-void
+static void
 pfr_copyout_addr(struct pfr_addr *ad, struct pfr_kentry *ke)
 {
 	bzero(ad, sizeof(*ad));
@@ -1060,7 +1064,7 @@ pfr_copyout_addr(struct pfr_addr *ad, struct pfr_kentry *ke)
 		ad->pfra_ip6addr = ke->pfrke_sa.sin6.sin6_addr;
 }
 
-int
+static int
 pfr_walktree(struct radix_node *rn, void *arg)
 {
 	struct pfr_kentry	*ke = (struct pfr_kentry *)rn;
@@ -1688,7 +1692,7 @@ pfr_ina_commit(struct pfr_table *trs, u_int32_t ticket, int *nadd,
 	return (0);
 }
 
-void
+static void
 pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 {
 	struct pfr_ktable	*shadow = kt->pfrkt_shadow;
@@ -1747,7 +1751,7 @@ pfr_commit_ktable(struct pfr_ktable *kt, long tzero)
 	pfr_setflags_ktable(kt, nflags);
 }
 
-int
+static int
 pfr_validate_table(struct pfr_table *tbl, int allowedflags, int no_reserved)
 {
 	int i;
@@ -1772,7 +1776,7 @@ pfr_validate_table(struct pfr_table *tbl, int allowedflags, int no_reserved)
  * Rewrite anchors referenced by tables to remove slashes
  * and check for validity.
  */
-int
+static int
 pfr_fix_anchor(char *anchor)
 {
 	size_t siz = MAXPATHLEN;
@@ -1797,7 +1801,7 @@ pfr_fix_anchor(char *anchor)
 	return (0);
 }
 
-int
+static int
 pfr_table_count(struct pfr_table *filter, int flags)
 {
 	struct pf_ruleset *rs;
@@ -1811,7 +1815,7 @@ pfr_table_count(struct pfr_table *filter, int flags)
 	return (pf_main_ruleset.tables);
 }
 
-int
+static int
 pfr_skip_table(struct pfr_table *filter, struct pfr_ktable *kt, int flags)
 {
 	if (flags & PFR_FLAG_ALLRSETS)
@@ -1821,7 +1825,7 @@ pfr_skip_table(struct pfr_table *filter, struct pfr_ktable *kt, int flags)
 	return (0);
 }
 
-void
+static void
 pfr_insert_ktables(struct pfr_ktableworkq *workq)
 {
 	struct pfr_ktable	*p;
@@ -1830,7 +1834,7 @@ pfr_insert_ktables(struct pfr_ktableworkq *workq)
 		pfr_insert_ktable(p);
 }
 
-void
+static void
 pfr_insert_ktable(struct pfr_ktable *kt)
 {
 	RB_INSERT(pfr_ktablehead, &pfr_ktables, kt);
@@ -1841,7 +1845,7 @@ pfr_insert_ktable(struct pfr_ktable *kt)
 			    kt->pfrkt_root->pfrkt_flags|PFR_TFLAG_REFDANCHOR);
 }
 
-void
+static void
 pfr_setflags_ktables(struct pfr_ktableworkq *workq)
 {
 	struct pfr_ktable	*p, *q;
@@ -1852,7 +1856,7 @@ pfr_setflags_ktables(struct pfr_ktableworkq *workq)
 	}
 }
 
-void
+static void
 pfr_setflags_ktable(struct pfr_ktable *kt, int newf)
 {
 	struct pfr_kentryworkq	addrq;
@@ -1884,7 +1888,7 @@ pfr_setflags_ktable(struct pfr_ktable *kt, int newf)
 	kt->pfrkt_flags = newf;
 }
 
-void
+static void
 pfr_clstats_ktables(struct pfr_ktableworkq *workq, long tzero, int recurse)
 {
 	struct pfr_ktable	*p;
@@ -1893,7 +1897,7 @@ pfr_clstats_ktables(struct pfr_ktableworkq *workq, long tzero, int recurse)
 		pfr_clstats_ktable(p, tzero, recurse);
 }
 
-void
+static void
 pfr_clstats_ktable(struct pfr_ktable *kt, long tzero, int recurse)
 {
 	struct pfr_kentryworkq	 addrq;
@@ -1908,7 +1912,7 @@ pfr_clstats_ktable(struct pfr_ktable *kt, long tzero, int recurse)
 	kt->pfrkt_tzero = tzero;
 }
 
-struct pfr_ktable *
+static struct pfr_ktable *
 pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset,
     int intr)
 {
@@ -1942,7 +1946,7 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset,
 	return (kt);
 }
 
-void
+static void
 pfr_destroy_ktables(struct pfr_ktableworkq *workq, int flushaddr)
 {
 	struct pfr_ktable	*p, *q;
@@ -1953,7 +1957,7 @@ pfr_destroy_ktables(struct pfr_ktableworkq *workq, int flushaddr)
 	}
 }
 
-void
+static void
 pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 {
 	struct pfr_kentryworkq	 addrq;
@@ -1980,7 +1984,7 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 	uma_zfree(V_pfr_ktable_pl, kt);
 }
 
-int
+static int
 pfr_ktable_compare(struct pfr_ktable *p, struct pfr_ktable *q)
 {
 	int d;
@@ -1990,7 +1994,7 @@ pfr_ktable_compare(struct pfr_ktable *p, struct pfr_ktable *q)
 	return (strcmp(p->pfrkt_anchor, q->pfrkt_anchor));
 }
 
-struct pfr_ktable *
+static struct pfr_ktable *
 pfr_lookup_table(struct pfr_table *tbl)
 {
 	/* struct pfr_ktable start like a struct pfr_table */
@@ -2218,7 +2222,7 @@ _next_block:
 	}
 }
 
-struct pfr_kentry *
+static struct pfr_kentry *
 pfr_kentry_byidx(struct pfr_ktable *kt, int idx, int af)
 {
 	struct pfr_walktree	w;

@@ -98,6 +98,8 @@ struct pf_anchor	 pf_main_anchor;
 
 static __inline int pf_anchor_compare(struct pf_anchor *, struct pf_anchor *);
 
+static struct pf_anchor		*pf_find_anchor(const char *);
+
 RB_GENERATE(pf_anchor_global, pf_anchor, entry_global, pf_anchor_compare);
 RB_GENERATE(pf_anchor_node, pf_anchor, entry_node, pf_anchor_compare);
 
@@ -153,7 +155,7 @@ pf_init_ruleset(struct pf_ruleset *ruleset)
 	}
 }
 
-struct pf_anchor *
+static struct pf_anchor *
 pf_find_anchor(const char *path)
 {
 	struct pf_anchor	*key, *found;

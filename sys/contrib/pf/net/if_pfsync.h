@@ -286,29 +286,10 @@ struct pfsyncreq {
 #define	PFSYNC_S_DEFER	0xfe
 #define	PFSYNC_S_NONE	0xff
 
-void			pfsync_input(struct mbuf *, __unused int);
-int			pfsync_sysctl(int *, u_int,  void *, size_t *,
-			    void *, size_t);
-
 #define	PFSYNC_SI_IOCTL		0x01
 #define	PFSYNC_SI_CKSUM		0x02
 #define	PFSYNC_SI_ACK		0x04
-int			pfsync_state_import(struct pfsync_state *, u_int8_t);
 
-void			pfsync_insert_state(struct pf_state *);
-void			pfsync_update_state(struct pf_state *);
-void			pfsync_delete_state(struct pf_state *);
-void			pfsync_clear_states(u_int32_t, const char *);
-
-#ifdef notyet
-void			pfsync_update_tdb(struct tdb *, int);
-void			pfsync_delete_tdb(struct tdb *);
-#endif
-
-int			pfsync_defer(struct pf_state *, struct mbuf *);
-
-int			pfsync_up(void);
-int			pfsync_state_in_use(struct pf_state *);
-#endif
+#endif /* _KERNEL */
 
 #endif /* _NET_IF_PFSYNC_H_ */

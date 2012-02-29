@@ -80,13 +80,18 @@ VNET_DEFINE(pool_t,			pf_osfp_entry_pl);
 VNET_DEFINE(pool_t,			pf_osfp_pl);
 #define	pf_osfp_pl			VNET(pf_osfp_pl)
 
-struct pf_os_fingerprint	*pf_osfp_find(struct pf_osfp_list *,
+static struct pf_osfp_enlist	*pf_osfp_fingerprint_hdr(const struct ip *,
+				    const struct ip6_hdr *,
+				    const struct tcphdr *);
+static struct pf_os_fingerprint	*pf_osfp_find(struct pf_osfp_list *,
 				    struct pf_os_fingerprint *, u_int8_t);
-struct pf_os_fingerprint	*pf_osfp_find_exact(struct pf_osfp_list *,
+static struct pf_os_fingerprint	*pf_osfp_find_exact(struct pf_osfp_list *,
 				    struct pf_os_fingerprint *);
-void				 pf_osfp_insert(struct pf_osfp_list *,
+static void			 pf_osfp_insert(struct pf_osfp_list *,
 				    struct pf_os_fingerprint *);
-
+#ifdef PFDEBUG
+static struct pf_os_fingerprint	*pf_osfp_validate(void);
+#endif
 
 #ifdef _KERNEL
 /*
@@ -119,7 +124,7 @@ pf_osfp_fingerprint(struct pf_pdesc *pd, struct mbuf *m, int off,
 }
 #endif /* _KERNEL */
 
-struct pf_osfp_enlist *
+static struct pf_osfp_enlist *
 pf_osfp_fingerprint_hdr(const struct ip *ip, const struct ip6_hdr *ip6, const struct tcphdr *tcp)
 {
 	struct pf_os_fingerprint fp, *fpresult;
@@ -427,7 +432,7 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 
 
 /* Find a fingerprint in the list */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
     u_int8_t ttldiff)
 {
@@ -502,7 +507,7 @@ pf_osfp_find(struct pf_osfp_list *list, struct pf_os_fingerprint *find,
 }
 
 /* Find an exact fingerprint in the list */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_find_exact(struct pf_osfp_list *list, struct pf_os_fingerprint *find)
 {
 	struct pf_os_fingerprint *f;
@@ -523,7 +528,7 @@ pf_osfp_find_exact(struct pf_osfp_list *list, struct pf_os_fingerprint *find)
 }
 
 /* Insert a fingerprint into the list */
-void
+static void
 pf_osfp_insert(struct pf_osfp_list *list, struct pf_os_fingerprint *ins)
 {
 	struct pf_os_fingerprint *f, *prev = NULL;
@@ -570,8 +575,9 @@ pf_osfp_get(struct pf_osfp_ioctl *fpioc)
 }
 
 
+#ifdef PFDEBUG
 /* Validate that each signature is reachable */
-struct pf_os_fingerprint *
+static struct pf_os_fingerprint *
 pf_osfp_validate(void)
 {
 	struct pf_os_fingerprint *f, *f2, find;
@@ -608,3 +614,4 @@ pf_osfp_validate(void)
 	}
 	return (NULL);
 }
+#endif /* PFDEBUG */
