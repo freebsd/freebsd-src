@@ -22,6 +22,14 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120229:
+	Now unix domain sockets behave "as expected" on	nullfs(5). Previously
+	nullfs(5) did not pass through all behaviours to the underlying layer,
+	as a result if we bound to a socket on the lower layer we could connect
+	only to the lower path; if we bound to the upper layer we could connect
+	only to	the upper path. The new behavior is one can connect to both the
+	lower and the upper paths regardless what layer path one binds to.
+
 20120211:
 	The getifaddrs upgrade path broken with 20111215 has been restored.
 	If you have upgraded in between 20111215 and 20120209 you need to
