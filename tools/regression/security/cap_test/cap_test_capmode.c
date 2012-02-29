@@ -117,7 +117,7 @@ test_capmode(void)
 	CHECK_SYSCALL_SUCCEEDS(close, fd_close);
 	CHECK_SYSCALL_SUCCEEDS(dup, fd_file);
 	CHECK_SYSCALL_SUCCEEDS(fstat, fd_file, &sb);
-	CHECK_SYSCALL_SUCCEEDS(lseek, fd_file, SEEK_SET, 0);
+	CHECK_SYSCALL_SUCCEEDS(lseek, fd_file, 0, SEEK_SET);
 	CHECK_SYSCALL_SUCCEEDS(msync, &fd_file, 8192, MS_ASYNC);
 	CHECK_SYSCALL_SUCCEEDS(profil, NULL, 0, 0, 0);
 	CHECK_SYSCALL_SUCCEEDS(read, fd_file, &ch, sizeof(ch));
