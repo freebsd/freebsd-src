@@ -348,7 +348,7 @@ pfsync_clone_create(struct if_clone *ifc, int unit, caddr_t param)
 	ifp->if_hdrlen = sizeof(struct pfsync_header);
 	ifp->if_mtu = ETHERMTU;
 	callout_init(&sc->sc_tmo, CALLOUT_MPSAFE);
-	callout_init_mtx(&sc->sc_bulk_tmo, &pf_task_mtx, 0);
+	callout_init_mtx(&sc->sc_bulk_tmo, &pf_mtx, 0);
 	callout_init(&sc->sc_bulkfail_tmo, CALLOUT_MPSAFE);
 
 	if_attach(ifp);

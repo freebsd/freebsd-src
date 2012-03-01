@@ -5354,48 +5354,41 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 	struct pf_pdesc		 pd;
 	int			 off, dirndx, pqid = 0;
 
-	PF_LOCK();
+	M_ASSERTPKTHDR(m);
+
 	if (!V_pf_status.running)
-	{
-		PF_UNLOCK();
 		return (PF_PASS);
-	}
 
 	memset(&pd, 0, sizeof(pd));
 	if ((pd.pf_mtag = pf_get_mtag(m)) == NULL) {
-		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("pf_test: pf_get_mtag returned NULL\n"));
 		return (PF_DROP);
 	}
-		kif = (struct pfi_kif *)ifp->if_pf_kif;
+	kif = (struct pfi_kif *)ifp->if_pf_kif;
 
 	if (kif == NULL) {
-		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("pf_test: kif == NULL, if_xname %s\n", ifp->if_xname));
 		return (PF_DROP);
 	}
 	if (kif->pfik_flags & PFI_IFLAG_SKIP)
-	{
-		PF_UNLOCK();
 		return (PF_PASS);
-	}
 
-	M_ASSERTPKTHDR(m);
-
-	if (m->m_pkthdr.len < (int)sizeof(*h)) {
+	if (m->m_flags & M_SKIP_FIREWALL)
+		return (PF_PASS);
+	
+	if (m->m_pkthdr.len < (int)sizeof(struct ip)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
 		log = 1;
+		PF_LOCK();
 		goto done;
 	}
 
-	if (m->m_flags & M_SKIP_FIREWALL) {
-		PF_UNLOCK();
-		return (PF_PASS);
-	}
-	
+	PF_LOCK();
+	PF_RULES_RLOCK();
+
 	if (ip_divert_ptr != NULL &&
 	    ((ipfwtag = m_tag_locate(m, MTAG_IPFW_RULE, 0, NULL)) != NULL)) {
 		struct ipfw_rule_ref *rr = (struct ipfw_rule_ref *)(ipfwtag+1);
@@ -5407,9 +5400,8 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 			m->m_flags |= M_FASTFWD_OURS;
 			pd.pf_mtag->flags &= ~PF_FASTFWD_OURS_PRESENT;
 		}
-	} else
-	/* We do IP header normalization and packet reassembly here */
-	if (pf_normalize_ip(m0, dir, kif, &reason, &pd) != PF_PASS) {
+	} else if (pf_normalize_ip(m0, dir, kif, &reason, &pd) != PF_PASS) {
+		/* We do IP header normalization and packet reassembly here */
 		action = PF_DROP;
 		goto done;
 	}
@@ -5417,7 +5409,7 @@ pf_test(int dir, struct ifnet *ifp, struct mbuf **m0,
 	h = mtod(m, struct ip *);
 
 	off = h->ip_hl << 2;
-	if (off < (int)sizeof(*h)) {
+	if (off < (int)sizeof(struct ip)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
 		log = 1;
@@ -5591,28 +5583,27 @@ done:
 	    (ntohl(pd.dst->v4.s_addr) >> IN_CLASSA_NSHIFT) == IN_LOOPBACKNET)
 		m->m_flags |= M_SKIP_FIREWALL;
 
-	if (action == PF_PASS && r->divert.port &&
-	    ip_divert_ptr != NULL && !PACKET_LOOPED()) {
+	if (action == PF_PASS && r->divert.port && ip_divert_ptr != NULL &&
+	    !PACKET_LOOPED()) {
 
 		ipfwtag = m_tag_alloc(MTAG_IPFW_RULE, 0,
-				sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
+		    sizeof(struct ipfw_rule_ref), M_NOWAIT | M_ZERO);
 		if (ipfwtag != NULL) {
 			((struct ipfw_rule_ref *)(ipfwtag+1))->info =
 			    ntohs(r->divert.port);
 			((struct ipfw_rule_ref *)(ipfwtag+1))->rulenum = dir;
 
-			m_tag_prepend(m, ipfwtag);
-
+			PF_RULES_RUNLOCK();
 			PF_UNLOCK();
 
+			m_tag_prepend(m, ipfwtag);
 			if (m->m_flags & M_FASTFWD_OURS) {
 				pd.pf_mtag->flags |= PF_FASTFWD_OURS_PRESENT;
 				m->m_flags &= ~M_FASTFWD_OURS;
 			}
-
-			ip_divert_ptr(*m0,
-				dir ==  PF_IN ? DIR_IN : DIR_OUT);
+			ip_divert_ptr(*m0, dir ==  PF_IN ? DIR_IN : DIR_OUT);
 			*m0 = NULL;
+
 			return (action);
 		} else {
 			/* XXX: ipfw has the same behaviour! */
@@ -5697,7 +5688,9 @@ done:
 			pf_route(m0, r, dir, kif->pfik_ifp, s, &pd);
 		break;
 	}
+	PF_RULES_RUNLOCK();
 	PF_UNLOCK();
+
 	return (action);
 }
 #endif /* INET */
@@ -5717,46 +5710,40 @@ pf_test6(int dir, struct ifnet *ifp, struct mbuf **m0,
 	struct pf_pdesc		 pd;
 	int			 off, terminal = 0, dirndx, rh_cnt = 0;
 
-	PF_LOCK();
-	if (!V_pf_status.running) {
-		PF_UNLOCK();
+	M_ASSERTPKTHDR(m);
+
+	if (!V_pf_status.running)
 		return (PF_PASS);
-	}
 
 	memset(&pd, 0, sizeof(pd));
 	if ((pd.pf_mtag = pf_get_mtag(m)) == NULL) {
-		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("pf_test: pf_get_mtag returned NULL\n"));
 		return (PF_DROP);
 	}
-		kif = (struct pfi_kif *)ifp->if_pf_kif;
 
+	if (pd.pf_mtag->flags & PF_TAG_GENERATED)
+		return (PF_PASS);
+
+	kif = (struct pfi_kif *)ifp->if_pf_kif;
 	if (kif == NULL) {
-		PF_UNLOCK();
 		DPFPRINTF(PF_DEBUG_URGENT,
 		    ("pf_test6: kif == NULL, if_xname %s\n", ifp->if_xname));
 		return (PF_DROP);
 	}
 	if (kif->pfik_flags & PFI_IFLAG_SKIP)
-	{
-		PF_UNLOCK();
 		return (PF_PASS);
-	}
-
-	M_ASSERTPKTHDR(m);
 
 	if (m->m_pkthdr.len < (int)sizeof(*h)) {
 		action = PF_DROP;
 		REASON_SET(&reason, PFRES_SHORT);
 		log = 1;
+		PF_LOCK();
 		goto done;
 	}
 
-	if (pd.pf_mtag->flags & PF_TAG_GENERATED) {
-		PF_UNLOCK();
-		return (PF_PASS);
-	}
+	PF_LOCK();
+	PF_RULES_RLOCK();
 
 	/* We do IP header normalization and packet reassembly here */
 	if (pf_normalize_ip6(m0, dir, kif, &reason, &pd) != PF_PASS) {
@@ -6081,6 +6068,7 @@ done:
 		break;
 	}
 
+	PF_RULES_RUNLOCK();
 	PF_UNLOCK();
 	return (action);
 }
