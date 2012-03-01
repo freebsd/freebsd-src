@@ -54,8 +54,31 @@
 
 #include <sys/kdb.h>
 
+#define	VM_RADIX_WIDTH	5
+#define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
+#define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
+#define	VM_RADIX_MAXVAL	((vm_pindex_t)-1)
+#define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
+
+/* Flag bits stored in node pointers. */
+#define VM_RADIX_FLAGS	0x3
+
+/* Bits of height in root. */
+#define VM_RADIX_HEIGHT	0xf
+
+/* Calculates maximum value for a tree of height h. */
+#define	VM_RADIX_MAX(h)							\
+	    ((h) == VM_RADIX_LIMIT ? VM_RADIX_MAXVAL :			\
+	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
+
+CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 CTASSERT((sizeof(u_int) * NBBY) >= VM_RADIX_LIMIT);
+
+struct vm_radix_node {
+	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
+	volatile uint32_t rn_count;			/* Valid children. */
+};
 
 static uma_zone_t vm_radix_node_zone;
 
@@ -789,6 +812,7 @@ vm_radix_reclaim_allnodes(struct vm_radix *rtree)
 	rtree->rt_root = 0;
 }
 
+#ifdef notyet
 /*
  * Attempts to reduce the height of the tree.
  */
@@ -818,3 +842,4 @@ vm_radix_shrink(struct vm_radix *rtree)
 	}
 	vm_radix_setroot(rtree, root, level);
 }
+#endif

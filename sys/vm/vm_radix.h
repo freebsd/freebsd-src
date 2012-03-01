@@ -29,26 +29,10 @@
 #ifndef _VM_RADIX_H_
 #define _VM_RADIX_H_
 
-#include <sys/queue.h>
-
-/* Default values of the tree parameters */
-#define	VM_RADIX_WIDTH	5
-#define	VM_RADIX_COUNT	(1 << VM_RADIX_WIDTH)
-#define	VM_RADIX_MASK	(VM_RADIX_COUNT - 1)
-#define	VM_RADIX_MAXVAL	((vm_pindex_t)-1)
-#define	VM_RADIX_LIMIT	howmany((sizeof(vm_pindex_t) * NBBY), VM_RADIX_WIDTH)
-#define	VM_RADIX_FLAGS	0x3	/* Flag bits stored in node pointers. */
 #define	VM_RADIX_BLACK	0x1	/* Black node. (leaf only) */
 #define	VM_RADIX_RED	0x2	/* Red node. (leaf only) */
 #define	VM_RADIX_ANY	(VM_RADIX_RED | VM_RADIX_BLACK)
-#define	VM_RADIX_EMPTY	0x1	/* Empty hint. (internal only) */
-#define	VM_RADIX_HEIGHT	0xf	/* Bits of height in root */
 #define	VM_RADIX_STACK	8	/* Nodes to store on stack. */
-
-/* Calculates maximum value for a tree of height h. */
-#define	VM_RADIX_MAX(h)							\
-	    ((h) == VM_RADIX_LIMIT ? VM_RADIX_MAXVAL :			\
-	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
 /*
  * Radix tree root.  The height and pointer are set together to permit
@@ -59,20 +43,16 @@ struct vm_radix {
 };
 
 #ifdef _KERNEL
-CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
 
-struct vm_radix_node {
-	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
-    	volatile uint32_t rn_count;			/* Valid children. */
-};
-
+/*
+ * Initialize the radix tree subsystem.
+ */
 void	vm_radix_init(void);
 
 /*
  * Functions which only work with black nodes. (object lock)
  */
 int 	vm_radix_insert(struct vm_radix *, vm_pindex_t, void *);
-void 	vm_radix_shrink(struct vm_radix *);
 
 /*
  * Functions which work on specified colors. (object, vm_page_queue_free locks)
