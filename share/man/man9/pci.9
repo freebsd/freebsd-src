@@ -38,6 +38,8 @@
 .Nm pci_disable_io ,
 .Nm pci_set_powerstate ,
 .Nm pci_get_powerstate ,
+.Nm pci_save_state ,
+.Nm pci_restore_state ,
 .Nm pci_find_bsf ,
 .Nm pci_find_dbsf ,
 .Nm pci_find_device
@@ -63,6 +65,10 @@
 .Fn pci_get_powerstate "device_t dev"
 .Ft uint32_t
 .Fn pci_read_config "device_t dev" "int reg" "int width"
+.Ft void
+.Fn pci_save_state "device_t dev"
+.Ft void
+.Fn pci_restore_state "device_t dev"
 .Ft device_t
 .Fn pci_find_bsf "uint8_t bus" "uint8_t slot" "uint8_t func"
 .Ft device_t
@@ -186,6 +192,26 @@ If the device does not have power management capabilities, the default state
 of
 .Dv PCI_POWERSTATE_D0
 is set.
+.Pp
+The
+.Fn pci_save_state
+and
+.Fn pci_restore_state
+functions can be used by a device driver to save and restore standard PCI
+config registers.
+The
+.Fn pci_save_state
+function must be invoked while the device has valid state before
+.Fn pci_restore_state
+can be used.
+If the device is not in the fully-powered state
+.Pq Dv PCI_POWERSTATE_D0
+when
+.Fn pci_restore_state
+is invoked,
+then the device will be transitioned to
+.Dv PCI_POWERSTATE_D0
+before any config registers are restored.
 .Pp
 The
 .Fn pci_find_bsf
