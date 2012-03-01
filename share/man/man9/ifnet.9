@@ -77,7 +77,7 @@
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithdstaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithnet "struct sockaddr *addr"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp"
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
@@ -1323,6 +1323,9 @@ subject to its configured netmask, or a point-to-point interface
 address whose remote address is
 .Fa addr
 if one is found.
+If
+.Fa ignore_ptp
+is true, skip point-to-point interface addresses.
 .Pp
 .Fn ifaof_ifpforaddr
 returns the most specific address configured on interface
