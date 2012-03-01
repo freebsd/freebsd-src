@@ -2827,7 +2827,12 @@ softdep_prealloc(vp, waitok)
 {
 	struct ufsmount *ump;
 
-	if (DOINGSUJ(vp) == 0)
+	/*
+	 * Nothing to do if we are not running journaled soft updates.
+	 * If we currently hold the snapshot lock, we must avoid handling
+	 * other resources that could cause deadlock.
+	 */
+	if (DOINGSUJ(vp) == 0 || IS_SNAPSHOT(VTOI(vp)))
 		return (0);
 	ump = VFSTOUFS(vp->v_mount);
 	ACQUIRE_LOCK(&lk);
@@ -2873,7 +2878,12 @@ softdep_prelink(dvp, vp)
 
 	ump = VFSTOUFS(dvp->v_mount);
 	mtx_assert(&lk, MA_OWNED);
-	if (journal_space(ump, 0))
+	/*
+	 * Nothing to do if we have sufficient journal space.
+	 * If we currently hold the snapshot lock, we must avoid
+	 * handling other resources that could cause deadlock.
+	 */
+	if (journal_space(ump, 0) || (vp && IS_SNAPSHOT(VTOI(vp))))
 		return;
 	stat_journal_low++;
 	FREE_LOCK(&lk);
@@ -4304,11 +4314,15 @@ inodedep_lookup_ip(ip)
 	struct inode *ip;
 {
 	struct inodedep *inodedep;
+	int dflags;
 
 	KASSERT(ip->i_nlink >= ip->i_effnlink,
 	    ("inodedep_lookup_ip: bad delta"));
-	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number,
-	    DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	(void) inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags,
+	    &inodedep);
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
 
 	return (inodedep);
@@ -4696,7 +4710,7 @@ softdep_setup_inomapdep(bp, ip, newinum, mode)
 	 * the cylinder group map from which it was allocated.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if ((inodedep_lookup(mp, newinum, DEPALLOC|NODELAY, &inodedep)))
+	if ((inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep)))
 		panic("softdep_setup_inomapdep: dependency %p for new"
 		    "inode already exists", inodedep);
 	bmsafemap = bmsafemap_lookup(mp, bp, ino_to_cg(fs, newinum));
@@ -5437,6 +5451,7 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	struct allocindir *aip;
 	struct pagedep *pagedep;
 	struct mount *mp;
+	int dflags;
 
 	if (lbn != nbp->b_lblkno)
 		panic("softdep_setup_allocindir_page: lbn %jd != lblkno %jd",
@@ -5444,7 +5459,10 @@ softdep_setup_allocindir_page(ip, lbn, bp, ptrno, newblkno, oldblkno, nbp)
 	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_page");
 	mp = UFSTOVFS(ip->i_ump);
 	aip = newallocindir(ip, ptrno, newblkno, oldblkno, lbn);
-	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
 	/*
 	 * If we are allocating a directory page, then we must
 	 * allocate an associated pagedep to track additions and
@@ -5474,11 +5492,15 @@ softdep_setup_allocindir_meta(nbp, ip, bp, ptrno, newblkno)
 	struct inodedep *inodedep;
 	struct allocindir *aip;
 	ufs_lbn_t lbn;
+	int dflags;
 
 	lbn = nbp->b_lblkno;
 	ASSERT_VOP_LOCKED(ITOV(ip), "softdep_setup_allocindir_meta");
 	aip = newallocindir(ip, ptrno, newblkno, 0, lbn);
-	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags, &inodedep);
 	WORKLIST_INSERT(&nbp->b_dep, &aip->ai_block.nb_list);
 	if (setup_allocindir_phase2(bp, ip, inodedep, aip, lbn))
 		panic("softdep_setup_allocindir_meta: Block already existed");
@@ -6085,11 +6107,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	struct mount *mp;
 	ufs2_daddr_t extblocks, datablocks;
 	ufs_lbn_t tmpval, lbn, lastlbn;
-	int frags;
-	int lastoff, iboff;
-	int allocblock;
-	int error, i;
-	int needj;
+	int frags, lastoff, iboff, allocblock, needj, dflags, error, i;
 
 	fs = ip->i_fs;
 	mp = UFSTOVFS(ip->i_ump);
@@ -6107,7 +6125,10 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 	 * we don't need to journal the block frees.  The canceled journals
 	 * for the allocations will suffice.
 	 */
-	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
 	if ((inodedep->id_state & (UNLINKED | DEPCOMPLETE)) == UNLINKED &&
 	    length == 0)
 		needj = 0;
@@ -6232,7 +6253,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
 	ACQUIRE_LOCK(&lk);
-	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
+	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
 	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
 	/*
@@ -6310,7 +6331,7 @@ softdep_journal_freeblocks(ip, cred, length, flags)
 
 	}
 	ACQUIRE_LOCK(&lk);
-	inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
+	inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
 	TAILQ_INSERT_TAIL(&inodedep->id_freeblklst, freeblks, fb_next);
 	freeblks->fb_state |= DEPCOMPLETE | ONDEPLIST;
 	/*
@@ -6398,7 +6419,7 @@ softdep_setup_freeblocks(ip, length, flags)
 	struct fs *fs;
 	ufs2_daddr_t extblocks, datablocks;
 	struct mount *mp;
-	int i, delay, error;
+	int i, delay, error, dflags;
 	ufs_lbn_t tmpval;
 	ufs_lbn_t lbn;
 
@@ -6463,7 +6484,10 @@ softdep_setup_freeblocks(ip, length, flags)
 	 * Find and eliminate any inode dependencies.
 	 */
 	ACQUIRE_LOCK(&lk);
-	(void) inodedep_lookup(mp, ip->i_number, DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	(void) inodedep_lookup(mp, ip->i_number, dflags, &inodedep);
 	if ((inodedep->id_state & IOSTARTED) != 0)
 		panic("softdep_setup_freeblocks: inode busy");
 	/*
@@ -8029,7 +8053,7 @@ softdep_setup_directory_add(bp, dp, diroffset, newinum, newdirbp, isnewblk)
 	dap->da_pagedep = pagedep;
 	LIST_INSERT_HEAD(&pagedep->pd_diraddhd[DIRADDHASH(offset)], dap,
 	    da_pdlist);
-	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
+	inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep);
 	/*
 	 * If we're journaling, link the diradd into the jaddref so it
 	 * may be completed after the journal entry is written.  Otherwise,
@@ -8631,8 +8655,7 @@ newdirrem(bp, dp, ip, isrmdir, prevdirremp)
 	 * the number of freefile and freeblks structures.
 	 */
 	ACQUIRE_LOCK(&lk);
-	if (!(ip->i_flags & SF_SNAPSHOT) &&
-	    dep_current[D_DIRREM] > max_softdeps / 2)
+	if (!IS_SNAPSHOT(ip) && dep_current[D_DIRREM] > max_softdeps / 2)
 		(void) request_cleanup(ITOV(dp)->v_mount, FLUSH_BLOCKS);
 	FREE_LOCK(&lk);
 	dirrem = malloc(sizeof(struct dirrem),
@@ -8866,11 +8889,11 @@ softdep_setup_directory_change(bp, dp, ip, newinum, isrmdir)
 	/*
 	 * Lookup the jaddref for this journal entry.  We must finish
 	 * initializing it and make the diradd write dependent on it.
-	 * If we're not journaling Put it on the id_bufwait list if the inode
-	 * is not yet written. If it is written, do the post-inode write
-	 * processing to put it on the id_pendinghd list.
+	 * If we're not journaling, put it on the id_bufwait list if the
+	 * inode is not yet written. If it is written, do the post-inode
+	 * write processing to put it on the id_pendinghd list.
 	 */
-	inodedep_lookup(mp, newinum, DEPALLOC, &inodedep);
+	inodedep_lookup(mp, newinum, DEPALLOC | NODELAY, &inodedep);
 	if (MOUNTEDSUJ(mp)) {
 		jaddref = (struct jaddref *)TAILQ_LAST(&inodedep->id_inoreflst,
 		    inoreflst);
@@ -8912,9 +8935,13 @@ softdep_change_linkcnt(ip)
 	struct inode *ip;	/* the inode with the increased link count */
 {
 	struct inodedep *inodedep;
+	int dflags;
 
 	ACQUIRE_LOCK(&lk);
-	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, DEPALLOC, &inodedep);
+	dflags = DEPALLOC;
+	if (IS_SNAPSHOT(ip))
+		dflags |= NODELAY;
+	inodedep_lookup(UFSTOVFS(ip->i_ump), ip->i_number, dflags, &inodedep);
 	if (ip->i_nlink < ip->i_effnlink)
 		panic("softdep_change_linkcnt: bad delta");
 	inodedep->id_nlinkdelta = ip->i_nlink - ip->i_effnlink;
@@ -12544,22 +12571,25 @@ softdep_request_cleanup(fs, vp, cred, resource)
 	ufs2_daddr_t needed;
 	int error;
 
-	mp = vp->v_mount;
-	ump = VFSTOUFS(mp);
-	mtx_assert(UFS_MTX(ump), MA_OWNED);
-	if (resource == FLUSH_BLOCKS_WAIT)
-		stat_cleanup_blkrequests += 1;
-	else
-		stat_cleanup_inorequests += 1;
-
 	/*
 	 * If we are being called because of a process doing a
 	 * copy-on-write, then it is not safe to process any
 	 * worklist items as we will recurse into the copyonwrite
 	 * routine.  This will result in an incoherent snapshot.
+	 * If the vnode that we hold is a snapshot, we must avoid
+	 * handling other resources that could cause deadlock.
 	 */
-	if (curthread->td_pflags & TDP_COWINPROGRESS)
+	if ((curthread->td_pflags & TDP_COWINPROGRESS) || IS_SNAPSHOT(VTOI(vp)))
 		return (0);
+
+	if (resource == FLUSH_BLOCKS_WAIT)
+		stat_cleanup_blkrequests += 1;
+	else
+		stat_cleanup_inorequests += 1;
+
+	mp = vp->v_mount;
+	ump = VFSTOUFS(mp);
+	mtx_assert(UFS_MTX(ump), MA_OWNED);
 	UFS_UNLOCK(ump);
 	error = ffs_update(vp, 1);
 	if (error != 0) {
