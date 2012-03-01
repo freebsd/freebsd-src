@@ -81,8 +81,9 @@
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
-.Fn ifafree "struct ifaddr *ifa"
-.Fn IFAFREE "struct ifaddr *ifa"
+.Fn ifa_ref "struct ifaddr *ifa"
+.Ft void
+.Fn ifa_free "struct ifaddr *ifa"
 .\"
 .Ss "Interface Multicast Address Functions"
 .Ft int
@@ -999,14 +1000,11 @@ external routing protocol.
 .Pp
 References to
 .Vt ifaddr
-structures are gained manually, by incrementing the
-.Va ifa_refcnt
-member.
-References are released by calling either the
-.Fn ifafree
-function or the
-.Fn IFAFREE
-macro.
+structures are gained by calling the
+.Fn ifa_ref
+function and released by calling the
+.Fn ifa_free
+function.
 .Pp
 .Fn ifa_rtrequest
 is a pointer to a function which receives callouts from the routing
