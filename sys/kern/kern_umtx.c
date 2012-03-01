@@ -2289,7 +2289,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	struct timespec *timeout, u_long wflags)
 {
 	struct umtx_q *uq;
-	struct timeval tv;
 	struct timespec cts, ets, tts;
 	uint32_t flags;
 	uint32_t clockid;
@@ -2345,9 +2344,8 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 				kern_clock_gettime(td, clockid, &cts);
 				timespecsub(&tts, &cts);
 			}
-			TIMESPEC_TO_TIMEVAL(&tv, &tts);
 			for (;;) {
-				error = umtxq_sleep(uq, "ucond", tvtohz(&tv));
+				error = umtxq_sleep(uq, "ucond", tstohz(&tts));
 				if (error != ETIMEDOUT)
 					break;
 				kern_clock_gettime(td, clockid, &cts);
@@ -2357,7 +2355,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 				}
 				tts = ets;
 				timespecsub(&tts, &cts);
-				TIMESPEC_TO_TIMEVAL(&tv, &tts);
 			}
 		}
 	}
@@ -2555,27 +2552,30 @@ sleep:
 }
 
 static int
-do_rw_rdlock2(struct thread *td, void *obj, long val, struct timespec *timeout)
+do_rw_rdlock2(struct thread *td, void *obj, long val, struct _umtx_time *timeout)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec cts, ets, tts;
 	int error;
 
-	getnanouptime(&ts);
-	timespecadd(&ts, timeout);
-	TIMESPEC_TO_TIMEVAL(&tv, timeout);
+	kern_clock_gettime(td, timeout->_clockid, &cts);
+	if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+		ets = cts;
+		timespecadd(&ets, &timeout->_timeout);
+		tts = timeout->_timeout;
+	} else {
+		ets = timeout->_timeout;
+		tts = timeout->_timeout;
+		timespecsub(&tts, &cts);
+	}
 	for (;;) {
-		error = do_rw_rdlock(td, obj, val, tvtohz(&tv));
+		error = do_rw_rdlock(td, obj, val, tstohz(&tts));
 		if (error != ETIMEDOUT)
 			break;
-		getnanouptime(&ts2);
-		if (timespeccmp(&ts2, &ts, >=)) {
-			error = ETIMEDOUT;
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if (timespeccmp(&cts, &ets, >=))
 			break;
-		}
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		tts = ets;
+		timespecsub(&tts, &cts);
 	}
 	if (error == ERESTART)
 		error = EINTR;
@@ -2692,27 +2692,30 @@ sleep:
 }
 
 static int
-do_rw_wrlock2(struct thread *td, void *obj, struct timespec *timeout)
+do_rw_wrlock2(struct thread *td, void *obj, struct _umtx_time *timeout)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec cts, ets, tts;
 	int error;
 
-	getnanouptime(&ts);
-	timespecadd(&ts, timeout);
-	TIMESPEC_TO_TIMEVAL(&tv, timeout);
+	kern_clock_gettime(td, timeout->_clockid, &cts);
+	if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+		ets = cts;
+		timespecadd(&ets, &timeout->_timeout);
+		tts = timeout->_timeout;
+	} else {
+		ets = timeout->_timeout;
+		tts = timeout->_timeout;
+		timespecsub(&tts, &cts);
+	}
 	for (;;) {
-		error = do_rw_wrlock(td, obj, tvtohz(&tv));
+		error = do_rw_wrlock(td, obj, tstohz(&tts));
 		if (error != ETIMEDOUT)
 			break;
-		getnanouptime(&ts2);
-		if (timespeccmp(&ts2, &ts, >=)) {
-			error = ETIMEDOUT;
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if (timespeccmp(&cts, &ets, >=))
 			break;
-		}
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		tts = ets;
+		timespecsub(&tts, &cts);
 	}
 	if (error == ERESTART)
 		error = EINTR;
@@ -2934,11 +2937,11 @@ umtx_copyin_umtx_time(const void *addr, size_t size, struct _umtx_time *tp)
 {
 	int error;
 	
-	tp->_clockid = CLOCK_REALTIME;
-	tp->_flags   = 0;
-	if (size <= sizeof(struct timespec))
+	if (size <= sizeof(struct timespec)) {
+		tp->_clockid = CLOCK_REALTIME;
+		tp->_flags = 0;
 		error = copyin(addr, &tp->_timeout, sizeof(struct timespec));
-	else 
+	} else 
 		error = copyin(addr, tp, sizeof(struct _umtx_time));
 	if (error != 0)
 		return (error);
@@ -3159,14 +3162,15 @@ __umtx_op_cv_broadcast(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_rdlock(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_rdlock(td, uap->obj, uap->val, 0);
 	} else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(uap->uaddr2,
+		   (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 		error = do_rw_rdlock2(td, uap->obj, uap->val, &timeout);
@@ -3177,14 +3181,15 @@ __umtx_op_rw_rdlock(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_wrlock(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_wrlock(td, uap->obj, 0);
 	} else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(uap->uaddr2, 
+		   (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 
@@ -3430,14 +3435,15 @@ __umtx_op_cv_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_rdlock(td, uap->obj, uap->val, 0);
 	} else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 		error = do_rw_rdlock2(td, uap->obj, uap->val, &timeout);
@@ -3448,17 +3454,17 @@ __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_wrlock(td, uap->obj, 0);
 	} else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-
 		error = do_rw_wrlock2(td, uap->obj, &timeout);
 	}
 	return (error);

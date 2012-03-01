@@ -203,6 +203,8 @@ static char *pr_allow_names[] = {
 	"allow.socket_af",
 	"allow.mount.devfs",
 	"allow.mount.nullfs",
+	"allow.mount.zfs",
+	"allow.mount.procfs",
 };
 const size_t pr_allow_names_size = sizeof(pr_allow_names);
 
@@ -216,6 +218,8 @@ static char *pr_allow_nonames[] = {
 	"allow.nosocket_af",
 	"allow.mount.nodevfs",
 	"allow.mount.nonullfs",
+	"allow.mount.nozfs",
+	"allow.mount.noprocfs",
 };
 const size_t pr_allow_nonames_size = sizeof(pr_allow_nonames);
 
@@ -4199,11 +4203,19 @@ SYSCTL_PROC(_security_jail, OID_AUTO, mount_allowed,
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_devfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_DEVFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount the devfs file system");
+    "Processes in jail can mount the devfs file system");
 SYSCTL_PROC(_security_jail, OID_AUTO, mount_nullfs_allowed,
     CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
     NULL, PR_ALLOW_MOUNT_NULLFS, sysctl_jail_default_allow, "I",
-    "Processes in jail can mount/unmount the nullfs file system");
+    "Processes in jail can mount the nullfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_procfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_PROCFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the procfs file system");
+SYSCTL_PROC(_security_jail, OID_AUTO, mount_zfs_allowed,
+    CTLTYPE_INT | CTLFLAG_RW | CTLFLAG_MPSAFE,
+    NULL, PR_ALLOW_MOUNT_ZFS, sysctl_jail_default_allow, "I",
+    "Processes in jail can mount the zfs file system");
 
 static int
 sysctl_jail_default_level(SYSCTL_HANDLER_ARGS)
@@ -4347,9 +4359,13 @@ SYSCTL_JAIL_PARAM_SUBNODE(allow, mount, "Jail mount/unmount permission flags");
 SYSCTL_JAIL_PARAM(_allow_mount, , CTLTYPE_INT | CTLFLAG_RW,
     "B", "Jail may mount/unmount jail-friendly file systems in general");
 SYSCTL_JAIL_PARAM(_allow_mount, devfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount the devfs file system");
+    "B", "Jail may mount the devfs file system");
 SYSCTL_JAIL_PARAM(_allow_mount, nullfs, CTLTYPE_INT | CTLFLAG_RW,
-    "B", "Jail may mount/unmount the nullfs file system");
+    "B", "Jail may mount the nullfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, procfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the procfs file system");
+SYSCTL_JAIL_PARAM(_allow_mount, zfs, CTLTYPE_INT | CTLFLAG_RW,
+    "B", "Jail may mount the zfs file system");
 
 void
 prison_racct_foreach(void (*callback)(struct racct *racct,

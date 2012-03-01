@@ -339,11 +339,11 @@ amr_pci_attach(device_t dev)
     /*
      * Build the scatter/gather buffers.
      */
-    if (amr_sglist_map(sc))
+    if ((error = amr_sglist_map(sc)) != 0)
 	goto out;
     debug(2, "s/g list mapped");
 
-    if (amr_ccb_map(sc))
+    if ((error = amr_ccb_map(sc)) != 0)
 	goto out;
     debug(2, "ccb mapped");
 

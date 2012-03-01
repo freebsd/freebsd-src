@@ -878,10 +878,9 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				remain |= byte2 << 8;
 				if (remain > (0x7f*4 - vrs.off)) {
 					state = -1;
-					printf(
-			    "pci%d:%d:%d:%d: invalid VPD data, remain %#x\n",
-					    cfg->domain, cfg->bus, cfg->slot,
-					    cfg->func, remain);
+					pci_printf(cfg,
+					    "invalid VPD data, remain %#x\n",
+					    remain);
 				}
 				name = byte & 0x7f;
 			} else {
@@ -953,10 +952,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				 * if this happens, we can't trust the rest
 				 * of the VPD.
 				 */
-				printf(
-				    "pci%d:%d:%d:%d: bad keyword length: %d\n",
-				    cfg->domain, cfg->bus, cfg->slot,
-				    cfg->func, dflen);
+				pci_printf(cfg, "bad keyword length: %d\n",
+				    dflen);
 				cksumvalid = 0;
 				state = -1;
 				break;
@@ -989,10 +986,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 					cksumvalid = 1;
 				else {
 					if (bootverbose)
-						printf(
-				"pci%d:%d:%d:%d: bad VPD cksum, remain %hhu\n",
-						    cfg->domain, cfg->bus,
-						    cfg->slot, cfg->func,
+						pci_printf(cfg,
+					    "bad VPD cksum, remain %hhu\n",
 						    vrs.cksum);
 					cksumvalid = 0;
 					state = -1;
@@ -1070,9 +1065,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			break;
 
 		default:
-			printf("pci%d:%d:%d:%d: invalid state: %d\n",
-			    cfg->domain, cfg->bus, cfg->slot, cfg->func,
-			    state);
+			pci_printf(cfg, "invalid state: %d\n", state);
 			state = -1;
 			break;
 		}
@@ -1089,8 +1082,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	}
 	if (state < -1) {
 		/* I/O error, clean up */
-		printf("pci%d:%d:%d:%d: failed to read VPD data.\n",
-		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
+		pci_printf(cfg, "failed to read VPD data.\n");
 		if (cfg->vpd.vpd_ident != NULL) {
 			free(cfg->vpd.vpd_ident, M_DEVBUF);
 			cfg->vpd.vpd_ident = NULL;

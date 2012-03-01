@@ -165,7 +165,7 @@ syscallenter(struct thread *td, struct syscall_args *sa)
 static inline void
 syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 {
-	struct proc *p;
+	struct proc *p, *p2;
 	int traced;
 
 	p = td->td_proc;
@@ -222,5 +222,24 @@ syscallret(struct thread *td, int error, struct syscall_args *sa __unused)
 			ptracestop(td, SIGTRAP);
 		td->td_dbgflags &= ~(TDB_SCX | TDB_EXEC | TDB_FORK);
 		PROC_UNLOCK(p);
+	}
+
+	if (td->td_pflags & TDP_RFPPWAIT) {
+		/*
+		 * Preserve synchronization semantics of vfork.  If
+		 * waiting for child to exec or exit, fork set
+		 * P_PPWAIT on child, and there we sleep on our proc
+		 * (in case of exit).
+		 *
+		 * Do it after the ptracestop() above is finished, to
+		 * not block our debugger until child execs or exits
+		 * to finish vfork wait.
+		 */
+		td->td_pflags &= ~TDP_RFPPWAIT;
+		p2 = td->td_rfppwait_p;
+		PROC_LOCK(p2);
+		while (p2->p_flag & P_PPWAIT)
+			cv_wait(&p2->p_pwait, &p2->p_mtx);
+		PROC_UNLOCK(p2);
 	}
 }
