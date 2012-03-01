@@ -104,7 +104,6 @@ __FBSDID("$FreeBSD$");
 #include <sys/mutex.h>
 #include <net/pfil.h>
 
-static void		 init_zone_var(void);
 static void		 cleanup_pf_zone(void);
 int			 pfattach(void);
 static struct pf_pool	*pf_get_pool(char *, u_int32_t, u_int8_t, u_int32_t,
@@ -208,7 +207,9 @@ static struct cdevsw pf_cdevsw = {
 static volatile VNET_DEFINE(int, pf_pfil_hooked);
 #define V_pf_pfil_hooked	VNET(pf_pfil_hooked)
 VNET_DEFINE(int,		pf_end_threads);
-struct mtx			pf_task_mtx;
+
+struct mtx			pf_mtx;
+struct rwlock			pf_rules_lock;
 
 /* pfsync */
 pfsync_state_import_t 		*pfsync_state_import_ptr = NULL;
@@ -233,25 +234,19 @@ static void
 init_pf_mutex(void)
 {
 
-	mtx_init(&pf_task_mtx, "pf task mtx", NULL, MTX_DEF);
+	mtx_init(&pf_mtx, "pf Giant", NULL, MTX_DEF);
+	rw_init(&pf_rules_lock, "pf rulesets");
+	/* XXXGL: name */
+	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
 }
 
 static void
 destroy_pf_mutex(void)
 {
 
-	mtx_destroy(&pf_task_mtx);
-}
-
-static void
-init_zone_var(void)
-{
-	V_pf_src_tree_pl = V_pf_rule_pl = NULL;
-	V_pf_state_pl = V_pf_state_key_pl = V_pf_state_item_pl = NULL;
-	V_pf_altq_pl = V_pf_pooladdr_pl = NULL;
-	V_pf_frent_pl = V_pf_frag_pl = V_pf_cache_pl = V_pf_cent_pl = NULL;
-	V_pf_state_scrub_pl = NULL;
-	V_pfr_ktable_pl = V_pfr_kentry_pl = NULL;
+	mtx_destroy(&pf_mtx);
+	rw_destroy(&pf_rules_lock);
+	sx_destroy(&V_pf_consistency_lock);
 }
 
 static void
@@ -265,13 +260,8 @@ cleanup_pf_zone(void)
 	uma_zdestroy(V_pf_state_item_pl);
 	uma_zdestroy(V_pf_altq_pl);
 	uma_zdestroy(V_pf_pooladdr_pl);
-	uma_zdestroy(V_pf_frent_pl);
-	uma_zdestroy(V_pf_frag_pl);
-	uma_zdestroy(V_pf_cache_pl);
-	uma_zdestroy(V_pf_cent_pl);
 	uma_zdestroy(V_pfr_ktable_pl);
 	uma_zdestroy(V_pfr_kentry_pl);
-	uma_zdestroy(V_pf_state_scrub_pl);
 	uma_zdestroy(V_pfi_addr_pl);
 }
 
@@ -300,29 +290,17 @@ pfattach(void)
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pfr_kentry_pl = uma_zcreate("pfrkentry", sizeof(struct pfr_kentry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_frent_pl = uma_zcreate("pffrent", sizeof(struct pf_frent),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_frag_pl = uma_zcreate("pffrag", sizeof(struct pf_fragment),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_cache_pl = uma_zcreate("pffrcache", sizeof(struct pf_fragment),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_cent_pl = uma_zcreate("pffrcent", sizeof(struct pf_frcache),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_scrub_pl = uma_zcreate("pfstatescrub",
-	    sizeof(struct pf_state_scrub),  NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 	V_pfi_addr_pl = uma_zcreate("pfiaddrpl", sizeof(struct pfi_dynaddr),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	pfr_initialize();
 	pfi_initialize();
 	pf_osfp_initialize();
+	pf_normalize_init();
 
 	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_pl;
 	V_pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
 	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_pl;
 	V_pf_pool_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_FRAGS].pp = V_pf_frent_pl;
-	V_pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_pl;
 	V_pf_pool_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
 	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_pl;
@@ -368,8 +346,6 @@ pfattach(void)
 	my_timeout[PFTM_TS_DIFF] = PFTM_TS_DIFF_VAL;
 	my_timeout[PFTM_ADAPTIVE_START] = PFSTATE_ADAPT_START;
 	my_timeout[PFTM_ADAPTIVE_END] = PFSTATE_ADAPT_END;
-
-	pf_normalize_init();
 
 	bzero(&V_pf_status, sizeof(V_pf_status));
 	V_pf_status.debug = PF_DEBUG_URGENT;
@@ -3533,8 +3509,6 @@ pf_load(void)
 
 	init_pf_mutex();
 	pf_dev = make_dev(&pf_cdevsw, 0, 0, 0, 0600, PF_NAME);
-	init_zone_var();
-	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
 	if ((error = pfattach()) != 0)
 		return (error);
 
@@ -3565,8 +3539,9 @@ pf_unload(void)
 	V_pf_end_threads = 1;
 	while (V_pf_end_threads < 2) {
 		wakeup_one(pf_purge_thread);
-		msleep(pf_purge_thread, &pf_task_mtx, 0, "pftmo", hz);
+		msleep(pf_purge_thread, &pf_mtx, 0, "pftmo", hz);
 	}
+	pf_normalize_cleanup();
 	pfi_cleanup();
 	pf_osfp_flush();
 	pf_osfp_cleanup();
@@ -3574,8 +3549,8 @@ pf_unload(void)
 	PF_UNLOCK();
 	destroy_dev(pf_dev);
 	destroy_pf_mutex();
-	sx_destroy(&V_pf_consistency_lock);
-	return error;
+
+	return (error);
 }
 
 static int

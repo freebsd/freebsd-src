@@ -68,30 +68,75 @@ __FBSDID("$FreeBSD$");
 
 #include <net/pfvar.h>
 
+struct pf_frent {
+	LIST_ENTRY(pf_frent) fr_next;
+	struct ip *fr_ip;
+	struct mbuf *fr_m;
+};
 
+struct pf_frcache {
+	LIST_ENTRY(pf_frcache) fr_next;
+	uint16_t		fr_off;
+	uint16_t		fr_end;
+};
+
+struct pf_fragment {
+	RB_ENTRY(pf_fragment) fr_entry;
+	TAILQ_ENTRY(pf_fragment) frag_next;
+	struct in_addr	fr_src;
+	struct in_addr	fr_dst;
+	u_int8_t	fr_p;		/* protocol of this fragment */
+	u_int8_t	fr_flags;	/* status flags */
 #define PFFRAG_SEENLAST	0x0001		/* Seen the last fragment for this */
 #define PFFRAG_NOBUFFER	0x0002		/* Non-buffering fragment cache */
 #define PFFRAG_DROP	0x0004		/* Drop all fragments */
 #define BUFFER_FRAGMENTS(fr)	(!((fr)->fr_flags & PFFRAG_NOBUFFER))
+	u_int16_t	fr_id;		/* fragment id for reassemble */
+	u_int16_t	fr_max;		/* fragment data max */
+	u_int32_t	fr_timeout;
+#define	fr_queue	fr_u.fru_queue
+#define	fr_cache	fr_u.fru_cache
+	union {
+		LIST_HEAD(pf_fragq, pf_frent) fru_queue;	/* buffering */
+		LIST_HEAD(pf_cacheq, pf_frcache) fru_cache;	/* non-buf */
+	} fr_u;
+};
 
+static struct mtx pf_frag_mtx;
+#define PF_FRAG_LOCK()		mtx_lock(&pf_frag_mtx)
+#define PF_FRAG_UNLOCK()	mtx_unlock(&pf_frag_mtx)
+#define PF_FRAG_ASSERT()	mtx_assert(&pf_frag_mtx, MA_OWNED)
+
+VNET_DEFINE(uma_zone_t, pf_state_scrub_pl);	/* XXX: shared with pfsync */
+
+static VNET_DEFINE(uma_zone_t, pf_frent_pl);
+#define	V_pf_frent_pl	VNET(pf_frent_pl)
+static VNET_DEFINE(uma_zone_t, pf_frag_pl);
+#define	V_pf_frag_pl	VNET(pf_frag_pl)
+static VNET_DEFINE(uma_zone_t, pf_cache_pl);
+#define	V_pf_cache_pl	VNET(pf_cache_pl)
+static VNET_DEFINE(uma_zone_t, pf_cent_pl);
+#define	V_pf_cent_pl	VNET(pf_cent_pl)
+static VNET_DEFINE(int, pf_nfrents);
+#define	V_pf_nfrents	VNET(pf_nfrents)
+static VNET_DEFINE(int, pf_ncache);
+#define	V_pf_ncache	VNET(pf_ncache)
 
 TAILQ_HEAD(pf_fragqueue, pf_fragment);
 TAILQ_HEAD(pf_cachequeue, pf_fragment);
-VNET_DEFINE(struct pf_fragqueue,	pf_fragqueue);
+static VNET_DEFINE(struct pf_fragqueue,	pf_fragqueue);
 #define	V_pf_fragqueue			VNET(pf_fragqueue)
-VNET_DEFINE(struct pf_cachequeue,	pf_cachequeue);
+static VNET_DEFINE(struct pf_cachequeue,	pf_cachequeue);
 #define	V_pf_cachequeue			VNET(pf_cachequeue)
-
+RB_HEAD(pf_frag_tree, pf_fragment);
+static VNET_DEFINE(struct pf_frag_tree,	pf_frag_tree);
+#define	V_pf_frag_tree			VNET(pf_frag_tree)
+static VNET_DEFINE(struct pf_frag_tree,	pf_cache_tree);
+#define	V_pf_cache_tree			VNET(pf_cache_tree)
 static int		 pf_frag_compare(struct pf_fragment *,
 			    struct pf_fragment *);
-
-RB_HEAD(pf_frag_tree, pf_fragment);
-VNET_DEFINE(struct pf_frag_tree,	pf_frag_tree);
-#define	V_pf_frag_tree			VNET(pf_frag_tree)
-VNET_DEFINE(struct pf_frag_tree,	pf_cache_tree);
-#define	V_pf_cache_tree			VNET(pf_cache_tree)
-RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
-RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
+static RB_PROTOTYPE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
+static RB_GENERATE(pf_frag_tree, pf_fragment, fr_entry, pf_frag_compare);
 
 /* Private prototypes */
 static void		 pf_ip2key(struct pf_fragment *, struct ip *);
@@ -117,21 +162,23 @@ static void		 pf_scrub_ip6(struct mbuf **, u_int8_t);
 	}						\
 } while(0)
 
-/* Globals */
-VNET_DEFINE(uma_zone_t,		pf_frent_pl);
-VNET_DEFINE(uma_zone_t,		pf_frag_pl);
-VNET_DEFINE(uma_zone_t,		pf_cache_pl);
-VNET_DEFINE(uma_zone_t,		pf_cent_pl);
-VNET_DEFINE(uma_zone_t,		pf_state_scrub_pl);
-
-VNET_DEFINE(int,		pf_nfrents);
-#define	V_pf_nfrents		VNET(pf_nfrents)
-VNET_DEFINE(int,		pf_ncache);
-#define	V_pf_ncache		VNET(pf_ncache)
-
 void
 pf_normalize_init(void)
 {
+
+	V_pf_frent_pl = uma_zcreate("pffrent", sizeof(struct pf_frent),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	/* XXXGL: two zones of struct pf_fragment */
+	V_pf_frag_pl = uma_zcreate("pffrag", sizeof(struct pf_fragment),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_pf_cache_pl = uma_zcreate("pffrcache", sizeof(struct pf_fragment),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_pf_cent_pl = uma_zcreate("pffrcent", sizeof(struct pf_frcache),
+	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
+	V_pf_state_scrub_pl = uma_zcreate("pfstatescrub",
+	    sizeof(struct pf_state_scrub),  NULL, NULL, NULL, NULL,
+	    UMA_ALIGN_PTR, 0);
+
 	/*
 	 * XXX
 	 * No high water mark support(It's hint not hard limit).
@@ -141,8 +188,26 @@ pf_normalize_init(void)
 	uma_zone_set_max(V_pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
 	uma_zone_set_max(V_pf_cent_pl, PFFRAG_FRCENT_HIWAT);
 
+	V_pf_pool_limits[PF_LIMIT_FRAGS].pp = V_pf_frent_pl;
+	V_pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
+
+	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
+
 	TAILQ_INIT(&V_pf_fragqueue);
 	TAILQ_INIT(&V_pf_cachequeue);
+}
+
+void
+pf_normalize_cleanup(void)
+{
+
+	uma_zdestroy(V_pf_frent_pl);
+	uma_zdestroy(V_pf_frag_pl);
+	uma_zdestroy(V_pf_cache_pl);
+	uma_zdestroy(V_pf_cent_pl);
+	uma_zdestroy(V_pf_state_scrub_pl);
+
+	mtx_destroy(&pf_frag_mtx);
 }
 
 static int
@@ -172,6 +237,7 @@ pf_purge_expired_fragments(void)
 	u_int32_t		 expire = time_second -
 				    V_pf_default_rule.timeout[PFTM_FRAG];
 
+	PF_FRAG_LOCK();
 	while ((frag = TAILQ_LAST(&V_pf_fragqueue, pf_fragqueue)) != NULL) {
 		KASSERT((BUFFER_FRAGMENTS(frag)),
 		    ("BUFFER_FRAGMENTS(frag) == 0: %s", __FUNCTION__));
@@ -195,6 +261,7 @@ pf_purge_expired_fragments(void)
 		    ("!(TAILQ_EMPTY() || TAILQ_LAST() == farg): %s",
 		    __FUNCTION__));
 	}
+	PF_FRAG_UNLOCK();
 }
 
 /*
@@ -206,6 +273,8 @@ pf_flush_fragments(void)
 {
 	struct pf_fragment	*frag;
 	int			 goal;
+
+	PF_FRAG_ASSERT();
 
 	goal = V_pf_nfrents * 9 / 10;
 	DPFPRINTF(("trying to free > %d frents\n",
@@ -236,6 +305,8 @@ pf_free_fragment(struct pf_fragment *frag)
 {
 	struct pf_frent		*frent;
 	struct pf_frcache	*frcache;
+
+	PF_FRAG_ASSERT();
 
 	/* Free all fragments */
 	if (BUFFER_FRAGMENTS(frag)) {
@@ -281,6 +352,8 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 	struct pf_fragment	 key;
 	struct pf_fragment	*frag;
 
+	PF_FRAG_ASSERT();
+
 	pf_ip2key(&key, ip);
 
 	frag = RB_FIND(pf_frag_tree, tree, &key);
@@ -304,6 +377,9 @@ pf_find_fragment(struct ip *ip, struct pf_frag_tree *tree)
 static void
 pf_remove_fragment(struct pf_fragment *frag)
 {
+
+	PF_FRAG_ASSERT();
+
 	if (BUFFER_FRAGMENTS(frag)) {
 		RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
 		TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
@@ -329,6 +405,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	u_int16_t	 ip_len = ntohs(ip->ip_len) - ip->ip_hl * 4;
 	u_int16_t	 max = ip_len + off;
 
+	PF_FRAG_ASSERT();
 	KASSERT((*frag == NULL || BUFFER_FRAGMENTS(*frag)),
 	    ("! (*frag == NULL || BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
 
@@ -533,6 +610,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 	u_int16_t		 max = ip_len + off;
 	int			 hosed = 0;
 
+	PF_FRAG_ASSERT();
 	KASSERT((*frag == NULL || !BUFFER_FRAGMENTS(*frag)),
 	    ("!(*frag == NULL || !BUFFER_FRAGMENTS(*frag)): %s", __FUNCTION__));
 
@@ -847,6 +925,8 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	int			 ip_off;
 	int			 tag = -1;
 
+	PF_RULES_RASSERT();
+
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
 		r->evaluations++;
@@ -924,8 +1004,9 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	max = fragoff + ip_len;
 
 	if ((r->rule_flag & (PFRULE_FRAGCROP|PFRULE_FRAGDROP)) == 0) {
-		/* Fully buffer all of the fragments */
 
+		/* Fully buffer all of the fragments */
+		PF_FRAG_LOCK();
 		frag = pf_find_fragment(h, &V_pf_frag_tree);
 
 		/* Check if we saw the last fragment already */
@@ -936,6 +1017,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		/* Get an entry for the fragment queue */
 		frent = uma_zalloc(V_pf_frent_pl, M_NOWAIT);
 		if (frent == NULL) {
+			PF_FRAG_UNLOCK();
 			REASON_SET(reason, PFRES_MEMORY);
 			return (PF_DROP);
 		}
@@ -947,11 +1029,14 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		DPFPRINTF(("reass frag %d @ %d-%d\n", h->ip_id, fragoff, max));
 		*m0 = m = pf_reassemble(m0, &frag, frent, mff);
 
-		if (m == NULL)
+		if (m == NULL) {
+			PF_FRAG_UNLOCK();
 			return (PF_DROP);
+		}
 
 		/* use mtag from concatenated mbuf chain */
 		pd->pf_mtag = pf_find_mtag(m);
+		PF_FRAG_UNLOCK();
 #ifdef DIAGNOSTIC
 		if (pd->pf_mtag == NULL) {
 			printf("%s: pf_find_mtag returned NULL(1)\n", __func__);
@@ -979,6 +1064,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			goto fragment_pass;
 		}
 
+		PF_FRAG_LOCK();
 		frag = pf_find_fragment(h, &V_pf_cache_tree);
 
 		/* Check if we saw the last fragment already */
@@ -992,6 +1078,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 		*m0 = m = pf_fragcache(m0, h, &frag, mff,
 		    (r->rule_flag & PFRULE_FRAGDROP) ? 1 : 0, &nomem);
 		if (m == NULL) {
+			PF_FRAG_UNLOCK();
 			if (nomem)
 				goto no_mem;
 			goto drop;
@@ -999,6 +1086,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 
 		/* use mtag from copied and trimmed mbuf chain */
 		pd->pf_mtag = pf_find_mtag(m);
+		PF_FRAG_UNLOCK();
 #ifdef DIAGNOSTIC
 		if (pd->pf_mtag == NULL) {
 			printf("%s: pf_find_mtag returned NULL(2)\n", __func__);
@@ -1051,8 +1139,10 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 	DPFPRINTF(("dropping bad fragment\n"));
 
 	/* Free associated fragments */
-	if (frag != NULL)
+	if (frag != NULL) {
 		pf_free_fragment(frag);
+		PF_FRAG_UNLOCK();
+	}
 
 	REASON_SET(reason, PFRES_FRAG);
 	if (r != NULL && r->log)
@@ -1081,6 +1171,8 @@ pf_normalize_ip6(struct mbuf **m0, int dir, struct pfi_kif *kif,
 	int			 ooff;
 	u_int8_t		 proto;
 	int			 terminal;
+
+	PF_RULES_RASSERT();
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
@@ -1249,6 +1341,8 @@ pf_normalize_tcp(int dir, struct pfi_kif *kif, struct mbuf *m, int ipoff,
 	u_short		 reason;
 	u_int8_t	 flags;
 	sa_family_t	 af = pd->af;
+
+	PF_RULES_RASSERT();
 
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_SCRUB].active.ptr);
 	while (r != NULL) {
@@ -1461,6 +1555,8 @@ pf_normalize_tcp_stateful(struct mbuf *m, int off, struct pf_pdesc *pd,
 	u_int8_t *opt;
 	int copyback = 0;
 	int got_ts = 0;
+
+	/* XXXGL: lock */
 
 	KASSERT((src->scrub || dst->scrub), 
 	    ("pf_normalize_tcp_statefull: src->scrub && dst->scrub!"));

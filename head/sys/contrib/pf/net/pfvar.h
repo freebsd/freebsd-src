@@ -202,12 +202,19 @@ struct pfi_dynaddr {
 
 #define	PF_NAME		"pf"
 
-extern struct mtx pf_task_mtx;
+extern struct mtx pf_mtx;
+#define	PF_LOCK_ASSERT()	mtx_assert(&pf_mtx, MA_OWNED)
+#define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_mtx, MA_NOTOWNED)
+#define	PF_LOCK()		mtx_lock(&pf_mtx)
+#define	PF_UNLOCK()		mtx_unlock(&pf_mtx)
 
-#define	PF_LOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_OWNED)
-#define	PF_UNLOCK_ASSERT()	mtx_assert(&pf_task_mtx, MA_NOTOWNED)
-#define	PF_LOCK()		mtx_lock(&pf_task_mtx)
-#define	PF_UNLOCK()		mtx_unlock(&pf_task_mtx)
+extern struct rwlock pf_rules_lock;
+#define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
+#define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
+#define	PF_RULES_RASSERT()	rw_assert(&pf_rules_lock, RA_RLOCKED)
+#define	PF_RULES_WLOCK()	rw_wlock(&pf_rules_lock)
+#define	PF_RULES_WUNLOCK()	rw_wunlock(&pf_rules_lock)
+#define	PF_RULES_WASSERT()	rw_assert(&pf_rules_lock, RA_WLOCKED)
 
 #define	PF_COPYIN(uaddr, kaddr, len, r)		do {	\
 	PF_UNLOCK();					\
@@ -1769,10 +1776,6 @@ VNET_DECLARE(uma_zone_t,		 pfr_ktable_pl);
 #define	V_pfr_ktable_pl			 VNET(pfr_ktable_pl)
 VNET_DECLARE(uma_zone_t,		 pfr_kentry_pl);
 #define	V_pfr_kentry_pl			 VNET(pfr_kentry_pl)
-VNET_DECLARE(uma_zone_t,		 pf_cache_pl);
-#define	V_pf_cache_pl			 VNET(pf_cache_pl)
-VNET_DECLARE(uma_zone_t,		 pf_cent_pl);
-#define	V_pf_cent_pl			 VNET(pf_cent_pl)
 VNET_DECLARE(uma_zone_t,		 pf_state_scrub_pl);
 #define	V_pf_state_scrub_pl		 VNET(pf_state_scrub_pl)
 VNET_DECLARE(uma_zone_t,		 pfi_addr_pl);
@@ -1826,6 +1829,7 @@ int	pf_match_addr_range(struct pf_addr *, struct pf_addr *,
 int	pf_match_port(u_int8_t, u_int16_t, u_int16_t, u_int16_t);
 
 void	pf_normalize_init(void);
+void	pf_normalize_cleanup(void);
 int	pf_normalize_ip(struct mbuf **, int, struct pfi_kif *, u_short *,
 	    struct pf_pdesc *);
 int	pf_normalize_ip6(struct mbuf **, int, struct pfi_kif *, u_short *,
@@ -1912,10 +1916,6 @@ void		 pf_qid2qname(u_int32_t, char *);
 VNET_DECLARE(struct pf_status,		 pf_status);
 #define	V_pf_status			 VNET(pf_status)
 
-VNET_DECLARE(uma_zone_t,		 pf_frent_pl);
-#define	V_pf_frent_pl			 VNET(pf_frent_pl)
-VNET_DECLARE(uma_zone_t,		 pf_frag_pl);
-#define	V_pf_frag_pl			 VNET(pf_frag_pl)
 VNET_DECLARE(struct sx,			 pf_consistency_lock);
 #define	V_pf_consistency_lock		 VNET(pf_consistency_lock)
 
@@ -1925,36 +1925,6 @@ struct pf_pool_limit {
 };
 VNET_DECLARE(struct pf_pool_limit,		 pf_pool_limits[PF_LIMIT_MAX]);
 #define	V_pf_pool_limits			 VNET(pf_pool_limits)
-
-struct pf_frent {
-	LIST_ENTRY(pf_frent) fr_next;
-	struct ip *fr_ip;
-	struct mbuf *fr_m;
-};
-
-struct pf_frcache {
-	LIST_ENTRY(pf_frcache) fr_next;
-	uint16_t		fr_off;
-	uint16_t		fr_end;
-};
-
-struct pf_fragment {
-	RB_ENTRY(pf_fragment) fr_entry;
-	TAILQ_ENTRY(pf_fragment) frag_next;
-	struct in_addr	fr_src;
-	struct in_addr	fr_dst;
-	u_int8_t	fr_p;		/* protocol of this fragment */
-	u_int8_t	fr_flags;	/* status flags */
-	u_int16_t	fr_id;		/* fragment id for reassemble */
-	u_int16_t	fr_max;		/* fragment data max */
-	u_int32_t	fr_timeout;
-#define	fr_queue	fr_u.fru_queue
-#define	fr_cache	fr_u.fru_cache
-	union {
-		LIST_HEAD(pf_fragq, pf_frent) fru_queue;	/* buffering */
-		LIST_HEAD(pf_cacheq, pf_frcache) fru_cache;	/* non-buf */
-	} fr_u;
-};
 
 #endif /* _KERNEL */
 

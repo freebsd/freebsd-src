@@ -87,14 +87,14 @@ __FBSDID("$FreeBSD$");
 #ifdef _KERNEL
 VNET_DEFINE(struct pf_anchor_global,	pf_anchors);
 VNET_DEFINE(struct pf_anchor,		pf_main_anchor);
-#else
+#else /* ! _KERNEL */
 struct pf_anchor_global	 pf_anchors;
 struct pf_anchor	 pf_main_anchor;
 #undef V_pf_anchors
 #define V_pf_anchors		 pf_anchors
 #undef pf_main_ruleset
 #define pf_main_ruleset		 pf_main_anchor.ruleset
-#endif
+#endif /* _KERNEL */
 
 static __inline int pf_anchor_compare(struct pf_anchor *, struct pf_anchor *);
 
