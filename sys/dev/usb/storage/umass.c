@@ -1056,6 +1056,11 @@ umass_detach(device_t dev)
 #if (__FreeBSD_version >= 700037)
 	mtx_lock(&sc->sc_mtx);
 #endif
+
+	/* cancel any leftover CCB's */
+
+	umass_cancel_ccb(sc);
+
 	umass_cam_detach_sim(sc);
 
 #if (__FreeBSD_version >= 700037)
@@ -1607,8 +1612,7 @@ umass_command_start(struct umass_softc *sc, uint8_t dir,
 	if (sc->sc_xfer[sc->sc_last_xfer_index]) {
 		usbd_transfer_start(sc->sc_xfer[sc->sc_last_xfer_index]);
 	} else {
-		ccb->ccb_h.status = CAM_TID_INVALID;
-		xpt_done(ccb);
+		umass_cancel_ccb(sc);
 	}
 }
 
