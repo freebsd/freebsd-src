@@ -226,6 +226,12 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	bus_dma_tag_t newtag;
 	int error = 0;
 
+#if defined(PAE)
+	/* Need at least a 4GB boundary, PAE limitations require 2GB */
+	if (boundary == 0 || boundary > ((bus_addr_t)1 << 31))
+		boundary = (bus_size_t)1 << 31;
+#endif
+
 	/* Basic sanity checking */
 	if (boundary != 0 && boundary < maxsegsz)
 		maxsegsz = boundary;
