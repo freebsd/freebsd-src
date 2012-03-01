@@ -1159,8 +1159,11 @@ Return a reference-counted (via
 .Vt ifnet
 pointer for the interface named
 .Fa name .
-This is a preferred function over
+This is the preferred function over
 .Fn ifunit .
+The caller is responsible for releasing the reference with
+.Fn if_rele
+when it is finished with the ifnet.
 .It Fn ifioctl
 Process the ioctl request
 .Fa cmd ,
