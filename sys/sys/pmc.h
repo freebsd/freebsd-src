@@ -86,6 +86,7 @@
 	__PMC_CPU(INTEL_ATOM,	0x8A,	"Intel Atom") \
 	__PMC_CPU(INTEL_COREI7, 0x8B,   "Intel Core i7") \
 	__PMC_CPU(INTEL_WESTMERE, 0x8C,   "Intel Westmere") \
+	__PMC_CPU(INTEL_SANDYBRIDGE, 0x8D,   "Intel Sandy Bridge") \
 	__PMC_CPU(INTEL_XSCALE,	0x100,	"Intel XScale") \
 	__PMC_CPU(MIPS_24K,     0x200,  "MIPS 24K")  \
 	__PMC_CPU(PPC_7450,     0x300,  "PowerPC MPC7450")
