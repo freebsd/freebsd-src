@@ -66,6 +66,8 @@
 .Fn if_allmulti "struct ifnet *ifp" "int amswitch"
 .Ft "struct ifnet *"
 .Fn ifunit "const char *name"
+.Ft "struct ifnet *"
+.Fn ifunit_ref "const char *name"
 .Ft void
 .Fn if_up "struct ifnet *ifp"
 .\"
@@ -1151,6 +1153,14 @@ Return an
 .Vt ifnet
 pointer for the interface named
 .Fa name .
+.It Fn ifunit_ref
+Return a reference-counted (via
+.Fn ifa_ref )
+.Vt ifnet
+pointer for the interface named
+.Fa name .
+This is a preferred function over
+.Fn ifunit .
 .It Fn ifioctl
 Process the ioctl request
 .Fa cmd ,
