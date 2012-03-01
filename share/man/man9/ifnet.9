@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2012
+.Dd March 1, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -256,6 +256,11 @@ if a unit number is not associated with the device.
 (Initialized by driver
 (usually via
 .Fn if_initname ) . )
+.It Va if_refcount
+.Pq Vt u_int
+The reference count.
+(Initialized by
+.Fn if_alloc . )
 .It Va if_addrhead
 .Pq Vt "struct ifaddrhead"
 The head of the
@@ -339,6 +344,20 @@ The output queue.
 .\"section, below.
 .\"(Initialized by driver.)
 .El
+.Pp
+References to
+.Vt ifnet
+structures are gained by calling the
+.Fn if_ref
+function and released by calling the
+.Fn if_rele
+function.
+They are used to allow kernel code walking global interface lists
+to release the
+.Vt ifnet
+lock yet keep the
+.Vt ifnet
+structure stable.
 .Pp
 There are in addition a number of function pointers which the driver
 must initialize to complete its interface with the generic interface
