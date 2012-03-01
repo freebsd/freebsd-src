@@ -64,7 +64,7 @@ static int	ps3bus_activate_resource(device_t bus, device_t child, int type,
 		    int rid, struct resource *res);
 static bus_dma_tag_t ps3bus_get_dma_tag(device_t dev, device_t child);
 static int	ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,		    bus_addr_t min, bus_addr_t max, bus_size_t alignment,
-		    bus_size_t boundary, void *cookie);
+		    bus_addr_t boundary, void *cookie);
 static int	ps3_iommu_unmap(device_t dev, bus_dma_segment_t *segs,
 		    int nsegs, void *cookie);
 static int	ps3_gettime(device_t dev, struct timespec *ts);
@@ -697,7 +697,7 @@ fail:
 
 static int
 ps3_iommu_map(device_t dev, bus_dma_segment_t *segs, int *nsegs,
-    bus_addr_t min, bus_addr_t max, bus_size_t alignment, bus_size_t boundary,
+    bus_addr_t min, bus_addr_t max, bus_size_t alignment, bus_addr_t boundary,
     void *cookie)
 {
 	struct ps3bus_devinfo *dinfo = cookie;
