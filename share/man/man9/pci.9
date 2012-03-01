@@ -145,13 +145,13 @@ the configuration space.
 .Pp
 The
 .Fn pci_get_powerstate
-function returns the current ACPI power state of the device
+function returns the current power state of the device
 .Fa dev .
 If the device does not support power management capabilities, then the default
 state of
 .Dv PCI_POWERSTATE_D0
 is returned.
-The following power states are defined by ACPI:
+The following power states are defined by PCI:
 .Bl -hang -width ".Dv PCI_POWERSTATE_UNKNOWN"
 .It Dv PCI_POWERSTATE_D0
 State in which device is on and running.
@@ -183,15 +183,13 @@ The
 .Fn pci_set_powerstate
 function is used to transition the device
 .Fa dev
-to the ACPI power state
+to the PCI power state
 .Fa state .
-It checks to see if the device is PCI 2.2 compliant.
-If so, it checks the
-capabilities pointer to determine which power states the device supports.
-If the device does not have power management capabilities, the default state
-of
-.Dv PCI_POWERSTATE_D0
-is set.
+If the device does not support power management capabilities or
+it does not support the specific power state
+.Fa state ,
+then the function will fail with
+.Er EOPNOTSUPP .
 .Pp
 The
 .Fn pci_save_state
