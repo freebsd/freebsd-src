@@ -682,9 +682,8 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	int len = sizeof(*clr) * count;
 	int i, offp;
 
-	struct pf_state *st, *nexts;
+	struct pf_state *si, *st, *nexts;
 	struct pf_state_key *sk, *nextsk;
-	struct pf_state_item *si;
 	u_int32_t creatorid;
 
 	mp = m_pulldown(m, offset, len, &offp);
@@ -716,11 +715,11 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			    sk; sk = nextsk) {
 				nextsk = RB_NEXT(pf_state_tree,
 				    &V_pf_statetbl, sk);
-				TAILQ_FOREACH(si, &sk->states, entry) {
-					if (si->s->creatorid == creatorid) {
-						SET(si->s->state_flags,
+				TAILQ_FOREACH(si, &sk->states, key_list) {
+					if (si->creatorid == creatorid) {
+						SET(si->state_flags,
 						    PFSTATE_NOSYNC);
-						pf_unlink_state(si->s);
+						pf_unlink_state(si);
 					}
 				}
 			}
