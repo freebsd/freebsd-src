@@ -764,13 +764,6 @@ struct pf_state_key_cmp {
 	u_int8_t	 pad[2];
 };
 
-struct pf_state_item {
-	TAILQ_ENTRY(pf_state_item)	 entry;
-	struct pf_state			*s;
-};
-
-TAILQ_HEAD(pf_statelisthead, pf_state_item);
-
 struct pf_state_key {
 	struct pf_addr	 addr[2];
 	u_int16_t	 port[2];
@@ -779,7 +772,7 @@ struct pf_state_key {
 	u_int8_t	 pad[2];
 
 	RB_ENTRY(pf_state_key)	 entry;
-	struct pf_statelisthead	 states;
+	TAILQ_HEAD(, pf_state)	 states;
 	struct pf_state_key	*reverse;
 	struct inpcb		*inp;
 };
@@ -797,11 +790,9 @@ struct pf_state {
 	u_int32_t		 creatorid;
 	u_int8_t		 direction;
 	u_int8_t		 pad[2];
-	u_int8_t		 local_flags;
-#define	PFSTATE_EXPIRING 0x01
-
 	TAILQ_ENTRY(pf_state)	 sync_list;
 	TAILQ_ENTRY(pf_state)	 entry_list;
+	TAILQ_ENTRY(pf_state)	 key_list;
 	RB_ENTRY(pf_state)	 entry_id;
 	struct pf_state_peer	 src;
 	struct pf_state_peer	 dst;
@@ -882,9 +873,7 @@ struct pfsync_state {
 	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 direction;
-	u_int8_t	 local_flags;
-#define	PFSTATE_EXPIRING		0x01
-
+	u_int8_t	 __spare;
 	u_int8_t	 log;
 	u_int8_t	 state_flags;
 	u_int8_t	 timeout;
@@ -1766,8 +1755,6 @@ VNET_DECLARE(uma_zone_t,		 pf_state_pl);
 #define	V_pf_state_pl			 VNET(pf_state_pl)
 VNET_DECLARE(uma_zone_t,		 pf_state_key_pl);
 #define	V_pf_state_key_pl		 VNET(pf_state_key_pl)
-VNET_DECLARE(uma_zone_t,		 pf_state_item_pl);
-#define	V_pf_state_item_pl		 VNET(pf_state_item_pl)
 VNET_DECLARE(uma_zone_t,		 pf_altq_pl);
 #define	V_pf_altq_pl			 VNET(pf_altq_pl)
 VNET_DECLARE(uma_zone_t,		 pf_pooladdr_pl);

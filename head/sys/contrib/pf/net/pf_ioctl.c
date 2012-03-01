@@ -257,7 +257,6 @@ cleanup_pf_zone(void)
 	uma_zdestroy(V_pf_rule_pl);
 	uma_zdestroy(V_pf_state_pl);
 	uma_zdestroy(V_pf_state_key_pl);
-	uma_zdestroy(V_pf_state_item_pl);
 	uma_zdestroy(V_pf_altq_pl);
 	uma_zdestroy(V_pf_pooladdr_pl);
 	uma_zdestroy(V_pfr_ktable_pl);
@@ -279,9 +278,6 @@ pfattach(void)
 	V_pf_state_key_pl = uma_zcreate("pfstatekeypl",
 	    sizeof(struct pf_state_key), NULL, NULL, NULL, NULL,UMA_ALIGN_PTR,
 	    0);
-	V_pf_state_item_pl = uma_zcreate("pfstateitempl",
-	    sizeof(struct pf_state_item), NULL, NULL, NULL, NULL,
-	    UMA_ALIGN_PTR, 0);
 	V_pf_altq_pl = uma_zcreate("pfaltqpl", sizeof(struct pf_altq),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_pooladdr_pl = uma_zcreate("pfpooladdrpl",
