@@ -1345,16 +1345,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia;
 
-		/*
-		 * Try to clear ifdisabled flag when enabling
-		 * accept_rtadv or auto_linklocal.
-		 */
-		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
-		    !(ND.flags & ND6_IFF_IFDISABLED) &&
-		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
-		    ND6_IFF_AUTO_LINKLOCAL)))
-			ND.flags &= ~ND6_IFF_IFDISABLED;
-
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    !(ND.flags & ND6_IFF_IFDISABLED)) {
 			/* ifdisabled 1->0 transision */
