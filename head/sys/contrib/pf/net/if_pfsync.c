@@ -698,18 +698,23 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		creatorid = clr[i].creatorid;
 
 		if (clr[i].ifname[0] == '\0') {
+			PF_KEYS_LOCK();
+			PF_IDS_LOCK();
 			for (st = RB_MIN(pf_state_tree_id, &V_tree_id);
 			    st; st = nexts) {
 				nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, st);
 				if (st->creatorid == creatorid) {
 					SET(st->state_flags, PFSTATE_NOSYNC);
-					pf_unlink_state(st);
+					pf_unlink_state(st, 1);
 				}
 			}
+			PF_IDS_UNLOCK();
+			PF_KEYS_UNLOCK();
 		} else {
 			if (pfi_kif_get(clr[i].ifname) == NULL)
 				continue;
 
+			PF_KEYS_LOCK();
 			/* XXX correct? */
 			for (sk = RB_MIN(pf_state_tree, &V_pf_statetbl);
 			    sk; sk = nextsk) {
@@ -719,10 +724,11 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 					if (si->creatorid == creatorid) {
 						SET(si->state_flags,
 						    PFSTATE_NOSYNC);
-						pf_unlink_state(si);
+						pf_unlink_state(si, 0);
 					}
 				}
 			}
+			PF_KEYS_UNLOCK();
 		}
 	}
 	PF_UNLOCK();
@@ -1104,7 +1110,7 @@ pfsync_in_del(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 			continue;
 		}
 		SET(st->state_flags, PFSTATE_NOSYNC);
-		pf_unlink_state(st);
+		pf_unlink_state(st, 0);
 	}
 	PF_UNLOCK();
 
@@ -1142,7 +1148,7 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		}
 
 		SET(st->state_flags, PFSTATE_NOSYNC);
-		pf_unlink_state(st);
+		pf_unlink_state(st, 0);
 	}
 	PF_UNLOCK();
 
@@ -2212,9 +2218,11 @@ pfsync_bulk_update(void *arg)
 			i++;
 		}
 
+		PF_LIST_RLOCK();
 		st = TAILQ_NEXT(st, entry_list);
 		if (st == NULL)
 			st = TAILQ_FIRST(&V_state_list);
+		PF_LIST_RUNLOCK();
 
 		if (st == sc->sc_bulk_last) {
 			/* we're done */
