@@ -5637,11 +5637,16 @@ ath_scan_start(struct ieee80211com *ic)
 
 	/* XXX calibration timer? */
 
+	ATH_LOCK(sc);
 	sc->sc_scanning = 1;
 	sc->sc_syncbeacon = 0;
 	rfilt = ath_calcrxfilter(sc);
+	ATH_UNLOCK(sc);
+
+	ATH_PCU_LOCK(sc);
 	ath_hal_setrxfilter(ah, rfilt);
 	ath_hal_setassocid(ah, ifp->if_broadcastaddr, 0);
+	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0\n",
 		 __func__, rfilt, ether_sprintf(ifp->if_broadcastaddr));
@@ -5655,12 +5660,17 @@ ath_scan_end(struct ieee80211com *ic)
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
+	ATH_LOCK(sc);
 	sc->sc_scanning = 0;
 	rfilt = ath_calcrxfilter(sc);
+	ATH_UNLOCK(sc);
+
+	ATH_PCU_LOCK(sc);
 	ath_hal_setrxfilter(ah, rfilt);
 	ath_hal_setassocid(ah, sc->sc_curbssid, sc->sc_curaid);
 
 	ath_hal_process_noisefloor(ah);
+	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0x%x\n",
 		 __func__, rfilt, ether_sprintf(sc->sc_curbssid),
