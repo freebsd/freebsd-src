@@ -270,6 +270,15 @@ cleanup_pf_zone(void)
 	uma_zdestroy(V_pfi_addr_z);
 }
 
+static int
+pf_state_key_ini(void *mem, int size, int flags)
+{
+	struct pf_state_key *sk = mem;
+
+	TAILQ_INIT(&sk->states);
+	return (0);
+}
+
 int
 pfattach(void)
 {
@@ -283,8 +292,8 @@ pfattach(void)
 	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_state_key_z = uma_zcreate("pf state keys",
-	    sizeof(struct pf_state_key), NULL, NULL, NULL, NULL,UMA_ALIGN_PTR,
-	    0);
+	    sizeof(struct pf_state_key), NULL, NULL, pf_state_key_ini, NULL,
+	    UMA_ALIGN_PTR, 0);
 	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	V_pf_pooladdr_z = uma_zcreate("pf pool addresses",

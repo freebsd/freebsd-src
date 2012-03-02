@@ -778,18 +778,6 @@ pf_state_key_detach(struct pf_state *s, int idx)
 	s->key[idx] = NULL;
 }
 
-struct pf_state_key *
-pf_alloc_state_key(int pool_flags)
-{
-	struct pf_state_key	*sk;
-
-	if ((sk = uma_zalloc(V_pf_state_key_z, pool_flags)) == NULL)
-		return (NULL);
-	TAILQ_INIT(&sk->states);
-
-	return (sk);
-}
-
 int
 pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
 	struct pf_state_key **skw, struct pf_state_key **sks,
@@ -800,7 +788,7 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
 	KASSERT((*skp == NULL && *nkp == NULL),
 		("%s: skp == NULL && nkp == NULL", __func__));
 
-	if ((*skp = pf_alloc_state_key(M_NOWAIT | M_ZERO)) == NULL)
+	if ((*skp = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO)) == NULL)
 		return (ENOMEM);
 
 	PF_ACPY(&(*skp)->addr[pd->sidx], saddr, pd->af);
@@ -811,7 +799,8 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
 	(*skp)->af = pd->af;
 
 	if (nr != NULL) {
-		if ((*nkp = pf_alloc_state_key(M_NOWAIT | M_ZERO)) == NULL)
+		if ((*nkp = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO))
+		    == NULL)
 			return (ENOMEM); /* caller must handle cleanup */
 
 		/* XXX maybe just bcopy and TAILQ_INIT(&(*nkp)->states) */
