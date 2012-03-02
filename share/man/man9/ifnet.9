@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 1, 2012
+.Dd March 2, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -91,7 +91,7 @@
 .Ft int
 .Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ft "struct ifmultiaddr *"
-.Fn ifmaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
+.Fn if_findmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ss "Output queue macros"
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
@@ -1347,7 +1347,7 @@ The
 .Fn if_addmulti ,
 .Fn if_delmulti ,
 and
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 functions provide support for requesting and relinquishing multicast
 group memberships, and for querying an interface's membership list,
 respectively.
@@ -1404,11 +1404,11 @@ Both functions return zero on success, or a
 standard error number on failure.
 .Pp
 The
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 function examines the membership list of interface
 .Fa ifp
 for an address matching
-.Fa addr ,
+.Fa sa ,
 and returns a pointer to that
 .Vt "struct ifmultiaddr"
 if one is found, else it returns a null pointer.
