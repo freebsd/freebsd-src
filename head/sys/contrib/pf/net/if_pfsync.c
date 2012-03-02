@@ -425,7 +425,7 @@ pfsync_alloc_scrub_memory(struct pfsync_state_peer *s,
     struct pf_state_peer *d)
 {
 	if (s->scrub.scrub_flag && d->scrub == NULL) {
-		d->scrub = uma_zalloc(V_pf_state_scrub_pl, M_NOWAIT | M_ZERO);
+		d->scrub = uma_zalloc(V_pf_state_scrub_z, M_NOWAIT | M_ZERO);
 		if (d->scrub == NULL)
 			return (ENOMEM);
 	}
@@ -481,7 +481,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	else
 		pool_flags = M_NOWAIT | M_ZERO;
 
-	if ((st = uma_zalloc(V_pf_state_pl, pool_flags)) == NULL)
+	if ((st = uma_zalloc(V_pf_state_z, pool_flags)) == NULL)
 		goto cleanup;
 
 	if ((skw = pf_alloc_state_key(pool_flags)) == NULL)
@@ -576,17 +576,17 @@ cleanup:
 	if (skw == sks)
 		sks = NULL;
 	if (skw != NULL)
-		uma_zfree(V_pf_state_key_pl, skw);
+		uma_zfree(V_pf_state_key_z, skw);
 	if (sks != NULL)
-		uma_zfree(V_pf_state_key_pl, sks);
+		uma_zfree(V_pf_state_key_z, sks);
 
 cleanup_state:	/* pf_state_insert frees the state keys */
 	if (st) {
 		if (st->dst.scrub)
-			uma_zfree(V_pf_state_scrub_pl, st->dst.scrub);
+			uma_zfree(V_pf_state_scrub_z, st->dst.scrub);
 		if (st->src.scrub)
-			uma_zfree(V_pf_state_scrub_pl, st->src.scrub);
-		uma_zfree(V_pf_state_pl, st);
+			uma_zfree(V_pf_state_scrub_z, st->src.scrub);
+		uma_zfree(V_pf_state_z, st);
 	}
 	return (error);
 }

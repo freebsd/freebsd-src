@@ -154,10 +154,10 @@ struct pfr_walktree {
 
 #define	senderr(e)	do { rv = (e); goto _bad; } while (0)
 
-VNET_DEFINE(uma_zone_t,			pfr_ktable_pl);
-VNET_DEFINE(uma_zone_t,			pfr_kentry_pl);
-VNET_DEFINE(uma_zone_t,			pfr_kcounters_pl);
-#define	V_pfr_kcounters_pl		VNET(pfr_kcounters_pl)
+VNET_DEFINE(uma_zone_t,			pfr_ktable_z);
+VNET_DEFINE(uma_zone_t,			pfr_kentry_z);
+VNET_DEFINE(uma_zone_t,			pfr_kcounters_z);
+#define	V_pfr_kcounters_z		VNET(pfr_kcounters_z)
 VNET_DEFINE(struct sockaddr_in,		pfr_sin);
 #define	V_pfr_sin			VNET(pfr_sin)
 VNET_DEFINE(struct sockaddr_in6,	pfr_sin6);
@@ -843,7 +843,7 @@ pfr_create_kentry(struct pfr_addr *ad, int intr)
 {
 	struct pfr_kentry	*ke;
 
-	ke =  uma_zalloc(V_pfr_kentry_pl, M_NOWAIT | M_ZERO);
+	ke =  uma_zalloc(V_pfr_kentry_z, M_NOWAIT | M_ZERO);
 	if (ke == NULL)
 		return (NULL);
 
@@ -872,8 +872,8 @@ static void
 pfr_destroy_kentry(struct pfr_kentry *ke)
 {
 	if (ke->pfrke_counters)
-		uma_zfree(V_pfr_kcounters_pl, ke->pfrke_counters);
-	uma_zfree(V_pfr_kentry_pl, ke);
+		uma_zfree(V_pfr_kcounters_z, ke->pfrke_counters);
+	uma_zfree(V_pfr_kentry_z, ke);
 }
 
 static void
@@ -953,7 +953,7 @@ pfr_clstats_kentries(struct pfr_kentryworkq *workq, long tzero, int negchange)
 		if (negchange)
 			p->pfrke_not = !p->pfrke_not;
 		if (p->pfrke_counters) {
-			uma_zfree(V_pfr_kcounters_pl, p->pfrke_counters);
+			uma_zfree(V_pfr_kcounters_z, p->pfrke_counters);
 			p->pfrke_counters = NULL;
 		}
 		p->pfrke_tzero = tzero;
@@ -1919,7 +1919,7 @@ pfr_create_ktable(struct pfr_table *tbl, long tzero, int attachruleset,
 	struct pfr_ktable	*kt;
 	struct pf_ruleset	*rs;
 
-	kt = uma_zalloc(V_pfr_ktable_pl, M_NOWAIT|M_ZERO);
+	kt = uma_zalloc(V_pfr_ktable_z, M_NOWAIT|M_ZERO);
 	if (kt == NULL)
 		return (NULL);
 	kt->pfrkt_t = *tbl;
@@ -1981,7 +1981,7 @@ pfr_destroy_ktable(struct pfr_ktable *kt, int flushaddr)
 		kt->pfrkt_rs->tables--;
 		pf_remove_if_empty_ruleset(kt->pfrkt_rs);
 	}
-	uma_zfree(V_pfr_ktable_pl, kt);
+	uma_zfree(V_pfr_ktable_z, kt);
 }
 
 static int
@@ -2080,7 +2080,7 @@ pfr_update_stats(struct pfr_ktable *kt, struct pf_addr *a, sa_family_t af,
 	if (ke != NULL && op_pass != PFR_OP_XPASS &&
 	    (kt->pfrkt_flags & PFR_TFLAG_COUNTERS)) {
 		if (ke->pfrke_counters == NULL)
-			ke->pfrke_counters = uma_zalloc(V_pfr_kcounters_pl,
+			ke->pfrke_counters = uma_zalloc(V_pfr_kcounters_z,
 			    M_NOWAIT | M_ZERO);
 		if (ke->pfrke_counters != NULL) {
 			ke->pfrke_counters->pfrkc_packets[dir_out][op_pass]++;

@@ -155,12 +155,12 @@ struct pf_anchor_stackframe {
 VNET_DEFINE(struct pf_anchor_stackframe, pf_anchor_stack[64]);
 #define	V_pf_anchor_stack		 VNET(pf_anchor_stack)
 
-VNET_DEFINE(uma_zone_t,	 pf_src_tree_pl);
-VNET_DEFINE(uma_zone_t,	 pf_rule_pl);
-VNET_DEFINE(uma_zone_t,	 pf_pooladdr_pl);
-VNET_DEFINE(uma_zone_t,	 pf_state_pl);
-VNET_DEFINE(uma_zone_t,	 pf_state_key_pl);
-VNET_DEFINE(uma_zone_t,	 pf_altq_pl);
+VNET_DEFINE(uma_zone_t,	 pf_src_tree_z);
+VNET_DEFINE(uma_zone_t,	 pf_rule_z);
+VNET_DEFINE(uma_zone_t,	 pf_pooladdr_z);
+VNET_DEFINE(uma_zone_t,	 pf_state_z);
+VNET_DEFINE(uma_zone_t,	 pf_state_key_z);
+VNET_DEFINE(uma_zone_t,	 pf_altq_z);
 
 static void		 pf_src_tree_remove_state(struct pf_state *);
 static void		 pf_init_threshold(struct pf_threshold *, u_int32_t,
@@ -549,7 +549,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 	if (*sn == NULL) {
 		if (!rule->max_src_nodes ||
 		    rule->src_nodes < rule->max_src_nodes)
-			(*sn) = uma_zalloc(V_pf_src_tree_pl, M_NOWAIT | M_ZERO);
+			(*sn) = uma_zalloc(V_pf_src_tree_z, M_NOWAIT | M_ZERO);
 		else
 			V_pf_status.lcounters[LCNT_SRCNODES]++;
 		if ((*sn) == NULL)
@@ -573,7 +573,7 @@ pf_insert_src_node(struct pf_src_node **sn, struct pf_rule *rule,
 				pf_print_host(&(*sn)->addr, 0, af);
 				printf("\n");
 			}
-			uma_zfree(V_pf_src_tree_pl, *sn);
+			uma_zfree(V_pf_src_tree_z, *sn);
 			return (-1);
 		}
 		(*sn)->creation = time_second;
@@ -718,11 +718,11 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 						    sk : NULL);
 						printf("\n");
 					}
-					uma_zfree(V_pf_state_key_pl, sk);
+					uma_zfree(V_pf_state_key_z, sk);
 					return (-1);	/* collision! */
 				}
 			}
-		uma_zfree(V_pf_state_key_pl, sk);
+		uma_zfree(V_pf_state_key_z, sk);
 		s->key[idx] = cur;
 	} else
 		s->key[idx] = sk;
@@ -773,7 +773,7 @@ pf_state_key_detach(struct pf_state *s, int idx)
 		RB_REMOVE(pf_state_tree, &V_pf_statetbl, s->key[idx]);
 		if (s->key[idx]->reverse)
 			s->key[idx]->reverse->reverse = NULL;
-		uma_zfree(V_pf_state_key_pl, s->key[idx]);
+		uma_zfree(V_pf_state_key_z, s->key[idx]);
 	}
 	s->key[idx] = NULL;
 }
@@ -783,7 +783,7 @@ pf_alloc_state_key(int pool_flags)
 {
 	struct pf_state_key	*sk;
 
-	if ((sk = uma_zalloc(V_pf_state_key_pl, pool_flags)) == NULL)
+	if ((sk = uma_zalloc(V_pf_state_key_z, pool_flags)) == NULL)
 		return (NULL);
 	TAILQ_INIT(&sk->states);
 
@@ -852,7 +852,7 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	} else {
 		if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
 			PF_KEYS_UNLOCK();
-			uma_zfree(V_pf_state_key_pl, sks);
+			uma_zfree(V_pf_state_key_z, sks);
 			return (-1);
 		}
 		if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
@@ -1140,7 +1140,7 @@ pf_purge_expired_src_nodes(int waslocked)
 			RB_REMOVE(pf_src_tree, &V_tree_src_tracking, cur);
 			V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 			V_pf_status.src_nodes--;
-			uma_zfree(V_pf_src_tree_pl, cur);
+			uma_zfree(V_pf_src_tree_z, cur);
 		}
 	}
 
@@ -1241,7 +1241,7 @@ pf_free_state(struct pf_state *cur)
 	TAILQ_REMOVE(&V_state_list, cur, entry_list);
 	if (cur->tag)
 		pf_tag_unref(cur->tag);
-	uma_zfree(V_pf_state_pl, cur);
+	uma_zfree(V_pf_state_z, cur);
 	V_pf_status.fcounters[FCNT_STATE_REMOVALS]++;
 	V_pf_status.states--;
 }
@@ -3058,9 +3058,9 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 			return (action);
 	} else {
 		if (sk != NULL)
-			uma_zfree(V_pf_state_key_pl, sk);
+			uma_zfree(V_pf_state_key_z, sk);
 		if (nk != NULL)
-			uma_zfree(V_pf_state_key_pl, nk);
+			uma_zfree(V_pf_state_key_z, nk);
 	}
 
 	/* copy back packet headers if we performed NAT operations */
@@ -3084,9 +3084,9 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 
 cleanup:
 	if (sk != NULL)
-		uma_zfree(V_pf_state_key_pl, sk);
+		uma_zfree(V_pf_state_key_z, sk);
 	if (nk != NULL)
-		uma_zfree(V_pf_state_key_pl, nk);
+		uma_zfree(V_pf_state_key_z, nk);
 	return (PF_DROP);
 }
 
@@ -3123,7 +3123,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		REASON_SET(&reason, PFRES_SRCLIMIT);
 		goto csfailed;
 	}
-	s = uma_zalloc(V_pf_state_pl, M_NOWAIT | M_ZERO);
+	s = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO);
 	if (s == NULL) {
 		REASON_SET(&reason, PFRES_MEMORY);
 		goto csfailed;
@@ -3214,7 +3214,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 			REASON_SET(&reason, PFRES_MEMORY);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
-			uma_zfree(V_pf_state_pl, s);
+			uma_zfree(V_pf_state_z, s);
 			return (PF_DROP);
 		}
 		if ((pd->flags & PFDESC_TCP_NORM) && s->src.scrub &&
@@ -3226,7 +3226,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 			pf_normalize_tcp_cleanup(s);
 			pf_src_tree_remove_state(s);
 			STATE_DEC_COUNTERS(s);
-			uma_zfree(V_pf_state_pl, s);
+			uma_zfree(V_pf_state_z, s);
 			return (PF_DROP);
 		}
 	}
@@ -3242,7 +3242,7 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 		REASON_SET(&reason, PFRES_STATEINS);
 		pf_src_tree_remove_state(s);
 		STATE_DEC_COUNTERS(s);
-		uma_zfree(V_pf_state_pl, s);
+		uma_zfree(V_pf_state_z, s);
 		return (PF_DROP);
 	} else
 		*sm = s;
@@ -3290,21 +3290,21 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 
 csfailed:
 	if (sk != NULL)
-		uma_zfree(V_pf_state_key_pl, sk);
+		uma_zfree(V_pf_state_key_z, sk);
 	if (nk != NULL)
-		uma_zfree(V_pf_state_key_pl, nk);
+		uma_zfree(V_pf_state_key_z, nk);
 
 	if (sn != NULL && sn->states == 0 && sn->expire == 0) {
 		RB_REMOVE(pf_src_tree, &V_tree_src_tracking, sn);
 		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_src_tree_pl, sn);
+		uma_zfree(V_pf_src_tree_z, sn);
 	}
 	if (nsn != sn && nsn != NULL && nsn->states == 0 && nsn->expire == 0) {
 		RB_REMOVE(pf_src_tree, &V_tree_src_tracking, nsn);
 		V_pf_status.scounters[SCNT_SRC_NODE_REMOVALS]++;
 		V_pf_status.src_nodes--;
-		uma_zfree(V_pf_src_tree_pl, nsn);
+		uma_zfree(V_pf_src_tree_z, nsn);
 	}
 	return (PF_DROP);
 }
