@@ -208,6 +208,24 @@ extern struct mtx pf_mtx;
 #define	PF_LOCK()		mtx_lock(&pf_mtx)
 #define	PF_UNLOCK()		mtx_unlock(&pf_mtx)
 
+extern struct mtx pf_state_keys_mtx;
+#define	PF_KEYS_ASSERT()	mtx_assert(&pf_state_keys_mtx, MA_OWNED)
+#define	PF_KEYS_LOCK()		mtx_lock(&pf_state_keys_mtx)
+#define	PF_KEYS_UNLOCK()	mtx_unlock(&pf_state_keys_mtx)
+
+extern struct mtx pf_state_ids_mtx;
+#define	PF_IDS_ASSERT()		mtx_assert(&pf_state_ids_mtx, MA_OWNED)
+#define	PF_IDS_LOCK()		mtx_lock(&pf_state_ids_mtx)
+#define	PF_IDS_UNLOCK()		mtx_unlock(&pf_state_ids_mtx)
+
+extern struct rwlock pf_state_list_lock;
+#define	PF_LIST_RASSERT()	rw_assert(&pf_state_list_lock, RA_RLOCKED)
+#define	PF_LIST_RLOCK()		rw_rlock(&pf_state_list_lock)
+#define	PF_LIST_RUNLOCK()	rw_runlock(&pf_state_list_lock)
+#define	PF_LIST_WASSERT()	rw_assert(&pf_state_list_lock, RA_WLOCKED)
+#define	PF_LIST_WLOCK()		rw_wlock(&pf_state_list_lock)
+#define	PF_LIST_WUNLOCK()	rw_wunlock(&pf_state_list_lock)
+
 extern struct rwlock pf_rules_lock;
 #define	PF_RULES_RLOCK()	rw_rlock(&pf_rules_lock)
 #define	PF_RULES_RUNLOCK()	rw_runlock(&pf_rules_lock)
@@ -1770,7 +1788,7 @@ VNET_DECLARE(uma_zone_t,		 pfi_addr_pl);
 
 extern void			 pf_purge_thread(void *);
 extern int			 pf_purge_expired_src_nodes(int);
-extern void			 pf_unlink_state(struct pf_state *);
+extern void			 pf_unlink_state(struct pf_state *, int);
 extern int			 pf_state_insert(struct pfi_kif *,
 				    struct pf_state_key *,
 				    struct pf_state_key *,

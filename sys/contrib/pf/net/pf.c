@@ -489,6 +489,8 @@ pf_src_connlimit(struct pf_state **state)
 			struct pf_state *st;
 
 			V_pf_status.lcounters[LCNT_OVERLOAD_FLUSH]++;
+			PF_IDS_LOCK();
+			/* XXXGL: this cycle should go into a separate taskq */
 			RB_FOREACH(st, pf_state_tree_id, &V_tree_id) {
 				sk = st->key[PF_SK_WIRE];
 				/*
@@ -513,6 +515,7 @@ pf_src_connlimit(struct pf_state **state)
 					killed++;
 				}
 			}
+			PF_IDS_UNLOCK();
 			if (V_pf_status.debug >= PF_DEBUG_MISC)
 				printf(", %u states killed", killed);
 		}
@@ -680,7 +683,8 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 	struct pf_state_key	*cur;
 	struct pf_state		*si, *olds = NULL;
 
-	KASSERT(s->key[idx] == NULL, ("%s: key is null!", __func__));
+	PF_KEYS_ASSERT();
+	KASSERT(s->key[idx] == NULL, ("%s: a key already attached", __func__));
 
 	if ((cur = RB_INSERT(pf_state_tree, &V_pf_statetbl, sk)) != NULL) {
 		/* key exists. check for same kif, if none, add to key */
@@ -730,7 +734,7 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 		TAILQ_INSERT_HEAD(&s->key[idx]->states, s, key_list);
 
 	if (olds)
-		pf_unlink_state(olds);
+		pf_unlink_state(olds, 0);
 
 	return (0);
 }
@@ -738,6 +742,9 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 static void
 pf_detach_state(struct pf_state *s)
 {
+
+	PF_KEYS_ASSERT();
+
 	if (s->key[PF_SK_WIRE] == s->key[PF_SK_STACK])
 		s->key[PF_SK_WIRE] = NULL;
 
@@ -752,6 +759,8 @@ static void
 pf_state_key_detach(struct pf_state *s, int idx)
 {
 	struct pf_state *si;
+
+	PF_KEYS_ASSERT();
 
 	si = TAILQ_FIRST(&s->key[idx]->states);
 	while (si && si != s)
@@ -833,17 +842,22 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 
 	s->kif = kif;
 
+	PF_KEYS_LOCK();
 	if (skw == sks) {
-		if (pf_state_key_attach(skw, s, PF_SK_WIRE))
+		if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
+			PF_KEYS_UNLOCK();
 			return (-1);
+		}
 		s->key[PF_SK_STACK] = s->key[PF_SK_WIRE];
 	} else {
 		if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
+			PF_KEYS_UNLOCK();
 			uma_zfree(V_pf_state_key_pl, sks);
 			return (-1);
 		}
 		if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
 			pf_state_key_detach(s, PF_SK_WIRE);
+			PF_KEYS_UNLOCK();
 			return (-1);
 		}
 	}
@@ -852,7 +866,9 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		s->id = htobe64(V_pf_status.stateid++);
 		s->creatorid = V_pf_status.hostid;
 	}
+	PF_IDS_LOCK();
 	if (RB_INSERT(pf_state_tree_id, &V_tree_id, s) != NULL) {
+		PF_IDS_UNLOCK();
 		if (V_pf_status.debug >= PF_DEBUG_MISC) {
 			printf("pf: state insert failed: "
 			    "id: %016llx creatorid: %08x",
@@ -862,7 +878,11 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		pf_detach_state(s);
 		return (-1);
 	}
+	PF_IDS_UNLOCK();
+	PF_KEYS_UNLOCK();
+	PF_LIST_WLOCK();
 	TAILQ_INSERT_TAIL(&V_state_list, s, entry_list);
+	PF_LIST_WUNLOCK();
 	V_pf_status.fcounters[FCNT_STATE_INSERT]++;
 	V_pf_status.states++;
 	pfi_kif_ref(kif, PFI_KIF_REF_STATE);
@@ -875,9 +895,14 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 struct pf_state *
 pf_find_state_byid(struct pf_state_cmp *key)
 {
-	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
+	struct pf_state *s;
 
-	return (RB_FIND(pf_state_tree_id, &V_tree_id, (struct pf_state *)key));
+	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
+	PF_IDS_LOCK();
+	s = RB_FIND(pf_state_tree_id, &V_tree_id, (struct pf_state *)key);
+	PF_IDS_UNLOCK();
+
+	return (s);
 }
 
 /* XXX debug function, intended to be removed one day */
@@ -920,13 +945,16 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
+	PF_KEYS_LOCK();
 	if (dir == PF_OUT && pftag->statekey &&
 	    ((struct pf_state_key *)pftag->statekey)->reverse)
 		sk = ((struct pf_state_key *)pftag->statekey)->reverse;
 	else {
 		if ((sk = RB_FIND(pf_state_tree, &V_pf_statetbl,
-		    (struct pf_state_key *)key)) == NULL)
+		    (struct pf_state_key *)key)) == NULL) {
+			PF_KEYS_UNLOCK();
 			return (NULL);
+		}
 		if (dir == PF_OUT && pftag->statekey &&
 		    pf_compare_state_keys(pftag->statekey, sk,
 		    kif, dir) == 0) {
@@ -943,8 +971,11 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 	TAILQ_FOREACH(si, &sk->states, key_list)
 		if ((si->kif == V_pfi_all || si->kif == kif) &&
 		    sk == (dir == PF_IN ? si->key[PF_SK_WIRE] :
-		    si->key[PF_SK_STACK]))
+		    si->key[PF_SK_STACK])) {
+			PF_KEYS_UNLOCK();
 			return (si);
+		}
+	PF_KEYS_UNLOCK();
 
 	return (NULL);
 }
@@ -957,14 +988,17 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
+	PF_KEYS_LOCK();
 	sk = RB_FIND(pf_state_tree, &V_pf_statetbl, (struct pf_state_key *)key);
 	if (sk != NULL) {
 		TAILQ_FOREACH(s, &sk->states, key_list)
 			if (dir == PF_INOUT ||
 			    (sk == (dir == PF_IN ? s->key[PF_SK_WIRE] :
 			    s->key[PF_SK_STACK]))) {
-				if (more == NULL)
+				if (more == NULL) {
+					PF_KEYS_UNLOCK();
 					return (s);
+				}
 
 				if (ret)
 					(*more)++;
@@ -972,6 +1006,7 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 					ret = s;
 			}
 	}
+	PF_KEYS_UNLOCK();
 
 	return (ret);
 }
@@ -1145,8 +1180,10 @@ pf_src_tree_remove_state(struct pf_state *s)
 }
 
 void
-pf_unlink_state(struct pf_state *cur)
+pf_unlink_state(struct pf_state *cur, int idslocked)
 {
+
+	PF_KEYS_ASSERT();
 
 	if (cur->src.state == PF_TCPS_PROXY_DST) {
 		/* XXX wire key the right one? */
@@ -1158,7 +1195,11 @@ pf_unlink_state(struct pf_state *cur)
 		    cur->src.seqhi, cur->src.seqlo + 1,
 		    TH_RST|TH_ACK, 0, 0, 0, 1, cur->tag, NULL, NULL);
 	}
+	if (!idslocked)
+		PF_IDS_LOCK();
 	RB_REMOVE(pf_state_tree_id, &V_tree_id, cur);
+	if (!idslocked)
+		PF_IDS_UNLOCK();
 #if NPFLOW > 0
 	if (cur->state_flags & PFSTATE_PFLOW)
 		if (export_pflow_ptr != NULL)
@@ -1176,6 +1217,8 @@ pf_unlink_state(struct pf_state *cur)
 static void
 pf_free_state(struct pf_state *cur)
 {
+
+	PF_LIST_WASSERT();
 
 	if (pfsync_state_in_use_ptr != NULL &&
 		pfsync_state_in_use_ptr(cur))
@@ -1210,6 +1253,7 @@ pf_purge_expired_states(u_int32_t maxcheck, int waslocked)
 	struct pf_state		*next;
 	int			 locked = waslocked;
 
+	PF_LIST_WLOCK();
 	while (maxcheck--) {
 		/* wrap to start of list when we hit the end */
 		if (cur == NULL) {
@@ -1224,23 +1268,30 @@ pf_purge_expired_states(u_int32_t maxcheck, int waslocked)
 		if (cur->timeout == PFTM_UNLINKED) {
 			/* free unlinked state */
 			if (! locked) {
-				if (!sx_try_upgrade(&V_pf_consistency_lock))
+				if (!sx_try_upgrade(&V_pf_consistency_lock)) {
+					PF_LIST_WUNLOCK();
 					return (0);	/* XXXGL */
+				}
 				locked = 1;
 			}
 			pf_free_state(cur);
 		} else if (pf_state_expires(cur) <= time_second) {
+			PF_KEYS_LOCK();
 			/* unlink and free expired state */
-			pf_unlink_state(cur);
+			pf_unlink_state(cur, 0);
+			PF_KEYS_UNLOCK();
 			if (! locked) {
-				if (!sx_try_upgrade(&V_pf_consistency_lock))
+				if (!sx_try_upgrade(&V_pf_consistency_lock)) {
+					PF_LIST_WUNLOCK();
 					return (0);	/* XXXGL */
+				}
 				locked = 1;
 			}
 			pf_free_state(cur);
 		}
 		cur = next;
 	}
+	PF_LIST_WUNLOCK();
 
 	if (!waslocked && locked)
 		sx_downgrade(&V_pf_consistency_lock);
@@ -3877,7 +3928,7 @@ pf_test_state_tcp(struct pf_state **state, int direction, struct pfi_kif *kif,
 		}
 		/* XXX make sure it's the same direction ?? */
 		(*state)->src.state = (*state)->dst.state = TCPS_CLOSED;
-		pf_unlink_state(*state);
+		pf_unlink_state(*state, 0);
 		*state = NULL;
 		return (PF_DROP);
 	}

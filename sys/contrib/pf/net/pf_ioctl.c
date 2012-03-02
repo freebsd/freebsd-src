@@ -172,9 +172,6 @@ struct cdev *pf_dev;
 static void		 pf_clear_states(void);
 static int		 pf_clear_tables(void);
 static void		 pf_clear_srcnodes(void);
-/*
- * XXX - These are new and need to be checked when moveing to a new version
- */
  
 /*
  * Wrapper functions for pfil(9) hooks
@@ -209,6 +206,9 @@ static volatile VNET_DEFINE(int, pf_pfil_hooked);
 VNET_DEFINE(int,		pf_end_threads);
 
 struct mtx			pf_mtx;
+struct mtx			pf_state_keys_mtx;
+struct mtx			pf_state_ids_mtx;
+struct rwlock			pf_state_list_lock;
 struct rwlock			pf_rules_lock;
 
 /* pfsync */
@@ -235,6 +235,9 @@ init_pf_mutex(void)
 {
 
 	mtx_init(&pf_mtx, "pf Giant", NULL, MTX_DEF);
+	mtx_init(&pf_state_keys_mtx, "pf state keys", NULL, MTX_DEF);
+	mtx_init(&pf_state_ids_mtx, "pf state ids", NULL, MTX_DEF);
+	rw_init(&pf_state_list_lock, "pf state list");
 	rw_init(&pf_rules_lock, "pf rulesets");
 	/* XXXGL: name */
 	sx_init(&V_pf_consistency_lock, "pf_statetbl_lock");
@@ -245,6 +248,9 @@ destroy_pf_mutex(void)
 {
 
 	mtx_destroy(&pf_mtx);
+	mtx_destroy(&pf_state_keys_mtx);
+	mtx_destroy(&pf_state_ids_mtx);
+	rw_destroy(&pf_state_list_lock);
 	rw_destroy(&pf_rules_lock);
 	sx_destroy(&V_pf_consistency_lock);
 }
@@ -1682,6 +1688,8 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pfioc_state_kill *psk = (struct pfioc_state_kill *)addr;
 		u_int			 killed = 0;
 
+		PF_KEYS_LOCK();
+		PF_IDS_LOCK();
 		for (s = RB_MIN(pf_state_tree_id, &V_tree_id); s; s = nexts) {
 			nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, s);
 
@@ -1689,10 +1697,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			    s->kif->pfik_name)) {
 				/* don't send out individual delete messages */
 				SET(s->state_flags, PFSTATE_NOSYNC);
-				pf_unlink_state(s);
+				pf_unlink_state(s, 1);
 				killed++;
 			}
 		}
+		PF_IDS_UNLOCK();
+		PF_KEYS_UNLOCK();
 		psk->psk_killed = killed;
 		if (pfsync_clear_states_ptr != NULL)
 			pfsync_clear_states_ptr(V_pf_status.hostid, psk->psk_ifname);
@@ -1711,12 +1721,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (psk->psk_pfcmp.creatorid == 0)
 				psk->psk_pfcmp.creatorid = V_pf_status.hostid;
 			if ((s = pf_find_state_byid(&psk->psk_pfcmp))) {
-				pf_unlink_state(s);
+				pf_unlink_state(s, 0);
 				psk->psk_killed = 1;
 			}
 			break;
 		}
 
+		PF_KEYS_LOCK();
+		PF_IDS_LOCK();
 		for (s = RB_MIN(pf_state_tree_id, &V_tree_id); s;
 		    s = nexts) {
 			nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, s);
@@ -1756,10 +1768,12 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			    !strcmp(psk->psk_label, s->rule.ptr->label))) &&
 			    (!psk->psk_ifname[0] || !strcmp(psk->psk_ifname,
 			    s->kif->pfik_name))) {
-				pf_unlink_state(s);
+				pf_unlink_state(s, 1);
 				killed++;
 			}
 		}
+		PF_IDS_UNLOCK();
+		PF_KEYS_UNLOCK();
 		psk->psk_killed = killed;
 		break;
 	}
@@ -1799,7 +1813,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 	case DIOCGETSTATES: {
 		struct pfioc_states	*ps = (struct pfioc_states *)addr;
 		struct pf_state		*state;
-		struct pfsync_state	*p, *pstore;
+		struct pfsync_state	*p, pstore;
 		u_int32_t		 nr = 0;
 
 		if (ps->ps_len == 0) {
@@ -1808,32 +1822,31 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 
-		PF_UNLOCK();
-		pstore = malloc(sizeof(*pstore), M_TEMP, M_WAITOK);
-		PF_LOCK();
-
 		p = ps->ps_states;
 
+		PF_LIST_RLOCK();
 		state = TAILQ_FIRST(&V_state_list);
 		while (state) {
 			if (state->timeout != PFTM_UNLINKED) {
 				if ((nr+1) * sizeof(*p) > (unsigned)ps->ps_len)
 					break;
-				pfsync_state_export(pstore, state);
-				PF_COPYOUT(pstore, p, sizeof(*p), error);
-				if (error) {
-					free(pstore, M_TEMP);
+				pfsync_state_export(&pstore, state);
+				PF_LIST_RUNLOCK(); /* XXXGL: ref state? */
+				PF_UNLOCK();
+				error = copyout(&pstore, p, sizeof(*p));
+				PF_LOCK();
+				if (error)
 					goto fail;
-				}
+				PF_LIST_RLOCK();
 				p++;
 				nr++;
 			}
 			state = TAILQ_NEXT(state, entry_list);
 		}
+		PF_LIST_RUNLOCK();
 
 		ps->ps_len = sizeof(struct pfsync_state) * nr;
 
-		free(pstore, M_TEMP);
 		break;
 	}
 
@@ -2964,14 +2977,18 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		struct pf_src_node	*n;
 		struct pf_state		*state;
 
+		PF_IDS_LOCK();
 		RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
 			state->src_node = NULL;
 			state->nat_src_node = NULL;
 		}
+		PF_IDS_UNLOCK();
+		PF_KEYS_LOCK();
 		RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
 			n->expire = 1;
 			n->states = 0;
 		}
+		PF_KEYS_UNLOCK();
 		pf_purge_expired_src_nodes(1);
 		V_pf_status.src_nodes = 0;
 		break;
@@ -2984,6 +3001,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		    (struct pfioc_src_node_kill *)addr;
 		u_int			killed = 0;
 
+		PF_KEYS_LOCK();
 		RB_FOREACH(sn, pf_src_tree, &V_tree_src_tracking) {
 			if (PF_MATCHA(psnk->psnk_src.neg,
 				&psnk->psnk_src.addr.v.a.addr,
@@ -2995,6 +3013,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 				&sn->raddr, sn->af)) {
 				/* Handle state to src_node linkage */
 				if (sn->states != 0) {
+					PF_IDS_LOCK();
 					RB_FOREACH(s, pf_state_tree_id,
 					    &V_tree_id) {
 						if (s->src_node == sn)
@@ -3002,12 +3021,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 						if (s->nat_src_node == sn)
 							s->nat_src_node = NULL;
 					}
+					PF_IDS_UNLOCK();
 					sn->states = 0;
 				}
 				sn->expire = 1;
 				killed++;
 			}
 		}
+		PF_KEYS_UNLOCK();
 
 		if (killed > 0)
 			pf_purge_expired_src_nodes(1);
@@ -3141,13 +3162,17 @@ static void
 pf_clear_states(void)
 {
 	struct pf_state	*state;
- 
+
+	PF_KEYS_LOCK();
+	PF_IDS_LOCK(); 
 	RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
 		state->timeout = PFTM_PURGE;
 		/* don't send out individual delete messages */
 		state->sync_state = PFSTATE_NOSYNC;
-		pf_unlink_state(state);
+		pf_unlink_state(state, 1);
 	}
+	PF_IDS_UNLOCK();
+	PF_KEYS_UNLOCK();
  
 #if 0 /* NPFSYNC */
 /*
@@ -3177,14 +3202,18 @@ pf_clear_srcnodes(void)
 	struct pf_src_node	*n;
 	struct pf_state		*state;
 
+	PF_IDS_LOCK();
 	RB_FOREACH(state, pf_state_tree_id, &V_tree_id) {
 		state->src_node = NULL;
 		state->nat_src_node = NULL;
 	}
+	PF_IDS_UNLOCK();
+	PF_KEYS_LOCK();
 	RB_FOREACH(n, pf_src_tree, &V_tree_src_tracking) {
 		n->expire = 1;
 		n->states = 0;
 	}
+	PF_KEYS_UNLOCK();
 }
 /*
  * XXX - Check for version missmatch!!!
