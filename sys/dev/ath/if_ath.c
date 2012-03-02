@@ -5690,8 +5690,10 @@ ath_set_channel(struct ieee80211com *ic)
 	 * beacon timers.  Note that since we only hear beacons in
 	 * sta/ibss mode this has no effect in other operating modes.
 	 */
+	ATH_LOCK(sc);
 	if (!sc->sc_scanning && ic->ic_curchan == ic->ic_bsschan)
 		sc->sc_syncbeacon = 1;
+	ATH_UNLOCK(sc);
 }
 
 /*
