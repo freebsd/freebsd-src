@@ -139,7 +139,6 @@ struct getpagesize_args {
 };
 #endif
 
-/* ARGSUSED */
 int
 ogetpagesize(td, uap)
 	struct thread *td;
@@ -682,7 +681,6 @@ struct madvise_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 sys_madvise(td, uap)
 	struct thread *td;
@@ -746,7 +744,6 @@ struct mincore_args {
 /*
  * MPSAFE
  */
-/* ARGSUSED */
 int
 sys_mincore(td, uap)
 	struct thread *td;
