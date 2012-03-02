@@ -216,6 +216,10 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	bus_dma_tag_t newtag;
 	int error = 0;
 
+	/* Always enforce at least a 4GB boundary. */
+	if (boundary == 0 || boundary > ((bus_addr_t)1 << 32))
+		boundary = (bus_size_t)1 << 32;
+
 	/* Basic sanity checking */
 	if (boundary != 0 && boundary < maxsegsz)
 		maxsegsz = boundary;
