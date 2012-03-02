@@ -28,7 +28,7 @@
 .\"     @(#)vipw.8	8.1 (Berkeley) 6/6/93
 .\" $FreeBSD$
 .\"
-.Dd June 6, 1993
+.Dd February 14, 2012
 .Dt VIPW 8
 .Os
 .Sh NAME
@@ -112,8 +112,11 @@ utility appeared in
 .Bx 4.0 .
 .Sh BUGS
 The mechanism for checking for password file modifications requires that
+the modification time of the password file changes.
+This means that in a default configuration where file system timestamps
+are not calculated with sub-second precision,
 .Ev EDITOR
-run for at least one second.
+has to run for at least one second.
 Non-interactive editor scripts should invoke
 .Xr sleep 1
 or equivalent to ensure this happens.
