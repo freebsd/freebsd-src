@@ -98,6 +98,11 @@ const char EventBuffer::s_eventStartTokens[] = "!?+-";
  */
 const char EventBuffer::s_eventEndTokens[] = "\n";
 
+/**
+ * Key=Value pairs are terminated by whitespace.
+ */
+const char EventBuffer::s_keyPairSepTokens[] = " \t\n";
+
 //- EventBuffer Public Methods -------------------------------------------------
 EventBuffer::EventBuffer(int fd)
  : m_fd(fd),
@@ -126,7 +131,8 @@ EventBuffer::ExtractEvent(string &eventString)
 		size_t startLen(strcspn(nextEvent, s_eventStartTokens));
 		bool   aligned(startLen == 0);
 		if (aligned == false) {
-			warnx("Re-synchronizing with devd event stream");
+			syslog(LOG_WARNING,
+			       "Re-synchronizing with devd event stream");
 			m_nextEventOffset += startLen;
 			m_parsedLen = m_nextEventOffset;
 			continue;
@@ -136,26 +142,45 @@ EventBuffer::ExtractEvent(string &eventString)
 		 * Start tokens may be end tokens too, so skip the start
 		 * token when trying to find the end of the event.
 		 */
+		bool   truncated(true);
 		size_t eventLen(strcspn(nextEvent + 1, s_eventEndTokens) + 1);
 		if (nextEvent[eventLen] == '\0') {
-			/* Ran out of buffer before hitting a full event. */
-			m_parsedLen += eventLen;
-			continue;
-		}
 
-		if (nextEvent[eventLen] != '\n') {
-			warnx("Improperly terminated event encountered");
+			m_parsedLen += eventLen;
+			if (m_parsedLen < MAX_EVENT_SIZE) {
+				/*
+				 * Ran out of buffer before hitting
+				 * a full event. Fill() and try again.
+				 */
+				continue;
+			}
+			syslog(LOG_WARNING,
+			       "Event exceeds event size limit of %d bytes.");
+		} else if (nextEvent[eventLen] != '\n') {
+			syslog(LOG_WARNING,
+			       "Improperly terminated event encountered.");
 		} else {
 			/*
 			 * Include the normal terminator in the extracted
 			 * event data.
 			 */
 			eventLen += 1;
+			truncated = false;
 		}
 
 		m_nextEventOffset += eventLen;
 		m_parsedLen = m_nextEventOffset;
 		eventString.assign(nextEvent, eventLen);
+
+		if (truncated) {
+			size_t fieldEnd;
+
+			fieldEnd = eventString.find_last_of(s_keyPairSepTokens);
+			eventString.erase(fieldEnd);
+			syslog(LOG_WARNING,
+			       "Truncated %d characters from event.",
+			       eventLen - fieldEnd);
+		}
 		return (true);
 	}
 	return (false);

@@ -119,21 +119,27 @@ private:
 		 */
 		MIN_EVENT_SIZE = 2,
 
+		/*
+		 * The maximum event size supported by ZFSD.
+		 * Events larger than this size (minus 1) are
+		 * truncated at the end of the last fully received
+		 * key/value pair.
+		 */
+		MAX_EVENT_SIZE = 8192,
+
 		/**
 		 * The maximum amount of buffer data to read at
 		 * a single time from the Devd file descriptor.
-		 * This size matches the largest event size allowed
-		 * in the system.
 		 */
-		MAX_READ_SIZE = 1024,
+		MAX_READ_SIZE = MAX_EVENT_SIZE,
 
 		/**
 		 * The size of EventBuffer's buffer of Devd event data.
-		 * This is one larger than the maximum event size which
-		 * alows us to always include a terminating NUL without
-		 * overwriting any received data.
+		 * This is one larger than the maximum supported event
+		 * size, which alows us to always include a terminating
+		 * NUL without overwriting any received data.
 		 */
-		EVENT_BUFSIZE = MAX_READ_SIZE + /*NUL*/1
+		EVENT_BUFSIZE = MAX_EVENT_SIZE + /*NUL*/1
 	};
 
 	/** The amount of data in m_buf we have yet to look at. */
@@ -150,6 +156,9 @@ private:
 
 	/** Characters we treat as ending an event string. */
 	static const char   s_eventEndTokens[];
+
+	/** Characters found between successive "key=value" strings. */
+	static const char   s_keyPairSepTokens[];
 
 	/** Temporary space for event data during our parsing. */
 	char		    m_buf[EVENT_BUFSIZE];
