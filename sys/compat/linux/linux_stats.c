@@ -66,7 +66,7 @@ translate_vnhook_major_minor(struct vnode *vp, struct stat *sb)
 	int major, minor;
 
 	if (vp->v_type == VCHR && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(vp->v_rdev->si_name,
+	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
 	    &major, &minor) == 0) {
 		sb->st_rdev = (major << 8 | minor);
 	}
@@ -149,14 +149,14 @@ translate_fd_major_minor(struct thread *td, int fd, struct stat *buf)
 		return;
 	vp = fp->f_vnode;
 	if (vp != NULL && vp->v_rdev != NULL &&
-	    linux_driver_get_major_minor(vp->v_rdev->si_name,
+	    linux_driver_get_major_minor(devtoname(vp->v_rdev),
 					 &major, &minor) == 0) {
 		buf->st_rdev = (major << 8 | minor);
 	} else if (fp->f_type == DTYPE_PTS) {
 		struct tty *tp = fp->f_data;
 
 		/* Convert the numbers for the slave device. */
-		if (linux_driver_get_major_minor(tp->t_dev->si_name,
+		if (linux_driver_get_major_minor(devtoname(tp->t_dev),
 					 &major, &minor) == 0) {
 			buf->st_rdev = (major << 8 | minor);
 		}
