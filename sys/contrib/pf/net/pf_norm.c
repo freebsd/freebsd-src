@@ -107,16 +107,16 @@ static struct mtx pf_frag_mtx;
 #define PF_FRAG_UNLOCK()	mtx_unlock(&pf_frag_mtx)
 #define PF_FRAG_ASSERT()	mtx_assert(&pf_frag_mtx, MA_OWNED)
 
-VNET_DEFINE(uma_zone_t, pf_state_scrub_pl);	/* XXX: shared with pfsync */
+VNET_DEFINE(uma_zone_t, pf_state_scrub_z);	/* XXX: shared with pfsync */
 
-static VNET_DEFINE(uma_zone_t, pf_frent_pl);
-#define	V_pf_frent_pl	VNET(pf_frent_pl)
-static VNET_DEFINE(uma_zone_t, pf_frag_pl);
-#define	V_pf_frag_pl	VNET(pf_frag_pl)
-static VNET_DEFINE(uma_zone_t, pf_cache_pl);
-#define	V_pf_cache_pl	VNET(pf_cache_pl)
-static VNET_DEFINE(uma_zone_t, pf_cent_pl);
-#define	V_pf_cent_pl	VNET(pf_cent_pl)
+static VNET_DEFINE(uma_zone_t, pf_frent_z);
+#define	V_pf_frent_z	VNET(pf_frent_z)
+static VNET_DEFINE(uma_zone_t, pf_frag_z);
+#define	V_pf_frag_z	VNET(pf_frag_z)
+static VNET_DEFINE(uma_zone_t, pf_cache_z);
+#define	V_pf_cache_z	VNET(pf_cache_z)
+static VNET_DEFINE(uma_zone_t, pf_cent_z);
+#define	V_pf_cent_z	VNET(pf_cent_z)
 static VNET_DEFINE(int, pf_nfrents);
 #define	V_pf_nfrents	VNET(pf_nfrents)
 static VNET_DEFINE(int, pf_ncache);
@@ -166,29 +166,29 @@ void
 pf_normalize_init(void)
 {
 
-	V_pf_frent_pl = uma_zcreate("pffrent", sizeof(struct pf_frent),
+	V_pf_frent_z = uma_zcreate("pffrent", sizeof(struct pf_frent),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	/* XXXGL: two zones of struct pf_fragment */
-	V_pf_frag_pl = uma_zcreate("pffrag", sizeof(struct pf_fragment),
+	V_pf_frag_z = uma_zcreate("pffrag", sizeof(struct pf_fragment),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_cache_pl = uma_zcreate("pffrcache", sizeof(struct pf_fragment),
+	V_pf_cache_z = uma_zcreate("pffrcache", sizeof(struct pf_fragment),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_cent_pl = uma_zcreate("pffrcent", sizeof(struct pf_frcache),
+	V_pf_cent_z = uma_zcreate("pffrcent", sizeof(struct pf_frcache),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_scrub_pl = uma_zcreate("pfstatescrub",
+	V_pf_state_scrub_z = uma_zcreate("pfstatescrub",
 	    sizeof(struct pf_state_scrub),  NULL, NULL, NULL, NULL,
 	    UMA_ALIGN_PTR, 0);
 
 	/*
 	 * XXX
 	 * No high water mark support(It's hint not hard limit).
-	 * uma_zone_set_max(pf_frag_pl, PFFRAG_FRAG_HIWAT);
+	 * uma_zone_set_max(pf_frag_z, PFFRAG_FRAG_HIWAT);
 	 */
-	uma_zone_set_max(V_pf_frent_pl, PFFRAG_FRENT_HIWAT);
-	uma_zone_set_max(V_pf_cache_pl, PFFRAG_FRCACHE_HIWAT);
-	uma_zone_set_max(V_pf_cent_pl, PFFRAG_FRCENT_HIWAT);
+	uma_zone_set_max(V_pf_frent_z, PFFRAG_FRENT_HIWAT);
+	uma_zone_set_max(V_pf_cache_z, PFFRAG_FRCACHE_HIWAT);
+	uma_zone_set_max(V_pf_cent_z, PFFRAG_FRCENT_HIWAT);
 
-	V_pf_pool_limits[PF_LIMIT_FRAGS].pp = V_pf_frent_pl;
+	V_pf_pool_limits[PF_LIMIT_FRAGS].pp = V_pf_frent_z;
 	V_pf_pool_limits[PF_LIMIT_FRAGS].limit = PFFRAG_FRENT_HIWAT;
 
 	mtx_init(&pf_frag_mtx, "pf fragments", NULL, MTX_DEF);
@@ -201,11 +201,11 @@ void
 pf_normalize_cleanup(void)
 {
 
-	uma_zdestroy(V_pf_frent_pl);
-	uma_zdestroy(V_pf_frag_pl);
-	uma_zdestroy(V_pf_cache_pl);
-	uma_zdestroy(V_pf_cent_pl);
-	uma_zdestroy(V_pf_state_scrub_pl);
+	uma_zdestroy(V_pf_frent_z);
+	uma_zdestroy(V_pf_frag_z);
+	uma_zdestroy(V_pf_cache_z);
+	uma_zdestroy(V_pf_cent_z);
+	uma_zdestroy(V_pf_state_scrub_z);
 
 	mtx_destroy(&pf_frag_mtx);
 }
@@ -315,7 +315,7 @@ pf_free_fragment(struct pf_fragment *frag)
 			LIST_REMOVE(frent, fr_next);
 
 			m_freem(frent->fr_m);
-			uma_zfree(V_pf_frent_pl, frent);
+			uma_zfree(V_pf_frent_z, frent);
 			V_pf_nfrents--;
 		}
 	} else {
@@ -329,7 +329,7 @@ pf_free_fragment(struct pf_fragment *frag)
 			    ("! (LIST_EMPTY() || LIST_FIRST()->fr_off >"
 			      " frcache->fr_end): %s", __FUNCTION__));
 
-			uma_zfree(V_pf_cent_pl, frcache);
+			uma_zfree(V_pf_cent_z, frcache);
 			V_pf_ncache--;
 		}
 	}
@@ -383,11 +383,11 @@ pf_remove_fragment(struct pf_fragment *frag)
 	if (BUFFER_FRAGMENTS(frag)) {
 		RB_REMOVE(pf_frag_tree, &V_pf_frag_tree, frag);
 		TAILQ_REMOVE(&V_pf_fragqueue, frag, frag_next);
-		uma_zfree(V_pf_frag_pl, frag);
+		uma_zfree(V_pf_frag_z, frag);
 	} else {
 		RB_REMOVE(pf_frag_tree, &V_pf_cache_tree, frag);
 		TAILQ_REMOVE(&V_pf_cachequeue, frag, frag_next);
-		uma_zfree(V_pf_cache_pl, frag);
+		uma_zfree(V_pf_cache_z, frag);
 	}
 }
 
@@ -415,10 +415,10 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
 	/* Create a new reassembly queue for this packet */
 	if (*frag == NULL) {
-		*frag = uma_zalloc(V_pf_frag_pl, M_NOWAIT);
+		*frag = uma_zalloc(V_pf_frag_z, M_NOWAIT);
 		if (*frag == NULL) {
 			pf_flush_fragments();
-			*frag = uma_zalloc(V_pf_frag_pl, M_NOWAIT);
+			*frag = uma_zalloc(V_pf_frag_z, M_NOWAIT);
 			if (*frag == NULL)
 				goto drop_fragment;
 		}
@@ -494,7 +494,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 		next = LIST_NEXT(frea, fr_next);
 		m_freem(frea->fr_m);
 		LIST_REMOVE(frea, fr_next);
-		uma_zfree(V_pf_frent_pl, frea);
+		uma_zfree(V_pf_frent_z, frea);
 		V_pf_nfrents--;
 	}
 
@@ -551,13 +551,13 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 	m2 = m->m_next;
 	m->m_next = NULL;
 	m_cat(m, m2);
-	uma_zfree(V_pf_frent_pl, frent);
+	uma_zfree(V_pf_frent_z, frent);
 	V_pf_nfrents--;
 	for (frent = next; frent != NULL; frent = next) {
 		next = LIST_NEXT(frent, fr_next);
 
 		m2 = frent->fr_m;
-		uma_zfree(V_pf_frent_pl, frent);
+		uma_zfree(V_pf_frent_z, frent);
 		V_pf_nfrents--;
 		m->m_pkthdr.csum_flags &= m2->m_pkthdr.csum_flags;
 		m->m_pkthdr.csum_data += m2->m_pkthdr.csum_data;
@@ -593,7 +593,7 @@ pf_reassemble(struct mbuf **m0, struct pf_fragment **frag,
 
  drop_fragment:
 	/* Oops - fail safe - drop packet */
-	uma_zfree(V_pf_frent_pl, frent);
+	uma_zfree(V_pf_frent_z, frent);
 	V_pf_nfrents--;
 	m_freem(m);
 	return (NULL);
@@ -616,18 +616,18 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 
 	/* Create a new range queue for this packet */
 	if (*frag == NULL) {
-		*frag = uma_zalloc(V_pf_cache_pl, M_NOWAIT);
+		*frag = uma_zalloc(V_pf_cache_z, M_NOWAIT);
 		if (*frag == NULL) {
 			pf_flush_fragments();
-			*frag = uma_zalloc(V_pf_cache_pl, M_NOWAIT);
+			*frag = uma_zalloc(V_pf_cache_z, M_NOWAIT);
 			if (*frag == NULL)
 				goto no_mem;
 		}
 
 		/* Get an entry for the queue */
-		cur = uma_zalloc(V_pf_cent_pl, M_NOWAIT);
+		cur = uma_zalloc(V_pf_cent_z, M_NOWAIT);
 		if (cur == NULL) {
-			uma_zfree(V_pf_cache_pl, *frag);
+			uma_zfree(V_pf_cache_z, *frag);
 			*frag = NULL;
 			goto no_mem;
 		}
@@ -749,7 +749,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 			    h->ip_id, -precut, frp->fr_off, frp->fr_end, off,
 			    max));
 
-			cur = uma_zalloc(V_pf_cent_pl, M_NOWAIT);
+			cur = uma_zalloc(V_pf_cent_z, M_NOWAIT);
 			if (cur == NULL)
 				goto no_mem;
 			V_pf_ncache++;
@@ -804,7 +804,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 			    h->ip_id, -aftercut, off, max, fra->fr_off,
 			    fra->fr_end));
 
-			cur = uma_zalloc(V_pf_cent_pl, M_NOWAIT);
+			cur = uma_zalloc(V_pf_cent_z, M_NOWAIT);
 			if (cur == NULL)
 				goto no_mem;
 			V_pf_ncache++;
@@ -825,7 +825,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				    max, fra->fr_off, fra->fr_end));
 				fra->fr_off = cur->fr_off;
 				LIST_REMOVE(cur, fr_next);
-				uma_zfree(V_pf_cent_pl, cur);
+				uma_zfree(V_pf_cent_z, cur);
 				V_pf_ncache--;
 				cur = NULL;
 
@@ -839,7 +839,7 @@ pf_fragcache(struct mbuf **m0, struct ip *h, struct pf_fragment **frag, int mff,
 				    max, fra->fr_off, fra->fr_end));
 				fra->fr_off = frp->fr_off;
 				LIST_REMOVE(frp, fr_next);
-				uma_zfree(V_pf_cent_pl, frp);
+				uma_zfree(V_pf_cent_z, frp);
 				V_pf_ncache--;
 				frp = NULL;
 
@@ -1015,7 +1015,7 @@ pf_normalize_ip(struct mbuf **m0, int dir, struct pfi_kif *kif, u_short *reason,
 			goto bad;
 
 		/* Get an entry for the fragment queue */
-		frent = uma_zalloc(V_pf_frent_pl, M_NOWAIT);
+		frent = uma_zalloc(V_pf_frent_z, M_NOWAIT);
 		if (frent == NULL) {
 			PF_FRAG_UNLOCK();
 			REASON_SET(reason, PFRES_MEMORY);
@@ -1459,7 +1459,7 @@ pf_normalize_tcp_init(struct mbuf *m, int off, struct pf_pdesc *pd,
 	KASSERT((src->scrub == NULL), 
 	    ("pf_normalize_tcp_init: src->scrub != NULL"));
 
-	src->scrub = uma_zalloc(V_pf_state_scrub_pl, M_NOWAIT);
+	src->scrub = uma_zalloc(V_pf_state_scrub_z, M_NOWAIT);
 	if (src->scrub == NULL)
 		return (1);
 	bzero(src->scrub, sizeof(*src->scrub));
@@ -1536,9 +1536,9 @@ void
 pf_normalize_tcp_cleanup(struct pf_state *state)
 {
 	if (state->src.scrub)
-		uma_zfree(V_pf_state_scrub_pl, state->src.scrub);
+		uma_zfree(V_pf_state_scrub_z, state->src.scrub);
 	if (state->dst.scrub)
-		uma_zfree(V_pf_state_scrub_pl, state->dst.scrub);
+		uma_zfree(V_pf_state_scrub_z, state->dst.scrub);
 
 	/* Someday... flush the TCP segment reassembly descriptors. */
 }

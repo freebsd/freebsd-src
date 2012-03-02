@@ -75,10 +75,10 @@ typedef uma_zone_t pool_t;
 SLIST_HEAD(pf_osfp_list, pf_os_fingerprint);
 VNET_DEFINE(struct pf_osfp_list,	pf_osfp_list);
 #define	V_pf_osfp_list			VNET(pf_osfp_list)
-VNET_DEFINE(pool_t,			pf_osfp_entry_pl);
-#define	pf_osfp_entry_pl		VNET(pf_osfp_entry_pl)
-VNET_DEFINE(pool_t,			pf_osfp_pl);
-#define	pf_osfp_pl			VNET(pf_osfp_pl)
+VNET_DEFINE(pool_t,			pf_osfp_entry_z);
+#define	pf_osfp_entry_pl		VNET(pf_osfp_entry_z)
+VNET_DEFINE(pool_t,			pf_osfp_z);
+#define	pf_osfp_pl			VNET(pf_osfp_z)
 
 static struct pf_osfp_enlist	*pf_osfp_fingerprint_hdr(const struct ip *,
 				    const struct ip6_hdr *,
@@ -307,9 +307,9 @@ pf_osfp_match(struct pf_osfp_enlist *list, pf_osfp_t os)
 void
 pf_osfp_initialize(void)
 {
-	pf_osfp_entry_pl = uma_zcreate("pfospfen", sizeof(struct pf_osfp_entry),
+	pf_osfp_entry_z = uma_zcreate("pfospfen", sizeof(struct pf_osfp_entry),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	pf_osfp_pl = uma_zcreate("pfosfp", sizeof(struct pf_os_fingerprint),
+	pf_osfp_z = uma_zcreate("pfosfp", sizeof(struct pf_os_fingerprint),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 
 	SLIST_INIT(&V_pf_osfp_list);
@@ -319,8 +319,8 @@ void
 pf_osfp_cleanup(void)
 {
 
-	uma_zdestroy(pf_osfp_entry_pl);
-	uma_zdestroy(pf_osfp_pl);
+	uma_zdestroy(pf_osfp_entry_z);
+	uma_zdestroy(pf_osfp_z);
 }
 #endif
 
@@ -335,9 +335,9 @@ pf_osfp_flush(void)
 		SLIST_REMOVE_HEAD(&V_pf_osfp_list, fp_next);
 		while ((entry = SLIST_FIRST(&fp->fp_oses))) {
 			SLIST_REMOVE_HEAD(&fp->fp_oses, fp_entry);
-			uma_zfree(pf_osfp_entry_pl, entry);
+			uma_zfree(pf_osfp_entry_z, entry);
 		}
-		uma_zfree(pf_osfp_pl, fp);
+		uma_zfree(pf_osfp_z, fp);
 	}
 }
 
@@ -390,11 +390,11 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 			if (PF_OSFP_ENTRY_EQ(entry, &fpioc->fp_os))
 				return (EEXIST);
 		}
-		if ((entry = uma_zalloc(pf_osfp_entry_pl,
+		if ((entry = uma_zalloc(pf_osfp_entry_z,
 		    M_NOWAIT)) == NULL)
 			return (ENOMEM);
 	} else {
-		if ((fp = uma_zalloc(pf_osfp_pl,
+		if ((fp = uma_zalloc(pf_osfp_z,
 		    M_NOWAIT)) == NULL)
 			return (ENOMEM);
 		memset(fp, 0, sizeof(*fp));
@@ -407,9 +407,9 @@ pf_osfp_add(struct pf_osfp_ioctl *fpioc)
 		fp->fp_wscale = fpioc->fp_wscale;
 		fp->fp_ttl = fpioc->fp_ttl;
 		SLIST_INIT(&fp->fp_oses);
-		if ((entry = uma_zalloc(pf_osfp_entry_pl,
+		if ((entry = uma_zalloc(pf_osfp_entry_z,
 		    M_NOWAIT)) == NULL) {
-			uma_zfree(pf_osfp_pl, fp);
+			uma_zfree(pf_osfp_z, fp);
 			return (ENOMEM);
 		}
 		pf_osfp_insert(&V_pf_osfp_list, fp);

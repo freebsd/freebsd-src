@@ -65,7 +65,7 @@ __FBSDID("$FreeBSD$");
 #endif /* INET6 */
 
 VNET_DEFINE(struct pfi_kif *,	 pfi_all);
-VNET_DEFINE(uma_zone_t,		 pfi_addr_pl);
+VNET_DEFINE(uma_zone_t,		 pfi_addr_z);
 VNET_DEFINE(struct pfi_ifhead,	 pfi_ifs);
 #define	V_pfi_ifs		 VNET(pfi_ifs)
 VNET_DEFINE(long,		 pfi_update);
@@ -395,7 +395,7 @@ pfi_dynaddr_setup(struct pf_addr_wrap *aw, sa_family_t af)
 	if (aw->type != PF_ADDR_DYNIFTL)
 		return (0);
 	/* XXX: revisit! */
-	if ((dyn = uma_zalloc(V_pfi_addr_pl, M_WAITOK | M_ZERO))
+	if ((dyn = uma_zalloc(V_pfi_addr_z, M_WAITOK | M_ZERO))
 	    == NULL)
 		return (1);
 
@@ -451,7 +451,7 @@ _bad:
 		pf_remove_if_empty_ruleset(ruleset);
 	if (dyn->pfid_kif != NULL)
 		pfi_kif_unref(dyn->pfid_kif, PFI_KIF_REF_RULE);
-	uma_zfree(V_pfi_addr_pl, dyn);
+	uma_zfree(V_pfi_addr_z, dyn);
 
 	return (rv);
 }
@@ -640,7 +640,7 @@ pfi_dynaddr_remove(struct pf_addr_wrap *aw)
 	aw->p.dyn->pfid_kif = NULL;
 	pfr_detach_table(aw->p.dyn->pfid_kt);
 	aw->p.dyn->pfid_kt = NULL;
-	uma_zfree(V_pfi_addr_pl, aw->p.dyn);
+	uma_zfree(V_pfi_addr_z, aw->p.dyn);
 	aw->p.dyn = NULL;
 }
 

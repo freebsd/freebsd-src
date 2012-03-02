@@ -691,8 +691,8 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		 * Pretend there was no match.
 		 */
 		if (!bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
-			uma_zfree(V_pf_state_key_pl, *nkp);
-			uma_zfree(V_pf_state_key_pl, *skp);
+			uma_zfree(V_pf_state_key_z, *nkp);
+			uma_zfree(V_pf_state_key_z, *skp);
 			*skw = *sks = *nkp = *skp = NULL;
 			return (NULL);
 		}

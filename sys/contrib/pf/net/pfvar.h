@@ -1765,26 +1765,26 @@ extern void			 pf_calc_skip_steps(struct pf_rulequeue *);
 #ifdef ALTQ
 extern	void			 pf_altq_ifnet_event(struct ifnet *, int);
 #endif
-VNET_DECLARE(uma_zone_t,		 pf_src_tree_pl);
-#define	V_pf_src_tree_pl		 VNET(pf_src_tree_pl)
-VNET_DECLARE(uma_zone_t,		 pf_rule_pl);
-#define	V_pf_rule_pl			 VNET(pf_rule_pl)
-VNET_DECLARE(uma_zone_t,		 pf_state_pl);
-#define	V_pf_state_pl			 VNET(pf_state_pl)
-VNET_DECLARE(uma_zone_t,		 pf_state_key_pl);
-#define	V_pf_state_key_pl		 VNET(pf_state_key_pl)
-VNET_DECLARE(uma_zone_t,		 pf_altq_pl);
-#define	V_pf_altq_pl			 VNET(pf_altq_pl)
-VNET_DECLARE(uma_zone_t,		 pf_pooladdr_pl);
-#define	V_pf_pooladdr_pl		 VNET(pf_pooladdr_pl)
-VNET_DECLARE(uma_zone_t,		 pfr_ktable_pl);
-#define	V_pfr_ktable_pl			 VNET(pfr_ktable_pl)
-VNET_DECLARE(uma_zone_t,		 pfr_kentry_pl);
-#define	V_pfr_kentry_pl			 VNET(pfr_kentry_pl)
-VNET_DECLARE(uma_zone_t,		 pf_state_scrub_pl);
-#define	V_pf_state_scrub_pl		 VNET(pf_state_scrub_pl)
-VNET_DECLARE(uma_zone_t,		 pfi_addr_pl);
-#define	V_pfi_addr_pl			 VNET(pfi_addr_pl)
+VNET_DECLARE(uma_zone_t,	 pf_src_tree_z);
+#define	V_pf_src_tree_z		 VNET(pf_src_tree_z)
+VNET_DECLARE(uma_zone_t,	 pf_rule_z);
+#define	V_pf_rule_z		 VNET(pf_rule_z)
+VNET_DECLARE(uma_zone_t,	 pf_state_z);
+#define	V_pf_state_z		 VNET(pf_state_z)
+VNET_DECLARE(uma_zone_t,	 pf_state_key_z);
+#define	V_pf_state_key_z	 VNET(pf_state_key_z)
+VNET_DECLARE(uma_zone_t,	 pf_altq_z);
+#define	V_pf_altq_z		 VNET(pf_altq_z)
+VNET_DECLARE(uma_zone_t,	 pf_pooladdr_z);
+#define	V_pf_pooladdr_z		 VNET(pf_pooladdr_z)
+VNET_DECLARE(uma_zone_t,	 pfr_ktable_z);
+#define	V_pfr_ktable_z		 VNET(pfr_ktable_z)
+VNET_DECLARE(uma_zone_t,	 pfr_kentry_z);
+#define	V_pfr_kentry_z		 VNET(pfr_kentry_z)
+VNET_DECLARE(uma_zone_t,	 pf_state_scrub_z);
+#define	V_pf_state_scrub_z	 VNET(pf_state_scrub_z)
+VNET_DECLARE(uma_zone_t,	 pfi_addr_z);
+#define	V_pfi_addr_z		 VNET(pfi_addr_z)
 
 extern void			 pf_purge_thread(void *);
 extern int			 pf_purge_expired_src_nodes(int);

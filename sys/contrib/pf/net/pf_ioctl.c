@@ -259,15 +259,15 @@ static void
 cleanup_pf_zone(void)
 {
 
-	uma_zdestroy(V_pf_src_tree_pl);
-	uma_zdestroy(V_pf_rule_pl);
-	uma_zdestroy(V_pf_state_pl);
-	uma_zdestroy(V_pf_state_key_pl);
-	uma_zdestroy(V_pf_altq_pl);
-	uma_zdestroy(V_pf_pooladdr_pl);
-	uma_zdestroy(V_pfr_ktable_pl);
-	uma_zdestroy(V_pfr_kentry_pl);
-	uma_zdestroy(V_pfi_addr_pl);
+	uma_zdestroy(V_pf_src_tree_z);
+	uma_zdestroy(V_pf_rule_z);
+	uma_zdestroy(V_pf_state_z);
+	uma_zdestroy(V_pf_state_key_z);
+	uma_zdestroy(V_pf_altq_z);
+	uma_zdestroy(V_pf_pooladdr_z);
+	uma_zdestroy(V_pfr_ktable_z);
+	uma_zdestroy(V_pfr_kentry_z);
+	uma_zdestroy(V_pfi_addr_z);
 }
 
 int
@@ -275,38 +275,41 @@ pfattach(void)
 {
 	u_int32_t *my_timeout = V_pf_default_rule.timeout;
 
-	V_pf_src_tree_pl = uma_zcreate("pfsrctrpl", sizeof(struct pf_src_node),
+	V_pf_src_tree_z = uma_zcreate("pf src nodes",
+	    sizeof(struct pf_src_node), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pf_rule_z = uma_zcreate("pf rules", sizeof(struct pf_rule),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_rule_pl = uma_zcreate("pfrulepl", sizeof(struct pf_rule),
+	V_pf_state_z = uma_zcreate("pf states", sizeof(struct pf_state),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_pl = uma_zcreate("pfstatepl", sizeof(struct pf_state),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_state_key_pl = uma_zcreate("pfstatekeypl",
+	V_pf_state_key_z = uma_zcreate("pf state keys",
 	    sizeof(struct pf_state_key), NULL, NULL, NULL, NULL,UMA_ALIGN_PTR,
 	    0);
-	V_pf_altq_pl = uma_zcreate("pfaltqpl", sizeof(struct pf_altq),
+	V_pf_altq_z = uma_zcreate("pf altq", sizeof(struct pf_altq),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pf_pooladdr_pl = uma_zcreate("pfpooladdrpl",
+	V_pf_pooladdr_z = uma_zcreate("pf pool addresses",
 	    sizeof(struct pf_pooladdr), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
 	    0);
-	V_pfr_ktable_pl = uma_zcreate("pfrktable", sizeof(struct pfr_ktable),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pfr_kentry_pl = uma_zcreate("pfrkentry", sizeof(struct pfr_kentry),
-	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
-	V_pfi_addr_pl = uma_zcreate("pfiaddrpl", sizeof(struct pfi_dynaddr),
+	V_pfr_ktable_z = uma_zcreate("pf tables",
+	    sizeof(struct pfr_ktable), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pfr_kentry_z = uma_zcreate("pf table entries",
+	    sizeof(struct pfr_kentry), NULL, NULL, NULL, NULL, UMA_ALIGN_PTR,
+	    0);
+	V_pfi_addr_z = uma_zcreate("pf pfi_dynaddr", sizeof(struct pfi_dynaddr),
 	    NULL, NULL, NULL, NULL, UMA_ALIGN_PTR, 0);
 	pfr_initialize();
 	pfi_initialize();
 	pf_osfp_initialize();
 	pf_normalize_init();
 
-	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_pl;
+	V_pf_pool_limits[PF_LIMIT_STATES].pp = V_pf_state_z;
 	V_pf_pool_limits[PF_LIMIT_STATES].limit = PFSTATE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_pl;
+	V_pf_pool_limits[PF_LIMIT_SRC_NODES].pp = V_pf_src_tree_z;
 	V_pf_pool_limits[PF_LIMIT_SRC_NODES].limit = PFSNODE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_pl;
+	V_pf_pool_limits[PF_LIMIT_TABLES].pp = V_pfr_ktable_z;
 	V_pf_pool_limits[PF_LIMIT_TABLES].limit = PFR_KTABLE_HIWAT;
-	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_pl;
+	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].pp = V_pfr_kentry_z;
 	V_pf_pool_limits[PF_LIMIT_TABLE_ENTRIES].limit = PFR_KENTRY_HIWAT;
 	uma_zone_set_max(V_pf_pool_limits[PF_LIMIT_STATES].pp,
 	    V_pf_pool_limits[PF_LIMIT_STATES].limit);
@@ -432,7 +435,7 @@ pf_empty_pool(struct pf_palist *poola)
 		pf_tbladdr_remove(&empty_pool_pa->addr);
 		pfi_kif_unref(empty_pool_pa->kif, PFI_KIF_REF_RULE);
 		TAILQ_REMOVE(poola, empty_pool_pa, entries);
-		uma_zfree(V_pf_pooladdr_pl, empty_pool_pa);
+		uma_zfree(V_pf_pooladdr_z, empty_pool_pa);
 	}
 }
 
@@ -479,7 +482,7 @@ pf_rm_rule(struct pf_rulequeue *rulequeue, struct pf_rule *rule)
 	pfi_kif_unref(rule->kif, PFI_KIF_REF_RULE);
 	pf_anchor_remove(rule);
 	pf_empty_pool(&rule->rpool.list);
-	uma_zfree(V_pf_rule_pl, rule);
+	uma_zfree(V_pf_rule_z, rule);
 }
 
 static u_int16_t
@@ -618,7 +621,7 @@ pf_begin_altq(u_int32_t *ticket)
 			error = altq_remove(altq);
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_pl, altq);
+		uma_zfree(V_pf_altq_z, altq);
 	}
 	if (error)
 		return (error);
@@ -644,7 +647,7 @@ pf_rollback_altq(u_int32_t ticket)
 			error = altq_remove(altq);
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_pl, altq);
+		uma_zfree(V_pf_altq_z, altq);
 	}
 	V_altqs_inactive_open = 0;
 	return (error);
@@ -695,7 +698,7 @@ pf_commit_altq(u_int32_t ticket)
 				error = err;
 		} else
 			pf_qid_unref(altq->qid);
-		uma_zfree(V_pf_altq_pl, altq);
+		uma_zfree(V_pf_altq_z, altq);
 	}
 
 	V_altqs_inactive_open = 0;
@@ -775,7 +778,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 
 	/* Copy the current active set */
 	TAILQ_FOREACH(a1, V_pf_altqs_active, entries) {
-		a2 = uma_zalloc(V_pf_altq_pl, M_NOWAIT);
+		a2 = uma_zalloc(V_pf_altq_z, M_NOWAIT);
 		if (a2 == NULL) {
 			error = ENOMEM;
 			break;
@@ -785,7 +788,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 		if (a2->qname[0] != 0) {
 			if ((a2->qid = pf_qname2qid(a2->qname)) == 0) {
 				error = EBUSY;
-				uma_zfree(V_pf_altq_pl, a2);
+				uma_zfree(V_pf_altq_z, a2);
 				break;
 			}
 			a2->altq_disc = NULL;
@@ -811,7 +814,7 @@ pf_altq_ifnet_event(struct ifnet *ifp, int remove)
 				error = EBUSY;
 
 			if (error) {
-				uma_zfree(V_pf_altq_pl, a2);
+				uma_zfree(V_pf_altq_z, a2);
 				break;
 			}
 		}
@@ -1261,7 +1264,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EBUSY;
 			break;
 		}
-		rule = uma_zalloc(V_pf_rule_pl, M_NOWAIT);
+		rule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 		if (rule == NULL) {
 			error = ENOMEM;
 			break;
@@ -1278,14 +1281,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		rule->entries.tqe_prev = NULL;
 #ifndef INET
 		if (rule->af == AF_INET) {
-			uma_zfree(V_pf_rule_pl, rule);
+			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
 		}
 #endif /* INET */
 #ifndef INET6
 		if (rule->af == AF_INET6) {
-			uma_zfree(V_pf_rule_pl, rule);
+			uma_zfree(V_pf_rule_z, rule);
 			error = EAFNOSUPPORT;
 			break;
 		}
@@ -1299,7 +1302,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (rule->ifname[0]) {
 			rule->kif = pfi_kif_get(rule->ifname);
 			if (rule->kif == NULL) {
-				uma_zfree(V_pf_rule_pl, rule);
+				uma_zfree(V_pf_rule_z, rule);
 				error = EINVAL;
 				break;
 			}
@@ -1510,7 +1513,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		}
 
 		if (pcr->action != PF_CHANGE_REMOVE) {
-			newrule = uma_zalloc(V_pf_rule_pl, M_NOWAIT);
+			newrule = uma_zalloc(V_pf_rule_z, M_NOWAIT);
 			if (newrule == NULL) {
 				error = ENOMEM;
 				break;
@@ -1524,14 +1527,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			newrule->entries.tqe_prev = NULL;
 #ifndef INET
 			if (newrule->af == AF_INET) {
-				uma_zfree(V_pf_rule_pl, newrule);
+				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET */
 #ifndef INET6
 			if (newrule->af == AF_INET6) {
-				uma_zfree(V_pf_rule_pl, newrule);
+				uma_zfree(V_pf_rule_z, newrule);
 				error = EAFNOSUPPORT;
 				break;
 			}
@@ -1539,7 +1542,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newrule->ifname[0]) {
 				newrule->kif = pfi_kif_get(newrule->ifname);
 				if (newrule->kif == NULL) {
-					uma_zfree(V_pf_rule_pl, newrule);
+					uma_zfree(V_pf_rule_z, newrule);
 					error = EINVAL;
 					break;
 				}
@@ -2062,7 +2065,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EBUSY;
 			break;
 		}
-		altq = uma_zalloc(V_pf_altq_pl, M_NOWAIT);
+		altq = uma_zalloc(V_pf_altq_z, M_NOWAIT);
 		if (altq == NULL) {
 			error = ENOMEM;
 			break;
@@ -2077,7 +2080,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (altq->qname[0] != 0) {
 			if ((altq->qid = pf_qname2qid(altq->qname)) == 0) {
 				error = EBUSY;
-				uma_zfree(V_pf_altq_pl, altq);
+				uma_zfree(V_pf_altq_z, altq);
 				break;
 			}
 			altq->altq_disc = NULL;
@@ -2100,7 +2103,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			PF_LOCK();
 		}
 		if (error) {
-			uma_zfree(V_pf_altq_pl, altq);
+			uma_zfree(V_pf_altq_z, altq);
 			break;
 		}
 
@@ -2218,7 +2221,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			error = EINVAL;
 			break;
 		}
-		pa = uma_zalloc(V_pf_pooladdr_pl, M_NOWAIT);
+		pa = uma_zalloc(V_pf_pooladdr_z, M_NOWAIT);
 		if (pa == NULL) {
 			error = ENOMEM;
 			break;
@@ -2227,7 +2230,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pa->ifname[0]) {
 			pa->kif = pfi_kif_get(pa->ifname);
 			if (pa->kif == NULL) {
-				uma_zfree(V_pf_pooladdr_pl, pa);
+				uma_zfree(V_pf_pooladdr_z, pa);
 				error = EINVAL;
 				break;
 			}
@@ -2236,7 +2239,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 		if (pfi_dynaddr_setup(&pa->addr, pp->af)) {
 			pfi_dynaddr_remove(&pa->addr);
 			pfi_kif_unref(pa->kif, PFI_KIF_REF_RULE);
-			uma_zfree(V_pf_pooladdr_pl, pa);
+			uma_zfree(V_pf_pooladdr_z, pa);
 			error = EINVAL;
 			break;
 		}
@@ -2312,7 +2315,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			break;
 		}
 		if (pca->action != PF_CHANGE_REMOVE) {
-			newpa = uma_zalloc(V_pf_pooladdr_pl,
+			newpa = uma_zalloc(V_pf_pooladdr_z,
 			    M_NOWAIT);
 			if (newpa == NULL) {
 				error = ENOMEM;
@@ -2321,14 +2324,14 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			bcopy(&pca->addr, newpa, sizeof(struct pf_pooladdr));
 #ifndef INET
 			if (pca->af == AF_INET) {
-				uma_zfree(V_pf_pooladdr_pl, newpa);
+				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
 			}
 #endif /* INET */
 #ifndef INET6
 			if (pca->af == AF_INET6) {
-				uma_zfree(V_pf_pooladdr_pl, newpa);
+				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EAFNOSUPPORT;
 				break;
 			}
@@ -2336,7 +2339,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			if (newpa->ifname[0]) {
 				newpa->kif = pfi_kif_get(newpa->ifname);
 				if (newpa->kif == NULL) {
-					uma_zfree(V_pf_pooladdr_pl, newpa);
+					uma_zfree(V_pf_pooladdr_z, newpa);
 					error = EINVAL;
 					break;
 				}
@@ -2347,7 +2350,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			    pf_tbladdr_setup(ruleset, &newpa->addr)) {
 				pfi_dynaddr_remove(&newpa->addr);
 				pfi_kif_unref(newpa->kif, PFI_KIF_REF_RULE);
-				uma_zfree(V_pf_pooladdr_pl, newpa);
+				uma_zfree(V_pf_pooladdr_z, newpa);
 				error = EINVAL;
 				break;
 			}
@@ -2376,7 +2379,7 @@ pfioctl(struct cdev *dev, u_long cmd, caddr_t addr, int flags, struct thread *td
 			pfi_dynaddr_remove(&oldpa->addr);
 			pf_tbladdr_remove(&oldpa->addr);
 			pfi_kif_unref(oldpa->kif, PFI_KIF_REF_RULE);
-			uma_zfree(V_pf_pooladdr_pl, oldpa);
+			uma_zfree(V_pf_pooladdr_z, oldpa);
 		} else {
 			if (oldpa == NULL)
 				TAILQ_INSERT_TAIL(&pool->list, newpa, entries);
