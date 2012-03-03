@@ -2473,8 +2473,7 @@ sysctl_kern_proc_ps_strings(SYSCTL_HANDLER_ARGS)
 }
 
 /*
- * This sysctl allows a process to retrieve or/and set umask of
- * another process.
+ * This sysctl allows a process to retrieve umask of another process.
  */
 static int
 sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
@@ -2488,9 +2487,6 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	if (namelen != 1)
 		return (EINVAL);
 
-	if (req->newptr != NULL && req->newlen != sizeof(fd_cmask))
-		return (EINVAL);
-
 	error = pget((pid_t)name[0], PGET_WANTREAD, &p);
 	if (error != 0)
 		return (error);
@@ -2498,20 +2494,8 @@ sysctl_kern_proc_umask(SYSCTL_HANDLER_ARGS)
 	FILEDESC_SLOCK(p->p_fd);
 	fd_cmask = p->p_fd->fd_cmask;
 	FILEDESC_SUNLOCK(p->p_fd);
-	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
-	if (error != 0)
-		goto errout;
-
-	if (req->newptr != NULL) {
-		error = SYSCTL_IN(req, &fd_cmask, sizeof(fd_cmask));
-		if (error == 0) {
-			FILEDESC_XLOCK(p->p_fd);
-			p->p_fd->fd_cmask = fd_cmask & ALLPERMS;
-			FILEDESC_XUNLOCK(p->p_fd);
-		}
-	}
-errout:
 	PRELE(p);
+	error = SYSCTL_OUT(req, &fd_cmask, sizeof(fd_cmask));
 	return (error);
 }
 
@@ -2617,6 +2601,5 @@ static SYSCTL_NODE(_kern_proc, KERN_PROC_PS_STRINGS, ps_strings, CTLFLAG_RD |
 	CTLFLAG_MPSAFE, sysctl_kern_proc_ps_strings,
 	"Process ps_strings location");
 
-static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RW |
-	CTLFLAG_ANYBODY | CTLFLAG_MPSAFE, sysctl_kern_proc_umask,
-	"Process umask");
+static SYSCTL_NODE(_kern_proc, KERN_PROC_UMASK, umask, CTLFLAG_RD |
+	CTLFLAG_MPSAFE, sysctl_kern_proc_umask, "Process umask");
