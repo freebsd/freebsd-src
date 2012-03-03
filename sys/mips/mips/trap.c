@@ -351,7 +351,7 @@ cpu_fetch_syscall_args(struct thread *td, struct syscall_args *sa)
 			sa->args[6] = locr0->t6;
 			sa->args[7] = locr0->t7;
 			nsaved += 4;
-#if defined (__mips_n32) || defined(__mips_n64)
+#ifdef COMPAT_FREEBSD32
 		}
 #endif
 #endif
