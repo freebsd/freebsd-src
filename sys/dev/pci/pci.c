@@ -1474,7 +1474,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
  * 3.  Call the three vectors allocated by pci_alloc_msix() A, B, and
  * C.  After the call to pci_alloc_msix(), the device will be setup to
  * have an MSI-X table of ABC--- (where - means no vector assigned).
- * If the driver ten passes a vector array of { 1, 0, 1, 2, 0, 2 },
+ * If the driver then passes a vector array of { 1, 0, 1, 2, 0, 2 },
  * then the MSI-X table will look like A-AB-B, and the 'C' vector will
  * be freed back to the system.  This device will also have valid
  * SYS_RES_IRQ rids of 1, 3, 4, and 6.
