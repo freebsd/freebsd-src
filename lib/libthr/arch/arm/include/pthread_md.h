@@ -67,7 +67,7 @@ static __inline struct tcb *
 _tcb_get(void)
 {
 	struct tcb *tcb;
-	sysarch(ARM_GET_TP, &tcb);
+	tcb = (void*)sysarch(ARM_GET_TP, NULL);
 
 	return (tcb);
 }
