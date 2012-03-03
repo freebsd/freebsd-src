@@ -2322,7 +2322,6 @@ cortexa_setup(char *args)
 	cpuctrl = CPU_CONTROL_MMU_ENABLE |
 	    CPU_CONTROL_IC_ENABLE |
 	    CPU_CONTROL_DC_ENABLE |
-	    CPU_CONTROL_V6_EXTPAGE |
 	    CPU_CONTROL_BPRD_ENABLE;
 	
 #ifndef ARM32_DISABLE_ALIGNMENT_FAULTS
@@ -2347,6 +2346,9 @@ cortexa_setup(char *args)
 	
 	/* And again. */
 	cpu_idcache_wbinv_all();
+#ifdef SMP
+	armv7_auxctrl((1 << 6) | (1 << 0), (1 << 6) | (1 << 0)); /* Enable SMP + TLB broadcasting  */
+#endif
 }
 #endif  /* CPU_CORTEXA */
 
