@@ -41,8 +41,14 @@ __FBSDID("$FreeBSD$");
 #include <sys/ktr.h>
 #include <sys/module.h>
 #include <sys/rman.h>
+#include <sys/pcpu.h>
+#include <sys/proc.h>
+#include <sys/cpuset.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <machine/bus.h>
 #include <machine/intr.h>
+#include <machine/smp.h>
 
 #include <dev/fdt/fdt_common.h>
 #include <dev/ofw/openfirm.h>
@@ -103,6 +109,8 @@ static struct arm_gic_softc *arm_gic_sc = NULL;
 #define	gic_d_write_4(reg, val)		\
     bus_space_write_4(arm_gic_sc->gic_d_bst, arm_gic_sc->gic_d_bsh, reg, val)
 
+static void gic_post_filter(void *);
+
 static int
 arm_gic_probe(device_t dev)
 {
@@ -110,6 +118,27 @@ arm_gic_probe(device_t dev)
 		return (ENXIO);
 	device_set_desc(dev, "ARM Generic Interrupt Controller");
 	return (BUS_PROBE_DEFAULT);
+}
+
+void
+gic_init_secondary(void)
+{
+	int nirqs;
+	
+  	/* Get the number of interrupts */
+	nirqs = gic_d_read_4(GICD_TYPER);
+	nirqs = 32 * ((nirqs & 0x1f) + 1);
+			
+	for (int i = 0; i < nirqs; i += 4)
+		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0);
+	/* Enable CPU interface */
+	gic_c_write_4(GICC_CTLR, 1);
+
+	/* Enable interrupt distribution */
+	gic_d_write_4(GICD_CTLR, 0x01);
+		
+	/* Activate IRQ 29, ie private timer IRQ*/
+	gic_d_write_4(GICD_ISENABLER(29 >> 5), (1UL << (29 & 0x1F)));
 }
 
 static int
@@ -127,6 +156,8 @@ arm_gic_attach(device_t dev)
 		device_printf(dev, "could not allocate resources\n");
 		return (ENXIO);
 	}
+
+	arm_post_filter = gic_post_filter;
 
 	/* Distributor Interface */
 	sc->gic_d_bst = rman_get_bustag(sc->gic_res[0]);
@@ -160,10 +191,9 @@ arm_gic_attach(device_t dev)
 		gic_d_write_4(GICD_ICENABLER(i >> 5), 0xFFFFFFFF);
 	}
 
-	/* Route all interrupts to CPU0 and set priority to 0 */
-	for (i = 32; i < nirqs; i += 4) {
-		gic_d_write_4(GICD_IPRIORITYR(i >> 2), 0x00000000);
-		gic_d_write_4(GICD_ITARGETSR(i >> 2), 0x01010101);
+	for (i = 0; i < nirqs; i += 4) {
+		gic_d_write_4(GICD_IPRIORITYR(i >> 2),  0);
+		gic_d_write_4(GICD_ITARGETSR(i >> 2), 0xffffffff);
 	}
 
 	/* Enable CPU interface */
@@ -171,7 +201,6 @@ arm_gic_attach(device_t dev)
 
 	/* Enable interrupt distribution */
 	gic_d_write_4(GICD_CTLR, 0x01);
-
 
 	return (0);
 }
@@ -192,17 +221,29 @@ static devclass_t arm_gic_devclass;
 
 DRIVER_MODULE(gic, simplebus, arm_gic_driver, arm_gic_devclass, 0, 0);
 
+static void
+gic_post_filter(void *arg)
+{
+	uintptr_t irq = (uintptr_t) arg;
+
+	gic_c_write_4(GICC_EOIR, irq);
+}
+
 int
 arm_get_next_irq(int last_irq)
 {
 	uint32_t active_irq;
 
-	/* clean-up the last IRQ */
-	if (last_irq != -1) {
-		gic_c_write_4(GICC_EOIR, last_irq);
-	}
-
 	active_irq = gic_c_read_4(GICC_IAR);
+
+	/* 
+	 * Immediatly EOIR the SGIs, because doing so requires the other
+	 * bits (ie CPU number), not just the IRQ number, and we do not
+	 * have this information later.
+	 */
+	   
+	if ((active_irq & 0x3ff) < 16)
+		gic_c_write_4(GICC_EOIR, active_irq);
 	active_irq &= 0x3FF;
 
 	if (active_irq == 0x3FF) {
@@ -210,6 +251,7 @@ arm_get_next_irq(int last_irq)
 			printf("Spurious interrupt detected [0x%08x]\n", active_irq);
 		return -1;
 	}
+	        gic_c_write_4(GICC_EOIR, active_irq);
 
 	return active_irq;
 }
@@ -223,5 +265,43 @@ arm_mask_irq(uintptr_t nb)
 void
 arm_unmask_irq(uintptr_t nb)
 {
+	
+	gic_c_write_4(GICC_EOIR, nb);
 	gic_d_write_4(GICD_ISENABLER(nb >> 5), (1UL << (nb & 0x1F)));
 }
+
+#ifdef SMP
+void
+pic_ipi_send(cpuset_t cpus, u_int ipi)
+{
+	uint32_t val = 0, i;
+
+	for (i = 0; i < MAXCPU; i++)
+		if (CPU_ISSET(i, &cpus))
+			val |= 1 << (16 + i);
+	gic_d_write_4(GICD_SGIR(0), val | ipi);
+	
+}
+
+int
+pic_ipi_get(int i)
+{
+	
+	if (i != -1) {
+		/*
+		 * The intr code will automagically give the frame pointer
+		 * if the interrupt argument is 0.
+		 */
+		if ((unsigned int)i > 16) 
+			return (0);
+		return (i);
+	}
+	return (0x3ff);
+}
+
+void
+pic_ipi_clear(int ipi)
+{
+}
+#endif
+
