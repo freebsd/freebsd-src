@@ -188,38 +188,44 @@ extern u_int cputype;
 #else
 void tlb_broadcast(int);
 
+#ifdef CPU_CORTEXA
+#define TLB_BROADCAST	/* No need to explicitely send an IPI */
+#else
+#define TLB_BROADCAST	tlb_broadcast(7)
+#endif
+
 #define	cpu_tlb_flushID() do { \
 	cpufuncs.cf_tlb_flushID(); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 #define	cpu_tlb_flushID_SE(e) do { \
 	cpufuncs.cf_tlb_flushID_SE(e); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 
 #define	cpu_tlb_flushI() do { \
 	cpufuncs.cf_tlb_flushI(); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 
 #define	cpu_tlb_flushI_SE(e) do { \
 	cpufuncs.cf_tlb_flushI_SE(e); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 
 #define	cpu_tlb_flushD() do { \
 	cpufuncs.cf_tlb_flushD(); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 
 #define	cpu_tlb_flushD_SE(e) do { \
 	cpufuncs.cf_tlb_flushD_SE(e); \
-	tlb_broadcast(7); \
+	TLB_BROADCAST; \
 } while(0)
 
 #endif
@@ -506,6 +512,8 @@ void	armv7_cpu_sleep			(int);
 void	armv7_setup			(char *string);
 void	armv7_context_switch		(void);
 void	armv7_drain_writebuf		(void);
+void	armv7_sev			(void);
+u_int	armv7_auxctrl			(u_int, u_int);
 void	pj4bv7_setup			(char *string);
 void	pj4bv6_setup			(char *string);
 void	pj4b_config			(void);

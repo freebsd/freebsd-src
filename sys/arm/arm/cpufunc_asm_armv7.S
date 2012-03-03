@@ -43,24 +43,30 @@ __FBSDID("$FreeBSD$");
 .Lpage_mask:
 	.word	0xfff
 
+#define PT_NOS          (1 << 5)
+#define PT_S 	        (1 << 1)
+#define PT_INNER_NC	0
+#define PT_INNER_WT	(1 << 0)
+#define PT_INNER_WB	((1 << 0) | (1 << 6))
+#define PT_INNER_WBWA	(1 << 6)
+#define PT_OUTER_NC	0
+#define PT_OUTER_WT	(2 << 3)
+#define PT_OUTER_WB	(3 << 3)
+#define PT_OUTER_WBWA	(1 << 3)
+	
+#ifdef SMP
+#define PT_ATTR	(PT_S|PT_INNER_WT|PT_OUTER_WT|PT_NOS)
+#else
+#define PT_ATTR	(PT_INNER_WT|PT_OUTER_WT)
+#endif
+
 ENTRY(armv7_setttb)
 	stmdb   sp!, {r0, lr}
  	bl      _C_LABEL(armv7_idcache_wbinv_all) /* clean the D cache */
  	ldmia   sp!, {r0, lr}
  	dsb
-#if defined(SMP)
-	/*
-	 * Settings for architecture with SMP extension:
-	 * PT memory: inner WBWA, shareable; outer WBWA, non-shareable
-	 */
-	orr	r0, r0, #106
-#else
-	/*
-	 * Settings for architecture without SMP extension:
-	 * PT memory: inner-cacheable, non-shareable; outer WB, non-shareable
-	 */
-	orr 	r0, r0, #25
-#endif
+				
+	orr 	r0, r0, #PT_ATTR
  	mcr	p15, 0, r0, c2, c0, 0	/* Translation Table Base Register 0 (TTBR0) */
  	mcr     p15, 0, r0, c8, c7, 0   /* invalidate I+D TLBs */
  	dsb
@@ -69,7 +75,11 @@ ENTRY(armv7_setttb)
 
 ENTRY(armv7_tlb_flushID)
 	dsb
+#ifdef SMP
+	mcr 	p15, 0, r0, c8, c3, 0
+#else
 	mcr	p15, 0, r0, c8, c7, 0	/* flush I+D tlb */
+#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
 	dsb
 	isb
@@ -78,9 +88,14 @@ ENTRY(armv7_tlb_flushID)
 ENTRY(armv7_tlb_flushID_SE)
 	ldr	r1, .Lpage_mask
 	bic	r0, r0, r1
+#ifdef SMP
+	mcr	p15, 0, r0, c8, c3, 1	/* flush D tlb single entry */
+#else
 	mcr	p15, 0, r0, c8, c7, 1	/* flush D tlb single entry */
+#endif
 	mcr	p15, 0, r0, c7, c5, 6	/* flush BTB */
 	dsb
+	isb
 	mov	pc, lr
 
 /* Based on algorithm from ARM Architecture Reference Manual */
@@ -131,7 +146,7 @@ Skip:
 	cmp	r3, r8
 	bne Loop1
 Finished:
-	isb
+	dsb
 	ldmia	sp!, {r4, r5, r6, r7, r8, r9}
 	RET
 
@@ -231,6 +246,8 @@ ENTRY(armv7_cpu_sleep)
 
 ENTRY(armv7_context_switch)
 	dsb
+	orr     r0, r0, #PT_ATTR
+			
 	mcr	p15, 0, r0, c2, c0, 0	/* set the new TTB */
 	mcr	p15, 0, r0, c8, c7, 0	/* and flush the I+D tlbs */
 	dsb
@@ -241,3 +258,18 @@ ENTRY(armv7_drain_writebuf)
 	dsb
 	RET
 
+ENTRY(armv7_sev)
+	dsb
+	sev
+	nop
+	RET
+
+ENTRY(armv7_auxctrl)
+	mrc p15, 0, r2, c1, c0, 1
+	bic r3, r2, r0	/* Clear bits */
+	eor r3, r3, r1  /* XOR bits */
+
+	teq r2, r3
+	mcrne p15, 0, r3, c1, c0, 1
+	mov r0, r2
+	RET
