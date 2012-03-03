@@ -88,7 +88,11 @@ static int
 arm32_set_tp(struct thread *td, void *args)
 {
 
-	td->td_md.md_tp = (register_t)args;
+	if (td != curthread)
+		td->td_md.md_tp = (register_t)args;
+	else
+		/* XXX: wrong for SMP case */
+		*(register_t *)ARM_TP_ADDRESS = (register_t)args;
 	return (0);
 }
 
@@ -96,7 +100,11 @@ static int
 arm32_get_tp(struct thread *td, void *args)
 {
 
-	td->td_retval[0] = td->td_md.md_tp;
+	if (td != curthread)
+		td->td_retval[0] = td->td_md.md_tp;
+	else
+		/* XXX: wrong for SMP case */
+		td->td_retval[0] = *(register_t *)ARM_TP_ADDRESS;
 	return (0);
 }
 
