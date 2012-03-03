@@ -67,7 +67,11 @@ static __inline void
 __do_dmb(void)
 {
 
+#if ARM_ARCH_7A
 	__asm __volatile("dmb" : : : "memory");
+#else
+	__asm __volatile("mcr p15, 0, r0, c7, c10, 5" : : : "memory");
+#endif
 }
 
 #define	ATOMIC_ACQ_REL(NAME, WIDTH)					\
