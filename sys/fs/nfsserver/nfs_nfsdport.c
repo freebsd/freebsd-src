@@ -395,6 +395,7 @@ nfsvno_namei(struct nfsrv_descript *nd, struct nameidata *ndp,
 	cnp->cn_thread = p;
 	ndp->ni_startdir = dp;
 	ndp->ni_rootdir = rootvnode;
+	ndp->ni_topdir = NULL;
 
 	if (!lockleaf)
 		cnp->cn_flags |= LOCKLEAF;
