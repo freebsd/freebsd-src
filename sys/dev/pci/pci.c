@@ -177,7 +177,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
+	DEVMETHOD(pci_find_cap,		pci_find_cap_method),
 	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
+	DEVMETHOD(pci_find_htcap,	pci_find_htcap_method),
 	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
 	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
 	DEVMETHOD(pci_remap_msix,	pci_remap_msix_method),
@@ -737,6 +739,9 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			 * at least one PCI-express device.
 			 */
 			pcie_chipset = 1;
+			cfg->pcie.pcie_location = ptr;
+			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
+			cfg->pcie.pcie_type = val & PCIM_EXP_FLAGS_TYPE;
 			break;
 		default:
 			break;
@@ -1154,12 +1159,55 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 }
 
 /*
- * Find the requested extended capability and return the offset in
- * configuration space via the pointer provided. The function returns
- * 0 on success and error code otherwise.
+ * Find the requested HyperTransport capability and return the offset
+ * in configuration space via the pointer provided.  The function
+ * returns 0 on success and an error code otherwise.
  */
 int
-pci_find_extcap_method(device_t dev, device_t child, int capability,
+pci_find_htcap_method(device_t dev, device_t child, int capability, int *capreg)
+{
+	int ptr, error;
+	uint16_t val;
+
+	error = pci_find_cap(child, PCIY_HT, &ptr);
+	if (error)
+		return (error);
+
+	/*
+	 * Traverse the capabilities list checking each HT capability
+	 * to see if it matches the requested HT capability.
+	 */
+	while (ptr != 0) {
+		val = pci_read_config(child, ptr + PCIR_HT_COMMAND, 2);
+		if (capability == PCIM_HTCAP_SLAVE ||
+		    capability == PCIM_HTCAP_HOST)
+			val &= 0xe000;
+		else
+			val &= PCIM_HTCMD_CAP_MASK;
+		if (val == capability) {
+			if (capreg != NULL)
+				*capreg = ptr;
+			return (0);
+		}
+
+		/* Skip to the next HT capability. */
+		while (ptr != 0) {
+			ptr = pci_read_config(child, ptr + PCICAP_NEXTPTR, 1);
+			if (pci_read_config(child, ptr + PCICAP_ID, 1) ==
+			    PCIY_HT)
+				break;
+		}
+	}
+	return (ENOENT);
+}
+
+/*
+ * Find the requested capability and return the offset in
+ * configuration space via the pointer provided.  The function returns
+ * 0 on success and an error code otherwise.
+ */
+int
+pci_find_cap_method(device_t dev, device_t child, int capability,
     int *capreg)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -1201,6 +1249,43 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
 			return (0);
 		}
 		ptr = pci_read_config(child, ptr + PCICAP_NEXTPTR, 1);
+	}
+
+	return (ENOENT);
+}
+
+/*
+ * Find the requested extended capability and return the offset in
+ * configuration space via the pointer provided.  The function returns
+ * 0 on success and an error code otherwise.
+ */
+int
+pci_find_extcap_method(device_t dev, device_t child, int capability,
+    int *capreg)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t ecap;
+	uint16_t ptr;
+
+	/* Only supported for PCI-express devices. */
+	if (cfg->pcie.pcie_location == 0)
+		return (ENXIO);
+
+	ptr = PCIR_EXTCAP;
+	ecap = pci_read_config(child, ptr, 4);
+	if (ecap == 0xffffffff || ecap == 0)
+		return (ENOENT);
+	for (;;) {
+		if (PCI_EXTCAP_ID(ecap) == capability) {
+			if (capreg != NULL)
+				*capreg = ptr;
+			return (0);
+		}
+		ptr = PCI_EXTCAP_NEXTPTR(ecap);
+		if (ptr == 0)
+			break;
+		ecap = pci_read_config(child, ptr, 4);
 	}
 
 	return (ENOENT);
@@ -1696,10 +1781,12 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 int
 pci_get_max_read_req(device_t dev)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
 	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
@@ -1710,10 +1797,12 @@ pci_get_max_read_req(device_t dev)
 int
 pci_set_max_read_req(device_t dev, int size)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	if (size < 128)
 		size = 128;
