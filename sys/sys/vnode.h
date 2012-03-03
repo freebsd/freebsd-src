@@ -583,9 +583,10 @@ struct vnode;
 
 /* cache_* may belong in namei.h. */
 #define	cache_enter(dvp, vp, cnp)					\
-	cache_enter_time(dvp, vp, cnp, NULL)
+	cache_enter_time(dvp, vp, cnp, NULL, NULL)
 void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp, struct timespec *tsp);
+	    struct componentname *cnp, struct timespec *tsp,
+	    struct timespec *dtsp);
 int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
