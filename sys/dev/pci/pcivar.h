@@ -350,9 +350,9 @@ pci_get_vpd_ident(device_t dev, const char **identptr)
 }
 
 static __inline int
-pci_get_vpd_readonly(device_t dev, const char *kw, const char **identptr)
+pci_get_vpd_readonly(device_t dev, const char *kw, const char **vptr)
 {
-    return(PCI_GET_VPD_READONLY(device_get_parent(dev), dev, kw, identptr));
+    return(PCI_GET_VPD_READONLY(device_get_parent(dev), dev, kw, vptr));
 }
 
 /*
