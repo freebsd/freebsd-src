@@ -308,7 +308,7 @@ arm_tmr_attach(device_t dev)
 
 	/* Disable both timers to start off */
 	tmr_prv_write_4(PRV_TIMER_CTRL, 0x00000000);
-	tmr_gbl_write_4(PRV_TIMER_CTRL, 0x00000000);
+	tmr_gbl_write_4(GBL_TIMER_CTRL, 0x00000000);
 
 	/* Setup and enable the global timer to use as the timecounter */
 	tmr_gbl_write_4(GBL_TIMER_CTRL, (0x00 << GBL_TIMER_CTR_PRESCALER_SHIFT) | 
