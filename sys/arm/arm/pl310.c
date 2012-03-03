@@ -36,6 +36,8 @@ __FBSDID("$FreeBSD$");
 #include <sys/kernel.h>
 #include <sys/rman.h>
 #include <sys/module.h>
+#include <sys/lock.h>
+#include <sys/mutex.h>
 #include <machine/intr.h>
 #include <vm/vm.h>
 #include <vm/pmap.h>
@@ -162,8 +164,16 @@ pl310_cache_sync(void)
 static void
 pl310_wbinv_all(void)
 {
+#if 1
+	pl310_write4(PL310_DEBUG_CTRL, 3);
+#endif
 	pl310_write4(PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
 	pl310_wait_background_op(PL310_CLEAN_INV_WAY, g_l2cache_way_mask);
+	pl310_cache_sync();
+#if 1
+	pl310_write4(PL310_DEBUG_CTRL, 0);
+#endif
+		
 }
 
 static void
@@ -174,11 +184,33 @@ pl310_wbinv_range(vm_paddr_t start, vm_size_t size)
 		size &= ~g_l2cache_align_mask;
 		size += g_l2cache_line_size;
 	}
+#if 1
+
+	pl310_write4(PL310_DEBUG_CTRL, 3);
+#endif
 	while (size > 0) {
+#if 1
+		/* 
+		 * Errata 588369 says that clean + inv may keep the 
+		 * cache line if it was clean, the recommanded workaround
+		 * is to clean then invalidate the cache line, with
+		 * write-back and cache linefill disabled
+		 */
+		   
+		pl310_write4(PL310_CLEAN_LINE_PA, start);
+		pl310_write4(PL310_INV_LINE_PA, start);
+#else
 		pl310_write4(PL310_CLEAN_INV_LINE_PA, start);
+#endif
 		start += g_l2cache_line_size;
 		size -= g_l2cache_line_size;
 	}
+#if 1
+	pl310_write4(PL310_DEBUG_CTRL, 0);
+#endif
+	pl310_wait_background_op(PL310_CLEAN_INV_LINE_PA, 1);
+	pl310_cache_sync();
+		
 }
 
 static void
@@ -194,6 +226,8 @@ pl310_wb_range(vm_paddr_t start, vm_size_t size)
 		start += g_l2cache_line_size;
 		size -= g_l2cache_line_size;
 	}
+	pl310_cache_sync();
+	pl310_wait_background_op(PL310_CLEAN_LINE_PA, 1);
 
 }
 
@@ -210,6 +244,8 @@ pl310_inv_range(vm_paddr_t start, vm_size_t size)
 		start += g_l2cache_line_size;
 		size -= g_l2cache_line_size;
 	}
+	pl310_cache_sync();
+	pl310_wait_background_op(PL310_INV_LINE_PA, 1);
 
 }
 
