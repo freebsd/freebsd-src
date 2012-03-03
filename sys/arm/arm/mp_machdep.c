@@ -36,6 +36,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/sched.h>
 #include <sys/smp.h>
 #include <sys/ktr.h>
+#include <sys/malloc.h>
 
 #include <vm/vm.h>
 #include <vm/vm_extern.h>
@@ -47,7 +48,11 @@ __FBSDID("$FreeBSD$");
 #include <machine/pcb.h>
 #include <machine/pte.h>
 #include <machine/intr.h>
+#include <machine/vmparam.h>
 
+#include "opt_smp.h"
+
+void *temp_pagetable;
 extern struct pcpu __pcpu[];
 /* used to hold the AP's until we are ready to release them */
 struct mtx ap_boot_mtx;
@@ -90,17 +95,38 @@ check_ap(void)
 	return (-2);
 }
 
+extern unsigned char _end[];
+
 /* Initialize and fire up non-boot processors */
 void
 cpu_mp_start(void)
 {
 	int error, i;
+	vm_offset_t temp_pagetable_va;
+	vm_paddr_t addr, addr_end;
 
 	mtx_init(&ap_boot_mtx, "ap boot", NULL, MTX_SPIN);
 
 	/* Reserve memory for application processors */
 	for(i = 0; i < (mp_ncpus - 1); i++)
 		dpcpu[i] = (void *)kmem_alloc(kernel_map, DPCPU_SIZE);
+	temp_pagetable_va = (vm_offset_t)contigmalloc(L1_TABLE_SIZE,
+	    M_TEMP, 0, 0x0, 0xffffffff, L1_TABLE_SIZE, 0);
+	addr = KERNPHYSADDR;
+	addr_end = (vm_offset_t)&_end - KERNVIRTADDR + KERNPHYSADDR;
+	addr_end &= ~L1_S_OFFSET;
+	addr_end += L1_S_SIZE;
+	bzero((void *)temp_pagetable_va,  L1_TABLE_SIZE);
+	for (addr = KERNPHYSADDR; addr <= addr_end; addr += L1_S_SIZE) { 
+		((int *)(temp_pagetable_va))[addr >> L1_S_SHIFT] =
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+		((int *)(temp_pagetable_va))[(addr -
+			KERNPHYSADDR + KERNVIRTADDR) >> L1_S_SHIFT] = 
+		    L1_TYPE_S|L1_SHARED|L1_S_C|L1_S_AP(AP_KRW)|L1_S_DOM(PMAP_DOMAIN_KERNEL)|addr;
+	}
+	temp_pagetable = (void*)(vtophys(temp_pagetable_va));
+	cpu_idcache_wbinv_all();
+	cpu_l2cache_wbinv_all();
 
 	/* Initialize boot code and start up processors */
 	platform_mp_start_ap();
@@ -113,7 +139,7 @@ cpu_mp_start(void)
 		for (i = 1; i < mp_ncpus; i++)
 			CPU_SET(i, &all_cpus);
 
-	printf("%d AP started\n", mp_naps);
+	contigfree((void *)temp_pagetable_va, L1_TABLE_SIZE, M_TEMP);
 }
 
 /* Introduce rest of cores to the world */
@@ -129,9 +155,9 @@ init_secondary(int cpu)
 {
 	struct pcpu *pc;
 	uint32_t loop_counter;
+	int start = 0, end = 0;
 
 	cpu_setup(NULL);
-
 	setttb(pmap_pa);
 	cpu_tlb_flushID();
 
@@ -169,7 +195,17 @@ init_secondary(int cpu)
 	mtx_unlock_spin(&ap_boot_mtx);
 
 	/* Enable ipi */
-	arm_unmask_irq(0);
+#ifdef IPI_IRQ_START
+	start = IPI_IRQ_START;
+#ifdef IPI_IRQ_END
+  	end = IPI_IRQ_END;
+#else
+	end = IPI_IRQ_START;
+#endif
+#endif
+				
+	for (int i = start; i <= end; i++)
+		arm_unmask_irq(i);
 	enable_interrupts(I32_bit);
 
 	loop_counter = 0;
@@ -179,11 +215,11 @@ init_secondary(int cpu)
 		if (loop_counter == 1000)
 			CTR0(KTR_SMP, "AP still wait for smp_started");
 	}
-
 	/* Start per-CPU event timers. */
 	cpu_initclocks_ap();
 
 	CTR0(KTR_SMP, "go into scheduler");
+	platform_mp_init_secondary();
 
 	/* Enter the scheduler */
 	sched_throw(NULL);
@@ -199,7 +235,7 @@ ipi_handler(void *arg)
 
 	cpu = PCPU_GET(cpuid);
 
-	ipi = pic_ipi_get();
+	ipi = pic_ipi_get((int)arg);
 
 	while ((ipi != 0x3ff)) {
 		switch (ipi) {
@@ -250,7 +286,7 @@ ipi_handler(void *arg)
 		}
 
 		pic_ipi_clear(ipi);
-		ipi = pic_ipi_get();
+		ipi = pic_ipi_get(-1);
 	}
 
 	return (FILTER_HANDLED);
@@ -260,19 +296,34 @@ static void
 release_aps(void *dummy __unused)
 {
 	uint32_t loop_counter;
+	int start = 0, end = 0;
 
 	if (mp_ncpus == 1)
 		return;
+#ifdef IPI_IRQ_START
+	start = IPI_IRQ_START;
+#ifdef IPI_IRQ_END
+	end = IPI_IRQ_END;
+#else
+	end = IPI_IRQ_START;
+#endif
+#endif
 
-	/*
-	 * IPI handler
-	 */
-	arm_setup_irqhandler("ipi", ipi_handler, NULL, NULL, 0,
-	    INTR_TYPE_MISC | INTR_EXCL, NULL);
+	for (int i = start; i <= end; i++) {
+		/*
+		 * IPI handler
+		 */
+		/* 
+		 * Use 0xdeadbeef as the argument value for irq 0,
+		 * if we used 0, the intr code will give the trap frame
+		 * pointer instead.
+		 */
+		arm_setup_irqhandler("ipi", ipi_handler, NULL, (void *)i, i,
+		    INTR_TYPE_MISC | INTR_EXCL, NULL);
 
-	/* Enable ipi */
-	arm_unmask_irq(0);
-
+		/* Enable ipi */
+		arm_unmask_irq(i);
+	}
 	atomic_store_rel_int(&aps_ready, 1);
 
 	printf("Release APs\n");
@@ -282,7 +333,6 @@ release_aps(void *dummy __unused)
 			return;
 		DELAY(1000);
 	}
-
 	printf("AP's not started\n");
 }
 

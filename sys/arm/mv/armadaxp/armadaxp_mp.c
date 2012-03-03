@@ -101,6 +101,11 @@ platform_mp_probe(void)
 	return (mp_ncpus > 1);
 }
 
+void
+platform_mp_init_secondary(void)
+{
+}
+
 void mpentry(void);
 void mptramp(void);
 

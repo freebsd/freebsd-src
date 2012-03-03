@@ -281,7 +281,7 @@ pic_ipi_send(cpuset_t cpus, u_int ipi)
 }
 
 int
-pic_ipi_get(void)
+pic_ipi_get(int i __unused)
 {
 	uint32_t val;
 
