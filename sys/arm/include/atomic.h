@@ -505,35 +505,47 @@ atomic_store_32(volatile uint32_t *dst, uint32_t src)
 	*dst = src;
 }
 
-#define	atomic_add_long(p, v) \
-	atomic_add_32((volatile u_int *)(p), (u_int)(v))
-#define atomic_add_acq_long		atomic_add_acq_32
-#define atomic_add_rel_long		atomic_add_rel_32
-#define	atomic_subtract_long(p, v) \
-	atomic_subtract_32((volatile u_int *)(p), (u_int)(v))
-#define atomic_subtract_acq_long	atomic_subtract_acq_32
-#define atomic_subtract_rel_long	atomic_subtract_rel_32
-#define	atomic_clear_long(p, v) \
-	atomic_clear_32((volatile u_int *)(p), (u_int)(v))
-#define atomic_clear_acq_long		atomic_clear_acq_32
-#define atomic_clear_rel_long		atomic_clear_rel_32
-#define	atomic_set_long(p, v) \
+#define	atomic_set_long(p, v)						\
 	atomic_set_32((volatile u_int *)(p), (u_int)(v))
-#define atomic_set_acq_long		atomic_set_acq_32
-#define atomic_set_rel_long		atomic_set_rel_32
-#define	atomic_cmpset_long(dst, old, new) \
-	atomic_cmpset_32((volatile u_int *)(dst), (u_int)(old), (u_int)(new))
-#define atomic_cmpset_acq_long		atomic_cmpset_acq_32
-#define atomic_cmpset_rel_long		atomic_cmpset_rel_32
-#define	atomic_fetchadd_long(p, v) \
-	atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
-#define	atomic_readandclear_long(p) \
-	atomic_readandclear_long((volatile u_int *)(p))
-#define	atomic_load_long(p) \
-	atomic_load_32((volatile u_int *)(p))
-#define atomic_load_acq_long		atomic_load_acq_32
-#define	atomic_store_rel_long(p, v) \
+#define	atomic_set_acq_long(p, v)					\
+	atomic_set_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_set_rel_long(p, v)					\
+	atomic_set_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_long(p, v)						\
+	atomic_clear_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_acq_long(p, v)					\
+	atomic_clear_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_clear_rel_long(p, v)					\
+	atomic_clear_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_long(p, v)						\
+	atomic_add_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_acq_long(p, v)					\
+	atomic_add_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_add_rel_long(p, v)					\
+	atomic_add_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_long(p, v)					\
+	atomic_subtract_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_acq_long(p, v)					\
+	atomic_subtract_acq_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_subtract_rel_long(p, v)					\
+	atomic_subtract_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_cmpset_long(p, cmpval, newval)				\
+	atomic_cmpset_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_cmpset_acq_long(p, cmpval, newval)			\
+	atomic_cmpset_acq_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_cmpset_rel_long(p, cmpval, newval)			\
+	atomic_cmpset_rel_32((volatile u_int *)(p), (u_int)(cmpval),	\
+	    (u_int)(newval))
+#define	atomic_load_acq_long(p)						\
+	(u_long)atomic_load_acq_32((volatile u_int *)(p))
+#define	atomic_store_rel_long(p, v)					\
 	atomic_store_rel_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_fetchadd_long(p, v)					\
+	atomic_fetchadd_32((volatile u_int *)(p), (u_int)(v))
+#define	atomic_readandclear_long(p)					\
+	atomic_readandclear_32((volatile u_int *)(p))
 
 
 #define atomic_clear_ptr		atomic_clear_32
