@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/float.h>
+#include <x86/float.h>
