@@ -40,6 +40,8 @@
 .Nm pci_find_cap ,
 .Nm pci_find_dbsf ,
 .Nm pci_find_device ,
+.Nm pci_find_extcap ,
+.Nm pci_find_htcap ,
 .Nm pci_get_max_read_req ,
 .Nm pci_get_powerstate ,
 .Nm pci_get_vpd_ident ,
@@ -80,6 +82,10 @@
 .Fn pci_find_dbsf "uint32_t domain" "uint8_t bus" "uint8_t slot" "uint8_t func"
 .Ft device_t
 .Fn pci_find_device "uint16_t vendor" "uint16_t device"
+.Ft int
+.Fn pci_find_extcap "device_t dev" "int capability" "int *capreg"
+.Ft int
+.Fn pci_find_htcap "device_t dev" "int capability" "int *capreg"
 .Ft int
 .Fn pci_get_max_read_req "device_t dev"
 .Ft int
@@ -222,6 +228,49 @@ and
 returns zero.
 If the capability is not found or the device does not support capabilities,
 .Fn pci_find_cap
+returns an error.
+.Pp
+The
+.Fn pci_find_extcap
+function is used to locate the first instance of a PCI-express
+extended capability register set for the device
+.Fa dev .
+The extended capability to locate is specified by ID via
+.Fa capability .
+Constant macros of the form
+.Dv PCIZ_xxx
+for standard extended capability IDs are defined in
+.In dev/pci/pcireg.h .
+If the extended capability is found, then
+.Fa *capreg
+is set the offset in configuration space of the extended capability
+register set, and
+.Fn pci_find_extcap
+returns zero.
+If the extended capability is not found or the device is not a
+PCI-express device,
+.Fn pci_find_extcap
+returns an error.
+.Pp
+The
+.Fn pci_find_htcap
+function is used to locate the first instance of a HyperTransport capability
+register set for the device
+.Fa dev .
+The capability to locate is specified by type via
+.Fa capability .
+Constant macros of the form
+.Dv PCIM_HTCAP_xxx
+for standard HyperTransport capability types are defined in
+.In dev/pci/pcireg.h .
+If the capability is found, then
+.Fa *capreg
+is set the offset in configuration space of the capability register set,
+and
+.Fn pci_find_htcap
+returns zero.
+If the capability is not found or the device is not a HyperTransport device,
+.Fn pci_find_htcap
 returns an error.
 .Pp
 The
