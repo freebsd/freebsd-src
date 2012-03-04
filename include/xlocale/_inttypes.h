@@ -29,57 +29,16 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
 
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
-
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
-#endif
-
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
-
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
-
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
-
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
-
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
-
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
+/*
+ * Extended locale versions of the locale-aware functions from inttypes.h.
+ * Include <inttypes.h> before <xlocale.h> to expose these.
+ */
+intmax_t	strtoimax_l(const char * __restrict, char ** __restrict,
+		    int, locale_t);
+uintmax_t	strtoumax_l(const char * __restrict, char ** __restrict, int,
+		    locale_t);
+intmax_t	wcstoimax_l(const wchar_t * __restrict, wchar_t ** __restrict,
+		    int , locale_t);
+uintmax_t	wcstoumax_l(const wchar_t * __restrict, wchar_t ** __restrict,
+		    int, locale_t);

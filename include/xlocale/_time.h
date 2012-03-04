@@ -29,57 +29,30 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
-
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
-
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
+/*
+ * This file is included from both locale.h and xlocale.h.  We need to expose
+ * the declarations unconditionally if we are included from xlocale.h, but only
+ * if we are in POSIX2008 mode if included from locale.h.
+ */
+#ifndef _XLOCALE_LOCALE1_H
+#define _XLOCALE_LOCALE1_H
 
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
+size_t	 strftime_l(char * __restrict, size_t, const char * __restrict,
+	    const struct tm * __restrict, locale_t) __strftimelike(3, 0);
 
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
+#endif /* _XLOCALE_LOCALE1_H */
 
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
+#ifdef _XLOCALE_H_
+#ifndef _XLOCALE_LOCALE2_H
+#define _XLOCALE_LOCALE2_H
 
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
+char	*strptime_l(const char * __restrict, const char * __restrict,
+           struct tm * __restrict, locale_t);
 
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
+#endif /* _XLOCALE_LOCALE2_H */
+#endif /* _XLOCALE_H_ */
