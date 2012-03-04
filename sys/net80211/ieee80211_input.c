@@ -760,6 +760,7 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			break;
 		}
 		break;
+#ifdef IEEE80211_SUPPORT_MESH
 	case IEEE80211_ACTION_CAT_MESH:
 		switch (ia->ia_action) {
 		case IEEE80211_ACTION_MESH_LMETRIC:
@@ -791,6 +792,7 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			return EINVAL;
 		}
 		break;
+#endif
 	}
 	return 0;
 }
