@@ -79,9 +79,6 @@ __FBSDID("$FreeBSD$");
 
 #include "miibus_if.h"
 
-/* PHY registers are in the address space of the first mge unit */
-static struct mge_softc *sc_mge0 = NULL;
-
 static int mge_probe(device_t dev);
 static int mge_attach(device_t dev);
 static int mge_detach(device_t dev);
@@ -635,14 +632,11 @@ mge_attach(device_t dev)
 	sc->dev = dev;
 	sc->node = ofw_bus_get_node(dev);
 
-	if (device_get_unit(dev) == 0)
-		sc_mge0 = sc;
-
 	/* Set chip version-dependent parameters */
 	mge_ver_params(sc);
 
-	/* Get phy address from fdt */
-	if (fdt_get_phyaddr(sc->node, &phy) != 0)
+	/* Get phy address and used softc from fdt */
+	if (fdt_get_phyaddr(sc->node, sc->dev, &phy, (void **)&sc->phy_sc) != 0)
 		return (ENXIO);
 
 	/* Initialize mutexes */
@@ -1294,17 +1288,18 @@ mge_miibus_readreg(device_t dev, int phy, int reg)
 
 	sc = device_get_softc(dev);
 
-	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
+	MGE_WRITE(sc->phy_sc, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_READ | (reg << 21) | (phy << 16)));
 
 	retries = MGE_SMI_READ_RETRIES;
-	while (--retries && !(MGE_READ(sc_mge0, MGE_REG_SMI) & MGE_SMI_READVALID))
+	while (--retries &&
+	    !(MGE_READ(sc->phy_sc, MGE_REG_SMI) & MGE_SMI_READVALID))
 		DELAY(MGE_SMI_READ_DELAY);
 
 	if (retries == 0)
 		device_printf(dev, "Timeout while reading from PHY\n");
 
-	return (MGE_READ(sc_mge0, MGE_REG_SMI) & 0xffff);
+	return (MGE_READ(sc->phy_sc, MGE_REG_SMI) & 0xffff);
 }
 
 static int
@@ -1315,11 +1310,11 @@ mge_miibus_writereg(device_t dev, int phy, int reg, int value)
 
 	sc = device_get_softc(dev);
 
-	MGE_WRITE(sc_mge0, MGE_REG_SMI, 0x1fffffff &
+	MGE_WRITE(sc->phy_sc, MGE_REG_SMI, 0x1fffffff &
 	    (MGE_SMI_WRITE | (reg << 21) | (phy << 16) | (value & 0xffff)));
 
 	retries = MGE_SMI_WRITE_RETRIES;
-	while (--retries && MGE_READ(sc_mge0, MGE_REG_SMI) & MGE_SMI_BUSY)
+	while (--retries && MGE_READ(sc->phy_sc, MGE_REG_SMI) & MGE_SMI_BUSY)
 		DELAY(MGE_SMI_WRITE_DELAY);
 
 	if (retries == 0)
