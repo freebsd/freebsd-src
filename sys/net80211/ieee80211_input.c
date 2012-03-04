@@ -760,6 +760,37 @@ ieee80211_parse_action(struct ieee80211_node *ni, struct mbuf *m)
 			break;
 		}
 		break;
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (ia->ia_action) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			/*
+			 * XXX: verification is true only if we are using
+			 * Airtime link metric (default)
+			 */
+			IEEE80211_VERIFY_LENGTH(efrm - frm,
+			    sizeof(struct ieee80211_meshlmetric_ie),
+			    return EINVAL);
+			break;
+		case IEEE80211_ACTION_MESH_HWMP:
+			/* verify something */
+			break;
+		case IEEE80211_ACTION_MESH_GANN:
+		case IEEE80211_ACTION_MESH_CC:
+		case IEEE80211_ACTION_MESH_MCCA_SREQ:
+		case IEEE80211_ACTION_MESH_MCCA_SREP:
+		case IEEE80211_ACTION_MESH_MCCA_AREQ:
+		case IEEE80211_ACTION_MESH_MCCA_ADVER:
+		case IEEE80211_ACTION_MESH_MCCA_TRDOWN:
+		case IEEE80211_ACTION_MESH_TBTT_REQ:
+		case IEEE80211_ACTION_MESH_TBTT_RES:
+			/* reject these early on, not implemented */
+			IEEE80211_DISCARD(vap,
+			    IEEE80211_MSG_ELEMID | IEEE80211_MSG_INPUT,
+			    wh, NULL, "not implemented yet, act=0x%02X",
+			    ia->ia_action);
+			return EINVAL;
+		}
+		break;
 	}
 	return 0;
 }

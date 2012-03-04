@@ -220,8 +220,8 @@ ieee80211_hwmp_init(void)
 	/*
 	 * Register action frame handler.
 	 */
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPATH,
-	    IEEE80211_ACTION_MESHPATH_SEL, hwmp_recv_action_meshpath);
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_HWMP, hwmp_recv_action_meshpath);
 
 	/* NB: default is 5 secs per spec */
 	mesh_proto_hwmp.mpp_inact = msecs_to_ticks(5*1000);
@@ -434,8 +434,8 @@ hwmp_send_action(struct ieee80211_node *ni,
 		vap->iv_stats.is_tx_nobuf++;
 		return ENOMEM;
 	}
-	*frm++ = IEEE80211_ACTION_CAT_MESHPATH;
-	*frm++ = IEEE80211_ACTION_MESHPATH_SEL;
+	*frm++ = IEEE80211_ACTION_CAT_MESH;
+	*frm++ = IEEE80211_ACTION_MESH_HWMP;
 	switch (*ie) {
 	case IEEE80211_ELEMID_MESHPREQ:
 		frm = hwmp_add_meshpreq(frm,
