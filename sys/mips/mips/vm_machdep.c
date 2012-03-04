@@ -618,14 +618,18 @@ cpu_set_user_tls(struct thread *td, void *tls_base)
 
 #ifdef __mips_n64
 #ifdef COMPAT_FREEBSD32
-	if (SV_PROC_FLAG(td->td_proc, SV_ILP32))
-		td->td_md.md_tls = (char*)tls_base + 0x7008;
+	if (!SV_PROC_FLAG(td->td_proc, SV_ILP32)) {
 #endif
-	td->td_md.md_tls = (char*)tls_base + 0x7010;
-#else
+		td->td_md.md_tls = (char*)tls_base + 0x7010;
+		return (0);
+#ifdef COMPAT_FREEBSD32
+	}
+#endif
+#endif
+#if !defined(__mips_n64) || defined(COMPAT_FREEBSD32)
 	td->td_md.md_tls = (char*)tls_base + 0x7008;
-#endif
 	return (0);
+#endif
 }
 
 #ifdef DDB
