@@ -720,7 +720,6 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	if (p->p_oppid && (t = pfind(p->p_oppid)) != NULL) {
 		PROC_LOCK(p);
 		proc_reparent(p, t);
-		p->p_pptr->p_dbg_child--;
 		p->p_oppid = 0;
 		PROC_UNLOCK(p);
 		pksignal(t, SIGCHLD, p->p_ksi);
@@ -739,6 +738,10 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	LIST_REMOVE(p, p_list);	/* off zombproc */
 	sx_xunlock(&allproc_lock);
 	LIST_REMOVE(p, p_sibling);
+	if (p->p_flag & P_ORPHAN) {
+		LIST_REMOVE(p, p_orphan);
+		p->p_flag &= ~P_ORPHAN;
+	}
 	leavepgrp(p);
 #ifdef PROCDESC
 	if (p->p_procdesc != NULL)
@@ -803,12 +806,53 @@ proc_reap(struct thread *td, struct proc *p, int *status, int options,
 	sx_xunlock(&allproc_lock);
 }
 
+static int
+proc_to_reap(struct thread *td, struct proc *p, pid_t pid, int *status,
+    int options, struct rusage *rusage)
+{
+	struct proc *q;
+
+	q = td->td_proc;
+	PROC_LOCK(p);
+	if (pid != WAIT_ANY && p->p_pid != pid && p->p_pgid != -pid) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+	if (p_canwait(td, p)) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
+	/*
+	 * This special case handles a kthread spawned by linux_clone
+	 * (see linux_misc.c).  The linux_wait4 and linux_waitpid
+	 * functions need to be able to distinguish between waiting
+	 * on a process and waiting on a thread.  It is a thread if
+	 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
+	 * signifies we want to wait for threads and not processes.
+	 */
+	if ((p->p_sigparent != SIGCHLD) ^
+	    ((options & WLINUXCLONE) != 0)) {
+		PROC_UNLOCK(p);
+		return (0);
+	}
+
+	PROC_SLOCK(p);
+	if (p->p_state == PRS_ZOMBIE) {
+		proc_reap(td, p, status, options, rusage);
+		return (-1);
+	}
+	PROC_SUNLOCK(p);
+	PROC_UNLOCK(p);
+	return (1);
+}
+
 int
 kern_wait(struct thread *td, pid_t pid, int *status, int options,
     struct rusage *rusage)
 {
 	struct proc *p, *q;
-	int error, nfound;
+	int error, nfound, ret;
 
 	AUDIT_ARG_PID(pid);
 	AUDIT_ARG_VALUE(options);
@@ -831,37 +875,16 @@ loop:
 	nfound = 0;
 	sx_xlock(&proctree_lock);
 	LIST_FOREACH(p, &q->p_children, p_sibling) {
-		PROC_LOCK(p);
-		if (pid != WAIT_ANY &&
-		    p->p_pid != pid && p->p_pgid != -pid) {
-			PROC_UNLOCK(p);
+		ret = proc_to_reap(td, p, pid, status, options, rusage);
+		if (ret == 0)
 			continue;
-		}
-		if (p_canwait(td, p)) {
-			PROC_UNLOCK(p);
-			continue;
-		}
-
-		/*
-		 * This special case handles a kthread spawned by linux_clone
-		 * (see linux_misc.c).  The linux_wait4 and linux_waitpid
-		 * functions need to be able to distinguish between waiting
-		 * on a process and waiting on a thread.  It is a thread if
-		 * p_sigparent is not SIGCHLD, and the WLINUXCLONE option
-		 * signifies we want to wait for threads and not processes.
-		 */
-		if ((p->p_sigparent != SIGCHLD) ^
-		    ((options & WLINUXCLONE) != 0)) {
-			PROC_UNLOCK(p);
-			continue;
-		}
-
-		nfound++;
-		PROC_SLOCK(p);
-		if (p->p_state == PRS_ZOMBIE) {
-			proc_reap(td, p, status, options, rusage);
+		else if (ret == 1)
+			nfound++;
+		else
 			return (0);
-		}
+
+		PROC_LOCK(p);
+		PROC_SLOCK(p);
 		if ((p->p_flag & P_STOPPED_SIG) &&
 		    (p->p_suspcount == p->p_numthreads) &&
 		    (p->p_flag & P_WAITED) == 0 &&
@@ -897,12 +920,31 @@ loop:
 		}
 		PROC_UNLOCK(p);
 	}
+
+	/*
+	 * Look in the orphans list too, to allow the parent to
+	 * collect it's child exit status even if child is being
+	 * debugged.
+	 *
+	 * Debugger detaches from the parent upon successful
+	 * switch-over from parent to child.  At this point due to
+	 * re-parenting the parent loses the child to debugger and a
+	 * wait4(2) call would report that it has no children to wait
+	 * for.  By maintaining a list of orphans we allow the parent
+	 * to successfully wait until the child becomes a zombie.
+	 */
+	LIST_FOREACH(p, &q->p_orphans, p_orphan) {
+		ret = proc_to_reap(td, p, pid, status, options, rusage);
+		if (ret == 0)
+			continue;
+		else if (ret == 1)
+			nfound++;
+		else
+			return (0);
+	}
 	if (nfound == 0) {
 		sx_xunlock(&proctree_lock);
-		if (td->td_proc->p_dbg_child)
-			return (0);
-		else
-			return (ECHILD);
+		return (ECHILD);
 	}
 	if (options & WNOHANG) {
 		sx_xunlock(&proctree_lock);
@@ -940,5 +982,15 @@ proc_reparent(struct proc *child, struct proc *parent)
 	PROC_UNLOCK(child->p_pptr);
 	LIST_REMOVE(child, p_sibling);
 	LIST_INSERT_HEAD(&parent->p_children, child, p_sibling);
+
+	if (child->p_flag & P_ORPHAN) {
+		LIST_REMOVE(child, p_orphan);
+		child->p_flag &= ~P_ORPHAN;
+	}
+	if (child->p_flag & P_TRACED) {
+		LIST_INSERT_HEAD(&child->p_pptr->p_orphans, child, p_orphan);
+		child->p_flag |= P_ORPHAN;
+	}
+
 	child->p_pptr = parent;
 }

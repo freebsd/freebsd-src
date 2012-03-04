@@ -1,11 +1,11 @@
 # $FreeBSD$
 
-.PATH:	${.CURDIR}/../../dev/wtap
 
 # Declare Name of kernel module
 KMOD	=  wtap
 
 # Enumerate Source files for kernel module
+.PATH:	${.CURDIR}/../../dev/wtap
 SRCS	=  if_wtap_module.c if_wtap.c if_medium.c
 
 .PATH:	${.CURDIR}/../../dev/wtap/wtap_hal

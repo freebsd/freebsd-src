@@ -948,18 +948,20 @@ biba_devfs_create_device(struct ucred *cred, struct mount *mp,
     struct cdev *dev, struct devfs_dirent *de, struct label *delabel)
 {
 	struct mac_biba *mb;
+	const char *dn;
 	int biba_type;
 
 	mb = SLOT(delabel);
-	if (strcmp(dev->si_name, "null") == 0 ||
-	    strcmp(dev->si_name, "zero") == 0 ||
-	    strcmp(dev->si_name, "random") == 0 ||
-	    strncmp(dev->si_name, "fd/", strlen("fd/")) == 0)
+	dn = devtoname(dev);
+	if (strcmp(dn, "null") == 0 ||
+	    strcmp(dn, "zero") == 0 ||
+	    strcmp(dn, "random") == 0 ||
+	    strncmp(dn, "fd/", strlen("fd/")) == 0)
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else if (ptys_equal &&
-	    (strncmp(dev->si_name, "ttyp", strlen("ttyp")) == 0 ||
-	    strncmp(dev->si_name, "pts/", strlen("pts/")) == 0 ||
-	    strncmp(dev->si_name, "ptyp", strlen("ptyp")) == 0))
+	    (strncmp(dn, "ttyp", strlen("ttyp")) == 0 ||
+	    strncmp(dn, "pts/", strlen("pts/")) == 0 ||
+	    strncmp(dn, "ptyp", strlen("ptyp")) == 0))
 		biba_type = MAC_BIBA_TYPE_EQUAL;
 	else
 		biba_type = MAC_BIBA_TYPE_HIGH;

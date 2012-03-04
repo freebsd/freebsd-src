@@ -207,11 +207,15 @@ extern	HAL_STATUS ar5416SetQuiet(struct ath_hal *ah, uint32_t period,
 	    uint32_t duration, uint32_t nextStart, HAL_QUIET_FLAG flag);
 extern	HAL_STATUS ar5416GetCapability(struct ath_hal *ah,
 	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t *result);
+extern	HAL_BOOL ar5416SetCapability(struct ath_hal *ah,
+	    HAL_CAPABILITY_TYPE type, uint32_t capability, uint32_t val,
+	    HAL_STATUS *status);
 extern	HAL_BOOL ar5416GetDiagState(struct ath_hal *ah, int request,
 	    const void *args, uint32_t argsize,
 	    void **result, uint32_t *resultsize);
 extern	HAL_BOOL ar5416SetRifsDelay(struct ath_hal *ah,
 	    const struct ieee80211_channel *chan, HAL_BOOL enable);
+
 extern	void ar5416EnableDfs(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	void ar5416GetDfsThresh(struct ath_hal *ah, HAL_PHYERR_PARAM *pe);
 extern	HAL_BOOL ar5416ProcessRadarEvent(struct ath_hal *ah,

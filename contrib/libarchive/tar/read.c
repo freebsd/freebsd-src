@@ -76,12 +76,12 @@ struct progress_data {
 
 static void	list_item_verbose(struct bsdtar *, FILE *,
 		    struct archive_entry *);
-static void	read_archive(struct bsdtar *bsdtar, char mode);
+static void	read_archive(struct bsdtar *bsdtar, char mode, struct archive *);
 
 void
 tar_mode_t(struct bsdtar *bsdtar)
 {
-	read_archive(bsdtar, 't');
+	read_archive(bsdtar, 't', NULL);
 	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
 		bsdtar->return_value = 1;
 }
@@ -89,10 +89,20 @@ tar_mode_t(struct bsdtar *bsdtar)
 void
 tar_mode_x(struct bsdtar *bsdtar)
 {
-	read_archive(bsdtar, 'x');
+	struct archive *writer;
+
+	writer = archive_write_disk_new();
+	if (writer == NULL)
+		lafe_errc(1, ENOMEM, "Cannot allocate disk writer object");
+	if (!bsdtar->option_numeric_owner)
+		archive_write_disk_set_standard_lookup(writer);
+	archive_write_disk_set_options(writer, bsdtar->extract_flags);
+
+	read_archive(bsdtar, 'x', writer);
 
 	if (lafe_unmatched_inclusions_warn(bsdtar->matching, "Not found in archive") != 0)
 		bsdtar->return_value = 1;
+	archive_write_free(writer);
 }
 
 static void
@@ -135,14 +145,15 @@ progress_func(void *cookie)
  * Handle 'x' and 't' modes.
  */
 static void
-read_archive(struct bsdtar *bsdtar, char mode)
+read_archive(struct bsdtar *bsdtar, char mode, struct archive *writer)
 {
 	struct progress_data	progress_data;
 	FILE			 *out;
 	struct archive		 *a;
 	struct archive_entry	 *entry;
-	const struct stat	 *st;
 	int			  r;
+	time_t			  sec;
+	long			  nsec;
 
 	while (*bsdtar->argv) {
 		lafe_include(&bsdtar->matching, *bsdtar->argv);
@@ -155,15 +166,13 @@ read_archive(struct bsdtar *bsdtar, char mode)
 
 	a = archive_read_new();
 	if (bsdtar->compress_program != NULL)
-		archive_read_support_compression_program(a, bsdtar->compress_program);
+		archive_read_support_filter_program(a, bsdtar->compress_program);
 	else
-		archive_read_support_compression_all(a);
+		archive_read_support_filter_all(a);
 	archive_read_support_format_all(a);
 	if (ARCHIVE_OK != archive_read_set_options(a, bsdtar->option_options))
 		lafe_errc(1, 0, "%s", archive_error_string(a));
-	if (archive_read_open_file(a, bsdtar->filename,
-	    bsdtar->bytes_per_block != 0 ? bsdtar->bytes_per_block :
-	    DEFAULT_BYTES_PER_BLOCK))
+	if (archive_read_open_file(a, bsdtar->filename, bsdtar->bytes_per_block))
 		lafe_errc(1, 0, "Error opening archive: %s",
 		    archive_error_string(a));
 
@@ -225,21 +234,36 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		/*
 		 * Exclude entries that are too old.
 		 */
-		st = archive_entry_stat(entry);
-		if (bsdtar->newer_ctime_sec > 0) {
-			if (st->st_ctime < bsdtar->newer_ctime_sec)
+		if (bsdtar->newer_ctime_filter) {
+			/* Use ctime if format provides, else mtime. */
+			if (archive_entry_ctime_is_set(entry)) {
+				sec = archive_entry_ctime(entry);
+				nsec = archive_entry_ctime_nsec(entry);
+			} else if (archive_entry_mtime_is_set(entry)) {
+				sec = archive_entry_mtime(entry);
+				nsec = archive_entry_mtime_nsec(entry);
+			} else {
+				sec = 0;
+				nsec = 0;
+			}
+			if (sec < bsdtar->newer_ctime_sec)
 				continue; /* Too old, skip it. */
-			if (st->st_ctime == bsdtar->newer_ctime_sec
-			    && ARCHIVE_STAT_CTIME_NANOS(st)
-			    <= bsdtar->newer_ctime_nsec)
+			if (sec == bsdtar->newer_ctime_sec
+			    && nsec <= bsdtar->newer_ctime_nsec)
 				continue; /* Too old, skip it. */
 		}
-		if (bsdtar->newer_mtime_sec > 0) {
-			if (st->st_mtime < bsdtar->newer_mtime_sec)
+		if (bsdtar->newer_mtime_filter) {
+			if (archive_entry_mtime_is_set(entry)) {
+				sec = archive_entry_mtime(entry);
+				nsec = archive_entry_mtime_nsec(entry);
+			} else {
+				sec = 0;
+				nsec = 0;
+			}
+			if (sec < bsdtar->newer_mtime_sec)
 				continue; /* Too old, skip it. */
-			if (st->st_mtime == bsdtar->newer_mtime_sec
-			    && ARCHIVE_STAT_MTIME_NANOS(st)
-			    <= bsdtar->newer_mtime_nsec)
+			if (sec == bsdtar->newer_mtime_sec
+			    && nsec <= bsdtar->newer_mtime_nsec)
 				continue; /* Too old, skip it. */
 		}
 
@@ -310,13 +334,12 @@ read_archive(struct bsdtar *bsdtar, char mode)
 				fflush(stderr);
 			}
 
-			// TODO siginfo_printinfo(bsdtar, 0);
+			/* TODO siginfo_printinfo(bsdtar, 0); */
 
 			if (bsdtar->option_stdout)
 				r = archive_read_data_into_fd(a, 1);
 			else
-				r = archive_read_extract(a, entry,
-				    bsdtar->extract_flags);
+				r = archive_read_extract2(a, entry, writer);
 			if (r != ARCHIVE_OK) {
 				if (!bsdtar->verbose)
 					safe_fprintf(stderr, "%s",
@@ -345,7 +368,7 @@ read_archive(struct bsdtar *bsdtar, char mode)
 		fprintf(stdout, "Archive Format: %s,  Compression: %s\n",
 		    archive_format_name(a), archive_compression_name(a));
 
-	archive_read_finish(a);
+	archive_read_free(a);
 }
 
 
@@ -427,11 +450,11 @@ list_item_verbose(struct bsdtar *bsdtar, FILE *out, struct archive_entry *entry)
 
 	/* Format the time using 'ls -l' conventions. */
 	tim = archive_entry_mtime(entry);
-#define HALF_YEAR (time_t)365 * 86400 / 2
+#define	HALF_YEAR (time_t)365 * 86400 / 2
 #if defined(_WIN32) && !defined(__CYGWIN__)
-#define DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
+#define	DAY_FMT  "%d"  /* Windows' strftime function does not support %e format. */
 #else
-#define DAY_FMT  "%e"  /* Day number without leading zeros */
+#define	DAY_FMT  "%e"  /* Day number without leading zeros */
 #endif
 	if (tim < now - HALF_YEAR || tim > now + HALF_YEAR)
 		fmt = bsdtar->day_first ? DAY_FMT " %b  %Y" : "%b " DAY_FMT "  %Y";

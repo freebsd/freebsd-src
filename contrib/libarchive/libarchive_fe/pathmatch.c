@@ -132,7 +132,7 @@ pm(const char *p, const char *s, int flags)
 			}
 			return (*s == '\0');
 		case '?':
-			/* ? always succeds, unless we hit end of 's' */
+			/* ? always succeeds, unless we hit end of 's' */
 			if (*s == '\0')
 				return (0);
 			break;

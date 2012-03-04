@@ -96,6 +96,7 @@ struct syscall_args {
 
 #ifdef __mips_n64
 #define	KINFO_PROC_SIZE 1088
+#define	KINFO_PROC32_SIZE 816
 #else
 #define	KINFO_PROC_SIZE 816
 #endif

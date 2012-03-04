@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 11, 2012
+.Dd January 25, 2012
 .Dt SND_HDA 4
 .Os
 .Sh NAME
@@ -182,6 +182,18 @@ May be specified as a 32-bit hexadecimal value with a leading
 or as a set of space-separated
 .Dq Ar option Ns = Ns Ar value
 pairs.
+.It Va hint.pcm.%d.rec.autosrc
+Controls automatic recording source feature:
+.Bl -tag -compact
+.It 0
+disabled,
+.It 1
+once on attach,
+.It 2
+enabled.
+.El
+When enabled, driver will automatically set recording source of the mixer to
+connected input using jack presence detection statuses.
 .El
 .Pp
 Pin configuration is the UAA driver's main source of information about codec
@@ -357,6 +369,16 @@ Original pin configuration written by BIOS.
 Setting this to a non-zero value makes driver to destroy existing pcm devices
 and process new pins configuration set via
 .Va dev.hdaa.%d.nid%d_config.
+.It Va dev.pcm.%d.play.32bit , dev.pcm.%d.rec.32bit
+HDA controller uses 32bit representation for all samples of more then 16 bits.
+These variables allow to specify how many bits of these 32 should be
+used by CODEC.
+Depending on codec capabilities, possible values are 20, 24 and 32 bit.
+The default value is 24.
+.It Va dev.pcm.%d.rec.autosrc
+Run-time equivalent of the
+.Va hint.pcm.%d.rec.autosrc
+tunable.
 .El
 .Sh EXAMPLES
 Taking HP Compaq DX2300 with Realtek ALC888 HDA codec for example.

@@ -328,6 +328,7 @@ typedef struct {
 #define	PT_SUNW_UNWIND	0x6464e550	/* amd64 UNWIND program header */
 #define	PT_GNU_EH_FRAME	0x6474e550
 #define	PT_GNU_STACK	0x6474e551
+#define	PT_GNU_RELRO	0x6474e552
 #define	PT_LOSUNW	0x6ffffffa
 #define	PT_SUNWBSS	0x6ffffffa	/* Sun Specific segment */
 #define	PT_SUNWSTACK	0x6ffffffb	/* describes the stack segment */
@@ -384,7 +385,7 @@ typedef struct {
 #define	DT_INIT_ARRAYSZ	27	/* Size in bytes of the array of
 				   initialization functions. */
 #define	DT_FINI_ARRAYSZ	28	/* Size in bytes of the array of
-				   terminationfunctions. */
+				   termination functions. */
 #define	DT_RUNPATH	29	/* String table offset of a null-terminated
 				   library search path string. */
 #define	DT_FLAGS	30	/* Object specific flag values. */
@@ -632,6 +633,10 @@ typedef struct {
 #define	R_ARM_THM_SWI8		14
 #define	R_ARM_XPC25		15
 #define	R_ARM_THM_XPC22		16
+/* TLS relocations */
+#define	R_ARM_TLS_DTPMOD32	17	/* ID of module containing symbol */
+#define	R_ARM_TLS_DTPOFF32	18	/* Offset in TLS block */
+#define	R_ARM_TLS_TPOFF32	19	/* Offset in static TLS block */
 #define	R_ARM_COPY		20	/* Copy data from shared object. */
 #define	R_ARM_GLOB_DAT		21	/* Set GOT entry to data address. */
 #define	R_ARM_JUMP_SLOT		22	/* Set GOT entry to code address. */

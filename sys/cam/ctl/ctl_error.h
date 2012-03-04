@@ -42,12 +42,6 @@
 #ifndef	_CTL_ERROR_H_
 #define	_CTL_ERROR_H_
 
-typedef enum {
-	CTL_SENSE_NOT_SPECIFIED,
-	CTL_SENSE_FIXED,
-	CTL_SENSE_DESCRIPTOR
-} ctl_sense_format;
-
 void ctl_set_sense_data_va(struct scsi_sense_data *sense_data, void *lun,
 			   scsi_sense_data_type sense_format, int current_error,
 			   int sense_key, int asc, int ascq, va_list ap); 
@@ -60,10 +54,9 @@ void ctl_sense_to_desc(struct scsi_sense_data_fixed *sense_src,
 		      struct scsi_sense_data_desc *sense_dest);
 void ctl_sense_to_fixed(struct scsi_sense_data_desc *sense_src,
 			struct scsi_sense_data_fixed *sense_dest);
-ctl_sense_format ctl_get_sense_format(struct scsi_sense_data *sense_data);
 void ctl_set_ua(struct ctl_scsiio *ctsio, int asc, int ascq);
 ctl_ua_type ctl_build_ua(ctl_ua_type ua_type, struct scsi_sense_data *sense,
-			 ctl_sense_format sense_format);
+			 scsi_sense_data_type sense_format);
 void ctl_set_overlapped_cmd(struct ctl_scsiio *ctsio);
 void ctl_set_overlapped_tag(struct ctl_scsiio *ctsio, uint8_t tag);
 void ctl_set_invalid_field(struct ctl_scsiio *ctsio, int sks_valid, int command,

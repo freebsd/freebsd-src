@@ -33,35 +33,11 @@ __FBSDID("$FreeBSD$");
 #include <sys/proc.h>
 #include <sys/sched.h>
 
-#include <machine/clock.h>
 #include <machine/cpu.h>
 #include <machine/cpufunc.h>
 
-void (*delay_func)(int usec);
-u_long clock_boot;
-
 void
 DELAY(int usec)
-{
-
-	(*delay_func)(usec);
-}
-
-void
-delay_boot(int usec)
-{
-	u_long end;
-
-	if (usec < 0)
-		return;
-
-	end = rd(tick) + (u_long)usec * clock_boot / 1000000;
-	while (rd(tick) < end)
-		cpu_spinwait();
-}
-
-void
-delay_tick(int usec)
 {
 	u_long end;
 

@@ -169,7 +169,7 @@ deviceReset(void)
 void
 deviceGetAll(void)
 {
-    int i, j, fd;
+    int i, j;
     char **names;
 
     msgNotify("Probing devices, please wait (this can take a while)...");
@@ -183,7 +183,7 @@ deviceGetAll(void)
 
 	    switch(device_names[i].type) {
 	    case DEVICE_TYPE_DISK:
-		fd = deviceTry(device_names[i], try, j);
+		deviceTry(device_names[i], try, j);
 		break;
 
 	    default:

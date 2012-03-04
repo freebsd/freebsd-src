@@ -373,7 +373,7 @@ vn_rdwr(rw, vp, base, len, offset, segflg, ioflg, active_cred, file_cred,
 	int ioflg;
 	struct ucred *active_cred;
 	struct ucred *file_cred;
-	int *aresid;
+	ssize_t *aresid;
 	struct thread *td;
 {
 	struct uio auio;
@@ -470,7 +470,7 @@ vn_rdwr_inchunks(rw, vp, base, len, offset, segflg, ioflg, active_cred,
 	struct thread *td;
 {
 	int error = 0;
-	int iaresid;
+	ssize_t iaresid;
 
 	VFS_ASSERT_GIANT(vp->v_mount);
 
@@ -519,6 +519,7 @@ vn_read(fp, uio, active_cred, flags, td)
 	int error, ioflag;
 	struct mtx *mtxp;
 	int advice, vfslocked;
+	off_t offset;
 
 	KASSERT(uio->uio_td == td, ("uio_td %p is not td %p",
 	    uio->uio_td, td));
@@ -558,19 +559,14 @@ vn_read(fp, uio, active_cred, flags, td)
 	switch (advice) {
 	case POSIX_FADV_NORMAL:
 	case POSIX_FADV_SEQUENTIAL:
+	case POSIX_FADV_NOREUSE:
 		ioflag |= sequential_heuristic(uio, fp);
 		break;
 	case POSIX_FADV_RANDOM:
 		/* Disable read-ahead for random I/O. */
 		break;
-	case POSIX_FADV_NOREUSE:
-		/*
-		 * Request the underlying FS to discard the buffers
-		 * and pages after the I/O is complete.
-		 */
-		ioflag |= IO_DIRECT;
-		break;
 	}
+	offset = uio->uio_offset;
 
 #ifdef MAC
 	error = mac_vnode_check_read(active_cred, fp->f_cred, vp);
@@ -587,6 +583,10 @@ vn_read(fp, uio, active_cred, flags, td)
 	}
 	fp->f_nextoff = uio->uio_offset;
 	VOP_UNLOCK(vp, 0);
+	if (error == 0 && advice == POSIX_FADV_NOREUSE &&
+	    offset != uio->uio_offset)
+		error = VOP_ADVISE(vp, offset, uio->uio_offset - 1,
+		    POSIX_FADV_DONTNEED);
 	VFS_UNLOCK_GIANT(vfslocked);
 	return (error);
 }

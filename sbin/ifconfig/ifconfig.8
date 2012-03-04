@@ -28,7 +28,7 @@
 .\"     From: @(#)ifconfig.8	8.3 (Berkeley) 1/5/94
 .\" $FreeBSD$
 .\"
-.Dd January 4, 2012
+.Dd February 29, 2012
 .Dt IFCONFIG 8
 .Os
 .Sh NAME
@@ -1036,7 +1036,7 @@ Enable Dynamic Frequency Selection (DFS) as specified in 802.11h.
 DFS embodies several facilities including detection of overlapping
 radar signals, dynamic transmit power control, and channel selection
 according to a least-congested criteria.
-DFS support is mandatory for some 5Ghz frequencies in certain
+DFS support is mandatory for some 5GHz frequencies in certain
 locales (e.g. ETSI).
 By default DFS is enabled according to the regulatory definitions
 specified in /etc/regdomain.xml and the current country code, regdomain,
@@ -1091,7 +1091,7 @@ By default DTIM is 1 (i.e., DTIM occurs at each beacon).
 .It Cm quiet
 Enable the use of quiet IE.  Hostap will use this to silent other
 stations to reduce interference for radar detection when
-operating on 5Ghz frequency and doth support is enabled.
+operating on 5GHz frequency and doth support is enabled.
 Use
 .Fl quiet
 to disable this functionality.
@@ -2106,7 +2106,7 @@ it is removed from the bridge.
 .It Cm maxaddr Ar size
 Set the size of the bridge address cache to
 .Ar size .
-The default is 100 entries.
+The default is 2000 entries.
 .It Cm timeout Ar seconds
 Set the timeout of address cache entries to
 .Ar seconds
@@ -2114,7 +2114,7 @@ seconds.
 If
 .Ar seconds
 is zero, then address cache entries will not be expired.
-The default is 240 seconds.
+The default is 1200 seconds.
 .It Cm addr
 Display the addresses that have been learned by the bridge.
 .It Cm static Ar interface-name Ar address

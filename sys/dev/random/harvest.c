@@ -37,6 +37,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/queue.h>
 #include <sys/random.h>
 #include <sys/selinfo.h>
+#include <sys/syslog.h>
 #include <sys/systm.h>
 #include <sys/sysctl.h>
 
@@ -48,6 +49,7 @@ static int read_random_phony(void *, int);
 
 /* Structure holding the desired entropy sources */
 struct harvest_select harvest = { 1, 1, 1, 0 };
+static int warned = 0;
 
 /* hold the address of the routine which is actually called if
  * the randomdev is loaded
@@ -71,6 +73,7 @@ random_yarrow_deinit_harvester(void)
 {
 	reap_func = NULL;
 	read_func = read_random_phony;
+	warned = 0;
 }
 
 /* Entropy harvesting routine. This is supposed to be fast; do
@@ -107,6 +110,11 @@ read_random_phony(void *buf, int count)
 {
 	u_long randval;
 	int size, i;
+
+	if (!warned) {
+		log(LOG_WARNING, "random device not loaded; using insecure entropy\n");
+		warned = 1;
+	}
 
 	/* srandom() is called in kern/init_main.c:proc0_post() */
 

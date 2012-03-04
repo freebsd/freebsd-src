@@ -1524,6 +1524,7 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 	int error;
 	int fd, kqfd;
 	int jid;
+	u_short evflags;
 
 	if (p->p_aioinfo == NULL)
 		aio_init_aioinfo(p);
@@ -1550,6 +1551,12 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 		ops->store_error(job, error);
 		uma_zfree(aiocb_zone, aiocbe);
 		return (error);
+	}
+
+	/* XXX: aio_nbytes is later casted to signed types. */
+	if (aiocbe->uaiocb.aio_nbytes > INT_MAX) {
+		uma_zfree(aiocb_zone, aiocbe);
+		return (EINVAL);
 	}
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT &&
@@ -1640,10 +1647,15 @@ aio_aqueue(struct thread *td, struct aiocb *job, struct aioliojob *lj,
 
 	if (aiocbe->uaiocb.aio_sigevent.sigev_notify != SIGEV_KEVENT)
 		goto no_kqueue;
+	evflags = aiocbe->uaiocb.aio_sigevent.sigev_notify_kevent_flags;
+	if ((evflags & ~(EV_CLEAR | EV_DISPATCH | EV_ONESHOT)) != 0) {
+		error = EINVAL;
+		goto aqueue_fail;
+	}
 	kqfd = aiocbe->uaiocb.aio_sigevent.sigev_notify_kqueue;
 	kev.ident = (uintptr_t)aiocbe->uuaiocb;
 	kev.filter = EVFILT_AIO;
-	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1;
+	kev.flags = EV_ADD | EV_ENABLE | EV_FLAG1 | evflags;
 	kev.data = (intptr_t)aiocbe;
 	kev.udata = aiocbe->uaiocb.aio_sigevent.sigev_value.sival_ptr;
 	error = kqfd_register(kqfd, &kev, td, 1);
@@ -2529,10 +2541,13 @@ filt_aioattach(struct knote *kn)
 static void
 filt_aiodetach(struct knote *kn)
 {
-	struct aiocblist *aiocbe = kn->kn_ptr.p_aio;
+	struct knlist *knl;
 
-	if (!knlist_empty(&aiocbe->klist))
-		knlist_remove(&aiocbe->klist, kn, 0);
+	knl = &kn->kn_ptr.p_aio->klist;
+	knl->kl_lock(knl->kl_lockarg);
+	if (!knlist_empty(knl))
+		knlist_remove(knl, kn, 1);
+	knl->kl_unlock(knl->kl_lockarg);
 }
 
 /* kqueue filter function */
@@ -2574,10 +2589,13 @@ filt_lioattach(struct knote *kn)
 static void
 filt_liodetach(struct knote *kn)
 {
-	struct aioliojob * lj = kn->kn_ptr.p_lio;
+	struct knlist *knl;
 
-	if (!knlist_empty(&lj->klist))
-		knlist_remove(&lj->klist, kn, 0);
+	knl = &kn->kn_ptr.p_lio->klist;
+	knl->kl_lock(knl->kl_lockarg);
+	if (!knlist_empty(knl))
+		knlist_remove(knl, kn, 1);
+	knl->kl_unlock(knl->kl_lockarg);
 }
 
 /* kqueue filter function */
@@ -2688,6 +2706,7 @@ convert_sigevent32(struct sigevent32 *sig32, struct sigevent *sig)
 		break;
 	case SIGEV_KEVENT:
 		CP(*sig32, *sig, sigev_notify_kqueue);
+		CP(*sig32, *sig, sigev_notify_kevent_flags);
 		PTRIN_CP(*sig32, *sig, sigev_value.sival_ptr);
 		break;
 	default:

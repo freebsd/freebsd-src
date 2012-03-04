@@ -384,6 +384,7 @@ FBSD_1.2 {
 FBSD_1.3 {
 	 fdlopen;
 	__FreeBSD_libc_enter_restricted_mode;
+	getcontextx;
 };
 
 FBSDprivate_1.0 {
@@ -507,4 +508,6 @@ FBSDprivate_1.0 {
 
 	__elf_aux_vector;
 	__pthread_map_stacks_exec;
+	__fillcontextx;
+	__getcontextx_size;
 };

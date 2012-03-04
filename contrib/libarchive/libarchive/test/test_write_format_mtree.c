@@ -59,12 +59,12 @@ test_write_format_mtree_sub(int use_set, int dironly)
 
 	/* Create a mtree format archive. */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_mtree(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_mtree(a));
 	if (use_set)
-		assertA(0 == archive_write_set_options(a, "use-set"));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_option(a, NULL, "use-set", "1"));
 	if (dironly)
-		assertA(0 == archive_write_set_options(a, "dironly"));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_option(a, NULL, "dironly", "1"));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff)-1, &used));
 
 	/* Write entries */
 	for (i = 0; entries[i].path != NULL; i++) {
@@ -80,17 +80,15 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		archive_entry_copy_pathname(ae, entries[i].path);
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
 			archive_entry_set_size(ae, 8);
-		assertA(0 == archive_write_header(a, ae));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
-			assertA(8 == archive_write_data(a, "Hello012", 15));
+			assertEqualIntA(a, 8,
+			    archive_write_data(a, "Hello012", 15));
 		archive_entry_free(ae);
 	}
-	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-        archive_write_finish(a);
-#else
-        assertEqualInt(0, archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+        assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
 	if (use_set) {
 		const char *p;
 
@@ -118,7 +116,7 @@ test_write_format_mtree_sub(int use_set, int dironly)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	/* Read entries */
@@ -134,12 +132,8 @@ test_write_format_mtree_sub(int use_set, int dironly)
 		if ((entries[i].mode & AE_IFMT) != S_IFDIR)
 			assertEqualInt(8, archive_entry_size(ae));
 	}
-	assertEqualIntA(a, 0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assertEqualInt(0, archive_read_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_write_format_mtree)

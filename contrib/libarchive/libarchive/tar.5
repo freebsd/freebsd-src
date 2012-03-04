@@ -171,9 +171,9 @@ These archives generally follow the POSIX ustar
 format described below with the following variations:
 .Bl -bullet -compact -width indent
 .It
-The magic value is
-.Dq ustar\ \&
-(note the following space).
+The magic value consists of the five characters
+.Dq ustar
+followed by a space.
 The version field contains a space character followed by a null.
 .It
 The numeric fields are generally filled with leading spaces
@@ -322,6 +322,39 @@ characters.
 Currently, most tar implementations comply with the ustar
 format, occasionally extending it by adding new fields to the
 blank area at the end of the header record.
+.Ss Numeric Extensions
+There have been several attempts to extend the range of sizes
+or times supported by modifying how numbers are stored in the
+header.
+.Pp
+One obvious extension to increase the size of files is to
+eliminate the terminating characters from the various
+numeric fields.
+For example, the standard only allows the size field to contain
+11 octal digits, reserving the twelfth byte for a trailing
+NUL character.
+Allowing 12 octal digits allows file sizes up to 64 GB.
+.Pp
+Another extension, utilized by GNU tar, star, and other newer
+.Nm
+implementations, permits binary numbers in the standard numeric fields.
+This is flagged by setting the high bit of the first byte.
+The remainder of the field is treated as a signed twos-complement
+value.
+This permits 95-bit values for the length and time fields
+and 63-bit values for the uid, gid, and device numbers.
+In particular, this provides a consistent way to handle
+negative time values.
+GNU tar supports this extension for the
+length, mtime, ctime, and atime fields.
+Joerg Schilling's star program and the libarchive library support
+this extension for all numeric fields.
+Note that this extension is largely obsoleted by the extended
+attribute record provided by the pax interchange format.
+.Pp
+Another early GNU extension allowed base-64 values rather than octal.
+This extension was short-lived and is no longer supported by any
+implementation.
 .Ss Pax Interchange Format
 There are many attributes that cannot be portably stored in a
 POSIX ustar archive.
@@ -365,6 +398,27 @@ A description of some common keys follows:
 .It Cm atime , Cm ctime , Cm mtime
 File access, inode change, and modification times.
 These fields can be negative or include a decimal point and a fractional value.
+.It Cm hdrcharset
+The character set used by the pax extension values.
+By default, all textual values in the pax extended attributes
+are assumed to be in UTF-8, including pathnames, user names,
+and group names.
+In some cases, it is not possible to translate local
+conventions into UTF-8.
+If this key is present and the value is the six-character ASCII string
+.Dq BINARY ,
+then all textual values are assumed to be in a platform-dependent
+multi-byte encoding.
+Note that there are only two valid values for this key:
+.Dq BINARY
+or
+.Dq ISO-IR\ 10646\ 2000\ UTF-8 .
+No other values are permitted by the standard, and
+the latter value should generally not be used as it is the
+default when this key is not specified.
+In particular, this flag should not be used as a general
+mechanism to allow filenames to be stored in arbitrary
+encodings.
 .It Cm uname , Cm uid , Cm gname , Cm gid
 User name, group name, and numeric UID and GID values.
 The user name and group name stored here are encoded in UTF8
@@ -408,6 +462,16 @@ Schilling's
 .Cm SCHILY.*
 extensions can store all of the data from
 .Va struct stat .
+.It Cm LIBARCHIVE.*
+Vendor-specific attributes used by the
+.Nm libarchive
+library and programs that use it.
+.It Cm LIBARCHIVE.creationtime
+The time when the file was created.
+(This should not be confused with the POSIX
+.Dq ctime
+attribute, which refers to the time when the file
+metadata was last changed.)
 .It Cm LIBARCHIVE.xattr. Ns Ar namespace Ns . Ns Ar key
 Libarchive stores POSIX.1e-style extended attributes using
 keys of this form.
@@ -659,8 +723,11 @@ GNU tar 1.14 (XXX check this XXX) and later will write
 pax interchange format archives when you specify the
 .Fl -posix
 flag.
-This format uses custom keywords to store sparse file information.
-There have been three iterations of this support, referred to
+This format follows the pax interchange format closely,
+using some
+.Cm SCHILY
+tags and introducing new keywords to store sparse file information.
+There have been three iterations of the sparse file support, referred to
 as
 .Dq 0.0 ,
 .Dq 0.1 ,
@@ -735,7 +802,7 @@ entry.
 .It
 An additional
 .Cm A
-entry is used to store an ACL for the following regular entry.
+header is used to store an ACL for the following regular entry.
 The body of this entry contains a seven-digit octal number
 followed by a zero byte, followed by the
 textual ACL description.
@@ -745,46 +812,95 @@ for POSIX.1e ACLs and 03000000 for NFSv4 ACLs.
 .El
 .Ss AIX Tar
 XXX More details needed XXX
+.Pp
+AIX Tar uses a ustar-formatted header with the type
+.Cm A
+for storing coded ACL information.
+Unlike the Solaris format, AIX tar writes this header after the
+regular file body to which it applies.
+The pathname in this header is either
+.Cm NFS4
+or
+.Cm AIXC
+to indicate the type of ACL stored.
+The actual ACL is stored in platform-specific binary format.
 .Ss Mac OS X Tar
 The tar distributed with Apple's Mac OS X stores most regular files
-as two separate entries in the tar archive.
-The two entries have the same name except that the first
+as two separate files in the tar archive.
+The two files have the same name except that the first
 one has
 .Dq ._
-added to the beginning of the name.
-This first entry stores the
-.Dq resource fork
-with additional attributes for the file.
-The Mac OS X
-.Fn CopyFile
-API is used to separate a file on disk into separate
-resource and data streams and to reassemble those separate
-streams when the file is restored to disk.
-.Ss Other Extensions
-One obvious extension to increase the size of files is to
-eliminate the terminating characters from the various
-numeric fields.
-For example, the standard only allows the size field to contain
-11 octal digits, reserving the twelfth byte for a trailing
-NUL character.
-Allowing 12 octal digits allows file sizes up to 64 GB.
+prepended to the last path element.
+This special file stores an AppleDouble-encoded
+binary blob with additional metadata about the second file,
+including ACL, extended attributes, and resources.
+To recreate the original file on disk, each
+separate file can be extracted and the Mac OS X
+.Fn copyfile
+function can be used to unpack the separate
+metadata file and apply it to th regular file.
+Conversely, the same function provides a
+.Dq pack
+option to encode the extended metadata from
+a file into a separate file whose contents
+can then be put into a tar archive.
 .Pp
-Another extension, utilized by GNU tar, star, and other newer
-.Nm
-implementations, permits binary numbers in the standard numeric fields.
-This is flagged by setting the high bit of the first byte.
-This permits 95-bit values for the length and time fields
-and 63-bit values for the uid, gid, and device numbers.
-GNU tar supports this extension for the
-length, mtime, ctime, and atime fields.
-Joerg Schilling's star program supports this extension for
-all numeric fields.
-Note that this extension is largely obsoleted by the extended attribute
-record provided by the pax interchange format.
-.Pp
-Another early GNU extension allowed base-64 values rather than octal.
-This extension was short-lived and is no longer supported by any
-implementation.
+Note that the Apple extended attributes interact
+badly with long filenames.
+Since each file is stored with the full name,
+a separate set of extensions needs to be included
+in the archive for each one, doubling the overhead
+required for files with long names.
+.Ss Summary of tar type codes
+The following list is a condensed summary of the type codes
+used in tar header records generated by different tar implementations.
+More details about specific implementations can be found above:
+.Bl -tag -compact -width XXX
+.It NUL
+Early tar programs stored a zero byte for regular files.
+.It Cm 0
+POSIX standard type code for a regular file.
+.It Cm 1
+POSIX standard type code for a hard link description.
+.It Cm 2
+POSIX standard type code for a symbolic link description.
+.It Cm 3
+POSIX standard type code for a character device node.
+.It Cm 4
+POSIX standard type code for a block device node.
+.It Cm 5
+POSIX standard type code for a directory.
+.It Cm 6
+POSIX standard type code for a FIFO.
+.It Cm 7
+POSIX reserved.
+.It Cm 7
+GNU tar used for pre-allocated files on some systems.
+.It Cm A
+Solaris tar ACL description stored prior to a regular file header.
+.It Cm A
+AIX tar ACL description stored after the file body.
+.It Cm D
+GNU tar directory dump.
+.It Cm K
+GNU tar long linkname for the following header.
+.It Cm L
+GNU tar long pathname for the following header.
+.It Cm M
+GNU tar multivolume marker, indicating the file is a continuation of a file from the previous volume.
+.It Cm N
+GNU tar long filename support.  Deprecated.
+.It Cm S
+GNU tar sparse regular file.
+.It Cm V
+GNU tar tape/volume header name.
+.It Cm X
+Solaris tar general-purpose extension header.
+.It Cm g
+POSIX pax interchange format global extensions.
+.It Cm x
+POSIX pax interchange format per-file extensions.
+.El
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr pax 1 ,

@@ -58,7 +58,7 @@ test_pax_filename_encoding_1(void)
 	extract_reference_file(testname);
 	a = archive_read_new();
 	assertEqualInt(ARCHIVE_OK, archive_read_support_format_tar(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, testname, 10240));
 	/*
@@ -77,7 +77,7 @@ test_pax_filename_encoding_1(void)
 	    " characters in it without generating a warning");
 	assertEqualInt(ARCHIVE_OK, archive_read_next_header(a, &entry));
 	assertEqualString(filename, archive_entry_pathname(entry));
-	archive_read_finish(a);
+	archive_read_free(a);
 }
 
 /*
@@ -104,13 +104,12 @@ test_pax_filename_encoding_2(void)
 
 	/*
 	 * We need a starting locale which has invalid sequences.
-	 * de_DE.UTF-8 seems to be commonly supported.
+	 * en_US.UTF-8 seems to be commonly supported.
 	 */
 	/* If it doesn't exist, just warn and return. */
-	if (LOCALE_UTF8 == NULL
-	    || NULL == setlocale(LC_ALL, LOCALE_UTF8)) {
+	if (NULL == setlocale(LC_ALL, "en_US.UTF-8")) {
 		skipping("invalid encoding tests require a suitable locale;"
-		    " %s not available on this system", LOCALE_UTF8);
+		    " en_US.UTF-8 not available on this system");
 		return;
 	}
 
@@ -151,8 +150,8 @@ test_pax_filename_encoding_2(void)
 	assertEqualInt(ARCHIVE_WARN, archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-	assertEqualInt(0, archive_write_close(a));
-	assertEqualInt(0, archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now read the entries back.
@@ -177,9 +176,11 @@ test_pax_filename_encoding_2(void)
 	assertEqualInt(0, archive_read_next_header(a, &entry));
 	assertEqualString(longname, archive_entry_pathname(entry));
 
-	assertEqualInt(0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+
+#if 0 /* Disable this until Tim check out it. */
 
 /*
  * Create an entry starting from a wide-character Unicode pathname,
@@ -277,8 +278,8 @@ test_pax_filename_encoding_3(void)
 	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-	assertEqualInt(0, archive_write_close(a));
-	assertEqualInt(0, archive_write_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now read the entries back.
@@ -321,13 +322,280 @@ test_pax_filename_encoding_3(void)
 
 	assertEqualInt(ARCHIVE_EOF, archive_read_next_header(a, &entry));
 
-	assertEqualInt(0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
+#else
+static void
+test_pax_filename_encoding_3(void)
+{
+}
+#endif
+
+/*
+ * Verify that KOI8-R filenames are correctly translated to Unicode and UTF-8.
+ */
+static void
+test_pax_filename_encoding_KOI8R(void)
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	/* Check if the paltform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in KOI8-R should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 512, "15 path=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+}
+
+/*
+ * Verify that CP1251 filenames are correctly translated to Unicode and UTF-8.
+ */
+static void
+test_pax_filename_encoding_CP1251(void)
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "Russian_Russia") &&
+	    NULL == setlocale(LC_ALL, "ru_RU.CP1251")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	/* Check if the paltform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from KOI8-R to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\xef\xf0\xe8");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Above three characters in KOI8-R should translate to the following
+	 * three characters (two bytes each) in UTF-8. */
+	assertEqualMem(buff + 512, "15 path=\xD0\xBF\xD1\x80\xD0\xB8\x0A", 15);
+}
+
+/*
+ * Verify that EUC-JP filenames are correctly translated to Unicode and UTF-8.
+ */
+static void
+test_pax_filename_encoding_EUCJP(void)
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "ja_JP.eucJP")) {
+		skipping("eucJP locale not available on this system.");
+		return;
+	}
+
+	/* Check if the paltform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from eucJP to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\xC9\xBD.txt");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Check UTF-8 version. */
+	assertEqualMem(buff + 512, "16 path=\xE8\xA1\xA8.txt\x0A", 16);
+
+}
+
+/*
+ * Verify that CP932/SJIS filenames are correctly translated to Unicode and UTF-8.
+ */
+static void
+test_pax_filename_encoding_CP932(void)
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "Japanese_Japan") &&
+	    NULL == setlocale(LC_ALL, "ja_JP.SJIS")) {
+		skipping("eucJP locale not available on this system.");
+		return;
+	}
+
+	/* Check if the paltform completely supports the string conversion. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	if (archive_write_set_options(a, "hdrcharset=UTF-8") != ARCHIVE_OK) {
+		skipping("This system cannot convert character-set"
+		    " from CP932/SJIS to UTF-8.");
+		archive_write_free(a);
+		return;
+	}
+	archive_write_free(a);
+
+	/* Re-create a write archive object since filenames should be written
+	 * in UTF-8 by default. */
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\x95\x5C.txt");
+	/* Check the Unicode version. */
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* Check UTF-8 version. */
+	assertEqualMem(buff + 512, "16 path=\xE8\xA1\xA8.txt\x0A", 16);
+
+}
+
+/*
+ * Verify that KOI8-R filenames are not translated to Unicode and UTF-8
+ * when using hdrcharset=BINARY option.
+ */
+static void
+test_pax_filename_encoding_KOI8R_BINARY(void)
+{
+  	struct archive *a;
+  	struct archive_entry *entry;
+	char buff[4096];
+	size_t used;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	/* BINARY mode should be accepted. */
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_set_options(a, "hdrcharset=BINARY"));
+	assertEqualInt(ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, sizeof(buff), &used));
+
+	entry = archive_entry_new2(a);
+	archive_entry_set_pathname(entry, "\xD0\xD2\xC9");
+	archive_entry_set_filetype(entry, AE_IFREG);
+	archive_entry_set_size(entry, 0);
+	assertEqualInt(ARCHIVE_OK, archive_write_header(a, entry));
+	archive_entry_free(entry);
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+
+	/* "hdrcharset=BINARY" pax attribute should be written. */
+	assertEqualMem(buff + 512, "21 hdrcharset=BINARY\x0A", 21);
+	/* Above three characters in KOI8-R should not translate to any
+	 * character-set. */
+	assertEqualMem(buff + 512+21, "12 path=\xD0\xD2\xC9\x0A", 12);
+}
+
+/*
+ * Pax format writer only accepts both BINARY and UTF-8.
+ * If other character-set name is specified, you will get ARCHIVE_FAILED.
+ */
+static void
+test_pax_filename_encoding_KOI8R_CP1251(void)
+{
+  	struct archive *a;
+
+	if (NULL == setlocale(LC_ALL, "ru_RU.KOI8-R")) {
+		skipping("KOI8-R locale not available on this system.");
+		return;
+	}
+
+	a = archive_write_new();
+	assertEqualInt(ARCHIVE_OK, archive_write_set_format_pax(a));
+	/* pax format writer only accepts both BINARY and UTF-8. */
+	assertEqualInt(ARCHIVE_FAILED,
+	    archive_write_set_options(a, "hdrcharset=CP1251"));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
+}
+
 
 DEFINE_TEST(test_pax_filename_encoding)
 {
 	test_pax_filename_encoding_1();
 	test_pax_filename_encoding_2();
 	test_pax_filename_encoding_3();
+	test_pax_filename_encoding_KOI8R();
+	test_pax_filename_encoding_CP1251();
+	test_pax_filename_encoding_EUCJP();
+	test_pax_filename_encoding_CP932();
+	test_pax_filename_encoding_KOI8R_BINARY();
+	test_pax_filename_encoding_KOI8R_CP1251();
 }

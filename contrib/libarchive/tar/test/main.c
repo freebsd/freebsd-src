@@ -24,8 +24,18 @@
  */
 
 #include "test.h"
+#ifdef HAVE_SYS_TIME_H
+#include <sys/time.h>
+#endif
 #include <errno.h>
+#ifdef HAVE_ICONV_H
+#include <iconv.h>
+#endif
+#include <limits.h>
 #include <locale.h>
+#ifdef HAVE_SIGNAL_H
+#include <signal.h>
+#endif
 #include <stdarg.h>
 #include <time.h>
 
@@ -40,8 +50,10 @@ __FBSDID("$FreeBSD$");
 #define KNOWNREF	"test_patterns_2.tar.uu"
 #define ENVBASE "BSDTAR"  /* Prefix for environment variables. */
 #define	PROGRAM "bsdtar"  /* Name of program being tested. */
-#undef LIBRARY		  /* Not testing a library. */
-#undef	EXTRA_DUMP	     /* How to dump extra data */
+#define PROGRAM_ALIAS "tar" /* Generic alias for program */
+#undef	LIBRARY		  /* Not testing a library. */
+#undef	EXTRA_DUMP	  /* How to dump extra data */
+#undef	EXTRA_ERRNO	  /* How to dump errno */
 /* How to generate extra version info. */
 #define	EXTRA_VERSION    (systemf("%s --version", testprog) ? "" : "")
 
@@ -151,7 +163,7 @@ my_GetFileInformationByName(const char *path, BY_HANDLE_FILE_INFORMATION *bhfi)
 
 	memset(bhfi, 0, sizeof(*bhfi));
 	h = CreateFile(path, FILE_READ_ATTRIBUTES, 0, NULL,
-		OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+		OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE)
 		return (0);
 	r = GetFileInformationByHandle(h, bhfi);
@@ -180,6 +192,8 @@ invalid_parameter_handler(const wchar_t * expression,
 static int dump_on_failure = 0;
 /* Default is to remove temp dirs and log data for successful tests. */
 static int keep_temp_files = 0;
+/* Default is to run the specified tests once and report errors. */
+static int until_failure = 0;
 /* Default is to just report pass/fail for each test. */
 static int verbosity = 0;
 #define	VERBOSITY_SUMMARY_ONLY -1 /* -q */
@@ -237,10 +251,14 @@ void
 failure(const char *fmt, ...)
 {
 	va_list ap;
-	va_start(ap, fmt);
-	vsprintf(msgbuff, fmt, ap);
-	va_end(ap);
-	nextmsg = msgbuff;
+	if (fmt == NULL) {
+		nextmsg = NULL;
+	} else {
+		va_start(ap, fmt);
+		vsprintf(msgbuff, fmt, ap);
+		va_end(ap);
+		nextmsg = msgbuff;
+	}
 }
 
 /*
@@ -252,15 +270,14 @@ failure(const char *fmt, ...)
  * pass __FILE__, __LINE__ directly into the function instead of using
  * this hook.  I suspect this machinery is used so rarely that we
  * would be better off just removing it entirely.  That would simplify
- * the code here noticably.
+ * the code here noticeably.
  */
-static const char *test_filename;
-static int test_line;
-static void *test_extra;
-void assertion_setup(const char *filename, int line)
+static const char *skipping_filename;
+static int skipping_line;
+void skipping_setup(const char *filename, int line)
 {
-	test_filename = filename;
-	test_line = line;
+	skipping_filename = filename;
+	skipping_line = line;
 }
 
 /* Called at the beginning of each assert() function. */
@@ -287,6 +304,7 @@ static struct line {
 	int count;
 	int skip;
 }  failed_lines[10000];
+const char *failed_filename;
 
 /* Count this failure, setup up log destination and handle initial report. */
 static void
@@ -296,19 +314,16 @@ failure_start(const char *filename, int line, const char *fmt, ...)
 
 	/* Record another failure for this line. */
 	++failures;
-	/* test_filename = filename; */
+	failed_filename = filename;
 	failed_lines[line].count++;
 
 	/* Determine whether to log header to console. */
 	switch (verbosity) {
-	case VERBOSITY_FULL:
-		log_console = 1;
-		break;
 	case VERBOSITY_LIGHT_REPORT:
 		log_console = (failed_lines[line].count < 2);
 		break;
 	default:
-		log_console = 0;
+		log_console = (verbosity >= VERBOSITY_FULL);
 	}
 
 	/* Log file:line header for this failure */
@@ -344,14 +359,16 @@ failure_finish(void *extra)
 {
 	(void)extra; /* UNUSED (maybe) */
 #ifdef EXTRA_DUMP
-	if (extra != NULL)
+	if (extra != NULL) {
+		logprintf("    errno: %d\n", EXTRA_ERRNO(extra));
 		logprintf("   detail: %s\n", EXTRA_DUMP(extra));
+	}
 #endif
 
 	if (dump_on_failure) {
 		fprintf(stderr,
 		    " *** forcing core dump so failure can be debugged ***\n");
-		*(char *)(NULL) = 0;
+		abort();
 		exit(1);
 	}
 }
@@ -366,12 +383,15 @@ test_skipping(const char *fmt, ...)
 	va_start(ap, fmt);
 	vsprintf(buff, fmt, ap);
 	va_end(ap);
+	/* Use failure() message if set. */
+	msg = nextmsg;
+	nextmsg = NULL;
 	/* failure_start() isn't quite right, but is awfully convenient. */
-	failure_start(test_filename, test_line, "SKIPPING: %s", buff);
+	failure_start(skipping_filename, skipping_line, "SKIPPING: %s", buff);
 	--failures; /* Undo failures++ in failure_start() */
 	/* Don't failure_finish() here. */
 	/* Mark as skip, so doesn't count as failed test. */
-	failed_lines[test_line].skip = 1;
+	failed_lines[skipping_line].skip = 1;
 	++skips;
 }
 
@@ -422,13 +442,102 @@ assertion_equal_int(const char *file, int line,
 	return (0);
 }
 
-static void strdump(const char *e, const char *p)
+/*
+ * Utility to convert a single UTF-8 sequence.
+ */
+static int
+_utf8_to_unicode(uint32_t *pwc, const char *s, size_t n)
+{
+	static const char utf8_count[256] = {
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 00 - 0F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 10 - 1F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 20 - 2F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 30 - 3F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 40 - 4F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 50 - 5F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 60 - 6F */
+		 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,/* 70 - 7F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* 80 - 8F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* 90 - 9F */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* A0 - AF */
+		 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,/* B0 - BF */
+		 0, 0, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,/* C0 - CF */
+		 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,/* D0 - DF */
+		 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3, 3,/* E0 - EF */
+		 4, 4, 4, 4, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 /* F0 - FF */
+	};
+	int ch;
+	int cnt;
+	uint32_t wc;
+
+	*pwc = 0;
+
+	/* Sanity check. */
+	if (n == 0)
+		return (0);
+	/*
+	 * Decode 1-4 bytes depending on the value of the first byte.
+	 */
+	ch = (unsigned char)*s;
+	if (ch == 0)
+		return (0); /* Standard:  return 0 for end-of-string. */
+	cnt = utf8_count[ch];
+
+	/* Invalide sequence or there are not plenty bytes. */
+	if (n < (size_t)cnt)
+		return (-1);
+
+	/* Make a Unicode code point from a single UTF-8 sequence. */
+	switch (cnt) {
+	case 1:	/* 1 byte sequence. */
+		*pwc = ch & 0x7f;
+		return (cnt);
+	case 2:	/* 2 bytes sequence. */
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		*pwc = ((ch & 0x1f) << 6) | (s[1] & 0x3f);
+		return (cnt);
+	case 3:	/* 3 bytes sequence. */
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
+		wc = ((ch & 0x0f) << 12)
+		    | ((s[1] & 0x3f) << 6)
+		    | (s[2] & 0x3f);
+		if (wc < 0x800)
+			return (-1);/* Overlong sequence. */
+		break;
+	case 4:	/* 4 bytes sequence. */
+		if (n < 4)
+			return (-1);
+		if ((s[1] & 0xc0) != 0x80) return (-1);
+		if ((s[2] & 0xc0) != 0x80) return (-1);
+		if ((s[3] & 0xc0) != 0x80) return (-1);
+		wc = ((ch & 0x07) << 18)
+		    | ((s[1] & 0x3f) << 12)
+		    | ((s[2] & 0x3f) << 6)
+		    | (s[3] & 0x3f);
+		if (wc < 0x10000)
+			return (-1);/* Overlong sequence. */
+		break;
+	default:
+		return (-1);
+	}
+
+	/* The code point larger than 0x10FFFF is not leagal
+	 * Unicode values. */
+	if (wc > 0x10FFFF)
+		return (-1);
+	/* Correctly gets a Unicode, returns used bytes. */
+	*pwc = wc;
+	return (cnt);
+}
+
+static void strdump(const char *e, const char *p, int ewidth, int utf8)
 {
 	const char *q = p;
 
-	logprintf("      %s = ", e);
+	logprintf("      %*s = ", ewidth, e);
 	if (p == NULL) {
-		logprintf("NULL");
+		logprintf("NULL\n");
 		return;
 	}
 	logprintf("\"");
@@ -447,7 +556,37 @@ static void strdump(const char *e, const char *p)
 		}
 	}
 	logprintf("\"");
-	logprintf(" (length %d)\n", q == NULL ? -1 : (int)strlen(q));
+	logprintf(" (length %d)", q == NULL ? -1 : (int)strlen(q));
+
+	/*
+	 * If the current string is UTF-8, dump its code points.
+	 */
+	if (utf8) {
+		size_t len;
+		uint32_t uc;
+		int n;
+		int cnt = 0;
+
+		p = q;
+		len = strlen(p);
+		logprintf(" [");
+		while ((n = _utf8_to_unicode(&uc, p, len)) > 0) {
+			if (p != q)
+				logprintf(" ");
+			logprintf("%04X", uc);
+			p += n;
+			len -= n;
+			cnt++;
+		}
+		logprintf("]");
+		logprintf(" (count %d", cnt);
+		if (n < 0) {
+			logprintf(",unknown %d bytes", len);
+		}
+		logprintf(")");
+
+	}
+	logprintf("\n");
 }
 
 /* Verify two strings are equal, dump them if not. */
@@ -455,14 +594,20 @@ int
 assertion_equal_string(const char *file, int line,
     const char *v1, const char *e1,
     const char *v2, const char *e2,
-    void *extra)
+    void *extra, int utf8)
 {
+	int l1, l2;
+
 	assertion_count(file, line);
 	if (v1 == v2 || (v1 != NULL && v2 != NULL && strcmp(v1, v2) == 0))
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
-	strdump(e1, v1);
-	strdump(e2, v2);
+	l1 = strlen(e1);
+	l2 = strlen(e2);
+	if (l1 < l2)
+		l1 = l2;
+	strdump(e1, v1, l1, utf8);
+	strdump(e2, v2, l1, utf8);
 	failure_finish(extra);
 	return (0);
 }
@@ -514,7 +659,9 @@ assertion_equal_wstring(const char *file, int line,
     void *extra)
 {
 	assertion_count(file, line);
-	if (v1 == v2 || wcscmp(v1, v2) == 0)
+	if (v1 == v2)
+		return (1);
+	if (v1 != NULL && v2 != NULL && wcscmp(v1, v2) == 0)
 		return (1);
 	failure_start(file, line, "%s != %s", e1, e2);
 	wcsdump(e1, v1);
@@ -593,9 +740,9 @@ assertion_equal_mem(const char *file, int line,
 		offset += 16;
 	}
 	logprintf("      Dump of %s\n", e1);
-	hexdump(v1, v2, l < 64 ? l : 64, offset);
+	hexdump(v1, v2, l < 128 ? l : 128, offset);
 	logprintf("      Dump of %s\n", e2);
-	hexdump(v2, v1, l < 64 ? l : 64, offset);
+	hexdump(v2, v1, l < 128 ? l : 128, offset);
 	logprintf("\n");
 	failure_finish(extra);
 	return (0);
@@ -603,29 +750,24 @@ assertion_equal_mem(const char *file, int line,
 
 /* Verify that the named file exists and is empty. */
 int
-assertion_empty_file(const char *f1fmt, ...)
+assertion_empty_file(const char *filename, int line, const char *f1)
 {
 	char buff[1024];
-	char f1[1024];
 	struct stat st;
-	va_list ap;
 	ssize_t s;
 	FILE *f;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f1fmt);
-	vsprintf(f1, f1fmt, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	if (stat(f1, &st) != 0) {
-		failure_start(test_filename, test_line, "Stat failed: %s", f1);
+		failure_start(filename, line, "Stat failed: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
 	if (st.st_size == 0)
 		return (1);
 
-	failure_start(test_filename, test_line, "File should be empty: %s", f1);
+	failure_start(filename, line, "File should be empty: %s", f1);
 	logprintf("    File size: %d\n", (int)st.st_size);
 	logprintf("    Contents:\n");
 	f = fopen(f1, "rb");
@@ -644,24 +786,19 @@ assertion_empty_file(const char *f1fmt, ...)
 
 /* Verify that the named file exists and is not empty. */
 int
-assertion_non_empty_file(const char *f1fmt, ...)
+assertion_non_empty_file(const char *filename, int line, const char *f1)
 {
-	char f1[1024];
 	struct stat st;
-	va_list ap;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f1fmt);
-	vsprintf(f1, f1fmt, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	if (stat(f1, &st) != 0) {
-		failure_start(test_filename, test_line, "Stat failed: %s", f1);
+		failure_start(filename, line, "Stat failed: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
 	if (st.st_size == 0) {
-		failure_start(test_filename, test_line, "File empty: %s", f1);
+		failure_start(filename, line, "File empty: %s", f1);
 		failure_finish(NULL);
 		return (0);
 	}
@@ -671,19 +808,14 @@ assertion_non_empty_file(const char *f1fmt, ...)
 /* Verify that two files have the same contents. */
 /* TODO: hexdump the first bytes that actually differ. */
 int
-assertion_equal_file(const char *fn1, const char *f2pattern, ...)
+assertion_equal_file(const char *filename, int line, const char *fn1, const char *fn2)
 {
-	char fn2[1024];
-	va_list ap;
 	char buff1[1024];
 	char buff2[1024];
 	FILE *f1, *f2;
 	int n1, n2;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, f2pattern);
-	vsprintf(fn2, f2pattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	f1 = fopen(fn1, "rb");
 	f2 = fopen(fn2, "rb");
@@ -702,24 +834,18 @@ assertion_equal_file(const char *fn1, const char *f2pattern, ...)
 	}
 	fclose(f1);
 	fclose(f2);
-	failure_start(test_filename, test_line, "Files not identical");
+	failure_start(filename, line, "Files not identical");
 	logprintf("  file1=\"%s\"\n", fn1);
 	logprintf("  file2=\"%s\"\n", fn2);
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Verify that the named file does exist. */
 int
-assertion_file_exists(const char *fpattern, ...)
+assertion_file_exists(const char *filename, int line, const char *f)
 {
-	char f[1024];
-	va_list ap;
-
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (!_access(f, 0))
@@ -728,22 +854,16 @@ assertion_file_exists(const char *fpattern, ...)
 	if (!access(f, F_OK))
 		return (1);
 #endif
-	failure_start(test_filename, test_line, "File should exist: %s", f);
-	failure_finish(test_extra);
+	failure_start(filename, line, "File should exist: %s", f);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Verify that the named file doesn't exist. */
 int
-assertion_file_not_exists(const char *fpattern, ...)
+assertion_file_not_exists(const char *filename, int line, const char *f)
 {
-	char f[1024];
-	va_list ap;
-
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(f, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 #if defined(_WIN32) && !defined(__CYGWIN__)
 	if (_access(f, 0))
@@ -752,31 +872,26 @@ assertion_file_not_exists(const char *fpattern, ...)
 	if (access(f, F_OK))
 		return (1);
 #endif
-	failure_start(test_filename, test_line, "File should not exist: %s", f);
-	failure_finish(test_extra);
+	failure_start(filename, line, "File should not exist: %s", f);
+	failure_finish(NULL);
 	return (0);
 }
 
 /* Compare the contents of a file to a block of memory. */
 int
-assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
+assertion_file_contents(const char *filename, int line, const void *buff, int s, const char *fn)
 {
-	char fn[1024];
-	va_list ap;
 	char *contents;
 	FILE *f;
 	int n;
 
-	assertion_count(test_filename, test_line);
-	va_start(ap, fpattern);
-	vsprintf(fn, fpattern, ap);
-	va_end(ap);
+	assertion_count(filename, line);
 
 	f = fopen(fn, "rb");
 	if (f == NULL) {
-		failure_start(test_filename, test_line,
+		failure_start(filename, line,
 		    "File should exist: %s", fn);
-		failure_finish(test_extra);
+		failure_finish(NULL);
 		return (0);
 	}
 	contents = malloc(s * 2);
@@ -786,7 +901,7 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 		free(contents);
 		return (1);
 	}
-	failure_start(test_filename, test_line, "File contents don't match");
+	failure_start(filename, line, "File contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
 	if (n > 0)
 		hexdump(contents, buff, n > 512 ? 512 : n, 0);
@@ -794,22 +909,28 @@ assertion_file_contents(const void *buff, int s, const char *fpattern, ...)
 		logprintf("  File empty, contents should be:\n");
 		hexdump(buff, NULL, s > 512 ? 512 : s, 0);
 	}
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	free(contents);
 	return (0);
 }
 
 /* Check the contents of a text file, being tolerant of line endings. */
 int
-assertion_text_file_contents(const char *buff, const char *fn)
+assertion_text_file_contents(const char *filename, int line, const char *buff, const char *fn)
 {
 	char *contents;
 	const char *btxt, *ftxt;
 	FILE *f;
 	int n, s;
 
-	assertion_count(test_filename, test_line);
+	assertion_count(filename, line);
 	f = fopen(fn, "r");
+	if (f == NULL) {
+		failure_start(filename, line,
+		    "File doesn't exist: %s", fn);
+		failure_finish(NULL);
+		return (0);
+	}
 	s = strlen(buff);
 	contents = malloc(s * 2 + 128);
 	n = fread(contents, 1, s * 2 + 128 - 1, f);
@@ -837,15 +958,17 @@ assertion_text_file_contents(const char *buff, const char *fn)
 		free(contents);
 		return (1);
 	}
-	failure_start(test_filename, test_line, "Contents don't match");
+	failure_start(filename, line, "Contents don't match");
 	logprintf("  file=\"%s\"\n", fn);
-	if (n > 0)
+	if (n > 0) {
 		hexdump(contents, buff, n, 0);
-	else {
+		logprintf("  expected\n", fn);
+		hexdump(buff, contents, s, 0);
+	} else {
 		logprintf("  File empty, contents should be:\n");
 		hexdump(buff, NULL, s, 0);
 	}
-	failure_finish(test_extra);
+	failure_finish(NULL);
 	free(contents);
 	return (0);
 }
@@ -875,7 +998,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		return (0);
 	}
 
-	// Make a copy of the provided lines and count up the expected file size.
+	/* Make a copy of the provided lines and count up the expected file size. */
 	expected_count = 0;
 	for (i = 0; lines[i] != NULL; ++i) {
 	}
@@ -885,7 +1008,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		expected[i] = strdup(lines[i]);
 	}
 
-	// Break the file into lines
+	/* Break the file into lines */
 	actual_count = 0;
 	for (c = '\0', p = buff; p < buff + buff_size; ++p) {
 		if (*p == '\x0d' || *p == '\x0a')
@@ -902,7 +1025,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		}
 	}
 
-	// Erase matching lines from both lists
+	/* Erase matching lines from both lists */
 	for (i = 0; i < expected_count; ++i) {
 		if (expected[i] == NULL)
 			continue;
@@ -918,7 +1041,7 @@ assertion_file_contains_lines_any_order(const char *file, int line,
 		}
 	}
 
-	// If there's anything left, it's a failure
+	/* If there's anything left, it's a failure */
 	for (i = 0; i < expected_count; ++i) {
 		if (expected[i] != NULL)
 			++expected_failure;
@@ -1040,8 +1163,11 @@ assertion_file_time(const char *file, int line,
 	ftime.dwHighDateTime = 0;
 
 	assertion_count(file, line);
+	/* Note: FILE_FLAG_BACKUP_SEMANTICS applies to open
+	 * a directory file. If not, CreateFile() will fail when
+	 * the pathname is a directory. */
 	h = CreateFile(pathname, FILE_READ_ATTRIBUTES, 0, NULL,
-	    OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL, NULL);
+	    OPEN_EXISTING, FILE_FLAG_BACKUP_SEMANTICS, NULL);
 	if (h == INVALID_HANDLE_VALUE) {
 		failure_start(file, line, "Can't access %s\n", pathname);
 		failure_finish(NULL);
@@ -1106,14 +1232,14 @@ assertion_file_time(const char *file, int line,
 		time_t now = time(NULL);
 		if (filet < now - 10 || filet > now + 1) {
 			failure_start(file, line,
-			    "File %s has %ctime %ld, %ld seconds ago\n",
+			    "File %s has %ctime %lld, %lld seconds ago\n",
 			    pathname, type, filet, now - filet);
 			failure_finish(NULL);
 			return (0);
 		}
 	} else if (filet != t || filet_nsec != nsec) {
 		failure_start(file, line,
-		    "File %s has %ctime %ld.%09ld, expected %ld.%09ld",
+		    "File %s has %ctime %lld.%09lld, expected %lld.%09lld",
 		    pathname, type, filet, filet_nsec, t, nsec);
 		failure_finish(NULL);
 		return (0);
@@ -1190,7 +1316,7 @@ assertion_file_nlinks(const char *file, int line,
 
 	assertion_count(file, line);
 	r = lstat(pathname, &st);
-	if (r == 0 && st.st_nlink == nlinks)
+	if (r == 0 && (int)st.st_nlink == nlinks)
 			return (1);
 	failure_start(file, line, "File %s has %d links, expected %d",
 	    pathname, st.st_nlink, nlinks);
@@ -1254,7 +1380,7 @@ assertion_is_dir(const char *file, int line, const char *pathname, int mode)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
-	if (mode >= 0 && mode != (st.st_mode & 07777)) {
+	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "Dir %s has wrong mode", pathname);
 		logprintf("  Expected: 0%3o\n", mode);
 		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
@@ -1287,7 +1413,7 @@ assertion_is_reg(const char *file, int line, const char *pathname, int mode)
 	/* Windows doesn't handle permissions the same way as POSIX,
 	 * so just ignore the mode tests. */
 	/* TODO: Can we do better here? */
-	if (mode >= 0 && mode != (st.st_mode & 07777)) {
+	if (mode >= 0 && (mode_t)mode != (st.st_mode & 07777)) {
 		failure_start(file, line, "File %s has wrong mode", pathname);
 		logprintf("  Expected: 0%3o\n", mode);
 		logprintf("  Found: 0%3o\n", st.st_mode & 07777);
@@ -1484,6 +1610,110 @@ assertion_umask(const char *file, int line, int mask)
 	(void)line; /* UNUSED */
 	umask(mask);
 	return (1);
+}
+
+/* Set times, report failures. */
+int
+assertion_utimes(const char *file, int line,
+    const char *pathname, long at, long at_nsec, long mt, long mt_nsec)
+{
+	int r;
+
+#if defined(_WIN32) && !defined(__CYGWIN__)
+#define WINTIME(sec, nsec) ((Int32x32To64(sec, 10000000) + EPOC_TIME)\
+	 + (((nsec)/1000)*10))
+	HANDLE h;
+	ULARGE_INTEGER wintm;
+	FILETIME fatime, fmtime;
+	FILETIME *pat, *pmt;
+
+	assertion_count(file, line);
+	h = CreateFileA(pathname,GENERIC_READ | GENERIC_WRITE,
+		    FILE_SHARE_READ | FILE_SHARE_WRITE, NULL, OPEN_EXISTING,
+		    FILE_FLAG_BACKUP_SEMANTICS, NULL);
+	if (h == INVALID_HANDLE_VALUE) {
+		failure_start(file, line, "Can't access %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	if (at > 0 || at_nsec > 0) {
+		wintm.QuadPart = WINTIME(at, at_nsec);
+		fatime.dwLowDateTime = wintm.LowPart;
+		fatime.dwHighDateTime = wintm.HighPart;
+		pat = &fatime;
+	} else
+		pat = NULL;
+	if (mt > 0 || mt_nsec > 0) {
+		wintm.QuadPart = WINTIME(mt, mt_nsec);
+		fmtime.dwLowDateTime = wintm.LowPart;
+		fmtime.dwHighDateTime = wintm.HighPart;
+		pmt = &fmtime;
+	} else
+		pmt = NULL;
+	if (pat != NULL || pmt != NULL)
+		r = SetFileTime(h, NULL, pat, pmt);
+	else
+		r = 1;
+	CloseHandle(h);
+	if (r == 0) {
+		failure_start(file, line, "Can't SetFileTime %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	return (1);
+#else /* defined(_WIN32) && !defined(__CYGWIN__) */
+	struct stat st;
+	struct timeval times[2];
+
+#if !defined(__FreeBSD__)
+	mt_nsec = at_nsec = 0;	/* Generic POSIX only has whole seconds. */
+#endif
+	if (mt == 0 && mt_nsec == 0 && at == 0 && at_nsec == 0)
+		return (1);
+
+	r = lstat(pathname, &st);
+	if (r < 0) {
+		failure_start(file, line, "Can't stat %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+
+	if (mt == 0 && mt_nsec == 0) {
+		mt = st.st_mtime;
+#if defined(__FreeBSD__)
+		mt_nsec = st.st_mtimespec.tv_nsec;
+		/* FreeBSD generally only stores to microsecond res, so round. */
+		mt_nsec = (mt_nsec / 1000) * 1000;
+#endif
+	}
+	if (at == 0 && at_nsec == 0) {
+		at = st.st_atime;
+#if defined(__FreeBSD__)
+		at_nsec = st.st_atimespec.tv_nsec;
+		/* FreeBSD generally only stores to microsecond res, so round. */
+		at_nsec = (at_nsec / 1000) * 1000;
+#endif
+	}
+
+	times[1].tv_sec = mt;
+	times[1].tv_usec = mt_nsec / 1000;
+
+	times[0].tv_sec = at;
+	times[0].tv_usec = at_nsec / 1000;
+
+#ifdef HAVE_LUTIMES
+	r = lutimes(pathname, times);
+#else
+	r = utimes(pathname, times);
+#endif
+	if (r < 0) {
+		failure_start(file, line, "Can't utimes %s\n", pathname);
+		failure_finish(NULL);
+		return (0);
+	}
+	return (1);
+#endif /* defined(_WIN32) && !defined(__CYGWIN__) */
 }
 
 /*
@@ -1711,6 +1941,27 @@ extract_reference_file(const char *name)
 	fclose(in);
 }
 
+int
+is_LargeInode(const char *file)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	BY_HANDLE_FILE_INFORMATION bhfi;
+	int r;
+
+	r = my_GetFileInformationByName(file, &bhfi);
+	if (r != 0)
+		return (0);
+	return (bhfi.nFileIndexHigh & 0x0000FFFFUL);
+#else
+	struct stat st;
+	int64_t ino;
+
+	if (stat(file, &st) < 0)
+		return (0);
+	ino = (int64_t)st.st_ino;
+	return (ino > 0xffffffff);
+#endif
+}
 /*
  *
  * TEST management
@@ -1740,7 +1991,7 @@ struct { void (*func)(void); const char *name; int failures; } tests[] = {
  * Summarize repeated failures in the just-completed test.
  */
 static void
-test_summarize(const char *filename, int failed)
+test_summarize(int failed)
 {
 	unsigned int i;
 
@@ -1759,9 +2010,10 @@ test_summarize(const char *filename, int failed)
 	for (i = 0; i < sizeof(failed_lines)/sizeof(failed_lines[0]); i++) {
 		if (failed_lines[i].count > 1 && !failed_lines[i].skip)
 			logprintf("%s:%d: Summary: Failed %d times\n",
-			    filename, i, failed_lines[i].count);
+			    failed_filename, i, failed_lines[i].count);
 	}
 	/* Clear the failure history for the next file. */
+	failed_filename = NULL;
 	memset(failed_lines, 0, sizeof(failed_lines));
 }
 
@@ -1771,6 +2023,7 @@ test_summarize(const char *filename, int failed)
 static int
 test_run(int i, const char *tmpdir)
 {
+	char workdir[1024];
 	char logfilename[64];
 	int failures_before = failures;
 	int oldumask;
@@ -1797,11 +2050,12 @@ test_run(int i, const char *tmpdir)
 	logfile = fopen(logfilename, "w");
 	fprintf(logfile, "%s\n\n", tests[i].name);
 	/* Chdir() to a work dir for this specific test. */
-	if (!assertMakeDir(tests[i].name, 0755)
-	    || !assertChdir(tests[i].name)) {
+	snprintf(workdir, sizeof(workdir), "%s/%s", tmpdir, tests[i].name);
+	testworkdir = workdir;
+	if (!assertMakeDir(testworkdir, 0755)
+	    || !assertChdir(testworkdir)) {
 		fprintf(stderr,
-		    "ERROR: Can't chdir to work dir %s/%s\n",
-		    tmpdir, tests[i].name);
+		    "ERROR: Can't chdir to work dir %s\n", testworkdir);
 		exit(1);
 	}
 	/* Explicitly reset the locale before each test. */
@@ -1815,6 +2069,7 @@ test_run(int i, const char *tmpdir)
 	/*
 	 * Clean up and report afterwards.
 	 */
+	testworkdir = NULL;
 	/* Restore umask */
 	umask(oldumask);
 	/* Reset locale. */
@@ -1827,7 +2082,7 @@ test_run(int i, const char *tmpdir)
 	}
 	/* Report per-test summaries. */
 	tests[i].failures = failures - failures_before;
-	test_summarize(test_filename, tests[i].failures);
+	test_summarize(tests[i].failures);
 	/* Close the per-test log file. */
 	fclose(logfile);
 	logfile = NULL;
@@ -1887,6 +2142,7 @@ usage(const char *program)
 	printf("  -q  Quiet.\n");
 	printf("  -r <dir>   Path to dir containing reference files.\n");
 	printf("      Default: Current directory.\n");
+	printf("  -u  Keep running specifies tests until one fails.\n");
 	printf("  -v  Verbose.\n");
 	printf("Available tests:\n");
 	for (i = 0; i < limit; i++)
@@ -1913,7 +2169,11 @@ get_refdir(const char *d)
 	}
 
 	/* Get the current dir. */
+#ifdef PATH_MAX
+	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
 	pwd = getcwd(NULL, 0);
+#endif
 	while (pwd[strlen(pwd) - 1] == '\n')
 		pwd[strlen(pwd) - 1] = '\0';
 
@@ -1939,6 +2199,14 @@ get_refdir(const char *d)
 	if (p != NULL) goto success;
 	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
 	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+
+#if defined(PROGRAM_ALIAS)
+	snprintf(buff, sizeof(buff), "%s/%s/test", pwd, PROGRAM_ALIAS);
+	p = slurpfile(NULL, "%s/%s", buff, KNOWNREF);
+	if (p != NULL) goto success;
+	strncat(tried, buff, sizeof(tried) - strlen(tried) - 1);
+	strncat(tried, "\n", sizeof(tried) - strlen(tried) - 1);
+#endif
 
 	if (memcmp(pwd, "/usr/obj", 8) == 0) {
 		snprintf(buff, sizeof(buff), "%s", pwd + 8);
@@ -1972,15 +2240,25 @@ int
 main(int argc, char **argv)
 {
 	static const int limit = sizeof(tests) / sizeof(tests[0]);
-	int i, tests_run = 0, tests_failed = 0, option;
+	int i = 0, j = 0, start, end, tests_run = 0, tests_failed = 0, option;
 	time_t now;
 	char *refdir_alloc = NULL;
 	const char *progname;
+	char **saved_argv;
 	const char *tmp, *option_arg, *p;
-	char tmpdir[256];
+	char tmpdir[256], *pwd, *testprogdir, *tmp2 = NULL;
 	char tmpdir_timestamp[256];
 
 	(void)argc; /* UNUSED */
+
+	/* Get the current dir. */
+#ifdef PATH_MAX
+	pwd = getcwd(NULL, PATH_MAX);/* Solaris getcwd needs the size. */
+#else
+	pwd = getcwd(NULL, 0);
+#endif
+	while (pwd[strlen(pwd) - 1] == '\n')
+		pwd[strlen(pwd) - 1] = '\0';
 
 #if defined(HAVE__CrtSetReportMode)
 	/* To stop to run the default invalid parameter handler. */
@@ -1994,11 +2272,44 @@ main(int argc, char **argv)
 	 * tree.
 	 */
 	progname = p = argv[0];
+	if ((testprogdir = (char *)malloc(strlen(progname) + 1)) == NULL)
+	{
+		fprintf(stderr, "ERROR: Out of memory.");
+		exit(1);
+	}
+	strcpy(testprogdir, progname);
 	while (*p != '\0') {
 		/* Support \ or / dir separators for Windows compat. */
 		if (*p == '/' || *p == '\\')
+		{
 			progname = p + 1;
+			i = j;
+		}
 		++p;
+		j++;
+	}
+	testprogdir[i] = '\0';
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	if (testprogdir[0] != '/' && testprogdir[0] != '\\' &&
+	    !(((testprogdir[0] >= 'a' && testprogdir[0] <= 'z') ||
+	       (testprogdir[0] >= 'A' && testprogdir[0] <= 'Z')) &&
+		testprogdir[1] == ':' &&
+		(testprogdir[2] == '/' || testprogdir[2] == '\\')))
+#else
+	if (testprogdir[0] != '/')
+#endif
+	{
+		/* Fixup path for relative directories. */
+		if ((testprogdir = (char *)realloc(testprogdir,
+			strlen(pwd) + 1 + strlen(testprogdir) + 1)) == NULL)
+		{
+			fprintf(stderr, "ERROR: Out of memory.");
+			exit(1);
+		}
+		memmove(testprogdir + strlen(pwd) + 1, testprogdir,
+		    strlen(testprogdir));
+		memcpy(testprogdir, pwd, strlen(pwd));
+		testprogdir[strlen(pwd)] = '/';
 	}
 
 #ifdef PROGRAM
@@ -2073,6 +2384,9 @@ main(int argc, char **argv)
 			case 'r':
 				refdir = option_arg;
 				break;
+			case 'u':
+				until_failure++;
+				break;
 			case 'v':
 				verbosity++;
 				break;
@@ -2088,9 +2402,18 @@ main(int argc, char **argv)
 	 * Sanity-check that our options make sense.
 	 */
 #ifdef PROGRAM
-	if (testprogfile == NULL) {
-		fprintf(stderr, "Program executable required\n");
-		usage(progname);
+	if (testprogfile == NULL)
+	{
+		if ((tmp2 = (char *)malloc(strlen(testprogdir) + 1 +
+			strlen(PROGRAM) + 1)) == NULL)
+		{
+			fprintf(stderr, "ERROR: Out of memory.");
+			exit(1);
+		}
+		strcpy(tmp2, testprogdir);
+		strcat(tmp2, "/");
+		strcat(tmp2, PROGRAM);
+		testprogfile = tmp2;
 	}
 
 	{
@@ -2110,6 +2433,16 @@ main(int argc, char **argv)
 		strcat(testprg, testprogfile);
 		strcat(testprg, "\"");
 		testprog = testprg;
+	}
+#endif
+
+#if !defined(_WIN32) && defined(SIGPIPE)
+	{   /* Ignore SIGPIPE signals */
+		struct sigaction sa;
+		sa.sa_handler = SIG_IGN;
+		sigemptyset(&sa.sa_mask);
+		sa.sa_flags = 0;
+		sigaction(SIGPIPE, &sa, NULL);
 	}
 #endif
 
@@ -2165,42 +2498,88 @@ main(int argc, char **argv)
 	/*
 	 * Run some or all of the individual tests.
 	 */
-	if (*argv == NULL) {
-		/* Default: Run all tests. */
-		for (i = 0; i < limit; i++) {
-			if (test_run(i, tmpdir))
-				tests_failed++;
-			tests_run++;
-		}
-	} else {
-		while (*(argv) != NULL) {
-			if (**argv >= '0' && **argv <= '9') {
-				i = atoi(*argv);
-				if (i < 0 || i >= limit) {
-					printf("*** INVALID Test %s\n", *argv);
-					free(refdir_alloc);
-					usage(progname);
-					/* usage() never returns */
-				}
-			} else {
-				for (i = 0; i < limit; ++i) {
-					if (strcmp(*argv, tests[i].name) == 0)
-						break;
-				}
-				if (i >= limit) {
-					printf("*** INVALID Test ``%s''\n",
-					       *argv);
-					free(refdir_alloc);
-					usage(progname);
-					/* usage() never returns */
+	saved_argv = argv;
+	do {
+		argv = saved_argv;
+		if (*argv == NULL) {
+			/* Default: Run all tests. */
+			for (i = 0; i < limit; i++) {
+				tests_run++;
+				if (test_run(i, tmpdir)) {
+					tests_failed++;
+					if (until_failure)
+						goto finish;
 				}
 			}
-			if (test_run(i, tmpdir))
-				tests_failed++;
-			tests_run++;
-			argv++;
+		} else {
+			while (*(argv) != NULL) {
+				if (**argv >= '0' && **argv <= '9') {
+					char *vp = *argv;
+					start = 0;
+					while (*vp >= '0' && *vp <= '9') {
+						start *= 10;
+						start += *vp - '0';
+						++vp;
+					}
+					if (*vp == '\0') {
+						end = start;
+					} else if (*vp == '-') {
+						++vp;
+						if (*vp == '\0') {
+							end = limit - 1;
+						} else {
+							end = 0;
+							while (*vp >= '0' && *vp <= '9') {
+								end *= 10;
+								end += *vp - '0';
+								++vp;
+							}
+						}
+					} else {
+						printf("*** INVALID Test %s\n", *argv);
+						free(refdir_alloc);
+						usage(progname);
+						return (1);
+					}
+					if (start < 0 || end >= limit || start > end) {
+						printf("*** INVALID Test %s\n", *argv);
+						free(refdir_alloc);
+						usage(progname);
+						return (1);
+					}
+				} else {
+					for (start = 0; start < limit; ++start) {
+						if (strcmp(*argv, tests[start].name) == 0)
+							break;
+					}
+					end = start;
+					if (start >= limit) {
+						printf("*** INVALID Test ``%s''\n",
+						    *argv);
+						free(refdir_alloc);
+						usage(progname);
+						/* usage() never returns */
+					}
+				}
+				while (start <= end) {
+					tests_run++;
+					if (test_run(start, tmpdir)) {
+						tests_failed++;
+						if (until_failure)
+							goto finish;
+					}
+					++start;
+				}
+				argv++;
+			}
 		}
-	}
+	} while (until_failure);
+
+finish:
+	/* Must be freed after all tests run */
+	free(tmp2);
+	free(testprogdir);
+	free(pwd);
 
 	/*
 	 * Report summary statistics.

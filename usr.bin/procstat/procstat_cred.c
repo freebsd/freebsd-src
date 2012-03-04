@@ -38,6 +38,8 @@
 
 #include "procstat.h"
 
+static const char *get_umask(struct kinfo_proc *kipp);
+
 void
 procstat_cred(struct kinfo_proc *kipp)
 {
@@ -48,9 +50,9 @@ procstat_cred(struct kinfo_proc *kipp)
 	gid_t *groups = NULL;
 
 	if (!hflag)
-		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %5s %-15s\n", "PID",
-		    "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID", "SVGID",
-		    "FLAGS", "GROUPS");
+		printf("%5s %-16s %5s %5s %5s %5s %5s %5s %5s %5s %-15s\n",
+		    "PID", "COMM", "EUID", "RUID", "SVUID", "EGID", "RGID",
+		    "SVGID", "UMASK", "FLAGS", "GROUPS");
 
 	printf("%5d ", kipp->ki_pid);
 	printf("%-16s ", kipp->ki_comm);
@@ -60,6 +62,7 @@ procstat_cred(struct kinfo_proc *kipp)
 	printf("%5d ", kipp->ki_groups[0]);
 	printf("%5d ", kipp->ki_rgid);
 	printf("%5d ", kipp->ki_svgid);
+	printf("%5s ", get_umask(kipp));
 	printf("%s", kipp->ki_cr_flags & CRED_FLAG_CAPMODE ? "C" : "-");
 	printf("     ");
 
@@ -97,4 +100,27 @@ procstat_cred(struct kinfo_proc *kipp)
 		free(groups);
 
 	printf("\n");
+}
+
+static const char *
+get_umask(struct kinfo_proc *kipp)
+{
+	int error;
+	int mib[4];
+	size_t len;
+	u_short fd_cmask;
+	static char umask[4];
+
+	mib[0] = CTL_KERN;
+	mib[1] = KERN_PROC;
+	mib[2] = KERN_PROC_UMASK;
+	mib[3] = kipp->ki_pid;
+	len = sizeof(fd_cmask);
+	error = sysctl(mib, 4, &fd_cmask, &len, NULL, 0);
+	if (error == 0) {
+		snprintf(umask, 4, "%03o", fd_cmask);
+		return (umask);
+	} else {
+		return ("-");
+	}
 }

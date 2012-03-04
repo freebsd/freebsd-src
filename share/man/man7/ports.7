@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd May 30, 2011
+.Dd February 9, 2012
 .Dt PORTS 7
 .Os
 .Sh NAME
@@ -408,10 +408,13 @@ Directory to put the package in.
 .It Va PKGFILE
 The full path to the package.
 .El
-.It Va PREFIX
-Where to install things in general
-(usually
+.It Va LOCALBASE
+Where existing things are installed and where to search for files when
+resolving dependencies (usually
 .Pa /usr/local ) .
+.It Va PREFIX
+Where to install this port (usually set to the same as
+.Va LOCALBASE ) .
 .It Va MASTER_SITES
 Primary sites for distribution files if not found locally.
 .It Va PATCH_SITES

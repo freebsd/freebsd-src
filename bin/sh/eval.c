@@ -75,7 +75,7 @@ __FBSDID("$FreeBSD$");
 
 
 int evalskip;			/* set if we are skipping commands */
-static int skipcount;		/* number of levels to skip */
+int skipcount;			/* number of levels to skip */
 MKINIT int loopnest;		/* current loop nesting level */
 int funcnest;			/* depth of function calls */
 static int builtin_flags;	/* evalcommand flags for builtins */
@@ -348,6 +348,7 @@ evalfor(union node *n, int flags)
 	union node *argp;
 	struct strlist *sp;
 	struct stackmark smark;
+	int status;
 
 	setstackmark(&smark);
 	arglist.lastp = &arglist.list;
@@ -357,11 +358,12 @@ evalfor(union node *n, int flags)
 	}
 	*arglist.lastp = NULL;
 
-	exitstatus = 0;
 	loopnest++;
+	status = 0;
 	for (sp = arglist.list ; sp ; sp = sp->next) {
 		setvar(n->nfor.var, sp->text, 0);
 		evaltree(n->nfor.body, flags);
+		status = exitstatus;
 		if (evalskip) {
 			if (evalskip == SKIPCONT && --skipcount <= 0) {
 				evalskip = 0;
@@ -374,6 +376,7 @@ evalfor(union node *n, int flags)
 	}
 	loopnest--;
 	popstackmark(&smark);
+	exitstatus = status;
 }
 
 
@@ -917,6 +920,15 @@ evalcommand(union node *cmd, int flags, struct backcmd *backcmd)
 			mode = FORK_NOJOB;
 			if (pipe(pip) < 0)
 				error("Pipe call failed: %s", strerror(errno));
+		}
+		if (cmdentry.cmdtype == CMDNORMAL &&
+		    cmd->ncmd.redirect == NULL &&
+		    varlist.list == NULL &&
+		    (mode == FORK_FG || mode == FORK_NOJOB) &&
+		    !disvforkset() && !iflag && !mflag) {
+			vforkexecshell(jp, argv, environment(), path,
+			    cmdentry.u.index, flags & EV_BACKCMD ? pip : NULL);
+			goto parent;
 		}
 		if (forkshell(jp, cmd, mode) != 0)
 			goto parent;	/* at end of routine */

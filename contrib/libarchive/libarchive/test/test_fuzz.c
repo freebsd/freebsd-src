@@ -52,6 +52,8 @@ static struct {
 } files[] = {
 	{0, "test_fuzz_1.iso.Z"}, /* Exercise compress decompressor. */
 	{1, "test_fuzz_1.iso.Z"},
+	{0, "test_fuzz.cab"},
+	{0, "test_fuzz.lzh"},
 	{0, "test_compat_bzip2_1.tbz"}, /* Exercise bzip2 decompressor. */
 	{1, "test_compat_bzip2_1.tbz"},
 	{0, "test_compat_gtar_1.tar"},
@@ -60,9 +62,36 @@ static struct {
 	{0, "test_compat_tar_hardlink_1.tar"},
 	{0, "test_compat_xz_1.txz"}, /* Exercise xz decompressor. */
 	{0, "test_compat_zip_1.zip"},
+	{0, "test_read_format_7zip_bzip2.7z"},
+	{0, "test_read_format_7zip_bcj_lzma1.7z"},
+	{0, "test_read_format_7zip_bcj_lzma2.7z"},
+	{0, "test_read_format_7zip_bcj2_lzma1_1.7z"},
+	{0, "test_read_format_7zip_bcj2_lzma1_2.7z"},
+	{0, "test_read_format_7zip_bcj2_lzma2_1.7z"},
+	{0, "test_read_format_7zip_bcj2_lzma2_2.7z"},
+	{0, "test_read_format_7zip_copy.7z"},
+	{0, "test_read_format_7zip_deflate.7z"},
+	{0, "test_read_format_7zip_lzma1.7z"},
+	{0, "test_read_format_7zip_lzma1_lzma2.7z"},
+	{0, "test_read_format_7zip_ppmd.7z"},
 	{0, "test_read_format_ar.ar"},
 	{0, "test_read_format_cpio_bin_be.cpio"},
 	{0, "test_read_format_cpio_svr4_gzip_rpm.rpm"}, /* Test RPM unwrapper */
+	{0, "test_read_format_rar.rar"}, /* Uncompressed RAR test */
+	{0, "test_read_format_rar_binary_data.rar"}, /* RAR file with binary data */
+	{0, "test_read_format_rar_compress_best.rar"}, /* Best Compressed RAR test */
+	{0, "test_read_format_rar_compress_normal.rar"}, /* Normal Compressed RAR
+	                                                  * test */
+	{0, "test_read_format_rar_multi_lzss_blocks.rar"}, /* Normal Compressed Multi
+	                                                    * LZSS blocks RAR test */
+	{0, "test_read_format_rar_noeof.rar"}, /* RAR with no EOF header */
+	{0, "test_read_format_rar_ppmd_lzss_conversion.rar"}, /* Best Compressed
+	                                                       * RAR file with both
+	                                                       * PPMd and LZSS
+	                                                       * blocks */
+	{0, "test_read_format_rar_sfx.exe"}, /* RAR SFX archive */
+	{0, "test_read_format_rar_subblock.rar"}, /* RAR with subblocks */
+	{0, "test_read_format_rar_unicode.rar"}, /* RAR with Unicode filenames */
 	{0, "test_read_format_gtar_sparse_1_17_posix10_modified.tar"},
 	{0, "test_read_format_mtree.mtree"},
 	{0, "test_read_format_tar_empty_filename.tar"},
@@ -74,7 +103,7 @@ DEFINE_TEST(test_fuzz)
 {
 	const void *blk;
 	size_t blk_size;
-	off_t blk_offset;
+	int64_t blk_offset;
 	int n;
 
 	for (n = 0; files[n].name != NULL; ++n) {
@@ -84,7 +113,7 @@ DEFINE_TEST(test_fuzz)
 		struct archive *a;
 		char *rawimage, *image;
 		size_t size;
-		int i;
+		int i, q;
 
 		extract_reference_file(filename);
 		if (files[n].uncompress) {
@@ -92,12 +121,12 @@ DEFINE_TEST(test_fuzz)
 			/* Use format_raw to decompress the data. */
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_support_compression_all(a));
+			    archive_read_support_filter_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_raw(a));
 			r = archive_read_open_filename(a, filename, 16384);
 			if (r != ARCHIVE_OK) {
-				archive_read_finish(a);
+				archive_read_free(a);
 				skipping("Cannot uncompress %s", filename);
 				continue;
 			}
@@ -108,7 +137,7 @@ DEFINE_TEST(test_fuzz)
 			assertEqualIntA(a, ARCHIVE_EOF,
 			    archive_read_next_header(a, &ae));
 			assertEqualInt(ARCHIVE_OK,
-			    archive_read_finish(a));
+			    archive_read_free(a));
 			assert(size > 0);
 			failure("Internal buffer is not big enough for "
 			    "uncompressed test file: %s", filename);
@@ -127,24 +156,38 @@ DEFINE_TEST(test_fuzz)
 
 		for (i = 0; i < 100; ++i) {
 			FILE *f;
-			int j, numbytes;
+			int j, numbytes, trycnt;
 
 			/* Fuzz < 1% of the bytes in the archive. */
 			memcpy(image, rawimage, size);
-			numbytes = (int)(rand() % (size / 100));
+			q = size / 100;
+			if (!q) q = 1;
+			numbytes = (int)(rand() % q);
 			for (j = 0; j < numbytes; ++j)
 				image[rand() % size] = (char)rand();
 
 			/* Save the messed-up image to a file.
 			 * If we crash, that file will be useful. */
-			f = fopen("after.test.failure.send.this.file."
-			    "to.libarchive.maintainers.with.system.details", "wb");
-			fwrite(image, 1, (size_t)size, f);
+			for (trycnt = 0; trycnt < 3; trycnt++) {
+				f = fopen("after.test.failure.send.this.file."
+				    "to.libarchive.maintainers.with.system.details", "wb");
+				if (f != NULL)
+					break;
+#if defined(_WIN32) && !defined(__CYGWIN__)
+				/*
+				 * Sometimes previous close operation does not completely
+				 * end at this time. So we should take a wait while
+				 * the operation running.
+				 */
+				Sleep(100);
+#endif
+			}
+			assertEqualInt((size_t)size, fwrite(image, 1, (size_t)size, f));
 			fclose(f);
 
 			assert((a = archive_read_new()) != NULL);
 			assertEqualIntA(a, ARCHIVE_OK,
-			    archive_read_support_compression_all(a));
+			    archive_read_support_filter_all(a));
 			assertEqualIntA(a, ARCHIVE_OK,
 			    archive_read_support_format_all(a));
 
@@ -156,7 +199,7 @@ DEFINE_TEST(test_fuzz)
 				}
 				archive_read_close(a);
 			}
-			archive_read_finish(a);
+			archive_read_free(a);
 		}
 		free(image);
 		free(rawimage);

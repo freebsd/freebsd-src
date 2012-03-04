@@ -330,7 +330,7 @@ pfs_mount(struct pfs_info *pi, struct mount *mp)
  * Compatibility shim for old mount(2) system call
  */
 int
-pfs_cmount(struct mntarg *ma, void *data, int flags)
+pfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	int error;
 
