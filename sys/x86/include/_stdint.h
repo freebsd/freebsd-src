@@ -69,23 +69,27 @@
  * ISO/IEC 9899:1999
  * 7.18.2.1 Limits of exact-width integer types
  */
-/* Minimum values of exact-width signed integer types. */
 #define	INT8_MIN	(-0x7f-1)
 #define	INT16_MIN	(-0x7fff-1)
 #define	INT32_MIN	(-0x7fffffff-1)
-#define	INT64_MIN	(-INT64_C(0x7fffffffffffffff)-1)
 
-/* Maximum values of exact-width signed integer types. */
 #define	INT8_MAX	0x7f
 #define	INT16_MAX	0x7fff
 #define	INT32_MAX	0x7fffffff
-#define	INT64_MAX	INT64_C(0x7fffffffffffffff)
 
-/* Maximum values of exact-width unsigned integer types. */
 #define	UINT8_MAX	0xff
 #define	UINT16_MAX	0xffff
 #define	UINT32_MAX	0xffffffffU
-#define	UINT64_MAX	UINT64_C(0xffffffffffffffff)
+
+#ifdef _LP64
+#define	INT64_MIN	(-0x7fffffffffffffff-1)
+#define	INT64_MAX	0x7fffffffffffffff
+#define	UINT64_MAX	0xffffffffffffffff
+#else
+#define	INT64_MIN	(-0x7fffffffffffffffLL-1)
+#define	INT64_MAX	0x7fffffffffffffffLL
+#define	UINT64_MAX	0xffffffffffffffffULL
+#endif
 
 /*
  * ISO/IEC 9899:1999
