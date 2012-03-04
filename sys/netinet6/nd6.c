@@ -380,6 +380,14 @@ nd6_options(union nd_opts *ndopts)
 			ndopts->nd_opts_pi_end =
 				(struct nd_opt_prefix_info *)nd_opt;
 			break;
+		/* What about ND_OPT_ROUTE_INFO? RFC 4191 */
+		case ND_OPT_RDNSS:	/* RFC 6106 */
+		case ND_OPT_DNSSL:	/* RFC 6106 */
+			/*
+			 * Silently ignore options we know and do not care about
+			 * in the kernel.
+			 */
+			break;
 		default:
 			/*
 			 * Unknown options must be silently ignored,
