@@ -80,7 +80,11 @@ The
 device driver first appeared in
 .Fx 5.1 .
 .Sh LOADER TUNABLES
-Tunables can be set at the
+When the kernel has been compiled with
+.Cd options USB_DEBUG ,
+some tunables become available that affect the behavior of
+.Nm .
+These tunables can be set at the
 .Xr loader 8
 prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
