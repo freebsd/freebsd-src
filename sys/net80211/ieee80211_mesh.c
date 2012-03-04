@@ -1040,9 +1040,9 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 	struct ieee80211_frame *wh;
 	const struct ieee80211_meshcntl *mc;
 	int hdrspace, meshdrlen, need_tap;
-	uint8_t dir, type, subtype, qos;
+	uint8_t dir, type, subtype;
 	uint32_t seq;
-	uint8_t *addr;
+	uint8_t *addr, qos[2];
 	ieee80211_seq rxseq;
 
 	KASSERT(ni != NULL, ("null node"));
@@ -1139,8 +1139,64 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			vap->iv_stats.is_rx_wrongdir++;
 			goto err;
 		}
-		/* pull up enough to get to the mesh control */
+
+		/* All Mesh data frames are QoS subtype */
+		if (!HAS_SEQ(type)) {
+			IEEE80211_DISCARD(vap, IEEE80211_MSG_INPUT,
+			    wh, "data", "incorrect subtype 0x%x", subtype);
+			vap->iv_stats.is_rx_badsubtype++;
+			goto err;
+		}
+
+		/*
+		 * Next up, any fragmentation.
+		 * XXX: we defrag before we even try to forward,
+		 * Mesh Control field is not present in sub-sequent
+		 * fragmented frames. This is in contrast to Draft 4.0.
+		 */
 		hdrspace = ieee80211_hdrspace(ic, wh);
+		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+			m = ieee80211_defrag(ni, m, hdrspace);
+			if (m == NULL) {
+				/* Fragment dropped or frame not complete yet */
+				goto out;
+			}
+		}
+		wh = mtod(m, struct ieee80211_frame *); /* NB: after defrag */
+
+		/*
+		 * Now we have a complete Mesh Data frame.
+		 */
+
+		/*
+		 * Only fromDStoDS data frames use 4 address qos frames
+		 * as specified in amendment. Otherwise addr4 is located
+		 * in the Mesh Control field and a 3 address qos frame
+		 * is used.
+		 */
+		if (IEEE80211_IS_DSTODS(wh))
+			*(uint16_t *)qos = *(uint16_t *)
+			    ((struct ieee80211_qosframe_addr4 *)wh)->i_qos;
+		else
+			*(uint16_t *)qos = *(uint16_t *)
+			    ((struct ieee80211_qosframe *)wh)->i_qos;
+
+		/*
+		 * NB: The mesh STA sets the Mesh Control Present
+		 * subfield to 1 in the Mesh Data frame containing
+		 * an unfragmented MSDU, an A-MSDU, or the first
+		 * fragment of an MSDU.
+		 * After defrag it should always be present.
+		 */
+		if (!(qos[1] & IEEE80211_QOS_MC)) {
+			IEEE80211_DISCARD_MAC(vap, IEEE80211_MSG_MESH,
+			    ni->ni_macaddr, NULL,
+			    "%s", "Mesh control field not present");
+			vap->iv_stats.is_rx_elem_missing++; /* XXX: kinda */
+			goto err;
+		}
+
+		/* pull up enough to get to the mesh control */
 		if (m->m_len < hdrspace + sizeof(struct ieee80211_meshcntl) &&
 		    (m = m_pullup(m, hdrspace +
 		        sizeof(struct ieee80211_meshcntl))) == NULL) {
@@ -1188,27 +1244,6 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			/* NB: fall thru to deliver mcast frames locally */
 		}
 
-		/*
-		 * Save QoS bits for use below--before we strip the header.
-		 */
-		if (subtype == IEEE80211_FC0_SUBTYPE_QOS) {
-			qos = (dir == IEEE80211_FC1_DIR_DSTODS) ?
-			    ((struct ieee80211_qosframe_addr4 *)wh)->i_qos[0] :
-			    ((struct ieee80211_qosframe *)wh)->i_qos[0];
-		} else
-			qos = 0;
-		/*
-		 * Next up, any fragmentation.
-		 */
-		if (!IEEE80211_IS_MULTICAST(wh->i_addr1)) {
-			m = ieee80211_defrag(ni, m, hdrspace);
-			if (m == NULL) {
-				/* Fragment dropped or frame not complete yet */
-				goto out;
-			}
-		}
-		wh = NULL;		/* no longer valid, catch any uses */
-
 		if (ieee80211_radiotap_active_vap(vap))
 			ieee80211_radiotap_rx(vap, m);
 		need_tap = 0;
@@ -1229,7 +1264,7 @@ mesh_input(struct ieee80211_node *ni, struct mbuf *m, int rssi, int nf)
 			IEEE80211_NODE_STAT(ni, rx_decap);
 			goto err;
 		}
-		if (qos & IEEE80211_QOS_AMSDU) {
+		if (qos[0] & IEEE80211_QOS_AMSDU) {
 			m = ieee80211_decap_amsdu(ni, m);
 			if (m == NULL)
 				return IEEE80211_FC0_TYPE_DATA;
