@@ -647,7 +647,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 	struct pipe *rpipe;
 	int error;
 	int nread = 0;
-	u_int size;
+	int size;
 
 	rpipe = fp->f_data;
 	PIPE_LOCK(rpipe);
@@ -681,7 +681,7 @@ pipe_read(fp, uio, active_cred, flags, td)
 			if (size > rpipe->pipe_buffer.cnt)
 				size = rpipe->pipe_buffer.cnt;
 			if (size > uio->uio_resid)
-				size = (u_int) uio->uio_resid;
+				size = uio->uio_resid;
 
 			PIPE_UNLOCK(rpipe);
 			error = uiomove(
@@ -1023,8 +1023,9 @@ pipe_write(fp, uio, active_cred, flags, td)
 	struct thread *td;
 	int flags;
 {
-	int error;
-	size_t desiredsize, orig_resid;
+	int error = 0;
+	int desiredsize;
+	ssize_t orig_resid;
 	struct pipe *wpipe, *rpipe;
 
 	rpipe = fp->f_data;
