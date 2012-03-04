@@ -29,57 +29,14 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
+#ifndef _XLOCALE_LANGINFO_H
+#define _XLOCALE_LANGINFO_H
 
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
-
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
+char	*nl_langinfo_l(nl_item, locale_t);
 
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
-
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
-
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
-
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
-
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
+#endif /* _XLOCALE_LANGINFO_H */
