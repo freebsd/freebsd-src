@@ -122,14 +122,12 @@ static const uint8_t broadcastaddr[IEEE80211_ADDR_LEN] =
 static	ieee80211_recv_action_func mesh_recv_action_meshpeering_open;
 static	ieee80211_recv_action_func mesh_recv_action_meshpeering_confirm;
 static	ieee80211_recv_action_func mesh_recv_action_meshpeering_close;
-static	ieee80211_recv_action_func mesh_recv_action_meshlmetric_req;
-static	ieee80211_recv_action_func mesh_recv_action_meshlmetric_rep;
+static	ieee80211_recv_action_func mesh_recv_action_meshlmetric;
 
 static	ieee80211_send_action_func mesh_send_action_meshpeering_open;
 static	ieee80211_send_action_func mesh_send_action_meshpeering_confirm;
 static	ieee80211_send_action_func mesh_send_action_meshpeering_close;
-static	ieee80211_send_action_func mesh_send_action_meshlink_request;
-static	ieee80211_send_action_func mesh_send_action_meshlink_reply;
+static	ieee80211_send_action_func mesh_send_action_meshlmetric;
 
 static const struct ieee80211_mesh_proto_metric mesh_metric_airtime = {
 	.mpm_descr	= "AIRTIME",
@@ -437,10 +435,8 @@ ieee80211_mesh_init(void)
 	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_CLOSE,
 	    mesh_recv_action_meshpeering_close);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
-	    IEEE80211_ACTION_MESHLMETRIC_REQ, mesh_recv_action_meshlmetric_req);
-	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
-	    IEEE80211_ACTION_MESHLMETRIC_REP, mesh_recv_action_meshlmetric_rep);
+	ieee80211_recv_action_register(IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_LMETRIC, mesh_recv_action_meshlmetric);
 
 	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_OPEN,
@@ -451,12 +447,9 @@ ieee80211_mesh_init(void)
 	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHPEERING,
 	    IEEE80211_ACTION_MESHPEERING_CLOSE,
 	    mesh_send_action_meshpeering_close);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
-	    IEEE80211_ACTION_MESHLMETRIC_REQ,
-	    mesh_send_action_meshlink_request);
-	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESHLMETRIC,
-	    IEEE80211_ACTION_MESHLMETRIC_REP,
-	    mesh_send_action_meshlink_reply);
+	ieee80211_send_action_register(IEEE80211_ACTION_CAT_MESH,
+	    IEEE80211_ACTION_MESH_LMETRIC,
+	    mesh_send_action_meshlmetric);
 
 	/*
 	 * Register Airtime Link Metric.
@@ -1861,25 +1854,24 @@ mesh_recv_action_meshpeering_close(struct ieee80211_node *ni,
  * Link Metric handling.
  */
 static int
-mesh_recv_action_meshlmetric_req(struct ieee80211_node *ni,
+mesh_recv_action_meshlmetric(struct ieee80211_node *ni,
 	const struct ieee80211_frame *wh,
 	const uint8_t *frm, const uint8_t *efrm)
 {
-	uint32_t metric;
-
-	metric = mesh_airtime_calc(ni);
-	ieee80211_send_action(ni,
-	    IEEE80211_ACTION_CAT_MESHLMETRIC,
-	    IEEE80211_ACTION_MESHLMETRIC_REP,
-	    &metric);
-	return 0;
-}
-
-static int
-mesh_recv_action_meshlmetric_rep(struct ieee80211_node *ni,
-	const struct ieee80211_frame *wh,
-	const uint8_t *frm, const uint8_t *efrm)
-{
+	const struct ieee80211_meshlmetric_ie *ie =
+	    (const struct ieee80211_meshlmetric_ie *)
+	    (frm+2); /* action + code */
+	struct ieee80211_meshlmetric_ie lm_rep;
+	
+	if (ie->lm_flags & IEEE80211_MESH_LMETRIC_FLAGS_REQ) {
+		lm_rep.lm_flags = 0;
+		lm_rep.lm_metric = mesh_airtime_calc(ni);
+		ieee80211_send_action(ni,
+		    IEEE80211_ACTION_CAT_MESH,
+		    IEEE80211_ACTION_MESH_LMETRIC,
+		    &lm_rep);
+	}
+	/* XXX: else do nothing for now */
 	return 0;
 }
 
@@ -2091,56 +2083,23 @@ mesh_send_action_meshpeering_close(struct ieee80211_node *ni,
 }
 
 static int
-mesh_send_action_meshlink_request(struct ieee80211_node *ni,
+mesh_send_action_meshlmetric(struct ieee80211_node *ni,
 	int category, int action, void *arg0)
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ieee80211com *ic = ni->ni_ic;
+	struct ieee80211_meshlmetric_ie *ie = arg0;
 	struct mbuf *m;
 	uint8_t *frm;
 
-	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH, ni,
-	    "%s", "send LINK METRIC REQUEST action");
-
-	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
-	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
-	    ni, ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)+1);
-	ieee80211_ref_node(ni);
-
-	m = ieee80211_getmgtframe(&frm,
-	    ic->ic_headroom + sizeof(struct ieee80211_frame),
-	    sizeof(uint16_t)	/* action+category */
-	);
-	if (m != NULL) {
-		/*
-		 * mesh link metric request
-		 *   [1] category
-		 *   [1] action
-		 */
-		*frm++ = category;
-		*frm++ = action;
-		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
-		return mesh_send_action(ni, m);
+	if (ie->lm_flags & IEEE80211_MESH_LMETRIC_FLAGS_REQ) {
+		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
+		    ni, "%s", "send LINK METRIC REQUEST action");
 	} else {
-		vap->iv_stats.is_tx_nobuf++;
-		ieee80211_free_node(ni);
-		return ENOMEM;
+		IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH,
+		    ni, "send LINK METRIC REPLY action: metric 0x%x",
+		    ie->lm_metric);
 	}
-}
-
-static int
-mesh_send_action_meshlink_reply(struct ieee80211_node *ni,
-	int category, int action, void *args0)
-{
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ieee80211com *ic = ni->ni_ic;
-	uint32_t *metric = args0;
-	struct mbuf *m;
-	uint8_t *frm;
-
-	IEEE80211_NOTE(vap, IEEE80211_MSG_ACTION | IEEE80211_MSG_MESH, ni,
-	    "send LINK METRIC REPLY action: metric 0x%x", *metric);
-
 	IEEE80211_DPRINTF(vap, IEEE80211_MSG_NODE,
 	    "ieee80211_ref_node (%s:%u) %p<%s> refcnt %d\n", __func__, __LINE__,
 	    ni, ether_sprintf(ni->ni_macaddr), ieee80211_node_refcnt(ni)+1);
@@ -2148,19 +2107,20 @@ mesh_send_action_meshlink_reply(struct ieee80211_node *ni,
 
 	m = ieee80211_getmgtframe(&frm,
 	    ic->ic_headroom + sizeof(struct ieee80211_frame),
-	    sizeof(uint16_t)	/* action+category */
-	    + sizeof(struct ieee80211_meshlmetric_ie)
+	    sizeof(uint16_t) +	/* action+category */
+	    sizeof(struct ieee80211_meshlmetric_ie)
 	);
 	if (m != NULL) {
 		/*
-		 * mesh link metric reply
+		 * mesh link metric
 		 *   [1] category
 		 *   [1] action
 		 *   [tlv] mesh link metric
 		 */
 		*frm++ = category;
 		*frm++ = action;
-		frm = ieee80211_add_meshlmetric(frm, *metric);
+		frm = ieee80211_add_meshlmetric(frm,
+		    ie->lm_flags, ie->lm_metric);
 		m->m_pkthdr.len = m->m_len = frm - mtod(m, uint8_t *);
 		return mesh_send_action(ni, m);
 	} else {
@@ -2505,10 +2465,11 @@ mesh_airtime_calc(struct ieee80211_node *ni)
  * Add a Mesh Link Metric report IE to a frame.
  */
 uint8_t *
-ieee80211_add_meshlmetric(uint8_t *frm, uint32_t metric)
+ieee80211_add_meshlmetric(uint8_t *frm, uint8_t flags, uint32_t metric)
 {
 	*frm++ = IEEE80211_ELEMID_MESHLINK;
-	*frm++ = 4;
+	*frm++ = 5;
+	*frm++ = flags;
 	ADDWORD(frm, metric);
 	return frm;
 }

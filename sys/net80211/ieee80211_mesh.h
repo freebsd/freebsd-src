@@ -119,8 +119,14 @@ struct ieee80211_meshid_ie {
 
 /* Link Metric Report */
 struct ieee80211_meshlmetric_ie {
-	uint8_t		lm_ie;	/* IEEE80211_ELEMID_MESHLINK */
+	uint8_t		lm_ie;	/* IEEE80211_ACTION_MESH_LMETRIC */
 	uint8_t		lm_len;
+	uint8_t		lm_flags;
+#define	IEEE80211_MESH_LMETRIC_FLAGS_REQ	0x01	/* Request */
+	/*
+	 * XXX: this field should be variable in size and depend on
+	 * the active active path selection metric identifier
+	 */
 	uint32_t	lm_metric;
 #define	IEEE80211_MESHLMETRIC_INITIALVAL	0
 } __packed;
@@ -307,8 +313,7 @@ struct ieee80211_meshpuc_ie {
  * 802.11s Action Frames
  */
 #define	IEEE80211_ACTION_CAT_MESHPEERING	30	/* XXX Linux */
-#define	IEEE80211_ACTION_CAT_MESHLMETRIC	13
-#define	IEEE80211_ACTION_CAT_MESHPATH		32	/* XXX Linux */
+/* XXX: these need to be looked into */
 #define	IEEE80211_ACTION_CAT_INTERWORK		15
 #define	IEEE80211_ACTION_CAT_RESOURCE		16
 #define	IEEE80211_ACTION_CAT_PROXY		17
@@ -324,20 +329,21 @@ enum {
 };
 
 /*
- * Mesh Path Selection Action code.
+ * Mesh Action code.
  */
 enum {
-	IEEE80211_ACTION_MESHPATH_SEL	= 0,
-	/* 1-255 reserved */
-};
-
-/*
- * Mesh Link Metric Action codes.
- */
-enum {
-	IEEE80211_ACTION_MESHLMETRIC_REQ = 0,	/* Link Metric Request */
-	IEEE80211_ACTION_MESHLMETRIC_REP = 1,	/* Link Metric Report */
-	/* 2-255 reserved */
+	IEEE80211_ACTION_MESH_LMETRIC	= 0,	/* Mesh Link Metric Report */
+	IEEE80211_ACTION_MESH_HWMP	= 1,	/* HWMP Mesh Path Selection */
+	IEEE80211_ACTION_MESH_GANN	= 2,	/* Gate Announcement */
+	IEEE80211_ACTION_MESH_CC	= 3,	/* Congestion Control */
+	IEEE80211_ACTION_MESH_MCCA_SREQ	= 4,	/* MCCA Setup Request */
+	IEEE80211_ACTION_MESH_MCCA_SREP	= 5,	/* MCCA Setup Reply */
+	IEEE80211_ACTION_MESH_MCCA_AREQ	= 6,	/* MCCA Advertisement Req. */
+	IEEE80211_ACTION_MESH_MCCA_ADVER =7,	/* MCCA Advertisement */
+	IEEE80211_ACTION_MESH_MCCA_TRDOWN = 8,	/* MCCA Teardown */
+	IEEE80211_ACTION_MESH_TBTT_REQ	= 9,	/* TBTT Adjustment Request */
+	IEEE80211_ACTION_MESH_TBTT_RES	= 10,	/* TBTT Adjustment Response */
+	/* 11-255 reserved */
 };
 
 /*
@@ -496,7 +502,7 @@ uint8_t *	ieee80211_add_meshid(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshconf(uint8_t *, struct ieee80211vap *);
 uint8_t *	ieee80211_add_meshpeer(uint8_t *, uint8_t, uint16_t, uint16_t,
 		    uint16_t);
-uint8_t *	ieee80211_add_meshlmetric(uint8_t *, uint32_t);
+uint8_t *	ieee80211_add_meshlmetric(uint8_t *, uint8_t, uint32_t);
 
 void		ieee80211_mesh_node_init(struct ieee80211vap *,
 		    struct ieee80211_node *);
