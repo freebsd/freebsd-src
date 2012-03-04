@@ -29,57 +29,28 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
+#ifndef _XLOCALE_LOCALE_H
+#define _XLOCALE_LOCALE_H
 
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
+#define LC_COLLATE_MASK  (1<<0)
+#define LC_CTYPE_MASK    (1<<1)
+#define LC_MESSAGES_MASK (1<<2)
+#define LC_MONETARY_MASK (1<<3)
+#define LC_NUMERIC_MASK  (1<<4)
+#define LC_TIME_MASK     (1<<5)
+#define LC_ALL_MASK      (LC_COLLATE_MASK | LC_CTYPE_MASK | LC_MESSAGES_MASK | \
+			  LC_MONETARY_MASK | LC_NUMERIC_MASK | LC_TIME_MASK)
+#define LC_GLOBAL_LOCALE ((locale_t)-1)
 
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
+#ifndef _LOCALE_T_DEFINED
+#define _LOCALE_T_DEFINED
+typedef struct	_xlocale *locale_t;
 #endif
 
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
+locale_t	 duplocale(locale_t base);
+int		 freelocale(locale_t loc);
+locale_t	 newlocale(int mask, const char *locale, locale_t base);
+const char	*querylocale(int mask, locale_t loc);
+locale_t	 uselocale(locale_t loc);
 
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
-
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
-
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
-
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
-
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
+#endif /* _XLOCALE_LOCALE_H */

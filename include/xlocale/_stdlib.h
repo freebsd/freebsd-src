@@ -29,57 +29,31 @@
  * $FreeBSD$
  */
 
-#ifndef _XLOCALE_H_
-#define _XLOCALE_H_
+/*
+ * Extended locale versions of the locale-aware functions from stdlib.h.
+ *
+ * Include <stdlib.h> before <xlocale.h> to expose these.
+ */
+double			 atof_l(const char *, locale_t);
+int			 atoi_l(const char *, locale_t);
+long			 atol_l(const char *, locale_t);
+long long		 atoll_l(const char *, locale_t);
+int			 mblen_l(const char *, size_t, locale_t);
+size_t			 mbstowcs_l(wchar_t * __restrict,
+			    const char * __restrict, size_t, locale_t);
+int			 mbtowc_l(wchar_t * __restrict,
+			    const char * __restrict, size_t, locale_t);
+double			 strtod_l(const char *, char **, locale_t);
+float			 strtof_l(const char *, char **, locale_t);
+long			 strtol_l(const char *, char **, int, locale_t);
+long double		 strtold_l(const char *, char **, locale_t);
+long long		 strtoll_l(const char *, char **, int, locale_t);
+unsigned long		 strtoul_l(const char *, char **, int, locale_t);
+unsigned long long	 strtoull_l(const char *, char **, int, locale_t);
+size_t			 wcstombs_l(char * __restrict,
+			    const wchar_t * __restrict, size_t, locale_t);
+int			 wctomb_l(char *, wchar_t, locale_t);
 
-#include <locale.h>
-__BEGIN_DECLS
-#include <xlocale/_locale.h>
+int			 ___mb_cur_max_l(locale_t);
+#define MB_CUR_MAX_L(x) (___mb_cur_max_l(x))
 
-#ifdef _STRING_H_
-#include <xlocale/_string.h>
-#endif
-
-#ifdef _INTTYPES_H_
-#include <xlocale/_inttypes.h>
-#endif
-
-#ifdef _MONETARY_H_
-#include <xlocale/_monetary.h>
-#endif
-
-#ifdef _STDLIB_H_
-#include <xlocale/_stdlib.h>
-#endif
-
-#ifdef _TIME_H_
-#include <xlocale/_time.h>
-#endif
-
-#ifdef _LANGINFO_H_
-#include <xlocale/_langinfo.h>
-#endif
-
-#ifdef _CTYPE_H_
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _WCTYPE_H_
-#define _XLOCALE_WCTYPES 1
-#include <xlocale/_ctype.h>
-#endif
-
-#ifdef _STDIO_H_
-#include <xlocale/_stdio.h>
-#endif
-
-#ifdef _WCHAR_H_
-#include <xlocale/_wchar.h>
-#endif
-
-
-
-struct lconv	*localeconv_l(locale_t);
-__END_DECLS
-
-#endif
