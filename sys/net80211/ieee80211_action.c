@@ -99,16 +99,20 @@ ieee80211_send_action_register(int cat, int act, ieee80211_send_action_func *f)
 			break;
 		meshpl_send_action[act] = f;
 		return 0;
-	case IEEE80211_ACTION_CAT_MESHLMETRIC:
-		if (act >= N(meshlm_send_action))
-			break;
-		meshlm_send_action[act] = f;
-		return 0;
-	case IEEE80211_ACTION_CAT_MESHPATH:
-		if (act >= N(hwmp_send_action))
-			break;
-		hwmp_send_action[act] = f;
-		return 0;
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (act) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			if (act >= N(meshlm_send_action))
+				break;
+			meshlm_send_action[act] = f;
+			return 0;
+		case IEEE80211_ACTION_MESH_HWMP:
+			if (act >= N(hwmp_send_action))
+				break;
+			hwmp_send_action[act] = f;
+			return 0;
+		}
+		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_send_action))
 			break;
@@ -144,13 +148,17 @@ ieee80211_send_action(struct ieee80211_node *ni, int cat, int act, void *sa)
 		if (act < N(meshpl_send_action))
 			f = meshpl_send_action[act];
 		break;
-	case IEEE80211_ACTION_CAT_MESHLMETRIC:
-		if (act < N(meshlm_send_action))
-			f = meshlm_send_action[act];
-		break;
-	case IEEE80211_ACTION_CAT_MESHPATH:
-		if (act < N(hwmp_send_action))
-			f = hwmp_send_action[act];
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (act) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			if (act < N(meshlm_send_action))
+				f = meshlm_send_action[act];
+			break;
+		case IEEE80211_ACTION_MESH_HWMP:
+			if (act < N(hwmp_send_action))
+				f = hwmp_send_action[act];
+			break;
+		}
 		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act < N(vendor_send_action))
@@ -212,16 +220,20 @@ ieee80211_recv_action_register(int cat, int act, ieee80211_recv_action_func *f)
 			break;
 		meshpl_recv_action[act] = f;
 		return 0;
-	case IEEE80211_ACTION_CAT_MESHLMETRIC:
-		if (act >= N(meshlm_recv_action))
-			break;
-		meshlm_recv_action[act] = f;
-		return 0;
-	case IEEE80211_ACTION_CAT_MESHPATH:
-		if (act >= N(hwmp_recv_action))
-			break;
-		hwmp_recv_action[act] = f;
-		return 0;
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (act) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			if (act >= N(meshlm_recv_action))
+				break;
+			meshlm_recv_action[act] = f;
+			return 0;
+		case IEEE80211_ACTION_MESH_HWMP:
+			if (act >= N(hwmp_recv_action))
+				break;
+			hwmp_recv_action[act] = f;
+			return 0;
+		}
+		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (act >= N(vendor_recv_action))
 			break;
@@ -261,13 +273,17 @@ ieee80211_recv_action(struct ieee80211_node *ni,
 		if (ia->ia_action < N(meshpl_recv_action))
 			f = meshpl_recv_action[ia->ia_action];
 		break;
-	case IEEE80211_ACTION_CAT_MESHLMETRIC:
-		if (ia->ia_action < N(meshlm_recv_action))
-			f = meshlm_recv_action[ia->ia_action];
-		break;
-	case IEEE80211_ACTION_CAT_MESHPATH:
-		if (ia->ia_action < N(hwmp_recv_action))
-			f = hwmp_recv_action[ia->ia_action];
+	case IEEE80211_ACTION_CAT_MESH:
+		switch (ia->ia_action) {
+		case IEEE80211_ACTION_MESH_LMETRIC:
+			if (ia->ia_action < N(meshlm_recv_action))
+				f = meshlm_recv_action[ia->ia_action];
+			break;
+		case IEEE80211_ACTION_MESH_HWMP:
+			if (ia->ia_action < N(hwmp_recv_action))
+				f = hwmp_recv_action[ia->ia_action];
+			break;
+		}
 		break;
 	case IEEE80211_ACTION_CAT_VENDOR:
 		if (ia->ia_action < N(vendor_recv_action))
