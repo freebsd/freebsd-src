@@ -724,7 +724,6 @@ in6_ifdetach(struct ifnet *ifp)
 	struct in6_ifaddr *ia, *oia;
 	struct ifaddr *ifa, *next;
 	struct rtentry *rt;
-	short rtflags;
 	struct sockaddr_in6 sin6;
 	struct in6_multi_mship *imm;
 
@@ -759,15 +758,8 @@ in6_ifdetach(struct ifnet *ifp)
 		}
 
 		/* remove from the routing table */
-		if ((ia->ia_flags & IFA_ROUTE) &&
-		    (rt = rtalloc1((struct sockaddr *)&ia->ia_addr, 0, 0UL))) {
-			rtflags = rt->rt_flags;
-			RTFREE_LOCKED(rt);
-			rtrequest(RTM_DELETE, (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_addr,
-			    (struct sockaddr *)&ia->ia_prefixmask,
-			    rtflags, (struct rtentry **)0);
-		}
+		if (ia->ia_flags & IFA_ROUTE)
+		    (void)rtinit(&ia->ia_ifa, RTM_DELETE, ia->ia_flags);
 
 		/* remove from the linked list */
 		TAILQ_REMOVE(&ifp->if_addrlist, (struct ifaddr *)ia, ifa_list);
@@ -816,15 +808,16 @@ in6_ifdetach(struct ifnet *ifp)
 		/* XXX: should not fail */
 		return;
 	/* XXX grab lock first to avoid LOR */
-	if (rt_tables[0][AF_INET6] != NULL) {
-		RADIX_NODE_HEAD_LOCK(rt_tables[0][AF_INET6]);
-		rt = rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED);
-		if (rt) {
+	if (rt_tables[RT_DEFAULT_FIB][AF_INET6] != NULL) {
+		RADIX_NODE_HEAD_LOCK(rt_tables[RT_DEFAULT_FIB][AF_INET6]);
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, RTF_RNH_LOCKED,
+		    RT_DEFAULT_FIB);
+		if (rt != NULL) {
 			if (rt->rt_ifp == ifp)
 				rtexpunge(rt);
 			RTFREE_LOCKED(rt);
 		}
-		RADIX_NODE_HEAD_UNLOCK(rt_tables[0][AF_INET6]);
+		RADIX_NODE_HEAD_UNLOCK(rt_tables[RT_DEFAULT_FIB][AF_INET6]);
 	}
 }
 

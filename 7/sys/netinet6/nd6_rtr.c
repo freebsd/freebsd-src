@@ -184,7 +184,8 @@ nd6_rs_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	nd6_cache_lladdr(ifp, &saddr6, lladdr, lladdrlen, ND_ROUTER_SOLICIT, 0);
+	nd6_cache_lladdr_fib(ifp, &saddr6, lladdr, lladdrlen, ND_ROUTER_SOLICIT,
+	    0, M_GETFIB(m));
 
  freeit:
 	m_freem(m);
@@ -406,8 +407,8 @@ nd6_ra_input(struct mbuf *m, int off, int icmp6len)
 		goto bad;
 	}
 
-	nd6_cache_lladdr(ifp, &saddr6, lladdr,
-	    lladdrlen, ND_ROUTER_ADVERT, 0);
+	nd6_cache_lladdr_fib(ifp, &saddr6, lladdr,
+	    lladdrlen, ND_ROUTER_ADVERT, 0, M_GETFIB(m));
 
 	/*
 	 * Installing a link-layer address might change the state of the
@@ -446,7 +447,7 @@ nd6_rtmsg(int cmd, struct rtentry *rt)
 		info.rti_info[RTAX_IFA] = rt->rt_ifa->ifa_addr;
 	}
 
-	rt_missmsg(cmd, &info, rt->rt_flags, 0);
+	rt_missmsg_fib(cmd, &info, rt->rt_flags, 0, rt->rt_fibnum);
 }
 
 static void
@@ -467,9 +468,9 @@ defrouter_addreq(struct nd_defrouter *new)
 	gate.sin6_addr = new->rtaddr;
 
 	s = splnet();
-	error = rtrequest(RTM_ADD, (struct sockaddr *)&def,
+	error = in6_rtrequest(RTM_ADD, (struct sockaddr *)&def,
 	    (struct sockaddr *)&gate, (struct sockaddr *)&mask,
-	    RTF_GATEWAY, &newrt);
+	    RTF_GATEWAY, &newrt, RT_DEFAULT_FIB);
 	if (newrt) {
 		RT_LOCK(newrt);
 		nd6_rtmsg(RTM_ADD, newrt); /* tell user process */
@@ -516,9 +517,9 @@ defrouter_delreq(struct nd_defrouter *dr)
 	def.sin6_family = gate.sin6_family = AF_INET6;
 	gate.sin6_addr = dr->rtaddr;
 
-	rtrequest(RTM_DELETE, (struct sockaddr *)&def,
+	in6_rtrequest(RTM_DELETE, (struct sockaddr *)&def,
 	    (struct sockaddr *)&gate,
-	    (struct sockaddr *)&mask, RTF_GATEWAY, &oldrt);
+	    (struct sockaddr *)&mask, RTF_GATEWAY, &oldrt, RT_DEFAULT_FIB);
 	if (oldrt) {
 		nd6_rtmsg(RTM_DELETE, oldrt);
 		RTFREE(oldrt);
@@ -1521,16 +1522,84 @@ pfxlist_onlink_check()
 }
 
 static int
+nd6_prefix_onlink_rtrequest(struct nd_prefix *pr, struct ifaddr *ifa)
+{
+	struct rtentry *rt;
+	struct ifnet *ifp;
+	struct sockaddr_in6 mask6;
+	u_long rtflags;
+	u_int fibnum;
+	int error, a_failure;
+
+	ifp = pr->ndpr_ifp;
+	/*
+	 * in6_ifinit() sets nd6_rtrequest to ifa_rtrequest for all ifaddrs.
+	 * ifa->ifa_rtrequest = nd6_rtrequest;
+	 */
+	bzero(&mask6, sizeof(mask6));
+	mask6.sin6_len = sizeof(mask6);
+	mask6.sin6_addr = pr->ndpr_mask;
+	rtflags = ifa->ifa_flags | RTF_CLONING | RTF_UP;
+	if (nd6_need_cache(ifp)) {
+		/* explicitly set in case ifa_flags does not set the flag. */
+		rtflags |= RTF_CLONING;
+	} else {
+		/*
+		 * explicitly clear the cloning bit in case ifa_flags sets it.
+		 */
+		rtflags &= ~RTF_CLONING;
+	}
+
+	a_failure = 0;
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+
+		rt = NULL;
+		error = in6_rtrequest(RTM_ADD,
+		    (struct sockaddr *)&pr->ndpr_prefix, ifa->ifa_addr,
+		    (struct sockaddr *)&mask6, rtflags, &rt, fibnum);
+		if (error == 0) {
+			if (rt != NULL) /* this should be non NULL, though */
+				nd6_rtmsg(RTM_ADD, rt);
+			pr->ndpr_stateflags |= NDPRF_ONLINK;
+		} else {
+			char ip6buf[INET6_ADDRSTRLEN];
+			char ip6bufg[INET6_ADDRSTRLEN];
+			char ip6bufm[INET6_ADDRSTRLEN];
+			struct sockaddr_in6 *sin6;
+
+			sin6 = (struct sockaddr_in6 *)ifa->ifa_addr;
+			nd6log((LOG_ERR, "%s: failed to add route for a prefix "
+			    "(%s/%d) on %s, gw=%s, mask=%s, flags=%lx "
+			    "errno = %d\n", __func__,
+			    ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
+			    pr->ndpr_plen, if_name(ifp),
+			    ip6_sprintf(ip6bufg, &sin6->sin6_addr),
+			    ip6_sprintf(ip6bufm, &mask6.sin6_addr),
+			    rtflags, error));
+
+			/* Save last error to return, see rtinit(). */
+			a_failure = error;
+		}
+
+		if (rt != NULL) {
+			RT_LOCK(rt);
+			RT_REMREF(rt);
+			RT_UNLOCK(rt);
+		}
+	}
+
+	/* Return the last error we got. */
+	return (a_failure);
+}
+
+static int
 nd6_prefix_onlink(struct nd_prefix *pr)
 {
 	struct ifaddr *ifa;
 	struct ifnet *ifp = pr->ndpr_ifp;
-	struct sockaddr_in6 mask6;
 	struct nd_prefix *opr;
-	u_long rtflags;
-	int error = 0;
-	struct rtentry *rt = NULL;
 	char ip6buf[INET6_ADDRSTRLEN];
+	int error;
 
 	/* sanity check */
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) != 0) {
@@ -1590,45 +1659,7 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 		return (0);
 	}
 
-	/*
-	 * in6_ifinit() sets nd6_rtrequest to ifa_rtrequest for all ifaddrs.
-	 * ifa->ifa_rtrequest = nd6_rtrequest;
-	 */
-	bzero(&mask6, sizeof(mask6));
-	mask6.sin6_len = sizeof(mask6);
-	mask6.sin6_addr = pr->ndpr_mask;
-	rtflags = ifa->ifa_flags | RTF_CLONING | RTF_UP;
-	if (nd6_need_cache(ifp)) {
-		/* explicitly set in case ifa_flags does not set the flag. */
-		rtflags |= RTF_CLONING;
-	} else {
-		/*
-		 * explicitly clear the cloning bit in case ifa_flags sets it.
-		 */
-		rtflags &= ~RTF_CLONING;
-	}
-	error = rtrequest(RTM_ADD, (struct sockaddr *)&pr->ndpr_prefix,
-	    ifa->ifa_addr, (struct sockaddr *)&mask6, rtflags, &rt);
-	if (error == 0) {
-		if (rt != NULL) /* this should be non NULL, though */
-			nd6_rtmsg(RTM_ADD, rt);
-		pr->ndpr_stateflags |= NDPRF_ONLINK;
-	} else {
-		char ip6bufg[INET6_ADDRSTRLEN], ip6bufm[INET6_ADDRSTRLEN];
-		nd6log((LOG_ERR, "nd6_prefix_onlink: failed to add route for a"
-		    " prefix (%s/%d) on %s, gw=%s, mask=%s, flags=%lx "
-		    "errno = %d\n",
-		    ip6_sprintf(ip6buf, &pr->ndpr_prefix.sin6_addr),
-		    pr->ndpr_plen, if_name(ifp),
-		    ip6_sprintf(ip6bufg, &((struct sockaddr_in6 *)ifa->ifa_addr)->sin6_addr),
-		    ip6_sprintf(ip6bufm, &mask6.sin6_addr), rtflags, error));
-	}
-
-	if (rt != NULL) {
-		RT_LOCK(rt);
-		RT_REMREF(rt);
-		RT_UNLOCK(rt);
-	}
+	error = nd6_prefix_onlink_rtrequest(pr, ifa);
 
 	return (error);
 }
@@ -1636,12 +1667,13 @@ nd6_prefix_onlink(struct nd_prefix *pr)
 static int
 nd6_prefix_offlink(struct nd_prefix *pr)
 {
-	int error = 0;
+	int error, a_failure;
 	struct ifnet *ifp = pr->ndpr_ifp;
 	struct nd_prefix *opr;
 	struct sockaddr_in6 sa6, mask6;
-	struct rtentry *rt = NULL;
+	struct rtentry *rt;
 	char ip6buf[INET6_ADDRSTRLEN];
+	u_int fibnum;
 
 	/* sanity check */
 	if ((pr->ndpr_stateflags & NDPRF_ONLINK) == 0) {
@@ -1661,14 +1693,27 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 	mask6.sin6_family = AF_INET6;
 	mask6.sin6_len = sizeof(sa6);
 	bcopy(&pr->ndpr_mask, &mask6.sin6_addr, sizeof(struct in6_addr));
-	error = rtrequest(RTM_DELETE, (struct sockaddr *)&sa6, NULL,
-	    (struct sockaddr *)&mask6, 0, &rt);
+
+	a_failure = 0;
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rt = NULL;
+		error = in6_rtrequest(RTM_DELETE, (struct sockaddr *)&sa6, NULL,
+		    (struct sockaddr *)&mask6, 0, &rt, fibnum);
+
+		if (error == 0) {
+			/* Report the route deletion to the routing socket. */
+			if (rt != NULL)
+				nd6_rtmsg(RTM_DELETE, rt);
+		} else {
+			/* Save last error to return, see rtinit(). */
+			a_failure = error;
+		}
+		if (rt != NULL)
+			RTFREE(rt);
+	}
+	error = a_failure;
 	if (error == 0) {
 		pr->ndpr_stateflags &= ~NDPRF_ONLINK;
-
-		/* report the route deletion to the routing socket. */
-		if (rt != NULL)
-			nd6_rtmsg(RTM_DELETE, rt);
 
 		/*
 		 * There might be the same prefix on another interface,
@@ -1715,10 +1760,6 @@ nd6_prefix_offlink(struct nd_prefix *pr)
 		    "%s/%d on %s (errno = %d)\n",
 		    ip6_sprintf(ip6buf, &sa6.sin6_addr), pr->ndpr_plen,
 		    if_name(ifp), error));
-	}
-
-	if (rt != NULL) {
-		RTFREE(rt);
 	}
 
 	return (error);
@@ -2023,7 +2064,8 @@ void
 rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 {
 
-	struct radix_node_head *rnh = rt_tables[0][AF_INET6];
+	struct radix_node_head *rnh;
+	u_int fibnum;
 	int s = splnet();
 
 	/* We'll care only link-local addresses */
@@ -2032,9 +2074,16 @@ rt6_flush(struct in6_addr *gateway, struct ifnet *ifp)
 		return;
 	}
 
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
+	/* XXX Do we really need to walk any but the default FIB? */
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables[fibnum][AF_INET6];
+		if (rnh == NULL)
+			continue;
+
+		RADIX_NODE_HEAD_LOCK(rnh);
+		rnh->rnh_walktree(rnh, rt6_deleteroute, (void *)gateway);
+		RADIX_NODE_HEAD_UNLOCK(rnh);
+	}
 	splx(s);
 }
 
@@ -2067,8 +2116,8 @@ rt6_deleteroute(struct radix_node *rn, void *arg)
 	if ((rt->rt_flags & RTF_HOST) == 0)
 		return (0);
 
-	return (rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
-	    rt_mask(rt), rt->rt_flags, 0));
+	return (in6_rtrequest(RTM_DELETE, rt_key(rt), rt->rt_gateway,
+	    rt_mask(rt), rt->rt_flags, 0, rt->rt_fibnum));
 #undef SIN6
 }
 

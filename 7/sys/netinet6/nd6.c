@@ -50,6 +50,9 @@ __FBSDID("$FreeBSD$");
 #include <sys/syslog.h>
 #include <sys/queue.h>
 #include <sys/sysctl.h>
+#ifndef BURN_BRIDGES
+#include <sys/proc.h>
+#endif
 
 #include <net/if.h>
 #include <net/if_arc.h>
@@ -806,104 +809,136 @@ nd6_purge(struct ifnet *ifp)
 }
 
 struct rtentry *
-nd6_lookup(struct in6_addr *addr6, int create, struct ifnet *ifp)
+nd6_lookup_fib(struct in6_addr *addr6, int create, struct ifnet *ifp,
+    u_int fibnum)
 {
-	struct rtentry *rt;
+	struct rtentry *rt, *rtfib;
 	struct sockaddr_in6 sin6;
 	char ip6buf[INET6_ADDRSTRLEN];
+	u_int startfib, endfib, fib;
 
-	bzero(&sin6, sizeof(sin6));
-	sin6.sin6_len = sizeof(struct sockaddr_in6);
-	sin6.sin6_family = AF_INET6;
-	sin6.sin6_addr = *addr6;
-	rt = rtalloc1((struct sockaddr *)&sin6, create, 0UL);
-	if (rt) {
-		if ((rt->rt_flags & RTF_LLINFO) == 0 && create) {
-			/*
-			 * This is the case for the default route.
-			 * If we want to create a neighbor cache for the
-			 * address, we should free the route for the
-			 * destination and allocate an interface route.
-			 */
-			RTFREE_LOCKED(rt);
-			rt = NULL;
-		}
+	if (create) {
+		startfib = 0;
+		endfib = rt_numfibs - 1;
+	} else {
+		startfib = endfib = fibnum;
 	}
-	if (rt == NULL) {
-		if (create && ifp) {
-			int e;
 
-			/*
-			 * If no route is available and create is set,
-			 * we allocate a host route for the destination
-			 * and treat it like an interface route.
-			 * This hack is necessary for a neighbor which can't
-			 * be covered by our own prefix.
-			 */
-			struct ifaddr *ifa =
-			    ifaof_ifpforaddr((struct sockaddr *)&sin6, ifp);
-			if (ifa == NULL)
-				return (NULL);
-
-			/*
-			 * Create a new route.  RTF_LLINFO is necessary
-			 * to create a Neighbor Cache entry for the
-			 * destination in nd6_rtrequest which will be
-			 * called in rtrequest via ifa->ifa_rtrequest.
-			 */
-			if ((e = rtrequest(RTM_ADD, (struct sockaddr *)&sin6,
-			    ifa->ifa_addr, (struct sockaddr *)&all1_sa,
-			    (ifa->ifa_flags | RTF_HOST | RTF_LLINFO) &
-			    ~RTF_CLONING, &rt)) != 0) {
-				log(LOG_ERR,
-				    "nd6_lookup: failed to add route for a "
-				    "neighbor(%s), errno=%d\n",
-				    ip6_sprintf(ip6buf, addr6), e);
+	rtfib = NULL;
+	for (fib = startfib; fib <= endfib; fib++) {
+		bzero(&sin6, sizeof(sin6));
+		sin6.sin6_len = sizeof(struct sockaddr_in6);
+		sin6.sin6_family = AF_INET6;
+		sin6.sin6_addr = *addr6;
+		rt = in6_rtalloc1((struct sockaddr *)&sin6, create, 0UL, fib);
+		if (rt) {
+			if ((rt->rt_flags & RTF_LLINFO) == 0 && create) {
+				/*
+				 * This is the case for the default route.
+				 * If we want to create a neighbor cache for the
+				 * address, we should free the route for the
+				 * destination and allocate an interface route.
+				 */
+				RTFREE_LOCKED(rt);
+				rt = NULL;
 			}
-			if (rt == NULL)
-				return (NULL);
-			RT_LOCK(rt);
-			if (rt->rt_llinfo) {
-				struct llinfo_nd6 *ln =
-				    (struct llinfo_nd6 *)rt->rt_llinfo;
-				ln->ln_state = ND6_LLINFO_NOSTATE;
-			}
-		} else
-			return (NULL);
-	}
-	RT_LOCK_ASSERT(rt);
-	RT_REMREF(rt);
-	/*
-	 * Validation for the entry.
-	 * Note that the check for rt_llinfo is necessary because a cloned
-	 * route from a parent route that has the L flag (e.g. the default
-	 * route to a p2p interface) may have the flag, too, while the
-	 * destination is not actually a neighbor.
-	 * XXX: we can't use rt->rt_ifp to check for the interface, since
-	 *      it might be the loopback interface if the entry is for our
-	 *      own address on a non-loopback interface. Instead, we should
-	 *      use rt->rt_ifa->ifa_ifp, which would specify the REAL
-	 *	interface.
-	 * Note also that ifa_ifp and ifp may differ when we connect two
-	 * interfaces to a same link, install a link prefix to an interface,
-	 * and try to install a neighbor cache on an interface that does not
-	 * have a route to the prefix.
-	 */
-	if ((rt->rt_flags & RTF_GATEWAY) || (rt->rt_flags & RTF_LLINFO) == 0 ||
-	    rt->rt_gateway->sa_family != AF_LINK || rt->rt_llinfo == NULL ||
-	    (ifp && rt->rt_ifa->ifa_ifp != ifp)) {
-		if (create) {
-			nd6log((LOG_DEBUG,
-			    "nd6_lookup: failed to lookup %s (if = %s)\n",
-			    ip6_sprintf(ip6buf, addr6),
-			    ifp ? if_name(ifp) : "unspec"));
 		}
-		RT_UNLOCK(rt);
-		return (NULL);
+		if (rt == NULL) {
+			if (create && ifp) {
+				int e;
+
+				/*
+				 * If no route is available and create is set,
+				 * we allocate a host route for the destination
+				 * and treat it like an interface route.
+				 * This hack is necessary for a neighbor which
+				 * can't be covered by our own prefix.
+				 */
+				struct ifaddr *ifa = ifaof_ifpforaddr(
+				    (struct sockaddr *)&sin6, ifp);
+				if (ifa == NULL)
+					continue;
+
+				/*
+				 * Create a new route.  RTF_LLINFO is necessary
+				 * to create a Neighbor Cache entry for the
+				 * destination in nd6_rtrequest which will be
+				 * called in rtrequest via ifa->ifa_rtrequest.
+				 */
+				e = in6_rtrequest(RTM_ADD,
+				    (struct sockaddr *)&sin6, ifa->ifa_addr,
+				    (struct sockaddr *)&all1_sa,
+				    (ifa->ifa_flags | RTF_HOST | RTF_LLINFO) &
+				    ~RTF_CLONING, &rt, fib);
+				if (e != 0) {
+					log(LOG_ERR,
+					    "%s: failed to add route for a "
+					    "neighbor(%s), errno=%d\n",__func__,
+					    ip6_sprintf(ip6buf, addr6), e);
+				}
+				if (rt == NULL)
+					continue;
+				RT_LOCK(rt);
+				if (rt->rt_llinfo) {
+					struct llinfo_nd6 *ln =
+					    (struct llinfo_nd6 *)rt->rt_llinfo;
+					ln->ln_state = ND6_LLINFO_NOSTATE;
+				}
+			} else
+				continue;
+		}
+		RT_LOCK_ASSERT(rt);
+		RT_REMREF(rt);
+
+		/*
+		 * Validation for the entry.
+		 * Note that the check for rt_llinfo is necessary because a
+		 * cloned route from a parent route that has the L flag (e.g.
+		 * the default route to a p2p interface) may have the flag, too,
+		 * while the destination is not actually a neighbor.
+		 * XXX: we can't use rt->rt_ifp to check for the interface,
+		 * since it might be the loopback interface if the entry is for
+		 * our own address on a non-loopback interface. Instead, we
+		 * should use rt->rt_ifa->ifa_ifp, which would specify the REAL
+		 * interface.
+		 * Note also that ifa_ifp and ifp may differ when we connect two
+		 * interfaces to a same link, install a link prefix to an
+		 * interface, and try to install a neighbor cache on an
+		 * interface that does not have a route to the prefix.
+		 */
+		if ((rt->rt_flags & RTF_GATEWAY) ||
+		    (rt->rt_flags & RTF_LLINFO) == 0 ||
+		    rt->rt_gateway->sa_family != AF_LINK ||
+		    rt->rt_llinfo == NULL ||
+		    (ifp && rt->rt_ifa->ifa_ifp != ifp)) {
+			if (create) {
+				nd6log((LOG_DEBUG,
+				    "%s: failed to lookup %s (if = %s)\n",
+				    __func__, ip6_sprintf(ip6buf, addr6),
+				    ifp ? if_name(ifp) : "unspec"));
+			}
+			RT_UNLOCK(rt);
+			continue;
+		}
+		RT_UNLOCK(rt);		/* XXX not ready to return rt locked */
+		if (fib == fibnum)
+			rtfib = rt;
 	}
-	RT_UNLOCK(rt);		/* XXX not ready to return rt locked */
-	return (rt);
+	return (rtfib);
 }
+
+#ifndef BURN_BRIDGES
+/*
+ * nd6_lookup() should take the fib argument but in 8.x and later the code
+ * changed so the split is no longer needed there.
+ */
+struct rtentry *
+nd6_lookup(struct in6_addr *addr6, int create, struct ifnet *ifp)
+{
+
+	return (nd6_lookup_fib(addr6, create, ifp, RT_DEFAULT_FIB));
+}
+#endif
 
 /*
  * Test whether a given IPv6 address is a neighbor or not, ignoring
@@ -985,7 +1020,8 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
  * XXX: should take care of the destination of a p2p link?
  */
 int
-nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+nd6_is_addr_neighbor_fib(struct sockaddr_in6 *addr, struct ifnet *ifp,
+    u_int fibnum)
 {
 
 	if (nd6_is_new_addr_neighbor(addr, ifp))
@@ -995,11 +1031,20 @@ nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 	 * Even if the address matches none of our addresses, it might be
 	 * in the neighbor cache.
 	 */
-	if (nd6_lookup(&addr->sin6_addr, 0, ifp) != NULL)
+	if (nd6_lookup_fib(&addr->sin6_addr, 0, ifp, fibnum) != NULL)
 		return (1);
 
 	return (0);
 }
+
+#ifndef BURN_BRIDGES
+int
+nd6_is_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
+{
+
+	return (nd6_is_addr_neighbor_fib(addr, ifp, RT_DEFAULT_FIB));
+}
+#endif
 
 /*
  * Free an nd6 llinfo entry.
@@ -1105,8 +1150,8 @@ nd6_free(struct rtentry *rt, int gc)
 	 * caches, and disable the route entry not to be used in already
 	 * cached routes.
 	 */
-	rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
-	    rt_mask(rt), 0, (struct rtentry **)0);
+	in6_rtrequest(RTM_DELETE, rt_key(rt), (struct sockaddr *)0,
+	    rt_mask(rt), 0, (struct rtentry **)0, rt->rt_fibnum);
 
 	return (next);
 }
@@ -1128,7 +1173,9 @@ nd6_nud_hint(struct rtentry *rt, struct in6_addr *dst6, int force)
 	if (rt == NULL) {
 		if (dst6 == NULL)
 			return;
-		if ((rt = nd6_lookup(dst6, 0, NULL)) == NULL)
+		/* Does not make a difference. NOTREACHED. */
+		rt = nd6_lookup_fib(dst6, 0, NULL, RT_DEFAULT_FIB);
+		if (rt == NULL)
 			return;
 	}
 
@@ -1410,7 +1457,7 @@ nd6_rtrequest(int req, struct rtentry *rt, struct rt_addrinfo *info)
 }
 
 int
-nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
+nd6_ioctl_fib(u_long cmd, caddr_t data, struct ifnet *ifp, u_int fibnum)
 {
 	struct in6_drlist *drl = (struct in6_drlist *)data;
 	struct in6_oprlist *oprl = (struct in6_oprlist *)data;
@@ -1616,7 +1663,7 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 			return (error);
 
 		s = splnet();
-		if ((rt = nd6_lookup(&nb_addr, 0, ifp)) == NULL) {
+		if ((rt = nd6_lookup_fib(&nb_addr, 0, ifp, fibnum)) == NULL) {
 			error = EINVAL;
 			splx(s);
 			break;
@@ -1639,6 +1686,15 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	return (error);
 }
 
+#ifndef BURN_BRIDGES
+int
+nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
+{
+
+	return (nd6_ioctl_fib(cmd, data, ifp, curthread->td_proc->p_fibnum));
+}
+#endif
+
 /*
  * Create neighbor cache entry and cache link-layer address,
  * on reception of inbound ND6 packets.  (RS/RA/NS/redirect)
@@ -1647,8 +1703,8 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
  * code - type dependent information
  */
 struct rtentry *
-nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
-    int lladdrlen, int type, int code)
+nd6_cache_lladdr_fib(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
+    int lladdrlen, int type, int code, u_int fibnum)
 {
 	struct rtentry *rt = NULL;
 	struct llinfo_nd6 *ln = NULL;
@@ -1678,9 +1734,9 @@ nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
 	 * description on it in NS section (RFC 2461 7.2.3).
 	 */
 
-	rt = nd6_lookup(from, 0, ifp);
+	rt = nd6_lookup_fib(from, 0, ifp, fibnum);
 	if (rt == NULL) {
-		rt = nd6_lookup(from, 1, ifp);
+		rt = nd6_lookup_fib(from, 1, ifp, fibnum);
 		is_newentry = 1;
 	} else {
 		/* do nothing if static ndp is set */
@@ -1879,6 +1935,17 @@ fail:
 	return rt;
 }
 
+#ifndef BURN_BRIDGES
+struct rtentry *
+nd6_cache_lladdr(struct ifnet *ifp, struct in6_addr *from, char *lladdr,
+    int lladdrlen, int type, int code)
+{
+
+	return (nd6_cache_lladdr_fib(ifp, from, lladdr, lladdrlen, type, code,
+	    RT_DEFAULT_FIB));
+}
+#endif
+
 static void
 nd6_slowtimo(void *ignored_arg)
 {
@@ -1932,7 +1999,8 @@ again:
 	if (rt != NULL) {
 		if ((rt->rt_flags & RTF_UP) == 0) {
 			RT_UNLOCK(rt);
-			rt0 = rt = rtalloc1((struct sockaddr *)dst, 1, 0UL);
+			rt0 = rt = in6_rtalloc1((struct sockaddr *)dst, 1, 0UL,
+			    M_GETFIB(m));
 			if (rt != NULL) {
 				RT_REMREF(rt);
 				if (rt->rt_ifp != ifp)
@@ -1957,7 +2025,7 @@ again:
 			 * if the gateway is our own address, which is
 			 * sometimes used to install a route to a p2p link.
 			 */
-			if (!nd6_is_addr_neighbor(gw6, ifp) ||
+			if (!nd6_is_addr_neighbor_fib(gw6, ifp, M_GETFIB(m)) ||
 			    in6ifa_ifpwithaddr(ifp, &gw6->sin6_addr)) {
 				RT_UNLOCK(rt);
 				/*
@@ -1981,7 +2049,8 @@ again:
 				rt0->rt_gwroute = NULL;
 			lookup:
 				RT_UNLOCK(rt0);
-				rt = rtalloc1(rt->rt_gateway, 1, 0UL);
+				rt = in6_rtalloc1(rt->rt_gateway, 1, 0UL,
+				    M_GETFIB(m));
 				if (rt == rt0) {
 					RT_REMREF(rt0);
 					RT_UNLOCK(rt0);
@@ -2017,8 +2086,9 @@ again:
 		 * the condition below is not very efficient.  But we believe
 		 * it is tolerable, because this should be a rare case.
 		 */
-		if (nd6_is_addr_neighbor(dst, ifp) &&
-		    (rt = nd6_lookup(&dst->sin6_addr, 1, ifp)) != NULL)
+		if (nd6_is_addr_neighbor_fib(dst, ifp, M_GETFIB(m)) &&
+		    (rt = nd6_lookup_fib(&dst->sin6_addr, 1, ifp, M_GETFIB(m)))
+		    != NULL)
 			ln = (struct llinfo_nd6 *)rt->rt_llinfo;
 	}
 	if (ln == NULL || rt == NULL) {

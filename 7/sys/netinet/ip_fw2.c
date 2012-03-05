@@ -586,7 +586,7 @@ search_ip6_addr_net (struct in6_addr * ip6_addr)
 }
 
 static int
-verify_path6(struct in6_addr *src, struct ifnet *ifp)
+verify_path6(struct in6_addr *src, struct ifnet *ifp, u_int fib)
 {
 	struct route_in6 ro;
 	struct sockaddr_in6 *dst;
@@ -597,9 +597,8 @@ verify_path6(struct in6_addr *src, struct ifnet *ifp)
 	dst->sin6_family = AF_INET6;
 	dst->sin6_len = sizeof(*dst);
 	dst->sin6_addr = *src;
-	/* XXX MRT 0 for ipv6 at this time */
-	rtalloc_ign((struct route *)&ro, RTF_CLONING);
 
+	in6_rtalloc_ign(&ro, RTF_CLONING, fib);
 	if (ro.ro_rt == NULL)
 		return 0;
 
@@ -2935,7 +2934,7 @@ check_body:
 #ifdef INET6
 				    is_ipv6 ?
 					verify_path6(&(args->f_id.src_ip6),
-					    m->m_pkthdr.rcvif) :
+					    m->m_pkthdr.rcvif, args->f_id.fib) :
 #endif
 				    verify_path(src_ip, m->m_pkthdr.rcvif,
 				        args->f_id.fib)));
@@ -2947,7 +2946,7 @@ check_body:
 #ifdef INET6
 				    is_ipv6 ?
 				        verify_path6(&(args->f_id.src_ip6),
-				            NULL) :
+				            NULL, args->f_id.fib) :
 #endif
 				    verify_path(src_ip, NULL, args->f_id.fib)));
 				break;
@@ -2965,7 +2964,8 @@ check_body:
 #ifdef INET6
 					    is_ipv6 ? verify_path6(
 					        &(args->f_id.src_ip6),
-					        m->m_pkthdr.rcvif) :
+					        m->m_pkthdr.rcvif,
+						args->f_id.fib) :
 #endif
 					    verify_path(src_ip,
 					    	m->m_pkthdr.rcvif,

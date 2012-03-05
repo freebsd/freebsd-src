@@ -382,10 +382,13 @@ union nd_opts {
 void nd6_init __P((void));
 struct nd_ifinfo *nd6_ifattach __P((struct ifnet *));
 void nd6_ifdetach __P((struct nd_ifinfo *));
+int nd6_is_addr_neighbor_fib __P((struct sockaddr_in6 *, struct ifnet *, u_int));
 int nd6_is_addr_neighbor __P((struct sockaddr_in6 *, struct ifnet *));
 void nd6_option_init __P((void *, int, union nd_opts *));
 struct nd_opt_hdr *nd6_option __P((union nd_opts *));
 int nd6_options __P((union nd_opts *));
+struct	rtentry *nd6_lookup_fib __P((struct in6_addr *, int, struct ifnet *,
+	u_int));
 struct	rtentry *nd6_lookup __P((struct in6_addr *, int, struct ifnet *));
 void nd6_setmtu __P((struct ifnet *));
 void nd6_llinfo_settimer __P((struct llinfo_nd6 *, long));
@@ -395,7 +398,10 @@ void nd6_nud_hint __P((struct rtentry *, struct in6_addr *, int));
 int nd6_resolve __P((struct ifnet *, struct rtentry *, struct mbuf *,
 	struct sockaddr *, u_char *));
 void nd6_rtrequest __P((int, struct rtentry *, struct rt_addrinfo *));
+int nd6_ioctl_fib __P((u_long, caddr_t, struct ifnet *, u_int));
 int nd6_ioctl __P((u_long, caddr_t, struct ifnet *));
+struct rtentry *nd6_cache_lladdr_fib __P((struct ifnet *, struct in6_addr *,
+	char *, int, int, int, u_int));
 struct rtentry *nd6_cache_lladdr __P((struct ifnet *, struct in6_addr *,
 	char *, int, int, int));
 int nd6_output __P((struct ifnet *, struct ifnet *, struct mbuf *,

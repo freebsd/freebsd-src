@@ -529,7 +529,7 @@ passin:
 		dst6->sin6_family = AF_INET6;
 		dst6->sin6_addr = ip6->ip6_dst;
 
-		rtalloc((struct route *)&ip6_forward_rt);
+		in6_rtalloc(&ip6_forward_rt, M_GETFIB(m));
 	}
 
 #define rt6_key(r) ((struct sockaddr_in6 *)((r)->rt_nodes->rn_key))

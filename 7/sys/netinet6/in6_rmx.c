@@ -150,11 +150,11 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 	if (ret == NULL && rt->rt_flags & RTF_HOST) {
 		struct rtentry *rt2;
 		/*
-		 * We are trying to add a host route, but can't.
-		 * Find out if it is because of an
-		 * ARP entry and delete it if so.
+		 * We are trying to add a host route, but can't.  Find out if
+		 * it is because of a neighbor entry and delete it if so.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED|RTF_CLONING);
+		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0,
+		    RTF_RNH_LOCKED|RTF_CLONING, rt->rt_fibnum);
 		if (rt2) {
 			if (rt2->rt_flags & RTF_LLINFO &&
 				rt2->rt_flags & RTF_HOST &&
@@ -181,7 +181,8 @@ in6_addroute(void *v_arg, void *n_arg, struct radix_node_head *head,
 		 *	net route entry, 3ffe:0501:: -> if0.
 		 *	This case should not raise an error.
 		 */
-		rt2 = rtalloc1((struct sockaddr *)sin6, 0, RTF_RNH_LOCKED|RTF_CLONING);
+		rt2 = in6_rtalloc1((struct sockaddr *)sin6, 0,
+		    RTF_RNH_LOCKED|RTF_CLONING, rt->rt_fibnum);
 		if (rt2) {
 			if ((rt2->rt_flags & (RTF_CLONING|RTF_HOST|RTF_GATEWAY))
 					== RTF_CLONING
@@ -300,10 +301,11 @@ in6_rtqkill(struct radix_node *rn, void *rock)
 			if (rt->rt_refcnt > 0)
 				panic("rtqkill route really not free");
 
-			err = rtrequest(RTM_DELETE,
+			err =in6_rtrequest(RTM_DELETE,
 					(struct sockaddr *)rt_key(rt),
 					rt->rt_gateway, rt_mask(rt),
-					rt->rt_flags|RTF_RNH_LOCKED, 0);
+					rt->rt_flags|RTF_RNH_LOCKED, 0,
+					rt->rt_fibnum);
 			if (err) {
 				log(LOG_WARNING, "in6_rtqkill: error %d", err);
 			} else {
@@ -329,20 +331,15 @@ static int rtq_timeout = RTQ_TIMEOUT;
 static struct callout rtq_timer;
 
 static void
-in6_rtqtimo(void *rock)
+in6_rtqtimo_one(struct radix_node_head *rnh)
 {
-	struct radix_node_head *rnh = rock;
 	struct rtqk_arg arg;
-	struct timeval atv;
 	static time_t last_adjusted_timeout = 0;
 
 	arg.found = arg.killed = 0;
 	arg.rnh = rnh;
 	arg.nextstop = time_uptime + rtq_timeout;
 	arg.draining = arg.updating = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
 
 	/*
 	 * Attempt to be somewhat dynamic about this:
@@ -362,7 +359,7 @@ in6_rtqtimo(void *rock)
 
 		last_adjusted_timeout = time_uptime;
 #ifdef DIAGNOSTIC
-		log(LOG_DEBUG, "in6_rtqtimo: adjusted rtq_reallyold to %d",
+		log(LOG_DEBUG, "%s: adjusted rtq_reallyold to %d", __func__,
 		    rtq_reallyold);
 #endif
 		arg.found = arg.killed = 0;
@@ -371,10 +368,24 @@ in6_rtqtimo(void *rock)
 		rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
 		RADIX_NODE_HEAD_UNLOCK(rnh);
 	}
+}
+
+static void
+in6_rtqtimo(void *unused __unused)
+{
+	struct radix_node_head *rnh;
+	struct timeval atv;
+	u_int fibnum;
+
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables[fibnum][AF_INET6];
+		if (rnh != NULL)
+			in6_rtqtimo_one(rnh);
+	}
 
 	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop - time_uptime;
-	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, rock);
+	atv.tv_sec = rtq_timeout;
+	callout_reset(&rtq_timer, tvtohz(&atv), in6_rtqtimo, NULL);
 }
 
 /*
@@ -411,45 +422,36 @@ in6_mtuexpire(struct radix_node *rn, void *rock)
 #define	MTUTIMO_DEFAULT	(60*1)
 
 static void
-in6_mtutimo(void *rock)
+in6_mtutimo_one(struct radix_node_head *rnh)
 {
-	struct radix_node_head *rnh = rock;
 	struct mtuex_arg arg;
-	struct timeval atv;
 
 	arg.rnh = rnh;
 	arg.nextstop = time_uptime + MTUTIMO_DEFAULT;
 	RADIX_NODE_HEAD_LOCK(rnh);
 	rnh->rnh_walktree(rnh, in6_mtuexpire, &arg);
 	RADIX_NODE_HEAD_UNLOCK(rnh);
-
-	atv.tv_usec = 0;
-	atv.tv_sec = arg.nextstop - time_uptime;
-	if (atv.tv_sec < 0) {
-		printf("invalid mtu expiration time on routing table\n");
-		arg.nextstop = time_uptime + 30;	/* last resort */
-		atv.tv_sec = 30;
-	}
-	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, rock);
 }
 
-#if 0
-void
-in6_rtqdrain(void)
+static void
+in6_mtutimo(void *unused __unused)
 {
-	struct radix_node_head *rnh = rt_tables[AF_INET6];
-	struct rtqk_arg arg;
+	struct radix_node_head *rnh;
+	struct timeval atv;
+	u_int fibnum;
 
-	arg.found = arg.killed = 0;
-	arg.rnh = rnh;
-	arg.nextstop = 0;
-	arg.draining = 1;
-	arg.updating = 0;
-	RADIX_NODE_HEAD_LOCK(rnh);
-	rnh->rnh_walktree(rnh, in6_rtqkill, &arg);
-	RADIX_NODE_HEAD_UNLOCK(rnh);
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rnh = rt_tables[fibnum][AF_INET6];
+		if (rnh != NULL)
+			in6_mtutimo_one(rnh);
+	}
+
+	atv.tv_sec = MTUTIMO_DEFAULT;
+	atv.tv_usec = 0;
+	callout_reset(&rtq_mtutimer, tvtohz(&atv), in6_mtutimo, NULL);
 }
-#endif
+
+static int _in6_rt_was_here;
 
 /*
  * Initialize our routing tree.
@@ -473,9 +475,54 @@ in6_inithead(void **head, int off)
 	rnh->rnh_addaddr = in6_addroute;
 	rnh->rnh_matchaddr = in6_matroute;
 	rnh->rnh_close = in6_clsroute;
-	callout_init(&rtq_timer, CALLOUT_MPSAFE);
-	in6_rtqtimo(rnh);	/* kick off timeout first time */
-	callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
-	in6_mtutimo(rnh);	/* kick off timeout first time */
+
+	if (_in6_rt_was_here == 0) {
+		callout_init(&rtq_timer, CALLOUT_MPSAFE);
+		callout_init(&rtq_mtutimer, CALLOUT_MPSAFE);
+		in6_rtqtimo(NULL);	/* kick off timeout first time */
+		in6_mtutimo(NULL);	/* kick off timeout first time */
+		_in6_rt_was_here = 1;
+	}
+
 	return 1;
+}
+
+/*
+ * Extended API for IPv6 FIB support.
+ */
+void
+in6_rtredirect(struct sockaddr *dst, struct sockaddr *gw, struct sockaddr *nm,
+    int flags, struct sockaddr *src, u_int fibnum)
+{
+
+	rtredirect_fib(dst, gw, nm, flags, src, fibnum);
+}
+
+int
+in6_rtrequest(int req, struct sockaddr *dst, struct sockaddr *gw,
+    struct sockaddr *mask, int flags, struct rtentry **ret_nrt, u_int fibnum)
+{
+
+	return (rtrequest_fib(req, dst, gw, mask, flags, ret_nrt, fibnum));
+}
+
+void
+in6_rtalloc(struct route_in6 *ro, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, 0ul, fibnum);
+}
+
+void
+in6_rtalloc_ign(struct route_in6 *ro, u_long ignflags, u_int fibnum)
+{
+
+	rtalloc_ign_fib((struct route *)ro, ignflags, fibnum);
+}
+
+struct rtentry *
+in6_rtalloc1(struct sockaddr *dst, int report, u_long ignflags, u_int fibnum)
+{
+
+	return (rtalloc1_fib(dst, report, ignflags, fibnum));
 }

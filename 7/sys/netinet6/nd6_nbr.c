@@ -80,6 +80,8 @@ static void nd6_dad_timer(struct ifaddr *);
 static void nd6_dad_ns_output(struct dadq *, struct ifaddr *);
 static void nd6_dad_ns_input(struct ifaddr *);
 static void nd6_dad_na_input(struct ifaddr *);
+static void nd6_na_output_fib(struct ifnet *, const struct in6_addr *,
+    const struct in6_addr *, u_long, int, struct sockaddr *, u_int);
 
 static int dad_ignore_ns = 0;	/* ignore NS in DAD - specwise incorrect*/
 static int dad_maxtry = 15;	/* max # of *tries* to transmit DAD packet */
@@ -158,7 +160,7 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		src_sa6.sin6_family = AF_INET6;
 		src_sa6.sin6_len = sizeof(src_sa6);
 		src_sa6.sin6_addr = saddr6;
-		if (!nd6_is_addr_neighbor(&src_sa6, ifp)) {
+		if (!nd6_is_addr_neighbor_fib(&src_sa6, ifp, M_GETFIB(m))) {
 			nd6log((LOG_INFO, "nd6_ns_input: "
 				"NS packet from non-neighbor\n"));
 			goto bad;
@@ -232,7 +234,8 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		tsin6.sin6_family = AF_INET6;
 		tsin6.sin6_addr = taddr6;
 
-		rt = rtalloc1((struct sockaddr *)&tsin6, 0, 0);
+		rt = in6_rtalloc1((struct sockaddr *)&tsin6, 0, 0,
+		    M_GETFIB(m));
 		need_proxy = (rt && (rt->rt_flags & RTF_ANNOUNCE) != 0 &&
 		    rt->rt_gateway->sa_family == AF_LINK);
 		if (rt != NULL) {
@@ -324,20 +327,21 @@ nd6_ns_input(struct mbuf *m, int off, int icmp6len)
 		in6_all = in6addr_linklocal_allnodes;
 		if (in6_setscope(&in6_all, ifp, NULL) != 0)
 			goto bad;
-		nd6_na_output(ifp, &in6_all, &taddr6,
+		nd6_na_output_fib(ifp, &in6_all, &taddr6,
 		    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
 		    (ip6_forwarding ? ND_NA_FLAG_ROUTER : 0),
-		    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
+		    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL,
+		    M_GETFIB(m));
 		goto freeit;
 	}
 
-	nd6_cache_lladdr(ifp, &saddr6, lladdr, lladdrlen,
-	    ND_NEIGHBOR_SOLICIT, 0);
+	nd6_cache_lladdr_fib(ifp, &saddr6, lladdr, lladdrlen,
+	    ND_NEIGHBOR_SOLICIT, 0, M_GETFIB(m));
 
-	nd6_na_output(ifp, &saddr6, &taddr6,
+	nd6_na_output_fib(ifp, &saddr6, &taddr6,
 	    ((anycast || proxy || !tlladdr) ? 0 : ND_NA_FLAG_OVERRIDE) |
 	    (ip6_forwarding ? ND_NA_FLAG_ROUTER : 0) | ND_NA_FLAG_SOLICITED,
-	    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL);
+	    tlladdr, proxy ? (struct sockaddr *)&proxydl : NULL, M_GETFIB(m));
  freeit:
 	m_freem(m);
 	return;
@@ -474,14 +478,16 @@ nd6_ns_output(struct ifnet *ifp, const struct in6_addr *daddr6,
 		else {
 			int error;
 			struct sockaddr_in6 dst_sa;
+			struct ifnet *oifp;
 
 			bzero(&dst_sa, sizeof(dst_sa));
 			dst_sa.sin6_family = AF_INET6;
 			dst_sa.sin6_len = sizeof(dst_sa);
 			dst_sa.sin6_addr = ip6->ip6_dst;
 
+			oifp = ifp;
 			error = in6_selectsrc(&dst_sa, NULL,
-			    NULL, &ro, NULL, NULL, &src_in);
+			    NULL, &ro, NULL, &oifp, &src_in);
 			if (error) {
 				char ip6buf[INET6_ADDRSTRLEN];
 				nd6log((LOG_DEBUG,
@@ -592,6 +598,7 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	struct sockaddr_dl *sdl;
 	union nd_opts ndopts;
 	char ip6bufs[INET6_ADDRSTRLEN], ip6bufd[INET6_ADDRSTRLEN];
+	u_int fibnum;
 
 	if (ip6->ip6_hlim != 255) {
 		nd6log((LOG_ERR,
@@ -684,181 +691,198 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
 	 * If no neighbor cache entry is found, NA SHOULD silently be
 	 * discarded.
 	 */
-	rt = nd6_lookup(&taddr6, 0, ifp);
-	if ((rt == NULL) ||
-	   ((ln = (struct llinfo_nd6 *)rt->rt_llinfo) == NULL) ||
-	   ((sdl = SDL(rt->rt_gateway)) == NULL))
-		goto freeit;
-
-	if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
-		/*
-		 * If the link-layer has address, and no lladdr option came,
-		 * discard the packet.
-		 */
-		if (ifp->if_addrlen && lladdr == NULL)
-			goto freeit;
-
-		/*
-		 * Record link-layer address, and update the state.
-		 */
-		sdl->sdl_alen = ifp->if_addrlen;
-		bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
-		if (is_solicited) {
-			ln->ln_state = ND6_LLINFO_REACHABLE;
-			ln->ln_byhint = 0;
-			if (!ND6_LLINFO_PERMANENT(ln)) {
-				nd6_llinfo_settimer(ln,
-				    (long)ND_IFINFO(rt->rt_ifp)->reachable * hz);
-			}
-		} else {
-			ln->ln_state = ND6_LLINFO_STALE;
-			nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
-		}
-		if ((ln->ln_router = is_router) != 0) {
-			/*
-			 * This means a router's state has changed from
-			 * non-reachable to probably reachable, and might
-			 * affect the status of associated prefixes..
-			 */
-			pfxlist_onlink_check();
-		}
-	} else {
-		int llchange;
-
-		/*
-		 * Check if the link-layer address has changed or not.
-		 */
-		if (lladdr == NULL)
-			llchange = 0;
-		else {
-			if (sdl->sdl_alen) {
-				if (bcmp(lladdr, LLADDR(sdl), ifp->if_addrlen))
-					llchange = 1;
-				else
-					llchange = 0;
-			} else
-				llchange = 1;
+	for (fibnum = 0; fibnum < rt_numfibs; fibnum++) {
+		rt = nd6_lookup_fib(&taddr6, 0, ifp, fibnum);
+		if ((rt == NULL) ||
+		   ((ln = (struct llinfo_nd6 *)rt->rt_llinfo) == NULL) ||
+		   ((sdl = SDL(rt->rt_gateway)) == NULL)) {
+			nd6log((LOG_DEBUG, "%s: no neighbor cache entry found "
+			   "for %s fib %u\n", __func__, ip6_sprintf(ip6bufs,
+			   &taddr6), fibnum));
+			continue;
 		}
 
-		/*
-		 * This is VERY complex.  Look at it with care.
-		 *
-		 * override solicit lladdr llchange	action
-		 *					(L: record lladdr)
-		 *
-		 *	0	0	n	--	(2c)
-		 *	0	0	y	n	(2b) L
-		 *	0	0	y	y	(1)    REACHABLE->STALE
-		 *	0	1	n	--	(2c)   *->REACHABLE
-		 *	0	1	y	n	(2b) L *->REACHABLE
-		 *	0	1	y	y	(1)    REACHABLE->STALE
-		 *	1	0	n	--	(2a)
-		 *	1	0	y	n	(2a) L
-		 *	1	0	y	y	(2a) L *->STALE
-		 *	1	1	n	--	(2a)   *->REACHABLE
-		 *	1	1	y	n	(2a) L *->REACHABLE
-		 *	1	1	y	y	(2a) L *->REACHABLE
-		 */
-		if (!is_override && (lladdr != NULL && llchange)) {  /* (1) */
+		if (ln->ln_state == ND6_LLINFO_INCOMPLETE) {
 			/*
-			 * If state is REACHABLE, make it STALE.
-			 * no other updates should be done.
+			 * If the link-layer has address, and no lladdr option
+			 * came, discard the packet.
 			 */
-			if (ln->ln_state == ND6_LLINFO_REACHABLE) {
-				ln->ln_state = ND6_LLINFO_STALE;
-				nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
-			}
-			goto freeit;
-		} else if (is_override				   /* (2a) */
-			|| (!is_override && (lladdr != NULL && !llchange)) /* (2b) */
-			|| lladdr == NULL) {			   /* (2c) */
-			/*
-			 * Update link-local address, if any.
-			 */
-			if (lladdr != NULL) {
-				sdl->sdl_alen = ifp->if_addrlen;
-				bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
-			}
+			if (ifp->if_addrlen && lladdr == NULL)
+				continue;
 
 			/*
-			 * If solicited, make the state REACHABLE.
-			 * If not solicited and the link-layer address was
-			 * changed, make it STALE.
+			 * Record link-layer address, and update the state.
 			 */
+			sdl->sdl_alen = ifp->if_addrlen;
+			bcopy(lladdr, LLADDR(sdl), ifp->if_addrlen);
 			if (is_solicited) {
 				ln->ln_state = ND6_LLINFO_REACHABLE;
 				ln->ln_byhint = 0;
 				if (!ND6_LLINFO_PERMANENT(ln)) {
-					nd6_llinfo_settimer(ln,
-					    (long)ND_IFINFO(ifp)->reachable * hz);
+					nd6_llinfo_settimer(ln, (long)ND_IFINFO(
+					    rt->rt_ifp)->reachable * hz);
 				}
 			} else {
-				if (lladdr != NULL && llchange) {
+				ln->ln_state = ND6_LLINFO_STALE;
+				nd6_llinfo_settimer(ln, (long)nd6_gctimer * hz);
+			}
+			if ((ln->ln_router = is_router) != 0) {
+				/*
+				 * This means a router's state has changed
+				 * from non-reachable to probably reachable,
+				 * and might affect the status of associated
+				 * prefixes..
+				 */
+				pfxlist_onlink_check();
+			}
+		} else {
+			int llchange;
+
+			/*
+			 * Check if the link-layer address has changed or not.
+			 */
+			if (lladdr == NULL)
+				llchange = 0;
+			else {
+				if (sdl->sdl_alen) {
+					if (bcmp(lladdr, LLADDR(sdl),
+					    ifp->if_addrlen))
+						llchange = 1;
+					else
+						llchange = 0;
+				} else
+					llchange = 1;
+			}
+
+			/*
+			 * This is VERY complex.  Look at it with care.
+			 *
+			 * over-
+			 * ride  solicit lladdr llchange action
+			 *				 (L: record lladdr)
+			 *
+			 *    0     0      n      --     (2c)
+			 *    0     0      y      n      (2b) L
+			 *    0     0      y      y      (1)    REACHABLE->STALE
+			 *    0     1      n      --     (2c)   *->REACHABLE
+			 *    0     1      y      n      (2b) L *->REACHABLE
+			 *    0     1      y      y      (1)    REACHABLE->STALE
+			 *    1     0      n      --     (2a)
+			 *    1     0      y      n      (2a) L
+			 *    1     0      y      y      (2a) L *->STALE
+			 *    1     1      n      --     (2a)   *->REACHABLE
+			 *    1     1      y      n      (2a) L *->REACHABLE
+			 *    1     1      y      y      (2a) L *->REACHABLE
+			 */
+			if (!is_override &&
+			    (lladdr != NULL && llchange)) { /* (1) */
+				/*
+				 * If state is REACHABLE, make it STALE.
+				 * no other updates should be done.
+				 */
+				if (ln->ln_state == ND6_LLINFO_REACHABLE) {
 					ln->ln_state = ND6_LLINFO_STALE;
 					nd6_llinfo_settimer(ln,
 					    (long)nd6_gctimer * hz);
 				}
-			}
-		}
-
-		if (ln->ln_router && !is_router) {
-			/*
-			 * The peer dropped the router flag.
-			 * Remove the sender from the Default Router List and
-			 * update the Destination Cache entries.
-			 */
-			struct nd_defrouter *dr;
-			struct in6_addr *in6;
-			int s;
-
-			in6 = &((struct sockaddr_in6 *)rt_key(rt))->sin6_addr;
-
-			/*
-			 * Lock to protect the default router list.
-			 * XXX: this might be unnecessary, since this function
-			 * is only called under the network software interrupt
-			 * context.  However, we keep it just for safety.
-			 */
-			s = splnet();
-			dr = defrouter_lookup(in6, ifp);
-			if (dr)
-				defrtrlist_del(dr);
-			else if (!ip6_forwarding) {
+				goto freeit;
+			} else if (is_override			   /* (2a) */
+				|| (!is_override &&
+				    (lladdr != NULL && !llchange)) /* (2b) */
+				|| lladdr == NULL) {		   /* (2c) */
 				/*
-				 * Even if the neighbor is not in the default
-				 * router list, the neighbor may be used
-				 * as a next hop for some destinations
-				 * (e.g. redirect case). So we must
-				 * call rt6_flush explicitly.
+				 * Update link-local address, if any.
 				 */
-				rt6_flush(&ip6->ip6_src, ifp);
-			}
-			splx(s);
-		}
-		ln->ln_router = is_router;
-	}
-	rt->rt_flags &= ~RTF_REJECT;
-	ln->ln_asked = 0;
-	if (ln->ln_hold) {
-		struct mbuf *m_hold, *m_hold_next;
+				if (lladdr != NULL) {
+					sdl->sdl_alen = ifp->if_addrlen;
+					bcopy(lladdr, LLADDR(sdl),
+					    ifp->if_addrlen);
+				}
 
-		/*
-		 * reset the ln_hold in advance, to explicitly
-		 * prevent a ln_hold lookup in nd6_output()
-		 * (wouldn't happen, though...)
-		 */
-		for (m_hold = ln->ln_hold;
-		    m_hold; m_hold = m_hold_next) {
-			m_hold_next = m_hold->m_nextpkt;
-			m_hold->m_nextpkt = NULL;
-			/*
-			 * we assume ifp is not a loopback here, so just set
-			 * the 2nd argument as the 1st one.
-			 */
-			nd6_output(ifp, ifp, m_hold,
-			    (struct sockaddr_in6 *)rt_key(rt), rt);
+				/*
+				 * If solicited, make the state REACHABLE.
+				 * If not solicited and the link-layer address
+				 * was changed, make it STALE.
+				 */
+				if (is_solicited) {
+					ln->ln_state = ND6_LLINFO_REACHABLE;
+					ln->ln_byhint = 0;
+					if (!ND6_LLINFO_PERMANENT(ln)) {
+						nd6_llinfo_settimer(ln,
+						    (long)ND_IFINFO(
+						    ifp)->reachable * hz);
+					}
+				} else {
+					if (lladdr != NULL && llchange) {
+						ln->ln_state = ND6_LLINFO_STALE;
+						nd6_llinfo_settimer(ln,
+						    (long)nd6_gctimer * hz);
+					}
+				}
+			}
+
+			if (ln->ln_router && !is_router) {
+				/*
+				 * The peer dropped the router flag.
+				 * Remove the sender from the Default Router
+				 * List and update the Destination Cache
+				 * entries.
+				 */
+				struct nd_defrouter *dr;
+				struct in6_addr *in6;
+				int s;
+
+				in6 = &((struct sockaddr_in6 *)
+				    rt_key(rt))->sin6_addr;
+
+				/*
+				 * Lock to protect the default router list.
+				 * XXX: this might be unnecessary, since this
+				 * function is only called under the network
+				 * software interrupt context.  However, we
+				 * keep it just for safety.
+				 */
+				s = splnet();
+				dr = defrouter_lookup(in6, ifp);
+				if (dr)
+					defrtrlist_del(dr);
+				else if (!ip6_forwarding) {
+					/*
+					 * Even if the neighbor is not in the
+					 * default router list, the neighbor
+					 * may be used as a next hop for some
+					 * destinations (e.g. redirect case).
+					 * So we must call rt6_flush explicitly.
+					 */
+					rt6_flush(&ip6->ip6_src, ifp);
+				}
+				splx(s);
+			}
+			ln->ln_router = is_router;
 		}
-		ln->ln_hold = NULL;
+		rt->rt_flags &= ~RTF_REJECT;
+		ln->ln_asked = 0;
+		if (ln->ln_hold) {
+			struct mbuf *m_hold, *m_hold_next;
+
+			/*
+			 * reset the ln_hold in advance, to explicitly
+			 * prevent a ln_hold lookup in nd6_output()
+			 * (wouldn't happen, though...)
+			 */
+			for (m_hold = ln->ln_hold;
+			    m_hold; m_hold = m_hold_next) {
+				m_hold_next = m_hold->m_nextpkt;
+				m_hold->m_nextpkt = NULL;
+				/*
+				 * we assume ifp is not a loopback here, so just
+				 * set the 2nd argument as the 1st one.
+				 */
+				nd6_output(ifp, ifp, m_hold,
+				    (struct sockaddr_in6 *)rt_key(rt), rt);
+			}
+			ln->ln_hold = NULL;
+		}
 	}
 
  freeit:
@@ -882,12 +906,13 @@ nd6_na_input(struct mbuf *m, int off, int icmp6len)
  * tlladdr - 1 if include target link-layer address
  * sdl0 - sockaddr_dl (= proxy NA) or NULL
  */
-void
-nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
+static void
+nd6_na_output_fib(struct ifnet *ifp, const struct in6_addr *daddr6_0,
     const struct in6_addr *taddr6, u_long flags, int tlladdr,
-    struct sockaddr *sdl0)
+    struct sockaddr *sdl0, u_int fibnum)
 {
 	struct mbuf *m;
+	struct ifnet *oifp;
 	struct ip6_hdr *ip6;
 	struct nd_neighbor_advert *nd_na;
 	struct ip6_moptions im6o;
@@ -923,6 +948,7 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	if (m == NULL)
 		return;
 	m->m_pkthdr.rcvif = NULL;
+	M_SETFIB(m, fibnum);
 
 	if (IN6_IS_ADDR_MULTICAST(&daddr6)) {
 		m->m_flags |= M_MCAST;
@@ -964,7 +990,8 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	 * Select a source whose scope is the same as that of the dest.
 	 */
 	bcopy(&dst_sa, &ro.ro_dst, sizeof(dst_sa));
-	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, NULL, &src);
+	oifp = ifp;
+	error = in6_selectsrc(&dst_sa, NULL, NULL, &ro, NULL, &oifp, &src);
 	if (error) {
 		char ip6buf[INET6_ADDRSTRLEN];
 		nd6log((LOG_DEBUG, "nd6_na_output: source can't be "
@@ -1047,6 +1074,18 @@ nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
 	m_freem(m);
 	return;
 }
+
+#ifndef BURN_BRIDGES
+void
+nd6_na_output(struct ifnet *ifp, const struct in6_addr *daddr6_0,
+    const struct in6_addr *taddr6, u_long flags, int tlladdr,
+    struct sockaddr *sdl0)
+{
+
+	nd6_na_output_fib(ifp, daddr6_0, taddr6, flags, tlladdr, sdl0,
+	    RT_DEFAULT_FIB);
+}
+#endif
 
 caddr_t
 nd6_ifptomac(struct ifnet *ifp)
