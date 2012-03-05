@@ -61,9 +61,21 @@ static_start()
 	# Disallow "internal" addresses to appear on the wire if inet6
 	# is enabled.
 	if afexists inet6; then
+		local fibs i
+
+		# Get the number of FIBs supported.
+		fibs=`sysctl -n net.fibs`
+		: ${fibs:=1}
+
 		# disallow "internal" addresses to appear on the wire
-		route add -inet6 ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
-		route add -inet6 ::0.0.0.0 -prefixlen 96 ::1 -reject
+		i=0
+		while test ${i} -lt ${fibs}; do
+			setfib -F ${i} route add -inet6 \
+			    ::ffff:0.0.0.0 -prefixlen 96 ::1 -reject
+			setfib -F ${i} route add -inet6 \
+			    ::0.0.0.0 -prefixlen 96 ::1 -reject
+			i=$((i + 1))
+		done
 	fi
 }
 

@@ -41,6 +41,7 @@ start_cmd="network_ipv6_start"
 
 network_ipv6_start()
 {
+
 	case ${ipv6_network_interfaces} in
 	[Aa][Uu][Tt][Oo])
 		# Get a list of network interfaces
