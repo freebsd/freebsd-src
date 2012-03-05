@@ -129,16 +129,32 @@ __FBSDID("$FreeBSD$");
 #define	PCI_PRODUCT_LSI_FC919		0x0624
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC919_LAN
+#define	PCI_PRODUCT_LSI_FC919_LAN	0x0625
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC929
 #define	PCI_PRODUCT_LSI_FC929		0x0622
+#endif
+
+#ifndef	PCI_PRODUCT_LSI_FC929_LAN
+#define	PCI_PRODUCT_LSI_FC929_LAN	0x0623
 #endif
 
 #ifndef	PCI_PRODUCT_LSI_FC929X
 #define	PCI_PRODUCT_LSI_FC929X		0x0626
 #endif
 
+#ifndef	PCI_PRODUCT_LSI_FC929X_LAN
+#define	PCI_PRODUCT_LSI_FC929X_LAN	0x0627
+#endif
+
 #ifndef	PCI_PRODUCT_LSI_FC919X
 #define	PCI_PRODUCT_LSI_FC919X		0x0628
+#endif
+
+#ifndef	PCI_PRODUCT_LSI_FC919X_LAN
+#define	PCI_PRODUCT_LSI_FC919X_LAN	0x0629
 #endif
 
 #ifndef	PCI_PRODUCT_LSI_FC7X04X
@@ -151,6 +167,10 @@ __FBSDID("$FreeBSD$");
 
 #ifndef	PCI_PRODUCT_LSI_1030
 #define	PCI_PRODUCT_LSI_1030		0x0030
+#endif
+
+#ifndef	PCI_PRODUCT_LSI_1030ZC
+#define	PCI_PRODUCT_LSI_1030ZC		0x0031
 #endif
 
 #ifndef	PCI_PRODUCT_LSI_SAS1064
@@ -175,6 +195,10 @@ __FBSDID("$FreeBSD$");
 
 #ifndef PCI_PRODUCT_LSI_SAS1068
 #define PCI_PRODUCT_LSI_SAS1068		0x0054
+#endif
+
+#ifndef PCI_PRODUCT_LSI_SAS1068A
+#define PCI_PRODUCT_LSI_SAS1068A	0x0055
 #endif
 
 #ifndef PCI_PRODUCT_LSI_SAS1068E
@@ -232,7 +256,7 @@ mpt_pci_probe(device_t dev)
 		return (ENXIO);
 	}
 
-	switch ((pci_get_device(dev) & ~1)) {
+	switch (pci_get_device(dev)) {
 	case PCI_PRODUCT_LSI_FC909:
 		desc = "LSILogic FC909 FC Adapter";
 		break;
@@ -242,14 +266,26 @@ mpt_pci_probe(device_t dev)
 	case PCI_PRODUCT_LSI_FC919:
 		desc = "LSILogic FC919 FC Adapter";
 		break;
+	case PCI_PRODUCT_LSI_FC919_LAN:
+		desc = "LSILogic FC919 LAN Adapter";
+		break;
 	case PCI_PRODUCT_LSI_FC929:
 		desc = "Dual LSILogic FC929 FC Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC929_LAN:
+		desc = "Dual LSILogic FC929 LAN Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC919X:
 		desc = "LSILogic FC919 FC PCI-X Adapter";
 		break;
+	case PCI_PRODUCT_LSI_FC919X_LAN:
+		desc = "LSILogic FC919 LAN PCI-X Adapter";
+		break;
 	case PCI_PRODUCT_LSI_FC929X:
 		desc = "Dual LSILogic FC929X 2Gb/s FC PCI-X Adapter";
+		break;
+	case PCI_PRODUCT_LSI_FC929X_LAN:
+		desc = "Dual LSILogic FC929X LAN PCI-X Adapter";
 		break;
 	case PCI_PRODUCT_LSI_FC646:
 		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-Express Adapter";
@@ -258,6 +294,7 @@ mpt_pci_probe(device_t dev)
 		desc = "Dual LSILogic FC7X04X 4Gb/s FC PCI-X Adapter";
 		break;
 	case PCI_PRODUCT_LSI_1030:
+	case PCI_PRODUCT_LSI_1030ZC:
 		desc = "LSILogic 1030 Ultra4 Adapter";
 		break;
 	case PCI_PRODUCT_LSI_SAS1064:
@@ -266,6 +303,7 @@ mpt_pci_probe(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1066:
 	case PCI_PRODUCT_LSI_SAS1066E:
 	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068A:
 	case PCI_PRODUCT_LSI_SAS1068E:
 	case PCI_PRODUCT_LSI_SAS1078:
 	case PCI_PRODUCT_LSI_SAS1078DE:
@@ -428,12 +466,17 @@ mpt_pci_attach(device_t dev)
 		return (ENOMEM);
 	}
 	memset(mpt, 0, sizeof(struct mpt_softc));
-	switch ((pci_get_device(dev) & ~1)) {
+	switch (pci_get_device(dev)) {
 	case PCI_PRODUCT_LSI_FC909:
 	case PCI_PRODUCT_LSI_FC909A:
 	case PCI_PRODUCT_LSI_FC919:
+	case PCI_PRODUCT_LSI_FC919_LAN:
 	case PCI_PRODUCT_LSI_FC929:
+	case PCI_PRODUCT_LSI_FC929_LAN:
+	case PCI_PRODUCT_LSI_FC929X:
+	case PCI_PRODUCT_LSI_FC929X_LAN:
 	case PCI_PRODUCT_LSI_FC919X:
+	case PCI_PRODUCT_LSI_FC919X_LAN:
 	case PCI_PRODUCT_LSI_FC646:
 	case PCI_PRODUCT_LSI_FC7X04X:
 		mpt->is_fc = 1;
@@ -448,6 +491,7 @@ mpt_pci_attach(device_t dev)
 	case PCI_PRODUCT_LSI_SAS1066:
 	case PCI_PRODUCT_LSI_SAS1066E:
 	case PCI_PRODUCT_LSI_SAS1068:
+	case PCI_PRODUCT_LSI_SAS1068A:
 	case PCI_PRODUCT_LSI_SAS1068E:
 		mpt->is_sas = 1;
 		break;
@@ -499,11 +543,17 @@ mpt_pci_attach(device_t dev)
 	 * Is this part a dual?
 	 * If so, link with our partner (around yet)
 	 */
-	if ((pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC929 ||
-	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC646 ||
-	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_FC7X04X ||
-	    (pci_get_device(dev) & ~1) == PCI_PRODUCT_LSI_1030) {
+	switch (pci_get_device(dev)) {
+	case PCI_PRODUCT_LSI_FC929:
+	case PCI_PRODUCT_LSI_FC929_LAN:
+	case PCI_PRODUCT_LSI_FC646:
+	case PCI_PRODUCT_LSI_FC7X04X:
+	case PCI_PRODUCT_LSI_1030:
+	case PCI_PRODUCT_LSI_1030ZC:
 		mpt_link_peer(mpt);
+		break;
+	default:
+		break;
 	}
 
 	/*
