@@ -117,6 +117,7 @@ static struct nfsclclient *nfscl_getclnt(u_int32_t);
 static struct nfsclclient *nfscl_getclntsess(uint8_t *);
 static struct nfscldeleg *nfscl_finddeleg(struct nfsclclient *, u_int8_t *,
     int);
+static void nfscl_reldevinfo_locked(struct nfscldevinfo *);
 static struct nfscllayout *nfscl_findlayout(struct nfsclclient *, u_int8_t *,
     int);
 static struct nfscldevinfo *nfscl_finddevinfo(struct nfsclclient *, uint8_t *);
@@ -4528,14 +4529,24 @@ nfscl_getdevinfo(struct nfsclclient *clp, uint8_t *deviceid)
 /*
  * Dereference a devinfo structure.
  */
+static void
+nfscl_reldevinfo_locked(struct nfscldevinfo *dip)
+{
+
+	dip->nfsdi_refcnt--;
+	if (dip->nfsdi_refcnt == 0)
+		wakeup(&dip->nfsdi_refcnt);
+}
+
+/*
+ * Dereference a devinfo structure.
+ */
 void
 nfscl_reldevinfo(struct nfscldevinfo *dip)
 {
 
 	NFSLOCKCLSTATE();
-	dip->nfsdi_refcnt--;
-	if (dip->nfsdi_refcnt == 0)
-		wakeup(&dip->nfsdi_refcnt);
+	nfscl_reldevinfo_locked(dip);
 	NFSUNLOCKCLSTATE();
 }
 
@@ -4613,7 +4624,7 @@ nfscl_adddevinfo(struct nfsmount *nmp, struct nfscldevinfo *dip)
 	}
 	tdip = nfscl_finddevinfo(clp, dip->nfsdi_deviceid);
 	if (tdip != NULL) {
-		nfscl_reldevinfo(tdip);
+		nfscl_reldevinfo_locked(tdip);
 		NFSUNLOCKCLSTATE();
 		free(dip, M_NFSDEVINFO);
 		return;
