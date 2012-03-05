@@ -360,7 +360,7 @@ icmp6_error(struct mbuf *m, int type, int code, int param)
 		m_adj(m, ICMPV6_PLD_MAXLEN - m->m_pkthdr.len);
 
 	preplen = sizeof(struct ip6_hdr) + sizeof(struct icmp6_hdr);
-	M_PREPEND(m, preplen, M_DONTWAIT);
+	M_PREPEND(m, preplen, M_DONTWAIT);	/* FIB is also copied over. */
 	if (m && m->m_len < preplen)
 		m = m_pullup(m, preplen);
 	if (m == NULL) {
@@ -584,7 +584,7 @@ icmp6_input(struct mbuf **mp, int *offp, int proto)
 			MGETHDR(n, M_DONTWAIT, n0->m_type);
 			n0len = n0->m_pkthdr.len;	/* save for use below */
 			if (n)
-				M_MOVE_PKTHDR(n, n0);
+				M_MOVE_PKTHDR(n, n0);	/* FIB copied. */
 			if (n && maxlen >= MHLEN) {
 				MCLGET(n, M_DONTWAIT);
 				if ((n->m_flags & M_EXT) == 0) {
@@ -1502,7 +1502,7 @@ ni6_input(struct mbuf *m, int off)
 		m_freem(m);
 		return (NULL);
 	}
-	M_MOVE_PKTHDR(n, m); /* just for recvif */
+	M_MOVE_PKTHDR(n, m); /* just for recvif and FIB */
 	if (replylen > MHLEN) {
 		if (replylen > MCLBYTES) {
 			/*
@@ -2414,7 +2414,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 	sin6.sin6_family = AF_INET6;
 	sin6.sin6_len = sizeof(struct sockaddr_in6);
 	bcopy(&reddst6, &sin6.sin6_addr, sizeof(reddst6));
-	rt = rtalloc1((struct sockaddr *)&sin6, 0, 0UL);
+	rt = in6_rtalloc1((struct sockaddr *)&sin6, 0, 0UL, RT_DEFAULT_FIB);
 	if (rt) {
 		if (rt->rt_gateway == NULL ||
 		    rt->rt_gateway->sa_family != AF_INET6) {
@@ -2501,6 +2501,7 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		struct sockaddr_in6 sdst;
 		struct sockaddr_in6 sgw;
 		struct sockaddr_in6 ssrc;
+		u_int fibnum;
 
 		bzero(&sdst, sizeof(sdst));
 		bzero(&sgw, sizeof(sgw));
@@ -2511,9 +2512,11 @@ icmp6_redirect_input(struct mbuf *m, int off)
 		bcopy(&redtgt6, &sgw.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&reddst6, &sdst.sin6_addr, sizeof(struct in6_addr));
 		bcopy(&src6, &ssrc.sin6_addr, sizeof(struct in6_addr));
-		rtredirect((struct sockaddr *)&sdst, (struct sockaddr *)&sgw,
-		    (struct sockaddr *)NULL, RTF_GATEWAY | RTF_HOST,
-		    (struct sockaddr *)&ssrc);
+		for (fibnum = 0; fibnum < rt_numfibs; fibnum++)
+			in6_rtredirect((struct sockaddr *)&sdst,
+			    (struct sockaddr *)&sgw, (struct sockaddr *)NULL,
+			    RTF_GATEWAY | RTF_HOST, (struct sockaddr *)&ssrc,
+			    fibnum);
 	}
 	/* finally update cached route in each socket via pfctlinput */
     {
@@ -2598,6 +2601,7 @@ icmp6_redirect_output(struct mbuf *m0, struct rtentry *rt)
 		MCLGET(m, M_DONTWAIT);
 	if (!m)
 		goto fail;
+	M_SETFIB(m, rt->rt_fibnum);
 	m->m_pkthdr.rcvif = NULL;
 	m->m_len = 0;
 	maxlen = M_TRAILINGSPACE(m);

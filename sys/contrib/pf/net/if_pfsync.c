@@ -2121,9 +2121,6 @@ pfsync_sendout(void)
 #ifdef notyet
 	struct tdb *t;
 #endif
-#ifdef __FreeBSD__
-	size_t pktlen;
-#endif
 	int offset;
 	int q, count = 0;
 
@@ -2145,44 +2142,33 @@ pfsync_sendout(void)
 		return;
 	}
 
+#ifdef __FreeBSD__
+	m = m_get2(M_NOWAIT, MT_DATA, M_PKTHDR, max_linkhdr + sc->sc_len);
+	if (m == NULL) {
+		sc->sc_ifp->if_oerrors++;
+		V_pfsyncstats.pfsyncs_onomem++;
+		return;
+	}
+#else
 	MGETHDR(m, M_DONTWAIT, MT_DATA);
 	if (m == NULL) {
-#ifdef __FreeBSD__
-		sc->sc_ifp->if_oerrors++;
-#else
 		sc->sc_if.if_oerrors++;
-#endif
-		V_pfsyncstats.pfsyncs_onomem++;
+		pfsyncstats.pfsyncs_onomem++;
 		pfsync_drop(sc);
 		return;
 	}
 
-#ifdef __FreeBSD__
-	pktlen = max_linkhdr + sc->sc_len;
-	if (pktlen > MHLEN) {
-		/* Find the right pool to allocate from. */
-		/* XXX: This is ugly. */
-		m_cljget(m, M_DONTWAIT, pktlen <= MCLBYTES ? MCLBYTES :
-#if MJUMPAGESIZE != MCLBYTES
-			pktlen <= MJUMPAGESIZE ? MJUMPAGESIZE :
-#endif
-			pktlen <= MJUM9BYTES ? MJUM9BYTES : MJUM16BYTES);
-#else
 	if (max_linkhdr + sc->sc_len > MHLEN) {
 		MCLGETI(m, M_DONTWAIT, NULL, max_linkhdr + sc->sc_len);
-#endif
 		if (!ISSET(m->m_flags, M_EXT)) {
 			m_free(m);
-#ifdef __FreeBSD__
-			sc->sc_ifp->if_oerrors++;
-#else
 			sc->sc_if.if_oerrors++;
-#endif
-			V_pfsyncstats.pfsyncs_onomem++;
+			pfsyncstats.pfsyncs_onomem++;
 			pfsync_drop(sc);
 			return;
 		}
 	}
+#endif
 	m->m_data += max_linkhdr;
 	m->m_len = m->m_pkthdr.len = sc->sc_len;
 

@@ -44,6 +44,7 @@ METHOD int stream_alloc {
     device_t    child;
     int         dir;
     int         format;
+    int         stripe;
     uint32_t    **dmapos;
 };
 

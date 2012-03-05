@@ -123,6 +123,12 @@ struct pcicfg_ht {
     uint64_t	ht_msiaddr;	/* MSI mapping base address */
 };
 
+/* Interesting values for PCI-express */
+struct pcicfg_pcie {
+    uint8_t	pcie_location;	/* Offset of PCI-e capability registers. */
+    uint8_t	pcie_type;	/* Device type. */
+};
+
 /* config header information common to all header types */
 typedef struct pcicfg {
     struct device *dev;		/* device which owns this */
@@ -164,6 +170,7 @@ typedef struct pcicfg {
     struct pcicfg_msi msi;	/* PCI MSI */
     struct pcicfg_msix msix;	/* PCI MSI-X */
     struct pcicfg_ht ht;	/* HyperTransport */
+    struct pcicfg_pcie pcie;	/* PCI Express */
 } pcicfgregs;
 
 /* additional type 1 device config header information (PCI to PCI bridge) */
@@ -350,9 +357,9 @@ pci_get_vpd_ident(device_t dev, const char **identptr)
 }
 
 static __inline int
-pci_get_vpd_readonly(device_t dev, const char *kw, const char **identptr)
+pci_get_vpd_readonly(device_t dev, const char *kw, const char **vptr)
 {
-    return(PCI_GET_VPD_READONLY(device_get_parent(dev), dev, kw, identptr));
+    return(PCI_GET_VPD_READONLY(device_get_parent(dev), dev, kw, vptr));
 }
 
 /*
@@ -409,13 +416,19 @@ pci_get_powerstate(device_t dev)
 static __inline int
 pci_find_cap(device_t dev, int capability, int *capreg)
 {
-    return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
+    return (PCI_FIND_CAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
 pci_find_extcap(device_t dev, int capability, int *capreg)
 {
     return (PCI_FIND_EXTCAP(device_get_parent(dev), dev, capability, capreg));
+}
+
+static __inline int
+pci_find_htcap(device_t dev, int capability, int *capreg)
+{
+    return (PCI_FIND_HTCAP(device_get_parent(dev), dev, capability, capreg));
 }
 
 static __inline int
@@ -467,6 +480,8 @@ int	pci_msi_device_blacklisted(device_t dev);
 void	pci_ht_map_msi(device_t dev, uint64_t addr);
 
 int	pci_get_max_read_req(device_t dev);
+void	pci_restore_state(device_t dev);
+void	pci_save_state(device_t dev);
 int	pci_set_max_read_req(device_t dev, int size);
 
 #endif	/* _SYS_BUS_H_ */

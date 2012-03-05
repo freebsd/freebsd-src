@@ -1,6 +1,4 @@
-# $FreeBSD$
-
-.include <bsd.own.mk>
+# $FreeBSD: head/usr.bin/clang/llc/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 PROG_CXX=llc
 
@@ -12,19 +10,21 @@ LIBDEPS=llvmasmparser \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmdesc \
 	llvmarminstprinter \
 	llvmarminfo \
-	llvmia64codegen \
-	llvmia64info \
-	llvmia64instprinter \
 	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
+	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
+	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \

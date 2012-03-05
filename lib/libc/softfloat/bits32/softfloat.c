@@ -77,8 +77,8 @@ __FBSDID("$FreeBSD$");
 Floating-point rounding mode and exception flags.
 -------------------------------------------------------------------------------
 */
-fp_rnd_t float_rounding_mode = float_round_nearest_even;
-fp_except float_exception_flags = 0;
+int float_rounding_mode = float_round_nearest_even;
+int float_exception_flags = 0;
 
 /*
 -------------------------------------------------------------------------------

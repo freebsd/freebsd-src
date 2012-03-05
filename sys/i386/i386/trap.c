@@ -304,8 +304,9 @@ trap(struct trapframe *frame)
 			uprintf(
 			    "pid %ld (%s): trap %d with interrupts disabled\n",
 			    (long)curproc->p_pid, curthread->td_name, type);
-		else if (type != T_BPTFLT && type != T_TRCTRAP &&
-			 frame->tf_eip != (int)cpu_switch_load_gs) {
+		else if (type != T_NMI && type != T_BPTFLT &&
+		    type != T_TRCTRAP &&
+		    frame->tf_eip != (int)cpu_switch_load_gs) {
 			/*
 			 * XXX not quite right, since this may be for a
 			 * multiple fault in user mode.
@@ -315,9 +316,9 @@ trap(struct trapframe *frame)
 			/*
 			 * Page faults need interrupts disabled until later,
 			 * and we shouldn't enable interrupts while holding
-			 * a spin lock or if servicing an NMI.
+			 * a spin lock.
 			 */
-			if (type != T_NMI && type != T_PAGEFLT &&
+			if (type != T_PAGEFLT &&
 			    td->td_md.md_spinlock_count == 0)
 				enable_intr();
 		}

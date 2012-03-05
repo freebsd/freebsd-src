@@ -69,7 +69,7 @@ typedef	unsigned long long	__uint64_t;
 typedef	__uint32_t	__clock_t;		/* clock()... */
 typedef	__int32_t	__critical_t;
 typedef	double		__double_t;
-typedef	double		__float_t;
+typedef	float		__float_t;
 typedef	__int32_t	__intfptr_t;
 typedef	__int64_t	__intmax_t;
 typedef	__int32_t	__intptr_t;

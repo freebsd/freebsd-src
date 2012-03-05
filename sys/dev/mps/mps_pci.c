@@ -29,6 +29,7 @@ __FBSDID("$FreeBSD$");
 
 /* PCI/PCI-X/PCIe bus interface for the LSI MPT2 controllers */
 
+/* TODO Move headers to mpsvar */
 #include <sys/types.h>
 #include <sys/param.h>
 #include <sys/systm.h>
@@ -46,12 +47,17 @@ __FBSDID("$FreeBSD$");
 
 #include <dev/pci/pcireg.h>
 #include <dev/pci/pcivar.h>
+#include <dev/pci/pci_private.h>
 
 #include <dev/mps/mpi/mpi2_type.h>
 #include <dev/mps/mpi/mpi2.h>
 #include <dev/mps/mpi/mpi2_ioc.h>
 #include <dev/mps/mpi/mpi2_cnfg.h>
+#include <dev/mps/mpi/mpi2_tool.h>
 
+#include <sys/queue.h>
+#include <sys/kthread.h>
+#include <dev/mps/mps_ioctl.h>
 #include <dev/mps/mpsvar.h>
 
 static int	mps_pci_probe(device_t);
@@ -62,15 +68,6 @@ static int	mps_pci_resume(device_t);
 static void	mps_pci_free(struct mps_softc *);
 static int	mps_alloc_msix(struct mps_softc *sc, int msgs);
 static int	mps_alloc_msi(struct mps_softc *sc, int msgs);
-
-int mps_disable_msix = 0;
-TUNABLE_INT("hw.mps.disable_msix", &mps_disable_msix);
-SYSCTL_INT(_hw_mps, OID_AUTO, disable_msix, CTLFLAG_RD, &mps_disable_msix, 0,
-    "Disable MSIX interrupts\n");
-int mps_disable_msi = 0;
-TUNABLE_INT("hw.mps.disable_msi", &mps_disable_msi);
-SYSCTL_INT(_hw_mps, OID_AUTO, disable_msi, CTLFLAG_RD, &mps_disable_msi, 0,
-    "Disable MSI interrupts\n");
 
 static device_method_t mps_methods[] = {
 	DEVMETHOD(device_probe,		mps_pci_probe),
@@ -125,10 +122,24 @@ struct mps_ident {
 	    0xffff, 0xffff, 0, "LSI SAS2208" },
 	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_6,
 	    0xffff, 0xffff, 0, "LSI SAS2208" },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_7,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
-	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2208_8,
-	    0xffff, 0xffff, 0, "LSI SAS2208" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_1,
+	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	// Add Customer specific vender/subdevice id before generic
+	// (0xffff) vender/subdevice id.
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+	    0x8086, 0x3516, 0, "Intel(R) Integrated RAID Module RMS25JB080" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+	    0x8086, 0x3517, 0, "Intel(R) Integrated RAID Module RMS25JB040" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+	    0x8086, 0x3518, 0, "Intel(R) Integrated RAID Module RMS25KB080" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+	    0x8086, 0x3519, 0, "Intel(R) Integrated RAID Module RMS25KB040" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_2,
+	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SAS2308_3,
+	    0xffff, 0xffff, 0, "LSI SAS2308" },
+	{ MPI2_MFGPAGE_VENDORID_LSI, MPI2_MFGPAGE_DEVID_SSS6200,
+	    0xffff, 0xffff, MPS_FLAGS_WD_AVAILABLE, "LSI SSS6200" },
 	{ 0, 0, 0, 0, 0, NULL }
 };
 
@@ -205,7 +216,7 @@ mps_pci_attach(device_t dev)
 	sc->mps_bhandle = rman_get_bushandle(sc->mps_regs_resource);
 
 	/* Allocate the parent DMA tag */
-	if (bus_dma_tag_create( NULL,			/* parent */
+	if (bus_dma_tag_create( bus_get_dma_tag(dev),	/* parent */
 				1, 0,			/* algnmnt, boundary */
 				BUS_SPACE_MAXADDR,	/* lowaddr */
 				BUS_SPACE_MAXADDR,	/* highaddr */
@@ -235,10 +246,10 @@ mps_pci_setup_interrupts(struct mps_softc *sc)
 
 	dev = sc->mps_dev;
 	error = ENXIO;
-	if ((mps_disable_msix == 0) &&
+	if ((sc->disable_msix == 0) &&
 	    ((msgs = pci_msix_count(dev)) >= MPS_MSI_COUNT))
 		error = mps_alloc_msix(sc, MPS_MSI_COUNT);
-	if ((error != 0) && (mps_disable_msi == 0) &&
+	if ((error != 0) && (sc->disable_msi == 0) &&
 	    ((msgs = pci_msi_count(dev)) >= MPS_MSI_COUNT))
 		error = mps_alloc_msi(sc, MPS_MSI_COUNT);
 
@@ -360,5 +371,22 @@ mps_alloc_msi(struct mps_softc *sc, int msgs)
 
 	error = pci_alloc_msi(sc->mps_dev, &msgs);
 	return (error);
+}
+
+int
+mps_pci_restore(struct mps_softc *sc)
+{
+	struct pci_devinfo *dinfo;
+
+	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+
+	dinfo = device_get_ivars(sc->mps_dev);
+	if (dinfo == NULL) {
+		mps_dprint(sc, MPS_FAULT, "%s: NULL dinfo\n", __func__);
+		return (EINVAL);
+	}
+
+	pci_cfg_restore(sc->mps_dev, dinfo);
+	return (0);
 }
 

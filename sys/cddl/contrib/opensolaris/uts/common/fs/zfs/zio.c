@@ -20,7 +20,7 @@
  */
 /*
  * Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
- * Copyright (c) 2011 by Delphix. All rights reserved.
+ * Copyright (c) 2012 by Delphix. All rights reserved.
  */
 
 #include <sys/zfs_context.h>
@@ -42,6 +42,10 @@ static int zio_use_uma = 0;
 TUNABLE_INT("vfs.zfs.zio.use_uma", &zio_use_uma);
 SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, use_uma, CTLFLAG_RDTUN, &zio_use_uma, 0,
     "Use uma(9) for ZIO allocations");
+static int zio_exclude_metadata = 0;
+TUNABLE_INT("vfs.zfs.zio.exclude_metadata", &zio_exclude_metadata);
+SYSCTL_INT(_vfs_zfs_zio, OID_AUTO, exclude_metadata, CTLFLAG_RDTUN, &zio_exclude_metadata, 0,
+    "Exclude metadata buffers from dumps as well");
 
 /*
  * ==========================================================================
@@ -148,7 +152,7 @@ zio_init(void)
 			(void) sprintf(name, "zio_data_buf_%lu", (ulong_t)size);
 			zio_data_buf_cache[c] = kmem_cache_create(name, size,
 			    align, NULL, NULL, NULL, NULL, NULL,
-			    cflags | KMC_NOTOUCH);
+			    cflags | KMC_NOTOUCH | KMC_NODEBUG);
 		}
 	}
 
@@ -217,13 +221,14 @@ void *
 zio_buf_alloc(size_t size)
 {
 	size_t c = (size - 1) >> SPA_MINBLOCKSHIFT;
+	int flags = zio_exclude_metadata ? KM_NODEBUG : 0;
 
 	ASSERT(c < SPA_MAXBLOCKSIZE >> SPA_MINBLOCKSHIFT);
 
 	if (zio_use_uma)
 		return (kmem_cache_alloc(zio_buf_cache[c], KM_PUSHPAGE));
 	else
-		return (kmem_alloc(size, KM_SLEEP));
+		return (kmem_alloc(size, KM_SLEEP|flags));
 }
 
 /*
@@ -242,7 +247,7 @@ zio_data_buf_alloc(size_t size)
 	if (zio_use_uma)
 		return (kmem_cache_alloc(zio_data_buf_cache[c], KM_PUSHPAGE));
 	else
-		return (kmem_alloc(size, KM_SLEEP));
+		return (kmem_alloc(size, KM_SLEEP | KM_NODEBUG));
 }
 
 void
@@ -2235,13 +2240,22 @@ zio_alloc_zil(spa_t *spa, uint64_t txg, blkptr_t *new_bp, blkptr_t *old_bp,
 
 	ASSERT(txg > spa_syncing_txg(spa));
 
-	if (use_slog)
+	/*
+	 * ZIL blocks are always contiguous (i.e. not gang blocks) so we
+	 * set the METASLAB_GANG_AVOID flag so that they don't "fast gang"
+	 * when allocating them.
+	 */
+	if (use_slog) {
 		error = metaslab_alloc(spa, spa_log_class(spa), size,
-		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID);
+		    new_bp, 1, txg, old_bp,
+		    METASLAB_HINTBP_AVOID | METASLAB_GANG_AVOID);
+	}
 
-	if (error)
+	if (error) {
 		error = metaslab_alloc(spa, spa_normal_class(spa), size,
-		    new_bp, 1, txg, old_bp, METASLAB_HINTBP_AVOID);
+		    new_bp, 1, txg, old_bp,
+		    METASLAB_HINTBP_AVOID | METASLAB_GANG_AVOID);
+	}
 
 	if (error == 0) {
 		BP_SET_LSIZE(new_bp, size);

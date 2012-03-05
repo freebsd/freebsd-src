@@ -99,10 +99,10 @@ g_gate_load(void)
 void
 descriptors_cleanup(struct hast_resource *res)
 {
-	struct hast_resource *tres;
+	struct hast_resource *tres, *tmres;
 	struct hastd_listen *lst;
 
-	TAILQ_FOREACH(tres, &cfg->hc_resources, hr_next) {
+	TAILQ_FOREACH_SAFE(tres, &cfg->hc_resources, hr_next, tmres) {
 		if (tres == res) {
 			PJDLOG_VERIFY(res->hr_role == HAST_ROLE_SECONDARY ||
 			    (res->hr_remotein == NULL &&
@@ -119,13 +119,17 @@ descriptors_cleanup(struct hast_resource *res)
 			proto_close(tres->hr_event);
 		if (tres->hr_conn != NULL)
 			proto_close(tres->hr_conn);
+		TAILQ_REMOVE(&cfg->hc_resources, tres, hr_next);
+		free(tres);
 	}
 	if (cfg->hc_controlin != NULL)
 		proto_close(cfg->hc_controlin);
 	proto_close(cfg->hc_controlconn);
-	TAILQ_FOREACH(lst, &cfg->hc_listen, hl_next) {
+	while ((lst = TAILQ_FIRST(&cfg->hc_listen)) != NULL) {
+		TAILQ_REMOVE(&cfg->hc_listen, lst, hl_next);
 		if (lst->hl_conn != NULL)
 			proto_close(lst->hl_conn);
+		free(lst);
 	}
 	(void)pidfile_close(pfh);
 	hook_fini();

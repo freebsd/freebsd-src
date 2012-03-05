@@ -20,6 +20,7 @@
 #include "llvm/Module.h"
 #include "llvm/Bitcode/ReaderWriter.h"
 #include "llvm/Bitcode/Archive.h"
+#include "llvm/Object/Archive.h"
 #include "llvm/Object/ObjectFile.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/FileSystem.h"
@@ -143,6 +144,14 @@ namespace {
   StringRef CurrentFilename;
   typedef std::vector<NMSymbol> SymbolListT;
   SymbolListT SymbolList;
+
+  bool error(error_code ec) {
+    if (!ec) return false;
+
+    outs() << ToolName << ": error reading file: " << ec.message() << ".\n";
+    outs().flush();
+    return true;
+  }
 }
 
 static void SortAndPrintSymbolList() {
@@ -183,9 +192,9 @@ static void SortAndPrintSymbolList() {
       strcpy(SymbolSizeStr, "        ");
 
     if (i->Address != object::UnknownAddressOrSize)
-      format("%08x", i->Address).print(SymbolAddrStr, sizeof(SymbolAddrStr));
+      format("%08"PRIx64, i->Address).print(SymbolAddrStr, sizeof(SymbolAddrStr));
     if (i->Size != object::UnknownAddressOrSize)
-      format("%08x", i->Size).print(SymbolSizeStr, sizeof(SymbolSizeStr));
+      format("%08"PRIx64, i->Size).print(SymbolSizeStr, sizeof(SymbolSizeStr));
 
     if (OutputFormat == posix) {
       outs() << i->Name << " " << i->TypeChar << " "
@@ -261,23 +270,29 @@ static void DumpSymbolNamesFromModule(Module *M) {
 }
 
 static void DumpSymbolNamesFromObject(ObjectFile *obj) {
-  for (ObjectFile::symbol_iterator i = obj->begin_symbols(),
-                                   e = obj->end_symbols(); i != e; ++i) {
-    if (!DebugSyms && i->isInternal())
+  error_code ec;
+  for (symbol_iterator i = obj->begin_symbols(),
+                       e = obj->end_symbols();
+                       i != e; i.increment(ec)) {
+    if (error(ec)) break;
+    bool internal;
+    if (error(i->isInternal(internal))) break;
+    if (!DebugSyms && internal)
       continue;
     NMSymbol s;
     s.Size = object::UnknownAddressOrSize;
     s.Address = object::UnknownAddressOrSize;
-    if (PrintSize || SizeSort)
-      s.Size = i->getSize();
+    if (PrintSize || SizeSort) {
+      if (error(i->getSize(s.Size))) break;
+    }
     if (PrintAddress)
-      s.Address = i->getAddress();
-    s.TypeChar = i->getNMTypeChar();
-    s.Name     = i->getName();
+      if (error(i->getOffset(s.Address))) break;
+    if (error(i->getNMTypeChar(s.TypeChar))) break;
+    if (error(i->getName(s.Name))) break;
     SymbolList.push_back(s);
   }
 
-  CurrentFilename = obj->getFilename();
+  CurrentFilename = obj->getFileName();
   SortAndPrintSymbolList();
 }
 
@@ -304,26 +319,42 @@ static void DumpSymbolNamesFromFile(std::string &Filename) {
       errs() << ToolName << ": " << Filename << ": " << ErrorMessage << "\n";
 
   } else if (aPath.isArchive()) {
-    std::string ErrMsg;
-    Archive* archive = Archive::OpenAndLoad(sys::Path(Filename), Context,
-                                            &ErrorMessage);
-    if (!archive)
-      errs() << ToolName << ": " << Filename << ": " << ErrorMessage << "\n";
-    std::vector<Module *> Modules;
-    if (archive->getAllModules(Modules, &ErrorMessage)) {
-      errs() << ToolName << ": " << Filename << ": " << ErrorMessage << "\n";
+    OwningPtr<Binary> arch;
+    if (error_code ec = object::createBinary(aPath.str(), arch)) {
+      errs() << ToolName << ": " << Filename << ": " << ec.message() << ".\n";
       return;
     }
-    MultipleFiles = true;
-    std::for_each (Modules.begin(), Modules.end(), DumpSymbolNamesFromModule);
+    if (object::Archive *a = dyn_cast<object::Archive>(arch.get())) {
+      for (object::Archive::child_iterator i = a->begin_children(),
+                                           e = a->end_children(); i != e; ++i) {
+        OwningPtr<Binary> child;
+        if (error_code ec = i->getAsBinary(child)) {
+          // Try opening it as a bitcode file.
+          OwningPtr<MemoryBuffer> buff(i->getBuffer());
+          Module *Result = 0;
+          if (buff)
+            Result = ParseBitcodeFile(buff.get(), Context, &ErrorMessage);
+
+          if (Result) {
+            DumpSymbolNamesFromModule(Result);
+            delete Result;
+          }
+          continue;
+        }
+        if (object::ObjectFile *o = dyn_cast<ObjectFile>(child.get())) {
+          outs() << o->getFileName() << ":\n";
+          DumpSymbolNamesFromObject(o);
+        }
+      }
+    }
   } else if (aPath.isObjectFile()) {
-    std::auto_ptr<ObjectFile> obj(ObjectFile::createObjectFile(aPath.str()));
-    if (!obj.get()) {
-      errs() << ToolName << ": " << Filename << ": "
-             << "Failed to open object file\n";
+    OwningPtr<Binary> obj;
+    if (error_code ec = object::createBinary(aPath.str(), obj)) {
+      errs() << ToolName << ": " << Filename << ": " << ec.message() << ".\n";
       return;
     }
-    DumpSymbolNamesFromObject(obj.get());
+    if (object::ObjectFile *o = dyn_cast<ObjectFile>(obj.get()))
+      DumpSymbolNamesFromObject(o);
   } else {
     errs() << ToolName << ": " << Filename << ": "
            << "unrecognizable file type\n";

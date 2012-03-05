@@ -46,7 +46,7 @@
 #include <dev/sound/pci/hda/hda_reg.h>
 #include <dev/sound/pci/hda/hdac.h>
 
-#define HDA_DRV_TEST_REV	"20120111_0001"
+#define HDA_DRV_TEST_REV	"20120126_0002"
 
 SND_DECLARE_FILE("$FreeBSD$");
 
@@ -69,17 +69,6 @@ static const struct {
 };
 #define HDAC_QUIRKS_TAB_LEN	\
 		(sizeof(hdac_quirks_tab) / sizeof(hdac_quirks_tab[0]))
-
-#define HDA_BDL_MIN	2
-#define HDA_BDL_MAX	256
-#define HDA_BDL_DEFAULT	HDA_BDL_MIN
-
-#define HDA_BLK_MIN	HDA_DMA_ALIGNMENT
-#define HDA_BLK_ALIGN	(~(HDA_BLK_MIN - 1))
-
-#define HDA_BUFSZ_MIN		4096
-#define HDA_BUFSZ_MAX		65536
-#define HDA_BUFSZ_DEFAULT	16384
 
 MALLOC_DEFINE(M_HDAC, "hdac", "HDA Controller");
 
@@ -124,6 +113,17 @@ static const struct {
 	{ HDA_NVIDIA_MCP89_2, "NVIDIA MCP89",	0, 0 },
 	{ HDA_NVIDIA_MCP89_3, "NVIDIA MCP89",	0, 0 },
 	{ HDA_NVIDIA_MCP89_4, "NVIDIA MCP89",	0, 0 },
+	{ HDA_NVIDIA_0BE2,   "NVIDIA (0x0be2)",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_0BE3,   "NVIDIA (0x0be3)",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_0BE4,   "NVIDIA (0x0be4)",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GT100,  "NVIDIA GT100",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GT104,  "NVIDIA GT104",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GT106,  "NVIDIA GT106",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GT108,  "NVIDIA GT108",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GT116,  "NVIDIA GT116",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GF119,  "NVIDIA GF119",	0, 0 },
+	{ HDA_NVIDIA_GF110_1, "NVIDIA GF110",	0, HDAC_QUIRK_MSI },
+	{ HDA_NVIDIA_GF110_2, "NVIDIA GF110",	0, HDAC_QUIRK_MSI },
 	{ HDA_ATI_SB450,     "ATI SB450",	0, 0 },
 	{ HDA_ATI_SB600,     "ATI SB600",	0, 0 },
 	{ HDA_ATI_RS600,     "ATI RS600",	0, 0 },
@@ -143,12 +143,12 @@ static const struct {
 	{ HDA_SIS_966,       "SiS 966",		0, 0 },
 	{ HDA_ULI_M5461,     "ULI M5461",	0, 0 },
 	/* Unknown */
-	{ HDA_INTEL_ALL,  "Intel (Unknown)",	0, 0 },
-	{ HDA_NVIDIA_ALL, "NVIDIA (Unknown)",	0, 0 },
-	{ HDA_ATI_ALL,    "ATI (Unknown)",	0, 0 },
-	{ HDA_VIA_ALL,    "VIA (Unknown)",	0, 0 },
-	{ HDA_SIS_ALL,    "SiS (Unknown)",	0, 0 },
-	{ HDA_ULI_ALL,    "ULI (Unknown)",	0, 0 },
+	{ HDA_INTEL_ALL,  "Intel",		0, 0 },
+	{ HDA_NVIDIA_ALL, "NVIDIA",		0, 0 },
+	{ HDA_ATI_ALL,    "ATI",		0, 0 },
+	{ HDA_VIA_ALL,    "VIA",		0, 0 },
+	{ HDA_SIS_ALL,    "SiS",		0, 0 },
+	{ HDA_ULI_ALL,    "ULI",		0, 0 },
 };
 #define HDAC_DEVICES_LEN (sizeof(hdac_devices) / sizeof(hdac_devices[0]))
 
@@ -1006,26 +1006,27 @@ hdac_probe(device_t dev)
 	result = ENXIO;
 	for (i = 0; i < HDAC_DEVICES_LEN; i++) {
 		if (hdac_devices[i].model == model) {
-		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
-		    	result = BUS_PROBE_DEFAULT;
+			strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
+			result = BUS_PROBE_DEFAULT;
 			break;
 		}
 		if (HDA_DEV_MATCH(hdac_devices[i].model, model) &&
 		    class == PCIC_MULTIMEDIA &&
 		    subclass == PCIS_MULTIMEDIA_HDA) {
-		    	strlcpy(desc, hdac_devices[i].desc, sizeof(desc));
-		    	result = BUS_PROBE_GENERIC;
+			snprintf(desc, sizeof(desc),
+			    "%s (0x%04x)",
+			    hdac_devices[i].desc, pci_get_device(dev));
+			result = BUS_PROBE_GENERIC;
 			break;
 		}
 	}
 	if (result == ENXIO && class == PCIC_MULTIMEDIA &&
 	    subclass == PCIS_MULTIMEDIA_HDA) {
-		strlcpy(desc, "Generic", sizeof(desc));
-	    	result = BUS_PROBE_GENERIC;
+		snprintf(desc, sizeof(desc), "Generic (0x%08x)", model);
+		result = BUS_PROBE_GENERIC;
 	}
 	if (result != ENXIO) {
-		strlcat(desc, " HDA Controller",
-		    sizeof(desc));
+		strlcat(desc, " HDA Controller", sizeof(desc));
 		device_set_desc_copy(dev, desc);
 	}
 
@@ -1328,10 +1329,10 @@ sysctl_hdac_pindump(SYSCTL_HANDLER_ARGS)
 }
 
 static int
-hdac_data_rate(uint16_t fmt)
+hdac_mdata_rate(uint16_t fmt)
 {
-	static const int bits[8] = { 8, 16, 20, 24, 32, 32, 32, 32 };
-	int rate;
+	static const int mbits[8] = { 8, 16, 32, 32, 32, 32, 32, 32 };
+	int rate, bits;
 
 	if (fmt & (1 << 14))
 		rate = 44100;
@@ -1339,8 +1340,24 @@ hdac_data_rate(uint16_t fmt)
 		rate = 48000;
 	rate *= ((fmt >> 11) & 0x07) + 1;
 	rate /= ((fmt >> 8) & 0x07) + 1;
-	rate *= ((bits[(fmt >> 4) & 0x03]) * ((fmt & 0x0f) + 1) + 7) / 8;
-	return (rate);
+	bits = mbits[(fmt >> 4) & 0x03];
+	bits *= (fmt & 0x0f) + 1;
+	return (rate * bits);
+}
+
+static int
+hdac_bdata_rate(uint16_t fmt, int output)
+{
+	static const int bbits[8] = { 8, 16, 20, 24, 32, 32, 32, 32 };
+	int rate, bits;
+
+	rate = 48000;
+	rate *= ((fmt >> 11) & 0x07) + 1;
+	bits = bbits[(fmt >> 4) & 0x03];
+	bits *= (fmt & 0x0f) + 1;
+	if (!output)
+		bits = ((bits + 7) & ~0x07) + 10;
+	return (rate * bits);
 }
 
 static void
@@ -1358,7 +1375,7 @@ hdac_poll_reinit(struct hdac_softc *sc)
 		if (s->running == 0)
 			continue;
 		pollticks = ((uint64_t)hz * s->blksz) /
-		    hdac_data_rate(s->format);
+		    (hdac_mdata_rate(s->format) / 8);
 		pollticks >>= 1;
 		if (pollticks > hz)
 			pollticks = hz;
@@ -1779,11 +1796,12 @@ hdac_find_stream(struct hdac_softc *sc, int dir, int stream)
 }
 
 static int
-hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
+hdac_stream_alloc(device_t dev, device_t child, int dir, int format, int stripe,
     uint32_t **dmapos)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
-	int stream, ss;
+	nid_t cad = (uintptr_t)device_get_ivars(child);
+	int stream, ss, bw, maxbw, prevbw;
 
 	/* Look for empty stream. */
 	ss = hdac_find_stream(sc, dir, 0);
@@ -1791,6 +1809,28 @@ hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
 	/* Return if found nothing. */
 	if (ss < 0)
 		return (0);
+
+	/* Check bus bandwidth. */
+	bw = hdac_bdata_rate(format, dir);
+	if (dir == 1) {
+		bw *= 1 << (sc->num_sdo - stripe);
+		prevbw = sc->sdo_bw_used;
+		maxbw = 48000 * 960 * (1 << sc->num_sdo);
+	} else {
+		prevbw = sc->codecs[cad].sdi_bw_used;
+		maxbw = 48000 * 464;
+	}
+	HDA_BOOTHVERBOSE(
+		device_printf(dev, "%dKbps of %dKbps bandwidth used%s\n",
+		    (bw + prevbw) / 1000, maxbw / 1000,
+		    bw + prevbw > maxbw ? " -- OVERFLOW!" : "");
+	);
+	if (bw + prevbw > maxbw)
+		return (0);
+	if (dir == 1)
+		sc->sdo_bw_used += bw;
+	else
+		sc->codecs[cad].sdi_bw_used += bw;
 
 	/* Allocate stream number */
 	if (ss >= sc->num_iss + sc->num_oss)
@@ -1803,7 +1843,9 @@ hdac_stream_alloc(device_t dev, device_t child, int dir, int format,
 	sc->streams[ss].dev = child;
 	sc->streams[ss].dir = dir;
 	sc->streams[ss].stream = stream;
+	sc->streams[ss].bw = bw;
 	sc->streams[ss].format = format;
+	sc->streams[ss].stripe = stripe;
 	if (dmapos != NULL) {
 		if (sc->pos_dma.dma_vaddr != NULL)
 			*dmapos = (uint32_t *)(sc->pos_dma.dma_vaddr + ss * 8);
@@ -1817,11 +1859,16 @@ static void
 hdac_stream_free(device_t dev, device_t child, int dir, int stream)
 {
 	struct hdac_softc *sc = device_get_softc(dev);
+	nid_t cad = (uintptr_t)device_get_ivars(child);
 	int ss;
 
 	ss = hdac_find_stream(sc, dir, stream);
 	KASSERT(ss >= 0,
 	    ("Free for not allocated stream (%d/%d)\n", dir, stream));
+	if (dir == 1)
+		sc->sdo_bw_used -= sc->streams[ss].bw;
+	else
+		sc->codecs[cad].sdi_bw_used -= sc->streams[ss].bw;
 	sc->streams[ss].stream = 0;
 	sc->streams[ss].dev = NULL;
 }
@@ -1864,6 +1911,8 @@ hdac_stream_start(device_t dev, device_t child,
 		ctl &= ~HDAC_SDCTL2_DIR;
 	ctl &= ~HDAC_SDCTL2_STRM_MASK;
 	ctl |= stream << HDAC_SDCTL2_STRM_SHIFT;
+	ctl &= ~HDAC_SDCTL2_STRIPE_MASK;
+	ctl |= sc->streams[ss].stripe << HDAC_SDCTL2_STRIPE_SHIFT;
 	HDAC_WRITE_1(&sc->mem, off + HDAC_SDCTL2, ctl);
 
 	HDAC_WRITE_2(&sc->mem, off + HDAC_SDFMT, sc->streams[ss].format);
@@ -1872,6 +1921,8 @@ hdac_stream_start(device_t dev, device_t child,
 	ctl |= 1 << ss;
 	HDAC_WRITE_4(&sc->mem, HDAC_INTCTL, ctl);
 
+	HDAC_WRITE_1(&sc->mem, off + HDAC_SDSTS,
+	    HDAC_SDSTS_DESE | HDAC_SDSTS_FIFOE | HDAC_SDSTS_BCIS);
 	ctl = HDAC_READ_1(&sc->mem, off + HDAC_SDCTL0);
 	ctl |= HDAC_SDCTL_IOCE | HDAC_SDCTL_FEIE | HDAC_SDCTL_DEIE |
 	    HDAC_SDCTL_RUN;

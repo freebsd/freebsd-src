@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: head/usr.bin/clang/lli/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 PROG_CXX=lli
 
@@ -8,6 +8,7 @@ SRCS=	lli.cpp
 LIBDEPS=llvmasmparser \
 	llvmbitreader \
 	llvmx86codegen \
+	llvmx86desc \
 	llvmx86info \
 	llvmx86instprinter \
 	llvmx86utils \

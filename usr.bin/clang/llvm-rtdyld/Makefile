@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: head/usr.bin/clang/llvm-rtdyld/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 PROG_CXX=llvm-rtdyld
 NO_MAN=
@@ -13,16 +13,21 @@ LIBDEPS=llvmjit \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmdesc \
 	llvmarminstprinter \
 	llvmarminfo \
 	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
+	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
+	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \

@@ -1,29 +1,34 @@
-# $FreeBSD$
+# $FreeBSD: head/usr.bin/clang/llvm-objdump/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 PROG_CXX=llvm-objdump
 NO_MAN=
 
 SRCDIR=	tools/llvm-objdump
-SRCS=	llvm-objdump.cpp
+SRCS=	llvm-objdump.cpp \
+	MachODump.cpp \
+	MCFunction.cpp \
 
 LIBDEPS=llvmobject \
 	llvmmcdisassembler \
+	llvmdebuginfo \
 	llvmarmdisassembler \
 	llvmarmasmparser \
 	llvmarmcodegen \
+	llvmarmdesc \
 	llvmarminstprinter \
 	llvmarminfo \
-	llvmia64codegen \
-	llvmia64info \
-	llvmia64instprinter \
 	llvmmipscodegen \
+	llvmmipsdesc \
+	llvmmipsinstprinter \
 	llvmmipsinfo \
 	llvmpowerpccodegen \
+	llvmpowerpcdesc \
 	llvmpowerpcinstprinter \
 	llvmpowerpcinfo \
 	llvmx86disassembler \
 	llvmx86asmparser \
 	llvmx86codegen \
+	llvmx86desc \
 	llvmselectiondag \
 	llvmasmprinter \
 	llvmmcparser \

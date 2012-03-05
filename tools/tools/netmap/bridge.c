@@ -48,7 +48,7 @@ int verbose = 0;
 	} while (0)
 
 
-char *version = "$Id: bridge.c 9642 2011-11-07 21:39:47Z luigi $";
+char *version = "$Id: bridge.c 10637 2012-02-24 16:36:25Z luigi $";
 
 static int do_abort = 0;
 
@@ -136,6 +136,7 @@ netmap_open(struct my_ring *me, int ringid)
 	bzero(&req, sizeof(req));
 	strncpy(req.nr_name, me->ifname, sizeof(req.nr_name));
 	req.nr_ringid = ringid;
+	req.nr_version = NETMAP_API;
 	err = ioctl(fd, NIOCGINFO, &req);
 	if (err) {
 		D("cannot get info on %s", me->ifname);
@@ -162,17 +163,22 @@ netmap_open(struct my_ring *me, int ringid)
 	me->nifp = NETMAP_IF(me->mem, req.nr_offset);
 	me->queueid = ringid;
 	if (ringid & NETMAP_SW_RING) {
-		me->begin = req.nr_numrings;
+		me->begin = req.nr_rx_rings;
 		me->end = me->begin + 1;
+		me->tx = NETMAP_TXRING(me->nifp, req.nr_tx_rings);
+		me->rx = NETMAP_RXRING(me->nifp, req.nr_rx_rings);
 	} else if (ringid & NETMAP_HW_RING) {
+		D("XXX check multiple threads");
 		me->begin = ringid & NETMAP_RING_MASK;
 		me->end = me->begin + 1;
+		me->tx = NETMAP_TXRING(me->nifp, me->begin);
+		me->rx = NETMAP_RXRING(me->nifp, me->begin);
 	} else {
 		me->begin = 0;
-		me->end = req.nr_numrings;
+		me->end = req.nr_rx_rings; // XXX max of the two
+		me->tx = NETMAP_TXRING(me->nifp, 0);
+		me->rx = NETMAP_RXRING(me->nifp, 0);
 	}
-	me->tx = NETMAP_TXRING(me->nifp, me->begin);
-	me->rx = NETMAP_RXRING(me->nifp, me->begin);
 	return (0);
 error:
 	close(me->fd);
@@ -294,7 +300,7 @@ howmany(struct my_ring *me, int tx)
 	if (0 && verbose && tot && !tx)
 		D("ring %s %s %s has %d avail at %d",
 			me->ifname, tx ? "tx": "rx",
-			me->end > me->nifp->ni_num_queues ?
+			me->end > me->nifp->ni_rx_queues ?
 				"host":"net",
 			tot, NETMAP_TXRING(me->nifp, me->begin)->cur);
 	return tot;
@@ -392,8 +398,8 @@ main(int argc, char **argv)
 	D("Wait 2 secs for link to come up...");
 	sleep(2);
 	D("Ready to go, %s 0x%x/%d <-> %s 0x%x/%d.",
-		me[0].ifname, me[0].queueid, me[0].nifp->ni_num_queues,
-		me[1].ifname, me[1].queueid, me[1].nifp->ni_num_queues);
+		me[0].ifname, me[0].queueid, me[0].nifp->ni_rx_queues,
+		me[1].ifname, me[1].queueid, me[1].nifp->ni_rx_queues);
 
 	/* main loop */
 	signal(SIGINT, sigint_h);

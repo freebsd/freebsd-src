@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd December 22, 2011
+.Dd March 1, 2012
 .Dt RCTL 8
 .Os
 .Sh NAME
@@ -117,8 +117,8 @@ A filter is a rule for which one of more fields other than per is left empty.
 For example, a filter that matches every rule could be written as ":::=/",
 or, in short, ":".
 A filter that matches all the login classes would be "loginclass:".
-A filter that matches all defined rules for nproc resource would be
-"::nproc".
+A filter that matches all defined rules for maxproc resource would be
+"::maxproc".
 .Pp
 .Sh RESOURCES
 .Bl -column -offset 3n "pseudoterminals"

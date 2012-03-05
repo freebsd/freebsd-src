@@ -179,6 +179,7 @@ octm_attach(device_t dev)
 	mac = 0;
 	memcpy((u_int8_t *)&mac + 2, cvmx_sysinfo_get()->mac_addr_base, 6);
 	mac += sc->sc_port;
+
 	cvmx_mgmt_port_set_mac(sc->sc_port, mac);
 
 	/* No watermark for input ring.  */

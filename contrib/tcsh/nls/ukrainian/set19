@@ -1,15 +1,23 @@
-$ $tcsh: set19,v 1.3 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set19,v 1.6 2011/02/25 23:58:08 christos Exp $
 $ tc.alloc.c
 $set 19 
-1 nbytes=%d: Мало пам'ят╕\n
+1 nbytes=%d: п°п╟п╩п╬ п©п╟п╪'я▐я┌я√\n
 2 free(%lx) called before any allocations.
 3 free(%lx) above top of memory.
 4 free(%lx) below bottom of memory.
 5 free(%lx) bad block.
 6 free(%lx) bad range check.
 7 free(%lx) bad block index.
-8 Нин╕шн╓ розпод╕лення пам'ят╕ %s:\nв╕льно:\t
-9 \nзанято:\t
-10 \n\tВсього занято: %d, всього в╕льно: %d\n
-11 \tЗанято пам'ять з 0x%lx до 0x%lx.  Real top at 0x%lx\n
-12 Занято пам'ять з 0x%lx до 0x%lx (%ld).\n
+8 п²п╦п╫я√я┬п╫я■ я─п╬п╥п©п╬п╢я√п╩п╣п╫п╫я▐ п©п╟п╪'я▐я┌я√ %s:\nп╡я√п╩я▄п╫п╬:\t
+9 п╥п╟п╫я▐я┌п╬
+10 \n\tп▓я│я▄п╬пЁп╬ п╥п╟п╫я▐я┌п╬: %d, п╡я│я▄п╬пЁп╬ п╡я√п╩я▄п╫п╬: %d\n
+11 \tп≈п╟п╫я▐я┌п╬ п©п╟п╪'я▐я┌я▄ п╥ 0x%lx п╢п╬ 0x%lx.  Real top at 0x%lx\n
+12 п≈п╟п╫я▐я┌п╬ п©п╟п╪'я▐я┌я▄ п╥ 0x%lx п╢п╬ 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n

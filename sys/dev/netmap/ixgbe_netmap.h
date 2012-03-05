@@ -25,7 +25,7 @@
 
 /*
  * $FreeBSD$
- * $Id: ixgbe_netmap.h 9802 2011-12-02 18:42:37Z luigi $
+ * $Id: ixgbe_netmap.h 10627 2012-02-23 19:37:15Z luigi $
  *
  * netmap modifications for ixgbe
  *
@@ -47,59 +47,16 @@
 #include <vm/pmap.h>
 
  */
-
 #include <dev/netmap/netmap_kern.h>
-
-/*
- * prototypes for the new API calls that are used by the
- * *_netmap_attach() routine.
- */
-static int	ixgbe_netmap_reg(struct ifnet *, int onoff);
-static int	ixgbe_netmap_txsync(void *, u_int, int);
-static int	ixgbe_netmap_rxsync(void *, u_int, int);
-static void	ixgbe_netmap_lock_wrapper(void *, int, u_int);
-
-
-/*
- * The attach routine, called near the end of ixgbe_attach(),
- * fills the parameters for netmap_attach() and calls it.
- * It cannot fail, in the worst case (such as no memory)
- * netmap mode will be disabled and the driver will only
- * operate in standard mode.
- */
-static void
-ixgbe_netmap_attach(struct adapter *adapter)
-{
-	struct netmap_adapter na;
-
-	bzero(&na, sizeof(na));
-
-	na.ifp = adapter->ifp;
-	na.separate_locks = 1;	/* this card has separate rx/tx locks */
-	na.num_tx_desc = adapter->num_tx_desc;
-	na.num_rx_desc = adapter->num_rx_desc;
-	na.nm_txsync = ixgbe_netmap_txsync;
-	na.nm_rxsync = ixgbe_netmap_rxsync;
-	na.nm_lock = ixgbe_netmap_lock_wrapper;
-	na.nm_register = ixgbe_netmap_reg;
-	/*
-	 * XXX where do we put this comment ?
-	 * adapter->rx_mbuf_sz is set by SIOCSETMTU, but in netmap mode
-	 * we allocate the buffers on the first register. So we must
-	 * disallow a SIOCSETMTU when if_capenable & IFCAP_NETMAP is set.
-	 */
-	na.buff_size = NETMAP_BUF_SIZE;
-	netmap_attach(&na, adapter->num_queues);
-}	
 
 
 /*
  * wrapper to export locks to the generic netmap code.
  */
 static void
-ixgbe_netmap_lock_wrapper(void *_a, int what, u_int queueid)
+ixgbe_netmap_lock_wrapper(struct ifnet *_a, int what, u_int queueid)
 {
-	struct adapter *adapter = _a;
+	struct adapter *adapter = _a->if_softc;
 
 	ASSERT(queueid < adapter->num_queues);
 	switch (what) {
@@ -126,7 +83,7 @@ ixgbe_netmap_lock_wrapper(void *_a, int what, u_int queueid)
 
 
 /*
- * Netmap register/unregister. We are already under core lock.
+ * Register/unregister. We are already under core lock.
  * Only called on the first register or the last unregister.
  */
 static int
@@ -136,8 +93,8 @@ ixgbe_netmap_reg(struct ifnet *ifp, int onoff)
 	struct netmap_adapter *na = NA(ifp);
 	int error = 0;
 
-	if (!na) /* probably, netmap_attach() failed */
-		return EINVAL;
+	if (na == NULL)
+		return EINVAL; /* no netmap support here */
 
 	ixgbe_disable_intr(adapter);
 
@@ -191,16 +148,20 @@ fail:
  * (this is also true for every use of ring in the kernel).
  *
  * ring->avail is never used, only checked for bogus values.
+ *
+ * do_lock is set iff the function is called from the ioctl handler.
+ * In this case, grab a lock around the body, and also reclaim transmitted
+ * buffers irrespective of interrupt mitigation.
  */
 static int
-ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
+ixgbe_netmap_txsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct tx_ring *txr = &adapter->tx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->tx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
-	int j, k, l, n = 0, lim = kring->nkr_num_slots - 1;
+	u_int j, k = ring->cur, l, n = 0, lim = kring->nkr_num_slots - 1;
 
 	/*
 	 * ixgbe can generate an interrupt on every tx packet, but it
@@ -209,19 +170,10 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	 */
 	int report_frequency = kring->nkr_num_slots >> 1;
 
+	if (k > lim)
+		return netmap_ring_reinit(kring);
 	if (do_lock)
 		IXGBE_TX_LOCK(txr);
-	/* take a copy of ring->cur now, and never read it again */
-	k = ring->cur;
-	l = k - kring->nr_hwcur;
-	if (l < 0)
-		l += lim + 1;
-	/* if cur is invalid reinitialize the ring. */
-	if (k > lim || l > kring->nr_hwavail) {
-		if (do_lock)
-			IXGBE_TX_UNLOCK(txr);
-		return netmap_ring_reinit(kring);
-	}
 
 	bus_dmamap_sync(txr->txdma.dma_tag, txr->txdma.dma_map,
 			BUS_DMASYNC_POSTREAD);
@@ -243,11 +195,10 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 	 */
 	j = kring->nr_hwcur;
 	if (j != k) {	/* we have new packets to send */
-		l = j - kring->nkr_hwofs;
-		if (l < 0)	/* wraparound */
-			l += lim + 1;
-
-		while (j != k) {
+		prefetch(&ring->slot[j]);
+		l = netmap_idx_k2n(kring, j); /* NIC index */
+		prefetch(&txr->tx_buffers[l]);
+		for (n = 0; j != k; n++) {
 			/*
 			 * Collect per-slot info.
 			 * Note that txbuf and curr are indexed by l.
@@ -258,17 +209,25 @@ ixgbe_netmap_txsync(void *a, u_int ring_nr, int do_lock)
 			 * Many other drivers preserve the address, so
 			 * we only need to access it if NS_BUF_CHANGED
 			 * is set.
+			 * XXX note, on this device the dmamap* calls are
+			 * not necessary because tag is 0, however just accessing
+			 * the per-packet tag kills 1Mpps at 900 MHz.
 			 */
 			struct netmap_slot *slot = &ring->slot[j];
-			struct ixgbe_tx_buf *txbuf = &txr->tx_buffers[l];
 			union ixgbe_adv_tx_desc *curr = &txr->tx_base[l];
+			struct ixgbe_tx_buf *txbuf = &txr->tx_buffers[l];
 			uint64_t paddr;
-			void *addr = PNMB(slot, &paddr);
 			// XXX type for flags and len ?
 			int flags = ((slot->flags & NS_REPORT) ||
 				j == 0 || j == report_frequency) ?
 					IXGBE_TXD_CMD_RS : 0;
-			int len = slot->len;
+			u_int len = slot->len;
+			void *addr = PNMB(slot, &paddr);
+
+			j = (j == lim) ? 0 : j + 1;
+			l = (l == lim) ? 0 : l + 1;
+			prefetch(&ring->slot[j]);
+			prefetch(&txr->tx_buffers[l]);
 
 			/*
 			 * Quick check for valid addr and len.
@@ -284,40 +243,29 @@ ring_reset:
 				return netmap_ring_reinit(kring);
 			}
 
+			if (slot->flags & NS_BUF_CHANGED) {
+				/* buffer has changed, unload and reload map */
+				netmap_reload_map(txr->txtag, txbuf->map, addr);
+				slot->flags &= ~NS_BUF_CHANGED;
+			}
 			slot->flags &= ~NS_REPORT;
 			/*
 			 * Fill the slot in the NIC ring.
 			 * In this driver we need to rewrite the buffer
 			 * address in the NIC ring. Other drivers do not
 			 * need this.
+			 * Use legacy descriptor, it is faster.
 			 */
 			curr->read.buffer_addr = htole64(paddr);
 			curr->read.olinfo_status = 0;
-			curr->read.cmd_type_len =
-			    htole32(txr->txd_cmd | len |
-				(IXGBE_ADVTXD_DTYP_DATA |
-				    IXGBE_ADVTXD_DCMD_IFCS |
-				    IXGBE_TXD_CMD_EOP | flags) );
-			/* If the buffer has changed, unload and reload map
-			 * (and possibly the physical address in the NIC
-			 * slot, but we did it already).
-			 */
-			if (slot->flags & NS_BUF_CHANGED) {
-				/* buffer has changed, unload and reload map */
-				netmap_reload_map(txr->txtag, txbuf->map, addr);
-				slot->flags &= ~NS_BUF_CHANGED;
-			}
+			curr->read.cmd_type_len = htole32(len | flags |
+				IXGBE_ADVTXD_DCMD_IFCS | IXGBE_TXD_CMD_EOP);
 
 			/* make sure changes to the buffer are synced */
-			bus_dmamap_sync(txr->txtag, txbuf->map,
-				BUS_DMASYNC_PREWRITE);
-			j = (j == lim) ? 0 : j + 1;
-			l = (l == lim) ? 0 : l + 1;
-			n++;
+			bus_dmamap_sync(txr->txtag, txbuf->map, BUS_DMASYNC_PREWRITE);
 		}
 		kring->nr_hwcur = k; /* the saved ring->cur */
-
-		/* decrease avail by number of sent packets */
+		/* decrease avail by number of packets  sent */
 		kring->nr_hwavail -= n;
 
 		/* synchronize the NIC ring */
@@ -328,15 +276,40 @@ ring_reset:
 	}
 
 	/*
-	 * If no packets are sent, or there is no room in the tx ring,
-	 * Check whether there are completed transmissions.
-	 * Because this is expensive (we need a register etc.)
-	 * we only do it if absolutely necessary, i.e. there is no room
-	 * in the tx ring, or where were no completed transmissions
-	 * (meaning that probably the caller really wanted to check
-	 * for completed transmissions).
+	 * Reclaim buffers for completed transmissions.
+	 * Because this is expensive (we read a NIC register etc.)
+	 * we only do it in specific cases (see below).
+	 * In all cases kring->nr_kflags indicates which slot will be
+	 * checked upon a tx interrupt (nkr_num_slots means none).
 	 */
-	if (n == 0 || kring->nr_hwavail < 1) {
+	if (do_lock) {
+		j = 1; /* forced reclaim, ignore interrupts */
+		kring->nr_kflags = kring->nkr_num_slots;
+	} else if (kring->nr_hwavail > 0) {
+		j = 0; /* buffers still available: no reclaim, ignore intr. */
+		kring->nr_kflags = kring->nkr_num_slots;
+	} else {
+		/*
+		 * no buffers available, locate a slot for which we request
+		 * ReportStatus (approximately half ring after next_to_clean)
+		 * and record it in kring->nr_kflags.
+		 * If the slot has DD set, do the reclaim looking at TDH,
+		 * otherwise we go to sleep (in netmap_poll()) and will be
+		 * woken up when slot nr_kflags will be ready.
+		 */
+		struct ixgbe_legacy_tx_desc *txd =
+		    (struct ixgbe_legacy_tx_desc *)txr->tx_base;
+
+		j = txr->next_to_clean + kring->nkr_num_slots/2;
+		if (j >= kring->nkr_num_slots)
+			j -= kring->nkr_num_slots;
+		// round to the closest with dd set
+		j= (j < kring->nkr_num_slots / 4 || j >= kring->nkr_num_slots*3/4) ?
+			0 : report_frequency;
+		kring->nr_kflags = j; /* the slot to check */
+		j = txd[j].upper.fields.status & IXGBE_TXD_STAT_DD;	// XXX cpu_to_le32 ?
+	}
+	if (j) {
 		int delta;
 
 		/*
@@ -374,7 +347,6 @@ ring_reset:
 	if (do_lock)
 		IXGBE_TX_UNLOCK(txr);
 	return 0;
-
 }
 
 
@@ -391,28 +363,26 @@ ring_reset:
  * We must subtract the newly consumed slots (cur - nr_hwcur)
  * from nr_hwavail, make the descriptors available for the next reads,
  * and set kring->nr_hwcur = ring->cur and ring->avail = kring->nr_hwavail.
+ *
+ * do_lock has a special meaning: please refer to txsync.
  */
 static int
-ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
+ixgbe_netmap_rxsync(struct ifnet *ifp, u_int ring_nr, int do_lock)
 {
-	struct adapter *adapter = a;
+	struct adapter *adapter = ifp->if_softc;
 	struct rx_ring *rxr = &adapter->rx_rings[ring_nr];
 	struct netmap_adapter *na = NA(adapter->ifp);
 	struct netmap_kring *kring = &na->rx_rings[ring_nr];
 	struct netmap_ring *ring = kring->ring;
-	int j, k, l, n, lim = kring->nkr_num_slots - 1;
+	u_int j, l, n, lim = kring->nkr_num_slots - 1;
+	int force_update = do_lock || kring->nr_kflags & NKR_PENDINTR;
+	u_int k = ring->cur, resvd = ring->reserved;
 
-	k = ring->cur;	/* cache and check value, same as in txsync */
-	n = k - kring->nr_hwcur;
-	if (n < 0)
-		n += lim + 1;
-	if (k > lim || n > kring->nr_hwavail) /* userspace is cheating */
+	if (k > lim)
 		return netmap_ring_reinit(kring);
 
 	if (do_lock)
 		IXGBE_RX_LOCK(rxr);
-	if (n < 0)
-		n += lim + 1;
 	/* XXX check sync modes */
 	bus_dmamap_sync(rxr->rxdma.dma_tag, rxr->rxdma.dma_map,
 			BUS_DMASYNC_POSTREAD | BUS_DMASYNC_POSTWRITE);
@@ -433,41 +403,46 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 	 * rxr->next_to_check is set to 0 on a ring reinit
 	 */
 	l = rxr->next_to_check;
-	j = rxr->next_to_check + kring->nkr_hwofs;
-	if (j > lim)
-		j -= lim + 1;
+	j = netmap_idx_n2k(kring, l);
 
-	for (n = 0; ; n++) {
-		union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
-		uint32_t staterr = le32toh(curr->wb.upper.status_error);
+	if (netmap_no_pendintr || force_update) {
+		for (n = 0; ; n++) {
+			union ixgbe_adv_rx_desc *curr = &rxr->rx_base[l];
+			uint32_t staterr = le32toh(curr->wb.upper.status_error);
 
-		if ((staterr & IXGBE_RXD_STAT_DD) == 0)
-			break;
-		ring->slot[j].len = le16toh(curr->wb.upper.length);
-		bus_dmamap_sync(rxr->ptag,
-			rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
-		j = (j == lim) ? 0 : j + 1;
-		l = (l == lim) ? 0 : l + 1;
-	}
-	if (n) { /* update the state variables */
-		rxr->next_to_check = l;
-		kring->nr_hwavail += n;
+			if ((staterr & IXGBE_RXD_STAT_DD) == 0)
+				break;
+			ring->slot[j].len = le16toh(curr->wb.upper.length);
+			bus_dmamap_sync(rxr->ptag,
+			    rxr->rx_buffers[l].pmap, BUS_DMASYNC_POSTREAD);
+			j = (j == lim) ? 0 : j + 1;
+			l = (l == lim) ? 0 : l + 1;
+		}
+		if (n) { /* update the state variables */
+			rxr->next_to_check = l;
+			kring->nr_hwavail += n;
+		}
+		kring->nr_kflags &= ~NKR_PENDINTR;
 	}
 
 	/*
-	 * Skip past packets that userspace has already processed
-	 * (from kring->nr_hwcur to ring->cur excluded), and make
-	 * the buffers available for reception.
+	 * Skip past packets that userspace has released
+	 * (from kring->nr_hwcur to ring->cur - ring->reserved excluded),
+	 * and make the buffers available for reception.
 	 * As usual j is the index in the netmap ring, l is the index
 	 * in the NIC ring, and j == (l + kring->nkr_hwofs) % ring_size
 	 */
 	j = kring->nr_hwcur;
-	if (j != k) {	/* userspace has read some packets. */
-		n = 0;
-		l = kring->nr_hwcur - kring->nkr_hwofs;
-		if (l < 0)
-			l += lim + 1;
-		while (j != k) {
+	if (resvd > 0) {
+		if (resvd + ring->avail >= lim + 1) {
+			D("XXX invalid reserve/avail %d %d", resvd, ring->avail);
+			ring->reserved = resvd = 0; // XXX panic...
+		}
+		k = (k >= resvd) ? k - resvd : k + lim + 1 - resvd;
+	}
+	if (j != k) { /* userspace has released some packets. */
+		l = netmap_idx_k2n(kring, j);
+		for (n = 0; j != k; n++) {
 			/* collect per-slot info, with similar validations
 			 * and flag handling as in the txsync code.
 			 *
@@ -485,19 +460,16 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 			if (addr == netmap_buffer_base) /* bad buf */
 				goto ring_reset;
 
-			curr->wb.upper.status_error = 0;
-			curr->read.pkt_addr = htole64(paddr);
 			if (slot->flags & NS_BUF_CHANGED) {
 				netmap_reload_map(rxr->ptag, rxbuf->pmap, addr);
 				slot->flags &= ~NS_BUF_CHANGED;
 			}
-
+			curr->wb.upper.status_error = 0;
+			curr->read.pkt_addr = htole64(paddr);
 			bus_dmamap_sync(rxr->ptag, rxbuf->pmap,
 			    BUS_DMASYNC_PREREAD);
-
 			j = (j == lim) ? 0 : j + 1;
 			l = (l == lim) ? 0 : l + 1;
-			n++;
 		}
 		kring->nr_hwavail -= n;
 		kring->nr_hwcur = k;
@@ -510,7 +482,8 @@ ixgbe_netmap_rxsync(void *a, u_int ring_nr, int do_lock)
 		IXGBE_WRITE_REG(&adapter->hw, IXGBE_RDT(rxr->me), l);
 	}
 	/* tell userspace that there are new packets */
-	ring->avail = kring->nr_hwavail ;
+	ring->avail = kring->nr_hwavail - resvd;
+
 	if (do_lock)
 		IXGBE_RX_UNLOCK(rxr);
 	return 0;
@@ -520,4 +493,31 @@ ring_reset:
 		IXGBE_RX_UNLOCK(rxr);
 	return netmap_ring_reinit(kring);
 }
+
+
+/*
+ * The attach routine, called near the end of ixgbe_attach(),
+ * fills the parameters for netmap_attach() and calls it.
+ * It cannot fail, in the worst case (such as no memory)
+ * netmap mode will be disabled and the driver will only
+ * operate in standard mode.
+ */
+static void
+ixgbe_netmap_attach(struct adapter *adapter)
+{
+	struct netmap_adapter na;
+
+	bzero(&na, sizeof(na));
+
+	na.ifp = adapter->ifp;
+	na.separate_locks = 1;	/* this card has separate rx/tx locks */
+	na.num_tx_desc = adapter->num_tx_desc;
+	na.num_rx_desc = adapter->num_rx_desc;
+	na.nm_txsync = ixgbe_netmap_txsync;
+	na.nm_rxsync = ixgbe_netmap_rxsync;
+	na.nm_lock = ixgbe_netmap_lock_wrapper;
+	na.nm_register = ixgbe_netmap_reg;
+	netmap_attach(&na, adapter->num_queues);
+}	
+
 /* end of file */

@@ -2496,6 +2496,18 @@ loop:
 		 * vnodes open for writing.
 		 */
 		if (flags & WRITECLOSE) {
+			if (vp->v_object != NULL) {
+				VM_OBJECT_LOCK(vp->v_object);
+				vm_object_page_clean(vp->v_object, 0, 0, 0);
+				VM_OBJECT_UNLOCK(vp->v_object);
+			}
+			error = VOP_FSYNC(vp, MNT_WAIT, td);
+			if (error != 0) {
+				VOP_UNLOCK(vp, 0);
+				vdrop(vp);
+				MNT_VNODE_FOREACH_ABORT(mp, mvp);
+				return (error);
+			}
 			error = VOP_GETATTR(vp, &vattr, td->td_ucred);
 			VI_LOCK(vp);
 
@@ -2645,6 +2657,8 @@ vgonel(struct vnode *vp)
 			vinactive(vp, td);
 		VI_UNLOCK(vp);
 	}
+	if (vp->v_type == VSOCK)
+		vfs_unp_reclaim(vp);
 	/*
 	 * Reclaim the vnode.
 	 */
@@ -2836,6 +2850,7 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	struct statfs *sp;
 	struct vnode *vp;
 	char buf[512];
+	uint64_t mflags;
 	u_int flags;
 
 	if (!have_addr) {
@@ -2857,13 +2872,13 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	    mp->mnt_stat.f_mntonname, mp->mnt_stat.f_fstypename);
 
 	buf[0] = '\0';
-	flags = mp->mnt_flag;
+	mflags = mp->mnt_flag;
 #define	MNT_FLAG(flag)	do {						\
-	if (flags & (flag)) {						\
+	if (mflags & (flag)) {						\
 		if (buf[0] != '\0')					\
 			strlcat(buf, ", ", sizeof(buf));		\
 		strlcat(buf, (#flag) + 4, sizeof(buf));			\
-		flags &= ~(flag);					\
+		mflags &= ~(flag);					\
 	}								\
 } while (0)
 	MNT_FLAG(MNT_RDONLY);
@@ -2901,11 +2916,11 @@ DB_SHOW_COMMAND(mount, db_show_mount)
 	MNT_FLAG(MNT_SNAPSHOT);
 	MNT_FLAG(MNT_BYFSID);
 #undef MNT_FLAG
-	if (flags != 0) {
+	if (mflags != 0) {
 		if (buf[0] != '\0')
 			strlcat(buf, ", ", sizeof(buf));
 		snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		    "0x%08x", flags);
+		    "0x%016jx", mflags);
 	}
 	db_printf("    mnt_flag = %s\n", buf);
 
@@ -3508,7 +3523,7 @@ sync_fsync(struct vop_fsync_args *ap)
 {
 	struct vnode *syncvp = ap->a_vp;
 	struct mount *mp = syncvp->v_mount;
-	int error;
+	int error, save;
 	struct bufobj *bo;
 
 	/*
@@ -3538,17 +3553,10 @@ sync_fsync(struct vop_fsync_args *ap)
 		vfs_unbusy(mp);
 		return (0);
 	}
-	MNT_ILOCK(mp);
-	mp->mnt_noasync++;
-	mp->mnt_kern_flag &= ~MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	save = curthread_pflags_set(TDP_SYNCIO);
 	vfs_msync(mp, MNT_NOWAIT);
 	error = VFS_SYNC(mp, MNT_LAZY);
-	MNT_ILOCK(mp);
-	mp->mnt_noasync--;
-	if ((mp->mnt_flag & MNT_ASYNC) != 0 && mp->mnt_noasync == 0)
-		mp->mnt_kern_flag |= MNTK_ASYNC;
-	MNT_IUNLOCK(mp);
+	curthread_pflags_restore(save);
 	vn_finished_write(mp);
 	vfs_unbusy(mp);
 	return (error);

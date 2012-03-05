@@ -1775,10 +1775,10 @@ struct vfs_state {
 
 static int
 nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
-    fhandle_t *fhp, struct vfs_state *vs)
+    fhandle_t *fhp, struct vfs_state *vs, accmode_t accmode)
 {
 	int error, exflags;
-	struct ucred *cred = NULL, *credanon;
+	struct ucred *cred = NULL, *credanon = NULL;
 	
 	memset(vs, 0, sizeof(*vs));
 
@@ -1788,14 +1788,19 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 	}
 	vs->vs_vfslocked = VFS_LOCK_GIANT(vs->vs_mp);
 
-	error = VFS_CHECKEXP(vs->vs_mp, (struct sockaddr *)&host->nh_addr,
-	    &exflags, &credanon, NULL, NULL);
-	if (error)
-		goto out;
+	/* accmode == 0 means don't check, since it is an unlock. */
+	if (accmode != 0) {
+		error = VFS_CHECKEXP(vs->vs_mp,
+		    (struct sockaddr *)&host->nh_addr, &exflags, &credanon,
+		    NULL, NULL);
+		if (error)
+			goto out;
 
-	if (exflags & MNT_EXRDONLY || (vs->vs_mp->mnt_flag & MNT_RDONLY)) {
-		error = EROFS;
-		goto out;
+		if (exflags & MNT_EXRDONLY ||
+		    (vs->vs_mp->mnt_flag & MNT_RDONLY)) {
+			error = EROFS;
+			goto out;
+		}
 	}
 
 	error = VFS_FHTOVP(vs->vs_mp, &fhp->fh_fid, LK_EXCLUSIVE, &vs->vs_vp);
@@ -1803,22 +1808,31 @@ nlm_get_vfs_state(struct nlm_host *host, struct svc_req *rqstp,
 		goto out;
 	vs->vs_vnlocked = TRUE;
 
-	if (!svc_getcred(rqstp, &cred, NULL)) {
-		error = EINVAL;
-		goto out;
-	}
-	if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
-		crfree(cred);
-		cred = credanon;
-		credanon = NULL;
-	}
+	if (accmode != 0) {
+		if (!svc_getcred(rqstp, &cred, NULL)) {
+			error = EINVAL;
+			goto out;
+		}
+		if (cred->cr_uid == 0 || (exflags & MNT_EXPORTANON)) {
+			crfree(cred);
+			cred = credanon;
+			credanon = NULL;
+		}
 
-	/*
-	 * Check cred.
-	 */
-	error = VOP_ACCESS(vs->vs_vp, VWRITE, cred, curthread);
-	if (error)
-		goto out;
+		/*
+		 * Check cred.
+		 */
+		error = VOP_ACCESS(vs->vs_vp, accmode, cred, curthread);
+		/*
+		 * If this failed and accmode != VWRITE, try again with
+		 * VWRITE to maintain backwards compatibility with the
+		 * old code that always used VWRITE.
+		 */
+		if (error != 0 && accmode != VWRITE)
+			error = VOP_ACCESS(vs->vs_vp, VWRITE, cred, curthread);
+		if (error)
+			goto out;
+	}
 
 #if __FreeBSD_version < 800011
 	VOP_UNLOCK(vs->vs_vp, 0, curthread);
@@ -1872,6 +1886,7 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 	struct nlm_host *host, *bhost;
 	int error, sysid;
 	struct flock fl;
+	accmode_t accmode;
 	
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
@@ -1897,7 +1912,8 @@ nlm_do_test(nlm4_testargs *argp, nlm4_testres *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	accmode = argp->exclusive ? VWRITE : VREAD;
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, accmode);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -1968,6 +1984,7 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 	struct nlm_host *host;
 	int error, sysid;
 	struct flock fl;
+	accmode_t accmode;
 	
 	memset(result, 0, sizeof(*result));
 	memset(&vs, 0, sizeof(vs));
@@ -2002,7 +2019,8 @@ nlm_do_lock(nlm4_lockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	accmode = argp->exclusive ? VWRITE : VREAD;
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, accmode);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -2181,7 +2199,7 @@ nlm_do_cancel(nlm4_cancargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, (accmode_t)0);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;
@@ -2270,7 +2288,7 @@ nlm_do_unlock(nlm4_unlockargs *argp, nlm4_res *result, struct svc_req *rqstp,
 		goto out;
 	}
 
-	error = nlm_get_vfs_state(host, rqstp, &fh, &vs);
+	error = nlm_get_vfs_state(host, rqstp, &fh, &vs, (accmode_t)0);
 	if (error) {
 		result->stat.stat = nlm_convert_error(error);
 		goto out;

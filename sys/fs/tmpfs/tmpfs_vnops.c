@@ -54,8 +54,6 @@ __FBSDID("$FreeBSD$");
 #include <vm/vm_page.h>
 #include <vm/vm_pager.h>
 
-#include <machine/_inttypes.h>
-
 #include <fs/fifofs/fifo.h>
 #include <fs/tmpfs/tmpfs_vnops.h>
 #include <fs/tmpfs/tmpfs.h>
@@ -1137,6 +1135,8 @@ tmpfs_rename(struct vop_rename_args *v)
 		tmpfs_free_dirent(VFS_TO_TMPFS(tvp->v_mount), de, TRUE);
 	}
 	cache_purge(fvp);
+	if (tvp != NULL)
+		cache_purge(tvp);
 
 	error = 0;
 
@@ -1471,10 +1471,9 @@ tmpfs_print(struct vop_print_args *v)
 
 	printf("tag VT_TMPFS, tmpfs_node %p, flags 0x%x, links %d\n",
 	    node, node->tn_flags, node->tn_links);
-	printf("\tmode 0%o, owner %d, group %d, size %" PRIdMAX
-	    ", status 0x%x\n",
+	printf("\tmode 0%o, owner %d, group %d, size %jd, status 0x%x\n",
 	    node->tn_mode, node->tn_uid, node->tn_gid,
-	    (uintmax_t)node->tn_size, node->tn_status);
+	    (intmax_t)node->tn_size, node->tn_status);
 
 	if (vp->v_type == VFIFO)
 		fifo_printinfo(vp);

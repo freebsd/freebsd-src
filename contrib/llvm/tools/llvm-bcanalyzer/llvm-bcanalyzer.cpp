@@ -102,10 +102,11 @@ static const char *GetBlockName(unsigned BlockID,
   default:                           return 0;
   case bitc::MODULE_BLOCK_ID:        return "MODULE_BLOCK";
   case bitc::PARAMATTR_BLOCK_ID:     return "PARAMATTR_BLOCK";
-  case bitc::TYPE_BLOCK_ID:          return "TYPE_BLOCK";
+  case bitc::TYPE_BLOCK_ID_OLD:      return "TYPE_BLOCK_ID_OLD";
+  case bitc::TYPE_BLOCK_ID_NEW:      return "TYPE_BLOCK_ID";
   case bitc::CONSTANTS_BLOCK_ID:     return "CONSTANTS_BLOCK";
   case bitc::FUNCTION_BLOCK_ID:      return "FUNCTION_BLOCK";
-  case bitc::TYPE_SYMTAB_BLOCK_ID:   return "TYPE_SYMTAB";
+  case bitc::TYPE_SYMTAB_BLOCK_ID_OLD: return "TYPE_SYMTAB_OLD";
   case bitc::VALUE_SYMTAB_BLOCK_ID:  return "VALUE_SYMTAB";
   case bitc::METADATA_BLOCK_ID:      return "METADATA_BLOCK";
   case bitc::METADATA_ATTACHMENT_ID: return "METADATA_ATTACHMENT_BLOCK";
@@ -162,25 +163,29 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     default: return 0;
     case bitc::PARAMATTR_CODE_ENTRY: return "ENTRY";
     }
-  case bitc::TYPE_BLOCK_ID:
+  case bitc::TYPE_BLOCK_ID_OLD:
+  case bitc::TYPE_BLOCK_ID_NEW:
     switch (CodeID) {
     default: return 0;
-    case bitc::TYPE_CODE_NUMENTRY:  return "NUMENTRY";
-    case bitc::TYPE_CODE_VOID:      return "VOID";
-    case bitc::TYPE_CODE_FLOAT:     return "FLOAT";
-    case bitc::TYPE_CODE_DOUBLE:    return "DOUBLE";
-    case bitc::TYPE_CODE_LABEL:     return "LABEL";
-    case bitc::TYPE_CODE_OPAQUE:    return "OPAQUE";
-    case bitc::TYPE_CODE_INTEGER:   return "INTEGER";
-    case bitc::TYPE_CODE_POINTER:   return "POINTER";
-    case bitc::TYPE_CODE_FUNCTION:  return "FUNCTION";
-    case bitc::TYPE_CODE_STRUCT:    return "STRUCT";
-    case bitc::TYPE_CODE_ARRAY:     return "ARRAY";
-    case bitc::TYPE_CODE_VECTOR:    return "VECTOR";
-    case bitc::TYPE_CODE_X86_FP80:  return "X86_FP80";
-    case bitc::TYPE_CODE_FP128:     return "FP128";
-    case bitc::TYPE_CODE_PPC_FP128: return "PPC_FP128";
-    case bitc::TYPE_CODE_METADATA:  return "METADATA";
+    case bitc::TYPE_CODE_NUMENTRY:     return "NUMENTRY";
+    case bitc::TYPE_CODE_VOID:         return "VOID";
+    case bitc::TYPE_CODE_FLOAT:        return "FLOAT";
+    case bitc::TYPE_CODE_DOUBLE:       return "DOUBLE";
+    case bitc::TYPE_CODE_LABEL:        return "LABEL";
+    case bitc::TYPE_CODE_OPAQUE:       return "OPAQUE";
+    case bitc::TYPE_CODE_INTEGER:      return "INTEGER";
+    case bitc::TYPE_CODE_POINTER:      return "POINTER";
+    case bitc::TYPE_CODE_FUNCTION:     return "FUNCTION";
+    case bitc::TYPE_CODE_STRUCT_OLD:   return "STRUCT_OLD";
+    case bitc::TYPE_CODE_ARRAY:        return "ARRAY";
+    case bitc::TYPE_CODE_VECTOR:       return "VECTOR";
+    case bitc::TYPE_CODE_X86_FP80:     return "X86_FP80";
+    case bitc::TYPE_CODE_FP128:        return "FP128";
+    case bitc::TYPE_CODE_PPC_FP128:    return "PPC_FP128";
+    case bitc::TYPE_CODE_METADATA:     return "METADATA";
+    case bitc::TYPE_CODE_STRUCT_ANON:  return "STRUCT_ANON";
+    case bitc::TYPE_CODE_STRUCT_NAME:  return "STRUCT_NAME";
+    case bitc::TYPE_CODE_STRUCT_NAMED: return "STRUCT_NAMED";
     }
 
   case bitc::CONSTANTS_BLOCK_ID:
@@ -230,25 +235,19 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
     case bitc::FUNC_CODE_INST_UNREACHABLE:  return "INST_UNREACHABLE";
 
     case bitc::FUNC_CODE_INST_PHI:          return "INST_PHI";
-    case bitc::FUNC_CODE_INST_MALLOC:       return "INST_MALLOC";
-    case bitc::FUNC_CODE_INST_FREE:         return "INST_FREE";
     case bitc::FUNC_CODE_INST_ALLOCA:       return "INST_ALLOCA";
     case bitc::FUNC_CODE_INST_LOAD:         return "INST_LOAD";
-    case bitc::FUNC_CODE_INST_STORE:        return "INST_STORE";
-    case bitc::FUNC_CODE_INST_CALL:         return "INST_CALL";
     case bitc::FUNC_CODE_INST_VAARG:        return "INST_VAARG";
-    case bitc::FUNC_CODE_INST_STORE2:       return "INST_STORE2";
-    case bitc::FUNC_CODE_INST_GETRESULT:    return "INST_GETRESULT";
+    case bitc::FUNC_CODE_INST_STORE:        return "INST_STORE";
     case bitc::FUNC_CODE_INST_EXTRACTVAL:   return "INST_EXTRACTVAL";
     case bitc::FUNC_CODE_INST_INSERTVAL:    return "INST_INSERTVAL";
     case bitc::FUNC_CODE_INST_CMP2:         return "INST_CMP2";
     case bitc::FUNC_CODE_INST_VSELECT:      return "INST_VSELECT";
-    case bitc::FUNC_CODE_DEBUG_LOC:         return "DEBUG_LOC";
     case bitc::FUNC_CODE_DEBUG_LOC_AGAIN:   return "DEBUG_LOC_AGAIN";
-    case bitc::FUNC_CODE_INST_CALL2:        return "INST_CALL2";
-    case bitc::FUNC_CODE_DEBUG_LOC2:        return "DEBUG_LOC2";
+    case bitc::FUNC_CODE_INST_CALL:         return "INST_CALL";
+    case bitc::FUNC_CODE_DEBUG_LOC:         return "DEBUG_LOC";
     }
-  case bitc::TYPE_SYMTAB_BLOCK_ID:
+  case bitc::TYPE_SYMTAB_BLOCK_ID_OLD:
     switch (CodeID) {
     default: return 0;
     case bitc::TST_CODE_ENTRY: return "ENTRY";
@@ -262,22 +261,17 @@ static const char *GetCodeName(unsigned CodeID, unsigned BlockID,
   case bitc::METADATA_ATTACHMENT_ID:
     switch(CodeID) {
     default:return 0;
-    case bitc::METADATA_ATTACHMENT:  return "METADATA_ATTACHMENT";
-    case bitc::METADATA_ATTACHMENT2: return "METADATA_ATTACHMENT2";
+    case bitc::METADATA_ATTACHMENT: return "METADATA_ATTACHMENT";
     }
   case bitc::METADATA_BLOCK_ID:
     switch(CodeID) {
     default:return 0;
     case bitc::METADATA_STRING:      return "METADATA_STRING";
+    case bitc::METADATA_NAME:        return "METADATA_NAME";
+    case bitc::METADATA_KIND:        return "METADATA_KIND";
     case bitc::METADATA_NODE:        return "METADATA_NODE";
     case bitc::METADATA_FN_NODE:     return "METADATA_FN_NODE";
-    case bitc::METADATA_NAME:        return "METADATA_NAME";
     case bitc::METADATA_NAMED_NODE:  return "METADATA_NAMED_NODE";
-    case bitc::METADATA_KIND:        return "METADATA_KIND";
-    case bitc::METADATA_ATTACHMENT:  return "METADATA_ATTACHMENT";
-    case bitc::METADATA_NODE2:       return "METADATA_NODE2";
-    case bitc::METADATA_FN_NODE2:    return "METADATA_FN_NODE2";
-    case bitc::METADATA_NAMED_NODE2: return "METADATA_NAMED_NODE2";
     }
   }
 }

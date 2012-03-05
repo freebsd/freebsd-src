@@ -149,13 +149,13 @@ update_mp(struct mount *mp, struct thread *td)
 		}
 	}
 
-	if (1 == vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "gid", "%d", &v) == 1)
 		pmp->pm_gid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "uid", "%d", &v) == 1)
 		pmp->pm_uid = v;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "mask", "%d", &v) == 1)
 		pmp->pm_mask = v & ALLPERMS;
-	if (1 == vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v))
+	if (vfs_scanopt(mp->mnt_optnew, "dirmask", "%d", &v) == 1)
 		pmp->pm_dirmask = v & ALLPERMS;
 	vfs_flagopt(mp->mnt_optnew, "shortname",
 	    &pmp->pm_flags, MSDOSFSMNT_SHORTNAME);
@@ -197,7 +197,7 @@ update_mp(struct mount *mp, struct thread *td)
 }
 
 static int
-msdosfs_cmount(struct mntarg *ma, void *data, int flags)
+msdosfs_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct msdosfs_args args;
 	struct export_args exp;

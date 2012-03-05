@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd July 3, 2011
+.Dd March 2, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -66,6 +66,8 @@
 .Fn if_allmulti "struct ifnet *ifp" "int amswitch"
 .Ft "struct ifnet *"
 .Fn ifunit "const char *name"
+.Ft "struct ifnet *"
+.Fn ifunit_ref "const char *name"
 .Ft void
 .Fn if_up "struct ifnet *ifp"
 .\"
@@ -75,12 +77,13 @@
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithdstaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithnet "struct sockaddr *addr"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp"
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
-.Fn ifafree "struct ifaddr *ifa"
-.Fn IFAFREE "struct ifaddr *ifa"
+.Fn ifa_ref "struct ifaddr *ifa"
+.Ft void
+.Fn ifa_free "struct ifaddr *ifa"
 .\"
 .Ss "Interface Multicast Address Functions"
 .Ft int
@@ -88,7 +91,7 @@
 .Ft int
 .Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ft "struct ifmultiaddr *"
-.Fn ifmaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
+.Fn if_findmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ss "Output queue macros"
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
@@ -107,7 +110,7 @@
 .Ft void
 .Fn \*(lp*if_qflush\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "int cmd" "caddr_t data"
+.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "u_long cmd" "caddr_t data"
 .Ft void
 .Fn \*(lp*if_watchdog\*(rp "struct ifnet *ifp"
 .Ft void
@@ -256,6 +259,11 @@ if a unit number is not associated with the device.
 (Initialized by driver
 (usually via
 .Fn if_initname ) . )
+.It Va if_refcount
+.Pq Vt u_int
+The reference count.
+(Initialized by
+.Fn if_alloc . )
 .It Va if_addrhead
 .Pq Vt "struct ifaddrhead"
 The head of the
@@ -339,6 +347,20 @@ The output queue.
 .\"section, below.
 .\"(Initialized by driver.)
 .El
+.Pp
+References to
+.Vt ifnet
+structures are gained by calling the
+.Fn if_ref
+function and released by calling the
+.Fn if_rele
+function.
+They are used to allow kernel code walking global interface lists
+to release the
+.Vt ifnet
+lock yet keep the
+.Vt ifnet
+structure stable.
 .Pp
 There are in addition a number of function pointers which the driver
 must initialize to complete its interface with the generic interface
@@ -978,14 +1000,11 @@ external routing protocol.
 .Pp
 References to
 .Vt ifaddr
-structures are gained manually, by incrementing the
-.Va ifa_refcnt
-member.
-References are released by calling either the
-.Fn ifafree
-function or the
-.Fn IFAFREE
-macro.
+structures are gained by calling the
+.Fn ifa_ref
+function and released by calling the
+.Fn ifa_free
+function.
 .Pp
 .Fn ifa_rtrequest
 is a pointer to a function which receives callouts from the routing
@@ -1132,6 +1151,17 @@ Return an
 .Vt ifnet
 pointer for the interface named
 .Fa name .
+.It Fn ifunit_ref
+Return a reference-counted (via
+.Fn ifa_ref )
+.Vt ifnet
+pointer for the interface named
+.Fa name .
+This is the preferred function over
+.Fn ifunit .
+The caller is responsible for releasing the reference with
+.Fn if_rele
+when it is finished with the ifnet.
 .It Fn ifioctl
 Process the ioctl request
 .Fa cmd ,
@@ -1245,10 +1275,8 @@ or
 .Fn if_delmulti
 function is called to perform the operation; qq.v.
 .Pp
-.It Dv SIOCSIFDSTADDR
-.It Dv SIOCSIFADDR
-.It Dv SIOCSIFBRDADDR
-.It Dv SIOCSIFNETMASK
+.It Dv SIOCAIFADDR
+.It Dv SIOCDIFADDR
 The socket's protocol control routine is called to implement the
 requested action.
 .Pp
@@ -1296,6 +1324,9 @@ subject to its configured netmask, or a point-to-point interface
 address whose remote address is
 .Fa addr
 if one is found.
+If
+.Fa ignore_ptp
+is true, skip point-to-point interface addresses.
 .Pp
 .Fn ifaof_ifpforaddr
 returns the most specific address configured on interface
@@ -1316,7 +1347,7 @@ The
 .Fn if_addmulti ,
 .Fn if_delmulti ,
 and
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 functions provide support for requesting and relinquishing multicast
 group memberships, and for querying an interface's membership list,
 respectively.
@@ -1373,11 +1404,11 @@ Both functions return zero on success, or a
 standard error number on failure.
 .Pp
 The
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 function examines the membership list of interface
 .Fa ifp
 for an address matching
-.Fa addr ,
+.Fa sa ,
 and returns a pointer to that
 .Vt "struct ifmultiaddr"
 if one is found, else it returns a null pointer.

@@ -1,10 +1,13 @@
-# $FreeBSD$
+# $FreeBSD: head/lib/clang/libllvmobject/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 LIB=	llvmobject
 
 SRCDIR=	lib/Object
-SRCS=	COFFObjectFile.cpp \
+SRCS=	Archive.cpp \
+	Binary.cpp \
+	COFFObjectFile.cpp \
 	ELFObjectFile.cpp \
+	Error.cpp \
 	MachOObject.cpp \
 	MachOObjectFile.cpp \
 	Object.cpp \

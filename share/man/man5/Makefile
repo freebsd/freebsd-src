@@ -76,6 +76,7 @@ MLINKS+=fs.5 inode.5
 MLINKS+=hosts.equiv.5 rhosts.5
 MLINKS+=msdosfs.5 msdos.5
 MLINKS+=passwd.5 master.passwd.5
+MLINKS+=portindex.5 INDEX.5
 MLINKS+=quota.user.5 quota.group.5
 MLINKS+=rc.conf.5 rc.conf.local.5
 MLINKS+=resolver.5 resolv.conf.5

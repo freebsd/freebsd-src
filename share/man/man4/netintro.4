@@ -32,7 +32,7 @@
 .\"     @(#)netintro.4	8.2 (Berkeley) 11/30/93
 .\" $FreeBSD$
 .\"
-.Dd April 14, 2010
+.Dd January 26, 2012
 .Dt NETINTRO 4
 .Os
 .Sh NAME
@@ -231,19 +231,6 @@ struct	ifreq {
 };
 .Ed
 .Pp
-Calls which are now deprecated are:
-.Bl -tag -width SIOCGIFBRDADDR
-.It Dv SIOCSIFADDR
-Set interface address for protocol family.
-Following the address assignment, the
-.Dq initialization
-routine for the interface is called.
-.It Dv SIOCSIFDSTADDR
-Set point to point address for protocol family and interface.
-.It Dv SIOCSIFBRDADDR
-Set broadcast address for protocol family and interface.
-.El
-.Pp
 .Fn Ioctl
 requests to obtain addresses and requests both to set and
 retrieve other data are still fully supported
@@ -400,7 +387,7 @@ boundaries.
 .El
 .Bd -literal
 /*
-* Structure used in SIOCAIFCONF request.
+* Structure used in SIOCAIFADDR request.
 */
 struct ifaliasreq {
         char    ifra_name[IFNAMSIZ];   /* if name, e.g. "en0" */

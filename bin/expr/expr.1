@@ -30,7 +30,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 9, 2010
+.Dd February 25, 2012
 .Dt EXPR 1
 .Os
 .Sh NAME
@@ -52,7 +52,7 @@ Several of the operators have special meaning to command interpreters
 and must therefore be quoted appropriately.
 All integer operands are interpreted in base 10 and must consist of only
 an optional leading minus sign followed by one or more digits (unless
-less strict parsing has been enabled for backwards compatibilty with
+less strict parsing has been enabled for backwards compatibility with
 prior versions of
 .Nm
 in
@@ -176,7 +176,8 @@ option, since this matches the historic behavior of
 .Nm
 in
 .Fx . This option makes number parsing less strict and permits leading
-white space and an optional leading plus sign. In addition, empty operands
+white space and an optional leading plus sign.
+In addition, empty operands
 have an implied value of zero in numeric context.
 For historical reasons, defining the environment variable
 .Ev EXPR_COMPAT
@@ -284,7 +285,7 @@ An empty operand string is interpreted as 0.
 .Bl -bullet
 .It
 Leading white space and/or a plus sign before an otherwise valid positive
-numberic operand are allowed and will be ignored.
+numeric operand are allowed and will be ignored.
 .El
 .Pp
 The extended arithmetic range and overflow checks do not conflict with
@@ -300,7 +301,8 @@ standard, the use of string arguments
 .Va index ,
 or
 .Va match
-produces undefined results. In this version of
+produces undefined results.
+In this version of
 .Nm ,
 these arguments are treated just as their respective string values.
 .Pp

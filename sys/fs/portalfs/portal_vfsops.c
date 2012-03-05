@@ -69,7 +69,7 @@ static const char *portal_opts[] = {
 };
 
 static int
-portal_cmount(struct mntarg *ma, void *data, int flags)
+portal_cmount(struct mntarg *ma, void *data, uint64_t flags)
 {
 	struct portal_args args;
 	int error;

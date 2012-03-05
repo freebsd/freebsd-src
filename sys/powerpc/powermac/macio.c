@@ -293,7 +293,7 @@ macio_attach(device_t dev)
 	 * Locate the device node and it's base address
 	 */
 	if (OF_getprop(root, "assigned-addresses", 
-		       reg, sizeof(reg)) < sizeof(reg)) {
+		       reg, sizeof(reg)) < (ssize_t)sizeof(reg)) {
 		return (ENXIO);
 	}
 

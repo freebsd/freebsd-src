@@ -3296,12 +3296,10 @@ em_setup_transmit_ring(struct tx_ring *txr)
 		}
 #ifdef DEV_NETMAP
 		if (slot) {
-			int si = i + na->tx_rings[txr->me].nkr_hwofs;
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			uint64_t paddr;
 			void *addr;
 
-			if (si >= na->num_tx_desc)
-				si -= na->num_tx_desc;
 			addr = PNMB(slot + si, &paddr);
 			txr->tx_base[i].buffer_addr = htole64(paddr);
 			/* reload the map for netmap mode */
@@ -3761,7 +3759,7 @@ em_txeof(struct tx_ring *txr)
 		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 		EM_TX_UNLOCK(txr);
 		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->tx_si, PI_NET);
 		EM_CORE_UNLOCK(adapter);
 		EM_TX_LOCK(txr);
 		return (FALSE);
@@ -4053,13 +4051,10 @@ em_setup_receive_ring(struct rx_ring *rxr)
 		rxbuf = &rxr->rx_buffers[j];
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the j-th NIC-ring entry */
-			int si = j + na->rx_rings[0].nkr_hwofs;
+			int si = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
-			if (si > na->num_rx_desc)
-				si -= na->num_rx_desc;
 			addr = PNMB(slot + si, &paddr);
 			netmap_load_map(rxr->rxtag, rxbuf->map, addr);
 			/* Update descriptor */
@@ -4375,10 +4370,11 @@ em_rxeof(struct rx_ring *rxr, int count, int *done)
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
 
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		EM_RX_UNLOCK(rxr);
 		EM_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		EM_CORE_UNLOCK(adapter);
 		return (0);
 	}

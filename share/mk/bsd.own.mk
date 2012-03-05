@@ -320,6 +320,9 @@ __DEFAULT_YES_OPTIONS = \
     BOOT \
     BSD_CPIO \
     BSNMP \
+    SOURCELESS \
+    SOURCELESS_HOST \
+    SOURCELESS_UCODE \
     BZIP2 \
     CALENDAR \
     CAPSICUM \
@@ -416,6 +419,7 @@ __DEFAULT_NO_OPTIONS = \
     BIND_SIGCHASE \
     BIND_XML \
     CLANG_EXTRAS \
+    CLANG_IS_CC \
     CTF \
     HESIOD \
     ICONV \
@@ -512,6 +516,11 @@ MK_BIND_UTILS:=	no
 MK_BIND_ETC:=	no
 .endif
 
+.if ${MK_SOURCELESS} == "no"
+MK_SOURCELESS_HOST:=	no
+MK_SOURCELESS_UCODE:= no
+.endif
+
 .if ${MK_CDDL} == "no"
 MK_ZFS:=	no
 MK_CTF:=	no
@@ -564,6 +573,10 @@ MK_BINUTILS:=	no
 MK_CLANG:=	no
 MK_GCC:=	no
 MK_GDB:=	no
+.endif
+
+.if ${MK_CLANG} == "no"
+MK_CLANG_IS_CC:= no
 .endif
 
 #

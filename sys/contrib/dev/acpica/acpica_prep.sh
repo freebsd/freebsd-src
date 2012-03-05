@@ -14,12 +14,10 @@ wrk=`realpath ./_acpi_ca_unpack`
 dst=`realpath ./acpi_ca_destination`
 
 # files that should keep their full directory path
-fulldirs="common compiler debugger disassembler dispatcher events	\
-	executer hardware include namespace os_specific parser		\
-	resources tables utilities"
+fulldirs="common compiler components include os_specific"
 
 # files to remove
-stripdirs="generate tests tools"
+stripdirs="generate libraries tests tools"
 stripfiles="Makefile README acintel.h aclinux.h acmsvc.h acnetbsd.h	\
 	acos2.h accygwin.h acefi.h acwin.h acwin64.h osunixdir.c	\
 	oswindir.c oswintbl.c oswinxf.c readme.txt utclib.c"

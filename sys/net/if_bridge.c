@@ -144,10 +144,10 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_RTHASH_MASK		(BRIDGE_RTHASH_SIZE - 1)
 
 /*
- * Maximum number of addresses to cache.
+ * Default maximum number of addresses to cache.
  */
 #ifndef BRIDGE_RTABLE_MAX
-#define	BRIDGE_RTABLE_MAX		100
+#define	BRIDGE_RTABLE_MAX		2000
 #endif
 
 /*
@@ -355,19 +355,26 @@ static int pfil_local_phys = 0; /* run pfil hooks on the physical interface for
                                    locally destined packets */
 static int log_stp   = 0;   /* log STP state changes */
 static int bridge_inherit_mac = 0;   /* share MAC with first bridge member */
+TUNABLE_INT("net.link.bridge.pfil_onlyip", &pfil_onlyip);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_onlyip, CTLFLAG_RW,
     &pfil_onlyip, 0, "Only pass IP packets when pfil is enabled");
+TUNABLE_INT("net.link.bridge.ipfw_arp", &pfil_ipfw_arp);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, ipfw_arp, CTLFLAG_RW,
     &pfil_ipfw_arp, 0, "Filter ARP packets through IPFW layer2");
+TUNABLE_INT("net.link.bridge.pfil_bridge", &pfil_bridge);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_bridge, CTLFLAG_RW,
     &pfil_bridge, 0, "Packet filter on the bridge interface");
+TUNABLE_INT("net.link.bridge.pfil_member", &pfil_member);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_member, CTLFLAG_RW,
     &pfil_member, 0, "Packet filter on the member interface");
+TUNABLE_INT("net.link.bridge.pfil_local_phys", &pfil_local_phys);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, pfil_local_phys, CTLFLAG_RW,
     &pfil_local_phys, 0,
     "Packet filter on the physical interface for locally destined packets");
+TUNABLE_INT("net.link.bridge.log_stp", &log_stp);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, log_stp, CTLFLAG_RW,
     &log_stp, 0, "Log STP state changes");
+TUNABLE_INT("net.link.bridge.inherit_mac", &bridge_inherit_mac);
 SYSCTL_INT(_net_link_bridge, OID_AUTO, inherit_mac, CTLFLAG_RW,
     &bridge_inherit_mac, 0,
     "Inherit MAC address from the first bridge member");
@@ -2208,11 +2215,9 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		/* Tap off 802.1D packets; they do not get forwarded. */
 		if (memcmp(eh->ether_dhost, bstp_etheraddr,
 		    ETHER_ADDR_LEN) == 0) {
-			m = bstp_input(&bif->bif_stp, ifp, m);
-			if (m == NULL) {
-				BRIDGE_UNLOCK(sc);
-				return (NULL);
-			}
+			bstp_input(&bif->bif_stp, ifp, m); /* consumes mbuf */
+			BRIDGE_UNLOCK(sc);
+			return (NULL);
 		}
 
 		if ((bif->bif_flags & IFBIF_STP) &&

@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: head/lib/clang/libllvmmcdisassembler/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 LIB=	llvmmcdisassembler
 

@@ -58,7 +58,7 @@ SRCS=	AliasAnalysis.cpp \
 	ValueTracking.cpp
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	BranchProbabilityInfo.cpp \
+SRCS+=	BlockFrequencyInfo.cpp \
 	LibCallSemantics.cpp \
 	PathNumbering.cpp \
 	PathProfileInfo.cpp \

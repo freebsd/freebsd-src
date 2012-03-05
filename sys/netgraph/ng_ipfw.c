@@ -194,7 +194,7 @@ ng_ipfw_connect(hook_p hook)
 }
 
 /* Look up hook by name */
-hook_p
+static hook_p
 ng_ipfw_findhook(node_p node, const char *name)
 {
 	u_int16_t n;	/* numeric representation of hook */

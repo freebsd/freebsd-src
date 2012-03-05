@@ -1,4 +1,4 @@
-$ $tcsh: set7,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set7,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ ed.screen.c
 $set 7
 1 \n\tLa tcsh ipotizza che il tuo terminale abbia\n
@@ -7,24 +7,24 @@ $set 7
 4 \t%s tasto meta\n
 5 il
 6 nessun
-7 \t%s può usare i tabulatori\n
+7 \t%s puÃ² usare i tabulatori\n
 8 non
 9 \t%s i margini automatici\n
 10 ha
 11 non ha
 12 \t%s i margini magici\n
 13 (vuoto)
-14 sì
+14 sÃ¬
 15 no
 16 ERRORE: non posso cancellare\r\n
-17 DeleteChars: il valore num è ridicolo: %d\r\n
+17 DeleteChars: il valore num Ã¨ ridicolo: %d\r\n
 18 ERRORE: non posso inserire\r\n
-19 StartInsert: il valore num è ridicolo: %d\r\n
+19 StartInsert: il valore num Ã¨ ridicolo: %d\r\n
 20 %s: Non riesco ad aprire /etc/termcap.\n
 21 %s: Nessuna definizione per un terminale di tipo "%s"\n
 22 %s: sto usando i settaggi relativi ad un terminale veramente stupido.\n
-23 %s: ATTENZIONE: Il terminale non può scrollare verso l'alto.\n
+23 %s: ATTENZIONE: Il terminale non puÃ² scrollare verso l'alto.\n
 24 La modifica delle linee lunghe potrebbe essere difficoltosa.\n
-25 non è possibile cancellare fino alla fine della linea.\n
-26 non è possibile cancellare caratteri.\n
-27 non è possibile inserire caratteri.\n
+25 non Ã¨ possibile cancellare fino alla fine della linea.\n
+26 non Ã¨ possibile cancellare caratteri.\n
+27 non Ã¨ possibile inserire caratteri.\n

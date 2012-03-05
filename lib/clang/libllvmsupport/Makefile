@@ -70,7 +70,9 @@ SRCS=	APFloat.cpp \
 LLVM_REQUIRES_RTTI=
 
 .if ${MK_CLANG_EXTRAS} != "no"
-SRCS+=	BranchProbability.cpp \
+SRCS+=	BlockFrequency.cpp \
+	BranchProbability.cpp \
+	DataExtractor.cpp \
 	Disassembler.cpp \
 	FileUtilities.cpp \
 	MemoryObject.cpp \

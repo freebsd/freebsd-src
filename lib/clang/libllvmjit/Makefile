@@ -1,4 +1,4 @@
-# $FreeBSD$
+# $FreeBSD: head/lib/clang/libllvmjit/Makefile 231057 2012-02-05 23:56:22Z dim $
 
 LIB=	llvmjit
 
@@ -10,9 +10,5 @@ SRCS=	Intercept.cpp \
 	JITEmitter.cpp \
 	JITMemoryManager.cpp \
 	OProfileJITEventListener.cpp
-
-.if ${MACHINE_ARCH} == "ia64"
-CFLAGS+= -D__USING_SJLJ_EXCEPTIONS__
-.endif
 
 .include "../clang.lib.mk"

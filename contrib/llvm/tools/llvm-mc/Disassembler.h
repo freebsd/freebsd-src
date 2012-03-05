@@ -21,14 +21,14 @@ namespace llvm {
 
 class MemoryBuffer;
 class Target;
-class TargetMachine;
 class raw_ostream;
 
 class Disassembler {
 public:
   static int disassemble(const Target &target,
-                         TargetMachine &TM,
                          const std::string &tripleString,
+                         const std::string &Cpu,
+                         const std::string &FeaturesStr,
                          MemoryBuffer &buffer,
                          raw_ostream &Out);
 

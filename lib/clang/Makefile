@@ -69,6 +69,7 @@ SUBDIR=	libclanganalysis \
 
 .if ${MK_CLANG_EXTRAS} != "no"
 SUBDIR+=libllvmarchive \
+	libllvmdebuginfo \
 	libllvmexecutionengine \
 	libllvminterpreter \
 	libllvmjit \
