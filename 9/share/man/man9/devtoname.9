@@ -24,7 +24,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 19, 2012
+.Dd February 10, 2012
 .Dt DEVTONAME 9
 .Os
 .Sh NAME
@@ -41,15 +41,6 @@ The
 function returns a pointer to the name of the device passed to it.
 The name is whatever was set to it in
 .Fn make_dev .
-If no name is associated with
-.Va dev ,
-a pointer to a string consisting of a
-.Dq #
-followed by
-.Dq Va major Ns / Ns Va minor
-as it applies to
-.Va dev
-is returned.
 .Sh HISTORY
 The
 .Fn devtoname
