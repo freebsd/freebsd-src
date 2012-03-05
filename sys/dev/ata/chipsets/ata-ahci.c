@@ -180,12 +180,12 @@ ata_ahci_chipinit(device_t dev)
     ctlr->ichannels = ATA_INL(ctlr->r_res2, ATA_AHCI_PI);
     ctlr->channels = MAX(flsl(ctlr->ichannels),
 	    (ATA_INL(ctlr->r_res2, ATA_AHCI_CAP) & ATA_AHCI_CAP_NPMASK) + 1);
-    if (pci_get_devid(dev) == ATA_M88SX6111)
+    if (pci_get_devid(dev) == ATA_M88SE6111)
 	    ctlr->channels = 1;
-    else if (pci_get_devid(dev) == ATA_M88SX6121)
+    else if (pci_get_devid(dev) == ATA_M88SE6121)
 	    ctlr->channels = 2;
-    else if (pci_get_devid(dev) == ATA_M88SX6141 ||
-	pci_get_devid(dev) == ATA_M88SX6145)
+    else if (pci_get_devid(dev) == ATA_M88SE6141 ||
+	pci_get_devid(dev) == ATA_M88SE6145)
 	    ctlr->channels = 4;
 
     ctlr->reset = ata_ahci_reset;

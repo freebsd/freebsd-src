@@ -564,7 +564,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 
 		n = 0;
 		if (on < bcount)
-			n = min((unsigned)(bcount - on), uio->uio_resid);
+			n = MIN((unsigned)(bcount - on), uio->uio_resid);
 		break;
 	    case VLNK:
 		nfsstats.biocache_readlinks++;
@@ -583,7 +583,7 @@ nfs_bioread(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *cred)
 			return (error);
 		    }
 		}
-		n = min(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
+		n = MIN(uio->uio_resid, NFS_MAXPATHLEN - bp->b_resid);
 		on = 0;
 		break;
 	    case VDIR:
@@ -751,8 +751,8 @@ nfs_directio_write(vp, uiop, cred, ioflag)
 		struct iovec iov;
 do_sync:
 		while (uiop->uio_resid > 0) {
-			size = min(uiop->uio_resid, wsize);
-			size = min(uiop->uio_iov->iov_len, size);
+			size = MIN(uiop->uio_resid, wsize);
+			size = MIN(uiop->uio_iov->iov_len, size);
 			iov.iov_base = uiop->uio_iov->iov_base;
 			iov.iov_len = size;
 			uio.uio_iov = &iov;
@@ -800,8 +800,8 @@ do_sync:
 		 * in NFS directio access.
 		 */
 		while (uiop->uio_resid > 0) {
-			size = min(uiop->uio_resid, wsize);
-			size = min(uiop->uio_iov->iov_len, size);
+			size = MIN(uiop->uio_resid, wsize);
+			size = MIN(uiop->uio_iov->iov_len, size);
 			bp = getpbuf(&nfs_pbuf_freecnt);
 			t_uio = malloc(sizeof(struct uio), M_NFSDIRECTIO, M_WAITOK);
 			t_iov = malloc(sizeof(struct iovec), M_NFSDIRECTIO, M_WAITOK);
@@ -814,7 +814,21 @@ do_sync:
 			t_uio->uio_segflg = UIO_SYSSPACE;
 			t_uio->uio_rw = UIO_WRITE;
 			t_uio->uio_td = td;
-			bcopy(uiop->uio_iov->iov_base, t_iov->iov_base, size);
+			KASSERT(uiop->uio_segflg == UIO_USERSPACE ||
+			    uiop->uio_segflg == UIO_SYSSPACE,
+			    ("nfs_directio_write: Bad uio_segflg"));
+			if (uiop->uio_segflg == UIO_USERSPACE) {
+				error = copyin(uiop->uio_iov->iov_base,
+				    t_iov->iov_base, size);
+				if (error != 0)
+					goto err_free;
+			} else
+				/*
+				 * UIO_SYSSPACE may never happen, but handle
+				 * it just in case it does.
+				 */
+				bcopy(uiop->uio_iov->iov_base, t_iov->iov_base,
+				    size);
 			bp->b_flags |= B_DIRECT;
 			bp->b_iocmd = BIO_WRITE;
 			if (cred != NOCRED) {
@@ -825,6 +839,7 @@ do_sync:
 			bp->b_caller1 = (void *)t_uio;
 			bp->b_vp = vp;
 			error = nfs_asyncio(nmp, bp, NOCRED, td);
+err_free:
 			if (error) {
 				free(t_iov->iov_base, M_NFSDIRECTIO);
 				free(t_iov, M_NFSDIRECTIO);
@@ -1014,7 +1029,7 @@ flush_and_restart:
 		nfsstats.biocache_writes++;
 		lbn = uio->uio_offset / biosize;
 		on = uio->uio_offset & (biosize-1);
-		n = min((unsigned)(biosize - on), uio->uio_resid);
+		n = MIN((unsigned)(biosize - on), uio->uio_resid);
 again:
 		/*
 		 * Handle direct append and file extension cases, calculate

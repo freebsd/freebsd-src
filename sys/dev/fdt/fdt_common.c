@@ -542,11 +542,13 @@ out:
 }
 
 int
-fdt_get_phyaddr(phandle_t node, int *phy_addr)
+fdt_get_phyaddr(phandle_t node, device_t dev, int *phy_addr, void **phy_sc)
 {
 	phandle_t phy_node;
 	ihandle_t phy_ihandle;
 	pcell_t phy_handle, phy_reg;
+	uint32_t i;
+	device_t parent, child;
 
 	if (OF_getprop(node, "phy-handle", (void *)&phy_handle,
 	    sizeof(phy_handle)) <= 0)
@@ -561,6 +563,47 @@ fdt_get_phyaddr(phandle_t node, int *phy_addr)
 		return (ENXIO);
 
 	*phy_addr = fdt32_to_cpu(phy_reg);
+
+	/*
+	 * Search for softc used to communicate with phy.
+	 */
+
+	/*
+	 * Step 1: Search for ancestor of the phy-node with a "phy-handle"
+	 * property set.
+	 */
+	phy_node = OF_parent(phy_node);
+	while (phy_node != 0) {
+		if (OF_getprop(phy_node, "phy-handle", (void *)&phy_handle,
+		    sizeof(phy_handle)) > 0)
+			break;
+		phy_node = OF_parent(phy_node);
+	}
+	if (phy_node == 0)
+		return (ENXIO);
+
+	/*
+	 * Step 2: For each device with the same parent and name as ours
+	 * compare its node with the one found in step 1, ancestor of phy
+	 * node (stored in phy_node).
+	 */
+	parent = device_get_parent(dev);
+	i = 0;
+	child = device_find_child(parent, device_get_name(dev), i);
+	while (child != NULL) {
+		if (ofw_bus_get_node(child) == phy_node)
+			break;
+		i++;
+		child = device_find_child(parent, device_get_name(dev), i);
+	}
+	if (child == NULL)
+		return (ENXIO);
+
+	/*
+	 * Use softc of the device found.
+	 */
+	*phy_sc = (void *)device_get_softc(child);
+
 	return (0);
 }
 

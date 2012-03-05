@@ -542,7 +542,7 @@ restart:
 
 	UNP_LINK_WLOCK();
 	UNP_PCB_LOCK(unp);
-	vp->v_socket = unp->unp_socket;
+	VOP_UNP_BIND(vp, unp->unp_socket);
 	unp->unp_vnode = vp;
 	unp->unp_addr = soun;
 	unp->unp_flags &= ~UNP_BINDING;
@@ -638,7 +638,7 @@ uipc_detach(struct socket *so)
 	 * XXXRW: Should assert vp->v_socket == so.
 	 */
 	if ((vp = unp->unp_vnode) != NULL) {
-		unp->unp_vnode->v_socket = NULL;
+		VOP_UNP_DETACH(vp);
 		unp->unp_vnode = NULL;
 	}
 	unp2 = unp->unp_conn;
@@ -1273,8 +1273,8 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	UNP_PCB_UNLOCK(unp);
 
 	sa = malloc(sizeof(struct sockaddr_un), M_SONAME, M_WAITOK);
-	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKLEAF, UIO_SYSSPACE, buf,
-	    td);
+	NDINIT(&nd, LOOKUP, MPSAFE | FOLLOW | LOCKSHARED | LOCKLEAF,
+	    UIO_SYSSPACE, buf, td);
 	error = namei(&nd);
 	if (error)
 		vp = NULL;
@@ -1308,7 +1308,7 @@ unp_connect(struct socket *so, struct sockaddr *nam, struct thread *td)
 	 * and to protect simultaneous locking of multiple pcbs.
 	 */
 	UNP_LINK_WLOCK();
-	so2 = vp->v_socket;
+	VOP_UNP_CONNECT(vp, &so2);
 	if (so2 == NULL) {
 		error = ECONNREFUSED;
 		goto bad2;
@@ -2298,6 +2298,43 @@ unp_scan(struct mbuf *m0, void (*op)(struct file *))
 		}
 		m0 = m0->m_act;
 	}
+}
+
+/*
+ * A helper function called by VFS before socket-type vnode reclamation.
+ * For an active vnode it clears unp_vnode pointer and decrements unp_vnode
+ * use count.
+ */
+void
+vfs_unp_reclaim(struct vnode *vp)
+{
+	struct socket *so;
+	struct unpcb *unp;
+	int active;
+
+	ASSERT_VOP_ELOCKED(vp, "vfs_unp_reclaim");
+	KASSERT(vp->v_type == VSOCK,
+	    ("vfs_unp_reclaim: vp->v_type != VSOCK"));
+
+	active = 0;
+	UNP_LINK_WLOCK();
+	VOP_UNP_CONNECT(vp, &so);
+	if (so == NULL)
+		goto done;
+	unp = sotounpcb(so);
+	if (unp == NULL)
+		goto done;
+	UNP_PCB_LOCK(unp);
+	if (unp->unp_vnode == vp) {
+		VOP_UNP_DETACH(vp);
+		unp->unp_vnode = NULL;
+		active = 1;
+	}
+	UNP_PCB_UNLOCK(unp);
+done:
+	UNP_LINK_WUNLOCK();
+	if (active)
+		vunref(vp);
 }
 
 #ifdef DDB

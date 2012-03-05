@@ -139,7 +139,6 @@ static uint8_t op_code_prot[256] = {
 
 MALLOC_DEFINE(M_MPSSAS, "MPSSAS", "MPS SAS memory");
 
-static struct mpssas_target * mpssas_find_target_by_handle(struct mpssas_softc *, int, uint16_t);
 static void mpssas_discovery_timeout(void *data);
 static void mpssas_remove_device(struct mps_softc *, struct mps_command *);
 static void mpssas_remove_complete(struct mps_softc *, struct mps_command *);
@@ -175,7 +174,7 @@ static int mpssas_send_portenable(struct mps_softc *sc);
 static void mpssas_portenable_complete(struct mps_softc *sc,
     struct mps_command *cm);
 
-static struct mpssas_target *
+struct mpssas_target *
 mpssas_find_target_by_handle(struct mpssas_softc *sassc, int start, uint16_t handle)
 {
 	struct mpssas_target *target;
@@ -351,22 +350,123 @@ mpssas_log_command(struct mps_command *cm, const char *fmt, ...)
 	va_end(ap);
 }
 
-static void
-mpssas_lost_target(struct mps_softc *sc, struct mpssas_target *targ)
-{
-	struct mpssas_softc *sassc = sc->sassc;
-	path_id_t pathid = cam_sim_path(sassc->sim);
-	struct cam_path *path;
 
-	mps_printf(sc, "%s targetid %u\n", __func__, targ->tid);
-	if (xpt_create_path(&path, NULL, pathid, targ->tid, 0) != CAM_REQ_CMP) {
-		mps_printf(sc, "unable to create path for lost target %d\n", 
-		    targ->tid);
+static void
+mpssas_remove_volume(struct mps_softc *sc, struct mps_command *tm)
+{
+	MPI2_SCSI_TASK_MANAGE_REPLY *reply;
+	struct mpssas_target *targ;
+	uint16_t handle;
+
+	mps_dprint(sc, MPS_INFO, "%s\n", __func__);
+
+	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)tm->cm_reply;
+	handle = (uint16_t)(uintptr_t)tm->cm_complete_data;
+	targ = tm->cm_targ;
+
+	if (reply == NULL) {
+		/* XXX retry the remove after the diag reset completes? */
+		mps_printf(sc, "%s NULL reply reseting device 0x%04x\n", 
+		    __func__, handle);
+		mpssas_free_tm(sc, tm);
 		return;
 	}
 
-	xpt_async(AC_LOST_DEVICE, path, NULL);
-	xpt_free_path(path);
+	if (reply->IOCStatus != MPI2_IOCSTATUS_SUCCESS) {
+		mps_printf(sc, "IOCStatus = 0x%x while resetting device 0x%x\n",
+		   reply->IOCStatus, handle);
+		mpssas_free_tm(sc, tm);
+		return;
+	}
+
+	mps_printf(sc, "Reset aborted %u commands\n", reply->TerminationCount);
+	mps_free_reply(sc, tm->cm_reply_data);
+	tm->cm_reply = NULL;	/* Ensures the the reply won't get re-freed */
+
+	mps_printf(sc, "clearing target %u handle 0x%04x\n", targ->tid, handle);
+	
+	/*
+	 * Don't clear target if remove fails because things will get confusing.
+	 * Leave the devname and sasaddr intact so that we know to avoid reusing
+	 * this target id if possible, and so we can assign the same target id
+	 * to this device if it comes back in the future.
+	 */
+	if (reply->IOCStatus == MPI2_IOCSTATUS_SUCCESS) {
+		targ = tm->cm_targ;
+		targ->handle = 0x0;
+		targ->encl_handle = 0x0;
+		targ->encl_slot = 0x0;
+		targ->exp_dev_handle = 0x0;
+		targ->phy_num = 0x0;
+		targ->linkrate = 0x0;
+		targ->devinfo = 0x0;
+		targ->flags = 0x0;
+	}
+
+	mpssas_free_tm(sc, tm);
+}
+
+
+/*
+ * No Need to call "MPI2_SAS_OP_REMOVE_DEVICE" For Volume removal.
+ * Otherwise Volume Delete is same as Bare Drive Removal.
+ */
+void
+mpssas_prepare_volume_remove(struct mpssas_softc *sassc, uint16_t handle)
+{
+	MPI2_SCSI_TASK_MANAGE_REQUEST *req;
+	struct mps_softc *sc;
+	struct mps_command *cm;
+	struct mpssas_target *targ = NULL;
+
+	mps_dprint(sassc->sc, MPS_INFO, "%s\n", __func__);
+	sc = sassc->sc;
+
+#ifdef WD_SUPPORT
+	/*
+	 * If this is a WD controller, determine if the disk should be exposed
+	 * to the OS or not.  If disk should be exposed, return from this
+	 * function without doing anything.
+	 */
+	if (sc->WD_available && (sc->WD_hide_expose ==
+	    MPS_WD_EXPOSE_ALWAYS)) {
+		return;
+	}
+#endif //WD_SUPPORT
+
+	targ = mpssas_find_target_by_handle(sassc, 0, handle);
+	if (targ == NULL) {
+		/* FIXME: what is the action? */
+		/* We don't know about this device? */
+		printf("%s %d : invalid handle 0x%x \n", __func__,__LINE__, handle);
+		return;
+	}
+
+	targ->flags |= MPSSAS_TARGET_INREMOVAL;
+
+	cm = mpssas_alloc_tm(sc);
+	if (cm == NULL) {
+		mps_printf(sc, "%s: command alloc failure\n", __func__);
+		return;
+	}
+
+	mpssas_rescan_target(sc, targ);
+
+	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
+	req->DevHandle = targ->handle;
+	req->Function = MPI2_FUNCTION_SCSI_TASK_MGMT;
+	req->TaskType = MPI2_SCSITASKMGMT_TASKTYPE_TARGET_RESET;
+
+	/* SAS Hard Link Reset / SATA Link Reset */
+	req->MsgFlags = MPI2_SCSITASKMGMT_MSGFLAGS_LINK_RESET;
+
+	cm->cm_targ = targ;
+	cm->cm_data = NULL;
+	cm->cm_desc.HighPriority.RequestFlags =
+	    MPI2_REQ_DESCRIPT_FLAGS_HIGH_PRIORITY;
+	cm->cm_complete = mpssas_remove_volume;
+	cm->cm_complete_data = (void *)(uintptr_t)handle;
+	mps_map_command(sc, cm);
 }
 
 /*
@@ -386,7 +486,7 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 	struct mps_command *cm;
 	struct mpssas_target *targ = NULL;
 
-	mps_dprint(sassc->sc, MPS_TRACE, "%s\n", __func__);
+	mps_dprint(sassc->sc, MPS_INFO, "%s\n", __func__);
 
 	/*
 	 * If this is a WD controller, determine if the disk should be exposed
@@ -403,7 +503,7 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 	if (targ == NULL) {
 		/* FIXME: what is the action? */
 		/* We don't know about this device? */
-		printf("%s: invalid handle 0x%x \n", __func__, handle);
+		printf("%s %d : invalid handle 0x%x \n", __func__,__LINE__, handle);
 		return;
 	}
 
@@ -415,7 +515,7 @@ mpssas_prepare_remove(struct mpssas_softc *sassc, uint16_t handle)
 		return;
 	}
 
-	mpssas_lost_target(sc, targ);
+	mpssas_rescan_target(sc, targ);
 
 	req = (MPI2_SCSI_TASK_MANAGE_REQUEST *)cm->cm_req;
 	memset(req, 0, sizeof(*req));
@@ -443,7 +543,7 @@ mpssas_remove_device(struct mps_softc *sc, struct mps_command *tm)
 	struct mps_command *next_cm;
 	uint16_t handle;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	mps_dprint(sc, MPS_INFO, "%s\n", __func__);
 
 	reply = (MPI2_SCSI_TASK_MANAGE_REPLY *)tm->cm_reply;
 	handle = (uint16_t)(uintptr_t)tm->cm_complete_data;
@@ -514,7 +614,7 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 	uint16_t handle;
 	struct mpssas_target *targ;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	mps_dprint(sc, MPS_INFO, "%s\n", __func__);
 
 	reply = (MPI2_SAS_IOUNIT_CONTROL_REPLY *)tm->cm_reply;
 	handle = (uint16_t)(uintptr_t)tm->cm_complete_data;
@@ -558,6 +658,7 @@ mpssas_remove_complete(struct mps_softc *sc, struct mps_command *tm)
 		targ->phy_num = 0x0;
 		targ->linkrate = 0x0;
 		targ->devinfo = 0x0;
+		targ->flags = 0x0;
 	}
 
 	mpssas_free_tm(sc, tm);
@@ -690,7 +791,7 @@ mps_detach_sas(struct mps_softc *sc)
 {
 	struct mpssas_softc *sassc;
 
-	mps_dprint(sc, MPS_TRACE, "%s\n", __func__);
+	mps_dprint(sc, MPS_INFO, "%s\n", __func__);
 
 	if (sc->sassc == NULL)
 		return (0);
@@ -733,6 +834,7 @@ mps_detach_sas(struct mps_softc *sc)
 	}
 	mps_unlock(sc);
 
+	mps_dprint(sc, MPS_INFO, "%s:%d\n", __func__,__LINE__);
 	if (sassc->devq != NULL)
 		cam_simq_free(sassc->devq);
 
@@ -817,7 +919,7 @@ mpssas_action(struct cam_sim *sim, union ccb *ccb)
 		cpi->hba_misc = PIM_NOBUSRESET;
 		cpi->hba_eng_cnt = 0;
 		cpi->max_target = sassc->sc->facts->MaxTargets - 1;
-		cpi->max_lun = 0;
+		cpi->max_lun = 8;
 		cpi->initiator_id = 255;
 		strncpy(cpi->sim_vid, "FreeBSD", SIM_IDLEN);
 		strncpy(cpi->hba_vid, "LSILogic", HBA_IDLEN);
@@ -1475,13 +1577,20 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 	uint16_t eedp_flags;
 
 	sc = sassc->sc;
-	mps_dprint(sc, MPS_TRACE, "%s ccb %p\n", __func__, ccb);
 	mtx_assert(&sc->mps_mtx, MA_OWNED);
 
 	csio = &ccb->csio;
 	targ = &sassc->targets[csio->ccb_h.target_id];
+	mps_dprint(sc, MPS_TRACE, "%s ccb %p target flag %x\n", __func__, ccb, targ->flags);
 	if (targ->handle == 0x0) {
 		mps_dprint(sc, MPS_TRACE, "%s NULL handle for target %u\n", 
+		    __func__, csio->ccb_h.target_id);
+		csio->ccb_h.status = CAM_TID_INVALID;
+		xpt_done(ccb);
+		return;
+	}
+	if (targ->flags & MPS_TARGET_FLAGS_RAID_COMPONENT) {
+		mps_dprint(sc, MPS_TRACE, "%s Raid component no SCSI IO supported %u\n", 
 		    __func__, csio->ccb_h.target_id);
 		csio->ccb_h.status = CAM_TID_INVALID;
 		xpt_done(ccb);
@@ -1681,6 +1790,198 @@ mpssas_action_scsiio(struct mpssas_softc *sassc, union ccb *ccb)
 
 	mps_map_command(sc, cm);
 	return;
+}
+
+static void
+mps_response_code(struct mps_softc *sc, u8 response_code)
+{
+        char *desc;
+ 
+        switch (response_code) {
+        case MPI2_SCSITASKMGMT_RSP_TM_COMPLETE:
+                desc = "task management request completed";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_INVALID_FRAME:
+                desc = "invalid frame";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_TM_NOT_SUPPORTED:
+                desc = "task management request not supported";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_TM_FAILED:
+                desc = "task management request failed";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_TM_SUCCEEDED:
+                desc = "task management request succeeded";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_TM_INVALID_LUN:
+                desc = "invalid lun";
+                break;
+        case 0xA:
+                desc = "overlapped tag attempted";
+                break;
+        case MPI2_SCSITASKMGMT_RSP_IO_QUEUED_ON_IOC:
+                desc = "task queued, however not sent to target";
+                break;
+        default:
+                desc = "unknown";
+                break;
+        }
+		mps_dprint(sc, MPS_INFO, "response_code(0x%01x): %s\n",
+                response_code, desc);
+}
+/**
+ * mps_sc_failed_io_info - translated non-succesfull SCSI_IO request
+ */
+static void
+mps_sc_failed_io_info(struct mps_softc *sc, struct ccb_scsiio *csio,
+    Mpi2SCSIIOReply_t *mpi_reply)
+{
+	u32 response_info;
+	u8 *response_bytes;
+	u16 ioc_status = le16toh(mpi_reply->IOCStatus) &
+	    MPI2_IOCSTATUS_MASK;
+	u8 scsi_state = mpi_reply->SCSIState;
+	u8 scsi_status = mpi_reply->SCSIStatus;
+	char *desc_ioc_state = NULL;
+	char *desc_scsi_status = NULL;
+	char *desc_scsi_state = sc->tmp_string;
+	u32 log_info = le32toh(mpi_reply->IOCLogInfo);
+	
+	if (log_info == 0x31170000)
+		return;
+
+	switch (ioc_status) {
+	case MPI2_IOCSTATUS_SUCCESS:
+		desc_ioc_state = "success";
+		break;
+	case MPI2_IOCSTATUS_INVALID_FUNCTION:
+		desc_ioc_state = "invalid function";
+		break;
+	case MPI2_IOCSTATUS_SCSI_RECOVERED_ERROR:
+		desc_ioc_state = "scsi recovered error";
+		break;
+	case MPI2_IOCSTATUS_SCSI_INVALID_DEVHANDLE:
+		desc_ioc_state = "scsi invalid dev handle";
+		break;
+	case MPI2_IOCSTATUS_SCSI_DEVICE_NOT_THERE:
+		desc_ioc_state = "scsi device not there";
+		break;
+	case MPI2_IOCSTATUS_SCSI_DATA_OVERRUN:
+		desc_ioc_state = "scsi data overrun";
+		break;
+	case MPI2_IOCSTATUS_SCSI_DATA_UNDERRUN:
+		desc_ioc_state = "scsi data underrun";
+		break;
+	case MPI2_IOCSTATUS_SCSI_IO_DATA_ERROR:
+		desc_ioc_state = "scsi io data error";
+		break;
+	case MPI2_IOCSTATUS_SCSI_PROTOCOL_ERROR:
+		desc_ioc_state = "scsi protocol error";
+		break;
+	case MPI2_IOCSTATUS_SCSI_TASK_TERMINATED:
+		desc_ioc_state = "scsi task terminated";
+		break;
+	case MPI2_IOCSTATUS_SCSI_RESIDUAL_MISMATCH:
+		desc_ioc_state = "scsi residual mismatch";
+		break;
+	case MPI2_IOCSTATUS_SCSI_TASK_MGMT_FAILED:
+		desc_ioc_state = "scsi task mgmt failed";
+		break;
+	case MPI2_IOCSTATUS_SCSI_IOC_TERMINATED:
+		desc_ioc_state = "scsi ioc terminated";
+		break;
+	case MPI2_IOCSTATUS_SCSI_EXT_TERMINATED:
+		desc_ioc_state = "scsi ext terminated";
+		break;
+	case MPI2_IOCSTATUS_EEDP_GUARD_ERROR:
+		desc_ioc_state = "eedp guard error";
+		break;
+	case MPI2_IOCSTATUS_EEDP_REF_TAG_ERROR:
+		desc_ioc_state = "eedp ref tag error";
+		break;
+	case MPI2_IOCSTATUS_EEDP_APP_TAG_ERROR:
+		desc_ioc_state = "eedp app tag error";
+		break;
+	default:
+		desc_ioc_state = "unknown";
+		break;
+	}
+
+	switch (scsi_status) {
+	case MPI2_SCSI_STATUS_GOOD:
+		desc_scsi_status = "good";
+		break;
+	case MPI2_SCSI_STATUS_CHECK_CONDITION:
+		desc_scsi_status = "check condition";
+		break;
+	case MPI2_SCSI_STATUS_CONDITION_MET:
+		desc_scsi_status = "condition met";
+		break;
+	case MPI2_SCSI_STATUS_BUSY:
+		desc_scsi_status = "busy";
+		break;
+	case MPI2_SCSI_STATUS_INTERMEDIATE:
+		desc_scsi_status = "intermediate";
+		break;
+	case MPI2_SCSI_STATUS_INTERMEDIATE_CONDMET:
+		desc_scsi_status = "intermediate condmet";
+		break;
+	case MPI2_SCSI_STATUS_RESERVATION_CONFLICT:
+		desc_scsi_status = "reservation conflict";
+		break;
+	case MPI2_SCSI_STATUS_COMMAND_TERMINATED:
+		desc_scsi_status = "command terminated";
+		break;
+	case MPI2_SCSI_STATUS_TASK_SET_FULL:
+		desc_scsi_status = "task set full";
+		break;
+	case MPI2_SCSI_STATUS_ACA_ACTIVE:
+		desc_scsi_status = "aca active";
+		break;
+	case MPI2_SCSI_STATUS_TASK_ABORTED:
+		desc_scsi_status = "task aborted";
+		break;
+	default:
+		desc_scsi_status = "unknown";
+		break;
+	}
+
+	desc_scsi_state[0] = '\0';
+	if (!scsi_state)
+		desc_scsi_state = " ";
+	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID)
+		strcat(desc_scsi_state, "response info ");
+	if (scsi_state & MPI2_SCSI_STATE_TERMINATED)
+		strcat(desc_scsi_state, "state terminated ");
+	if (scsi_state & MPI2_SCSI_STATE_NO_SCSI_STATUS)
+		strcat(desc_scsi_state, "no status ");
+	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_FAILED)
+		strcat(desc_scsi_state, "autosense failed ");
+	if (scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID)
+		strcat(desc_scsi_state, "autosense valid ");
+
+	mps_dprint(sc, MPS_INFO, "\thandle(0x%04x), ioc_status(%s)(0x%04x), \n",
+		le16toh(mpi_reply->DevHandle),
+	    desc_ioc_state, ioc_status);
+	/* We can add more detail about underflow data here
+	 * TO-DO
+	 * */
+	mps_dprint(sc, MPS_INFO, "\tscsi_status(%s)(0x%02x), "
+	    "scsi_state(%s)(0x%02x)\n", desc_scsi_status,
+	    scsi_status, desc_scsi_state, scsi_state);
+
+	if (sc->mps_debug & MPS_INFO &&
+		scsi_state & MPI2_SCSI_STATE_AUTOSENSE_VALID) {
+		mps_dprint(sc, MPS_INFO, "-> Sense Buffer Data : Start :\n");
+		scsi_sense_print(csio);
+		mps_dprint(sc, MPS_INFO, "-> Sense Buffer Data : End :\n");
+	}
+
+	if (scsi_state & MPI2_SCSI_STATE_RESPONSE_INFO_VALID) {
+		response_info = le32toh(mpi_reply->ResponseInfo);
+		response_bytes = (u8 *)&response_info;
+		mps_response_code(sc,response_bytes[0]);
+	}
 }
 
 static void
@@ -2018,6 +2319,8 @@ mpssas_scsiio_complete(struct mps_softc *sc, struct mps_command *cm)
 		ccb->ccb_h.status = CAM_REQ_CMP_ERR;
 		break;
 	}
+	
+	mps_sc_failed_io_info(sc,csio,rep);
 
 	if (sassc->flags & MPSSAS_QUEUE_FROZEN) {
 		ccb->ccb_h.status |= CAM_RELEASE_SIMQ;
@@ -2799,17 +3102,26 @@ mpssas_scanner_thread(void *arg)
 
 	mps_lock(sc);
 	for (;;) {
+		/* Sleep for 1 second and check the queue status*/
 		msleep(&sassc->ccb_scanq, &sc->mps_mtx, PRIBIO,
-		       "mps_scanq", 0);
+		       "mps_scanq", 1 * hz);
 		if (sassc->flags & MPSSAS_SHUTDOWN) {
 			mps_dprint(sc, MPS_TRACE, "Scanner shutting down\n");
 			break;
 		}
+next_work:
+		// Get first work.
 		ccb = (union ccb *)TAILQ_FIRST(&sassc->ccb_scanq);
 		if (ccb == NULL)
 			continue;
+		// Got first work.
 		TAILQ_REMOVE(&sassc->ccb_scanq, &ccb->ccb_h, sim_links.tqe);
 		xpt_action(ccb);
+		if (sassc->flags & MPSSAS_SHUTDOWN) {
+			mps_dprint(sc, MPS_TRACE, "Scanner shutting down\n");
+			break;
+		}
+		goto next_work;
 	}
 
 	sassc->flags &= ~MPSSAS_SCANTHREAD;
@@ -3009,7 +3321,7 @@ mpssas_check_eedp(struct mpssas_softc *sassc)
 				}
 				if (!found_lun) {
 					lun = malloc(sizeof(struct mpssas_lun),
-					    M_MPT2, M_WAITOK | M_ZERO);
+					    M_MPT2, M_NOWAIT | M_ZERO);
 					if (lun == NULL) {
 						mps_dprint(sc, MPS_FAULT,
 						    "Unable to alloc LUN for "
@@ -3084,6 +3396,20 @@ mpssas_read_cap_done(struct cam_periph *periph, union ccb *done_ccb)
 
 	if (done_ccb == NULL)
 		return;
+	
+	/* Driver need to release devq, it Scsi command is
+	 * generated by driver internally.
+	 * Currently there is a single place where driver
+	 * calls scsi command internally. In future if driver
+	 * calls more scsi command internally, it needs to release
+	 * devq internally, since those command will not go back to
+	 * cam_periph.
+	 */
+	if ((done_ccb->ccb_h.status & CAM_DEV_QFRZN) ) {
+        	done_ccb->ccb_h.status &= ~CAM_DEV_QFRZN;
+		xpt_release_devq(done_ccb->ccb_h.path,
+			       	/*count*/ 1, /*run_queue*/TRUE);
+	}
 
 	rcap_buf = (struct scsi_read_capacity_eedp *)done_ccb->csio.data_ptr;
 

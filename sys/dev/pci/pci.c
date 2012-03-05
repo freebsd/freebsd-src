@@ -70,10 +70,22 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
+/*
+ * XXX: Due to a limitation of the bus_dma_tag_create() API, we cannot
+ * specify a 4GB boundary on 32-bit targets.  Usually this does not
+ * matter as it is ok to use a boundary of 0 on these systems.
+ * However, in the case of PAE, DMA addresses can cross a 4GB
+ * boundary, so as a workaround use a 2GB boundary.
+ */
+#ifdef PAE
+#define	PCI_DMA_BOUNDARY	(1u << 31)
+#else
+#define	PCI_DMA_BOUNDARY	((bus_size_t)((uint64_t)1 << 32))
+#endif
+
 #define	PCIR_IS_BIOS(cfg, reg)						\
 	(((cfg)->hdrtype == PCIM_HDRTYPE_NORMAL && reg == PCIR_BIOS) ||	\
 	 ((cfg)->hdrtype == PCIM_HDRTYPE_BRIDGE && reg == PCIR_BIOS_1))
-	    
 
 static pci_addr_t	pci_mapbase(uint64_t mapreg);
 static const char	*pci_maptype(uint64_t mapreg);
@@ -96,6 +108,7 @@ static void		pci_load_vendor_data(void);
 static int		pci_describe_parse_line(char **ptr, int *vendor,
 			    int *device, char **desc);
 static char		*pci_describe_device(device_t dev);
+static bus_dma_tag_t	pci_get_dma_tag(device_t bus, device_t dev);
 static int		pci_modevent(module_t mod, int what, void *arg);
 static void		pci_hdrtypedata(device_t pcib, int b, int s, int f,
 			    pcicfgregs *cfg);
@@ -138,6 +151,7 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(bus_setup_intr,	pci_setup_intr),
 	DEVMETHOD(bus_teardown_intr,	pci_teardown_intr),
 
+	DEVMETHOD(bus_get_dma_tag,	pci_get_dma_tag),
 	DEVMETHOD(bus_get_resource_list,pci_get_resource_list),
 	DEVMETHOD(bus_set_resource,	bus_generic_rl_set_resource),
 	DEVMETHOD(bus_get_resource,	bus_generic_rl_get_resource),
@@ -163,7 +177,9 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_get_powerstate,	pci_get_powerstate_method),
 	DEVMETHOD(pci_set_powerstate,	pci_set_powerstate_method),
 	DEVMETHOD(pci_assign_interrupt,	pci_assign_interrupt_method),
+	DEVMETHOD(pci_find_cap,		pci_find_cap_method),
 	DEVMETHOD(pci_find_extcap,	pci_find_extcap_method),
+	DEVMETHOD(pci_find_htcap,	pci_find_htcap_method),
 	DEVMETHOD(pci_alloc_msi,	pci_alloc_msi_method),
 	DEVMETHOD(pci_alloc_msix,	pci_alloc_msix_method),
 	DEVMETHOD(pci_remap_msix,	pci_remap_msix_method),
@@ -171,10 +187,10 @@ static device_method_t pci_methods[] = {
 	DEVMETHOD(pci_msi_count,	pci_msi_count_method),
 	DEVMETHOD(pci_msix_count,	pci_msix_count_method),
 
-	{ 0, 0 }
+	DEVMETHOD_END
 };
 
-DEFINE_CLASS_0(pci, pci_driver, pci_methods, 0);
+DEFINE_CLASS_0(pci, pci_driver, pci_methods, sizeof(struct pci_softc));
 
 static devclass_t pci_devclass;
 DRIVER_MODULE(pci, pcib, pci_driver, pci_devclass, pci_modevent, 0);
@@ -182,7 +198,6 @@ MODULE_VERSION(pci, 1);
 
 static char	*pci_vendordata;
 static size_t	pci_vendordata_size;
-
 
 struct pci_quirk {
 	uint32_t devid;	/* Vendor/device of the card */
@@ -194,7 +209,7 @@ struct pci_quirk {
 	int	arg2;
 };
 
-struct pci_quirk pci_quirks[] = {
+static const struct pci_quirk const pci_quirks[] = {
 	/* The Intel 82371AB and 82443MX has a map register at offset 0x90. */
 	{ 0x71138086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
 	{ 0x719b8086, PCI_QUIRK_MAP_REG,	0x90,	 0 },
@@ -225,6 +240,12 @@ struct pci_quirk pci_quirks[] = {
 	 * bridge.
 	 */
 	{ 0x74501022, PCI_QUIRK_DISABLE_MSI,	0,	0 },
+
+	/*
+	 * MSI-X doesn't work with at least LSI SAS1068E passed through by
+	 * VMware.
+	 */
+	{ 0x079015ad, PCI_QUIRK_DISABLE_MSI,	0,	0 },
 
 	/*
 	 * Some virtualization environments emulate an older chipset
@@ -718,13 +739,15 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			 * at least one PCI-express device.
 			 */
 			pcie_chipset = 1;
+			cfg->pcie.pcie_location = ptr;
+			val = REG(ptr + PCIR_EXPRESS_FLAGS, 2);
+			cfg->pcie.pcie_type = val & PCIM_EXP_FLAGS_TYPE;
 			break;
 		default:
 			break;
 		}
 	}
 
-	
 #if defined(__i386__) || defined(__amd64__) || defined(__powerpc__)
 	/*
 	 * Enable the MSI mapping window for all HyperTransport
@@ -875,10 +898,9 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				remain |= byte2 << 8;
 				if (remain > (0x7f*4 - vrs.off)) {
 					state = -1;
-					printf(
-			    "pci%d:%d:%d:%d: invalid VPD data, remain %#x\n",
-					    cfg->domain, cfg->bus, cfg->slot,
-					    cfg->func, remain);
+					pci_printf(cfg,
+					    "invalid VPD data, remain %#x\n",
+					    remain);
 				}
 				name = byte & 0x7f;
 			} else {
@@ -950,10 +972,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 				 * if this happens, we can't trust the rest
 				 * of the VPD.
 				 */
-				printf(
-				    "pci%d:%d:%d:%d: bad keyword length: %d\n",
-				    cfg->domain, cfg->bus, cfg->slot,
-				    cfg->func, dflen);
+				pci_printf(cfg, "bad keyword length: %d\n",
+				    dflen);
 				cksumvalid = 0;
 				state = -1;
 				break;
@@ -986,10 +1006,8 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 					cksumvalid = 1;
 				else {
 					if (bootverbose)
-						printf(
-				"pci%d:%d:%d:%d: bad VPD cksum, remain %hhu\n",
-						    cfg->domain, cfg->bus,
-						    cfg->slot, cfg->func,
+						pci_printf(cfg,
+					    "bad VPD cksum, remain %hhu\n",
 						    vrs.cksum);
 					cksumvalid = 0;
 					state = -1;
@@ -1067,9 +1085,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 			break;
 
 		default:
-			printf("pci%d:%d:%d:%d: invalid state: %d\n",
-			    cfg->domain, cfg->bus, cfg->slot, cfg->func,
-			    state);
+			pci_printf(cfg, "invalid state: %d\n", state);
 			state = -1;
 			break;
 		}
@@ -1086,8 +1102,7 @@ pci_read_vpd(device_t pcib, pcicfgregs *cfg)
 	}
 	if (state < -1) {
 		/* I/O error, clean up */
-		printf("pci%d:%d:%d:%d: failed to read VPD data.\n",
-		    cfg->domain, cfg->bus, cfg->slot, cfg->func);
+		pci_printf(cfg, "failed to read VPD data.\n");
 		if (cfg->vpd.vpd_ident != NULL) {
 			free(cfg->vpd.vpd_ident, M_DEVBUF);
 			cfg->vpd.vpd_ident = NULL;
@@ -1144,12 +1159,55 @@ pci_get_vpd_readonly_method(device_t dev, device_t child, const char *kw,
 }
 
 /*
- * Find the requested extended capability and return the offset in
- * configuration space via the pointer provided. The function returns
- * 0 on success and error code otherwise.
+ * Find the requested HyperTransport capability and return the offset
+ * in configuration space via the pointer provided.  The function
+ * returns 0 on success and an error code otherwise.
  */
 int
-pci_find_extcap_method(device_t dev, device_t child, int capability,
+pci_find_htcap_method(device_t dev, device_t child, int capability, int *capreg)
+{
+	int ptr, error;
+	uint16_t val;
+
+	error = pci_find_cap(child, PCIY_HT, &ptr);
+	if (error)
+		return (error);
+
+	/*
+	 * Traverse the capabilities list checking each HT capability
+	 * to see if it matches the requested HT capability.
+	 */
+	while (ptr != 0) {
+		val = pci_read_config(child, ptr + PCIR_HT_COMMAND, 2);
+		if (capability == PCIM_HTCAP_SLAVE ||
+		    capability == PCIM_HTCAP_HOST)
+			val &= 0xe000;
+		else
+			val &= PCIM_HTCMD_CAP_MASK;
+		if (val == capability) {
+			if (capreg != NULL)
+				*capreg = ptr;
+			return (0);
+		}
+
+		/* Skip to the next HT capability. */
+		while (ptr != 0) {
+			ptr = pci_read_config(child, ptr + PCICAP_NEXTPTR, 1);
+			if (pci_read_config(child, ptr + PCICAP_ID, 1) ==
+			    PCIY_HT)
+				break;
+		}
+	}
+	return (ENOENT);
+}
+
+/*
+ * Find the requested capability and return the offset in
+ * configuration space via the pointer provided.  The function returns
+ * 0 on success and an error code otherwise.
+ */
+int
+pci_find_cap_method(device_t dev, device_t child, int capability,
     int *capreg)
 {
 	struct pci_devinfo *dinfo = device_get_ivars(child);
@@ -1191,6 +1249,43 @@ pci_find_extcap_method(device_t dev, device_t child, int capability,
 			return (0);
 		}
 		ptr = pci_read_config(child, ptr + PCICAP_NEXTPTR, 1);
+	}
+
+	return (ENOENT);
+}
+
+/*
+ * Find the requested extended capability and return the offset in
+ * configuration space via the pointer provided.  The function returns
+ * 0 on success and an error code otherwise.
+ */
+int
+pci_find_extcap_method(device_t dev, device_t child, int capability,
+    int *capreg)
+{
+	struct pci_devinfo *dinfo = device_get_ivars(child);
+	pcicfgregs *cfg = &dinfo->cfg;
+	uint32_t ecap;
+	uint16_t ptr;
+
+	/* Only supported for PCI-express devices. */
+	if (cfg->pcie.pcie_location == 0)
+		return (ENXIO);
+
+	ptr = PCIR_EXTCAP;
+	ecap = pci_read_config(child, ptr, 4);
+	if (ecap == 0xffffffff || ecap == 0)
+		return (ENOENT);
+	for (;;) {
+		if (PCI_EXTCAP_ID(ecap) == capability) {
+			if (capreg != NULL)
+				*capreg = ptr;
+			return (0);
+		}
+		ptr = PCI_EXTCAP_NEXTPTR(ecap);
+		if (ptr == 0)
+			break;
+		ecap = pci_read_config(child, ptr, 4);
 	}
 
 	return (ENOENT);
@@ -1464,7 +1559,7 @@ pci_alloc_msix_method(device_t dev, device_t child, int *count)
  * 3.  Call the three vectors allocated by pci_alloc_msix() A, B, and
  * C.  After the call to pci_alloc_msix(), the device will be setup to
  * have an MSI-X table of ABC--- (where - means no vector assigned).
- * If the driver ten passes a vector array of { 1, 0, 1, 2, 0, 2 },
+ * If the driver then passes a vector array of { 1, 0, 1, 2, 0, 2 },
  * then the MSI-X table will look like A-AB-B, and the 'C' vector will
  * be freed back to the system.  This device will also have valid
  * SYS_RES_IRQ rids of 1, 3, 4, and 6.
@@ -1686,10 +1781,12 @@ pci_ht_map_msi(device_t dev, uint64_t addr)
 int
 pci_get_max_read_req(device_t dev)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	val = pci_read_config(dev, cap + PCIR_EXPRESS_DEVICE_CTL, 2);
 	val &= PCIM_EXP_CTL_MAX_READ_REQUEST;
@@ -1700,10 +1797,12 @@ pci_get_max_read_req(device_t dev)
 int
 pci_set_max_read_req(device_t dev, int size)
 {
+	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	int cap;
 	uint16_t val;
 
-	if (pci_find_cap(dev, PCIY_EXPRESS, &cap) != 0)
+	cap = dinfo->cfg.pcie.pcie_location;
+	if (cap == 0)
 		return (0);
 	if (size < 128)
 		size = 128;
@@ -1873,7 +1972,7 @@ pci_remap_intr_method(device_t bus, device_t dev, u_int irq)
 int
 pci_msi_device_blacklisted(device_t dev)
 {
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 
 	if (!pci_honor_msi_blacklist)
 		return (0);
@@ -1893,7 +1992,7 @@ pci_msi_device_blacklisted(device_t dev)
 static int
 pci_msi_vm_chipset(device_t dev)
 {
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 
 	for (q = &pci_quirks[0]; q->devid; q++) {
 		if (q->devid == pci_get_devid(dev) &&
@@ -3023,7 +3122,7 @@ pci_add_resources(device_t bus, device_t dev, int force, uint32_t prefetchmask)
 	struct pci_devinfo *dinfo = device_get_ivars(dev);
 	pcicfgregs *cfg = &dinfo->cfg;
 	struct resource_list *rl = &dinfo->resources;
-	struct pci_quirk *q;
+	const struct pci_quirk *q;
 	int i;
 
 	/* ATA devices needs special map treatment */
@@ -3129,10 +3228,41 @@ pci_probe(device_t dev)
 	return (BUS_PROBE_GENERIC);
 }
 
+int
+pci_attach_common(device_t dev)
+{
+	struct pci_softc *sc;
+	int busno, domain, error;
+
+	sc = device_get_softc(dev);
+	domain = pcib_get_domain(dev);
+	busno = pcib_get_bus(dev);
+	if (bootverbose)
+		device_printf(dev, "domain=%d, physical bus=%d\n",
+		    domain, busno);
+	if (device_get_devclass(device_get_parent(device_get_parent(dev))) !=
+	    devclass_find("pci")) {
+		error = bus_dma_tag_create(bus_get_dma_tag(dev), 1,
+		    PCI_DMA_BOUNDARY, BUS_SPACE_MAXADDR, BUS_SPACE_MAXADDR,
+		    NULL, NULL, BUS_SPACE_MAXSIZE, BUS_SPACE_UNRESTRICTED,
+		    BUS_SPACE_MAXSIZE, 0, NULL, NULL, &sc->sc_dma_tag);
+		if (error)
+			device_printf(dev, "Failed to create DMA tag: %d\n",
+			    error);
+		else
+			sc->sc_dma_tag_valid = 1;
+	}
+	return (0);
+}
+
 static int
 pci_attach(device_t dev)
 {
-	int busno, domain;
+	int busno, domain, error;
+
+	error = pci_attach_common(dev);
+	if (error)
+		return (error);
 
 	/*
 	 * Since there can be multiple independantly numbered PCI
@@ -3142,9 +3272,6 @@ pci_attach(device_t dev)
 	 */
 	domain = pcib_get_domain(dev);
 	busno = pcib_get_bus(dev);
-	if (bootverbose)
-		device_printf(dev, "domain=%d, physical bus=%d\n",
-		    domain, busno);
 	pci_add_children(dev, domain, busno, sizeof(struct pci_devinfo));
 	return (bus_generic_attach(dev));
 }
@@ -3864,7 +3991,6 @@ pci_write_ivar(device_t dev, device_t child, int which, uintptr_t value)
 	}
 }
 
-
 #include "opt_ddb.h"
 #ifdef DDB
 #include <ddb/ddb.h>
@@ -4020,7 +4146,6 @@ pci_reserve_map(device_t dev, device_t child, int type, int *rid,
 out:;
 	return (res);
 }
-
 
 struct resource *
 pci_alloc_resource(device_t dev, device_t child, int type, int *rid,
@@ -4233,6 +4358,16 @@ pci_get_resource_list (device_t dev, device_t child)
 	return (&dinfo->resources);
 }
 
+bus_dma_tag_t
+pci_get_dma_tag(device_t bus, device_t dev)
+{
+	struct pci_softc *sc = device_get_softc(bus);
+
+	if (sc->sc_dma_tag_valid)
+		return (sc->sc_dma_tag);
+	return (bus_generic_get_dma_tag(bus, dev));
+}
+
 uint32_t
 pci_read_config_method(device_t dev, device_t child, int reg, int width)
 {
@@ -4432,4 +4567,23 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D0);
 	if (pci_get_powerstate(dev) != PCI_POWERSTATE_D3)
 		pci_set_powerstate(dev, PCI_POWERSTATE_D3);
+}
+
+/* Wrapper APIs suitable for device driver use. */
+void
+pci_save_state(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	pci_cfg_save(dev, dinfo, 0);
+}
+
+void
+pci_restore_state(device_t dev)
+{
+	struct pci_devinfo *dinfo;
+
+	dinfo = device_get_ivars(dev);
+	pci_cfg_restore(dev, dinfo);
 }

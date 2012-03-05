@@ -68,6 +68,7 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UCF_CTR0				0x394
 
 #define	UCF_OFFSET				32
+#define UCF_OFFSET_SB				29
 #define	UCF_CTRL				0x395
 
 /*
@@ -77,6 +78,7 @@ struct pmc_md_ucp_op_pmcallocate {
 #define	UCP_PMC0				0x3B0
 #define	UCP_EVSEL0				0x3C0
 #define UCP_OPCODE_MATCH			0x396
+#define UCP_CB0_EVSEL0				0x700
 
 /*
  * Simplified programming interface in Intel Performance Architecture

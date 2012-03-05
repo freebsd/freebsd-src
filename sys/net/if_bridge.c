@@ -144,10 +144,10 @@ __FBSDID("$FreeBSD$");
 #define	BRIDGE_RTHASH_MASK		(BRIDGE_RTHASH_SIZE - 1)
 
 /*
- * Maximum number of addresses to cache.
+ * Default maximum number of addresses to cache.
  */
 #ifndef BRIDGE_RTABLE_MAX
-#define	BRIDGE_RTABLE_MAX		100
+#define	BRIDGE_RTABLE_MAX		2000
 #endif
 
 /*
@@ -2215,11 +2215,9 @@ bridge_input(struct ifnet *ifp, struct mbuf *m)
 		/* Tap off 802.1D packets; they do not get forwarded. */
 		if (memcmp(eh->ether_dhost, bstp_etheraddr,
 		    ETHER_ADDR_LEN) == 0) {
-			m = bstp_input(&bif->bif_stp, ifp, m);
-			if (m == NULL) {
-				BRIDGE_UNLOCK(sc);
-				return (NULL);
-			}
+			bstp_input(&bif->bif_stp, ifp, m); /* consumes mbuf */
+			BRIDGE_UNLOCK(sc);
+			return (NULL);
 		}
 
 		if ((bif->bif_flags & IFBIF_STP) &&

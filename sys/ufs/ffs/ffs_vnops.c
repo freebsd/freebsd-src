@@ -216,8 +216,10 @@ ffs_syncvnode(struct vnode *vp, int waitfor)
 	struct buf *bp;
 	struct buf *nbp;
 	ufs_lbn_t lbn;
-	int error, wait, passes;
+	int error, wait, passes, noupdate;
 
+	noupdate = waitfor & NO_INO_UPDT;
+	waitfor &= ~NO_INO_UPDT;
 	ip = VTOI(vp);
 	ip->i_flag &= ~IN_NEEDSYNC;
 	bo = &vp->v_bufobj;
@@ -300,7 +302,10 @@ next:
 	}
 	if (waitfor != MNT_WAIT) {
 		BO_UNLOCK(bo);
-		return (ffs_update(vp, waitfor));
+		if (noupdate)
+			return (0);
+		else
+			return (ffs_update(vp, waitfor));
 	}
 	/* Drain IO to see if we're done. */
 	bufobj_wwait(bo, 0, 0);
@@ -317,7 +322,7 @@ next:
 	 */
 	if (bo->bo_dirty.bv_cnt > 0) {
 		/* Write the inode after sync passes to flush deps. */
-		if (wait && DOINGSOFTDEP(vp)) {
+		if (wait && DOINGSOFTDEP(vp) && noupdate == 0) {
 			BO_UNLOCK(bo);
 			ffs_update(vp, MNT_WAIT);
 			BO_LOCK(bo);
@@ -332,7 +337,9 @@ next:
 #endif
 	}
 	BO_UNLOCK(bo);
-	error = ffs_update(vp, MNT_WAIT);
+	error = 0;
+	if (noupdate == 0)
+		error = ffs_update(vp, MNT_WAIT);
 	if (DOINGSUJ(vp))
 		softdep_journal_fsync(VTOI(vp));
 	return (error);
@@ -420,7 +427,8 @@ ffs_read(ap)
 	ufs_lbn_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error, orig_resid;
+	ssize_t orig_resid;
+	int error;
 	int seqcount;
 	int ioflag;
 
@@ -633,8 +641,9 @@ ffs_write(ap)
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
+	ssize_t resid;
 	int seqcount;
-	int blkoffset, error, flags, ioflag, resid, size, xfersize;
+	int blkoffset, error, flags, ioflag, size, xfersize;
 
 	vp = ap->a_vp;
 	uio = ap->a_uio;
@@ -718,15 +727,6 @@ ffs_write(ap)
 			vnode_pager_setsize(vp, ip->i_size);
 			break;
 		}
-		/*
-		 * If the buffer is not valid we have to clear out any
-		 * garbage data from the pages instantiated for the buffer.
-		 * If we do not, a failed uiomove() during a write can leave
-		 * the prior contents of the pages exposed to a userland
-		 * mmap().  XXX deal with uiomove() errors a better way.
-		 */
-		if ((bp->b_flags & B_CACHE) == 0 && fs->fs_bsize <= xfersize)
-			vfs_bio_clrbuf(bp);
 		if (ioflag & IO_DIRECT)
 			bp->b_flags |= B_DIRECT;
 		if ((ioflag & (IO_SYNC|IO_INVAL)) == (IO_SYNC|IO_INVAL))
@@ -743,6 +743,26 @@ ffs_write(ap)
 
 		error =
 		    uiomove((char *)bp->b_data + blkoffset, (int)xfersize, uio);
+		/*
+		 * If the buffer is not already filled and we encounter an
+		 * error while trying to fill it, we have to clear out any
+		 * garbage data from the pages instantiated for the buffer.
+		 * If we do not, a failed uiomove() during a write can leave
+		 * the prior contents of the pages exposed to a userland mmap.
+		 *
+		 * Note that we need only clear buffers with a transfer size
+		 * equal to the block size because buffers with a shorter
+		 * transfer size were cleared above by the call to UFS_BALLOC()
+		 * with the BA_CLRBUF flag set.
+		 *
+		 * If the source region for uiomove identically mmaps the
+		 * buffer, uiomove() performed the NOP copy, and the buffer
+		 * content remains valid because the page fault handler
+		 * validated the pages.
+		 */
+		if (error != 0 && (bp->b_flags & B_CACHE) == 0 &&
+		    fs->fs_bsize == xfersize)
+			vfs_bio_clrbuf(bp);
 		if ((ioflag & (IO_VMIO|IO_DIRECT)) &&
 		   (LIST_EMPTY(&bp->b_dep))) {
 			bp->b_flags |= B_RELBUF;
@@ -860,7 +880,8 @@ ffs_extread(struct vnode *vp, struct uio *uio, int ioflag)
 	ufs_lbn_t lbn, nextlbn;
 	off_t bytesinfile;
 	long size, xfersize, blkoffset;
-	int error, orig_resid;
+	ssize_t orig_resid;
+	int error;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;
@@ -1013,7 +1034,8 @@ ffs_extwrite(struct vnode *vp, struct uio *uio, int ioflag, struct ucred *ucred)
 	struct buf *bp;
 	ufs_lbn_t lbn;
 	off_t osize;
-	int blkoffset, error, flags, resid, size, xfersize;
+	ssize_t resid;
+	int blkoffset, error, flags, size, xfersize;
 
 	ip = VTOI(vp);
 	fs = ip->i_fs;

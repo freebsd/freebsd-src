@@ -133,6 +133,7 @@ struct tsec_softc {
 	struct mbuf	*frame;
 
 	int		phyaddr;
+	struct tsec_softc *phy_sc;
 };
 
 /* interface to get/put generic objects */

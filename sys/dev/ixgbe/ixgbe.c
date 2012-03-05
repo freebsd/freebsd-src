@@ -2969,14 +2969,11 @@ ixgbe_setup_transmit_ring(struct tx_ring *txr)
 		 * Slots in the netmap ring (indexed by "si") are
 		 * kring->nkr_hwofs positions "ahead" wrt the
 		 * corresponding slot in the NIC ring. In some drivers
-		 * (not here) nkr_hwofs can be negative. When computing
-		 * si = i + kring->nkr_hwofs make sure to handle wraparounds.
+		 * (not here) nkr_hwofs can be negative. Function
+		 * netmap_idx_n2k() handles wraparounds properly.
 		 */
 		if (slot) {
-			int si = i + na->tx_rings[txr->me].nkr_hwofs;
-
-			if (si >= na->num_tx_desc)
-				si -= na->num_tx_desc;
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -3494,7 +3491,7 @@ ixgbe_txeof(struct tx_ring *txr)
 			selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 			IXGBE_TX_UNLOCK(txr);
 			IXGBE_CORE_LOCK(adapter);
-			selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+			selwakeuppri(&na->tx_si, PI_NET);
 			IXGBE_CORE_UNLOCK(adapter);
 			IXGBE_TX_LOCK(txr);
 		}
@@ -3925,12 +3922,10 @@ ixgbe_setup_receive_ring(struct rx_ring *rxr)
 		 * an mbuf, so end the block with a continue;
 		 */
 		if (slot) {
-			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
-			if (sj >= na->num_rx_desc)
-				sj -= na->num_rx_desc;
 			addr = PNMB(slot + sj, &paddr);
 			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
@@ -4381,7 +4376,7 @@ ixgbe_rxeof(struct ix_queue *que, int count)
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		IXGBE_RX_UNLOCK(rxr);
 		IXGBE_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		IXGBE_CORE_UNLOCK(adapter);
 		return (FALSE);
 	}

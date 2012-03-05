@@ -271,6 +271,7 @@ SCI_IO_STATUS scif_controller_start_io(
 )
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
+   SCI_STATUS              status;
 
    SCIF_LOG_TRACE((
       sci_base_object_get_logger(controller),
@@ -284,7 +285,7 @@ SCI_IO_STATUS scif_controller_start_io(
       || scif_sas_controller_sufficient_resource(controller)
       )
    {
-      return fw_controller->state_handlers->start_io_handler(
+      status = fw_controller->state_handlers->start_io_handler(
                 (SCI_BASE_CONTROLLER_T*) controller,
                 (SCI_BASE_REMOTE_DEVICE_T*) remote_device,
                 (SCI_BASE_REQUEST_T*) io_request,
@@ -292,7 +293,9 @@ SCI_IO_STATUS scif_controller_start_io(
              );
    }
    else
-      return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+      status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+
+   return (SCI_IO_STATUS)status;
 }
 
 // ---------------------------------------------------------------------------
@@ -305,13 +308,14 @@ SCI_TASK_STATUS scif_controller_start_task(
 )
 {
    SCIF_SAS_CONTROLLER_T * fw_controller = (SCIF_SAS_CONTROLLER_T*) controller;
+   SCI_STATUS              status;
 
    // Validate the user supplied parameters.
    if (  (controller == SCI_INVALID_HANDLE)
       || (remote_device == SCI_INVALID_HANDLE)
       || (task_request == SCI_INVALID_HANDLE) )
    {
-      return SCI_FAILURE_INVALID_PARAMETER_VALUE;
+      return SCI_TASK_FAILURE_INVALID_PARAMETER_VALUE;
    }
 
    SCIF_LOG_TRACE((
@@ -323,7 +327,7 @@ SCI_TASK_STATUS scif_controller_start_task(
 
    if (scif_sas_controller_sufficient_resource(controller))
    {
-      return fw_controller->state_handlers->start_task_handler(
+      status = fw_controller->state_handlers->start_task_handler(
              (SCI_BASE_CONTROLLER_T*) controller,
              (SCI_BASE_REMOTE_DEVICE_T*) remote_device,
              (SCI_BASE_REQUEST_T*) task_request,
@@ -331,7 +335,9 @@ SCI_TASK_STATUS scif_controller_start_task(
           );
    }
    else
-      return SCI_FAILURE_INSUFFICIENT_RESOURCES;
+      status = SCI_FAILURE_INSUFFICIENT_RESOURCES;
+
+   return (SCI_TASK_STATUS)status;
 }
 
 // ---------------------------------------------------------------------------

@@ -111,6 +111,7 @@ struct rt_metrics {
  #endif
 #endif
 
+#define	RT_DEFAULT_FIB	0	/* Explicitly mark fib=0 restricted cases */
 extern u_int rt_numfibs;	/* number fo usable routing tables */
 /*
  * XXX kernel function pointer `rt_output' is visible to applications.
@@ -405,8 +406,10 @@ void	 rtredirect(struct sockaddr *, struct sockaddr *,
 int	 rtrequest(int, struct sockaddr *,
 	    struct sockaddr *, struct sockaddr *, int, struct rtentry **);
 
+#ifndef BURN_BRIDGES
 /* defaults to "all" FIBs */
 int	 rtinit_fib(struct ifaddr *, int, int);
+#endif
 
 /* XXX MRT NEW VERSIONS THAT USE FIBs
  * For now the protocol indepedent versions are the same as the AF_INET ones

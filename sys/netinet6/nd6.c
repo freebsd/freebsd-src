@@ -380,6 +380,14 @@ nd6_options(union nd_opts *ndopts)
 			ndopts->nd_opts_pi_end =
 				(struct nd_opt_prefix_info *)nd_opt;
 			break;
+		/* What about ND_OPT_ROUTE_INFO? RFC 4191 */
+		case ND_OPT_RDNSS:	/* RFC 6106 */
+		case ND_OPT_DNSSL:	/* RFC 6106 */
+			/*
+			 * Silently ignore options we know and do not care about
+			 * in the kernel.
+			 */
+			break;
 		default:
 			/*
 			 * Unknown options must be silently ignored,
@@ -900,7 +908,10 @@ nd6_is_new_addr_neighbor(struct sockaddr_in6 *addr, struct ifnet *ifp)
 
 		if (!(pr->ndpr_stateflags & NDPRF_ONLINK)) {
 			struct rtentry *rt;
-			rt = rtalloc1((struct sockaddr *)&pr->ndpr_prefix, 0, 0);
+
+			/* Always use the default FIB here. */
+			rt = in6_rtalloc1((struct sockaddr *)&pr->ndpr_prefix,
+			    0, 0, RT_DEFAULT_FIB);
 			if (rt == NULL)
 				continue;
 			/*
@@ -1341,16 +1352,6 @@ nd6_ioctl(u_long cmd, caddr_t data, struct ifnet *ifp)
 	{
 		struct ifaddr *ifa;
 		struct in6_ifaddr *ia;
-
-		/*
-		 * Try to clear ifdisabled flag when enabling
-		 * accept_rtadv or auto_linklocal.
-		 */
-		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
-		    !(ND.flags & ND6_IFF_IFDISABLED) &&
-		    (ND.flags & (ND6_IFF_ACCEPT_RTADV |
-		    ND6_IFF_AUTO_LINKLOCAL)))
-			ND.flags &= ~ND6_IFF_IFDISABLED;
 
 		if ((ND_IFINFO(ifp)->flags & ND6_IFF_IFDISABLED) &&
 		    !(ND.flags & ND6_IFF_IFDISABLED)) {

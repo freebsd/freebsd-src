@@ -1433,10 +1433,15 @@ re_attach(device_t dev)
 			sc->rl_flags |= RL_FLAG_MACSLEEP;
 		/* FALLTHROUGH */
 	case RL_HWREV_8168CP:
-	case RL_HWREV_8168D:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
 		    RL_FLAG_DESCV2 | RL_FLAG_MACSTAT | RL_FLAG_CMDSTOP |
 		    RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 | RL_FLAG_WOL_MANLINK;
+		break;
+	case RL_HWREV_8168D:
+		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PHYWAKE_PM |
+		    RL_FLAG_PAR | RL_FLAG_DESCV2 | RL_FLAG_MACSTAT |
+		    RL_FLAG_CMDSTOP | RL_FLAG_AUTOPAD | RL_FLAG_JUMBOV2 |
+		    RL_FLAG_WOL_MANLINK;
 		break;
 	case RL_HWREV_8168DP:
 		sc->rl_flags |= RL_FLAG_PHYWAKE | RL_FLAG_PAR |
@@ -1472,6 +1477,22 @@ re_attach(device_t dev)
 		break;
 	}
 
+	if (sc->rl_hwrev->rl_rev == RL_HWREV_8139CPLUS) {
+		sc->rl_cfg0 = RL_8139_CFG0;
+		sc->rl_cfg1 = RL_8139_CFG1;
+		sc->rl_cfg2 = 0;
+		sc->rl_cfg3 = RL_8139_CFG3;
+		sc->rl_cfg4 = RL_8139_CFG4;
+		sc->rl_cfg5 = RL_8139_CFG5;
+	} else {
+		sc->rl_cfg0 = RL_CFG0;
+		sc->rl_cfg1 = RL_CFG1;
+		sc->rl_cfg2 = RL_CFG2;
+		sc->rl_cfg3 = RL_CFG3;
+		sc->rl_cfg4 = RL_CFG4;
+		sc->rl_cfg5 = RL_CFG5;
+	}
+
 	/* Reset the adapter. */
 	RL_LOCK(sc);
 	re_reset(sc);
@@ -1479,12 +1500,12 @@ re_attach(device_t dev)
 
 	/* Enable PME. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
-	cfg = CSR_READ_1(sc, RL_CFG1);
+	cfg = CSR_READ_1(sc, sc->rl_cfg1);
 	cfg |= RL_CFG1_PME;
-	CSR_WRITE_1(sc, RL_CFG1, cfg);
-	cfg = CSR_READ_1(sc, RL_CFG5);
+	CSR_WRITE_1(sc, sc->rl_cfg1, cfg);
+	cfg = CSR_READ_1(sc, sc->rl_cfg5);
 	cfg &= RL_CFG5_PME_STS;
-	CSR_WRITE_1(sc, RL_CFG5, cfg);
+	CSR_WRITE_1(sc, sc->rl_cfg5, cfg);
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
 	if ((sc->rl_flags & RL_FLAG_PAR) != 0) {
@@ -1556,19 +1577,6 @@ re_attach(device_t dev)
 		re_gmii_writereg(dev, 1, 0x0e, 0);
 	}
 
-#define	RE_PHYAD_INTERNAL	 0
-
-	/* Do MII setup. */
-	phy = RE_PHYAD_INTERNAL;
-	if (sc->rl_type == RL_8169)
-		phy = 1;
-	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
-	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
-	if (error != 0) {
-		device_printf(dev, "attaching PHYs failed\n");
-		goto fail;
-	}
-
 	ifp->if_softc = sc;
 	if_initname(ifp, device_get_name(dev), device_get_unit(dev));
 	ifp->if_flags = IFF_BROADCAST | IFF_SIMPLEX | IFF_MULTICAST;
@@ -1592,6 +1600,19 @@ re_attach(device_t dev)
 	IFQ_SET_READY(&ifp->if_snd);
 
 	TASK_INIT(&sc->rl_inttask, 0, re_int_task, sc);
+
+#define	RE_PHYAD_INTERNAL	 0
+
+	/* Do MII setup. */
+	phy = RE_PHYAD_INTERNAL;
+	if (sc->rl_type == RL_8169)
+		phy = 1;
+	error = mii_attach(dev, &sc->rl_miibus, ifp, re_ifmedia_upd,
+	    re_ifmedia_sts, BMSR_DEFCAPMASK, phy, MII_OFFSET_ANY, MIIF_DOPAUSE);
+	if (error != 0) {
+		device_printf(dev, "attaching PHYs failed\n");
+		goto fail;
+	}
 
 	/*
 	 * Call MI attach routine.
@@ -2090,6 +2111,7 @@ re_rxeof(struct rl_softc *sc, int *rx_npktsp)
 	ifp = sc->rl_ifp;
 #ifdef DEV_NETMAP
 	if (ifp->if_capenable & IFCAP_NETMAP) {
+		NA(ifp)->rx_rings->nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&NA(ifp)->rx_rings->si, PI_NET);
 		return 0;
 	}
@@ -2946,32 +2968,32 @@ re_set_jumbo(struct rl_softc *sc, int jumbo)
 
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_WRITECFG);
 	if (jumbo != 0) {
-		CSR_WRITE_1(sc, RL_CFG3, CSR_READ_1(sc, RL_CFG3) |
+		CSR_WRITE_1(sc, sc->rl_cfg3, CSR_READ_1(sc, sc->rl_cfg3) |
 		    RL_CFG3_JUMBO_EN0);
 		switch (sc->rl_hwrev->rl_rev) {
 		case RL_HWREV_8168DP:
 			break;
 		case RL_HWREV_8168E:
-			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) |
-			    0x01);
+			CSR_WRITE_1(sc, sc->rl_cfg4,
+			    CSR_READ_1(sc, sc->rl_cfg4) | 0x01);
 			break;
 		default:
-			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) |
-			    RL_CFG4_JUMBO_EN1);
+			CSR_WRITE_1(sc, sc->rl_cfg4,
+			    CSR_READ_1(sc, sc->rl_cfg4) | RL_CFG4_JUMBO_EN1);
 		}
 	} else {
-		CSR_WRITE_1(sc, RL_CFG3, CSR_READ_1(sc, RL_CFG3) &
+		CSR_WRITE_1(sc, sc->rl_cfg3, CSR_READ_1(sc, sc->rl_cfg3) &
 		    ~RL_CFG3_JUMBO_EN0);
 		switch (sc->rl_hwrev->rl_rev) {
 		case RL_HWREV_8168DP:
 			break;
 		case RL_HWREV_8168E:
-			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) &
-			    ~0x01);
+			CSR_WRITE_1(sc, sc->rl_cfg4,
+			    CSR_READ_1(sc, sc->rl_cfg4) & ~0x01);
 			break;
 		default:
-			CSR_WRITE_1(sc, RL_CFG4, CSR_READ_1(sc, RL_CFG4) &
-			    ~RL_CFG4_JUMBO_EN1);
+			CSR_WRITE_1(sc, sc->rl_cfg4,
+			    CSR_READ_1(sc, sc->rl_cfg4) & ~RL_CFG4_JUMBO_EN1);
 		}
 	}
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
@@ -3084,7 +3106,7 @@ re_init_locked(struct rl_softc *sc)
 	if (sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SC ||
 	    sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SCE) {
 		reg = 0x000fff00;
-		if ((CSR_READ_1(sc, RL_CFG2) & RL_CFG2_PCI66MHZ) != 0)
+		if ((CSR_READ_1(sc, sc->rl_cfg2) & RL_CFG2_PCI66MHZ) != 0)
 			reg |= 0x000000ff;
 		if (sc->rl_hwrev->rl_rev == RL_HWREV_8169_8110SCE)
 			reg |= 0x00f00000;
@@ -3249,7 +3271,8 @@ re_init_locked(struct rl_softc *sc)
 	if (sc->rl_testmode)
 		return;
 
-	CSR_WRITE_1(sc, RL_CFG1, CSR_READ_1(sc, RL_CFG1) | RL_CFG1_DRVLOAD);
+	CSR_WRITE_1(sc, sc->rl_cfg1, CSR_READ_1(sc, sc->rl_cfg1) |
+	    RL_CFG1_DRVLOAD);
 
 	ifp->if_drv_flags |= IFF_DRV_RUNNING;
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
@@ -3782,19 +3805,19 @@ re_setwol(struct rl_softc *sc)
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
 	/* Enable PME. */
-	v = CSR_READ_1(sc, RL_CFG1);
+	v = CSR_READ_1(sc, sc->rl_cfg1);
 	v &= ~RL_CFG1_PME;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG1_PME;
-	CSR_WRITE_1(sc, RL_CFG1, v);
+	CSR_WRITE_1(sc, sc->rl_cfg1, v);
 
-	v = CSR_READ_1(sc, RL_CFG3);
+	v = CSR_READ_1(sc, sc->rl_cfg3);
 	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
 	if ((ifp->if_capenable & IFCAP_WOL_MAGIC) != 0)
 		v |= RL_CFG3_WOL_MAGIC;
-	CSR_WRITE_1(sc, RL_CFG3, v);
+	CSR_WRITE_1(sc, sc->rl_cfg3, v);
 
-	v = CSR_READ_1(sc, RL_CFG5);
+	v = CSR_READ_1(sc, sc->rl_cfg5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST |
 	    RL_CFG5_WOL_LANWAKE);
 	if ((ifp->if_capenable & IFCAP_WOL_UCAST) != 0)
@@ -3803,7 +3826,7 @@ re_setwol(struct rl_softc *sc)
 		v |= RL_CFG5_WOL_MCAST | RL_CFG5_WOL_BCAST;
 	if ((ifp->if_capenable & IFCAP_WOL) != 0)
 		v |= RL_CFG5_WOL_LANWAKE;
-	CSR_WRITE_1(sc, RL_CFG5, v);
+	CSR_WRITE_1(sc, sc->rl_cfg5, v);
 
 	/* Config register write done. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
@@ -3839,17 +3862,17 @@ re_clrwol(struct rl_softc *sc)
 	/* Enable config register write. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EE_MODE);
 
-	v = CSR_READ_1(sc, RL_CFG3);
+	v = CSR_READ_1(sc, sc->rl_cfg3);
 	v &= ~(RL_CFG3_WOL_LINK | RL_CFG3_WOL_MAGIC);
-	CSR_WRITE_1(sc, RL_CFG3, v);
+	CSR_WRITE_1(sc, sc->rl_cfg3, v);
 
 	/* Config register write done. */
 	CSR_WRITE_1(sc, RL_EECMD, RL_EEMODE_OFF);
 
-	v = CSR_READ_1(sc, RL_CFG5);
+	v = CSR_READ_1(sc, sc->rl_cfg5);
 	v &= ~(RL_CFG5_WOL_BCAST | RL_CFG5_WOL_MCAST | RL_CFG5_WOL_UCAST);
 	v &= ~RL_CFG5_WOL_LANWAKE;
-	CSR_WRITE_1(sc, RL_CFG5, v);
+	CSR_WRITE_1(sc, sc->rl_cfg5, v);
 }
 
 static void

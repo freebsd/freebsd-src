@@ -976,7 +976,8 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad.sin_len = sizeof (struct sockaddr_in);
 		sad.sin_addr.s_addr = sin->sin_addr.s_addr;
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1((struct sockaddr *)&sad, 0, 0UL);
+		rt = rtalloc1_fib((struct sockaddr *)&sad, 0, 0UL,
+		     curthread->td_proc->p_fibnum);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
 			    rt->rt_ifa != NULL &&
@@ -1001,7 +1002,8 @@ nfscl_getmyip(struct nfsmount *nmp, int *isinet6p)
 		sad6.sin6_len = sizeof (struct sockaddr_in6);
 		sad6.sin6_addr = sin6->sin6_addr;
 		CURVNET_SET(CRED_TO_VNET(nmp->nm_sockreq.nr_cred));
-		rt = rtalloc1((struct sockaddr *)&sad6, 0, 0UL);
+		rt = rtalloc1_fib((struct sockaddr *)&sad6, 0, 0UL,
+		     curthread->td_proc->p_fibnum);
 		if (rt != NULL) {
 			if (rt->rt_ifp != NULL &&
 			    rt->rt_ifa != NULL &&

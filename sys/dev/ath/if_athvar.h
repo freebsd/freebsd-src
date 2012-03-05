@@ -501,6 +501,7 @@ struct ath_softc {
 	struct ath_txq		*sc_cabq;	/* tx q for cab frames */
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
+	struct task		sc_resettask;	/* interface reset task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */
@@ -888,6 +889,10 @@ void	ath_intr(void *);
 	(ath_hal_getcapability(_ah, HAL_CAP_RX_CHAINMASK, 0, _prxchainmask))
 #define	ath_hal_gettxchainmask(_ah, _ptxchainmask) \
 	(ath_hal_getcapability(_ah, HAL_CAP_TX_CHAINMASK, 0, _ptxchainmask))
+#define	ath_hal_setrxchainmask(_ah, _rx) \
+	(ath_hal_setcapability(_ah, HAL_CAP_RX_CHAINMASK, 1, _rx, NULL))
+#define	ath_hal_settxchainmask(_ah, _tx) \
+	(ath_hal_setcapability(_ah, HAL_CAP_TX_CHAINMASK, 1, _tx, NULL))
 #define	ath_hal_split4ktrans(_ah) \
 	(ath_hal_getcapability(_ah, HAL_CAP_SPLIT_4KB_TRANS, \
 	0, NULL) == HAL_OK)

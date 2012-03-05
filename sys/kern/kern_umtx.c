@@ -970,16 +970,24 @@ do_unlock_umtx32(struct thread *td, uint32_t *m, uint32_t id)
 }
 #endif
 
+static inline int 
+tstohz(const struct timespec *tsp)
+{
+	struct timeval tv;
+
+	TIMESPEC_TO_TIMEVAL(&tv, tsp);
+	return tvtohz(&tv);
+}
+
 /*
  * Fetch and compare value, sleep on the address if value is not changed.
  */
 static int
 do_wait(struct thread *td, void *addr, u_long id,
-	struct timespec *timeout, int compat32, int is_private)
+	struct _umtx_time *timeout, int compat32, int is_private)
 {
 	struct umtx_q *uq;
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec ets, cts, tts;
 	u_long tmp;
 	int error = 0;
 
@@ -1005,12 +1013,22 @@ do_wait(struct thread *td, void *addr, u_long id,
 		umtxq_remove(uq);
 		umtxq_unlock(&uq->uq_key);
 	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+			ets = cts;
+			timespecadd(&ets, &timeout->_timeout);
+		} else {
+			ets = timeout->_timeout;
+		}
 		umtxq_lock(&uq->uq_key);
 		for (;;) {
-			error = umtxq_sleep(uq, "uwait", tvtohz(&tv));
+			if (timespeccmp(&cts, &ets, >=)) {
+				error = ETIMEDOUT;
+				break;
+			}
+			tts = ets;
+			timespecsub(&tts, &cts);
+			error = umtxq_sleep(uq, "uwait", tstohz(&tts));
 			if (!(uq->uq_flags & UQF_UMTXQ)) {
 				error = 0;
 				break;
@@ -1018,15 +1036,7 @@ do_wait(struct thread *td, void *addr, u_long id,
 			if (error != ETIMEDOUT)
 				break;
 			umtxq_unlock(&uq->uq_key);
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
-				umtxq_lock(&uq->uq_key);
-				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+			kern_clock_gettime(td, timeout->_clockid, &cts);
 			umtxq_lock(&uq->uq_key);
 		}
 		umtxq_remove(uq);
@@ -2207,10 +2217,9 @@ _do_lock_umutex(struct thread *td, struct umutex *m, int flags, int timo,
  */
 static int
 do_lock_umutex(struct thread *td, struct umutex *m,
-	struct timespec *timeout, int mode)
+	struct _umtx_time *timeout, int mode)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec cts, ets, tts;
 	uint32_t flags;
 	int error;
 
@@ -2224,21 +2233,25 @@ do_lock_umutex(struct thread *td, struct umutex *m,
 		if (error == EINTR && mode != _UMUTEX_WAIT)
 			error = ERESTART;
 	} else {
-		getnanouptime(&ts);
-		timespecadd(&ts, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+			ets = cts;
+			timespecadd(&ets, &timeout->_timeout);
+			tts = timeout->_timeout;
+		} else {
+			ets = timeout->_timeout;
+			tts = timeout->_timeout;
+			timespecsub(&tts, &cts);
+		}
 		for (;;) {
-			error = _do_lock_umutex(td, m, flags, tvtohz(&tv), mode);
+			error = _do_lock_umutex(td, m, flags, tstohz(&tts), mode);
 			if (error != ETIMEDOUT)
 				break;
-			getnanouptime(&ts2);
-			if (timespeccmp(&ts2, &ts, >=)) {
-				error = ETIMEDOUT;
+			kern_clock_gettime(td, timeout->_clockid, &cts);
+			if (timespeccmp(&cts, &ets, >=))
 				break;
-			}
-			ts3 = ts;
-			timespecsub(&ts3, &ts2);
-			TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+			tts = ets;
+			timespecsub(&tts, &cts);
 		}
 		/* Timed-locking is not restarted. */
 		if (error == ERESTART)
@@ -2276,7 +2289,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 	struct timespec *timeout, u_long wflags)
 {
 	struct umtx_q *uq;
-	struct timeval tv;
 	struct timespec cts, ets, tts;
 	uint32_t flags;
 	uint32_t clockid;
@@ -2332,9 +2344,8 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 				kern_clock_gettime(td, clockid, &cts);
 				timespecsub(&tts, &cts);
 			}
-			TIMESPEC_TO_TIMEVAL(&tv, &tts);
 			for (;;) {
-				error = umtxq_sleep(uq, "ucond", tvtohz(&tv));
+				error = umtxq_sleep(uq, "ucond", tstohz(&tts));
 				if (error != ETIMEDOUT)
 					break;
 				kern_clock_gettime(td, clockid, &cts);
@@ -2344,7 +2355,6 @@ do_cv_wait(struct thread *td, struct ucond *cv, struct umutex *m,
 				}
 				tts = ets;
 				timespecsub(&tts, &cts);
-				TIMESPEC_TO_TIMEVAL(&tv, &tts);
 			}
 		}
 	}
@@ -2542,27 +2552,30 @@ sleep:
 }
 
 static int
-do_rw_rdlock2(struct thread *td, void *obj, long val, struct timespec *timeout)
+do_rw_rdlock2(struct thread *td, void *obj, long val, struct _umtx_time *timeout)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec cts, ets, tts;
 	int error;
 
-	getnanouptime(&ts);
-	timespecadd(&ts, timeout);
-	TIMESPEC_TO_TIMEVAL(&tv, timeout);
+	kern_clock_gettime(td, timeout->_clockid, &cts);
+	if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+		ets = cts;
+		timespecadd(&ets, &timeout->_timeout);
+		tts = timeout->_timeout;
+	} else {
+		ets = timeout->_timeout;
+		tts = timeout->_timeout;
+		timespecsub(&tts, &cts);
+	}
 	for (;;) {
-		error = do_rw_rdlock(td, obj, val, tvtohz(&tv));
+		error = do_rw_rdlock(td, obj, val, tstohz(&tts));
 		if (error != ETIMEDOUT)
 			break;
-		getnanouptime(&ts2);
-		if (timespeccmp(&ts2, &ts, >=)) {
-			error = ETIMEDOUT;
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if (timespeccmp(&cts, &ets, >=))
 			break;
-		}
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		tts = ets;
+		timespecsub(&tts, &cts);
 	}
 	if (error == ERESTART)
 		error = EINTR;
@@ -2679,27 +2692,30 @@ sleep:
 }
 
 static int
-do_rw_wrlock2(struct thread *td, void *obj, struct timespec *timeout)
+do_rw_wrlock2(struct thread *td, void *obj, struct _umtx_time *timeout)
 {
-	struct timespec ts, ts2, ts3;
-	struct timeval tv;
+	struct timespec cts, ets, tts;
 	int error;
 
-	getnanouptime(&ts);
-	timespecadd(&ts, timeout);
-	TIMESPEC_TO_TIMEVAL(&tv, timeout);
+	kern_clock_gettime(td, timeout->_clockid, &cts);
+	if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+		ets = cts;
+		timespecadd(&ets, &timeout->_timeout);
+		tts = timeout->_timeout;
+	} else {
+		ets = timeout->_timeout;
+		tts = timeout->_timeout;
+		timespecsub(&tts, &cts);
+	}
 	for (;;) {
-		error = do_rw_wrlock(td, obj, tvtohz(&tv));
+		error = do_rw_wrlock(td, obj, tstohz(&tts));
 		if (error != ETIMEDOUT)
 			break;
-		getnanouptime(&ts2);
-		if (timespeccmp(&ts2, &ts, >=)) {
-			error = ETIMEDOUT;
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if (timespeccmp(&cts, &ets, >=))
 			break;
-		}
-		ts3 = ts;
-		timespecsub(&ts3, &ts2);
-		TIMESPEC_TO_TIMEVAL(&tv, &ts3);
+		tts = ets;
+		timespecsub(&tts, &cts);
 	}
 	if (error == ERESTART)
 		error = EINTR;
@@ -2786,10 +2802,9 @@ out:
 }
 
 static int
-do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
+do_sem_wait(struct thread *td, struct _usem *sem, struct _umtx_time *timeout)
 {
 	struct umtx_q *uq;
-	struct timeval tv;
 	struct timespec cts, ets, tts;
 	uint32_t flags, count;
 	int error;
@@ -2818,27 +2833,32 @@ do_sem_wait(struct thread *td, struct _usem *sem, struct timespec *timeout)
 
 	umtxq_lock(&uq->uq_key);
 	umtxq_unbusy(&uq->uq_key);
-	umtxq_unlock(&uq->uq_key);
 
-	umtxq_lock(&uq->uq_key);
 	if (timeout == NULL) {
 		error = umtxq_sleep(uq, "usem", 0);
 	} else {
-		getnanouptime(&ets);
-		timespecadd(&ets, timeout);
-		TIMESPEC_TO_TIMEVAL(&tv, timeout);
+		umtxq_unlock(&uq->uq_key);
+		kern_clock_gettime(td, timeout->_clockid, &cts);
+		if ((timeout->_flags & UMTX_ABSTIME) == 0) {
+			ets = cts;
+			timespecadd(&ets, &timeout->_timeout);
+		} else {
+			ets = timeout->_timeout;
+		}
+		umtxq_lock(&uq->uq_key);
 		for (;;) {
-			error = umtxq_sleep(uq, "usem", tvtohz(&tv));
-			if (error != ETIMEDOUT)
-				break;
-			getnanouptime(&cts);
 			if (timespeccmp(&cts, &ets, >=)) {
 				error = ETIMEDOUT;
 				break;
 			}
 			tts = ets;
 			timespecsub(&tts, &cts);
-			TIMESPEC_TO_TIMEVAL(&tv, &tts);
+			error = umtxq_sleep(uq, "usem", tstohz(&tts));
+			if (error != ETIMEDOUT)
+				break;
+			umtxq_unlock(&uq->uq_key);
+			kern_clock_gettime(td, timeout->_clockid, &cts);
+			umtxq_lock(&uq->uq_key);
 		}
 	}
 
@@ -2912,6 +2932,25 @@ umtx_copyin_timeout(const void *addr, struct timespec *tsp)
 	return (error);
 }
 
+static inline int
+umtx_copyin_umtx_time(const void *addr, size_t size, struct _umtx_time *tp)
+{
+	int error;
+	
+	if (size <= sizeof(struct timespec)) {
+		tp->_clockid = CLOCK_REALTIME;
+		tp->_flags = 0;
+		error = copyin(addr, &tp->_timeout, sizeof(struct timespec));
+	} else 
+		error = copyin(addr, tp, sizeof(struct _umtx_time));
+	if (error != 0)
+		return (error);
+	if (tp->_timeout.tv_sec < 0 ||
+	    tp->_timeout.tv_nsec >= 1000000000 || tp->_timeout.tv_nsec < 0)
+		return (EINVAL);
+	return (0);
+}
+
 static int
 __umtx_op_lock_umtx(struct thread *td, struct _umtx_op_args *uap)
 {
@@ -2939,52 +2978,55 @@ __umtx_op_unlock_umtx(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_wait(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time timeout, *tm_p;
 	int error;
 
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 0, 0);
+	return do_wait(td, uap->obj, uap->val, tm_p, 0, 0);
 }
 
 static int
 __umtx_op_wait_uint(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time timeout, *tm_p;
 	int error;
 
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
+	return do_wait(td, uap->obj, uap->val, tm_p, 1, 0);
 }
 
 static int
 __umtx_op_wait_uint_private(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
+	return do_wait(td, uap->obj, uap->val, tm_p, 1, 1);
 }
 
 static int
@@ -3028,19 +3070,20 @@ __umtx_op_wake_private(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_lock_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_lock_umutex(td, uap->obj, ts, 0);
+	return do_lock_umutex(td, uap->obj, tm_p, 0);
 }
 
 static int
@@ -3052,19 +3095,20 @@ __umtx_op_trylock_umutex(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_wait_umutex(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_lock_umutex(td, uap->obj, ts, _UMUTEX_WAIT);
+	return do_lock_umutex(td, uap->obj, tm_p, _UMUTEX_WAIT);
 }
 
 static int
@@ -3118,14 +3162,15 @@ __umtx_op_cv_broadcast(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_rdlock(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_rdlock(td, uap->obj, uap->val, 0);
 	} else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(uap->uaddr2,
+		   (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 		error = do_rw_rdlock2(td, uap->obj, uap->val, &timeout);
@@ -3136,14 +3181,15 @@ __umtx_op_rw_rdlock(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_wrlock(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_wrlock(td, uap->obj, 0);
 	} else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(uap->uaddr2, 
+		   (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 
@@ -3161,19 +3207,20 @@ __umtx_op_rw_unlock(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_sem_wait(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(
+		    uap->uaddr2, (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return (do_sem_wait(td, uap->obj, ts));
+	return (do_sem_wait(td, uap->obj, tm_p));
 }
 
 static int
@@ -3237,6 +3284,12 @@ struct timespec32 {
 	uint32_t tv_nsec;
 };
 
+struct umtx_time32 {
+	struct	timespec32	timeout;
+	uint32_t		flags;
+	uint32_t		clockid;
+};
+
 static inline int
 umtx_copyin_timeout32(void *addr, struct timespec *tsp)
 {
@@ -3255,6 +3308,30 @@ umtx_copyin_timeout32(void *addr, struct timespec *tsp)
 		}
 	}
 	return (error);
+}
+
+static inline int
+umtx_copyin_umtx_time32(const void *addr, size_t size, struct _umtx_time *tp)
+{
+	struct umtx_time32 t32;
+	int error;
+	
+	t32.clockid = CLOCK_REALTIME;
+	t32.flags   = 0;
+	if (size <= sizeof(struct timespec32))
+		error = copyin(addr, &t32.timeout, sizeof(struct timespec32));
+	else 
+		error = copyin(addr, &t32, sizeof(struct umtx_time32));
+	if (error != 0)
+		return (error);
+	if (t32.timeout.tv_sec < 0 ||
+	    t32.timeout.tv_nsec >= 1000000000 || t32.timeout.tv_nsec < 0)
+		return (EINVAL);
+	tp->_timeout.tv_sec = t32.timeout.tv_sec;
+	tp->_timeout.tv_nsec = t32.timeout.tv_nsec;
+	tp->_flags = t32.flags;
+	tp->_clockid = t32.clockid;
+	return (0);
 }
 
 static int
@@ -3284,54 +3361,57 @@ __umtx_op_unlock_umtx_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+			(size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 0);
+	return do_wait(td, uap->obj, uap->val, tm_p, 1, 0);
 }
 
 static int
 __umtx_op_lock_umutex_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time(uap->uaddr2,
+			    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_lock_umutex(td, uap->obj, ts, 0);
+	return do_lock_umutex(td, uap->obj, tm_p, 0);
 }
 
 static int
 __umtx_op_wait_umutex_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2, 
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_lock_umutex(td, uap->obj, ts, _UMUTEX_WAIT);
+	return do_lock_umutex(td, uap->obj, tm_p, _UMUTEX_WAIT);
 }
 
 static int
@@ -3355,14 +3435,15 @@ __umtx_op_cv_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_rdlock(td, uap->obj, uap->val, 0);
 	} else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
 		error = do_rw_rdlock2(td, uap->obj, uap->val, &timeout);
@@ -3373,17 +3454,17 @@ __umtx_op_rw_rdlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec timeout;
+	struct _umtx_time timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL) {
 		error = do_rw_wrlock(td, uap->obj, 0);
 	} else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-
 		error = do_rw_wrlock2(td, uap->obj, &timeout);
 	}
 	return (error);
@@ -3392,36 +3473,38 @@ __umtx_op_rw_wrlock_compat32(struct thread *td, struct _umtx_op_args *uap)
 static int
 __umtx_op_wait_uint_private_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(
+		    uap->uaddr2, (size_t)uap->uaddr1,&timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return do_wait(td, uap->obj, uap->val, ts, 1, 1);
+	return do_wait(td, uap->obj, uap->val, tm_p, 1, 1);
 }
 
 static int
 __umtx_op_sem_wait_compat32(struct thread *td, struct _umtx_op_args *uap)
 {
-	struct timespec *ts, timeout;
+	struct _umtx_time *tm_p, timeout;
 	int error;
 
 	/* Allow a null timespec (wait forever). */
 	if (uap->uaddr2 == NULL)
-		ts = NULL;
+		tm_p = NULL;
 	else {
-		error = umtx_copyin_timeout32(uap->uaddr2, &timeout);
+		error = umtx_copyin_umtx_time32(uap->uaddr2,
+		    (size_t)uap->uaddr1, &timeout);
 		if (error != 0)
 			return (error);
-		ts = &timeout;
+		tm_p = &timeout;
 	}
-	return (do_sem_wait(td, uap->obj, ts));
+	return (do_sem_wait(td, uap->obj, tm_p));
 }
 
 static int

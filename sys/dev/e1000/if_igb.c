@@ -2711,7 +2711,7 @@ igb_setup_msix(struct adapter *adapter)
 		    "MSIX Configuration Problem, "
 		    "%d vectors configured, but %d queues wanted!\n",
 		    msgs, want);
-		return (ENXIO);
+		return (0);
 	}
 	if ((msgs) && pci_alloc_msix(dev, &msgs) == 0) {
                	device_printf(adapter->dev,
@@ -2721,9 +2721,11 @@ igb_setup_msix(struct adapter *adapter)
 	}
 msi:
        	msgs = pci_msi_count(dev);
-       	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0)
-               	device_printf(adapter->dev,"Using MSI interrupt\n");
-	return (msgs);
+	if (msgs == 1 && pci_alloc_msi(dev, &msgs) == 0) {
+		device_printf(adapter->dev," Using MSI interrupt\n");
+		return (msgs);
+	}
+	return (0);
 }
 
 /*********************************************************************
@@ -3315,11 +3317,8 @@ igb_setup_transmit_ring(struct tx_ring *txr)
 		}
 #ifdef DEV_NETMAP
 		if (slot) {
-			/* slot si is mapped to the i-th NIC-ring entry */
-			int si = i + na->tx_rings[txr->me].nkr_hwofs;
-
-			if (si < 0)
-				si += na->num_tx_desc;
+			int si = netmap_idx_n2k(&na->tx_rings[txr->me], i);
+			/* no need to set the address */
 			netmap_load_map(txr->txtag, txbuf->map, NMB(slot + si));
 		}
 #endif /* DEV_NETMAP */
@@ -3696,7 +3695,7 @@ igb_txeof(struct tx_ring *txr)
 		selwakeuppri(&na->tx_rings[txr->me].si, PI_NET);
 		IGB_TX_UNLOCK(txr);
 		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->tx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->tx_si, PI_NET);
 		IGB_CORE_UNLOCK(adapter);
 		IGB_TX_LOCK(txr);
 		return FALSE;
@@ -4060,12 +4059,10 @@ igb_setup_receive_ring(struct rx_ring *rxr)
 #ifdef DEV_NETMAP
 		if (slot) {
 			/* slot sj is mapped to the i-th NIC-ring entry */
-			int sj = j + na->rx_rings[rxr->me].nkr_hwofs;
+			int sj = netmap_idx_n2k(&na->rx_rings[rxr->me], j);
 			uint64_t paddr;
 			void *addr;
 
-			if (sj < 0)
-				sj += na->num_rx_desc;
 			addr = PNMB(slot + sj, &paddr);
 			netmap_load_map(rxr->ptag, rxbuf->pmap, addr);
 			/* Update descriptor */
@@ -4559,10 +4556,11 @@ igb_rxeof(struct igb_queue *que, int count, int *done)
 	if (ifp->if_capenable & IFCAP_NETMAP) {
 		struct netmap_adapter *na = NA(ifp);
 
+		na->rx_rings[rxr->me].nr_kflags |= NKR_PENDINTR;
 		selwakeuppri(&na->rx_rings[rxr->me].si, PI_NET);
 		IGB_RX_UNLOCK(rxr);
 		IGB_CORE_LOCK(adapter);
-		selwakeuppri(&na->rx_rings[na->num_queues + 1].si, PI_NET);
+		selwakeuppri(&na->rx_si, PI_NET);
 		IGB_CORE_UNLOCK(adapter);
 		return (0);
 	}
