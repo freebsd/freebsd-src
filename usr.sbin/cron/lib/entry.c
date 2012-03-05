@@ -41,10 +41,10 @@ typedef	enum ecode {
 #endif
 } ecode_e;
 
-static char	get_list __P((bitstr_t *, int, int, char *[], int, FILE *)),
-		get_range __P((bitstr_t *, int, int, char *[], int, FILE *)),
-		get_number __P((int *, int, char *[], int, FILE *));
-static int	set_element __P((bitstr_t *, int, int, int));
+static char	get_list(bitstr_t *, int, int, char *[], int, FILE *),
+		get_range(bitstr_t *, int, int, char *[], int, FILE *),
+		get_number(int *, int, char *[], int, FILE *);
+static int	set_element(bitstr_t *, int, int, int);
 
 static char *ecodes[] =
 	{
@@ -87,7 +87,7 @@ free_entry(e)
 entry *
 load_entry(file, error_func, pw, envp)
 	FILE		*file;
-	void		(*error_func)();
+	void		(*error_func)(char *);
 	struct passwd	*pw;
 	char		**envp;
 {
@@ -254,7 +254,7 @@ load_entry(file, error_func, pw, envp)
 		}
 	}
 
-	/* make sundays equivilent */
+	/* make sundays equivalent */
 	if (bit_test(e->dow, 0) || bit_test(e->dow, 7)) {
 		bit_set(e->dow, 0);
 		bit_set(e->dow, 7);

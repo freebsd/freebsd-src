@@ -63,18 +63,17 @@ static	FILE		*NewCrontab;
 static	int		CheckErrorCount;
 static	enum opt_t	Option;
 static	struct passwd	*pw;
-static	void		list_cmd __P((void)),
-			delete_cmd __P((void)),
-			edit_cmd __P((void)),
-			poke_daemon __P((void)),
-			check_error __P((char *)),
-			parse_args __P((int c, char *v[]));
-static	int		replace_cmd __P((void));
+static	void		list_cmd(void),
+			delete_cmd(void),
+			edit_cmd(void),
+			poke_daemon(void),
+			check_error(char *),
+			parse_args(int c, char *v[]);
+static	int		replace_cmd(void);
 
 
 static void
-usage(msg)
-	char *msg;
+usage(char *msg)
 {
 	fprintf(stderr, "crontab: usage error: %s\n", msg);
 	fprintf(stderr, "%s\n%s\n",
@@ -85,9 +84,7 @@ usage(msg)
 
 
 int
-main(argc, argv)
-	int	argc;
-	char	*argv[];
+main(int argc, char *argv[])
 {
 	int	exitstatus;
 
@@ -138,6 +135,7 @@ parse_args(argc, argv)
 
 	if (!(pw = getpwuid(getuid())))
 		errx(ERROR_EXIT, "your UID isn't in the passwd file, bailing out");
+	bzero(pw->pw_passwd, strlen(pw->pw_passwd));
 	(void) strncpy(User, pw->pw_name, (sizeof User)-1);
 	User[(sizeof User)-1] = '\0';
 	strcpy(RealUser, User);
@@ -154,6 +152,7 @@ parse_args(argc, argv)
 				errx(ERROR_EXIT, "must be privileged to use -u");
 			if (!(pw = getpwnam(optarg)))
 				errx(ERROR_EXIT, "user `%s' unknown", optarg);
+			bzero(pw->pw_passwd, strlen(pw->pw_passwd));
 			(void) strncpy(User, pw->pw_name, (sizeof User)-1);
 			User[(sizeof User)-1] = '\0';
 			break;
@@ -195,6 +194,17 @@ parse_args(argc, argv)
 	}
 
 	if (Option == opt_replace) {
+		/* relinquish the setuid status of the binary during
+		 * the open, lest nonroot users read files they should
+		 * not be able to read.  we can't use access() here
+		 * since there's a race condition.  thanks go out to
+		 * Arnt Gulbrandsen <agulbra@pvv.unit.no> for spotting
+		 * the race.
+		 */
+
+		if (swap_uids() < OK)
+			err(ERROR_EXIT, "swapping uids");
+
 		/* we have to open the file here because we're going to
 		 * chdir(2) into /var/cron before we get around to
 		 * reading the file.
@@ -205,21 +215,11 @@ parse_args(argc, argv)
 		    !strcmp(resolved_path, SYSCRONTAB)) {
 			err(ERROR_EXIT, SYSCRONTAB " must be edited manually");
 		} else {
-			/* relinquish the setuid status of the binary during
-			 * the open, lest nonroot users read files they should
-			 * not be able to read.  we can't use access() here
-			 * since there's a race condition.  thanks go out to
-			 * Arnt Gulbrandsen <agulbra@pvv.unit.no> for spotting
-			 * the race.
-			 */
-
-			if (swap_uids() < OK)
-				err(ERROR_EXIT, "swapping uids");
 			if (!(NewCrontab = fopen(Filename, "r")))
 				err(ERROR_EXIT, "%s", Filename);
-			if (swap_uids() < OK)
-				err(ERROR_EXIT, "swapping uids back");
 		}
+		if (swap_uids_back() < OK)
+			err(ERROR_EXIT, "swapping uids back");
 	}
 
 	Debug(DMISC, ("user=%s, file=%s, option=%s\n",
@@ -261,7 +261,7 @@ list_cmd() {
 	FILE	*f;
 
 	log_it(RealUser, Pid, "LIST", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (!(f = fopen(n, "r"))) {
 		if (errno == ENOENT)
 			errx(ERROR_EXIT, "no crontab for %s", User);
@@ -291,7 +291,7 @@ delete_cmd() {
 	}
 
 	log_it(RealUser, Pid, "DELETE", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (unlink(n)) {
 		if (errno == ENOENT)
 			errx(ERROR_EXIT, "no crontab for %s", User);
@@ -325,7 +325,7 @@ edit_cmd() {
 	char		new_md5[MD5_SIZE];
 
 	log_it(RealUser, Pid, "BEGIN EDIT", User);
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (!(f = fopen(n, "r"))) {
 		if (errno != ENOENT)
 			err(ERROR_EXIT, "%s", n);
@@ -335,7 +335,7 @@ edit_cmd() {
 	}
 
 	um = umask(077);
-	(void) sprintf(Filename, "/tmp/crontab.XXXXXXXXXX");
+	(void) snprintf(Filename, sizeof(Filename), "/tmp/crontab.XXXXXXXXXX");
 	if ((t = mkstemp(Filename)) == -1) {
 		warn("%s", Filename);
 		(void) umask(um);
@@ -364,11 +364,15 @@ edit_cmd() {
 		goto fatal;
 	}
  again:
+	if (swap_uids() < OK)
+		err(ERROR_EXIT, "swapping uids");
 	if (stat(Filename, &statbuf) < 0) {
 		warn("stat");
  fatal:		unlink(Filename);
 		exit(ERROR_EXIT);
 	}
+	if (swap_uids_back() < OK)
+		err(ERROR_EXIT, "swapping uids back");
 	if (statbuf.st_dev != fsbuf.st_dev || statbuf.st_ino != fsbuf.st_ino)
 		errx(ERROR_EXIT, "temp file must be edited in place");
 	if (MD5File(Filename, orig_md5) == NULL) {
@@ -412,14 +416,14 @@ edit_cmd() {
 
 	/* parent */
 	{
-	void (*f[4])();
-	f[0] = signal(SIGHUP, SIG_IGN);
-	f[1] = signal(SIGINT, SIG_IGN);
-	f[2] = signal(SIGTERM, SIG_IGN);
+	void (*sig[3])(int signal);
+	sig[0] = signal(SIGHUP, SIG_IGN);
+	sig[1] = signal(SIGINT, SIG_IGN);
+	sig[2] = signal(SIGTERM, SIG_IGN);
 	xpid = wait(&waiter);
-	signal(SIGHUP, f[0]);
-	signal(SIGINT, f[1]);
-	signal(SIGTERM, f[2]);
+	signal(SIGHUP, sig[0]);
+	signal(SIGINT, sig[1]);
+	signal(SIGTERM, sig[2]);
 	}
 	if (xpid != pid) {
 		warnx("wrong PID (%d != %d) from \"%s\"", xpid, pid, editor);
@@ -434,6 +438,8 @@ edit_cmd() {
 			editor, WTERMSIG(waiter), WCOREDUMP(waiter) ?"" :"no ");
 		goto fatal;
 	}
+	if (swap_uids() < OK)
+		err(ERROR_EXIT, "swapping uids");
 	if (stat(Filename, &statbuf) < 0) {
 		warn("stat");
 		goto fatal;
@@ -444,6 +450,8 @@ edit_cmd() {
 		warn("MD5");
 		goto fatal;
 	}
+	if (swap_uids_back() < OK)
+		err(ERROR_EXIT, "swapping uids back");
 	if (strcmp(orig_md5, new_md5) == 0 && !syntax_error) {
 		warnx("no changes made to crontab");
 		goto remove;
@@ -502,8 +510,9 @@ replace_cmd() {
 		return (-2);
 	}
 
-	(void) sprintf(n, "tmp.%d", Pid);
-	(void) sprintf(tn, CRON_TAB(n));
+	(void) snprintf(n, sizeof(n), "tmp.%d", Pid);
+	(void) snprintf(tn, sizeof(tn), CRON_TAB(n));
+
 	if (!(tmp = fopen(tn, "w+"))) {
 		warn("%s", tn);
 		return (-2);
@@ -590,12 +599,13 @@ replace_cmd() {
 		return (-2);
 	}
 
-	(void) sprintf(n, CRON_TAB(User));
+	(void) snprintf(n, sizeof(n), CRON_TAB(User));
 	if (rename(tn, n)) {
 		warn("error renaming %s to %s", tn, n);
 		unlink(tn);
 		return (-2);
 	}
+
 	log_it(RealUser, Pid, "REPLACE", User);
 
 	poke_daemon();
