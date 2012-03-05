@@ -853,6 +853,18 @@ if (error) printf("aft reclcom=%d\n",error);
 		}
 		return (error);
 	}
+
+	/*
+	 * Allocate a single session structure for NFSv4.0, because some of
+	 * the fields are used by NFSv4.0 although it doesn't do a session.
+	 */
+	dsp = malloc(sizeof(struct nfsclds), M_NFSCLDS, M_WAITOK | M_ZERO);
+	mtx_init(&dsp->nfsclds_mtx, "nfsds", NULL, MTX_DEF);
+	mtx_init(&dsp->nfsclds_sess.nfsess_mtx, "nfssession", NULL, MTX_DEF);
+	NFSLOCKMNT(nmp);
+	TAILQ_INSERT_HEAD(&nmp->nm_sess, dsp, nfsclds_list);
+	NFSUNLOCKMNT(nmp);
+
 	nfscl_reqstart(nd, NFSPROC_SETCLIENTID, nmp, NULL, 0, NULL, NULL);
 	NFSM_BUILD(tl, u_int32_t *, 2 * NFSX_UNSIGNED);
 	*tl++ = txdr_unsigned(nfsboottime.tv_sec);
@@ -5237,7 +5249,9 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	int eof, error;
 	void *lckp;
 
-	/* First, get a reference cnt on the clientid for this mount. */
+	if (!NFSHASPNFS(nmp))
+		return (EIO);
+	/* Now, get a reference cnt on the clientid for this mount. */
 	if (nfscl_getref(nmp) == 0)
 		return (EIO);
 
