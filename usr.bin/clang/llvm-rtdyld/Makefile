@@ -16,6 +16,10 @@ LIBDEPS=llvmjit \
 	llvmarmdesc \
 	llvmarminstprinter \
 	llvmarminfo \
+	llvmia64codegen \
+	llvmia64desc \
+	llvmia64info \
+	llvmia64instprinter \
 	llvmmipscodegen \
 	llvmmipsdesc \
 	llvmmipsinstprinter \

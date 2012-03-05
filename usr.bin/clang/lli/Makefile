@@ -7,6 +7,10 @@ SRCS=	lli.cpp
 
 LIBDEPS=llvmasmparser \
 	llvmbitreader \
+	llvmia64codegen \
+	llvmia64desc \
+	llvmia64info \
+	llvmia64instprinter \
 	llvmx86codegen \
 	llvmx86desc \
 	llvmx86info \
