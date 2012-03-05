@@ -222,7 +222,7 @@ for standard capability IDs are defined in
 .In dev/pci/pcireg.h .
 If the capability is found, then
 .Fa *capreg
-is set the offset in configuration space of the capability register set,
+is set to the offset in configuration space of the capability register set,
 and
 .Fn pci_find_cap
 returns zero.
@@ -243,7 +243,7 @@ for standard extended capability IDs are defined in
 .In dev/pci/pcireg.h .
 If the extended capability is found, then
 .Fa *capreg
-is set the offset in configuration space of the extended capability
+is set to the offset in configuration space of the extended capability
 register set, and
 .Fn pci_find_extcap
 returns zero.
@@ -265,7 +265,7 @@ for standard HyperTransport capability types are defined in
 .In dev/pci/pcireg.h .
 If the capability is found, then
 .Fa *capreg
-is set the offset in configuration space of the capability register set,
+is set to the offset in configuration space of the capability register set,
 and
 .Fn pci_find_htcap
 returns zero.
