@@ -32,17 +32,17 @@ static const char rcsid[] =
 #endif
 
 
-static	void	usage __P((void)),
-		run_reboot_jobs __P((cron_db *)),
-		cron_tick __P((cron_db *)),
-		cron_sync __P((void)),
-		cron_sleep __P((cron_db *)),
-		cron_clean __P((cron_db *)),
+static	void	usage(void),
+		run_reboot_jobs(cron_db *),
+		cron_tick(cron_db *),
+		cron_sync(void),
+		cron_sleep(cron_db *),
+		cron_clean(cron_db *),
 #ifdef USE_SIGCHLD
-		sigchld_handler __P((int)),
+		sigchld_handler(int),
 #endif
-		sighup_handler __P((int)),
-		parse_args __P((int c, char *v[]));
+		sighup_handler(int),
+		parse_args(int c, char *v[]);
 
 static time_t	last_time = 0;
 static int	dst_enabled = 0;
