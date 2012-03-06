@@ -458,7 +458,7 @@ trap(struct trapframe *trapframe)
 
 	trapdebug_enter(trapframe, 0);
 	
-	type = (trapframe->cause & MIPS3_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
+	type = (trapframe->cause & MIPS_CR_EXC_CODE) >> MIPS_CR_EXC_CODE_SHIFT;
 	if (TRAPF_USERMODE(trapframe)) {
 		type |= T_USER;
 		usermode = 1;
@@ -1046,7 +1046,7 @@ trapDump(char *msg)
 			break;
 
 		printf("%s: ADR %jx PC %jx CR %jx SR %jx\n",
-		    trap_type[(trp->cause & MIPS3_CR_EXC_CODE) >> 
+		    trap_type[(trp->cause & MIPS_CR_EXC_CODE) >> 
 			MIPS_CR_EXC_CODE_SHIFT],
 		    (intmax_t)trp->vadr, (intmax_t)trp->pc,
 		    (intmax_t)trp->cause, (intmax_t)trp->status);

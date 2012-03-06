@@ -253,7 +253,7 @@ mips_init(void)
 	 * code to the XTLB exception vector.
 	 */
 	{
-		bcopy(MipsTLBMiss, (void *)MIPS3_XTLB_MISS_EXC_VEC,
+		bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 		      MipsTLBMissEnd - MipsTLBMiss);
 
 		mips_icache_sync_all();
@@ -314,7 +314,7 @@ kseg0_map_coherent(void)
 	const int CFG_K0_COHERENT = 5;
 
 	config = mips_rd_config();
-	config &= ~MIPS3_CONFIG_K0_MASK;
+	config &= ~MIPS_CONFIG_K0_MASK;
 	config |= CFG_K0_COHERENT;
 	mips_wr_config(config);
 }
