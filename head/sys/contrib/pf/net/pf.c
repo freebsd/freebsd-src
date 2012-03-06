@@ -788,7 +788,7 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
 	KASSERT((*skp == NULL && *nkp == NULL),
 		("%s: skp == NULL && nkp == NULL", __func__));
 
-	if ((*skp = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO)) == NULL)
+	if ((*skp = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
 		return (ENOMEM);
 
 	PF_ACPY(&(*skp)->addr[pd->sidx], saddr, pd->af);
@@ -799,7 +799,7 @@ pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
 	(*skp)->af = pd->af;
 
 	if (nr != NULL) {
-		if ((*nkp = uma_zalloc(V_pf_state_key_z, M_NOWAIT | M_ZERO))
+		if ((*nkp = uma_zalloc(V_pf_state_key_z, M_NOWAIT))
 		    == NULL)
 			return (ENOMEM); /* caller must handle cleanup */
 
