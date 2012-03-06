@@ -35,15 +35,11 @@
 
 #include <sys/types.h>
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 #include <stddef.h>
 
 #define	CPU_SPINWAIT
 #define	DTV_OFFSET		offsetof(struct tcb, tcb_dtv)
-#ifdef __mips_n64
-#define	TP_OFFSET		0x7010
-#else
-#define	TP_OFFSET		0x7008
-#endif
 
 /*
  * Variant I tcb. The structure layout is fixed, don't blindly
@@ -65,7 +61,7 @@ static __inline void
 _tcb_set(struct tcb *tcb)
 {
 
-	sysarch(MIPS_SET_TLS, ((uint8_t*)tcb + TP_OFFSET));
+	sysarch(MIPS_SET_TLS, tcb);
 }
 
 /*
@@ -74,10 +70,10 @@ _tcb_set(struct tcb *tcb)
 static __inline struct tcb *
 _tcb_get(void)
 {
-	uint8_t *tcb;
+	struct tcb *tcb;
 
 	sysarch(MIPS_GET_TLS, &tcb);
-	return ((struct tcb *)(tcb - TP_OFFSET));
+	return tcb;
 }
 
 extern struct pthread *_thr_initial;
