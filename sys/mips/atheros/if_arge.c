@@ -220,8 +220,8 @@ arge_attach_sysctl(device_t dev)
 		"number of TX aligned packets");
 
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO,
-		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned, 0,
-		"number of TX unaligned packets");
+		"tx_pkts_unaligned", CTLFLAG_RW, &sc->stats.tx_pkts_unaligned,
+		0, "number of TX unaligned packets");
 
 #ifdef	ARGE_DEBUG
 	SYSCTL_ADD_UINT(ctx, SYSCTL_CHILDREN(tree), OID_AUTO, "tx_prod",
@@ -262,7 +262,8 @@ arge_attach(device_t dev)
 	    resource_long_value(device_get_name(dev), device_get_unit(dev),
 	    "eeprommac", &eeprom_mac_addr) == 0) {
 		int i;
-		const char *mac = (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
+		const char *mac =
+		    (const char *) MIPS_PHYS_TO_KSEG1(eeprom_mac_addr);
 		device_printf(dev, "Overriding MAC from EEPROM\n");
 		for (i = 0; i < 6; i++) {
 			ar711_base_mac[i] = mac[i];
@@ -287,7 +288,8 @@ arge_attach(device_t dev)
 			/* Use all phys up to 4 */
 			phymask = (1 << 4) - 1;
 
-		device_printf(dev, "No PHY specified, using mask %d\n", phymask);
+		device_printf(dev, "No PHY specified, using mask %d\n",
+		    phymask);
 	}
 
 	/*
@@ -407,9 +409,11 @@ arge_attach(device_t dev)
 	DELAY(20);
 
 	/* Step 2. Punt the MAC core from the central reset register */
-	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
+	ar71xx_device_stop(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
 	DELAY(100);
-	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC : RST_RESET_GE1_MAC);
+	ar71xx_device_start(sc->arge_mac_unit == 0 ? RST_RESET_GE0_MAC :
+	    RST_RESET_GE1_MAC);
 
 	/* Step 3. Reconfigure MAC block */
 	ARGE_WRITE(sc, AR71XX_MAC_CFG1,
@@ -433,7 +437,7 @@ arge_attach(device_t dev)
 	 * set all four addresses to 66-88-aa-cc-dd-ee
 	 */
 	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR1,
-	    (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8)  | eaddr[5]);
+	    (eaddr[2] << 24) | (eaddr[3] << 16) | (eaddr[4] << 8) | eaddr[5]);
 	ARGE_WRITE(sc, AR71XX_MAC_STA_ADDR2, (eaddr[0] << 8) | eaddr[1]);
 
 	ARGE_WRITE(sc, AR71XX_MAC_FIFO_CFG0,
@@ -521,7 +525,8 @@ arge_detach(device_t dev)
 	struct arge_softc	*sc = device_get_softc(dev);
 	struct ifnet		*ifp = sc->arge_ifp;
 
-	KASSERT(mtx_initialized(&sc->arge_mtx), ("arge mutex not initialized"));
+	KASSERT(mtx_initialized(&sc->arge_mtx),
+	    ("arge mutex not initialized"));
 
 	/* These should only be active if attach succeeded */
 	if (device_is_attached(dev)) {
@@ -623,8 +628,9 @@ arge_miibus_readreg(device_t dev, int phy, int reg)
 	ARGE_MII_WRITE(AR71XX_MAC_MII_CMD, MAC_MII_CMD_WRITE);
 	mtx_unlock(&miibus_mtx);
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value[%08x]=%04x\n", __func__,
-		 phy, reg, addr, result);
+	ARGEDEBUG(sc, ARGE_DBG_MII,
+	    "%s: phy=%d, reg=%02x, value[%08x]=%04x\n",
+	    __func__, phy, reg, addr, result);
 
 	return (result);
 }
@@ -641,8 +647,8 @@ arge_miibus_writereg(device_t dev, int phy, int reg, int data)
 	if ((sc->arge_phymask  & (1 << phy)) == 0)
 		return (-1);
 
-	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n", __func__,
-	    phy, reg, data);
+	ARGEDEBUG(sc, ARGE_DBG_MII, "%s: phy=%d, reg=%02x, value=%04x\n",
+	    __func__, phy, reg, data);
 
 	mtx_lock(&miibus_mtx);
 	ARGE_MII_WRITE(AR71XX_MAC_MII_ADDR, addr);
@@ -979,7 +985,8 @@ arge_encap(struct arge_softc *sc, struct mbuf **m_head)
 	    BUS_DMASYNC_PREREAD | BUS_DMASYNC_PREWRITE);
 
 	/* Start transmitting */
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n", __func__);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: setting DMA_TX_CONTROL_EN\n",
+	    __func__);
 	ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL, DMA_TX_CONTROL_EN);
 	return (0);
 }
@@ -1022,8 +1029,10 @@ arge_start_locked(struct ifnet *ifp)
 	 */
 	if (sc->arge_cdata.arge_tx_cnt >= ARGE_TX_RING_COUNT - 2) {
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
-		ARGEDEBUG(sc, ARGE_DBG_ERR, "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
-		    __func__, sc->arge_cdata.arge_tx_cnt, ARGE_TX_RING_COUNT - 2);
+		ARGEDEBUG(sc, ARGE_DBG_ERR,
+		    "%s: tx_cnt %d >= max %d; setting IFF_DRV_OACTIVE\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt,
+		    ARGE_TX_RING_COUNT - 2);
 		return;
 	}
 
@@ -1054,7 +1063,8 @@ arge_start_locked(struct ifnet *ifp)
 		 */
 		ETHER_BPF_MTAP(ifp, m_head);
 	}
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n", __func__, enq);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: finished; queued %d packets\n",
+	    __func__, enq);
 }
 
 static void
@@ -1118,10 +1128,12 @@ arge_ioctl(struct ifnet *ifp, u_long command, caddr_t data)
 	case SIOCSIFMEDIA:
 		if (sc->arge_miibus) {
 			mii = device_get_softc(sc->arge_miibus);
-			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media, command);
+			error = ifmedia_ioctl(ifp, ifr, &mii->mii_media,
+			    command);
 		}
 		else
-			error = ifmedia_ioctl(ifp, ifr, &sc->arge_ifmedia, command);
+			error = ifmedia_ioctl(ifp, ifr, &sc->arge_ifmedia,
+			    command);
 		break;
 	case SIOCSIFCAP:
 		/* XXX: Check other capabilities */
@@ -1231,7 +1243,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_parent_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create parent DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create parent DMA tag\n");
 		goto fail;
 	}
 	/* Create tag for Tx ring. */
@@ -1248,7 +1261,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_tx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create Tx ring DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create Tx ring DMA tag\n");
 		goto fail;
 	}
 
@@ -1266,7 +1280,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	    NULL, NULL,			/* lockfunc, lockarg */
 	    &sc->arge_cdata.arge_rx_ring_tag);
 	if (error != 0) {
-		device_printf(sc->arge_dev, "failed to create Rx ring DMA tag\n");
+		device_printf(sc->arge_dev,
+		    "failed to create Rx ring DMA tag\n");
 		goto fail;
 	}
 
@@ -1309,7 +1324,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	/* Allocate DMA'able memory and load the DMA map for Tx ring. */
 	error = bus_dmamem_alloc(sc->arge_cdata.arge_tx_ring_tag,
 	    (void **)&sc->arge_rdata.arge_tx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->arge_cdata.arge_tx_ring_map);
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->arge_cdata.arge_tx_ring_map);
 	if (error != 0) {
 		device_printf(sc->arge_dev,
 		    "failed to allocate DMA'able memory for Tx ring\n");
@@ -1330,7 +1346,8 @@ arge_dma_alloc(struct arge_softc *sc)
 	/* Allocate DMA'able memory and load the DMA map for Rx ring. */
 	error = bus_dmamem_alloc(sc->arge_cdata.arge_rx_ring_tag,
 	    (void **)&sc->arge_rdata.arge_rx_ring, BUS_DMA_WAITOK |
-	    BUS_DMA_COHERENT | BUS_DMA_ZERO, &sc->arge_cdata.arge_rx_ring_map);
+	    BUS_DMA_COHERENT | BUS_DMA_ZERO,
+	    &sc->arge_cdata.arge_rx_ring_map);
 	if (error != 0) {
 		device_printf(sc->arge_dev,
 		    "failed to allocate DMA'able memory for Rx ring\n");
@@ -1632,7 +1649,8 @@ arge_tx_locked(struct arge_softc *sc)
 	cons = sc->arge_cdata.arge_tx_cons;
 	prod = sc->arge_cdata.arge_tx_prod;
 
-	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons, prod);
+	ARGEDEBUG(sc, ARGE_DBG_TX, "%s: cons=%d, prod=%d\n", __func__, cons,
+	    prod);
 
 	if (cons == prod)
 		return;
@@ -1835,7 +1853,8 @@ arge_intr(void *arg)
 	if (status & DMA_INTR_TX_UNDERRUN) {
 		ARGE_WRITE(sc, AR71XX_DMA_TX_STATUS, DMA_TX_STATUS_UNDERRUN);
 		sc->stats.tx_underflow++;
-		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n", __func__, sc->arge_cdata.arge_tx_cnt);
+		ARGEDEBUG(sc, ARGE_DBG_TX, "%s: TX underrun; tx_cnt=%d\n",
+		    __func__, sc->arge_cdata.arge_tx_cnt);
 		if (sc->arge_cdata.arge_tx_cnt > 0 ) {
 			ARGE_WRITE(sc, AR71XX_DMA_TX_CONTROL,
 			    DMA_TX_CONTROL_EN);
