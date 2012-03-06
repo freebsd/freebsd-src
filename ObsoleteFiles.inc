@@ -14,6 +14,8 @@
 # The file is partitioned: OLD_FILES first, then OLD_LIBS and OLD_DIRS last.
 #
 
+# 20110224: sticky.8 -> sticky.7
+OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20101114: Remove long-obsolete MAKEDEV.8
 OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 # 20101112: vgonel(9) has gone to private API a while ago
