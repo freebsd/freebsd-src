@@ -19,6 +19,8 @@ OLD_FILES+=usr/share/man/man4/cc.4.gz
 OLD_FILES+=usr/share/man/man9/cc.9.gz
 # 20101123: removed subblock.h from liblzma
 OLD_FILES+=usr/include/lzma/subblock.h
+# 20110224: sticky.8 -> sticky.7
+OLD_FILES+=usr/share/man/man8/sticky.8.gz
 # 20101114: Remove long-obsolete MAKEDEV.8
 OLD_FILES+=usr/share/man/man8/MAKEDEV.8.gz
 # 20101112: vgonel(9) has gone to private API a while ago
