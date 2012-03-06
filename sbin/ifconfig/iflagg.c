@@ -81,6 +81,36 @@ setlaggproto(const char *val, int d, int s, const struct afswtch *afp)
 		err(1, "SIOCSLAGG");
 }
 
+static void
+setlagghash(const char *val, int d, int s, const struct afswtch *afp)
+{
+	struct lagg_reqflags rf;
+	char *str, *tmp, *tok;
+
+
+	rf.rf_flags = 0;
+	str = tmp = strdup(val);
+	while ((tok = strsep(&tmp, ",")) != NULL) {
+		if (strcmp(tok, "l2") == 0)
+			rf.rf_flags |= LAGG_F_HASHL2;
+		else if (strcmp(tok, "l3") == 0)
+			rf.rf_flags |= LAGG_F_HASHL3;
+		else if (strcmp(tok, "l4") == 0)
+			rf.rf_flags |= LAGG_F_HASHL4;
+		else  {
+			free(str);
+			errx(1, "Invalid lagghash option: %s", tok);
+		}
+	}
+	free(str);
+	if (rf.rf_flags == 0)
+		errx(1, "No lagghash options supplied");
+
+	strlcpy(rf.rf_ifname, name, sizeof(rf.rf_ifname));
+	if (ioctl(s, SIOCSLAGGHASH, &rf))
+		err(1, "SIOCSLAGGHASH");
+}
+
 static char *
 lacp_format_mac(const uint8_t *mac, char *buf, size_t buflen)
 {
@@ -115,6 +145,7 @@ lagg_status(int s)
 	struct lagg_protos lpr[] = LAGG_PROTOS;
 	struct lagg_reqport rp, rpbuf[LAGG_MAX_PORTS];
 	struct lagg_reqall ra;
+	struct lagg_reqflags rf;
 	struct lacp_opreq *lp;
 	const char *proto = "<unknown>";
 	int i, isport = 0;
@@ -132,6 +163,10 @@ lagg_status(int s)
 	ra.ra_size = sizeof(rpbuf);
 	ra.ra_port = rpbuf;
 
+	strlcpy(rf.rf_ifname, name, sizeof(rf.rf_ifname));
+	if (ioctl(s, SIOCGLAGGFLAGS, &rf) != 0)
+		rf.rf_flags = 0;
+
 	if (ioctl(s, SIOCGLAGG, &ra) == 0) {
 		lp = (struct lacp_opreq *)&ra.ra_lacpreq;
 
@@ -143,6 +178,23 @@ lagg_status(int s)
 		}
 
 		printf("\tlaggproto %s", proto);
+		if (rf.rf_flags & LAGG_F_HASHMASK) {
+			const char *sep = "";
+
+			printf(" lagghash ");
+			if (rf.rf_flags & LAGG_F_HASHL2) {
+				printf("%sl2", sep);
+				sep = ",";
+			}
+			if (rf.rf_flags & LAGG_F_HASHL3) {
+				printf("%sl3", sep);
+				sep = ",";
+			}
+			if (rf.rf_flags & LAGG_F_HASHL4) {
+				printf("%sl4", sep);
+				sep = ",";
+			}
+		}
 		if (isport)
 			printf(" laggdev %s", rp.rp_ifname);
 		putchar('\n');
@@ -174,6 +226,7 @@ static struct cmd lagg_cmds[] = {
 	DEF_CMD_ARG("laggport",		setlaggport),
 	DEF_CMD_ARG("-laggport",	unsetlaggport),
 	DEF_CMD_ARG("laggproto",	setlaggproto),
+	DEF_CMD_ARG("lagghash",		setlagghash),
 };
 static struct afswtch af_lagg = {
 	.af_name	= "af_lagg",
