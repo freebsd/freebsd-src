@@ -166,7 +166,7 @@ VECTOR(MipsException, unknown)
 						# sneaky but the bits are
 						# with us........
 	sll	k0, k0, 3			# shift user bit for cause index
-	and	k1, k1, MIPS3_CR_EXC_CODE	# Mask out the cause bits.
+	and	k1, k1, MIPS_CR_EXC_CODE	# Mask out the cause bits.
 	or	k1, k1, k0			# change index to user table
 #if defined(__mips_n64)
 	PTR_SLL	k1, k1, 1			# shift to get 8-byte offset
@@ -467,7 +467,7 @@ NNON_LEAF(MipsUserGenException, CALLFRAME_SIZ, ra)
 	REG_S	a3, CALLFRAME_RA(sp)	# for debugging
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 # Turn off fpu and enter kernel mode
-	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS3_SR_KSU_MASK | MIPS_SR_INT_IE)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_KSU_MASK | MIPS_SR_INT_IE)
 #if defined(CPU_CNMIPS)
 	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
@@ -726,7 +726,7 @@ NNON_LEAF(MipsUserIntr, CALLFRAME_SIZ, ra)
 	PTR_LA	gp, _C_LABEL(_gp)	# switch to kernel GP
 
 # Turn off fpu, disable interrupts, set kernel mode kernel mode, clear exception level.
-	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS3_SR_KSU_MASK)
+	and	t0, a0, ~(MIPS_SR_COP_1_BIT | MIPS_SR_EXL | MIPS_SR_INT_IE | MIPS_SR_KSU_MASK)
 #ifdef CPU_CNMIPS
 	and	t0, t0, ~(MIPS_SR_COP_2_BIT)
 	or      t0, t0, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX | MIPS_SR_PX)
