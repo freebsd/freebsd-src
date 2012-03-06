@@ -47,10 +47,8 @@ __FBSDID("$FreeBSD$");
 struct Struct_Obj_Entry;
 struct ps_strings;
 
-#ifndef NOSHARED
 extern int _DYNAMIC;
 #pragma weak _DYNAMIC
-#endif
 
 extern void _init(void);
 extern void _fini(void);
@@ -91,10 +89,11 @@ __start(char **ap,
 				__progname = s + 1;
 	}
 
-#ifndef NOSHARED
 	if (&_DYNAMIC != NULL)
 		atexit(cleanup);
-#endif
+	else
+		_init_tls();
+
 #ifdef GCRT
 	atexit(_mcleanup);
 #endif
