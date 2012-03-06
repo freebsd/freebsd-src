@@ -394,7 +394,7 @@ This function will return
 .Dv ENOBUFS
 if the devices software and hardware queues are both full.
 This function must be installed after
-.Fn if_attach 
+.Fn if_attach
 to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
@@ -402,8 +402,8 @@ pair to ifq.
 The suggested internal software queueing mechanism is buf_ring.
 .It Fn if_qflush
 Free mbufs in internally managed queues when the interface is marked down.
-This function must be installed after 
-.Fn if_attach 
+This function must be installed after
+.Fn if_attach
 to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
@@ -623,14 +623,14 @@ This Ethernet interface supports TCP Segmentation offloading.
 .It Dv IFCAP_TSO6
 This Ethernet interface supports TCP6 Segmentation offloading.
 .It Dv IFCAP_TSO
-A shorthand for 
+A shorthand for
 .Pq Dv IFCAP_TSO4 | IFCAP_TSO6 .
 .It Dv IFCAP_TOE4
 This Ethernet interface supports TCP offloading.
 .It Dv IFCAP_TOE6
 This Ethernet interface supports TCP6 offloading.
 .It Dv ICAP_TOE
-A Shorthand for 
+A Shorthand for
 .Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
 .It Dv IFCAP_WOL_UCAST
 This Ethernet interface supports waking up on any Unicast packet.
