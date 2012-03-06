@@ -333,6 +333,7 @@ SUBDIR=	${_3dfx} \
 	vx \
 	${_vxge} \
 	wb \
+	${_wbwd} \
 	${_wi} \
 	wlan \
 	wlan_acl \
@@ -510,6 +511,7 @@ _stg=		stg
 _streams=	streams
 _svr4=		svr4
 _vxge=  	vxge
+_wbwd=		wbwd
 _wi=		wi
 _xe=		xe
 .if ${MK_ZFS} != "no" || defined(ALL_MODULES)
@@ -704,6 +706,7 @@ _viawd=		viawd
 _virtio=	virtio
 _vxge=  	vxge
 _x86bios=	x86bios
+_wbwd=		wbwd
 _wi=		wi
 _wpi=		wpi
 .if ${MK_SOURCELESS_UCODE} != "no"
