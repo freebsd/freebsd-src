@@ -142,5 +142,6 @@ void	racct_proc_exit(struct proc *p);
 
 void	racct_proc_ucred_changed(struct proc *p, struct ucred *oldcred,
 	    struct ucred *newcred);
+void	racct_move(struct racct *dest, struct racct *src);
 
 #endif /* !_RACCT_H_ */
