@@ -83,6 +83,7 @@ __FBSDID("$FreeBSD$");
 #include <machine/mips_opcode.h>
 #include <machine/frame.h>
 #include <machine/regnum.h>
+#include <machine/tls.h>
 #include <machine/asm.h>
 
 #ifdef DDB
@@ -813,6 +814,7 @@ dofault:
 					if (inst.RType.rd == 29) {
 						frame_regs = &(trapframe->zero);
 						frame_regs[inst.RType.rt] = (register_t)(intptr_t)td->td_md.md_tls;
+						frame_regs[inst.RType.rt] += TLS_TP_OFFSET + TLS_TCB_SIZE;
 						trapframe->pc += sizeof(int);
 						goto out;
 					}
