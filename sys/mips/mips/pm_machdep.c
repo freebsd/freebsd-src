@@ -110,6 +110,7 @@ sendsig(sig_t catcher, ksiginfo_t *ksi, sigset_t *mask)
 	sf.sf_uc.uc_mcontext.mc_pc = regs->pc;
 	sf.sf_uc.uc_mcontext.mullo = regs->mullo;
 	sf.sf_uc.uc_mcontext.mulhi = regs->mulhi;
+	sf.sf_uc.uc_mcontext.mc_tls = td->td_md.md_tls;
 	sf.sf_uc.uc_mcontext.mc_regs[0] = UCONTEXT_MAGIC;  /* magic number */
 	bcopy((void *)&regs->ast, (void *)&sf.sf_uc.uc_mcontext.mc_regs[1],
 	    sizeof(sf.sf_uc.uc_mcontext.mc_regs) - sizeof(register_t));
