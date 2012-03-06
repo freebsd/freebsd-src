@@ -101,9 +101,7 @@ __start(char **ap,
 #ifdef GCRT
 	monstartup(&eprol, &etext);
 #endif
-#ifndef NOGPREL
 	_init();
-#endif
 	exit( main(argc, argv, env) );
 }
 
