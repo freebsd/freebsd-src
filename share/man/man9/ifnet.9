@@ -1351,6 +1351,10 @@ precisely
 .Fa addr
 will be returned.
 .Pp
+.Fn ifaddr_byindex
+returns the link-level address of the interface with the given index
+.Fa idx .
+.Pp
 All of these functions return a null pointer if no such address can be
 found.
 .Ss "Interface Multicast Address Functions"
