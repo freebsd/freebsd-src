@@ -72,13 +72,14 @@
 	    (((vm_pindex_t)1 << ((h) * VM_RADIX_WIDTH)) - 1))
 
 CTASSERT(VM_RADIX_HEIGHT >= VM_RADIX_LIMIT);
-CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 CTASSERT((sizeof(u_int) * NBBY) >= VM_RADIX_LIMIT);
 
 struct vm_radix_node {
 	void		*rn_child[VM_RADIX_COUNT];	/* Child nodes. */
 	volatile uint32_t rn_count;			/* Valid children. */
 };
+
+CTASSERT(sizeof(struct vm_radix_node) < PAGE_SIZE);
 
 static uma_zone_t vm_radix_node_zone;
 
