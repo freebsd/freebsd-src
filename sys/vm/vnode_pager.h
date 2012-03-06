@@ -40,10 +40,6 @@
 
 #ifdef _KERNEL
 
-/*
- * XXX Generic routines; currently called by badly written FS code; these
- * XXX should go away soon.
- */
 int vnode_pager_generic_getpages(struct vnode *vp, vm_page_t *m,
 					  int count, int reqpage);
 int vnode_pager_generic_putpages(struct vnode *vp, vm_page_t *m,
