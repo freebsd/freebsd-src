@@ -55,11 +55,11 @@ _RuneLocale	*__runes_for_locale(locale_t, int*);
 #ifndef _XLOCALE_INLINE
 #if __GNUC__ && !__GNUC_STDC_INLINE__
 /* GNU89 inline has nonstandard semantics. */
-#define _XLOCALE_INLINE extern inline
+#define _XLOCALE_INLINE extern __inline
 #else
 /* Hack to work around people who define inline away */
 #ifdef inline
-#define _XLOCALE_INLINE __inline static
+#define _XLOCALE_INLINE static __inline
 #else
 /* Define with C++ / C99 compatible semantics */
 #define _XLOCALE_INLINE inline
