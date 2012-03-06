@@ -162,7 +162,7 @@ VECTOR(MipsException, unknown)
 	.set	noat
 	mfc0	k0, MIPS_COP_0_STATUS		# Get the status register
 	mfc0	k1, MIPS_COP_0_CAUSE		# Get the cause register value.
-	and	k0, k0, SR_KSU_USER		# test for user mode
+	and	k0, k0, MIPS_SR_KSU_USER	# test for user mode
 						# sneaky but the bits are
 						# with us........
 	sll	k0, k0, 3			# shift user bit for cause index
@@ -193,7 +193,7 @@ SlowFault:
 	.set	noat
 	mfc0	k0, MIPS_COP_0_STATUS
 	nop
-	and	k0, k0, SR_KSU_USER
+	and	k0, k0, MIPS_SR_KSU_USER
 	bne	k0, zero, _C_LABEL(MipsUserGenException)
 	nop
 	.set	at
@@ -224,7 +224,7 @@ SlowFault:
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_SX | MIPS_SR_UX) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
@@ -233,14 +233,14 @@ SlowFault:
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
 	li      a2, (MIPS_SR_KX | MIPS_SR_UX | MIPS_SR_COP_2_BIT) ; \
 	or      a0, a0, a2	        ; \
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
         mtc0    a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
 #else
 #define CLEAR_STATUS \
 	mfc0    a0, MIPS_COP_0_STATUS   ;\
-	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | SR_KSU_USER)   ; \
+	li      a2, ~(MIPS_SR_INT_IE | MIPS_SR_EXL | MIPS_SR_KSU_USER)   ; \
 	and     a0, a0, a2              ; \
 	mtc0	a0, MIPS_COP_0_STATUS   ; \
 	ITLBNOPFIX
@@ -929,7 +929,7 @@ tlb_insert_random:
 	 * Branch to the comprehensive exception processing.
 	 */
 	mfc0	k1, MIPS_COP_0_STATUS
-	andi	k1, k1, SR_KSU_USER
+	andi	k1, k1, MIPS_SR_KSU_USER
 	bnez	k1, _C_LABEL(MipsUserGenException)
 	nop
 
