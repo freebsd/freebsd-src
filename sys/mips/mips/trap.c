@@ -1312,15 +1312,19 @@ log_illegal_instruction(const char *msg, struct trapframe *frame)
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
 	unsigned int *addr;
-	struct proc *p = curproc;
+	struct thread *td;
+	struct proc *p;
 	register_t pc;
+
+	td = curthread;
+	p = td->td_proc;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
 #endif
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %#jx ra %#jx\n",
-	    msg, p->p_pid, p->p_comm,
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx ra %#jx\n",
+	    msg, p->p_pid, (long)td->td_tid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
 	    (intmax_t)pc,
 	    (intmax_t)frame->ra);
@@ -1357,11 +1361,15 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	pt_entry_t *ptep;
 	pd_entry_t *pdep;
 	unsigned int *addr;
-	struct proc *p = curproc;
+	struct thread *td;
+	struct proc *p;
 	char *read_or_write;
 	register_t pc;
 
 	trap_type &= ~T_USER;
+
+	td = curthread;
+	p = td->td_proc;
 
 #ifdef SMP
 	printf("cpuid = %d\n", PCPU_GET(cpuid));
@@ -1381,8 +1389,8 @@ log_bad_page_fault(char *msg, struct trapframe *frame, int trap_type)
 	}
 
 	pc = frame->pc + (DELAYBRANCH(frame->cause) ? 4 : 0);
-	log(LOG_ERR, "%s: pid %d (%s), uid %d: pc %#jx got a %s fault at %#jx\n",
-	    msg, p->p_pid, p->p_comm,
+	log(LOG_ERR, "%s: pid %d tid %ld (%s), uid %d: pc %#jx got a %s fault at %#jx\n",
+	    msg, p->p_pid, (long)td->td_tid, p->p_comm,
 	    p->p_ucred ? p->p_ucred->cr_uid : -1,
 	    (intmax_t)pc,
 	    read_or_write,
