@@ -22,6 +22,10 @@ NOTE TO PEOPLE WHO THINK THAT FreeBSD 10.x IS SLOW:
 	machines to maximize performance.  (To disable malloc debugging, run
 	ln -s aj /etc/malloc.conf.)
 
+20120306:
+	Disable by default the option VFS_ALLOW_NONMPSAFE for all supported
+	platforms.
+
 20120229:
 	Now unix domain sockets behave "as expected" on	nullfs(5). Previously
 	nullfs(5) did not pass through all behaviours to the underlying layer,
