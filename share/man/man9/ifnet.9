@@ -73,6 +73,8 @@
 .\"
 .Ss "Interface Address Functions"
 .Ft "struct ifaddr *"
+.Fn ifaddr_byindex "u_short idx"
+.Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithdstaddr "struct sockaddr *addr"
@@ -127,7 +129,7 @@
 .\"
 .Ss "Global Variables"
 .Vt extern struct ifnethead ifnet ;
-.Vt extern struct ifaddr **ifnet_addrs ;
+.\" extern struct ifindex_entry *ifindex_table ;
 .Vt extern int if_index ;
 .Vt extern int ifqmaxlen ;
 .Sh DATA STRUCTURES
@@ -192,12 +194,18 @@ Each interface also has a
 .Li TAILQ
 of interface addresses, described by
 .Vt ifaddr
-structures; the head of the queue is always an
+structures.
+An
 .Dv AF_LINK
 address
 (see
 .Xr link_addr 3 )
-describing the link layer implemented by the interface (if any).
+describing the link layer implemented by the interface (if any)
+is accessed by the
+.Fn ifaddr_byindex
+function or
+.Va if_addr
+structure.
 (Some trivial interfaces do not provide any link layer addresses;
 this structure, while still present, serves only to identify the
 interface name and index.)
@@ -1085,8 +1093,11 @@ addresses on that interface, and create a link-layer
 .Vt ifaddr
 structure to be the first element in that list.
 (A pointer to
-this address structure is saved in the global array
-.Va ifnet_addrs . )
+this address structure is saved in the
+.Vt ifnet
+structure and shall be accessed by the
+.Fn ifaddr_byindex
+function.)
 The
 .Fa ifp
 must have been allocated by
