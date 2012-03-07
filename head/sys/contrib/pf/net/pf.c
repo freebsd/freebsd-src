@@ -723,12 +723,9 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 				}
 			}
 		/*
-		 * Collided key may be the same we are trying to attach,
-		 * this happens for non-NAT states, they are attached
-		 * twice: via PF_SK_WIRE and PF_SK_STACK tailqs.
+		 * Collided key is later freed in pf_state_insert().
+		 * XXXGL: should be redesigned.
 		 */
-		if (cur != sk)
-			uma_zfree(V_pf_state_key_z, sk);
 		s->key[idx] = cur;
 	} else
 		s->key[idx] = sk;
@@ -835,11 +832,18 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 		PF_KEYS_UNLOCK();
 		return (-1);
 	}
+
+	if (s->key[PF_SK_WIRE] != skw && skw != sks)
+		uma_zfree(V_pf_state_key_z, skw);
+
 	if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
 		pf_state_key_detach(s, PF_SK_WIRE);
 		PF_KEYS_UNLOCK();
 		return (-1);
 	}
+
+	if (s->key[PF_SK_STACK] != sks && s->key[PF_SK_WIRE] != sks)
+		uma_zfree(V_pf_state_key_z, sks);
 
 	if (s->id == 0 && s->creatorid == 0) {
 		s->id = htobe64(V_pf_status.stateid++);
