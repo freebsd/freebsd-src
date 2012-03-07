@@ -105,9 +105,6 @@
 
 #elif defined(__APPLE__)
 # define SYSMALLOC
-
-#else
-# define NLS_CATALOGS
 #endif
 
 #endif /* _h_config */

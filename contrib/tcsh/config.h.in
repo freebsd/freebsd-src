@@ -10,9 +10,6 @@
 /* Define to 1 if you have the <auth.h> header file. */
 #undef HAVE_AUTH_H
 
-/* Define to 1 if you have the `catgets' function. */
-#undef HAVE_CATGETS
-
 /* Define to 1 if you have the <crypt.h> header file. */
 #undef HAVE_CRYPT_H
 
@@ -39,6 +36,9 @@
 /* Define to 1 if you have the `dup2' function. */
 #undef HAVE_DUP2
 
+/* Define to 1 if you have the <features.h> header file. */
+#undef HAVE_FEATURES_H
+
 /* Define to 1 if you have the `getauthid' function. */
 #undef HAVE_GETAUTHID
 
@@ -54,7 +54,10 @@
 /* Define to 1 if you have the `getutent' function. */
 #undef HAVE_GETUTENT
 
-/* Define if you have the iconv() function. */
+/* Define to 1 if you have the `getutxent' function. */
+#undef HAVE_GETUTXENT
+
+/* Define if you have the iconv() function and it works. */
 #undef HAVE_ICONV
 
 /* Define to 1 if you have the <inttypes.h> header file. */
@@ -62,6 +65,9 @@
 
 /* Define to 1 if the system has the type `long long'. */
 #undef HAVE_LONG_LONG
+
+/* Define to 1 if you have the `mallinfo' function. */
+#undef HAVE_MALLINFO
 
 /* Define to 1 if mbrtowc and mbstate_t are properly declared. */
 #undef HAVE_MBRTOWC
@@ -75,6 +81,9 @@
 /* Define to 1 if you have the `memset' function. */
 #undef HAVE_MEMSET
 
+/* Define to 1 if you have the `mkstemp' function. */
+#undef HAVE_MKSTEMP
+
 /* Define to 1 if you have the <ndir.h> header file, and it defines `DIR'. */
 #undef HAVE_NDIR_H
 
@@ -83,6 +92,9 @@
 
 /* Define to 1 if you have the `nl_langinfo' function. */
 #undef HAVE_NL_LANGINFO
+
+/* Define to 1 if you have the <paths.h> header file. */
+#undef HAVE_PATHS_H
 
 /* Define to 1 if you have the `sbrk' function. */
 #undef HAVE_SBRK
@@ -118,22 +130,34 @@
 /* Define to 1 if you have the `strstr' function. */
 #undef HAVE_STRSTR
 
-/* Define to 1 if `d_ino' is member of `struct dirent'. */
+/* Define to 1 if `d_ino' is a member of `struct dirent'. */
 #undef HAVE_STRUCT_DIRENT_D_INO
 
-/* Define to 1 if `ss_family' is member of `struct sockaddr_storage'. */
+/* Define to 1 if `ss_family' is a member of `struct sockaddr_storage'. */
 #undef HAVE_STRUCT_SOCKADDR_STORAGE_SS_FAMILY
 
-/* Define to 1 if `ut_host' is member of `struct utmp'. */
+/* Define to 1 if `ut_host' is a member of `struct utmpx'. */
+#undef HAVE_STRUCT_UTMPX_UT_HOST
+
+/* Define to 1 if `ut_tv' is a member of `struct utmpx'. */
+#undef HAVE_STRUCT_UTMPX_UT_TV
+
+/* Define to 1 if `ut_user' is a member of `struct utmpx'. */
+#undef HAVE_STRUCT_UTMPX_UT_USER
+
+/* Define to 1 if `ut_xtime' is a member of `struct utmpx'. */
+#undef HAVE_STRUCT_UTMPX_UT_XTIME
+
+/* Define to 1 if `ut_host' is a member of `struct utmp'. */
 #undef HAVE_STRUCT_UTMP_UT_HOST
 
-/* Define to 1 if `ut_tv' is member of `struct utmp'. */
+/* Define to 1 if `ut_tv' is a member of `struct utmp'. */
 #undef HAVE_STRUCT_UTMP_UT_TV
 
-/* Define to 1 if `ut_user' is member of `struct utmp'. */
+/* Define to 1 if `ut_user' is a member of `struct utmp'. */
 #undef HAVE_STRUCT_UTMP_UT_USER
 
-/* Define to 1 if `ut_xtime' is member of `struct utmp'. */
+/* Define to 1 if `ut_xtime' is a member of `struct utmp'. */
 #undef HAVE_STRUCT_UTMP_UT_XTIME
 
 /* Define to 1 if you have the `sysconf' function. */
@@ -177,6 +201,9 @@
 /* Support NLS. */
 #undef NLS
 
+/* Support NLS catalogs. */
+#undef NLS_CATALOGS
+
 /* Define to the address where bug reports for this package should be sent. */
 #undef PACKAGE_BUGREPORT
 
@@ -188,6 +215,9 @@
 
 /* Define to the one symbol short name of this package. */
 #undef PACKAGE_TARNAME
+
+/* Define to the home page for this package. */
+#undef PACKAGE_URL
 
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
@@ -203,6 +233,11 @@
 
 /* Define to 1 if you have the ANSI C header files. */
 #undef STDC_HEADERS
+
+/* Define for Solaris 2.5.1 so the uint32_t typedef from <sys/synch.h>,
+   <pthread.h>, or <semaphore.h> is not used. If the typedef were allowed, the
+   #define below would cause a syntax error. */
+#undef _UINT32_T
 
 /* Define to empty if `const' does not conform to ANSI C. */
 #undef const
@@ -224,6 +259,10 @@
 
 /* Define to `int' if <sys/types.h> doesn't define. */
 #undef uid_t
+
+/* Define to the type of an unsigned integer type of width exactly 32 bits if
+   such a type exists and the standard includes do not define it. */
+#undef uint32_t
 
 /* Define to empty if the keyword `volatile' does not work. Warning: valid
    code using `volatile' can become incorrect without. Disable with care. */
