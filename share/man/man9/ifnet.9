@@ -181,13 +181,7 @@ return pointers to these structures.
 Each interface structure
 contains an
 .Vt if_data
-structure, which contains statistics and identifying information used
-by management programs, and which is exported to user programs by way
-of the
-.Xr ifmib 4
-branch of the
-.Xr sysctl 3
-MIB.
+structure used for statistics and information.
 Each interface also has a
 .Li TAILQ
 of interface addresses, described by
@@ -734,14 +728,15 @@ is marked or cleared in the interface's
 .Va if_flags
 to indicate the current mode of the interface.
 .Ss The Vt if_data Ss Structure
-In
-.Bx 4.4 ,
-a subset of the interface information believed to be of interest to
-management stations was segregated from the
-.Vt ifnet
-structure and moved into its own
+The
 .Vt if_data
-structure to facilitate its use by user programs.
+structure contains statistics and identifying information used
+by management programs, and which is exported to user programs by way
+of the
+.Xr ifmib 4
+branch of the
+.Xr sysctl 3
+MIB.
 The following elements of the
 .Vt if_data
 structure are initialized by the interface and are not expected to change
