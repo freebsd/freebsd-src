@@ -307,6 +307,12 @@ nullfs_vget(mp, ino, flags, vpp)
 	struct vnode **vpp;
 {
 	int error;
+
+	KASSERT((flags & LK_TYPE_MASK) != 0,
+	    ("nullfs_vget: no lock requested"));
+	flags &= ~LK_TYPE_MASK;
+	flags |= LK_EXCLUSIVE;
+
 	error = VFS_VGET(MOUNTTONULLMOUNT(mp)->nullm_vfs, ino, flags, vpp);
 	if (error)
 		return (error);
