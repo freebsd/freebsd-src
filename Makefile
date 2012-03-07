@@ -21,7 +21,7 @@
 # check-old-dirs      - List obsolete directories.
 # check-old-files     - List obsolete files.
 # check-old-libs      - List obsolete libraries.
-# delete-old          - Delete obsolete directories/files/libraries.
+# delete-old          - Delete obsolete directories/files.
 # delete-old-dirs     - Delete obsolete directories.
 # delete-old-files    - Delete obsolete files.
 # delete-old-libs     - Delete obsolete libraries.
