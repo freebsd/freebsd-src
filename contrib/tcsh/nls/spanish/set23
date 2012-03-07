@@ -1,24 +1,24 @@
-$ $tcsh: set23,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set23,v 1.3 2011/02/04 18:19:43 christos Exp $
 $ tc.os.c
 $set 23 
-1 Nombre de cpu/m·quina incorrecto
-2 Ruta hasta m·quina demasiado grande
+1 Nombre de cpu/m√°quina incorrecto
+2 Ruta hasta m√°quina demasiado grande
 3 desconocida
-4 m·quina: %s\n
-5 %d: No he encontrado esa m·quina\n
+4 m√°quina: %s\n
+5 %d: No he encontrado esa m√°quina\n
 6 setlocal: %s: %s\n
-7 No he encontrado esa m·quina
-8 Est· atrapado en un universo que nunca creo
-9 Getwarp fallÛ
-10 Warp inv·lido
-11 Setwarp fallÛ
+7 No he encontrado esa m√°quina
+8 Est√° atrapado en un universo que nunca creo
+9 Getwarp fall√≥
+10 Warp inv√°lido
+11 Setwarp fall√≥
 12 Universo ilegal
 13 Error Desconocido: %d
 14 nombre_sis:  %s\n
 15 nombre_nodo: %s\n
 16 release:  %s\n
-17 versiÛn:  %s\n
-18 m·quina:  %s\n
+17 versi√≥n:  %s\n
+18 m√°quina:  %s\n
 19 getwd: No puedo abrir ".." (%s)
 20 getwd: No puedo cambiar a ".." (%s)
 21 getwd: Error de lectura en ".." (%s)
@@ -28,7 +28,7 @@ $set 23
 25 getwd: No puedo ejecutar stat de "%s" (%s)
 26 getwd: No puedo abrir el directorio "%s" (%s)
 27 getwd: No puedo encontrar "." en ".." (%s)
-28 Tipo de sistema inv·lido
+28 Tipo de sistema inv√°lido
 29 No se ha fijado el tipo de sistema
 30 Demasiados argumentos
-31 Argumento inv·lido
+31 Argumento inv√°lido
