@@ -530,13 +530,11 @@ pf_map_addr(sa_family_t af, struct pf_rule *r, struct pf_addr *saddr,
 struct pf_rule *
 pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
     struct pfi_kif *kif, struct pf_src_node **sn,
-    struct pf_state_key **skw, struct pf_state_key **sks,
     struct pf_state_key **skp, struct pf_state_key **nkp,
     struct pf_addr *saddr, struct pf_addr *daddr,
     u_int16_t sport, u_int16_t dport)
 {
 	struct pf_rule	*r = NULL;
-
 
 	if (direction == PF_OUT) {
 		r = pf_match_translation(pd, m, off, direction, kif, saddr,
@@ -556,9 +554,15 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		struct pf_addr	*naddr;
 		u_int16_t	*nport;
 
-		if (pf_state_key_setup(pd, r, skw, sks, skp, nkp,
-		    saddr, daddr, sport, dport))
-			return r;
+		*skp = pf_state_key_setup(pd, saddr, daddr, sport, dport);
+		if (*skp == NULL)
+			return (NULL);
+		*nkp = pf_state_key_clone(*skp);
+		if (*nkp == NULL) {
+			uma_zfree(V_pf_state_key_z, skp);
+			*skp = NULL;
+			return (NULL);
+		}
 
 		/* XXX We only modify one side for now. */
 		naddr = &(*nkp)->addr[1];
@@ -684,7 +688,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 			break;
 		}
 		default:
-			return (NULL);
+			panic("%s: unknown action %u", __func__, r->action);
 		}
 		/* 
 		 * Translation was a NOP.
@@ -693,7 +697,7 @@ pf_get_translation(struct pf_pdesc *pd, struct mbuf *m, int off, int direction,
 		if (!bcmp(*skp, *nkp, sizeof(struct pf_state_key_cmp))) {
 			uma_zfree(V_pf_state_key_z, *nkp);
 			uma_zfree(V_pf_state_key_z, *skp);
-			*skw = *sks = *nkp = *skp = NULL;
+			*skp = *nkp = NULL;
 			return (NULL);
 		}
 	}

@@ -199,10 +199,9 @@ static int		 pf_test_rule(struct pf_rule **, struct pf_state **,
 			    void *, struct pf_pdesc *, struct pf_rule **,
 			    struct pf_ruleset **, struct ifqueue *,
 			    struct inpcb *);
-static __inline int	 pf_create_state(struct pf_rule *, struct pf_rule *,
+static int		 pf_create_state(struct pf_rule *, struct pf_rule *,
 			    struct pf_rule *, struct pf_pdesc *,
 			    struct pf_src_node *, struct pf_state_key *,
-			    struct pf_state_key *, struct pf_state_key *,
 			    struct pf_state_key *, struct mbuf *, int,
 			    u_int16_t, u_int16_t, int *, struct pfi_kif *,
 			    struct pf_state **, int, u_int16_t, u_int16_t,
@@ -774,51 +773,39 @@ pf_state_key_detach(struct pf_state *s, int idx)
 	}
 }
 
-int
-pf_state_key_setup(struct pf_pdesc *pd, struct pf_rule *nr,
-	struct pf_state_key **skw, struct pf_state_key **sks,
-	struct pf_state_key **skp, struct pf_state_key **nkp,
-	struct pf_addr *saddr, struct pf_addr *daddr,
-	u_int16_t sport, u_int16_t dport)
+struct pf_state_key *
+pf_state_key_setup(struct pf_pdesc *pd, struct pf_addr *saddr,
+	struct pf_addr *daddr, u_int16_t sport, u_int16_t dport)
 {
-	KASSERT((*skp == NULL && *nkp == NULL),
-		("%s: skp == NULL && nkp == NULL", __func__));
+	struct pf_state_key *sk;
 
-	if ((*skp = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
-		return (ENOMEM);
+	sk = uma_zalloc(V_pf_state_key_z, M_NOWAIT);
+	if (sk == NULL)
+		return (NULL);
 
-	PF_ACPY(&(*skp)->addr[pd->sidx], saddr, pd->af);
-	PF_ACPY(&(*skp)->addr[pd->didx], daddr, pd->af);
-	(*skp)->port[pd->sidx] = sport;
-	(*skp)->port[pd->didx] = dport;
-	(*skp)->proto = pd->proto;
-	(*skp)->af = pd->af;
+	PF_ACPY(&sk->addr[pd->sidx], saddr, pd->af);
+	PF_ACPY(&sk->addr[pd->didx], daddr, pd->af);
+	sk->port[pd->sidx] = sport;
+	sk->port[pd->didx] = dport;
+	sk->proto = pd->proto;
+	sk->af = pd->af;
 
-	if (nr != NULL) {
-		if ((*nkp = uma_zalloc(V_pf_state_key_z, M_NOWAIT))
-		    == NULL)
-			return (ENOMEM); /* caller must handle cleanup */
-
-		/* XXX maybe just bcopy and TAILQ_INIT(&(*nkp)->states) */
-		PF_ACPY(&(*nkp)->addr[0], &(*skp)->addr[0], pd->af);
-		PF_ACPY(&(*nkp)->addr[1], &(*skp)->addr[1], pd->af);
-		(*nkp)->port[0] = (*skp)->port[0];
-		(*nkp)->port[1] = (*skp)->port[1];
-		(*nkp)->proto = pd->proto;
-		(*nkp)->af = pd->af;
-	} else
-		*nkp = *skp;
-
-	if (pd->dir == PF_IN) {
-		*skw = *skp;
-		*sks = *nkp;
-	} else {
-		*sks = *skp;
-		*skw = *nkp;
-	}
-	return (0);
+	return (sk);
 }
 
+struct pf_state_key *
+pf_state_key_clone(struct pf_state_key *orig)
+{
+	struct pf_state_key *sk;
+
+	sk = uma_zalloc(V_pf_state_key_z, M_NOWAIT);
+	if (sk == NULL)
+		return (NULL);
+
+	bcopy(orig, sk, sizeof(struct pf_state_key_cmp));
+
+	return (sk);
+}
 
 int
 pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
@@ -2669,13 +2656,13 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
     struct ifqueue *ifq, struct inpcb *inp)
 {
 	struct pf_rule		*nr = NULL;
-	struct pf_addr		*saddr = pd->src, *daddr = pd->dst;
+	struct pf_addr		* const saddr = pd->src;
+	struct pf_addr		* const daddr = pd->dst;
 	sa_family_t		 af = pd->af;
 	struct pf_rule		*r, *a = NULL;
 	struct pf_ruleset	*ruleset = NULL;
 	struct pf_src_node	*nsn = NULL;
 	struct tcphdr		*th = pd->hdr.tcp;
-	struct pf_state_key	*skw = NULL, *sks = NULL;
 	struct pf_state_key	*sk = NULL, *nk = NULL;
 	u_short			 reason;
 	int			 rewrite = 0, hdrlen = 0;
@@ -2754,12 +2741,10 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	r = TAILQ_FIRST(pf_main_ruleset.rules[PF_RULESET_FILTER].active.ptr);
 
 	/* check packet for BINAT/NAT/RDR */
-	if ((nr = pf_get_translation(pd, m, off, direction, kif, &nsn,
-	    &skw, &sks, &sk, &nk, saddr, daddr, sport, dport)) != NULL) {
-		if (nk == NULL || sk == NULL) {
-			REASON_SET(&reason, PFRES_MEMORY);
-			goto cleanup;
-		}
+	if ((nr = pf_get_translation(pd, m, off, direction, kif, &nsn, &sk,
+	    &nk, saddr, daddr, sport, dport)) != NULL) {
+		KASSERT(sk != NULL, ("%s: null sk", __func__));
+		KASSERT(nk != NULL, ("%s: null nk", __func__));
 
 		if (pd->ip_sum)
 			bip_sum = *pd->ip_sum;
@@ -3055,9 +3040,9 @@ pf_test_rule(struct pf_rule **rm, struct pf_state **sm, int direction,
 	if (!state_icmp && (r->keep_state || nr != NULL ||
 	    (pd->flags & PFDESC_TCP_NORM))) {
 		int action;
-		action = pf_create_state(r, nr, a, pd, nsn, skw, sks, nk, sk, m,
-		    off, sport, dport, &rewrite, kif, sm, tag, bproto_sum,
-		    bip_sum, hdrlen);
+		action = pf_create_state(r, nr, a, pd, nsn, nk, sk, m, off,
+		    sport, dport, &rewrite, kif, sm, tag, bproto_sum, bip_sum,
+		    hdrlen);
 		if (action != PF_PASS)
 			return (action);
 	} else {
@@ -3094,13 +3079,12 @@ cleanup:
 	return (PF_DROP);
 }
 
-static __inline int
+static int
 pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
-    struct pf_pdesc *pd, struct pf_src_node *nsn, struct pf_state_key *skw,
-    struct pf_state_key *sks, struct pf_state_key *nk, struct pf_state_key *sk,
-    struct mbuf *m, int off, u_int16_t sport, u_int16_t dport, int *rewrite,
-    struct pfi_kif *kif, struct pf_state **sm, int tag, u_int16_t bproto_sum,
-    u_int16_t bip_sum, int hdrlen)
+    struct pf_pdesc *pd, struct pf_src_node *nsn, struct pf_state_key *nk,
+    struct pf_state_key *sk, struct mbuf *m, int off, u_int16_t sport,
+    u_int16_t dport, int *rewrite, struct pfi_kif *kif, struct pf_state **sm,
+    int tag, u_int16_t bproto_sum, u_int16_t bip_sum, int hdrlen)
 {
 	struct pf_state		*s = NULL;
 	struct pf_src_node	*sn = NULL;
@@ -3236,11 +3220,24 @@ pf_create_state(struct pf_rule *r, struct pf_rule *nr, struct pf_rule *a,
 	}
 	s->direction = pd->dir;
 
-	if (sk == NULL && pf_state_key_setup(pd, nr, &skw, &sks, &sk, &nk,
-	    pd->src, pd->dst, sport, dport))
-		goto csfailed;
+	/*
+	 * sk/nk could already been setup by pf_get_translation().
+	 */
+	if (nr == NULL) {
+		KASSERT((sk == NULL && nk == NULL), ("%s: nr %p sk %p, nk %p",
+		    __func__, nr, sk, nk));
+		sk = pf_state_key_setup(pd, pd->src, pd->dst, sport, dport);
+		if (sk == NULL)
+			goto csfailed;
+		nk = sk;
+	} else
+		KASSERT((sk != NULL && nk != NULL), ("%s: nr %p sk %p, nk %p",
+		    __func__, nr, sk, nk));
 
-	if (pf_state_insert(BOUND_IFACE(r, kif), skw, sks, s)) {
+	/* Swap sk/nk for PF_OUT. */
+	if (pf_state_insert(BOUND_IFACE(r, kif),
+	    (pd->dir == PF_IN) ? sk : nk,
+	    (pd->dir == PF_IN) ? nk : sk, s)) {
 		if (pd->proto == IPPROTO_TCP)
 			pf_normalize_tcp_cleanup(s);
 		REASON_SET(&reason, PFRES_STATEINS);
