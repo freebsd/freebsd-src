@@ -790,7 +790,7 @@ struct pf_state_key {
 	u_int8_t	 pad[2];
 
 	RB_ENTRY(pf_state_key)	 entry;
-	TAILQ_HEAD(, pf_state)	 states;
+	TAILQ_HEAD(, pf_state)	 states[2];
 	struct pf_state_key	*reverse;
 	struct inpcb		*inp;
 };
@@ -810,7 +810,7 @@ struct pf_state {
 	u_int8_t		 pad[2];
 	TAILQ_ENTRY(pf_state)	 sync_list;
 	TAILQ_ENTRY(pf_state)	 entry_list;
-	TAILQ_ENTRY(pf_state)	 key_list;
+	TAILQ_ENTRY(pf_state)	 key_list[2];
 	RB_ENTRY(pf_state)	 entry_id;
 	struct pf_state_peer	 src;
 	struct pf_state_peer	 dst;

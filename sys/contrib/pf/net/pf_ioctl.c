@@ -276,7 +276,8 @@ pf_state_key_ini(void *mem, int size, int flags)
 	struct pf_state_key *sk = mem;
 
 	bzero(sk, sizeof(*sk));
-	TAILQ_INIT(&sk->states);
+	TAILQ_INIT(&sk->states[PF_SK_WIRE]);
+	TAILQ_INIT(&sk->states[PF_SK_STACK]);
 	return (0);
 }
 
