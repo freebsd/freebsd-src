@@ -688,7 +688,7 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 
 	if ((cur = RB_INSERT(pf_state_tree, &V_pf_statetbl, sk)) != NULL) {
 		/* key exists. check for same kif, if none, add to key */
-		TAILQ_FOREACH(si, &cur->states, key_list)
+		TAILQ_FOREACH(si, &cur->states[idx], key_list[idx])
 			if (si->kif == s->kif &&
 			    si->direction == s->direction) {
 				if (sk->proto == IPPROTO_TCP &&
@@ -696,7 +696,7 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 				    si->dst.state >= TCPS_FIN_WAIT_2) {
 					si->src.state = si->dst.state =
 					    TCPS_CLOSED;
-					/* unlink late or sks can go away */
+					/* Unlink later or sk can go away. */
 					olds = si;
 				} else {
 					if (V_pf_status.debug >= PF_DEBUG_MISC) {
@@ -722,16 +722,22 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 					return (-1);	/* collision! */
 				}
 			}
-		uma_zfree(V_pf_state_key_z, sk);
+		/*
+		 * Collided key may be the same we are trying to attach,
+		 * this happens for non-NAT states, they are attached
+		 * twice: via PF_SK_WIRE and PF_SK_STACK tailqs.
+		 */
+		if (cur != sk)
+			uma_zfree(V_pf_state_key_z, sk);
 		s->key[idx] = cur;
 	} else
 		s->key[idx] = sk;
 
 	/* list is sorted, if-bound states before floating */
 	if (s->kif == V_pfi_all)
-		TAILQ_INSERT_TAIL(&s->key[idx]->states, s, key_list);
+		TAILQ_INSERT_TAIL(&s->key[idx]->states[idx], s, key_list[idx]);
 	else
-		TAILQ_INSERT_HEAD(&s->key[idx]->states, s, key_list);
+		TAILQ_INSERT_HEAD(&s->key[idx]->states[idx], s, key_list[idx]);
 
 	if (olds)
 		pf_unlink_state(olds, 0);
@@ -745,9 +751,6 @@ pf_detach_state(struct pf_state *s)
 
 	PF_KEYS_ASSERT();
 
-	if (s->key[PF_SK_WIRE] == s->key[PF_SK_STACK])
-		s->key[PF_SK_WIRE] = NULL;
-
 	if (s->key[PF_SK_STACK] != NULL)
 		pf_state_key_detach(s, PF_SK_STACK);
 
@@ -758,24 +761,20 @@ pf_detach_state(struct pf_state *s)
 static void
 pf_state_key_detach(struct pf_state *s, int idx)
 {
-	struct pf_state *si;
+	struct pf_state_key *sk = s->key[idx];
+	int idx2 = (idx == PF_SK_STACK ? PF_SK_WIRE : PF_SK_STACK);
 
 	PF_KEYS_ASSERT();
 
-	si = TAILQ_FIRST(&s->key[idx]->states);
-	while (si && si != s)
-	    si = TAILQ_NEXT(si, key_list);
-
-	if (si)
-		TAILQ_REMOVE(&s->key[idx]->states, si, key_list);
-
-	if (TAILQ_EMPTY(&s->key[idx]->states)) {
-		RB_REMOVE(pf_state_tree, &V_pf_statetbl, s->key[idx]);
-		if (s->key[idx]->reverse)
-			s->key[idx]->reverse->reverse = NULL;
-		uma_zfree(V_pf_state_key_z, s->key[idx]);
-	}
+	TAILQ_REMOVE(&sk->states[idx], s, key_list[idx]);
 	s->key[idx] = NULL;
+
+	if (TAILQ_EMPTY(&sk->states[idx]) && TAILQ_EMPTY(&sk->states[idx2])) {
+		RB_REMOVE(pf_state_tree, &V_pf_statetbl, sk);
+		if (sk->reverse)
+			sk->reverse->reverse = NULL;
+		uma_zfree(V_pf_state_key_z, sk);
+	}
 }
 
 int
@@ -832,23 +831,14 @@ pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
 	s->kif = kif;
 
 	PF_KEYS_LOCK();
-	if (skw == sks) {
-		if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
-			PF_KEYS_UNLOCK();
-			return (-1);
-		}
-		s->key[PF_SK_STACK] = s->key[PF_SK_WIRE];
-	} else {
-		if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
-			PF_KEYS_UNLOCK();
-			uma_zfree(V_pf_state_key_z, sks);
-			return (-1);
-		}
-		if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
-			pf_state_key_detach(s, PF_SK_WIRE);
-			PF_KEYS_UNLOCK();
-			return (-1);
-		}
+	if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
+		PF_KEYS_UNLOCK();
+		return (-1);
+	}
+	if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
+		pf_state_key_detach(s, PF_SK_WIRE);
+		PF_KEYS_UNLOCK();
+		return (-1);
 	}
 
 	if (s->id == 0 && s->creatorid == 0) {
@@ -931,6 +921,7 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 {
 	struct pf_state_key	*sk;
 	struct pf_state		*si;
+	int idx;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
@@ -956,11 +947,11 @@ pf_find_state(struct pfi_kif *kif, struct pf_state_key_cmp *key, u_int dir,
 	if (dir == PF_OUT)
 		pftag->statekey = NULL;
 
+	idx = (dir == PF_IN ? PF_SK_WIRE : PF_SK_STACK);
+
 	/* list is sorted, if-bound states before floating ones */
-	TAILQ_FOREACH(si, &sk->states, key_list)
-		if ((si->kif == V_pfi_all || si->kif == kif) &&
-		    sk == (dir == PF_IN ? si->key[PF_SK_WIRE] :
-		    si->key[PF_SK_STACK])) {
+	TAILQ_FOREACH(si, &sk->states[idx], key_list[idx])
+		if (si->kif == V_pfi_all || si->kif == kif) {
 			PF_KEYS_UNLOCK();
 			return (si);
 		}
@@ -974,26 +965,46 @@ pf_find_state_all(struct pf_state_key_cmp *key, u_int dir, int *more)
 {
 	struct pf_state_key	*sk;
 	struct pf_state		*s, *ret = NULL;
+	int			 idx, inout = 0;
 
 	V_pf_status.fcounters[FCNT_STATE_SEARCH]++;
 
 	PF_KEYS_LOCK();
 	sk = RB_FIND(pf_state_tree, &V_pf_statetbl, (struct pf_state_key *)key);
-	if (sk != NULL) {
-		TAILQ_FOREACH(s, &sk->states, key_list)
-			if (dir == PF_INOUT ||
-			    (sk == (dir == PF_IN ? s->key[PF_SK_WIRE] :
-			    s->key[PF_SK_STACK]))) {
-				if (more == NULL) {
-					PF_KEYS_UNLOCK();
-					return (s);
-				}
+	if (sk == NULL) {
+		PF_KEYS_UNLOCK();
+		return (NULL);
+	}
+	switch (dir) {
+	case PF_IN:
+		idx = PF_SK_WIRE;
+		break;
+	case PF_OUT:
+		idx = PF_SK_STACK;
+		break;
+	case PF_INOUT:
+		idx = PF_SK_WIRE;
+		inout = 1;
+		break;
+	default:
+		panic("%s: dir %u", __func__, dir);
+	}
+second_run:
+	TAILQ_FOREACH(s, &sk->states[idx], key_list[idx]) {
+		if (more == NULL) {
+			PF_KEYS_UNLOCK();
+			return (s);
+		}
 
-				if (ret)
-					(*more)++;
-				else
-					ret = s;
-			}
+		if (ret)
+			(*more)++;
+		else
+			ret = s;
+	}
+	if (inout == 1) {
+		inout = 0;
+		idx = PF_SK_STACK;
+		goto second_run;
 	}
 	PF_KEYS_UNLOCK();
 
