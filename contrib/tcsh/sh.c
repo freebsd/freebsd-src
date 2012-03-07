@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.145 2009/06/25 21:15:37 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.c,v 3.174 2011/11/29 18:38:54 christos Exp $ */
 /*
  * sh.c: Main shell routines
  */
@@ -39,7 +39,7 @@ char    copyright[] =
  All rights reserved.\n";
 #endif /* not lint */
 
-RCSID("$tcsh: sh.c,v 3.145 2009/06/25 21:15:37 christos Exp $")
+RCSID("$tcsh: sh.c,v 3.174 2011/11/29 18:38:54 christos Exp $")
 
 #include "tc.h"
 #include "ed.h"
@@ -78,7 +78,7 @@ extern int NLSMapsAreInited;
  * ported to Apple Unix (TM) (OREO)  26 -- 29 Jun 1987
  */
 
-jmp_buf_t reslab INIT_ZERO_STRUCT;
+jmp_buf_t reslab;
 
 static const char tcshstr[] = "tcsh";
 
@@ -160,6 +160,77 @@ static	void		  st_restore	(void *);
 
 	int		  main		(int, char **);
 
+#ifndef LOCALEDIR
+#define LOCALEDIR "/usr/share/locale"
+#endif
+
+#ifdef NLS_CATALOGS
+static void
+add_localedir_to_nlspath(const char *path)
+{
+    static const char msgs_LOC[] = "/%L/LC_MESSAGES/%N.cat";
+    static const char msgs_lang[] = "/%l/LC_MESSAGES/%N.cat";
+    char *old;
+    char *new, *new_p;
+    size_t len;
+    int add_LOC = 1;
+    int add_lang = 1;
+    char trypath[MAXPATHLEN];
+    struct stat st;
+
+    if (path == NULL)
+        return;
+
+    (void) xsnprintf(trypath, sizeof(trypath), "%s/en/LC_MESSAGES/tcsh.cat",
+	path);
+    if (stat(trypath, &st) == -1)
+	return;
+
+    if ((old = getenv("NLSPATH")) != NULL)
+        len = strlen(old) + 1;	/* don't forget the colon. */
+    else
+	len = 0;
+
+    len += 2 * strlen(path) +
+	   sizeof(msgs_LOC) + sizeof(msgs_lang); /* includes the extra colon */
+
+    new = new_p = xcalloc(len, 1);
+
+    if (old != NULL) {
+	size_t pathlen = strlen(path);
+	char *old_p;
+
+	(void) xsnprintf(new_p, len, "%s", old);
+	new_p += strlen(new_p);
+	len -= new_p - new;
+
+	/* Check if the paths we try to add are already present in NLSPATH.
+	   If so, note it by setting the appropriate flag to 0. */
+	for (old_p = old; old_p; old_p = strchr(old_p, ':'),
+				 old_p = old_p ? old_p + 1 : NULL) {
+	    if (strncmp(old_p, path, pathlen) != 0)
+	    	continue;
+	    if (strncmp(old_p + pathlen, msgs_LOC, sizeof(msgs_LOC) - 1) == 0)
+		add_LOC = 0;
+	    else if (strncmp(old_p + pathlen, msgs_lang,
+			      sizeof(msgs_lang) - 1) == 0)
+		add_lang = 0;
+	}
+    }
+
+    /* Add the message catalog paths not already present to NLSPATH. */
+    if (add_LOC || add_lang)
+	(void) xsnprintf(new_p, len, "%s%s%s%s%s%s",
+			 old ? ":" : "",
+			 add_LOC ? path : "", add_LOC ? msgs_LOC : "",
+			 add_LOC && add_lang ? ":" : "",
+			 add_lang ? path : "", add_lang ? msgs_lang : "");
+
+    tsetenv(STRNLSPATH, str2short(new));
+    free(new);
+}
+#endif
+
 int
 main(int argc, char **argv)
 {
@@ -179,6 +250,7 @@ main(int argc, char **argv)
     int osetintr;
     struct sigaction oparintr;
 
+    (void)memset(&reslab, 0, sizeof(reslab));
 #ifdef WINNT_NATIVE
     nt_init();
 #endif /* WINNT_NATIVE */
@@ -191,6 +263,13 @@ main(int argc, char **argv)
     (void) setlocale(LC_CTYPE, ""); /* for iscntrl */
 # endif /* LC_CTYPE */
 #endif /* NLS */
+
+    STR_environ = blk2short(environ);
+    environ = short2blk(STR_environ);	/* So that we can free it */
+
+#ifdef NLS_CATALOGS
+    add_localedir_to_nlspath(LOCALEDIR);
+#endif
 
     nlsinit();
 
@@ -247,7 +326,7 @@ main(int argc, char **argv)
 	t = t ? t + 1 : argv[0];
 	if (*t == '-') t++;
 	progname = strsave((t && *t) ? t : tcshstr);    /* never want a null */
-	tcsh = strcmp(progname, tcshstr) == 0;
+	tcsh = strncmp(progname, tcshstr, sizeof(tcshstr) - 1) == 0;
     }
 
     /*
@@ -263,16 +342,16 @@ main(int argc, char **argv)
     STR_SHELLPATH = SAVE(_PATH_CSHELL);
 # endif
 #endif
-    STR_environ = blk2short(environ);
-    environ = short2blk(STR_environ);	/* So that we can free it */
     STR_WORD_CHARS = SAVE(WORD_CHARS);
 
     HIST = '!';
     HISTSUB = '^';
-    PRCH = '>';
-    PRCHROOT = '#';
+    PRCH = tcsh ? '>' : '%';	/* to replace %# in $prompt for normal users */
+    PRCHROOT = '#';		/* likewise for root */
     word_chars = STR_WORD_CHARS;
     bslash_quote = 0;		/* PWP: do tcsh-style backslash quoting? */
+    anyerror = 1;		/* for compatibility */
+    setcopy(STRanyerror, STRNULL, VAR_READWRITE);
 
     /* Default history size to 100 */
     setcopy(STRhistory, str2short("100"), VAR_READWRITE);
@@ -319,7 +398,6 @@ main(int argc, char **argv)
 	setNS(STRloginsh);
     }
 
-    AsciiOnly = 1;
     NoNLSRebind = getenv("NOREBIND") != NULL;
 #ifdef NLS
 # ifdef SETLOCALEBUG
@@ -336,13 +414,19 @@ main(int argc, char **argv)
     fix_strcoll_bug();
 # endif /* STRCOLLBUG */
 
-    {
+    /*
+     * On solaris ISO8859-1 contains no printable characters in the upper half
+     * so we need to test only for MB_CUR_MAX == 1, otherwise for multi-byte
+     * locales we are always AsciiOnly == 0.
+     */
+    if (MB_CUR_MAX == 1) {
 	int     k;
 
-	for (k = 0200; k <= 0377 && !Isprint(CTL_ESC(k)); k++)
+	for (k = 0200; k <= 0377 && !isprint(CTL_ESC(k)); k++)
 	    continue;
-	AsciiOnly = MB_CUR_MAX == 1 && k > 0377;
-    }
+	AsciiOnly = k > 0377;
+    } else
+	AsciiOnly = 0;
 #else
     AsciiOnly = getenv("LANG") == NULL && getenv("LC_CTYPE") == NULL;
 #endif				/* NLS */
@@ -453,7 +537,8 @@ main(int argc, char **argv)
     if (loginsh || (uid == 0)) {
 	if (*cp) {
 	    /* only for login shells or root and we must have a tty */
-	    if ((cp2 = Strrchr(cp, (Char) '/')) != NULL) {
+	    if (((cp2 = Strrchr(cp, (Char) '/')) != NULL) &&
+		(Strncmp(cp, STRptssl, 3) != 0)) {
 		cp2 = cp2 + 1;
 	    }
 	    else
@@ -506,7 +591,18 @@ main(int argc, char **argv)
     if ((tcp = getenv("HOME")) != NULL)
 	cp = quote(SAVE(tcp));
     else
+#ifdef __ANDROID__
+	/* On Android, $HOME usually isn't set, so we can't load user RC files.
+	   Check for the environment variable EXTERNAL_STORAGE, which contains
+	   the mount point of the external storage (SD card, mostly).  If
+	   EXTERNAL_STORAGE isn't set fall back to "/sdcard". */
+    if ((tcp = getenv("EXTERNAL_STORAGE")) != NULL)
+	cp = quote(SAVE(tcp));
+    else
+	cp = quote(SAVE("/sdcard"));
+#else
 	cp = NULL;
+#endif
 
     if (cp == NULL)
 	fast = 1;		/* No home -> can't read scripts */
@@ -531,6 +627,12 @@ main(int argc, char **argv)
 	setv(STRoid, Itoa(oid, 0, 0), VAR_READWRITE);
 #endif /* apollo */
 
+	setv(STReuid, Itoa(euid, 0, 0), VAR_READWRITE);
+	if ((pw = xgetpwuid(euid)) == NULL)
+	    setcopy(STReuser, STRunknown, VAR_READWRITE);
+	else
+	    setcopy(STReuser, str2short(pw->pw_name), VAR_READWRITE);
+
 	setv(STRuid, Itoa(uid, 0, 0), VAR_READWRITE);
 
 	setv(STRgid, Itoa(gid, 0, 0), VAR_READWRITE);
@@ -542,7 +644,7 @@ main(int argc, char **argv)
 	else if (cln != NULL)
 	    setv(STRuser, quote(SAVE(cln)), VAR_READWRITE);
 	else if ((pw = xgetpwuid(uid)) == NULL)
-	    setcopy(STRuser, str2short("unknown"), VAR_READWRITE);
+	    setcopy(STRuser, STRunknown, VAR_READWRITE);
 	else
 	    setcopy(STRuser, str2short(pw->pw_name), VAR_READWRITE);
 	if (cln == NULL)
@@ -554,7 +656,7 @@ main(int argc, char **argv)
 	if (cgr != NULL)
 	    setv(STRgroup, quote(SAVE(cgr)), VAR_READWRITE);
 	else if ((gr = xgetgrgid(gid)) == NULL)
-	    setcopy(STRgroup, str2short("unknown"), VAR_READWRITE);
+	    setcopy(STRgroup, STRunknown, VAR_READWRITE);
 	else
 	    setcopy(STRgroup, str2short(gr->gr_name), VAR_READWRITE);
 	if (cgr == NULL)
@@ -573,7 +675,7 @@ main(int argc, char **argv)
 	    tsetenv(STRHOST, str2short(cbuff));
 	}
 	else
-	    tsetenv(STRHOST, str2short("unknown"));
+	    tsetenv(STRHOST, STRunknown);
     }
 
 
@@ -697,7 +799,7 @@ main(int argc, char **argv)
 	parseLS_COLORS(str2short(tcp));
 #endif /* COLOR_LS_F */
 
-    doldol = putn((int) getpid());	/* For $$ */
+    doldol = putn((tcsh_number_t)getpid());	/* For $$ */
 #ifdef WINNT_NATIVE
     {
 	char *tmp;
@@ -705,8 +807,8 @@ main(int argc, char **argv)
 	if ((tmp = getenv("TMP")) != NULL) {
 	    tmp = xasprintf("%s/%s", tmp, "sh");
 	    tmp2 = SAVE(tmp);
-	xfree(tmp);
-    }
+	    xfree(tmp);
+	}
 	else {
 	    tmp2 = SAVE(""); 
 	}
@@ -714,7 +816,16 @@ main(int argc, char **argv)
 	xfree(tmp2);
     }
 #else /* !WINNT_NATIVE */
+#ifdef HAVE_MKSTEMP
+    {
+	char *tmpdir = getenv ("TMPDIR");
+	if (!tmpdir)
+	    tmpdir = "/tmp";
+	shtemp = Strspl(SAVE(tmpdir), SAVE("/sh" TMP_TEMPLATE)); /* For << */
+    }
+#else /* !HAVE_MKSTEMP */
     shtemp = Strspl(STRtmpsh, doldol);	/* For << */
+#endif /* HAVE_MKSTEMP */
 #endif /* WINNT_NATIVE */
 
     /*
@@ -738,10 +849,11 @@ main(int argc, char **argv)
     /* PATCH IDEA FROM Issei.Suzuki VERY THANKS */
 #if defined(DSPMBYTE)
 #if defined(NLS) && defined(LC_CTYPE)
-    if (((tcp = setlocale(LC_CTYPE, NULL)) != NULL || (tcp = getenv("LANG")) != NULL) && !adrof(CHECK_MBYTEVAR)) {
+    if (((tcp = setlocale(LC_CTYPE, NULL)) != NULL || (tcp = getenv("LANG")) != NULL) && !adrof(CHECK_MBYTEVAR))
 #else
-    if ((tcp = getenv("LANG")) != NULL && !adrof(CHECK_MBYTEVAR)) {
+    if ((tcp = getenv("LANG")) != NULL && !adrof(CHECK_MBYTEVAR))
 #endif
+    {
 	autoset_dspmbyte(str2short(tcp));
     }
 #if defined(WINNT_NATIVE)
@@ -749,7 +861,14 @@ main(int argc, char **argv)
       nt_autoset_dspmbyte();
 #endif /* WINNT_NATIVE */
 #endif
-
+#if defined(AUTOSET_KANJI) 
+# if defined(NLS) && defined(LC_CTYPE)
+    if (setlocale(LC_CTYPE, NULL) != NULL || getenv("LANG") != NULL)
+# else
+    if (getenv("LANG") != NULL)
+# endif
+	autoset_kanji();
+#endif /* AUTOSET_KANJI */
     fix_version();		/* publish the shell version */
 
     if (argc > 1 && strcmp(argv[1], "--version") == 0) {
@@ -912,6 +1031,8 @@ main(int argc, char **argv)
 
 	    case ' ':
 	    case '\t':
+	    case '\r':
+	    case '\n':
 		/* 
 		 * for O/S's that don't do the argument parsing right in 
 		 * "#!/foo -f " scripts
@@ -1019,10 +1140,7 @@ main(int argc, char **argv)
      * Set up the prompt.
      */
     if (prompt) {
-	if (tcsh)
-	    setcopy(STRprompt, STRdeftcshprompt, VAR_READWRITE);
-	else
-	    setcopy(STRprompt, STRdefcshprompt, VAR_READWRITE);
+	setcopy(STRprompt, STRdefprompt, VAR_READWRITE);
 	/* that's a meta-questionmark */
 	setcopy(STRprompt2, STRmquestion, VAR_READWRITE);
 	setcopy(STRprompt3, STRKCORRECT, VAR_READWRITE);
@@ -1679,7 +1797,7 @@ void
 exitstat(void)
 {
 #ifdef PROF
-    monitor(0);
+    _mcleanup();
 #endif
     /*
      * Note that if STATUS is corrupted (i.e. getn bombs) then error will exit
@@ -1839,7 +1957,7 @@ void
 process(int catch)
 {
     jmp_buf_t osetexit;
-    /* PWP: This might get nuked my longjmp so don't make it a register var */
+    /* PWP: This might get nuked by longjmp so don't make it a register var */
     size_t omark;
     volatile int didexitset = 0;
 
@@ -1927,9 +2045,11 @@ process(int catch)
 	/*
 	 * Echo not only on VERBOSE, but also with history expansion. If there
 	 * is a lexical error then we forego history echo.
+	 * Do not echo if we're only entering history (source -h).
 	 */
 	if ((hadhist && !seterr && intty && !tellwhat && !Expand && !whyles) ||
-	    adrof(STRverbose)) {
+	    (!enterhist && adrof(STRverbose)))
+	{
 	    int odidfds = didfds;
 	    haderr = 1;
 	    didfds = 0;
@@ -1994,9 +2114,14 @@ process(int catch)
 	 * Parse the words of the input into a parse tree.
 	 */
 	t = syntax(paraml.next, &paraml, 0);
-	cleanup_push(t, syntax_cleanup);
-	if (seterr)
+	/*
+	 * We cannot cleanup push here, because cd /blah; echo foo
+	 * would rewind t on the chdir error, and free the rest of the command
+	 */
+	if (seterr) {
+	    freesyn(t);
 	    stderror(ERR_OLD);
+	}
 
 	postcmd();
 	/*
@@ -2004,6 +2129,7 @@ process(int catch)
 	 * <mlschroe@immd4.informatik.uni-erlangen.de> was execute(t, tpgrp);
 	 */
 	execute(t, (tpgrp > 0 ? tpgrp : -1), NULL, NULL, TRUE);
+	freesyn(t);
 
 	/*
 	 * Made it!
@@ -2015,11 +2141,15 @@ process(int catch)
 #endif /* SIG_WINDOW */
 	setcopy(STR_, InputBuf, VAR_READWRITE | VAR_NOGLOB);
     cmd_done:
-	cleanup_until(&paraml);
+	if (cleanup_reset())
+	    cleanup_until(&paraml);
+	else
+	    haderr = 1;
     }
     cleanup_pop_mark(omark);
     resexit(osetexit);
     exitset--;
+    handle_pending_signals();
 }
 
 /*ARGSUSED*/
@@ -2137,12 +2267,15 @@ mailchk(void)
 		continue;
 
 	    /* skip . and .. */
-	    if (!readdir(mailbox) || !readdir(mailbox))
+	    if (!readdir(mailbox) || !readdir(mailbox)) {
+		(void)closedir(mailbox);
 		continue;
+	    }
 
 	    while (readdir(mailbox))
 		mailcount++;
 
+	    (void)closedir(mailbox);
 	    if (mailcount == 0)
 		continue;
 
@@ -2156,7 +2289,7 @@ mailchk(void)
 	else {
 	    char *type;
 	    
-	    if (stb.st_size == 0 || stb.st_atime > stb.st_mtime ||
+	    if (stb.st_size == 0 || stb.st_atime >= stb.st_mtime ||
 		(stb.st_atime <= chktim && stb.st_mtime <= chktim) ||
 		(loginsh && !new))
 		continue;
@@ -2224,8 +2357,14 @@ initdesc(void)
 #ifndef CLOSE_ON_EXEC
     didcch = 0;			/* Havent closed for child */
 #endif /* CLOSE_ON_EXEC */
-    isdiagatty = isatty(SHDIAG);
-    isoutatty = isatty(SHOUT);
+    if (SHDIAG >= 0)
+	isdiagatty = isatty(SHDIAG);
+    else
+    	isdiagatty = 0;
+    if (SHDIAG >= 0)
+	isoutatty = isatty(SHOUT);
+    else
+    	isoutatty = 0;
 #ifdef NLS_BUGS
 #ifdef NLS_CATALOGS
     nlsinit();
@@ -2260,12 +2399,13 @@ xexit(int i)
 
     {
 	struct process *pp, *np;
-
+	pid_t mypid = getpid();
 	/* Kill all processes marked for hup'ing */
 	for (pp = proclist.p_next; pp; pp = pp->p_next) {
 	    np = pp;
-	    do 
-		if ((np->p_flags & PHUP) && np->p_jobid != shpgrp) {
+	    do
+		if ((np->p_flags & PHUP) && np->p_jobid != shpgrp &&
+		    np->p_parentid == mypid) {
 		    if (killpg(np->p_jobid, SIGHUP) != -1) {
 			/* In case the job was suspended... */
 #ifdef SIGCONT
@@ -2352,6 +2492,7 @@ record(void)
 	recdirs(NULL, adrof(STRsavedirs) != NULL);
 	rechist(NULL, adrof(STRsavehist) != NULL);
     }
+    displayHistStats("Exiting");	/* no-op unless DEBUG_HIST */
 }
 
 /*
