@@ -169,17 +169,26 @@ null_hashins(mp, xp)
 }
 
 static void
+null_destroy_proto(struct vnode *vp, void *xp)
+{
+
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+	VI_LOCK(vp);
+	vp->v_data = NULL;
+	vp->v_vnlock = &vp->v_lock;
+	vp->v_op = &dead_vnodeops;
+	VI_UNLOCK(vp);
+	vgone(vp);
+	vput(vp);
+	free(xp, M_NULLFSNODE);
+}
+
+static void
 null_insmntque_dtr(struct vnode *vp, void *xp)
 {
 
 	vput(((struct null_node *)xp)->null_lowervp);
-	vp->v_data = NULL;
-	vp->v_vnlock = &vp->v_lock;
-	free(xp, M_NULLFSNODE);
-	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
-	vgone(vp);
-	vput(vp);
+	null_destroy_proto(vp, xp);
 }
 
 /*
@@ -247,9 +256,7 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		vp->v_vnlock = &vp->v_lock;
-		xp->null_lowervp = NULL;
-		vrele(vp);
+		null_destroy_proto(vp, xp);
 		return (0);
 	}
 	*vpp = vp;
