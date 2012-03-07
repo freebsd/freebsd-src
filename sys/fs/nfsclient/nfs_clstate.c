@@ -4399,7 +4399,10 @@ nfscl_errmap(struct nfsrv_descript *nd)
 	if (nd->nd_repstat == NFSERR_MINORVERMISMATCH ||
 	    nd->nd_repstat == NFSERR_OPILLEGAL)
 		return (txdr_unsigned(nd->nd_repstat));
-	errp = defaulterrp = nfscl_cberrmap[nd->nd_procnum];
+	if (nd->nd_procnum < NFSV4OP_CBNOPS)
+		errp = defaulterrp = nfscl_cberrmap[nd->nd_procnum];
+	else
+		return (txdr_unsigned(nd->nd_repstat));
 	while (*++errp)
 		if (*errp == (short)nd->nd_repstat)
 			return (txdr_unsigned(nd->nd_repstat));
