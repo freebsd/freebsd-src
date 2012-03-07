@@ -1108,7 +1108,7 @@ _aicasm= sys/modules/aic7xxx/aicasm
 _share=	share/syscons/scrnmaps
 .endif
 
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang")
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
 _gcc_tools= gnu/usr.bin/cc/cc_tools
 .endif
 
@@ -1175,7 +1175,7 @@ _clang=		usr.bin/clang
 _clang_libs=	lib/clang
 .endif
 
-.if ${MK_GCC} != "no" && (${MK_CLANG_IS_CC} == "no" && ${CC:T:Mclang} != "clang")
+.if ${MK_GCC} != "no" && ${MK_CLANG_IS_CC} == "no"
 _cc=		gnu/usr.bin/cc
 .endif
 

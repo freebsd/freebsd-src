@@ -793,12 +793,6 @@ LEAF(memset)
 	PTR_ADDU	t0, t0, a0		# compute ending address
 2:
 	PTR_ADDU	a0, a0, 4		# clear words
-#ifdef MIPS3_5900
-	nop
-	nop
-	nop
-	nop
-#endif
 	bne	a0, t0, 2b		#  unrolling loop does not help
 	sw	t1, -4(a0)		#  since we are limited by memory speed
 
@@ -807,12 +801,6 @@ memsetsmallclr:
 	PTR_ADDU	t0, a2, a0		# compute ending address
 1:
 	PTR_ADDU	a0, a0, 1		# clear bytes
-#ifdef MIPS3_5900
-	nop
-	nop
-	nop
-	nop
-#endif
 	bne	a0, t0, 1b
 	sb	a1, -1(a0)
 2:

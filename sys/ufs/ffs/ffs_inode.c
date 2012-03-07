@@ -81,7 +81,7 @@ ffs_update(vp, waitfor)
 	struct fs *fs;
 	struct buf *bp;
 	struct inode *ip;
-	int error;
+	int flags, error;
 
 	ASSERT_VOP_ELOCKED(vp, "ffs_update");
 	ufs_itimes(vp);
@@ -92,11 +92,36 @@ ffs_update(vp, waitfor)
 	fs = ip->i_fs;
 	if (fs->fs_ronly && ip->i_ump->um_fsckpid == 0)
 		return (0);
-	error = bread(ip->i_devvp, fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
-		(int)fs->fs_bsize, NOCRED, &bp);
-	if (error) {
-		brelse(bp);
-		return (error);
+	/*
+	 * If we are updating a snapshot and another process is currently
+	 * writing the buffer containing the inode for this snapshot then
+	 * a deadlock can occur when it tries to check the snapshot to see
+	 * if that block needs to be copied. Thus when updating a snapshot
+	 * we check to see if the buffer is already locked, and if it is
+	 * we drop the snapshot lock until the buffer has been written
+	 * and is available to us. We have to grab a reference to the
+	 * snapshot vnode to prevent it from being removed while we are
+	 * waiting for the buffer.
+	 */
+	flags = 0;
+	if (IS_SNAPSHOT(ip))
+		flags = GB_LOCK_NOWAIT;
+	error = breadn_flags(ip->i_devvp,
+	     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+	     (int) fs->fs_bsize, 0, 0, 0, NOCRED, flags, &bp);
+	if (error != 0) {
+		if (error != EBUSY) {
+			brelse(bp);
+			return (error);
+		}
+		KASSERT((IS_SNAPSHOT(ip)), ("EBUSY from non-snapshot"));
+		vref(vp);	/* Protect against ffs_snapgone() */
+		VOP_UNLOCK(vp, 0);
+		(void) bread(ip->i_devvp,
+		     fsbtodb(fs, ino_to_fsba(fs, ip->i_number)),
+		     (int) fs->fs_bsize, NOCRED, &bp);
+		vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+		vrele(vp);
 	}
 	if (DOINGSOFTDEP(vp))
 		softdep_update_inodeblock(ip, bp, waitfor);
@@ -108,16 +133,16 @@ ffs_update(vp, waitfor)
 	else
 		*((struct ufs2_dinode *)bp->b_data +
 		    ino_to_fsbo(fs, ip->i_number)) = *ip->i_din2;
-	if (waitfor && !DOINGASYNC(vp)) {
-		return (bwrite(bp));
-	} else if (vm_page_count_severe() || buf_dirty_count_severe()) {
-		return (bwrite(bp));
+	if ((waitfor && !DOINGASYNC(vp)) ||
+	    (vm_page_count_severe() || buf_dirty_count_severe())) {
+		error = bwrite(bp);
 	} else {
 		if (bp->b_bufsize == fs->fs_bsize)
 			bp->b_flags |= B_CLUSTEROK;
 		bdwrite(bp);
-		return (0);
+		error = 0;
 	}
+	return (error);
 }
 
 #define	SINGLE	0	/* index of single indirect block */
@@ -253,7 +278,7 @@ ffs_truncate(vp, length, flags, cred, td)
 	}
 	if (fs->fs_ronly)
 		panic("ffs_truncate: read-only filesystem");
-	if ((ip->i_flags & SF_SNAPSHOT) != 0)
+	if (IS_SNAPSHOT(ip))
 		ffs_snapremove(vp);
 	vp->v_lasta = vp->v_clen = vp->v_cstart = vp->v_lastw = 0;
 	osize = ip->i_size;

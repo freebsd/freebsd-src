@@ -3,4 +3,4 @@
  */
 /* $FreeBSD$ */
 
-#include <i386/ptrace.h>
+#include <x86/ptrace.h>

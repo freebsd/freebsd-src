@@ -33,7 +33,6 @@
 /*
  * Prototypes for fifo operations on vnodes.
  */
-int	fifo_iseof(struct file *);
 int	fifo_vnoperate(struct vop_generic_args *);
 int	fifo_printinfo(struct vnode *);
 

@@ -662,16 +662,18 @@ cpu_search(const struct cpu_group *cg, struct cpu_search *low,
 
 		/* We have info about child item. Compare it. */
 		if (match & CPU_SEARCH_LOWEST) {
-			if ((load < lload) ||
-			    (load == lload && lgroup.cs_load < low->cs_load)) {
+			if (lgroup.cs_load != INT_MAX &&
+			    (load < lload ||
+			     (load == lload && lgroup.cs_load < low->cs_load))) {
 				lload = load;
 				low->cs_cpu = lgroup.cs_cpu;
 				low->cs_load = lgroup.cs_load;
 			}
 		}
 		if (match & CPU_SEARCH_HIGHEST)
-			if ((load > hload) ||
-			    (load == hload && hgroup.cs_load > high->cs_load)) {
+			if (hgroup.cs_load != -1 &&
+			    (load > hload ||
+			     (load == hload && hgroup.cs_load > high->cs_load))) {
 				hload = load;
 				high->cs_cpu = hgroup.cs_cpu;
 				high->cs_load = hgroup.cs_load;
@@ -1230,6 +1232,7 @@ sched_pickcpu(struct thread *td, int flags)
 	/* Search globally for the less loaded CPU. */
 	if (cpu == -1)
 		cpu = sched_lowest(cpu_top, mask, -1, INT_MAX, ts->ts_cpu);
+	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	/*
 	 * Compare the lowest loaded cpu to current cpu.
 	 */
@@ -1242,7 +1245,6 @@ sched_pickcpu(struct thread *td, int flags)
 		SCHED_STAT_INC(pickcpu_lowest);
 	if (cpu != ts->ts_cpu)
 		SCHED_STAT_INC(pickcpu_migration);
-	KASSERT(cpu != -1, ("sched_pickcpu: Failed to find a cpu."));
 	return (cpu);
 }
 #endif

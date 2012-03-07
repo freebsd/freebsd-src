@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include "opt_compat.h"
 #include "opt_cputype.h"
 #include "opt_ddb.h"
 
@@ -49,6 +50,7 @@ __FBSDID("$FreeBSD$");
 #include <sys/malloc.h>
 #include <sys/proc.h>
 #include <sys/syscall.h>
+#include <sys/sysent.h>
 #include <sys/buf.h>
 #include <sys/vnode.h>
 #include <sys/vmmeter.h>
@@ -301,7 +303,12 @@ cpu_set_syscall_retval(struct thread *td, int error)
 
 	code = locr0->v0;
 	quad_syscall = 0;
-#if defined(__mips_o32)
+#if defined(__mips_n32) || defined(__mips_n64)
+#ifdef COMPAT_FREEBSD32
+	if (code == SYS___syscall && SV_PROC_FLAG(td->td_proc, SV_ILP32))
+		quad_syscall = 1;
+#endif
+#else
 	if (code == SYS___syscall)
 		quad_syscall = 1;
 #endif
@@ -601,18 +608,8 @@ int
 cpu_set_user_tls(struct thread *td, void *tls_base)
 {
 
-	/* 
-	 * tls_base passed to this function 
-         * from thr_new call and points to actual TCB struct, 
-	 * so we should add TP_OFFSET + sizeof(struct tcb)
-	 * to make it the same way TLS base is passed to 
-	 * MIPS_SET_TLS/MIPS_GET_TLS API 
-	 */
-#ifdef __mips_n64
-	td->td_md.md_tls = (char*)tls_base + 0x7010;
-#else
-	td->td_md.md_tls = (char*)tls_base + 0x7008;
-#endif
+	td->td_md.md_tls = (char*)tls_base;
+
 	return (0);
 }
 

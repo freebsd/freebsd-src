@@ -410,7 +410,7 @@ testtx_ulp6_connected()
 	*) _f="SETFIB" ;;
 	esac
 
-	if test "${_o}" == "-i" -a "${_f}" == "SO_SETFIB"; then
+	if test "${_o}" = "-i" -a "${_f}" = "SO_SETFIB"; then
 		print_debug "Skipping icmp6 tests for SO_SETFIB."
 		return 0
 	fi

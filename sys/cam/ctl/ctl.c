@@ -1,6 +1,10 @@
 /*-
  * Copyright (c) 2003-2009 Silicon Graphics International Corp.
+ * Copyright (c) 2012 The FreeBSD Foundation
  * All rights reserved.
+ *
+ * Portions of this software were developed by Edward Tomasz Napierala
+ * under sponsorship from the FreeBSD Foundation.
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions
@@ -4795,6 +4799,25 @@ ctl_lun_power_lock(struct ctl_be_lun *be_lun, struct ctl_nexus *nexus,
 	mtx_unlock(&softc->ctl_lock);
 
 	return (0);
+}
+
+void
+ctl_lun_capacity_changed(struct ctl_be_lun *be_lun)
+{
+	struct ctl_lun *lun;
+	struct ctl_softc *softc;
+	int i;
+
+	softc = control_softc;
+
+	mtx_lock(&softc->ctl_lock);
+
+	lun = (struct ctl_lun *)be_lun->ctl_lun;
+
+	for (i = 0; i < CTL_MAX_INITIATORS; i++) 
+		lun->pending_sense[i].ua_pending |= CTL_UA_CAPACITY_CHANGED;
+
+	mtx_unlock(&softc->ctl_lock);
 }
 
 /*

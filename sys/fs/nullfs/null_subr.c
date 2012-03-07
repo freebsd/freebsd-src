@@ -172,12 +172,12 @@ static void
 null_destroy_proto(struct vnode *vp, void *xp)
 {
 
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
 	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	vp->v_op = &dead_vnodeops;
 	VI_UNLOCK(vp);
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
 	vgone(vp);
 	vput(vp);
 	free(xp, M_NULLFSNODE);

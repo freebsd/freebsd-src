@@ -96,6 +96,7 @@ struct pipemapping {
 #define PIPE_DIRECTW	0x400	/* Pipe direct write active. */
 #define PIPE_DIRECTOK	0x800	/* Direct mode ok. */
 #define PIPE_NAMED	0x1000	/* Is a named pipe. */
+#define PIPE_SAMEWGEN	0x2000	/* same write generation for named pipes. */
 
 /*
  * Per-pipe data structure.

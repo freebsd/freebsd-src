@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd January 26, 2012
+.Dd March 7, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -66,21 +66,26 @@
 .Fn if_allmulti "struct ifnet *ifp" "int amswitch"
 .Ft "struct ifnet *"
 .Fn ifunit "const char *name"
+.Ft "struct ifnet *"
+.Fn ifunit_ref "const char *name"
 .Ft void
 .Fn if_up "struct ifnet *ifp"
 .\"
 .Ss "Interface Address Functions"
 .Ft "struct ifaddr *"
+.Fn ifaddr_byindex "u_short idx"
+.Ft "struct ifaddr *"
 .Fn ifa_ifwithaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
 .Fn ifa_ifwithdstaddr "struct sockaddr *addr"
 .Ft "struct ifaddr *"
-.Fn ifa_ifwithnet "struct sockaddr *addr"
+.Fn ifa_ifwithnet "struct sockaddr *addr" "int ignore_ptp"
 .Ft "struct ifaddr *"
 .Fn ifaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
 .Ft void
-.Fn ifafree "struct ifaddr *ifa"
-.Fn IFAFREE "struct ifaddr *ifa"
+.Fn ifa_ref "struct ifaddr *ifa"
+.Ft void
+.Fn ifa_free "struct ifaddr *ifa"
 .\"
 .Ss "Interface Multicast Address Functions"
 .Ft int
@@ -88,7 +93,7 @@
 .Ft int
 .Fn if_delmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ft "struct ifmultiaddr *"
-.Fn ifmaof_ifpforaddr "struct sockaddr *addr" "struct ifnet *ifp"
+.Fn if_findmulti "struct ifnet *ifp" "struct sockaddr *sa"
 .Ss "Output queue macros"
 .Fn IF_DEQUEUE "struct ifqueue *ifq" "struct mbuf *m"
 .\"
@@ -107,9 +112,7 @@
 .Ft void
 .Fn \*(lp*if_qflush\*(rp "struct ifnet *ifp"
 .Ft int
-.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "int cmd" "caddr_t data"
-.Ft void
-.Fn \*(lp*if_watchdog\*(rp "struct ifnet *ifp"
+.Fn \*(lp*if_ioctl\*(rp "struct ifnet *ifp" "u_long cmd" "caddr_t data"
 .Ft void
 .Fn \*(lp*if_init\*(rp "void *if_softc"
 .Ft int
@@ -119,12 +122,12 @@
 .Ss "struct ifaddr member function"
 .Ft void
 .Fo \*(lp*ifa_rtrequest\*(rp
-.Fa "int cmd" "struct rtentry *rt" "struct sockaddr *dst"
+.Fa "int cmd" "struct rtentry *rt" "struct rt_addrinfo *info"
 .Fc
 .\"
 .Ss "Global Variables"
 .Vt extern struct ifnethead ifnet ;
-.Vt extern struct ifaddr **ifnet_addrs ;
+.\" extern struct ifindex_entry *ifindex_table ;
 .Vt extern int if_index ;
 .Vt extern int ifqmaxlen ;
 .Sh DATA STRUCTURES
@@ -189,12 +192,18 @@ Each interface also has a
 .Li TAILQ
 of interface addresses, described by
 .Vt ifaddr
-structures; the head of the queue is always an
+structures.
+An
 .Dv AF_LINK
 address
 (see
 .Xr link_addr 3 )
-describing the link layer implemented by the interface (if any).
+describing the link layer implemented by the interface (if any)
+is accessed by the
+.Fn ifaddr_byindex
+function or
+.Va if_addr
+structure.
 (Some trivial interfaces do not provide any link layer addresses;
 this structure, while still present, serves only to identify the
 interface name and index.)
@@ -256,6 +265,11 @@ if a unit number is not associated with the device.
 (Initialized by driver
 (usually via
 .Fn if_initname ) . )
+.It Va if_refcount
+.Pq Vt u_int
+The reference count.
+(Initialized by
+.Fn if_alloc . )
 .It Va if_addrhead
 .Pq Vt "struct ifaddrhead"
 The head of the
@@ -340,6 +354,20 @@ The output queue.
 .\"(Initialized by driver.)
 .El
 .Pp
+References to
+.Vt ifnet
+structures are gained by calling the
+.Fn if_ref
+function and released by calling the
+.Fn if_rele
+function.
+They are used to allow kernel code walking global interface lists
+to release the
+.Vt ifnet
+lock yet keep the
+.Vt ifnet
+structure stable.
+.Pp
 There are in addition a number of function pointers which the driver
 must initialize to complete its interface with the generic interface
 layer:
@@ -364,7 +392,7 @@ This function will return
 .Dv ENOBUFS
 if the devices software and hardware queues are both full.
 This function must be installed after
-.Fn if_attach 
+.Fn if_attach
 to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
@@ -372,8 +400,8 @@ pair to ifq.
 The suggested internal software queueing mechanism is buf_ring.
 .It Fn if_qflush
 Free mbufs in internally managed queues when the interface is marked down.
-This function must be installed after 
-.Fn if_attach 
+This function must be installed after
+.Fn if_attach
 to override the default implementation.
 This function is exposed in order to allow drivers to manage their own queues
 and to reduce the latency caused by a frequently gratuitous enqueue / dequeue
@@ -593,14 +621,14 @@ This Ethernet interface supports TCP Segmentation offloading.
 .It Dv IFCAP_TSO6
 This Ethernet interface supports TCP6 Segmentation offloading.
 .It Dv IFCAP_TSO
-A shorthand for 
+A shorthand for
 .Pq Dv IFCAP_TSO4 | IFCAP_TSO6 .
 .It Dv IFCAP_TOE4
 This Ethernet interface supports TCP offloading.
 .It Dv IFCAP_TOE6
 This Ethernet interface supports TCP6 offloading.
 .It Dv ICAP_TOE
-A Shorthand for 
+A shorthand for
 .Pq Dv IFCAP_TOE4 | IFCAP_TOE6 .
 .It Dv IFCAP_WOL_UCAST
 This Ethernet interface supports waking up on any Unicast packet.
@@ -978,35 +1006,29 @@ external routing protocol.
 .Pp
 References to
 .Vt ifaddr
-structures are gained manually, by incrementing the
-.Va ifa_refcnt
-member.
-References are released by calling either the
-.Fn ifafree
-function or the
-.Fn IFAFREE
-macro.
+structures are gained by calling the
+.Fn ifa_ref
+function and released by calling the
+.Fn ifa_free
+function.
 .Pp
 .Fn ifa_rtrequest
 is a pointer to a function which receives callouts from the routing
 code
 .Pq Fn rtrequest
-to perform link-layer-specific actions upon requests to add, resolve,
+to perform link-layer-specific actions upon requests to add,
 or delete routes.
 The
 .Fa cmd
 argument indicates the request in question:
-.Dv RTM_ADD , RTM_RESOLVE ,
+.Dv RTM_ADD ,
 or
 .Dv RTM_DELETE .
 The
 .Fa rt
 argument is the route in question; the
-.Fa dst
-argument is the specific destination being manipulated
-for
-.Dv RTM_RESOLVE ,
-or a null pointer otherwise.
+.Fa info
+argument contains the specific destination being manipulated.
 .Sh FUNCTIONS
 The functions provided by the generic interface code can be divided
 into two groups: those which manipulate interfaces, and those which
@@ -1066,8 +1088,11 @@ addresses on that interface, and create a link-layer
 .Vt ifaddr
 structure to be the first element in that list.
 (A pointer to
-this address structure is saved in the global array
-.Va ifnet_addrs . )
+this address structure is saved in the
+.Vt ifnet
+structure and shall be accessed by the
+.Fn ifaddr_byindex
+function.)
 The
 .Fa ifp
 must have been allocated by
@@ -1132,6 +1157,17 @@ Return an
 .Vt ifnet
 pointer for the interface named
 .Fa name .
+.It Fn ifunit_ref
+Return a reference-counted (via
+.Fn ifa_ref )
+.Vt ifnet
+pointer for the interface named
+.Fa name .
+This is the preferred function over
+.Fn ifunit .
+The caller is responsible for releasing the reference with
+.Fn if_rele
+when it is finished with the ifnet.
 .It Fn ifioctl
 Process the ioctl request
 .Fa cmd ,
@@ -1294,6 +1330,9 @@ subject to its configured netmask, or a point-to-point interface
 address whose remote address is
 .Fa addr
 if one is found.
+If
+.Fa ignore_ptp
+is true, skip point-to-point interface addresses.
 .Pp
 .Fn ifaof_ifpforaddr
 returns the most specific address configured on interface
@@ -1307,6 +1346,10 @@ precisely
 .Fa addr
 will be returned.
 .Pp
+.Fn ifaddr_byindex
+returns the link-level address of the interface with the given index
+.Fa idx .
+.Pp
 All of these functions return a null pointer if no such address can be
 found.
 .Ss "Interface Multicast Address Functions"
@@ -1314,7 +1357,7 @@ The
 .Fn if_addmulti ,
 .Fn if_delmulti ,
 and
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 functions provide support for requesting and relinquishing multicast
 group memberships, and for querying an interface's membership list,
 respectively.
@@ -1371,11 +1414,11 @@ Both functions return zero on success, or a
 standard error number on failure.
 .Pp
 The
-.Fn ifmaof_ifpforaddr
+.Fn if_findmulti
 function examines the membership list of interface
 .Fa ifp
 for an address matching
-.Fa addr ,
+.Fa sa ,
 and returns a pointer to that
 .Vt "struct ifmultiaddr"
 if one is found, else it returns a null pointer.
