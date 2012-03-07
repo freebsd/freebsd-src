@@ -1438,7 +1438,6 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 	uint32_t p = key;
 	int off;
 	struct ether_header *eh;
-	struct ether_vlan_header vlanbuf;
 	const struct ether_vlan_header *vlan;
 #ifdef INET
 	const struct ip *ip;
@@ -1456,6 +1455,7 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 #ifdef INET6
 		struct ip6_hdr ip6;
 #endif
+		struct ether_vlan_header vlan;
 		uint32_t port;
 	} buf;
 
@@ -1475,7 +1475,7 @@ lagg_hashmbuf(struct lagg_softc *sc, struct mbuf *m, uint32_t key)
 		p = hash32_buf(&m->m_pkthdr.ether_vtag,
 		    sizeof(m->m_pkthdr.ether_vtag), p);
 	} else if (etype == ETHERTYPE_VLAN) {
-		vlan = lagg_gethdr(m, off,  sizeof(*vlan), &vlanbuf);
+		vlan = lagg_gethdr(m, off,  sizeof(*vlan), &buf);
 		if (vlan == NULL)
 			goto out;
 
