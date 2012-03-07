@@ -1,4 +1,4 @@
-/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.50 2007/09/28 20:25:15 christos Exp $ */
+/* $Header: /p/tcsh/cvsroot/tcsh/sh.err.c,v 3.55 2011/02/25 23:58:34 christos Exp $ */
 /*
  * sh.err.c: Error printing routines. 
  */
@@ -34,7 +34,7 @@
 #include "sh.h"
 #include <assert.h>
 
-RCSID("$tcsh: sh.err.c,v 3.50 2007/09/28 20:25:15 christos Exp $")
+RCSID("$tcsh: sh.err.c,v 3.55 2011/02/25 23:58:34 christos Exp $")
 
 /*
  * C Shell
@@ -51,6 +51,7 @@ char   *seterr = NULL;	/* Holds last error if there was one */
 #define ERR_NAME	0x10000000
 #define ERR_SILENT	0x20000000
 #define ERR_OLD		0x40000000
+#define ERR_INTERRUPT	0x80000000
 
 #define ERR_SYNTAX	0
 #define ERR_NOTALLOWED	1
@@ -187,7 +188,8 @@ char   *seterr = NULL;	/* Holds last error if there was one */
 #define ERR_BADJOB	132
 #define ERR_INVALID	133
 #define ERR_BADCOLORVAR	134
-#define NO_ERRORS	135
+#define ERR_EOF		135
+#define NO_ERRORS	136
 
 static const char *elst[NO_ERRORS] INIT_ZERO_STRUCT;
 
@@ -364,6 +366,7 @@ errinit(void)
     elst[ERR_READONLY] = CSAVS(1, 135, "$%S is read-only");
     elst[ERR_BADJOB] = CSAVS(1, 136, "No such job (badjob)");
     elst[ERR_BADCOLORVAR] = CSAVS(1, 137, "Unknown colorls variable `%c%c'");
+    elst[ERR_EOF] = CSAVS(1, 138, "Unexpected end of file");
 }
 
 /* Cleanup data. */
@@ -448,6 +451,12 @@ cleanup_until(void *last_var)
     abort();
 }
 
+int
+cleanup_reset(void)
+{
+    return cleanup_sp > cleanup_mark;
+}
+
 void
 cleanup_until_mark(void)
 {
@@ -527,6 +536,7 @@ reset(void)
 {
     cleanup_until_mark();
     _reset();
+    abort();
 }
 
 /*
@@ -549,83 +559,9 @@ seterror(unsigned int id, ...)
     }
 }
 
-/*
- * Print the error with the given id.
- *
- * Special ids:
- *	ERR_SILENT: Print nothing.
- *	ERR_OLD: Print the previously set error if one was there.
- *	         otherwise return.
- *	ERR_NAME: If this bit is set, print the name of the function
- *		  in bname
- *
- * This routine always resets or exits.  The flag haderr
- * is set so the routine who catches the unwind can propogate
- * it if they want.
- *
- * Note that any open files at the point of error will eventually
- * be closed in the routine process in sh.c which is the only
- * place error unwinds are ever caught.
- */
 void
-/*VARARGS*/
-stderror(unsigned int id, ...)
+fixerror(void)
 {
-    va_list va;
-    int flags;
-    int vareturn;
-
-    va_start(va, id);
-
-    /*
-     * Reset don't free flag for buggy os's
-     */
-    dont_free = 0;
-
-    flags = (int) id & ERR_FLAGS;
-    id &= ~ERR_FLAGS;
-
-    /* Pyramid's OS/x has a subtle bug in <varargs.h> which prevents calling
-     * va_end more than once in the same function. -- sterling@netcom.com
-     */
-    if (!((flags & ERR_OLD) && seterr == NULL)) {
-	vareturn = 0;	/* Don't return immediately after va_end */
-	if (id >= sizeof(elst) / sizeof(elst[0]))
-	    id = ERR_INVALID;
-
-
-	if (!(flags & ERR_SILENT)) {
-	    /*
-	     * Must flush before we print as we wish output before the error
-	     * to go * on (some form of) standard output, while output after
-	     * goes on (some * form of) diagnostic output. If didfds then
-	     * output will go to 1/2 * else to FSHOUT/FSHDIAG. See flush in
-	     * sh.print.c.
-	     */
-	    flush();/*FIXRESET*/
-	    haderr = 1;			/* Now to diagnostic output */
-	    if (flags & ERR_NAME)
-		xprintf("%s: ", bname);/*FIXRESET*/
-	    if ((flags & ERR_OLD)) {
-		/* Old error. */
-		xprintf("%s.\n", seterr);/*FIXRESET*/
-	    } else {
-		xvprintf(elst[id], va);/*FIXRESET*/
-		xprintf(".\n");/*FIXRESET*/
-	    }
-	}
-    } else {
-	vareturn = 1;	/* Return immediately after va_end */
-    }
-    va_end(va);
-    if (vareturn)
-	return;
-
-    if (seterr) {
-	xfree(seterr);
-	seterr = NULL;
-    }
-
     didfds = 0;			/* Forget about 0,1,2 */
     /*
      * Go away if -e or we are a child shell
@@ -644,5 +580,77 @@ stderror(unsigned int id, ...)
     if (tpgrp > 0)
 	(void) tcsetpgrp(FSHTTY, tpgrp);
 #endif
-    reset();			/* Unwind */
+}
+
+/*
+ * Print the error with the given id.
+ *
+ * Special ids:
+ *	ERR_SILENT: Print nothing.
+ *	ERR_OLD: Print the previously set error
+ *	ERR_NAME: If this bit is set, print the name of the function
+ *		  in bname
+ *
+ * This routine always resets or exits.  The flag haderr
+ * is set so the routine who catches the unwind can propogate
+ * it if they want.
+ *
+ * Note that any open files at the point of error will eventually
+ * be closed in the routine process in sh.c which is the only
+ * place error unwinds are ever caught.
+ */
+void
+/*VARARGS*/
+stderror(unsigned int id, ...)
+{
+    va_list va;
+    int flags;
+
+    va_start(va, id);
+
+    /*
+     * Reset don't free flag for buggy os's
+     */
+    dont_free = 0;
+
+    flags = (int) id & ERR_FLAGS;
+    id &= ~ERR_FLAGS;
+
+    /* Pyramid's OS/x has a subtle bug in <varargs.h> which prevents calling
+     * va_end more than once in the same function. -- sterling@netcom.com
+     */
+    assert(!((flags & ERR_OLD) && seterr == NULL));
+
+    if (id >= sizeof(elst) / sizeof(elst[0]))
+	id = ERR_INVALID;
+
+    if (!(flags & ERR_SILENT)) {
+	/*
+	 * Must flush before we print as we wish output before the error
+	 * to go on (some form of) standard output, while output after
+	 * goes on (some form of) diagnostic output. If didfds then output
+	 * will go to 1/2 else to FSHOUT/FSHDIAG. See flush in sh.print.c.
+	 */
+	flush();/*FIXRESET*/
+	haderr = 1;		/* Now to diagnostic output */
+	if (flags & ERR_NAME)
+	    xprintf("%s: ", bname);/*FIXRESET*/
+	if ((flags & ERR_OLD)) {
+	    /* Old error. */
+	    xprintf("%s.\n", seterr);/*FIXRESET*/
+	} else {
+	    xvprintf(elst[id], va);/*FIXRESET*/
+	    xprintf(".\n");/*FIXRESET*/
+	}
+    }
+    va_end(va);
+
+    if (seterr) {
+	xfree(seterr);
+	seterr = NULL;
+    }
+
+    fixerror();
+
+    reset();		/* Unwind */
 }

@@ -83,7 +83,7 @@ typedef unsigned short Char;
 static	int	 glob1 		(Char *, glob_t *, int);
 static	int	 glob2		(struct strbuf *, const Char *, glob_t *, int);
 static	int	 glob3		(struct strbuf *, const Char *, const Char *,
-				 glob_t *, int);
+				 const Char *, glob_t *, int);
 static	void	 globextend	(const char *, glob_t *);
 static	int	 match		(const char *, const Char *, const Char *,
 				 int);
@@ -329,7 +329,7 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	    
 	    len = mblen((const char *)(patnext - 1), MB_LEN_MAX);
 	    if (len == -1)
-		(void)mblen(NULL, 0);
+		TCSH_IGNORE(mblen(NULL, 0));
 	    else if (len > 1) {
 		*bufnext++ = (Char) c;
 		while (--len != 0)
@@ -389,10 +389,13 @@ glob(const char *pattern, int flags, int (*errfunc) (const char *, int),
 	    break;
 	case STAR:
 	    pglob->gl_flags |= GLOB_MAGCHAR;
-	    /* collapse adjacent stars to one, to avoid
-	     * exponential behavior
+	    /* collapse adjacent stars to one [or three if globstar],
+	     * to avoid exponential behavior
 	     */
-	    if (bufnext == patbuf || bufnext[-1] != M_ALL)
+	    if (bufnext == patbuf || bufnext[-1] != M_ALL ||
+	       ((flags & GLOB_STAR) != 0 && 
+		 (bufnext - 1 == patbuf || bufnext[-2] != M_ALL ||
+		 bufnext - 2 == patbuf || bufnext[-3] != M_ALL)))
 		*bufnext++ = M_ALL;
 	    break;
 	default:
@@ -524,25 +527,79 @@ glob2(struct strbuf *pathbuf, const Char *pattern, glob_t *pglob, int no_match)
 	}
 	else {			/* need expansion, recurse */
 	    pathbuf->len = orig_len;
-	    return (glob3(pathbuf, pattern, p, pglob, no_match));
+	    return (glob3(pathbuf, pattern, p, pattern, pglob, no_match));
 	}
     }
     /* NOTREACHED */
 }
 
+static size_t
+One_Char_mbtowc(__Char *pwc, const Char *s, size_t n)
+{
+#ifdef WIDE_STRINGS
+    char buf[MB_LEN_MAX], *p;
 
+    if (n > MB_LEN_MAX)
+	n = MB_LEN_MAX;
+    p = buf;
+    while (p < buf + n && (*p++ = LCHAR(*s++)) != 0)
+	;
+    return one_mbtowc(pwc, buf, n);
+#else
+    *pwc = *s & CHAR;
+    return 1;
+#endif
+}
+ 
 static int
 glob3(struct strbuf *pathbuf, const Char *pattern, const Char *restpattern,
-      glob_t *pglob, int no_match)
+      const Char *pglobstar, glob_t *pglob, int no_match)
 {
     DIR    *dirp;
     struct dirent *dp;
+    struct stat sbuf;
     int     err;
     Char m_not = (pglob->gl_flags & GLOB_ALTNOT) ? M_ALTNOT : M_NOT;
     size_t orig_len;
+    int globstar = 0;
+    int chase_symlinks = 0;
+    const Char *termstar = NULL;
 
     strbuf_terminate(pathbuf);
-    errno = 0;
+    orig_len = pathbuf->len;
+    errno = err = 0;
+
+    while (pglobstar < restpattern) {
+	__Char wc;
+	size_t width = One_Char_mbtowc(&wc, pglobstar, MB_LEN_MAX);
+	if ((pglobstar[0] & M_MASK) == M_ALL &&
+	    (pglobstar[width] & M_MASK) == M_ALL) {
+	    globstar = 1;
+	    chase_symlinks = (pglobstar[2 * width] & M_MASK) == M_ALL;
+	    termstar = pglobstar + (2 + chase_symlinks) * width;
+	    break;
+	}
+        pglobstar += width;
+    } 
+
+    if (globstar) {
+	err = pglobstar==pattern && termstar==restpattern ?
+		*restpattern == EOS ?
+		glob2(pathbuf, restpattern - 1, pglob, no_match) :
+		glob2(pathbuf, restpattern + 1, pglob, no_match) :
+		glob3(pathbuf, pattern, restpattern, termstar, pglob, no_match);
+	if (err)
+	    return err;
+	pathbuf->len = orig_len;
+	strbuf_terminate(pathbuf);
+    }
+
+    if (*pathbuf->s && (Lstat(pathbuf->s, &sbuf) || !S_ISDIR(sbuf.st_mode)
+#ifdef S_IFLINK
+	     && ((globstar && !chase_symlinks) || !S_ISLNK(sbuf.st_mode))
+#endif
+	))
+	return 0;
 
     if (!(dirp = Opendir(pathbuf->s))) {
 	/* todo: don't call for ENOENT or ENOTDIR? */
@@ -553,23 +610,37 @@ glob3(struct strbuf *pathbuf, const Char *pattern, const Char *restpattern,
 	    return (0);
     }
 
-    err = 0;
-
-    orig_len = pathbuf->len;
     /* search directory for matching names */
     while ((dp = readdir(dirp)) != NULL) {
 	/* initial DOT must be matched literally */
 	if (dp->d_name[0] == DOT && *pattern != DOT)
-	    continue;
+	    if (!(pglob->gl_flags & GLOB_DOT) || !dp->d_name[1] ||
+		(dp->d_name[1] == DOT && !dp->d_name[2]))
+		continue; /*unless globdot and not . or .. */
 	pathbuf->len = orig_len;
 	strbuf_append(pathbuf, dp->d_name);
 	strbuf_terminate(pathbuf);
-	if (match(pathbuf->s + orig_len, pattern, restpattern, (int) m_not)
-	    == no_match)
-	    continue;
-	err = glob2(pathbuf, restpattern, pglob, no_match);
-	if (err)
-	    break;
+
+	if (globstar) {
+#ifdef S_IFLNK
+	    if (!chase_symlinks &&
+		(Lstat(pathbuf->s, &sbuf) || S_ISLNK(sbuf.st_mode)))
+		    continue;
+#endif
+	    if (match(pathbuf->s + orig_len, pattern, termstar,
+		(int)m_not) == no_match) 
+		    continue;
+	    strbuf_append1(pathbuf, SEP);
+	    strbuf_terminate(pathbuf);
+	    if ((err = glob2(pathbuf, pglobstar, pglob, no_match)) != 0)
+		break;
+	} else {
+	    if (match(pathbuf->s + orig_len, pattern, restpattern,
+		(int) m_not) == no_match)
+		continue;
+	    if ((err = glob2(pathbuf, restpattern, pglob, no_match)) != 0)
+		break;
+	}
     }
     /* todo: check error from readdir? */
     closedir(dirp);
@@ -613,24 +684,6 @@ globextend(const char *path, glob_t *pglob)
     pathv[pglob->gl_offs + pglob->gl_pathc] = NULL;
 }
 
-static size_t
-One_Char_mbtowc(__Char *pwc, const Char *s, size_t n)
-{
-#ifdef WIDE_STRINGS
-    char buf[MB_LEN_MAX], *p;
-
-    if (n > MB_LEN_MAX)
-	n = MB_LEN_MAX;
-    p = buf;
-    while (p < buf + n && (*p++ = LCHAR(*s++)) != 0)
-	;
-    return one_mbtowc(pwc, buf, n);
-#else
-    *pwc = *s & CHAR;
-    return 1;
-#endif
-}
-
 /*
  * pattern matching function for filenames.  Each occurrence of the *
  * pattern causes a recursion level.
@@ -650,17 +703,17 @@ match(const char *name, const Char *pat, const Char *patend, int m_not)
 	lwk = one_mbtowc(&wk, name, MB_LEN_MAX);
 	switch (c & M_MASK) {
 	case M_ALL:
+	    while (pat < patend && (*pat & M_MASK) == M_ALL)  /* eat consecutive '*' */
+		pat += One_Char_mbtowc(&wc, pat, MB_LEN_MAX);
 	    if (pat == patend)
-		return (1);
-	    for (;;) {
-		if (match(name, pat, patend, m_not))
-		    return (1);
+	        return (1);
+	    while (!match(name, pat, patend, m_not)) {
 		if (*name == EOS)
-		    break;
+		    return (0);
 		name += lwk;
 		lwk = one_mbtowc(&wk, name, MB_LEN_MAX);
 	    }
-	    return (0);
+	    return (1);
 	case M_ONE:
 	    if (*name == EOS)
 		return (0);
@@ -691,9 +744,9 @@ match(const char *name, const Char *pat, const Char *patend, int m_not)
 		return (0);
 	    break;
 	default:
-	    name += lwk;
-	    if (samecase(wk) != samecase(wc))
+	    if (*name == EOS || samecase(wk) != samecase(wc))
 		return (0);
+	    name += lwk;
 	    break;
 	}
     }
