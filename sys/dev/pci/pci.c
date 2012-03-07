@@ -70,19 +70,8 @@ __FBSDID("$FreeBSD$");
 #include "pcib_if.h"
 #include "pci_if.h"
 
-/*
- * XXX: Due to a limitation of the bus_dma_tag_create() API, we cannot
- * specify a 4GB boundary on 32-bit targets.  Usually this does not
- * matter as it is ok to use a boundary of 0 on these systems.
- * However, in the case of PAE, DMA addresses can cross a 4GB
- * boundary, so as a workaround use a 2GB boundary.
- */
 #if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
-#ifdef PAE
-#define	PCI_DMA_BOUNDARY	0x80000000
-#else
 #define	PCI_DMA_BOUNDARY	0x100000000
-#endif
 #endif
 
 #define	PCIR_IS_BIOS(cfg, reg)						\
