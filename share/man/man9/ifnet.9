@@ -103,7 +103,7 @@
 .Ft int
 .Fo \*(lp*if_output\*(rp
 .Fa "struct ifnet *ifp" "struct mbuf *m"
-.Fa "struct sockaddr *dst" "struct rtentry *rt"
+.Fa "struct sockaddr *dst" "struct route *ro"
 .Fc
 .Ft void
 .Fn \*(lp*if_start\*(rp "struct ifnet *ifp"
