@@ -1,94 +1,94 @@
-$ $tcsh: set2,v 1.2 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set2,v 1.3 2011/02/04 18:19:34 christos Exp $
 $ Signal names
 $set 2 
 1 Null-signaali
 2 Yhteyden katkaisu
 3 Keskeytys
 4 Lopetus
-5 Virheellinen konekäsky
+5 Virheellinen konekÃ¤sky
 6 Seuranta-ansa (BPT)
-7 Hätäkeskeytys
-8 Syöttö-/tulostusansa
-9 Järjestelmän alasajo odotettavissa
-10 Virheellinen päättyminen
-11 Jäljittelyansa (EMT)
+7 HÃ¤tÃ¤keskeytys
+8 SyÃ¶ttÃ¶-/tulostusansa
+9 JÃ¤rjestelmÃ¤n alasajo odotettavissa
+10 Virheellinen pÃ¤Ã¤ttyminen
+11 JÃ¤ljittelyansa (EMT)
 12 Liukulukupoikkeus
 13 Tapettu
-14 Käyttäjän signaal1 1
-15 Käyttäjän signaali 2
-16 Väärä muistilohko
-17 Väylävirhe
+14 KÃ¤yttÃ¤jÃ¤n signaal1 1
+15 KÃ¤yttÃ¤jÃ¤n signaali 2
+16 VÃ¤Ã¤rÃ¤ muistilohko
+17 VÃ¤ylÃ¤virhe
 18 Viittaus ohjelma-alueen ulkopuolelle
 19 Data sallittujen arvojen ulkopuolella
-20 Tuntematon järjestelmäkutsu
+20 Tuntematon jÃ¤rjestelmÃ¤kutsu
 21 Murtunut putki
-22 Herätyskello
-23 Päätetty
+22 HerÃ¤tyskello
+23 PÃ¤Ã¤tetty
 24 Poikasen tila muuttunut
 25 Poikanen kuollut
 26 Apollon laitekohtainen virhe
-27 Poikanen pysähtynyt tai poistunut
+27 Poikanen pysÃ¤htynyt tai poistunut
 28 Poikanen poistunut
-29 Tehonsyöttö pettänyt
+29 TehonsyÃ¶ttÃ¶ pettÃ¤nyt
 30 Resurssi menetetty
 31 Break (Ctrl-Break)
-32 Syöte/tulostus mahdollista
-33 Epäsynkroninen syöte/tulostus (select)
-34 Kiireellinen syöte-/tulostustapahtuma
-35 Herätys moniajossa
+32 SyÃ¶te/tulostus mahdollista
+33 EpÃ¤synkroninen syÃ¶te/tulostus (select)
+34 Kiireellinen syÃ¶te-/tulostustapahtuma
+35 HerÃ¤tys moniajossa
 36 Tappaminen moniajossa
-37 Fortranin epäsynkroninen syöte/tulostus valmis
+37 Fortranin epÃ¤synkroninen syÃ¶te/tulostus valmis
 38 Toipuminen
 39 Korjauskelvoton muistivirhe
-40 Keskusyksikköajan raja ylitetty
-41 Järjestelmän sulkeminen odotettavissa
-42 Pienoistehtäväryhmän ei-herätystä lippu asetettu
-43 Säievirhe - (yksityiskohtaisempia tietoja käskyllä cord -T)
+40 KeskusyksikkÃ¶ajan raja ylitetty
+41 JÃ¤rjestelmÃ¤n sulkeminen odotettavissa
+42 PienoistehtÃ¤vÃ¤ryhmÃ¤n ei-herÃ¤tystÃ¤ lippu asetettu
+43 SÃ¤ievirhe - (yksityiskohtaisempia tietoja kÃ¤skyllÃ¤ cord -T)
 44 rekisterin pariteettivirhe (CRAY Y-MP)
-45 Tiedotepyyntö
+45 TiedotepyyntÃ¶
 46 Keskeytetty (signaali)
-47 Pysäytetty (signaali)
+47 PysÃ¤ytetty (signaali)
 48 Keskeytetty
-49 Pysäytetty
+49 PysÃ¤ytetty
 50 Suoritus jatkuu
-51 Keskeytetty (päätesyöte)
-52 Pysäytetty (päätetulostus)
-53 Keskeytetty (päätetulostus)
-54 Pysäytetty (päätetulostus)
+51 Keskeytetty (pÃ¤Ã¤tesyÃ¶te)
+52 PysÃ¤ytetty (pÃ¤Ã¤tetulostus)
+53 Keskeytetty (pÃ¤Ã¤tetulostus)
+54 PysÃ¤ytetty (pÃ¤Ã¤tetulostus)
 55 Ikkunan tila muuttunut
 56 Ikkunan koko muuttunut
 57 Puhelinlinjan tila muuttunut
-58 Keskusyksikköajan raja ylitetty
+58 KeskusyksikkÃ¶ajan raja ylitetty
 59 Tiedostokoon raja ylitetty
-60 Käyttökelpoisen ajan ajastin laukesi
-61 Ohjelman ajankäytönseurannan ajastin laukesi
+60 KÃ¤yttÃ¶kelpoisen ajan ajastin laukesi
+61 Ohjelman ajankÃ¤ytÃ¶nseurannan ajastin laukesi
 62 DIL-signaali
 63 Tutkittava tapahtuma (poll)
 64 Prosessin kevytprosessit  Process's lwps are blocked
 65 Erityinen kevytprossisignaali (LWP)
 66 Erityinen CPR-signaali
 67 Erityinen CPR-signaali
-68 Ensimmäinen tosiaikasignaali
+68 EnsimmÃ¤inen tosiaikasignaali
 69 Toinen tosiaikasignaali
 70 Kolmas tosiaikasignaali
-71 Neljäs tosiaikasignaali
-72 Neljänneksi viimeinen tosiaikasignaali
+71 NeljÃ¤s tosiaikasignaali
+72 NeljÃ¤nneksi viimeinen tosiaikasignaali
 73 Kolmanneksi viimeinen tosiaikasignaali
 74 Toiseksi viimeinen tosiaikasignaali
 75 Viimeinen tosiaikasignaali
-76 Paikallisverkko (epäsynkroninen syöte/tulostus)
-77 Näennäispääte (syöte/tulostus valmiina)
-78 Syöte-/tulostustoimenpidettä edellytetään
+76 Paikallisverkko (epÃ¤synkroninen syÃ¶te/tulostus)
+77 NÃ¤ennÃ¤ispÃ¤Ã¤te (syÃ¶te/tulostus valmiina)
+78 SyÃ¶te-/tulostustoimenpidettÃ¤ edellytetÃ¤Ã¤n
 79 HFT seurantatila luovutettu
 80 HFT seurantatila vapautettava
-81 HFT äänenhallinta valmis
+81 HFT Ã¤Ã¤nenhallinta valmis
 82 Uutta dataa HFT-rengaspuskurissa
 83 Muuta prosessi
-84 Turvallinen huomionäppäin
+84 Turvallinen huomionÃ¤ppÃ¤in
 85 Vuorottelutarve
 86 SS$_DEBUG -signaali
 87 Etusija muuttunut (priority)
 88 Todellinen lukkiintumistila
-89 Uusi merkki syötteessä
+89 Uusi merkki syÃ¶tteessÃ¤
 90 Pinon raja ylitetty
-91 Käyttämätön signaali
+91 KÃ¤yttÃ¤mÃ¤tÃ¶n signaali
