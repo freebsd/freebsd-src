@@ -365,9 +365,7 @@ null_lookup(struct vop_lookup_args *ap)
 			vrele(lvp);
 		} else {
 			error = null_nodeget(dvp->v_mount, lvp, &vp);
-			if (error)
-				vput(lvp);
-			else
+			if (error == 0)
 				*ap->a_vpp = vp;
 		}
 	}
@@ -699,12 +697,18 @@ null_inactive(struct vop_inactive_args *ap)
 static int
 null_reclaim(struct vop_reclaim_args *ap)
 {
-	struct vnode *vp = ap->a_vp;
-	struct null_node *xp = VTONULL(vp);
-	struct vnode *lowervp = xp->null_lowervp;
+	struct vnode *vp;
+	struct null_node *xp;
+	struct vnode *lowervp;
 
-	if (lowervp)
-		null_hashrem(xp);
+	vp = ap->a_vp;
+	xp = VTONULL(vp);
+	lowervp = xp->null_lowervp;
+
+	KASSERT(lowervp != NULL && vp->v_vnlock != &vp->v_lock,
+	    ("Reclaiming inclomplete null vnode %p", vp));
+
+	null_hashrem(xp);
 	/*
 	 * Use the interlock to protect the clearing of v_data to
 	 * prevent faults in null_lock().
@@ -715,10 +719,7 @@ null_reclaim(struct vop_reclaim_args *ap)
 	vp->v_object = NULL;
 	vp->v_vnlock = &vp->v_lock;
 	VI_UNLOCK(vp);
-	if (lowervp)
-		vput(lowervp);
-	else
-		panic("null_reclaim: reclaiming a node with no lowervp");
+	vput(lowervp);
 	free(xp, M_NULLFSNODE);
 
 	return (0);
@@ -810,9 +811,7 @@ null_vptocnp(struct vop_vptocnp_args *ap)
 #endif
 		vhold(*dvp);
 		vput(*dvp);
-	} else
-		vput(ldvp);
-
+	}
 	vn_lock(vp, locked | LK_RETRY);
 	return (error);
 }
