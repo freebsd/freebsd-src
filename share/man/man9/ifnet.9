@@ -28,7 +28,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd March 2, 2012
+.Dd March 7, 2012
 .Dt IFNET 9
 .Os
 .Sh NAME
@@ -122,7 +122,7 @@
 .Ss "struct ifaddr member function"
 .Ft void
 .Fo \*(lp*ifa_rtrequest\*(rp
-.Fa "int cmd" "struct rtentry *rt" "struct sockaddr *dst"
+.Fa "int cmd" "struct rtentry *rt" "struct rt_addrinfo *info"
 .Fc
 .\"
 .Ss "Global Variables"
@@ -1016,22 +1016,19 @@ function.
 is a pointer to a function which receives callouts from the routing
 code
 .Pq Fn rtrequest
-to perform link-layer-specific actions upon requests to add, resolve,
+to perform link-layer-specific actions upon requests to add,
 or delete routes.
 The
 .Fa cmd
 argument indicates the request in question:
-.Dv RTM_ADD , RTM_RESOLVE ,
+.Dv RTM_ADD ,
 or
 .Dv RTM_DELETE .
 The
 .Fa rt
 argument is the route in question; the
-.Fa dst
-argument is the specific destination being manipulated
-for
-.Dv RTM_RESOLVE ,
-or a null pointer otherwise.
+.Fa info
+argument contains the specific destination being manipulated.
 .Sh FUNCTIONS
 The functions provided by the generic interface code can be divided
 into two groups: those which manipulate interfaces, and those which
