@@ -5087,12 +5087,12 @@ static int
 nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
     struct nfsclds **dspp, NFSPROC_T *p)
 {
-	struct sockaddr_in *sad, *ssd;
-	struct sockaddr_in6 *sad6, *ssd6;
+	struct sockaddr_in *msad, *sad, *ssd;
+	struct sockaddr_in6 *msad6, *sad6, *ssd6;
 	struct nfsclclient *clp;
 	struct nfssockreq *nrp;
 	struct nfsclds *dsp, *tdsp;
-	int error;
+	int error, same_as_mds;
 	enum nfsclds_state retv;
 	uint32_t sequenceid;
 
@@ -5103,6 +5103,7 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 	NFSUNLOCKCLSTATE();
 	if (clp == NULL)
 		return (EPERM);
+	same_as_mds = 0;
 	nrp = malloc(sizeof(*nrp), M_NFSSOCKREQ, M_WAITOK | M_ZERO);
 	if (ssp->ss_family == AF_INET) {
 		ssd = (struct sockaddr_in *)ssp;
@@ -5112,6 +5113,12 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		sad->sin_port = ssd->sin_port;
 		sad->sin_addr.s_addr = ssd->sin_addr.s_addr;
 		nrp->nr_nam = (struct sockaddr *)sad;
+		/* Now check to see if this address is the same as the MDS. */
+		msad = (struct sockaddr_in *)nmp->nm_sockreq.nr_nam;
+		if (msad != NULL && msad->sin_family == AF_INET &&
+		    sad->sin_addr.s_addr == msad->sin_addr.s_addr &&
+		    sad->sin_port == msad->sin_port)
+			same_as_mds = 1;
 	} else if (ssp->ss_family == AF_INET6) {
 		ssd6 = (struct sockaddr_in6 *)ssp;
 		sad6 = malloc(sizeof(*sad6), M_SONAME, M_WAITOK | M_ZERO);
@@ -5121,10 +5128,28 @@ nfsrpc_fillsa(struct nfsmount *nmp, struct sockaddr_storage *ssp,
 		NFSBCOPY(&ssd6->sin6_addr, &sad6->sin6_addr,
 		    sizeof(struct in6_addr));
 		nrp->nr_nam = (struct sockaddr *)sad6;
+		/* Now check to see if this address is the same as the MDS. */
+		msad6 = (struct sockaddr_in6 *)nmp->nm_sockreq.nr_nam;
+		if (msad6 != NULL && msad6->sin6_family == AF_INET6 &&
+		    IN6_ARE_ADDR_EQUAL(&sad6->sin6_addr, &msad6->sin6_addr) &&
+		    sad6->sin6_port == msad6->sin6_port)
+			same_as_mds = 1;
 	} else {
 		free(nrp, M_NFSSOCKREQ);
 		return (EPERM);
 	}
+
+	/*
+	 * If same address as the MDS and the MDS is a DS, use the MDS session.
+	 */
+	if (same_as_mds != 0 &&
+	    (TAILQ_FIRST(&nmp->nm_sess)->nfsclds_flags & NFSCLDS_DS) != 0) {
+		free(nrp->nr_nam, M_SONAME);
+		free(nrp, M_NFSSOCKREQ);
+		*dspp = TAILQ_FIRST(&nmp->nm_sess);
+		return (0);
+	}
+
 	nrp->nr_sotype = SOCK_STREAM;
 	mtx_init(&nrp->nr_mtx, "nfssock", NULL, MTX_DEF);
 	nrp->nr_prog = NFS_PROG;
