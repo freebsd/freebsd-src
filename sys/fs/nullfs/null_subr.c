@@ -90,7 +90,7 @@ nullfs_uninit(vfsp)
 {
 
 	mtx_destroy(&null_hashmtx);
-	free(null_node_hashtbl, M_NULLFSHASH);
+	hashdestroy(null_node_hashtbl, M_NULLFSHASH, null_node_hash);
 	return (0);
 }
 
@@ -169,15 +169,26 @@ null_hashins(mp, xp)
 }
 
 static void
-null_insmntque_dtr(struct vnode *vp, void *xp)
+null_destroy_proto(struct vnode *vp, void *xp)
 {
+
+	lockmgr(&vp->v_lock, LK_EXCLUSIVE, NULL);
+	VI_LOCK(vp);
 	vp->v_data = NULL;
 	vp->v_vnlock = &vp->v_lock;
-	free(xp, M_NULLFSNODE);
 	vp->v_op = &dead_vnodeops;
-	(void) vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+	VI_UNLOCK(vp);
 	vgone(vp);
 	vput(vp);
+	free(xp, M_NULLFSNODE);
+}
+
+static void
+null_insmntque_dtr(struct vnode *vp, void *xp)
+{
+
+	vput(((struct null_node *)xp)->null_lowervp);
+	null_destroy_proto(vp, xp);
 }
 
 /*
@@ -197,6 +208,13 @@ null_nodeget(mp, lowervp, vpp)
 	struct null_node *xp;
 	struct vnode *vp;
 	int error;
+
+	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.
+	 */
+	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
+	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
 
 	/* Lookup the hash firstly */
 	*vpp = null_hashget(mp, lowervp);
@@ -220,6 +238,7 @@ null_nodeget(mp, lowervp, vpp)
 
 	error = getnewvnode("null", mp, &null_vnodeops, &vp);
 	if (error) {
+		vput(lowervp);
 		free(xp, M_NULLFSNODE);
 		return (error);
 	}
@@ -241,9 +260,7 @@ null_nodeget(mp, lowervp, vpp)
 	*vpp = null_hashins(mp, xp);
 	if (*vpp != NULL) {
 		vrele(lowervp);
-		vp->v_vnlock = &vp->v_lock;
-		xp->null_lowervp = NULL;
-		vrele(vp);
+		null_destroy_proto(vp, xp);
 		return (0);
 	}
 	*vpp = vp;
