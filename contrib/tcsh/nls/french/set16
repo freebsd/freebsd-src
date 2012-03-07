@@ -1,8 +1,8 @@
-$ $tcsh: set16,v 1.3 2006/03/02 18:46:46 christos Exp $
+$ $tcsh: set16,v 1.4 2011/02/04 18:19:35 christos Exp $
 $ sh.lex.c
 $set 16 
-1 Réinitialise le groupe de processus des terminaux de %d à %d\n
-2 \nUtilisez "logout" pour vous déconnecter.\n
+1 RÃ©initialise le groupe de processus des terminaux de %d Ã  %d\n
+2 \nUtilisez "logout" pour vous dÃ©connecter.\n
 3 \nUtilisez "exit" pour quitter %s.\n
 4 seek to eval %x %x\n
 5 seek to alias %x %x\n
