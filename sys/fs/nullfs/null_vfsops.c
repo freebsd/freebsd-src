@@ -180,7 +180,8 @@ nullfs_mount(struct mount *mp)
 		MNT_IUNLOCK(mp);
 	}
 	MNT_ILOCK(mp);
-	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag & MNTK_MPSAFE;
+	mp->mnt_kern_flag |= lowerrootvp->v_mount->mnt_kern_flag &
+	    (MNTK_MPSAFE | MNTK_SHARED_WRITES);
 	MNT_IUNLOCK(mp);
 	mp->mnt_data =  xmp;
 	vfs_getnewfsid(mp);
