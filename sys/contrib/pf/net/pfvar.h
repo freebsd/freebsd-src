@@ -1982,15 +1982,12 @@ int			 pf_map_addr(u_int8_t, struct pf_rule *,
 struct pf_rule		*pf_get_translation(struct pf_pdesc *, struct mbuf *,
 			    int, int, struct pfi_kif *, struct pf_src_node **,
 			    struct pf_state_key **, struct pf_state_key **,
-			    struct pf_state_key **, struct pf_state_key **,
 			    struct pf_addr *, struct pf_addr *,
 			    u_int16_t, u_int16_t);
 
-int			 pf_state_key_setup(struct pf_pdesc *, struct pf_rule *,
-			    struct pf_state_key **, struct pf_state_key **,
-			    struct pf_state_key **, struct pf_state_key **,
-			    struct pf_addr *, struct pf_addr *,
-			    u_int16_t, u_int16_t);
+struct pf_state_key	*pf_state_key_setup(struct pf_pdesc *, struct pf_addr *,
+			    struct pf_addr *, u_int16_t, u_int16_t);
+struct pf_state_key	*pf_state_key_clone(struct pf_state_key *);
 #endif /* _KERNEL */
 
 #endif /* _NET_PFVAR_H_ */
