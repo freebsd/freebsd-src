@@ -209,7 +209,11 @@ null_nodeget(mp, lowervp, vpp)
 	struct vnode *vp;
 	int error;
 
-	ASSERT_VOP_LOCKED(lowervp, "lowervp");
+	/*
+	 * The insmntque1() call below requires the exclusive lock on
+	 * the nullfs vnode.
+	 */
+	ASSERT_VOP_ELOCKED(lowervp, "lowervp");
 	KASSERT(lowervp->v_usecount >= 1, ("Unreferenced vnode %p\n", lowervp));
 
 	/* Lookup the hash firstly */
