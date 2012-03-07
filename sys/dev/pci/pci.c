@@ -77,10 +77,12 @@ __FBSDID("$FreeBSD$");
  * However, in the case of PAE, DMA addresses can cross a 4GB
  * boundary, so as a workaround use a 2GB boundary.
  */
+#if (BUS_SPACE_MAXADDR > 0xFFFFFFFF)
 #ifdef PAE
-#define	PCI_DMA_BOUNDARY	(1u << 31)
+#define	PCI_DMA_BOUNDARY	0x80000000
 #else
-#define	PCI_DMA_BOUNDARY	((bus_size_t)((uint64_t)1 << 32))
+#define	PCI_DMA_BOUNDARY	0x100000000
+#endif
 #endif
 
 #define	PCIR_IS_BIOS(cfg, reg)						\
@@ -3232,7 +3234,10 @@ int
 pci_attach_common(device_t dev)
 {
 	struct pci_softc *sc;
-	int busno, domain, error;
+	int busno, domain;
+#ifdef PCI_DMA_BOUNDARY
+	int error, tag_valid;
+#endif
 
 	sc = device_get_softc(dev);
 	domain = pcib_get_domain(dev);
@@ -3240,6 +3245,8 @@ pci_attach_common(device_t dev)
 	if (bootverbose)
 		device_printf(dev, "domain=%d, physical bus=%d\n",
 		    domain, busno);
+#ifdef PCI_DMA_BOUNDARY
+	tag_valid = 0;
 	if (device_get_devclass(device_get_parent(device_get_parent(dev))) !=
 	    devclass_find("pci")) {
 		error = bus_dma_tag_create(bus_get_dma_tag(dev), 1,
@@ -3250,8 +3257,11 @@ pci_attach_common(device_t dev)
 			device_printf(dev, "Failed to create DMA tag: %d\n",
 			    error);
 		else
-			sc->sc_dma_tag_valid = 1;
+			tag_valid = 1;
 	}
+	if (!tag_valid)
+#endif
+		sc->sc_dma_tag = bus_get_dma_tag(dev);
 	return (0);
 }
 
@@ -4363,9 +4373,7 @@ pci_get_dma_tag(device_t bus, device_t dev)
 {
 	struct pci_softc *sc = device_get_softc(bus);
 
-	if (sc->sc_dma_tag_valid)
-		return (sc->sc_dma_tag);
-	return (bus_generic_get_dma_tag(bus, dev));
+	return (sc->sc_dma_tag);
 }
 
 uint32_t
