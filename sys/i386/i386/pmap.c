@@ -327,6 +327,7 @@ static boolean_t pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va,
 static void pmap_update_pde(pmap_t pmap, vm_offset_t va, pd_entry_t *pde,
     pd_entry_t newpde);
 static void pmap_update_pde_invalidate(vm_offset_t va, pd_entry_t newpde);
+static vm_page_t pmap_vmpage_splay(vm_pindex_t pindex, vm_page_t root);
 
 static vm_page_t pmap_allocpte(pmap_t pmap, vm_offset_t va, int flags);
 
@@ -1554,7 +1555,8 @@ pmap_free_zero_pages(vm_page_t free)
 
 	while (free != NULL) {
 		m = free;
-		free = m->right;
+		free = (void *)m->object;
+		m->object = NULL;
 		/* Preserve the page's PG_ZERO setting. */
 		vm_page_free_toq(m);
 	}
@@ -1573,7 +1575,7 @@ pmap_add_delayed_free_list(vm_page_t m, vm_page_t *free, boolean_t set_PG_ZERO)
 		m->flags |= PG_ZERO;
 	else
 		m->flags &= ~PG_ZERO;
-	m->right = *free;
+	m->object = (void *)*free;
 	*free = m;
 }
 
@@ -1591,20 +1593,20 @@ pmap_insert_pt_page(pmap_t pmap, vm_page_t mpte)
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	root = pmap->pm_root;
 	if (root == NULL) {
-		mpte->left = NULL;
-		mpte->right = NULL;
+		mpte->md.pv_left = NULL;
+		mpte->md.pv_right = NULL;
 	} else {
-		root = vm_page_splay(mpte->pindex, root);
+		root = pmap_vmpage_splay(mpte->pindex, root);
 		if (mpte->pindex < root->pindex) {
-			mpte->left = root->left;
-			mpte->right = root;
-			root->left = NULL;
+			mpte->md.pv_left = root->md.pv_left;
+			mpte->md.pv_right = root;
+			root->md.pv_left = NULL;
 		} else if (mpte->pindex == root->pindex)
 			panic("pmap_insert_pt_page: pindex already inserted");
 		else {
-			mpte->right = root->right;
-			mpte->left = root;
-			root->right = NULL;
+			mpte->md.pv_right = root->md.pv_right;
+			mpte->md.pv_left = root;
+			root->md.pv_right = NULL;
 		}
 	}
 	pmap->pm_root = mpte;
@@ -1623,7 +1625,7 @@ pmap_lookup_pt_page(pmap_t pmap, vm_offset_t va)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if ((mpte = pmap->pm_root) != NULL && mpte->pindex != pindex) {
-		mpte = vm_page_splay(pindex, mpte);
+		mpte = pmap_vmpage_splay(pindex, mpte);
 		if ((pmap->pm_root = mpte)->pindex != pindex)
 			mpte = NULL;
 	}
@@ -1642,14 +1644,20 @@ pmap_remove_pt_page(pmap_t pmap, vm_page_t mpte)
 
 	PMAP_LOCK_ASSERT(pmap, MA_OWNED);
 	if (mpte != pmap->pm_root)
-		vm_page_splay(mpte->pindex, pmap->pm_root);
-	if (mpte->left == NULL)
-		root = mpte->right;
+		pmap_vmpage_splay(mpte->pindex, pmap->pm_root);
+	if (mpte->md.pv_left == NULL)
+		root = mpte->md.pv_right;
 	else {
-		root = vm_page_splay(mpte->pindex, mpte->left);
-		root->right = mpte->right;
+		root = pmap_vmpage_splay(mpte->pindex, mpte->md.pv_left);
+		root->md.pv_right = mpte->md.pv_right;
 	}
 	pmap->pm_root = root;
+
+	/*
+	 * Reinitialize the pv_list which could be dirty now because of the
+	 * splay tree work.
+	 */
+	TAILQ_INIT(&mpte->md.pv_list);
 }
 
 /*
@@ -1699,6 +1707,61 @@ _pmap_unwire_pte_hold(pmap_t pmap, vm_page_t m, vm_page_t *free)
 	pmap_add_delayed_free_list(m, free, TRUE);
 
 	return (1);
+}
+
+/*
+ *     Implements Sleator and Tarjan's top-down splay algorithm.  Returns
+ *     the vm_page containing the given pindex.  If, however, that
+ *     pindex is not found in the pmap, returns a vm_page that is
+ *     adjacent to the pindex, coming before or after it.
+ */
+static vm_page_t
+pmap_vmpage_splay(vm_pindex_t pindex, vm_page_t root)
+{
+	struct vm_page dummy;
+	vm_page_t lefttreemax, righttreemin, y;
+
+	if (root == NULL)
+		return (root);
+	lefttreemax = righttreemin = &dummy;
+	for (;; root = y) {
+		if (pindex < root->pindex) {
+			if ((y = root->md.pv_left) == NULL)
+				break;
+			if (pindex < y->pindex) {
+				/* Rotate right. */
+				root->md.pv_left = y->md.pv_right;
+				y->md.pv_right = root;
+				root = y;
+				if ((y = root->md.pv_left) == NULL)
+					break;
+			}
+			/* Link into the new root's right tree. */
+			righttreemin->md.pv_left = root;
+			righttreemin = root;
+		} else if (pindex > root->pindex) {
+			if ((y = root->md.pv_right) == NULL)
+				break;
+			if (pindex > y->pindex) {
+				/* Rotate left. */
+				root->md.pv_right = y->md.pv_left;
+				y->md.pv_left = root;
+				root = y;
+				if ((y = root->md.pv_right) == NULL)
+					break;
+			}
+			/* Link into the new root's left tree. */
+			lefttreemax->md.pv_right = root;
+			lefttreemax = root;
+		} else
+			break;
+	}
+	/* Assemble the new root. */
+	lefttreemax->md.pv_right = root->md.pv_left;
+	righttreemin->md.pv_left = root->md.pv_right;
+	root->md.pv_left = dummy.md.pv_right;
+	root->md.pv_right = dummy.md.pv_left;
+	return (root);
 }
 
 /*
@@ -2217,7 +2280,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 	TAILQ_FOREACH(m, &vpq->pl, pageq) {
 		if ((m->flags & PG_MARKER) != 0 || m->hold_count || m->busy)
 			continue;
-		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_list, next_pv) {
+		TAILQ_FOREACH_SAFE(pv, &m->md.pv_list, pv_next, next_pv) {
 			va = pv->pv_va;
 			pmap = PV_PMAP(pv);
 			/* Avoid deadlock and lock recursion. */
@@ -2241,7 +2304,7 @@ pmap_collect(pmap_t locked_pmap, struct vpgqueues *vpq)
 			pmap_unuse_pt(pmap, va, &free);
 			pmap_invalidate_page(pmap, va);
 			pmap_free_zero_pages(free);
-			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 			free_pv_entry(pmap, pv);
 			if (pmap != locked_pmap)
 				PMAP_UNLOCK(pmap);
@@ -2390,9 +2453,9 @@ pmap_pvh_remove(struct md_page *pvh, pmap_t pmap, vm_offset_t va)
 	pv_entry_t pv;
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
-	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		if (pmap == PV_PMAP(pv) && va == pv->pv_va) {
-			TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
+			TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 			break;
 		}
 	}
@@ -2420,7 +2483,7 @@ pmap_pv_demote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	pv = pmap_pvh_remove(pvh, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pv_demote_pde: pv not found"));
 	m = PHYS_TO_VM_PAGE(pa);
-	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 	/* Instantiate the remaining NPTEPG - 1 pv entries. */
 	va_last = va + NBPDR - PAGE_SIZE;
 	do {
@@ -2456,7 +2519,7 @@ pmap_pv_promote_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	pv = pmap_pvh_remove(&m->md, pmap, va);
 	KASSERT(pv != NULL, ("pmap_pv_promote_pde: pv not found"));
 	pvh = pa_to_pvh(pa);
-	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_list);
+	TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 	/* Free the remaining NPTEPG - 1 pv entries. */
 	va_last = va + NBPDR - PAGE_SIZE;
 	do {
@@ -2503,7 +2566,7 @@ pmap_insert_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	pv = get_pv_entry(pmap, FALSE);
 	pv->pv_va = va;
-	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+	TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 }
 
 /*
@@ -2519,7 +2582,7 @@ pmap_try_insert_pv_entry(pmap_t pmap, vm_offset_t va, vm_page_t m)
 	if (pv_entry_count < pv_entry_high_water && 
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2539,7 +2602,7 @@ pmap_pv_insert_pde(pmap_t pmap, vm_offset_t va, vm_paddr_t pa)
 	    (pv = get_pv_entry(pmap, TRUE)) != NULL) {
 		pv->pv_va = va;
 		pvh = pa_to_pvh(pa);
-		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&pvh->pv_list, pv, pv_next);
 		return (TRUE);
 	} else
 		return (FALSE);
@@ -2987,7 +3050,7 @@ pmap_remove_all(vm_page_t m)
 			vm_page_dirty(m);
 		pmap_unuse_pt(pmap, pv->pv_va, &free);
 		pmap_invalidate_page(pmap, pv->pv_va);
-		TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+		TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 		free_pv_entry(pmap, pv);
 		PMAP_UNLOCK(pmap);
 	}
@@ -3419,7 +3482,7 @@ pmap_enter(pmap_t pmap, vm_offset_t va, vm_prot_t access, vm_page_t m,
 		if (pv == NULL)
 			pv = get_pv_entry(pmap, FALSE);
 		pv->pv_va = va;
-		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+		TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 		pa |= PG_MANAGED;
 	} else if (pv != NULL)
 		free_pv_entry(pmap, pv);
@@ -4125,7 +4188,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	    ("pmap_page_exists_quick: page %p is not managed", m));
 	rv = FALSE;
 	vm_page_lock_queues();
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		if (PV_PMAP(pv) == pmap) {
 			rv = TRUE;
 			break;
@@ -4136,7 +4199,7 @@ pmap_page_exists_quick(pmap_t pmap, vm_page_t m)
 	}
 	if (!rv && loops < 16) {
 		pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-		TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+		TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 			if (PV_PMAP(pv) == pmap) {
 				rv = TRUE;
 				break;
@@ -4185,7 +4248,7 @@ pmap_pvh_wired_mappings(struct md_page *pvh, int count)
 
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	sched_pin();
-	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -4308,7 +4371,7 @@ pmap_remove_pages(pmap_t pmap)
 				if ((tpte & PG_PS) != 0) {
 					pmap->pm_stats.resident_count -= NBPDR / PAGE_SIZE;
 					pvh = pa_to_pvh(tpte & PG_PS_FRAME);
-					TAILQ_REMOVE(&pvh->pv_list, pv, pv_list);
+					TAILQ_REMOVE(&pvh->pv_list, pv, pv_next);
 					if (TAILQ_EMPTY(&pvh->pv_list)) {
 						for (mt = m; mt < &m[NBPDR / PAGE_SIZE]; mt++)
 							if (TAILQ_EMPTY(&mt->md.pv_list))
@@ -4326,7 +4389,7 @@ pmap_remove_pages(pmap_t pmap)
 					}
 				} else {
 					pmap->pm_stats.resident_count--;
-					TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
+					TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
 					if (TAILQ_EMPTY(&m->md.pv_list)) {
 						pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 						if (TAILQ_EMPTY(&pvh->pv_list))
@@ -4401,7 +4464,7 @@ pmap_is_modified_pvh(struct md_page *pvh)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	rv = FALSE;
 	sched_pin();
-	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -4473,7 +4536,7 @@ pmap_is_referenced_pvh(struct md_page *pvh)
 	mtx_assert(&vm_page_queue_mtx, MA_OWNED);
 	rv = FALSE;
 	sched_pin();
-	TAILQ_FOREACH(pv, &pvh->pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &pvh->pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pte = pmap_pte_quick(pmap, pv->pv_va);
@@ -4514,7 +4577,7 @@ pmap_remove_write(vm_page_t m)
 	vm_page_lock_queues();
 	sched_pin();
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, next_pv) {
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
@@ -4523,7 +4586,7 @@ pmap_remove_write(vm_page_t m)
 			(void)pmap_demote_pde(pmap, pde, va);
 		PMAP_UNLOCK(pmap);
 	}
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
@@ -4580,7 +4643,7 @@ pmap_ts_referenced(vm_page_t m)
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
 	vm_page_lock_queues();
 	sched_pin();
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, pvn) {
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, pvn) {
 		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
@@ -4613,9 +4676,9 @@ pmap_ts_referenced(vm_page_t m)
 	if ((pv = TAILQ_FIRST(&m->md.pv_list)) != NULL) {
 		pvf = pv;
 		do {
-			pvn = TAILQ_NEXT(pv, pv_list);
-			TAILQ_REMOVE(&m->md.pv_list, pv, pv_list);
-			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_list);
+			pvn = TAILQ_NEXT(pv, pv_next);
+			TAILQ_REMOVE(&m->md.pv_list, pv, pv_next);
+			TAILQ_INSERT_TAIL(&m->md.pv_list, pv, pv_next);
 			pmap = PV_PMAP(pv);
 			PMAP_LOCK(pmap);
 			pde = pmap_pde(pmap, pv->pv_va);
@@ -4667,7 +4730,7 @@ pmap_clear_modify(vm_page_t m)
 	vm_page_lock_queues();
 	sched_pin();
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, next_pv) {
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
@@ -4703,7 +4766,7 @@ pmap_clear_modify(vm_page_t m)
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
@@ -4745,7 +4808,7 @@ pmap_clear_reference(vm_page_t m)
 	vm_page_lock_queues();
 	sched_pin();
 	pvh = pa_to_pvh(VM_PAGE_TO_PHYS(m));
-	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_list, next_pv) {
+	TAILQ_FOREACH_SAFE(pv, &pvh->pv_list, pv_next, next_pv) {
 		va = pv->pv_va;
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
@@ -4767,7 +4830,7 @@ pmap_clear_reference(vm_page_t m)
 		}
 		PMAP_UNLOCK(pmap);
 	}
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		PMAP_LOCK(pmap);
 		pde = pmap_pde(pmap, pv->pv_va);
@@ -5281,7 +5344,7 @@ pmap_pvdump(vm_paddr_t pa)
 
 	printf("pa %x", pa);
 	m = PHYS_TO_VM_PAGE(pa);
-	TAILQ_FOREACH(pv, &m->md.pv_list, pv_list) {
+	TAILQ_FOREACH(pv, &m->md.pv_list, pv_next) {
 		pmap = PV_PMAP(pv);
 		printf(" -> pmap %p, va %x", (void *)pmap, pv->pv_va);
 		pads(pmap);
