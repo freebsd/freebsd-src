@@ -682,8 +682,7 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	int len = sizeof(*clr) * count;
 	int i, offp;
 
-	struct pf_state *si, *st, *nexts;
-	struct pf_state_key *sk, *nextsk;
+	struct pf_state *st, *nexts;
 	u_int32_t creatorid;
 
 	mp = m_pulldown(m, offset, len, &offp);
@@ -697,39 +696,22 @@ pfsync_in_clr(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 	for (i = 0; i < count; i++) {
 		creatorid = clr[i].creatorid;
 
-		if (clr[i].ifname[0] == '\0') {
-			PF_KEYS_LOCK();
-			PF_IDS_LOCK();
-			for (st = RB_MIN(pf_state_tree_id, &V_tree_id);
-			    st; st = nexts) {
-				nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, st);
-				if (st->creatorid == creatorid) {
-					SET(st->state_flags, PFSTATE_NOSYNC);
-					pf_unlink_state(st, 1);
-				}
-			}
-			PF_IDS_UNLOCK();
-			PF_KEYS_UNLOCK();
-		} else {
-			if (pfi_kif_get(clr[i].ifname) == NULL)
-				continue;
+		if (clr[i].ifname[0] != '\0' &&
+		    pfi_kif_get(clr[i].ifname) == NULL)
+			continue;
 
-			PF_KEYS_LOCK();
-			/* XXX correct? */
-			for (sk = RB_MIN(pf_state_tree, &V_pf_statetbl);
-			    sk; sk = nextsk) {
-				nextsk = RB_NEXT(pf_state_tree,
-				    &V_pf_statetbl, sk);
-				TAILQ_FOREACH(si, &sk->states, key_list) {
-					if (si->creatorid == creatorid) {
-						SET(si->state_flags,
-						    PFSTATE_NOSYNC);
-						pf_unlink_state(si, 0);
-					}
-				}
+		PF_KEYS_LOCK();
+		PF_IDS_LOCK();
+		for (st = RB_MIN(pf_state_tree_id, &V_tree_id);
+		    st; st = nexts) {
+			nexts = RB_NEXT(pf_state_tree_id, &V_tree_id, st);
+			if (st->creatorid == creatorid) {
+				SET(st->state_flags, PFSTATE_NOSYNC);
+				pf_unlink_state(st, 1);
 			}
-			PF_KEYS_UNLOCK();
 		}
+		PF_IDS_UNLOCK();
+		PF_KEYS_UNLOCK();
 	}
 	PF_UNLOCK();
 
