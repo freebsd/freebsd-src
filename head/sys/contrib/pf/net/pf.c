@@ -695,7 +695,7 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 				    si->dst.state >= TCPS_FIN_WAIT_2) {
 					si->src.state = si->dst.state =
 					    TCPS_CLOSED;
-					/* Unlink later or sk can go away. */
+					/* Unlink later or cur can go away. */
 					olds = si;
 				} else {
 					if (V_pf_status.debug >= PF_DEBUG_MISC) {
@@ -722,9 +722,12 @@ pf_state_key_attach(struct pf_state_key *sk, struct pf_state *s, int idx)
 				}
 			}
 		/*
-		 * Collided key is later freed in pf_state_insert().
-		 * XXXGL: should be redesigned.
+		 * Collided key may be the same we are trying to attach,
+		 * this happens for non-NAT states, they are attached
+		 * twice: via PF_SK_WIRE and PF_SK_STACK tailqs.
 		 */
+		if (cur != sk)
+			uma_zfree(V_pf_state_key_z, sk);
 		s->key[idx] = cur;
 	} else
 		s->key[idx] = sk;
@@ -758,14 +761,13 @@ static void
 pf_state_key_detach(struct pf_state *s, int idx)
 {
 	struct pf_state_key *sk = s->key[idx];
-	int idx2 = (idx == PF_SK_STACK ? PF_SK_WIRE : PF_SK_STACK);
 
 	PF_KEYS_ASSERT();
 
 	TAILQ_REMOVE(&sk->states[idx], s, key_list[idx]);
 	s->key[idx] = NULL;
 
-	if (TAILQ_EMPTY(&sk->states[idx]) && TAILQ_EMPTY(&sk->states[idx2])) {
+	if (TAILQ_EMPTY(&sk->states[0]) && TAILQ_EMPTY(&sk->states[1])) {
 		RB_REMOVE(pf_state_tree, &V_pf_statetbl, sk);
 		if (sk->reverse)
 			sk->reverse->reverse = NULL;
@@ -811,26 +813,31 @@ int
 pf_state_insert(struct pfi_kif *kif, struct pf_state_key *skw,
     struct pf_state_key *sks, struct pf_state *s)
 {
+	int samekeys;
+
+	if (sks == skw)
+		samekeys = 1;
+	else
+		samekeys = 0;
 
 	s->kif = kif;
 
 	PF_KEYS_LOCK();
 	if (pf_state_key_attach(skw, s, PF_SK_WIRE)) {
 		PF_KEYS_UNLOCK();
+		if (!samekeys)
+			uma_zfree(V_pf_state_key_z, sks);
 		return (-1);
 	}
-
-	if (s->key[PF_SK_WIRE] != skw && skw != sks)
-		uma_zfree(V_pf_state_key_z, skw);
+	/* In case if pf_state_key_attach() used another key. */
+	if (samekeys)
+		sks = s->key[PF_SK_WIRE];
 
 	if (pf_state_key_attach(sks, s, PF_SK_STACK)) {
 		pf_state_key_detach(s, PF_SK_WIRE);
 		PF_KEYS_UNLOCK();
 		return (-1);
 	}
-
-	if (s->key[PF_SK_STACK] != sks && s->key[PF_SK_WIRE] != sks)
-		uma_zfree(V_pf_state_key_z, sks);
 
 	if (s->id == 0 && s->creatorid == 0) {
 		s->id = htobe64(V_pf_status.stateid++);
