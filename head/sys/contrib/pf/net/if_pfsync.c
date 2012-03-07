@@ -441,7 +441,6 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	struct pf_state_key *skw = NULL, *sks = NULL;
 	struct pf_rule *r = NULL;
 	struct pfi_kif	*kif;
-	int pool_flags;
 	int error;
 
 	PF_LOCK_ASSERT();
@@ -476,15 +475,13 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	if ((r->max_states && r->states_cur >= r->max_states))
 		goto cleanup;
 
-	if (flags & PFSYNC_SI_IOCTL)
-		pool_flags = M_WAITOK | M_ZERO;
-	else
-		pool_flags = M_NOWAIT | M_ZERO;
-
-	if ((st = uma_zalloc(V_pf_state_z, pool_flags)) == NULL)
+	/*
+	 * XXXGL: consider M_WAITOK in ioctl path after.
+	 */
+	if ((st = uma_zalloc(V_pf_state_z, M_NOWAIT | M_ZERO)) == NULL)
 		goto cleanup;
 
-	if ((skw = uma_zalloc(V_pf_state_key_z, pool_flags)) == NULL)
+	if ((skw = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
 		goto cleanup;
 
 	if (PF_ANEQ(&sp->key[PF_SK_WIRE].addr[0],
@@ -493,7 +490,7 @@ pfsync_state_import(struct pfsync_state *sp, u_int8_t flags)
 	    &sp->key[PF_SK_STACK].addr[1], sp->af) ||
 	    sp->key[PF_SK_WIRE].port[0] != sp->key[PF_SK_STACK].port[0] ||
 	    sp->key[PF_SK_WIRE].port[1] != sp->key[PF_SK_STACK].port[1]) {
-		if ((sks = uma_zalloc(V_pf_state_key_z, pool_flags)) == NULL)
+		if ((sks = uma_zalloc(V_pf_state_key_z, M_NOWAIT)) == NULL)
 			goto cleanup;
 	} else
 		sks = skw;
@@ -1130,7 +1127,9 @@ pfsync_in_del_c(struct pfsync_pkt *pkt, struct mbuf *m, int offset, int count)
 		}
 
 		SET(st->state_flags, PFSTATE_NOSYNC);
+		PF_KEYS_LOCK();
 		pf_unlink_state(st, 0);
+		PF_KEYS_UNLOCK();
 	}
 	PF_UNLOCK();
 
