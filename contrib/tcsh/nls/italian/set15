@@ -1,7 +1,7 @@
-$ $tcsh: set15,v 1.2 2006/03/02 18:46:47 christos Exp $
+$ $tcsh: set15,v 1.3 2011/02/04 18:19:39 christos Exp $
 $ sh.func.c
 $set 15 
-1 %s: %s: non si può %s il limite%s\n
+1 %s: %s: non si puÃ² %s il limite%s\n
 2 eliminare
 3 modificare
 4 \040fisico

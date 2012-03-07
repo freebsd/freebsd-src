@@ -1,15 +1,23 @@
-$ $tcsh: set19,v 1.2 2006/03/02 18:46:48 christos Exp $
+$ $tcsh: set19,v 1.5 2011/02/25 23:58:08 christos Exp $
 $ tc.alloc.c
 $set 19 
 1 nbytes=%d: Se ha agotado la memoria\n
 2 Se ha llamado a free(%lx) antes de asignar nada.
-3 free(%lx) por encima del l韒ite superior de la memoria.
-4 free(%lx) por debajo del l韒ite inferior de la memoria.
-5 free(%lx) bloque err髇eo.
-6 free(%lx) chequeo de rango err髇eo.
-7 free(%lx) 韓dice de bloque err髇eo.
-8 %s asignaci髇 actual de memoria:\nfree:\t
-9 \nusada:\t
+3 free(%lx) por encima del l铆mite superior de la memoria.
+4 free(%lx) por debajo del l铆mite inferior de la memoria.
+5 free(%lx) bloque err贸neo.
+6 free(%lx) chequeo de rango err贸neo.
+7 free(%lx) 铆ndice de bloque err贸neo.
+8 %s asignaci贸n actual de memoria:\nfree:\t
+9 usada
 10 \n\tTotal en uso: %d, total libre: %d\n
-11 \tSe ha asignado memoria de  0x%lx a 0x%lx.  L韒ite superior real en 0x%lx\n
+11 \tSe ha asignado memoria de  0x%lx a 0x%lx.  L铆mite superior real en 0x%lx\n
 12 Se ha asignado memoria de 0x%lx a 0x%lx (%ld).\n
+13 %s current memory allocation:\n
+14 Total space allocated from system: %d\n
+15 Number of non-inuse chunks: %d\n
+16 Number of mmapped regions: %d\n
+17 Total space in mmapped regions: %d\n
+18 Total allocated space: %d\n
+19 Total non-inuse space: %d\n
+20 Top-most, releasable space: %d\n
