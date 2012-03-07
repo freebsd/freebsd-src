@@ -891,7 +891,7 @@ struct pfsync_state {
 	sa_family_t	 af;
 	u_int8_t	 proto;
 	u_int8_t	 direction;
-	u_int8_t	 __spare;
+	u_int8_t	 __spare[2];
 	u_int8_t	 log;
 	u_int8_t	 state_flags;
 	u_int8_t	 timeout;
