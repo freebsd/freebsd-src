@@ -38,7 +38,7 @@
 .\"     From: @(#)tcp.4	8.1 (Berkeley) 6/5/93
 .\" $FreeBSD$
 .\"
-.Dd February 5, 2012
+.Dd March 7, 2012
 .Dt TCP 4
 .Os
 .Sh NAME
@@ -255,8 +255,9 @@ or the internal send buffer is filled.
 .It Dv TCP_MD5SIG
 This option enables the use of MD5 digests (also known as TCP-MD5)
 on writes to the specified socket.
-In the current release, only outgoing traffic is digested;
-digests on incoming traffic are not verified.
+Outgoing traffic is digested;
+digests on incoming traffic are verified
+if the net.inet.tcp.signature_verify_input sysctl is nonzero.
 The current default behavior for the system is to respond to a system
 advertising this option with TCP-MD5; this may change.
 .Pp
