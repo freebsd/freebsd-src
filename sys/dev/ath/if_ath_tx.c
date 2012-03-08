@@ -623,19 +623,22 @@ void
 ath_txq_restart_dma(struct ath_softc *sc, struct ath_txq *txq)
 {
 	struct ath_hal *ah = sc->sc_ah;
-	struct ath_buf *bf;
+	struct ath_buf *bf, *bf_last;
 
 	ATH_TXQ_LOCK_ASSERT(txq);
 
 	/* This is always going to be cleared, empty or not */
 	txq->axq_flags &= ~ATH_TXQ_PUTPENDING;
 
+	/* XXX make this ATH_TXQ_FIRST */
 	bf = TAILQ_FIRST(&txq->axq_q);
+	bf_last = ATH_TXQ_LAST(txq, axq_q_s);
+
 	if (bf == NULL)
 		return;
 
 	ath_hal_puttxbuf(ah, txq->axq_qnum, bf->bf_daddr);
-	txq->axq_link = &bf->bf_lastds->ds_link;
+	txq->axq_link = &bf_last->bf_lastds->ds_link;
 	ath_hal_txstart(ah, txq->axq_qnum);
 }
 
