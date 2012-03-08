@@ -4591,16 +4591,22 @@ sys_fhopen(td, uap)
 	if (error)
 		goto bad;
 
-	if (fmode & FWRITE)
+	if (fmode & FWRITE) {
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
+	}
 
 	/*
 	 * end of vn_open code
 	 */
 
 	if ((error = falloc(td, &nfp, &indx, fmode)) != 0) {
-		if (fmode & FWRITE)
+		if (fmode & FWRITE) {
 			vp->v_writecount--;
+			CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+			    __func__, vp, vp->v_writecount);
+		}
 		goto bad;
 	}
 	/* An extra reference on `nfp' has been held for us by falloc(). */
