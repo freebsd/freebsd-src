@@ -104,6 +104,8 @@ static MALLOC_DEFINE(M_FILEDESC_TO_LEADER, "filedesc_to_leader",
 		     "file desc to leader structures");
 static MALLOC_DEFINE(M_SIGIO, "sigio", "sigio structures");
 
+MALLOC_DECLARE(M_FADVISE);
+
 static uma_zone_t file_zone;
 
 
@@ -2577,6 +2579,7 @@ _fdrop(struct file *fp, struct thread *td)
 		error = fo_close(fp, td);
 	atomic_subtract_int(&openfiles, 1);
 	crfree(fp->f_cred);
+	free(fp->f_advice, M_FADVISE);
 	uma_zfree(file_zone, fp);
 
 	return (error);
