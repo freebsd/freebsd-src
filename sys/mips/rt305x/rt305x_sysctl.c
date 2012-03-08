@@ -84,7 +84,7 @@ rt305x_sysctl_dump_config(device_t dev)
 	if ( val & SYSCTL_SYSCFG_BIG_ENDIAN)
 		printf("\tBig Endian\n");
 	if ( val & SYSCTL_SYSCFG_CPU_CLK_SEL_384MHZ)
-		printf("\tClock is 384Mhz\n");
+		printf("\tClock is 384MHz\n");
 	printf("\tBoot from %u\n",
 	    ((val & SYSCTL_SYSCFG_BOOT_FROM_MASK) >> 
 		SYSCTL_SYSCFG_BOOT_FROM_SHIFT));
@@ -109,7 +109,7 @@ rt305x_sysctl_dump_config(device_t dev)
 		printf("\tI2S clock is enabled\n");
 	printf("\tI2S clock is %s\n", 
 	    (val & SYSCTL_CLKCFG1_I2S_CLK_SEL_EXT)?
-		"external":"internal 15.625Mhz");
+		"external":"internal 15.625MHz");
 	printf("\tI2S clock divider %u\n",
 	    ((val & SYSCTL_CLKCFG1_I2S_CLK_DIV_MASK) >> 
 		SYSCTL_CLKCFG1_I2S_CLK_DIV_SHIFT));
@@ -118,7 +118,7 @@ rt305x_sysctl_dump_config(device_t dev)
 
 	printf("\tPCM clock is %s\n", 
 	    (val & SYSCTL_CLKCFG1_PCM_CLK_SEL_EXT)?
-		"external":"internal 15.625Mhz");
+		"external":"internal 15.625MHz");
 	printf("\tPCM clock divider %u\n",
 	    ((val & SYSCTL_CLKCFG1_PCM_CLK_DIV_MASK) >> 
 		SYSCTL_CLKCFG1_PCM_CLK_DIV_SHIFT));

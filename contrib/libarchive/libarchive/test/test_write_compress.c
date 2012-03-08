@@ -51,9 +51,12 @@ DEFINE_TEST(test_write_compress)
 	memset(data, 0, datasize);
 
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ustar(a));
-	assertA(0 == archive_write_set_compression_compress(a));
-	assertA(0 == archive_write_open_memory(a, buff, buffsize, &used));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_compression_compress(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
 
 	for (i = 0; i < 100; i++) {
 		sprintf(path, "file%03d", i);
@@ -61,26 +64,22 @@ DEFINE_TEST(test_write_compress)
 		archive_entry_copy_pathname(ae, path);
 		archive_entry_set_size(ae, datasize);
 		archive_entry_set_filetype(ae, AE_IFREG);
-		assertA(0 == archive_write_header(a, ae));
-		assertA(datasize == (size_t)archive_write_data(a, data, datasize));
+		assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
+		assertEqualInt(datasize,
+		    archive_write_data(a, data, datasize));
 		archive_entry_free(ae);
 	}
 
-
-	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assert(0 == archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back.
 	 */
 	assert((a = archive_read_new()) != NULL);
-	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
-	assertA(0 == archive_read_open_memory(a, buff, used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 
 	for (i = 0; i < 100; i++) {
@@ -90,12 +89,8 @@ DEFINE_TEST(test_write_compress)
 		assertEqualString(path, archive_entry_pathname(ae));
 		assertEqualInt((int)datasize, archive_entry_size(ae));
 	}
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	free(data);
 	free(buff);

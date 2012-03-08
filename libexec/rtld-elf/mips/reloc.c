@@ -40,6 +40,7 @@ __FBSDID("$FreeBSD$");
 #include <inttypes.h>
 
 #include <machine/sysarch.h>
+#include <machine/tls.h>
 
 #include "debug.h"
 #include "rtld.h"
@@ -622,8 +623,7 @@ allocate_initial_tls(Obj_Entry *objs)
 	 */
 	tls_static_space = tls_last_offset + tls_last_size + RTLD_STATIC_TLS_EXTRA;
 
-	tls = ((char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8) 
-	    + TLS_TP_OFFSET + TLS_TCB_SIZE);
+	tls = (char *) allocate_tls(objs, NULL, TLS_TCB_SIZE, 8);
 
 	sysarch(MIPS_SET_TLS, tls);
 }
@@ -636,8 +636,7 @@ __tls_get_addr(tls_index* ti)
 
 	sysarch(MIPS_GET_TLS, &tls);
 
-	p = tls_get_addr_common((Elf_Addr**)((Elf_Addr)tls - TLS_TP_OFFSET 
-	    - TLS_TCB_SIZE), ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
+	p = tls_get_addr_common(tls, ti->ti_module, ti->ti_offset + TLS_DTP_OFFSET);
 
 	return (p);
 }

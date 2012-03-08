@@ -60,8 +60,10 @@ void _thr_ucond_init(struct ucond *cv) __hidden;
 int _thr_ucond_signal(struct ucond *cv) __hidden;
 int _thr_ucond_broadcast(struct ucond *cv) __hidden;
 
-int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags, struct timespec *tsp) __hidden;
-int __thr_rwlock_wrlock(struct urwlock *rwlock, struct timespec *tsp) __hidden;
+int __thr_rwlock_rdlock(struct urwlock *rwlock, int flags,
+	const struct timespec *tsp) __hidden;
+int __thr_rwlock_wrlock(struct urwlock *rwlock,
+	const struct timespec *tsp) __hidden;
 int __thr_rwlock_unlock(struct urwlock *rwlock) __hidden;
 
 /* Internal used only */

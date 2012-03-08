@@ -34,9 +34,6 @@ static char strtab[] = "abcdefghijklmn.o/\nggghhhjjjrrrttt.o/\niiijjjdddsssppp.o
 
 DEFINE_TEST(test_write_format_ar)
 {
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("ar write support");
-#else
 	struct archive_entry *ae;
 	struct archive* a;
 	size_t used;
@@ -45,14 +42,14 @@ DEFINE_TEST(test_write_format_ar)
 	 * First we try to create a SVR4/GNU format archive.
 	 */
 	assert((a = archive_write_new()) != NULL);
-	assertA(0 == archive_write_set_format_ar_svr4(a));
-	assertA(0 == archive_write_open_memory(a, buff, sizeof(buff), &used));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_set_format_ar_svr4(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_open_memory(a, buff, sizeof(buff), &used));
 
 	/* write the filename table */
 	assert((ae = archive_entry_new()) != NULL);
 	archive_entry_copy_pathname(ae, "//");
 	archive_entry_set_size(ae, strlen(strtab));
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertA(strlen(strtab) == (size_t)archive_write_data(a, strtab, strlen(strtab)));
 	archive_entry_free(ae);
 
@@ -64,7 +61,7 @@ DEFINE_TEST(test_write_format_ar)
 	assert((S_IFREG | 0755) == archive_entry_mode(ae));
 	archive_entry_copy_pathname(ae, "abcdefghijklmn.o");
 	archive_entry_set_size(ae, 8);
-	assertA(0 == archive_write_header(a, ae));
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertA(8 == archive_write_data(a, "87654321", 15));
 	archive_entry_free(ae);
 
@@ -100,19 +97,18 @@ DEFINE_TEST(test_write_format_ar)
 	assertA(0 != archive_write_header(a, ae));
 	archive_entry_free(ae);
 
-	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertEqualInt(0, archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(archive_position_compressed(a),
+	    archive_position_uncompressed(a));
+	assertEqualInt(used, archive_position_uncompressed(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back.
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -139,12 +135,8 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, 8, archive_read_data(a, buff2, 17));
 	assertEqualMem(buff2, "88877766", 8);
 
-	assertEqualIntA(a, 0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assertEqualInt(0, archive_read_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
 	 * Then, we try to create a BSD format archive.
@@ -172,17 +164,13 @@ DEFINE_TEST(test_write_format_ar)
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_header(a, ae));
 	assertEqualIntA(a, 6, archive_write_data(a, "555555", 7));
 	archive_entry_free(ae);
-	archive_write_close(a);
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertEqualInt(0, archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Now, Read the data back */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_memory(a, buff, used));
 
 	assertEqualIntA(a, 0, archive_read_next_header(a, &ae));
@@ -199,11 +187,6 @@ DEFINE_TEST(test_write_format_ar)
 
 	/* Test EOF */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
-	assertEqualIntA(a, 0, archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assertEqualInt(0, archive_read_finish(a));
-#endif
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

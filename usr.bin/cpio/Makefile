@@ -3,9 +3,10 @@
 .include <bsd.own.mk>
 
 LIBARCHIVEDIR=	${.CURDIR}/../../contrib/libarchive
+LIBARCHIVECONFDIR=	${.CURDIR}/../../lib/libarchive
 
 PROG=	bsdcpio
-BSDCPIO_VERSION_STRING=2.8.5
+BSDCPIO_VERSION_STRING=	3.0.3
 
 .PATH:	${LIBARCHIVEDIR}/cpio
 SRCS=	cpio.c cmdline.c
@@ -14,7 +15,7 @@ SRCS=	cpio.c cmdline.c
 SRCS+=	err.c line_reader.c matching.c pathmatch.c
 
 CFLAGS+= -DBSDCPIO_VERSION_STRING=\"${BSDCPIO_VERSION_STRING}\"
-CFLAGS+= -DPLATFORM_CONFIG_H=\"${.CURDIR}/config_freebsd.h\"
+CFLAGS+= -DPLATFORM_CONFIG_H=\"${LIBARCHIVECONFDIR}/config_freebsd.h\"
 CFLAGS+= -I${LIBARCHIVEDIR}/cpio -I${LIBARCHIVEDIR}/libarchive_fe
 
 .ifdef RELEASE_CRUNCH
@@ -30,6 +31,10 @@ LDADD+= -lcrypto
 .else
 DPADD+= ${LIBMD}
 LDADD+= -lmd
+.endif
+
+.if ${MK_ICONV} != "no"
+CFLAGS+=	-DHAVE_ICONV=1 -DHAVE_ICONV_H=1 -DICONV_CONST=const
 .endif
 
 SYMLINKS=bsdcpio ${BINDIR}/cpio

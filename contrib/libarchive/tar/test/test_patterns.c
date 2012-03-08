@@ -122,6 +122,7 @@ DEFINE_TEST(test_patterns)
 		char file_b1[] = "tmp/server/share/fileXX";
 		char file_b2[] = "tmp/server\\share\\fileXX";
 		char file_c[] = "tmp/../fileXX";
+		char file_d[] = "tmp/../../fileXX";
 		char *filex;
 		int xsize;
 
@@ -169,8 +170,13 @@ DEFINE_TEST(test_patterns)
 			 * \/?\UnC\../file54
 			 */
 			assertFileNotExists(filex);
-			filex = file_c;
-			xsize = sizeof(file_c);
+			if (r == 6 || r == 26 || r == 43) {
+				filex = file_d;
+				xsize = sizeof(file_d);
+			} else {
+				filex = file_c;
+				xsize = sizeof(file_c);
+			}
 			filex[xsize-3] = '0' + r / 10;
 			filex[xsize-2] = '0' + r % 10;
 			assertFileNotExists(filex);

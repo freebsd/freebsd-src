@@ -2254,7 +2254,7 @@ static void
 mlx_complete(struct mlx_softc *sc) 
 {
     struct mlx_command	*mc, *nc;
-    int			s, count;
+    int			s;
     
     debug_called(2);
 
@@ -2263,7 +2263,6 @@ mlx_complete(struct mlx_softc *sc)
 	return;
 
     s = splbio();
-    count = 0;
 
     /* scan the list of busy/done commands */
     mc = TAILQ_FIRST(&sc->mlx_work);

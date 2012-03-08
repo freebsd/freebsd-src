@@ -34,7 +34,7 @@
 .\" $Id: //depot/users/kenm/FreeBSD-test2/usr.sbin/ctladm/ctladm.8#3 $
 .\" $FreeBSD$
 .\"
-.Dd July 8, 2011
+.Dd March 6, 2012
 .Dt CTLADM 8
 .Os
 .Sh NAME
@@ -172,6 +172,11 @@
 .Aq Fl b Ar backend
 .Aq Fl l Ar lun_id
 .Op Fl o Ar name=value
+.Nm
+.Ic modify
+.Aq Fl b Ar backend
+.Aq Fl l Ar lun_id
+.Aq Fl s Ar size_bytes
 .Nm
 .Ic devlist
 .Op Fl b Ar backend
@@ -829,6 +834,27 @@ Multiple
 .Fl o
 arguments may be specified.
 Refer to the backend documentation for arguments that may be used.
+.El
+.It Ic modify
+Modify a LUN size.
+The backend, the LUN number, and the size must be specified.
+.Bl -tag -width 14n
+.It Fl b Ar backend
+Specify the backend that owns the LUN to be removed.
+Examples are
+.Dq ramdisk
+and
+.Dq block .
+.It Fl l Ar lun_id
+Specify the LUN number to remove.
+.It Fl s Ar size_bytes
+Specify the size of the LUN in bytes.
+For the
+.Dq block
+backend, an
+.Dq auto
+keyword may be passed instead; this will make CTL use the size of backing
+file or device.
 .El
 .It Ic devlist
 Get a list of all configured LUNs.

@@ -342,6 +342,12 @@ using libarchive.
 If it cannot locate and open the file on disk, libarchive
 will return an error for any attempt to read the entry
 body.
+.Ss RAR
+libarchive has limited support to read files in RAR format. Currently,
+libarchive can read single RAR files in RARv3 format which have been either
+created uncompressed, or compressed using any of the compression methods
+supported by the RARv3 format. libarchive can also extract RAR files which have
+been created as self-extracting RAR files.
 .Sh SEE ALSO
 .Xr ar 1 ,
 .Xr cpio 1 ,

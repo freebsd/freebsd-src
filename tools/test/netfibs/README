@@ -35,7 +35,7 @@ initiator.sh and reflector.sh
 	output.  A special value of 42 will enable sh(1) xtrace printing.
 
 	The output format is modeled after Test::Harness Perl as used in
-	tools/regression/ but not always complaint following the test case name.
+	tools/regression/ but not always compliant following the test case name.
 
 	NOTE: at the time of writing reflector.sh can trigger kernel races
 	unrelated to multi-FIB test leading to a panic(9).  "delay" calls

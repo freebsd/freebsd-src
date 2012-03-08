@@ -76,7 +76,7 @@ ENTRY(cpu_throw)
 	movq	PCPU(CURPMAP),%rdx
 	LK btrl	%eax,PM_ACTIVE(%rdx)		/* clear old */
 1:
-	movq	TD_PCB(%rsi),%r8		/* newtd->td_proc */
+	movq	TD_PCB(%rsi),%r8		/* newtd->td_pcb */
 	movq	PCB_CR3(%r8),%rdx
 	movq	%rdx,%cr3			/* new address space */
 	jmp	swact

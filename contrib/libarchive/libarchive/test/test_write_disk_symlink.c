@@ -99,7 +99,7 @@ DEFINE_TEST(test_write_disk_symlink)
 	assertEqualIntA(ad, 0, archive_write_finish_entry(ad));
 	archive_entry_free(ae);
 
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(ad));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(ad));
 
 	/* Test the entries on disk. */
 

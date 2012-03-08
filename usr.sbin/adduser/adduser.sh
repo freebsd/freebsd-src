@@ -488,6 +488,7 @@ get_uid() {
 	_prompt=
 
 	if [ -n "$uuid" ]; then
+		uuid=`get_nextuid $uuid`
 		_prompt="Uid [$uuid]: "
 	else
 		_prompt="Uid (Leave empty for default): "

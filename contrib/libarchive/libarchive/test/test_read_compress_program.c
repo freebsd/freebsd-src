@@ -43,9 +43,9 @@ DEFINE_TEST(test_read_compress_program)
 	 * program is requested.
 	 */
 	assert((a = archive_read_new()) != NULL);
-	r = archive_read_support_compression_program(a, "nonexistent");
+	r = archive_read_support_filter_program(a, "nonexistent");
 	if (r == ARCHIVE_FATAL) {
-		skipping("archive_read_support_compression_program() "
+		skipping("archive_read_support_filter_program() "
 		    "unsupported on this platform");
 		return;
 	}
@@ -55,7 +55,7 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_memory(a, archive, sizeof(archive)));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/*
 	 * If we have "gzip -d", try using that.
@@ -66,9 +66,9 @@ DEFINE_TEST(test_read_compress_program)
 	}
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_none(a));
+	    archive_read_support_filter_none(a));
 	assertEqualIntA(a, ARCHIVE_OK,
-	    archive_read_support_compression_program(a, "gunzip"));
+	    archive_read_support_filter_program(a, "gunzip"));
 	assertEqualIntA(a, ARCHIVE_OK,
 	    archive_read_support_format_all(a));
 	assertEqualIntA(a, ARCHIVE_OK,
@@ -78,7 +78,7 @@ DEFINE_TEST(test_read_compress_program)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_PROGRAM);
 	assertEqualInt(archive_format(a), ARCHIVE_FORMAT_TAR_USTAR);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 

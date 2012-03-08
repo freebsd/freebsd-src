@@ -126,6 +126,12 @@ cpu_ptrace(struct thread *td, int req, void *addr, int data)
 		return (cpu32_ptrace(td, req, addr, data));
 #endif
 
+	/* Support old values of PT_GETXSTATE and PT_SETXSTATE. */
+	if (req == PT_FIRSTMACH + 0)
+		req = PT_GETXSTATE;
+	if (req == PT_FIRSTMACH + 1)
+		req = PT_SETXSTATE;
+
 	switch (req) {
 	case PT_GETXSTATE:
 	case PT_SETXSTATE:

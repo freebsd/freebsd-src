@@ -15,11 +15,26 @@ TESTS=	\
 	test_empty_mtree.c			\
 	test_getdate.c				\
 	test_help.c				\
+	test_option_C_upper.c			\
+	test_option_H_upper.c			\
+	test_option_L_upper.c			\
+	test_option_O_upper.c			\
 	test_option_T_upper.c			\
+	test_option_U_upper.c			\
+	test_option_X_upper.c			\
+	test_option_b.c				\
+	test_option_exclude.c			\
+	test_option_gid_gname.c			\
+	test_option_k.c				\
+	test_option_keep_newer_files.c		\
+	test_option_n.c				\
+	test_option_newer_than.c		\
 	test_option_q.c				\
 	test_option_r.c				\
 	test_option_s.c				\
+	test_option_uid_uname.c			\
 	test_patterns.c				\
+	test_print_longpath.c			\
 	test_stdio.c				\
 	test_strip_components.c			\
 	test_symlink_dir.c			\
@@ -37,10 +52,10 @@ NO_MAN=yes
 
 PROG=bsdtar_test
 DPADD=${LIBARCHIVE} ${LIBBZ2} ${LIBZ} ${LIBLZMA}
-CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../config_freebsd.h\"
+CFLAGS+=	-DPLATFORM_CONFIG_H=\"${.CURDIR}/../../../lib/libarchive/config_freebsd.h\"
 LDADD= -larchive -lz -lbz2 -llzma
 CFLAGS+= -static -g -O2 -Wall
-CFLAGS+= -I${.CURDIR}/.. -I${.OBJDIR}
+CFLAGS+= -I${.CURDIR}/../../../lib/libarchive -I${.OBJDIR}
 CFLAGS+= -I${LIBARCHIVEDIR}/tar
 
 # Uncomment to link against dmalloc

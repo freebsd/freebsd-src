@@ -100,28 +100,20 @@ test_filename(const char *prefix, int dlen, int flen)
 	archive_entry_free(ae);
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertA(0 == archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back.
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff, used));
 
 	/* Read the file and check the filename. */
 	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("Leading '/' preserved on long filenames");
-#else
 	assertEqualString(filename, archive_entry_pathname(ae));
-#endif
 	assertEqualInt((S_IFREG | 0755), archive_entry_mode(ae));
 
 	/*
@@ -133,29 +125,17 @@ test_filename(const char *prefix, int dlen, int flen)
 	 * here.
 	 */
 	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("Trailing '/' preserved on dirnames");
-#else
 	assertEqualString(dirname, archive_entry_pathname(ae));
-#endif
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	assertA(0 == archive_read_next_header(a, &ae));
-#if ARCHIVE_VERSION_NUMBER < 1009000
-	skipping("Trailing '/' added to dir names");
-#else
 	assertEqualString(dirname, archive_entry_pathname(ae));
-#endif
 	assert((S_IFDIR | 0755) == archive_entry_mode(ae));
 
 	/* Verify the end of the archive. */
 	assert(1 == archive_read_next_header(a, &ae));
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 
 DEFINE_TEST(test_tar_filenames)

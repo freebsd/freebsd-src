@@ -33,6 +33,8 @@
 #ifndef ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 #define ARCHIVE_READ_DISK_PRIVATE_H_INCLUDED
 
+struct tree;
+
 struct archive_read_disk {
 	struct archive	archive;
 
@@ -51,10 +53,17 @@ struct archive_read_disk {
 	 */
 	char	follow_symlinks;  /* Either 'L' or 'P'. */
 
-	const char * (*lookup_gname)(void *private, gid_t gid);
+	/* Directory traversals. */
+	struct tree *tree;
+
+	/* Set 1 if users request to restore atime . */
+	int		 restore_time;
+	int		 entry_wd_fd;
+
+	const char * (*lookup_gname)(void *private, int64_t gid);
 	void	(*cleanup_gname)(void *private);
 	void	 *lookup_gname_data;
-	const char * (*lookup_uname)(void *private, gid_t gid);
+	const char * (*lookup_uname)(void *private, int64_t uid);
 	void	(*cleanup_uname)(void *private);
 	void	 *lookup_uname_data;
 };

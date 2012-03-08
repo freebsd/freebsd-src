@@ -76,9 +76,12 @@ DEFINE_TEST(test_write_format_tar_ustar)
 
 	/* Create a new archive in memory. */
 	assert((a = archive_write_new()) != NULL);
-	assertEqualIntA(a, 0, archive_write_set_format_ustar(a));
-	assertEqualIntA(a, 0, archive_write_set_compression_none(a));
-	assertEqualIntA(a, 0, archive_write_open_memory(a, buff, buffsize, &used));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_format_ustar(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_set_compression_none(a));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_open_memory(a, buff, buffsize, &used));
 
 	/*
 	 * Add various files to it.
@@ -96,7 +99,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 12);
 	archive_entry_set_ino(entry, 89);
 	archive_entry_set_nlink(entry, 2);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 	assertEqualIntA(a, 10, archive_write_data(a, "1234567890", 10));
 
@@ -112,7 +116,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 12);
 	archive_entry_set_ino(entry, 89);
 	archive_entry_set_nlink(entry, 2);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 	/* Write of data to dir should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
@@ -124,7 +129,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_mode(entry, S_IFDIR | 0775);
 	archive_entry_set_size(entry, 10);
 	archive_entry_set_nlink(entry, 2);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 	/* Write of data to dir should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
@@ -142,7 +148,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 12);
 	archive_entry_set_ino(entry, 90);
 	archive_entry_set_nlink(entry, 1);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 	/* Write of data to symlink should fail == zero bytes get written. */
 	assertEqualIntA(a, 0, archive_write_data(a, "1234567890", 10));
@@ -158,7 +165,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 102);
 	archive_entry_set_ino(entry, 7);
 	archive_entry_set_nlink(entry, 1);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 
 	/* file with 100-char filename. */
@@ -172,7 +180,8 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 102);
 	archive_entry_set_ino(entry, 7);
 	archive_entry_set_nlink(entry, 1);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 
 	/* file with 256-char filename. */
@@ -186,14 +195,12 @@ DEFINE_TEST(test_write_format_tar_ustar)
 	archive_entry_set_dev(entry, 102);
 	archive_entry_set_ino(entry, 7);
 	archive_entry_set_nlink(entry, 1);
-	assertEqualIntA(a, 0, archive_write_header(a, entry));
+	assertEqualIntA(a, ARCHIVE_OK,
+	    archive_write_header(a, entry));
 	archive_entry_free(entry);
 
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assert(0 == archive_write_finish(a));
-#endif
+	/* Close out the archive. */
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Verify the archive format.

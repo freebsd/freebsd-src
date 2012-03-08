@@ -25,11 +25,17 @@
 #include "test.h"
 __FBSDID("$FreeBSD$");
 
+#ifdef HAVE_LOCALE_H
+#include <locale.h>
+#endif
 
 DEFINE_TEST(test_option_t)
 {
 	char *p;
 	int r;
+	time_t mtime;
+	char date[32];
+	char date2[32];
 
 	/* List reference archive, make sure the TOC is correct. */
 	extract_reference_file("test_option_t.cpio");
@@ -75,17 +81,20 @@ DEFINE_TEST(test_option_t)
 	/* Since -n uses numeric UID/GID, this part should be the
 	 * same on every system. */
 	assertEqualMem(p, "-rw-r--r--   1 1000     1000            0 ",42);
-	/* Date varies depending on local timezone. */
-	if (memcmp(p + 42, "Dec 31  1969", 12) == 0) {
-		/* East of Greenwich we get Dec 31, 1969. */
-	} else {
-		/* West of Greenwich get Jan 1, 1970 */
-		assertEqualMem(p + 42, "Jan ", 4);
-		/* Some systems format "Jan 01", some "Jan  1" */
-		assert(p[46] == ' ' || p[46] == '0');
-		assertEqualMem(p + 47, "1  1970 ", 8);
-	}
-	assertEqualMem(p + 54, " file", 5);
+
+	/* Date varies depending on local timezone and locale. */
+	mtime = 1;
+#ifdef HAVE_LOCALE_H
+	setlocale(LC_ALL, "");
+#endif
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	strftime(date2, sizeof(date), "%b %d  %Y", localtime(&mtime));
+	_snprintf(date, sizeof(date)-1, "%12s file", date2);
+#else
+	strftime(date2, sizeof(date), "%b %e  %Y", localtime(&mtime));
+	snprintf(date, sizeof(date)-1, "%12s file", date2);
+#endif
+	assertEqualMem(p + 42, date, strlen(date));
 	free(p);
 
 	/* But "-n" without "-t" is an error. */
