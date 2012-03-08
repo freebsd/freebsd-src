@@ -272,6 +272,8 @@ vnode_pager_dealloc(object)
 	if (object->un_pager.vnp.writemappings > 0) {
 		object->un_pager.vnp.writemappings = 0;
 		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
 	}
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
@@ -1241,9 +1243,13 @@ vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
 	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
 		vp->v_writecount++;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount increased to %d",
+		    __func__, vp, vp->v_writecount);
 	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
 		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
 		vp->v_writecount--;
+		CTR3(KTR_VFS, "%s: vp %p v_writecount decreased to %d",
+		    __func__, vp, vp->v_writecount);
 	}
 	VM_OBJECT_UNLOCK(object);
 }
