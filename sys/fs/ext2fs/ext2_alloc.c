@@ -344,6 +344,7 @@ ext2_valloc(pvp, mode, cred, vpp)
 	struct ucred *cred;
 	struct vnode **vpp;
 {
+	struct timespec ts;
 	struct inode *pip;
 	struct m_ext2fs *fs;
 	struct inode *ip;
@@ -385,14 +386,14 @@ ext2_valloc(pvp, mode, cred, vpp)
 	}
 	ip = VTOI(*vpp);
 
-	/* 
-	  the question is whether using VGET was such good idea at all -
-	  Linux doesn't read the old inode in when it's allocating a
-	  new one. I will set at least i_size & i_blocks the zero. 
-	*/ 
-	ip->i_mode = 0;
+	/*
+	 * The question is whether using VGET was such good idea at all:
+	 * Linux doesn't read the old inode in when it is allocating a
+	 * new one. I will set at least i_size and i_blocks to zero.
+	 */
 	ip->i_size = 0;
 	ip->i_blocks = 0;
+	ip->i_mode = 0;
 	ip->i_flags = 0;
         /* now we want to make sure that the block pointers are zeroed out */
         for (i = 0; i < NDADDR; i++)
@@ -406,6 +407,11 @@ ext2_valloc(pvp, mode, cred, vpp)
 	 */
 	if (ip->i_gen == 0 || ++ip->i_gen == 0)
 		ip->i_gen = random() / 2 + 1;
+
+	vfs_timestamp(&ts);
+	ip->i_birthtime = ts.tv_sec;
+	ip->i_birthnsec = ts.tv_nsec;
+
 /*
 printf("ext2_valloc: allocated inode %d\n", ino);
 */
