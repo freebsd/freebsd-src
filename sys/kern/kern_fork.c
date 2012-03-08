@@ -590,6 +590,7 @@ do_fork(struct thread *td, int flags, struct proc *p2, struct thread *td2,
 	LIST_INSERT_AFTER(p1, p2, p_pglist);
 	PGRP_UNLOCK(p1->p_pgrp);
 	LIST_INIT(&p2->p_children);
+	LIST_INIT(&p2->p_orphans);
 
 	callout_init(&p2->p_itcallout, CALLOUT_MPSAFE);
 
