@@ -37,7 +37,6 @@
 		.set SIZ_PAG,0x1000		# Page size
 		.set SIZ_SEC,0x200		# Sector size
 
-		.set NSECT,0x10
 		.globl start
 		.globl xread
 		.code16
