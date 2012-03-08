@@ -2,7 +2,9 @@
 
 .include <bsd.own.mk>
 
-FILES=		boot boot1 boot2
+FILES=		boot${BOOT_SUFFIX} boot2${BOOT2_SUFFIX}
+
+SRCDIR=		${.CURDIR}/../boot2
 
 NM?=		nm
 
@@ -18,9 +20,21 @@ ORG1=	0x7c00
 ORG2=	0x2000
 
 # Decide level of UFS support.
-BOOT2_UFS?=	UFS1_AND_UFS2
-#BOOT2_UFS?=	UFS2_ONLY
-#BOOT2_UFS?=	UFS1_ONLY
+BOOT2_UFS?=	UFS2_ONLY
+#BOOT2_UFS?=	UFS1_AND_UFS2
+
+.if ${BOOT2_UFS} != UFS1_ONLY
+FILES+=		boot1
+.endif
+.if ${BOOT2_UFS} == UFS1_ONLY
+BOOT_SUFFIX=	.ufs1
+BOOT2_SUFFIX=	ufs1
+.elif ${BOOT2_UFS} == UFS2_ONLY
+BOOT_SUFFIX=	.ufs2
+BOOT2_SUFFIX=	ufs2
+LINKS=		${BINDIR}/boot${BOOT_SUFFIX} ${BINDIR}/boot \
+		${BINDIR}/boot2${BOOT2_SUFFIX} ${BINDIR}/boot2
+.endif
 
 CFLAGS=	-Os \
 	-fno-guess-branch-probability \
@@ -50,8 +64,8 @@ LDFLAGS=-static -N --gc-sections
 
 CLEANFILES=	boot
 
-boot: boot1 boot2
-	cat boot1 boot2 > boot
+boot${BOOT_SUFFIX}: boot1 boot2${BOOT2_SUFFIX}
+	cat ${.ALLSRC} > ${.TARGET}
 
 CLEANFILES+=	boot1 boot1.out boot1.o
 
@@ -64,7 +78,7 @@ boot1.out: boot1.o
 CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
 		boot2.s boot2.s.tmp boot2.h sio.o
 
-boot2: boot2.ld
+boot2${BOOT2_SUFFIX}: boot2.ld
 	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
 	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync
@@ -88,7 +102,7 @@ boot2.o: boot2.s
 SRCS=	boot2.c boot2.h
 
 boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
-	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
+	${CC} ${CFLAGS} -S -o boot2.s.tmp ${SRCDIR}/boot2.c
 	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
 	rm -f boot2.s.tmp
 
