@@ -144,6 +144,7 @@ powerpc/ofw/rtas.c		optional	aim
 powerpc/powermac/ata_kauai.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_macio.c	optional	powermac ata | powermac atamacio
 powerpc/powermac/ata_dbdma.c	optional	powermac ata | powermac atamacio
+powerpc/powermac/atibl.c	optional	powermac atibl
 powerpc/powermac/cuda.c		optional	powermac cuda
 powerpc/powermac/cpcht.c	optional	powermac pci
 powerpc/powermac/dbdma.c	optional	powermac pci
