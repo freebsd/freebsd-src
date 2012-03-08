@@ -807,7 +807,7 @@ struct pf_state {
 	u_int64_t		 id;
 	u_int32_t		 creatorid;
 	u_int8_t		 direction;
-	u_int8_t		 pad[2];
+	u_int8_t		 pad[3];
 	TAILQ_ENTRY(pf_state)	 sync_list;
 	TAILQ_ENTRY(pf_state)	 entry_list;
 	TAILQ_ENTRY(pf_state)	 key_list[2];
