@@ -25,7 +25,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd August 13, 2008
+.Dd March 1, 2012
 .Dt UUID 3
 .Os
 .Sh NAME
@@ -84,6 +84,15 @@ A 16-bit hash value can be obtained by calling
 .Fn uuid_hash .
 .Pp
 The
+.Fn uuid_to_string
+function set
+.Fa *str
+to be a pointer to a buffer sufficiently large to hold the string.
+This pointer should be passed to
+.Xr free 3
+to release the allocated storage when it is no longer needed.
+.Pp
+The
 .Fn uuid_enc_le
 and
 .Fn uuid_enc_be
@@ -117,7 +126,7 @@ The UUID does not have a known version.
 .It Dv uuid_s_invalid_string_uuid
 The string representation of an UUID is not valid.
 .It Dv uuid_s_no_memory
-The meaning of the code escaped the writers mind.
+The function can not allocate memory to store an UUID representation.
 .El
 .Sh SEE ALSO
 .Xr uuidgen 1 ,
