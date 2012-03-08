@@ -723,6 +723,7 @@ pci_read_cap(device_t pcib, pcicfgregs *cfg)
 			if ((cfg->hdrtype & PCIM_HDRTYPE) ==
 			    PCIM_HDRTYPE_BRIDGE)
 				pcix_chipset = 1;
+			cfg->pcix.pcix_location = ptr;
 			break;
 		case PCIY_EXPRESS:	/* PCI-express */
 			/*
@@ -4444,6 +4445,49 @@ pci_modevent(module_t mod, int what, void *arg)
 	return (0);
 }
 
+static void
+pci_cfg_restore_pcie(device_t dev, struct pci_devinfo *dinfo)
+{
+#define	WREG(n, v)	pci_write_config(dev, pos + (n), (v), 2)
+	struct pcicfg_pcie *cfg;
+	int version, pos;
+
+	cfg = &dinfo->cfg.pcie;
+	pos = cfg->pcie_location;
+
+	version = cfg->pcie_flags & PCIM_EXP_FLAGS_VERSION;
+
+	WREG(PCIR_EXPRESS_DEVICE_CTL, cfg->pcie_device_ctl);
+
+	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_ENDPOINT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_LEGACY_ENDPOINT)
+		WREG(PCIR_EXPRESS_LINK_CTL, cfg->pcie_link_ctl);
+
+	if (version > 1 || (cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    (cfg->pcie_type == PCIM_EXP_TYPE_DOWNSTREAM_PORT &&
+	     (cfg->pcie_flags & PCIM_EXP_FLAGS_SLOT))))
+		WREG(PCIR_EXPRESS_SLOT_CTL, cfg->pcie_slot_ctl);
+
+	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_ROOT_EC)
+		WREG(PCIR_EXPRESS_ROOT_CTL, cfg->pcie_root_ctl);
+
+	if (version > 1) {
+		WREG(PCIR_EXPRESS_DEVICE_CTL2, cfg->pcie_device_ctl2);
+		WREG(PCIR_EXPRESS_LINK_CTL2, cfg->pcie_link_ctl2);
+		WREG(PCIR_EXPRESS_SLOT_CTL2, cfg->pcie_slot_ctl2);
+	}
+#undef WREG
+}
+
+static void
+pci_cfg_restore_pcix(device_t dev, struct pci_devinfo *dinfo)
+{
+	pci_write_config(dev, dinfo->cfg.pcix.pcix_location + PCIXR_COMMAND,
+	    dinfo->cfg.pcix.pcix_command,  2);
+}
+
 void
 pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 {
@@ -4479,11 +4523,64 @@ pci_cfg_restore(device_t dev, struct pci_devinfo *dinfo)
 	pci_write_config(dev, PCIR_PROGIF, dinfo->cfg.progif, 1);
 	pci_write_config(dev, PCIR_REVID, dinfo->cfg.revid, 1);
 
+	/*
+	 * Restore extended capabilities for PCI-Express and PCI-X
+	 */
+	if (dinfo->cfg.pcie.pcie_location != 0)
+		pci_cfg_restore_pcie(dev, dinfo);
+	if (dinfo->cfg.pcix.pcix_location != 0)
+		pci_cfg_restore_pcix(dev, dinfo);
+
 	/* Restore MSI and MSI-X configurations if they are present. */
 	if (dinfo->cfg.msi.msi_location != 0)
 		pci_resume_msi(dev);
 	if (dinfo->cfg.msix.msix_location != 0)
 		pci_resume_msix(dev);
+}
+
+static void
+pci_cfg_save_pcie(device_t dev, struct pci_devinfo *dinfo)
+{
+#define	RREG(n)	pci_read_config(dev, pos + (n), 2)
+	struct pcicfg_pcie *cfg;
+	int version, pos;
+
+	cfg = &dinfo->cfg.pcie;
+	pos = cfg->pcie_location;
+
+	cfg->pcie_flags = RREG(PCIR_EXPRESS_FLAGS);
+
+	version = cfg->pcie_flags & PCIM_EXP_FLAGS_VERSION;
+
+	cfg->pcie_device_ctl = RREG(PCIR_EXPRESS_DEVICE_CTL);
+
+	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_ENDPOINT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_LEGACY_ENDPOINT)
+		cfg->pcie_link_ctl = RREG(PCIR_EXPRESS_LINK_CTL);
+
+	if (version > 1 || (cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    (cfg->pcie_type == PCIM_EXP_TYPE_DOWNSTREAM_PORT &&
+	     (cfg->pcie_flags & PCIM_EXP_FLAGS_SLOT))))
+		cfg->pcie_slot_ctl = RREG(PCIR_EXPRESS_SLOT_CTL);
+
+	if (version > 1 || cfg->pcie_type == PCIM_EXP_TYPE_ROOT_PORT ||
+	    cfg->pcie_type == PCIM_EXP_TYPE_ROOT_EC)
+		cfg->pcie_root_ctl = RREG(PCIR_EXPRESS_ROOT_CTL);
+
+	if (version > 1) {
+		cfg->pcie_device_ctl2 = RREG(PCIR_EXPRESS_DEVICE_CTL2);
+		cfg->pcie_link_ctl2 = RREG(PCIR_EXPRESS_LINK_CTL2);
+		cfg->pcie_slot_ctl2 = RREG(PCIR_EXPRESS_SLOT_CTL2);
+	}
+#undef RREG
+}
+
+static void
+pci_cfg_save_pcix(device_t dev, struct pci_devinfo *dinfo)
+{
+	dinfo->cfg.pcix.pcix_command = pci_read_config(dev,
+	    dinfo->cfg.pcix.pcix_location + PCIXR_COMMAND, 2);
 }
 
 void
@@ -4527,6 +4624,12 @@ pci_cfg_save(device_t dev, struct pci_devinfo *dinfo, int setstate)
 	dinfo->cfg.subclass = pci_read_config(dev, PCIR_SUBCLASS, 1);
 	dinfo->cfg.progif = pci_read_config(dev, PCIR_PROGIF, 1);
 	dinfo->cfg.revid = pci_read_config(dev, PCIR_REVID, 1);
+
+	if (dinfo->cfg.pcie.pcie_location != 0)
+		pci_cfg_save_pcie(dev, dinfo);
+
+	if (dinfo->cfg.pcix.pcix_location != 0)
+		pci_cfg_save_pcix(dev, dinfo);
 
 	/*
 	 * don't set the state for display devices, base peripherals and
