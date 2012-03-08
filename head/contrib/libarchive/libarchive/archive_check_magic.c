@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2003-2010 Tim Kientzle
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -86,49 +86,89 @@ state_name(unsigned s)
 	}
 }
 
+static const char *
+archive_handle_type_name(unsigned m)
+{
+	switch (m) {
+	case ARCHIVE_WRITE_MAGIC:	return ("archive_write");
+	case ARCHIVE_READ_MAGIC:	return ("archive_read");
+	case ARCHIVE_WRITE_DISK_MAGIC:	return ("archive_write_disk");
+	case ARCHIVE_READ_DISK_MAGIC:	return ("archive_read_disk");
+	default:			return NULL;
+	}
+}
 
-static void
-write_all_states(unsigned int states)
+
+static char *
+write_all_states(char *buff, unsigned int states)
 {
 	unsigned int lowbit;
+
+	buff[0] = '\0';
 
 	/* A trick for computing the lowest set bit. */
 	while ((lowbit = states & (1 + ~states)) != 0) {
 		states &= ~lowbit;		/* Clear the low bit. */
-		errmsg(state_name(lowbit));
+		strcat(buff, state_name(lowbit));
 		if (states != 0)
-			errmsg("/");
+			strcat(buff, "/");
 	}
+	return buff;
 }
 
 /*
- * Check magic value and current state; bail if it isn't valid.
+ * Check magic value and current state.
+ *   Magic value mismatches are fatal and result in calls to abort().
+ *   State mismatches return ARCHIVE_FATAL.
+ *   Otherwise, returns ARCHIVE_OK.
  *
  * This is designed to catch serious programming errors that violate
  * the libarchive API.
  */
-void
+int
 __archive_check_magic(struct archive *a, unsigned int magic,
     unsigned int state, const char *function)
 {
-	if (a->magic != magic) {
-		errmsg("INTERNAL ERROR: Function ");
+	char states1[64];
+	char states2[64];
+	const char *handle_type;
+
+	/*
+	 * If this isn't some form of archive handle,
+	 * then the library user has screwed up so bad that
+	 * we don't even have a reliable way to report an error.
+	 */
+	handle_type = archive_handle_type_name(a->magic);
+
+	if (!handle_type) {
+		errmsg("PROGRAMMER ERROR: Function ");
 		errmsg(function);
-		errmsg(" invoked with invalid struct archive structure.\n");
+		errmsg(" invoked with invalid archive handle.\n");
 		diediedie();
 	}
 
-	if (state == ARCHIVE_STATE_ANY)
-		return;
+	if (a->magic != magic) {
+		archive_set_error(a, -1,
+		    "PROGRAMMER ERROR: Function '%s' invoked"
+		    " on '%s' archive object, which is not supported.",
+		    function,
+		    handle_type);
+		a->state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
+	}
 
 	if ((a->state & state) == 0) {
-		errmsg("INTERNAL ERROR: Function '");
-		errmsg(function);
-		errmsg("' invoked with archive structure in state '");
-		write_all_states(a->state);
-		errmsg("', should be in state '");
-		write_all_states(state);
-		errmsg("'\n");
-		diediedie();
+		/* If we're already FATAL, don't overwrite the error. */
+		if (a->state != ARCHIVE_STATE_FATAL)
+			archive_set_error(a, -1,
+			    "INTERNAL ERROR: Function '%s' invoked with"
+			    " archive structure in state '%s',"
+			    " should be in state '%s'",
+			    function,
+			    write_all_states(states1, a->state),
+			    write_all_states(states2, state));
+		a->state = ARCHIVE_STATE_FATAL;
+		return (ARCHIVE_FATAL);
 	}
+	return ARCHIVE_OK;
 }

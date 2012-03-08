@@ -199,6 +199,13 @@ struct ieee80211_qosframe_addr4 {
 #define	IEEE80211_QOS_EOSP			0x10	/* EndOfService Period*/
 #define	IEEE80211_QOS_EOSP_S			4
 #define	IEEE80211_QOS_TID			0x0f
+/* qos[1] byte used for all frames sent by mesh STAs in a mesh BSS */
+#define IEEE80211_QOS_MC			0x10	/* Mesh control */
+/* Mesh power save level*/
+#define IEEE80211_QOS_MESH_PSL			0x20
+/* Mesh Receiver Service Period Initiated */
+#define IEEE80211_QOS_RSPI			0x40
+/* bits 11 to 15 reserved */
 
 /* does frame have QoS sequence control data */
 #define	IEEE80211_QOS_HAS_SEQ(wh) \
@@ -325,6 +332,7 @@ struct ieee80211_action {
 #define	IEEE80211_ACTION_CAT_DLS	2	/* DLS */
 #define	IEEE80211_ACTION_CAT_BA		3	/* BA */
 #define	IEEE80211_ACTION_CAT_HT		7	/* HT */
+#define	IEEE80211_ACTION_CAT_MESH	13	/* Mesh */
 #define	IEEE80211_ACTION_CAT_VENDOR	127	/* Vendor Specific */
 
 #define	IEEE80211_ACTION_HT_TXCHWIDTH	0	/* recommended xmit chan width*/

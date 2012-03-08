@@ -159,6 +159,7 @@ static void	ath_beacon_proc(void *, int);
 static struct ath_buf *ath_beacon_generate(struct ath_softc *,
 			struct ieee80211vap *);
 static void	ath_bstuck_proc(void *, int);
+static void	ath_reset_proc(void *, int);
 static void	ath_beacon_return(struct ath_softc *, struct ath_buf *);
 static void	ath_beacon_free(struct ath_softc *);
 static void	ath_beacon_config(struct ath_softc *, struct ieee80211vap *);
@@ -392,6 +393,7 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 	TASK_INIT(&sc->sc_rxtask, 0, ath_rx_tasklet, sc);
 	TASK_INIT(&sc->sc_bmisstask, 0, ath_bmiss_proc, sc);
 	TASK_INIT(&sc->sc_bstucktask,0, ath_bstuck_proc, sc);
+	TASK_INIT(&sc->sc_resettask,0, ath_reset_proc, sc);
 
 	/*
 	 * Allocate hardware transmit queues: one queue for
@@ -1910,9 +1912,6 @@ ath_txrx_stop_locked(struct ath_softc *sc)
 	ATH_UNLOCK_ASSERT(sc);
 	ATH_PCU_LOCK_ASSERT(sc);
 
-	/* Stop any new TX/RX from occuring */
-	taskqueue_block(sc->sc_tq);
-
 	/*
 	 * Sleep until all the pending operations have completed.
 	 *
@@ -2049,6 +2048,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	/* Ensure ATH_LOCK isn't held; ath_rx_proc can't be locked */
 	ATH_PCU_UNLOCK_ASSERT(sc);
 	ATH_UNLOCK_ASSERT(sc);
+
+	/* Try to (stop any further TX/RX from occuring */
+	taskqueue_block(sc->sc_tq);
 
 	ATH_PCU_LOCK(sc);
 	ath_hal_intrset(ah, 0);		/* disable interrupts */
@@ -3160,6 +3162,23 @@ ath_beacon_start_adhoc(struct ath_softc *sc, struct ieee80211vap *vap)
 	/* NB: caller is known to have already stopped tx dma */
 	ath_hal_puttxbuf(ah, sc->sc_bhalq, bf->bf_daddr);
 	ath_hal_txstart(ah, sc->sc_bhalq);
+}
+
+/*
+ * Reset the hardware, with no loss.
+ *
+ * This can't be used for a general case reset.
+ */
+static void
+ath_reset_proc(void *arg, int pending)
+{
+	struct ath_softc *sc = arg;
+	struct ifnet *ifp = sc->sc_ifp;
+
+#if 0
+	if_printf(ifp, "%s: resetting\n", __func__);
+#endif
+	ath_reset(ifp, ATH_RESET_NOLOSS);
 }
 
 /*
@@ -5387,6 +5406,12 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 	int ret = 0;
 
 	/* Treat this as an interface reset */
+	ATH_PCU_UNLOCK_ASSERT(sc);
+	ATH_UNLOCK_ASSERT(sc);
+
+	/* (Try to) stop TX/RX from occuring */
+	taskqueue_block(sc->sc_tq);
+
 	ATH_PCU_LOCK(sc);
 	ath_hal_intrset(ah, 0);		/* Stop new RX/TX completion */
 	ath_txrx_stop_locked(sc);	/* Stop pending RX/TX completion */
@@ -5432,7 +5457,7 @@ ath_chan_set(struct ath_softc *sc, struct ieee80211_channel *chan)
 		sc->sc_diversity = ath_hal_getdiversity(ah);
 
 		/* Let DFS at it in case it's a DFS channel */
-		ath_dfs_radar_enable(sc, ic->ic_curchan);
+		ath_dfs_radar_enable(sc, chan);
 
 		/*
 		 * Re-enable rx framework.
@@ -5526,18 +5551,10 @@ ath_calibrate(void *arg)
 			DPRINTF(sc, ATH_DEBUG_CALIBRATE,
 				"%s: rfgain change\n", __func__);
 			sc->sc_stats.ast_per_rfgain++;
-			/*
-			 * Drop lock - we can't hold it across the
-			 * ath_reset() call. Instead, we'll drop
-			 * out here, do a reset, then reschedule
-			 * the callout.
-			 */
-			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
 			sc->sc_resetcal = 0;
 			sc->sc_doresetcal = AH_TRUE;
-			ATH_UNLOCK(sc);
-			ath_reset(ifp, ATH_RESET_NOLOSS);
-			ATH_LOCK(sc);
+			taskqueue_enqueue(sc->sc_tq, &sc->sc_resettask);
+			callout_reset(&sc->sc_cal_ch, 1, ath_calibrate, sc);
 			return;
 		}
 		/*
@@ -5620,11 +5637,16 @@ ath_scan_start(struct ieee80211com *ic)
 
 	/* XXX calibration timer? */
 
+	ATH_LOCK(sc);
 	sc->sc_scanning = 1;
 	sc->sc_syncbeacon = 0;
 	rfilt = ath_calcrxfilter(sc);
+	ATH_UNLOCK(sc);
+
+	ATH_PCU_LOCK(sc);
 	ath_hal_setrxfilter(ah, rfilt);
 	ath_hal_setassocid(ah, ifp->if_broadcastaddr, 0);
+	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0\n",
 		 __func__, rfilt, ether_sprintf(ifp->if_broadcastaddr));
@@ -5638,12 +5660,17 @@ ath_scan_end(struct ieee80211com *ic)
 	struct ath_hal *ah = sc->sc_ah;
 	u_int32_t rfilt;
 
+	ATH_LOCK(sc);
 	sc->sc_scanning = 0;
 	rfilt = ath_calcrxfilter(sc);
+	ATH_UNLOCK(sc);
+
+	ATH_PCU_LOCK(sc);
 	ath_hal_setrxfilter(ah, rfilt);
 	ath_hal_setassocid(ah, sc->sc_curbssid, sc->sc_curaid);
 
 	ath_hal_process_noisefloor(ah);
+	ATH_PCU_UNLOCK(sc);
 
 	DPRINTF(sc, ATH_DEBUG_STATE, "%s: RX filter 0x%x bssid %s aid 0x%x\n",
 		 __func__, rfilt, ether_sprintf(sc->sc_curbssid),
@@ -5663,8 +5690,10 @@ ath_set_channel(struct ieee80211com *ic)
 	 * beacon timers.  Note that since we only hear beacons in
 	 * sta/ibss mode this has no effect in other operating modes.
 	 */
+	ATH_LOCK(sc);
 	if (!sc->sc_scanning && ic->ic_curchan == ic->ic_bsschan)
 		sc->sc_syncbeacon = 1;
+	ATH_UNLOCK(sc);
 }
 
 /*
@@ -6187,11 +6216,12 @@ ath_watchdog(void *arg)
 
 	/*
 	 * We can't hold the lock across the ath_reset() call.
+	 *
+	 * And since this routine can't hold a lock and sleep,
+	 * do the reset deferred.
 	 */
 	if (do_reset) {
-		ATH_UNLOCK(sc);
-		ath_reset(sc->sc_ifp, ATH_RESET_NOLOSS);
-		ATH_LOCK(sc);
+		taskqueue_enqueue(sc->sc_tq, &sc->sc_resettask);
 	}
 
 	callout_schedule(&sc->sc_wd_ch, hz);

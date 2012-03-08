@@ -167,6 +167,13 @@ void	softdep_freework(struct workhead *);
 #define FLUSH_INODES_WAIT	2
 #define FLUSH_BLOCKS		3
 #define FLUSH_BLOCKS_WAIT	4
+/*
+ * Flag to ffs_syncinode() to request flushing of data only,
+ * but skip the ffs_update() on the inode itself. Used to avoid
+ * deadlock when flushing snapshot inodes while holding snaplk.
+ * Avoid bit conflicts with MNT_WAIT values in sys/mount.h
+ */
+#define	NO_INO_UPDT		0x10
 
 int	ffs_rdonly(struct inode *);
 

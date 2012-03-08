@@ -59,13 +59,16 @@
  * All data in the XenStore is stored as strings.  Nodes specifying numeric
  * values are encoded in decimal.  Integer value ranges listed below are
  * expressed as fixed sized integer types capable of storing the conversion
- * of a properly formated node string, without loss of information.
+ * of a properly formatted node string, without loss of information.
  *
  * Any specified default value is in effect if the corresponding XenBus node
  * is not present in the XenStore.
  *
  * XenStore nodes in sections marked "PRIVATE" are solely for use by the
  * driver side whose XenBus tree contains them.
+ *
+ * XenStore nodes marked "DEPRECATED" in their notes section should only be
+ * used to provide interoperability with legacy implementations.
  *
  * See the XenBus state transition diagram below for details on when XenBus
  * nodes must be published and when they can be queried.
@@ -85,9 +88,9 @@
  * params
  *      Values:         string
  *
- *      A free formatted string providing sufficient information for the
- *      backend driver to open the backing device.  (e.g. the path to the
- *      file or block device representing the backing store.)
+ *      Data used by the backend driver to locate and configure the backing
+ *      device.  The format and semantics of this data vary according to the
+ *      backing device in use and are outside the scope of this specification.
  *
  * type
  *      Values:         "file", "phy", "tap"
@@ -137,7 +140,7 @@
  * max-ring-pages
  *      Values:         <uint32_t>
  *      Default Value:  1
- *      Notes:          2, 3
+ *      Notes:          DEPRECATED, 2, 3
  *
  *      The maximum supported size of the request ring buffer in units of
  *      machine pages.  The value must be a power of 2.
@@ -146,8 +149,8 @@
  *      Default Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE)
  *      Maximum Value:  BLKIF_MAX_RING_REQUESTS(PAGE_SIZE * max-ring-pages)
  *
- *      The maximum number of concurrent, logical requests that will be
- *      issued by the backend.
+ *      The maximum number of concurrent, logical requests supported by
+ *      the backend.
  *
  *      Note: A logical request may span multiple ring entries.
  *
@@ -170,7 +173,7 @@
  *
  *------------------------- Backend Device Properties -------------------------
  *
- * discard-aligment
+ * discard-alignment
  *      Values:         <uint32_t>
  *      Default Value:  0
  *      Notes:          4, 5
@@ -203,7 +206,8 @@
  * sector-size
  *      Values:         <uint32_t>
  *
- *      The native sector size, in bytes, of the backend device.
+ *      The size, in bytes, of the individually addressible data blocks
+ *      on the backend device.
  *
  * sectors
  *      Values:         <uint64_t>
@@ -234,8 +238,8 @@
  *      Values:         <uint32_t>
  *      Notes:          6
  *
- *      For a frontend providing a multi-page ring, a "num-ring-pages" sized
- *      list of nodes, each containing a Xen grant reference granting
+ *      For a frontend providing a multi-page ring, a "number of ring pages"
+ *      sized list of nodes, each containing a Xen grant reference granting
  *      permission for the backend to map the page of the ring located
  *      at page index "%u".  Page indexes are zero based.
  *
@@ -260,7 +264,7 @@
  *      Values:         <uint32_t>
  *      Default Value:  1
  *      Maximum Value:  MAX(max-ring-pages,(0x1 << max-ring-page-order))
- *      Notes:          2, 3
+ *      Notes:          DEPRECATED, 2, 3
  *
  *      The size of the frontend allocated request ring buffer in units of
  *      machine pages.  The value must be a power of 2.
@@ -311,11 +315,11 @@
  * -----
  * (1) Multi-page ring buffer scheme first developed in the Citrix XenServer
  *     PV drivers.
- * (2) Multi-page ring buffer scheme first used in some RedHat distributions
+ * (2) Multi-page ring buffer scheme first used in some Red Hat distributions
  *     including a distribution deployed on certain nodes of the Amazon
  *     EC2 cluster.
  * (3) Support for multi-page ring buffers was implemented independently,
- *     in slightly different forms, by both Citrix and RedHat/Amazon.
+ *     in slightly different forms, by both Citrix and Red Hat/Amazon.
  *     For full interoperability, block front and backends should publish
  *     identical ring parameters, adjusted for unit differences, to the
  *     XenStore nodes used in both schemes.
@@ -437,7 +441,7 @@
  * discarded region on the device must be rendered unrecoverable before the
  * command returns.
  *
- * This operation is analogous to performing a trim (ATA) or unamp (SCSI),
+ * This operation is analogous to performing a trim (ATA) or unmap (SCSI),
  * command on a native device.
  *
  * More information about trim/unmap operations can be found at:

@@ -30,9 +30,8 @@ __FBSDID("$FreeBSD$");
 
 #if !defined(_WIN32)
 #define ROOT "root"
-static int root_uids[] = { 0 };
-/* Solaris 9 root has gid 1 (other) */
-static int root_gids[] = { 0, 1 };
+static const int root_uids[] = { 0 };
+static const int root_gids[] = { 0, 1 };
 #elif defined(__CYGWIN__)
 /* On cygwin, the Administrator user most likely exists (unless
  * it has been renamed or is in a non-English localization), but
@@ -43,13 +42,13 @@ static int root_gids[] = { 0, 1 };
  *       Use CreateWellKnownSID() and LookupAccountName()?
  */
 #define ROOT "Administrator"
-static int root_uids[] = { 500 };
-static int root_gids[] = { 513, 545, 544 };
+static const int root_uids[] = { 500 };
+static const int root_gids[] = { 513, 545, 544 };
 #endif
 
 #if defined(ROOT)
 static int
-int_in_list(int i, int *l, size_t n)
+int_in_list(int i, const int *l, size_t n)
 {
 	while (n-- > 0)
 		if (*l++ == i)

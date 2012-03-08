@@ -59,11 +59,7 @@ struct read_FILE_data {
 
 static int	file_close(struct archive *, void *);
 static ssize_t	file_read(struct archive *, void *, const void **buff);
-#if ARCHIVE_API_VERSION < 2
-static ssize_t	file_skip(struct archive *, void *, size_t request);
-#else
-static off_t	file_skip(struct archive *, void *, off_t request);
-#endif
+static int64_t	file_skip(struct archive *, void *, int64_t request);
 
 int
 archive_read_open_FILE(struct archive *a, FILE *f)
@@ -101,8 +97,11 @@ archive_read_open_FILE(struct archive *a, FILE *f)
 	setmode(fileno(mine->f), O_BINARY);
 #endif
 
-	return (archive_read_open2(a, mine, NULL, file_read,
-		    file_skip, file_close));
+	archive_read_set_read_callback(a, file_read);
+	archive_read_set_skip_callback(a, file_skip);
+	archive_read_set_close_callback(a, file_close);
+	archive_read_set_callback_data(a, mine);
+	return (archive_read_open1(a));
 }
 
 static ssize_t
@@ -119,15 +118,18 @@ file_read(struct archive *a, void *client_data, const void **buff)
 	return (bytes_read);
 }
 
-#if ARCHIVE_API_VERSION < 2
-static ssize_t
-file_skip(struct archive *a, void *client_data, size_t request)
-#else
-static off_t
-file_skip(struct archive *a, void *client_data, off_t request)
-#endif
+static int64_t
+file_skip(struct archive *a, void *client_data, int64_t request)
 {
 	struct read_FILE_data *mine = (struct read_FILE_data *)client_data;
+#if HAVE_FSEEKO
+	off_t skip = (off_t)request;
+#elif HAVE__FSEEKI64
+	int64_t skip = request;
+#else
+	long skip = (long)request;
+#endif
+	int skip_bits = sizeof(skip) * 8 - 1;
 
 	(void)a; /* UNUSED */
 
@@ -140,10 +142,20 @@ file_skip(struct archive *a, void *client_data, off_t request)
 	if (request == 0)
 		return (0);
 
+	/* If request is too big for a long or an off_t, reduce it. */
+	if (sizeof(request) > sizeof(skip)) {
+		int64_t max_skip =
+		    (((int64_t)1 << (skip_bits - 1)) - 1) * 2 + 1;
+		if (request > max_skip)
+			skip = max_skip;
+	}
+
 #if HAVE_FSEEKO
-	if (fseeko(mine->f, request, SEEK_CUR) != 0)
+	if (fseeko(mine->f, skip, SEEK_CUR) != 0)
+#elif HAVE__FSEEKI64
+	if (_fseeki64(mine->f, skip, SEEK_CUR) != 0)
 #else
-	if (fseek(mine->f, request, SEEK_CUR) != 0)
+	if (fseek(mine->f, skip, SEEK_CUR) != 0)
 #endif
 	{
 		mine->can_skip = 0;

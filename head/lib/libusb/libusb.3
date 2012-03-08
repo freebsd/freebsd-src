@@ -26,7 +26,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd November 9, 2011
+.Dd February 25, 2012
 .Dt LIBUSB 3
 .Os
 .Sh NAME
@@ -483,7 +483,7 @@ on success and a LIBUSB_ERROR code on failure.
 .Pp
 .Ft int
 .Fn libusb_handle_events_locked "libusb_context *ctx" "struct timeval *tv"
-Handle any pending events by polling file desciptors, without checking if
+Handle any pending events by polling file descriptors, without checking if
 another thread is already doing so.
 Must be called with the event lock held.
 .Pp

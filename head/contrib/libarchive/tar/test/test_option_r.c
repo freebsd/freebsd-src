@@ -30,28 +30,19 @@ __FBSDID("$FreeBSD$");
  */
 DEFINE_TEST(test_option_r)
 {
-	char buff[15];
+	char *buff;
 	char *p0, *p1;
-	size_t s;
-	FILE *f;
-	int r;
+	size_t buff_size = 35000;
+	size_t s, buff_size_rounded;
+	int r, i;
 
-	/* Create a file */
-	f = fopen("f1", "w");
-	if (!assert(f != NULL))
-		return;
-	assertEqualInt(3, fwrite("abc", 1, 3, f));
-	fclose(f);
-
-	/* Archive that one file. */
+	/* Create an archive with one file. */
+	assertMakeFile("f1", 0644, "abc");
 	r = systemf("%s cf archive.tar --format=ustar f1 >step1.out 2>step1.err", testprog);
 	failure("Error invoking %s cf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
-
-	/* Verify that nothing went to stdout or stderr. */
 	assertEmptyFile("step1.out");
 	assertEmptyFile("step1.err");
-
 
 	/* Do some basic validation of the constructed archive. */
 	p0 = slurpfile(&s, "archive.tar");
@@ -66,52 +57,74 @@ DEFINE_TEST(test_option_r)
 	assertEqualMem(p0 + 1024, "\0\0\0\0\0\0\0\0", 8);
 	assertEqualMem(p0 + 1536, "\0\0\0\0\0\0\0\0", 8);
 
-	/* Edit that file */
-	f = fopen("f1", "w");
-	if (!assert(f != NULL))
-		return;
-	assertEqualInt(3, fwrite("123", 1, 3, f));
-	fclose(f);
-
-	/* Update the archive. */
+	/* Edit that file with a lot more data and update the archive with a new copy. */
+	buff = malloc(buff_size);
+	assert(buff != NULL);
+	for (i = 0; i < (int)buff_size; ++i)
+		buff[i] = "abcdefghijklmnopqrstuvwxyz"[rand() % 26];
+	buff[buff_size - 1] = '\0';
+	assertMakeFile("f1", 0644, buff);
 	r = systemf("%s rf archive.tar --format=ustar f1 >step2.out 2>step2.err", testprog);
 	failure("Error invoking %s rf archive.tar f1", testprog);
 	assertEqualInt(r, 0);
-
-	/* Verify that nothing went to stdout or stderr. */
 	assertEmptyFile("step2.out");
 	assertEmptyFile("step2.err");
 
-	/* Do some basic validation of the constructed archive. */
+	/* The constructed archive should just have the new entry appended. */
 	p1 = slurpfile(&s, "archive.tar");
 	if (!assert(p1 != NULL)) {
 		free(p0);
 		return;
 	}
-	assert(s >= 3072);
+	buff_size_rounded = ((buff_size + 511) / 512) * 512;
+	assert(s >= 2560 + buff_size_rounded);
 	/* Verify first entry is unchanged. */
 	assertEqualMem(p0, p1, 1024);
 	/* Verify that second entry is correct. */
 	assertEqualMem(p1 + 1024, "f1", 3);
-	assertEqualMem(p1 + 1536, "123", 3);
+	assertEqualMem(p1 + 1536, buff, buff_size);
 	/* Verify end-of-archive marker. */
-	assertEqualMem(p1 + 2048, "\0\0\0\0\0\0\0\0", 8);
-	assertEqualMem(p1 + 2560, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p1 + 1536 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p1 + 2048 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
+
+	free(p0);
+	p0 = p1;
+
+	/* Update the archive by adding a different file. */
+	assertMakeFile("f2", 0644, "f2");
+	r = systemf("%s rf archive.tar --format=ustar f2 >step3.out 2>step3.err", testprog);
+	failure("Error invoking %s rf archive.tar f2", testprog);
+	assertEqualInt(r, 0);
+	assertEmptyFile("step3.out");
+	assertEmptyFile("step3.err");
+
+	/* Validate the constructed archive. */
+	p1 = slurpfile(&s, "archive.tar");
+	if (!assert(p1 != NULL)) {
+		free(p0);
+		return;
+	}
+	assert(s >= 3584 + buff_size_rounded);
+	/* Verify first two entries are unchanged. */
+	assertEqualMem(p0, p1, 1536 + buff_size_rounded);
+	/* Verify that new entry is correct. */
+	assertEqualMem(p1 + 1536 + buff_size_rounded, "f2", 3);
+	assertEqualMem(p1 + 2048 + buff_size_rounded, "f2", 3);
+	/* Verify end-of-archive marker. */
+	assertEqualMem(p1 + 2560 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
+	assertEqualMem(p1 + 3072 + buff_size_rounded, "\0\0\0\0\0\0\0\0", 8);
 	free(p0);
 	free(p1);
 
-	/* Unpack both items */
-	assertMakeDir("step3", 0775);
-	assertChdir("step3");
-	r = systemf("%s xf ../archive.tar", testprog);
+	/* Unpack everything */
+	assertMakeDir("extract", 0775);
+	assertChdir("extract");
+	r = systemf("%s xf ../archive.tar >extract.out 2>extract.err", testprog);
 	failure("Error invoking %s xf archive.tar", testprog);
 	assertEqualInt(r, 0);
+	assertEmptyFile("extract.out");
+	assertEmptyFile("extract.err");
 
-	/* Verify that the second one overwrote the first. */
-	f = fopen("f1", "r");
-	if (assert(f != NULL)) {
-		assertEqualInt(3, fread(buff, 1, 3, f));
-		assertEqualMem(buff, "123", 3);
-		fclose(f);
-	}
+	/* Verify that the second copy of f1 overwrote the first. */
+	assertFileContents(buff, strlen(buff), "f1");
 }

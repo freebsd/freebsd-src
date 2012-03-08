@@ -46,6 +46,7 @@ __FBSDID("$FreeBSD$");
 #endif
 
 #include "archive.h"
+#include "archive_string.h"
 
 #ifndef O_BINARY
 #define O_BINARY 0
@@ -53,7 +54,11 @@ __FBSDID("$FreeBSD$");
 
 struct write_file_data {
 	int		fd;
-	char		filename[1];
+	char		mbs_filename;
+	union {
+		char		m[1];
+		wchar_t		w[1];
+	} filename; /* Must be last! */
 };
 
 static int	file_close(struct archive *, void *);
@@ -79,11 +84,59 @@ archive_write_open_filename(struct archive *a, const char *filename)
 		archive_set_error(a, ENOMEM, "No memory");
 		return (ARCHIVE_FATAL);
 	}
-	strcpy(mine->filename, filename);
+	strcpy(mine->filename.m, filename);
+	mine->mbs_filename = 1;
 	mine->fd = -1;
 	return (archive_write_open(a, mine,
 		file_open, file_write, file_close));
 }
+
+int
+archive_write_open_filename_w(struct archive *a, const wchar_t *filename)
+{
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	struct write_file_data *mine;
+
+	if (filename == NULL || filename[0] == L'\0')
+		return (archive_write_open_fd(a, 1));
+
+	mine = malloc(sizeof(*mine) + wcslen(filename) * sizeof(wchar_t));
+	if (mine == NULL) {
+		archive_set_error(a, ENOMEM, "No memory");
+		return (ARCHIVE_FATAL);
+	}
+	wcscpy(mine->filename.w, filename);
+	mine->mbs_filename = 0;
+	mine->fd = -1;
+	return (archive_write_open(a, mine,
+		file_open, file_write, file_close));
+#else
+	/*
+	 * POSIX system does not support a wchar_t interface for
+	 * open() system call, so we have to translate a wchar_t
+	 * filename to multi-byte one and use it.
+	 */
+	struct archive_string fn;
+	int r;
+
+	if (filename == NULL || filename[0] == L'\0')
+		return (archive_write_open_fd(a, 1));
+
+	archive_string_init(&fn);
+	if (archive_string_append_from_wcs(&fn, filename,
+	    wcslen(filename)) != 0) {
+		archive_set_error(a, EINVAL,
+		    "Failed to convert a wide-character filename to"
+		    " a multi-byte filename");
+		archive_string_free(&fn);
+		return (ARCHIVE_FATAL);
+	}
+	r = archive_write_open_filename(a, fn.s);
+	archive_string_free(&fn);
+	return (r);
+#endif
+}
+
 
 static int
 file_open(struct archive *a, void *client_data)
@@ -98,17 +151,46 @@ file_open(struct archive *a, void *client_data)
 	/*
 	 * Open the file.
 	 */
-	mine->fd = open(mine->filename, flags, 0666);
-	if (mine->fd < 0) {
-		archive_set_error(a, errno, "Failed to open '%s'",
-		    mine->filename);
-		return (ARCHIVE_FATAL);
-	}
+	if (mine->mbs_filename) {
+		mine->fd = open(mine->filename.m, flags, 0666);
+		if (mine->fd < 0) {
+			archive_set_error(a, errno, "Failed to open '%s'",
+			    mine->filename.m);
+			return (ARCHIVE_FATAL);
+		}
 
-	if (fstat(mine->fd, &st) != 0) {
-               archive_set_error(a, errno, "Couldn't stat '%s'",
-                   mine->filename);
-               return (ARCHIVE_FATAL);
+		if (fstat(mine->fd, &st) != 0) {
+			archive_set_error(a, errno, "Couldn't stat '%s'",
+			    mine->filename.m);
+			return (ARCHIVE_FATAL);
+		}
+	} else {
+#if defined(_WIN32) && !defined(__CYGWIN__)
+		mine->fd = _wopen(mine->filename.w, flags, 0666);
+		if (mine->fd < 0 && errno == ENOENT) {
+			wchar_t *fullpath;
+			fullpath = __la_win_permissive_name_w(mine->filename.w);
+			if (fullpath != NULL) {
+				mine->fd = _wopen(fullpath, flags, 0666);
+				free(fullpath);
+			}
+		}
+		if (mine->fd < 0) {
+			archive_set_error(a, errno, "Failed to open '%S'",
+			    mine->filename.w);
+			return (ARCHIVE_FATAL);
+		}
+
+		if (fstat(mine->fd, &st) != 0) {
+			archive_set_error(a, errno, "Couldn't stat '%S'",
+			    mine->filename.w);
+			return (ARCHIVE_FATAL);
+		}
+#else
+		archive_set_error(a, ARCHIVE_ERRNO_MISC,
+		    "Unexpedted operation in archive_write_open_filename");
+		return (ARCHIVE_FATAL);
+#endif
 	}
 
 	/*

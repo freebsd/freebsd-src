@@ -3,7 +3,6 @@
  */
 
 #include <stdio.h>
-#include <ctype.h>
 #include <string.h>
 #include <stdlib.h>
 #include <sys/queue.h>
@@ -52,6 +51,12 @@ static int	closestrfn	(void * cookie);
 
 #define	iseol(c)	(((c) == '#') || ((c) == '\0') || \
 			 ((c) == '\n') || ((c) == '\r'))
+
+/*
+ * Do not use ctype.h macros, which rely on working TLS.  It is
+ * too early to have thread-local variables functional.
+ */
+#define	rtld_isspace(c)	((c) == ' ' || (c) == '\t')
 
 int
 lm_init (char *libmap_override)
@@ -107,7 +112,7 @@ lmc_parse (FILE *fp)
 		t = f = c = NULL;
 
 		/* Skip over leading space */
-		while (isspace(*cp)) cp++;
+		while (rtld_isspace(*cp)) cp++;
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
@@ -117,7 +122,7 @@ lmc_parse (FILE *fp)
 			cp++;
 
 			/* Skip leading space */
-			while (isspace(*cp)) cp++;
+			while (rtld_isspace(*cp)) cp++;
 
 			/* Found comment, EOL or end of selector */
 			if  (iseol(*cp) || *cp == ']')
@@ -125,11 +130,11 @@ lmc_parse (FILE *fp)
 
 			c = cp++;
 			/* Skip to end of word */
-			while (!isspace(*cp) && !iseol(*cp) && *cp != ']')
+			while (!rtld_isspace(*cp) && !iseol(*cp) && *cp != ']')
 				cp++;
 
 			/* Skip and zero out trailing space */
-			while (isspace(*cp)) *cp++ = '\0';
+			while (rtld_isspace(*cp)) *cp++ = '\0';
 
 			/* Check if there is a closing brace */
 			if (*cp != ']') continue;
@@ -141,7 +146,7 @@ lmc_parse (FILE *fp)
 			 * There should be nothing except whitespace or comment
 			  from this point to the end of the line.
 			 */
-			while(isspace(*cp)) cp++;
+			while(rtld_isspace(*cp)) cp++;
 			if (!iseol(*cp)) continue;
 
 			strcpy(prog, c);
@@ -151,20 +156,20 @@ lmc_parse (FILE *fp)
 
 		/* Parse the 'from' candidate. */
 		f = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Found a comment or EOL */
 		if (iseol(*cp)) continue;
 
 		/* Parse 'to' mapping */
 		t = cp++;
-		while (!isspace(*cp) && !iseol(*cp)) cp++;
+		while (!rtld_isspace(*cp) && !iseol(*cp)) cp++;
 
 		/* Skip and zero out the trailing whitespace */
-		while (isspace(*cp)) *cp++ = '\0';
+		while (rtld_isspace(*cp)) *cp++ = '\0';
 
 		/* Should be no extra tokens at this point */
 		if (!iseol(*cp)) continue;

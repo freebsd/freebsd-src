@@ -222,6 +222,7 @@ retry:
 		object = vm_object_allocate(OBJT_VNODE, OFF_TO_IDX(round_page(size)));
 
 		object->un_pager.vnp.vnp_size = size;
+		object->un_pager.vnp.writemappings = 0;
 
 		object->handle = handle;
 		VI_LOCK(vp);
@@ -268,10 +269,16 @@ vnode_pager_dealloc(object)
 		wakeup(object);
 	}
 	ASSERT_VOP_ELOCKED(vp, "vnode_pager_dealloc");
+	if (object->un_pager.vnp.writemappings > 0) {
+		object->un_pager.vnp.writemappings = 0;
+		vp->v_writecount--;
+	}
 	vp->v_object = NULL;
 	vp->v_vflag &= ~VV_TEXT;
+	VM_OBJECT_UNLOCK(object);
 	while (refs-- > 0)
 		vunref(vp);
+	VM_OBJECT_LOCK(object);
 }
 
 static boolean_t
@@ -1214,4 +1221,82 @@ vnode_pager_undirty_pages(vm_page_t *ma, int *rtvals, int written)
 		}
 	}
 	VM_OBJECT_UNLOCK(obj);
+}
+
+void
+vnode_pager_update_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	struct vnode *vp;
+	vm_ooffset_t old_wm;
+
+	VM_OBJECT_LOCK(object);
+	if (object->type != OBJT_VNODE) {
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+	old_wm = object->un_pager.vnp.writemappings;
+	object->un_pager.vnp.writemappings += (vm_ooffset_t)end - start;
+	vp = object->handle;
+	if (old_wm == 0 && object->un_pager.vnp.writemappings != 0) {
+		ASSERT_VOP_ELOCKED(vp, "v_writecount inc");
+		vp->v_writecount++;
+	} else if (old_wm != 0 && object->un_pager.vnp.writemappings == 0) {
+		ASSERT_VOP_ELOCKED(vp, "v_writecount dec");
+		vp->v_writecount--;
+	}
+	VM_OBJECT_UNLOCK(object);
+}
+
+void
+vnode_pager_release_writecount(vm_object_t object, vm_offset_t start,
+    vm_offset_t end)
+{
+	struct vnode *vp;
+	struct mount *mp;
+	vm_offset_t inc;
+	int vfslocked;
+
+	VM_OBJECT_LOCK(object);
+
+	/*
+	 * First, recheck the object type to account for the race when
+	 * the vnode is reclaimed.
+	 */
+	if (object->type != OBJT_VNODE) {
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+
+	/*
+	 * Optimize for the case when writemappings is not going to
+	 * zero.
+	 */
+	inc = end - start;
+	if (object->un_pager.vnp.writemappings != inc) {
+		object->un_pager.vnp.writemappings -= inc;
+		VM_OBJECT_UNLOCK(object);
+		return;
+	}
+
+	vp = object->handle;
+	vhold(vp);
+	VM_OBJECT_UNLOCK(object);
+	vfslocked = VFS_LOCK_GIANT(vp->v_mount);
+	mp = NULL;
+	vn_start_write(vp, &mp, V_WAIT);
+	vn_lock(vp, LK_EXCLUSIVE | LK_RETRY);
+
+	/*
+	 * Decrement the object's writemappings, by swapping the start
+	 * and end arguments for vnode_pager_update_writecount().  If
+	 * there was not a race with vnode reclaimation, then the
+	 * vnode's v_writecount is decremented.
+	 */
+	vnode_pager_update_writecount(object, end, start);
+	VOP_UNLOCK(vp, 0);
+	vdrop(vp);
+	if (mp != NULL)
+		vn_finished_write(mp);
+	VFS_UNLOCK_GIANT(vfslocked);
 }

@@ -68,7 +68,7 @@ struct bounce_zone;
 struct bus_dma_tag {
 	bus_dma_tag_t		parent;
 	bus_size_t		alignment;
-	bus_size_t		boundary;
+	bus_addr_t		boundary;
 	bus_addr_t		lowaddr;
 	bus_addr_t		highaddr;
 	bus_dma_filter_t	*filter;
@@ -332,7 +332,7 @@ _busdma_free_dmamap(bus_dmamap_t map)
 
 int
 bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
-		   bus_size_t boundary, bus_addr_t lowaddr,
+		   bus_addr_t boundary, bus_addr_t lowaddr,
 		   bus_addr_t highaddr, bus_dma_filter_t *filter,
 		   void *filterarg, bus_size_t maxsize, int nsegments,
 		   bus_size_t maxsegsz, int flags, bus_dma_lock_t *lockfunc,
@@ -378,12 +378,12 @@ bus_dma_tag_create(bus_dma_tag_t parent, bus_size_t alignment,
 	 * Take into account any restrictions imposed by our parent tag
 	 */
         if (parent != NULL) {
-                newtag->lowaddr = min(parent->lowaddr, newtag->lowaddr);
-                newtag->highaddr = max(parent->highaddr, newtag->highaddr);
+                newtag->lowaddr = MIN(parent->lowaddr, newtag->lowaddr);
+                newtag->highaddr = MAX(parent->highaddr, newtag->highaddr);
 		if (newtag->boundary == 0)
 			newtag->boundary = parent->boundary;
 		else if (parent->boundary != 0)
-                	newtag->boundary = min(parent->boundary,
+                	newtag->boundary = MIN(parent->boundary,
 					       newtag->boundary);
 		if ((newtag->filter != NULL) ||
 		    ((parent->flags & BUS_DMA_COULD_BOUNCE) != 0))

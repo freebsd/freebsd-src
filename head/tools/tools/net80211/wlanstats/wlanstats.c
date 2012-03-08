@@ -370,6 +370,8 @@ static const struct fmt wlanstats[] = {
 	{ 5,	"noise",	"noise",	"current noise floor (dBm)" },
 #define	S_SIGNAL		AFTER(S_NOISE)
 	{ 5,	"signal",	"sig",		"current signal (dBm)" },
+#define	S_BEACON_BAD		AFTER(S_SIGNAL)
+	{ 9,	"beacon_bad",	"beaconbad",	"bad beacons received" },
 };
 
 struct wlanstatfoo_p {
@@ -814,6 +816,7 @@ wlan_get_curstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_MCAST:	NSTAT(rx_mcast);
 	case S_TX_UCAST:	NSTAT(tx_ucast);
 	case S_TX_MCAST:	NSTAT(tx_mcast);
+	case S_BEACON_BAD:	STAT(beacon_bad);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT
@@ -972,6 +975,7 @@ wlan_get_totstat(struct statfoo *sf, int s, char b[], size_t bs)
 	case S_RX_MCAST:	NSTAT(rx_mcast);
 	case S_TX_UCAST:	NSTAT(tx_ucast);
 	case S_TX_MCAST:	NSTAT(tx_mcast);
+	case S_BEACON_BAD:	STAT(beacon_bad);
 	}
 	return wlan_getinfo(wf, s, b, bs);
 #undef NSTAT

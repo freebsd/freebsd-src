@@ -390,72 +390,68 @@ ipfw_remove_dyn_children(struct ip_fw *rule)
 	IPFW_DYN_UNLOCK();
 }
 
-/**
- * lookup a dynamic rule, locked version
+/*
+ * Lookup a dynamic rule, locked version.
  */
 static ipfw_dyn_rule *
 lookup_dyn_rule_locked(struct ipfw_flow_id *pkt, int *match_direction,
     struct tcphdr *tcp)
 {
 	/*
-	 * stateful ipfw extensions.
-	 * Lookup into dynamic session queue
+	 * Stateful ipfw extensions.
+	 * Lookup into dynamic session queue.
 	 */
 #define MATCH_REVERSE	0
 #define MATCH_FORWARD	1
 #define MATCH_NONE	2
 #define MATCH_UNKNOWN	3
 	int i, dir = MATCH_NONE;
-	ipfw_dyn_rule *prev, *q=NULL;
+	ipfw_dyn_rule *prev, *q = NULL;
 
 	IPFW_DYN_LOCK_ASSERT();
 
 	if (V_ipfw_dyn_v == NULL)
-		goto done;	/* not found */
-	i = hash_packet( pkt );
-	for (prev=NULL, q = V_ipfw_dyn_v[i] ; q != NULL ; ) {
+		goto done;				/* not found */
+	i = hash_packet(pkt);
+	for (prev = NULL, q = V_ipfw_dyn_v[i]; q != NULL;) {
 		if (q->dyn_type == O_LIMIT_PARENT && q->count)
 			goto next;
-		if (TIME_LEQ( q->expire, time_uptime)) { /* expire entry */
+		if (TIME_LEQ(q->expire, time_uptime)) {	/* expire entry */
 			UNLINK_DYN_RULE(prev, V_ipfw_dyn_v[i], q);
 			continue;
 		}
-		if (pkt->proto == q->id.proto &&
-		    q->dyn_type != O_LIMIT_PARENT) {
-			if (IS_IP6_FLOW_ID(pkt)) {
-			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-				&(q->id.src_ip6)) &&
-			    IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-				&(q->id.dst_ip6)) &&
+		if (pkt->proto != q->id.proto || q->dyn_type == O_LIMIT_PARENT)
+			goto next;
+
+		if (IS_IP6_FLOW_ID(pkt)) {
+			if (IN6_ARE_ADDR_EQUAL(&pkt->src_ip6, &q->id.src_ip6) &&
+			    IN6_ARE_ADDR_EQUAL(&pkt->dst_ip6, &q->id.dst_ip6) &&
 			    pkt->src_port == q->id.src_port &&
-			    pkt->dst_port == q->id.dst_port ) {
+			    pkt->dst_port == q->id.dst_port) {
 				dir = MATCH_FORWARD;
 				break;
-			    }
-			    if (IN6_ARE_ADDR_EQUAL(&(pkt->src_ip6),
-				    &(q->id.dst_ip6)) &&
-				IN6_ARE_ADDR_EQUAL(&(pkt->dst_ip6),
-				    &(q->id.src_ip6)) &&
-				pkt->src_port == q->id.dst_port &&
-				pkt->dst_port == q->id.src_port ) {
-				    dir = MATCH_REVERSE;
-				    break;
-			    }
-			} else {
-			    if (pkt->src_ip == q->id.src_ip &&
-				pkt->dst_ip == q->id.dst_ip &&
-				pkt->src_port == q->id.src_port &&
-				pkt->dst_port == q->id.dst_port ) {
-				    dir = MATCH_FORWARD;
-				    break;
-			    }
-			    if (pkt->src_ip == q->id.dst_ip &&
-				pkt->dst_ip == q->id.src_ip &&
-				pkt->src_port == q->id.dst_port &&
-				pkt->dst_port == q->id.src_port ) {
-				    dir = MATCH_REVERSE;
-				    break;
-			    }
+			}
+			if (IN6_ARE_ADDR_EQUAL(&pkt->src_ip6, &q->id.dst_ip6) &&
+			    IN6_ARE_ADDR_EQUAL(&pkt->dst_ip6, &q->id.src_ip6) &&
+			    pkt->src_port == q->id.dst_port &&
+			    pkt->dst_port == q->id.src_port) {
+				dir = MATCH_REVERSE;
+				break;
+			}
+		} else {
+			if (pkt->src_ip == q->id.src_ip &&
+			    pkt->dst_ip == q->id.dst_ip &&
+			    pkt->src_port == q->id.src_port &&
+			    pkt->dst_port == q->id.dst_port) {
+				dir = MATCH_FORWARD;
+				break;
+			}
+			if (pkt->src_ip == q->id.dst_ip &&
+			    pkt->dst_ip == q->id.src_ip &&
+			    pkt->src_port == q->id.dst_port &&
+			    pkt->dst_port == q->id.src_port) {
+				dir = MATCH_REVERSE;
+				break;
 			}
 		}
 next:
@@ -463,45 +459,55 @@ next:
 		q = q->next;
 	}
 	if (q == NULL)
-		goto done; /* q = NULL, not found */
+		goto done;	/* q = NULL, not found */
 
-	if ( prev != NULL) { /* found and not in front */
+	if (prev != NULL) {	/* found and not in front */
 		prev->next = q->next;
 		q->next = V_ipfw_dyn_v[i];
 		V_ipfw_dyn_v[i] = q;
 	}
 	if (pkt->proto == IPPROTO_TCP) { /* update state according to flags */
-		u_char flags = pkt->_flags & (TH_FIN|TH_SYN|TH_RST);
+		uint32_t ack;
+		u_char flags = pkt->_flags & (TH_FIN | TH_SYN | TH_RST);
 
 #define BOTH_SYN	(TH_SYN | (TH_SYN << 8))
 #define BOTH_FIN	(TH_FIN | (TH_FIN << 8))
-		q->state |= (dir == MATCH_FORWARD ) ? flags : (flags << 8);
-		switch (q->state) {
-		case TH_SYN:				/* opening */
+#define	TCP_FLAGS	(TH_FLAGS | (TH_FLAGS << 8))
+#define	ACK_FWD		0x10000			/* fwd ack seen */
+#define	ACK_REV		0x20000			/* rev ack seen */
+
+		q->state |= (dir == MATCH_FORWARD) ? flags : (flags << 8);
+		switch (q->state & TCP_FLAGS) {
+		case TH_SYN:			/* opening */
 			q->expire = time_uptime + V_dyn_syn_lifetime;
 			break;
 
 		case BOTH_SYN:			/* move to established */
-		case BOTH_SYN | TH_FIN :	/* one side tries to close */
-		case BOTH_SYN | (TH_FIN << 8) :
- 			if (tcp) {
+		case BOTH_SYN | TH_FIN:		/* one side tries to close */
+		case BOTH_SYN | (TH_FIN << 8):
 #define _SEQ_GE(a,b) ((int)(a) - (int)(b) >= 0)
-			    u_int32_t ack = ntohl(tcp->th_ack);
-			    if (dir == MATCH_FORWARD) {
-				if (q->ack_fwd == 0 || _SEQ_GE(ack, q->ack_fwd))
-				    q->ack_fwd = ack;
-				else { /* ignore out-of-sequence */
-				    break;
+			if (tcp == NULL)
+				break;
+
+			ack = ntohl(tcp->th_ack);
+			if (dir == MATCH_FORWARD) {
+				if (q->ack_fwd == 0 ||
+				    _SEQ_GE(ack, q->ack_fwd)) {
+					q->ack_fwd = ack;
+					q->state |= ACK_FWD;
 				}
-			    } else {
-				if (q->ack_rev == 0 || _SEQ_GE(ack, q->ack_rev))
-				    q->ack_rev = ack;
-				else { /* ignore out-of-sequence */
-				    break;
+			} else {
+				if (q->ack_rev == 0 ||
+				    _SEQ_GE(ack, q->ack_rev)) {
+					q->ack_rev = ack;
+					q->state |= ACK_REV;
 				}
-			    }
 			}
-			q->expire = time_uptime + V_dyn_ack_lifetime;
+			if ((q->state & (ACK_FWD | ACK_REV)) ==
+			    (ACK_FWD | ACK_REV)) {
+				q->expire = time_uptime + V_dyn_ack_lifetime;
+				q->state &= ~(ACK_FWD | ACK_REV);
+			}
 			break;
 
 		case BOTH_SYN | BOTH_FIN:	/* both sides closed */
@@ -531,9 +537,9 @@ next:
 		q->expire = time_uptime + V_dyn_short_lifetime;
 	}
 done:
-	if (match_direction)
+	if (match_direction != NULL)
 		*match_direction = dir;
-	return q;
+	return (q);
 }
 
 ipfw_dyn_rule *
@@ -1076,10 +1082,12 @@ ipfw_tick(void * vnetx)
 			if (TIME_LEQ(q->expire, time_uptime))
 				continue;	/* too late, rule expired */
 
-			m = ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
-				q->ack_fwd, TH_SYN);
-			mnext = ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
-				q->ack_rev, 0);
+			m = (q->state & ACK_REV) ? NULL :
+			    ipfw_send_pkt(NULL, &(q->id), q->ack_rev - 1,
+			    q->ack_fwd, TH_SYN);
+			mnext = (q->state & ACK_FWD) ? NULL :
+			    ipfw_send_pkt(NULL, &(q->id), q->ack_fwd - 1,
+			    q->ack_rev, 0);
 
 			switch (q->id.addr_type) {
 			case 4:
@@ -1105,18 +1113,16 @@ ipfw_tick(void * vnetx)
 				break;
 #endif
 			}
-
-			m = mnext = NULL;
 		}
 	}
 	IPFW_DYN_UNLOCK();
-	for (m = mnext = m0; m != NULL; m = mnext) {
+	for (m = m0; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		ip_output(m, NULL, NULL, 0, NULL, NULL);
 	}
 #ifdef INET6
-	for (m = mnext = m6; m != NULL; m = mnext) {
+	for (m = m6; m != NULL; m = mnext) {
 		mnext = m->m_nextpkt;
 		m->m_nextpkt = NULL;
 		ip6_output(m, NULL, NULL, 0, NULL, NULL, NULL);

@@ -31,7 +31,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd February 14, 2011
+.Dd February 25, 2012
 .Dt CXGBE 4
 .Os
 .Sh NAME
@@ -56,7 +56,7 @@ The
 .Nm
 driver provides support for PCI Express Ethernet adapters based on
 the Chelsio Terminator 4 (T4) ASIC.
-The driver supprts Jumbo Frames, Transmit/Receive checksum offload,
+The driver supports Jumbo Frames, Transmit/Receive checksum offload,
 TCP segmentation offload (TSO), Large Receive Offload (LRO), VLAN
 tag insertion/extraction, VLAN checksum offload, VLAN TSO, and
 Receive Side Steering (RSS).
@@ -100,28 +100,36 @@ prompt before booting the kernel or stored in
 .Xr loader.conf 5 .
 .Bl -tag -width indent
 .It Va hw.cxgbe.ntxq10g
-The number of tx queues to use for a 10Gb port.  The default is 16 or the number
+The number of tx queues to use for a 10Gb port.
+The default is 16 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nrxq10g
-The number of rx queues to use for a 10Gb port.  The default is 8 or the number
+The number of rx queues to use for a 10Gb port.
+The default is 8 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.ntxq1g
-The number of tx queues to use for a 1Gb port.  The default is 4 or the number
+The number of tx queues to use for a 1Gb port.
+The default is 4 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nrxq1g
-The number of rx queues to use for a 1Gb port.  The default is 2 or the number
+The number of rx queues to use for a 1Gb port.
+The default is 2 or the number
 of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldtxq10g
-The number of TOE tx queues to use for a 10Gb port.  The default is 8 or the
+The number of TOE tx queues to use for a 10Gb port.
+The default is 8 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldrxq10g
-The number of TOE rx queues to use for a 10Gb port.  The default is 2 or the
+The number of TOE rx queues to use for a 10Gb port.
+The default is 2 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldtxq1g
-The number of TOE tx queues to use for a 1Gb port.  The default is 2 or the
+The number of TOE tx queues to use for a 1Gb port.
+The default is 2 or the
 number of CPU cores in the system, whichever is less.
 .It Va hw.cxgbe.nofldrxq1g
-The number of TOE rx queues to use for a 1Gb port.  The default is 1.
+The number of TOE rx queues to use for a 1Gb port.
+The default is 1.
 .It Va hw.cxgbe.holdoff_timer_idx_10G
 .It Va hw.cxgbe.holdoff_timer_idx_1G
 The timer index value to use to delay interrupts.
@@ -149,7 +157,8 @@ ifconfig up).
 The size, in number of entries, of the descriptor ring used for a tx
 queue.
 A buf_ring of the same size is also allocated for additional
-software queuing.  See
+software queuing.
+See
 .Xr ifnet 9 .
 The default value is 1024.
 Different cxgbe interfaces can be assigned different values via the

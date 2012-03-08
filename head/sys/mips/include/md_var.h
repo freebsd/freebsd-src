@@ -41,7 +41,11 @@
  */
 extern	long	Maxmem;
 extern	char	sigcode[];
-extern	int	szsigcode, szosigcode;
+extern	int	szsigcode;
+#if defined(__mips_n32) || defined(__mips_n64)
+extern	char	sigcode32[];
+extern	int	szsigcode32;
+#endif
 extern	uint32_t *vm_page_dump;
 extern	int vm_page_dump_size;
 

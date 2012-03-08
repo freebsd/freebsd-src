@@ -1,5 +1,6 @@
 /*-
  * Copyright (c) 2003-2007 Tim Kientzle
+ * Copyright (c) 2011-2012 Michihiro NAKAJIMA
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -39,18 +40,22 @@ __FBSDID("$FreeBSD$");
 
 #include "archive.h"
 #include "archive_entry.h"
+#include "archive_entry_locale.h"
 #include "archive_private.h"
 #include "archive_write_private.h"
 
 static ssize_t	archive_write_cpio_data(struct archive_write *,
 		    const void *buff, size_t s);
-static int	archive_write_cpio_finish(struct archive_write *);
-static int	archive_write_cpio_destroy(struct archive_write *);
+static int	archive_write_cpio_close(struct archive_write *);
+static int	archive_write_cpio_free(struct archive_write *);
 static int	archive_write_cpio_finish_entry(struct archive_write *);
 static int	archive_write_cpio_header(struct archive_write *,
 		    struct archive_entry *);
+static int	archive_write_cpio_options(struct archive_write *,
+		    const char *, const char *);
 static int	format_octal(int64_t, void *, int);
 static int64_t	format_octal_recursive(int64_t, char *, int);
+static int	write_header(struct archive_write *, struct archive_entry *);
 
 struct cpio {
 	uint64_t	  entry_bytes_remaining;
@@ -60,31 +65,34 @@ struct cpio {
 	struct		 { int64_t old; int new;} *ino_list;
 	size_t		  ino_list_size;
 	size_t		  ino_list_next;
+
+	struct archive_string_conv *opt_sconv;
+	struct archive_string_conv *sconv_default;
+	int		  init_default_conversion;
 };
 
-#ifdef _MSC_VER
-#define __packed
-#pragma pack(push, 1)
-#endif
-
-struct cpio_header {
-	char	c_magic[6];
-	char	c_dev[6];
-	char	c_ino[6];
-	char	c_mode[6];
-	char	c_uid[6];
-	char	c_gid[6];
-	char	c_nlink[6];
-	char	c_rdev[6];
-	char	c_mtime[11];
-	char	c_namesize[6];
-	char	c_filesize[11];
-} __packed;
-
-#ifdef _MSC_VER
-#undef __packed
-#pragma pack(pop)
-#endif
+#define	c_magic_offset 0
+#define	c_magic_size 6
+#define	c_dev_offset 6
+#define	c_dev_size 6
+#define	c_ino_offset 12
+#define	c_ino_size 6
+#define	c_mode_offset 18
+#define	c_mode_size 6
+#define	c_uid_offset 24
+#define	c_uid_size 6
+#define	c_gid_offset 30
+#define	c_gid_size 6
+#define	c_nlink_offset 36
+#define	c_nlink_size 6
+#define	c_rdev_offset 42
+#define	c_rdev_size 6
+#define	c_mtime_offset 48
+#define	c_mtime_size 11
+#define	c_namesize_offset 59
+#define	c_namesize_size 6
+#define	c_filesize_offset 65
+#define	c_filesize_size 11
 
 /*
  * Set output format to 'cpio' format.
@@ -95,28 +103,58 @@ archive_write_set_format_cpio(struct archive *_a)
 	struct archive_write *a = (struct archive_write *)_a;
 	struct cpio *cpio;
 
-	/* If someone else was already registered, unregister them. */
-	if (a->format_destroy != NULL)
-		(a->format_destroy)(a);
+	archive_check_magic(_a, ARCHIVE_WRITE_MAGIC,
+	    ARCHIVE_STATE_NEW, "archive_write_set_format_cpio");
 
-	cpio = (struct cpio *)malloc(sizeof(*cpio));
+	/* If someone else was already registered, unregister them. */
+	if (a->format_free != NULL)
+		(a->format_free)(a);
+
+	cpio = (struct cpio *)calloc(1, sizeof(*cpio));
 	if (cpio == NULL) {
 		archive_set_error(&a->archive, ENOMEM, "Can't allocate cpio data");
 		return (ARCHIVE_FATAL);
 	}
-	memset(cpio, 0, sizeof(*cpio));
 	a->format_data = cpio;
-
-	a->pad_uncompressed = 1;
 	a->format_name = "cpio";
+	a->format_options = archive_write_cpio_options;
 	a->format_write_header = archive_write_cpio_header;
 	a->format_write_data = archive_write_cpio_data;
 	a->format_finish_entry = archive_write_cpio_finish_entry;
-	a->format_finish = archive_write_cpio_finish;
-	a->format_destroy = archive_write_cpio_destroy;
+	a->format_close = archive_write_cpio_close;
+	a->format_free = archive_write_cpio_free;
 	a->archive.archive_format = ARCHIVE_FORMAT_CPIO_POSIX;
 	a->archive.archive_format_name = "POSIX cpio";
 	return (ARCHIVE_OK);
+}
+
+static int
+archive_write_cpio_options(struct archive_write *a, const char *key,
+    const char *val)
+{
+	struct cpio *cpio = (struct cpio *)a->format_data;
+	int ret = ARCHIVE_FAILED;
+
+	if (strcmp(key, "hdrcharset")  == 0) {
+		if (val == NULL || val[0] == 0)
+			archive_set_error(&a->archive, ARCHIVE_ERRNO_MISC,
+			    "%s: hdrcharset option needs a character-set name",
+			    a->format_name);
+		else {
+			cpio->opt_sconv = archive_string_conversion_to_charset(
+			    &a->archive, val, 0);
+			if (cpio->opt_sconv != NULL)
+				ret = ARCHIVE_OK;
+			else
+				ret = ARCHIVE_FATAL;
+		}
+		return (ret);
+	}
+
+	/* Note: The "warn" return is just to inform the options
+	 * supervisor that we didn't handle it.  It will generate
+	 * a suitable error if no one used this option. */
+	return (ARCHIVE_WARN);
 }
 
 /*
@@ -184,78 +222,195 @@ synthesize_ino_value(struct cpio *cpio, struct archive_entry *entry)
 	return (ino_new);
 }
 
+
+static struct archive_string_conv *
+get_sconv(struct archive_write *a)
+{
+	struct cpio *cpio;
+	struct archive_string_conv *sconv;
+
+	cpio = (struct cpio *)a->format_data;
+	sconv = cpio->opt_sconv;
+	if (sconv == NULL) {
+		if (!cpio->init_default_conversion) {
+			cpio->sconv_default =
+			    archive_string_default_conversion_for_write(
+			      &(a->archive));
+			cpio->init_default_conversion = 1;
+		}
+		sconv = cpio->sconv_default;
+	}
+	return (sconv);
+}
+
 static int
 archive_write_cpio_header(struct archive_write *a, struct archive_entry *entry)
 {
+	const char *path;
+	size_t len;
+
+	if (archive_entry_filetype(entry) == 0) {
+		archive_set_error(&a->archive, -1, "Filetype required");
+		return (ARCHIVE_FAILED);
+	}
+
+	if (archive_entry_pathname_l(entry, &path, &len, get_sconv(a)) != 0
+	    && errno == ENOMEM) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate memory for Pathname");
+		return (ARCHIVE_FATAL);
+	}
+	if (len == 0 || path == NULL || path[0] == '\0') {
+		archive_set_error(&a->archive, -1, "Pathname required");
+		return (ARCHIVE_FAILED);
+	}
+
+	if (!archive_entry_size_is_set(entry) || archive_entry_size(entry) < 0) {
+		archive_set_error(&a->archive, -1, "Size required");
+		return (ARCHIVE_FAILED);
+	}
+	return write_header(a, entry);
+}
+
+static int
+write_header(struct archive_write *a, struct archive_entry *entry)
+{
 	struct cpio *cpio;
 	const char *p, *path;
-	int pathlength, ret, ret2;
+	int pathlength, ret, ret_final;
 	int64_t	ino;
-	struct cpio_header	 h;
+	char h[76];
+	struct archive_string_conv *sconv;
+	struct archive_entry *entry_main;
+	size_t len;
 
 	cpio = (struct cpio *)a->format_data;
-	ret2 = ARCHIVE_OK;
+	ret_final = ARCHIVE_OK;
+	sconv = get_sconv(a);
 
-	path = archive_entry_pathname(entry);
-	pathlength = (int)strlen(path) + 1; /* Include trailing null. */
+#if defined(_WIN32) && !defined(__CYGWIN__)
+	/* Make sure the path separators in pahtname, hardlink and symlink
+	 * are all slash '/', not the Windows path separator '\'. */
+	entry_main = __la_win_entry_in_posix_pathseparator(entry);
+	if (entry_main == NULL) {
+		archive_set_error(&a->archive, ENOMEM,
+		    "Can't allocate ustar data");
+		return(ARCHIVE_FATAL);
+	}
+	if (entry != entry_main)
+		entry = entry_main;
+	else
+		entry_main = NULL;
+#else
+	entry_main = NULL;
+#endif
 
-	memset(&h, 0, sizeof(h));
-	format_octal(070707, &h.c_magic, sizeof(h.c_magic));
-	format_octal(archive_entry_dev(entry), &h.c_dev, sizeof(h.c_dev));
+	ret = archive_entry_pathname_l(entry, &path, &len, sconv);
+	if (ret != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Pathname");
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate pathname '%s' to %s",
+		    archive_entry_pathname(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret_final = ARCHIVE_WARN;
+	}
+	/* Include trailing null. */
+	pathlength = (int)len + 1;
+
+	memset(h, 0, sizeof(h));
+	format_octal(070707, h + c_magic_offset, c_magic_size);
+	format_octal(archive_entry_dev(entry), h + c_dev_offset, c_dev_size);
 
 	ino = synthesize_ino_value(cpio, entry);
 	if (ino < 0) {
 		archive_set_error(&a->archive, ENOMEM,
 		    "No memory for ino translation table");
-		return (ARCHIVE_FATAL);
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
 	} else if (ino > 0777777) {
 		archive_set_error(&a->archive, ERANGE,
 		    "Too many files for this cpio format");
-		return (ARCHIVE_FATAL);
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
 	}
-	format_octal(ino & 0777777, &h.c_ino, sizeof(h.c_ino));
+	format_octal(ino & 0777777, h + c_ino_offset, c_ino_size);
 
-	format_octal(archive_entry_mode(entry), &h.c_mode, sizeof(h.c_mode));
-	format_octal(archive_entry_uid(entry), &h.c_uid, sizeof(h.c_uid));
-	format_octal(archive_entry_gid(entry), &h.c_gid, sizeof(h.c_gid));
-	format_octal(archive_entry_nlink(entry), &h.c_nlink, sizeof(h.c_nlink));
+	/* TODO: Set ret_final to ARCHIVE_WARN if any of these overflow. */
+	format_octal(archive_entry_mode(entry), h + c_mode_offset, c_mode_size);
+	format_octal(archive_entry_uid(entry), h + c_uid_offset, c_uid_size);
+	format_octal(archive_entry_gid(entry), h + c_gid_offset, c_gid_size);
+	format_octal(archive_entry_nlink(entry), h + c_nlink_offset, c_nlink_size);
 	if (archive_entry_filetype(entry) == AE_IFBLK
 	    || archive_entry_filetype(entry) == AE_IFCHR)
-	    format_octal(archive_entry_dev(entry), &h.c_rdev, sizeof(h.c_rdev));
+	    format_octal(archive_entry_dev(entry), h + c_rdev_offset, c_rdev_size);
 	else
-	    format_octal(0, &h.c_rdev, sizeof(h.c_rdev));
-	format_octal(archive_entry_mtime(entry), &h.c_mtime, sizeof(h.c_mtime));
-	format_octal(pathlength, &h.c_namesize, sizeof(h.c_namesize));
+	    format_octal(0, h + c_rdev_offset, c_rdev_size);
+	format_octal(archive_entry_mtime(entry), h + c_mtime_offset, c_mtime_size);
+	format_octal(pathlength, h + c_namesize_offset, c_namesize_size);
 
 	/* Non-regular files don't store bodies. */
 	if (archive_entry_filetype(entry) != AE_IFREG)
 		archive_entry_set_size(entry, 0);
 
 	/* Symlinks get the link written as the body of the entry. */
-	p = archive_entry_symlink(entry);
-	if (p != NULL  &&  *p != '\0')
-		format_octal(strlen(p), &h.c_filesize, sizeof(h.c_filesize));
+	ret = archive_entry_symlink_l(entry, &p, &len, sconv);
+	if (ret != 0) {
+		if (errno == ENOMEM) {
+			archive_set_error(&a->archive, ENOMEM,
+			    "Can't allocate memory for Linkname");
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+		archive_set_error(&a->archive, ARCHIVE_ERRNO_FILE_FORMAT,
+		    "Can't translate linkname '%s' to %s",
+		    archive_entry_symlink(entry),
+		    archive_string_conversion_charset_name(sconv));
+		ret_final = ARCHIVE_WARN;
+	}
+	if (len > 0 && p != NULL  &&  *p != '\0')
+		ret = format_octal(strlen(p), h + c_filesize_offset,
+		    c_filesize_size);
 	else
-		format_octal(archive_entry_size(entry),
-		    &h.c_filesize, sizeof(h.c_filesize));
+		ret = format_octal(archive_entry_size(entry),
+		    h + c_filesize_offset, c_filesize_size);
+	if (ret) {
+		archive_set_error(&a->archive, ERANGE,
+		    "File is too large for cpio format.");
+		ret_final = ARCHIVE_FAILED;
+		goto exit_write_header;
+	}
 
-	ret = (a->compressor.write)(a, &h, sizeof(h));
-	if (ret != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+	ret = __archive_write_output(a, h, sizeof(h));
+	if (ret != ARCHIVE_OK) {
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
+	}
 
-	ret = (a->compressor.write)(a, path, pathlength);
-	if (ret != ARCHIVE_OK)
-		return (ARCHIVE_FATAL);
+	ret = __archive_write_output(a, path, pathlength);
+	if (ret != ARCHIVE_OK) {
+		ret_final = ARCHIVE_FATAL;
+		goto exit_write_header;
+	}
 
 	cpio->entry_bytes_remaining = archive_entry_size(entry);
 
 	/* Write the symlink now. */
-	if (p != NULL  &&  *p != '\0')
-		ret = (a->compressor.write)(a, p, strlen(p));
-
-	if (ret == ARCHIVE_OK)
-		ret = ret2;
-	return (ret);
+	if (p != NULL  &&  *p != '\0') {
+		ret = __archive_write_output(a, p, strlen(p));
+		if (ret != ARCHIVE_OK) {
+			ret_final = ARCHIVE_FATAL;
+			goto exit_write_header;
+		}
+	}
+exit_write_header:
+	if (entry_main)
+		archive_entry_free(entry_main);
+	return (ret_final);
 }
 
 static ssize_t
@@ -268,7 +423,7 @@ archive_write_cpio_data(struct archive_write *a, const void *buff, size_t s)
 	if (s > cpio->entry_bytes_remaining)
 		s = cpio->entry_bytes_remaining;
 
-	ret = (a->compressor.write)(a, buff, s);
+	ret = __archive_write_output(a, buff, s);
 	cpio->entry_bytes_remaining -= s;
 	if (ret >= 0)
 		return (s);
@@ -307,22 +462,23 @@ format_octal_recursive(int64_t v, char *p, int s)
 }
 
 static int
-archive_write_cpio_finish(struct archive_write *a)
+archive_write_cpio_close(struct archive_write *a)
 {
 	int er;
 	struct archive_entry *trailer;
 
-	trailer = archive_entry_new();
+	trailer = archive_entry_new2(NULL);
 	/* nlink = 1 here for GNU cpio compat. */
 	archive_entry_set_nlink(trailer, 1);
+	archive_entry_set_size(trailer, 0);
 	archive_entry_set_pathname(trailer, "TRAILER!!!");
-	er = archive_write_cpio_header(a, trailer);
+	er = write_header(a, trailer);
 	archive_entry_free(trailer);
 	return (er);
 }
 
 static int
-archive_write_cpio_destroy(struct archive_write *a)
+archive_write_cpio_free(struct archive_write *a)
 {
 	struct cpio *cpio;
 
@@ -337,18 +493,7 @@ static int
 archive_write_cpio_finish_entry(struct archive_write *a)
 {
 	struct cpio *cpio;
-	size_t to_write;
-	int ret;
 
 	cpio = (struct cpio *)a->format_data;
-	ret = ARCHIVE_OK;
-	while (cpio->entry_bytes_remaining > 0) {
-		to_write = cpio->entry_bytes_remaining < a->null_length ?
-		    cpio->entry_bytes_remaining : a->null_length;
-		ret = (a->compressor.write)(a, a->nulls, to_write);
-		if (ret != ARCHIVE_OK)
-			return (ret);
-		cpio->entry_bytes_remaining -= to_write;
-	}
-	return (ret);
+	return (__archive_write_nulls(a, cpio->entry_bytes_remaining));
 }

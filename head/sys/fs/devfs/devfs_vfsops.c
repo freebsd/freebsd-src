@@ -58,7 +58,7 @@ static vfs_root_t	devfs_root;
 static vfs_statfs_t	devfs_statfs;
 
 static const char *devfs_opts[] = {
-	"from", "ruleset", NULL
+	"from", "export", "ruleset", NULL
 };
 
 /*
@@ -71,7 +71,7 @@ devfs_mount(struct mount *mp)
 	struct devfs_mount *fmp;
 	struct vnode *rvp;
 	struct thread *td = curthread;
-	int rsnum;
+	int injail, rsnum;
 
 	if (devfs_unr == NULL)
 		devfs_unr = new_unrhdr(0, INT_MAX, NULL);
@@ -81,32 +81,35 @@ devfs_mount(struct mount *mp)
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
 
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_DEVFS))
+		return (EPERM);
+
 	rsnum = 0;
+	injail = jailed(td->td_ucred);
 
 	if (mp->mnt_optnew != NULL) {
 		if (vfs_filteropt(mp->mnt_optnew, devfs_opts))
 			return (EINVAL);
 
+		if (vfs_flagopt(mp->mnt_optnew, "export", NULL, 0))
+			return (EOPNOTSUPP);
+
 		if (vfs_getopt(mp->mnt_optnew, "ruleset", NULL, NULL) == 0 &&
 		    (vfs_scanopt(mp->mnt_optnew, "ruleset", "%d",
-		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535))
-			error = EINVAL;
-	}
+		    &rsnum) != 1 || rsnum < 0 || rsnum > 65535)) {
+			vfs_mount_error(mp, "%s",
+			    "invalid ruleset specification");
+			return (EINVAL);
+		}
 
-	/* jails enforce their ruleset, prison0 has no restrictions */
-	if (td->td_ucred->cr_prison->pr_devfs_rsnum != 0) {
-		rsnum = td->td_ucred->cr_prison->pr_devfs_rsnum;
-		if (rsnum == -1)
+		if (injail && rsnum != 0 &&
+		    rsnum != td->td_ucred->cr_prison->pr_devfs_rsnum)
 			return (EPERM);
-		/* check rsnum for sanity, devfs_rsnum is uint16_t */
-		if (rsnum < 0 || rsnum > 65535)
-			error = EINVAL;
 	}
 
-	if (error) {
-		vfs_mount_error(mp, "%s", "invalid ruleset specification");
-		return (error);
-	}
+	/* jails enforce their ruleset */
+	if (injail)
+		rsnum = td->td_ucred->cr_prison->pr_devfs_rsnum;
 
 	if (mp->mnt_flag & MNT_UPDATE) {
 		if (rsnum != 0) {

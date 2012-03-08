@@ -583,9 +583,10 @@ struct vnode;
 
 /* cache_* may belong in namei.h. */
 #define	cache_enter(dvp, vp, cnp)					\
-	cache_enter_time(dvp, vp, cnp, NULL)
+	cache_enter_time(dvp, vp, cnp, NULL, NULL)
 void	cache_enter_time(struct vnode *dvp, struct vnode *vp,
-	    struct componentname *cnp, struct timespec *tsp);
+	    struct componentname *cnp, struct timespec *tsp,
+	    struct timespec *dtsp);
 int	cache_lookup(struct vnode *dvp, struct vnode **vpp,
 	    struct componentname *cnp, struct timespec *tsp, int *ticksp);
 void	cache_purge(struct vnode *vp);
@@ -703,6 +704,9 @@ int	vop_stdpathconf(struct vop_pathconf_args *);
 int	vop_stdpoll(struct vop_poll_args *);
 int	vop_stdvptocnp(struct vop_vptocnp_args *ap);
 int	vop_stdvptofh(struct vop_vptofh_args *ap);
+int	vop_stdunp_bind(struct vop_unp_bind_args *ap);
+int	vop_stdunp_connect(struct vop_unp_connect_args *ap);
+int	vop_stdunp_detach(struct vop_unp_detach_args *ap);
 int	vop_eopnotsupp(struct vop_generic_args *ap);
 int	vop_ebadf(struct vop_generic_args *ap);
 int	vop_einval(struct vop_generic_args *ap);
@@ -792,6 +796,8 @@ struct dirent;
 int vfs_read_dirent(struct vop_readdir_args *ap, struct dirent *dp, off_t off);
 
 int vfs_unixify_accmode(accmode_t *accmode);
+
+void vfs_unp_reclaim(struct vnode *vp);
 
 int setfmode(struct thread *td, struct ucred *cred, struct vnode *vp, int mode);
 int setfown(struct thread *td, struct ucred *cred, struct vnode *vp, uid_t uid,

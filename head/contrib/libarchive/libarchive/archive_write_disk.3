@@ -36,8 +36,10 @@
 .Nm archive_write_disk_set_user_lookup ,
 .Nm archive_write_header ,
 .Nm archive_write_data ,
+.Nm archive_write_data_block ,
 .Nm archive_write_finish_entry ,
 .Nm archive_write_close ,
+.Nm archive_write_finish
 .Nm archive_write_free
 .Nd functions for creating objects on disk
 .Sh SYNOPSIS
@@ -68,10 +70,14 @@
 .Fn archive_write_header "struct archive *" "struct archive_entry *"
 .Ft ssize_t
 .Fn archive_write_data "struct archive *" "const void *" "size_t"
+.Ft ssize_t
+.Fn archive_write_data_block "struct archive *" "const void *" "size_t size" "int64_t offset"
 .Ft int
 .Fn archive_write_finish_entry "struct archive *"
 .Ft int
 .Fn archive_write_close "struct archive *"
+.Ft int
+.Fn archive_write_finish "struct archive *"
 .Ft int
 .Fn archive_write_free "struct archive *"
 .Sh DESCRIPTION
@@ -221,6 +227,20 @@ objects.
 .It Fn archive_write_data
 Write data corresponding to the header just written.
 Returns number of bytes written or -1 on error.
+.It Fn archive_write_data_block
+Write data corresponding to the header just written.
+This is like
+.Fn archive_write_data
+except that it performs a seek on the file being
+written to the specified offset before writing the data.
+This is useful when restoring sparse files from archive
+formats that support sparse files.
+Returns number of bytes written or -1 on error.
+(Note: This is currently not supported for
+.Tn archive_write
+handles, only for
+.Tn archive_write_disk
+handles.)
 .It Fn archive_write_finish_entry
 Close out the entry just written.
 Ordinarily, clients never need to call this, as it
@@ -229,6 +249,9 @@ is called automatically by
 and
 .Fn archive_write_close
 as needed.
+However, some file attributes are written to disk only
+after the file is closed, so this can be necessary
+if you need to work with the file on disk right away.
 .It Fn archive_write_close
 Set any attributes that could not be set during the initial restore.
 For example, directory timestamps are not restored initially because
@@ -239,6 +262,9 @@ The
 .Nm
 library maintains a list of all such deferred attributes and
 sets them when this function is invoked.
+.It Fn archive_write_finish
+This is a deprecated synonym for
+.Fn archive_write_free .
 .It Fn archive_write_free
 Invokes
 .Fn archive_write_close
@@ -263,12 +289,6 @@ for operations that might succeed if retried,
 for unusual conditions that do not prevent further operations, and
 .Cm ARCHIVE_FATAL
 for serious errors that make remaining operations impossible.
-The
-.Fn archive_errno
-and
-.Fn archive_error_string
-functions can be used to retrieve an appropriate error code and a
-textual error message.
 .Pp
 .Fn archive_write_disk_new
 returns a pointer to a newly-allocated
@@ -276,12 +296,18 @@ returns a pointer to a newly-allocated
 object.
 .Pp
 .Fn archive_write_data
-returns a count of the number of bytes actually written.
-On error, -1 is returned and the
+returns a count of the number of bytes actually written,
+or
+.Li -1
+on error.
+.\"
+.Sh ERRORS
+Detailed error codes and textual descriptions are available from the
 .Fn archive_errno
 and
 .Fn archive_error_string
-functions will return appropriate values.
+functions.
+.\"
 .Sh SEE ALSO
 .Xr archive_read 3 ,
 .Xr archive_write 3 ,

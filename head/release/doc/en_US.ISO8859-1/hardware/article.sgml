@@ -748,6 +748,8 @@
 
       &hwlist.ahc;
 
+      &hwlist.ahci;
+
       &hwlist.ahd;
 
       &hwlist.aic;
@@ -788,6 +790,8 @@
 
       &hwlist.ips;
 
+      &hwlist.isci;
+
       &hwlist.isp;
 
       &hwlist.mfi;
@@ -815,6 +819,8 @@
       &hwlist.nsp;
 
       &hwlist.pst;
+
+      &hwlist.siis;
 
       &hwlist.stg;
 
@@ -1406,6 +1412,8 @@
       &hwlist.snd.gusc;
 
       &hwlist.snd.hda;
+
+      &hwlist.snd.hdspe;
 
       &hwlist.snd.ich;
 

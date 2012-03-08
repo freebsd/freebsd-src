@@ -15,8 +15,10 @@ doc
 examples
 libarchive/CMakeLists.txt
 libarchive/archive_entry_copy_bhfi.c
+libarchive/archive_read_disk_windows.c
 libarchive/archive_windows.c
 libarchive/archive_windows.h
+libarchive/archive_write_disk_windows.c
 libarchive/config_freebsd.h
 libarchive/filter_fork_windows.c
 libarchive/mtree.5

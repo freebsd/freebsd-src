@@ -90,6 +90,13 @@ libkern/umoddi3.c		optional	isa_mips32
 #libkern/mips/strcmp.S		standard
 #libkern/mips/strncmp.S		standard
 
+compat/freebsd32/freebsd32_ioctl.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_misc.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_syscalls.c	optional	compat_freebsd32
+compat/freebsd32/freebsd32_sysent.c	optional	compat_freebsd32
+kern/imgact_elf32.c			optional	compat_freebsd32
+mips/mips/freebsd32_machdep.c		optional	compat_freebsd32
+
 kern/kern_clocksource.c		standard
 kern/link_elf_obj.c		standard
 

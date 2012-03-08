@@ -501,6 +501,7 @@ struct ath_softc {
 	struct ath_txq		*sc_cabq;	/* tx q for cab frames */
 	struct task		sc_bmisstask;	/* bmiss int processing */
 	struct task		sc_bstucktask;	/* stuck beacon processing */
+	struct task		sc_resettask;	/* interface reset task */
 	enum {
 		OK,				/* no change needed */
 		UPDATE,				/* update pending */

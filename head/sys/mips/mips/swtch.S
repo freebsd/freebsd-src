@@ -55,6 +55,7 @@
  *	assembly language support routines.
  */
 
+#include "opt_compat.h"
 #include "opt_cputype.h"
 #include <sys/syscall.h>
 #include <machine/asm.h>
@@ -636,3 +637,21 @@ _C_LABEL(esigcode):
 szsigcode:
 	.long	esigcode-sigcode
 	.text
+
+#if (defined(__mips_n32) || defined(__mips_n64)) && defined(COMPAT_FREEBSD32)
+	.globl	_C_LABEL(sigcode32)
+_C_LABEL(sigcode32):
+	addu		a0, sp, SIGF32_UC	# address of ucontext
+	li		v0, SYS_sigreturn
+# sigreturn (ucp)
+	syscall
+	break	0				# just in case sigreturn fails
+	.globl	_C_LABEL(esigcode32)
+_C_LABEL(esigcode32):
+
+	.data
+	.globl	szsigcode32
+szsigcode32:
+	.long	esigcode32-sigcode32
+	.text
+#endif

@@ -31,6 +31,12 @@
 #define	LAGG_MAX_NAMESIZE	32	/* name of a protocol */
 #define	LAGG_MAX_STACKING	4	/* maximum number of stacked laggs */
 
+/* Lagg flags */
+#define	LAGG_F_HASHL2		0x00000001	/* hash layer 2 */
+#define	LAGG_F_HASHL3		0x00000002	/* hash layer 3 */
+#define	LAGG_F_HASHL4		0x00000004	/* hash layer 4 */
+#define	LAGG_F_HASHMASK		0x00000007
+
 /* Port flags */
 #define	LAGG_PORT_SLAVE		0x00000000	/* normal enslaved port */
 #define	LAGG_PORT_MASTER	0x00000001	/* primary port */
@@ -122,6 +128,14 @@ struct lagg_reqall {
 #define	SIOCGLAGG		_IOWR('i', 143, struct lagg_reqall)
 #define	SIOCSLAGG		 _IOW('i', 144, struct lagg_reqall)
 
+struct lagg_reqflags {
+	char			rf_ifname[IFNAMSIZ];	/* name of the lagg */
+	uint32_t		rf_flags;		/* lagg protocol */
+};
+
+#define	SIOCGLAGGFLAGS		_IOWR('i', 145, struct lagg_reqflags)
+#define	SIOCSLAGGHASH		 _IOW('i', 146, struct lagg_reqflags)
+
 #ifdef _KERNEL
 /*
  * Internal kernel part
@@ -179,6 +193,7 @@ struct lagg_softc {
 	struct ifmedia			sc_media;	/* media config */
 	caddr_t				sc_psc;		/* protocol data */
 	uint32_t			sc_seq;		/* sequence counter */
+	uint32_t			sc_flags;
 
 	SLIST_HEAD(__tplhd, lagg_port)	sc_ports;	/* list of interfaces */
 	SLIST_ENTRY(lagg_softc)	sc_entries;
@@ -244,7 +259,7 @@ extern struct mbuf *(*lagg_input_p)(struct ifnet *, struct mbuf *);
 extern void	(*lagg_linkstate_p)(struct ifnet *, int );
 
 int		lagg_enqueue(struct ifnet *, struct mbuf *);
-uint32_t	lagg_hashmbuf(struct mbuf *, uint32_t);
+uint32_t	lagg_hashmbuf(struct lagg_softc *, struct mbuf *, uint32_t);
 
 #endif /* _KERNEL */
 

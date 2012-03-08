@@ -59,14 +59,14 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	struct archive *a;
 	const void *p;
 	size_t size;
-	off_t offset;
+	int64_t offset;
 
 	extract_reference_file(refname);
 	assert((a = archive_read_new()) != NULL);
-	assertEqualInt(0, archive_read_support_compression_all(a));
+	assertEqualInt(0, archive_read_support_filter_all(a));
 	assertEqualInt(0, archive_read_support_format_all(a));
 	assertEqualInt(ARCHIVE_OK,
-	    archive_read_set_options(a, "iso9660:!rockridge"));
+	    archive_read_set_option(a, "iso9660", "rockridge", NULL));
 	assertEqualInt(ARCHIVE_OK,
 	    archive_read_open_filename(a, refname, 10240));
 
@@ -103,7 +103,7 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(0, archive_read_data_block(a, &p, &size, &offset));
 	assertEqualInt(6, (int)size);
 	assertEqualInt(0, offset);
-	assertEqualInt(0, memcmp(p, "hello\n", 6));
+	assertEqualMem(p, "hello\n", 6);
 
 	/* Second name for the same regular file (this happens to be
 	 * returned second, so does get marked as a hardlink). */
@@ -129,7 +129,7 @@ DEFINE_TEST(test_read_format_isojoliet_bz2)
 	assertEqualInt(archive_compression(a), ARCHIVE_COMPRESSION_COMPRESS);
 
 	/* Close the archive. */
-	assertEqualInt(0, archive_read_close(a));
-	assertEqualInt(0, archive_read_finish(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }
 

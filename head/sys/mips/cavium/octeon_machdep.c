@@ -575,6 +575,7 @@ octeon_process_app_desc_ver_6(void)
 		octeon_bootinfo->compact_flash_common_base_addr;
 	cvmx_sysinfo_get()->compact_flash_attribute_base_addr = 
 		octeon_bootinfo->compact_flash_attribute_base_addr;
+	cvmx_sysinfo_get()->core_mask = octeon_bootinfo->core_mask;
 }
 
 static void

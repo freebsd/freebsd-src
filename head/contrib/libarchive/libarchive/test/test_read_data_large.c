@@ -72,34 +72,26 @@ DEFINE_TEST(test_read_data_large)
 	assertA((int)sizeof(buff2) == archive_write_data(a, buff2, sizeof(buff2)));
 
 	/* Close out the archive. */
-	assertA(0 == archive_write_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_write_finish(a);
-#else
-	assertA(0 == archive_write_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/* Check that archive_read_data can handle 10*10^6 at a pop. */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
 	assertA(0 == archive_read_next_header(a, &ae));
 	failure("Wrote 10MB, but didn't read the same amount");
 	assertEqualIntA(a, sizeof(buff2),archive_read_data(a, buff3, sizeof(buff3)));
 	failure("Read expected 10MB, but data read didn't match what was written");
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
+	assertEqualMem(buff2, buff3, sizeof(buff3));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 
 	/* Check archive_read_data_into_fd */
 	assert((a = archive_read_new()) != NULL);
 	assertA(0 == archive_read_support_format_all(a));
-	assertA(0 == archive_read_support_compression_all(a));
+	assertA(0 == archive_read_support_filter_all(a));
 	assertA(0 == archive_read_open_memory(a, buff1, sizeof(buff1)));
 	assertA(0 == archive_read_next_header(a, &ae));
 #if defined(__BORLANDC__)
@@ -109,17 +101,13 @@ DEFINE_TEST(test_read_data_large)
 #endif
 	assert(tmpfilefd != 0);
 	assertEqualIntA(a, 0, archive_read_data_into_fd(a, tmpfilefd));
-	assert(0 == archive_read_close(a));
-#if ARCHIVE_VERSION_NUMBER < 2000000
-	archive_read_finish(a);
-#else
-	assert(0 == archive_read_finish(a));
-#endif
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	close(tmpfilefd);
 
 	f = fopen(tmpfilename, "rb");
 	assert(f != NULL);
 	assertEqualInt(sizeof(buff3), fread(buff3, 1, sizeof(buff3), f));
 	fclose(f);
-	assert(0 == memcmp(buff2, buff3, sizeof(buff3)));
+	assertEqualMem(buff2, buff3, sizeof(buff3));
 }

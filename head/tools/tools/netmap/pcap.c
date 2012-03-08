@@ -257,14 +257,14 @@ netmap_open(struct my_ring *me, int ringid)
 	me->nifp = NETMAP_IF(me->mem, req.nr_offset);
 	me->queueid = ringid;
 	if (ringid & NETMAP_SW_RING) {
-		me->begin = req.nr_numrings;
+		me->begin = req.nr_rx_rings;
 		me->end = me->begin + 1;
 	} else if (ringid & NETMAP_HW_RING) {
 		me->begin = ringid & NETMAP_RING_MASK;
 		me->end = me->begin + 1;
 	} else {
 		me->begin = 0;
-		me->end = req.nr_numrings;
+		me->end = req.nr_rx_rings;
 	}
 	/* request timestamps for packets */
 	for (i = me->begin; i < me->end; i++) {

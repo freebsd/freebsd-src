@@ -79,7 +79,7 @@ DEFINE_TEST(test_open_fd)
 
 	/* Close out the archive. */
 	assertEqualIntA(a, ARCHIVE_OK, archive_write_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_write_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_write_free(a));
 
 	/*
 	 * Now, read the data back.
@@ -87,7 +87,7 @@ DEFINE_TEST(test_open_fd)
 	assert(lseek(fd, 0, SEEK_SET) == 0);
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_open_fd(a, fd, 512));
 
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_next_header(a, &ae));
@@ -110,7 +110,7 @@ DEFINE_TEST(test_open_fd)
 	/* Verify the end of the archive. */
 	assertEqualIntA(a, ARCHIVE_EOF, archive_read_next_header(a, &ae));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 	close(fd);
 
 
@@ -119,10 +119,10 @@ DEFINE_TEST(test_open_fd)
 	 */
 	assert((a = archive_read_new()) != NULL);
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_format_all(a));
-	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_compression_all(a));
+	assertEqualIntA(a, ARCHIVE_OK, archive_read_support_filter_all(a));
 	/* FD 100 shouldn't be open. */
 	assertEqualIntA(a, ARCHIVE_FATAL,
 	    archive_read_open_fd(a, 100, 512));
 	assertEqualIntA(a, ARCHIVE_OK, archive_read_close(a));
-	assertEqualInt(ARCHIVE_OK, archive_read_finish(a));
+	assertEqualInt(ARCHIVE_OK, archive_read_free(a));
 }

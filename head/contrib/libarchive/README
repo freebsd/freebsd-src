@@ -13,8 +13,6 @@ This distribution bundle includes the following components:
           essentially the same functionality
    * examples: Some small example programs that you may find useful.
    * examples/minitar: a compact sample demonstrating use of libarchive.
-          I use this for testing link pollution; it should produce a very
-          small executable file on most systems.
    * contrib:  Various items sent to me by third parties;
           please contact the authors with any questions.
 
@@ -51,16 +49,11 @@ The manual pages above are provided in the 'doc' directory in
 a number of different formats.
 
 You should also read the copious comments in "archive.h" and the
-source code for the sample programs for more details.  Please let me
+source code for the sample programs for more details.  Please let us
 know about any errors or omissions you find.
 
-Currently, the library automatically detects and reads the following:
-  * gzip compression
-  * bzip2 compression
-  * compress/LZW compression
-  * lzma and xz compression
-  * GNU tar format (including GNU long filenames, long link names, and
-    sparse files)
+Currently, the library automatically detects and reads the following fomats:
+  * GNU tar format (including GNU long filenames, long link names, and sparse files)
   * Solaris 9 extended tar format (including ACLs)
   * Old V7 tar archives
   * POSIX ustar
@@ -73,22 +66,40 @@ Currently, the library automatically detects and reads the following:
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
+  * Microsoft CAB format
+  * LHA and LZH archives
+  * RAR archives
+  * XAR archives
 
-The library can write:
+The library also detects and handles any of the following before evaluating the archive:
+  * uuencoded files
+  * files with RPM wrapper
   * gzip compression
   * bzip2 compression
   * compress/LZW compression
-  * lzma and xz compression
+  * lzma, lzip, and xz compression
+
+The library can create archives in any of the following formats:
   * POSIX ustar
   * POSIX pax interchange format
   * "restricted" pax format, which will create ustar archives except for
     entries that require pax extensions (for long filenames, ACLs, etc).
+  * Old GNU tar format
   * POSIX octet-oriented cpio
   * SVR4 "newc" cpio
   * shar archives
   * ZIP archives (with uncompressed or "deflate" compressed entries)
   * GNU and BSD 'ar' archives
   * 'mtree' format
+  * ISO9660 format
+  * XAR archives
+
+When creating archives, the result can be filtered with any of the following:
+  * uuencode
+  * gzip compression
+  * bzip2 compression
+  * compress/LZW compression
+  * lzma, lzip, and xz compression
 
 Notes about the library architecture:
 

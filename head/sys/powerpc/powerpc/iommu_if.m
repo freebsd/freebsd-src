@@ -41,7 +41,7 @@ METHOD int map {
 	bus_addr_t	lowaddr;
 	bus_addr_t	highaddr;
 	bus_size_t	alignment;
-	bus_size_t	boundary;
+	bus_addr_t	boundary;
 	void		*cookie;
 };
 

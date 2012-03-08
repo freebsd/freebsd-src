@@ -58,8 +58,8 @@ struct bucket {
 
 static const size_t cache_size = 127;
 static unsigned int	hash(const char *);
-static gid_t	lookup_gid(void *, const char *uname, gid_t);
-static uid_t	lookup_uid(void *, const char *uname, uid_t);
+static int64_t	lookup_gid(void *, const char *uname, int64_t);
+static int64_t	lookup_uid(void *, const char *uname, int64_t);
 static void	cleanup(void *);
 
 /*
@@ -93,8 +93,8 @@ archive_write_disk_set_standard_lookup(struct archive *a)
 	return (ARCHIVE_OK);
 }
 
-static gid_t
-lookup_gid(void *private_data, const char *gname, gid_t gid)
+static int64_t
+lookup_gid(void *private_data, const char *gname, int64_t gid)
 {
 	int h;
 	struct bucket *b;
@@ -163,8 +163,8 @@ lookup_gid(void *private_data, const char *gname, gid_t gid)
 	return (gid);
 }
 
-static uid_t
-lookup_uid(void *private_data, const char *uname, uid_t uid)
+static int64_t
+lookup_uid(void *private_data, const char *uname, int64_t uid)
 {
 	int h;
 	struct bucket *b;
