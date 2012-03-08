@@ -2,10 +2,9 @@
 
 .include <bsd.own.mk>
 
-# XXX: clang can compile the boot code just fine, but boot2 gets too big
-CC:=${CC:C/^(.*\/)?clang$/gcc/1}
+FILES=		boot${BOOT_SUFFIX} boot2${BOOT2_SUFFIX}
 
-FILES=		boot boot1 boot2
+SRCDIR=		${.CURDIR}/../boot2
 
 NM?=		nm
 
@@ -18,9 +17,26 @@ ORG1=	0
 ORG2=	0x2000
 
 # Decide level of UFS support.
+# XXX Currently clang overflows UFS1+UFS2 boot2.
+.if ${MK_CLANG} != "no" && \
+    (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
+BOOT2_UFS?=	UFS2_ONLY
+.else
 BOOT2_UFS?=	UFS1_AND_UFS2
-#BOOT2_UFS?=	UFS2_ONLY
-#BOOT2_UFS?=	UFS1_ONLY
+.endif
+
+.if ${BOOT2_UFS} != UFS1_ONLY
+FILES+=		boot1
+.endif
+.if ${BOOT2_UFS} == UFS1_ONLY
+BOOT_SUFFIX=	.ufs1
+BOOT2_SUFFIX=	ufs1
+.elif ${BOOT2_UFS} == UFS2_ONLY
+BOOT_SUFFIX=	.ufs2
+BOOT2_SUFFIX=	ufs2
+LINKS=		${BINDIR}/boot${BOOT_SUFFIX} ${BINDIR}/boot \
+		${BINDIR}/boot2${BOOT2_SUFFIX} ${BINDIR}/boot2
+.endif
 
 CFLAGS=	-Os \
 	-fno-guess-branch-probability \
@@ -41,7 +57,8 @@ CFLAGS=	-Os \
 	-Wall -Waggregate-return -Wbad-function-cast -Wcast-align \
 	-Wmissing-declarations -Wmissing-prototypes -Wnested-externs \
 	-Wpointer-arith -Wshadow -Wstrict-prototypes -Wwrite-strings \
-	-Winline --param max-inline-insns-single=100
+	-Winline --param max-inline-insns-single=100 \
+	${CLANG_OPT_SMALL}
 
 # Set machine type to PC98_SYSTEM_PARAMETER
 #CFLAGS+=	-DSET_MACHINE_TYPE
@@ -56,10 +73,10 @@ LDFLAGS=-static -N --gc-sections
 
 .PATH:	${.CURDIR}/../../i386/boot2
 
-CLEANFILES=	boot
+CLEANFILES=	boot${BOOT_SUFFIX}
 
-boot: boot1 boot2
-	cat boot1 boot2 > boot
+boot${BOOT_SUFFIX}: boot1 boot2${BOOT2_SUFFIX}
+	cat ${.ALLSRC} > ${.TARGET}
 
 CLEANFILES+=	boot1 boot1.out boot1.o
 
@@ -69,10 +86,10 @@ boot1: boot1.out
 boot1.out: boot1.o
 	${LD} ${LDFLAGS} -e start -Ttext ${ORG1} -o ${.TARGET} boot1.o
 
-CLEANFILES+=	boot2 boot2.ld boot2.ldr boot2.bin boot2.out boot2.o \
-		boot2.s boot2.s.tmp boot2.h sio.o
+CLEANFILES+=	boot2${BOOT2_SUFFIX} boot2.ld boot2.ldr boot2.bin boot2.out \
+		boot2.o boot2.s boot2.s.tmp boot2.h sio.o
 
-boot2: boot2.ld
+boot2${BOOT2_SUFFIX}: boot2.ld
 	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
 	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync
@@ -95,7 +112,7 @@ boot2.o: boot2.s
 SRCS=	boot2.c boot2.h
 
 boot2.s: boot2.c boot2.h ${.CURDIR}/../../common/ufsread.c
-	${CC} ${CFLAGS} -S -o boot2.s.tmp ${.CURDIR}/boot2.c
+	${CC} ${CFLAGS} -S -o boot2.s.tmp ${SRCDIR}/boot2.c
 	sed -e '/align/d' -e '/nop/d' < boot2.s.tmp > boot2.s
 	rm -f boot2.s.tmp
 
@@ -107,3 +124,7 @@ boot2.h: boot1.out
 	    REL1=`printf "%d" ${REL1}` > ${.TARGET}
 
 .include <bsd.prog.mk>
+
+# XXX: clang integrated-as doesn't grok .codeNN directives yet
+CFLAGS.boot1.S=		${CLANG_NO_IAS}
+CFLAGS+=		${CFLAGS.${.IMPSRC:T}}
