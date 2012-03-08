@@ -2,7 +2,7 @@
 
 .include <bsd.own.mk>
 
-FILES=		boot${BOOT_SUFFIX} boot2${BOOT2_SUFFIX}
+FILES=		boot${BOOT_SUFFIX} boot1${BOOT2_SUFFIX} boot2${BOOT2_SUFFIX}
 
 SRCDIR=		${.CURDIR}/../boot2
 
@@ -17,17 +17,9 @@ ORG1=	0
 ORG2=	0x2000
 
 # Decide level of UFS support.
-# XXX Currently clang overflows UFS1+UFS2 boot2.
-.if ${MK_CLANG} != "no" && \
-    (${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang")
 BOOT2_UFS?=	UFS2_ONLY
-.else
-BOOT2_UFS?=	UFS1_AND_UFS2
-.endif
+#BOOT2_UFS?=	UFS1_AND_UFS2
 
-.if ${BOOT2_UFS} != UFS1_ONLY
-FILES+=		boot1
-.endif
 .if ${BOOT2_UFS} == UFS1_ONLY
 BOOT_SUFFIX=	.ufs1
 BOOT2_SUFFIX=	ufs1
@@ -35,8 +27,17 @@ BOOT2_SUFFIX=	ufs1
 BOOT_SUFFIX=	.ufs2
 BOOT2_SUFFIX=	ufs2
 LINKS=		${BINDIR}/boot${BOOT_SUFFIX} ${BINDIR}/boot \
+		${BINDIR}/boot1${BOOT2_SUFFIX} ${BINDIR}/boot1 \
 		${BINDIR}/boot2${BOOT2_SUFFIX} ${BINDIR}/boot2
 .endif
+
+# Decide boot block size.
+.if ${BOOT2_UFS} == UFS2_ONLY
+BOOT_NSECT=	32
+.else
+BOOT_NSECT=	16
+.endif
+BOOT2_SIZE=	(${BOOT_NSECT}-1)*512
 
 CFLAGS=	-Os \
 	-fno-guess-branch-probability \
@@ -47,6 +48,7 @@ CFLAGS=	-Os \
 	-mregparm=3 \
 	-D${BOOT2_UFS} \
 	-DFLAGS=${BOOT_BOOT1_FLAGS} \
+	-DNSECT=${BOOT_NSECT} \
 	-DSIOPRT=${BOOT_COMCONSOLE_PORT} \
 	-DSIOFMT=${B2SIOFMT} \
 	-DSIOSPD=${BOOT_COMCONSOLE_SPEED} \
@@ -75,12 +77,12 @@ LDFLAGS=-static -N --gc-sections
 
 CLEANFILES=	boot${BOOT_SUFFIX}
 
-boot${BOOT_SUFFIX}: boot1 boot2${BOOT2_SUFFIX}
+boot${BOOT_SUFFIX}: boot1${BOOT2_SUFFIX} boot2${BOOT2_SUFFIX}
 	cat ${.ALLSRC} > ${.TARGET}
 
-CLEANFILES+=	boot1 boot1.out boot1.o
+CLEANFILES+=	boot1${BOOT2_SUFFIX} boot1.out boot1.o
 
-boot1: boot1.out
+boot1${BOOT2_SUFFIX}: boot1.out
 	objcopy -S -O binary boot1.out ${.TARGET}
 
 boot1.out: boot1.o
@@ -90,9 +92,9 @@ CLEANFILES+=	boot2${BOOT2_SUFFIX} boot2.ld boot2.ldr boot2.bin boot2.out \
 		boot2.o boot2.s boot2.s.tmp boot2.h sio.o
 
 boot2${BOOT2_SUFFIX}: boot2.ld
-	@set -- `ls -l boot2.ld`; x=$$((7680-$$5)); \
+	@set -- `ls -l boot2.ld`; x=$$((${BOOT2_SIZE}-$$5)); \
 	    echo "$$x bytes available"; test $$x -ge 0
-	dd if=boot2.ld of=${.TARGET} obs=7680 conv=osync
+	dd if=boot2.ld of=${.TARGET} obs=$$((${BOOT2_SIZE})) conv=osync
 
 boot2.ld: boot2.ldr boot2.bin ${BTXKERN}
 	btxld -v -E ${ORG2} -f bin -b ${BTXKERN} -l boot2.ldr \
