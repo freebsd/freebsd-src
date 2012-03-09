@@ -102,7 +102,6 @@ CWARNFLAGS	+=	-Wno-unknown-pragmas
 CLANG_NO_IAS	=	-no-integrated-as
 CLANG_OPT_SMALL	=	-Oz \
 			-mllvm -stack-alignment=8 \
-			-mllvm -inline-threshold=3 \
 			-mllvm -enable-load-pre=false \
 			-mllvm -simplifycfg-dup-ret
 .endif
