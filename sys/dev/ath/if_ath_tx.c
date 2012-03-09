@@ -1162,6 +1162,11 @@ ath_tx_normal_setup(struct ath_softc *sc, struct ieee80211_node *ni,
 	 * (or) if there is some mcast data waiting on the mcast
 	 * queue (to prevent out of order delivery) multicast
 	 * frames must be buffered until after the beacon.
+	 *
+	 * XXX This likely means that if there's a station in power
+	 * save mode, we won't be doing any kind of aggregation towards
+	 * anyone.  This is likely a very suboptimal way of dealing
+	 * with things.
 	 */
 	if (ismcast && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
@@ -1409,6 +1414,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	if (ismcast)
 		txq = &avp->av_mcastq;
 
+	/*
+	 * XXX This likely means that if there's a station in power
+	 * save mode, we won't be doing any kind of aggregation towards
+	 * anyone.  This is likely a very suboptimal way of dealing
+	 * with things.
+	 */
 	if ((! is_ampdu) && (vap->iv_ps_sta || avp->av_mcastq.axq_depth))
 		txq = &avp->av_mcastq;
 
