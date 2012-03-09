@@ -36,10 +36,6 @@
 #include <sys/cdefs.h>
 #include <sys/_types.h>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 /*
  * Define the order of 32-bit words in 64-bit words.
  */
@@ -67,51 +63,63 @@ extern "C" {
 #define	BYTE_ORDER	_BYTE_ORDER
 #endif
 
-#if defined(__GNUCLIKE_ASM) && defined(__GNUCLIKE_BUILTIN_CONSTANT_P)
+#define	__bswap16_gen(x)	(__uint16_t)((x) << 8 | (x) >> 8)
+#define	__bswap32_gen(x)		\
+	(((__uint32_t)__bswap16(x) << 16) | __bswap16((x) >> 16))
+#define	__bswap64_gen(x)		\
+	(((__uint64_t)__bswap32(x) << 32) | __bswap32((x) >> 32))
 
-#define	__bswap16_const(_x)	(__uint16_t)((_x) << 8 | (_x) >> 8)
+#ifdef __GNUCLIKE_BUILTIN_CONSTANT_P
+#define	__bswap16(x)			\
+	(__builtin_constant_p(x) ?	\
+	    __bswap16_gen((__uint16_t)(x)) : __bswap16_var(x))
+#define	__bswap32(x)			\
+	(__builtin_constant_p(x) ?	\
+	    __bswap32_gen((__uint32_t)(x)) : __bswap32_var(x))
+#define	__bswap64(x)			\
+	(__builtin_constant_p(x) ?	\
+	    __bswap64_gen((__uint64_t)(x)) : __bswap64_var(x))
+#else
+/* XXX these are broken for use in static initializers. */
+#define	__bswap16(x)	__bswap16_var(x)
+#define	__bswap32(x)	__bswap32_var(x)
+#define	__bswap64(x)	__bswap64_var(x)
+#endif
 
-#define	__bswap16(_x)			\
-	(__builtin_constant_p(_x) ?	\
-	    __bswap16_const((__uint16_t)(_x)) : __bswap16_var(_x))
-
-#define	__bswap32_const(_x)		\
-	(((__uint32_t)__bswap16(_x) << 16) | __bswap16((_x) >> 16))
-
-#define	__bswap32(_x)			\
-	(__builtin_constant_p(_x) ?	\
-	    __bswap32_const((__uint32_t)(_x)) : __bswap32_var(_x))
-
-#define	__bswap64_const(_x)		\
-	(((__uint64_t)__bswap32(_x) << 32) | __bswap32((_x) >> 32))
-
-#define	__bswap64(_x)			\
-	(__builtin_constant_p(_x) ?	\
-	    __bswap64_const((__uint64_t)(_x)) : __bswap64_var(_x))
+/* These are defined as functions to avoid multiple evaluation of x. */
 
 static __inline __uint16_t
 __bswap16_var(__uint16_t _x)
 {
 
-	return (__bswap16_const(_x));
+	return (__bswap16_gen(_x));
 }
 
 static __inline __uint32_t
 __bswap32_var(__uint32_t _x)
 {
 
-	__asm ("bswap %0" : "+r" (_x));
+#ifdef __GNUCLIKE_ASM
+	__asm("bswap %0" : "+r" (_x));
 	return (_x);
+#else
+	return (__bswap32_gen(_x));
+#endif
 }
 
 static __inline __uint64_t
 __bswap64_var(__uint64_t _x)
 {
-#ifdef	_LP64
-	__asm ("bswap %0" : "+r" (_x));
+
+#if defined(__amd64__) && defined(__GNUCLIKE_ASM)
+	__asm("bswap %0" : "+r" (_x));
 	return (_x);
 #else
-	return (__bswap64_const(_x));
+	/*
+	 * It is important for the optimizations that the following is not
+	 * really generic, but expands to 2 __bswap32_var()'s.
+	 */
+	return (__bswap64_gen(_x));
 #endif
 }
 
@@ -119,20 +127,5 @@ __bswap64_var(__uint64_t _x)
 #define	__htons(x)	__bswap16(x)
 #define	__ntohl(x)	__bswap32(x)
 #define	__ntohs(x)	__bswap16(x)
-
-#else /* !(__GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P) */
-
-/*
- * No optimizations are available for this compiler.  Fall back to
- * non-optimized functions by defining the constant usually used to prevent
- * redefinition.
- */
-#define	_BYTEORDER_FUNC_DEFINED
-
-#endif /* __GNUCLIKE_ASM && __GNUCLIKE_BUILTIN_CONSTANT_P */
-
-#ifdef __cplusplus
-}
-#endif
 
 #endif /* !_MACHINE_ENDIAN_H_ */
