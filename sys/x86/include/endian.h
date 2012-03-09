@@ -70,8 +70,8 @@
 	(((__uint64_t)__bswap32(x) << 32) | __bswap32((x) >> 32))
 
 #ifdef __GNUCLIKE_BUILTIN_CONSTANT_P
-#define	__bswap16(x)			\
-	(__builtin_constant_p(x) ?	\
+#define	__bswap16(x)				\
+	(__uint16_t)(__builtin_constant_p(x) ?	\
 	    __bswap16_gen((__uint16_t)(x)) : __bswap16_var(x))
 #define	__bswap32(x)			\
 	(__builtin_constant_p(x) ?	\
