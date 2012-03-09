@@ -37,6 +37,7 @@
  * that source.
  */
 
+#include "opt_atpic.h"
 #include "opt_ddb.h"
 
 #include <sys/param.h>
@@ -55,6 +56,14 @@
 #include <machine/smp.h>
 #ifdef DDB
 #include <ddb/ddb.h>
+#endif
+
+#ifndef DEV_ATPIC
+#include <machine/segments.h>
+#include <machine/frame.h>
+#include <dev/ic/i8259.h>
+#include <x86/isa/icu.h>
+#include <x86/isa/isa.h>
 #endif
 
 #define	MAX_STRAY_LOG	5
@@ -270,6 +279,9 @@ intr_resume(void)
 {
 	struct pic *pic;
 
+#ifndef DEV_ATPIC
+	atpic_reset();
+#endif
 	mtx_lock(&intr_table_lock);
 	STAILQ_FOREACH(pic, &pics, pics) {
 		if (pic->pic_resume != NULL)
@@ -370,6 +382,28 @@ intr_init(void *dummy __unused)
 	mtx_init(&intrcnt_lock, "intrcnt", NULL, MTX_SPIN);
 }
 SYSINIT(intr_init, SI_SUB_INTR, SI_ORDER_FIRST, intr_init, NULL);
+
+#ifndef DEV_ATPIC
+/* Initialize the two 8259A's to a known-good shutdown state. */
+void
+atpic_reset(void)
+{
+
+	outb(IO_ICU1, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, IDT_IO_INTS);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 1 << 2);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU1 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU1, OCW3_SEL | OCW3_RR);
+
+	outb(IO_ICU2, ICW1_RESET | ICW1_IC4);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, IDT_IO_INTS + 8);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 2);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, ICW4_8086);
+	outb(IO_ICU2 + ICU_IMR_OFFSET, 0xff);
+	outb(IO_ICU2, OCW3_SEL | OCW3_RR);
+}
+#endif
 
 /* Add a description to an active interrupt handler. */
 int
