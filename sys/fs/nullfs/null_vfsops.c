@@ -50,6 +50,7 @@
 #include <sys/namei.h>
 #include <sys/proc.h>
 #include <sys/vnode.h>
+#include <sys/jail.h>
 
 #include <fs/nullfs/null.h>
 
@@ -75,11 +76,15 @@ nullfs_mount(struct mount *mp)
 	struct vnode *lowerrootvp, *vp;
 	struct vnode *nullm_rootvp;
 	struct null_mount *xmp;
+	struct thread *td = curthread;
 	char *target;
 	int isvnunlocked = 0, len;
 	struct nameidata nd, *ndp = &nd;
 
 	NULLFSDEBUG("nullfs_mount(mp = %p)\n", (void *)mp);
+
+	if (!prison_allow(td->td_ucred, PR_ALLOW_MOUNT_NULLFS))
+		return (EPERM);
 
 	if (mp->mnt_flag & MNT_ROOTFS)
 		return (EOPNOTSUPP);
@@ -364,4 +369,4 @@ static struct vfsops null_vfsops = {
 	.vfs_vget =		nullfs_vget,
 };
 
-VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK);
+VFS_SET(null_vfsops, nullfs, VFCF_LOOPBACK | VFCF_JAIL);
