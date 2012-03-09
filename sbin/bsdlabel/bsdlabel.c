@@ -453,7 +453,8 @@ writelabel(void)
 			gctl_free(grq);
 		}
 	} else {
-		if (write(fd, bootarea, lab.d_bbsize) != lab.d_bbsize) {
+		if (write(fd, bootarea, lab.d_bbsize) !=
+		    (ssize_t)lab.d_bbsize) {
 			warn("write %s", specname);
 			close (fd);
 			return (1);
