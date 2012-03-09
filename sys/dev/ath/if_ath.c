@@ -3059,7 +3059,9 @@ ath_beacon_generate(struct ath_softc *sc, struct ieee80211vap *vap)
 	 */
 	bf = avp->av_bcbuf;
 	m = bf->bf_m;
+	/* XXX lock mcastq? */
 	nmcastq = avp->av_mcastq.axq_depth;
+
 	if (ieee80211_beacon_update(bf->bf_node, &avp->av_boff, m, nmcastq)) {
 		/* XXX too conservative? */
 		bus_dmamap_unload(sc->sc_dmat, bf->bf_dmamap);
