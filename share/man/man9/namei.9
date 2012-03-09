@@ -33,7 +33,7 @@
 .\"
 .\" $FreeBSD$
 .\"
-.Dd September 21, 2005
+.Dd March 1, 2012
 .Dt NAMEI 9
 .Os
 .Sh NAME
@@ -344,6 +344,13 @@ permissions.
 Too many symbolic links were encountered in translating the pathname.
 .It Bq Er EISDIR
 An attempt is made to open a directory with write mode specified.
+.It Bq Er EINVAL
+The last component of the pathname specified for a
+.Dv DELETE
+or
+.Dv RENAME
+operation is
+.Ql \&. .
 .It Bq Er EROFS
 An attempt is made to modify a file or directory on a read-only file system.
 .El
