@@ -148,8 +148,8 @@ static int xputc(int);
 static int xgetc(int);
 static inline int getc(int);
 
-static void memcpy(void *, const void *, int);
-static void
+static __noinline void memcpy(void *, const void *, int);
+static __noinline void
 memcpy(void *dst, const void *src, int len)
 {
     const char *s = src;
@@ -223,10 +223,7 @@ main(void)
 {
     uint8_t autoboot;
     ino_t ino;
-    size_t nbyte;
 
-    opts = 0;
-    kname = NULL;
     dmadat = (void *)(roundup2(__base + (int32_t)&_end, 0x10000) - __base);
     v86.ctl = V86_FLAGS;
     v86.efl = PSL_RESERVED_DEFAULT | PSL_I;
@@ -242,10 +239,8 @@ main(void)
     autoboot = 1;
 
     if ((ino = lookup(PATH_CONFIG)) ||
-        (ino = lookup(PATH_DOTCONFIG))) {
-	nbyte = fsread(ino, cmd, sizeof(cmd) - 1);
-	cmd[nbyte] = '\0';
-    }
+        (ino = lookup(PATH_DOTCONFIG)))
+	fsread(ino, cmd, sizeof(cmd) - 1);
 
     if (*cmd) {
 	memcpy(cmddup, cmd, sizeof(cmd));
