@@ -516,9 +516,9 @@ x86/cpufreq/p4tcc.c		optional cpufreq
 x86/cpufreq/powernow.c		optional cpufreq
 x86/cpufreq/smist.c		optional cpufreq
 x86/isa/atpic.c			optional atpic	
-x86/isa/atrtc.c			optional atpic
+x86/isa/atrtc.c			optional native
 x86/isa/clock.c			optional native
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional atpic | apic native
 x86/isa/isa.c			optional isa
 x86/isa/isa_dma.c		optional isa
 x86/isa/nmi.c			standard
