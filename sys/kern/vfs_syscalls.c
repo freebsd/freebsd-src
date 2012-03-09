@@ -4153,9 +4153,9 @@ kern_getdirentries(struct thread *td, int fd, char *buf, u_int count,
 	int error, eofflag;
 
 	AUDIT_ARG_FD(fd);
-	auio.uio_resid = count;
-	if (auio.uio_resid > IOSIZE_MAX)
+	if (count > IOSIZE_MAX)
 		return (EINVAL);
+	auio.uio_resid = count;
 	if ((error = getvnode(td->td_proc->p_fd, fd, CAP_READ | CAP_SEEK,
 	    &fp)) != 0)
 		return (error);
