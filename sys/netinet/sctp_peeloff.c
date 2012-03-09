@@ -56,17 +56,17 @@ sctp_can_peel_off(struct socket *head, sctp_assoc_t assoc_id)
 	uint32_t state;
 
 	if (head == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EBADF);
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EBADF);
 		return (EBADF);
 	}
 	if ((head->so_proto->pr_protocol != IPPROTO_SCTP) ||
 	    (head->so_type != SOCK_SEQPACKET)) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EOPNOTSUPP);
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EOPNOTSUPP);
 		return (EOPNOTSUPP);
 	}
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
-		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
+		SCTP_LTRACE_ERR_RET(NULL, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);
 		return (EFAULT);
 	}
 	stcb = sctp_findassociation_ep_asocid(inp, assoc_id, 1);
