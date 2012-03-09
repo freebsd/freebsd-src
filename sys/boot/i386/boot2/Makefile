@@ -20,26 +20,10 @@ ORG1=	0x7c00
 ORG2=	0x2000
 
 # Decide level of UFS support.
-BOOT2_UFS?=	UFS2_ONLY
-#BOOT2_UFS?=	UFS1_AND_UFS2
-
-.if ${BOOT2_UFS} == UFS1_ONLY
-BOOT_SUFFIX=	.ufs1
-BOOT2_SUFFIX=	ufs1
-.elif ${BOOT2_UFS} == UFS2_ONLY
-BOOT_SUFFIX=	.ufs2
-BOOT2_SUFFIX=	ufs2
-LINKS=		${BINDIR}/boot${BOOT_SUFFIX} ${BINDIR}/boot \
-		${BINDIR}/boot1${BOOT2_SUFFIX} ${BINDIR}/boot1 \
-		${BINDIR}/boot2${BOOT2_SUFFIX} ${BINDIR}/boot2
-.endif
+BOOT2_UFS?=	UFS1_AND_UFS2
 
 # Decide boot block size.
-.if ${BOOT2_UFS} == UFS2_ONLY
-BOOT_NSECT=	32
-.else
-BOOT_NSECT=	16
-.endif
+BOOT_NSECT?=	16
 BOOT2_SIZE=	(${BOOT_NSECT}-1)*512
 
 CFLAGS=	-Os \
