@@ -63,7 +63,7 @@
 #endif
 
 /* Size of bootblock area in sector-size neutral bytes */
-#define BBSIZE		8192
+#define BBSIZE		16384
 
 #define	LABEL_PART	2		/* partition containing label */
 #define	RAW_PART	2		/* partition containing whole disk */
@@ -286,7 +286,7 @@ static const char *fstypenames[] = {
 #define DIOCGDINFO	_IOR('d', 101, struct disklabel)/* get */
 #define DIOCSDINFO	_IOW('d', 102, struct disklabel)/* set */
 #define DIOCWDINFO	_IOW('d', 103, struct disklabel)/* set, update disk */
-#define DIOCBSDBB	_IOW('d', 110, void *)	/* write bootblocks */
+#define DIOCBSDBB	_IOW('d', 111, void *)	/* write bootblocks */
 
 /*
  * Functions for proper encoding/decoding of struct disklabel into/from

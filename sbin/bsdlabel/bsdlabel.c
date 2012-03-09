@@ -163,16 +163,12 @@ main(int argc, char *argv[])
 				is_file=1;
 				break;
 			case 'm':
-				if (!strcmp(optarg, "i386") ||
-				    !strcmp(optarg, "amd64") ||
-				    !strcmp(optarg, "ia64") ||
-				    !strcmp(optarg, "pc98")) {
-					labelsoffset = 1;
-					labeloffset = 0;
-					bbsize = 8192;
-				} else {
+				if (strcmp(optarg, "amd64") != 0 &&
+				    strcmp(optarg, "i386") != 0 &&
+				    strcmp(optarg, "pc98") != 0)
 					errx(1, "Unsupported architecture");
-				}
+				labelsoffset = 1;
+				labeloffset = 0;
 				break;
 			case 'n':
 				disable_write = 1;
@@ -311,7 +307,7 @@ fixlabel(struct disklabel *lp)
 	}
 
 	dp = &lp->d_partitions[0];
-	dp->p_offset = BBSIZE / secsize;
+	dp->p_offset = lp->d_bbsize / secsize;
 	dp->p_size = lp->d_secperunit - dp->p_offset;
 }
 
@@ -447,7 +443,7 @@ writelabel(void)
 			gctl_ro_param(grq, "verb", -1, "write bootcode");
 			gctl_ro_param(grq, "class", -1, "BSD");
 			gctl_ro_param(grq, "geom", -1, pname);
-			gctl_ro_param(grq, "bootcode", BBSIZE, bootarea);
+			gctl_ro_param(grq, "bootcode", lab.d_bbsize, bootarea);
 			errstr = gctl_issue(grq);
 			if (errstr != NULL) {
 				warnx("%s", errstr);
@@ -457,7 +453,7 @@ writelabel(void)
 			gctl_free(grq);
 		}
 	} else {
-		if (write(fd, bootarea, bbsize) != bbsize) {
+		if (write(fd, bootarea, lab.d_bbsize) != lab.d_bbsize) {
 			warn("write %s", specname);
 			close (fd);
 			return (1);
@@ -508,11 +504,11 @@ readlabel(int flag)
 		errx(1,
 		    "disks with more than 2^32-1 sectors are not supported");
 	(void)lseek(f, (off_t)0, SEEK_SET);
-	nbytes = read(f, bootarea, BBSIZE);
+	nbytes = read(f, bootarea, bbsize);
 	if (nbytes == -1)
 		err(4, "%s read", specname);
-	if (nbytes != BBSIZE)
-		errx(4, "couldn't read %d bytes from %s", BBSIZE, specname);
+	if (nbytes != bbsize)
+		errx(4, "couldn't read %d bytes from %s", bbsize, specname);
 	close (f);
 	error = bsd_disklabel_le_dec(
 	    bootarea + (labeloffset + labelsoffset * secsize),
@@ -778,7 +774,7 @@ getasciilabel(FILE *f, struct disklabel *lp)
 	bzero(&part_set, sizeof(part_set));
 	bzero(&part_size_type, sizeof(part_size_type));
 	bzero(&part_offset_type, sizeof(part_offset_type));
-	lp->d_bbsize = BBSIZE;				/* XXX */
+	lp->d_bbsize = bbsize;				/* XXX */
 	lp->d_sbsize = 0;				/* XXX */
 	while (fgets(line, sizeof(line) - 1, f)) {
 		lineno++;
@@ -1275,7 +1271,7 @@ checklabel(struct disklabel *lp)
 	}
 
 	/* Find out the total free space, excluding the boot block area. */
-	base_offset = BBSIZE / secsize;
+	base_offset = lp->d_bbsize / secsize;
 	free_space = 0;
 	for (i = 0; i < lp->d_npartitions; i++) {
 		pp = &lp->d_partitions[i];
@@ -1325,7 +1321,7 @@ checklabel(struct disklabel *lp)
 		 * the hog partition and how much space they need.
 		 */
 		needed = 0;
-		base_offset = BBSIZE / secsize;
+		base_offset = lp->d_bbsize / secsize;
 		for (i = hog_part - 1; i >= 0; i--) {
 			pp = &lp->d_partitions[i];
 			if (!part_set[i] || i == RAW_PART)
@@ -1365,7 +1361,7 @@ checklabel(struct disklabel *lp)
 	}
 
 	/* Now set the offsets for each partition */
-	current_offset = BBSIZE / secsize; /* in sectors */
+	current_offset = lp->d_bbsize / secsize; /* in sectors */
 	seen_default_offset = 0;
 	for (i = 0; i < lp->d_npartitions; i++) {
 		part = 'a' + i;
@@ -1535,7 +1531,7 @@ getvirginlabel(void)
 
 	/* Various (unneeded) compat stuff */
 	loclab.d_rpm = 3600;
-	loclab.d_bbsize = BBSIZE;
+	loclab.d_bbsize = bbsize;
 	loclab.d_interleave = 1;
 	strncpy(loclab.d_typename, "amnesiac",
 	    sizeof(loclab.d_typename));

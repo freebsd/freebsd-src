@@ -465,7 +465,7 @@ rewritelabel(char *s, struct disklabel *lp)
 		bsd_disklabel_le_enc(bootarea + 0 /* labeloffset */ +
 			1 /* labelsoffset */ * sectorsize, lp);
 		lseek(disk.d_fd, 0, SEEK_SET);
-		if (write(disk.d_fd, bootarea, BBSIZE) != BBSIZE)
+		if (write(disk.d_fd, bootarea, lp->d_bbsize) != lp->d_bbsize)
 			errx(1, "cannot write label");
 		return;
 	}

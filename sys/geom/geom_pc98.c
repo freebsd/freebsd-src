@@ -57,7 +57,7 @@ FEATURE(geom_pc98, "GEOM NEC PC9800 partitioning support");
 struct g_pc98_softc {
 	u_int fwsectors, fwheads, sectorsize;
 	int type[NDOSPART];
-	u_char sec[8192];
+	u_char sec[16384];
 };
 
 static void
@@ -164,8 +164,10 @@ g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct th
 	struct g_pc98_softc *ms;
 	struct g_slicer *gsp;
 	struct g_consumer *cp;
+	size_t bbsize;
 	int error, opened;
 
+	bbsize = 16384;
 	gp = pp->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
@@ -173,6 +175,11 @@ g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct th
 	opened = 0;
 	error = 0;
 	switch(cmd) {
+#ifndef BURN_BRIDGES
+	case 0x80004d81:
+		bbsize = 8192;
+		/* FALLTHROUGH */
+#endif
 	case DIOCSPC98: {
 		if (!(fflag & FWRITE))
 			return (EPERM);
@@ -185,9 +192,9 @@ g_pc98_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct th
 				opened = 1;
 		}
 		if (!error)
-			error = g_pc98_modify(gp, ms, data, 8192);
+			error = g_pc98_modify(gp, ms, data, bbsize);
 		if (!error)
-			error = g_write_data(cp, 0, data, 8192);
+			error = g_write_data(cp, 0, data, bbsize);
 		if (opened)
 			g_access(cp, 0, -1 , 0);
 		g_topology_unlock();
@@ -293,14 +300,14 @@ g_pc98_taste(struct g_class *mp, struct g_provider *pp, int flags)
 		sectorsize = cp->provider->sectorsize;
 		if (sectorsize % 512 != 0)
 			break;
-		buf = g_read_data(cp, 0, 8192, NULL);
+		buf = g_read_data(cp, 0, 16384, NULL);
 		if (buf == NULL)
 			break;
 		ms->fwsectors = fwsectors;
 		ms->fwheads = fwheads;
 		ms->sectorsize = sectorsize;
 		g_topology_lock();
-		g_pc98_modify(gp, ms, buf, 8192);
+		g_pc98_modify(gp, ms, buf, 16384);
 		g_topology_unlock();
 		g_free(buf);
 		break;
@@ -338,7 +345,11 @@ g_pc98_config(struct gctl_req *req, struct g_class *mp, const char *verb)
 	data = gctl_get_param(req, "data", &len);
 	if (data == NULL)
 		return;
+#ifndef BURN_BRIDGES
 	if (len < 8192 || (len % 512)) {
+#else
+	if (len < 16384 || (len % 512)) {
+#endif
 		gctl_error(req, "Wrong request length");
 		return;
 	}

@@ -332,8 +332,10 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 	struct g_bsd_softc *ms;
 	struct g_slicer *gsp;
 	u_char *label;
+	size_t bbsize;
 	int error;
 
+	bbsize = BBSIZE;
 	gp = pp->geom;
 	gsp = gp->softc;
 	ms = gsp->softc;
@@ -343,6 +345,11 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 		/* Return a copy of the disklabel to userland. */
 		bsd_disklabel_le_dec(ms->label, data, MAXPARTITIONS);
 		return(0);
+#ifndef BURN_BRIDGES
+	case 0x8008646e:
+		bbsize = 8192;
+		/* FALLTHROUGH */
+#endif
 	case DIOCBSDBB: {
 		struct g_consumer *cp;
 		u_char *buf;
@@ -355,7 +362,7 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 		/* The disklabel to set is the ioctl argument. */
 		buf = g_malloc(BBSIZE, M_WAITOK);
 		p = *(void **)data;
-		error = copyin(p, buf, BBSIZE);
+		error = copyin(p, buf, bbsize);
 		if (!error) {
 			/* XXX: Rude, but supposedly safe */
 			DROP_GIANT();
@@ -370,7 +377,7 @@ g_bsd_ioctl(struct g_provider *pp, u_long cmd, void *data, int fflag, struct thr
 						sum += le64dec(buf + i * 8);
 					le64enc(buf + 504, sum);
 				}
-				error = g_write_data(cp, 0, buf, BBSIZE);
+				error = g_write_data(cp, 0, buf, bbsize);
 			}
 			g_topology_unlock();
 			PICKUP_GIANT();

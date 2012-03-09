@@ -176,7 +176,12 @@ g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	struct g_part_bsd_table *table;
 	const u_char *codeptr;
 
+#ifndef BURN_BRIDGES
+	if (gpp->gpp_codesize != BOOT1_SIZE && gpp->gpp_codesize != BBSIZE
+	    gpp->gpp_codesize != 8192)
+#else
 	if (gpp->gpp_codesize != BOOT1_SIZE && gpp->gpp_codesize != BBSIZE)
+#endif
 		return (ENODEV);
 
 	table = (struct g_part_bsd_table *)basetable;
@@ -185,6 +190,11 @@ g_part_bsd_bootcode(struct g_part_table *basetable, struct g_part_parms *gpp)
 	if (gpp->gpp_codesize == BBSIZE)
 		bcopy(codeptr + BOOT2_OFF, table->bbarea + BOOT2_OFF,
 		    BOOT2_SIZE);
+#ifndef BURN_BRIDGES
+	elif (gpp->gpp_codesize == 8192)
+		bcopy(codeptr + BOOT2_OFF, table->bbarea + BOOT2_OFF,
+		    8192 - BOOT2_OFF);
+#endif
 	return (0);
 }
 

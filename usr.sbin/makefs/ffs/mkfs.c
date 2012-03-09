@@ -41,6 +41,7 @@
 #include <sys/cdefs.h>
 __FBSDID("$FreeBSD$");
 
+#include <sys/disklabel.h>
 #include <sys/param.h>
 #include <sys/time.h>
 #include <sys/resource.h>
@@ -61,10 +62,6 @@ __FBSDID("$FreeBSD$");
 #include "ffs/ufs_inode.h"
 #include "ffs/ffs_extern.h"
 #include "ffs/newfs_extern.h"
-
-#ifndef BBSIZE
-#define	BBSIZE	8192			/* size of boot area, with label */
-#endif
 
 static void initcg(int, time_t, const fsinfo_t *);
 static int ilog2(int);
