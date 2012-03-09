@@ -464,11 +464,11 @@ ffs_read(ap)
 	} else if (vp->v_type != VREG && vp->v_type != VDIR)
 		panic("ffs_read: type %d",  vp->v_type);
 #endif
-	if (uio->uio_resid < 0 || uio->uio_offset < 0)
-		return (EINVAL);
 	orig_resid = uio->uio_resid;
+	KASSERT(orig_resid >= 0, ("ffs_read: uio->uio_resid < 0"));
 	if (orig_resid == 0)
 		return (0);
+	KASSERT(uio->uio_offset >= 0, ("ffs_read: uio->uio_offset < 0"));
 	fs = ip->i_fs;
 	if (uio->uio_offset < ip->i_size &&
 	    uio->uio_offset >= fs->fs_maxfilesize)
