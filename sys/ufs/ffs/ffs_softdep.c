@@ -2368,8 +2368,7 @@ softdep_mount(devvp, mp, fs, cred)
 	mp->mnt_flag = (mp->mnt_flag & ~MNT_ASYNC) | MNT_SOFTDEP;
 	if ((mp->mnt_kern_flag & MNTK_SOFTDEP) == 0) {
 		mp->mnt_kern_flag = (mp->mnt_kern_flag & ~MNTK_ASYNC) | 
-			MNTK_SOFTDEP;
-		mp->mnt_noasync++;
+			MNTK_SOFTDEP | MNTK_NOASYNC;
 	}
 	MNT_IUNLOCK(mp);
 	ump = VFSTOUFS(mp);
