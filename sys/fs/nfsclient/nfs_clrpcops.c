@@ -322,7 +322,8 @@ else printf(" fhl=0\n");
 			}
 
 			/* Try and get a Layout, if it is supported. */
-			if (error == 0 && NFSHASPNFS(nmp)) {
+			if (error == 0 && NFSHASPNFS(nmp) &&
+			    nfscl_enablecallb != 0 && nfs_numnfscbd > 0) {
 				stateid.seqid = op->nfso_stateid.seqid;
 				stateid.other[0] = op->nfso_stateid.other[0];
 				stateid.other[1] = op->nfso_stateid.other[1];
@@ -5274,7 +5275,7 @@ nfscl_doiods(vnode_t vp, struct uio *uiop, int *iomode, int *must_commit,
 	int eof, error;
 	void *lckp;
 
-	if (!NFSHASPNFS(nmp))
+	if (!NFSHASPNFS(nmp) || nfscl_enablecallb == 0 || nfs_numnfscbd == 0)
 		return (EIO);
 	/* Now, get a reference cnt on the clientid for this mount. */
 	if (nfscl_getref(nmp) == 0)
