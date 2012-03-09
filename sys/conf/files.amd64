@@ -466,7 +466,7 @@ x86/cpufreq/p4tcc.c		optional	cpufreq
 x86/isa/atpic.c			optional	atpic isa
 x86/isa/atrtc.c			standard
 x86/isa/clock.c			standard
-x86/isa/elcr.c			standard
+x86/isa/elcr.c			optional	atpic isa | mptable
 x86/isa/isa.c			standard
 x86/isa/isa_dma.c		standard
 x86/isa/nmi.c			standard
