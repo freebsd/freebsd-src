@@ -100,8 +100,8 @@ CWARNFLAGS	+=	-Wno-unknown-pragmas
 
 .if ${MK_CLANG_IS_CC} != "no" || ${CC:T:Mclang} == "clang"
 CLANG_NO_IAS	=	-no-integrated-as
-CLANG_OPT_SMALL	=	-Oz \
-			-mllvm -stack-alignment=8 \
+CLANG_OPT_SMALL	=	-mllvm -stack-alignment=8 \
+			-mllvm -inline-threshold=3 \
 			-mllvm -enable-load-pre=false \
 			-mllvm -simplifycfg-dup-ret
 .endif
