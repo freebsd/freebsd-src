@@ -30,8 +30,6 @@ CFLAGS=	-Os \
 	-fno-guess-branch-probability \
 	-fomit-frame-pointer \
 	-fno-unit-at-a-time \
-	-ffunction-sections \
-	-fdata-sections \
 	-mno-align-long-strings \
 	-mrtd \
 	-mregparm=3 \
