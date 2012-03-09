@@ -748,6 +748,8 @@
 
       &hwlist.ahc;
 
+      &hwlist.ahci;
+
       &hwlist.ahd;
 
       &hwlist.aic;
@@ -819,6 +821,8 @@
       &hwlist.nsp;
 
       &hwlist.pst;
+
+      &hwlist.siis;
 
       &hwlist.stg;
 
