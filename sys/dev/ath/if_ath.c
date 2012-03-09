@@ -2908,6 +2908,10 @@ ath_beacon_update(struct ieee80211vap *vap, int item)
 static void
 ath_txqmove(struct ath_txq *dst, struct ath_txq *src)
 {
+
+	ATH_TXQ_LOCK_ASSERT(dst);
+	ATH_TXQ_LOCK_ASSERT(src);
+
 	TAILQ_CONCAT(&dst->axq_q, &src->axq_q, bf_list);
 	dst->axq_link = src->axq_link;
 	src->axq_link = NULL;
