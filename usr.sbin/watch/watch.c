@@ -110,7 +110,7 @@ set_tty(void)
 {
 	struct termios	ntty;
 
-	tcgetattr (std_in, &otty);
+	tcgetattr(std_in, &otty);
 	ntty = otty;
 	ntty.c_lflag &= ~ICANON;	/* disable canonical operation */
 	ntty.c_lflag &= ~ECHO;
@@ -128,18 +128,20 @@ set_tty(void)
 
 	ntty.c_cc[VINTR] = 07;		/* ^G */
 	ntty.c_cc[VQUIT] = 07;		/* ^G */
-	tcsetattr (std_in, TCSANOW, &ntty);
+	tcsetattr(std_in, TCSANOW, &ntty);
 }
 
 static void
 unset_tty(void)
 {
-	tcsetattr (std_in, TCSANOW, &otty);
+
+	tcsetattr(std_in, TCSANOW, &otty);
 }
 
 static void
 fatal(int error, const char *buf)
 {
+
 	unset_tty();
 	if (buf)
 		errx(error, "fatal: %s", buf);
@@ -170,6 +172,7 @@ open_snp(void)
 static void
 cleanup(int signo __unused)
 {
+
 	if (opt_timestamp)
 		timestamp("Logging Exited.");
 	close(snp_io);
@@ -180,6 +183,7 @@ cleanup(int signo __unused)
 static void
 usage(void)
 {
+
 	fprintf(stderr, "usage: watch [-ciotnW] [tty name]\n");
 	exit(EX_USAGE);
 }
@@ -344,7 +348,7 @@ main(int ac, char *av[])
 
 	FD_ZERO(&fd_s);
 
-	while (1) {
+	for (;;) {
 		if (opt_interactive)
 			FD_SET(std_in, &fd_s);
 		FD_SET(snp_io, &fd_s);
