@@ -2339,11 +2339,11 @@ device		cmx
 # or
 # options 	BROOKTREE_SYSTEM_DEFAULT=BROOKTREE_NTSC
 # Specifies the default video capture mode.
-# This is required for Dual Crystal (28&35Mhz) boards where PAL is used
+# This is required for Dual Crystal (28&35MHz) boards where PAL is used
 # to prevent hangs during initialisation, e.g. VideoLogic Captivator PCI.
 #
 # options 	BKTR_USE_PLL
-# This is required for PAL or SECAM boards with a 28Mhz crystal and no 35Mhz
+# This is required for PAL or SECAM boards with a 28MHz crystal and no 35MHz
 # crystal, e.g. some new Bt878 cards.
 #
 # options 	BKTR_GPIO_ACCESS

@@ -1215,7 +1215,7 @@ siba_cc_pmu0_pll0_init(struct siba_cc *scc, uint32_t xtalfreq)
 	if (((pmu & SIBA_CC_PMUCTL_XF) >> 2) == e->xf)
 		return;
 
-	DPRINTF(siba, SIBA_DEBUG_PLL, "change PLL value to %u.%03u mhz\n",
+	DPRINTF(siba, SIBA_DEBUG_PLL, "change PLL value to %u.%03u MHz\n",
 	    (xtalfreq / 1000), (xtalfreq % 1000));
 
 	KASSERT(siba->siba_chipid == 0x4328 || siba->siba_chipid == 0x5354,

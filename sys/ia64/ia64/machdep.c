@@ -242,7 +242,7 @@ identifycpu(void)
 
 	printf("CPU: %s (", model_name);
 	if (cpu_freq)
-		printf("%u Mhz ", cpu_freq);
+		printf("%u MHz ", cpu_freq);
 	printf("%s)\n", family_name);
 	printf("  Origin = \"%s\"  Revision = %d\n", vendor, revision);
 	printf("  Features = 0x%b\n", (u_int32_t) features,
