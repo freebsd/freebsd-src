@@ -40,6 +40,13 @@
 #include <net80211/ieee80211_ratectl.h>
 #include "if_medium.h"
 
+/*
+ * This _requires_ vimage to be useful.
+ */
+#ifndef	VIMAGE
+#error	if_wtap requires VIMAGE.
+#endif	/* VIMAGE */
+
 /* device for IOCTL and read/write for debuggin purposes */
 /* Function prototypes */
 static	d_open_t	wtap_node_open;
