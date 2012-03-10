@@ -547,10 +547,7 @@ struct ath_softc {
 	 * + data_minfree is the maximum number of free buffers
 	 *   overall to successfully allow a data frame.
 	 *
-	 * + mcastq_maxdepth is the maximum depth allowe dof the avp+cabq
-	 *   queue.  The avp is included in each comparison just to be
-	 *   a little overly conservative and this may end up being
-	 *   unhelpful with multiple VAPs.
+	 * + mcastq_maxdepth is the maximum depth allowed of the cabq.
 	 */
 	int			sc_txq_data_minfree;
 	int			sc_txq_mcastq_maxdepth;
