@@ -36,9 +36,9 @@
  */
 #include "opt_cputype.h" 
 #if defined(CPU_CNMIPS) && !defined(__mips_n64)
-typedef uintptr_t bus_addr_t;
-#else
 typedef uint64_t bus_addr_t;
+#else
+typedef uintptr_t bus_addr_t;
 #endif
 typedef uintptr_t bus_size_t;
 
