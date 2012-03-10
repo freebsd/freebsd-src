@@ -370,6 +370,7 @@ __DEFAULT_YES_OPTIONS = \
     MAILWRAPPER \
     MAKE \
     MAN \
+    NAND \
     NCP \
     NDIS \
     NETCAT \

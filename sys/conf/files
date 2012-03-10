@@ -1528,6 +1528,21 @@ dev/mxge/mxge_ethp_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_eth_z8e.c	optional mxge pci
 dev/mxge/mxge_rss_ethp_z8e.c	optional mxge pci
 dev/my/if_my.c			optional my
+dev/nand/nand.c			optional nand
+dev/nand/nand_bbt.c		optional nand
+dev/nand/nand_cdev.c		optional nand
+dev/nand/nand_generic.c		optional nand
+dev/nand/nand_geom.c		optional nand
+dev/nand/nand_id.c		optional nand
+dev/nand/nandbus.c		optional nand
+dev/nand/nandbus_if.m		optional nand
+dev/nand/nand_if.m		optional nand
+dev/nand/nandsim.c		optional nandsim nand
+dev/nand/nandsim_chip.c		optional nandsim nand
+dev/nand/nandsim_ctrl.c		optional nandsim nand
+dev/nand/nandsim_log.c		optional nandsim nand
+dev/nand/nandsim_swap.c		optional nandsim nand
+dev/nand/nfc_if.m		optional nand
 dev/ncv/ncr53c500.c		optional ncv
 dev/ncv/ncr53c500_pccard.c	optional ncv pccard
 dev/netmap/netmap.c		optional netmap
@@ -2225,6 +2240,7 @@ geom/geom_kern.c		standard
 geom/geom_map.c			optional geom_map
 geom/geom_mbr.c			optional geom_mbr
 geom/geom_mbr_enc.c		optional geom_mbr
+geom/geom_nand.c		optional nand
 geom/geom_pc98.c		optional geom_pc98
 geom/geom_pc98_enc.c		optional geom_pc98
 geom/geom_redboot.c		optional geom_redboot
