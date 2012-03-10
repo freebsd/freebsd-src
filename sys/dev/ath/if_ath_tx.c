@@ -1409,15 +1409,12 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		ATH_TXQ_LOCK(sc->sc_cabq);
-		ATH_TXQ_LOCK(&avp->av_mcastq);
 
-		if ((sc->sc_cabq->axq_depth + avp->av_mcastq.axq_depth) >
-		    sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			r = ENOBUFS;
 		}
 
-		ATH_TXQ_UNLOCK(&avp->av_mcastq);
 		ATH_TXQ_UNLOCK(sc->sc_cabq);
 
 		if (r != 0) {
@@ -1759,8 +1756,6 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
 	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
-	struct ieee80211vap *vap = ni->ni_vap;
-	struct ath_vap *avp = ATH_VAP(vap);
 	int error = 0;
 
 	ATH_PCU_LOCK(sc);
@@ -1790,15 +1785,12 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	 */
 	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
 		ATH_TXQ_LOCK(sc->sc_cabq);
-		ATH_TXQ_LOCK(&avp->av_mcastq);
 
-		if ((sc->sc_cabq->axq_depth + avp->av_mcastq.axq_depth) >
-		    sc->sc_txq_mcastq_maxdepth) {
+		if (sc->sc_cabq->axq_depth > sc->sc_txq_mcastq_maxdepth) {
 			sc->sc_stats.ast_tx_mcastq_overflow++;
 			error = ENOBUFS;
 		}
 
-		ATH_TXQ_UNLOCK(&avp->av_mcastq);
 		ATH_TXQ_UNLOCK(sc->sc_cabq);
 
 		if (error != 0) {
