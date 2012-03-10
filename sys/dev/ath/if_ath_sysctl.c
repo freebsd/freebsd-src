@@ -756,7 +756,7 @@ ath_sysctl_hal_attach(struct ath_softc *sc)
 	sc->sc_ah->ah_config.ah_ar5416_biasadj = 0;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "ar5416_biasadj", CTLFLAG_RW,
 	    &sc->sc_ah->ah_config.ah_ar5416_biasadj, 0,
-	    "Enable 2ghz AR5416 direction sensitivity bias adjust");
+	    "Enable 2GHz AR5416 direction sensitivity bias adjust");
 
 	sc->sc_ah->ah_config.ah_dma_beacon_response_time = 2;
 	SYSCTL_ADD_INT(ctx, child, OID_AUTO, "dma_brt", CTLFLAG_RW,
