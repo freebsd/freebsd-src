@@ -2160,8 +2160,9 @@ ath_reset(struct ifnet *ifp, ATH_RESET_TYPE reset_type)
 	 * set this once it detected a concurrent TX was going on.
 	 * So, clear it.
 	 */
-	/* XXX do this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 
 	/* Handle any frames in the TX queue */
 	/*
@@ -2293,15 +2294,16 @@ ath_getbuf(struct ath_softc *sc)
 
 	ATH_TXBUF_LOCK(sc);
 	bf = _ath_getbuf_locked(sc);
+	ATH_TXBUF_UNLOCK(sc);
 	if (bf == NULL) {
 		struct ifnet *ifp = sc->sc_ifp;
 
 		DPRINTF(sc, ATH_DEBUG_XMIT, "%s: stop queue\n", __func__);
 		sc->sc_stats.ast_tx_qstop++;
-		/* XXX do this inside of IF_LOCK? */
+		IF_LOCK(&ifp->if_snd);
 		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
 	}
-	ATH_TXBUF_UNLOCK(sc);
 	return bf;
 }
 
@@ -2322,9 +2324,10 @@ ath_start(struct ifnet *ifp)
 	if (sc->sc_inreset_cnt > 0) {
 		device_printf(sc->sc_dev,
 		    "%s: sc_inreset_cnt > 0; bailing\n", __func__);
-		/* XXX do this inside of IF_LOCK? */
-		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
 		ATH_PCU_UNLOCK(sc);
+		IF_LOCK(&ifp->if_snd);
+		ifp->if_drv_flags |= IFF_DRV_OACTIVE;
+		IF_UNLOCK(&ifp->if_snd);
 		return;
 	}
 	sc->sc_txstart_cnt++;
@@ -5008,8 +5011,9 @@ ath_tx_proc_q0(void *arg, int npending)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 	if (TXQACTIVE(txqs, sc->sc_cabq->axq_qnum))
 		ath_tx_processq(sc, sc->sc_cabq, 1);
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5057,8 +5061,9 @@ ath_tx_proc_q0123(void *arg, int npending)
 	if (nacked)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5099,7 +5104,9 @@ ath_tx_proc(void *arg, int npending)
 		sc->sc_lastrx = ath_hal_gettsf64(sc->sc_ah);
 
 	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 
 	if (sc->sc_softled)
@@ -5315,8 +5322,9 @@ ath_draintxq(struct ath_softc *sc, ATH_RESET_TYPE reset_type)
 		}
 	}
 #endif /* ATH_DEBUG */
-	/* XXX check this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	sc->sc_wd_timer = 0;
 }
 
@@ -5522,8 +5530,9 @@ finish:
 	ath_hal_intrset(ah, sc->sc_imask);
 	ATH_PCU_UNLOCK(sc);
 
-	/* XXX do this inside of IF_LOCK? */
+	IF_LOCK(&ifp->if_snd);
 	ifp->if_drv_flags &= ~IFF_DRV_OACTIVE;
+	IF_UNLOCK(&ifp->if_snd);
 	ath_txrx_start(sc);
 	/* XXX ath_start? */
 
