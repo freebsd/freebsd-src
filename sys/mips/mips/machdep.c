@@ -347,8 +347,7 @@ mips_vector_init(void)
 	bcopy(MipsTLBMiss, (void *)MIPS_UTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 
-#if defined(CPU_CNMIPS) || defined(CPU_RMI) || defined(CPU_NLM)
-/* Fake, but sufficient, for the 32-bit with 64-bit hardware addresses  */
+#ifdef __mips_n64
 	bcopy(MipsTLBMiss, (void *)MIPS_XTLB_MISS_EXC_VEC,
 	      MipsTLBMissEnd - MipsTLBMiss);
 #endif
