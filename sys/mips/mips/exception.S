@@ -71,7 +71,7 @@
 /*
  * Reasonable limit
  */
-#define	INTRCNT_COUNT	128
+#define	INTRCNT_COUNT	256
 
 
 /*
@@ -1188,14 +1188,14 @@ sintrnames:
 	.int  INTRCNT_COUNT * (MAXCOMLEN + 1) * 2
 #endif
 
-	.align	4
+	.align	(_MIPS_SZLONG / 8)
 intrcnt:
-	.space  INTRCNT_COUNT * 4 * 2
+	.space  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 sintrcnt:
 #ifdef __mips_n64
-	.quad  INTRCNT_COUNT * 4 * 2
+	.quad  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #else
-	.int  INTRCNT_COUNT * 4 * 2
+	.int  INTRCNT_COUNT * (_MIPS_SZLONG / 8) * 2
 #endif
 
 
