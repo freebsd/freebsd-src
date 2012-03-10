@@ -30,7 +30,6 @@ mips/mips/cpu.c			standard
 mips/mips/elf_machdep.c		standard
 mips/mips/exception.S		standard
 mips/mips/gdb_machdep.c		standard
-# mips/mips/mainbus.c		standard
 mips/mips/pmap.c		standard
 mips/mips/trap.c		standard
 mips/mips/vm_machdep.c		standard
