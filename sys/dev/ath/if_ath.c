@@ -637,6 +637,19 @@ ath_attach(u_int16_t devid, struct ath_softc *sc)
 #endif
 
 	/*
+	 * TODO: enforce that at least this many frames are available
+	 * in the txbuf list before allowing data frames (raw or
+	 * otherwise) to be transmitted.
+	 */
+	sc->sc_txq_data_minfree = 10;
+	/*
+	 * Leave this as default to maintain legacy behaviour.
+	 * Shortening the cabq/mcastq may end up causing some
+	 * undesirable behaviour.
+	 */
+	sc->sc_txq_mcastq_maxdepth = ath_txbuf;
+
+	/*
 	 * Allow the TX and RX chainmasks to be overridden by
 	 * environment variables and/or device.hints.
 	 *
