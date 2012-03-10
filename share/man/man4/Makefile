@@ -250,6 +250,8 @@ MAN=	aac.4 \
 	mwlfw.4 \
 	mxge.4 \
 	my.4 \
+	nand.4 \
+	nandsim.4 \
 	natm.4 \
 	natmip.4 \
 	ncr.4 \
