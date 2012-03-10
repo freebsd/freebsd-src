@@ -1369,7 +1369,7 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 {
 	struct ieee80211vap *vap = ni->ni_vap;
 	struct ath_vap *avp = ATH_VAP(vap);
-	int r;
+	int r = 0;
 	u_int pri;
 	int tid;
 	struct ath_txq *txq;
@@ -1401,6 +1401,30 @@ ath_tx_start(struct ath_softc *sc, struct ieee80211_node *ni,
 	ismcast = IEEE80211_IS_MULTICAST(wh->i_addr1);
 	type = wh->i_fc[0] & IEEE80211_FC0_TYPE_MASK;
 	subtype = wh->i_fc[0] & IEEE80211_FC0_SUBTYPE_MASK;
+
+	/*
+	 * Enforce how deep the multicast queue can grow.
+	 *
+	 * XXX duplicated in ath_raw_xmit().
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ATH_TXQ_LOCK(sc->sc_cabq);
+		ATH_TXQ_LOCK(&avp->av_mcastq);
+
+		if ((sc->sc_cabq->axq_depth + avp->av_mcastq.axq_depth) >
+		    sc->sc_txq_mcastq_maxdepth) {
+			sc->sc_stats.ast_tx_mcastq_overflow++;
+			r = ENOBUFS;
+		}
+
+		ATH_TXQ_UNLOCK(&avp->av_mcastq);
+		ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+		if (r != 0) {
+			m_freem(m0);
+			return r;
+		}
+	}
 
 	/* A-MPDU TX */
 	is_ampdu_tx = ath_tx_ampdu_running(sc, ATH_NODE(ni), tid);
@@ -1734,7 +1758,10 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 	struct ifnet *ifp = ic->ic_ifp;
 	struct ath_softc *sc = ifp->if_softc;
 	struct ath_buf *bf;
-	int error;
+	struct ieee80211_frame *wh = mtod(m, struct ieee80211_frame *);
+	struct ieee80211vap *vap = ni->ni_vap;
+	struct ath_vap *avp = ATH_VAP(vap);
+	int error = 0;
 
 	ATH_PCU_LOCK(sc);
 	if (sc->sc_inreset_cnt > 0) {
@@ -1755,6 +1782,31 @@ ath_raw_xmit(struct ieee80211_node *ni, struct mbuf *m,
 		error = ENETDOWN;
 		goto bad;
 	}
+
+	/*
+	 * Enforce how deep the multicast queue can grow.
+	 *
+	 * XXX duplicated in ath_tx_start().
+	 */
+	if (IEEE80211_IS_MULTICAST(wh->i_addr1)) {
+		ATH_TXQ_LOCK(sc->sc_cabq);
+		ATH_TXQ_LOCK(&avp->av_mcastq);
+
+		if ((sc->sc_cabq->axq_depth + avp->av_mcastq.axq_depth) >
+		    sc->sc_txq_mcastq_maxdepth) {
+			sc->sc_stats.ast_tx_mcastq_overflow++;
+			error = ENOBUFS;
+		}
+
+		ATH_TXQ_UNLOCK(&avp->av_mcastq);
+		ATH_TXQ_UNLOCK(sc->sc_cabq);
+
+		if (error != 0) {
+			m_freem(m);
+			goto bad;
+		}
+	}
+
 	/*
 	 * Grab a TX buffer and associated resources.
 	 */
